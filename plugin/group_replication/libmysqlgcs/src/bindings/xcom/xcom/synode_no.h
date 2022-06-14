@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,36 +23,29 @@
 #ifndef SYNODE_NO_H
 #define SYNODE_NO_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_common.h"
+#include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define FILENAME_SYNODE_FMT "%x_%PRIu64%u"
+#define FILENAME_SYNODE_FMT "%x_%" PRIu64 "_%u"
 #define FILENAME_SYNODE_MEM(x) SY_MEM(x)
 #define NULL_SYNODE \
   { 0ul, 0ull, 0ull }
 #define SY_FMT "{" SY_FMT_DEF "}"
-#define SY_FMT_DEF "%x %" PRIu64 " %u"
+#define SY_FMT_DEF "%x %" PRIu64 " %" PRIu32
 #define SY_MEM(s) (s).group_id, (uint64_t)(s).msgno, (s).node
 
 int synode_eq(synode_no x, synode_no y);
 int synode_gt(synode_no x, synode_no y);
 int synode_lt(synode_no x, synode_no y);
-static const synode_no null_synode = NULL_SYNODE;
-synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
-                             uint32_t groupid);
+extern "C" synode_no const null_synode;
 void add_synode_event(synode_no const synode);
+
+static inline int group_mismatch(synode_no x, synode_no y) {
+  return x.group_id != y.group_id;
+}
 
 void synode_array_move(synode_no_array *const to, synode_no_array *const from);
 void synode_app_data_array_move(synode_app_data_array *const to,
                                 synode_app_data_array *const from);
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif

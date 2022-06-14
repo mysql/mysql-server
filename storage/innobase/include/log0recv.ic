@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,5 +34,4 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Returns true if recovery is currently running.
 @return recv_recovery_on */
-UNIV_INLINE
-bool recv_recovery_is_on() { return (recv_recovery_on); }
+static inline bool recv_recovery_is_on() { return (recv_recovery_on); }

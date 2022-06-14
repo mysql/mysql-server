@@ -22,6 +22,7 @@
 --source include/big_test.inc
 --source include/force_restart.inc
 
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
@@ -67,6 +68,7 @@ while ($i < 100)
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
+
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3

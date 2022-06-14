@@ -47,7 +47,7 @@
 create user readuser@localhost identified by 'readuser';
 grant select on *.* to readuser@localhost;
 
---write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 #-- "Create relational TABLE "
 -->sql
  DROP SCHEMA if EXISTS xplugintest;
@@ -350,28 +350,7 @@ DROP TABLE categories_child;
 -->endsql
 
 #-- "Create DOCUMENT table "
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "maincollection"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection	{"schema":"xplugintest","name":"maincollection"}
 -->recvresult
 
 -->echo Insert multiple rows into a Document column
@@ -404,7 +383,7 @@ Mysqlx.Crud.Insert {
 }
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "Non unique value for _id member of `doc` "
@@ -435,11 +414,11 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->expecterror ER_X_DOC_ID_DUPLICATE
+-->expecterror ER_X_DUPLICATE_ENTRY
 -->recvresult
 -->echo "Error expected as non unique value for _id provided for member of JSON doc "
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "No _id member for JSON doc"
@@ -463,7 +442,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error expected as _id member is not provided for JSON doc "
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "projection is not allowed for DOCUMENT table"
@@ -492,7 +471,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error expected as projection given for DOCUMENT table "
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "Error when inserting doc as null"
@@ -513,7 +492,7 @@ Mysqlx.Crud.Insert {
 -->expecterror ER_X_BAD_PROJECTION,ER_X_DOC_ID_MISSING
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 
@@ -537,7 +516,7 @@ Mysqlx.Crud.Insert {
 }
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "Insert using transaction"
@@ -610,7 +589,7 @@ COMMIT;
 -->endsql
 
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 
@@ -639,7 +618,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error as table is locked with read lock"
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->sql
@@ -665,20 +644,20 @@ Mysqlx.Crud.Insert {
 }
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 UNLOCK TABLES;
 -->endsql
 
 EOF
 
 --replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 
 
 
 # "Error : Insert when user has only select access "
---write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 -->sql
 SET SESSION lock_wait_timeout= 3;
 -->endsql
@@ -710,13 +689,13 @@ SELECT * FROM xplugintest.categories;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u readuser --password='readuser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
+--exec $MYSQLXTEST -u readuser --password='readuser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl 2>&1
 
 # Acquire lock on categories table from mysqltest client
 # and try to run insert from mysqlxtest (Error : timeout expected from mysqlxtest)
 LOCK TABLES xplugintest.categories WRITE;
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 UNLOCK TABLES;
 
 
@@ -725,7 +704,7 @@ UNLOCK TABLES;
 DELETE FROM xplugintest.maincollection;
 perl;
  my $dir = $ENV{'MYSQL_TMP_DIR'};
- open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ open ( OUTPUT, ">$dir/mysqlx-in.xpl") ;
  $message = <<"END_MESSAGE";
 Mysqlx.Crud.Insert {
   collection {
@@ -764,7 +743,7 @@ END_MESSAGE
        $find = "insert_json_doc";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
-       print OUTPUT "-->expecterror ER_SUCCESS,ER_X_DOC_ID_DUPLICATE\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_X_DUPLICATE_ENTRY\n";
        print OUTPUT "-->recvresult\n";
     }
  }
@@ -773,8 +752,8 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out2.xpl 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 SELECT COUNT(*) FROM xplugintest.maincollection;
@@ -782,7 +761,4 @@ SELECT COUNT(*) FROM xplugintest.maincollection;
 ## Cleanup
 DROP SCHEMA if EXISTS xplugintest;
 DROP USER readuser@localhost;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

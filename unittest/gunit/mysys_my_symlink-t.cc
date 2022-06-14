@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ namespace mysys_my_symlink {
 #if !defined(_WIN32)
 TEST(Mysys, MysysMySymlink) {
   char filename[FN_REFLEN];
-  int fd = create_temp_file(filename, NULL, "gunit_mysys_symlink",
+  int fd = create_temp_file(filename, nullptr, "gunit_mysys_symlink",
                             O_CREAT | O_WRONLY, KEEP_FILE, MYF(MY_WME));
   EXPECT_GT(fd, 0);
 

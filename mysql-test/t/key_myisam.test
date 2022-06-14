@@ -162,12 +162,15 @@ CREATE TABLE t1( a INT, b INT, KEY( a ) ) engine=myisam;
 INSERT INTO t1 values (1, 2), (1, 3), (2, 3), (2, 4), (3, 4), (3, 5);
 
 EXPLAIN SELECT a, SUM( b ) FROM t1 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT a, SUM( b ) FROM t1 USE INDEX( a ) GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT a, SUM( b ) FROM t1 FORCE INDEX( a ) GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;

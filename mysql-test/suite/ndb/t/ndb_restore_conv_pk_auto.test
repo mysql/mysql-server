@@ -1,0 +1,246 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
+use test;
+
+--echo ********************************
+--echo Autoincrement extend pk
+--echo Prepare table + backup with log
+--echo ********************************
+
+create table test.autokey (
+  ak   bigint unsigned not null auto_increment,
+  ok   bigint unsigned not null,
+  data varchar(200) not null,
+  primary key(ak),
+  key(ok))
+engine=ndb;
+
+insert into test.autokey (ok,data) values 
+  (1, "1-1"),
+  (1, "1-2"),
+  (1, "1-3"),
+  (1, "1-4"),
+  (2, "2-1"),
+  (2, "2-2"),
+  (2, "2-3"),
+  (3, "3-1"),
+  (3, "3-2"),
+  (3, "3-3");
+
+select * from test.autokey order by data;
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.autokey (ok,data) values
+  (4, "4-1"),
+  (4, "4-2"),
+  (4, "4-3"),
+  (5, "5-1"),
+  (5, "5-2");
+
+update test.autokey set data = concat(data, "-mk2");
+
+# Make some changes to all non-pk cols
+# Null change to ok
+update test.autokey set ok=ok, data=concat(data,"-1");
+# Non-null change to ok, still unique (transactionally)
+# update test.autokey set ok=ok+1, data=concat(data,"-2");
+# update test.autokey set ok=ok-1, data=concat(data,"-3");
+
+delete from test.autokey where ok=2;
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+select * from test.autokey order by data;
+
+--echo Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+
+#--exec $NDB_DESC -dtest autokey
+
+drop table test.autokey;
+
+
+--echo Primary key extended to include another column
+--echo  PK order changed
+--echo  Extra secondary index dropped
+--echo **********************************************
+create table test.autokey (
+  ak   bigint unsigned not null auto_increment,
+  ok   bigint unsigned not null,
+  data varchar(200) not null,
+  primary key(ok,ak))
+engine=ndb partition by key(ok);
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.autokey order by data;
+
+--echo Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+
+#--exec $NDB_DESC -dtest autokey
+
+drop table test.autokey;
+
+
+--echo Primary key extended to include another column
+--echo  PK column demoted
+--echo  !PK column promoted
+--echo  PK order changed
+--echo  Extra secondary index dropped
+--echo **********************************************
+create table test.autokey (
+  ak   bigint unsigned not null auto_increment,
+  ok   int unsigned not null,
+  data varchar(250) not null,
+  primary key(ok,ak))
+engine=ndb partition by key(ok);
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.autokey order by data;
+
+--echo Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+
+#--exec $NDB_DESC -dtest autokey
+
+drop table test.autokey;
+
+
+--echo ********************************
+--echo Autoincrement reduce pk
+--echo Prepare table + backup with log
+--echo ********************************
+create table test.autokey (
+  ak   bigint unsigned not null auto_increment,
+  ok   bigint unsigned not null,
+  data varchar(200) not null,
+  primary key(ok,ak))
+engine=ndb partition by key(ok);
+
+insert into test.autokey (ok,data) values 
+  (1, "1-1"),
+  (1, "1-2"),
+  (1, "1-3"),
+  (1, "1-4"),
+  (2, "2-1"),
+  (2, "2-2"),
+  (2, "2-3"),
+  (3, "3-1"),
+  (3, "3-2"),
+  (3, "3-3");
+
+select * from test.autokey order by data;
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.autokey (ok,data) values
+  (4, "4-1"),
+  (4, "4-2"),
+  (4, "4-3"),
+  (5, "5-1"),
+  (5, "5-2");
+
+update test.autokey set data = concat(data, "-mk2");
+delete from test.autokey where ok=2;
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+select * from test.autokey order by data;
+
+--echo Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+
+#--exec $NDB_DESC -dtest autokey
+
+drop table test.autokey;
+
+--echo Primary key reduced down to autoincrement
+--echo  Extra secondary index
+--echo **********************************************
+create table test.autokey (
+  ak   bigint unsigned not null auto_increment,
+  ok   bigint unsigned not null,
+  data varchar(200) not null,
+  primary key(ak),
+  key(ok))
+engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.autokey order by data;
+
+--echo Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+
+#--exec $NDB_DESC -dtest autokey
+
+drop table test.autokey;
+
+--echo Primary key reduced down to autoincrement
+--echo  Ex-PK demoted
+--echo  Non-PK demoted
+--echo  Extra secondary index
+--echo **********************************************
+create table test.autokey (
+  ak   bigint unsigned not null auto_increment,
+  ok   int unsigned not null,
+  data varchar(20) not null,
+  primary key(ak),
+  key(ok))
+engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.autokey order by data;
+
+--echo Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+
+#--exec $NDB_DESC -dtest autokey
+
+drop table test.autokey;
+
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

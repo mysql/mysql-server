@@ -46,7 +46,7 @@ FROM performance_schema.user_defined_functions
 WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
 ORDER BY udf_name;
 udf_name	udf_return_type	udf_type	udf_library	udf_usage_count>0
-myfunc_int	integer	function		1
+myfunc_int	integer	function	NULL	1
 connection c1;
 myfunc_int(23)
 23

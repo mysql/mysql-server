@@ -14,7 +14,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR start_create';
 INSERT INTO parent VALUES(4, 2);
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 connection default;
-ERROR 23000: Duplicate entry '2' for key 'idx'
+ERROR 23000: Duplicate entry '2' for key 'parent.idx'
 SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
 connection con1;
 SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';

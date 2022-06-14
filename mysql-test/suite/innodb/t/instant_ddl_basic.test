@@ -1,0 +1,61 @@
+##########################################################################
+# Test script to test ALTER TABLE ADD/DROP COLUMN ... ALGORITHM=INSTANT
+# for a table with
+#  - No key defined.
+#  - PK defined.
+#  - Secondary index defined.
+##########################################################################
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+
+# Test without any index
+let $clust_index=;
+let $sec_index=;
+--source suite/innodb/include/instant_ddl_basic.inc
+
+# Test with clustered index
+let $clust_index=, PRIMARY KEY (c1);
+--source suite/innodb/include/instant_ddl_basic.inc
+
+# Test with secondary index
+let $sec_index=, KEY (c2);
+--source suite/innodb/include/instant_ddl_basic.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+
+# Test without any index
+let $clust_index=;
+let $sec_index=;
+--source suite/innodb/include/instant_ddl_basic.inc
+
+# Test with clustered index
+let $clust_index=, PRIMARY KEY (c1);
+--source suite/innodb/include/instant_ddl_basic.inc
+
+# Test with secondary index
+let $sec_index=, KEY (c2);
+--source suite/innodb/include/instant_ddl_basic.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+
+# Test without any index
+let $clust_index=;
+let $sec_index=;
+--source suite/innodb/include/instant_ddl_basic.inc
+
+# Test with clustered index
+let $clust_index=, PRIMARY KEY (c1);
+--source suite/innodb/include/instant_ddl_basic.inc
+
+# Test with secondary index
+let $sec_index=, KEY (c2);
+--source suite/innodb/include/instant_ddl_basic.inc

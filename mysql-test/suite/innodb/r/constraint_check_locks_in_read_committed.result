@@ -15,7 +15,7 @@ a	b
 5	5
 # conflicts on `a`, but not on `b`
 INSERT INTO t1 VALUES (0,5);
-ERROR 23000: Duplicate entry '0' for key 'a'
+ERROR 23000: Duplicate entry '0' for key 't1.a'
 SELECT index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1';
@@ -31,7 +31,7 @@ a	b
 4	4
 # conflicts on `b`, but not on `a`
 INSERT INTO t1 VALUES (5,0);
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't1.PRIMARY'
 SELECT index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1';
@@ -47,7 +47,7 @@ a	b
 4	4
 # conflicts on both `a` and `b`
 INSERT INTO t1 VALUES (0,0);
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't1.PRIMARY'
 SELECT index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1';
@@ -69,7 +69,7 @@ WHERE object_schema='test' AND object_name = 't1';
 index_name	lock_type	lock_mode	lock_status	lock_data
 NULL	TABLE	IX	GRANTED	NULL
 a	RECORD	S	GRANTED	2, 2
-a	RECORD	S	GRANTED	3, 3
+a	RECORD	S,GAP	GRANTED	3, 3
 a	RECORD	S,GAP	GRANTED	2, 5
 COMMIT;
 SELECT * FROM t1;
@@ -104,7 +104,7 @@ index_name	lock_type	lock_mode	lock_status	lock_data
 NULL	TABLE	IX	GRANTED	NULL
 PRIMARY	RECORD	S,REC_NOT_GAP	GRANTED	2
 a	RECORD	S	GRANTED	2, 2
-a	RECORD	S	GRANTED	3, 3
+a	RECORD	S,GAP	GRANTED	3, 3
 COMMIT;
 SELECT * FROM t1;
 a	b
@@ -115,7 +115,7 @@ a	b
 4	4
 # conflicts on `a` with deleted, and with `b` on not-deleted
 INSERT INTO t1 VALUES (2,0);
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't1.PRIMARY'
 SELECT index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1';
@@ -131,7 +131,7 @@ a	b
 4	4
 # conflicts on `b` with deleted, and with `a` on not-deleted
 INSERT INTO t1 VALUES (0,2);
-ERROR 23000: Duplicate entry '0' for key 'a'
+ERROR 23000: Duplicate entry '0' for key 't1.a'
 SELECT index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1';
@@ -203,7 +203,7 @@ index_name	lock_type	lock_mode	lock_status	lock_data
 NULL	TABLE	IX	GRANTED	NULL
 PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	0
 a	RECORD	X,REC_NOT_GAP	GRANTED	0, 0
-a	RECORD	X	GRANTED	0, 0
+a	RECORD	X,GAP	GRANTED	0, 0
 a	RECORD	X	GRANTED	1, 1
 COMMIT;
 SELECT * FROM t1;

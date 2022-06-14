@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,34 +26,24 @@
 #
 #  STANDALONE
 #    Build with prefix=/usr/local/mysql, create tarball with install prefix="."
-#    and relative links.  Windows zip uses the same tarball layout but without
-#    the build prefix.
+#    and relative links.
 #
-#  RPM, SLES
+#  RPM
 #    Build as per default RPM layout, with prefix=/usr
-#    Note: The layout for ULN RPMs differs, see the "RPM" section.
 #
 #  DEB
-#    Build as per STANDALONE, prefix=/opt/mysql/server-$major.$minor
+#    Similar to RPM layout.
 #
 #  SVR4
 #    Solaris package layout suitable for pkg* tools, prefix=/opt/mysql/mysql
 #
-#  FREEBSD, GLIBC, OSX, TARGZ
+#  TARGZ
 #    Build with prefix=/usr/local/mysql, create tarball with install prefix="."
 #    and relative links.
-#
-#  WIN
-#     Windows zip : same as tarball layout but without the build prefix
 #
 # To force a directory layout, use -DINSTALL_LAYOUT=<layout>.
 #
 # The default is STANDALONE.
-#
-# Note : At present, RPM and SLES layouts are similar. This is also true
-#        for layouts like FREEBSD, GLIBC, OSX, TARGZ. However, they provide
-#        opportunity to fine-tune deployment for each platform without
-#        affecting all other types of deployment.
 #
 # There is the possibility to further fine-tune installation directories.
 # Several variables can be overwritten:
@@ -62,6 +52,7 @@
 # - INSTALL_SBINDIR         (directory with mysqld)
 #
 # - INSTALL_LIBDIR          (directory with client libraries)
+# - INSTALL_PRIV_LIBDIR     (directory with mysql private libraries)
 # - INSTALL_PLUGINDIR       (directory for plugins)
 #
 # - INSTALL_INCLUDEDIR      (directory for MySQL headers)
@@ -82,23 +73,21 @@
 # - INSTALL_PARTIAL_REVOKES (--partial-revokes)
 #
 # When changing this page,  _please_ do not forget to update public Wiki
-# http://forge.mysql.com/wiki/CMake#Fine-tuning_installation_paths
+# https://dev.mysql.com/doc/refman/8.0/en/source-configuration-options.html#option_cmake_install_layout
 
 IF(NOT INSTALL_LAYOUT)
   SET(DEFAULT_INSTALL_LAYOUT "STANDALONE")
 ENDIF()
 
 SET(INSTALL_LAYOUT "${DEFAULT_INSTALL_LAYOUT}"
-CACHE STRING "Installation directory layout. Options are: TARGZ (as in tar.gz installer), WIN (as in zip installer), STANDALONE, RPM, DEB, SVR4, FREEBSD, GLIBC, OSX, SLES")
+  CACHE STRING "Installation directory layout. Options are: TARGZ (as in tar.gz installer), STANDALONE, RPM, DEB, SVR4"
+  )
 
 IF(UNIX)
-  IF(INSTALL_LAYOUT MATCHES "RPM" OR
-     INSTALL_LAYOUT MATCHES "SLES")
+  IF(INSTALL_LAYOUT MATCHES "RPM")
     SET(default_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT MATCHES "DEB")
-    SET(default_prefix "/opt/mysql/server-${MYSQL_BASE_VERSION}")
-    # This is required to avoid "cpack -GDEB" default of prefix=/usr
-    SET(CPACK_SET_DESTDIR ON)
+    SET(default_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
     SET(default_prefix "/opt/mysql/mysql")
   ELSE()
@@ -108,7 +97,8 @@ IF(UNIX)
     SET(CMAKE_INSTALL_PREFIX ${default_prefix}
       CACHE PATH "install prefix" FORCE)
   ENDIF()
-  SET(VALID_INSTALL_LAYOUTS "RPM" "DEB" "SVR4" "FREEBSD" "GLIBC" "OSX" "TARGZ" "SLES" "STANDALONE")
+  SET(VALID_INSTALL_LAYOUTS
+    "RPM" "DEB" "SVR4" "TARGZ" "STANDALONE")
   LIST(FIND VALID_INSTALL_LAYOUTS "${INSTALL_LAYOUT}" ind)
   IF(ind EQUAL -1)
     MESSAGE(FATAL_ERROR "Invalid INSTALL_LAYOUT parameter:${INSTALL_LAYOUT}."
@@ -120,8 +110,16 @@ IF(UNIX)
   MARK_AS_ADVANCED(SYSCONFDIR)
 ENDIF()
 
+IF(LINUX AND INSTALL_LAYOUT MATCHES "STANDALONE")
+  SET(LINUX_STANDALONE 1)
+ENDIF()
+
+IF(LINUX AND INSTALL_LAYOUT MATCHES "RPM")
+  SET(LINUX_RPM 1)
+ENDIF()
+
 IF(WIN32)
-  SET(VALID_INSTALL_LAYOUTS "TARGZ" "STANDALONE" "WIN")
+  SET(VALID_INSTALL_LAYOUTS "TARGZ" "STANDALONE")
   LIST(FIND VALID_INSTALL_LAYOUTS "${INSTALL_LAYOUT}" ind)
   IF(ind EQUAL -1)
     MESSAGE(FATAL_ERROR "Invalid INSTALL_LAYOUT parameter:${INSTALL_LAYOUT}."
@@ -130,23 +128,11 @@ IF(WIN32)
 ENDIF()
 
 #
-# plugin_tests's value should not be used by imported plugins,
-# just use if(INSTALL_PLUGINTESTDIR).
-# The plugin must set its own install path for tests
-#
-FILE(GLOB plugin_tests
-  ${CMAKE_SOURCE_DIR}/plugin/*/tests
-  ${CMAKE_SOURCE_DIR}/internal/plugin/*/tests
-)
-
-#
 # DEFAULT_SECURE_FILE_PRIV_DIR
 #
-IF(INSTALL_LAYOUT MATCHES "STANDALONE" OR
-   INSTALL_LAYOUT MATCHES "WIN")
+IF(INSTALL_LAYOUT MATCHES "STANDALONE")
   SET(secure_file_priv_path "NULL")
 ELSEIF(INSTALL_LAYOUT MATCHES "RPM" OR
-       INSTALL_LAYOUT MATCHES "SLES" OR
        INSTALL_LAYOUT MATCHES "SVR4" OR
        INSTALL_LAYOUT MATCHES "DEB")
   SET(secure_file_priv_path "/var/lib/mysql-files")
@@ -161,6 +147,7 @@ SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
+SET(INSTALL_PRIV_LIBDIR_STANDALONE      "lib/private")
 SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_STANDALONE       "include")
@@ -177,112 +164,7 @@ SET(INSTALL_SUPPORTFILESDIR_STANDALONE  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_STANDALONE     "data")
 SET(INSTALL_MYSQLKEYRINGDIR_STANDALONE  "keyring")
-SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_STANDALONE ${secure_file_priv_path})
-
-#
-# WIN layout
-#
-SET(INSTALL_BINDIR_WIN           "bin")
-SET(INSTALL_SBINDIR_WIN          "bin")
-#
-SET(INSTALL_LIBDIR_WIN           "lib")
-SET(INSTALL_PLUGINDIR_WIN        "lib/plugin")
-#
-SET(INSTALL_INCLUDEDIR_WIN       "include")
-#
-SET(INSTALL_DOCDIR_WIN           "docs")
-SET(INSTALL_DOCREADMEDIR_WIN     ".")
-SET(INSTALL_MANDIR_WIN           "man")
-SET(INSTALL_INFODIR_WIN          "docs")
-#
-SET(INSTALL_SHAREDIR_WIN         "share")
-SET(INSTALL_MYSQLSHAREDIR_WIN    "share")
-SET(INSTALL_MYSQLTESTDIR_WIN     "mysql-test")
-SET(INSTALL_SUPPORTFILESDIR_WIN  "support-files")
-#
-SET(INSTALL_MYSQLDATADIR_WIN     "data")
-SET(INSTALL_MYSQLKEYRINGDIR_WIN  "keyring")
-SET(INSTALL_PLUGINTESTDIR_WIN    ${plugin_tests})
-SET(INSTALL_SECURE_FILE_PRIVDIR_WIN ${secure_file_priv_path})
-
-#
-# FREEBSD layout
-#
-SET(INSTALL_BINDIR_FREEBSD           "bin")
-SET(INSTALL_SBINDIR_FREEBSD          "bin")
-#
-SET(INSTALL_LIBDIR_FREEBSD           "lib")
-SET(INSTALL_PLUGINDIR_FREEBSD        "lib/plugin")
-#
-SET(INSTALL_INCLUDEDIR_FREEBSD       "include")
-#
-SET(INSTALL_DOCDIR_FREEBSD           "docs")
-SET(INSTALL_DOCREADMEDIR_FREEBSD     ".")
-SET(INSTALL_MANDIR_FREEBSD           "man")
-SET(INSTALL_INFODIR_FREEBSD          "docs")
-#
-SET(INSTALL_SHAREDIR_FREEBSD         "share")
-SET(INSTALL_MYSQLSHAREDIR_FREEBSD    "share")
-SET(INSTALL_MYSQLTESTDIR_FREEBSD     "mysql-test")
-SET(INSTALL_SUPPORTFILESDIR_FREEBSD  "support-files")
-#
-SET(INSTALL_MYSQLDATADIR_FREEBSD     "data")
-SET(INSTALL_MYSQLKEYRINGDIR_FREEBSD  "keyring")
-SET(INSTALL_PLUGINTESTDIR_FREEBSD    ${plugin_tests})
-SET(INSTALL_SECURE_FILE_PRIVDIR_FREEBSD ${secure_file_priv_path})
-
-#
-# GLIBC layout
-#
-SET(INSTALL_BINDIR_GLIBC           "bin")
-SET(INSTALL_SBINDIR_GLIBC          "bin")
-#
-SET(INSTALL_LIBDIR_GLIBC           "lib")
-SET(INSTALL_PLUGINDIR_GLIBC        "lib/plugin")
-#
-SET(INSTALL_INCLUDEDIR_GLIBC       "include")
-#
-SET(INSTALL_DOCDIR_GLIBC           "docs")
-SET(INSTALL_DOCREADMEDIR_GLIBC     ".")
-SET(INSTALL_MANDIR_GLIBC           "man")
-SET(INSTALL_INFODIR_GLIBC          "docs")
-#
-SET(INSTALL_SHAREDIR_GLIBC         "share")
-SET(INSTALL_MYSQLSHAREDIR_GLIBC    "share")
-SET(INSTALL_MYSQLTESTDIR_GLIBC     "mysql-test")
-SET(INSTALL_SUPPORTFILESDIR_GLIBC  "support-files")
-#
-SET(INSTALL_MYSQLDATADIR_GLIBC     "data")
-SET(INSTALL_MYSQLKEYRINGDIR_GLIBC  "keyring")
-SET(INSTALL_PLUGINTESTDIR_GLIBC    ${plugin_tests})
-SET(INSTALL_SECURE_FILE_PRIVDIR_GLIBC ${secure_file_priv_path})
-
-#
-# OSX layout
-#
-SET(INSTALL_BINDIR_OSX           "bin")
-SET(INSTALL_SBINDIR_OSX          "bin")
-#
-SET(INSTALL_LIBDIR_OSX           "lib")
-SET(INSTALL_PLUGINDIR_OSX        "lib/plugin")
-#
-SET(INSTALL_INCLUDEDIR_OSX       "include")
-#
-SET(INSTALL_DOCDIR_OSX           "docs")
-SET(INSTALL_DOCREADMEDIR_OSX     ".")
-SET(INSTALL_MANDIR_OSX           "man")
-SET(INSTALL_INFODIR_OSX          "docs")
-#
-SET(INSTALL_SHAREDIR_OSX         "share")
-SET(INSTALL_MYSQLSHAREDIR_OSX    "share")
-SET(INSTALL_MYSQLTESTDIR_OSX     "mysql-test")
-SET(INSTALL_SUPPORTFILESDIR_OSX  "support-files")
-#
-SET(INSTALL_MYSQLDATADIR_OSX     "data")
-SET(INSTALL_MYSQLKEYRINGDIR_OSX  "keyring")
-SET(INSTALL_PLUGINTESTDIR_OSX    ${plugin_tests})
-SET(INSTALL_SECURE_FILE_PRIVDIR_OSX ${secure_file_priv_path})
 
 #
 # TARGZ layout
@@ -291,6 +173,7 @@ SET(INSTALL_BINDIR_TARGZ           "bin")
 SET(INSTALL_SBINDIR_TARGZ          "bin")
 #
 SET(INSTALL_LIBDIR_TARGZ           "lib")
+SET(INSTALL_PRIV_LIBDIR_TARGZ      "lib/mysql/private")
 SET(INSTALL_PLUGINDIR_TARGZ        "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_TARGZ       "include")
@@ -307,25 +190,30 @@ SET(INSTALL_SUPPORTFILESDIR_TARGZ  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_TARGZ     "data")
 SET(INSTALL_MYSQLKEYRINGDIR_TARGZ  "keyring")
-SET(INSTALL_PLUGINTESTDIR_TARGZ    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_TARGZ ${secure_file_priv_path})
 
 #
 # RPM layout
 #
-# See "packaging/rpm-uln/mysql-5.5-libdir.patch" for the differences
-# which apply to RPMs in ULN (Oracle Linux), that patch file will
-# be applied at build time via "rpmbuild".
-#
 SET(INSTALL_BINDIR_RPM                  "bin")
 SET(INSTALL_SBINDIR_RPM                 "sbin")
 #
-IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-  SET(INSTALL_LIBDIR_RPM                "lib64")
-  SET(INSTALL_PLUGINDIR_RPM             "lib64/mysql/plugin")
+IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
+  SET(INSTALL_LIBDIR_RPM                "lib64/mysql")
+  SET(INSTALL_PRIV_LIBDIR_RPM           "lib64/mysql/private")
+  IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+    SET(INSTALL_PLUGINDIR_RPM           "lib64/mysql/plugin/debug")
+  ELSE()
+    SET(INSTALL_PLUGINDIR_RPM           "lib64/mysql/plugin")
+  ENDIF()
 ELSE()
-  SET(INSTALL_LIBDIR_RPM                "lib")
-  SET(INSTALL_PLUGINDIR_RPM             "lib/mysql/plugin")
+  SET(INSTALL_LIBDIR_RPM                "lib/mysql")
+  SET(INSTALL_PRIV_LIBDIR_RPM           "lib/mysql/private")
+  IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+    SET(INSTALL_PLUGINDIR_RPM           "lib/mysql/plugin/debug")
+  ELSE()
+    SET(INSTALL_PLUGINDIR_RPM           "lib/mysql/plugin")
+  ENDIF()
 ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_RPM              "include/mysql")
@@ -342,64 +230,36 @@ SET(INSTALL_SUPPORTFILESDIR_RPM         "share/mysql-${MYSQL_BASE_VERSION}")
 #
 SET(INSTALL_MYSQLDATADIR_RPM            "/var/lib/mysql")
 SET(INSTALL_MYSQLKEYRINGDIR_RPM         "/var/lib/mysql-keyring")
-SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_RPM     ${secure_file_priv_path})
-
-#
-# SLES layout
-#
-SET(INSTALL_BINDIR_SLES                  "bin")
-SET(INSTALL_SBINDIR_SLES                 "sbin")
-#
-IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-  SET(INSTALL_LIBDIR_SLES                "lib64")
-  SET(INSTALL_PLUGINDIR_SLES             "lib64/mysql/plugin")
-ELSE()
-  SET(INSTALL_LIBDIR_SLES                "lib")
-  SET(INSTALL_PLUGINDIR_SLES             "lib/mysql/plugin")
-ENDIF()
-#
-SET(INSTALL_INCLUDEDIR_SLES              "include/mysql")
-#
-#SET(INSTALL_DOCDIR_SLES                 unset - installed directly by SLES)
-#SET(INSTALL_DOCREADMEDIR_SLES           unset - installed directly by SLES)
-SET(INSTALL_INFODIR_SLES                 "share/info")
-SET(INSTALL_MANDIR_SLES                  "share/man")
-#
-SET(INSTALL_SHAREDIR_SLES                "share")
-SET(INSTALL_MYSQLSHAREDIR_SLES           "share/mysql")
-SET(INSTALL_MYSQLTESTDIR_SLES            "share/mysql-test")
-SET(INSTALL_SUPPORTFILESDIR_SLES         "share/mysql")
-#
-SET(INSTALL_MYSQLDATADIR_SLES            "/var/lib/mysql")
-SET(INSTALL_MYSQLKEYRINGDIR_SLES         "/var/lib/mysql-keyring")
-SET(INSTALL_PLUGINTESTDIR_SLES           ${plugin_tests})
-SET(INSTALL_SECURE_FILE_PRIVDIR_SLES     ${secure_file_priv_path})
 
 #
 # DEB layout
 #
 SET(INSTALL_BINDIR_DEB                  "bin")
-SET(INSTALL_SBINDIR_DEB                 "bin")
+SET(INSTALL_SBINDIR_DEB                 "sbin")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
-SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
+SET(INSTALL_PRIV_LIBDIR_DEB             "lib/mysql/private")
+IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  SET(INSTALL_PLUGINDIR_DEB             "lib/mysql/plugin/debug")
+ELSE()
+  SET(INSTALL_PLUGINDIR_DEB             "lib/mysql/plugin")
+ENDIF()
 #
-SET(INSTALL_INCLUDEDIR_DEB              "include")
+SET(INSTALL_INCLUDEDIR_DEB              "include/mysql")
 #
 SET(INSTALL_DOCDIR_DEB                  "share/mysql-${MYSQL_BASE_VERSION}/docs")
 SET(INSTALL_DOCREADMEDIR_DEB            "share/mysql-${MYSQL_BASE_VERSION}")
-SET(INSTALL_MANDIR_DEB                  "man")
-SET(INSTALL_INFODIR_DEB                 "share/mysql-${MYSQL_BASE_VERSION}/docs")
+SET(INSTALL_MANDIR_DEB                  "share/man")
+SET(INSTALL_INFODIR_DEB                 "share/mysql/docs")
 #
 SET(INSTALL_SHAREDIR_DEB                "share")
 SET(INSTALL_MYSQLSHAREDIR_DEB           "share/mysql-${MYSQL_BASE_VERSION}")
-SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
+SET(INSTALL_MYSQLTESTDIR_DEB            "lib/mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_DEB         "share/mysql-${MYSQL_BASE_VERSION}")
 #
 SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
 SET(INSTALL_MYSQLKEYRINGDIR_DEB         "/var/lib/mysql-keyring")
-SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_DEB     ${secure_file_priv_path})
 
 #
@@ -409,6 +269,7 @@ SET(INSTALL_BINDIR_SVR4                 "bin")
 SET(INSTALL_SBINDIR_SVR4                "bin")
 #
 SET(INSTALL_LIBDIR_SVR4                 "lib")
+SET(INSTALL_PRIV_LIBDIR_SVR4            "lib/private")
 SET(INSTALL_PLUGINDIR_SVR4              "lib/plugin")
 #
 SET(INSTALL_INCLUDEDIR_SVR4             "include")
@@ -425,7 +286,6 @@ SET(INSTALL_SUPPORTFILESDIR_SVR4        "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_SVR4           "/var/lib/mysql")
 SET(INSTALL_MYSQLKEYRINGDIR_SVR4        "/var/lib/mysql-keyring")
-SET(INSTALL_PLUGINTESTDIR_SVR4          ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_SVR4    ${secure_file_priv_path})
 
 
@@ -440,11 +300,29 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # Set INSTALL_FOODIR variables for chosen layout (for example, INSTALL_BINDIR
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
-FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE DOC MAN
-  INFO MYSQLTEST DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
-  SECURE_FILE_PRIV MYSQLKEYRING)
-  SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
-  CACHE STRING "${var} installation directory" ${FORCE})
+FOREACH(var
+    BIN
+    DOC
+    DOCREADME
+    INCLUDE
+    INFO
+    LIB
+    MAN
+    MYSQLDATA
+    MYSQLKEYRING
+    MYSQLSHARE
+    MYSQLTEST
+    PLUGIN
+    PLUGINTEST
+    PRIV_LIB
+    SBIN
+    SECURE_FILE_PRIV
+    SHARE
+    SUPPORTFILES
+    )
+  SET(INSTALL_${var}DIR
+    ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
+    CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)
 ENDFOREACH()
 
@@ -471,3 +349,157 @@ ELSE()
   SET(DEFAULT_PARTIAL_REVOKES 0
       CACHE INTERNAL "default --partial-revokes" FORCE)
 ENDIF()
+
+
+# Install layout for router, follows the same pattern as above.
+#
+
+IF(NOT ROUTER_INSTALL_LAYOUT)
+  SET(DEFAULT_ROUTER_INSTALL_LAYOUT "${INSTALL_LAYOUT}")
+ENDIF()
+
+SET(ROUTER_INSTALL_LAYOUT "${DEFAULT_ROUTER_INSTALL_LAYOUT}"
+  CACHE
+  STRING
+  "Installation directory layout. Options are: STANDALONE RPM DEB SVR4 TARGZ")
+
+# If we are shared STANDALONE with the the server, we shouldn't write
+# into the server's data/ as that would create a "schemadir" in
+# mysql-servers sense
+#
+# STANDALONE layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_STANDALONE  ".")
+SET(ROUTER_INSTALL_DATADIR_STANDALONE    "var/lib/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_STANDALONE     ".")
+SET(ROUTER_INSTALL_RUNTIMEDIR_STANDALONE "run")
+
+SET(ROUTER_INSTALL_BINDIR_STANDALONE      "bin")
+IF(LINUX)
+  SET(ROUTER_INSTALL_LIBDIR_STANDALONE    "lib/mysqlrouter/private")
+ELSE()
+  SET(ROUTER_INSTALL_LIBDIR_STANDALONE    "lib")
+ENDIF()
+IF(WIN32)
+  SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib")
+ELSE()
+  SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib/mysqlrouter")
+ENDIF()
+SET(ROUTER_INSTALL_LOGROTATEDIR_STANDALONE  ".")
+SET(ROUTER_INSTALL_LOGROTATEFILE_STANDALONE "mysqlrouter-log-rotate")
+SET(ROUTER_INSTALL_DOCDIR_STANDALONE "docs")
+
+#
+# TARGZ layout
+#
+FOREACH(var
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    LOGROTATE
+    DOC
+    )
+  SET(ROUTER_INSTALL_${var}DIR_TARGZ ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
+
+FOREACH(var
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${var}FILE_TARGZ ${ROUTER_INSTALL_${var}FILE_STANDALONE})
+ENDFOREACH()
+
+#
+# RPM layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_RPM    "/etc/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_RPM      "/var/lib/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_RPM       "/var/log/mysqlrouter")
+IF (WITH_SYSTEMD)
+  SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/run/mysqlrouter")
+ELSE()
+  SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/var/run/mysqlrouter")
+ENDIF()
+
+SET(ROUTER_INSTALL_BINDIR_RPM     "bin")
+IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
+  SET(ROUTER_INSTALL_LIBDIR_RPM     "lib64/mysqlrouter/private")
+  SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib64/mysqlrouter")
+ELSE()
+  SET(ROUTER_INSTALL_LIBDIR_RPM     "lib/mysqlrouter/private")
+  SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib/mysqlrouter")
+ENDIF()
+SET(ROUTER_INSTALL_LOGROTATEDIR_RPM  "/etc/logrotate.d")
+SET(ROUTER_INSTALL_LOGROTATEFILE_RPM "mysqlrouter")
+#SET(ROUTER_INSTALL_DOCDIR_RPM       unset - installed directly by RPM)
+
+#
+# DEB layout
+#
+SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_DEB    "/var/lib/mysqlrouter")
+SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/run/mysqlrouter")
+
+SET(ROUTER_INSTALL_BINDIR_DEB     "bin")
+SET(ROUTER_INSTALL_LIBDIR_DEB     "lib/mysqlrouter/private")
+SET(ROUTER_INSTALL_PLUGINDIR_DEB  "lib/mysqlrouter/plugin")
+SET(ROUTER_INSTALL_LOGROTATEDIR_DEB  "/etc/logrotate.d")
+SET(ROUTER_INSTALL_LOGROTATEFILE_DEB "mysqlrouter")
+SET(ROUTER_INSTALL_DOCDIR_DEB "share/mysqlrouter/docs")
+
+#
+# SVR4 layout
+#
+FOREACH(var
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    LOGROTATE
+    DOC
+    )
+  SET(ROUTER_INSTALL_${var}DIR_SVR4 ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
+
+FOREACH(var
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${var}FILE_SVR4 ${ROUTER_INSTALL_${var}FILE_STANDALONE})
+ENDFOREACH()
+
+# Set ROUTER_INSTALL_FOODIR and ROUTER_INSTALL_FOOFILE variables for chosen layout
+# for example, ROUTER_INSTALL_CONFIGDIR will be defined as
+# ${ROUTER_INSTALL_CONFIGDIR_STANDALONE} by default if STANDALONE
+# layout is chosen.
+FOREACH(directory
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    LOGROTATE
+    DOC
+    )
+  SET(ROUTER_INSTALL_${directory}DIR
+    ${ROUTER_INSTALL_${directory}DIR_${ROUTER_INSTALL_LAYOUT}}
+    CACHE STRING "Router ${directory} installation directory")
+  MARK_AS_ADVANCED(ROUTER_INSTALL_${directory}DIR)
+ENDFOREACH()
+
+FOREACH(file
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${file}FILE
+    ${ROUTER_INSTALL_${file}FILE_${ROUTER_INSTALL_LAYOUT}}
+    CACHE STRING "Router ${file} installation filename")
+  MARK_AS_ADVANCED(ROUTER_INSTALL_${file}FILE)
+ENDFOREACH()

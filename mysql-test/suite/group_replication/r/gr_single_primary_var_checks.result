@@ -6,7 +6,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("It is not allowed to run single primary mode with 'enforce_update_everywhere_checks' enabled.");
+call mtr.add_suppression("It is not allowed to run single primary mode with 'group_replication_enforce_update_everywhere_checks' enabled.");
 SET SESSION sql_log_bin= 1;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
@@ -53,7 +53,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= 100;
 include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 1']
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-ERROR 42000: Cannot turn ON single_primary_mode while enforce_update_everywhere_checks is enabled.
+ERROR 42000: Cannot turn ON group_replication_single_primary_mode while group_replication_enforce_update_everywhere_checks is enabled.
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
 SET GLOBAL group_replication_single_primary_mode= TRUE;
@@ -66,7 +66,7 @@ SET GLOBAL group_replication_single_primary_mode= 100;
 include/assert.inc ['group_replication_single_primary_mode should be set to 1']
 SET GLOBAL group_replication_single_primary_mode= TRUE;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
-ERROR 42000: Cannot enable enforce_update_everywhere_checks while single_primary_mode is enabled.
+ERROR 42000: Cannot enable group_replication_enforce_update_everywhere_checks while group_replication_single_primary_mode is enabled.
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 include/assert.inc ['group_replication_single_primary_mode should be set to 0']
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
@@ -80,9 +80,9 @@ include/assert.inc ['group_replication_enforce_update_everywhere_checks should b
 include/start_and_bootstrap_group_replication.inc
 # PLUGIN VARIABLES SHOULD BE READ ONLY ON SERVER 1
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-ERROR HY000: Cannot modify group replication mode by changing system variable. Please use the group_replication_switch_to_single_primary_mode([member_uuid]) OR group_replication_switch_to_multi_primary_mode() UDF.
+ERROR HY000: Cannot modify group replication mode by changing group_replication_single_primary_mode system variable. Please use the group_replication_switch_to_single_primary_mode([member_uuid]) OR group_replication_switch_to_multi_primary_mode() UDF.
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
-ERROR HY000: Cannot turn ON/OFF update everywhere checks mode while Group Replication is running.
+ERROR HY000: Cannot turn ON/OFF group_replication_enforce_update_everywhere_checks mode while Group Replication is running.
 #
 # START GROUP REPLICATION ON SERVER 2
 [connection server2]
@@ -93,9 +93,9 @@ include/assert.inc ['group_replication_single_primary_mode should be set to 1']
 include/start_group_replication.inc
 # PLUGIN VARIABLES SHOULD BE READ ONLY ON SERVER 2
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-ERROR HY000: Cannot modify group replication mode by changing system variable. Please use the group_replication_switch_to_single_primary_mode([member_uuid]) OR group_replication_switch_to_multi_primary_mode() UDF.
+ERROR HY000: Cannot modify group replication mode by changing group_replication_single_primary_mode system variable. Please use the group_replication_switch_to_single_primary_mode([member_uuid]) OR group_replication_switch_to_multi_primary_mode() UDF.
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
-ERROR HY000: Cannot turn ON/OFF update everywhere checks mode while Group Replication is running.
+ERROR HY000: Cannot turn ON/OFF group_replication_enforce_update_everywhere_checks mode while Group Replication is running.
 include/group_replication_end.inc
 [connection server1]
 SET @@GLOBAL.group_replication_single_primary_mode= 0;

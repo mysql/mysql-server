@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -41,15 +39,16 @@
 
 #include "config_builder.h"
 #include "dim.h"
-#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "process_launcher.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "router_config.h"
 
 #include "mysqlrouter/rest_client.h"
+
+using namespace std::chrono_literals;
 
 class RestRouterApiTest
     : public RestApiComponentTest,
@@ -73,14 +72,13 @@ TEST_P(RestRouterApiTest, ensure_openapi) {
 
   const std::string userfile = create_password_file();
   auto config_sections = get_restapi_config("rest_router", userfile, true);
-  // rest_api section is always needed
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
-  fetch_and_validate_schema_and_resource(GetParam(), http_server);
+  ASSERT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }
 
 // ****************************************************************************
@@ -152,7 +150,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      kRouterSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethods, RestRouterApiTest,
     ::testing::ValuesIn(rest_api_valid_methods),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -178,7 +176,7 @@ static const RestApiTestParams rest_api_valid_methods_invalid_auth_params[]{
      kRouterSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsInvalidAuth, RestRouterApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_invalid_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -198,10 +196,11 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kRouterSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kRouterSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethods, RestRouterApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -217,23 +216,15 @@ INSTANTIATE_TEST_CASE_P(
  * [http_server] enabled but not the [rest_api] plugin.
  *
  */
-TEST_F(RestRouterApiTest, rest_api_secion_missing) {
+TEST_F(RestRouterApiTest, rest_api_section_missing_works) {
   const std::string userfile = create_password_file();
   auto config_sections = get_restapi_config("rest_router", userfile,
                                             /*request_authentication=*/true);
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
-
-  const std::string router_output = router.get_full_output();
-  EXPECT_NE(router_output.find("Plugin 'rest_router' needs plugin 'rest_api' "
-                               "which is missing in the configuration"),
-            router_output.npos)
-      << router_output;
+  launch_router({"-c", conf_file}, EXIT_SUCCESS);
 }
 
 /**
@@ -246,18 +237,16 @@ TEST_F(RestRouterApiTest, rest_router_section_twice) {
   auto config_sections = get_restapi_config("rest_router", userfile,
                                             /*request_authentication=*/true);
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   // force [rest_router] twice in the config
-  config_sections.push_back(ConfigBuilder::build_section("rest_router", {}));
+  config_sections.push_back(
+      mysql_harness::ConfigBuilder::build_section("rest_router", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find(
@@ -277,21 +266,17 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
   auto config_sections = get_restapi_config("rest_router:A", userfile,
                                             /*request_authentication=*/true);
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(
-      router_output.find("plugin 'rest_router' init failed: [rest_router] "
-                         "section does not expect a key, found 'A'"),
-      router_output.npos)
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr("  init 'rest_router' failed: [rest_router] "
+                                   "section does not expect a key, found 'A'"))
       << router_output;
 }
 
@@ -305,20 +290,17 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
   auto config_sections = get_restapi_config("rest_router", userfile,
                                             /*request_authentication=*/false);
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(router_output.find("plugin 'rest_router' init failed: option "
-                               "require_realm in [rest_router] is required"),
-            router_output.npos)
+  EXPECT_THAT(router_output, ::testing::HasSubstr(
+                                 "  init 'rest_router' failed: option "
+                                 "require_realm in [rest_router] is required"))
       << router_output;
 }
 
@@ -331,22 +313,19 @@ TEST_F(RestRouterApiTest, invalid_realm) {
   auto config_sections = get_restapi_config(
       "rest_router", userfile, /*request_authentication=*/true, "invalidrealm");
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(
-      router_output.find("Configuration error: unknown authentication "
-                         "realm for [rest_router] '': invalidrealm, known "
-                         "realm(s): somerealm"),
-      router_output.npos)
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr(
+          "Configuration error: The option 'require_realm=invalidrealm' "
+          "in [rest_router] does not match any http_auth_realm."))
       << router_output;
 }
 

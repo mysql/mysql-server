@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,10 +45,10 @@ class ScanFragReq {
   friend class Dblqh;
   friend class Dbspj;
 public:
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 
-  STATIC_CONST( AttrInfoSectionNum = 0 ); //Mandatory part
-  STATIC_CONST( KeyInfoSectionNum = 1 );  //Optional
+  static constexpr Uint32 AttrInfoSectionNum = 0; //Mandatory part
+  static constexpr Uint32 KeyInfoSectionNum = 1;  //Optional
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
   friend bool printSCAN_FRAGCONF(FILE *, const Uint32*, Uint32, Uint16);
@@ -128,6 +128,12 @@ public:
   // is the same as 'fragmentNoKeyLen'.
   static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
+
+  static void setFirstMatchFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getFirstMatchFlag(const Uint32 requestInfo);
+
+  static void setQueryThreadFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getQueryThreadFlag(const Uint32 requestInfo);
 };
 
 /*
@@ -155,8 +161,8 @@ class KeyInfo20 {
   friend class NdbOperation;
   friend class NdbScanReceiver;
 public:
-  STATIC_CONST( HeaderLength = 5);
-  STATIC_CONST( DataLength = 20 );
+  static constexpr Uint32 HeaderLength = 5;
+  static constexpr Uint32 DataLength = 20;
 
   
   static Uint32 setScanInfo(Uint32 noOfOps, Uint32 scanNo);
@@ -198,7 +204,9 @@ class ScanFragConf {
   friend class Backup;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
+  static constexpr Uint32 SignalLength_ext = 7;
+  static constexpr Uint32 SignalLength_query = 8;
   
 public:
   Uint32 senderData;
@@ -207,6 +215,19 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 total_len;  // Total #Uint32 returned as TRANSID_AI
+
+  /**
+   * ext'ended format used by SPJ: Allow it to report a bitmask
+   * of treeNode id's (tables) which are still 'active', such
+   * that more result rows will be returned in later NEXTREQ's.
+   */
+  Uint32 activeMask;
+  /**
+   * When query thread is used, DBTC and DBSPJ needs to know
+   * the senders reference to be able to send the following
+   * signals.
+   */
+  Uint32 senderRef;
 };
 
 class ScanFragRef {
@@ -222,7 +243,8 @@ class ScanFragRef {
   friend class Backup;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 SignalLength_query = 5;
 public:
   enum ErrorCode {
     ZNO_FREE_TC_CONREC_ERROR = 484,
@@ -243,6 +265,7 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 errorCode;
+  Uint32 senderRef;
 };
 
 /**
@@ -266,7 +289,7 @@ class ScanFragNextReq {
   friend bool printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, 
 				   Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
 public:
   Uint32 senderData;
@@ -307,6 +330,8 @@ public:
  * a = Prio A scan           - 1  Bit 18
  * i = Not interpreted flag  - 1  Bit 19
  * m = Multi fragment scan   - 1  Bit 20
+ * f = First match flag      - 1  Bit 21
+ * q = Query thread flag     - 1  Bit 22
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -340,6 +365,8 @@ public:
 #define SF_PRIO_A_SHIFT     (18)
 #define SF_NOT_INTERPRETED_SHIFT (19)
 #define SF_MULTI_FRAG_SHIFT  (20)
+#define SF_FIRST_MATCH_SHIFT (21)
+#define SF_QUERY_THREAD_SHIFT  (22)
 
 inline 
 Uint32
@@ -549,6 +576,34 @@ ScanFragReq::setMultiFragFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setMultiFragFlag");
   requestInfo= (requestInfo & ~(1 << SF_MULTI_FRAG_SHIFT)) |
                (val << SF_MULTI_FRAG_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getFirstMatchFlag(const Uint32 requestInfo){
+  return (requestInfo >> SF_FIRST_MATCH_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setFirstMatchFlag(Uint32 & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setFirstMatchFlag");
+  requestInfo= (requestInfo & ~(1 << SF_FIRST_MATCH_SHIFT)) |
+               (val << SF_FIRST_MATCH_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getQueryThreadFlag(const Uint32 requestInfo){
+  return (requestInfo >> SF_QUERY_THREAD_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setQueryThreadFlag(Uint32 & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setQueryThreadFlag");
+  requestInfo= (requestInfo & ~(1 << SF_QUERY_THREAD_SHIFT)) |
+               (val << SF_QUERY_THREAD_SHIFT);
 }
 
 inline

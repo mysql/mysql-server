@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef TRIX_H
 #define TRIX_H
 
+#include "portlib/ndb_compiler.h"
 #include <SimulatedBlock.hpp>
 #include <trigger_definitions.h>
 #include <DataBuffer.hpp>
@@ -51,7 +52,7 @@ class Trix : public SimulatedBlock
 {
 public:
   Trix(Block_context&);
-  virtual ~Trix();
+  ~Trix() override;
 
 public:
   // Subscription data, when communicating with SUMA

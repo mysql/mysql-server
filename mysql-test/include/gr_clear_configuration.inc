@@ -42,12 +42,39 @@ while ($_rpl_server <= $_rpl_server_max)
     SET GLOBAL group_replication_force_members= "";
     SET GLOBAL group_replication_bootstrap_group= OFF;
     SET GLOBAL read_only= FALSE;
+    SET GLOBAL group_replication_ip_allowlist= "AUTOMATIC";
+
+    # Result-log is enabled.
+    # RESET PERSIST can be executed by test-case.
+    # If RESET PERSIST is executed it is the responsibility of test case to restore ip_allowlist.
+    # If we disable result log, test writer will not come to know ip_allowlist value is changed and needs restoration.
+    RESET PERSIST IF EXISTS group_replication_ip_allowlist;
 
     if (!$skip_recovery_configuration)
     {
       # Clean distributed recovery user.
-      RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+      RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
     }
+
+    # Clear the configuration of privilege_checks_user account
+    if ($rpl_privilege_checks_user != '')
+    {
+      --source include/rpl_get_instance_priv_checks_user.inc
+      if ($rpl_instance_privilege_checks_user != '')
+      {
+        if ($rpl_instance_privilege_checks_user != NULL)
+        {
+          --source include/rpl_clear_priv_checks_user_configuration.inc
+        }
+      }
+    }
+
+    # Clear replication asynchronous failover configuration tables
+    --source include/rpl_clear_asynchronous_failover_configuration.inc
+
+    # Clear GR member actions configuration
+    --disable_result_log ONCE
+    SELECT group_replication_reset_member_actions();
 
     --enable_query_log
 

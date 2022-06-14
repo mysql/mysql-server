@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"  /* ER_THD */
 #include "sql/handler.h" /* ha_resolve_by_legacy_type */
+#include "sql/lock.h"    /* acquire_shared_global_read_lock */
 #include "sql/mysqld.h"
 #include "sql/rpl_log_encryption.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h" /* Keyring */
 #include "sql/sql_backup_lock.h" /* acquire_shared_backup_lock */
 #include "sql/sql_class.h"       /* THD */
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_table.h" /* write_to_binlog */
 
@@ -99,15 +102,34 @@ bool Rotate_innodb_master_key::execute() {
     return true;
   }
 
-  if (acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
+  /*
+    Acquire protection against GRL and check for concurrent change of read_only
+    value since encryption key rotation is not allowed in read_only/
+    super_read_only mode.
+  */
+  if (acquire_shared_global_read_lock(m_thd,
+                                      m_thd->variables.lock_wait_timeout)) {
     // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  /*
+    Acquire shared backup lock to block concurrent backup. Acquire exclusive
+    backup lock to block any concurrent DDL. The fact that we acquire both
+    these locks also ensures that concurrent KEY rotation requests are blocked.
+  */
+  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
+                                    true) ||
+      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
+    // MDL subsystem has to set an error in Diagnostics Area
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
   if (hton->rotate_encryption_master_key()) {
     /* SE should have raised error */
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
@@ -131,8 +153,54 @@ bool Rotate_innodb_master_key::execute() {
   return false;
 }
 
+bool Innodb_redo_log::execute() {
+  DBUG_TRACE;
+
+  const LEX_CSTRING storage_engine = {STRING_WITH_LEN("innodb")};
+
+  auto hton = plugin_data<handlerton *>(
+      ha_resolve_by_name(m_thd, &storage_engine, false));
+
+  if (hton == nullptr) {
+    /* Innodb engine is not loaded. Should never happen. */
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), storage_engine.str);
+  }
+
+  Security_context *sctx = m_thd->security_context();
+  if (!sctx->has_global_grant(STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"))
+           .first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "INNODB_REDO_LOG_ENABLE");
+    return true;
+  }
+
+  /*
+    Acquire shared backup lock to block concurrent backup. Acquire exclusive
+    backup lock to block any concurrent DDL. This would also serialize any
+    concurrent key rotation and other redo log enable/disable calls.
+  */
+  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
+                                    true) ||
+      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
+    assert(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  if (hton->redo_log_set_state(m_thd, m_enable)) {
+    /* SE should have raised error */
+    assert(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  /* Right now, we don't log this command to binary log as redo logging
+  options are low level physical attribute which is not needed to replicate
+  to other instances. */
+
+  my_ok(m_thd);
+  return false;
+}
+
 bool Rotate_binlog_master_key::execute() {
-  DBUG_ENTER("Rotate_binlog_master_key::execute");
+  DBUG_TRACE;
 
   MUTEX_LOCK(lock, &LOCK_rotate_binlog_master_key);
 
@@ -142,18 +210,45 @@ bool Rotate_binlog_master_key::execute() {
            .first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER or BINLOG_ENCRYPTION_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (!rpl_encryption.is_enabled()) {
     my_error(ER_RPL_ENCRYPTION_CANNOT_ROTATE_BINLOG_MASTER_KEY, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (rpl_encryption.remove_remaining_seqnos_from_keyring()) DBUG_RETURN(true);
+  if (rpl_encryption.remove_remaining_seqnos_from_keyring()) return true;
 
-  if (rpl_encryption.rotate_master_key()) DBUG_RETURN(true);
+  if (rpl_encryption.rotate_master_key()) return true;
 
   my_ok(m_thd);
-  DBUG_RETURN(false);
+  return false;
+}
+
+bool Reload_keyring::execute() {
+  DBUG_TRACE;
+
+  /* Check privileges */
+  Security_context *sctx = m_thd->security_context();
+  if (sctx->has_global_grant(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first ==
+      false) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "ENCRYPTION_KEY_ADMIN");
+    return true;
+  }
+
+  if (srv_keyring_load->load(opt_plugin_dir, mysql_real_data_home) != 0) {
+    /* We encountered an error. Figure out what it is. */
+    my_error(ER_RELOAD_KEYRING_FAILURE, MYF(0));
+    return true;
+  }
+
+  /*
+    Persisted variables require keyring support to
+    persist SENSITIVE varaiables in a secure manner.
+  */
+  persisted_variables_refresh_keyring_support();
+
+  my_ok(m_thd);
+  return false;
 }

@@ -1,0 +1,209 @@
+################################################################################
+# This test validates that Group Replication can have members with different
+# binlog_checksum configuration.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+#
+# Check that a member with binlog_checksum= NONE can join a group
+# with binlog_checksum= CRC32.
+#  1. Set binlog_checksum to CRC32 and start GR on server1.
+#  2. Set binlog_checksum to NONE and start GR on server2.
+#  3. Commit data on both members, all is OK.
+#  4. Validate that server1 binary log has checksums.
+#  5. Validate that server2 binary log does not have checksums.
+#
+# Check that a member with binlog_checksum= CRC32 can join a group
+# with binlog_checksum= NONE.
+#  6. Set binlog_checksum to NONE and start GR on server1.
+#  7. Set binlog_checksum to CRC32 and start GR on server2.
+#  8. Commit data on both members, all is OK.
+#  9. Validate that server1 binary log does not have checksums.
+#  10. Validate that server2 binary log has checksums.
+#
+# 11. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--let $output_file = $MYSQLTEST_VARDIR/tmp/gr-checksum-dump-file
+--let $_binlog_compression_enable= `SELECT @@GLOBAL.binlog_transaction_compression`
+
+
+--echo
+--echo ############################################################
+--echo #  1. Set binlog_checksum to CRC32 and start GR on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @binlog_checksum_saved= @@GLOBAL.binlog_checksum;
+SET @@GLOBAL.binlog_checksum= CRC32;
+
+--source include/start_and_bootstrap_group_replication.inc
+# This will be sent to server2 through recovery.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo #  2. Set binlog_checksum to NONE and start GR on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @binlog_checksum_saved= @@GLOBAL.binlog_checksum;
+SET @@GLOBAL.binlog_checksum= NONE;
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  3. Commit data on both members, all is OK.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_sync.inc
+--let $assert_text= 'There are 2 rows in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+
+--echo ############################################################
+--echo #  4. Validate that server1 binary log has checksums.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-binary-log.000002
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 22
+if ($_binlog_compression_enable == 1) {
+  --let $assert_count = 24
+}
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = binary log have checksums
+--source include/assert_grep.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  5. Validate that server2 binary log does not have checksums.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-binary-log.000002
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 0
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = binary log does not have checksums
+--source include/assert_grep.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  6. Set binlog_checksum to NONE and start GR on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.binlog_checksum= NONE;
+
+--source include/start_and_bootstrap_group_replication.inc
+# This will be sent to server2 through recovery.
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo #  7. Set binlog_checksum to CRC32 and start GR on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.binlog_checksum= CRC32;
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  8. Commit data on both members, all is OK.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t2 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+INSERT INTO t2 VALUES (2);
+
+--source include/rpl_sync.inc
+--let $assert_text= 'There are 2 rows in table t2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t2, count, 1] = 2
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+
+--echo ############################################################
+--echo #  9. Validate that server1 binary log does not have checksums.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-binary-log.000003
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 0
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = binary log does not have checksums
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo #  10. Validate that server2 binary log has checksums.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-binary-log.000003
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 22
+if ($_binlog_compression_enable == 1) {
+  --let $assert_count = 24
+}
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = binary log have checksums
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.binlog_checksum = @binlog_checksum_saved;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.binlog_checksum = @binlog_checksum_saved;
+
+--remove_file $output_file
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/group_replication_end.inc

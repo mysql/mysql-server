@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
  */
 static const Member_version min_version_required(0x080016);
 
-static bool group_replication_get_communication_protocol_init(UDF_INIT *,
+static bool group_replication_get_communication_protocol_init(UDF_INIT *initid,
                                                               UDF_ARGS *args,
                                                               char *message) {
   bool constexpr FAILURE = true;
@@ -69,6 +69,7 @@ static bool group_replication_get_communication_protocol_init(UDF_INIT *,
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }
+  if (Charset_service::set_return_value_charset(initid)) goto end;
 
   result = SUCCESS;
   udf_counter.succeeded();
@@ -114,7 +115,7 @@ const char *const invalid_format_str =
     "'%s' is not version string argument with format major.minor.patch";
 const char *const value_outside_domain_str = "%s is not between %s and %s";
 
-static bool group_replication_set_communication_protocol_init(UDF_INIT *,
+static bool group_replication_set_communication_protocol_init(UDF_INIT *initid,
                                                               UDF_ARGS *args,
                                                               char *message) {
   bool constexpr FAILURE = true;
@@ -198,6 +199,9 @@ static bool group_replication_set_communication_protocol_init(UDF_INIT *,
       goto end;
     }
   }
+  if (Charset_service::set_return_value_charset(initid) ||
+      Charset_service::set_args_charset(args))
+    goto end;
 
   result = SUCCESS;
   udf_counter.succeeded();

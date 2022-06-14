@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,7 @@
 #ifndef CHECKED_DATA_H
 #define CHECKED_DATA_H
 
-#include <stdbool.h>                                               // bool
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"  // checked_data
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xdr_gen/xcom_vp.h" /* checked_data */
 
 /**
  Creates a copy of the given checked_data.
@@ -38,10 +33,7 @@ extern "C" {
  @retval true If the copy was successful
  @retval false If there was an error allocating memory for the copy
  */
-bool copy_checked_data(checked_data *const to, checked_data const *const from);
-
-#ifdef __cplusplus
-}
-#endif
+bool_t copy_checked_data(checked_data *const to,
+                         checked_data const *const from);
 
 #endif /* CHECKED_DATA_H */

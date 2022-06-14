@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef LOGHANDLER_H
 #define LOGHANDLER_H
+
+#include <time.h>
 
 #include "Logger.hpp"
 
@@ -181,24 +183,24 @@ public:
   virtual off_t getMaxSize() {return -1;}
 
   /** Max length of the header the log. */
-  STATIC_CONST( MAX_HEADER_LENGTH = 128 );
+  static constexpr Uint32 MAX_HEADER_LENGTH = 128;
 
 protected:
   /** Max lenght of footer in the log. */
-  STATIC_CONST( MAX_FOOTER_LENGTH = 128 );
+  static constexpr Uint32 MAX_FOOTER_LENGTH = 128;
 
   /**
    * Write the header to the log.
-   * 
+   *
    * @param pCategory the category to tag the log with.
    * @param level the log level.
    */
-  virtual void writeHeader(const char* category, Logger::LoggerLevel level,
+  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
                            time_t now) = 0;
 
   /**
    * Write the message to the log.
-   * 
+   *
    * @param pMsg the message to log.
    */
   virtual void writeMessage(const char* pMsg) = 0;

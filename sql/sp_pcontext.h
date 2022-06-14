@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,13 @@
 #ifndef _SP_PCONTEXT_H_
 #define _SP_PCONTEXT_H_
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "mysql_com.h"
 #include "sql/create_field.h"    // Create_field
 #include "sql/mem_root_array.h"  // Mem_root_array
@@ -77,7 +78,7 @@ class sp_variable {
         type(_type),
         mode(_mode),
         offset(_offset),
-        default_value(NULL) {}
+        default_value(nullptr) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -103,7 +104,7 @@ class sp_label {
   };
 
   /// Name of the label.
-  LEX_STRING name;
+  LEX_CSTRING name;
 
   /// Instruction pointer of the label.
   uint ip;
@@ -115,7 +116,7 @@ class sp_label {
   class sp_pcontext *ctx;
 
  public:
-  sp_label(LEX_STRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
+  sp_label(LEX_CSTRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
       : name(_name), ip(_ip), type(_type), ctx(_ctx) {}
 };
 
@@ -150,7 +151,7 @@ class sp_condition_value {
   }
 
   sp_condition_value(enum_type _type) : type(_type) {
-    DBUG_ASSERT(type != ERROR_CODE && type != SQLSTATE);
+    assert(type != ERROR_CODE && type != SQLSTATE);
   }
 
   /// Print a condition_value in human-readable form.
@@ -391,9 +392,9 @@ class sp_pcontext {
   // Labels.
   /////////////////////////////////////////////////////////////////////////
 
-  sp_label *push_label(THD *thd, LEX_STRING name, uint ip);
+  sp_label *push_label(THD *thd, LEX_CSTRING name, uint ip);
 
-  sp_label *find_label(LEX_STRING name);
+  sp_label *find_label(LEX_CSTRING name);
 
   sp_label *last_label() {
     sp_label *label = m_labels.head();

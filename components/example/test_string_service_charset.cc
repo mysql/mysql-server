@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,11 @@ char log_text[MAX_BUFFER_LENGTH + 16];
 
 //  strcpy (log_text, lit_log_text);
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                                 \
+  log_text_len = sprintf(log_text, format, lit_log_text);               \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
 
 /**
   This file contains a test (example) component, which tests the service
@@ -55,7 +57,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
             "-------------------------------------------------------------");
   WRITE_LOG("Charset: %s\n", charset);
   WRITE_LOG("%s\n", text);
-  my_h_string out_string = NULL;
+  my_h_string out_string = nullptr;
   char low_test_text[MAX_BUFFER_LENGTH];
   char upper_test_text[MAX_BUFFER_LENGTH];
   if (mysql_service_mysql_string_factory->create(&out_string)) {
@@ -88,7 +90,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
         WRITE_LOG("Number of bytes: %d\n", out_length);
       }
       // Convert to low string
-      my_h_string low_string = NULL;
+      my_h_string low_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&low_string)) {
         WRITE_LOG("%s\n", "Create lower string object failed.");
       } else {
@@ -107,7 +109,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
       }
       mysql_service_mysql_string_factory->destroy(low_string);
       // Convert to upper string
-      my_h_string upper_string = NULL;
+      my_h_string upper_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&upper_string)) {
         WRITE_LOG("%s\n", "Create upper string object failed.");
       } else {

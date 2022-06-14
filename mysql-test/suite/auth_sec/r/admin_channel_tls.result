@@ -1,0 +1,210 @@
+# Setup
+# Create test user
+CREATE USER admin_user IDENTIFIED BY 'abcd';
+# Grant required privilege so that test user
+# can connect to server using admin interface
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
+# Restarting server with admin interface
+# 1. Admin channel should reuse main channel's TLS
+# Verify that TLS is not configured for admin channel
+SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled';
+CHANNEL	mysql_admin
+PROPERTY	Enabled
+VALUE	No
+# Try to connect using TLS
+1
+1
+# 2. If any of the parameter for admin channel is configured,
+#    server channel's TLS context should not be used. Even if
+#    configuration for admin channel is not correct and TLS
+#    is not enabled for admin channel
+# Restarting server with admin interface without TLS support
+# Verify that TLS is not configured for admin channel
+SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled';
+CHANNEL	mysql_admin
+PROPERTY	Enabled
+VALUE	No
+# Try to connect using TLS
+# Restarting server with admin interface with TLS support
+# Verify that TLS is configured for admin channel
+SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled';
+CHANNEL	mysql_admin
+PROPERTY	Enabled
+VALUE	Yes
+# Try to connect using TLS
+1
+1
+# 3. Admin channel TLS parameters can be changed at runtime check if
+#    new sessions get the new vals Save the defaults in admin_conn
+# Restarting server with admin interface with TLS support
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# Check if ssl is still turned on after reload
+SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
+WHERE VARIABLE_NAME='Ssl_cipher';
+LENGTH(VARIABLE_VALUE) > 0
+0
+# check if old sessions continue
+SET @must_be_present= 'present';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# Success criteria: value must be present
+SELECT @must_be_present;
+@must_be_present
+present
+SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
+# check if the session has the original values
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	orig_cipher
+# in default connection
+# setting new values for ssl_cipher
+SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL admin_tls_version = "TLSv1.2";
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# in admin_conn2
+# Save the new defaults
+# Check if the old and the new not afters differ
+# in admin_conn1
+# the con session must have the original values
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	orig_cipher;
+# in default connection
+SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# new values effective only after RELOAD TLS
+# Save the defaults
+SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
+# setting new values for ssl_cipher
+SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+# In admin_conn2
+# Check if the old and the new not afters differ
+SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
+# Disable TLS support on wrong values
+# save the original value
+SET @orig_admin_ssl_ca = @@global.admin_ssl_ca;
+SET GLOBAL admin_ssl_ca = 'gizmo';
+# Must fail and not change the SSL params
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+ERROR HY000: Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+# Must not show 'gizmo'
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
+COUNT(*)
+1
+# Must return gizmo
+SELECT @@global.admin_ssl_ca;
+@@global.admin_ssl_ca
+gizmo
+# Must connect successfully
+1
+1
+# Must pass with a warning and disable TLS
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin NO ROLLBACK ON ERROR;
+Warnings:
+Warning	3888	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+# Must show 'gizmo'
+SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = 'gizmo';
+VALUE
+gizmo
+# Must fail
+# Reset
+SET GLOBAL admin_ssl_ca = @orig_admin_ssl_ca;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# Must pass
+SET GLOBAL admin_ssl_ca = 'gizmo';
+SET GLOBAL admin_ssl_cert = 'gizmo';
+SET GLOBAL admin_ssl_key = 'gizmo';
+SET GLOBAL admin_ssl_capath = 'gizmo';
+SET GLOBAL admin_ssl_crl = 'gizmo';
+SET GLOBAL admin_ssl_crlpath = 'gizmo';
+SET GLOBAL admin_ssl_cipher = 'gizmo';
+SET GLOBAL admin_tls_ciphersuites = 'gizmo';
+SET GLOBAL admin_tls_version = 'gizmo';
+ERROR 42000: Variable 'admin_tls_version' can't be set to the value of 'gizmo'
+# Must fail
+SET SESSION admin_ssl_ca = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_ca' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_ssl_cert = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_cert' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_ssl_key = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_key' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_ssl_capath = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_capath' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_ssl_crl = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_crl' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_ssl_crlpath = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_crlpath' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_ssl_cipher = 'gizmo';
+ERROR HY000: Variable 'admin_ssl_cipher' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_tls_ciphersuites = 'gizmo';
+ERROR HY000: Variable 'admin_tls_ciphersuites' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION admin_tls_version = 'gizmo';
+ERROR HY000: Variable 'admin_tls_version' is a GLOBAL variable and should be set with SET GLOBAL
+# Must return more than 1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin';
+COUNT(*)
+29
+# 4. Main channel and Admin channel can be independent of
+#    each other wrt TLS context
+# Restarting server with admin interface with TLS support
+# save the original value
+SET @orig_admin_ssl_ca = @@global.admin_ssl_ca;
+SET @orig_admin_ssl_cert = @@global.admin_ssl_cert;
+SET @orig_admin_ssl_key = @@global.admin_ssl_key;
+SET @orig_ssl_ca = @@global.ssl_ca;
+SET @orig_ssl_cert = @@global.ssl_cert;
+SET @orig_ssl_key = @@global.ssl_key;
+# Should be all 1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_cert' AND VALUE = @orig_admin_ssl_cert;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_key' AND VALUE = @orig_admin_ssl_key;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_ssl_ca;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_cert' AND VALUE = @orig_ssl_cert;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_key' AND VALUE = @orig_ssl_key;
+COUNT(*)
+1
+# Setting admin certs to different value
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# Admin certs won't match but regular certs will
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
+COUNT(*)
+0
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_cert' AND VALUE = @orig_admin_ssl_cert;
+COUNT(*)
+0
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_key' AND VALUE = @orig_admin_ssl_key;
+COUNT(*)
+0
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_ssl_ca;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_cert' AND VALUE = @orig_ssl_cert;
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_key' AND VALUE = @orig_ssl_key;
+COUNT(*)
+1
+SET GLOBAL admin_ssl_ca = @orig_admin_ssl_ca;
+SET GLOBAL admin_ssl_cert = @orig_admin_ssl_cert;
+SET GLOBAL admin_ssl_key = @orig_admin_ssl_key;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# Syntax check
+ALTER INSTANCE RELOAD TLS FOR CHANNEL haha;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+ALTER INSTANCE RELOAD TLS FOR CHANNEL haha NO ROLLBACK ON ERROR;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+ALTER INSTANCE RELOAD TLS FOR CHANNEL MySqL_AdMin;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_MAIN;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL MySqL_AdMin NO ROLLBACK ON ERROR;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_MAIN NO ROLLBACK ON ERROR;
+# Cleanup
+DROP USER admin_user;

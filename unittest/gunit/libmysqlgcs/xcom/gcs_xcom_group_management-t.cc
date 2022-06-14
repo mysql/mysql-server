@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@ namespace gcs_xcom_groupmanagement_unittest {
 class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
  public:
   mock_gcs_xcom_proxy() {
-    ON_CALL(*this, xcom_exit(_)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_boot(_, _)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_add_node(_, _, _)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_send_data(_, _)).WillByDefault(Return(10));
@@ -42,7 +41,8 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   }
 
   MOCK_METHOD3(new_node_address_uuid,
-               node_address *(unsigned int n, char *names[], blob uuid[]));
+               node_address *(unsigned int n, char const *names[],
+                              blob uuids[]));
   MOCK_METHOD2(delete_node_address, void(unsigned int n, node_address *na));
   MOCK_METHOD3(xcom_client_add_node, bool(connection_descriptor *fd,
                                           node_list *nl, uint32_t group_id));
@@ -53,6 +53,13 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
                bool(uint32_t group_id, xcom_event_horizon &event_horizon));
   MOCK_METHOD2(xcom_client_set_event_horizon,
                bool(uint32_t group_id, xcom_event_horizon event_horizon));
+  MOCK_METHOD2(xcom_client_set_max_leaders,
+               bool(uint32_t group_id, node_no max_leaders));
+  MOCK_METHOD4(xcom_client_set_leaders,
+               bool(uint32_t group_id, u_int n, char const *names[],
+                    node_no max_nr_leaders));
+  MOCK_METHOD2(xcom_client_get_leaders,
+               bool(uint32_t gid, leader_info_data &leaders));
   MOCK_METHOD4(xcom_client_get_synode_app_data,
                bool(connection_descriptor *con, uint32_t group_id_hash,
                     synode_no_array &synodes, synode_app_data_array &reply));
@@ -64,7 +71,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD2(xcom_client_send_data,
                bool(unsigned long long size, char *data));
   MOCK_METHOD1(xcom_init, void(xcom_port listen_port));
-  MOCK_METHOD1(xcom_exit, bool(bool xcom_input_open));
+  MOCK_METHOD0(xcom_exit, void());
   MOCK_METHOD0(xcom_set_cleanup, void());
   MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
   MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
@@ -73,12 +80,8 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(xcom_init_ssl, bool());
   MOCK_METHOD0(xcom_destroy_ssl, void());
   MOCK_METHOD0(xcom_use_ssl, bool());
-  MOCK_METHOD10(xcom_set_ssl_parameters,
-                void(const char *server_key_file, const char *server_cert_file,
-                     const char *client_key_file, const char *client_cert_file,
-                     const char *ca_file, const char *ca_path,
-                     const char *crl_file, const char *crl_path,
-                     const char *cipher, const char *tls_version));
+  MOCK_METHOD2(xcom_set_ssl_parameters,
+               void(ssl_parameters ssl, tls_parameters tls));
   MOCK_METHOD1(find_site_def, site_def const *(synode_no synode));
   MOCK_METHOD0(xcom_wait_ready, enum_gcs_error());
   MOCK_METHOD0(xcom_is_ready, bool());
@@ -100,12 +103,14 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(get_should_exit, bool());
   MOCK_METHOD1(set_should_exit, void(bool should_exit));
 
-  MOCK_METHOD0(xcom_input_connect, bool());
+  MOCK_METHOD2(xcom_input_connect,
+               bool(std::string const &address, xcom_port port));
+  MOCK_METHOD0(xcom_input_disconnect, void());
   MOCK_METHOD1(xcom_input_try_push, bool(app_data_ptr data));
   /* Mocking fails compilation on Windows. It attempts to copy the std::future
    * which is non-copyable. */
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
-      app_data_ptr) {
+      app_data_ptr) override {
     return std::future<std::unique_ptr<Gcs_xcom_input_queue::Reply>>();
   }
   MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
@@ -113,14 +118,14 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
 
 class XcomGroupManagementTest : public GcsBaseTest {
  protected:
-  XcomGroupManagementTest() {}
+  XcomGroupManagementTest() = default;
 
-  virtual void SetUp() {
+  void SetUp() override {
     group_id = new Gcs_group_identifier("only_group");
     xcom_group_mgmt_if = new Gcs_xcom_group_management(&proxy, *group_id);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete xcom_group_mgmt_if;
     delete group_id;
   }
@@ -173,6 +178,56 @@ MATCHER_P(node_list_pointer_matcher, other_nl, "Derreference pointer") {
 TEST_F(XcomGroupManagementTest, TestListContent) {
   Gcs_xcom_node_information node_1("127.0.0.1:12345");
   Gcs_xcom_node_information node_2("127.0.0.1:12346");
+  Gcs_xcom_node_information node_3("127.0.0.1:12347");
+
+  Gcs_xcom_nodes nodes;
+  nodes.add_node(node_1);
+  nodes.add_node(node_2);
+  nodes.add_node(node_3);
+
+  node_list nl;
+  nl.node_list_len = 2;
+  const char *node_addrs[] = {node_1.get_member_id().get_member_id().c_str(),
+                              node_2.get_member_id().get_member_id().c_str()};
+  blob blobs[] = {{{0, static_cast<char *>(malloc(
+                           node_1.get_member_uuid().actual_value.size()))}},
+                  {{0, static_cast<char *>(malloc(
+                           node_2.get_member_uuid().actual_value.size()))}}};
+  node_1.get_member_uuid().encode(
+      reinterpret_cast<uchar **>(&blobs[0].data.data_val),
+      &blobs[0].data.data_len);
+  node_2.get_member_uuid().encode(
+      reinterpret_cast<uchar **>(&blobs[1].data.data_val),
+      &blobs[1].data.data_len);
+
+  nl.node_list_val =
+      ::new_node_address_uuid(nl.node_list_len, node_addrs, blobs);
+
+  EXPECT_CALL(proxy, xcom_client_force_config(node_list_pointer_matcher(nl), _))
+      .Times(1)
+      .WillOnce(Return(1));
+
+  Gcs_interface_parameters forced_group;
+  forced_group.add_parameter("peer_nodes", "127.0.0.1:12345,127.0.0.1:12346");
+
+  xcom_group_mgmt_if->set_xcom_nodes(nodes);
+  enum_gcs_error result =
+      xcom_group_mgmt_if->modify_configuration(forced_group);
+
+  ASSERT_EQ(GCS_OK, result);
+  ASSERT_EQ((unsigned)2, nl.node_list_len);
+  ASSERT_STREQ("127.0.0.1:12345", nl.node_list_val[0].address);
+  ASSERT_STREQ("127.0.0.1:12346", nl.node_list_val[1].address);
+
+  ::delete_node_address(nl.node_list_len, nl.node_list_val);
+
+  free(blobs[0].data.data_val);
+  free(blobs[1].data.data_val);
+}
+
+TEST_F(XcomGroupManagementTest, DisallowForcingSameMembership) {
+  Gcs_xcom_node_information node_1("127.0.0.1:12345");
+  Gcs_xcom_node_information node_2("127.0.0.1:12346");
 
   Gcs_xcom_nodes nodes;
   nodes.add_node(node_1);
@@ -193,21 +248,26 @@ TEST_F(XcomGroupManagementTest, TestListContent) {
       reinterpret_cast<uchar **>(&blobs[1].data.data_val),
       &blobs[1].data.data_len);
 
-  nl.node_list_val = ::new_node_address_uuid(
-      nl.node_list_len, const_cast<char **>(node_addrs), blobs);
+  nl.node_list_val =
+      ::new_node_address_uuid(nl.node_list_len, node_addrs, blobs);
 
   EXPECT_CALL(proxy, xcom_client_force_config(node_list_pointer_matcher(nl), _))
-      .Times(1)
-      .WillOnce(Return(1));
-
-  Gcs_interface_parameters forced_group;
-  forced_group.add_parameter("peer_nodes", "127.0.0.1:12345,127.0.0.1:12346");
+      .Times(0);
 
   xcom_group_mgmt_if->set_xcom_nodes(nodes);
-  enum_gcs_error result =
-      xcom_group_mgmt_if->modify_configuration(forced_group);
 
-  ASSERT_EQ(GCS_OK, result);
+  Gcs_interface_parameters forced_group_1;
+  forced_group_1.add_parameter("peer_nodes", "127.0.0.1:12346,127.0.0.1:12345");
+  enum_gcs_error result_1 =
+      xcom_group_mgmt_if->modify_configuration(forced_group_1);
+  ASSERT_EQ(GCS_NOK, result_1);
+
+  Gcs_interface_parameters forced_group_2;
+  forced_group_2.add_parameter("peer_nodes", "127.0.0.1:12345,127.0.0.1:12346");
+  enum_gcs_error result_2 =
+      xcom_group_mgmt_if->modify_configuration(forced_group_2);
+  ASSERT_EQ(GCS_NOK, result_2);
+
   ASSERT_EQ((unsigned)2, nl.node_list_len);
   ASSERT_STREQ("127.0.0.1:12345", nl.node_list_val[0].address);
   ASSERT_STREQ("127.0.0.1:12346", nl.node_list_val[1].address);

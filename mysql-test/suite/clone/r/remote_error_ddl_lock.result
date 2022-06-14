@@ -3,8 +3,15 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
 Variable_name	Value
 clone_ddl_timeout	300
+SHOW VARIABLES LIKE 'clone_block_ddl';
+Variable_name	Value
+clone_block_ddl	OFF
 # Set backup lock timeout to 1 sec
+SET GLOBAL clone_block_ddl = true;
 SET GLOBAL clone_ddl_timeout = 1;
+SHOW VARIABLES LIKE 'clone_block_ddl';
+Variable_name	Value
+clone_block_ddl	ON
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
 Variable_name	Value
 clone_ddl_timeout	1
@@ -14,7 +21,7 @@ lock_wait_timeout	1
 # In connection DEFAULT
 # 1A. Clone while CREATE TABLE in progress
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 CREATE TABLE t1 (col1 INT PRIMARY KEY);
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -28,20 +35,13 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 1B. CREATE TABLE while clone in progress
@@ -57,6 +57,45 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
 # In connection DEFAULT
 SET DEBUG_SYNC = 'RESET';
+# 1C. ALTER INSTANCE while clone in progress
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC = 'now SIGNAL resume_clone';
+# In connection DEFAULT
+SET DEBUG_SYNC = 'RESET';
+SHOW STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+# 1C. Clone while ALTER INSTANCE in progress
+# In connection CON1
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+# In connection DEFAULT
+SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR HY000: Clone Donor Error: 1205 : Lock wait timeout exceeded; try restarting transaction.
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	3862
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
+# In connection CON1
+# In connection DEFAULT
+SHOW STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
 # 2A. Clone while ALTER TABLE ADD COLUMN [COPY] in progress
 INSERT INTO t1 values(10), (20), (30);
 SELECT * FROM t1 ORDER BY col1;
@@ -65,7 +104,7 @@ col1
 20
 30
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD COLUMN col2 int, ALGORITHM=COPY;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -79,21 +118,14 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -122,7 +154,7 @@ col1	col2
 20	1020
 30	1030
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD COLUMN col3 int, ALGORITHM=INPLACE;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -136,22 +168,15 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -177,13 +202,13 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM=COPY;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -197,22 +222,15 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -233,14 +251,14 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD INDEX col3_idx(col3), ALGORITHM=INPLACE;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -254,22 +272,15 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`),
   KEY `col3_idx` (`col3`)
@@ -304,15 +315,15 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`),
   KEY `col3_idx` (`col3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 DROP INDEX col3_idx, ALGORITHM=COPY;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -326,22 +337,15 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -362,14 +366,14 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 DROP INDEX col2_idx, ALGORITHM=INPLACE;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -383,22 +387,15 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 5A. TRUNCATE TABLE while clone in progress
@@ -421,7 +418,7 @@ col1	col2	col3
 20	1020	2020
 30	1030	2030
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 TRUNCATE TABLE t1;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -435,13 +432,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -463,14 +453,14 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 6B. Clone while DROP TABLE in progress
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 DROP TABLE t1;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -484,13 +474,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT

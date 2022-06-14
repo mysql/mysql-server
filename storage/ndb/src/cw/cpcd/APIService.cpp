@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,13 +171,15 @@ void CPCDAPISession::runSession() {
     }
   }
   ndb_socket_close(m_socket);
+  ndb_socket_invalidate(&m_socket);
 }
 
 void CPCDAPISession::stopSession() {
   CPCD::RequestStatus rs;
   for (unsigned i = 0; i < m_temporaryProcesses.size(); i++) {
     Uint32 id = m_temporaryProcesses[i];
-    m_cpcd.undefineProcess(&rs, id);
+    m_cpcd.stopProcess(id, getSessionid(), &rs);
+    m_cpcd.undefineProcess(id, getSessionid(), &rs);
   }
 }
 
@@ -204,18 +206,20 @@ void CPCDAPISession::loadFile() {
 
 void CPCDAPISession::defineProcess(Parser_t::Context & /* unused */,
                                    const class Properties &args) {
-  CPCD::Process *p = new CPCD::Process(args, &m_cpcd);
-
+  int id;
   CPCD::RequestStatus rs;
-
-  bool ret = m_cpcd.defineProcess(&rs, p);
+  bool ret = m_cpcd.defineProcess(args, getSessionid(), &rs, &id);
   if (!m_cpcd.loadingProcessList) {
     m_output->println("define process");
     m_output->println("status: %d", rs.getStatus());
     if (ret == true) {
-      m_output->println("id: %d", p->m_id);
-      if (p->m_processType == TEMPORARY) {
-        m_temporaryProcesses.push_back(p->m_id);
+      m_output->println("id: %d", id);
+
+      BaseString procType;
+      args.get("type", procType);
+      CPCD::ProcessType processType(procType.c_str());
+      if (processType == CPCD::ProcessType::TEMPORARY) {
+        m_temporaryProcesses.push_back(id);
       }
     } else {
       m_output->println("errormessage: %s", rs.getErrMsg());
@@ -230,7 +234,14 @@ void CPCDAPISession::undefineProcess(Parser_t::Context & /* unused */,
   CPCD::RequestStatus rs;
 
   args.get("id", &id);
-  bool ret = m_cpcd.undefineProcess(&rs, id);
+  bool ret = m_cpcd.undefineProcess(id, getSessionid(), &rs);
+
+  for (unsigned i = 0; i < m_temporaryProcesses.size(); i++) {
+    if (static_cast<int>(id) == m_temporaryProcesses[i]) {
+      m_temporaryProcesses.erase(i);
+      break;
+    }
+  }
 
   m_output->println("undefine process");
   m_output->println("id: %d", id);
@@ -246,7 +257,7 @@ void CPCDAPISession::startProcess(Parser_t::Context & /* unused */,
   CPCD::RequestStatus rs;
 
   args.get("id", &id);
-  const int ret = m_cpcd.startProcess(&rs, id);
+  const int ret = m_cpcd.startProcess(id, getSessionid(), &rs);
 
   if (!m_cpcd.loadingProcessList) {
     m_output->println("start process");
@@ -263,7 +274,7 @@ void CPCDAPISession::stopProcess(Parser_t::Context & /* unused */,
   CPCD::RequestStatus rs;
 
   args.get("id", &id);
-  int ret = m_cpcd.stopProcess(&rs, id);
+  int ret = m_cpcd.stopProcess(id, getSessionid(), &rs);
 
   m_output->println("stop process");
   m_output->println("id: %d", id);
@@ -389,7 +400,6 @@ void CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
 
   m_output->println("show version");
 
-  m_output->println("compile time: %s %s", __DATE__, __TIME__);
   m_output->println("supported protocol: %u", CPCD::CPC_PROTOCOL_VERSION);
   m_output->println("effective protocol: %u", m_protocol_version);
   m_output->println("%s", "");

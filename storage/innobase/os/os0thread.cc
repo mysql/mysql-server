@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include <atomic>
+#include <ios>
+#include <sstream>
 #include <thread>
 
 #ifdef UNIV_LINUX
@@ -47,7 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** We are prepared for a situation that we have this many threads waiting for
 a semaphore inside InnoDB. innodb_init_params() sets the value. */
-ulint srv_max_n_threads = 0;
+uint32_t srv_max_n_threads = 0;
 
 /** Number of threads active. */
 std::atomic_int os_thread_count;
@@ -55,8 +57,23 @@ std::atomic_int os_thread_count;
 void IB_thread::start() {
   ut_a(state() == State::NOT_STARTED);
   m_state->store(State::ALLOWED_TO_START);
+
+#ifdef _WIN32
+  unsigned int cnt = 0;
+#endif /* _WIN32 */
+
   while (state() == State::ALLOWED_TO_START) {
     UT_RELAX_CPU();
+
+#ifdef _WIN32
+    /* When the number of threads to be spawned exceeds the number of cores of
+    a machine, it's seen that we cannot just rely on UT_RELAX_CPU(). So in such
+    a case, allow the thread to release its time slice to any thread wanting
+    control. */
+    if (++cnt > 500) {
+      std::this_thread::yield();
+    }
+#endif /* _WIN32 */
   }
   const auto state_after_start = state();
 
@@ -87,53 +104,17 @@ void IB_thread::set_state(State new_state) {
   m_state->store(new_state);
 }
 
-/** Returns the thread identifier of current thread. Currently the thread
-identifier in Unix is the thread handle itself.
-@return current thread native handle */
-os_thread_id_t os_thread_get_curr_id() {
-#ifdef _WIN32
-  return (reinterpret_cast<os_thread_id_t>((UINT_PTR)::GetCurrentThreadId()));
-#else
-  return (::pthread_self());
-#endif /* _WIN32 */
-}
-
-/** Set priority for current thread.
-@param[in]	priority	priority intended to set
-@retval		true		set as intended
-@retval		false		got different priority after attempt to set */
-bool os_thread_set_priority(int priority) {
-#ifdef UNIV_LINUX
-  setpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid), priority);
-
-  /* linux might be able to set different setting for each thread */
-  return (getpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid)) == priority);
-#else
-  return (false);
-#endif /* UNIV_LINUX */
-}
-
-/** Set priority for current thread.
-@param[in]	priority	priority intended to set
-@param[in]	thread_name	name of thread, used for log message */
-void os_thread_set_priority(int priority, const char *thread_name) {
-#ifdef UNIV_LINUX
-  if (os_thread_set_priority(priority)) {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::info()
-#else
-    ib::error(ER_IB_MSG_1262)
-#endif /* UNIV_NO_ERR_MSGS */
-        << thread_name << " priority: " << priority;
-  } else {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::error()
-#else
-    ib::info(ER_IB_MSG_1268)
-#endif /* UNIV_NO_ERR_MSGS */
-        << "If the mysqld execution user is authorized," << thread_name
-        << " thread priority can be changed."
-        << " See the man page of setpriority().";
+std::string to_string(std::thread::id thread_id, bool hex_value) {
+  try {
+    std::stringstream ss;
+    if (hex_value) {
+      ss << std::hex << std::showbase;
+    }
+    /* The documentation for this says "May throw implementation-defined
+    exceptions." - we catch anything that might be thrown here. */
+    ss << thread_id;
+    return ss.str();
+  } catch (...) {
+    return "invalid_thread_id";
   }
-#endif /* UNIV_LINUX */
 }

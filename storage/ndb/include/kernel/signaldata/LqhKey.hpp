@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,11 @@ class LqhKeyReq {
   friend class Dbspj;
   friend class Dbtc;      
   friend class Restore;
+
+  /**
+   * Users
+   */
+  friend class Dbtup;
   
   /**
    * For printing
@@ -50,15 +55,15 @@ class LqhKeyReq {
   friend bool printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( FixedSignalLength = 11 );
-  STATIC_CONST( MaxKeyInfo = 4 );
-  STATIC_CONST( MaxAttrInfo = 5);
+  static constexpr Uint32 FixedSignalLength = 11;
+  static constexpr Uint32 MaxKeyInfo = 4;
+  static constexpr Uint32 MaxAttrInfo = 5;
 
   /* Long LQHKEYREQ definitions */
-  STATIC_CONST( KeyInfoSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );
+  static constexpr Uint32 KeyInfoSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;
 
-  STATIC_CONST( UnlockKeyLen = 2 );
+  static constexpr Uint32 UnlockKeyLen = 2;
 
 private:
 
@@ -193,6 +198,11 @@ private:
   static void setDisableFkConstraints(UintR & requestInfo, UintR val);
 
   /**
+   * Get mask of currently undefined bits
+   */
+  static UintR getLongClearBits(const UintR& requestInfo);
+  
+  /**
    * Trigger flag ensuring that requests based on fully replicated triggers
    * doesn't trigger a new trigger itself.
    */
@@ -202,11 +212,23 @@ private:
   static UintR getUtilFlag (const UintR & requestInfo);
   static void setUtilFlag(UintR & requestInfo, UintR val);
 
+  static UintR getNoWaitFlag(const UintR & requestInfo);
+  static void setNoWaitFlag(UintR & requestInfo, UintR val);
+
   enum RequestInfo {
     RI_KEYLEN_SHIFT      =  0, RI_KEYLEN_MASK      = 1023, /* legacy for short LQHKEYREQ */
     RI_DISABLE_FK        =  0,
-    RI_NO_TRIGGERS       = 1,
-    RI_UTIL_SHIFT        = 2,
+    RI_NO_TRIGGERS       =  1,
+    RI_UTIL_SHIFT        =  2,
+    RI_NOWAIT_SHIFT      =  3,
+
+    /* Currently unused */
+    RI_CLEAR_SHIFT5      =  5,
+    RI_CLEAR_SHIFT6      =  6,
+    RI_CLEAR_SHIFT7      =  7,
+    RI_CLEAR_SHIFT8      =  8,
+    RI_CLEAR_SHIFT9      =  9,
+
     RI_LAST_REPL_SHIFT   = 10, RI_LAST_REPL_MASK   =    3,
     RI_LOCK_TYPE_SHIFT   = 12, RI_LOCK_TYPE_MASK   =    7, /* legacy before ROWID_VERSION */
     RI_GCI_SHIFT         = 12,
@@ -269,6 +291,8 @@ private:
  * F = Disable FK constraints - 1  Bit (0)
  * T = no triggers            - 1  Bit (1)
  * U = Operation came from UTIL - 1 Bit (2)
+ * w = NoWait flag            = 1 Bit (3)
+ * Q = Query Thread Flag      = 1 Bit (4)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -279,7 +303,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *   FTU       llgnqpdisooorrAPDcumxz
+ *   FTUwQ     llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -696,6 +720,20 @@ LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
 }
 
 inline
+UintR
+LqhKeyReq::getLongClearBits(const UintR& requestInfo)
+{
+  const Uint32 mask =
+    (1 << RI_CLEAR_SHIFT5) |
+    (1 << RI_CLEAR_SHIFT6) |
+    (1 << RI_CLEAR_SHIFT7) |
+    (1 << RI_CLEAR_SHIFT8) |
+    (1 << RI_CLEAR_SHIFT9);
+
+  return (requestInfo & mask);
+}
+
+inline
 void
 LqhKeyReq::setNoTriggersFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "LqhKeyReq::setNoTriggersFlag");
@@ -719,6 +757,19 @@ inline
 UintR
 LqhKeyReq::getUtilFlag(const UintR & requestInfo){
   return (requestInfo >> RI_UTIL_SHIFT) & 1;
+}
+
+inline
+void
+LqhKeyReq::setNoWaitFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNoWaitFlag");
+  requestInfo |= (val << RI_NOWAIT_SHIFT);
+}
+
+inline
+UintR
+LqhKeyReq::getNoWaitFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NOWAIT_SHIFT) & 1;
 }
 
 inline
@@ -765,7 +816,7 @@ class LqhKeyConf {
   friend bool printLQHKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
 
@@ -823,7 +874,7 @@ class LqhKeyRef {
   friend bool printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
 

@@ -1,0 +1,31 @@
+CREATE TABLE t1 (
+a int PRIMARY KEY
+) ENGINE = NDB;
+SET GLOBAL DEBUG="+d,ndb_append_create_info_unsync";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=0,PARTITION_BALANCE=FOR_RA_BY_LDM_X_3,FULLY_REPLICATED=1'
+Warnings:
+Warning	4502	Table property is not the same as in comment for NOLOGGING property
+Warning	4502	Table property is not the same as in comment for READ_BACKUP property
+Warning	4501	Table property is not the same as in comment for PARTITION_BALANCE property
+Warning	4502	Table property is not the same as in comment for FULLY_REPLICATED property
+SET GLOBAL DEBUG="-d,ndb_append_create_info_unsync";
+DROP TABLE t1;
+CREATE TABLE t1 (
+a int PRIMARY KEY
+) ENGINE = NDB;
+SET GLOBAL DEBUG="+d,ndb_append_create_info_unparse";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=UNPARSABLE=1'
+Warnings:
+Warning	1478	NDB_TABLE= : unknown modifier: UNPARSABLE=1
+SET GLOBAL DEBUG="-d,ndb_append_create_info_unparse";
+DROP TABLE t1;

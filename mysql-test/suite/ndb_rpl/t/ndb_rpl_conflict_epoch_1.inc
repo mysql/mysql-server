@@ -5,7 +5,9 @@
 
 if ($extended_exceptions_table)
 {
-call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
+--disable_query_log
+call mtr.add_suppression("NDB Replica: exceptions table .* has suspicious definition .*");
+--enable_query_log
 }
 
 if (!$extended_exceptions_table)
@@ -557,7 +559,7 @@ delete from test.t1 where a=5;
 select * from test.t1 order by a;
 --source suite/ndb_rpl/t/ndb_conflict_info.inc
 
-# Test runs with --log-slave-updates=1
+# Test runs with --log-replica-updates=1
 # This means that the Secondary logs reflected ops if they
 # take some effect in its binlog
 # (e.g. they go S->P --reflect--> S --logged--> P)

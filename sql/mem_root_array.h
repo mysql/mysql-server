@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,14 @@
 #ifndef MEM_ROOT_ARRAY_INCLUDED
 #define MEM_ROOT_ARRAY_INCLUDED
 
+#include <assert.h>
 #include <algorithm>
 #include <type_traits>
+#include <utility>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
+#include "sql/thr_malloc.h"
 
 /**
    A typesafe replacement for DYNAMIC_ARRAY.
@@ -68,38 +71,32 @@ class Mem_root_array_YY {
   typedef Element_type value_type;
 
   void init(MEM_ROOT *root) {
-    DBUG_ASSERT(root != NULL);
+    assert(root != nullptr);
 
     m_root = root;
-    m_array = NULL;
+    m_array = nullptr;
     m_size = 0;
     m_capacity = 0;
   }
 
   /// Initialize empty array that we aren't going to grow
   void init_empty_const() {
-    m_root = NULL;
-    m_array = NULL;
+    m_root = nullptr;
+    m_array = nullptr;
     m_size = 0;
     m_capacity = 0;
   }
 
-  /**
-    Switches mem-root, in case original mem-root was copied.
-    NOTE: m_root should really be const, i.e. never change after initialization.
-  */
-  void set_mem_root(MEM_ROOT *new_root) {
-    m_root = new_root;
-    DBUG_ASSERT(m_root != NULL);
-  }
+  Element_type *data() { return m_array; }
+  const Element_type *data() const { return m_array; }
 
   Element_type &at(size_t n) {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_array[n];
   }
 
   const Element_type &at(size_t n) const {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_array[n];
   }
 
@@ -137,7 +134,7 @@ class Mem_root_array_YY {
     @param pos Index of first element to erase.
   */
   void chop(const size_t pos) {
-    DBUG_ASSERT(pos < m_size);
+    assert(pos < m_size);
     if (!has_trivial_destructor) {
       for (size_t ix = pos; ix < m_size; ++ix) {
         Element_type *p = &m_array[ix];
@@ -216,11 +213,38 @@ class Mem_root_array_YY {
   }
 
   /**
+    Adds a new element at the beginning of the array.
+    The content of this new element is initialized to a copy of
+    the input argument.
+
+    @param  element Object to copy.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_front(const Element_type &element) {
+    if (push_back(element)) return true;
+    std::rotate(begin(), end() - 1, end());
+    return false;
+  }
+
+  /**
+    Adds a new element at the front of the array.
+    The content of this new element is initialized by moving the input element.
+
+    @param  element Object to move.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_front(Element_type &&element) {
+    if (push_back(std::move(element))) return true;
+    std::rotate(begin(), end() - 1, end());
+    return false;
+  }
+
+  /**
     Removes the last element in the array, effectively reducing the
     container size by one. This destroys the removed element.
    */
   void pop_back() {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     if (!has_trivial_destructor) back().~Element_type();
     m_size -= 1;
   }
@@ -313,7 +337,7 @@ class Mem_root_array_YY {
     @return an iterator to the first element after the removed range
   */
   iterator erase(size_t ix) {
-    DBUG_ASSERT(ix < size());
+    assert(ix < size());
     return erase(std::next(this->cbegin(), ix));
   }
 
@@ -366,7 +390,7 @@ class Mem_root_array_YY {
     We use std::copy to move objects, hence Element_type must be assignable.
   */
   iterator erase(iterator position) {
-    DBUG_ASSERT(position != end());
+    assert(position != end());
     if (position + 1 != end()) std::copy(position + 1, end(), position);
     this->pop_back();
     return position;
@@ -377,7 +401,7 @@ class Mem_root_array_YY {
   bool empty() const { return size() == 0; }
   size_t size() const { return m_size; }
 
- private:
+ protected:
   MEM_ROOT *m_root;
   Element_type *m_array;
   size_t m_size;
@@ -403,7 +427,26 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
 
   typedef typename super::const_iterator const_iterator;
 
+  Mem_root_array() { super::init_empty_const(); }
+
   explicit Mem_root_array(MEM_ROOT *root) { super::init(root); }
+
+  /// Move constructor and assignment.
+  Mem_root_array(Mem_root_array &&other) {
+    this->m_root = other.m_root;
+    this->m_array = other.m_array;
+    this->m_size = other.m_size;
+    this->m_capacity = other.m_capacity;
+    other.init_empty_const();
+    other.m_root = this->m_root;
+  }
+  Mem_root_array &operator=(Mem_root_array &&other) {
+    if (this != &other) {
+      this->~Mem_root_array();
+      new (this) Mem_root_array(std::move(other));
+    }
+    return *this;
+  }
 
   Mem_root_array(MEM_ROOT *root, size_t n) {
     super::init(root);
@@ -436,12 +479,14 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
   Mem_root_array(MEM_ROOT *root, const Mem_root_array &x)
       : Mem_root_array(root, x.cbegin(), x.cend()) {}
 
+  Mem_root_array(std::initializer_list<Element_type> elements)
+      : Mem_root_array(*THR_MALLOC, begin(elements), end(elements)) {}
+
   ~Mem_root_array() { super::clear(); }
 
- private:
   // Not (yet) implemented.
-  Mem_root_array(const Mem_root_array &);
-  Mem_root_array &operator=(const Mem_root_array &);
+  Mem_root_array(const Mem_root_array &) = delete;
+  Mem_root_array &operator=(const Mem_root_array &) = delete;
 };
 
 #endif  // MEM_ROOT_ARRAY_INCLUDED

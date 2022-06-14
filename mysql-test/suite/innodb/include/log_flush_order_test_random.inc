@@ -68,10 +68,10 @@ while ($i) {
   }
   --echo Iterations left: $i - unfreeze...
   --source ../include/log_recent_closed_unfreeze.inc
-  real_sleep 0.5;
+  sleep 0.5;
   --echo Iterations left: $i - freeze...
   --source ../include/log_recent_closed_freeze.inc
-  real_sleep 0.5;
+  sleep 0.5;
   dec $i;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
+
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/item_cmpfunc.h"
@@ -56,17 +57,16 @@ class ItemFilterTest : public ::testing::Test {
  protected:
   ItemFilterTest() : rows_in_table(200) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_alloc,
-                   thd()->variables.range_alloc_block_size, 0);
+                   thd()->variables.range_alloc_block_size);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete m_table;
 
     initializer.TearDown();
-    free_root(&m_alloc, MYF(0));
   }
 
   THD *thd() { return initializer.thd(); }
@@ -89,7 +89,6 @@ class ItemFilterTest : public ::testing::Test {
     without creating indexes.
 
     @param  nbr_columns       The number of columns in the table
-    @param  columns_nullable  Whether or not columns in the table can be NULL
   */
   void create_table(int nbr_columns) { create_table(nbr_columns, false); }
 
@@ -173,14 +172,15 @@ class ItemFilterTest : public ::testing::Test {
 #define create_initem_check_filter(er, lst, ut, fti) \
   do_create_initem_check_filter(er, lst, ut, fti, TestFailLinePrinter(__LINE__))
   Item_func_in *do_create_initem_check_filter(
-      const float expected_result, List<Item> &lst, const table_map used_tables,
-      MY_BITMAP *fields_to_ignore, TestFailLinePrinter called_from_line) {
+      const float expected_result, const mem_root_deque<Item *> &lst,
+      const table_map used_tables, MY_BITMAP *fields_to_ignore,
+      TestFailLinePrinter called_from_line) {
     SCOPED_TRACE(called_from_line);
 
     PT_item_list *list = new (thd()->mem_root) PT_item_list;
     list->value = lst;
     Item_func_in *in_item = new Item_func_in(POS(), list, false);
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     EXPECT_FALSE(in_item->itemize(&pc, (Item **)&in_item));
 
     Item *itm = static_cast<Item *>(in_item);
@@ -242,7 +242,7 @@ Item_func *ItemFilterTest::create_item(Item_func::Functype type, Field *fld,
       result = new Item_func_isnotnull(new Item_field(fld));
       break;
     case Item_func::BETWEEN: {
-      Parse_context pc(thd(), thd()->lex->current_select());
+      Parse_context pc(thd(), thd()->lex->current_query_block());
       result =
           new Item_func_between(POS(), new Item_field(fld), new Item_int(val1),
                                 new Item_int(val2), false);
@@ -250,8 +250,8 @@ Item_func *ItemFilterTest::create_item(Item_func::Functype type, Field *fld,
       break;
     }
     default:
-      result = NULL;
-      DBUG_ASSERT(false);
+      result = nullptr;
+      assert(false);
       return result;
   }
   Item *itm = static_cast<Item *>(result);
@@ -269,7 +269,7 @@ TEST_F(ItemFilterTest, BasicDefaultRows) {
   const table_map used_tables = 0;
 
   MY_BITMAP no_ignore_flds;
-  bitmap_init(&no_ignore_flds, 0, m_table->s->fields, false);
+  bitmap_init(&no_ignore_flds, nullptr, m_table->s->fields);
 
   // Check filtering for predicate: field0 = 10
   create_item_check_filter(COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC,
@@ -296,7 +296,7 @@ TEST_F(ItemFilterTest, BasicDefaultRows) {
                            m_field[0], unused_int, unused_int, used_tables,
                            &no_ignore_flds);
   // Check filtering for predicate: field0 IS NOT NULL
-  create_item_check_filter(1.0 - COND_FILTER_EQUALITY,
+  create_item_check_filter(1.0F - COND_FILTER_EQUALITY,
                            Item_func::ISNOTNULL_FUNC, m_field[0], unused_int,
                            unused_int, used_tables, &no_ignore_flds);
   // Check filtering for predicate: field0 BETWEEN 10 AND 12
@@ -317,8 +317,8 @@ TEST_F(ItemFilterTest, BasicIgnoreField) {
 
   // Predicates on m_field[0] should be ignored
   MY_BITMAP ignore_fld0;
-  bitmap_init(&ignore_fld0, 0, m_table->s->fields, false);
-  bitmap_set_bit(&ignore_fld0, m_field[0]->field_index);
+  bitmap_init(&ignore_fld0, nullptr, m_table->s->fields);
+  bitmap_set_bit(&ignore_fld0, m_field[0]->field_index());
 
   // Check filtering for predicate on ignored field: field0 = 10
   create_item_check_filter(COND_FILTER_ALLPASS, Item_func::MULT_EQUAL_FUNC,
@@ -367,7 +367,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
 
   // Do not ignore predicates on any fields
   MY_BITMAP ignore_flds;
-  bitmap_init(&ignore_flds, 0, m_table->s->fields, false);
+  bitmap_init(&ignore_flds, nullptr, m_table->s->fields);
 
   // Create predicate: field0 = 10
   Item *eq_item1 = create_item_check_filter(
@@ -402,7 +402,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
     Calculate filtering of (field0=10 AND field1=10 AND field2<99)
     while ignoring predicates on field0
   */
-  bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[0]->field_index());
 
   float filter = and_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
@@ -412,7 +412,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
     Calculate filtering of (field0=10 AND field1=10 AND field2<99)
     while ignoring predicates on field0 and field1
   */
-  bitmap_set_bit(&ignore_flds, m_field[1]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[1]->field_index());
   filter = and_it->get_filtering_effect(thd(), m_table_list->map(), used_tables,
                                         &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_INEQUALITY, filter);
@@ -421,7 +421,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
     Calculate filtering of (field0=10 AND field1=10 AND field2<99)
     while ignoring predicates on field0, field1 and field2
   */
-  bitmap_set_bit(&ignore_flds, m_field[2]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[2]->field_index());
   filter = and_it->get_filtering_effect(thd(), m_table_list->map(), used_tables,
                                         &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filter);
@@ -440,7 +440,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
 
   // Do not ignore predicates on any fields
   MY_BITMAP ignore_flds;
-  bitmap_init(&ignore_flds, 0, m_table->s->fields, false);
+  bitmap_init(&ignore_flds, nullptr, m_table->s->fields);
 
   // Create predicate: field0 = 10
   Item *eq_item1 = create_item_check_filter(
@@ -486,7 +486,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
     The result is always 1.0 if any of the ORed predicates is 1.0.
 
   */
-  bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[0]->field_index());
   const float filt_ign0 = or_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign0);
@@ -495,7 +495,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
     Calculate filtering of (field0=10 OR field1=10 OR field2<99) while
     ignoring predicates on m_field[0] and m_field[1]
   */
-  bitmap_set_bit(&ignore_flds, m_field[1]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[1]->field_index());
   const float filt_ign1 = or_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign1);
@@ -505,7 +505,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
     ignoring predicates on m_field[2]
   */
   bitmap_clear_all(&ignore_flds);
-  bitmap_set_bit(&ignore_flds, m_field[2]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[2]->field_index());
   const float filt_ign2 = or_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign2);
@@ -523,10 +523,10 @@ TEST_F(ItemFilterTest, InPredicate) {
 
   // Do not ignore predicates on any fields
   MY_BITMAP ignore_flds;
-  bitmap_init(&ignore_flds, 0, m_table->s->fields, false);
+  bitmap_init(&ignore_flds, nullptr, m_table->s->fields);
 
   // Calculate filtering effect of "col IN (1)"
-  List<Item> in_lst1;
+  mem_root_deque<Item *> in_lst1(*THR_MALLOC);
   in_lst1.push_back(new Item_field(m_field[0]));
   in_lst1.push_back(new Item_int(1));
 
@@ -534,7 +534,7 @@ TEST_F(ItemFilterTest, InPredicate) {
                              &ignore_flds);
 
   // Calculate filtering effect of "col IN (1, ..., 4)"
-  List<Item> in_lst2;
+  mem_root_deque<Item *> in_lst2(*THR_MALLOC);
   in_lst2.push_back(new Item_field(m_field[0]));
   in_lst2.push_back(new Item_int(1));
   in_lst2.push_back(new Item_int(2));
@@ -552,7 +552,7 @@ TEST_F(ItemFilterTest, InPredicate) {
     110 * COND_FILTER_EQUALITY = 0.6, but the filtering effect
     of IN has an upper limit of 0.5.
   */
-  List<Item> in_lst3;
+  mem_root_deque<Item *> in_lst3(*THR_MALLOC);
   in_lst3.push_back(new Item_field(m_field[0]));
   for (int i = 1; i <= 110; i++) in_lst3.push_back(new Item_int(i));
 
@@ -563,7 +563,7 @@ TEST_F(ItemFilterTest, InPredicate) {
     There is no filtering effect for "col IN (1,..,6)" if 'col' is
     ignored.
   */
-  bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[0]->field_index());
   const float filt_ign = in_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign);

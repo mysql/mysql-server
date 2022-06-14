@@ -8,6 +8,8 @@ SLAVE_SERVER_ID: 3
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 MASTER_SERVER_ID: 1
 Setup ndb_replication and t1 exceptions table
 Populate ndb_replication table as necessary
@@ -18,8 +20,12 @@ c varchar(2000)) engine=ndb;
 insert into test.t1 values (1,1,repeat("B", 1000));
 Stopping Primary -> Secondary replication
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Stopping Secondary -> Primary replication
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Making change on Primary
 update test.t1 set b=2 where a=1;
 Making conflicting change on Secondary
@@ -32,6 +38,8 @@ Show that last_conflict_epoch is 0
 Variable_name	Value
 Ndb_conflict_last_conflict_epoch	0
 Restart Secondary->Primary replication
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Check that max_replicated_epoch is 
 still < the saved session epoch
 Max replicated epoch should be < committed epoch
@@ -45,10 +53,14 @@ Some invariants :
 Primary has detected the problem, but Secondary
 is unaware as the slave is offline.
 Now bring it back
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Now sync up
 Now lets check that the max replicated epoch
 on the Primary is == the last_conflict_epoch
 @max_replicated_epoch = @conflict_detected_epoch
 1
 Cleanup
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_end.inc

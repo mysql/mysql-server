@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@ extern CHARSET_INFO my_charset_utf32_unicode_ci;
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
 
 bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2) {
+  assert(0 != strcmp(cs1->csname, "utf8"));
+  assert(0 != strcmp(cs2->csname, "utf8"));
   return ((cs1 == cs2) || !strcmp(cs1->csname, cs2->csname));
 }
 
@@ -92,7 +94,7 @@ static void map_coll_name_to_number(const char *name, int num) {
   lower_case_name[len] = '\0';
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
-  DBUG_ASSERT(coll_name_num_map != nullptr);
+  assert(coll_name_num_map != nullptr);
   (*coll_name_num_map)[lower_case_name] = num;
 }
 
@@ -103,7 +105,7 @@ static void map_cs_name_to_number(const char *name, int num, int state) {
   lower_case_name[len] = '\0';
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
-  DBUG_ASSERT(cs_name_pri_num_map != nullptr && cs_name_bin_num_map != nullptr);
+  assert(cs_name_pri_num_map != nullptr && cs_name_bin_num_map != nullptr);
   if ((state & MY_CS_PRIMARY)) (*cs_name_pri_num_map)[lower_case_name] = num;
   if ((state & MY_CS_BINSORT)) (*cs_name_bin_num_map)[lower_case_name] = num;
 }
@@ -115,7 +117,7 @@ static uint get_collation_number_internal(const char *name) {
   lower_case_name[len] = '\0';
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
-  DBUG_ASSERT(coll_name_num_map != nullptr);
+  assert(coll_name_num_map != nullptr);
   auto name_num_map_it = coll_name_num_map->find(lower_case_name);
   if (name_num_map_it != coll_name_num_map->end())
     return name_num_map_it->second;
@@ -139,9 +141,9 @@ static bool cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
     if (to->csname == nullptr) return true;
   }
 
-  if (from->name) {
-    to->name = my_once_strdup(from->name, MYF(MY_WME));
-    if (to->name == nullptr) return true;
+  if (from->m_coll_name) {
+    to->m_coll_name = my_once_strdup(from->m_coll_name, MYF(MY_WME));
+    if (to->m_coll_name == nullptr) return true;
   }
 
   if (from->comment) {
@@ -192,7 +194,7 @@ static bool cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
 static bool simple_cs_is_full(CHARSET_INFO *cs) {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
            cs->to_lower) &&
-          (cs->number && cs->name &&
+          (cs->number && cs->m_coll_name &&
            (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
@@ -209,15 +211,29 @@ static void copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from) {
   to->state |= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_STRNXFRM | MY_CS_UNICODE;
 }
 
+static void clear_cs_info(CHARSET_INFO *cs) {
+  cs->number = 0;
+  cs->primary_number = 0;
+  cs->binary_number = 0;
+  cs->m_coll_name = nullptr;
+  cs->state = 0;
+  cs->sort_order = nullptr;
+}
+
 static int add_collation(CHARSET_INFO *cs) {
-  if (cs->name &&
-      (cs->number || (cs->number = get_collation_number_internal(cs->name))) &&
+  if (cs->m_coll_name &&
+      (cs->number ||
+       (cs->number = get_collation_number_internal(cs->m_coll_name))) &&
       cs->number < array_elements(all_charsets)) {
     if (!all_charsets[cs->number]) {
       if (!(all_charsets[cs->number] =
                 (CHARSET_INFO *)my_once_alloc(sizeof(CHARSET_INFO), MYF(0))))
         return MY_XML_ERROR;
       memset(all_charsets[cs->number], 0, sizeof(CHARSET_INFO));
+    } else if (all_charsets[cs->number]->state & MY_CS_COMPILED) {
+      // Disallow overwriting compiled character sets
+      clear_cs_info(cs);
+      return MY_XML_OK;  // Just ignore it.
     }
 
     if (cs->primary_number == cs->number) cs->state |= MY_CS_PRIMARY;
@@ -225,7 +241,7 @@ static int add_collation(CHARSET_INFO *cs) {
     if (cs->binary_number == cs->number) cs->state |= MY_CS_BINSORT;
 
     all_charsets[cs->number]->state |= cs->state;
-    map_coll_name_to_number(cs->name, cs->number);
+    map_coll_name_to_number(cs->m_coll_name, cs->number);
     map_cs_name_to_number(cs->csname, cs->number, cs->state);
 
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED)) {
@@ -283,7 +299,7 @@ static int add_collation(CHARSET_INFO *cs) {
       }
     } else {
       /*
-        We need the below to make get_charset_name()
+        We need the below to make get_collaiton_name()
         and get_charset_number() working even if a
         character set has not been really incompiled.
         The above functions are used for example
@@ -299,17 +315,11 @@ static int add_collation(CHARSET_INFO *cs) {
       if (cs->csname)
         if (!(dst->csname = my_once_strdup(cs->csname, MYF(MY_WME))))
           return MY_XML_ERROR;
-      if (cs->name)
-        if (!(dst->name = my_once_strdup(cs->name, MYF(MY_WME))))
+      if (cs->m_coll_name)
+        if (!(dst->m_coll_name = my_once_strdup(cs->m_coll_name, MYF(MY_WME))))
           return MY_XML_ERROR;
     }
-    cs->number = 0;
-    cs->primary_number = 0;
-    cs->binary_number = 0;
-    cs->name = NULL;
-    cs->state = 0;
-    cs->sort_order = NULL;
-    cs->state = 0;
+    clear_cs_info(cs);
   }
   return MY_XML_OK;
 }
@@ -318,8 +328,8 @@ static int add_collation(CHARSET_INFO *cs) {
   Report character set initialization errors and warnings.
   Be silent by default: no warnings on the client side.
 */
-static void default_reporter(enum loglevel level MY_ATTRIBUTE((unused)),
-                             uint ecode MY_ATTRIBUTE((unused)), ...) {}
+static void default_reporter(enum loglevel level [[maybe_unused]],
+                             uint ecode [[maybe_unused]], ...) {}
 my_error_reporter my_charset_error_reporter = default_reporter;
 
 /**
@@ -358,7 +368,7 @@ void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader) {
 #define MY_MAX_ALLOWED_BUF 1024 * 1024
 #define MY_CHARSET_INDEX "Index.xml"
 
-const char *charsets_dir = NULL;
+const char *charsets_dir = nullptr;
 
 static bool my_read_charset_file(MY_CHARSET_LOADER *loader,
                                  const char *filename, myf myflags) {
@@ -395,9 +405,9 @@ error:
 char *get_charsets_dir(char *buf) {
   const char *sharedir = SHAREDIR;
   char *res;
-  DBUG_ENTER("get_charsets_dir");
+  DBUG_TRACE;
 
-  if (charsets_dir != NULL)
+  if (charsets_dir != nullptr)
     strmake(buf, charsets_dir, FN_REFLEN - 1);
   else {
     if (test_if_hard_path(sharedir) ||
@@ -409,16 +419,16 @@ char *get_charsets_dir(char *buf) {
   }
   res = convert_dirname(buf, buf, NullS);
   DBUG_PRINT("info", ("charsets dir: '%s'", buf));
-  DBUG_RETURN(res);
+  return res;
 }
 
-CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {NULL};
+CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {nullptr};
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
 void add_compiled_collation(CHARSET_INFO *cs) {
-  DBUG_ASSERT(cs->number < array_elements(all_charsets));
+  assert(cs->number < array_elements(all_charsets));
   all_charsets[cs->number] = cs;
-  map_coll_name_to_number(cs->name, cs->number);
+  map_coll_name_to_number(cs->m_coll_name, cs->number);
   map_cs_name_to_number(cs->csname, cs->number, cs->state);
   cs->state |= MY_CS_AVAILABLE;
 }
@@ -431,8 +441,8 @@ static void init_available_charsets(void) {
 
   memset(&all_charsets, 0, sizeof(all_charsets));
 
-  DBUG_ASSERT(coll_name_num_map == nullptr && cs_name_pri_num_map == nullptr &&
-              cs_name_bin_num_map == nullptr);
+  assert(coll_name_num_map == nullptr && cs_name_pri_num_map == nullptr &&
+         cs_name_bin_num_map == nullptr);
   coll_name_num_map = new std::unordered_map<std::string, int>(0);
   cs_name_pri_num_map = new std::unordered_map<std::string, int>(0);
   cs_name_bin_num_map = new std::unordered_map<std::string, int>(0);
@@ -456,7 +466,7 @@ static const char *get_collation_name_alias(const char *name, char *buf,
     snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
     return buf;
   }
-  return NULL;
+  return nullptr;
 }
 
 uint get_collation_number(const char *name) {
@@ -483,7 +493,7 @@ static uint get_charset_number_internal(const char *charset_name,
     This function might be called concurrently. C++ guarantees this read-only
     access to STL container is thread-safe.
   */
-  DBUG_ASSERT(cs_name_pri_num_map != nullptr && cs_name_bin_num_map != nullptr);
+  assert(cs_name_pri_num_map != nullptr && cs_name_bin_num_map != nullptr);
   if ((cs_flags & MY_CS_PRIMARY)) {
     auto name_num_map_it = cs_name_pri_num_map->find(lower_case_name);
     if (name_num_map_it != cs_name_pri_num_map->end()) {
@@ -501,13 +511,13 @@ static uint get_charset_number_internal(const char *charset_name,
     }
   }
 
-  DBUG_ASSERT(false);
+  assert(false);
   return 0;
 }
 
 static const char *get_charset_name_alias(const char *name) {
-  if (!my_strcasecmp(&my_charset_latin1, name, "utf8mb3")) return "utf8";
-  return NULL;
+  if (!my_strcasecmp(&my_charset_latin1, name, "utf8")) return "utf8mb3";
+  return nullptr;
 }
 
 uint get_charset_number(const char *charset_name, uint cs_flags) {
@@ -519,24 +529,25 @@ uint get_charset_number(const char *charset_name, uint cs_flags) {
   return 0;
 }
 
-const char *get_charset_name(uint charset_number) {
+const char *get_collation_name(uint charset_number) {
   std::call_once(charsets_initialized, init_available_charsets);
 
   if (charset_number < array_elements(all_charsets)) {
     CHARSET_INFO *cs = all_charsets[charset_number];
 
-    if (cs && (cs->number == charset_number) && cs->name) return cs->name;
+    if (cs && (cs->number == charset_number) && cs->m_coll_name)
+      return cs->m_coll_name;
   }
 
   return "?"; /* this mimics find_type() */
 }
 
-static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader,
+static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader_arg,
                                           uint cs_number, myf flags) {
   char buf[FN_REFLEN];
   CHARSET_INFO *cs;
 
-  DBUG_ASSERT(cs_number < array_elements(all_charsets));
+  assert(cs_number < array_elements(all_charsets));
 
   if ((cs = all_charsets[cs_number])) {
     if (cs->state & MY_CS_READY) /* if CS is already initialized */
@@ -559,14 +570,14 @@ static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader,
 
     if (cs->state & MY_CS_AVAILABLE) {
       if (!(cs->state & MY_CS_READY)) {
-        if ((cs->cset->init && cs->cset->init(cs, loader)) ||
-            (cs->coll->init && cs->coll->init(cs, loader))) {
-          cs = NULL;
+        if ((cs->cset->init && cs->cset->init(cs, loader_arg)) ||
+            (cs->coll->init && cs->coll->init(cs, loader_arg))) {
+          cs = nullptr;
         } else
           cs->state |= MY_CS_READY;
       }
     } else
-      cs = NULL;
+      cs = nullptr;
 
     mysql_mutex_unlock(&THR_LOCK_charset);
   }
@@ -581,7 +592,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
 
   std::call_once(charsets_initialized, init_available_charsets);
 
-  if (cs_number >= array_elements(all_charsets)) return NULL;
+  if (cs_number >= array_elements(all_charsets)) return nullptr;
 
   my_charset_loader_init_mysys(&loader);
   cs = get_internal_charset(&loader, cs_number, flags);
@@ -590,7 +601,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)], cs_string[23];
     my_stpcpy(get_charsets_dir(index_file), MY_CHARSET_INDEX);
     cs_string[0] = '#';
-    int10_to_str(cs_number, cs_string + 1, 10);
+    longlong10_to_str(cs_number, cs_string + 1, 10);
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_string, index_file);
   }
   return cs;
@@ -613,7 +624,7 @@ CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
 
   cs_number = get_collation_number(name);
   my_charset_loader_init_mysys(loader);
-  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;
+  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : nullptr;
 
   if (!cs && (flags & MY_WME)) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -643,13 +654,13 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                      myf flags) {
   uint cs_number;
   CHARSET_INFO *cs;
-  DBUG_ENTER("get_charset_by_csname");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: '%s'", cs_name));
 
   std::call_once(charsets_initialized, init_available_charsets);
 
   cs_number = get_charset_number(cs_name, cs_flags);
-  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;
+  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : nullptr;
 
   if (!cs && (flags & MY_WME)) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -657,7 +668,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_name, index_file);
   }
 
-  DBUG_RETURN(cs);
+  return cs;
 }
 
 CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,
@@ -687,7 +698,7 @@ bool resolve_charset(const char *cs_name, const CHARSET_INFO *default_cs,
                      const CHARSET_INFO **cs) {
   *cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
-  if (*cs == NULL) {
+  if (*cs == nullptr) {
     *cs = default_cs;
     return true;
   }
@@ -715,7 +726,7 @@ bool resolve_collation(const char *cl_name, const CHARSET_INFO *default_cl,
                        const CHARSET_INFO **cl) {
   *cl = get_charset_by_name(cl_name, MYF(0));
 
-  if (*cl == NULL) {
+  if (*cl == nullptr) {
     *cl = default_cl;
     return true;
   }
@@ -919,7 +930,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
 
 void charset_uninit() {
   for (CHARSET_INFO *cs : all_charsets) {
-    if (cs && cs->coll->uninit) {
+    if (cs && cs->coll && cs->coll->uninit) {
       cs->coll->uninit(cs);
     }
   }

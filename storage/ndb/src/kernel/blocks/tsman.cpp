@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_TSMAN 1
 //#define DEBUG_TSMAN_NUM_EXTENTS 1
 //#define DEBUG_TSMAN_RESTART 1
@@ -87,15 +87,25 @@ Tsman::Tsman(Block_context& ctx) :
   m_tablespace_hash(m_tablespace_pool),
   m_pgman(0),
   m_lgman(0),
-  m_tup(0),
-  m_client_mutex("tsman-client", 2, true)
+  m_tup(0)
 {
   BLOCK_CONSTRUCTOR(Tsman);
 
   Uint32 SZ = File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;  
   ndbrequire((COMMITTED_MASK & UNCOMMITTED_MASK) == 0);
   ndbrequire((COMMITTED_MASK | UNCOMMITTED_MASK) == ((1 << SZ) - 1));
-  
+
+  if (isNdbMtLqh())
+  {
+    jam();
+    for (Uint32 i = 0; i < MAX_NDBMT_LQH_THREADS + 1; i++)
+    {
+      m_client_mutex[i] = NdbMutex_Create();
+      ndbrequire(m_client_mutex[i] != 0);
+    }
+    m_alloc_extent_mutex = NdbMutex_Create();
+    ndbrequire(m_alloc_extent_mutex != 0);
+  }
   // Add received signals
   addRecSignal(GSN_STTOR, &Tsman::execSTTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Tsman::execREAD_CONFIG_REQ);
@@ -108,8 +118,6 @@ Tsman::Tsman(Block_context& ctx) :
 
   addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Tsman::execDROP_FILE_IMPL_REQ);
   addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ, &Tsman::execDROP_FILEGROUP_IMPL_REQ);
-
-  addRecSignal(GSN_FSWRITEREQ, &Tsman::execFSWRITEREQ);
 
   addRecSignal(GSN_FSOPENREF, &Tsman::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Tsman::execFSOPENCONF);
@@ -132,46 +140,19 @@ Tsman::Tsman(Block_context& ctx) :
   m_file_hash.setSize(10);
   m_lcp_ongoing = false;
 
-  if (isNdbMtLqh()) {
-    jam();
-    int ret = m_client_mutex.create();
-    ndbrequire(ret == 0);
-  }
 }
   
 Tsman::~Tsman()
 {
-  if (isNdbMtLqh()) {
-    (void)m_client_mutex.destroy();
-  }
-}
-
-void
-Tsman::client_lock(BlockNumber block, int line)
-{
-  if (isNdbMtLqh()) {
-#ifdef VM_TRACE
-    Uint32 bno = blockToMain(block);
-    Uint32 ino = blockToInstance(block);
-#endif
-    D("try lock " << bno << "/" << ino << V(line));
-    int ret = m_client_mutex.lock();
-    ndbrequire(ret == 0);
-    D("got lock " << bno << "/" << ino << V(line));
-  }
-}
-
-void
-Tsman::client_unlock(BlockNumber block, int line)
-{
-  if (isNdbMtLqh()) {
-#ifdef VM_TRACE
-    Uint32 bno = blockToMain(block);
-    Uint32 ino = blockToInstance(block);
-#endif
-    D("unlock " << bno << "/" << ino << V(line));
-    int ret = m_client_mutex.unlock();
-    ndbrequire(ret == 0);
+  if (isNdbMtLqh())
+  {
+    for (Uint32 i = 0; i < MAX_NDBMT_LQH_THREADS + 1; i++)
+    {
+      NdbMutex_Destroy(m_client_mutex[i]);
+      m_client_mutex[i] = 0;
+    }
+    NdbMutex_Destroy(m_alloc_extent_mutex);
+    m_alloc_extent_mutex = 0;
   }
 }
 
@@ -200,6 +181,11 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
                             &disk_data_format);
   g_use_old_format = (disk_data_format == 0);
 #endif
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   m_file_pool.init(RT_TSMAN_FILE, pc);
   m_tablespace_pool.init(RT_TSMAN_FILEGROUP, pc);
 
@@ -241,7 +227,14 @@ Tsman::execCONTINUEB(Signal* signal)
   jamEntry();
   Uint32 type = signal->theData[0];
   Uint32 ptrI = signal->theData[1];
-  client_lock(number(), __LINE__);
+
+  if (type == TsmanContinueB::END_LCP)
+  {
+    jam();
+    end_lcp(signal, ptrI, signal->theData[2], signal->theData[3]);
+    return;
+  }
+  client_lock();
   switch(type){
   case TsmanContinueB::SCAN_TABLESPACE_EXTENT_HEADERS:
     jam();
@@ -251,15 +244,11 @@ Tsman::execCONTINUEB(Signal* signal)
     jam();
     scan_datafile(signal, ptrI, signal->theData[2]);
     break;
-  case TsmanContinueB::END_LCP:
-    jam();
-    end_lcp(signal, ptrI, signal->theData[2], signal->theData[3]);
-    break;
   case TsmanContinueB::RELEASE_EXTENT_PAGES:
   {
     jam();
     Ptr<Datafile> ptr;
-    m_file_pool.getPtr(ptr, ptrI);
+    ndbrequire(m_file_pool.getPtr(ptr, ptrI));
     release_extent_pages(signal, ptr);
     break;
   }
@@ -267,21 +256,38 @@ Tsman::execCONTINUEB(Signal* signal)
   {
     jam();
     Ptr<Datafile> ptr;
-    m_file_pool.getPtr(ptr, ptrI);
+    ndbrequire(m_file_pool.getPtr(ptr, ptrI));
     load_extent_pages(signal, ptr);
     break;
   }
   default:
     ndbabort();
   }
-  client_unlock(number(), __LINE__);
+  client_unlock();
 }
 
 void
 Tsman::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed; 
   failed.assign(NdbNodeBitmask::Size, rep->theNodes);
 
@@ -330,14 +336,13 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 
     if(req->reply.errorCode == 0){
       jam();
-      ndbout_c("Success");
-      ndbout_c("page: %d %d count: %d", 
+      g_eventLogger->info("Success page: %d %d count: %d",
 	       req->reply.page_id.m_file_no,
 	       req->reply.page_id.m_page_no,
 	       req->reply.page_count);
     } else {
       jam();
-      ndbout_c("Error: %d", req->reply.errorCode); 
+      g_eventLogger->info("Error: %d", req->reply.errorCode);
     }
   }
 
@@ -360,14 +365,13 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 
     if(req->reply.errorCode == 0){
       jam();
-      ndbout_c("Success");
-      ndbout_c("page: %d %d bits: %d", 
+      g_eventLogger->info("Success page: %d %d bits: %d",
 	       req->key.m_file_no,
 	       req->key.m_page_no,
 	       req->bits);
     } else {
       jam();
-      ndbout_c("Error: %d", req->reply.errorCode); 
+      g_eventLogger->info("Error: %d", req->reply.errorCode);
     }
   }
 
@@ -388,7 +392,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
       switch((rand() * sz) % 2){
       case 0:
       {
-	ndbout_c("case 0");
+	g_eventLogger->info("case 0");
 	AllocExtentReq* req = (AllocExtentReq*)signal->theData;
 	req->request.tablespace_id = id;
 	req->request.table_id = 0;
@@ -399,7 +403,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 	  c.start_page = req->reply.page_id;
 	  c.page_count = req->reply.page_count;
 	  Uint32 words = File_formats::Datafile::extent_header_words(c.page_count);
-	  ndbout_c("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d(%d)", 
+	  g_eventLogger->info("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d(%d)",
 		   c.start_page.m_file_no,
 		   c.start_page.m_page_no,
 		   c.page_count,
@@ -408,12 +412,12 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 	  chunks.push_back(c);
 	  chunks.back().bitmask.fill(words, zero);
 
-	  ndbout_c("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d", 
+	  g_eventLogger->info("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d",
 		   chunks.back().start_page.m_file_no,
 		   chunks.back().start_page.m_page_no,
 		   chunks.back().page_count);
 	} else {
-	  ndbout_c("Error: %d", req->reply.errorCode); 
+	  g_eventLogger->info("Error: %d", req->reply.errorCode);
 	}
 	break;
       }
@@ -422,7 +426,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 chunk = rand() % sz;
 	Uint32 count = chunks[chunk].page_count;
 	Uint32 page = rand() % count;
-	ndbout_c("case 1 - %d %d %d", chunk, count, page);
+	g_eventLogger->info("case 1 - %d %d %d", chunk, count, page);
 	
 	File_formats::Datafile::Extent_header* header =
 	  (File_formats::Datafile::Extent_header*)
@@ -458,7 +462,8 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
 
   Uint32 senderRef = req->senderRef;
   Uint32 senderData = req->senderData;
-  
+
+  client_lock();
   Ptr<Tablespace> ptr;
   CreateFilegroupImplRef::ErrorCode err = CreateFilegroupImplRef::NoError;
   do
@@ -484,6 +489,8 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
 
     ptr.p->m_state = Tablespace::TS_ONLINE;
 
+    client_unlock();
+
     CreateFilegroupImplConf* conf= 
       (CreateFilegroupImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
@@ -492,6 +499,7 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
 	       CreateFilegroupImplConf::SignalLength, JBB);
     return;
   } while(0);
+  client_unlock();
   
   CreateFilegroupImplRef* ref= (CreateFilegroupImplRef*)signal->getDataPtr();
   ref->senderData = senderData;
@@ -500,16 +508,16 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
   sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_REF, signal,
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
-NdbOut&
-operator<<(NdbOut& out, const File_formats::Datafile::Extent_data & obj)
+
+static char*
+print(char buf[], int n, const File_formats::Datafile::Extent_data &obj)
 {
+  buf[0] = '\0';
   for(Uint32 i = 0; i<32; i++)
   {
-    char t[2];
-    BaseString::snprintf(t, sizeof(t), "%x", obj.get_free_bits(i));
-    out << t;
+    BaseString::snappend(buf, n, "%x", obj.get_free_bits(i));
   }
-  return out;
+  return buf;
 }
 
 void
@@ -520,6 +528,7 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
   Uint32 errorCode = 0;
   DropFilegroupImplReq req = *(DropFilegroupImplReq*)signal->getDataPtr();  
   Ptr<Tablespace> ptr;
+  client_lock();
   do 
   {
     if (!m_tablespace_hash.find(ptr, req.filegroup_id))
@@ -561,6 +570,7 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
       if (ptr.p->m_ref_count)
       {
         jam();
+        client_unlock();
         sendSignalWithDelay(reference(), GSN_DROP_FILEGROUP_IMPL_REQ, signal,
                             100, signal->getLength());
         return;
@@ -598,6 +608,7 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
     sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	       DropFilegroupImplConf::SignalLength, JBB);
   }
+  client_unlock();
 }
 
 bool 
@@ -620,7 +631,7 @@ void
 Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  client_lock(number(), __LINE__);
+  client_lock();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
   
   Uint32 senderRef = req->senderRef;
@@ -665,8 +676,9 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       Page_cache_client pgman(this, m_pgman);
       pgman.map_file_no(signal, file_ptr.p->m_file_no, file_ptr.p->m_fd);
       file_ptr.p->m_create.m_loading_extent_page = 1;
+      m_file_hash.add(file_ptr);
       load_extent_pages(signal, file_ptr);
-      client_unlock(number(), __LINE__);
+      client_unlock();
       return;
     }
     case CreateFileImplReq::Abort:
@@ -681,7 +693,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
 	file_ptr.p->m_create.m_senderData = senderData;
 	file_ptr.p->m_create.m_requestInfo = req->requestInfo;
 	create_file_abort(signal, file_ptr);
-        client_unlock(number(), __LINE__);
+        client_unlock();
 	return;
       }
       else
@@ -692,7 +704,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
 	conf->senderRef = reference();
 	sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 		   CreateFileImplConf::SignalLength, JBB);
-        client_unlock(number(), __LINE__);
+        client_unlock();
 	return;
       }
     }
@@ -722,7 +734,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
       sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
                  CreateFileImplRef::SignalLength, JBB);
-      client_unlock(number(), __LINE__);
+      client_unlock();
       return;
     }
  
@@ -741,7 +753,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       jam();
       break;
     }
-    client_unlock(number(), __LINE__);
+    client_unlock();
     return;
   } while(0);
   
@@ -752,7 +764,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
   ref->errorCode = err;
   sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
-  client_unlock(number(), __LINE__);
+  client_unlock();
 }
 
 static inline Uint64 DIV(Uint64 a, Uint64 b){ return (a + b - Uint64(1)) / b;}
@@ -768,7 +780,7 @@ Tsman::release_extent_pages(Signal* signal, Ptr<Datafile> ptr)
     preq.m_page.m_page_no = page;
     preq.m_table_id = RNIL;
     preq.m_fragment_id = 0;
-    
+
     preq.m_callback.m_callbackData = ptr.i;
     preq.m_callback.m_callbackFunction = 
       safe_cast(&Tsman::release_extent_pages_callback);
@@ -778,7 +790,7 @@ Tsman::release_extent_pages(Signal* signal, Ptr<Datafile> ptr)
     Page_cache_client pgman(this, m_pgman);
     if((page_id = pgman.get_page(signal, preq, flags)) > 0)
     {
-      execute(signal, preq.m_callback, page_id);
+      release_extent_pages_callback_direct(signal, ptr.i, page_id);
     } 
     return;
   }
@@ -791,8 +803,18 @@ Tsman::release_extent_pages_callback(Signal* signal,
 				     Uint32 ptrI,
 				     Uint32 page_id)
 {
+  client_lock();
+  release_extent_pages_callback_direct(signal, ptrI, page_id);
+  client_unlock();
+}
+
+void
+Tsman::release_extent_pages_callback_direct(Signal* signal, 
+				            Uint32 ptrI,
+				            Uint32 page_id)
+{
   Ptr<Datafile> ptr;
-  m_file_pool.getPtr(ptr, ptrI);
+  ndbrequire(m_file_pool.getPtr(ptr, ptrI));
   Local_key key;
   key.m_file_no = ptr.p->m_file_no;
   key.m_page_no = ptr.p->m_create.m_extent_pages;
@@ -812,7 +834,7 @@ Tsman::create_file_abort(Signal* signal, Ptr<Datafile> ptr)
   if (ptr.p->m_fd == RNIL)
   {
     ((FsConf*)signal->getDataPtr())->userPointer = ptr.i;
-    execFSCLOSECONF(signal);
+    fscloseconf(signal);
     return;
   }
 
@@ -828,16 +850,25 @@ Tsman::create_file_abort(Signal* signal, Ptr<Datafile> ptr)
 }
 
 void
-Tsman::execFSCLOSECONF(Signal* signal)
+Tsman::execFSCLOSECONF(Signal *signal)
+{
+  client_lock();
+  fscloseconf(signal);
+  client_unlock();
+}
+
+void
+Tsman::fscloseconf(Signal* signal)
 {
   Ptr<Datafile> ptr;
   Ptr<Tablespace> ts_ptr;
   Uint32 ptrI = ((FsConf*)signal->getDataPtr())->userPointer;
-  m_file_pool.getPtr(ptr, ptrI);
+
+  ndbrequire(m_file_pool.getPtr(ptr, ptrI));
   
   Uint32 senderRef = ptr.p->m_create.m_senderRef;
   Uint32 senderData = ptr.p->m_create.m_senderData;
-  m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
+  ndbrequire(m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i));
   
   if (ptr.p->m_state == Datafile::FS_CREATING)
   {
@@ -858,6 +889,11 @@ Tsman::execFSCLOSECONF(Signal* signal)
   else if(ptr.p->m_state == Datafile::FS_DROPPING)
   {
     jam();
+    for (Uint32 i = 0; i < 32; i++)
+    {
+      int ret = NdbMutex_Deinit(&ptr.p->m_extent_page_mutex[i]);
+      ndbrequire(ret == 0);
+    }
     m_file_hash.remove(ptr);
     Page_cache_client pgman(this, m_pgman);
     pgman.free_data_file(signal, ptr.p->m_file_no, ptr.p->m_fd);
@@ -979,10 +1015,16 @@ Tsman::open_file(Signal* signal,
   default:
     ndbabort();
   }
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
 
   req->page_size = File_formats::NDB_PAGE_SIZE;
   req->file_size_hi = hi;
   req->file_size_lo = lo;
+  req->auto_sync_size = 0;
 
   Uint64 pages = (Uint64(hi) << 32 | Uint64(lo)) / Uint64(File_formats::NDB_PAGE_SIZE);
   Uint32 extent_size = ts_ptr.p->m_extent_size; // Extent size in #pages
@@ -1028,12 +1070,22 @@ Tsman::open_file(Signal* signal,
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD tsman: file id:" << ptr.p->m_file_id
-         << " datafile pages/bytes:" << data_pages
-         << "/" << data_pages*File_formats::NDB_PAGE_SIZE
-         << " extent pages:" << extent_pages << endl;
+  g_eventLogger->info(
+      "DD tsman: file id: %u datafile pages/bytes: %llu/%llu"
+      " extent pages: %llu",
+      ptr.p->m_file_id, data_pages, data_pages * File_formats::NDB_PAGE_SIZE,
+      extent_pages);
 #endif
 
+  if ((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) != 0)
+  {
+    ndbrequire(handle->m_cnt == 1);
+    ndbrequire(import(handle->m_ptr[FsOpenReq::ENCRYPT_KEY_MATERIAL],
+                      (const Uint32*)&FsOpenReq::DUMMY_KEY,
+                      FsOpenReq::DUMMY_KEY.get_needed_words()));
+    handle->m_cnt++;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+  }
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);
 
@@ -1041,7 +1093,7 @@ Tsman::open_file(Signal* signal,
 }
 
 void
-Tsman::execFSWRITEREQ(Signal* signal)
+Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
 {
   /**
    * This is currently run in other thread -> no jam
@@ -1066,10 +1118,11 @@ Tsman::execFSWRITEREQ(Signal* signal)
   //jamEntry();
   Ptr<Datafile> ptr;
   Ptr<GlobalPage> page_ptr;
-  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   
-  m_file_pool.getPtr(ptr, req->userPointer);
-  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+  ndbrequire(m_file_pool.getPtr(ptr, req->userPointer));
+  ndbrequire(req->getFormatFlag(req->operationFlag) ==
+               req->fsFormatSharedPage);
+  ndbrequire(m_shared_page_pool.getPtr(page_ptr, req->data.sharedPage.pageNumber));
   
   Uint32 page_no = req->varIndex;
   Uint32 size = ptr.p->m_extent_size;
@@ -1080,7 +1133,8 @@ Tsman::execFSWRITEREQ(Signal* signal)
   Uint32 header_words = File_formats::Datafile::extent_header_words(size, v2);
   Uint32 per_page = File_formats::Datafile::extent_page_words(v2) / header_words;
   Uint32 extents = datapages/size;
-  
+
+  client_lock(0);
   if (page_no == 0)
   {
     //jam();
@@ -1178,6 +1232,7 @@ Tsman::execFSWRITEREQ(Signal* signal)
       (File_formats::Page_header*)page_ptr.p;
     page_header->m_page_type = File_formats::PT_Unallocated;
   }
+  client_unlock(0);
 }
 
 void
@@ -1211,7 +1266,7 @@ Tsman::execFSOPENREF(Signal* signal)
   Uint32 errCode = ref->errorCode;
   Uint32 osErrCode = ref->osErrorCode;
 
-  m_file_pool.getPtr(ptr, ref->userPointer);
+  ndbrequire(m_file_pool.getPtr(ptr, ref->userPointer));
   m_tablespace_hash.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
 
   create_file_ref(signal, ts_ptr, ptr, 
@@ -1226,7 +1281,7 @@ Tsman::execFSOPENCONF(Signal* signal)
   Ptr<Tablespace> ts_ptr;
   FsConf* conf = (FsConf*)signal->getDataPtr();
 
-  m_file_pool.getPtr(ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(ptr, conf->userPointer));
   m_tablespace_hash.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
 
   Uint32 fd = ptr.p->m_fd = conf->filePointer;
@@ -1236,8 +1291,10 @@ Tsman::execFSOPENCONF(Signal* signal)
   case CreateFileImplReq::CreateForce:
   {
     jam();
+    lock_alloc_extent();
     const Uint32 extents = ptr.p->m_create.m_data_pages/ts_ptr.p->m_extent_size;
     ts_ptr.p->m_total_extents += Uint64(extents); // At initial start
+    unlock_alloc_extent();
     DEB_TSMAN_NUM_EXTENTS(("Total num_extents: %llu", ts_ptr.p->m_total_extents));
     
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
@@ -1337,9 +1394,8 @@ Tsman::execFSOPENCONF(Signal* signal)
     req->varIndex = 0;
     req->numberOfPages = 1;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				  FsReadWriteReq::fsFormatGlobalPage);
-    req->data.pageData[0] = page_ptr.i;
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatGlobalPage);
+    req->data.globalPage.pageNumber = page_ptr.i;
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBB);
     return;
@@ -1358,11 +1414,11 @@ Tsman::execFSREADCONF(Signal* signal){
    * We currently only read pages here as part of CREATE_FILE
    *  (other read is done using pgman)
    */
-  m_file_pool.getPtr(ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(ptr, conf->userPointer));
   m_tablespace_hash.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
 
   Ptr<GlobalPage> page_ptr;
-  m_global_page_pool.getPtr(page_ptr, ptr.p->m_create.m_page_ptr_i);
+  ndbrequire(m_global_page_pool.getPtr(page_ptr, ptr.p->m_create.m_page_ptr_i));
   
   File_formats::Datafile::Zero_page* page = 
     (File_formats::Datafile::Zero_page*)page_ptr.p;
@@ -1469,8 +1525,10 @@ Tsman::execFSREADCONF(Signal* signal){
      */
     m_global_page_pool.release(page_ptr);
 
+    lock_alloc_extent();
     ts_ptr.p->m_total_extents += Uint64(extents); // At node restart
     DEB_TSMAN_NUM_EXTENTS(("Total num_extents: %llu", ts_ptr.p->m_total_extents));
+    unlock_alloc_extent();
 
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
@@ -1492,7 +1550,7 @@ Tsman::execFSREADREF(Signal* signal)
   Ptr<Tablespace> ts_ptr;
   FsRef* ref = (FsRef*)signal->getDataPtr();
 
-  m_file_pool.getPtr(ptr, ref->userPointer);
+  ndbrequire(m_file_pool.getPtr(ptr, ref->userPointer));
   m_tablespace_hash.find(ts_ptr, ptr.p->m_tablespace_ptr_i);
 
   m_global_page_pool.release(ptr.p->m_create.m_page_ptr_i);
@@ -1515,13 +1573,13 @@ Tsman::load_extent_pages(Signal* signal, Ptr<Datafile> ptr)
   preq.m_callback.m_callbackData = ptr.i;
   preq.m_callback.m_callbackFunction = 
     safe_cast(&Tsman::load_extent_page_callback);
-  
+
   int page_id;
   int flags = Page_cache_client::LOCK_PAGE;
   Page_cache_client pgman(this, m_pgman);
   if((page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    load_extent_page_callback(signal, ptr.i, (Uint32)page_id);
+    load_extent_page_callback_direct(signal, ptr.i, (Uint32)page_id);
   }
   
   if(page_id < 0)
@@ -1536,18 +1594,30 @@ Tsman::load_extent_page_callback(Signal* signal,
 				 Uint32 real_page_ptr_i)
 {
   jamEntry();
+  client_lock();
+  load_extent_page_callback_direct(signal, callback, real_page_ptr_i);
+  client_unlock();
+}
+
+void
+Tsman::load_extent_page_callback_direct(Signal* signal, 
+				        Uint32 callback,
+				        Uint32 real_page_ptr_i)
+{
+  jamEntry();
   Ptr<Datafile> ptr;
   Ptr<GlobalPage> page_ptr;
-  m_file_pool.getPtr(ptr, callback);
+  ndbrequire(m_file_pool.getPtr(ptr, callback));
 
   /**
-   * Ensure that all extent pages are marked as extent pages before being written
-   * by PGMAN (PGMAN needs this information to know how to interpret the page
-   * layout and where to find version number and other entries in the page.
+   * Ensure that all extent pages are marked as extent pages before being
+   * written by PGMAN (PGMAN needs this information to know how to interpret
+   * the page layout and where to find version number and other entries in
+   * the page.
    *
    * LSN number for extent pages isn't used.
    */
-  m_global_page_pool.getPtr(page_ptr, real_page_ptr_i);
+  ndbrequire(m_global_page_pool.getPtr(page_ptr, real_page_ptr_i));
   File_formats::Page_header *extent_page_header =
     (File_formats::Page_header*)page_ptr.p;
   extent_page_header->m_page_lsn_hi = 0;
@@ -1584,13 +1654,19 @@ Tsman::load_extent_page_callback(Signal* signal,
   ptr.p->m_online.m_used_extent_cnt = 0;
   ptr.p->m_online.m_extent_headers_per_extent_page = per_page;
 
+  for (Uint32 i = 0; i < NUM_EXTENT_PAGE_MUTEXES; i++)
+  {
+    int ret = NdbMutex_Init(&ptr.p->m_extent_page_mutex[i]);
+    ndbrequire(ret == 0);
+  }
   Ptr<Tablespace> ts_ptr;
-  m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
+  ndbrequire(m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i));
   if (getNodeState().startLevel >= NodeState::SL_STARTED ||
       (getNodeState().startLevel == NodeState::SL_STARTING &&
        getNodeState().starting.restartType == NodeState::ST_INITIAL_START) ||
       (getNodeState().getNodeRestartInProgress() &&
-       getNodeState().starting.restartType == NodeState::ST_INITIAL_NODE_RESTART))
+       getNodeState().starting.restartType ==
+         NodeState::ST_INITIAL_NODE_RESTART))
   {
     jam();
     Local_datafile_list free_list(m_file_pool, ts_ptr.p->m_free_files);
@@ -1598,7 +1674,6 @@ Tsman::load_extent_page_callback(Signal* signal,
     meta.remove(ptr);
     free_list.addFirst(ptr);
   }
-  m_file_hash.add(ptr);
   
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
@@ -1631,7 +1706,7 @@ Tsman::scan_tablespace(Signal* signal, Uint32 ptrI)
     return;
   }
   
-  m_tablespace_pool.getPtr(ts_ptr, ptrI);
+  ndbrequire(m_tablespace_pool.getPtr(ts_ptr, ptrI));
 
   Ptr<Datafile> file_ptr;
   {
@@ -1647,7 +1722,7 @@ Tsman::scan_datafile(Signal* signal, Uint32 ptrI, Uint32 filePtrI)
 {
   Ptr<Datafile> file_ptr;
   Ptr<Tablespace> ts_ptr;
-  m_tablespace_pool.getPtr(ts_ptr, ptrI);
+  ndbrequire(m_tablespace_pool.getPtr(ts_ptr, ptrI));
   if(filePtrI == RNIL)
   {
     jam();
@@ -1659,7 +1734,7 @@ Tsman::scan_datafile(Signal* signal, Uint32 ptrI, Uint32 filePtrI)
   else
   {
     jam();
-    m_file_pool.getPtr(file_ptr, filePtrI);
+    ndbrequire(m_file_pool.getPtr(file_ptr, filePtrI));
     scan_extent_headers(signal, file_ptr);
   }
 }
@@ -1672,7 +1747,7 @@ void
 Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 {
   Ptr<Tablespace> ts_ptr;
-  m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
+  ndbrequire(m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i));
 
   Uint32 firstFree= RNIL;
   Uint32 size = ptr.p->m_extent_size;
@@ -1688,12 +1763,10 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
     preq.m_page.m_file_no = ptr.p->m_file_no;
     preq.m_table_id = RNIL;
     preq.m_fragment_id = 0;
-    
+
     int flags = Page_cache_client::DIRTY_REQ;
     Page_cache_client pgman(this, m_pgman);
-    int real_page_id = pgman.get_page(signal, preq, flags);
-    ndbrequire(real_page_id > 0);
-    D("scan_extent_headers" << V(pages) << V(page_no) << V(real_page_id));
+    pgman.get_extent_page(signal, preq, flags);
 
     bool v2 = (ptr.p->m_ndb_version >= NDB_DISK_V2);
     File_formats::Datafile::Extent_page* page = 
@@ -1855,7 +1928,7 @@ void
 Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  client_lock(number(), __LINE__);
+  client_lock();
   DropFileImplReq req = *(DropFileImplReq*)signal->getDataPtr();
   Ptr<Datafile> file_ptr;
   Ptr<Tablespace> fg_ptr;
@@ -1924,6 +1997,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       if (file_ptr.p->m_ref_count)
       {
         jam();
+        client_unlock();
         sendSignalWithDelay(reference(), GSN_DROP_FILE_REQ, signal,
                             100, signal->getLength());
         return;
@@ -1934,7 +2008,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       file_ptr.p->m_create.m_senderRef = req.senderRef;
       file_ptr.p->m_create.m_senderData = req.senderData;
       release_extent_pages(signal, file_ptr);
-      client_unlock(number(), __LINE__);
+      client_unlock();
       return;
     case DropFileImplReq::Abort:{
       ndbrequire(find_file_by_id(file_ptr, fg_ptr.p->m_meta_files, req.file_id));
@@ -1977,7 +2051,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
     sendSignal(req.senderRef, GSN_DROP_FILE_IMPL_CONF, signal,
 	       DropFileImplConf::SignalLength, JBB);
   }
-  client_unlock(number(), __LINE__);
+  client_unlock();
 }
 
 Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
@@ -1992,9 +2066,9 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:"
-         << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE
-         << endl;
+  g_eventLogger->info("DD tsman: ts id: %u extent pages/bytes: %u/%u",
+                      m_tablespace_id, m_extent_size,
+                      m_extent_size * File_formats::NDB_PAGE_SIZE);
 #endif
 }
 
@@ -2024,8 +2098,10 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   Ptr<Datafile> file_ptr;
   AllocExtentReq req = *(AllocExtentReq*)signal->getDataPtr();
   AllocExtentReq::ErrorCode err;
-  
+
+  lock_alloc_extent();
   ndbrequire(m_tablespace_hash.find(ts_ptr, req.request.tablespace_id));
+
   Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
   
   const bool starting =
@@ -2072,10 +2148,10 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
     /**
      * Handling of unmapped extent header pages is not implemented
      */
+    lock_extent_page(file_ptr.p, page_no);
     int flags = Page_cache_client::DIRTY_REQ;
-    int real_page_id;
     Page_cache_client pgman(this, m_pgman);
-    if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+    pgman.get_extent_page(signal, preq, flags);
     {
       thrjam(jamBuf);
       GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2126,12 +2202,22 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
                              (*ext_fragment_id),
                              ts_ptr.p->m_total_used_extents));
       file_ptr.p->m_online.m_first_free_extent = next_free;
+      tmp.remove(file_ptr);
       if (next_free == RNIL)
       {
-	thrjam(jamBuf);
-	Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
-	tmp.remove(file_ptr);
+        thrjam(jamBuf);
+        Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
         full.addFirst(file_ptr);
+      }
+      else
+      {
+        /**
+         * Ensure that we round robin allocation of extents on all available
+         * data files. This ensures that we get a sort of RAID on the defined
+         * data files in the tablespace.
+         */
+        thrjam(jamBuf);
+        tmp.addLast(file_ptr);
       }
       
       /**
@@ -2145,13 +2231,8 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
       rep->reply.errorCode = 0;
       rep->reply.page_id = preq.m_page;
       rep->reply.page_count = size;
-      return;
     }
-    else 
-    {
-      thrjam(jamBuf);
-      err = AllocExtentReq::UnmappedExtentPageIsNotImplemented;
-    }
+    unlock_extent_page(file_ptr.p, page_no);
   }
   else
   {
@@ -2163,13 +2244,14 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
       thrjam(jamBuf);
       err = AllocExtentReq::NoDatafile;
     }
-  }
   
-  /**
-   * Pack return values
-   */
-  AllocExtentReq* rep = (AllocExtentReq*)signal->getDataPtr();
-  rep->reply.errorCode = err;
+    /**
+     * Pack return values
+     */
+    AllocExtentReq* rep = (AllocExtentReq*)signal->getDataPtr();
+    rep->reply.errorCode = err;
+  }
+  unlock_alloc_extent();
   return;
 }
 
@@ -2182,7 +2264,11 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
   Ptr<Datafile> file_ptr;
   FreeExtentReq req = *(FreeExtentReq*)signal->getDataPtr();
   FreeExtentReq::ErrorCode err = (FreeExtentReq::ErrorCode)0;
-  
+
+  char logbuf[MAX_LOG_MESSAGE_SIZE];
+  printLocal_Key(logbuf, MAX_LOG_MESSAGE_SIZE, req.request.key);
+  g_eventLogger->info("Free extent: %s", logbuf);
+
   Datafile file_key;
   file_key.m_file_no = req.request.key.m_file_no;
   ndbrequire(m_file_hash.find(file_ptr, file_key));
@@ -2198,15 +2284,15 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
   preq.m_table_id = RNIL;
   preq.m_fragment_id = 0;
 
-  ndbout << "Free extent: " << req.request.key << endl;
-  
+  lock_alloc_extent();
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
+
   /**
    * Handling of unmapped extent header pages is not implemented
    */
   int flags = Page_cache_client::DIRTY_REQ;
-  int real_page_id;
   Page_cache_client pgman(this, m_pgman);
-  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+  pgman.get_extent_page(signal, preq, flags);
   {
     thrjam(jamBuf);
     GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2254,7 +2340,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	 * Move from full to free
 	 */
 	Ptr<Tablespace> ptr;
-	m_tablespace_pool.getPtr(ptr, file_ptr.p->m_tablespace_ptr_i);
+        ndbrequire(m_tablespace_pool.getPtr(ptr, file_ptr.p->m_tablespace_ptr_i));
 	Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
 	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
 	full.remove(file_ptr);
@@ -2263,7 +2349,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
       file_ptr.p->m_online.m_first_free_extent = extent;
 
       Ptr<Tablespace> ts_ptr;
-      m_tablespace_pool.getPtr(ts_ptr, file_ptr.p->m_tablespace_ptr_i);
+      ndbrequire(m_tablespace_pool.getPtr(ts_ptr, file_ptr.p->m_tablespace_ptr_i));
       ts_ptr.p->m_total_used_extents--;
       DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ: tab(%u,%u)"
                              " num_extents: %llu",
@@ -2272,17 +2358,14 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
                              ts_ptr.p->m_total_used_extents));
     }
   }
-  else
-  {
-    thrjam(jamBuf);
-    err = FreeExtentReq::UnmappedExtentPageIsNotImplemented;
-  }
   
   /**
    * Pack return values
    */
   FreeExtentReq* rep = (FreeExtentReq*)signal->getDataPtr();
   rep->reply.errorCode = err;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
+  unlock_alloc_extent();
   return;
 }
 
@@ -2310,17 +2393,17 @@ Tsman::get_set_extent_info(Signal *signal,
   preq.m_table_id = RNIL;
   preq.m_fragment_id = 0;
 
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
   int flags = 0;
-  int real_page_id;
   Page_cache_client pgman(this, m_pgman);
 
   /**
    * Extent pages are locked into the page cache.
    * This means that it is bound in the page cache until
-   * the node goes down. Hence, get_page should always return > 0
-   * for extent pages.
+   * the node goes down. Hence, get_extent_page always return
+   * for extent pages successfully. Otherwise it will crash.
    */
-  ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
+  pgman.get_extent_page(signal, preq, flags);
   thrjam(jamBuf);
   GlobalPage* ptr_p = pgman.m_ptr.p;
   bool v2 = (file_ptr.p->m_ndb_version >= NDB_DISK_V2);
@@ -2362,6 +2445,7 @@ Tsman::get_set_extent_info(Signal *signal,
       *ext_create_table_version = create_table_version;
     }
   }
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
 }
 
 int
@@ -2395,10 +2479,10 @@ Tsman::update_page_free_bits(Signal* signal,
   /**
    * Handling of unmapped extent header pages is not implemented
    */
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
   int flags = 0;
-  int real_page_id;
   Page_cache_client pgman(this, m_pgman);
-  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+  pgman.get_extent_page(signal, preq, flags);
   {
     thrjam(jamBuf);
     GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2420,10 +2504,14 @@ Tsman::update_page_free_bits(Signal* signal,
                               val.m_extent_size,
                               v2);
       thrjam(jamBuf);
-      ndbout << "table: " << *ext_table_id
-             << " fragment: " << *ext_fragment_id << " "
-             << "update page free bits page: " << *key 
-             << " " << *ext_data << endl;
+
+      char key_str[MAX_LOG_MESSAGE_SIZE];
+      printLocal_Key(key_str, MAX_LOG_MESSAGE_SIZE, *key);
+      char data_str[MAX_LOG_MESSAGE_SIZE];
+      print(data_str, MAX_LOG_MESSAGE_SIZE, *ext_data);
+      g_eventLogger->info(
+          "table: %u fragment: %u update page free bits page: %s %s",
+          *ext_table_id, *ext_fragment_id, key_str, data_str);
     }
     ndbrequire((*ext_table_id) != RNIL);
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
@@ -2450,9 +2538,9 @@ Tsman::update_page_free_bits(Signal* signal,
      * We have now read the free bits in the page. If these are the same as we
      * are going to set then there is no reason to update the page on disk.
      * If they are different we will update the disk page as well.
-     * We do this by calling get_page with COMMIT_REQ set followed by calling
-     * update_lsn. This will ensure that the page is dirty and will be written
-     * in the next fragment LCP.
+     * We do this by calling get_extent_page with COMMIT_REQ set followed by
+     * calling update_lsn. This will ensure that the page is dirty and will be
+     * written in the next fragment LCP.
      *
      * There are calls to update_free_bits where we update the free bits but
      * we don't checkpoint those changes to disk. The reason is that we only
@@ -2487,15 +2575,15 @@ Tsman::update_page_free_bits(Signal* signal,
                       new_committed_bits));
         thrjam(jamBuf);
         flags = Page_cache_client::COMMIT_REQ;
-        ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
+        pgman.get_extent_page(signal, preq, flags);
+        thrjam(jamBuf);
         ext_data->update_free_bits(page_no_in_extent, new_free_bits);
         pgman.update_lsn(signal, preq.m_page, 0);
       }
     }
-    return 0;
   }
-  
-  return AllocExtentReq::UnmappedExtentPageIsNotImplemented;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
+  return 0;
 }
 
 int
@@ -2523,10 +2611,10 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
   /**
    * Handling of unmapped extent header pages is not implemented
    */
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
   int flags = 0;
-  int real_page_id;
   Page_cache_client pgman(this, m_pgman);
-  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+  pgman.get_extent_page(signal, preq, flags);
   {
     thrjam(jamBuf);
     GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2548,10 +2636,9 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
     bits = ext_data->get_free_bits(page_no_in_extent);
     *uncommitted = (bits & UNCOMMITTED_MASK) >> UNCOMMITTED_SHIFT;
     *committed = (bits & COMMITTED_MASK);
-    return 0;
   }
-  
-  return AllocExtentReq::UnmappedExtentPageIsNotImplemented;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
+  return 0;
 }
 
 int
@@ -2583,10 +2670,10 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
   /**
    * Handling of unmapped extent header pages is not implemented
    */
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
   int flags = 0;
-  int real_page_id;
   Page_cache_client pgman(this, m_pgman);
-  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+  pgman.get_extent_page(signal, preq, flags);
   {
     thrjam(jamBuf);
     GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2610,10 +2697,14 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
                               val.m_extent_size,
                               v2);
       thrjam(jamBuf);
-      ndbout << "table: " << *ext_table_id
-             << " fragment: " << *ext_fragment_id << " "
-             << "trying to unmap page: " << *key 
-             << " " << *ext_data << endl;
+
+      char key_str[MAX_LOG_MESSAGE_SIZE];
+      printLocal_Key(key_str, MAX_LOG_MESSAGE_SIZE, *key);
+      char data_str[MAX_LOG_MESSAGE_SIZE];
+      print(data_str, MAX_LOG_MESSAGE_SIZE, *ext_data);
+
+      g_eventLogger->info("table: %u fragment: %u trying to unmap page: %s %s",
+                          *ext_table_id, *ext_fragment_id, key_str, data_str);
       ndbabort();
     }
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
@@ -2625,10 +2716,9 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
       ext_data->get_free_bits(page_no_in_extent) & COMMITTED_MASK;
     ext_data->update_free_bits(page_no_in_extent, 
                       src | (uncommitted_bits << UNCOMMITTED_SHIFT));
-    return 0;
   }
-  
-  return AllocExtentReq::UnmappedExtentPageIsNotImplemented;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
+  return 0;
 }
 
 int
@@ -2665,10 +2755,10 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
   /**
    * Handling of unmapped extent header pages is not implemented
    */
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
   int flags = Page_cache_client::DIRTY_REQ;
-  int real_page_id;
   Page_cache_client pgman(this, m_pgman);
-  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+  pgman.get_extent_page(signal, preq, flags);
   {
     thrjam(jamBuf);
     GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2774,10 +2864,9 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
     /* Toggle word */
     ext_data->update_free_bits(page_no_in_extent, 
 			       bits | (bits << UNCOMMITTED_SHIFT));
-    return 0;
   }
-  
-  return AllocExtentReq::UnmappedExtentPageIsNotImplemented;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
+  return 0;
 }
 
 void
@@ -2826,12 +2915,12 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
    * page the dirty here.
    */
   int flags = 0;
-  int real_page_id;
   Uint32 page_no;
   Uint32 src_bits;
   File_formats::Datafile::Extent_data *ext_data = NULL;
+  lock_extent_page(file_ptr.p, val.m_extent_page_no);
   Page_cache_client pgman(this, m_pgman);
-  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
+  pgman.get_extent_page(signal, preq, flags);
   {
     thrjam(jamBuf);
     GlobalPage* ptr_p = pgman.m_ptr.p;
@@ -2892,6 +2981,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   }
   
   rep->reply.errorCode = err;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
   return;
   
 found:
@@ -2901,6 +2991,7 @@ found:
   rep->key.m_page_no = req.key.m_page_no + page_no - page_no_in_extent;
   thrjamLine(jamBuf, Uint16(rep->key.m_page_no));
   rep->reply.errorCode= 0;
+  unlock_extent_page(file_ptr.p, val.m_extent_page_no);
   return;
 }
 
@@ -2943,6 +3034,8 @@ void
 Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 {
   Ptr<Tablespace> ts_ptr;
+
+  lock_alloc_extent();
   m_tablespace_list.getPtr(ts_ptr, ptrI);
   ndbrequire(ts_ptr.p->m_ref_count);
   ts_ptr.p->m_ref_count--;
@@ -3014,10 +3107,10 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   if(file.p->m_online.m_lcp_free_extent_head != RNIL)
   {
     jam();
-    ndbout_c("moving extents (%d %d) to real free list %d",
-	     file.p->m_online.m_lcp_free_extent_head,
-	     file.p->m_online.m_lcp_free_extent_tail,
-	     file.p->m_online.m_first_free_extent);
+    g_eventLogger->info("moving extents (%d %d) to real free list %d",
+                        file.p->m_online.m_lcp_free_extent_head,
+                        file.p->m_online.m_lcp_free_extent_tail,
+                        file.p->m_online.m_first_free_extent);
 
     // Update the used extents of the tablespace
     ts_ptr.p->m_total_used_extents -=
@@ -3058,11 +3151,11 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       preq.m_page.m_file_no = file.p->m_file_no;
       preq.m_table_id = RNIL;
       preq.m_fragment_id = 0;
-      
+
+      lock_extent_page(file.p, page_no);
       int flags = Page_cache_client::DIRTY_REQ;
-      int real_page_id;
       Page_cache_client pgman(this, m_pgman);
-      ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
+      pgman.get_extent_page(signal, preq, flags);
       
       GlobalPage* ptr_p = pgman.m_ptr.p;
       
@@ -3072,6 +3165,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
         page->get_next_free_extent(extent_no, size, v2);
       
       *next_free_extent = file.p->m_online.m_first_free_extent;
+      unlock_extent_page(file.p, page_no);
       file.p->m_online.m_first_free_extent = 
 	file.p->m_online.m_lcp_free_extent_head;
       file.p->m_online.m_lcp_free_extent_head = RNIL;
@@ -3111,14 +3205,16 @@ next:
   {
     jam();
     ts_ptr.p->m_ref_count++;
+    unlock_alloc_extent();
     
     signal->theData[0] = TsmanContinueB::END_LCP;
     signal->theData[1] = ts_ptr.i;
     signal->theData[2] = list;    
-    signal->theData[3] = file.i;  
+    signal->theData[3] = file.i;
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
     return;
   }
+  unlock_alloc_extent();
   sendEND_LCPCONF(signal);
 }
 
@@ -3204,9 +3300,11 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
 
   jam();
 
+  lock_alloc_extent();
   Uint32 total_free_extents = file_ptr.p->m_online.m_data_pages;
   total_free_extents /= file_ptr.p->m_extent_size;
   total_free_extents -= file_ptr.p->m_online.m_used_extent_cnt;
+  unlock_alloc_extent();
 
   GetTabInfoConf *conf = (GetTabInfoConf *)&signal->theData[0];
 
@@ -3232,4 +3330,202 @@ void Tsman::sendGET_TABINFOREF(Signal* signal,
   ref->errorCode = errorCode;
 
   sendSignal(retRef, GSN_GET_TABINFOREF, signal, signal->length(), JBB);
+}
+
+/**
+ * The concurrency model for TSMAN works in the following manner.
+ * In ndbd there is only one thread running the blocks, so no interaction
+ * is possible.
+ *
+ * There are number of important things that we need to control usage of in
+ * TSMAN. These are:
+ *
+ * 1) File hash and extent parameters per tablespace.
+ * 2) The extent pages
+ * 3) The hash table in the extra PGMAN block.
+ * 4) The list of free extents
+ * 5) Other internal block variables
+ *
+ * Each thread instance (Proxy instance + all LDM threads) that interacts
+ * with TSMAN has its own mutex. By locking this it ensures that no one can
+ * own the entire blocks data structures until we're done with our work.
+ *
+ * There are essentially two types of interactions with TSMAN that don't come
+ * from signals to the block. The first is various calls to manipulate one of
+ * the extent pages. There is a number of such calls.
+ * The second type is allocating and freeing extents.
+ *
+ * The first type starts by using the m_file_hash to find the file record.
+ * Thus all changes of this hash table must be well protected from these
+ * external calls. Next they use PGMAN to get an extent page from the
+ * page cache. This call uses a hash table in the extra PGMAN worker to
+ * find the page entry. We need to protect this hash table and we need to
+ * protect the page entry and the page itself. The hash table in the extra
+ * PGMAN worker is only changed by calls using LOCK_PAGE and UNLOCK_PAGE,
+ * thus these calls must be well protected from these external calls.
+ * The extent pages must also be protected from being used from more than
+ * one place.
+ *
+ * By locking the mutex for all instances we ensure that all accesses to
+ * extent pages and their page entries, the hash table of extent page entries
+ * in the extra PGMAN instance, internal block variables is locked.
+ *
+ * Now many instances can access extent pages in parallel. They can also
+ * access the same extent pages. Thus we need to control accesses to those
+ * extent pages coming from the various thread instances. We keep a set of
+ * mutexes in each tablespace file for this purpose, we use 32 different
+ * mutexes and use a simple AND function as hash table to use the proper mutex
+ * for each extent page.
+ *
+ * The calls to allocate and free extents touch a few more things. At first
+ * they use the m_tablespace_hash to find the tablespace record. Thus any
+ * changes of this must either lock all client locks or lock the allocate
+ * extent lock. Second they use a number of variables on the tablespace
+ * record (m_total_used_extents, m_total_extents) and they manipulate the
+ * m_full_files and m_free_files lists on the tablespace record. Finally they
+ * manipulate the list of free extents by updating the file record and one
+ * extent page. The first pointer of the list is stored on the file record
+ * and the next pointer is stored on an extent page.
+ *
+ * The free extent moves the free to a special list later managed by the
+ * end_lcp call, this list has a head and tail on the file record. In
+ * addition they manipulate most of what allocate extent did as well.
+ *
+ * The signals executed within the block need not be protected from each
+ * other since the block is as usual single threaded, so only one thread
+ * can execute inside the block at a time. Thus we need only protect against
+ * the above external calls. A heavy way of protecting is to lock ALL
+ * client locks. This ensures that no external calls can execute in parallel
+ * with our execution. However for the end_lcp call that happens frequently
+ * we try to avoid this by only locking the extent allocation and locking
+ * the extent page that is manipulated as part of updating the free list
+ * of extents. end_lcp is executed as a signal, so it doesn't need
+ * protection against other list manipulations happening as part of
+ * signal executions.
+ *
+ * We also use the client lock when initialising a page, this protects
+ * the tablespace record. It should not be touched in this phase, but
+ * we protect for any future changes.
+ */
+void
+Tsman::client_lock(Uint32 instance) const
+{
+  (void)instance;
+  if (isNdbMtLqh())
+  {
+    int ret = NdbMutex_Lock(m_client_mutex[instance]);
+    ndbrequire(ret == 0);
+  }
+}
+
+void
+Tsman::client_unlock(Uint32 instance) const
+{
+  (void)instance;
+  if (isNdbMtLqh())
+  {
+    int ret = NdbMutex_Unlock(m_client_mutex[instance]);
+    ndbrequire(ret == 0);
+  }
+}
+
+void
+Tsman::client_lock() const
+{
+  if (isNdbMtLqh())
+  {
+    for (Uint32 i = 0; i < MAX_NDBMT_LQH_THREADS + 1; i++)
+    {
+      int ret = NdbMutex_Lock(m_client_mutex[i]);
+      ndbrequire(ret == 0);
+    }
+  }
+}
+
+void
+Tsman::client_unlock() const
+{
+  if (isNdbMtLqh())
+  {
+    for (Uint32 i = 0; i < MAX_NDBMT_LQH_THREADS + 1; i++)
+    {
+      int ret = NdbMutex_Unlock(m_client_mutex[i]);
+      ndbrequire(ret == 0);
+    }
+  }
+}
+
+bool Tsman::is_datafile_ready(Uint32 file_no)
+{
+  Ptr<Datafile> file_ptr;
+  Datafile file_key;
+  file_key.m_file_no = file_no;
+  if (m_file_hash.find(file_ptr, file_key))
+  {
+    if (file_ptr.p->m_state == Datafile::FS_CREATING)
+      return false;
+    return true;
+  }
+  return false;
+}
+
+void Tsman::lock_extent_page(Uint32 file_no, Uint32 page_no)
+{
+  if (isNdbMtLqh())
+  {
+    Ptr<Datafile> file_ptr;
+    Datafile file_key;
+    file_key.m_file_no = file_no;
+    ndbrequire(m_file_hash.find(file_ptr, file_key));
+    lock_extent_page(file_ptr.p, page_no);
+  }
+}
+
+void Tsman::unlock_extent_page(Uint32 file_no, Uint32 page_no)
+{
+  if (isNdbMtLqh())
+  {
+    Ptr<Datafile> file_ptr;
+    Datafile file_key;
+    file_key.m_file_no = file_no;
+    ndbrequire(m_file_hash.find(file_ptr, file_key));
+    unlock_extent_page(file_ptr.p, page_no);
+  }
+}
+
+void Tsman::lock_extent_page(Datafile *filePtrP,
+                             Uint32 page_no)
+{
+  if (isNdbMtLqh())
+  {
+    Uint32 mutex_id = page_no & (NUM_EXTENT_PAGE_MUTEXES - 1);
+    NdbMutex_Lock(&filePtrP->m_extent_page_mutex[mutex_id]);
+  }
+}
+
+void Tsman::unlock_extent_page(Datafile* filePtrP, Uint32 page_no)
+{
+  if (isNdbMtLqh())
+  {
+    Uint32 mutex_id = page_no & (NUM_EXTENT_PAGE_MUTEXES - 1);
+    NdbMutex_Unlock(&filePtrP->m_extent_page_mutex[mutex_id]);
+  }
+}
+
+void Tsman::lock_alloc_extent()
+{
+  if (isNdbMtLqh())
+  {
+    int ret = NdbMutex_Lock(m_alloc_extent_mutex);
+    ndbrequire(ret == 0);
+  }
+}
+
+void Tsman::unlock_alloc_extent()
+{
+  if (isNdbMtLqh())
+  {
+    int ret = NdbMutex_Unlock(m_alloc_extent_mutex);
+    ndbrequire(ret == 0);
+  }
 }

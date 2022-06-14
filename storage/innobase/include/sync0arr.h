@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef sync0arr_h
 #define sync0arr_h
 
-#include "os0thread.h"
 #include "univ.i"
 
 /** Synchronization wait array cell */
@@ -47,25 +46,23 @@ the instance for waiting for an object. The event of the cell is reset to
 nonsignalled state.
 If reserving cell of the instance fails, try to get another new instance until
 we can reserve an empty cell of it.
-@param[in]	object	pointer to the object to wait for
-@param[in]	type	lock request type
-@param[in]	file	file where requested
-@param[in]	line	line where requested
-@param[out]	cell	the cell reserved, never NULL
+@param[in]      object  pointer to the object to wait for
+@param[in]      type    lock request type
+@param[in]      location        location where requested
+@param[out]     cell    the cell reserved, never NULL
 @return the sync array found, never NULL. */
-UNIV_INLINE
-sync_array_t *sync_array_get_and_reserve_cell(void *object, ulint type,
-                                              const char *file, ulint line,
-                                              sync_cell_t **cell);
+static inline sync_array_t *sync_array_get_and_reserve_cell(
+    void *object, ulint type, ut::Location location, sync_cell_t **cell);
 
 /** Reserves a wait array cell for waiting for an object.
- The event of the cell is reset to nonsignalled state. */
-sync_cell_t *sync_array_reserve_cell(
-    sync_array_t *arr, /*!< in: wait array */
-    void *object,      /*!< in: pointer to the object to wait for */
-    ulint type,        /*!< in: lock request type */
-    const char *file,  /*!< in: file where requested */
-    ulint line);       /*!< in: line where requested */
+ The event of the cell is reset to nonsignalled state.
+ @param[in] arr wait array
+ @param[in] object pointer to the object to wait for
+ @param[in] type lock request type
+ @param[in] location location where requested
+ @return sync cell to wait on*/
+sync_cell_t *sync_array_reserve_cell(sync_array_t *arr, void *object,
+                                     ulint type, ut::Location location);
 
 /** This function should be called when a thread starts to wait on
  a wait array cell. In the debug version this function checks
@@ -89,9 +86,11 @@ void sync_arr_wake_threads_if_sema_free();
 
 /** Prints warnings of long semaphore waits to stderr.
  @return true if fatal semaphore wait threshold was exceeded */
-ibool sync_array_print_long_waits(
-    os_thread_id_t *waiter, /*!< out: longest waiting thread */
-    const void **sema);     /*!< out: longest-waited-for semaphore */
+bool sync_array_print_long_waits(
+    std::thread::id *waiter, /*!< out: longest waiting thread */
+    const void **sema);      /*!< out: longest-waited-for semaphore */
+
+void sync_array_detect_deadlock();
 
 /** Prints info of the wait array. */
 void sync_array_print(FILE *file); /*!< in: file where to print */
@@ -104,8 +103,7 @@ void sync_array_init(ulint n_threads); /*!< in: Number of slots to create */
 void sync_array_close();
 
 /** Get an instance of the sync wait array. */
-UNIV_INLINE
-sync_array_t *sync_array_get();
+static inline sync_array_t *sync_array_get();
 
 #include "sync0arr.ic"
 

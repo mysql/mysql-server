@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,8 +55,7 @@ struct ha_storage_node_t {
 /** Creates a hash storage. If any of the parameters is 0, then a default
  value is used.
  @return own: hash storage */
-UNIV_INLINE
-ha_storage_t *ha_storage_create(
+static inline ha_storage_t *ha_storage_create(
     ulint initial_heap_bytes, /*!< in: initial heap's size */
     ulint initial_hash_cells) /*!< in: initial number of cells
                               in the hash table */
@@ -74,7 +73,8 @@ ha_storage_t *ha_storage_create(
 
   /* we put "storage" within "storage->heap" */
 
-  heap = mem_heap_create(sizeof(ha_storage_t) + initial_heap_bytes);
+  heap = mem_heap_create(sizeof(ha_storage_t) + initial_heap_bytes,
+                         UT_LOCATION_HERE);
 
   storage = (ha_storage_t *)mem_heap_alloc(heap, sizeof(ha_storage_t));
 
@@ -87,8 +87,8 @@ ha_storage_t *ha_storage_create(
 /** Empties a hash storage, freeing memory occupied by data chunks.
  This invalidates any pointers previously returned by ha_storage_put().
  The hash storage is not invalidated itself and can be used again. */
-UNIV_INLINE
-void ha_storage_empty(ha_storage_t **storage) /*!< in/out: hash storage */
+static inline void ha_storage_empty(
+    ha_storage_t **storage) /*!< in/out: hash storage */
 {
   ha_storage_t temp_storage;
 
@@ -108,8 +108,8 @@ void ha_storage_empty(ha_storage_t **storage) /*!< in/out: hash storage */
 /** Frees a hash storage and everything it contains, it cannot be used after
  this call.
  This invalidates any pointers previously returned by ha_storage_put(). */
-UNIV_INLINE
-void ha_storage_free(ha_storage_t *storage) /*!< in, own: hash storage */
+static inline void ha_storage_free(
+    ha_storage_t *storage) /*!< in, own: hash storage */
 {
   /* order is important because the pointer storage->hash is
   within the heap */
@@ -119,8 +119,8 @@ void ha_storage_free(ha_storage_t *storage) /*!< in, own: hash storage */
 
 /** Gets the size of the memory used by a storage.
  @return bytes used */
-UNIV_INLINE
-ulint ha_storage_get_size(const ha_storage_t *storage) /*!< in: hash storage */
+static inline ulint ha_storage_get_size(
+    const ha_storage_t *storage) /*!< in: hash storage */
 {
   ulint ret;
 

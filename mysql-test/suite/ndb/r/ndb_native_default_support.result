@@ -121,6 +121,10 @@ i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
 * The tables with default values BACKUP and RESTORE test
 ********************************************************
 DROP TABLE t1, bit1;
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 ********************************************************
 * Begin to restore data from backup 
 ********************************************************
@@ -316,7 +320,7 @@ USE test;
 SHOW CREATE TABLE bit1;
 Table	Create Table
 bit1	CREATE TABLE `bit1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `b1` bit(3) DEFAULT b'111',
   `b2` bit(9) DEFAULT b'101',
   `b3` bit(23) DEFAULT b'110',
@@ -328,11 +332,9 @@ SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c 
 ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
 1	111	101	110	11	101011
@@ -359,7 +361,7 @@ UNIQUE INDEX t2_unique_index(j)
 )ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 INSERT INTO t2 VALUES();
 INSERT INTO t2 VALUES();
-ERROR 23000: Duplicate entry '6' for key 't2_unique_index'
+ERROR 23000: Duplicate entry '6' for key 't2.t2_unique_index'
 INSERT INTO t2 VALUES(10, 10, 10.0, 10.0);
 SELECT * FROM t2 ORDER BY i;
 i	j	f	d
@@ -524,7 +526,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` binary(10) DEFAULT 'ABC\0EFGHIJ',
   `c` varbinary(100) DEFAULT 'ABC\0EFGHIJ',
   PRIMARY KEY (`a`)
@@ -577,7 +579,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -628,7 +630,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -679,7 +681,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -731,9 +733,9 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
@@ -788,7 +790,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -839,7 +841,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -891,7 +893,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   `c` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
@@ -945,7 +947,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   `c` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
@@ -1003,7 +1005,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   `c` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
@@ -1056,7 +1058,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1107,7 +1109,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1158,7 +1160,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1209,7 +1211,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1261,9 +1263,9 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
@@ -1318,7 +1320,7 @@ partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1410,8 +1412,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
-  `j` bigint(20) NOT NULL DEFAULT '6006',
+  `i` int NOT NULL AUTO_INCREMENT,
+  `j` bigint NOT NULL DEFAULT '6006',
   `f` float NOT NULL DEFAULT '6.6',
   `d` double DEFAULT '8.8',
   `d2` double NOT NULL,
@@ -1422,7 +1424,7 @@ t1	CREATE TABLE `t1` (
   `text1` text,
   `timestamp_c` timestamp NOT NULL DEFAULT '2010-06-07 13:06:22',
   `newOne` varchar(255) DEFAULT 'Comment field default',
-  `newTwo` bigint(20) DEFAULT NULL,
+  `newTwo` bigint DEFAULT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY ()
@@ -1555,7 +1557,7 @@ PRIMARY KEY (fid)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fid` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `fid` smallint unsigned NOT NULL DEFAULT '0',
   `f01` text NOT NULL,
   `f02` varchar(255) NOT NULL DEFAULT '',
   `f03` text NOT NULL,
@@ -1568,3 +1570,5 @@ select fid, isnull(f01), isnull(f02), isnull(f03) from t1;
 fid	isnull(f01)	isnull(f02)	isnull(f03)
 100	0	0	0
 drop table t1;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;

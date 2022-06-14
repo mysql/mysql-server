@@ -1,0 +1,119 @@
+## This test file provide specific scenario for connection killing.
+## Data structures are borrowed from sakila-db example and reduced to smallest (as possible) state.
+##
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("Error in diagnostics area: MY-001317 - Query execution was interrupted");
+
+
+--write_file $MYSQL_TMP_DIR/killconnection_optimize_table.xpl
+import assert_notices.macro;
+-->sql
+START TRANSACTION;
+UPDATE sakila.payment SET amount = amount + 1 WHERE payment_id = 5068;
+-->endsql
+
+-->newsession second	x_root		test
+-->stmtsql SELECT connection_id() AS Value;
+-->recvtovar %ID% Value
+-->stmtsql OPTIMIZE TABLE sakila.inventory;
+
+-->setsession
+# need delay for starting optimize procedure in 'second' session
+-->sleep 1
+-->sql
+KILL %ID%;
+-->endsql
+
+-->quiet
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
+-->noquiet
+
+-->setsession second
+-->recvresult
+-->varlet %ER_SESSION_WAS_KILLED% 3169
+-->callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%
+
+-->expecterror CR_SERVER_GONE_ERROR
+-->sql
+SELECT 1;
+-->endsql
+-->recvuntildisc show-received
+
+
+-->sql
+COMMIT;
+-->endsql
+EOF
+
+
+--write_file $MYSQL_TMP_DIR/killconnection_select_table.xpl
+-->import assert_notices.macro
+-->sql
+START TRANSACTION;
+UPDATE sakila.payment SET amount = amount + 1 WHERE payment_id = 5068;
+-->endsql
+
+-->newsession second	x_root		test
+-->stmtsql SELECT connection_id() AS Value;
+-->recvtovar %ID% Value
+-->stmtsql SELECT * FROM sakila.inventory;
+
+-->setsession
+# need delay for starting procedure in 'second' session
+-->sleep 1
+-->sql
+KILL %ID%;
+-->endsql
+
+-->quiet
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
+-->noquiet
+
+-->setsession second
+-->recvresult be-quiet
+-->varlet %ER_SESSION_WAS_KILLED% 3169
+-->callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%
+-->recvuntildisc show-received
+
+-->sql
+COMMIT;
+-->endsql
+EOF
+
+
+CREATE SCHEMA sakila;
+USE sakila;
+
+CREATE TABLE inventory (
+  inventory_id INT NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (inventory_id)
+);
+
+CREATE TABLE rental (
+  rental_id INT NOT NULL AUTO_INCREMENT,
+  inventory_id INT NOT NULL,
+  PRIMARY KEY (rental_id),
+  CONSTRAINT fk_rental_inventory FOREIGN KEY (inventory_id) REFERENCES inventory (inventory_id)
+);
+
+CREATE TABLE payment (
+  payment_id INT NOT NULL AUTO_INCREMENT,
+  rental_id INT DEFAULT NULL,
+  amount DECIMAL(5,2) NOT NULL,
+  PRIMARY KEY (payment_id),
+  CONSTRAINT fk_payment_rental FOREIGN KEY (rental_id) REFERENCES rental (rental_id)
+);
+
+--replace_regex /KILL [0-9]*/KILL $ID/
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/killconnection_optimize_table.xpl 2>&1
+
+--replace_regex /KILL [0-9]*/KILL $ID/
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/killconnection_select_table.xpl 2>&1
+
+
+## Cleanup
+DROP SCHEMA sakila;
+--source ../include/xplugin_cleanup.inc

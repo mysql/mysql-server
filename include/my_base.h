@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -292,8 +292,8 @@ enum ha_extra_function {
        table is not an old table when calling close_thread_table.
        close_thread_tables is called from many places as a general clean up
        function after completing a query.
-    3) It is called when deleting the QUICK_RANGE_SELECT object if the
-       QUICK_RANGE_SELECT object had its own handler object. It is called
+    3) It is called when deleting the IndexRangeScanIterator object if the
+       IndexRangeScanIterator object had its own handler object. It is called
        immediatley before close of this local handler object.
 
     If there is a READ CACHE it is reinit'ed. A cache is reinit'ed to
@@ -404,10 +404,9 @@ enum ha_extra_function {
   HA_EXTRA_EXPORT,
   /** Do secondary sort by handler::ref (rowid) after key sort. */
   HA_EXTRA_SECONDARY_SORT_ROWID,
-  /*
-    Skip Serializable isolation level on Views on DD tables.
-    This will make reads on DD Views non blocking */
-  HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW,
+  /** Skip acquiring locks when reading from ACL tables or views on DD
+      tables in order to make such reads non blocking. */
+  HA_EXTRA_NO_READ_LOCKING,
   /* Begin of insertion into intermediate table during copy alter operation. */
   HA_EXTRA_BEGIN_ALTER_COPY,
   /* Insertion is done in intermediate table during copy alter operation. */
@@ -552,6 +551,9 @@ enum ha_base_keytype {
 #define HA_VIRTUAL_GEN_KEY (1 << 18)
 /** Multi-valued key */
 #define HA_MULTI_VALUED_KEY (1 << 19)
+
+constexpr const ulong HA_INDEX_USES_ENGINE_ATTRIBUTE{1UL << 20};
+constexpr const ulong HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE{1UL << 21};
 
 /* These flags can be added to key-seg-flag */
 
@@ -823,6 +825,8 @@ is the global server default. */
 #define HA_ERR_RECORD_CHANGED 123
 /** Wrong index given to function */
 #define HA_ERR_WRONG_INDEX 124
+/** Transaction has been rolled back */
+#define HA_ERR_ROLLED_BACK 125
 /** Indexfile is crashed */
 #define HA_ERR_CRASHED 126
 /** Record-file is crashed */
@@ -984,8 +988,12 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_WRONG_TABLE_NAME 206
 /** Path is too long for the OS */
 #define HA_ERR_TOO_LONG_PATH 207
+/** Histogram sampling initialization failed */
+#define HA_ERR_SAMPLING_INIT_FAILED 208
+/** Too many sub-expression in search string */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
 /** Copy of last error number */
-#define HA_ERR_LAST 207
+#define HA_ERR_LAST 209
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -1096,6 +1104,7 @@ enum key_range_flags {
   */
   GEOM_FLAG = 1 << 7,
   /* Deprecated, currently used only by NDB at row retrieval */
+  // Update: Seems to be unused, even by NDB
   SKIP_RANGE = 1 << 8,
   /*
     Used to indicate that index dives can be skipped. This can happen when:
@@ -1132,11 +1141,7 @@ typedef my_off_t ha_rows;
 #define HA_POS_ERROR (~(ha_rows)0)
 #define HA_OFFSET_ERROR (~(my_off_t)0)
 
-#if SIZEOF_OFF_T == 4
-#define MAX_FILE_SIZE INT_MAX32
-#else
 #define MAX_FILE_SIZE LLONG_MAX
-#endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 : 2)
 

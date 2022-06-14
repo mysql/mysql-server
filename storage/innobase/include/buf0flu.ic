@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,14 +53,13 @@ void buf_flush_insert_sorted_into_flush_list(
 /** This function should be called at a mini-transaction commit, if a page was
  modified in it. Puts the block to the list of modified blocks, if it is not
  already in it. */
-UNIV_INLINE
-void buf_flush_note_modification(
-    buf_block_t *block,      /*!< in: block which is modified */
-    lsn_t start_lsn,         /*!< in: start lsn of the mtr that
-                             modified this block */
-    lsn_t end_lsn,           /*!< in: end lsn of the mtr that
-                             modified this block */
-    FlushObserver *observer) /*!< in: flush observer */
+static inline void buf_flush_note_modification(
+    buf_block_t *block,       /*!< in: block which is modified */
+    lsn_t start_lsn,          /*!< in: start lsn of the mtr that
+                              modified this block */
+    lsn_t end_lsn,            /*!< in: end lsn of the mtr that
+                              modified this block */
+    Flush_observer *observer) /*!< in: flush observer */
 {
 #ifdef UNIV_DEBUG
   {
@@ -80,8 +79,8 @@ void buf_flush_note_modification(
   mutex_enter(&block->mutex);
 
   if (end_lsn != 0) {
-    ut_ad(block->page.newest_modification <= end_lsn);
-    block->page.newest_modification = end_lsn;
+    ut_ad(block->page.get_newest_lsn() <= end_lsn);
+    block->page.set_newest_lsn(end_lsn);
   } else {
     /* Do nothing. This is the case with no-redo mtr and it
     possibly could re-modify some earlier dirtied page, in
@@ -92,18 +91,18 @@ void buf_flush_note_modification(
     hold the flush list mutex yet. */
   }
 
-  /* Don't allow to set flush observer from non-null to null,
-  or from one observer to another. */
-  ut_ad(block->page.flush_observer == NULL ||
-        block->page.flush_observer == observer);
-  block->page.flush_observer = observer;
+  if (observer != nullptr) {
+    block->page.set_flush_observer(observer);
+  } else {
+    block->page.reset_flush_observer();
+  }
 
-  if (block->page.oldest_modification == 0) {
-    buf_pool_t *buf_pool = buf_pool_from_block(block);
+  if (!block->page.is_dirty()) {
+    auto buf_pool = buf_pool_from_block(block);
 
     buf_flush_insert_into_flush_list(buf_pool, block, start_lsn);
   } else if (start_lsn != 0) {
-    ut_ad(block->page.oldest_modification <= start_lsn);
+    ut_ad(block->page.get_oldest_lsn() <= start_lsn);
   }
 
   buf_page_mutex_exit(block);
@@ -112,8 +111,7 @@ void buf_flush_note_modification(
 }
 
 /** This function should be called when recovery has modified a buffer page. */
-UNIV_INLINE
-void buf_flush_recv_note_modification(
+static inline void buf_flush_recv_note_modification(
     buf_block_t *block, /*!< in: block which is modified */
     lsn_t start_lsn,    /*!< in: start lsn of the first mtr in a
                         set of mtr's */
@@ -131,20 +129,20 @@ void buf_flush_recv_note_modification(
     ut_ad(!buf_flush_list_mutex_own(buf_pool));
 
     ut_ad(start_lsn != 0);
-    ut_ad(block->page.newest_modification <= end_lsn);
+    ut_ad(block->page.get_newest_lsn() <= end_lsn);
   }
 #endif /* UNIV_DEBUG */
 
   buf_page_mutex_enter(block);
 
-  block->page.newest_modification = end_lsn;
+  block->page.set_newest_lsn(end_lsn);
 
-  if (!block->page.oldest_modification) {
+  if (!block->page.is_dirty()) {
     buf_pool_t *buf_pool = buf_pool_from_block(block);
 
     buf_flush_insert_sorted_into_flush_list(buf_pool, block, start_lsn);
   } else {
-    ut_ad(block->page.oldest_modification <= start_lsn);
+    ut_ad(block->page.get_oldest_lsn() <= start_lsn);
   }
 
   buf_page_mutex_exit(block);

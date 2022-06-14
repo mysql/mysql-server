@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ struct CreateTrigReq
     TriggerSrc = 2  // LQH "producing" block(s)
   };
 
-  STATIC_CONST( SignalLength = 13 );
+  static constexpr Uint32 SignalLength = 13;
   SECTION( TRIGGER_NAME_SECTION = 0 );
   SECTION( ATTRIBUTE_MASK_SECTION = 1 );
 
@@ -74,7 +74,7 @@ struct CreateTrigReq
 };
 
 struct CreateTrigConf {
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -103,7 +103,7 @@ struct CreateTrigRef
     OutOfSectionMemory = 795
   };
 
-  STATIC_CONST( SignalLength = 10 );
+  static constexpr Uint32 SignalLength = 10;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };

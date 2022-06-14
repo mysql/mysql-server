@@ -1,0 +1,4342 @@
+Table	Op	Msg_type	Msg_text
+test.a	analyze	status	OK
+test.b	analyze	status	OK
+test.c	analyze	status	OK
+test.d	analyze	status	OK
+test.e	analyze	status	OK
+test.f	analyze	status	OK
+test.g	analyze	status	OK
+test.h	analyze	status	OK
+test.i	analyze	status	OK
+test.j	analyze	status	OK
+test.k	analyze	status	OK
+test.l	analyze	status	OK
+test.m	analyze	status	OK
+test.n	analyze	status	OK
+test.o	analyze	status	OK
+test.p	analyze	status	OK
+test.q	analyze	status	OK
+test.r	analyze	status	OK
+test.s	analyze	status	OK
+test.t	analyze	status	OK
+test.u	analyze	status	OK
+test.v	analyze	status	OK
+test.w	analyze	status	OK
+test.x	analyze	status	OK
+test.y	analyze	status	OK
+test.z	analyze	status	OK
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM n AS table1
+LEFT JOIN w AS table2
+LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
+ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1
+    -> Filter: (table3.col_int is null)
+        -> Nested loop left join
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int)
+            -> Filter: (table2.col_varchar_256_unique = table3.col_char_16_unique)
+                -> Single-row index lookup on table3 using col_char_16_unique (col_char_16_unique=table2.col_varchar_256_unique)
+
+Warnings:
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
+Note	1003	Can't push table 'table3' as child, column 'col_char_16_unique' does not have same datatype as ref'ed column 'table2.col_varchar_256_unique'
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM n AS table1
+LEFT JOIN w AS table2
+LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
+ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
+pk	pk	pk
+1	1	NULL
+1	12	NULL
+1	14	NULL
+1	15	NULL
+1	16	NULL
+1	18	NULL
+1	22	NULL
+1	24	NULL
+1	29	NULL
+1	9	NULL
+10	1	NULL
+10	12	NULL
+10	14	NULL
+10	15	NULL
+10	16	NULL
+10	18	NULL
+10	22	NULL
+10	24	NULL
+10	29	NULL
+10	9	NULL
+11	11	NULL
+11	13	NULL
+11	2	NULL
+11	27	NULL
+11	30	NULL
+11	6	NULL
+12	NULL	NULL
+13	10	NULL
+13	23	NULL
+13	25	NULL
+13	7	NULL
+14	17	NULL
+14	20	NULL
+14	21	NULL
+14	26	NULL
+14	28	NULL
+14	3	NULL
+14	5	NULL
+15	10	NULL
+15	23	NULL
+15	25	NULL
+15	7	NULL
+16	17	NULL
+16	20	NULL
+16	21	NULL
+16	26	NULL
+16	28	NULL
+16	3	NULL
+16	5	NULL
+17	10	NULL
+17	23	NULL
+17	25	NULL
+17	7	NULL
+18	17	NULL
+18	20	NULL
+18	21	NULL
+18	26	NULL
+18	28	NULL
+18	3	NULL
+18	5	NULL
+19	10	NULL
+19	23	NULL
+19	25	NULL
+19	7	NULL
+2	11	NULL
+2	13	NULL
+2	2	NULL
+2	27	NULL
+2	30	NULL
+2	6	NULL
+20	1	NULL
+20	12	NULL
+20	14	NULL
+20	15	NULL
+20	16	NULL
+20	18	NULL
+20	22	NULL
+20	24	NULL
+20	29	NULL
+20	9	NULL
+21	10	NULL
+21	23	NULL
+21	25	NULL
+21	7	NULL
+22	NULL	NULL
+3	1	NULL
+3	12	NULL
+3	14	NULL
+3	15	NULL
+3	16	NULL
+3	18	NULL
+3	22	NULL
+3	24	NULL
+3	29	NULL
+3	9	NULL
+4	17	NULL
+4	20	NULL
+4	21	NULL
+4	26	NULL
+4	28	NULL
+4	3	NULL
+4	5	NULL
+5	17	NULL
+5	20	NULL
+5	21	NULL
+5	26	NULL
+5	28	NULL
+5	3	NULL
+5	5	NULL
+6	17	NULL
+6	20	NULL
+6	21	NULL
+6	26	NULL
+6	28	NULL
+6	3	NULL
+6	5	NULL
+7	NULL	NULL
+8	1	NULL
+8	12	NULL
+8	14	NULL
+8	15	NULL
+8	16	NULL
+8	18	NULL
+8	22	NULL
+8	24	NULL
+8	29	NULL
+8	9	NULL
+9	1	NULL
+9	12	NULL
+9	14	NULL
+9	15	NULL
+9	16	NULL
+9	18	NULL
+9	22	NULL
+9	24	NULL
+9	29	NULL
+9	9	NULL
+explain format=tree SELECT straight_join
+table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
+FROM r AS table2
+LEFT JOIN c AS table3 ON table2.col_int_unique = table3.col_int_unique
+INNER JOIN m AS table1 ON table1.col_int_key = table2.pk
+LEFT JOIN r AS table4 ON table2.pk = table4.col_int_key
+LEFT JOIN e AS table5 ON table3.col_int_unique = table5.col_int_unique
+LEFT JOIN s AS table6 ON table1.col_int = table6.col_int
+AND table5.col_int_unique = table6.col_int_unique
+where table2.pk between 2 and 3;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Nested loop left join
+            -> Nested loop inner join
+                -> Nested loop left join
+                    -> Table scan on table2, activating pushed join of 5 tables, with pushed condition: (table2.pk between 2 and 3)
+                    -> Index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join
+                -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+            -> Index lookup on table4 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+        -> Single-row index lookup on table5 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join
+    -> Single-row index lookup on table6 using ix1 (col_int=table1.col_int, col_int_unique=table5.col_int_unique)
+
+Warnings:
+Note	1003	Can't push table 'table6' as child of 'table2', as it would make the parent table 'table5' depend on table(s) outside of its join-nest
+SELECT straight_join
+table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
+FROM r AS table2
+LEFT JOIN c AS table3 ON table2.col_int_unique = table3.col_int_unique
+INNER JOIN m AS table1 ON table1.col_int_key = table2.pk
+LEFT JOIN r AS table4 ON table2.pk = table4.col_int_key
+LEFT JOIN e AS table5 ON table3.col_int_unique = table5.col_int_unique
+LEFT JOIN s AS table6 ON table1.col_int = table6.col_int
+AND table5.col_int_unique = table6.col_int_unique
+where table2.pk between 2 and 3;
+pk	pk	pk	pk	pk	pk
+2	NULL	10	10	NULL	NULL
+2	NULL	10	11	NULL	NULL
+2	NULL	10	13	NULL	NULL
+2	NULL	10	14	NULL	NULL
+2	NULL	10	18	NULL	NULL
+2	NULL	10	2	NULL	NULL
+2	NULL	10	22	NULL	NULL
+2	NULL	10	5	NULL	NULL
+2	NULL	10	6	NULL	NULL
+2	NULL	11	10	NULL	NULL
+2	NULL	11	11	NULL	NULL
+2	NULL	11	13	NULL	NULL
+2	NULL	11	14	NULL	NULL
+2	NULL	11	18	NULL	NULL
+2	NULL	11	2	NULL	NULL
+2	NULL	11	22	NULL	NULL
+2	NULL	11	5	NULL	NULL
+2	NULL	11	6	NULL	NULL
+2	NULL	13	10	NULL	NULL
+2	NULL	13	11	NULL	NULL
+2	NULL	13	13	NULL	NULL
+2	NULL	13	14	NULL	NULL
+2	NULL	13	18	NULL	NULL
+2	NULL	13	2	NULL	NULL
+2	NULL	13	22	NULL	NULL
+2	NULL	13	5	NULL	NULL
+2	NULL	13	6	NULL	NULL
+2	NULL	15	10	NULL	NULL
+2	NULL	15	11	NULL	NULL
+2	NULL	15	13	NULL	NULL
+2	NULL	15	14	NULL	NULL
+2	NULL	15	18	NULL	NULL
+2	NULL	15	2	NULL	NULL
+2	NULL	15	22	NULL	NULL
+2	NULL	15	5	NULL	NULL
+2	NULL	15	6	NULL	NULL
+2	NULL	18	10	NULL	NULL
+2	NULL	18	11	NULL	NULL
+2	NULL	18	13	NULL	NULL
+2	NULL	18	14	NULL	NULL
+2	NULL	18	18	NULL	NULL
+2	NULL	18	2	NULL	NULL
+2	NULL	18	22	NULL	NULL
+2	NULL	18	5	NULL	NULL
+2	NULL	18	6	NULL	NULL
+2	NULL	2	10	NULL	NULL
+2	NULL	2	11	NULL	NULL
+2	NULL	2	13	NULL	NULL
+2	NULL	2	14	NULL	NULL
+2	NULL	2	18	NULL	NULL
+2	NULL	2	2	NULL	NULL
+2	NULL	2	22	NULL	NULL
+2	NULL	2	5	NULL	NULL
+2	NULL	2	6	NULL	NULL
+2	NULL	3	10	NULL	NULL
+2	NULL	3	11	NULL	NULL
+2	NULL	3	13	NULL	NULL
+2	NULL	3	14	NULL	NULL
+2	NULL	3	18	NULL	NULL
+2	NULL	3	2	NULL	NULL
+2	NULL	3	22	NULL	NULL
+2	NULL	3	5	NULL	NULL
+2	NULL	3	6	NULL	NULL
+2	NULL	4	10	NULL	NULL
+2	NULL	4	11	NULL	NULL
+2	NULL	4	13	NULL	NULL
+2	NULL	4	14	NULL	NULL
+2	NULL	4	18	NULL	NULL
+2	NULL	4	2	NULL	NULL
+2	NULL	4	22	NULL	NULL
+2	NULL	4	5	NULL	NULL
+2	NULL	4	6	NULL	NULL
+3	NULL	1	16	NULL	NULL
+3	NULL	1	19	NULL	NULL
+3	NULL	1	3	NULL	NULL
+3	NULL	12	16	NULL	NULL
+3	NULL	12	19	NULL	NULL
+3	NULL	12	3	NULL	NULL
+3	NULL	20	16	NULL	NULL
+3	NULL	20	19	NULL	NULL
+3	NULL	20	3	NULL	NULL
+3	NULL	5	16	NULL	NULL
+3	NULL	5	19	NULL	NULL
+3	NULL	5	3	NULL	NULL
+3	NULL	6	16	NULL	NULL
+3	NULL	6	19	NULL	NULL
+3	NULL	6	3	NULL	NULL
+explain format=tree SELECT
+table1.pk, table3.pk, table4.pk
+FROM e AS table1
+JOIN w AS table3
+JOIN w AS table4 ON table3.col_int = table4.col_int
+AND table3.col_int_key = table4.col_int_key
+ON table1.col_int_unique = table3.col_int_key
+WHERE table4.col_int IN (
+SELECT table2s.col_int AS field3
+FROM o AS table1s
+LEFT JOIN x AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
+) and table1.pk between 3 and 3;
+EXPLAIN
+-> Nested loop semijoin
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Table scan on table1, activating pushed join of 5 tables, with pushed condition: ((table1.pk between 3 and 3) and (table1.col_int_unique is not null))
+            -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+        -> Index lookup on table4 using col_int_key (col_int_key=table1.col_int_unique), child of table3 in pushed join, with pushed condition: (table4.col_int = table3.col_int)
+    -> Nested loop inner join
+        -> Index lookup on table2s using PRIMARY (col_int=table3.col_int), child of table3 in pushed join, with pushed condition: (table2s.col_varchar_256_unique is not null)
+        -> Index lookup on table1s using col_varchar_256_key (col_varchar_256_key=table2s.col_varchar_256_unique), child of table2s in pushed join
+
+SELECT
+table1.pk, table3.pk, table4.pk
+FROM e AS table1
+JOIN w AS table3
+JOIN w AS table4 ON table3.col_int = table4.col_int
+AND table3.col_int_key = table4.col_int_key
+ON table1.col_int_unique = table3.col_int_key
+WHERE table4.col_int IN (
+SELECT table2s.col_int AS field3
+FROM o AS table1s
+LEFT JOIN x AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
+) and table1.pk between 3 and 3;
+pk	pk	pk
+3	20	20
+3	20	5
+3	26	26
+3	26	28
+3	26	3
+3	28	26
+3	28	28
+3	28	3
+3	3	26
+3	3	28
+3	3	3
+3	5	20
+3	5	5
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM f AS table1
+LEFT JOIN y AS table2 ON table1.col_int NOT IN (1, 9)
+WHERE EXISTS (
+SELECT table2s.pk, table1s.pk, table3s.pk
+FROM r AS table1s
+JOIN c AS table2s ON table1s.col_int = table2s.col_int_key
+JOIN g AS table3s ON table2s.col_int = table3s.col_int AND #   <<- unpushed
+table1s.col_int_unique = table3s.col_int_unique
+)
+and table1.pk < 3;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (table1.col_int not in (1,9))
+    -> Inner hash join (no condition)
+        -> Table scan on table1, with pushed condition: (table1.pk < 3)
+        -> Hash
+            -> Limit: 1 row(s)
+                -> Nested loop inner join
+                    -> Nested loop inner join
+                        -> Table scan on table2s, activating pushed join of 3 tables, with pushed condition: (table2s.col_int_key is not null)
+                        -> Index lookup on table1s using ix1 (col_int=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table1s.col_int_unique is not null)
+                    -> Single-row index lookup on table3s using ix1 (col_int_unique=table1s.col_int_unique), child of table1s in pushed join, with pushed condition: (table3s.col_int = table2s.col_int)
+    -> Hash
+        -> Table scan on table2
+
+Warnings:
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+SELECT
+table1.pk, table2.pk
+FROM f AS table1
+LEFT JOIN y AS table2 ON table1.col_int NOT IN (1, 9)
+WHERE EXISTS (
+SELECT table2s.pk, table1s.pk, table3s.pk
+FROM r AS table1s
+JOIN c AS table2s ON table1s.col_int = table2s.col_int_key
+JOIN g AS table3s ON table2s.col_int = table3s.col_int AND #   <<- unpushed
+table1s.col_int_unique = table3s.col_int_unique
+)
+and table1.pk < 3;
+pk	pk
+1	NULL
+2	1
+2	10
+2	11
+2	12
+2	13
+2	14
+2	15
+2	16
+2	17
+2	18
+2	19
+2	2
+2	20
+2	21
+2	22
+2	23
+2	24
+2	25
+2	26
+2	27
+2	28
+2	29
+2	3
+2	30
+2	31
+2	32
+2	33
+2	4
+2	5
+2	6
+2	7
+2	8
+2	9
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM h AS table1
+JOIN y AS table2
+LEFT JOIN q AS table3
+LEFT JOIN k AS table4 ON table3.col_int = table4.pk
+ON table2.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
+ON table1.col_int_unique = table2.col_int;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.col_int_unique is not null)
+        -> Index lookup on table2 using PRIMARY (col_int=table1.col_int_unique), child of table1 in pushed join
+    -> Nested loop left join
+        -> Single-row index lookup on table3 using ix1 (col_int=table1.col_int_unique, col_int_unique=table2.col_int_unique), child of table2 in pushed join
+        -> Index lookup on table4 using PRIMARY (pk=table1.col_int_unique), child of table2 in pushed join
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM h AS table1
+JOIN y AS table2
+LEFT JOIN q AS table3
+LEFT JOIN k AS table4 ON table3.col_int = table4.pk
+ON table2.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
+ON table1.col_int_unique = table2.col_int;
+pk	pk	pk	pk
+14	19	NULL	NULL
+14	20	24	1
+14	23	2	1
+14	25	NULL	NULL
+14	26	NULL	NULL
+14	27	NULL	NULL
+14	4	NULL	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM e AS table1
+JOIN d as table2 ON table2.col_int_unique = table1.pk
+LEFT JOIN m AS table3
+LEFT JOIN q AS table4 ON table3.col_int_key = table4.col_int
+ON table1.col_int_key = table3.col_int_key
+LEFT JOIN s AS table5 ON table3.col_int_unique = table5.col_int
+LEFT JOIN t AS table6 ON table4.col_int = table6.col_int
+AND table2.col_int_key = table6.col_int_key
+AND table5.col_int_unique = table6.col_int_unique
+where table1.pk between 1 and 3;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Nested loop left join
+            -> Nested loop inner join
+                -> Table scan on table1, activating pushed join of 6 tables, with pushed condition: (table1.pk between 1 and 3)
+                -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join
+            -> Nested loop left join
+                -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table2 in pushed join
+                -> Index lookup on table4 using ix1 (col_int=table1.col_int_key), child of table2 in pushed join
+        -> Index lookup on table5 using ix1 (col_int=table3.col_int_unique), child of table3 in pushed join
+    -> Filter: (table6.col_int = table4.col_int)
+        -> Single-row index lookup on table6 using ix2 (col_int_key=table2.col_int_key, col_int_unique=table5.col_int_unique), child of table5 in pushed join
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM e AS table1
+JOIN d as table2 ON table2.col_int_unique = table1.pk
+LEFT JOIN m AS table3
+LEFT JOIN q AS table4 ON table3.col_int_key = table4.col_int
+ON table1.col_int_key = table3.col_int_key
+LEFT JOIN s AS table5 ON table3.col_int_unique = table5.col_int
+LEFT JOIN t AS table6 ON table4.col_int = table6.col_int
+AND table2.col_int_key = table6.col_int_key
+AND table5.col_int_unique = table6.col_int_unique
+where table1.pk between 1 and 3;
+pk	pk	pk	pk	pk	pk
+2	5	14	10	NULL	NULL
+2	5	14	11	NULL	NULL
+2	5	14	14	NULL	NULL
+2	5	14	17	NULL	NULL
+2	5	14	18	NULL	NULL
+2	5	14	19	NULL	NULL
+2	5	14	3	NULL	NULL
+2	5	14	4	NULL	NULL
+2	5	22	10	NULL	NULL
+2	5	22	11	NULL	NULL
+2	5	22	14	NULL	NULL
+2	5	22	17	NULL	NULL
+2	5	22	18	NULL	NULL
+2	5	22	19	NULL	NULL
+2	5	22	3	NULL	NULL
+2	5	22	4	NULL	NULL
+2	5	7	10	NULL	NULL
+2	5	7	11	NULL	NULL
+2	5	7	14	NULL	NULL
+2	5	7	17	NULL	NULL
+2	5	7	18	NULL	NULL
+2	5	7	19	NULL	NULL
+2	5	7	3	NULL	NULL
+2	5	7	4	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM c AS table1
+INNER JOIN f AS table2 ON table1.col_int_unique =  table2.col_int
+LEFT JOIN p AS table3
+LEFT JOIN u AS table4 ON table3.col_int_key = table4.col_int
+AND table3.col_int_unique = table4.pk
+ON table1.col_int = table3.col_int
+AND table2.col_int_key = table3.col_int_key
+AND table1.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.col_int_unique is not null)
+        -> Index lookup on table2 using PRIMARY (col_int=table1.col_int_unique), child of table1 in pushed join
+    -> Nested loop left join
+        -> Single-row index lookup on table3 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table2 in pushed join, with pushed condition: (table3.col_int_key = table2.col_int_key)
+        -> Single-row index lookup on table4 using PRIMARY (col_int=table2.col_int_key, pk=table1.col_int_unique), child of table2 in pushed join
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM c AS table1
+INNER JOIN f AS table2 ON table1.col_int_unique =  table2.col_int
+LEFT JOIN p AS table3
+LEFT JOIN u AS table4 ON table3.col_int_key = table4.col_int
+AND table3.col_int_unique = table4.pk
+ON table1.col_int = table3.col_int
+AND table2.col_int_key = table3.col_int_key
+AND table1.col_int_unique = table3.col_int_unique;
+pk	pk	pk	pk
+explain format=tree SELECT
+table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
+FROM u AS table1
+JOIN q AS table2
+JOIN h AS table3 ON table2.col_int = table3.col_int
+ON table1.col_int_key = table2.col_int_key
+LEFT JOIN n AS table4
+LEFT JOIN q AS table5 ON table4.col_int = table5.col_int
+ON table2.col_int = table4.col_int AND
+table1.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+# Limits output somewhat:
+where table3.pk between 0 and 1
+and table2.pk between 4 and 5;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index range scan on table3 using PRIMARY over (0 <= pk <= 1), activating pushed join of 5 tables, with pushed condition: ((table3.pk between 0 and 1) and (table3.col_int is not null))
+            -> Index lookup on table2 using ix1 (col_int=table3.col_int), child of table3 in pushed join, with pushed condition: ((table2.pk between 4 and 5) and (table2.col_int_key is not null))
+        -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join
+    -> Nested loop left join
+        -> Single-row index lookup on table4 using ix3 (col_int=table3.col_int, col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join
+        -> Index lookup on table5 using ix1 (col_int=table3.col_int), child of table2 in pushed join
+
+SELECT
+table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
+FROM u AS table1
+JOIN q AS table2
+JOIN h AS table3 ON table2.col_int = table3.col_int
+ON table1.col_int_key = table2.col_int_key
+LEFT JOIN n AS table4
+LEFT JOIN q AS table5 ON table4.col_int = table5.col_int
+ON table2.col_int = table4.col_int AND
+table1.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+# Limits output somewhat:
+where table3.pk between 0 and 1
+and table2.pk between 4 and 5;
+pk	pk	pk	pk	pk
+1	4	1	NULL	NULL
+1	4	12	NULL	NULL
+1	4	18	NULL	NULL
+1	4	2	NULL	NULL
+1	4	24	NULL	NULL
+1	4	27	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM x AS table1
+JOIN y AS table2 ON table1.col_int = table2.col_int
+AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.pk IN (
+SELECT
+table1s.pk AS field3
+FROM d AS table1s
+JOIN m AS table2s ON table1s.pk = table2s.col_int_key
+);
+EXPLAIN
+-> Nested loop semijoin
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Table scan on table1, activating pushed join of 4 tables
+            -> Index lookup on table2 using PRIMARY (col_int=table1.col_int), child of table1 in pushed join, with pushed condition: (table2.col_int_unique = table1.col_int_unique)
+        -> Single-row index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join
+    -> Index lookup on table2s using col_int_key (col_int_key=table1.pk), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk
+FROM x AS table1
+JOIN y AS table2 ON table1.col_int = table2.col_int
+AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.pk IN (
+SELECT
+table1s.pk AS field3
+FROM d AS table1s
+JOIN m AS table2s ON table1s.pk = table2s.col_int_key
+);
+pk	pk
+3	16
+explain format=tree SELECT straight_join
+table1.pk, table3.pk, table2.pk, table4.pk
+FROM t AS table1
+LEFT JOIN (q AS table3
+INNER JOIN m AS table2 ON table2.col_int = table3.col_int_key)
+LEFT JOIN r AS table4 ON table2.col_int_key = table4.col_int
+ON table1.col_int_unique = table3.col_int_key
+where table1.pk between 14 and 14;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.pk between 14 and 14)
+    -> Nested loop left join
+        -> Nested loop inner join
+            -> Index lookup on table3 using ix2 (col_int_key=table1.col_int_unique), child of table1 in pushed join
+            -> Index lookup on table2 using ix3 (col_int=table1.col_int_unique), child of table1 in pushed join
+        -> Index lookup on table4 using ix1 (col_int=table2.col_int_key), child of table2 in pushed join
+
+SELECT straight_join
+table1.pk, table3.pk, table2.pk, table4.pk
+FROM t AS table1
+LEFT JOIN (q AS table3
+INNER JOIN m AS table2 ON table2.col_int = table3.col_int_key)
+LEFT JOIN r AS table4 ON table2.col_int_key = table4.col_int
+ON table1.col_int_unique = table3.col_int_key
+where table1.pk between 14 and 14;
+pk	pk	pk	pk
+14	10	11	16
+14	10	11	23
+14	10	16	19
+14	10	16	20
+14	10	16	24
+14	10	16	4
+14	10	16	6
+14	10	16	9
+14	10	17	19
+14	10	17	20
+14	10	17	24
+14	10	17	4
+14	10	17	6
+14	10	17	9
+14	10	2	16
+14	10	2	23
+14	10	20	11
+14	10	20	13
+14	10	20	14
+14	10	20	17
+14	10	20	25
+14	10	21	19
+14	10	21	20
+14	10	21	24
+14	10	21	4
+14	10	21	6
+14	10	21	9
+14	10	8	19
+14	10	8	20
+14	10	8	24
+14	10	8	4
+14	10	8	6
+14	10	8	9
+14	14	11	16
+14	14	11	23
+14	14	16	19
+14	14	16	20
+14	14	16	24
+14	14	16	4
+14	14	16	6
+14	14	16	9
+14	14	17	19
+14	14	17	20
+14	14	17	24
+14	14	17	4
+14	14	17	6
+14	14	17	9
+14	14	2	16
+14	14	2	23
+14	14	20	11
+14	14	20	13
+14	14	20	14
+14	14	20	17
+14	14	20	25
+14	14	21	19
+14	14	21	20
+14	14	21	24
+14	14	21	4
+14	14	21	6
+14	14	21	9
+14	14	8	19
+14	14	8	20
+14	14	8	24
+14	14	8	4
+14	14	8	6
+14	14	8	9
+14	21	11	16
+14	21	11	23
+14	21	16	19
+14	21	16	20
+14	21	16	24
+14	21	16	4
+14	21	16	6
+14	21	16	9
+14	21	17	19
+14	21	17	20
+14	21	17	24
+14	21	17	4
+14	21	17	6
+14	21	17	9
+14	21	2	16
+14	21	2	23
+14	21	20	11
+14	21	20	13
+14	21	20	14
+14	21	20	17
+14	21	20	25
+14	21	21	19
+14	21	21	20
+14	21	21	24
+14	21	21	4
+14	21	21	6
+14	21	21	9
+14	21	8	19
+14	21	8	20
+14	21	8	24
+14	21	8	4
+14	21	8	6
+14	21	8	9
+14	24	11	16
+14	24	11	23
+14	24	16	19
+14	24	16	20
+14	24	16	24
+14	24	16	4
+14	24	16	6
+14	24	16	9
+14	24	17	19
+14	24	17	20
+14	24	17	24
+14	24	17	4
+14	24	17	6
+14	24	17	9
+14	24	2	16
+14	24	2	23
+14	24	20	11
+14	24	20	13
+14	24	20	14
+14	24	20	17
+14	24	20	25
+14	24	21	19
+14	24	21	20
+14	24	21	24
+14	24	21	4
+14	24	21	6
+14	24	21	9
+14	24	8	19
+14	24	8	20
+14	24	8	24
+14	24	8	4
+14	24	8	6
+14	24	8	9
+14	25	11	16
+14	25	11	23
+14	25	16	19
+14	25	16	20
+14	25	16	24
+14	25	16	4
+14	25	16	6
+14	25	16	9
+14	25	17	19
+14	25	17	20
+14	25	17	24
+14	25	17	4
+14	25	17	6
+14	25	17	9
+14	25	2	16
+14	25	2	23
+14	25	20	11
+14	25	20	13
+14	25	20	14
+14	25	20	17
+14	25	20	25
+14	25	21	19
+14	25	21	20
+14	25	21	24
+14	25	21	4
+14	25	21	6
+14	25	21	9
+14	25	8	19
+14	25	8	20
+14	25	8	24
+14	25	8	4
+14	25	8	6
+14	25	8	9
+14	8	11	16
+14	8	11	23
+14	8	16	19
+14	8	16	20
+14	8	16	24
+14	8	16	4
+14	8	16	6
+14	8	16	9
+14	8	17	19
+14	8	17	20
+14	8	17	24
+14	8	17	4
+14	8	17	6
+14	8	17	9
+14	8	2	16
+14	8	2	23
+14	8	20	11
+14	8	20	13
+14	8	20	14
+14	8	20	17
+14	8	20	25
+14	8	21	19
+14	8	21	20
+14	8	21	24
+14	8	21	4
+14	8	21	6
+14	8	21	9
+14	8	8	19
+14	8	8	20
+14	8	8	24
+14	8	8	4
+14	8	8	6
+14	8	8	9
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM r AS table1
+LEFT JOIN z AS table2
+LEFT JOIN f AS table3 ON table2.col_int_key = table3.col_int_unique
+ON table1.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 3 tables
+    -> Nested loop inner join
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+        -> Index lookup on table3 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join
+
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM r AS table1
+LEFT JOIN z AS table2
+LEFT JOIN f AS table3 ON table2.col_int_key = table3.col_int_unique
+ON table1.col_int_unique = table3.col_int_unique;
+pk	pk	pk
+1	NULL	NULL
+10	NULL	NULL
+11	NULL	NULL
+12	NULL	NULL
+13	NULL	NULL
+14	NULL	NULL
+15	NULL	NULL
+16	NULL	NULL
+17	NULL	NULL
+18	NULL	NULL
+19	NULL	NULL
+2	NULL	NULL
+20	NULL	NULL
+21	NULL	NULL
+22	NULL	NULL
+23	NULL	NULL
+24	NULL	NULL
+25	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	NULL	NULL
+7	11	15
+7	13	15
+7	16	15
+7	24	15
+7	28	15
+7	29	15
+7	32	15
+7	52	15
+7	65	15
+7	7	15
+7	70	15
+7	72	15
+7	9	15
+8	NULL	NULL
+9	NULL	NULL
+explain format=tree SELECT
+table2.pk AS field1, table2.col_int_unique AS field2
+FROM v AS table1
+LEFT JOIN g AS table2
+LEFT JOIN u AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.col_int_key = table2.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 3 tables
+    -> Nested loop left join
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+
+SELECT
+table2.pk AS field1, table2.col_int_unique AS field2
+FROM v AS table1
+LEFT JOIN g AS table2
+LEFT JOIN u AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.col_int_key = table2.col_int_unique;
+field1	field2
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM t AS table1
+LEFT JOIN f AS table2
+INNER JOIN
+(r AS table3 inner JOIN i AS table4 ON table3.col_int_key = table4.col_int_key)
+ON table2.col_int_unique = table4.col_int
+ON table1.col_int = table2.col_int_unique
+where table1.pk > 8 and table1.pk < 11;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: ((table1.pk > 8) and (table1.pk < 11))
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index lookup on table2 using ix1 (col_int_unique=table1.col_int), child of table1 in pushed join
+            -> Index lookup on table4 using ix3 (col_int=table1.col_int), child of table1 in pushed join
+        -> Index lookup on table3 using col_int_key (col_int_key=table4.col_int_key), child of table4 in pushed join
+
+SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM t AS table1
+LEFT JOIN f AS table2
+INNER JOIN
+(r AS table3 inner JOIN i AS table4 ON table3.col_int_key = table4.col_int_key)
+ON table2.col_int_unique = table4.col_int
+ON table1.col_int = table2.col_int_unique
+where table1.pk > 8 and table1.pk < 11;
+pk	pk	pk	pk
+10	NULL	NULL	NULL
+9	15	6	1
+9	15	6	12
+9	15	6	15
+9	15	6	17
+9	15	6	4
+9	15	6	8
+9	15	6	9
+9	15	9	16
+9	15	9	19
+9	15	9	3
+explain format=tree SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM i AS table1
+LEFT JOIN j AS table2
+LEFT JOIN d AS table3
+JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table2.col_int_key = table4.col_int_unique
+ON table1.col_int_key = table2.col_int_key
+where table1.pk > 2 and table1.pk < 5;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: ((table1.pk > 2) and (table1.pk < 5))
+    -> Nested loop left join
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+        -> Nested loop inner join
+            -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join
+            -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM i AS table1
+LEFT JOIN j AS table2
+LEFT JOIN d AS table3
+JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table2.col_int_key = table4.col_int_unique
+ON table1.col_int_key = table2.col_int_key
+where table1.pk > 2 and table1.pk < 5;
+pk	pk	pk	pk
+3	1	3	1
+3	1	3	5
+3	1	3	8
+3	1	3	9
+3	18	3	1
+3	18	3	5
+3	18	3	8
+3	18	3	9
+3	19	3	1
+3	19	3	5
+3	19	3	8
+3	19	3	9
+3	4	3	1
+3	4	3	5
+3	4	3	8
+3	4	3	9
+3	7	3	1
+3	7	3	5
+3	7	3	8
+3	7	3	9
+4	1	3	1
+4	1	3	5
+4	1	3	8
+4	1	3	9
+4	18	3	1
+4	18	3	5
+4	18	3	8
+4	18	3	9
+4	19	3	1
+4	19	3	5
+4	19	3	8
+4	19	3	9
+4	4	3	1
+4	4	3	5
+4	4	3	8
+4	4	3	9
+4	7	3	1
+4	7	3	5
+4	7	3	8
+4	7	3	9
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM s AS table1
+LEFT JOIN t AS table2
+LEFT JOIN q AS table3 ON table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int_unique
+LEFT JOIN o AS table4 ON table2.pk = table4.col_int
+ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1
+    -> Filter: (table4.col_int is null)
+        -> Nested loop left join
+            -> Nested loop left join
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), activating pushed join of 2 tables
+                -> Table scan on table3, with pushed condition: ((table2.col_int_unique = table1.col_int_unique) and (table3.col_int_unique = table1.col_int_unique))
+            -> Index lookup on table4 using ix3 (col_int=table2.pk), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
+Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.pk' refers a table which was not pushed
+SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM s AS table1
+LEFT JOIN t AS table2
+LEFT JOIN q AS table3 ON table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int_unique
+LEFT JOIN o AS table4 ON table2.pk = table4.col_int
+ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
+pk	pk	pk	pk
+1	NULL	NULL	NULL
+10	NULL	NULL	NULL
+11	NULL	NULL	NULL
+12	22	NULL	NULL
+12	25	NULL	NULL
+12	6	NULL	NULL
+12	7	NULL	NULL
+13	NULL	NULL	NULL
+14	NULL	NULL	NULL
+15	NULL	NULL	NULL
+16	NULL	NULL	NULL
+17	NULL	NULL	NULL
+18	NULL	NULL	NULL
+19	NULL	NULL	NULL
+2	NULL	NULL	NULL
+20	NULL	NULL	NULL
+21	13	NULL	NULL
+21	14	7	NULL
+21	15	NULL	NULL
+21	17	NULL	NULL
+21	20	NULL	NULL
+21	4	NULL	NULL
+21	5	NULL	NULL
+22	NULL	NULL	NULL
+23	NULL	NULL	NULL
+3	NULL	NULL	NULL
+4	NULL	NULL	NULL
+5	NULL	NULL	NULL
+6	NULL	NULL	NULL
+7	NULL	NULL	NULL
+8	NULL	NULL	NULL
+9	NULL	NULL	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM c AS table1
+INNER JOIN x AS table2 ON table1.col_int_unique = table2.col_int_unique
+LEFT  JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key;
+EXPLAIN
+-> Nested loop left join
+    -> Inner hash join (table2.col_int_unique = table1.col_int_unique)
+        -> Table scan on table2, activating pushed join of 2 tables
+        -> Hash
+            -> Table scan on table1
+    -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_unique), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM c AS table1
+INNER JOIN x AS table2 ON table1.col_int_unique = table2.col_int_unique
+LEFT  JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key;
+pk	pk	pk
+1	18	NULL
+3	20	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM s AS table1
+LEFT OUTER JOIN c AS table2 ON table1.col_int = table2.pk
+LEFT OUTER JOIN w AS table3 ON table2.col_int = table3.col_int_key;
+EXPLAIN
+-> Nested loop left join
+    -> Left hash join (table2.pk = table1.col_int)
+        -> Table scan on table1
+        -> Hash
+            -> Table scan on table2
+    -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM s AS table1
+LEFT OUTER JOIN c AS table2 ON table1.col_int = table2.pk
+LEFT OUTER JOIN w AS table3 ON table2.col_int = table3.col_int_key;
+pk	pk	pk
+1	NULL	NULL
+10	1	10
+10	1	23
+10	1	25
+10	1	7
+10	1	8
+11	2	11
+11	2	13
+11	2	2
+11	2	27
+11	2	30
+11	2	6
+12	NULL	NULL
+13	1	10
+13	1	23
+13	1	25
+13	1	7
+13	1	8
+14	NULL	NULL
+15	2	11
+15	2	13
+15	2	2
+15	2	27
+15	2	30
+15	2	6
+16	NULL	NULL
+17	2	11
+17	2	13
+17	2	2
+17	2	27
+17	2	30
+17	2	6
+18	2	11
+18	2	13
+18	2	2
+18	2	27
+18	2	30
+18	2	6
+19	2	11
+19	2	13
+19	2	2
+19	2	27
+19	2	30
+19	2	6
+2	1	10
+2	1	23
+2	1	25
+2	1	7
+2	1	8
+20	1	10
+20	1	23
+20	1	25
+20	1	7
+20	1	8
+21	NULL	NULL
+22	3	10
+22	3	23
+22	3	25
+22	3	7
+22	3	8
+23	NULL	NULL
+3	NULL	NULL
+4	2	11
+4	2	13
+4	2	2
+4	2	27
+4	2	30
+4	2	6
+5	3	10
+5	3	23
+5	3	25
+5	3	7
+5	3	8
+6	1	10
+6	1	23
+6	1	25
+6	1	7
+6	1	8
+7	NULL	NULL
+8	3	10
+8	3	23
+8	3	25
+8	3	7
+8	3	8
+9	3	10
+9	3	23
+9	3	25
+9	3	7
+9	3	8
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM r AS table1
+LEFT JOIN g AS table2
+LEFT JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.pk = table2.col_int_unique
+WHERE table1.pk < 3;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.pk < 3)
+    -> Nested loop left join
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.pk), child of table1 in pushed join
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM r AS table1
+LEFT JOIN g AS table2
+LEFT JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.pk = table2.col_int_unique
+WHERE table1.pk < 3;
+pk	pk	pk
+1	NULL	NULL
+2	NULL	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM c AS table1
+INNER JOIN p AS table2 ON table1.pk = table2.pk
+LEFT OUTER JOIN i AS table3 ON table2.col_int_unique = table3.col_int;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 3 tables
+        -> Single-row index lookup on table2 using PRIMARY (pk=table1.pk), child of table1 in pushed join
+    -> Index lookup on table3 using ix3 (col_int=table2.col_int_unique), child of table2 in pushed join
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM c AS table1
+INNER JOIN p AS table2 ON table1.pk = table2.pk
+LEFT OUTER JOIN i AS table3 ON table2.col_int_unique = table3.col_int;
+pk	pk	pk
+1	1	NULL
+2	2	6
+2	2	9
+3	3	NULL
+4	4	NULL
+5	5	NULL
+explain format=tree SELECT
+table2.col_int_key AS field2
+FROM z AS table2
+WHERE NOT table2.col_int_unique IN (
+SELECT table1s.col_int_key AS field3
+FROM f AS table1s
+left JOIN u AS table2s ON table2s.col_int IN (6, 6, 7)
+WHERE table2.pk = 9 OR table2s.col_int = 1
+) IS TRUE ;
+EXPLAIN
+-> Filter: <if>(found_match(table2s), true, true)
+    -> Nested loop antijoin
+        -> Table scan on table2
+        -> Filter: ((table2.pk = 9) or (table2s.col_int = 1))
+            -> Nested loop left join
+                -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique)
+                -> Index range scan on table2s using PRIMARY over (col_int = 6) OR (col_int = 7), with pushed condition: (table2s.col_int in (6,6,7))
+
+Warnings:
+Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push anti joined table 'table1s' as child of 'table2', join-nest containing the table has FILTER conditions
+Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
+SELECT
+table2.col_int_key AS field2
+FROM z AS table2
+WHERE NOT table2.col_int_unique IN (
+SELECT table1s.col_int_key AS field3
+FROM f AS table1s
+left JOIN u AS table2s ON table2s.col_int IN (6, 6, 7)
+WHERE table2.pk = 9 OR table2s.col_int = 1
+) IS TRUE ;
+field2
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+NULL
+NULL
+explain format=tree SELECT
+table1.col_int_key AS field1
+FROM t AS table1
+WHERE table1.col_int NOT IN (
+SELECT table1s.pk AS field2
+FROM z AS table1s
+JOIN v AS table2s ON table1s.col_int = table2s.col_int AND
+table1s.col_int_unique = table2s.col_int_unique
+);
+EXPLAIN
+-> Nested loop antijoin
+    -> Table scan on table1, activating pushed join of 2 tables
+    -> Limit: 1 row(s)
+        -> Nested loop inner join
+            -> Single-row index lookup on table1s using PRIMARY (pk=table1.col_int), child of table1 in pushed join
+            -> Table scan on table2s, with pushed condition: ((table2s.col_int_unique = table1s.col_int_unique) and (table2s.col_int = table1s.col_int))
+
+Warnings:
+Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+SELECT
+table1.col_int_key AS field1
+FROM t AS table1
+WHERE table1.col_int NOT IN (
+SELECT table1s.pk AS field2
+FROM z AS table1s
+JOIN v AS table2s ON table1s.col_int = table2s.col_int AND
+table1s.col_int_unique = table2s.col_int_unique
+);
+field1
+0
+0
+0
+0
+0
+0
+0
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+3
+3
+3
+3
+3
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM b AS table1
+LEFT JOIN z AS table2
+JOIN z AS table3 ON table2.pk = table3.col_int_key
+LEFT JOIN q AS table4
+LEFT JOIN b AS table5 ON table4.col_int = table5.col_int_key
+ON table2.col_int_key = table5.col_int_unique AND
+table2.col_int_unique = table4.col_int
+ON table1.col_int_key = table2.col_int_key;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1, activating pushed join of 4 tables
+    -> Nested loop left join
+        -> Nested loop inner join
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+            -> Index lookup on table3 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+        -> Nested loop inner join
+            -> Index lookup on table4 using ix1 (col_int=table2.col_int_unique)
+            -> Filter: (table5.col_int_key = table2.col_int_unique)
+                -> Single-row index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push outer joined table 'table4' as child of 'table1', join-nest containing the table has pending unpushed_conditions
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM b AS table1
+LEFT JOIN z AS table2
+JOIN z AS table3 ON table2.pk = table3.col_int_key
+LEFT JOIN q AS table4
+LEFT JOIN b AS table5 ON table4.col_int = table5.col_int_key
+ON table2.col_int_key = table5.col_int_unique AND
+table2.col_int_unique = table4.col_int
+ON table1.col_int_key = table2.col_int_key;
+pk	pk	pk
+1	1	1
+1	1	14
+1	1	17
+1	1	19
+1	1	21
+1	1	26
+1	1	3
+1	1	4
+1	1	5
+1	1	54
+1	1	55
+1	1	59
+1	1	62
+1	1	64
+1	1	67
+1	3	10
+1	3	18
+1	3	2
+1	3	20
+1	3	33
+1	3	56
+1	3	57
+1	3	58
+1	3	6
+1	3	60
+1	3	63
+1	3	71
+1	3	8
+explain format=tree SELECT
+table2.pk, table1.pk
+FROM p AS table2
+JOIN o AS table1 ON table1.col_int = table2.col_int
+WHERE table1.col_int_key IN (
+SELECT table2s.col_int_unique AS field3
+FROM l AS table1s
+JOIN h AS table2s ON table1s.col_int = table2s.col_int
+);
+EXPLAIN
+-> Nested loop semijoin
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int is not null)
+            -> Index lookup on table1 using ix3 (col_int=table2.col_int), child of table2 in pushed join, with pushed condition: (table1.col_int_key is not null)
+        -> Single-row index lookup on table2s using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2s.col_int is not null)
+    -> Index lookup on table1s using PRIMARY (col_int=table2s.col_int), child of table2s in pushed join
+
+SELECT
+table2.pk, table1.pk
+FROM p AS table2
+JOIN o AS table1 ON table1.col_int = table2.col_int
+WHERE table1.col_int_key IN (
+SELECT table2s.col_int_unique AS field3
+FROM l AS table1s
+JOIN h AS table2s ON table1s.col_int = table2s.col_int
+);
+pk	pk
+10	11
+10	21
+10	4
+10	7
+12	10
+12	5
+15	10
+15	5
+17	1
+17	8
+19	11
+19	21
+19	4
+19	7
+2	1
+2	8
+20	1
+20	8
+21	11
+21	21
+21	4
+21	7
+3	10
+3	5
+4	10
+4	5
+5	1
+5	8
+9	1
+9	8
+explain format=tree SELECT
+table1.pk
+FROM i AS table1
+WHERE table1.col_int IN (
+SELECT table1s.col_int
+FROM y AS table1s
+JOIN y AS table2s ON table1s.col_int_key = table2s.col_int_key
+);
+EXPLAIN
+-> Nested loop semijoin
+    -> Table scan on table1, activating pushed join of 3 tables
+    -> Nested loop inner join
+        -> Index lookup on table1s using PRIMARY (col_int=table1.col_int), child of table1 in pushed join, with pushed condition: (table1s.col_int_key is not null)
+        -> Index lookup on table2s using col_int_key (col_int_key=table1s.col_int_key), child of table1s in pushed join
+
+SELECT
+table1.pk
+FROM i AS table1
+WHERE table1.col_int IN (
+SELECT table1s.col_int
+FROM y AS table1s
+JOIN y AS table2s ON table1s.col_int_key = table2s.col_int_key
+);
+pk
+1
+10
+11
+12
+13
+14
+2
+3
+4
+5
+6
+7
+8
+9
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM j AS table1
+JOIN z AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.col_int IN (
+SELECT table1s.col_int_key AS field3 FROM u AS table1s
+)
+and table1.pk in (1,2);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop semijoin
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.pk in (1,2)) and (table1.col_int_key is not null))
+        -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+    -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk
+FROM j AS table1
+JOIN z AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.col_int IN (
+SELECT table1s.col_int_key AS field3 FROM u AS table1s
+)
+and table1.pk in (1,2);
+pk	pk
+1	10
+1	18
+1	2
+1	20
+1	33
+1	56
+1	57
+1	58
+1	6
+1	60
+1	63
+1	71
+1	8
+2	11
+2	13
+2	16
+2	24
+2	28
+2	29
+2	32
+2	52
+2	65
+2	7
+2	70
+2	72
+2	9
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM j AS table1
+JOIN z AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.col_int IN (
+SELECT table1s.col_int_key AS field3 FROM u AS table1s
+)
+and table1.pk in (4,5);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop semijoin
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.pk in (4,5)) and (table1.col_int_key is not null))
+        -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+    -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk
+FROM j AS table1
+JOIN z AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.col_int IN (
+SELECT table1s.col_int_key AS field3 FROM u AS table1s
+)
+and table1.pk in (4,5);
+pk	pk
+4	10
+4	18
+4	2
+4	20
+4	33
+4	56
+4	57
+4	58
+4	6
+4	60
+4	63
+4	71
+4	8
+5	11
+5	13
+5	16
+5	24
+5	28
+5	29
+5	32
+5	52
+5	65
+5	7
+5	70
+5	72
+5	9
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM f AS table1
+JOIN r AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM w AS table1s);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop semijoin
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_unique is not null)
+        -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+    -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk
+FROM f AS table1
+JOIN r AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM w AS table1s);
+pk	pk
+1	16
+1	19
+1	3
+15	10
+15	11
+15	13
+15	14
+15	18
+15	2
+15	22
+15	5
+15	6
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM j AS table1
+LEFT JOIN a AS table2 ON table1.col_int_unique = table2.pk
+LEFT JOIN m AS table3
+LEFT JOIN o AS table4 ON table3.col_int_key = table4.col_int_key
+ON table1.col_int = table3.col_int AND
+table1.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Table scan on table1, activating pushed join of 4 tables
+        -> Single-row index lookup on table2 using PRIMARY (pk=table1.col_int_unique), child of table1 in pushed join
+    -> Nested loop left join
+        -> Single-row index lookup on table3 using ix3 (col_int=table1.col_int, col_int_key=table1.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join
+        -> Index lookup on table4 using col_int_key (col_int_key=table1.col_int_key), child of table2 in pushed join
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM j AS table1
+LEFT JOIN a AS table2 ON table1.col_int_unique = table2.pk
+LEFT JOIN m AS table3
+LEFT JOIN o AS table4 ON table3.col_int_key = table4.col_int_key
+ON table1.col_int = table3.col_int AND
+table1.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique;
+pk	pk	pk	pk
+1	NULL	NULL	NULL
+10	NULL	NULL	NULL
+11	NULL	NULL	NULL
+12	NULL	NULL	NULL
+13	NULL	NULL	NULL
+14	NULL	NULL	NULL
+15	NULL	NULL	NULL
+16	NULL	NULL	NULL
+17	NULL	NULL	NULL
+18	NULL	NULL	NULL
+19	NULL	NULL	NULL
+2	NULL	NULL	NULL
+20	NULL	NULL	NULL
+21	NULL	NULL	NULL
+3	NULL	NULL	NULL
+4	NULL	NULL	NULL
+5	NULL	NULL	NULL
+6	NULL	NULL	NULL
+7	NULL	NULL	NULL
+8	NULL	NULL	NULL
+9	NULL	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM v AS table1
+LEFT JOIN o table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT *
+FROM m AS table2s
+WHERE table2s.pk = table2.pk
+)
+and table1.pk = 11;
+EXPLAIN
+-> Nested loop antijoin
+    -> Left hash join (no condition)
+        -> Table scan on table1, with pushed condition: (table1.pk = 11)
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk)
+
+Warnings:
+Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+SELECT
+table1.pk, table2.pk
+FROM v AS table1
+LEFT JOIN o table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT *
+FROM m AS table2s
+WHERE table2s.pk = table2.pk
+)
+and table1.pk = 11;
+pk	pk
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM v AS table1
+left JOIN o AS table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT table1.col_int AS field4, table1s.col_char_16_key AS field5
+FROM d AS table1s
+JOIN m AS table2s ON table1s.col_char_16_key = table2s.col_char_16_key
+WHERE table2s.pk = table2.pk
+)
+and table1.pk = 11;
+EXPLAIN
+-> Nested loop antijoin
+    -> Left hash join (no condition)
+        -> Table scan on table1, with pushed condition: (table1.pk = 11)
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Nested loop inner join
+        -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk)
+        -> Index lookup on table1s using col_char_16_key (col_char_16_key=table2s.col_char_16_key)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.col_int' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table1s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table1s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Push of table 'table1s' as scan-child with lookup-root 'table2s' not implemented
+SELECT
+table1.pk, table2.pk
+FROM v AS table1
+left JOIN o AS table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT table1.col_int AS field4, table1s.col_char_16_key AS field5
+FROM d AS table1s
+JOIN m AS table2s ON table1s.col_char_16_key = table2s.col_char_16_key
+WHERE table2s.pk = table2.pk
+)
+and table1.pk = 11;
+pk	pk
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM t AS table1
+JOIN x AS table2 ON table1.col_int_key = table2.col_int
+WHERE NOT EXISTS (
+SELECT *
+FROM b AS table1s WHERE table1.col_int_key = table1s.col_int_key
+) and table1.pk between 2 and 2;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop antijoin
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.pk between 2 and 2) and (table1.col_int_key is not null))
+        -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+    -> Index lookup on table2 using PRIMARY (col_int=table1.col_int_key), child of table1 in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table1.col_int_key' of SELECT #2 was resolved in SELECT #1
+SELECT
+table1.pk, table2.pk
+FROM t AS table1
+JOIN x AS table2 ON table1.col_int_key = table2.col_int
+WHERE NOT EXISTS (
+SELECT *
+FROM b AS table1s WHERE table1.col_int_key = table1s.col_int_key
+) and table1.pk between 2 and 2;
+pk	pk
+2	13
+2	15
+2	2
+2	22
+2	25
+2	6
+2	7
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM v AS table1
+LEFT JOIN o table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT *
+FROM m AS table2s
+WHERE table2s.pk = table2.pk
+)
+and table1.pk = 11;
+EXPLAIN
+-> Nested loop antijoin
+    -> Left hash join (no condition)
+        -> Table scan on table1, with pushed condition: (table1.pk = 11)
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk)
+
+Warnings:
+Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+SELECT
+table1.pk, table2.pk
+FROM v AS table1
+LEFT JOIN o table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT *
+FROM m AS table2s
+WHERE table2s.pk = table2.pk
+)
+and table1.pk = 11;
+pk	pk
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM v AS table1
+LEFT JOIN o table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT *
+FROM m AS table2s
+WHERE table2s.col_int = table2.pk
+)
+and table1.pk = 11;
+EXPLAIN
+-> Nested loop antijoin
+    -> Left hash join (no condition)
+        -> Table scan on table1, with pushed condition: (table1.pk = 11)
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Index lookup on table2s using ix3 (col_int=table2.pk)
+
+Warnings:
+Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+SELECT
+table1.pk, table2.pk
+FROM v AS table1
+LEFT JOIN o table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+SELECT *
+FROM m AS table2s
+WHERE table2s.col_int = table2.pk
+)
+and table1.pk = 11;
+pk	pk
+11	11
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM n AS table1
+JOIN t AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.pk IN (
+SELECT table1s.pk AS field3 FROM b AS table1s
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_key is not null)
+        -> Single-row index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join
+    -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk
+FROM n AS table1
+JOIN t AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.pk IN (
+SELECT table1s.pk AS field3 FROM b AS table1s
+);
+pk	pk
+1	12
+1	18
+1	2
+1	8
+1	9
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk
+FROM w AS table1
+STRAIGHT_JOIN (
+v AS table2 LEFT JOIN i AS table3 ON table2.pk = table3.col_int_key
+AND table2.pk =  table3.col_int
+) ON table1.col_int_key = table2.pk
+AND table1.col_int_unique = table2.pk
+WHERE
+NOT EXISTS (
+SELECT *
+FROM u AS table1s
+WHERE table3.col_char_16 = table1s.col_char_16
+)
+and table1.pk between 4 and 6;
+EXPLAIN
+-> Nested loop antijoin
+    -> Nested loop left join
+        -> Inner hash join (table2.pk = table1.col_int_key)
+            -> Table scan on table2, activating pushed join of 3 tables
+            -> Hash
+                -> Index range scan on table1 using PRIMARY over (4 <= pk <= 6), with pushed condition: ((table1.col_int_unique = table1.col_int_key) and (table1.pk between 4 and 6))
+        -> Index lookup on table3 using ix3 (col_int=table1.col_int_key, col_int_key=table1.col_int_key), child of table2 in pushed join
+    -> Index lookup on table1s using ix1 (col_char_16=table3.col_char_16), child of table3 in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table3.col_char_16' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table1s' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+SELECT
+table1.pk, table2.pk, table3.pk
+FROM w AS table1
+STRAIGHT_JOIN (
+v AS table2 LEFT JOIN i AS table3 ON table2.pk = table3.col_int_key
+AND table2.pk =  table3.col_int
+) ON table1.col_int_key = table2.pk
+AND table1.col_int_unique = table2.pk
+WHERE
+NOT EXISTS (
+SELECT *
+FROM u AS table1s
+WHERE table3.col_char_16 = table1s.col_char_16
+)
+and table1.pk between 4 and 6;
+pk	pk	pk
+5	3	NULL
+explain format=tree SELECT
+table6.col_varchar_256 AS field1, table3.col_varchar_256 AS field2
+FROM
+f AS table1
+LEFT JOIN a AS table2 ON table1.col_int = table2.col_int_unique
+LEFT JOIN r AS table3
+JOIN g AS table4 ON table3.col_int = table4.col_int AND
+table3.col_int_unique = table4.col_int_unique
+ON table3.col_int IN (9)
+LEFT JOIN f AS table5
+JOIN z AS table6 ON table5.col_int = table6.col_int
+JOIN g AS table7 ON table6.col_int_key = table7.pk
+LEFT JOIN b AS table8
+LEFT JOIN m AS table9 ON (table8.col_int = table9.col_int AND
+table8.col_int_key = table9.col_int_key AND
+table8.col_int_unique = table9.col_int_unique) IS TRUE
+LEFT JOIN h AS table10 ON table8.col_int_key = table10.col_int_key AND
+table9.col_int_unique = table10.col_int_unique
+ON table6.col_int = table8.col_int AND
+table6.col_int_unique = table8.col_int_unique
+ON table2.col_int = table6.col_int AND
+table2.col_int_unique = table6.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Nested loop left join
+            -> Table scan on table1, activating pushed join of 3 tables
+            -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int), child of table1 in pushed join
+        -> Nested loop inner join
+            -> Index lookup on table3 using ix1 (col_int=9), activating pushed join of 2 tables
+            -> Single-row index lookup on table4 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table4.col_int = 9)
+    -> Nested loop inner join
+        -> Nested loop left join
+            -> Nested loop inner join
+                -> Table scan on table7, activating pushed join of 2 tables
+                -> Index lookup on table6 using col_int_key (col_int_key=table7.pk), child of table7 in pushed join, with pushed condition: ((table6.col_int_unique = table2.col_int_unique) and (table6.col_int = table2.col_int))
+            -> Nested loop left join
+                -> Nested loop left join
+                    -> Single-row index lookup on table8 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join, with pushed condition: (table8.col_int = table2.col_int)
+                    -> Filter: (((table2.col_int = table9.col_int) and (table8.col_int_key = table9.col_int_key) and (table2.col_int_unique = table9.col_int_unique)) is true)
+                        -> Table scan on table9, activating pushed join of 2 tables
+                -> Single-row index lookup on table10 using ix1 (col_int_unique=table9.col_int_unique), child of table9 in pushed join, with pushed condition: (table10.col_int_key = table8.col_int_key)
+        -> Index lookup on table5 using PRIMARY (col_int=table2.col_int)
+
+Warnings:
+Note	1003	Can't push table 'table3' as child of 'table1', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table3.col_int_unique' refers a table which was not pushed
+Note	1003	Can't push table 'table7' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table6' as child of 'table1', column 'table7.pk' refers a table which was not pushed
+Note	1003	Can't push table 'table9' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table10' as child of 'table1', column 'table9.col_int_unique' refers a table which was not pushed
+Note	1003	Can't push outer joined table 'table5' as child of 'table1', table 'table6' in its dependant join-nest(s) is not part of the pushed join
+Note	1003	Can't push table 'table6' as child of 'table3', column 'table7.pk' refers a table which was not pushed
+Note	1003	Can't push table 'table10' as child of 'table3', column 'table9.col_int_unique' refers a table which was not pushed
+Note	1003	Can't push table 'table5' as child of 'table3', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table10' as child of 'table7', column 'table9.col_int_unique' refers a table which was not pushed
+Note	1003	Can't push table 'table5' as child of 'table7', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table5' as child of 'table9', no parent-child dependency exists between these tables
+SELECT
+table6.col_varchar_256 AS field1, table3.col_varchar_256 AS field2
+FROM
+f AS table1
+LEFT JOIN a AS table2 ON table1.col_int = table2.col_int_unique
+LEFT JOIN r AS table3
+JOIN g AS table4 ON table3.col_int = table4.col_int AND
+table3.col_int_unique = table4.col_int_unique
+ON table3.col_int IN (9)
+LEFT JOIN f AS table5
+JOIN z AS table6 ON table5.col_int = table6.col_int
+JOIN g AS table7 ON table6.col_int_key = table7.pk
+LEFT JOIN b AS table8
+LEFT JOIN m AS table9 ON (table8.col_int = table9.col_int AND
+table8.col_int_key = table9.col_int_key AND
+table8.col_int_unique = table9.col_int_unique) IS TRUE
+LEFT JOIN h AS table10 ON table8.col_int_key = table10.col_int_key AND
+table9.col_int_unique = table10.col_int_unique
+ON table6.col_int = table8.col_int AND
+table6.col_int_unique = table8.col_int_unique
+ON table2.col_int = table6.col_int AND
+table2.col_int_unique = table6.col_int_unique;
+field1	field2
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk,
+table1.col_int_unique AS field1, table1.col_varchar_256_unique AS field2
+FROM p AS table1
+JOIN m AS table2 ON table1.col_int_key = table2.pk
+LEFT JOIN h AS table3 ON table1.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
+ORDER BY field1,field2;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Sort: table1.col_int_unique, table1.col_varchar_256_unique
+            -> Table scan on table1, with pushed condition: (table1.col_int_key is not null)
+        -> Single-row index lookup on table2 using PRIMARY (pk=table1.col_int_key), activating pushed join of 2 tables
+    -> Filter: (table3.col_int = table1.col_int)
+        -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2' as child of 'table1', it is in a sorted-branch which can't be referred.
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a sorted-branch which can't be referred.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk,
+table1.col_int_unique AS field1, table1.col_varchar_256_unique AS field2
+FROM p AS table1
+JOIN m AS table2 ON table1.col_int_key = table2.pk
+LEFT JOIN h AS table3 ON table1.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
+ORDER BY field1,field2;
+pk	pk	pk	field1	field2
+1	2	NULL	13	gsxtwkvtbqscgcbnjz
+10	1	NULL	14	a
+11	3	NULL	84	can
+13	2	NULL	87	xzkjxgrcyqi
+15	2	NULL	71	me
+16	3	NULL	7	you're
+18	1	NULL	8	mkcharcpqd
+2	3	NULL	2	we
+20	2	NULL	38	see
+21	3	NULL	20	gyusxngucicqcjhvtmfnumoxifzchbfu
+3	2	NULL	17	could
+4	3	NULL	99	you
+6	3	NULL	10	emywwmshhimsbq
+9	2	NULL	50	qljcfstzgruojzffwbhxogpkk
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk
+FROM k AS table1
+LEFT JOIN m AS table2 ON table1.col_int_unique = table2.col_int_unique
+JOIN q AS table3 ON table2.col_int = table3.col_int AND table1.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop inner join
+    -> Inner hash join (table2.col_int_unique = table1.col_int_unique)
+        -> Index range scan on table2 using ix3 over (NULL < col_int), activating pushed join of 2 tables, with pushed condition: (table2.col_int is not null)
+        -> Hash
+            -> Table scan on table1, with pushed condition: (table1.col_int_unique is not null)
+    -> Single-row index lookup on table3 using ix1 (col_int=table2.col_int, col_int_unique=table1.col_int_unique), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+SELECT
+table1.pk, table2.pk, table3.pk
+FROM k AS table1
+LEFT JOIN m AS table2 ON table1.col_int_unique = table2.col_int_unique
+JOIN q AS table3 ON table2.col_int = table3.col_int AND table1.col_int_unique = table3.col_int_unique;
+pk	pk	pk
+explain format=tree SELECT
+DISTINCT table2.col_varchar_256_unique AS field1, table1.col_varchar_256_unique AS field2
+FROM d AS table1
+JOIN d AS table2
+JOIN h AS table3
+INNER JOIN e AS table4 ON table3.col_int_key = table4.col_int_key OR table3.col_int_unique = table4.col_int_unique
+ON table2.col_int_unique = table4.col_int_unique
+ON table1.col_int_unique = table2.col_int_unique;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop inner join
+            -> Nested loop inner join
+                -> Inner hash join (no condition)
+                    -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_unique is not null)
+                    -> Hash
+                        -> Table scan on table3
+                -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join
+            -> Limit: 1 row(s)
+                -> Filter: ((table4.col_int_key = table3.col_int_key) or (table1.col_int_unique = table3.col_int_unique))
+                    -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table4' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+SELECT
+DISTINCT table2.col_varchar_256_unique AS field1, table1.col_varchar_256_unique AS field2
+FROM d AS table1
+JOIN d AS table2
+JOIN h AS table3
+INNER JOIN e AS table4 ON table3.col_int_key = table4.col_int_key OR table3.col_int_unique = table4.col_int_unique
+ON table2.col_int_unique = table4.col_int_unique
+ON table1.col_int_unique = table2.col_int_unique;
+field1	field2
+my	my
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM j AS table1
+JOIN r AS table2 ON table1.col_int = table2.col_int AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.col_int_key IN (SELECT table1s.col_int_key AS field6 FROM z AS table1s);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop semijoin
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.col_int_key is not null) and (table1.col_int_unique is not null))
+        -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+    -> Index lookup on table2 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk
+FROM j AS table1
+JOIN r AS table2 ON table1.col_int = table2.col_int AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.col_int_key IN (SELECT table1s.col_int_key AS field6 FROM z AS table1s);
+pk	pk
+explain format=tree SELECT
+table2.col_int_unique AS field1, table1.col_int AS field
+FROM m AS table1
+JOIN x AS table2 ON  table1.col_int_key = table2.col_int_key AND table1.col_int_unique = table2.col_int_unique
+WHERE table2.col_int_key IN (
+SELECT table2s.col_int_key AS field3
+FROM z AS table1s
+LEFT JOIN t AS table2s
+JOIN l AS table3s ON table2s.col_int = table3s.col_int_key
+ON table1s.pk = table2s.col_int_unique
+WHERE table1.col_int_unique = 4 IS UNKNOWN)
+AND table2.col_varchar_10_key = table1.col_varchar_256;
+EXPLAIN
+-> Nested loop semijoin
+    -> Nested loop inner join
+        -> Filter: ((table1.col_int_unique = 4) is null)
+            -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.col_varchar_256 is not null)
+        -> Filter: (table2.col_varchar_10_key = table1.col_varchar_256)
+            -> Index lookup on table2 using col_varchar_10_key (col_varchar_10_key=table1.col_varchar_256), with pushed condition: ((table2.col_int_unique = table1.col_int_unique) and (table2.col_int_key = table1.col_int_key))
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index lookup on table2s using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2s.col_int_unique is not null)
+            -> Single-row index lookup on table1s using PRIMARY (pk=table2s.col_int_unique), child of table2s in pushed join
+        -> Index lookup on table3s using col_int_key (col_int_key=table2s.col_int), child of table2s in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table1.col_int_unique' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2' as child, column 'col_varchar_10_key' does not have same datatype as ref'ed column 'table1.col_varchar_256'
+SELECT
+table2.col_int_unique AS field1, table1.col_int AS field
+FROM m AS table1
+JOIN x AS table2 ON  table1.col_int_key = table2.col_int_key AND table1.col_int_unique = table2.col_int_unique
+WHERE table2.col_int_key IN (
+SELECT table2s.col_int_key AS field3
+FROM z AS table1s
+LEFT JOIN t AS table2s
+JOIN l AS table3s ON table2s.col_int = table3s.col_int_key
+ON table1s.pk = table2s.col_int_unique
+WHERE table1.col_int_unique = 4 IS UNKNOWN)
+AND table2.col_varchar_10_key = table1.col_varchar_256;
+field1	field
+explain format=tree SELECT
+table5.pk, table1.pk, table2.pk, table3.pk, table4.pk
+FROM q AS table1
+STRAIGHT_JOIN h AS table2 ON table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+LEFT JOIN u AS table3
+STRAIGHT_JOIN x AS table4 ON table3.col_int_key = table4.col_int_key
+ON table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+JOIN f AS table5 ON table2.col_int_key = table5.pk;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Table scan on table5, activating pushed join of 5 tables
+            -> Index lookup on table1 using ix2 (col_int_key=table5.pk), child of table5 in pushed join, with pushed condition: (table1.col_int_unique is not null)
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join, with pushed condition: (table2.col_int_key = table5.pk)
+    -> Nested loop inner join
+        -> Index lookup on table3 using col_int_key (col_int_key=table5.pk), child of table1 in pushed join
+        -> Index lookup on table4 using col_int_key (col_int_key=table5.pk), child of table1 in pushed join, with pushed condition: (table4.col_int_unique = table1.col_int_unique)
+
+SELECT
+table5.pk, table1.pk, table2.pk, table3.pk, table4.pk
+FROM q AS table1
+STRAIGHT_JOIN h AS table2 ON table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+LEFT JOIN u AS table3
+STRAIGHT_JOIN x AS table4 ON table3.col_int_key = table4.col_int_key
+ON table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+JOIN f AS table5 ON table2.col_int_key = table5.pk;
+pk	pk	pk	pk	pk
+1	19	10	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM n AS table1
+JOIN a AS table2 ON table1.col_int = table2.col_int AND table1.col_int_unique = table2.col_int_unique
+LEFT OUTER JOIN x AS table3
+INNER JOIN m AS table4 ON table3.col_int = table4.pk
+ON  table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.col_int_unique is not null)
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join, with pushed condition: (table2.col_int = table1.col_int)
+    -> Nested loop inner join
+        -> Single-row index lookup on table4 using PRIMARY (pk=table1.col_int_unique), child of table2 in pushed join
+        -> Index lookup on table3 using PRIMARY (col_int=table1.col_int_unique), child of table2 in pushed join, with pushed condition: (table3.col_int_unique = table2.col_int_key)
+
+SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM n AS table1
+JOIN a AS table2 ON table1.col_int = table2.col_int AND table1.col_int_unique = table2.col_int_unique
+LEFT OUTER JOIN x AS table3
+INNER JOIN m AS table4 ON table3.col_int = table4.pk
+ON  table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int;
+pk	pk	pk	pk
+explain format=tree SELECT
+table2.col_varchar_10_key AS field1
+FROM p AS table1
+INNER JOIN a AS table2
+JOIN v AS table3 ON table2.col_int = table3.col_int AND
+table2.col_int_unique = table3.col_int_unique
+ON  table1.col_int = table3.col_int AND
+table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table3.col_int_unique
+WHERE
+table3.col_int_unique = 7 AND
+table3.col_int = 4  OR
+NOT table3.col_int_unique = 9  OR
+table1.col_varchar_10 = table1.col_varchar_256_unique;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table3, activating pushed join of 3 tables, with pushed condition: ((table3.col_int_unique is not null) and (table3.col_int is not null))
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table2.col_int = table3.col_int)
+    -> Filter: (((table3.col_int = 4) and (table3.col_int_unique = 7)) or (table3.col_int_unique <> 9) or (table1.col_varchar_10 = table1.col_varchar_256_unique))
+        -> Single-row index lookup on table1 using ix1 (col_int=table3.col_int, col_int_unique=table3.col_int_unique), child of table2 in pushed join, with pushed condition: (table1.col_int_key = table2.col_int_key)
+
+SELECT
+table2.col_varchar_10_key AS field1
+FROM p AS table1
+INNER JOIN a AS table2
+JOIN v AS table3 ON table2.col_int = table3.col_int AND
+table2.col_int_unique = table3.col_int_unique
+ON  table1.col_int = table3.col_int AND
+table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table3.col_int_unique
+WHERE
+table3.col_int_unique = 7 AND
+table3.col_int = 4  OR
+NOT table3.col_int_unique = 9  OR
+table1.col_varchar_10 = table1.col_varchar_256_unique;
+field1
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk
+FROM i AS table1
+LEFT JOIN z AS table2 ON table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+LEFT JOIN m AS table3 ON table2.col_int_key = table3.col_int_key;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Table scan on table1, activating pushed join of 3 tables
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2.col_int_unique = table1.col_int_unique)
+    -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join
+
+SELECT
+table1.pk, table2.pk, table3.pk
+FROM i AS table1
+LEFT JOIN z AS table2 ON table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+LEFT JOIN m AS table3 ON table2.col_int_key = table3.col_int_key;
+pk	pk	pk
+1	NULL	NULL
+10	72	10
+10	72	11
+10	72	13
+10	72	15
+10	72	18
+10	72	2
+10	72	3
+10	72	4
+11	NULL	NULL
+12	NULL	NULL
+13	NULL	NULL
+14	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	60	1
+4	60	12
+4	60	20
+4	60	5
+4	60	6
+5	NULL	NULL
+6	NULL	NULL
+7	NULL	NULL
+8	NULL	NULL
+9	NULL	NULL
+SELECT
+table1.pk, table3.pk, table2.pk, table5.pk, table4.pk, table6.pk
+FROM f AS table1
+LEFT JOIN ( j AS table3
+straight_JOIN x AS table2 ON table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique)
+LEFT JOIN ((d AS table4
+straight_JOIN b AS table5 ON table4.pk = table5.col_int_unique)
+LEFT JOIN x AS table6 ON table5.col_int_unique = table6.col_int)
+ON table2.col_int_key = table5.col_int_unique AND
+table2.col_int_unique = table5.col_int_key
+ON table1.pk = table3.col_int_unique;
+pk	pk	pk	pk	pk	pk
+1	NULL	NULL	NULL	NULL	NULL
+10	NULL	NULL	NULL	NULL	NULL
+11	NULL	NULL	NULL	NULL	NULL
+12	NULL	NULL	NULL	NULL	NULL
+13	NULL	NULL	NULL	NULL	NULL
+14	NULL	NULL	NULL	NULL	NULL
+15	NULL	NULL	NULL	NULL	NULL
+16	NULL	NULL	NULL	NULL	NULL
+17	NULL	NULL	NULL	NULL	NULL
+2	NULL	NULL	NULL	NULL	NULL
+3	NULL	NULL	NULL	NULL	NULL
+4	NULL	NULL	NULL	NULL	NULL
+5	NULL	NULL	NULL	NULL	NULL
+6	18	6	NULL	NULL	NULL
+7	NULL	NULL	NULL	NULL	NULL
+8	NULL	NULL	NULL	NULL	NULL
+9	NULL	NULL	NULL	NULL	NULL
+SELECT
+table1.pk, table3.pk, table2.pk, table5.pk, table4.pk, table6.pk
+FROM f AS table1
+LEFT JOIN ( j AS table3
+straight_JOIN x AS table2 ON table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique)
+LEFT JOIN (b AS table5
+JOIN d AS table4 ON table4.pk = table5.col_int_unique)
+LEFT JOIN x AS table6 ON table5.col_int_unique = table6.col_int
+ON table2.col_int_key = table5.col_int_unique AND
+table2.col_int_unique = table5.col_int_key
+ON table1.pk = table3.col_int_unique;
+pk	pk	pk	pk	pk	pk
+1	NULL	NULL	NULL	NULL	NULL
+10	NULL	NULL	NULL	NULL	NULL
+11	NULL	NULL	NULL	NULL	NULL
+12	NULL	NULL	NULL	NULL	NULL
+13	NULL	NULL	NULL	NULL	NULL
+14	NULL	NULL	NULL	NULL	NULL
+15	NULL	NULL	NULL	NULL	NULL
+16	NULL	NULL	NULL	NULL	NULL
+17	NULL	NULL	NULL	NULL	NULL
+2	NULL	NULL	NULL	NULL	NULL
+3	NULL	NULL	NULL	NULL	NULL
+4	NULL	NULL	NULL	NULL	NULL
+5	NULL	NULL	NULL	NULL	NULL
+6	18	6	NULL	NULL	NULL
+7	NULL	NULL	NULL	NULL	NULL
+8	NULL	NULL	NULL	NULL	NULL
+9	NULL	NULL	NULL	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM
+(b AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.col_int_unique AND
+table1.col_int_unique = table2.col_int_key)
+LEFT JOIN
+((c AS table3 JOIN q AS table4 ON table3.col_int_key = table4.pk)
+JOIN i AS table5 ON table3.col_int_unique = table5.col_int_key
+)
+ON table2.col_int = table4.col_int AND
+table2.col_int_key = table5.col_int_key AND
+table1.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 5 tables, with pushed condition: (table1.col_int_key is not null)
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2.col_int_key = table1.col_int_unique)
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index lookup on table3 using ix1 (col_int_unique=table1.col_int_unique), child of table2 in pushed join
+            -> Single-row index lookup on table4 using PRIMARY (pk=table3.col_int_key), child of table3 in pushed join, with pushed condition: (table4.col_int = table2.col_int)
+        -> Index lookup on table5 using col_int_key (col_int_key=table1.col_int_unique), child of table2 in pushed join
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM
+(b AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.col_int_unique AND
+table1.col_int_unique = table2.col_int_key)
+LEFT JOIN
+((c AS table3 JOIN q AS table4 ON table3.col_int_key = table4.pk)
+JOIN i AS table5 ON table3.col_int_unique = table5.col_int_key
+)
+ON table2.col_int = table4.col_int AND
+table2.col_int_key = table5.col_int_key AND
+table1.col_int_unique = table3.col_int_unique;
+pk	pk	pk	pk	pk
+explain format=tree SELECT table1.pk, table2.pk
+FROM t AS table1
+JOIN b AS table2 on table2.pk = table1.pk
+WHERE table1.col_int IN (8,7) AND
+table1.col_int_unique = 4;
+EXPLAIN
+-> Nested loop inner join
+    -> Index range scan on table1 using ix1 over (col_int = 7 AND col_int_unique = 4) OR (col_int = 8 AND col_int_unique = 4), activating pushed join of 2 tables, with pushed condition: ((table1.col_int_unique = 4) and (table1.col_int in (8,7)))
+    -> Single-row index lookup on table2 using PRIMARY (pk=table1.pk), child of table1 in pushed join
+
+SELECT table1.pk, table2.pk
+FROM t AS table1
+JOIN b AS table2 on table2.pk = table1.pk
+WHERE table1.col_int IN (8,7) AND
+table1.col_int_unique = 4;
+pk	pk
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk
+FROM  c AS table1
+JOIN g AS table2
+LEFT JOIN e AS table3 ON table2.col_int_key = table3.pk AND table2.col_int_unique = table3.col_int_unique
+ON table3.col_int IS NULL;
+EXPLAIN
+-> Filter: (table3.col_int is null)
+    -> Nested loop antijoin
+        -> Inner hash join (no condition)
+            -> Table scan on table2, activating pushed join of 2 tables
+            -> Hash
+                -> Table scan on table1
+        -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join, with pushed condition: (table3.pk = table2.col_int_key)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+SELECT
+table1.pk, table2.pk, table3.pk
+FROM  c AS table1
+JOIN g AS table2
+LEFT JOIN e AS table3 ON table2.col_int_key = table3.pk AND table2.col_int_unique = table3.col_int_unique
+ON table3.col_int IS NULL;
+pk	pk	pk
+1	1	NULL
+1	10	NULL
+1	11	NULL
+1	12	NULL
+1	13	NULL
+1	14	NULL
+1	15	NULL
+1	16	NULL
+1	17	NULL
+1	18	NULL
+1	19	NULL
+1	2	NULL
+1	3	NULL
+1	4	NULL
+1	5	NULL
+1	6	NULL
+1	7	NULL
+1	8	NULL
+1	9	NULL
+2	1	NULL
+2	10	NULL
+2	11	NULL
+2	12	NULL
+2	13	NULL
+2	14	NULL
+2	15	NULL
+2	16	NULL
+2	17	NULL
+2	18	NULL
+2	19	NULL
+2	2	NULL
+2	3	NULL
+2	4	NULL
+2	5	NULL
+2	6	NULL
+2	7	NULL
+2	8	NULL
+2	9	NULL
+3	1	NULL
+3	10	NULL
+3	11	NULL
+3	12	NULL
+3	13	NULL
+3	14	NULL
+3	15	NULL
+3	16	NULL
+3	17	NULL
+3	18	NULL
+3	19	NULL
+3	2	NULL
+3	3	NULL
+3	4	NULL
+3	5	NULL
+3	6	NULL
+3	7	NULL
+3	8	NULL
+3	9	NULL
+4	1	NULL
+4	10	NULL
+4	11	NULL
+4	12	NULL
+4	13	NULL
+4	14	NULL
+4	15	NULL
+4	16	NULL
+4	17	NULL
+4	18	NULL
+4	19	NULL
+4	2	NULL
+4	3	NULL
+4	4	NULL
+4	5	NULL
+4	6	NULL
+4	7	NULL
+4	8	NULL
+4	9	NULL
+5	1	NULL
+5	10	NULL
+5	11	NULL
+5	12	NULL
+5	13	NULL
+5	14	NULL
+5	15	NULL
+5	16	NULL
+5	17	NULL
+5	18	NULL
+5	19	NULL
+5	2	NULL
+5	3	NULL
+5	4	NULL
+5	5	NULL
+5	6	NULL
+5	7	NULL
+5	8	NULL
+5	9	NULL
+explain format=tree SELECT DISTINCT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM a AS table1
+LEFT JOIN d AS table2
+LEFT JOIN r AS table3 ON table2.col_int IS NULL
+ON table1.col_int_key = table2.col_int AND
+table1.col_int_unique = table2.col_int
+LEFT JOIN q AS table4 ON table3.col_int = table4.col_int AND
+table2.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop left join
+            -> Nested loop left join
+                -> Table scan on table1
+                -> Filter: ((table1.col_int_unique = table1.col_int_key) and (table2.col_int = table1.col_int_key))
+                    -> Left hash join (no condition)
+                        -> Table scan on table2
+                        -> Hash
+                            -> Table scan on table3, with pushed condition: (table1.col_int_key is null)
+            -> Filter: (table4.col_int = table3.col_int)
+                -> Single-row index lookup on table4 using ix2 (col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.col_int_key' is in a hash-probe-branch which can't be referred
+Note	1003	Can't push table 'table4' as child of 'table2', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table4' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+SELECT DISTINCT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM a AS table1
+LEFT JOIN d AS table2
+LEFT JOIN r AS table3 ON table2.col_int IS NULL
+ON table1.col_int_key = table2.col_int AND
+table1.col_int_unique = table2.col_int
+LEFT JOIN q AS table4 ON table3.col_int = table4.col_int AND
+table2.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique;
+pk	pk	pk	pk
+explain format=tree SELECT table1.pk, table2.pk
+FROM p AS table1
+JOIN d AS table2 ON table1.col_int_unique = table2.pk
+WHERE NOT EXISTS (
+SELECT table1.col_varchar_10_unique
+FROM k AS table1s JOIN c AS table2s ON table1s.pk = table2s.pk
+);
+EXPLAIN
+-> Nested loop antijoin
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 2 tables, with pushed condition: (table1.col_int_unique is not null)
+        -> Single-row index lookup on table2 using PRIMARY (pk=table1.col_int_unique), child of table1 in pushed join
+    -> Constant row from <subquery2>
+        -> Materialize with deduplication
+            -> Nested loop inner join
+                -> Table scan on table2s, activating pushed join of 2 tables
+                -> Index lookup on table1s using PRIMARY (pk=table2s.pk), child of table2s in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table1.col_varchar_10_unique' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table1s' as child of 'table1', it is in a query-branch which can't be referred.
+SELECT table1.pk, table2.pk
+FROM p AS table1
+JOIN d AS table2 ON table1.col_int_unique = table2.pk
+WHERE NOT EXISTS (
+SELECT table1.col_varchar_10_unique
+FROM k AS table1s JOIN c AS table2s ON table1s.pk = table2s.pk
+);
+pk	pk
+explain format=tree SELECT DISTINCT
+table1.pk AS field1
+FROM y AS table1
+JOIN d AS table2 ON  table1.col_int_key =  table2.col_int_unique
+JOIN y AS table3 ON  table1.col_int_key =  table3.col_int_unique
+WHERE table2.pk < table2.col_int_key AND NOT table2.col_int = 5
+HAVING field1 <= 2;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Filter: (field1 <= 2)
+            -> Nested loop inner join
+                -> Nested loop inner join
+                    -> Table scan on table3, activating pushed join of 3 tables, with pushed condition: (table3.col_int_unique is not null)
+                    -> Single-row index lookup on table2 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join, with pushed condition: ((table2.pk < table2.col_int_key) and (table2.col_int <> 5))
+                -> Index lookup on table1 using col_int_key (col_int_key=table3.col_int_unique), child of table3 in pushed join
+
+SELECT DISTINCT
+table1.pk AS field1
+FROM y AS table1
+JOIN d AS table2 ON  table1.col_int_key =  table2.col_int_unique
+JOIN y AS table3 ON  table1.col_int_key =  table3.col_int_unique
+WHERE table2.pk < table2.col_int_key AND NOT table2.col_int = 5
+HAVING field1 <= 2;
+field1
+explain format=tree SELECT DISTINCT
+table2.col_int_key AS field1, table2.col_int AS field2, table2.col_int_key AS field3
+FROM t AS table1
+LEFT JOIN z AS table2 ON table1.pk = table2.col_int
+JOIN c AS table3 ON NOT (table1.col_int_key = table3.col_int_key AND table1.col_int_unique = table3.col_int_unique)
+WHERE table2.pk = table3.pk  OR table3.col_int BETWEEN 3 AND 3+3
+HAVING field1 != 6;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Filter: (field1 <> 6)
+            -> Filter: ((table2.pk = table3.pk) or (table3.col_int between 3 and <cache>((3 + 3))))
+                -> Left hash join (table2.col_int = table1.pk)
+                    -> Filter: ((table1.col_int_key <> table3.col_int_key) or (table1.col_int_unique <> table3.col_int_unique))
+                        -> Inner hash join (no condition)
+                            -> Table scan on table3
+                            -> Hash
+                                -> Table scan on table1
+                    -> Hash
+                        -> Table scan on table2
+
+Warnings:
+Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+SELECT DISTINCT
+table2.col_int_key AS field1, table2.col_int AS field2, table2.col_int_key AS field3
+FROM t AS table1
+LEFT JOIN z AS table2 ON table1.pk = table2.col_int
+JOIN c AS table3 ON NOT (table1.col_int_key = table3.col_int_key AND table1.col_int_unique = table3.col_int_unique)
+WHERE table2.pk = table3.pk  OR table3.col_int BETWEEN 3 AND 3+3
+HAVING field1 != 6;
+field1	field2	field3
+1	1	1
+1	3	1
+3	1	3
+explain format=tree SELECT
+table1.col_varchar_10_unique AS field1, table1.col_char_16 AS field2
+FROM e AS table1
+LEFT OUTER JOIN c AS table2 ON table1.col_int_key = table2.col_int_key AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.col_varchar_256 IN (
+SELECT table2s.col_varchar_10 AS field3
+FROM (j AS table1s
+JOIN d AS table2s ON table1s.col_int_key = table2s.col_int_key)
+)
+AND table2.col_varchar_10_unique = ANY (
+SELECT DISTINCT table1s.col_varchar_10 AS field4
+FROM e AS table1s
+JOIN u AS table2s ON table1s.col_int = table2s.col_int AND table1s.col_int_unique = table2s.col_int_unique
+)
+AND table1.col_int_unique <> 2;
+EXPLAIN
+-> Nested loop semijoin
+    -> Nested loop inner join
+        -> Inner hash join (no condition)
+            -> Index range scan on table2 using ix1 over (NULL < col_int_unique < 2) OR (2 < col_int_unique), activating pushed join of 2 tables, with pushed condition: ((table2.col_int_unique <> 2) and (table2.col_int_unique is not null))
+            -> Hash
+                -> Table scan on <subquery2>
+                    -> Materialize with deduplication
+                        -> Filter: (table2s.col_varchar_10 is not null)
+                            -> Nested loop inner join
+                                -> Index range scan on table2s using col_int_key over (NULL < col_int_key), activating pushed join of 2 tables, with pushed condition: (table2s.col_int_key is not null)
+                                -> Index lookup on table1s using col_int_key (col_int_key=table2s.col_int_key), child of table2s in pushed join
+        -> Filter: (table1.col_varchar_256 = `<subquery2>`.field3)
+            -> Single-row index lookup on table1 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join, with pushed condition: (table1.col_int_key = table2.col_int_key)
+    -> Nested loop inner join
+        -> Table scan on table1s, activating pushed join of 2 tables, with pushed condition: (table1s.col_varchar_10 = table2.col_varchar_10_unique)
+        -> Index lookup on table2s using PRIMARY (col_int=table1s.col_int), child of table1s in pushed join, with pushed condition: (table2s.col_int_unique = table1s.col_int_unique)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
+Note	1003	Can't push table 'table1' as child of 'table2s', it is in a materialized-branch which can't be referred.
+Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table2s', it is in a materialized-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table2', column 'table1s.col_int' refers a table which was not pushed
+SELECT
+table1.col_varchar_10_unique AS field1, table1.col_char_16 AS field2
+FROM e AS table1
+LEFT OUTER JOIN c AS table2 ON table1.col_int_key = table2.col_int_key AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.col_varchar_256 IN (
+SELECT table2s.col_varchar_10 AS field3
+FROM (j AS table1s
+JOIN d AS table2s ON table1s.col_int_key = table2s.col_int_key)
+)
+AND table2.col_varchar_10_unique = ANY (
+SELECT DISTINCT table1s.col_varchar_10 AS field4
+FROM e AS table1s
+JOIN u AS table2s ON table1s.col_int = table2s.col_int AND table1s.col_int_unique = table2s.col_int_unique
+)
+AND table1.col_int_unique <> 2;
+field1	field2
+explain format=tree SELECT
+table2.col_int AS field1
+FROM j AS table1
+INNER JOIN v AS table2 ON table1.pk = table2.col_int_key
+ORDER BY field1 LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)
+    -> Sort: table2.col_int, limit input to 1 row(s) per chunk
+        -> Stream results
+            -> Nested loop inner join
+                -> Table scan on table1, activating pushed join of 2 tables
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.pk), child of table1 in pushed join
+
+SELECT
+table2.col_int AS field1
+FROM j AS table1
+INNER JOIN v AS table2 ON table1.pk = table2.col_int_key
+ORDER BY field1 LIMIT 1;
+field1
+NULL
+explain format=tree SELECT
+table6.col_int AS field1, table6.col_varchar_10_key AS field2
+FROM f AS table1
+JOIN q AS table2 ON table1.col_int_key = table2.col_int_key AND table1.col_int_unique = table2.col_int_unique
+JOIN u AS table3 ON table1.col_int_key = table3.pk AND table2.col_int_unique = table3.pk
+JOIN w AS table4 ON  table3.col_int_unique = table4.col_int_key
+LEFT JOIN b AS table5 ON table3.col_int IN (5)
+JOIN d AS table6 ON  table4.col_int_key = table6.col_int_key;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (table3.col_int = 5)
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Nested loop inner join
+                -> Nested loop inner join
+                    -> Table scan on table3, activating pushed join of 5 tables, with pushed condition: (table3.col_int_unique is not null)
+                    -> Index lookup on table1 using ix1 (col_int_unique=table3.pk), child of table3 in pushed join, with pushed condition: (table1.col_int_key = table3.pk)
+                -> Single-row index lookup on table2 using ix2 (col_int_key=table3.pk, col_int_unique=table3.pk), child of table3 in pushed join
+            -> Index lookup on table6 using col_int_key (col_int_key=table3.col_int_unique), child of table3 in pushed join
+        -> Index lookup on table4 using col_int_key (col_int_key=table3.col_int_unique), child of table3 in pushed join
+    -> Hash
+        -> Table scan on table5
+
+Warnings:
+Note	1003	Can't push table 'table5' as child, 'type' must be a 'ref' access
+SELECT
+table6.col_int AS field1, table6.col_varchar_10_key AS field2
+FROM f AS table1
+JOIN q AS table2 ON table1.col_int_key = table2.col_int_key AND table1.col_int_unique = table2.col_int_unique
+JOIN u AS table3 ON table1.col_int_key = table3.pk AND table2.col_int_unique = table3.pk
+JOIN w AS table4 ON  table3.col_int_unique = table4.col_int_key
+LEFT JOIN b AS table5 ON table3.col_int IN (5)
+JOIN d AS table6 ON  table4.col_int_key = table6.col_int_key;
+field1	field2
+explain format=tree SELECT
+table2.col_int AS field1
+FROM q AS table1
+JOIN i AS table2 ON table1.pk = table2.col_int_key AND table1.col_int IN (5)
+WHERE 'vp' = ANY (
+SELECT DISTINCT table2.col_varchar_10 AS field2
+FROM b AS table1s
+LEFT JOIN w AS table2s ON table1s.col_int = table2s.col_int
+)
+HAVING field1 <= 3
+ORDER BY field1 LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)
+    -> Nested loop semijoin
+        -> Nested loop inner join
+            -> Index scan on table2 using PRIMARY, activating pushed join of 2 tables, with pushed condition: ((table2.col_varchar_10 = 'vp') and (table2.col_int_key is not null) and (field1 <= 3))
+            -> Single-row index lookup on table1 using PRIMARY (pk=table2.col_int_key), child of table2 in pushed join, with pushed condition: (table1.col_int = 5)
+        -> Nested loop left join
+            -> Table scan on table1s
+            -> Table scan on table2s, with pushed condition: (table1s.col_int = table2s.col_int)
+
+Warnings:
+Note	1276	Field or reference 'test.table2.col_varchar_10' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+SELECT
+table2.col_int AS field1
+FROM q AS table1
+JOIN i AS table2 ON table1.pk = table2.col_int_key AND table1.col_int IN (5)
+WHERE 'vp' = ANY (
+SELECT DISTINCT table2.col_varchar_10 AS field2
+FROM b AS table1s
+LEFT JOIN w AS table2s ON table1s.col_int = table2s.col_int
+)
+HAVING field1 <= 3
+ORDER BY field1 LIMIT 1;
+field1
+explain format=tree SELECT  DISTINCT
+table5.col_varchar_256 AS field1, table2.col_varchar_10_key AS field2, table5.col_int_key AS field3
+FROM x AS table1
+JOIN p AS table2 ON table2.col_int IN (5,9)
+JOIN j AS table3 ON table2.pk = table3.col_int_unique
+LEFT JOIN n AS table4
+LEFT JOIN s AS table5 ON table4.col_int = table5.col_int
+AND table4.col_int_unique = table5.col_int_unique
+ON table1.col_int_unique = table4.col_int_unique
+HAVING field1 != 6 OR field3 < 6;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Filter: ((field1 <> 6) or (field3 < 6))
+            -> Nested loop left join
+                -> Inner hash join (no condition)
+                    -> Table scan on table1
+                    -> Hash
+                        -> Nested loop inner join
+                            -> Table scan on table3, activating pushed join of 2 tables, with pushed condition: (table3.col_int_unique is not null)
+                            -> Single-row index lookup on table2 using PRIMARY (pk=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table2.col_int in (5,9))
+                -> Nested loop left join
+                    -> Table scan on table4, activating pushed join of 2 tables, with pushed condition: (table4.col_int_unique = table1.col_int_unique)
+                    -> Single-row index lookup on table5 using ix1 (col_int=table4.col_int, col_int_unique=table1.col_int_unique), child of table4 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table5' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table5' as child of 'table1', column 'table4.col_int' refers a table which was not pushed
+SELECT  DISTINCT
+table5.col_varchar_256 AS field1, table2.col_varchar_10_key AS field2, table5.col_int_key AS field3
+FROM x AS table1
+JOIN p AS table2 ON table2.col_int IN (5,9)
+JOIN j AS table3 ON table2.pk = table3.col_int_unique
+LEFT JOIN n AS table4
+LEFT JOIN s AS table5 ON table4.col_int = table5.col_int
+AND table4.col_int_unique = table5.col_int_unique
+ON table1.col_int_unique = table4.col_int_unique
+HAVING field1 != 6 OR field3 < 6;
+field1	field2	field3
+explain format=tree SELECT
+table3.col_varchar_10 AS field1, 5 + (CHAR_LENGTH(table7.col_varchar_256_key)) AS field2
+FROM k AS table1
+JOIN x AS table2 ON table1.col_int_unique = table2.col_int_unique
+LEFT JOIN y AS table3
+LEFT JOIN m AS table4 ON table3.col_int_key = table4.col_int_key
+AND table3.col_int_unique = table4.col_int_unique
+LEFT JOIN h AS table5
+JOIN c AS table6 ON table5.pk = table6.col_int_key
+ON table3.col_int = table5.col_int AND table4.col_int_unique = table6.col_int_unique
+LEFT JOIN c AS table7 ON table3.col_int_key = table7.col_int_key
+AND table5.col_int_unique = table7.col_int_unique
+ON table2.col_int_key = table5.col_int_unique
+JOIN z AS table8 ON table3.pk = table8.col_int_key;
+EXPLAIN
+-> Nested loop inner join
+    -> Inner hash join (table1.col_int_unique = table2.col_int_unique)
+        -> Table scan on table1
+        -> Hash
+            -> Nested loop inner join
+                -> Nested loop left join
+                    -> Nested loop inner join
+                        -> Nested loop inner join
+                            -> Nested loop inner join
+                                -> Table scan on table6, activating pushed join of 5 tables
+                                -> Single-row index lookup on table5 using PRIMARY (pk=table6.col_int_key), child of table6 in pushed join, with pushed condition: (table5.col_int_unique is not null)
+                            -> Index lookup on table3 using PRIMARY (col_int=table5.col_int), child of table5 in pushed join, with pushed condition: ((table3.col_int_unique = table6.col_int_unique) and (table3.pk is not null))
+                        -> Index lookup on table4 using col_int_key (col_int_key=table3.col_int_key), child of table3 in pushed join, with pushed condition: (table4.col_int_unique = table6.col_int_unique)
+                    -> Index lookup on table7 using ix1 (col_int_unique=table5.col_int_unique), with pushed condition: (table7.col_int_key = table3.col_int_key)
+                -> Index lookup on table2 using col_int_key (col_int_key=table5.col_int_unique), child of table5 in pushed join
+    -> Index lookup on table8 using col_int_key (col_int_key=table3.pk)
+
+Warnings:
+Note	1003	Can't push outer joined table 'table7' as child of 'table6', table condition can not be fully evaluated by pushed join
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table8' as child of 'table6', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table8' as child of 'table7', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table8' as child of 'table1', column 'table3.pk' is in a hash-bucket-branch which can't be referred
+SELECT
+table3.col_varchar_10 AS field1, 5 + (CHAR_LENGTH(table7.col_varchar_256_key)) AS field2
+FROM k AS table1
+JOIN x AS table2 ON table1.col_int_unique = table2.col_int_unique
+LEFT JOIN y AS table3
+LEFT JOIN m AS table4 ON table3.col_int_key = table4.col_int_key
+AND table3.col_int_unique = table4.col_int_unique
+LEFT JOIN h AS table5
+JOIN c AS table6 ON table5.pk = table6.col_int_key
+ON table3.col_int = table5.col_int AND table4.col_int_unique = table6.col_int_unique
+LEFT JOIN c AS table7 ON table3.col_int_key = table7.col_int_key
+AND table5.col_int_unique = table7.col_int_unique
+ON table2.col_int_key = table5.col_int_unique
+JOIN z AS table8 ON table3.pk = table8.col_int_key;
+field1	field2
+explain format=tree SELECT STRAIGHT_JOIN
+table1.col_int AS field1, table1.col_int_key AS field2
+FROM a AS table1 WHERE EXISTS (
+SELECT table1s.col_varchar_256_unique AS field3, table2s.col_char_16_key AS field4
+FROM f AS table1s
+LEFT JOIN g AS table2s ON table1s.col_int_unique = table2s.col_int_key
+GROUP BY field3, field4)
+HAVING field1 = 9
+ORDER BY field2,field1;
+EXPLAIN
+-> Sort: table1.col_int_key, table1.col_int
+    -> Table scan on table1, with pushed condition: (field1 = 9)
+
+SELECT STRAIGHT_JOIN
+table1.col_int AS field1, table1.col_int_key AS field2
+FROM a AS table1 WHERE EXISTS (
+SELECT table1s.col_varchar_256_unique AS field3, table2s.col_char_16_key AS field4
+FROM f AS table1s
+LEFT JOIN g AS table2s ON table1s.col_int_unique = table2s.col_int_key
+GROUP BY field3, field4)
+HAVING field1 = 9
+ORDER BY field2,field1;
+field1	field2
+explain format=tree SELECT DISTINCT
+table2.col_char_16_unique AS field1
+FROM y AS table1
+JOIN m AS table2 ON table1.col_int_unique = table2.col_int_key
+LEFT JOIN h AS table3 ON table1.col_int = table3.col_int
+AND table1.col_int_unique = table3.col_int_unique
+WHERE 'sgxf' != ANY (
+SELECT 'ls' AS field2
+FROM r AS table1s
+JOIN c AS table2s ON  table1s.col_int = table2s.col_int
+LEFT JOIN x AS table3s ON table2s.col_varchar_10_key = table3s.col_varchar_256_unique
+WHERE table3.col_int_unique <> 6)
+HAVING field1 >= 7 AND field1 = 4;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Filter: ((field1 >= 7) and (field1 = 4))
+            -> Nested loop inner join
+                -> Filter: <nop>(<in_optimizer>('sgxf',<exists>(select #2)))
+                    -> Nested loop left join
+                        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_unique is not null)
+                        -> Single-row index lookup on table3 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join, with pushed condition: (table3.col_int = table1.col_int)
+                    -> Select #2 (subquery in condition; dependent)
+                        -> Limit: 1 row(s)
+                            -> Nested loop inner join
+                                -> Nested loop left join
+                                    -> Table scan on table2s, activating pushed join of 2 tables, with pushed condition: (table3.col_int_unique <> 6)
+                                    -> Filter: (table2s.col_varchar_10_key = table3s.col_varchar_256_unique)
+                                        -> Single-row index lookup on table3s using col_varchar_256_unique (col_varchar_256_unique=table2s.col_varchar_10_key)
+                                -> Index lookup on table1s using ix1 (col_int=table2s.col_int), child of table2s in pushed join
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table3.col_int_unique' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table3s' as child, column 'col_varchar_256_unique' does not have same datatype as ref'ed column 'table2s.col_varchar_10_key'
+SELECT DISTINCT
+table2.col_char_16_unique AS field1
+FROM y AS table1
+JOIN m AS table2 ON table1.col_int_unique = table2.col_int_key
+LEFT JOIN h AS table3 ON table1.col_int = table3.col_int
+AND table1.col_int_unique = table3.col_int_unique
+WHERE 'sgxf' != ANY (
+SELECT 'ls' AS field2
+FROM r AS table1s
+JOIN c AS table2s ON  table1s.col_int = table2s.col_int
+LEFT JOIN x AS table3s ON table2s.col_varchar_10_key = table3s.col_varchar_256_unique
+WHERE table3.col_int_unique <> 6)
+HAVING field1 >= 7 AND field1 = 4;
+field1
+Warning	1292	Truncated incorrect DOUBLE value: 'cjxyuoyxkuhx'
+Warning	1292	Truncated incorrect DOUBLE value: 'didn't'
+Warning	1292	Truncated incorrect DOUBLE value: 'hjfcw'
+Warning	1292	Truncated incorrect DOUBLE value: 'kgcla'
+Warning	1292	Truncated incorrect DOUBLE value: 'kivs'
+Warning	1292	Truncated incorrect DOUBLE value: 'oyxkuhxesmg'
+Warning	1292	Truncated incorrect DOUBLE value: 'qqmfokivsitbedsj'
+Warnings:
+explain format=tree SELECT
+'gscm' AS field1, table2.col_char_16 AS field2
+FROM c AS table1
+LEFT JOIN x AS table2 ON table1.col_int_unique = table2.col_int_key
+LEFT JOIN m AS table3 ON table2.col_int = table3.pk
+WHERE NOT table1.pk = 5
+AND 144 < ALL (
+SELECT 3 AS field3
+FROM g AS table1s
+JOIN n AS table2s
+LEFT JOIN c AS table3s ON table2s.col_int = table3s.col_int_key
+ON table1s.col_int_key = table2s.col_int
+WHERE NOT table3.col_int_key BETWEEN 2 AND 2+3)
+ORDER BY field1, field1;
+EXPLAIN
+-> Filter: <not>(<in_optimizer>(144,<exists>(select #2)))
+    -> Nested loop left join
+        -> Nested loop left join
+            -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.pk <> 5)
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+        -> Single-row index lookup on table3 using PRIMARY (pk=table2.col_int), child of table2 in pushed join
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Nested loop inner join
+                -> Nested loop left join
+                    -> Table scan on table2s, activating pushed join of 3 tables, with pushed condition: ((table3.col_int_key not between 2 and <cache>((2 + 3))) and (table2s.col_int is not null))
+                    -> Index lookup on table3s using col_int_key (col_int_key=table2s.col_int), child of table2s in pushed join
+                -> Index lookup on table1s using col_int_key (col_int_key=table2s.col_int), child of table2s in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table3.col_int_key' of SELECT #2 was resolved in SELECT #1
+SELECT
+'gscm' AS field1, table2.col_char_16 AS field2
+FROM c AS table1
+LEFT JOIN x AS table2 ON table1.col_int_unique = table2.col_int_key
+LEFT JOIN m AS table3 ON table2.col_int = table3.pk
+WHERE NOT table1.pk = 5
+AND 144 < ALL (
+SELECT 3 AS field3
+FROM g AS table1s
+JOIN n AS table2s
+LEFT JOIN c AS table3s ON table2s.col_int = table3s.col_int_key
+ON table1s.col_int_key = table2s.col_int
+WHERE NOT table3.col_int_key BETWEEN 2 AND 2+3)
+ORDER BY field1, field1;
+field1	field2
+gscm	NULL
+gscm	NULL
+gscm	NULL
+gscm	NULL
+explain format=tree SELECT
+table2.col_char_16_unique AS field1, table3.col_int_key AS field2
+FROM t AS table1
+LEFT JOIN n AS table2
+JOIN l AS table3 ON table2.col_int_key = table3.col_int_unique
+ON table1.col_int_unique = table3.col_int_unique
+WHERE table2.col_int = table2.col_int ;
+EXPLAIN
+-> Inner hash join (table1.col_int_unique = table3.col_int_unique)
+    -> Table scan on table1
+    -> Hash
+        -> Nested loop inner join
+            -> Table scan on table3, activating pushed join of 2 tables
+            -> Index lookup on table2 using col_int_key (col_int_key=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table2.col_int = table2.col_int)
+
+Warnings:
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+SELECT
+table2.col_char_16_unique AS field1, table3.col_int_key AS field2
+FROM t AS table1
+LEFT JOIN n AS table2
+JOIN l AS table3 ON table2.col_int_key = table3.col_int_unique
+ON table1.col_int_unique = table3.col_int_unique
+WHERE table2.col_int = table2.col_int ;
+field1	field2
+explain format=tree SELECT STRAIGHT_JOIN
+table2.col_int_unique AS field1, table1.col_varchar_10 AS field2, table2.col_varchar_256_unique AS field3
+FROM (s AS table2
+JOIN w AS table3 ON table2.col_int_key = table3.pk)
+JOIN z AS table1 ON table1.pk = table3.col_int_unique
+WHERE EXISTS (
+SELECT STRAIGHT_JOIN *
+FROM k AS table1s
+JOIN l AS table2s ON table1s.col_int = table2s.col_int
+AND table1s.col_int_unique = table2s.col_int_unique
+LEFT JOIN h AS table3s ON table1s.col_int_key = table3s.col_int_key
+AND table1s.col_int_unique = table3s.col_int_unique
+);
+EXPLAIN
+-> Zero rows (Impossible WHERE)
+
+SELECT STRAIGHT_JOIN
+table2.col_int_unique AS field1, table1.col_varchar_10 AS field2, table2.col_varchar_256_unique AS field3
+FROM (s AS table2
+JOIN w AS table3 ON table2.col_int_key = table3.pk)
+JOIN z AS table1 ON table1.pk = table3.col_int_unique
+WHERE EXISTS (
+SELECT STRAIGHT_JOIN *
+FROM k AS table1s
+JOIN l AS table2s ON table1s.col_int = table2s.col_int
+AND table1s.col_int_unique = table2s.col_int_unique
+LEFT JOIN h AS table3s ON table1s.col_int_key = table3s.col_int_key
+AND table1s.col_int_unique = table3s.col_int_unique
+);
+field1	field2	field3
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk
+FROM s AS table1
+WHERE 'xyz' IN (
+SELECT table1.col_varchar_10 AS field4
+FROM i AS table1s
+JOIN c AS table2s ON table1s.col_int_key = table2s.col_int_unique
+WHERE EXISTS (
+SELECT *
+FROM s AS table1ss
+WHERE table1s.col_int_key = 5
+)
+);
+EXPLAIN
+-> Filter: <in_optimizer>('xyz',<exists>(select #2))
+    -> Table scan on table1
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Nested loop inner join
+                -> Hash semijoin (no condition)
+                    -> Index lookup on table1s using col_int_key (col_int_key=5), with pushed condition: ('xyz' = table1.col_varchar_10)
+                    -> Hash
+                        -> Limit: 1 row(s)
+                            -> Table scan on table1ss
+                -> Index lookup on table2s using ix1 (col_int_unique=5)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.col_varchar_10' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.table1s.col_int_key' of SELECT #3 was resolved in SELECT #2
+Note	1003	Can't push table 'table1ss' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table1s', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table1ss', it is in a hash-bucket-branch which can't be referred.
+SELECT STRAIGHT_JOIN
+table1.pk
+FROM s AS table1
+WHERE 'xyz' IN (
+SELECT table1.col_varchar_10 AS field4
+FROM i AS table1s
+JOIN c AS table2s ON table1s.col_int_key = table2s.col_int_unique
+WHERE EXISTS (
+SELECT *
+FROM s AS table1ss
+WHERE table1s.col_int_key = 5
+)
+);
+pk
+explain format=tree SELECT
+table2.col_int_key
+FROM h AS table1
+JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.pk IN (
+SELECT table2s.col_int_key
+FROM p AS table1s
+LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
+WHERE table2s.col_int = 8
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Single-row index lookup on table1s using PRIMARY (pk=8)
+            -> Remove duplicates from input sorted on ix3
+                -> Index lookup on table2s using ix3 (col_int=8), activating pushed join of 3 tables, with pushed condition: (table2s.col_int_key is not null)
+        -> Single-row index lookup on table1 using PRIMARY (pk=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table1.col_int_unique is not null)
+    -> Index lookup on table2 using ix2 (col_int_key=table1.col_int_unique), child of table1 in pushed join
+
+Warnings:
+Note	1003	Push of table 'table2s' as scan-child with lookup-root 'table1s' not implemented
+Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' refers a table which was not pushed
+Note	1003	Push of table 'table2' as scan-child with lookup-root 'table1s' not implemented
+SELECT
+table2.col_int_key
+FROM h AS table1
+JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.pk IN (
+SELECT table2s.col_int_key
+FROM p AS table1s
+LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
+WHERE table2s.col_int = 8
+);
+col_int_key
+explain format=tree SELECT DISTINCT
+table1.col_int AS field1, table2.col_char_16_key AS field2
+FROM a AS table1
+LEFT JOIN n AS table2 ON table1.col_int = table2.col_int
+WHERE EXISTS (SELECT * FROM i AS table1s)
+AND table1.col_int_key = 9;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Left hash join (table2.col_int = table1.col_int)
+            -> Nested loop inner join
+                -> Limit: 1 row(s)
+                    -> Table scan on table1s
+                -> Index lookup on table1 using col_int_key (col_int_key=9)
+            -> Hash
+                -> Table scan on table2
+
+Warnings:
+Note	1003	Can't push table 'table1' as child of 'table1s', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+SELECT DISTINCT
+table1.col_int AS field1, table2.col_char_16_key AS field2
+FROM a AS table1
+LEFT JOIN n AS table2 ON table1.col_int = table2.col_int
+WHERE EXISTS (SELECT * FROM i AS table1s)
+AND table1.col_int_key = 9;
+field1	field2
+explain format=tree SELECT DISTINCT
+4 AS field1
+FROM f AS table1
+LEFT JOIN p AS table2 ON table1.col_int IS NULL;
+EXPLAIN
+-> Limit: 1 row(s)
+    -> Table scan on <temporary>
+        -> Temporary table
+            -> Left hash join (no condition)
+                -> Table scan on table1
+                -> Hash
+                    -> Zero rows (Impossible filter)
+
+SELECT DISTINCT
+4 AS field1
+FROM f AS table1
+LEFT JOIN p AS table2 ON table1.col_int IS NULL;
+field1
+4
+explain format=tree SELECT table3.col_int_key AS field1
+FROM k AS table1
+LEFT JOIN w AS table2
+LEFT JOIN v AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.col_int_unique = table3.col_int_unique
+WHERE table2.col_int = ALL (
+SELECT DISTINCT table1s.pk
+FROM w AS table1s JOIN i AS table2s ON table1s.col_int_key = table2s.pk
+HAVING table1s.pk = 6
+);
+EXPLAIN
+-> Filter: <not>(<in_optimizer>(table2.col_int,<exists>(select #2)))
+    -> Nested loop left join
+        -> Table scan on table1
+        -> Nested loop inner join
+            -> Table scan on table2, activating pushed join of 2 tables
+            -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int_unique), child of table2 in pushed join, with pushed condition: (table3.col_int_unique = table1.col_int_unique)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Filter: ((table1s.pk = 6) and <if>(outer_field_is_not_null, (<cache>(table2.col_int) <> <ref_null_helper>(table1s.pk)), true))
+                -> Nested loop inner join
+                    -> Table scan on table2s, activating pushed join of 2 tables
+                    -> Index lookup on table1s using col_int_key (col_int_key=table2s.pk), child of table2s in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child of 'table1', column 'table2.col_int_unique' refers a table which was not pushed
+SELECT table3.col_int_key AS field1
+FROM k AS table1
+LEFT JOIN w AS table2
+LEFT JOIN v AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.col_int_unique = table3.col_int_unique
+WHERE table2.col_int = ALL (
+SELECT DISTINCT table1s.pk
+FROM w AS table1s JOIN i AS table2s ON table1s.col_int_key = table2s.pk
+HAVING table1s.pk = 6
+);
+field1
+SET optimizer_switch='batched_key_access=on';
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM h AS table1
+LEFT JOIN v AS table2
+JOIN t AS table3 ON table2.col_int_key = table3.pk
+AND table2.col_int_unique = table3.col_int
+ON table1.col_int = table3.col_int
+AND table1.col_int_key = table2.col_int_key;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1
+    -> Batched key access inner join
+        -> Batch input rows
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), with pushed condition: (table2.col_int_unique = table1.col_int)
+        -> Multi-range index lookup on table3 using PRIMARY (col_int=table1.col_int, pk=table1.col_int_key)
+
+Warnings:
+Note	1003	Can't push table 'table3' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', some tables in embedding join-nest(s) are not part of pushed join
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM h AS table1
+LEFT JOIN v AS table2
+JOIN t AS table3 ON table2.col_int_key = table3.pk
+AND table2.col_int_unique = table3.col_int
+ON table1.col_int = table3.col_int
+AND table1.col_int_key = table2.col_int_key;
+pk	pk	pk
+1	NULL	NULL
+10	NULL	NULL
+11	NULL	NULL
+12	NULL	NULL
+13	NULL	NULL
+14	NULL	NULL
+15	NULL	NULL
+16	NULL	NULL
+17	NULL	NULL
+18	NULL	NULL
+19	NULL	NULL
+2	NULL	NULL
+20	NULL	NULL
+21	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	NULL	NULL
+7	NULL	NULL
+8	NULL	NULL
+9	NULL	NULL
+SET optimizer_switch='batched_key_access=default';
+explain format=tree SELECT
+table1.pk
+FROM u AS table1 WHERE NOT EXISTS (
+SELECT /*+ SEMIJOIN(MATERIALIZATION)*/ *
+FROM p AS table1s WHERE table1.pk = 9
+);
+EXPLAIN
+-> Nested loop antijoin
+    -> Table scan on table1
+    -> Filter: (table1.pk = 9)
+        -> Single-row index lookup on <subquery2> using <auto_distinct_key> (9=table1.pk)
+            -> Materialize with deduplication
+                -> Table scan on table1s
+
+Warnings:
+Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+SELECT
+table1.pk
+FROM u AS table1 WHERE NOT EXISTS (
+SELECT /*+ SEMIJOIN(MATERIALIZATION)*/ *
+FROM p AS table1s WHERE table1.pk = 9
+);
+pk
+1
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+2
+20
+21
+22
+23
+24
+25
+26
+27
+3
+4
+5
+6
+7
+8
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM x AS table1
+LEFT JOIN b AS table2 ON table1.pk = table2.col_int_unique
+WHERE EXISTS (
+SELECT /*+ SEMIJOIN(MATERIALIZATION)*/ *
+FROM r AS table1s
+JOIN e AS table2s ON table1s.pk = table2s.col_int_key
+WHERE table2s.col_int_key = table2.col_int
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 2 tables
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join, with pushed condition: (table2.col_int is not null)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (col_int_key=table2.col_int)
+        -> Materialize with deduplication
+            -> Filter: (table2s.col_int_key is not null)
+                -> Nested loop inner join
+                    -> Table scan on table1s, activating pushed join of 2 tables
+                    -> Index lookup on table2s using col_int_key (col_int_key=table1s.pk), child of table1s in pushed join
+
+Warnings:
+Note	1276	Field or reference 'test.table2.col_int' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a query-branch which can't be referred.
+SELECT
+table1.pk, table2.pk
+FROM x AS table1
+LEFT JOIN b AS table2 ON table1.pk = table2.col_int_unique
+WHERE EXISTS (
+SELECT /*+ SEMIJOIN(MATERIALIZATION)*/ *
+FROM r AS table1s
+JOIN e AS table2s ON table1s.pk = table2s.col_int_key
+WHERE table2s.col_int_key = table2.col_int
+);
+pk	pk
+13	1
+explain format=tree SELECT DISTINCT
+table1.pk
+FROM y AS table1
+WHERE table1.col_int_unique IN (
+SELECT /*+ SEMIJOIN(MATERIALIZATION)*/ table2s.pk AS field3
+FROM o AS table1s
+JOIN i AS table2s ON table1s.col_int_unique = table2s.col_int
+WHERE table1s.col_int_unique BETWEEN 2 AND 10)
+;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop inner join
+            -> Table scan on table1, with pushed condition: (table1.col_int_unique is not null)
+            -> Limit: 1 row(s)
+                -> Single-row index lookup on <subquery2> using <auto_distinct_key> (field3=table1.col_int_unique)
+                    -> Materialize with deduplication
+                        -> Inner hash join (table1s.col_int_unique = table2s.col_int)
+                            -> Table scan on table1s
+                            -> Hash
+                                -> Index range scan on table2s using PRIMARY over (2 <= col_int <= 10), with pushed condition: (table2s.col_int between 2 and 10)
+
+Warnings:
+Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
+Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+SELECT DISTINCT
+table1.pk
+FROM y AS table1
+WHERE table1.col_int_unique IN (
+SELECT /*+ SEMIJOIN(MATERIALIZATION)*/ table2s.pk AS field3
+FROM o AS table1s
+JOIN i AS table2s ON table1s.col_int_unique = table2s.col_int
+WHERE table1s.col_int_unique BETWEEN 2 AND 10)
+;
+pk
+28
+33
+7
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+#table3.col_int AS field1, table3.col_int_key AS field2
+FROM r AS table1
+JOIN s AS table2 ON table1.pk = table2.col_int_unique
+LEFT JOIN k AS table3
+LEFT JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table1.col_int_key = table4.col_int_unique AND
+table1.col_int_unique = table4.col_int_unique
+WHERE table2.col_int_key <> 5;
+EXPLAIN
+-> Nested loop left join
+    -> Inner hash join (table1.pk = table2.col_int_unique)
+        -> Table scan on table1, activating pushed join of 2 tables
+        -> Hash
+            -> Index range scan on table2 using ix2 over (NULL < col_int_key < 5) OR (5 < col_int_key), with pushed condition: (table2.col_int_key <> 5)
+    -> Nested loop inner join
+        -> Filter: (table1.col_int_unique = table1.col_int_key)
+            -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key)
+
+Warnings:
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table4' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push outer joined table 'table3' as child of 'table1', condition on its dependant table 'table4' is not pushed down
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+#table3.col_int AS field1, table3.col_int_key AS field2
+FROM r AS table1
+JOIN s AS table2 ON table1.pk = table2.col_int_unique
+LEFT JOIN k AS table3
+LEFT JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table1.col_int_key = table4.col_int_unique AND
+table1.col_int_unique = table4.col_int_unique
+WHERE table2.col_int_key <> 5;
+pk	pk	pk	pk
+10	2	NULL	NULL
+11	20	NULL	NULL
+15	8	NULL	NULL
+16	23	NULL	NULL
+19	6	NULL	NULL
+2	12	NULL	NULL
+21	16	NULL	NULL
+22	22	NULL	NULL
+4	3	NULL	NULL
+5	19	NULL	NULL
+6	1	NULL	NULL
+7	17	NULL	NULL
+9	13	NULL	NULL
+explain format=tree SELECT DISTINCT
+table3.col_int_key AS field1, table1.col_int AS field2, table1.col_int AS field3
+FROM t AS table1
+JOIN u AS table2 ON table1.col_int_key = table2.col_int_key
+LEFT JOIN i AS table3 ON table1.col_int = table3.col_int_key;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop inner join
+            -> Nested loop left join
+                -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_key is not null)
+                -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+            -> Limit: 1 row(s)
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+
+SELECT DISTINCT
+table3.col_int_key AS field1, table1.col_int AS field2, table1.col_int AS field3
+FROM t AS table1
+JOIN u AS table2 ON table1.col_int_key = table2.col_int_key
+LEFT JOIN i AS table3 ON table1.col_int = table3.col_int_key;
+field1	field2	field3
+0	0	0
+1	1	1
+2	2	2
+3	3	3
+explain format=tree SELECT
+table1.pk, table2.pk, table1.col_varchar_10_unique AS field3
+FROM l AS table1
+JOIN j AS table2 ON table1.pk = table2.col_int_key
+WHERE table1.pk IN (
+SELECT table1s.col_int
+FROM i AS table1s
+JOIN z AS table2s ON table1s.col_int = table2s.col_int_key
+) ORDER BY field3;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop semijoin
+        -> Sort: table1.col_varchar_10_unique
+            -> Table scan on table1
+        -> Nested loop inner join
+            -> Index lookup on table1s using ix3 (col_int=table1.pk), activating pushed join of 2 tables
+            -> Index lookup on table2s using col_int_key (col_int_key=table1.pk), child of table1s in pushed join
+    -> Index lookup on table2 using col_int_key (col_int_key=table1.pk)
+
+Warnings:
+Note	1003	Can't push table 'table1s' as child of 'table1', it is in a sorted-branch which can't be referred.
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a sorted-branch which can't be referred.
+Note	1003	Can't push table 'table2' as child of 'table1', it is in a sorted-branch which can't be referred.
+Note	1003	Can't push table 'table2' as child of 'table1s', column 'table1.pk' is in a sorted-branch which can't be referred
+SELECT
+table1.pk, table2.pk, table1.col_varchar_10_unique AS field3
+FROM l AS table1
+JOIN j AS table2 ON table1.pk = table2.col_int_key
+WHERE table1.pk IN (
+SELECT table1s.col_int
+FROM i AS table1s
+JOIN z AS table2s ON table1s.col_int = table2s.col_int_key
+) ORDER BY field3;
+pk	pk	field3
+1	13	they
+1	15	they
+1	20	they
+1	6	they
+1	8	they
+1	9	they
+2	10	anvsodxuro
+2	12	anvsodxuro
+2	2	anvsodxuro
+2	3	anvsodxuro
+2	5	anvsodxuro
+3	1	hey
+3	18	hey
+3	19	hey
+3	4	hey
+3	7	hey
+explain format=tree SELECT
+DISTINCT table4.col_int_unique
+FROM u AS table1
+JOIN v AS table2 ON table1.col_int_key = table2.col_int_unique
+LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_varchar_256_unique
+JOIN c AS table4 ON table2.col_int_unique = table4.col_int;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop inner join
+            -> Nested loop inner join
+                -> Nested loop left join
+                    -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int_unique is not null)
+                    -> Single-row index lookup on table3 using col_varchar_256_unique (col_varchar_256_unique=table2.col_varchar_256_unique), child of table2 in pushed join
+                -> Index lookup on table4 using PRIMARY (col_int=table2.col_int_unique), child of table2 in pushed join
+            -> Limit: 1 row(s)
+                -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_unique), child of table2 in pushed join
+
+SELECT
+DISTINCT table4.col_int_unique
+FROM u AS table1
+JOIN v AS table2 ON table1.col_int_key = table2.col_int_unique
+LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_varchar_256_unique
+JOIN c AS table4 ON table2.col_int_unique = table4.col_int;
+col_int_unique
+23
+NULL
+explain format=tree SELECT DISTINCT
+table3.col_char_16_unique AS field1, table2.col_varchar_256_unique AS field2
+FROM w AS table1
+LEFT JOIN c AS table2
+JOIN d AS table3 ON table2.pk = table3.pk
+ON table1.col_int_key = table2.col_int AND table1.col_int_unique = table2.col_int
+JOIN r AS table4 ON table3.col_int IS NULL
+WHERE table4.col_varchar_10_key IN (
+SELECT
+table2.col_varchar_256 AS field3
+FROM t AS table1s
+LEFT JOIN i AS table2s
+LEFT JOIN b AS table3s ON table2s.col_int = table3s.col_int AND table2s.col_int_unique = table3s.col_int_unique
+ON table1s.col_varchar_10_key = table2s.col_varchar_256_unique
+WHERE table3s.pk = table3.col_int_key);
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop semijoin
+            -> Nested loop inner join
+                -> Nested loop inner join
+                    -> Nested loop inner join
+                        -> Nested loop inner join
+                            -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: ((table2.col_int is not null) and (table2.col_varchar_256 is not null))
+                            -> Single-row index lookup on table3 using PRIMARY (pk=table2.pk), child of table2 in pushed join, with pushed condition: (table3.col_int is null)
+                        -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int), child of table2 in pushed join, with pushed condition: (table1.col_int_unique = table2.col_int)
+                    -> Single-row index lookup on table3s using PRIMARY (pk=table3.col_int_key), child of table3 in pushed join
+                -> Filter: (table4.col_varchar_10_key = table2.col_varchar_256)
+                    -> Index lookup on table4 using col_varchar_10_key (col_varchar_10_key=table2.col_varchar_256)
+            -> Nested loop inner join
+                -> Index lookup on table2s using ix3 (col_int=table3s.col_int), with pushed condition: ((table2s.col_int_unique = table3s.col_int_unique) and (table2s.col_varchar_256_unique is not null))
+                -> Limit: 1 row(s)
+                    -> Filter: (table1s.col_varchar_10_key = table2s.col_varchar_256_unique)
+                        -> Index lookup on table1s using col_varchar_10_key (col_varchar_10_key=table2s.col_varchar_256_unique)
+
+Warnings:
+Note	1276	Field or reference 'test.table2.col_varchar_256' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.table3.col_int_key' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push table 'table4' as child, column 'col_varchar_10_key' does not have same datatype as ref'ed column 'table2.col_varchar_256'
+Note	1003	Can't push table 'table1s' as child, column 'col_varchar_10_key' does not have same datatype as ref'ed column 'table2s.col_varchar_256_unique'
+Note	1003	Can't push semi joined table 'table2s' as child of 'table2', some tables in embedding join-nest(s) are not part of pushed join
+Note	1003	Can't push table 'table2s' as child of 'table4', no parent-child dependency exists between these tables
+SELECT DISTINCT
+table3.col_char_16_unique AS field1, table2.col_varchar_256_unique AS field2
+FROM w AS table1
+LEFT JOIN c AS table2
+JOIN d AS table3 ON table2.pk = table3.pk
+ON table1.col_int_key = table2.col_int AND table1.col_int_unique = table2.col_int
+JOIN r AS table4 ON table3.col_int IS NULL
+WHERE table4.col_varchar_10_key IN (
+SELECT
+table2.col_varchar_256 AS field3
+FROM t AS table1s
+LEFT JOIN i AS table2s
+LEFT JOIN b AS table3s ON table2s.col_int = table3s.col_int AND table2s.col_int_unique = table3s.col_int_unique
+ON table1s.col_varchar_10_key = table2s.col_varchar_256_unique
+WHERE table3s.pk = table3.col_int_key);
+field1	field2
+explain format=tree SELECT table1.col_varchar_256_unique AS field1
+FROM o AS table1
+JOIN x AS table2 ON table1.col_int_key = table2.pk
+JOIN n AS table3 ON table1.pk = table3.pk
+GROUP BY field1;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Nested loop inner join
+            -> Inner hash join (no condition)
+                -> Table scan on table2, activating pushed join of 2 tables
+                -> Hash
+                    -> Table scan on table3
+            -> Filter: (table1.pk = table3.pk)
+                -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table1' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+SELECT table1.col_varchar_256_unique AS field1
+FROM o AS table1
+JOIN x AS table2 ON table1.col_int_key = table2.pk
+JOIN n AS table3 ON table1.pk = table3.pk
+GROUP BY field1;
+field1
+I'm
+about
+because
+did
+evslluevgxtytgzicaravwfckhsczypx
+fakeimranclptwxgaispoifyx
+from
+gzicaravwfckhsczyp
+hcwvfusmtftlevhia
+herobmchxfakeimranclptwxgaisp
+no
+oypznfiherobmchxfakeimrancl
+something
+up
+was
+yes
+explain format=tree SELECT table1.pk, table2.pk
+FROM x AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE #table2.col_int_unique != 7 AND
+table1.col_int_key IN (
+SELECT
+table1s.col_int AS field2
+FROM f AS table1s
+JOIN g AS table2s ON table1s.col_int_unique = table2s.col_int_unique
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table2, activating pushed join of 4 tables
+        -> Nested loop semijoin with duplicate removal on PRIMARY
+            -> Index lookup on table1s using PRIMARY (col_int=table2.pk), child of table2 in pushed join, with pushed condition: (table1s.col_int_unique is not null)
+            -> Single-row index lookup on table2s using ix1 (col_int_unique=table1s.col_int_unique), child of table1s in pushed join
+    -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+
+SELECT table1.pk, table2.pk
+FROM x AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE #table2.col_int_unique != 7 AND
+table1.col_int_key IN (
+SELECT
+table1s.col_int AS field2
+FROM f AS table1s
+JOIN g AS table2s ON table1s.col_int_unique = table2s.col_int_unique
+);
+pk	pk
+10	1
+17	1
+21	1
+22	1
+3	1
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM z AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE table1.col_int_key IN (
+SELECT /*+ SEMIJOIN(DUPSWEEDOUT)*/
+table2s.col_int_key
+FROM q AS table2s
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on table2
+    -> Remove duplicate table1 rows using temporary table (weedout)
+        -> Nested loop inner join
+            -> Index lookup on table2s using ix2 (col_int_key=table2.pk), activating pushed join of 2 tables
+            -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2s in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a query-branch which can't be referred.
+Note	1003	Can't push table 'table1' as child of 'table2', it is in a query-branch which can't be referred.
+SELECT
+table1.pk, table2.pk
+FROM z AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE table1.col_int_key IN (
+SELECT /*+ SEMIJOIN(DUPSWEEDOUT)*/
+table2s.col_int_key
+FROM q AS table2s
+);
+pk	pk
+1	1
+14	1
+17	1
+19	1
+21	1
+26	1
+3	1
+4	1
+5	1
+54	1
+55	1
+59	1
+62	1
+64	1
+67	1
+set optimizer_switch='batched_key_access=on';
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM i AS table2
+JOIN i AS table3 ON table2.col_int = table3.col_int AND
+table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique
+JOIN t as table1
+ON table1.col_int = table2.col_int AND
+table1.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop inner join
+    -> Batched key access inner join
+        -> Batch input rows
+            -> Table scan on table2, with pushed condition: ((table2.col_int_key is not null) and (table2.col_int_unique is not null))
+        -> Multi-range index lookup on table3 using ix3 (col_int=table2.col_int, col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique), activating pushed join of 2 tables
+    -> Single-row index lookup on table1 using ix1 (col_int=table2.col_int, col_int_unique=table2.col_int_unique), child of table3 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table3' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 'table1' as child of 'table2', it is in a batched-keys-branch which can't be referred.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM i AS table2
+JOIN i AS table3 ON table2.col_int = table3.col_int AND
+table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique
+JOIN t as table1
+ON table1.col_int = table2.col_int AND
+table1.col_int_unique = table3.col_int_unique;
+pk	pk	pk
+1	14	14
+20	3	3
+set optimizer_switch='batched_key_access=default';
+##################
+#
+# Bug#33670002: Pushed outer join fails:
+#   Error 4829 'FirstInner/Upper has to be an ancestor or a sibling'
+#
+##################
+explain format=tree SELECT
+table2.pk, table1.pk, table3.pk, table5.pk, table4.pk
+FROM (v AS table2
+STRAIGHT_JOIN u AS table1 ON table1.col_int_key = table2.col_int)
+LEFT JOIN m AS table3
+LEFT JOIN (u AS table5
+STRAIGHT_JOIN n AS table4 ON table4.col_int_key = table5.col_int_key)
+ON table3.col_int_unique = table5.col_int_key
+ON table1.col_int = table3.col_int AND
+table2.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on table2, activating pushed join of 5 tables, with pushed condition: (table2.col_int is not null)
+        -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int), child of table2 in pushed join
+    -> Nested loop left join
+        -> Index lookup on table3 using ix3 (col_int=table1.col_int), child of table1 in pushed join, with pushed condition: (table3.col_int_unique = table2.col_int_unique)
+        -> Nested loop inner join
+            -> Index lookup on table5 using col_int_key (col_int_key=table2.col_int_unique), child of table1 in pushed join
+            -> Index lookup on table4 using col_int_key (col_int_key=table2.col_int_unique), child of table1 in pushed join
+
+SELECT
+table2.pk, table1.pk, table3.pk, table5.pk, table4.pk
+FROM (v AS table2
+STRAIGHT_JOIN u AS table1 ON table1.col_int_key = table2.col_int)
+LEFT JOIN m AS table3
+LEFT JOIN (u AS table5
+STRAIGHT_JOIN n AS table4 ON table4.col_int_key = table5.col_int_key)
+ON table3.col_int_unique = table5.col_int_key
+ON table1.col_int = table3.col_int AND
+table2.col_int_unique = table3.col_int_unique;
+pk	pk	pk	pk	pk
+1	10	NULL	NULL	NULL
+1	20	NULL	NULL	NULL
+1	25	NULL	NULL	NULL
+1	26	NULL	NULL	NULL
+1	4	NULL	NULL	NULL
+1	6	NULL	NULL	NULL
+1	7	15	13	1
+1	7	15	13	11
+1	7	15	13	12
+1	7	15	13	15
+1	7	15	13	17
+1	7	15	13	18
+1	7	15	16	1
+1	7	15	16	11
+1	7	15	16	12
+1	7	15	16	15
+1	7	15	16	17
+1	7	15	16	18
+1	7	15	17	1
+1	7	15	17	11
+1	7	15	17	12
+1	7	15	17	15
+1	7	15	17	17
+1	7	15	17	18
+1	7	15	22	1
+1	7	15	22	11
+1	7	15	22	12
+1	7	15	22	15
+1	7	15	22	17
+1	7	15	22	18
+1	8	NULL	NULL	NULL
+10	13	NULL	NULL	NULL
+10	16	NULL	NULL	NULL
+10	17	NULL	NULL	NULL
+10	22	NULL	NULL	NULL
+12	1	NULL	NULL	NULL
+12	12	NULL	NULL	NULL
+12	18	NULL	NULL	NULL
+12	2	NULL	NULL	NULL
+12	24	NULL	NULL	NULL
+12	27	NULL	NULL	NULL
+13	1	NULL	NULL	NULL
+13	12	16	NULL	NULL
+13	18	NULL	NULL	NULL
+13	2	16	NULL	NULL
+13	24	16	NULL	NULL
+13	27	NULL	NULL	NULL
+14	11	NULL	NULL	NULL
+14	14	NULL	NULL	NULL
+14	15	NULL	NULL	NULL
+14	19	NULL	NULL	NULL
+14	21	NULL	NULL	NULL
+14	23	NULL	NULL	NULL
+14	3	NULL	NULL	NULL
+14	5	NULL	NULL	NULL
+15	1	NULL	NULL	NULL
+15	12	NULL	NULL	NULL
+15	18	NULL	NULL	NULL
+15	2	NULL	NULL	NULL
+15	24	NULL	NULL	NULL
+15	27	NULL	NULL	NULL
+16	11	NULL	NULL	NULL
+16	14	NULL	NULL	NULL
+16	15	NULL	NULL	NULL
+16	19	NULL	NULL	NULL
+16	21	NULL	NULL	NULL
+16	23	NULL	NULL	NULL
+16	3	NULL	NULL	NULL
+16	5	NULL	NULL	NULL
+18	1	NULL	NULL	NULL
+18	12	NULL	NULL	NULL
+18	18	NULL	NULL	NULL
+18	2	NULL	NULL	NULL
+18	24	NULL	NULL	NULL
+18	27	NULL	NULL	NULL
+19	1	NULL	NULL	NULL
+19	12	NULL	NULL	NULL
+19	18	NULL	NULL	NULL
+19	2	NULL	NULL	NULL
+19	24	NULL	NULL	NULL
+19	27	NULL	NULL	NULL
+2	13	NULL	NULL	NULL
+2	16	NULL	NULL	NULL
+2	17	NULL	NULL	NULL
+2	22	NULL	NULL	NULL
+20	1	NULL	NULL	NULL
+20	12	NULL	NULL	NULL
+20	18	NULL	NULL	NULL
+20	2	NULL	NULL	NULL
+20	24	NULL	NULL	NULL
+20	27	NULL	NULL	NULL
+21	11	NULL	NULL	NULL
+21	14	NULL	NULL	NULL
+21	15	NULL	NULL	NULL
+21	19	NULL	NULL	NULL
+21	21	NULL	NULL	NULL
+21	23	NULL	NULL	NULL
+21	3	NULL	NULL	NULL
+21	5	NULL	NULL	NULL
+22	1	NULL	NULL	NULL
+22	12	NULL	NULL	NULL
+22	18	NULL	NULL	NULL
+22	2	NULL	NULL	NULL
+22	24	NULL	NULL	NULL
+22	27	NULL	NULL	NULL
+23	1	1	11	10
+23	1	1	11	13
+23	1	1	11	14
+23	1	1	11	21
+23	1	1	11	22
+23	1	1	11	3
+23	1	1	11	4
+23	1	1	11	5
+23	1	1	11	8
+23	1	1	14	10
+23	1	1	14	13
+23	1	1	14	14
+23	1	1	14	21
+23	1	1	14	22
+23	1	1	14	3
+23	1	1	14	4
+23	1	1	14	5
+23	1	1	14	8
+23	1	1	15	10
+23	1	1	15	13
+23	1	1	15	14
+23	1	1	15	21
+23	1	1	15	22
+23	1	1	15	3
+23	1	1	15	4
+23	1	1	15	5
+23	1	1	15	8
+23	1	1	19	10
+23	1	1	19	13
+23	1	1	19	14
+23	1	1	19	21
+23	1	1	19	22
+23	1	1	19	3
+23	1	1	19	4
+23	1	1	19	5
+23	1	1	19	8
+23	1	1	21	10
+23	1	1	21	13
+23	1	1	21	14
+23	1	1	21	21
+23	1	1	21	22
+23	1	1	21	3
+23	1	1	21	4
+23	1	1	21	5
+23	1	1	21	8
+23	1	1	23	10
+23	1	1	23	13
+23	1	1	23	14
+23	1	1	23	21
+23	1	1	23	22
+23	1	1	23	3
+23	1	1	23	4
+23	1	1	23	5
+23	1	1	23	8
+23	1	1	3	10
+23	1	1	3	13
+23	1	1	3	14
+23	1	1	3	21
+23	1	1	3	22
+23	1	1	3	3
+23	1	1	3	4
+23	1	1	3	5
+23	1	1	3	8
+23	1	1	5	10
+23	1	1	5	13
+23	1	1	5	14
+23	1	1	5	21
+23	1	1	5	22
+23	1	1	5	3
+23	1	1	5	4
+23	1	1	5	5
+23	1	1	5	8
+23	12	NULL	NULL	NULL
+23	18	NULL	NULL	NULL
+23	2	NULL	NULL	NULL
+23	24	NULL	NULL	NULL
+23	27	NULL	NULL	NULL
+24	13	NULL	NULL	NULL
+24	16	NULL	NULL	NULL
+24	17	NULL	NULL	NULL
+24	22	NULL	NULL	NULL
+25	10	NULL	NULL	NULL
+25	20	NULL	NULL	NULL
+25	25	NULL	NULL	NULL
+25	26	NULL	NULL	NULL
+25	4	NULL	NULL	NULL
+25	6	NULL	NULL	NULL
+25	7	NULL	NULL	NULL
+25	8	NULL	NULL	NULL
+26	1	NULL	NULL	NULL
+26	12	NULL	NULL	NULL
+26	18	NULL	NULL	NULL
+26	2	NULL	NULL	NULL
+26	24	NULL	NULL	NULL
+26	27	NULL	NULL	NULL
+27	1	NULL	NULL	NULL
+27	12	NULL	NULL	NULL
+27	18	NULL	NULL	NULL
+27	2	NULL	NULL	NULL
+27	24	NULL	NULL	NULL
+27	27	NULL	NULL	NULL
+28	13	NULL	NULL	NULL
+28	16	NULL	NULL	NULL
+28	17	NULL	NULL	NULL
+28	22	NULL	NULL	NULL
+29	1	NULL	NULL	NULL
+29	12	NULL	NULL	NULL
+29	18	NULL	NULL	NULL
+29	2	NULL	NULL	NULL
+29	24	NULL	NULL	NULL
+29	27	NULL	NULL	NULL
+3	11	NULL	NULL	NULL
+3	14	NULL	NULL	NULL
+3	15	NULL	NULL	NULL
+3	19	NULL	NULL	NULL
+3	21	NULL	NULL	NULL
+3	23	NULL	NULL	NULL
+3	3	13	NULL	NULL
+3	5	13	NULL	NULL
+4	1	NULL	NULL	NULL
+4	12	NULL	NULL	NULL
+4	18	NULL	NULL	NULL
+4	2	NULL	NULL	NULL
+4	24	NULL	NULL	NULL
+4	27	NULL	NULL	NULL
+5	13	NULL	NULL	NULL
+5	16	NULL	NULL	NULL
+5	17	NULL	NULL	NULL
+5	22	NULL	NULL	NULL
+6	1	NULL	NULL	NULL
+6	12	NULL	NULL	NULL
+6	18	NULL	NULL	NULL
+6	2	NULL	NULL	NULL
+6	24	NULL	NULL	NULL
+6	27	NULL	NULL	NULL
+7	13	NULL	NULL	NULL
+7	16	NULL	NULL	NULL
+7	17	NULL	NULL	NULL
+7	22	NULL	NULL	NULL
+8	13	NULL	NULL	NULL
+8	16	NULL	NULL	NULL
+8	17	NULL	NULL	NULL
+8	22	NULL	NULL	NULL
+9	10	NULL	NULL	NULL
+9	20	NULL	NULL	NULL
+9	25	NULL	NULL	NULL
+9	26	NULL	NULL	NULL
+9	4	NULL	NULL	NULL
+9	6	NULL	NULL	NULL
+9	7	NULL	NULL	NULL
+9	8	NULL	NULL	NULL
+DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+##################
+#
+# Bug #33181964 Incorrect result for pushed join
+#               w/ outer join inside an exists-subqry
+#
+##################
+create table t (
+pk int NOT NULL,
+col_int int NOT NULL,
+primary key(col_int,pk)
+) engine=ndbcluster;
+insert into t values
+(1, 0), (3, 0), (2, 0), (4, 0), (5, 0), (7, 0);
+create table x (
+col_int int
+) engine=ndbcluster ;
+insert into x select pk from t;
+insert into x select pk from t;
+######################################
+# Expect 'firstMatch' algorithm to be
+# used for pushed join over [t1..t3]
+######################################
+explain format=traditional select * from x
+where exists (
+select *
+from t as t1
+left join (
+t as t2 join t as t3 on
+t2.pk = 999   # 999 -> no t2 matches
+)
+on t1.col_int = t3.col_int and
+t1.col_int = t2.col_int
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	6	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	p0,p1	eq_ref	PRIMARY	PRIMARY	8	test.t1.col_int,const	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	p0,p1	ref	PRIMARY	PRIMARY	4	test.t1.col_int	1	100.00	Child of 't1' in pushed join@1; FirstMatch
+1	SIMPLE	x	p0,p1	ALL	NULL	NULL	NULL	NULL	12	100.00	Using join buffer (hash join)
+Warnings:
+Note	1003	Can't push table 'x' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`x`.`col_int` AS `col_int` from `test`.`x` semi join (`test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`test`.`t1`.`col_int` = `test`.`t3`.`col_int`) and (`test`.`t1`.`col_int` = `test`.`t2`.`col_int`) and (`test`.`t2`.`pk` = 999)))) where true
+select * from x
+where exists (
+select *
+from t as t1
+left join (
+t as t2 join t as t3 on
+t2.pk = 999   # 999 -> no t2 matches
+)
+on t1.col_int = t3.col_int and
+t1.col_int = t2.col_int
+);
+col_int
+1
+1
+2
+2
+3
+3
+4
+4
+5
+5
+7
+7
+drop table t,x;

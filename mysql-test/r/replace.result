@@ -17,9 +17,9 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a tinyint not null auto_increment primary key, b char(20) default "default_value");
 insert into t1 values (126,"first"),(63, "middle"),(0,"last");
 insert into t1 values (0,"error");
-ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '127' for key 't1.PRIMARY'
 replace into t1 values (0,"error");
-ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '127' for key 't1.PRIMARY'
 replace into t1 values (126,"first updated");
 replace into t1 values (63,default);
 select * from t1;

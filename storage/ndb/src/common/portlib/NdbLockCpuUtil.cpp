@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <NdbLockCpuUtil.h>
@@ -66,7 +67,7 @@ remove_use_processor_set(Uint32 proc_set_id)
     free((void*)handler->cpu_ids);
     handler->num_cpu_ids = 0;
     handler->cpu_ids = NULL;
-    handler->is_exclusive = FALSE;
+    handler->is_exclusive = false;
   }
 }
 
@@ -89,7 +90,7 @@ init_handler(struct processor_set_handler *handler,
   handler->cpu_ids = NULL;
   handler->num_cpu_ids = 0;
   handler->index = i;
-  handler->is_exclusive = FALSE;
+  handler->is_exclusive = false;
 }
 
 static int
@@ -131,6 +132,7 @@ use_processor_set(const Uint32 *cpu_ids,
         handler->cpu_ids = (Uint32 *)malloc(sizeof(Uint32) * num_cpu_ids);
         if (handler->cpu_ids == NULL)
         {
+          require(errno != 0);
           return errno;
         }
         if (is_exclusive)
@@ -169,6 +171,7 @@ use_processor_set(const Uint32 *cpu_ids,
 
     if (new_proc_set_array == NULL)
     {
+      require(errno != 0);
       return errno;
     }
     memcpy(new_proc_set_array,
@@ -185,7 +188,8 @@ use_processor_set(const Uint32 *cpu_ids,
     num_processor_sets *= 2;
   }
   /* Should never arrive here */
-  return ret;
+  require(false);
+  return -1;
 }
 
 int

@@ -68,6 +68,8 @@ INSERT INTO t5 VALUES ('S', 'Stuttgart', 'Nord', '65432', 'Fernsehturm', 0, 0, 0
 CREATE VIEW v1 AS SELECT t1.c1 AS vc1,t1.c2 AS vc2,t3.c21 AS vc21,
 t1.c3 AS vc3,t1.c4 AS vc4,t1.c5 AS vc5 FROM t1,t3 WHERE t1.c1=t3.c1;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte

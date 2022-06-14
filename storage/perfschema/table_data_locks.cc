@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -78,8 +78,8 @@ Plugin_table table_data_locks::m_table_def(
 PFS_engine_table_share table_data_locks::m_share = {
     &pfs_readonly_acl,
     table_data_locks::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_data_locks::get_row_count,
     sizeof(pk_pos_t),
     &m_table_lock,
@@ -101,20 +101,20 @@ ha_rows table_data_locks::get_row_count(void) {
 
 table_data_locks::table_data_locks()
     : PFS_engine_table(&m_share, &m_pk_pos),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(),
       m_next_pos(),
       m_pk_pos() {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
-    m_iterator[i] = NULL;
+    m_iterator[i] = nullptr;
   }
 }
 
 void table_data_locks::destroy_iterators() {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
-    if (m_iterator[i] != NULL) {
+    if (m_iterator[i] != nullptr) {
       g_data_lock_inspector[i]->destroy_data_lock_iterator(m_iterator[i]);
-      m_iterator[i] = NULL;
+      m_iterator[i] = nullptr;
     }
   }
 }
@@ -136,15 +136,15 @@ int table_data_locks::rnd_next(void) {
        m_pos.next_engine()) {
     unsigned int index = m_pos.m_index_1;
 
-    if (m_iterator[index] == NULL) {
-      if (g_data_lock_inspector[index] == NULL) {
+    if (m_iterator[index] == nullptr) {
+      if (g_data_lock_inspector[index] == nullptr) {
         continue;
       }
 
       m_iterator[index] =
           g_data_lock_inspector[index]->create_data_lock_iterator();
 
-      if (m_iterator[index] == NULL) {
+      if (m_iterator[index] == nullptr) {
         continue;
       }
     }
@@ -154,7 +154,7 @@ int table_data_locks::rnd_next(void) {
 
     for (;;) {
       data = m_container.get_row(m_pos.m_index_2);
-      if (data != NULL) {
+      if (data != nullptr) {
         m_row = data;
         m_next_pos.set_after(&m_pos);
         m_pk_pos.set(&m_row->m_hidden_pk);
@@ -213,15 +213,15 @@ int table_data_locks::rnd_pos(const void *pos) {
                 "We don't support multiple engines yet.");
   unsigned int index = 0;
 
-  if (m_iterator[index] == NULL) {
-    if (g_data_lock_inspector[index] == NULL) {
+  if (m_iterator[index] == nullptr) {
+    if (g_data_lock_inspector[index] == nullptr) {
       return HA_ERR_RECORD_DELETED;
     }
 
     m_iterator[index] =
         g_data_lock_inspector[index]->create_data_lock_iterator();
 
-    if (m_iterator[index] == NULL) {
+    if (m_iterator[index] == nullptr) {
       return HA_ERR_RECORD_DELETED;
     }
   }
@@ -235,7 +235,7 @@ int table_data_locks::rnd_pos(const void *pos) {
   it->fetch(&m_container, m_pk_pos.m_engine_lock_id,
             m_pk_pos.m_engine_lock_id_length, true);
   data = m_container.get_row(0);
-  if (data != NULL) {
+  if (data != nullptr) {
     m_row = data;
     return 0;
   }
@@ -244,7 +244,7 @@ int table_data_locks::rnd_pos(const void *pos) {
 }
 
 int table_data_locks::index_init(uint idx, bool) {
-  PFS_index_data_locks *result = NULL;
+  PFS_index_data_locks *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -260,7 +260,7 @@ int table_data_locks::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_data_locks_by_object);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -277,18 +277,18 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
                                       Field **fields, bool read_all) {
   Field *f;
 
-  if (unlikely(m_row == NULL)) {
+  if (unlikely(m_row == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  assert(table->s->null_bytes == 2);
   buf[0] = 0;
   buf[1] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* ENGINE */
           set_field_varchar_utf8(f, m_row->m_engine);
           break;
@@ -318,10 +318,10 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 5: /* OBJECT_SCHEMA */
-          m_row->m_index_row.set_field(1, f);
+          m_row->m_index_row.set_nullable_field(1, f);
           break;
         case 6: /* OBJECT_NAME  */
-          m_row->m_index_row.set_field(2, f);
+          m_row->m_index_row.set_nullable_field(2, f);
           break;
         case 7: /* PARTITION_NAME */
           if (m_row->m_partition_name_length > 0) {
@@ -340,7 +340,7 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 9: /* INDEX_NAME */
-          m_row->m_index_row.set_field(3, f);
+          m_row->m_index_row.set_nullable_field(3, f);
           break;
         case 10: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row->m_identity);
@@ -355,14 +355,14 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           set_field_varchar_utf8(f, m_row->m_lock_status);
           break;
         case 14: /* LOCK_DATA */
-          if (m_row->m_lock_data != NULL) {
+          if (m_row->m_lock_data != nullptr) {
             set_field_varchar_utf8mb4(f, m_row->m_lock_data);
           } else {
             f->set_null();
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

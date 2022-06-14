@@ -1,0 +1,83 @@
+--source connect.inc
+--source include/have_debug.inc
+# Force restart to start MySQL Servers with the
+# --debug=d,ndb_simulate_upgrade_from_non_dd_version
+--source include/force_restart.inc
+
+# MySQL Servers were started with --debug=d,ndb_simulate_upgrade_from_non_dd_version
+# This simulates an ongoing upgrade and atleast one data node still running 7.6
+# The ndb_schema table will not be upgraded. Suppress any warnings thrown by MySQL Servers.
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  connection mysqld$i;
+  --disable_query_log
+  call mtr.add_suppression("Creating table definition without .* column");
+  --enable_query_log
+  dec $i;
+}
+
+--echo # Verify that NDB SE DDLs are blocked in all MySQL Servers
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  connection mysqld$i;
+  --error ER_DISALLOWED_OPERATION
+  create table t1 (a int) engine ndb;
+  dec $i;
+}
+
+--echo # Verify that the ndb_schema table was not upgraded
+--source check_ndb_schema_upgrade_status.inc
+
+--echo # Verify that DDLs are allowed when MySQL Server see all API nodes as
+--echo # upgraded to version supporting new MySQL DD
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  connection mysqld$i;
+  set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+  create table t1 (a int) engine ndb;
+  drop table t1;
+  dec $i;
+}
+
+--echo # ndb_schema will be upgraded only when a MySQL Server restarts
+--source check_ndb_schema_upgrade_status.inc
+
+--echo # Restart first MySQL Server to trigger schema distribution upgrade, the
+--echo # other Servers will pick it up gracefully
+let $mysqld_name=mysqld.1.1;
+let $param1 = --debug=-d,ndb_simulate_upgrade_from_non_dd_version,ndb_schema_skip_create_schema_op_id;
+let $restart_parameters = restart: $param1;
+--source include/restart_mysqld.inc
+
+--echo # Verify that the ndb_schema table was upgraded
+--source check_ndb_schema_upgrade_status.inc
+
+let $i = 1;
+while($i <= $NUM_MYSQLDS)
+{
+  connection mysqld$i;
+
+  echo Checking mysqld$i;
+
+  # Wait until not readonly after binlog thread restart
+  --source include/ndb_not_readonly.inc
+
+  --echo # Verify DDLs and DMLs
+  create table t1(
+    pk int not null,
+    a varchar(37) not null
+  ) engine ndb;
+
+  insert into t1 values (1, "hello");
+
+  alter table t1 add column b int null default 24;
+  alter table t1 modify column b int not null;
+
+  select * from t1;
+  drop table t1;
+
+  inc $i;
+}

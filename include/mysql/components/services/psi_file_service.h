@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_FILE_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_file_bits.h>
+#include <mysql/components/services/bits/psi_file_bits.h>
 
-BEGIN_SERVICE_DEFINITION(psi_file_v1)
+/*
+  Version 1.
+  Introduced in MySQL 8.0.3
+  Abandoned in MySQL 8.0.19
+  Status: Removed, use version 2 instead.
+*/
+
+/*
+  Version 2.
+  Introduced in MySQL 8.0.19
+  Status: active
+*/
+
+BEGIN_SERVICE_DEFINITION(psi_file_v2)
 /** @sa register_file_v1_t. */
 register_file_v1_t register_file;
 /** @sa create_file_v1_t. */
@@ -55,10 +68,10 @@ end_file_wait_v1_t end_file_wait;
 start_file_close_wait_v1_t start_file_close_wait;
 /** @sa end_file_close_wait_v1_t. */
 end_file_close_wait_v1_t end_file_close_wait;
+/** @sa start_file_rename_wait_v1_t. */
+start_file_rename_wait_v1_t start_file_rename_wait;
 /** @sa rename_file_close_wait_v1_t. */
 end_file_rename_wait_v1_t end_file_rename_wait;
-END_SERVICE_DEFINITION(psi_file_v1)
-
-#define REQUIRES_PSI_FILE_SERVICE REQUIRES_SERVICE(psi_file_v1)
+END_SERVICE_DEFINITION(psi_file_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_FILE_SERVICE_H */

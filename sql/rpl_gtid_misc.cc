@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <algorithm>
 #include <atomic>
 
-#include "control_events.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -53,48 +53,6 @@ struct mysql_mutex_t;
 #include "client/mysqlbinlog.h"
 #endif
 
-// Todo: move other global gtid variable declarations here.
-Checkable_rwlock *gtid_mode_lock = nullptr;
-std::atomic<ulong> gtid_mode_counter;
-
-ulong _gtid_mode;
-const char *gtid_mode_names[] = {"OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE", "ON",
-                                 NullS};
-TYPELIB gtid_mode_typelib = {array_elements(gtid_mode_names) - 1, "",
-                             gtid_mode_names, nullptr};
-
-#ifdef MYSQL_SERVER
-enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock) {
-  switch (have_lock) {
-    case GTID_MODE_LOCK_NONE:
-      global_sid_lock->rdlock();
-      break;
-    case GTID_MODE_LOCK_SID:
-      global_sid_lock->assert_some_lock();
-      break;
-    case GTID_MODE_LOCK_CHANNEL_MAP:
-      channel_map.assert_some_lock();
-      break;
-    case GTID_MODE_LOCK_GTID_MODE:
-      gtid_mode_lock->assert_some_lock();
-
-      /*
-        This lock is currently not used explicitly by any of the places
-        that calls get_gtid_mode.  Still it would be valid for a caller to
-        use it to protect reads of GTID_MODE, so we keep the code here in
-        case it is needed in the future.
-
-        case GTID_MODE_LOCK_LOG:
-          mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
-          break;
-      */
-  }
-  enum_gtid_mode ret = (enum_gtid_mode)_gtid_mode;
-  if (have_lock == GTID_MODE_LOCK_NONE) global_sid_lock->unlock();
-  return ret;
-}
-#endif
-
 ulong _gtid_consistency_mode;
 const char *gtid_consistency_mode_names[] = {"OFF", "ON", "WARN", NullS};
 TYPELIB gtid_consistency_mode_typelib = {
@@ -109,8 +67,8 @@ enum_gtid_consistency_mode get_gtid_consistency_mode() {
 #endif
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
-  DBUG_ENTER("Gtid::parse");
-  rpl_sid sid;
+  DBUG_TRACE;
+  rpl_sid sid{};
   const char *s = text;
 
   SKIP_WHITESPACE();
@@ -142,8 +100,9 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
                               "at char %d in '%s'",
                               s, (int)(s - text), text));
       } else
-        DBUG_PRINT("info", ("GNO was zero or invalid (%lld) at char %d in '%s'",
-                            gno_var, (int)(s - text), text));
+        DBUG_PRINT("info",
+                   ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
+                    gno_var, (int)(s - text), text));
     } else
       DBUG_PRINT("info",
                  ("missing colon at char %d in '%s'", (int)(s - text), text));
@@ -156,16 +115,16 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
 }
 
 int Gtid::to_string(const rpl_sid &sid, char *buf) const {
-  DBUG_ENTER("Gtid::to_string");
+  DBUG_TRACE;
   char *s = buf + sid.to_string(buf);
   *s = ':';
   s++;
   s += format_gno(s, gno);
-  DBUG_RETURN((int)(s - buf));
+  return (int)(s - buf);
 }
 
 int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
-  DBUG_ENTER("Gtid::to_string");
+  DBUG_TRACE;
   int ret;
   if (sid_map != nullptr) {
     Checkable_rwlock *lock = sid_map->get_sid_lock();
@@ -179,7 +138,7 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
     if (lock && need_lock) lock->unlock();
     ret = to_string(sid, buf);
   } else {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     /*
       NULL is only allowed in debug mode, since the sidno does not
       make sense for users but is useful to include in debug
@@ -187,53 +146,53 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
       Since there is no ASSERT in non-debug mode, we use abort
       instead.
     */
-    abort();
+    my_abort();
 #endif
-    ret = sprintf(buf, "%d:%lld", sidno, gno);
+    ret = sprintf(buf, "%d:%" PRId64, sidno, gno);
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Gtid::is_valid(const char *text) {
-  DBUG_ENTER("Gtid::is_valid");
+  DBUG_TRACE;
   const char *s = text;
   SKIP_WHITESPACE();
   if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH)) {
     DBUG_PRINT("info",
                ("not a uuid at char %d in '%s'", (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
   s += binary_log::Uuid::TEXT_LENGTH;
   SKIP_WHITESPACE();
   if (*s != ':') {
     DBUG_PRINT("info",
                ("missing colon at char %d in '%s'", (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
   s++;
   SKIP_WHITESPACE();
   if (parse_gno(&s) <= 0) {
     DBUG_PRINT("info", ("GNO was zero or invalid at char %d in '%s'",
                         (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
   SKIP_WHITESPACE();
   if (*s != 0) {
     DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
                         "at char %d in '%s'",
                         s, (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void check_return_status(enum_return_status status, const char *action,
                          const char *status_name, int allow_unreported) {
   if (status != RETURN_STATUS_OK) {
-    DBUG_ASSERT(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
+    assert(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
     if (status == RETURN_STATUS_REPORTED_ERROR) {
-#if defined(MYSQL_SERVER) && !defined(DBUG_OFF)
+#if defined(MYSQL_SERVER) && !defined(NDEBUG)
       THD *thd = current_thd;
       /*
         We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
@@ -242,36 +201,36 @@ void check_return_status(enum_return_status status, const char *action,
         assert in this case. We assert that diagnostic area logged the error
         outside server startup since the assert is realy useful.
      */
-      DBUG_ASSERT(thd == nullptr ||
-                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
-                  (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
-                   thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
+      assert(thd == nullptr ||
+             thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
+             (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
+              thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
 #endif
     }
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));
   }
 }
-#endif  // ! DBUG_OFF
+#endif  // ! NDEBUG
 
 #ifdef MYSQL_SERVER
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid) {
-  DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
+  DBUG_TRACE;
 
   global_sid_lock->rdlock();
   rpl_sidno sidno = global_sid_map->add_sid(sid);
   global_sid_lock->unlock();
 
-  DBUG_RETURN(sidno);
+  return sidno;
 }
 
 rpl_gno get_last_executed_gno(rpl_sidno sidno) {
-  DBUG_ENTER("get_last_executed_gno(rpl_sidno)");
+  DBUG_TRACE;
 
   global_sid_lock->rdlock();
   rpl_gno gno = gtid_state->get_last_executed_gno(sidno);
   global_sid_lock->unlock();
 
-  DBUG_RETURN(gno);
+  return gno;
 }
 
 Trx_monitoring_info::Trx_monitoring_info() { clear(); }
@@ -289,6 +248,9 @@ Trx_monitoring_info::Trx_monitoring_info(const Trx_monitoring_info &info) {
     last_transient_error_timestamp = info.last_transient_error_timestamp;
     transaction_retries = info.transaction_retries;
     is_retrying = info.is_retrying;
+    compression_type = info.compression_type;
+    compressed_bytes = info.compressed_bytes;
+    uncompressed_bytes = info.uncompressed_bytes;
   }
 }
 
@@ -305,19 +267,22 @@ void Trx_monitoring_info::clear() {
   last_transient_error_timestamp = 0;
   transaction_retries = 0;
   is_retrying = false;
+  compression_type = binary_log::transaction::compression::type::NONE;
+  compressed_bytes = 0;
+  uncompressed_bytes = 0;
 }
 
 void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
-                                           ulonglong *start_time_arg) {
-  DBUG_ASSERT(sid_map);
-  DBUG_ASSERT(gtid_arg);
-  DBUG_ASSERT(gtid_length_arg);
-  DBUG_ASSERT(original_commit_ts_arg);
-  DBUG_ASSERT(immediate_commit_ts_arg);
-  DBUG_ASSERT(start_time_arg);
+                                           ulonglong *start_time_arg) const {
+  assert(sid_map);
+  assert(gtid_arg);
+  assert(gtid_length_arg);
+  assert(original_commit_ts_arg);
+  assert(immediate_commit_ts_arg);
+  assert(start_time_arg);
 
   if (is_info_set) {
     // The trx_monitoring_info is populated
@@ -350,8 +315,8 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg,
-                                           ulonglong *end_time_arg) {
-  DBUG_ASSERT(end_time_arg);
+                                           ulonglong *end_time_arg) const {
+  assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;
   copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
@@ -363,12 +328,12 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, uint *last_transient_errno_arg,
     char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
-  DBUG_ASSERT(last_transient_errno_arg);
-  DBUG_ASSERT(last_transient_errmsg_arg);
-  DBUG_ASSERT(last_transient_errmsg_length_arg);
-  DBUG_ASSERT(last_transient_timestamp_arg);
-  DBUG_ASSERT(retries_count_arg);
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
+  assert(last_transient_errno_arg);
+  assert(last_transient_errmsg_arg);
+  assert(last_transient_errmsg_length_arg);
+  assert(last_transient_timestamp_arg);
+  assert(retries_count_arg);
 
   if (is_info_set) {
     *last_transient_errno_arg = last_transient_error_number;
@@ -393,8 +358,8 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *start_time_arg, ulonglong *end_time_arg,
     uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
     uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
-  DBUG_ASSERT(end_time_arg);
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
+  assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;
   copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
@@ -430,8 +395,8 @@ void Gtid_monitoring_info::atomic_lock() {
       */
       my_thread_yield();
     }
-#ifndef DBUG_OFF
-    DBUG_ASSERT(!is_locked);
+#ifndef NDEBUG
+    assert(!is_locked);
     is_locked = true;
 #endif
   } else {
@@ -442,8 +407,8 @@ void Gtid_monitoring_info::atomic_lock() {
 
 void Gtid_monitoring_info::atomic_unlock() {
   if (atomic_mutex == nullptr) {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(is_locked);
+#ifndef NDEBUG
+    assert(is_locked);
     is_locked = false;
 #endif
     atomic_locked = false;
@@ -470,6 +435,14 @@ void Gtid_monitoring_info::clear_last_processed_trx() {
   atomic_unlock();
 }
 
+void Gtid_monitoring_info::update(binary_log::transaction::compression::type t,
+                                  size_t payload_size,
+                                  size_t uncompressed_size) {
+  processing_trx->compression_type = t;
+  processing_trx->compressed_bytes = payload_size;
+  processing_trx->uncompressed_bytes = uncompressed_size;
+}
+
 void Gtid_monitoring_info::start(Gtid gtid_arg, ulonglong original_ts_arg,
                                  ulonglong immediate_ts_arg, bool skipped_arg) {
   /**
@@ -493,6 +466,10 @@ void Gtid_monitoring_info::start(Gtid gtid_arg, ulonglong original_ts_arg,
     processing_trx->last_transient_error_message[0] = '\0';
     processing_trx->last_transient_error_timestamp = 0;
     processing_trx->transaction_retries = 0;
+    processing_trx->compression_type =
+        binary_log::transaction::compression::type::NONE;
+    processing_trx->compressed_bytes = 0;
+    processing_trx->uncompressed_bytes = 0;
     atomic_unlock();
   } else {
     /**
@@ -549,7 +526,7 @@ const Gtid *Gtid_monitoring_info::get_processing_trx_gtid() {
   /*
     This function is only called by relay log recovery/queuing.
   */
-  DBUG_ASSERT(atomic_mutex != nullptr);
+  assert(atomic_mutex != nullptr);
   mysql_mutex_assert_owner(atomic_mutex);
   return &processing_trx->gtid;
 }

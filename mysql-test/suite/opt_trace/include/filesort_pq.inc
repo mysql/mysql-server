@@ -209,6 +209,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 # Tests printing of MaterializeIterator with multiple iterators
 # on top of the table iterator.
+--skip_if_hypergraph  # Does not support pushing LIMIT into the sorts yet.
 EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;
@@ -267,32 +268,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2);
 --replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
-################
-## Test stripping additional fields
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20) charset latin1);
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp;
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp; 
-INSERT INTO t1(f1,f2) SELECT * FROM tmp;
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp; 
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp; 
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp; 
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp; 
-INSERT INTO tmp SELECT f1,f2 FROM t1;
-INSERT INTO t1(f1,f2) SELECT * FROM tmp; 
-
-# Test when only sortkeys fits to memory
-set sort_buffer_size= 32768; 
-SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
---replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
-
-DROP TABLE t1, tmp;
+DROP TABLE t1;
 DROP VIEW v1, v2;
 
 --echo # end of WL#1393 - Optimizing filesort with small limit
@@ -301,6 +277,8 @@ DROP VIEW v1, v2;
 --echo # WL#8741 Varlen keys for sorting JSON values
 --echo # Note that JSON keys can't use the priority queue optimization for LIMIT,
 --echo # since they can be of unbounded length.
+
+set sort_buffer_size= 32768;
 
 CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
 

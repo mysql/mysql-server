@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,23 @@
 #include <string.h>
 #include <algorithm>
 #include <sstream>
-#include "event_reader.h"
+#include "libbinlogevents/include/event_reader.h"
 #include "mutex_lock.h"
 #include "my_byteorder.h"
+#include "scope_guard.h"
+#include "sql/basic_istream.h"
+#include "sql/basic_ostream.h"
+#include "sql/sql_class.h"
 
 #ifdef MYSQL_SERVER
-#include "byteorder.h"
+#include "keyring_operations_helper.h"
+#include "libbinlogevents/include/byteorder.h"
 #include "my_aes.h"
 #include "my_rnd.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/service_mysql_keyring.h"
 #include "sql/binlog.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 
 Rpl_encryption rpl_encryption;
 
@@ -93,14 +98,14 @@ void Rpl_encryption::report_keyring_error(Keyring_status error,
       break;
     case Keyring_status::SUCCESS:
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
 bool Rpl_encryption::initialize() {
-  DBUG_ENTER("Rpl_encryption::initialize");
+  DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   m_initialized = true;
   DBUG_PRINT("debug", ("m_enabled= %s", m_enabled ? "true" : "false"));
   DBUG_PRINT("debug", ("m_rotate_at_startup= %s",
@@ -114,24 +119,24 @@ bool Rpl_encryption::initialize() {
 
   /* Only recover master key if option is enabled */
   if (m_enabled) {
-    if (recover_master_key()) DBUG_RETURN(true);
-    if (m_rotate_at_startup && rotate_master_key()) DBUG_RETURN(true);
-    DBUG_ASSERT(m_master_key_seqno > 0);
+    if (recover_master_key()) return true;
+    if (m_rotate_at_startup && rotate_master_key()) return true;
+    assert(m_master_key_seqno > 0);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Rpl_encryption::remove_remaining_seqnos_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::remove_remaining_seqnos_from_keyring");
-  DBUG_ASSERT(m_enabled);
+  DBUG_TRACE;
+  assert(m_enabled);
 
   auto master_key_seqno = get_master_key_seqno_from_keyring();
   /* keyring error */
   if (master_key_seqno.first != Keyring_status::SUCCESS &&
       master_key_seqno.first != Keyring_status::KEY_NOT_FOUND) {
     Rpl_encryption::report_keyring_error(master_key_seqno.first);
-    DBUG_RETURN(true);
+    return true;
   }
 
   auto old_master_key_seqno = get_old_master_key_seqno_from_keyring();
@@ -142,7 +147,7 @@ bool Rpl_encryption::remove_remaining_seqnos_from_keyring() {
   if (old_master_key_seqno.first != Keyring_status::SUCCESS &&
       old_master_key_seqno.first != Keyring_status::KEY_NOT_FOUND) {
     Rpl_encryption::report_keyring_error(old_master_key_seqno.first);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -153,7 +158,7 @@ bool Rpl_encryption::remove_remaining_seqnos_from_keyring() {
   if (master_key_seqno.first == Keyring_status::KEY_NOT_FOUND &&
       old_master_key_seqno.first == Keyring_status::SUCCESS &&
       set_master_key_seqno_on_keyring(old_master_key_seqno.second)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   auto new_master_key_seqno = get_new_master_key_seqno_from_keyring();
@@ -164,7 +169,7 @@ bool Rpl_encryption::remove_remaining_seqnos_from_keyring() {
   if (new_master_key_seqno.first != Keyring_status::SUCCESS &&
       new_master_key_seqno.first != Keyring_status::KEY_NOT_FOUND) {
     Rpl_encryption::report_keyring_error(new_master_key_seqno.first);
-    DBUG_RETURN(true);
+    return true;
   }
   /*
     Remove new master key seqno from keyring firstly to guarantee correct
@@ -172,21 +177,21 @@ bool Rpl_encryption::remove_remaining_seqnos_from_keyring() {
   */
   if (new_master_key_seqno.first == Keyring_status::SUCCESS &&
       remove_new_master_key_seqno_from_keyring()) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Remove old master key seqno from keyring */
   if (old_master_key_seqno.first == Keyring_status::SUCCESS &&
       remove_old_master_key_seqno_from_keyring()) {
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Rpl_encryption::recover_master_key() {
-  DBUG_ENTER("Rpl_encryption::recover_master_key");
-  DBUG_ASSERT(m_master_key_recovered == false);
+  DBUG_TRACE;
+  assert(m_master_key_recovered == false);
   std::pair<Rpl_encryption::Keyring_status, unsigned int> new_master_key_seqno;
   std::pair<Rpl_encryption::Keyring_status, unsigned int> old_master_key_seqno;
 
@@ -243,7 +248,7 @@ bool Rpl_encryption::recover_master_key() {
           master key SEQNO to first SEQNO without master key on keyring.
         */
         if (rotate_master_key(Key_rotation_step::START, 0))
-          DBUG_RETURN(true);
+          return true;
         else
           goto end;
       }
@@ -251,7 +256,7 @@ bool Rpl_encryption::recover_master_key() {
       /* Continue binlog master key rotation from DETERMINE_NEXT_SEQNO. */
       if (rotate_master_key(Key_rotation_step::DETERMINE_NEXT_SEQNO,
                             new_master_key_seqno.second))
-        DBUG_RETURN(true);
+        return true;
       else
         goto end;
     }
@@ -323,13 +328,13 @@ bool Rpl_encryption::recover_master_key() {
 
     /* Continue the procedure of a crashed binlog master key rotation. */
     if (rotate_master_key(recover_from, new_master_key_seqno.second))
-      DBUG_RETURN(true);
+      return true;
   }
 
 end:
   m_master_key_recovered = true;
 
-  DBUG_RETURN(false);
+  return false;
 
 err1:
   if (current_thd)
@@ -338,7 +343,7 @@ err1:
     LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED,
            MYF(0));
 
-  DBUG_RETURN(true);
+  return true;
 
 err2:
   if (current_thd)
@@ -350,21 +355,21 @@ err2:
            MYF(0), new_master_key_seqno.second, m_master_key_seqno,
            old_master_key_seqno.second);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 const Rpl_encryption::Rpl_encryption_key Rpl_encryption::get_master_key() {
-  DBUG_ENTER("Rpl_encryption::get_master_key");
-  DBUG_ASSERT(m_initialized);
+  DBUG_TRACE;
+  assert(m_initialized);
   /* A master key shall already exists when this function is called */
-  DBUG_ASSERT(!m_master_key.m_id.empty());
-  DBUG_ASSERT(!m_master_key.m_value.empty());
-  DBUG_RETURN(m_master_key);
+  assert(!m_master_key.m_id.empty());
+  assert(!m_master_key.m_value.empty());
+  return m_master_key;
 }
 
 std::pair<Rpl_encryption::Keyring_status, Key_string> Rpl_encryption::get_key(
     const std::string &key_id, const std::string &key_type) {
-  DBUG_ENTER("Rpl_encryption::get_key(std::string)");
+  DBUG_TRACE;
   Key_string key_str;
 
   auto tuple = fetch_key_from_keyring(key_id, key_type);
@@ -380,12 +385,12 @@ std::pair<Rpl_encryption::Keyring_status, Key_string> Rpl_encryption::get_key(
   }
 
   auto result = std::make_pair(std::get<0>(tuple), key_str);
-  DBUG_RETURN(result);
+  return result;
 }
 
 std::pair<Rpl_encryption::Keyring_status, Key_string> Rpl_encryption::get_key(
     const std::string &key_id, const std::string &key_type, size_t key_size) {
-  DBUG_ENTER("Rpl_encryption::get_key(std::string, int)");
+  DBUG_TRACE;
   auto pair = get_key(key_id, key_type);
   if (pair.first == Keyring_status::SUCCESS) {
     DBUG_EXECUTE_IF("corrupt_replication_encryption_key_size",
@@ -393,12 +398,12 @@ std::pair<Rpl_encryption::Keyring_status, Key_string> Rpl_encryption::get_key(
     if (pair.second.length() != key_size)
       pair.first = Keyring_status::UNEXPECTED_KEY_SIZE;
   }
-  DBUG_RETURN(pair);
+  return pair;
 }
 
 bool Rpl_encryption::enable(THD *thd) {
-  DBUG_ENTER("Rpl_encryption::enable");
-  DBUG_ASSERT(m_initialized);
+  DBUG_TRACE;
+  assert(m_initialized);
 
   MUTEX_LOCK(lock, &LOCK_rotate_binlog_master_key);
   m_enabled = true;
@@ -413,7 +418,7 @@ bool Rpl_encryption::enable(THD *thd) {
 
   if (!res) {
     DBUG_PRINT("debug", ("m_master_key_seqno= %u", m_master_key_seqno));
-    DBUG_ASSERT(m_master_key_seqno > 0);
+    assert(m_master_key_seqno > 0);
     if (!m_skip_logs_rotation) rotate_logs(thd);
   }
 
@@ -425,12 +430,12 @@ bool Rpl_encryption::enable(THD *thd) {
     if (current_thd->is_error()) current_thd->clear_error();
   }
   DBUG_PRINT("debug", ("m_enabled= %s", m_enabled ? "true" : "false"));
-  DBUG_RETURN(res);
+  return res;
 }
 
 void Rpl_encryption::disable(THD *thd) {
-  DBUG_ENTER("Rpl_encryption::disable");
-  DBUG_ASSERT(m_initialized);
+  DBUG_TRACE;
+  assert(m_initialized);
 
   MUTEX_LOCK(lock, &LOCK_rotate_binlog_master_key);
   m_enabled = false;
@@ -439,7 +444,6 @@ void Rpl_encryption::disable(THD *thd) {
   /* Cleanup any error if we are going to disable the option */
   if (current_thd->is_error()) current_thd->clear_error();
   m_master_key_recovered = false;
-  DBUG_VOID_RETURN;
 }
 
 bool Rpl_encryption::is_enabled() {
@@ -462,18 +466,23 @@ const char *Rpl_encryption::SEQNO_KEY_TYPE = "AES";
 std::tuple<Rpl_encryption::Keyring_status, void *, size_t>
 Rpl_encryption::fetch_key_from_keyring(const std::string &key_id,
                                        const std::string &key_type) {
-  DBUG_ENTER("Rpl_encryption::fetch_key_from_keyring");
+  DBUG_TRACE;
   size_t key_len = 0;
   char *retrieved_key_type = nullptr;
-  void *key = nullptr;
+  unsigned char *key = nullptr;
   Keyring_status error = Keyring_status::SUCCESS;
+
+  auto fetch_key = [&]() -> int {
+    return keyring_operations_helper::read_secret(
+        srv_keyring_reader, key_id.c_str(), nullptr, &key, &key_len,
+        &retrieved_key_type, PSI_INSTRUMENT_ME);
+  };
 
   /* Error fetching the key */
   if (DBUG_EVALUATE_IF("failed_to_fetch_master_key_seqno_from_keyring", true,
                        false) ||
-      my_key_fetch(key_id.c_str(), &retrieved_key_type, nullptr, &key,
-                   &key_len)) {
-    DBUG_ASSERT(key == nullptr);
+      fetch_key() == -1) {
+    assert(key == nullptr);
     error = Keyring_status::KEYRING_ERROR_FETCHING;
   } else {
     /* Key was not found in keyring */
@@ -490,11 +499,11 @@ Rpl_encryption::fetch_key_from_keyring(const std::string &key_id,
   if (retrieved_key_type) my_free(retrieved_key_type);
 
   auto result = std::make_tuple(error, key, key_len);
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool Rpl_encryption::purge_unused_keys() {
-  DBUG_ENTER("Rpl_encryption::purge_unused_keys");
+  DBUG_TRACE;
   uint32_t new_last_purged_seqno;
   /*
     Retrieve last purged master key seqno from keyring (the returned
@@ -507,7 +516,7 @@ bool Rpl_encryption::purge_unused_keys() {
   if (last_purged_seqno.first != Keyring_status::SUCCESS &&
       last_purged_seqno.first != Keyring_status::KEY_NOT_FOUND) {
     Rpl_encryption::report_keyring_error(last_purged_seqno.first);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Purge unused old binlog encryption keys from keyring. */
@@ -522,12 +531,12 @@ bool Rpl_encryption::purge_unused_keys() {
     if (key.first != Keyring_status::SUCCESS &&
         key.first != Keyring_status::KEY_NOT_FOUND) {
       Rpl_encryption::report_keyring_error(key.first);
-      DBUG_RETURN(true);
+      return true;
     }
     /* Remove the key from keyring if it exists, otherwise skip it. */
     if (key.first == Keyring_status::SUCCESS &&
         remove_key_from_keyring(key_id)) {
-      DBUG_RETURN(true);
+      return true;
     }
     new_last_purged_seqno++;
   }
@@ -538,11 +547,11 @@ bool Rpl_encryption::purge_unused_keys() {
     /* Remove the existing last purged SEQNO. */
     if (last_purged_seqno.second > 0 &&
         remove_last_purged_master_key_seqno_from_keyring()) {
-      DBUG_RETURN(true);
+      return true;
     }
     /* Store the new last purged SEQNO. */
     if (set_last_purged_master_key_seqno_on_keyring(new_last_purged_seqno))
-      DBUG_RETURN(true);
+      return true;
   }
 
   DBUG_EXECUTE_IF(
@@ -550,15 +559,15 @@ bool Rpl_encryption::purge_unused_keys() {
       for (uint32_t seqno = 1; seqno < m_master_key_seqno; seqno++) {
         std::string key_id = Rpl_encryption_header::seqno_to_key_id(seqno);
         auto key = get_key(key_id, Rpl_encryption_header::get_key_type());
-        DBUG_ASSERT(key.first == Keyring_status::KEY_NOT_FOUND);
+        assert(key.first == Keyring_status::KEY_NOT_FOUND);
       });
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
                                        uint32_t new_master_key_seqno) {
-  DBUG_ENTER("Rpl_encryption::rotate_master_key");
+  DBUG_TRACE;
 
   /*
     Steps to make the command 'ALTER INSTANCE ROTATE BINLOG MASTER KEY'
@@ -574,9 +583,9 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
       }
       DBUG_EXECUTE_IF("crash_after_set_old_master_key_seqno_on_keyring",
                       DBUG_SUICIDE(););
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::DETERMINE_NEXT_SEQNO: {
-      DBUG_ASSERT(new_master_key_seqno == 0);
+      assert(new_master_key_seqno == 0);
       Keyring_status candidate_key_fetch_status;
       new_master_key_seqno = m_master_key_seqno;
       do {
@@ -600,7 +609,7 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
       DBUG_EXECUTE_IF("crash_after_set_new_master_key_seqno_on_keyring",
                       DBUG_SUICIDE(););
     }
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::GENERATE_NEW_MASTER_KEY:
       /*
         Request the keyring to generate a new master key by key id
@@ -610,7 +619,7 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
       if (generate_master_key_on_keyring(new_master_key_seqno)) goto err1;
       DBUG_EXECUTE_IF("crash_after_generate_new_master_key_on_keyring",
                       DBUG_SUICIDE(););
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::REMOVE_MASTER_KEY_INDEX:
       /*
         We did not store a master key seqno into keyring if
@@ -621,14 +630,14 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
         DBUG_EXECUTE_IF("crash_after_remove_master_key_seqno_from_keyring",
                         DBUG_SUICIDE(););
       }
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::STORE_MASTER_KEY_INDEX:
       if (set_master_key_seqno_on_keyring(new_master_key_seqno)) goto err1;
       DBUG_EXECUTE_IF("crash_after_set_master_key_seqno_on_keyring",
                       DBUG_SUICIDE(););
       /* The master key is now usable */
       m_master_key_seqno = new_master_key_seqno;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::ROTATE_LOGS: {
       /* We do not rotate and re-encrypt logs during recovery. */
       if (m_master_key_recovered && current_thd) {
@@ -641,14 +650,14 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
               mysql_bin_log.rotate_and_purge(current_thd, true)) {
             goto err2;
           }
-          if (mysql_bin_log.reencrypt_logs()) DBUG_RETURN(true);
+          if (mysql_bin_log.reencrypt_logs()) return true;
         }
         /* Rotate relay logs and re-encrypt previous existent relay logs. */
         if (flush_relay_logs_cmd(current_thd)) goto err2;
-        if (reencrypt_relay_logs()) DBUG_RETURN(true);
+        if (reencrypt_relay_logs()) return true;
       }
     }
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::PURGE_UNUSED_ENCRYPTION_KEYS: {
       if (m_master_key_recovered && current_thd) {
         /* We do not purge unused encryption keys during recovery. */
@@ -661,17 +670,17 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
       DBUG_EXECUTE_IF("crash_after_remove_old_master_key_seqno_from_keyring",
                       DBUG_SUICIDE(););
     }
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case Key_rotation_step::REMOVE_KEY_ROTATION_TAG:
       if (remove_new_master_key_seqno_from_keyring()) goto warn2;
       DBUG_EXECUTE_IF("crash_after_remove_new_master_key_seqno_from_keyring",
                       DBUG_SUICIDE(););
   }
 
-  DBUG_RETURN(false);
+  return false;
 
 warn1:
-  DBUG_ASSERT(m_master_key_recovered && current_thd);
+  assert(m_master_key_recovered && current_thd);
   if (current_thd->is_error()) current_thd->clear_error();
   /*
     We just report the warning for the command
@@ -680,7 +689,7 @@ warn1:
   push_warning(current_thd,
                ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS);
 
-  DBUG_RETURN(false);
+  return false;
 
 warn2:
   if (current_thd) {
@@ -692,7 +701,7 @@ warn2:
            ER_SERVER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY);
   }
 
-  DBUG_RETURN(false);
+  return false;
 
 err1:
   if (m_master_key_recovered && current_thd) {
@@ -704,7 +713,7 @@ err1:
     my_error(ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY, MYF(0));
   }
 
-  DBUG_RETURN(true);
+  return true;
 
 err2:
   if (m_master_key_recovered && current_thd) {
@@ -716,21 +725,20 @@ err2:
     my_error(ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS, MYF(0));
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 void Rpl_encryption::rotate_logs(THD *thd) {
-  DBUG_ENTER("Rpl_encryption::rotate_logs");
+  DBUG_TRACE;
   if ((mysql_bin_log.is_open() && mysql_bin_log.rotate_and_purge(thd, true)) ||
       flush_relay_logs_cmd(thd)) {
     push_warning(thd, ER_RPL_ENCRYPTION_FAILED_TO_ROTATE_LOGS);
   }
-  DBUG_VOID_RETURN;
 }
 
 std::pair<Rpl_encryption::Keyring_status, uint32_t>
 Rpl_encryption::get_seqno_from_keyring(std::string key_id) {
-  DBUG_ENTER("Rpl_encryption::get_seqno_from_keyring");
+  DBUG_TRACE;
   auto fetched_key = get_key(key_id, SEQNO_KEY_TYPE, SEQNO_KEY_LENGTH);
   uint32_t seqno = 0;
   if (fetched_key.first == Keyring_status::SUCCESS) {
@@ -738,17 +746,17 @@ Rpl_encryption::get_seqno_from_keyring(std::string key_id) {
     memcpy(&seqno, key, sizeof(seqno));
     seqno = le32toh(seqno);
   }
-  DBUG_RETURN(std::make_pair(fetched_key.first, seqno));
+  return std::make_pair(fetched_key.first, seqno);
 }
 
 bool Rpl_encryption::set_seqno_on_keyring(std::string key_id, uint32_t seqno) {
-  DBUG_ENTER("Rpl_encryption::set_seqno_on_keyring");
+  DBUG_TRACE;
   unsigned char key[SEQNO_KEY_LENGTH]{0};
   int4store(key, seqno);
   DBUG_PRINT("debug", ("key_id= '%s'. seqno= %u", key_id.c_str(), seqno));
-#ifdef DBUG_OFF
-  if (my_key_store(key_id.c_str(), SEQNO_KEY_TYPE, nullptr, key,
-                   SEQNO_KEY_LENGTH)) {
+#ifdef NDEBUG
+  if (srv_keyring_writer->store(key_id.c_str(), nullptr, key, SEQNO_KEY_LENGTH,
+                                SEQNO_KEY_TYPE) != 0) {
 #else
   if ((DBUG_EVALUATE_IF("rpl_encryption_first_time_enable_1", true, false) &&
        key_id.compare(get_new_master_key_seqno_key_id()) == 0) ||
@@ -766,19 +774,19 @@ bool Rpl_encryption::set_seqno_on_keyring(std::string key_id, uint32_t seqno) {
       (DBUG_EVALUATE_IF("fail_to_set_last_purged_master_key_seqno_on_keyring",
                         true, false) &&
        key_id.compare(get_last_purged_master_key_seqno_key_id()) == 0) ||
-      my_key_store(key_id.c_str(), SEQNO_KEY_TYPE, nullptr, key,
-                   SEQNO_KEY_LENGTH)) {
+      srv_keyring_writer->store(key_id.c_str(), nullptr, key, SEQNO_KEY_LENGTH,
+                                SEQNO_KEY_TYPE) != 0) {
 #endif
     report_keyring_error(Keyring_status::KEYRING_ERROR_STORING);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Rpl_encryption::remove_key_from_keyring(std::string key_id) {
-  DBUG_ENTER("Rpl_encryption::remove_key_from_keyring");
-#ifdef DBUG_OFF
-  if (my_key_remove(key_id.c_str(), nullptr)) {
+  DBUG_TRACE;
+#ifdef NDEBUG
+  if (srv_keyring_writer->remove(key_id.c_str(), nullptr) != 0) {
 #else
   if (DBUG_EVALUATE_IF("rpl_encryption_first_time_enable_4", true, false) ||
       (DBUG_EVALUATE_IF("fail_to_remove_master_key_from_keyring", true,
@@ -796,12 +804,12 @@ bool Rpl_encryption::remove_key_from_keyring(std::string key_id) {
       (DBUG_EVALUATE_IF("fail_to_remove_unused_key_from_keyring",
                         !current_thd->is_error(), false) &&
        key_id.compare(get_master_key_seqno_key_id()) != 0) ||
-      my_key_remove(key_id.c_str(), nullptr)) {
+      srv_keyring_writer->remove(key_id.c_str(), nullptr) != 0) {
 #endif
     report_keyring_error(Keyring_status::KEYRING_ERROR_REMOVING);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 std::string Rpl_encryption::get_master_key_seqno_key_id() {
@@ -810,98 +818,97 @@ std::string Rpl_encryption::get_master_key_seqno_key_id() {
 
 std::pair<Rpl_encryption::Keyring_status, uint32_t>
 Rpl_encryption::get_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::get_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_master_key_seqno_key_id();
-  DBUG_RETURN(get_seqno_from_keyring(key_id));
+  return get_seqno_from_keyring(key_id);
 }
 
 bool Rpl_encryption::set_master_key_seqno_on_keyring(uint32_t seqno) {
-  DBUG_ENTER("Rpl_encryption::set_master_key_seqno_on_keyring");
+  DBUG_TRACE;
   std::string key_id = get_master_key_seqno_key_id();
-  DBUG_RETURN(set_seqno_on_keyring(key_id, seqno));
+  return set_seqno_on_keyring(key_id, seqno);
 }
 
 bool Rpl_encryption::remove_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::remove_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_master_key_seqno_key_id();
-  DBUG_RETURN(remove_key_from_keyring(key_id));
+  return remove_key_from_keyring(key_id);
 }
 
 std::string Rpl_encryption::get_new_master_key_seqno_key_id() {
-  DBUG_ENTER("Rpl_encryption::get_new_master_key_seqno_key_id");
-  DBUG_RETURN(Rpl_encryption_header::key_id_with_suffix("new"));
+  DBUG_TRACE;
+  return Rpl_encryption_header::key_id_with_suffix("new");
 }
 
 std::string Rpl_encryption::get_last_purged_master_key_seqno_key_id() {
-  DBUG_ENTER("Rpl_encryption::get_last_purged_master_key_seqno_key_id");
-  DBUG_RETURN(Rpl_encryption_header::key_id_with_suffix("last_purged"));
+  DBUG_TRACE;
+  return Rpl_encryption_header::key_id_with_suffix("last_purged");
 }
 
 std::string Rpl_encryption::get_old_master_key_seqno_key_id() {
-  DBUG_ENTER("Rpl_encryption::get_old_master_key_seqno_key_id");
-  DBUG_RETURN(Rpl_encryption_header::key_id_with_suffix("old"));
+  DBUG_TRACE;
+  return Rpl_encryption_header::key_id_with_suffix("old");
 }
 
 std::pair<Rpl_encryption::Keyring_status, uint32_t>
 Rpl_encryption::get_new_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::get_new_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_new_master_key_seqno_key_id();
-  DBUG_RETURN(get_seqno_from_keyring(key_id));
+  return get_seqno_from_keyring(key_id);
 }
 
 std::pair<Rpl_encryption::Keyring_status, uint32_t>
 Rpl_encryption::get_old_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::get_old_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_old_master_key_seqno_key_id();
-  DBUG_RETURN(get_seqno_from_keyring(key_id));
+  return get_seqno_from_keyring(key_id);
 }
 
 std::pair<Rpl_encryption::Keyring_status, uint32_t>
 Rpl_encryption::get_last_purged_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::get_last_purged_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_last_purged_master_key_seqno_key_id();
-  DBUG_RETURN(get_seqno_from_keyring(key_id));
+  return get_seqno_from_keyring(key_id);
 }
 
 bool Rpl_encryption::set_new_master_key_seqno_on_keyring(uint32 seqno) {
-  DBUG_ENTER("Rpl_encryption::set_new_master_key_seqno_on_keyring");
+  DBUG_TRACE;
   std::string key_id = get_new_master_key_seqno_key_id();
-  DBUG_RETURN(set_seqno_on_keyring(key_id, seqno));
+  return set_seqno_on_keyring(key_id, seqno);
 }
 
 bool Rpl_encryption::set_last_purged_master_key_seqno_on_keyring(uint32 seqno) {
-  DBUG_ENTER("Rpl_encryption::set_last_purged_master_key_seqno_on_keyring");
+  DBUG_TRACE;
   std::string key_id = get_last_purged_master_key_seqno_key_id();
-  DBUG_RETURN(set_seqno_on_keyring(key_id, seqno));
+  return set_seqno_on_keyring(key_id, seqno);
 }
 
 bool Rpl_encryption::set_old_master_key_seqno_on_keyring(uint32 seqno) {
-  DBUG_ENTER("Rpl_encryption::set_old_master_key_seqno_on_keyring");
+  DBUG_TRACE;
   std::string key_id = get_old_master_key_seqno_key_id();
-  DBUG_RETURN(set_seqno_on_keyring(key_id, seqno));
+  return set_seqno_on_keyring(key_id, seqno);
 }
 
 bool Rpl_encryption::remove_new_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::remove_new_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_new_master_key_seqno_key_id();
-  DBUG_RETURN(remove_key_from_keyring(key_id));
+  return remove_key_from_keyring(key_id);
 }
 
 bool Rpl_encryption::remove_last_purged_master_key_seqno_from_keyring() {
-  DBUG_ENTER(
-      "Rpl_encryption::remove_last_purged_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_last_purged_master_key_seqno_key_id();
-  DBUG_RETURN(remove_key_from_keyring(key_id));
+  return remove_key_from_keyring(key_id);
 }
 
 bool Rpl_encryption::remove_old_master_key_seqno_from_keyring() {
-  DBUG_ENTER("Rpl_encryption::remove_old_master_key_seqno_from_keyring");
+  DBUG_TRACE;
   std::string key_id = get_old_master_key_seqno_key_id();
-  DBUG_RETURN(remove_key_from_keyring(key_id));
+  return remove_key_from_keyring(key_id);
 }
 
 bool Rpl_encryption::generate_master_key_on_keyring(uint32 seqno) {
-  DBUG_ENTER("Rpl_encryption::generate_master_key_on_keyring");
+  DBUG_TRACE;
 
   std::string key_id = Rpl_encryption_header_v1::seqno_to_key_id(seqno);
 
@@ -910,23 +917,24 @@ bool Rpl_encryption::generate_master_key_on_keyring(uint32 seqno) {
   /* If unable to check if the key already exists */
   if (pair.first == Keyring_status::KEYRING_ERROR_FETCHING) {
     Rpl_encryption::report_keyring_error(pair.first);
-    DBUG_RETURN(true);
+    return true;
   }
   /* If the key already exists on keyring */
   if (pair.first != Keyring_status::KEY_NOT_FOUND) {
     Rpl_encryption::report_keyring_error(Keyring_status::KEY_EXISTS_UNEXPECTED,
                                          key_id.c_str());
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Generate the new key */
   if (DBUG_EVALUATE_IF("rpl_encryption_first_time_enable_2", true, false) ||
       DBUG_EVALUATE_IF("fail_to_generate_key_on_keyring", true, false) ||
-      my_key_generate(key_id.c_str(), Rpl_encryption_header_v1::KEY_TYPE,
-                      nullptr, Rpl_encryption_header_v1::KEY_LENGTH) != 0) {
+      srv_keyring_generator->generate(
+          key_id.c_str(), nullptr, Rpl_encryption_header_v1::KEY_TYPE,
+          Rpl_encryption_header_v1::KEY_LENGTH) != 0) {
     Rpl_encryption::report_keyring_error(
         Keyring_status::KEYRING_ERROR_GENERATING);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Fetch the new generated key from keyring again */
@@ -934,24 +942,21 @@ bool Rpl_encryption::generate_master_key_on_keyring(uint32 seqno) {
                                  Rpl_encryption_header_v1::KEY_LENGTH);
   if (pair.first != Keyring_status::SUCCESS) {
     Rpl_encryption::report_keyring_error(pair.first);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Store the generated key as the new master key */
   m_master_key.m_id = key_id;
   m_master_key.m_value.assign(pair.second);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 #endif  // MYSQL_SERVER
 
 const char *Rpl_encryption_header::ENCRYPTION_MAGIC = "\xfd\x62\x69\x6e";
 
-Rpl_encryption_header::~Rpl_encryption_header() {
-  DBUG_ENTER("Rpl_encryption_header::~Rpl_encryption_header");
-  DBUG_VOID_RETURN;
-}
+Rpl_encryption_header::~Rpl_encryption_header() { DBUG_TRACE; }
 
 void throw_encryption_header_error(const char *message) {
 #ifdef MYSQL_SERVER
@@ -966,7 +971,7 @@ void throw_encryption_header_error(const char *message) {
 
 std::unique_ptr<Rpl_encryption_header> Rpl_encryption_header::get_header(
     Basic_istream *istream) {
-  DBUG_ENTER("Rpl_encryption_header::get_header");
+  DBUG_TRACE;
   bool res = true;
   ssize_t read_len = 0;
   uint8_t version = 0;
@@ -998,14 +1003,14 @@ std::unique_ptr<Rpl_encryption_header> Rpl_encryption_header::get_header(
     throw_encryption_header_error(
         "Unable to determine encryption header version");
   }
-  DBUG_RETURN(header);
+  return header;
 }
 
 std::unique_ptr<Rpl_encryption_header>
 Rpl_encryption_header::get_new_default_header() {
-  DBUG_ENTER("Rpl_encryption_header::get_new_default_header");
+  DBUG_TRACE;
   std::unique_ptr<Rpl_encryption_header> header(new Rpl_encryption_header_v1);
-  DBUG_RETURN(header);
+  return header;
 }
 
 std::string Rpl_encryption_header::key_id_prefix() {
@@ -1027,10 +1032,7 @@ const char *Rpl_encryption_header::get_key_type() {
 const char *Rpl_encryption_header_v1::KEY_TYPE = "AES";
 const char *Rpl_encryption_header_v1::KEY_ID_PREFIX = "MySQLReplicationKey";
 
-Rpl_encryption_header_v1::~Rpl_encryption_header_v1() {
-  DBUG_ENTER("Rpl_encryption_header_v1::~Rpl_encryption_header_v1");
-  DBUG_VOID_RETURN;
-}
+Rpl_encryption_header_v1::~Rpl_encryption_header_v1() { DBUG_TRACE; }
 
 bool Rpl_encryption_header_v1::serialize(Basic_ostream *ostream) {
   unsigned char header[HEADER_SIZE]{0};
@@ -1039,19 +1041,19 @@ bool Rpl_encryption_header_v1::serialize(Basic_ostream *ostream) {
   memcpy(header, ENCRYPTION_MAGIC, ENCRYPTION_MAGIC_SIZE);
   header[VERSION_OFFSET] = m_version;
 
-  DBUG_ASSERT(m_key_id.length() < 255);
+  assert(m_key_id.length() < 255);
   ptr = header + OPTIONAL_FIELD_OFFSET;
   *ptr++ = KEY_ID;
   *ptr++ = m_key_id.length();
   memcpy(ptr, m_key_id.data(), m_key_id.length());
   ptr += m_key_id.length();
 
-  DBUG_ASSERT(m_encrypted_password.length() == PASSWORD_FIELD_SIZE);
+  assert(m_encrypted_password.length() == PASSWORD_FIELD_SIZE);
   *ptr++ = ENCRYPTED_FILE_PASSWORD;
   memcpy(ptr, m_encrypted_password.data(), m_encrypted_password.length());
   ptr += PASSWORD_FIELD_SIZE;
 
-  DBUG_ASSERT(m_iv.length() == IV_FIELD_SIZE);
+  assert(m_iv.length() == IV_FIELD_SIZE);
   *ptr++ = IV_FOR_FILE_PASSWORD;
   memcpy(ptr, m_iv.data(), m_iv.length());
 
@@ -1061,7 +1063,7 @@ bool Rpl_encryption_header_v1::serialize(Basic_ostream *ostream) {
 }
 
 bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
-  DBUG_ENTER("Rpl_encryption_header_v1::deserialize");
+  DBUG_TRACE;
   unsigned char header[HEADER_SIZE];
   ssize_t read_len = 0;
 
@@ -1072,7 +1074,7 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
   DBUG_EXECUTE_IF("force_incomplete_encryption_header", { --read_len; });
   if (read_len < HEADER_SIZE - read_offset) {
     throw_encryption_header_error("Header is incomplete");
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_key_id.clear();
@@ -1119,7 +1121,7 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
       }
       default:
         throw_encryption_header_error("Unknown field type");
-        DBUG_RETURN(true);
+        return true;
     }
     if (field_type == 0) break;
   }
@@ -1150,7 +1152,7 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
     }
   }
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 char Rpl_encryption_header_v1::get_version() const { return m_version; }
@@ -1160,7 +1162,7 @@ int Rpl_encryption_header_v1::get_header_size() {
 }
 
 Key_string Rpl_encryption_header_v1::decrypt_file_password() {
-  DBUG_ENTER("Rpl_encryption_header::decrypt_file_password");
+  DBUG_TRACE;
   Key_string file_password;
 #ifdef MYSQL_SERVER
   if (!m_key_id.empty()) {
@@ -1182,7 +1184,7 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
     }
   }
 #endif
-  DBUG_RETURN(file_password);
+  return file_password;
 }
 
 std::unique_ptr<Stream_cipher> Rpl_encryption_header_v1::get_encryptor() {
@@ -1195,7 +1197,7 @@ std::unique_ptr<Stream_cipher> Rpl_encryption_header_v1::get_decryptor() {
 
 #ifdef MYSQL_SERVER
 bool Rpl_encryption_header_v1::encrypt_file_password(Key_string password_str) {
-  DBUG_ENTER("Rpl_encryption_header_v1::encrypt_file_password");
+  DBUG_TRACE;
   bool error = false;
   unsigned char encrypted_password[Aes_ctr::PASSWORD_LENGTH];
   unsigned char iv[Aes_ctr::AES_BLOCK_SIZE];
@@ -1204,7 +1206,7 @@ bool Rpl_encryption_header_v1::encrypt_file_password(Key_string password_str) {
       rpl_encryption.get_master_key();
 
   /* Get the master key id */
-  DBUG_ASSERT(master_key.m_id.length() > 0);
+  assert(master_key.m_id.length() > 0);
   m_key_id = master_key.m_id;
 
   /* Generate iv, it is a random string. */
@@ -1221,7 +1223,7 @@ bool Rpl_encryption_header_v1::encrypt_file_password(Key_string password_str) {
         Key_string(encrypted_password, sizeof(encrypted_password));
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 #endif
 
@@ -1254,8 +1256,8 @@ std::string Rpl_encryption_header_v1::key_id_prefix() {
   return ostr.str();
 }
 
-std::string Rpl_encryption_header_v1::seqno_to_key_id(
-    uint32_t seqno MY_ATTRIBUTE((unused))) {
+std::string Rpl_encryption_header_v1::seqno_to_key_id(uint32_t seqno
+                                                      [[maybe_unused]]) {
   std::ostringstream ostr;
 #ifdef MYSQL_SERVER
   ostr << key_id_prefix() << "_" << seqno;
@@ -1263,8 +1265,8 @@ std::string Rpl_encryption_header_v1::seqno_to_key_id(
   return ostr.str();
 }
 
-std::string Rpl_encryption_header_v1::key_id_with_suffix(
-    const char *suffix MY_ATTRIBUTE((unused))) {
+std::string Rpl_encryption_header_v1::key_id_with_suffix(const char *suffix
+                                                         [[maybe_unused]]) {
   std::ostringstream ostr;
 #ifdef MYSQL_SERVER
   ostr << key_id_prefix() << "_" << suffix;

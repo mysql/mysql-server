@@ -1,0 +1,83 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+########################################################################
+# 1. Check replication with TLSv1.3 and some default ciphersuite.
+SET SESSION sql_log_bin=0;
+CREATE USER 'replssl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
+GRANT REPLICATION SLAVE ON *.* TO 'replssl'@'%';
+SET SESSION sql_log_bin=1;
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'my_channel']
+include/assert.inc [TLS_CIPHERSUITES has the default NULL value]
+########################################################################
+# 2. Check replication with TLSv1.3 and a non-default ciphersuite.
+include/stop_slave.inc [FOR CHANNEL 'my_channel']
+[connection master]
+SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
+SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+ALTER INSTANCE RELOAD TLS;
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
+include/start_slave.inc [FOR CHANNEL 'my_channel']
+include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
+########################################################################
+# 3. RESET SLAVE does not clean MASTER_TLS_CIPHERSUITES.
+[connection slave]
+include/stop_slave.inc [FOR CHANNEL 'my_channel']
+RESET SLAVE FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
+########################################################################
+# 4. Check replication with TLSv1.3 and different ciphersuite on master
+#    and slave will fail.
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', SOURCE_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
+START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
+########################################################################
+# 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
+#    fail.
+[connection master]
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+ALTER INSTANCE RELOAD TLS;
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
+include/assert.inc [TLS_CIPHERSUITES has the value ""]
+START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
+########################################################################
+# 6. Clean-up.
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
+include/assert.inc [TLS_CIPHERSUITES has the default NULL value]
+include/start_slave.inc [FOR CHANNEL 'my_channel']
+include/stop_slave.inc [FOR CHANNEL 'my_channel']
+[connection master]
+SET @@GLOBAL.tls_version= @tls_version_saved;
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+ALTER INSTANCE RELOAD TLS;
+SET SESSION sql_log_bin=0;
+DROP USER 'replssl';
+SET SESSION sql_log_bin=1;
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+[connection slave]
+RESET SLAVE ALL FOR CHANNEL 'my_channel';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,21 @@ class XSession {
       1024 characters.
      */
     Capability_session_connect_attrs,
+
+    /**
+      Enable compression and choose the algorithm and style.
+
+      Capability type: OBJECT.
+      Key: "algorithm" = type STRING;
+            one of "deflate_stream|lz4_message|zstd_stream".
+      Key: "server_combine_mixed_messages" = type BOOL;
+           if true, server is allowed to combine different message types
+           into a compressed message.
+      Key: "server_max_combine_messages" = type INT;
+           if set, the server MUST not store more than N uncompressed
+           messages into a compressed message.
+     */
+    Capability_compression,
   };
 
   /**
@@ -256,7 +271,7 @@ class XSession {
       Option type: BOOL
      */
     Consume_all_notices,
-    /** Determine what should be the lenght of a DATETIME field so that it
+    /** Determine what should be the length of a DATETIME field so that it
         would be possible to distinguish if it contain only date or both
         date and time parts.
 
@@ -270,7 +285,67 @@ class XSession {
       Default:
       Option type: STRING
     */
-    Network_namespace
+    Network_namespace,
+    /** Compression negotiation check which compression algorithms or styles
+      are supported by the server and choose one supported by both sides.
+      Setting compression from "options" has priority over
+      "capabilities". If "compression_negotiation_mode" will have other value
+      than "DISABLED", then it will overwrite settings done by "capabilities".
+
+      Following modes are possible:
+
+      * "DISABLED" - client doesn't wont to use negotiation
+      * "REQUIRED" - if there is no common compression configuration or setting
+                     it fails, then such connection is rejected
+      * "PREFERRED" - client tries to negotiate compression configuration still
+                     when it fail, the connection is still usable
+
+
+      Default: "DISABLED"
+      Option type: STRING
+    */
+    Compression_negotiation_mode,
+    /** Try to negotiate following compression algorithms
+
+      Default: ["deflate_stream","lz4_message","zstd_stream"]
+      Option type: STRING, ARRAY OF STRINGS
+    */
+    Compression_algorithms,
+    /** The server is allowed to combine different message types
+      into a compressed message.
+
+      Default: true
+      Option type: BOOL
+     */
+    Compression_combine_mixed_messages,
+    /** The server MUST not store more than N uncompressed
+      messages into a compressed message.
+
+      Default: 0 (no limit)
+      Option type: INTEGER
+     */
+    Compression_max_combine_messages,
+
+    /** The server can compress messages at a given level.
+
+      Default: -2^63 (default level depend on compression algorithm
+                      and the server configuration)
+      Option type: INTEGER
+     */
+    Compression_level_server,
+    /** The client can compress messages at a given level.
+
+      Default: -2^63 (default level depend on compression algorithm;
+                      deflate_stream:3, lz4_frame:2, zstd_stream:3)
+      Option type: INTEGER
+     */
+    Compression_level_client,
+    /** The client can read responses while pipelining multiple requests.
+
+      Default: 64k
+      Option type: INTEGER
+     */
+    Buffer_recevie_size
   };
 
  public:
@@ -383,13 +458,16 @@ class XSession {
 
     @param capability   capability to set or modify
     @param value        assign bool value to the capability
+    @param required     define if connection should be accepted by client when
+                        server rejected the capability
 
     @return Error code with description
       @retval != true     OK
       @retval == true     error occurred
   */
   virtual XError set_capability(const Mysqlx_capability capability,
-                                const bool value) = 0;
+                                const bool value,
+                                const bool required = true) = 0;
 
   /**
     Set X protocol capabilities.
@@ -399,13 +477,16 @@ class XSession {
 
     @param capability   capability to set or modify
     @param value        assign string value to the capability
+    @param required     define if connection should be accepted by client when
+                        server rejected the capability
 
     @return Error code with description
       @retval != true     OK
       @retval == true     error occurred
   */
   virtual XError set_capability(const Mysqlx_capability capability,
-                                const std::string &value) = 0;
+                                const std::string &value,
+                                const bool required = true) = 0;
 
   /**
     Set X protocol capabilities.
@@ -415,13 +496,16 @@ class XSession {
 
     @param capability   capability to set or modify
     @param value        assign "C" string value to the capability
+    @param required     define if connection should be accepted by client when
+                        server rejected the capability
 
     @return Error code with description
       @retval != true     OK
       @retval == true     error occurred
   */
   virtual XError set_capability(const Mysqlx_capability capability,
-                                const char *value) = 0;
+                                const char *value,
+                                const bool required = true) = 0;
 
   /**
     Set X protocol capabilities.
@@ -431,13 +515,16 @@ class XSession {
 
     @param capability   capability to set or modify
     @param value        assign integer value to the capability
+    @param required     define if connection should be accepted by client when
+                        server rejected the capability
 
     @return Error code with description
       @retval != true     OK
       @retval == true     error occurred
   */
   virtual XError set_capability(const Mysqlx_capability capability,
-                                const int64_t value) = 0;
+                                const int64_t value,
+                                const bool required = true) = 0;
 
   /**
     Set X protocol capabilities.
@@ -447,13 +534,35 @@ class XSession {
 
     @param capability   capability to set or modify
     @param value        assign object value to the capability
+    @param required     define if connection should be accepted by client when
+                        server rejected the capability
 
     @return Error code with description
       @retval != true     OK
       @retval == true     error occurred
   */
   virtual XError set_capability(const Mysqlx_capability capability,
-                                const Argument_object &value) = 0;
+                                const Argument_object &value,
+                                const bool required = true) = 0;
+
+  /**
+    Set X protocol capabilities.
+
+    All capabilities set before calling `XSession::connect` method are
+    committed to the server (other side of the connection).
+
+    @param capability   capability to set or modify
+    @param value        assign 'unordered' object value to the capability
+    @param required     define if connection should be accepted by client when
+                        server rejected the capability
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     error occurred
+  */
+  virtual XError set_capability(const Mysqlx_capability capability,
+                                const Argument_uobject &value,
+                                const bool required = true) = 0;
 
   /**
     Establish and authenticate connection using TCP.
@@ -544,10 +653,9 @@ class XSession {
       @retval != nullptr  OK
       @retval == nullptr  error occurred
   */
-  virtual std::unique_ptr<XQuery_result> execute_stmt(const std::string &ns,
-                                                      const std::string &stmt,
-                                                      const Arguments &args,
-                                                      XError *out_error) = 0;
+  virtual std::unique_ptr<XQuery_result> execute_stmt(
+      const std::string &ns, const std::string &stmt,
+      const Argument_array &args, XError *out_error) = 0;
 
   /**
     Graceful shutdown maintaing the close connection message flow.
@@ -562,7 +670,7 @@ class XSession {
    If necessary could be supplemented with additional information before
    sending it as capability to the server.
    */
-  virtual Argument_object get_connect_attrs() const = 0;
+  virtual Argument_uobject get_connect_attrs() const = 0;
 };
 
 /**

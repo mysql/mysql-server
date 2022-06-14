@@ -47,4 +47,7 @@ include/gr_assert_multi_primary_mode.inc
 
 # 9. Cleanup
 DROP TABLE t1;
+[connection server_3]
+DROP TABLE t1;
+[connection server_2]
 include/group_replication_end.inc

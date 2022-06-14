@@ -1,7 +1,7 @@
 #ifndef EXPECTED_WARNINGS_INCLUDED
 #define EXPECTED_WARNINGS_INCLUDED
 
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@ class Expected_warnings {
  public:
   typedef std::vector<std::unique_ptr<Warning>>::iterator iterator;
 
-  Expected_warnings() {}
-  ~Expected_warnings() {}
+  Expected_warnings() = default;
+  ~Expected_warnings() = default;
 
   iterator begin() { return m_warnings.begin(); }
   iterator end() { return m_warnings.end(); }

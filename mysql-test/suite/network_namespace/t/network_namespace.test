@@ -55,26 +55,27 @@ CREATE USER root@10.0.1.1;
 --echo # Check that client can establish connection to the address 10.0.1.1 from the network namespace 'blue'
 --exec $EXE_MYSQL --no-defaults -u root  --port $MYSQL_PORT --host 10.0.1.1 --network-namespace=blue -e "SELECT USER()"
 
---exec # Use network namespaces with admin port
- 
-# Calculate value for admin port
---let $PORT_OFFSET = 1
---expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+--echo # Use network namespaces with admin port
 
---let $restart_parameters=restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=$ADMIN_PORT
---replace_result $ADMIN_PORT ADMIN_PORT
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--let $restart_parameters=restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=$MASTER_ADMINPORT
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
 
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@10.0.2.1;
 
---exec $EXE_MYSQL --no-defaults -u root --host 10.0.2.1 --port $ADMIN_PORT --network-namespace=red -e "SELECT USER()"
+--exec $EXE_MYSQL --no-defaults -u root --host 10.0.2.1 --port $MASTER_ADMINPORT --network-namespace=red -e "SELECT USER()"
 
 # Restart with a dedicated listener thread for admin connections
---let $restart_parameters=restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=$ADMIN_PORT --create-admin-listener-thread=true
---replace_result $ADMIN_PORT ADMIN_PORT
+--let $restart_parameters=restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=$MASTER_ADMINPORT --create-admin-listener-thread=true
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
 
---exec $EXE_MYSQL --no-defaults -u root --host 10.0.2.1 --port $ADMIN_PORT --network-namespace=red -e "SELECT USER()"
+--exec $EXE_MYSQL --no-defaults -u root --host 10.0.2.1 --port $MASTER_ADMINPORT --network-namespace=red -e "SELECT USER()"
 
 REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@10.0.2.1;
 

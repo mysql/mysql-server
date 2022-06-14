@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,9 @@ class Sql_service_context_base {
     Sql_service_context_base constructor
     resets all variables
   */
-  Sql_service_context_base() {}
+  Sql_service_context_base() = default;
 
-  virtual ~Sql_service_context_base() {}
+  virtual ~Sql_service_context_base() = default;
 
   /** Getting metadata **/
   /**
@@ -50,9 +50,8 @@ class Sql_service_context_base {
     @param flags    Flags to alter the metadata sending
     @param resultcs Charset of the result set
 
-    @return
-      @retval 1  Error
-      @retval 0  OK
+    @retval 1  Error
+    @retval 0  OK
   */
   virtual int start_result_metadata(uint num_cols, uint flags,
                                     const CHARSET_INFO *resultcs) = 0;
@@ -63,9 +62,8 @@ class Sql_service_context_base {
     @param field   Field's metadata (see field.h)
     @param charset Field's charset
 
-    @return
-      @retval 1  Error
-      @retval 0  OK
+    @retval 1  Error
+    @retval 0  OK
   */
   virtual int field_metadata(struct st_send_field *field,
                              const CHARSET_INFO *charset) = 0;
@@ -76,27 +74,24 @@ class Sql_service_context_base {
     @param server_status   Status of server (see mysql_com.h SERVER_STATUS_*)
     @param warn_count      Number of warnings thrown during execution
 
-    @return
-      @retval 1  Error
-      @retval 0  OK
+    @retval 1  Error
+    @retval 0  OK
   */
   virtual int end_result_metadata(uint server_status, uint warn_count) = 0;
 
   /**
     Indicates the beginning of a new row in the result set/metadata
 
-    @return
-      @retval 1  Error
-      @retval 0  OK
+    @retval 1  Error
+    @retval 0  OK
   */
   virtual int start_row() = 0;
 
   /**
     Indicates end of the row in the result set/metadata
 
-    @return
-      @retval 1  Error
-      @retval 0  OK
+    @retval 1  Error
+    @retval 0  OK
   */
   virtual int end_row() = 0;
 
@@ -250,6 +245,12 @@ class Sql_service_context_base {
   */
   virtual void shutdown(int flag) = 0;
 
+  /**
+   Check if the connection is still alive.
+   It should always return true unless the protocol closed the connection.
+  */
+  virtual bool connection_alive() = 0;
+
  private:
   static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
                                        const CHARSET_INFO *resultcs) {
@@ -342,6 +343,10 @@ class Sql_service_context_base {
 
   static void sql_shutdown(void *ctx, int flag) {
     return ((Sql_service_context_base *)ctx)->shutdown(flag);
+  }
+
+  static bool sql_connection_alive(void *ctx) {
+    return ((Sql_service_context_base *)ctx)->connection_alive();
   }
 };
 

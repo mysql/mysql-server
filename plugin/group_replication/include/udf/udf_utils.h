@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,11 @@
 #ifndef PLUGIN_GR_INCLUDE_UDF_UTILS_H
 #define PLUGIN_GR_INCLUDE_UDF_UTILS_H
 
-#include "my_dbug.h"
+#include <assert.h>
+#include <mysql/components/services/registry.h>
+#include <mysql/components/services/udf_metadata.h>
+#include <mysql/udf_registration_types.h>
+
 #include "plugin/group_replication/include/group_actions/group_action.h"
 #include "plugin/group_replication/include/member_version.h"
 
@@ -56,13 +60,13 @@ class privilege_result {
  public:
   privilege_status status;
   char const *get_user() const {
-    DBUG_ASSERT(status == privilege_status::no_privilege &&
-                "get_user() can only be called if status == no_privilege");
+    assert(status == privilege_status::no_privilege &&
+           "get_user() can only be called if status == no_privilege");
     return user;
   }
   char const *get_host() const {
-    DBUG_ASSERT(status == privilege_status::no_privilege &&
-                "get_host() can only be called if status == no_privilege");
+    assert(status == privilege_status::no_privilege &&
+           "get_host() can only be called if status == no_privilege");
     return host;
   }
   static privilege_result success() {
@@ -80,9 +84,9 @@ class privilege_result {
   char const *host;
   privilege_result(privilege_status status)
       : status(status), user(nullptr), host(nullptr) {
-    DBUG_ASSERT(status != privilege_status::no_privilege &&
-                "privilege_result(status) can only be called if status != "
-                "no_privilege");
+    assert(status != privilege_status::no_privilege &&
+           "privilege_result(status) can only be called if status != "
+           "no_privilege");
   }
   privilege_result(char const *user, char const *host)
       : status(privilege_status::no_privilege), user(user), host(host) {}
@@ -134,6 +138,17 @@ privilege_result user_has_gr_admin_privilege();
  */
 void log_privilege_status_result(privilege_result const &privilege,
                                  char *message);
+/**
+ * Checks that `super_read_only` is disabled on the server.
+ *
+ * @returns std::pair<bool, std::string> where each element has the
+ *          following meaning:
+ *            first element of the pair is the function error value:
+ *              false  Successful
+ *              true   Error
+ *            second element of the pair is the error message.
+ */
+std::pair<bool, std::string> check_super_read_only_is_disabled();
 
 /**
  * Checks whether the server is ONLINE and belongs to the majority partition.
@@ -167,7 +182,7 @@ bool group_contains_recovering_member();
  *   3. It belongs to the group
  *
  * @param      uuid    the uuid string
- * @param      ulenght the length of the uuid string
+ * @param      ulength the length of the uuid string
  * @param[out] error_message the returned error message
  *
  * @retval true if uuid is not valid
@@ -225,5 +240,68 @@ bool check_locked_tables(char *message);
  */
 bool group_contains_member_older_than(
     Member_version const &min_required_version);
+/**
+ @class Charset_service
+
+ Class that acquire/release the udf_metadata_service from registry service.
+ It provides the APIs to set the character set of return value and arguments
+ of UDFs using the udf_metadata service.
+*/
+class Charset_service {
+ public:
+  /**
+    Acquires the udf_metadata_service from the registry  service.
+    @param[in]  reg_srv Registry service from which udf_metadata service
+                        will be acquired
+
+    @retval true if service could not be acquired
+    @retval false Otherwise
+  */
+  static bool init(SERVICE_TYPE(registry) * reg_srv);
+
+  /**
+    Release the udf_metadata service
+
+    @param[in]  reg_srv Registry service from which the udf_metadata
+                        service will be released.
+
+    @retval true if service could not be released
+    @retval false Otherwise
+  */
+  static bool deinit(SERVICE_TYPE(registry) * reg_srv);
+
+  /**
+    Set the specified character set of UDF return value
+
+    @param[in] initid  UDF_INIT structure
+    @param[in] charset_name Character set that has to be set.
+               The default charset is set to 'latin1'
+
+    @retval true Could not set the character set of return value
+    @retval false Otherwise
+  */
+  static bool set_return_value_charset(
+      UDF_INIT *initid, const std::string &charset_name = "latin1");
+  /**
+    Set the specified character set of all UDF arguments
+
+    @param[in] args UDF_ARGS structure
+    @param[in] charset_name Character set that has to be set.
+               The default charset is set to 'latin1'
+
+    @retval true Could not set the character set of any of the argument
+    @retval false Otherwise
+  */
+  static bool set_args_charset(UDF_ARGS *args,
+                               const std::string &charset_name = "latin1");
+
+ private:
+  /* Argument type to specify in the metadata service methods */
+  static const char *arg_type;
+  /* udf_metadata service name */
+  static const char *service_name;
+  /* Handle of udf_metadata_service */
+  static SERVICE_TYPE(mysql_udf_metadata) * udf_metadata_service;
+};
 
 #endif /* PLUGIN_GR_INCLUDE_UDF_UTILS_H */

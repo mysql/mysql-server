@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ class PT_derived_table;
 class PT_order_list;
 class PT_select_item_list;
 class PT_table_reference;
-class SELECT_LEX;
+class Query_block;
 class String;
 class THD;
 struct YYLTYPE;
@@ -42,7 +42,7 @@ namespace dd {
 namespace info_schema {
 
 /**
-  This class provide framework to build a SELECT_LEX using ParseTree
+  This class provide framework to build a Query_block using ParseTree
   nodes.
 
   Note that this class is designed to help build queries that are
@@ -54,7 +54,7 @@ namespace info_schema {
   This class is used by implementation of SHOW command in
   sql/dd/show.cc. The class enables code re-usability.
 
-  One can build SELECT_LEX that represents following,
+  One can build Query_block that represents following,
 
   ...
     SELECT star_select_item, select_item1, select_item2, ...
@@ -91,7 +91,9 @@ class Select_lex_builder {
 
   /**
     Add item representing a column as,
-    "SELECT <field_name> AS <alias>, ...".
+    @code
+    SELECT <field_name> AS <alias>, ...
+    @endcode
 
     The item will be appended to existing list of select items
     for this query.
@@ -116,7 +118,9 @@ class Select_lex_builder {
 
   /**
     Add item representing a FROM clause table as,
-    "SELECT ... FROM <schema_name>.<table_name> ...".
+    @code
+    SELECT ... FROM <schema_name>.<table_name> ...
+    @endcode
 
     Only single table can be added. We cannot build a query with
     JOIN clause for now.
@@ -130,7 +134,9 @@ class Select_lex_builder {
 
   /**
     Add item representing a FROM clause table as,
-    "SELECT ... FROM <sub query or derived table> ...".
+    @code
+    SELECT ... FROM <sub query or derived table> ...
+    @endcode
 
     Only single table can be added. We cannot build a query with
     JOIN clause for now.
@@ -143,8 +149,9 @@ class Select_lex_builder {
 
   /**
     Prepare item representing a LIKE condition,
-
-    "SELECT ... WHERE <field_name> LIKE <value%> ... "
+    @code
+    SELECT ... WHERE <field_name> LIKE <value%> ...
+    @endcode
 
     This item should be intern added to Select_lex_builder using
     add_condition() method.
@@ -157,8 +164,9 @@ class Select_lex_builder {
 
   /**
     Prepare item representing a equal to comparision condition,
-
-    "SELECT ... WHERE <field_name> = <value> ... "
+    @code
+    SELECT ... WHERE <field_name> = <value> ...
+    @endcode
 
     This item should be intern added to Select_lex_builder using
     add_condition() method.
@@ -172,8 +180,9 @@ class Select_lex_builder {
 
   /**
     Add a WHERE clause condition to Select_lex_builder.
-
-    "SELECT ... WHERE ... AND <condition> ... "
+    @code
+    SELECT ... WHERE ... AND <condition> ...
+    @endcode
 
     If there are existing conditions, then the new condition is
     append to the WHERE clause conditions with a 'AND' condition.
@@ -186,8 +195,9 @@ class Select_lex_builder {
 
   /**
     Add a ORDER BY clause field to Select_lex_builder.
-
-    "SELECT ... ORDER BY <field_name>, ... "
+    @code
+    SELECT ... ORDER BY <field_name>, ...
+    @endcode
 
     If there are existing ORDER BY field, then we append a new
     field to the ORDER BY clause. All the fields are added to be
@@ -202,10 +212,11 @@ class Select_lex_builder {
   /**
     This function build ParseTree node that represents this
     Select_lex_builder as sub-query. This enables us to build a
-    SELECT_LEX containing a sub-query in its FROM clause. This
+    Query_block containing a sub-query in its FROM clause. This
     sub-query is represented by ParseTree node PT_derived_table.
-
-    "SELECT ... FROM <PT_dervied_table>, ... "
+    @code
+    SELECT ... FROM <PT_dervied_table>, ...
+    @endcode
 
     @return pointer to PT_derived_table on success.
             nullptr on failure.
@@ -214,14 +225,14 @@ class Select_lex_builder {
   PT_derived_table *prepare_derived_table(const LEX_CSTRING &table_alias);
 
   /**
-    Prepare a SELECT_LEX using all the information information
+    Prepare a Query_block using all the information information
     added to this Select_lex_builder.
 
-    @return pointer to SELECT_LEX* on success.
+    @return pointer to Query_block* on success.
             nullptr on failure.
   */
 
-  SELECT_LEX *prepare_select_lex();
+  Query_block *prepare_query_block();
 
  private:
   /**

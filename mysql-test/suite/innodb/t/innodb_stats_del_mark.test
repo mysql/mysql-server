@@ -3,6 +3,7 @@
 --echo #		TRANSACTION IS COMMITTED
 --echo #
 
+--source include/not_hypergraph.inc # Uses traditional EXPLAIN to fetch and assign row count to a variable
 --source include/big_test.inc
 --source include/not_valgrind.inc
 

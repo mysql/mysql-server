@@ -1,0 +1,80 @@
+# ==== Purpose ====
+#
+# This test checks the connection drop doesn't happen while replicating every
+# event when using semi-sync plugin with replica_compressed_protocol.
+#
+# ==== Requirements ====
+#
+# R1: While running with semi-sync and compressed protocol there should not be
+#     any error related to connection drop in source's error log.
+#
+# ==== Implementation ====
+#
+# 1. Setup semi-sync replication on source and replica.
+# 2. Execute insert transactions.
+# 3. Assert that we don't hit any error.
+# 4. Cleanup.
+#
+# ==== References ====
+#
+# Bug#32759421: SEMI SYNC CONNECTION IS OFTEN DROPPED WHEN USING COMPRESSED PROTOCOL
+
+--source include/not_group_replication_plugin.inc
+--source include/have_semisync_plugin.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_debug.inc
+
+--source include/save_error_log_position.inc
+--source include/master-slave.inc
+
+--echo ==== 1. Setup semi-sync replication on source and replica ====
+
+--replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_SOURCE_PLUGIN
+--eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN'
+SET GLOBAL rpl_semi_sync_source_enabled = 1;
+SET GLOBAL rpl_semi_sync_source_timeout = 10000;
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_result $SEMISYNC_REPLICA_PLUGIN SEMISYNC_REPLICA_PLUGIN
+eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
+SET GLOBAL rpl_semi_sync_replica_enabled = 1;
+
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(id int, number int);
+CREATE TABLE t2 like t1;
+
+--echo ==== 2. Execute insert transactions ====
+
+INSERT INTO t1 values (1, 2);
+INSERT INTO t2 values (2, 1);
+
+--echo ==== 3. Assert that we don't hit any error ====
+
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+
+--echo ==== 4. Cleanup ====
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP DATABASE db1;
+
+CALL mtr.add_suppression("Got an error reading communication packets*");
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+SET GLOBAL rpl_semi_sync_replica_enabled = OFF;
+--source include/start_slave.inc
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+
+--source include/rpl_connection_master.inc
+SET GLOBAL rpl_semi_sync_source_enabled = OFF;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+
+--source include/rpl_connection_slave.inc
+
+--source include/rpl_end.inc

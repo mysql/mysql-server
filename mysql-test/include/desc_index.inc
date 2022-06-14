@@ -19,6 +19,7 @@ analyze table t1;
 --echo # Should use index
 --replace_column 10 # 11 #
 explain select * from t1 order by a desc;
+--partially_sorted_result 1   # The hypergraph optimizer doesn't use the index.
 select * from t1 order by a desc;
 
 --replace_column 10 # 11 #
@@ -55,10 +56,12 @@ explain select * from t1 group by a, b order by a;
 
 --replace_column 10 # 11 #
 explain select distinct a from t1;
+--sorted_result  # The hypergraph optimizer does not use indexes for DISTINCT yet.
 select distinct a from t1;
 
 --replace_column 10 # 11 #
 explain select a from t1 group by a;
+--sorted_result   # The hypergraph optimizer doesn't use the index.
 select a from t1 group by a;
 
 --echo # Should use index backward
@@ -86,6 +89,7 @@ show create table t1;
 
 eval create table t2 (a int auto_increment, primary key (a desc)) engine= $engine;
 show create table t2;
+--sorted_result  # Warnings come in different order with --hypergraph.
 insert ignore into t2 select a from t1;
 select * from t2;
 
@@ -138,6 +142,7 @@ let query1=
   WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 
 eval EXPLAIN $query1;
+--partially_sorted_result 1
 eval $query1; 
 
 let query1=
@@ -146,6 +151,7 @@ SELECT * FROM t1
   ORDER BY i1 DESC;
 
 eval EXPLAIN $query1;
+--sorted_result
 eval $query1; 
 
 let query1=
@@ -154,22 +160,28 @@ SELECT * FROM t1
   ORDER BY i1 DESC;
 
 eval EXPLAIN $query1;
+--sorted_result
 eval $query1; 
 
 EXPLAIN SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+--partially_sorted_result 1
 SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 EXPLAIN SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+--partially_sorted_result 1
 SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 
 eval EXPLAIN $query1;
+--partially_sorted_result 1
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE i1 BETWEEN 50 AND 52 AND i2 BETWEEN 495 AND 515 ORDER BY i1, i2 DESC;
@@ -177,6 +189,7 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
@@ -187,10 +200,12 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3 DESC);
+ANALYZE TABLE t1;
 eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+ANALYZE TABLE t1;
 let $query1=
   SELECT * FROM t1   WHERE 
     ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
@@ -201,10 +216,12 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+ANALYZE TABLE t1;
 eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE ( (i1=50 AND i2=495 and i3=4) OR i1 BETWEEN 70 AND 72) AND
@@ -218,6 +235,7 @@ ALTER TABLE t1 ADD COLUMN (i4 INTEGER NOT NULL);
 UPDATE t1 SET i4=i3;
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3 DESC, i4);
+ANALYZE TABLE t1;
 let $query1=
   SELECT * FROM t1   WHERE
     ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
@@ -250,14 +268,18 @@ create table t1 (a int not null, b int, c varchar(10),
 insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
 insert into t1 values (0, NULL, NULL), (0, NULL, 'b'), (0, 0, NULL), (0, 0, 'b'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'c'),(0,0,'b');
 
+ANALYZE TABLE t1;
 explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 flush status;
+--partially_sorted_result 2
 select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 drop table t1;
 
 create table t1 (a1 int, a2 char(3), key k1(a1 desc));
 insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
+ANALYZE TABLE t1;
 --echo # Shouldn't optimize tables away on DESC index
 --replace_column 10 # 11 # 
 explain select min(a1) from t1;
@@ -394,6 +416,8 @@ INSERT INTO dd VALUES
 ('4'),
 ('5');
 
+ANALYZE TABLE dd;
+
 SET SESSION DEBUG="+d,force_lis_for_group_by";
 
 EXPLAIN SELECT DISTINCT INNR1 . col_varchar_key AS y FROM dd AS INNR1 force index for group by (col_varchar_key) WHERE INNR1 . col_varchar_key < INNR1 . col_varchar_key;
@@ -420,6 +444,7 @@ INSERT INTO ee VALUES
 (NULL,NULL,1), (NULL,NULL,2), (NULL,286720000,3), (NULL,1,4),
 (2084831232,8,5), (NULL,0,6), (4,763953152,7), (5,NULL,8), (7,9,9);
 
+--sorted_result
 SELECT DISTINCT alias1 . col_int_key AS field1 , alias1 . col_int AS field2
 FROM ee AS alias1 JOIN ee AS alias2 ON  alias1 . pk =  alias2 . col_int_key
 WHERE ( alias1 . pk  BETWEEN 8 AND ( 8 + 4 ) AND alias2 . pk <> 2 );
@@ -579,6 +604,7 @@ INSERT INTO t2 VALUES
 (12,5,'qukkoeiws'),
 (13,9,'ukko'),
 (14,3,'kkoeiwsgp');
+ANALYZE TABLE t1, t2;
 
 let $query= SELECT t1.pk, t2.col_int_key, 
            t1.col_varchar_key, t2.col_varchar_key
@@ -587,6 +613,7 @@ let $query= SELECT t1.pk, t2.col_int_key,
 
 --replace_column 10 # 11 #
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query= SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
@@ -596,6 +623,7 @@ let $query= SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
 
 --replace_column 10 # 11 #
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1,t2;
@@ -696,6 +724,7 @@ INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4);
+ANALYZE TABLE t1;
 
 SELECT
 t1 . pk AS field1,
@@ -728,6 +757,7 @@ INSERT INTO t1 VALUES (25,9), (24,1), (23,-74383360), (22,-855900160),
 (15,1808465920), (14,NULL), (13,588644352), (12,3), (11,6), (10,NULL),
 (9,NULL), (8,8), (7,NULL), (6,NULL), (5,-1018232832), (4,5), (3,NULL),
 (2,NULL), (1,NULL);
+ANALYZE TABLE t1;
 
 SELECT DISTINCT
 t1 . pk AS field1
@@ -820,6 +850,7 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1(pk, col_int, col_int_key) VALUES (4,3,6), (5,4,8), (6,2,4);
+ANALYZE TABLE t1, t2;
 
 SELECT STRAIGHT_JOIN
 t1 . col_int_key AS field1 ,
@@ -878,12 +909,18 @@ ANALYZE TABLE t1;
 let $query=SELECT * FROM t1 WHERE pk IN (6,2)
                                OR (col_int_key >= 7 AND col_int_key < 13);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 ALTER TABLE t1 ADD INDEX key1 (pk);
 ALTER TABLE t1 ADD INDEX key2 (col_int_key);
 
+ANALYZE TABLE t1;
+
+let $query=SELECT * FROM t1 FORCE INDEX (key1,col_int_key) WHERE pk IN (6,2)
+                               OR (col_int_key >= 7 AND col_int_key < 13);
 eval EXPLAIN $query;
+--sorted_result  # The hypergraph optimizer doesn't support FORCE INDEX.
 eval $query;
 
 DROP TABLE t1;
@@ -917,6 +954,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
 SET @g:='1';
+--error ER_TRUNCATED_WRONG_VALUE
 DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
 DROP TABLE t1;
 

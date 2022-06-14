@@ -1,8 +1,7 @@
 # -*- cperl -*-
 
-# Copyright (c) 2007 MySQL AB
-# Use is subject to license terms.
-# 
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -24,14 +23,22 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 use strict;
+use warnings 'FATAL';
+use lib "lib";
+
 use FindBin;
 use IO::File;
 
 use Test::More qw(no_plan);
-use_ok ("My::SafeProcess");
+BEGIN { use_ok ("My::SafeProcess");}
 
 
 my $perl_path= $^X;
+
+my $bindir= $ENV{MYSQL_BIN_PATH} || ".";
+my $client_bindir = $ENV{MYSQL_CLIENT_BIN_PATH};
+
+My::SafeProcess::find_bin($bindir, $client_bindir);
 
 {
   # Test exit codes
@@ -53,7 +60,6 @@ my $perl_path= $^X;
   }
   ok($count == $ok_count, "check exit_status, $ok_count");
 }
-
 
 {
   # spawn a number of concurrent processes
@@ -100,10 +106,12 @@ my $perl_path= $^X;
 
   my $fh= IO::File->new("$dir/output.txt");
   my @text= <$fh>;
-  ok(grep(/Hello stdout/, @text), "check stdout");
+  $fh->close();
+  ok(scalar grep(/Hello stdout/, @text) == 1, "check stdout");
   $fh= IO::File->new("$dir/error.txt");
-  my @text= <$fh>;
-  ok(grep(/Hello stderr/, @text), "check stderr");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stderr/, @text) == 1, "check stderr");
 
   # To same file
   $proc= My::SafeProcess->new
@@ -112,14 +120,119 @@ my $perl_path= $^X;
      args          => \$args,
      output        => "$dir/output.txt",
      error         => "$dir/output.txt",
-     debug         => 1,
     );
 
   $proc->wait_one(2); # Wait max 2 seconds for the process to finish
 
-  my $fh= IO::File->new("$dir/output.txt");
-  my @text= <$fh>;
-  ok((grep(/Hello stdout/, @text) and grep(/Hello stderr/, @text)),
-     "check stdout and stderr");
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/, @text) == 1, "check stdout");
+  ok(scalar grep(/Hello stderr/, @text) == 1, "check stderr");
+
+  # To same file, but append data
+  $proc= My::SafeProcess->new
+    (
+     path          => $perl_path,
+     args          => \$args,
+     output        => "$dir/output.txt",
+     error         => "$dir/output.txt",
+     append        => 1,
+    );
+
+  $proc->wait_one(2); # Wait max 2 seconds for the process to finish
+
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/g, @text) == 2, "check stdout");
+  ok(scalar grep(/Hello stderr/g, @text) == 2, "check stderr");
+
+  # To same file, but overwrite data
+  $proc= My::SafeProcess->new
+    (
+     path          => $perl_path,
+     args          => \$args,
+     output        => "$dir/output.txt",
+     error         => "$dir/output.txt",
+    );
+
+  $proc->wait_one(2); # Wait max 2 seconds for the process to finish
+
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/, @text) == 1, "check stdout");
+  ok(scalar grep(/Hello stderr/, @text) == 1, "check stderr");
+
+  # Don't redirect stdout, but only stderr to append
+  $proc= My::SafeProcess->new
+    (
+     path          => $perl_path,
+     args          => \$args,
+     error         => "$dir/output.txt",
+     append        => 1,
+    );
+
+  $proc->wait_one(2); # Wait max 2 seconds for the process to finish
+
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/g, @text) == 1, "check stdout");
+  ok(scalar grep(/Hello stderr/g, @text) == 2, "check stderr");
+
+  # Don't redirect stderr, but only stdout to append
+  $proc= My::SafeProcess->new
+    (
+     path          => $perl_path,
+     args          => \$args,
+     output        => "$dir/output.txt",
+     append        => 1,
+    );
+
+  $proc->wait_one(2); # Wait max 2 seconds for the process to finish
+
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/g, @text) == 2, "check stdout");
+  ok(scalar grep(/Hello stderr/g, @text) == 2, "check stderr");
+
+  # Redirect stderr to /dev/null, but stdout to appended file
+  $proc= My::SafeProcess->new
+    (
+     path          => $perl_path,
+     args          => \$args,
+     output        => "/dev/null",
+     error         => "$dir/output.txt",
+     append        => 1,
+    );
+
+  $proc->wait_one(2); # Wait max 2 seconds for the process to finish
+
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/g, @text) == 2, "check stdout");
+  ok(scalar grep(/Hello stderr/g, @text) == 3, "check stderr");
+
+  # Redirect stdout to /dev/null, but stderr to appended file
+  $proc= My::SafeProcess->new
+    (
+     path          => $perl_path,
+     args          => \$args,
+     output        => "$dir/output.txt",
+     error         => "/dev/null",
+     append        => 1,
+    );
+
+  $proc->wait_one(2); # Wait max 2 seconds for the process to finish
+
+  $fh= IO::File->new("$dir/output.txt");
+  @text= <$fh>;
+  $fh->close();
+  ok(scalar grep(/Hello stdout/g, @text) == 3, "check stdout");
+  ok(scalar grep(/Hello stderr/g, @text) == 3, "check stderr");
 
 }

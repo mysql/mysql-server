@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,25 +28,25 @@
 
 class NdbBlobImpl {
 public:
-  STATIC_CONST( BlobTableNameSize = 40 );
+  static constexpr Uint32 BlobTableNameSize = 40;
   // "Invalid blob attributes or invalid blob parts table"
-  STATIC_CONST( ErrTable = 4263 );
+  static constexpr Uint32 ErrTable = 4263;
   // "Invalid usage of blob attribute" 
-  STATIC_CONST( ErrUsage = 4264 );
+  static constexpr Uint32 ErrUsage = 4264;
   // "The blob method is not valid in current blob state"
-  STATIC_CONST( ErrState = 4265 );
+  static constexpr Uint32 ErrState = 4265;
   // "Invalid blob seek position"
-  STATIC_CONST( ErrSeek = 4266 );
+  static constexpr Uint32 ErrSeek = 4266;
   // "Corrupted blob value"
-  STATIC_CONST( ErrCorrupt = 4267 );
+  static constexpr Uint32 ErrCorrupt = 4267;
   // "Error in blob head update forced rollback of transaction"
-  STATIC_CONST( ErrAbort = 4268 );
+  static constexpr Uint32 ErrAbort = 4268;
   // "Unknown blob error"
-  STATIC_CONST( ErrUnknown = 4270 );
+  static constexpr Uint32 ErrUnknown = 4270;
   // "Corrupted main table PK in blob operation"
-  STATIC_CONST( ErrCorruptPK = 4274 );
+  static constexpr Uint32 ErrCorruptPK = 4274;
   // "The blob method is incompatible with operation type or lock mode"
-  STATIC_CONST( ErrCompat = 4275 );
+  static constexpr Uint32 ErrCompat = 4275;
 };
 
 #endif

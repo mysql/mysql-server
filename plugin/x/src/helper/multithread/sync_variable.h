@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define PLUGIN_X_SRC_HELPER_MULTITHREAD_SYNC_VARIABLE_H_
 
 #include <algorithm>
+#include <atomic>
 #include <iterator>
 
 #include "plugin/x/src/helper/multithread/synchronize.h"
@@ -40,16 +41,10 @@ class Sync_variable {
       : m_value(value), m_sync(mutex_key, cond_key) {}
 
   bool is(const Variable_type value_to_check) const {
-    auto sync = m_sync.block();
-
-    return value_to_check == m_value;
+    return value_to_check == m_value.load();
   }
 
-  const Variable_type get() const {
-    auto sync = m_sync.block();
-
-    return m_value;
-  }
+  const Variable_type get() const { return m_value.load(); }
 
   template <std::size_t NUM_OF_ELEMENTS>
   bool is(const Variable_type (&expected_value)[NUM_OF_ELEMENTS]) const {
@@ -58,7 +53,7 @@ class Sync_variable {
     const Variable_type *begin_element = expected_value;
     const Variable_type *end_element = expected_value + NUM_OF_ELEMENTS;
 
-    return find(begin_element, end_element, m_value);
+    return end_element != std::find(begin_element, end_element, m_value);
   }
 
   bool exchange(const Variable_type expected_value,
@@ -141,7 +136,7 @@ class Sync_variable {
     return m_value;
   }
 
-  Variable_type m_value;
+  std::atomic<Variable_type> m_value;
   mutable Synchronize m_sync;
 };
 

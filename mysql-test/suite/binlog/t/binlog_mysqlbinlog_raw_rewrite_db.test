@@ -1,0 +1,57 @@
+--source include/have_binlog_format_row.inc
+
+#
+# BUG#30578764: MYSQLBINLOG DOESN'T WORK PROPERLY FOR COMPRESS TRANS WITH REWRITE-DB, RAW OPTION
+#
+# This test creates a database, creates a table in that databse and
+# populates the table. Then it launches mysqlbinlog with --raw that
+# will copy the binary logs and rewrite the database name as it
+# stores them on disk. For compressed events it will do it as well.
+#
+# Then it reapplies the changes on disk against the server again.
+#
+# If this success the test case ends with success.
+#
+
+--let $from_db = db1
+--let $to_db = db2222222222222222
+--let $random_string = `SELECT UUID()`
+--let $output_dir = $MYSQLTEST_VARDIR/tmp/
+--let $mysqlbinlog_file = $output_dir/mysqlbinlog_output.sql
+
+--eval CREATE DATABASE $from_db
+--eval USE $from_db
+RESET MASTER;
+
+--let $binlog = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = $output_dir/$binlog
+
+CREATE TABLE t1 (i LONGTEXT);
+
+--let $i = 100
+BEGIN;
+while($i) {
+  --replace_result $random_string RANDOM_STRING
+  --eval INSERT INTO t1 VALUES(REPEAT("$random_string", 100))
+  --dec $i
+}
+COMMIT;
+
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --raw --rewrite-db="$from_db->$to_db" $binlog --result-file=$output_dir
+--exec $MYSQL_BINLOG $binlog_file > $mysqlbinlog_file
+
+--eval CREATE DATABASE $to_db
+
+RESET MASTER;
+--exec $MYSQL --local-infile=1 < $mysqlbinlog_file
+
+--remove_file $binlog_file
+--remove_file $mysqlbinlog_file
+
+--let $diff_tables=$from_db.t1,$to_db.t1
+--source include/diff_tables.inc
+
+--eval DROP DATABASE $from_db
+--eval DROP DATABASE $to_db
+
+RESET MASTER;

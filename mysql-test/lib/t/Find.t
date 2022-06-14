@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,34 +23,26 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 use Test::More qw(no_plan);
+use warnings 'FATAL';
 use strict;
+use lib "lib";
 
-use_ok ("My::Find");
-my $basedir= "../..";
-
+BEGIN { use_ok ("My::Find");}
+my $bindir= $ENV{MYSQL_BIN_PATH} || ".";
+my $mtrdir = $ENV{MYSQL_BASEDIR} || ".";
+my $client_bindir = $ENV{MYSQL_CLIENT_BIN_PATH};
 print "=" x 40, "\n";
-my $mysqld_exe= my_find_bin($basedir,
-			    ["sql", "bin"],
+my $mysqld_exe= my_find_bin($bindir,
+			    [ "runtime_output_directory", "libexec", "sbin", "bin" ],
                             ["mysqld", "mysqld-debug"]);
-print "mysqld_exe: $mysqld_exe\n";
+print "mysqld_exe found\n";
 print "=" x 40, "\n";
-my $mysql_exe= my_find_bin($basedir,
-			   ["client", "bin"],
-                           "mysql");
-print "mysql_exe: $mysql_exe\n";
+my $mysql_exe= my_find_bin($client_bindir, [ "" ], "mysql");
+print "mysql_exe found\n";
 print "=" x 40, "\n";
 
-my $mtr_build_dir= $ENV{MTR_BUILD_DIR};
-$ENV{MTR_BUILD_DIR}= "debug";
-my $mysql_exe= my_find_bin($basedir,
-			   ["client", "bin"],
-                           "mysql");
-print "mysql_exe: $mysql_exe\n";
-$ENV{MTR_BUILD_DIR}= $mtr_build_dir;
-print "=" x 40, "\n";
-
-my $charset_dir= my_find_dir($basedir,
-			     ["share/mysql", "share"],
+my $charset_dir= my_find_dir($mtrdir,
+			    [ "share/mysql-*.*", "share/mysql", "share" ],
 			     "charsets");
-print "charset_dir: $charset_dir\n";
+print "charset_dir found\n";
 print "=" x 40, "\n";

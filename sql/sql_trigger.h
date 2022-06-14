@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,20 +75,6 @@ bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
                            bool continue_if_not_exist, TABLE_LIST **table);
 
 /**
-  Drop all triggers for table.
-
-  @param thd        current thread context
-  @param db_name    name of the table schema
-  @param table_name table name
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-
-bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name);
-
-/**
   Check for table with triggers that old database name and new database name
   are the same. This functions is called while handling the statement
   RENAME TABLE to ensure that table moved within the same database.
@@ -110,32 +96,6 @@ bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name);
 bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
                                                      const dd::Table &table,
                                                      const char *new_db_name);
-
-/**
-  Reload triggers from DD for specified table.
-
-  @param[in] thd            Thread context
-  @param[in] db_name        Current database of subject table
-  @param[in] table_alias    Current alias of subject table
-  @param[in] table_name     Current name of subject table
-  @param[in] new_db_name    New database for subject table
-  @param[in] new_table_name New name of subject table
-
-  @note
-    This method assumes that subject table is not renamed to itself.
-
-  @note
-    This method needs to be called under an exclusive table metadata lock.
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-
-bool reload_triggers_for_table(THD *thd, const char *db_name,
-                               const char *table_alias, const char *table_name,
-                               const char *new_db_name,
-                               const char *new_table_name);
 
 /**
   Acquire either exclusive or shared MDL lock for a trigger
@@ -166,11 +126,8 @@ bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,
     @retval true  Failure
 */
 
-inline bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
-                                              const char *trg_name) {
-  return acquire_mdl_for_trigger(thd, db, trg_name, MDL_EXCLUSIVE);
-}
-
+bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
+                                       const char *trg_name);
 /**
   Acquire shared MDL lock for a trigger in specified schema.
 
@@ -233,7 +190,7 @@ class Sql_cmd_ddl_trigger_common : public Sql_cmd {
 
   void restore_original_mdl_state(THD *thd, MDL_ticket *mdl_ticket) const;
 
-  TABLE_LIST *m_trigger_table;
+  TABLE_LIST *m_trigger_table{nullptr};
 };
 
 /**
@@ -246,11 +203,11 @@ class Sql_cmd_create_trigger : public Sql_cmd_ddl_trigger_common {
     Return the command code for CREATE TRIGGER
   */
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const final {
     return SQLCOM_CREATE_TRIGGER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) final;
 };
 
 /**
@@ -263,11 +220,11 @@ class Sql_cmd_drop_trigger : public Sql_cmd_ddl_trigger_common {
     Return the command code for DROP TRIGGER
   */
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const final {
     return SQLCOM_DROP_TRIGGER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) final;
 };
 
 #endif /* SQL_TRIGGER_INCLUDED */

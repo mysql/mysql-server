@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 
 #include <event2/http.h>  // evhttp_uridecode
 
+#include "mysql/harness/stdx/io/file_handle.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_server_component.h"
 
@@ -76,9 +77,8 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   std::string file_path{static_basedir_};
 
   file_path += "/";
-  std::unique_ptr<char, decltype(&free)> unescaped{
-      evhttp_uridecode(parsed_uri.get_path().c_str(), 1, nullptr), &free};
-  file_path += http_uri_path_canonicalize(unescaped.get());
+  const auto unescaped = HttpUri::decode(parsed_uri.get_path(), 1);
+  file_path += http_uri_path_canonicalize(unescaped);
 
   auto out_hdrs = req.get_output_headers();
 
@@ -114,10 +114,10 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
     }
   }
 
-  int file_fd = open(file_path.c_str(), O_RDONLY);
-
-  if (file_fd < 0) {
-    if (errno == ENOENT) {
+  auto res = stdx::io::file_handle::file({}, file_path);
+  if (!res) {
+    if (res.error() ==
+        make_error_condition(std::errc::no_such_file_or_directory)) {
       // stat() succeeded, but open() failed.
       //
       // either a race or apparmor
@@ -131,8 +131,8 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
       return;
     }
   } else {
+    auto fh = std::move(res.value());
     if (!req.is_modified_since(st.st_mtime)) {
-      close(file_fd);
       req.send_error(HttpStatusCode::NotModified);
       return;
     }
@@ -150,10 +150,10 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
       // if (st.st_size > 64 * 1024) {
       //    evbuffer_set_flags(chunk, EVBUFFER_FLAG_DRAINS_TO_FD);
       // }
-      chunk.add_file(file_fd, 0, st.st_size);
+      chunk.add_file(fh.release(), 0, st.st_size);
       // file_fd is owned by evbuffer_add_file(), don't close it
     } else {
-      close(file_fd);
+      fh.close();
     }
 
     // file exists

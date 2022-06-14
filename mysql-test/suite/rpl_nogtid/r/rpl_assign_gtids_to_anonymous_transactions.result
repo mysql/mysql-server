@@ -1,0 +1,111 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology");
+CALL mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
+CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF");
+TC1. Test with assign_gtids_to_anonymous_transactions = OFF.
+[connection slave]
+include/rpl_set_gtid_mode.inc [ON on servers 2]
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_io_error.inc [errno=13117]
+Last_IO_Error = 'The replication receiver thread cannot start because the master has GTID_MODE = OFF and this server has GTID_MODE = ON.'
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/rpl_set_gtid_mode.inc [OFF on servers 2]
+include/start_slave.inc
+[connection master]
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(10);
+include/save_binlog_position.inc
+include/sync_slave_sql_with_master.inc
+include/gtid_step_assert.inc [count=0, only_count=0]
+include/stop_slave.inc
+
+TC2. Test with assign_gtids_to_anonymous_transactions = LOCAL
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+ERROR HY000: CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> cannot be executed because @@GLOBAL.GTID_MODE <> ON.
+include/rpl_set_gtid_mode.inc [ON on servers 2]
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+include/assert.inc [A warning will be generated stating the limitation of ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS option]
+include/rpl_restart_server.inc [server_number=2 gtids=off]
+include/assert_grep.inc [When assign_gtids_to_anonymous_transactions is set to LOCAL|UUID attempt to restart the slave with gtid-mode= off to get ER_SLAVE_RENAME_TXN_IS_LOCAL_OR_UUID_AND_GTID_MODE_OFF]
+START SLAVE;
+ERROR HY000: Replication cannot start for channel '' with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> as this server uses @@GLOBAL.GTID_MODE <> ON.
+include/rpl_set_gtid_mode.inc [ON on servers 2]
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO  SOURCE_AUTO_POSITION = 1;
+ERROR HY000: The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and MASTER_AUTO_POSITION = 1 cannot be used together.
+include/start_slave.inc
+[connection master]
+INSERT INTO t VALUES(10);
+INSERT INTO t VALUES(10);
+include/save_binlog_position.inc
+include/sync_slave_sql_with_master.inc
+include/gtid_step_assert.inc [count=2, only_count=0]
+include/stop_slave.inc
+SET GLOBAL GTID_MODE=ON_PERMISSIVE;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because replication channel '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS set to LOCAL or to a UUID. Execute CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = 'ON_PERMISSIVE'.
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 1;
+ERROR HY000: The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and MASTER_AUTO_POSITION = 1 cannot be used together.
+include/start_slave_io.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+include/start_slave_sql.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+include/stop_slave.inc
+SET GLOBAL sql_replica_skip_counter = 1;
+Warnings:
+Warning	4016	The value of sql_replica_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
+include/assert.inc [A warning will be generated stating "The value of sql_replica_skip_counter will only take effect for channels running with"]
+[connection master]
+INSERT INTO t VALUES(12);
+include/save_binlog_position.inc
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/gtid_step_assert.inc [count=0, only_count=0]
+include/stop_slave.inc
+START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
+ERROR HY000: The SQL_AFTER_GTIDS or SQL_BEFORE_GTIDS clauses for START REPLICA cannot be used when the replication channel is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>.
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('server_uuid:1-2');
+ERROR HY000: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS cannot be used on a channel configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>
+TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;
+ERROR HY000: Incorrect UUID value: 'aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+include/start_slave.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/gtid_step_assert.inc [count=1, only_count=0]
+TC4. Test with assign_gtids_to_anonymous_transactions = ON & @@global.server_uuid
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ON' at line 1
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "server_uuid";
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+include/start_slave.inc
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+# Cleanup
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+include/rpl_set_gtid_mode.inc [OFF on servers 2]
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.

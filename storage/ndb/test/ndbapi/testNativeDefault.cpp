@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,8 +126,8 @@ create_table()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(TRUE);
+    col.setNullable(false);
+    col.setAutoIncrement(true);
     col.setDefaultValue(NULL);
     tab.addColumn(col);
   }
@@ -175,7 +175,7 @@ create_table()
     NdbDictionary::Column col("C6");
     col.setType(NdbDictionary::Column::Char);
     col.setLength(12);
-    col.setNullable(TRUE);
+    col.setNullable(true);
     col.setDefaultValue(tab1_c6_default, tab1_c6_default_siglen);
     tab.addColumn(col);
   }
@@ -193,8 +193,8 @@ create_table()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(FALSE);
+    col.setNullable(false);
+    col.setAutoIncrement(false);
     col.setDefaultValue(NULL, 0);
     tab2.addColumn(col);
   }
@@ -216,8 +216,8 @@ create_table()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(FALSE);
+    col.setNullable(false);
+    col.setAutoIncrement(false);
     col.setDefaultValue(NULL, 0);
     tab3.addColumn(col);
   }
@@ -225,7 +225,7 @@ create_table()
   //For column without supplying a value for a not-null, non-defaulted column
   { NdbDictionary::Column col("C1");
     col.setType(NdbDictionary::Column::Unsigned);
-    col.setNullable(FALSE);
+    col.setNullable(false);
     col.setDefaultValue(NULL, 0);
     tab3.addColumn(col);
   }
@@ -285,7 +285,7 @@ create_table_error()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
+    col.setNullable(false);
     col.setDefaultValue(NULL);
     tab1.addColumn(col);
   }
@@ -313,8 +313,8 @@ create_table_error()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(TRUE);
+    col.setNullable(false);
+    col.setAutoIncrement(true);
     col.setDefaultValue(NULL);
     tab2.addColumn(col);
   }
@@ -346,8 +346,8 @@ create_table_error()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(TRUE);
+    col.setNullable(false);
+    col.setAutoIncrement(true);
     col.setDefaultValue(NULL);
     tab3.addColumn(col);
   }
@@ -384,8 +384,8 @@ create_table_error()
     unsigned int default_val=22;
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(TRUE);
+    col.setNullable(false);
+    col.setAutoIncrement(true);
     col.setDefaultValue(&default_val, sizeof(default_val));
     tab4.addColumn(col);
   }
@@ -412,8 +412,8 @@ create_table_error()
   { NdbDictionary::Column col("PK");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
-    col.setNullable(FALSE);
-    col.setAutoIncrement(TRUE);
+    col.setNullable(false);
+    col.setAutoIncrement(true);
     col.setDefaultValue(NULL);
     tab5.addColumn(col);
   }

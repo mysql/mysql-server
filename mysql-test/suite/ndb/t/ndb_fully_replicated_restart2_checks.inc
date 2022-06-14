@@ -1,12 +1,14 @@
 --echo Check row count
-select @row_count:=count(1) from test.t1;
+select count(1) from test.t1 into @row_count;
+select @row_count;
+
 
 --echo Check Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
 select floor(@row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where fq_name='test/def/t1';
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 --let $d=query_get_value(select @diff as d, d, 1)
 
@@ -22,12 +24,11 @@ if ($d)
 
 
 --echo Check UI physical row count against expected
-select floor(@row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
-
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
+select floor(@row_count * @prpr) as expected_phys_rows,
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 #--echo Show actual fragments
 #select * from ndbinfo.memory_per_fragment 
@@ -53,7 +54,8 @@ select floor(@row_count * @prpr) as expected_phys_rows,
 delete from test.t1 limit 512;
 
 --echo Show new logical row count
-select @new_row_count:=count(1) from test.t1;
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
 
 #--echo Show fragment balance
 #select avg(fixed_elem_count), 
@@ -64,11 +66,11 @@ select @new_row_count:=count(1) from test.t1;
 # where fq_name='test/def/t1';
 
 --echo Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 --let $d=query_get_value(select @diff as d, d, 1)
 
@@ -84,12 +86,11 @@ if ($d)
 
 
 --echo Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
-
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+       @sum as actual_phys_rows,
+       @diff as diff;
 --disable_query_log
 --disable_result_log
 select @m:=max(a) from test.t1;
@@ -100,14 +101,15 @@ insert into test.t1 select a+@m, b+@m, c+@m, d+@m  from test.t1 limit 800;
 --enable_result_log
 
 --echo Show new logical row count
-select @new_row_count:=count(1) from test.t1;
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
 
 --echo Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 --let $d=query_get_value(select @diff as d, d, 1)
 
@@ -123,12 +125,11 @@ if ($d)
 
 
 --echo Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
-
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 --echo Show read-locality at all data nodes
 

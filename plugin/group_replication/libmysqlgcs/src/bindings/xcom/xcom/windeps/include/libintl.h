@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 */
 
 #ifndef _LIBINTL_H
-#define _LIBINTL_H	1
+#define _LIBINTL_H 1
 
 /* This is a placeholder to make SUN RPC compile */
 
@@ -34,8 +34,8 @@
 #include <winsock2.h>
 #endif
 
-#include <stdlib.h>
 #include <malloc.h>
+#include <stdlib.h>
 
 /* Need interantionallizaton */
 #include "win_i18n.h"
@@ -43,4 +43,3 @@
 #define __fxprintf(n, p, f, s) printf(p, f, s)
 
 #endif /* _LIBINTL_H */
-

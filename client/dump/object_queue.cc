@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ void Object_queue::add_ready_items_to_queue(
 
 void Object_queue::task_availability_callback(
     const Abstract_dump_task *available_task) {
-  my_boost::mutex::scoped_lock lock(m_queue_mutex);
+  std::lock_guard<std::mutex> lock(m_queue_mutex);
 
   std::map<const I_dump_task *, std::vector<Item_processing_data *> *>::iterator
       it = m_tasks_map.find(available_task);
@@ -63,16 +63,16 @@ void Object_queue::queue_thread() {
 
     if (m_is_queue_running.load() == false) break;
 
-    Item_processing_data *item_to_process = NULL;
+    Item_processing_data *item_to_process = nullptr;
     {
-      my_boost::mutex::scoped_lock lock(m_queue_mutex);
+      std::lock_guard<std::mutex> lock(m_queue_mutex);
       if (m_items_ready_for_processing.size() > 0) {
         item_to_process = m_items_ready_for_processing.front();
         m_items_ready_for_processing.pop();
       }
     }
 
-    if (item_to_process != NULL) {
+    if (item_to_process != nullptr) {
       this->format_object(item_to_process);
       this->object_processing_ends(item_to_process);
     }
@@ -96,13 +96,13 @@ void Object_queue::read_object(Item_processing_data *item_to_process) {
   Abstract_dump_task *dump_task = dynamic_cast<Abstract_dump_task *>(
       item_to_process->get_process_task_object());
 
-  if (dump_task == NULL) {
+  if (dump_task == nullptr) {
     (*this->get_message_handler())(Mysql::Tools::Base::Message_data(
         0, "Not supported operation called.",
         Mysql::Tools::Base::Message_type_error));
   }
 
-  my_boost::mutex::scoped_lock lock(m_queue_mutex);
+  std::lock_guard<std::mutex> lock(m_queue_mutex);
   /*
     Check if all dependencies are already met, if so, we can directly add
     this processing item to queue. If no, we will create completion callback
@@ -142,13 +142,19 @@ void Object_queue::stop_queue() {
     In case of error we stop all the running queues. Make sure the
     cleanup of the items is done properly.
   */
-  while (m_items_ready_for_processing.size() > 0) {
-    Item_processing_data *item_to_process =
-        m_items_ready_for_processing.front();
-    m_items_ready_for_processing.pop();
-    this->object_processing_ends(item_to_process);
+  if (m_is_queue_running) {
+    Item_processing_data *item_to_process = nullptr;
+    do {
+      {
+        std::lock_guard<std::mutex> lock(m_queue_mutex);
+        if (m_items_ready_for_processing.size() == 0) break;
+        item_to_process = m_items_ready_for_processing.front();
+        m_items_ready_for_processing.pop();
+      }
+      this->object_processing_ends(item_to_process);
+    } while (item_to_process != nullptr);
+    m_is_queue_running = false;
   }
-  m_is_queue_running = false;
 }
 
 Object_queue::~Object_queue() {

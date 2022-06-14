@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,11 @@ class Gcs_packet {
    */
   Gcs_xcom_synode m_delivery_synode;
 
+  /**
+   The XCom synode in which this packet was delivered.
+   */
+  Gcs_xcom_synode m_origin_synode;
+
  public:
   /**
    This factory method is to be used when sending a packet.
@@ -162,13 +167,15 @@ class Gcs_packet {
 
    @param buffer Buffer with a serialized packet
    @param buffer_size Size of the buffer
-   @param synode The XCom synode where the packet was decided on
+   @param delivery_synode The XCom synode where the packet was decided on
+   @param origin_synode The XCom synode that identifies the origin of the packet
    @param pipeline The message pipeline
    @returns A packet initialized from the buffer
    */
   static Gcs_packet make_incoming_packet(buffer_ptr &&buffer,
                                          unsigned long long buffer_size,
-                                         synode_no const &synode,
+                                         synode_no const &delivery_synode,
+                                         synode_no const &origin_synode,
                                          Gcs_message_pipeline const &pipeline);
 
   Gcs_packet() noexcept;
@@ -254,12 +261,14 @@ class Gcs_packet {
   /**
    Create a string representation of the packet to be logged.
 
-   @param ouput Reference to the output stream where the string will be
+   @param output Reference to the output stream where the string will be
    created.
    */
   void dump(std::ostringstream &output) const;
 
   Gcs_xcom_synode const &get_delivery_synode() const;
+
+  Gcs_xcom_synode const &get_origin_synode() const;
 
  private:
   /**
@@ -291,9 +300,12 @@ class Gcs_packet {
   /**
    Constructor called by @c make_from_serialized_buffer.
 
-   @param synode The XCom synode where the packet was decided on
+   @param delivery_synode The XCom synode where the packet was decided on
+   @param origin_synode The XCom synode that identifieis the origin of this
+                        packet
    */
-  explicit Gcs_packet(synode_no const &synode);
+  explicit Gcs_packet(synode_no const &delivery_synode,
+                      synode_no const &origin_synode);
 
   /**
    Allocates the underlying buffer where the packet will be serialized to using
@@ -309,7 +321,6 @@ class Gcs_packet {
 
    @param buffer Buffer containing a serialized packet
    @param buffer_size Size of the buffer
-   @param synode XCom synode where this packet was decided/delivered
    @param pipeline The message pipeline
    */
   void deserialize(buffer_ptr &&buffer, unsigned long long buffer_size,

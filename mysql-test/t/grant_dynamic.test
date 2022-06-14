@@ -5,6 +5,8 @@
 
 call mtr.add_suppression(".*The system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
+call mtr.add_suppression("An empty or illegal privilege identifier was ignored when global privileges were read from disk.");
+CREATE TABLE mysql.backup_global_grants AS SELECT * FROM mysql.global_grants;
 
 --echo #
 --echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
@@ -476,16 +478,18 @@ CREATE TABLE IF NOT EXISTS mysql.global_grants
 (
  USER CHAR(32) BINARY DEFAULT '' NOT NULL,
  HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
- PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
+ PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL,
  WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin ROW_FORMAT=DYNAMIC TABLESPACE=mysql;
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin
+comment='Extended global grants' ROW_FORMAT=DYNAMIC TABLESPACE=mysql;
 --echo # restore mysql.session privileges
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
@@ -613,3 +617,29 @@ GRANT GRANT OPTION ON *.* TO u1;
 DROP USER u1;
 RESET MASTER;
 RESET SLAVE ALL;
+
+--echo #
+--echo # WRITING EMPTY PRIVILEGES INTO GLOBAL_GRANTS TABLE
+--echo #
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '%', ' ');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '%' AND priv = ' ';
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values (' ', '', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = ' ' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values (' ', ' ', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = ' ' AND host = ' ' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '', ' ');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = ' ';
+FLUSH PRIVILEGES;
+
+--echo # restore the global_grants table
+DELETE FROM mysql.global_grants;
+INSERT INTO mysql.global_grants SELECT * FROM mysql.backup_global_grants;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.backup_global_grants;

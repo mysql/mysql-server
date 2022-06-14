@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ using mysql_harness::join;
 template <typename T>
 class JoinTest : public ::testing::Test {};
 
-TYPED_TEST_CASE_P(JoinTest);
+TYPED_TEST_SUITE_P(JoinTest);
 
 TYPED_TEST_P(JoinTest, many) {
   EXPECT_EQ(join(std::array<TypeParam, 2>{"abc", "def"}, "-"), "abc-def");
@@ -77,10 +77,10 @@ TYPED_TEST_P(JoinTest, none) {
   EXPECT_EQ(join(std::vector<TypeParam>{}, "-"), "");
 }
 
-REGISTER_TYPED_TEST_CASE_P(JoinTest, many, one, none);
+REGISTER_TYPED_TEST_SUITE_P(JoinTest, many, one, none);
 
 using JoinTestTypes = ::testing::Types<std::string, const char *>;
-INSTANTIATE_TYPED_TEST_CASE_P(Spec, JoinTest, JoinTestTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(Spec, JoinTest, JoinTestTypes);
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

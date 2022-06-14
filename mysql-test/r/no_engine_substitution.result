@@ -17,7 +17,7 @@ CREATE TABLE t1(c1 INT) ENGINE= MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(1);
 CREATE TABLE t2(c1 INT) ENGINE= InnoDB;
@@ -26,6 +26,8 @@ CREATE TEMPORARY TABLE t2(c1 INT) ENGINE= InnoDB;
 ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
 ALTER TABLE t1 ENGINE= InnoDB;
 ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+# Create a table in MYISAM, which will become disabled after restart
+CREATE TABLE t2 (c1 INT) ENGINE=MYISAM;
 # Restart the server disabling the myisam storage engine using variable 'disabled_storage_engines'
 SELECT @@disabled_storage_engines;
 @@disabled_storage_engines
@@ -41,8 +43,33 @@ ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
 SELECT * FROM t1;
 c1
 1
+ALTER TABLE t2 ENGINE=example;
+ERROR 42000: Unknown storage engine 'example'
+SET SQL_MODE='';
+ALTER TABLE t2 ENGINE=example;
+Warnings:
+Warning	1286	Unknown storage engine 'example'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
 # Checking table creation with dynamic storage plugins
 INSTALL PLUGIN example SONAME 'ha_example.so';
+ALTER TABLE t2 ENGINE=example;
+ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
+SET SQL_MODE='';
+ALTER TABLE t2 ENGINE=example;
+Warnings:
+Warning	1286	Unknown storage engine 'EXAMPLE'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
 
@@ -56,7 +83,7 @@ Warning	1266	Using storage engine InnoDB for table 't2'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t3 LIKE t1;
 Warnings:
@@ -65,7 +92,7 @@ Warning	1266	Using storage engine InnoDB for table 't3'
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE t4(c1 INT) ENGINE= MyISAM;
 Warnings:
@@ -74,7 +101,7 @@ Warning	1266	Using storage engine InnoDB for table 't4'
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TEMPORARY TABLE `t4` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t5 (c1 INT) ENGINE= ARCHIVE;
 # ALTER TABLE ... ENGINE reports a warning and the table is not altered.
@@ -84,7 +111,7 @@ Warning	1286	Unknown storage engine 'MyISAM'
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE PROCEDURE p1()
 BEGIN
@@ -97,7 +124,7 @@ Warning	1266	Using storage engine InnoDB for table 't6'
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t7 (c1 INT) ENGINE= EXAMPLE;
 Warnings:
@@ -106,13 +133,49 @@ Warning	1266	Using storage engine InnoDB for table 't7'
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET DEFAULT_STORAGE_ENGINE= MyISAM;
 CREATE TABLE t8 (c1 INT) ENGINE= MyISAM;
 ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
 CREATE TABLE t8 (c1 INT) ENGINE= EXAMPLE;
 ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
+#
+# Bug#29899151: CORE AT CREATE TABLE WITH FK FOR TABLE TRANSFERRED
+# FROM MYISAM TO INNODB
+#
+# Allow engine substitution
+SET sql_mode = "";
+SET DEFAULT_STORAGE_ENGINE= InnoDB;
+CREATE TABLE parent_table (i INT PRIMARY KEY);
+CREATE TABLE child_table (
+i INT,
+CONSTRAINT fk_parent_table
+FOREIGN KEY (i)
+REFERENCES parent_table (i) ON DELETE CASCADE
+) ENGINE=MyISAM;
+Warnings:
+Warning	3161	Storage engine MyISAM is disabled (Table creation is disallowed).
+Warning	1266	Using storage engine InnoDB for table 'child_table'
+DROP TABLE child_table;
+DROP TABLE parent_table;
+# Verify that creating a temporary table LIKE a table in a storage
+# engine which does not support temporary tables, defaults to the 
+# default_tmp_storage_engine, even with no_substitution.
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+Table	Create Table
+tt1	CREATE TEMPORARY TABLE `tt1` (
+  `NAME` varchar(64) NOT NULL,
+  `ENABLED` enum('YES','NO') NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt1;
+SET default_tmp_storage_engine=MYISAM;
+CREATE TEMPORARY TABLE tt1(c1 INT);
+ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+ERROR HY000: Table storage engine 'PERFORMANCE_SCHEMA' does not support the create option 'TEMPORARY'
 UNINSTALL PLUGIN EXAMPLE;
 DROP PROCEDURE p1;
 DROP TABLE t1;
@@ -148,7 +211,7 @@ Warning	1266	Using storage engine MyISAM for table 't2'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE t3 (c1 INT) ENGINE= ARCHIVE;
 Warnings:
@@ -157,7 +220,7 @@ Warning	1266	Using storage engine MyISAM for table 't3'
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # ALTER TABLE .. ENGINE reports a warning and the table is not altered.
 ALTER TABLE t1 ENGINE= ARCHIVE;
@@ -166,7 +229,7 @@ Warning	1286	Unknown storage engine 'ARCHIVE'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;

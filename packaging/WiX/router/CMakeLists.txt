@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,11 @@ SET(CPACK_MSI_SETUP ${CMAKE_SOURCE_DIR}/packaging/WiX/cpack_msi_setup.cmake)
 SET(LICENSE_FILE "${CMAKE_SOURCE_DIR}/router/LICENSE.router")
 CREATE_WIX_LICENCE_AND_RTF(${LICENSE_FILE})
 
-SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
+SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs;
+${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs;
+${CMAKE_BINARY_DIR}/packaging/WiX/redist_check.wxs")
 
-ADD_CUSTOM_TARGET(
+MY_ADD_CUSTOM_TARGET(
   configure_mysql_router_extra ALL
   COMMAND ${CMAKE_COMMAND}
   -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in
@@ -67,4 +69,4 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM}
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI-Router configure_mysql_router_extra)
+ADD_DEPENDENCIES(MSI-Router configure_mysql_router_extra configure_redist_check)

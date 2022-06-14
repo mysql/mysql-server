@@ -13,14 +13,15 @@ include/start_group_replication.inc
 ############################################################
 # 02. Replicate from server3 into server2.
 [connection server2]
-CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_2';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SERVER_3_PORT for channel 'ch3_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'ch3_2']
 [connection server3]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+[connection server1]
+[connection server2]
 
 ############################################################
 # 03. Make server2 block before send its prepare message.
@@ -57,10 +58,8 @@ include/rpl_sync.inc
 [connection server1]
 SET @@SESSION.group_replication_consistency= DEFAULT;
 include/assert.inc ['There is a 1 value in table t1']
-include/assert.inc ['There is a 3 value in table t1']
 [connection server2]
 include/assert.inc ['There is a 1 value in table t1']
-include/assert.inc ['There is a 3 value in table t1']
 [connection server3]
 include/assert.inc ['There is no 1 value in table t1']
 include/assert.inc ['There is a 3 value in table t1']
@@ -70,8 +69,11 @@ include/diff_tables.inc [server1:t1, server2:t1]
 # 09. Clean up.
 [connection server3]
 DROP TABLE t1;
-include/rpl_sync.inc
+[connection server1]
 [connection server2]
+SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc [FOR CHANNEL 'ch3_2']
 RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/group_replication_end.inc

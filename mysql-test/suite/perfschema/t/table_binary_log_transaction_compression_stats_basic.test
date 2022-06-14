@@ -1,0 +1,195 @@
+#
+# WL#3549: binlog compression
+#
+# This test file contains basic tests for
+# performance_schema.binary_log_transaction_compression_stats
+#
+#
+--source include/have_binlog_format_row.inc
+
+--let $show_rpl_debug_info = 0
+
+--disable_query_log
+--disable_result_log
+
+# setup
+--let $saved_binlog_transaction_compression_session_master = `SELECT @@SESSION.binlog_transaction_compression`
+--let $saved_binlog_transaction_compression_global_master = `SELECT @@GLOBAL.binlog_transaction_compression`
+--let $trx_size_bytes = 1000000
+--let $ntrx = 3
+--let $pfs_table = performance_schema.binary_log_transaction_compression_stats
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+
+--let $i = 1
+while($i < 3)
+{
+  --let $cbytes_last = 0
+  --let $ubytes_last = 0
+
+  # compression
+  if ($i == 1)
+  {
+    #
+    # Test 1: compression, check pfs table entries
+    #
+    SET SESSION binlog_transaction_compression = ON;
+    --let $compression_type = ZSTD
+  }
+
+  # no compression
+  if ($i == 2)
+  {
+    #
+    # Test 2: no compression, check pfs table entries
+    #
+
+    SET SESSION binlog_transaction_compression = OFF;
+    --let $compression_type = NONE
+  }
+
+  --let $j=1
+  while($j < 5)
+  {
+    if ($j == 1)
+    {
+      --echo *** TRANSACTION: CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT)
+      CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+      # DDLs are not compressed, since they replicate as statements
+
+      if (`SELECT '$compression_type' = 'NONE'`)
+      {
+        --let $nrows_log_type = 1
+        --let $nrows_trx_compression_type = 1
+        --let $nrows_expected = 1
+      }
+      if (`SELECT '$compression_type' <> 'NONE'`)
+      {
+        --let $nrows_log_type = 1
+        --let $nrows_trx_compression_type = 0
+        --let $nrows_expected = 1
+      }
+    }
+
+    if ($j == 2)
+    {
+      --echo *** TRANSACTION: INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+      --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+
+      if (`SELECT '$compression_type' <> 'NONE'`)
+      {
+        --let $nrows_log_type = 2
+        --let $nrows_trx_compression_type = 1
+        --let $nrows_expected = 2
+      }
+    }
+
+    if ($j == 3)
+    {
+      --echo *** TRANSACTION: UPDATE t1 SET c2 = 'a' WHERE c1 = 2
+      UPDATE t1 SET c2 = 'a' WHERE c1 = 2;
+
+      # same settings as the second statement, nothing to update
+    }
+
+    if ($j == 4)
+    {
+      --echo *** TRANSACTION: DROP TABLE t1
+      DROP TABLE t1;
+
+      # same settings as the second statement, nothing to update
+      # DDLs are not compressed, since they replicate as statements
+    }
+
+    # assertions
+
+    --let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $assert_cond = $nrows = $nrows_trx_compression_type
+    --let $assert_text = Number of rows in $pfs_table (BINARY, $compression_type) = $nrows_trx_compression_type
+    --source include/assert.inc
+
+    --let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type = 'BINARY'`
+    --let $assert_cond = $nrows = $nrows_log_type
+    --let $assert_text = Number of rows in $pfs_table (BINARY) = $nrows_log_type
+    --source include/assert.inc
+
+    --let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+    --let $assert_cond = $nrows = $nrows_expected
+    --let $assert_text = Number of rows in $pfs_table = $nrows_expected
+    --source include/assert.inc
+
+    --let $ctrxs = `SELECT SUM(transaction_counter) FROM $pfs_table`
+    --let $assert_cond = $ctrxs = $j
+    --let $assert_text = The number of transactions reported is $ctrxs
+    --source include/assert.inc
+
+    if (`SELECT $j IN (2, 3) OR '$compression_type' = 'NONE' `)
+    {
+
+      --let $cbytes = `SELECT compressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+      --let $assert_cond = $cbytes > $cbytes_last
+      --let $assert_text = Compressed bytes is larger than last reported value
+      --source include/assert.inc
+
+      --let $ubytes = `SELECT uncompressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+      --let $assert_cond = $ubytes > $ubytes_last
+      --let $assert_text = Uncompressed bytes is larger than last reported value
+      --source include/assert.inc
+
+      --let $cbytes_last_trx = `SELECT last_transaction_compressed_bytes FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+      --let $assert_cond = $cbytes_last_trx = ($cbytes - $cbytes_last)
+      --let $assert_text = Compressed bytes is larger than last reported value
+      --source include/assert.inc
+
+      --let $ubytes_last_trx = `SELECT last_transaction_uncompressed_bytes FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+      --let $assert_cond = $ubytes_last_trx = ($ubytes - $ubytes_last)
+      --let $assert_text = Uncompressed bytes is larger than last reported value
+      --source include/assert.inc
+
+      --let $cperc_reported = `SELECT compression_percentage FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+      --let $cperc_calculated = `SELECT ROUND((1.0 - ($cbytes / $ubytes)) * 100)`
+      --let $assert_cond = $cperc_reported = $cperc_calculated
+      --let $assert_text = Compression percentage is reported correctly.
+      --source include/assert.inc
+
+      --let $ubytes_last = $ubytes
+      --let $cbytes_last = $cbytes
+
+    }
+    --inc $j
+  }
+
+  # Test 3: Assert that TRUNCATE deletes all rows from the table
+  --eval TRUNCATE $pfs_table
+
+  --let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+  --let $assert_cond = $nrows = 0
+  --let $assert_text = Number of rows in $pfs_table = 0
+  --source include/assert.inc
+
+  RESET MASTER;
+  --eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_master
+
+  --inc $i
+}
+
+#
+# Test 4: DML on the performace_schema.binary_log_transaction_compression_stats
+#
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval DELETE FROM $pfs_table
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval INSERT INTO $pfs_table VALUES ('BINARY', 'ZSTD', 1, 1, 1.0, "", 1, 1, NULL)
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval UPDATE $pfs_table SET log_type = 'BINARY' WHERE log_type = 'RELAY'
+
+# clean up
+
+--eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_master
+--eval SET GLOBAL binlog_transaction_compression = $saved_binlog_transaction_compression_global_master
+
+--enable_result_log
+--enable_query_log

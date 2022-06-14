@@ -1005,12 +1005,10 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2('t');
 CHARSET(arg)
-utf8
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+utf8mb3
 CALL p2(_LATIN1 't');
 CHARSET(arg)
-utf8
+utf8mb3
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 

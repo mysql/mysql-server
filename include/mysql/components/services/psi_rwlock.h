@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,11 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_rwlock_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_rwlock_v2);
+#define REQUIRES_PSI_RWLOCK_SERVICE REQUIRES_SERVICE(psi_rwlock_v2)
+#define REQUIRES_PSI_RWLOCK_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(psi_rwlock_v2)
+
+extern REQUIRES_PSI_RWLOCK_SERVICE_PLACEHOLDER;
 
 #define PSI_RWLOCK_CALL(M) mysql_service_psi_rwlock_v2->M
 

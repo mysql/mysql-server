@@ -29,13 +29,13 @@ RUN insert into mycoll (doc) values ('{"_id": "4", "name": "Tassadar", "amount":
 RUN insert into mycoll (doc) values ('{"_id": "5", "name": "Sansa", "amount": null}')
 
 1 rows affected
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Robb", "amount": 125.21}	1
-{"_id": "2", "name": "Bran", "amount": 542.75}	2
-{"_id": "3", "name": "Arya", "amount": 98.89}	3
-{"_id": "4", "name": "Tassadar", "amount": 57.52}	4
-{"_id": "5", "name": "Sansa", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Robb", "amount": 125.21}
+{"_id": "2", "name": "Bran", "amount": 542.75}
+{"_id": "3", "name": "Arya", "amount": 98.89}
+{"_id": "4", "name": "Tassadar", "amount": 57.52}
+{"_id": "5", "name": "Sansa", "amount": null}
 0 rows affected
 Find with > Operator and placeholder
 send Mysqlx.Crud.Find {
@@ -486,13 +486,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Robb", "amount": 125.21}	1
-{"_id": "2", "name": "Bran", "amount": 542.75}	2
-{"_id": "3", "name": "Update_==", "amount": 98.89}	3
-{"_id": "4", "name": "Tassadar", "amount": 57.52}	4
-{"_id": "5", "name": "Sansa", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Robb", "amount": 125.21}
+{"_id": "2", "name": "Bran", "amount": 542.75}
+{"_id": "3", "name": "Update_==", "amount": 98.89}
+{"_id": "4", "name": "Tassadar", "amount": 57.52}
+{"_id": "5", "name": "Sansa", "amount": null}
 0 rows affected
 Update with > operator and placeholder
 send Mysqlx.Crud.Update {
@@ -547,13 +547,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Update_>", "amount": 125.21}	1
-{"_id": "2", "name": "Update_>", "amount": 542.75}	2
-{"_id": "3", "name": "Update_==", "amount": 98.89}	3
-{"_id": "4", "name": "Tassadar", "amount": 57.52}	4
-{"_id": "5", "name": "Sansa", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Update_>", "amount": 125.21}
+{"_id": "2", "name": "Update_>", "amount": 542.75}
+{"_id": "3", "name": "Update_==", "amount": 98.89}
+{"_id": "4", "name": "Tassadar", "amount": 57.52}
+{"_id": "5", "name": "Sansa", "amount": null}
 0 rows affected
 Update with >= operator and placeholder
 send Mysqlx.Crud.Update {
@@ -608,13 +608,13 @@ send Mysqlx.Crud.Update {
 
 3 rows affected
 Rows matched: 3  Changed: 3  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Update_>=", "amount": 125.21}	1
-{"_id": "2", "name": "Update_>=", "amount": 542.75}	2
-{"_id": "3", "name": "Update_>=", "amount": 98.89}	3
-{"_id": "4", "name": "Tassadar", "amount": 57.52}	4
-{"_id": "5", "name": "Sansa", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Update_>=", "amount": 125.21}
+{"_id": "2", "name": "Update_>=", "amount": 542.75}
+{"_id": "3", "name": "Update_>=", "amount": 98.89}
+{"_id": "4", "name": "Tassadar", "amount": 57.52}
+{"_id": "5", "name": "Sansa", "amount": null}
 0 rows affected
 Update with <= operator and placeholder
 send Mysqlx.Crud.Update {
@@ -669,13 +669,13 @@ send Mysqlx.Crud.Update {
 
 3 rows affected
 Rows matched: 3  Changed: 3  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Update_>=", "amount": 125.21}	1
-{"_id": "2", "name": "Update_>=", "amount": 542.75}	2
-{"_id": "3", "name": "Update_<=", "amount": 98.89}	3
-{"_id": "4", "name": "Update_<=", "amount": 57.52}	4
-{"_id": "5", "name": "Update_<=", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Update_>=", "amount": 125.21}
+{"_id": "2", "name": "Update_>=", "amount": 542.75}
+{"_id": "3", "name": "Update_<=", "amount": 98.89}
+{"_id": "4", "name": "Update_<=", "amount": 57.52}
+{"_id": "5", "name": "Update_<=", "amount": null}
 0 rows affected
 Update with Float operator and placeholder
 send Mysqlx.Crud.Update {
@@ -730,13 +730,13 @@ send Mysqlx.Crud.Update {
 
 3 rows affected
 Rows matched: 3  Changed: 3  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Update_>=", "amount": 125.21}	1
-{"_id": "2", "name": "Update_>=", "amount": 542.75}	2
-{"_id": "3", "name": "Update_<=", "amount": 256.51}	3
-{"_id": "4", "name": "Update_<=", "amount": 256.51}	4
-{"_id": "5", "name": "Update_<=", "amount": 256.51}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Update_>=", "amount": 125.21}
+{"_id": "2", "name": "Update_>=", "amount": 542.75}
+{"_id": "3", "name": "Update_<=", "amount": 256.51}
+{"_id": "4", "name": "Update_<=", "amount": 256.51}
+{"_id": "5", "name": "Update_<=", "amount": 256.51}
 0 rows affected
 Update with Double operator and placeholder
 send Mysqlx.Crud.Update {
@@ -791,13 +791,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "Update_>=", "amount": 256.51}	1
-{"_id": "2", "name": "Update_>=", "amount": 256.51}	2
-{"_id": "3", "name": "Update_<=", "amount": 256.51}	3
-{"_id": "4", "name": "Update_<=", "amount": 256.51}	4
-{"_id": "5", "name": "Update_<=", "amount": 256.51}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "Update_>=", "amount": 256.51}
+{"_id": "2", "name": "Update_>=", "amount": 256.51}
+{"_id": "3", "name": "Update_<=", "amount": 256.51}
+{"_id": "4", "name": "Update_<=", "amount": 256.51}
+{"_id": "5", "name": "Update_<=", "amount": 256.51}
 0 rows affected
 Update with String operator and placeholder
 send Mysqlx.Crud.Update {
@@ -852,13 +852,13 @@ send Mysqlx.Crud.Update {
 
 5 rows affected
 Rows matched: 5  Changed: 5  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon", "amount": 256.51}	1
-{"_id": "2", "name": "watermelon", "amount": 256.51}	2
-{"_id": "3", "name": "watermelon", "amount": 256.51}	3
-{"_id": "4", "name": "watermelon", "amount": 256.51}	4
-{"_id": "5", "name": "watermelon", "amount": 256.51}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon", "amount": 256.51}
+{"_id": "2", "name": "watermelon", "amount": 256.51}
+{"_id": "3", "name": "watermelon", "amount": 256.51}
+{"_id": "4", "name": "watermelon", "amount": 256.51}
+{"_id": "5", "name": "watermelon", "amount": 256.51}
 0 rows affected
 Update with Null operator and placeholder
 send Mysqlx.Crud.Update {
@@ -912,13 +912,13 @@ send Mysqlx.Crud.Update {
 
 5 rows affected
 Rows matched: 5  Changed: 5  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon", "amount": null}	1
-{"_id": "2", "name": "watermelon", "amount": null}	2
-{"_id": "3", "name": "watermelon", "amount": null}	3
-{"_id": "4", "name": "watermelon", "amount": null}	4
-{"_id": "5", "name": "watermelon", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon", "amount": null}
+{"_id": "2", "name": "watermelon", "amount": null}
+{"_id": "3", "name": "watermelon", "amount": null}
+{"_id": "4", "name": "watermelon", "amount": null}
+{"_id": "5", "name": "watermelon", "amount": null}
 0 rows affected
 Update with ITEM_REPLACE operator and placeholder
 send Mysqlx.Crud.Update {
@@ -975,13 +975,13 @@ send Mysqlx.Crud.Update {
 
 5 rows affected
 Rows matched: 5  Changed: 5  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "amount": null}	2
-{"_id": "3", "name": "watermelon_replace", "amount": null}	3
-{"_id": "4", "name": "watermelon_replace", "amount": null}	4
-{"_id": "5", "name": "watermelon_replace", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon_replace", "amount": null}
+{"_id": "2", "name": "watermelon_replace", "amount": null}
+{"_id": "3", "name": "watermelon_replace", "amount": null}
+{"_id": "4", "name": "watermelon_replace", "amount": null}
+{"_id": "5", "name": "watermelon_replace", "amount": null}
 0 rows affected
 Update with ITEM_REMOVE operator and placeholder
 send Mysqlx.Crud.Update {
@@ -1024,13 +1024,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "amount": null}	2
-{"_id": "3", "amount": null}	3
-{"_id": "4", "name": "watermelon_replace", "amount": null}	4
-{"_id": "5", "name": "watermelon_replace", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon_replace", "amount": null}
+{"_id": "2", "name": "watermelon_replace", "amount": null}
+{"_id": "3", "amount": null}
+{"_id": "4", "name": "watermelon_replace", "amount": null}
+{"_id": "5", "name": "watermelon_replace", "amount": null}
 0 rows affected
 Update with ARRAY_APPEND operator and placeholder
 send Mysqlx.Crud.Update {
@@ -1082,13 +1082,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "amount": null}	2
-{"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
-{"_id": "4", "name": "watermelon_replace", "amount": null}	4
-{"_id": "5", "name": "watermelon_replace", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon_replace", "amount": null}
+{"_id": "2", "name": "watermelon_replace", "amount": null}
+{"_id": "3", "amount": [null, "Update_ArrayAppend"]}
+{"_id": "4", "name": "watermelon_replace", "amount": null}
+{"_id": "5", "name": "watermelon_replace", "amount": null}
 0 rows affected
 Update with ITEM_MERGE value and placeholder
 send Mysqlx.Crud.Update {
@@ -1137,13 +1137,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "third": 3.0, "amount": null, "fourth": "four"}	2
-{"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
-{"_id": "4", "name": "watermelon_replace", "amount": null}	4
-{"_id": "5", "name": "watermelon_replace", "amount": null}	5
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon_replace", "amount": null}
+{"_id": "2", "name": "watermelon_replace", "third": 3.0, "amount": null, "fourth": "four"}
+{"_id": "3", "amount": [null, "Update_ArrayAppend"]}
+{"_id": "4", "name": "watermelon_replace", "amount": null}
+{"_id": "5", "name": "watermelon_replace", "amount": null}
 0 rows affected
 RUN insert into mycoll (doc) values ('{"_id": "6", "third": ["two"]}')
 
@@ -1203,14 +1203,14 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "third": 3.0, "amount": null, "fourth": "four"}	2
-{"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
-{"_id": "4", "name": "watermelon_replace", "amount": null}	4
-{"_id": "5", "name": "watermelon_replace", "amount": null}	5
-{"_id": "6", "third": ["two.1", "two"]}	6
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon_replace", "amount": null}
+{"_id": "2", "name": "watermelon_replace", "third": 3.0, "amount": null, "fourth": "four"}
+{"_id": "3", "amount": [null, "Update_ArrayAppend"]}
+{"_id": "4", "name": "watermelon_replace", "amount": null}
+{"_id": "5", "name": "watermelon_replace", "amount": null}
+{"_id": "6", "third": ["two.1", "two"]}
 0 rows affected
 Delete with == operator and placeholder
 send Mysqlx.Crud.Delete {
@@ -1243,13 +1243,13 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
-{"_id": "4", "name": "watermelon_replace", "amount": null}	4
-{"_id": "5", "name": "watermelon_replace", "amount": null}	5
-{"_id": "6", "third": ["two.1", "two"]}	6
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "1", "name": "watermelon_replace", "amount": null}
+{"_id": "3", "amount": [null, "Update_ArrayAppend"]}
+{"_id": "4", "name": "watermelon_replace", "amount": null}
+{"_id": "5", "name": "watermelon_replace", "amount": null}
+{"_id": "6", "third": ["two.1", "two"]}
 0 rows affected
 Delete with != operator and placeholder
 send Mysqlx.Crud.Delete {
@@ -1287,10 +1287,10 @@ send Mysqlx.Crud.Delete {
 
 
 3 rows affected
-RUN SELECT * FROM xtest.mycoll
-doc	_id
-{"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
-{"_id": "6", "third": ["two.1", "two"]}	6
+RUN select doc FROM xtest.mycoll
+doc
+{"_id": "3", "amount": [null, "Update_ArrayAppend"]}
+{"_id": "6", "third": ["two.1", "two"]}
 0 rows affected
 send Mysqlx.Crud.Find {
   collection {

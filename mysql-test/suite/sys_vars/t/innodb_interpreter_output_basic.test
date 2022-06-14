@@ -1,0 +1,4 @@
+# The config variable is a debug variable
+-- source include/have_debug.inc
+
+SELECT @@global.innodb_interpreter_output;

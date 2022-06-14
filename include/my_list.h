@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,12 +32,6 @@
   @file include/my_list.h
 */
 
-/*
-  NOTE: This file should really include mysql/service_mysql_alloc.h
-  (due to the my_free() call in list_pop), but that is not acceptable
-  in client code, so it has been kept out.
-*/
-
 typedef struct LIST {
 #if defined(__cplusplus) && __cplusplus >= 201103L
   struct LIST *prev{nullptr}, *next{nullptr};
@@ -59,12 +53,5 @@ extern unsigned int list_length(LIST *);
 extern int list_walk(LIST *, list_walk_action action, unsigned char *argument);
 
 #define list_rest(a) ((a)->next)
-#define list_push(a, b) (a) = list_cons((b), (a))
-#define list_pop(A)              \
-  {                              \
-    LIST *old = (A);             \
-    (A) = list_delete(old, old); \
-    my_free(old);                \
-  }
 
 #endif

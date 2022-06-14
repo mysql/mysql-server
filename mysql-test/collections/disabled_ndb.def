@@ -12,19 +12,8 @@
 #
 ##############################################################################
 
-# gcol_ndb suite tests
-gcol_ndb.gcol_column_def_options_ndb : BUG#26609059 PB2 failures.
-
 # ndb_big suite tests
 ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
-
-# ndb_binlog suite tests
-# Problem with missing binlog events after restore
-ndb_binlog.ndb_binlog_restore : WL#9185 MySQL Cluster support for new DD.
-
-# ndb_ddl suite tests
-# Problem with alter table while MDL lock is held on other mysqld
-ndb_ddl.alter_open_trans: WL#10164 Schema dist prepare phase
 
 # ndb_rpl suite tests
 ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAILURE
@@ -34,56 +23,9 @@ ndb_rpl.ndb_rpl_slave_lsu                  : BUG#29110717 SEAGULL ndb-force-binl
 ndb_rpl.ndb_rpl_slave_lsu_anyval           : BUG#29110717 SEAGULL ndb-force-binlog-format-statement
 ndb_rpl.ndb_rpl_stm_innodb                 : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
 
-# Problem with alter table while MDL lock is held on other mysqld
-ndb_rpl.ndb_rpl_ddl_open_trans : WL#9185 MySQL Cluster support for new DD.
-
-# Problem with metadata not being synchronized on the slave
-ndb_rpl.ndb_rpl_dd_advance : WL#11914 Synchronize metadata changes detected in NDB
-
 # ndb suite tests
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb.ndb_parallel_undo_log : BUG#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE FAILURE
-ndb.ndb_restore_gcp       : Bug#29692418 NDB_RESTORE_GCP.TEST FAIL TO CLEANUP BACKUP DIRECTORY
-
-# Problem with distribution of CREATE TABLE
-ndb.ndb_dd_restore_check_tablespace_mdl : BUG#28876892 SCHEMA DISTRIBUTION OF CREATE TABLE WITH DISK DATA AND RANGE PARTITIONING FAILS
-
-# Problem with ndb_index_stat tables missing from DD
-ndb.ndb_statistics0 : BUG#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART
-
-# Test which timeout most likely due to mismatches in shares etc.
-ndb.ndb_spj_dict : WL#9185 MySQL Cluster support for new DD.
-
-# Problem with crash, most likely due to mismatches in shares etc
-ndb.ndb_ddl_dml : WL#9185 MySQL Cluster support for new DD.
-
-# Problem with alter table which fails while copying data between tables, the
-# temporary named destination table is not dropped. Need to rewrite
-# the copying alter table code path in ndbcluster to drop the table in
-# order to be atomic
-ndb.ndb_dd_alter : WL#9185 MySQL Cluster support for new DD
-ndb.ndb_fk_db    : WL#9185 MySQL Cluster support for new DD
-ndb.ndb_fk_no_fk : WL#9185 MySQL Cluster support for new DD
-
-# Problem with alter table while MDL lock is held on other mysqld
-ndb.ndb_ddl_open_trans : WL#9185 MySQL Cluster support for new DD
-
-# Schema distribution timeout while altering table
-ndb.ndb_alter_table_online_multi : WL#9185 MySQL Cluster support for new DD
-
-# Problem with failing ALTER, the Thd_ndb::open_tables contains
-# invalid THD_NDB_SHARE
-ndb.ndb_alter_table_error : WL#9185 MySQL Cluster support for new DD
-
-# Problem with table present in DD and not in SE
-ndb.ndb_restore_schema_rewrites : WL#9185 MySQL Cluster support for new DD
-
-# Clusterj fails in windows due to Bug#28532563
-ndb.clusterj @windows: BUG#28532563 CLUSTERJ MTR TEST FAILS IN WINDOWS DUE TO NOT BEING ABLE TO LOAD LIBNDBCLIENT
-
-# Test fails with varying failures in all versions
-ndb.ndb_truncate_nologging : BUG#14845851 Could not acquire global schema lock
 
 # Failure to acquire MDL lock properly during drop database with uppercase
 # database name, affects lower_case_table_names=2 platform
@@ -103,14 +45,6 @@ rpl_ndb.rpl_ndb_row_implicit_commit_binlog   : BUG#12586131 Fails on SET PASSWOR
 
 # Below test disabled due to result content mismatch, test needs to be made more stable.
 ndb.ndb_read_location_domain : BUG#27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN PB2.
-# Flaky test
-ndb.ndb_import2 : BUG#28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
 
-# Fails on slow machines
-ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
-
-# Disabled pending synchronization functionality to be added in WL#11914
-ndb_ddl.metadata_change_detection: WL#11914 Synchronize metadata changes detected in NDB
-
-# Disabled due to Bug#29305977 which is waiting on Bug#29205142 to be fixed
-ndb.ndbinfo_upgrade: Bug#29305977 NDB.NDBINFO_UPGRADE TEST FAILS
+# Problem with upper case database names with lower_case_table_names = 2
+ndb.ndb_database_lctn @darwin: Bug#30455400 INCORRECT SCHEMA NAME PASSED TO HA_BINLOG_LOG_QUERY DURING ALTER DATABASE

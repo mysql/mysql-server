@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "NdbImportUtil.hpp"
+
+#include <time.h>
 
 #include "m_ctype.h"
 #include "my_sys.h"
 #include <NdbDictionaryImpl.hpp>
 
 #include <Vector.hpp>
+#include <inttypes.h>
 // STL
 #include <cmath>
 
@@ -411,6 +415,14 @@ NdbImportUtil::List::remove(ListEnt* ent)
     m_stat_occup->add(m_cnt);
 }
 
+NdbImportUtil::ListEnt*
+NdbImportUtil::List::pop_back()
+{
+  ListEnt *ent = m_back;
+  remove(ent);
+  return ent;
+}
+
 void
 NdbImportUtil::List::push_back_from(List& src)
 {
@@ -596,6 +608,76 @@ NdbImportUtil::Attr::get_value(const Row* row, uint32& value) const
   require(false);
 }
 
+bool
+NdbImportUtil::Attr::ai_value_not_provided(const Row* row) const
+{
+  const uchar* p = get_value(row);
+
+  switch (m_type) {
+    case NdbDictionary::Column::Tinyint: {
+      uint8 val;
+      memcpy(&val, p, 1);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Tinyunsigned: {
+      uint8 val;
+      memcpy(&val, p, 1);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Smallint: {
+      int16 val;// = sint2korr(p);
+      memcpy(&val, p, sizeof(val));
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Smallunsigned: {
+      uint16 val;// = uint2korr(p);
+      memcpy(&val, p, sizeof(val));
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Mediumint: {
+      int32 val = sint3korr(p);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Mediumunsigned: {
+      uint32 val = uint3korr(p);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Int : {
+      int32 val;
+      memcpy(&val, p, 4);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Unsigned: {
+      uint32 val;
+      memcpy(&val, p, 4);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Bigint: {
+      int64 val;
+      memcpy(&val, p, 8);
+      if (val == 0) return true;
+      break;
+    }
+  case NdbDictionary::Column::Bigunsigned: {
+      uint64 val;
+      memcpy(&val, p, 8);
+      if (val == 0) return true;
+      break;
+    }
+  default:
+    break;
+  }
+  return false;
+}
+
 void
 NdbImportUtil::Attr::get_value(const Row* row, uint64& value) const
 {
@@ -772,6 +854,7 @@ NdbImportUtil::Table::Table()
   m_keyrec = NULL;
   m_recsize = 0;
   m_has_hidden_pk = false;
+  m_autoIncAttrId = Inval_uint;
 }
 
 void
@@ -901,6 +984,15 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
     table.m_recsize = NdbDictionary::getRecordRowLength(rec);
     Attrs& attrs = table.m_attrs;
     const uint attrcnt = tab->getNoOfColumns();
+    const uint autoinc_cnt = tab->getNoOfAutoIncrementColumns();
+    if (autoinc_cnt > 1) {
+      set_error_usage(error, __LINE__,
+                      "Table %s: "
+                      "has %u auto inc columns. "
+                      "Allowed max number of auto inc columns is 1",
+                      tab->getName(), autoinc_cnt);
+      return -1;
+    }
     attrs.reserve(attrcnt);
     bool ok = true;
     Uint32 recAttrId;
@@ -924,6 +1016,26 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
       attr.m_scale = col->getScale();
       attr.m_length = col->getLength();
       attr.m_arraytype = col->getArrayType();
+
+      bool attr_auto_inc = col->getAutoIncrement();
+      if (attr_auto_inc) {
+        if (table.m_autoIncAttrId != Inval_uint &&
+            table.m_autoIncAttrId != i) {
+          set_error_usage(error, __LINE__,
+                          "Table %s : "
+                          "has already atrr %u as auto inc column. "
+                          "Attrib %u cannot be an auto inc col. "
+                          "Allowed max number of auto inc columns is 1",
+                          tab->getName(), table.m_autoIncAttrId, i);
+          return -1;
+        }
+        if (table.m_autoIncAttrId == Inval_uint) {
+          table.m_autoIncAttrId = i;
+        }
+        if (attr.m_nullable) {
+          attr.m_nullable = false;
+        }
+      }
       require(attr.m_arraytype <= 2);
       attr.m_size = col->getSizeInBytes();
       switch (attr.m_type) {
@@ -1020,9 +1132,10 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
         {
           if (i + 1 == attrcnt &&
               nkey == 1 &&
-              attr.m_type == NdbDictionary::Column::Bigunsigned)
+              attr.m_type == NdbDictionary::Column::Bigunsigned) {
             table.m_has_hidden_pk = true;
-          else
+            require(table.m_autoIncAttrId == i);
+          } else
           {
             set_error_usage(error, __LINE__,
                             "column %u: "
@@ -1102,6 +1215,17 @@ NdbImportUtil::Row::Row()
 NdbImportUtil::Row::~Row()
 {
   delete [] m_data;
+
+  for (uint i = 0; i < m_blobs.size(); ++i)
+  {
+    Blob* blob = m_blobs[i];
+    if (blob != NULL)
+    {
+      delete blob;
+    }
+  }
+
+  m_blobs.clear();
 }
 
 void
@@ -1400,11 +1524,8 @@ NdbImportUtil::alloc_rows(const Table& table, uint cnt, RowList& dst)
 }
 
 void
-NdbImportUtil::free_row(Row* row)
+NdbImportUtil::free_blobs_from_row(Row *row)
 {
-  RowList& rows = *c_rows_free;
-  rows.lock();
-  
   for (uint i = 0; i < row->m_blobs.size(); ++i)
   {
     Blob* blob = row->m_blobs[i];
@@ -1414,7 +1535,15 @@ NdbImportUtil::free_row(Row* row)
     }
   }
   row->m_blobs.clear();
+}
 
+void
+NdbImportUtil::free_row(Row* row)
+{
+  free_blobs_from_row(row);
+
+  RowList& rows = *c_rows_free;
+  rows.lock();
   rows.push_back(row);
   rows.unlock();
 }
@@ -1422,9 +1551,16 @@ NdbImportUtil::free_row(Row* row)
 void
 NdbImportUtil::free_rows(RowList& src)
 {
+  RowList blob_freed_rows;
+  while (!src.empty())
+  {
+    Row *one_row = src.pop_front();
+    free_blobs_from_row(one_row);
+    blob_freed_rows.push_back(one_row);
+  }
   RowList& rows = *c_rows_free;
   rows.lock();
-  rows.push_back_from(src);
+  rows.push_back_from(blob_freed_rows);
   rows.unlock();
 }
 
@@ -2422,7 +2558,7 @@ NdbImportUtil::Buf::alloc(uint pagesize, uint pagecnt)
   require(pagesize != 0 && (pagesize & (pagesize - 1)) == 0);
   require(pagecnt != 0);
   uint size = pagesize * pagecnt;
-  uint allocsize = size + (pagesize - 1) + 1;
+  uint allocsize = size + (pagesize - 1) + 2;
   uchar* allocptr = new uchar [allocsize];
   uchar* data = allocptr;
   uint misalign = (UintPtr)data & (pagesize - 1);
@@ -2633,7 +2769,14 @@ NdbImportUtil::File::do_read(Buf& buf)
   uint endpos = buf.m_start + buf.m_len;
   require(endpos <= buf.m_size);
   require(endpos < buf.m_allocsize);
-  buf.m_data[endpos] = 0;
+  if (buf.m_data[endpos-1] == '\r')
+  {
+    if(do_read(&buf.m_data[endpos], 1, len) == -1)
+      return -1;
+    buf.m_len += 1;
+  }
+  else
+    buf.m_data[endpos] = 0;
   return 0;
 }
 
@@ -2707,7 +2850,7 @@ NdbImportUtil::File::do_seek(uint64 offset)
 #endif
   {
     m_util.set_error_os(m_error, __LINE__,
-                        "%s: lseek %llu failed", path, offset);
+                        "%s: lseek %" PRIu64 " failed", path, offset);
     return -1;
   }
   return 0;
@@ -2982,7 +3125,7 @@ NdbImportUtil::Timer::stop()
     m_start = m_stop;
   }
   struct ndb_rusage ru;
-  if (Ndb_GetRUsage(&ru) == 0)
+  if (Ndb_GetRUsage(&ru, false) == 0)
   {
     m_utime_msec = ru.ru_utime / 1000;
     m_stime_msec = ru.ru_stime / 1000;
@@ -3943,7 +4086,7 @@ testmain()
   if (mycase("teststat") && teststat() != 0)
     return -1;
   struct ndb_rusage ru;
-  require(Ndb_GetRUsage(&ru) == 0);
+  require(Ndb_GetRUsage(&ru, false) == 0);
   ndbout << "utime=" << ru.ru_utime/1000
          << " stime=" << ru.ru_stime/1000 << " (ms)" << endl;
   return 0;

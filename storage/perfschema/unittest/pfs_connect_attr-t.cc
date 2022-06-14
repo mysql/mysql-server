@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <mysql/components/my_service.h>
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "storage/perfschema/pfs_global.h"

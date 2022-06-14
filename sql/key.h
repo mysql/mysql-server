@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,13 @@
 #ifndef KEY_INCLUDED
 #define KEY_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "my_base.h" /* ha_rows, ha_key_alg */
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/key_spec.h"       /* fk_option */
 #include "sql/sql_plugin_ref.h" /* plugin_ref */
@@ -54,21 +55,21 @@ class FOREIGN_KEY {
 
 class KEY_PART_INFO { /* Info about a key part */
  public:
-  Field *field;
-  uint offset;      /* offset in record (from 0) */
-  uint null_offset; /* Offset to null_bit in record */
+  Field *field{nullptr};
+  uint offset{0};      /* offset in record (from 0) */
+  uint null_offset{0}; /* Offset to null_bit in record */
   /* Length of key part in bytes, excluding NULL flag and length bytes */
-  uint16 length;
+  uint16 length{0};
   /*
     Number of bytes required to store the keypart value. This may be
     different from the "length" field as it also counts
      - possible NULL-flag byte (see HA_KEY_NULL_LENGTH)
      - possible HA_KEY_BLOB_LENGTH bytes needed to store actual value length.
   */
-  uint16 store_length;
-  uint16 fieldnr;          /* Fieldnum in UNIREG */
+  uint16 store_length{0};
+  uint16 fieldnr{0};       /* Fieldnum in UNIREG */
   uint16 key_part_flag{0}; /* 0 or HA_REVERSE_SORT */
-  uint8 type;
+  uint8 type{0};
   uint8 null_bit{0}; /* Position to null_bit */
   /**
     True - if key part allows trivial binary comparison,
@@ -82,7 +83,7 @@ class KEY_PART_INFO { /* Info about a key part */
     So in practice key_cmp_if_same() also has to check key_part_flag for
     presence of HA_BLOB_PART, HA_VAR_LENGTH_PART and HA_BIT_PART flags.
   */
-  bool bin_cmp;
+  bool bin_cmp{false};
   void init_from_field(Field *fld); /** Fill data from given field */
   void init_flags();                /** Set key_part_flag from field */
 };
@@ -111,49 +112,51 @@ typedef float rec_per_key_t;
 class KEY {
  public:
   /** Tot length of key */
-  uint key_length;
+  uint key_length{0};
   /** dupp key and pack flags */
-  ulong flags;
+  ulong flags{0};
   /** dupp key and pack flags for actual key parts */
-  ulong actual_flags;
+  ulong actual_flags{0};
   /** How many key_parts */
-  uint user_defined_key_parts;
+  uint user_defined_key_parts{0};
   /** How many key_parts including hidden parts */
-  uint actual_key_parts;
+  uint actual_key_parts{0};
   /**
      Key parts allocated for primary key parts extension but
      not used due to some reasons(no primary key, duplicated key parts)
   */
-  uint unused_key_parts;
+  uint unused_key_parts{0};
   /** Should normally be = actual_key_parts */
-  uint usable_key_parts;
-  uint block_size;
-  enum ha_key_alg algorithm;
+  uint usable_key_parts{0};
+  uint block_size{0};
+  /// @cond Doxygen_is_confused
+  enum ha_key_alg algorithm { HA_KEY_ALG_SE_SPECIFIC };
+  /// @endcond
   /**
     A flag which indicates that index algorithm for this key was explicitly
     specified by user. So, for example, it should be mentioned in SHOW CREATE
     TABLE output.
   */
-  bool is_algorithm_explicit;
+  bool is_algorithm_explicit{false};
   /**
     Note that parser is used when the table is opened for use, and
     parser_name is used when the table is being created.
   */
   /** Fulltext [pre]parser */
-  plugin_ref parser;
+  plugin_ref parser{nullptr};
   /** Fulltext [pre]parser name */
-  LEX_CSTRING parser_name;
+  LEX_CSTRING parser_name{nullptr, 0};
 
-  KEY_PART_INFO *key_part;
+  KEY_PART_INFO *key_part{nullptr};
   /** Name of key */
-  const char *name;
+  const char *name{nullptr};
 
   /**
     Array of AVG(number of records with the same field value) for 1st ... Nth
-    key part. 0 means 'not known'. For internally created temporary tables this
-    member is NULL.
+    key part. 0 means 'not known'. For internally created temporary tables,
+    this member can be nullptr.
   */
-  ulong *rec_per_key;
+  ulong *rec_per_key{nullptr};
 
   /**
     @retval true if this is a functional index (at least one of the key parts
@@ -161,6 +164,11 @@ class KEY {
     @retval false if this isn't a functional index.
   */
   bool is_functional_index() const;
+
+  // Can't use in-class initialization as long as we memset-initialize
+  // the struct
+  LEX_CSTRING engine_attribute{nullptr, 0};
+  LEX_CSTRING secondary_engine_attribute{nullptr, 0};
 
  private:
   /**
@@ -170,29 +178,29 @@ class KEY {
     value when used, it means that the storage engine has not supplied
     a value.
   */
-  double m_in_memory_estimate;
+  double m_in_memory_estimate{0.0};
 
   /**
     Array of AVG(number of records with the same field value) for 1st ... Nth
-    key part. For internally created temporary tables this member is
-    NULL. This is the same information as stored in the above
+    key part. For internally created temporary tables, this member can be
+    nullptr. This is the same information as stored in the above
     rec_per_key array but using float values instead of integer
     values. If the storage engine has supplied values in this array,
     these will be used. Otherwise the value in rec_per_key will be
     used.  @todo In the next release the rec_per_key array above
     should be removed and only this should be used.
   */
-  rec_per_key_t *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float{nullptr};
 
  public:
   /**
     True if this index is visible to the query optimizer. The optimizer may
     only use visible indexes.
   */
-  bool is_visible;
+  bool is_visible{false};
 
-  TABLE *table;
-  LEX_CSTRING comment;
+  TABLE *table{nullptr};
+  LEX_CSTRING comment{nullptr, 0};
 
   /**
     Check if records per key estimate is available for given key part.
@@ -203,7 +211,7 @@ class KEY {
   */
 
   bool has_records_per_key(uint key_part_no) const {
-    DBUG_ASSERT(key_part_no < actual_key_parts);
+    assert(key_part_no < actual_key_parts);
 
     return ((rec_per_key_float &&
              rec_per_key_float[key_part_no] != REC_PER_KEY_UNKNOWN) ||
@@ -225,7 +233,7 @@ class KEY {
   */
 
   rec_per_key_t records_per_key(uint key_part_no) const {
-    DBUG_ASSERT(key_part_no < actual_key_parts);
+    assert(key_part_no < actual_key_parts);
 
     /*
       If the storage engine has provided rec per key estimates as float
@@ -251,10 +259,9 @@ class KEY {
   */
 
   void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est) {
-    DBUG_ASSERT(key_part_no < actual_key_parts);
-    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
-                rec_per_key_est >= 1.0);
-    DBUG_ASSERT(rec_per_key_float != NULL);
+    assert(key_part_no < actual_key_parts);
+    assert(rec_per_key_est == REC_PER_KEY_UNKNOWN || rec_per_key_est >= 1.0);
+    assert(rec_per_key_float != nullptr);
 
     rec_per_key_float[key_part_no] = rec_per_key_est;
   }
@@ -267,7 +274,7 @@ class KEY {
   */
 
   bool supports_records_per_key() const {
-    if (rec_per_key_float != NULL && rec_per_key != NULL) return true;
+    if (rec_per_key_float != nullptr && rec_per_key != nullptr) return true;
 
     return false;
   }
@@ -293,6 +300,28 @@ class KEY {
   }
 
   /**
+    Move rec_per_key arrays from old to new position.
+
+    Ignore if arrays have not been set up yet.
+
+    @param rec_per_key_arg       pointer to adjusted rec per key array
+    @param rec_per_key_float_arg pointer to adjusted rec per key array (float)
+  */
+
+  void move_rec_per_key(ulong *rec_per_key_arg,
+                        rec_per_key_t *rec_per_key_float_arg) {
+    if (rec_per_key_float == nullptr || rec_per_key == nullptr) return;
+
+    rec_per_key_t *old_rec_per_key_float = rec_per_key_float;
+    ulong *old_rec_per_key = rec_per_key;
+    set_rec_per_key_array(rec_per_key_arg, rec_per_key_float_arg);
+    for (uint i = 0; i < actual_key_parts; i++) {
+      rec_per_key[i] = old_rec_per_key[i];
+      rec_per_key_float[i] = old_rec_per_key_float[i];
+    }
+  }
+
+  /**
     Retrieve the estimate for how much of the index data that is available
     in a memory buffer.
 
@@ -304,8 +333,8 @@ class KEY {
   */
 
   double in_memory_estimate() const {
-    DBUG_ASSERT(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
-                (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
+    assert(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+           (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
 
     return m_in_memory_estimate;
   }
@@ -319,8 +348,8 @@ class KEY {
   */
 
   void set_in_memory_estimate(double in_memory_estimate) {
-    DBUG_ASSERT(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
-                (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
+    assert(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+           (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
 
     m_in_memory_estimate = in_memory_estimate;
   }
@@ -332,7 +361,7 @@ void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
               uint key_length);
 void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
                  uint key_length);
-bool key_cmp_if_same(TABLE *form, const uchar *key, uint index,
+bool key_cmp_if_same(const TABLE *table, const uchar *key, uint index,
                      uint key_length);
 void key_unpack(String *to, TABLE *table, KEY *key);
 void field_unpack(String *to, Field *field, uint max_length, bool prefix_key);

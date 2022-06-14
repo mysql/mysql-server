@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include <mysql/group_replication_priv.h>
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/plugin_psi.h"
@@ -140,7 +141,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   /**
     Message destructor
    */
-  virtual ~Pipeline_stats_member_message();
+  ~Pipeline_stats_member_message() override;
 
   /**
     Get transactions waiting certification counter value.
@@ -233,7 +234,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
 
     @param[out] buffer   the message buffer to be written
   */
-  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void encode_payload(std::vector<unsigned char> *buffer) const override;
 
   /**
     Message decoding method
@@ -241,7 +242,8 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
     @param[in] buffer the received data
     @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *end);
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   int32 m_transactions_waiting_certification;
@@ -420,6 +422,13 @@ class Pipeline_member_stats {
   Pipeline_member_stats(Pipeline_stats_member_message &msg);
 
   /**
+    Constructor.
+  */
+  Pipeline_member_stats(Pipeline_stats_member_collector *pipeline_stats,
+                        ulonglong applier_queue, ulonglong negative_certified,
+                        ulonglong certificatin_size);
+
+  /**
     Updates member statistics with a new message from the network
   */
   void update_member_stats(Pipeline_stats_member_message &msg, uint64 stamp);
@@ -479,18 +488,24 @@ class Pipeline_member_stats {
   int64 get_transactions_rows_validating();
 
   /**
-    Get set of stable group transactions.
-
-    @return the transaction identifier.
+    Get the stable group transactions.
   */
-  const std::string &get_transaction_committed_all_members();
+  void get_transaction_committed_all_members(std::string &value);
 
   /**
-    Get last positive certified transaction.
-
-    @return the transaction identifier.
+    Set the stable group transactions.
   */
-  const std::string &get_transaction_last_conflict_free();
+  void set_transaction_committed_all_members(char *str, size_t len);
+
+  /**
+    Get the last positive certified transaction.
+  */
+  void get_transaction_last_conflict_free(std::string &value);
+
+  /**
+    Set the last positive certified transaction.
+  */
+  void set_transaction_last_conflict_free(std::string &value);
 
   /**
     Get local member transactions negatively certified.
@@ -535,7 +550,7 @@ class Pipeline_member_stats {
   */
   uint64 get_stamp();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void debug(const char *member, int64 quota_size, int64 quota_used);
 #endif
 
@@ -630,6 +645,10 @@ class Flow_control_module {
   mysql_cond_t m_flow_control_cond;
 
   Flow_control_module_info m_info;
+  /*
+    A rw lock to protect the Flow_control_module_info map.
+  */
+  Checkable_rwlock *m_flow_control_module_info_lock;
 
   /*
     Number of members that did have waiting transactions on

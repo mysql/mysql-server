@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,27 +78,27 @@ struct first_page_t : public basic_page_t {
   static const ulint LOB_PAGE_TRAILER_LEN = FIL_PAGE_DATA_END;
 
   /** The default constructor. */
-  first_page_t() {}
+  first_page_t() = default;
 
   /** Constructor.
-  @param[in]	block	the buffer block of the first page.
-  @param[in]	mtr	the mini-transaction context. */
+  @param[in]    block   Buffer block of the first page.
+  @param[in]    mtr     Mini-transaction context. */
   first_page_t(buf_block_t *block, mtr_t *mtr) : basic_page_t(block, mtr) {}
 
   /** Constructor.
-  @param[in]	block	the buffer block of the first page.*/
+  @param[in]    block   the buffer block of the first page.*/
   first_page_t(buf_block_t *block) : basic_page_t(block, nullptr) {}
 
   /** Constructor.
-  @param[in]	block	the buffer block of the first page.
-  @param[in]	mtr	the mini-transaction context.
-  @param[in]	index	the clustered index containing the LOB. */
+  @param[in]    block   Buffer block of the first page.
+  @param[in]    mtr     Mini-transaction context.
+  @param[in]    index   Clustered index containing the LOB. */
   first_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
       : basic_page_t(block, mtr, index) {}
 
   /** Constructor.
-  @param[in]	mtr	the mini-transaction context.
-  @param[in]	index	the clustered index containing the LOB. */
+  @param[in]    mtr     Mini-transaction context.
+  @param[in]    index   Clustered index containing the LOB. */
   first_page_t(mtr_t *mtr, dict_index_t *index)
       : basic_page_t(nullptr, mtr, index) {}
 
@@ -125,14 +125,14 @@ struct first_page_t : public basic_page_t {
 
   /** When the bit is set, the LOB is not partially updatable anymore.
   Enable the bit.
-  @param[in]	trx	the current transaction. */
+  @param[in]    trx     the current transaction. */
   void mark_cannot_be_partially_updated(trx_t *trx);
 
   /** Allocate the first page for uncompressed LOB.
-  @param[in,out]	alloc_mtr	the allocation mtr.
-  @param[in]	is_bulk		true if it is bulk operation
+  @param[in,out]        alloc_mtr       the allocation mtr.
+  @param[in]    is_bulk         true if it is bulk operation.
                                   (OPCODE_INSERT_BULK)
-  @return the allocated buffer block.*/
+  return the allocated buffer block.*/
   buf_block_t *alloc(mtr_t *alloc_mtr, bool is_bulk);
 
   /** Free all the index pages.  The list of index pages can be accessed
@@ -148,15 +148,38 @@ struct first_page_t : public basic_page_t {
   @param[in]   page_size  the page size information.
   @return the buffer block of the first page. */
   buf_block_t *load_s(page_id_t page_id, page_size_t page_size) {
-    m_block = buf_page_get(page_id, page_size, RW_S_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
+  }
+
+  /** Load the first page of LOB with x-latch.
+  @param[in]   page_id    Page identifier of the first page.
+  @param[in]   page_size  Page size information.
+  @param[in]   mtr        Mini-transaction context for latch.
+  @return the buffer block of the first page. */
+  buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size,
+                      mtr_t *mtr);
+
+  /** Load the first page of LOB with x-latch in the given mtr context.
+  The first page must already be x-latched by the m_mtr.
+  @param[in]   mtr        Mini-transaction context for latch.
+  @return the buffer block of the first page. */
+  buf_block_t *load_x(mtr_t *mtr) const {
+    ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+    buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
+                                    RW_X_LATCH, UT_LOCATION_HERE, mtr);
+    ut_ad(tmp == m_block);
+    return (tmp);
   }
 
   /** Load the first page of LOB with x-latch.
   @param[in]   page_id    the page identifier of the first page.
   @param[in]   page_size  the page size information.
   @return the buffer block of the first page. */
-  buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size);
+  buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size) {
+    return (load_x(page_id, page_size, m_mtr));
+  }
 
   /** Get the buffer block of the LOB first page.
   @return the buffer block. */
@@ -164,18 +187,23 @@ struct first_page_t : public basic_page_t {
 
   /** Load the file list node from the given location.  An x-latch is taken
   on the page containing the file list node.
-  @param[in]	addr	the location of file list node.
-  @return		the file list node.*/
+  @param[in]    addr    Location of file list node.
+  @param[in]    mtr   Mini-transaction context to be used.
+  @return               the file list node.*/
+  flst_node_t *addr2ptr_x(const fil_addr_t &addr, mtr_t *mtr) const;
+
+  /** Load the file list node from the given location.  An x-latch is taken
+  on the page containing the file list node.
+  @param[in]    addr    the location of file list node.
+  @return               the file list node.*/
   flst_node_t *addr2ptr_x(fil_addr_t &addr) const {
-    space_id_t space = dict_index_get_space(m_index);
-    const page_size_t page_size = dict_table_page_size(m_index->table);
-    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, m_mtr));
+    return (addr2ptr_x(addr, m_mtr));
   }
 
   /** Load the file list node from the given location, assuming that it
   exists in the first page itself.
-  @param[in]	addr	the location of file list node.
-  @return		the file list node.*/
+  @param[in]    addr    the location of file list node.
+  @return               the file list node.*/
   flst_node_t *addr2ptr(const fil_addr_t &addr) {
     ut_ad(m_block->page.id.page_no() == addr.page);
     return (buf_block_get_frame(m_block) + addr.boffset);
@@ -183,8 +211,8 @@ struct first_page_t : public basic_page_t {
 
   /** Load the file list node from the given location.  An s-latch is taken
   on the page containing the file list node.
-  @param[in]	addr	the location of file list node.
-  @return		the file list node.*/
+  @param[in]    addr    the location of file list node.
+  @return               the file list node.*/
   flst_node_t *addr2ptr_s(fil_addr_t &addr) {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
@@ -194,9 +222,9 @@ struct first_page_t : public basic_page_t {
   /** Load the file list node from the given location.  An s-latch is taken
   on the page containing the file list node. The given cache is checked to
   see if the page is already loaded.
-  @param[in]	cache	cache of loaded buffer blocks.
-  @param[in]	addr	the location of file list node.
-  @return		the file list node.*/
+  @param[in]    cache   cache of loaded buffer blocks.
+  @param[in]    addr    the location of file list node.
+  @return               the file list node.*/
   flst_node_t *addr2ptr_s_cache(std::map<page_no_t, buf_block_t *> &cache,
                                 fil_addr_t &addr) const {
     byte *result;
@@ -222,6 +250,12 @@ struct first_page_t : public basic_page_t {
   been freed. */
   void dealloc();
 
+  /** Free all the pages associated with this LOB. */
+  void destroy();
+
+  /** Free all the pages associated with this LOB, except the first page. */
+  void make_empty();
+
   /** Check if the index list is empty or not.
   @return true if empty, false otherwise. */
   bool is_empty() const {
@@ -232,14 +266,14 @@ struct first_page_t : public basic_page_t {
 
   /** Allocate one index entry.  If required an index page (of type
   FIL_PAGE_TYPE_LOB_INDEX) will be allocated.
-  @param[in]	bulk	true if it is a bulk operation
+  @param[in]    bulk    true if it is a bulk operation
                           (OPCODE_INSERT_BULK), false otherwise.
   @return the file list node of the index entry. */
   flst_node_t *alloc_index_entry(bool bulk);
 
   /** Get a pointer to the beginning of the index entry nodes in the
   first part of the page.
-  @return	the first index entry node. */
+  @return       the first index entry node. */
   byte *nodes_begin() const { return (frame() + LOB_PAGE_DATA); }
 
   /** Calculate and return the payload.
@@ -250,14 +284,14 @@ struct first_page_t : public basic_page_t {
 
   /** Set the transaction identifier in the first page header without
   generating redo logs.
-  @param[in]	id	the transaction identifier. */
+  @param[in]    id      the transaction identifier. */
   void set_trx_id_no_redo(trx_id_t id) {
     byte *ptr = frame() + OFFSET_TRX_ID;
     mach_write_to_6(ptr, id);
   }
 
   /** Set the transaction identifier in the first page header.
-  @param[in]	id	the transaction identifier. */
+  @param[in]    id      the transaction identifier. */
   void set_trx_id(trx_id_t id) {
     byte *ptr = frame() + OFFSET_TRX_ID;
     mach_write_to_6(ptr, id);
@@ -282,14 +316,14 @@ struct first_page_t : public basic_page_t {
 
   /** Set the last transaction identifier, without generating redo log
   records.
-  @param[in]	id	the trx identifier. */
+  @param[in]    id      the trx identifier. */
   void set_last_trx_id_no_redo(trx_id_t id) {
     byte *ptr = frame() + OFFSET_LAST_TRX_ID;
     mach_write_to_6(ptr, id);
   }
 
   /** Set the last transaction identifier.
-  @param[in]	id	the trx identifier. */
+  @param[in]    id      the trx identifier. */
   void set_last_trx_id(trx_id_t id) {
     byte *ptr = frame() + OFFSET_LAST_TRX_ID;
     mach_write_to_6(ptr, id);
@@ -297,7 +331,7 @@ struct first_page_t : public basic_page_t {
   }
 
   /** Set the last transaction undo number.
-  @param[in]	undo_no	the trx undo number. */
+  @param[in]    undo_no the trx undo number. */
   void set_last_trx_undo_no(undo_no_t undo_no) {
     ut_ad(m_mtr != nullptr);
 
@@ -320,7 +354,7 @@ struct first_page_t : public basic_page_t {
   }
 
   /** Set the length of data stored in bytes.
-  @param[in]	len	amount of data stored in bytes. */
+  @param[in]    len     amount of data stored in bytes. */
   void set_data_len(ulint len) {
     ut_ad(m_mtr != nullptr);
 
@@ -328,45 +362,44 @@ struct first_page_t : public basic_page_t {
   }
 
   /** Write as much as possible of the given data into the page.
-  @param[in]	trxid	the current transaction.
-  @param[in]	data	the data to be written.
-  @param[in]	len	the length of the given data.
+  @param[in]    trxid   the current transaction.
+  @param[in]    data    the data to be written.
+  @param[in]    len     the length of the given data.
   @return number of bytes actually written. */
   ulint write(trx_id_t trxid, const byte *&data, ulint &len);
 
   /** Replace data in the page by making a copy-on-write.
-  @param[in]	trx	the current transaction.
-  @param[in]	offset	the location where replace operation starts.
-  @param[in,out]	ptr	the buffer containing new data. after the
-                          call it will point to remaining data.
-  @param[in,out]	want	requested amount of data to be replaced.
-                          after the call it will contain amount of
-                          data yet to be replaced.
-  @param[in]	mtr	the mini-transaction context.
-  @return	the newly allocated buffer block. */
+  @param[in]      trx     Current transaction.
+  @param[in]      offset  Location where replace operation starts.
+  @param[in,out]  ptr     Buffer containing new data. after the call it will
+  point to remaining data.
+  @param[in,out]  want    Requested amount of data to be replaced. After the
+  call it will contain amount of data yet to be replaced.
+  @param[in]      mtr     Mini-transaction context.
+  @return  the newly allocated buffer block.
+  @return  nullptr if new page could not be allocated
+  (DB_OUT_OF_FILE_SPACE). */
   buf_block_t *replace(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
                        mtr_t *mtr);
 
   /** Replace data in the page inline.
-  @param[in]	trx	the current transaction.
-  @param[in]	offset	the location where replace operation starts.
-  @param[in,out]	ptr	the buffer containing new data. after the
+  @param[in]    offset  Location where replace operation starts.
+  @param[in,out]        ptr     Buffer containing new data. after the
                           call it will point to remaining data.
-  @param[in,out]	want	requested amount of data to be replaced.
+  @param[in,out]        want    Requested amount of data to be replaced.
                           after the call it will contain amount of
                           data yet to be replaced.
-  @param[in]	mtr	the mini-transaction context.*/
-  void replace_inline(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
-                      mtr_t *mtr);
+  @param[in]    mtr     Mini-transaction context.*/
+  void replace_inline(ulint offset, const byte *&ptr, ulint &want, mtr_t *mtr);
 
   ulint get_data_len() const {
     return (mach_read_from_4(frame() + OFFSET_DATA_LEN));
   }
 
   /** Read data from the first page.
-  @param[in]	offset	the offset from where read starts.
-  @param[out]	ptr	the output buffer
-  @param[in]	want	number of bytes to read.
+  @param[in]    offset  the offset from where read starts.
+  @param[out]   ptr     the output buffer
+  @param[in]    want    number of bytes to read.
   @return number of bytes read. */
   ulint read(ulint offset, byte *ptr, ulint want);
 
@@ -411,7 +444,7 @@ struct first_page_t : public basic_page_t {
   /** Obtain the location where the data begins.
   @return pointer to location within page where data begins. */
   byte *data_begin() const {
-    ut_ad(buf_block_get_page_zip(m_block) == NULL);
+    ut_ad(buf_block_get_page_zip(m_block) == nullptr);
 
     constexpr ulint index_array_size = node_count() * index_entry_t::SIZE;
 
@@ -438,6 +471,18 @@ struct first_page_t : public basic_page_t {
     page_type_t page_type = first.get_page_type();
     mtr_commit(&local_mtr);
     return (page_type);
+  }
+
+ public:
+  /** Restart the given mtr. The first page must already be x-latched by
+  the m_mtr.
+  @param[in]   mtr   Mini-transaction context which is to be restarted. */
+  void restart_mtr(mtr_t *mtr) {
+    ut_ad(mtr != m_mtr);
+    mtr_commit(mtr);
+    mtr_start(mtr);
+    mtr->set_log_mode(m_mtr->get_log_mode());
+    load_x(mtr);
   }
 };
 

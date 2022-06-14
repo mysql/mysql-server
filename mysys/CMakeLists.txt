@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -20,24 +20,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+ADD_WSHADOW_WARNING()
+
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
-IF(SOLARIS)
-  # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
-      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE
-      $<$<CONFIG:RelWithDebInfo>:-xO1>)
-  ENDIF()
-ENDIF()
 
 SET(MYSYS_SOURCES
   array.cc
-  base64.cc
   charset.cc
   charset-def.cc
-  checksum.cc
+  dbug.cc
   errors.cc
   lf_alloc-pin.cc
   lf_dynarray.cc
@@ -72,7 +65,6 @@ SET(MYSYS_SOURCES
   my_copy.cc
   my_create.cc
   my_delete.cc
-  my_div.cc
   my_error.cc
   my_fallocator.cc
   my_file.cc
@@ -116,6 +108,8 @@ SET(MYSYS_SOURCES
   thr_rwlock.cc
   tree.cc
   typelib.cc
+  unhex.cc
+  keyring_operations_helper.cc
   # From deleted mysys_ssl library
   crypt_genhash_impl.cc
   my_default.cc
@@ -126,10 +120,27 @@ SET(MYSYS_SOURCES
   my_md5.cc
   my_rnd.cc
 )
-IF(WITH_SSL STREQUAL "wolfssl")
-  LIST(APPEND MYSYS_SOURCES my_aes_wolfssl.cc)
-ELSE()
-  LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
+LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
+
+IF(BUILD_IS_SINGLE_CONFIG)
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  IF(NOT CMAKE_CXX_FLAGS MATCHES "DSAFE_MUTEX" AND
+      NOT CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DSAFE_MUTEX" AND
+      NOT CWD_DEFINITIONS MATCHES "SAFE_MUTEX")
+    # Both have ifdef SAFE_MUTEX
+    LIST(REMOVE_ITEM MYSYS_SOURCES
+      thr_cond.cc
+      thr_mutex.cc
+      )
+  ENDIF()
+  IF(CMAKE_CXX_FLAGS MATCHES "DNDEBUG" OR
+      CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DNDEBUG" OR
+      CWD_DEFINITIONS MATCHES "NDEBUG")
+    # ifndef NDEBUG
+    LIST(REMOVE_ITEM MYSYS_SOURCES
+      dbug.cc
+      )
+  ENDIF()
 ENDIF()
 
 IF (WIN32)
@@ -139,6 +150,7 @@ IF (WIN32)
     my_winerr.cc
     my_winfile.cc
     win_timers.cc
+    my_nojemalloc.cc
   )
 ENDIF()
 
@@ -154,12 +166,6 @@ IF(HAVE_GETPWNAM)
   SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_getpwnam.cc)
 ENDIF()
 
-IF(SOLARIS AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  # Inline assembly template for rdtsc
-  SET_SOURCE_FILES_PROPERTIES(my_rdtsc.cc
-    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
-ENDIF()
-
 IF(HAVE_LINUX_LARGE_PAGES)
   LIST(APPEND MYSYS_SOURCES my_largepage.cc)
 ENDIF()
@@ -170,10 +176,10 @@ ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
-  dbug
   mytime
   strings
   ${ZLIB_LIBRARY}
+  ${ZSTD_LIBRARY}
   ${LIBNSL}
   ${LIBM}
   ${LIBRT}
@@ -182,29 +188,38 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   ${SSL_LIBRARIES}
   )
 
+# For targets that link with mysys, and are independent of other targets.
+IF(TARGET copy_openssl_dlls)
+  ADD_DEPENDENCIES(mysys copy_openssl_dlls)
+ENDIF()
+
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
 ENDIF()
 # Needed to resolve OpenSSL dependency on Windows
-IF(WIN32 AND NOT WITH_SSL STREQUAL "wolfssl")
+IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys crypt32)
 ENDIF()
 
-# Bug in std::call_once in optimized mode
-IF(SOLARIS_SPARC AND CMAKE_COMPILER_IS_GNUCXX)
-  ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
+# MD5_Init() and others are deprecated.
+IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
+  ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(thr_lock thr_lock.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(thr_lock mysys)
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
+
+MYSQL_ADD_EXECUTABLE(thr_lock
+  thr_lock.cc
+  LINK_LIBRARIES mysys
+  SKIP_INSTALL
+  )
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")
 
-MYSQL_ADD_EXECUTABLE(mf_iocache_test mf_iocache.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(mf_iocache_test mysys)
+MYSQL_ADD_EXECUTABLE(mf_iocache_test
+  mf_iocache.cc
+  LINK_LIBRARIES mysys
+  SKIP_INSTALL
+  )
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")
-
-MYSQL_ADD_EXECUTABLE(base64_test base64.cc SKIP_INSTALL)
-SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
-TARGET_LINK_LIBRARIES(base64_test mysys)
-ADD_DEPENDENCIES(base64_test GenError)

@@ -125,6 +125,8 @@ DELETE FROM t1
 WHERE c12 <=> REPEAT('ab', @max_allowed_packet);
 Warnings:
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 SELECT c11, LENGTH(c12) FROM t1;
 c11	LENGTH(c12)
 SET @@sql_mode= default;

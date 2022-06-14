@@ -21,7 +21,7 @@
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
---eval CHANGE MASTER TO MASTER_DELAY= $delay
+--eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -124,7 +124,7 @@ EOF
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_sql.inc
-CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
 --source include/start_slave_sql.inc
 
 --source include/rpl_end.inc

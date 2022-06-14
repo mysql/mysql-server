@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define Logger_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
+#include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 
@@ -320,7 +322,7 @@ private:
   Logger operator = (const Logger&);
   bool operator == (const Logger&);
 
-  STATIC_CONST( MAX_LOG_LEVELS = 8 );
+  static constexpr Uint32 MAX_LOG_LEVELS = 8;
 
   bool m_logLevels[MAX_LOG_LEVELS];
   

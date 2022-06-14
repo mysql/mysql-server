@@ -1,4 +1,3 @@
---source include/have_ssl.inc
 --source include/not_windows.inc
 --source include/xplugin_preamble.inc
 

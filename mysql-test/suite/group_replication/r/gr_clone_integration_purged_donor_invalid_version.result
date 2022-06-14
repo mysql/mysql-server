@@ -43,8 +43,9 @@ UNINSTALL PLUGIN clone;
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_major_version';
 UNINSTALL PLUGIN clone;
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("No valid or ONLINE members exist to get the missing data from the group. For cloning check if donors of the same version and with clone plugin installed exist. For distributed recovery check.*");
+call mtr.add_suppression("No valid or ONLINE members exist to get the missing data from the group. For cloning check if donors of the same version and with clone plugin installed exist. For incremental recovery check.*");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Member version is read compatible with the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET SESSION sql_log_bin=1;
 include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,8 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_pipeline_stats_flow_control,
     key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
     key_GR_LOCK_plugin_modules_termination,
-    key_GR_LOCK_plugin_online, key_GR_LOCK_plugin_running,
+    key_GR_LOCK_plugin_applier_module_initialize_terminate,
+    key_GR_LOCK_plugin_online,
     key_GR_LOCK_primary_election_action_phase,
     key_GR_LOCK_primary_election_action_notification,
     key_GR_LOCK_primary_election_primary_process_run,
@@ -67,16 +68,23 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_recovery_donor_selection,
     key_GR_LOCK_recovery_module_run,
     key_GR_LOCK_server_ongoing_transaction_handler,
+    key_GR_LOCK_message_service_run,
     key_GR_LOCK_session_thread_method_exec,
     key_GR_LOCK_session_thread_run,
     key_GR_LOCK_stage_monitor_handler,
     key_GR_LOCK_synchronized_queue,
+    key_GR_LOCK_transaction_monitor_module,
     key_GR_LOCK_trx_unlocking,
     key_GR_LOCK_group_member_info_manager_update_lock,
     key_GR_LOCK_group_member_info_update_lock,
     key_GR_LOCK_view_modification_wait,
     key_GR_LOCK_wait_ticket,
-    key_GR_LOCK_write_lock_protection;
+    key_GR_LOCK_write_lock_protection,
+    key_GR_LOCK_mysql_thread_run,
+    key_GR_LOCK_mysql_thread_dispatcher_run,
+    key_GR_LOCK_connection_map,
+    key_GR_LOCK_mysql_thread_handler_run,
+    key_GR_LOCK_mysql_thread_handler_dispatcher_run;
 
 PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,
@@ -106,13 +114,20 @@ PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_recovery_module_run,
     key_GR_COND_session_thread_method_exec,
     key_GR_COND_session_thread_run,
+    key_GR_COND_message_service_run,
     key_GR_COND_synchronized_queue,
+    key_GR_COND_transaction_monitor_module,
     key_GR_COND_view_modification_wait,
     key_GR_COND_wait_ticket,
-    key_GR_COND_write_lock_protection;
+    key_GR_COND_write_lock_protection,
+    key_GR_COND_mysql_thread_run,
+    key_GR_COND_mysql_thread_dispatcher_run,
+    key_GR_COND_mysql_thread_handler_run,
+    key_GR_COND_mysql_thread_handler_dispatcher_run;
 
 PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_autorejoin,
+    key_GR_THD_transaction_monitor,
     key_GR_THD_cert_broadcast,
     key_GR_THD_clone_thd,
     key_GR_THD_delayed_init,
@@ -121,19 +136,24 @@ PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_primary_election_primary_process,
     key_GR_THD_primary_election_secondary_process,
     key_GR_THD_group_partition_handler,
-    key_GR_THD_recovery;
+    key_GR_THD_recovery,
+    key_GR_THD_message_service_handler,
+    key_GR_THD_mysql_thread,
+    key_GR_THD_mysql_thread_handler;
 
 PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_channel_observation_list,
     key_GR_RWLOCK_gcs_operations,
-    key_GR_RWLOCK_gcs_operations_finalize_ongoing,
     key_GR_RWLOCK_gcs_operations_view_change_observers,
     key_GR_RWLOCK_group_event_observation_list,
     key_GR_RWLOCK_io_cache_unused_list,
+    key_GR_RWLOCK_plugin_running,
     key_GR_RWLOCK_plugin_stop,
     key_GR_RWLOCK_transaction_observation_list,
     key_GR_RWLOCK_transaction_consistency_manager_map,
-    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier;
+    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
+    key_GR_RWLOCK_flow_control_module_info,
+    key_GR_RWLOCK_transaction_consistency_info_members_that_must_prepare_the_transaction;
 /* clang-format on */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -274,9 +294,10 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
      PSI_DOCUMENT_ME},
     {&key_GR_LOCK_plugin_modules_termination, "LOCK_plugin_modules_termination",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GR_LOCK_plugin_online, "LOCK_plugin_online", PSI_FLAG_SINGLETON, 0,
+    {&key_GR_LOCK_plugin_applier_module_initialize_terminate,
+     "LOCK_plugin_applier_module_initialize_terminate", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
-    {&key_GR_LOCK_plugin_running, "LOCK_plugin_running", PSI_FLAG_SINGLETON, 0,
+    {&key_GR_LOCK_plugin_online, "LOCK_plugin_online", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_LOCK_primary_election_action_phase,
      "LOCK_primary_election_action_phase", PSI_FLAG_SINGLETON, 0,
@@ -307,6 +328,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_server_ongoing_transaction_handler,
      "LOCK_server_ongoing_transaction_handler", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_message_service_run, "LOCK_message_service_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_session_thread_method_exec, "LOCK_session_thread_method_exec",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_session_thread_run, "LOCK_session_thread_run",
@@ -314,6 +337,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_stage_monitor_handler, "LOCK_stage_monitor_handler",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_synchronized_queue, "LOCK_synchronized_queue",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_transaction_monitor_module, "LOCK_transaction_monitoring",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -328,7 +353,19 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_wait_ticket, "LOCK_wait_ticket", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_mysql_thread_run, "LOCK_mysql_thread_run", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_mysql_thread_dispatcher_run,
+     "LOCK_mysql_thread_dispatcher_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_connection_map, "LOCK_connection_map", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_mysql_thread_handler_run, "LOCK_mysql_handler_thread_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_mysql_thread_handler_dispatcher_run,
+     "LOCK_mysql_thread_handler_dispatcher_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME}};
 
 static PSI_cond_info all_group_replication_psi_condition_keys[] = {
     {&key_GR_COND_applier_module_run, "COND_applier_module_run",
@@ -361,8 +398,13 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_COND_group_part_handler_abort, "COND_group_part_handler_abort",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_COND_message_service_run, "COND_message_service_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_COND_multi_primary_action_notification,
      "COND_multi_primary_action_notification", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_COND_transaction_monitor_module,
+     "COND_transaction_monitoring_wait", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_COND_view_modification_wait, "COND_view_modification_wait",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -404,33 +446,49 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
     {&key_GR_COND_primary_promotion_policy, "COND_primary_promotion_policy",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_COND_autorejoin_module, "COND_autorejoin_module",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_COND_mysql_thread_run, "COND_mysql_thread_run", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
+    {&key_GR_COND_mysql_thread_dispatcher_run,
+     "COND_mysql_thread_dispatcher_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME}};
 
 static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_applier_module_receiver, "THD_applier_module_receiver",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GR_THD_cert_broadcast, "THD_certifier_broadcast", PSI_FLAG_SINGLETON,
-     0, PSI_DOCUMENT_ME},
-    {&key_GR_THD_clone_thd, "THD_clone_process", PSI_FLAG_SINGLETON, 0,
+     "gr_apply", PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0,
      PSI_DOCUMENT_ME},
-    {&key_GR_THD_delayed_init, "THD_delayed_initialization", PSI_FLAG_SINGLETON,
-     0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_cert_broadcast, "THD_certifier_broadcast", "gr_certif",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_clone_thd, "THD_clone_process", "gr_clone",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_delayed_init, "THD_delayed_initialization", "gr_delayed",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_group_action_coordinator, "THD_group_action_coordinator",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GR_THD_plugin_session, "THD_plugin_server_session",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+     "gr_coord", PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_THD_plugin_session, "THD_plugin_server_session", "gr_version",
+     PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_primary_election_primary_process,
-     "THD_primary_election_primary_process", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
+     "THD_primary_election_primary_process", "gr_pri_elect",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_primary_election_secondary_process,
-     "THD_primary_election_secondary_process", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
+     "THD_primary_election_secondary_process", "gr_sec_elect",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_group_partition_handler, "THD_group_partition_handler",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GR_THD_recovery, "THD_recovery", PSI_FLAG_SINGLETON, 0,
+     "gr_partition", PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0,
      PSI_DOCUMENT_ME},
-    {&key_GR_THD_autorejoin, "THD_autorejoin", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+    {&key_GR_THD_recovery, "THD_recovery", "gr_recover",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_autorejoin, "THD_autorejoin", "gr_rejoin",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_transaction_monitor, "THD_transaction_monitor", "gr_trx_mon",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_message_service_handler, "THD_message_service_handler",
+     "gr_msg", PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_mysql_thread, "THD_mysql_thread", "gr_mysql",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_mysql_thread_handler, "THD_mysql_thread_handler", "gr_handler",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 
 static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_cert_stable_gtid_set, "RWLOCK_certifier_stable_gtid_set",
@@ -439,9 +497,6 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_gcs_operations, "RWLOCK_gcs_operations", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
-    {&key_GR_RWLOCK_gcs_operations_finalize_ongoing,
-     "RWLOCK_gcs_operations_finalize_ongoing", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_gcs_operations_view_change_observers,
      "RWLOCK_gcs_operations_view_change_observers", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
@@ -450,6 +505,8 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
      PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_io_cache_unused_list, "RWLOCK_io_cache_unused_list",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_RWLOCK_plugin_running, "RWLOCK_plugin_running", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_plugin_stop, "RWLOCK_plugin_stop", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_transaction_observation_list,
@@ -461,7 +518,14 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
      "RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_"
      "applier",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_RWLOCK_flow_control_module_info, "RWLOCK_flow_control_module_info",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_RWLOCK_transaction_consistency_info_members_that_must_prepare_the_transaction,
+     "RWLOCK_transaction_consistency_info_members_that_must_prepare_the_"
+     "transaction",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+};
 
 static PSI_stage_info *all_group_replication_stages_keys[] = {
     &info_GR_STAGE_autorejoin,
@@ -491,7 +555,7 @@ static PSI_stage_info *all_group_replication_stages_keys[] = {
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
                                                size_t mutex_count) {
   const char *category = "group_rpl";
-  if (mutexes != NULL) {
+  if (mutexes != nullptr) {
     mysql_mutex_register(category, mutexes, static_cast<int>(mutex_count));
   }
 }
@@ -499,7 +563,7 @@ void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
 void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
                                               size_t cond_count) {
   const char *category = "group_rpl";
-  if (conds != NULL) {
+  if (conds != nullptr) {
     mysql_cond_register(category, conds, static_cast<int>(cond_count));
   }
 }
@@ -507,7 +571,7 @@ void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
 void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
                                                 size_t thread_count) {
   const char *category = "group_rpl";
-  if (threads != NULL) {
+  if (threads != nullptr) {
     mysql_thread_register(category, threads, static_cast<int>(thread_count));
   }
 }
@@ -518,9 +582,9 @@ void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
   mysql_rwlock_register(category, keys, static_cast<int>(count));
 }
 
-void register_group_replication_stage_psi_keys(
-    PSI_stage_info **keys MY_ATTRIBUTE((unused)),
-    size_t count MY_ATTRIBUTE((unused))) {
+void register_group_replication_stage_psi_keys(PSI_stage_info **keys
+                                               [[maybe_unused]],
+                                               size_t count [[maybe_unused]]) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   const char *category = "group_rpl";
   mysql_stage_register(category, keys, static_cast<int>(count));

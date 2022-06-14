@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 
 #include <errno.h>   // errno
 #include <string.h>  // strcpy
-#include <iostream>  // std::cout
+#include <iostream>  // std::cerr
 
 #include <mysqld_error.h>                            // error logging
 #include "my_sys.h"                                  // my_strerror
@@ -64,12 +64,17 @@ void notify_connect() {
 #ifndef _WIN32
   const char *sockstr = getenv("NOTIFY_SOCKET");
   if (sockstr == nullptr) {
+#ifdef WITH_SYSTEMD_DEBUG
+    sql_print_warning(
+        "NOTIFY_SOCKET not set in environment. sd_notify messages will not be "
+        "sent!");
+#endif /* WITH_SYSTEMD_DEBUG */
     return;
   }
   size_t sockstrlen = strlen(sockstr);
   size_t sunpathlen = sizeof(sockaddr_un::sun_path) - 1;
   if (sockstrlen > sunpathlen) {
-    std::cerr << "NOTIFY_SOCKET too long" << std::endl;
+    std::cerr << "Error: NOTIFY_SOCKET too long" << std::endl;
     LogErr(SYSTEM_LEVEL, ER_SYSTEMD_NOTIFY_PATH_TOO_LONG, sockstr, sockstrlen,
            sunpathlen);
     return;
@@ -77,14 +82,21 @@ void notify_connect() {
   NotifyGlobals::socket = socket(AF_UNIX, SOCK_DGRAM, 0);
 
   sockaddr_un addr;
+  socklen_t addrlen;
   memset(&addr, 0, sizeof(sockaddr_un));
   addr.sun_family = AF_UNIX;
-  strcpy(addr.sun_path, sockstr);
+  if (sockstr[0] != '@') {
+    strcpy(addr.sun_path, sockstr);
+    addrlen = offsetof(struct sockaddr_un, sun_path) + sockstrlen + 1;
+  } else {  // Abstract namespace socket
+    addr.sun_path[0] = '\0';
+    strncpy(&addr.sun_path[1], sockstr + 1, strlen(sockstr) - 1);
+    addrlen = offsetof(struct sockaddr_un, sun_path) + sockstrlen;
+  }
   int ret = -1;
   do {
-    ret =
-        connect(NotifyGlobals::socket,
-                reinterpret_cast<const sockaddr *>(&addr), sizeof(sockaddr_un));
+    ret = connect(NotifyGlobals::socket,
+                  reinterpret_cast<const sockaddr *>(&addr), addrlen);
   } while (ret == -1 && errno == EINTR);
   if (ret == -1) {
     char errbuf[512];
@@ -111,12 +123,14 @@ void notify() {
     NotifyGlobals::fmt.str("");  // clear the fmt buffer for new notification
   });
 
-#ifdef SYSD_DBUG
-  std::cout << "Send to systemd notify socket:\n" << note << std::endl;
+#ifdef WITH_SYSTEMD_DEBUG
   if (NotifyGlobals::socket == -1) {
+    sql_print_warning("Invalid systemd notify socket, cannot send: %s",
+                      note.c_str());
     return;
   }
-#endif /* SYSD_DBUG */
+  std::cerr << "Send to systemd notify socket: " << note;
+#endif /* WITH_SYSTEMD_DEBUG */
 
   while (true) {
     size_t remaining = end - src;
@@ -135,7 +149,7 @@ void notify() {
   }
   if (status == -1) {
     char errbuf[512];
-    LogErr(WARNING_LEVEL, ER_SYSTEMD_NOTIFY_WRITE_FAILED,
+    LogErr(WARNING_LEVEL, ER_SYSTEMD_NOTIFY_WRITE_FAILED, note.c_str(),
            my_strerror(errbuf, sizeof(errbuf) - 1, errno));
   }
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,14 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
-
-INCLUDE_DIRECTORIES(helpers
-  ${PROJECT_SOURCE_DIR}/src/harness/include
-  ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
-  ${PROJECT_SOURCE_DIR}/src/http/include/
-  ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
-  )
+INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 SET(helper_sources
   helpers/filesystem_utils.cc
@@ -36,7 +29,9 @@ SET(helper_sources
   helpers/mysql_session_replayer.cc
   helpers/process_manager.cc
   helpers/process_wrapper.cc
+  helpers/router_component_clusterset.cc
   helpers/router_component_test.cc
+  helpers/router_component_testutils.cc
   helpers/router_component_system_layout.cc
   helpers/router_test_helpers.cc
   helpers/script_generator.cc
@@ -45,22 +40,28 @@ SET(helper_sources
   helpers/rest_metadata_client.cc
 )
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+IF(MY_COMPILER_IS_CLANG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
+
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
 TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib
   rest_api_lib mock_server_rest_client)
+TARGET_INCLUDE_DIRECTORIES(routertest_helpers
+  PUBLIC
+  helpers
+  ${PROJECT_SOURCE_DIR}/src/harness/shared/include/
+  )
 
-FOREACH(test_dir tools)
-    IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})
-        add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
-    ENDIF()
-ENDFOREACH()
+
 
 ADD_SUBDIRECTORY(component)
 ADD_SUBDIRECTORY(fuzzers)
+ADD_SUBDIRECTORY(integration)
 
-ADD_DEFINITIONS(-DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")
+ADD_DEFINITIONS(
+  -DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")

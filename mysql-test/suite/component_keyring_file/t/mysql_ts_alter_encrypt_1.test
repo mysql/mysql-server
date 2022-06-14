@@ -1,0 +1,25 @@
+--source include/have_component_keyring_file.inc
+################################################################################
+# InnoDB transparent tablespace data encryption for mysql tablespace.
+# For mysql tablespace, this test will test
+#    1 - Normal alter encryption
+#        - encryption='y' to encryption='n'
+#        - encryption='n' to encryption='y'
+#    2 - Crash during altering mysql tablespace encryption
+#        - encryption='y' to encryption='n'
+#        - encryption='n' to encryption='y'
+#    3 - Crash
+#        - just before encryption processing starts
+#        - just after encryption processing finishes
+#    4 - Crash during master key rotation
+#    5 - Privilege check
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/mats/mysql_ts_alter_encrypt_1.inc
+--source ../inc/teardown_component.inc

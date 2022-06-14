@@ -1,0 +1,1 @@
+--innodb_directories=../../Extern_Data;$MYSQLTEST_VARDIR/Extern_Data

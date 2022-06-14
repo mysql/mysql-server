@@ -34,7 +34,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where <in_optimizer>(`test`.`t`.`x`,`test`.`t`.`x` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t` group by `test`.`t`.`x` having true ), <primary_index_lookup>(`test`.`t`.`x` in <temporary table> on <auto_key> where ((`test`.`t`.`x` = `materialized-subquery`.`COUNT(*)`)))))
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where <in_optimizer>(`test`.`t`.`x`,`test`.`t`.`x` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t` group by `test`.`t`.`x` having true ), <primary_index_lookup>(`test`.`t`.`x` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`x` = `<materialized_subquery>`.`COUNT(*)`)))))
 SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x);
 x
 1
@@ -58,7 +58,7 @@ SET optimizer_switch = 'firstmatch=off,materialization=off';
 EXPLAIN SELECT * FROM t WHERE x IN (SELECT x FROM t);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` semi join (`test`.`t`) where (`test`.`t`.`x` = `test`.`t`.`x`)
 SELECT * FROM t WHERE x IN (SELECT x FROM t);
@@ -74,3 +74,23 @@ ERROR HY000: Unknown error
 SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';
 DROP TABLE t;
 SET optimizer_switch = DEFAULT;
+#
+# Bug#31117893 - GROUP BY WILL THROW TABLE IS
+#   FULL WHEN TEMPTABLE MEMORY ALLOCATION EXCEED LIMIT
+#
+CREATE TABLE t1(
+id INT,
+pad VARCHAR(60),
+pad1 VARCHAR(513)
+);
+INSERT INTO t1 VALUES (1, REPEAT('a',59), REPEAT('a',512));
+INSERT INTO t1 VALUES (2, REPEAT('a',59), REPEAT('a',512));
+SET SESSION debug = '+d, simulate_temp_storage_engine_full';
+SELECT COUNT(*), pad FROM t1 GROUP BY pad;
+COUNT(*)	pad
+2	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SELECT COUNT(*), pad1 FROM t1 GROUP BY pad1;
+COUNT(*)	pad1
+2	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SET SESSION debug = '-d, simulate_temp_storage_engine_full';
+DROP TABLE t1;

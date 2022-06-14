@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,22 +33,14 @@
 #include "harness_export.h"
 #include "mysql/harness/compiler_attributes.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/stdx/process.h"
 
+#include <chrono>
 #include <cstdarg>
 #include <fstream>
 #include <list>
 #include <mutex>
 #include <string>
-
-#ifndef _WIN32
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-typedef int pid_t; /* getpid() */
-#endif
 
 namespace mysql_harness {
 
@@ -64,14 +56,23 @@ const size_t kLogMessageMaxSize = 4096;
  * Section name and option name used in config file (and later in configuration
  * object) to specify log level, best explained by example:
  *
- *  vvvvvv------------------ kConfigSectionLogger
+ *  v----------------------- kConfigSectionLogger
  * [logger]
+ * v------------------------ kConfigOptionLogLevel
  * level = DEBUG
- * ^^^^^-------------------- kConfigOptionLogLevel
+ * v------------------------ kConfigOptionLogFilename
+ * filename = foo.log
+ * v------------------------ kConfigOptionLogTimestampPrecision
+ * timestamp_precision = second|sec|s|millisecond|msec|ms|
+ *                       microsecond|usec|us|nanosecond|nsec|ns
  */
+constexpr char kConfigOptionLogFilename[] = "filename";
+constexpr char kConfigOptionLogDestination[] = "destination";
 constexpr char kConfigOptionLogLevel[] = "level";
+constexpr char kConfigOptionLogTimestampPrecision[] = "timestamp_precision";
 constexpr char kConfigSectionLogger[] = "logger";
 
+constexpr char kNone[] = "";
 /**
  * Special names reserved for "main" program logger. It will use one of the
  * two handlers, depending on whether logging_folder is empty or not.
@@ -82,6 +83,10 @@ constexpr char kMainConsoleHandler[] = "main_console_handler";
 
 constexpr char kSqlLogger[] = "sql";
 /**
+ * Default log filename
+ */
+constexpr char kDefaultLogFilename[] = "mysqlrouter.log";
+/**
  * Log level values.
  *
  * Log levels are ordered numerically from most important (lowest
@@ -90,6 +95,12 @@ constexpr char kSqlLogger[] = "sql";
 enum class LogLevel {
   /** Fatal failure. Router usually exits after logging this. */
   kFatal,
+
+  /**
+   * System message. These messages are always logged, such as state changes
+   * during startup and shutdown.
+   */
+  kSystem,
 
   /**
    * Error message. indicate that something is not working properly and
@@ -111,6 +122,12 @@ enum class LogLevel {
    * the behaviour of the router during normal operation.
    */
   kInfo,
+
+  /**
+   * Note level contains additional information over the normal informational
+   * messages.
+   */
+  kNote,
 
   /**
    * Debug message. Message contain internal details that can be
@@ -138,6 +155,25 @@ const char *const kDefaultLogLevelName = "warning";
 const char *const kRawLogLevelName = "info";
 
 /**
+ * Log timestamp precision values.
+ */
+enum class LogTimestampPrecision {
+  // Second
+  kSec = 0,
+
+  // Millisecond
+  kMilliSec = 3,
+
+  // Microsecond
+  kMicroSec = 6,
+
+  // Nanosecond
+  kNanoSec = 9,
+
+  kNotSet  // Always higher than all other log precisions
+};
+
+/**
  * Log record containing information collected by the logging
  * system.
  *
@@ -145,8 +181,8 @@ const char *const kRawLogLevelName = "info";
  */
 struct Record {
   LogLevel level;
-  pid_t process_id;
-  time_t created;
+  stdx::this_process::pid_type process_id;
+  std::chrono::time_point<std::chrono::system_clock> created;
   std::string domain;
   std::string message;
 };
@@ -183,18 +219,33 @@ extern "C" {
  * We need to declare these first, because __attribute__ can only be used in
  * declarations.
  */
+static inline void log_system(const char *fmt, ...)
+    ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_error(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_warning(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_info(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_note(const char *fmt, ...)
+    ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_debug(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_custom(const LogLevel log_level, const char *fmt, ...)
+    ATTRIBUTE_GCC_FORMAT(printf, 2, 3);
 
 /*
  * Define inline functions that pick up the log domain defined for the module.
  */
+
+static inline void log_system(const char *fmt, ...) {
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  log_message(LogLevel::kSystem, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
 
 static inline void log_error(const char *fmt, ...) {
   extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
@@ -223,12 +274,30 @@ static inline void log_info(const char *fmt, ...) {
   va_end(ap);
 }
 
+static inline void log_note(const char *fmt, ...) {
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  log_message(LogLevel::kNote, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
 static inline void log_debug(const char *fmt, ...) {
   extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
                                          const char *fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
   log_message(LogLevel::kDebug, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
+static inline void log_custom(const LogLevel log_level, const char *fmt, ...) {
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  log_message(log_level, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
   va_end(ap);
 }
 
@@ -252,9 +321,12 @@ static inline bool log_level_is_handled(LogLevel level) {
  * convenience macro to avoid common boilerplate
  */
 #define IMPORT_LOG_FUNCTIONS()               \
+  using mysql_harness::logging::log_system;  \
   using mysql_harness::logging::log_error;   \
   using mysql_harness::logging::log_warning; \
   using mysql_harness::logging::log_info;    \
-  using mysql_harness::logging::log_debug;
+  using mysql_harness::logging::log_note;    \
+  using mysql_harness::logging::log_debug;   \
+  using mysql_harness::logging::log_custom;
 
 #endif  // MYSQL_HARNESS_LOGGING_INCLUDED

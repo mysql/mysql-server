@@ -17,12 +17,12 @@ select * from t2 order by a;
 a	b
 1	1
 2	2
-SELECT @the_epoch:=epoch,inserts,updates,deletes,schemaops FROM 
+SELECT epoch FROM
+mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1 into @the_epoch;
+SELECT @the_epoch,inserts,updates,deletes,schemaops FROM
 mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
-@the_epoch:=epoch	inserts	updates	deletes	schemaops
+@the_epoch	inserts	updates	deletes	schemaops
 <the_epoch>	2	0	0	0
-Warnings:
-<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT * FROM t2 ORDER BY a;
 a	b
 1	1
@@ -55,12 +55,12 @@ binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 binlog.000001	#	Write_rows	#	#	table_id: #
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
-SELECT @the_epoch2:=epoch,inserts,updates,deletes,schemaops FROM 
+select epoch FROM
+mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1 into @the_epoch2;
+SELECT @the_epoch2,inserts,updates,deletes,schemaops FROM
 mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
-@the_epoch2:=epoch	inserts	updates	deletes	schemaops
+@the_epoch2	inserts	updates	deletes	schemaops
 <the_epoch2>	2	0	0	0
-Warnings:
-<the_epoch2>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT inserts,updates,deletes,schemaops FROM
 mysql.ndb_binlog_index WHERE epoch > <the_epoch> AND epoch <= <the_epoch2>;
 inserts	updates	deletes	schemaops

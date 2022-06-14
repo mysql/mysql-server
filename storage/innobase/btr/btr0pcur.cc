@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
   ut_ad(m_latch_mode != BTR_NO_LATCHES);
 
   auto block = get_block();
-  auto index = btr_cur_get_index(get_btr_cur());
+  auto index = get_btr_cur()->index;
 
   auto page_cursor = get_page_cur();
 
@@ -106,34 +106,45 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   m_old_rec = dict_index_copy_rec_order_prefix(index, rec, &m_old_n_fields,
                                                &m_old_rec_buf, &m_buf_size);
+  m_block_when_stored.store(block);
 
-  m_block_when_stored = block;
-
-  /* Function try to check if block is S/X latch. */
-  m_modify_clock = buf_block_get_modify_clock(block);
-  m_withdraw_clock = buf_withdraw_clock;
+  m_modify_clock = block->get_modify_clock(
+      IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
-  ut_free(dst->m_old_rec_buf);
+  {
+    const auto dst_old_rec_buf = dst->m_old_rec_buf;
+    const auto dst_buf_size = dst->m_buf_size;
 
-  dst->m_old_rec_buf = nullptr;
+    memcpy(dst, src, sizeof(*dst));
 
-  memcpy(dst, src, sizeof(*dst));
+    dst->m_old_rec_buf = dst_old_rec_buf;
+    dst->m_buf_size = dst_buf_size;
+  }
 
-  if (src->m_old_rec_buf != nullptr) {
-    dst->m_old_rec_buf = static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
+  if (src->m_old_rec != nullptr) {
+    /* We have an old buffer, but it is too small. */
+    if (dst->m_old_rec_buf != nullptr && dst->m_buf_size < src->m_buf_size) {
+      ut::free(dst->m_old_rec_buf);
+      dst->m_old_rec_buf = nullptr;
+    }
+    /* We don't have a buffer, but we should have one. */
+    if (dst->m_old_rec_buf == nullptr) {
+      dst->m_old_rec_buf = static_cast<byte *>(
+          ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src->m_buf_size));
+      dst->m_buf_size = src->m_buf_size;
+    }
 
     memcpy(dst->m_old_rec_buf, src->m_old_rec_buf, src->m_buf_size);
 
     dst->m_old_rec = dst->m_old_rec_buf + (src->m_old_rec - src->m_old_rec_buf);
   }
-
   dst->m_old_n_fields = src->m_old_n_fields;
 }
 
 bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
-                                  const char *file, ulint line) {
+                                  ut::Location location) {
   dtuple_t *tuple;
   page_cur_mode_t mode;
 
@@ -141,7 +152,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
   ut_ad(m_old_stored);
   ut_ad(is_positioned());
 
-  auto index = btr_cur_get_index(get_btr_cur());
+  auto index = get_btr_cur()->index;
 
   if (m_rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE ||
       m_rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE) {
@@ -149,13 +160,14 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     but always do a search */
 
     btr_cur_open_at_index_side(m_rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
-                               index, latch_mode, get_btr_cur(), 0, mtr);
+                               index, latch_mode, get_btr_cur(), m_read_level,
+                               UT_LOCATION_HERE, mtr);
 
     m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
     m_pos_state = BTR_PCUR_IS_POSITIONED;
 
-    m_block_when_stored = get_block();
+    m_block_when_stored.clear();
 
     return (false);
   }
@@ -169,11 +181,12 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
        latch_mode == BTR_SEARCH_PREV || latch_mode == BTR_MODIFY_PREV) &&
       !m_btr_cur.index->table->is_intrinsic()) {
     /* Try optimistic restoration. */
-
-    if (!buf_pool_is_obsolete(m_withdraw_clock) &&
-        btr_cur_optimistic_latch_leaves(m_block_when_stored, m_modify_clock,
-                                        &latch_mode, &m_btr_cur, file, line,
-                                        mtr)) {
+    if (m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+          return hint != nullptr &&
+                 btr_cur_optimistic_latch_leaves(
+                     hint, m_modify_clock, &latch_mode, &m_btr_cur,
+                     location.filename, location.line, mtr);
+        })) {
       m_pos_state = BTR_PCUR_IS_POSITIONED;
 
       m_latch_mode = latch_mode;
@@ -190,14 +203,16 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         rec = get_rec();
 
-        auto heap = mem_heap_create(256);
+        auto heap = mem_heap_create(256, UT_LOCATION_HERE);
 
         offsets1 =
             rec_get_offsets(m_old_rec, index, nullptr, m_old_n_fields, &heap);
 
         offsets2 = rec_get_offsets(rec, index, nullptr, m_old_n_fields, &heap);
 
-        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index));
+        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index,
+                           page_is_spatial_non_leaf(rec, index), nullptr,
+                           false));
         mem_heap_free(heap);
 #endif /* UNIV_DEBUG */
         return (true);
@@ -215,7 +230,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
   /* If optimistic restoration did not succeed, open the cursor anew */
 
-  auto heap = mem_heap_create(256);
+  auto heap = mem_heap_create(256, UT_LOCATION_HERE);
 
   tuple = dict_index_build_data_tuple(index, m_old_rec, m_old_n_fields, heap);
 
@@ -236,7 +251,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
       ut_error;
   }
 
-  open_no_init(index, tuple, mode, latch_mode, 0, mtr, file, line);
+  open_no_init(index, tuple, mode, latch_mode, 0, mtr, location);
 
   /* Restore the old search mode */
   m_search_mode = old_mode;
@@ -251,14 +266,13 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     /* We have to store the NEW value for the modify clock,
     since the cursor can now be on a different page!
     But we can retain the value of old_rec */
+    auto block = get_block();
+    m_block_when_stored.store(block);
 
-    m_block_when_stored = get_block();
-
-    m_modify_clock = buf_block_get_modify_clock(m_block_when_stored);
+    m_modify_clock = block->get_modify_clock(
+        IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
 
     m_old_stored = true;
-
-    m_withdraw_clock = buf_withdraw_clock;
 
     mem_heap_free(heap);
 
@@ -308,15 +322,25 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   auto block = get_block();
 
-  auto next_block =
-      btr_block_get(page_id_t(block->page.id.space(), next_page_no),
-                    block->page.size, mode, get_btr_cur()->index, mtr);
+  auto next_block = btr_block_get(
+      page_id_t(block->page.id.space(), next_page_no), block->page.size, mode,
+      UT_LOCATION_HERE, get_btr_cur()->index, mtr);
 
   auto next_page = buf_block_get_frame(next_block);
 
 #ifdef UNIV_BTR_DEBUG
-  ut_a(page_is_comp(next_page) == page_is_comp(page));
-  ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
+  if (!import_ctx) {
+    ut_a(page_is_comp(next_page) == page_is_comp(page));
+    ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
+  } else {
+    if (page_is_comp(next_page) != page_is_comp(page) ||
+        btr_page_get_prev(next_page, mtr) != get_block()->page.id.page_no()) {
+      /* next page does not contain valid previous page number,
+      next page is corrupted, can't move cursor to the next page*/
+      import_ctx->is_error = true;
+    }
+    DBUG_EXECUTE_IF("ib_import_page_corrupt", import_ctx->is_error = true;);
+  }
 #endif /* UNIV_BTR_DEBUG */
 
   btr_leaf_page_release(get_block(), mode, mtr);
@@ -350,14 +374,14 @@ void btr_pcur_t::move_backward_from_page(mtr_t *mtr) {
 
   mtr_start(mtr);
 
-  restore_position(latch_mode2, mtr, __FILE__, __LINE__);
+  restore_position(latch_mode2, mtr, UT_LOCATION_HERE);
 
   auto page = get_page();
   auto prev_page_no = btr_page_get_prev(page, mtr);
 
   /* For intrinsic table we don't do optimistic restore and so there is
   no left block that is pinned that needs to be released. */
-  if (!btr_cur_get_index(get_btr_cur())->table->is_intrinsic()) {
+  if (!get_btr_cur()->index->table->is_intrinsic()) {
     buf_block_t *prev_block;
 
     if (prev_page_no == FIL_NULL) {
@@ -407,8 +431,8 @@ bool btr_pcur_t::move_to_prev(mtr_t *mtr) {
 
 void btr_pcur_t::open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
                                   page_cur_mode_t mode, ulint latch_mode,
-                                  mtr_t *mtr, const char *file, ulint line) {
-  open(index, 0, tuple, mode, latch_mode, mtr, file, line);
+                                  mtr_t *mtr, ut::Location location) {
+  open(index, 0, tuple, mode, latch_mode, mtr, location);
 
   if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
     if (is_after_last_on_page()) {

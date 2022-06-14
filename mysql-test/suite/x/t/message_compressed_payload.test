@@ -1,0 +1,286 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/too_large.xpl
+-->import wait_until_disconnect.macro
+-->import connection.macro
+
+#
+# The X Protocol message is defined in following way
+#
+# | <------------------- X Protocol frame ----------------------------------> |
+# |                        |                                                  |
+# | <--- payload-size ---> | <--------------- payload ----------------------> |
+# |                        |                  |                               |
+# |                        | <-- msg-type --> | <---- Protobuf-payload -----> |
+# | 4 bytes                | 1 byte           |  n bytes                      |
+
+#
+# Such messages either might be send directly on the wire or compressed and
+# encapsulated inside 'Mysqlx.Connection.Compression' message under payload
+# field.
+#
+# The test will send X protocol frame with empty compression message or with empty
+# payload and observe an error and disconnect.
+#
+
+-->macro New_session_with_caps	%SESS%	%COMP_ALGO%
+newsession %SESS%	-;
+-->quiet
+callmacro Verify_its_xprotocol_connection;
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "algorithm"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%COMP_ALGO%"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+recvok;
+enable_compression %COMP_ALGO%;
+login;
+-->noquiet
+-->endmacro
+
+-->echo
+-->echo ## 1. Send compressed message with invalid payload
+-->echo #  a. Send compressed-message with too long-uncompressed payload size
+-->echo #  b. Send compressed-message with invalid compressed-payload
+-->echo ## 2. Send compressed message with invalid message
+-->echo #  a. Send compressed-message with StmtExecute and missing fields (not initialized error)
+-->echo #  b. Send compressed-message with not know message, and verify that its dispatched
+-->echo #  c. Send compressed-message with message that exceeds protobufs nested
+-->echo #     messages limit, and verify that its rejected with proper error
+
+-->echo;
+-->echo # 1.a.
+callmacro New_session_with_caps
+	SESS_SINGLE1
+	%OPTION_COMPRESSION_ALGORITHM%;
+#
+# uncomp-length=268435456
+#
+
+-->binparse %BIN_EXPECT_OPEN% Mysqlx.Expect.Open {
+}
+-->compress_bin %VALID_COMPRESS_EXPECT_OPEN% %BIN_EXPECT_OPEN%
+
+Mysqlx.Connection.Compression {
+ uncompressed_size: 268435456
+ payload: "%VALID_COMPRESS_EXPECT_OPEN%"
+}
+
+callmacro Wait_until_disconnect;
+
+
+-->echo;
+-->echo # 1.b.
+callmacro New_session_with_caps
+	SESS_SINGLE2
+	%OPTION_COMPRESSION_ALGORITHM%;
+#
+# Some garbage as compressed-payload aaaabbbb11223333344ffffeeee1111222
+#
+Mysqlx.Connection.Compression {
+ payload: "%aaaabbbb11223333344ffffeeee1111222%"
+}
+recverror ER_X_DECOMPRESSION_FAILED;
+callmacro Wait_until_disconnect;
+
+
+-->echo;
+-->echo # 2.a.
+callmacro New_session_with_caps
+	SESS_SINGLE3
+	%OPTION_COMPRESSION_ALGORITHM%;
+#
+# length=1, msg-type=12=0x0c
+#
+compress_bin %BIN_COMPRESS_EMPTY_STMT_EXECUTE% \x01\x00\x00\x00\x0c;
+Mysqlx.Connection.Compression {
+  payload: "%BIN_COMPRESS_EMPTY_STMT_EXECUTE%"
+}
+recverror ER_X_BAD_MESSAGE;
+callmacro Wait_until_disconnect;
+
+
+-->echo;
+-->echo # 2.b.
+callmacro New_session_with_caps
+	SESS_SINGLE4
+	%OPTION_COMPRESSION_ALGORITHM%;
+#
+# length=1, msg-type=12=0xfc (unknown)
+#
+compress_bin %BIN_COMPRESS_UNKNOWN_MESSAGE% \x01\x00\x00\x00\xfc;
+
+Mysqlx.Expect.Open {
+  cond {condition_key:1}
+}
+recvok;
+
+Mysqlx.Connection.Compression {
+  payload: "%BIN_COMPRESS_UNKNOWN_MESSAGE%"
+}
+
+recverror ER_UNKNOWN_COM_ERROR;
+
+stmtadmin ping;
+recverror ER_X_EXPECT_NO_ERROR_FAILED;
+Mysqlx.Expect.Close{
+}
+recverror ER_X_EXPECT_NO_ERROR_FAILED;
+stmtadmin ping;
+recvresult;
+
+
+-->echo;
+-->echo # 2.c.
+#
+# Please look into message_protobuf_nested.test for more details.
+callmacro New_session_with_caps
+	SESS_SINGLE5
+	%OPTION_COMPRESSION_ALGORITHM%;
+-->stmtadmin ensure_collection	 {"schema":"xtest", "name":"coll"}
+-->recvresult
+
+-->macro Send_crud_find_with_repeated_nested_objects	%OBJECTS_TO_NEST%
+-->varlet %NESTED_OBJECTS%
+
+-->varlet %OBJECTS_TO_REPEAT% %OBJECTS_TO_NEST%
+-->varinc %OBJECTS_TO_REPEAT% -3
+
+-->repeat %OBJECTS_TO_REPEAT%	%ITERATION%
+-->varlet %OBJECT_NUMBER% %ITERATION%
+-->varinc %OBJECT_NUMBER% 4
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  value { type: ARRAY array { value { type: LITERAL literal { type: V_SINT v_signed_int: %OBJECT_NUMBER% } }
+-->endrepeat
+
+-->repeat %OBJECTS_TO_REPEAT%
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  } }
+-->endrepeat
+
+-->quiet
+-->begin_compress
+Mysqlx.Crud.Find {
+  collection {
+    name: "coll"
+    schema: "test"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "ARR0"
+          }
+        }
+      }
+      param {
+        type: ARRAY
+        array {
+          value {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 3
+            }
+          }
+          %NESTED_OBJECTS%
+        }
+      }
+    }
+  }
+}
+-->end_compress
+-->noquiet
+-->endmacro
+
+-->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
+-->callmacro Send_crud_find_with_repeated_nested_objects	51
+
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
+
+callmacro Wait_until_disconnect;
+
+EOF
+
+CREATE SCHEMA xtest;
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+SET GLOBAL mysqlx_max_allowed_packet = 1000;
+
+echo;
+echo ## A. Execute the test with deflate;
+echo #;
+--replace_regex /payload: *\".*\"/payload: "BINARY"/
+exec $MYSQLXTEST
+  -u x_root
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  --schema xtest
+  --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1;
+
+echo;
+echo ## B. Execute the test with lz4;
+echo #;
+--replace_regex /payload: *\".*\"/payload: "BINARY"/
+exec $MYSQLXTEST
+  -u x_root
+  --compression-mode=preferred
+  --compression-algorithm=lz4_message
+  --schema xtest
+  --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1;
+
+echo;
+echo ## C. Execute the test with zstd;
+echo #;
+--replace_regex /payload: *\".*\"/payload: "BINARY"/
+exec $MYSQLXTEST
+  -u x_root
+  --compression-mode=preferred
+  --compression-algorithm=zstd_stream
+  --schema xtest
+  --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1;
+
+## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
+--source ../include/xplugin_cleanup.inc

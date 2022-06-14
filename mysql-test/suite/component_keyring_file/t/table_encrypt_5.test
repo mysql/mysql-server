@@ -1,0 +1,20 @@
+--source include/have_component_keyring_file.inc
+#------------------------------------------------------------------------------
+# InnoDB transparent tablespace data encryption
+#
+# This test create encrypt , non encrypt tables and try to access them after
+# restarting with different combinitions such as
+# - restart with same server option (acccess all tables)
+# - restart without keyring options(encrypt table not accessible , rest are)
+# - restart with keyring option but using new key_file_data
+# (old encrypt table not accessible , rest are. New encrypt
+# table creation possible)
+#
+#------------------------------------------------------------------------------
+# InnoDB transparent tablespace data encryption
+
+--source include/no_valgrind_without_big.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/table_encrypt_5.inc
+--source ../inc/teardown_component.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,6 @@ class NdbIndexScanOperation;
 class NdbRecAttr;
 class NdbOperation;
 class NdbEventOperation;
-
-extern const uint g_ndb_index_stat_head_frm_len;
-extern const uint8 g_ndb_index_stat_head_frm_data[];
-extern const uint g_ndb_index_stat_sample_frm_len;
-extern const uint8 g_ndb_index_stat_sample_frm_data[];
 
 class NdbIndexStatImpl : public NdbIndexStat {
 public:
@@ -212,10 +207,10 @@ public:
     double get_rir(uint pos1, uint pos2) const;
     double get_unq1(uint pos, uint k) const;
     double get_unq1(uint pos1, uint pos2, uint k) const;
-    double get_unq(uint pos, uint k) const;
-    double get_unq(uint pos1, uint pos2, uint k) const;
-    double get_rpk(uint pos, uint k) const;
-    double get_rpk(uint pos1, uint pos2, uint k) const;
+    double get_unq(uint pos, uint k, double *factor) const;
+    double get_unq(uint pos1, uint pos2, uint k, double *factor) const;
+    double get_rpk(uint pos, uint k, double *factor) const;
+    double get_rpk(uint pos1, uint pos2, uint k, double *factor) const;
   };
   int cache_cmpaddr(const Cache& c, uint addr1, uint addr2) const;
   int cache_cmppos(const Cache& c, uint pos1, uint pos2) const;
@@ -267,8 +262,11 @@ public:
 
   // computed stats values
   struct StatValue {
+    Uint32 m_num_fragments;
+    Uint32 m_num_rows;
     bool m_empty;
     double m_rir;
+    double m_unq_factor[MaxKeyCount];
     double m_unq[MaxKeyCount];
     StatValue();
   };
@@ -310,10 +308,10 @@ public:
 
   // default memory allocator
   struct MemDefault : public Mem {
-    virtual void* mem_alloc(UintPtr bytes);
-    virtual void mem_free(void* ptr);
+    void* mem_alloc(UintPtr bytes) override;
+    void mem_free(void* ptr) override;
     MemDefault();
-    virtual ~MemDefault();
+    ~MemDefault() override;
   };
   MemDefault c_mem_default_handler;
 
@@ -329,8 +327,8 @@ public:
    * bound data.
    * Worst case is 32 cols in key and max key size used.
    */
-  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
-                + NDB_MAX_KEYSIZE_IN_WORDS );
+  static constexpr Uint32 BoundBufWords =
+    (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY) + NDB_MAX_KEYSIZE_IN_WORDS;
 };
 
 inline
@@ -363,9 +361,8 @@ NdbIndexStatImpl::finalize_range(Range& range)
 
 inline
 NdbIndexStatImpl::StatValue::StatValue()
-{
-  m_empty = false;
-}
+  : m_num_fragments(0), m_num_rows(0), m_empty(false)
+{}
 
 inline
 NdbIndexStatImpl::StatBound::StatBound()

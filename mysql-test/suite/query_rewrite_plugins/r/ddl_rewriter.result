@@ -9,7 +9,7 @@ CREATE TABLE t(i int) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp';;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
 INSERT INTO t VALUES (1);
 #
@@ -28,7 +28,7 @@ DROP TABLE t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/assert.inc [Expected table contents]
 DROP TABLE t;
@@ -250,10 +250,10 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   `mt` mediumtext NOT NULL,
   `c` varchar(10) NOT NULL,
-  `ti` tinyint(1) unsigned NOT NULL,
+  `ti` tinyint unsigned NOT NULL,
   PRIMARY KEY (`i`,`ti`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`ti`)
@@ -268,7 +268,7 @@ CALL p();
 SHOW CREATE TABLE test.t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE test.t;
 DROP PROCEDURE p;
@@ -282,7 +282,7 @@ EXECUTE stmt;
 SHOW CREATE TABLE test.t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE test.t;
 DROP PREPARE stmt;

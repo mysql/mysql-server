@@ -83,6 +83,7 @@ WHERE t1.pk > 7000 and t1.i1 > 2
 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
 eval $query;
 
 --echo # Changing range condition on i1 should make
@@ -106,6 +107,8 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 let query=
@@ -151,6 +154,8 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 --echo # Check if the index for order by is used when
@@ -161,6 +166,8 @@ SELECT * FROM t1 FORCE INDEX FOR ORDER BY (k2) STRAIGHT_JOIN t2 ON
 t1.i1=t2.i1 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 DROP TABLE t0, t1, t2;
@@ -179,9 +186,11 @@ CREATE TABLE t1 (
   KEY col_varchar_key_2 (col_varchar_key(5))
 );
 
+# Note: The optimizer is free to pick either one of the rows with
+# col_int=3, so they need to sort the same on col_varchar_key.
 INSERT INTO t1 VALUES (1,2,'t'), (2,5,'efqsdksj'),
        (3,NULL,'fqsdksjijcs'),(4,8,'qsdksjijc'),
-       (5,40,NULL),(6,3,'sdksji'),(7,2,NULL),
+       (5,40,NULL),(6,3,'dkz'),(7,2,NULL),
        (8,3,'dks'),(9,0,'ksjijcsz'),
        (10,84,'sjijcszxwbjj');
 
@@ -196,6 +205,7 @@ LIMIT 100;
 ANALYZE TABLE t1;
 SET @@SESSION.sql_mode='NO_ENGINE_SUBSTITUTION';
 eval EXPLAIN $query1;
+--skip_if_hypergraph
 eval $query1;
 
 DROP TABLE t1;
@@ -232,3 +242,162 @@ FROM t1 JOIN t2
 ORDER BY field1 LIMIT 2;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#30348211: DANGEROUS OPTIMIZATION RECONSIDERING_ACCESS_PATHS_FOR_
+--echo #               INDEX_ORDERING
+--echo #
+
+CREATE TABLE t (id BIGINT NOT NULL, other_id BIGINT NOT NULL,
+ covered_column VARCHAR(50) NOT NULL, non_covered_column VARCHAR(50) NOT NULL,
+ PRIMARY KEY (id),
+ INDEX index_other_id_covered_column (other_id, covered_column));
+
+let $n = 10;
+while ($n)
+{
+  eval INSERT INTO t (id, other_id, covered_column, non_covered_column)
+       VALUES ($n, $n, '$n', '$n');
+  dec $n;
+}
+
+SET
+  optimizer_trace = "enabled=on",
+  optimizer_trace_max_mem_size = 1000000,
+  end_markers_in_json = ON;
+
+#echo "With prefer_ordering_index=on, ordering index will be picked."
+#echo "The original plan is discarded and a new one using ordering index "
+#echo "is picked."
+SET optimizer_switch = "prefer_ordering_index=on";
+ANALYZE TABLE t;
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=off, ordering index should not be picked"
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=default, ordering index should be picked"
+SET optimizer_switch = default;
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "If an order by index is forced, plan will be to pick ordering index even if"
+#echo "prefer_ordering_index is switched off"
+SET optimizer_switch = "prefer_ordering_index=on";
+EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#Insert some more data for group by
+let $n = 10;
+while ($n)
+{
+  eval INSERT INTO t (id, other_id, covered_column, non_covered_column)
+       VALUES ($n+1+10, $n, '$n', '$n');
+  dec $n;
+}
+
+#echo "With prefer_ordering_index=on, ordering index will be picked."
+#echo "The original plan is discarded and a new one using ordering index "
+#echo "is picked."
+SET optimizer_switch = "prefer_ordering_index=on";
+ANALYZE TABLE t;
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=off, ordering index should not be picked"
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=default, ordering index should be picked"
+SET optimizer_switch = default;
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "If a group by index is forced, plan will be to pick ordering index even if"
+#echo "prefer_ordering_index is switched off"
+SET optimizer_switch = "prefer_ordering_index=on";
+EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+DROP TABLE t;
+
+--echo # Bug#32897503: Prepared statement performance slower with prefer
+--echo #               ordering_index optimization
+--echo # Bug#32897525: Prepared statement doesn't seem to use index extensions
+--echo #               / extended_keys
+
+CREATE TABLE p (
+  pid int unsigned NOT NULL AUTO_INCREMENT,
+  cid int unsigned NOT NULL,
+  pl char(255) DEFAULT '',
+  PRIMARY KEY (pid),
+  KEY cid (cid)
+);
+INSERT INTO p (cid) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO p (cid) SELECT 1 FROM p;
+INSERT INTO p (cid) SELECT 2 FROM p;
+INSERT INTO p (cid) SELECT 3 FROM p;
+INSERT INTO p (cid) SELECT 4 FROM p;
+INSERT INTO p (cid) SELECT 5 FROM p;
+INSERT INTO p (cid) SELECT 4 FROM p;
+ANALYZE TABLE p;
+
+let $q = SELECT pid, cid, pl FROM p WHERE cid = 4 ORDER BY pid DESC LIMIT 1;
+let $p = SELECT pid, cid, pl FROM p WHERE cid = ? ORDER BY pid DESC LIMIT 1;
+eval $q;
+eval EXPLAIN $q;
+eval PREPARE ps FROM "$p";
+eval PREPARE pse FROM "EXPLAIN $p";
+
+SET @client_id = 4;
+EXECUTE pse USING @client_id;
+EXECUTE ps USING @client_id;
+
+DEALLOCATE PREPARE ps;
+DEALLOCATE PREPARE pse;
+
+SET @@optimizer_switch="prefer_ordering_index=off";
+
+eval PREPARE ps FROM "$p";
+eval PREPARE pse FROM "EXPLAIN $p";
+
+EXECUTE pse USING @client_id;
+EXECUTE ps USING @client_id;
+
+DEALLOCATE PREPARE ps;
+DEALLOCATE PREPARE pse;
+
+DROP TABLE p;
+
+SET optimizer_switch = DEFAULT;
+
+--echo #
+--echo # Bug#33066458: TEST_IF_SKIP_SORT_ORDER: ASSERTION `SELECT_LIMIT > 0' FAILED.
+--echo #
+
+CREATE TABLE t (x INTEGER PRIMARY KEY, y INTEGER);
+INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
+SELECT * FROM t ORDER BY x LIMIT 18446744073709551614;
+DROP TABLE t;

@@ -1,0 +1,281 @@
+SET @old_innodb_api_trx_level = @@global.innodb_api_trx_level;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+connect  c_diag,localhost, root,,;
+connection default;
+#
+# Testing the scenario with innodb_api_trx_level = 0
+#
+SET @@global.innodb_api_trx_level = 0;
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+SET autocommit=0;
+LOCK TABLES t1 WRITE;
+Get D...
+Get has returned Darmstadt
+Set D to new value
+Set returned 
+Get D...
+Get has returned Darmstadt
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+IX	WAITING
+X	GRANTED
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+Darmstadt
+COMMIT;
+SET autocommit=1;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+UNLOCK TABLES;
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE t1;
+#
+# Testing the scenario with innodb_api_trx_level = 1
+#
+SET @@global.innodb_api_trx_level = 1;
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+SET autocommit=0;
+LOCK TABLES t1 WRITE;
+Get D...
+Get has returned Darmstadt
+Set D to new value
+Set returned 
+Get D...
+Get has returned Darmstadt
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+IX	WAITING
+X	GRANTED
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+Darmstadt
+COMMIT;
+SET autocommit=1;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+UNLOCK TABLES;
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE t1;
+#
+# Testing the scenario with innodb_api_trx_level = 2
+#
+SET @@global.innodb_api_trx_level = 2;
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+SET autocommit=0;
+LOCK TABLES t1 WRITE;
+Get D...
+Get has returned Darmstadt
+Set D to new value
+Set returned 
+Get D...
+Get has returned Darmstadt
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+IX	WAITING
+X	GRANTED
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+Darmstadt
+COMMIT;
+SET autocommit=1;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+UNLOCK TABLES;
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE t1;
+#
+# Testing the scenario with innodb_api_trx_level = 3
+#
+SET @@global.innodb_api_trx_level = 3;
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+SET autocommit=0;
+LOCK TABLES t1 WRITE;
+Get D...
+Get has returned 
+Set D to new value
+Set returned 
+Get D...
+Get has returned 
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+IS	WAITING
+IS	WAITING
+IX	WAITING
+X	GRANTED
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+Darmstadt
+COMMIT;
+SET autocommit=1;
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+connection default;
+UNLOCK TABLES;
+connection c_diag;
+SELECT lock_mode,lock_status FROM performance_schema.data_locks
+WHERE object_schema='test' AND object_name='t1' AND lock_type='TABLE';
+lock_mode	lock_status
+SELECT lock_type,lock_duration,lock_status FROM performance_schema.metadata_locks
+WHERE object_schema='test' AND object_name='t1' AND object_type='TABLE';
+lock_type	lock_duration	lock_status
+SELECT c2 FROM t1 WHERE c1='D';
+c2
+new value
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE t1;
+disconnect c_diag;
+DROP DATABASE innodb_memcache;
+SET @@global.innodb_api_trx_level = @old_innodb_api_trx_level;

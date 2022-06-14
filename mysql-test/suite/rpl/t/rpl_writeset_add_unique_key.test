@@ -1,0 +1,109 @@
+# ==== Purpose ====
+#
+# This test verifies that when binlog_row_image=minimum and a table has
+# both unique + primary key then there should not be any conflict running
+# the transactions on this table on the soure and replica.
+#
+# ==== Requirements ====
+# R1. In case of binlog_row_image=minimum, when generating read_sets and
+# writesets, we should include unique key also such that transaction dependencies
+# are calculated correctly and transactions do not fail on replica while running
+# in parallel.
+#
+# ==== Implementation ====
+#
+# 1) Create source-replica topology.
+# 2) Save current variables on Source.
+#    2.1) Save current binlog_row_image.
+#    2.2) Save current tracking mode.
+# 3) Setup neccesary varibales on source.
+#    3.1) Set the binlog_row_image=MINIMAL.
+#    3.2) Set the global BINLOG_TRANSACTION_DEPENDENCY_TRACKING=WRITESET.
+# 4) Create table and procedure on source.
+# 5) Switch to source and call procedure.
+# 6) Clear system variables on source.
+# 7) Cleanup.
+#
+# ==== References ====
+#
+# Bug#31636339 MTS IS UNUSABLE; ERRNO 3030, AND WORKER HA_ERR_FOUND_DUPP_KEY OR HA_ERR_LOCK_WAIT_TIMEOUT
+#
+--source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_workers.inc
+--let $option_name = replica_transaction_retries
+--let $option_operator = >
+--let $option_value = 2
+--source include/only_with_option.inc
+--let $skip_configuration_privilege_checks_user= 'skip'
+--let $rpl_privilege_checks_user_grant_all= 1
+--echo #
+--echo # 1. Create source-replica topology.
+--source include/master-slave.inc
+
+--echo
+--echo # 2. Save the current variables on source.
+--echo #    2.1 Save current binlog_row_image.
+SET @old_binlog_row_image= @@binlog_row_image;
+
+# 2.2 Save current tracking mode.
+--let $old_trx_tracker = `SELECT @@GLOBAL.BINLOG_TRANSACTION_DEPENDENCY_TRACKING`
+
+--echo #
+--echo # 3. Setup neccsary variables on source.
+--echo #    3.1 Set the binlog_row_image=MINIMAL.
+SET @@session.binlog_row_image = 'MINIMAL';
+
+# 3.2 Set the global BINLOG_TRANSACTION_DEPENDENCY_TRACKING=WRITESET.
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
+
+--echo #
+--echo # 4.Create table and procedure on source.
+CREATE TABLE t( a tinyint unsigned primary key, b tinyint, c int, d bigint,
+f char(10), g char(255), h text, i longtext, unique key(g,f),
+unique key(f,c), key(c,d,b), key(i(10),f(10),b)) ENGINE=InnoDB;
+
+drop procedure if exists p;
+delimiter |;
+create procedure p(p_i bigint)
+begin
+  declare v_i bigint default 0;
+  repeat
+    replace into t values(
+    floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5),
+    floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5)
+    ),
+    (
+    floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5),
+    floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5)
+    );
+    set v_i=v_i+1;
+  until v_i > p_i end repeat;
+end|
+delimiter ;|
+
+--echo #
+--echo #
+--echo # 5. Switch to source and call procedure.
+--source include/rpl_connection_master.inc
+call p(1000);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 6. Clear system variables on source.
+--echo #
+--source include/rpl_connection_master.inc
+SET SESSION binlog_row_image= @old_binlog_row_image;
+--replace_result $old_trx_tracker OLD_TRX_TRACKER
+--eval SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = $old_trx_tracker
+
+# Supress the error warning on replica.
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Worker .* failed executing transaction.*");
+
+# 7. Cleanup.
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+DROP PROCEDURE p;
+--source include/rpl_end.inc
+

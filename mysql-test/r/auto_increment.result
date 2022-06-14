@@ -83,12 +83,12 @@ insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,
 select * from t1;
 ordid	ord
 1	abc
-2	abc
-3	abc
 1	sdj
-2	sdj
-3	sdj
 1	zzz
+2	abc
+2	sdj
+3	abc
+3	sdj
 drop table t1;
 create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
 Warnings:
@@ -137,8 +137,8 @@ last_insert_id()
 insert into t1 values (NULL);
 select * from t1;
 a
-1
 -1
+1
 2
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -154,12 +154,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select last_insert_id() AS `last_insert_id()`
 insert into t1 set i = 254;
-ERROR 23000: Duplicate entry '254' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '254' for key 't1.PRIMARY'
 select last_insert_id();
 last_insert_id()
 255
 insert into t1 set i = null;
-ERROR 23000: Duplicate entry '255' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '255' for key 't1.PRIMARY'
 select last_insert_id();
 last_insert_id()
 255
@@ -187,7 +187,7 @@ select last_insert_id();
 last_insert_id()
 2
 insert into t1 values (NULL, 10);
-ERROR 23000: Duplicate entry '10' for key 'b'
+ERROR 23000: Duplicate entry '10' for key 't1.b'
 select last_insert_id();
 last_insert_id()
 2
@@ -385,7 +385,7 @@ SHOW CREATE TABLE `t1`;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1_name` varchar(255) DEFAULT NULL,
-  `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `t1_id` int unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
@@ -440,7 +440,7 @@ key (rowid), unique(val));
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 'val'
+ERROR 23000: Duplicate entry '1' for key 't1.val'
 select * from t1;
 rowid	val
 3	1
@@ -462,7 +462,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO t1 VALUES(0, 0);
 INSERT INTO t1 VALUES(1, 1);
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
-ERROR 23000: ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '1' for key 't1.PRIMARY'
 DROP TABLE t1;
 create table t1 (a int primary key auto_increment, b int, c int, d timestamp default current_timestamp, unique(b),unique(c));
 insert into t1 values(null,1,1,now());
@@ -488,7 +488,7 @@ CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1), (1);
 CREATE TABLE t2 ( a INT AUTO_INCREMENT KEY );
 INSERT INTO t2 SELECT a FROM t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE t2 SET a = 2;
 SELECT a FROM t2;
 a

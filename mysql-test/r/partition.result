@@ -91,12 +91,12 @@ CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL)
 PARTITION BY KEY (a) PARTITIONS 2;
 INSERT INTO t1 VALUES (0,1), (0,2);
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 't1.PRIMARY'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL
+  `a` int NOT NULL,
+  `b` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 2 */
@@ -192,9 +192,9 @@ PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ID` int(11) NOT NULL,
-  `aaaa,aaaaa` tinyint(3) unsigned NOT NULL DEFAULT '0',
-  `ddddddddd` int(11) NOT NULL DEFAULT '0',
+  `ID` int NOT NULL,
+  `aaaa,aaaaa` tinyint unsigned NOT NULL DEFAULT '0',
+  `ddddddddd` int NOT NULL DEFAULT '0',
   `new_field0` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`ID`,`aaaa,aaaaa`,`ddddddddd`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -369,7 +369,7 @@ ERROR 42000: Unknown storage engine 'NonExistentEngine'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode='';
@@ -402,7 +402,7 @@ Warning	1286	Unknown storage engine 'NonExistentEngine'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 (PARTITION p0 ENGINE = InnoDB,
@@ -806,7 +806,7 @@ alter table t1 add partition (partition p1 values less than (2));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY KEY (a)
@@ -816,7 +816,7 @@ alter table t1 reorganize partition p1 into (partition p1 values less than (3));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY KEY (a)
@@ -835,9 +835,9 @@ count(*)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a) */
@@ -894,9 +894,9 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -906,9 +906,9 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -930,9 +930,9 @@ partition x3 values in (16, 8, 5+19, 70-43));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
@@ -953,9 +953,9 @@ partition x3 values in (16, 8, 5+19, 70-43));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST ((`b` * `a`))
@@ -975,9 +975,9 @@ partition x3 values in (16, 8, 5+19, 70-43));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST ((`b` * `a`))
@@ -1076,7 +1076,7 @@ PARTITIONS 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION x1 VALUES IN (1) ENGINE = InnoDB) */
@@ -1102,7 +1102,7 @@ PARTITIONS 5;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 PARTITIONS 5 */
@@ -1131,7 +1131,7 @@ alter table t1 reorganize partition p2 into (partition p2 values less than (30))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -1155,8 +1155,8 @@ ALTER TABLE t1 REORGANIZE PARTITION x0,x1,x2 INTO
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION x1 VALUES LESS THAN (6) ENGINE = InnoDB,
@@ -1222,7 +1222,7 @@ partitions 2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1231,7 +1231,7 @@ alter table t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1240,7 +1240,7 @@ alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1249,7 +1249,7 @@ alter table t1 remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int)
@@ -1260,7 +1260,7 @@ partitions 2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1269,8 +1269,8 @@ alter table t1 add column b int remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1
 engine=innodb
@@ -1279,8 +1279,8 @@ partition by key(a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1289,9 +1289,9 @@ alter table t1 engine=myisam, add column c int remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1
 engine=innodb
@@ -1300,9 +1300,9 @@ partition by key (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1313,9 +1313,9 @@ partition by key (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1403,9 +1403,9 @@ x3	MAXVALUE	1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   KEY `a` (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -1464,7 +1464,7 @@ partition by range (a) subpartition by hash (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -1474,7 +1474,7 @@ alter table t1 add partition (partition p1 values less than (200)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -1488,14 +1488,14 @@ partition by key (a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a) */
 alter table t1 add partition (partition p1);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = InnoDB,
@@ -1576,12 +1576,12 @@ ERROR HY000: Cannot create temporary table with partitions
 create table t1 (a int, b int) partition by list (a)
 (partition p1 values in (1), partition p2 values in (2));
 alter table t1 add primary key (b);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION p1 VALUES IN (1) ENGINE = InnoDB,
@@ -1593,7 +1593,7 @@ alter table t1 rename t2, add c char(10), comment "no comment";
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `c` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='no comment'
@@ -1817,7 +1817,7 @@ PARTITION BY LIST (a)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (NULL) ENGINE = InnoDB) */
@@ -1946,7 +1946,7 @@ partitions 10;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL,
+  `a` bigint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -2135,8 +2135,8 @@ PARTITION p2 VALUES LESS THAN (20)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`b`)
 (PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -2275,7 +2275,7 @@ PARTITION pa11 values less than MAXVALUE);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `id` mediumint NOT NULL AUTO_INCREMENT,
   `user` char(25) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2516,7 +2516,7 @@ CREATE TABLE t1 (s1 VARCHAR(5) PRIMARY KEY) PARTITION BY KEY(s1);
 LOCK TABLES t1 WRITE, t1 b READ;
 UNLOCK TABLES;
 ALTER TABLE t1 ADD COLUMN (s3 VARCHAR(5) UNIQUE);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 SELECT * FROM t1;
 s1
 DROP TABLE t1;
@@ -2710,14 +2710,14 @@ DROP TABLE t1;
 create table t1 (a int)
 partition by range (a)
 subpartition by hash (a)
-(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
-(SUBPARTITION subpart00, SUBPARTITION subpart01));
+(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR'
+ (SUBPARTITION subpart00, SUBPARTITION subpart01));
 # Checking if file exists before alter
 ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
-(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
-(SUBPARTITION subpart10, SUBPARTITION subpart11),
-partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
-(SUBPARTITION subpart20, SUBPARTITION subpart21));
+(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR'
+ (SUBPARTITION subpart10, SUBPARTITION subpart11),
+partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQL_TMP_DIR'
+ (SUBPARTITION subpart20, SUBPARTITION subpart21));
 # Checking if file exists after alter
 drop table t1;
 set innodb_strict_mode=off;
@@ -2741,7 +2741,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`i`)
 (PARTITION p01 VALUES LESS THAN (1000) ENGINE = InnoDB) */
@@ -2783,10 +2783,10 @@ CREATE TABLE `example` (
 PRIMARY KEY (`ID_EXAMPLE`)
 )
 PARTITION BY HASH(ID_EXAMPLE)(
-PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p0Data',
-PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p1Data',
-PARTITION p2 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p2Data',
-PARTITION p3 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p3Data'
+PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/p0Data',
+PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/p1Data',
+PARTITION p2 DATA DIRECTORY = 'MYSQL_TMP_DIR/p2Data',
+PARTITION p3 DATA DIRECTORY = 'MYSQL_TMP_DIR/p3Data'
 );
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2813,7 +2813,7 @@ SUBPARTITION s3 tablespace="innodb_file_per_table"
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "col1" int(11) DEFAULT NULL,
+  "col1" int DEFAULT NULL,
   "col2" date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year("col2"))
@@ -2836,7 +2836,7 @@ FLUSH TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
+  `col1` int DEFAULT NULL,
   `col2` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`col2`))
@@ -2858,7 +2858,7 @@ SET @@SQL_QUOTE_SHOW_CREATE= 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE t1 (
-  col1 int(11) DEFAULT NULL,
+  col1 int DEFAULT NULL,
   col2 date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(col2))
@@ -2991,8 +2991,8 @@ ERROR HY000: Column 'i' has a partitioning function dependency and cannot be dro
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`i`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -3015,8 +3015,8 @@ ERROR HY000: Column 'i' has a partitioning function dependency and cannot be dro
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`i`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -3071,8 +3071,8 @@ ERROR 42S22: Unknown column 'm' in 'partition function'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL
+  `k` int DEFAULT NULL,
+  `j` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`k`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -3087,8 +3087,8 @@ ALTER TABLE t1 RENAME COLUMN k TO j, RENAME COLUMN j TO k PARTITION BY RANGE(k) 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`k`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -3122,8 +3122,8 @@ ALTER TABLE t1 RENAME COLUMN i TO j, RENAME COLUMN j TO i;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
+  `j` int NOT NULL,
+  `i` int DEFAULT NULL,
   PRIMARY KEY (`j`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
@@ -3155,8 +3155,8 @@ ALTER TABLE t1 RENAME COLUMN i TO j, RENAME COLUMN j TO i PARTITION BY KEY (i) P
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) NOT NULL,
-  `i` int(11) NOT NULL,
+  `j` int NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`j`,`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (i)
@@ -3204,8 +3204,8 @@ INSERT INTO t1 (i, j) VALUES (-1, 1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL
+  `j` int DEFAULT NULL,
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`i`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -3220,8 +3220,8 @@ ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT DEFAULT 1 PARTITION BY RANGE(i) (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT '1'
+  `j` int DEFAULT NULL,
+  `i` int DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`i`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -3255,7 +3255,7 @@ ALTER TABLE t1 DROP COLUMN i;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) NOT NULL,
+  `j` int NOT NULL,
   PRIMARY KEY (`j`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
@@ -3284,8 +3284,8 @@ ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT DEFAULT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `j` int(11) NOT NULL,
-  `i` int(11) NOT NULL DEFAULT '0',
+  `j` int NOT NULL,
+  `i` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`i`,`j`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
@@ -3298,3 +3298,41 @@ SELECT i, j FROM t1 PARTITION (p1);
 i	j
 0	2
 DROP TABLE t1;
+#
+# Bug #25207522: INCORRECT ORDER-BY BEHAVIOR ON A PARTITIONED TABLE
+# WITH A COMPOSITE PREFIX INDEX
+#
+CREATE TABLE t(  id int unsigned NOT NULL,
+data varchar(2) DEFAULT NULL,
+KEY data_idx (data(1),id)
+) DEFAULT CHARSET=utf8
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p10 VALUES LESS THAN (10) ,
+PARTITION p20 VALUES LESS THAN (20) ) */;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
+SELECT id FROM t WHERE data = 'ab' ORDER BY id ASC;
+id
+4
+5
+6
+14
+15
+16
+DROP TABLE t;
+#
+# Bug#29268656: BOGUS CONSTANT, RANDOM OR TIMEZONE-DEPENDENT
+#               EXPRESSIONS IN (SUB)PARTITIONING FU
+#
+CREATE TABLE t1 (c1 INT, c2 CHAR(32) DEFAULT (RANDOM_BYTES(32))) PARTITION BY HASH(c1);
+CREATE TABLE t2 (c1 INT, c2 CHAR(32) DEFAULT (RANDOM_BYTES(32))) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+ALTER TABLE t MODIFY COLUMN c2 CHAR(32) DEFAULT (RANDOM_BYTES(32));
+DROP TABLE t, t1, t2;
+CREATE TABLE t1 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) PARTITION BY HASH(c1);
+CREATE TABLE t2 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+ALTER TABLE t MODIFY COLUMN c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32)) STORED;
+ALTER TABLE t ADD COLUMN c3 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32));
+DROP TABLE t, t1, t2;

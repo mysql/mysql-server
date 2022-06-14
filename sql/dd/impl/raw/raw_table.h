@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class Raw_table {
  public:
   Raw_table(thr_lock_type lock_type, const String_type &name);
 
-  virtual ~Raw_table() {}
+  virtual ~Raw_table() = default;
 
  public:
   TABLE *get_table() { return m_table_list.table; }

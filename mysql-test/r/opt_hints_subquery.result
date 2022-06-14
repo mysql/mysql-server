@@ -130,7 +130,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	tx	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 2	DEPENDENT SUBQUERY	ty	NULL	eq_ref	PRIMARY	PRIMARY	4	test.tx.b	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t1` `ty` join `test`.`t1` `tx` where ((`test`.`ty`.`a` = `test`.`tx`.`b`) and (<cache>(`test`.`t3`.`a`) = `test`.`tx`.`a`))))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`tx`.`a` from `test`.`t1` `ty` join `test`.`t1` `tx` where ((`test`.`ty`.`a` = `test`.`tx`.`b`) and (<cache>(`test`.`t3`.`a`) = `test`.`tx`.`a`))))
 No SEMIJOIN transformation for inner-most subquery
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t3
@@ -161,7 +161,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`min(a)`)))))
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`min(a)`)))))
 This query will get LooseScan by default
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -184,8 +184,8 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -244,8 +244,8 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -298,8 +298,8 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -319,7 +319,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -330,7 +330,7 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -365,7 +365,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
@@ -398,7 +398,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
@@ -411,7 +411,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	a	a	4	NULL	3	100.00	Using index; LooseScan
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) SEMIJOIN(@`subq2` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
@@ -436,7 +436,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION) SEMIJOIN(@`subq2` LOOSESCAN, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
@@ -448,7 +448,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
@@ -473,7 +473,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
@@ -487,7 +487,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
@@ -710,7 +710,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	ref	a	a	4	func	1	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	4	test.t3.b	1	100.00	Using index; FirstMatch(t3)
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`))))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`))))
 Do not use FirstMatch for inner
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -719,10 +719,10 @@ WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t3.b	1	100.00	NULL
+2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t3.b	1	100.00	NULL
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`<subquery3>`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`<subquery3>`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Do not use FirstMatch nor Materialization for inner
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1)
@@ -734,7 +734,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ref	a	a	4	test.t3.b	1	100.00	Using index; Start temporary; End temporary
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH, MATERIALIZATION) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t2`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH, MATERIALIZATION) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t2`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 LooseScan is last resort
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1)
@@ -745,9 +745,9 @@ WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	SUBQUERY	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Allow all stragies except default
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1)
@@ -758,10 +758,10 @@ WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t3.b	1	100.00	NULL
+2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t3.b	1	100.00	NULL
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`<subquery3>`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`<subquery3>`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Force a particular strategy
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
@@ -770,9 +770,9 @@ WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	SUBQUERY	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Turn off semijoin for inner-most subquery.  FirstMatch is used for outer
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -790,8 +790,8 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	4	func	1	100.00	Using index
 Warnings:
@@ -827,8 +827,8 @@ NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	4	func	1	100.00	Using index
 Warnings:
@@ -885,16 +885,16 @@ EXECUTE stmt1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	SUBQUERY	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 EXECUTE stmt1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	SUBQUERY	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	NULL	ALL	a	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch = default;
 Tests with non-default optimizer_switch settings
@@ -1011,7 +1011,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	tx	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 2	DEPENDENT SUBQUERY	ty	NULL	eq_ref	PRIMARY	PRIMARY	4	test.tx.b	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t1` `ty` join `test`.`t1` `tx` where ((`test`.`ty`.`a` = `test`.`tx`.`b`) and (<cache>(`test`.`t3`.`a`) = `test`.`tx`.`a`))))
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`tx`.`a` from `test`.`t1` `ty` join `test`.`t1` `tx` where ((`test`.`ty`.`a` = `test`.`tx`.`b`) and (<cache>(`test`.`t3`.`a`) = `test`.`tx`.`a`))))
 SEMIJOIN transformation for both
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1) SEMIJOIN(@subq2) */ * FROM t3
@@ -1048,8 +1048,8 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -1077,8 +1077,8 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -1145,7 +1145,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1191,7 +1191,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; Start temporary
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
@@ -1213,7 +1213,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
@@ -1226,7 +1226,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	a	a	4	NULL	3	100.00	Using index; LooseScan
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) SEMIJOIN(@`subq2` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
@@ -1239,7 +1239,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
@@ -1253,7 +1253,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
@@ -1266,7 +1266,7 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
@@ -1278,8 +1278,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
@@ -1312,7 +1312,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1323,7 +1323,7 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1365,7 +1365,7 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1400,7 +1400,7 @@ EXECUTE stmt1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.a	1	100.00	Using where
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 Warnings:
@@ -1483,19 +1483,19 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN() */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 2	SUBQUERY	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
 Warning	3126	Hint SEMIJOIN(@`subq2`  FIRSTMATCH) is ignored as conflicting/duplicated
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`))))))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))))
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN(LOOSESCAN) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
@@ -1532,7 +1532,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index; LooseScan
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Warning	3126	Hint NO_SEMIJOIN(@`subq1`  FIRSTMATCH) is ignored as conflicting/duplicated
@@ -1568,7 +1568,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 Query with two subqueries
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 INTOEXISTS) SUBQUERY(@subq2 MATERIALIZATION) */ *
@@ -1580,7 +1580,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	ty	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	tx	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` INTOEXISTS) SUBQUERY(@`subq2` MATERIALIZATION) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))) and <in_optimizer>(`test`.`t3`.`b`,`test`.`t3`.`b` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`ty`.`a` from `test`.`t1` `ty` where true ), <primary_index_lookup>(`test`.`t3`.`b` in <temporary table> on <auto_key> where ((`test`.`t3`.`b` = `materialized-subquery`.`a`))))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` INTOEXISTS) SUBQUERY(@`subq2` MATERIALIZATION) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))) and <in_optimizer>(`test`.`t3`.`b`,`test`.`t3`.`b` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`ty`.`a` from `test`.`t1` `ty` where true ), <primary_index_lookup>(`test`.`t3`.`b` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`b` = `<materialized_subquery>`.`a`))))))
 Query with nested sub-queries
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 INTOEXISTS) SUBQUERY(@subq2 MATERIALIZATION) */ *
@@ -1592,7 +1592,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	tx	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 3	SUBQUERY	ty	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq2` MATERIALIZATION) SUBQUERY(@`subq1` INTOEXISTS) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY where <in_optimizer>(`test`.`tx`.`b`,`test`.`tx`.`b` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`ty`.`a` from `test`.`t1` `ty` where true ), <primary_index_lookup>(`test`.`tx`.`b` in <temporary table> on <auto_key> where ((`test`.`tx`.`b` = `materialized-subquery`.`a`))))))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq2` MATERIALIZATION) SUBQUERY(@`subq1` INTOEXISTS) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY where <in_optimizer>(`test`.`tx`.`b`,`test`.`tx`.`b` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`ty`.`a` from `test`.`t1` `ty` where true ), <primary_index_lookup>(`test`.`tx`.`b` in <temporary table> on <auto_distinct_key> where ((`test`.`tx`.`b` = `<materialized_subquery>`.`a`))))))))
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION) SUBQUERY(@subq2 INTOEXISTS) */ *
 FROM t3
@@ -1603,7 +1603,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	tx	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
 3	DEPENDENT SUBQUERY	ty	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq2` INTOEXISTS) SUBQUERY(@`subq1` MATERIALIZATION) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`tx`.`a` from `test`.`t1` `tx` where <in_optimizer>(`test`.`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`tx`.`b`) in t1 on PRIMARY))) ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq2` INTOEXISTS) SUBQUERY(@`subq1` MATERIALIZATION) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`tx`.`a` from `test`.`t1` `tx` where <in_optimizer>(`test`.`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`tx`.`b`) in t1 on PRIMARY))) ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`a` = `<materialized_subquery>`.`a`)))))
 This query does not support SEMIJOIN.  Materialization is default
 EXPLAIN
 SELECT * FROM t2
@@ -1612,7 +1612,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`min(a)`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`min(a)`)))))
 Use In-to-exists instead
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
@@ -1621,7 +1621,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ 1 from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`a`)))))
 For this query In-to-exists is default
 EXPLAIN
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
@@ -1637,7 +1637,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` MATERIALIZATION) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`))))) AS `a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1)` from `test`.`t2`
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` MATERIALIZATION) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1)` from `test`.`t2`
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ a,
 a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1) FROM t2;
@@ -1645,25 +1645,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`))))) AS `a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1)` from `test`.`t2`
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1)` from `test`.`t2`
 This query does not support Subquery Materialization due to type mismatch
 EXPLAIN
 SELECT * FROM t2
-WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ sum(b) FROM t1 group by a);
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ concat(sum(b),"") FROM t1 group by a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ 1 from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(sum(`test`.`t1`.`b`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ concat(sum(`test`.`t1`.`b`),'') from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(concat(sum(`test`.`t1`.`b`),'')))))
 Trying to force Subquery Materialization will not change anything
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
-WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ sum(b) FROM t1 group by a);
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ concat(sum(b),"") FROM t1 group by a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ 1 from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(sum(`test`.`t1`.`b`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ concat(sum(`test`.`t1`.`b`),'') from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(concat(sum(`test`.`t1`.`b`),'')))))
 Test hints with prepared statements
 PREPARE stmt1 FROM "EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION)
@@ -1676,14 +1676,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	4	func	1	100.00	Using index
 2	SUBQUERY	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` MATERIALIZATION) SUBQUERY(@`subq2` INTOEXISTS) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`))))) and <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t2 on a))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` MATERIALIZATION) SUBQUERY(@`subq2` INTOEXISTS) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) and <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t2 on a))))
 EXECUTE stmt1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	4	func	1	100.00	Using index
 2	SUBQUERY	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` MATERIALIZATION) SUBQUERY(@`subq2` INTOEXISTS) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`))))) and <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t2 on a))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` MATERIALIZATION) SUBQUERY(@`subq2` INTOEXISTS) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) and <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t2 on a))))
 DEALLOCATE PREPARE stmt1;
 Test optimizer_switch settings with SUBQUERY hint
 SET optimizer_switch='materialization=off';
@@ -1695,7 +1695,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ 1 from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`a`)))))
 Force it to use Materialization
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
@@ -1704,7 +1704,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`min(a)`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`min(a)`)))))
 SET optimizer_switch='materialization=on,subquery_materialization_cost_based=off';
 This query will now use materialization
 EXPLAIN
@@ -1713,7 +1713,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	a	4	NULL	4	100.00	Using index
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`))))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
 Force In-to-exists
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ a,
@@ -1767,7 +1767,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
 Warning	3126	Hint SUBQUERY(  INTOEXISTS) is ignored as conflicting/duplicated
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 Try opposite order
 EXPLAIN
 SELECT * FROM t2
@@ -1798,7 +1798,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
 Warning	3126	Hint SUBQUERY(@`subq`  INTOEXISTS) is ignored as conflicting/duplicated
-Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 Specifying combinations of SUBQUERY and SEMIJOIN/NO_SEMIJOIN
 for same query block gives warning
 First has effect, second is ignored

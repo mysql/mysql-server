@@ -1,0 +1,38 @@
+## verify successful connection when global autocommit is off
+
+--source ../include/have_performance_schema_threads.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/connection_autocommit_off.xpl
+-->import assert_select.macro
+-->quiet
+
+callmacro Assert_select
+	value
+	0
+	SELECT @@autocommit as value;
+
+callmacro Assert_select
+	autocommit
+	NO
+	SELECT autocommit FROM performance_schema.events_transactions_current JOIN performance_schema.threads USING(thread_id) WHERE processlist_id=connection_id();
+
+callmacro Assert_select
+	state
+	COMMITTED
+	SELECT state FROM performance_schema.events_transactions_current JOIN performance_schema.threads USING(thread_id) WHERE processlist_id=connection_id();
+
+EOF
+
+SET GLOBAL autocommit = 0;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/connection_autocommit_off.xpl 2>&1
+
+
+
+
+## Cleanup
+SET GLOBAL autocommit = DEFAULT;
+--source ../include/xplugin_cleanup.inc

@@ -15,7 +15,7 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 ## Due to Windows OS TCP stack characteristics, the client should not queue anything after the message that is closing the session.
 ## This leads to undefined behavior (like errors from the server for the messages preceding session close) if the server runs on that OS.
 ## That is why this test is disabled for Windows.
---write_file $MYSQL_TMP_DIR/client_close_abort.tmp
+--write_file $MYSQL_TMP_DIR/client_close_abort.xpl
 
 -->title -Close in a pipeline and try to do something after close
 -->newsession sess	x_root
@@ -41,7 +41,7 @@ Mysqlx.Sql.StmtExecute {
 
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close_abort.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close_abort.xpl 2>&1
 
 # sleep for a while to ensure clean up finished
 select sleep(1);
@@ -52,5 +52,4 @@ show global status like 'mysqlx_connections_%';
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY `user`;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/client_close_abort.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

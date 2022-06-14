@@ -9,9 +9,32 @@ mysqld=
 ndbapi=,,,,
 RestartSubscriberConnectTimeout=25000
 
+[cluster_config.mysqld.1.1]
+NodeId=6
+Dedicated=1
+
+[cluster_config.ndbapi.1.1]
+NodeId=7
+Dedicated=1
+
+[cluster_config.ndbapi.2.1]
+NodeId=8
+Dedicated=1
+
+[cluster_config.ndbapi.3.1]
+NodeId=9
+Dedicated=1
+
+[cluster_config.ndbapi.4.1]
+NodeId=10
+Dedicated=1
+
 [mysqld]
 ndbcluster
 ndb-cluster-connection-pool=5
+
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=6,7,8,9,10
 
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring

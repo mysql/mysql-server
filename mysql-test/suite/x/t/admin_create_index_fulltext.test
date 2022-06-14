@@ -4,7 +4,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_fulltext.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_fulltext.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -58,7 +58,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 
 -->title =Create entire document fulltext index and drop it
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"one", "unique":false, "constraint":{"member":"$", "type":"fulltext", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"one", "unique":false, "fields":{"field":"$", "type":"fulltext", "required":true}}
 -->recvresult
 -->callmacro Show	fulltext1
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"fulltext1", "name":"one"}
@@ -73,7 +73,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 
 -->title =Create fulltext index (without constraint.type) and drop it
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"one", "unique":false, "constraint":{"member":"$.first", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"one", "unique":false, "fields":{"field":"$.first", "required":true}}
 -->recvresult
 -->callmacro Show	fulltext1
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"fulltext1", "name":"one"}
@@ -81,9 +81,9 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Show	fulltext1
 
 -->title =Create two fulltext indexes on the same member and drop one
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"fulltext", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"fulltext", "required":true}}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"two", "unique":false, "constraint":{"member":"$.first", "type":"fulltext", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"two", "unique":false, "fields":{"field":"$.first", "type":"fulltext", "required":true}}
 -->recvresult
 -->callmacro Show	fulltext1
 
@@ -93,17 +93,17 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Show	fulltext1
 
 -->title =Create fulltext index on two memebers
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"three", "unique":false, "constraint":[{"member":"$.first", "type":"fulltext", "required":true},{"member":"$.second", "type":"fulltext", "required":true}]}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"three", "unique":false, "fields":[{"field":"$.first", "type":"fulltext", "required":true},{"field":"$.second", "type":"fulltext", "required":true}]}
 -->recvresult
 -->callmacro Show	fulltext1
 
 -->title =Create fulltext index on not requiered member
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"four", "unique":false, "constraint":{"member":"$.second", "type":"fulltext", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"four", "unique":false, "fields":{"field":"$.second", "type":"fulltext", "required":false}}
 -->recvresult
 -->callmacro Show	fulltext1
 
 -->title =Create fulltext index with parser
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"five", "unique":false, "with_parser":"ngram", "constraint":{"member":"$.third", "type":"fulltext", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"fulltext", "name":"five", "unique":false, "with_parser":"ngram", "fields":{"field":"$.third", "type":"fulltext", "required":false}}
 -->recvresult
 -->callmacro Show	fulltext1
 
@@ -120,7 +120,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->stmtadmin create_collection	{"schema":"xtest", "name":"fulltext1"}
 -->recvresult
 -->title =Create fulltext index with FULLTEXT instead of fulltext 
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"FULLTEXT", "name":"four", "unique":false, "constraint":{"member":"$.second", "type":"FULLTEXT", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"FULLTEXT", "name":"four", "unique":false, "fields":{"field":"$.second", "type":"FULLTEXT", "required":true}}
 -->recvresult
 -->title =Verify "NOT NULL" for generated column
 -->callmacro Show	fulltext1
@@ -128,7 +128,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->stmtsql ALTER TABLE xtest.fulltext1 DROP COLUMN `$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479`;
 -->recvresult
 -->title =Create fulltext index with FULLTEXT nested doc
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"FULLTEXT", "name":"five", "unique":false, "constraint":{"member":"$.b[1].c", "type":"FULLTEXT", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext1", "type":"FULLTEXT", "name":"five", "unique":false, "fields":{"field":"$.b[1].c", "type":"FULLTEXT", "required":true}}
 -->recvresult
 -->stmtadmin disable_notices	{"notice":"warnings"}
 -->recvresult
@@ -142,12 +142,12 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->recvresult
 
 -->title =Try to create unique fulltext index
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"five", "unique":true, "constraint":{"member":"$.first", "type":"fulltext", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"five", "unique":true, "fields":{"field":"$.first", "type":"fulltext", "required":true}}
 -->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Insert not-text values to collection with fulltext index
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"six", "unique":false, "constraint":{"member":"$.first", "type":"fulltext", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"six", "unique":false, "fields":{"field":"$.first", "type":"fulltext", "required":false}}
 -->recvresult
 -->callmacro Insert	fulltext2	'{"_id": "one", "first":30}'	ER_SUCCESS
 -->callmacro Insert	fulltext2	'{"_id": "three", "first":{"second":42}}'	ER_SUCCESS
@@ -155,18 +155,18 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Insert	fulltext2	'{"_id": "five", "second":30}'	ER_SUCCESS
 
 -->title =Try to create fulltext index on missing member
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"seven", "unique":false, "constraint":{"member":"$.first", "type":"fulltext", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"seven", "unique":false, "fields":{"field":"$.first", "type":"fulltext", "required":true}}
 -->expecterror ER_X_DOC_REQUIRED_FIELD_MISSING
 -->recvresult
 
 
 -->title =Try to create fulltext index with unknown parser
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"eight", "unique":false, "with_parser": "blablabla", "constraint":{"member":"$.first", "type":"fulltext", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"fulltext", "name":"eight", "unique":false, "with_parser": "blablabla", "fields":{"field":"$.first", "type":"fulltext", "required":false}}
 -->expecterror ER_FUNCTION_NOT_DEFINED
 -->recvresult
 
 -->title =Try to create 'regular' index with parser
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"index", "name":"nine", "unique":false, "with_parser": "ngram", "constraint":{"member":"$.first", "type":"fulltext", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fulltext2", "type":"index", "name":"nine", "unique":false, "with_parser": "ngram", "fields":{"field":"$.first", "type":"fulltext", "required":false}}
 -->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 EOF
@@ -176,7 +176,5 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

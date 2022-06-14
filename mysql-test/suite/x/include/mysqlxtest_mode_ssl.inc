@@ -65,7 +65,10 @@ let $restart_parameters=restart:
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
 
---replace_regex /Failed to verify the server certificate.*/SSL certificate validation failure (code 2026)/
+let $ERROR1=Failed to verify the server certificate.*;
+let $ERROR2=error.*certificate verify failed.*;
+let $ERROR_REGEX=/$ERROR1|$ERROR2/error: SSL certificate validation failure (code 2026)/;
+--replace_regex $ERROR_REGEX
 --exec $MYSQLXTEST_SSLCA_TEST --expect-error CR_SSL_CONNECTION_ERROR $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_identity  2>&1
 
 --exec $MYSQLXTEST_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1

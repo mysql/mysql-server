@@ -1,0 +1,380 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @@session.sql_log_bin = OFF;
+CREATE TABLE t(c INT, d INT);
+SET @@session.sql_log_bin = ON;
+[connection slave]
+CALL mtr.add_suppression(".*command denied to user.");
+CALL mtr.add_suppression(".*the option binlog_row_value_options.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*Slave worker thread has failed to apply an event. As a consequence, the coordinator*");
+CREATE TABLE t(c INT, d INT);
+#
+# Running test for
+#    GRANT INSERT ON *.* TO ...
+#
+[connection master]
+INSERT INTO t VALUES(10, 10);
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT INSERT ON *.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE INSERT ON *.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT UPDATE ON *.* TO ...
+#
+[connection master]
+UPDATE t SET c = 12 WHERE c = 10;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE ON *.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE ON *.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+[connection slave]
+SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+#
+# Running test for
+#    GRANT UPDATE ON *.* TO ...
+#
+[connection master]
+UPDATE t SET c = 8 WHERE c = 12;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE ON *.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE ON *.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT DELETE ON *.* TO ...
+#
+[connection master]
+DELETE FROM t WHERE c = 8;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT DELETE ON *.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE DELETE ON *.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT INSERT ON test.* TO ...
+#
+[connection master]
+INSERT INTO t VALUES(10, 10);
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT INSERT ON test.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE INSERT ON test.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT UPDATE ON test.* TO ...
+#
+[connection master]
+UPDATE t SET c = 12 WHERE c = 10;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE ON test.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE ON test.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+[connection slave]
+SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+#
+# Running test for
+#    GRANT UPDATE ON test.* TO ...
+#
+[connection master]
+UPDATE t SET c = 8 WHERE c = 12;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE ON test.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE ON test.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT DELETE ON test.* TO ...
+#
+[connection master]
+DELETE FROM t WHERE c = 8;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT DELETE ON test.* TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE DELETE ON test.* FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT INSERT ON test.t TO ...
+#
+[connection master]
+INSERT INTO t VALUES(10, 10);
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT INSERT ON test.t TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE INSERT ON test.t FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT UPDATE ON test.t TO ...
+#
+[connection master]
+UPDATE t SET c = 12 WHERE c = 10;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE ON test.t TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE ON test.t FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+[connection slave]
+SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+#
+# Running test for
+#    GRANT UPDATE ON test.t TO ...
+#
+[connection master]
+UPDATE t SET c = 8 WHERE c = 12;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE ON test.t TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE ON test.t FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT DELETE ON test.t TO ...
+#
+[connection master]
+DELETE FROM t WHERE c = 8;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT DELETE ON test.t TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE DELETE ON test.t FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT INSERT(c, d) ON test.t TO ...
+#
+[connection master]
+INSERT INTO t VALUES(10, 10);
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT INSERT(c, d) ON test.t TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE INSERT(c, d) ON test.t FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+#
+# Running test for
+#    GRANT UPDATE(c) ON test.t TO ...
+#
+[connection master]
+UPDATE t SET c = 12 WHERE c = 10;
+include/save_master_pos.inc
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1142]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT UPDATE(c) ON test.t TO 'sql_applier_thread';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/sync_slave_sql.inc
+REVOKE UPDATE(c) ON test.t FROM 'sql_applier_thread';
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/diff_tables.inc [master:t, slave:t]
+DROP TABLE t;
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc

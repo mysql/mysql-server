@@ -68,8 +68,8 @@ t1	b	1
 t1	c	2
 t2	c	1
 t2	d	1
-t2	f	1
 t2	e	1
+t2	f	1
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 a	b
 1	a
@@ -136,11 +136,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 5	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
-6	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	No tables used
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #4 was resolved in SELECT #2
+Note	1249	Select 4 was reduced during optimization
 Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `a`)
+Note	1249	Select 6 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `a`
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -598,7 +599,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) order by `a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
 drop table t1;
 create table t1 (a int not null primary key auto_increment, b int, key(b));
 create table t2 (a int not null primary key auto_increment, b int);
@@ -613,7 +614,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where true)
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true union /* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where true
+explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);
+EXPLAIN
+-> Table scan on <union temporary>  (cost=2.51..2.51 rows=1)
+    -> Union materialize with deduplication  (cost=2.61..2.61 rows=1)
+        -> Zero rows (no matching row in const table)  (cost=0.00..0.00 rows=0)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
 1	10
@@ -636,14 +644,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where false) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where false union /* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	#	#	NULL
 2	UNION	t1	NULL	ref	b	b	5	const	#	#	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true union /* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1)
 drop table t1,t2;
 create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
 create table users (id int not null auto_increment, primary key (id) ,group_name text );
@@ -654,9 +662,9 @@ insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
 select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
 is_in_group	user_name	group_name	id
-1	Tester	Group A	1
 0	Tester	Group A	NULL
 0	Tester	Group B	NULL
+1	Tester	Group A	1
 drop table t3, users, `groups`;
 create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
@@ -691,7 +699,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) NOT NULL DEFAULT ''
+  `a` varchar(3) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -715,7 +723,7 @@ NULL
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `it2` tinyint(4) DEFAULT NULL
+  `it2` tinyint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT it2 from t2 UNION select i from t2;
@@ -726,7 +734,7 @@ it2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `it2` int(11) NOT NULL DEFAULT '0'
+  `it2` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT i from t2 UNION select f from t2;
@@ -925,7 +933,7 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(2) NOT NULL DEFAULT '0'
+  `1` bigint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
@@ -1272,7 +1280,7 @@ order by f2, a1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
 f2	date	YES		NULL	
-a1	int(11)	YES		NULL	
+a1	int	YES		NULL	
 drop table t1, t2;
 create table t1 (f1 int);
 create table t2 (f1 int, f2 int ,f3 date);
@@ -1347,8 +1355,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'ü',
-  `b` enum('one','two') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `a` enum('ä','ö','ü') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'ü',
+  `b` enum('one','two') CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
@@ -1525,7 +1533,7 @@ t2	CREATE TABLE `t2` (
   `f3` binary(1) DEFAULT NULL,
   `f4` binary(5) DEFAULT NULL,
   `f5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
+  `f6` varchar(1) CHARACTER SET utf8mb3 DEFAULT NULL,
   `f7` mediumtext,
   `f8` mediumtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1594,8 +1602,10 @@ SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
 ERROR 42S22: Unknown column 'c' in 'order clause'
 DROP TABLE t1;
 (select 1 into @var) union (select 1);
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 (select 1) union (select 1 into @var);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 select @var;
 @var
 1
@@ -1658,11 +1668,11 @@ INSERT INTO t1 VALUES (1), (2), (3);
 CREATE TABLE t2 SELECT * FROM (SELECT NULL) a UNION SELECT a FROM t1;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-NULL	int(11)	YES		NULL	
+NULL	int	YES		NULL	
 CREATE TABLE t3 SELECT a FROM t1 UNION SELECT * FROM (SELECT NULL) a;
 DESC t3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 CREATE TABLE t4 SELECT NULL;
 DESC t4;
 Field	Type	Null	Key	Default	Extra
@@ -1675,7 +1685,7 @@ CREATE TABLE t6
 SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
 Field	Type	Null	Key	Default	Extra
-NULL	int(11)	YES		NULL	
+NULL	int	YES		NULL	
 DROP TABLE t1, t2, t3, t4, t5, t6;
 CREATE TABLE t1 (f FLOAT(9,6));
 Warnings:
@@ -1734,14 +1744,20 @@ UNION
 SELECT a FROM t1 WHERE 0
 ) alias;
 SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 # Tests fix in parser rule query_expression_body.
 SELECT ( SELECT a UNION SELECT a ) INTO @v FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;
@@ -2040,6 +2056,15 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
+EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
+EXPLAIN
+-> Append
+    -> Stream results  (cost=0.45 rows=1)
+        -> Aggregate: sum(t2.a)  (cost=0.45 rows=1)
+            -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
+    -> Stream results  (cost=0.00..0.00 rows=1)
+        -> Zero input rows (No matching min/max row), aggregated into one output row  (cost=0.00..0.00 rows=1)
+
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 a	SUM(a)
 1	1
@@ -2889,32 +2914,32 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
-`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+`1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
 -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
-CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
--(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1`,
+-(1) AS `-1`, -(1) AS `Name_exp_-1`, -(1) AS `Name_exp_1_-1`;
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(4)	YES		NULL	
-b	int(11)	YES		NULL	
-c	bigint(20)	YES		NULL	
-1	int(1)	NO		0	
-My_exp_1	int(1)	NO		0	
-My_exp_1_1	int(1)	NO		0	
+a	bigint	YES		NULL	
+b	bigint	YES		NULL	
+c	bigint	YES		NULL	
+1	bigint	NO		0	
+Name_exp_1	bigint	NO		0	
+Name_exp_1_1	bigint	NO		0	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
-1	int(1)	NO		0	
-My_exp_1	int(1)	NO		0	
-My_exp_1_1	int(1)	NO		0	
--1	int(2)	NO		0	
-My_exp_-1	int(2)	NO		0	
-My_exp_1_-1	int(2)	NO		0	
+1	int	NO		0	
+Name_exp_1	int	NO		0	
+Name_exp_1_1	int	NO		0	
+-1	int	NO		0	
+Name_exp_-1	int	NO		0	
+Name_exp_1_-1	int	NO		0	
 DESCRIBE v3;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(4)	YES		NULL	
-b	int(11)	YES		NULL	
-c	bigint(20)	YES		NULL	
+a	tinyint	YES		NULL	
+b	int	YES		NULL	
+c	bigint	YES		NULL	
 DROP TABLE t1;
 DROP VIEW v1,v2,v3;
 # End of test for Bug#11747567
@@ -2953,11 +2978,11 @@ g1 geometry NOT NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL DEFAULT '1234',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT '5678',
+  `i1` int NOT NULL,
+  `i2` int NOT NULL DEFAULT '1234',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT '5678',
   `d1` date NOT NULL,
   `d2` date NOT NULL DEFAULT '2018-01-25',
   `d3` date DEFAULT NULL,
@@ -2975,11 +3000,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL DEFAULT '1234',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT '5678',
+  `i1` int NOT NULL,
+  `i2` int NOT NULL DEFAULT '1234',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT '5678',
   `d1` date NOT NULL,
   `d2` date NOT NULL DEFAULT '2018-01-25',
   `d3` date DEFAULT NULL,
@@ -2995,11 +3020,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL DEFAULT '0000-00-00',
   `d2` date NOT NULL DEFAULT '0000-00-00',
   `d3` date DEFAULT NULL,
@@ -3015,11 +3040,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL DEFAULT '0000-00-00',
   `d2` date NOT NULL DEFAULT '0000-00-00',
   `d3` date DEFAULT NULL,
@@ -3046,11 +3071,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL DEFAULT '1234',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT '5678',
+  `i1` int NOT NULL,
+  `i2` int NOT NULL DEFAULT '1234',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT '5678',
   `d1` date NOT NULL,
   `d2` date NOT NULL DEFAULT '2018-01-25',
   `d3` date DEFAULT NULL,
@@ -3066,11 +3091,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL,
   `d2` date NOT NULL,
   `d3` date DEFAULT NULL,
@@ -3086,11 +3111,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL,
   `d2` date NOT NULL,
   `d3` date DEFAULT NULL,
@@ -3142,6 +3167,8 @@ foo
 foo
 BAR
 SET @param = CONVERT('foo' USING ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 EXECUTE stmt USING @param;
 foo
 foo
@@ -3167,3 +3194,293 @@ foo	foo2
 bar	bar2
 foobar	foobar2
 DROP PROCEDURE p1;
+#
+# Verify that non-nullable columns are properly treated as nullable
+# during implicit aggregation, even in UNIONs, even when involving
+# views. The non-view case is tested by the test for bug #17580869,
+# above.
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT a, a, SUM(a) FROM t2 UNION ALL SELECT a, a+0, MIN(a) FROM v1;
+a	a	SUM(a)
+1	1	1
+NULL	NULL	NULL
+DROP TABLE t1, t2;
+DROP VIEW v1;
+#
+# Bug #29645319: WL#13000: SIG 6 AT AGGREGATOR_DISTINCT::SETUP | SQL/ITEM_SUM.CC
+#
+# Tests that when executing a UNION query during optimization, lex->current_select
+# is properly restored.
+#
+CREATE TABLE t1 (f1 VARCHAR(1));
+INSERT INTO t1 VALUES ('t'),('a');
+SELECT COUNT(DISTINCT f1) FROM t1 WHERE (
+SELECT MAX(f1) FROM t1 WHERE f1 NOT IN ( SELECT 5 UNION SELECT 5 )
+) IS NOT NULL;
+COUNT(DISTINCT f1)
+2
+DROP TABLE t1;
+#
+# Bug #29687893: WL#13000: SIG 6 AT HANDLER::START_PSI_BATCH_MODE() AT SQL/HANDLER.CC
+#
+# Verify that performance schema batch mode is properly disabled even in non-materialized
+# UNIONs.
+#
+CREATE TABLE t1 (f1 varchar(1));
+CREATE INDEX i1 ON t1 (f1);
+CREATE TABLE t2 (f1 varchar(1));
+INSERT INTO t1 VALUES ('d');
+INSERT INTO t2 VALUES ('d');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT t1.f1 FROM t1 LEFT JOIN t2 ON EXISTS ( SELECT * FROM t1, t2 )
+UNION ALL
+SELECT t1.f1 FROM t1;
+f1
+d
+d
+FLUSH TABLES;
+DROP TABLE t1, t2;
+#
+# Bug#22292995 UNION ALL ... LIMIT 1 EVALUATES TOO MANY ROWS IN 5.5/6 AND TWICE MORE IN 5.7
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+32
+FLUSH STATUS;
+SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+FLUSH STATUS;
+SELECT * FROM t1 UNION DISTINCT SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2
+EXPLAIN FORMAT=TREE ( SELECT *, 'a' FROM t1 LIMIT 10 )
+UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)
+    -> Append
+        -> Stream results
+            -> Limit: 10 row(s)
+                -> Table scan on t1
+        -> Stream results
+            -> Limit: 10 row(s)
+                -> Table scan on t1
+
+FLUSH STATUS;
+( SELECT *, 'a' FROM t1 LIMIT 10 )
+UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+a	a
+1	a
+2	a
+2	a
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	3
+DROP TABLE t1;
+#
+# Bug #30655712: EMPTY RESULTSET FOR SUBQUERY WITH UNION AND TEXT COLUMN WITH CONSTANT EXPRESSION
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+b BLOB,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'');
+EXPLAIN FORMAT=tree SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
+pk	b
+1	
+DROP TABLE t1;
+# Bug#29698617: UNION ALL signed and unsigned int display wrong result
+CREATE TABLE t1(id INTEGER SIGNED);
+CREATE TABLE t2(id INTEGER UNSIGNED);
+INSERT INTO t1(id) VALUES (2000000000);
+INSERT INTO t2(id) VALUES (4000000000);
+SELECT id FROM t2 UNION ALL SELECT id FROM t1;
+id
+4000000000
+2000000000
+SELECT MAX(id) FROM t2 UNION ALL SELECT MAX(id) FROM t1;
+MAX(id)
+4000000000
+2000000000
+SELECT id FROM t1 UNION ALL SELECT id FROM t2;
+id
+2000000000
+4000000000
+SELECT MAX(id) FROM t1 UNION ALL SELECT MAX(id) FROM t2;
+MAX(id)
+2000000000
+4000000000
+DROP TABLE t1, t2;
+CREATE TABLE t1(
+ts TINYINT SIGNED,
+tu TINYINT UNSIGNED,
+ss SMALLINT SIGNED,
+su SMALLINT UNSIGNED,
+ms MEDIUMINT SIGNED,
+mu MEDIUMINT UNSIGNED,
+ls INTEGER SIGNED,
+lu INTEGER UNSIGNED,
+bs BIGINT SIGNED,
+bu BIGINT UNSIGNED
+);
+INSERT INTO t1 VALUES
+(-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0),
+(127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295,
+9223372036854775807, 18446744073709551615);
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+ts AS a, ss AS b, ms AS c, ls AS d, bs AS e,
+tu AS f, su AS g, mu AS h, lu AS i, bu AS j
+FROM t1
+UNION ALL
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+tu, su, mu, lu, bu, ts, ss, ms, ls, bs
+FROM t1;
+ts	ss	ms	ls	bs	tu	su	mu	lu	bu	a	b	c	d	e	f	g	h	i	j
+-128	-32768	-8388608	-2147483648	-9223372036854775808	0	0	0	0	0	-128	-32768	-8388608	-2147483648	-9223372036854775808	0	0	0	0	0
+127	32767	8388607	2147483647	9223372036854775807	255	65535	16777215	4294967295	18446744073709551615	127	32767	8388607	2147483647	9223372036854775807	255	65535	16777215	4294967295	18446744073709551615
+-128	-32768	-8388608	-2147483648	-9223372036854775808	0	0	0	0	0	0	0	0	0	0	-128	-32768	-8388608	-2147483648	-9223372036854775808
+127	32767	8388607	2147483647	9223372036854775807	255	65535	16777215	4294967295	18446744073709551615	255	65535	16777215	4294967295	18446744073709551615	127	32767	8388607	2147483647	9223372036854775807
+CREATE TABLE t2 AS SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+ts AS a, ss AS b, ms AS c, ls AS d, bs AS e,
+tu AS f, su AS g, mu AS h, lu AS i, bu AS j
+FROM t1
+UNION ALL
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+tu, su, mu, lu, bu, ts, ss, ms, ls, bs
+FROM t1;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+ts	tinyint	YES		NULL	
+ss	smallint	YES		NULL	
+ms	mediumint	YES		NULL	
+ls	int	YES		NULL	
+bs	bigint	YES		NULL	
+tu	tinyint unsigned	YES		NULL	
+su	smallint unsigned	YES		NULL	
+mu	mediumint unsigned	YES		NULL	
+lu	int unsigned	YES		NULL	
+bu	bigint unsigned	YES		NULL	
+a	smallint	YES		NULL	
+b	mediumint	YES		NULL	
+c	int	YES		NULL	
+d	bigint	YES		NULL	
+e	decimal(20,0)	YES		NULL	
+f	smallint	YES		NULL	
+g	mediumint	YES		NULL	
+h	int	YES		NULL	
+i	bigint	YES		NULL	
+j	decimal(20,0)	YES		NULL	
+DROP TABLE t1, t2;
+# Bug#31348202: Wrong result is returned with UNION syntax
+SELECT 19 AS c UNION ALL SELECT 2.9;
+c
+19.0
+2.9
+CREATE TABLE t1 AS SELECT 19 AS c UNION ALL SELECT 2.9;
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+c	decimal(3,1)	NO		0.0	
+DROP TABLE t1;
+SELECT 19 AS c UNION ALL SELECT 'XX';
+c
+19
+XX
+CREATE TABLE t1 AS SELECT 19 AS c UNION ALL SELECT 'XX';
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+c	varchar(3)	NO			
+DROP TABLE t1;
+SELECT -19 AS c UNION ALL SELECT 'XX';
+c
+-19
+XX
+CREATE TABLE t1 AS SELECT -19 AS c UNION ALL SELECT 'XX';
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+c	varchar(3)	NO			
+DROP TABLE t1;
+SELECT 19.0 AS c UNION ALL SELECT 'XX';
+c
+19.0
+XX
+CREATE TABLE t1 AS SELECT 19.0 AS c UNION ALL SELECT 'XX';
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+c	varchar(5)	NO			
+DROP TABLE t1;
+SELECT -19.0 AS c UNION ALL SELECT 'XX';
+c
+-19.0
+XX
+CREATE TABLE t1 AS SELECT -19.0 AS c UNION ALL SELECT 'XX';
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+c	varchar(5)	NO			
+DROP TABLE t1;
+#
+# Bug#33066455: REGRESSION: ACCESSPATH*
+#               MOVECOMPOSITEITERATORSFROMTABLEPATH(ACCESSPATH*):
+#               ASSERTION `FALSE' FAILED.
+#
+EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
+EXPLAIN
+-> Zero rows (Zero limit)  (cost=0.00..0.00 rows=0)
+
+SELECT 1 UNION SELECT 1 LIMIT 0;
+1

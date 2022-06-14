@@ -1,0 +1,94 @@
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.tls_version);
+--echo 1 Expected
+
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.tls_version=1;
+--echo Expected error 'Incorrect argument type'
+
+SELECT COUNT(@@GLOBAL.tls_version);
+--echo 1 Expected
+
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.tls_version = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='tls_version';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.tls_version);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='tls_version';
+--echo 1 Expected
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@tls_version = @@GLOBAL.tls_version;
+--echo 1 Expected
+
+################################################################################
+#   Check if tls_version can be accessed with and without @@ sign                   #
+################################################################################
+
+SELECT COUNT(@@tls_version);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.tls_version);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.tls_version);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.tls_version);
+--echo 1 Expected
+
+--Error ER_GLOBAL_VARIABLE
+SET tls_version = @@GLOBAL.tls_version;
+--echo Expected error 'Variable is a GLOBAL variable'
+
+################################################################################
+#   Check tls_version for valid and invalid values                             #
+################################################################################
+
+SET @@GLOBAL.tls_version='TLSv1.2';
+SELECT @@GLOBAL.tls_version;
+SET @@GLOBAL.tls_version='TLSv1.3';
+SELECT @@GLOBAL.tls_version;
+SET @@GLOBAL.tls_version='TLSv1.2,TLSv1.3';
+SELECT @@GLOBAL.tls_version;
+SET @@GLOBAL.tls_version='tlsv1.2';
+SELECT @@GLOBAL.tls_version;
+SET @@GLOBAL.tls_version='tlsv1.3';
+SELECT @@GLOBAL.tls_version;
+SET @@GLOBAL.tls_version='tlsv1.2,tlsv1.3';
+SELECT @@GLOBAL.tls_version;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_version='TLSv1.0';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_version='TLSv1.1';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_version='TLSv1.0,TLSv1.1';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_version='SSLv2';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_version='SSLv3';
+
+SET @@GLOBAL.tls_version=default;

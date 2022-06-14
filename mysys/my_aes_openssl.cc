@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys/my_aes_openssl.cc
 */
 
+#include <assert.h>
 #include <openssl/aes.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -32,7 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "m_string.h"
 #include "my_aes.h"
 #include "my_aes_impl.h"
-#include "my_dbug.h"
 
 /*
   xplugin needs BIO_new_bio_pair, but the server does not.
@@ -47,25 +47,12 @@ int dummy_function_needed_by_xplugin() {
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
 const char *my_aes_opmode_names[] = {
-    "aes-128-ecb",
-    "aes-192-ecb",
-    "aes-256-ecb",
-    "aes-128-cbc",
-    "aes-192-cbc",
-    "aes-256-cbc",
-    "aes-128-cfb1",
-    "aes-192-cfb1",
-    "aes-256-cfb1",
-    "aes-128-cfb8",
-    "aes-192-cfb8",
-    "aes-256-cfb8",
-    "aes-128-cfb128",
-    "aes-192-cfb128",
-    "aes-256-cfb128",
-    "aes-128-ofb",
-    "aes-192-ofb",
-    "aes-256-ofb",
-    NULL /* needed for the type enumeration */
+    "aes-128-ecb",    "aes-192-ecb",    "aes-256-ecb",    "aes-128-cbc",
+    "aes-192-cbc",    "aes-256-cbc",    "aes-128-cfb1",   "aes-192-cfb1",
+    "aes-256-cfb1",   "aes-128-cfb8",   "aes-192-cfb8",   "aes-256-cfb8",
+    "aes-128-cfb128", "aes-192-cfb128", "aes-256-cfb128", "aes-128-ofb",
+    "aes-192-ofb",    "aes-256-ofb",    nullptr /* needed for the type
+                                                   enumeration */
 };
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
@@ -122,7 +109,7 @@ static const EVP_CIPHER *aes_evp_type(const my_aes_opmode mode) {
     case my_aes_256_ofb:
       return EVP_aes_256_ofb();
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -217,32 +204,22 @@ aes_error:
   return MY_AES_BAD_DATA;
 }
 
-int my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
+longlong my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
   const EVP_CIPHER *cipher = aes_evp_type(opmode);
   size_t block_size;
 
   block_size = EVP_CIPHER_block_size(cipher);
 
-  return block_size > 1 ? block_size * (source_length / block_size) + block_size
-                        : source_length;
+  if (block_size <= 1) return source_length;
+  return block_size * (static_cast<ulonglong>(source_length) / block_size) +
+         block_size;
 }
-
-/**
-  Return true if the AES cipher and block mode requires an IV
-
-  SYNOPSIS
-  my_aes_needs_iv()
-  @param opmode           encryption mode
-
-  @retval true   IV needed
-  @retval false  IV not needed
-*/
 
 bool my_aes_needs_iv(my_aes_opmode opmode) {
   const EVP_CIPHER *cipher = aes_evp_type(opmode);
   int iv_length;
 
   iv_length = EVP_CIPHER_iv_length(cipher);
-  DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
+  assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? true : false;
 }

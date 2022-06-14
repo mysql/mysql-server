@@ -1,0 +1,440 @@
+# ==== Purpose ====
+#
+# This test checks that the replica parameter ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is persisted
+# and also upgraded correctly using either TABLE or FILE relay-log info repository types.
+#
+# ==== Requirements ====
+#
+# + TC1: **ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS** configuration exists in table/file.
+# + TC2: **ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS** configuration survives a server restart.
+# + TC3: Verify that the column is added when doing an upgrade from 5.7
+# + TC4: Verify that the column value is 'OFF' for all channels.
+# + TC5: Verify that TC4 is true when upgrading from Table repositories
+# + TC6: Verify that TC4 is true when upgrading from File repositories
+# + TC7: Verify that RESET SLAVE has no observable effects for `ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS`.
+# + TC8: Verify that RESET SLAVE ALL has observable effects for `ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS`.
+#
+# ==== Implementation ====
+#
+# 1. Basic operations with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+#
+# 1.1. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to OFF
+#      Check the performance_schema table and file repository are correct
+# 1.2. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to LOCAL
+#      Check the performance_schema table and file repository are correct
+# 1.3. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to uuid
+#      Check the performance_schema table and file repository are correct
+#
+# 2. File to File upgrades
+#
+# 2.1 Upgrade the server while using File repositories
+#     Start the server using a file repository that has no ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+#     The starting value should be 1 in the file / OFF
+# 2.2 Check FILE repository corruptions
+#     Start the server using a file repository that has an invalid Assign_gtids_to_anonymous_transactions value
+#     Check we cannot start the replica process
+#
+# 3. File to Table upgrades
+#
+# 3.1 Upgrade the server to Table repositories from File repositories
+#     Start the server using a file repository that has no Assign_gtids_to_anonymous_transactions
+#
+# 4. Table to Table upgrades
+#
+# 4.1 Upgrade the server while using Table repositories
+#     Have 3 channels:
+#       1. A channel with no privileged user (ch1)
+#       2. A group_replication channel (group_replication_recovery)
+#       3. A channel with a privileged user (default channel)
+#     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is set to OFF for all channels
+#
+# 5. RESET SLAVE tests
+#
+# 5.1. Change ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to LOCAL
+#      Execute a RESET SLAVE command.
+#      The option should not be affected
+#      It also survives a server restart
+# 5.2. Change ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to <uuid>
+#      Execute a RESET SLAVE command.
+#      The option should not be affected
+#      It also survives a server restart
+# 5.3. Execute a RESET SLAVE ALL command.
+#      The table line was removed.
+#
+# 6. Cleanup
+#
+# ==== References ====
+#
+# WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
+
+--source include/big_test.inc
+--source include/not_group_replication_plugin.inc
+--source include/not_rpl_gtid_only.inc
+# This test is unrelated to log format
+--source include/have_binlog_format_row.inc
+--source include/not_master_info_file.inc
+--source include/not_mts_replica_parallel_workers.inc
+--source include/master-slave.inc
+
+--echo
+--echo # 0.Create a test auxiliary include file to avoid step repetition.
+--echo
+# The purpose of this is to verify the values of assign_gtids_to_anonymous_transactions type and value
+# in the slave_relay_log_info and replication_applier_configuration table.
+# This procedure would expect the value for $rl_info_filename, $assign_gtids_to_anonymous_transactions_type
+# and $assign_gtids_to_anonymous_transactions_file_value to be set always the value for $assign_gtids_to_anonymous_transactions_value
+# can be skipped depending upon the scenario.
+
+--source include/rpl_connection_slave.inc
+
+--write_file $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc END_OF_PROCEDURE
+
+  if ($rl_info_filename == '')
+  {
+    --die !!!ERROR IN TEST: you must set $rl_info_filename
+  }
+  if ($assign_gtids_to_anonymous_transactions_type == '')
+  {
+    --die !!!ERROR IN TEST: you must set $assign_gtids_to_anonymous_transactions_type
+  }
+  if ($assign_gtids_to_anonymous_transactions_file_value == '')
+  {
+    --die !!!ERROR IN TEST: you must set $assign_gtids_to_anonymous_transactions_file_value
+  }
+
+  --let $assert_text = Check that mysql.slave_relay_log_info does not have any entry
+  --let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CHANNEL_NAME=""] = 0
+  --source include/assert.inc
+
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = '$assign_gtids_to_anonymous_transactions_type'`
+  --let $assert_text = ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE_CHECK for default channel "" in performance_schema.replication_applier_configuration is $assign_gtids_to_anonymous_transactions_type
+  --let $assert_cond = $count = 1
+  --source include/assert.inc
+
+  if ($assign_gtids_to_anonymous_transactions_value != '')
+  {
+    --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = $assign_gtids_to_anonymous_transactions_value`
+    --let $assert_text = ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE_CHECK for default channel "" in performance_schema.replication_applier_configuration is $assign_gtids_to_anonymous_transactions_value
+    --let $assert_cond = $count = 1
+    --source include/assert.inc
+  }
+  CREATE TABLE relay_log_file_content (line_content TEXT);
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/
+  --eval LOAD DATA INFILE '$MYSQLD_DATADIR/$rl_info_filename' INTO TABLE relay_log_file_content
+
+  --let $expected_value = `SELECT *FROM relay_log_file_content LIMIT 13,14`
+  --let $assert_text = In the file the field is set to $assign_gtids_to_anonymous_transactions_file_value
+  --let $assert_cond = $assign_gtids_to_anonymous_transactions_file_value = $expected_value
+  --source include/assert.inc
+  DROP TABLE relay_log_file_content;
+
+END_OF_PROCEDURE
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $rl_info_filename = `SELECT @@relay_log_info_file`
+# 1. Basic operations with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+
+--echo
+--echo # 1.1. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to OFF
+--echo #      Check the performance_schema table and file repository are correct
+
+--let $assign_gtids_to_anonymous_transactions_type = OFF
+--let assign_gtids_to_anonymous_transactions_file_value = 1
+--source $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc
+
+--echo
+--echo # 1.2. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to LOCAL
+--echo #      Check the performance_schema table and file repository are correct
+
+--source include/stop_slave.inc
+
+--let $rpl_set_enforce_gtid_consistency= 1
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+
+--source include/start_slave.inc
+
+--let $assign_gtids_to_anonymous_transactions_type = LOCAL
+--let assign_gtids_to_anonymous_transactions_file_value = 2
+--source $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc
+--echo
+--echo # 1.3. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to uuid
+--echo #      Check the performance_schema table and file repository are correct
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+--source include/start_slave.inc
+
+--let $assign_gtids_to_anonymous_transactions_type = UUID
+--let assign_gtids_to_anonymous_transactions_file_value = 3
+--let $assign_gtids_to_anonymous_transactions_value = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+--source $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc
+# Reset the value
+--let $assign_gtids_to_anonymous_transactions_value =
+
+# 2. File to File upgrades
+
+--echo
+--echo # 2.1 Upgrade the server while using File repositories
+--echo #     Start the server using a file repository that has no ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+--echo #     The starting value should be 1 in the file / OFF
+
+--let $sub_testcase = no_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--let $assign_gtids_to_anonymous_transactions_type = OFF
+--let assign_gtids_to_anonymous_transactions_file_value = 1
+--source $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc
+
+--echo
+--echo # 2.2 Check FILE repository corruptions
+--echo #     Start the server using a file repository that has an invalid Assign_gtids_to_anonymous_transactions type
+--echo #     & value. Check we cannot start the replica process
+
+# invalid type
+--let $sub_testcase = invalid_type_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+#invalid value
+--let $sub_testcase = invalid_value_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# invalid value for assign_gtids_to_anonymous_transactions_value with default
+# assign_gtids_to_anonymous_transactions_type = OFF
+
+--let $sub_testcase = invalid_default_value_for_type_off_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# invalid value for assign_gtids_to_anonymous_transactions_value with
+# assign_gtids_to_anonymous_transactions_type != OFF
+
+--let $sub_testcase = invalid_value_for_type_not_off_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# starting the file repository with no value for assign_gtids_to_anonymous_transactions_value
+# should throw error at slave start.
+
+--let $sub_testcase = no_value_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# 3. File to Table upgrades
+
+--echo
+--echo # 3.1 Upgrade the server to Table repositories from File repositories
+--echo #     Start the server using a file repository that has no Assign_gtids_to_anonymous_transactions
+
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_type;
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_value;
+UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
+
+--let $sub_testcase = no_assign_gtids_to_anonymous_transactions
+--let $rpl_server_restart_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+ --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CHANNEL_NAME="" AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF' AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = ''`
+ --let $assert_text = Check that mysql.slave_relay_log_info has an entry with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE as NULL.
+ --let $assert_cond = $count = 1
+ --source include/assert.inc
+
+ --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF'`
+ --let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+ --let $assert_cond = $count = 1
+ --source include/assert.inc
+
+# 4. Table to Table upgrades
+
+--echo
+--echo # 4.1 Upgrade the server while using Table repositories
+--echo #     Have 3 channels:
+--echo #       1. A channel with no privileged user (ch1)
+--echo #       2. A group_replication channel (group_replication_recovery)
+--echo #       3. A channel with a privileged user (default channel)
+--echo #     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is set to OFF for all channels
+
+# We must enable GTID_MODE so we can configure the group_replication recovery channel
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
+--disable_warnings
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+--enable_warnings
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+
+# Revert the table to 12 lines (pre upgrade)
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_type;
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_value;
+UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $explicit_default_counter = 15000
+--source include/rpl_restart_server.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF'`
+--let $assert_text = Check the number of channels with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF
+--let $assert_cond = $count = 2 # The recovery channel wont appear unless we start GR
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF' AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = ''`
+--let $assert_text = Check that mysql.slave_relay_log_info entries all have ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE set to NULL
+--let $assert_cond = $count = 3
+--source include/assert.inc
+
+RESET SLAVE ALL FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+
+# 5. RESET SLAVE tests
+
+--echo
+--echo # 5.1. Change ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to LOCAL
+--echo #      Execute a RESET SLAVE command.
+--echo #      The option should not be affected
+--echo #      It also survives a server restart
+
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL'`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $server_local_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = '$server_local_uuid'`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+RESET SLAVE;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL' AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = '$server_local_uuid'`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
+--let $explicit_default_counter = 15000
+--source include/rpl_restart_server.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = '$server_local_uuid'`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--echo
+--echo # 5.2. Change ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to <uuid>
+--echo #      Execute a RESET SLAVE command.
+--echo #      The option should will be affected
+--echo #      It also survives a server restart
+
+--let $rpl_set_enforce_gtid_consistency= 1
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID'`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $server_local_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+RESET SLAVE;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID' AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
+--let $explicit_default_counter = 15000
+--source include/rpl_restart_server.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--echo
+--echo # 5.3. Execute a RESET SLAVE ALL command.
+--echo #      The table line was removed.
+
+RESET SLAVE ALL;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info`
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
+--let $assert_cond = $count = 0
+--source include/assert.inc
+
+--remove_file $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc
+
+CALL mtr.add_suppression("Error reading relay log configuration.");
+CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
+CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
+CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology*");
+CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere*");
+CALL mtr.add_suppression("Variable 'assign_gtids_to_anonymous_transactions_value'");
+CALL mtr.add_suppression("Variable 'ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS' can't be set to the value of");
+
+--disable_warnings
+--disable_query_log
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--enable_query_log
+--enable_warnings
+
+--source include/start_slave.inc
+
+--let $rpl_channel_name=
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

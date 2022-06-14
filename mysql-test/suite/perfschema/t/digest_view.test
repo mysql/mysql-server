@@ -1,0 +1,84 @@
+# ----------------------------------------------------
+# Tests for the performance schema statement Digests.
+# ----------------------------------------------------
+
+# Test case to show behavior of statements digest when
+# using a view
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+CREATE TABLE test.v1 (a int, b int);
+INSERT INTO test.v1 VALUES (1, 100), (2, 200), (3, 300);
+
+CREATE TABLE test.t1 (a int, b int);
+INSERT INTO test.t1 VALUES (1, 100), (2, 200), (3, 300);
+
+ANALYZE TABLE v1, t1;
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+
+#
+# test.v1 is a table.
+# Every query here is different, and should have a different digest.
+#
+
+# The hypergraph optimizer skips EXPLAIN with the traditional format.
+# Disable warnings so that the count of SHOW WARNINGS in
+# performance_schema.events_statements_summary_by_digest is the same
+# regardless of optimizer used.
+--disable_warnings
+EXPLAIN SELECT * from test.v1;
+EXPLAIN SELECT * from test.v1 where a = 1;
+EXPLAIN SELECT * from test.v1 where b > 100;
+EXPLAIN SELECT a, b from test.v1;
+EXPLAIN SELECT b, a from test.v1;
+--enable_warnings
+
+SELECT * from test.v1;
+SELECT * from test.v1 where a = 1;
+SELECT * from test.v1 where b > 100;
+SELECT a, b from test.v1;
+SELECT b, a from test.v1;
+
+--echo #
+--echo # DIGESTS SEEN ON TABLE
+--echo #
+
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, QUERY_SAMPLE_TEXT
+  FROM performance_schema.events_statements_summary_by_digest
+  ORDER BY DIGEST_TEXT;
+
+DROP TABLE test.v1;
+CREATE VIEW test.v1 AS SELECT * FROM test.t1;
+
+#
+# test.v1 is now a view.
+# the query digests should be unchanged.
+#
+
+--disable_warnings
+EXPLAIN SELECT * from test.v1;
+EXPLAIN SELECT * from test.v1 where a = 1;
+EXPLAIN SELECT * from test.v1 where b > 100;
+EXPLAIN SELECT a, b from test.v1;
+EXPLAIN SELECT b, a from test.v1;
+--enable_warnings
+
+SELECT * from test.v1;
+SELECT * from test.v1 where a = 1;
+SELECT * from test.v1 where b > 100;
+SELECT a, b from test.v1;
+SELECT b, a from test.v1;
+
+--echo #
+--echo # DIGESTS SEEN ON VIEW
+--echo #
+
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, QUERY_SAMPLE_TEXT
+  FROM performance_schema.events_statements_summary_by_digest
+  ORDER BY DIGEST_TEXT;
+
+DROP VIEW test.v1;
+DROP TABLE test.t1;
+

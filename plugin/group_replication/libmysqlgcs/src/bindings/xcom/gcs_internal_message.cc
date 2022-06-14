@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,8 @@ Gcs_packet::Gcs_packet() noexcept
       m_serialized_payload_offset(0),
       m_serialized_payload_size(0),
       m_serialized_stage_metadata_size(0),
-      m_delivery_synode() {}
+      m_delivery_synode(),
+      m_origin_synode() {}
 
 std::pair<bool, Gcs_packet> Gcs_packet::make_outgoing_packet(
     Cargo_type const &cargo, Gcs_protocol_version const &current_version,
@@ -75,9 +76,10 @@ Gcs_packet::Gcs_packet(
       m_serialized_payload_offset(0),
       m_serialized_payload_size(0),
       m_serialized_stage_metadata_size(0),
-      m_delivery_synode() {
+      m_delivery_synode(),
+      m_origin_synode() {
   auto const nr_stages = m_dynamic_headers.size();
-  DBUG_ASSERT(nr_stages == m_stage_metadata.size());
+  assert(nr_stages == m_stage_metadata.size());
 
   /* Calculate the size of the stage metadata. */
   for (auto const &metadata : m_stage_metadata) {
@@ -124,7 +126,8 @@ Gcs_packet::Gcs_packet(Gcs_packet const &original_packet,
       m_serialized_payload_offset(0),
       m_serialized_payload_size(new_payload_size),
       m_serialized_stage_metadata_size(0),
-      m_delivery_synode(original_packet.get_delivery_synode()) {
+      m_delivery_synode(original_packet.get_delivery_synode()),
+      m_origin_synode(original_packet.get_origin_synode()) {
   /* Copy the stage metadata. */
   for (auto const &original_metadata : original_packet.get_stage_metadata()) {
     auto metadata = original_metadata->clone();
@@ -138,15 +141,17 @@ Gcs_packet::Gcs_packet(Gcs_packet const &original_packet,
 
 Gcs_packet Gcs_packet::make_incoming_packet(
     buffer_ptr &&buffer, unsigned long long buffer_size,
-    synode_no const &synode, Gcs_message_pipeline const &pipeline) {
-  Gcs_packet packet(synode);
+    synode_no const &delivery_synode, synode_no const &origin_synode,
+    Gcs_message_pipeline const &pipeline) {
+  Gcs_packet packet(delivery_synode, origin_synode);
 
   packet.deserialize(std::move(buffer), buffer_size, pipeline);
 
   return packet;
 }
 
-Gcs_packet::Gcs_packet(synode_no const &synode)
+Gcs_packet::Gcs_packet(synode_no const &delivery_synode,
+                       synode_no const &origin_synode)
     : m_fixed_header(),
       m_dynamic_headers(),
       m_stage_metadata(),
@@ -156,7 +161,8 @@ Gcs_packet::Gcs_packet(synode_no const &synode)
       m_serialized_payload_offset(0),
       m_serialized_payload_size(0),
       m_serialized_stage_metadata_size(0),
-      m_delivery_synode(synode) {}
+      m_delivery_synode(delivery_synode),
+      m_origin_synode(origin_synode) {}
 
 Gcs_packet::Gcs_packet(Gcs_packet &&packet) noexcept
     : m_fixed_header(std::move(packet.m_fixed_header)),
@@ -170,7 +176,8 @@ Gcs_packet::Gcs_packet(Gcs_packet &&packet) noexcept
       m_serialized_payload_size(std::move(packet.m_serialized_payload_size)),
       m_serialized_stage_metadata_size(
           std::move(packet.m_serialized_stage_metadata_size)),
-      m_delivery_synode(std::move(packet.m_delivery_synode)) {
+      m_delivery_synode(std::move(packet.m_delivery_synode)),
+      m_origin_synode(std::move(packet.m_origin_synode)) {
   packet.m_fixed_header = Gcs_internal_message_header();
   packet.m_next_stage_index = 0;
   packet.m_serialized_packet_size = 0;
@@ -191,6 +198,7 @@ Gcs_packet &Gcs_packet::operator=(Gcs_packet &&packet) noexcept {
   m_serialized_stage_metadata_size =
       std::move(packet.m_serialized_stage_metadata_size);
   m_delivery_synode = std::move(packet.m_delivery_synode);
+  m_origin_synode = std::move(packet.m_origin_synode);
 
   packet.m_fixed_header = Gcs_internal_message_header();
   packet.m_next_stage_index = 0;
@@ -263,7 +271,7 @@ unsigned long long const &Gcs_packet::get_payload_length() const {
 }
 
 bool Gcs_packet::allocate_serialization_buffer() {
-  DBUG_ASSERT(m_serialized_payload_size > 0);
+  assert(m_serialized_payload_size > 0);
 
   bool error = true;
 
@@ -282,7 +290,7 @@ bool Gcs_packet::allocate_serialization_buffer() {
 }
 
 std::pair<Gcs_packet::buffer_ptr, unsigned long long> Gcs_packet::serialize() {
-  DBUG_ASSERT(m_serialized_packet.get() != nullptr);
+  assert(m_serialized_packet.get() != nullptr);
 
   // Serialize the headers.
   unsigned char *slider = m_serialized_packet.get();
@@ -377,4 +385,8 @@ void Gcs_packet::dump(std::ostringstream &output) const {
 
 Gcs_xcom_synode const &Gcs_packet::get_delivery_synode() const {
   return m_delivery_synode;
+}
+
+Gcs_xcom_synode const &Gcs_packet::get_origin_synode() const {
+  return m_origin_synode;
 }

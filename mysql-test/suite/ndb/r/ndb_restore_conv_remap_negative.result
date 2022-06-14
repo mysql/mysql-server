@@ -1,0 +1,82 @@
+create table t1 (ki int primary key,
+dis int,
+diu int unsigned,
+dbs bigint,
+dbu bigint unsigned,
+dmi mediumint) engine = ndb;
+insert into t1 values
+(0,
+2147483547,                # Max - 100
+4294967195,                # Max - 100
+9223372036854775707,       # Max - 100
+18446744073709551515,      # Max - 100
+0),
+(1, 
+-2147483548,               # Min + 100
+100,                       # Min + 100
+-9223372036854775708,      # Min + 100
+100,                       # Min + 100
+0);
+select ki, dis, diu, dbs, dbu, dmi from test.t1 order by ki;
+ki	dis	diu	dbs	dbu	dmi
+0	2147483547	4294967195	9223372036854775707	18446744073709551515	0
+1	-2147483548	100	-9223372036854775708	100	0
+Run backup
+truncate t1;
+Malformed spec : db
+Malformed spec : db.
+Malformed spec : db.table
+Malformed spec : db.table.column
+Malformed spec : db.table.column
+Malformed spec : db.table.column:function
+Malformed spec : db.table.column:function:badargument
+Non existent db+table not allowed
+Non existent table not allowed
+Non existent table not allowed
+Bad function name
+Out of range offsets
+Unsupported type (mediumint)
+Test limits of offset ranges (limited to +/- signed type range)
+Too large offsets
+Signed int
+Unsigned int
+Signed bigint
+Unsigned bigint
+Test data over/underflow errors
+Signed int
+truncate t1;
+select count(1) from t1 where ki = 0;
+count(1)
+0
+truncate t1;
+select count(1) from t1 where ki = 1;
+count(1)
+0
+Unsigned int
+truncate t1;
+select count(1) from t1 where ki = 0;
+count(1)
+0
+truncate t1;
+select count(1) from t1 where ki = 1;
+count(1)
+0
+Signed bigint
+truncate t1;
+select count(1) from t1 where ki = 0;
+count(1)
+0
+truncate t1;
+select count(1) from t1 where ki = 1;
+count(1)
+0
+Unsigned bigint
+truncate t1;
+select count(1) from t1 where ki = 0;
+count(1)
+0
+truncate t1;
+select count(1) from t1 where ki = 1;
+count(1)
+0
+drop table t1;

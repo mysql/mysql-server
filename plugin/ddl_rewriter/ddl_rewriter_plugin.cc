@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,           /* plugin type             */
     &ddl_rewriter_descriptor,     /* type specific descriptor*/
     "ddl_rewriter",               /* plugin name             */
-    "Oracle",                     /* author                  */
+    PLUGIN_AUTHOR_ORACLE,         /* author                  */
     "Rewrite of DDL statements.", /* description             */
     PLUGIN_LICENSE_GPL,           /* license                 */
     plugin_init,                  /* plugin initializer      */

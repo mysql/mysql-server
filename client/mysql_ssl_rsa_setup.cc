@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,41 +108,43 @@ Sql_string_t ext_files[] = {create_string("cav3.ext"),
 Log info(cout, "NOTE");
 Log error(cerr, "ERROR");
 
-char **defaults_argv = 0;
-static char *opt_datadir = 0;
+char **defaults_argv = nullptr;
+static char *opt_datadir = nullptr;
 static char default_data_dir[] = MYSQL_DATADIR;
-static char *opt_suffix = 0;
+static char *opt_suffix = nullptr;
 static char default_suffix[] = MYSQL_SERVER_VERSION;
 #if HAVE_CHOWN
-static char *opt_userid = 0;
-struct passwd *user_info = 0;
+static char *opt_userid = nullptr;
+struct passwd *user_info = nullptr;
 #endif /* HAVE_CHOWN */
 Path dir_string;
 Sql_string_t suffix_string;
 bool opt_verbose;
 
-static const char *load_default_groups[] = {"mysql_ssl_rsa_setup", "mysqld", 0};
+static const char *load_default_groups[] = {"mysql_ssl_rsa_setup", "mysqld",
+                                            nullptr};
 
 static struct my_option my_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"verbose", 'v', "Be more verbose when running program", &opt_verbose, 0, 0,
-     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0},
-    {"version", 'V', "Print program version and exit", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "Be more verbose when running program", &opt_verbose,
+     nullptr, nullptr, GET_BOOL, NO_ARG, false, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Print program version and exit", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"datadir", 'd', "Directory to store generated files.", &opt_datadir,
-     &opt_datadir, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_data_dir,
-     0, 0, 0, 0, 0},
+     &opt_datadir, nullptr, GET_STR_ALLOC, REQUIRED_ARG,
+     (longlong)&default_data_dir, 0, 0, nullptr, 0, nullptr},
     {"suffix", 's', "Suffix to be added in certificate subject line",
-     &opt_suffix, &opt_suffix, 0, GET_STR_ALLOC, REQUIRED_ARG,
-     (longlong)&default_suffix, 0, 0, 0, 0, 0},
+     &opt_suffix, &opt_suffix, nullptr, GET_STR_ALLOC, REQUIRED_ARG,
+     (longlong)&default_suffix, 0, 0, nullptr, 0, nullptr},
 #if HAVE_CHOWN
     {"uid", 0, "The effective user id to be used for file permission",
-     &opt_userid, &opt_userid, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_userid, &opt_userid, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif /* HAVE_CHOWN */
     /* END TOKEN */
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* Helper Functions */
 
@@ -199,7 +201,7 @@ static int set_file_pair_permission(const Sql_string_t &priv,
 
 static bool file_exists(const Sql_string_t &filename) {
   MY_STAT file_stat;
-  if (my_stat(filename.c_str(), &file_stat, MYF(0)) == NULL) return false;
+  if (my_stat(filename.c_str(), &file_stat, MYF(0)) == nullptr) return false;
 
   return true;
 }
@@ -222,9 +224,9 @@ static void free_resources() {
 
 class RSA_priv {
  public:
-  RSA_priv(uint32_t key_size = 2048) : m_key_size(key_size) {}
+  explicit RSA_priv(uint32_t key_size = 2048) : m_key_size(key_size) {}
 
-  ~RSA_priv() {}
+  ~RSA_priv() = default;
 
   Sql_string_t operator()(const Sql_string_t &key_file) {
     stringstream command;
@@ -251,7 +253,7 @@ class RSA_pub {
 
 class X509_key {
  public:
-  X509_key(const Sql_string_t &version, uint32_t validity = 10 * 365L)
+  explicit X509_key(const Sql_string_t &version, uint32_t validity = 10 * 365L)
       : m_validity(validity) {
     m_subj_prefix << "-subj /CN=MySQL_Server_" << version;
   }
@@ -279,7 +281,7 @@ class X509v3_ext_writer {
 
     m_certv3_ext_options << "basicConstraints=CA:FALSE" << std::endl;
   }
-  ~X509v3_ext_writer() {}
+  ~X509v3_ext_writer() = default;
 
   bool operator()(const Sql_string_t &cav3_ext_file,
                   const Sql_string_t &certv3_ext_file) {
@@ -310,9 +312,9 @@ class X509v3_ext_writer {
 
 class X509_cert {
  public:
-  X509_cert(uint32_t validity = 10 * 365L) : m_validity(validity) {}
+  explicit X509_cert(uint32_t validity = 10 * 365L) : m_validity(validity) {}
 
-  ~X509_cert() {}
+  ~X509_cert() = default;
 
   Sql_string_t operator()(const Sql_string_t &req_file,
                           const Sql_string_t &cert_file, uint32_t serial,
@@ -359,7 +361,7 @@ static bool my_arguments_get_one_option(int optid, const struct my_option *,
       free_resources();
       exit(0);
   }
-  return 0;
+  return false;
 }
 }
 
@@ -380,7 +382,7 @@ int main(int argc, char *argv[]) {
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
 
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
 
   /* Parse options : Command Line/Config file */
@@ -648,5 +650,5 @@ end:
   umask(saved_umask);
   free_resources();
 
-  DBUG_RETURN(ret_val);
+  return ret_val;
 }

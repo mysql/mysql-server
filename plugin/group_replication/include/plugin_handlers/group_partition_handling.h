@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,7 @@
 
 class Group_partition_handling {
  public:
-  Group_partition_handling(Shared_writelock *shared_stop_write_lock,
-                           ulong unreachable_timeout);
+  Group_partition_handling(ulong unreachable_timeout);
 
   /**
     The class destructor
@@ -39,9 +38,8 @@ class Group_partition_handling {
   /**
     The thread handler.
 
-    @return
-      @retval 0      OK
-      @retval !=0    Error
+    @retval 0      OK
+    @retval !=0    Error
   */
   int partition_thread_handler();
 
@@ -112,11 +110,6 @@ class Group_partition_handling {
   bool is_partition_handling_terminated();
 
  private:
-  /**
-    Internal method that contains the logic for leaving and killing transactions
-  */
-  void kill_transactions_and_leave();
-
   // Group_partition_handling variables
 
   /** Is member in partition */
@@ -133,9 +126,6 @@ class Group_partition_handling {
 
   /** The number of seconds until the member goes into error state*/
   ulong timeout_on_unreachable;
-
-  /** The stop lock used when killing transaction/stopping server*/
-  Shared_writelock *shared_stop_write_lock;
 
   /* Thread related structures */
 

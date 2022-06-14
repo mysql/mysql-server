@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -371,7 +371,7 @@ NdbDictionary::Column::getSizeInBytesForRecord() const {
 * for backward compatible api consideration, but is broken.
 */
 int
-NdbDictionary::Column::setDefaultValue(const char* defaultValue)
+NdbDictionary::Column::setDefaultValue(const char*)
 {
   return -1;
 }
@@ -724,26 +724,6 @@ NdbDictionary::Table::setSingleUserMode(enum NdbDictionary::Table::SingleUserMod
   m_impl.m_single_user_mode = (Uint8)mode;
 }
 
-#if 0
-int
-NdbDictionary::Table::setTablespaceNames(const void *data, Uint32 len)
-{
-  return m_impl.setTablespaceNames(data, len);
-}
-
-const void*
-NdbDictionary::Table::getTablespaceNames()
-{
-  return m_impl.getTablespaceNames();
-}
-
-Uint32
-NdbDictionary::Table::getTablespaceNamesLen() const
-{
-  return m_impl.getTablespaceNamesLen();
-}
-#endif
-
 void
 NdbDictionary::Table::setLinearFlag(Uint32 flag)
 {
@@ -946,7 +926,7 @@ NdbDictionary::Table::setTemporary(bool val) {
 }
 
 int
-NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {  
+NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool) const {
   const NdbDictionary::Table * pTab = 
     pNdb->getDictionary()->getTable(getName());
   if(pTab != 0 && equal(* pTab))
@@ -1089,15 +1069,15 @@ NdbDictionary::Table::getDefaultRecord() const {
 }
 
 int
-NdbDictionary::Table::aggregate(NdbError& error)
+NdbDictionary::Table::aggregate(NdbError&)
 {
-  return m_impl.aggregate(error);
+  return m_impl.aggregate();
 }
 
 int
-NdbDictionary::Table::validate(NdbError& error)
+NdbDictionary::Table::validate(NdbError&)
 {
-  return m_impl.validate(error);
+  return m_impl.validate();
 }
 
 Uint32
@@ -1208,12 +1188,12 @@ NdbDictionary::Index::getName() const {
 
 int
 NdbDictionary::Index::setTable(const char * table){
-  return m_impl.setTable(table);
+  return m_impl.setTableName(table);
 }
 
 const char * 
 NdbDictionary::Index::getTable() const {
-  return m_impl.getTable();
+  return m_impl.getTableName();
 }
 
 unsigned
@@ -1355,7 +1335,7 @@ NdbDictionary::Index::getObjectId() const {
  * OptimizeTableHandle facade
  */
 NdbDictionary::OptimizeTableHandle::OptimizeTableHandle()
-  : m_impl(* new NdbOptimizeTableHandleImpl(* this))
+  : m_impl(* new NdbOptimizeTableHandleImpl())
 {}
 
 NdbDictionary::OptimizeTableHandle::OptimizeTableHandle(NdbOptimizeTableHandleImpl & impl)
@@ -1387,7 +1367,7 @@ NdbDictionary::OptimizeTableHandle::close()
  * OptimizeIndexHandle facade
  */
 NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle()
-  : m_impl(* new NdbOptimizeIndexHandleImpl(* this))
+  : m_impl(* new NdbOptimizeIndexHandleImpl())
 {}
 
 NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle(NdbOptimizeIndexHandleImpl & impl)
@@ -2186,7 +2166,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       }
       Uint32 zero = 0;
       Vector<Uint32> values;
-      values.fill(hm.getMapLen() - 1, zero);
+      values.fill(hm.getMapLen(), zero);
       hm.getMapValues(values.getBase(), values.size());
       for (Uint32 i = 0; i<hm.getMapLen(); i++)
       {
@@ -3132,7 +3112,7 @@ NdbDictionary::Dictionary::dropIndex(const char * indexName,
   int ret;
   DO_TRANS(
     ret,
-    m_impl.dropIndex(indexName, tableName)
+    m_impl.dropIndex(indexName, tableName, false)
   );
   return ret;
 }
@@ -3143,7 +3123,7 @@ NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
   int ret;
   DO_TRANS(
     ret,
-    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind))
+    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind), false)
   );
   return ret;
 }
@@ -3282,20 +3262,6 @@ NdbDictionary::Dictionary::removeCachedIndex(const char * indexName,
   }
 }
 
-const NdbDictionary::Table *
-NdbDictionary::Dictionary::getIndexTable(const char * indexName, 
-					 const char * tableName) const
-{
-  NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
-  NdbTableImpl * t = m_impl.getTable(tableName);
-  if(i && t) {
-    NdbTableImpl * it = m_impl.getIndexTable(i, t);
-    return it->m_facade;
-  }
-  return 0;
-}
-
-
 int
 NdbDictionary::Dictionary::createEvent(const Event & ev)
 {
@@ -3344,7 +3310,7 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 {
   // delegate to variant with FQ names param
   return listObjects(list, type, 
-                     m_impl.m_ndb.usingFullyQualifiedNames());
+                     true /* fully qualified */);
 }
 
 int
@@ -3368,7 +3334,7 @@ NdbDictionary::Dictionary::listIndexes(List& list,
                                       const char * tableName) const
 {
   // delegate to overloaded function with FQ names param
-  return listIndexes(list, tableName, m_impl.m_ndb.usingFullyQualifiedNames());
+  return listIndexes(list, tableName, true /* fully qualified */);
 }
 
 int
@@ -3388,7 +3354,7 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 				       const NdbDictionary::Table &table) const
 {
   return m_impl.listIndexes(list, table.getTableId(),
-                            m_impl.m_ndb.usingFullyQualifiedNames());
+                            true /* fully qualified */);
 }
 
 int
@@ -3678,11 +3644,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       char decStr[MaxDecimalStrLen];
       assert(decimal_string_size(&tmpDec) <= MaxDecimalStrLen);
       int len= MaxDecimalStrLen;
-      if ((rc= decimal2string(&tmpDec, decStr, 
-                              &len,
-                              0,   // 0 = Var length output length
-                              0,   // 0 = Var length fractional part
-                              0))) // Filler char for fixed length
+      if ((rc= decimal2string(&tmpDec, decStr, &len)))
       {
         out.print("***Error : bad decimal2string conversion %d ***",
                   rc);
@@ -3834,13 +3796,13 @@ NdbDictionary::NdbDataPrintFormat::NdbDataPrintFormat()
 }
 NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {}
 
-
 NdbOut&
-operator<<(NdbOut& out, const NdbDictionary::Column& col)
+NdbDictionary::printColumnTypeDescription(NdbOut& out,
+                                          const NdbDictionary::Column& col)
 {
   const CHARSET_INFO *cs = col.getCharset();
-  const char *csname = cs ? cs->name : "?";
-  out << col.getName() << " ";
+  const char *csname = cs ? cs->m_coll_name : "?";
+
   switch (col.getType()) {
   case NdbDictionary::Column::Tinyint:
     out << "Tinyint";
@@ -3968,6 +3930,15 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
       break;
     }
   }
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const NdbDictionary::Column& col)
+{
+  out << col.getName() << " ";
+
+  NdbDictionary::printColumnTypeDescription(out, col);
 
   if (col.getPrimaryKey())
     out << " PRIMARY KEY";
@@ -4181,7 +4152,7 @@ NdbDictionary::Dictionary::invalidateDbGlobal(const char * name)
 {
   if (m_impl.m_globalHash && name != 0)
   {
-    size_t len = strlen(name);
+    const size_t len = strlen(name);
     m_impl.m_globalHash->lock();
     m_impl.m_globalHash->invalidateDb(name, len);
     m_impl.m_globalHash->unlock();
@@ -4598,6 +4569,21 @@ void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const
   if (getHashMap(hashmap, &tab) != -1)
   {
     ndbout << "HashMap: " << hashmap.getName() << endl;
+  }
+
+  Uint32 tablespace_id;
+  if (tab.getTablespace(&tablespace_id))
+  {
+    ndbout << "Tablespace id: " << tablespace_id << endl;
+
+    // Look up tablespace by id and show the name
+    // NOTE! The tablespace name of a table object which
+    // has been fetched from NDB is not assigned any value.
+    const NdbDictionary::Tablespace ts = getTablespace(tablespace_id);
+    if (getNdbError().code == 0)
+    {
+      ndbout << "Tablespace: " << ts.getName() << endl;
+    }
   }
 
   ndbout << "-- Attributes --" << endl;

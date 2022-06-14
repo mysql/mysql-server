@@ -15,8 +15,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_ssl.inc
---source include/have_openssl.inc
 --source include/mysql_upgrade_preparation.inc
 
 # This test will intentionally generate errors in the server error log
@@ -616,3 +614,7 @@ connection default;
 
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

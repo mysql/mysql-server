@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
     : m_thread_name(thread_name) {
-  mysql_mutex_init(key_mutex_slave_reporting_capability_err_lock, &err_lock,
+  mysql_mutex_init(key_mutex_replica_reporting_capability_err_lock, &err_lock,
                    MY_MUTEX_INIT_FAST);
 }
 
@@ -63,7 +63,7 @@ Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
 int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
                                                     bool *silent) const {
   uint error;
-  DBUG_ENTER("has_temporary_error");
+  DBUG_TRACE;
 
   DBUG_EXECUTE_IF(
       "all_errors_are_temporary_errors", if (thd->get_stmt_da()->is_error()) {
@@ -75,8 +75,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
     The slave can't be regarded as experiencing a temporary failure in cases of
     is_fatal_error is true, or if no error is in THD and error_arg is not set.
   */
-  if (thd->is_fatal_error() || (!thd->is_error() && error_arg == 0))
-    DBUG_RETURN(0);
+  if (thd->is_fatal_error() || (!thd->is_error() && error_arg == 0)) return 0;
 
   error = (error_arg == 0) ? thd->get_stmt_da()->mysql_errno() : error_arg;
 
@@ -88,7 +87,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
   */
   if (slave_trans_retries &&
       (error == ER_LOCK_DEADLOCK || error == ER_LOCK_WAIT_TIMEOUT))
-    DBUG_RETURN(1);
+    return 1;
 
   /*
     currently temporary error set in ndbcluster
@@ -101,16 +100,16 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
                         err->message_text()));
     switch (err->mysql_errno()) {
       case ER_GET_TEMPORARY_ERRMSG:
-        DBUG_RETURN(1);
+        return 1;
       case ER_SLAVE_SILENT_RETRY_TRANSACTION: {
         if (silent != nullptr) *silent = true;
-        DBUG_RETURN(1);
+        return 1;
       }
       default:
         break;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Slave_reporting_capability::report(loglevel level, int err_code,
@@ -151,7 +150,7 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
     case INFORMATION_LEVEL:
       break;
     default:
-      DBUG_ASSERT(0);  // should not come here
+      assert(0);  // should not come here
       // don't crash production builds, just do nothing
       mysql_mutex_unlock(&err_lock);
       return;
@@ -184,7 +183,7 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
                err_code);
 
   // we shouldn't really use client error codes here, so bomb out in debug mode
-  // DBUG_ASSERT(err_code >= ER_SERVER_RANGE_START);
+  // assert(err_code >= ER_SERVER_RANGE_START);
 }
 
 Slave_reporting_capability::~Slave_reporting_capability() {

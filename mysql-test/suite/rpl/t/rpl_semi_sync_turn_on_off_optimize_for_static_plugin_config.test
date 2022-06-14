@@ -1,0 +1,180 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test the stability of turning on and off
+# both `replication_optimize_for_static_plugin_config` and
+# `replication_sender_observe_commit_only` global variables on intermediate
+# and leaf replicas with semi-sync enabled, while applying transactions.
+#
+# ==== Requirements ====
+#
+# R1. Both variables may be set online while both source and replica with
+#     semi-sync enabled are transmitting and applying transactions.
+#
+# ==== Implementation ====
+#
+# 1. Setup a 3 layered topology with the given topology 1->2, 2->3, 2->4,
+#    2->5, 2->6, 2->7, 2->8, 2->9
+# 2. Setup replication between 1st and 2nd layer is assynchronous and
+#    semi-synchronous between 2nd and 3rd layers.
+# 3. Using `mysqlslap`, send 5000 insert statements in the background.
+# 4. Iterate over the 2nd and 3rd layer servers and sequentially enable and
+#    disable the options while stopping and starting the applier threads.
+# 5. Sync all servers.
+# 6. Ensure that all servers have the same data.
+#
+# ==== References ====
+#
+# BUG#30519928 INTERMEDIATE MASTER WITH SEMISYNC SHOWS HIGH CPU USAGE DUE
+#              TO MUTEX SPINNING
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_statement.inc
+
+--let $sources = 1
+--let $replicas_layer_1 = 1
+--let $replicas_layer_2 = 7
+--let $servers = `SELECT $replicas_layer_1 + $replicas_layer_2 + $sources`
+
+# 1. Setup a 3 layered topology with the given topology 1->2, 2->3, 2->4,
+#    2->5, 2->6, 2->7, 2->8, 2->9
+--let $rpl_topology = 1->2
+--let $i = 3
+while ($i <= $servers)
+{
+  --let $rpl_topology = $rpl_topology, 2->$i
+  --inc $i
+}
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+CREATE TABLE t (a int);
+
+# 2. Setup replication between 1st and 2nd layer is assynchronous and
+#    semi-synchronous between 2nd and 3rd layers.
+--let $i = 2
+while ($i <= $servers)
+{
+  --let $rpl_connection_name= server_$i
+  --source include/rpl_connection.inc
+
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+  SET GLOBAL replication_sender_observe_commit_only = 1;
+
+  if ($i == 2)
+  {
+    SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
+    CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+    --source include/install_semisync_source.inc
+  }
+  if ($i != 2)
+  {
+    SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
+    CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+    --source include/install_semisync_replica.inc
+  }
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $replicas_layer_2
+
+# 3. Using `mysqlslap`, send 5000 insert statements in the background.
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=500 --query="INSERT INTO t VALUES (1)" --concurrency=10 --silent 2>&1
+
+# 4. Iterate over the 2nd and 3rd layer servers and sequentially enable and
+#    disable the options while stopping and starting the applier threads.
+SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+           replication_sender_observe_commit_only = 1;
+SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+           replication_sender_observe_commit_only = 0;
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--let $diff_tables = server_1:t
+--let $i = $servers
+while ($i > 1)
+{
+  --let $rpl_connection_name= server_$i
+  --source include/rpl_connection.inc
+
+  --source include/stop_slave.inc
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+             replication_sender_observe_commit_only = 0;
+  --source include/start_slave.inc
+
+  --source include/stop_slave.inc
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+             replication_sender_observe_commit_only = 1;
+  --source include/start_slave.inc
+
+  --sleep 1
+
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+             replication_sender_observe_commit_only = 0;
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+             replication_sender_observe_commit_only = 1;
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+             replication_sender_observe_commit_only = 0;
+  --source include/stop_slave.inc
+  --source include/start_slave.inc
+
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0,
+             replication_sender_observe_commit_only = 0;
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1,
+             replication_sender_observe_commit_only = 1;
+
+  --let $diff_tables = $diff_tables, server_$i:t
+  --dec $i
+}
+
+# Wait for `mysqlslap` to finish execution of 5000 inserts
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=5000 FROM t
+--let $wait_timeout= 120
+--source include/wait_condition.inc
+
+# 5. Sync all servers.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $slave_timeout=600
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $slave_timeout=600
+--source include/rpl_sync.inc
+
+# 6. Ensure that all servers have the same data.
+--source include/diff_tables.inc
+
+# Clean up
+--let $i = $servers
+while ($i > 1)
+{
+  --let $rpl_connection_name= server_$i
+  --source include/rpl_connection.inc
+
+  SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+  SET GLOBAL replication_sender_observe_commit_only = 0;
+
+  if ( $i == 2)
+  {
+    --source include/uninstall_semisync_source.inc
+  }
+  if ($i != 2)
+  {
+    --source include/uninstall_semisync_replica.inc
+  }
+
+  --dec $i
+}
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t;
+--source include/rpl_end.inc

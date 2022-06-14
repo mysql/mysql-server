@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,8 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0size.h"
 
 /** Checks if a page contains only zeroes.
-@param[in]	read_buf	database page
-@param[in]	page_size	page size
+@param[in]      read_buf        database page
+@param[in]      page_size       page size
 @return true if page is filled with zeroes */
 bool buf_page_is_zeroes(const byte *read_buf, const page_size_t &page_size);
 #endif

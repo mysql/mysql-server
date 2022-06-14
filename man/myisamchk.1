@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmyisamchk\fR
+.\"     Title: myisamchk
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYISAMCHK" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,8 +53,8 @@ REPAIR TABLE
 statements to check and repair
 MyISAM
 tables\&. See
-Section\ \&13.7.3.2, \(lqCHECK TABLE Syntax\(rq, and
-Section\ \&13.7.3.5, \(lqREPAIR TABLE Syntax\(rq\&.
+Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq, and
+Section\ \&13.7.3.5, \(lqREPAIR TABLE Statement\(rq\&.
 .PP
 The use of
 \fBmyisamchk\fR
@@ -84,7 +84,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \&.\&.\&.\fR
+myisamchk [\fIoptions\fR] \fItbl_name\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -125,7 +125,7 @@ tables in that directory like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk *\&.MYI\fR
+myisamchk *\&.MYI
 .fi
 .if n \{\
 .RE
@@ -137,7 +137,7 @@ If you are not in the database directory, you can check all the tables there by 
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \fR\fB\fI/path/to/database_dir/\fR\fR\fB*\&.MYI\fR
+myisamchk \fI/path/to/database_dir/\fR*\&.MYI
 .fi
 .if n \{\
 .RE
@@ -149,7 +149,7 @@ You can even check all tables in all databases by specifying a wildcard with the
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
+myisamchk \fI/path/to/datadir/*/*\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -163,7 +163,7 @@ tables is:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-silent \-\-fast \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
+myisamchk \-\-silent \-\-fast \fI/path/to/datadir/*/*\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -177,10 +177,10 @@ tables and repair any that are corrupted, you can use the following command:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \e\fR
-          \fB\-\-key_buffer_size=64M \-\-myisam_sort_buffer_size=64M \e\fR
-          \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M \e\fR
-          \fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
+myisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \e
+          \-\-key_buffer_size=64M \-\-myisam_sort_buffer_size=64M \e
+          \-\-read_buffer_size=1M \-\-write_buffer_size=1M \e
+          \fI/path/to/datadir/*/*\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -241,7 +241,7 @@ CHECK TABLE
 instead of
 \fBmyisamchk\fR
 to check tables\&. See
-Section\ \&13.7.3.2, \(lqCHECK TABLE Syntax\(rq\&.
+Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq\&.
 .sp .5v
 .RE
 .PP
@@ -265,7 +265,6 @@ The options described in this section can be used for any type of table maintena
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&. Options are grouped by type of operation\&.
 .RE
 .sp
@@ -279,7 +278,6 @@ Display a help message and exit\&. Options are grouped by type of operation\&.
 .\}
 \fB\-\-HELP\fR,
 \fB\-H\fR
-.sp
 Display a help message and exit\&. Options are presented in a single list\&.
 .RE
 .sp
@@ -293,12 +291,16 @@ Display a help message and exit\&. Options are presented in a single list\&.
 .\}
 \fB\-\-debug=\fR\fB\fIdebug_options\fR\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:o,/tmp/myisamchk\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -310,10 +312,9 @@ d:t:o,/tmp/myisamchk\&.trace\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -328,10 +329,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -346,15 +346,13 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmyisamchk\fR
 normally reads the
 [myisamchk]
-group\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+group\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmyisamchk\fR
 also reads the
 [myisamchk_other]
@@ -373,20 +371,19 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -401,7 +398,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
-.sp
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -418,7 +414,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Silent mode\&. Write output only when errors occur\&. You can use
 \fB\-s\fR
 twice (\fB\-ss\fR) to make
@@ -436,7 +431,6 @@ very silent\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&. This can be used with
 \fB\-d\fR
 and
@@ -456,7 +450,6 @@ multiple times (\fB\-vv\fR,
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .sp
@@ -470,7 +463,6 @@ Display version information and exit\&.
 .\}
 \fB\-\-wait\fR,
 \fB\-w\fR
-.sp
 Instead of terminating with an error if the table is locked, wait until the table is unlocked before continuing\&. If you are running
 \fBmysqld\fR
 with external locking disabled, the table can be locked only by another
@@ -671,7 +663,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-recover \-\-ft_min_word_len=3 \fR\fB\fItbl_name\fR\fR\fB\&.MYI\fR
+myisamchk \-\-recover \-\-ft_min_word_len=3 \fItbl_name\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -720,7 +712,6 @@ supports the following options for table checking operations:
 .\}
 \fB\-\-check\fR,
 \fB\-c\fR
-.sp
 Check the table for errors\&. This is the default operation if you specify no option that selects an operation type explicitly\&.
 .RE
 .sp
@@ -734,7 +725,6 @@ Check the table for errors\&. This is the default operation if you specify no op
 .\}
 \fB\-\-check\-only\-changed\fR,
 \fB\-C\fR
-.sp
 Check only tables that have changed since the last check\&.
 .RE
 .sp
@@ -748,7 +738,6 @@ Check only tables that have changed since the last check\&.
 .\}
 \fB\-\-extend\-check\fR,
 \fB\-e\fR
-.sp
 Check the table very thoroughly\&. This is quite slow if the table has many indexes\&. This option should only be used in extreme cases\&. Normally,
 \fBmyisamchk\fR
 or
@@ -777,7 +766,6 @@ the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .\}
 \fB\-\-fast\fR,
 \fB\-F\fR
-.sp
 Check only tables that haven\*(Aqt been closed properly\&.
 .RE
 .sp
@@ -791,7 +779,6 @@ Check only tables that haven\*(Aqt been closed properly\&.
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
-.sp
 Do a repair operation automatically if
 \fBmyisamchk\fR
 finds any errors in the table\&. The repair type is the same as that specified with the
@@ -811,7 +798,6 @@ option\&.
 .\}
 \fB\-\-information\fR,
 \fB\-i\fR
-.sp
 Print informational statistics about the table that is checked\&.
 .RE
 .sp
@@ -825,7 +811,6 @@ Print informational statistics about the table that is checked\&.
 .\}
 \fB\-\-medium\-check\fR,
 \fB\-m\fR
-.sp
 Do a check that is faster than an
 \fB\-\-extend\-check\fR
 operation\&. This finds only 99\&.99% of all errors, which should be good enough in most cases\&.
@@ -841,7 +826,6 @@ operation\&. This finds only 99\&.99% of all errors, which should be good enough
 .\}
 \fB\-\-read\-only\fR,
 \fB\-T\fR
-.sp
 Do not mark the table as checked\&. This is useful if you use
 \fBmyisamchk\fR
 to check a table that is in use by some other application that does not use locking, such as
@@ -859,7 +843,6 @@ when run with external locking disabled\&.
 .\}
 \fB\-\-update\-state\fR,
 \fB\-U\fR
-.sp
 Store information in the
 \&.MYI
 file to indicate when the table was checked and whether the table crashed\&. This should be used to get full benefit of the
@@ -887,7 +870,6 @@ is given):
 .\}
 \fB\-\-backup\fR,
 \fB\-B\fR
-.sp
 Make a backup of the
 \&.MYD
 file as
@@ -903,9 +885,8 @@ file as
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where character sets are installed\&. See
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -917,7 +898,6 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-correct\-checksum\fR
-.sp
 Correct the checksum information for the table\&.
 .RE
 .sp
@@ -931,7 +911,6 @@ Correct the checksum information for the table\&.
 .\}
 \fB\-\-data\-file\-length=\fR\fB\fIlen\fR\fR,
 \fB\-D \fR\fB\fIlen\fR\fR
-.sp
 The maximum length of the data file (when re\-creating data file when it is
 \(lqfull\(rq)\&.
 .RE
@@ -980,7 +959,6 @@ Overwrite old intermediate files (files with names like
 .\}
 \fB\-\-keys\-used=\fR\fB\fIval\fR\fR,
 \fB\-k \fR\fB\fIval\fR\fR
-.sp
 For
 \fBmyisamchk\fR, the option value is a bit value that indicates which indexes to update\&. Each binary bit of the option value corresponds to a table index, where the first index is bit 0\&. An option value of 0 disables updates to all indexes, which can be used to get faster inserts\&. Deactivated indexes can be reactivated by using
 \fBmyisamchk \-r\fR\&.
@@ -996,7 +974,6 @@ For
 .\}
 \fB\-\-no\-symlinks\fR,
 \fB\-l\fR
-.sp
 Do not follow symbolic links\&. Normally
 \fBmyisamchk\fR
 repairs the table that a symlink points to\&. This option does not exist as of MySQL 4\&.0 because versions from 4\&.0 on do not remove symlinks during repair operations\&.
@@ -1011,7 +988,6 @@ repairs the table that a symlink points to\&. This option does not exist as of M
 .IP \(bu 2.3
 .\}
 \fB\-\-max\-record\-length=\fR\fB\fIlen\fR\fR
-.sp
 Skip rows larger than the given length if
 \fBmyisamchk\fR
 cannot allocate memory to hold them\&.
@@ -1027,7 +1003,21 @@ cannot allocate memory to hold them\&.
 .\}
 \fB\-\-parallel\-recover\fR,
 \fB\-p\fR
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option is deprecated in MySQL 8\&.0\&.28 and removed in MySQL 8\&.0\&.30\&.
+.sp .5v
+.RE
 Use the same technique as
 \fB\-r\fR
 and
@@ -1045,7 +1035,6 @@ and
 .\}
 \fB\-\-quick\fR,
 \fB\-q\fR
-.sp
 Achieve a faster repair by modifying only the index file, not the data file\&. You can specify this option twice to force
 \fBmyisamchk\fR
 to modify the original data file in case of duplicate keys\&.
@@ -1061,7 +1050,6 @@ to modify the original data file in case of duplicate keys\&.
 .\}
 \fB\-\-recover\fR,
 \fB\-r\fR
-.sp
 Do a repair that can fix almost any problem except unique keys that are not unique (which is an extremely unlikely error with
 MyISAM
 tables)\&. If you want to recover a table, this is the option to try first\&. You should try
@@ -1087,7 +1075,6 @@ myisam_sort_buffer_size\&.
 .\}
 \fB\-\-safe\-recover\fR,
 \fB\-o\fR
-.sp
 Do a repair using an old recovery method that reads through all rows in order and updates all index trees based on the rows found\&. This is an order of magnitude slower than
 \fB\-\-recover\fR, but can handle a couple of very unlikely cases that
 \fB\-\-recover\fR
@@ -1112,7 +1099,6 @@ key_buffer_size\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-set\-collation=\fR\fB\fIname\fR\fR
-.sp
 Specify the collation to use for sorting table indexes\&. The character set name is implied by the first part of the collation name\&.
 .RE
 .sp
@@ -1126,7 +1112,6 @@ Specify the collation to use for sorting table indexes\&. The character set name
 .\}
 \fB\-\-sort\-recover\fR,
 \fB\-n\fR
-.sp
 Force
 \fBmyisamchk\fR
 to use sorting to resolve the keys even if the temporary files would be very large\&.
@@ -1142,7 +1127,6 @@ to use sorting to resolve the keys even if the temporary files would be very lar
 .\}
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-t \fR\fB\fIdir_name\fR\fR
-.sp
 The path of the directory to be used for storing temporary files\&. If this is not set,
 \fBmyisamchk\fR
 uses the value of the
@@ -1162,7 +1146,6 @@ can be set to a list of directory paths that are used successively in round\-rob
 .\}
 \fB\-\-unpack\fR,
 \fB\-u\fR
-.sp
 Unpack a table that was packed with
 \fBmyisampack\fR\&.
 .RE
@@ -1181,7 +1164,6 @@ supports the following options for actions other than table checks and repairs:
 .\}
 \fB\-\-analyze\fR,
 \fB\-a\fR
-.sp
 Analyze the distribution of key values\&. This improves join performance by enabling the join optimizer to better choose the order in which to join the tables and which indexes it should use\&. To obtain information about the key distribution, use a
 \fBmyisamchk \-\-description \-\-verbose \fR\fB\fItbl_name\fR\fR
 command or the
@@ -1199,7 +1181,6 @@ statement\&.
 .\}
 \fB\-\-block\-search=\fR\fB\fIoffset\fR\fR,
 \fB\-b \fR\fB\fIoffset\fR\fR
-.sp
 Find the record that a block at the given offset belongs to\&.
 .RE
 .sp
@@ -1213,7 +1194,6 @@ Find the record that a block at the given offset belongs to\&.
 .\}
 \fB\-\-description\fR,
 \fB\-d\fR
-.sp
 Print some descriptive information about the table\&. Specifying the
 \fB\-\-verbose\fR
 option once or twice produces additional information\&. See
@@ -1230,7 +1210,6 @@ the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .\}
 \fB\-\-set\-auto\-increment[=\fR\fB\fIvalue\fR\fR\fB]\fR,
 \fB\-A[\fR\fB\fIvalue\fR\fR\fB]\fR
-.sp
 Force
 AUTO_INCREMENT
 numbering for new records to start at the given value (or higher, if there are existing records with
@@ -1252,7 +1231,6 @@ numbers for new records begin with the largest value currently in the table, plu
 .\}
 \fB\-\-sort\-index\fR,
 \fB\-S\fR
-.sp
 Sort the index tree blocks in high\-low order\&. This optimizes seeks and makes table scans that use indexes faster\&.
 .RE
 .sp
@@ -1266,7 +1244,6 @@ Sort the index tree blocks in high\-low order\&. This optimizes seeks and makes 
 .\}
 \fB\-\-sort\-records=\fR\fB\fIN\fR\fR,
 \fB\-R \fR\fB\fIN\fR\fR
-.sp
 Sort records according to a particular index\&. This makes your data much more localized and may speed up range\-based
 SELECT
 and
@@ -1360,7 +1337,7 @@ The
 argument can be either the name of a
 MyISAM
 table or the name of its index file, as described in
-\fBmyisamchk\fR(1)\&. Multiple
+myisamchk(1)\&. Multiple
 \fItbl_name\fR
 arguments can be given\&.
 .PP
@@ -1433,12 +1410,12 @@ Key Start Len Index   Type                     Rec/key         Root  Blocksize
     87    80          varchar                        0
 3   168   3   multip\&. uint24 NULL                    0                    1024
 Field Start Length Nullpos Nullbit Type
-1     1     1                                                         
-2     2     4                      no zeros                           
-3     6     81                     varchar                            
-4     87    81                     varchar                            
-5     168   3      1       1       no zeros                           
-6     171   3      1       2       no zeros                           
+1     1     1
+2     2     4                      no zeros
+3     6     81                     varchar
+4     87    81                     varchar
+5     168   3      1       1       no zeros
+6     171   3      1       2       no zeros
 .fi
 .if n \{\
 .RE
@@ -2053,7 +2030,7 @@ and
 Bits
 fields are displayed if the table has been compressed with
 \fBmyisampack\fR\&. See
-\fBmyisampack\fR(1), for an example of this information\&.
+myisampack(1), for an example of this information\&.
 .PP
 Example of
 \fBmyisamchk \-eiv\fR
@@ -2358,10 +2335,10 @@ to operate faster\&. For example, if you have more than 512MB RAM available, you
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-myisam_sort_buffer_size=256M \e\fR
-           \fB\-\-key_buffer_size=512M \e\fR
-           \fB\-\-read_buffer_size=64M \e\fR
-           \fB\-\-write_buffer_size=64M \&.\&.\&.\fR
+myisamchk \-\-myisam_sort_buffer_size=256M \e
+           \-\-key_buffer_size=512M \e
+           \-\-read_buffer_size=64M \e
+           \-\-write_buffer_size=64M \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -2469,7 +2446,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

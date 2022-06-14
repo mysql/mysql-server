@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,21 +31,21 @@
 // begin
 
 struct SchemaTransBeginReq {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   Uint32 clientRef;
   Uint32 transId;
   Uint32 requestInfo;
 };
 
 struct SchemaTransBeginConf {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   Uint32 senderRef;
   Uint32 transId;
   Uint32 transKey;
 };
 
 struct SchemaTransBeginRef {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
   enum ErrorCode {
     NoError = 0,
     NotMaster = 702,
@@ -73,7 +73,7 @@ struct SchemaTransEndReq {
     SchemaTransBackground = 2,
     SchemaTransPrepare = 4 // Only run prepare
   };
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   Uint32 clientRef;
   Uint32 transId;
   Uint32 requestInfo;
@@ -82,7 +82,7 @@ struct SchemaTransEndReq {
 };
 
 struct SchemaTransEndConf {
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   Uint32 senderRef;
   Uint32 transId;
 };
@@ -96,7 +96,7 @@ struct SchemaTransEndRef {
     InvalidTransId = 782,
     InvalidTransState = 784
   };
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
   Uint32 senderRef;
   Uint32 transId;
   Uint32 errorCode;
@@ -110,7 +110,7 @@ struct SchemaTransEndRep {
     NoError = 0,
     TransAborted = 787
   };
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
   Uint32 senderRef;
   Uint32 transId;
   Uint32 errorCode;

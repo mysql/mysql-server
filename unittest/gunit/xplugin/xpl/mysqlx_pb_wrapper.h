@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 #include <utility>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 
 namespace xpl {
 namespace test {
@@ -137,6 +137,7 @@ class Any : public Wrapper<::Mysqlx::Datatypes::Any> {
     struct Fld;
     Object() = default;
     Object(const std::initializer_list<Fld> &list);
+    Object(const std::string &key, Any *value);
   };
 
   Any() = default;
@@ -302,7 +303,7 @@ class Limit : public Wrapper<::Mysqlx::Crud::Limit> {
 
 class Limit_expr : public Wrapper<::Mysqlx::Crud::LimitExpr> {
  public:
-  Limit_expr() {}
+  Limit_expr() = default;
   Limit_expr(const Expr &row_count);  // NOLINT(runtime/explicit)
   Limit_expr(const Expr &row_count,
              const Expr &offset);  // NOLINT(runtime/explicit)

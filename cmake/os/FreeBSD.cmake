@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,30 +20,33 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
-# This file includes FreeBSD specific options and quirks, related to system checks
+# This file includes FreeBSD specific options and quirks,
+# related to system checks
 
 INCLUDE(CheckCSourceRuns)
 
 SET(FREEBSD 1)
 
-# We require at least Clang 4.0.
+# On FreeBSD some includes, e.g. sasl/sasl.h, is in /usr/local/include
+LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
+# Do not INCLUDE_DIRECTORIES here, we need to do that *after* configuring boost,
+# in order to search include/boost_1_70_0/patches
+# INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
+
+# We require at least Clang 6.0 (FreeBSD 12).
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
-  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("
       int main()
       {
-        return (__clang_major__ < 4);
+        return (__clang_major__ < 6);
       }" HAVE_SUPPORTED_CLANG_VERSION)
     IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 4.0 or newer is required!")
+      MESSAGE(FATAL_ERROR "Clang 6.0 or newer is required!")
     ENDIF()
-  ELSEIF(CMAKE_COMPILER_IS_GNUCC)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 5.3)
-      MESSAGE(FATAL_ERROR
-        "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
+  ELSEIF(MY_COMPILER_IS_GNU)
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
+      MESSAGE(FATAL_ERROR "GCC 7.1 or newer is required")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

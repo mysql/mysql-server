@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 INCLUDE(CMakePushCheckState)
 
 # Only supported for Clang/llvm
-IF(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(NOT MY_COMPILER_IS_CLANG)
   RETURN()
 ENDIF()
 
@@ -34,6 +34,10 @@ IF(USE_LD_LLD AND C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
   STRING(REPLACE "-fuse-ld=lld" ""
     CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
   STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
     CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
 ENDIF()
 
@@ -89,47 +93,45 @@ COMPILER_HAS_SANITIZE_FUZZER)
 CMAKE_POP_CHECK_STATE()
 
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  IF(COMPILER_HAS_SANITIZE_FUZZER)
-    SET(SANITIZE_COVERAGE_FLAGS "-fsanitize=fuzzer")
-  ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_PC_GUARD)
-    SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=trace-pc-guard")
-  ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_EDGE)
-    SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=edge")
-  ENDIF()
+IF(COMPILER_HAS_SANITIZE_FUZZER)
+  SET(SANITIZE_COVERAGE_FLAGS "-fsanitize=fuzzer")
+ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_PC_GUARD)
+  SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=trace-pc-guard")
+ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_EDGE)
+  SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=edge")
+ENDIF()
 
-  # check that libFuzzer is found
-  #
-  # check_library_exists() doesn't work here as it would provide a main() which
-  # calls a test-function ... which collides with libFuzzer's main():
-  #
-  # if the libFuzzer is found by the compiler it will provide a 'main()' and
-  # require that we provide a 'LLVMFuzzerTestOneInput' at link-time.
-  IF(SANITIZE_COVERAGE_FLAGS)
-    CMAKE_PUSH_CHECK_STATE(RESET)
-    SET(CMAKE_REQUIRED_LIBRARIES Fuzzer)
-    SET(CMAKE_REQUIRED_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-    CHECK_CXX_SOURCE_COMPILES("
+# check that libFuzzer is found
+#
+# check_library_exists() doesn't work here as it would provide a main() which
+# calls a test-function ... which collides with libFuzzer's main():
+#
+# if the libFuzzer is found by the compiler it will provide a 'main()' and
+# require that we provide a 'LLVMFuzzerTestOneInput' at link-time.
+IF(SANITIZE_COVERAGE_FLAGS)
+  CMAKE_PUSH_CHECK_STATE(RESET)
+  SET(CMAKE_REQUIRED_LIBRARIES Fuzzer)
+  SET(CMAKE_REQUIRED_FLAGS ${SANITIZE_COVERAGE_FLAGS})
+  CHECK_CXX_SOURCE_COMPILES("
       extern \"C\" int LLVMFuzzerTestOneInput (void *, int)
       { return 0; }"
       CLANG_HAS_LIBFUZZER)
-    CMAKE_POP_CHECK_STATE()
+  CMAKE_POP_CHECK_STATE()
+ENDIF()
+
+IF(COMPILER_HAS_SANITIZE_FUZZER OR CLANG_HAS_LIBFUZZER)
+  IF(CLANG_HAS_LIBFUZZER)
+    SET(LIBFUZZER_LIBRARIES Fuzzer)
   ENDIF()
+  SET(LIBFUZZER_LINK_FLAGS ${SANITIZE_COVERAGE_FLAGS})
+  SET(LIBFUZZER_COMPILE_FLAGS)
+  LIST(APPEND LIBFUZZER_COMPILE_FLAGS ${SANITIZE_COVERAGE_FLAGS})
 
-  IF(COMPILER_HAS_SANITIZE_FUZZER OR CLANG_HAS_LIBFUZZER)
-    IF(CLANG_HAS_LIBFUZZER)
-      SET(LIBFUZZER_LIBRARIES Fuzzer)
-    ENDIF()
-    SET(LIBFUZZER_LINK_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-    SET(LIBFUZZER_COMPILE_FLAGS)
-    LIST(APPEND LIBFUZZER_COMPILE_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-
-    IF(COMPILER_HAS_PROFILE_INSTR_GENERATE)
-      LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fprofile-instr-generate)
-      SET(LIBFUZZER_LINK_FLAGS
-          "${LIBFUZZER_LINK_FLAGS} -fprofile-instr-generate")
-      LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fcoverage-mapping)
-    ENDIF()
+  IF(COMPILER_HAS_PROFILE_INSTR_GENERATE)
+    LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fprofile-instr-generate)
+    SET(LIBFUZZER_LINK_FLAGS
+      "${LIBFUZZER_LINK_FLAGS} -fprofile-instr-generate")
+    LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fcoverage-mapping)
   ENDIF()
 ENDIF()
 
@@ -175,7 +177,12 @@ FUNCTION(LIBFUZZER_ADD_TEST TARGET)
     # prepare the corpus in the build-dir based on samples from the source-dir
     ADD_CUSTOM_COMMAND(TARGET ${TARGET}
       POST_BUILD
-      COMMAND $<TARGET_FILE:${TARGET}> -merge=1 "${ARG_INITIAL_CORPUS_DIR}" "${BINARY_CORPUS_DIR}"
+      COMMAND $<TARGET_FILE:${TARGET}>
+        -merge=1
+        -verbosity=0
+        -merge_control_file="${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.control"
+        "${ARG_INITIAL_CORPUS_DIR}" "${BINARY_CORPUS_DIR}" 2> /dev/null
+      COMMENT "Preparing corpus for ${TARGET}"
       )
   ENDIF()
 

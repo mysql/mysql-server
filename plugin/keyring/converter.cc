@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 
 namespace keyring {
 
-const size_t WORD_32 = 4;        //<! number of bytes in 32 bit word
-const size_t WORD_64 = 8;        //<! number of bytes in 64 bit word
-const size_t LENGTHS_COUNT = 5;  //<! number of length values in serialization
+const size_t WORD_32 = 4;        //!< number of bytes in 32 bit word
+const size_t WORD_64 = 8;        //!< number of bytes in 64 bit word
+const size_t LENGTHS_COUNT = 5;  //!< number of length values in serialization
 
 // determine native architecture at startup
 const Converter::Arch Converter::native_arch{Converter::detect_native_arch()};
@@ -47,9 +47,8 @@ Converter::Arch Converter::get_native_arch() { return native_arch; }
 
   @param arch     - architecture to return word width of
 
-  @return
-    @retval > 0   - word width of the architecture
-    @retval = 0   - architecture has no known word width
+  @retval > 0   - word width of the architecture
+  @retval = 0   - architecture has no known word width
  */
 size_t Converter::get_width(Arch arch) {
   if (arch == Arch::LE_64 || arch == Arch::BE_64) return WORD_64;
@@ -61,7 +60,8 @@ size_t Converter::get_width(Arch arch) {
   (static) calculates native unsigned integer (size_t) value of binary buffer
   - buffer has to provide for at least sizeof(size_t) bytes
 
-  @param length  - pointer to native binary representation of unsigned value
+  @param binary_value - pointer to native binary representation of unsigned
+  value
 
   @return        - unsigned integer (size_t) value of binary buffer value
 */
@@ -76,15 +76,14 @@ size_t Converter::native_value(char const *binary_value) {
   (static) converts serialized key data from one architecture to another
   - key lengths word widths are expanded/contracted, key data just copied
 
-  @param (I) data       - buffer holding key data to be converted
-  @param (I) data_size  - size of the key data within buffer
-  @param (I) src        - machine architecture of the input key data
-  @param (I) dst        - machine architecture of the output key data
-  @param (O) out        - output key data
+  @param[in] data       - buffer holding key data to be converted
+  @param[in] data_size  - size of the key data within buffer
+  @param[in] src        - machine architecture of the input key data
+  @param[in] dst        - machine architecture of the output key data
+  @param[out] out        - output key data
 
-  @return
-    @retval false - data was successfully converted
-    @retval true  - error occurred during conversion
+  @retval false - data was successfully converted
+  @retval true  - error occurred during conversion
  */
 bool Converter::convert_data(char const *data, size_t data_size, Arch src,
                              Arch dst, std::string &out) {
@@ -176,14 +175,13 @@ bool Converter::convert_data(char const *data, size_t data_size, Arch src,
 /**
   (static) converts binary length representation between architecture types
 
-  @param (I) src        - input binary representation
-  @param (O) dst        - output binary representation
-  @param (I) src_t      - architecture type of input representation
-  @param (I) dst_t      - architecture type of output representation
+  @param[in] src        - input binary representation
+  @param[out] dst        - output binary representation
+  @param[in] src_t      - architecture type of input representation
+  @param[in] dst_t      - architecture type of output representation
 
-  @return
-    @retval > 0         - size of destination representation
-    @retval = 0         - conversion was not possible
+  @retval > 0         - size of destination representation
+  @retval = 0         - conversion was not possible
 
 */
 size_t Converter::convert(char const *src, char *dst, Arch src_t, Arch dst_t) {
@@ -193,8 +191,8 @@ size_t Converter::convert(char const *src, char *dst, Arch src_t, Arch dst_t) {
   // find out source and destination characteristics
   const size_t src_width = get_width(src_t);
   const size_t dst_width = get_width(dst_t);
-  const bool src_is_le = get_endian(src_t) == Endian::LITTLE ? 1 : 0;
-  const bool dst_is_le = get_endian(dst_t) == Endian::LITTLE ? 1 : 0;
+  const bool src_is_le = get_endian(src_t) == Endian::LITTLE ? true : false;
+  const bool dst_is_le = get_endian(dst_t) == Endian::LITTLE ? true : false;
 
   // determine required operations
   const bool swap = (src_is_le != dst_is_le);

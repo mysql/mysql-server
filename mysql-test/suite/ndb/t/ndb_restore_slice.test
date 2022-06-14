@@ -1,0 +1,93 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+use test;
+
+create table test.t1 (a varchar(20) not null,
+                      b varchar(20) not null,
+                      c varchar(20),
+                      d varchar(20),
+                      e text,
+                      primary key(a,b)) engine=ndb;
+
+insert into test.t1 values
+        ("1a","1b",NULL,"1d", repeat('01WIFUA',1000)),
+        ("2a","2b",NULL,"2d", repeat('02WIFUA',1000)),
+        ("3a","3b",NULL,"3d", repeat('03WIFUA',1000)),
+        ("4a","4b",NULL,"4d", repeat('04WIFUA',1000)),
+        ("5a","5b",NULL,"5d", repeat('05WIFUA',1000)),
+        ("6a","6b",NULL,"6d", repeat('06WIFUA',1000)),
+        ("7a","7b",NULL,"7d", repeat('07WIFUA',1000)),
+        ("8a","8b",NULL,"8d", repeat('08WIFUA',1000)),
+        ("9a","9b",NULL,"9d", repeat('09WIFUA',1000)),
+        ("10a","10b",NULL,"10d", repeat('10WIFUA',1000)),
+        ("11a","11b",NULL,"11d", repeat('11WIFUA',1000)),
+        ("12a","12b",NULL,"12d", repeat('12WIFUA',1000)),
+        ("13a","13b",NULL,"13d", repeat('13WIFUA',1000)),
+        ("14a","14b",NULL,"14d", repeat('14WIFUA',1000)),
+        ("15a","15b",NULL,"15d", repeat('15WIFUA',1000)),
+        ("16a","16b",NULL,"16d", repeat('16WIFUA',1000));
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.t1 values
+        ("17a","17b",NULL,"17d", repeat('17WIFUA',1000)),
+        ("18a","18b",NULL,"18d", repeat('18WIFUA',1000)),
+        ("19a","19b",NULL,"19d", repeat('19WIFUA',1000));
+
+update test.t1 set d=concat(d, "-modified");
+
+delete from test.t1 where a in ("5a","18a");
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+delete from test.t1;
+
+--echo # Normal restore using slices
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --num-slices=3 --slice-id=0 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --num-slices=3 --slice-id=1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --num-slices=3 --slice-id=2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --num-slices=3 --slice-id=0 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --num-slices=3 --slice-id=1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --num-slices=3 --slice-id=2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,d,length(e), right(e, 7)  from test.t1 order by a,b;
+
+drop table test.t1;
+
+--echo # Restore with staging conversions + slices
+create table test.t1 (a varchar(20) not null,
+                      b varchar(20) not null,
+                      c text,
+                      d text,
+                      e text,
+                      primary key(a,b)) engine=ndb;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --promote-attributes --lossy-conversions --num-slices=5 --slice-id=0 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --promote-attributes --lossy-conversions --num-slices=5 --slice-id=1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --promote-attributes --lossy-conversions --num-slices=5 --slice-id=2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --promote-attributes --lossy-conversions --num-slices=5 --slice-id=3 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --promote-attributes --lossy-conversions --num-slices=5 --slice-id=4 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=0 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=3 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=4 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=5 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --promote-attributes --lossy-conversions --num-slices=7 --slice-id=6 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,d,length(e), right(e, 7)  from test.t1 order by a,b;
+
+drop table test.t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

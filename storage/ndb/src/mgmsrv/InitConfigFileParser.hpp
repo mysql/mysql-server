@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define InitConfigFileParser_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <Properties.hpp>
 #include <ConfigValues.hpp>
@@ -58,7 +59,7 @@ public:
    */
   Config * parseConfig(FILE * file);
   Config * parseConfig(const char * filename);
-  Config * parse_mycnf();
+  Config * parse_mycnf(const char * cluster_config_suffix);
 
   /**
    * Parser context struct
@@ -97,38 +98,38 @@ public:
       ATTRIBUTE_FORMAT(printf, 2, 3);
   };
 
-  static bool convertStringToUint64(const char* s, Uint64& val, Uint32 log10base = 0);
+  static bool convertStringToUint64(const char* s, Uint64& val);
   static bool convertStringToBool(const char* s, bool& val);
 
 private:
   /**
    *   Check if line only contains space/comments
-   *   @param   line: The line to check
+   *   @param   line The line to check
    *   @return  true if spaces/comments only, false otherwise
    */
   bool isEmptyLine(const char* line) const;
 
   /**
    *   Checks if line contains a section header
-   *   @param   line:  String to search
+   *   @param   line  String to search
    *   @return  section header if matching some section header, NULL otherwise
    */
   char* parseSectionHeader(const char* line) const;
 
   /**
    *   Checks if line contains a default header
-   *   @param   line:  String to search
+   *   @param   line  String to search
    *   @return  section header if matching some section header, NULL otherwise
    */
   char* parseDefaultSectionHeader(const char* line) const;
-  
+
   bool parseNameValuePair(Context&, const char* line);
   bool storeNameValuePair(Context&, const char* fname, const char* value);
-  
+
   bool storeSection(Context&);
 
-  const Properties* getSection(const char * name, const Properties* src); 
-  
+  const Properties* getSection(const char * name, const Properties* src);
+ 
   /**
    *   Information about parameters (min, max values etc)
    */

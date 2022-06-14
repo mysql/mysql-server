@@ -1,4 +1,5 @@
 --source include/no_valgrind_without_big.inc
+--source include/not_asan.inc
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
 

@@ -1,0 +1,356 @@
+#########################################
+# ==== Purpose ====
+#
+# Test binlog replaying binlogs for CREATE TABLE ... AS SELECT (DDL_CTAS)
+# from the output of mysqlbinlog tool.
+#
+# ==== Requirements ====
+#
+# R1 Test binlog replay for DDL_CTAS.
+#
+# R2 Test crash during binlog replay for DDL_CTAS causes transaction recovery.
+#
+# R3 Replay DDL_CTAS with rows and then force rollback.
+#
+# R4 Repeat R2 with DDL_CTAS executed from within procedure.
+#
+# R5 Repeat R2 with DDL_CTAS executed using prepared statement.
+#
+# ==== Implementation ====
+#
+# TC1: Replay DDL_CTAS without rows and also crash before commit.
+# 1) Create table t0 and Execute DDL_CTAS.
+# 2) Run mysqlbinlog tool and generate mysqlbinlog.sql.
+# 3) Drop table t0 and t1;
+# 4) Replay the binlogs in mysqlbinlog.sql.
+# 5) Verify that we have both t0 and t1 tables created.
+# 6) Drop table t0 and t1 again.
+# 7) Enable debug point to induce crash before commit.
+# 8) Replay the binlogs in mysqlbinlog.sql, which causes crash.
+# 9) Wait until server stops completely and then restart the server.
+# 10) Verify that table t0 exists and t1 does not exists.
+# 11) Drop the table t0.
+# 12) And reset debug flag.
+#
+# TC2: Replay DDL_CTAS with rows and also crash before commit.
+# Repeat steps from TC1 with rows inserted in t0.
+#
+# TC3: Replay DDL_CTAS with rows and then force rollback.
+# Repeat steps from TC1 with rows inserted in t0. Verify that we have
+# only t0 after rollback.
+#
+# TC4: Replay DDL_CTAS without rows and also crash before commit.
+# Repeat steps from TC1 with a stored procedure executing DDL_CTAS.
+#
+# TC5: Replay DDL_CTAS with rows and also crash before commit.
+# Repeat steps from TC1 with few rows inserted in t0 and a stored procedure
+# executing DDL_CTAS.
+#
+# TC6: Replay DDL_CTAS with rows and also crash before commit.
+# Repeat steps from TC1 with few rows inserted in t0 and a stored procedure
+# executing DDL_CTAS.
+#
+# ==== References ====
+#
+# WL#13355 Make CREATE TABLE...SELECT atomic and crash-safe
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc # Test takes too much time in Valgrind
+
+# Note: DDL_CTAS -> CREATE TABLE ... SELECT;
+
+# SETUP VARIABLES.
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $MYSQLBINLOG_OUTFILE=$MYSQLTEST_VARDIR/tmp/wl13355_mysqlbinlog.sql
+--let $mysqlbinlog_parameters= --result-file=$MYSQLBINLOG_OUTFILE --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001
+--let $WAIT_COUNT=6000
+RESET MASTER;
+
+--echo #
+--echo # Case 1: Replay DDL_CTAS without rows, crash before commit;
+--echo #
+
+CREATE TABLE t0 (f1 INT);
+CREATE TABLE t1 AS SELECT * FROM t0;
+
+--echo # Dump the binlog events into a file.
+--source include/mysqlbinlog.inc
+
+--echo # Replay without crash.
+DROP TABLE t0,t1;
+RESET MASTER;
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--let $assert_text= Verify two tables (t0 & t1) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "0"
+--source include/assert.inc
+
+DROP TABLE t0,t1;
+RESET MASTER;
+
+--echo # Replay the binlog events and cause crash before commit;
+SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 1
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--echo # Recover the server.
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_time_until_connected_again.inc
+
+--let $assert_text= Verify that only table t0 is present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+DROP TABLE t0;
+RESET MASTER;
+SET global DEBUG='-d, crash_on_transactional_ddl_commit';
+--remove_file $MYSQLBINLOG_OUTFILE
+RESET MASTER;
+
+--echo #
+--echo # Case 2: Replay DDL_CTAS with rows, crash before commit;
+--echo #
+
+CREATE TABLE t0 (f1 INT);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t0 VALUES (2);
+INSERT INTO t0 VALUES (3);
+INSERT INTO t0 VALUES (4);
+CREATE TABLE t1 AS SELECT * FROM t0;
+
+--echo # Dump the binlog events into a file.
+--source include/mysqlbinlog.inc
+
+--echo # Replay without crash.
+DROP TABLE t0,t1;
+RESET MASTER;
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--let $assert_text= Verify two tables (t0 & t1) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "4"
+--source include/assert.inc
+
+DROP TABLE t0,t1;
+RESET MASTER;
+
+--echo # Replay the binlog events, cause crash before commit and restart;
+SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 1
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--echo # Recover the server.
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_time_until_connected_again.inc
+SET global DEBUG='-d, crash_on_transactional_ddl_commit';
+
+--let $assert_text= Verify that only table t0 is present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+DROP TABLE t0;
+
+--echo #
+--echo # Case 3: Replay DDL_CTAS with rows and then force rollback.
+--echo #
+RESET MASTER;
+
+SET GLOBAL DEBUG='+d, force_rollback_in_replica_on_transactional_ddl_commit';
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+--remove_file $MYSQLBINLOG_OUTFILE
+SET global DEBUG='-d, force_rollback_in_replica_on_transactional_ddl_commit';
+
+--let $assert_text= Verify that only table t0 is present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+DROP TABLE t0;
+RESET MASTER;
+
+--echo #
+--echo # Case 4: Replay DDL_CTAS in a SP without rows, crash before commit;
+--echo #
+
+CREATE TABLE t0 (f1 INT);
+DELIMITER |;
+CREATE PROCEDURE proc1()
+BEGIN
+  CREATE TABLE t1 AS SELECT * FROM t0;
+END|
+DELIMITER ;|
+CALL proc1();
+
+--echo # Dump the binlog events into a file.
+--source include/mysqlbinlog.inc
+
+--echo # Replay without crash.
+DROP TABLE t0,t1;
+DROP PROCEDURE proc1;
+RESET MASTER;
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--let $assert_text= Verify two tables (t0 & t1) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--echo # Drop existing objects.
+DROP TABLE t0,t1;
+DROP PROCEDURE proc1;
+RESET MASTER;
+
+--echo # Replay the binlog events and cause crash.
+SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 1
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--echo # Recover the server.
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_time_until_connected_again.inc
+
+--let $assert_text= Verify that only table t0 is present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+DROP TABLE t0;
+DROP PROCEDURE proc1;
+RESET MASTER;
+
+SET global DEBUG='-d, crash_on_transactional_ddl_commit';
+--remove_file $MYSQLBINLOG_OUTFILE
+RESET MASTER;
+
+--echo #
+--echo # Case 5: Replay DDL_CTAS in a SP with rows, crash before commit;
+--echo #
+
+CREATE TABLE t0 (f1 INT);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t0 VALUES (2);
+INSERT INTO t0 VALUES (3);
+INSERT INTO t0 VALUES (4);
+DELIMITER |;
+CREATE PROCEDURE proc1()
+BEGIN
+  CREATE TABLE t1 AS SELECT * FROM t0;
+END|
+DELIMITER ;|
+CALL proc1();
+
+--echo # Dump the binlog events into a file.
+--source include/mysqlbinlog.inc
+
+--echo # Replay without crash.
+DROP TABLE t0,t1;
+DROP PROCEDURE proc1;
+RESET MASTER;
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--let $assert_text= Verify two tables (t0 & t1) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "4"
+--source include/assert.inc
+
+--echo # Drop existing objects.
+DROP TABLE t0,t1;
+DROP PROCEDURE proc1;
+RESET MASTER;
+
+--echo # Replay the binlog events and cause crash.
+SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 1
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--echo # Recover the server.
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_time_until_connected_again.inc
+
+--let $assert_text= Verify that only table t0 is present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+DROP TABLE t0;
+DROP PROCEDURE proc1;
+RESET MASTER;
+
+SET global DEBUG='-d, crash_on_transactional_ddl_commit';
+--remove_file $MYSQLBINLOG_OUTFILE
+RESET MASTER;
+
+--echo #
+--echo # Case 6: Replay DDL_CTAS using PS with rows, crash before commit;
+--echo #
+
+CREATE TABLE t0 (f1 INT);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t0 VALUES (2);
+INSERT INTO t0 VALUES (3);
+INSERT INTO t0 VALUES (4);
+
+PREPARE stmt FROM "CREATE TABLE t1 AS SELECT * FROM t0";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+--echo # Dump the binlog events into a file.
+--source include/mysqlbinlog.inc
+
+--echo # Replay without crash.
+DROP TABLE t0,t1;
+RESET MASTER;
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--let $assert_text= Verify two tables (t0 & t1) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "4"
+--source include/assert.inc
+
+--echo # Drop existing objects.
+DROP TABLE t0,t1;
+RESET MASTER;
+SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Replay the binlog events and cause crash.
+--error 1
+--exec $MYSQL test < $MYSQLBINLOG_OUTFILE
+
+--echo # Recover the server.
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_time_until_connected_again.inc
+
+--let $assert_text= Verify that only table t0 is present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+DROP TABLE t0;
+--remove_file $MYSQLBINLOG_OUTFILE
+RESET MASTER;

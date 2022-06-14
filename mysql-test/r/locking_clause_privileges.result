@@ -36,21 +36,23 @@ ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@
 SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
 ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
 SELECT * FROM t1 FOR SHARE;
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+a
 SELECT (SELECT * FROM t1 FOR SHARE);
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+(SELECT * FROM t1 FOR SHARE)
+NULL
 SELECT 1 FROM (SELECT * FROM t1 FOR SHARE) a1;
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+1
 SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR SHARE);
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+1
 SELECT 1 FROM t1, t2 FOR SHARE OF t1;
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+1
 SELECT (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+(SELECT 1 FROM t1, t2 FOR SHARE OF t1)
+NULL
 SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR SHARE OF t1) a1;
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+1
 SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
-ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+1
 DROP USER mysqltestuser1@localhost;
 CREATE USER mysqltestuser1@localhost;
 GRANT INSERT ON db1.* TO mysqltestuser1@localhost;

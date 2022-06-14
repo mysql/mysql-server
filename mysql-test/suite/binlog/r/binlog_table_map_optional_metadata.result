@@ -118,7 +118,7 @@ Matching lines are:
 #         TINYTEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
 #         TEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
 #         MEDIUMTEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-#         LONGTEXT CHARSET utf8 COLLATE utf8_general_ci)
+#         LONGTEXT CHARSET utf8mb3 COLLATE utf8_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
@@ -129,7 +129,7 @@ Matching lines are:
 #         `c_tinytext` TINYTEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
 #         `c_text` TEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
 #         `c_mediumtext` MEDIUMTEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-#         `c_longtext` LONGTEXT CHARSET utf8 COLLATE utf8_general_ci)
+#         `c_longtext` LONGTEXT CHARSET utf8mb3 COLLATE utf8_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
 DROP TABLE t1;
 RESET MASTER;
@@ -140,7 +140,7 @@ CREATE TABLE t1(`åäö表\a'``"` INT);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `åäö表\a'``"` int(11) DEFAULT NULL
+  `åäö表\a'``"` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(1);
 Matching lines are:
@@ -160,9 +160,9 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES("1", "2", "3");
 Matching lines are:
-# Columns(`c_char_utf8` CHAR(10) CHARSET utf8 COLLATE utf8_general_ci,
-#         `c_varchar_utf8` VARCHAR(10) CHARSET utf8 COLLATE utf8_general_ci,
-#         `c_text_utf8` TEXT CHARSET utf8 COLLATE utf8_general_ci)
+# Columns(`c_char_utf8` CHAR(10) CHARSET utf8mb3 COLLATE utf8_general_ci,
+#         `c_varchar_utf8` VARCHAR(10) CHARSET utf8mb3 COLLATE utf8_general_ci,
+#         `c_text_utf8` TEXT CHARSET utf8mb3 COLLATE utf8_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 3
 DROP TABLE t1;
 RESET MASTER;
@@ -205,6 +205,8 @@ c_set_4 SET("set4_v1_å", "set4_v2_ä", "set4_v3_ö") CHARACTER SET swe7 COLLATE
 c_set_5 SET("set5_v1_å", "set5_v2_ä", "set5_v3_ö") CHARACTER SET ucs2,
 c_set_6 SET("set6_v1_å", "set6_v2_ä", "set6_v3_ö") CHARACTER SET utf32
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 Matching lines are:
@@ -239,6 +241,8 @@ c_enum_4 ENUM("enum4_v1_å", "enum4_v2_ä", "enum4_v3_ö") CHARACTER SET swe7 CO
 c_enum_5 ENUM("enum5_v1_å", "enum5_v2_ä", "enum5_v3_ö") CHARACTER SET ucs2,
 c_enum_6 ENUM("enum6_v1_å", "enum6_v2_ä", "enum6_v3_ö") CHARACTER SET utf32
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 Matching lines are:
@@ -406,5 +410,89 @@ None
 Occurrences of '# Primary Key' in the input file: 0
 SET SESSION debug = '';
 SET GLOBAL binlog_row_metadata = MINIMAL;
+DROP TABLE t1;
+RESET MASTER;
+#
+# WL#10905 - Support for INVISIBLE columns.
+#
+# Test case to verify that INVISIBLE clause can be printed correctly.
+CREATE TABLE t1 (c1 INT,
+c2 INT UNSIGNED INVISIBLE DEFAULT(10),
+c3 INT UNSIGNED NOT NULL INVISIBLE DEFAULT(90),
+c4 INT UNSIGNED PRIMARY KEY INVISIBLE DEFAULT(5),
+c5 VARCHAR(100) CHARSET ucs2 INVISIBLE,
+c6 GEOMETRY INVISIBLE,
+c7 ENUM("enum_v1", "enum_v2", "enum_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE,
+c8 SET("set_v1", "set_v2", "set_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1 VALUES(1);
+Matching lines are:
+# Columns(`c1` INT,
+#         `c2` INT UNSIGNED INVISIBLE,
+#         `c3` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c4` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c5` VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci INVISIBLE,
+#         `c6` GEOMETRY INVISIBLE,
+#         `c7` ENUM('enum_v1', 'enum_v2', 'enum_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE,
+#         `c8` SET('set_v1', 'set_v2', 'set_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 8
+Matching lines are:
+# Primary Key(c4)
+Occurrences of '# Primary Key' in the input file: 1
+UPDATE t1 SET c1=4 WHERE c4=5;
+Matching lines are:
+# Columns(`c1` INT,
+#         `c2` INT UNSIGNED INVISIBLE,
+#         `c3` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c4` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c5` VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci INVISIBLE,
+#         `c6` GEOMETRY INVISIBLE,
+#         `c7` ENUM('enum_v1', 'enum_v2', 'enum_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE,
+#         `c8` SET('set_v1', 'set_v2', 'set_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 8
+Matching lines are:
+# Primary Key(c4)
+Occurrences of '# Primary Key' in the input file: 1
+RESET MASTER;
+# INVISIBLE clause is included with only binlog_row_metadata = FULL.
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1(c1, c4) VALUES(3, 6);
+Matching lines are:
+# Columns(INT,
+#         INT UNSIGNED,
+#         INT UNSIGNED NOT NULL,
+#         INT UNSIGNED NOT NULL,
+#         VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci,
+#         GEOMETRY,
+#         ENUM,
+#         SET)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 8
+Matching lines are:
+None
+Occurrences of '# Primary Key' in the input file: 0
+UPDATE t1 SET c1=4 WHERE c4=6;
+Matching lines are:
+# Columns(INT,
+#         INT UNSIGNED,
+#         INT UNSIGNED NOT NULL,
+#         INT UNSIGNED NOT NULL,
+#         VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci,
+#         GEOMETRY,
+#         ENUM,
+#         SET)
+# Columns(INT,
+#         INT UNSIGNED,
+#         INT UNSIGNED NOT NULL,
+#         INT UNSIGNED NOT NULL,
+#         VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci,
+#         GEOMETRY,
+#         ENUM,
+#         SET)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 16
+Matching lines are:
+None
+Occurrences of '# Primary Key' in the input file: 0
 DROP TABLE t1;
 RESET MASTER;

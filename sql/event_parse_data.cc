@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,9 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_time.h"  // TIME_to_timestamp
 #include "sql/table.h"
 #include "sql_string.h"  // validate_string
+#include "tztime.h"      // Time_zone
 
 /*
   Set a name of the event
@@ -57,7 +57,7 @@
 */
 
 void Event_parse_data::init_name(THD *thd, sp_name *spn) {
-  DBUG_ENTER("Event_parse_data::init_name");
+  DBUG_TRACE;
 
   /* We have to copy strings to get them into the right memroot */
   dbname.length = spn->m_db.length;
@@ -66,8 +66,6 @@ void Event_parse_data::init_name(THD *thd, sp_name *spn) {
   name.str = thd->strmake(spn->m_name.str, spn->m_name.length);
 
   if (spn->m_qname.length == 0) spn->init_qname(thd);
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -105,7 +103,7 @@ void Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc) {
         my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
 
     do_not_create = true;
@@ -159,25 +157,27 @@ bool Event_parse_data::check_dates(THD *thd, int previous_on_completion) {
 */
 
 int Event_parse_data::init_execute_at(THD *thd) {
-  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
-  DBUG_ENTER("Event_parse_data::init_execute_at");
+  DBUG_TRACE;
 
-  if (!item_execute_at) DBUG_RETURN(0);
+  if (!item_execute_at) return 0;
 
-  if (item_execute_at->fix_fields(thd, &item_execute_at)) goto wrong_value;
+  if (!item_execute_at->fixed &&
+      item_execute_at->fix_fields(thd, &item_execute_at))
+    goto wrong_value;
 
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
                       (starts_null && ends_null)));
-  DBUG_ASSERT(starts_null && ends_null);
+  assert(starts_null && ends_null);
 
-  if ((not_used = item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE)))
-    goto wrong_value;
+  if ((item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE))) goto wrong_value;
 
-  ltime_utc = TIME_to_timestamp(thd, &ltime, &not_used);
+  bool is_in_dst_gap_ignored;
+  ltime_utc = thd->time_zone()->TIME_to_gmt_sec(&ltime, &is_in_dst_gap_ignored);
+
   if (!ltime_utc) {
     DBUG_PRINT("error", ("Execute AT after year 2037"));
     goto wrong_value;
@@ -187,11 +187,11 @@ int Event_parse_data::init_execute_at(THD *thd) {
 
   execute_at_null = false;
   execute_at = ltime_utc;
-  DBUG_RETURN(0);
+  return 0;
 
 wrong_value:
   report_bad_value(thd, "AT", item_execute_at);
-  DBUG_RETURN(ER_WRONG_VALUE);
+  return ER_WRONG_VALUE;
 }
 
 /*
@@ -208,11 +208,8 @@ wrong_value:
 */
 
 int Event_parse_data::init_interval(THD *thd) {
-  String value;
-  Interval interval_tmp;
-
-  DBUG_ENTER("Event_parse_data::init_interval");
-  if (!item_expression) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (!item_expression) return 0;
 
   switch (interval) {
     case INTERVAL_MINUTE_MICROSECOND:
@@ -221,14 +218,18 @@ int Event_parse_data::init_interval(THD *thd) {
     case INTERVAL_SECOND_MICROSECOND:
     case INTERVAL_MICROSECOND:
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
-      DBUG_RETURN(EVEX_BAD_PARAMS);
+      return EVEX_BAD_PARAMS;
     default:
       break;
   }
 
-  if (item_expression->fix_fields(thd, &item_expression)) goto wrong_value;
+  StringBuffer<MAX_DATETIME_FULL_WIDTH + 1> value;
+  Interval interval_tmp;
 
-  value.alloc(MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+  if (!item_expression->fixed &&
+      item_expression->fix_fields(thd, &item_expression))
+    goto wrong_value;
+
   if (get_interval_value(item_expression, interval, &value, &interval_tmp))
     goto wrong_value;
 
@@ -280,20 +281,20 @@ int Event_parse_data::init_interval(THD *thd) {
       expression = interval_tmp.minute * 60 + interval_tmp.second;
       break;
     case INTERVAL_LAST:
-      DBUG_ASSERT(0);
+      assert(0);
     default:; /* these are the microsec stuff */
   }
   if (interval_tmp.neg || expression == 0 ||
       expression > EVEX_MAX_INTERVAL_VALUE) {
     my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
-    DBUG_RETURN(EVEX_BAD_PARAMS);
+    return EVEX_BAD_PARAMS;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 
 wrong_value:
   report_bad_value(thd, "INTERVAL", item_expression);
-  DBUG_RETURN(ER_WRONG_VALUE);
+  return ER_WRONG_VALUE;
 }
 
 /*
@@ -317,19 +318,20 @@ wrong_value:
 */
 
 int Event_parse_data::init_starts(THD *thd) {
-  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
-  DBUG_ENTER("Event_parse_data::init_starts");
-  if (!item_starts) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (!item_starts) return 0;
 
-  if (item_starts->fix_fields(thd, &item_starts)) goto wrong_value;
-
-  if ((not_used = item_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (!item_starts->fixed && item_starts->fix_fields(thd, &item_starts))
     goto wrong_value;
 
-  ltime_utc = TIME_to_timestamp(thd, &ltime, &not_used);
+  if ((item_starts->get_date(&ltime, TIME_NO_ZERO_DATE))) goto wrong_value;
+
+  bool is_in_dst_gap_ignored;
+  ltime_utc = thd->time_zone()->TIME_to_gmt_sec(&ltime, &is_in_dst_gap_ignored);
+
   if (!ltime_utc) goto wrong_value;
 
   DBUG_PRINT("info", ("now: %ld  starts: %ld", (long)thd->query_start_in_secs(),
@@ -337,11 +339,11 @@ int Event_parse_data::init_starts(THD *thd) {
 
   starts_null = false;
   starts = ltime_utc;
-  DBUG_RETURN(0);
+  return 0;
 
 wrong_value:
   report_bad_value(thd, "STARTS", item_starts);
-  DBUG_RETURN(ER_WRONG_VALUE);
+  return ER_WRONG_VALUE;
 }
 
 /*
@@ -365,20 +367,21 @@ wrong_value:
 */
 
 int Event_parse_data::init_ends(THD *thd) {
-  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
-  DBUG_ENTER("Event_parse_data::init_ends");
-  if (!item_ends) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (!item_ends) return 0;
 
-  if (item_ends->fix_fields(thd, &item_ends)) goto error_bad_params;
-
-  DBUG_PRINT("info", ("convert to TIME"));
-  if ((not_used = item_ends->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (!item_ends->fixed && item_ends->fix_fields(thd, &item_ends))
     goto error_bad_params;
 
-  ltime_utc = TIME_to_timestamp(thd, &ltime, &not_used);
+  DBUG_PRINT("info", ("convert to TIME"));
+
+  if ((item_ends->get_date(&ltime, TIME_NO_ZERO_DATE))) goto error_bad_params;
+
+  bool is_in_dst_gap_ignored;
+  ltime_utc = thd->time_zone()->TIME_to_gmt_sec(&ltime, &is_in_dst_gap_ignored);
   if (!ltime_utc) goto error_bad_params;
 
   /* Check whether ends is after starts */
@@ -389,11 +392,11 @@ int Event_parse_data::init_ends(THD *thd) {
 
   ends_null = false;
   ends = ltime_utc;
-  DBUG_RETURN(0);
+  return 0;
 
 error_bad_params:
   my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
-  DBUG_RETURN(EVEX_BAD_PARAMS);
+  return EVEX_BAD_PARAMS;
 }
 
 /*
@@ -411,7 +414,7 @@ void Event_parse_data::report_bad_value(THD *thd, const char *item_name,
 
   char buff[120];
   String str(buff, sizeof(buff), system_charset_info);
-  String *str2 = bad_item->fixed ? bad_item->val_str(&str) : NULL;
+  String *str2 = bad_item->fixed ? bad_item->val_str(&str) : nullptr;
   my_error(ER_WRONG_VALUE, MYF(0), item_name,
            str2 ? str2->c_ptr_safe() : "NULL");
 }
@@ -430,13 +433,22 @@ void Event_parse_data::report_bad_value(THD *thd, const char *item_name,
 
 bool Event_parse_data::check_parse_data(THD *thd) {
   bool ret;
-  DBUG_ENTER("Event_parse_data::check_parse_data");
+  DBUG_TRACE;
   DBUG_PRINT("info",
              ("execute_at: %p  expr=%p  starts=%p  ends=%p", item_execute_at,
               item_expression, item_starts, item_ends));
 
-  if (is_invalid_string(to_lex_cstring(comment), system_charset_info))
-    DBUG_RETURN(true);
+  // Validate event comment string
+  std::string invalid_sub_str;
+  if (is_invalid_string(to_lex_cstring(comment), system_charset_info,
+                        invalid_sub_str)) {
+    my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "event",
+             (std::string(identifier->m_db.str) + "." +
+              std::string(identifier->m_name.str))
+                 .c_str(),
+             system_charset_info->csname, invalid_sub_str.c_str());
+    return true;
+  }
 
   init_name(thd, identifier);
 
@@ -445,7 +457,7 @@ bool Event_parse_data::check_parse_data(THD *thd) {
   ret = init_execute_at(thd) || init_interval(thd) || init_starts(thd) ||
         init_ends(thd);
   check_originator_id(thd);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /*
@@ -457,9 +469,9 @@ bool Event_parse_data::check_parse_data(THD *thd) {
 */
 
 void Event_parse_data::init_definer(THD *thd) {
-  DBUG_ENTER("Event_parse_data::init_definer");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(thd->lex->definer);
+  assert(thd->lex->definer);
 
   const char *definer_user = thd->lex->definer->user.str;
   const char *definer_host = thd->lex->definer->host.str;
@@ -483,8 +495,6 @@ void Event_parse_data::init_definer(THD *thd) {
   memcpy(definer.str + definer_user_len + 1, definer_host, definer_host_len);
   definer.str[definer.length] = '\0';
   DBUG_PRINT("info", ("definer [%s] initted", definer.str));
-
-  DBUG_VOID_RETURN;
 }
 
 /**

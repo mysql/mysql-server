@@ -1,0 +1,149 @@
+# ==== Purpose ====
+#
+# WL#12649: Automatic reconnection for Async replication between InnoDB Clusters
+#
+# Checks for performance_schema.replication_asynchronous_connection_failover
+# table.
+#
+# ==== Implementation ====
+#
+# 1. Add six rows in
+#    performance_schema.replication_asynchronous_connection_failover table.
+# 2. Checks for performance_schema.replication_asynchronous_connection_failover
+#    table.
+# 3. Cleanup
+#
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Add six rows in
+--echo #    performance_schema.replication_asynchronous_connection_failover
+--echo #    table.
+--echo #
+
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3101, 'net1');
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3102, 'net2');
+SELECT asynchronous_connection_failover_add_source('ch1', '192.168.0.1', 3101, 'net2', 40);
+
+SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3102);
+SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3103);
+SELECT asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, 'net1', 40);
+
+
+--echo #
+--echo # 2. Checks for
+--echo #    performance_schema.replication_asynchronous_connection_failover
+--echo #    table.
+--echo #
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has no rows with channel_name="ch3".
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has no rows with channel_name="ch3"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch3", count, 1] = 0
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has six rows.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has six rows'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 6
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has three rows with channel_name="ch1".
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has three rows with channel_name="ch1"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1", count, 1] = 3
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has two rows with channel_name="ch1" and host="127.0.0.1".
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with channel_name="ch1" and host="127.0.0.1"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and host="127.0.0.1", count, 1] = 2
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has one row with channel_name="ch1" and host="127.0.0.1" and port=3101.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="127.0.0.1" and port=3101'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and host="127.0.0.1" and port=3101, count, 1] = 1
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has no rows with channel_name="ch1" and host="127.0.0.1" and port=3101 and
+# network_namespace="net0".
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has no rows with channel_name="ch1" and host="127.0.0.1" and port=3101 and network_namespace="net0"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and host="127.0.0.1" and port=3101 and network_namespace="net0", count, 1] = 0
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has one row with channel_name="ch1" and host="192.168.0.1" and port=3101.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace=""'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace="", count, 1] = 1
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has two rows with channel_name="ch1" and port=3101'.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with channel_name="ch1" and port=3101'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and port=3101, count, 1] = 2
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has two rows with host="192.168.0.1" and port=3101'.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with host="192.168.0.1" and port=3101'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where host="192.168.0.1" and port=3101, count, 1] = 2
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has two rows with host="192.168.0.1".
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with host="192.168.0.1"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where host="192.168.0.1", count, 1] = 2
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has three rows with port=3101.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has three rows with port=3101'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where port=3101, count, 1] = 3
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has zero rows with network_namespace="net2", as network_namespace field is
+# in replication_asynchronous_connection_failover is added as empty value
+# through asynchronous_connection_failover_add_source UDF.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with network_namespace="net2"'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where network_namespace="net2", count, 1] = 0
+--source include/assert.inc
+
+
+# Check performance_schema.replication_asynchronous_connection_failover table
+# has two rows with weight=40'.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with weight=40'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where weight=40, count, 1] = 2
+--source include/assert.inc
+
+
+
+--echo #
+--echo # 3. Cleanup
+--echo #
+
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3101, 'net1');
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3102, 'net2');
+SELECT asynchronous_connection_failover_delete_source('ch1', '192.168.0.1', 3101, 'net2');
+
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3102);
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3103);
+SELECT asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1');
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

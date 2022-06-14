@@ -31,8 +31,8 @@ FLUSH TABLES t1,t2 FOR EXPORT;
 LET MYSQLD_DATADIR = $MYSQLD_MASTER_DATA_DIR;
 perl;
 require 'include/innodb-util.inc';
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_backup_tablespaces("test", "t2#P#p0", "t2#P#p1");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_backup_tablespaces("test", "t2#p#p0", "t2#p#p1");
 EOF
 
 --echo # On slave
@@ -54,10 +54,10 @@ ALTER TABLE t2 DISCARD PARTITION p0,p1 TABLESPACE;
 LET MYSQLD_DATADIR = $MYSQLD_MASTER_DATA_DIR;
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_discard_tablespaces("test", "t2#P#p0", "t2#P#p1");
-ib_restore_tablespaces("test", "t2#P#p0", "t2#P#p1");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_discard_tablespaces("test", "t2#p#p0", "t2#p#p1");
+ib_restore_tablespaces("test", "t2#p#p0", "t2#p#p1");
 EOF
 
 --echo # Copy back ibd and cfg files on slave
@@ -66,10 +66,10 @@ LET $MYSQLD_SLAVE_DATA_DIR = `select @@datadir`;
 LET MYSQLD_DATADIR = $MYSQLD_SLAVE_DATA_DIR;
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_discard_tablespaces("test", "t2#P#p0", "t2#P#p1");
-ib_restore_tablespaces("test", "t2#P#p0", "t2#P#p1");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_discard_tablespaces("test", "t2#p#p0", "t2#p#p1");
+ib_restore_tablespaces("test", "t2#p#p0", "t2#p#p1");
 EOF
 
 --echo # IMPORT TABLESPACE on master.It will be also imported on slave.

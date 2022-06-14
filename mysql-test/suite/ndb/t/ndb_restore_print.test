@@ -287,5 +287,16 @@ drop table t1;
 --let ndb_restore_filter=test t1
 --let ndb_restore_opts=--verbose=0 --print_data --hex --fields-enclosed-by="'" --fields-optionally-enclosed-by="X"
 --source include/ndb_backup_print.inc
+
+### Test ndb_restore --stored-grants
+CREATE USER u1@a;
+GRANT NDB_STORED_USER ON *.* to u1@a;
+--source include/ndb_backup.inc
+--let ndb_restore_filter=mysql
+--let ndb_restore_opts=--include-stored-grants --print_data --verbose=0
+--source include/ndb_backup_print.inc
+
+# clean up
+drop user u1@a;
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

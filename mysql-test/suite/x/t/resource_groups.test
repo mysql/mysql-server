@@ -1,0 +1,26 @@
+--source include/not_mac_os.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+--source include/resource_group_init.inc
+
+--echo #
+--echo # BUG#30900411 - RESOURCE GROUP MANAGEMENT STATEMENTS ARE NOT SUPPORTED BY PLUGGABLE PROTOCOLS
+--echo # 
+
+--echo # All resource group related SQL fails with error before the fix for bug#30900411.
+
+--let $xtest_file= $MYSQL_TMP_DIR/resource_groups.xpl
+--write_file $xtest_file
+-->sql
+CREATE RESOURCE GROUP rg1 TYPE=USER VCPU=1-2;
+ALTER RESOURCE GROUP rg1 VCPU=1;
+SELECT /*+ RESOURCE_GROUP(rg1) */ 1;
+SET RESOURCE GROUP rg1;
+SET RESOURCE GROUP USR_default;
+DROP RESOURCE GROUP rg1;
+-->endsql
+EOF
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

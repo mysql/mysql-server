@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,6 +127,7 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
 template struct BitmaskPOD<1>;
 template struct BitmaskPOD<2>; // NdbNodeBitmask
 template struct BitmaskPOD<8>; // NodeBitmask
+template struct BitmaskPOD<10>;// TrpBitmask
 template struct BitmaskPOD<16>;
 
 #ifdef TEST_BITMASK
@@ -291,6 +292,21 @@ TAPTEST(Bitmask)
     OK(b.count() == 153);
     b.setRange(0, 0);
     OK(b.count() == 153);
+
+    // Check functioning of bitmask "length"
+
+    Bitmask<8> mask_length_test;
+    mask_length_test.set((unsigned)0);
+    OK(mask_length_test.getPackedLengthInWords() == 1);
+    mask_length_test.set(31);
+    OK(mask_length_test.getPackedLengthInWords() == 1);
+    mask_length_test.set(65);
+    mask_length_test.set(1);
+    OK(mask_length_test.getPackedLengthInWords() == 3);
+    mask_length_test.set(255);
+    OK(mask_length_test.getPackedLengthInWords() == 8);
+    mask_length_test.clear();
+    OK(mask_length_test.getPackedLengthInWords() == 0);
 
     return 1; // OK
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@
 
 # Macro to add unit tests
 
-INCLUDE(cmake_parse_arguments)
+# NDB_ADD_TEST(EXEC sources... LIBS libraries...)
 
-FUNCTION(NDB_ADD_TEST)
+FUNCTION(NDB_ADD_TEST EXEC_ARG)
   # Parse arguments passed to ADD_TEST
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "LIBS"
+  CMAKE_PARSE_ARGUMENTS(ARG
     ""
+    ""
+    "LIBS"
     ${ARGN}
   )
 
@@ -37,17 +38,16 @@ FUNCTION(NDB_ADD_TEST)
     RETURN()
   ENDIF()
 
-  # Extracting the executable from DEFAULT_ARGS
-  LIST(GET ARG_DEFAULT_ARGS 0 EXEC)
-  LIST(REMOVE_AT ARG_DEFAULT_ARGS 0)
-  # Setting the source
-  SET(SRC ${ARG_DEFAULT_ARGS})
+  SET(EXEC ${EXEC_ARG})
+  SET(SRC ${ARG_UNPARSED_ARGUMENTS})
 
   # Adding executable for the test
   # - built in the default RUNTIME_OUTPUT_DIRECTORY
   # - adds test to be run by ctest
   # - skips install ot the unittest binary
   MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC} ADD_TEST ${EXEC})
+  SET_TARGET_PROPERTIES(${EXEC} PROPERTIES ENABLE_EXPORTS TRUE)
+  SET_TESTS_PROPERTIES(${EXEC} PROPERTIES LABELS "NDB")
 
   # Add additional libraries
   IF(ARG_LIBS)
@@ -60,7 +60,7 @@ FUNCTION(NDB_ADD_TEST)
   string (REPLACE "-" "_" FLAG_NAME "${NAME}")
   string (TOUPPER ${FLAG_NAME} FLAG_UC)
   SET_TARGET_PROPERTIES(${EXEC}
-                      PROPERTIES COMPILE_FLAGS "-DTEST_${FLAG_UC}")
+    PROPERTIES COMPILE_FLAGS "-DTEST_${FLAG_UC}")
   
   # Link the unit test program with mytap(and thus implicitly mysys)
   TARGET_LINK_LIBRARIES(${EXEC} mytap)

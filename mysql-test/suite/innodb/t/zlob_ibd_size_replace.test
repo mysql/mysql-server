@@ -1,0 +1,90 @@
+--source include/big_test.inc
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # BUG 31222046 - .IDB GROWS INDEFENITELY (BUG #96466 WITH REPLACE)
+--echo #
+
+SET GLOBAL innodb_compression_level = 0;
+
+CREATE TABLE `my_sample_table`
+(`id` INT NOT NULL AUTO_INCREMENT,
+ `name` VARCHAR(128) NOT NULL,
+ `some_data` MEDIUMBLOB,
+ `update_time` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ PRIMARY KEY (`id`),
+ UNIQUE KEY `name` (`name`)) ROW_FORMAT=COMPRESSED;
+
+DELIMITER $;
+CREATE PROCEDURE p(p_num INT)
+BEGIN
+  DECLARE v_i INT DEFAULT 0;
+  REPEAT
+    REPLACE INTO my_sample_table (id, name, some_data) VALUES (1, 'data1', REPEAT('x',7609));
+    REPLACE INTO my_sample_table (id, name, some_data) VALUES (1, 'data1', REPEAT('t', 4184950));
+    SET v_i:=v_i+1;
+  UNTIL v_i>p_num END REPEAT;
+END $
+DELIMITER ;$
+
+REPLACE INTO my_sample_table (id, name, some_data) VALUES (1, 'data1', REPEAT('t', 4184950));
+
+START TRANSACTION;
+CALL p(30);
+COMMIT;
+
+let $wait_timeout = 60;
+--source include/wait_innodb_all_purged.inc
+
+FLUSH TABLES `my_sample_table` FOR EXPORT;
+UNLOCK TABLES;
+
+SET @fs1 = (SELECT file_size FROM information_schema.innodb_tablespaces
+                 WHERE name = 'test/my_sample_table');
+
+START TRANSACTION;
+CALL p(30);
+COMMIT;
+
+let $wait_timeout = 60;
+--source include/wait_innodb_all_purged.inc
+
+FLUSH TABLES `my_sample_table` FOR EXPORT;
+UNLOCK TABLES;
+
+SET @fs2 = (SELECT file_size FROM information_schema.innodb_tablespaces
+               WHERE name = 'test/my_sample_table');
+
+SET @growing = (SELECT (@fs2 - @fs1));
+
+SELECT @growing;
+
+if (`SELECT @growing > 0`) {
+  --echo Error: The ibd file 'test/my_sample_table.ibd' is growing.
+
+}
+
+START TRANSACTION;
+CALL p(30);
+ROLLBACK;
+
+FLUSH TABLES `my_sample_table` FOR EXPORT;
+UNLOCK TABLES;
+
+SET @fs3 = (SELECT file_size FROM information_schema.innodb_tablespaces
+                 WHERE name = 'test/my_sample_table');
+
+SET @growing = (SELECT (@fs3 - @fs2));
+
+SELECT @growing;
+
+if (`SELECT @growing > 0`) {
+  --echo Error: The ibd file 'test/my_sample_table.ibd' is growing.
+
+}
+
+DROP PROCEDURE p;
+DROP TABLE my_sample_table;
+SET GLOBAL innodb_compression_level = DEFAULT;

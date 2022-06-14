@@ -1,0 +1,62 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @old_binlog_row_image= @@binlog_row_image;
+[connection slave]
+SET @old_binlog_row_image= @@binlog_row_image;
+[connection master]
+# 1. Initial setup includes setting the transaction isolation level to
+#    'READ-COMMITTED' on master and setting binlog_row_image = FULL using
+#    rpl_row_img_set.inc.
+SET @old_transaction_isolation= @@session.transaction_isolation;
+SET SESSION transaction_isolation='READ-COMMITTED';
+# Set the binlog_row_image to FULL on both master and slave.
+CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+CON: 'slave', IMG: 'FULL', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+#
+# 2. Create two tables with same structure and insert a row into a table.
+#
+CREATE DATABASE a;
+CREATE DATABASE b;
+CREATE TABLE a.test (id INT PRIMARY KEY, name VARCHAR(50) DEFAULT NULL, age BIGINT)ENGINE=InnoDB;
+CREATE TABLE b.test (id INT PRIMARY KEY, name VARCHAR(50) DEFAULT NULL, age BIGINT)ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+#
+# 3. Verify that INSERT..SELECT query is logged with full image on both
+#    master and slave with the use of rpl_row_img_parts_master_slave.inc
+#    file.
+#
+[connection master]
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+INSERT INTO a.test(id, age) VALUES (1,5);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+INSERT INTO b.test(id,age) SELECT id , age FROM a.test;
+SET sql_mode = default;
+DROP DATABASE a;
+DROP DATABASE b;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
+SET SESSION transaction_isolation= @old_transaction_isolation;
+[connection slave]
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
+include/rpl_end.inc

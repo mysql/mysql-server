@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "init_net_server_extension.h"   // init_net_server_extension
 #include "my_byteorder.h"
 #include "my_shm_defaults.h"
 #include "mysql/components/services/log_builtins.h"
@@ -89,8 +90,10 @@ class Channel_info_shared_mem : public Channel_info {
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
 
-    if (thd != NULL)
+    if (thd != NULL) {
+      init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    }
     return thd;
   }
 
@@ -121,6 +124,7 @@ void Shared_mem_listener::close_shared_mem() {
 
   my_security_attr_free(m_sa_event);
   my_security_attr_free(m_sa_mapping);
+  my_security_attr_free(m_sa_mutex);
   if (m_connect_map) UnmapViewOfFile(m_connect_map);
   if (m_connect_named_mutex) CloseHandle(m_connect_named_mutex);
   if (m_connect_file_map) CloseHandle(m_connect_file_map);
@@ -147,6 +151,9 @@ bool Shared_mem_listener::setup_listener() {
                               FILE_MAP_READ | FILE_MAP_WRITE))
     goto error;
 
+  if (my_security_attr_create(&m_sa_mutex, &errmsg, GENERIC_ALL, SYNCHRONIZE))
+    goto error;
+
   /*
     The name of event and file-mapping events create agree next rule:
       shared_memory_base_name+unique_part
@@ -169,7 +176,7 @@ bool Shared_mem_listener::setup_listener() {
   }
 
   my_stpcpy(m_suffix_pos, "CONNECT_NAMED_MUTEX");
-  m_connect_named_mutex = CreateMutex(NULL, false, m_temp_buffer);
+  m_connect_named_mutex = CreateMutex(m_sa_mutex, false, m_temp_buffer);
   if (m_connect_named_mutex == NULL) {
     errmsg = "Unable to create connect named mutex.";
     goto error;
@@ -214,7 +221,7 @@ Channel_info *Shared_mem_listener::listen_for_connection_event() {
   if (connection_events_loop_aborted()) return NULL;
 
   char connect_number_char[22];
-  char *p = int10_to_str(m_connect_number, connect_number_char, 10);
+  char *p = longlong10_to_str(m_connect_number, connect_number_char, -10);
 
   /*
     The name of event and file-mapping events create agree next rule:

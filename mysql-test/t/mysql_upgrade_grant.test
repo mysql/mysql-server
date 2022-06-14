@@ -1,6 +1,6 @@
 --source include/big_test.inc
 --source include/not_valgrind.inc
---source include/have_ssl.inc
+--source include/mysql_upgrade_preparation.inc
 
 #mysql_upgrade test for user and priviledge tables.
 
@@ -557,9 +557,10 @@ DROP USER u1;
 --echo #
 --echo # Bug #29043233: UPGRADE TO 8.0.X, ROOT USER IS NOT REVISED TO INCLUDE ALL DYNAMIC PRIVILEGES
 --echo # Bug #29770732: UPGRADE TO 8.0.X, ROOT IS NOT REVISED TO INCLUDE AUDIT_ADMIN DYNAMIC PRIVILEGE
+--echo # Bug #30783149: ROOT USER DOES NOT HAVE REPLICATION_APPLIER PRIVLIEGE AFTER UPGRADE TO 8.0.19
 --echo #
 
---let $privileges = AUDIT_ADMIN, BINLOG_ADMIN, BINLOG_ENCRYPTION_ADMIN, CONNECTION_ADMIN, ENCRYPTION_KEY_ADMIN, GROUP_REPLICATION_ADMIN, PERSIST_RO_VARIABLES_ADMIN, REPLICATION_SLAVE_ADMIN, RESOURCE_GROUP_USER, ROLE_ADMIN, SESSION_VARIABLES_ADMIN, SET_USER_ID, SYSTEM_VARIABLES_ADMIN
+--let $privileges = AUDIT_ADMIN, BINLOG_ADMIN, BINLOG_ENCRYPTION_ADMIN, CONNECTION_ADMIN, ENCRYPTION_KEY_ADMIN, GROUP_REPLICATION_ADMIN, PERSIST_RO_VARIABLES_ADMIN, REPLICATION_SLAVE_ADMIN, RESOURCE_GROUP_USER, ROLE_ADMIN, SESSION_VARIABLES_ADMIN, SET_USER_ID, SYSTEM_VARIABLES_ADMIN, REPLICATION_APPLIER
 --echo set @privileges = $privileges
 
 --echo # Show privileges for root@localhost before the @privileges be revoked
@@ -613,6 +614,43 @@ SHOW GRANTS FOR u1;
 
 --echo # Cleaning up
 DROP USER u1;
+
+--echo ######################################################################
+--echo # Test for WL#9049 "Add a dynamic privilege for stored routine backup"
+--echo #
+--echo #    User having global SELECT privilege, is to be granted
+--echo #    SHOW_ROUTINE privilege upon upgrade (provided that there
+--echo #    isn't a user who already has the SHOW_ROUTINE privilege).
+--echo #
+--echo ######################################################################
+
+--echo # Revoke SHOW_ROUTINE from root user (since the upgrade scenario takes place only if no user had this privilege before)
+REVOKE SHOW_ROUTINE ON *.* FROM root@localhost;
+
+--echo # Create new user
+CREATE USER sheldon;
+
+--echo # Grant global select privilege to new user
+GRANT SELECT ON *.* TO sheldon;
+
+--echo # Show grants before upgrade
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR sheldon;
+
+--echo # Start upgrade
+
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
+--echo # Show grants after upgrade
+--echo # Should contain SHOW_ROUTINE privilege in both cases
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR sheldon;
+
+--echo # Cleanup
+DROP USER sheldon;
 
 --source include/mysql_upgrade_cleanup.inc
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,18 @@
 #include "mysql/harness/networking/ip_address.h"
 
 ////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-
-////////////////////////////////////////
 // Standard include files
 #include <exception>
 #include <iostream>
 #include <stdexcept>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
 
 using mysql_harness::IPAddress;
 using mysql_harness::IPv4Address;
@@ -318,4 +318,9 @@ TEST(TestIPAddress, AsIPv6) {
   auto ip = IPAddress(ipv6);
   ASSERT_TRUE(ipv6 == ip.as_ipv6());
   ASSERT_THROW({ ip.as_ipv4(); }, std::runtime_error);
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

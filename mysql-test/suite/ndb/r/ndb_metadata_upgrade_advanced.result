@@ -3,11 +3,16 @@ Restart server 1 to trigger schema synchronization
 # restart
 Restart server 2 to trigger schema synchronization
 # restart
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(10) unsigned NOT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int unsigned NOT NULL,
   `c3` float DEFAULT NULL,
   `c4` varchar(255) DEFAULT NULL,
   `c5` time DEFAULT NULL,
@@ -32,8 +37,8 @@ DROP TABLE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t2;
@@ -49,7 +54,7 @@ DROP TABLE t4;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` varchar(100) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -67,8 +72,8 @@ DROP TABLE t3;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(10) unsigned NOT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int unsigned NOT NULL,
   `c3` float DEFAULT NULL,
   `c4` varchar(255) DEFAULT NULL,
   `c5` time DEFAULT NULL,
@@ -93,8 +98,8 @@ DROP TABLE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t2;
@@ -103,8 +108,8 @@ c1	c2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 ALTER TABLE t2 RENAME t4;
@@ -117,7 +122,7 @@ DROP TABLE t4;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` varchar(100) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -132,15 +137,39 @@ c1	c2	c3	c4
 1	a	a	NULL
 2	b	b	2
 DROP TABLE t3;
+Restore metadata and data but do not create indexes
+Confirm that the tables haven't been synced
+SHOW TABLES;
+Tables_in_test
+Rebuild indexes in NDB
+Confirm that the tables have been synced
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+SELECT * FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+1	1	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	c	d
+SELECT * FROM t2;
+c1	c2
+2	4
+SELECT * FROM t3;
+c1	c2	c3
+1	a	a
+DROP TABLE t1,t2,t3;
 Backup from 7.6 restored
 Restart server 1 to trigger schema synchronization
 # restart
 Restart server 2 to trigger schema synchronization
 # restart
+SHOW TABLES;
+Tables_in_test
+t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1

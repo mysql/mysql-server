@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,5 +48,23 @@ inline unsigned long long my_double2ulonglong(double d) {
 #ifndef double2ulonglong
 #define double2ulonglong(A) ((ulonglong)(double)(A))
 #endif
+
+// The largest longlong that will fix into a double (LLONG_MAX is not
+// exactly convertible to double, so for large double x, the test
+// x <= LLONG_MAX does not guarantee x will fit in a longlong,
+// and may give a compiler warning). LLONG_MIN is exact.
+static constexpr double LLONG_MAX_DOUBLE = 9223372036854774784.0;
+
+// Similar, for ulonglong.
+static constexpr double ULLONG_MAX_DOUBLE = 18446744073709549568.0;
+
+// The largest and smallest integer that is guaranteed to fix exactly into a
+// double (there are 53 mantissa bits).
+static constexpr int64_t MAX_EXACT_INTEGER_DOUBLE = (1ULL << 53);
+static constexpr int64_t MIN_EXACT_INTEGER_DOUBLE = -MAX_EXACT_INTEGER_DOUBLE;
+
+// Same, for float.
+static constexpr int64_t MAX_EXACT_INTEGER_FLOAT = (1ULL << 23);
+static constexpr int64_t MIN_EXACT_INTEGER_FLOAT = -MAX_EXACT_INTEGER_FLOAT;
 
 #endif  // MY_DOUBLE2ULONGLONG_INCLUDED

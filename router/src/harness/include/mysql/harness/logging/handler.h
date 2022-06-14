@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,19 +71,33 @@ class HARNESS_EXPORT Handler {
 
   void set_level(LogLevel level) { level_ = level; }
   LogLevel get_level() const { return level_; }
+  void set_timestamp_precision(LogTimestampPrecision precision) {
+    precision_ = precision;
+  }
 
   /**
    * Request to reopen underlying log sink. Should be no-op for handlers NOT
    * writing to a file. Useful for log rotation, when the logger got the
-   * singal with the request to reopen the file.
-   *
+   * signal with the request to reopen the file. Provide a destination filename
+   * for the old file for file based handlers.
    */
-  virtual void reopen() = 0;
+  virtual void reopen(const std::string dst = "") = 0;
+
+  /**
+   * check if the handler has logged at least one record.
+   *
+   * @retval true if at least one record was logged
+   * @retval false if no record has been logged yet.
+   */
+  bool has_logged() const { return has_logged_; }
 
  protected:
   std::string format(const Record &record) const;
 
-  explicit Handler(bool format_messages, LogLevel level);
+  explicit Handler(bool format_messages, LogLevel level,
+                   LogTimestampPrecision timestamp_precision);
+
+  void has_logged(bool v) { has_logged_ = v; }
 
  private:
   /**
@@ -108,6 +122,13 @@ class HARNESS_EXPORT Handler {
    * Log level set for the handler.
    */
   LogLevel level_;
+
+  /**
+   * Timestamp precision for logging
+   */
+  LogTimestampPrecision precision_;
+
+  bool has_logged_{false};
 };
 
 /**
@@ -124,14 +145,43 @@ class HARNESS_EXPORT StreamHandler : public Handler {
   static constexpr const char *kDefaultName = "stream";
 
   explicit StreamHandler(std::ostream &stream, bool format_messages = true,
-                         LogLevel level = LogLevel::kNotSet);
+                         LogLevel level = LogLevel::kNotSet,
+                         LogTimestampPrecision timestamp_precision =
+                             LogTimestampPrecision::kNotSet);
 
   // for the stream handler there is nothing to do
-  void reopen() override {}
+  void reopen(const std::string /*dst*/) override {}
 
  protected:
   std::ostream &stream_;
   std::mutex stream_mutex_;
+
+ private:
+  void do_log(const Record &record) override;
+};
+
+/**
+ * Handler to write to a null device such as /dev/null (unix) or NUL (windows).
+ *
+ * This handler produces no output.
+ *
+ * @code
+ * Logger logger("my_module");
+ * ...
+ * logger.add_handler(NullHandler());
+ * @endcode
+ */
+class HARNESS_EXPORT NullHandler : public Handler {
+ public:
+  static constexpr const char *kDefaultName = "null";
+
+  explicit NullHandler(bool format_messages = true,
+                       LogLevel level = LogLevel::kNotSet,
+                       LogTimestampPrecision timestamp_precision =
+                           LogTimestampPrecision::kNotSet);
+
+  // for the null handler there is nothing to do
+  void reopen(const std::string /*dst*/) override {}
 
  private:
   void do_log(const Record &record) override;
@@ -151,10 +201,12 @@ class HARNESS_EXPORT FileHandler : public StreamHandler {
   static constexpr const char *kDefaultName = "file";
 
   explicit FileHandler(const Path &path, bool format_messages = true,
-                       LogLevel level = LogLevel::kNotSet);
+                       LogLevel level = LogLevel::kNotSet,
+                       LogTimestampPrecision timestamp_precision =
+                           LogTimestampPrecision::kNotSet);
   ~FileHandler() override;
 
-  virtual void reopen() override;
+  void reopen(const std::string dst = "") override;
 
  private:
   void do_log(const Record &record) override;

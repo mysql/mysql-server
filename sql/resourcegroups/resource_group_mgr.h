@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,12 +32,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/components/service.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/pfs_notification.h"
 #include "mysql/components/services/pfs_resource_group.h"
-#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/registry.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/debug_sync.h"
@@ -56,6 +56,9 @@ template <class Key, class Value>
 class collation_unordered_map;
 
 namespace resourcegroups {
+
+extern const char *SYS_DEFAULT_RESOURCE_GROUP_NAME;
+extern const char *USR_DEFAULT_RESOURCE_GROUP_NAME;
 
 /**
   This is a singleton class that provides various functionalities related to
@@ -154,7 +157,7 @@ class Resource_group_mgr {
 
   bool get_thread_attributes(PSI_thread_attrs *pfs_thread_attr,
                              ulonglong thread_id) {
-    DBUG_ASSERT(m_resource_group_support);
+    assert(m_resource_group_support);
     return m_resource_group_svc->get_thread_system_attrs_by_id(
                nullptr, thread_id, pfs_thread_attr) != 0;
   }
@@ -227,7 +230,7 @@ class Resource_group_mgr {
   */
 
   void set_res_grp_in_pfs(const char *name, int length, ulonglong thread_id) {
-    DBUG_ASSERT(m_resource_group_support);
+    assert(m_resource_group_support);
     m_resource_group_svc->set_thread_resource_group_by_id(
         nullptr, thread_id, name, length, nullptr);
   }
@@ -253,6 +256,17 @@ class Resource_group_mgr {
   }
 
   /**
+     Get names of SYS_default and USR_default resource groups.
+     Called by thread_create_callback only.
+  */
+  const char *sys_default_resource_group_name() {
+    return SYS_DEFAULT_RESOURCE_GROUP_NAME;
+  }
+  const char *usr_default_resource_group_name() {
+    return USR_DEFAULT_RESOURCE_GROUP_NAME;
+  }
+
+  /**
     Check if a given Resource group is either SYS_default or USR_default.
 
     @return true if resource is USR_default or SYS_default else false.
@@ -270,7 +284,7 @@ class Resource_group_mgr {
   */
 
   bool thread_priority_available() {
-    DBUG_ASSERT(m_resource_group_support);
+    assert(m_resource_group_support);
     return m_thread_priority_available;
   }
 
@@ -296,13 +310,12 @@ class Resource_group_mgr {
     Release the shared MDL lock held on a resource group.
 
     @param thd        THD context.
-    @param ticket     Pointert to lock ticket object.
+    @param ticket     Pointer to lock ticket object.
   */
 
-  void release_shared_mdl_for_resource_group(THD *thd,
-                                             const MDL_ticket *ticket) {
-    DBUG_ASSERT(ticket != nullptr);
-    thd->mdl_context.release_lock(const_cast<MDL_ticket *>(ticket));
+  void release_shared_mdl_for_resource_group(THD *thd, MDL_ticket *ticket) {
+    assert(ticket != nullptr);
+    thd->mdl_context.release_lock(ticket);
   }
 
   /**
@@ -327,7 +340,7 @@ class Resource_group_mgr {
 
   void deinit();
 
-#ifndef DBUG_OFF  // The belows methods are required in debug build for testing.
+#ifndef NDEBUG  // The belows methods are required in debug build for testing.
   bool disable_pfs_notification();
 #endif
 
@@ -376,7 +389,7 @@ class Resource_group_mgr {
       const char act[] =
           "now "
           "SIGNAL restore_finished";
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
   }
 
@@ -453,7 +466,7 @@ class Resource_group_mgr {
         m_resource_group_support(false),
         m_num_vcpus(0) {}
 
-  ~Resource_group_mgr() {}
+  ~Resource_group_mgr() = default;
 
   // Disable copy construction and assignment for Resource_group_mgr class.
   Resource_group_mgr(const Resource_group_mgr &) = delete;

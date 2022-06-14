@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -154,39 +154,36 @@ class PFS_index_data_locks : public PFS_engine_index {
                        PFS_engine_key *key_3, PFS_engine_key *key_4)
       : PFS_engine_index(key_1, key_2, key_3, key_4) {}
 
-  ~PFS_index_data_locks() {}
+  ~PFS_index_data_locks() override = default;
 
-  virtual bool match_engine(const char *engine MY_ATTRIBUTE((unused)),
-                            size_t engine_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_engine(const char *engine [[maybe_unused]],
+                            size_t engine_length [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_lock_id(const char *engine_lock_id MY_ATTRIBUTE((unused)),
-                             size_t engine_lock_id_length
-                                 MY_ATTRIBUTE((unused))) {
+  virtual bool match_lock_id(const char *engine_lock_id [[maybe_unused]],
+                             size_t engine_lock_id_length [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_transaction_id(
-      ulonglong engine_transaction_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_transaction_id(ulonglong engine_transaction_id
+                                    [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_thread_id_event_id(
-      ulonglong thread_id MY_ATTRIBUTE((unused)),
-      ulonglong event_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_thread_id_event_id(ulonglong thread_id [[maybe_unused]],
+                                        ulonglong event_id [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_object(
-      const char *table_schema MY_ATTRIBUTE((unused)),
-      size_t table_schema_length MY_ATTRIBUTE((unused)),
-      const char *table_name MY_ATTRIBUTE((unused)),
-      size_t table_name_length MY_ATTRIBUTE((unused)),
-      const char *partition_name MY_ATTRIBUTE((unused)),
-      size_t partition_name_length MY_ATTRIBUTE((unused)),
-      const char *sub_partition_name MY_ATTRIBUTE((unused)),
-      size_t sub_partition_name_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_object(const char *table_schema [[maybe_unused]],
+                            size_t table_schema_length [[maybe_unused]],
+                            const char *table_name [[maybe_unused]],
+                            size_t table_name_length [[maybe_unused]],
+                            const char *partition_name [[maybe_unused]],
+                            size_t partition_name_length [[maybe_unused]],
+                            const char *sub_partition_name [[maybe_unused]],
+                            size_t sub_partition_name_length [[maybe_unused]]) {
     return true;
   }
 };
@@ -198,10 +195,10 @@ class PFS_index_data_locks_by_lock_id : public PFS_index_data_locks {
         m_key_1("ENGINE_LOCK_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_locks_by_lock_id() {}
+  ~PFS_index_data_locks_by_lock_id() override = default;
 
-  virtual bool match_lock_id(const char *engine_lock_id,
-                             size_t engine_lock_id_length) {
+  bool match_lock_id(const char *engine_lock_id,
+                     size_t engine_lock_id_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_lock_id, engine_lock_id_length)) {
         return false;
@@ -211,7 +208,7 @@ class PFS_index_data_locks_by_lock_id : public PFS_index_data_locks {
     return true;
   }
 
-  virtual bool match_engine(const char *engine, size_t engine_length) {
+  bool match_engine(const char *engine, size_t engine_length) override {
     if (m_fields >= 2) {
       if (!m_key_2.match(engine, engine_length)) {
         return false;
@@ -233,9 +230,9 @@ class PFS_index_data_locks_by_transaction_id : public PFS_index_data_locks {
         m_key_1("ENGINE_TRANSACTION_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_locks_by_transaction_id() {}
+  ~PFS_index_data_locks_by_transaction_id() override = default;
 
-  virtual bool match_transaction_id(ulonglong engine_transaction_id) {
+  bool match_transaction_id(ulonglong engine_transaction_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_transaction_id)) {
         return false;
@@ -245,7 +242,7 @@ class PFS_index_data_locks_by_transaction_id : public PFS_index_data_locks {
     return true;
   }
 
-  virtual bool match_engine(const char *engine, size_t engine_length) {
+  bool match_engine(const char *engine, size_t engine_length) override {
     if (m_fields >= 2) {
       if (!m_key_2.match(engine, engine_length)) {
         return false;
@@ -267,10 +264,10 @@ class PFS_index_data_locks_by_thread_id : public PFS_index_data_locks {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_data_locks_by_thread_id() {}
+  ~PFS_index_data_locks_by_thread_id() override = default;
 
-  virtual bool match_thread_id_event_id(ulonglong thread_id,
-                                        ulonglong event_id) {
+  bool match_thread_id_event_id(ulonglong thread_id,
+                                ulonglong event_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(thread_id)) {
         return false;
@@ -300,15 +297,13 @@ class PFS_index_data_locks_by_object : public PFS_index_data_locks {
         m_key_3("PARTITION_NAME"),
         m_key_4("SUBPARTITION_NAME") {}
 
-  ~PFS_index_data_locks_by_object() {}
+  ~PFS_index_data_locks_by_object() override = default;
 
-  virtual bool match_object(const char *table_schema,
-                            size_t table_schema_length, const char *table_name,
-                            size_t table_name_length,
-                            const char *partition_name,
-                            size_t partition_name_length,
-                            const char *sub_partition_name,
-                            size_t sub_partition_name_length) {
+  bool match_object(const char *table_schema, size_t table_schema_length,
+                    const char *table_name, size_t table_name_length,
+                    const char *partition_name, size_t partition_name_length,
+                    const char *sub_partition_name,
+                    size_t sub_partition_name_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(table_schema, table_schema_length)) {
         return false;
@@ -348,44 +343,48 @@ class PFS_index_data_lock_waits : public PFS_engine_index {
   PFS_index_data_lock_waits(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_data_lock_waits() {}
+  ~PFS_index_data_lock_waits() override = default;
 
-  virtual bool match_engine(const char *engine MY_ATTRIBUTE((unused)),
-                            size_t engine_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_engine(const char *engine [[maybe_unused]],
+                            size_t engine_length [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_requesting_lock_id(
-      const char *engine_lock_id MY_ATTRIBUTE((unused)),
-      size_t engine_lock_id_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_requesting_lock_id(const char *engine_lock_id
+                                        [[maybe_unused]],
+                                        size_t engine_lock_id_length
+                                        [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_blocking_lock_id(
-      const char *engine_lock_id MY_ATTRIBUTE((unused)),
-      size_t engine_lock_id_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_blocking_lock_id(const char *engine_lock_id
+                                      [[maybe_unused]],
+                                      size_t engine_lock_id_length
+                                      [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_requesting_transaction_id(
-      ulonglong engine_transaction_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_requesting_transaction_id(ulonglong engine_transaction_id
+                                               [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_blocking_transaction_id(
-      ulonglong engine_transaction_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_blocking_transaction_id(ulonglong engine_transaction_id
+                                             [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_requesting_thread_id_event_id(
-      ulonglong thread_id MY_ATTRIBUTE((unused)),
-      ulonglong event_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_requesting_thread_id_event_id(ulonglong thread_id
+                                                   [[maybe_unused]],
+                                                   ulonglong event_id
+                                                   [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_blocking_thread_id_event_id(
-      ulonglong thread_id MY_ATTRIBUTE((unused)),
-      ulonglong event_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_blocking_thread_id_event_id(ulonglong thread_id
+                                                 [[maybe_unused]],
+                                                 ulonglong event_id
+                                                 [[maybe_unused]]) {
     return true;
   }
 };
@@ -398,10 +397,10 @@ class PFS_index_data_lock_waits_by_requesting_lock_id
         m_key_1("REQUESTING_ENGINE_LOCK_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_requesting_lock_id() {}
+  ~PFS_index_data_lock_waits_by_requesting_lock_id() override = default;
 
-  virtual bool match_requesting_lock_id(const char *engine_lock_id,
-                                        size_t engine_lock_id_length) {
+  bool match_requesting_lock_id(const char *engine_lock_id,
+                                size_t engine_lock_id_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_lock_id, engine_lock_id_length)) {
         return false;
@@ -411,7 +410,7 @@ class PFS_index_data_lock_waits_by_requesting_lock_id
     return true;
   }
 
-  virtual bool match_engine(const char *engine, size_t engine_length) {
+  bool match_engine(const char *engine, size_t engine_length) override {
     if (m_fields >= 2) {
       if (!m_key_2.match(engine, engine_length)) {
         return false;
@@ -434,10 +433,10 @@ class PFS_index_data_lock_waits_by_blocking_lock_id
         m_key_1("BLOCKING_ENGINE_LOCK_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_blocking_lock_id() {}
+  ~PFS_index_data_lock_waits_by_blocking_lock_id() override = default;
 
-  virtual bool match_blocking_lock_id(const char *engine_lock_id,
-                                      size_t engine_lock_id_length) {
+  bool match_blocking_lock_id(const char *engine_lock_id,
+                              size_t engine_lock_id_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_lock_id, engine_lock_id_length)) {
         return false;
@@ -447,7 +446,7 @@ class PFS_index_data_lock_waits_by_blocking_lock_id
     return true;
   }
 
-  virtual bool match_engine(const char *engine, size_t engine_length) {
+  bool match_engine(const char *engine, size_t engine_length) override {
     if (m_fields >= 2) {
       if (!m_key_2.match(engine, engine_length)) {
         return false;
@@ -470,10 +469,10 @@ class PFS_index_data_lock_waits_by_requesting_transaction_id
         m_key_1("REQUESTING_ENGINE_TRANSACTION_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_requesting_transaction_id() {}
+  ~PFS_index_data_lock_waits_by_requesting_transaction_id() override = default;
 
-  virtual bool match_requesting_transaction_id(
-      ulonglong engine_transaction_id) {
+  bool match_requesting_transaction_id(
+      ulonglong engine_transaction_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_transaction_id)) {
         return false;
@@ -483,7 +482,7 @@ class PFS_index_data_lock_waits_by_requesting_transaction_id
     return true;
   }
 
-  virtual bool match_engine(const char *engine, size_t engine_length) {
+  bool match_engine(const char *engine, size_t engine_length) override {
     if (m_fields >= 2) {
       if (!m_key_2.match(engine, engine_length)) {
         return false;
@@ -506,9 +505,9 @@ class PFS_index_data_lock_waits_by_blocking_transaction_id
         m_key_1("BLOCKING_ENGINE_TRANSACTION_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_blocking_transaction_id() {}
+  ~PFS_index_data_lock_waits_by_blocking_transaction_id() override = default;
 
-  virtual bool match_blocking_transaction_id(ulonglong engine_transaction_id) {
+  bool match_blocking_transaction_id(ulonglong engine_transaction_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_transaction_id)) {
         return false;
@@ -518,7 +517,7 @@ class PFS_index_data_lock_waits_by_blocking_transaction_id
     return true;
   }
 
-  virtual bool match_engine(const char *engine, size_t engine_length) {
+  bool match_engine(const char *engine, size_t engine_length) override {
     if (m_fields >= 2) {
       if (!m_key_2.match(engine, engine_length)) {
         return false;
@@ -541,10 +540,10 @@ class PFS_index_data_lock_waits_by_requesting_thread_id
         m_key_1("REQUESTING_THREAD_ID"),
         m_key_2("REQUESTING_EVENT_ID") {}
 
-  ~PFS_index_data_lock_waits_by_requesting_thread_id() {}
+  ~PFS_index_data_lock_waits_by_requesting_thread_id() override = default;
 
-  virtual bool match_requesting_thread_id_event_id(ulonglong thread_id,
-                                                   ulonglong event_id) {
+  bool match_requesting_thread_id_event_id(ulonglong thread_id,
+                                           ulonglong event_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(thread_id)) {
         return false;
@@ -573,10 +572,10 @@ class PFS_index_data_lock_waits_by_blocking_thread_id
         m_key_1("BLOCKING_THREAD_ID"),
         m_key_2("BLOCKING_EVENT_ID") {}
 
-  ~PFS_index_data_lock_waits_by_blocking_thread_id() {}
+  ~PFS_index_data_lock_waits_by_blocking_thread_id() override = default;
 
-  virtual bool match_blocking_thread_id_event_id(ulonglong thread_id,
-                                                 ulonglong event_id) {
+  bool match_blocking_thread_id_event_id(ulonglong thread_id,
+                                         ulonglong event_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(thread_id)) {
         return false;
@@ -613,35 +612,35 @@ class PFS_data_cache {
 class PFS_data_lock_container : public PSI_server_data_lock_container {
  public:
   PFS_data_lock_container();
-  ~PFS_data_lock_container();
+  ~PFS_data_lock_container() override;
 
-  virtual const char *cache_string(const char *string);
-  virtual const char *cache_data(const char *ptr, size_t length);
+  const char *cache_string(const char *string) override;
+  const char *cache_data(const char *ptr, size_t length) override;
 
-  virtual bool accept_engine(const char *engine, size_t engine_length);
-  virtual bool accept_lock_id(const char *engine_lock_id,
-                              size_t engine_lock_id_length);
-  virtual bool accept_transaction_id(ulonglong transaction_id);
-  virtual bool accept_thread_id_event_id(ulonglong thread_id,
-                                         ulonglong event_id);
-  virtual bool accept_object(const char *table_schema,
-                             size_t table_schema_length, const char *table_name,
-                             size_t table_name_length,
-                             const char *partition_name,
-                             size_t partition_name_length,
-                             const char *sub_partition_name,
-                             size_t sub_partition_name_length);
+  bool accept_engine(const char *engine, size_t engine_length) override;
+  bool accept_lock_id(const char *engine_lock_id,
+                      size_t engine_lock_id_length) override;
+  bool accept_transaction_id(ulonglong transaction_id) override;
+  bool accept_thread_id_event_id(ulonglong thread_id,
+                                 ulonglong event_id) override;
+  bool accept_object(const char *table_schema, size_t table_schema_length,
+                     const char *table_name, size_t table_name_length,
+                     const char *partition_name, size_t partition_name_length,
+                     const char *sub_partition_name,
+                     size_t sub_partition_name_length) override;
 
-  virtual void add_lock_row(
-      const char *engine, size_t engine_length, const char *engine_lock_id,
-      size_t engine_lock_id_length, ulonglong transaction_id,
-      ulonglong thread_id, ulonglong event_id, const char *table_schema,
-      size_t table_schema_length, const char *table_name,
-      size_t table_name_length, const char *partition_name,
-      size_t partition_name_length, const char *sub_partition_name,
-      size_t sub_partition_name_length, const char *index_name,
-      size_t index_name_length, const void *identity, const char *lock_mode,
-      const char *lock_type, const char *lock_status, const char *lock_data);
+  void add_lock_row(const char *engine, size_t engine_length,
+                    const char *engine_lock_id, size_t engine_lock_id_length,
+                    ulonglong transaction_id, ulonglong thread_id,
+                    ulonglong event_id, const char *table_schema,
+                    size_t table_schema_length, const char *table_name,
+                    size_t table_name_length, const char *partition_name,
+                    size_t partition_name_length,
+                    const char *sub_partition_name,
+                    size_t sub_partition_name_length, const char *index_name,
+                    size_t index_name_length, const void *identity,
+                    const char *lock_mode, const char *lock_type,
+                    const char *lock_status, const char *lock_data) override;
 
   /**
     Clear the container.
@@ -668,24 +667,24 @@ class PFS_data_lock_wait_container
     : public PSI_server_data_lock_wait_container {
  public:
   PFS_data_lock_wait_container();
-  ~PFS_data_lock_wait_container();
+  ~PFS_data_lock_wait_container() override;
 
-  virtual const char *cache_string(const char *string);
-  virtual const char *cache_data(const char *ptr, size_t length);
+  const char *cache_string(const char *string) override;
+  const char *cache_data(const char *ptr, size_t length) override;
 
-  virtual bool accept_engine(const char *engine, size_t engine_length);
-  virtual bool accept_requesting_lock_id(const char *engine_lock_id,
-                                         size_t engine_lock_id_length);
-  virtual bool accept_blocking_lock_id(const char *engine_lock_id,
-                                       size_t engine_lock_id_length);
-  virtual bool accept_requesting_transaction_id(ulonglong transaction_id);
-  virtual bool accept_blocking_transaction_id(ulonglong transaction_id);
-  virtual bool accept_requesting_thread_id_event_id(ulonglong thread_id,
-                                                    ulonglong event_id);
-  virtual bool accept_blocking_thread_id_event_id(ulonglong thread_id,
-                                                  ulonglong event_id);
+  bool accept_engine(const char *engine, size_t engine_length) override;
+  bool accept_requesting_lock_id(const char *engine_lock_id,
+                                 size_t engine_lock_id_length) override;
+  bool accept_blocking_lock_id(const char *engine_lock_id,
+                               size_t engine_lock_id_length) override;
+  bool accept_requesting_transaction_id(ulonglong transaction_id) override;
+  bool accept_blocking_transaction_id(ulonglong transaction_id) override;
+  bool accept_requesting_thread_id_event_id(ulonglong thread_id,
+                                            ulonglong event_id) override;
+  bool accept_blocking_thread_id_event_id(ulonglong thread_id,
+                                          ulonglong event_id) override;
 
-  virtual void add_lock_wait_row(
+  void add_lock_wait_row(
       const char *engine, size_t engine_length,
       const char *requesting_engine_lock_id,
       size_t requesting_engine_lock_id_length,
@@ -694,7 +693,7 @@ class PFS_data_lock_wait_container
       const char *blocking_engine_lock_id,
       size_t blocking_engine_lock_id_length, ulonglong blocking_transaction_id,
       ulonglong blocking_thread_id, ulonglong blocking_event_id,
-      const void *blocking_identity);
+      const void *blocking_identity) override;
 
   /**
     Clear the container.

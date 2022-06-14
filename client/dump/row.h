@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,9 @@ namespace Dump {
  */
 class Row : public I_data_object {
  public:
-  Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data);
+  explicit Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data);
 
-  ~Row();
+  ~Row() override;
 
   /**
     Returns all raw data of fields.

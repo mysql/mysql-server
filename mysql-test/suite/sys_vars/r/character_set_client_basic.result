@@ -22,7 +22,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client;
 @@session.character_set_client
-utf8
+utf8mb3
 SET global.character_set_client=utf8;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_client=utf8' at line 1
 SET session character_set_client=utf8;
@@ -40,7 +40,7 @@ SET @@character_set_client = latin5;
 SET @@character_set_client = DEFAULT;
 SELECT @@character_set_client AS DEFAULT_VALUE;
 DEFAULT_VALUE
-utf8
+utf8mb3
 SET @@global.character_set_client = latin5;
 SET @@global.character_set_client = DEFAULT;
 SELECT @@global.character_set_client;
@@ -52,14 +52,14 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client;
 @@session.character_set_client
-utf8
+utf8mb3
 SET @@global.character_set_client = latin2;
 SELECT @@global.character_set_client;
 @@global.character_set_client
 latin2
 SELECT @@session.character_set_client AS res_is_utf8;
 res_is_utf8
-utf8
+utf8mb3
 SET @@session.character_set_client = latin5;
 SELECT @@session.character_set_client;
 @@session.character_set_client
@@ -87,6 +87,8 @@ SELECT @@character_set_client;
 @@character_set_client
 big5
 SET @@character_set_client = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 dec8
@@ -95,6 +97,8 @@ SELECT @@character_set_client;
 @@character_set_client
 cp850
 SET @@character_set_client = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 hp8
@@ -171,7 +175,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@character_set_client;
 @@character_set_client
-utf8
+utf8mb3
 SET @@character_set_client = utf8mb4;
 SELECT @@character_set_client;
 @@character_set_client
@@ -191,10 +195,14 @@ SELECT @@character_set_client;
 @@character_set_client
 keybcs2
 SET @@character_set_client = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 macce
 SET @@character_set_client = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 macroman
@@ -240,6 +248,8 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 big5
 SET @@global.character_set_client = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 dec8
@@ -248,6 +258,8 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 cp850
 SET @@global.character_set_client = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 hp8
@@ -328,7 +340,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@global.character_set_client;
 @@global.character_set_client
-utf8
+utf8mb3
 SET @@global.character_set_client = utf8mb4;
 SELECT @@global.character_set_client;
 @@global.character_set_client
@@ -346,10 +358,14 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 keybcs2
 SET @@global.character_set_client = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 macce
 SET @@global.character_set_client = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 macroman
@@ -395,19 +411,19 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@character_set_client;
 @@character_set_client
-utf8
+utf8mb3
 SET @@character_set_client = utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@character_set_client;
 @@character_set_client
-utf8
+utf8mb3
 SET @@global.character_set_client = uTf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@global.character_set_client;
 @@global.character_set_client
-utf8
+utf8mb3
 '#--------------------FN_DYNVARS_010_09-------------------------#'
 SET @@character_set_client = 1;
 SELECT @@character_set_client;
@@ -418,6 +434,8 @@ SELECT @@character_set_client;
 @@character_set_client
 latin2
 SET @@character_set_client = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 dec8
@@ -440,6 +458,8 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 latin2
 SET @@global.character_set_client = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 dec8

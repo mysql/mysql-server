@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ Clone handler interface to access clone plugin
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class THD;
+class Srv_session;
 struct Mysql_clone;
 struct MYSQL_SOCKET;
 
@@ -84,6 +85,20 @@ class Clone_handler {
   @param[in]	socket	network socket to remote client
   @return error code */
   int clone_remote_server(THD *thd, MYSQL_SOCKET socket);
+
+  /** Get donor error and message for ER_CLONE_DONOR error.
+  @param[in]	session	server session
+  @param[out]	error	donor error number
+  @param[out]	message	error message
+  @return true, iff successful. */
+  static bool get_donor_error(Srv_session *session, int &error,
+                              const char *&message);
+
+  /** @return false only if no user data is dropped yet. */
+  static bool is_data_dropped() { return (s_is_data_dropped); }
+
+  /** Must set before dropping any user data. */
+  static void set_drop_data() { s_is_data_dropped.store(true); }
 
   /** @return true, if clone provisioning in progress. */
   static bool is_provisioning() { return (s_provision_in_progress > 0); }
@@ -172,6 +187,9 @@ class Clone_handler {
 
   /** True if clone provisioning in progress. */
   static std::atomic<int> s_provision_in_progress;
+
+  /** True, if any user data is dropped by clone. */
+  static std::atomic<bool> s_is_data_dropped;
 
   /** Mutex to synchronize blocking XA operation. */
   static mysql_mutex_t s_xa_mutex;

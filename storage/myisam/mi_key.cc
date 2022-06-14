@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 /* Functions to handle keys */
 
 #include <sys/types.h>
+#include <algorithm>
 #include <cmath>
 
 #include "m_ctype.h"
@@ -37,7 +38,7 @@
   do {                                                              \
     if (length > char_length)                                       \
       char_length = my_charpos(cs, pos, pos + length, char_length); \
-    set_if_smaller(char_length, length);                            \
+    char_length = std::min(char_length, length);                    \
   } while (0)
 
 static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
@@ -64,13 +65,13 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
   uchar *start;
   HA_KEYSEG *keyseg;
   bool is_ft = info->s->keyinfo[keynr].flag & HA_FULLTEXT;
-  DBUG_ENTER("_mi_make_key");
+  DBUG_TRACE;
 
   if (info->s->keyinfo[keynr].flag & HA_SPATIAL) {
     /*
       TODO: nulls processing
     */
-    DBUG_RETURN(sp_make_key(info, keynr, key, record, filepos));
+    return sp_make_key(info, keynr, key, record, filepos);
   }
 
   start = key;
@@ -122,7 +123,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
       uint pack_length = (keyseg->bit_start == 1 ? 1 : 2);
       uint tmp_length = (pack_length == 1 ? (uint)*pos : uint2korr(pos));
       pos += pack_length; /* Skip VARCHAR length */
-      set_if_smaller(length, tmp_length);
+      length = std::min(length, tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
       memcpy((uchar *)key, pos, (size_t)char_length);
@@ -131,7 +132,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
     } else if (keyseg->flag & HA_BLOB_PART) {
       uint tmp_length = _mi_calc_blob_length(keyseg->bit_start, pos);
       memcpy(&pos, pos + keyseg->bit_start, sizeof(char *));
-      set_if_smaller(length, tmp_length);
+      length = std::min(length, tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
       if (char_length > 0) memcpy((uchar *)key, pos, (size_t)char_length);
@@ -139,8 +140,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
       continue;
     } else if (keyseg->flag & HA_SWAP_KEY) { /* Numerical column */
       if (type == HA_KEYTYPE_FLOAT) {
-        float nr;
-        float4get(&nr, pos);
+        float nr = float4get(pos);
         if (std::isnan(nr)) {
           /* Replace NAN with zero */
           memset(key, 0, length);
@@ -148,8 +148,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
           continue;
         }
       } else if (type == HA_KEYTYPE_DOUBLE) {
-        double nr;
-        float8get(&nr, pos);
+        double nr = float8get(pos);
         if (std::isnan(nr)) {
           memset(key, 0, length);
           key += length;
@@ -173,7 +172,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
   DBUG_DUMP("key", (uchar *)start, (uint)(key - start) + keyseg->length);
   DBUG_EXECUTE("key", _mi_print_key(DBUG_FILE, info->s->keyinfo[keynr].seg,
                                     start, (uint)(key - start)););
-  DBUG_RETURN((uint)(key - start)); /* Return keylength */
+  return (uint)(key - start); /* Return keylength */
 } /* _mi_make_key */
 
 /*
@@ -199,14 +198,14 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
   uchar *start_key = key;
   HA_KEYSEG *keyseg;
   bool is_ft = info->s->keyinfo[keynr].flag & HA_FULLTEXT;
-  DBUG_ENTER("_mi_pack_key");
+  DBUG_TRACE;
 
   /* "one part" rtree key is 2*SPDIMS part key in MyISAM */
   if (info->s->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE)
     keypart_map = (((key_part_map)1) << (2 * SPDIMS)) - 1;
 
   /* only key prefixes are supported */
-  DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
+  assert(((keypart_map + 1) & keypart_map) == 0);
 
   for (keyseg = info->s->keyinfo[keynr].seg; keyseg->type && keypart_map;
        old += keyseg->length, keyseg++) {
@@ -245,7 +244,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
       /* Length of key-part used with mi_rkey() always 2 */
       uint tmp_length = uint2korr(pos);
       pos += 2;
-      set_if_smaller(length, tmp_length); /* Safety */
+      length = std::min(length, tmp_length); /* Safety */
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
       old += 2; /* Skip length */
@@ -265,7 +264,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
   }
   if (last_used_keyseg) *last_used_keyseg = keyseg;
 
-  DBUG_RETURN((uint)(key - start_key));
+  return (uint)(key - start_key);
 } /* _mi_pack_key */
 
 /*
@@ -295,7 +294,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
   uchar *pos;
   HA_KEYSEG *keyseg;
   uchar *blob_ptr;
-  DBUG_ENTER("_mi_put_key_in_record");
+  DBUG_TRACE;
 
   blob_ptr = info->lastkey2;        /* Place to put blob parts */
   const uchar *key = info->lastkey; /* KEy that was read */
@@ -377,10 +376,10 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
       key += keyseg->length;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 
 err:
-  DBUG_RETURN(1); /* Crashed row */
+  return 1; /* Crashed row */
 } /* _mi_put_key_in_record */
 
 /* Here when key reads are used */
@@ -474,16 +473,14 @@ ulonglong retrieve_auto_increment(MI_INFO *info, const uchar *record) {
       break;
     case HA_KEYTYPE_FLOAT: /* This shouldn't be used */
     {
-      float f_1;
-      float4get(&f_1, key);
+      float f_1 = float4get(key);
       /* Ignore negative values */
       value = (f_1 < (float)0.0) ? 0 : (ulonglong)f_1;
       break;
     }
     case HA_KEYTYPE_DOUBLE: /* This shouldn't be used */
     {
-      double f_1;
-      float8get(&f_1, key);
+      double f_1 = float8get(key);
       /* Ignore negative values */
       value = (f_1 < 0.0) ? 0 : (ulonglong)f_1;
       break;
@@ -495,7 +492,7 @@ ulonglong retrieve_auto_increment(MI_INFO *info, const uchar *record) {
       value = uint8korr(key);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       value = 0; /* Error */
       break;
   }

@@ -105,10 +105,10 @@ c1	c2	c3
 1000-01-01	9999-12-31	16
 INSERT INTO t1 VALUES('2001-01-23','2001-01-24',17),('2001-01-25','2001-01-26',18);
 UPDATE t1 SET c1='2001-01-23' WHERE c1='2001-01-25';
-ERROR 23000: Duplicate entry '2001-01-23' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2001-01-23' for key 't1.PRIMARY'
 UPDATE IGNORE t1 SET c1='2001-01-23' WHERE c1='2001-01-25';
 Warnings:
-Warning	1062	Duplicate entry '2001-01-23' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2001-01-23' for key 't1.PRIMARY'
 SELECT count(*) FROM t1 WHERE c1='2001-01-23';
 count(*)
 1
@@ -742,10 +742,10 @@ c1	c2	c3
 1000-01-01 00:00:00	9999-12-31 23:59:59	10
 INSERT INTO t1 VALUES('2001-01-23 02:33','2001-01-24 03:33',11),('2001-01-25 04:33','2001-01-26 05:33',12);
 UPDATE t1 SET c1='2001-01-23 02:33' WHERE c1='2001-01-25 04:33';
-ERROR 23000: Duplicate entry '2001-01-23 02:33:00' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2001-01-23 02:33:00' for key 't1.PRIMARY'
 UPDATE IGNORE t1 SET c1='2001-01-23 02:33' WHERE c1='2001-01-25 04:33';
 Warnings:
-Warning	1062	Duplicate entry '2001-01-23 02:33:00' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2001-01-23 02:33:00' for key 't1.PRIMARY'
 SELECT count(*) FROM t1 WHERE c1='2001-01-23 02:33';
 count(*)
 1
@@ -870,6 +870,38 @@ SELECT * FROM t1 WHERE c2 BETWEEN '20020109 01:30:40' AND '20020109 01:30:50' OR
 c1	c2	c3
 Warnings:
 Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
 UPDATE t1 SET c1='2003-01-01 1:2:3' WHERE c2 IN('2002-01-09 1:30:55','2002-01-09 2:00') ORDER BY c2 DESC LIMIT 2;
@@ -1361,10 +1393,10 @@ c1	c2	c3
 1971-01-01 00:00:01	2038-01-09 03:14:07	10
 INSERT INTO t1 VALUES('2001-01-23 02:33','2001-01-24 03:33',11),('2001-01-25 04:33','2001-01-26 05:33',12);
 UPDATE t1 SET c1='2001-01-23 02:33' WHERE c1='2001-01-25 04:33';
-ERROR 23000: Duplicate entry '2001-01-23 02:33:00' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2001-01-23 02:33:00' for key 't1.PRIMARY'
 UPDATE IGNORE t1 SET c1='2001-01-23 02:33' WHERE c1='2001-01-25 04:33';
 Warnings:
-Warning	1062	Duplicate entry '2001-01-23 02:33:00' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2001-01-23 02:33:00' for key 't1.PRIMARY'
 SELECT count(*) FROM t1 WHERE c1='2001-01-23 02:33';
 count(*)
 1
@@ -1487,6 +1519,38 @@ SELECT * FROM t1 WHERE c2 BETWEEN '20020109 01:30:40' AND '20020109 01:30:50' OR
 c1	c2	c3
 Warnings:
 Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
 UPDATE t1 SET c1='2003-01-01 1:2:3' WHERE c2 IN('2002-01-09 1:30:55','2002-01-09 2:00') ORDER BY c2 DESC LIMIT 2;

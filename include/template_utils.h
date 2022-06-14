@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,13 @@
 #ifndef TEMPLATE_UTILS_INCLUDED
 #define TEMPLATE_UTILS_INCLUDED
 
+#include <assert.h>
+#include <ctype.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
+#include <algorithm>
+#include <iterator>
+#include <optional>
+#include <type_traits>
 
 /**
   @file include/template_utils.h
@@ -89,7 +93,11 @@ inline const T pointer_cast(const void *p) {
 */
 template <typename Target, typename Source>
 inline Target down_cast(Source *arg) {
-  DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
+  static_assert(
+      !std::is_base_of<typename std::remove_pointer<Target>::type,
+                       Source>::value,
+      "Do not use down_cast for upcasts; use implicit_cast or nothing");
+  assert(nullptr != dynamic_cast<Target>(arg));
   return static_cast<Target>(arg);
 }
 
@@ -109,8 +117,12 @@ inline Target down_cast(Source &arg) {
   // We still use the pointer version of dynamic_cast, as the
   // reference-accepting version throws exceptions, and we don't want to deal
   // with that.
-  DBUG_ASSERT(dynamic_cast<typename std::remove_reference<Target>::type *>(
-                  &arg) != nullptr);
+  static_assert(
+      !std::is_base_of<typename std::remove_reference<Target>::type,
+                       Source>::value,
+      "Do not use down_cast for upcasts; use implicit_cast or nothing");
+  assert(dynamic_cast<typename std::remove_reference<Target>::type *>(&arg) !=
+         nullptr);
   return static_cast<Target>(arg);
 }
 
@@ -144,4 +156,89 @@ struct ReturnValueOrError {
   bool error;
 };
 
+/**
+   Number of elements in a constant C array.
+ */
+template <class T, size_t N>
+constexpr size_t array_elements(T (&)[N]) noexcept {
+  return N;
+}
+
+namespace myu {
+/**
+  Split a range into sub ranges delimited by elements satisfying a predicate.
+  Examines the elements from first to last, exclusive. Each time an element
+  which satisfies the splitting predicate is encountered, the action argument's
+  operator() is invoked with the starting and past-the-end iterators for the
+  current sub-range, even if this is empty. When iteration is complete, action()
+  is called on the range between the start of the last subrange and last.
+
+  It must be possible to pass a single element with type const
+  InputIt::value_type to is_split_element. It must be possible to pass two
+  InputIt arguments to action.
+
+  @param first    Beginning of the range to split.
+  @param last     End of the range to split.
+  @param pred     Callable which will be invoked on each element in
+                  turn to determine if it is a splitting element.
+  @param action   Callable which will be invoked with the beginning
+                  and one-past-the-end iterators for each subrange.
+ */
+template <class InputIt, class Pred, class Action>
+inline void Split(InputIt first, InputIt last, Pred &&pred, Action &&action) {
+  while (first != last) {
+    InputIt split = std::find_if(first, last, std::forward<Pred>(pred));
+    action(first, split);  // Called even for empty subranges, action must
+                           // discard if not wanted
+    if (split == last) return;
+    first = split + 1;
+  }
+}
+
+/**
+  Search backwards for the first occurence of an element which does not satisfy
+  the trimming predicate, and return an InputIt to the element after it.
+
+  @param first Beginning of the range to search.
+  @param last  End of the range to search.
+  @param pred  Callable which can be applied to a dereferenced InputIt and which
+               returns true if the element should be trimmed.
+
+  @returns InputIt referencing the first element of sub range satisfying the
+           trimming predicate at the end of the range. last if no elements
+           satisfy the trimming predicate.
+ */
+template <class InputIt, class Pred>
+inline InputIt FindTrimmedEnd(InputIt first, InputIt last, Pred &&pred) {
+  return std::find_if_not(std::make_reverse_iterator(last),
+                          std::make_reverse_iterator(first),
+                          std::forward<Pred>(pred))
+      .base();
+}
+
+/**
+  Searches for a sub range such that no elements before or after fail to
+  satisfy the trimming predicate.
+
+  @param first Beginning of the range to search.
+  @param last  End of the range to search.
+  @param pred  Callable which can be applied to a dereferenced InputIt and which
+               returns true if the element should be trimmed.
+
+  @returns Pair of iterators denoting the sub range which does not include the
+           leading and trailing sub ranges matching the trimming predicate.
+           {last, last} if all elements match the trimming predicate.
+ */
+template <class InputIt, class Pred>
+inline std::pair<InputIt, InputIt> FindTrimmedRange(InputIt first, InputIt last,
+                                                    Pred &&pred) {
+  InputIt f = std::find_if_not(first, last, std::forward<Pred>(pred));
+  return {f, FindTrimmedEnd(f, last, std::forward<Pred>(pred))};
+}
+
+/** Convenience lambdas for common predicates. */
+const auto IsSpace = [](char c) { return isspace(c); };
+const auto IsComma = [](char c) { return c == ','; };
+
+}  // namespace myu
 #endif  // TEMPLATE_UTILS_INCLUDED

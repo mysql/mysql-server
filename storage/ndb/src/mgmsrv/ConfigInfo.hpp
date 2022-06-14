@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,10 +196,10 @@ public:
    *   @param  fname    Name of parameter
    *   @param  value    Value to check
    *   @return true if parameter value is valid.
-   * 
+   *
    *   @note Result is not defined if section/name are wrong!
    */
-  bool verify(const Properties* secti, const char* fname, Uint64 value) const;
+  bool verify(const Properties* section, const char* fname, Uint64 value) const;
   bool verify_enum(const Properties * section, const char* fname,
                    const char* value, Uint32& value_int) const;
   void get_enum_values(const Properties * section, const char* fname,

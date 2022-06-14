@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,9 +34,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** These random numbers are used in ut_find_prime */
 /*@{*/
-#define UT_RANDOM_1 1.0412321
-#define UT_RANDOM_2 1.1131347
-#define UT_RANDOM_3 1.0132677
+constexpr double UT_RANDOM_1 = 1.0412321;
+constexpr double UT_RANDOM_2 = 1.1131347;
+constexpr double UT_RANDOM_3 = 1.0132677;
+/*@}*/
 /*@}*/
 
 thread_local ulint ut_rnd_ulint_counter = 0;

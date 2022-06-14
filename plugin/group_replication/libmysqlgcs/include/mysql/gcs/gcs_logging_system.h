@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,19 @@
 #include "my_sys.h"
 #endif /* XCOM_STANDALONE */
 
+/**
+  Maximum size of a message stored in a single entry in the circular buffer.
+*/
 #define GCS_MAX_LOG_BUFFER 512
+
+/**
+  Default number of circular buffer entries.
+*/
 #define DEFAULT_ASYNC_BUFFERS 4096
+
+/*
+  Definitions to compose a message to be written into a sink.
+*/
 #define GCS_PREFIX "[GCS] "
 #define GCS_PREFIX_SIZE 6
 #define GCS_DEBUG_PREFIX "[MYSQL_GCS_DEBUG] "
@@ -57,22 +68,26 @@
 #endif
 
 /**
-  Entry or element in the circular buffer maintained by the Gcs_async_buffer.
+  Entry or element in the circular buffer maintained by the Gcs_async_buffer
+  responsible for storing a message that will eventually be asynchronously
+  written to a sink.
 */
 class Gcs_log_event {
  public:
-  explicit Gcs_log_event() {}
+  explicit Gcs_log_event() = default;
 
   /**
-    Set whether the content is ready to be consumed or not.
+    Set whether the message is ready to be consumed or not.
   */
 
   inline void set_event(bool ready) { m_ready_flag.store(ready); }
 
   /**
-    Write the current content into a sink.
+    Write the current message into a sink.
 
-    @param sink Where the content should be written to.
+    @param sink Where the message should be written to.
+
+    @retval Currently, it always false.
   */
 
   inline bool flush_event(Sink_interface &sink) {
@@ -86,17 +101,17 @@ class Gcs_log_event {
       After consuming the entry, the flag is set back to false again.
     */
     while (!m_ready_flag.load()) {
-      std::this_thread::yield();
+      My_xp_thread_util::yield();
     }
     sink.log_event(m_message_buffer, get_buffer_size());
     m_ready_flag.store(false);
 
-    return true;
+    return false;
   }
 
   /**
-    Get a reference to the content that eventually willl be written
-    to a sink.
+      Get a reference to a buffer entry that holds a message that will be
+     eventually written to a sink.
   */
 
   inline char *get_buffer() { return m_message_buffer; }
@@ -115,7 +130,7 @@ class Gcs_log_event {
   inline size_t get_max_buffer_size() const { return GCS_MAX_LOG_BUFFER - 3; }
 
   /**
-    Set the content size.
+    Set the message's size.
   */
 
   inline void set_buffer_size(size_t message_size) {
@@ -124,18 +139,17 @@ class Gcs_log_event {
 
  private:
   /**
-    Message to be written to a sink.
+    Buffer to hold a message that will eventually be written to a sink.
   */
   char m_message_buffer[GCS_MAX_LOG_BUFFER]{};
 
   /*
-    Message's size to be written to a sink.
+   Size of the message stored in the buffer entry.
   */
   size_t m_message_size{0};
 
   /**
-    Flag used to indicate whether the log event can be consumed or
-    not.
+   Flag used to indicate whether the message can be consumed or not.
   */
   std::atomic<bool> m_ready_flag{false};
 
@@ -147,21 +161,31 @@ class Gcs_log_event {
 };
 
 /**
-  Circular buffer that can be used to asynchronously feed other sink. In most
-  cases, it is quite expensive to have application threads writing directly
-  to the final sink which is usually the terminal, a file or a remote process.
-
-  In this circular buffer, messages will be stored in-memory and will be
-  asynchronously written to a sink. Using this in-memory intermediate buffer,
-  it is possible to minimize the performance drawbacks associated with the
-  final sink.
+  Circular buffer that can be used to asynchronously feed a sink. In this,
+  messages are temporarily stored in-memory and asynchronously written to the
+  sink. Using this in-memory intermediate buffer is possible to minimize
+  performance drawbacks associated with the direct access to the sink which is
+  usually the terminal, a file or a remote process.
 
   By default, the circular buffer has DEFAULT_ASYNC_BUFFERS entries and this
-  value can be changed by providing a different value to the contructor. If
-  there is no free slot available, the user thread will be temporarily blocked
-  until it can copy its message into a free slot. Only one thread will read
-  the entries in the circular buffer and write them to another sink. Concurrent
-  access to the buffer is controlled by using a mutex and atomic variables.
+  value can be changed by providing different contructor's paramaters. Note
+  that, however, this is not currently exposed to the end-user. If there is no
+  free slot available, the caller thread will be temporarily blocked until it
+  can copy its message into a free slot. Only one thread will read the entries
+  in the circular buffer and write them to a sink.
+
+  Concurrent access to the buffer is controlled by using a mutex and atomic
+  variables. If you are tempted to change this, please, measure the performance
+  first before changing anything. We have done so and the bulk of the time is
+  spent in formatting the messages and for that reason a simple circular buffer
+  implementation is enough.
+
+  Another alternative would be to format the message within the consumer but
+  this would require to always pass information by value. In order to give
+  users flexibility, we have decided not to do this. Besides, XCOM almost
+  always formats its messages within the context of the caller thread. For
+  those reasons, we kept the current behavior but we might revisit this in
+  the future.
 */
 class Gcs_async_buffer {
  private:
@@ -177,7 +201,7 @@ class Gcs_async_buffer {
   int m_buffer_size;
 
   /**
-    Next entry in the buffer where producers will write their content.
+    Next entry in the buffer where producers will write their messages to.
   */
   int64_t m_write_index;
 
@@ -202,8 +226,7 @@ class Gcs_async_buffer {
   bool m_initialized;
 
   /**
-    Asynchronous circular buffer where the consumer will write the message
-    content to.
+    Sink where the consumer will write messages to.
   */
   Sink_interface *m_sink;
 
@@ -233,14 +256,15 @@ class Gcs_async_buffer {
   My_xp_mutex *m_free_buffer_mutex;
 
  public:
-  Gcs_async_buffer(Sink_interface *sink,
-                   const int buffer_size = DEFAULT_ASYNC_BUFFERS);
+  explicit Gcs_async_buffer(Sink_interface *sink,
+                            const int buffer_size = DEFAULT_ASYNC_BUFFERS);
   ~Gcs_async_buffer();
 
   /**
     Asynchronous circular buffer initialization method.
 
-    @retval GCS_OK
+    @retval GCS_OK in case everything goes well. Any other value of
+            gcs_error in case of error.
   */
 
   enum_gcs_error initialize();
@@ -248,7 +272,8 @@ class Gcs_async_buffer {
   /**
     Asynchronous circular buffer finalization method.
 
-    @retval GCS_OK
+    @retval GCS_OK in case everything goes well. Any other value of
+            gcs_error in case of error.
   */
 
   enum_gcs_error finalize();
@@ -274,18 +299,34 @@ class Gcs_async_buffer {
 
   /**
     Producer threads invoke this method to log events (i.e. messages).
+
+    This method is only provided for the sake of completeness and is
+    currently not used because the message would have to be copied into the
+    circular buffer and usually it is necessary to compose the message first
+    thus incurring an extra copy.
+
+    Currently, a producer calls directly the get_entry() and notify_entry()
+    methods directly.
   */
 
   void produce_events(const char *message, size_t message_size);
 
   /**
     Producer threads invoke this method to log events (i.e. messages).
+
+    This method is only provided for the sake of completeness and is
+    currently not used because the message would have to be copied into the
+    circular buffer and usually it is necessary to compose the message first
+    thus incurring an extra copy.
+
+    Currently, a producer calls directly the get_entry() and notify_entry()
+    methods directly
   */
 
   void produce_events(const std::string &message);
 
   /**
-    Get a reference to an in-memory buffer where message content will be
+    Get a reference to an in-memory buffer where a message content will be
     written to.
   */
 
@@ -311,7 +352,7 @@ class Gcs_async_buffer {
   uint64_t get_index(int64_t index) const { return index % m_buffer_size; }
 
   /**
-     Get an index entry to an in-memory buffer where message content will
+     Get an index entry to an in-memory buffer where a message content will
      be written to.
   */
 
@@ -345,50 +386,49 @@ class Gcs_async_buffer {
 */
 class Gcs_output_sink : public Sink_interface {
  public:
-  Gcs_output_sink();
-  virtual ~Gcs_output_sink() {}
+  explicit Gcs_output_sink();
+  ~Gcs_output_sink() override = default;
 
   /**
-    Simple sink initialization method.
+    Output sink initialization method.
 
-    @retval GCS_OK
+    @retval GCS_OK in case everything goes well. Any other value of
+              gcs_error in case of error
   */
 
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
-    Simple sink finalization method.
+    Output sink finalization method.
 
-    @retval GCS_OK
+    @retval GCS_OK in case everything goes well. Any other value of
+              gcs_error in case of error.
   */
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
-    Simple sink simply prints the received message to the standard
-    output stream.
+    Print the received message to the standard output stream.
 
     @param message rendered stream of the logging message
   */
 
-  void log_event(const std::string &message);
+  void log_event(const std::string &message) override;
 
   /**
-    Simple sink simply prints the received message to the standard
-    output stream.
+    Print the received message to the standard output stream.
 
     @param message rendered stream of the logging message
     @param message_size logging message size
   */
 
-  void log_event(const char *message, size_t message_size);
+  void log_event(const char *message, size_t message_size) override;
 
   /**
-    The purpose of this method is to return information on the sink such
-    as its location.
+     Return information on the sink such as its location.
   */
 
-  const std::string get_information() const;
+  const std::string get_information() const override;
 
  private:
   /*
@@ -409,37 +449,49 @@ class Gcs_output_sink : public Sink_interface {
 */
 class Gcs_default_logger : public Logger_interface {
  public:
-  Gcs_default_logger(Gcs_async_buffer *sink);
-  virtual ~Gcs_default_logger() {}
+  explicit Gcs_default_logger(Gcs_async_buffer *sink);
+  ~Gcs_default_logger() override = default;
 
   /**
-    Simple logger initialization method.
+    Default logger initialization method.
 
     @retval GCS_OK
   */
 
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
-    Simple logger finalization method.
+    Default logger finalization method.
 
     @retval GCS_OK
   */
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
-    Simple logger simply forwards the received message to a sink.
+    Asynchronously forwards the received message to a sink.
+
+    This method prepares the message and writes it to an in-memory buffer.
+    If there is no free entry in the in-memory buffer, the call blocks until
+    an entry becomes available.
+
+    Note that the write to the sink is done asynchronously.
+
+    This method shouldn't be invoked directly in the code, as it is wrapped
+    by the MYSQL_GCS_LOG_[LEVEL] macros which deal with the rendering of the
+    logging message into a final string that is then handed alongside with
+    the level to this method.
 
     @param level logging level of the message
     @param message rendered string of the logging message
   */
 
-  void log_event(const gcs_log_level_t level, const std::string &message);
+  void log_event(const gcs_log_level_t level,
+                 const std::string &message) override;
 
  private:
   /**
-    Reference to asynchronous sink.
+    Reference to an asynchronous buffer that encapsulates a sink.
   */
   Gcs_async_buffer *m_sink;
 
@@ -449,17 +501,18 @@ class Gcs_default_logger : public Logger_interface {
   Gcs_default_logger(Gcs_default_logger &l);
   Gcs_default_logger &operator=(const Gcs_default_logger &l);
 };
+/* purecov: end */
 
 /**
   Default debugger which is used only by GCS and XCOM.
 */
 class Gcs_default_debugger {
  public:
-  Gcs_default_debugger(Gcs_async_buffer *sink);
-  virtual ~Gcs_default_debugger() {}
+  explicit Gcs_default_debugger(Gcs_async_buffer *sink);
+  virtual ~Gcs_default_debugger() = default;
 
   /**
-    Simple debugger initialization method.
+    Default debugger initialization method.
 
     @retval GCS_OK
   */
@@ -467,7 +520,7 @@ class Gcs_default_debugger {
   enum_gcs_error initialize();
 
   /**
-    Simple debugger finalization method.
+    Default debugger finalization method.
 
     @retval GCS_OK
   */
@@ -475,7 +528,41 @@ class Gcs_default_debugger {
   enum_gcs_error finalize();
 
   /**
-    Simple debugger simply forwards the received message to a sink.
+     Asynchronously forwards the received message to a sink.
+
+     This method prepares the message and writes it to an in-memory buffer.
+     If there is no free entry in the in-memory buffer, the call blocks until
+     an entry becomes available.
+
+     Note that the write to the sink is done asynchronously.
+
+     This method shouldn't be invoked directly in the code, as it is wrapped
+     by the MYSQL_GCS_LOG_[LEVEL] macros which deal with the rendering of the
+     logging message into a final string that is then handed alongside with
+     the level to this method.
+
+     @param [in] format Message format using a c-style string
+     @param [in] args Arguments to fill in the format string
+   */
+
+  inline void log_event(const char *format, va_list args)
+      MY_ATTRIBUTE((format(printf, 2, 0))) {
+    Gcs_log_event &event = m_sink->get_entry();
+    char *buffer = event.get_buffer();
+    size_t size = append_prefix(buffer);
+    size += vsnprintf(buffer + size, event.get_max_buffer_size() - size, format,
+                      args);
+    if (unlikely(size > event.get_max_buffer_size())) {
+      fprintf(stderr, "The following message was truncated: %s\n", buffer);
+      size = event.get_max_buffer_size();
+    }
+    size += append_sufix(buffer, size);
+    event.set_buffer_size(size);
+    m_sink->notify_entry(event);
+  }
+
+  /**
+    Default debugger simply forwards the received message to a sink.
 
     @param message rendered string of the logging message
   */
@@ -499,8 +586,18 @@ class Gcs_default_debugger {
   }
 
   /**
-    Write a message to the in-memory buffer. In other words, write a message
-    to an available entry and block while there is none.
+    Asynchronously forwards the received message to a sink.
+
+    This method prepares the message and writes it to an in-memory buffer.
+    If there is no free entry in the in-memory buffer, the call blocks until
+    an entry becomes available.
+
+    Note that the write to the sink is done asynchronously.
+
+    This method shouldn't be invoked directly in the code, as it is wrapped
+    by the MYSQL_GCS_LOG_[LEVEL] macros which deal with the rendering of the
+    logging message into a final string that is then handed alongside with
+    the level to this method.
 
     @param [in] options Debug options that are associated with the message
     @param [in] message Message to be written to the in-memory buffer
@@ -511,37 +608,23 @@ class Gcs_default_debugger {
   }
 
   /**
-    Write a message to the in-memory buffer. In other words, write a message
-    to an available entry and block while there is none.
+     Asynchronously forwards the received message to a sink.
 
-    @param [in] format Message format using a c-style string
-    @param [in] args Arguments to fill in the format string
-  */
+     This method prepares the message and writes it to an in-memory buffer.
+     If there is no free entry in the in-memory buffer, the call blocks until
+     an entry becomes available.
 
-  inline void log_event(const char *format, va_list args)
-      MY_ATTRIBUTE((format(printf, 2, 0))) {
-    Gcs_log_event &event = get_entry();
-    char *buffer = event.get_buffer();
-    size_t size = append_prefix(buffer);
-    size += vsnprintf(buffer + size, event.get_max_buffer_size() - size, format,
-                      args);
-    if (unlikely(size > event.get_max_buffer_size())) {
-      fprintf(stderr, "The following message was truncated: %s\n", buffer);
-      size = event.get_max_buffer_size();
-    }
-    size += append_sufix(buffer, size);
-    event.set_buffer_size(size);
-    notify_entry(event);
-  }
+     Note that the write to the sink is done asynchronously.
 
-  /**
-    Write a message to the in-memory buffer. In other words, write a message
-    to an available entry and block while there is none.
+     This method shouldn't be invoked directly in the code, as it is wrapped
+     by the MYSQL_GCS_LOG_[LEVEL] macros which deal with the rendering of the
+     logging message into a final string that is then handed alongside with
+     the level to this method.
 
-    @param [in] options Debug options that are associated with the message
-    @param [in] args Arguments This includes the c-style string and arguments to
-                     fill it in
-  */
+     @param [in] options Debug options that are associated with the message
+     @param [in] args Arguments This includes the c-style string and arguments
+     to fill it in
+    */
   template <typename... Args>
   inline void log_event(const int64_t options, Args... args) {
     if (Gcs_debug_options::test_debug_options(options)) {
@@ -562,13 +645,18 @@ class Gcs_default_debugger {
 
  private:
   /**
-    Reference to asynchronous sink.
+    Reference to an asynchronous buffer that encapsulates a sink.
   */
   Gcs_async_buffer *m_sink;
 
   /**
-    Add extra information as a message prefix and we assume that there is
-    room to accommodate it.
+    Add extra information as a message prefix.
+
+    We assume that there is room to accommodate it. Before changing this
+    method, make sure the maximum buffer size will always have room to
+    accommodate any new information.
+
+    @return Return the size of appended information
   */
   inline size_t append_prefix(char *buffer) {
     strcpy(buffer, GCS_DEBUG_PREFIX);
@@ -578,9 +666,13 @@ class Gcs_default_debugger {
   }
 
   /**
-    Add extra information as a message sufix such as end of line. Before
-    changing this method, make sure the maximum buffer size will always
-    have room to accommodate this extra information.
+    Append information into a message such as end of line.
+
+    We assume that there is room to accommodate it. Before changing this
+    method, make sure the maximum buffer size will always have room to
+    accommodate any new information.
+
+    @return Return the size of appended information
   */
   inline size_t append_sufix(char *buffer, size_t size) {
     strcpy(buffer + size, GCS_NEWLINE);
@@ -605,15 +697,13 @@ class Gcs_debug_manager : public Gcs_debug_options {
 
  public:
   /**
-    The purpose of this static method is to set the received debugging system on
-    the log singleton, and to initialize it, by invoking its implementation of
-    the Debugger_interface::initialize method.
+    Set the debugger object and initialize it by invoking its initialization
+    method.
 
     This allows any resources needed by the debugging system to be initialized,
-    and ensures its usage throughout the lifecycle of the current GCS
-    application.
+    and ensures its usage throughout the lifecycle of the current application.
 
-    @param[in] debugger logging system
+    @param[in] debugger debugging system
     @retval GCS_OK in case everything goes well. Any other value of
             gcs_error in case of error.
   */
@@ -624,22 +714,15 @@ class Gcs_debug_manager : public Gcs_debug_options {
   }
 
   /**
-    This static method retrieves the currently set debugging system, allowing
-    the debugging macros to invoke its log_event method.
+    Get a reference to the debugger object if there is any.
 
-    @return The current logging system singleton.
+    @return The current debugging system.
   */
 
   static Gcs_default_debugger *get_debugger() { return m_debugger; }
 
   /**
-    The purpose of this static method is to free any resources used in the
-    debugging system.
-
-    It is invoked by the Gcs_debug_manager::finalize method during the GCS
-    interface termination procedure, and also by the
-    Gcs_debug_manager::initialize method in case a debugging system was set
-    previously.
+    Free any resource used in the debugging system.
 
     @retval GCS_OK in case everything goes well. Any other value of
             gcs_error in case of error.
@@ -648,9 +731,9 @@ class Gcs_debug_manager : public Gcs_debug_options {
   static enum_gcs_error finalize() {
     enum_gcs_error ret = GCS_NOK;
 
-    if (m_debugger != NULL) {
+    if (m_debugger != nullptr) {
       ret = m_debugger->finalize();
-      m_debugger = NULL;
+      m_debugger = nullptr;
     }
 
     return ret;
@@ -664,53 +747,56 @@ class Gcs_debug_manager : public Gcs_debug_options {
 class Gcs_file_sink : public Sink_interface {
  public:
   Gcs_file_sink(const std::string &file_name, const std::string &dir_name);
-  virtual ~Gcs_file_sink() {}
+  ~Gcs_file_sink() override = default;
 
   /**
-    File debugger initialization method.
+    File sink initialization method.
 
-    @retval GCS_OK
+    @retval GCS_OK in case everything goes well. Any other value of
+            gcs_error in case of error.
   */
 
-  enum_gcs_error initialize();
+  enum_gcs_error initialize() override;
 
   /**
-    File debugger finalization method.
+    File sink finalization method.
 
-    @retval GCS_OK
+    @retval GCS_OK in case everything goes well. Any other value of
+            gcs_error in case of error.
   */
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   /**
-    Simple sink simply prints the received message to a log file.
-
+    Print the received message to a log file.
     @param message rendered stream of the logging message
   */
 
-  void log_event(const std::string &message);
+  void log_event(const std::string &message) override;
 
   /**
-    Simple sink simply prints the received message to a log file.
+    Print the received message to a log file.
 
     @param message rendered stream of the logging message
     @param message_size logging message size
   */
 
-  void log_event(const char *message, size_t message_size);
+  void log_event(const char *message, size_t message_size) override;
 
   /**
     The purpose of this method is to return information on the sink such
     as its location.
   */
 
-  const std::string get_information() const;
+  const std::string get_information() const override;
 
   /**
     Return the full path of the file that shall be created. If the path is
     too long GCS_NOK is returned.
 
     @param[out] file_name_buffer Buffer that will contain the resulting path
+    @retval GCS_OK in case everything goes well. Any other value of
+              gcs_error in case of error
   */
 
   enum_gcs_error get_file_name(char *file_name_buffer) const;

@@ -1,4 +1,3 @@
-
 [cluster_config]
 #UseShm= 1
 MaxNoOfSavedMessages=          1000
@@ -25,9 +24,9 @@ BackupMemory=                  4M
 TwoPassInitialNodeRestartCopy=1
 TransactionDeadlockDetectionTimeout=3000
 Checksum=1
+SpinMethod=CostBasedSpinning
 
-# O_DIRECT has issues on 2.4 which have not been handled, Bug #29612
-#ODirect= 1
+ODirect= 1
 CompressedLCP= 1
 CompressedBackup= 1
 # the following parametes just function as a small regression
@@ -49,6 +48,8 @@ DiskIOThreadPool=1
 #
 ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
 
+[ndb_mgm]
+verbose=0
 
 [ENV]
 # Use the multithreaded scheduler whenever available

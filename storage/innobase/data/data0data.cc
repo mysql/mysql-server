@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,10 +62,10 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   ulint i;
   int cmp;
 
-  ut_ad(tuple1 != NULL);
-  ut_ad(tuple2 != NULL);
-  ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
-  ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple1 != nullptr);
+  ut_ad(tuple2 != nullptr);
+  ut_ad(tuple1->magic_n == dtuple_t::MAGIC_N);
+  ut_ad(tuple2->magic_n == dtuple_t::MAGIC_N);
   ut_ad(dtuple_check_typed(tuple1));
   ut_ad(dtuple_check_typed(tuple2));
 
@@ -146,7 +146,7 @@ static bool dtuple_check_typed_no_assert(const dtuple_t *tuple) {
 bool dfield_check_typed(const dfield_t *field) {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
-    ib::fatal(ER_IB_MSG_158)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_158)
         << "Data field type " << dfield_get_type(field)->mtype << ", len "
         << dfield_get_len(field);
   }
@@ -168,7 +168,7 @@ bool dtuple_check_typed(const dtuple_t *tuple) {
 }
 
 bool dtuple_validate(const dtuple_t *tuple) {
-  ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple->magic_n == dtuple_t::MAGIC_N);
 
   auto n_fields = dtuple_get_n_fields(tuple);
 
@@ -330,7 +330,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
       }
 
       data = static_cast<byte *>(dfield_get_data(dfield));
-      /* fall through */
+      [[fallthrough]];
 
     case DATA_BINARY:
     default:
@@ -353,7 +353,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
 static void dfield_print_raw(FILE *f, const dfield_t *dfield) {
   ulint len = dfield_get_len(dfield);
   if (!dfield_is_null(dfield)) {
-    ulint print_len = ut_min(len, static_cast<ulint>(1000));
+    ulint print_len = std::min(len, static_cast<ulint>(1000));
     ut_print_buf(f, dfield_get_data(dfield), print_len);
     if (len != print_len) {
       fprintf(f, "(total %lu bytes%s)", (ulong)len,
@@ -419,8 +419,8 @@ void dtuple_print(std::ostream &o, const dtuple_t *tuple) {
 }
 
 big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
-                                  dtuple_t *entry, ulint *n_ext) {
-  DBUG_ENTER("dtuple_convert_big_rec");
+                                  dtuple_t *entry) {
+  DBUG_TRACE;
 
   mem_heap_t *heap;
   big_rec_t *vector;
@@ -432,7 +432,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   ulint local_prefix_len;
 
   if (!index->is_clustered()) {
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
 
   if (!dict_table_has_atomic_blobs(index->table)) {
@@ -445,7 +445,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
   ut_a(dtuple_check_typed_no_assert(entry));
 
-  size = rec_get_converted_size(index, entry, *n_ext);
+  size = rec_get_converted_size(index, entry);
 
   if (size > 1000000000) {
     ib::warn(ER_IB_MSG_159) << "Tuple size is very big: " << size;
@@ -455,7 +455,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   }
 
   heap = mem_heap_create(
-      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000);
+      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000,
+      UT_LOCATION_HERE);
 
   vector = big_rec_t::alloc(heap, dtuple_get_n_fields(entry));
 
@@ -465,10 +466,9 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
   n_fields = 0;
 
-  while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, *n_ext),
-                                dict_table_is_comp(index->table),
-                                dict_index_get_n_fields(index),
-                                dict_table_page_size(index->table))) {
+  while (page_zip_rec_needs_ext(
+      rec_get_converted_size(index, entry), dict_table_is_comp(index->table),
+      dict_index_get_n_fields(index), dict_table_page_size(index->table))) {
     byte *data;
     ulint longest = 0;
     ulint longest_i = ULINT_MAX;
@@ -480,6 +480,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       dfield = dtuple_get_nth_field(entry, i);
       ifield = index->get_field(i);
+
+      ut_ad(dfield_get_len(dfield) != UNIV_SQL_INSTANT_DROP_COL);
 
       /* Skip fixed-length, NULL, externally stored,
       or short columns */
@@ -523,7 +525,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       mem_heap_free(heap);
 
-      DBUG_RETURN(NULL);
+      return nullptr;
     }
 
     /* Move data from field longest_i to big rec vector.
@@ -565,19 +567,18 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     }
 
 #if 0
-		/* The following would fail the Valgrind checks in
-		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
-		The BLOB pointers in the record will be initialized after
-		the record and the BLOBs have been written. */
-		UNIV_MEM_ALLOC(data + local_prefix_len,
-			       BTR_EXTERN_FIELD_REF_SIZE);
+                /* The following would fail the Valgrind checks in
+                page_cur_insert_rec_low() and page_cur_insert_rec_zip().
+                The BLOB pointers in the record will be initialized after
+                the record and the BLOBs have been written. */
+                UNIV_MEM_ALLOC(data + local_prefix_len,
+                               BTR_EXTERN_FIELD_REF_SIZE);
 #endif
 
     dfield_set_data(dfield, data, local_len);
     dfield_set_ext(dfield);
 
     n_fields++;
-    (*n_ext)++;
     ut_ad(n_fields < dtuple_get_n_fields(entry));
 
     if (upd && !upd->is_modified(longest_i)) {
@@ -585,9 +586,11 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       upd_field_t upd_field;
       upd_field.field_no = longest_i;
+      IF_DEBUG(upd_field.field_phy_pos =
+                   index->get_field(longest_i)->col->get_col_phy_pos();)
       upd_field.orig_len = 0;
-      upd_field.exp = NULL;
-      upd_field.old_v_val = NULL;
+      upd_field.exp = nullptr;
+      upd_field.old_v_val = nullptr;
       upd_field.ext_in_old = dfield_is_ext(dfield);
       dfield_copy(&upd_field.new_val, dfield->clone(upd->heap));
       upd->append(upd_field);
@@ -611,7 +614,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   }
 
   ut_ad(n_fields == vector->n_fields);
-  DBUG_RETURN(vector);
+  return vector;
 }
 
 void dtuple_convert_back_big_rec(dtuple_t *entry, big_rec_t *vector) {
@@ -669,7 +672,7 @@ dfield_t *dfield_t::clone(mem_heap_t *heap) {
     obj->data = obj + 1;
     memcpy(obj->data, data, len);
   } else {
-    obj->data = 0;
+    obj->data = nullptr;
   }
 
   return (obj);
@@ -750,8 +753,8 @@ std::ostream &dfield_t::print(std::ostream &out) const {
     out << ref;
   }
 
-  out << ", spatial_status=" << spatial_status << ", len=" << len << ", type="
-      << "]";
+  out << ", spatial_status=" << spatial_status << ", len=" << len
+      << ", type=" << type << "]";
 
   return (out);
 }
@@ -826,7 +829,7 @@ bool is_multi_value_clust_and_sec_equal(const byte *clust_field,
     return (false);
   }
 
-  ut_ad(clust_len == 0);
+  ut_ad(clust_len == UNIV_MULTI_VALUE_ARRAY_MARKER);
 
   const multi_value_data *multi_value =
       reinterpret_cast<const multi_value_data *>(clust_field);

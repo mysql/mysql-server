@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,8 @@ class DD_kill_immunizer {
 
     // Set killed state of THD as NOT_KILLED.
     thd->killed = THD::NOT_KILLED;
+    // No OOM error while immunizer is active.
+    m_thd->mem_cnt->no_error_mode();
   }
 
   ~DD_kill_immunizer() {
@@ -73,9 +75,10 @@ class DD_kill_immunizer {
       Current instance is of top level kill immunizer, set kill immune mode to
       inactive(or exiting).
     */
-    if (m_saved_kill_immunizer == NULL)
+    if (m_saved_kill_immunizer == nullptr) {
       m_is_active = false;
-    else
+      m_thd->mem_cnt->restore_mode();
+    } else
       // Set kill_immunizer of THD to parent. We must do it before calling awake
       // to transfer the kill state to parent kill_immunizer.
       m_thd->kill_immunizer = m_saved_kill_immunizer;
@@ -88,7 +91,7 @@ class DD_kill_immunizer {
     // to do anything.
     if (m_killed_state)
       m_thd->awake(m_killed_state);
-    else if (m_saved_kill_immunizer == NULL)
+    else if (m_saved_kill_immunizer == nullptr)
       m_thd->killed = m_saved_killed_state;
 
     // Reset kill_immunizer of THD.

@@ -24,7 +24,7 @@ ERROR 42000: The storage engine for the table doesn't support native partitionin
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `int_column` int(11) DEFAULT NULL,
+  `int_column` int DEFAULT NULL,
   `char_column` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`int_column`)

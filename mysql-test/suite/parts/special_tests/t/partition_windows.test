@@ -29,13 +29,13 @@
   close FILE;
 EOF
 
-# Bring the names into variables by sourcing the generated script.
+--echo # Bring the names into variables by sourcing the generated script.
 --source $MYSQLTEST_VARDIR/tmp/devices.tmp
 
-# The tmp script is not needed anymore, delete it.
+--echo # The tmp script is not needed anymore, delete it.
 --remove_file $MYSQLTEST_VARDIR/tmp/devices.tmp
 
-# Build paths.
+--echo # Create build paths.
 --let $path_1= $base_1/p0Data
 --let $path_2= $base_2/p2Data
 --let $path_3= $base_2/p3Data
@@ -48,12 +48,16 @@ EOF
 --mkdir $path_2
 --mkdir $path_3
 
+--let $restart_parameters = restart: --innodb-directories=$path_1;$path_2;$path_3
+--replace_result $path_1 PATH_1  $path_2 PATH_2  $path_3 PATH_3
+--source include/restart_mysqld.inc
+
 --replace_result $path_1 PATH_1 $path_2 PATH_2
 eval
 CREATE TABLE t1 (
-  c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+  c1 int unsigned NOT NULL AUTO_INCREMENT,
   c2 varchar(30) NOT NULL,
-  c3 smallint(5) unsigned DEFAULT NULL,
+  c3 smallint unsigned DEFAULT NULL,
   PRIMARY KEY (c1)
 )
 PARTITION BY HASH(c1)(
@@ -90,3 +94,6 @@ DROP TABLE t1;
 
 --rmdir $base_1
 --rmdir $base_2
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

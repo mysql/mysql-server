@@ -1,0 +1,63 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Setup schema common to master and slave.
+[connection master]
+CREATE TABLE t0 (f1 INT);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t0 VALUES (2);
+INSERT INTO t0 VALUES (3);
+INSERT INTO t0 VALUES (4);
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t0, slave:t0]
+# Stop the slave, so that we enable debug flag and apply binlog events
+# after master generates binlog events for CREATE TABLE ... SELECT.
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+[connection master]
+include/save_master_pos.inc
+CREATE TABLE t1 AS SELECT * FROM t0;
+FLUSH LOGS;
+[connection slave]
+# Crash slave server when applying row event (the INSERT)
+SET global DEBUG='+d, crash_on_transactional_ddl_insert';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+# Wait for server to stop
+# Restart the server.
+include/rpl_start_server.inc [server_number=2]
+include/assert.inc [Make sure there is only table 't0' in schema 'test'.]
+# Reset the master log position back to event that starts
+# CREATE TABLE ... SELECT and start the slave, without causing crash.
+SELECT @@GLOBAL.GTID_MODE;
+@@GLOBAL.GTID_MODE
+ON
+include/start_slave.inc
+# Sync master and slave events.
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Check that we have table 't1' now.
+include/diff_tables.inc [master:t1, slave:t1]
+# Cleanup
+[connection master]
+DROP TABLE t0,t1;
+include/sync_slave_sql_with_master.inc
+#
+# R3 Verify that executing CREATE TABLE ... SELECT with sql mode set
+#    to ANSI gets replicated to slave. This test is added for Bug#33064062.
+#
+[connection master]
+SET @orig_sql_mode_session= @@SESSION.sql_mode;
+SET SESSION sql_mode='ANSI';
+CREATE TABLE t1 AS SELECT 1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+SET SESSION sql_mode= @orig_sql_mode_session;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

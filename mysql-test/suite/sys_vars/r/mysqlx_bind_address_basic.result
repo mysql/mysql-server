@@ -39,6 +39,6 @@ SELECT COUNT(@@GLOBAL.mysqlx_bind_address);
 COUNT(@@GLOBAL.mysqlx_bind_address)
 1
 1 Expected
-SELECT mysqlx_bind_address = @@SESSION.mysqlx_bind_address;
+SELECT mysqlx_bind_address;
 ERROR 42S22: Unknown column 'mysqlx_bind_address' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

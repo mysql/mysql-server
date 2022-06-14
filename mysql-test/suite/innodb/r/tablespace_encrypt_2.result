@@ -24,7 +24,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #############################################################
 # TEST 1 : CRASH DURING ALTER ENCRYPT A TABLESPACE.
 #############################################################
@@ -63,7 +63,7 @@ SOME VALUES
 # RESTART 2 : WITHOUT KEYRING PLUGIN
 #########################################################################
 SELECT * FROM t1 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
 # RESTART 3 : WITH KEYRING PLUGIN
 #########################################################################
@@ -187,7 +187,7 @@ SOME VALUES
 # RESTART 6 : WITHOUT KEYRING PLUGIN
 #########################################################################
 SELECT * FROM t2 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
 # RESTART 7 WITH KEYRING PLUGIN
 #########################################################################
@@ -404,12 +404,12 @@ encrypt_ts	N
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 c1	char(100)	YES		NULL	
-c2	int(11)	YES		NULL	
+c2	int	YES		NULL	
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(100) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c2` int DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ###########
 # Cleanup #

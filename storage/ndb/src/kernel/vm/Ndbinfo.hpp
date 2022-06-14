@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef KERNEL_NDBINFO_HPP
 #define KERNEL_NDBINFO_HPP
+
+#include <functional>   // std::function
 
 #include <signaldata/DbinfoScan.hpp>
 
@@ -85,7 +87,16 @@ public:
     TABLE_REPLICAS_ALL_TABLEID = 36,
     STORED_TABLES_TABLEID =      37,
     PROCESSES_TABLEID =          38,
-    CONFIG_NODES_TABLEID =       39
+    CONFIG_NODES_TABLEID =       39,
+    PGMAN_TIME_TRACK_STATS_TABLEID = 40,
+    DISKSTAT_TABLEID =           41,
+    DISKSTATS_1SEC_TABLEID =     42,
+    HWINFO_TABLEID =             43,
+    CPUINFO_TABLEID =            44,
+    CPUDATA_TABLEID =            45,
+    CPUDATA_50MS_TABLEID =       46,
+    CPUDATA_1SEC_TABLEID =       47,
+    CPUDATA_20SEC_TABLEID =      48
   };
 
   enum BufferId {
@@ -95,11 +106,30 @@ public:
     BACKUP_LOG_BUFFER = 3
   };
 
+  struct Counts {
+    int data_nodes{0};
+    int all_nodes{0};
+    int log_parts{1};
+    int est_tables{0};
+    int cpus{1};
+    struct {
+      int db{1};    // all threads, from getThreadCount()
+      int send{0};  // send threads, from GlobalData.ndbMtSendThreads
+      int ldm{1};   // LDM threads, from getThreadCount(THRConfig::T_LDM)
+    } threads;
+    struct {
+      int tc{1};    // ndbMtTcWorkers
+      int lqh{1};   // ndbMtLqhWorkers
+      int pgman{1}; // ndbMtLqhWorkers + 1
+    } instances;
+  };
+
   struct Table {
     struct Members {
       const char* name;
       int ncols;
       int flags;
+      std::function<Uint32(const struct Counts &)> estimate_rows;
       const char* comment;
     } m;
     Column col[1];
@@ -166,10 +196,10 @@ public:
 
     Uint32 totalRows;
     Uint32 totalBytes;
-    STATIC_CONST( Length = 10 );
+    static constexpr Uint32 Length = 10;
 
-    STATIC_CONST( MOREDATA_SHIFT = 0 );
-    STATIC_CONST( MOREDATA_MASK = 1 );
+    static constexpr Uint32 MOREDATA_SHIFT = 0;
+    static constexpr Uint32 MOREDATA_MASK = 1;
 
     static bool getHasMoreData(const UintR & flags){
       return (bool)((flags >> MOREDATA_SHIFT) & MOREDATA_MASK);

@@ -1,0 +1,22 @@
+## Check invalid command flow for mysqlxtest
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+
+--let $xtest_file= $MYSQL_TMP_DIR/mysqlxtest_invalid_flow.xpl
+--write_file $xtest_file
+
+-->echo Invalid receive after statement
+-->stmtsql SELECT 1
+-->recvtype Mysqlx.Resultset.ColumnMetaData
+-->recvresult
+
+EOF
+
+exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file --fatal-errors=0 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

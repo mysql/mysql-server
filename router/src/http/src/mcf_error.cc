@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,25 +27,30 @@
 #include <string>
 #include <system_error>  // error_code
 
-namespace std {
-std::error_code make_error_code(McfErrc e) {
-  return {static_cast<int>(e), theMcfErrCategory};
+const std::error_category &mcf_category() noexcept {
+  class socket_category_impl : public std::error_category {
+   public:
+    const char *name() const noexcept override { return "mcf"; }
+    std::string message(int ev) const override {
+      switch (static_cast<McfErrc>(ev)) {
+        case McfErrc::kParseError:
+          return "parse error";
+        case McfErrc::kUnknownScheme:
+          return "mcf scheme is not known";
+        case McfErrc::kUserNotFound:
+          return "user not found";
+        case McfErrc::kPasswordNotMatched:
+          return "password does not match";
+        default:
+          return "(unrecognized error)";
+      }
+    }
+  };
+
+  static socket_category_impl instance;
+  return instance;
 }
-}  // namespace std
 
-const char *McfErrCategory::name() const noexcept { return "mcf"; }
-
-std::string McfErrCategory::message(int ev) const {
-  switch (static_cast<McfErrc>(ev)) {
-    case McfErrc::kParseError:
-      return "parse error";
-    case McfErrc::kUnknownScheme:
-      return "mcf scheme is not known";
-    case McfErrc::kUserNotFound:
-      return "user not found";
-    case McfErrc::kPasswordNotMatched:
-      return "password does not match";
-    default:
-      return "(unrecognized error)";
-  }
+std::error_code make_error_code(McfErrc e) {
+  return {static_cast<int>(e), mcf_category()};
 }

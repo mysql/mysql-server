@@ -179,7 +179,7 @@ include/diff_tables.inc [slave:test.v1, slave:test.v2]
 # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
 # will be removed from the P_S table.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "channel_2";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "channel_2";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 14
@@ -200,6 +200,8 @@ channel_2	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER	0
 channel_2	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
 channel_2	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
 RESET SLAVE ALL FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 7

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
-#include "gmock/gmock.h"
+#include <array>
+#include <fstream>
+
+#include <gmock/gmock.h>
+
 #include "router_component_system_layout.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "utils.h"
 
 #ifndef _WIN32
 #include <unistd.h>
 #endif
 
 Path g_origin_path;
+
+using namespace std::chrono_literals;
 
 /*
  * These tests are executed only for STANDALONE layout and are not executed for
@@ -42,7 +46,7 @@ Path g_origin_path;
  */
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
-class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
+class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
                                             public RouterSystemLayout {
  protected:
   void SetUp() override {
@@ -61,18 +65,24 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
   }
 
   auto &run_server_mock() {
-    const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+    const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
     server_port_ = port_pool_.get_next_available();
 
     // launch mock server and wait for it to start accepting connections
     auto &server_mock = launch_mysql_server_mock(json_stmts, server_port_);
-    EXPECT_TRUE(wait_for_port_ready(server_port_))
-        << "Timed out waiting for mock server port ready\n"
-        << server_mock.get_full_output();
     return server_mock;
   }
 
-  TcpPortPool port_pool_;
+  ProcessWrapper &launch_router_for_bootstrap(
+      const std::vector<std::string> &params,
+      int expected_exit_code = EXIT_SUCCESS,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
+    return ProcessManager::launch_router(
+        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/-1s, output_responder);
+  }
+
   uint16_t server_port_;
 };
 
@@ -82,29 +92,22 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
  * have access (see install_layout.cmake).
  */
 TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
-  auto &server_mock = run_server_mock();
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
       "--connect-timeout=1",
       "--report-host",
       "dont.query.dns",
   });
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping was successful
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_SUCCESS))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_SUCCESS);
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB cluster 'mycluster'"))
-      << "router: " << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+                           "InnoDB Cluster 'my-cluster'"));
 }
 
 /*
@@ -119,10 +122,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -131,17 +134,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Error: Could not save configuration file to final location", false))
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+      "Error: Could not save configuration file to final location", false));
 
   mysql_harness::Path mysqlrouter_conf_tmp_path(tmp_dir_ +
                                                 "/stage/mysqlrouter.conf.tmp");
@@ -160,10 +156,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -172,17 +168,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Error: Could not save configuration file to final location", false))
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+      "Error: Could not save configuration file to final location", false));
 
   mysql_harness::Path mysqlrouter_key_path(tmp_dir_ + "/stage/mysqlrouter.key");
   EXPECT_FALSE(mysqlrouter_key_path.exists());
@@ -195,7 +184,8 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
  */
 TEST_F(RouterBootstrapSystemDeploymentTest,
        IsKeyringRevertedWhenBootstrapFail) {
-  static const char kMasterKeyFileSignature[] = "MRKF";
+  const std::array<char, 5> kMasterKeyFileSignature = {'M', 'R', 'K', 'F',
+                                                       '\0'};
 
   {
     std::ofstream keyring_file(
@@ -203,8 +193,8 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
         std::ios_base::binary | std::ios_base::trunc | std::ios_base::out);
 
     mysql_harness::make_file_private(tmp_dir_ + "/stage/mysqlrouter.key");
-    keyring_file.write(kMasterKeyFileSignature,
-                       strlen(kMasterKeyFileSignature));
+    keyring_file.write(kMasterKeyFileSignature.data(),
+                       kMasterKeyFileSignature.size());
   }
 
   /*
@@ -212,10 +202,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -224,17 +214,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Error: Could not save configuration file to final location", false))
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+      "Error: Could not save configuration file to final location", false));
 
   mysql_harness::Path mysqlrouter_key_path(tmp_dir_ + "/stage/mysqlrouter.key");
   EXPECT_TRUE(mysqlrouter_key_path.exists());
@@ -242,10 +225,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   std::ifstream keyring_file(tmp_dir_ + "/stage/mysqlrouter.key",
                              std::ios_base::binary | std::ios_base::in);
 
-  char buf[10] = {0};
-  keyring_file.read(buf, sizeof(buf));
-  EXPECT_THAT(keyring_file.gcount(), 4);
-  EXPECT_THAT(std::strncmp(buf, kMasterKeyFileSignature, 4), testing::Eq(0));
+  std::array<char, 5> buf;
+  keyring_file.read(buf.data(), buf.size());
+  EXPECT_THAT(keyring_file.gcount(), 5);
+  EXPECT_EQ(buf, kMasterKeyFileSignature);
 }
 
 /*
@@ -260,10 +243,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * bootstrap to fail.
    */
   mysql_harness::mkdir(config_file_, 0700);
-  auto &server_mock = run_server_mock();
+  run_server_mock();
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
@@ -272,17 +255,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Error: Could not save configuration file to final location", false))
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+      "Error: Could not save configuration file to final location", false));
 
   mysql_harness::Path mysqlrouter_log_path(tmp_dir_ + "/stage/mysqlrouter.log");
   EXPECT_TRUE(mysqlrouter_log_path.exists());

@@ -1,6 +1,9 @@
 # Tests for the performance schema
 #
 
+# Disable in Valgrind because of
+# Bug#27990767 PB2 PERFSCHEMA.STAGE_MDL_TABLE FAILS ON VALGRIND
+--source include/not_valgrind.inc
 --source ../include/stage_setup.inc
 
 connect (con1, localhost, user1, , );

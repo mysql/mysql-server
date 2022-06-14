@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ public:
   Uint32 getSize() const ;
   Uint32 getNoOfFree() const;
 
-  void execNODE_FAILREP(Signal*); 
+  void execNODE_FAILREP(Signal*, const NdbNodeBitmask &failed_nodes); 
   void printNODE_FAILREP(); 
 
 #ifdef ERROR_INSERT
@@ -315,7 +315,7 @@ SafeCounter::done() const {
 inline
 bool
 SafeCounter::clearWaitingFor(Uint32 nodeId) {
-  if(m_count > 0 && m_nodes.get(nodeId)){
+  if(m_count > 0 && nodeId <= MAX_DATA_NODE_ID && m_nodes.get(nodeId)){
     m_count--;
     m_nodes.clear(nodeId);
     return (m_count == 0);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,8 @@ struct MYSQL_SOCKET;
 #include <string>
 #include <vector>
 
+#include "mysql_com_server.h"
+
 /** Connection parameters including SSL */
 struct mysql_clone_ssl_context {
   /** Clone ssl mode. Same as mysql client --ssl-mode */
@@ -59,6 +61,7 @@ struct mysql_clone_ssl_context {
 
   /** Enable network compression. */
   bool m_enable_compression;
+  NET_SERVER *m_server_extn;
 };
 
 /** Vector of sting Values */

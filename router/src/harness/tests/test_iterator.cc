@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,19 +25,19 @@
 #include "utilities.h"
 
 ////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
 // Standard include files
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
 
 using mysql_harness::utility::make_range;
 
@@ -56,4 +56,9 @@ TEST(TestIterator, TestIterator) {
     EXPECT_LT(ptr - array, static_cast<long>(sizeof(array) / sizeof(*array)));
     ++ptr;
   }
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

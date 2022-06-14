@@ -36,6 +36,10 @@ select instrumented from performance_schema.threads
 update performance_schema.threads
   set resource_group = 'FOO' where PROCESSLIST_ID=connection_id();
  
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.threads
+  set execution_engine='SECONDARY';
+
 --error ER_TABLEACCESS_DENIED_ERROR
 delete from performance_schema.threads
   where id=1;

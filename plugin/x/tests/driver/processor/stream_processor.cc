@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,11 @@
 #include "plugin/x/tests/driver/processor/command_multiline_processor.h"
 #include "plugin/x/tests/driver/processor/command_processor.h"
 #include "plugin/x/tests/driver/processor/comment_processor.h"
+#include "plugin/x/tests/driver/processor/compress_single_message_block_processor.h"
 #include "plugin/x/tests/driver/processor/dump_message_block_processor.h"
 #include "plugin/x/tests/driver/processor/indigestion_processor.h"
 #include "plugin/x/tests/driver/processor/macro_block_processor.h"
+#include "plugin/x/tests/driver/processor/multiple_compress_block_processor.h"
 #include "plugin/x/tests/driver/processor/sql_block_processor.h"
 #include "plugin/x/tests/driver/processor/sql_stmt_processor.h"
 
@@ -45,9 +47,13 @@ std::vector<Block_processor_ptr> create_macro_block_processors(
   result.push_back(std::make_shared<Comment_processor>());
   result.push_back(std::make_shared<Sql_block_processor>(context));
   result.push_back(std::make_shared<Dump_message_block_processor>(context));
+  result.push_back(
+      std::make_shared<Compress_single_message_block_processor>(context));
   result.push_back(std::make_shared<Command_processor>(context));
   result.push_back(std::make_shared<Command_multiline_processor>(context));
   result.push_back(std::make_shared<Send_message_block_processor>(context));
+  result.push_back(
+      std::make_shared<Multiple_compress_block_processor>(context));
   result.push_back(std::make_shared<Sql_stmt_processor>(context));
   result.push_back(std::make_shared<Indigestion_processor>(context));
 
@@ -62,9 +68,13 @@ std::vector<Block_processor_ptr> create_block_processors(
   result.push_back(std::make_shared<Sql_block_processor>(context));
   result.push_back(std::make_shared<Macro_block_processor>(context));
   result.push_back(std::make_shared<Dump_message_block_processor>(context));
+  result.push_back(
+      std::make_shared<Compress_single_message_block_processor>(context));
   result.push_back(std::make_shared<Command_processor>(context));
   result.push_back(std::make_shared<Command_multiline_processor>(context));
   result.push_back(std::make_shared<Send_message_block_processor>(context));
+  result.push_back(
+      std::make_shared<Multiple_compress_block_processor>(context));
   result.push_back(std::make_shared<Sql_stmt_processor>(context));
   result.push_back(std::make_shared<Indigestion_processor>(context));
 
@@ -74,6 +84,7 @@ std::vector<Block_processor_ptr> create_block_processors(
 int process_client_input(std::istream &input,
                          std::vector<Block_processor_ptr> *eaters,
                          Script_stack *script_stack, const Console &console) {
+  DBUG_TRACE;
   std::string linebuf;
 
   if (!input.good()) {
@@ -86,6 +97,7 @@ int process_client_input(std::istream &input,
 
   while (std::getline(input, linebuf)) {
     Block_processor::Result result = Block_processor::Result::Not_hungry;
+    DBUG_LOG("debug", "line:" << linebuf);
 
     script_stack->front().m_line_number++;
 

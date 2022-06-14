@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
   for functions.
 */
 #if defined(_MSC_VER)
+
 #if defined(MYSQL_DYNAMIC_PLUGIN)
 #ifdef __cplusplus
 #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -58,9 +59,16 @@
 #define MYSQL_PLUGIN_EXPORT
 #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
-#else  /*_MSC_VER */
+
+#else /*_MSC_VER */
+
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+#define MYSQL_PLUGIN_EXPORT MY_ATTRIBUTE((visibility("default")))
+#else
 #define MYSQL_PLUGIN_EXPORT
 #endif
+
+#endif /*_MSC_VER */
 
 #ifdef __cplusplus
 class THD;
@@ -124,6 +132,8 @@ struct MYSQL_XID {
 #define PLUGIN_LICENSE_GPL_STRING "GPL"
 #define PLUGIN_LICENSE_BSD_STRING "BSD"
 
+#define PLUGIN_AUTHOR_ORACLE "Oracle Corporation"
+
 /*
   Macros for beginning and ending plugin declarations.  Between
   mysql_declare_plugin and mysql_declare_plugin_end there should
@@ -165,35 +175,7 @@ struct MYSQL_XID {
   declarations for server variables and command line options
 */
 
-#define PLUGIN_VAR_BOOL 0x0001
-#define PLUGIN_VAR_INT 0x0002
-#define PLUGIN_VAR_LONG 0x0003
-#define PLUGIN_VAR_LONGLONG 0x0004
-#define PLUGIN_VAR_STR 0x0005
-#define PLUGIN_VAR_ENUM 0x0006
-#define PLUGIN_VAR_SET 0x0007
-#define PLUGIN_VAR_DOUBLE 0x0008
-#define PLUGIN_VAR_UNSIGNED 0x0080
-#define PLUGIN_VAR_THDLOCAL 0x0100  /* Variable is per-connection */
-#define PLUGIN_VAR_READONLY 0x0200  /* Server variable is read only */
-#define PLUGIN_VAR_NOSYSVAR 0x0400  /* Configurable only by cmd-line */
-#define PLUGIN_VAR_NOCMDOPT 0x0800  /* Not a command line option */
-#define PLUGIN_VAR_NOCMDARG 0x1000  /* No argument for cmd line */
-#define PLUGIN_VAR_RQCMDARG 0x0000  /* Argument required for cmd line */
-#define PLUGIN_VAR_OPCMDARG 0x2000  /* Argument optional for cmd line */
-#define PLUGIN_VAR_NODEFAULT 0x4000 /* SET DEFAULT is prohibited */
-#define PLUGIN_VAR_MEMALLOC 0x8000  /* String needs memory allocated */
-#define PLUGIN_VAR_NOPERSIST                \
-  0x10000 /* SET PERSIST_ONLY is prohibited \
-             for read only variables */
-
-/**
-  There can be some variables which needs to be set before plugin is loaded but
-  not after plugin is loaded. ex: GR specific variables. Below flag must be set
-  for these kind of variables.
-*/
-#define PLUGIN_VAR_PERSIST_AS_READ_ONLY 0x20000
-#define PLUGIN_VAR_INVISIBLE 0x40000 /* Variable should not be shown */
+#include <mysql/components/services/bits/system_variables_bits.h>
 
 struct SYS_VAR;
 struct st_mysql_value;
@@ -243,7 +225,8 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
   (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT |   \
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |   \
    PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
-   PLUGIN_VAR_PERSIST_AS_READ_ONLY | PLUGIN_VAR_INVISIBLE)
+   PLUGIN_VAR_PERSIST_AS_READ_ONLY | PLUGIN_VAR_INVISIBLE |            \
+   PLUGIN_VAR_SENSITIVE)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \
@@ -807,9 +790,8 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 int mysql_tmpfile(const char *prefix);
 
 /**
-  Check the killed state of a connection
+  Check the killed state of a connection.
 
-  @details
   In MySQL support for the KILL statement is cooperative. The KILL
   statement only sets a "killed" flag. This function returns the value
   of that flag.  A thread should check it often, especially inside
@@ -894,6 +876,11 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 */
 
 void remove_ssl_err_thread_state();
+
+/**
+  Interface to get the number of VCPUs.
+*/
+unsigned int thd_get_num_vcpus();
 #ifdef __cplusplus
 }
 #endif

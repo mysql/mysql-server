@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 #define used_stack(A, B) (long)(B - A)
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 std::atomic<long> max_stack_used;
 #endif
 
@@ -63,18 +63,23 @@ std::atomic<long> max_stack_used;
   @returns false if success, true if error (reported).
 
   @note
-  Note: The 'buf' parameter is necessary, even if it is unused here.
-  - fix_fields functions has a "dummy" buffer large enough for the
-    corresponding exec. (Thus we only have to check in fix_fields.)
-  - Passing to check_stack_overrun() prevents the compiler from removing it.
+  Note: The 'buf' parameter is necessary, and we must have code which uses it.
+  - Some of the fix_fields functions have a "dummy" buffer large enough for the
+    corresponding execution. (Thus we only have to check in fix_fields.)
+  - Passing the buffer to check_stack_overrun() prevents the compiler from
+    removing it.
+  - For -flto builds, the dummy buffer may be optimized away,
+    so we need to write something into it.
 */
-bool check_stack_overrun(const THD *thd, long margin,
-                         unsigned char *buf MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(thd == current_thd);
+bool check_stack_overrun(const THD *thd, long margin, unsigned char *buf) {
+  assert(thd == current_thd);
   long stack_used =
       used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));
   if (stack_used >= static_cast<long>(my_thread_stack_size - margin) ||
       DBUG_EVALUATE_IF("simulate_stack_overrun", true, false)) {
+    // Touch the buffer, so that it is not optimized away by -flto.
+    if (buf != nullptr) buf[0] = '\0';
+
     /*
       Do not use stack for the message buffer to ensure correct
       behaviour in cases we have close to no stack left.
@@ -89,7 +94,7 @@ bool check_stack_overrun(const THD *thd, long margin,
     }
     return true;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   max_stack_used = std::max(max_stack_used.load(), stack_used);
 #endif
   return false;

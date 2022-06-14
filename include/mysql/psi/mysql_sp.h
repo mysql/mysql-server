@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,15 @@
   Instrumentation helpers for stored programs.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_statement.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_SP_CALL() as direct call. */
+#include "pfs_statement_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_SP_CALL
 #define PSI_SP_CALL(M) psi_statement_service->M
@@ -108,7 +116,7 @@ static inline struct PSI_sp_locker *inline_mysql_start_sp(
 }
 
 static inline void inline_mysql_end_sp(PSI_sp_locker *locker) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_SP_CALL(end_sp)(locker);
   }
 }

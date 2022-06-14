@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,12 +54,15 @@
 #include "sql/dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "sql/dd/impl/sdi.h"                      // sdi::store()
 #include "sql/dd/impl/system_registry.h"          // dd::System_tables
-#include "sql/dd/impl/utils.h"                    // execute_query
-#include "sql/dd/info_schema/metadata.h"  // dd::info_schema::install_IS...
-#include "sql/dd/sdi_file.h"              // dd::sdi_file::EXT
+#include "sql/dd/impl/upgrade/server.h"
+#include "sql/dd/impl/utils.h"               // execute_query
+#include "sql/dd/info_schema/metadata.h"     // dd::info_schema::install_IS...
+#include "sql/dd/performance_schema/init.h"  // create_pfs_schema
+#include "sql/dd/sdi_file.h"                 // dd::sdi_file::EXT
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/types/tablespace.h"
+#include "sql/dd/upgrade/server.h"
 #include "sql/dd/upgrade_57/event.h"
 #include "sql/dd/upgrade_57/global.h"
 #include "sql/dd/upgrade_57/routine.h"
@@ -82,9 +85,6 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback
-
-#include "sql/dd/impl/upgrade/server.h"
-#include "sql/dd/upgrade/server.h"
 
 namespace dd {
 
@@ -261,7 +261,7 @@ bool finalize_upgrade(THD *thd) {
       // Get the name without the file extension.
       if (check_file_extension(file_ext)) {
         if (fn_format(from_path, file.c_str(), mysql_real_data_home, "",
-                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr)
           return true;
 
         (void)mysql_file_delete(key_file_misc, from_path, MYF(0));
@@ -275,7 +275,7 @@ bool finalize_upgrade(THD *thd) {
     char dir_path[FN_REFLEN];
 
     if (fn_format(dir_path, dir_name.c_str(), path.c_str(), "",
-                  MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+                  MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr)
       continue;
 
     if (!(b = my_dir(dir_path, MYF(MY_WANT_STAT)))) continue;
@@ -293,7 +293,7 @@ bool finalize_upgrade(THD *thd) {
       // Get the name without the file extension.
       if (check_file_extension(file_ext)) {
         if (fn_format(from_path, file.c_str(), dir_path, "",
-                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr)
           continue;
 
         (void)mysql_file_delete(key_file_misc, from_path, MYF(0));
@@ -414,7 +414,7 @@ static void drop_sdi_files() {
     if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode)) {
       char dir_path[FN_REFLEN];
       if (fn_format(dir_path, file.c_str(), path.c_str(), "",
-                    MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL) {
+                    MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
         LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file.c_str());
         continue;
       }
@@ -436,7 +436,7 @@ static void drop_sdi_files() {
         if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0) {
           char to_path[FN_REFLEN];
           if (fn_format(to_path, file2.c_str(), dir_path, "",
-                        MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL) {
+                        MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
             LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file2.c_str());
             continue;
           }
@@ -454,7 +454,7 @@ static void drop_sdi_files() {
       if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0) {
         char to_path[FN_REFLEN];
         if (fn_format(to_path, file.c_str(), path.c_str(), "",
-                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL) {
+                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
           LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file.c_str());
           continue;
         }
@@ -594,7 +594,7 @@ Upgrade_status::enum_stage Upgrade_status::get() {
 bool Upgrade_status::update(Upgrade_status::enum_stage stage) {
   if (open(O_TRUNC | O_WRONLY)) return true;
 
-  write(stage);
+  if (write(stage)) return true;
 
   if (close()) return true;
 
@@ -609,7 +609,7 @@ Upgrade_status::Upgrade_status()
 bool Upgrade_status::create() {
   if (open(O_TRUNC | O_WRONLY)) return true;
 
-  write(enum_stage::STARTED);
+  if (write(enum_stage::STARTED)) return true;
 
   if (exists() == false || close()) return true;
 
@@ -618,7 +618,7 @@ bool Upgrade_status::create() {
 
 // Open status file.
 bool Upgrade_status::open(int flags) {
-  DBUG_ASSERT(m_file == nullptr);
+  assert(m_file == nullptr);
 
   if (!(m_file = my_fopen(m_filename.c_str(), flags, MYF(0)))) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_OPEN_FAILED, m_filename.c_str(),
@@ -631,10 +631,10 @@ bool Upgrade_status::open(int flags) {
 
 // Read status from file.
 Upgrade_status::enum_stage Upgrade_status::read() {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   enum_stage stage = enum_stage::NONE;
-  size_t items_read MY_ATTRIBUTE((unused));
+  size_t items_read [[maybe_unused]];
 
   if (!feof(m_file)) items_read = fread(&stage, sizeof(int), 1, m_file);
 
@@ -643,9 +643,14 @@ Upgrade_status::enum_stage Upgrade_status::read() {
 
 // Write status to file.
 bool Upgrade_status::write(Upgrade_status::enum_stage stage) {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
-  fwrite(&stage, sizeof(int), 1, m_file);
+  if (fwrite(&stage, sizeof(int), 1, m_file) != 1) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, m_filename.c_str(),
+           ferror(m_file), my_strerror(errbuf, sizeof(errbuf), ferror(m_file)));
+    return true;
+  }
   fflush(m_file);
   return false;
 }
@@ -657,7 +662,7 @@ bool Upgrade_status::exists() {
 
 // Close status file.
 bool Upgrade_status::close() {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   if (my_fclose(m_file, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED,
@@ -672,7 +677,7 @@ bool Upgrade_status::close() {
 
 // Delete status file.
 bool Upgrade_status::remove() {
-  DBUG_ASSERT(!m_file);
+  assert(!m_file);
   (void)mysql_file_delete(key_file_misc, m_filename.c_str(), MYF(MY_WME));
   return false;
 }
@@ -740,7 +745,7 @@ static bool ha_migrate_tablespaces(THD *thd, plugin_ref plugin, void *) {
 */
 static bool ha_migrate_tablespaces(THD *thd) {
   return (plugin_foreach(thd, ha_migrate_tablespaces,
-                         MYSQL_STORAGE_ENGINE_PLUGIN, 0));
+                         MYSQL_STORAGE_ENGINE_PLUGIN, nullptr));
 }
 
 /**
@@ -753,14 +758,16 @@ static bool migrate_stats(THD *thd) {
   error_handler.set_log_error(false);
   if (dd::execute_query(thd,
                         "INSERT IGNORE INTO mysql.innodb_table_stats "
-                        "SELECT * FROM mysql.innodb_table_stats_backup57"))
+                        "SELECT * FROM mysql.innodb_table_stats_backup57 "
+                        "WHERE table_name not like '%#P#%'"))
     LogErr(WARNING_LEVEL, ER_DD_UPGRADE_FAILED_TO_CREATE_TABLE_STATS);
   else
     LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED);
 
   if (dd::execute_query(thd,
                         "INSERT IGNORE INTO mysql.innodb_index_stats "
-                        "SELECT * FROM mysql.innodb_index_stats_backup57"))
+                        "SELECT * FROM mysql.innodb_index_stats_backup57 "
+                        "WHERE table_name not like '%#P#%'"))
     LogErr(WARNING_LEVEL, ER_DD_UPGRADE_FAILED_TO_CREATE_INDEX_STATS);
   else
     LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED);
@@ -820,7 +827,7 @@ static bool upgrade_logs(THD *thd, plugin_ref plugin, void *) {
   @retval true   ON FAILURE
 */
 static bool ha_upgrade_engine_logs(THD *thd) {
-  if (plugin_foreach(thd, upgrade_logs, MYSQL_STORAGE_ENGINE_PLUGIN, 0))
+  if (plugin_foreach(thd, upgrade_logs, MYSQL_STORAGE_ENGINE_PLUGIN, nullptr))
     return true;
 
   return false;
@@ -835,7 +842,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   Disable_autocommit_guard autocommit_guard(thd);
   Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   char path[FN_REFLEN + 1];
@@ -942,6 +949,9 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
   /*
     If mysql.ibd exists and upgrade stage tracking does not exist, restart
     the server.
+
+    For ordinary restart of an 8.0 server, and for upgrades post 8.0,
+    this code path will be taken.
   */
   if (exists_mysql_tablespace && !upgrade_status_exists) {
     return (restart_dictionary(thd));
@@ -1102,6 +1112,35 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
     return true;
   }
 
+  /*
+    Plugins may need to create performance schema tables. During upgrade from
+    5.7, we do not yet have an entry in mysql.schemata for performance schema,
+    so creation of such tables will fail. To avoid this, we migrate the entry
+    here if the schema was present in 5.7. If the performance schema was not
+    present in 5.7, then we create the schema explicitly, if the server is
+    configured to use the performance schema.
+  */
+  size_t path_len = build_table_filename(
+      path, sizeof(path) - 1, PERFORMANCE_SCHEMA_DB_NAME.str, "", "", 0);
+  path[path_len - 1] = 0;  // Remove last '/' from path
+  MY_STAT stat_info;
+
+  // RAII to handle error messages.
+  dd::upgrade::Bootstrap_error_handler bootstrap_error_handler;
+
+  if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != nullptr) {
+    if (migrate_schema_to_dd(thd, PERFORMANCE_SCHEMA_DB_NAME.str)) {
+      terminate(thd);
+      return true;
+    }
+  }
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  else if (dd::performance_schema::create_pfs_schema(thd)) {
+    terminate(thd);
+    return true;
+  }
+#endif
+
   // Reset flag
   set_allow_sdi_creation(true);
 
@@ -1162,8 +1201,13 @@ bool fill_dd_and_finalize(THD *thd) {
   */
   bootstrap_error_handler.set_log_error(false);
 
+  std::set<uint> allowed_errors = {ER_DEFINITION_CONTAINS_INVALID_STRING};
+  bootstrap_error_handler.set_allowlist_errors(allowed_errors);
+
   error |= migrate_events_to_dd(thd);
   error |= migrate_routines_to_dd(thd);
+
+  bootstrap_error_handler.clear_allowlist_errors();
 
   // We will not get error in this step unless its a fatal error.
   for (it = db_name.begin(); it != db_name.end(); it++) {

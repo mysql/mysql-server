@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,6 +60,7 @@ template <typename Mutex>
 void MutexDebug<Mutex>::enter(const Mutex *mutex, const char *name,
                               ulint line) UNIV_NOTHROW {
   ut_ad(!is_owned());
+  ut_ad(m_magic_n == MUTEX_MAGIC_N);
 
   Context context(m_context.get_id());
 
@@ -74,7 +75,7 @@ template <typename Mutex>
 void MutexDebug<Mutex>::locked(const Mutex *mutex, const char *name,
                                ulint line) UNIV_NOTHROW {
   ut_ad(!is_owned());
-  ut_ad(m_context.m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
+  ut_ad(m_context.m_thread_id == std::thread::id{});
 
   m_context.locked(mutex, name, line);
 
@@ -82,7 +83,7 @@ void MutexDebug<Mutex>::locked(const Mutex *mutex, const char *name,
 }
 
 template <typename Mutex>
-void MutexDebug<Mutex>::release(const Mutex *mutex) UNIV_NOTHROW {
+void MutexDebug<Mutex>::release(const Mutex *) UNIV_NOTHROW {
   ut_ad(is_owned());
 
   m_context.release();

@@ -7,7 +7,7 @@
 create schema xtest default charset 'utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/find_doc_simple.tmp
+--write_file $MYSQL_TMP_DIR/find_doc_simple.xpl
 ## Test data
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
@@ -83,9 +83,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_doc_simple.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_doc_simple.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/find_doc_simple.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

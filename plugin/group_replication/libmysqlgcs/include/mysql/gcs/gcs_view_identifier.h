@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ class Gcs_view_identifier {
     return !(*this == other);
   }
 
-  virtual ~Gcs_view_identifier() {}
+  virtual ~Gcs_view_identifier() = default;
 
  private:
   virtual bool equals(const Gcs_view_identifier &other) const = 0;

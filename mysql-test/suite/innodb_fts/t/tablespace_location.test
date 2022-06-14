@@ -116,7 +116,7 @@ CREATE TEMPORARY TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT(a,b))
 TABLESPACE=innodb_temporary ROW_FORMAT=compact;
 
 --echo # Test with FTS TABLES in remote DATA DIRECTORY
---let $REMOTE_DIR = $MYSQLTEST_VARDIR/tmp/fts_remote
+--let $REMOTE_DIR = $MYSQL_TMP_DIR/fts_remote
 --mkdir $REMOTE_DIR
 
 --replace_result $REMOTE_DIR REMOTE_DIR
@@ -132,6 +132,7 @@ TABLESPACE=innodb_temporary ROW_FORMAT=compact;
 TRUNCATE TABLE t1;
 
 # Truncate after restart
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 TRUNCATE TABLE t1;
 

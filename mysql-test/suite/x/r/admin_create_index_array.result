@@ -221,7 +221,7 @@ Drop array index 'unique_idx'
 =============================
 
 command ok
-Got expected error: Duplicate entry '[3.' for key 'fail_idx' (code 1062)
+Got expected error: Duplicate entry '[3.' for key 'data.fail_idx' (code 1062)
 ## 3. Create 'required' array index
 Got expected error: Unsupported argument specification for '$.integer' (code 5017)
 ## 4. Verify usage array index
@@ -439,4 +439,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

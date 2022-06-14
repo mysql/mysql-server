@@ -1,0 +1,230 @@
+###############################################################################
+# Validate that on a group mode change from multi to single-primary,
+# the primary shall override the actions configuration on all group members.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Disable `mysql_disable_super_read_only_if_primary` action
+#      on server1.
+#      This does not affect multi-primary mode, but we need to
+#      disable it to test the switch to single-primary mode.
+#   2. Despite the action `mysql_disable_super_read_only_if_primary`
+#      is disabled it has not effect on multi-primary mode.
+#   3. Make server2 leave the group and increase the value of
+#      `replication_group_member_actions` configuration.
+#   4. Switch to single-primary mode, with server1 as the primary.
+#      server1 configuration will override the configuration of the
+#      group (server2).
+#   5. Switch back to multi-primary mode, servers will be
+#      writable.
+#   6. Check that UDFs can not be run on multi-primary mode.
+#   7. Clean up.
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Disable `mysql_disable_super_read_only_if_primary` action
+--echo #    on server1.
+--echo #    This does not affect multi-primary mode, but we need to
+--echo #    disable it to test the switch to single-primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Despite the action `mysql_disable_super_read_only_if_primary`
+--echo #    is disabled it has not effect on multi-primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be enabled (the default value)
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1 (the default value)
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Make server2 leave the group and increase the value of
+--echo #    `replication_group_member_actions` configuration.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be enabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 3
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 3
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Switch to single-primary mode, with server1 as the primary.
+--echo #    server1 configuration will override the configuration of the
+--echo #    group (server2).
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--let $skip_wait_for_disabled_read_only= 1
+--source include/gr_assert_primary_member.inc
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_mpm_to_spm_skip_disable_super_read
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= The member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "1" will be run.
+--let $assert_count= 0
+--let $assert_text= Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was not triggered
+--source include/assert_grep.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_mpm_to_spm_skip_disable_super_read
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= The member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "1" will be run.
+--let $assert_count= 0
+--let $assert_text= Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was not triggered
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Switch back to multi-primary mode, servers will be
+--echo #    writable.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Check that UDFs can not be run on multi-primary mode.
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_reset_member_actions();
+
+
+--echo
+--echo ############################################################
+--echo # 7. Clean up.
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

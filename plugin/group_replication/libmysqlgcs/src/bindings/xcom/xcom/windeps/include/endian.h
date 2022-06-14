@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 */
 
 #ifndef _ENDIAN_H
-#define _ENDIAN_H   1
+#define _ENDIAN_H 1
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -37,13 +37,13 @@
 
 /* This is in no way shape or form portable */
 
-#if(LITTLEENDIAN == 0x0001)
+#if (LITTLEENDIAN == 0x0001)
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #define __FLOAT_WORD_ORDER __BYTE_ORDER
 
 #else /* LITTLEENDIAN */
 
-#if(BIGENDIAN == 0x0001)
+#if (BIGENDIAN == 0x0001)
 #define __BYTE_ORDER __BIG_ENDIAN
 #define __FLOAT_WORD_ORDER __BYTE_ORDER
 
@@ -54,4 +54,3 @@
 #endif /* LITTLEENDIAN */
 
 #endif /* _ENDIAN_H */
-

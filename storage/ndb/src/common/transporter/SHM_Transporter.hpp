@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@ class SHM_Transporter : public Transporter {
   friend class TransporterRegistry;
 public:
   SHM_Transporter(TransporterRegistry &,
+                  TrpId transporterIndex,
 		  const char *lHostName,
 		  const char *rHostName, 
 		  int r_port,
@@ -55,24 +56,27 @@ public:
 		  bool preSendChecksum,
                   Uint32 spintime,
                   Uint32 send_buffer_size);
-  
+
+  SHM_Transporter(TransporterRegistry &,
+                  const SHM_Transporter*);
+ 
   /**
    * SHM destructor
    */
-  virtual ~SHM_Transporter();
+  ~SHM_Transporter() override;
 
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
-  virtual void resetBuffers();
+  void resetBuffers() override;
 
-  virtual bool configure_derived(const TransporterConfiguration* conf);
+  bool configure_derived(const TransporterConfiguration* conf) override;
 
   /**
    * Do initialization
    */
-  bool initTransporter();
+  bool initTransporter() override;
   
   void getReceivePtr(Uint32 ** ptr,
                      Uint32 ** eod,
@@ -89,7 +93,7 @@ protected:
    * -# deletes the shm buffer associated with a segment
    * -# marks the segment for removal
    */
-  void disconnectImpl();
+  void disconnectImpl() override;
 
   /**
    * Disconnect socket that was used for wakeup services.
@@ -103,12 +107,11 @@ protected:
    * -# Attach to it
    * -# Wait for someone to attach (max wait = timeout), then rerun again
    *    until connection established.
-   * @param timeOutMillis - the time to sleep before (ms) trying again.
    * @returns - True if the server managed to hook up with the client,
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_server_impl(NDB_SOCKET_TYPE sockfd) override;
 
   /**
    * Blocking
@@ -117,12 +120,11 @@ protected:
    * -# Check if the segment is setup
    * -# Check if the server set it up
    * -# If all clear, return.
-   * @param timeOutMillis - the time to sleep before (ms) trying again.
    * @returns - True if the client managed to hook up with the server,
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_client_impl(NDB_SOCKET_TYPE sockfd) override;
 
   bool connect_common(NDB_SOCKET_TYPE sockfd);
 
@@ -147,7 +149,7 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
-  bool doSend(bool need_wakeup = true);
+  bool doSend(bool need_wakeup = true) override;
   void doReceive();
   void wakeup();
 
@@ -172,15 +174,9 @@ protected:
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
-  Uint32 m_spintime;
-  Uint32 get_spintime()
-  {
-    return m_spintime;
-  }
 private:
   bool _shmSegCreated;
   bool _attached;
-  bool m_connected;
   
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;
@@ -203,7 +199,7 @@ private:
 #ifdef _WIN32
   HANDLE hFileMapping;
 #else
-  int shmId;
+  int shmId{0};
 #endif
   
   int shmSize;
@@ -224,11 +220,11 @@ private:
 
   void make_error_info(char info[], int sz);
 
-  bool send_limit_reached(int bufsize)
+  bool send_limit_reached(int bufsize) override
   {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
-  bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(int timeout_millisec) const override;
   void detach_shm(bool rep_error);
 };
 

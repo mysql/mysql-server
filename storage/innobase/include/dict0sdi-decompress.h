@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,7 +42,7 @@ class Sdi_Decompressor {
     ut_ad(m_comp_sdi != nullptr);
   }
 
-  ~Sdi_Decompressor() {}
+  ~Sdi_Decompressor() = default;
 
   /** Decompress the SDI and store in the buffer passed. */
   inline void decompress() {
@@ -51,25 +51,51 @@ class Sdi_Decompressor {
     ret = uncompress(m_uncomp_sdi, &dest_len, m_comp_sdi, m_comp_len);
 
     if (ret != Z_OK) {
-      ib::error() << "ZLIB uncompress() failed:"
-                  << " compressed len: " << m_comp_len
-                  << ", original_len: " << m_uncomp_len;
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_ERR_ZLIB_UNCOMPRESS_FAILED)
+#endif
+          << "ZLIB uncompress() failed:"
+          << " compressed len: " << m_comp_len
+          << ", original_len: " << m_uncomp_len;
 
       switch (ret) {
         case Z_BUF_ERROR:
-          ib::fatal() << "retval = Z_BUF_ERROR";
+#ifdef UNIV_NO_ERR_MSGS
+          ib::fatal(UT_LOCATION_HERE)
+#else
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_BUF_ERROR)
+#endif
+
+              << "retval = Z_BUF_ERROR";
           break;
 
         case Z_MEM_ERROR:
-          ib::fatal() << "retval = Z_MEM_ERROR";
+#ifdef UNIV_NO_ERR_MSGS
+          ib::fatal(UT_LOCATION_HERE)
+#else
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_MEM_ERROR)
+#endif
+              << "retval = Z_MEM_ERROR";
           break;
 
         case Z_DATA_ERROR:
-          ib::fatal() << "retval = Z_DATA_ERROR";
+#ifdef UNIV_NO_ERR_MSGS
+          ib::fatal(UT_LOCATION_HERE)
+#else
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_DATA_ERROR)
+#endif
+              << "retval = Z_DATA_ERROR";
           break;
 
         default:
-          ib::fatal() << "retval = UNKNOWN_ERROR";
+#ifdef UNIV_NO_ERR_MSGS
+          ib::fatal(UT_LOCATION_HERE)
+#else
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_UNKNOWN_ERROR)
+#endif
+              << "retval = UNKNOWN_ERROR";
           break;
       }
     }

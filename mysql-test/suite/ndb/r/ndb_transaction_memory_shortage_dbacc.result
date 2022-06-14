@@ -1,0 +1,139 @@
+create table t0 (c int primary key) engine=ndbcluster;
+CREATE TABLE t1 (
+a int NOT NULL,
+b int NOT NULL,
+c int NOT NULL,
+d int NOT NULL,
+PRIMARY KEY (`b`,`a`),
+unique key(d),
+key (c),
+foreign key (c) references t0(c) on delete cascade
+) ENGINE=ndbcluster;
+create table num (n int);
+insert into num value (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+set @pool = 2;
+set @pool = @pool - 1;
+insert into t0 (c) values (1),(2),(3),(4);
+=== Make DBACC pool 1 out of memory ===
+Sending dump signal with data:
+0x00000967 0x00000001 0x00000000 
+Sending dump signal with data:
+0x00000967 0x00000001 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Warning	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 1217 'Out of operation records in local data manager (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x00000968 0x00000001 
+Sending dump signal with data:
+0x00000968 0x00000001 
+
+delete from t0;
+set @pool = @pool - 1;
+insert into t0 (c) values (1),(2),(3),(4);
+=== Make DBACC pool 0 out of memory ===
+Sending dump signal with data:
+0x00000967 0x00000000 0x00000000 
+Sending dump signal with data:
+0x00000967 0x00000000 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Warning	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDB
+Error	1297	Got temporary error 926 'Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x00000968 0x00000000 
+Sending dump signal with data:
+0x00000968 0x00000000 
+
+delete from t0;
+drop table num;
+drop table t1;
+drop table t0;

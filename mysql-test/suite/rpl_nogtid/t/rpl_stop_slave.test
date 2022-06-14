@@ -3,7 +3,6 @@
 
 # Needed because test uses CREATE TEMPORARY/DROP TEMPORARY inside transaction
 source include/master-slave.inc;
-source include/have_myisam.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 # 72475 renders this case irrelevant for mixed mode as temp tables are no
@@ -28,8 +27,7 @@ source include/stop_slave.inc;
 --echo # Suspend the INSERT statement in current transaction on SQL thread.
 --echo # It guarantees that SQL thread is applying the transaction when
 --echo # STOP SLAVE command launchs.
-let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug= 'd,after_mysql_insert';
+SET GLOBAL debug= '+d,after_mysql_insert';
 source include/start_slave.inc;
 
 --echo
@@ -50,7 +48,7 @@ source extra/rpl_tests/rpl_stop_slave.test;
 
 --echo
 --echo # Test end
-SET GLOBAL debug= '$debug_save';
+SET GLOBAL debug= '-d,after_mysql_insert';
 source include/restart_slave_sql.inc;
 
 connection slave;

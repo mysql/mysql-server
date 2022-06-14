@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 #
 # tables_priv
 #
+SET SESSION innodb_strict_mode=OFF;
+
 ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
@@ -93,6 +95,8 @@ ALTER TABLE tables_priv
                         'Create View','Show view','Trigger')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   COMMENT='Table privileges';
+
+SET SESSION innodb_strict_mode=DEFAULT;
 
 #
 # columns_priv
@@ -148,9 +152,9 @@ UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv
 #  for some users.
 
 ALTER TABLE user
-ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
-ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
-ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
+ADD max_questions int NOT NULL DEFAULT 0 AFTER x509_subject,
+ADD max_updates   int unsigned NOT NULL DEFAULT 0 AFTER max_questions,
+ADD max_connections int unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 
 #
 # Update proxies_priv definition.
@@ -159,7 +163,7 @@ ALTER TABLE proxies_priv MODIFY User char(32) binary DEFAULT '' NOT NULL;
 ALTER TABLE proxies_priv MODIFY Proxied_user char(32) binary DEFAULT '' NOT NULL;
 ALTER TABLE proxies_priv MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, ENGINE=InnoDB;
 ALTER TABLE proxies_priv MODIFY Proxied_host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
-ALTER TABLE proxies_priv MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 
 #
 #  Add Create_tmp_table_priv and Lock_tables_priv to db
@@ -169,7 +173,7 @@ ALTER TABLE db
 ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
-alter table user change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
+alter table user change max_questions max_questions int unsigned DEFAULT 0  NOT NULL;
 
 
 alter table db comment='Database privileges';
@@ -243,7 +247,7 @@ ALTER TABLE general_log
   MODIFY command_type VARCHAR(64) NOT NULL,
   MODIFY argument MEDIUMBLOB NOT NULL;
 ALTER TABLE general_log
-  MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
+  MODIFY thread_id BIGINT UNSIGNED NOT NULL;
 SET GLOBAL general_log = @old_log_state;
 
 SET @old_log_state = @@global.slow_query_log;
@@ -263,13 +267,13 @@ ALTER TABLE slow_log
 ALTER TABLE slow_log
   ADD COLUMN thread_id INTEGER NOT NULL AFTER sql_text;
 ALTER TABLE slow_log
-  MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
+  MODIFY thread_id BIGINT UNSIGNED NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
 SET @@session.sql_require_primary_key = @old_sql_require_primary_key;
 ALTER TABLE plugin
-  MODIFY name varchar(64) COLLATE utf8_general_ci NOT NULL DEFAULT '',
-  MODIFY dl varchar(128) COLLATE utf8_general_ci NOT NULL DEFAULT '',
+  MODIFY name varchar(64) DEFAULT '' NOT NULL,
+  MODIFY dl varchar(128) DEFAULT '' NOT NULL,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 #
@@ -337,7 +341,7 @@ UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Ex
 #
 # Add max_user_connections resource limit
 #
-ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
+ALTER TABLE user ADD max_user_connections int unsigned DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
 # user.Create_user_priv
@@ -356,6 +360,7 @@ UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
 # procs_priv
 #
 
+SET SESSION innodb_strict_mode=OFF;
 ALTER TABLE procs_priv
   MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
@@ -370,10 +375,11 @@ ALTER TABLE procs_priv
 
 ALTER TABLE procs_priv
   ADD Routine_type enum('FUNCTION','PROCEDURE')
-    COLLATE utf8_general_ci NOT NULL AFTER Routine_name;
+    NOT NULL AFTER Routine_name;
 
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
+SET SESSION innodb_strict_mode=DEFAULT;
 
 
 #
@@ -618,10 +624,17 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
 -- Add the privilege CLONE_ADMIN for every user who has the privilege SUPER
--- provided that there isn't a user who already has the privilige CLONE_ADMIN.
+-- provided that there isn't a user who already has the privilege CLONE_ADMIN.
 SET @hadCloneAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'CLONE_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'CLONE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE super_priv = 'Y' AND @hadCloneAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege INNODB_REDO_LOG_ENABLE for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege INNODB_REDO_LOG_ENABLE.
+SET @hadRedoLogEnablePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'INNODB_REDO_LOG_ENABLE');
+INSERT INTO global_grants SELECT user, host, 'INNODB_REDO_LOG_ENABLE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadRedoLogEnablePriv = 0;
 COMMIT;
 
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
@@ -767,7 +780,39 @@ COMMIT;
 -- provided that there isn't a user who already has the privilige TABLE_ENCRYPTION_ADMIN.
 SET @hadTableEncryptionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TABLE_ENCRYPTION_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'TABLE_ENCRYPTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
-FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0;
+FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0 AND user != 'mysql.session';
+-- The TABLE_ENCRYPTION_ADMIN privilege was previously granted to 'mysql.session'
+-- during upgrade. However, this user should not have this privilege, so we need
+-- to explicitly revoke it.
+DELETE FROM global_grants WHERE user = 'mysql.session' AND host = 'localhost' AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COMMIT;
+
+-- Add the privilege REPLICATION_APPLIER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige REPLICATION_APPLIER.
+SET @hadReplicationApplierPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'REPLICATION_APPLIER');
+INSERT INTO global_grants SELECT user, host, 'REPLICATION_APPLIER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadReplicationApplierPriv = 0;
+COMMIT;
+
+-- Add the privilege SHOW_ROUTINE for every user who has global SELECT privilege
+-- provided that there isn't a user who already has the privilege SHOW_ROUTINE
+SET @hadShowRoutinePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SHOW_ROUTINE');
+INSERT INTO global_grants SELECT user, host, 'SHOW_ROUTINE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE select_priv = 'Y' AND @hadShowRoutinePriv = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
+COMMIT;
+
+-- Add the privilege AUTHENTICATION_POLICY_ADMIN for every user who has the SYSTEM_VARIABLES_ADMIN privilege
+-- provided that there isn't a user who already has the privilege AUTHENTICATION_POLICY_ADMIN.
+SET @hadAuthenticationPolicyAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUTHENTICATION_POLICY_ADMIN');
+INSERT INTO global_grants SELECT mu.user, mu.host, 'AUTHENTICATION_POLICY_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user mu, global_grants gg WHERE mu.user = gg.user AND gg.priv = 'SYSTEM_VARIABLES_ADMIN' AND @hadAuthenticationPolicyAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege PASSWORDLESS_USER_ADMIN for every user who has the privilege CREATE USER
+-- provided that there isn't a user who already has the privilege PASSWORDLESS_USER_ADMIN.
+SET @hadPasswordlessUserAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'PASSWORDLESS_USER_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'PASSWORDLESS_USER_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadPasswordlessUserAdminPriv = 0;
 COMMIT;
 
 # Activate the new, possible modified privilege tables
@@ -779,6 +824,9 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
+ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
+ALTER TABLE replication_asynchronous_connection_failover_managed STATS_PERSISTENT=0;
+ALTER TABLE replication_group_member_actions STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -786,17 +834,17 @@ ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 # This column is needed  for multi-source replication
 #
 ALTER TABLE slave_master_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name);
 
 ALTER TABLE slave_relay_log_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name);
 
 ALTER TABLE slave_worker_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name, Id);
 
@@ -817,6 +865,24 @@ ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Prefe
 
 ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.';
 
+ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
+                              ADD Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.';
+
+ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
+
+ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
+
+ALTER TABLE slave_master_info ADD Gtid_only BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates if this channel only uses GTIDs and does not persist positions.';
+
+-- This would add the Managed_name column to
+-- replication_asynchronous_connection_failover table on upgrade from older
+-- mysql version.
+ALTER TABLE replication_asynchronous_connection_failover
+  ADD Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(Channel_name, Host, Port, Network_namespace, Managed_name),
+  ADD KEY(Channel_name, Managed_name);
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -830,6 +896,46 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin
   COMMENT 'Network namespace used for communication with the master server.'
   AFTER Get_public_key;
+
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL
+  COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.'
+  AFTER Master_zstd_compression_level;
+
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE
+  COMMENT 'Indicates whether the channel connection failover is enabled.'
+  AFTER Tls_ciphersuites;
+
+-- This would position the Managed_name column after Weight column.
+ALTER TABLE replication_asynchronous_connection_failover
+  MODIFY COLUMN Managed_name CHAR(64) CHARACTER SET utf8
+  COLLATE utf8_general_ci NOT NULL DEFAULT ''
+  COMMENT 'The name of the group which this server belongs to.'
+  AFTER Weight;
+
+# Columns added to keep information about the replication applier thread
+# privilege context user
+ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.' AFTER Channel_name,
+                                 ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.' AFTER Privilege_checks_username;
+
+# Columns added to keep information about REQUIRE_ROW_FORMAT replication field
+ALTER TABLE slave_relay_log_info ADD Require_row_format BOOLEAN NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.' AFTER Privilege_checks_hostname;
+
+ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+                                 MODIFY Relay_log_pos BIGINT UNSIGNED COMMENT 'The relay log position of the last executed event.',
+                                 MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+                                 MODIFY Master_log_pos BIGINT UNSIGNED COMMENT 'The master log position of the last executed event.',
+                                 MODIFY Sql_delay INTEGER COMMENT 'The number of seconds that the slave must lag behind the master.',
+                                 MODIFY Number_of_workers INTEGER UNSIGNED,
+                                 MODIFY Id INTEGER UNSIGNED COMMENT 'Internal Id that uniquely identifies this record.';
+
+# Columns added to keep information about REQUIRE_TABLE_PRIMARY_KEY_CHECK replication field
+ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries' AFTER Require_row_format;
+# Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE replication field
+ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_type ENUM('OFF', 'LOCAL', 'UUID')  NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value' AFTER Require_table_primary_key_check;
+# Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE replication field
+ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions' AFTER Assign_gtids_to_anonymous_transactions_type;
 
 #
 # Drop legacy NDB distributed privileges function & procedures
@@ -907,6 +1013,14 @@ ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
 --
+-- Upgrade help tables character set to utf8
+--
+ALTER TABLE help_topic CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_category CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_relation CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_keyword CONVERT TO CHARACTER SET utf8;
+
+--
 -- Upgrade a table engine from MyISAM to InnoDB for the system tables
 -- help_topic, help_category, help_relation, help_keyword, plugin, servers,
 -- time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
@@ -926,9 +1040,11 @@ ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE db ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE user ENGINE=InnoDB STATS_PERSISTENT=0;
+SET SESSION innodb_strict_mode=OFF;
 ALTER TABLE tables_priv ENGINE=InnoDB STATS_PERSISTENT=0;
-ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE procs_priv ENGINE=InnoDB STATS_PERSISTENT=0;
+SET SESSION innodb_strict_mode=DEFAULT;
+ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE proxies_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 
 --
@@ -992,6 +1108,39 @@ SET @firewall_whitelist_id_column =
      WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND column_name = 'ID');
 SET @cmd="ALTER TABLE mysql.firewall_whitelist ADD ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY";
 SET @str = IF(@had_firewall_whitelist > 0 AND @firewall_whitelist_id_column = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Add Firewall tables for group profiles
+--
+
+SET @had_user_allowlist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
+           table_type = 'BASE TABLE');
+SET @had_group_allowlist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_group_allowlist' AND
+           table_type = 'BASE TABLE');
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_group_allowlist(NAME VARCHAR(288) NOT NULL, RULE text NOT NULL, ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_groups(NAME VARCHAR(288) PRIMARY KEY, MODE ENUM ('OFF', 'RECORDING', 'PROTECTING', 'DETECTING') DEFAULT 'OFF', USERHOST VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_membership(GROUP_ID VARCHAR(288), MEMBER_ID VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="UPDATE mysql.firewall_whitelist SET rule = RTRIM(rule) WHERE RIGHT(rule, 1) = ' '";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1133,6 +1282,8 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'BA
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CLONE_ADMIN', 'N');
 
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CONNECTION_ADMIN', 'N');
+
 # mysql.session is granted the SUPER and other administrative privileges.
 # This user should not be modified inadvertently. Therefore, server grants
 # the SYSTEM_USER privilege to this user at the time of initialization or
@@ -1150,18 +1301,20 @@ PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET SESSION innodb_strict_mode=OFF;
 SET @cmd="ALTER TABLE mysql.tables_priv TABLESPACE = mysql";
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-
-SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
+SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
+SET SESSION innodb_strict_mode=DEFAULT;
 
-SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
+
+SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1193,6 +1346,9 @@ ALTER TABLE mysql.time_zone_leap_second TABLESPACE = mysql;
 ALTER TABLE mysql.slave_relay_log_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_master_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
+ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
+ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
+ALTER TABLE mysql.replication_group_member_actions TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
@@ -1224,11 +1380,12 @@ ALTER TABLE password_history
 MODIFY Host CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
 
 ALTER TABLE servers
-MODIFY Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '';
+MODIFY Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '',
+MODIFY Port INT NOT NULL DEFAULT '0';
 
 ALTER TABLE tables_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
-MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 
 ALTER TABLE columns_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
@@ -1238,7 +1395,7 @@ MODIFY Host CHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the master.'
 
 ALTER TABLE procs_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
-MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 
 # Update the table row format to DYNAMIC
 ALTER TABLE columns_priv ROW_FORMAT=DYNAMIC;
@@ -1261,6 +1418,9 @@ ALTER TABLE servers ROW_FORMAT=DYNAMIC;
 ALTER TABLE server_cost ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_asynchronous_connection_failover_managed ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_group_member_actions ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;
@@ -1270,4 +1430,120 @@ ALTER TABLE time_zone_transition ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone_transition_type ROW_FORMAT=DYNAMIC;
 ALTER TABLE user ROW_FORMAT=DYNAMIC;
 
+-- GRANT SYSTEM_USER ON *.* TO 'mysql.infoschema'@localhost
+INSERT IGNORE INTO global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
+  VALUES ('mysql.infoschema','localhost','SYSTEM_USER','N');
+
+
+-- Add the privilege FLUSH_OPTIMIZER_COSTS for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_OPTIMIZER_COSTS
+SET @hadFlushOptimizerCostsPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_OPTIMIZER_COSTS');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_OPTIMIZER_COSTS', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushOptimizerCostsPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_STATUS for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_STATUS
+SET @hadFlushStatusPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_STATUS');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_STATUS', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushStatusPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_USER_RESOURCES for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_USER_RESOURCES
+SET @hadFlushUserResourcesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_USER_RESOURCES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_USER_RESOURCES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushUserResourcesPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_TABLES for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_TABLES
+SET @hadFlushTablesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_TABLES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_TABLES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
+COMMIT;
+
 SET @@session.sql_mode = @old_sql_mode;
+
+-- Fixes to inconsistent system table upgrades.
+ALTER TABLE func
+  MODIFY ret tinyint DEFAULT '0' NOT NULL;
+
+ALTER TABLE gtid_executed
+  CONVERT TO CHARACTER SET utf8mb4;
+
+ALTER TABLE slave_master_info
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
+  MODIFY Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
+  MODIFY Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
+  MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
+  MODIFY Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
+  MODIFY Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
+  MODIFY Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',
+  MODIFY Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',
+  MODIFY Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',
+  MODIFY Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
+  MODIFY Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  MODIFY User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
+  MODIFY User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
+  MODIFY Host VARCHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the source.',
+  MODIFY Master_compression_algorithm VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between source and replica.';
+
+ALTER TABLE slave_relay_log_info
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Privilege_checks_username VARCHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
+  MODIFY Privilege_checks_hostname VARCHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.';
+
+ALTER TABLE slave_worker_info
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Checkpoint_master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Checkpoint_group_bitmap BLOB NOT NULL;
+
+ALTER TABLE slave_relay_log_info
+  MODIFY Require_row_format BOOLEAN NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.';
+
+ALTER TABLE procs_priv
+  MODIFY Routine_type enum('FUNCTION', 'PROCEDURE') NOT NULL;
+
+ALTER TABLE user
+  MODIFY max_updates int unsigned DEFAULT 0 NOT NULL,
+  MODIFY max_connections int unsigned DEFAULT 0 NOT NULL,
+  MODIFY max_user_connections int unsigned DEFAULT 0  NOT NULL,
+  MODIFY ssl_cipher BLOB NOT NULL,
+  MODIFY x509_issuer BLOB NOT NULL,
+  MODIFY x509_subject BLOB NOT NULL;
+
+ALTER TABLE time_zone
+  MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+
+-- grant AUDIT_ABORT_EXEMPT to all current holders of SYSTEM_USER
+SET @hadAuditAbortExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ABORT_EXEMPT');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;
+
+
+-- add the PK for mysql.firewall_membership, if missing and if the table is present
+SET @had_firewall_membership =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_membership' AND
+           table_type = 'BASE TABLE');
+SET @had_firewall_membership_pk =
+  (SELECT COUNT(table_name) FROM information_schema.table_constraints
+     WHERE constraint_type = 'PRIMARY KEY' AND
+           table_schema = 'mysql' AND
+           table_name = 'firewall_membership');
+SET @cmd="ALTER TABLE mysql.firewall_membership ADD PRIMARY KEY(GROUP_ID,MEMBER_ID)";
+SET @str = IF(@had_firewall_membership_pk = 0 AND @had_firewall_membership,
+              @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;

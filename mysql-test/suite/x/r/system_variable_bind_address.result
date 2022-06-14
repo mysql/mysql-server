@@ -29,3 +29,4 @@ ERROR HY000: Variable 'mysqlx_bind_address' is a GLOBAL variable
 SELECT COUNT(@@SESSION.Mysqlx_bind_address);
 ERROR HY000: Variable 'mysqlx_bind_address' is a GLOBAL variable
 include/assert.inc [Mysqlx_bind_address global variable must is read-only, should hold to ::]
+# restart:

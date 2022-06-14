@@ -937,12 +937,13 @@ insert into t1 values (3, "Master row 3 at X=1", 1, "3:1");
 Show update missing timestamp column in before image causes slave failure
 update t1 set b='Blah' where a=1 and d="1:1";
 call mtr.add_suppression(".*missing info necessary for conflict detection.*");
-call mtr.add_suppression(".*Slave SQL for channel '': Could not execute.*rows event on table.*");
+call mtr.add_suppression(".Could not execute.*rows event on table.*");
 call mtr.add_suppression(".*error 1610.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 Wait for slave to choke on that event.
 include/wait_for_slave_sql_error.inc [errno=1296]
 include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 include/rpl_reset.inc
 Show delete missing timestamp column (in before image) causes
 slave failure
@@ -950,7 +951,7 @@ delete from t1 where a=3 and d="3:1";
 Wait for slave to choke on that event.
 include/wait_for_slave_sql_error.inc [errno=1296]
 include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 include/rpl_reset.inc
 drop table t1;
 *** test cleanup

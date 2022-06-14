@@ -21,18 +21,18 @@ ERROR 42000: Not unique table/alias: 'qn'
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 a	a
-NULL	NULL
+3	3
 3	NULL
 NULL	3
-3	3
+NULL	NULL
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
 a	c
-NULL	NULL
-NULL	4
-3	NULL
 3	4
+3	NULL
+NULL	4
+NULL	NULL
 # qn2 ref qn:
 WITH qn AS (SELECT 10*a as a FROM t1),
 qn2 AS (SELECT 3*a FROM qn)
@@ -49,16 +49,16 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 a	a
-NULL	NULL
-NULL	3
-3	NULL
 3	3
+3	NULL
+NULL	3
+NULL	NULL
 EXPLAIN WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`b` is null) or (`test`.`t1`.`b` > 0))
 # forward ref (should error)
@@ -325,7 +325,7 @@ with qn as (select a from t1 order by 1)
 select qn.a from qn, t1 as t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2`
 explain
@@ -333,7 +333,7 @@ with qn as (select a from t1 order by 1 limit 10)
 select qn.a from qn, t1 as t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
 Warnings:
 Note	1003	with `qn` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 10) /* select#1 */ select `qn`.`a` AS `a` from `qn` join `test`.`t1` `t2`
@@ -344,7 +344,7 @@ qn2 as (select b from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `qn2` as (/* select#3 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`qn2`.`b` AS `b` from `test`.`t1` join `qn2`
@@ -353,7 +353,7 @@ with qn as (select a from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn2.a from qn, qn as qn2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `qn` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `qn2`.`a` AS `a` from `test`.`t1` join `qn` `qn2`
@@ -381,7 +381,7 @@ explain with cte as (select * from t1 as t2 limit 1)
 select * from t1 where t1.a in (select a+0 from cte);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `cte` as (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` `t2` limit 1) /* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`cte`) where (`test`.`t1`.`a` = (`cte`.`a` + 0))
@@ -392,7 +392,7 @@ explain with cte as (select * from t1 as t2)
 select * from t1 where t1.a in (select a+0 from cte);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t1` `t2`) where (`test`.`t1`.`a` = (`test`.`t2`.`a` + 0))
 with cte as (select * from t1 as t2)
@@ -409,7 +409,7 @@ ERROR HY000: In definition of view, derived table or common table expression, SE
 explain with qn (foo, bar) as (select 1, 2 from t1 limit 2) select * from qn, qn qn1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `qn` (`foo`,`bar`) as (/* select#2 */ select 1 AS `1`,2 AS `2` from `test`.`t1` limit 2) /* select#1 */ select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar`,`qn1`.`foo` AS `foo`,`qn1`.`bar` AS `bar` from `qn` join `qn` `qn1`
@@ -439,8 +439,8 @@ create table t3
 with qn (foo, bar) as (select a, b from t1 limit 2) select bar,foo from qn;
 desc t3;
 Field	Type	Null	Key	Default	Extra
-bar	int(11)	YES		NULL	
-foo	int(11)	YES		NULL	
+bar	int	YES		NULL	
+foo	int	YES		NULL	
 drop table t3;
 # Merge
 with qn (foo, bar) as (select 1 from t1) select * from qn, qn qn1;
@@ -454,7 +454,7 @@ foo	bar	foo	bar
 explain with qn (foo, bar) as (select 1, 2 from t1) select * from qn, qn qn1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `foo`,2 AS `bar`,1 AS `foo`,2 AS `bar` from `test`.`t1` join `test`.`t1`
 with qn (foo, bar) as (select 1 as col, 2 as coll from t1) select * from qn, qn qn1;
@@ -471,8 +471,8 @@ create table t3
 with qn (foo, bar) as (select a, b from t1) select bar,foo from qn;
 desc t3;
 Field	Type	Null	Key	Default	Extra
-bar	int(11)	YES		NULL	
-foo	int(11)	YES		NULL	
+bar	int	YES		NULL	
+foo	int	YES		NULL	
 drop table t3;
 # Disambiguates same-name expressions
 with qn as (select 1,1) select * from qn;
@@ -507,8 +507,8 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v1;
 Field	Type	Null	Key	Default	Extra
-foo	int(1)	NO		0	
-bar	int(1)	NO		0	
+foo	int	NO		0	
+bar	int	NO		0	
 select * from v1;
 foo	bar
 1	1
@@ -638,9 +638,9 @@ qne.a,qnm.a,alias1.a,alias2.a
 from qne, qnm, qnea as alias1, qnma as alias2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
@@ -808,10 +808,10 @@ EXPLAIN with t2 as
 SELECT /*+ no_merge(t2) */ * FROM t2
 WHERE (a = a OR b <= 6) AND (a IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and (`t2`.`a` is null))
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t1`.`a`) or (`test`.`t1`.`b` <= 6)) and (`test`.`t1`.`a` is null))) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`
 with t2 as
 (select * from t1)
 SELECT /*+ no_merge(t2) */ * FROM t2
@@ -839,12 +839,10 @@ create view v1 as
 with qn as (select a from t1),
 qn2 as (select b from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t1`
 drop view v1;
@@ -857,7 +855,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 drop table t1;
 # CTE referenced four times, including in subqueries in other CTEs
@@ -949,7 +947,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	with `qn` as (/* select#2 */ select straight_join (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` join `qn` set `test`.`t1`.`a` = (`qn`.`a` + 10) where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
+Note	1003	with `qn` as (/* select#2 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` join `qn` set `test`.`t1`.`a` = (`qn`.`a` + 10) where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
 with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -1134,18 +1132,18 @@ ERROR 42000: Not unique table/alias: 'qn'
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 a	a
-NULL	NULL
+3	3
 3	NULL
 NULL	3
-3	3
+NULL	NULL
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
 a	c
-NULL	NULL
-NULL	4
-3	NULL
 3	4
+3	NULL
+NULL	4
+NULL	NULL
 # qn2 ref qn:
 WITH qn AS (SELECT 10*a as a FROM t1),
 qn2 AS (SELECT 3*a FROM qn)
@@ -1162,16 +1160,16 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 a	a
-NULL	NULL
-NULL	3
-3	NULL
 3	3
+3	NULL
+NULL	3
+NULL	NULL
 EXPLAIN WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`b` is null) or (`test`.`t1`.`b` > 0))
 # forward ref (should error)
@@ -1438,7 +1436,7 @@ with qn as (select a from t1 order by 1)
 select qn.a from qn, t1 as t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2`
 explain
@@ -1446,7 +1444,7 @@ with qn as (select a from t1 order by 1 limit 10)
 select qn.a from qn, t1 as t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
 Warnings:
 Note	1003	with `qn` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 10) /* select#1 */ select `qn`.`a` AS `a` from `qn` join `test`.`t1` `t2`
@@ -1457,7 +1455,7 @@ qn2 as (select b from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `qn2` as (/* select#3 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`qn2`.`b` AS `b` from `test`.`t1` join `qn2`
@@ -1466,7 +1464,7 @@ with qn as (select a from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn2.a from qn, qn as qn2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `qn` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `qn2`.`a` AS `a` from `test`.`t1` join `qn` `qn2`
@@ -1494,7 +1492,7 @@ explain with cte as (select * from t1 as t2 limit 1)
 select * from t1 where t1.a in (select a+0 from cte);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (hash join)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `cte` as (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` `t2` limit 1) /* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`cte`) where (`test`.`t1`.`a` = (`cte`.`a` + 0))
@@ -1505,7 +1503,7 @@ explain with cte as (select * from t1 as t2)
 select * from t1 where t1.a in (select a+0 from cte);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t1` `t2`) where (`test`.`t1`.`a` = (`test`.`t2`.`a` + 0))
 with cte as (select * from t1 as t2)
@@ -1522,7 +1520,7 @@ ERROR HY000: In definition of view, derived table or common table expression, SE
 explain with qn (foo, bar) as (select 1, 2 from t1 limit 2) select * from qn, qn qn1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	with `qn` (`foo`,`bar`) as (/* select#2 */ select 1 AS `1`,2 AS `2` from `test`.`t1` limit 2) /* select#1 */ select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar`,`qn1`.`foo` AS `foo`,`qn1`.`bar` AS `bar` from `qn` join `qn` `qn1`
@@ -1552,8 +1550,8 @@ create table t3
 with qn (foo, bar) as (select a, b from t1 limit 2) select bar,foo from qn;
 desc t3;
 Field	Type	Null	Key	Default	Extra
-bar	int(11)	YES		NULL	
-foo	int(11)	YES		NULL	
+bar	int	YES		NULL	
+foo	int	YES		NULL	
 drop table t3;
 # Merge
 with qn (foo, bar) as (select 1 from t1) select * from qn, qn qn1;
@@ -1567,7 +1565,7 @@ foo	bar	foo	bar
 explain with qn (foo, bar) as (select 1, 2 from t1) select * from qn, qn qn1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `foo`,2 AS `bar`,1 AS `foo`,2 AS `bar` from `test`.`t1` join `test`.`t1`
 with qn (foo, bar) as (select 1 as col, 2 as coll from t1) select * from qn, qn qn1;
@@ -1584,8 +1582,8 @@ create table t3
 with qn (foo, bar) as (select a, b from t1) select bar,foo from qn;
 desc t3;
 Field	Type	Null	Key	Default	Extra
-bar	int(11)	YES		NULL	
-foo	int(11)	YES		NULL	
+bar	int	YES		NULL	
+foo	int	YES		NULL	
 drop table t3;
 # Disambiguates same-name expressions
 with qn as (select 1,1) select * from qn;
@@ -1620,8 +1618,8 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v1;
 Field	Type	Null	Key	Default	Extra
-foo	int(1)	NO		0	
-bar	int(1)	NO		0	
+foo	int	NO		0	
+bar	int	NO		0	
 select * from v1;
 foo	bar
 1	1
@@ -1751,9 +1749,9 @@ qne.a,qnm.a,alias1.a,alias2.a
 from qne, qnm, qnea as alias1, qnma as alias2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
@@ -1921,10 +1919,10 @@ EXPLAIN with t2 as
 SELECT /*+ no_merge(t2) */ * FROM t2
 WHERE (a = a OR b <= 6) AND (a IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and (`t2`.`a` is null))
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t1`.`a`) or (`test`.`t1`.`b` <= 6)) and (`test`.`t1`.`a` is null))) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`
 with t2 as
 (select * from t1)
 SELECT /*+ no_merge(t2) */ * FROM t2
@@ -1952,12 +1950,10 @@ create view v1 as
 with qn as (select a from t1),
 qn2 as (select b from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t1`
 drop view v1;
@@ -1970,7 +1966,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 drop view v1;
 drop table t1;
 # CTE referenced four times, including in subqueries in other CTEs
@@ -2062,7 +2058,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	with `qn` as (/* select#2 */ select straight_join (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` join `qn` set `test`.`t1`.`a` = (`qn`.`a` + 10) where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
+Note	1003	with `qn` as (/* select#2 */ select (`test`.`t2`.`a` + 2) AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) update /*+ NO_MERGE(`qn`@`select#1`) */ `test`.`t1` join `qn` set `test`.`t1`.`a` = (`qn`.`a` + 10) where ((`test`.`t1`.`a` - `qn`.`a`) = 0)
 with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
 select * from t1;
 a	b
@@ -2223,4 +2219,4 @@ with qn as (select 1) select * from qn;
 use test;
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	23
+Created_tmp_disk_tables	17

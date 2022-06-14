@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,14 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
+#include <assert.h>
 #include <rapidjson/document.h>      // rapidjson::GenericValue
 #include <rapidjson/prettywriter.h>  // rapidjson::PrettyWriter
 #include <memory>
 
 #include "base64.h"    // base64_encode
 #include "m_string.h"  // STRING_WITH_LEN
-#include "my_dbug.h"
+
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/dd/object_id.h"  // Object_id typedef
 
@@ -378,7 +379,7 @@ void write_binary(dd::Sdi_wcontext *wctx, W *w, const binary_t &b,
   int b64sz = base64_needed_encoded_length(binsz);
 
   char *bp = dd::buf_handle(wctx, static_cast<size_t>(b64sz));
-  DBUG_ASSERT(bp);
+  assert(bp);
 
   base64_encode(b.c_str(), binsz, bp);
   w->String(key, keysz);
@@ -403,7 +404,7 @@ bool read_binary(dd::Sdi_rcontext *rctx, binary_t *b, const GV &gv,
   int binsz = base64_needed_decoded_length(b64sz);
 
   char *bp = dd::buf_handle(rctx, static_cast<size_t>(binsz));
-  binsz = base64_decode(b64, b64sz, bp, NULL, 0);
+  binsz = base64_decode(b64, b64sz, bp, nullptr, 0);
   *b = binary_t(bp, binsz);
   return false;
 }
@@ -427,7 +428,7 @@ template <typename W, typename PP>
 void write_opx_reference(W *w, const PP &p, const char *key, size_t keysz) {
   uint opx = 0;
   if (p) {
-    DBUG_ASSERT(p->ordinal_position() > 0);
+    assert(p->ordinal_position() > 0);
     opx = p->ordinal_position() - 1;
     write(w, opx, key, keysz);
   }

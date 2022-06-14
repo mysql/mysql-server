@@ -65,8 +65,52 @@ insert into test.pfs_published_schema
  values("MySQL 8.0.17",
         "b77ece4deaa3c4676d817ed98c3cc33f5b1a08a001bf610a7d02fb52a42b613d");
 
+insert into test.pfs_published_schema
+ values("MySQL 8.0.172",
+        "4b2535cee3a558d09b93caaa1fe9021da9e758ffcacd0922bea81ae9799175dc");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.18",
+        "1d6747d842bb2483c860cd7b28e886bdc6111ff61fd6b4d07e367aa7b3e9d9bf");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.19",
+        "f58dba20c4234c34cedfcacd3b9a295dcac77a09b79d5f41d5f740878f272d4d");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.20",
+        "a9aa0ab4a94ca91622145d735e60bbb03577616970351032d3194d8bfd7a69c7");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.21",
+        "112972e1f7d2b3a351a14979ecc3b419efc81e79dc029078a3a94955be218e5a");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.22",
+        "b9000c4a106a8351d2274028965f19d7902c3ccb9faa9407603c9258812f77fe");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.23",
+        "903e1e93e60651094708033160338ba66b6e59a733111e773cac126adc932488");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.24",
+        "2db5b001fae56232df1c5fab4be6bbf10d47873a6ad55f36ad9d9be20632e973");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.27",
+        "b229e37b78fcb1a522fb01991615e092888071981515ceca629030d7c9ae66c4");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.28",
+        "9984eaa4462410f61339028551966d92815f4287dac45358ca326b5c55333ddf");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.29",
+        "94c77e0c2a4f4e6616648a8ec30aebc10eee06889338a06473434fd39dc80b3a");
+
 create table test.pfs_check_table
-  (id int(11) NOT NULL AUTO_INCREMENT,
+  (id int NOT NULL AUTO_INCREMENT,
    t text NOT NULL,
    row_hash varchar(64) default null,
    PRIMARY KEY (id));
@@ -76,7 +120,7 @@ delimiter $$;
 create procedure test.pfs_check_proc()
 begin
   declare whole_schema longtext;
-  declare max_length int(11);
+  declare max_length int;
   declare found_signature varchar(64);
   declare found_version varchar(20);
 

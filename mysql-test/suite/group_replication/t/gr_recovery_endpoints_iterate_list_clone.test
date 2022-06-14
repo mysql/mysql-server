@@ -1,0 +1,193 @@
+###############################################################################
+# This test verifies that if the recovery endpoints list contains invalid
+# entries it should continue iterate remaining endpoints.
+#
+# Test:
+#   0. The test requires two servers
+#   1. Install clone plugin on server1.
+#   2. Bootstrap server1 and add some data
+#   3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+#   4. Setup the server so group replication starts on boot
+#      Install the Clone plugin
+#   5. Ensure clone is used on recovery
+#   6. On a empty server2 start group replication
+#      Wait for it to restart and come back
+#   7. Clone will fail connecting to first endpoint
+#   8. Distributed recovery fails on first element from list
+#   9. Distributed recovery connects to second endpoint
+#  10. Clone will continue iteration on recovery endpoints
+#      and recovery from second endpoint
+#  11. Cleanup
+#
+###############################################################################
+
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Install clone plugin on server1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_port= `SELECT @@GLOBAL.PORT`
+
+# Setting admin_port has no effect if admin_address is not specified because in
+# that case the server maintains no administrative network interface.
+
+--let $server1_admin_port= `SELECT @@GLOBAL.ADMIN_PORT`
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--replace_result $server1_admin_port SERVER1_ADMIN_PORT $server1_port SERVER1_PORT
+--eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "127.0.0.1:$server1_admin_port,127.0.0.1:$server1_port"
+
+--echo
+--echo # 2. Bootstrap server1 and add some data
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+--echo
+--echo # 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_on_boot= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
+--let $plugin_list= $GROUP_REPLICATION
+--source include/spawn_monitoring_process.inc
+
+--echo
+--echo # 4. Setup the server so group replication starts on boot
+--echo #    Install the Clone plugin
+
+--disable_query_log
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
+
+SET PERSIST group_replication_start_on_boot= ON;
+--enable_query_log
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo # 5. Ensure clone is used on recovery
+
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+SET GLOBAL group_replication_clone_threshold= 1;
+
+--echo
+--echo # 6. On a empty server2 start group replication
+--echo #    Wait for it to restart and come back
+
+START GROUP_REPLICATION;
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state=ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 7. Clone will fail connecting to first endpoint
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_clone
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = .*Internal query: CLONE INSTANCE FROM 'root'@'127.0.0.1':$server1_admin_port.*
+--let $assert_text = recovery channel used recovery endpoints configuration
+--source include/assert_grep.inc
+
+--echo
+--echo # 8. Distributed recovery fails on first element from list
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_clone
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = .*error connecting to master 'root@127.0.0.1:$server1_admin_port'.*
+--let $assert_text = recovery channel used recovery endpoints configuration
+--source include/assert_grep.inc
+
+--echo
+--echo # 9. Distributed recovery connects to second endpoint
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_clone
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = .*Establishing connection to a group replication recovery donor.*127.0.0.1 port: $server1_port.*
+--let $assert_text = recovery channel connect to second endpoint
+--source include/assert_grep.inc
+
+--echo
+--echo # 10. Clone will continue iteration on recovery endpoints
+--echo #     and recovery from second endpoint
+
+# assert failure of clone from first recovery endpoint
+--let $assert_text= Clone must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+# See if the data has been properly cloned in server2
+--let $diff_tables=server1:test.t1 ,server2:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo # 11. Cleanup
+
+--eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
+
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+
+--replace_result $_group_replication_start_on_boot START_ON_BOOT_VALUE
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_on_boot
+
+DROP TABLE t1;
+
+--source include/rpl_sync.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression(".*The member contains transactions not present *.*");
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM 'root'@'127.0.0.1':.*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862*");
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+set session sql_log_bin=1;
+
+--source include/clean_monitoring_process.inc
+
+UNINSTALL PLUGIN clone;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "DEFAULT"
+
+UNINSTALL PLUGIN clone;
+
+--source include/group_replication_end.inc

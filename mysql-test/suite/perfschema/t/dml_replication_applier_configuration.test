@@ -7,8 +7,23 @@
 SELECT * FROM performance_schema.replication_applier_configuration
   LIMIT 1;
 
-sELECT * FROM performance_schema.replication_applier_configuration
+SELECT * FROM performance_schema.replication_applier_configuration
   WHERE desired_delay=12;
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE privilege_checks_user=NULL;
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE require_row_format="NO";
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE require_table_primary_key_check="STREAM";
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE assign_gtids_to_anonymous_transactions_type="OFF";
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE assign_gtids_to_anonymous_transactions_value=NULL;
 --enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -16,12 +31,64 @@ INSERT INTO performance_schema.replication_applier_configuration
   SET desired_delay=2;
 
 --error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET privilege_checks_user="'user'@'%'";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET require_row_format="YES";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET require_table_primary_key_check="ON";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET assign_gtids_to_anonymous_transactions="LOCAL";
+
+--error ER_TABLEACCESS_DENIED_ERROR
 UPDATE performance_schema.replication_applier_configuration
   SET desired_delay=12 WHERE desired_delay=2;
 
 --error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET privilege_checks_user="'user'@'%'" WHERE privilege_checks_user=NULL;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET require_row_format="YES" WHERE require_row_format="NO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET require_table_primary_key_check="OFF" WHERE require_table_primary_key_check="STREAM";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET assign_gtids_to_anonymous_transactions="LOCAL" WHERE assign_gtids_to_anonymous_transactions="OFF";
+
+--error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM performance_schema.replication_applier_configuration
   WHERE desired_delay=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE privilege_checks_user="'user'@'%'";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE require_row_format="NO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE require_table_primary_key_check="STREAM";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE assign_gtids_to_anonymous_transactions_type="OFF";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE assign_gtids_to_anonymous_transactions_value="OFF";
 
 --error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM performance_schema.replication_applier_configuration;

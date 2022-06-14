@@ -17,7 +17,7 @@ eval INSERT INTO db2.t1 VALUES(4, '$until_type');
 eval INSERT INTO db3.t1 VALUES(3, '$until_type');
 eval INSERT INTO db3.t1 VALUES(4, '$until_type');
 
-if ($until_type == 'MASTER_POS')
+if ($until_type == 'SOURCE_POS')
 {
   --let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
   --let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
@@ -57,10 +57,10 @@ INSERT INTO db1.t1 VALUES(4, "block a worker");
 --source include/rpl_connection_slave.inc
 
 --let $__until_clause=
-if ($until_type == 'MASTER_POS')
+if ($until_type == 'SOURCE_POS')
 {
-  --replace_result $master_log_file MASTER_LOG_FILE $master_log_pos MASTER_LOG_POS
-  --let $__until_clause= MASTER_LOG_FILE="$master_log_file", MASTER_LOG_POS=$master_log_pos
+  --replace_result $master_log_file SOURCE_LOG_FILE $master_log_pos SOURCE_LOG_POS
+  --let $__until_clause= SOURCE_LOG_FILE="$master_log_file", SOURCE_LOG_POS=$master_log_pos
 }
 
 if ($until_type == 'RELAY_POS')
@@ -77,7 +77,7 @@ if ($until_type == 'BEFORE_GTIDS')
 
 eval START SLAVE SQL_THREAD UNTIL $__until_clause;
 
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for workers to exit" OR state = "Waiting for Slave Worker to release partition"
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for workers to exit" OR state = "Waiting for Replica Worker to release partition"
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server_2

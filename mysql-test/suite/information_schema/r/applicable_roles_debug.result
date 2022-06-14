@@ -1,0 +1,23 @@
+#
+# Make sure a warning is raised when acl cache lock acquire fails.
+#
+CREATE USER u1 IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 to u1;
+GRANT SELECT ON test.* TO u1;
+SET GLOBAL DEBUG='+d,simulate_acl_cache_lock_failure';
+SET ROLE ALL;
+SELECT * FROM INFORMATION_SCHEMA.ENABLED_ROLES;
+ROLE_NAME	ROLE_HOST	IS_DEFAULT	IS_MANDATORY
+r1	%	NO	NO
+Warnings:
+Warning	3946	Failed to acquire lock on user management service, unable to determine if role `r1`@`%` is mandatory
+SET GLOBAL mandatory_roles = 'r1';
+SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES ORDER BY GRANTEE, ROLE_NAME;
+USER	HOST	GRANTEE	GRANTEE_HOST	ROLE_NAME	ROLE_HOST	IS_GRANTABLE	IS_DEFAULT	IS_MANDATORY
+Warnings:
+Warning	3947	Failed to acquire lock on user management service, unable to fetch mandatory role list
+SET GLOBAL mandatory_roles=default;
+SET GLOBAL DEBUG=default;
+DROP USER u1;
+DROP ROLE r1;

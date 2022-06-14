@@ -1,0 +1,125 @@
+# ==== Purpose ====
+#
+# This scripts verifies that when the replication applier has SET_USER_ID but no
+# SYSTEM_USER privileges it fails to SUID to a system user.
+#
+# ==== Requirements ====
+#
+# R1. An account with no `SUPER` or `SYSTEM_USER` MUST NOT have the capability
+#     of SUID to a `SYSTEM_USER` privileged account.
+#
+# ==== Implementation ====
+#
+# 1) Setup up slave to use an applier security context and grant privilege
+#    `SET_USER_ID`.
+# 2) On the master, create a user with privileges to create a procedure, named
+#    'u2'@'localhost'.
+# 3) On the slave, create a user with the same name - 'u2'@'localhost' - with no
+#    system user privileges.
+# 4) On the master, create a procedure using 'u2'@'localhost'.
+# 5) Synchronize the slave with the master and expect success.
+# 6) Ensure the procedure exists on the slave.
+# 7) On the slave, grant `SYSTEM_USER` to 'u2'@'localhost'.
+# 8) On the master, create another procedure using 'u2'@'localhost'.
+# 9) Wait for slave to error out, without privileges.
+#
+# ==== References ====
+#
+# BUG#30032129 ADD TEST THAT ERRORS IF APPLIER USER TRIES TO `SUID` TO A SYSTEM
+#              USER ACCOUNT
+#
+--source include/have_binlog_format_row.inc
+--source include/skip_config_privilege_checks_user.inc
+
+--let $applier_user = 'u1'@'localhost'
+--let $system_user = 'u2'@'localhost'
+
+#
+# 1) Setup up slave to use an applier security context and grant privilege
+#    `SET_USER_ID`.
+#
+--let $rpl_privilege_checks_user = *:$applier_user
+# Since $rpl_privilege_checks_user is instantiated the replication applier has
+# no privileges on the test database
+--let $RPL_PRIV_DB = test
+--let $rpl_privilege_checks_user_additional_grants = SET_USER_ID, CREATE ROUTINE, CREATE USER, ALTER ROUTINE
+--source include/master-slave.inc
+
+CALL mtr.add_suppression(".*Access denied. you need .at least one of. the SYSTEM_USER.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+
+#
+# 2) On the master, create a user with privileges to create a procedure, named
+#    'u2'@'localhost'.
+#
+SET sql_log_bin = 0;
+--eval CREATE USER $system_user
+--eval GRANT CREATE ROUTINE ON *.* TO $system_user
+SET sql_log_bin = 1;
+
+#
+# 3) On the slave, create a user with the same name - 'u2'@'localhost' - with no
+#    outstanding privileges.
+#
+--source include/rpl_connection_slave.inc
+--eval CREATE USER $system_user
+
+#
+# 4) On the master, create a procedure using 'u2'@'localhost'.
+#
+--replace_result $MASTER_MYPORT MASTER_PORT
+--connect(sys_user_conn, localhost, u2,, $RPL_PRIV_DB, $MASTER_MYPORT)
+--connection sys_user_conn
+--delimiter @
+CREATE PROCEDURE simpleproc1 (OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t;
+END@
+--delimiter ;
+--source include/rpl_connection_master.inc
+
+#
+# 5) Synchronize the slave with the master and expect success.
+#
+--source include/sync_slave_sql_with_master.inc
+
+#
+# 6) Ensure the procedure exists on the slave.
+#
+--let $count = `SELECT COUNT(*) FROM information_schema.routines WHERE routine_name = "simpleproc1"`
+--let $assert_text = Procedure simpleproc1 does exist
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+#
+# 7) On the slave, grant `SYSTEM_USER` to 'u2'@'localhost'.
+#
+--eval GRANT SYSTEM_USER ON *.* TO $system_user
+
+#
+# 8) On the master, create another procedure using 'u2'@'localhost'.
+#
+--connection sys_user_conn
+--delimiter @
+CREATE PROCEDURE simpleproc2 (OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t;
+END@
+--delimiter ;
+--disconnect sys_user_conn
+
+#
+# 9) Wait for slave to error out, without privileges.
+#
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# Clean up
+--eval GRANT SYSTEM_USER ON *.* TO $applier_user
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP PROCEDURE simpleproc1;
+DROP PROCEDURE simpleproc2;
+--eval DROP USER $system_user
+--source include/rpl_end.inc

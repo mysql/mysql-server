@@ -1,0 +1,37 @@
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Bug #30197056 INNODB: ASSERTION FAILURE: PAGE_TYPE ==
+--echo # FIL_PAGE_TYPE_ZLOB_FIRST AT ZLOB0READ.CC
+--echo #
+
+SET GLOBAL innodb_compression_level = 0;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=COMPRESSED;
+
+# The size of the BLOB is specified as 40000 bytes so that it will be
+# stored externally.
+INSERT INTO t1 VALUES (1, REPEAT('+', 40000));
+
+SET DEBUG = '+d,lob_insert_single_zstream';
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, REPEAT('~', 40000));
+
+--source include/expect_crash.inc
+
+SET DEBUG = '+d,ib_zlob_deleter_middle_crash';
+--error 2013
+ROLLBACK;
+
+--source include/start_mysqld.inc
+
+SELECT f1, LENGTH(f2) FROM t1 FOR UPDATE;
+DROP TABLE t1;
+
+SET GLOBAL innodb_compression_level = DEFAULT;
+

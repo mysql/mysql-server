@@ -38,7 +38,10 @@ let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Plugin direct
 --echo #-----------------------------------------------------------------------
 
 --echo # Clean-up
-# MTR will restart the server
 --remove_file $server_log
 
 --echo #-----------------------------------------------------------------------
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

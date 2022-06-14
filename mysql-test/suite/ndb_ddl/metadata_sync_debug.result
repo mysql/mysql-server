@@ -1,0 +1,159 @@
+SET GLOBAL debug = '+d,ndb_dd_client_lfg_force_commit,ndb_schema_trans_commit_fail,ndb_skip_create_tablespace_in_NDB';
+SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+Warnings:
+Warning	1296	Got error 0 'No error' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+SET GLOBAL debug = '-d,ndb_dd_client_lfg_force_commit,ndb_schema_trans_commit_fail,ndb_skip_create_tablespace_in_NDB';
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check = true;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB
+TABLESPACE ts1
+STORAGE DISK;
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM t1;
+a	b
+1	1
+CREATE TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+INSERT INTO t1 VALUES
+(1, 'Rino'),
+(2, 'Rino'),
+(3, 'Rino Anto');
+CREATE TABLE t2 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+INSERT INTO t2 VALUES
+(4, 'Rino'),
+(5, 'Rino'),
+(6, 'Rino Anto');
+CREATE TABLE t3 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+INSERT INTO t3 VALUES
+(7, 'Rino'),
+(8, 'Rino'),
+(9, 'Rino Anto');
+CREATE TABLE t4 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+INSERT INTO t4 VALUES(1, 'Hey Rino Anto');
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+INSERT INTO db1.t1 VALUES
+(1, 'Weasley'),
+(2, 'Is Our'),
+(3, 'King');
+DROP TABLE t1,t2,t3,t4;
+DROP DATABASE db1;
+CREATE TABLE t5 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+SET GLOBAL debug = '+d,ndb_metadata_sync_fail';
+CALL mtr.add_suppression("NDB Binlog: Failed to synchronize table");
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check = true;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SHOW STATUS LIKE 'Ndb_metadata_excluded_count';
+Variable_name	Value
+Ndb_metadata_excluded_count	6
+SELECT * FROM performance_schema.ndb_sync_excluded_objects;
+SCHEMA_NAME	NAME	TYPE	REASON
+db1	NULL	SCHEMA	Injected failure
+test	t1	TABLE	Injected failure
+test	t2	TABLE	Injected failure
+test	t3	TABLE	Injected failure
+test	t4	TABLE	Injected failure
+test	t5	TABLE	Injected failure
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check = true;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SELECT * FROM t1;
+a	b
+1	Rino
+2	Rino
+3	Rino Anto
+SELECT * FROM t2;
+a	b
+4	Rino
+5	Rino
+6	Rino Anto
+SELECT * FROM t3;
+a	b
+7	Rino
+8	Rino
+9	Rino Anto
+SELECT * FROM t4;
+a	b
+1	Hey Rino Anto
+DROP TABLE IF EXISTS t5;
+CREATE DATABASE db1;
+SELECT * FROM db1.t1;
+a	b
+1	Weasley
+2	Is Our
+3	King
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check = true;
+SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
+COUNT(*)
+0
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SET GLOBAL debug = '-d,ndb_metadata_sync_fail';
+DROP TABLE t1,t2,t3,t4;
+DROP DATABASE db1;

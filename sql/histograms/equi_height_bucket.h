@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_BUCKET_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_BUCKET_INCLUDED
 
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,23 +58,23 @@ class Bucket {
   /// Upper inclusive value contained in this bucket.
   const T m_upper_inclusive;
 
-  /// The cumulative frequency. 0.0 <= m_cumulative_frequency <= 1.0
+  /// The cumulative frequency. 0.0 <= m_cumulative_frequency <= 1.0.
   const double m_cumulative_frequency;
 
   /// Number of distinct values in this bucket.
   const ha_rows m_num_distinct;
 
   /**
-    Add values to a JSON bucket
+    Add values to a JSON bucket.
 
     This function adds the lower and upper inclusive value to the supplied
     JSON array. The lower value is added first.
 
-    @param      lower_value the lower inclusive value to add
-    @param      upper_value the upper inclusive value to add
-    @param[out] json_array  a JSON array where the bucket data is stored
+    @param      lower_value The lower inclusive value to add.
+    @param      upper_value The upper inclusive value to add.
+    @param[out] json_array  A JSON array where the bucket data is stored.
 
-    @return     true on error, false otherwise.
+    @return     True on error, false otherwise.
   */
   static bool add_values_json_bucket(const T &lower_value, const T &upper_value,
                                      Json_array *json_array);
@@ -85,30 +85,30 @@ class Bucket {
 
     Does nothing more than setting the member variables.
 
-    @param lower         lower inclusive value
-    @param upper         upper inclusive value
-    @param freq          the cumulative frequency
-    @param num_distinct  number of distinct values in this bucket
+    @param lower         Lower inclusive value.
+    @param upper         Upper inclusive value.
+    @param freq          The cumulative frequency.
+    @param num_distinct  Number of distinct values in this bucket.
   */
   Bucket(T lower, T upper, double freq, ha_rows num_distinct);
 
   /**
-    @return lower inclusive value
+    @return Lower inclusive value.
   */
   const T &get_lower_inclusive() const { return m_lower_inclusive; }
 
   /**
-    @return upper inclusive value
+    @return Upper inclusive value.
   */
   const T &get_upper_inclusive() const { return m_upper_inclusive; }
 
   /**
-    @return cumulative frequency
+    @return Cumulative frequency.
   */
   double get_cumulative_frequency() const { return m_cumulative_frequency; }
 
   /**
-    @return number of distinct values
+    @return Number of distinct values.
   */
   ha_rows get_num_distinct() const { return m_num_distinct; }
 
@@ -123,40 +123,35 @@ class Bucket {
       Index 2: Cumulative frequency.
       Index 3: Number of distinct values.
 
-    @param[out] json_array output where the bucket content is to be stored
+    @param[out] json_array Output where the bucket content is to be stored.
 
-    @return     true on error, false otherwise
+    @return     True on error, false otherwise.
   */
   bool bucket_to_json(Json_array *json_array) const;
 
   /**
-    Returns the "distance" between lower inclusive value and the argument
-    "value".
+    Finds the relative location of "value" between bucket endpoints.
+    This is used to determine the fraction of a bucket to include in selectivity
+    estimates in the case where the query value lies inside a bucket.
 
-    The return value is a number between 0.0 and 1.0. A value of 0.0 indicates
-    that "value" is equal to or less than the lower inclusive value. A value of
-    1.0 indicates that "value" is equal or greater to the upper inclusive value.
+    get_distance_from_lower returns the fraction of all elements between bucket
+    endpoints [a, b] that lie in the interval [a, value), i.e., strictly less
+    than value. For some histogram types the return value is only an estimate.
 
-    @param value The value to caluclate the distance for
+    @param value The value to calculate the distance for.
 
     @return The distance between "value" and lower inclusive value.
   */
   double get_distance_from_lower(const T &value) const;
 
   /**
-    Calculate how high the probability is for a single value existing in the
-    bucket.
+    Returns the fraction of all elements between bucket endpoints [a, b] that
+    are strictly greater than "value". For some histogram types the return value
+    is only an estimate.
 
-    This is basically equal to the number of distinct values in the bucket
-    divided by the number of possible values in the bucket range. For strings,
-    double, decimals and such, the probability will be very low since the number
-    of possible values is VERY big. For integer values, the probability may
-    be rather high if the difference between the lower and upper value is low.
-
-    @return Probability of a value existing in the bucket, between 0.0 and 1.0
-            inclusive.
+    @return The distance between "value" and upper inclusive value.
   */
-  double value_probability() const;
+  double get_distance_from_upper(const T &value) const;
 };
 
 }  // namespace equi_height

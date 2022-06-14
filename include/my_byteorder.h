@@ -1,7 +1,7 @@
 #ifndef MY_BYTEORDER_INCLUDED
 #define MY_BYTEORDER_INCLUDED
 
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 */
 
 #include "my_config.h"
+
+#include "my_compiler.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -123,63 +125,63 @@ static inline void int6store(uchar *T, ulonglong A) {
 
 #ifdef __cplusplus
 
-static inline int16 sint2korr(const char *pT) {
+inline int16 sint2korr(const char *pT) {
   return sint2korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline uint16 uint2korr(const char *pT) {
+inline uint16 uint2korr(const char *pT) {
   return uint2korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline uint32 uint3korr(const char *pT) {
+inline uint32 uint3korr(const char *pT) {
   return uint3korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline int32 sint3korr(const char *pT) {
+inline int32 sint3korr(const char *pT) {
   return sint3korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline uint32 uint4korr(const char *pT) {
+inline uint32 uint4korr(const char *pT) {
   return uint4korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline int32 sint4korr(const char *pT) {
+inline int32 sint4korr(const char *pT) {
   return sint4korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline ulonglong uint6korr(const char *pT) {
+inline ulonglong uint6korr(const char *pT) {
   return uint6korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline ulonglong uint8korr(const char *pT) {
+inline ulonglong uint8korr(const char *pT) {
   return uint8korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline longlong sint8korr(const char *pT) {
+inline longlong sint8korr(const char *pT) {
   return sint8korr(static_cast<const uchar *>(static_cast<const void *>(pT)));
 }
 
-static inline void int2store(char *pT, uint16 A) {
+inline void int2store(char *pT, uint16 A) {
   int2store(static_cast<uchar *>(static_cast<void *>(pT)), A);
 }
 
-static inline void int3store(char *pT, uint A) {
+inline void int3store(char *pT, uint A) {
   int3store(static_cast<uchar *>(static_cast<void *>(pT)), A);
 }
 
-static inline void int4store(char *pT, uint32 A) {
+inline void int4store(char *pT, uint32 A) {
   int4store(static_cast<uchar *>(static_cast<void *>(pT)), A);
 }
 
-static inline void int5store(char *pT, ulonglong A) {
+inline void int5store(char *pT, ulonglong A) {
   int5store(static_cast<uchar *>(static_cast<void *>(pT)), A);
 }
 
-static inline void int6store(char *pT, ulonglong A) {
+inline void int6store(char *pT, ulonglong A) {
   int6store(static_cast<uchar *>(static_cast<void *>(pT)), A);
 }
 
-static inline void int8store(char *pT, ulonglong A) {
+inline void int8store(char *pT, ulonglong A) {
   int8store(static_cast<uchar *>(static_cast<void *>(pT)), A);
 }
 
@@ -189,16 +191,80 @@ static inline void int8store(char *pT, ulonglong A) {
   and M a pointer to byte.
 */
 
-static inline void float4store(char *V, float M) {
+inline void float4store(char *V, float M) {
   float4store(static_cast<uchar *>(static_cast<void *>(V)), M);
 }
 
-static inline void float8get(double *V, const char *M) {
-  float8get(V, static_cast<const uchar *>(static_cast<const void *>(M)));
+inline double float8get(const char *M) {
+  return float8get(static_cast<const uchar *>(static_cast<const void *>(M)));
 }
 
-static inline void float8store(char *V, double M) {
+inline void float8store(char *V, double M) {
   float8store(static_cast<uchar *>(static_cast<void *>(V)), M);
+}
+
+/*
+ Functions that have the same behavior on little- and big-endian.
+*/
+
+inline float floatget(const uchar *ptr) {
+  float val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline void floatstore(uchar *ptr, float val) {
+  memcpy(ptr, &val, sizeof(val));
+}
+
+inline double doubleget(const uchar *ptr) {
+  double val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline void doublestore(uchar *ptr, double val) {
+  memcpy(ptr, &val, sizeof(val));
+}
+
+inline uint16 ushortget(const uchar *ptr) {
+  uint16 val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline int16 shortget(const uchar *ptr) {
+  int16 val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline void shortstore(uchar *ptr, int16 val) {
+  memcpy(ptr, &val, sizeof(val));
+}
+
+inline int32 longget(const uchar *ptr) {
+  int32 val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline void longstore(uchar *ptr, int32 val) { memcpy(ptr, &val, sizeof(val)); }
+
+inline uint32 ulongget(const uchar *ptr) {
+  uint32 val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline longlong longlongget(const uchar *ptr) {
+  longlong val;
+  memcpy(&val, ptr, sizeof(val));
+  return val;
+}
+
+inline void longlongstore(uchar *ptr, longlong val) {
+  memcpy(ptr, &val, sizeof(val));
 }
 
 /*
@@ -208,19 +274,19 @@ static inline void float8store(char *V, double M) {
  The stores return a pointer just past the value that was written.
 */
 
-static inline uint16 load16be(const char *ptr) {
+inline uint16 load16be(const char *ptr) {
   uint16 val;
   memcpy(&val, ptr, sizeof(val));
   return ntohs(val);
 }
 
-static inline uint32 load32be(const char *ptr) {
+inline uint32 load32be(const char *ptr) {
   uint32 val;
   memcpy(&val, ptr, sizeof(val));
   return ntohl(val);
 }
 
-static ALWAYS_INLINE char *store16be(char *ptr, uint16 val) {
+ALWAYS_INLINE char *store16be(char *ptr, uint16 val) {
 #if defined(_MSC_VER)
   // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
   val = _byteswap_ushort(val);
@@ -231,7 +297,7 @@ static ALWAYS_INLINE char *store16be(char *ptr, uint16 val) {
   return ptr + sizeof(val);
 }
 
-static inline char *store32be(char *ptr, uint32 val) {
+inline char *store32be(char *ptr, uint32 val) {
   val = htonl(val);
   memcpy(ptr, &val, sizeof(val));
   return ptr + sizeof(val);
@@ -239,19 +305,19 @@ static inline char *store32be(char *ptr, uint32 val) {
 
 // Adapters for using uchar * instead of char *.
 
-static inline uint16 load16be(const uchar *ptr) {
+inline uint16 load16be(const uchar *ptr) {
   return load16be(pointer_cast<const char *>(ptr));
 }
 
-static inline uint32 load32be(const uchar *ptr) {
+inline uint32 load32be(const uchar *ptr) {
   return load32be(pointer_cast<const char *>(ptr));
 }
 
-static ALWAYS_INLINE uchar *store16be(uchar *ptr, uint16 val) {
+ALWAYS_INLINE uchar *store16be(uchar *ptr, uint16 val) {
   return pointer_cast<uchar *>(store16be(pointer_cast<char *>(ptr), val));
 }
 
-static inline uchar *store32be(uchar *ptr, uint32 val) {
+inline uchar *store32be(uchar *ptr, uint32 val) {
   return pointer_cast<uchar *>(store32be(pointer_cast<char *>(ptr), val));
 }
 

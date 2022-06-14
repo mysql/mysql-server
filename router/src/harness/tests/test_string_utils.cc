@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,27 +25,24 @@
 #include "mysql/harness/string_utils.h"
 
 ////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-
-////////////////////////////////////////
 // Standard include files
-
 #include <fstream>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
+
 using mysql_harness::split_string;
-using std::string;
 using ::testing::ContainerEq;
 
 TEST(StringUtilsTests, SplitStringWithEmpty) {
-  std::vector<string> exp;
+  std::vector<std::string> exp;
   std::string tcase;
 
   exp = {"val1", "val2"};
@@ -69,7 +66,7 @@ TEST(StringUtilsTests, SplitStringWithEmpty) {
 }
 
 TEST(StringUtilsTests, SplitStringWithoutEmpty) {
-  std::vector<string> exp;
+  std::vector<std::string> exp;
   std::string tcase;
 
   exp = {"val1", "val2"};
@@ -90,4 +87,9 @@ TEST(StringUtilsTests, SplitStringWithoutEmpty) {
   // No trimming
   exp = {"  val1", "val2  "};
   EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

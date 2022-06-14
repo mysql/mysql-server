@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmy_print_defaults\fR
+.\"     Title: my_print_defaults
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMY_PRINT_DEFAULTS\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MY_PRINT_DEFAULTS" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,7 +35,7 @@ my_print_defaults \- display options from option files
 .SH "DESCRIPTION"
 .PP
 \fBmy_print_defaults\fR
-displays the options that are present in option groups of option files\&. The output indicates what options will be used by programs that read the specified option groups\&. For example, the
+displays the options that are present in option groups of option files\&. The output indicates what options are used by programs that read the specified option groups\&. For example, the
 \fBmysqlcheck\fR
 program reads the
 [mysqlcheck]
@@ -49,7 +49,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmy_print_defaults mysqlcheck client\fR
+$> \fBmy_print_defaults mysqlcheck client\fR
 \-\-user=myusername
 \-\-password=\fIpassword\fR
 \-\-host=localhost
@@ -73,7 +73,6 @@ supports the following options\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -88,7 +87,6 @@ Display a help message and exit\&.
 \fB\-\-config\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-c \fR\fB\fIfile_name\fR\fR
-.sp
 Read only the given option file\&.
 .RE
 .sp
@@ -102,7 +100,6 @@ Read only the given option file\&.
 .\}
 \fB\-\-debug=\fR\fB\fIdebug_options\fR\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -121,7 +118,6 @@ d:t:o,/tmp/my_print_defaults\&.trace\&.
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-\-extra\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-e \fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -138,7 +134,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIsuffix\fR\fR,
 \fB\-g \fR\fB\fIsuffix\fR\fR
-.sp
 In addition to the groups named on the command line, read groups that have the given suffix\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -155,7 +150,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR,
 \fB\-l \fR\fB\fIname\fR\fR
-.sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -163,7 +157,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -179,7 +173,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-no\-defaults\fR,
 \fB\-n\fR
-.sp
 Return an empty string\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -196,7 +189,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-show\fR,
 \fB\-s\fR
-.sp
 \fBmy_print_defaults\fR
 masks passwords by default\&. Use this option to display passwords as cleartext\&.
 .RE
@@ -211,7 +203,6 @@ masks passwords by default\&. Use this option to display passwords as cleartext\
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .sp
@@ -225,13 +216,12 @@ Verbose mode\&. Print more information about what the program does\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

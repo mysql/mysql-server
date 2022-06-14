@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,21 +27,28 @@
 #include <string>
 #include <system_error>
 
-namespace std {
-std::error_code make_error_code(HttpAuthErrc e) {
-  return {static_cast<int>(e), theHttpAuthErrCategory};
+const std::error_category &http_auth_error_category() noexcept {
+  class socket_category_impl : public std::error_category {
+   public:
+    const char *name() const noexcept override { return "http_auth"; }
+    std::string message(int ev) const override {
+      switch (static_cast<HttpAuthErrc>(ev)) {
+        case HttpAuthErrc::kRealmNotFound:
+          return "realm not found";
+        case HttpAuthErrc::kBackendNotFound:
+          return "backend not found";
+        case HttpAuthErrc::kAuthorizationNotSupported:
+          return "authorization not supported";
+        default:
+          return "(unrecognized error)";
+      }
+    }
+  };
+
+  static socket_category_impl instance;
+  return instance;
 }
-}  // namespace std
 
-const char *HttpAuthErrCategory::name() const noexcept { return "mcf"; }
-
-std::string HttpAuthErrCategory::message(int ev) const {
-  switch (static_cast<HttpAuthErrc>(ev)) {
-    case HttpAuthErrc::kRealmNotFound:
-      return "realm not found";
-    case HttpAuthErrc::kBackendNotFound:
-      return "backend not found";
-    default:
-      return "(unrecognized error)";
-  }
+std::error_code make_error_code(HttpAuthErrc e) {
+  return {static_cast<int>(e), http_auth_error_category()};
 }

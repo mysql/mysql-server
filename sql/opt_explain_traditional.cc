@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,14 @@
 
 #include "sql/opt_explain_traditional.h"
 
+#include <assert.h>
 #include <sys/types.h>
+
+#include <cstddef>  // size_t
 
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
@@ -42,7 +45,7 @@
   This array must be in sync with Extra_tag enum.
 */
 static const char *traditional_extra_tags[ET_total] = {
-    NULL,                               // ET_none
+    nullptr,                            // ET_none
     "Using temporary",                  // ET_USING_TEMPORARY
     "Using filesort",                   // ET_USING_FILESORT
     "Using index condition",            // ET_USING_INDEX_CONDITION
@@ -83,24 +86,36 @@ static const char *mod_type_name[] = {"NONE", "INSERT", "UPDATE", "DELETE",
                                       "REPLACE"};
 
 bool Explain_format_traditional::send_headers(Query_result *result) {
-  return ((nil = new Item_null) == NULL ||
+  return ((nil = new Item_null) == nullptr ||
           Explain_format::send_headers(result) ||
           current_thd->send_explain_fields(output));
 }
 
-static bool push(List<Item> *items, qep_row::mem_root_str &s, Item_null *nil) {
-  if (s.is_empty()) return items->push_back(nil);
+static bool push(mem_root_deque<Item *> *items, qep_row::mem_root_str &s,
+                 Item_null *nil) {
+  if (s.is_empty()) {
+    items->push_back(nil);
+    return false;
+  }
   Item_string *item = new Item_string(s.str, s.length, system_charset_info);
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) return true;
+  items->push_back(item);
+  return false;
 }
 
-static bool push(List<Item> *items, const char *s, size_t length) {
+static bool push(mem_root_deque<Item *> *items, const char *s, size_t length) {
   Item_string *item = new Item_string(s, length, system_charset_info);
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) return true;
+  items->push_back(item);
+  return false;
 }
 
-static bool push(List<Item> *items, List<const char> &c, Item_null *nil) {
-  if (c.is_empty()) return items->push_back(nil);
+static bool push(mem_root_deque<Item *> *items, List<const char> &c,
+                 Item_null *nil) {
+  if (c.is_empty()) {
+    items->push_back(nil);
+    return false;
+  }
 
   StringBuffer<1024> buff;
   List_iterator<const char> it(c);
@@ -112,32 +127,58 @@ static bool push(List<Item> *items, List<const char> &c, Item_null *nil) {
   if (!buff.is_empty()) buff.length(buff.length() - 1);  // remove last ","
   Item_string *item = new Item_string(buff.dup(current_thd->mem_root),
                                       buff.length(), system_charset_info);
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) {
+    return true;
+  }
+  items->push_back(item);
+  return false;
 }
 
-static bool push(List<Item> *items, const qep_row::column<uint> &c,
+static bool push(mem_root_deque<Item *> *items, const qep_row::column<uint> &c,
                  Item_null *nil) {
-  if (c.is_empty()) return items->push_back(nil);
+  if (c.is_empty()) {
+    items->push_back(nil);
+    return false;
+  }
   Item_uint *item = new Item_uint(c.get());
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) {
+    return true;
+  }
+  items->push_back(item);
+  return false;
 }
 
-static bool push(List<Item> *items, const qep_row::column<ulonglong> &c,
-                 Item_null *nil) {
-  if (c.is_empty()) return items->push_back(nil);
+static bool push(mem_root_deque<Item *> *items,
+                 const qep_row::column<ulonglong> &c, Item_null *nil) {
+  if (c.is_empty()) {
+    items->push_back(nil);
+    return false;
+  }
   Item_int *item = new Item_int(c.get(), MY_INT64_NUM_DECIMAL_DIGITS);
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) {
+    return true;
+  }
+  items->push_back(item);
+  return false;
 }
 
-static bool push(List<Item> *items, const qep_row::column<float> &c,
+static bool push(mem_root_deque<Item *> *items, const qep_row::column<float> &c,
                  Item_null *nil) {
-  if (c.is_empty()) return items->push_back(nil);
+  if (c.is_empty()) {
+    items->push_back(nil);
+    return false;
+  }
   Item_float *item = new Item_float(c.get(), 2);
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) {
+    return true;
+  }
+  items->push_back(item);
+  return false;
 }
 
-bool Explain_format_traditional::push_select_type(List<Item> *items) {
-  DBUG_ASSERT(!column_buffer.col_select_type.is_empty());
+bool Explain_format_traditional::push_select_type(
+    mem_root_deque<Item *> *items) {
+  assert(!column_buffer.col_select_type.is_empty());
   StringBuffer<32> buff;
   if (column_buffer.is_dependent) {
     if (buff.append(STRING_WITH_LEN("DEPENDENT "), system_charset_info))
@@ -151,13 +192,17 @@ bool Explain_format_traditional::push_select_type(List<Item> *items) {
                       (sel_type == enum_explain_type::EXPLAIN_PRIMARY ||
                        sel_type == enum_explain_type::EXPLAIN_SIMPLE))
                          ? mod_type_name[column_buffer.mod_type]
-                         : SELECT_LEX::get_type_str(sel_type);
+                         : Query_block::get_type_str(sel_type);
 
   if (buff.append(type)) return true;
 
   Item_string *item = new Item_string(buff.dup(current_thd->mem_root),
                                       buff.length(), system_charset_info);
-  return item == NULL || items->push_back(item);
+  if (item == nullptr) {
+    return true;
+  }
+  items->push_back(item);
+  return false;
 }
 
 class Buffer_cleanup {
@@ -175,7 +220,7 @@ bool Explain_format_traditional::flush_entry() {
     clear for the next row.
   */
   Buffer_cleanup bc(&column_buffer);
-  List<Item> items;
+  mem_root_deque<Item *> items(current_thd->mem_root);
   if (push(&items, column_buffer.col_id, nil) || push_select_type(&items) ||
       push(&items, column_buffer.col_table_name, nil) ||
       push(&items, column_buffer.col_partitions, nil) ||
@@ -190,13 +235,13 @@ bool Explain_format_traditional::flush_entry() {
 
   if (column_buffer.col_message.is_empty() &&
       column_buffer.col_extra.is_empty()) {
-    if (items.push_back(nil)) return true;
+    items.push_back(nil);
   } else if (!column_buffer.col_extra.is_empty()) {
     StringBuffer<64> buff(system_charset_info);
     List_iterator<qep_row::extra> it(column_buffer.col_extra);
     qep_row::extra *e;
     while ((e = it++)) {
-      DBUG_ASSERT(traditional_extra_tags[e->tag] != NULL);
+      assert(traditional_extra_tags[e->tag] != nullptr);
       if (buff.append(traditional_extra_tags[e->tag])) return true;
       if (e->data) {
         bool brackets = false;

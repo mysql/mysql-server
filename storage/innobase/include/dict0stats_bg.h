@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0types.h"
 #include "os0event.h"
 #include "os0thread.h"
+#include "row0mysql.h"
 
 /** Event to wake up the stats thread */
 extern os_event_t dict_stats_event;
@@ -66,20 +67,19 @@ void dict_stats_recalc_pool_del(
 
 /** Yield the data dictionary latch when waiting
 for the background thread to stop accessing a table.
-@param trx transaction holding the data dictionary locks */
-#define DICT_STATS_BG_YIELD(trx)           \
-  do {                                     \
-    row_mysql_unlock_data_dictionary(trx); \
-    os_thread_sleep(250000);               \
-    row_mysql_lock_data_dictionary(trx);   \
-  } while (0)
+@param[in] trx transaction holding the data dictionary locks
+@param[in] location location where called */
+static inline void DICT_STATS_BG_YIELD(trx_t *trx, ut::Location location) {
+  row_mysql_unlock_data_dictionary(trx);
+  std::this_thread::sleep_for(std::chrono::milliseconds(250));
+  row_mysql_lock_data_dictionary(trx, location);
+}
 
 /** Request the background collection of statistics to stop for a table.
  @retval true when no background process is active
  @retval false when it is not safe to modify the table definition */
-UNIV_INLINE
-bool dict_stats_stop_bg(dict_table_t *table) /*!< in/out: table */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool dict_stats_stop_bg(
+    dict_table_t *table); /*!< in/out: table */
 
 /** Wait until background stats thread has stopped using the specified table.
  The caller must have locked the data dictionary using
@@ -104,10 +104,10 @@ void dict_stats_thread_deinit();
 #ifdef UNIV_DEBUG
 /** Disables dict stats thread. It's used by:
         SET GLOBAL innodb_dict_stats_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]      thd             thread handle
+@param[in]      var             pointer to system variable
+@param[out]     var_ptr         where the formal string goes
+@param[in]      save            immediate result from check function */
 void dict_stats_disabled_debug_update(THD *thd, SYS_VAR *var, void *var_ptr,
                                       const void *save);
 #endif /* UNIV_DEBUG */

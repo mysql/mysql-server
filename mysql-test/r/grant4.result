@@ -20,10 +20,10 @@ insert into mysqltest_db1.t_column_priv_only (a) VALUES (1);
 ** Should succeed because we have privileges (any) on at least one of the columns.
 select column_name as 'Field',column_type as 'Type',is_nullable as 'Null',column_key as 'Key',column_default as 'Default',extra as 'Extra' from information_schema.columns where table_schema='mysqltest_db1' and table_name='t_column_priv_only';
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 show columns from mysqltest_db1.t_column_priv_only;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 ** SHOW COLUMNS
 ** Should fail because there are no privileges on any column combination.
 show columns from mysqltest_db1.t_no_priv;
@@ -51,8 +51,8 @@ ERROR 42000: SHOW command denied to user 'mysqltest_u1'@'localhost' for table 't
 ** Success because we got some privileges on the table (SELECT_ACL)
 show columns from mysqltest_db1.t_select_priv;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+a	int	YES		NULL	
+b	int	YES		NULL	
 
 ** CREATE TABLE ... LIKE ... require SELECT privleges and will SUCCEED.
 drop table if exists test.t_duplicated;
@@ -63,11 +63,11 @@ drop table test.t_duplicated;
 show create table mysqltest_db1.t_select_priv;
 Table	Create Table
 t_select_priv	CREATE TABLE `t_select_priv` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
-** SHOW CREATE TABLE will fail if there is no grants at all: 
+** SHOW CREATE TABLE will fail if there is no grants at all:
 show create table mysqltest_db1.t_no_priv;
 ERROR 42000: SHOW command denied to user 'mysqltest_u1'@'localhost' for table 't_no_priv'
 
@@ -132,7 +132,9 @@ USE test;
 call mtr.add_suppression("The plugin .* used to authenticate user .* is not loaded. Nobody can currently login using this account");
 call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 call mtr.add_suppression("Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value.");
+call mtr.add_suppression("Found an entry in the 'role_edges' table with unknown authorization ID '`r3`@`%`'");
 CREATE TEMPORARY TABLE save_user AS SELECT * FROM mysql.user;
+CREATE TEMPORARY TABLE save_role_edges AS SELECT * FROM mysql.role_edges;
 # Test
 INSERT INTO mysql.user(user,plugin,ssl_cipher,x509_issuer,x509_subject) VALUES ('foo','bar','','',''),('bar','bar','','',''),('baz','bar','','','');
 CREATE ROLE r1,r2,r3;
@@ -144,8 +146,38 @@ UPDATE mysql.user SET plugin='';
 CREATE USER plug IDENTIFIED WITH 'server';
 ERROR HY000: Plugin 'server' is not loaded
 # Cleanup
-REVOKE r3 FROM r2;
 DELETE FROM mysql.user;
 INSERT INTO mysql.user SELECT * FROM save_user;
+DELETE FROM mysql.role_edges;
+INSERT INTO mysql.role_edges SELECT * FROM save_role_edges;
 FLUSH PRIVILEGES;
+#
+# Bug#29395197 REVOKE ALLOWS INCORRECT VALUES
+#
+CREATE USER testuser@localhost;
+GRANT abc ON *.* TO testuser@localhost;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+REVOKE abc ON *.* FROM testuser@localhost;
+Warnings:
+Warning	3929	Dynamic privilege 'ABC' is not registered with the server.
+CREATE ROLE testrole;
+GRANT abc ON *.* TO testrole;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+REVOKE abc ON *.* FROM testrole;
+Warnings:
+Warning	3929	Dynamic privilege 'ABC' is not registered with the server.
+DROP USER testuser@localhost;
+DROP USER testrole;
+#
+# Anonymous user fail to properly aggregate EXECUTE privilege.
+#
+CREATE USER ''@'';
+GRANT EXECUTE ON PROCEDURE sys.table_exists TO ''@'';
+GRANT SELECT ON db1.* TO ''@'';
+SHOW GRANTS FOR ''@'';
+Grants for @
+GRANT USAGE ON *.* TO ``@``
+GRANT SELECT ON `db1`.* TO ``@``
+GRANT EXECUTE ON PROCEDURE `sys`.`table_exists` TO ``@``
+DROP USER ''@'';
 # End of 8.0 tests

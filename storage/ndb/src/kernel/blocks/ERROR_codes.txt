@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,24 +20,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 949
-Next NDBCNTR 1008
+Next QMGR 950
+Next NDBCNTR 1023
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
 Next DBLQH 5098
 Next DBDICT 6223
 Next DBDIH 7249
-Next DBTC 8117
+Next DBTC 8120
 Next CMVMI 9000
-Next BACKUP 10050
+Next BACKUP 10054
 Next PGMAN 11010
 Next DBTUX 12010
-Next SUMA 13053
+Next SUMA 13054
 Next LGMAN 15002
 Next TSMAN 16002
 Next DBSPJ 17000
-Next TRIX 18000
+Next TRIX 18004
 Next DBUTIL 19001
 
 TESTING NODE FAILURE, ARBITRATION
@@ -268,6 +268,7 @@ QMGR
       4) ndb_mgm -e "all start"
 947:  Treat restart error due to a node disconnection as CRASH_INSERTION.
 948:  Cause node to crash when first hearing of a node failure
+949:  Pause before enabling this node to accept connections from API nodes
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
@@ -350,7 +351,7 @@ Error insertions used to test ACCKEYCONF/ABORT interleaving
       Allow one ABORT signal to be processed then set 5096
 5096: Cause ABORT messages to be indefinitely stalled
       ACCKEYCONF signal clears ERROR Insertion
-5097: ndbrequire(false)
+5097: ndbabort()
 
 
 
@@ -462,9 +463,6 @@ DBTC LONG SIGNAL TESTING
 8067: Consume all long section segments on next TCKEYREQ
 8068: Free all segments hoarded by 8065, 8066, 8067
 
-8069: Always send 'short' LQHKEYREQ to LQH
-8070: Always send 'short' SCANFRAGREQ to LQH
-
 8074: Drop first fragment of fragmented SCANTABREQ
 8075: Drop middle fragments of fragmented SCANTABREQ
 8076: Drop last fragment of fragmented SCANTABREQ
@@ -496,6 +494,10 @@ DBTC TCINDXREQ TESTING
 8107: Cause transaction abort with timeout error
 
 8108: Cause transaction timeout (error 4012) by failing to send TC_COMMITCONF
+
+DBTC Partitioning testing
+-------------------------
+8119: Simulate specific range scan pruning hash code 0xffffffff
 
 CMVMI
 -----
@@ -529,7 +531,6 @@ Test Crashes in handling node restarts
 
 7174: Crash starting node before sending DICT_LOCK_REQ
 7175: Master sends one fake START_PERMREF (ZNODE_ALREADY_STARTING_ERROR)
-7176: Slave NR pretends master does not support DICT lock (rolling upgrade)
 
 DICT:
 6000  Crash during NR when receiving DICTSTARTREQ
@@ -578,9 +579,6 @@ Test failures in various states in take over functionality
 7163: Block take over at sending of UPDATE_TOREQ at end of copy frag
 7164: Block take over at sending of END_TOREQ
 7169: Block take over at sending of UPDATE_TOREQ at end of copy
-
-5008: Crash at reception of EMPTY_LCPREQ (at master take over after NF)
-5009: Crash at sending of EMPTY_LCPCONF (at master take over after NF)
 
 Test Crashes in Handling Graceful Shutdown
 ------------------------------------------
@@ -641,6 +639,14 @@ Backup Stuff:
 10047: Delay start of scan for LCPs
 10048: Ensure that LCP runs with exactly 1 part
 10049: Abort backup with LogBufferFull when STOP_BACKUP_REQ breaks to sync path before trigger deletion
+10050: Change #records and #bytes backed up to a value > 2^32 to test
+       NDB_LE_BackupCompleted prints the 64-bit value out correctly
+       without truncating it to 32 bit values.
+10051: Get duplicate replies to DEFINE_BACKUP_REQ by crashing non-master node
+       after receiving DEFINE_BACKUP_CONF. Also delay DEFINE_BACKUP_CONF from
+       master so that master waits to receive the duplicate REF
+10052: Same as 10051 for START_BACKUP_REQ
+10053: Same as 10051 for STOP_BACKUP_REQ
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
@@ -814,6 +820,12 @@ NDBCNTR:
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
 
+1022 : Increase system shutdown TC timeout by 5 seconds
+1023 : Increase system shutdown TC timeout by 5 seconds
+       Fail node rather than send WAIT_GCP_REQ
+1024 : Increase system shutdown TC timeout by 5 seconds
+       Fail master node concurrent with sending WAIT_GCP_REQ
+
 SUMA:
 13036: Simulate report MISSING_DATA at node failure
 13037: Simulate disconnect lagging subscribers
@@ -846,8 +858,10 @@ ACC bug#34348
 TRIX
 ----
 Index stats:
+18000: delay BUILD_INDX_IMPL_REQ for 1s : Test behaviour while building
 18001: fail to seize statOp
 18002: fail to seize associated subRec
+18003: delay BUILD_INDX_IMPL_REQ for 20s : Test behaviour while building
 18011: fail HEAD read - simulate UtilExecuteRef::AllocationError
 18012: fail HEAD insert/update/delete - as in 18011
 18021: fail RT_CLEAN_NEW - simulate TC error 626

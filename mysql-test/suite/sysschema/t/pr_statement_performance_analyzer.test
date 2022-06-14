@@ -122,12 +122,18 @@ connection default;
 --let $o_upd_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_sel_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_ins_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
---let $d_upd_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_sel_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_ins_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_upd_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_sel_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_ins_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $o_upd_cpu_latency= `SELECT cpu_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
+--let $o_sel_cpu_latency= `SELECT cpu_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
+--let $o_ins_cpu_latency= `SELECT cpu_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
+--let $d_upd_total_latency= `SELECT format_pico_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_sel_total_latency= `SELECT format_pico_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_ins_total_latency= `SELECT format_pico_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_upd_tock_latency= `SELECT format_pico_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_sel_tock_latency= `SELECT format_pico_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_ins_tock_latency= `SELECT format_pico_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_upd_cpu_latency= `SELECT format_pico_time(CPU_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_sel_cpu_latency= `SELECT format_pico_time(CPU_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_ins_cpu_latency= `SELECT format_pico_time(CPU_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
 
 CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
 
@@ -146,11 +152,11 @@ CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_r
 
 # analysis - as there's no control of the various latencies, it may be the same for two or more of the queries.
 # So replace_result cannot be used to give it a unique value. Instead just use LATENCY for all rows.
---replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_avg_latency LATENCY $o_upd_lock_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $o_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_avg_latency LATENCY $o_sel_lock_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $o_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_avg_latency LATENCY $o_ins_lock_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_avg_latency LATENCY $o_upd_lock_latency LATENCY $o_upd_cpu_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $o_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_avg_latency LATENCY $o_sel_lock_latency LATENCY $o_sel_cpu_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $o_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_avg_latency LATENCY $o_ins_lock_latency LATENCY $o_ins_cpu_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN
 --sorted_result
 CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
 
---replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $d_upd_tock_latency LATENCY $d_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $d_sel_tock_latency LATENCY $d_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN $d_ins_tock_latency LATENCY
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $d_upd_tock_latency LATENCY $d_upd_cpu_latency LATENCY $d_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $d_sel_tock_latency LATENCY $d_sel_cpu_latency LATENCY $d_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN $d_ins_tock_latency LATENCY $d_ins_cpu_latency LATENCY
 --sorted_result
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
 
@@ -179,8 +185,8 @@ CREATE VIEW test.view_digests AS
 SELECT sys.format_statement(DIGEST_TEXT) AS query,
        SCHEMA_NAME AS db,
        COUNT_STAR AS exec_count,
-       sys.format_time(SUM_TIMER_WAIT) AS total_latency,
-       sys.format_time(AVG_TIMER_WAIT) AS avg_latency,
+       format_pico_time(SUM_TIMER_WAIT) AS total_latency,
+       format_pico_time(AVG_TIMER_WAIT) AS avg_latency,
        ROUND(IFNULL(SUM_ROWS_SENT / NULLIF(COUNT_STAR, 0), 0)) AS rows_sent_avg,
        ROUND(IFNULL(SUM_ROWS_EXAMINED / NULLIF(COUNT_STAR, 0), 0)) AS rows_examined_avg,
        ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,

@@ -7,11 +7,14 @@
 
 set optimizer_switch='batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
 
+--source include/not_hypergraph.inc  # Everything in this test depends heavily on the plans chosen.
+
 # Basic table scan.
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -38,6 +41,7 @@ CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3 FROM t1;
 DROP TABLE t1;
 
@@ -46,6 +50,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 DROP TABLE t1;
 
@@ -54,6 +59,7 @@ CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
@@ -65,6 +71,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
 DROP TABLE t1;
 
@@ -75,6 +82,7 @@ INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 ( f1 INT PRIMARY KEY );
 INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1 = 3;
 DROP TABLE t1, t2;
 
@@ -84,6 +92,7 @@ INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t1.f1=2;
 DROP TABLE t1, t2;
 
@@ -95,6 +104,7 @@ CREATE TABLE t3 ( a INT, b INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t2 VALUES ( 3 );
 INSERT INTO t3 VALUES ( 2, 0 );
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 USING (a) ) ON t3.b IS NULL;
 DROP TABLE t1, t2, t3;
 
@@ -104,6 +114,7 @@ INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 DROP TABLE t1, t2;
 
@@ -115,6 +126,7 @@ INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
 (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
 (3, 1), (3, 2), (3, 3), (3, 4), (3, 5),
 (4, 1), (4, 2), (4, 3), (4, 4), (4, 5);
+ANALYZE TABLE t1, t2;
 FLUSH STATUS;
 EXPLAIN FORMAT=tree SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
 DROP TABLE t1, t2;
@@ -124,12 +136,15 @@ CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 DROP TABLE t1;
 
 # Pointless materialization.
-CREATE TABLE t1 ( a BLOB, b INT );
+# Also demonstrates printout of sorting without addon fields.
+CREATE TABLE t1 ( a LONGBLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT 0 AS foo FROM t1 WHERE 0 = (SELECT group_concat(b) FROM t1 t GROUP BY t1.a) ;
 DROP TABLE t1;
 
@@ -148,12 +163,15 @@ INSERT INTO t1 VALUES ('abc');
 INSERT INTO t1 VALUES ('def');
 INSERT INTO t1 VALUES ('def');
 INSERT INTO t1 VALUES ('ghi');
+ANALYZE TABLE t1;
+--replace_regex /cost=1.76..2.27/cost=1.76..2.28/
 EXPLAIN FORMAT=tree SELECT DISTINCT f1 FROM t1 LIMIT 2;
 DROP TABLE t1;
 
 # Pointless extra limit (pushed down into the temporary table, but not removed on the outside).
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 values (1), (2);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
 DROP TABLE t1;
 
@@ -163,6 +181,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 DROP TABLE t1;
 
@@ -171,6 +190,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 DROP TABLE t1;
@@ -180,6 +200,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT ( SELECT MIN(f1) FROM t1 AS ii WHERE ii.f1 > t1.f1 ) > i.f1 FROM t1 AS i ) ;
 DROP TABLE t1;
 
@@ -189,15 +210,8 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
-DROP TABLE t1;
-
-# A subquery that contains a query we can't execute as iterators.
-CREATE TABLE t1 ( f1 INT PRIMARY KEY );
-INSERT INTO t1 VALUES ( 1 );
-INSERT INTO t1 VALUES ( 2 );
-INSERT INTO t1 VALUES ( 3 );
-EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 LIMIT 1 ) FROM t1;
 DROP TABLE t1;
 
 # A subquery which is pushed to a temporary table due to ordering.
@@ -205,6 +219,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 AS inner_t1 WHERE inner_t1.f1 > t1.f1 LIMIT 1 ) AS tmp1 FROM t1 ORDER BY tmp1;
 DROP TABLE t1;
 
@@ -213,6 +228,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a > 3 ORDER BY b;
 DROP TABLE t1;
 
@@ -227,6 +243,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY b LIMIT 3;
 DROP TABLE t1;
 
@@ -252,10 +269,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (
 ) ON t1.a = t4d.a;
 DROP TABLE t1, t2, t3, t4;
 
-# Demonstrate a shortcoming in printing table iterators on MaterializeIterator;
-# we're not showing the sub-iterator for the WHERE subquery, just marking it as
-# “other sub-iterators not shown”. See MaterializeIterator::DebugString() for
-# more information.
+# Demontrate that we can print the sub-iterator for the WHERE subquery
+# that originally came from a table path.
 CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
   WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
@@ -281,6 +296,7 @@ CREATE TABLE t3 (i INTEGER);
 CREATE TABLE t4 (i INTEGER);
 INSERT INTO t1 VALUES (2, 3);
 INSERT INTO t2 VALUES (4, 5);
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE (t1.i) IN (SELECT t3.i FROM t3,t4) AND t1.pk = 2 AND t2.pk = 4;
 DROP TABLE t1, t2, t3, t4;
 
@@ -297,15 +313,17 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
 CREATE TABLE t1 ( a INTEGER, b INTEGER );
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 
-# Same, for a NOT IN query (which then becomes an anti-join).
+# Same, for a NOT IN query (which then becomes an antijoin).
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
 CREATE TABLE t1 ( a INTEGER NOT NULL, b INTEGER NOT NULL );
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b > 2 );
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
@@ -317,6 +335,7 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
 CREATE TABLE t1 ( a INTEGER, b INTEGER );
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT MAX(a) FROM t1 WHERE b = 2 );
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
@@ -328,6 +347,7 @@ CREATE TABLE t1 ( i INTEGER );
 CREATE TABLE t2 ( i INTEGER );
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (2);
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 DROP TABLE t1;
 DROP TABLE t2;
@@ -345,6 +365,7 @@ CREATE TABLE t1 ( i INTEGER );
 CREATE TABLE t2 ( i INTEGER );
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 DROP TABLE t1;
 DROP TABLE t2;
@@ -357,7 +378,219 @@ CREATE TABLE t1 ( i INTEGER, PRIMARY KEY (i) );
 CREATE TABLE t2 ( i INTEGER, INDEX i1 (i) );
 INSERT INTO t1 VALUES (2), (3), (4), (5);
 INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
 EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
+
+--echo #
+--echo # Bug#29904996 EXPLAIN FORMAT=TREE PRINTS OUT HIDDEN COLUMN NAME INSTEAD
+--echo #              OF INDEXED EXPRESSION
+--echo #
+CREATE TABLE t1 (
+  col_int_key INTEGER,
+  col_json JSON,
+  KEY mv_idx ((CAST(col_json->'$[*]' AS CHAR(40) ARRAY)))
+);
+
+CREATE TABLE t2 (col_int INTEGER);
+
+--echo # See that we print the indexed expression, and not the hidden column
+--echo # name.
+EXPLAIN FORMAT=tree SELECT /*+ NO_BNL(t1, t2) */ * FROM t2
+  JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
+
+DROP TABLE t1, t2;
+
+# EXPLAIN ANALYZE of a simple query.
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
+INSERT INTO t1 VALUES (1,3), (2,4), (3,5);
+ANALYZE TABLE t1;
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a LIMIT 3;
+
+# Same, but with some parts that are never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 AS a, t1 AS b WHERE a.b=500;
+DROP TABLE t1;
+
+# EXPLAIN ANALYZE FOR CONNECTION makes no sense.
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE FOR CONNECTION 1;
+
+# EXPLAIN ANALYZE with FORMAT= is supported, but currently only for FORMAT=TREE.
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
+
+# An information_schema table.
+EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
+
+# Union materialization directly into a temporary table (no double materialization).
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES (1), (2), (3);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #30444266: EXPLAIN ANALYZE DOES NOT EXECUTE THE SUBQUERIES IN THE SELECT LIST
+--echo #
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE t1;
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#17978975 EXPLAIN FOR MULTI-TABLE UPDATE/DELETE DOES NOT MENTION TEMPORARY TABLE
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+CREATE TABLE t2(a INT, b INT);
+ANALYZE TABLE t1,t2;
+# Show when the table is updated on the fly, or with a tmp table:
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1;
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
+EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
+EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #30941336: EXPLAIN ANAYLZE SELECT COUNT(*) FROM MYSQL.USER COREDUMP UNDER DEBUG VERSION
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #31559245: REGRESSION: CRASH/ASSERT IN SUBSELECT_HASH_SJ_ENGINE::ROOT_ACCESS_PATH
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
+--echo #
+
+# The important thing here is that the Materialize node has rows=3 and loops=1,
+# because even though it's been asked to materialize five times, it only materialized
+# one of them. The LIMIT is to avoid temporary table merging.
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32915233: RECENT REGRESSION:ASSERTION `EXPLAIN.CHILDREN.SIZE() <= 1' FAILED.
+--echo #
+
+# Sets up an AlternativeIterator in the table access path.
+CREATE TABLE t1 (a int);
+SET sql_mode='';
+EXPLAIN FORMAT=tree SELECT a IN (SELECT a FROM (table t1) AS d) FROM t1 GROUP BY (@b:=5);
+SET sql_mode=DEFAULT;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33030136: EXPLAIN: ASSERTION `CURRENT_THD->LEX->USING_HYPERGRAPH_OPTIMIZER' FAILED.
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+EXPLAIN FORMAT=tree
+  (SELECT 1 FROM t1)
+  UNION ALL
+  SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
+
+DROP TABLE t1;
+
+#
+# Demonstrates printing an index range scan with too many ranges to print
+# (more than three). The pushed index condition is redundant.
+#
+
+CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
+
+# Also, with printing of a reverse-scan iterator.
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
+
+#
+# EXPLAIN ANALYZE on an IndexMergeIterator. Also demonstrates printing of
+# scanning over clustered primary keys. (The filter is redundant.)
+#
+
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+  SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
+
+DROP TABLE t1;
+
+#
+# Demonstrates printing index skip scan.
+#
+
+CREATE TABLE t1 (a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, KEY idx1 (a,b,c,d,e));
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=tree
+  SELECT /*+ SKIP_SCAN(t1) */ * FROM t1 WHERE a IN (2,4,6,8,10) AND b=5 AND e BETWEEN 100 AND 200;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33343948: Multi-valued index ranges are printed as binary
+--echo #
+
+# Demonstrates printing of range scans over an index on a string
+# column with a binary collation. Range values used to be printed as a
+# hex strings.
+
+CREATE TABLE t(a VARCHAR(10) COLLATE utf8mb4_0900_bin, KEY (a));
+INSERT INTO t VALUES ('abc'), ('def'), ('ghi');
+ANALYZE TABLE t;
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a > 'abc' AND a < 'ghi';
+# Also verify that special characters are escaped.
+EXPLAIN FORMAT=tree
+SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33364732: Preliminary fixes for WL#14673
+--echo #
+
+# Demonstrates printing of DELETE with an impossible WHERE clause.
+
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
+
+# Demonstrates EXPLAIN ANALYZE on a DELETE statement.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
+# Should EXPLAIN ANALYZE DELETE actually delete rows? Currently, it
+# does not. (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table
+# either.)
+--sorted_result
+SELECT * FROM t;
+
+DROP TABLE t;

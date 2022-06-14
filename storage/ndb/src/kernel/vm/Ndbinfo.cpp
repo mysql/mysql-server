@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,8 +51,10 @@ Ndbinfo::Row::check_buffer_space(AttributeHeader& ah) const
 
   if(needed > avail)
   {
-    ndbout_c("Warning, too small row buffer for attribute: %d, "
-             "needed: %d, avail: %d", ah.getAttributeId(), needed, avail);
+    g_eventLogger->info(
+        "Warning, too small row buffer for attribute: %d, "
+        "needed: %d, avail: %d",
+        ah.getAttributeId(), needed, avail);
     assert(false);
     return false; // Not enough room in row buffer
   }

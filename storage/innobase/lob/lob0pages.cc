@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,8 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-void data_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
-                                 ulint &want, mtr_t *mtr) {
+void data_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
+                                 mtr_t *mtr) {
   byte *old_ptr = data_begin() + offset;
 
   ulint data_len = get_data_len();
@@ -49,11 +49,11 @@ void data_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
 
 /** Create a new data page and replace some or all parts of the old data
 with data.
-@param[in]	trx	the current transaction.
-@param[in]	offset	the offset where replace begins.
-@param[in,out]	ptr	pointer to new data.
-@param[in]	want	amount of data the caller wants to replace.
-@param[in]	mtr	the mini transaction context.
+@param[in]      trx     Current transaction.
+@param[in]      offset  Offset where replace begins.
+@param[in,out]  ptr     Pointer to new data.
+@param[in]      want    Amount of data the caller wants to replace.
+@param[in]      mtr     Mini-transaction context.
 @return the buffer block of the new data page. */
 buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                   ulint &want, mtr_t *mtr) {
@@ -108,12 +108,12 @@ buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 }
 
 /** Append given data in data page.
-@param[in]	trxid	transaction doing append.
-@param[in,out]	data	data to be appended.
-@param[in,out]	len	length of data.
+@param[in]      trxid   transaction doing append.
+@param[in,out]  data    data to be appended.
+@param[in,out]  len     length of data.
 @return number of bytes appended. */
 ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
-  DBUG_ENTER("append_page");
+  DBUG_TRACE;
 
   ulint old_data_len = get_data_len();
 
@@ -121,7 +121,7 @@ ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   ulint space_available = max_space_available() - old_data_len;
 
   if (space_available == 0 || len == 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   ulint written = (len > space_available) ? space_available : len;
@@ -134,7 +134,7 @@ ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   data += written;
   len -= written;
 
-  DBUG_RETURN(written);
+  return written;
 }
 
 ulint data_page_t::space_left() const { return (payload() - get_data_len()); }
@@ -166,13 +166,7 @@ buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   return (m_block);
 }
 
-/** Write data into a data page.
-@param[in]      trxid  the transaction identifier of the session writing data.
-@param[in,out]  data   the data to be written.  it will be updated to point
-                       to the byte not yet written.
-@param[in,out]  len    length of data available to be written.
-@return amount of data actually written into the page. */
-ulint data_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
+ulint data_page_t::write(const byte *&data, ulint &len) {
   byte *ptr = data_begin();
   ulint written = (len > payload()) ? payload() : len;
 
@@ -194,17 +188,18 @@ buf_block_t *data_page_t::load_x(page_no_t page_no) {
   const page_id_t page_id(space_id, page_no);
   const page_size_t page_size = dict_table_page_size(m_index->table);
 
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+  m_block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
   return (m_block);
 }
 
 /** Read data from the data page.
-@param[in]	offset	read begins at this offset.
-@param[out]	ptr	the output buffer.
-@param[in]	want	bytes to read
+@param[in]      offset  read begins at this offset.
+@param[out]     ptr     the output buffer.
+@param[in]      want    bytes to read
 @return bytes actually read. */
 ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
-  DBUG_ENTER("data_page_t::read");
+  DBUG_TRACE;
 
   byte *start = data_begin();
   start += offset;
@@ -216,7 +211,7 @@ ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
   DBUG_LOG("lob", "page_no=" << get_page_no());
   DBUG_LOG("lob", PrintBuffer(ptr, copy_len));
 
-  DBUG_RETURN(copy_len);
+  return copy_len;
 }
 
 }  // namespace lob

@@ -16,7 +16,6 @@ drop database if exists my_local_db;
 create database my_local_db;
 
 create table my_local_db.my_tx_table(a bigint) engine = innodb;
-create table my_local_db.my_non_tx_table(a bigint) engine = myisam;
 
 use test;
 drop table if exists marker_start;
@@ -25,9 +24,6 @@ drop table if exists marker_start;
 use my_local_db;
 
 insert into my_tx_table(a)
-  values (1000), (2000), (3000);
-
-insert into my_non_tx_table(a)
   values (1000), (2000), (3000);
 
 use test;
@@ -64,20 +60,20 @@ select * from performance_schema.setup_actors
 
 insert into performance_schema.setup_objects
   (object_type, object_schema, object_name, enabled, timed)
-  values ('TABLE', 'DB1', 'AAA', 'YES', 'YES'),
-         ('TABLE', 'DB1', 'BBB', 'NO', 'NO'),
-         ('TABLE', 'DB2', 'CCC', 'YES', 'NO'),
-         ('TABLE', 'DB2', 'DDD', 'NO', 'YES');
+  values ('TABLE', 'db1', 'aaa', 'YES', 'YES'),
+         ('TABLE', 'db1', 'bbb', 'NO', 'NO'),
+         ('TABLE', 'db2', 'ccc', 'YES', 'NO'),
+         ('TABLE', 'db2', 'ddd', 'NO', 'YES');
 
 select * from performance_schema.setup_objects
-  where object_schema like 'DB%' order by object_name;
+  where object_schema like 'db%' order by object_name;
 
 use test;
 drop table if exists marker_insert_select;
 
 # Note:
 # The queries used here do not make any sense (no semantic).
-# What this test is interrested in, is check the behavior
+# What this test is interested in, is check the behavior
 # when replicating queries that mix both:
 # - non replicated tables
 # - replicated tables
@@ -86,43 +82,22 @@ use my_local_db;
 insert into my_tx_table(a)
   select thread_id from performance_schema.threads;
 
-insert into my_non_tx_table(a)
-  select thread_id from performance_schema.threads;
-
 insert into my_tx_table(a)
-  select id from information_schema.processlist;
-
-insert into my_non_tx_table(a)
   select id from information_schema.processlist;
 
 insert into my_tx_table(a)
   select thread_id from mysql.general_log;
 
-insert into my_non_tx_table(a)
-  select thread_id from mysql.general_log;
-
 insert into my_tx_table(a)
-  select thread_id from mysql.slow_log;
-
-insert into my_non_tx_table(a)
   select thread_id from mysql.slow_log;
 
 insert into my_tx_table(a)
   select Relay_log_pos from mysql.slave_relay_log_info;
 
-insert into my_non_tx_table(a)
-  select Relay_log_pos from mysql.slave_relay_log_info;
-
 insert into my_tx_table(a)
   select Master_log_pos from mysql.slave_master_info;
 
-insert into my_non_tx_table(a)
-  select Master_log_pos from mysql.slave_master_info;
-
 insert into my_tx_table(a)
-  select Relay_log_pos from mysql.slave_worker_info;
-
-insert into my_non_tx_table(a)
   select Relay_log_pos from mysql.slave_worker_info;
 
 use test;

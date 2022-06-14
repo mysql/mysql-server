@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,15 +26,15 @@ LEX=flex
 YACC=bison
 PREFIX=fts
 
-all:	fts0pars.cc fts0blex.cc fts0tlex.cc
+all:    fts0pars.cc fts0blex.cc fts0tlex.cc
 
 fts0par.cc: fts0pars.y
 fts0blex.cc: fts0blex.l
 fts0tlex.cc: fts0tlex.l
 
 .l.cc:
-	$(LEX) -P$(subst lex,,$*) -o $*.cc --stdout --header-file=../include/$*.h $< | sed -e 's/^\(static.*void.*yy_fatal_error.*msg.*,\)\(.*yyscanner\)/\1 \2 MY_ATTRIBUTE((unused))/;s/^\(static.*void.*yy_flex_strncpy.*n.*,\)\(.*yyscanner\)/\1 \2 MY_ATTRIBUTE((unused))/;s/^\(static.*int.*yy_flex_strlen.*s.*,\)\(.*yyscanner\)/\1 \2 MY_ATTRIBUTE((unused))/;s/^\(\(static\|void\).*fts0[bt]alloc.*,\)\(.*yyscanner\)/\1 \3 MY_ATTRIBUTE((unused))/;s/^\(\(static\|void\).*fts0[bt]realloc.*,\)\(.*yyscanner\)/\1 \3 MY_ATTRIBUTE((unused))/;s/^\(\(static\|void\).*fts0[bt]free.*,\)\(.*yyscanner\)/\1 \3 MY_ATTRIBUTE((unused))/;s/\<register\> *//;' > $*.cc
+        $(LEX) -P$(subst lex,,$*) -o $*.cc --stdout --header-file=../include/$*.h $< | sed -e 's/^\(static.*void.*yy_fatal_error.*msg.*,\)\(.*yyscanner\)/\1 \2 [[maybe_unused]]/;s/^\(static.*void.*yy_flex_strncpy.*n.*,\)\(.*yyscanner\)/\1 \2 [[maybe_unused]]/;s/^\(static.*int.*yy_flex_strlen.*s.*,\)\(.*yyscanner\)/\1 \2 [[maybe_unused]]/;s/^\(\(static\|void\).*fts0[bt]alloc.*,\)\(.*yyscanner\)/\1 \3 [[maybe_unused]]/;s/^\(\(static\|void\).*fts0[bt]realloc.*,\)\(.*yyscanner\)/\1 \3 [[maybe_unused]]/;s/^\(\(static\|void\).*fts0[bt]free.*,\)\(.*yyscanner\)/\1 \3 [[maybe_unused]]/;s/\<register\> *//;' > $*.cc
 
 .y.cc:
-	$(YACC) -p $(PREFIX) -o $*.cc -d $<
-	mv $*.h ../include
+        $(YACC) -p $(PREFIX) -o $*.cc -d $<
+        mv $*.h ../include

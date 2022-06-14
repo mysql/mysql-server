@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@ struct trp_node
   NodeState m_state;
 
   Uint32 minDbVersion;
+  Uint32 minApiVersion;
   bool defined;
   bool compatible;     // Version is compatible
   bool nfCompleteRep;  // NF Complete Rep has arrived

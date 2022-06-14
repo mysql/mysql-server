@@ -44,3 +44,91 @@ call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 123 in a 
 call mtr.add_suppression("\\[ERROR\\] .* Can't create UNDO tablespace undo_99");
 --enable_query_log
 
+--echo #
+--echo # InnoDB Test UNDO Tablespace truncation on Windows while the tablespace
+--echo # file is externally opened with and without FILE_SHARE_DELETE flag.
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+let $lock_perl_script = $MYSQL_TMP_DIR\lock_tablespace.perl;
+
+write_file $lock_perl_script;
+use Win32API::File 0.08 qw( :ALL );
+my $path  = $ARGV[0];
+my $share  = $ARGV[1];
+
+my $hFile = createFile($path, "re", $share) or die "Can't open $path file";
+
+sleep(10);
+
+CloseHandle($hFile);
+EOF
+
+CREATE TABLE t1 (id INT) ENGINE=InnoDB;
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+# Test without FILE_SHARE_DELETE flag
+--exec_in_background perl $lock_perl_script "$MYSQLD_DATADIR\\undo_003.ibu" "rw"
+let $n=10;
+begin;
+while ($n > 0)
+{
+  --error 0,1533
+  ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+  # We can't have the include/wait_until_undo_space_is_empty.inc here, as it
+  # requires the SET INACTIVE to succeed, while it should fail.
+  --sleep 1
+  # A write ensures the purge is executed and the tablespace truncation is
+  # re-attempted.
+  INSERT INTO t1 VALUES (1);
+  --error 0,1533
+  ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+  dec $n;
+}
+# Wait for the perl script's 10s sleep to finish.
+--sleep 5
+# Now the truncation and deletion should work just fine.
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+
+# Test with FILE_SHARE_DELETE flag
+--exec_in_background perl $lock_perl_script "$MYSQLD_DATADIR\\undo_003.ibu" "rwd"
+let $n=10;
+begin;
+while ($n > 0)
+{
+  # Alter should succeed, the file should be renamed and all operations work as
+  # intended.
+  ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+  # We can't have the include/wait_until_undo_space_is_empty.inc here, as it
+  # requires the SET INACTIVE to succeed, while it should fail.
+  --sleep 1
+  # A write ensures the purge is executed and the tablespace truncation is
+  # re-attempted.
+  INSERT INTO t1 VALUES (1);
+  ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+  dec $n;
+}
+# Wait for the perl script's 10s sleep to finish.
+--sleep 5
+# Now the truncation and deletion should work just fine.
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_003;
+
+DROP TABLE t1;
+--remove_file $lock_perl_script
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[InnoDB\\] Operating system error number 32 in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[InnoDB\\] Operating system error number 80 in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[InnoDB\\] The error means that another program is using InnoDB's files.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[InnoDB\\] Cannot create file '\..undo_003.ibu'");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[InnoDB\\] The file '\..undo_003.ibu' already exists though the corresponding table did not exist.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[InnoDB\\] Failed to delete file '\..undo_003.ibu'. Please check if any other process is using it.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[InnoDB\\] Failed to truncate undo tablespace 'undo_003'");
+--enable_query_log

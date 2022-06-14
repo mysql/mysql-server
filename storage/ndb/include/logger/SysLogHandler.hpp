@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef SYSLOGHANDLER_H
 #define SYSLOGHANDLER_H
+
+#include <time.h>
 
 #include "LogHandler.hpp"
 
@@ -74,21 +76,21 @@ public:
   /**
    * Destructor.
    */
-  virtual ~SysLogHandler();
+  ~SysLogHandler() override;
   
-  virtual bool open();
-  virtual bool close();
+  bool open() override;
+  bool close() override;
 
-  virtual bool is_open();
+  bool is_open() override;
 
-  virtual bool setParam(const BaseString &param, const BaseString &value);
+  bool setParam(const BaseString &param, const BaseString &value) override;
   bool setFacility(const BaseString &facility);
 
 protected:	
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                           time_t now);
-  virtual void writeMessage(const char* pMsg);
-  virtual void writeFooter();
+  void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                           time_t now) override;
+  void writeMessage(const char* pMsg) override;
+  void writeFooter() override;
 
 private:
   /** Prohibit*/

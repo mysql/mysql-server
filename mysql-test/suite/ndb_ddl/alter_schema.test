@@ -1,0 +1,43 @@
+--source connect.inc
+
+--enable_connect_log
+
+--echo # Create a schema on one mysqld, verify creation also on the other.
+--connection mysqld1
+CREATE SCHEMA s;
+SHOW CREATE SCHEMA s;
+
+--connection mysqld2
+SHOW CREATE SCHEMA s;
+
+--echo # Set schema read only on one mysqld, verify read only also on the other.
+ALTER SCHEMA s READ ONLY = 1;
+SHOW CREATE SCHEMA s;
+
+--connection mysqld1
+SHOW CREATE SCHEMA s;
+
+--echo # Verify that writes (table creation) fail on both mysqlds.
+--error ER_SCHEMA_READ_ONLY
+CREATE TABLE s.t(i int);
+
+--connection mysqld2
+--error ER_SCHEMA_READ_ONLY
+CREATE TABLE s.t(i int);
+
+--echo # Verify that writes (table inserts) fail on both mysqlds.
+ALTER SCHEMA s READ ONLY = 0;
+CREATE TABLE s.t(i int) ENGINE NDB;
+ALTER SCHEMA s READ ONLY = 1;
+--error ER_SCHEMA_READ_ONLY
+INSERT INTO s.t VALUES (1);
+
+--connection mysqld1
+--error ER_SCHEMA_READ_ONLY
+INSERT INTO s.t VALUES (1);
+
+--echo # Cleanup.
+ALTER SCHEMA s READ ONLY = 0;
+DROP SCHEMA s;
+
+--disable_connect_log

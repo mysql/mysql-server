@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ static SHOW_VAR simple_status[] = {
 
 #undef AUDIT_NULL_VAR
 
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
 /*
   Define plugin variables.
@@ -163,37 +163,39 @@ static SHOW_VAR simple_status[] = {
 
 static MYSQL_THDVAR_STR(abort_message,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Custom message for event abort.", NULL, NULL, NULL);
+                        "Custom message for event abort.", nullptr, nullptr,
+                        nullptr);
 
 static MYSQL_THDVAR_INT(abort_value, PLUGIN_VAR_RQCMDARG, "Event abort value.",
-                        NULL, NULL, 1, -1, 150, 0);
+                        nullptr, nullptr, 1, -1, 150, 0);
 
 static MYSQL_THDVAR_STR(event_order_check,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Event order check string", NULL, NULL, NULL);
+                        "Event order check string", nullptr, nullptr, nullptr);
 
 static MYSQL_THDVAR_UINT(event_order_check_consume_ignore_count,
                          PLUGIN_VAR_RQCMDARG,
                          "Do not consume event order string specified "
                          "number of times.",
-                         NULL, NULL, 0, 0, UINT_MAX, 1);
+                         nullptr, nullptr, 0, 0, UINT_MAX, 1);
 
 static MYSQL_THDVAR_INT(event_order_started, PLUGIN_VAR_RQCMDARG,
-                        "Plugin is in the event order check.", NULL, NULL, 0, 0,
-                        1, 0);
+                        "Plugin is in the event order check.", nullptr, nullptr,
+                        0, 0, 1, 0);
 
 static MYSQL_THDVAR_INT(event_order_check_exact, PLUGIN_VAR_RQCMDARG,
-                        "Plugin checks exact event order.", NULL, NULL, 1, 0, 1,
-                        0);
+                        "Plugin checks exact event order.", nullptr, nullptr, 1,
+                        0, 1, 0);
 
 static MYSQL_THDVAR_STR(event_record_def,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Event recording definition", NULL, NULL, NULL);
+                        "Event recording definition", nullptr, nullptr,
+                        nullptr);
 
 static MYSQL_THDVAR_STR(event_record,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG |
                             PLUGIN_VAR_MEMALLOC,
-                        "Event recording", NULL, NULL, NULL);
+                        "Event recording", nullptr, nullptr, nullptr);
 /*
   Initialize the plugin at server start or plugin installation.
 
@@ -208,17 +210,17 @@ static MYSQL_THDVAR_STR(event_record,
     1                    failure (cannot happen)
 */
 
-static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused))) {
+static int audit_null_plugin_init(void *arg [[maybe_unused]]) {
   SHOW_VAR *var;
 
-  for (var = simple_status; var->value != 0; var++) {
+  for (var = simple_status; var->value != nullptr; var++) {
     *((int *)var->value) = 0;
   }
 
   mysql_mutex_init(PSI_NOT_INSTRUMENTED, &g_record_buffer_mutex,
                    MY_MUTEX_INIT_FAST);
 
-  g_record_buffer = NULL;
+  g_record_buffer = nullptr;
   g_plugin_installed = true;
 
   return (0);
@@ -237,11 +239,11 @@ static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused))) {
 
 */
 
-static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int audit_null_plugin_deinit(void *arg [[maybe_unused]]) {
   if (g_plugin_installed == true) {
     my_free((void *)(g_record_buffer));
 
-    g_record_buffer = NULL;
+    g_record_buffer = nullptr;
 
     mysql_mutex_destroy(&g_record_buffer_mutex);
 
@@ -277,9 +279,9 @@ static LEX_CSTRING event_to_str(unsigned int event_class,
   @retval Token retrieved from a string.
 */
 static LEX_CSTRING get_token(char **str) {
-  LEX_CSTRING ret = {NULL, 0};
+  LEX_CSTRING ret = {nullptr, 0};
 
-  if (*str != NULL) {
+  if (*str != nullptr) {
     ret.str = *str;
 
     if (*ret.str != '\0') {
@@ -321,7 +323,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
   LEX_CSTRING record_begin = get_token(&record_str);
   LEX_CSTRING record_end = get_token(&record_str);
 
-  if (record_str == NULL) {
+  if (record_str == nullptr) {
     return;
   }
 
@@ -330,7 +332,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
        a record variable */
 
     const char *buffer = THDVAR(thd, event_record);
-    char *new_buffer = NULL;
+    char *new_buffer = nullptr;
 
     /* Add event. */
     mysql_mutex_lock(&g_record_buffer_mutex);
@@ -339,7 +341,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     if (buffer && (buffer == g_record_buffer)) {
       new_buffer = add_event(buffer, event_name, data, data_length);
       g_record_buffer = new_buffer;
-      my_free((void *)(buffer));
+      my_free(const_cast<char *>(buffer));
     }
 
     mysql_mutex_unlock(&g_record_buffer_mutex);
@@ -351,7 +353,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
             record_begin.length, (const uchar *)event_name.str,
             event_name.length, false)) {
       /* Do not expect any more events. */
-      THDVAR(thd, event_record_def) = 0;
+      THDVAR(thd, event_record_def) = nullptr;
     }
   } else {
     const char *buffer;
@@ -370,7 +372,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     mysql_mutex_lock(&g_record_buffer_mutex);
 
     if (buffer == g_record_buffer) {
-      my_free((void *)(buffer));
+      my_free(const_cast<char *>(buffer));
 
       g_record_buffer = add_event("", event_name, data, data_length);
 
@@ -384,7 +386,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     record_str = THDVAR(thd, event_record_def);
 
     /* Remove starting event. */
-    memmove(record_str, (void *)record_end.str, record_end.length + 1);
+    memmove(record_str, record_end.str, record_end.length + 1);
   }
 }
 
@@ -395,7 +397,7 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
   if (!my_charset_latin1.coll->strnncoll(
           &my_charset_latin1, (const uchar *)event_command.str,
           event_command.length, (const uchar *)abort_ret_command.str,
-          abort_ret_command.length, 0)) {
+          abort_ret_command.length, false)) {
     int ret_code = (int)THDVAR(thd, abort_value);
     const char *err_message = (const char *)THDVAR(thd, abort_message);
     LEX_CSTRING status = {STRING_WITH_LEN("EVENT-ORDER-ABORT")};
@@ -404,10 +406,10 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
 
     /* Do not replace order string yet. */
     if (consume_event) {
-      memmove(order_str, (void *)status.str, status.length + 1);
+      memmove(order_str, status.str, status.length + 1);
 
       THDVAR(thd, abort_value) = 1;
-      THDVAR(thd, abort_message) = 0;
+      THDVAR(thd, abort_message) = nullptr;
     }
 
     if (err_message) {
@@ -628,15 +630,17 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
     /* Copy the variable content into the buffer. We do not guarantee that the
        variable value will fit into buffer. The buffer should be large enough
        to be used for the test purposes. */
-    buffer_data = sprintf(buffer, "name=\"%.*s\"",
-                          MY_MIN((int)event_gvar->variable_name.length,
-                                 (int)(sizeof(buffer) - 8)),
-                          event_gvar->variable_name.str);
+    buffer_data =
+        sprintf(buffer, "name=\"%.*s\"",
+                static_cast<int>(std::min(event_gvar->variable_name.length,
+                                          (sizeof(buffer) - 8))),
+                event_gvar->variable_name.str);
 
-    buffer_data += sprintf(buffer + buffer_data, " value=\"%.*s\"",
-                           MY_MIN((int)event_gvar->variable_value.length,
-                                  (int)(sizeof(buffer) - 16)),
-                           event_gvar->variable_value.str);
+    buffer_data +=
+        sprintf(buffer + buffer_data, " value=\"%.*s\"",
+                static_cast<int>(std::min(event_gvar->variable_value.length,
+                                          (sizeof(buffer) - 16))),
+                event_gvar->variable_value.str);
     buffer[buffer_data] = '\0';
 
     switch (event_gvar->event_subclass) {
@@ -705,9 +709,9 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 
   if (my_charset_latin1.coll->strnncoll(
           &my_charset_latin1, (const uchar *)event_name.str, event_name.length,
-          (const uchar *)event_token.str, event_token.length, 0)) {
+          (const uchar *)event_token.str, event_token.length, false)) {
     /* Clear event command. */
-    event_command.str = NULL;
+    event_command.str = nullptr;
     event_command.length = 0;
 
     if (exact_check == 1 && event_order_started == 1) {
@@ -719,7 +723,7 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
       }
 
       THDVAR(thd, event_order_started) = 0;
-      THDVAR(thd, event_order_check) = 0;
+      THDVAR(thd, event_order_check) = nullptr;
 
       return 1;
     }
@@ -730,10 +734,12 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
        data corresponds to the actual event data. */
     if (my_charset_latin1.coll->strnncoll(
             &my_charset_latin1, (const uchar *)event_data.str,
-            event_data.length, (const uchar *)ignore.str, ignore.length, 0) &&
+            event_data.length, (const uchar *)ignore.str, ignore.length,
+            false) &&
         my_charset_latin1.coll->strnncoll(
             &my_charset_latin1, (const uchar *)event_data.str,
-            event_data.length, (const uchar *)buffer, (size_t)buffer_data, 0)) {
+            event_data.length, (const uchar *)buffer, (size_t)buffer_data,
+            false)) {
       if (exact_check == 1 && event_order_started == 1) {
         char invalid_data_buffer[sizeof(buffer)] = {
             0,
@@ -755,7 +761,7 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
       }
 
       /* Clear event command. */
-      event_command.str = NULL;
+      event_command.str = nullptr;
       event_command.length = 0;
     } else {
       LEX_STRING order_cstr;
@@ -800,7 +806,7 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 
 static struct st_mysql_audit audit_null_descriptor = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version    */
-    NULL,                          /* release_thd function */
+    nullptr,                       /* release_thd function */
     audit_null_notify,             /* notify function      */
     {(unsigned long)MYSQL_AUDIT_GENERAL_ALL,
      (unsigned long)MYSQL_AUDIT_CONNECTION_ALL,
@@ -828,7 +834,7 @@ static SYS_VAR *system_variables[] = {
 
     MYSQL_SYSVAR(event_record_def),
     MYSQL_SYSVAR(event_record),
-    NULL};
+    nullptr};
 
 /*
   Plugin library descriptor
@@ -838,15 +844,15 @@ mysql_declare_plugin(audit_null){
     MYSQL_AUDIT_PLUGIN,     /* type                            */
     &audit_null_descriptor, /* descriptor                      */
     "NULL_AUDIT",           /* name                            */
-    "Oracle Corp",          /* author                          */
+    PLUGIN_AUTHOR_ORACLE,   /* author                          */
     "Simple NULL Audit",    /* description                     */
     PLUGIN_LICENSE_GPL,
     audit_null_plugin_init,   /* init function (when loaded)     */
-    NULL,                     /* check uninstall function        */
+    nullptr,                  /* check uninstall function        */
     audit_null_plugin_deinit, /* deinit function (when unloaded) */
     0x0003,                   /* version                         */
     simple_status,            /* status variables                */
     system_variables,         /* system variables                */
-    NULL,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

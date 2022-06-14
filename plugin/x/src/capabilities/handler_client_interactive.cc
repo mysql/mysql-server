@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,21 +24,21 @@
 
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
-#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
-
+#include "plugin/x/src/config/config.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 Capability_client_interactive::Capability_client_interactive(
-    ngs::Client_interface &client)
+    iface::Client *client)
     : m_client(client) {
-  m_value = m_client.is_interactive();
+  m_value = m_client->is_interactive();
 }
 
-void Capability_client_interactive::get_impl(::Mysqlx::Datatypes::Any &any) {
+void Capability_client_interactive::get_impl(::Mysqlx::Datatypes::Any *any) {
   ngs::Setter_any::set_scalar(any, m_value);
 }
 
@@ -56,7 +56,7 @@ ngs::Error_code Capability_client_interactive::set_impl(
 }
 
 void Capability_client_interactive::commit() {
-  m_client.set_is_interactive(m_value);
+  m_client->set_is_interactive(m_value);
 }
 
 }  // namespace xpl

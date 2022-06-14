@@ -1,0 +1,25 @@
+#
+# Bug #30258536 DEADLOCK BETWEEN LOB::ALLOC_LOB_PAGE AND ROW_UNDO_MOD_CLUST_LOW
+#
+# This scenario is for regression caused by fix for
+# Bug #30178056 .IBD FILE GROWS INDEFINITELY FOR TABLES WITH BLOB COLUMNS
+# which introduced an operation which latches first page during ROLLBACK,
+# that leads to a failure of the assertion introduced in
+# Bug #27777959	INNODB: ASSERTION FAILURE: UT0UT.CC DUE TO DEADLOCK AT FSP_PAGE_CREATE()
+# which states that the first page of zLOB should not be latched during lob::z_rollback
+#
+--source include/have_innodb_16k.inc
+SET GLOBAL innodb_compression_level = 0;
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  val LONGBLOB
+) ENGINE=InnoDB ROW_FORMAT=compressed;
+INSERT INTO t1 (id,val) VALUES (1,REPEAT('a',13));
+
+BEGIN;
+UPDATE t1 SET val = REPEAT('b',1000000) WHERE id=1;
+ROLLBACK;
+
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;

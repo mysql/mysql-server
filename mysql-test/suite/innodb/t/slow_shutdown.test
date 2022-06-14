@@ -1,0 +1,44 @@
+#
+# Bug#29833945	SERVER HANGS IF RESTARTED WITH WRONG LOWER_CASE_TABLE_NAMES VALUE
+#
+
+--source include/have_lowercase0.inc
+
+--echo # SETUP
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES(1);
+
+--echo # Start a transaction but don't commit it.
+BEGIN;
+INSERT INTO t1 VALUES(2);
+
+SET GLOBAL innodb_log_flush_now = ON;
+--source include/kill_mysqld.inc
+
+# LCTN mismatch will cause server startup to abort but transaction won't
+# be rollbacked. Without the patch, abort will be hung.
+--echo # Start MySQL after crash with different LCTN value and slow shutdown.
+--error 1,42
+--exec $MYSQLD_CMD --innodb-fast-shutdown=0 --lower_case_table_names=1 --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
+
+--echo # Verifying that recovery found transaction which needs rollback
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/my_restart.err;
+let SEARCH_PATTERN= MY-013023;
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+--echo # Restart server with correct LCTN
+let $restart_parameters = "restart: --innodb-fast-shutdown=0 --lower_case_table_names=0 --log-error=$MYSQLTEST_VARDIR/log/my_restart.err";
+--source include/start_mysqld.inc
+
+--echo # Verifying that transaction was rollbacked
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/my_restart.err;
+let SEARCH_PATTERN= MY-013012;
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+--echo # CLEANUP
+--echo # Restart server to restore server state.
+let $restart_parameters = "restart:";
+--source include/restart_mysqld.inc
+DROP TABLE t1;

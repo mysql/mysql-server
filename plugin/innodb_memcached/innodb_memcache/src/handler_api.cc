@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/log_event.h"
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"
+#include "sql/protocol_classic.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_handler.h"
@@ -134,15 +135,14 @@ void *handler_open_table(
     const char *table_name, /*!< in: NUL terminated table name */
     int lock_type)          /*!< in: lock mode */
 {
-  TABLE_LIST tables;
   THD *thd = static_cast<THD *>(my_thd);
   Open_table_context table_ctx(thd, 0);
   thr_lock_type lock_mode;
 
   lock_mode = (lock_type <= HDL_READ) ? TL_READ : TL_WRITE;
 
-  tables.init_one_table(db_name, strlen(db_name), table_name,
-                        strlen(table_name), table_name, lock_mode);
+  TABLE_LIST tables(db_name, strlen(db_name), table_name, strlen(table_name),
+                    table_name, lock_mode);
 
   /* For flush, we need to request exclusive mdl lock. */
   if (lock_type == HDL_FLUSH) {
@@ -159,7 +159,6 @@ void *handler_open_table(
     table->use_all_columns();
     return (table);
   }
-
   return (NULL);
 }
 

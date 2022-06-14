@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +39,17 @@ public class QueryTimeAsUtilDateTypesTest extends AbstractQueryTest {
     @Override
     void createInstances(int number) {
         createAllTimeAsUtilDateTypesInstances(number);
+    }
+
+    @Override
+    protected void consistencyCheck(IdBase instance) {
+        TimeAsUtilDateTypes dateType = (TimeAsUtilDateTypes) instance;
+        Date date = getTimeFor(dateType.getId());
+        String errorMessage = "Wrong values retrieved from ";
+        errorIfNotEqual(errorMessage + "time_not_null_both", date, dateType.getTime_not_null_both());
+        errorIfNotEqual(errorMessage + "time_not_null_btree", date, dateType.getTime_not_null_btree());
+        errorIfNotEqual(errorMessage + "time_not_null_hash", date, dateType.getTime_not_null_hash());
+        errorIfNotEqual(errorMessage + "time_not_null_none", date, dateType.getTime_not_null_none());
     }
 
     /** Test all single- and double-predicate queries using TimeTypes.

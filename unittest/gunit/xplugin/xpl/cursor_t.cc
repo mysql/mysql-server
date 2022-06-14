@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,15 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/src/client.h"
 #include "plugin/x/src/prepare_command_handler.h"
-#include "plugin/x/src/xpl_client.h"
-#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
+#include "unittest/gunit/xplugin/xpl/mock/notice_configuration.h"
+#include "unittest/gunit/xplugin/xpl/mock/notice_output_queue.h"
+#include "unittest/gunit/xplugin/xpl/mock/protocol_encoder.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
 
 namespace xpl {
 namespace test {
@@ -41,7 +44,7 @@ using ::testing::StrictMock;
 
 class Cursor_test_suite : public ::testing::Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     EXPECT_CALL(m_mock_session, proto())
         .WillRepeatedly(ReturnRef(m_mock_encoder));
     EXPECT_CALL(m_mock_session, get_notice_output_queue())
@@ -50,11 +53,12 @@ class Cursor_test_suite : public ::testing::Test {
         .WillRepeatedly(ReturnRef(m_mock_notice_configuration));
   }
 
-  StrictMock<ngs::test::Mock_protocol_encoder> m_mock_encoder;
-  StrictMock<ngs::test::Mock_session> m_mock_session;
-  StrictMock<ngs::test::Mock_notice_output_queue> m_mock_notice_output_queue;
-  StrictMock<ngs::test::Mock_notice_configuration> m_mock_notice_configuration;
-  StrictMock<ngs::test::Mock_sql_data_context> m_mock_data_context;
+  ngs::Metadata_builder m_meta_builder;
+  StrictMock<mock::Protocol_encoder> m_mock_encoder;
+  StrictMock<mock::Session> m_mock_session;
+  StrictMock<mock::Notice_output_queue> m_mock_notice_output_queue;
+  StrictMock<mock::Notice_configuration> m_mock_notice_configuration;
+  StrictMock<mock::Sql_session> m_mock_data_context;
   Prepare_command_handler m_handler{&m_mock_session};
 };
 
@@ -77,6 +81,9 @@ TEST_F(Cursor_test_suite, add_cursor_more_rows_after_open) {
   m_handler.insert_prepared_statement(
       stmt_id, Prepare_command_handler::Prepared_stmt_info{
                    resultset_stmt_id, type, {}, 1, true, false, cursor_id});
+
+  EXPECT_CALL(m_mock_encoder, get_metadata_builder())
+      .WillOnce(Return(&m_meta_builder));
   EXPECT_CALL(m_mock_session, data_context())
       .WillRepeatedly(ReturnRef(m_mock_data_context));
   EXPECT_CALL(m_mock_data_context,
@@ -107,7 +114,10 @@ TEST_F(Cursor_test_suite,
   open_msg.set_allocated_stmt(one_of_message);
 
   ngs::Message_request request;
-  request.reset(&open_msg, Mysqlx::ClientMessages::CURSOR_OPEN);
+  request.reset(Mysqlx::ClientMessages::CURSOR_OPEN, &open_msg);
+
+  EXPECT_CALL(m_mock_encoder, get_metadata_builder())
+      .WillRepeatedly(Return(&m_meta_builder));
 
   const auto type = Mysqlx::Prepare::Prepare::OneOfMessage::STMT;
   m_handler.insert_prepared_statement(
@@ -165,13 +175,15 @@ TEST_F(Cursor_test_suite,
   open_msg.set_allocated_stmt(one_of_message);
 
   ngs::Message_request request;
-  request.reset(&open_msg, Mysqlx::ClientMessages::CURSOR_OPEN);
+  request.reset(Mysqlx::ClientMessages::CURSOR_OPEN, &open_msg);
 
   const auto type = Mysqlx::Prepare::Prepare::OneOfMessage::STMT;
   m_handler.insert_prepared_statement(
       stmt_id, Prepare_command_handler::Prepared_stmt_info{
                    resultset_stmt_id, type, {}, 1, true, true, cursor_id});
 
+  EXPECT_CALL(m_mock_encoder, get_metadata_builder())
+      .WillOnce(Return(&m_meta_builder));
   EXPECT_CALL(m_mock_session, data_context())
       .WillRepeatedly(ReturnRef(m_mock_data_context));
   EXPECT_CALL(m_mock_data_context,
@@ -190,6 +202,9 @@ TEST_F(Cursor_test_suite, close_cursor) {
   const auto stmt_id = 42;
   Mysqlx::Cursor::Close close_msg;
   close_msg.set_cursor_id(cursor_id);
+
+  EXPECT_CALL(m_mock_encoder, get_metadata_builder())
+      .WillOnce(Return(&m_meta_builder));
 
   m_handler.insert_cursor(cursor_id, stmt_id, false, false);
 
@@ -220,6 +235,7 @@ TEST_F(Cursor_test_suite, fetch_cursor) {
   const auto stmt_id = 42;
   const auto resultset_stmt_id = 2;
   const auto count = 1;
+
   Mysqlx::Cursor::Fetch fetch_msg;
   fetch_msg.set_cursor_id(cursor_id);
   fetch_msg.set_fetch_rows(count);
@@ -229,6 +245,8 @@ TEST_F(Cursor_test_suite, fetch_cursor) {
       stmt_id, Prepare_command_handler::Prepared_stmt_info{
                    resultset_stmt_id, type, {}, 1, true, true, cursor_id});
 
+  EXPECT_CALL(m_mock_encoder, get_metadata_builder())
+      .WillOnce(Return(&m_meta_builder));
   EXPECT_CALL(m_mock_session,
               update_status(&ngs::Common_status_variables::m_cursor_fetch));
   EXPECT_CALL(m_mock_session, data_context())

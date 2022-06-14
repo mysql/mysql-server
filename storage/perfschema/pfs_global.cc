@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,11 @@
 
 #include "storage/perfschema/pfs_global.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "sql/log.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
@@ -57,16 +57,16 @@ bool pfs_initialized = false;
   It is allocated at startup, or during runtime with scalable buffers.
 */
 void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
-  DBUG_ASSERT(klass != NULL);
-  DBUG_ASSERT(size > 0);
+  assert(klass != nullptr);
+  assert(size > 0);
 
-  void *ptr = NULL;
+  void *ptr = nullptr;
 
 #ifdef PFS_ALIGNEMENT
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
   if (unlikely(posix_memalign(&ptr, PFS_ALIGNEMENT, size))) {
-    return NULL;
+    return nullptr;
   }
 #else
 #ifdef HAVE_MEMALIGN
@@ -104,7 +104,7 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
 }
 
 void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr) {
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     return;
   }
 
@@ -140,21 +140,21 @@ void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr) {
 */
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                        myf flags) {
-  DBUG_ASSERT(klass != NULL);
-  DBUG_ASSERT(n > 0);
-  DBUG_ASSERT(size > 0);
-  void *ptr = NULL;
+  assert(klass != nullptr);
+  assert(n > 0);
+  assert(size > 0);
+  void *ptr = nullptr;
   size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
-               klass->m_class.m_name);
-    return NULL;
+               klass->m_class.m_name.str());
+    return nullptr;
   }
 
-  if (NULL == (ptr = pfs_malloc(klass, array_size, flags))) {
+  if (nullptr == (ptr = pfs_malloc(klass, array_size, flags))) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
-               klass->m_class.m_name);
+               klass->m_class.m_name.str());
   }
   return ptr;
 }
@@ -168,12 +168,12 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
 */
 void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                     void *ptr) {
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     return;
   }
   size_t array_size = n * size;
   /* Overflow should have been detected by pfs_malloc_array. */
-  DBUG_ASSERT(!is_overflow(array_size, n, size));
+  assert(!is_overflow(array_size, n, size));
   return pfs_free(klass, array_size, ptr);
 }
 
@@ -212,9 +212,9 @@ void pfs_print_error(const char *format, ...) {
 uint pfs_get_socket_address(char *host, uint host_len, uint *port,
                             const struct sockaddr_storage *src_addr,
                             socklen_t) {
-  DBUG_ASSERT(host);
-  DBUG_ASSERT(src_addr);
-  DBUG_ASSERT(port);
+  assert(host);
+  assert(src_addr);
+  assert(port);
 
   memset(host, 0, host_len);
   *port = 0;

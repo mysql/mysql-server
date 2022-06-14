@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,10 @@
 #include "plugin/x/tests/driver/parsers/message_parser.h"
 
 #include <vector>
+
+#ifdef GetMessage
+#undef GetMessage
+#endif
 
 using Message = xcl::XProtocol::Message;
 using FieldDescriptor = google::protobuf::FieldDescriptor;

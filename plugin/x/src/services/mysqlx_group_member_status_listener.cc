@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,29 +22,35 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/services/mysqlx_group_member_status_listener.h"
 
-#include <components/mysql_server/server_component.h>
+#include <my_dbug.h>
 #include <mysql/components/service_implementation.h>
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
-#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
+#include "plugin/x/src/module_mysqlx.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
 
 DEFINE_BOOL_METHOD(notify_member_role_change, (const char *view_id)) {
-  auto server = xpl::Server::get_instance();
+  auto queue = modules::Module_mysqlx::get_instance_notice_queue();
 
-  if (server) {
-    (*server)->get_broker_input_queue().emplace(
-        ngs::Notice_type::k_group_replication_member_role_changed, view_id);
+  DBUG_EXECUTE_IF("xsync_gr_notice_bug", {
+    XSYNC_POINT_ENABLE(
+        {"gr_notice_bug_client_accept", "gr_notice_bug_broker_dispatch"});
+  });
+
+  if (queue.container()) {
+    queue->emplace(ngs::Notice_type::k_group_replication_member_role_changed,
+                   view_id);
   }
 
   return false;
 }
 
 DEFINE_BOOL_METHOD(notify_member_state_change, (const char *view_id)) {
-  auto server = xpl::Server::get_instance();
+  auto queue = modules::Module_mysqlx::get_instance_notice_queue();
 
-  if (server) {
-    (*server)->get_broker_input_queue().emplace(
-        ngs::Notice_type::k_group_replication_member_state_changed, view_id);
+  if (queue.container()) {
+    queue->emplace(ngs::Notice_type::k_group_replication_member_state_changed,
+                   view_id);
   }
 
   return false;

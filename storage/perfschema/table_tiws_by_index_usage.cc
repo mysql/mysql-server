@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -100,7 +100,7 @@ Plugin_table table_tiws_by_index_usage::m_table_def(
 PFS_engine_table_share table_tiws_by_index_usage::m_share = {
     &pfs_truncatable_acl,
     table_tiws_by_index_usage::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_tiws_by_index_usage::delete_all_rows,
     table_tiws_by_index_usage::get_row_count,
     sizeof(pos_tiws_by_index_usage),
@@ -192,7 +192,7 @@ int table_tiws_by_index_usage::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_table; m_pos.next_table()) {
     table_share =
         global_table_share_container.get(m_pos.m_index_1, &has_more_table);
-    if (table_share != NULL) {
+    if (table_share != nullptr) {
       uint safe_key_count = sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count) {
         m_next_pos.set_after(&m_pos);
@@ -216,7 +216,7 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
   set_position(pos);
 
   table_share = global_table_share_container.get(m_pos.m_index_1);
-  if (table_share != NULL) {
+  if (table_share != nullptr) {
     uint safe_key_count = sanitize_index_count(table_share->m_key_count);
     if (m_pos.m_index_2 < safe_key_count) {
       return make_row(table_share, m_pos.m_index_2);
@@ -229,10 +229,9 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tiws_by_index_usage::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                          bool) {
-  PFS_index_tiws_by_index_usage *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_tiws_by_index_usage::index_init(uint idx [[maybe_unused]], bool) {
+  PFS_index_tiws_by_index_usage *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_index_usage);
   m_opened_index = result;
   m_index = result;
@@ -246,7 +245,7 @@ int table_tiws_by_index_usage::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_table; m_pos.next_table()) {
     table_share =
         global_table_share_container.get(m_pos.m_index_1, &has_more_table);
-    if (table_share != NULL) {
+    if (table_share != nullptr) {
       if (m_opened_index->match(table_share)) {
         uint safe_key_count = sanitize_index_count(table_share->m_key_count);
         for (; m_pos.m_index_2 <= MAX_INDEXES; m_pos.m_index_2++) {
@@ -279,7 +278,7 @@ int table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
   PFS_table_share_index *pfs_index;
   pfs_optimistic_state lock;
 
-  DBUG_ASSERT(index <= MAX_INDEXES);
+  assert(index <= MAX_INDEXES);
 
   pfs_share->m_lock.begin_optimistic_lock(&lock);
 
@@ -288,7 +287,7 @@ int table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
 
   if (!visitor.m_stat.m_has_data) {
     pfs_index = pfs_share->find_index_stat(index);
-    if (pfs_index == NULL) {
+    if (pfs_index == nullptr) {
       return HA_ERR_RECORD_DELETED;
     }
   } else {
@@ -313,17 +312,17 @@ int table_tiws_by_index_usage::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* SCHEMA_NAME */
         case 2: /* OBJECT_NAME */
         case 3: /* INDEX_NAME */
-          m_row.m_index.set_field(f->field_index, f);
+          m_row.m_index.set_nullable_field(f->field_index(), f);
           break;
         case 4: /* COUNT_STAR */
           set_field_ulonglong(f, m_row.m_stat.m_all.m_count);
@@ -431,7 +430,7 @@ int table_tiws_by_index_usage::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_stat.m_delete.m_max);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

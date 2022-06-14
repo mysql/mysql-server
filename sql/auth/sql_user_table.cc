@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql/auth/acl_change_notification.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
@@ -59,6 +60,8 @@
 #include "sql/auth/sql_authentication.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h" /* mysql_bin_log.is_open() */
+#include "sql/debug_sync.h"
+#include "sql/error_handler.h" /* Internal_error_handler */
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_func.h" /* mqh_used */
@@ -90,357 +93,389 @@
 #include "typelib.h"
 #include "violite.h"
 
+/* Acl table names. Keep in sync with ACL_TABLES */
+static const int MAX_ACL_TABLE_NAMES = 10;
+static_assert(MAX_ACL_TABLE_NAMES == ACL_TABLES::LAST_ENTRY,
+              "Keep number of table names in sync with ACL table enum");
+
+static const char *ACL_TABLE_NAMES[MAX_ACL_TABLE_NAMES] = {
+    "user",          "db",
+    "tables_priv",   "columns_priv",
+    "procs_priv",    "proxies_priv",
+    "role_edges",    "default_roles",
+    "global_grants", "password_history"};
+
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
-    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-    {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
     {{STRING_WITH_LEN("User")},
      {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("Select_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Insert_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Update_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Delete_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Drop_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Grant_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("References_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Index_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Alter_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_tmp_table_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Lock_tables_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_view_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Show_view_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_routine_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Alter_routine_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Execute_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Event_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Trigger_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}}};
+     {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
-    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
      {{STRING_WITH_LEN("User")},
       {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("Select_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Insert_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Update_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Delete_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Drop_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Reload_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Shutdown_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Process_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("File_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Grant_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("References_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Index_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Alter_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Show_db_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Super_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_tmp_table_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Lock_tables_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Execute_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Repl_slave_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Repl_client_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_view_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Show_view_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_routine_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Alter_routine_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_user_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Event_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Trigger_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_tablespace_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("ssl_type")},
       {STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')")},
-      {STRING_WITH_LEN("utf8")}},
-     {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
-     {{STRING_WITH_LEN("x509_issuer")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
-     {{STRING_WITH_LEN("x509_subject")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+      {STRING_WITH_LEN("utf8mb3")}},
+     {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {nullptr, 0}},
+     {{STRING_WITH_LEN("x509_issuer")},
+      {STRING_WITH_LEN("blob")},
+      {nullptr, 0}},
+     {{STRING_WITH_LEN("x509_subject")},
+      {STRING_WITH_LEN("blob")},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("max_questions")},
-      {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
-     {{STRING_WITH_LEN("max_updates")},
-      {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
+      {STRING_WITH_LEN("int")},
+      {nullptr, 0}},
+     {{STRING_WITH_LEN("max_updates")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
      {{STRING_WITH_LEN("max_connections")},
-      {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
+      {STRING_WITH_LEN("int")},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("max_user_connections")},
-      {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
-     {{STRING_WITH_LEN("plugin")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+      {STRING_WITH_LEN("int")},
+      {nullptr, 0}},
+     {{STRING_WITH_LEN("plugin")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
      {{STRING_WITH_LEN("authentication_string")},
       {STRING_WITH_LEN("text")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("password_expired")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("password_last_changed")},
       {STRING_WITH_LEN("timestamp")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("password_lifetime")},
-      {STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
+      {STRING_WITH_LEN("smallint")},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("account_locked")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_role_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Drop_role_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Password_reuse_history")},
-      {STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
+      {STRING_WITH_LEN("smallint")},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("Password_reuse_time")},
-      {STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
+      {STRING_WITH_LEN("smallint")},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("Password_require_current")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("User_attributes")},
       {STRING_WITH_LEN("json")},
-      {NULL, 0}}};
+      {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_proxies_priv_table_fields[MYSQL_PROXIES_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Proxied_host")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Proxied_user")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("With_grant")},
-         {STRING_WITH_LEN("tinyint(1)")},
-         {NULL, 0}},
+         {STRING_WITH_LEN("tinyint")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_procs_priv_table_fields[MYSQL_PROCS_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Routine_name")},
          {STRING_WITH_LEN("char(64)")},
-         {STRING_WITH_LEN("utf8")}},
+         {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Routine_type")},
          {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Proc_priv")},
          {STRING_WITH_LEN("set('Execute','Alter Routine','Grant')")},
-         {STRING_WITH_LEN("utf8")}},
+         {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_columns_priv_table_fields[MYSQL_COLUMNS_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Table_name")},
          {STRING_WITH_LEN("char(64)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Column_name")},
          {STRING_WITH_LEN("char(64)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Column_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Table_name")},
          {STRING_WITH_LEN("char(64)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Table_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','Delete','Create',"
                           "'Drop','Grant','References','Index','Alter',"
                           "'Create View','Show view','Trigger')")},
-         {STRING_WITH_LEN("utf8")}},
+         {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Column_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_role_edges_table_fields[MYSQL_ROLE_EDGES_FIELD_COUNT] = {
         {{STRING_WITH_LEN("FROM_HOST")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("FROM_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("TO_HOST")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("TO_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("WITH_ADMIN_OPTION")},
          {STRING_WITH_LEN("enum('N','Y')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_default_roles_table_fields[MYSQL_DEFAULT_ROLES_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("HOST")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("DEFAULT_ROLE_HOST")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("DEFAULT_ROLE_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_password_history_table_fields[MYSQL_PASSWORD_HISTORY_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Password_timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
-        {{STRING_WITH_LEN("Password")}, {STRING_WITH_LEN("text")}, {NULL, 0}}};
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Password")},
+         {STRING_WITH_LEN("text")},
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_dynamic_priv_table_fields[MYSQL_DYNAMIC_PRIV_FIELD_COUNT] = {
         {{STRING_WITH_LEN("USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
-        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("PRIV")}, {STRING_WITH_LEN("char(32)")}, {NULL, 0}},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("HOST")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("PRIV")},
+         {STRING_WITH_LEN("char(32)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("WITH_GRANT_OPTION")},
          {STRING_WITH_LEN("enum('N','Y')")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 /** keep in sync with @ref ACL_TABLES */
 const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
@@ -455,6 +490,8 @@ const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
     {MYSQL_DYNAMIC_PRIV_FIELD_COUNT, mysql_dynamic_priv_table_fields},
     {MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields}};
 
+static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
+                                                       TABLE_LIST *tables);
 /**
   A helper function to commit statement transaction and close
   ACL tables after reading some data from them as part of FLUSH
@@ -472,7 +509,7 @@ void commit_and_close_mysql_tables(THD *thd) {
     trans_rollback_stmt(thd);
     trans_rollback_implicit(thd);
   } else {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool res =
 #endif
         /*
@@ -482,7 +519,7 @@ void commit_and_close_mysql_tables(THD *thd) {
           close_mysql_tables() we need to do implicit commit here.
         */
         trans_commit_stmt(thd) || trans_commit_implicit(thd);
-    DBUG_ASSERT(res == false);
+    assert(res == false);
   }
 
   close_mysql_tables(thd);
@@ -535,15 +572,24 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
   the changing query to other destinations.
 
 */
+Acl_change_notification::Acl_change_notification(
+    THD *thd, enum_sql_command op, const List<LEX_USER> *users,
+    std::set<LEX_USER *> *rewrite_users, const List<LEX_CSTRING> *dynamic_privs)
+    : db{thd->db().str, thd->db().length},
+      operation(op),
+      users(users ? *users : empty_users),
+      rewrite_user_params(rewrite_users),
+      dynamic_privs(dynamic_privs ? *dynamic_privs : empty_dynamic_privs) {}
 
-static void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
-  DBUG_ENTER("acl_notify_htons");
-  DBUG_PRINT("enter", ("db: %s", thd->db().str));
-  DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
-
-  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY, query, query_length,
-                      thd->db().str, "");
-  DBUG_VOID_RETURN;
+void acl_notify_htons(THD *thd, enum_sql_command operation,
+                      const List<LEX_USER> *users,
+                      std::set<LEX_USER *> *rewrite_users,
+                      const List<LEX_CSTRING> *dynamic_privs) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
+  Acl_change_notification notice(thd, operation, users, rewrite_users,
+                                 dynamic_privs);
+  ha_acl_notify(thd, &notice);
 }
 
 /**
@@ -557,8 +603,8 @@ static void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
   @retval True  - Error.
 */
 
-static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
-                                           bool notify_htons) {
+static bool acl_end_trans_and_close_tables(THD *thd,
+                                           bool rollback_transaction) {
   bool result;
 
   /*
@@ -576,13 +622,13 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
     It is safe to do so since ACL statement always do implicit commit at the
     end of statement.
   */
-  DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
+  assert(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
   /*
     ACL DDL operations must acquire IX Backup Lock in order to be mutually
     exclusive with LOCK INSTANCE FOR BACKUP.
   */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE));
 
   if (rollback_transaction) {
@@ -597,24 +643,17 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
     result |= trans_commit_implicit(thd);
   }
   close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
-
   if (result || rollback_transaction) {
     /*
       Try to bring in-memory structures back in sync with on-disk data if we
       have failed to commit our changes.
     */
-    /*
-      The current implementation has a hole - users can observe changes
-      to the caches which were rolled back from tables. This state can be
-      observed for quite long time if someone manages to sneak-in and
-      acquire MDL on privilege tables after the release_transactional_locks()
-      and before acl_reload/grant_reload() below.
-    */
-    reload_acl_caches(thd);
-  } else if (notify_htons) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    DBUG_EXECUTE_IF("wl14084_acl_ddl_error_before_cache_reload_trigger_timeout",
+                    sleep(2););
+    reload_acl_caches(thd, true);
+    close_thread_tables(thd);
   }
+  thd->mdl_context.release_transactional_locks();
 
   return result;
 }
@@ -635,7 +674,6 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
   @param write_to_binlog        Skip writing to binlog.
                                 Used for routine grants while
                                 creating routine.
-  @param notify_htons           Should hton be notified or not
 
   @returns status of log and commit
     @retval 0 Successfully committed. Optionally : written to binlog.
@@ -646,27 +684,31 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users, /* = NULL */
                             Rewrite_params *rewrite_params,    /* = NULL */
                             bool extra_error,                  /* = true */
-                            bool write_to_binlog,              /* = true */
-                            bool notify_htons) {
+                            bool write_to_binlog) {            /* = true */
   bool result = false;
-  DBUG_ENTER("logn_ddl_to_binlog");
-  DBUG_ASSERT(thd);
+  DBUG_TRACE;
+  assert(thd);
   result = thd->is_error() || extra_error || thd->transaction_rollback_request;
   /* Write to binlog and textlogs only if there is no error */
   if (!result) {
-    mysql_rewrite_acl_query(thd, Consumer_type::BINLOG, rewrite_params);
+    String rlb;
+    /*
+      We're requesting a rewrite with instrumentation. This will change
+      the value on the THD and those seen in instrumentation.
+    */
+    mysql_rewrite_acl_query(thd, rlb, Consumer_type::BINLOG, rewrite_params);
     if (write_to_binlog) {
       LEX_CSTRING query;
       enum_sql_command command;
       size_t num_extra_users = extra_users ? extra_users->size() : 0;
       command = thd->lex->sql_command;
       if (mysql_bin_log.is_open()) {
-        query.str = thd->rewritten_query.length()
-                        ? thd->rewritten_query.c_ptr_safe()
+        query.str = thd->rewritten_query().length()
+                        ? thd->rewritten_query().ptr()
                         : thd->query().str;
 
-        query.length = thd->rewritten_query.length()
-                           ? thd->rewritten_query.length()
+        query.length = thd->rewritten_query().length()
+                           ? thd->rewritten_query().length()
                            : thd->query().length;
 
         /* Write to binary log */
@@ -690,9 +732,11 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
               2. If SQLCOM_ALTER_USER, IDENTIFIED WITH clause is not used
               but IDENTIFIED BY is used.
             */
-            if (!extra_user->uses_identified_with_clause &&
+            if (!extra_user->first_factor_auth_info
+                     .uses_identified_with_clause &&
                 (command == SQLCOM_CREATE_USER ||
-                 extra_user->uses_identified_by_clause)) {
+                 extra_user->first_factor_auth_info
+                     .uses_identified_by_clause)) {
               log_user(thd, &warn_user, extra_user, comma);
               comma = true;
               log_warning = true;
@@ -712,13 +756,16 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
     /*
       Rewrite query in the thd again for the consistent logging for all consumer
       type TEXTLOG later on. For instance: Audit logs.
+
+      We're requesting a rewrite with instrumentation. This will change
+      (back) the value on the THD and those seen in instrumentation.
     */
-    mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, rewrite_params);
+    mysql_rewrite_acl_query(thd, rlb, Consumer_type::TEXTLOG, rewrite_params);
   }
 
-  if (acl_end_trans_and_close_tables(thd, result, notify_htons)) result = 1;
+  if (acl_end_trans_and_close_tables(thd, result)) result = true;
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 static void get_grantor(THD *thd, char *grantor) {
@@ -769,19 +816,19 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
                      const LEX_USER &combo, ulong rights, bool revoke_grant) {
   uint i;
   ulong priv, store_rights;
-  bool old_row_exists = 0;
+  bool old_row_exists = false;
   int error;
   char what = (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_db_table");
-  DBUG_ASSERT(initialized);
-  if (table_intact.check(table, ACL_TABLES::TABLE_DB)) DBUG_RETURN(-1);
+  DBUG_TRACE;
+  assert(initialized);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DB)) return -1;
 
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str, combo.user.str, false)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   table->use_all_columns();
@@ -794,10 +841,10 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
            table->key_info->key_length);
   error = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_db_table_1", error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -809,9 +856,9 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
         Return 1 as an indication that expected error occurred during
         handling of REVOKE statement for an unknown user.
       */
-      DBUG_RETURN(1);
+      return 1;
     }
-    old_row_exists = 0;
+    old_row_exists = false;
     restore_record(table, s->default_values);
     table->field[0]->store(combo.host.str, combo.host.length,
                            system_charset_info);
@@ -819,7 +866,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     table->field[2]->store(combo.user.str, combo.user.length,
                            system_charset_info);
   } else {
-    old_row_exists = 1;
+    old_row_exists = true;
     store_record(table, record[1]);
   }
 
@@ -829,39 +876,39 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
       table->field[i]->store(&what, 1,
                              &my_charset_latin1);  // set requested privileges
   }
-  rights = get_access(table, 3, 0);
+  rights = get_access(table, 3, nullptr);
   rights = fix_rights_for_db(rights);
 
   if (old_row_exists) {
     /* update old existing row */
     if (rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_db_table_2",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else /* must have been a revoke of all privileges */
     {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_db_table_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) goto table_error; /* purecov: deadcode */
     }
   } else if (rights) {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_db_table_4", error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
       if (!table->file->is_ignorable_error(error))
@@ -874,12 +921,12 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     acl_update_db(combo.user.str, combo.host.str, db, rights);
   else if (rights)
     acl_insert_db(combo.user.str, combo.host.str, db, rights);
-  DBUG_RETURN(0);
+  return 0;
 
 table_error:
   acl_print_ha_error(error);
 
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -904,22 +951,21 @@ table_error:
 int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                                const LEX_USER *proxied_user,
                                bool with_grant_arg, bool revoke_grant) {
-  bool old_row_exists = 0;
+  bool old_row_exists = false;
   int error;
   uchar user_key[MAX_KEY_LENGTH];
   ACL_PROXY_USER new_grant;
   char grantor[USER_HOST_BUFF_SIZE];
   Acl_table_intact table_intact(thd);
 
-  DBUG_ENTER("replace_proxies_priv_table");
-  DBUG_ASSERT(initialized);
-  if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV))
-    DBUG_RETURN(-1);
+  DBUG_TRACE;
+  assert(initialized);
+  if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV)) return -1;
 
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(user->host.str, user->user.str, false)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   table->use_all_columns();
@@ -930,22 +976,22 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
            table->key_info->key_length);
 
   get_grantor(thd, grantor);
-  error = table->file->ha_index_init(0, 1);
+  error = table->file->ha_index_init(0, true);
   DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_1",
                   table->file->ha_index_end();
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     acl_print_ha_error(error);
     DBUG_PRINT("info", ("ha_index_init error"));
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   error = table->file->ha_index_read_map(table->record[0], user_key,
                                          HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_2",
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -955,16 +1001,16 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     if (revoke_grant) {  // no row, no revoke
       my_error(ER_NONEXISTING_GRANT, MYF(0), user->user.str, user->host.str);
       table->file->ha_index_end();
-      DBUG_RETURN(1);
+      return 1;
     }
-    old_row_exists = 0;
+    old_row_exists = false;
     restore_record(table, s->default_values);
     ACL_PROXY_USER::store_data_record(table, user->host, user->user,
                                       proxied_user->host, proxied_user->user,
                                       with_grant_arg, grantor);
   } else {
     DBUG_PRINT("info", ("Row found"));
-    old_row_exists = 1;
+    old_row_exists = true;
     store_record(table, record[1]);  // copy original row
     ACL_PROXY_USER::store_with_grant(table, with_grant_arg);
   }
@@ -973,31 +1019,31 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     /* update old existing row */
     if (!revoke_grant) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_4",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) goto table_error;
     }
   } else {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_5",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1019,7 +1065,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->file->ha_index_end();
-  DBUG_RETURN(0);
+  return 0;
 
   /* This could only happen if the grant tables got corrupted */
 table_error:
@@ -1028,7 +1074,7 @@ table_error:
 
   DBUG_PRINT("info", ("aborting replace_proxies_priv_table"));
   table->file->ha_index_end();
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1063,10 +1109,9 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_column_table");
+  DBUG_TRACE;
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV))
-    DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV)) return -1;
 
   KEY_PART_INFO *key_part = table->key_info->key_part;
 
@@ -1089,17 +1134,17 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
   List_iterator<LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  error = table->file->ha_index_init(0, 1);
+  error = table->file->ha_index_init(0, true);
   DBUG_EXECUTE_IF("wl7158_replace_column_table_1", table->file->ha_index_end();
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     acl_print_ha_error(error);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   while ((column = iter++)) {
     ulong privileges = column->rights;
-    bool old_row_exists = 0;
+    bool old_row_exists = false;
     uchar user_key[MAX_KEY_LENGTH];
 
     key_restore(table->record[0], key, table->key_info, key_prefix_length);
@@ -1111,10 +1156,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
     error = table->file->ha_index_read_map(table->record[0], user_key,
                                            HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_column_table_2",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1130,7 +1175,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         result = 1;                           /* purecov: inspected */
         continue;                             /* purecov: inspected */
       }
-      old_row_exists = 0;
+      old_row_exists = false;
       restore_record(table, s->default_values);  // Get empty record
       key_restore(table->record[0], key, table->key_info, key_prefix_length);
       table->field[4]->store(column->column.ptr(), column->column.length(),
@@ -1143,9 +1188,13 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         privileges = tmp & ~(privileges | rights);
       else
         privileges |= tmp;
-      old_row_exists = 1;
+      old_row_exists = true;
       store_record(table, record[1]);  // copy original row
     }
+
+    my_timeval tm;
+    tm = thd->query_start_timeval_trunc(0);
+    table->field[5]->store_timestamp(&tm);
 
     table->field[6]->store((longlong)get_rights_for_column(privileges), true);
 
@@ -1153,11 +1202,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       GRANT_COLUMN *grant_column;
       if (privileges) {
         error = table->file->ha_update_row(table->record[1], table->record[0]);
-        DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(error != HA_ERR_FOUND_DUPP_KEY);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_DEADLOCK);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_replace_column_table_3",
                         error = HA_ERR_LOCK_DEADLOCK;);
         if (error && error != HA_ERR_RECORD_IS_THE_SAME) {
@@ -1167,10 +1216,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         }
       } else {
         error = table->file->ha_delete_row(table->record[1]);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_DEADLOCK);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_replace_column_table_4",
                         error = HA_ERR_LOCK_DEADLOCK;);
         if (error) {
@@ -1187,11 +1236,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
     {
       GRANT_COLUMN *grant_column;
       error = table->file->ha_write_row(table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_column_table_5",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
@@ -1217,11 +1266,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
     error = table->file->ha_index_read_map(table->record[0], user_key,
                                            (key_part_map)15, HA_READ_KEY_EXACT);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_column_table_6",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1240,7 +1289,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
       if (privileges & rights)  // is in this record the priv to be revoked ??
       {
-        GRANT_COLUMN *grant_column = NULL;
+        GRANT_COLUMN *grant_column = nullptr;
         char colum_name_buf[HOSTNAME_LENGTH + 1];
         String column_name(colum_name_buf, sizeof(colum_name_buf),
                            system_charset_info);
@@ -1254,10 +1303,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         if (privileges) {
           error =
               table->file->ha_update_row(table->record[1], table->record[0]);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_DEADLOCK);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_WAIT_TIMEOUT);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_DEADLOCK);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_WAIT_TIMEOUT);
           if (error &&
               error != HA_ERR_RECORD_IS_THE_SAME) { /* purecov: deadcode */
             acl_print_ha_error(error);              // deadcode
@@ -1267,10 +1316,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
           if (grant_column) grant_column->rights = privileges;  // Update hash
         } else {
           error = table->file->ha_delete_row(table->record[1]);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_DEADLOCK);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_WAIT_TIMEOUT);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_DEADLOCK);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_WAIT_TIMEOUT);
           DBUG_EXECUTE_IF("wl7158_replace_column_table_7",
                           error = HA_ERR_LOCK_DEADLOCK;);
           if (error) {
@@ -1284,10 +1333,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         }
       }
       error = table->file->ha_index_next(table->record[0]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_column_table_8",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
@@ -1302,7 +1351,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
 end:
   table->file->ha_index_end();
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1339,9 +1388,9 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   ulong store_table_rights, store_col_rights;
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_table_table");
+  DBUG_TRACE;
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_TABLES_PRIV)) DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_TABLES_PRIV)) return -1;
 
   get_grantor(thd, grantor);
   /*
@@ -1350,7 +1399,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   */
   if (!find_acl_user(combo.host.str, combo.user.str, false)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0)); /* purecov: deadcode */
-    DBUG_RETURN(1);                         /* purecov: deadcode */
+    return 1;                               /* purecov: deadcode */
   }
 
   table->use_all_columns();
@@ -1366,10 +1415,10 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
            table->key_info->key_length);
   error = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_table_table_1",
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -1383,7 +1432,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     if (revoke_grant) {  // no row, no revoke
       my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), combo.user.str,
                combo.host.str, table_name); /* purecov: deadcode */
-      DBUG_RETURN(1);                       /* purecov: deadcode */
+      return 1;                             /* purecov: deadcode */
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1407,6 +1456,11 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   table->field[4]->store(grantor, strlen(grantor), system_charset_info);
+
+  my_timeval tm;
+  tm = thd->query_start_timeval_trunc(0);
+  table->field[5]->store_timestamp(&tm);
+
   table->field[6]->store((longlong)store_table_rights, true);
   table->field[7]->store((longlong)store_col_rights, true);
   rights = fix_rights_for_table(store_table_rights);
@@ -1415,29 +1469,29 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   if (old_row_exists) {
     if (store_table_rights || store_col_rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_table_table_2",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       if (error) goto table_error; /* purecov: deadcode */
     }
   } else {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_table_table_3",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (!table->file->is_ignorable_error(error)) goto table_error;
@@ -1460,11 +1514,11 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
       }
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 
 table_error:
   acl_print_ha_error(error);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1496,14 +1550,14 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   int error = 0;
   ulong store_proc_rights;
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_routine_table");
+  DBUG_TRACE;
 
   if (!initialized) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(-1);
+    return -1;
   }
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_PROCS_PRIV)) DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_PROCS_PRIV)) return -1;
 
   get_grantor(thd, grantor);
   /*
@@ -1526,12 +1580,12 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   store_record(table, record[1]);  // store at pos 1
 
   error = table->file->ha_index_read_idx_map(table->record[0], 0,
-                                             (uchar *)table->field[0]->ptr,
+                                             table->field[0]->field_ptr(),
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_routine_table_1",
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -1545,7 +1599,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
     if (revoke_grant) {  // no row, no revoke
       my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), combo.user.str,
                combo.host.str, routine_name);
-      DBUG_RETURN(1);
+      return 1;
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1567,36 +1621,41 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
 
   table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong)store_proc_rights, true);
+
+  my_timeval tm;
+  tm = thd->query_start_timeval_trunc(0);
+  table->field[7]->store_timestamp(&tm);
+
   rights = fix_rights_for_procedure(store_proc_rights);
 
   if (old_row_exists) {
     if (store_proc_rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_routine_table_2",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_routine_table_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) goto table_error;
     }
   } else {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_routine_table_4",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (!table->file->is_ignorable_error(error)) goto table_error;
@@ -1609,75 +1668,28 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
         is_proc ? proc_priv_hash.get() : func_priv_hash.get(),
         grant_name->hash_key, grant_name);
   }
-  DBUG_RETURN(0);
+  return 0;
 
 table_error:
   acl_print_ha_error(error);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
-  Prepare an array of all of the grant tables for opening
+  Construct TABLE_LIST array for ACL tables.
 
-  Prepare references to all of the grant tables in the order of the
-  @ref ACL_TABLES enum.
-
-  Set the tables to be one after another.
-
-  @param[in,out]  tables                Array of ACL_TABLES::LAST_ENTRY
-                                        table list elements
-                                        which will be used for opening tables.
-  @param          lock_type             Lock type to use
-  @param          mdl_type              MDL lock type to use
+  @param [in, out] tables         TABLE_LIST array
+  @param [in]      lock_type      Read or Write
+  @param [in]      mdl_type       MDL to be used
 */
-void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
-                                 enum_mdl_type mdl_type) {
-  /*
-    For a TABLE_LIST element that is inited with a lock type TL_WRITE
-    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
-    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
-    from SE level.
-  */
+static void acl_tables_setup(TABLE_LIST *tables, thr_lock_type lock_type,
+                             enum_mdl_type mdl_type) {
+  int idx = 0;
+  for (idx = 0; idx < ACL_TABLES::LAST_ENTRY; ++idx) {
+    tables[idx] =
+        TABLE_LIST("mysql", ACL_TABLE_NAMES[idx], lock_type, mdl_type);
+  }
 
-  tables->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"),
-                         "user", lock_type, mdl_type);
-
-  (tables + ACL_TABLES::TABLE_DB)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("db"), "db",
-                       lock_type, mdl_type);
-
-  (tables + ACL_TABLES::TABLE_TABLES_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("tables_priv"),
-                       "tables_priv", lock_type, mdl_type);
-
-  (tables + ACL_TABLES::TABLE_COLUMNS_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("columns_priv"), "columns_priv",
-                       lock_type, mdl_type);
-
-  (tables + ACL_TABLES::TABLE_PROCS_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("procs_priv"),
-                       "procs_priv", lock_type, mdl_type);
-
-  (tables + ACL_TABLES::TABLE_PROXIES_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("proxies_priv"), "proxies_priv",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_ROLE_EDGES)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("role_edges"),
-                       "role_edges", lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_DEFAULT_ROLES)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("default_roles"), "default_roles",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_DYNAMIC_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("global_grants"), "global_grants",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_PASSWORD_HISTORY)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("password_history"), "password_history",
-                       lock_type, mdl_type);
   if (lock_type <= TL_READ_NO_INSERT) {
     /*
       tables new to 8.0 are optional when
@@ -1693,10 +1705,223 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
         TABLE_LIST::OPEN_IF_EXISTS;
   }
 
-  for (int idx = 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx) {
+  for (idx = 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx) {
     (tables + idx)->next_local = (tables + idx)->next_global = tables + idx + 1;
     (tables + idx)->open_type = OT_BASE_ONLY;
   }
+  /* Last table */
+  (tables + idx)->next_global = nullptr;
+  (tables + idx)->open_type = OT_BASE_ONLY;
+}
+
+/**
+  Setup ACL tables to be opened in read mode.
+
+  Prepare references to all of the grant tables in the order of the
+  @ref ACL_TABLES enum.
+
+  @param [in, out] tables Table handles
+*/
+void acl_tables_setup_for_read(TABLE_LIST *tables) {
+  /*
+    This function is called in following cases:
+    1. check validity of ACL tables (schema, storage engine etc)
+    2. Load data from ACL tables to in-memory caches
+
+    Operation MUST be able to run concurrently with a simple SELECT queries
+
+    Following describes which all MDLs are taken and why.
+
+    - MDL_SHARED_READ_ONLY is taken on each of the ACL tables. This
+      lock prevents following operations from other connections due
+      to the fact that MDL_SHARED_READ_ONLY conflicts with MDL_SHARED_WRITE:
+      - DMLs that may modify ACL tables
+      - DDLs that may modify ACL tables (ALTER/DROP etc)
+      - ACL DDLs
+  */
+  acl_tables_setup(tables, TL_READ, MDL_SHARED_READ_ONLY);
+}
+
+/** Internal_error_handler subclass to suppress ER_LOCK_DEADLOCK error */
+class acl_tables_setup_for_write_and_acquire_mdl_error_handler
+    : public Internal_error_handler {
+ public:
+  acl_tables_setup_for_write_and_acquire_mdl_error_handler()
+      : m_hit_deadlock(false) {}
+  /**
+    Handle an error condition
+
+    @param [in] thd           THD handle
+    @param [in] sql_errno     Error raised by MDL subsystem
+    @param [in] sqlstate      SQL state. Unused.
+    @param [in] level         Severity level. Unused.
+    @param [in] msg           Message string. Unused.
+  */
+
+  virtual bool handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
+                                const char *sqlstate [[maybe_unused]],
+                                Sql_condition::enum_severity_level *level
+                                [[maybe_unused]],
+                                const char *msg [[maybe_unused]]) override {
+    m_hit_deadlock = (sql_errno == ER_LOCK_DEADLOCK);
+    return m_hit_deadlock;
+  }
+
+  bool hit_deadlock() { return m_hit_deadlock; }
+  void reset_hit_deadlock() { m_hit_deadlock = false; }
+
+ private:
+  bool m_hit_deadlock;
+};
+
+/**
+  Setup ACL tables to be opened in write mode.
+
+  Prepare references to all of the grant tables in the order of the
+  @ref ACL_TABLES enum.
+
+  Obtain locks on required MDLs upfront.
+
+  @param [in]      thd    THD handle
+  @param [in, out] tables Table handles
+
+  @returns Status of MDL acquisition
+    @retval false OK
+    @retval true  Error
+*/
+static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
+                                                       TABLE_LIST *tables) {
+  /*
+    This function is called perform an ACL DDL operation
+
+    Operation MUST be able to run concurrently with a simple SELECT queries
+
+    The operation:
+    a. Modifies one or more tables specified below
+    b. Updates one or more in-memory caches used for
+       authentication/authorization
+
+    Thus, operation MUST not be able to run concurrently with:
+    a. A INSERT/UPDATE/DELETE operation on tables used by ACL DDls
+    b. FLUSH TABLES WITH READ LOCKS
+    c. FLUSH PRIVILEGES
+
+    Following describes which all MDLs are taken and why.
+
+    - MDL_INTENTION_EXCLUSIVE for MDL_key::GLOBAL at global level. This
+    - MDL_INTENTION_EXCLUSIVE for MDL_Key::BACKUP_LOCK at global level
+    - MDL_SHARED_READ_ONLY for MDL_key::TABLE for each ACL table
+    - MDL_SHARED_WRITE for MDL_key::TABLE for each ACL table
+
+    Collectively, these locks prevent following operations from other
+    connections:
+    - DMLs that may modify ACL tables
+    - DDLs that may modify ACL tables (ALTER/DROP etc)
+    - ACL DDLs
+    - FLUSH PRIVILEGES
+    - FLUSH TABLES WITH READ LOCK
+    - LOCK TABLE
+  */
+
+  /* MDL does not matter because we are setting flag to ignore it */
+  acl_tables_setup(tables, TL_WRITE, MDL_SHARED_WRITE);
+
+  MDL_request_list mdl_requests;
+
+  if (thd->global_read_lock.can_acquire_protection()) return true;
+  MDL_request *global_ix_request = new (thd->mem_root) MDL_request;
+  if (global_ix_request == nullptr) {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+    return true;
+  }
+
+  MDL_REQUEST_INIT(global_ix_request, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  mdl_requests.push_front(global_ix_request);
+
+  MDL_request *backup_request = new (thd->mem_root) MDL_request;
+  if (backup_request == nullptr) {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+    return true;
+  }
+
+  MDL_REQUEST_INIT(backup_request, MDL_key::BACKUP_LOCK, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  mdl_requests.push_front(backup_request);
+
+  for (int idx = 0; idx < ACL_TABLES::LAST_ENTRY; ++idx) {
+    MDL_request *sro_request = new (thd->mem_root) MDL_request;
+    if (sro_request == nullptr) {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+      return true;
+    }
+    MDL_REQUEST_INIT(sro_request, MDL_key::TABLE, (tables + idx)->db,
+                     (tables + idx)->table_name, MDL_SHARED_READ_ONLY,
+                     MDL_TRANSACTION);
+    mdl_requests.push_front(sro_request);
+
+    MDL_request *sw_request = new (thd->mem_root) MDL_request;
+    if (sw_request == nullptr) {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+      return true;
+    }
+    MDL_REQUEST_INIT(sw_request, MDL_key::TABLE, (tables + idx)->db,
+                     (tables + idx)->table_name, MDL_SHARED_WRITE,
+                     MDL_TRANSACTION);
+    mdl_requests.push_front(sw_request);
+  }
+
+  acl_tables_setup_for_write_and_acquire_mdl_error_handler handler;
+  thd->push_internal_handler(&handler);
+  bool mdl_acquire_error = false;
+  for (;;) {
+    handler.reset_hit_deadlock();
+    /*
+      MDL_context::acquire_locks sorts all lock requests.
+      Due to this, a situation may arise that two or more
+      competing threads will acquire:
+      - IX lock at global level
+      - Backup lock
+      - SRO on first table according to sorting done
+
+      Next, they will all compete for SW on the same table.
+
+      At this point, MDL's deadlock detection would kick in
+      and evict all but one thread.
+
+      In a standalone server, this may result into victim
+      threads receiving ER_DEADLOCK_ERROR. This may not be
+      a big problem because user can always retry. However,
+      in a secondary node, applier threads can not
+      tolerate such error.
+
+      Thus, we run a infinite loop here. Essentially - do not
+      give up in case a deadlock is encountered. Repeat until
+      all required locks are obtained. We do this by crafting
+      a special handler and pushing it on top for the duration
+      of the loop. This error handler will suppress
+      ER_DEADLOCK_ERROR.
+
+      MDL_context::acquire_locks() will make sure that lock
+      acquisition is atomic. So we don't have to worry about
+      cleanup in case the function fails.
+
+      Note that even with custom error handlers,
+      MDL_context::acquire_locks() will return failure in case
+      of ER_DEADLOCK_ERROR. However, there won't be any error
+      set in THD thatnks to custom error handler.
+    */
+    mdl_acquire_error = thd->mdl_context.acquire_locks(
+        &mdl_requests, thd->variables.lock_wait_timeout);
+    /* Retry acquire_locks only if there was a deadlock */
+    if (mdl_acquire_error && handler.hit_deadlock())
+      continue;
+    else
+      break;
+  }
+  thd->pop_internal_handler();
+
+  return mdl_acquire_error;
 }
 
 /**
@@ -1719,16 +1944,18 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
 
 int open_grant_tables(THD *thd, TABLE_LIST *tables,
                       bool *transactional_tables) {
-  DBUG_ENTER("open_grant_tables");
+  DBUG_TRACE;
 
   if (!initialized) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   *transactional_tables = false;
 
-  grant_tables_setup_for_open(tables);
+  DEBUG_SYNC(thd, "wl14084_acl_ddl_before_mdl_acquisition");
+
+  if (acl_tables_setup_for_write_and_acquire_mdl(thd, tables)) return -1;
 
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -1742,23 +1969,29 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++) tables[i].updating = true;
 
     if (!(thd->sp_runtime_ctx ||
-          thd->rli_slave->rpl_filter->tables_ok(0, tables)))
-      DBUG_RETURN(1);
+          thd->rli_slave->rpl_filter->tables_ok(nullptr, tables))) {
+      thd->mdl_context.release_transactional_locks();
+      return 1;
+    }
 
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++)
       tables[i].updating = false;
   }
 
-  if (open_and_lock_tables(
-          thd, tables,
-          MYSQL_LOCK_IGNORE_TIMEOUT)) {  // This should never happen
-    DBUG_RETURN(-1);
+  uint flags = MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+               MYSQL_OPEN_IGNORE_FLUSH;
+  if (open_and_lock_tables(thd, tables,
+                           flags)) {  // This should never happen
+    thd->mdl_context.release_transactional_locks();
+    return -1;
   }
-
+  DEBUG_SYNC(thd, "wl14084_after_table_locks");
+  DBUG_EXECUTE_IF("wl14084_acl_ddl_after_table_lock_trigger_timeout",
+                  sleep(2););
   if (check_engine_type_for_acl_table(tables, true) ||
       check_acl_tables_intact(thd, tables)) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   for (uint i = 0; i < ACL_TABLES::LAST_ENTRY; ++i)
@@ -1766,7 +1999,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
         (*transactional_tables ||
          (tables[i].table && tables[i].table->file->has_transactions()));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1789,7 +2022,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
 static int modify_grant_table(TABLE *table, Field *host_field,
                               Field *user_field, LEX_USER *user_to) {
   int error;
-  DBUG_ENTER("modify_grant_table");
+  DBUG_TRACE;
 
   if (user_to) {
     /* rename */
@@ -1799,11 +2032,11 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     user_field->store(user_to->user.str, user_to->user.length,
                       system_charset_info);
     error = table->file->ha_update_row(table->record[1], table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_modify_grant_table_1",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error && error != HA_ERR_RECORD_IS_THE_SAME)
@@ -1813,16 +2046,16 @@ static int modify_grant_table(TABLE *table, Field *host_field,
   } else {
     /* delete */
     error = table->file->ha_delete_row(table->record[0]);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_modify_grant_table_2",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) acl_print_ha_error(error);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -1859,7 +2092,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
   const char *user;
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
-  DBUG_ENTER("handle_grant_table");
+  DBUG_TRACE;
 
   table->use_all_columns();
   if (!table_no)  // mysql.user table
@@ -1887,10 +2120,10 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
 
     error = table->file->ha_index_read_idx_map(
         table->record[0], 0, user_key, (key_part_map)3, HA_READ_KEY_EXACT);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_handle_grant_table_1",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1912,7 +2145,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
       And their host- and user fields are not consecutive.
       Thus, we need to do a table scan to find all matching records.
     */
-    error = table->file->ha_rnd_init(1);
+    error = table->file->ha_rnd_init(true);
     DBUG_EXECUTE_IF("wl7158_handle_grant_table_2", table->file->ha_rnd_end();
                     error = HA_ERR_LOCK_DEADLOCK;);
 
@@ -1927,10 +2160,10 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
 #endif
       while (true) {
         error = table->file->ha_rnd_next(table->record[0]);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_DEADLOCK);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_handle_grant_table_3",
                         error = HA_ERR_LOCK_DEADLOCK;);
         if (error) {
@@ -1970,7 +2203,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -2009,3 +2242,37 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error) {
 
   return invalid_table_found;
 }
+
+/**
+  Check if given table name is a ACL table name.
+
+  @param name   Table name.
+
+  @return bool
+    @retval true  If it is a ACL table, otherwise false.
+*/
+
+bool is_acl_table_name(const char *name) {
+  for (int i = 0; i < MAX_ACL_TABLE_NAMES; i++) {
+    if (!my_strcasecmp(system_charset_info, ACL_TABLE_NAMES[i], name))
+      return true;
+  }
+  return false;
+}
+
+#ifndef NDEBUG
+/**
+  Check if given TABLE* is a ACL table name.
+
+  @param table   TABLE object.
+
+  @return bool
+    @retval true  If it is a ACL table, otherwise false.
+*/
+
+bool is_acl_table(const TABLE *table) {
+  return (!my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str,
+                         table->s->db.str) &&
+          is_acl_table_name(table->s->table_name.str));
+}
+#endif

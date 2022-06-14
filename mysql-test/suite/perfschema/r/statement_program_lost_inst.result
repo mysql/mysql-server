@@ -8,10 +8,10 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-4
+5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-15
+16
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
@@ -299,3 +299,5 @@ DROP PROCEDURE ifac;
 DROP TRIGGER trg;
 DROP TABLE t1,t2;
 DROP DATABASE nested_sp;
+# Restore default settings
+# restart:

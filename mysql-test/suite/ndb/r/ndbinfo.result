@@ -5,7 +5,7 @@ SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
        PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
 FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION
-ndbinfo	0.1	ACTIVE	STORAGE ENGINE	NULL	NULL	Sun Microsystems Inc.	MySQL Cluster system information storage engine
+ndbinfo	0.1	ACTIVE	STORAGE ENGINE	NULL	NULL	Oracle Corporation	MySQL Cluster system information storage engine
 
 ## Creation of temporary tables should not be supported by NDBINFO engine
 CREATE TEMPORARY TABLE `t1` (
@@ -37,12 +37,13 @@ node_id	block_number	block_instance	pool_name	used_ok	total	high_ok	entry_size	c
 SHOW CREATE TABLE ndb$tables;
 Table	Create Table
 ndb$tables	CREATE TABLE `ndb$tables` (
-  `table_id` int(10) unsigned DEFAULT NULL,
+  `table_id` int unsigned DEFAULT NULL,
   `table_name` varchar(512) DEFAULT NULL,
-  `comment` varchar(512) DEFAULT NULL
+  `comment` varchar(512) DEFAULT NULL,
+  `rows_estimate` int unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
 
-SELECT * FROM ndb$tables;
+SELECT table_id, table_name, comment FROM ndb$tables;
 table_id	table_name	comment
 0	tables	metadata for tables available through ndbinfo
 1	columns	metadata for columns available through ndbinfo 
@@ -84,13 +85,22 @@ table_id	table_name	comment
 37	stored_tables	Information about stored tables
 38	processes	Process ID and Name information for connected nodes
 39	config_nodes	All nodes of current cluster configuration
+40	pgman_time_track_stats	Time tracking of reads and writes of disk data pages
+41	diskstat	Disk data statistics for last second
+42	diskstats_1sec	Disk data statistics history for last few seconds
+43	hwinfo	HW information where node executes
+44	cpuinfo	CPU information where node executes
+45	cpudata	Data about CPU usage last second
+46	cpudata_50ms	Data about CPU usage per 50ms last second
+47	cpudata_1sec	Data about CPU usage per second last 20 seconds
+48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-40
+49
 SELECT * FROM ndb$tables WHERE table_id = 2;
-table_id	table_name	comment
-2	test	for testing
-SELECT * FROM ndb$tables WHERE table_id > 5;
+table_id	table_name	comment	rows_estimate
+2	test	for testing	8000
+SELECT table_id, table_name, comment FROM ndb$tables WHERE table_id > 5;
 table_id	table_name	comment
 6	logbuffers	logbuffer usage
 7	resources	resources usage (a.k.a superpool)
@@ -126,8 +136,17 @@ table_id	table_name	comment
 37	stored_tables	Information about stored tables
 38	processes	Process ID and Name information for connected nodes
 39	config_nodes	All nodes of current cluster configuration
+40	pgman_time_track_stats	Time tracking of reads and writes of disk data pages
+41	diskstat	Disk data statistics for last second
+42	diskstats_1sec	Disk data statistics history for last few seconds
+43	hwinfo	HW information where node executes
+44	cpuinfo	CPU information where node executes
+45	cpudata	Data about CPU usage last second
+46	cpudata_50ms	Data about CPU usage per 50ms last second
+47	cpudata_1sec	Data about CPU usage per second last 20 seconds
+48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
-table_id	table_name	comment
+table_id	table_name	comment	rows_estimate
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
   WHERE t.table_id = c.table_id AND
     t.table_id in (1,2,3,4,5,6);
@@ -150,22 +169,31 @@ table_id	table_name
 39	config_nodes
 23	config_values
 8	counters
+45	cpudata
+47	cpudata_1sec
+48	cpudata_20sec
+46	cpudata_50ms
+44	cpuinfo
 28	cpustat
 26	cpustat_1sec
 27	cpustat_20sec
 25	cpustat_50ms
 16	dict_obj_info
 10	diskpagebuffer
+41	diskstat
+42	diskstats_1sec
 19	disk_write_speed_aggregate
 18	disk_write_speed_base
 29	frag_locks
 17	frag_mem_use
 20	frag_operations
+43	hwinfo
 6	logbuffers
 5	logspaces
 15	membership
 9	nodes
 14	operations
+40	pgman_time_track_stats
 3	pools
 38	processes
 7	resources
@@ -191,10 +219,10 @@ table_id	column_id	column_name
 0	0	table_id
 0	1	table_name
 0	2	comment
+0	3	rows_estimate
 1	0	table_id
 1	1	column_id
 1	2	column_name
-1	3	column_type
 
 UPDATE ndb$tables SET table_id=2 WHERE table_id=3;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -260,6 +288,15 @@ table_id
 37
 38
 39
+40
+41
+42
+43
+44
+45
+46
+47
+48
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -311,11 +348,11 @@ count(*) >= 20
 show create table ndb$test;
 Table	Create Table
 ndb$test	CREATE TABLE `ndb$test` (
-  `node_id` int(10) unsigned DEFAULT NULL,
-  `block_number` int(10) unsigned DEFAULT NULL,
-  `block_instance` int(10) unsigned DEFAULT NULL,
-  `counter` int(10) unsigned DEFAULT NULL,
-  `counter2` bigint(20) unsigned DEFAULT NULL
+  `node_id` int unsigned DEFAULT NULL,
+  `block_number` int unsigned DEFAULT NULL,
+  `block_instance` int unsigned DEFAULT NULL,
+  `counter` int unsigned DEFAULT NULL,
+  `counter2` bigint unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing'
 ## 1) More columns in NDB -> allowed, with warning
 DROP TABLE ndb$test;
@@ -421,9 +458,11 @@ Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existi
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 DROP TABLE ndb$test;
 
-## 4) Table with primary key/indexes not supported
-CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
-ERROR 42000: Too many keys specified; max 0 keys allowed
+## 4) Primary key is supported after the fix for bug#28658625,
+##    but tables are still limited to a single index.
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
+                       index(node_id)) ENGINE = ndbinfo;
+ERROR 42000: Too many keys specified; max 1 keys allowed
 
 ## 5) Table with blobs not supported
 CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
@@ -464,10 +503,10 @@ node_id
 
 desc threadblocks;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
 block_name	varchar(512)	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
 select distinct block_name from threadblocks order by 1;
 block_name
 BACKUP
@@ -477,6 +516,10 @@ DBDICT
 DBDIH
 DBINFO
 DBLQH
+DBQACC
+DBQLQH
+DBQTUP
+DBQTUX
 DBSPJ
 DBTC
 DBTUP
@@ -486,7 +529,9 @@ LGMAN
 NDBCNTR
 NDBFS
 PGMAN
+QBACKUP
 QMGR
+QRESTORE
 RESTORE
 SUMA
 THRMAN
@@ -495,59 +540,59 @@ TRPMAN
 TSMAN
 desc threadstat;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
 thr_nm	varchar(512)	YES		NULL	
-c_loop	bigint(20) unsigned	YES		NULL	
-c_exec	bigint(20) unsigned	YES		NULL	
-c_wait	bigint(20) unsigned	YES		NULL	
-c_l_sent_prioa	bigint(20) unsigned	YES		NULL	
-c_l_sent_priob	bigint(20) unsigned	YES		NULL	
-c_r_sent_prioa	bigint(20) unsigned	YES		NULL	
-c_r_sent_priob	bigint(20) unsigned	YES		NULL	
-os_tid	bigint(20) unsigned	YES		NULL	
-os_now	bigint(20) unsigned	YES		NULL	
-os_ru_utime	bigint(20) unsigned	YES		NULL	
-os_ru_stime	bigint(20) unsigned	YES		NULL	
-os_ru_minflt	bigint(20) unsigned	YES		NULL	
-os_ru_majflt	bigint(20) unsigned	YES		NULL	
-os_ru_nvcsw	bigint(20) unsigned	YES		NULL	
-os_ru_nivcsw	bigint(20) unsigned	YES		NULL	
+c_loop	bigint unsigned	YES		NULL	
+c_exec	bigint unsigned	YES		NULL	
+c_wait	bigint unsigned	YES		NULL	
+c_l_sent_prioa	bigint unsigned	YES		NULL	
+c_l_sent_priob	bigint unsigned	YES		NULL	
+c_r_sent_prioa	bigint unsigned	YES		NULL	
+c_r_sent_priob	bigint unsigned	YES		NULL	
+os_tid	bigint unsigned	YES		NULL	
+os_now	bigint unsigned	YES		NULL	
+os_ru_utime	bigint unsigned	YES		NULL	
+os_ru_stime	bigint unsigned	YES		NULL	
+os_ru_minflt	bigint unsigned	YES		NULL	
+os_ru_majflt	bigint unsigned	YES		NULL	
+os_ru_nvcsw	bigint unsigned	YES		NULL	
+os_ru_nivcsw	bigint unsigned	YES		NULL	
 select count(*) > 0 block_name from threadstat;
 block_name
 1
 
 desc disk_write_speed_aggregate;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-backup_lcp_speed_last_sec	bigint(20) unsigned	YES		NULL	
-redo_speed_last_sec	bigint(20) unsigned	YES		NULL	
-backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-std_dev_backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-std_dev_redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-std_dev_backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-std_dev_redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-slowdowns_due_to_io_lag	bigint(20) unsigned	YES		NULL	
-slowdowns_due_to_high_cpu	bigint(20) unsigned	YES		NULL	
-disk_write_speed_set_to_min	bigint(20) unsigned	YES		NULL	
-current_target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
+backup_lcp_speed_last_sec	bigint unsigned	YES		NULL	
+redo_speed_last_sec	bigint unsigned	YES		NULL	
+backup_lcp_speed_last_10sec	bigint unsigned	YES		NULL	
+redo_speed_last_10sec	bigint unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_10sec	bigint unsigned	YES		NULL	
+std_dev_redo_speed_last_10sec	bigint unsigned	YES		NULL	
+backup_lcp_speed_last_60sec	bigint unsigned	YES		NULL	
+redo_speed_last_60sec	bigint unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_60sec	bigint unsigned	YES		NULL	
+std_dev_redo_speed_last_60sec	bigint unsigned	YES		NULL	
+slowdowns_due_to_io_lag	bigint unsigned	YES		NULL	
+slowdowns_due_to_high_cpu	bigint unsigned	YES		NULL	
+disk_write_speed_set_to_min	bigint unsigned	YES		NULL	
+current_target_disk_write_speed	bigint unsigned	YES		NULL	
 select count(*) from disk_write_speed_aggregate;
 count(*)
 8
 
 desc disk_write_speed_base;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-millis_ago	bigint(20) unsigned	YES		NULL	
-millis_passed	bigint(20) unsigned	YES		NULL	
-backup_lcp_bytes_written	bigint(20) unsigned	YES		NULL	
-redo_bytes_written	bigint(20) unsigned	YES		NULL	
-target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
+millis_ago	bigint unsigned	YES		NULL	
+millis_passed	bigint unsigned	YES		NULL	
+backup_lcp_bytes_written	bigint unsigned	YES		NULL	
+redo_bytes_written	bigint unsigned	YES		NULL	
+target_disk_write_speed	bigint unsigned	YES		NULL	
 select node_id from disk_write_speed_base group by node_id, thr_no;
 node_id
 1
@@ -565,48 +610,48 @@ count(*)
 
 desc restart_info;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
 node_restart_status	varchar(512)	YES		NULL	
-node_restart_status_int	int(10) unsigned	YES		NULL	
-secs_to_complete_node_failure	int(10) unsigned	YES		NULL	
-secs_to_allocate_node_id	int(10) unsigned	YES		NULL	
-secs_to_include_in_heartbeat_protocol	int(10) unsigned	YES		NULL	
-secs_until_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
-secs_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
-secs_to_get_start_permitted	int(10) unsigned	YES		NULL	
-secs_to_wait_for_lcp_for_copy_meta_data	int(10) unsigned	YES		NULL	
-secs_to_copy_meta_data	int(10) unsigned	YES		NULL	
-secs_to_include_node	int(10) unsigned	YES		NULL	
-secs_starting_node_to_request_local_recovery	int(10) unsigned	YES		NULL	
-secs_for_local_recovery	int(10) unsigned	YES		NULL	
-secs_restore_fragments	int(10) unsigned	YES		NULL	
-secs_undo_disk_data	int(10) unsigned	YES		NULL	
-secs_exec_redo_log	int(10) unsigned	YES		NULL	
-secs_index_rebuild	int(10) unsigned	YES		NULL	
-secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL	
-secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
-secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
-total_restart_secs	int(10) unsigned	YES		NULL	
+node_restart_status_int	int unsigned	YES		NULL	
+secs_to_complete_node_failure	int unsigned	YES		NULL	
+secs_to_allocate_node_id	int unsigned	YES		NULL	
+secs_to_include_in_heartbeat_protocol	int unsigned	YES		NULL	
+secs_until_wait_for_ndbcntr_master	int unsigned	YES		NULL	
+secs_wait_for_ndbcntr_master	int unsigned	YES		NULL	
+secs_to_get_start_permitted	int unsigned	YES		NULL	
+secs_to_wait_for_lcp_for_copy_meta_data	int unsigned	YES		NULL	
+secs_to_copy_meta_data	int unsigned	YES		NULL	
+secs_to_include_node	int unsigned	YES		NULL	
+secs_starting_node_to_request_local_recovery	int unsigned	YES		NULL	
+secs_for_local_recovery	int unsigned	YES		NULL	
+secs_restore_fragments	int unsigned	YES		NULL	
+secs_undo_disk_data	int unsigned	YES		NULL	
+secs_exec_redo_log	int unsigned	YES		NULL	
+secs_index_rebuild	int unsigned	YES		NULL	
+secs_to_synchronize_starting_node	int unsigned	YES		NULL	
+secs_wait_lcp_for_restart	int unsigned	YES		NULL	
+secs_wait_subscription_handover	int unsigned	YES		NULL	
+total_restart_secs	int unsigned	YES		NULL	
 select * from restart_info where node_restart_status <> 'Restart completed';
 node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
 desc tc_time_track_stats;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-block_number	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-comm_node_id	int(10) unsigned	YES		NULL	
-upper_bound	bigint(20) unsigned	YES		NULL	
-scans	bigint(20) unsigned	YES		NULL	
-scan_errors	bigint(20) unsigned	YES		NULL	
-scan_fragments	bigint(20) unsigned	YES		NULL	
-scan_fragment_errors	bigint(20) unsigned	YES		NULL	
-transactions	bigint(20) unsigned	YES		NULL	
-transaction_errors	bigint(20) unsigned	YES		NULL	
-read_key_ops	bigint(20) unsigned	YES		NULL	
-write_key_ops	bigint(20) unsigned	YES		NULL	
-index_key_ops	bigint(20) unsigned	YES		NULL	
-key_op_errors	bigint(20) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+block_number	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+comm_node_id	int unsigned	YES		NULL	
+upper_bound	bigint unsigned	YES		NULL	
+scans	bigint unsigned	YES		NULL	
+scan_errors	bigint unsigned	YES		NULL	
+scan_fragments	bigint unsigned	YES		NULL	
+scan_fragment_errors	bigint unsigned	YES		NULL	
+transactions	bigint unsigned	YES		NULL	
+transaction_errors	bigint unsigned	YES		NULL	
+read_key_ops	bigint unsigned	YES		NULL	
+write_key_ops	bigint unsigned	YES		NULL	
+index_key_ops	bigint unsigned	YES		NULL	
+key_op_errors	bigint unsigned	YES		NULL	
 select distinct node_id from tc_time_track_stats;
 node_id
 1
@@ -614,63 +659,63 @@ node_id
 
 desc threads;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
 thread_name	varchar(512)	YES		NULL	
 thread_description	varchar(512)	YES		NULL	
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 state	varchar(256)	YES		NULL	
-count_operations	int(10) unsigned	YES		NULL	
-outstanding_operations	int(10) unsigned	YES		NULL	
-inactive_seconds	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
+count_operations	int unsigned	YES		NULL	
+outstanding_operations	int unsigned	YES		NULL	
+inactive_seconds	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
 desc server_transactions;
 Field	Type	Null	Key	Default	Extra
-mysql_connection_id	bigint(21) unsigned	NO		0	
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+mysql_connection_id	bigint unsigned	NO		0	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 state	varchar(256)	YES		NULL	
-count_operations	int(10) unsigned	YES		NULL	
-outstanding_operations	int(10) unsigned	YES		NULL	
-inactive_seconds	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
+count_operations	int unsigned	YES		NULL	
+outstanding_operations	int unsigned	YES		NULL	
+inactive_seconds	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
 desc cluster_operations;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 operation_type	varchar(9)	NO			
 state	varchar(256)	YES		NULL	
-tableid	int(10) unsigned	YES		NULL	
-fragmentid	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
-tc_node_id	bigint(21) unsigned	YES		NULL	
-tc_block_no	bigint(21) unsigned	YES		NULL	
-tc_block_instance	bigint(21) unsigned	YES		NULL	
+tableid	int unsigned	YES		NULL	
+fragmentid	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
+tc_node_id	bigint unsigned	YES		NULL	
+tc_block_no	bigint unsigned	YES		NULL	
+tc_block_instance	bigint unsigned	YES		NULL	
 desc server_operations;
 Field	Type	Null	Key	Default	Extra
-mysql_connection_id	bigint(21) unsigned	NO		0	
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+mysql_connection_id	bigint unsigned	NO		0	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 operation_type	varchar(9)	NO			
 state	varchar(256)	YES		NULL	
-tableid	int(10) unsigned	YES		NULL	
-fragmentid	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
-tc_node_id	bigint(21) unsigned	YES		NULL	
-tc_block_no	bigint(21) unsigned	YES		NULL	
-tc_block_instance	bigint(21) unsigned	YES		NULL	
+tableid	int unsigned	YES		NULL	
+fragmentid	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
+tc_node_id	bigint unsigned	YES		NULL	
+tc_block_no	bigint unsigned	YES		NULL	
+tc_block_instance	bigint unsigned	YES		NULL	
 
 select count(*) > 0 from table_distribution_status;
 count(*) > 0
@@ -693,105 +738,105 @@ count(*) > 0
 
 desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-tab_copy_status	varchar(20)	NO			
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+tab_copy_status	varchar(21)	NO			
 tab_update_status	varchar(23)	NO			
 tab_lcp_status	varchar(15)	NO			
 tab_status	varchar(13)	NO			
 tab_storage	varchar(13)	NO			
-tab_partitions	int(10) unsigned	YES		NULL	
-tab_fragments	int(10) unsigned	YES		NULL	
-current_scan_count	int(10) unsigned	YES		NULL	
-scan_count_wait	int(10) unsigned	YES		NULL	
-is_reorg_ongoing	int(10) unsigned	YES		NULL	
+tab_partitions	int unsigned	YES		NULL	
+tab_fragments	int unsigned	YES		NULL	
+current_scan_count	int unsigned	YES		NULL	
+scan_count_wait	int unsigned	YES		NULL	
+is_reorg_ongoing	int unsigned	YES		NULL	
 desc table_fragments;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-partition_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-partition_order	int(10) unsigned	YES		NULL	
-log_part_id	int(10) unsigned	YES		NULL	
-no_of_replicas	int(10) unsigned	YES		NULL	
-current_primary	int(10) unsigned	YES		NULL	
-preferred_primary	int(10) unsigned	YES		NULL	
-current_first_backup	int(10) unsigned	YES		NULL	
-current_second_backup	int(10) unsigned	YES		NULL	
-current_third_backup	int(10) unsigned	YES		NULL	
-num_alive_replicas	int(10) unsigned	YES		NULL	
-num_dead_replicas	int(10) unsigned	YES		NULL	
-num_lcp_replicas	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+partition_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+partition_order	int unsigned	YES		NULL	
+log_part_id	int unsigned	YES		NULL	
+no_of_replicas	int unsigned	YES		NULL	
+current_primary	int unsigned	YES		NULL	
+preferred_primary	int unsigned	YES		NULL	
+current_first_backup	int unsigned	YES		NULL	
+current_second_backup	int unsigned	YES		NULL	
+current_third_backup	int unsigned	YES		NULL	
+num_alive_replicas	int unsigned	YES		NULL	
+num_dead_replicas	int unsigned	YES		NULL	
+num_lcp_replicas	int unsigned	YES		NULL	
 desc table_replicas;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-initial_gci	int(10) unsigned	YES		NULL	
-replica_node_id	int(10) unsigned	YES		NULL	
-is_lcp_ongoing	int(10) unsigned	YES		NULL	
-num_crashed_replicas	int(10) unsigned	YES		NULL	
-last_max_gci_started	int(10) unsigned	YES		NULL	
-last_max_gci_completed	int(10) unsigned	YES		NULL	
-last_lcp_id	int(10) unsigned	YES		NULL	
-prev_lcp_id	int(10) unsigned	YES		NULL	
-prev_max_gci_started	int(10) unsigned	YES		NULL	
-prev_max_gci_completed	int(10) unsigned	YES		NULL	
-last_create_gci	int(10) unsigned	YES		NULL	
-last_replica_gci	int(10) unsigned	YES		NULL	
-is_replica_alive	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+initial_gci	int unsigned	YES		NULL	
+replica_node_id	int unsigned	YES		NULL	
+is_lcp_ongoing	int unsigned	YES		NULL	
+num_crashed_replicas	int unsigned	YES		NULL	
+last_max_gci_started	int unsigned	YES		NULL	
+last_max_gci_completed	int unsigned	YES		NULL	
+last_lcp_id	int unsigned	YES		NULL	
+prev_lcp_id	int unsigned	YES		NULL	
+prev_max_gci_started	int unsigned	YES		NULL	
+prev_max_gci_completed	int unsigned	YES		NULL	
+last_create_gci	int unsigned	YES		NULL	
+last_replica_gci	int unsigned	YES		NULL	
+is_replica_alive	int unsigned	YES		NULL	
 
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$table_distribution_status_all;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-tab_copy_status	int(10) unsigned	YES		NULL	
-tab_update_status	int(10) unsigned	YES		NULL	
-tab_lcp_status	int(10) unsigned	YES		NULL	
-tab_status	int(10) unsigned	YES		NULL	
-tab_storage	int(10) unsigned	YES		NULL	
-tab_type	int(10) unsigned	YES		NULL	
-tab_partitions	int(10) unsigned	YES		NULL	
-tab_fragments	int(10) unsigned	YES		NULL	
-current_scan_count	int(10) unsigned	YES		NULL	
-scan_count_wait	int(10) unsigned	YES		NULL	
-is_reorg_ongoing	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+tab_copy_status	int unsigned	YES		NULL	
+tab_update_status	int unsigned	YES		NULL	
+tab_lcp_status	int unsigned	YES		NULL	
+tab_status	int unsigned	YES		NULL	
+tab_storage	int unsigned	YES		NULL	
+tab_type	int unsigned	YES		NULL	
+tab_partitions	int unsigned	YES		NULL	
+tab_fragments	int unsigned	YES		NULL	
+current_scan_count	int unsigned	YES		NULL	
+scan_count_wait	int unsigned	YES		NULL	
+is_reorg_ongoing	int unsigned	YES		NULL	
 desc ndb$table_fragments_all;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-partition_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-partition_order	int(10) unsigned	YES		NULL	
-log_part_id	int(10) unsigned	YES		NULL	
-no_of_replicas	int(10) unsigned	YES		NULL	
-current_primary	int(10) unsigned	YES		NULL	
-preferred_primary	int(10) unsigned	YES		NULL	
-current_first_backup	int(10) unsigned	YES		NULL	
-current_second_backup	int(10) unsigned	YES		NULL	
-current_third_backup	int(10) unsigned	YES		NULL	
-num_alive_replicas	int(10) unsigned	YES		NULL	
-num_dead_replicas	int(10) unsigned	YES		NULL	
-num_lcp_replicas	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+partition_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+partition_order	int unsigned	YES		NULL	
+log_part_id	int unsigned	YES		NULL	
+no_of_replicas	int unsigned	YES		NULL	
+current_primary	int unsigned	YES		NULL	
+preferred_primary	int unsigned	YES		NULL	
+current_first_backup	int unsigned	YES		NULL	
+current_second_backup	int unsigned	YES		NULL	
+current_third_backup	int unsigned	YES		NULL	
+num_alive_replicas	int unsigned	YES		NULL	
+num_dead_replicas	int unsigned	YES		NULL	
+num_lcp_replicas	int unsigned	YES		NULL	
 desc ndb$table_replicas_all;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-initial_gci	int(10) unsigned	YES		NULL	
-replica_node_id	int(10) unsigned	YES		NULL	
-is_lcp_ongoing	int(10) unsigned	YES		NULL	
-num_crashed_replicas	int(10) unsigned	YES		NULL	
-last_max_gci_started	int(10) unsigned	YES		NULL	
-last_max_gci_completed	int(10) unsigned	YES		NULL	
-last_lcp_id	int(10) unsigned	YES		NULL	
-prev_lcp_id	int(10) unsigned	YES		NULL	
-prev_max_gci_started	int(10) unsigned	YES		NULL	
-prev_max_gci_completed	int(10) unsigned	YES		NULL	
-last_create_gci	int(10) unsigned	YES		NULL	
-last_replica_gci	int(10) unsigned	YES		NULL	
-is_replica_alive	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+initial_gci	int unsigned	YES		NULL	
+replica_node_id	int unsigned	YES		NULL	
+is_lcp_ongoing	int unsigned	YES		NULL	
+num_crashed_replicas	int unsigned	YES		NULL	
+last_max_gci_started	int unsigned	YES		NULL	
+last_max_gci_completed	int unsigned	YES		NULL	
+last_lcp_id	int unsigned	YES		NULL	
+prev_lcp_id	int unsigned	YES		NULL	
+prev_max_gci_started	int unsigned	YES		NULL	
+prev_max_gci_completed	int unsigned	YES		NULL	
+last_create_gci	int unsigned	YES		NULL	
+last_replica_gci	int unsigned	YES		NULL	
+is_replica_alive	int unsigned	YES		NULL	
 set @@ndbinfo_show_hidden=default;
 
 create table t1 (a int primary key) engine = ndb;
@@ -895,7 +940,7 @@ CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
 SHOW CREATE TABLE ndb$does_not_exist_in_ndb;
 Table	Create Table
 ndb$does_not_exist_in_ndb	CREATE TABLE `ndb$does_not_exist_in_ndb` (
-  `node_id` int(11) DEFAULT NULL,
+  `node_id` int DEFAULT NULL,
   `message` varchar(255) DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1
 
@@ -1234,9 +1279,9 @@ parent_fq_name	ndbinfo/def/t1
 type	User table
 frag_count	16
 tot_key_reads	0
-tot_key_inserts	200
+tot_key_inserts	100
 tot_key_updates	0
-tot_key_writes	0
+tot_key_writes	100
 tot_key_deletes	0
 tot_key_refs	0
 log_tot_key_attrinfo_bytes	16
@@ -1316,7 +1361,7 @@ tot_key_keyinfo_bytes	0
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	0
+tot_frag_scans	1
 tot_scan_rows_examined	0
 tot_scan_rows_returned	0
 tot_scan_bytes_returned	0
@@ -1376,7 +1421,7 @@ select * from t1 where b=1 and a = -5;
 a	b	c	d	t
 
 insert into t1 values (1,1,1,1,'');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 
 replace t1 values (-1,-1,-1,-1,'');
 replace t1 values (1,1,5,500,'');
@@ -1387,139 +1432,7 @@ delete from t1 where a%30=0;
 
 
 
-explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	#	ALL	NULL	NULL	NULL	NULL	97	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x2	#	ref	PRIMARY	PRIMARY	4	ndbinfo.x1.c	1	100.00	Child of 'x1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` `x1` join `ndbinfo`.`t1` `x2` where (`ndbinfo`.`x2`.`b` = `ndbinfo`.`x1`.`c`)
-select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
-count(*)
-1
 
-tot_qd_frag_scans
-4
-select * from frag_ops;;
-fq_name	ndbinfo/def/NDB$BLOB_
-parent_fq_name	ndbinfo/def/t1
-type	User table
-frag_count	16
-tot_key_reads	1
-tot_key_inserts	218
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	28
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	16
-tot_key_keyinfo_bytes	2964
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	268
-tot_frag_scans	0
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	0
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	246
-fq_name	ndbinfo/def/t1
-parent_fq_name	NULL
-type	User table
-frag_count	16
-tot_key_reads	19
-tot_key_inserts	205
-tot_key_updates	236
-tot_key_writes	0
-tot_key_deletes	10
-tot_key_refs	4
-log_tot_key_attrinfo_bytes	16
-tot_key_keyinfo_bytes	3760
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	4220
-tot_frag_scans	56
-tot_scan_rows_examined	306
-tot_scan_rows_returned	215
-tot_scan_bytes_returned	5468
-tot_scan_prog_bytes	288
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	305
-conc_qd_frag_scans	0
-tot_commits	450
-fq_name	ix1$unique
-parent_fq_name	ndbinfo/def/t1
-type	Unique hash index
-frag_count	16
-tot_key_reads	3
-tot_key_inserts	222
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	28
-tot_key_refs	3
-log_tot_key_attrinfo_bytes	12
-tot_key_keyinfo_bytes	1012
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	0
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	0
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	250
-fq_name	PRIMARY
-parent_fq_name	ndbinfo/def/t1
-type	Ordered index
-frag_count	16
-tot_key_reads	0
-tot_key_inserts	0
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	0
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	0
-tot_key_keyinfo_bytes	0
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	32
-tot_scan_rows_examined	20
-tot_scan_rows_returned	20
-tot_scan_bytes_returned	588
-tot_scan_prog_bytes	576
-tot_scan_bound_bytes	9888
-tot_scan_inst_exec	58
-conc_qd_frag_scans	0
-tot_commits	0
-fq_name	ndbinfo/def/t2
-parent_fq_name	NULL
-type	User table
-frag_count	16
-tot_key_reads	0
-tot_key_inserts	6
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	0
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	7
-tot_key_keyinfo_bytes	24
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	8
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	32
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	6
 explain select count(*)
 from t2 as tx, t2 as ty
 where tx.a in (1,3,5)
@@ -1531,8 +1444,6 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t2` `tx` join `ndbinfo`.`t2` `ty` where ((`ndbinfo`.`ty`.`a` = `ndbinfo`.`tx`.`b`) and (`ndbinfo`.`tx`.`a` in (1,3,5)))
 
 create table save_counters as select * from frag_ops;
-Warnings:
-Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 select count(*)
 from t2 as tx, t2 as ty
@@ -1601,14 +1512,14 @@ drop table t2;
 
 
 ## Check that the new tables return data and exists.
-select count(*) > 10 from ndb$blocks;
+select count(*) > 10 from blocks;
 count(*) > 10
 1
 select param_number, param_name, param_description, param_default,
        param_min, param_max from ndb$config_params
   where param_name = "DataMemory";
 param_number	param_name	param_description	param_default	param_min	param_max
-112	DataMemory	Number bytes on each ndbd(DB) node allocated for storing data	102760448	1048576	1099511627776
+112	DataMemory	Number bytes on each ndbd(DB) node allocated for storing data	102760448	1048576	17592186044416
 select * from ndb$dict_obj_types where type_id < 3;
 type_id	type_name
 1	System table
@@ -1668,18 +1579,19 @@ node_id	DataMemory
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$processes;
 Field	Type	Null	Key	Default	Extra
-reporting_node_id	int(10) unsigned	YES		NULL	
-node_id	int(10) unsigned	YES		NULL	
-node_type	int(10) unsigned	YES		NULL	
+reporting_node_id	int unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+node_type	int unsigned	YES		NULL	
 node_version	varchar(512)	YES		NULL	
-process_id	int(10) unsigned	YES		NULL	
-angel_process_id	int(10) unsigned	YES		NULL	
+process_id	int unsigned	YES		NULL	
+angel_process_id	int unsigned	YES		NULL	
 process_name	varchar(512)	YES		NULL	
 service_URI	varchar(512)	YES		NULL	
 set @@ndbinfo_show_hidden=default;
-show create table processes;
-View	Create View	character_set_client	collation_connection
-processes	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `processes` AS select distinct `ndb$processes`.`node_id` AS `node_id`,(case `ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndb$processes`.`node_version` AS `node_version`,nullif(`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndb$processes`.`process_name` AS `process_name`,`ndb$processes`.`service_URI` AS `service_URI` from `ndb$processes` order by `ndb$processes`.`node_id`	latin1	latin1_swedish_ci
+SELECT view_definition from information_schema.views
+  WHERE table_schema = 'ndbinfo' and table_name = 'processes';
+VIEW_DEFINITION
+select distinct `ndbinfo`.`ndb$processes`.`node_id` AS `node_id`,(case `ndbinfo`.`ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndbinfo`.`ndb$processes`.`node_version` AS `node_version`,nullif(`ndbinfo`.`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndbinfo`.`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndbinfo`.`ndb$processes`.`process_name` AS `process_name`,`ndbinfo`.`ndb$processes`.`service_URI` AS `service_URI` from `ndbinfo`.`ndb$processes` order by `ndbinfo`.`ndb$processes`.`node_id`
 
 SELECT reporting_node_id, node_id, node_type,
 replace(replace(process_name,"-debug",""),".exe","") AS process_name
@@ -1732,9 +1644,9 @@ node_id	node_type	process_name	proc_id	angel_proc_id	monitor_proc_id
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$config_nodes;
 Field	Type	Null	Key	Default	Extra
-reporting_node_id	int(10) unsigned	YES		NULL	
-node_id	int(10) unsigned	YES		NULL	
-node_type	int(10) unsigned	YES		NULL	
+reporting_node_id	int unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+node_type	int unsigned	YES		NULL	
 node_hostname	varchar(512)	YES		NULL	
 set @@ndbinfo_show_hidden=default;
 select view_definition, is_updatable, security_type
@@ -1814,3 +1726,140 @@ select count(*) > 700
   from ndbinfo.error_messages;
 count(*) > 700
 1
+
+desc hwinfo;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+cpu_cnt_max	int unsigned	YES		NULL	
+cpu_cnt	int unsigned	YES		NULL	
+num_cpu_cores	int unsigned	YES		NULL	
+num_cpu_sockets	int unsigned	YES		NULL	
+HW_memory_size	bigint unsigned	YES		NULL	
+model_name	varchar(512)	YES		NULL	
+desc cpuinfo;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+core_id	int unsigned	YES		NULL	
+socket_id	int unsigned	YES		NULL	
+desc cpudata;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+desc cpudata_50ms;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+measurement_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+elapsed_time	int unsigned	YES		NULL	
+desc cpudata_1sec;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+measurement_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+elapsed_time	int unsigned	YES		NULL	
+desc cpudata_20sec;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+measurement_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+elapsed_time	int unsigned	YES		NULL	
+
+select * from hwinfo;
+select * from cpuinfo;
+select * from cpudata;
+select * from cpudata_50ms;
+select * from cpudata_1sec;
+select * from cpudata_20sec;
+#
+# BUG#32073640 Add ndbinfo.backup_id
+#  - the table have one column and one row
+#
+select * from backup_id;
+id
+<backup_id>
+
+#
+# Bug#32198754 EXTEND MTR CHECK TESTCASES TO CHECK NDB DICTIONARY ...
+#  - adds a new ndbinfo.dict_obj_tree view which can show
+#    the object tree of objects in NDB dictionary
+#
+CREATE LOGFILE GROUP first_lg
+  ADD UNDOFILE 'lg1_undofile.dat' INITIAL_SIZE 1M UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+CREATE TABLESPACE first_ts
+  ADD DATAFILE 'ts1_datafile.dat'
+    USE LOGFILE GROUP first_lg INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE test.t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB TABLESPACE first_ts STORAGE DISK;
+
+CREATE TABLE test.t2 (
+  a int PRIMARY KEY,
+  b int,
+  UNIQUE(b)
+) engine = NDB;
+
+SELECT name, parent_name, root_name, level, indented_name, path
+  FROM ndbinfo.dict_obj_tree
+  WHERE root_name IN ('first_lg', 'first_ts', 'test/def/t1', 'test/def/t2');
+name	parent_name	root_name	level	indented_name	path
+first_lg	first_lg	first_lg	1	first_lg	first_lg
+lg1_undofile.dat	first_lg	first_lg	2	  -> lg1_undofile.dat	first_lg -> lg1_undofile.dat
+first_ts	first_ts	first_ts	1	first_ts	first_ts
+ts1_datafile.dat	first_ts	first_ts	2	  -> ts1_datafile.dat	first_ts -> ts1_datafile.dat
+test/def/t1	test/def/t1	test/def/t1	1	test/def/t1	test/def/t1
+sys/def/<id>/PRIMARY	test/def/t1	test/def/t1	2	  -> sys/def/<id>/PRIMARY	test/def/t1 -> sys/def/<id>/PRIMARY
+NDB$INDEX_<id>_CUSTOM	sys/def/<id>/PRIMARY	test/def/t1	3	    -> NDB$INDEX_<id>_CUSTOM	test/def/t1 -> sys/def/<id>/PRIMARY -> NDB$INDEX_<id>_CUSTOM
+test/def/t2	test/def/t2	test/def/t2	1	test/def/t2	test/def/t2
+sys/def/<id>/b	test/def/t2	test/def/t2	2	  -> sys/def/<id>/b	test/def/t2 -> sys/def/<id>/b
+NDB$INDEX_<id>_CUSTOM	sys/def/<id>/b	test/def/t2	3	    -> NDB$INDEX_<id>_CUSTOM	test/def/t2 -> sys/def/<id>/b -> NDB$INDEX_<id>_CUSTOM
+sys/def/<id>/b$unique	test/def/t2	test/def/t2	2	  -> sys/def/<id>/b$unique	test/def/t2 -> sys/def/<id>/b$unique
+NDB$INDEX_<id>_UI	sys/def/<id>/b$unique	test/def/t2	3	    -> NDB$INDEX_<id>_UI	test/def/t2 -> sys/def/<id>/b$unique -> NDB$INDEX_<id>_UI
+sys/def/<id>/PRIMARY	test/def/t2	test/def/t2	2	  -> sys/def/<id>/PRIMARY	test/def/t2 -> sys/def/<id>/PRIMARY
+NDB$INDEX_<id>_CUSTOM	sys/def/<id>/PRIMARY	test/def/t2	3	    -> NDB$INDEX_<id>_CUSTOM	test/def/t2 -> sys/def/<id>/PRIMARY -> NDB$INDEX_<id>_CUSTOM
+
+SELECT indented_name, root_name FROM ndbinfo.dict_obj_tree
+  WHERE root_name = 'test/def/t2';
+indented_name	root_name
+test/def/t2	test/def/t2
+  -> sys/def/<id>/b	test/def/t2
+    -> NDB$INDEX_<id>_CUSTOM	test/def/t2
+  -> sys/def/<id>/b$unique	test/def/t2
+    -> NDB$INDEX_<id>_UI	test/def/t2
+  -> sys/def/<id>/PRIMARY	test/def/t2
+    -> NDB$INDEX_<id>_CUSTOM	test/def/t2
+
+DROP TABLE test.t2;
+DROP TABLE test.t1;
+ALTER TABLESPACE first_ts DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE first_ts;
+DROP LOGFILE GROUP first_lg ENGINE=NDB;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,33 +22,61 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <cstdlib>  // memset
+#include <memory>   // unique_ptr
+#include <utility>  // exchange
+
+#include <gmock/gmock.h>
 
 #include "../../routing/src/mysql_routing.h"
+#include "mock_io_service.h"
+#include "mock_socket_service.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/routing.h"
-#include "router_test_helpers.h"
-#include "routing_mocks.h"
-#include "test/helpers.h"
-
-#include <memory>
-#include <stdexcept>
-#include <string>
-#ifndef _WIN32
-#include <netinet/in.h>
-#else
-#include <WinSock2.h>
-#endif
+#include "test/helpers.h"  // init_test_loggers
 
 using ::testing::_;
-using ::testing::DoAll;
+using ::testing::ByMove;
 using ::testing::Return;
-using ::testing::SetArgPointee;
-using ::testing::StrEq;
+
+namespace std {
+std::ostream &operator<<(std::ostream &os, const std::pair<int, int> &v) {
+  os << "(" << v.first << ", " << v.second << ")" << std::endl;
+  return os;
+}
+}  // namespace std
 
 class TestSetupTcpService : public ::testing::Test {
+ public:
+  TestSetupTcpService() {
+    std::unique_ptr<net::impl::socket::SocketServiceBase> socket_service =
+        std::make_unique<::testing::StrictMock<MockSocketService>>();
+    std::unique_ptr<net::IoServiceBase> io_service =
+        std::make_unique<::testing::StrictMock<MockIoService>>();
+    sock_ops_ = dynamic_cast<MockSocketService *>(socket_service.get());
+    io_ops_ = dynamic_cast<MockIoService *>(io_service.get());
+
+    EXPECT_CALL(*io_ops_, open());
+
+    io_ctx_ = std::make_unique<net::io_context>(std::move(socket_service),
+                                                std::move(io_service));
+  }
+
  protected:
+  template <class T>
+  using result = stdx::expected<T, std::error_code>;
+
+  void expect_io_ctx_cancel_calls(uint8_t events_count) {
+    EXPECT_CALL(*io_ops_, remove_fd(_)).Times(events_count);
+    EXPECT_CALL(*io_ops_, notify()).Times(events_count);
+  }
+
   // create some linked list of the addresses that getaddrinfo returns
-  addrinfo *get_test_addresses_list(size_t qty = 1) {
+  std::unique_ptr<addrinfo, void (*)(addrinfo *)> get_test_addresses_list(
+      size_t qty = 1) {
     addrinfo *prev{nullptr}, *head{nullptr};
     for (size_t i = 0; i < qty; i++) {
       auto ai = new addrinfo();
@@ -63,224 +91,219 @@ class TestSetupTcpService : public ::testing::Test {
       }
 
       prev = ai;
-
-      addresses_to_release_.emplace_back(ai);
     }
 
-    return head;
+    return {head, [](addrinfo *head) {
+              while (head != nullptr) {
+                auto next = std::exchange(head->ai_next, nullptr);
+                delete head;
+                head = next;
+              }
+            }};
   }
 
  protected:
-  MockRoutingSockOps routing_sock_ops;
-  MockSocketOperations &socket_op = *routing_sock_ops.so();
-
- private:
-  std::vector<std::unique_ptr<addrinfo>> addresses_to_release_;
+  std::unique_ptr<net::io_context> io_ctx_;
+  MockSocketService *sock_ops_;
+  MockIoService *io_ops_;
 };
 
 TEST_F(TestSetupTcpService, single_addr_ok) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  const auto addr_list = get_test_addresses_list(1);
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>(addr_list), Return(0)));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(get_test_addresses_list(1))));
 
-  EXPECT_CALL(socket_op, socket(_, _, _)).WillOnce(Return(1));
-#ifndef _WIN32
-  EXPECT_CALL(socket_op, setsockopt(_, _, _, _, _)).WillOnce(Return(0));
-#endif
-  EXPECT_CALL(socket_op, bind(_, _, _)).WillOnce(Return(0));
+  EXPECT_CALL(*sock_ops_, socket(_, _, _)).WillOnce(Return(1));
+  EXPECT_CALL(*sock_ops_, setsockopt(_, _, _, _, _))
+      .WillOnce(Return(result<void>{}));
+  EXPECT_CALL(*sock_ops_, bind(_, _, _)).WillOnce(Return(result<void>{}));
 
-  EXPECT_CALL(socket_op, listen(_, _)).WillOnce(Return(0));
-
-  EXPECT_CALL(socket_op, freeaddrinfo(_));
+  EXPECT_CALL(*sock_ops_, listen(_, _)).WillOnce(Return(result<void>{}));
 
   // those are called in the MySQLRouting destructor
-  EXPECT_CALL(socket_op, close(_));
-  EXPECT_CALL(socket_op, shutdown(_));
+  EXPECT_CALL(*sock_ops_, close(_));
+  expect_io_ctx_cancel_calls(1);
 
-  ASSERT_NO_THROW(r.setup_tcp_service());
+  EXPECT_THAT(r.setup_tcp_service(),
+              ::testing::Truly([](const auto &v) { return bool(v); }));
 }
 
 TEST_F(TestSetupTcpService, getaddrinfo_fails) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _)).WillOnce(Return(-1));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(stdx::make_unexpected(
+          make_error_code(net::ip::resolver_errc::host_not_found)))));
 
-  ASSERT_THROW_LIKE(r.setup_tcp_service(), std::runtime_error,
-                    "[routing-name] Failed getting address information");
+  EXPECT_EQ(r.setup_tcp_service(),
+            stdx::make_unexpected(
+                make_error_code(net::ip::resolver_errc::host_not_found)));
 }
 
 TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  const auto addr_list = get_test_addresses_list(2);
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>(addr_list), Return(0)));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(get_test_addresses_list(2))));
 
-  // make the first call to socket() fail
-  EXPECT_CALL(socket_op, socket(_, _, _))
-      .WillOnce(Return(-1))
-      .WillOnce(Return(-1));
+  // make all calls to socket() fail
+  EXPECT_CALL(*sock_ops_, socket(_, _, _))
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::address_family_not_supported))))
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::address_family_not_supported))));
 
-  EXPECT_CALL(socket_op, freeaddrinfo(_));
-
-  ASSERT_THROW_LIKE(r.setup_tcp_service(), std::runtime_error,
-                    "[routing-name] Failed to setup service socket");
+  EXPECT_EQ(r.setup_tcp_service(),
+            stdx::make_unexpected(
+                make_error_code(std::errc::address_family_not_supported)));
 }
 
 TEST_F(TestSetupTcpService, socket_fails) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  const auto addr_list = get_test_addresses_list(2);
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>(addr_list), Return(0)));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(get_test_addresses_list(2))));
 
   // make the first call to socket() fail
-  EXPECT_CALL(socket_op, socket(_, _, _))
-      .WillOnce(Return(-1))
+  EXPECT_CALL(*sock_ops_, socket(_, _, _))
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::address_family_not_supported))))
       .WillOnce(Return(1));
 
-#ifndef _WIN32
-  EXPECT_CALL(socket_op, setsockopt(_, _, _, _, _)).WillOnce(Return(0));
-#endif
-  EXPECT_CALL(socket_op, bind(_, _, _)).WillOnce(Return(0));
+  EXPECT_CALL(*sock_ops_, setsockopt(_, _, _, _, _))
+      .WillOnce(Return(result<void>{}));
+  EXPECT_CALL(*sock_ops_, bind(_, _, _)).WillOnce(Return(result<void>{}));
 
-  EXPECT_CALL(socket_op, listen(_, _)).WillOnce(Return(0));
-
-  EXPECT_CALL(socket_op, freeaddrinfo(_));
+  EXPECT_CALL(*sock_ops_, listen(_, _)).WillOnce(Return(result<void>{}));
 
   // those are called in the MySQLRouting destructor
-  EXPECT_CALL(socket_op, close(_));
-  EXPECT_CALL(socket_op, shutdown(_));
+  EXPECT_CALL(*sock_ops_, close(_));
+  expect_io_ctx_cancel_calls(1);
 
-  ASSERT_NO_THROW(r.setup_tcp_service());
+  EXPECT_THAT(r.setup_tcp_service(),
+              ::testing::Truly([](const auto &v) { return bool(v); }));
 }
 
 #ifndef _WIN32
 TEST_F(TestSetupTcpService, setsockopt_fails) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  const auto addr_list = get_test_addresses_list(2);
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>(addr_list), Return(0)));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(get_test_addresses_list(2))));
 
-  EXPECT_CALL(socket_op, socket(_, _, _))
+  EXPECT_CALL(*sock_ops_, socket(_, _, _))
       .WillOnce(Return(1))
       .WillOnce(Return(1));
 
   // make the first call to setsockopt() fail
-  EXPECT_CALL(socket_op, setsockopt(_, _, _, _, _))
-      .WillOnce(Return(-1))
-      .WillOnce(Return(0));
+  EXPECT_CALL(*sock_ops_, setsockopt(_, _, _, _, _))
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::bad_file_descriptor))))
+      .WillOnce(Return(result<void>{}));
 
-  EXPECT_CALL(socket_op, bind(_, _, _)).WillOnce(Return(0));
+  EXPECT_CALL(*sock_ops_, bind(_, _, _)).WillOnce(Return(result<void>{}));
 
-  EXPECT_CALL(socket_op, listen(_, _)).WillOnce(Return(0));
-
-  EXPECT_CALL(socket_op, freeaddrinfo(_));
+  EXPECT_CALL(*sock_ops_, listen(_, _)).WillOnce(Return(result<void>{}));
 
   // those are called in the MySQLRouting destructor
-  EXPECT_CALL(socket_op, close(_)).Times(2);
-  EXPECT_CALL(socket_op, shutdown(_));
+  EXPECT_CALL(*sock_ops_, close(_)).Times(2);
+  expect_io_ctx_cancel_calls(2);
 
-  ASSERT_NO_THROW(r.setup_tcp_service());
+  EXPECT_THAT(r.setup_tcp_service(),
+              ::testing::Truly([](const auto &v) { return bool(v); }));
 }
 #endif
 
 TEST_F(TestSetupTcpService, bind_fails) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  const auto addr_list = get_test_addresses_list(2);
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>(addr_list), Return(0)));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(get_test_addresses_list(2))));
 
   // make the first call to socket() fail
-  EXPECT_CALL(socket_op, socket(_, _, _))
+  EXPECT_CALL(*sock_ops_, socket(_, _, _))
       .WillOnce(Return(1))
       .WillOnce(Return(1));
 
-#ifndef _WIN32
-  EXPECT_CALL(socket_op, setsockopt(_, _, _, _, _))
-      .WillOnce(Return(0))
-      .WillOnce(Return(0));
-#endif
-  EXPECT_CALL(socket_op, bind(_, _, _))
-      .WillOnce(Return(-1))
-      .WillOnce(Return(0));
+  EXPECT_CALL(*sock_ops_, setsockopt(_, _, _, _, _))
+      .WillOnce(Return(result<void>{}))
+      .WillOnce(Return(result<void>{}));
+  EXPECT_CALL(*sock_ops_, bind(_, _, _))
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::invalid_argument))))
+      .WillOnce(Return(result<void>{}));
 
-  EXPECT_CALL(socket_op, listen(_, _)).WillOnce(Return(0));
-
-  EXPECT_CALL(socket_op, freeaddrinfo(_));
+  EXPECT_CALL(*sock_ops_, listen(_, _)).WillOnce(Return(result<void>{}));
 
   // those are called in the MySQLRouting destructor
-  EXPECT_CALL(socket_op, close(_)).Times(2);
-  EXPECT_CALL(socket_op, shutdown(_));
+  EXPECT_CALL(*sock_ops_, close(_)).Times(2);
+  expect_io_ctx_cancel_calls(2);
 
-  ASSERT_NO_THROW(r.setup_tcp_service());
+  EXPECT_THAT(r.setup_tcp_service(),
+              ::testing::Truly([](const auto &v) { return bool(v); }));
 }
 
 TEST_F(TestSetupTcpService, listen_fails) {
-  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                  Protocol::Type::kClassicProtocol,
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &routing_sock_ops);
+                 routing::kDefaultNetBufferLength);
 
-  const auto addr_list = get_test_addresses_list(2);
-  EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>(addr_list), Return(0)));
+  EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
+      .WillOnce(Return(ByMove(get_test_addresses_list(2))));
 
   // make the first call to socket() fail
-  EXPECT_CALL(socket_op, socket(_, _, _)).WillOnce(Return(1));
+  EXPECT_CALL(*sock_ops_, socket(_, _, _)).WillOnce(Return(1));
 
-#ifndef _WIN32
-  EXPECT_CALL(socket_op, setsockopt(_, _, _, _, _)).WillOnce(Return(0));
-#endif
-  EXPECT_CALL(socket_op, bind(_, _, _)).WillOnce(Return(0));
+  EXPECT_CALL(*sock_ops_, setsockopt(_, _, _, _, _))
+      .WillOnce(Return(result<void>{}));
+  EXPECT_CALL(*sock_ops_, bind(_, _, _)).WillOnce(Return(result<void>{}));
 
-  EXPECT_CALL(socket_op, listen(_, _)).WillOnce(Return(-1));
-
-  EXPECT_CALL(socket_op, freeaddrinfo(_));
+  EXPECT_CALL(*sock_ops_, listen(_, _))
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::invalid_argument))));
 
   // those are called in the MySQLRouting destructor
-  EXPECT_CALL(socket_op, close(_));
-  EXPECT_CALL(socket_op, shutdown(_));
+  EXPECT_CALL(*sock_ops_, close(_));
+  expect_io_ctx_cancel_calls(1);
 
-  ASSERT_THROW_LIKE(
-      r.setup_tcp_service(), std::runtime_error,
-      "[routing-name] Failed to start listening for connections using TCP");
+  // the listen()'s error-code
+  EXPECT_EQ(
+      r.setup_tcp_service(),
+      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
 }
 
 int main(int argc, char *argv[]) {

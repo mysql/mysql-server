@@ -85,7 +85,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v2`.`c` AS `c` from `test`.`v2`
+Note	1003	/* select#1 */ select `test`.`v2`.`c` AS `c` from `test`.`v2`
 create view v3 (c) as select a+1 from v1;
 ERROR 42S22: Unknown column 'a' in 'field list'
 create view v3 (c) as select b+1 from v1;
@@ -117,7 +117,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v4`.`c` AS `c` from `test`.`v4`
+Note	1003	/* select#1 */ select `test`.`v4`.`c` AS `c` from `test`.`v4`
 create view v5 (c) as select c+1 from v2;
 select c from v5;
 c
@@ -131,7 +131,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select (`v2`.`c` + 1) AS `c` from `test`.`v2`
+Note	1003	/* select#1 */ select (`test`.`v2`.`c` + 1) AS `c` from `test`.`v2`
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
 c
@@ -145,7 +145,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v6`.`c` AS `c` from `test`.`v6`
+Note	1003	/* select#1 */ select `test`.`v6`.`c` AS `c` from `test`.`v6`
 show tables;
 Tables_in_test
 t1
@@ -254,7 +254,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 select * from t1;
 a
 1
@@ -324,7 +324,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a+1` AS `a+1` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a+1` AS `a+1` from `test`.`v1`
 drop view v1;
 drop table t1;
 create table t1 (a int);
@@ -333,7 +333,7 @@ create view v1 as select a+1 from t1;
 create table t2 select * from v1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-a+1	bigint(12)	YES		NULL	
+a+1	bigint	YES		NULL	
 select * from t2;
 a+1
 2
@@ -426,12 +426,12 @@ a	b
 create view v2 (c) as select b from t1 where a>=3;
 select * from v1, v2;
 c	c
-21	40
-31	40
-21	50
-31	50
 21	100
+21	40
+21	50
 31	100
+31	40
+31	50
 drop view v1, v2;
 drop table t1;
 create table t1 (a int, b int, primary key(a));
@@ -722,12 +722,12 @@ create view v1 as select * from t1,t2 union all select * from t1,t2;
 select * from v1;
 s1	s2
 1	2
-2	2
-1	3
-2	3
 1	2
-2	2
 1	3
+1	3
+2	2
+2	2
+2	3
 2	3
 drop view v1;
 drop tables t1, t2;
@@ -1286,8 +1286,8 @@ s1
 insert into t1 values (0);
 execute stmt1;
 s1
-1
 0
+1
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;
@@ -1477,10 +1477,10 @@ a	a	b
 explain select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t3`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where true
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where true
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
 create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
@@ -1492,10 +1492,10 @@ a	a	b
 explain select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on(((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`a`)))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where true
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on(((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`)))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where true
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
 execute stmt1;
 a	a	b
@@ -1531,34 +1531,34 @@ Got one of the listed errors
 set updatable_views_with_limit=DEFAULT;
 select * from v3;
 a	b
-2	1
 10	1
-2	3
 10	3
+2	1
+2	3
 select * from v2;
 a	b
-200	1
 100	1
-200	3
 100	3
+200	1
+200	3
 set @a= 10;
 set @b= 100;
 prepare stmt1 from "update v3 set a= ? where a=?";
 execute stmt1 using @a,@b;
 select * from v3;
 a	b
-2	1
 10	1
-2	3
 10	3
+2	1
+2	3
 set @a= 300;
 set @b= 10;
 execute stmt1 using @a,@b;
 select * from v3;
 a	b
 2	1
-300	1
 2	3
+300	1
 300	3
 deallocate prepare stmt1;
 drop view v3,v2;
@@ -1575,12 +1575,16 @@ insert into v3(a,b) values (1,2);
 ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
 insert into v3(a,b) select * from t2;
 ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
+update v3 set a=1,b=2;
+ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
 insert into v3(a) values (1);
 insert into v3(b) values (10);
 insert into v3(a) select a from t2;
 insert into v3(b) select b from t2;
 ERROR 23000: Column 'a' cannot be null
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 a	b
 10	NULL
@@ -1889,41 +1893,41 @@ select * from v1;
 drop view v1;
 create view v1 as select 'k','K';
 select * from v1;
-k	My_exp_K
+k	Name_exp_K
 k	K
 drop view v1;
 create table t1 (s1 int);
 create view v1 as select s1, 's1' from t1;
 select * from v1;
-s1	My_exp_s1
+s1	Name_exp_s1
 drop view v1;
 create view v1 as select 's1', s1 from t1;
 select * from v1;
-My_exp_s1	s1
+Name_exp_s1	s1
 drop view v1;
-create view v1 as select 's1', s1, 1 as My_exp_s1 from t1;
+create view v1 as select 's1', s1, 1 as Name_exp_s1 from t1;
 select * from v1;
-My_exp_1_s1	s1	My_exp_s1
+Name_exp_1_s1	s1	Name_exp_s1
 drop view v1;
-create view v1 as select 1 as My_exp_s1, 's1', s1  from t1;
+create view v1 as select 1 as Name_exp_s1, 's1', s1  from t1;
 select * from v1;
-My_exp_s1	My_exp_1_s1	s1
+Name_exp_s1	Name_exp_1_s1	s1
 drop view v1;
 create view v1 as select 1 as s1, 's1', 's1' from t1;
 select * from v1;
-s1	My_exp_s1	My_exp_1_s1
+s1	Name_exp_s1	Name_exp_1_s1
 drop view v1;
 create view v1 as select 's1', 's1', 1 as s1 from t1;
 select * from v1;
-My_exp_1_s1	My_exp_s1	s1
+Name_exp_1_s1	Name_exp_s1	s1
 drop view v1;
 create view v1 as select s1, 's1', 's1' from t1;
 select * from v1;
-s1	My_exp_s1	My_exp_1_s1
+s1	Name_exp_s1	Name_exp_1_s1
 drop view v1;
 create view v1 as select 's1', 's1', s1 from t1;
 select * from v1;
-My_exp_1_s1	My_exp_s1	s1
+Name_exp_1_s1	Name_exp_s1	s1
 drop view v1;
 create view v1 as select 1 as s1, 's1', s1 from t1;
 ERROR 42S21: Duplicate column name 's1'
@@ -2029,9 +2033,13 @@ create view v1 as select * from t1;
 select * from v1 where f1='2005.02.02';
 f1
 2005-02-02
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.02.02' at row 1 is deprecated. Prefer the standard '-'.
 select * from v1 where '2005.02.02'=f1;
 f1
 2005-02-02
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.02.02' at row 1 is deprecated. Prefer the standard '-'.
 drop view v1;
 drop table t1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
@@ -2139,6 +2147,8 @@ DROP VIEW v1;
 DROP TABLE t1;
 create table t1(f1 datetime);
 insert into t1 values('2005.01.01 12:0:0');
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.01 12:0:0' at row 1 is deprecated. Prefer the standard '-'.
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
 select * from v1;
 f1	sb
@@ -2401,7 +2411,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	#	#	Using index
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`a` = 1) and (`test`.`t3`.`a` = 1))
 DROP VIEW v1,v2;
@@ -2689,12 +2699,26 @@ id	td
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM v1 WHERE td BETWEEN CAST('2005.01.02' AS DATE) AND CAST('2005.01.04' AS DATE);
 id	td
 2	2005-01-02
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 DROP VIEW v1;
 DROP TABLE t1;
 create table t1 (a int);
@@ -2867,11 +2891,11 @@ CREATE TABLE t1 (i int, j int);
 CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-COALESCE(i,j)	bigint(11)	YES		NULL	
+COALESCE(i,j)	bigint	YES		NULL	
 CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-COALESCE(i,j)	int(11)	YES		NULL	
+COALESCE(i,j)	int	YES		NULL	
 DROP VIEW v1;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (s varchar(10));
@@ -3324,42 +3348,42 @@ ISNULL(d)
 from table_24532;
 describe view_24532_a;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int(1)	NO		0	
-a IS NOT TRUE	int(1)	NO		0	
-a IS FALSE	int(1)	NO		0	
-a IS NOT FALSE	int(1)	NO		0	
-a IS UNKNOWN	int(1)	NO		0	
-a IS NOT UNKNOWN	int(1)	NO		0	
-a is NULL	int(1)	NO		0	
-a IS NOT NULL	int(1)	NO		0	
-ISNULL(a)	int(1)	NO		0	
-b IS TRUE	int(1)	NO		0	
-b IS NOT TRUE	int(1)	NO		0	
-b IS FALSE	int(1)	NO		0	
-b IS NOT FALSE	int(1)	NO		0	
-b IS UNKNOWN	int(1)	NO		0	
-b IS NOT UNKNOWN	int(1)	NO		0	
-b is NULL	int(1)	NO		0	
-b IS NOT NULL	int(1)	NO		0	
-ISNULL(b)	int(1)	NO		0	
-c IS TRUE	int(1)	NO		0	
-c IS NOT TRUE	int(1)	NO		0	
-c IS FALSE	int(1)	NO		0	
-c IS NOT FALSE	int(1)	NO		0	
-c IS UNKNOWN	int(1)	NO		0	
-c IS NOT UNKNOWN	int(1)	NO		0	
-c is NULL	int(1)	NO		0	
-c IS NOT NULL	int(1)	NO		0	
-ISNULL(c)	int(1)	NO		0	
-d IS TRUE	int(1)	NO		0	
-d IS NOT TRUE	int(1)	NO		0	
-d IS FALSE	int(1)	NO		0	
-d IS NOT FALSE	int(1)	NO		0	
-d IS UNKNOWN	int(1)	NO		0	
-d IS NOT UNKNOWN	int(1)	NO		0	
-d is NULL	int(1)	NO		0	
-d IS NOT NULL	int(1)	NO		0	
-ISNULL(d)	int(1)	NO		0	
+a IS TRUE	int	NO		0	
+a IS NOT TRUE	int	NO		0	
+a IS FALSE	int	NO		0	
+a IS NOT FALSE	int	NO		0	
+a IS UNKNOWN	int	NO		0	
+a IS NOT UNKNOWN	int	NO		0	
+a is NULL	int	NO		0	
+a IS NOT NULL	int	NO		0	
+ISNULL(a)	int	NO		0	
+b IS TRUE	int	NO		0	
+b IS NOT TRUE	int	NO		0	
+b IS FALSE	int	NO		0	
+b IS NOT FALSE	int	NO		0	
+b IS UNKNOWN	int	NO		0	
+b IS NOT UNKNOWN	int	NO		0	
+b is NULL	int	NO		0	
+b IS NOT NULL	int	NO		0	
+ISNULL(b)	int	NO		0	
+c IS TRUE	int	NO		0	
+c IS NOT TRUE	int	NO		0	
+c IS FALSE	int	NO		0	
+c IS NOT FALSE	int	NO		0	
+c IS UNKNOWN	int	NO		0	
+c IS NOT UNKNOWN	int	NO		0	
+c is NULL	int	NO		0	
+c IS NOT NULL	int	NO		0	
+ISNULL(c)	int	NO		0	
+d IS TRUE	int	NO		0	
+d IS NOT TRUE	int	NO		0	
+d IS FALSE	int	NO		0	
+d IS NOT FALSE	int	NO		0	
+d IS UNKNOWN	int	NO		0	
+d IS NOT UNKNOWN	int	NO		0	
+d is NULL	int	NO		0	
+d IS NOT NULL	int	NO		0	
+ISNULL(d)	int	NO		0	
 create view view_24532_b as
 select
 a IS TRUE,
@@ -3373,14 +3397,14 @@ if(ifnull(a, 1), 1, 0) as old_isnotfalse
 from table_24532;
 describe view_24532_b;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int(1)	NO		0	
-old_istrue	int(1)	NO		0	
-a IS NOT TRUE	int(1)	NO		0	
-old_isnottrue	int(1)	NO		0	
-a IS FALSE	int(1)	NO		0	
-old_isfalse	int(1)	NO		0	
-a IS NOT FALSE	int(1)	NO		0	
-old_isnotfalse	int(1)	NO		0	
+a IS TRUE	int	NO		0	
+old_istrue	int	NO		0	
+a IS NOT TRUE	int	NO		0	
+old_isnottrue	int	NO		0	
+a IS FALSE	int	NO		0	
+old_isfalse	int	NO		0	
+a IS NOT FALSE	int	NO		0	
+old_isnotfalse	int	NO		0	
 show create view view_24532_b;
 View	Create View	character_set_client	collation_connection
 view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select ((0 <> `table_24532`.`a`) is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,((0 <> `table_24532`.`a`) is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,((0 <> `table_24532`.`a`) is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,((0 <> `table_24532`.`a`) is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3853,16 +3877,16 @@ ERROR HY000: Can not delete from join view 'test.v1'
 SELECT * FROM v1;
 a
 1
-2
 1
+2
 2
 REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
 ERROR HY000: Can not delete from join view 'test.v1'
 SELECT * FROM v1;
 a
 1
-2
 1
+2
 2
 DELETE FROM t1 WHERE a=3;
 INSERT INTO v1(a) SELECT 1 FROM t1,t1 AS c
@@ -3870,8 +3894,8 @@ ON DUPLICATE KEY UPDATE `v1`.`a`= 1;
 SELECT * FROM v1;
 a
 1
-2
 1
+2
 2
 CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
 REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;
@@ -3879,36 +3903,36 @@ ERROR HY000: Can not delete from join view 'test.v2'
 SELECT * FROM v2;
 a
 1
-2
+1
+1
 1
 2
-1
 2
-1
+2
 2
 REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
 ERROR HY000: Can not delete from join view 'test.v2'
 SELECT * FROM v2;
 a
 1
-2
+1
+1
 1
 2
-1
 2
-1
+2
 2
 INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c
 ON DUPLICATE KEY UPDATE `v2`.`a`= 1;
 SELECT * FROM v2;
 a
 1
-2
+1
+1
 1
 2
-1
 2
-1
+2
 2
 DROP VIEW v1;
 DROP VIEW v2;
@@ -4324,7 +4348,7 @@ explain SELECT *
 FROM t1 JOIN v2 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT *
@@ -4336,7 +4360,7 @@ explain SELECT *
 FROM t1, v2 AS dt WHERE t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT *
@@ -4348,8 +4372,8 @@ explain SELECT *
 FROM (t1 JOIN t2 ON t1.a=t2.a) JOIN v2 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SELECT *
@@ -4361,8 +4385,8 @@ explain SELECT *
 FROM t1 JOIN v12_1 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SELECT *
@@ -4378,9 +4402,9 @@ JOIN v12_1 AS dt
 ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SELECT *
@@ -4400,11 +4424,11 @@ JOIN v12_1 AS dt2
 ON dt1.a=dt2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SELECT *
@@ -4415,8 +4439,8 @@ explain SELECT *
 FROM t1 JOIN v12_3 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` > 15))
 SELECT *
@@ -4428,8 +4452,8 @@ explain SELECT *
 FROM t1 JOIN v2_sj AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; FirstMatch(t2); Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
 SELECT *
@@ -4441,12 +4465,12 @@ explain SELECT *
 FROM t1 JOIN vu_1 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	test.t1.a	#	#	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vu_1` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`dt`.`a` AS `a`,`test`.`dt`.`b` AS `b` from `test`.`t1` join `test`.`vu_1` `dt` where (`test`.`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM t1 JOIN vu_2 AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -4462,7 +4486,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vu_2` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`dt`.`a` AS `a`,`test`.`dt`.`b` AS `b` from `test`.`t1` join `test`.`vu_2` `dt` where (`test`.`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM t1 JOIN vd_1 AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -4475,7 +4499,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vd_1` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`dt`.`a` AS `a`,`test`.`dt`.`b` AS `b` from `test`.`t1` join `test`.`vd_1` `dt` where (`test`.`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM t1 JOIN va_1 AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -4499,7 +4523,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vg_1` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`dt`.`a` AS `a`,`test`.`dt`.`b` AS `b` from `test`.`t1` join `test`.`vg_1` `dt` where (`test`.`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM t1 JOIN vh_1 AS dt ON t1.a=dt.a;
 a	b	a
@@ -4535,7 +4559,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vlo_1` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`dt`.`a` AS `a`,`test`.`dt`.`b` AS `b` from `test`.`t1` join `test`.`vlo_1` `dt` where (`test`.`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM t1 JOIN vrow AS dt ON t1.a=dt.a;
 a	b	a
@@ -4605,7 +4629,7 @@ explain SELECT *
 FROM t1 JOIN vo_1 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT *
@@ -4617,7 +4641,7 @@ explain SELECT *
 FROM t1 JOIN vo_2 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT dt.a, COUNT(*)
@@ -4699,7 +4723,7 @@ FROM t1 JOIN vo_1 AS dt ON t1.a=dt.a
 ORDER BY t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`) order by `test`.`t1`.`b`
 SELECT *
@@ -4713,7 +4737,7 @@ FROM t1 JOIN vo_2 AS dt ON t1.a=dt.a
 ORDER BY t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`) order by `test`.`t1`.`b`
 SELECT *
@@ -4724,13 +4748,12 @@ a	b	a	b
 explain SELECT *
 FROM t1 JOIN vx AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	No tables used
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vx` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
+Note	1249	Select 3 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 SELECT *
@@ -4746,12 +4769,12 @@ JOIN v12_1 AS dt
 ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`v12_1` `dt` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`dt`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`dt`.`a` AS `a`,`test`.`dt`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`v12_1` `dt` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`dt`.`a` = `test`.`t1`.`a`))
 SET @@optimizer_switch="derived_merge=on";
 SELECT *
 FROM (t1 JOIN t2 USING (a))
@@ -4766,9 +4789,9 @@ JOIN v12_1 AS dt
 ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SET @@optimizer_switch= @optimizer_switch_saved;
@@ -5004,13 +5027,13 @@ a	b
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`a` % 2) = 0))
 explain SELECT * FROM (SELECT * FROM t1 WHERE a IN (SELECT a FROM t2 WHERE a % 2 = 0)) AS dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`a` % 2) = 0))
 DROP VIEW v1;
@@ -5032,7 +5055,7 @@ explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Start temporary
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (hash join)
 5	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #3
@@ -5042,7 +5065,7 @@ FROM t1 WHERE b IN (SELECT a*10 FROM t2)) AS dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Start temporary
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
@@ -5070,15 +5093,15 @@ a	b	a
 explain SELECT * FROM v1 JOIN t2 ON v1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` = (`test`.`t2`.`a` * 10)))
 explain SELECT * FROM (SELECT a, b FROM t1 WHERE b IN (SELECT a*10 FROM t2)) AS dt JOIN t2 ON dt.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` = (`test`.`t2`.`a` * 10)))
 DROP VIEW v1;
@@ -5271,21 +5294,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`b` AS `b`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, a IN (SELECT 1 FROM t2 WHERE a=6) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = 6) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`1`))))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = 6) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`1`))))) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, b, (SELECT COUNT(*) FROM t2) AS c
 FROM t1;
@@ -5384,21 +5407,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`c` AS `c` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`b` AS `b`,`test`.`v1`.`c` AS `c` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, a IN (SELECT COUNT(*) FROM t2) AS c
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t2` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`COUNT(*)`))))) AS `c` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t2` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`COUNT(*)`))))) AS `c` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, b, (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
 FROM t1;
@@ -5443,7 +5466,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`b` AS `b`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -5451,7 +5474,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5504,7 +5527,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`b` AS `b`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -5512,7 +5535,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, EXISTS (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5565,7 +5588,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`b` AS `b`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -5573,7 +5596,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5581,7 +5604,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, b, EXISTS (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
 FROM t1;
@@ -5626,7 +5649,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`b` AS `b`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -5634,7 +5657,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, EXISTS (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5642,7 +5665,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,exists(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,exists(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
 FROM t1;
@@ -5731,7 +5754,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT COUNT(*) AS a, a IN (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
 FROM t1;
@@ -5768,7 +5791,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select count(0) AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select count(0) AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, COUNT(*) AS c, (SELECT a FROM t2 WHERE a=COUNT(t1.a)) AS s
 FROM t1
@@ -5800,7 +5823,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`c` AS `c`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`c` AS `c`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -5808,7 +5831,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, COUNT(*) AS c, (SELECT a FROM t2 WHERE a=COUNT(t1.a)) AS s
 FROM t1
 GROUP BY a;
@@ -5849,7 +5872,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`c` AS `c`,`v1`.`s` AS `s` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a`,`test`.`v1`.`c` AS `c`,`test`.`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -5857,7 +5880,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, COUNT(*) AS c, a IN (SELECT a FROM t2 WHERE a=COUNT(t1.a)) AS s
 FROM t1
 GROUP BY a;
@@ -5866,7 +5889,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(0) AS `c`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = count(`test`.`t1`.`a`)) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(0) AS `c`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = count(`test`.`t1`.`a`)) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #
@@ -5921,19 +5944,19 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 # columns in select2.
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`)	utf8mb4	utf8mb4_0900_ai_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select 'BUG#14117018' AS `col1` union all select '' AS `Name_exp_2`	utf8mb4	utf8mb4_0900_ai_ci
 # Name for the field item in select2 & select3 is set with this fix.
 # Without this fix, name would not have set for the
 # columns in select2 & select3.
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`) union all (select '' AS `Name_exp_3`)	utf8mb4	utf8mb4_0900_ai_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select 'BUG#14117018' AS `col1` union all select '' AS `Name_exp_2` union all select '' AS `Name_exp_3`	utf8mb4	utf8mb4_0900_ai_ci
 # Name for the field item in select3 is set with this fix.
 # Without this fix, name would not have set for the
 # columns in select3.
 SHOW CREATE VIEW v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `col2`) union all (select '' AS `Name_exp_3`)	utf8mb4	utf8mb4_0900_ai_ci
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select 'BUG#14117018' AS `col1` union all select '' AS `col2` union all select '' AS `Name_exp_3`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1, v2, v3, v4;
 # Bug#20087932 Assert fail in Join_tab_compare_straight::operator()
 CREATE TABLE t1 (
@@ -5976,7 +5999,7 @@ WHERE c_sq1_alias1.col_int_key <> c_sq1_alias1.col_int_key
 ON alias2.col_varchar_key = alias1.col_varchar_key;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	DERIVED	c_sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; FirstMatch(sq1_alias1)
@@ -6696,3 +6719,92 @@ CREATE VIEW v1 AS SELECT COUNT(*) FROM t1
 ORDER BY (SELECT 1 FROM t1 WHERE 1 IN (SELECT * FROM (SELECT 1 as field) AS dt));
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug #28278220 - WRONG COLUMN TYPE , VIEW , BINARY
+#
+CREATE VIEW v AS SELECT null AS 'c' UNION SELECT 'a' AS 'c';
+# Without fix, type for field c is listed as binary instead of
+# varchar(1). With fix type is listed correctly.
+SHOW FIELDS FROM v;
+Field	Type	Null	Key	Default	Extra
+c	varchar(1)	YES		NULL	
+DROP VIEW v;
+#
+# Bug#32050275 - can't create synonym of information_schema using create_synonym_db()
+#
+PREPARE stmt FROM "CREATE VIEW v1 AS SELECT * FROM
+                   JSON_TABLE('[]', '$[*]' COLUMNS (c1 INT PATH '$.x')) AS jt";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+PREPARE stmt FROM "CREATE VIEW v1 AS WITH RECURSIVE cte (n) AS
+                    (
+                      SELECT 1
+                      UNION ALL
+                      SELECT n + 1 FROM cte WHERE n < 5
+                    )
+                    SELECT * FROM cte";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+call sys.create_synonym_db("INFORMATION_SCHEMA", "I_S");
+summary
+Created XX views in the `I_S` database
+DROP DATABASE I_S;
+# Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+CREATE VIEW v AS SELECT INSERT('a', 1, 1, YEAR(UNHEX('w'))) AS c;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select insert('a',1,1,year(unhex('w'))) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1411	Incorrect string value: ''w'' for function unhex
+DROP VIEW v;
+#
+# Bug #32854203: DUMP/RESTORE FAILS WITH NESTED VIEWS HAVING ROLLUP OVER DISTINCT GROUPS
+#
+CREATE VIEW v2 AS SELECT 1 AS c;
+CREATE VIEW v1 AS SELECT 4711 AS a, COUNT(DISTINCT c) FROM v2 GROUP BY a WITH ROLLUP;
+DROP VIEW v2;
+CREATE VIEW v2 AS SELECT 1 AS c;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 4711 AS `a`,count(distinct `v2`.`c`) AS `COUNT(DISTINCT c)` from `v2` group by `a` with rollup	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v1, v2;
+#
+# BUG#30909064 Explain neglects db part of identifier after create view
+#
+CREATE TABLE t1 (
+pk INT,
+col_int_key INT,
+col_int_nokey INT,
+col_varchar_key VARCHAR(10),
+col_varchar_nokey VARCHAR(10),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (), ();
+CREATE VIEW v1 AS
+SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1;
+DROP VIEW v1;
+EXPLAIN SELECT pk AS foo, col_int_key AS bar FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `bar` from `test`.`t1`
+DROP TABLE t1;

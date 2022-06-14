@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_ENGINE_H_
 #define SQL_REGEXP_REGEXP_ENGINE_H_
 
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,13 @@
 
 #include <unicode/uregex.h>
 
+#include <stddef.h>
 #include <stdint.h>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "m_ctype.h"    // CHARSET_INFO.
 #include "my_config.h"  // WORDS_BIGENDIAN
-#include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/regexp/errors.h"
 #include "sql/sql_class.h"  // THD
@@ -177,6 +176,9 @@ class Regexp_engine {
   */
   std::pair<int, int> MatchedSubstring();
 
+  bool HasWarning() const {
+    return U_SUCCESS(m_error_code) && m_error_code != U_ZERO_ERROR;
+  }
   bool IsError() const { return U_FAILURE(m_error_code); }
   bool CheckError() const { return check_icu_status(m_error_code); }
 

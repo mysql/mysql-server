@@ -1,0 +1,57 @@
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+--source include/have_case_sensitive_file_system.inc
+
+--echo #
+--echo # This test upgrades a database from 8.0.21 and attempts to add
+--echo # autoextend_size tablespace attribute to it's tables
+--echo # and tablespaces
+--echo #
+
+--echo # Stop the running server
+--source include/shutdown_mysqld.inc
+
+--echo ###################################################################
+--echo # Unzip a 8.0.21 database and start the server using this directory
+--echo ###################################################################
+
+--echo ###################################################################
+--echo # Copy and unzip the datadir
+--echo ###################################################################
+--copy_file $MYSQLTEST_VARDIR/std_data/data80021_autoextend_size.zip $MYSQL_TMP_DIR/data80021_autoextend_size.zip
+--file_exists $MYSQL_TMP_DIR/data80021_autoextend_size.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data80021_autoextend_size.zip -d $MYSQL_TMP_DIR
+let $BUGDATADIR = $MYSQL_TMP_DIR/data80021_autoextend_size;
+
+--echo # Restart the server using the new datadir
+--replace_result $BUGDATADIR BUGDATADIR
+--let $restart_parameters = restart: --datadir=$BUGDATADIR --innodb_page_size=16k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo # Check the contents of INFORMATION_SCHEMA.INNODB_TABLESPACES
+SELECT lower(name), file_size, autoextend_size from
+  INFORMATION_SCHEMA.INNODB_TABLESPACES where name like '%t%';
+
+--echo # Update autoextend_size attribute both for the implicit as
+--echo # well as explicit tablespaces
+ALTER TABLE t5 AUTOEXTEND_SIZE 4M;
+ALTER TABLESPACE ts1 AUTOEXTEND_SIZE 4M;
+
+--echo # Check the contents of INFORMATION_SCHEMA.INNODB_TABLESPACES
+SELECT lower(name), file_size, autoextend_size from
+  INFORMATION_SCHEMA.INNODB_TABLESPACES where name like '%t%';
+
+--echo # Cleanup
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove the copied files
+--file_exists $MYSQL_TMP_DIR/data80021_autoextend_size.zip
+--force-rmdir $MYSQL_TMP_DIR/data80021_autoextend_size
+--remove_file $MYSQL_TMP_DIR/data80021_autoextend_size.zip
+
+--echo # Restart the server
+let $restart_parameters =;
+--source include/start_mysqld.inc

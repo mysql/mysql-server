@@ -1,4 +1,4 @@
-Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@ Virtual functions that use this data are collected into separate
 structures, MY_CHARSET_HANDLER and MY_COLLATION_HANDLER.
 
 
-typedef struct charset_info_st
+struct CHARSET_INFO
 {
   uint      number;
   uint      primary_number;
@@ -36,7 +36,7 @@ typedef struct charset_info_st
   uint      state;
 
   const char *csname;
-  const char *name;
+  const char *m_coll_name;
   const char *comment;
 
   const uchar *ctype;
@@ -61,7 +61,7 @@ typedef struct charset_info_st
 
   Pad_attribute pad_attribute;
 
-} CHARSET_INFO;
+};
 
 
 CHARSET_INFO fields description:
@@ -86,10 +86,10 @@ character set. Not really used now.
 Names
 -----
 
-  csname  - name of the character set for this charset+collation pair.
-  name    - name of the collation for this charset+collation pair.
-  comment - a text comment, displayed in "Description" column of
-            SHOW CHARACTER SET output.
+  csname      - name of the character set for this charset+collation pair.
+  m_coll_name - name of the collation for this charset+collation pair.
+  comment     - a text comment, displayed in "Description" column of
+                SHOW CHARACTER SET output.
 
 Conversion tables
 -----------------
@@ -235,8 +235,9 @@ Multi-byte routines
 ismbchar()  - detects whether the given string is a multi-byte sequence
 mbcharlen() - returns length of multi-byte sequence starting with
               the given character
-numchars()  - returns number of characters in the given string, e.g.
-              in SQL function CHAR_LENGTH().
+numchars()  - returns number of characters (in SQL terminology),
+              or code points (in character encoding terminology)
+              in the given string, e.g. in the SQL function CHAR_LENGTH().
 charpos()   - calculates the offset of the given position in the string.
               Used in SQL functions LEFT(), RIGHT(), SUBSTRING(), 
               INSERT()

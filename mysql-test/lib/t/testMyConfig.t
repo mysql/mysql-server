@@ -1,9 +1,8 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2007 MySQL AB
-# Use is subject to license terms.
-# 
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -25,7 +24,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 use strict;
-use warnings;
+use warnings 'FATAL';
+use lib "lib";
+
 use File::Temp qw / tempdir /;
 my $dir = tempdir( CLEANUP => 1 );
 
@@ -37,7 +38,6 @@ my $test_cnf= "$dir/test.cnf";
 
 # Write test config file
 open(OUT, ">", $test_cnf) or die;
-print $test_cnf, "\n";
 
 print OUT <<EOF
 [mysqld]
@@ -56,7 +56,8 @@ EOF
 close OUT;
 
 my $config= My::Config->new($test_cnf);
-isa_ok( $config, "My::Config" );
+# We don't use isa_ok, as it's console output in case of true varies between platforms.
+ok(defined $config && $config->isa("My::Config"), "config is a My::Config");
 
 print $config;
 
@@ -70,7 +71,7 @@ ok ( $config->group("client"), "group client exists");
 ok ( !$config->group("mysqld_3"), "group mysqld_3 does not exist");
 
 ok ( $config->options_in_group("mysqld") == 4, "options in [mysqld] is 4");
-ok ( $config->options_in_group("nonexist") == 0, "options in [nonexist] is 0");
+ok ( !defined $config->options_in_group("nonexist") , "group [nonexist] is not defined");
 
 {
   my @groups= $config->groups();
@@ -113,7 +114,8 @@ $config->save($test2_cnf);
 
 # read it back and check it's the same
 my $config2= My::Config->new($test2_cnf);
-isa_ok( $config2, "My::Config" );
+# We don't use isa_ok, as it's console output in case of true varies between platforms.
+ok(defined $config2 && $config2->isa("My::Config"), "config2 is a My::Config");
 is_deeply( \$config, \$config2, "test.cnf is equal to test2.cnf");
 
 
@@ -133,7 +135,8 @@ close OUT;
 
 # Read the config file
 my $config3= My::Config->new($test_include_cnf);
-isa_ok( $config3, "My::Config" );
+# We don't use isa_ok, as it's console output in case of true varies between platforms.
+ok(defined $config3 && $config3->isa("My::Config"), "config3 is a My::Config");
 print $config3;
 is( $config3->value('mysqld', 'basedir'), 'anotherbasedir',
     "mysqld_basedir has been overriden by value in test_include.cnf");

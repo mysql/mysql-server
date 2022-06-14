@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ struct IndexStatReq {
     RT_DROP_HEAD = 8,
     RT_CLEAN_ALL = 9
   };
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
   Uint32 clientRef;
   Uint32 clientData;
   Uint32 transId;
@@ -55,7 +55,7 @@ struct IndexStatReq {
 };
 
 struct IndexStatImplReq {
-  STATIC_CONST( SignalLength = 10 );
+  static constexpr Uint32 SignalLength = 10;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 transId;
@@ -69,14 +69,14 @@ struct IndexStatImplReq {
 };
 
 struct IndexStatConf {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   Uint32 senderRef;
   union { Uint32 senderData; Uint32 clientData; };
   Uint32 transId;
 };
 
 struct IndexStatImplConf {
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   Uint32 senderRef;
   Uint32 senderData;
 };
@@ -93,7 +93,7 @@ struct IndexStatRef {
     BusyUtilPrepare = 918,
     BusyUtilExecute = 919
   };
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
   Uint32 senderRef;
   union { Uint32 senderData; Uint32 clientData; };
   Uint32 transId;
@@ -104,7 +104,7 @@ struct IndexStatRef {
 };
 
 struct IndexStatImplRef {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 errorCode;
@@ -116,7 +116,7 @@ struct IndexStatRep {
     RT_UPDATE_REQ = 1,  // TUX->DICT request stats update
     RT_UPDATE_CONF = 2  // TRIX->TUX report stats update
   };
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 requestType;

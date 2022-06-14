@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,6 @@
 
 #define JAM_FILE_ID 329
 
-extern EventLogger * g_eventLogger;
 
 /**
  * Declare the global variables 
@@ -143,10 +142,10 @@ static const char* const jamFileNames[] =
    "ConfigChange.hpp",                   // 7
    "CreateIndx.hpp",                     // 8
    "StartInfo.hpp",                      // 9
-   "GetTableId.hpp",                     // 10
+   "GetTableId.hpp",                     // 10 DELETED FILE
    "NextScan.hpp",                       // 11
    "DihFragCount.hpp",                   // 12
-   "CmInit.hpp",                         // 13
+   "CmInit.hpp",                         // 13 DELETED FILE
    "DropTabFile.hpp",                    // 14
    "BuildIndx.hpp",                      // 15
    "TcContinueB.hpp",                    // 16
@@ -165,7 +164,7 @@ static const char* const jamFileNames[] =
    "GetTabInfo.hpp",                     // 29
    "BuildIndxImpl.hpp",                  // 30
    "Sync.hpp",                           // 31
-   "CntrMasterReq.hpp",                  // 32
+   "CntrMasterReq.hpp",                  // 32 DELETED FILE
    "CreateIndxImpl.hpp",                 // 33
    "UtilLock.hpp",                       // 34
    "ApiVersion.hpp",                     // 35
@@ -244,7 +243,7 @@ static const char* const jamFileNames[] =
    "DihScanTab.hpp",                     // 108
    "AccSizeAltReq.hpp",                  // 109 DELETED FILE
    "DropFK.hpp",                         // 110
-   "HotSpareRep.hpp",                    // 111
+   "HotSpareRep.hpp",                    // 111 DELETED FILE
    "AlterTable.hpp",                     // 112
    "DisconnectRep.hpp",                  // 113
    "DihContinueB.hpp",                   // 114
@@ -287,10 +286,10 @@ static const char* const jamFileNames[] =
    "CreateTable.hpp",                    // 151
    "StartMe.hpp",                        // 152
    "AccLock.hpp",                        // 153
-   "CntrMasterConf.hpp",                 // 154
+   "CntrMasterConf.hpp",                 // 154 DELETED FILE
    "DbspjErr.hpp",                       // 155
    "FsReadWriteReq.hpp",                 // 156
-   "EmptyLcp.hpp",                       // 157
+   "EmptyLcp.hpp",                       // 157 DELETED FILE
    "DropNodegroupImpl.hpp",              // 158
    "InvalidateNodeLCPConf.hpp",          // 159
    "PrepFailReqRef.hpp",                 // 160
@@ -645,6 +644,37 @@ static const char* const jamFileNames[] =
    "StaticSlotPool.cpp",                 // 509
    "ComposedSlotPool.hpp",               // 510
    "IntrusiveTags.hpp",                  // 511
+   "Sysfile.cpp",                        // 512
+   "BlockThreadBitmask.hpp",             // 513
+   "SyncThreadViaReqConf.hpp",           // 514
+   "TakeOverTcConf.hpp",                 // 515
+   "GetNumMultiTrp.hpp",                 // 516
+   "Dbqlqh.hpp",                         // 517
+   "Dbqlqh.cpp",                         // 518
+   "DbqlqhProxy.hpp",                    // 519
+   "DbqlqhProxy.cpp",                    // 520
+   "Dbqacc.hpp",                         // 521
+   "Dbqacc.cpp",                         // 522
+   "DbqaccProxy.hpp",                    // 523
+   "DbqaccProxy.cpp",                    // 524
+   "Dbqtup.hpp",                         // 525
+   "Dbqtup.cpp",                         // 526
+   "DbqtupProxy.hpp",                    // 527
+   "DbqtupProxy.cpp",                    // 528
+   "Dbqtux.hpp",                         // 529
+   "Dbqtux.cpp",                         // 530
+   "DbqtuxProxy.hpp",                    // 531
+   "DbqtuxProxy.cpp",                    // 532
+   "QBackup.hpp",                        // 533
+   "QBackup.cpp",                        // 534
+   "QBackupProxy.hpp",                   // 535
+   "QBackupProxy.cpp",                   // 536
+   "QRestore.hpp",                       // 537
+   "QRestore.cpp",                       // 538
+   "QRestoreProxy.hpp",                  // 539
+   "QRestoreProxy.cpp",                  // 540
+   "TrpKeepAlive.hpp",                   // 541
+   "TrpKeepAlive.cpp",                   // 542
    };
 
 bool 

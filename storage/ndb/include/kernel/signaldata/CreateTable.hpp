@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 
 struct CreateTableReq {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   
   union { Uint32 clientRef, senderRef; };
   union { Uint32 clientData, senderData; };
@@ -43,7 +43,7 @@ struct CreateTableReq {
 };
 
 struct CreateTableConf {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -53,7 +53,7 @@ struct CreateTableConf {
 };
 
 struct CreateTableRef {
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   enum ErrorCode {
     NoError = 0,

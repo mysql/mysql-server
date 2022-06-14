@@ -1,0 +1,130 @@
+################################################################################
+# This test validates that Group Replication does support events checksums on
+# all binary and relay logs, with the exception of the relay logs of
+# group_replication_applier channel
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Start GR on server1 and create a table.
+# 2. Start GR on server2.
+# 3. Validate that server2 recovery channel relay logs have
+#    checksums.
+# 4. Execute a new transaction on server1 and validate that
+#    server2 applier channel relay logs do not have checksums.
+# 5. Validate that server2 binary log have checksums.
+# 6. Validate that server1 binary log have checksums.
+# 7. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--let $output_file = $MYSQLTEST_VARDIR/tmp/gr-checksum-dump-file
+--let $_binlog_compression_enable= `SELECT @@GLOBAL.binlog_transaction_compression`
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start GR on server1 and create a table.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on server2.
+--echo #    Disable recovery channel relay logs purge through a debug flag.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL debug= '+d,gr_recovery_skip_purge_logs';
+--source include/start_group_replication.inc
+SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
+
+
+--echo
+--echo ############################################################
+--echo # 3. Validate that server2 recovery channel relay logs have
+--echo #    checksums.
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-relay-log-group_replication_recovery.000003
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 15
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = recovery channel relay logs have checksums
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Execute a new transaction on server1 and validate that
+--echo #    server2 applier channel relay logs do not have checksums.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-relay-log-group_replication_applier.000002
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 0
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = applier channel relay logs do not have checksums
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Validate that server2 binary log have checksums.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-binary-log.000001
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 17
+if ($_binlog_compression_enable == 1) {
+  --let $assert_count = 18
+}
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = binary log have checksums
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Validate that server1 binary log have checksums.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $datadir= `SELECT @@datadir`
+--let $mysqlbinlog_parameters= $datadir/server-binary-log.000001
+--let $mysqlbinlog_pipe= > $output_file 2>&1
+--source include/mysqlbinlog.inc
+
+--let $assert_file= $output_file
+--let $assert_count = 17
+if ($_binlog_compression_enable == 1) {
+  --let $assert_count = 18
+}
+--let $assert_select = .*CRC32 0x\w+.*
+--let $assert_text = binary log have checksums
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Clean up.
+--remove_file $output_file
+DROP TABLE t1;
+--source include/group_replication_end.inc

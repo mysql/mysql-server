@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,8 @@ static char log_error_filter_decompile[LOG_FILTER_DUMP_BUFF_SIZE] = "";
 static SHOW_VAR show_var_filter_rules_decompile[] = {
     {LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_STATUS_NAME,
      (char *)&log_error_filter_decompile, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /*
@@ -296,8 +297,8 @@ typedef enum enum_set_arg_result {
   @param len    length of token in bytes
   @param flags  combination of log_filter_xlate_flags
 
-  @retval <0    token not found
-  @retval >=0   index into log_filter_xlate_keys[]
+  @returns <0    token not found
+  @returns >=0   index into log_filter_xlate_keys[]
 */
 static int log_filter_xlate_by_name(const char *token, size_t len, uint flags) {
   uint c;
@@ -324,8 +325,8 @@ static int log_filter_xlate_by_name(const char *token, size_t len, uint flags) {
   @param opcode opcode to look up
   @param flags  combination of log_filter_xlate_flags
 
-  @retval -1    opcode not found
-  @retval >=0   index into log_filter_xlate_keys[]
+  @returns -1    opcode not found
+  @returns >=0   index into log_filter_xlate_keys[]
 */
 static int log_filter_xlate_by_opcode(uint opcode, uint flags) {
   uint c;
@@ -450,7 +451,7 @@ static log_filter_result log_filter_rule_dump(log_filter_rule *rule,
   int verb;
   const log_filter_xlate_key *token;
 
-  DBUG_ASSERT(out_buf != nullptr);
+  assert(out_buf != nullptr);
 
   out_buf[0] = '\0';
 
@@ -777,9 +778,9 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   bool is_symbol = false;
 
   // sanity check
-  DBUG_ASSERT(!(li->alloc & LOG_ITEM_FREE_VALUE));
+  assert(!(li->alloc & LOG_ITEM_FREE_VALUE));
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
-    log_bs->free((void *)li->data.data_string.str);
+    log_bs->free(const_cast<char *>(li->data.data_string.str));
     li->data.data_string.str = nullptr;
     li->alloc &= ~LOG_ITEM_FREE_VALUE;
   }
@@ -867,7 +868,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
     if ((val = log_bs->strndup(*token + 1, val_len)) == nullptr)
       return SET_ARG_OOM; /* purecov: inspected */
 
-    DBUG_ASSERT(val_len > 0);
+    assert(val_len > 0);
     val[--val_len] = '\0';  // cut trailing quotation mark
 
     li->data.data_string.str = val;
@@ -1437,8 +1438,7 @@ done:
   @retval false    value OK, go ahead and update system variable (from "save")
   @retval true     value rejected, do not update variable
 */
-static int check_var_filter_rules(MYSQL_THD thd,
-                                  SYS_VAR *self MY_ATTRIBUTE((unused)),
+static int check_var_filter_rules(MYSQL_THD thd, SYS_VAR *self [[maybe_unused]],
                                   void *save, struct st_mysql_value *value) {
   int ret;
   log_filter_ruleset *log_filter_temp_rules;
@@ -1454,7 +1454,7 @@ static int check_var_filter_rules(MYSQL_THD thd,
 
   if (proposed_rules == nullptr) return true;
 
-  DBUG_ASSERT(proposed_rules[value_len] == '\0');
+  assert(proposed_rules[value_len] == '\0');
 
   log_filter_temp_rules = log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
 
@@ -1506,8 +1506,8 @@ static int check_var_filter_rules(MYSQL_THD thd,
   @param  var_ptr  where to save the resulting (char *) value
   @param  save     pointer to the new value (from check function)
 */
-static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                    SYS_VAR *self MY_ATTRIBUTE((unused)),
+static void update_var_filter_rules(MYSQL_THD thd [[maybe_unused]],
+                                    SYS_VAR *self [[maybe_unused]],
                                     void *var_ptr, const void *save) {
   const char *state = nullptr;
   const char *new_val = *(static_cast<const char **>(const_cast<void *>(save)));
@@ -1533,22 +1533,22 @@ static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   that engine; they could also create their own filtering engine and use it
   instead of the provided one.
 
-  @param           ll                   the log line to filter
-  @param           instance             instance (unused in dragnet as it's
+  @param           ll                   The log line to filter
+  @param           instance             Instance (unused in dragnet as it's
                                         not currently multi-open; we just
                                         always use log_filter_dragnet_rules)
 
-  @retval          int                  number of matched rules
+  @returns          int                 Number of matched rules
 */
 DEFINE_METHOD(int, log_service_imp::run,
-              (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
+              (void *instance [[maybe_unused]], log_line *ll)) {
   return log_bf->filter_run(log_filter_dragnet_rules, ll);
 }
 
 /**
   Open a new instance.
 
-  @param   ll        optional arguments
+  @param   ll        Optional arguments
   @param   instance  If state is needed, the service may allocate and
                      initialize it and return a pointer to it here.
                      (This of course is particularly pertinent to
@@ -1560,18 +1560,18 @@ DEFINE_METHOD(int, log_service_imp::run,
                      the server/logging framework. It must be released
                      on close.
 
-  @retval  <0        a new instance could not be created
-  @retval  =0        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        Success, returned hande is valid
+  @returns  otherwise                  A new instance could not be created
 */
-DEFINE_METHOD(int, log_service_imp::open,
-              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
-  if (instance == nullptr) return -1;
+DEFINE_METHOD(log_service_error, log_service_imp::open,
+              (log_line * ll [[maybe_unused]], void **instance)) {
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
 
   opened++;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -1582,17 +1582,17 @@ DEFINE_METHOD(int, log_service_imp::open,
                      it should be released, and the pointer
                      set to nullptr.
 
-  @retval  <0        an error occurred
-  @retval  =0        success
+  @returns  LOG_SERVICE_SUCCESS        Success
+  @returns  otherwise                  An error occurred
 */
-DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
-  if (instance == nullptr) return -1;
+DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
 
   opened--;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -1606,20 +1606,18 @@ DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
   @param   instance  State-pointer that was returned on open.
                      Value may be changed in flush.
 
-  @retval  <0        an error occurred
-  @retval  =0        no work was done
-  @retval  >0        flush completed without incident
+  @returns  LOG_SERVICE_NOTHING_DONE       no work was done
 */
-DEFINE_METHOD(int, log_service_imp::flush,
-              (void **instance MY_ATTRIBUTE((unused)))) {
-  return 0;
+DEFINE_METHOD(log_service_error, log_service_imp::flush,
+              (void **instance [[maybe_unused]])) {
+  return LOG_SERVICE_NOTHING_DONE;
 }
 
 /**
   Get characteristics of a log-service.
 
-  @retval  <0        an error occurred
-  @retval  >=0       characteristics (a set of log_service_chistics flags)
+  @returns  <0        an error occurred
+  @returns  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
   return LOG_SERVICE_FILTER | LOG_SERVICE_SINGLETON;
@@ -1737,7 +1735,7 @@ mysql_service_status_t log_filter_init() {
   }
 
 success:
-  DBUG_ASSERT(var_value[var_len] == '\0');
+  assert(var_value[var_len] == '\0');
   delete[] var_value;
   return false;
 }
@@ -1745,7 +1743,8 @@ success:
 /* implementing a service: log_filter */
 BEGIN_SERVICE_IMPLEMENTATION(log_filter_dragnet, log_service)
 log_service_imp::run, log_service_imp::flush, nullptr, nullptr,
-    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
+    log_service_imp::characteristics, nullptr,
+    nullptr END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_filter service, for now */
 BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
@@ -1762,7 +1761,7 @@ REQUIRES_SERVICE(component_sys_variable_register),
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_filter_dragnet)
-METADATA("mysql.author", "T.A. Nuernberg, Oracle Corporation"),
+METADATA("mysql.author", "Oracle Corporation"),
     METADATA("mysql.license", "GPL"), METADATA("log_service_type", "filter"),
     END_COMPONENT_METADATA();
 

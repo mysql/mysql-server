@@ -297,7 +297,7 @@ UNLOCK TABLES;
 # Connection default
 # Connection con1 as user2
 FLUSH TABLE db1.t1 FOR EXPORT;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation
 # Connection default
 # Connection con1 as user3
 FLUSH TABLE db1.t1 FOR EXPORT;
@@ -305,7 +305,7 @@ ERROR 42000: Access denied for user 'user3'@'localhost' to database 'db1'
 # Connection default
 # Connection con1 as user4
 FLUSH TABLE db1.t1 FOR EXPORT;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation
 # Connection default
 # Connection con1 as user5
 FLUSH TABLE db1.t1 FOR EXPORT;

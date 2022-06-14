@@ -18,7 +18,6 @@
 #
 
 --source include/have_mysqld_monitoring_process.inc
---source include/have_openssl.inc
 --source include/have_clone_plugin.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
@@ -60,11 +59,13 @@ INSERT INTO t1 VALUES (2);
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_boot_save= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 RESET SLAVE ALL;
 
 --let $plugin_list= $GROUP_REPLICATION
---let $mysqld_extra_settings= "--skip-slave-start=0"
+--let $mysqld_extra_settings= "--skip-replica-start=0"
 --source include/spawn_monitoring_process.inc
 
 --echo
@@ -76,13 +77,13 @@ RESET SLAVE ALL;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
 
---let $_group_replication_start_boot_save= `SELECT @@GLOBAL.group_replication_start_on_boot`
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
 
 # Re configure the recovery channel due to the above RESET SLAVE command.
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -92,7 +93,7 @@ CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
 --echo # 5. Create a new channel from server 3 into server 2
 
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
 
 --echo
 --echo ############################################################
@@ -136,7 +137,6 @@ RESTART;
 
 # Verify in the log file that the applier thread failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_on_server_start
 --let $assert_text = The applier thread for channel ch3_2 failed to start
 --let $assert_select = The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
 --let $assert_count = 1
@@ -144,7 +144,6 @@ RESTART;
 
 # Verify in the log file that the IO thread failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_on_server_start
 --let $assert_text = The IO thread for channel ch3_2 failed to start
 --let $assert_select = The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
 --let $assert_count = 1
@@ -160,16 +159,16 @@ RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS group_replication_clone_threshold;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
---eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_boot_save
 
 DROP TABLE t1;
 
 --source include/rpl_sync.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
@@ -183,6 +182,9 @@ set session sql_log_bin=1;
 UNINSTALL PLUGIN clone;
 
 --source include/clean_monitoring_process.inc
+
+--replace_result $_group_replication_start_boot_save START_ON_BOOT_VALUE
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_boot_save
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

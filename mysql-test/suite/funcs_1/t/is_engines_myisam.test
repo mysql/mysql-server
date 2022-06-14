@@ -7,7 +7,6 @@
 # 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
 #                           testsuite funcs_1
 #
-
 --source include/have_myisam.inc
 let $engine_type= MyISAM;
 --vertical_results

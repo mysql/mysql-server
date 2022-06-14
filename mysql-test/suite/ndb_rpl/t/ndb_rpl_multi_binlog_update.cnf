@@ -30,12 +30,24 @@ key_buffer_size=            1M
 sort_buffer=                256K
 max_heap_table_size=        1M
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
-slave-net-timeout=120
+replica-net-timeout=120
 ndbcluster
 ndb-wait-setup=60
 
+[cluster_config.mysqld.1.1]
+NodeId=49
+Dedicated=1
+
+[cluster_config.mysqld.2.1]
+NodeId=16
+Dedicated=1
+
+[cluster_config.mysqld.3.1]
+NodeId=32
+Dedicated=1
 
 [mysqld.1.1]
+ndb-nodeid=49
 server-id= 1
 ndb-log-bin=1
 log-bin= master-bin
@@ -44,35 +56,51 @@ binlog_format=row
 
 
 [mysqld.2.1]
+ndb-nodeid=16
 server-id= 2
 # Note no binary log
 
 
 
 [mysqld.3.1]
+ndb-nodeid=32
 server-id= 3
 ndb-log-bin=1
 log-bin= master-bin
 binlog_format=row
 
 
+[cluster_config.mysqld.1.slave]
+NodeId=49
+Dedicated=1
+
+[cluster_config.mysqld.2.slave]
+NodeId=16
+Dedicated=1
+
+[cluster_config.mysqld.3.slave]
+NodeId=32
+Dedicated=1
+
 
 [mysqld.1.slave]
+ndb-nodeid=49
 # Note no binlog on this slave
 server-id= 4
-skip-slave-start
+skip-replica-start
 loose-skip-innodb
-slave-load-tmpdir= ../../../tmp
+replica-load-tmpdir= ../../../tmp
 ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 
 
 
 [mysqld.2.slave]
+ndb-nodeid=16
 # Note binlog on this slave, but not logging slave updates
 server-id= 5
-skip-slave-start
+skip-replica-start
 loose-skip-innodb
-slave-load-tmpdir= ../../../tmp
+replica-load-tmpdir= ../../../tmp
 ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 log-bin= slave-master-bin
 binlog_format=row
@@ -80,15 +108,16 @@ ndb-log-bin=1
 
 
 [mysqld.3.slave]
+ndb-nodeid=32
 # Note binlog on this slave, with slave updates logged
 server-id= 6
-skip-slave-start
+skip-replica-start
 loose-skip-innodb
-slave-load-tmpdir= ../../../tmp
+replica-load-tmpdir= ../../../tmp
 ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 log-bin= slave-master-bin
 binlog_format=row
-log-slave-updates
+log-replica-updates
 ndb-log-bin=1
 
 

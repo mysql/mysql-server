@@ -12,7 +12,7 @@
 ########################################################################
 # Restart the server to trigger upgrade.
 ########################################################################
-# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG_UPGRADE --log-error-verbosity=3
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG --log-error-verbosity=3
 ########################################################################
 # Verify that the entities have retained the SQL mode.
 ########################################################################
@@ -56,7 +56,7 @@ def	test	t1_chk_1	test	t1	CHECK	YES
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (100);
@@ -90,6 +90,38 @@ schema_object_overview	VIEW
 schema_redundant_indexes	VIEW
 schema_unused_indexes	VIEW
 x$schema_flattened_keys	VIEW
+#
+# Bug#29596053  USER 'MYSQL.SESSION' GETS TBL_ENCR_ADM DURING UPGRADE,
+# BUT NOT DURING INITIALIZE
+#
+# Make sure mysql.session user do not have TABLE_ENCRYPTION_ADMIN privilege.
+SELECT COUNT(*) FROM mysql.global_grants
+WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COUNT(*)
+0
+# We should also verify that the privilege is removed when
+# upgrading from a previous release where the mysql.session
+# was granted this privilege.  We simulate this by explicitly
+# granting the privilege, and then restarting the server with
+# '--upgrade=force'.
+GRANT TABLE_ENCRYPTION_ADMIN ON  *.* to 'mysql.session'@localhost;
+# Verify that the privilege has been granted.
+SELECT COUNT(*) FROM mysql.global_grants
+WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COUNT(*)
+1
+# restart: --datadir=MYSQLD_DATADIR2 --log-error=MYSQLD_LOG --upgrade=force
+# Now, after upgrade, the privilege should be gone.
+SELECT COUNT(*) FROM mysql.global_grants
+WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COUNT(*)
+0
 # Stop the server and do cleanup.
 # Remove copied files
 # Restart the server with default options.
@@ -121,32 +153,28 @@ x$schema_flattened_keys	VIEW
 # This is the test case for case sensitive file systems. A corresponding test case
 # for case insensitive file systems can be found in dd_upgrade_ci.test.
 #
+# The issue is now fixed and Upgrade should be successful from 8.0.14-16 -> 8.0.18
 # Test with lctn=1 and no partitioned tables. Upgrade should succeed.
 # Set different path for --datadir and check that it exists.
 # Upgrade the server.
 # restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
 # Stop the server and do cleanup.
-# Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
+# Test with lctn=1 and partitioned tables. Upgrade should not be rejected
 # Set different path for --datadir and check that it exists.
-# Upgrading the server should be rejected.
-Pattern "with partitioned tables and lower_case_table_names == 1" found
-# Retry upgrading the server.
-# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
-# Table rebuild will fail.
-ALTER TABLE test.t ENGINE = InnoDB;
-ERROR HY000: Got error 44 - 'InnoDB error' from storage engine
-# After RENAME, table rebuild will succeed.
-RENAME TABLE test.t TO test.t_new;
-RENAME TABLE test.t_new TO test.t;
+# Try upgrading the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
+# Table rebuild should succeed.
 ALTER TABLE test.t ENGINE = InnoDB;
 SHOW CREATE TABLE test.t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (-1) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+# Error log file must not contain following error. Patch for Bug#29440725 suppresses it.
+Pattern "Table 'information_schema.TABLES' doesn't exist" not found
 # Stop the server and do cleanup.
 # Test with lctn=0 and no partitioned tables. Upgrade should succeed.
 # Set different path for --datadir and check that it exists.
@@ -159,6 +187,35 @@ t	CREATE TABLE `t` (
 # restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG
 # Table rebuild will succeed.
 ALTER TABLE test.t ENGINE = InnoDB;
+# Stop the server and do cleanup.
+#
+# Bug#30360695: TABLE WITH SUBPARTITIONS CAN NOT ADD COLUMN AFTER UPGRADE
+#
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Start DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+# Verify that we can add a column (instant) to upgraded table with
+# subpartitions
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
+SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2000) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
+Warnings:
+Warning	3958	Failed to delete sdi for test.t1 in test/t1#p#p0#sp#p0sp0 due to missing record.
+# Search log file for warning.
+Occurrences of 'sdi_delete failed' in the input file: 1
 # Stop the server and do cleanup.
 # Restart the server with default options.
 # restart:

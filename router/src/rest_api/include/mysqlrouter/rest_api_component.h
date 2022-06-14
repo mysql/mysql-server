@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,6 @@
 #include "mysqlrouter/rest_api_export.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -46,6 +44,11 @@ class RestApi;
 
 class REST_API_EXPORT BaseRestApiHandler {
  public:
+  BaseRestApiHandler() = default;
+  BaseRestApiHandler(const BaseRestApiHandler &) = default;
+  BaseRestApiHandler(BaseRestApiHandler &&) = default;
+  BaseRestApiHandler &operator=(const BaseRestApiHandler &) = default;
+  BaseRestApiHandler &operator=(BaseRestApiHandler &&) = default;
   /**
    * try to handle the request.
    *
@@ -178,6 +181,30 @@ class REST_API_EXPORT RestApiComponent {
   std::weak_ptr<RestApi> srv_;
 
   RestApiComponent() = default;
+};
+
+/**
+ * Helper class to make unregistering paths in plugins easier.
+ */
+class RestApiComponentPath {
+ public:
+  RestApiComponentPath(RestApiComponent &rest_api_srv, std::string regex,
+                       std::unique_ptr<BaseRestApiHandler> endpoint)
+      : rest_api_srv_{rest_api_srv}, regex_(std::move(regex)) {
+    rest_api_srv_.add_path(regex_, std::move(endpoint));
+  }
+
+  ~RestApiComponentPath() {
+    try {
+      rest_api_srv_.remove_path(regex_);
+    } catch (...) {
+      // if it already is removed manually, ignore it
+    }
+  }
+
+ private:
+  RestApiComponent &rest_api_srv_;
+  std::string regex_;
 };
 
 #endif

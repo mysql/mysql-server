@@ -1,0 +1,152 @@
+######################## binlog_expire_logs_auto_purge.test ######################
+#                                                                                #
+# Variable Name: binlog_expire_logs_auto_purge                                   #
+# Scope: GLOBAL                                                                  #
+# Access Type: Dynamic                                                           #
+# Data Type: boolean                                                             #
+# Default Value: true                                                            #
+#                                                                                #
+# Creation Date: 2021-11-25                                                      #
+# Author: Luis Soares                                                            #
+#                                                                                #
+# Description: Test Cases of Dynamic System Variable                             #
+#              binlog_expire_logs_auto_purge that checks the behavior of this    #
+#              variable in the following ways                                    #
+#              * Default Value                                                   #
+#              * Valid & Invalid values                                          #
+#              * Scope & Access method                                           #
+#              * Data Integrity                                                  #
+#                                                                                #
+# Reference: https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#
+#                                                                                #
+##################################################################################
+
+--source include/load_sysvars.inc
+--let $initial_value = `SELECT @@global.binlog_expire_logs_auto_purge`
+
+########################################################################
+#               START OF binlog_expire_logs_auto_purge TESTS           #
+########################################################################
+
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = TRUE
+--let $assert_text = Initial value for binlog_expire_logs_auto_purge is TRUE
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_expire_logs_auto_purge = FALSE;
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = FALSE
+--let $assert_text = Value for binlog_expire_logs_auto_purge was set to FALSE
+--source include/assert.inc
+
+########################################################################
+#      Display the DEFAULT value of binlog_expire_logs_auto_purge      #
+########################################################################
+
+SET @@GLOBAL.binlog_expire_logs_auto_purge = DEFAULT;
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = TRUE
+--let $assert_text = Value for binlog_expire_logs_auto_purge was set to DEFAULT (TRUE)
+--source include/assert.inc
+
+#####################################################################################
+#         Change the value of binlog_expire_logs_auto_purge to valid values         #
+#####################################################################################
+
+
+SET @@GLOBAL.binlog_expire_logs_auto_purge = 1;
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = TRUE
+--let $assert_text = Value for binlog_expire_logs_auto_purge was set to TRUE (1)
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_expire_logs_auto_purge = ON;
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = TRUE
+--let $assert_text = Value for binlog_expire_logs_auto_purge was set to TRUE (ON)
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_expire_logs_auto_purge = 0;
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = FALSE
+--let $assert_text = Value for binlog_expire_logs_auto_purge was set to FALSE (0)
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_expire_logs_auto_purge = OFF;
+--let $value = `SELECT @@global.binlog_expire_logs_auto_purge`
+--let $assert_cond = $value = FALSE
+--let $assert_text = Value for binlog_expire_logs_auto_purge was set to FALSE (OFF)
+--source include/assert.inc
+
+#####################################################################################
+#         Change the value of binlog_expire_logs_auto_purge to invalid value        #
+#####################################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_expire_logs_auto_purge = -1;
+SELECT @@global.binlog_expire_logs_auto_purge;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_expire_logs_auto_purge = "AAAA";
+SELECT @@global.binlog_expire_logs_auto_purge;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_expire_logs_auto_purge = NULL;
+SELECT @@global.binlog_expire_logs_auto_purge;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_expire_logs_auto_purge = 42949672950;
+SELECT @@global.binlog_expire_logs_auto_purge;
+
+#####################################################################################
+#       Test if accessing session binlog_expire_logs_auto_purge gives error         #
+#####################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.binlog_expire_logs_auto_purge = 0;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.binlog_expire_logs_auto_purge;
+
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT @@global.binlog_expire_logs_auto_purge = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_expire_logs_auto_purge';
+
+SELECT @@binlog_expire_logs_auto_purge = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='binlog_expire_logs_auto_purge';
+--enable_warnings
+
+#################################################################################
+#    Check if accessing variable without SCOPE points to same session variable  #
+#################################################################################
+
+SET @@global.binlog_expire_logs_auto_purge = 1;
+SELECT @@binlog_expire_logs_auto_purge = @@global.binlog_expire_logs_auto_purge;
+
+#####################################################################################
+#   Check if binlog_expire_logs_auto_purge can be accessed with and without @@ sign #
+#####################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET binlog_expire_logs_auto_purge = 1;
+SELECT @@binlog_expire_logs_auto_purge;
+--Error ER_PARSE_ERROR
+SET local.binlog_expire_logs_auto_purge = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.binlog_expire_logs_auto_purge;
+--Error ER_PARSE_ERROR
+SET global.binlog_expire_logs_auto_purge = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.binlog_expire_logs_auto_purge;
+--Error ER_BAD_FIELD_ERROR
+SELECT binlog_expire_logs_auto_purge = @@global.binlog_expire_logs_auto_purge;
+
+##############################
+#   Restore initial value    #
+##############################
+
+--eval SET @@global.binlog_expire_logs_auto_purge = $initial_value;
+SELECT @@global.binlog_expire_logs_auto_purge;

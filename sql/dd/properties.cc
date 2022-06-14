@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,11 @@
 
 #include "sql/dd/properties.h"
 
+#include <assert.h>
 #include <limits>
 
 #include "m_string.h"  // my_strtoll10
-#include "my_dbug.h"
+
 #include "my_sys.h"              // strmake_root
 #include "sql/dd/types/table.h"  // enum_row_format
 #include "sql/field.h"           // geometry_type
@@ -35,7 +36,7 @@ namespace dd {
 
 template <typename T>
 bool Properties::from_str(const String_type &number, T *value) {
-  DBUG_ASSERT(value != nullptr);
+  assert(value != nullptr);
 
   // The target type must be an integer.
   if (!(std::numeric_limits<T>::is_integer)) return true;
@@ -43,7 +44,7 @@ bool Properties::from_str(const String_type &number, T *value) {
   // Do the conversion to an 8 byte signed integer.
   int error_code;
   int64 tmp = 0;
-  tmp = my_strtoll10(number.c_str(), NULL, &error_code);
+  tmp = my_strtoll10(number.c_str(), nullptr, &error_code);
 
   // Check for conversion errors, including boundaries for 8 byte integers.
   if (error_code != 0 && error_code != -1) return true;
@@ -66,7 +67,7 @@ bool Properties::from_str(const String_type &number, T *value) {
 }
 
 bool Properties::from_str(const String_type &bool_str, bool *value) {
-  DBUG_ASSERT(value != NULL);
+  assert(value != nullptr);
 
   if (bool_str == "true") {
     *value = true;
@@ -100,8 +101,8 @@ String_type Properties::to_str(T value) {
 template <typename Lex_type>
 bool Properties::get(const String_type &key, Lex_type *value,
                      MEM_ROOT *mem_root) const {
-  DBUG_ASSERT(value != nullptr);
-  DBUG_ASSERT(mem_root != nullptr);
+  assert(value != nullptr);
+  assert(mem_root != nullptr);
 
   String_type str;
   if (get(key, &str)) return true;
@@ -118,7 +119,7 @@ bool Properties::get(const String_type &key, Value_type *value) const {
   if (get(key, &str)) return true;
 
   if (from_str(str, value)) {
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return true;
   }
   return false;
@@ -131,6 +132,9 @@ bool Properties::get(const String_type &key, Value_type *value) const {
 */
 
 template bool Properties::get<bool>(const String_type &, bool *) const;
+
+template bool Properties::get<unsigned short>(const String_type &,
+                                              unsigned short *) const;
 
 template bool Properties::get<unsigned int>(const String_type &,
                                             unsigned int *) const;
@@ -149,39 +153,57 @@ template bool Properties::get<MYSQL_LEX_CSTRING>(const String_type &,
                                                  MYSQL_LEX_CSTRING *,
                                                  MEM_ROOT *) const;
 
+template bool Properties::get<short>(const String_type &, short *) const;
+
 template bool Properties::get<int>(const String_type &, int *) const;
+
+template bool Properties::get<long>(const String_type &, long *) const;
 
 template bool Properties::get<long long>(const String_type &,
                                          long long *) const;
+
+template bool Properties::from_str<short>(const String_type &, short *);
+
+template bool Properties::from_str<unsigned short>(const String_type &,
+                                                   unsigned short *);
 
 template bool Properties::from_str<int>(const String_type &, int *);
 
 template bool Properties::from_str<unsigned int>(const String_type &,
                                                  unsigned int *);
 
+template bool Properties::from_str<long>(const String_type &, long *);
+
+template bool Properties::from_str<unsigned long>(const String_type &,
+                                                  unsigned long *);
+
 template bool Properties::from_str<long long>(const String_type &, long long *);
 
 template bool Properties::from_str<unsigned long long>(const String_type &,
                                                        unsigned long long *);
 
+template String_type Properties::to_str<bool>(bool);
+
+template String_type Properties::to_str<short>(short);
+
 template String_type Properties::to_str<int>(int);
 
-template String_type Properties::to_str<Field::geometry_type>(
-    Field::geometry_type);
+template String_type Properties::to_str<long>(long);
 
 template String_type Properties::to_str<long long>(long long);
 
-template String_type Properties::to_str<unsigned long long>(unsigned long long);
-
-template String_type Properties::to_str<bool>(bool);
+template String_type Properties::to_str<unsigned short>(unsigned short);
 
 template String_type Properties::to_str<unsigned int>(unsigned int);
 
 template String_type Properties::to_str<unsigned long>(unsigned long);
 
+template String_type Properties::to_str<unsigned long long>(unsigned long long);
+
 template String_type Properties::to_str<char const *>(char const *);
 
-template String_type Properties::to_str<unsigned short>(unsigned short);
+template String_type Properties::to_str<Field::geometry_type>(
+    Field::geometry_type);
 
 template String_type Properties::to_str<row_type>(row_type);
 

@@ -3,7 +3,7 @@
 # Set a known initial state for the test
 
 flush status;
-flush hosts;
+TRUNCATE TABLE performance_schema.host_cache;
 flush user_resources;
 flush privileges;
 

@@ -1,0 +1,134 @@
+#####################################################################################
+# Creating a spatial Geometry object
+#####################################################################################
+USE test;
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 5,25 0,22 10,30 15,19 15,5 0)),((19 15,15 25,11 15,19 15)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,22 10,30 15,19 15,5 0)),((19 15,15 25,11 15,19 15))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0),(10 6,10 10,7 12,13 13,15 18,17 13,21 13,18 10,20 6,15 8,10 6)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+# INSERT star
+INSERT INTO gis_geometrycollection VALUES (103,ST_GEOMFROMTEXT(@star_of_elems));
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+# Checking the integrity of the above create/insert statements
+# 1 row.
+SELECT count(g IS NULL) FROM gis_geometrycollection;
+count(g IS NULL)
+1
+# 1 row.
+SELECT count(g2 IS NULL) FROM gis_geometrycollection_2;
+count(g2 IS NULL)
+1
+#####################################################################################
+# Testing ST_SymDifference() with different ways to pass input geometries
+#####################################################################################
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((15.0747044917 10.7943262411,10.9574429787 6.3829771915,10.9574468085 6.3829787234,15.0747044917 10.7943262411)),((15.0747044917 10.7943262411,19 15,16.2 15,17 13,17.1333333333 13,15.0747044917 10.7943262411)),((10.9574429787 6.3829771915,10 6,10 10,7 12,13 13,13.8 15,11 15,15 25,10 15,0 15,7 10,5 0,10.9574429787 6.3829771915)),((15 25,19 15,20 15,15 25))),MULTILINESTRING((12.1794871795 7.6923076923,10 9),(0 15,15 30,6 15),(4.2 12,0 5),(15 15,15 10.7142857143)))
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')))
+MULTIPOLYGON(((1 1,2 1,2 2,1 2,1 1)),((5 0,15 5,25 0,22 10,30 15,19 15,5 0)),((19 15,15 25,11 15,19 15)))
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')))
+GEOMETRYCOLLECTION(POLYGON((1 1,2 1,2 2,1 2,1 1)),POINT(0 0))
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
+ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems)))
+GEOMETRYCOLLECTION EMPTY
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT('POINT(0 0)'))) FROM gis_geometrycollection WHERE fid=103;
+ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT('POINT(0 0)')))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,22 10,30 15,19 15,5 0)),((19 15,15 25,11 15,19 15))),POINT(0 0))
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ST_ASTEXT(ST_SYMDIFFERENCE(g,g2))
+GEOMETRYCOLLECTION EMPTY
+#####################################################################################
+# Verify ST_SymDifference() returns NULL if at least one of its arguments are NULL.
+#####################################################################################
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),NULL));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),NULL))
+NULL
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(NULL,ST_GEOMFROMTEXT(@star_of_elems)));
+ST_ASTEXT(ST_SYMDIFFERENCE(NULL,ST_GEOMFROMTEXT(@star_of_elems)))
+NULL
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(NULL,ST_GEOMFROMTEXT('POINT(0 0)')));
+ST_ASTEXT(ST_SYMDIFFERENCE(NULL,ST_GEOMFROMTEXT('POINT(0 0)')))
+NULL
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),NULL));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),NULL))
+NULL
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,NULL)) FROM gis_geometrycollection WHERE fid=103;
+ST_ASTEXT(ST_SYMDIFFERENCE(g,NULL))
+NULL
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(NULL,NULL));
+ST_ASTEXT(ST_SYMDIFFERENCE(NULL,NULL))
+NULL
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(fid,NULL)) FROM gis_geometrycollection WHERE fid=103;
+ST_ASTEXT(ST_SYMDIFFERENCE(fid,NULL))
+NULL
+#####################################################################################
+# WL#8579 Spatial Reference Systems
+#####################################################################################
+# SRID 0 (should pass)
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+));
+ST_ASTEXT(ST_SYMDIFFERENCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+))
+GEOMETRYCOLLECTION EMPTY
+# Projected SRS (should pass)
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+));
+ST_ASTEXT(ST_SYMDIFFERENCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+))
+GEOMETRYCOLLECTION EMPTY
+# Geographic SRS (should pass)
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+));
+ST_ASTEXT(ST_SYMDIFFERENCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+))
+GEOMETRYCOLLECTION EMPTY
+#####################################################################################
+# Invalid function calls
+#####################################################################################
+# Undefined SRS' in the input geometries should return ER_SRS_NOT_FOUND.
+DO ST_ASTEXT(ST_SYMDIFFERENCE(x'40420f00010100000000000000000000000000000000000000',x'40420f00010100000000000000000000000000000000000000'));
+ERROR SR001: There's no spatial reference system with SRID 1000000.
+# Different SRIDs in the input geometries should return ER_GIS_DIFFERENT_SRIDS.
+DO ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 1)',4326)));
+ERROR HY000: Binary geometry function st_symdifference given two geometries of different srids: 0 and 4326, which should have been identical.
+DO ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)',4145),ST_GEOMFROMTEXT('POINT(0 1)',4326)));
+ERROR HY000: Binary geometry function st_symdifference given two geometries of different srids: 4145 and 4326, which should have been identical.
+# Not syntactically well-formed geometry input should result in ER_GIS_INVALID_DATA.
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(fid,ST_GEOMFROMTEXT('POINT(0 0)'))) FROM gis_geometrycollection WHERE fid=103;
+ERROR 22023: Invalid GIS data provided to function st_symdifference.
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),fid)) FROM gis_geometrycollection WHERE fid=103;
+ERROR 22023: Invalid GIS data provided to function st_symdifference.
+# Return ER_GEOMETRY_PARAM_(LONGITUDE/LATITUDE)_OUT_OF_RANGE if longitude and latitude values are not
+# within their respective ranges (-180,180] and [-90,90]).
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SET @pt_lat_minus_91 = x'E6100000010100000000000000000000000000000000C056C0';
+SET @pt_lat_plus_91 = x'E6100000010100000000000000000000000000000000C05640';
+SET @pt_long_minus_181 = x'E610000001010000000000000000A066C00000000000000000';
+SET @pt_long_plus_181 = x'E610000001010000000000000000A066400000000000000000';
+#====================================================================================
+# DIFFERENCE polygon,polygon
+#====================================================================================
+# Cartesian SRS
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))'),ST_GEOMFROMTEXT('POLYGON((0 1,1.5 1,1 2,0 2,0 1))')));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))'),ST_GEOMFROMTEXT('POLYGON((0 1,1.5 1,1 2,0 2,0 1))')))
+MULTIPOLYGON(((1 2,1.5 1,2 1,2 2,1 2)),((1 2,0 2,0 1,1 1,1 2)))
+# Geographic SRS
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((1 1,1 2,2 2,2 1,1 1))', 4326),ST_GEOMFROMTEXT('POLYGON((0 1,0 2,1 2,1 1,0 1))', 4326)));
+ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((1 1,1 2,2 2,2 1,1 1))', 4326),ST_GEOMFROMTEXT('POLYGON((0 1,0 2,1 2,1 1,0 1))', 4326)))
+POLYGON((2 1,0 1,0 2,1 2,2 2,2 1))
+#clean up
+DROP TABLE gis_geometrycollection;
+DROP TABLE gis_geometrycollection_2;

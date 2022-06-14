@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,11 +45,11 @@ class Tablespace;
 Dictionary. Since FTS tables contain table_id in their physical file name
 and during upgrade we reserve DICT_MAX_DD_TABLES for dictionary tables.
 So we rename FTS tablespace files
-@param[in]	thd		Server thread object
-@param[in]	db_name		database name
-@param[in]	table_name	table name
-@param[in,out]	dd_table	new dictionary table object to be filled
-@param[in]	srv_table	server table object
+@param[in]      thd             Server thread object
+@param[in]      db_name         database name
+@param[in]      table_name      table name
+@param[in,out]  dd_table        new dictionary table object to be filled
+@param[in]      srv_table       server table object
 @return false on success, true on failure. */
 bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                       dd::Table *dd_table, TABLE *srv_table);
@@ -58,32 +58,32 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
 dictionary. FTS Tablespaces are not registered as they are handled differently.
 FTS tablespaces have table_id in their name and we increment table_id of each
 table by DICT_MAX_DD_TABLES
-@param[in,out]	thd		THD
-@return MySQL error code*/
+@param[in,out]  thd             THD
+@return MySQL error code */
 int dd_upgrade_tablespace(THD *thd);
 
 /** Add server and space version number to tablespace while upgrading.
-@param[in]	space_id		space id of tablespace
-@param[in]	server_version_only	leave space version unchanged
+@param[in]      space_id                space id of tablespace
+@param[in]      server_version_only     leave space version unchanged
 @return false on success, true on failure. */
-bool upgrade_space_version(const uint32 space_id, bool server_version_only);
+bool upgrade_space_version(const uint32_t space_id, bool server_version_only);
 
 /** Add server version number to tablespace while upgrading.
-@param[in]	tablespace		dd::Tablespace
+@param[in]      tablespace              dd::Tablespace
 @return false on success, true on failure. */
 bool upgrade_space_version(dd::Tablespace *tablespace);
 
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
-first 256 table_ids are reserved for dictionary
-@param[in,out]	thd		THD
-@return MySQL error code*/
+first 256 table_ids are reserved for dictionary.
+@param[in,out]  thd             THD
+@return MySQL error code */
 int dd_upgrade_logs(THD *thd);
 
 /** If upgrade is successful, this API is used to flush innodb
 dirty pages to disk. In case of server crash, this function
 sets storage engine for rollback any changes.
-@param[in,out]	thd		THD
-@param[in]	failed_upgrade	true when upgrade failed
+@param[in,out]  thd             THD
+@param[in]      failed_upgrade  true when upgrade failed
 @return MySQL error code*/
 int dd_upgrade_finish(THD *thd, bool failed_upgrade);

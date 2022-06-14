@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,15 +30,19 @@
 #include <NdbGetRUsage.h>
 #include <NdbTick.h>
 #include <mt.hpp>
+#include <NdbMutex.h>
+#include <NdbCondition.h>
+#include <signaldata/Sync.hpp>
 
 #define JAM_FILE_ID 340
 
 //#define DEBUG_CPU_USAGE 1
 class Thrman : public SimulatedBlock
 {
+  friend class ThrmanProxy;
 public:
   Thrman(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Thrman();
+  ~Thrman() override;
   BLOCK_DEFINES(Thrman);
 
   void execDBINFO_SCANREQ(Signal*);
@@ -51,7 +55,16 @@ public:
   void execSET_WAKEUP_THREAD_ORD(Signal*);
   void execWAKEUP_THREAD_ORD(Signal*);
   void execSEND_WAKEUP_THREAD_ORD(Signal*);
+  void execFREEZE_THREAD_REQ(Signal*);
+  void execFREEZE_ACTION_CONF(Signal*);
   void execSTTOR(Signal*);
+  void execMEASURE_WAKEUP_TIME_ORD(Signal*);
+  void execDUMP_STATE_ORD(Signal*);
+  void execUPD_THR_LOAD_ORD(Signal*);
+
+public:
+  /* Normally called locally, but can be called from mt.cpp as well. */
+  void check_spintime(bool local_call);
 protected:
 
 private:
@@ -61,6 +74,11 @@ private:
   Uint32 m_num_threads;
   Uint32 m_send_thread_percentage;
   Uint32 m_node_overload_level;
+
+  Uint32 m_spin_time_change_count;
+  bool m_recv_thread;
+  bool m_tc_thread;
+  bool m_ldm_thread;
 
   const char *m_thread_name;
   const char *m_send_thread_name;
@@ -76,7 +94,78 @@ private:
   NDB_TICKS prev_20sec_tick;
 
   static const Uint32 ZCONTINUEB_MEASURE_CPU_USAGE = 1;
+  static const Uint32 ZWAIT_ALL_STOP = 2;
+  static const Uint32 ZWAIT_ALL_START = 3;
+  static const Uint32 ZCONTINUEB_CHECK_SPINTIME = 4;
+  static const Uint32 ZCONTINUEB_MEASURE_CPU_DATA = 5;
+  static const Uint32 ZUPDATE_QUERY_DISTRIBUTION = 6;
+  void check_weights();
+
   static const Uint32 default_cpu_load = 95;
+
+  /**
+   * Variables and methods used to synchronize all threads
+   * in the data node to perform a synchronized action.
+   */
+  void wait_freeze(bool ret);
+  void wait_all_stop(Signal*);
+  void wait_all_start(Signal*);
+
+  FreezeThreadReq m_freeze_req;
+
+  struct CPUMeasurementRecord
+  {
+    CPUMeasurementRecord()
+      : m_first_measure_done(false)
+    {}
+
+    Uint32 m_cpu_id;
+
+    Uint64 m_user_time;
+    Uint64 m_sys_time;
+    Uint64 m_idle_time;
+    Uint64 m_interrupt_time;
+    Uint64 m_exec_vm_time;
+    Uint64 m_unknown_time;
+
+    union {
+      Uint64 m_time;
+      Uint64 m_elapsed_time;
+    };
+    bool   m_first_measure_done;
+
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 prevList;
+  };
+  typedef Ptr<CPUMeasurementRecord> CPUMeasurementRecordPtr;
+  typedef ArrayPool<CPUMeasurementRecord> CPUMeasurementRecord_pool;
+  typedef DLCFifoList<CPUMeasurementRecord_pool> CPUMeasurementRecord_fifo;
+
+  CPUMeasurementRecord_pool c_CPUMeasurementRecordPool;
+
+  struct CPURecord
+  {
+    CPURecord() {}
+
+    Uint32 m_cpu_no;
+
+    CPUMeasurementRecord_fifo::Head m_next_50ms_measure;
+    CPUMeasurementRecord_fifo::Head m_next_1sec_measure;
+    CPUMeasurementRecord_fifo::Head m_next_20sec_measure;
+
+    CPUMeasurementRecord m_last_50ms_base_measure;
+    CPUMeasurementRecord m_last_1sec_base_measure;
+    CPUMeasurementRecord m_last_20sec_base_measure;
+
+    CPUMeasurementRecord m_curr_measure;
+    Uint32 nextPool;
+  };
+  typedef Ptr<CPURecord> CPURecordPtr;
+  typedef ArrayPool<CPURecord> CPURecord_pool;
+  CPURecord_pool c_CPURecordPool;
 
   struct MeasurementRecord
   {
@@ -198,12 +287,28 @@ private:
 
     Uint64 avg_send_percentage;
   };
+
+  Uint32 m_configured_spintime;
+  Uint32 m_current_spintime;
+  Uint32 m_gain_spintime_in_us;
+  Uint32 m_current_cpu_usage;
+
+  NDB_TICKS m_measured_wait_time;
+  Uint64 m_tot_nanos_wait;
+  bool m_phase2_done;
+  bool m_is_idle;
+  Uint32 m_failed_wakeup_measurements;
+
   /* Private variables used for handling overload control */
   bool m_shared_environment;
   bool m_overload_handling_activated;
+  bool m_enable_adaptive_spinning;
+  Uint32 m_allowed_spin_overhead;
   Int32 m_warning_level;
   Uint32 m_max_warning_level;
   Uint32 m_burstiness;
+  Uint32 m_main_thrman_instance;
+  Uint32 m_rep_thrman_instance;
   OverloadStatus m_current_overload_status;
 
   struct ThreadOverloadStatus
@@ -219,12 +324,23 @@ private:
   MeasureStats c_400sec_stats;
   MeasureStats *m_current_decision_stats;
 
+  bool m_is_cpuinfo_available;
+  bool m_is_cpudata_available;
+
   /* Private methods */
-  void sendSTTORRY(Signal*);
-  void sendNextCONTINUEB(Signal*);
+  void sendSTTORRY(Signal*, bool);
+  void sendNextCONTINUEB(Signal*, Uint32 delay, Uint32 type);
   void measure_cpu_usage(Signal*);
   void mark_measurements_not_done();
   void check_overload_status(Signal*, bool, bool);
+  void set_spin_stat(Uint32, bool);
+  Uint32 calc_new_spin(ndb_spin_stat*);
+  void measure_wakeup_time(Signal*, Uint32);
+
+  void set_configured_spintime(Uint32 val, bool specific);
+  void set_allowed_spin_overhead(Uint32 val);
+  void set_enable_adaptive_spinning(bool val);
+  void set_spintime_per_call(Uint32 val);
 
   Uint32 calculate_mean_send_thread_load();
   void calculate_measurement(MeasurementRecordPtr measurePtr,
@@ -285,21 +401,53 @@ private:
 
   bool calculate_send_thread_load_last_second(Uint32 send_instance,
                                               SendThreadMeasurement *measure);
+  void fill_in_current_measure(CPURecordPtr cpuPtr,
+                               struct ndb_hwinfo *hwinfo);
+  bool calculate_next_CPU_measure(CPUMeasurementRecord *lastMeasurePtrP,
+                                  CPUMeasurementRecord *firstMeasurePtrP,
+                                  CPUMeasurementRecord *baseMeasurePtrP,
+                                  CPURecord *cpuPtrP,
+                                  Uint32 ms_between_measurements);
+  void send_cpu_measurement_row(DbinfoScanReq & req,
+                                Ndbinfo::Ratelimit & rl,
+                                Signal *signal,
+                                CPUMeasurementRecordPtr cpuMeasurePtr,
+                                Uint32 cpu_no,
+                                Uint32 online);
+  void send_cpu_raw_measurement_row(DbinfoScanReq & req,
+                                    Ndbinfo::Ratelimit & rl,
+                                    Signal *signal,
+                                    CPUMeasurementRecordPtr cpuMeasurePtr,
+                                    Uint32 cpu_no,
+                                    Uint32 measurement_id,
+                                    Uint32 online);
+  void measure_cpu_data(Signal *signal);
+  void send_measure_to_rep_thrman(Signal*, MeasurementRecordPtr);
+  void update_query_distribution(Signal*);
+  void initial_query_distribution(Signal*);
+  void send_query_distribution(Uint32*, Signal*);
+
+  struct ThrLoad
+  {
+    Uint32 m_cpu_load;
+    Uint32 m_send_load;
+  };
+  struct ThrLoad m_thr_load[MAX_DISTR_THREADS][2];
+  Uint32 m_curr_weights[MAX_DISTR_THREADS];
 };
 
 class ThrmanProxy : public LocalProxy
 {
 public:
   ThrmanProxy(Block_context& ctx);
-  virtual ~ThrmanProxy();
+  ~ThrmanProxy() override;
   BLOCK_DEFINES(ThrmanProxy);
+  void execFREEZE_THREAD_REQ(Signal*);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
 };
-
-
 #undef JAM_FILE_ID
 
 #endif

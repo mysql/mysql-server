@@ -109,6 +109,9 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'2002-05-12 00:00:00'),(6,'2002-06-22
 00:00:00'),(7,'2002-07-22 00:00:00');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-06-22
+00:00:00' at row 4 is deprecated. Prefer the standard ' '.
 delete t1,t2,t3 from t1,t2,t3 where to_days(now())-to_days(t3.mydate)>=30 and t3.id=t1.id and t3.id=t2.id;
 select * from t3;
 id	mydate
@@ -666,7 +669,7 @@ insert into t2 values (1),(2);
 insert into t3 values (1),(2);
 reset master;
 delete t3.* from t2,t3 where t2.a=t3.a;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select count(*) from t1 /* must be 0 */;
 count(*)
 0
@@ -751,7 +754,7 @@ UPDATE IGNORE t1, (SELECT 1 AS duplicate_id) AS t2 SET t1.id=t2.duplicate_id;
 affected rows: 0
 info: Rows matched: 2  Changed: 0  Warnings: 1
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 # Check that no rows changed.
 SELECT * FROM t1;
 id
@@ -830,3 +833,81 @@ c1	c2
 24	50
 25	15
 DROP TABLE t1, t2, t3;
+#
+# Bug#98692 multi-table UPDATE has problem when updating a table in Performance Schema
+#
+SELECT enabled FROM performance_schema.setup_instruments
+WHERE name = 'wait/lock/metadata/sql/mdl';
+enabled
+YES
+EXPLAIN UPDATE performance_schema.setup_instruments, (SELECT 1) AS dt
+SET enabled = 'NO' WHERE name = 'wait/lock/metadata/sql/mdl';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	setup_instruments	NULL	const	PRIMARY	PRIMARY	514	const	1	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	update `performance_schema`.`setup_instruments` join (/* select#2 */ select 1 AS `1`) `dt` set `performance_schema`.`setup_instruments`.`ENABLED` = 'NO' where true
+UPDATE performance_schema.setup_instruments, (SELECT 1) AS dt
+SET enabled = 'NO' WHERE name = 'wait/lock/metadata/sql/mdl';
+SELECT enabled FROM performance_schema.setup_instruments
+WHERE name = 'wait/lock/metadata/sql/mdl';
+enabled
+NO
+EXPLAIN UPDATE (VALUES ROW(1),ROW(2)) AS dt(a)
+LEFT JOIN performance_schema.setup_instruments ON dt.a=enabled
+SET enabled = 'YES' WHERE name = 'wait/lock/metadata/sql/mdl';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	setup_instruments	NULL	const	PRIMARY	PRIMARY	514	const	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	const	1	100.00	Using where; Using index
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	update (values row(1),row(2)) `dt` (`a`) join `performance_schema`.`setup_instruments` set `performance_schema`.`setup_instruments`.`ENABLED` = 'YES' where ((`dt`.`a` = `performance_schema`.`setup_instruments`.`ENABLED`))
+UPDATE (VALUES ROW(1),ROW(2)) AS dt(a)
+LEFT JOIN performance_schema.setup_instruments ON dt.a=enabled
+SET enabled = 'YES' WHERE name = 'wait/lock/metadata/sql/mdl';
+SELECT enabled FROM performance_schema.setup_instruments
+WHERE name = 'wait/lock/metadata/sql/mdl';
+enabled
+YES
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES(1,1);
+EXPLAIN UPDATE t1 STRAIGHT_JOIN performance_schema.setup_instruments
+SET t1.b = 2 WHERE t1.a = 1 AND name = 'wait/lock/metadata/sql/mdl';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	setup_instruments	NULL	const	PRIMARY	PRIMARY	514	const	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` straight_join `performance_schema`.`setup_instruments` set `test`.`t1`.`b` = 2 where true
+UPDATE t1 STRAIGHT_JOIN performance_schema.setup_instruments
+SET t1.b = 2 WHERE t1.a = 1 AND name = 'wait/lock/metadata/sql/mdl';
+SELECT * FROM t1;
+a	b
+1	2
+EXPLAIN UPDATE performance_schema.setup_instruments STRAIGHT_JOIN t1
+SET t1.b = 3 WHERE t1.a = 1 AND name = 'wait/lock/metadata/sql/mdl';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_instruments	NULL	const	PRIMARY	PRIMARY	514	const	1	100.00	NULL
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	update `performance_schema`.`setup_instruments` straight_join `test`.`t1` set `test`.`t1`.`b` = 3 where true
+UPDATE performance_schema.setup_instruments STRAIGHT_JOIN t1
+SET t1.b = 3 WHERE t1.a = 1 AND name = 'wait/lock/metadata/sql/mdl';
+SELECT * FROM t1;
+a	b
+1	3
+DROP TABLE t1;
+# Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
+CREATE TABLE t1(pk INTEGER PRIMARY KEY, a INTEGER);
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+PREPARE s FROM 'UPDATE t1, (SELECT 1 FROM DUAL) AS dt SET a=a+1';
+EXECUTE s;
+SELECT ROW_COUNT();
+ROW_COUNT()
+2
+EXECUTE s;
+SELECT ROW_COUNT();
+ROW_COUNT()
+2
+DEALLOCATE PREPARE s;
+DROP TABLE t1;

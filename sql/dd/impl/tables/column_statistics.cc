@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,11 +58,13 @@ Column_statistics::Column_statistics() {
   m_target_def.add_field(
       FIELD_SCHEMA_NAME, "FIELD_SCHEMA_NAME",
       "schema_name VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(
       FIELD_TABLE_NAME, "FIELD_TABLE_NAME",
       "table_name VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_COLUMN_NAME, "FIELD_COLUMN_NAME",
                          "column_name VARCHAR(64) NOT NULL COLLATE \
                           utf8_tolower_ci");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,13 @@
 #define PLUGIN_X_SRC_CALLBACK_COMMAND_DELEGATE_H_
 
 #include <sys/types.h>
+#include <functional>
 
-#include "plugin/x/ngs/include/ngs/command_delegate.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "plugin/x/src/ngs/command_delegate.h"
 
 namespace xpl {
 class Callback_command_delegate : public ngs::Command_delegate {
@@ -36,11 +40,13 @@ class Callback_command_delegate : public ngs::Command_delegate {
   struct Field_value {
     Field_value();
     Field_value(const Field_value &other);
-    Field_value(const longlong &num, bool unsign = false);
-    Field_value(const decimal_t &decimal);
-    Field_value(const double num);
-    Field_value(const MYSQL_TIME &time);
-    Field_value(const char *str, size_t length);
+    explicit Field_value(const char *str, size_t length);
+
+    explicit Field_value(const longlong &num, bool unsign = false);
+    explicit Field_value(const decimal_t &decimal);
+    explicit Field_value(const double num);
+    explicit Field_value(const MYSQL_TIME &time);
+
     Field_value &operator=(const Field_value &other);
 
     ~Field_value();
@@ -56,7 +62,7 @@ class Callback_command_delegate : public ngs::Command_delegate {
   };
 
   struct Row_data {
-    Row_data() {}
+    Row_data() = default;
     Row_data(const Row_data &other);
     Row_data &operator=(const Row_data &other);
     ~Row_data();
@@ -67,8 +73,8 @@ class Callback_command_delegate : public ngs::Command_delegate {
     void clone_fields(const Row_data &other);
   };
 
-  typedef std::function<Row_data *()> Start_row_callback;
-  typedef std::function<bool(Row_data *)> End_row_callback;
+  using Start_row_callback = std::function<Row_data *()>;
+  using End_row_callback = std::function<bool(Row_data *)>;
 
   Callback_command_delegate();
   Callback_command_delegate(Start_row_callback start_row,
@@ -76,9 +82,9 @@ class Callback_command_delegate : public ngs::Command_delegate {
 
   void set_callbacks(Start_row_callback start_row, End_row_callback end_row);
 
-  virtual void reset();
+  void reset() override;
 
-  virtual enum cs_text_or_binary representation() const {
+  enum cs_text_or_binary representation() const override {
     return CS_TEXT_REPRESENTATION;
   }
 
@@ -88,33 +94,33 @@ class Callback_command_delegate : public ngs::Command_delegate {
   Row_data *m_current_row = nullptr;
 
  private:
-  virtual int start_row();
+  int start_row() override;
 
-  virtual int end_row();
+  int end_row() override;
 
-  virtual void abort_row();
+  void abort_row() override;
 
-  virtual ulong get_client_capabilities();
+  ulong get_client_capabilities() override;
 
   /****** Getting data ******/
-  virtual int get_null();
+  int get_null() override;
 
-  virtual int get_integer(longlong value);
+  int get_integer(longlong value) override;
 
-  virtual int get_longlong(longlong value, uint unsigned_flag);
+  int get_longlong(longlong value, uint32_t unsigned_flag) override;
 
-  virtual int get_decimal(const decimal_t *value);
+  int get_decimal(const decimal_t *value) override;
 
-  virtual int get_double(double value, uint32 decimals);
+  int get_double(double value, uint32_t decimals) override;
 
-  virtual int get_date(const MYSQL_TIME *value);
+  int get_date(const MYSQL_TIME *value) override;
 
-  virtual int get_time(const MYSQL_TIME *value, uint decimals);
+  int get_time(const MYSQL_TIME *value, uint32_t decimals) override;
 
-  virtual int get_datetime(const MYSQL_TIME *value, uint decimals);
+  int get_datetime(const MYSQL_TIME *value, uint32_t decimals) override;
 
-  virtual int get_string(const char *const value, size_t length,
-                         const CHARSET_INFO *const valuecs);
+  int get_string(const char *const value, size_t length,
+                 const CHARSET_INFO *const valuecs) override;
 };
 }  // namespace xpl
 

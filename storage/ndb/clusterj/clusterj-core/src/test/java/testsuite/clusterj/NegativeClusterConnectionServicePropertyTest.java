@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,10 @@ public class NegativeClusterConnectionServicePropertyTest extends AbstractCluste
             ClusterJHelper.getServiceInstance(ClusterConnectionService.class, "testsuite.clusterj.util.NoPublicConstructorClusterConnectionService");
             fail("Expected IllegalAccessException, got no exception");
         } catch (ClusterJFatalUserException e) {
-            // make sure the enclosed exception is IllegalAccessException
+            // make sure the enclosed exception is NoSuchMethodException
             Throwable cause = e.getCause();
-            if (!(cause instanceof IllegalAccessException)) {
-                fail("Expected IllegalAccessException, got " + cause.getClass() + " message: " + e.getMessage());
+            if (!(cause instanceof NoSuchMethodException)) {
+                fail("Expected NoSuchMethodException, got " + cause.getClass() + " message: " + e.getMessage());
             }
         }
     }

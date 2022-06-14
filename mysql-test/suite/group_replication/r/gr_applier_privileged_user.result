@@ -1,0 +1,70 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1) Create a new database and a table on the group.
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET @@sql_log_bin = 0;
+CALL mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': INSERT command denied to user 'u1'@'localhost' for table 't1'.*");
+CALL mtr.add_suppression(".*Worker .* failed executing transaction .* INSERT command denied to user 'u1'@'localhost' for table 't1'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+SET @@sql_log_bin = 1;
+include/rpl_sync.inc
+
+# 2) Stop GR on `server1`.
+include/stop_group_replication.inc
+
+# 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
+include/assert.inc [Require_row_format column in performance_schema.replication_applier_configuration is set to YES for GR applier channel]
+include/assert.inc [Require_row_format column in performance_schema.replication_applier_configuration is set to YES for GR recovery channel]
+
+# 4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set
+#    it as the `PRIVILEGE_CHECKS_USER` user.
+SET @@sql_log_bin = 0;
+CREATE USER 'u1'@'localhost';
+GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
+SET @@sql_log_bin = 1;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
+include/assert.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost']
+
+# 5) Start `server1`.
+[connection server1]
+include/start_group_replication.inc
+include/assert.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost']
+
+# 6) Execute an `INSERT` statement on `server2`.
+[connection server2]
+INSERT INTO db1.t1 VALUES (1), (2);
+
+# 7) Expect an error as the user doesn't have INSERT privilege.
+[connection server1]
+include/gr_wait_for_member_state.inc
+
+# 8) Stop slave and grant INSERT privilege.
+include/stop_group_replication.inc
+SET @@sql_log_bin = 0;
+GRANT INSERT ON *.* TO 'u1'@'localhost';
+SET @@sql_log_bin = 1;
+
+# 9) Start server1
+include/start_group_replication.inc
+
+# 10) Ensure that table was properly replicated
+include/rpl_sync.inc
+include/assert.inc [Table properly replicated in server1]
+
+# Cleanup
+DROP DATABASE db1;
+include/rpl_sync.inc
+[connection server1]
+SET @@sql_log_bin = 0;
+DROP USER 'u1'@'localhost';
+SET @@sql_log_bin = 1;
+include/group_replication_end.inc

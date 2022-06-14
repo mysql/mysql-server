@@ -142,8 +142,10 @@ SET global.key_cache_block_size = 10;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_cache_block_size = 10' at line 1
 SELECT global.key_cache_block_size;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT key_cache_block_size = @@session.key_cache_block_size;
+SELECT key_cache_block_size;
 ERROR 42S22: Unknown column 'key_cache_block_size' in 'field list'
+SELECT @@session.key_cache_block_size;
+ERROR HY000: Variable 'key_cache_block_size' is a GLOBAL variable
 SET @@global.key_cache_block_size = @start_value;
 SELECT @@global.key_cache_block_size;
 @@global.key_cache_block_size

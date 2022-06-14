@@ -2364,9 +2364,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varbinary_1000` using utf8) AS `CONVERT(my_varbinary_1000 USING utf8)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varbinary_1000` using utf8mb3) AS `CONVERT(my_varbinary_1000 USING utf8)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 98 OR select_id IS NULL) order by id;
@@ -2377,7 +2377,7 @@ NULL	NULL	1
  ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP VIEW v1;
 
 
@@ -2398,9 +2398,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using utf8) AS `CONVERT(my_binary_30 USING utf8)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using utf8mb3) AS `CONVERT(my_binary_30 USING utf8)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 97 OR select_id IS NULL) order by id;
@@ -2411,7 +2411,7 @@ NULL	NULL	1
  ---äÖüß@µ*$--           	 ---äÖüß@µ*$--           	4
 -1                            	-1                            	5
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP VIEW v1;
 
 
@@ -2432,9 +2432,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varchar_1000` using utf8) AS `CONVERT(my_varchar_1000 USING utf8)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varchar_1000` using utf8mb3) AS `CONVERT(my_varchar_1000 USING utf8)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 96 OR select_id IS NULL) order by id;
@@ -2445,7 +2445,7 @@ NULL	NULL	1
  ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP VIEW v1;
 
 
@@ -2466,9 +2466,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_char_30` using utf8) AS `CONVERT(my_char_30 USING utf8)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_char_30` using utf8mb3) AS `CONVERT(my_char_30 USING utf8)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 95 OR select_id IS NULL) order by id;
@@ -2479,7 +2479,7 @@ NULL	NULL	1
  ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	4
 -1	-1	5
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP VIEW v1;
 
 
@@ -2652,14 +2652,13 @@ my_decimal, id FROM t1_values
 WHERE select_id = 88 OR select_id IS NULL order by id;
 CAST(my_decimal AS UNSIGNED INTEGER)	my_decimal	id
 NULL	NULL	1
-0	-9999999999999999999999999999999999.999999999999999999999999999999	2
+9223372036854775808	-9999999999999999999999999999999999.999999999999999999999999999999	2
 18446744073709551615	9999999999999999999999999999999999.999999999999999999999999999999	3
 0	0.000000000000000000000000000000	4
-0	-1.000000000000000000000000000000	5
+18446744073709551615	-1.000000000000000000000000000000	5
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '-9999999999999999999999999999999999.999999999999999999999999999999'
 Warning	1292	Truncated incorrect DECIMAL value: '9999999999999999999999999999999999.999999999999999999999999999999'
-Warning	1292	Truncated incorrect DECIMAL value: '-1.000000000000000000000000000000'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_decimal` as unsigned) AS `CAST(my_decimal AS UNSIGNED INTEGER)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -2668,14 +2667,13 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 88 OR select_id IS NULL) order by id;
 CAST(my_decimal AS UNSIGNED INTEGER)	my_decimal	id
 NULL	NULL	1
-0	-9999999999999999999999999999999999.999999999999999999999999999999	2
+9223372036854775808	-9999999999999999999999999999999999.999999999999999999999999999999	2
 18446744073709551615	9999999999999999999999999999999999.999999999999999999999999999999	3
 0	0.000000000000000000000000000000	4
-0	-1.000000000000000000000000000000	5
+18446744073709551615	-1.000000000000000000000000000000	5
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '-9999999999999999999999999999999999.999999999999999999999999999999'
 Warning	1292	Truncated incorrect DECIMAL value: '9999999999999999999999999999999999.999999999999999999999999999999'
-Warning	1292	Truncated incorrect DECIMAL value: '-1.000000000000000000000000000000'
 DROP VIEW v1;
 
 
@@ -2720,7 +2718,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as unsigned) AS `CAST(my_varbinary_1000 AS UNSIGNED INTEGER)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -2737,7 +2735,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 DROP VIEW v1;
 
 
@@ -2757,7 +2755,7 @@ Warning	1292	Truncated incorrect INTEGER value: '\x00\x00\x00\x00\x00\x00\x00\x0
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect INTEGER value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as unsigned) AS `CAST(my_binary_30 AS UNSIGNED INTEGER)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -2775,7 +2773,7 @@ Warning	1292	Truncated incorrect INTEGER value: '\x00\x00\x00\x00\x00\x00\x00\x0
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect INTEGER value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 DROP VIEW v1;
 
 
@@ -2794,7 +2792,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as unsigned) AS `CAST(my_varchar_1000 AS UNSIGNED INTEGER)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -2811,7 +2809,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 DROP VIEW v1;
 
 
@@ -2830,7 +2828,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as unsigned) AS `CAST(my_char_30 AS UNSIGNED INTEGER)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -2847,7 +2845,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to its positive complement
 DROP VIEW v1;
 
 
@@ -3815,6 +3813,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 4 is superfluous and is deprecated. Please remove.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as time) AS `CAST(my_varbinary_1000 AS TIME)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3832,6 +3831,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 1 is superfluous and is deprecated. Please remove.
 DROP VIEW v1;
 
 
@@ -3851,6 +3851,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 4 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect time value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '1 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
@@ -3870,6 +3871,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect time value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '1 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
@@ -3891,6 +3893,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- ' at row 4 is superfluous and is deprecated. Please remove.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as time) AS `CAST(my_varchar_1000 AS TIME)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3908,6 +3911,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- ' at row 1 is superfluous and is deprecated. Please remove.
 DROP VIEW v1;
 
 
@@ -3927,6 +3931,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--' at row 4 is superfluous and is deprecated. Please remove.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as time) AS `CAST(my_char_30 AS TIME)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3944,6 +3949,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--' at row 1 is superfluous and is deprecated. Please remove.
 DROP VIEW v1;
 
 
@@ -4096,12 +4102,13 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 SHOW CREATE VIEW v1;
@@ -4114,13 +4121,13 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'CAST(my_double AS DATETIME)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4135,12 +4142,13 @@ CAST(my_bigint AS DATETIME)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 SHOW CREATE VIEW v1;
@@ -4153,13 +4161,13 @@ CAST(my_bigint AS DATETIME)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'CAST(my_bigint AS DATETIME)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4468,12 +4476,13 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4485,13 +4494,13 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect date value: '0000-00-00' for column 'CAST(my_double AS DATE)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4505,12 +4514,13 @@ CAST(my_bigint AS DATE)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	12
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4522,13 +4532,13 @@ CAST(my_bigint AS DATE)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	12
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect date value: '0000-00-00' for column 'CAST(my_bigint AS DATE)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 

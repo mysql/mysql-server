@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_byteorder.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -57,7 +61,7 @@
 
 */
 
-int (*my_string_stack_guard)(int) = NULL;
+int (*my_string_stack_guard)(int) = nullptr;
 
 static char *mstr(char *str, const char *src, size_t l1, size_t l2) {
   l1 = l1 < l2 ? l1 : l2;
@@ -265,14 +269,14 @@ static struct my_cs_file_section_st sec[] = {
     {_CS_RESET_LAST_VARIABLE,
      "charsets/charset/collation/rules/reset/last_variable"},
 
-    {0, NULL}};
+    {0, nullptr}};
 
 static struct my_cs_file_section_st *cs_file_sec(const char *attr, size_t len) {
   struct my_cs_file_section_st *s;
   for (s = sec; s->str; s++) {
     if (!strncmp(attr, s->str, len) && s->str[len] == 0) return s;
   }
-  return NULL;
+  return nullptr;
 }
 
 #define MY_CS_CSDESCR_SIZE 64
@@ -307,7 +311,7 @@ static void my_charset_file_reset_collation(MY_CHARSET_FILE *i) {
 static void my_charset_file_init(MY_CHARSET_FILE *i) {
   my_charset_file_reset_charset(i);
   my_charset_file_reset_collation(i);
-  i->tailoring = NULL;
+  i->tailoring = nullptr;
   i->tailoring_alloced_length = 0;
 }
 
@@ -337,7 +341,7 @@ static int fill_uchar(uchar *a, uint size, const char *str, size_t len) {
     for (; (s < e) && !strchr(" \t\r\n", s[0]); s++)
       ;
     if (s == b || i > size) break;
-    a[i] = (uchar)strtoul(b, NULL, 16);
+    a[i] = (uchar)strtoul(b, nullptr, 16);
   }
   return 0;
 }
@@ -353,7 +357,7 @@ static int fill_uint16(uint16 *a, uint size, const char *str, size_t len) {
     for (; (s < e) && !strchr(" \t\r\n", s[0]); s++)
       ;
     if (s == b || i > size) break;
-    a[i] = (uint16)strtol(b, NULL, 16);
+    a[i] = (uint16)strtol(b, nullptr, 16);
   }
   return 0;
 }
@@ -416,7 +420,7 @@ static int tailoring_append_abbreviation(MY_XML_PARSER *st, const char *fmt,
   my_wc_t wc;
 
   for (; (clen = scan_one_character(attr, attrend, &wc)) > 0; attr += clen) {
-    DBUG_ASSERT(attr < attrend);
+    assert(attr < attrend);
     if (tailoring_append(st, fmt, clen, attr) != MY_XML_OK) return MY_XML_ERROR;
   }
   return MY_XML_OK;
@@ -442,7 +446,7 @@ static int cs_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
       break;
 
     case _CS_RESET:
-      return tailoring_append(st, " &", 0, NULL);
+      return tailoring_append(st, " &", 0, nullptr);
 
     default:
       break;
@@ -465,51 +469,51 @@ static int cs_leave(MY_XML_PARSER *st, const char *attr, size_t len) {
 
     /* Rules: Logical Reset Positions */
     case _CS_RESET_FIRST_NON_IGNORABLE:
-      rc = tailoring_append(st, "[first non-ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first non-ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_NON_IGNORABLE:
-      rc = tailoring_append(st, "[last non-ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last non-ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_PRIMARY_IGNORABLE:
-      rc = tailoring_append(st, "[first primary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first primary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_PRIMARY_IGNORABLE:
-      rc = tailoring_append(st, "[last primary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last primary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_SECONDARY_IGNORABLE:
-      rc = tailoring_append(st, "[first secondary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first secondary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_SECONDARY_IGNORABLE:
-      rc = tailoring_append(st, "[last secondary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last secondary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_TERTIARY_IGNORABLE:
-      rc = tailoring_append(st, "[first tertiary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first tertiary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_TERTIARY_IGNORABLE:
-      rc = tailoring_append(st, "[last tertiary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last tertiary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_TRAILING:
-      rc = tailoring_append(st, "[first trailing]", 0, NULL);
+      rc = tailoring_append(st, "[first trailing]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_TRAILING:
-      rc = tailoring_append(st, "[last trailing]", 0, NULL);
+      rc = tailoring_append(st, "[last trailing]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_VARIABLE:
-      rc = tailoring_append(st, "[first variable]", 0, NULL);
+      rc = tailoring_append(st, "[first variable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_VARIABLE:
-      rc = tailoring_append(st, "[last variable]", 0, NULL);
+      rc = tailoring_append(st, "[last variable]", 0, nullptr);
       break;
 
     default:
@@ -541,19 +545,25 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
     case _CS_ORDER:
       break;
     case _CS_ID:
-      i->cs.number = strtol(attr, (char **)NULL, 10);
+      i->cs.number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_BINARY_ID:
-      i->cs.binary_number = strtol(attr, (char **)NULL, 10);
+      i->cs.binary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_PRIMARY_ID:
-      i->cs.primary_number = strtol(attr, (char **)NULL, 10);
+      i->cs.primary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_COLNAME:
-      i->cs.name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
+      i->cs.m_coll_name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
       break;
     case _CS_CSNAME:
-      i->cs.csname = mstr(i->csname, attr, len, MY_CS_NAME_SIZE - 1);
+      // Replace "utf8" with "utf8mb3" for external character sets.
+      if (0 == strncmp(attr, "utf8", len))
+        i->cs.csname =
+            mstr(i->csname, STRING_WITH_LEN("utf8mb3"), MY_CS_NAME_SIZE - 1);
+      else
+        i->cs.csname = mstr(i->csname, attr, len, MY_CS_NAME_SIZE - 1);
+      assert(0 != strcmp(i->cs.csname, "utf8"));
       break;
     case _CS_CSDESCRIPT:
       i->cs.comment = mstr(i->comment, attr, len, MY_CS_CSDESCR_SIZE - 1);
@@ -830,11 +840,11 @@ bool my_charset_is_ascii_based(const CHARSET_INFO *cs) {
 */
 bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
   size_t code;
-  if (!cs->tab_to_uni) return 0;
+  if (!cs->tab_to_uni) return false;
   for (code = 0; code < 256; code++) {
-    if (cs->tab_to_uni[code] > 0x7F) return 0;
+    if (cs->tab_to_uni[code] > 0x7F) return false;
   }
-  return 1;
+  return true;
 }
 
 /*
@@ -844,11 +854,11 @@ bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
 */
 bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs) {
   uint i;
-  if (!cs->tab_to_uni) return 1;
+  if (!cs->tab_to_uni) return true;
   for (i = 0; i < 128; i++) {
-    if (cs->tab_to_uni[i] != i) return 0;
+    if (cs->tab_to_uni[i] != i) return false;
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -879,7 +889,7 @@ static size_t my_convert_internal(char *to, size_t to_length,
   my_charset_conv_wc_mb wc_mb = to_cs->cset->wc_mb;
   uint error_count = 0;
 
-  while (1) {
+  while (true) {
     if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
                            from_end)) > 0)
       from += cnvres;
@@ -940,7 +950,7 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     return my_convert_internal(to, to_length, to_cs, from, from_length, from_cs,
                                errors);
 
-  length = length2 = MY_MIN(to_length, from_length);
+  length = length2 = std::min(to_length, from_length);
 
 #if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
   /*
@@ -971,8 +981,8 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     }
   }
 
-  DBUG_ASSERT(false);  // Should never get to here
-  return 0;            // Make compiler happy
+  assert(false);  // Should never get to here
+  return 0;       // Make compiler happy
 }
 
 /**
@@ -992,7 +1002,7 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e) {
     len = my_mbcharlen_2(cs, (uchar)*s, (uchar) * (s + 1));
     /* It could be either a valid multi-byte GB18030 code, or invalid
     gb18030 code if return value is 0 */
-    DBUG_ASSERT(len == 0 || len == 2 || len == 4);
+    assert(len == 0 || len == 2 || len == 4);
   }
 
   return len;

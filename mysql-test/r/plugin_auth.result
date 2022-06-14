@@ -33,18 +33,18 @@ proxies_priv	CREATE TABLE `proxies_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
   KEY `Grantor` (`Grantor`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='User proxy privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='User proxy privileges'
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
 ## test SET PASSWORD
-Setting password is allowed but it won't affect the authentication mechanism.
 SET PASSWORD = 'plug_dest';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'plug'@'%' as authentication plugin does not support it.
+ERROR HY000: SET PASSWORD has no significance for user 'plug'@'%' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 ## test bad credentials
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
-## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
+## test bad default plugin : As long as the server returns a compatible
+## plugin any default plugin set by the client is ignored. Only if the
+## client doesn't comprehend the servers plugin will the default be used.
 ## test correct default plugin
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
@@ -57,13 +57,13 @@ USER()	CURRENT_USER()
 Ÿ@localhost	plug_dest@%
 DROP USER `Ÿ`;
 CREATE DATABASE test_grant_db;
-REVOKE SELECT on test_grant_db.* FROM joro 
+REVOKE SELECT on test_grant_db.* FROM joro
 INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
-REVOKE SELECT on test_grant_db.* FROM joro 
+REVOKE SELECT on test_grant_db.* FROM joro
 INDENTIFIED BY 'plug_dest_passwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED BY 'plug_dest_passwd'' at line 2
-REVOKE SELECT on test_grant_db.* FROM joro 
+REVOKE SELECT on test_grant_db.* FROM joro
 INDENTIFIED BY PASSWORD 'plug_dest_passwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED BY PASSWORD 'plug_dest_passwd'' at line 2
 DROP DATABASE test_grant_db;
@@ -80,8 +80,8 @@ SELECT @@global.sha256_password_proxy_users;
 SET @@global.check_proxy_users=ON;
 SET @@global.mysql_native_password_proxy_users=ON;
 SET @@global.sha256_password_proxy_users=ON;
-CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
-AS 'grant_plug_dest';
+CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server'
+  AS 'grant_plug_dest';
 CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
 CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 # ALL PRIVILEGES doesn't include PROXY
@@ -97,7 +97,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 REVOKE PROXY ON grant_plug_dest FROM grant_plug;
 ERROR 42000: There is no such grant defined for user 'grant_plug' on host '%'
 in grant_plug_dest_con
-## testing what an ordinary user can grant 
+## testing what an ordinary user can grant
 this should fail : no rights to grant all
 GRANT PROXY ON ''@'' TO grant_plug;
 ERROR 28000: Access denied for user 'grant_plug_dest'@'localhost'
@@ -136,20 +136,20 @@ in default connection
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `grant_plug`@`%`
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `grant_plug`@`%`
-GRANT PROXY ON 'future_user'@'%' TO 'grant_plug'@'%'
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `grant_plug`@`%`
+GRANT PROXY ON `future_user`@`%` TO `grant_plug`@`%`
 REVOKE PROXY ON future_user FROM grant_plug;
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `grant_plug`@`%`
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `grant_plug`@`%`
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `grant_plug`@`%`
 ## testing drop user
 CREATE USER test_drop@localhost;
 GRANT PROXY ON future_user TO test_drop@localhost;
 SHOW GRANTS FOR test_drop@localhost;
 Grants for test_drop@localhost
 GRANT USAGE ON *.* TO `test_drop`@`localhost`
-GRANT PROXY ON 'future_user'@'%' TO 'test_drop'@'localhost'
+GRANT PROXY ON `future_user`@`%` TO `test_drop`@`localhost`
 DROP USER test_drop@localhost;
 SELECT * FROM mysql.proxies_priv WHERE Host = 'test_drop' AND User = 'localhost';
 Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
@@ -221,8 +221,8 @@ argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 CREATE USER 'plug_dest'@'%' IDENTIFIED BY <secret>
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
-AS 'grant_plug_dest'
+CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server'
+  AS 'grant_plug_dest'
 CREATE USER 'grant_plug_dest'@'%' IDENTIFIED BY <secret>
 CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED BY <secret>
 CREATE USER 'proxy_admin'@'%' IDENTIFIED BY <secret>
@@ -236,6 +236,7 @@ DROP USER plug;
 DROP USER plug_dest;
 SET GLOBAL log_output=  @old_log_output;
 SET GLOBAL general_log= @old_general_log;
+TRUNCATE mysql.general_log;
 ## END @@external_user tests
 #
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.
@@ -274,7 +275,7 @@ DROP DATABASE shared;
 mysqld is alive
 # Executing 'mysqldump'
 #
-# Bug #59657: Move the client authentication_pam plugin into the 
+# Bug #59657: Move the client authentication_pam plugin into the
 #  server repository
 #
 CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
@@ -286,56 +287,56 @@ USER()	CURRENT_USER()
 uplain@localhost	uplain@localhost
 DROP USER uplain@localhost;
 #
-# Bug #59038 : mysql.user.authentication_string column 
+# Bug #59038 : mysql.user.authentication_string column
 #   causes configuration wizard to fail
 INSERT INTO mysql.user(
-Host, 
-User, 
-Select_priv, 
+Host,
+User,
+Select_priv,
 Insert_priv,
-Update_priv, 
-Delete_priv, 
-Create_priv, 
-Drop_priv,  
-Reload_priv, 
+Update_priv,
+Delete_priv,
+Create_priv,
+Drop_priv,
+Reload_priv,
 Shutdown_priv,
-Process_priv, 
-File_priv, 
-Grant_priv, 
-References_priv,  
-Index_priv, 
+Process_priv,
+File_priv,
+Grant_priv,
+References_priv,
+Index_priv,
 Alter_priv,
-Show_db_priv, 
-Super_priv, 
-Create_tmp_table_priv, 
-Lock_tables_priv,  
+Show_db_priv,
+Super_priv,
+Create_tmp_table_priv,
+Lock_tables_priv,
 Execute_priv,
-Repl_slave_priv, 
-Repl_client_priv, 
-/*!50001 
-Create_view_priv, 
-Show_view_priv, 
-Create_routine_priv, 
-Alter_routine_priv, 
-Create_user_priv, 
-*/ 
-ssl_type, 
+Repl_slave_priv,
+Repl_client_priv,
+/*!50001
+Create_view_priv,
+Show_view_priv,
+Create_routine_priv,
+Alter_routine_priv,
+Create_user_priv,
+*/
+ssl_type,
 ssl_cipher,
-x509_issuer, 
-x509_subject, 
-max_questions, 
-max_updates, 
+x509_issuer,
+x509_subject,
+max_questions,
+max_updates,
 max_connections)
 VALUES (
-'localhost', 
+'localhost',
 'inserttest',
 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
-'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 
+'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
 /*!50001 'Y', 'Y', 'Y', 'Y', 'Y', */'', '', '', '', '0', '0', '0');
 FLUSH PRIVILEGES;
 DROP USER inserttest@localhost;
-SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
-COLUMN_NAME IN ('authentication_string', 'plugin') AND 
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE
+COLUMN_NAME IN ('authentication_string', 'plugin') AND
 TABLE_NAME='user' AND
 TABLE_SCHEMA='mysql'
 ORDER BY COLUMN_NAME;
@@ -343,7 +344,7 @@ IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
 NO	plugin
 #
-# Bug #11936829: diff. between mysql.user (authentication_string) 
+# Bug #11936829: diff. between mysql.user (authentication_string)
 #   in fresh and upgraded 5.5.11
 #
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -372,48 +373,27 @@ SET PASSWORD FOR bug12610784@localhost = 'secret';
 ERROR 28000: Access denied for user 'bug12610784'@'localhost' (using password: NO)
 DROP USER bug12610784@localhost;
 #
-# Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
-#  .-> USING PASSWORD: NO 
+# Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN
+#  .-> USING PASSWORD: NO
 # should contain "using password=yes"
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: YES)
 # should contain "using password=no"
 ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: NO)
 #
-# Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
+# Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM
 #   AUTHENTICATION SETTINGS
 #
-CREATE USER bug12818542@localhost 
+CREATE USER bug12818542@localhost
 IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
-CREATE USER bug12818542_dest@localhost 
+CREATE USER bug12818542_dest@localhost
 IDENTIFIED BY 'bug12818542_dest_passwd';
 GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
 SET PASSWORD = 'bruhaha';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'bug12818542'@'localhost' as authentication plugin does not support it.
-SELECT USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-bug12818542@localhost	bug12818542_dest@localhost
-DROP USER bug12818542@localhost;
-DROP USER bug12818542_dest@localhost;
-#
-# Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
-#   AUTHENTICATION SETTINGS
-#
-CREATE USER bug12818542@localhost 
-IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
-CREATE USER bug12818542_dest@localhost 
-IDENTIFIED BY 'bug12818542_dest_passwd';
-GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
-SELECT USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-bug12818542@localhost	bug12818542_dest@localhost
-SET PASSWORD = 'bruhaha';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'bug12818542'@'localhost' as authentication plugin does not support it.
+ERROR HY000: SET PASSWORD has no significance for user 'bug12818542'@'localhost' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
@@ -503,7 +483,7 @@ proxies_priv	CREATE TABLE `proxies_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
   KEY `Grantor` (`Grantor`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='User proxy privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='User proxy privileges'
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 user_name_len_22_01234@localhost	user_name_len_22_0dest@%
@@ -535,7 +515,7 @@ proxies_priv	CREATE TABLE `proxies_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
   KEY `Grantor` (`Grantor`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='User proxy privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='User proxy privileges'
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost	очень_очень_очень_длинный_дест__@%
@@ -613,3 +593,4 @@ CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 SET NAMES default;
+# restart:

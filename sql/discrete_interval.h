@@ -1,7 +1,7 @@
 #ifndef DISCRETE_INTERVAL_INCLUDED
 #define DISCRETE_INTERVAL_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,10 +56,10 @@ class Discrete_interval {
     interval_max = (val == ULLONG_MAX) ? val : start + val * incr;
   }
   Discrete_interval(ulonglong start, ulonglong val, ulonglong incr)
-      : next(NULL) {
+      : next(nullptr) {
     replace(start, val, incr);
   }
-  Discrete_interval() : next(NULL) { replace(0, 0, 0); }
+  Discrete_interval() : next(nullptr) { replace(0, 0, 0); }
   ulonglong minimum() const { return interval_min; }
   ulonglong values() const { return interval_values; }
   ulonglong maximum() const { return interval_max; }
@@ -76,9 +76,9 @@ class Discrete_interval {
         interval_values += val;
         interval_max = start + val * incr;
       }
-      return 0;
+      return false;
     }
-    return 1;
+    return true;
   }
 };
 
@@ -114,9 +114,9 @@ class Discrete_intervals_list {
   uint elements;                              ///< number of elements
   void operator=(Discrete_intervals_list &);  // prevent use of this
   bool append(Discrete_interval *new_interval) {
-    if (unlikely(new_interval == NULL)) return true;
+    if (unlikely(new_interval == nullptr)) return true;
     DBUG_PRINT("info", ("adding new auto_increment interval"));
-    if (head == NULL)
+    if (head == nullptr)
       head = current = new_interval;
     else
       tail->next = new_interval;
@@ -139,20 +139,20 @@ class Discrete_intervals_list {
 
  public:
   Discrete_intervals_list()
-      : head(NULL), tail(NULL), current(NULL), elements(0) {}
-  void empty() {
+      : head(nullptr), tail(nullptr), current(nullptr), elements(0) {}
+  void clear() {
     if (head) {
       // first element, not on heap, should not be delete-d; start with next:
       for (Discrete_interval *i = head->next; i;) {
 #ifdef DISCRETE_INTERVAL_LIST_HAS_MAX_ONE_ELEMENT
-        DBUG_ASSERT(0);
+        assert(0);
 #endif
         Discrete_interval *next = i->next;
         delete i;
         i = next;
       }
     }
-    head = tail = current = NULL;
+    head = tail = current = nullptr;
     elements = 0;
   }
   void swap(Discrete_intervals_list *other) {
@@ -162,10 +162,10 @@ class Discrete_intervals_list {
   }
   const Discrete_interval *get_next() {
     const Discrete_interval *tmp = current;
-    if (current != NULL) current = current->next;
+    if (current != nullptr) current = current->next;
     return tmp;
   }
-  ~Discrete_intervals_list() { empty(); }
+  ~Discrete_intervals_list() { clear(); }
   /**
     Appends an interval to the list.
 
@@ -177,7 +177,7 @@ class Discrete_intervals_list {
   */
   bool append(ulonglong start, ulonglong val, ulonglong incr) {
     // If there are no intervals, add one.
-    if (head == NULL) {
+    if (head == nullptr) {
       first_interval.replace(start, val, incr);
       return append(&first_interval);
     }

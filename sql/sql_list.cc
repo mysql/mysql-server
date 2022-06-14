@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,10 @@
 
 #include "sql/sql_list.h"
 
+#include "my_alloc.h"
 #include "my_sys.h"
 
 list_node end_of_list;
-
-void free_list(I_List<i_string_pair> *list) {
-  i_string_pair *tmp;
-  while ((tmp = list->get())) delete tmp;
-}
 
 void free_list(I_List<i_string> *list) {
   i_string *tmp;

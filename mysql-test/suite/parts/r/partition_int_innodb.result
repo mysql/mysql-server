@@ -7,7 +7,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` tinyint(3) unsigned NOT NULL,
+  `a` tinyint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -43,7 +43,7 @@ partition by key (a) partitions 8;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` tinyint(3) unsigned NOT NULL,
+  `a` tinyint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -75,7 +75,7 @@ partition by key (a) partitions 7;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` tinyint(4) NOT NULL,
+  `a` tinyint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -116,7 +116,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` smallint(5) unsigned NOT NULL,
+  `a` smallint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -152,7 +152,7 @@ partition by key (a) partitions 8;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` smallint(5) unsigned NOT NULL,
+  `a` smallint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -184,7 +184,7 @@ partition by key (a) partitions 7;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` smallint(6) NOT NULL,
+  `a` smallint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -225,7 +225,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
+  `a` int unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -261,7 +261,7 @@ partition by key (a) partitions 8;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL,
+  `a` int unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -293,7 +293,7 @@ partition by key (a) partitions 7;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -334,7 +334,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumint(8) unsigned NOT NULL,
+  `a` mediumint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -370,7 +370,7 @@ partition by key (a) partitions 8;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` mediumint(8) unsigned NOT NULL,
+  `a` mediumint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -402,7 +402,7 @@ partition by key (a) partitions 7;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` mediumint(9) NOT NULL,
+  `a` mediumint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -443,7 +443,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL,
+  `a` bigint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -491,7 +491,7 @@ partition by key (a) partitions 8;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bigint(20) unsigned NOT NULL,
+  `a` bigint unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -523,7 +523,7 @@ partition by key (a) partitions 7;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)

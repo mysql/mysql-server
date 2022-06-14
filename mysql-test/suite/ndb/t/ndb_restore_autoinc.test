@@ -11,6 +11,12 @@
 --echo 1.  Create tables and add some data
 --echo ----------------------------------------
 use test;
+
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
 create table boring (
   a tinyint auto_increment primary key,
   b int
@@ -59,6 +65,65 @@ insert into big_varchars (b) values (repeat('ILBJC', 400));
 --echo Expect next == 6
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
 
+create table tinysignedauto (
+  a tinyint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table smallsignedauto (
+  a smallint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table medsignedauto (
+  a mediumint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table intsignedauto (
+  a int auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table bigsignedauto (
+  a bigint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+insert into tinysignedauto(b) values (repeat('ILBJC', 40));
+insert into tinysignedauto(b) values (repeat('ILBJC', 40));
+insert into tinysignedauto(b) values (repeat('ILBJC', 40));
+
+insert into smallsignedauto(b) values (repeat('ILBJC', 40));
+insert into smallsignedauto(b) values (repeat('ILBJC', 40));
+insert into smallsignedauto(b) values (repeat('ILBJC', 40));
+
+insert into medsignedauto(b) values (repeat('ILBJC', 40));
+insert into medsignedauto(b) values (repeat('ILBJC', 40));
+insert into medsignedauto(b) values (repeat('ILBJC', 40));
+
+insert into intsignedauto(b) values (repeat('ILBJC', 40));
+insert into intsignedauto(b) values (repeat('ILBJC', 40));
+insert into intsignedauto(b) values (repeat('ILBJC', 40));
+
+insert into bigsignedauto(b) values (repeat('ILBJC', 40));
+insert into bigsignedauto(b) values (repeat('ILBJC', 40));
+insert into bigsignedauto(b) values (repeat('ILBJC', 40));
+
+--echo Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+
+insert into tinysignedauto values (-100, repeat('IWBJC', 40));
+insert into smallsignedauto values (-100, repeat('IWBJC', 40));
+insert into medsignedauto values (-100, repeat('IWBJC', 40));
+insert into intsignedauto values (-100, repeat('IWBJC', 40));
+insert into bigsignedauto values (-100, repeat('IWBJC', 40));
+
+
+--echo Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+
+
 # TODO
 #   Show widening / narrowing of auto-increment column
 #   Auto-inc as part of secondary key
@@ -70,6 +135,11 @@ select table_schema, table_name, auto_increment from information_schema.tables w
 
 --source include/ndb_backup.inc
 
+drop table bigsignedauto;
+drop table intsignedauto;
+drop table medsignedauto;
+drop table smallsignedauto;
+drop table tinysignedauto;
 drop table big_varchars;
 drop table empty_specific;
 drop table empty_default;
@@ -122,6 +192,32 @@ create table empty_specific (
 --echo Expect next == 73
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
 
+--echo Following unchanged
+create table tinysignedauto (
+  a tinyint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table smallsignedauto (
+  a smallint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table medsignedauto (
+  a mediumint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table intsignedauto (
+  a int auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
+create table bigsignedauto (
+  a bigint auto_increment primary key,
+  b varchar(2000)
+) engine=ndb;
+
 --echo ----------------------------------------
 --echo 4.  Restore data
 --echo ----------------------------------------
@@ -145,6 +241,10 @@ select table_schema, table_name, auto_increment from information_schema.tables w
 --echo Expect 6
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
 
+--echo Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+
+
 --echo ----------------------------------------
 --echo 6.  Test via inserts
 --echo ----------------------------------------
@@ -168,6 +268,20 @@ insert into big_varchars(b) values (repeat('IMBJC', 400));
 --echo Expect 6
 select max(a) from big_varchars;
 
+insert into tinysignedauto (b) values (repeat('IMBJC', 40));
+insert into smallsignedauto (b) values (repeat('IMBJC', 40));
+insert into medsignedauto (b) values (repeat('IMBJC', 40));
+insert into intsignedauto (b) values (repeat('IMBJC', 40));
+insert into bigsignedauto (b) values (repeat('IMBJC', 40));
+
+--echo Expect 4
+select max(a) from tinysignedauto;
+select max(a) from smallsignedauto;
+select max(a) from medsignedauto;
+select max(a) from intsignedauto;
+select max(a) from bigsignedauto;
+
+
 --echo ----------------------------------------
 --echo 7.  Cleanup
 --echo ----------------------------------------
@@ -177,6 +291,11 @@ drop table boring_keyless;
 drop table empty_default;
 drop table empty_specific;
 drop table big_varchars;
+drop table bigsignedauto;
+drop table intsignedauto;
+drop table medsignedauto;
+drop table smallsignedauto;
+drop table tinysignedauto;
 drop table filler1, filler2, filler3, filler4;
 drop table filler5, filler6, filler7, filler8;
 
@@ -184,21 +303,31 @@ drop table filler5, filler6, filler7, filler8;
 --echo 8.  Use ndb_restore metadata restore
 --echo ----------------------------------------
 
+
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -m --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/include/ndb_sync_metadata.inc
 
 
 --echo ----------------------------------------
 --echo 9.  Check autoincrement info
 --echo ----------------------------------------
 
---echo With just NdbApi metadata restored, auto_increment values are set to default values
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+--echo With just NdbApi metadata restored, auto_increment values are set to default values (1)
 
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+# We use show create table rather than INFORMATION_SCHEMA here to workaround
+# the INFORMATION_SCHEMA returning cached state from the MySQLD data dictionary
 
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
-
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+# Expect 1 (so nothing shown by SHOW CREATE TABLE)
+show create table boring;
+show create table empty_default;
+show create table empty_specific;
+show create table big_varchars;
+show create table bigsignedauto;
+show create table intsignedauto;
+show create table medsignedauto;
+show create table smallsignedauto;
+show create table tinysignedauto;
 
 --echo ----------------------------------------
 --echo 10.  Restore data
@@ -207,25 +336,34 @@ select table_schema, table_name, auto_increment from information_schema.tables w
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+#--source suite/ndb/include/ndb_sync_metadata.inc
+
 
 --echo ----------------------------------------
 --echo 11.  Check autoincrement info
 --echo ----------------------------------------
 
 --echo Expect 7
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+show create table boring;
 
---echo Expect 1
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+--echo Expect 1 (So nothing shown)
+show create table empty_default;
 
 --echo Expect 73
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+show create table empty_specific;
 
 --echo Expect 6
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+show create table big_varchars;
+
+--echo Expect 4
+show create table bigsignedauto;
+show create table intsignedauto;
+show create table medsignedauto;
+show create table smallsignedauto;
+show create table tinysignedauto;
 
 --echo ----------------------------------------
---echo 6.  Test via inserts
+--echo 12.  Test via inserts
 --echo ----------------------------------------
 
 insert into boring (b) values (99);
@@ -247,16 +385,37 @@ insert into big_varchars(b) values (repeat('IMBJC', 400));
 --echo Expect 6
 select max(a) from big_varchars;
 
+insert into tinysignedauto (b) values (repeat('IMBJC', 40));
+insert into smallsignedauto (b) values (repeat('IMBJC', 40));
+insert into medsignedauto (b) values (repeat('IMBJC', 40));
+insert into intsignedauto (b) values (repeat('IMBJC', 40));
+insert into bigsignedauto (b) values (repeat('IMBJC', 40));
+
+--echo Expect 4
+select max(a) from tinysignedauto;
+select max(a) from smallsignedauto;
+select max(a) from medsignedauto;
+select max(a) from intsignedauto;
+select max(a) from bigsignedauto;
+
 --echo ----------------------------------------
---echo 7.  Cleanup
+--echo 13.  Cleanup
 --echo ----------------------------------------
 
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log
 
 drop table boring;
 drop table boring_keyless;
 drop table empty_default;
 drop table empty_specific;
 drop table big_varchars;
+drop table bigsignedauto;
+drop table intsignedauto;
+drop table medsignedauto;
+drop table smallsignedauto;
+drop table tinysignedauto;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

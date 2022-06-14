@@ -48,7 +48,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 COUNT(@@GLOBAL.innodb_buffer_pool_size)
 1
 1 Expected
-SELECT innodb_buffer_pool_size = @@SESSION.innodb_buffer_pool_size;
+SELECT innodb_buffer_pool_size;
 ERROR 42S22: Unknown column 'innodb_buffer_pool_size' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'
 SET @@GLOBAL.innodb_buffer_pool_size = @start_buffer_pool_size;

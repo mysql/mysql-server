@@ -1,0 +1,327 @@
+## Test backward compatibility of collections containing validation
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+create schema xtest default charset 'utf8mb4';
+
+--let $xtest_file= $MYSQL_TMP_DIR/collection_compatibility.xpl
+--write_file $xtest_file
+-->import validation_schema.macro
+
+-->macro create_collection_varbin32 %NAME%
+-->sql
+CREATE TABLE xtest.%NAME% (doc JSON, _id VARBINARY(32) GENERATED ALWAYS AS
+ (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4
+ ENGINE=InnoDB;
+-->endsql
+-->endmacro
+
+-->macro create_collection_varchar32 %NAME%
+-->sql
+CREATE TABLE xtest.%NAME% (doc JSON, _id VARCHAR(32) GENERATED ALWAYS AS
+ (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY)
+ CHARSET utf8mb4 ENGINE=InnoDB;
+-->endsql
+-->endmacro
+
+-->macro create_collection_with_json_schema %NAME%
+-->sql
+CREATE TABLE xtest.%NAME% (`doc` json DEFAULT NULL, `_id` varbinary(32)
+ GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED
+ NOT NULL, `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}')
+ VIRTUAL, PRIMARY KEY (`_id`), CONSTRAINT
+ `$val_strict_F2DE1896B6B5A7BAD6369FB94E3B214EBC2F27EA` CHECK
+ (JSON_SCHEMA_VALID(`_json_schema`,`doc`)) ENFORCED) CHARSET utf8mb4
+ ENGINE=InnoDB;
+-->endsql
+-->endmacro
+
+-->macro List_xtest_objects
+-->stmtadmin list_objects	{"schema": "xtest"}
+-->recvresult
+-->endmacro
+
+-->macro List_collection_columns %COLLECTION_NAME%
+stmtsql SELECT column_name FROM information_schema.columns WHERE
+ table_name = '%COLLECTION_NAME%' ORDER BY column_name ASC;
+-->recvresult
+-->endmacro
+
+-->echo
+-->echo
+-->echo ## I. Create collection with respect to old style collections.
+-->echo #
+-->echo # 1. Create collection when there is an old collection with same name.
+-->echo # 2. Create collection when there is an old collection with different
+-->echo #    name.
+-->echo
+-->echo ## II. Create collection using ensure_collection with respect to old
+-->echo ##     style collections.
+-->echo #
+-->echo # 1. Create collection when there is an old collection with same name.
+-->echo
+-->echo ## III. List collection objects created with and without validation
+-->echo ##      schema
+-->echo #
+-->echo # 1. List just old style collection.
+-->echo # 2. List old and new collection types.
+-->echo # 3. List old and new collection types with regular table.
+-->echo # 4. Drop old collection and list new collection type and a regular
+-->echo #    table.
+-->echo
+-->echo ## IV. Call modify_collection_options on a schema created without
+-->echo ##     a schema validation
+-->echo #
+-->echo # 1. Modify old collection by trying to change only the validation
+-->echo #    level.
+-->echo # 2. Modify old collection by trying to change only the validation
+-->echo #    schema.
+-->echo # 3. Modify old collection by trying to change both validation schema
+-->echo #    and level.
+-->echo # 4. Modify old collection containing data that is not valid according
+-->echo #    to the new schema,
+-->echo #    modification must fail and old table layout should not be changed.
+-->echo #    Update the
+-->echo #    faulty value, modification must pass and layout should be updated.
+-->echo
+-->echo ## V. Call get_collection_options on a schema created withoud a schema
+-->echo ##    validation.
+-->echo #
+-->echo # 1. Fetch valid option.
+-->echo # 1. Fetch invalid option.
+
+
+-->stmtsql USE xtest;
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.1
+-->callmacro %CREATE_COLLECTION% foobar
+stmtadmin create_collection	{"schema": "xtest", "name": "foobar", "options": {
+  "validation": {
+    "level": "STRICT",
+    "schema": "{\"type\": \"object\"}"
+  }
+}};
+-->recverror ER_TABLE_EXISTS_ERROR
+-->stmtadmin create_collection	{"schema": "xtest", "name": "foobar"}
+-->recverror ER_TABLE_EXISTS_ERROR
+-->stmtsql SHOW CREATE TABLE xtest.foobar
+-->recvresult
+-->callmacro Drop_collection	foobar
+
+-->echo
+-->echo #
+-->echo # I.2
+-->callmacro %CREATE_COLLECTION% foo
+stmtadmin create_collection	{"schema": "xtest", "name": "bar", "options": {
+  "validation": {
+    "schema": "{\"type\": \"object\"}"
+  }
+}};
+-->recvresult
+-->stmtsql SHOW CREATE TABLE xtest.foo
+-->recvresult
+-->stmtsql SHOW CREATE TABLE xtest.bar
+-->recvresult
+-->callmacro Drop_collection	foo
+-->callmacro Drop_collection	bar
+
+-->echo
+-->echo #
+-->echo # II.1
+-->callmacro %CREATE_COLLECTION% foobar
+stmtadmin ensure_collection	{"schema": "xtest", "name": "foobar", "options": {
+  "validation": {
+    "schema": "{\"type\": \"object\"}"
+  }
+}};
+-->recvresult
+-->stmtadmin ensure_collection	{"schema": "xtest", "name": "foobar"}
+-->recvresult
+-->stmtadmin ensure_collection	{"name": "foobar"}
+-->recvresult
+-->stmtsql SHOW CREATE TABLE xtest.foobar
+-->recvresult
+-->callmacro Drop_collection	foobar
+
+-->echo
+-->echo #
+-->echo # III.1
+-->callmacro %CREATE_COLLECTION%	old_coll
+-->callmacro List_xtest_objects
+
+-->echo
+-->echo #
+-->echo # III.2
+stmtadmin create_collection	{"schema": "xtest", "name": "new_coll2", "options": {
+  "validation": {
+    "schema": "{\"type\": \"object\"}"
+  }
+}};
+-->recvresult
+-->callmacro List_xtest_objects
+-->stmtadmin create_collection	{"schema": "xtest", "name": "new_coll3"}
+-->recvresult
+-->callmacro List_xtest_objects
+
+-->echo
+-->echo #
+-->echo # III.3
+-->stmtsql CREATE TABLE xtest.regular_tab (doc JSON);
+-->recvresult
+-->callmacro List_xtest_objects
+
+-->echo
+-->echo #
+-->echo # III.4
+-->callmacro Drop_collection	old_coll
+-->callmacro List_xtest_objects
+
+-->quiet
+-->stmtsql DROP TABLE xtest.new_coll2, xtest.new_coll3, xtest.regular_tab;
+-->recvresult
+-->noquiet
+
+
+-->echo
+-->echo #
+-->echo # IV.1
+-->callmacro %CREATE_COLLECTION% old_coll
+-->callmacro List_collection_columns old_coll
+callmacro Insert_value_to_collection	old_coll
+	'{"_id": "1", "name": "Robb", "amount": 125.21}';
+-->recvresult
+stmtadmin modify_collection_options
+	{"schema": "xtest", "name": "old_coll", "options": {
+    "validation": {
+      "level":"strict"
+    }
+  }
+};
+-->recvresult
+-->callmacro List_collection_columns old_coll
+-->callmacro Assert_is_enforced old_coll	YES
+-->callmacro Drop_collection	old_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.2
+-->callmacro %CREATE_COLLECTION% old_coll
+-->callmacro List_collection_columns old_coll
+callmacro Insert_value_to_collection	old_coll
+	'{"_id": "1", "name": "Robb", "amount": 125.21}';
+-->recvresult
+stmtadmin modify_collection_options
+	{"schema": "xtest", "name": "old_coll", "options": {
+    "validation": {
+      "level": "strict",
+      "schema":{"type":"object"}
+    }
+  }
+};
+-->recvresult
+-->callmacro List_collection_columns old_coll
+-->callmacro Assert_is_enforced old_coll	YES
+-->callmacro Drop_collection	old_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.3
+-->callmacro %CREATE_COLLECTION% old_coll
+-->callmacro List_collection_columns old_coll
+callmacro Insert_value_to_collection
+	old_coll
+	'{"_id": "1", "name": "Robb", "amount": 125.21}';
+-->recvresult
+stmtadmin modify_collection_options
+	{"schema": "xtest", "name": "old_coll", "options": {
+    "validation": {
+      "schema":{"type":"object"},
+      "level":"off"
+    }
+  }
+};
+-->recvresult
+-->callmacro List_collection_columns old_coll
+-->callmacro Assert_is_enforced old_coll	NO
+-->callmacro Drop_collection	old_coll
+
+-->echo
+-->echo #
+-->echo # IV.4
+-->callmacro %CREATE_COLLECTION% old_coll
+-->callmacro List_collection_columns old_coll
+callmacro Insert_value_to_collection	old_coll
+	'{"_id": "1", "name": "Robb", "amount": 125.21}';
+-->recvresult
+callmacro Insert_value_to_collection	old_coll
+	'{"_id": "2", "name": "Bob", "amount": 11.19}';
+-->recvresult
+callmacro Insert_value_to_collection	old_coll
+	'{"_id": "3", "name": "John", "amount": 223.17}';
+-->recvresult
+
+varlet %STR%  "type": "object", "properties": {
+   "amount": {"type": "number", "minimum": 100}},
+ "required": ["amount"];
+
+-->callmacro Modify_level	old_coll	STRICT
+-->recvresult
+-->callmacro Modify_schema	old_coll	{%STR%}
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+callmacro Update_item old_coll
+	amount
+	{type: V_DOUBLE v_double: 11.19}
+	{type: V_DOUBLE v_double: 200};
+-->recvresult
+-->callmacro Modify_schema	old_coll	{%STR%}
+-->recvresult
+-->callmacro List_collection_columns old_coll
+-->callmacro Drop_collection	old_coll
+
+-->echo
+-->echo #
+-->echo # V.1
+-->callmacro %CREATE_COLLECTION% old_coll
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "old_coll", "options": ["validation"]};
+-->recvresult
+-->callmacro Drop_collection	old_coll
+
+-->echo
+-->echo #
+-->echo # V.2
+-->callmacro %CREATE_COLLECTION% old_coll
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "old_coll", "options": ["foo", "validation"]};
+-->recverror ER_X_COLLECTION_OPTION_DOESNT_EXISTS
+-->callmacro Drop_collection	old_coll
+
+EOF
+
+exec $MYSQLXTEST
+	-ux_root
+	--password=''
+	-v%CREATE_COLLECTION%=create_collection_varchar32
+	--file=$xtest_file 2>&1;
+
+exec $MYSQLXTEST
+	-ux_root
+	--password=''
+	-v%CREATE_COLLECTION%=create_collection_varbin32
+	--file=$xtest_file 2>&1;
+
+exec $MYSQLXTEST
+	-ux_root
+	--password=''
+	-v%CREATE_COLLECTION%=create_collection_with_json_schema
+	--file=$xtest_file 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

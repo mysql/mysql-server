@@ -1,0 +1,70 @@
+#
+# Test of triggers with replication
+# Adding statement include due to Bug 12574
+# TODO: Remove statement include once 12574 is patched
+--source include/have_binlog_format_mixed_or_statement.inc 
+--source include/master-slave.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--connection slave
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
+call mtr.add_suppression("Either event.*is from an old master");
+call mtr.add_suppression("No definer attribute for trigger*");
+#
+# Since WL#7896 gets rid of SUID triggers it is necessary to suppress the following warning.
+# This warning is issued by slave from the function sql_slave_killed() when
+# an error happen during applying statement and there are slave parallel workers.
+# For case when the statement CREATE TRIGGER without specified DEFINER clause is applied
+# on the slave the error ER_TRG_NO_DEFINER is issued that causes the following warning
+# be emitted.
+#
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--connection master
+enable_query_log;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+
+--enable_warnings
+
+#
+# Bug#40116: Uncommited changes are replicated and stay on slave after
+# rollback on master
+#
+
+connection master;
+--source include/rpl_reset.inc
+
+connection slave;
+
+connection master;
+create table t1 ( f int ) engine = innodb;
+create table log ( r int ) engine = myisam; 
+create trigger tr
+  after insert on t1
+  for each row insert into log values ( new.f );
+
+set autocommit = 0;
+--disable_warnings
+insert into t1 values ( 1 );
+--enable_warnings
+rollback;
+--source include/sync_slave_sql_with_master.inc
+
+let $diff_tables= master:t1, slave:t1;
+--source include/diff_tables.inc
+
+let $diff_tables= master:log, slave:log;
+--source include/diff_tables.inc
+
+connection master;
+drop table t1, log;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# End of tests
+#
+--source include/rpl_end.inc

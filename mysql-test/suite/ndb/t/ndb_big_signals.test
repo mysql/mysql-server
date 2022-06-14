@@ -1,0 +1,198 @@
+source include/have_ndb.inc;
+
+# Nodes:
+#   NDB 1,2
+#   MGM 3
+#   API 16,32,48,49,63,127
+
+# Save now to only look at new info in EventLog
+select now() into @now;
+
+# DUMP signals in use:
+# CmvmiRelayDumpStateOrd(103003) to-node dump-state-ord ...
+# CmvmiDummy(103004) report-to sent-from padding frag-size #sec sec#1-len ...
+# CmvmiSendDummy(103005) report-to send-to padding frag-size #sec sec#1-len ...
+
+# Signals internal to data node do not use transporters and associated buffers.
+# Sections are stored in segmented long message buffers without explicit size
+# limits.
+let $section_size=32768;
+echo section size 3x$section_size: DB(1) -> DB(1);
+exec $NDB_MGM -e
+  "1 DUMP 103005 1 1 1234567890 0 3 $section_size $section_size $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+# Message size is sum of:
+#   mandatory Protocol6 header: 3 words
+#   signal id: 0 or 1 word
+#   signal data size: 7 word (if dump commands are changed this may change)
+#   section lengths: 1 word (one word per section used)
+#   section data: $section_size
+#   checksum: 0 or 1 word
+
+echo * Send biggest supported messages *;
+
+# For MGM and API internal signal no signal id or checksum are used in messages.
+
+let $section_size=8177;
+let $msg_size=`select 3 + 0 + 7 + 1 + $section_size + 0`;
+
+echo size $msg_size: MGM(3) -> MGM(3);
+exec $NDB_MGM
+  -e "1 DUMP 103003 3 103005 1 3 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: API(16) -> API(16);
+exec $NDB_MGM
+  -e "1 DUMP 103003 16 103005 1 16 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+# For external signals signal id and checksum are used in messages.
+
+let $section_size=8176;
+let $msg_size=`select 3 + 1 + 7 + 1 + $section_size + 1`;
+
+echo size $msg_size: DB(2) -> DB(1);
+exec $NDB_MGM -e "2 DUMP 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: DB(1) -> API(32);
+exec $NDB_MGM -e "1 DUMP 103005 1 32 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+let $section_size=8175;
+let $msg_size=`select 3 + 1 + 7 + 1 + $section_size + 1`;
+
+echo size $msg_size: MGM(3) -> DB(1);
+exec $NDB_MGM
+  -e "1 DUMP 103003 3 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: API(16) -> DB(1);
+exec $NDB_MGM
+  -e "1 DUMP 103003 16 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+sleep 1;
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo * Fail send messages bigger than 32KiB bytes *;
+
+# For MGM and API internal signal no signal id or checksum are used in messages.
+
+let $section_size=8181;
+let $msg_size=`select 3 + 0 + 7 + 1 + $section_size + 0`;
+
+echo size $msg_size: MGM(3) -> MGM(3);
+exec $NDB_MGM
+  -e "1 DUMP 103003 3 103005 1 3 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: API(16) -> API(16);
+exec $NDB_MGM
+  -e "1 DUMP 103003 16 103005 1 16 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+# For external signals signal id and checksum are used in messages.
+
+let $section_size=8179;
+let $msg_size=`select 3 + 1 + 7 + 1 + $section_size + 1`;
+
+echo size $msg_size: DB(2) -> DB(1);
+exec $NDB_MGM -e "2 DUMP 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: DB(1) -> API(32);
+exec $NDB_MGM -e "1 DUMP 103005 1 32 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+let $section_size=8179;
+let $msg_size=`select 3 + 1 + 7 + 1 + $section_size + 1`;
+
+echo size $msg_size: MGM(3) -> DB(1);
+exec $NDB_MGM
+  -e "1 DUMP 103003 3 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: API(16) -> DB(1);
+exec $NDB_MGM
+  -e "1 DUMP 103003 16 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+sleep 1;
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo * Fail send messages limited by send buffers but not bigger than 32KiB *;
+
+# For MGM and API internal signal no signal id or checksum are used in messages.
+
+let $section_size=8181;
+let $msg_size=`select 3 + 0 + 7 + 1 + $section_size + 0`;
+
+echo size $msg_size: MGM(3) -> MGM(3);
+exec $NDB_MGM
+  -e "1 DUMP 103003 3 103005 1 3 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: API(16) -> API(16);
+exec $NDB_MGM
+  -e "1 DUMP 103003 16 103005 1 16 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+# For external signals signal id and checksum are used in messages.
+
+let $section_size=8179;
+let $msg_size=`select 3 + 1 + 7 + 1 + $section_size + 1`;
+
+echo size $msg_size: DB(2) -> DB(1);
+exec $NDB_MGM -e "2 DUMP 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: DB(1) -> API(32);
+exec $NDB_MGM -e "1 DUMP 103005 1 32 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+let $section_size=8179;
+let $msg_size=`select 3 + 1 + 7 + 1 + $section_size + 1`;
+
+echo size $msg_size: MGM(3) -> DB(1);
+exec $NDB_MGM
+  -e "1 DUMP 103003 3 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+echo size $msg_size: API(16) -> DB(1);
+exec $NDB_MGM
+  -e "1 DUMP 103003 16 103005 1 1 1234567890 0 1 $section_size";
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+sleep 1;
+exec $NDB_MGM -e "ALL REPORT EventLog" >> $NDB_TOOLS_OUTPUT;
+
+create temporary table ndb_output (
+  idx int auto_increment primary key,
+  output_line blob
+);
+
+disable_query_log;
+eval
+  load data local infile '$NDB_TOOLS_OUTPUT'
+  into table ndb_output
+  character set binary
+  fields terminated by '\r'
+  (output_line, @dummy);
+enable_query_log;
+
+select
+  substr(output_line, 21)
+from ndb_output
+where
+  output_line like '%Dummy%'
+  and substr(output_line, 1, 20) >= @now
+group by output_line
+order by
+  substr(output_line, instr(output_line, 'size')),
+  substr(output_line, 21) desc;
+
+drop table ndb_output;
+
+remove_file $NDB_TOOLS_OUTPUT;

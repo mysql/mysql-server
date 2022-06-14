@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,11 +32,12 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
-#include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xquery_instances.h"
 #include "plugin/x/client/xrow_impl.h"
+#include "plugin/x/src/helper/optional_value.h"
 
 namespace xcl {
 
@@ -87,31 +88,6 @@ class Query_result : public XQuery_result {
   bool verify_current_instance(XError *out_error);
   bool check_if_fetch_done();
 
-  template <typename Type>
-  class Optional_value {
-   public:
-    Optional_value() : m_value(Type()), m_has_value(false) {}
-
-    Optional_value &operator=(const Type &value) {
-      m_value = value;
-      m_has_value = true;
-
-      return *this;
-    }
-
-    bool get_value(Type *out_value) const {
-      if (!m_has_value) return false;
-
-      if (out_value) *out_value = m_value;
-
-      return true;
-    }
-
-   private:
-    Type m_value;
-    bool m_has_value{false};
-  };
-
   bool m_received_fetch_done{false};
   bool m_read_metadata{true};
   bool m_is_out_param_resultset{false};
@@ -120,9 +96,9 @@ class Query_result : public XQuery_result {
   Metadata m_metadata;
 
   XProtocol::Handler_id m_notice_handler_id;
-  Optional_value<uint64_t> m_last_insert_id;
-  Optional_value<uint64_t> m_affected_rows;
-  Optional_value<std::string> m_producted_message;
+  xpl::Optional_value<uint64_t> m_last_insert_id;
+  xpl::Optional_value<uint64_t> m_affected_rows;
+  xpl::Optional_value<std::string> m_producted_message;
   std::vector<std::string> m_generated_document_ids;
   Message_holder m_holder;
   Warnings m_warnings;

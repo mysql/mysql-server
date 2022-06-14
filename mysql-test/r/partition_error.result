@@ -760,7 +760,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -781,7 +781,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -801,7 +801,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -810,12 +810,12 @@ DROP TABLE t1;
 SET @@sql_mode= @org_mode;
 CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1),(1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a))
 PARTITION BY KEY (a) PARTITIONS 2;
 INSERT INTO t1 VALUES (1),(1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 DROP TABLE t1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
@@ -1795,7 +1795,7 @@ SUBPARTITION p2spSecond COMMENT "SubPartition comment in p2spSecond"));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -1825,7 +1825,7 @@ SUBPARTITION p2spSecond COMMENT "SubPartition comment in p2spSecond"));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -1860,7 +1860,7 @@ Warning	1793	Comment for table partition 'pMax' is too long (max = 1024)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `inx_a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -1916,3 +1916,25 @@ ERROR HY000: Found a row in wrong partition 0. Correct is 2 a:6
 DELETE FROM t1 WHERE a > 0;
 ERROR HY000: Table has no partition for value 2
 DROP TABLE t1, t2;
+#
+# Bug #30455845 ASSERTION "!CHECK_DATETIME_RANGE.MY_TIME"
+#
+CREATE TABLE t1(a DATETIME)
+PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
+SET sql_mode='';
+SELECT FROM_DAYS(3652499), FROM_DAYS(3652500), FROM_DAYS(3652501);
+FROM_DAYS(3652499)	FROM_DAYS(3652500)	FROM_DAYS(3652501)
+NULL	0000-00-00	0000-00-00
+Warnings:
+Warning	1441	Datetime function: from_days field overflow
+SELECT FROM_DAYS(4294967660), FROM_DAYS(4294967661), FROM_DAYS(4294967663);
+FROM_DAYS(4294967660)	FROM_DAYS(4294967661)	FROM_DAYS(4294967663)
+0000-00-00	0000-00-00	0000-00-00
+INSERT t1 VALUES(ADDTIME(0,0)), (FROM_DAYS(3652499));
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '00:00:00' at row 1 is deprecated. Prefer the standard '-'.
+Warning	1441	Datetime function: from_days field overflow
+Warning	4095	Delimiter ':' in position 2 in datetime value '00:00:00' at row 1 is deprecated. Prefer the standard '-'.
+Warning	1441	Datetime function: from_days field overflow
+DROP TABLE t1;
+SET sql_mode=default;

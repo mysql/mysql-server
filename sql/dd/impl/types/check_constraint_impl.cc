@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ namespace dd {
 // Check_constraint_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-Check_constraint_impl::Check_constraint_impl() {}
+Check_constraint_impl::Check_constraint_impl() = default;
 
 Check_constraint_impl::Check_constraint_impl(Table_impl *table)
     : m_table(table) {}
@@ -75,9 +75,9 @@ class Check_constraint_name_error_handler : public Internal_error_handler {
  public:
   Check_constraint_name_error_handler(const char *name) : m_name(name) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_DUP_ENTRY) {
       my_error(ER_CHECK_CONSTRAINT_DUP_NAME, MYF(0), m_name);
       return true;
@@ -136,9 +136,9 @@ bool Check_constraint_impl::store_attributes(dd::Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(Check_constraints::FIELD_CHECK_CLAUSE_UTF8 == 6,
-              "Check_constraints definition has changed, review (de)serialize "
-              "member functions!");
+static_assert(Check_constraints::NUMBER_OF_FIELDS == 7,
+              "Check_constraints definition has changed, check if serialize() "
+              "and deserialize() needs to be updated!");
 void Check_constraint_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);

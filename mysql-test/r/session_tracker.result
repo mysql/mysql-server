@@ -28,17 +28,17 @@ utf8mb4	utf8mb4	utf8mb4
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
--- utf8
+-- utf8mb3
 -- character_set_connection
--- utf8
+-- utf8mb3
 -- character_set_results
--- utf8
+-- utf8mb3
 
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
-utf8	utf8	utf8
+utf8mb3	utf8mb3	utf8mb3
 SET NAMES 'big5';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
@@ -54,33 +54,33 @@ big5	big5	big5
 SET @@session.character_set_client=utf8;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
--- utf8
+-- utf8mb3
 
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
-utf8	big5	big5
+utf8mb3	big5	big5
 SET @@session.character_set_results=utf8;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_results
--- utf8
+-- utf8mb3
 
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
-utf8	utf8	big5
+utf8mb3	utf8mb3	big5
 SET @@session.character_set_connection=utf8;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
--- utf8
+-- utf8mb3
 
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
-utf8	utf8	utf8
+utf8mb3	utf8mb3	utf8mb3
 
 # time_zone
 SELECT @@session.time_zone;
@@ -492,11 +492,11 @@ expect 1
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
--- utf8
+-- utf8mb3
 -- character_set_connection
--- utf8
+-- utf8mb3
 -- character_set_results
--- utf8
+-- utf8mb3
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -508,11 +508,11 @@ SET @@session.session_track_state_change=OFF;
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
--- utf8
+-- utf8mb3
 -- character_set_connection
--- utf8
+-- utf8mb3
 -- character_set_results
--- utf8
+-- utf8mb3
 
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -843,5 +843,19 @@ session_track_state_change	ON
 SHOW VARIABLES like 'session_track_state_change';
 Variable_name	Value
 session_track_state_change	OFF
+#
+# Bug#33728209: set variable to function value cause double locking mutex & deadlock/hang
+#
+create function f() returns longtext no sql
+begin
+declare continue handler for sqlexception begin end;
+replace into asd values();
+return 'a';
+end $
+set session_track_system_variables=f();
+Warnings:
+Warning	1231	a is not a valid system variable and will be ignored.
+set session_track_system_variables=DEFAULT;
+drop function f;
 
 # End of tests

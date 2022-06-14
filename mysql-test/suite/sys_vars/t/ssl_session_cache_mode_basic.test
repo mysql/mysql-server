@@ -1,0 +1,76 @@
+--echo #
+--echo # WL#13075: Support TLS session reuse in the C API
+--echo #
+
+--echo # Check the default value
+SELECT @@GLOBAL.ssl_session_cache_mode;
+--echo # 1 expected
+
+
+--echo # Check if value can set
+SET @@GLOBAL.ssl_session_cache_mode=false;
+SELECT @@GLOBAL.ssl_session_cache_mode;
+--echo # 0 expected
+
+
+--echo # Check if the value in GLOBAL Table matches value in variable
+
+--disable_warnings
+SELECT @@GLOBAL.ssl_session_cache_mode = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='ssl_session_cache_mode';
+--enable_warnings
+--echo 1 Expected
+
+SELECT @@GLOBAL.ssl_session_cache_mode;
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='ssl_session_cache_mode';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo # Check if accessing variable with and without GLOBAL point to same variable
+SELECT @@ssl_session_cache_mode = @@GLOBAL.ssl_session_cache_mode;
+--echo # 1 expected
+
+
+--echo # Check if ssl_session_cache_mode can be accessed with the @@ sign
+SELECT @@ssl_session_cache_mode;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.ssl_session_cache_mode;
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.ssl_session_cache_mode;
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT @@GLOBAL.ssl_session_cache_mode;
+--echo 0 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT ssl_session_cache_mode = @@SESSION.ssl_session_cache_mode;
+
+--echo # Set value to true
+SET @@GLOBAL.ssl_session_cache_mode = true;
+# expect success
+
+--echo # Set value to false
+SET @@GLOBAL.ssl_session_cache_mode = false;
+# expect success
+
+--echo # Set value to default
+SET @@GLOBAL.ssl_session_cache_mode = default;
+# expect success
+
+--echo # Set value to foo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.ssl_session_cache_mode = 'foo';
+# expect failure
+
+--echo # Cleanup
+SET @@GLOBAL.ssl_session_cache_mode = default;

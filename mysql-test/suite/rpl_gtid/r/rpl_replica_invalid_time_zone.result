@@ -1,0 +1,50 @@
+#
+# 1. Create source-replica topology
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 2. Configure source with time_zone value to 'UTC'
+SET @save.time_zone= @@time_zone;
+SET time_zone='UTC';
+#
+# 3. Configure replica without time_zone table
+[connection slave]
+RENAME TABLE mysql.time_zone TO mysql.time_zone_bkup;
+[connection master]
+#
+# 4. Execute a transaction which doesn't use time_zone
+CREATE DATABASE IF NOT EXISTS db1;
+#
+# 5. Execute a transaction which does use time_zone
+CREATE USER u1 IDENTIFIED BY 'Root@123';
+#
+# 6. Start replica
+[connection slave]
+call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Slave SQL for channel '':.*failed executing transaction.*");
+call mtr.add_suppression("Slave SQL for channel '': Error 'Table 'mysql.time_zone' doesn't exist' on query.*");
+call mtr.add_suppression("Slave: Unknown or incorrect time zone: 'UTC'.*");
+include/start_slave_io.inc
+include/wait_for_slave_io_to_start.inc
+START REPLICA SQL_THREAD;
+#
+# 7. Verify that replica sql thread failed with error
+include/wait_for_slave_sql_error.inc [errno=1146]
+#
+# 8. Cleanup
+include/stop_slave_io.inc
+RESET REPLICA ALL;
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_HOST= "127.0.0.1", SOURCE_PORT= MASTER_MYPORT;;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+RENAME TABLE mysql.time_zone_bkup TO mysql.time_zone;
+include/start_slave.inc
+[connection master]
+DROP USER u1;
+DROP DATABASE db1;
+set time_zone= @save.time_zone;
+include/rpl_end.inc

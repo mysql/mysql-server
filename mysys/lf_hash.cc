@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
      for non-unique hash, count only _distinct_ values
      (but how to do it in lf_hash_delete ?)
 */
+#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 #include <sys/types.h>
@@ -44,7 +45,7 @@
 #include "my_atomic.h"
 #include "my_bit.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
@@ -114,9 +115,9 @@ static inline T *SET_DELETED(T *ptr) {
     cursor is positioned in either case
     pins[0..2] are used, they are NOT removed on return
 */
-static int my_lfind(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
-                    uint32 hashnr, const uchar *key, size_t keylen,
-                    CURSOR *cursor, LF_PINS *pins) {
+static int my_lfind(std::atomic<LF_SLIST *> *head, lf_cmp_func *cmp_func,
+                    CHARSET_INFO *cs, uint32 hashnr, const uchar *key,
+                    size_t keylen, CURSOR *cursor, LF_PINS *pins) {
   uint32 cur_hashnr;
   const uchar *cur_key;
   size_t cur_keylen;
@@ -148,9 +149,51 @@ retry:
     }
     if (!DELETED(link)) {
       if (cur_hashnr >= hashnr) {
-        int r = 1;
-        if (cur_hashnr > hashnr ||
-            (r = my_strnncoll(cs, cur_key, cur_keylen, key, keylen)) >= 0) {
+        if (cur_hashnr > hashnr) {
+          return 0;
+        }
+        int r;
+        if (cmp_func != nullptr) {
+          /*
+            For the dummy node added by initialize_bucket(),
+            the key length is always zero.
+            So we need to handle such keys correctly even
+            if they can't be compared by compare function.
+
+            This code also handles empty keys belonging to real records
+            (if such empty keys are possible) by ordering them
+            before any real key.
+
+            Note that dummy nodes and real records are hashed into
+            separate values, due to the odd/even bit in the hash,
+            so that dummy nodes and real records belong to different
+            hash value spaces.
+
+            As a result, the compare function will never be called
+            to compare a dummy and a real record.
+          */
+          if (cur_keylen == 0) {
+            if (keylen != 0) {
+              /* cur_key (empty) < key */
+              r = -1;
+            } else {
+              /* cur_key (empty) == key (empty) */
+              r = 0;
+            }
+          } else if (keylen == 0) {
+            /* cur_key > key (empty) */
+            r = +1;
+          } else {
+            r = (*cmp_func)(cur_key, cur_keylen, key, keylen);
+          }
+        } else {
+          /*
+            WARNING,
+            Works for both normal and dummy nodes with their empty keys.
+          */
+          r = my_strnncoll(cs, cur_key, cur_keylen, key, keylen);
+        }
+        if (r >= 0) {
           return !r;
         }
       }
@@ -273,21 +316,22 @@ retry:
     it uses pins[0..2], on return all pins are removed.
     if there're nodes with the same key value, a new node is added before them.
 */
-static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
-                         LF_SLIST *node, LF_PINS *pins, uint flags) {
+static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, lf_cmp_func *cmp_func,
+                         CHARSET_INFO *cs, LF_SLIST *node, LF_PINS *pins,
+                         uint flags) {
   CURSOR cursor;
   int res;
 
   for (;;) {
-    if (my_lfind(head, cs, node->hashnr, node->key, node->keylen, &cursor,
-                 pins) &&
+    if (my_lfind(head, cmp_func, cs, node->hashnr, node->key, node->keylen,
+                 &cursor, pins) &&
         (flags & LF_HASH_UNIQUE)) {
       res = 0; /* duplicate found */
       break;
     } else {
       node->link = cursor.curr;
-      DBUG_ASSERT(node->link != node);         /* no circular references */
-      DBUG_ASSERT(cursor.prev != &node->link); /* no circular references */
+      assert(node->link != node);         /* no circular references */
+      assert(cursor.prev != &node->link); /* no circular references */
       if (atomic_compare_exchange_strong(cursor.prev, &cursor.curr, node)) {
         res = 1; /* inserted ok */
         break;
@@ -303,7 +347,7 @@ static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
     pointer is safe, because dummy nodes are never freed - initialize_bucket()
     uses this fact.
   */
-  return res ? 0 : cursor.curr;
+  return res ? nullptr : cursor.curr;
 }
 
 /*
@@ -318,14 +362,14 @@ static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
   NOTE
     it uses pins[0..2], on return all pins are removed.
 */
-static int ldelete(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
-                   uint32 hashnr, const uchar *key, uint keylen,
-                   LF_PINS *pins) {
+static int ldelete(std::atomic<LF_SLIST *> *head, lf_cmp_func *cmp_func,
+                   CHARSET_INFO *cs, uint32 hashnr, const uchar *key,
+                   uint keylen, LF_PINS *pins) {
   CURSOR cursor;
   int res;
 
   for (;;) {
-    if (!my_lfind(head, cs, hashnr, key, keylen, &cursor, pins)) {
+    if (!my_lfind(head, cmp_func, cs, hashnr, key, keylen, &cursor, pins)) {
       res = 1; /* not found */
       break;
     } else {
@@ -343,7 +387,7 @@ static int ldelete(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
             (to ensure the number of "set DELETED flag" actions
             is equal to the number of "remove from the list" actions)
           */
-          my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
+          my_lfind(head, cmp_func, cs, hashnr, key, keylen, &cursor, pins);
         }
         res = 0;
         break;
@@ -369,17 +413,18 @@ static int ldelete(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
     it uses pins[0..2], on return the pin[2] keeps the node found
     all other pins are removed.
 */
-static LF_SLIST *my_lsearch(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
+static LF_SLIST *my_lsearch(std::atomic<LF_SLIST *> *head,
+                            lf_cmp_func *cmp_func, CHARSET_INFO *cs,
                             uint32 hashnr, const uchar *key, uint keylen,
                             LF_PINS *pins) {
   CURSOR cursor;
-  int res = my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
+  int res = my_lfind(head, cmp_func, cs, hashnr, key, keylen, &cursor, pins);
   if (res) {
     lf_pin(pins, 2, cursor.curr);
   }
   lf_unpin(pins, 0);
   lf_unpin(pins, 1);
-  return res ? cursor.curr : 0;
+  return res ? cursor.curr : nullptr;
 }
 
 static inline const uchar *hash_key(const LF_HASH *hash, const uchar *record,
@@ -434,11 +479,12 @@ static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
   initialization of object provided by LF_ALLOCATOR and set element key from
   object passed as parameter to lf_hash_insert instead of doing simple memcpy.
 */
-void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
-                   uint key_offset, uint key_length,
-                   hash_get_key_function get_key, CHARSET_INFO *charset,
-                   lf_hash_func *hash_function, lf_allocator_func *ctor,
-                   lf_allocator_func *dtor, lf_hash_init_func *init) {
+void lf_hash_init_impl(LF_HASH *hash, uint element_size, uint flags,
+                       uint key_offset, uint key_length,
+                       hash_get_key_function get_key, CHARSET_INFO *charset,
+                       lf_hash_func *hash_function, lf_cmp_func *cmp_function,
+                       lf_allocator_func *ctor, lf_allocator_func *dtor,
+                       lf_hash_init_func *init) {
   lf_alloc_init2(&hash->alloc, sizeof(LF_SLIST) + element_size,
                  offsetof(LF_SLIST, key), ctor, dtor);
   lf_dynarray_init(&hash->array, sizeof(LF_SLIST *));
@@ -446,19 +492,54 @@ void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
   hash->count = 0;
   hash->element_size = element_size;
   hash->flags = flags;
-  hash->charset = charset ? charset : &my_charset_bin;
   hash->key_offset = key_offset;
   hash->key_length = key_length;
   hash->get_key = get_key;
-  hash->hash_function = hash_function ? hash_function : cset_hash_sort_adapter;
+  hash->cmp_function = cmp_function;
+  if (cmp_function != nullptr) {
+    assert(hash_function != nullptr);
+    assert(charset == nullptr);
+    hash->hash_function = hash_function;
+    hash->charset = nullptr;
+  } else {
+    hash->hash_function =
+        hash_function ? hash_function : cset_hash_sort_adapter;
+    hash->charset = charset ? charset : &my_charset_bin;
+  }
   hash->initialize = init;
-  DBUG_ASSERT(get_key ? !key_offset && !key_length : key_length);
+  /*
+    If a get_key() call back is provided:
+    - key_offset should be 0
+    - key_length should be 0
+    - key_offset and key_length are not used.
+    If no get_key() call back is provided:
+    - key_length should be > 0
+  */
+  assert(get_key ? !key_offset && !key_length : key_length);
+}
+
+void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
+                   uint key_offset, uint key_length,
+                   hash_get_key_function get_key, CHARSET_INFO *charset,
+                   lf_hash_func *hash_function, lf_allocator_func *ctor,
+                   lf_allocator_func *dtor, lf_hash_init_func *init) {
+  lf_hash_init_impl(hash, element_size, flags, key_offset, key_length, get_key,
+                    charset, hash_function, nullptr, ctor, dtor, init);
+}
+
+void lf_hash_init3(LF_HASH *hash, uint element_size, uint flags,
+                   hash_get_key_function get_key, lf_hash_func *hash_function,
+                   lf_cmp_func *cmp_function, lf_allocator_func *ctor,
+                   lf_allocator_func *dtor, lf_hash_init_func *init) {
+  lf_hash_init_impl(hash, element_size, flags, 0, 0, get_key, nullptr,
+                    hash_function, cmp_function, ctor, dtor, init);
 }
 
 void lf_hash_destroy(LF_HASH *hash) {
   LF_SLIST *el, **head = (LF_SLIST **)lf_dynarray_value(&hash->array, 0);
 
   if (unlikely(!head)) {
+    lf_alloc_destroy(&hash->alloc);
     return;
   }
   el = *head;
@@ -511,14 +592,16 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data) {
   el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, bucket));
   if (unlikely(!el)) {
+    lf_pinbox_free(pins, node);
     return -1;
   }
   if (el->load() == nullptr &&
       unlikely(initialize_bucket(hash, el, bucket, pins))) {
+    lf_pinbox_free(pins, node);
     return -1;
   }
   node->hashnr = my_reverse_bits(hashnr) | 1; /* normal node */
-  if (linsert(el, hash->charset, node, pins, hash->flags)) {
+  if (linsert(el, hash->cmp_function, hash->charset, node, pins, hash->flags)) {
     lf_pinbox_free(pins, node);
     return 1;
   }
@@ -562,8 +645,9 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen) {
       unlikely(initialize_bucket(hash, el, bucket, pins))) {
     return -1;
   }
-  if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1,
-              pointer_cast<const uchar *>(key), keylen, pins)) {
+  if (ldelete(el, hash->cmp_function, hash->charset,
+              my_reverse_bits(hashnr) | 1, pointer_cast<const uchar *>(key),
+              keylen, pins)) {
     return 1;
   }
   --hash->count;
@@ -611,9 +695,10 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
       unlikely(initialize_bucket(hash, el, bucket, pins))) {
     return MY_LF_ERRPTR;
   }
-  found = my_lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
+  found = my_lsearch(el, hash->cmp_function, hash->charset,
+                     my_reverse_bits(hashnr) | 1,
                      pointer_cast<const uchar *>(key), keylen, pins);
-  return found ? found + 1 : 0;
+  return found ? found + 1 : nullptr;
 }
 
 /**
@@ -706,7 +791,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
   lf_unpin(pins, 0);
   lf_unpin(pins, 1);
 
-  return res ? cursor.curr + 1 : 0;
+  return res ? cursor.curr + 1 : nullptr;
 }
 
 static const uchar *dummy_key = pointer_cast<const uchar *>("");
@@ -721,20 +806,26 @@ static int initialize_bucket(LF_HASH *hash, std::atomic<LF_SLIST *> *node,
   uint parent = my_clear_highest_bit(bucket);
   LF_SLIST *dummy =
       (LF_SLIST *)my_malloc(key_memory_lf_slist, sizeof(LF_SLIST), MYF(MY_WME));
-  LF_SLIST *tmp = 0, *cur;
+  if (unlikely(!dummy)) {
+    return -1;
+  }
+  LF_SLIST *tmp = nullptr, *cur;
   std::atomic<LF_SLIST *> *el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, parent));
-  if (unlikely(!el || !dummy)) {
+  if (unlikely(!el)) {
+    my_free(dummy);
     return -1;
   }
   if (el->load() == nullptr && bucket &&
       unlikely(initialize_bucket(hash, el, parent, pins))) {
+    my_free(dummy);
     return -1;
   }
   dummy->hashnr = my_reverse_bits(bucket) | 0; /* dummy node */
   dummy->key = dummy_key;
   dummy->keylen = 0;
-  if ((cur = linsert(el, hash->charset, dummy, pins, LF_HASH_UNIQUE))) {
+  if ((cur = linsert(el, hash->cmp_function, hash->charset, dummy, pins,
+                     LF_HASH_UNIQUE))) {
     my_free(dummy);
     dummy = cur;
   }

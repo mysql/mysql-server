@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.version);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT version = @@SESSION.version;
---echo Expected error 'Readonly variable'
+SELECT version;
+--echo Expected error 'Unknown column'
 
 

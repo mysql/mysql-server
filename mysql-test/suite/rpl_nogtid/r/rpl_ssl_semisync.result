@@ -4,12 +4,12 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/install_semisync.inc
-call mtr.add_suppression(".*Semi-sync master failed on net_flush.*before waiting for slave reply.*");
+call mtr.add_suppression(".*Semi-sync master failed on net_flush.*before waiting for replica reply.*");
 call mtr.add_suppression(".*Timeout waiting for reply of binlog .* semi-sync up to file .*");
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_SSL = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 1;
 include/start_slave.inc
 
 # Try replicating CREATE TABLE and verify that everything is fine.
@@ -41,5 +41,5 @@ DROP TABLE table1;
 include/sync_slave_sql_with_master.inc
 include/uninstall_semisync.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 include/rpl_end.inc

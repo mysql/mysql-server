@@ -16,7 +16,7 @@ let $pos = query_get_value(SHOW MASTER STATUS, Position, 1);
 connection slave;
 --disable_result_log
 --disable_query_log
-eval select master_pos_wait("$file", $pos, $slave_sync_timeout);
+eval select source_pos_wait("$file", $pos, $slave_sync_timeout);
 --enable_result_log
 --enable_query_log
 

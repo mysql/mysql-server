@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,12 @@
 #include <sstream>
 #include <vector>
 
-#include "common.h"  // make_file_private
 #include "mysql/harness/arg_handler.h"
+#include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/utility/string.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"         // prompt_password
 #include "print_version.h"             // build_version
+#include "router_config.h"             // MYSQL_ROUTER_NAME
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "http_auth_backend.h"
@@ -65,13 +66,8 @@ void PasswdFrontend::init_from_arguments(
 
 PasswdFrontend::PasswdFrontend(const std::string &exe_name,
                                const std::vector<std::string> &args,
-                               std::istream &is, std::ostream &os,
-                               std::ostream &es)
-    : program_name_{exe_name},
-      arg_handler_{true},
-      cin_{is},
-      cout_{os},
-      cerr_{es} {
+                               std::ostream &os, std::ostream &es)
+    : program_name_{exe_name}, arg_handler_{true}, cout_{os}, cerr_{es} {
   init_from_arguments(args);
 }
 
@@ -194,7 +190,7 @@ int PasswdFrontend::run() {
 
           break;
         }
-        /* Falls through. */
+        [[fallthrough]];
       default:
         if (config_.cmd == PasswdFrontend::Cmd::List) {
           throw UsageError("expected at least one extra argument: <filename>");
@@ -402,15 +398,19 @@ void PasswdFrontend::prepare_command_options() {
       "Work-factor hint for KDF if account is updated.",
       CmdOptionValueReq::required, "num", [this](const std::string &value) {
         try {
-          long num = std::stol(value);
+          size_t end_pos;
+          long num = std::stol(value, &end_pos);
           if (num < 0) {
             throw UsageError("--work-factor is negative (must be positive)");
           }
+          if (end_pos != value.size()) {
+            throw UsageError("--work-factor is not a positive integer");
+          }
           config_.cost = num;
-        } catch (const std::out_of_range &e) {
+        } catch (const std::out_of_range &) {
           throw UsageError("--work-factor is larger than " +
                            std::to_string(std::numeric_limits<long>::max()));
-        } catch (const std::invalid_argument &e) {
+        } catch (const std::invalid_argument &) {
           throw UsageError(
               "--work-factor is not an integer (must be an integer)");
         }

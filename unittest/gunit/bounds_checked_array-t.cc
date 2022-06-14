@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <random>
 
 #include "sql/sql_array.h"
 
@@ -33,7 +34,7 @@ class BoundsCheckedArray : public ::testing::Test {
  public:
   BoundsCheckedArray() : some_integer(0) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     for (int ix = 0; ix < c_array_size; ++ix) c_array[ix] = ix;
   }
 
@@ -61,11 +62,11 @@ TEST_F(BoundsCheckedArray, Empty) {
   EXPECT_EQ(sizeof(int), int_array.element_size());
   EXPECT_EQ(0U, int_array.size());
   EXPECT_TRUE(int_array.is_null());
-  int *pi = NULL;
+  int *pi = nullptr;
   EXPECT_EQ(pi, int_array.array());
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef BoundsCheckedArray BoundsCheckedArrayDeathTest;
@@ -108,7 +109,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign) {
                             ".*Assertion .*n < m_size.*");
 }
 
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
 TEST_F(BoundsCheckedArray, Indexing) {
   int_array = Int_array(c_array, c_array_size);
@@ -122,7 +123,7 @@ TEST_F(BoundsCheckedArray, Reset) {
   EXPECT_EQ(c_array, int_array.array());
   EXPECT_FALSE(int_array.is_null());
   int_array.reset();
-  int *pi = NULL;
+  int *pi = nullptr;
   EXPECT_EQ(pi, int_array.array());
   EXPECT_TRUE(int_array.is_null());
 }
@@ -171,7 +172,9 @@ TEST_F(BoundsCheckedArray, Equality) {
 
 TEST_F(BoundsCheckedArray, Sort) {
   int_array = Int_array(c_array, c_array_size);
-  std::random_shuffle(int_array.begin(), int_array.end());
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(int_array.begin(), int_array.end(), urng);
   std::sort(int_array.begin(), int_array.end());
   Int_array::const_iterator it;
   int ix;

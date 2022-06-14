@@ -16,11 +16,11 @@ INSERT INTO t2 VALUES (0),(1),(2);
 FLUSH TABLES t1,t2 FOR EXPORT;
 include/sync_slave_sql_with_master.inc
 # set MYSQLD_DATADIR with master datadir to copy idb and cfg files
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
-backup: t2#P#p0
-backup: t2#P#p1
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t2#p#p0
+backup: t2#p#p1
 # On slave
 # check table created on slave
 SELECT * FROM t1;
@@ -40,17 +40,17 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t2 DISCARD PARTITION p0,p1 TABLESPACE;
 include/sync_slave_sql_with_master.inc
 # Copy back ibd and cfg files on master
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
-restore: t2#P#p0 .ibd and .cfg files
-restore: t2#P#p1 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t2#p#p0 .ibd and .cfg files
+restore: t2#p#p1 .ibd and .cfg files
 # Copy back ibd and cfg files on slave
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
-restore: t2#P#p0 .ibd and .cfg files
-restore: t2#P#p1 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t2#p#p0 .ibd and .cfg files
+restore: t2#p#p1 .ibd and .cfg files
 # IMPORT TABLESPACE on master.It will be also imported on slave.
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1;

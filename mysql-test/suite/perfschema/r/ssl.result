@@ -1,0 +1,76 @@
+update performance_schema.threads
+set INSTRUMENTED = "NO" where THREAD_ID = PS_CURRENT_THREAD_ID();
+update performance_schema.setup_instruments
+set enabled = "NO" where NAME like "wait/%";
+update performance_schema.setup_instruments
+set enabled = "YES" where NAME LIKE "wait/io/socket/%";
+truncate performance_schema.events_waits_history_long;
+"========== SSL CONNECTED =========="
+select sleep(1);
+sleep(1)
+0
+select sleep(1);
+sleep(1)
+0
+"========== SSL STATEMENT =========="
+select "SSL statement";
+SSL statement
+SSL statement
+"========== CLEAR CONNECTED =========="
+select sleep(1);
+sleep(1)
+0
+select sleep(1);
+sleep(1)
+0
+"========== CLEAR STATEMENT =========="
+select "CLEAR statement";
+CLEAR statement
+CLEAR statement
+"========== CLEAR =========="
+select THREAD_ID, NAME, CONNECTION_TYPE
+from performance_schema.threads
+where THREAD_ID = @clear_con_tid;
+THREAD_ID	NAME	CONNECTION_TYPE
+#	thread/sql/one_connection	Socket
+select EVENT_NAME,
+left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE,
+OBJECT_NAME, OPERATION,
+(NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
+from performance_schema.events_waits_history_long
+where (THREAD_ID = @clear_con_tid)
+group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
+order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
+EVENT_NAME	PRINT_SOURCE	OBJECT_NAME	OPERATION	PRINT_NUMBER_OF_BYTES
+idle	init_net_server_extension.cc:	NULL	idle	NULL
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	opt	NULL
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	0
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	1
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	select	NULL
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	send	1
+"========== SSL =========="
+select THREAD_ID, NAME, CONNECTION_TYPE
+from performance_schema.threads
+where THREAD_ID = @ssl_con_tid;
+THREAD_ID	NAME	CONNECTION_TYPE
+#	thread/sql/one_connection	SSL/TLS
+select EVENT_NAME,
+left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE,
+OBJECT_NAME, OPERATION,
+(NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
+from performance_schema.events_waits_history_long
+where (THREAD_ID = @ssl_con_tid)
+group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
+order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
+EVENT_NAME	PRINT_SOURCE	OBJECT_NAME	OPERATION	PRINT_NUMBER_OF_BYTES
+idle	init_net_server_extension.cc:	NULL	idle	NULL
+wait/io/socket/sql/client_connection	open_ssl:	:0	recv	0
+wait/io/socket/sql/client_connection	open_ssl:	:0	recv	1
+wait/io/socket/sql/client_connection	open_ssl:	:0	send	1
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	opt	NULL
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	0
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	1
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	select	NULL
+wait/io/socket/sql/client_connection	viosocket.cc:	:0	send	1
+update performance_schema.setup_instruments
+set ENABLED = "yes" where NAME like "wait/%";

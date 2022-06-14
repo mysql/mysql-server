@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ CHECK_FUNCTION_EXISTS(epoll_create HAVE_EPOLL_CREATE)
 CHECK_FUNCTION_EXISTS(memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS(directio HAVE_DIRECTIO)
-CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP32)
+CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP_32)
 CHECK_FUNCTION_EXISTS(mlock HAVE_MLOCK)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
@@ -77,8 +77,11 @@ CHECK_FUNCTION_EXISTS(cpuset_setaffinity HAVE_CPUSET_SETAFFINITY)
 CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
 
 CHECK_SYMBOL_EXISTS(bzero "strings.h" HAVE_BZERO)
+CHECK_SYMBOL_EXISTS(explicit_bzero "string.h" HAVE_EXPLICIT_BZERO)
+CHECK_SYMBOL_EXISTS(memset_s "string.h" HAVE_MEMSET_S)
 CHECK_SYMBOL_EXISTS(ffs "strings.h" HAVE_FFS)
 
+CHECK_INCLUDE_FILES(atomic.h HAVE_ATOMIC_H)
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
 CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
@@ -86,6 +89,7 @@ CHECK_INCLUDE_FILES(ncursesw/curses.h HAVE_NCURSESW_CURSES_H)
 CHECK_INCLUDE_FILES(ncursesw.h HAVE_NCURSESW_H)
 CHECK_INCLUDE_FILES(ncurses.h HAVE_NCURSES_H)
 CHECK_INCLUDE_FILES(ncurses/curses.h HAVE_NCURSES_CURSES_H)
+CHECK_INCLUDE_FILES(xfs/xfs.h HAVE_XFS_XFS_H)
 
 CHECK_CXX_SOURCE_RUNS("
 template<class T> void ignore(const T&) {}
@@ -307,7 +311,7 @@ ENDIF()
 OPTION(WITH_NDBMTD
   "Build the MySQL Cluster multithreadded data node" ON)
 
-SET(WITH_NDB_PORT "" CACHE INTEGER
+SET(WITH_NDB_PORT "" CACHE STRING
   "Default port used by MySQL Cluster management server")
 IF(WITH_NDB_PORT GREATER 0)
   SET(NDB_PORT ${WITH_NDB_PORT})

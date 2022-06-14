@@ -47,9 +47,11 @@ drop table t1;
 
 create table t1 (a bit(2));
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
+--sorted_result
 select a+0 from t1;
 alter table t1 add key (a);
 explain select a+0 from t1;
+--sorted_result
 select a+0 from t1;
 drop table t1;
 
@@ -62,16 +64,18 @@ insert into t1 values
 (30, 83), (5, 178), (60, 343), (4, 245), (104, 280), (106, 446), (127, 403),
 (44, 307), (68, 454), (57, 135);
 explain select a+0 from t1;
+--sorted_result
 select a+0 from t1;
 explain select b+0 from t1;
+--sorted_result
 select b+0 from t1;
 explain select a+0, b+0 from t1;
+--sorted_result
 select a+0, b+0 from t1;
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
+--partially_sorted_result 1
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 explain select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
-select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
-set @@max_length_for_sort_data=0;
 select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
 select hex(min(a)) from t1;
 select hex(min(b)) from t1;
@@ -82,6 +86,7 @@ create table t1 (a int not null, b bit, c bit(9), key(a, b, c));
 insert into t1 values
 (4, NULL, 1), (4, 0, 3), (2, 1, 4), (1, 1, 100), (4, 0, 23), (4, 0, 54),
 (56, 0, 22), (4, 1, 100), (23, 0, 1), (4, 0, 34);
+--sorted_result
 select a+0, b+0, c+0 from t1;
 select hex(min(b)) from t1 where a = 4;
 select hex(min(c)) from t1 where a = 4 and b = 0;
@@ -98,6 +103,7 @@ drop table t1;
 create table t1(a bit(2), b bit(2));
 insert into t1 (a) values (0x01), (0x03), (0x02);
 update t1 set b= concat(a);
+--sorted_result
 select a+0, b+0 from t1;
 drop table t1;
 
@@ -131,17 +137,23 @@ drop table t1;
 
 create table t1 (a bit(19), b bit(5));
 insert into t1 values (1000, 10), (3, 8), (200, 6), (2303, 2), (12345, 4), (1, 0);
+--sorted_result
 select a+0, b+0 from t1;
 alter table t1 engine=heap;
+--sorted_result
 select a+0, b+0 from t1;
 alter table t1 add key(a, b);
+--sorted_result
 select a+0, b+0 from t1;
 alter table t1 engine=myisam;
+--sorted_result
 select a+0, b+0 from t1;
 create table t2 engine=heap select * from t1;
+--sorted_result
 select a+0, b+0 from t2;
 drop table t1;
 create table t1 select * from t2;
+--sorted_result
 select a+0, b+0 from t1;
 drop table t1, t2;
 
@@ -226,6 +238,7 @@ insert into t1 values (1, 1), (2, 0), (3, 1), (4, 2);
 insert into t2 values (2, 1), (3, 0), (4, 1), (5, 2);
 select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2;
 select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2 order by a1;
+--sorted_result
 select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2;
 
 # We see the functional dependency implied by ON

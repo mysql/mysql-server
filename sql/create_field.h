@@ -1,7 +1,7 @@
 #ifndef SQL_CREATE_FIELD_INCLUDED
 #define SQL_CREATE_FIELD_INCLUDED
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <optional>
+
 #include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "nullable.h"
-#include "sql_list.h"
-#include "typelib.h"
-
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"
+#include "sql/sql_list.h"
+#include "typelib.h"
 
 class Item;
 class String;
@@ -134,7 +134,7 @@ class Create_field {
     Initialized based on flags and other members at prepare_create_field()/
     init_for_tmp_table() stage.
   */
-  bool maybe_null;
+  bool is_nullable;
   bool is_zerofill;
   bool is_unsigned;
 
@@ -174,16 +174,19 @@ class Create_field {
 
   /// Holds the expression to be used to generate default values.
   Value_generator *m_default_val_expr{nullptr};
-  Nullable<gis::srid_t> m_srid;
+  std::optional<gis::srid_t> m_srid;
 
   // Whether the field is actually an array of the field's type;
   bool is_array{false};
 
+  LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
+
   Create_field()
-      : after(NULL),
+      : after(nullptr),
         is_explicit_collation(false),
         geom_type(Field::GEOM_GEOMETRY),
-        maybe_null(false),
+        is_nullable(false),
         is_zerofill(false),
         is_unsigned(false),
         /*
@@ -208,17 +211,18 @@ class Create_field {
 
   /* Init for a tmp table field. To be extended if need be. */
   void init_for_tmp_table(enum_field_types sql_type_arg, uint32 max_length,
-                          uint32 decimals, bool maybe_null, bool is_unsigned,
+                          uint32 decimals, bool is_nullable, bool is_unsigned,
                           uint pack_length_override,
                           const char *field_name = "");
 
   bool init(THD *thd, const char *field_name, enum_field_types type,
             const char *length, const char *decimals, uint type_modifier,
-            Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
-            const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, bool has_explicit_collation,
-            uint uint_geom_type, Value_generator *gcol_info,
-            Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
+            Item *default_value, Item *on_update_value,
+            const LEX_CSTRING *comment, const char *change,
+            List<String> *interval_list, const CHARSET_INFO *cs,
+            bool has_explicit_collation, uint uint_geom_type,
+            Value_generator *gcol_info, Value_generator *default_val_expr,
+            std::optional<gis::srid_t> srid,
             dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {
@@ -254,22 +258,23 @@ class Create_field {
 
   /// Whether or not the display width was given explicitly by the user.
   bool m_explicit_display_width{false};
-
-  /// The maximum number of bytes a TINYBLOB can hold.
-  static constexpr size_t TINYBLOB_MAX_SIZE_IN_BYTES{255};
-
-  /// The maximum number of bytes a BLOB can hold.
-  static constexpr size_t BLOB_MAX_SIZE_IN_BYTES{65535};
-
-  /// The maximum number of bytes a MEDIUMBLOB can hold.
-  static constexpr size_t MEDIUMBLOB_MAX_SIZE_IN_BYTES{16777215};
-
-  /// The maximum number of bytes a LONGBLOB can hold.
-  static constexpr size_t LONGBLOB_MAX_SIZE_IN_BYTES{4294967295};
 };
 
 /// @returns whether or not this field is a hidden column that represents a
 ///          functional index.
 bool is_field_for_functional_index(const Create_field *create_field);
 
+/**
+  @retval true  If this column is hidden either in the storage engine
+                or SQL layer. Either way, it is completely hidden from
+                the user.
+  @retval false Otherwise.
+*/
+bool is_hidden_by_system(const Create_field *create_field);
+
+/**
+  @retval true  If this column is hidden by the user.
+  @retval false otherwise.
+*/
+bool is_hidden_by_user(const Create_field *create_field);
 #endif

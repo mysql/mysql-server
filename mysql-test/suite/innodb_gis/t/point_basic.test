@@ -29,8 +29,11 @@ INSERT INTO gis_point VALUES
 (ST_PointFromText('POINT(100.32374832 101.23741821)'), ST_PointFromText('POINT(200.32247328 101.86728201)')),
 (ST_PointFromText('POINT(100.32374832 101.23741821)'), ST_PointFromText('POINT(100.32374832 101.98527111)'));
 
+ANALYZE TABLE gis_point;
+
 --replace_column 10 #
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2 ORDER by p1, p2;
@@ -39,8 +42,11 @@ SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1,p2 ORDER BY p1,p2
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
 
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE p1 = p2;
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE p1 = ST_PointFromText('POINT(100.32374832 101.23741821)');
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE p2 = ST_PointFromText('POINT(200.32247328 101.86728201)');
 
 DROP TABLE gis_point;
@@ -179,11 +185,14 @@ INSERT INTO gis_point VALUES
 (205, ST_PointFromText('POINT(101.43284962 100.45892392)')),
 (206, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(103.43718640 105.248206478)'))));
 
+ANALYZE TABLE gis_point;
+
 -- echo 'The ORDER BY will use filesort'
 --replace_column 10 #
 EXPLAIN SELECT ST_AsText(p) FROM gis_point ORDER BY p;
 SELECT ST_AsText(p) FROM gis_point ORDER BY p;
 
+--sorted_result
 SELECT ST_AsText(p), COUNT(*) FROM gis_point GROUP BY p;
 
 TRUNCATE gis_point;
@@ -323,273 +332,447 @@ CREATE TABLE gis_point1 SELECT * FROM gis_point;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE name = 'p1' OR name = 'p2';
 
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point1;
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Intersection(@ls1, @ls2) = p1;
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p2) FROM gis_point1 WHERE ST_Contains(@poly2, p2);
+--sorted_result
 SELECT ST_AsText(p2) FROM gis_point1 WHERE ST_Equals(p2, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(@poly3, p1) AND MBRWithin(p2, @poly4);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Contains(@mpoly, p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly);
 
 --echo # Check functions that use MBR, with line type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @ls1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBREquals(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @ls3);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Crosses(p1, @ls1);
 
 --echo # Check functions that use MBR, with polygon type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Crosses(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @poly1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBREquals(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @poly1);
 
 --echo # Check functions that use MBR, with point type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBREquals(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Crosses(p1, @p1);
 
 --echo # Check with MBR functions point type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRequals(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @p1);
 
 --echo # Check with MBR functions point polygon data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRequals(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @p1);
 
 --echo # Check with MBR functions polygon type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @poly1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRequals(p1, @poly1);
 
 --echo # Check with MBR functions line type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRequals(p1, @ls1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @ls1);
 
 DROP TABLE gis_point1;
 
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point;
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1;
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2);
+--sorted_result
 SELECT ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(@poly3, p1) AND MBRWithin(p2, @poly4);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Contains(@mpoly, p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly);
 
 --echo # Check functions that use MBR, with line type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBREquals(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @ls3);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Crosses(p1, @ls1);
 
 --echo # Check functions that use MBR, with polygon type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Crosses(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @poly1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBREquals(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @poly1);
 
 --echo # Check functions that use MBR, with point type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBREquals(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Crosses(p1, @p1);
 
 --echo # Check with MBR functions point type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
 
 --echo # Check with MBR functions point polygon data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
 
 --echo # Check with MBR functions polygon type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @poly1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @poly1);
 
 --echo # Check with MBR functions line type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @ls1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @ls1);
 
 --echo # Modify the storage engine to Myisam, Check the spatial functions
 ALTER TABLE gis_point ENGINE Myisam;
 
 --echo # Check functions that use MBR, with line type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBREquals(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @ls3);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Crosses(p1, @ls1);
 
 --echo # Check functions that use MBR, with polygon type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Crosses(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @poly1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBREquals(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @poly1);
 
 --echo # Check functions that use MBR, with point type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBREquals(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Crosses(p1, @p1);
 
 --echo # Check with MBR functions point type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
 
 --echo # Check with MBR functions point polygon data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @p1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
 
 --echo # Check with MBR functions polygon type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @poly1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @poly1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @poly1);
 
 --echo # Check with MBR functions line type data
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRequals(p1, @ls1);
 
 --echo # No matching records
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @ls1);
+--sorted_result
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRContains(p1, @ls1);
 
 --echo # Modify the storage engine to InnoDB again, do following testing
 ALTER TABLE gis_point ENGINE InnoDB;
 
 CHECK TABLE gis_point;
+
+ANALYZE TABLE gis_point;
 
 -- echo The ORDER BY for spatial index will use filesort
 --replace_column 10 #
@@ -713,6 +896,8 @@ INSERT INTO t1 VALUES(
 ST_GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
 ST_GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
 
+ANALYZE TABLE t1;
+
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 
 --replace_column 10 #
@@ -739,6 +924,8 @@ SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 ALTER TABLE t1 DROP PRIMARY KEY;
 --error ER_SPATIAL_UNIQUE_INDEX
 ALTER TABLE t1 ADD PRIMARY KEY(p);
+
+ANALYZE TABLE t1;
 
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 

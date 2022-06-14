@@ -3,6 +3,24 @@
 
 --source include/count_sessions.inc
 
+# Bug 30709525 - We need more entries in the multi value index
+# to hit the case where the internal InnoDB row_merge_buf_t size
+# is exceeded twice (currently 2MB, cca 150k values in json arrays)
+CREATE TABLE t1 (id INT UNSIGNED NOT NULL, arr JSON NOT NULL, PRIMARY KEY (id));
+
+let $record = 0;
+let $total_records = 15000;
+
+--disable_query_log
+while ($record<$total_records)
+{
+  eval INSERT INTO t1(id, arr) VALUES($record, '[0,1,2,3,4,5,6,7,8,9]');
+  inc $record;
+}
+--enable_query_log
+ALTER TABLE t1 ADD INDEX test_categories ((CAST(arr AS UNSIGNED ARRAY)));
+DROP TABLE t1;
+
 CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
 CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS UNSIGNED ARRAY)));
 INSERT INTO t1(f1) VALUES(CAST('[1333,1321]' AS JSON));
@@ -738,6 +756,16 @@ SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
 SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
 SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
 
+--echo # Force a multi-table UPDATE, to test:
+--echo # Bug #98691: Updating a multi-table view has problem if one sub-table is constant
+
+CREATE VIEW vv AS SELECT t1.* FROM t1 STRAIGHT_JOIN (SELECT 1) AS dt;
+EXPLAIN UPDATE vv SET i = 3 WHERE i = 4;
+UPDATE vv SET i = 3 WHERE i = 4;
+UPDATE vv SET i = 4 WHERE i = 3;
+# Not testing DELETE, as DELETE from multi-table view isn't allowed.
+DROP VIEW vv;
+
 START TRANSACTION;
 UPDATE t1 SET i = 5 WHERE i = 4;
 ROLLBACK;
@@ -837,6 +865,17 @@ SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
 DROP TABLE t1;
 
 
+# Test developed when working on Bug#31479282 - server crashed when adding empty string to column with json index.
+CREATE TABLE t1 (
+  id int NOT NULL,
+  j JSON DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY j_key123 ((CAST(json_extract(j,_utf8mb4'$') AS CHAR(64) ARRAY)))
+);
+
+INSERT INTO t1 values (1000,  CONCAT('[""]'));
+
+DROP TABLE t1;
 
 # Basic test cases for partitioned table with multi-value columns
 CREATE TABLE t1 (i INT, j JSON, KEY mv_idx_int ((CAST(j->'$[*]' AS SIGNED ARRAY))) ) PARTITION BY KEY(i) PARTITIONS 2;
@@ -854,4 +893,71 @@ SELECT * FROM t1 WHERE 1 MEMBER OF (j->'$[*]');
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#33334928: SELECT COUNT(*) using multi-valued index
+--echo #               reports wrong number of rows.
+--echo #
+
+CREATE TABLE t (
+  id int NOT NULL,
+  doc_id int DEFAULT NULL,
+  doc json DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY mv_id (id,(cast(json_extract(doc,'$.val') as unsigned array))),
+  KEY mv_doc_id (doc_id,(cast(json_extract(doc,'$.val') as unsigned array)))
+);
+INSERT INTO t values (1, 2, '{"val":[1,2,3,4,5]}'), (2, 1, '{"val":[2,3,4,5]}'), (3, 2, '{"val":[2,3,4,5]}'), (4, NULL, '{"val":[3,4,5]}'), (5, 2, '{"val":[4,5]}');
+
+ANALYZE TABLE t;
+
+EXPLAIN SELECT COUNT(*) FROM t WHERE id = '1';
+SELECT COUNT(*) FROM t WHERE id = '1';
+
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_id) WHERE id = '1';
+SELECT COUNT(*) FROM t FORCE INDEX (mv_id) WHERE id = '1';
+
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+
+EXPLAIN SELECT * FROM t WHERE id = '1';
+SELECT * FROM t WHERE id = '1';
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
+SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+# Hypergraph ignores FORCE INDEX, so we need --sorted_result in case
+# it does not use the index.
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+
+EXPLAIN SELECT * FROM t WHERE doc_id is NOT NULL;
+SELECT * FROM t WHERE doc_id is NOT NULL;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
+
+DROP TABLE t;
 --source include/wait_until_count_sessions.inc

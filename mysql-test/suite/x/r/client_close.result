@@ -69,10 +69,7 @@ Mysqlx.Resultset.ColumnMetaData {
 
 aborting session sess
 switched to session default
-RUN select sleep(2)
-sleep(2)
-0
-0 rows affected
+Verify [Global status variable "mysqlx_connections_closed" needs to have a value of 2]
 RUN show global status like 'mysqlx_connections_%'
 Variable_name	Value
 Mysqlx_connections_accepted	3
@@ -90,10 +87,7 @@ send Mysqlx.Sql.StmtExecute {
 
 aborting session sess
 switched to session default
-RUN select sleep(2)
-sleep(2)
-0
-0 rows affected
+Verify [Global status variable "mysqlx_connections_closed" needs to have a value of 3]
 RUN show global status like 'mysqlx_connections_%'
 Variable_name	Value
 Mysqlx_connections_accepted	4
@@ -115,6 +109,7 @@ send Mysqlx.Sql.StmtExecute {
 
 aborting session sess
 switched to session default
+Verify [Global status variable "mysqlx_connections_closed" needs to have a value of 4]
 RUN show global status like 'mysqlx_connections_%'
 Variable_name	Value
 Mysqlx_connections_accepted	5
@@ -142,7 +137,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  length: 1
+  length: 2
   flags: 16
 }
 
@@ -219,18 +214,6 @@ Kill a session while idle
 connecting...
 active session is now 'sess'
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 9
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 aborting session sess
@@ -249,18 +232,6 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 10
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 Got expected error (one of: 1317 2006 2007 5010 )
@@ -272,18 +243,6 @@ Kill a session that hasnt authenticated yet
 connecting...
 active session is now 'sess'
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 11
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 RUN select 1
@@ -300,18 +259,6 @@ send Mysqlx.Connection.CapabilitiesGet {
 }
 
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 12
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 Got expected error (one of: 2006 2007 )
@@ -443,11 +390,6 @@ switched to session default
 
 Final check of clients still around
 -----------------------------------
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok

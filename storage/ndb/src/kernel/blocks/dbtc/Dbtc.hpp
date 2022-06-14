@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define DBTC_H
 
 #ifndef DBTC_STATE_EXTRACT
+#include "util/require.h"
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
@@ -113,10 +114,12 @@
 #define ZCOMMITINPROGRESS 230
 #define ZROLLBACKNOTALLOWED 232
 #define ZNO_FREE_TC_CONNECTION 233 // Also Scan
+#define ZHIT_TC_CONNECTION_LIMIT 234
 #define ZABORTINPROGRESS 237
 #define ZPREPAREINPROGRESS 238
 #define ZWRONG_SCHEMA_VERSION_ERROR 241 // Also Scan
 #define ZSCAN_NODE_ERROR 250
+#define ZNO_FRAG_LOCATION_RECORD_ERROR 251
 #define ZTRANS_STATUS_ERROR 253
 #define ZTIME_OUT_ERROR 266
 #define ZSIMPLE_READ_WITHOUT_AI 271
@@ -166,7 +169,11 @@
 #define ZUNLOCKED_OP_HAS_BAD_STATE 295 
 #define ZBAD_DIST_KEY 298
 #define ZTRANS_TOO_BIG 261
+#define ZLQH_NO_SUCH_FRAGMENT_ID 1235
+#define ZLQHKEY_PROTOCOL_ERROR 1237
 #endif
+
+class Dbdih;
 
 class Dbtc
 #ifndef DBTC_STATE_EXTRACT
@@ -180,7 +187,7 @@ public:
    * Incase of mt-TC...only one instance will perform actual take-over
    *   let this be TAKE_OVER_INSTANCE
    */
-  STATIC_CONST( TAKE_OVER_INSTANCE = 1 );
+  static constexpr Uint32 TAKE_OVER_INSTANCE = 1;
 #endif
 
   enum ConnectionState {
@@ -304,7 +311,8 @@ public:
     ITAS_ALL_RECEIVED  = 3,     // All TransIdAI info received
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
-  
+
+  class Dbdih* c_dih;
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
@@ -345,7 +353,7 @@ public:
   */
   typedef DataBufferSegment<11, RT_DBTC_ATTRIBUTE_BUFFER> AttributeBufferSegment;
   typedef TransientPool<AttributeBufferSegment> AttributeBuffer_pool;
-  STATIC_CONST(DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX = 0);
+  static constexpr Uint32 DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX = 0;
   typedef DataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
             AttributeBuffer;
   typedef LocalDataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
@@ -433,7 +441,7 @@ public:
   typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
               CommitAckMarkerSegment;
   typedef TransientPool<CommitAckMarkerSegment> CommitAckMarkerBuffer_pool;
-  STATIC_CONST(DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX = 1);
+  static constexpr Uint32 DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX = 1;
   typedef DataBuffer<5,
                      CommitAckMarkerBuffer_pool,
                      RT_DBTC_COMMIT_ACK_MARKER_BUFFER> CommitAckMarkerBuffer;
@@ -455,7 +463,7 @@ public:
   /* **************************************** */
   struct TcFiredTriggerData
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_FIRED_TRIGGER_DATA );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_FIRED_TRIGGER_DATA;
 
     TcFiredTriggerData()
       : m_magic(Magic::make(TYPE_ID))
@@ -541,7 +549,7 @@ public:
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
   typedef TransientPool<TcFiredTriggerData> TcFiredTriggerData_pool;
-  STATIC_CONST(DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX = 2);
+  static constexpr Uint32 DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX = 2;
   typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
   typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
@@ -645,7 +653,7 @@ public:
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
-    STATIC_CONST( TYPE_ID = RT_DBTC_INDEX_OPERATION );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_INDEX_OPERATION;
 
     TcIndexOperation() :
       m_magic(Magic::make(TYPE_ID)),
@@ -697,7 +705,7 @@ public:
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
   typedef TransientPool<TcIndexOperation> TcIndexOperation_pool;
-  STATIC_CONST(DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX = 3);
+  static constexpr Uint32 DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX = 3;
   typedef LocalDLList<TcIndexOperation_pool> LocalTcIndexOperation_dllist;
 
   /**
@@ -768,7 +776,7 @@ public:
   /*******************************************************************>*/
   struct TcConnectRecord
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_CONNECT_RECORD );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_CONNECT_RECORD;
 
     TcConnectRecord()
     : m_magic(Magic::make(TYPE_ID)),
@@ -777,6 +785,7 @@ public:
       apiConnect(RNIL),
       nextList(RNIL),
       noOfNodes(0),
+      m_overtakeable_operation(0),
       m_special_op_flags(0),
       prevList(RNIL),
       triggeringOperation(RNIL),
@@ -820,6 +829,7 @@ public:
                              /* 1 = UPDATE REQUEST                          */
                              /* 2 = INSERT REQUEST                          */
                              /* 3 = DELETE REQUEST                          */
+    Uint8 m_overtakeable_operation;
     Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
@@ -852,6 +862,11 @@ public:
     Uint16 tcNodedata[4];
     /* Instance key to send to LQH.  Receiver maps it to actual instance. */
     Uint16 lqhInstanceKey;
+    /**
+     * Block number to send request to
+     * DBLQH/V_QUERY
+     */
+    Uint16 recBlockNo;
 
     // Trigger data
     UintR numFiredTriggers;      // As reported by lqhKeyConf
@@ -877,7 +892,7 @@ public:
 
   typedef Ptr<TcConnectRecord> TcConnectRecordPtr;
   typedef TransientPool<TcConnectRecord> TcConnectRecord_pool;
-  STATIC_CONST(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 4);
+  static constexpr Uint32 DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 4;
   typedef LocalDLFifoList<TcConnectRecord_pool> LocalTcConnectRecord_fifo;
 
   /************************** API CONNECT RECORD ***********************
@@ -906,10 +921,10 @@ public:
   /*******************************************************************>*/
   struct ApiConTimers
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_TIMERS );
-    STATIC_CONST( INDEX_BITS = 3 );
-    STATIC_CONST( INDEX_MASK = (1 << INDEX_BITS) - 1 );
-    STATIC_CONST( INDEX_MAX_COUNT = (1 << INDEX_BITS) - 2 );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_API_CONNECT_TIMERS;
+    static constexpr Uint32 INDEX_BITS = 3;
+    static constexpr Uint32 INDEX_MASK = (1 << INDEX_BITS) - 1;
+    static constexpr Uint32 INDEX_MAX_COUNT = (1 << INDEX_BITS) - 2;
 
     struct TimerEntry
     {
@@ -927,7 +942,7 @@ public:
 
     static void static_asserts()
     {
-      STATIC_ASSERT(sizeof(ApiConTimers) ==
+      static_assert(sizeof(ApiConTimers) ==
                       sizeof(TimerEntry) << INDEX_BITS);
     }
 
@@ -941,7 +956,7 @@ public:
 
   typedef Ptr<ApiConTimers> ApiConTimersPtr;
   typedef TransientPool<ApiConTimers> ApiConTimers_pool;
-  STATIC_CONST(DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX = 5);
+  static constexpr Uint32 DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX = 5;
   typedef LocalDLFifoList<ApiConTimers_pool> LocalApiConTimers_list;
 
   alignas(64) ApiConTimers_pool c_apiConTimersPool;
@@ -961,7 +976,7 @@ public:
 
   struct ApiConnectRecord
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_API_CONNECT_RECORD;
 
     enum ConnectionKind
     {
@@ -1039,6 +1054,7 @@ public:
      */
     Uint32 num_commit_ack_markers;
     Uint32 m_write_count;
+    Uint32 m_exec_write_count;
     ReturnSignal returnsignal;
     AbortState abortState;
 
@@ -1058,8 +1074,6 @@ public:
     };
     Uint32 m_flags;
 
-    Uint16 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
-
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
 
@@ -1078,6 +1092,16 @@ public:
     Uint8 timeOutCounter;
     Uint8 singleUserMode;
     
+    Uint8 m_pre_commit_pass;
+
+    // number of on-going cascading scans (FK child scans) at a transaction.
+    Uint8 cascading_scans_count;
+
+    // Trigger execution loop active
+    bool m_inExecuteTriggers;
+
+    Uint16 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
+
     Uint16 returncode;
     Uint16 takeOverInd;
     //---------------------------------------------------
@@ -1135,32 +1159,25 @@ public:
     Uint32 immediateTriggerId;  // Id of trigger op being fired NOW
     Uint32 firedFragId;
     
-    UintR accumulatingIndexOp;
-    UintR executingIndexOp;
-    UintR tcIndxSendArray[6];
-    NDB_TICKS m_start_ticks;
-    LocalTcIndexOperation_dllist::Head theSeizedIndexOperations;
-
 #ifdef ERROR_INSERT
     Uint32 continueBCount;  // ERROR_INSERT 8082
 #endif
-    Uint8 m_pre_commit_pass;
+    UintR accumulatingIndexOp;
+    UintR executingIndexOp;
+    NDB_TICKS m_start_ticks;
+    LocalTcIndexOperation_dllist::Head theSeizedIndexOperations;
+    UintR tcIndxSendArray[6];
 
     bool isExecutingDeferredTriggers() const {
       return apiConnectstate == CS_SEND_FIRE_TRIG_REQ ||
         apiConnectstate == CS_WAIT_FIRE_TRIG_REQ ;
     }
 
-    // number of on-going cascading scans (FK child scans) at a transaction.
-    Uint8 cascading_scans_count;
-
     // Number of on-going trigger operations at a transaction
     // Limit them in order to avoid the transaction
     // overloading node resources (signal/job buffers).
     Uint32 m_executing_trigger_ops;
 
-    // Trigger execution loop active
-    bool m_inExecuteTriggers;
     /**
      * ExecTriggersGuard
      *
@@ -1202,7 +1219,7 @@ public:
   };
   
   typedef TransientPool<ApiConnectRecord> ApiConnectRecord_pool;
-  STATIC_CONST(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 6);
+  static constexpr Uint32 DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 6;
   typedef LocalDLFifoList<ApiConnectRecord_pool, IA_GcpConnect>
       LocalApiConnectRecord_gcp_list;
   typedef LocalSLFifoList<ApiConnectRecord_pool, IA_ApiConnect>
@@ -1378,6 +1395,12 @@ public:
     apiConPtr.p->m_apiConTimer = RNIL;
   }
 
+  void
+  check_blockref(BlockReference ref)
+  {
+    Uint32 nodeId = refToNode(ref);
+    ndbrequire(nodeId > 0 && nodeId < MAX_NODES);
+  }
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
   // This record is used between reception of TCKEYREQ and sending of LQHKEYREQ
@@ -1387,7 +1410,7 @@ public:
 
   struct CacheRecord
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_CACHE_RECORD );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_CACHE_RECORD;
 
     CacheRecord()
       : m_magic(Magic::make(TYPE_ID))
@@ -1434,11 +1457,10 @@ public:
        */
       Uint8  opExec;
       Uint8  m_read_committed_base;
+      Uint8  m_noWait;
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
-      Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
-    
       Uint32 scanInfo;
     
       Uint32 scanTakeOverInd;
@@ -1449,7 +1471,7 @@ public:
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
   typedef TransientPool<CacheRecord> CacheRecord_pool;
-  STATIC_CONST(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX = 7);
+  static constexpr Uint32 DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX = 7;
   CacheRecord m_local_cache_record;
   
   /* ************************ HOST RECORD ********************************** */
@@ -1458,6 +1480,7 @@ public:
   /* SYSTEM                                               */
   /********************************************************/
   struct HostRecord {
+    Bitmask<(MAX_NDBMT_LQH_THREADS+1+31)/32> lqh_pack_mask;
     struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
     struct PackedWordsContainer packTCKEYCONF;
     HostState hostStatus;
@@ -1475,7 +1498,7 @@ public:
       NF_NODE_FAIL_BITS    = 0xF // All bits...
     };
     Uint32 m_nf_bits;
-    NdbNodeBitmask m_lqh_trans_conf;
+    NdbNodeBitmask _m_lqh_trans_conf;
     /**
      * Indicator if any history to track yet
      *
@@ -1568,13 +1591,25 @@ public:
   typedef Ptr<TableRecord> TableRecordPtr;
 
   /**
-   * Specify the location of a fragment. The 'blockRef' is either
-   * the specific LQH where the fragId resides, or the SPJ block
-   * responsible for scaning this fragment, if 'viaSPJ'.
+   * Specify the location of a fragment.
+   * The primaryBlockRef is the location of the primary partition.
+   * The preferredBlockRef is the preferred location using READ
+   * BACKUP and/or location domains. The block reference is always
+   * pointing to a LQH where the data resides.
+   *
+   * primaryBlockRef is only used to sort out which SCAN_FRAGREQ to
+   * SPJ the fragment should be sent to. When using MultiFragFlag
+   * (currently only used by DBSPJ) we will divide the query into
+   * a set of SPJ workers, each handling a subset of the root
+   * table. The primaryBlockRef is used to decide which SPJ worker
+   * should handle this fragment. The preferredBlockRef decides
+   * the placement of the SPJ worker still, this means that we can
+   * have multiple SPJ workers on the same node.
    */
   struct ScanFragLocation
   {
-    Uint32 blockRef;
+    Uint32 primaryBlockRef;
+    Uint32 preferredBlockRef;
     Uint32 fragId;
   };
 
@@ -1582,7 +1617,7 @@ public:
 
   struct ScanFragLocationRec
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_FRAG_LOCATION );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_FRAG_LOCATION;
 
     ScanFragLocationRec()
     : m_magic(Magic::make(TYPE_ID)),
@@ -1603,7 +1638,7 @@ public:
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
   typedef TransientPool<ScanFragLocationRec> ScanFragLocation_pool;
-  STATIC_CONST(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX = 8);
+  static constexpr Uint32 DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX = 8;
   typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
   typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
@@ -1617,7 +1652,7 @@ public:
    * It will receive max 16 tuples in each request
    */
   struct ScanFragRec {
-    STATIC_CONST( TYPE_ID = RT_DBTC_SCAN_FRAGMENT );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_SCAN_FRAGMENT;
     ScanFragRec();
     /**
      * ScanFragState      
@@ -1677,6 +1712,7 @@ public:
     Uint32 m_ops;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
+    Uint32 m_hasMore;
     Uint32 nextList;
     Uint32 prevList;
     NDB_TICKS m_start_ticks;
@@ -1684,7 +1720,7 @@ public:
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
   typedef TransientPool<ScanFragRec> ScanFragRec_pool;
-  STATIC_CONST(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX = 9);
+  static constexpr Uint32 DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX = 9;
   typedef SLList<ScanFragRec_pool> ScanFragRec_sllist;
   typedef DLList<ScanFragRec_pool> ScanFragRec_dllist;
   typedef LocalDLList<ScanFragRec_pool> Local_ScanFragRec_dllist;
@@ -1695,7 +1731,7 @@ public:
    *
    */
   struct ScanRecord {
-    STATIC_CONST( TYPE_ID = RT_DBTC_SCAN_RECORD );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_SCAN_RECORD;
     ScanRecord()
     : m_magic(Magic::make(TYPE_ID)),
       scanState(IDLE),
@@ -1779,7 +1815,7 @@ public:
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
     ScanFragRec_dllist::Head m_queued_scan_frags;   // In TC !sent to API
     ScanFragRec_dllist::Head m_delivered_scan_frags;// Delivered to API
-    
+
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
     Uint32 scanNextFragId;
@@ -1826,9 +1862,11 @@ public:
     bool m_pass_all_confs;
 
     /**
-     * Send opcount/total len as different words
+     * Use 4 or 5 word extended conf signal, where opcount, total_len & active
+     * are sent as separate words. 4 or 5 word extended format is decided
+     * based on 'ndbd_send_active_bitmask(<version>)'
      */
-    bool m_4word_conf;
+    bool m_extended_conf;
     bool m_read_committed_base;
 
     /**
@@ -1841,7 +1879,7 @@ public:
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   typedef TransientPool<ScanRecord> ScanRecord_pool;
-  STATIC_CONST(DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX = 10);
+  static constexpr Uint32 DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX = 10;
   
   /*************************************************************************>*/
   /*                     GLOBAL CHECKPOINT INFORMATION RECORD                */
@@ -1854,7 +1892,7 @@ public:
   /*************************************************************************>*/
   struct GcpRecord
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_GCP_RECORD );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_GCP_RECORD;
 
     GcpRecord()
       : m_magic(Magic::make(TYPE_ID))
@@ -1869,7 +1907,7 @@ public:
   
   typedef Ptr<GcpRecord> GcpRecordPtr;
   typedef TransientPool<GcpRecord> GcpRecord_pool;
-  STATIC_CONST(DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX = 11);
+  static constexpr Uint32 DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX = 11;
   typedef LocalSLFifoList<GcpRecord_pool> LocalGcpRecord_list;
 
   /*************************************************************************>*/
@@ -1894,7 +1932,7 @@ public:
 
 public:
   Dbtc(Block_context&, Uint32 instanceNumber = 0);
-  virtual ~Dbtc();
+  ~Dbtc() override;
 
 private:
   BLOCK_DEFINES(Dbtc);
@@ -1978,6 +2016,7 @@ private:
 
   void execCREATE_FK_IMPL_REQ(Signal* signal);
   void execDROP_FK_IMPL_REQ(Signal* signal);
+  void execUPD_QUERY_DIST_ORD(Signal*);
 
   // Index table lookup
   void execTCKEYCONF(Signal* signal);
@@ -2128,14 +2167,17 @@ private:
   bool sendDihGetNodeReq(Signal*,
                          ScanRecordPtr,
                          ScanFragLocationPtr &fragLocationPtr,
-                         Uint32 scanFragId);
+                         Uint32 scanFragId,
+                         bool is_multi_spj_scan);
   void get_next_frag_location(ScanFragLocationPtr fragLocationPtr,
                               Uint32 & fragId,
-                              Uint32 & blockRef);
+                              Uint32 & primaryBlockRef,
+                              Uint32 & preferredBlockRef);
   void get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
                                        ScanRecord *scanPtrP,
                                        Uint32 & fragId,
-                                       Uint32 & blockRef);
+                                       Uint32 & primaryBlockRef,
+                                       Uint32 & preferredBlockRef);
   void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
   bool sendScanFragReq(Signal*,
                        ScanRecordPtr,
@@ -2143,6 +2185,7 @@ private:
                        ScanFragLocationPtr & fragLocationPtr,
                        ApiConnectRecordPtr const apiConnectptr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
+  void send_close_scan(Signal*, ScanFragRecPtr, const ApiConnectRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req, ApiConnectRecordPtr apiConnectptr);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr);
   
@@ -2190,12 +2233,6 @@ private:
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
   void sendApiLateCommitSignal(Signal* signal, Ptr<ApiConnectRecord> apiCopy);
-  bool sendAttrInfoTrain(Signal* signal,
-                         UintR TBRef,
-                         Uint32 connectPtr,
-                         Uint32 offset,
-                         Uint32 attrInfoIVal,
-                         ApiConnectRecord* regApiPtr);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
                      BlockReference TBRef,
@@ -2331,8 +2368,12 @@ private:
                              Uint32 opPtrI,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);
-  void fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr);
-  void fk_scanFromChildTable_abort(Signal* signal, TcConnectRecordPtr);
+  void fk_scanFromChildTable_done(Signal* signal,
+                                  TcConnectRecordPtr,
+                                  ApiConnectRecordPtr);
+  void fk_scanFromChildTable_abort(Signal* signal,
+                                   TcConnectRecordPtr,
+                                   ApiConnectRecordPtr);
 
   void execSCAN_TABREF(Signal*);
   void execSCAN_TABCONF(Signal*);
@@ -2363,12 +2404,6 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
   void signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abort080Lab(Signal* signal);
-  void sendKeyInfoTrain(Signal* signal,
-                        BlockReference TBRef,
-                        Uint32 connectPtr,
-                        Uint32 offset,
-                        Uint32 keyInfoIVal,
-                        ApiConnectRecord* const regApiPtr);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started, ApiConnectRecordPtr apiConnectptr);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordPtr apiConnectptr);
@@ -2414,6 +2449,9 @@ private:
   void wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void noFreeConnectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
+  void logAbortingOperation(Signal* signal, ApiConnectRecordPtr apiPtr, TcConnectRecordPtr tcPtr, Uint32 error);
+  void logTransactionTimeout(Signal* signal, Uint32 apiConn, Uint32 errCode, bool force = false);
+  void logScanTimeout(Signal* signal, ScanFragRecPtr scanFragPtr, ScanRecordPtr scanPtr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
@@ -2440,7 +2478,6 @@ private:
   void checkNodeFailComplete(Signal* signal, Uint32 failedNodeId, Uint32 bit);
 
   void apiFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
-  bool isRefreshSupported() const;
   
   // Initialisation
   void initData();
@@ -2479,7 +2516,7 @@ private:
      ApiConnectRecord * const regApiPtr);
    Uint32 check_own_location_domain(Uint16*, Uint32);
 protected:
-  virtual bool getParam(const char* name, Uint32* count);
+  bool getParam(const char* name, Uint32* count) override;
   
 private:
   Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
@@ -2616,6 +2653,8 @@ private:
   } c_counters;
   RSS_OP_SNAPSHOT(cconcurrentOp);
 
+  Uint32 m_concurrent_overtakeable_operations;
+
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
@@ -2697,7 +2736,7 @@ private:
 public:
   struct CommitAckMarker
   {
-    STATIC_CONST( TYPE_ID = RT_DBTC_COMMIT_ACK_MARKER );
+    static constexpr Uint32 TYPE_ID = RT_DBTC_COMMIT_ACK_MARKER;
 
     CommitAckMarker()
     : m_magic(Magic::make(TYPE_ID)),
@@ -2732,7 +2771,7 @@ public:
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
-  STATIC_CONST(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 12);
+  static constexpr Uint32 DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 12;
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
@@ -2755,12 +2794,14 @@ private:
   void removeMarkerForFailedAPI(Signal* signal, NodeId nodeId, Uint32 bucket);
 
   bool getAllowStartTransaction(NodeId nodeId, Uint32 table_single_user_mode) const {
-    if (unlikely(getNodeState().getSingleUserMode()))
-    {
-      if (getNodeState().getSingleUserApi() == nodeId || table_single_user_mode)
-        return true;
-      else
-        return false;
+    if (unlikely(getNodeState().getSingleUserMode())) {
+      if (getNodeInfo(nodeId).m_type != NodeInfo::DB) {
+        // Cluster is in single user mode and an API Node is attempting to start
+        // a transaction. The transaction is allowed only if this is the
+        // designated API node that has been granted access.
+        return (table_single_user_mode ||
+                getNodeState().getSingleUserApi() == nodeId);
+      }
     }
     return getNodeState().startLevel < NodeState::SL_STOPPING_2;
   }
@@ -2890,31 +2931,62 @@ private:
 
   Uint32 m_load_balancer_location;
 
+  enum TransErrorLogLevel
+  {
+    /* No logging */
+    TELL_NONE                       = 0x0000,
+
+    /* When to log */
+
+    /*   Always */
+    TELL_ALL                        = 0x0001,
+
+    /*   Only when there are deferred triggers in the transaction */
+    TELL_DEFERRED                   = 0x0002,
+
+    /* Space left for more 'filters' */
+    TELL_CONTROL_MASK               = 0x00FF,
+
+    /* What to log */
+    /*   Log details when one operation causes a transaction to abort */
+    TELL_TC_ABORTS                  = 0x0100,
+
+    /*   Log details when a transaction times out at TC */
+    /*     Log timed out transaction details at TC incl ops */
+    TELL_TC_TIMEOUTS_TRANS_OPS      = 0x0200,
+    /*     Also log timed out transaction operation details @ LDM */
+    TELL_TC_TIMEOUTS_TRANS_OPS_LDM  = 0x0400,
+
+    /* All timeout logging options */
+    TELL_TC_TIMEOUTS_MASK           = 0x0600,
+
+
+    /* 'Full logging' value */
+    TELL_FULL                       = 0x0701
+  };
+
 #ifdef ERROR_INSERT
   // Used with ERROR_INSERT 8078 + 8079 to check API_FAILREQ handling
   Uint32 c_lastFailedApi;
 #endif
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
+  Uint32 c_trans_error_loglevel;
   Uint32 m_take_over_operations;
 #endif
+
 
 #ifndef DBTC_STATE_EXTRACT
   void dump_trans(ApiConnectRecordPtr transPtr);
   bool hasOp(ApiConnectRecordPtr transPtr, Uint32 op);
 
 public:
+  DistributionHandler m_distribution_handle;
+
 static Uint64 getTransactionMemoryNeed(
     const Uint32 dbtc_instance_count,
     const ndb_mgm_configuration_iterator * mgm_cfg,
-    const Uint32 TakeOverOperations,
-    const Uint32 MaxNoOfConcurrentIndexOperations,
-    const Uint32 MaxNoOfConcurrentOperations,
-    const Uint32 MaxNoOfConcurrentScans,
-    const Uint32 MaxNoOfConcurrentTransactions,
-    const Uint32 MaxNoOfFiredTriggers,
-    const Uint32 MaxNoOfLocalScans,
-    const Uint32 TransactionBufferMemory);
+    const bool use_reserved);
 #endif
 };
 

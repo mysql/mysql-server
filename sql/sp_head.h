@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <string>
+#include <vector>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -36,24 +36,24 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
-#include "sql/field.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/set_var.h"
-#include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 
+class Field;
 class Item;
 class Item_trigger_field;
 class Sroutine_hash_entry;
 class Table_trigger_field_support;
+class THD;
 class sp_head;
+struct CHARSET_INFO;
 struct MY_BITMAP;
 
 /**
@@ -93,9 +93,7 @@ class Stored_program_creation_ctx : public Default_object_creation_ctx {
   virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) = 0;
 
  protected:
-  Stored_program_creation_ctx(THD *thd)
-      : Default_object_creation_ctx(thd),
-        m_db_cl(thd->variables.collation_database) {}
+  explicit Stored_program_creation_ctx(THD *thd);
 
   Stored_program_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,
@@ -103,11 +101,7 @@ class Stored_program_creation_ctx : public Default_object_creation_ctx {
       : Default_object_creation_ctx(client_cs, connection_cl), m_db_cl(db_cl) {}
 
  protected:
-  virtual void change_env(THD *thd) const {
-    thd->variables.collation_database = m_db_cl;
-
-    Default_object_creation_ctx::change_env(thd);
-  }
+  void change_env(THD *thd) const override;
 
  protected:
   /**
@@ -131,7 +125,7 @@ class sp_name {
 
   sp_name(const LEX_CSTRING &db, const LEX_STRING &name, bool use_explicit_name)
       : m_db(db), m_name(name), m_explicit_name(use_explicit_name) {
-    m_qname.str = 0;
+    m_qname.str = nullptr;
     m_qname.length = 0;
   }
 
@@ -157,14 +151,14 @@ class sp_parser_data {
 
  public:
   sp_parser_data()
-      : m_current_stmt_start_ptr(NULL),
-        m_option_start_ptr(NULL),
-        m_param_start_ptr(NULL),
-        m_param_end_ptr(NULL),
-        m_body_start_ptr(NULL),
+      : m_current_stmt_start_ptr(nullptr),
+        m_option_start_ptr(nullptr),
+        m_param_start_ptr(nullptr),
+        m_param_end_ptr(nullptr),
+        m_body_start_ptr(nullptr),
         m_cont_level(0),
-        m_saved_memroot(NULL),
-        m_saved_item_list(NULL) {}
+        m_saved_memroot(nullptr),
+        m_saved_item_list(nullptr) {}
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -188,33 +182,13 @@ class sp_parser_data {
 
     @param thd  Thread context.
   */
-  void finish_parsing_sp_body(THD *thd) {
-    /*
-      In some cases the parser detects a syntax error and calls
-      THD::cleanup_after_parse_error() method only after finishing parsing
-      the whole routine. In such a situation sp_head::restore_thd_mem_root()
-      will be called twice - the first time as part of normal parsing process
-      and the second time by cleanup_after_parse_error().
-
-      To avoid ruining active arena/mem_root state in this case we skip
-      restoration of old arena/mem_root if this method has been already called
-      for this routine.
-    */
-    if (!is_parsing_sp_body()) return;
-
-    thd->free_items();
-    thd->mem_root = m_saved_memroot;
-    thd->set_item_list(m_saved_item_list);
-
-    m_saved_memroot = NULL;
-    m_saved_item_list = NULL;
-  }
+  void finish_parsing_sp_body(THD *thd);
 
   /**
     @retval true if SP-body statement is being parsed.
     @retval false otherwise.
   */
-  bool is_parsing_sp_body() const { return m_saved_memroot != NULL; }
+  bool is_parsing_sp_body() const { return m_saved_memroot != nullptr; }
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -431,7 +405,13 @@ class sp_head {
       b) because in CONTAINS SQL case they don't provide enough
       information anyway.
      */
-    MODIFIES_DATA = 4096
+    MODIFIES_DATA = 4096,
+    /**
+      Set when a stored program contains sub-statement(s) that creates or drops
+      temporary table(s). When set, used to mark invoking statement as unsafe to
+      be binlogged in STATEMENT format, when in MIXED mode.
+    */
+    HAS_TEMP_TABLE_DDL = 8192
   };
 
  public:
@@ -478,8 +458,8 @@ class sp_head {
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
-  LEX_STRING m_body;
-  LEX_STRING m_body_utf8;
+  LEX_CSTRING m_body;
+  LEX_CSTRING m_body_utf8;
   LEX_STRING m_defstr;
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;
@@ -671,7 +651,7 @@ class sp_head {
     @return Error status.
   */
 
-  bool execute_procedure(THD *thd, List<Item> *args);
+  bool execute_procedure(THD *thd, mem_root_deque<Item *> *args);
 
   /**
     Add instruction to SP.
@@ -690,6 +670,14 @@ class sp_head {
     @sa Comment for MODIFIES_DATA flag.
   */
   bool modifies_data() const { return m_flags & MODIFIES_DATA; }
+
+  /**
+    @returns true if stored program has sub-statement(s) to CREATE/DROP
+    temporary table(s).
+      @retval true   if HAS_TEMP_TABLE_DDL is set in m_flags.
+      @retval false  Otherwise.
+  */
+  bool has_temp_table_ddl() const { return m_flags & HAS_TEMP_TABLE_DDL; }
 
   uint instructions() { return static_cast<uint>(m_instructions.size()); }
 
@@ -713,7 +701,7 @@ class sp_head {
   */
   bool restore_lex(THD *thd);
 
-  char *name(uint *lenp = 0) const {
+  char *name(uint *lenp = nullptr) const {
     if (lenp) *lenp = (uint)m_name.length;
     return m_name.str;
   }
@@ -722,6 +710,7 @@ class sp_head {
     Create Field-object corresponding to the RETURN field of a stored function.
     This operation makes sense for stored functions only.
 
+    @param thd              thread context.
     @param field_max_length the max length (in the sense of Item classes).
     @param field_name       the field name (item name).
     @param table            the field's table.
@@ -729,8 +718,10 @@ class sp_head {
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(size_t field_max_length, const char *field_name,
-                             TABLE *table);
+  Field *create_result_field(THD *thd, size_t field_max_length,
+                             const char *field_name, TABLE *table) const;
+
+  void returns_type(THD *thd, String *result) const;
 
   void set_info(longlong created, longlong modified, st_sp_chistics *chistics,
                 sql_mode_t sql_mode);
@@ -822,7 +813,7 @@ class sp_head {
              HAS_COMMIT_OR_ROLLBACK | HAS_SQLCOM_RESET | HAS_SQLCOM_FLUSH));
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Return the routine instructions as a result set.
     @return Error status.
@@ -847,6 +838,12 @@ class sp_head {
     DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x", this, name(),
                         unsafe_flags));
     prelocking_ctx->set_stmt_unsafe_flags(unsafe_flags);
+
+    /*
+      If temporary table is created or dropped in the stored program then
+      statement is unsafe to be logged in STATEMENT format, when in MIXED mode.
+    */
+    if (has_temp_table_ddl()) prelocking_ctx->set_stmt_unsafe_with_mixed_mode();
   }
 
   /**

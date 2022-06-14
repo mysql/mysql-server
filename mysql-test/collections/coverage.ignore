@@ -5,8 +5,10 @@
 
 plugin/x/tests/driver/
 unittest/gunit/xplugin
+unittest/gunit/libmysqlgcs
 extra/protobuf
 extra/icu
+extra/zstd
 
 router/src/harness/tests/
 router/src/metadata_cache/tests

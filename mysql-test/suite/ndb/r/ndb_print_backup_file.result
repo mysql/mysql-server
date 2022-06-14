@@ -3,9 +3,9 @@ without errors.
 That should cover most kinds of backup files, and both newer and older
 formats.
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-1-0.1.Data
-173 bytes in output
+195912 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-1-0.2.Data
-173 bytes in output
+190106 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-1.1.ctl
 1155 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-1.1.log
@@ -15,9 +15,9 @@ ndb_print_backup_file suite/ndb/backups/50/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-1.2.log
 4310 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-2-0.1.Data
-173 bytes in output
+59313 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-2-0.2.Data
-173 bytes in output
+57833 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-2.1.ctl
 626 bytes in output
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-2.1.log
@@ -27,9 +27,9 @@ ndb_print_backup_file suite/ndb/backups/50/BACKUP-2.2.ctl
 ndb_print_backup_file suite/ndb/backups/50/BACKUP-2.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/51/BACKUP-1-0.1.Data
-173 bytes in output
+182504 bytes in output
 ndb_print_backup_file suite/ndb/backups/51/BACKUP-1-0.2.Data
-173 bytes in output
+178860 bytes in output
 ndb_print_backup_file suite/ndb/backups/51/BACKUP-1.1.ctl
 26719 bytes in output
 ndb_print_backup_file suite/ndb/backups/51/BACKUP-1.1.log
@@ -39,9 +39,9 @@ ndb_print_backup_file suite/ndb/backups/51/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51/BACKUP-1.2.log
 4119 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1-0.1.Data
-173 bytes in output
+59722 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1-0.2.Data
-173 bytes in output
+60901 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1.1.ctl
 22194 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1.1.log
@@ -51,9 +51,9 @@ ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1-0.1.Data
-173 bytes in output
+61176 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1-0.2.Data
-173 bytes in output
+59661 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1.1.ctl
 22194 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1.1.log
@@ -63,9 +63,9 @@ ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1-0.1.Data
-173 bytes in output
+65994 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1-0.2.Data
-173 bytes in output
+67679 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1.1.ctl
 79096 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1.1.log
@@ -75,9 +75,9 @@ ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_le/BACKUP-1-0.1.Data
-173 bytes in output
+67399 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_le/BACKUP-1-0.2.Data
-173 bytes in output
+66268 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_le/BACKUP-1.1.ctl
 79098 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_le/BACKUP-1.1.log
@@ -87,9 +87,9 @@ ndb_print_backup_file suite/ndb/backups/51_data_le/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51_data_le/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_dd/BACKUP-1-0.1.Data
-173 bytes in output
+60947 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_dd/BACKUP-1-0.2.Data
-173 bytes in output
+59487 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_dd/BACKUP-1.1.ctl
 26282 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_dd/BACKUP-1.1.log
@@ -98,10 +98,90 @@ ndb_print_backup_file suite/ndb/backups/51_dd/BACKUP-1.2.ctl
 26282 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_dd/BACKUP-1.2.log
 173 bytes in output
+ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1-0.1.Data
+73579 bytes in output
+ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1-0.2.Data
+76649 bytes in output
+ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1.1.ctl
+131780 bytes in output
+ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1.2.ctl
+131780 bytes in output
+ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T10F0.Data
+584 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T11F0.Data
+584 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T13F0.Data
+2333 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T13F0.ctl
+624 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T16F0.Data
+2333 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T16F0.ctl
+624 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T19F0.Data
+2333 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T19F0.ctl
+624 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T22F0.Data
+2333 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T22F0.ctl
+624 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T25F0.Data
+584 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T25F0.ctl
+507 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T2F0.ctl
+504 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T3F0.ctl
+504 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/0/T8F0.Data
+581 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T10F0.ctl
+503 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T11F0.ctl
+503 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T13F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T16F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T19F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T22F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T4F0.ctl
+504 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T5F0.ctl
+505 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T7F0.ctl
+504 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T8F0.ctl
+502 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/1/T9F0.ctl
+504 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/2/T13F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/2/T16F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/2/T19F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/2/T22F0.Data
+2331 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/3/T13F0.Data
+1429 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/3/T16F0.Data
+1429 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/3/T19F0.Data
+1429 bytes in output
+ndb_print_backup_file suite/ndb/backups/LCP/3/T22F0.Data
+1429 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1-0.1.Data
-173 bytes in output
+534 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1-0.2.Data
-173 bytes in output
+534 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1.1.ctl
 34508 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1.1.log
@@ -111,7 +191,7 @@ ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/bug17275798/BACKUP-1-0.21.Data
-173 bytes in output
+104502 bytes in output
 ndb_print_backup_file suite/ndb/backups/bug17275798/BACKUP-1.21.ctl
 22285 bytes in output
 ndb_print_backup_file suite/ndb/backups/bug17275798/BACKUP-1.21.log
@@ -120,10 +200,106 @@ ndb_print_backup_file suite/ndb/backups/bug54613/BACKUP-2.2.ctl
 33362 bytes in output
 ndb_print_backup_file suite/ndb/backups/hashmap/BACKUP-1.2.ctl
 6425 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
+17305 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
+17898 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1-0.1.Data
+17472 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1-0.2.Data
+18432 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1-0.1.Data
+16346 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1-0.2.Data
+18088 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1-0.1.Data
+16297 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1-0.2.Data
+16252 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
+16299 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
+17145 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1-0.1.Data
+16771 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1-0.2.Data
+17284 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1-0.1.Data
+15501 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1-0.2.Data
+17289 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1-0.1.Data
+15690 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1-0.2.Data
+15449 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
+173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1-0.1.Data
-173 bytes in output
+53175 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1-0.2.Data
-173 bytes in output
+52020 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1.1.ctl
 52771 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1.1.log
@@ -133,9 +309,9 @@ ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1-0.1.Data
-173 bytes in output
+51975 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1-0.2.Data
-173 bytes in output
+50676 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1.1.ctl
 34173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1.1.log
@@ -145,9 +321,9 @@ ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1.2
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1-0.1.Data
-173 bytes in output
+57888 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1-0.2.Data
-173 bytes in output
+60757 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.1.ctl
 35918 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.1.log
@@ -157,21 +333,21 @@ ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1-0.1.Data
-173 bytes in output
+60884 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1-0.2.Data
-173 bytes in output
+63839 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.1.ctl
-40505 bytes in output
+52920 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.1.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.2.ctl
-40505 bytes in output
+52920 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1-0.1.Data
-173 bytes in output
+206406 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1-0.2.Data
-173 bytes in output
+210054 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1.1.ctl
 1217625 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1.1.log
@@ -181,9 +357,9 @@ ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1.2
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+19519 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+19390 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-1-OF-4/BACKUP-1.1.ctl
 110776 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-1-OF-4/BACKUP-1.1.log
@@ -193,9 +369,9 @@ ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-1-OF-4/BACKUP
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-1-OF-4/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-3-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+18774 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-3-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+20049 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-3-OF-4/BACKUP-1.1.ctl
 110776 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-3-OF-4/BACKUP-1.1.log
@@ -205,9 +381,9 @@ ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-3-OF-4/BACKUP
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-3-OF-4/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+18823 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+18259 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP-1.1.ctl
 110776 bytes in output
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP-1.1.log
@@ -217,15 +393,17 @@ ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
 334 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1-0.2.Data
-173 bytes in output
+1247 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1.2.ctl
 37317 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1.2.log
 108087 bytes in output
+ndb_print_backup_file suite/ndb/backups/pre_75_partitioning_variants/BACKUP-1.1.ctl
+52242 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+25055 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+25710 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1.1.ctl
 139646 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1.1.log
@@ -235,9 +413,9 @@ ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1.2.log
 29642 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-2-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+25381 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-2-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+27259 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-2-OF-4/BACKUP-1.1.ctl
 139646 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-2-OF-4/BACKUP-1.1.log
@@ -247,9 +425,9 @@ ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-2-OF-4/BACKUP-
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-2-OF-4/BACKUP-1.2.log
 29539 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-3-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+24113 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-3-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+25900 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-3-OF-4/BACKUP-1.1.ctl
 139646 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-3-OF-4/BACKUP-1.1.log
@@ -259,9 +437,9 @@ ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-3-OF-4/BACKUP-
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-3-OF-4/BACKUP-1.2.log
 29172 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-4-OF-4/BACKUP-1-0.1.Data
-173 bytes in output
+24206 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-4-OF-4/BACKUP-1-0.2.Data
-173 bytes in output
+25472 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-4-OF-4/BACKUP-1.1.ctl
 139646 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-4-OF-4/BACKUP-1.1.log
@@ -271,9 +449,9 @@ ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-4-OF-4/BACKUP-
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
 28508 bytes in output
 ndb_print_backup_file suite/ndb/backups/wl946_pre/BACKUP-1-0.1.Data
-173 bytes in output
+64113 bytes in output
 ndb_print_backup_file suite/ndb/backups/wl946_pre/BACKUP-1-0.2.Data
-173 bytes in output
+62146 bytes in output
 ndb_print_backup_file suite/ndb/backups/wl946_pre/BACKUP-1.1.ctl
 42357 bytes in output
 ndb_print_backup_file suite/ndb/backups/wl946_pre/BACKUP-1.1.log
@@ -282,3 +460,191 @@ ndb_print_backup_file suite/ndb/backups/wl946_pre/BACKUP-1.2.ctl
 42357 bytes in output
 ndb_print_backup_file suite/ndb/backups/wl946_pre/BACKUP-1.2.log
 173 bytes in output
+Verify that ndb_print_backup_file can be used to check backup generated files individually (CTL, DATA, LOG)
+include/assert_grep.inc [Checking .Data backup file]
+include/assert_grep.inc [Checking .ctl backup file]
+include/assert_grep.inc [Checking .log backup file]
+Verify that ndb_print_backup_file can be used to check LCP Data and CTL files individually
+ndb_print_backup_file suite/ndb/backups/LCP/0/T22F0.ctl
+-- FileHeader:
+Magic: NDBBCKUP
+BackupVersion: 0x00070604
+SectionType: 1
+SectionLength: 9
+FileType: 6
+BackupId: 0
+BackupKey: [ 0x00000000 0x00000000 ]
+ByteOrder: 0xXXXXXXXX
+
+-- LCP Control file part:
+Checksum: 0x551e456a
+ValidFlag: 1
+TableId: 22
+FragmentId: 0
+CreateTableVersion: 1
+CreateGci: 245
+MaxGciCompleted: 244
+MaxGciWritten: 245
+LcpId: 7
+LocalLcpId: 0
+MaxPageCount: 4
+MaxNumberDataFiles: 2064
+LastDataFileNumber: 3
+RowCount: 150
+MaxPartPairs: 2048
+NumPartPairs: 4
+Pair[0]: StartPart: 0 NumParts: 512
+Pair[1]: StartPart: 512 NumParts: 512
+Pair[2]: StartPart: 1024 NumParts: 512
+Pair[3]: StartPart: 1536 NumParts: 512
+
+ndb_print_backup_file suite/ndb/backups/LCP/0/T10F0.Data
+-- FileHeader:
+Magic: NDBBCKUP
+BackupVersion: 0x00070604
+SectionType: 1
+SectionLength: 9
+FileType: 4
+BackupId: 2
+BackupKey: [ 0x00000000 0x00000000 ]
+ByteOrder: 0xXXXXXXXX
+
+-- Table List:
+SectionType: 4
+SectionLength: 3
+Tables: 10 
+
+-- Fragment header:
+SectionType: 2
+SectionLength: 5
+TableId: 10
+FragmentNo: 0
+ChecksumType: 0
+
+Found 0 INSERT records
+Found 0 WRITE records
+Found 0 DELETE BY ROWID records
+Found 0 DELETE BY PAGEID records
+Found 0 IGNOREd records
+Found 0 records
+-- Fragment footer:
+SectionType: 3
+SectionLength: 6
+TableId: 10
+FragmentNo: 0
+NoOfRecords: 0
+Checksum: 0
+
+ndb_print_backup_file suite/ndb/backups/LCP/0/T19F0.ctl
+-- FileHeader:
+Magic: NDBBCKUP
+BackupVersion: 0x00070604
+SectionType: 1
+SectionLength: 9
+FileType: 6
+BackupId: 0
+BackupKey: [ 0x00000000 0x00000000 ]
+ByteOrder: 0xXXXXXXXX
+
+-- LCP Control file part:
+Checksum: 0x551e456f
+ValidFlag: 1
+TableId: 19
+FragmentId: 0
+CreateTableVersion: 1
+CreateGci: 245
+MaxGciCompleted: 244
+MaxGciWritten: 245
+LcpId: 7
+LocalLcpId: 0
+MaxPageCount: 4
+MaxNumberDataFiles: 2064
+LastDataFileNumber: 3
+RowCount: 150
+MaxPartPairs: 2048
+NumPartPairs: 4
+Pair[0]: StartPart: 0 NumParts: 512
+Pair[1]: StartPart: 512 NumParts: 512
+Pair[2]: StartPart: 1024 NumParts: 512
+Pair[3]: StartPart: 1536 NumParts: 512
+
+ndb_print_backup_file suite/ndb/backups/LCP/1/T22F0.Data
+-- FileHeader:
+Magic: NDBBCKUP
+BackupVersion: 0x00070604
+SectionType: 1
+SectionLength: 9
+FileType: 4
+BackupId: 7
+BackupKey: [ 0x00000000 0x00000000 ]
+ByteOrder: 0xXXXXXXXX
+
+-- Table List:
+SectionType: 4
+SectionLength: 3
+Tables: 22 
+
+-- Fragment header:
+SectionType: 2
+SectionLength: 5
+TableId: 22
+FragmentNo: 0
+ChecksumType: 0
+
+INSERT: RecNo: 0: Len: bc, page(2,0)
+INSERT: RecNo: 1: Len: bc, page(2,188)
+INSERT: RecNo: 2: Len: bc, page(2,376)
+INSERT: RecNo: 3: Len: bc, page(2,564)
+INSERT: RecNo: 4: Len: bc, page(2,752)
+INSERT: RecNo: 5: Len: bc, page(2,940)
+INSERT: RecNo: 6: Len: bc, page(2,1128)
+INSERT: RecNo: 7: Len: bc, page(2,1316)
+INSERT: RecNo: 8: Len: bc, page(2,1504)
+INSERT: RecNo: 9: Len: bc, page(2,1692)
+INSERT: RecNo: 10: Len: bc, page(2,1880)
+INSERT: RecNo: 11: Len: bc, page(2,2068)
+INSERT: RecNo: 12: Len: bc, page(2,2256)
+INSERT: RecNo: 13: Len: bc, page(2,2444)
+INSERT: RecNo: 14: Len: bc, page(2,2632)
+INSERT: RecNo: 15: Len: bc, page(2,2820)
+INSERT: RecNo: 16: Len: bc, page(2,3008)
+INSERT: RecNo: 17: Len: bc, page(2,3196)
+INSERT: RecNo: 18: Len: bc, page(2,3384)
+INSERT: RecNo: 19: Len: bc, page(2,3572)
+INSERT: RecNo: 20: Len: bc, page(2,3760)
+INSERT: RecNo: 21: Len: bc, page(2,3948)
+INSERT: RecNo: 22: Len: bc, page(2,4136)
+INSERT: RecNo: 23: Len: bc, page(2,4324)
+INSERT: RecNo: 24: Len: bc, page(2,4512)
+INSERT: RecNo: 25: Len: bc, page(2,4700)
+INSERT: RecNo: 26: Len: bc, page(2,4888)
+INSERT: RecNo: 27: Len: bc, page(2,5076)
+INSERT: RecNo: 28: Len: bc, page(2,5264)
+INSERT: RecNo: 29: Len: bc, page(2,5452)
+INSERT: RecNo: 30: Len: bc, page(2,5640)
+INSERT: RecNo: 31: Len: bc, page(2,5828)
+INSERT: RecNo: 32: Len: bc, page(2,6016)
+INSERT: RecNo: 33: Len: bc, page(2,6204)
+INSERT: RecNo: 34: Len: bc, page(2,6392)
+INSERT: RecNo: 35: Len: bc, page(2,6580)
+INSERT: RecNo: 36: Len: bc, page(2,6768)
+INSERT: RecNo: 37: Len: bc, page(2,6956)
+INSERT: RecNo: 38: Len: bc, page(2,7144)
+INSERT: RecNo: 39: Len: bc, page(2,7332)
+INSERT: RecNo: 40: Len: bc, page(2,7520)
+INSERT: RecNo: 41: Len: bc, page(2,7708)
+INSERT: RecNo: 42: Len: bc, page(2,7896)
+Found 43 INSERT records
+Found 0 WRITE records
+Found 0 DELETE BY ROWID records
+Found 0 DELETE BY PAGEID records
+Found 0 IGNOREd records
+Found 43 records
+-- Fragment footer:
+SectionType: 3
+SectionLength: 6
+TableId: 22
+FragmentNo: 0
+NoOfRecords: 0
+Checksum: 0
+

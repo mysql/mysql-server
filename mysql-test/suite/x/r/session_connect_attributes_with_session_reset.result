@@ -51,6 +51,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
+Verify [Global status variable "Mysqlx_sessions" needs to have a value of 1]
 
 #
 # II.1

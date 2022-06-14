@@ -141,9 +141,11 @@ SELECT * FROM t1 FOR SHARE SKIP LOCKED;
 --echo #  Dual locking clauses
 --error ER_OPTION_PREVENTS_STATEMENT
 SELECT * FROM t1, t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+--sorted_result
 SELECT * FROM t1, t2 FOR SHARE OF t1 FOR SHARE OF t2;
 SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
 SELECT * FROM t1 FOR SHARE OF t1 SKIP LOCKED;
+--sorted_result
 SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
 COMMIT;
 
@@ -157,6 +159,7 @@ set global read_only=OFF;
 --echo # SELECT ... FOR SHARE OF ... FOR UPDATE OF ...
 connection con1;
 BEGIN;
+--sorted_result
 SELECT * FROM t1, t2 FOR UPDATE OF t1 FOR SHARE OF t2;
 
 connection default;

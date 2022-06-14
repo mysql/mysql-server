@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,14 +33,14 @@
 
 #include "sql/sql_const_folding.h"
 
+#include <assert.h>
 #include <float.h>                         // DBL_MAX, FLT_MAX
 #include <stdint.h>                        // UINT64_MAX
 #include <sys/types.h>                     // uint
-#include <cstring>                         // memset
 #include <utility>                         // swap
 #include "decimal.h"                       // E_DEC_FATAL_ERROR
 #include "field_types.h"                   // MYSQL_TYPE_DATE
-#include "my_dbug.h"                       // DBUG_ASSERT
+                                           // assert
 #include "my_decimal.h"                    // my_decimal, my_decimal_cmp
 #include "my_inttypes.h"                   // longlong, ulonglong
 #include "my_time.h"                       // TIME_to_longlong_datetime_packed
@@ -213,6 +213,8 @@ static bool fold_or_convert_dec(THD *thd, Item **const_val,
                         constant (at execution time). May be modified if
                         we replace or fold the constant.
   @param      ft        the function type of the comparison
+  @param      left_has_field
+                        the field is the left operand
   @param[out] place     the placement of the const_val relative to
                         the range of f
   @param[out] discount_equal
@@ -222,6 +224,7 @@ static bool fold_or_convert_dec(THD *thd, Item **const_val,
 */
 static bool analyze_int_field_constant(THD *thd, Item_field *f,
                                        Item **const_val, Item_func::Functype ft,
+                                       bool left_has_field,
                                        Range_placement *place,
                                        bool *discount_equal) {
   const bool field_unsigned = f->unsigned_flag;
@@ -240,7 +243,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         break;
       }
     }
-      // fall-through
+      [[fallthrough]];
     case REAL_RESULT: {
       /*
         Try to convert to decimal. If that fails, we know the constant is out of
@@ -268,22 +271,24 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         */
         my_decimal n;
         err = int2my_decimal(E_DEC_FATAL_ERROR, 0, false, &n);
-        DBUG_ASSERT(err == 0);
-        DBUG_ASSERT(my_decimal_cmp(&n, &dec) == 0);
+        assert(err == 0);
+        assert(my_decimal_cmp(&n, &dec) == 0);
         if (v > 0) {
           // underflow on the positive side
           String s("0.1", thd->charset());
-          err = string2my_decimal(E_DEC_FATAL_ERROR, &s, &dec);
-          DBUG_ASSERT(err == 0);
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
+          assert(err == 0);
         } else {
           String s("-0.1", thd->charset());
-          err = string2my_decimal(E_DEC_FATAL_ERROR, &s, &dec);
-          DBUG_ASSERT(err == 0);
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
+          assert(err == 0);
         }
       }
       d = &dec;
     }
-      // fall-through
+      [[fallthrough]];
     case DECIMAL_RESULT: {
       /*
         If out of bounds of longlong, return RP_OUTSIDE_LOW or RP_OUTSIDE_HIGH
@@ -298,20 +303,21 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       if (d == nullptr) d = (*const_val)->val_decimal(&d_buff);
       if (ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC) {
         /*
-          Round up the decimal to next integral value, then try to convert
-          that to a longlong, or short circuit
+          Round up (or down if field is the right operand) the decimal to next
+          integral value, then try to convert that to a longlong, or short
+          circuit
         */
-        if (round_fold_or_convert_dec(thd, const_val, place, f, d, true,
-                                      discount_equal))
+        if (round_fold_or_convert_dec(thd, const_val, place, f, d,
+                                      left_has_field, discount_equal))
           return true;
         if (*place != RP_INSIDE) return false;
       } else if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC) {
         /*
-          Round down the decimal to next integral value, then try to convert
-          that to a longlong
+          Round down (or up) the decimal to next integral value, then try to
+          convert that to a longlong
         */
-        if (round_fold_or_convert_dec(thd, const_val, place, f, d, false,
-                                      discount_equal))
+        if (round_fold_or_convert_dec(thd, const_val, place, f, d,
+                                      !left_has_field, discount_equal))
           return true;
         if (*place != RP_INSIDE) return false;
       } else {  // for =, <>
@@ -352,7 +358,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       // special treatment below
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 
   switch (f->field->type()) {
@@ -421,7 +427,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       }
     } break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 
   return false;
@@ -445,12 +451,12 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
   @param[out] negative  true if the constant is has a (minus) sign
   @returns   true on error
 */
-static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
+static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
                                            Item **const_val,
                                            Item_func::Functype ft,
                                            Range_placement *place,
                                            bool *negative) {
-  const auto fd = down_cast<Field_new_decimal *>(f->field);
+  const auto fd = down_cast<const Field_new_decimal *>(f->field);
   const int f_frac = fd->dec;
   const int f_intg = fd->precision - f_frac;
   bool was_string_or_real = false;
@@ -474,7 +480,9 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
     case INT_RESULT: {
       my_decimal tmp;
       const auto *const d = (*const_val)->val_decimal(&tmp);
-      DBUG_ASSERT(decimal_actual_fraction(d) == 0);
+      if (thd->is_error()) return true;
+      assert(d != nullptr);
+      assert(decimal_actual_fraction(d) == 0);
       const int actual_intg = decimal_intg(d);
 
       if (actual_intg > f_intg) {  // overflow
@@ -491,9 +499,9 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
 
     } break;
     case REAL_RESULT: {
-      my_decimal tmp;
+      my_decimal val_dec;
       double v = (*const_val)->val_real();
-      err = double2decimal(v, &tmp);
+      err = double2decimal(v, &val_dec);
 
       if (err & E_DEC_OVERFLOW) {
         if (v < 0)
@@ -515,7 +523,7 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
         *negative = v < 0;
         my_decimal tmp;
         err = longlong2decimal(0, &tmp);
-        DBUG_ASSERT(err == 0);
+        assert(err == 0);
 
         widen_fraction(f_frac, &tmp);
         const auto new_dec = new (thd->mem_root) Item_decimal(&tmp);
@@ -525,7 +533,7 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
       }
       was_string_or_real = true;
     }
-      // fall-thru
+      [[fallthrough]];
     case DECIMAL_RESULT: {
       /*
         Decimal constant can have different range and precision
@@ -535,6 +543,8 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
       // Compute actual (minimal) decimal type of the constant
       my_decimal buff, *d;
       d = (*const_val)->val_decimal(&buff);
+      if ((*const_val)->null_value) return false;
+      assert(d != nullptr);
       const int actual_frac = decimal_actual_fraction(d);
       const int actual_intg = decimal_intg(d);
       const bool overflow = actual_intg > f_intg;
@@ -619,7 +629,7 @@ static bool analyze_real_field_constant(THD *thd, Item_field *f,
       */
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       break;
   }
 
@@ -693,7 +703,7 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
       allowed year values have been typed as MYSQL_TYPE_YEAR, cf.
       convert_constant_item called during type resolution.
     */
-    DBUG_ASSERT((*const_val)->result_type() == INT_RESULT);
+    assert((*const_val)->result_type() == INT_RESULT);
     const longlong year = (*const_val)->val_int();
 
     if (year == 0)
@@ -741,7 +751,7 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
       }
     } break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       break;
   }
   return false;
@@ -763,7 +773,7 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
   @returns   true on error
 
 */
-static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
+static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
                                              Item **const_val,
                                              Range_placement *place) {
   const auto rtype = (*const_val)->result_type();
@@ -772,7 +782,7 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
     case INT_RESULT: {
       MYSQL_TIME ltime =
           my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
-      MYSQL_TIME_STATUS status{0, 0, 0};
+      MYSQL_TIME_STATUS status;
       if (rtype == STRING_RESULT) {
         String buf, *res = (*const_val)->val_str(&buf);
         /*
@@ -815,17 +825,18 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
       if (ft == MYSQL_TYPE_TIMESTAMP) {
         /*
           Convert constant to timeval, if it fits. If not, we are out of
-          range for a TIMESTAMP. The timeval is UTC since epoch.
+          range for a TIMESTAMP. The timeval is UTC since epoch, using 32
+          bits range.
         */
         int warnings = 0;
-        struct timeval tm;
-        std::memset(&tm, 0, sizeof(tm));
+        my_timeval tm = {0, 0};
         int zeros = 0;
         zeros += ltime.year == 0;
         zeros += ltime.month == 0;
         zeros += ltime.day == 0;
         if (zeros == 0 || zeros == 3) {  // Cf. NO_ZERO_DATE, NO_ZERO_IN_DATE
-          datetime_with_no_zero_in_date_to_timeval(thd, &ltime, &tm, &warnings);
+          datetime_with_no_zero_in_date_to_timeval(&ltime, *thd->time_zone(),
+                                                   &tm, &warnings);
           if ((warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) != 0) {
             /*
               For RP_OUTSIDE_HIGH, this check may not catch case where field
@@ -842,11 +853,12 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
           compare with min/max, unless it is 0 or has a zero date part (year,
           month or day)
         */
-        if (tm.tv_sec != 0) {
+        if (tm.m_tv_sec != 0) {
           /* '2038-01-19 03:14:07.[999999]' */
           MYSQL_TIME max_timestamp = my_time_set(
               TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,
-              max_fraction(down_cast<Field_temporal *>(f->field)->decimals()),
+              max_fraction(
+                  down_cast<const Field_temporal *>(f->field)->decimals()),
               false, MYSQL_TIMESTAMP_DATETIME);
 
           /* '1970-01-01 00:00:01.[000000]' */
@@ -890,7 +902,7 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
               Item_func::DATETIME_LITERAL) {
         /* User supplied an ok literal */
       } else {
-        Item *i;
+        Item *i = nullptr;
         /*
           Make a DATETIME literal, unless the field is a DATE and the constant
           has zero time, in which case we make a DATE literal
@@ -909,9 +921,9 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
             *place = RP_INSIDE_TRUNCATED;
           }
           i = new (thd->mem_root) Item_date_literal(&ltime);
-        } else {
-          i = new (thd->mem_root)
-              Item_datetime_literal(&ltime, actual_decimals(&ltime));
+        } else if (!check_time_zone_convertibility(ltime)) {
+          i = new (thd->mem_root) Item_datetime_literal(
+              &ltime, actual_decimals(&ltime), thd->time_zone());
         }
         if (i == nullptr) return true;
         thd->change_item_tree(const_val, i);
@@ -969,6 +981,8 @@ static bool analyze_time_field_constant(THD *thd, Item **const_val) {
                         constant (at execution time). May be modified if
                         we replace or fold the constant.
   @param      func      the function of the comparison
+  @param      left_has_field
+                        the field is the left operand
   @param[out] place     the placement of the const_val relative to
                         the range of f
   @param[out] discount_equal
@@ -978,8 +992,9 @@ static bool analyze_time_field_constant(THD *thd, Item **const_val) {
   @returns   true on error
 */
 static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
-                                   Item_func *func, Range_placement *place,
-                                   bool *discount_equal, bool *negative) {
+                                   Item_func *func, bool left_has_field,
+                                   Range_placement *place, bool *discount_equal,
+                                   bool *negative) {
   *place = RP_INSIDE;  // a priori
 
   if ((*const_val)->is_null()) return false;
@@ -992,8 +1007,8 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
-      return analyze_int_field_constant(thd, f, const_val, ft, place,
-                                        discount_equal);
+      return analyze_int_field_constant(thd, f, const_val, ft, left_has_field,
+                                        place, discount_equal);
     case MYSQL_TYPE_NEWDECIMAL:
       return analyze_decimal_field_constant(thd, f, const_val, ft, place,
                                             negative);
@@ -1031,10 +1046,13 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
 
                    !top_level_item        top_level_item
                 ------------------------------------------
-     nullable   |  field <> field     |   COND_FALSE     |
+     nullable   |  field <> field [*] |   COND_FALSE     |
     !nullable   |  FALSE (0)          |   COND_FALSE     |
                 ------------------------------------------
+
+  [*] for the "<=>" operator, we fold to FALSE (0) in this case.
   </pre>
+
   @param      thd         current session context
   @param      ref_or_field
                           a field (that is being being compared to a constant)
@@ -1060,7 +1078,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       ft == Item_func::MULT_EQUAL_FUNC ||
       down_cast<Item_bool_func2 *>(*retcond)->ignore_unknown();
   if (always_true) {
-    if (ref_or_field->maybe_null) {
+    if (ref_or_field->is_nullable()) {
       if (is_top_level) {
         i = new (thd->mem_root) Item_func_isnotnull(ref_or_field);
       } else {
@@ -1087,7 +1105,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       return false;
     }
 
-    if (ref_or_field->maybe_null) {
+    if (ref_or_field->is_nullable() && ft != Item_func::EQUAL_FUNC) {
       i = new (thd->mem_root) Item_func_ne(ref_or_field, ref_or_field);
     } else {
       i = new (thd->mem_root) Item_func_false();
@@ -1109,11 +1127,9 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
 */
 static bool fold_arguments(THD *thd, Item_func *func) {
   for (uint i = 0; i < func->argument_count(); i++) {
-    Item *rc = nullptr;
     Item::cond_result cv;
-    const auto arg = func->arguments()[i];
-    if (fold_condition(thd, arg, &rc, &cv, true)) return true;
-    if (rc != arg) thd->change_item_tree(func->arguments() + i, rc);
+    Item **args = func->arguments();
+    if (fold_condition(thd, args[i], args + i, &cv, true)) return true;
   }
   func->update_used_tables();
   return false;
@@ -1131,10 +1147,8 @@ static bool fold_arguments(THD *thd, Item_cond *cond) {
   Item *item;
 
   while ((item = li++)) {
-    Item *rc = nullptr;
     Item::cond_result cv;
-    if (fold_condition(thd, item, &rc, &cv, true)) return true;
-    if (rc != item) thd->change_item_tree(li.ref(), rc);
+    if (fold_condition(thd, item, li.ref(), &cv, true)) return true;
   }
   cond->update_used_tables();
   return false;
@@ -1239,24 +1253,29 @@ static bool simplify_to_equal(THD *thd, Item *ref_or_field, Item *c,
 // Main entrypoint for this module. See Doxygen comments in sql_const_folding.h
 bool fold_condition(THD *thd, Item *cond, Item **retcond,
                     Item::cond_result *cond_value, bool manifest_result) {
+  uchar buff[STACK_BUFF_ALLOC];  // Max argument in function
+  if (check_stack_overrun(thd, STACK_MIN_SIZE * 2, buff))
+    return true;  // Fatal error if flag is set
+
   // A priori result, unless we find otherwise below
   *cond_value = Item::COND_OK;
   *retcond = cond;
 
-  const Item::Type type = cond->type();
-  if (!(type == Item::FUNC_ITEM || type == Item::COND_ITEM)) return false;
+  const Item::Type cond_type = cond->type();
+  if (!(cond_type == Item::FUNC_ITEM || cond_type == Item::COND_ITEM))
+    return false;
 
-  if (type == Item::COND_ITEM) {
+  if (cond_type == Item::COND_ITEM) {
     const auto and_or = down_cast<Item_cond *>(cond);
     return fold_arguments(thd, and_or);
   }
 
   Item_func *const func = down_cast<Item_func *>(cond);
-  Item_func::Functype ft = func->functype();
+  Item_func::Functype func_type = func->functype();
 
-  switch (ft) {
+  switch (func_type) {
     case Item_func::ISNOTNULL_FUNC:
-      if (func->arguments()[0]->maybe_null) {
+      if (func->arguments()[0]->is_nullable()) {
         return fold_arguments(thd, func);
       }
 
@@ -1286,7 +1305,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
   Item **args = nullptr;
 
-  if (ft != Item_func::MULT_EQUAL_FUNC) {
+  if (func_type != Item_func::MULT_EQUAL_FUNC) {
     args = func->arguments();
   } else {
     /*
@@ -1366,12 +1385,13 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
   if (analyze_field_constant(
           thd, down_cast<Item_field *>(args[!left_has_field]->real_item()), c,
-          func, &place, &discount_eq, &negative))
+          func, left_has_field, &place, &discount_eq, &negative))
     return true; /* purecov: inspected */
 
-  if (discount_eq && (ft == Item_func::LE_FUNC || ft == Item_func::GE_FUNC)) {
+  if (discount_eq &&
+      (func_type == Item_func::LE_FUNC || func_type == Item_func::GE_FUNC)) {
     bool ignore_unknown = down_cast<Item_bool_func2 *>(cond)->ignore_unknown();
-    if (ft == Item_func::LE_FUNC) {
+    if (func_type == Item_func::LE_FUNC) {
       if (!(cond = new (thd->mem_root) Item_func_lt(args[0], args[1])))
         return true; /* purecov: inspected */
     } else {
@@ -1381,19 +1401,20 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
     auto cond_alias = down_cast<Item_bool_func2 *>(cond);
     if (ignore_unknown) cond_alias->apply_is_true();
     if (cond->fix_fields(thd, &cond)) return true;
-    ft = cond_alias->functype();
+    func_type = cond_alias->functype();
     thd->change_item_tree(retcond, cond);
     args = cond_alias->arguments();
     c = &args[left_has_field];
   }
 
   // Fold >, >= handling with <, <=
-  if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC) {
+  if (func_type == Item_func::GT_FUNC || func_type == Item_func::GE_FUNC) {
     place = map_less_to_greater(place);
-    ft = ft == Item_func::GT_FUNC ? Item_func::LT_FUNC : Item_func::LE_FUNC;
+    func_type = func_type == Item_func::GT_FUNC ? Item_func::LT_FUNC
+                                                : Item_func::LE_FUNC;
   }
 
-  switch (ft) {
+  switch (func_type) {
     case Item_func::EQ_FUNC:
     case Item_func::EQUAL_FUNC:
     case Item_func::NE_FUNC:
@@ -1405,8 +1426,9 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_INSIDE_YEAR_HOLE:
         case RP_ROUNDED_DOWN:
         case RP_ROUNDED_UP:
-          if (fold_or_simplify(thd, ref_or_field, ft, ft == Item_func::NE_FUNC,
-                               manifest_result, retcond, cond_value))
+          if (fold_or_simplify(thd, ref_or_field, func_type,
+                               func_type == Item_func::NE_FUNC, manifest_result,
+                               retcond, cond_value))
             return true; /* purecov: inspected */
           break;
         case RP_INSIDE:
@@ -1414,10 +1436,10 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_ON_MIN:
           break;
       }
-      if (ft == Item_func::MULT_EQUAL_FUNC && (*retcond != nullptr)) {
+      if (func_type == Item_func::MULT_EQUAL_FUNC && (*retcond != nullptr)) {
         // The constant may have been modified, update the multi-equal
         const auto equal = down_cast<Item_equal *>(func);
-        DBUG_ASSERT(equal->m_const_folding[1] != nullptr);  // the constant
+        assert(equal->m_const_folding[1] != nullptr);  // the constant
         equal->set_const(equal->m_const_folding[1]);
       }
       break;
@@ -1449,24 +1471,24 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
             return true; /* purecov: inspected */
         } break;
         case RP_OUTSIDE_HIGH:
-          if (fold_or_simplify(thd, ref_or_field, ft, left_has_field,
+          if (fold_or_simplify(thd, ref_or_field, func_type, left_has_field,
                                manifest_result, retcond, cond_value))
             return true; /* purecov: inspected */
           break;
         case RP_OUTSIDE_LOW:
-          if (fold_or_simplify(thd, ref_or_field, ft, !left_has_field,
+          if (fold_or_simplify(thd, ref_or_field, func_type, !left_has_field,
                                manifest_result, retcond, cond_value))
             return true; /* purecov: inspected */
           break;
         case RP_ON_MIN:
-          if (ft == Item_func::LT_FUNC && left_has_field) {
-            if (fold_or_simplify(thd, ref_or_field, ft, false, manifest_result,
-                                 retcond, cond_value))
+          if (func_type == Item_func::LT_FUNC && left_has_field) {
+            if (fold_or_simplify(thd, ref_or_field, func_type, false,
+                                 manifest_result, retcond, cond_value))
               return true; /* purecov: inspected */
-          } else if (ft == Item_func::LE_FUNC) {
+          } else if (func_type == Item_func::LE_FUNC) {
             if (!left_has_field) {
-              if (fold_or_simplify(thd, ref_or_field, ft, true, manifest_result,
-                                   retcond, cond_value))
+              if (fold_or_simplify(thd, ref_or_field, func_type, true,
+                                   manifest_result, retcond, cond_value))
                 return true; /* purecov: inspected */
             } else {
               /*
@@ -1482,14 +1504,14 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_INSIDE_YEAR_HOLE:
           break;
         case RP_ON_MAX:
-          if (ft == Item_func::LT_FUNC && !left_has_field) {
-            if (fold_or_simplify(thd, ref_or_field, ft, false, manifest_result,
-                                 retcond, cond_value))
+          if (func_type == Item_func::LT_FUNC && !left_has_field) {
+            if (fold_or_simplify(thd, ref_or_field, func_type, false,
+                                 manifest_result, retcond, cond_value))
               return true; /* purecov: inspected */
-          } else if (ft == Item_func::LE_FUNC) {
+          } else if (func_type == Item_func::LE_FUNC) {
             if (left_has_field) {
-              if (fold_or_simplify(thd, ref_or_field, ft, true, manifest_result,
-                                   retcond, cond_value))
+              if (fold_or_simplify(thd, ref_or_field, func_type, true,
+                                   manifest_result, retcond, cond_value))
                 return true; /* purecov: inspected */
             } else {
               /*

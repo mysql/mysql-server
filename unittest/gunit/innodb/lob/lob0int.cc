@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -88,7 +88,6 @@ std::pair<ulint, byte *> insert_middle_page(T *lob_page, trx_id_t trxid,
                                             buf_block_t *&new_block);
 
 /** Insert data in the middle of the given LOB page.
-@param[in] lob_page  A large object page of type FIL_PAGE_TYPE_LOB_FIRST.
 @param[in] trxid     The transaction identifier.
 @param[in] offset    The given data must be inserted at this offset within the
                      given page.
@@ -106,7 +105,6 @@ std::pair<ulint, byte *> base_node_page_t::insert_middle(
 }
 
 /** Insert data in the middle of the given LOB page.
-@param[in] lob_page  A large object page of type FIL_PAGE_TYPE_LOB_DATA.
 @param[in] trxid     The transaction identifier.
 @param[in] offset    The given data must be inserted at this offset within the
                      given page.
@@ -306,8 +304,8 @@ void index_entry_t::make_old_version_current(trx_id_t trxid,
 }
 
 /** Move the version base node from current entry to the given entry.
-@param[in]  entry  The index entry to which the version base node is moved
-                   to. */
+@param[in]  old_entry  The index entry to which the version base node is moved
+                       to. */
 void index_entry_t::move_version_base_node(index_entry_t &old_entry) {
   flst_base_node_t *from_node = get_versions_list();
   flst_base_node_t *to_node = old_entry.get_versions_list();

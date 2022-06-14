@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_proxy.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_interface.h"
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_management_interface.h"
 
 /**
   @class Gcs_xcom_communication_interface
@@ -192,7 +194,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
   virtual void process_user_data_packet(
       Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) = 0;
 
-  virtual ~Gcs_xcom_communication_interface() {}
+  ~Gcs_xcom_communication_interface() override = default;
 };
 
 /**
@@ -210,15 +212,19 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
                  Gcs_xcom_communication_proxy
     @param[in] view_control a reference to a
     gcs_xcom_view_change_control_interface implementation
+    @param[in] gcs_engine Pointer to gcs engine
+    @param[in] group_id reference to the group identifier
+    @param[in] comms_mgmt an unique_ptr to a
+                          Network_provider_management_interface
   */
 
   explicit Gcs_xcom_communication(
       Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
       Gcs_xcom_view_change_control_interface *view_control,
-      Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine *gcs_engine,
-      Gcs_group_identifier const &group_id);
+      Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id,
+      std::unique_ptr<Network_provider_management_interface> comms_mgmt);
 
-  virtual ~Gcs_xcom_communication();
+  ~Gcs_xcom_communication() override;
 
   // Implementation of the Gcs_communication_interface
 
@@ -232,58 +238,65 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
 
     @param[in] message_to_send the message to send
     @return the xcom broadcast message error
-      @retval GCS_OK, when message is transmitted successfully
-      @retval GCS_NOK, when error occurred while transmitting message
-      @retval GCS_MESSAGE_TOO_BIG, when message is bigger then
+      @retval GCS_OK when message is transmitted successfully
+      @retval GCS_NOK when error occurred while transmitting message
+      @retval GCS_MESSAGE_TOO_BIG when message is bigger then
                                    xcom can handle
   */
 
-  enum_gcs_error send_message(const Gcs_message &message_to_send);
+  enum_gcs_error send_message(const Gcs_message &message_to_send) override;
 
   int add_event_listener(
-      const Gcs_communication_event_listener &event_listener);
+      const Gcs_communication_event_listener &event_listener) override;
 
-  void remove_event_listener(int event_listener_handle);
+  void remove_event_listener(int event_listener_handle) override;
 
   // Implementation of the Gcs_xcom_communication_interface
   enum_gcs_error do_send_message(const Gcs_message &message_to_send,
                                  unsigned long long *message_length,
-                                 Cargo_type cargo);
+                                 Cargo_type cargo) override;
 
   // For unit testing purposes
   std::map<int, const Gcs_communication_event_listener &>
       *get_event_listeners();
 
-  virtual Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
+  Gcs_message_pipeline &get_msg_pipeline() override { return m_msg_pipeline; }
 
-  void buffer_incoming_packet(Gcs_packet &&packet,
-                              std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+  void buffer_incoming_packet(
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  void deliver_buffered_packets();
+  void deliver_buffered_packets() override;
 
-  void cleanup_buffered_packets();
+  void cleanup_buffered_packets() override;
 
-  size_t number_buffered_packets();
+  size_t number_buffered_packets() override;
 
   void update_members_information(const Gcs_member_identifier &me,
-                                  const Gcs_xcom_nodes &members);
+                                  const Gcs_xcom_nodes &members) override;
 
-  bool recover_packets(Gcs_xcom_synode_set const &synodes);
+  bool recover_packets(Gcs_xcom_synode_set const &synodes) override;
 
   Gcs_message *convert_packet_to_message(
-      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  void process_user_data_packet(Gcs_packet &&packet,
-                                std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+  void process_user_data_packet(
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  Gcs_protocol_version get_protocol_version() const;
+  Gcs_protocol_version get_protocol_version() const override;
 
   std::pair<bool, std::future<void>> set_protocol_version(
-      Gcs_protocol_version new_version);
+      Gcs_protocol_version new_version) override;
 
-  Gcs_protocol_version get_maximum_supported_protocol_version() const;
+  Gcs_protocol_version get_maximum_supported_protocol_version() const override;
 
   void set_maximum_supported_protocol_version(Gcs_protocol_version version);
+
+  void set_communication_protocol(enum_transport_protocol protocol) override;
+
+  enum_transport_protocol get_incoming_connections_protocol() override;
 
  private:
   // Registered event listeners
@@ -311,8 +324,6 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   std::vector<std::pair<Gcs_packet, std::unique_ptr<Gcs_xcom_nodes>>>
       m_buffered_packets;
 
-  Gcs_member_identifier m_myself;
-
   /** Most recent XCom membership known. */
   Gcs_xcom_nodes m_xcom_nodes;
 
@@ -322,8 +333,11 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   /** Protocol changer. */
   Gcs_xcom_communication_protocol_changer m_protocol_changer;
 
+  /***/
+  std::unique_ptr<Network_provider_management_interface> m_comms_mgmt_interface;
+
   /** Notify upper layers that a message has been received. */
-  void notify_received_message(Gcs_message *message);
+  void notify_received_message(std::unique_ptr<Gcs_message> &&message);
 
   /** Delivers the packet to the upper layer. */
   void deliver_user_data_packet(Gcs_packet &&packet,

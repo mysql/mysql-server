@@ -67,3 +67,26 @@ SELECT @@global.show_old_temporals;
 --echo #Test for invalid value.
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL show_old_temporals= 2;
+
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.show_old_temporals;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.show_old_temporals = 0;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.show_old_temporals;
+SET @@session.show_old_temporals = 0;
+SELECT @@session.show_old_temporals;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.show_old_temporals = 0;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;

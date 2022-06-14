@@ -2,7 +2,7 @@
 #define _EVENT_DB_REPOSITORY_H_
 
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,10 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-
+#include "my_time_t.h"  // my_time_t
 class Event_basic;
 class Event_parse_data;
 class THD;
-
-typedef long my_time_t;
 
 namespace dd {
 class Schema;
@@ -86,25 +84,27 @@ enum enum_events_table_field {
 */
 
 class Event_db_repository {
-  Event_db_repository() {}
+  Event_db_repository() = default;
 
  public:
   static bool create_event(THD *thd, Event_parse_data *parse_data,
                            bool create_if_not, bool *event_already_exists);
 
   static bool update_event(THD *thd, Event_parse_data *parse_data,
-                           LEX_STRING *new_dbname, LEX_STRING *new_name);
+                           const LEX_CSTRING *new_dbname,
+                           const LEX_CSTRING *new_name);
 
-  static bool drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
+  static bool drop_event(THD *thd, LEX_CSTRING db, LEX_CSTRING name,
                          bool drop_if_exists, bool *event_exists);
 
   static bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
-  static bool load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+  static bool load_named_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                                Event_basic *et);
 
-  static bool update_timing_fields_for_event(THD *thd, LEX_STRING event_db_name,
-                                             LEX_STRING event_name,
+  static bool update_timing_fields_for_event(THD *thd,
+                                             LEX_CSTRING event_db_name,
+                                             LEX_CSTRING event_name,
                                              my_time_t last_executed,
                                              ulonglong status);
 

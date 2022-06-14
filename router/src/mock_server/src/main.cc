@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <array>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 #ifdef _WIN32
-#include <direct.h>  // getcwd
 #include <winsock2.h>
-#else
-#include <limits.h>  // PATH_MAX
-#include <unistd.h>  // getcwd
 #endif
 
 #include "dim.h"
@@ -39,13 +37,10 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/filesystem.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 
-#ifndef PATH_MAX
-#ifdef _MAX_PATH
-// windows has _MAX_PATH instead
-#define PATH_MAX _MAX_PATH
-#endif
-#endif
+IMPORT_LOG_FUNCTIONS()
 
 constexpr unsigned kHelpScreenWidth = 72;
 constexpr unsigned kHelpScreenIndent = 8;
@@ -53,10 +48,22 @@ constexpr unsigned kHelpScreenIndent = 8;
 struct MysqlServerMockConfig {
   std::string queries_filename;
   std::string module_prefix;
-  unsigned port{3306};
-  unsigned http_port{0};
-  unsigned xport{0};
+  std::string bind_address{"0.0.0.0"};
+  std::string port{"3306"};
+  std::string http_port{};
+  std::string xport{};
   bool verbose{false};
+  std::string logging_folder;
+
+  std::string ssl_cert;
+  std::string ssl_key;
+  std::string ssl_mode;
+  std::string tls_version;
+  std::string ssl_ca;
+  std::string ssl_capath;
+  std::string ssl_crl;
+  std::string ssl_crlpath;
+  std::string ssl_cipher;
 };
 
 static void init_DIM() {
@@ -118,8 +125,9 @@ class MysqlServerMockFrontend {
     mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
     mysql_harness::Config config;
-    const mysql_harness::logging::LogLevel log_level =
-        mysql_harness::logging::get_default_log_level(config);
+    const auto log_level = config_.verbose
+                               ? mysql_harness::logging::LogLevel::kDebug
+                               : mysql_harness::logging::LogLevel::kWarning;
 
     mysql_harness::logging::clear_registry(registry);
     mysql_harness::logging::create_module_loggers(
@@ -127,25 +135,28 @@ class MysqlServerMockFrontend {
         {mysql_harness::logging::kMainLogger, "mock_server", "http_server", "",
          "rest_mock_server"},
         mysql_harness::logging::kMainLogger);
-    mysql_harness::logging::create_main_log_handler(registry, "", "", true);
+    mysql_harness::logging::create_main_log_handler(
+        registry, "mock_server", config_.logging_folder, true);
 
     registry.set_ready();
 
     if (config_.module_prefix.empty()) {
-      char cwd[PATH_MAX];
+      std::error_code ec;
 
-      if (nullptr == getcwd(cwd, sizeof(cwd))) {
-        throw std::system_error(errno, std::generic_category());
+      auto cwd = stdx::filesystem::current_path(ec);
+      if (ec) {
+        throw std::system_error(ec);
       }
 
-      config_.module_prefix = cwd;
+      config_.module_prefix = cwd.native();
     }
-
-    // log to stderr
-    loader_config->set_default("logging_folder", "");
+    loader_config->set_default("logging_folder", config_.logging_folder);
     loader_config->add("logger");
-    loader_config->get("logger", "")
-        .add("level", config_.verbose ? "debug" : "warning");
+    auto &logger_conf = loader_config->get("logger", "");
+    logger_conf.add("level", config_.verbose ? "debug" : "warning");
+    logger_conf.add("timestamp_precision", "ms");
+    const std::string logfile_name = "mock_server_" + config_.port + ".log";
+    logger_conf.add("filename", logfile_name);
 
     // assume all path relative to the installed binary
     auto plugin_dir = mysql_harness::get_plugin_dir(origin_dir_.str());
@@ -162,31 +173,56 @@ class MysqlServerMockFrontend {
         "data_folder",
         mysql_harness::Path(base_path).join("var").join("share").str());
 
-    if (config_.http_port != 0) {
+    {
+      auto &section = loader_config->add("io");
+      section.add("library", "io");
+      section.add("threads", "1");
+    }
+
+    if (!config_.http_port.empty()) {
       auto &rest_mock_server_config =
           loader_config->add("rest_mock_server", "");
       rest_mock_server_config.set("library", "rest_mock_server");
 
       auto &http_server_config = loader_config->add("http_server", "");
       http_server_config.set("library", "http_server");
-      http_server_config.set("port", std::to_string(config_.http_port));
+      http_server_config.set("port", config_.http_port);
       http_server_config.set("static_folder", "");
     }
 
     auto &mock_server_config = loader_config->add("mock_server", "classic");
     mock_server_config.set("library", "mock_server");
-    mock_server_config.set("port", std::to_string(config_.port));
+    mock_server_config.set("bind_address", config_.bind_address);
+    mock_server_config.set("port", config_.port);
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
     mock_server_config.set("protocol", "classic");
+    mock_server_config.set("ssl_mode", config_.ssl_mode);
+    mock_server_config.set("ssl_cert", config_.ssl_cert);
+    mock_server_config.set("ssl_key", config_.ssl_key);
+    mock_server_config.set("tls_version", config_.tls_version);
+    mock_server_config.set("ssl_cipher", config_.ssl_cipher);
+    mock_server_config.set("ssl_ca", config_.ssl_ca);
+    mock_server_config.set("ssl_capath", config_.ssl_capath);
+    mock_server_config.set("ssl_crl", config_.ssl_crl);
+    mock_server_config.set("ssl_crlpath", config_.ssl_crlpath);
 
-    if (config_.xport != 0) {
+    if (!config_.xport.empty()) {
       auto &mock_x_server_config = loader_config->add("mock_server", "x");
       mock_x_server_config.set("library", "mock_server");
-      mock_x_server_config.set("port", std::to_string(config_.xport));
+      mock_x_server_config.set("port", config_.xport);
       mock_x_server_config.set("filename", config_.queries_filename);
       mock_x_server_config.set("module_prefix", config_.module_prefix);
       mock_x_server_config.set("protocol", "x");
+      mock_x_server_config.set("ssl_mode", config_.ssl_mode);
+      mock_x_server_config.set("ssl_cert", config_.ssl_cert);
+      mock_x_server_config.set("ssl_key", config_.ssl_key);
+      mock_x_server_config.set("tls_version", config_.tls_version);
+      mock_x_server_config.set("ssl_cipher", config_.ssl_cipher);
+      mock_x_server_config.set("ssl_ca", config_.ssl_ca);
+      mock_x_server_config.set("ssl_capath", config_.ssl_capath);
+      mock_x_server_config.set("ssl_crl", config_.ssl_crl);
+      mock_x_server_config.set("ssl_crlpath", config_.ssl_crlpath);
     }
 
     mysql_harness::DIM::instance().set_Config(
@@ -199,6 +235,8 @@ class MysqlServerMockFrontend {
       throw std::runtime_error(std::string("init-loader failed: ") +
                                err.what());
     }
+
+    log_debug("Starting");
 
     loader_->start();
   }
@@ -225,24 +263,30 @@ class MysqlServerMockFrontend {
                             "filename", [this](const std::string &filename) {
                               config_.queries_filename = filename;
                             });
+
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"-B", "--bind-address"}),
+        "TCP address to bind to listen on for classic protocol connections.",
+        CmdOptionValueReq::required, "string",
+        [this](const std::string &bind_address) {
+          config_.bind_address = bind_address;
+        });
+
     arg_handler_.add_option(
         CmdOption::OptionNames({"-P", "--port"}),
         "TCP port to listen on for classic protocol connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.port = static_cast<unsigned>(std::stoul(port));
-        });
+        CmdOptionValueReq::required, "int",
+        [this](const std::string &port) { config_.port = port; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"-X", "--xport"}),
         "TCP port to listen on for X protocol connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.xport = static_cast<unsigned>(std::stoul(port));
-        });
+        CmdOptionValueReq::required, "int",
+        [this](const std::string &port) { config_.xport = port; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"--http-port"}),
         "TCP port to listen on for HTTP/REST connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.http_port = static_cast<unsigned>(std::stoul(port));
-        });
+        CmdOptionValueReq::required, "int",
+        [this](const std::string &port) { config_.http_port = port; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"--module-prefix"}),
         "path prefix for javascript modules (default current directory).",
@@ -254,6 +298,49 @@ class MysqlServerMockFrontend {
         CmdOption::OptionNames({"--verbose"}), "verbose",
         CmdOptionValueReq::none, "",
         [this](const std::string &) { config_.verbose = true; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-cert"}),
+        "path to PEM file containing a SSL certificate",
+        CmdOptionValueReq::required, "path",
+        [this](const std::string &value) { config_.ssl_cert = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-key"}),
+        "path to PEM file containing a SSL key", CmdOptionValueReq::required,
+        "path", [this](const std::string &value) { config_.ssl_key = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-mode"}), "SSL mode",
+        CmdOptionValueReq::required, "mode",
+        [this](const std::string &value) { config_.ssl_mode = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--tls-version"}), "TLS version",
+        CmdOptionValueReq::required, "version",
+        [this](const std::string &value) { config_.tls_version = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-cipher"}), "SSL ciphers",
+        CmdOptionValueReq::required, "cipher-list",
+        [this](const std::string &value) { config_.ssl_cipher = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-ca"}), "PEM file containg CA",
+        CmdOptionValueReq::required, "PEM_file",
+        [this](const std::string &value) { config_.ssl_ca = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-capath"}),
+        "directory containing PEM files of CA", CmdOptionValueReq::required,
+        "directory",
+        [this](const std::string &value) { config_.ssl_capath = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-crl"}), "PEM file containg CRL",
+        CmdOptionValueReq::required, "PEM_file",
+        [this](const std::string &value) { config_.ssl_crl = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-crlpath"}),
+        "directory containing PEM files of CRL", CmdOptionValueReq::required,
+        "directory",
+        [this](const std::string &value) { config_.ssl_crlpath = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--logging-folder"}), "logging folder",
+        CmdOptionValueReq::required, "directory",
+        [this](const std::string &value) { config_.logging_folder = value; });
   }
 
   CmdArgHandler arg_handler_;

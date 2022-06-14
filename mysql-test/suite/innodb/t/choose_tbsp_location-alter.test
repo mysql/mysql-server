@@ -1,0 +1,600 @@
+--echo #
+--echo # This is a copy of innodb-alter.test except using remote tablespaces
+--echo # and showing those files.
+--echo #
+
+--disable_query_log
+# This can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+# Use this coversion to make the result file consistent. This string gets printed
+# in the result file in numerous places.  Since ".ibd" is one of the patterns that
+# makes a whitespace delimited word recognized as a path, the '\' characters will
+# get converted to '/' in the result file on Windows, but not on Unix.
+# So just look for ".i".
+LET $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/;
+
+# Set up some variables
+LET $MYSQL_DATA_DIR = `select @@datadir`;
+LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
+--enable_query_log
+
+SET default_storage_engine=InnoDB;
+SET GLOBAL innodb_file_per_table=ON;
+
+SET NAMES utf8;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (
+ c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT,
+ INDEX(c2))
+ENGINE=InnoDB $data_directory_clause;
+
+INSERT INTO t1 SET c1=1;
+
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME LIKE 'test/t%';
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+
+CREATE TABLE t1p LIKE t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
+		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2))
+ENGINE=InnoDB $data_directory_clause;
+
+CREATE TABLE sys_foreign SELECT i.*
+FROM INFORMATION_SCHEMA.INNODB_FOREIGN i
+WHERE FOR_NAME LIKE 'test/t%';
+
+--sorted_result
+SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
+INNER JOIN sys_foreign sf ON i.ID = sf.ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ALTER c2 DROP DEFAULT;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+# These should be no-op.
+ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1;
+ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 CHANGE C2 c3 INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 CHANGE c3 C INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--sorted_result
+SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
+INNER JOIN sys_foreign sf ON i.ID = sf.ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+-- error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 CHANGE cöĿǖmň_two c3 INT;
+
+ALTER TABLE t1 CHANGE cÖĿUMŇ_two c3 INT, RENAME TO t3;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+SELECT st.NAME, i.NAME
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
+ON i.TABLE_ID=st.TABLE_ID;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t3;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1c;
+
+# The maximum column name length should be 64 characters.
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t3 CHANGE c3
+`12345678901234567890123456789012345678901234567890123456789012345` INT;
+ALTER TABLE t3 CHANGE c3
+`1234567890123456789012345678901234567890123456789012345678901234` INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t3;
+
+# Test the length limit with non-ASCII utf-8 characters.
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t3 CHANGE
+`1234567890123456789012345678901234567890123456789012345678901234`
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾倿偀` INT;
+
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t3 CHANGE
+`1234567890123456789012345678901234567890123456789012345678901234`
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾倿ä` INT;
+
+ALTER TABLE t3 CHANGE
+`1234567890123456789012345678901234567890123456789012345678901234`
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾ä` INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+# check that the rename is case-insensitive (note the upper-case ä at end)
+ALTER TABLE t3 CHANGE
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾Ä`
+c3 INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+# test with 4-byte UTF-8 (should be disallowed)
+--error ER_INVALID_CHARACTER_STRING
+ALTER TABLE t3 CHANGE c3 𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜 INT;
+
+--error ER_INVALID_CHARACTER_STRING
+ALTER TABLE t3 CHANGE c3 😲 INT;
+
+ALTER TABLE t3 RENAME TO t2;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+SELECT st.NAME, i.NAME
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
+ON i.TABLE_ID=st.TABLE_ID;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+
+RENAME TABLE t2 TO t1;
+
+SELECT st.NAME, i.NAME
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
+ON i.TABLE_ID=st.TABLE_ID;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1 DROP INDEX c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 DROP INDEX c4;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, DROP FOREIGN KEY c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, DROP FOREIGN KEY c2, DROP INDEX c2;
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY ẗ1C2;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1c;
+
+SET foreign_key_checks=0;
+DROP TABLE t1p;
+SET foreign_key_checks=1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1c;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1p (c1 INT PRIMARY KEY, c2 INT, INDEX(c2))
+  ENGINE=InnoDB $data_directory_clause;
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C2, DROP INDEX C3;
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C3;
+
+SET foreign_key_checks=0;
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C3;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+SET foreign_key_checks=1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1c;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1c DROP FOREIGN KEY t1C3;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--list_files $MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1c;
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1c DROP INDEX c2, DROP FOREIGN KEY t1C2;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1c;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+-- source suite/innodb/include/innodb_dict.inc
+
+CREATE TABLE t1o LIKE t1;
+
+# This will implicitly add a DOC_ID column.
+# The LOCK=NONE should thus fail.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=NONE;
+
+# Retry with LOCK=EXCLUSIVE.
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=SHARED;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+# The output should be empty, because index->id was reassigned.
+-- source suite/innodb/include/innodb_dict.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE tt;
+
+# DB_ROW_ID, DB_TRX_ID, DB_ROLL_PTR are reserved InnoDB system column names.
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=COPY;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 DB_TRX_ID INT;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 db_roll_ptr INT;
+
+# FTS_DOC_ID is the internal row identifier for full-text search.
+# It should be of type BIGINT UNSIGNED NOT NULL.
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
+ALGORITHM=COPY;
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
+ALGORITHM=INPLACE;
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
+ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
+CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ALGORITHM=INPLACE;
+
+CREATE TABLE t1n LIKE t1o;
+
+ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
+ALTER TABLE t1n CHANGE c1 FTS_DOC_ïD INT, ALGORITHM=INPLACE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+ALTER TABLE t1n CHANGE FTS_DOC_ÏD c1 INT, ALGORITHM=INPLACE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+ALTER TABLE t1n CHANGE c1 c2 INT, CHANGE c2 ct INT, CHANGE ct c1 TEXT,
+ALGORITHM=INPLACE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1n;
+ALTER TABLE t1n CHANGE c2 c1 INT, CHANGE ct c2 INT, CHANGE c1 ct TEXT,
+ALGORITHM=COPY;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1n;
+
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=COPY;
+
+ALTER TABLE t1n ADD INDEX(c4), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1n;
+ALTER TABLE t1n DROP INDEX c4;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1n CHANGE c4 c1 INT, ADD INDEX(c1), ALGORITHM=INPLACE;
+ALTER TABLE t1n CHANGE c4 c11 INT, ADD INDEX(c11), ALGORITHM=INPLACE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1n;
+DROP TABLE t1n;
+
+ALTER TABLE t1o MODIFY c1 BIGINT UNSIGNED NOT NULL;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
+CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ALGORITHM=INPLACE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+# This would create a hidden FTS_DOC_ID column, which cannot be done online.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
+LOCK=NONE;
+
+# This should not show duplicates.
+SELECT sc.pos FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t1o' AND sc.NAME='FTS_DOC_ID';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1o;
+
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
+DROP INDEX ct, LOCK=NONE;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1o;
+
+DROP TABLE t1c, t1p, sys_tables, sys_indexes, sys_foreign;
+
+# Check the internal schemata of tt, t1o.
+
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME='test/t1o';
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+CREATE TABLE sys_foreign SELECT i.*
+FROM INFORMATION_SCHEMA.INNODB_FOREIGN i WHERE FOR_NAME='test/t1o';
+
+-- source suite/innodb/include/innodb_dict.inc
+
+# Ensure that there exists no hidden FTS_DOC_ID_INDEX on foo_id.
+
+ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(foo_id);
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ADD FULLTEXT INDEX(ct);
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
+
+DROP TABLE sys_indexes;
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
+
+--echo ### files in MYSQL_DATA_DIR/test
+--replace_regex $regexp
+--list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--replace_regex $regexp
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+--rmdir $MYSQL_TMP_DIR/alt_dir/test
+--rmdir $MYSQL_TMP_DIR/alt_dir
+
+-- disable_query_log
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+call mtr.add_suppression("deleting orphaned .ibd file");
+-- enable_query_log

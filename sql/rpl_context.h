@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <memory>
 
 #include "my_inttypes.h"  // IWYU pragma: keep
+
+#include "sql/system_variables.h"
 
 class Gtid_set;
 class Sid_map;
@@ -58,8 +60,8 @@ class Session_consistency_gtids_ctx {
    */
   class Ctx_change_listener {
    public:
-    Ctx_change_listener() {}
-    virtual ~Ctx_change_listener() {}
+    Ctx_change_listener() = default;
+    virtual ~Ctx_change_listener() = default;
     virtual void notify_session_gtids_ctx_change() = 0;
 
    private:
@@ -199,6 +201,11 @@ class Session_consistency_gtids_ctx {
     return notify_after_transaction_commit(thd);
   }
 
+  /**
+    Update session tracker (m_curr_session_track_gtids) from thd.
+  */
+  void update_tracking_activeness_from_session_variable(const THD *thd);
+
  private:
   // not implemented
   Session_consistency_gtids_ctx(const Session_consistency_gtids_ctx &rsc);
@@ -252,15 +259,53 @@ class Last_used_gtid_tracker_ctx {
   std::unique_ptr<Gtid> m_last_used_gtid;
 };
 
+class Transaction_compression_ctx {
+ public:
+  static const size_t DEFAULT_COMPRESSION_BUFFER_SIZE;
+
+  Transaction_compression_ctx();
+  virtual ~Transaction_compression_ctx();
+
+  binary_log::transaction::compression::Compressor *get_compressor(
+      THD *session);
+
+ protected:
+  binary_log::transaction::compression::Compressor *m_compressor{nullptr};
+};
+
 /*
   This class SHALL encapsulate the replication context associated with the THD
   object.
  */
 class Rpl_thd_context {
+ public:
+  /**
+    This structure helps to maintain state of transaction.
+    State of transaction is w.r.t delegates
+    Please refer Trans_delegate to understand states being referred.
+  */
+  enum enum_transaction_rpl_delegate_status {
+    // Initialized, first state
+    TX_RPL_STAGE_INIT = 0,
+    // begin is being called
+    TX_RPL_STAGE_BEGIN,
+    // binlog cache created, transaction will be binlogged
+    TX_RPL_STAGE_CACHE_CREATED,
+    // before_commit is being called
+    TX_RPL_STAGE_BEFORE_COMMIT,
+    // before_rollback is being called
+    TX_RPL_STAGE_BEFORE_ROLLBACK,
+    // transaction has ended
+    TX_RPL_STAGE_CONNECTION_CLEANED,
+    // end
+    TX_RPL_STAGE_END  // Not used
+  };
+
  private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
   Last_used_gtid_tracker_ctx m_last_used_gtid_tracker_ctx;
+  Transaction_compression_ctx m_transaction_compression_ctx;
   /** If this thread is a channel, what is its type*/
   enum_rpl_channel_type rpl_channel_type;
 
@@ -269,6 +314,12 @@ class Rpl_thd_context {
 
  public:
   Rpl_thd_context() : rpl_channel_type(NO_CHANNEL_INFO) {}
+
+  /**
+    Initializers. Clears the writeset session history and re-set delegate state
+    to INIT.
+  */
+  void init();
 
   inline Session_consistency_gtids_ctx &session_gtids_ctx() {
     return m_session_gtids_ctx;
@@ -287,6 +338,30 @@ class Rpl_thd_context {
   void set_rpl_channel_type(enum_rpl_channel_type rpl_channel_type_arg) {
     rpl_channel_type = rpl_channel_type_arg;
   }
+
+  inline Transaction_compression_ctx &transaction_compression_ctx() {
+    return m_transaction_compression_ctx;
+  }
+
+  /**
+    Sets the transaction states
+
+    @param[in] status state to which THD is progressing
+  */
+  void set_tx_rpl_delegate_stage_status(
+      enum_transaction_rpl_delegate_status status);
+
+  /**
+    Returns the transaction state.
+
+    @return status transaction status is returned
+  */
+  enum_transaction_rpl_delegate_status get_tx_rpl_delegate_stage_status();
+
+ private:
+  /* Maintains transaction status of Trans_delegate. */
+  enum_transaction_rpl_delegate_status m_tx_rpl_delegate_stage_status{
+      TX_RPL_STAGE_INIT};
 };
 
 #endif /* RPL_SESSION_H */

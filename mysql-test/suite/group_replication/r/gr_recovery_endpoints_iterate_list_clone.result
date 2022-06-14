@@ -1,0 +1,76 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "127.0.0.1:SERVER1_ADMIN_PORT,127.0.0.1:SERVER1_PORT";
+
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+# 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+[connection server2]
+include/spawn_monitoring_process.inc
+
+# 4. Setup the server so group replication starts on boot
+#    Install the Clone plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 5. Ensure clone is used on recovery
+SET GLOBAL group_replication_clone_threshold= 1;
+
+# 6. On a empty server2 start group replication
+#    Wait for it to restart and come back
+START GROUP_REPLICATION;
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+
+# 7. Clone will fail connecting to first endpoint
+include/assert_grep.inc [recovery channel used recovery endpoints configuration]
+
+# 8. Distributed recovery fails on first element from list
+include/assert_grep.inc [recovery channel used recovery endpoints configuration]
+
+# 9. Distributed recovery connects to second endpoint
+include/assert_grep.inc [recovery channel connect to second endpoint]
+
+# 10. Clone will continue iteration on recovery endpoints
+#     and recovery from second endpoint
+include/assert.inc [Clone must be completed]
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+
+# 11. Cleanup
+SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
+DROP TABLE t1;
+include/rpl_sync.inc
+set session sql_log_bin=0;
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression(".*The member contains transactions not present *.*");
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM 'root'@'127.0.0.1':.*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862*");
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+set session sql_log_bin=1;
+include/clean_monitoring_process.inc
+UNINSTALL PLUGIN clone;
+[connection server1]
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "DEFAULT";
+UNINSTALL PLUGIN clone;
+include/group_replication_end.inc

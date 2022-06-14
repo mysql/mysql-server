@@ -104,10 +104,13 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 analyze table t1;
 select * from t1 where a=6;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'last_query_cost';
 # Ensure value dosn't change by second status call
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'last_query_cost';
 select 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'last_query_cost';
 drop table t1;
 
@@ -230,24 +233,31 @@ INSERT INTO t1 VALUES (1), (2);
 
 analyze table t1;
 SELECT a FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT a FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT a IN (SELECT a FROM t1) FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT (SELECT a FROM t1 LIMIT 1) x FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
-SELECT * FROM t1 a, t1 b LIMIT 1;
+SELECT * FROM t1 a, t1 b ORDER BY a.a, b.a LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
@@ -478,7 +488,7 @@ disconnect con4;
 # Restore global concurrent_insert value. Keep in the end of the test file.
 --connection default
 set @@global.concurrent_insert= @old_concurrent_insert;
-SET GLOBAL log_output = @old_log_output;
+SET GLOBAL log_output = 'FILE,TABLE';
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
@@ -492,46 +502,57 @@ INSERT INTO t1 VALUES (1, 2), (3, 4), (5, 6);
 ANALYZE TABLE t1;
 
 EXPLAIN SELECT * FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT (SELECT MAX(x) FROM t1) FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x IN (SELECT MAX(x) FROM t1);
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT /*+ NO_MERGE(a) */ * FROM (SELECT * FROM t1) a, t1 b;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x > 0
         UNION ALL
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x > 0
         UNION DISTINCT
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN INSERT INTO t1 SELECT * FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN INSERT INTO t1
         SELECT * FROM t1 WHERE x > 0
         UNION ALL
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN INSERT INTO t1
         SELECT * FROM t1 WHERE x > 0
         UNION DISTINCT
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
@@ -566,6 +587,12 @@ ANALYZE TABLE t1, t2;
 
 EXPLAIN SELECT * FROM t1, t2 WHERE t1.i1 = t2.i1 ORDER BY t1.i1 LIMIT 10;
 
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1, t2;
+
+# Restore default
+SET @@global.log_output = @old_log_output;
+SET @@global.general_log = @old_general_log;
+TRUNCATE TABLE mysql.general_log;

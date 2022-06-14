@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -40,8 +42,8 @@ using my_testing::Server_initializer;
 
 class DecimalTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -81,7 +83,8 @@ TEST_F(DecimalTest, RoundOverflow) {
   const char arg_str[] = "999999999";
   String str(arg_str, &my_charset_bin);
 
-  EXPECT_EQ(E_DEC_OK, string2my_decimal(E_DEC_FATAL_ERROR, &str, &d1));
+  EXPECT_EQ(E_DEC_OK, str2my_decimal(E_DEC_FATAL_ERROR, str.ptr(), str.length(),
+                                     str.charset(), &d1));
   d1.sanity_check();
 
   for (int ix = 0; ix < DECIMAL_MAX_POSSIBLE_PRECISION; ++ix) {
@@ -128,15 +131,15 @@ TEST_F(DecimalTest, Multiply) {
   EXPECT_EQ(E_DEC_OK, chars_2_decimal(arg2, &d2));
 
   // Limit the precision, otherwise "1.75" will be truncated to "1."
-  set_if_smaller(d1.frac, NOT_FIXED_DEC);
-  set_if_smaller(d2.frac, NOT_FIXED_DEC);
+  d1.frac = std::min(d1.frac, DECIMAL_NOT_SPECIFIED);
+  d2.frac = std::min(d2.frac, DECIMAL_NOT_SPECIFIED);
   EXPECT_EQ(
       0, my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, &prod, &d1, &d2));
-  EXPECT_EQ(NOT_FIXED_DEC, d1.frac);
+  EXPECT_EQ(DECIMAL_NOT_SPECIFIED, d1.frac);
   EXPECT_EQ(2, d2.frac);
-  EXPECT_EQ(NOT_FIXED_DEC, prod.frac);
+  EXPECT_EQ(DECIMAL_NOT_SPECIFIED, prod.frac);
   bufsz = sizeof(buff);
-  EXPECT_EQ(0, decimal2string(&prod, buff, &bufsz, 0, 0, 0));
+  EXPECT_EQ(0, decimal2string(&prod, buff, &bufsz));
   EXPECT_STREQ("1.9250000000000000000000000000000", buff);
 }
 
@@ -155,7 +158,7 @@ TEST_F(DecimalTest, Multiply) {
 
     thus, there's no requirement for M or N to be integers
  */
-static int decimal_modulo(my_decimal *res, const my_decimal *m,
+static int decimal_modulo(my_decimal *res_arg, const my_decimal *m,
                           const my_decimal *n) {
   my_decimal abs_m(*m);
   my_decimal abs_n(*n);
@@ -184,7 +187,7 @@ static int decimal_modulo(my_decimal *res, const my_decimal *m,
     }
   } while (my_decimal_cmp(&next_r, &decimal_zero) >= 0);
   r.sign(m->sign());
-  *res = r;
+  *res_arg = r;
   return 0;
 }
 
@@ -202,7 +205,7 @@ Mod_data mod_test_input[] = {{"234", "10", "4"},
                              {"999", "0.1", "0.0"},
                              {"999", "0.7", "0.1"},
                              {"10", "123", "10"},
-                             {NULL, NULL, NULL}};
+                             {nullptr, nullptr, nullptr}};
 
 TEST_F(DecimalTest, Modulo) {
   my_decimal expected_result;
@@ -220,13 +223,13 @@ TEST_F(DecimalTest, Modulo) {
     EXPECT_EQ(0, chars_2_decimal(pd->result, &expected_result));
 
     EXPECT_EQ(0, my_decimal_mod(E_DEC_FATAL_ERROR, &mod_result, &d1, &d2));
-    EXPECT_EQ(0, decimal2string(&mod_result, buff_m, &bufsz_m, 0, 0, 0));
+    EXPECT_EQ(0, decimal2string(&mod_result, buff_m, &bufsz_m));
     EXPECT_EQ(0, my_decimal_cmp(&expected_result, &mod_result))
         << " a:" << pd->a << " b:" << pd->b << " expected:" << pd->result
         << " got mod:" << buff_m;
 
     EXPECT_EQ(0, decimal_modulo(&xxx_result, &d1, &d2));
-    EXPECT_EQ(0, decimal2string(&xxx_result, buff_x, &bufsz_x, 0, 0, 0));
+    EXPECT_EQ(0, decimal2string(&xxx_result, buff_x, &bufsz_x));
     EXPECT_EQ(0, my_decimal_cmp(&expected_result, &xxx_result))
         << " a:" << pd->a << " b:" << pd->b << " expected:" << pd->result
         << " got mod:" << buff_m << " got xxx:" << buff_x;
@@ -257,7 +260,7 @@ TEST_F(DecimalTest, NegativeZeroAdd) {
   my_decimal sum;
   EXPECT_EQ(E_DEC_OK, decimal_add(&d1, &d2, &sum));
   EXPECT_TRUE(sum.sign());
-  // This one will DBUG_ASSERT
+  // This one will assert
   // EXPECT_EQ(0, my_decimal_cmp(&sum, &decimal_zero));
 }
 

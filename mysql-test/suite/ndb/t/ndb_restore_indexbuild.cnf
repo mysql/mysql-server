@@ -1,8 +1,7 @@
 !include suite/ndb/my.cnf
 
 [cluster_config.1]
-#DataMemory=300M
-#IndexMemory=30M
+DataMemory=100M
 NoOfFragmentLogFiles=16
 BuildIndexThreads=8
 TwoPassInitialNodeRestartCopy=1
@@ -16,3 +15,6 @@ ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},r
 # No io binding
 #ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},rep={cpubind=0}
 
+[mysqld]
+# Turn off auto sync so it doesn't interfere with the test
+ndb-metadata-check = false

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,8 @@ class Sdi_wcontext;
 Partition_index_impl::Partition_index_impl()
     : m_options(),
       m_se_private_data(),
-      m_partition(NULL),
-      m_index(NULL),
+      m_partition(nullptr),
+      m_index(nullptr),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
 Partition_index_impl::Partition_index_impl(Partition_impl *partition,
@@ -144,9 +144,9 @@ bool Partition_index_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(
-    Index_partitions::FIELD_TABLESPACE_ID == 4,
-    "Index_partitions definition has changed, review (de)ser memfuns!");
+static_assert(Index_partitions::NUMBER_OF_FIELDS == 5,
+              "Index_partitions definition has changed, check if serialize() "
+              "and deserialize() need to be updated!");
 void Partition_index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   write_properties(w, m_options, STRING_WITH_LEN("options"));
@@ -215,8 +215,8 @@ Partition_index_impl *Partition_index_impl::clone(
     const Partition_index_impl &other, Partition_impl *partition) {
   Index *dstix = (*partition->table_impl()
                        .indexes())[other.m_index->ordinal_position() - 1];
-  DBUG_ASSERT(dstix->ordinal_position() == other.m_index->ordinal_position() &&
-              dstix->name() == other.m_index->name());
+  assert(dstix->ordinal_position() == other.m_index->ordinal_position() &&
+         dstix->name() == other.m_index->name());
   return new Partition_index_impl(other, partition, dstix);
 }
 

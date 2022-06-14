@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,13 @@
 #ifndef DD__COLLECTION_IMPL_INCLUDED
 #define DD__COLLECTION_IMPL_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <iterator>
 #include <type_traits>
 #include <vector>
-
-#include "my_dbug.h"
-#include "my_inttypes.h"
 
 namespace dd {
 
@@ -60,12 +58,17 @@ class Collection {
 
   void renumerate_items() {
     for (size_t i = 0; i < m_items.size(); ++i)
-      m_items[i]->set_ordinal_position(static_cast<uint>(i + 1));
+      m_items[i]->set_ordinal_position(static_cast<unsigned int>(i + 1));
   }
 
-  class Collection_iterator
-      : public std::iterator<std::forward_iterator_tag, T> {
+  class Collection_iterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = T;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     Collection_iterator(Array *array)
         : m_array(array), m_current(array->begin()), m_current_obj(nullptr) {}
 
@@ -100,9 +103,14 @@ class Collection {
     T m_current_obj;
   };
 
-  class Collection_const_iterator
-      : public std::iterator<std::forward_iterator_tag, const abstract_type *> {
+  class Collection_const_iterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = const abstract_type *;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     Collection_const_iterator(const Array *array)
         : m_array(array), m_current(array->begin()), m_current_obj(nullptr) {}
 
@@ -139,7 +147,7 @@ class Collection {
   };
 
  public:
-  Collection() {}
+  Collection() = default;
 
   ~Collection() { clear_all_items(); }
 
@@ -157,7 +165,7 @@ class Collection {
   typedef Collection_const_iterator const_iterator;
 
   void push_back(impl_type *item) {
-    item->set_ordinal_position(static_cast<uint>(m_items.size() + 1));
+    item->set_ordinal_position(static_cast<unsigned int>(m_items.size() + 1));
     m_items.push_back(item);
   }
 
@@ -192,15 +200,15 @@ class Collection {
   const_iterator begin() const { return const_iterator(&m_items); }
 
   iterator end() {
-    iterator iterator(&m_items);
-    iterator.end();
-    return iterator;
+    iterator it(&m_items);
+    it.end();
+    return it;
   }
 
   const_iterator end() const {
-    const_iterator iterator(&m_items);
-    iterator.end();
-    return iterator;
+    const_iterator it(&m_items);
+    it.end();
+    return it;
   }
 
   const_iterator cbegin() const { return begin(); }
@@ -222,7 +230,7 @@ class Collection {
   const abstract_type *at(size_t n) const;
 
   T at(size_t n) {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_items[n];
   }
 

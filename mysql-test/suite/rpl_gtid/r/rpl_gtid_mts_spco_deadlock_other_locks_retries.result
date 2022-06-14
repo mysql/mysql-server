@@ -1,0 +1,322 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, NULL),
+(2, 2),
+(3, NULL),
+(4, 4),
+(5, NULL),
+(6, 6);
+CREATE TABLE t2(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave_sql.inc
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Deadlock found when trying to get lock.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Can not lock user management caches for processing.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Replica worker has stopped after at least one previous worker.*");
+CALL mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_preserve_commit_order = ON;
+SET GLOBAL replica_transaction_retries = REPLICA_TRANSACTION_RETRIES;
+SET GLOBAL innodb_lock_wait_timeout = INNODB_LOCK_WAIT_TIMEOUT;
+include/rpl_connect.inc [creating rpl_slave_connection_2]
+include/rpl_connect.inc [creating rpl_slave_connection_3]
+
+#
+# TC1. `GLOBAL READ_ONLY=ON` issued by client and DDL replicated
+#      from source.
+#------------------------------------------------------------------------
+[connection master]
+INSERT INTO t1 VALUES(10, 10);
+[connection slave]
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:1";
+ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+INSERT INTO t1 VALUES(11, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:3";
+INSERT INTO t1 VALUES(12, NULL);
+SET GTID_NEXT = AUTOMATIC;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:1";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:3";
+BEGIN;
+[connection slave1]
+include/start_slave_sql.inc
+include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
+include/assert.inc [MTS worker thread count is correct]
+include/assert.inc [Replica preserve commit order is 1]
+include/assert.inc [Replica transaction retries has correct configured value]
+include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
+SET GLOBAL read_only = ON;
+[connection slave]
+include/wait_condition.inc [Client connection must wait for state]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave1]
+[connection slave1]
+SET GLOBAL read_only = OFF;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+
+#
+# TC2. `GLOBAL READ_ONLY=ON` issued by client and DML replicated
+#      from source.
+#------------------------------------------------------------------------
+[connection master]
+INSERT INTO t1 VALUES(13, 13);
+[connection slave]
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:4";
+INSERT INTO t1 VALUES(14, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:5";
+INSERT INTO t1 VALUES(15, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:6";
+INSERT INTO t1 VALUES(16, NULL);
+SET GTID_NEXT = AUTOMATIC;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:4";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:5";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:6";
+BEGIN;
+[connection slave1]
+include/start_slave_sql.inc
+include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
+include/assert.inc [MTS worker thread count is correct]
+include/assert.inc [Replica preserve commit order is 1]
+include/assert.inc [Replica transaction retries has correct configured value]
+include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
+SET GLOBAL read_only = ON;
+[connection slave]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave1]
+[connection slave1]
+SET GLOBAL read_only = OFF;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+
+#
+# TC3. `FLUSH TABLES WITH READ LOCK` issued by client and DDL replicated
+#      from source.
+#------------------------------------------------------------------------
+[connection master]
+INSERT INTO t1 VALUES(17, 17);
+[connection slave]
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:7";
+ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:8";
+INSERT INTO t1 VALUES(18, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:9";
+INSERT INTO t1 VALUES(19, NULL);
+SET GTID_NEXT = AUTOMATIC;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:7";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:8";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:9";
+BEGIN;
+[connection slave1]
+include/start_slave_sql.inc
+include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
+include/assert.inc [MTS worker thread count is correct]
+include/assert.inc [Replica preserve commit order is 1]
+include/assert.inc [Replica transaction retries has correct configured value]
+include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
+FLUSH TABLES WITH READ LOCK;
+[connection slave]
+include/wait_condition.inc [Client connection must wait for state]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave1]
+[connection slave1]
+UNLOCK TABLES;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+
+#
+# TC4. `FLUSH TABLES WITH READ LOCK` issued by client and DML replicated
+#      from source.
+#------------------------------------------------------------------------
+[connection master]
+INSERT INTO t1 VALUES(20, 20);
+[connection slave]
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:10";
+INSERT INTO t1 VALUES(21, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:11";
+INSERT INTO t1 VALUES(22, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:12";
+INSERT INTO t1 VALUES(23, NULL);
+SET GTID_NEXT = AUTOMATIC;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:10";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:11";
+BEGIN;
+[connection rpl_slave_connection_3]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:12";
+BEGIN;
+[connection slave1]
+include/start_slave_sql.inc
+include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
+include/assert.inc [MTS worker thread count is correct]
+include/assert.inc [Replica preserve commit order is 1]
+include/assert.inc [Replica transaction retries has correct configured value]
+include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection rpl_slave_connection_3]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [Second worker must wait on commit order]
+[connection slave1]
+FLUSH TABLES WITH READ LOCK;
+[connection slave]
+include/wait_condition.inc [Client connection must wait for state]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave1]
+[connection slave1]
+UNLOCK TABLES;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+
+#
+# TC5. DML issued by client and `XA PREPARE` replicated from source.
+#------------------------------------------------------------------------
+[connection master]
+INSERT INTO t1 VALUES(24, 24);
+[connection slave]
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:13";
+XA START 'xa1'; INSERT INTO t1 VALUES(25, NULL); XA END 'xa1'; XA PREPARE 'xa1';
+SET GTID_NEXT = AUTOMATIC;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:13";
+BEGIN;
+[connection slave1]
+include/start_slave_sql.inc
+include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
+include/assert.inc [MTS worker thread count is correct]
+include/assert.inc [Replica preserve commit order is 1]
+include/assert.inc [Replica transaction retries has correct configured value]
+include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection slave1]
+BEGIN; INSERT INTO t1 VALUES(25, NULL);
+[connection slave]
+include/wait_condition.inc [Client connection must wait for state]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave1]
+[connection slave1]
+ROLLBACK;
+[connection master]
+XA COMMIT 'xa1';
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_end.inc
+[connection slave]
+SET GLOBAL replica_parallel_type = 'SAVED_REPLICA_PARALLEL_TYPE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = SAVED_REPLICA_PARALLEL_WORKERS;
+SET GLOBAL replica_preserve_commit_order = SAVED_REPLICA_PRESERVE_COMMIT_ORDER;
+SET GLOBAL replica_transaction_retries = SAVED_REPLICA_TRANSACTION_RETRIES;
+SET GLOBAL innodb_lock_wait_timeout = SAVED_INNODB_LOCK_WAIT_TIMEOUT;
+SET GLOBAL read_only = SAVED_READ_ONLY;

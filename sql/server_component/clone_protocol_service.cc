@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -29,18 +29,59 @@
 #include "my_byteorder.h"
 #include "mysql.h"
 #include "sql/mysqld.h"
+#include "sql/protocol_classic.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"
 #include "sql/sql_thd_internal_api.h"
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/sys_vars_shared.h"
 #include "sql_common.h"
 
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 
-void clone_protocol_service_init() { return; }
+/** The minimum idle timeout in seconds. It is kept at 8 hours which is also
+the Server default. Currently recipient sends ACK during state transition.
+In future we could have better time controlled ACK. */
+static const uint32_t MIN_IDLE_TIME_OUT_SEC = 8 * 60 * 60;
+
+/** Minimum read timeout in seconds. Maintain above the donor ACK frequency. */
+static const uint32_t MIN_READ_TIME_OUT_SEC = 30;
+
+/** Minimum write timeout in seconds. Disallow configuring it to too low. We
+might need a separate clone configuration in future or retry on failure. */
+static const uint32_t MIN_WRITE_TIME_OUT_SEC = 60;
+
+/** Set Network read timeout.
+@param[in,out]	net	network object
+@param[in]	timeout	time out in seconds */
+static void set_read_timeout(NET *net, uint32_t timeout) {
+  if (timeout < MIN_READ_TIME_OUT_SEC) {
+    timeout = MIN_READ_TIME_OUT_SEC;
+  }
+  my_net_set_read_timeout(net, timeout);
+}
+
+/** Set Network write timeout.
+@param[in,out]	net	network object
+@param[in]	timeout	time out in seconds */
+static void set_write_timeout(NET *net, uint32_t timeout) {
+  if (timeout < MIN_WRITE_TIME_OUT_SEC) {
+    timeout = MIN_WRITE_TIME_OUT_SEC;
+  }
+  my_net_set_write_timeout(net, timeout);
+}
+
+/** Set Network idle timeout.
+@param[in,out]	net	network object
+@param[in]	timeout	time out in seconds */
+static void set_idle_timeout(NET *net, uint32_t timeout) {
+  if (timeout < MIN_IDLE_TIME_OUT_SEC) {
+    timeout = MIN_IDLE_TIME_OUT_SEC;
+  }
+  my_net_set_read_timeout(net, timeout);
+}
 
 DEFINE_METHOD(void, mysql_clone_start_statement,
               (THD * &thd, PSI_thread_key thread_key,
@@ -54,7 +95,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
     my_thread_init();
 
     /* Create thread with input key for PFS */
-    thd = create_thd(true, true, true, thread_key);
+    thd = create_thd(true, true, true, thread_key, 0);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     thd_created = true;
 #endif
@@ -63,12 +104,15 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Create and set PFS thread key */
   if (thread_key != PSI_NOT_INSTRUMENTED) {
-    DBUG_ASSERT(thd_created);
+    assert(thd_created);
     if (thd_created) {
       PSI_THREAD_CALL(set_thread)(thd->get_psi());
     }
   }
 #endif
+
+  mysql_thread_set_secondary_engine(false);
+
   /* Create and set PFS statement key */
   if (statement_key != PSI_NOT_INSTRUMENTED) {
     if (thd->m_statement_psi == nullptr) {
@@ -83,9 +127,10 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 }
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd)) {
-  DBUG_ASSERT(thd->m_statement_psi == nullptr);
+  assert(thd->m_statement_psi == nullptr);
 
   my_thread_end();
+  thd->set_psi(nullptr);
   destroy_thd(thd);
 }
 
@@ -121,16 +166,20 @@ DEFINE_METHOD(int, mysql_clone_validate_charsets,
   if (thd == nullptr) {
     return (0);
   }
+
+  int last_error = 0;
+
   for (auto &char_set : char_sets) {
     auto charset_obj = get_charset_by_name(char_set.c_str(), MYF(0));
 
     /* Check if character set collation is available. */
     if (charset_obj == nullptr) {
       my_error(ER_CLONE_CHARSET, MYF(0), char_set.c_str());
-      return (ER_CLONE_CHARSET);
+      /* Continue and check for all other errors. */
+      last_error = ER_CLONE_CHARSET;
     }
   }
-  return (0);
+  return last_error;
 }
 
 /**
@@ -142,36 +191,35 @@ DEFINE_METHOD(int, mysql_clone_validate_charsets,
 */
 static int get_utf8_config(THD *thd, std::string config_name,
                            String &utf8_val) {
-  char val_buf[1024];
-  SHOW_VAR show;
-  show.type = SHOW_SYS;
+  auto f = [thd, &utf8_val](const System_variable_tracker &, sys_var *var) {
+    char val_buf[1024];
+    SHOW_VAR show;
+    show.type = SHOW_SYS;
+    show.value = pointer_cast<char *>(var);
+    show.name = var->name.str;
 
-  /* Get system configuration parameter. */
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  auto var = intern_find_sys_var(config_name.c_str(), config_name.length());
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    size_t val_length;
+    const CHARSET_INFO *fromcs;
 
-  if (var == nullptr) {
+    const char *value =
+        get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr, &fromcs,
+                         val_buf, &val_length);
+
+    uint dummy_err;
+    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+    utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+  };
+
+  System_variable_tracker sv =
+      System_variable_tracker::make_tracker(config_name);
+  if (sv.access_system_variable(thd, f, Suppress_not_found_error::YES)) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Clone failed to get system configuration parameter.");
     return (ER_INTERNAL_ERROR);
   }
 
-  show.value = reinterpret_cast<char *>(var);
-  show.name = var->name.str;
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  size_t val_length;
-  const CHARSET_INFO *fromcs;
-
-  auto value = get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr,
-                                &fromcs, val_buf, &val_length);
-
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
-  uint dummy_err;
-  const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-  utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
   return (0);
 }
 
@@ -194,16 +242,56 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
   return (err);
 }
 
+/**
+ Says whether a character is a digit or a dot.
+ @param c character
+ @return true if c is a digit or a dot, otherwise false
+ */
+inline bool is_digit_or_dot(char c) { return std::isdigit(c) || c == '.'; }
+
+/**
+ Compares versions, ignoring suffixes, i.e. 8.0.25 should be the same
+ as 8.0.25-debug, but 8.0.25 isn't the same as 8.0.251.
+ @param ver1 version1 string
+ @param ver2 version2 string
+ @return true if versions match (ignoring suffixes), false otherwise
+ */
+inline bool compare_prefix_version(std::string ver1, std::string ver2) {
+  size_t i;
+  /* we iterate  over both versions */
+  for (i = 0; i < ver1.size() && i < ver2.size(); i++) {
+    if (!is_digit_or_dot(ver1[i])) {
+      /*  If in one version we have something else than digit or dot,
+      we check what's in other version - if we also have a suffix or still
+      a version. */
+      return !is_digit_or_dot(ver2[i]);
+    }
+    /* We still compare version, and have a difference */
+    if (ver1[i] != ver2[i]) return false;
+  }
+  if (i < ver1.size()) {
+    /* we finished iterate over ver2, but still have some digits in ver1 */
+    return !std::isdigit(ver1[i]);
+  }
+  if (i < ver2.size()) {
+    /* we finished iterate over ver1, but still have some digits in ver2 */
+    return !std::isdigit(ver2[i]);
+  }
+  return true;
+}
+
 DEFINE_METHOD(int, mysql_clone_validate_configs,
               (THD * thd, Mysql_Clone_Key_Values &configs)) {
-  int err = 0;
+  int last_error = 0;
 
   for (auto &key_val : configs) {
     String utf8_str;
     auto &config_name = key_val.first;
-    err = get_utf8_config(thd, config_name, utf8_str);
-    if (err != 0) {
-      break;
+    auto config_err = get_utf8_config(thd, config_name, utf8_str);
+    if (config_err != 0) {
+      last_error = config_err;
+      /* Continue and check for all other errors. */
+      continue;
     }
 
     auto &donor_val = key_val.second;
@@ -215,41 +303,53 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
       continue;
     }
 
-    /* Throw specific error for some configurations. */
+    int critical_error = 0;
+
+    /* Throw specific error for some configurations. These errors are critical
+    because user can no way clone from the current donor. */
     if (config_name.compare("version_compile_os") == 0) {
-      err = ER_CLONE_OS;
+      critical_error = ER_CLONE_OS;
     } else if (config_name.compare("version") == 0) {
-      err = ER_CLONE_DONOR_VERSION;
+      /* we want to allow to add some suffix to the version and still match
+      i.e. 8.0.25 should be the same as 8.0.25-debug */
+      if (compare_prefix_version(config_val, donor_val)) {
+        continue;
+      }
+      critical_error = ER_CLONE_DONOR_VERSION;
     } else if (config_name.compare("version_compile_machine") == 0) {
-      err = ER_CLONE_PLATFORM;
+      critical_error = ER_CLONE_PLATFORM;
     }
 
-    if (err != 0) {
-      my_error(err, MYF(0), donor_val.c_str(), config_val.c_str());
-    } else {
-      err = ER_CLONE_CONFIG;
-      my_error(ER_CLONE_CONFIG, MYF(0), config_name.c_str(), donor_val.c_str(),
-               config_val.c_str());
+    /* For critical errors, exit immediately. */
+    if (critical_error != 0) {
+      last_error = critical_error;
+      my_error(last_error, MYF(0), donor_val.c_str(), config_val.c_str());
+      break;
     }
-    break;
+
+    last_error = ER_CLONE_CONFIG;
+    my_error(ER_CLONE_CONFIG, MYF(0), config_name.c_str(), donor_val.c_str(),
+             config_val.c_str());
+    /* Continue and check for all other configuration mismatch. */
   }
-  return (err);
+  return last_error;
 }
 
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
               (THD * thd, const char *host, uint32_t port, const char *user,
                const char *passwd, mysql_clone_ssl_context *ssl_ctx,
                MYSQL_SOCKET *socket)) {
-  DBUG_ENTER("mysql_clone_connect");
+  DBUG_TRACE;
 
-  /* Set default as 5 seconds */
-  uint net_read_timeout = 5;
-  uint net_write_timeout = 5;
+  /* Set default */
+  uint net_read_timeout = MIN_READ_TIME_OUT_SEC;
+  uint net_write_timeout = MIN_WRITE_TIME_OUT_SEC;
 
   /* Clean any previous Error and Warnings in THD */
   if (thd != nullptr) {
     thd->clear_error();
     thd->get_stmt_da()->reset_condition_info(thd);
+
     net_read_timeout = thd->variables.net_read_timeout;
     net_write_timeout = thd->variables.net_write_timeout;
   }
@@ -274,9 +374,9 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     OptionalString capath, cipher, ciphersuites, crl, crlpath, version;
 
-    SslAcceptorContext::read_parameters(nullptr, &capath, &version, nullptr,
-                                        &cipher, &ciphersuites, nullptr, &crl,
-                                        &crlpath);
+    server_main_callback.read_parameters(nullptr, &capath, &version, nullptr,
+                                         &cipher, &ciphersuites, nullptr, &crl,
+                                         &crlpath, nullptr, nullptr);
 
     mysql_ssl_set(mysql, ssl_ctx->m_ssl_key, ssl_ctx->m_ssl_cert,
                   ssl_ctx->m_ssl_ca, capath.c_str(), cipher.c_str());
@@ -296,10 +396,11 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
   /* Enable compression. */
   if (ssl_ctx->m_enable_compression) {
     mysql_options(mysql, MYSQL_OPT_COMPRESS, nullptr);
+    mysql_extension_set_server_extn(mysql, ssl_ctx->m_server_extn);
   }
 
   ret_mysql =
-      mysql_real_connect(mysql, host, user, passwd, nullptr, port, 0, 0);
+      mysql_real_connect(mysql, host, user, passwd, nullptr, port, nullptr, 0);
 
   if (ret_mysql == nullptr) {
     char err_buf[MYSYS_ERRMSG_SIZE + 64];
@@ -310,7 +411,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
     LogErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, err_buf);
 
     mysql_close(mysql);
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   NET *net = &mysql->net;
@@ -322,8 +423,8 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
   net_clear(net, true);
 
   /* Set network read/write timeout */
-  my_net_set_read_timeout(net, net_read_timeout);
-  my_net_set_write_timeout(net, net_write_timeout);
+  set_read_timeout(net, net_read_timeout);
+  set_write_timeout(net, net_write_timeout);
 
   if (thd != nullptr) {
     /* Set current active vio so that shutdown and KILL
@@ -344,24 +445,24 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     my_error(ER_CLONE_DONOR, MYF(0), err_buf);
 
-    snprintf(err_buf, sizeof(err_buf), "COM_CLONE failed %d : %s",
+    snprintf(err_buf, sizeof(err_buf), "COM_CLONE failed: %d : %s",
              net->last_errno, net->last_error);
     LogErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, err_buf);
 
     mysql_close(mysql);
     mysql = nullptr;
   }
-  DBUG_RETURN(mysql);
+  return mysql;
 }
 
 DEFINE_METHOD(int, mysql_clone_send_command,
               (THD * thd, MYSQL *connection, bool set_active, uchar command,
                uchar *com_buffer, size_t buffer_length)) {
-  DBUG_ENTER("mysql_clone_send_command");
+  DBUG_TRACE;
   NET *net = &connection->net;
 
   if (net->last_errno != 0) {
-    DBUG_RETURN(static_cast<int>(net->last_errno));
+    return static_cast<int>(net->last_errno);
   }
 
   net_clear_error(net);
@@ -369,13 +470,13 @@ DEFINE_METHOD(int, mysql_clone_send_command,
 
   if (set_active && thd->killed != THD::NOT_KILLED) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
-    DBUG_RETURN(ER_QUERY_INTERRUPTED);
+    return ER_QUERY_INTERRUPTED;
   }
 
   auto result =
       net_write_command(net, command, nullptr, 0, com_buffer, buffer_length);
   if (!result) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   int err = static_cast<int>(net->last_errno);
@@ -388,39 +489,40 @@ DEFINE_METHOD(int, mysql_clone_send_command,
     err = ER_QUERY_INTERRUPTED;
   }
 
-  DBUG_ASSERT(err != 0);
-  DBUG_RETURN(err);
+  assert(err != 0);
+  return err;
 }
 
 DEFINE_METHOD(int, mysql_clone_get_response,
               (THD * thd, MYSQL *connection, bool set_active, uint32_t timeout,
                uchar **packet, size_t *length, size_t *net_length)) {
-  DBUG_ENTER("mysql_clone_get_response");
+  DBUG_TRACE;
   NET *net = &connection->net;
 
   if (net->last_errno != 0) {
-    DBUG_RETURN(static_cast<int>(net->last_errno));
+    return static_cast<int>(net->last_errno);
   }
 
   if (set_active && thd->killed != THD::NOT_KILLED) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
-    DBUG_RETURN(ER_QUERY_INTERRUPTED);
+    return ER_QUERY_INTERRUPTED;
   }
 
   net_new_transaction(net);
 
   /* Adjust read timeout if specified. */
   if (timeout != 0) {
-    my_net_set_read_timeout(net, timeout);
+    set_read_timeout(net, timeout);
   }
 
   /* Dummy function callback invoked before getting header. */
   auto func_before = [](NET *, void *, size_t) {};
 
   /* Callback function called after receiving header. */
-  auto func_after = [](NET *net, void *ctx, size_t, bool) {
+  auto func_after = [](NET *net_arg, void *ctx, size_t, bool) {
     auto net_bytes = static_cast<size_t *>(ctx);
-    *net_bytes += static_cast<size_t>(uint3korr(net->buff + net->where_b));
+    *net_bytes +=
+        static_cast<size_t>(uint3korr(net_arg->buff + net_arg->where_b));
   };
 
   /* Use server extension callback to capture network byte information. */
@@ -428,22 +530,27 @@ DEFINE_METHOD(int, mysql_clone_get_response,
   server_extn.m_user_data = static_cast<void *>(net_length);
   server_extn.m_before_header = func_before;
   server_extn.m_after_header = func_after;
-
   auto saved_extn = net->extension;
+  if (saved_extn != nullptr && net->compress)
+    server_extn.compress_ctx =
+        (static_cast<NET_SERVER *>(saved_extn))->compress_ctx;
+  else
+    server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   net->extension = &server_extn;
 
   *net_length = 0;
   *length = my_net_read(net);
 
   net->extension = saved_extn;
+  server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
 
   /* Reset timeout back to default value. */
-  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  set_read_timeout(net, thd->variables.net_read_timeout);
 
   *packet = net->read_pos;
 
   if (*length != packet_error && *length != 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   int err = static_cast<int>(net->last_errno);
@@ -455,17 +562,30 @@ DEFINE_METHOD(int, mysql_clone_get_response,
     err = ER_QUERY_INTERRUPTED;
   }
 
+  /* This error is not relevant for client but is raised by network
+  net_read_raw_loop() as the code is compiled in server MYSQL_SERVER.
+  For clone client we need to set valid client network error. */
+  if (err == ER_CLIENT_INTERACTION_TIMEOUT) {
+    /* purecov: begin inspected */
+    thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    net->last_errno = ER_NET_READ_ERROR;
+    err = ER_NET_READ_ERROR;
+    my_error(ER_NET_READ_ERROR, MYF(0));
+    /* purecov: end */
+  }
+
   if (err == 0) {
     net->last_errno = ER_NET_PACKETS_OUT_OF_ORDER;
     err = ER_NET_PACKETS_OUT_OF_ORDER;
     my_error(err, MYF(0));
   }
-  DBUG_RETURN(err);
+  return err;
 }
 
 DEFINE_METHOD(int, mysql_clone_kill,
               (MYSQL * connection, MYSQL *kill_connection)) {
-  DBUG_ENTER("mysql_clone_kill");
+  DBUG_TRACE;
 
   auto kill_conn_id = kill_connection->thread_id;
 
@@ -475,23 +595,12 @@ DEFINE_METHOD(int, mysql_clone_kill,
   auto err = mysql_real_query(connection, kill_buffer,
                               static_cast<ulong>(strlen(kill_buffer)));
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 DEFINE_METHOD(void, mysql_clone_disconnect,
               (THD * thd, MYSQL *mysql, bool is_fatal, bool clear_error)) {
-  DBUG_ENTER("mysql_clone_disconnect");
-
-  if (thd != nullptr) {
-    thd->clear_clone_vio();
-
-    /* clear any session error, if requested */
-    if (clear_error) {
-      thd->clear_error();
-      thd->get_stmt_da()->reset_condition_info(thd);
-    }
-  }
-
+  DBUG_TRACE;
   /* Make sure that the other end has switched back from clone protocol. */
   if (!is_fatal) {
     is_fatal = simple_command(mysql, COM_RESET_CONNECTION, nullptr, 0, 0);
@@ -503,50 +612,63 @@ DEFINE_METHOD(void, mysql_clone_disconnect,
 
   /* Disconnect */
   mysql_close(mysql);
-  DBUG_VOID_RETURN;
+
+  /* There could be some n/w error during disconnect and we need to clear
+  them if requested. */
+  if (thd != nullptr) {
+    thd->clear_clone_vio();
+
+    /* clear any session error, if requested */
+    if (clear_error) {
+      thd->clear_error();
+      thd->get_stmt_da()->reset_condition_info(thd);
+    }
+  }
 }
 
 DEFINE_METHOD(void, mysql_clone_get_error,
               (THD * thd, uint32_t *err_num, const char **err_mesg)) {
-  DBUG_ENTER("mysql_clone_get_error");
+  DBUG_TRACE;
   *err_num = 0;
   *err_mesg = nullptr;
   /* Check if THD exists. */
   if (thd == nullptr) {
-    DBUG_VOID_RETURN;
+    return;
   }
   /* Check if DA exists. */
   auto da = thd->get_stmt_da();
   if (da == nullptr || !da->is_error()) {
-    DBUG_VOID_RETURN;
+    return;
   }
   /* Get error from DA. */
   *err_num = da->mysql_errno();
   *err_mesg = da->message_text();
-  DBUG_VOID_RETURN;
 }
 
 DEFINE_METHOD(int, mysql_clone_get_command,
               (THD * thd, uchar *command, uchar **com_buffer,
                size_t *buffer_length)) {
-  DBUG_ENTER("mysql_clone_get_command");
+  DBUG_TRACE;
 
   NET *net = thd->get_protocol_classic()->get_net();
 
   if (net->last_errno != 0) {
-    DBUG_RETURN(static_cast<int>(net->last_errno));
+    return static_cast<int>(net->last_errno);
   }
 
   /* flush any data in write buffer */
   if (!net_flush(net)) {
     net_new_transaction(net);
 
-    /* Use idle timeout while waiting for commands */
-    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+    /* Set idle timeout while waiting for commands. Earlier we used server
+    configuration "wait_timeout" but this causes unwanted timeout in clone
+    when user configures the value too low. */
+    set_idle_timeout(net, thd->variables.net_wait_timeout);
 
     *buffer_length = my_net_read(net);
 
-    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+    set_read_timeout(net, thd->variables.net_read_timeout);
+    set_write_timeout(net, thd->variables.net_write_timeout);
 
     if (*buffer_length != packet_error && *buffer_length != 0) {
       *com_buffer = net->read_pos;
@@ -555,7 +677,7 @@ DEFINE_METHOD(int, mysql_clone_get_command,
       ++(*com_buffer);
       --(*buffer_length);
 
-      DBUG_RETURN(0);
+      return 0;
     }
   }
 
@@ -566,40 +688,66 @@ DEFINE_METHOD(int, mysql_clone_get_command,
     err = ER_NET_PACKETS_OUT_OF_ORDER;
     my_error(err, MYF(0));
   }
-  DBUG_RETURN(err);
+  return err;
 }
 
 DEFINE_METHOD(int, mysql_clone_send_response,
               (THD * thd, bool secure, uchar *packet, size_t length)) {
-  DBUG_ENTER("mysql_clone_send_response");
+  DBUG_TRACE;
   NET *net = thd->get_protocol_classic()->get_net();
 
   if (net->last_errno != 0) {
-    DBUG_RETURN(static_cast<int>(net->last_errno));
+    return static_cast<int>(net->last_errno);
   }
 
   auto conn_type = thd->get_vio_type();
 
   if (secure && conn_type != VIO_TYPE_SSL) {
     my_error(ER_CLONE_ENCRYPTION, MYF(0));
-    DBUG_RETURN(ER_CLONE_ENCRYPTION);
+    return ER_CLONE_ENCRYPTION;
   }
 
   net_clear(net, true);
 
   if (!my_net_write(net, packet, length) && !net_flush(net)) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   int err = static_cast<int>(net->last_errno);
 
-  DBUG_ASSERT(err != 0);
-  DBUG_RETURN(err);
+  assert(err != 0);
+  return err;
 }
 
 DEFINE_METHOD(int, mysql_clone_send_error,
               (THD * thd, uchar err_cmd, bool is_fatal)) {
-  DBUG_ENTER("mysql_clone_send_error");
+  DBUG_TRACE;
+
+  NET *net = thd->get_protocol_classic()->get_net();
+  auto da = thd->get_stmt_da();
+
+  /* Consider any previous network error as fatal. */
+  if (!is_fatal && net->last_errno != 0) {
+    is_fatal = true;
+  }
+
+  if (is_fatal) {
+    int err = 0;
+
+    /* Handle the case if network layer hasn't set the error in THD. */
+    if (da->is_error()) {
+      err = da->mysql_errno();
+    } else {
+      err = ER_NET_ERROR_ON_WRITE;
+      my_error(err, MYF(0));
+    }
+
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    thd->shutdown_active_vio();
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    return err;
+  }
 
   uchar err_packet[1 + 4 + MYSQL_ERRMSG_SIZE + 1];
   uchar *buf_ptr = &err_packet[0];
@@ -608,8 +756,6 @@ DEFINE_METHOD(int, mysql_clone_send_error,
   *buf_ptr = err_cmd;
   ++buf_ptr;
   ++packet_length;
-
-  auto da = thd->get_stmt_da();
 
   char *bufp;
 
@@ -621,13 +767,6 @@ DEFINE_METHOD(int, mysql_clone_send_error,
     bufp = reinterpret_cast<char *>(buf_ptr);
     packet_length +=
         snprintf(bufp, MYSQL_ERRMSG_SIZE, "%s", da->message_text());
-    if (is_fatal) {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
-      thd->shutdown_active_vio();
-      mysql_mutex_unlock(&thd->LOCK_thd_data);
-
-      DBUG_RETURN(da->mysql_errno());
-    }
   } else {
     int4store(buf_ptr, ER_INTERNAL_ERROR);
     buf_ptr += 4;
@@ -637,14 +776,6 @@ DEFINE_METHOD(int, mysql_clone_send_error,
     packet_length += snprintf(bufp, MYSQL_ERRMSG_SIZE, "%s", "Unknown Error");
   }
 
-  NET *net = thd->get_protocol_classic()->get_net();
-
-  if (net->last_errno != 0) {
-    DBUG_RETURN(static_cast<int>(net->last_errno));
-  }
-
-  DBUG_ASSERT(!is_fatal);
-
   /* Clean error in THD */
   thd->clear_error();
   thd->get_stmt_da()->reset_condition_info(thd);
@@ -652,13 +783,19 @@ DEFINE_METHOD(int, mysql_clone_send_error,
 
   if (my_net_write(net, &err_packet[0], packet_length) || net_flush(net)) {
     int err = static_cast<int>(net->last_errno);
+    da = thd->get_stmt_da();
 
-    if (err == 0) {
+    if (err == 0 || !da->is_error()) {
       net->last_errno = ER_NET_PACKETS_OUT_OF_ORDER;
       err = ER_NET_PACKETS_OUT_OF_ORDER;
       my_error(err, MYF(0));
     }
-    DBUG_RETURN(err);
+
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    thd->shutdown_active_vio();
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    return err;
   }
-  DBUG_RETURN(0);
+  return 0;
 }

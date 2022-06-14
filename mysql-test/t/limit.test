@@ -2,6 +2,7 @@
 
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(11),(12),(13),(14),(15),(16),(17),(18),(19);
+ANALYZE TABLE t1;
 
 CREATE TABLE t2(a INTEGER);
 INSERT INTO t2 VALUES(21),(22),(23),(24),(25),(26),(27);
@@ -10,6 +11,7 @@ SELECT * FROM t1 LIMIT 6;
 
 SELECT * FROM t1 LIMIT 5 OFFSET 1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LIMIT 5 OFFSET 1;
 
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
@@ -243,15 +245,16 @@ drop table t1;
 
 prepare s from "select 1 limit ?";
 set @a='qwe';
+--error ER_WRONG_ARGUMENTS
 execute s using @a;
 set @a=-1;
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 execute s using @a;
 prepare s from "select 1 limit 1, ?";
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 execute s using @a;
 prepare s from "select 1 limit ?, ?";
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 execute s using @a, @a;
 set @a=14632475938453979136;
 execute s using @a, @a;
@@ -298,6 +301,7 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='block_nested_loop=off';
 CREATE TABLE t1 ( pk INTEGER );
 INSERT INTO t1 VALUES (1), (2);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
 --error ER_JSON_DOCUMENT_NULL_KEY
 SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
@@ -330,4 +334,115 @@ SELECT col_varchar_key AS f1
   WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
   GROUP BY f1 LIMIT 100;
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30521803: LIMIT CLAUSE OUTSIDE PARENTHESES CAN SUPPRESS ORDERING
+--echo #               CLAUSES INSIDE
+--echo #
+
+CREATE TEMPORARY TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+
+--echo # All 3 queries below should return the same result:
+
+SELECT * FROM (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) AS alias LIMIT 2;
+
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+
+WITH cte AS (SELECT 1) (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#30204811 ASSERTION `SELECT_LIMIT > 0' FAILED AT
+--echo #              TEST_IF_SKIP_SORT_ORDER
+--echo #
+
+# Tables are created as myISAM tables as row counts will be reported
+# as 'excact' by myISAM handler. Table B is intentionally left empty to cause
+# 'rows_fetched = 0' to be reported from the handler. This results in
+# the 'fanout' of A join B to be calculated as 0, which triggered the bug:
+#
+# The fanout was used to calculate a modified 'select_limit' for number
+# of rows to be read from the first table. This involved a division-by-zero
+# with fanout, such that 'modified select_limit' became 'infinite'.
+# Storing that (with type cast) into a ha_rows data type is undefined behavior.
+# Thus 'zero' ended up being stored (or possibly just left unassigned)
+
+CREATE TABLE a (
+  col_int int,
+  col_varchar_255 varchar(255),
+  pk integer auto_increment  primary key
+) ENGINE=myisam;
+
+CREATE TABLE b (
+  col_varchar_10 varchar(10),
+  pk integer primary key
+) ENGINE=myisam;
+
+let $query=
+SELECT STRAIGHT_JOIN a.pk
+FROM a
+  JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
+
+INSERT INTO a(col_int,col_varchar_255) VALUES (0,""),(1,"");
+
+##############################
+# Independent of whether there are more or less rows in table A than the
+# specified 'limit', the 'fanout == 0' should result in all rows needed
+# to be read. Thus there are no effective limits.
+
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+
+#################################
+# Table A now contains 4096 rows, still all rows should be read.
+
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+
+DROP TABLE a;
+DROP TABLE b;
+
+--echo # Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+--echo #               with prepared statements
+
+CREATE TABLE t1(id INTEGER);
+INSERT INTO t1 (id) VALUES (1), (2), (3);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SELECT * FROM t1 WHERE id > ?";
+SET @a = 0;
+EXECUTE stmt using @a;
+set @@sql_select_limit=2;
+EXECUTE stmt using @a;
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+CREATE TABLE t1(id INTEGER, c1 INTEGER, c2 INTEGER, c3 INTEGER);
+INSERT INTO t1 VALUES(1,1,1,1),(2,2,2,2),(3,9,9,9),(4,10,10,10),(6,1,2,888);
+PREPARE stmt FROM
+"(SELECT * FROM t1 LIMIT 2) UNION ALL (SELECT * FROM t1 ORDER BY 1)";
+SET @@sql_select_limit=2;
+EXECUTE stmt;
+SET @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 DROP TABLE t1;

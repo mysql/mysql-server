@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -341,7 +341,7 @@
       <td>One of ::enum_mysql_set_option</td></tr>
   </table>
 
-  @sa ::mysql_set_server_option, ::mysql_parse
+  @sa ::mysql_set_server_option, ::dispatch_sql_command
 */
 
 /**
@@ -440,6 +440,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -460,37 +461,84 @@
 #include "sql/sql_prepare.h"  // Prepared_statement
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 using std::max;
 using std::min;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC = 1024;
+static bool net_send_error_packet(THD *, uint, const char *, const char *);
 static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
                                   ulong, const CHARSET_INFO *);
 static bool write_eof_packet(THD *, NET *, uint, uint);
+static ulong get_ps_param_len(enum enum_field_types, uchar *, ulong, ulong *,
+                              bool *);
 
-ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
-                       ulong packet_left_len, ulong *header_len, bool *err);
-bool Protocol_classic::net_store_data(const uchar *from, size_t length) {
+/**
+  Ensures that the packet buffer has enough capacity to hold a string of the
+  given length.
+
+  @param length  the length of the string
+  @param[in,out] packet  the buffer
+  @return true if memory could not be allocated, false on success
+*/
+static bool ensure_packet_capacity(size_t length, String *packet) {
   size_t packet_length = packet->length();
   /*
      The +9 comes from that strings of length longer than 16M require
      9 bytes to be stored (see net_store_length).
   */
-  if (packet_length + 9 + length > packet->alloced_length() &&
-      packet->mem_realloc(packet_length + 9 + length))
-    return 1;
+  return packet_length + 9 + length > packet->alloced_length() &&
+         packet->mem_realloc(packet_length + 9 + length);
+}
+
+/**
+  Store length and data in a network packet buffer.
+
+  @param from    the data to store
+  @param length  the length of the data
+  @param[in,out] packet  the buffer
+  @return true if there is not enough memory, false on success
+*/
+static inline bool net_store_data(const uchar *from, size_t length,
+                                  String *packet) {
+  if (ensure_packet_capacity(length, packet)) return true;
+  size_t packet_length = packet->length();
   uchar *to = net_store_length((uchar *)packet->ptr() + packet_length, length);
   if (length > 0) memcpy(to, from, length);
   packet->length((uint)(to + length - (uchar *)packet->ptr()));
-  return 0;
+  return false;
+}
+
+/**
+  Stores a string in the network buffer. The string is padded with zeros if it
+  is shorter than the specified padded length.
+
+  @param data           the string to store
+  @param data_length    the length of the string
+  @param padded_length  the length of the zero-padded string
+  @param[in,out] packet the network buffer
+*/
+static bool net_store_zero_padded_data(const char *data, size_t data_length,
+                                       size_t padded_length, String *packet) {
+  const size_t zeros =
+      padded_length > data_length ? padded_length - data_length : 0;
+  const size_t full_length = data_length + zeros;
+  if (ensure_packet_capacity(full_length, packet)) return true;
+  uchar *to = net_store_length(
+      pointer_cast<uchar *>(packet->ptr()) + packet->length(), full_length);
+  memset(to, '0', zeros);
+  if (data_length > 0)
+    memcpy(to + zeros, pointer_cast<const uchar *>(data), data_length);
+  packet->length(pointer_cast<char *>(to) + full_length - packet->ptr());
+  return false;
 }
 
 /**
   net_store_data() - extended version with character set conversion.
 
   It is optimized for short strings whose length after
-  conversion is garanteed to be less than 251, which accupies
+  conversion is guaranteed to be less than 251, which occupies
   exactly one byte to store length. It allows not to use
   the "convert" member as a temporary buffer, conversion
   is done directly to the "packet" member.
@@ -498,9 +546,9 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length) {
   because column, table, database names fit into this limit.
 */
 
-bool Protocol_classic::net_store_data(const uchar *from, size_t length,
-                                      const CHARSET_INFO *from_cs,
-                                      const CHARSET_INFO *to_cs) {
+bool Protocol_classic::net_store_data_with_conversion(
+    const uchar *from, size_t length, const CHARSET_INFO *from_cs,
+    const CHARSET_INFO *to_cs) {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
   size_t conv_length = to_cs->mbmaxlen * length / from_cs->mbminlen;
@@ -519,14 +567,14 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
     return (convert.copy(pointer_cast<const char *>(from), length, from_cs,
                          to_cs, &dummy_errors) ||
             net_store_data(pointer_cast<const uchar *>(convert.ptr()),
-                           convert.length()));
+                           convert.length(), packet));
   }
 
   size_t packet_length = packet->length();
   size_t new_length = packet_length + conv_length + 1;
 
   if (new_length > packet->alloced_length() && packet->mem_realloc(new_length))
-    return 1;
+    return true;
 
   char *length_pos = packet->ptr() + packet_length;
   char *to = length_pos + 1;
@@ -536,7 +584,7 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
 
   net_store_length((uchar *)length_pos, to - length_pos - 1);
   packet->length((uint)(to - packet->ptr()));
-  return 0;
+  return false;
 }
 
 /**
@@ -556,18 +604,18 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   @param sql_errno The error code to send
   @param err A pointer to the error message
 
-  @return
-    @retval false The message was sent to the client
-    @retval true An error occurred and the message wasn't sent properly
+
+  @retval false The message was sent to the client
+  @retval true An error occurred and the message wasn't sent properly
 */
 
 bool net_send_error(THD *thd, uint sql_errno, const char *err) {
   bool error;
-  DBUG_ENTER("net_send_error");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(!thd->sp_runtime_ctx);
-  DBUG_ASSERT(sql_errno);
-  DBUG_ASSERT(err);
+  assert(!thd->sp_runtime_ctx);
+  assert(sql_errno);
+  assert(err);
 
   DBUG_PRINT("enter", ("sql_errno: %d  err: %s", sql_errno, err));
 
@@ -585,7 +633,7 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
 
   thd->get_stmt_da()->set_overwrite_status(false);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -596,15 +644,14 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
   @param sql_errno  The error code to send
   @param err        A pointer to the error message
 
-  @return
-    @retval false The message was sent to the client
-    @retval true  An error occurred and the message wasn't sent properly
+  @retval false The message was sent to the client
+  @retval true  An error occurred and the message wasn't sent properly
 */
 
 bool net_send_error(NET *net, uint sql_errno, const char *err) {
-  DBUG_ENTER("net_send_error");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_errno && err);
+  assert(sql_errno && err);
 
   DBUG_PRINT("enter", ("sql_errno: %d  err: %s", sql_errno, err));
 
@@ -612,7 +659,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
       net, sql_errno, err, mysql_errno_to_sqlstate(sql_errno), false, 0,
       global_system_variables.character_set_results);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /* clang-format off */
@@ -620,7 +667,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   @page page_protocol_basic_ok_packet OK_Packet
 
   An OK packet is sent from the server to the client to signal successful
-  completion of a command. As of MySQL 5.7.5, OK packes are also used to
+  completion of a command. As of MySQL 5.7.5, OK packets are also used to
   indicate EOF, and EOF packets are deprecated.
 
   if ::CLIENT_PROTOCOL_41 is set, the packet contains a warning count.
@@ -713,6 +760,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed system variable</td></tr>
@@ -727,7 +777,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
+  00 00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -739,6 +789,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed schema</td></tr>
@@ -751,7 +804,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  01 05 04 74 65 73 74
+  01 00 05 04 74 65 73 74
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -766,6 +819,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
   <td>is_tracked</td>
   <td>`0x31` ("1") if state tracking got enabled.</td></tr>
@@ -778,7 +834,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  03 02 01 31
+  03 02 00 01 31
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -805,14 +861,13 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   @param eof_identifier          when true [FE] will be set in OK header
                                  else [00] will be used
 
-  @return
-    @retval false The message was successfully sent
-    @retval true An error occurred and the messages wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true An error occurred and the messages wasn't sent properly
 */
 
-bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
-                 ulonglong affected_rows, ulonglong id, const char *message,
-                 bool eof_identifier) {
+static bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
+                        ulonglong affected_rows, ulonglong id,
+                        const char *message, bool eof_identifier) {
   Protocol *protocol = thd->get_protocol();
   NET *net = thd->get_protocol_classic()->get_net();
   uchar buff[MYSQL_ERRMSG_SIZE + 10];
@@ -826,12 +881,12 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
   bool state_changed = false;
 
   bool error = false;
-  DBUG_ENTER("net_send_ok");
+  DBUG_TRACE;
 
   if (!net->vio)  // hack for re-parsing queries
   {
     DBUG_PRINT("info", ("vio present: NO"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   start = buff;
@@ -908,11 +963,11 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
 
   /* OK packet length will be restricted to 16777215 bytes */
   if (((size_t)(pos - start)) > MAX_PACKET_LENGTH) {
-    net->error = 1;
+    net->error = NET_ERROR_SOCKET_RECOVERABLE;
     net->last_errno = ER_NET_OK_PACKET_TOO_LARGE;
     my_error(ER_NET_OK_PACKET_TOO_LARGE, MYF(0));
     DBUG_PRINT("info", ("OK packet too large"));
-    DBUG_RETURN(1);
+    return true;
   }
   error = my_net_write(net, start, (size_t)(pos - start));
   if (!error) error = net_flush(net);
@@ -920,7 +975,7 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
   thd->get_stmt_da()->set_overwrite_status(false);
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
@@ -998,24 +1053,24 @@ static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
   @param server_status          The server status
   @param statement_warn_count   Total number of warnings
 
-  @return
-    @retval false The message was successfully sent
-    @retval true An error occurred and the message wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true An error occurred and the message wasn't sent properly
 */
 
-bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count) {
+static bool net_send_eof(THD *thd, uint server_status,
+                         uint statement_warn_count) {
   NET *net = thd->get_protocol_classic()->get_net();
   bool error = false;
-  DBUG_ENTER("net_send_eof");
+  DBUG_TRACE;
   /* Set to true if no active vio, to work well in case of --init-file */
-  if (net->vio != 0) {
+  if (net->vio != nullptr) {
     thd->get_stmt_da()->set_overwrite_status(true);
     error = write_eof_packet(thd, net, server_status, statement_warn_count);
     if (!error) error = net_flush(net);
     thd->get_stmt_da()->set_overwrite_status(false);
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -1030,9 +1085,8 @@ bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count) {
   @param statement_warn_count The number of warnings
 
 
-  @return
-    @retval false The message was sent successfully
-    @retval true An error occurred and the messages wasn't sent properly
+  @retval false The message was sent successfully
+  @retval true An error occurred and the messages wasn't sent properly
 */
 
 static bool write_eof_packet(THD *thd, NET *net, uint server_status,
@@ -1118,15 +1172,14 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
   @param err          A pointer to the error message
   @param sqlstate     SQL state
 
-  @return
-   @retval false The message was successfully sent
-   @retval true  An error occurred and the messages wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true  An error occurred and the messages wasn't sent properly
 
   See also @ref page_protocol_basic_err_packet
 */
 
-bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
-                           const char *sqlstate) {
+static bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
+                                  const char *sqlstate) {
   return net_send_error_packet(thd->get_protocol_classic()->get_net(),
                                sql_errno, err, sqlstate,
                                thd->is_bootstrap_system_thread(),
@@ -1143,9 +1196,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   @param client_capabilities    Client capabilities flag
   @param character_set_results  Char set info
 
-  @return
-   @retval false The message was successfully sent
-   @retval true  An error occurred and the messages wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true  An error occurred and the messages wasn't sent properly
 
   See also @ref page_protocol_basic_err_packet
 */
@@ -1162,15 +1214,15 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   char converted_err[MYSQL_ERRMSG_SIZE];
   char buff[2 + 1 + SQLSTATE_LENGTH + MYSQL_ERRMSG_SIZE], *pos;
 
-  DBUG_ENTER("net_send_error_packet");
+  DBUG_TRACE;
 
-  if (net->vio == 0) {
+  if (net->vio == nullptr) {
     if (bootstrap) {
       /* In bootstrap it's ok to print on stderr */
       my_message_local(ERROR_LEVEL, EE_NET_SEND_ERROR_IN_BOOTSTRAP, sql_errno,
                        err);
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   int2store(buff, sql_errno);
@@ -1187,9 +1239,8 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   /* Converted error message is always null-terminated. */
   length = (uint)(strmake(pos, converted_err, MYSQL_ERRMSG_SIZE - 1) - buff);
 
-  DBUG_RETURN(net_write_command(net, uchar{255},
-                                pointer_cast<const uchar *>(""), 0,
-                                pointer_cast<uchar *>(buff), length));
+  return net_write_command(net, uchar{255}, pointer_cast<const uchar *>(""), 0,
+                           pointer_cast<uchar *>(buff), length);
 }
 
 /**
@@ -1226,22 +1277,6 @@ uchar *net_store_data(uchar *to, const uchar *from, size_t length) {
   return to + length;
 }
 
-uchar *net_store_data(uchar *to, int32 from) {
-  char buff[20];
-  uint length = (uint)(int10_to_str(from, buff, 10) - buff);
-  to = net_store_length_fast(to, length);
-  memcpy(to, buff, length);
-  return to + length;
-}
-
-uchar *net_store_data(uchar *to, longlong from) {
-  char buff[22];
-  uint length = (uint)(longlong10_to_str(from, buff, 10) - buff);
-  to = net_store_length_fast(to, length);
-  memcpy(to, buff, length);
-  return to + length;
-}
-
 /*****************************************************************************
   Protocol_classic functions
 *****************************************************************************/
@@ -1249,9 +1284,13 @@ uchar *net_store_data(uchar *to, longlong from) {
 void Protocol_classic::init(THD *thd_arg) {
   m_thd = thd_arg;
   packet = &m_thd->packet;
-#ifndef DBUG_OFF
-  field_types = 0;
+#ifndef NDEBUG
+  field_types = nullptr;
 #endif
+}
+
+bool Protocol_classic::store_field(const Field *field) {
+  return field->send_to_protocol(this);
 }
 
 /**
@@ -1266,13 +1305,13 @@ void Protocol_classic::init(THD *thd_arg) {
 bool Protocol_classic::send_ok(uint server_status, uint statement_warn_count,
                                ulonglong affected_rows,
                                ulonglong last_insert_id, const char *message) {
-  DBUG_ENTER("Protocol_classic::send_ok");
+  DBUG_TRACE;
   const bool retval =
       net_send_ok(m_thd, server_status, statement_warn_count, affected_rows,
                   last_insert_id, message, false);
   // Reclaim some memory
   convert.shrink(m_thd->variables.net_buffer_length);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -1282,7 +1321,7 @@ bool Protocol_classic::send_ok(uint server_status, uint statement_warn_count,
 */
 
 bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
-  DBUG_ENTER("Protocol_classic::send_eof");
+  DBUG_TRACE;
   bool retval;
   /*
     Normally end of statement reply is signaled by OK packet, but in case
@@ -1292,13 +1331,13 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
   if (has_client_capability(CLIENT_DEPRECATE_EOF) &&
       (m_thd->get_command() != COM_BINLOG_DUMP &&
        m_thd->get_command() != COM_BINLOG_DUMP_GTID))
-    retval = net_send_ok(m_thd, server_status, statement_warn_count, 0, 0, NULL,
-                         true);
+    retval = net_send_ok(m_thd, server_status, statement_warn_count, 0, 0,
+                         nullptr, true);
   else
     retval = net_send_eof(m_thd, server_status, statement_warn_count);
   // Reclaim some memory
   convert.shrink(m_thd->variables.net_buffer_length);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -1309,12 +1348,12 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
 
 bool Protocol_classic::send_error(uint sql_errno, const char *err_msg,
                                   const char *sql_state) {
-  DBUG_ENTER("Protocol_classic::send_error");
+  DBUG_TRACE;
   const bool retval =
       net_send_error_packet(m_thd, sql_errno, err_msg, sql_state);
   // Reclaim some memory
   convert.shrink(m_thd->variables.net_buffer_length);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 void Protocol_classic::set_read_timeout(ulong read_timeout) {
@@ -1330,14 +1369,14 @@ bool Protocol_classic::init_net(Vio *vio) {
   return my_net_init(&m_thd->net, vio);
 }
 
-void Protocol_classic::claim_memory_ownership() {
-  net_claim_memory_ownership(&m_thd->net);
+void Protocol_classic::claim_memory_ownership(bool claim) {
+  net_claim_memory_ownership(&m_thd->net, claim);
 }
 
 void Protocol_classic::end_net() {
-  DBUG_ASSERT(m_thd->net.buff);
+  assert(m_thd->net.buff);
   net_end(&m_thd->net);
-  m_thd->net.vio = NULL;
+  m_thd->net.vio = nullptr;
 }
 
 bool Protocol_classic::write(const uchar *ptr, size_t len) {
@@ -1373,14 +1412,14 @@ String *Protocol_classic::get_output_packet() { return &m_thd->packet; }
 int Protocol_classic::read_packet() {
   input_packet_length = my_net_read(&m_thd->net);
   if (input_packet_length != packet_error) {
-    DBUG_ASSERT(!m_thd->net.error);
+    assert(!m_thd->net.error);
     bad_packet = false;
     input_raw_packet = m_thd->net.read_pos;
     return 0;
   }
 
   bad_packet = true;
-  return m_thd->net.error == 3 ? 1 : -1;
+  return m_thd->net.error == NET_ERROR_SOCKET_UNUSABLE ? 1 : -1;
 }
 
 /* clang-format off */
@@ -1435,6 +1474,13 @@ int Protocol_classic::read_packet() {
 
   Execution starts immediately.
 
+  If the client and server support it, the values for the named parameters
+  of the query are sent (if any) in @ref sect_protocol_binary_resultset_row_value
+  form. The type of each parameter is made up of two bytes (except for the
+  parameter name):
+    - the type as in @ref enum_field_types
+    - a flag byte which has the highest bit set if the type is unsigned [80]
+
   @return
   - @subpage page_protocol_com_query_response
 
@@ -1444,6 +1490,33 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>command</td>
       <td>0x03: COM_QUERY</td></tr>
+  <tr><td colspan="3">if @ref CLIENT_QUERY_ATTRIBUTES is set {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>parameter_count</td>
+      <td>Number of parameters</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>parameter_set_count</td>
+      <td>Number of parameter sets. Currently always 1</td></tr>
+  <tr><td colspan="3">if parameter_count > 0 {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>null_bitmap</td>
+      <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>new_params_bind_flag</td>
+      <td>Always 1. Malformed packet error if not 1</td></tr>
+  <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>param_type_and_flag</td>
+      <td>Parameter type (2 bytes). The MSB is reserved for unsigned flag</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+    <td>parameter name</td>
+    <td>String</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>parameter_values</td>
+      <td>value of each parameter: @ref sect_protocol_binary_resultset_row_value</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">}</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
       <td>query</td>
       <td>the text of the SQL query to execute</td></tr>
@@ -1451,13 +1524,17 @@ int Protocol_classic::read_packet() {
 
   @par Example
   ~~~~~~~~~
-  21 00 00 00 03 73 65 6c    65 63 74 20 40 40 76 65    !....select @@ve
-  72 73 69 6f 6e 5f 63 6f    6d 6d 65 6e 74 20 6c 69    rsion_comment li
-  6d 69 74 20 31                                        mit 1
+  21 00 00 00 03 01 01 00    01 fe 00 01 61 01 31 73   !....... ....a.1s
+  65 6c 65 63 74 20 40 40    76 65 72 73 69 6f 6e 5f   elect @@version_c
+  63 6f 6d 6d 65 6e 74 20    6c 69 6d 69 74 20 31      omment limit 1
+
   ~~~~~~~~~
 
-  @sa Protocol_classic::parse_packet, dispatch_command,
-    mysql_parse, alloc_query, THD::set_query
+  `null_bitmap` is like the NULL-bitmap for the
+  @ref sect_protocol_binary_resultset_row just that it has a bit_offset of 0.
+
+  @sa @ref Protocol_classic::parse_packet, @ref dispatch_command,
+    @ref dispatch_sql_command, @ref alloc_query, @ref THD::set_query
 */
 
 
@@ -1639,7 +1716,7 @@ int Protocol_classic::read_packet() {
   </table>
 
   If the ::SERVER_MORE_RESULTS_EXISTS flag is set in the last
-  @ref page_protocol_basic_eof_packet/@ref page_protocol_basic_ok_packet,
+  @ref page_protocol_basic_eof_packet / @ref page_protocol_basic_ok_packet,
   another @ref page_protocol_com_query_response_text_resultset will follow.
   See Multi-resultset.
 
@@ -1859,7 +1936,7 @@ int Protocol_classic::read_packet() {
   @return @ref page_protocol_basic_err_packet or
     @ref page_protocol_basic_ok_packet
 
-  @sa mysql_dump_debug_info, dispatch_command, mysql_print_status
+  @sa mysql_dump_debug_info, dispatch_command
 */
 
 /**
@@ -2080,9 +2157,21 @@ int Protocol_classic::read_packet() {
     - the type as in @ref enum_field_types
     - a flag byte which has the highest bit set if the type is unsigned [80]
 
-  The `num_params` used for this packet has to match the `num_params` of the
+  The `num_params` used for this packet reffers to `num_params` of the
   @ref sect_protocol_com_stmt_prepare_response_ok of the corresponsing prepared
   statement.
+
+  The server will use the first num_params (from prepare) parameter values to
+  satisfy the positional anonymous question mark parameters in the statement
+  executed regardless of whether they have names supplied or not.
+  The rest num_remaining_attrs parameter values will just be stored into
+  the THD and if they have a name they can later be accessed as query attributes.
+  If any of the first num_params parameter values has a name supplied they
+  could then be accessed as a query attribute too.
+  If supplied, parameter_count will overwrite the num_params value by
+  eventually adding a non-zero num_params_remaining value to
+  the original num_params.
+
 
   @return @subpage page_protocol_com_stmt_execute_response
 
@@ -2097,24 +2186,39 @@ int Protocol_classic::read_packet() {
       <td>ID of the prepared statement to execute</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>flags</td>
-      <td>Flags. See ::enum_cursor_type</td></tr>
+      <td>Flags. See @ref enum_cursor_type</td></tr>
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>iteration_count</td>
       <td>Number of times to execute the statement. Currently always 1.</td></tr>
-  <tr><td colspan="3">if num_params > 0 {</td></tr>
+  <tr><td colspan="3">if (num_params > 0 || (CLIENT_QUERY_ATTRIBUTES && (flags & PARAMETER_COUNT_AVAILABLE)) {</td></tr>
+  <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+    <td>parameter_count</td>
+    <td>The number of parameter metadata and values supplied.
+      Overrides the count coming from prepare (num_params) if present.</td></tr>
+  <tr><td colspan="3">} -- if ::CLIENT_QUERY_ATTRIBUTES is on </td></tr>
+  <tr><td colspan="3">if (parameter_count > 0) {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>null_bitmap</td>
-      <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
+      <td>NULL bitmap, length= (paramater_count + 7) / 8</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>new_params_bind_flag</td>
       <td>Flag if parameters must be re-bound</td></tr>
-  <tr><td colspan="3">if new_params_bind_flag {</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
-      <td>parameter_types</td>
-      <td>Type of each parameter, length: num_params * 2</td></tr>
+  <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>parameter_type</td>
+    <td>Type of the parameter value. See ::enum_field_type</td></tr>
+  <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>parameter_name</td>
+      <td>Name of the parameter or empty if not present</td></tr>
+  <tr><td colspan="3">} -- if ::CLIENT_QUERY_ATTRIBUTES is on</td></tr>
+  <tr><td colspan="3">} -- if new_params_bind_flag is on</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>parameter_values</td>
       <td>value of each parameter</td></tr>
+  <tr><td colspan="3">} -- if (parameter_count > 0)</td></tr>
+  <tr><td colspan="3">} -- if (num_params > 0 || (CLIENT_QUERY_ATTRIBUTES && (flags & PARAMETER_COUNT_AVAILABLE))</td></tr>
   </table>
 
   @par Example
@@ -2530,6 +2634,8 @@ int Protocol_classic::read_packet() {
   ::mysqld_stmt_close, ::mysql_stmt_precheck
 */
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 /**
   @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
@@ -2537,6 +2643,7 @@ int Protocol_classic::read_packet() {
   a resultset produced by ::COM_STMT_EXECUTE
 
   @return @ref sect_protocol_com_stmt_fetch_response
+
   <table>
   <caption>Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
@@ -2551,18 +2658,183 @@ int Protocol_classic::read_packet() {
       <td>max number of rows to return</td></tr>
   </table>
 
-  @sa ::mysqld_stmt_fetch, ::mysql_stmt_fetch
+  @sa @ref mysqld_stmt_fetch
+  @sa @ref mysql_stmt_fetch
 
   @section sect_protocol_com_stmt_fetch_response COM_STMT_FETCH Response
 
-  ::COM_STMT_FETCH may return one of:
+  @ref COM_STMT_FETCH may return one of:
     - @ref sect_protocol_command_phase_sp_multi_resultset
     - @ref page_protocol_basic_err_packet
 */
+MY_COMPILER_DIAGNOSTIC_POP()
+
+static bool parse_query_bind_params(
+    THD *thd, uint param_count, PS_PARAM **out_parameters,
+    unsigned char *out_has_new_types, unsigned long *out_parameter_count,
+    Prepared_statement *stmt_data, uchar **inout_read_pos,
+    size_t *inout_packet_left, bool receive_named_params,
+    bool receive_parameter_set_count) {
+  uchar *read_pos = *inout_read_pos;
+  size_t packet_left = *inout_packet_left;
+
+  /* here we count the number of parameters actually received */
+  if (out_parameter_count) *out_parameter_count = 0;
+
+  if (receive_named_params) {
+    unsigned long n_params = 0, n_sets;
+    if (packet_left < 1 || packet_left < net_field_length_size(read_pos))
+      return true;
+    uchar *pre = read_pos;
+    /* read the number of params */
+    n_params = net_field_length(&read_pos);
+    packet_left -= read_pos - pre;
+
+    if (receive_parameter_set_count) {
+      if (packet_left < 1 || packet_left < net_field_length_size(read_pos))
+        return true;
+      pre = read_pos;
+      n_sets = net_field_length(&read_pos);
+      packet_left -= read_pos - pre;
+      if (n_sets != 1) return true;
+    }
+
+    /* Cap the param count to 64k. Should be enough for everybody! */
+    if (n_params > 65535) return true;
+    param_count = n_params;
+  }
+
+  if (param_count > 0) {
+    *out_parameters =
+        static_cast<PS_PARAM *>(thd->alloc(param_count * sizeof(PS_PARAM)));
+    if (!*out_parameters) return true; /* purecov: inspected */
+    memset(*out_parameters, 0, sizeof(PS_PARAM) * param_count);
+
+    /* Then comes the null bits */
+    const uint null_bits_packet_len = (param_count + 7) / 8;
+    if (packet_left < null_bits_packet_len) return true;
+    uchar *null_bits = read_pos;
+    read_pos += null_bits_packet_len;
+    packet_left -= null_bits_packet_len;
+
+    PS_PARAM *params = *out_parameters;
+
+    /* Then comes the types byte. If set, new types are provided */
+    if (!packet_left) return true;
+    bool has_new_types = static_cast<bool>(*read_pos++);
+    if (!has_new_types && !stmt_data) return true;
+
+    --packet_left;
+    if (out_has_new_types) *out_has_new_types = has_new_types;
+    if (has_new_types) {
+      DBUG_PRINT("info", ("Types provided"));
+      for (uint i = 0; i < param_count; ++i) {
+        if (packet_left < 2) return true;
+
+        ushort type_code = sint2korr(read_pos);
+        read_pos += 2;
+        packet_left -= 2;
+
+        const uint signed_bit = 1 << 15;
+        params[i].type =
+            static_cast<enum enum_field_types>(type_code & ~signed_bit);
+        params[i].unsigned_type = static_cast<bool>(type_code & signed_bit);
+        DBUG_PRINT("info", ("type=%u", (uint)params[i].type));
+        DBUG_PRINT("info", ("flags=%u", (uint)params[i].unsigned_type));
+        if (receive_named_params) {
+          if (packet_left < 1 || packet_left < net_field_length_size(read_pos))
+            return true;
+          uchar *pre = read_pos;
+          /* read the name length */
+          params[i].name_length = net_field_length(&read_pos);
+          packet_left -= read_pos - pre;
+          if (params[i].name_length > packet_left) return true;
+          params[i].name = params[i].name_length > 0 ? read_pos : nullptr;
+          read_pos += params[i].name_length;
+          packet_left -= params[i].name_length;
+          DBUG_PRINT("info",
+                     ("name=%.*s", (int)params[i].name_length, params[i].name));
+        } else {
+          params[i].name_length = 0;
+          params[i].name = nullptr;
+          DBUG_PRINT("info", ("no name"));
+        }
+      }
+    }
+    /*
+      No check for packet_left here or in case of only long data
+      we will return malformed, although the packet will be correct
+    */
+
+    /* Here comes the real data */
+    for (uint i = 0; i < param_count; ++i) {
+      params[i].null_bit = static_cast<bool>(null_bits[i / 8] & (1 << (i & 7)));
+      // Check if parameter is null
+      if (params[i].null_bit) {
+        DBUG_PRINT("info", ("null param"));
+        params[i].value = nullptr;
+        params[i].length = 0;
+        if (out_parameter_count) *out_parameter_count += 1;
+        continue;
+      }
+      assert(has_new_types || stmt_data);
+
+      /* check if the packet contains more parameters than expected */
+      if (!has_new_types && i >= stmt_data->param_count) return true;
+
+      enum enum_field_types type =
+          has_new_types ? params[i].type
+                        : stmt_data->param_array[i]->data_type_source();
+      if (type == MYSQL_TYPE_BOOL)
+        return true;  // unsupported in this version of the Server
+      if (stmt_data && i < stmt_data->param_count && stmt_data->param_array &&
+          stmt_data->param_array[i]->param_state() ==
+              Item_param::LONG_DATA_VALUE) {
+        DBUG_PRINT("info", ("long data"));
+        if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
+          return true;
+        if (type == MYSQL_TYPE_BOOL || type == MYSQL_TYPE_INVALID) return true;
+        if (out_parameter_count) *out_parameter_count += 1;
+        continue;
+      }
+
+      bool buffer_underrun = false;
+      ulong header_len;
+
+      // Set parameter length.
+      params[i].length = get_ps_param_len(type, read_pos, packet_left,
+                                          &header_len, &buffer_underrun);
+      if (buffer_underrun) return true;
+
+      read_pos += header_len;
+      packet_left -= header_len;
+
+      // Set parameter value
+      params[i].value = read_pos;
+      read_pos += params[i].length;
+      packet_left -= params[i].length;
+      if (out_parameter_count) *out_parameter_count += 1;
+      DBUG_PRINT("info", ("param len %ul", (uint)params[i].length));
+    }
+  } else {
+    *out_parameters = nullptr;
+    if (out_has_new_types) *out_has_new_types = 0;
+  }
+
+  if (out_parameter_count)
+    DBUG_PRINT("info", ("param count %ul", (uint)*out_parameter_count));
+  if (receive_named_params && out_parameter_count) {
+    assert(*out_parameter_count == param_count);
+    *out_parameter_count = param_count;  // dummy: keep compiler happy
+  }
+  *inout_read_pos = read_pos;
+  *inout_packet_left = packet_left;
+  return false;
+}
 
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd) {
-  DBUG_ENTER("Protocol_classic::parse_packet");
+  DBUG_TRACE;
   switch (cmd) {
     case COM_INIT_DB: {
       data->com_init_db.db_name =
@@ -2595,7 +2867,7 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       read_pos += 4;
       packet_left -= 4;
       // Get execution flags
-      data->com_stmt_execute.open_cursor = static_cast<bool>(*read_pos);
+      data->com_stmt_execute.open_cursor = *read_pos;
       read_pos += 5;
       packet_left -= 5;
       DBUG_PRINT("info", ("stmt %lu", data->com_stmt_execute.stmt_id));
@@ -2605,98 +2877,28 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       Prepared_statement *stmt =
           m_thd->stmt_map.find(data->com_stmt_execute.stmt_id);
       data->com_stmt_execute.parameter_count = 0;
+      data->com_stmt_execute.parameters = nullptr;
 
       /*
         If no statement found there's no need to generate error.
         It will be generated in sql_parse.cc which will check again for the id.
+        No need to bother with parsing the bind params if we know there's not
+        going to be any prepared statement params and the client doesn't do
+        query attributes or is not going to send param count for 0 params/QAs
       */
-      if (!stmt || stmt->param_count < 1) break;
+      if (!stmt ||
+          (stmt->param_count < 1 &&
+           (!this->has_client_capability(CLIENT_QUERY_ATTRIBUTES) ||
+            !(data->com_stmt_execute.open_cursor & PARAMETER_COUNT_AVAILABLE))))
+        break;
+      if (parse_query_bind_params(
+              m_thd, stmt->param_count, &data->com_stmt_execute.parameters,
+              &data->com_stmt_execute.has_new_types,
+              &data->com_stmt_execute.parameter_count, stmt, &read_pos,
+              &packet_left,
+              this->has_client_capability(CLIENT_QUERY_ATTRIBUTES), false))
+        goto malformed;
 
-      uint param_count = stmt->param_count;
-      data->com_stmt_execute.parameters =
-          static_cast<PS_PARAM *>(m_thd->alloc(param_count * sizeof(PS_PARAM)));
-      if (!data->com_stmt_execute.parameters)
-        goto malformed; /* purecov: inspected */
-
-      /* Then comes the null bits */
-      const uint null_bits_packet_len = (param_count + 7) / 8;
-      if (packet_left < null_bits_packet_len) goto malformed;
-      unsigned char *null_bits = read_pos;
-      read_pos += null_bits_packet_len;
-      packet_left -= null_bits_packet_len;
-
-      PS_PARAM *params = data->com_stmt_execute.parameters;
-
-      /* Then comes the types byte. If set, new types are provided */
-      if (!packet_left) goto malformed;
-      bool has_new_types = static_cast<bool>(*read_pos++);
-      --packet_left;
-      data->com_stmt_execute.has_new_types = has_new_types;
-      if (has_new_types) {
-        DBUG_PRINT("info", ("Types provided"));
-        for (uint i = 0; i < param_count; ++i) {
-          if (packet_left < 2) goto malformed;
-
-          ushort type_code = sint2korr(read_pos);
-          read_pos += 2;
-          packet_left -= 2;
-
-          const uint signed_bit = 1 << 15;
-          params[i].type =
-              static_cast<enum enum_field_types>(type_code & ~signed_bit);
-          params[i].unsigned_type = static_cast<bool>(type_code & signed_bit);
-          DBUG_PRINT("info", ("type=%u", (uint)params[i].type));
-          DBUG_PRINT("info", ("flags=%u", (uint)params[i].unsigned_type));
-        }
-      }
-      /*
-        No check for packet_left here or in case of only long data
-        we will return malformed, although the packet will be correct
-      */
-
-      /* Here comes the real data */
-      for (uint i = 0; i < param_count; ++i) {
-        params[i].null_bit =
-            static_cast<bool>(null_bits[i / 8] & (1 << (i & 7)));
-        // Check if parameter is null
-        if (params[i].null_bit) {
-          DBUG_PRINT("info", ("null param"));
-          params[i].value = nullptr;
-          params[i].length = 0;
-          data->com_stmt_execute.parameter_count++;
-          continue;
-        }
-        enum enum_field_types type =
-            has_new_types ? params[i].type : stmt->param_array[i]->data_type();
-        if (stmt->param_array[i]->state == Item_param::LONG_DATA_VALUE) {
-          DBUG_PRINT("info", ("long data"));
-          if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
-            goto malformed;
-          data->com_stmt_execute.parameter_count++;
-
-          continue;
-        }
-
-        bool buffer_underrun = false;
-        ulong header_len;
-
-        // Set parameter length.
-        params[i].length = get_ps_param_len(type, read_pos, packet_left,
-                                            &header_len, &buffer_underrun);
-        if (buffer_underrun) goto malformed;
-
-        read_pos += header_len;
-        packet_left -= header_len;
-
-        // Set parameter value
-        params[i].value = read_pos;
-        read_pos += params[i].length;
-        packet_left -= params[i].length;
-        data->com_stmt_execute.parameter_count++;
-        DBUG_PRINT("info", ("param len %ul", (uint)params[i].length));
-      }
-      DBUG_PRINT("info", ("param count %ul",
-                          (uint)data->com_stmt_execute.parameter_count));
       break;
     }
     case COM_STMT_FETCH: {
@@ -2733,8 +2935,22 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       break;
     }
     case COM_QUERY: {
-      data->com_query.query = reinterpret_cast<const char *>(input_raw_packet);
-      data->com_query.length = input_packet_length;
+      uchar *read_pos = input_raw_packet;
+      size_t packet_left = input_packet_length;
+
+      if (this->has_client_capability(CLIENT_QUERY_ATTRIBUTES)) {
+        if (parse_query_bind_params(m_thd, 0, &data->com_query.parameters,
+                                    nullptr, &data->com_query.parameter_count,
+                                    nullptr, &read_pos, &packet_left, true,
+                                    true))
+          goto malformed;
+      } else {
+        data->com_query.parameters = nullptr;
+        data->com_query.parameter_count = 0;
+      }
+
+      data->com_query.query = reinterpret_cast<const char *>(read_pos);
+      data->com_query.length = packet_left;
       break;
     }
     case COM_FIELD_LIST: {
@@ -2756,12 +2972,12 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       break;
   }
 
-  DBUG_RETURN(false);
+  return false;
 
 malformed:
   my_error(ER_MALFORMED_PACKET, MYF(0));
   bad_packet = true;
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Protocol_classic::create_command(COM_DATA *com_data,
@@ -2799,7 +3015,7 @@ int Protocol_classic::get_command(COM_DATA *com_data,
 
   if (*cmd >= COM_END) *cmd = COM_END;  // Wrong command
 
-  DBUG_ASSERT(input_packet_length);
+  assert(input_packet_length);
   // Skip 'command'
   input_packet_length--;
   input_raw_packet++;
@@ -2824,7 +3040,7 @@ bool Protocol_classic::flush() { return net_flush(&m_thd->net); }
 
 bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
                                        uint param_count, ulong cond_count) {
-  DBUG_ENTER("Protocol_classic::store_ps_status");
+  DBUG_TRACE;
 
   uchar buff[13];
   buff[0] = 0; /* OK packet indicator */
@@ -2839,16 +3055,32 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
     /* Store resultset metadata flag. */
     buff[12] = static_cast<uchar>(m_thd->variables.resultset_metadata);
 
-    DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff)));
+    return my_net_write(&m_thd->net, buff, sizeof(buff));
   }
-  DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff) - 1));
+  return my_net_write(&m_thd->net, buff, sizeof(buff) - 1);
 }
 
 bool Protocol_classic::get_compression() { return m_thd->net.compress; }
 
+char *Protocol_classic::get_compression_algorithm() {
+  if (get_compression()) {
+    NET_SERVER *ext = static_cast<NET_SERVER *>(m_thd->net.extension);
+    return ext->compression.compress_algorithm;
+  }
+  return nullptr;
+}
+
+uint Protocol_classic::get_compression_level() {
+  if (get_compression()) {
+    NET_SERVER *ext = static_cast<NET_SERVER *>(m_thd->net.extension);
+    return ext->compression.compress_level;
+  }
+  return 0;
+}
+
 bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
                                              const CHARSET_INFO *cs) {
-  DBUG_ENTER("Protocol_classic::start_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("num_cols %u, flags %u", num_cols_arg, flags));
   uint num_cols = num_cols_arg;
   result_cs = cs;
@@ -2874,7 +3106,7 @@ bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
   }
   DBUG_EXECUTE_IF("send_large_column_count_in_metadata",
                   num_cols = num_cols_arg;);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     field_types will be filled only if we send metadata.
     Set it to NULL if we skip resultset metadata to avoid
@@ -2884,15 +3116,15 @@ bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
     field_types =
         (enum_field_types *)m_thd->alloc(sizeof(field_types) * num_cols);
   else
-    field_types = 0;
+    field_types = nullptr;
   count = 0;
 #endif
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Protocol_classic::end_result_metadata() {
-  DBUG_ENTER("Protocol_classic::end_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("num_cols %u, flags %u", field_count, sending_flags));
   send_metadata = false;
   if (sending_flags & SEND_EOF) {
@@ -2906,11 +3138,11 @@ bool Protocol_classic::end_result_metadata() {
       if (write_eof_packet(
               m_thd, &m_thd->net, m_thd->server_status,
               m_thd->get_stmt_da()->current_statement_cond_count())) {
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /* clang-format off */
@@ -3037,22 +3269,25 @@ bool Protocol_classic::end_result_metadata() {
 
 bool Protocol_classic::send_field_metadata(Send_field *field,
                                            const CHARSET_INFO *item_charset) {
-  DBUG_ENTER("Protocol_classic::send_field_metadata");
+  DBUG_TRACE;
   char *pos;
   const CHARSET_INFO *cs = system_charset_info;
   const CHARSET_INFO *thd_charset = m_thd->variables.character_set_results;
+
+  assert(field->type != MYSQL_TYPE_BOOL);
 
   /* Keep things compatible for old clients */
   if (field->type == MYSQL_TYPE_VARCHAR) field->type = MYSQL_TYPE_VAR_STRING;
 
   send_metadata = true;
   if (has_client_capability(CLIENT_PROTOCOL_41)) {
-    if (store(STRING_WITH_LEN("def"), cs) ||
-        store(field->db_name, strlen(field->db_name), cs) ||
-        store(field->table_name, strlen(field->table_name), cs) ||
-        store(field->org_table_name, strlen(field->org_table_name), cs) ||
-        store(field->col_name, strlen(field->col_name), cs) ||
-        store(field->org_col_name, strlen(field->org_col_name), cs) ||
+    if (store_string(STRING_WITH_LEN("def"), cs) ||
+        store_string(field->db_name, strlen(field->db_name), cs) ||
+        store_string(field->table_name, strlen(field->table_name), cs) ||
+        store_string(field->org_table_name, strlen(field->org_table_name),
+                     cs) ||
+        store_string(field->col_name, strlen(field->col_name), cs) ||
+        store_string(field->org_col_name, strlen(field->org_col_name), cs) ||
         packet->mem_realloc(packet->length() + 12)) {
       send_metadata = false;
       return true;
@@ -3062,7 +3297,7 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
     *pos++ = 12;  // Length of packed fields
     /* inject a NULL to test the client */
     DBUG_EXECUTE_IF("poison_rs_fields", pos[-1] = (char)0xfb;);
-    if (item_charset == &my_charset_bin || thd_charset == NULL) {
+    if (item_charset == &my_charset_bin || thd_charset == nullptr) {
       /* No conversion */
       int2store(pos, item_charset->number);
       int4store(pos + 2, field->length);
@@ -3102,8 +3337,8 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
     pos[11] = 0;  // For the future
     pos += 12;
   } else {
-    if (store(field->table_name, strlen(field->table_name), cs) ||
-        store(field->col_name, strlen(field->col_name), cs) ||
+    if (store_string(field->table_name, strlen(field->table_name), cs) ||
+        store_string(field->col_name, strlen(field->col_name), cs) ||
         packet->mem_realloc(packet->length() + 10)) {
       send_metadata = false;
       return true;
@@ -3120,21 +3355,16 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   }
   packet->length((uint)(pos - packet->ptr()));
 
-#ifndef DBUG_OFF
-  // TODO: this should be protocol-dependent, as it records incorrect type
-  // for binary protocol
-  // Text protocol sends fields as varchar
-  field_types[count++] = field->field ? MYSQL_TYPE_VAR_STRING : field->type;
+#ifndef NDEBUG
+  field_types[count++] = field->type;
 #endif
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Protocol_classic::end_row() {
-  DBUG_ENTER("Protocol_classic::end_row");
-  if (m_thd->get_protocol()->connection_alive())
-    DBUG_RETURN(
-        my_net_write(&m_thd->net, (uchar *)packet->ptr(), packet->length()));
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return my_net_write(&m_thd->net, pointer_cast<uchar *>(packet->ptr()),
+                      packet->length());
 }
 
 /**
@@ -3154,7 +3384,7 @@ bool store(Protocol *prot, I_List<i_string> *str_list) {
     tmp.append(',');
   }
   if ((len = tmp.length())) len--;  // Remove last ','
-  return prot->store(tmp.ptr(), len, tmp.charset());
+  return prot->store_string(tmp.ptr(), len, tmp.charset());
 }
 
 /****************************************************************************
@@ -3170,192 +3400,250 @@ bool Protocol_classic::connection_alive() const {
 }
 
 void Protocol_text::start_row() {
-#ifndef DBUG_OFF
   field_pos = 0;
-#endif
   packet->length(0);
 }
 
 bool Protocol_text::store_null() {
-#ifndef DBUG_OFF
   field_pos++;
-#endif
   char buff[1];
   buff[0] = (char)251;
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
-}
-
-/**
-  Auxilary function to convert string to the given character set
-  and store in network buffer.
-*/
-
-bool Protocol_classic::store_string_aux(const char *from, size_t length,
-                                        const CHARSET_INFO *fromcs,
-                                        const CHARSET_INFO *tocs) {
-  /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
-  if (tocs && !my_charset_same(fromcs, tocs) && fromcs != &my_charset_bin &&
-      tocs != &my_charset_bin) {
-    /* Store with conversion */
-    return net_store_data(pointer_cast<const uchar *>(from), length, fromcs,
-                          tocs);
-  }
-  /* Store without conversion */
-  return net_store_data(pointer_cast<const uchar *>(from), length);
 }
 
 int Protocol_classic::shutdown(bool) {
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }
 
-bool Protocol_text::store(const char *from, size_t length,
-                          const CHARSET_INFO *fromcs,
-                          const CHARSET_INFO *tocs) {
-#ifndef DBUG_OFF
+bool Protocol_classic::store_string(const char *from, size_t length,
+                                    const CHARSET_INFO *fromcs) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_BIT ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
-              field_types[field_pos] == MYSQL_TYPE_JSON ||
-              (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-               field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-  if (!send_metadata) field_pos++;
-#endif
-  return store_string_aux(from, length, fromcs, tocs);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
+         field_types[field_pos] == MYSQL_TYPE_BIT ||
+         field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
+         field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
+         field_types[field_pos] == MYSQL_TYPE_JSON ||
+         (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
+          field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
+  field_pos++;
+  // result_cs is nullptr when client issues SET character_set_results=NULL
+  if (result_cs != nullptr && !my_charset_same(fromcs, result_cs) &&
+      fromcs != &my_charset_bin && result_cs != &my_charset_bin) {
+    // Store with conversion.
+    return net_store_data_with_conversion(pointer_cast<const uchar *>(from),
+                                          length, fromcs, result_cs);
+  }
+  // Store without conversion.
+  return net_store_data(pointer_cast<const uchar *>(from), length, packet);
 }
 
-bool Protocol_text::store_tiny(longlong from) {
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_TINY);
-  field_pos++;
-#endif
-  char buff[20];
-  return net_store_data((uchar *)buff,
-                        (size_t)(int10_to_str((int)from, buff, -10) - buff));
+/**
+  Stores an integer in the protocol buffer for the text protocol.
+
+  @param value          the integer value to convert to a string
+  @param unsigned_flag  true if the integer is unsigned
+  @param zerofill       the length up to which the value should be zero-padded
+  @param packet         the destination buffer
+  @return false on success, true on error
+*/
+static bool store_integer(int64 value, bool unsigned_flag, uint32 zerofill,
+                          String *packet) {
+  if (zerofill != 0) {
+    char buff[MY_INT64_NUM_DECIMAL_DIGITS + 1];
+    const char *end = longlong10_to_str(value, buff, unsigned_flag ? 10 : -10);
+    const size_t int_length = end - buff;
+    return net_store_zero_padded_data(buff, int_length, zerofill, packet);
+  }
+
+  // Make sure the packet has space for a length byte, the digits and a
+  // terminating zero character.
+  char *pos = packet->prep_append(MY_INT64_NUM_DECIMAL_DIGITS + 2,
+                                  PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+  const char *end = longlong10_to_str(value, pos + 1, unsigned_flag ? 10 : -10);
+  *pos = end - (pos + 1);  // Set the length byte.
+  packet->length(end - packet->ptr());
+  return false;
 }
 
-bool Protocol_text::store_short(longlong from) {
-#ifndef DBUG_OFF
+bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_YEAR ||
-              field_types[field_pos] == MYSQL_TYPE_SHORT);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
-#endif
-  char buff[20];
-  return net_store_data((uchar *)buff,
-                        (size_t)(int10_to_str((int)from, buff, -10) - buff));
+  return store_integer(from, false, zerofill, packet);
 }
 
-bool Protocol_text::store_long(longlong from) {
-#ifndef DBUG_OFF
+bool Protocol_text::store_short(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_INT24 ||
-              field_types[field_pos] == MYSQL_TYPE_LONG);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_YEAR ||
+         field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
-#endif
-  char buff[20];
-  return net_store_data(
-      (uchar *)buff,
-      (size_t)(int10_to_str((long int)from, buff, (from < 0) ? -10 : 10) -
-               buff));
+  return store_integer(from, false, zerofill, packet);
 }
 
-bool Protocol_text::store_longlong(longlong from, bool unsigned_flag) {
-#ifndef DBUG_OFF
+bool Protocol_text::store_long(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_LONGLONG);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_INT24 ||
+         field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
-#endif
-  char buff[22];
-  return net_store_data(
-      (uchar *)buff,
-      (size_t)(longlong10_to_str(from, buff, unsigned_flag ? 10 : -10) - buff));
+  return store_integer(from, false, zerofill, packet);
+}
+
+bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
+                                   uint32 zerofill) {
+  // field_types check is needed because of the embedded protocol
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_LONGLONG);
+  field_pos++;
+  return store_integer(from, unsigned_flag, zerofill, packet);
 }
 
 bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
-#ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
-#endif
-  char buff[DECIMAL_MAX_STR_LENGTH + 1];
-  String str(buff, sizeof(buff), &my_charset_bin);
-  (void)my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
-  return net_store_data((uchar *)str.ptr(), str.length());
-}
 
-bool Protocol_text::store(float from, uint32 decimals, String *buffer) {
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_FLOAT);
-  field_pos++;
-#endif
-  buffer->set_real((double)from, decimals, m_thd->charset());
-  return net_store_data((uchar *)buffer->ptr(), buffer->length());
-}
+  // Lengths less than 251 bytes are encoded in a single byte. See
+  // net_store_length(). Assert that we can fit all DECIMALs in that space.
+  static_assert(DECIMAL_MAX_STR_LENGTH < 251,
+                "Length needs more than one byte");
 
-bool Protocol_text::store(double from, uint32 decimals, String *buffer) {
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_DOUBLE);
-  field_pos++;
-#endif
-  buffer->set_real(from, decimals, m_thd->charset());
-  return net_store_data((uchar *)buffer->ptr(), buffer->length());
-}
+  // Reserve space for the maximum string length of a DECIMAL, plus one byte for
+  // the terminating '\0' written by decimal2string(), plus one byte to encode
+  // the length of the string.
+  char *pos = packet->prep_append(DECIMAL_MAX_STR_LENGTH + 2,
+                                  PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
 
-bool Protocol_text::store(Proto_field *field) { return field->send_text(this); }
+  int string_length = DECIMAL_MAX_STR_LENGTH + 1;
+  int error [[maybe_unused]] =
+      decimal2string(d, pos + 1, &string_length, prec, dec);
+
+  // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.
+  // Since it was given a buffer with the maximum length of a DECIMAL,
+  // truncation and overflow should never happen.
+  assert(error == E_DEC_OK);
+
+  // Store the actual length, and update the length of packet.
+  *pos = string_length;
+  packet->length((pos + 1 + string_length) - packet->ptr());
+
+  return false;
+}
 
 /**
-  @todo
-  Second_part format ("%06") needs to change when
-  we support 0-6 decimals for time.
+  Converts a floating-point value to text for the text protocol.
+
+  @param value          the floating point value
+  @param decimals       the precision of the value
+  @param gcvt_arg_type  the type of the floating-point value
+  @param buffer         a buffer large enough to hold FLOATING_POINT_BUFFER
+                        characters plus a terminating zero character
+  @return the length of the text representation of the value
 */
-
-bool Protocol_text::store(MYSQL_TIME *tm, uint decimals) {
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              is_temporal_type_with_date_and_time(field_types[field_pos]));
-  field_pos++;
-#endif
-  char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_datetime_to_str(*tm, buff, decimals);
-  return net_store_data((uchar *)buff, length);
+static size_t floating_point_to_text(double value, uint32 decimals,
+                                     my_gcvt_arg_type gcvt_arg_type,
+                                     char *buffer) {
+  if (decimals < DECIMAL_NOT_SPECIFIED)
+    return my_fcvt(value, decimals, buffer, nullptr);
+  return my_gcvt(value, gcvt_arg_type, FLOATING_POINT_BUFFER, buffer, nullptr);
 }
 
-bool Protocol_text::store_date(MYSQL_TIME *tm) {
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_DATE);
-  field_pos++;
-#endif
-  char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_date_to_str(*tm, buff);
-  return net_store_data((uchar *)buff, length);
+/**
+  Stores a floating-point value in the text protocol.
+
+  @param value          the floating point value
+  @param decimals       the precision of the value
+  @param zerofill       the length up to which the value should be zero-padded,
+                        or 0 if no zero-padding should be used
+  @param gcvt_arg_type  the type of the floating-point value
+  @param packet         the destination buffer
+  @return false on success, true on error
+*/
+static bool store_floating_point(double value, uint32 decimals, uint32 zerofill,
+                                 my_gcvt_arg_type gcvt_arg_type,
+                                 String *packet) {
+  char buffer[FLOATING_POINT_BUFFER + 1];
+  size_t length =
+      floating_point_to_text(value, decimals, gcvt_arg_type, buffer);
+  if (zerofill != 0)
+    return net_store_zero_padded_data(buffer, length, zerofill, packet);
+  return net_store_data(pointer_cast<const uchar *>(buffer), length, packet);
 }
 
-bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals) {
-#ifndef DBUG_OFF
+bool Protocol_text::store_float(float from, uint32 decimals, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_TIME);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
-#endif
-  char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_time_to_str(*tm, buff, decimals);
-  return net_store_data((uchar *)buff, length);
+  return store_floating_point(from, decimals, zerofill, MY_GCVT_ARG_FLOAT,
+                              packet);
+}
+
+bool Protocol_text::store_double(double from, uint32 decimals,
+                                 uint32 zerofill) {
+  // field_types check is needed because of the embedded protocol
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_DOUBLE);
+  field_pos++;
+  return store_floating_point(from, decimals, zerofill, MY_GCVT_ARG_DOUBLE,
+                              packet);
+}
+
+/**
+  Stores a temporal value in the protocol buffer for the text protocol.
+
+  @param to_string the function that converts the temporal value to a string
+  @param packet    the destination buffer
+  @return false on success, true on error
+*/
+template <typename ToString>
+static bool store_temporal(ToString to_string, String *packet) {
+  const size_t packet_length = packet->length();
+  // Allocate space for the temporal value, plus one byte for the length.
+  char *pos = packet->prep_append(MAX_DATE_STRING_REP_LENGTH + 1,
+                                  PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+  const int length = to_string(pos + 1);
+  *pos = length;
+  packet->length(packet_length + length + 1);
+  return false;
+}
+
+bool Protocol_text::store_datetime(const MYSQL_TIME &tm, uint decimals) {
+  // field_types check is needed because of the embedded protocol
+  assert(send_metadata || field_types == nullptr ||
+         is_temporal_type_with_date_and_time(field_types[field_pos]));
+  field_pos++;
+  return store_temporal(
+      [&tm, decimals](char *to) {
+        return my_datetime_to_str(tm, to, decimals);
+      },
+      packet);
+}
+
+bool Protocol_text::store_date(const MYSQL_TIME &tm) {
+  // field_types check is needed because of the embedded protocol
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_DATE);
+  field_pos++;
+  return store_temporal([&tm](char *to) { return my_date_to_str(tm, to); },
+                        packet);
+}
+
+bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
+  // field_types check is needed because of the embedded protocol
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_TIME);
+  field_pos++;
+  return store_temporal(
+      [&tm, decimals](char *to) { return my_time_to_str(tm, to, decimals); },
+      packet);
 }
 
 /**
@@ -3381,18 +3669,17 @@ bool Protocol_binary::send_parameters(List<Item_param> *parameters,
     // The client does not support OUT-parameters.
     return false;
 
-  List<Item> out_param_lst;
+  mem_root_deque<Item *> out_param_lst(current_thd->mem_root);
   Item_param *item_param;
   while ((item_param = item_param_it++)) {
     // Skip it as it's just an IN-parameter.
     if (!item_param->get_out_param_info()) continue;
 
-    if (out_param_lst.push_back(item_param))
-      return true; /* purecov: inspected */
+    out_param_lst.push_back(item_param);
   }
 
   // Empty list
-  if (!out_param_lst.elements) return false;
+  if (out_param_lst.empty()) return false;
 
   /*
     We have to set SERVER_PS_OUT_PARAMS in THD::server_status, because it
@@ -3401,13 +3688,13 @@ bool Protocol_binary::send_parameters(List<Item_param> *parameters,
   m_thd->server_status |= SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
 
   // Send meta-data.
-  if (m_thd->send_result_metadata(&out_param_lst,
+  if (m_thd->send_result_metadata(out_param_lst,
                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
   // Send data.
   start_row();
-  if (m_thd->send_result_set_row(&out_param_lst)) return true;
+  if (m_thd->send_result_set_row(out_param_lst)) return true;
   if (end_row()) return true;
 
   // Restore THD::server_status.
@@ -3450,7 +3737,7 @@ bool Protocol_text::send_parameters(List<Item_param> *parameters, bool) {
     if (!item_param->get_out_param_info()) continue;
 
     Item_func_set_user_var *suv =
-        new Item_func_set_user_var(*user_var_name, item_param, false);
+        new Item_func_set_user_var(*user_var_name, item_param);
     /*
       Item_func_set_user_var is not fixed after construction,
       call fix_fields().
@@ -3498,25 +3785,6 @@ void Protocol_binary::start_row() {
   field_pos = 0;
 }
 
-bool Protocol_binary::store(const char *from, size_t length,
-                            const CHARSET_INFO *fromcs,
-                            const CHARSET_INFO *tocs) {
-  if (send_metadata) return Protocol_text::store(from, length, fromcs, tocs);
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_BIT ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
-              field_types[field_pos] == MYSQL_TYPE_JSON ||
-              (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-               field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-#endif
-  field_pos++;
-  return store_string_aux(from, length, fromcs, tocs);
-}
-
 bool Protocol_binary::store_null() {
   if (send_metadata) return Protocol_text::store_null();
   uint offset = (field_pos + 2) / 8 + 1, bit = (1 << ((field_pos + 2) & 7));
@@ -3524,191 +3792,184 @@ bool Protocol_binary::store_null() {
   char *to = packet->ptr() + offset;
   *to = (char)((uchar)*to | (uchar)bit);
   field_pos++;
-  return 0;
+  return false;
 }
 
-bool Protocol_binary::store_tiny(longlong from) {
-  if (send_metadata) return Protocol_text::store_tiny(from);
+bool Protocol_binary::store_tiny(longlong from, uint32 zerofill) {
+  if (send_metadata) return Protocol_text::store_tiny(from, zerofill);
   char buff[1];
-#ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TINY ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
   buff[0] = (uchar)from;
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 
-bool Protocol_binary::store_short(longlong from) {
-  if (send_metadata) return Protocol_text::store_short(from);
-#ifndef DBUG_OFF
+bool Protocol_binary::store_short(longlong from, uint32 zerofill) {
+  if (send_metadata) return Protocol_text::store_short(from, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_YEAR ||
-              field_types[field_pos] == MYSQL_TYPE_SHORT ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_YEAR ||
+         field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
   char *to = packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   int2store(to, (int)from);
-  return 0;
+  return false;
 }
 
-bool Protocol_binary::store_long(longlong from) {
-  if (send_metadata) return Protocol_text::store_long(from);
-#ifndef DBUG_OFF
+bool Protocol_binary::store_long(longlong from, uint32 zerofill) {
+  if (send_metadata) return Protocol_text::store_long(from, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_INT24 ||
-              field_types[field_pos] == MYSQL_TYPE_LONG ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_INT24 ||
+         field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   int4store(to, static_cast<uint32>(from));
-  return 0;
+  return false;
 }
 
-bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag) {
-  if (send_metadata) return Protocol_text::store_longlong(from, unsigned_flag);
-#ifndef DBUG_OFF
+bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
+                                     uint32 zerofill) {
+  if (send_metadata)
+    return Protocol_text::store_longlong(from, unsigned_flag, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_LONGLONG ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   int8store(to, from);
-  return 0;
+  return false;
 }
 
-bool Protocol_binary::store_decimal(const my_decimal *d, uint prec, uint dec) {
-  if (send_metadata) return Protocol_text::store_decimal(d, prec, dec);
-#ifndef DBUG_OFF
+bool Protocol_binary::store_float(float from, uint32 decimals,
+                                  uint32 zerofill) {
+  if (send_metadata)
+    return Protocol_text::store_float(from, decimals, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-  // store() will increment the field_pos counter
-#endif
-  char buff[DECIMAL_MAX_STR_LENGTH + 1];
-  String str(buff, sizeof(buff), &my_charset_bin);
-  (void)my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
-  return store(str.ptr(), str.length(), str.charset(), result_cs);
-}
-
-bool Protocol_binary::store(float from, uint32 decimals, String *buffer) {
-  if (send_metadata) return Protocol_text::store(from, decimals, buffer);
-#ifndef DBUG_OFF
-  // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_FLOAT ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   float4store(to, from);
-  return 0;
+  return false;
 }
 
-bool Protocol_binary::store(double from, uint32 decimals, String *buffer) {
-  if (send_metadata) return Protocol_text::store(from, decimals, buffer);
-#ifndef DBUG_OFF
+bool Protocol_binary::store_double(double from, uint32 decimals,
+                                   uint32 zerofill) {
+  if (send_metadata)
+    return Protocol_text::store_double(from, decimals, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_DOUBLE ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   float8store(to, from);
-  return 0;
+  return false;
 }
 
-bool Protocol_binary::store(Proto_field *field) {
-  if (send_metadata) return Protocol_text::store(field);
-  return field->send_binary(this);
-}
+bool Protocol_binary::store_datetime(const MYSQL_TIME &tm, uint precision) {
+  if (send_metadata) return Protocol_text::store_datetime(tm, precision);
 
-bool Protocol_binary::store(MYSQL_TIME *tm, uint precision) {
-  if (send_metadata) return Protocol_text::store(tm, precision);
-
-#ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_DATE ||
-              is_temporal_type_with_date_and_time(field_types[field_pos]) ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
-  char buff[12], *pos;
-  size_t length;
+  assert(field_types == nullptr ||
+         is_temporal_type_with_date_and_time(field_types[field_pos]));
   field_pos++;
-  pos = buff + 1;
 
-  int2store(pos, tm->year);
-  pos[2] = (uchar)tm->month;
-  pos[3] = (uchar)tm->day;
-  pos[4] = (uchar)tm->hour;
-  pos[5] = (uchar)tm->minute;
-  pos[6] = (uchar)tm->second;
-  int4store(pos + 7, tm->second_part);
-  if (tm->second_part)
+  size_t length;
+  if (tm.second_part)
     length = 11;
-  else if (tm->hour || tm->minute || tm->second)
+  else if (tm.hour || tm.minute || tm.second)
     length = 7;
-  else if (tm->year || tm->month || tm->day)
+  else if (tm.year || tm.month || tm.day)
     length = 4;
   else
     length = 0;
-  buff[0] = (char)length;  // Length is stored first
-  return packet->append(buff, length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+
+  char *pos = packet->prep_append(length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+
+  *pos++ = char(length);
+
+  const char *const end = pos + length;
+  if (pos == end) return false;  // Only zero parts.
+
+  int2store(pos, tm.year);
+  pos += 2;
+  *pos++ = char(tm.month);
+  *pos++ = char(tm.day);
+
+  if (pos == end) return false;  // Only date parts.
+
+  *pos++ = char(tm.hour);
+  *pos++ = char(tm.minute);
+  *pos++ = char(tm.second);
+
+  if (pos == end) return false;  // No microseconds.
+
+  int4store(pos, tm.second_part);
+  assert(pos + 4 == end);
+  return false;
 }
 
-bool Protocol_binary::store_date(MYSQL_TIME *tm) {
+bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
   if (send_metadata) return Protocol_text::store_date(tm);
-#ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_DATE ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
-  tm->hour = tm->minute = tm->second = 0;
-  tm->second_part = 0;
-  return Protocol_binary::store(tm, 0);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_DATE);
+  field_pos++;
+
+  if (tm.year == 0 && tm.month == 0 && tm.day == 0) {
+    // Nothing to send, except a single byte to indicate length = 0.
+    return packet->append(char{0});
+  }
+
+  char *pos = packet->prep_append(5, PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+  pos[0] = char{4};  // length
+  int2store(pos + 1, tm.year);
+  pos[3] = char(tm.month);
+  pos[4] = char(tm.day);
+  return false;
 }
 
-bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision) {
+bool Protocol_binary::store_time(const MYSQL_TIME &tm, uint precision) {
   if (send_metadata) return Protocol_text::store_time(tm, precision);
-  char buff[13], *pos;
-  size_t length;
-#ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TIME ||
-              field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
-#endif
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
-  pos = buff + 1;
-  pos[0] = tm->neg ? 1 : 0;
-  if (tm->hour >= 24) {
-    /* Fix if we come from Item::send */
-    uint days = tm->hour / 24;
-    tm->hour -= days * 24;
-    tm->day += days;
-  }
-  int4store(pos + 1, tm->day);
-  pos[5] = (uchar)tm->hour;
-  pos[6] = (uchar)tm->minute;
-  pos[7] = (uchar)tm->second;
-  int4store(pos + 8, tm->second_part);
-  if (tm->second_part)
+
+  size_t length;
+  if (tm.second_part)
     length = 12;
-  else if (tm->hour || tm->minute || tm->second || tm->day)
+  else if (tm.hour || tm.minute || tm.second || tm.day)
     length = 8;
   else
     length = 0;
-  buff[0] = (char)length;  // Length is stored first
-  return packet->append(buff, length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+
+  char *pos = packet->prep_append(length + 1, PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return false;
+  *pos++ = char(length);
+
+  const char *const end = pos + length;
+  if (pos == end) return false;  // zero date
+
+  // Move hours to days if we have 24 hours or more.
+  const unsigned days = tm.day + tm.hour / 24;
+  const unsigned hours = tm.hour % 24;
+
+  *pos++ = tm.neg ? 1 : 0;
+  int4store(pos, days);
+  pos += 4;
+  *pos++ = char(hours);
+  *pos++ = char(tm.minute);
+  *pos++ = char(tm.second);
+
+  if (pos == end) return false;  // no second part
+
+  int4store(pos, tm.second_part);
+  assert(pos + 4 == end);
+  return false;
 }
 
 /**
@@ -3795,26 +4056,28 @@ static ulong get_param_length(uchar *packet, ulong packet_left_len,
    @param[out] header_len      the size of the header(bytes to be skiped)
    @param[out] err             boolean to store if an error occurred
 */
-ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
-                       ulong packet_left_len, ulong *header_len, bool *err) {
-  DBUG_ENTER("get_ps_param_len");
+static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
+                              ulong packet_left_len, ulong *header_len,
+                              bool *err) {
+  DBUG_TRACE;
   *header_len = 0;
 
   switch (type) {
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
       *err = (packet_left_len < 1);
-      DBUG_RETURN(1);
+      return 1;
     case MYSQL_TYPE_SHORT:
       *err = (packet_left_len < 2);
-      DBUG_RETURN(2);
+      return 2;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_LONG:
       *err = (packet_left_len < 4);
-      DBUG_RETURN(4);
+      return 4;
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_LONGLONG:
       *err = (packet_left_len < 8);
-      DBUG_RETURN(8);
+      return 8;
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_DATE:
@@ -3827,7 +4090,7 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
       *err = ((param_length == 0 && *header_len == 0) ||
               (packet_left_len < *header_len + param_length));
       DBUG_PRINT("info", ("ret=%lu ", param_length));
-      DBUG_RETURN(param_length);
+      return param_length;
     }
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -3841,7 +4104,7 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
       if (param_length > packet_left_len - *header_len)
         param_length = packet_left_len - *header_len;
       DBUG_PRINT("info", ("ret=%lu", param_length));
-      DBUG_RETURN(param_length);
+      return param_length;
     }
   }
 }

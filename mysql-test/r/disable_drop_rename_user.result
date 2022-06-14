@@ -1,0 +1,350 @@
+#
+# WL#14073: Disable DROP/RENAME USER for SQL DEFINER users in procedures,
+#           functions, views, triggers and events.
+#
+CREATE DATABASE wl14073;
+USE wl14073;
+CREATE table t1(i int);
+CREATE USER normal_user;
+GRANT ALL ON *.* TO normal_user;
+REVOKE SET_USER_ID ON *.* FROM normal_user;
+CREATE USER power_user;
+GRANT ALL ON *.* TO power_user;
+# case1: check for view with normal_user
+connect normal_conn, localhost, normal_user;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 VIEW v1 as SELECT * FROM t1;
+# user is referenced in view v1 so drop/rename user should fail
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%' as it is referenced as a definer account in a view.
+RENAME USER u1 to new_u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a view.
+DROP VIEW v1;
+# user is not more referenced in view v1 so rename/drop user should pass
+RENAME USER u1 to new_u1;
+DROP USER new_u1;
+# case2: check for view with power_user
+connect power_conn, localhost, power_user;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 VIEW v1 as SELECT * FROM t1;
+# user is referenced in view v1 so rename/drop user should pass as user has SET_USER_ID.
+RENAME USER u1 to new_u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+DROP USER new_u1;
+DROP VIEW v1;
+# case3: check for event with normal_user
+connection normal_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+# user is referenced in event ev1 so drop/rename user should fail
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%' as it is referenced as a definer account in an event.
+RENAME USER u1 to new_u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in an event.
+DROP EVENT ev1;
+# user is no more referenced in event ev1 so rename/drop user should pass
+RENAME USER u1 to new_u1;
+DROP USER new_u1;
+# case4: check for event with power_user
+connection power_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+# user is referenced in event ev1 so rename/drop user should pass
+RENAME USER u1 to new_u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in an event.
+DROP USER new_u1;
+DROP EVENT ev1;
+# case5: check for procedure with normal_user
+connection normal_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 PROCEDURE p1() DELETE FROM t1;
+# user is referenced in procedure p1, so drop/rename user should fail
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+RENAME USER u1 to new_u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+DROP PROCEDURE p1;
+# user is no more referenced in procedure p1, so rename/drop user should pass
+RENAME USER u1 to new_u1;
+DROP USER new_u1;
+# case6: check for procedure with power_user
+connection power_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 PROCEDURE p1() DELETE FROM t1;
+# user is referenced in procedure p1, so rename/drop user should pass
+RENAME USER u1 to new_u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+DROP USER new_u1;
+DROP PROCEDURE p1;
+# case7: check for function with normal_user
+connection normal_conn;
+set GLOBAL log_bin_trust_function_creators=1;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 FUNCTION f1() RETURNS INT RETURN 1;
+# user is referenced in function f1, so drop/rename user should fail
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+RENAME USER u1 to new_u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+DROP FUNCTION f1;
+# user is no more referenced in function f1, so rename/drop user should pass
+RENAME USER u1 to new_u1;
+DROP USER new_u1;
+# case8: check for function with power_user
+connection power_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 FUNCTION f1() RETURNS INT RETURN 1;
+# user is referenced in function f1, so rename/drop user should pass
+RENAME USER u1 to new_u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+DROP USER new_u1;
+DROP FUNCTION f1;
+# case9: check for trigger with normal_user
+connection normal_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t1;
+# user is referenced in trigger trig1, so drop/rename user should fail
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%' as it is referenced as a definer account in a trigger.
+RENAME USER u1 to new_u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a trigger.
+DROP TRIGGER trig1;
+# user is no more referenced in trigger trig1, so rename/drop user should pass
+RENAME USER u1 to new_u1;
+DROP USER new_u1;
+# case10: check for trigger with power_user
+connection power_conn;
+CREATE USER u1;
+USE wl14073;
+CREATE DEFINER = u1 TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t1;
+RENAME USER u1 to new_u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a trigger.
+DROP USER new_u1;
+DROP TRIGGER trig1;
+# case11: check CREATE USER for orphaned view for normal user/power user
+connection normal_conn;
+USE wl14073;
+CREATE USER dummy;
+CREATE DEFINER = u1 VIEW v1 as SELECT * FROM t1;
+Warnings:
+Note	1449	The user specified as a definer ('u1'@'%') does not exist
+SELECT * FROM v1;
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+CREATE USER u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a view.
+# try renaming existing user to a matching definer account, it should fail.
+RENAME USER dummy to u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a view.
+connection power_conn;
+USE wl14073;
+SELECT * FROM v1;
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should pass as SET_USER_ID privilege is there
+CREATE USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+DROP USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+# try renaming existing user to a matching definer account, it should pass
+RENAME USER dummy to u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+DROP VIEW v1;
+DROP USER u1;
+# case12: check CREATE USER for orphaned event for normal user/power user
+connection normal_conn;
+USE wl14073;
+CREATE USER dummy;
+CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+Warnings:
+Note	1449	The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+CREATE USER u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in an event.
+# try renaming existing user to a matching definer account, it should fail.
+RENAME USER dummy to u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in an event.
+connection power_conn;
+USE wl14073;
+# try creating missing definer account, should pass as SET_USER_ID privilege is there
+CREATE USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in an event.
+DROP USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in an event.
+# try renaming existing user to a matching definer account, it should pass
+RENAME USER dummy to u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in an event.
+DROP EVENT ev1;
+DROP USER u1;
+# case13: check CREATE USER for orphaned procedure for normal user/power user
+connection normal_conn;
+USE wl14073;
+CREATE USER dummy;
+CREATE DEFINER = u1 PROCEDURE p1() DELETE FROM t1;
+Warnings:
+Note	1449	The user specified as a definer ('u1'@'%') does not exist
+CALL p1();
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+CREATE USER u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+# try renaming existing user to a matching definer account, it should fail.
+RENAME USER dummy to u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+connection power_conn;
+USE wl14073;
+CALL p1();
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should pass as SET_USER_ID privilege is there
+CREATE USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+DROP USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+# try renaming existing user to a matching definer account, it should pass
+RENAME USER dummy to u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+DROP PROCEDURE p1;
+DROP USER u1;
+# case14: check CREATE USER for orphaned function for normal user/power user
+connection normal_conn;
+USE wl14073;
+CREATE USER dummy;
+CREATE DEFINER = u1 FUNCTION f1() RETURNS INT RETURN 1;
+Warnings:
+Note	1449	The user specified as a definer ('u1'@'%') does not exist
+SELECT f1();
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+CREATE USER u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+# try renaming existing user to a matching definer account, it should fail.
+RENAME USER dummy to u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
+connection power_conn;
+USE wl14073;
+SELECT f1();
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should pass as SET_USER_ID privilege is there
+CREATE USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+DROP USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+# try renaming existing user to a matching definer account, it should pass
+RENAME USER dummy to u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
+DROP FUNCTION f1;
+DROP USER u1;
+# case15: check CREATE USER for orphaned trigger for normal user/power user
+connection normal_conn;
+USE wl14073;
+CREATE USER dummy;
+CREATE DEFINER = u1 TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t1;
+Warnings:
+Note	1449	The user specified as a definer ('u1'@'%') does not exist
+INSERT INTO t1 VALUES (10);
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+CREATE USER u1;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a trigger.
+# try renaming existing user to a matching definer account, it should fail.
+RENAME USER dummy to u1;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in a trigger.
+connection power_conn;
+USE wl14073;
+INSERT INTO t1 VALUES (10);
+ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
+# try creating missing definer account, should pass as SET_USER_ID privilege is there
+CREATE USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a trigger.
+DROP USER u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a trigger.
+# try renaming existing user to a matching definer account, it should pass
+RENAME USER dummy to u1;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a trigger.
+DROP TRIGGER trig1;
+DROP USER u1;
+connection default;
+disconnect normal_conn;
+disconnect power_conn;
+DROP USER normal_user, power_user;
+# case16: check for user name case sensitivity
+CREATE USER ABC;
+CREATE USER ABc;
+USE wl14073;
+CREATE DEFINER = ABC VIEW v2 as SELECT * FROM t1;
+# should pass without any warnings
+DROP USER ABc;
+# should pass with warnings
+DROP USER ABC;
+Warnings:
+Warning	4005	User 'ABC'@'%' is referenced as a definer account in a view.
+# case17: check for host name
+CREATE USER u1@192.129.12.11;
+CREATE USER 'u1'@'%.com';
+CREATE USER 'u1'@'abc.com';
+USE wl14073;
+CREATE DEFINER = u1@192.129.12.11 VIEW v3 as SELECT * FROM t1;
+CREATE DEFINER = 'u1'@'%.com' VIEW v4 as SELECT * FROM t1;
+# check that host name is not case sensitive
+CREATE DEFINER = 'u1'@'AbC.com' VIEW v5 as SELECT * FROM t1;
+# should not match with any definer account names
+DROP USER 'u1'@'192.129.12.%';
+ERROR HY000: Operation DROP USER failed for 'u1'@'192.129.12.%'
+DROP USER 'u1'@'%';
+ERROR HY000: Operation DROP USER failed for 'u1'@'%'
+# should pass with warnings
+DROP USER u1@192.129.12.11;
+Warnings:
+Warning	4005	User 'u1'@'192.129.12.11' is referenced as a definer account in a view.
+# should pass with warnings
+DROP USER 'u1'@'%.com';
+Warnings:
+Warning	4005	User 'u1'@'%.com' is referenced as a definer account in a view.
+# should pass with warnings even when hostname is specified with different case
+DROP USER 'u1'@'ABC.COM';
+Warnings:
+Warning	4005	User 'u1'@'abc.com' is referenced as a definer account in a view.
+# case18: Drop multiple users being definers of multiple entity types.
+CREATE USER u1;
+CREATE USER u2;
+USE wl14073;
+CREATE DEFINER = u1 VIEW v6 as SELECT * FROM t1;
+CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+CREATE DEFINER = u2 VIEW v7 as SELECT * FROM t1;
+CREATE DEFINER = u2 EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+# Should pass with warnings for entity types 'event' and 'view' for each user.
+DROP USER u1, u2;
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in an event.
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+Warning	4005	User 'u2'@'%' is referenced as a definer account in an event.
+Warning	4005	User 'u2'@'%' is referenced as a definer account in a view.
+DROP DATABASE wl14073;

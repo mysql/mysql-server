@@ -8,30 +8,30 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CALL mtr.add_suppression(".*Got an error reading communication packets.*");
 #
 # Semisync master's status should be OFF if
-# rpl_semi_sync_master_wait_no_slave is set to 0 at starting server.
+# rpl_semi_sync_source_wait_no_replica is set to 0 at starting server.
 #
 include/assert.inc [Semisync master is off]
 CREATE TABLE t1(c1 INT);
-include/assert.inc [rpl_semi_sync_master_tx_waits should be 0]
+include/assert.inc [rpl_semi_sync_source_tx_waits should be 0]
 #
 # Semisync's status should still be OFF, because there is only one slave
 #
 [connection server_2]
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_1]
 include/assert.inc [ should be 2]
 INSERT INTO t1 VALUES(1);
 include/assert.inc [Semisync master is off]
 #
-# Verify 'SET GLOBAL rpl_semi_sync_master_enabled= ON' sets semisync
+# Verify 'SET GLOBAL rpl_semi_sync_source_enabled= ON' sets semisync
 # master's status correctly when there are enough semisync slaves.
 #
 [connection server_3]
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_1]
-SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 include/assert.inc [Semisync master is off]
-SET GLOBAL rpl_semi_sync_master_enabled= ON;
+SET GLOBAL rpl_semi_sync_source_enabled= ON;
 include/assert.inc [Semisync master is on]
 DROP TABLE t1;
 #
@@ -48,7 +48,7 @@ include/assert.inc [Semisync master is on]
 DROP TABLE t1;
 include/rpl_sync.inc
 [connection server_2]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_3]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 include/rpl_end.inc

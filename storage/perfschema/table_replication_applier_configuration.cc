@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -55,6 +55,25 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     /* Definition */
     "  CHANNEL_NAME CHAR(64) not null,\n"
     "  DESIRED_DELAY INTEGER not null,\n"
+    "  PRIVILEGE_CHECKS_USER TEXT CHARACTER SET utf8mb3 COLLATE utf8_bin null"
+    "    COMMENT 'User name for the security context of the applier.',\n"
+    "  REQUIRE_ROW_FORMAT ENUM('YES', 'NO') not null COMMENT "
+    "    'Indicates whether the channel shall only accept row based events.',\n"
+    "  REQUIRE_TABLE_PRIMARY_KEY_CHECK ENUM('STREAM','ON','OFF') not null"
+    "    COMMENT 'Indicates what is the channel policy regarding tables having"
+    " primary keys on create and alter table queries',\n"
+    "  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE "
+    "ENUM('OFF','LOCAL','UUID')  not null "
+    "    COMMENT 'Indicates whether the channel will generate a new GTID for"
+    " anonymous transactions. OFF means that anonymous transactions will remain"
+    " anonymous. LOCAL means that anonymous transactions will be assigned a"
+    " newly generated GTID based on server_uuid. UUID indicates that"
+    " anonymous transactions will be assigned a newly generated GTID based on"
+    " Assign_gtids_to_anonymous_transactions_value',\n"
+    "  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE TEXT CHARACTER SET utf8mb3 "
+    "COLLATE utf8_bin null "
+    "    COMMENT 'Indicates the UUID used while generating GTIDs for anonymous"
+    " transactions',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -64,8 +83,8 @@ Plugin_table table_replication_applier_configuration::m_table_def(
 PFS_engine_table_share table_replication_applier_configuration::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_configuration::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_applier_configuration::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -103,7 +122,7 @@ table_replication_applier_configuration::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_applier_configuration::
-    ~table_replication_applier_configuration() {}
+    ~table_replication_applier_configuration() = default;
 
 void table_replication_applier_configuration::reset_position(void) {
   m_pos.m_index = 0;
@@ -151,10 +170,11 @@ int table_replication_applier_configuration::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_replication_applier_configuration::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_rpl_applier_config *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_replication_applier_configuration::index_init(uint idx
+                                                        [[maybe_unused]],
+                                                        bool) {
+  PFS_index_rpl_applier_config *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_config);
   m_opened_index = result;
   m_index = result;
@@ -187,8 +207,9 @@ int table_replication_applier_configuration::index_next(void) {
 }
 
 int table_replication_applier_configuration::make_row(Master_info *mi) {
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  DBUG_TRACE;
+  assert(mi != nullptr);
+  assert(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -196,6 +217,38 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
   m_row.channel_name_length = mi->get_channel() ? strlen(mi->get_channel()) : 0;
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
   m_row.desired_delay = mi->rli->get_sql_delay();
+
+  std::ostringstream oss;
+
+  if (mi->rli->is_privilege_checks_user_corrupted())
+    oss << "<INVALID>" << std::flush;
+  else if (mi->rli->get_privilege_checks_username().length() != 0) {
+    std::string username{replace_all_in_str(
+        mi->rli->get_privilege_checks_username(), "'", "\\'")};
+
+    oss << "'" << username << "'@";
+
+    if (mi->rli->get_privilege_checks_hostname().length() != 0)
+      oss << "'" << mi->rli->get_privilege_checks_hostname() << "'";
+    else
+      oss << "%";
+
+    oss << std::flush;
+  }
+
+  m_row.privilege_checks_user.assign(oss.str());
+
+  m_row.requires_row_format =
+      mi->rli->is_row_format_required() ? PS_RPL_YES : PS_RPL_NO;
+
+  m_row.require_table_primary_key_check =
+      mi->rli->get_require_table_primary_key_check();
+
+  m_row.assign_gtids_to_anonymous_transactions_type =
+      mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type();
+
+  m_row.assign_gtids_to_anonymous_transactions_value.assign(
+      mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_value());
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -207,32 +260,50 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
                                                              unsigned char *buf,
                                                              Field **fields,
                                                              bool read_all) {
-  Field *f;
-
-  /*
-    Note:
-    There are no NULL columns in this table,
-    so there are no null bits reserved for NULL flags per column.
-    There are no VARCHAR columns either, so the record is not
-    in HA_OPTION_PACK_RECORD format as most other performance_schema tables.
-    When HA_OPTION_PACK_RECORD is not set,
-    the table record reserves an extra null byte, see open_binary_frm().
-  */
-
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  DBUG_TRACE;
+  /* Set the null bits */
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+  for (Field *f = nullptr; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /**channel_name*/
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
         case 1: /** desired_delay */
           set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
           break;
+        case 2: /**privilege_checks_user*/
+          if (m_row.privilege_checks_user.length() != 0)
+            set_field_text(f, m_row.privilege_checks_user.data(),
+                           m_row.privilege_checks_user.length(),
+                           &my_charset_utf8mb4_bin);
+          else
+            f->set_null();
+          break;
+        case 3: /** require_row_format */
+          set_field_enum(f, m_row.requires_row_format);
+          break;
+        case 4: /** require_table_primary_key_check */
+          set_field_enum(f, m_row.require_table_primary_key_check);
+          break;
+        case 5: /** assign_gtids_to_anonymous_transactions_type */
+          set_field_enum(
+              f, static_cast<ulong>(
+                     m_row.assign_gtids_to_anonymous_transactions_type));
+          break;
+        case 6: /** assign_gtids_to_anonymous_transactions_value */
+          if (m_row.assign_gtids_to_anonymous_transactions_value.length() != 0)
+            set_field_text(
+                f, m_row.assign_gtids_to_anonymous_transactions_value.data(),
+                m_row.assign_gtids_to_anonymous_transactions_value.length(),
+                &my_charset_utf8mb4_bin);
+          else
+            f->set_null();
+          break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

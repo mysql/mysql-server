@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_systime.h"  //my_getsystime
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 
 /**
@@ -138,8 +138,8 @@ class Slave_reporting_capability {
 
   /*
     For MSR, there is a need to introduce error messages per channel.
-    Instead of changing the error messages in share/errmsg-utf8.txt to
-    introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+    Instead of changing the error messages in share/messages_to_error_log.txt
+    to introduce the clause, FOR CHANNEL "%s", we construct a string like this.
     There might be problem with a client applications which could print
     error messages and see no %s.
     @TODO: fix this.

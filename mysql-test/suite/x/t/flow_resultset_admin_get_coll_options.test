@@ -1,0 +1,68 @@
+## Test of general functionality of get_collection_options admin command.
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/resultset.xpl
+-->import assert_messages.macro
+-->import assert_notices.macro
+-->import validation_schema.macro
+
+varlet %SCHEMA% {"type": "object", "properties":
+  {"latitude": {"type": "number", "minimum": -90, "maximum": 90}},
+  "required": ["latitude"]};
+
+-->echo
+-->echo
+-->echo ## I. Check command flow when using a get_collection_options admin
+-->echo ##    command.
+-->echo #
+-->echo # 1. Check flow of get_collection_options command when used with
+-->echo #    an invalid option.
+-->echo # 2. Check flow of get_collection_options command when used with
+-->echo #    a validation option.
+
+-->echo
+-->echo #
+-->echo # I.1
+stmtadmin get_collection_options	{
+  "schema": "xtest",
+  "name": "test_coll",
+  "options": ["foo"]
+};
+-->callmacro Assert_message Mysqlx.Error
+
+-->echo
+-->echo #
+-->echo # I.2
+stmtadmin create_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": %SCHEMA%
+  }
+}};
+-->recvresult
+stmtadmin get_collection_options	{
+  "schema": "xtest",
+   "name": "test_coll",
+   "options": ["validation"]
+};
+-->callmacro Assert_metadata	BYTES	"Result"
+-->callmacro Assert_rows	1
+-->callmacro Assert_message	Mysqlx.Resultset.FetchDone
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+
+EOF
+
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=xtest
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

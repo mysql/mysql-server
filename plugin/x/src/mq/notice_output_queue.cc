@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/mq/notice_output_queue.h"
 
-#include "mutex_lock.h"
+#include <string>
+
+#include "mutex_lock.h"  // NOLINT(build/include_subdir)
 
 namespace xpl {
 
 using Notice_description = ngs::Notice_descriptor;
 
-class Notice_output_queue::Idle_reporting
-    : public ngs::Protocol_decoder::Waiting_for_io_interface {
+class Notice_output_queue::Idle_reporting : public xpl::iface::Waiting_for_io {
  public:
-  Idle_reporting(Notice_output_queue *session_queue)
+  explicit Idle_reporting(Notice_output_queue *session_queue)
       : m_session_queue(session_queue) {}
 
   bool has_to_report_idle_waiting() override {
@@ -42,23 +43,51 @@ class Notice_output_queue::Idle_reporting
     return !m_session_queue->m_queue.empty();
   }
 
-  void on_idle_or_before_read() override {
+  bool on_idle_or_before_read() override {
+    DBUG_TRACE;
     const bool force_flush_at_last_notice = true;
 
     m_session_queue->encode_queued_items(force_flush_at_last_notice);
+
+    return true;
   }
 
  private:
   Notice_output_queue *m_session_queue;
 };
 
-void Notice_output_queue::emplace(const ngs::Notice_type type,
-                                  const Buffer_shared &binary_notice) {
-  if (!m_notice_configuration->is_notice_enabled(type)) return;
+Notice_output_queue::Notice_output_queue(
+    iface::Protocol_encoder *encoder,
+    iface::Notice_configuration *notice_configuration)
+    : m_encoder(encoder),
+      m_notice_configuration(notice_configuration),
+      m_decoder_io_callbacks(std::make_unique<Idle_reporting>(this)) {}
+
+void Notice_output_queue::emplace(const Buffer_shared &notice) {
+  if (!m_notice_configuration->is_notice_enabled(notice->m_notice_type)) return;
 
   MUTEX_LOCK(locker, m_queue_mutex);
-  m_queue.emplace(binary_notice);
+  m_queue.emplace(notice);
 }
+
+namespace {
+using Notice_type = ngs::Notice_type;
+inline iface::Frame_type get_notice_frame_type(const Notice_type notice_type) {
+  switch (notice_type) {
+    case Notice_type::k_warning:
+      return iface::Frame_type::k_warning;
+    case Notice_type::k_group_replication_quorum_loss:
+    case Notice_type::k_group_replication_view_changed:
+    case Notice_type::k_group_replication_member_role_changed:
+    case Notice_type::k_group_replication_member_state_changed:
+      return iface::Frame_type::k_group_replication_state_changed;
+    default: {
+      assert(false && "unsupported ngs::Notice_type");
+    }
+  }
+  return iface::Frame_type::k_group_replication_state_changed;
+}
+}  // namespace
 
 void Notice_output_queue::encode_queued_items(const bool last_force_flush) {
   if (m_queue.empty()) return;
@@ -66,24 +95,25 @@ void Notice_output_queue::encode_queued_items(const bool last_force_flush) {
   MUTEX_LOCK(locker, m_queue_mutex);
 
   while (!m_queue.empty()) {
-    auto &item = m_queue.front();
+    const auto &item = m_queue.front();
     const bool flush = last_force_flush && (1 == m_queue.size());
 
-    if (!m_encoder->send_notice(
-            ::ngs::Frame_type::k_group_replication_state_changed,
-            ::ngs::Frame_scope::k_global, *item, flush))
+    if (!m_encoder->send_notice(get_notice_frame_type(item->m_notice_type),
+                                iface::Frame_scope::k_global, item->m_payload,
+                                flush))
       break;
 
     m_queue.pop();
   }
 }
 
-ngs::Protocol_decoder::Waiting_for_io_interface &
-Notice_output_queue::get_callbacks_waiting_for_io() {
-  if (!m_decoder_io_callbacks)
-    m_decoder_io_callbacks.reset(new Idle_reporting(this));
+void Notice_output_queue::set_encoder(iface::Protocol_encoder *encoder) {
+  m_encoder = encoder;
+}
 
-  return *m_decoder_io_callbacks;
+xpl::iface::Waiting_for_io *
+Notice_output_queue::get_callbacks_waiting_for_io() {
+  return m_decoder_io_callbacks.get();
 }
 
 }  // namespace xpl

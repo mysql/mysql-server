@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/tablespace.h"       // dd::Tablespace
 #include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
+#include "sql/strfunc.h"
 
 class THD;
 
@@ -56,30 +57,30 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
  public:
   Tablespace_impl();
 
-  virtual ~Tablespace_impl();
+  ~Tablespace_impl() override;
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx);
+  bool restore_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx);
+  bool store_children(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+  bool drop_children(Open_dictionary_tables_ctx *otx) const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
-  virtual bool is_empty(THD *thd, bool *empty) const;
+  bool is_empty(THD *thd, bool *empty) const override;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -88,19 +89,19 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const { return m_comment; }
+  const String_type &comment() const override { return m_comment; }
 
-  virtual void set_comment(const String_type &comment) { m_comment = comment; }
+  void set_comment(const String_type &comment) override { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return m_options; }
+  const Properties &options() const override { return m_options; }
 
-  virtual Properties &options() { return m_options; }
+  Properties &options() override { return m_options; }
 
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return m_options.insert_values(options_raw);
   }
 
@@ -108,13 +109,13 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const {
+  const Properties &se_private_data() const override {
     return m_se_private_data;
   }
 
-  virtual Properties &se_private_data() { return m_se_private_data; }
+  Properties &se_private_data() override { return m_se_private_data; }
 
-  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+  bool set_se_private_data(const String_type &se_private_data_raw) override {
     return m_se_private_data.insert_values(se_private_data_raw);
   }
 
@@ -122,31 +123,40 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   // m_engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &engine() const { return m_engine; }
+  const String_type &engine() const override { return m_engine; }
 
-  virtual void set_engine(const String_type &engine) { m_engine = engine; }
+  void set_engine(const String_type &engine) override { m_engine = engine; }
+
+  LEX_CSTRING engine_attribute() const override {
+    return lex_cstring_handle(m_engine_attribute);
+  }
+  void set_engine_attribute(LEX_CSTRING a) override {
+    m_engine_attribute.assign(a.str, a.length);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace file collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Tablespace_file *add_file();
+  Tablespace_file *add_file() override;
 
-  virtual bool remove_file(String_type data_file);
+  bool remove_file(String_type data_file) override;
 
-  virtual const Tablespace_file_collection &files() const { return m_files; }
+  const Tablespace_file_collection &files() const override { return m_files; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
@@ -157,6 +167,7 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   Properties_impl m_options;
   Properties_impl m_se_private_data;
   String_type m_engine;
+  String_type m_engine_attribute;
 
   // Collections.
 
@@ -164,7 +175,14 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
 
   Tablespace_impl(const Tablespace_impl &src);
 
-  Tablespace *clone() const { return new Tablespace_impl(*this); }
+  Tablespace *clone() const override { return new Tablespace_impl(*this); }
+
+  Tablespace *clone_dropped_object_placeholder() const override {
+    Tablespace_impl *placeholder = new Tablespace_impl();
+    placeholder->set_id(id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

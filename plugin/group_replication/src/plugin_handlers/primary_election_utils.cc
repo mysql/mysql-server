@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
@@ -69,108 +70,24 @@ bool send_message(Plugin_gcs_message *message) {
   return false;
 }
 
-void kill_transactions_and_leave_on_election_error(std::string &err_msg,
-                                                   ulong stop_wait_timeout) {
-  DBUG_ENTER("kill_transactions_and_leave_on_election_error");
+void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
+  DBUG_TRACE;
 
   // Action errors might have expelled the member already
   if (Group_member_info::MEMBER_ERROR ==
       local_member_info->get_recovery_status()) {
-    DBUG_VOID_RETURN;
+    return;
   }
-
-  Notification_context ctx;
 
   LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PRIMARY_ELECTION_PROCESS_ERROR,
                err_msg.c_str());
 
-  /*
-    Suspend the applier for the uncommon case of a network restore happening
-    when this termination process is ongoing.
-    Don't care if an error is returned because the applier failed.
-  */
-  applier_module->add_suspension_packet();
-
-  /* Notify member status update. */
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR, ctx);
-
-  /*
-    unblock threads waiting for the member to become ONLINE
-  */
-  terminate_wait_on_start_process();
-
-  /* Single state update. Notify right away. */
-  notify_and_reset_ctx(ctx);
-
-  bool set_read_mode = false;
-
-  Plugin_gcs_view_modification_notifier view_change_notifier;
-  view_change_notifier.start_view_modification();
-  Gcs_operations::enum_leave_state leave_state =
-      gcs_module->leave(&view_change_notifier);
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
-
-  longlong errcode = 0;
-  longlong log_severity = WARNING_LEVEL;
-  switch (leave_state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP; /* purecov:
-                                                                    inspected */
-      log_severity = ERROR_LEVEL; /* purecov: inspected */
-      set_read_mode = true;       /* purecov: inspected */
-      break;                      /* purecov: inspected */
-    case Gcs_operations::ALREADY_LEAVING:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
-      break;                                          /* purecov: inspected */
-    case Gcs_operations::ALREADY_LEFT:
-      errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT; /* purecov: inspected */
-      break;                                    /* purecov: inspected */
-    case Gcs_operations::NOW_LEAVING:
-      set_read_mode = true;
-      errcode = ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS;
-      log_severity = ERROR_LEVEL;
-      break;
-  }
-  LogPluginErr(log_severity, errcode);
-
-  /*
-    If true it means:
-    1) The plugin is stopping and waiting on some transactions to finish.
-       No harm in unblocking them first cutting the stop command time
-    2) There was an error in the applier and the plugin will leave the group.
-       No problem, both processes will try to kill the transactions and set the
-       read mode to true.
-  */
-  bool already_locked = shared_plugin_stop_lock->try_grab_write_lock();
-
-  // kill pending transactions
-  blocked_transaction_handler->unblock_waiting_transactions();
-
-  if (!already_locked) shared_plugin_stop_lock->release_write_lock();
-
-  if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
-
-  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-      Gcs_operations::ALREADY_LEFT != leave_state) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier.wait_for_view_modification()) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN); /* purecov:
-                                                                    inspected */
-    }
-  }
-  gcs_module->remove_view_notifer(&view_change_notifier);
-
-  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
-    std::string error_message(
-        "Fatal error during the primary election process: ");
-    error_message.append(err_msg);
-    abort_plugin_process(error_message.c_str());
-  }
-
-  DBUG_VOID_RETURN;
+  std::string exit_state_action_abort_log_message(
+      "Fatal error during the primary election process: ");
+  exit_state_action_abort_log_message.append(err_msg);
+  leave_group_on_failure::mask leave_actions;
+  leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+  leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+  leave_group_on_failure::leave(leave_actions, 0, PSESSION_INIT_THREAD, nullptr,
+                                exit_state_action_abort_log_message.c_str());
 }

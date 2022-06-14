@@ -1,0 +1,130 @@
+# ==== Purpose ====
+#
+# WL#12649: Automatic reconnection for Async replication between InnoDB Clusters
+#
+# It verifies that to enable Asynchronous Replication Connection Failover
+# gtid_mode and CHANGE MASTER option MASTER_AUTO_POSITION needs to be
+# enabled too.
+#
+# ==== Implementation ====
+#
+# 1. Verify Asynchronous Replication Connection Failover and gtid_mode is
+#    initially disabled.
+# 2. As gtid_mode is disabled enabling Asynchronous Replication Connection
+#    Failover fails with error ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF.
+# 3. Enable gtid_mode.
+# 4. Enabling Asynchronous Replication Connection Failover fails with
+#    error ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF as
+#    MASTER_AUTO_POSITION is disabled.
+# 5. Enabling MASTER_AUTO_POSITION and then enable Asynchronous
+#    Replication Connection Failover and verify its enabled.
+# 6. Clean up
+#
+--source include/have_gtid_mode_off.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Verify Asynchronous Replication Connection Failover and gtid_mode is
+--echo #    initially disabled.
+--echo #
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $assert_text= gtid_mode is OFF
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_mode]" = "OFF"
+--source include/assert.inc
+
+--let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 2. As gtid_mode is disabled enabling Asynchronous Replication
+--echo #    Connection Failover fails with error
+--echo #    ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF.
+--echo #
+--error ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+
+--let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 3. Enable gtid_mode.
+--echo #
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+
+--let $assert_text= gtid_mode is ON
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_mode]" = "ON"
+--source include/assert.inc
+
+
+--echo #
+--echo # 4. Enabling Asynchronous Replication Connection Failover fails with
+--echo #    error ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF as
+--echo #    MASTER_AUTO_POSITION is disabled.
+--echo #
+
+--let $assert_text= 'MASTER_AUTO_POSITION is disabled'
+--let $assert_cond= [SELECT AUTO_POSITION FROM performance_schema.replication_connection_configuration, AUTO_POSITION, 1] = 0
+--source include/assert.inc
+
+--error ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+
+--let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 5. Enabling MASTER_AUTO_POSITION and then enable Asynchronous
+--echo #    Replication Connection Failover and verify its enabled.
+--echo #
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+
+# Verify Asynchronous Replication Connection Failover is enabled.
+--let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 6. Disabling MASTER_AUTO_POSITION while Asynchronous Replication
+--echo #    Connection Failover is enabled results in
+--echo #    ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF error.
+--echo #
+--error ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
+
+
+--echo #
+--echo # 7. Executing GTID_MODE = ON_PERMISSIVE while Asynchronous Replication
+--echo #    Connection Failover is enabled results in
+--echo #    ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF error.
+--echo #
+--error ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+
+
+--echo #
+--echo # 8. Clean up
+--echo #
+
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=0;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

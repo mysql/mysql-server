@@ -1,0 +1,33 @@
+--source include/have_debug.inc
+--source include/have_hypergraph.inc
+
+CREATE TABLE t1 ( a INTEGER, KEY (a) );
+INSERT INTO t1 VALUES (1),(2),(3);
+ANALYZE TABLE t1;
+
+# Simple table scan, with subplan tokens.
+SET DEBUG='+d,subplan_tokens';
+EXPLAIN FORMAT=tree SELECT * FROM t1;
+
+# Demonstrate that we'd normally use an index to satisfy ORDER BY.
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
+
+# However, if we force the table scan variant from earlier,
+# we should get a sort instead.
+SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
+
+# Force a hash join; this is the truncated SHA-256 checksum of:
+# Inner hash join (t1.a = t2.a),0xeed2c0bd3e39ba93,Hash:0x079e429c703ec298
+# We also force the hash join subplans to ensure they are not optimized away.
+SET DEBUG='+d,subplan_tokens,'
+  'force_subplan_0x38d170e70c04e92c,'
+  'force_subplan_0xeed2c0bd3e39ba93,'
+  'force_subplan_0x079e429c703ec298';
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
+
+# When not forcing anything, we should prefer the nested loop join.
+SET DEBUG='-d,subplan_tokens';
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
+
+DROP TABLE t1;

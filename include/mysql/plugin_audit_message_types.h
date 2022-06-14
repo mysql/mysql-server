@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,6 @@ typedef enum {
 } mysql_event_message_value_type_t;
 
 /**
-  @struct mysql_event_message_key_value
-
   Structure that stores key-value pair of the MYSQL_AUDIT_MESSAGE_CLASS
   event class.
 */

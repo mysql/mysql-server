@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define ABSTRACT_OPTIONS_PROVIDER_INCLUDED
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "client/base/bool_option.h"
@@ -81,22 +82,24 @@ class Abstract_options_provider : public I_options_provider {
     Creates and attach new password option. It removes password from
     command-line on UNIX systems to prevent password to be seen when listing
     processes.
-    @param value Pointer to Nullable<string> object to receive option value.
+    @param value Pointer to std::optional<string> object to receive option
+    value.
     @param name Name of option. It is used in command line option name as
       --name.
     @param description Description of option to be printed in --help.
    */
-  Password_option *create_new_password_option(Nullable<std::string> *value,
+  Password_option *create_new_password_option(std::optional<std::string> *value,
                                               std::string name,
                                               std::string description);
   /**
     Creates and attach new string option.
-    @param value Pointer to Nullable<string> object to receive option value.
+    @param value Pointer to std::optional<string> object to receive option
+    value.
     @param name Name of option. It is used in command line option name as
       --name.
     @param description Description of option to be printed in --help.
    */
-  String_option *create_new_option(Nullable<std::string> *value,
+  String_option *create_new_option(std::optional<std::string> *value,
                                    std::string name, std::string description);
   /**
     Creates and attach new 32-bit signed number option.
@@ -171,16 +174,16 @@ class Abstract_options_provider : public I_options_provider {
     Part of I_options_provider interface implementation.
     @returns list of my_getopt internal option data structures.
    */
-  virtual std::vector<my_option> generate_options();
+  std::vector<my_option> generate_options() override;
   /**
     Callback to be called when command-line options parsing have finished.
     Part of I_options_provider interface implementation.
    */
-  virtual void options_parsed();
+  void options_parsed() override;
 
  protected:
   Abstract_options_provider();
-  virtual ~Abstract_options_provider();
+  ~Abstract_options_provider() override;
 
   /**
     Sets optional option changes listener to which all changes in all options
@@ -188,7 +191,8 @@ class Abstract_options_provider : public I_options_provider {
     provider is attached to another.
     Part of I_options_provider interface implementation.
    */
-  virtual void set_option_changed_listener(I_option_changed_listener *listener);
+  void set_option_changed_listener(
+      I_option_changed_listener *listener) override;
 
  private:
   /**
@@ -215,14 +219,14 @@ class Abstract_options_provider : public I_options_provider {
     that case.
     Part of I_option_changed_listener interface implementation.
    */
-  virtual void notify_option_name_changed(I_option *source,
-                                          std::string old_name);
+  void notify_option_name_changed(I_option *source,
+                                  std::string old_name) override;
   /**
     Called after specified option has option ID changed.
     It is also called when new option is added, old_optid is 0 in that case.
     Part of I_option_changed_listener interface implementation.
    */
-  virtual void notify_option_optid_changed(I_option *source, uint32 old_optid);
+  void notify_option_optid_changed(I_option *source, uint32 old_optid) override;
 
   bool m_are_options_created;
   std::map<std::string, I_option *> m_name_usage;

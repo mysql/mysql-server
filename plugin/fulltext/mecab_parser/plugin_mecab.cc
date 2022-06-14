@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,20 @@
 
 #include "my_config.h"
 
+#include "my_compiler.h"
+
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// include/mecab.h:1384:22: warning: empty paragraph passed to '@param' command
+// [-Wdocumentation]
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
+#include <assert.h>
 #include <mecab.h>
+MY_COMPILER_DIAGNOSTIC_POP()
 #include <string>
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
-#include "my_dbug.h"
+
 #include "mysqld_error.h"
 #include "storage/innobase/include/fts0tokenize.h"
 
@@ -60,8 +68,8 @@ static bool mecab_parser_check_and_set_charset(const char *charset) {
   static const char *mecab_charset_values[mecab_charset_count][2] = {
       {"euc-jp", "ujis"},
       {"sjis", "sjis"},
-      {"utf-8", "utf8"},
-      {"utf8", "utf8"}};
+      {"utf-8", "utf8mb4"},
+      {"utf8", "utf8mb4"}};
 
   for (int i = 0; i < mecab_charset_count; i++) {
     if (native_strcasecmp(charset, mecab_charset_values[i][0]) == 0) {
@@ -225,7 +233,7 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
     ret = param->mysql_add_word(param, NULL, 0, bool_info);
 
-    DBUG_ASSERT(bool_info->quot == NULL);
+    assert(bool_info->quot == NULL);
     bool_info->type = FT_TOKEN_WORD;
   }
 
@@ -241,33 +249,33 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info = {FT_TOKEN_WORD, 0, 0, 0, 0, 0,
                                            ' ',           0};
   int ret = 0;
-  const char *csname = NULL;
 
-  /* Mecab supports utf8mb4(utf8), eucjpms(ujis) and cp932(sjis). */
-  if (strcmp(param->cs->csname, MY_UTF8MB4) == 0) {
-    csname = "utf8";
-  } else if (strcmp(param->cs->csname, "eucjpms") == 0) {
-    csname = "ujis";
-  } else if (strcmp(param->cs->csname, "cp932") == 0) {
-    csname = "sjis";
-  } else {
-    csname = param->cs->csname;
+  /* Mecab supports utf8mb4/utf8mb3, eucjpms(ujis) and cp932(sjis). */
+  std::string param_csname = param->cs->csname;
+  if (param_csname == "eucjpms") {
+    param_csname = "ujis";
+  } else if (param_csname == "cp932") {
+    param_csname = "sjis";
   }
 
   /* Check charset */
-  if (strcmp(mecab_charset, csname) != 0) {
+  bool matching_charset =
+      (mecab_charset == param_csname) ||
+      (std::string(mecab_charset) == "utf8mb4" && param_csname == "utf8mb3");
+
+  if (!matching_charset) {
     char error_msg[128];
 
     snprintf(error_msg, 127,
              "Fulltext index charset '%s'"
              " doesn't match mecab charset '%s'.",
-             param->cs->csname, mecab_charset);
+             param_csname.c_str(), mecab_charset);
     my_message(ER_ERROR_ON_WRITE, error_msg, MYF(0));
 
     return (1);
   }
 
-  DBUG_ASSERT(param->cs->mbminlen == 1);
+  assert(param->cs->mbminlen == 1);
 
   /* Create mecab lattice for parsing */
   mecab_lattice = mecab_model->createLattice();
@@ -278,7 +286,7 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
 
   /* Allocate a new string with '\0' in the end to avoid
   valgrind error "Invalid read of size 1" in mecab. */
-  DBUG_ASSERT(param->length >= 0);
+  assert(param->length >= 0);
   int doc_length = param->length;
   char *doc = reinterpret_cast<char *>(malloc(doc_length + 1));
 
@@ -346,7 +354,7 @@ mysql_declare_plugin(mecab_parser){
     MYSQL_FTPARSER_PLUGIN,                 /*!< type	*/
     &mecab_parser_descriptor,              /*!< descriptor	*/
     "mecab",                               /*!< name	*/
-    "Oracle Corp",                         /*!< author	*/
+    PLUGIN_AUTHOR_ORACLE,                  /*!< author	*/
     "Mecab Full-Text Parser for Japanese", /*!< description*/
     PLUGIN_LICENSE_GPL,                    /*!< license	*/
     mecab_parser_plugin_init,              /*!< init function (when loaded)*/

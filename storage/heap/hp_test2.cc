@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,14 @@
 #include <signal.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "storage/heap/heapdef.h" /* Because of hp_find_block */
 
-#define MAX_RECORDS 100000
+#define MAX_RECORDS 100000U
 #define MAX_KEYS 4
 
 static int get_options(int argc, char *argv[]);
@@ -72,7 +74,7 @@ int main(int argc, char *argv[]) {
 
   filename = "test2";
   filename2 = "test2_2";
-  file = file2 = 0;
+  file = file2 = nullptr;
   get_options(argc, argv);
 
   memset(&hp_create_info, 0, sizeof(hp_create_info));
@@ -144,7 +146,7 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < recant; i++) {
     n1 = rnd(1000);
     n2 = rnd(100);
-    n3 = rnd(MY_MIN(recant * 5, MAX_RECORDS));
+    n3 = rnd(std::min(recant * 5, MAX_RECORDS));
     make_record(record, n1, n2, n3, "Pos", write_count);
 
     if (heap_write(file, record)) {
@@ -160,16 +162,16 @@ int main(int argc, char *argv[]) {
       }
       write_count++;
       key1[n1]++;
-      key3[n3] = 1;
+      key3[n3] = true;
       key_check += n1;
     }
-    if (testflag == 1 && heap_check_heap(file, 0)) {
+    if (testflag == 1 && heap_check_heap(file, false)) {
       puts("Heap keys crashed");
       goto err;
     }
   }
   if (testflag == 1) goto end;
-  if (heap_check_heap(file, 0)) {
+  if (heap_check_heap(file, false)) {
     puts("Heap keys crashed");
     goto err;
   }
@@ -191,9 +193,9 @@ int main(int argc, char *argv[]) {
       }
       opt_delete++;
       key1[atoi((char *)record + keyinfo[0].seg[0].start)]--;
-      key3[atoi((char *)record + keyinfo[2].seg[0].start)] = 0;
+      key3[atoi((char *)record + keyinfo[2].seg[0].start)] = false;
       key_check -= atoi((char *)record);
-      if (testflag == 2 && heap_check_heap(file, 0)) {
+      if (testflag == 2 && heap_check_heap(file, false)) {
         puts("Heap keys crashed");
         goto err;
       }
@@ -201,7 +203,7 @@ int main(int argc, char *argv[]) {
       puts("Warning: Skipping delete test because no dupplicate keys");
   }
   if (testflag == 2) goto end;
-  if (heap_check_heap(file, 0)) {
+  if (heap_check_heap(file, false)) {
     puts("Heap keys crashed");
     goto err;
   }
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < write_count / 10; i++) {
     n1 = rnd(1000);
     n2 = rnd(100);
-    n3 = rnd(MY_MIN(recant * 2, MAX_RECORDS));
+    n3 = rnd(std::min(recant * 2, MAX_RECORDS));
     make_record(record2, n1, n2, n3, "XXX", update);
     if (rnd(2) == 1) {
       if (heap_scan_init(file)) goto err;
@@ -241,19 +243,19 @@ int main(int argc, char *argv[]) {
                (char *)record, (char *)record2);
     } else {
       key1[atoi((char *)record + keyinfo[0].seg[0].start)]--;
-      key3[atoi((char *)record + keyinfo[2].seg[0].start)] = 0;
+      key3[atoi((char *)record + keyinfo[2].seg[0].start)] = false;
       key1[n1]++;
-      key3[n3] = 1;
+      key3[n3] = true;
       update++;
       key_check = key_check - atoi((char *)record) + n1;
     }
-    if (testflag == 3 && heap_check_heap(file, 0)) {
+    if (testflag == 3 && heap_check_heap(file, false)) {
       puts("Heap keys crashed");
       goto err;
     }
   }
   if (testflag == 3) goto end;
-  if (heap_check_heap(file, 0)) {
+  if (heap_check_heap(file, false)) {
     puts("Heap keys crashed");
     goto err;
   }
@@ -275,7 +277,7 @@ int main(int argc, char *argv[]) {
     if (heap_delete(file, record3)) goto err;
     key_check -= atoi((char *)record3);
     key1[atoi((char *)record + keyinfo[0].seg[0].start)]--;
-    key3[atoi((char *)record + keyinfo[2].seg[0].start)] = 0;
+    key3[atoi((char *)record + keyinfo[2].seg[0].start)] = false;
     opt_delete++;
     ant = 2;
     while ((error = heap_rnext(file, record3)) == 0 ||
@@ -286,7 +288,7 @@ int main(int argc, char *argv[]) {
       goto end;
     }
     dupp_keys--;
-    if (heap_check_heap(file, 0)) {
+    if (heap_check_heap(file, false)) {
       puts("Heap keys crashed");
       goto err;
     }
@@ -300,13 +302,13 @@ int main(int argc, char *argv[]) {
     if (heap_delete(file, record3)) goto err;
     key_check -= atoi((char *)record3);
     key1[atoi((char *)record + keyinfo[0].seg[0].start)]--;
-    key3[atoi((char *)record + keyinfo[2].seg[0].start)] = 0;
+    key3[atoi((char *)record + keyinfo[2].seg[0].start)] = false;
     opt_delete++;
     if (heap_rprev(file, record3) || heap_rprev(file, record3)) goto err;
     if (heap_delete(file, record3)) goto err;
     key_check -= atoi((char *)record3);
     key1[atoi((char *)record + keyinfo[0].seg[0].start)]--;
-    key3[atoi((char *)record + keyinfo[2].seg[0].start)] = 0;
+    key3[atoi((char *)record + keyinfo[2].seg[0].start)] = false;
     opt_delete++;
     ant = 3;
     while ((error = heap_rprev(file, record3)) == 0 ||
@@ -318,7 +320,7 @@ int main(int argc, char *argv[]) {
       goto end;
     }
     dupp_keys -= 2;
-    if (heap_check_heap(file, 0)) {
+    if (heap_check_heap(file, false)) {
       puts("Heap keys crashed");
       goto err;
     }
@@ -336,7 +338,7 @@ int main(int argc, char *argv[]) {
   key_check -= atoi((char *)record3);
   opt_delete++;
   key1[atoi((char *)record + keyinfo[0].seg[0].start)]--;
-  key3[atoi((char *)record + keyinfo[2].seg[0].start)] = 0;
+  key3[atoi((char *)record + keyinfo[2].seg[0].start)] = false;
   ant = 0;
   while ((error = heap_scan(file, record3)) == 0 ||
          error == HA_ERR_RECORD_DELETED)
@@ -345,7 +347,7 @@ int main(int argc, char *argv[]) {
     printf("next: Found: %d records of %d\n", ant, write_count - opt_delete);
     goto end;
   }
-  if (heap_check_heap(file, 0)) {
+  if (heap_check_heap(file, false)) {
     puts("Heap keys crashed");
     goto err;
   }
@@ -473,7 +475,7 @@ int main(int argc, char *argv[]) {
     pos++;
   }
   printf("- Checking heap tables\n");
-  if (heap_check_heap(file, 1) || heap_check_heap(file2, 1)) {
+  if (heap_check_heap(file, true) || heap_check_heap(file2, true)) {
     puts("Heap keys crashed");
     goto err;
   }
@@ -546,7 +548,7 @@ static int rnd(int max_value) {
   return (int)((rand() & 32767) / 32767.0 * max_value);
 } /* rnd */
 
-static void endprog(int sig_number MY_ATTRIBUTE((unused))) {
+static void endprog(int sig_number [[maybe_unused]]) {
   {
     hp_panic(HA_PANIC_CLOSE);
     my_end(1);

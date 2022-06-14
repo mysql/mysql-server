@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,20 +23,14 @@
 #ifndef XCOM_SSL_TRANSPORT_H
 #define XCOM_SSL_TRANSPORT_H
 
-#ifdef XCOM_HAVE_OPENSSL
-#ifdef WIN32
-// In OpenSSL before 1.1.0, we need this first.
+#ifndef XCOM_WITHOUT_OPENSSL
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
 #include <winsock2.h>
-#endif  // WIN32
-#include <wolfssl_fix_namespace_pollution_pre.h>
+#endif /* _WIN32 */
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-
-#include <wolfssl_fix_namespace_pollution.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef SSL_SUCCESS
 #define SSL_SUCCESS 1
@@ -126,13 +120,6 @@ int xcom_get_ssl_mode(const char *mode);
 int xcom_set_ssl_mode(int mode);
 
 /*
-  Set the password used by SSL to store keys. If nothing is set, "yassl123"
-  is used by default. The password provided as parameter is copied so the
-  value can be discarded by the caller after the call.
-*/
-void xcom_set_default_passwd(char *pw);
-
-/*
   Initialize the SSL.
 
   server_key_file  - Path of file that contains the server's X509 key in PEM
@@ -165,7 +152,8 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                   const char *client_key_file, const char *client_cert_file,
                   const char *ca_file, const char *ca_path,
                   const char *crl_file, const char *crl_path,
-                  const char *cipher, const char *tls_version);
+                  const char *cipher, const char *tls_version,
+                  const char *tls_ciphersuites);
 
 /*
   Destroy the SSL Configuration freeing allocated memory.
@@ -193,8 +181,5 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname);
 extern SSL_CTX *server_ctx;
 extern SSL_CTX *client_ctx;
 
-#ifdef __cplusplus
-}
-#endif
-#endif /* XCOM_HAVE_OPENSSL */
+#endif /* !XCOM_WITHOUT_OPENSSL */
 #endif /* XCOM_SSL_TRANSPORT_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,9 @@
 
   The tool is specific to the tree and version it was built for,
   that is to say, it knows exactly those error-symbols and messages
-  that are defined in that tree's errmsg-utf8.txt.  Using one build's
-  tool on a different checkout is likely to render nonsensical results.
+  which are defined in that tree's share/messages_to_*.txt.  Using
+  one build's tool on a different checkout is likely to render
+  nonsensical results.
 
   The tool is in its proof-of-concept stage. Lookups can be sped up.
   The tool will disregard preprocessor directives, and thereby find
@@ -102,8 +103,8 @@ server_error errors[] = {
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
 
-    {0, 0, 0, 0, 0, 0}  // DUMMY ROW
-#endif                  /* IN_DOXYGEN */
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}  // DUMMY ROW
+#endif                                          /* IN_DOXYGEN */
 };
 }
 
@@ -281,8 +282,6 @@ int check_source(const char *file_name) {
 
 /**
   Read paths of source files from stdin, one per line, and verify the files.
-
-  @param   file_name  The path-and-name of a source file to verify (C-string)
 
   @retval  number of detected issues
 */

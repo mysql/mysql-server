@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "storage/perfschema/table_host_cache.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -69,10 +70,10 @@ Plugin_table table_host_cache::m_table_def(
     "  COUNT_INIT_CONNECT_ERRORS BIGINT not null,\n"
     "  COUNT_LOCAL_ERRORS BIGINT not null,\n"
     "  COUNT_UNKNOWN_ERRORS BIGINT not null,\n"
-    "  FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
-    "  LAST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
-    "  FIRST_ERROR_SEEN TIMESTAMP(0) null default 0,\n"
-    "  LAST_ERROR_SEEN TIMESTAMP(0) null default 0,\n"
+    "  FIRST_SEEN TIMESTAMP(0) not null,\n"
+    "  LAST_SEEN TIMESTAMP(0) not null,\n"
+    "  FIRST_ERROR_SEEN TIMESTAMP(0) null,\n"
+    "  LAST_ERROR_SEEN TIMESTAMP(0) null,\n"
     "  PRIMARY KEY (IP) USING HASH,\n"
     "  KEY (HOST) USING HASH\n",
     /* Options */
@@ -83,13 +84,13 @@ Plugin_table table_host_cache::m_table_def(
 PFS_engine_table_share table_host_cache::m_share = {
     &pfs_truncatable_acl,
     table_host_cache::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_host_cache::delete_all_rows,
     table_host_cache::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
     &m_table_def,
-    false, /* perpetual */
+    true, /* perpetual */
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
@@ -115,9 +116,9 @@ bool PFS_index_host_cache_by_host::match(const row_host_cache *row) {
 
 PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
   table_host_cache *t = new table_host_cache();
-  if (t != NULL) {
+  if (t != nullptr) {
     THD *thd = current_thd;
-    DBUG_ASSERT(thd != NULL);
+    assert(thd != nullptr);
     t->materialize(thd);
   }
   return t;
@@ -143,9 +144,9 @@ ha_rows table_host_cache::get_row_count(void) {
 
 table_host_cache::table_host_cache()
     : PFS_engine_table(&m_share, &m_pos),
-      m_all_rows(NULL),
+      m_all_rows(nullptr),
       m_row_count(0),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(0),
       m_next_pos(0) {}
 
@@ -155,8 +156,8 @@ void table_host_cache::materialize(THD *thd) {
   row_host_cache *rows;
   row_host_cache *row;
 
-  DBUG_ASSERT(m_all_rows == NULL);
-  DBUG_ASSERT(m_row_count == 0);
+  assert(m_all_rows == nullptr);
+  assert(m_row_count == 0);
 
   hostname_cache_lock();
 
@@ -167,7 +168,7 @@ void table_host_cache::materialize(THD *thd) {
   }
 
   rows = (row_host_cache *)thd->alloc(size * sizeof(row_host_cache));
-  if (rows == NULL) {
+  if (rows == nullptr) {
     /* Out of memory, this thread will error out. */
     goto end;
   }
@@ -255,7 +256,7 @@ int table_host_cache::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 
@@ -264,13 +265,13 @@ int table_host_cache::rnd_next(void) {
 
 int table_host_cache::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_row_count);
+  assert(m_pos.m_index < m_row_count);
   m_row = &m_all_rows[m_pos.m_index];
   return 0;
 }
 
 int table_host_cache::index_init(uint idx, bool) {
-  PFS_index_host_cache *result = NULL;
+  PFS_index_host_cache *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -280,7 +281,7 @@ int table_host_cache::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_host_cache_by_host);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -302,7 +303,7 @@ int table_host_cache::index_next(void) {
     }
   }
 
-  m_row = NULL;
+  m_row = nullptr;
   result = HA_ERR_END_OF_FILE;
 
   return result;
@@ -312,15 +313,15 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
                                       Field **fields, bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* IP */
           set_field_varchar_utf8(f, m_row->m_ip, m_row->m_ip_length);
           break;
@@ -423,7 +424,7 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

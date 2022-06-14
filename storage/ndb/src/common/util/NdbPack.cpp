@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "m_ctype.h"
 #include <ndb_global.h>
 #include <NdbPack.hpp>
@@ -166,20 +167,30 @@ NdbPack::Type::complete()
     set_error(TypeNullableNotBool, __LINE__);
     return -1;
   }
-  if (unlikely(info.m_charType && m_csNumber == 0))
+  if (unlikely(info.m_charType))
   {
-    set_error(CharsetNotSpecified, __LINE__);
-    return -1;
-  }
-  if (info.m_charType && all_charsets[m_csNumber] == 0)
-  {
-    CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
-    if (unlikely(cs == 0))
+    if (unlikely(m_csNumber == 0))
+    {
+      set_error(CharsetNotSpecified, __LINE__);
+      return -1;
+    }
+
+    if (unlikely(m_csNumber >= NDB_ARRAY_SIZE(all_charsets)))
     {
       set_error(CharsetNotFound, __LINE__);
       return -1;
     }
-    all_charsets[m_csNumber] = cs; // yes caller must do this
+
+    if (unlikely(all_charsets[m_csNumber] == 0))
+    {
+      CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
+      if (unlikely(cs == 0))
+      {
+        set_error(CharsetNotFound, __LINE__);
+        return -1;
+      }
+      all_charsets[m_csNumber] = cs; // yes caller must do this
+    }
   }
   if (unlikely(!info.m_charType && m_csNumber != 0))
   {
@@ -2115,8 +2126,7 @@ extern void NdbOut_Init();
 static int
 testmain()
 {
-  my_init();
-  NdbOut_Init();
+  ndb_init();
   signal(SIGABRT, SIG_DFL);
   { const char* p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char*)0, 0);
     if (p != 0)
@@ -2140,6 +2150,7 @@ testmain()
   }
   // do not print "ok" in TAPTEST
   ndbout << "passed" << endl;
+  ndb_end(0);
   return 0;
 }
 

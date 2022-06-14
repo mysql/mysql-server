@@ -1,0 +1,133 @@
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Test AUTOEXTEND_SIZE clause
+--echo # This test validates that the changes to AUTOEXTEND_SIZE
+--echo # option are replicated to the secondary nodes successfully
+--echo #
+
+source include/set_privilege_checks_user_as_system_user.inc;
+source include/master-slave.inc;
+
+--disable_warnings
+connection master;
+drop database if exists test1;
+--enable_warnings
+create database test1;
+use test;
+
+--echo # Scenario-1: Create a table with autoextend_size set to valid value
+--echo # and validate that the changes are propagated properly to the secondary nodes
+CREATE TABLE t1(c1 INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%t1%';
+
+# Sync the slave
+--source include/sync_slave_sql_with_master.inc
+
+connection slave;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%t1%';
+
+SHOW CREATE TABLE t1;
+
+--echo # Scenario-2: Alter an existing table and set autoextend_size option
+--echo # and validate that the option is propagated to the slave nodes
+connection master;
+ALTER TABLE t1 AUTOEXTEND_SIZE 0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%t1%';
+
+# Sync the slave
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%t1%';
+
+connection master;
+DROP TABLE t1;
+
+--echo # Scenario-3: Test that autoextend_size value for implicit tablespaces
+--echo # is visible on slave nodes
+CREATE TABLESPACE myspace AUTOEXTEND_SIZE 4M;
+# Sync the slave
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%myspace%';
+
+connection master;
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 0;
+# Sync the slave
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%myspace%';
+
+connection master;
+DROP TABLESPACE myspace;
+
+--echo #Scenario-4: Test replication of autoextend_size on partitioned and
+--echo # sub-partitioned tables
+CREATE TABLE tpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+  PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (20),
+    PARTITION p1 VALUES LESS THAN maxvalue);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%tpart%';
+
+CREATE TABLE tsubpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+  PARTITION BY RANGE (c1)
+  SUBPARTITION BY HASH (c1)
+  SUBPARTITIONS 3 (
+    PARTITION p0 VALUES LESS THAN (10),
+    PARTITION p1 VALUES LESS THAN (20),
+    PARTITION p2 VALUES LESS THAN maxvalue);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%tsubpart%';
+
+# Sync the slave
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%tpart%';
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%tsubpart%';
+
+connection master;
+DROP TABLE tpart;
+DROP TABLE tsubpart;
+
+--echo # Scenario-5: Test replication of autoextend_size value when it is
+--echo # changed by ALTER TABLE statement for partitioned and sub-partitioned tables
+CREATE TABLE tpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+
+ALTER TABLE tpart PARTITION BY RANGE (c1) (
+  PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION p2 VALUES LESS THAN maxvalue);
+
+CREATE TABLE tsubpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+ALTER TABLE tsubpart
+  PARTITION BY RANGE (c1)
+  SUBPARTITION BY HASH (c1)
+  SUBPARTITIONS 3 (
+    PARTITION p0 VALUES LESS THAN (10),
+    PARTITION p1 VALUES LESS THAN (20),
+    PARTITION p2 VALUES LESS THAN maxvalue);
+
+# Sync the slave
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%tpart%';
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE NAME like '%tsubpart%';
+
+connection master;
+DROP TABLE tpart;
+DROP TABLE tsubpart;
+
+DROP DATABASE test1;
+--source include/rpl_end.inc

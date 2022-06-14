@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_table_handles.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -68,8 +68,8 @@ Plugin_table table_table_handles::m_table_def(
 PFS_engine_table_share table_table_handles::m_share = {
     &pfs_readonly_acl,
     table_table_handles::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_table_handles::get_row_count,
     sizeof(PFS_simple_index),
     &m_table_lock,
@@ -154,7 +154,7 @@ int table_table_handles::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_table_iterator it = global_table_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -168,7 +168,7 @@ int table_table_handles::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_table_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -176,7 +176,7 @@ int table_table_handles::rnd_pos(const void *pos) {
 }
 
 int table_table_handles::index_init(uint idx, bool) {
-  PFS_index_table_handles *result = NULL;
+  PFS_index_table_handles *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -189,7 +189,7 @@ int table_table_handles::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_table_handles_by_owner);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -206,7 +206,7 @@ int table_table_handles::index_next(void) {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -214,7 +214,7 @@ int table_table_handles::index_next(void) {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -227,7 +227,7 @@ int table_table_handles::make_row(PFS_table *table) {
   table->m_lock.begin_optimistic_lock(&lock);
 
   share = sanitize_table_share(table->m_share);
-  if (share == NULL) {
+  if (share == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -238,7 +238,7 @@ int table_table_handles::make_row(PFS_table *table) {
   m_row.m_identity = table->m_identity;
 
   thread = sanitize_thread(table->m_thread_owner);
-  if (thread != NULL) {
+  if (thread != nullptr) {
     m_row.m_owner_thread_id = thread->m_thread_internal_id;
     m_row.m_owner_event_id = table->m_owner_event_id;
   } else {
@@ -261,16 +261,16 @@ int table_table_handles::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* OBJECT_SCHEMA */
         case 2: /* OBJECT_NAME */
-          m_row.m_object.set_field(f->field_index, f);
+          m_row.m_object.set_field(f->field_index(), f);
           break;
         case 3: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
@@ -296,7 +296,7 @@ int table_table_handles::read_row_values(TABLE *table, unsigned char *buf,
           set_field_lock_type(f, m_row.m_external_lock);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

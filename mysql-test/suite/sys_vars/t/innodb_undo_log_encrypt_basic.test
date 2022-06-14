@@ -1,5 +1,5 @@
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Can't set undo tablespace 'innodb_undo_001' to be encrypted");
 --enable_query_log
 
@@ -48,6 +48,7 @@ set @@session.innodb_undo_log_encrypt='some';
 set global innodb_undo_log_encrypt=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_undo_log_encrypt='foo';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_undo_log_encrypt=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_undo_log_encrypt=1e1;

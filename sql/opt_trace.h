@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,10 @@
 #ifndef OPT_TRACE_INCLUDED
 #define OPT_TRACE_INCLUDED
 
-#include "my_config.h"
-
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"          // enum_sql_command
@@ -41,6 +38,7 @@ class THD;
 class set_var_base;
 class sp_head;
 class sp_printable;
+struct CHARSET_INFO;
 struct TABLE_LIST;
 template <class T>
 class List;
@@ -114,7 +112,7 @@ class List;
 @endverbatim
   SELECT terminates after executing the first subquery if the related IN
   predicate is false, so we won't see @c JOIN::optimize() tracing for subq2;
-  whereas EXPLAIN SELECT analyzes all subqueries (see loop at the end of @c
+  whereas EXPLAIN SELECT analyzes all subqueries (see loop at the end of
   @c select_describe()).
 
   @section USER_SELECT_TRACING_STATEMENTS How a user traces only certain
@@ -426,7 +424,7 @@ class Opt_trace_iterator {
   void get_value(Opt_trace_info *info) const;
 
   /// @returns whether iterator is positioned to the end.
-  bool at_end() const { return cursor == NULL; }
+  bool at_end() const { return cursor == nullptr; }
 
  private:
   /// Pointer to context, from which traces are retrieved
@@ -530,7 +528,7 @@ class Opt_trace_struct {
   */
   Opt_trace_struct &add_alnum(const char *value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value, strlen(value), false);
+    return do_add(nullptr, value, strlen(value), false);
   }
 
   /**
@@ -549,7 +547,7 @@ class Opt_trace_struct {
   /// Variant of add_utf8() for adding to an array (no key)
   Opt_trace_struct &add_utf8(const char *value, size_t val_length) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value, val_length, true);
+    return do_add(nullptr, value, val_length, true);
   }
 
   /// Variant of add_utf8() where 'value' is 0-terminated
@@ -561,7 +559,7 @@ class Opt_trace_struct {
   /// Variant of add_utf8() where 'value' is 0-terminated
   Opt_trace_struct &add_utf8(const char *value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value, strlen(value), true);
+    return do_add(nullptr, value, strlen(value), true);
   }
 
   /**
@@ -579,7 +577,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(Item *item) {
     if (likely(!started)) return *this;
-    return do_add(NULL, item);
+    return do_add(nullptr, item);
   }
 
  public:
@@ -589,7 +587,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(bool value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   Opt_trace_struct &add(const char *key, int value) {
     if (likely(!started)) return *this;
@@ -597,7 +595,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(int value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, static_cast<longlong>(value));
+    return do_add(nullptr, static_cast<longlong>(value));
   }
   Opt_trace_struct &add(const char *key, uint value) {
     if (likely(!started)) return *this;
@@ -605,7 +603,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(uint value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, static_cast<ulonglong>(value));
+    return do_add(nullptr, static_cast<ulonglong>(value));
   }
   Opt_trace_struct &add(const char *key, ulong value) {
     if (likely(!started)) return *this;
@@ -613,7 +611,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(ulong value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, static_cast<ulonglong>(value));
+    return do_add(nullptr, static_cast<ulonglong>(value));
   }
   Opt_trace_struct &add(const char *key, longlong value) {
     if (likely(!started)) return *this;
@@ -621,7 +619,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(longlong value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   Opt_trace_struct &add(const char *key, ulonglong value) {
     if (likely(!started)) return *this;
@@ -629,7 +627,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(ulonglong value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   Opt_trace_struct &add(const char *key, double value) {
     if (likely(!started)) return *this;
@@ -637,16 +635,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(double value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
-  }
-  /// Adds a 64-bit integer to trace, in hexadecimal format
-  Opt_trace_struct &add_hex(const char *key, uint64 value) {
-    if (likely(!started)) return *this;
-    return do_add_hex(key, value);
-  }
-  Opt_trace_struct &add_hex(uint64 value) {
-    if (likely(!started)) return *this;
-    return do_add_hex(NULL, value);
+    return do_add(nullptr, value);
   }
   /// Adds a JSON null object (==Python's "None")
   Opt_trace_struct &add_null(const char *key) {
@@ -662,8 +651,8 @@ class Opt_trace_struct {
     return do_add_utf8_table(tab);
   }
   /**
-     Helper to put the number of select_lex in an object.
-     @param  select_number  number of select_lex
+     Helper to put the number of query_block in an object.
+     @param  select_number  number of query_block
   */
   Opt_trace_struct &add_select_number(uint select_number) {
     return unlikely(select_number >= INT_MAX) ?
@@ -761,7 +750,6 @@ class Opt_trace_struct {
   Opt_trace_struct &do_add(const char *key, longlong value);
   Opt_trace_struct &do_add(const char *key, ulonglong value);
   Opt_trace_struct &do_add(const char *key, double value);
-  Opt_trace_struct &do_add_hex(const char *key, uint64 value);
   Opt_trace_struct &do_add_null(const char *key);
   Opt_trace_struct &do_add_utf8_table(const TABLE_LIST *tab);
   Opt_trace_struct &do_add(const char *key, const Cost_estimate &value);
@@ -795,7 +783,7 @@ class Opt_trace_struct {
   Opt_trace_stmt *stmt;  ///< Trace owning the structure
   /// Key if the structure is the value of a key/value pair, NULL otherwise
   const char *saved_key;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Fixed-length prefix of previous key in this structure, if this structure
      is an object. Serves to detect when adding two same consecutive keys to
@@ -832,7 +820,7 @@ class Opt_trace_object : public Opt_trace_struct {
   Opt_trace_object(
       Opt_trace_context *ctx,
       Opt_trace_context::feature_value feature = Opt_trace_context::MISC)
-      : Opt_trace_struct(ctx, true, NULL, feature) {}
+      : Opt_trace_struct(ctx, true, nullptr, feature) {}
 };
 
 /**
@@ -862,7 +850,7 @@ class Opt_trace_array : public Opt_trace_struct {
   Opt_trace_array(
       Opt_trace_context *ctx,
       Opt_trace_context::feature_value feature = Opt_trace_context::MISC)
-      : Opt_trace_struct(ctx, false, NULL, feature) {}
+      : Opt_trace_struct(ctx, false, nullptr, feature) {}
 };
 
 /**
@@ -910,12 +898,12 @@ class Opt_trace_disable_I_S {
       ctx = ctx_arg;
       ctx->disable_I_S_for_this_and_children();
     } else
-      ctx = NULL;
+      ctx = nullptr;
   }
 
   /// Destructor. Restores trace's "enabled" property to its previous value.
   ~Opt_trace_disable_I_S() {
-    if (ctx != NULL) ctx->restore_I_S();
+    if (ctx != nullptr) ctx->restore_I_S();
   }
 
  private:
@@ -932,31 +920,31 @@ class Opt_trace_disable_I_S {
 
 //@{
 
-/**
-  Instantiate this class to start tracing a THD's actions (generally at a
-  statement's start), and to set the "original" query (not transformed, as
-  sent by client) for the new trace. Destructor will end the trace.
-
-  If in a routine's instruction, there is no "query". To be helpful to the
-  user, we craft a query using the instruction's print(). We don't leave this
-  to the caller, because it would be inefficient if tracing is off.
-
-  @param  thd          the THD
-  @param  tbl          list of tables read/written by the statement.
-  @param  sql_command  SQL command being prepared or executed
-  @param  set_vars     what variables are set by this command (only used if
-                       sql_command is SQLCOM_SET_OPTION)
-  @param  query        query
-  @param  length       query's length
-  @param  instr        routine's instruction, if applicable; if so, 'query'
-                       and 'query_length' above are ignored
-  @param  charset      charset which was used to encode this query
-
-  @note Each sub-statement is responsible for ending the trace which it
-  has started; this class achieves this by keeping some memory inside.
-*/
 class Opt_trace_start {
  public:
+  /**
+    Instantiate this class to start tracing a THD's actions (generally at a
+    statement's start), and to set the "original" query (not transformed, as
+    sent by client) for the new trace. Destructor will end the trace.
+
+    If in a routine's instruction, there is no "query". To be helpful to the
+    user, we craft a query using the instruction's print(). We don't leave this
+    to the caller, because it would be inefficient if tracing is off.
+
+    @param  thd_arg       the THD
+    @param  tbl           list of tables read/written by the statement.
+    @param  sql_command   SQL command being prepared or executed
+    @param  set_vars      what variables are set by this command (only used if
+                          sql_command is SQLCOM_SET_OPTION)
+    @param  query         query
+    @param  query_length  query's length
+    @param  instr         routine's instruction, if applicable; if so, 'query'
+                          and 'query_length' above are ignored
+    @param  query_charset charset which was used to encode this query
+
+    @note Each sub-statement is responsible for ending the trace which it
+    has started; this class achieves this by keeping some memory inside.
+  */
   Opt_trace_start(THD *thd_arg, TABLE_LIST *tbl,
                   enum enum_sql_command sql_command,
                   List<set_var_base> *set_vars, const char *query,
@@ -969,24 +957,24 @@ class Opt_trace_start {
   bool error;  ///< whether trace start() had an error
 };
 
-class SELECT_LEX;
+class Query_block;
 
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree
    (Item-s).
    @param  thd         the THD
-   @param  select_lex  query's parse tree
+   @param  query_block  query's parse tree
    @param  trace_object  Opt_trace_object to which the query will be added
 */
-void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
+void opt_trace_print_expanded_query(const THD *thd, Query_block *query_block,
                                     Opt_trace_object *trace_object);
 
 /**
    If the security context is not that of the connected user, inform the trace
    system that a privilege is missing. With one exception: see below.
 
-   @param thd
+   @param  thd         the THD
 
    This serves to eliminate the following issue.
    Any information readable by a SELECT may theoretically end up in
@@ -1050,7 +1038,7 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
 
   For triggers, see note in sp_head::execute_trigger().
 
-  @param thd
+  @param thd The THD
   @param sp  routine to check
  */
 void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp);
@@ -1078,7 +1066,7 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *);
    @param trace          optimizer trace
    @param object_level0  name of the outer Opt_trace_object C++ object
    @param object_level1  name of the inner Opt_trace_object C++ object
-   @param select_number  number of the being-transformed SELECT_LEX
+   @param select_number  number of the being-transformed Query_block
    @param from           description of the before-transformation state
    @param to             description of the after-transformation state
 */

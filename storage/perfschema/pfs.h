@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,16 +28,19 @@
   Performance schema instrumentation (declarations).
 */
 
+void record_main_thread_id();
+
 #define HAVE_PSI_1
 
-#include <mysql/psi/psi_base.h>
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/psi/psi_data_lock.h>
 
 #include "my_thread.h"
 #include "my_thread_local.h"
 
+#include <mysql/components/service_implementation.h>
+
 struct PFS_thread;
-class PFS_table_context;
 
 /**
   Entry point to the performance schema implementation.
@@ -59,24 +62,10 @@ extern struct PSI_system_bootstrap pfs_system_bootstrap;
 extern struct PSI_table_bootstrap pfs_table_bootstrap;
 extern struct PSI_thread_bootstrap pfs_thread_bootstrap;
 extern struct PSI_transaction_bootstrap pfs_transaction_bootstrap;
+extern struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap;
 
 /** Performance schema Thread Local Storage.  */
 extern thread_local PFS_thread *THR_PFS;
-
-/**
-  Performance schema Thread Local Storage keys; indexes into THR_PFS_contexts.
-*/
-enum THR_PFS_key {
-  THR_PFS_SV,   // session_variables
-  THR_PFS_VG,   // global_variables
-  THR_PFS_VBT,  // variables_by_thread
-  THR_PFS_SG,   // global_status
-  THR_PFS_SS,   // session_status
-  THR_PFS_SBT,  // status_by_thread
-  THR_PFS_SBU,  // status_by_user
-  THR_PFS_SBH,  // status_by_host
-  THR_PFS_NUM_KEYS
-};
 
 /* Only Innodb so far */
 #define COUNT_DATA_LOCK_ENGINES 1

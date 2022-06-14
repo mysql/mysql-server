@@ -1,5 +1,5 @@
 /*
-   Copyright 2009 Sun Microsystems, Inc.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    Use is subject to license terms.
 
@@ -27,6 +27,7 @@
 #ifndef NDBT_WORKINGDIR_HPP
 #define NDBT_WORKINGDIR_HPP
 
+#include "util/require.h"
 #include <NdbDir.hpp>
 #include <BaseString.hpp>
 

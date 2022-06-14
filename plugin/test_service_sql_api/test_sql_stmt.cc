@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,8 @@ class Table {
     } else {
       WRITE_VAL("\t[meta][charset result] number: %d\n", cs_info->number);
       WRITE_VAL("\t[meta][charset result] name: %s\n", cs_info->csname);
-      WRITE_VAL("\t[meta][charset result] collation: %s\n", cs_info->name);
+      WRITE_VAL("\t[meta][charset result] collation: %s\n",
+                cs_info->m_coll_name);
       WRITE_VAL("\t[meta][charset result] sort order: %s\n",
                 cs_info->sort_order);
       WRITE_STR("\n");
@@ -311,15 +312,15 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
   Server_context *ctx = (Server_context *)pctx;
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_start_column_metadata\n");
-  DBUG_ENTER("handle_start_column_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
   DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
 
   ctx->tables.push_back(Table(num_cols, resultcs));
   ctx->current_col = 0;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_send_column_metadata(void *pctx, struct st_send_field *field,
@@ -327,7 +328,7 @@ static int handle_send_column_metadata(void *pctx, struct st_send_field *field,
   Server_context *ctx = (Server_context *)pctx;
   //  char buffer[STRING_BUFFER_SIZE];
   //  WRITE_STR("handle_send_column_metadata\n");
-  DBUG_ENTER("handle_send_column_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("field->db_name: %s", field->db_name));
   DBUG_PRINT("info", ("field->table_name: %s", field->table_name));
   DBUG_PRINT("info", ("field->org_table_name: %s", field->org_table_name));
@@ -344,76 +345,76 @@ static int handle_send_column_metadata(void *pctx, struct st_send_field *field,
              field->col_name, field->org_col_name, field->length,
              field->charsetnr, field->flags, field->decimals, field->type));
   ctx->current_col++;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_end_column_metadata(void *pctx, uint server_status,
                                       uint warn_count) {
   char buffer[STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_end_column_metadata");
+  DBUG_TRACE;
   ctx->server_status = server_status;
   ctx->warn_count = warn_count;
 
   ctx->current_row = 0;
 
   WRITE_STR("handle_end_column_metadata\n");
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_start_row(void *pctx) {
   Server_context *ctx = (Server_context *)pctx;
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_start_row\n");
-  DBUG_ENTER("handle_start_row");
+  DBUG_TRACE;
   ctx->current_col = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_end_row(void *pctx) {
   Server_context *ctx = (Server_context *)pctx;
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("handle_end_row");
+  DBUG_TRACE;
   WRITE_STR("handle_end_row\n");
 
   // Get the generated statement id
   if (ctx->cmd == COM_STMT_PREPARE && ctx->current_row == 0 &&
       ctx->tables.size() == 1 && ctx->tables[0].columns.size() == 4 &&
       ctx->tables[0].columns[0].row_values.size() == 1) {
-    ctx->stmt_id = std::stoul(ctx->tables[0].columns[0].row_values[0], 0, 10);
+    ctx->stmt_id =
+        std::stoul(ctx->tables[0].columns[0].row_values[0], nullptr, 10);
   }
   ctx->tables.back().num_rows++;
   ctx->current_row++;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void handle_abort_row(void *) {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_abort_row\n");
-  DBUG_ENTER("handle_abort_row");
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
 }
 
 static ulong get_client_capabilities(void *) {
-  DBUG_ENTER("get_client_capabilities");
-  DBUG_RETURN(CLIENT_PS_MULTI_RESULTS | CLIENT_MULTI_RESULTS);
+  DBUG_TRACE;
+  return CLIENT_PS_MULTI_RESULTS | CLIENT_MULTI_RESULTS;
 }
 
 static int handle_store_null(void *pctx) {
   Server_context *ctx = (Server_context *)pctx;
   //  WRITE_STR("handle_store_null\n");
-  DBUG_ENTER("handle_store_null");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
   ctx->tables.back().columns[col].row_values.push_back("[NULL]");
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_integer(void *pctx, longlong value) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_integer");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -422,13 +423,13 @@ static int handle_store_integer(void *pctx, longlong value) {
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_longlong(void *pctx, longlong value, uint is_unsigned) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_longlong");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -438,20 +439,20 @@ static int handle_store_longlong(void *pctx, longlong value, uint is_unsigned) {
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static const char *test_decimal_as_string(char *buff, const decimal_t *val,
                                           int *length) {
   if (!val) return "NULL";
-  (void)decimal2string(val, buff, length, 0, 0, 0);
+  (void)decimal2string(val, buff, length);
   return buff;
 }
 
 static int handle_store_decimal(void *pctx, const decimal_t *value) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_decimal");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -460,13 +461,13 @@ static int handle_store_decimal(void *pctx, const decimal_t *value) {
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_double(void *pctx, double value, uint32) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_double");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -474,13 +475,13 @@ static int handle_store_double(void *pctx, double value, uint32) {
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_date(void *pctx, const MYSQL_TIME *value) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_date");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -491,13 +492,13 @@ static int handle_store_date(void *pctx, const MYSQL_TIME *value) {
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_time(void *pctx, const MYSQL_TIME *value, uint) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_time");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -507,13 +508,13 @@ static int handle_store_time(void *pctx, const MYSQL_TIME *value, uint) {
       value->second);
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_datetime(void *pctx, const MYSQL_TIME *value, uint) {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_datetime");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
@@ -525,20 +526,20 @@ static int handle_store_datetime(void *pctx, const MYSQL_TIME *value, uint) {
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(buffer, len));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int handle_store_string(void *pctx, const char *const value,
                                size_t length, const CHARSET_INFO *const) {
   Server_context *ctx = (Server_context *)pctx;
-  DBUG_ENTER("handle_store_string");
+  DBUG_TRACE;
   uint col = ctx->current_col;
   ctx->current_col++;
 
   ctx->tables.back().columns[col].row_values.push_back(
       std::string(value, length));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void handle_ok(void *pctx, uint server_status, uint statement_warn_count,
@@ -547,7 +548,7 @@ static void handle_ok(void *pctx, uint server_status, uint statement_warn_count,
   Server_context *ctx = (Server_context *)pctx;
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_ok\n");
-  DBUG_ENTER("handle_ok");
+  DBUG_TRACE;
   ctx->sql_errno = 0;
   ctx->sqlstate.clear();
   ctx->err_msg.clear();
@@ -564,8 +565,6 @@ static void handle_ok(void *pctx, uint server_status, uint statement_warn_count,
   }
   ctx->dump_closing_ok();
   WRITE_STR("<<<<<<<<<<<<>>>>>>>>>>>>>>>\n");
-
-  DBUG_VOID_RETURN;
 }
 
 static void handle_error(void *pctx, uint sql_errno, const char *const err_msg,
@@ -573,7 +572,7 @@ static void handle_error(void *pctx, uint sql_errno, const char *const err_msg,
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx = (Server_context *)pctx;
   WRITE_STR("handle_error\n");
-  DBUG_ENTER("handle_error");
+  DBUG_TRACE;
   /// was setting current_row size to 0...
   if (!ctx->tables.empty()) ctx->tables.pop_back();
 
@@ -582,14 +581,12 @@ static void handle_error(void *pctx, uint sql_errno, const char *const err_msg,
   ctx->err_msg.assign(err_msg);
 
   ctx->dump_closing_error();
-  DBUG_VOID_RETURN;
 }
 
 static void handle_shutdown(void *, int) {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_shutdown\n");
-  DBUG_ENTER("handle_shutdown");
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
 }
 
 const struct st_command_service_cbs protocol_callbacks = {
@@ -612,6 +609,7 @@ const struct st_command_service_cbs protocol_callbacks = {
     handle_ok,
     handle_error,
     handle_shutdown,
+    nullptr,
 };
 
 /****************************************************************************************/
@@ -629,10 +627,14 @@ static const char *fieldtype2str(enum enum_field_types type) {
       return "BIT";
     case MYSQL_TYPE_BLOB:
       return "BLOB";
+    case MYSQL_TYPE_BOOL:
+      return "BOOL";
     case MYSQL_TYPE_DATE:
       return "DATE";
     case MYSQL_TYPE_DATETIME:
       return "DATETIME";
+    case MYSQL_TYPE_INVALID:
+      return "?-invalid-?";
     case MYSQL_TYPE_NEWDECIMAL:
       return "NEWDECIMAL";
     case MYSQL_TYPE_DECIMAL:
@@ -718,13 +720,14 @@ static char *fieldflags2str(uint f) {
 }
 
 static void set_query_in_com_data(union COM_DATA *cmd, const char *query) {
+  memset(cmd, 0, sizeof(union COM_DATA));
   cmd->com_query.query = query;
   cmd->com_query.length = strlen(query);
 }
 
 static void run_cmd(MYSQL_SESSION session, enum_server_command cmd,
                     COM_DATA *data, Server_context *ctx,
-                    bool generates_result_set, void *p MY_ATTRIBUTE((unused))) {
+                    bool generates_result_set, void *p [[maybe_unused]]) {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_DASHED_LINE();
 
@@ -787,13 +790,14 @@ static void print_cmd(enum_server_command cmd, COM_DATA *data) {
 }
 
 static void setup_test(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("setup_test");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
   COM_DATA cmd;
 
   WRITE_STR("CHANGE DATABASE\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_init_db.db_name = "test";
   cmd.com_init_db.length = strlen("test");
   run_cmd(session, COM_INIT_DB, &cmd, &ctx, false, p);
@@ -868,18 +872,17 @@ static void setup_test(MYSQL_SESSION session, void *p) {
       " END IF;"
       "END");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
-
-  DBUG_VOID_RETURN;
 }
 
 static void test_1(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_1");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a > ? and b < ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -887,6 +890,7 @@ static void test_1(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
 
   PS_PARAM params[2];
+  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
@@ -899,6 +903,7 @@ static void test_1(MYSQL_SESSION session, void *p) {
   params[1].value = (const unsigned char *)"20";
   params[1].length = 2;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = true;
   cmd.com_stmt_execute.has_new_types = false;
@@ -913,6 +918,7 @@ static void test_1(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("FETCH ONE ROW FROM THE CURSOR\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
   cmd.com_stmt_fetch.num_rows = 1;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
@@ -922,32 +928,37 @@ static void test_1(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE THE STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE NON-EXISTING STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = 100001;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_fetch.num_rows = 1;
   WRITE_STR("TRY TO FETCH ONE ROW FROM A DEALLOCATED(CLOSED) PS\n");
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_2(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_2");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a > ? and b < ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
   PS_PARAM params[2];
+  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
@@ -960,6 +971,7 @@ static void test_2(MYSQL_SESSION session, void *p) {
   params[1].value = (const unsigned char *)"7";
   params[1].length = 1;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameters = params;
   cmd.com_stmt_execute.parameter_count = 2;
@@ -970,41 +982,48 @@ static void test_2(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("FETCH ONE ROW\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_fetch.num_rows = 1;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("RESET THE STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_reset.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_RESET, &cmd, &ctx, false, p);
 
   WRITE_STR("RESET NON-EXISTING STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_reset.stmt_id = 199999;
   run_cmd(session, COM_STMT_RESET, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO FETCH ONE ROW FROM THE PS WITH REMOVED CURSOR\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.num_rows = 1;
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE THE STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_3(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_3");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a > ? and b > ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
   PS_PARAM params[2];
+  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
@@ -1017,6 +1036,7 @@ static void test_3(MYSQL_SESSION session, void *p) {
   params[1].value = (const unsigned char *)"3";
   params[1].length = 1;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameter_count = 2;
   cmd.com_stmt_execute.parameters = params;
@@ -1027,22 +1047,24 @@ static void test_3(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO FETCH ONE ROW FROM A PS WITHOUT CURSOR\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.num_rows = 1;
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO RESET THE CURSOR FROM A PS WITHOUT CURSOR\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_reset.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_RESET, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO CLOSE THE CURSOR FROM A PS WITHOUT CURSOR\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_4(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_selects");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
   uchar param_buff[STRING_BUFFER_SIZE];
   uchar *pos = param_buff;
@@ -1066,6 +1088,7 @@ static void test_4(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query =
       "INSERT INTO t2(c1, c2, c3, c4, c5, c6, c7, c8, c9) "
       "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -1074,6 +1097,8 @@ static void test_4(MYSQL_SESSION session, void *p) {
 
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
   PS_PARAM multi_param[9];
+  memset(multi_param, 0, sizeof(multi_param));
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = true;
@@ -1191,13 +1216,13 @@ static void test_4(MYSQL_SESSION session, void *p) {
   set_query_in_com_data(&cmd, "SELECT * FROM t2");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_5(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_5");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
@@ -1210,11 +1235,13 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query =
       "INSERT INTO test_long_data(col1, col2) VALUES(?, ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_send_long_data.stmt_id = ctx.stmt_id;
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
@@ -1233,6 +1260,7 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_SEND_LONG_DATA, &cmd, &ctx, false, p);
 
   PS_PARAM param[3];
+  memset(param, 0, sizeof(param));
   param[0].null_bit = false;
   param[0].length = sizeof(int32);
   param[0].type = MYSQL_TYPE_LONG;
@@ -1253,6 +1281,7 @@ static void test_5(MYSQL_SESSION session, void *p) {
   param[2].type = MYSQL_TYPE_STRING;
   param[2].unsigned_type = false;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = true;
@@ -1265,6 +1294,7 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   // Send long data to non existing prepared statement
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_send_long_data.stmt_id = 199999;
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
@@ -1287,15 +1317,15 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO CLOSE THE CURSOR FROM A PS WITHOUT CURSOR\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 #define STRING_SIZE 30
 
 static void test_6(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_6");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
@@ -1353,6 +1383,7 @@ static void test_6(MYSQL_SESSION session, void *p) {
                         "END");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "CALL p1(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -1451,6 +1482,7 @@ static void test_6(MYSQL_SESSION session, void *p) {
   ps_params[9].unsigned_type = false;
   ps_params[9].null_bit = false;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.parameters = ps_params;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
@@ -1459,19 +1491,20 @@ static void test_6(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE PS\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_7(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_7");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT CONCAT(9< ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -1479,12 +1512,14 @@ static void test_7(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
 
   PS_PARAM params[1];
+  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_JSON;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
   params[0].value = (const unsigned char *)"{}";
   params[0].length = 2;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = true;
   cmd.com_stmt_execute.has_new_types = false;
@@ -1495,13 +1530,13 @@ static void test_7(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE PS\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_8(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_8");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
@@ -1513,6 +1548,7 @@ static void test_8(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   ctx.tables.clear();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "CALL proc_set_out_params(?, ?, ?, ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -1520,6 +1556,7 @@ static void test_8(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS\n");
 
   PS_PARAM params[4];
+  memset(params, 0, sizeof(params));
   std::string values[4]{"@my_v1", "@my_v2", "@my_v3", "@my_v4"};
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
@@ -1543,6 +1580,7 @@ static void test_8(MYSQL_SESSION session, void *p) {
   params[3].length = values[3].length();
 
   ctx.tables.clear();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = false;
@@ -1558,7 +1596,7 @@ static void test_8(MYSQL_SESSION session, void *p) {
   if (ctx.tables.size() != 1 || ctx.tables[0].columns.size() != 4) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Protocol didn't send the out-parameters to the user");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   ctx.tables.clear();
@@ -1571,18 +1609,18 @@ static void test_8(MYSQL_SESSION session, void *p) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Call to 'verify_user_variables_are_null' failed, one of the "
                  "provided user variables may be invalid");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   WRITE_STR("CLOSE PS\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   ctx.tables.clear();
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_9(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_9");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
@@ -1594,6 +1632,7 @@ static void test_9(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   ctx.tables.clear();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query =
       "CALL proc_set_out_params(@my_v1, @my_v2, @my_v3, @my_v4)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
@@ -1602,6 +1641,7 @@ static void test_9(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITHOUT PARAMETERS\n");
 
   ctx.tables.clear();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = false;
@@ -1617,7 +1657,7 @@ static void test_9(MYSQL_SESSION session, void *p) {
   if (ctx.tables.size() != 0) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Protocol send the out-parameters to the user");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   ctx.tables.clear();
@@ -1630,18 +1670,18 @@ static void test_9(MYSQL_SESSION session, void *p) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Call to 'verify_user_variables_are_set' failed, one of the "
                  "provided user variables may be invalid");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   WRITE_STR("CLOSE PS\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   ctx.tables.clear();
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static void test_10(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("test_10");
+  DBUG_TRACE;
   char buffer[STRING_BUFFER_SIZE];
 
   Server_context ctx;
@@ -1671,7 +1711,7 @@ static void test_10(MYSQL_SESSION session, void *p) {
   if (ctx.tables.size() != 0) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Protocol send the out-parameters to the user");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   ctx.tables.clear();
@@ -1684,19 +1724,60 @@ static void test_10(MYSQL_SESSION session, void *p) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Call to 'verify_user_variables_are_set' failed, one of the "
                  "provided user variables may be invalid");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   WRITE_STR("CLOSE PS\n");
   ctx.tables.clear();
   set_query_in_com_data(&cmd, "DEALLOCATE PREPARE stmt;");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+}
+
+static void test_11(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_11");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("CREATE PREPARED STATEMENT\n");
+  memset(&cmd, 0, sizeof(cmd));
+  cmd.com_stmt_prepare.query = "SELECT * from t1 where a = ?";
+  cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
+  run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
+
+  PS_PARAM params[1];
+  memset(params, 0, sizeof(params));
+  params[0].type = MYSQL_TYPE_INVALID;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"invalid";
+  params[0].length = 1;
+
+  memset(&cmd, 0, sizeof(cmd));
+  cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_execute.parameter_count = 1;
+  cmd.com_stmt_execute.parameters = params;
+  cmd.com_stmt_execute.open_cursor = false;
+  cmd.com_stmt_execute.has_new_types = true;
+
+  WRITE_STR("EXECUTE THE PS WITH INVALID PARAMETER TYPE\n");
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  params[0].type = MYSQL_TYPE_BOOL;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"bool";
+  params[0].length = 1;
+
+  WRITE_STR("EXECUTE THE PS WITH BOOL PARAMETER TYPE\n");
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   DBUG_VOID_RETURN;
 }
 
 static void tear_down_test(MYSQL_SESSION session, void *p) {
-  DBUG_ENTER("tear_down_test");
+  DBUG_TRACE;
 
   Server_context ctx;
   COM_DATA cmd;
@@ -1721,7 +1802,6 @@ static void tear_down_test(MYSQL_SESSION session, void *p) {
   set_query_in_com_data(
       &cmd, "DROP PROCEDURE IF EXISTS verify_user_variables_are_set");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
-  DBUG_VOID_RETURN;
 }
 
 static const char *user_localhost = "localhost";
@@ -1752,10 +1832,11 @@ static struct my_stmt_tests_st my_tests[] = {
     {"Test COM_STMT_EXECUTE with out-params as placeholders", test_8},
     {"Test COM_STMT_EXECUTE with out-params as variables", test_9},
     {"Test COM_QUERY with out-params as placeholders", test_10},
-    {0, 0}};
+    {"Test COM_STMT_EXECUTE with wrong parameters", test_11},
+    {nullptr, nullptr}};
 
 static void test_sql(void *p) {
-  DBUG_ENTER("test_sql");
+  DBUG_TRACE;
 
   char buffer[LARGE_STRING_BUFFER_SIZE];
 
@@ -1788,7 +1869,7 @@ static void test_sql(void *p) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_close failed.");
 
 end:
-  DBUG_VOID_RETURN;
+  return;
 }
 
 struct test_thread_context {
@@ -1814,7 +1895,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -1849,15 +1930,14 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_sql_service_plugin_init");
+  DBUG_TRACE;
 
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
@@ -1872,14 +1952,14 @@ static int test_sql_service_plugin_init(void *p) {
 
   my_close(outfile, MYF(0));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql_service_plugin_deinit");
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static struct st_mysql_daemon test_sql_service_plugin = {
@@ -1893,16 +1973,16 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_sql_stmt",
-    "Catalin Besleaga",
+    PLUGIN_AUTHOR_ORACLE,
     "Tests prepared statements",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;
 /* purecov: end */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ static std::string sanitise(const std::string &name) {
   return out;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, Base64Test,
     ::testing::Values(std::make_tuple("", vu8{}),  // empty
                       std::make_tuple("Zg==", vu8{'f'}),
@@ -103,7 +103,7 @@ TEST_P(Base64FailTest, decode) {
                     std::get<1>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, Base64FailTest,
     ::testing::Values(std::make_tuple("Z", "invalid sequence"),
                       std::make_tuple("Zg", "missing padding"),
@@ -139,7 +139,7 @@ TEST_P(Radix64CryptBETest, encode) {
 }
 
 // valid cases
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, Radix64CryptBETest,
     ::testing::Values(std::make_tuple("", vu8{}),
                       std::make_tuple("JE", vu8{0x55}),
@@ -166,7 +166,7 @@ TEST_P(Radix64CryptLETest, encode) {
 }
 
 // valid cases
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, Radix64CryptLETest,
     ::testing::Values(std::make_tuple("", vu8{}),
                       std::make_tuple("J/", vu8{0x55}),
@@ -192,7 +192,7 @@ TEST_P(Radix64UuencodeTest, encode) {
             Radix64Uuencode::encode(std::get<1>(GetParam())));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, Radix64UuencodeTest,
     ::testing::Values(std::make_tuple("", vu8{}),
                       std::make_tuple("0P``", vu8{'C'}),

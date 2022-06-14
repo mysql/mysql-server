@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
 #
 # WL#6631: Detect transaction boundaries
 #
@@ -782,10 +783,10 @@ ROLLBACK;
 -- Tracker : SESSION_TRACK_TRANSACTION_STATE
 -- ________
 
-TRUNCATE TABLE mysql.general_log;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 ########################################################################
 #
 # XA
@@ -812,13 +813,13 @@ INSERT t1 VALUES (1);
 
 XA END 'test1';
 XA PREPARE 'test1';
-XA ROLLBACK 'test1';
 -- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
 -- 
 
 -- Tracker : SESSION_TRACK_TRANSACTION_STATE
 -- ________
 
+XA ROLLBACK 'test1';
 # XA COMMIT
 XA START 'test2', 'yy';
 -- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
@@ -833,12 +834,63 @@ INSERT t1 VALUES (2);
 
 XA END 'test2', 'yy';
 XA PREPARE 'test2', 'yy';
-XA COMMIT 'test2', 'yy';
 -- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
 -- 
 
 -- Tracker : SESSION_TRACK_TRANSACTION_STATE
 -- ________
+
+XA COMMIT 'test2', 'yy';
+# Run XA PREPARE test cases also with xa_detach_on_prepare=OFF.
+SET SESSION xa_detach_on_prepare = false;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
+
+# XA ROLLBACK
+XA START 'test1_';
+-- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
+-- XA START 'test1_';
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_______
+
+INSERT t1 VALUES (1);
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T___W___
+
+XA END 'test1_';
+XA PREPARE 'test1_';
+XA ROLLBACK 'test1_';
+-- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
+-- 
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- ________
+
+# XA COMMIT
+XA START 'test2_', 'yy';
+-- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
+-- XA START 'test2_','yy';
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_______
+
+INSERT t1 VALUES (2);
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T___W___
+
+XA END 'test2_', 'yy';
+XA PREPARE 'test2_', 'yy';
+XA COMMIT 'test2_', 'yy';
+-- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
+-- 
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- ________
+
+SET SESSION xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
 
 # XA COMMIT ONE PHASE
 XA START 'test3','xx',5;

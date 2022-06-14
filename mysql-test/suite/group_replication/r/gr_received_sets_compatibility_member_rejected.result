@@ -23,6 +23,8 @@ include/assert.inc [Server 3 has 4 transaction belonging to the group]
 #
 [connection server2]
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 #
 # Step 2: Insert some transaction and remove server 3
 #

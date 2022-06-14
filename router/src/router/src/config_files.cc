@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,15 +21,14 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#include "config_files.h"
-#include "mysql/harness/filesystem.h"
-#include "router_app.h"
-
 #include <algorithm>
 #include <fstream>
 
-using mysqlrouter::string_format;
-const std::string path_sep = ":";
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/utility/string.h"
+#include "mysqlrouter/config_files.h"
+#include "router_app.h"
 
 std::string use_ini_extension(const std::string &file_name) {
   auto pos = file_name.find_last_of(".conf");
@@ -39,62 +38,121 @@ std::string use_ini_extension(const std::string &file_name) {
   return file_name.substr(0, pos - 4) + ".ini";
 }
 
-ConfigFiles::ConfigFiles(const std::vector<std::string> &default_config_files,
-                         const std::vector<std::string> &config_files,
-                         const std::vector<std::string> &extra_config_files) {
-  auto config_file_containers = {&default_config_files, &config_files,
-                                 &extra_config_files};
+static bool contains(const std::vector<std::string> &container,
+                     const std::string &file) {
+  auto pos = std::find(container.begin(), container.end(), file);
+  return pos != container.end();
+}
 
-  for (const std::vector<std::string> *vec : config_file_containers) {
-    for (const std::string &file : *vec) {
-      auto pos = std::find(available_config_files_.begin(),
-                           available_config_files_.end(), file);
-      if (pos != available_config_files_.end()) {
-        throw std::runtime_error(
-            string_format("Duplicate configuration file: %s.", file.c_str()));
+stdx::expected<std::vector<std::string>, ConfigFilePathValidator::ValidateError>
+ConfigFilePathValidator::validate(bool main_config_file_required) const {
+  std::vector<std::string> available_config_files;
+  std::vector<std::string> paths_attempted;
+
+  auto collect_unique_files =
+      [&available_config_files, &paths_attempted](
+          const std::string &file, bool required,
+          bool with_fallback) -> stdx::expected<void, ValidateError> {
+    if (contains(available_config_files, file)) {
+      return stdx::make_unexpected(ValidateError{
+          make_error_code(ConfigFilePathValidatorErrc::kDuplicate), file,
+          available_config_files});
+    }
+
+    mysql_harness::Path p(file);
+
+    if (p.is_readable()) {
+      available_config_files.push_back(file);
+    } else {
+      if (required) {
+        return stdx::make_unexpected(ValidateError{
+            make_error_code(ConfigFilePathValidatorErrc::kNotReadable), file,
+            available_config_files});
       }
-      if (mysql_harness::Path(file).is_readable()) {
-        available_config_files_.push_back(file);
-        if (vec != &extra_config_files) {
-          valid_config_count_++;
+      paths_attempted.push_back(file);
+
+      if (with_fallback) {
+        std::string file_ini = use_ini_extension(file);
+
+        if (!file_ini.empty()) {
+          if (mysql_harness::Path(file_ini).is_readable()) {
+            available_config_files.push_back(file_ini);
+          } else {
+            paths_attempted.push_back(file_ini);
+          }
         }
-        continue;
       }
+    }
 
-      // if this is a default path we also check *.ini version to be backward
-      // compatible with the previous router versions that used *.ini
-      std::string file_ini;
-      if (vec == &default_config_files) {
-        file_ini = use_ini_extension(file);
-        if (!file_ini.empty() && mysql_harness::Path(file_ini).is_readable()) {
-          available_config_files_.push_back(file_ini);
-          valid_config_count_++;
-          continue;
-        }
+    return {};
+  };
+
+  if (config_files_.empty()) {
+    for (auto const &file : default_config_files_) {
+      auto res = collect_unique_files(file, false, true);
+      if (!res) {
+        return stdx::make_unexpected(res.error());
       }
-
-      paths_attempted_.append(file).append(path_sep);
-      if (!file_ini.empty()) paths_attempted_.append(file_ini).append(path_sep);
+    }
+  } else {
+    for (auto const &file : config_files_) {
+      auto res = collect_unique_files(file, true, false);
+      if (!res) {
+        return stdx::make_unexpected(res.error());
+      }
     }
   }
 
-  // Can not have extra configuration files when we do not have other
-  // configuration files
-  if (!extra_config_files.empty() && valid_config_count_ == 0) {
-    throw std::runtime_error(
-        "Extra configuration files only work when other configuration files "
-        "are available.");
+  if (available_config_files.empty()) {
+    if (!extra_config_files_.empty()) {
+      // Can not have extra configuration files when we do not have other
+      // configuration files
+      return stdx::make_unexpected(ValidateError{
+          make_error_code(ConfigFilePathValidatorErrc::kExtraWithoutMainConfig),
+          "", paths_attempted});
+    } else if (main_config_file_required) {
+      return stdx::make_unexpected(ValidateError{
+          make_error_code(ConfigFilePathValidatorErrc::kNoConfigfile), "",
+          paths_attempted});
+    }
   }
+
+  for (auto const &file : extra_config_files_) {
+    auto res = collect_unique_files(file, true, false);
+    if (!res) {
+      return stdx::make_unexpected(res.error());
+    }
+  }
+
+  return available_config_files;
 }
 
-const std::vector<std::string> &ConfigFiles::available_config_files() const {
-  return available_config_files_;
+const std::error_category &config_file_path_validator_category() noexcept {
+  class category_impl : public std::error_category {
+   public:
+    const char *name() const noexcept override {
+      return "config_file_path_validator";
+    }
+    std::string message(int ev) const override {
+      switch (static_cast<ConfigFilePathValidatorErrc>(ev)) {
+        case ConfigFilePathValidatorErrc::kNoConfigfile:
+          return "no config file";
+        case ConfigFilePathValidatorErrc::kDuplicate:
+          return "duplicate config file";
+        case ConfigFilePathValidatorErrc::kExtraWithoutMainConfig:
+          return "extra config without main config file";
+        case ConfigFilePathValidatorErrc::kNotReadable:
+          return "config file not readable";
+      }
+
+      return "(unrecognized error)";
+    }
+  };
+
+  static category_impl instance;
+  return instance;
 }
 
-const std::string &ConfigFiles::paths_attempted() const {
-  return paths_attempted_;
+std::error_code make_error_code(ConfigFilePathValidatorErrc e) {
+  return {static_cast<int>(e), config_file_path_validator_category()};
 }
-
-bool ConfigFiles::empty() const { return available_config_files_.empty(); }
-
-size_t ConfigFiles::size() const { return available_config_files_.size(); }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,16 +21,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <unicode/errorcode.h>
-#include <unicode/regex.h>
-#include <unicode/unistr.h>
 #include <cassert>
-#include <fstream>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>  // IWYU pragma: keep
 #include <iostream>
 #include <map>
 #include <set>
+#include <string>
+#include <utility>
 
-#include "lex.h"                       // symbols[]
+#include <unicode/errorcode.h>
+#include <unicode/regex.h>
+#include <unicode/unistr.h>
+#include <unicode/utypes.h>
+
+#include "lex.h"  // symbols[]
+#include "sql/lex_symbol.h"
+#include "template_utils.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using icu::RegexMatcher;
@@ -63,8 +72,11 @@ int main(int argc, const char *argv[]) {
   UErrorCode status = U_ZERO_ERROR;
 
   UnicodeString rx(
-      "^%(token|left|right|nonassoc)[[:space:]]*"
-      "(<[._[:alnum:]]+>)?[[:space:]]*([_[:alnum:]]+).*$");
+      "^%(token|left|right|nonassoc)[[:space:]]*"  // g.1: %token, %left etc.
+      "(<[._[:alnum:]]+>)?[[:space:]]*"            // g.2: opt. '<' type '>'
+      "([_[:alnum:]]+)"                            // g.3: token name
+      "([[:space:]]+[0-9]+)?"                      // g.4: opt token number
+      ".*$");                                      // opt. rest of line
   RegexMatcher match(rx, 0, status);
   if (icu_error(status)) {
     return EXIT_FAILURE;
@@ -72,22 +84,67 @@ int main(int argc, const char *argv[]) {
 
   std::set<size_t> keyword_tokens;
   std::string s;
-  size_t token_num = 257;
+  size_t input_line = 0;
   while (getline(yacc, s)) {
+    //
+    // Collect non-reserved keyword token numbers in keyword_tokens, where
+    // non-reserved keyword tokens are declared like this:
+    //
+    //   %token <lexer.keyword> token_name token_number
+    //
+    // At the same time, validate if all %token declarations have explicit
+    // token numbers.
+    //
+
+    input_line++;
     UnicodeString sample(s.data(), s.length());
     match.reset(sample);
     if (match.matches(status)) {
-      assert(match.groupCount() == 3);
-      token_num++;
+      assert(match.groupCount() == 4);
 
-      UnicodeString uc_semantic_type = match.group(2, status);
+      //
+      // Check if %token definition contains an explicit token number
+      //
+
+      UnicodeString uc_declaration = match.group(1, status);
       if (icu_error(status)) {
         return EXIT_FAILURE;
       }
 
-      static const UnicodeString keyword_semantic_type("<lexer.keyword>");
-      if (uc_semantic_type == keyword_semantic_type)
-        keyword_tokens.insert(token_num);
+      static const UnicodeString token_declaration("token");
+      if (uc_declaration == token_declaration) {
+        //
+        // This is %token ...
+        //
+
+        UnicodeString uc_token_number = match.group(4, status);
+        if (icu_error(status)) {
+          return EXIT_FAILURE;
+        }
+
+        std::string utf8_token_number;
+        uc_token_number.toUTF8String(utf8_token_number);
+        if (uc_token_number.length() == 0) {
+          fprintf(stderr, "%s:%zu: error: missing token number\n",
+                  yacc_filename, input_line);
+          exit(EXIT_FAILURE);
+        }
+
+        UnicodeString uc_semantic_type = match.group(2, status);
+        if (icu_error(status)) {
+          return EXIT_FAILURE;
+        }
+
+        static const UnicodeString keyword_semantic_type("<lexer.keyword>");
+        if (uc_semantic_type == keyword_semantic_type) {
+          //
+          // This is %token <lexer.keyword> ...
+          //
+
+          int token_num = std::stoi(utf8_token_number);
+          keyword_tokens.insert(token_num);
+        }
+      }
     }
   }
 

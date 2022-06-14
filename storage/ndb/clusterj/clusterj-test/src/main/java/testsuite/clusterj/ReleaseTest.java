@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -336,7 +336,7 @@ public class ReleaseTest extends AbstractClusterJModelTest {
 
     /** Test releasing object of non-persistent type */
     protected void testReleaseNonPersistent() {
-        testNonPersistentRelease(new Integer(1), "new Integer(1)");
+        testNonPersistentRelease(Integer.valueOf(1), "Integer.valueOf(1)");
         testNonPersistentRelease(new Integer[] {1, 2}, "new Integer[] {1, 2}");
     }
 

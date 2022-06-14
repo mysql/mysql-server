@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/log_shared.h"
 #include "sql/log.h"
 #include "sql/sql_class.h"             // THD
-#include "sql/sql_thd_internal_api.h"  // create_thd / destroy_thd
+#include "sql/sql_thd_internal_api.h"  // create_internal_thd
 
 /**
   Create THD object and initialize internal variables.
 */
-Auto_THD::Auto_THD() : thd(create_thd(false, true, false, 0)) {
+Auto_THD::Auto_THD() : thd(create_internal_thd()) {
   thd->push_internal_handler(this);
 }
 
@@ -41,7 +41,7 @@ Auto_THD::Auto_THD() : thd(create_thd(false, true, false, 0)) {
 */
 Auto_THD::~Auto_THD() {
   thd->pop_internal_handler();
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /**
@@ -55,10 +55,11 @@ Auto_THD::~Auto_THD() {
 
   @return This function always return false.
 */
-bool Auto_THD::handle_condition(
-    THD *thd MY_ATTRIBUTE((unused)), uint sql_errno, const char *sqlstate,
-    Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
-    const char *msg) {
+bool Auto_THD::handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level
+                                [[maybe_unused]],
+                                const char *msg) {
   int log_err_level = 0;
 
   if (*level == Sql_condition::SL_WARNING)

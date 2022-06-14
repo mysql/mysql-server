@@ -2,7 +2,7 @@
 #define PLUGIN_TABLE_INCLUDED
 
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,8 @@ class Plugin_table {
         m_table_options(options),
         m_tablespace_name(tablespace_name) {}
 
+  virtual ~Plugin_table() = default;
+
   const char *get_schema_name() const { return m_schema_name; }
 
   const char *get_name() const { return m_table_name; }
@@ -64,19 +66,51 @@ class Plugin_table {
 
   const char *get_tablespace_name() const { return m_tablespace_name; }
 
-  dd::String_type get_ddl() const {
+  virtual const char *get_object_type() const { return "TABLE"; }
+
+  dd::String_type get_qualified_name() const {
     dd::Stringstream_type ss;
-    ss << "CREATE TABLE ";
-
     if (m_schema_name != nullptr) ss << m_schema_name << ".";
+    ss << m_table_name;
 
-    ss << m_table_name << "(\n";
-    ss << m_table_definition << ")";
+    return ss.str();
+  }
+
+  virtual dd::String_type get_ddl() const {
+    dd::Stringstream_type ss;
+    ss << "CREATE TABLE " << get_qualified_name();
+    ss << "(\n" << m_table_definition << ")";
     ss << m_table_options;
 
     if (m_tablespace_name != nullptr)
       ss << " "
          << "TABLESPACE=" << m_tablespace_name;
+
+    return ss.str();
+  }
+};
+
+/**
+  Class to hold information regarding a view to be created on behalf of
+  a plugin. The class stores the name, definition, and view options.
+  The definition should not contain the 'CREATE VIEW name' prefix.
+
+  @note The data members are not owned by the class, and will not
+        be deleted when this instance is deleted.
+*/
+class Plugin_view : public Plugin_table {
+ public:
+  Plugin_view(const char *schema_name, const char *table_name,
+              const char *definition, const char *options)
+      : Plugin_table(schema_name, table_name, definition, options, nullptr) {}
+
+  const char *get_object_type() const override { return "VIEW"; }
+
+  dd::String_type get_ddl() const override {
+    dd::Stringstream_type ss;
+    ss << "CREATE " << get_table_options();
+    ss << " VIEW " << get_qualified_name();
+    ss << " AS " << get_table_definition();
 
     return ss.str();
   }

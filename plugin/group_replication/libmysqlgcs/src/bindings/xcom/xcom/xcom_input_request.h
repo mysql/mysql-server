@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,7 @@
 #ifndef XCOM_INPUT_REQUEST_H
 #define XCOM_INPUT_REQUEST_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/pax_msg.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/pax_msg.h"
 
 /**
  * A request directed to XCom through the input channel.
@@ -99,9 +95,5 @@ app_data_ptr xcom_input_request_extract_app_data(
  * @param payload the payload of the reply
  */
 void xcom_input_request_reply(xcom_input_request_ptr request, pax_msg *payload);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* XCOM_INPUT_REQUEST_H */

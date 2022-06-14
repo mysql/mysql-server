@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "Config.hpp"
 
 #include <mgmapi.h>
@@ -30,32 +31,30 @@
 
 #include <HashMap.hpp>
 
-Config::Config(struct ndb_mgm_configuration *config_values) :
-  m_configValues(config_values)
+Config::Config(ndb_mgm_configuration *configuration) :
+  m_configuration(configuration)
 {
 }
 
 
 Config::Config(ConfigValues *config_values) :
-  m_configValues((struct ndb_mgm_configuration*)config_values)
+  m_configuration(reinterpret_cast<ndb_mgm_configuration*>(config_values))
 {
 }
 
 Config::Config(const Config* conf)
 {
-  // TODO Magnus, improve copy constructor
-  // to not use pack/unpack
   assert(conf);
   UtilBuffer buf;
-  conf->pack(buf);
+  conf->pack(buf, OUR_V2_VERSION);
   ConfigValuesFactory cvf;
-  cvf.unpack(buf);
-  m_configValues= (struct ndb_mgm_configuration*)cvf.getConfigValues();
+  cvf.unpack_buf(buf);
+  m_configuration= (ndb_mgm_configuration*)cvf.getConfigValues();
 }
 
 
 Config::~Config() {
-  ndb_mgm_destroy_configuration(m_configValues);
+  ndb_mgm_destroy_configuration(m_configuration);
 }
 
 unsigned sections[]=
@@ -178,7 +177,7 @@ bool
 Config::setValue(Uint32 section, Uint32 section_no,
                  Uint32 id, Uint32 new_val)
 {
-  ConfigValues::Iterator iter(m_configValues->m_config);
+  ConfigValues::Iterator iter(m_configuration->m_config_values);
   if (!iter.openSection(section, section_no))
     return false;
 
@@ -193,7 +192,7 @@ bool
 Config::setValue(Uint32 section, Uint32 section_no,
                  Uint32 id, const char* new_val)
 {
-  ConfigValues::Iterator iter(m_configValues->m_config);
+  ConfigValues::Iterator iter(m_configuration->m_config_values);
   if (!iter.openSection(section, section_no))
     return false;
 
@@ -232,19 +231,44 @@ Config::setName(const char* new_name)
 
 
 Uint32
-Config::pack(UtilBuffer& buf) const
+Config::pack(UtilBuffer& buf, bool v2) const
 {
-  return m_configValues->m_config.pack(buf);
+  return v2 ?
+    m_configuration->m_config_values.pack_v2(buf) :
+    m_configuration->m_config_values.pack_v1(buf);
 }
 
 
 #include <ndb_base64.h>
 
 bool
-Config::pack64(BaseString& encoded) const
+Config::pack64_v1(BaseString& encoded) const
 {
   UtilBuffer buf;
-  if (m_configValues->m_config.pack(buf) == 0)
+  if (m_configuration->m_config_values.pack_v1(buf) == 0)
+    return false;
+
+  /*
+    Expand the string to correct length by filling with Z.
+    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
+    hence using int to store the length.
+  */
+  encoded.assfmt("%*s",
+                 (int)base64_needed_encoded_length(buf.length()),
+                 "Z");
+
+  if (base64_encode(buf.get_data(),
+                    buf.length(),
+                    (char*)encoded.c_str()))
+    return false;
+  return true;
+}
+
+bool
+Config::pack64_v2(BaseString& encoded, Uint32 node_id) const
+{
+  UtilBuffer buf;
+  if (m_configuration->m_config_values.pack_v2(buf, node_id) == 0)
     return false;
 
   /*
@@ -545,7 +569,7 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     }
 
     /* Open the connection section in other config */
-    ConfigValues::ConstIterator itB(b->m_configValues->m_config);
+    ConfigValues::ConstIterator itB(b->m_configuration->m_config_values);
     require(itB.openSection(CFG_SECTION_CONNECTION, sectionNo) == true);
 
     Uint32 nodeId1_B = 0; /* Silence compiler warning */
@@ -804,7 +828,7 @@ void Config::getConnectString(BaseString& connectstring,
       connectstring.append(separator);
     first= false;
 
-    connectstring.appfmt("%s:%d", hostname, port);
+    connectstring.appfmt("%s %d", hostname, port);
 
   }
   ndbout << connectstring << endl;
@@ -834,11 +858,11 @@ Config::get_nodemask(NodeBitmask& mask,
 
 
 Uint32
-Config::checksum(void) const {
+Config::checksum(bool v2) const {
   Uint32 chk;
 
   UtilBuffer buf;
-  pack(buf);
+  pack(buf, v2);
 
   // Checksum is the last 4 bytes in buffer
   const char* chk_ptr = (const char*)buf.get_data();

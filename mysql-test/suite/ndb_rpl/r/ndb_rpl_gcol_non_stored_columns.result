@@ -91,9 +91,9 @@ ERROR HY000: 'Changing the STORED status' is not supported for generated columns
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) STORED
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 8. ALTER. Modify virtual non-stored -> virtual stored
 create  table t1 (a int, b int generated always as (a % 2) virtual);
@@ -102,9 +102,9 @@ ERROR HY000: 'Changing the STORED status' is not supported for generated columns
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 9. CREATE LIKE
 #  - Column1: "real"
@@ -141,9 +141,9 @@ b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `c` varchar(5) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 11. ALTER. Dropping a virtual stored column.
 #  - Column1: virtual stored
@@ -163,9 +163,9 @@ b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `c` char(5) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 12. ALTER. Adding a new virtual non-stored column.
 create  table t1 (a int, b datetime);
@@ -183,10 +183,10 @@ a	c	b
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS (dayofyear(`b`)) VIRTUAL,
   `b` datetime DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 13. ALTER. Adding a new virtual stored column.
 create  table t1 (a int, b datetime);
@@ -204,10 +204,10 @@ a	c	b
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) STORED,
+  `a` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS (dayofyear(`b`)) STORED,
   `b` datetime DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 14. ALTER. Changing the expression of a virtual stored column.
 create  table t1 (a int, b datetime, c int generated always as (week(b)) stored);
@@ -225,10 +225,10 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) STORED
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+  `c` int GENERATED ALWAYS AS (week(`b`,1)) STORED
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 # Case 15. ALTER. Changing the expression of a virtual non-stored column.
 create  table t1 (a int, b datetime, c int generated always as (week(b)) virtual);
@@ -246,10 +246,10 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+  `c` int GENERATED ALWAYS AS (week(`b`,1)) VIRTUAL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

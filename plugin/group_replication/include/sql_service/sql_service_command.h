@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_set_super_read_only(Sql_service_interface *sql_interface,
-                                    void *arg = NULL);
+                                    void *arg = nullptr);
 
   /**
     Internal method to reset the super read only mode.
@@ -66,7 +66,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_reset_super_read_only(Sql_service_interface *sql_interface,
-                                      void *arg = NULL);
+                                      void *arg = nullptr);
 
   /**
     Internal method to reset the super read only mode.
@@ -79,7 +79,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_reset_read_only(Sql_service_interface *sql_interface,
-                                void *arg = NULL);
+                                void *arg = nullptr);
 
   /**
    Internal method to get the super read only mode.
@@ -92,7 +92,7 @@ class Sql_service_commands {
    @retval  1  In read super mode
   */
   long internal_get_server_super_read_only(Sql_service_interface *sql_interface,
-                                           void *arg = NULL);
+                                           void *arg = nullptr);
 
   /**
     Internal method to get the super read only mode.
@@ -105,35 +105,7 @@ class Sql_service_commands {
     @retval  1  In read super mode
   */
   long internal_get_server_read_only(Sql_service_interface *sql_interface,
-                                     void *arg = NULL);
-
-  /**
-    Method to return the server gtid_executed by executing the corresponding
-    sql query.
-
-    @param sql_interface        the server session interface for query execution
-    @param [out] gtid_executed  The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  long internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
-                                         void *gtid_executed);
-
-  /**
-    Method to return the server gtid_purged by executing the corresponding
-    sql query.
-
-    @param sql_interface        the server session interface for query execution
-    @param [out] gtid_purged    The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  long internal_get_server_gtid_purged(Sql_service_interface *sql_interface,
-                                       void *gtid_purged);
+                                     void *arg = nullptr);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string
@@ -154,6 +126,7 @@ class Sql_service_commands {
    Method to kill the session identified by the given session id in those
    cases where the server hangs while executing the sql query.
 
+   @param sql_interface  the server session interface for query execution
    @param session_id  id of the session to be killed.
 
    @return the error value returned
@@ -161,7 +134,7 @@ class Sql_service_commands {
     @retval >0 - Failure
   */
   long internal_kill_session(Sql_service_interface *sql_interface,
-                             void *arg = NULL);
+                             void *session_id = nullptr);
 
   /**
    Method to set a variable using SET PERSIST_ONLY
@@ -172,7 +145,7 @@ class Sql_service_commands {
     @retval !=0    Error
   */
   long internal_set_persist_only_variable(Sql_service_interface *sql_interface,
-                                          void *variable_args = NULL);
+                                          void *variable_args = nullptr);
 
   /**
     Method to remotely clone a server
@@ -185,7 +158,7 @@ class Sql_service_commands {
       @retval !=0    Error on execution
   */
   long internal_clone_server(Sql_service_interface *sql_interface,
-                             void *variable_args = NULL);
+                             void *variable_args = nullptr);
 
   /**
     Method to execute a given query
@@ -198,7 +171,7 @@ class Sql_service_commands {
       @retval !=0    Error on execution
   */
   long internal_execute_query(Sql_service_interface *sql_interface,
-                              void *variable_args = NULL);
+                              void *variable_args = nullptr);
 
   /**
     Method to execute a given conditional query
@@ -211,7 +184,20 @@ class Sql_service_commands {
       @retval !=0    Error on execution
   */
   long internal_execute_conditional_query(Sql_service_interface *sql_interface,
-                                          void *variable_args = NULL);
+                                          void *variable_args = nullptr);
+
+  /**
+    Internal method to set the offline mode.
+
+    @param sql_interface the server session interface for query execution
+    @param arg a generic argument to give the method info or get a result
+
+    @return error code during execution of the sql query.
+       @retval 0  - success
+       @retval >0 - failure
+  */
+  long internal_set_offline_mode(Sql_service_interface *sql_interface,
+                                 void *arg = nullptr);
 };
 
 struct st_session_method {
@@ -329,7 +315,7 @@ class Sql_service_command_interface {
   */
   int establish_session_connection(enum_plugin_con_isolation isolation_param,
                                    const char *user,
-                                   void *plugin_pointer = NULL);
+                                   void *plugin_pointer = nullptr);
 
   /**
     Terminates the old connection and creates a new one to the server.
@@ -345,7 +331,7 @@ class Sql_service_command_interface {
       @retval !=0    Error
   */
   int reestablish_connection(enum_plugin_con_isolation isolation_param,
-                             const char *user, void *plugin_pointer = NULL);
+                             const char *user, void *plugin_pointer = nullptr);
   /**
     Was this session killed?
 
@@ -390,6 +376,15 @@ class Sql_service_command_interface {
   long kill_session(unsigned long session_id);
 
   /**
+    Checks if there is an existing session
+
+    @return the error value returned
+      @retval true  valid
+      @retval false some issue prob happened on connection
+  */
+  bool is_session_valid();
+
+  /**
     Method to set the super_read_only variable "ON".
 
     @return error code during execution of the sql query.
@@ -417,30 +412,6 @@ class Sql_service_command_interface {
       @retval >0 - failure
   */
   long reset_read_only();
-
-  /**
-    Method to return the server gtid_executed by executing the corresponding
-    sql query.
-
-    @param [out] gtid_executed The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int get_server_gtid_executed(std::string &gtid_executed);
-
-  /**
-    Method to return the server gtid_purged by executing the corresponding
-    sql query.
-
-    @param [out] gtid_purged The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int get_server_gtid_purged(std::string &gtid_purged);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string
@@ -549,6 +520,15 @@ class Sql_service_command_interface {
   */
   long execute_conditional_query(std::string &query, bool *result,
                                  std::string &error);
+
+  /**
+    Method to set the offline_mode variable "ON".
+
+    @return error code during execution of the sql query.
+       @retval 0  - success
+       @retval >0 - failure
+  */
+  long set_offline_mode();
 
  private:
   enum_plugin_con_isolation connection_thread_isolation;

@@ -1,0 +1,189 @@
+set optimizer_switch='batched_key_access=on,block_nested_loop=off,mrr_cost_based=off';
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+(10),(12),(14),(16),(18);
+create table t1 (
+a int, 
+b int
+) engine=innodb;
+insert into t1 values (1,1),(1,1),(2,2);
+create table t2 (
+a int,
+b int,
+key(b)
+) engine=innodb;
+insert into t2 select a, a/2 from t0;
+select * from t1;
+a	b
+1	1
+1	1
+2	2
+select * from t2;
+a	b
+0	0
+1	1
+2	1
+3	2
+4	2
+5	3
+6	3
+7	4
+8	4
+9	5
+10	5
+12	6
+14	7
+16	8
+18	9
+explain select * from t2 where b in (select a from t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`b`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`b`) = `test`.`t1`.`a`)))
+select * from t2 where b in (select a from t1);
+a	b
+1	1
+2	1
+3	2
+4	2
+truncate table t0;
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t3 (
+a int, 
+b int,
+key(b),
+pk1 char(200), pk2 char(200), pk3 char(200),
+primary key(pk1, pk2, pk3)
+) engine=innodb;
+insert into t3 select a,a, a,a,a from t0;
+explain select * from t3 where b in (select a from t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`pk2` AS `pk2`,`test`.`t3`.`pk3` AS `pk3` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`b`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t3`.`b`) = `test`.`t1`.`a`)))
+select * from t3 where b in (select a from t1);
+a	b	pk1	pk2	pk3
+1	1	1	1	1
+2	2	2	2	2
+set @save_max_heap_table_size= @@max_heap_table_size;
+set max_heap_table_size=16384;
+set @save_join_buffer_size = @@join_buffer_size;
+set join_buffer_size= 8192;
+drop table t3;
+create table t3 (
+a int, 
+b int,
+key(b),
+pk1 char(200), pk2 char(200),
+primary key(pk1, pk2)
+) engine=innodb;
+insert into t3 select 
+A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a 
+from t0 A, t0 B where B.a <5;
+explain select * from t3 where b in (select a from t0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+2	DEPENDENT SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`pk2` AS `pk2` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`b`,<exists>(/* select#2 */ select `test`.`t0`.`a` from `test`.`t0` where (<cache>(`test`.`t3`.`b`) = `test`.`t0`.`a`)))
+select * from t3 where b in (select a.a+b.a from t0 a, t0 b where b.a<5);
+a	b	pk1	pk2
+0	0	0	0
+1	1	1	1
+10	10	10	10
+11	11	11	11
+12	12	12	12
+13	13	13	13
+2	2	2	2
+3	3	3	3
+4	4	4	4
+5	5	5	5
+6	6	6	6
+7	7	7	7
+8	8	8	8
+9	9	9	9
+set join_buffer_size= @save_join_buffer_size;
+set max_heap_table_size= @save_max_heap_table_size;
+explain select * from t1 where a in (select b from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	b	b	5	func	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on b)))
+select * from t1;
+a	b
+1	1
+1	1
+2	2
+select * from t1 where a in (select b from t2);
+a	b
+1	1
+1	1
+2	2
+drop table t0, t1, t2, t3;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a char(200), b char(200), c char(200), primary key (a,b,c)) engine=innodb;
+insert into t2 select concat(a, repeat('X',198)),repeat('B',200),repeat('B',200) from t1;
+insert into t2 select concat(a, repeat('Y',198)),repeat('B',200),repeat('B',200) from t1;
+alter table t2 add filler1 int;
+insert into t1 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
+set @save_join_buffer_size=@@join_buffer_size;
+set join_buffer_size=1;
+select * from t2 where filler1 in ( select a from t1);
+a	b	c	filler1
+set join_buffer_size=default;
+drop table t1, t2;
+
+BUG#42740: crash in optimize_semijoin_nests
+
+create table t1 (c6 timestamp,key (c6)) engine=innodb;
+create table t2 (c2 double) engine=innodb;
+explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select log10(NULL) from `test`.`t1` where ((`test`.`t1`.`c6` < NULL) and (<cache>(`test`.`t2`.`c2`) = NULL))))
+drop table t1, t2;
+# 
+# BUG#42742: crash in setup_sj_materialization, Copy_field::set
+# 
+create table t3 ( c1 year) charset latin1 engine=innodb;
+insert into t3 values (2135),(2142);
+create table t2 (c1 tinytext,c2 text,c6 timestamp) charset latin1 engine=innodb;
+# The following must not crash, EXPLAIN should show one SJ strategy, not a mix:
+explain select 1 from t2 where 
+c2 in (select 1 from t3, t2) and
+c1 in (select convert(c6,char(1)) from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t3` join `test`.`t2` where (<cache>(`test`.`t2`.`c2`) = 1))) and <in_optimizer>(`test`.`t2`.`c1`,<exists>(/* select#3 */ select cast(`test`.`t2`.`c6` as char(1) charset utf8mb4) from `test`.`t2` where (<cache>(`test`.`t2`.`c1`) = cast(`test`.`t2`.`c6` as char(1) charset utf8mb4)))))
+drop table t2, t3;
+# 
+# BUG#57431: subquery returns wrong result (semijoin=on) with pred AND
+# 
+CREATE TABLE t1 (
+i INT
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (2),(4);
+CREATE TABLE t2 (
+i INT,
+vc VARCHAR(1)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8,NULL);
+SELECT i
+FROM t1
+WHERE i IN (SELECT innr.i
+FROM t2 LEFT JOIN t2 innr ON innr.vc)
+AND i = 2;
+i
+DROP TABLE t1, t2;
+set optimizer_switch=default;
+set optimizer_switch=default;

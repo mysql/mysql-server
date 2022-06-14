@@ -137,11 +137,19 @@ INSERT INTO procedure_control VALUE(0);
 --let $count = 1
 while ($count <= 30)
 {
+  # 0 - No error
+  # ER_LOCK_DEADLOCK - Transaction encountered deadlock
+  # ER_TABLE_EXISTS_ERROR - In case the previous DROP TABLE failed
+  --error 0,ER_LOCK_DEADLOCK,ER_TABLE_EXISTS_ERROR
   CREATE TABLE t1 (
     a INT PRIMARY KEY,
     b VARCHAR(255)
   )
   ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+  # 0 - No error
+  # ER_LOCK_DEADLOCK - Transaction encountered deadlock
+  # ER_BAD_TABLE_ERROR - In case the previous CREATE TABLE failed
+  --error 0,ER_LOCK_DEADLOCK,ER_BAD_TABLE_ERROR
   DROP TABLE t1;
   --inc $count
 }
@@ -152,6 +160,7 @@ UPDATE procedure_control SET stop_flag=1;
 
 --connection default
 --echo Wait for background load to complete
+--error 0,ER_LOCK_DEADLOCK
 --reap
 
 # Cleanup

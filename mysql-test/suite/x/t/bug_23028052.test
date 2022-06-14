@@ -13,14 +13,14 @@ SET @start_session_read_value = @@session.net_read_timeout;
 SELECT @start_session_read_value;
 
 --echo # Try to change the values
---write_file $MYSQL_TMP_DIR/net_var_1.tmp
+--write_file $MYSQL_TMP_DIR/net_var_1.xpl
 -->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 SET @@global.net_read_timeout = 100;
 SET @@session.net_read_timeout = 200;
 -->endsql
 EOF
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_1.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_1.xpl 2>&1
 
 --echo # Get after values
 SELECT @@global.net_read_timeout;
@@ -40,7 +40,7 @@ SET @start_session_write_value = @@session.net_write_timeout;
 SELECT @start_session_write_value;
 
 --echo # Try to change the values
---write_file $MYSQL_TMP_DIR/net_var_2.tmp
+--write_file $MYSQL_TMP_DIR/net_var_2.xpl
 -->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 SET @@global.net_write_timeout = 100;
@@ -48,7 +48,7 @@ SET @@session.net_write_timeout = 200;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_2.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_2.xpl 2>&1
 
 --echo # Get after values
 SELECT @@global.net_write_timeout;
@@ -68,7 +68,7 @@ SET @start_session_retry_value = @@session.net_retry_count;
 SELECT @start_session_retry_value;
 
 --echo # Try to change the values
---write_file $MYSQL_TMP_DIR/net_var_3.tmp
+--write_file $MYSQL_TMP_DIR/net_var_3.xpl
 
 -->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
@@ -77,7 +77,7 @@ SET @@session.net_retry_count = 200;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_3.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/net_var_3.xpl 2>&1
 
 --echo # Get after values
 SELECT @@global.net_retry_count;
@@ -87,7 +87,4 @@ SELECT @@session.net_retry_count;
 SET @@global.net_retry_count = @start_global_retry_value;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/net_var_1.tmp
---remove_file $MYSQL_TMP_DIR/net_var_2.tmp
---remove_file $MYSQL_TMP_DIR/net_var_3.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

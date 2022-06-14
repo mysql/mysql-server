@@ -53,5 +53,7 @@ DROP TABLE t1;
 [connection server_2]
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP TABLE t1;
 include/group_replication_end.inc

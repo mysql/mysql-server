@@ -6,10 +6,12 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server_2]
-SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 # Test for Single Threaded Slave
-SET GLOBAL slave_parallel_workers= 0;
+SET GLOBAL replica_parallel_workers= 0;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # 1) Create a database on server_1.
 [connection server_1]
 CREATE DATABASE db1;
@@ -79,8 +81,12 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 # Test for Multi Threaded Slave
 STOP SLAVE;
-SET GLOBAL slave_parallel_workers = 2;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET GLOBAL replica_parallel_workers = 2;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # 1) Create a database on server_1.
 [connection server_1]
 CREATE DATABASE db1;
@@ -162,8 +168,12 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 STOP SLAVE;
-SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

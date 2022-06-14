@@ -60,9 +60,9 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "last_name": "Snow", "first_name": "John"}	1
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "last_name": "Snow", "first_name": "John"}
 0 rows affected
 Selecting object from collection
 send Mysqlx.Crud.Find {
@@ -341,9 +341,9 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "last_name": "Snow", "first_name": "John", "occupation": {"title": "lord commander", "location": "the wall"}}	1
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "last_name": "Snow", "first_name": "John", "occupation": {"title": "lord commander", "location": "the wall"}}
 0 rows affected
 NOT Error: empty object
 send Mysqlx.Crud.Find {

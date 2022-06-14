@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,10 @@
 #ifndef AUTH_LDAP_SASL_CLIENT_H_
 #define AUTH_LDAP_SASL_CLIENT_H_
 
+#include "my_config.h"
+
+#include "auth_ldap_sasl_mechanism.h"
+
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <mysql/plugin.h>
@@ -39,25 +43,36 @@
 
 static const sasl_callback_t callbacks[] = {
 #ifdef SASL_CB_GETREALM
-    {SASL_CB_GETREALM, NULL, NULL},
+    {SASL_CB_GETREALM, nullptr, nullptr},
 #endif
-    {SASL_CB_USER, NULL, NULL},         {SASL_CB_AUTHNAME, NULL, NULL},
-    {SASL_CB_PASS, NULL, NULL},         {SASL_CB_ECHOPROMPT, NULL, NULL},
-    {SASL_CB_NOECHOPROMPT, NULL, NULL}, {SASL_CB_LIST_END, NULL, NULL}};
+    {SASL_CB_USER, nullptr, nullptr},
+    {SASL_CB_AUTHNAME, nullptr, nullptr},
+    {SASL_CB_PASS, nullptr, nullptr},
+    {SASL_CB_ECHOPROMPT, nullptr, nullptr},
+    {SASL_CB_NOECHOPROMPT, nullptr, nullptr},
+    {SASL_CB_LIST_END, nullptr, nullptr}};
 
+/*
+  MAX SSF - The maximum Security Strength Factor supported by the mechanism
+  (roughly the number of bits of encryption provided, but may have other
+  meanings, for example an SSF of 1 indicates integrity protection only, no
+  encryption). SECURITY PROPERTIES are: NOPLAIN, NOACTIVE, NODICT, FORWARD,
+  NOANON, CRED, MUTUAL. More details are in:
+  https://www.sendmail.org/~ca/email/cyrus2/mechanisms.html
+*/
 sasl_security_properties_t security_properties = {
-    /** Minimum acceptable final level. */
+    /** Minimum acceptable final level. (min_ssf) */
+    56,
+    /** Maximum acceptable final level. (max_ssf) */
     0,
-    /** Maximum acceptable final level. */
-    1,
     /** Maximum security layer receive buffer size. */
     0,
-    /** security flags */
+    /** security flags (security_flags) */
     0,
-    /** Property names. */
-    NULL,
-    /** Property values. */
-    NULL,
+    /** Property names. (property_names) */
+    nullptr,
+    /** Property values. (property_values)*/
+    nullptr,
 };
 
 class Sasl_client {
@@ -74,16 +89,21 @@ class Sasl_client {
   int send_sasl_request_to_server(const unsigned char *request, int request_len,
                                   unsigned char **reponse, int *response_len);
   void set_user_info(std::string name, std::string pwd);
-  void sasl_client_done_wrapper();
+  std::string get_method();
+#if defined(KERBEROS_LIB_CONFIGURED)
+  void read_kerberos_user_name();
+#endif
 
  protected:
   char m_user_name[SASL_MAX_STR_SIZE];
   char m_user_pwd[SASL_MAX_STR_SIZE];
   char m_mechanism[SASL_MAX_STR_SIZE];
   char m_service_name[SASL_MAX_STR_SIZE];
+  std::string m_ldap_server_host;
   sasl_conn_t *m_connection;
   MYSQL_PLUGIN_VIO *m_vio;
   MYSQL *m_mysql;
+  Sasl_mechanism *m_sasl_mechanism;
 };
 
 #endif  // AUTH_LDAP_SASL_CLIENT_H_

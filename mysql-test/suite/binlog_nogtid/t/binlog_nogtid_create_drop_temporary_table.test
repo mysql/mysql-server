@@ -18,6 +18,7 @@
 
 --source include/have_log_bin.inc
 --source include/have_binlog_format_mixed_or_row.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
 BEGIN;

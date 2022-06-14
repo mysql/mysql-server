@@ -47,7 +47,7 @@
 --source include/rpl_connection.inc
 
 --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_2, MASTER_AUTO_POSITION=1 for channel 'ch2_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_AUTO_POSITION=1 for channel 'ch2_1'
 --source include/start_slave.inc
 
 

@@ -1,0 +1,7 @@
+#
+# Test of pushed joins, aka SPJ, or AQL.
+# (Runs with default set of switches)
+#
+
+--source include/have_ndb.inc
+--source join_pushdown.inc

@@ -1,0 +1,32 @@
+#
+# 0. Add suppressions for the test and backup data directory
+call mtr.add_suppression("Failed to delete file.*");
+RESET MASTER;
+#
+# 1. Case1: Remove binary log file and create directory with same name
+#           as binlog file name
+#
+# 1.1. Save current binlog file name
+include/save_binlog_position.inc
+#
+# 1.2 Generate new binlog
+FLUSH BINARY LOGS;
+#
+# 1.3 Create a directory with same name as binlog file name
+#
+# 1.4 Verify that RESET MASTER failed with error
+RESET MASTER;
+ERROR HY000: Fatal error during log purge
+#
+# 1.5 Clean up
+#
+# 2. Case2: Remove index file and create directory with same name as
+#           index file name
+#
+# 2.1 Create a directory with same name as index file name
+#
+# 2.2 Verify that RESET MASTER failed with error
+RESET MASTER;
+ERROR HY000: Fatal error during log purge
+#
+# 2.3 Cleanup

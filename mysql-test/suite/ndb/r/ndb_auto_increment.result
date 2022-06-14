@@ -123,7 +123,7 @@ a
 17
 insert ignore into t1 values (15), (NULL);
 Warnings:
-Warning	1062	Duplicate entry '15' for key 'PRIMARY'
+Warning	1062	Duplicate entry '15' for key 't1.PRIMARY'
 select * from t1 order by a;
 a
 4
@@ -421,7 +421,7 @@ a
 insert into t1 values (35);
 insert into t1 values (NULL);
 insert into t1 values (NULL);
-ERROR 23000: Duplicate entry '35' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '35' for key 't1.PRIMARY'
 select * from t1 order by a;
 a
 1
@@ -446,11 +446,11 @@ a
 101
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 drop table t1;
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 CREATE TABLE `t1` (
 `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
 `k` int(10) unsigned NOT NULL DEFAULT '0',
@@ -513,8 +513,8 @@ insert into t1 values (null,1),(null,2),(null,3);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -524,8 +524,8 @@ alter table t1 auto_increment=32000000;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=32000000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -539,24 +539,24 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
 SELECT id FROM t1;
 id
 1
 DELETE from t1;
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
-Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 't1.uk_t1_data'
 SELECT id from t1;
 id
 3
@@ -582,5 +582,11 @@ a
 19
 set @@insert_id=1;
 insert into t1 values(null);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+drop table t1;
+create table t1 (a tinyint not null auto_increment primary key) engine ndb;
+Warnings:
+Warning	1063	Max value for column a in table test.t1 is less than autoincrement prefetch size. Please decrease ndb_autoincrement_prefetch_sz
 drop table t1;

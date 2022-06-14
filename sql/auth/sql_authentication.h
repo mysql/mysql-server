@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,9 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
+#include <openssl/rsa.h>
 #include <stddef.h>
 #include <sys/types.h>
-
-#if defined(HAVE_OPENSSL)
-#include <openssl/rsa.h>
-#endif
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -78,7 +75,7 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   } cached_server_packet;
   int packets_read, packets_written;  ///< counters for send/received packets
   /** when plugin returns a failure this tells us what really happened */
-  enum { SUCCESS, FAILURE, RESTART } status;
+  enum { SUCCESS, FAILURE, RESTART, START_MFA } status;
 
   /* encapsulation members */
   char *scramble;
@@ -96,16 +93,13 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   bool can_authenticate();
 };
 
-#if defined(HAVE_OPENSSL)
 class String;
 
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 
-#ifndef HAVE_WOLFSSL
 typedef struct rsa_st RSA;
-#endif
 class Rsa_authentication_keys {
  private:
   RSA *m_public_key;
@@ -120,13 +114,13 @@ class Rsa_authentication_keys {
 
  public:
   Rsa_authentication_keys(char **private_key_path, char **public_key_path)
-      : m_public_key(0),
-        m_private_key(0),
+      : m_public_key(nullptr),
+        m_private_key(nullptr),
         m_cipher_len(0),
-        m_pem_public_key(0),
+        m_pem_public_key(nullptr),
         m_private_key_path(private_key_path),
         m_public_key_path(public_key_path) {}
-  ~Rsa_authentication_keys() {}
+  ~Rsa_authentication_keys() = default;
 
   void free_memory();
   void *allocate_pem_buffer(size_t buffer_len);
@@ -138,8 +132,6 @@ class Rsa_authentication_keys {
   bool read_rsa_keys();
   const char *get_public_key_as_pem(void) { return m_pem_public_key; }
 };
-
-#endif /* HAVE_OPENSSL */
 
 /* Data Structures */
 
@@ -205,7 +197,7 @@ class Cached_authentication_plugins {
   static const char *get_plugin_name(cached_plugins_enum plugin_index) {
     if (plugin_index < PLUGIN_LAST)
       return cached_plugins_names[plugin_index].str;
-    return 0;
+    return nullptr;
   }
 
   Cached_authentication_plugins();
@@ -222,7 +214,7 @@ class Cached_authentication_plugins {
   */
   plugin_ref get_cached_plugin_ref(cached_plugins_enum plugin_index) {
     if (plugin_index < PLUGIN_LAST) return cached_plugins[plugin_index];
-    return 0;
+    return nullptr;
   }
 
   plugin_ref cached_plugins[(uint)PLUGIN_LAST];
@@ -234,7 +226,7 @@ class Cached_authentication_plugins {
 
 extern Cached_authentication_plugins *g_cached_authentication_plugins;
 
-ACL_USER *decoy_user(const LEX_STRING &username, const LEX_CSTRING &hostname,
+ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
                      MEM_ROOT *mem, struct rand_struct *rand,
                      bool is_initialized);
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"

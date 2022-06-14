@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,8 @@ public:
   /**
    * Copy operator
    */
-  LogLevel & operator= (const LogLevel &);
+  LogLevel & operator= (const LogLevel &) = default;
+  LogLevel(const LogLevel&) = default;
 
   enum EventCategory {
     llInvalid = -1,
@@ -78,7 +79,7 @@ public:
    * No of categories
    */
 #define _LOGLEVEL_CATEGORIES (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1)
-  STATIC_CONST( LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES );
+  static constexpr Uint32 LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES;
   
   void clear();
   
@@ -111,13 +112,6 @@ private:
 inline
 LogLevel::LogLevel(){
   clear();
-}
-
-inline
-LogLevel & 
-LogLevel::operator= (const LogLevel & org){
-  memcpy(logLevelData, org.logLevelData, sizeof(logLevelData));
-  return * this;
 }
 
 inline

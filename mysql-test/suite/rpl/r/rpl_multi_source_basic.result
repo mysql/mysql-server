@@ -219,10 +219,10 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 INSERT INTO dbcommon.t101 values (1729);
 [connection server_2]
-call mtr.add_suppression("Slave SQL.*:.* 'Duplicate entry '1729' for key 'PRIMARY'' on query.*");
-call mtr.add_suppression("Slave SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 'PRIMARY'*");
+call mtr.add_suppression("Slave SQL.*:.* 'Duplicate entry '1729' for key 't101.PRIMARY'' on query.*");
+call mtr.add_suppression("Slave SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 't101.PRIMARY'*");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
+call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 't101.PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
 include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL 'channel_3']
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 DELETE FROM dbcommon.t101 where a=1729;
@@ -242,5 +242,5 @@ DROP DATABASE db3;
 DROP DATABASE IF EXISTS dbcommon;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ enum enum_query_type {
   */
   QT_FORCE_INTRODUCERS = (1 << 2),
 
-  /// When printing a SELECT, add its number (select_lex->number).
+  /// When printing a SELECT, add its number (query_block->number).
   QT_SHOW_SELECT_NUMBER = (1 << 3),
 
   /// Don't print a database if it's equal to the connection's database.
@@ -89,6 +89,14 @@ enum enum_query_type {
     (like QT_SHOW_SELECT_NUMBER), not the actual subselect text.
    */
   QT_SUBSELECT_AS_ONLY_SELECT_NUMBER = (1 << 13),
+
+  /**
+    Suppress the internal rollup functions used for switching items to NULL
+    or between different sums; these are different from most other internal
+    Items we insert, since they are inserted during resolving and not
+    optimization. Used when getting the canonical representation of a view.
+   */
+  QT_HIDE_ROLLUP_FUNCTIONS = (1 << 14)
 
 };
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,11 @@ namespace keyring {
 class Converter {
  public:
   enum class Arch {
-    UNKNOWN,  //<! unable to determine
-    LE_32,    //<! little endian, 32 bit
-    LE_64,    //<! little endian, 64 bit
-    BE_32,    //<! big endian, 32 bit
-    BE_64     //<! big endian, 64 bit
+    UNKNOWN,  //!< unable to determine
+    LE_32,    //!< little endian, 32 bit
+    LE_64,    //!< little endian, 64 bit
+    BE_32,    //!< big endian, 32 bit
+    BE_64     //!< big endian, 64 bit
   };
 
   static Arch get_native_arch();

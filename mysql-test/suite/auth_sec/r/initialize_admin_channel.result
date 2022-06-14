@@ -1,0 +1,145 @@
+#
+# Bug#31101320 TLS INITIALIZATION FOR ADMIN CHANNEL
+#              SHOULD NOT BE DONE DURING --INITIALIZE
+#
+# create bootstrap file
+# shut server down
+# Server is down
+# -----------------------------------------------------------------------
+#
+# Try --initialize
+#
+# Run the server with --initialize
+# check for Failed to initialize TSL for channel: mysql_admin. - pattern should not be present.
+Pattern not found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# delete mysqld log
+# delete datadir
+# -----------------------------------------------------------------------
+#
+# Try --initialize --admin-address=127.0.0.1
+#
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+Pattern not found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should be not present.
+Pattern not found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# delete mysqld log
+# delete datadir
+# -----------------------------------------------------------------------
+#
+# Try --initialize-insecure
+#
+# Run the server with --initialize-insecure
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+Pattern not found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# delete mysqld log
+# delete datadir
+# -----------------------------------------------------------------------
+#
+# Try --initialize-insecure --admin-address=127.0.0.1
+#
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+Pattern not found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# delete mysqld log
+# -----------------------------------------------------------------------
+#
+# Restart server with --datadir=DDIR
+#
+# connect as root
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+Pattern not found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should be present.
+Pattern found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# -----------------------------------------------------------------------
+#
+# Restart server with --datadir=DDIR --admin-address=127.0.0.1
+#
+# connect as root
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should be present.
+Pattern found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should be present.
+Pattern found.
+# check for Channel mysql_main configured to support TLS - pattern should be present.
+Pattern found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# Setting admin certs
+# Configure TLS for admin channel
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+# Connect through admin channel using TLS - should be a success.
+MYSQL --host=127.0.0.1 --port=MASTER_ADMINPORT --user=root --ssl-mode=REQUIRED -e "SELECT 1"
+1
+1
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# -----------------------------------------------------------------------
+#
+# Restart server with --datadir=DDIR --admin-address=127.0.0.1 --skip-ssl
+#
+# connect as root
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should be present.
+Pattern found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_admin configured to support TLS - pattern should not be present.
+Pattern not found.
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# -----------------------------------------------------------------------
+#
+# Restart server with --datadir=DDIR --admin-address=127.0.0.1 --admin-ssl*
+#
+# connect as root
+# check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+Pattern not found.
+# check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+Pattern not found.
+# check for Channel mysql_main configured to support TLS - pattern should be present.
+Pattern found.
+# check for Channel mysql_admin configured to support TLS - pattern should be present.
+Pattern found.
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# delete datadir
+# delete bootstrap file
+#
+# Cleanup
+#
+# Restarting the server

@@ -10,13 +10,13 @@ SELECT @@global.innodb_merge_threshold_set_all_debug;
 1
 set global innodb_merge_threshold_set_all_debug = 51;
 Warnings:
-Warning	1292	Truncated incorrect innodb_merge_threshold_set_all_d value: '51'
+Warning	1292	Truncated incorrect innodb_merge_threshold_set_all_debug value: '51'
 SELECT @@global.innodb_merge_threshold_set_all_debug;
 @@global.innodb_merge_threshold_set_all_debug
 50
 set global innodb_merge_threshold_set_all_debug = 0;
 Warnings:
-Warning	1292	Truncated incorrect innodb_merge_threshold_set_all_d value: '0'
+Warning	1292	Truncated incorrect innodb_merge_threshold_set_all_debug value: '0'
 SELECT @@global.innodb_merge_threshold_set_all_debug;
 @@global.innodb_merge_threshold_set_all_debug
 1

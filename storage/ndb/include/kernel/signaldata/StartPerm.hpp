@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class StartPermReq {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   
   Uint32 blockRef;
@@ -56,7 +56,7 @@ class StartPermConf {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   
   Uint32 startingNodeId;
@@ -71,7 +71,7 @@ class StartPermRef {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:
   
   Uint32 startingNodeId;
@@ -85,6 +85,29 @@ private:
   };
 };
 
+class StartPermRep
+{
+  /**
+   * Sender(s)
+   */
+  friend class Dbdih;
+  /**
+   * Sender(s) / Reciver(s)
+   */
+  friend class Ndbcntr;
+
+public:
+  static constexpr Uint32 SignalLength = 2;
+  enum
+  {
+    PermissionToStart = 0,
+    CompletedStart = 1
+  };
+
+private:
+  Uint32 startNodeId;
+  Uint32 reason;
+};
 #undef JAM_FILE_ID
 
 #endif

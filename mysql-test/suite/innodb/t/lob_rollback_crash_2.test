@@ -1,0 +1,30 @@
+#
+# Bug #29846292 ROLLBACK OF BIG TRANSACTION DUE TO CONFLICT REMAINS IN HUNG STATE
+#
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB, KEY(f2(50)))
+ENGINE=InnoDB;
+
+SHOW CREATE TABLE t1;
+
+START TRANSACTION;
+# 6006*30 was chosen in such a way, that the last FIL_PAGE_TYPE_LOB_DATA page
+# contains less data (1230 bytes) than is required to build a cached prefix
+# (REC_VERSION_56_MAX_INDEX_COL_LEN = 3072 bytes)
+INSERT INTO t1 VALUES (1, REPEAT('abcdefghijklmnopqrstuvwxyz1234', 6006));
+SET DEBUG = '+d,crash_almost_end_of_lob_rollback_0';
+--source include/expect_crash.inc
+
+--error CR_SERVER_LOST
+ROLLBACK;
+
+--source include/start_mysqld.inc
+
+SELECT * FROM t1;
+DROP TABLE t1;

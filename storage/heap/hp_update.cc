@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,15 +31,15 @@
 int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new) {
   HP_KEYDEF *keydef, *end, *p_lastinx;
   uchar *pos;
-  bool auto_key_changed = 0;
+  bool auto_key_changed = false;
   HP_SHARE *share = info->s;
-  DBUG_ENTER("heap_update");
+  DBUG_TRACE;
 
   test_active(info);
   pos = info->current_ptr;
 
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old))
-    DBUG_RETURN(my_errno()); /* Record changed */
+    return my_errno(); /* Record changed */
   if (--(share->records) < share->blength >> 1) share->blength >>= 1;
   share->changed = 1;
 
@@ -51,18 +51,18 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new) {
           (*keydef->write_key)(info, keydef, heap_new, pos))
         goto err;
       if (share->auto_key == (uint)(keydef - share->keydef + 1))
-        auto_key_changed = 1;
+        auto_key_changed = true;
     }
   }
 
   memcpy(pos, heap_new, (size_t)share->reclength);
   if (++(share->records) == share->blength) share->blength += share->blength;
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
   if (auto_key_changed) heap_update_auto_increment(info, heap_new);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   if (my_errno() == HA_ERR_FOUND_DUPP_KEY) {
@@ -72,7 +72,7 @@ err:
       if ((*keydef->write_key)(info, keydef, old, pos)) {
         if (++(share->records) == share->blength)
           share->blength += share->blength;
-        DBUG_RETURN(my_errno());
+        return my_errno();
       }
       keydef--;
     }
@@ -86,5 +86,5 @@ err:
     }
   }
   if (++(share->records) == share->blength) share->blength += share->blength;
-  DBUG_RETURN(my_errno());
+  return my_errno();
 } /* heap_update */

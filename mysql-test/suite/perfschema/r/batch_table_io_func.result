@@ -115,8 +115,8 @@ explain select t1.*, t2.*, t3.*
 from t1 join t2 using (id1) join t3 using (id2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1000	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1000	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`id2` AS `id2`,`test`.`t3`.`id3` AS `id3`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t3`.`id2` = `test`.`t2`.`id2`))
 call before_payload();
@@ -127,18 +127,18 @@ number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF
 1	TABLE	test	t1	NULL	read external	NULL
 1	TABLE	test	t2	NULL	read external	NULL
 1	TABLE	test	t3	NULL	read external	NULL
-11	TABLE	test	t1	NULL	fetch	1
-101	TABLE	test	t2	NULL	fetch	1
+1	TABLE	test	t1	NULL	fetch	10
+1	TABLE	test	t2	NULL	fetch	100
 1	TABLE	test	t3	NULL	fetch	1000
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
 TABLE	test	t0	NULL	0	0	0
-TABLE	test	t1	NULL	11	11	0
-TABLE	test	t2	NULL	101	101	0
+TABLE	test	t1	NULL	10	10	0
+TABLE	test	t2	NULL	100	100	0
 TABLE	test	t3	NULL	1000	1000	0
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
 TABLE	test	t0	0	0	0
-TABLE	test	t1	11	11	0
-TABLE	test	t2	101	101	0
+TABLE	test	t1	10	10	0
+TABLE	test	t2	100	100	0
 TABLE	test	t3	1000	1000	0
 alter table t1 add unique index(id1);
 alter table t2 add unique index(id2);

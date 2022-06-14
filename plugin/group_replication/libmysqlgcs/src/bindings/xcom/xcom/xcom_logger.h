@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,11 @@
 #ifndef XCOM_LOGGER_H
 #define XCOM_LOGGER_H
 
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+#include "xcom/x_platform.h"
 /*
   Log levels definition for use without external logger. Note that this can
   only be changed in lock-step with GCS. Otherwise, things will break when
@@ -33,15 +38,12 @@ typedef enum {
   XCOM_LOG_FATAL = 0,
   XCOM_LOG_ERROR = 1,
   XCOM_LOG_WARN = 2,
-  XCOM_LOG_INFO = 3,
+  XCOM_LOG_INFO = 3
 } xcom_log_level_t;
 
 static const char *const xcom_log_levels[] = {
-    "[MYSQL_XCOM_FATAL] ",
-    "[MYSQL_XCOM_ERROR] ",
-    "[MYSQL_XCOM_WARN] ",
-    "[MYSQL_XCOM_INFO] ",
-};
+    "[MYSQL_XCOM_FATAL] ", "[MYSQL_XCOM_ERROR] ", "[MYSQL_XCOM_WARN] ",
+    "[MYSQL_XCOM_INFO] "};
 
 /*
 Debug options that are defined for use without external debugger. Note that
@@ -68,11 +70,6 @@ typedef enum {
   GCS_DEBUG_ALL = ~(GCS_DEBUG_NONE)
 } gcs_xcom_debug_option_t;
 
-static const char *const gcs_xcom_debug_strings[] = {
-    "GCS_DEBUG_BASIC",  "GCS_DEBUG_TRACE",    "XCOM_DEBUG_BASIC",
-    "XCOM_DEBUG_TRACE", "GCS_DEBUG_MSG_FLOW", "XCOM_DEBUG_MSG_FLOW",
-    "GCS_DEBUG_ALL",    "GCS_DEBUG_NONE",
-};
 #endif
 
 typedef void (*xcom_logger)(const int64_t level, const char *message);

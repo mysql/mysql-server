@@ -6,8 +6,6 @@ sys.ps_thread_account(234623462376)
 NULL
 SELECT sys.ps_thread_account(-1);
 ERROR 22003: Out of range value for column 'in_thread_id' at row 1
-SELECT sys.ps_thread_account(sys.ps_thread_id(NULL));
-sys.ps_thread_account(sys.ps_thread_id(NULL))
+SELECT sys.ps_thread_account(ps_current_thread_id());
+sys.ps_thread_account(ps_current_thread_id())
 root@localhost
-Warnings:
-Note	1585	This function 'ps_thread_id' has the same name as a native function

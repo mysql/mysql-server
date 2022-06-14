@@ -1,0 +1,18 @@
+# restart:--log-error=MYSQLD_LOG
+#
+# Trigger problem reported by "Bug#32357856 SIGHUP CAUSES CRASH IN
+# CACHED TABLE DEF CLOSE" by creating and using a NDB table in order
+# to have it be added to open table cache and then closed by SIGHUP
+#
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE = NDB;
+SELECT * FROM t1;
+a
+#
+# Flush the log by sending SIGHUP from perl script.
+#
+# Check that both files still exists
+DROP TABLE t1;
+call mtr.add_suppression("mysqld startup An incident event has been written");
+# CLEAN UP
+# Restore default settings
+# restart:

@@ -1,0 +1,13 @@
+--source include/have_component_keyring_file.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_innodb_max_16k.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+# This test must be not be run in parallel with other tests because
+# it requires global manifest file to load keyring component directly
+
+--source ../inc/setup_component_customized.inc
+--source include/keyring_tests/mats/clone_local_encrypt.inc
+--source ../inc/teardown_component_customized.inc

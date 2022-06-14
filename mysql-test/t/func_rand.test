@@ -1,0 +1,55 @@
+--echo #
+--echo # Bug#30311271 RAND() < RAND() RESULTS IN IMPOSSIBLE WHERE
+--echo #
+--echo # See that the optimizer does not consider two instances of RAND() as
+--echo # equal.
+--replace_result 0.00..0.00 0.00
+EXPLAIN FORMAT=tree SELECT 1 WHERE RAND() < RAND();
+
+--echo #
+--echo # Bug#33535379 Wrong value for RAND() expression when aggregating on empty table.
+--echo #
+
+
+CREATE TABLE t ( i1 INT, i2 INT);
+# Use a simple random expression on an empty table.
+ANALYZE TABLE t;
+let $query= INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000) FROM t;
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t;
+
+# Use a simple random expression on a non-empty table.
+INSERT INTO t VALUES (1,1),(2,2),(3,3);
+ANALYZE TABLE t;
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t;
+
+# Use a combined random and INNER_TABLE_BIT expression on an empty table.
+DELETE FROM t;
+ANALYZE TABLE t;
+let $query= INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
+  + EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t;
+
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t;
+
+# Use a combined random and INNER_TABLE_BIT expression on a non-empty table.
+INSERT INTO t VALUES (1,1),(2,2),(3,3);
+ANALYZE TABLE t;
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t;
+
+# Use a combined random and INNER_TABLE_BIT expression with GROUP BY
+# on a non-empty table.
+let $query= INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
+  + EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t GROUP BY i2;
+ANALYZE TABLE t;
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t;
+
+DROP TABLE t;

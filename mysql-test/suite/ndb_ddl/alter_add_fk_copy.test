@@ -1,0 +1,7 @@
+#
+# Test ALTER ADD FOREIGN KEY .. ALGORITHM = COPY
+#
+
+let algorithm=copy;
+
+--source alter_add_fk.inc

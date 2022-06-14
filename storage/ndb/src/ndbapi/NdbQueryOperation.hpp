@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,6 +141,12 @@ public:
 
   int setBound(const NdbRecord *keyRecord,
                const struct NdbIndexScanOperation::IndexBound *bound);
+
+  /**
+   * When returning results from a multi-range-read, over multiple 'bounds',
+   * we can get which 'range' (or bound) the returned row comes from.
+   */
+  int getRangeNo() const;
 
   /**
    * Get the next tuple(s) from the global cursor on the query.

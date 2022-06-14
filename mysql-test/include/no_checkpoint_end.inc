@@ -19,7 +19,7 @@ close(LOG);
 my $cp1 = $cp1hi << 32 | $cp1lo;
 my $cp2 = $cp2hi << 32 | $cp2lo;
 
-open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/check.txt") || die;
+open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/no_checkpoint_cleanup.inc") || die;
 
 if ($cp1 > $cp || $cp2 > $cp) {
    print OUT "--source include/start_mysqld.inc\n";
@@ -32,5 +32,5 @@ if ($cp1 > $cp || $cp2 > $cp) {
 close(OUT);
 EOF
 
---source $MYSQLTEST_VARDIR/log/check.txt
---remove_file $MYSQLTEST_VARDIR/log/check.txt
+--source $MYSQLTEST_VARDIR/log/no_checkpoint_cleanup.inc
+--remove_file $MYSQLTEST_VARDIR/log/no_checkpoint_cleanup.inc

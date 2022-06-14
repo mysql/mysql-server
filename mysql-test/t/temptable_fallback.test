@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/not_hypergraph.inc  # Does not use internal temporary tables yet.
 
 #============
 # Temporary table fallback on lack of memory test
@@ -7,6 +8,11 @@
 # ---------------------------------------------------------------------
 # Prepare
 #
+
+--echo # Disable sorting by addon fields, as that will enable the
+--echo # StreamingIterator in many of the test cases, resulting in
+--echo # fewer materializations.
+SET debug = '+d,filesort_force_sort_row_ids';
 
 CREATE TABLE t (c VARCHAR(128));
 
@@ -149,12 +155,8 @@ SET @@internal_tmp_mem_storage_engine = TempTable;
 SET GLOBAL temptable_max_ram = 2097152;
 SET debug = '+d,temptable_fetch_from_disk_return_null';
 
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[MY-.*\\] The table '.*#sql.*' is full");
---enable_query_log
-
-# Two same errors passed to change per-run response to static one
---error ER_RECORD_FILE_FULL,ER_RECORD_FILE_FULL
+# When both RAM and MMAP limit is exhausted, optimizer shall recover by spilling over to new tmp disk tables (InnoDB)
+-- disable_result_log
 SELECT * FROM
     t AS t1,
     t AS t2,
@@ -164,6 +166,7 @@ SELECT * FROM
     t AS t6
     ORDER BY 1
     LIMIT 2;
+-- enable_result_log
 
 SELECT @@internal_tmp_mem_storage_engine;
 SHOW STATUS LIKE 'Created_tmp_tables';
@@ -178,3 +181,4 @@ SET debug = '-d,temptable_fetch_from_disk_return_null';
 #
 
 DROP TABLE t;
+SET optimizer_switch="hash_join=on";

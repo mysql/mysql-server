@@ -193,3 +193,57 @@ n
 2
 3
 SET SQL_BUFFER_RESULT = DEFAULT;
+#
+# Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
+#
+EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
+(
+SELECT 1
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5
+)
+SELECT * FROM cte;
+EXPLAIN
+-> Table scan on cte  (cost=N.NNN..N.NNN rows=NNN) (actual time=N.NNN..N.NNN rows=5 loops=1)
+    -> Materialize recursive CTE cte  (cost=N.NNN..N.NNN rows=NNN) (actual time=N.NNN..N.NNN rows=5 loops=1)
+        -> Rows fetched before execution  (cost=N.NNN..N.NNN rows=NNN) (actual time=N.NNN..N.NNN rows=1 loops=1)
+        -> Repeat until convergence
+            -> Filter: (cte.n < 5)  (cost=N.NNN..N.NNN rows=NNN) (actual time=N.NNN..N.NNN rows=2 loops=2)
+                -> Scan new records on cte  (cost=N.NNN..N.NNN rows=NNN) (actual time=N.NNN..N.NNN rows=2 loops=2)
+
+#
+# Bug#31066001 INCORRECT RESULT FROM CTE SUBQUERY WITH OUTER REFERENCE
+#
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+EXISTS(
+WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+SELECT * FROM qn WHERE b=a
+);
+a
+1
+1
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+NOT EXISTS(
+WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+SELECT * FROM qn WHERE b=a
+);
+a
+#
+# Bug #31603195: REGRESSION: CTE CRASHING IN FINDSINGLEITERATOROFTYPE
+#
+CREATE TABLE t1 (a INTEGER);
+WITH RECURSIVE cte1 AS
+(
+SELECT 1 FROM t1
+UNION ALL
+SELECT 2 FROM cte1 WHERE FALSE
+)
+SELECT * FROM cte1;
+1
+DROP TABLE t1;

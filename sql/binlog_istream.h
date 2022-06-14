@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ class Binlog_read_error {
     ERROR_DECRYPTING_FILE
   };
 
-  Binlog_read_error() {}
+  Binlog_read_error() = default;
   Binlog_read_error(Error_type type) : m_type(type) {}
 
   bool has_error() { return m_type != SUCCESS; }

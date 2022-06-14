@@ -85,7 +85,8 @@ EXPLAIN FORMAT=JSON SELECT id, COUNT(*) OVER w, NTH_VALUE(id, 2) OVER w FROM t1 
 EXPLAIN FORMAT=JSON SELECT id, COUNT(*) OVER w, NTH_VALUE(id, 2) OVER w FROM t1 WINDOW w as (ORDER BY ID DESC RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
 
 --echo many nth_value calls on one window, optimized path
-EXPLAIN FORMAT=JSON SELECT id, COUNT(*) OVER w,
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=TREE SELECT id, COUNT(*) OVER w,
        NTH_VALUE(id, 3) OVER w,
        FIRST_VALUE(id) OVER w,
        NTH_VALUE(id, 1) OVER w,
@@ -93,7 +94,8 @@ EXPLAIN FORMAT=JSON SELECT id, COUNT(*) OVER w,
   WINDOW w AS (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
 
 --echo many nth_value calls on one window, unoptimized path
-EXPLAIN FORMAT=JSON SELECT id, SUM(d) OVER w, COUNT(*) OVER w,
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=TREE SELECT id, SUM(d) OVER w, COUNT(*) OVER w,
        NTH_VALUE(id, 3) OVER w,
        FIRST_VALUE(id) OVER w,
        NTH_VALUE(id, 1) OVER w,

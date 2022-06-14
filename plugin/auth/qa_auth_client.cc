@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     pkt_len = vio->read_packet(vio, &pkt);
     if (pkt_len < 0) return CR_ERROR;
 
-    if (pkt == 0) {
+    if (pkt == nullptr) {
       /*
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
@@ -117,7 +117,7 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   return CR_OK;
 }
 
-mysql_declare_client_plugin(AUTHENTICATION) "qa_auth_client", "Horst Hunger",
-    "Dialog Client Authentication Plugin", {0, 1, 0},
-    "GPL", NULL, NULL, NULL, NULL,
-    test_plugin_client, NULL mysql_end_client_plugin;
+mysql_declare_client_plugin(AUTHENTICATION) "qa_auth_client",
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
+    {0, 1, 0}, "GPL", nullptr, nullptr, nullptr, nullptr,
+    nullptr, test_plugin_client, nullptr, mysql_end_client_plugin;

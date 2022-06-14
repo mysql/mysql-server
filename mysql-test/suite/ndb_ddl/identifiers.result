@@ -1,0 +1,169 @@
+#
+# Bug#31846478 IMPROVE HANDLING OF DATABASE AND TABLE NAMES
+# - Add tests to verify handling of identifiers with special
+#   characters.
+#
+CREATE TABLE `t_special_ö_\\_\_/_`(
+a INT PRIMARY KEY,
+b VARCHAR(255),
+c DATETIME,
+KEY(b),
+INDEX(a,b,c)
+) ENGINE=ndb;
+Name_in_NDB
+'test/def/t_special_Ã¶_\\_\_/_'
+Name_in_mysqld6
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld5
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld4
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld3
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld2
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld1
+'test.t_special_ö_\\_\_/_' - ndbcluster
+INSERT INTO `t_special_ö_\\_\_/_` VALUES
+(1,'t_special_1','2020-11-01 00:05:01'),
+(2,'t_special_2','2020-11-02 00:04:02'),
+(3,'t_special_3','2020-11-03 00:03:03'),
+(4,'t_special_4','2020-11-04 00:02:04'),
+(5,'t_special_5','2020-11-05 00:01:05');
+SELECT * FROM `t_special_ö_\\_\_/_` WHERE a = 3;
+a	b	c
+3	t_special_3	2020-11-03 00:03:03
+# Inplace alter table
+ALTER TABLE `t_special_ö_\\_\_/_` ALGORITHM=inplace,
+ADD COLUMN d INT DEFAULT NULL;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Column_d_exist
+YES
+Name_in_NDB
+'test/def/t_special_Ã¶_\\_\_/_'
+Name_in_mysqld6
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld5
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld4
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld3
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld2
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld1
+'test.t_special_ö_\\_\_/_' - ndbcluster
+# Copying alter table
+ALTER TABLE `t_special_ö_\\_\_/_` ALGORITHM=copy,
+MODIFY COLUMN c DATETIME NOT NULL;
+Column_c_is_nullable
+NO
+Name_in_NDB
+'test/def/t_special_Ã¶_\\_\_/_'
+Name_in_mysqld6
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld5
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld4
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld3
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld2
+'test.t_special_ö_\\_\_/_' - ndbcluster
+Name_in_mysqld1
+'test.t_special_ö_\\_\_/_' - ndbcluster
+# Copying alter table with rename
+ALTER TABLE `t_special_ö_\\_\_/_` ALGORITHM=copy,
+RENAME TO `t_special_å_/_\_`;
+Name_in_NDB
+'test/def/t_special_Ã¥_/_\_'
+Name_in_mysqld6
+'test.t_special_å_/_\_' - ndbcluster
+Name_in_mysqld5
+'test.t_special_å_/_\_' - ndbcluster
+Name_in_mysqld4
+'test.t_special_å_/_\_' - ndbcluster
+Name_in_mysqld3
+'test.t_special_å_/_\_' - ndbcluster
+Name_in_mysqld2
+'test.t_special_å_/_\_' - ndbcluster
+Name_in_mysqld1
+'test.t_special_å_/_\_' - ndbcluster
+# Alter table with "simple rename" (ALTER optimized by MySQL Server)
+ALTER TABLE `t_special_å_/_\_` RENAME TO `t_special_ä_\\_/_\_`;
+Name_in_NDB
+'test/def/t_special_Ã¤_\\_/_\_'
+Name_in_mysqld6
+'test.t_special_ä_\\_/_\_' - ndbcluster
+Name_in_mysqld5
+'test.t_special_ä_\\_/_\_' - ndbcluster
+Name_in_mysqld4
+'test.t_special_ä_\\_/_\_' - ndbcluster
+Name_in_mysqld3
+'test.t_special_ä_\\_/_\_' - ndbcluster
+Name_in_mysqld2
+'test.t_special_ä_\\_/_\_' - ndbcluster
+Name_in_mysqld1
+'test.t_special_ä_\\_/_\_' - ndbcluster
+# Rename table
+RENAME TABLE `t_special_ä_\\_/_\_` TO `t_special_ö_\\_/_\_`;
+Name_in_NDB
+'test/def/t_special_Ã¶_\\_/_\_'
+Name_in_mysqld6
+'test.t_special_ö_\\_/_\_' - ndbcluster
+Name_in_mysqld5
+'test.t_special_ö_\\_/_\_' - ndbcluster
+Name_in_mysqld4
+'test.t_special_ö_\\_/_\_' - ndbcluster
+Name_in_mysqld3
+'test.t_special_ö_\\_/_\_' - ndbcluster
+Name_in_mysqld2
+'test.t_special_ö_\\_/_\_' - ndbcluster
+Name_in_mysqld1
+'test.t_special_ö_\\_/_\_' - ndbcluster
+# Drop the table and check no "t_special*" table is left anywhere
+DROP TABLE `t_special_ö_\\_/_\_`;
+Name_in_NDB
+Name_in_mysqld6
+Name_in_mysqld5
+Name_in_mysqld4
+Name_in_mysqld3
+Name_in_mysqld2
+Name_in_mysqld1
+#
+# Create database with special name
+#
+CREATE DATABASE `test_\_ö`;
+CREATE TABLE `test_\_ö`.t_special (
+a int primary key
+) engine = NDB;
+Name_in_NDB
+'test_\_Ã¶/def/t_special'
+Name_in_mysqld6
+'test_\_ö.t_special' - ndbcluster
+Name_in_mysqld5
+'test_\_ö.t_special' - ndbcluster
+Name_in_mysqld4
+'test_\_ö.t_special' - ndbcluster
+Name_in_mysqld3
+'test_\_ö.t_special' - ndbcluster
+Name_in_mysqld2
+'test_\_ö.t_special' - ndbcluster
+Name_in_mysqld1
+'test_\_ö.t_special' - ndbcluster
+DROP DATABASE `test_\_ö`;
+#
+# Create table in database with forward slash is not
+# supported (by NdbApi) since the slash is used as separator
+# in the NDB tables internal name.
+CREATE DATABASE `d/1`;
+CREATE TABLE `d/1`.`t1` (a int) ENGINE=NDB;
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 4118 'Parameter error in API call' from NDB
+Warning	1296	Failed to discover table 't1' from NDB
+Warning	1296	Got error 4118 'Parameter error in API call' from NDB
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
+DROP DATABASE `d/1`;

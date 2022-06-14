@@ -1,0 +1,402 @@
+## Test meta-schema validation for various admin collection commands
+## for official examples from json-schema.org
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/metaschema_official_examples.xpl
+-->import assert_schema.macro
+-->quiet
+
+-->title =Command '%COMMAND%'
+
+
+-->echo 'fstab entry' schema
+callmacro Assert_schema	%COMMAND%	xtest	fstab_entry	{
+  "id": "http://example.com/entry-schema",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "JSON Schema for an fstab entry",
+  "type": "object",
+  "required": [ "storage" ],
+  "properties": {
+    "storage": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/diskDevice" },
+        { "$ref": "#/definitions/diskUUID" },
+        { "$ref": "#/definitions/nfs" },
+        { "$ref": "#/definitions/tmpfs" }
+      ]
+    },
+    "fstype": {
+      "enum": [ "ext3", "ext4", "btrfs" ]
+    },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "readonly": {
+      "type": "boolean"
+    }
+  },
+  "definitions": {
+    "diskDevice": {
+      "properties": {
+        "type": {
+          "enum": [ "disk" ]
+        },
+        "device": {
+          "type": "string",
+          "pattern": "^/dev/[^/]+(/[^/]+)*$"
+        }
+      },
+      "required": [ "type", "device" ],
+      "additionalProperties": false
+    },
+    "diskUUID": {
+      "properties": {
+        "type": {
+          "enum": [ "disk" ]
+        },
+        "label": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        }
+      },
+      "required": [ "type", "label" ],
+      "additionalProperties": false
+    },
+    "nfs": {
+      "properties": {
+        "type": { "enum": [ "nfs" ] },
+        "remotePath": {
+          "type": "string",
+          "pattern": "^(/[^/]+)+$"
+        },
+        "server": {
+          "type": "string",
+          "oneOf": [
+            { "format": "hostname" },
+            { "format": "ipv4" },
+            { "format": "ipv6" }
+          ]
+        }
+      },
+      "required": [ "type", "server", "remotePath" ],
+      "additionalProperties": false
+    },
+    "tmpfs": {
+      "properties": {
+        "type": { "enum": [ "tmpfs" ] },
+        "sizeInMB": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 512
+        }
+      },
+      "required": [ "type", "sizeInMB" ],
+      "additionalProperties": false
+    }
+  }
+}	ER_SUCCESS;
+
+
+-->echo 'person' schema
+callmacro Assert_schema	%COMMAND%	xtest	person	{
+  "id": "https://example.com/person.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Person",
+  "type": "object",
+  "properties": {
+    "firstName": {
+      "type": "string",
+      "description": "The person's first name."
+    },
+    "lastName": {
+      "type": "string",
+      "description": "The person's last name."
+    },
+    "age": {
+      "description": "Age in years which must be equal to or greater than zero.",
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}	ER_SUCCESS;
+
+
+-->echo 'geographical location' schema
+callmacro Assert_schema	%COMMAND%	xtest	geographical_location	{
+  "id": "https://example.com/geographical-location.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Longitude and Latitude Values",
+  "description": "A geographical coordinate.",
+  "required": [ "latitude", "longitude" ],
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "longitude": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180
+    }
+  }
+}	ER_SUCCESS;
+
+
+-->echo 'arrays' schema
+callmacro Assert_schema	%COMMAND%	xtest	arrays	{
+  "id": "https://example.com/arrays.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "A representation of a person, company, organization, or place",
+  "type": "object",
+  "properties": {
+    "fruits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "vegetables": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/veggie" }
+    }
+  },
+  "definitions": {
+    "veggie": {
+      "type": "object",
+      "required": [ "veggieName", "veggieLike" ],
+      "properties": {
+        "veggieName": {
+          "type": "string",
+          "description": "The name of the vegetable."
+        },
+        "veggieLike": {
+          "type": "boolean",
+          "description": "Do I like this vegetable?"
+        }
+      }
+    }
+  }
+}	ER_SUCCESS;
+
+
+-->echo 'address' schema
+callmacro Assert_schema	%COMMAND%	xtest	address	{
+  "id": "https://example.com/address.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "An address similar to http://microformats.org/wiki/h-card",
+  "type": "object",
+  "properties": {
+    "post-office-box": {
+      "type": "string"
+    },
+    "extended-address": {
+      "type": "string"
+    },
+    "street-address": {
+      "type": "string"
+    },
+    "locality": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "postal-code": {
+      "type": "string"
+    },
+    "country-name": {
+      "type": "string"
+    }
+  },
+  "required": [ "locality", "region", "country-name" ],
+  "dependencies": {
+    "post-office-box": [ "street-address" ],
+    "extended-address": [ "street-address" ]
+  }
+}	ER_SUCCESS;
+
+
+-->echo 'address' schema
+callmacro Assert_schema	%COMMAND%	xtest	address	{
+  "id": "https://example.com/calendar.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "A representation of an event",
+  "type": "object",
+  "required": [ "dtstart", "summary" ],
+  "properties": {
+    "dtstart": {
+      "type": "string",
+      "description": "Event starting time"
+    },
+    "dtend": {
+      "type": "string",
+      "description": "Event ending time"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "string",
+      "description": "Event duration"
+    },
+    "rdate": {
+      "type": "string",
+      "description": "Recurrence date"
+    },
+    "rrule": {
+      "type": "string",
+      "description": "Recurrence rule"
+    },
+    "category": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "geo": {
+      "$ref": "http://example.com/geographical-location.schema.json"
+    }
+  }
+}	ER_X_INVALID_VALIDATION_SCHEMA;
+
+
+-->echo 'card' schema
+callmacro Assert_schema	%COMMAND%	xtest	card	{
+  "$id": "https://example.com/card.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "A representation of a person, company, organization, or place",
+  "type": "object",
+  "required": [ "familyName", "givenName" ],
+  "properties": {
+    "fn": {
+      "description": "Formatted Name",
+      "type": "string"
+    },
+    "familyName": {
+      "type": "string"
+    },
+    "givenName": {
+      "type": "string"
+    },
+    "additionalName": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "honorificPrefix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "honorificSuffix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nickname": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "email": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "tel": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "adr": { "$ref": "http://example.com/address.schema.json" },
+    "geo": { "$ref": "http://example.com/geographical-location.schema.json" },
+    "tz": {
+      "type": "string"
+    },
+    "photo": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "string"
+    },
+    "sound": {
+      "type": "string"
+    },
+    "bday": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "org": {
+      "type": "object",
+      "properties": {
+        "organizationName": {
+          "type": "string"
+        },
+        "organizationUnit": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}	ER_X_INVALID_VALIDATION_SCHEMA;
+
+
+EOF
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+exec $MYSQLXTEST -ux_root --password=''
+  -v%COMMAND%=create_collection
+  --file=$MYSQL_TMP_DIR/metaschema_official_examples.xpl 2>&1;
+
+exec $MYSQLXTEST -ux_root --password=''
+  -v%COMMAND%=ensure_collection
+  --file=$MYSQL_TMP_DIR/metaschema_official_examples.xpl 2>&1;
+
+exec $MYSQLXTEST -ux_root --password=''
+  -v%COMMAND%=modify_collection_options
+  --file=$MYSQL_TMP_DIR/metaschema_official_examples.xpl 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

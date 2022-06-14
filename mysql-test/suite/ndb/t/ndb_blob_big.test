@@ -42,7 +42,7 @@ set ndb_blob_write_batch_bytes = 0;
 
 --echo Now try a heavy insert - idea is to show SendBufferMemory overload on insert
 
---error 0,1297,1297
+--error 0,1205,1297
 call heavy_insert(20, 5*1024*1024);
 # NOTE don't check for warnings...as it doesnt fail consistenly
 
@@ -56,7 +56,7 @@ call heavy_insert(10, 5*1024*1024);
 --echo Now heavy read should fail
 
 --disable_result_log
---error 0,1297,1297
+--error 0,1205,1297
 call heavy_read(100);
 --enable_result_log
 # NOTE don't check for warnings...as it doesnt fail consistenly

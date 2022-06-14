@@ -1,0 +1,92 @@
+# ==== Purpose ====
+#
+# This script tests that the `PRIVILEGE_CHECKS_USER` user info is included in
+# the message issued upon slave starting.
+#
+# ==== Requirements ====
+#
+# R1. Issuing `START SLAVE` for a channel with `PRIVILEGE_CHECKS_USER` will log
+#     an informational message about slave stating that includes the applier
+#     user information.
+#
+# R2. Starting the server that has a channel with `PRIVILEGE_CHECKS_USER`
+#     configuration persisted will log an informational message about slave
+#     stating that includes the applier user information.
+#
+# ==== Implementation ====
+#
+# TC1. `START SLAVE` issues an info message that includes applier user info
+# -------------------------------------------------------------------------
+# 1) Set `PRIVELEGE_CHECKS_USER` to a user with `REPLICATION_APPLIER`
+#    privilege.
+# 2) Start the slave.
+# 3) Ensure that the message in the log contains the user info.
+#
+# TC2. Start server with a channel configured issues message with applier user
+#      info
+# ----------------------------------------------------------------------------
+# 1) Set `PRIVELEGE_CHECKS_USER` to a user with `REPLICATION_APPLIER`
+#    privilege.
+# 2) Start the server.
+# 3) Ensure that the message in the log contains the user info.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # TC1. `START SLAVE` issues an info message that includes applier user
+--echo #      info
+--echo # --------------------------------------------------------------------
+--echo #
+
+# 1) Set `PRIVELEGE_CHECKS_USER` to a user with `REPLICATION_APPLIER`
+#    privilege.
+--let $rpl_privilege_checks_user= *:'u1'@'localhost'
+--source include/master-slave.inc
+
+# 2) Start the slave.
+--source include/rpl_connection_slave.inc
+--source include/wait_for_slave_to_start.inc
+
+# 3) Ensure that the message in the log contains the user info.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
+--let $assert_count = 1
+--let $assert_select = .*Slave SQL thread.*user: 'u1'@'localhost'.*
+--let $assert_text = Start slave message found in log contains applier user info
+--source include/assert_grep.inc
+
+--echo #
+--echo # TC2. Start server with a channel configured issues message with applier
+--echo #      user info
+--echo # -----------------------------------------------------------------------
+--echo #
+
+# 1) Set `PRIVELEGE_CHECKS_USER` to a user with `REPLICATION_APPLIER`
+#    privilege.
+# -> Already done, keeping the same user from previous test-case
+
+# 2) Start the server.
+--let $rpl_server_number = 2
+--let $rpl_force_stop = 1
+--let $rpl_server_parameters = --skip_replica_start=FALSE
+--source include/rpl_restart_server.inc
+--source include/wait_for_slave_to_start.inc
+
+# 3) Ensure that the message in the log contains the user info.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
+--let $assert_count = 2
+--let $assert_select = .*Slave SQL thread.*user: 'u1'@'localhost'.*
+--let $assert_text = Start slave message with user info found twice in log, after restart
+--source include/assert_grep.inc
+
+# Cleanup
+--let $rpl_server_number = 2
+--let $rpl_server_parameters =
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

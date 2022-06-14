@@ -27,7 +27,7 @@ Starting GR on server 2
 RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa'
 
 0 rows affected
-RUN CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery'
+RUN CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery'
 
 0 rows affected
 RUN START GROUP_REPLICATION
@@ -41,7 +41,7 @@ Starting GR on server 3
 RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa'
 
 0 rows affected
-RUN CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery'
+RUN CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery'
 
 0 rows affected
 RUN START GROUP_REPLICATION
@@ -52,55 +52,8 @@ Mysqlx.Ok {
 }
 ok
 Waiting for GR members to come online.
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_objects"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: ""
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 name	type
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "characters"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 send Mysqlx.Crud.Insert {
@@ -735,32 +688,8 @@ doc
 {"_id": "ac1fc3b0055ae611fd36b86b23c1b9b9", "name": "Rob Stark", "House": "Stark"}
 {"_id": "b2d7d2d90e5ae611e325b86b23c1b9b9", "name": "Ned Stark", "House": "Stark"}
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "characters"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Mysqlx.Ok {
   msg: "bye!"
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,8 @@ class NdbOperation
   friend class NdbScanFilterImpl;
   friend class NdbReceiver;
   friend class NdbBlob;
+  friend class BlobBatchChecker;
+  friend class OpList;
 #endif
 
 public:
@@ -1065,7 +1067,8 @@ public:
                  OO_QUEUABLE     = 0x100,
                  OO_NOT_QUEUABLE = 0x200,
                  OO_DEFERRED_CONSTAINTS = 0x400,
-                 OO_DISABLE_FK   = 0x800
+                 OO_DISABLE_FK   = 0x800,
+                 OO_NOWAIT       = 0x1000
     };
 
     /* An operation-specific abort option.
@@ -1111,6 +1114,9 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   // XXX until NdbRecord is used in ndb_restore
   void set_disable_fk() { m_flags |= OF_DISABLE_FK; }
+
+  /* Set nowait option on locking read */
+  int setNoWait();
 #endif
 
 protected:
@@ -1434,7 +1440,7 @@ protected:
   */
   const class NdbTableImpl* m_accessTable;
 
-  // Set to TRUE when a tuple key attribute has been defined. 
+  // Set to true when a tuple key attribute has been defined.
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
 
   Uint32	    theTotalNrOfKeyWordInSignal;     // The total number of
@@ -1483,7 +1489,9 @@ protected:
     OF_USE_ANY_VALUE = 0x2,
     OF_QUEUEABLE = 0x4,
     OF_DEFERRED_CONSTRAINTS = 0x8,
-    OF_DISABLE_FK = 0x10
+    OF_DISABLE_FK = 0x10,
+    OF_NOWAIT = 0x20,
+    OF_BLOB_PART_READ = 0x40
   };
   Uint8  m_flags;
 

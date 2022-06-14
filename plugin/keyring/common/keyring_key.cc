@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,49 +20,56 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_cleanse.h"
+
 #include "plugin/keyring/common/keyring_key.h"
 
+#include <assert.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
 
 namespace keyring {
 
-Key::Key() : key(nullptr), key_len(0) {}
+Key::Key() : key(nullptr), key_len(0), key_type_enum(Key_type::unknown) {}
 
 Key::Key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
-         const void *a_key, size_t a_key_len) {
+         const void *a_key, size_t a_key_len)
+    : Key() {
   init(a_key_id, a_key_type, a_user_id, a_key, a_key_len);
 }
 
-Key::Key(const Key &other) {
+Key::Key(const Key &other) : Key() {
   init(other.key_id.c_str(), other.key_type.c_str(), other.user_id.c_str(),
        other.key.get(), other.key_len);
 }
 
-Key::Key(IKey *other) {
-  init(other->get_key_id()->c_str(), other->get_key_type()->c_str(),
+Key::Key(IKey *other) : Key() {
+  init(other->get_key_id()->c_str(), other->get_key_type_as_string()->c_str(),
        other->get_user_id()->c_str(), other->get_key_data(),
        other->get_key_data_size());
 }
 
 void Key::init(const char *a_key_id, const char *a_key_type,
                const char *a_user_id, const void *a_key, size_t a_key_len) {
-  if (a_key_id != NULL) key_id = a_key_id;
+  if (a_key_id != nullptr) key_id = a_key_id;
 
-  if (a_key_type != NULL) key_type = a_key_type;
+  if (a_key_type != nullptr) {
+    key_type = a_key_type;
+    set_key_type_enum(&key_type);
+  } else {
+    key_type_enum = Key_type::unknown;
+  }
 
-  if (a_user_id != NULL) user_id = a_user_id;
+  if (a_user_id != nullptr) user_id = a_user_id;
 
   key_len = a_key_len;
-  if (a_key != NULL && key_len > 0) {
+  if (a_key != nullptr && key_len > 0) {
     key.reset(new uchar[a_key_len]);
     memcpy(key.get(), a_key, a_key_len);
   }
 }
 
 Key::~Key() {
-  if (key) memset(key.get(), 0, key_len);
+  if (key) my_cleanse(key.get(), key_len);
 }
 
 void Key::store_field_length(uchar *buffer, size_t *buffer_position,
@@ -94,7 +101,7 @@ void Key::store_in_buffer(uchar *buffer, size_t *buffer_position) const {
       (sizeof(size_t) - (*buffer_position % sizeof(size_t))) % sizeof(size_t);
 
   *buffer_position += padding;
-  DBUG_ASSERT(*buffer_position % sizeof(size_t) == 0);
+  assert(*buffer_position % sizeof(size_t) == 0);
 }
 
 bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
@@ -158,7 +165,7 @@ bool Key::load_from_buffer(uchar *buffer,
   size_t padding =
       (sizeof(size_t) - (buffer_position % sizeof(size_t))) % sizeof(size_t);
   buffer_position += padding;
-  DBUG_ASSERT(buffer_position % sizeof(size_t) == 0);
+  assert(buffer_position % sizeof(size_t) == 0);
 
   *number_of_bytes_read_from_buffer = buffer_position;
 
@@ -178,35 +185,49 @@ size_t Key::get_key_pod_size() const {
       (sizeof(size_t) - (key_pod_size % sizeof(size_t))) % sizeof(size_t);
 
   size_t key_pod_size_aligned = key_pod_size + padding;
-  DBUG_ASSERT(key_pod_size_aligned % sizeof(size_t) == 0);
+  assert(key_pod_size_aligned % sizeof(size_t) == 0);
   return key_pod_size_aligned;
 }
 
 void Key::xor_data() {
-  if (key == NULL) return;
+  if (key == nullptr) return;
   static const char *obfuscate_str = "*305=Ljt0*!@$Hnm(*-9-w;:";
-  for (uint i = 0, l = 0; i < key_len;
+  for (size_t i = 0, l = 0; i < key_len;
        ++i, l = ((l + 1) % strlen(obfuscate_str)))
     key.get()[i] ^= obfuscate_str[l];
 }
 
 bool Key::is_key_id_valid() { return key_id.length() > 0; }
 
-bool Key::is_key_type_valid() {
-  return key_type.length() &&
-         (key_type == "AES" || key_type == "RSA" || key_type == "DSA");
-}
+bool Key::is_key_type_valid() { return key_type_enum != Key_type::unknown; }
 
 bool Key::is_key_valid() { return is_key_id_valid() || is_key_type_valid(); }
 
 bool Key::is_key_length_valid() {
-  if (key_type == "AES") return key_len == 16 || key_len == 24 || key_len == 32;
-  if (key_type == "RSA")
-    return key_len == 128 || key_len == 256 || key_len == 512;
-  if (key_type == "DSA")
-    return key_len == 128 || key_len == 256 || key_len == 384;
-
-  return false;
+  bool valid = false;
+  switch (key_type_enum) {
+    case Key_type::aes: {
+      valid = (key_len == 16 || key_len == 24 || key_len == 32);
+      break;
+    }
+    case Key_type::rsa: {
+      valid = (key_len == 128 || key_len == 256 || key_len == 512);
+      break;
+    }
+    case Key_type::dsa: {
+      valid = (key_len == 128 || key_len == 256 || key_len == 384);
+      break;
+    }
+    case Key_type::secret: {
+      valid = (key_len > 0 && key_len <= 16384);
+      break;
+    }
+    default: {
+      valid = false;
+      break;
+    }
+  }
+  return valid;
 }
 
 uchar *Key::release_key_data() { return key.release(); }
@@ -222,6 +243,20 @@ void Key::set_key_data(uchar *key_data, size_t key_data_size) {
 
 void Key::set_key_type(const std::string *key_type) {
   this->key_type = *key_type;
+  set_key_type_enum(key_type);
+}
+
+void Key::set_key_type_enum(const std::string *key_type) {
+  if (*key_type == keyring::AES)
+    key_type_enum = Key_type::aes;
+  else if (*key_type == keyring::RSA)
+    key_type_enum = Key_type::rsa;
+  else if (*key_type == keyring::DSA)
+    key_type_enum = Key_type::dsa;
+  else if (*key_type == keyring::SECRET)
+    key_type_enum = Key_type::secret;
+  else
+    key_type_enum = Key_type::unknown;
 }
 
 // Key signature is ended with '\0'
@@ -236,7 +271,9 @@ std::string *Key::get_key_signature() const {
   return &key_signature;
 }
 
-std::string *Key::get_key_type() { return &this->key_type; }
+std::string *Key::get_key_type_as_string() { return &this->key_type; }
+
+Key_type Key::get_key_type() const { return this->key_type_enum; }
 
 std::string *Key::get_key_id() { return &this->key_id; }
 

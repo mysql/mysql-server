@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,13 @@
 
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 
-[[noreturn]] void *Autorejoin_thread::launch_thread(void *arg) {
+void *Autorejoin_thread::launch_thread(void *arg) {
   Autorejoin_thread *thd = static_cast<Autorejoin_thread *>(arg);
-  thd->autorejoin_thread_handle();
+  thd->autorejoin_thread_handle();  // Does not return.
 }
 
 Autorejoin_thread::Autorejoin_thread()
@@ -100,7 +101,7 @@ bool Autorejoin_thread::abort_rejoin() {
 }
 
 int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
-  DBUG_ENTER("Autorejoin_thread::start_autorejoin");
+  DBUG_TRACE;
   int ret = 0;
 
   mysql_mutex_lock(&m_run_lock);
@@ -145,7 +146,7 @@ int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
 
 end:
   mysql_mutex_unlock(&m_run_lock);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Autorejoin_thread::is_autorejoin_ongoing() {
@@ -169,25 +170,28 @@ void Autorejoin_thread::execute_rejoin_process() {
     const char act[] =
         "now signal signal.autorejoin_entering_loop wait_for "
         "signal.autorejoin_enter_loop";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  while (!m_abort && num_attempts++ < m_attempts && error) {
+  while (!m_abort && num_attempts++ < m_attempts) {
     // Update the number of attempts in pfs.
     stage_handler.set_completed_work(num_attempts);
 
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_STARTED_AUTO_REJOIN, num_attempts,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_STARTED_AUTO_REJOIN, num_attempts,
                  m_attempts);
 
     DBUG_EXECUTE_IF("group_replication_stop_before_rejoin", {
       const char act[] =
           "now signal signal.autorejoin_waiting wait_for "
           "signal.autorejoin_continue";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
     // Attempt a single rejoin.
-    if (!attempt_rejoin()) break;
+    if (!attempt_rejoin()) {
+      error = 0;
+      break;
+    }
 
     /*
       Wait on m_run_cond up to 5 minutes. This is a simple way to allow the
@@ -198,7 +202,7 @@ void Autorejoin_thread::execute_rejoin_process() {
     if (num_attempts < m_attempts) {
       set_timespec(&tm, m_rejoin_timeout);
       mysql_mutex_lock(&m_run_lock);
-      error = mysql_cond_timedwait(&m_run_cond, &m_run_lock, &tm);
+      mysql_cond_timedwait(&m_run_cond, &m_run_lock, &tm);
       mysql_mutex_unlock(&m_run_lock);
     }
   }
@@ -210,8 +214,8 @@ void Autorejoin_thread::execute_rejoin_process() {
     If we didn't manage to rejoin, consider
     group_replication_exit_state_action.
   */
-  if (num_attempts > m_attempts) {
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN,
+  if (error) {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN,
                  num_attempts - 1UL, m_attempts, " not");
 
     enable_server_read_mode(PSESSION_INIT_THREAD);
@@ -220,28 +224,36 @@ void Autorejoin_thread::execute_rejoin_process() {
       if someone called Autorejoin_thread::abort(), because that implies an
       explicit stop and thus we probably don't want to abort right here.
     */
-    if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER &&
-        (error && !m_abort)) {
-      std::stringstream ss;
-      ss << "Could not rejoin the member to the group after " << m_attempts
-         << " attempts";
-      std::string msg = ss.str();
-      abort_plugin_process(msg.c_str());
+    if (!m_abort) {
+      switch (get_exit_state_action_var()) {
+        case EXIT_STATE_ACTION_ABORT_SERVER: {
+          std::stringstream ss;
+          ss << "Could not rejoin the member to the group after " << m_attempts
+             << " attempts";
+          std::string msg = ss.str();
+          abort_plugin_process(msg.c_str());
+          break;
+        }
+        case EXIT_STATE_ACTION_OFFLINE_MODE:
+          enable_server_offline_mode(PSESSION_INIT_THREAD);
+          break;
+      }
     }
   } else {
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN, num_attempts,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN, num_attempts,
                  m_attempts, "");
   }
 }
 
 [[noreturn]] void Autorejoin_thread::autorejoin_thread_handle() {
   // Initialize the MySQL thread infrastructure.
-  m_thd = new THD;
+  THD *thd = new THD;
   my_thread_init();
-  m_thd->set_new_thread_id();
-  m_thd->thread_stack = reinterpret_cast<const char *>(&m_thd);
-  m_thd->store_globals();
-  global_thd_manager_add_thd(m_thd);
+  thd->set_new_thread_id();
+  thd->thread_stack = reinterpret_cast<const char *>(&thd);
+  thd->store_globals();
+  global_thd_manager_add_thd(thd);
+  m_thd = thd;
 
   // Update the thread state and toggle the auto-rejoin ongoing flag.
   mysql_mutex_lock(&m_run_lock);
@@ -259,13 +271,12 @@ void Autorejoin_thread::execute_rejoin_process() {
   mysql_mutex_lock(&m_run_lock);
   m_thd->release_resources();
   global_thd_manager_remove_thd(m_thd);
-  m_autorejoin_thd_state.set_terminated();
   delete m_thd;
   m_thd = nullptr;
+  my_thread_end();
+  m_autorejoin_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  // And finally, terminate the thread.
-  my_thread_end();
   my_thread_exit(nullptr);
 }

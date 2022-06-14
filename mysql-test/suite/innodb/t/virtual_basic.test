@@ -26,15 +26,19 @@ INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
 INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
 
 CREATE INDEX idx ON t(c);
+--sorted_result
 SELECT c FROM t;
 
 UPDATE t SET a = 10 WHERE a = 11;
+--sorted_result
 SELECT c FROM t;
 
+--sorted_result
 SELECT * FROM t;
 
 DELETE FROM t WHERE a = 18;
 
+--sorted_result
 SELECT c FROM t;
 
 START TRANSACTION;
@@ -43,7 +47,9 @@ INSERT INTO t VALUES (128, 22, DEFAULT, "xx");
 INSERT INTO t VALUES (1290, 212, DEFAULT, "xmx");
 ROLLBACK;
 
+--sorted_result
 SELECT c FROM t;
+--sorted_result
 SELECT * FROM t;
 
 DROP TABLE t;
@@ -54,9 +60,13 @@ INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
 INSERT INTO t VALUES(1, 2, DEFAULT, "uuu", 9, DEFAULT, "uu", DEFAULT);
 INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
 
+--sorted_result
 SELECT c FROM t;
+--sorted_result
 SELECT m FROM t;
+--sorted_result
 SELECT p FROM t;
+--sorted_result
 SELECT * FROM t;
 
 update t set a = 13 where a =11;
@@ -79,6 +89,7 @@ INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, "kk");
 
 CREATE INDEX idx ON t(c(100));
 
+--sorted_result
 SELECT length(c) FROM t;
 
 START TRANSACTION;
@@ -116,10 +127,12 @@ UPDATE t SET a =22 WHERE a = 18;
 
 UPDATE t SET a = 33 WHERE a = 22;
 
+--sorted_result
 SELECT c FROM t;
 
 ROLLBACK;
 
+--sorted_result
 SELECT c FROM t;
 DROP TABLE t;
 
@@ -129,10 +142,12 @@ INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
 INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
 INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
 CREATE INDEX idx ON t(c);
+--sorted_result
 SELECT c FROM t;
 
 CONNECT(con1,localhost,root,,test);
 START TRANSACTION;
+--sorted_result
 SELECT c FROM t;
 
 CONNECTION default;
@@ -140,10 +155,12 @@ UPDATE t SET a = 19 WHERE a = 11;
 
 # this should report the same value as previous ONe (14, 19, 29).
 CONNECTiON con1;
+--sorted_result
 SELECT c FROM t;
 
 ROLLBACK;
 
+--sorted_result
 SELECT c FROM t;
 
 CONNECTION default;
@@ -165,6 +182,7 @@ INSERT INTO t VALUES(12, 13, DEFAULT, "hhhb", 14, DEFAULT, "nnnb", DEFAULT, 15, 
 # CREATE an INDEX ON multiple virtual COLUMN
 CREATE INDEX idx6 ON t(p, c);
 
+--sorted_result
 SELECT p, c FROM t;
 
 START TRANSACTION;
@@ -251,6 +269,7 @@ DROP TABLE t;
 CREATE TABLE t (a INT DEFAULT 1, b INT DEFAULT 2, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
 CREATE INDEX idx ON t(c);
 INSERT INTO t(h)VALUES ('mm');
+--sorted_result
 SELECT c FROM t;
 
 CREATE unique INDEX idx1 ON t(c);
@@ -276,6 +295,7 @@ INSERT INTO t1 VALUES (1, 2, DEFAULT, 3, 'mm');
 INSERT INTO t1 VALUES (11, 22, DEFAULT, 23, 'mm');
 
 START TRANSACTION;
+--sorted_result
 SELECT * FROM t1;
 
 CONNECTiON con1;
@@ -286,6 +306,7 @@ UPDATE t1 SET b = 10 WHERE b=2;
 ROLLBACK;
 
 CONNECTION default;
+--sorted_result
 SELECT c FROM t1;
 
 DISCONNECT con1;
@@ -329,13 +350,16 @@ END|
 delimiter ;|
 
 CALL UPDATE_t();
+--sorted_result
 SELECT c FROM t;
 
 CALL DELETE_insert_t();
+--sorted_result
 SELECT c FROM t;
 
 DROP INDEX idx ON t;
 CALL UPDATE_t();
+--sorted_result
 SELECT c FROM t;
 
 DROP PROCEDURE DELETE_insert_t;
@@ -384,7 +408,9 @@ INSERT INTO b (
 00:34:58.026613', 'v');
 
 EXPLAIN SELECT col_INT_key FROM b;
+--sorted_result
 SELECT col_INT_key FROM b;
+--sorted_result
 SELECT col_INT_nokey, col_INT_key FROM b;
 DELETE FROM b;
 
@@ -487,6 +513,7 @@ INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
 INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
 
 CREATE INDEX idx ON t(a, c);
+--sorted_result
 SELECT a, c FROM t;
 
 START TRANSACTION;
@@ -506,12 +533,14 @@ INSERT INTO t VALUES (28, 1, DEFAULT, "c", 3 );
 INSERT INTO t VALUES (null, null, DEFAULT, "d", 4);
 
 CREATE INDEX idx ON t(a, c, h);
+--sorted_result
 SELECT a, c FROM t;
 
 START TRANSACTION;
 UPDATE t SET m =10 WHERE m = 1;
 UPDATE t SET h = "e" WHERE h="a";
 ROLLBACK;
+--sorted_result
 SELECT a, c, h FROM t;
 
 DROP TABLE t;
@@ -563,6 +592,7 @@ ALTER TABLE t DROP COLUMN p, ADD COLUMN s VARCHAR(20) GENERATED ALWAYS AS(CONCAT
 
 # This should fail
 #ALTER TABLE t ADD  x INT, DROP COLUMN m, algorithm=inplace;
+--sorted_result
 SELECT s FROM t;
 
 ALTER TABLE t ADD  x VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), ADD INDEX idx (x), algorithm=inplace;
@@ -638,10 +668,12 @@ CREATE TABLE t1 (
 INSERT INTO t1 (col1, col2)
   VALUES (0,1), (1,2), (2,3), (3,4), (4,5);
 
+--sorted_result
 SELECT gcol1 FROM t1 FORCE INDEX(idx1);
 
 ALTER TABLE t1 ADD COLUMN extra INTEGER;
 
+--sorted_result
 SELECT gcol1 FROM t1 FORCE INDEX(idx1);
 
 DROP TABLE t1;
@@ -666,6 +698,7 @@ INSERT INTO t1 VALUES(4, 18, default);
 
 CREATE INDEX idx ON t1(x);
 
+--sorted_result
 SELECT x FROM t1;
 
 DROP TABLE t1;
@@ -690,6 +723,7 @@ insert into t1 values(3, 12, default);
 insert into t1 values(4, 18, default);
 
 CREATE INDEX idx ON t1(x);
+--sorted_result
 SELECT x FROM t1;
 DROP TABLE t1;
 
@@ -706,6 +740,7 @@ CREATE INDEX idx ON t1 (b);
 
 INSERT INTO t1 VALUES (5,DEFAULT,9);
 
+--sorted_result
 SELECT * FROM t1;
 
 ALTER TABLE t1 REMOVE PARTITIONING;
@@ -947,6 +982,7 @@ DROP TABLE t;
 
 CREATE TABLE t (a INT GENERATED ALWAYS AS(1) VIRTUAL,KEY(a)) ENGINE=INNODB;
 INSERT INTO t VALUES(default);
+--sorted_result
 SELECT a FROM t FOR UPDATE;
 DROP TABLE t;
 
@@ -965,6 +1001,7 @@ INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
 ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (x);
 --disable_info
 
+--sorted_result
 SELECT x FROM t;
 
 DROP TABLE t;
@@ -1383,6 +1420,7 @@ CREATE INDEX idx2 ON t(e, c, d);
 # idx and idx2, so they become idx(d) and idx2(e, d) respectively.
 ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
 
+--sorted_result
 SELECT d FROM t;
 
 SHOW CREATE TABLE t;
@@ -1417,8 +1455,10 @@ ALTER TABLE t ADD COLUMN l INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (l), ALGORI
 ALTER TABLE t ADD COLUMN l INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (l), ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE t;
 
+--sorted_result
 SELECT l FROM t;
 
+--sorted_result
 SELECT * FROM t;
 
 DROP TABLE t;
@@ -1438,14 +1478,18 @@ CREATE TABLE t (
 
 INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
 
+--sorted_result
 SELECT c, d FROM t;
 
+--sorted_result
 SELECT * FROM t;
 
 ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
 
+--sorted_result
 SELECT d FROM t;
 
+--sorted_result
 SELECT * FROM t;
 
 DROP TABLE t;
@@ -1464,8 +1508,10 @@ SELECT * FROM t;
 
 ALTER TABLE t DROP COLUMN c, ADD INDEX vidx(d), ALGORITHM=INPLACE;
 
+--sorted_result
 SELECT d FROM t;
 
+--sorted_result
 SELECT * FROM t;
 
 DROP TABLE t;

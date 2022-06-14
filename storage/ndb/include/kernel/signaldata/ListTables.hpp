@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,8 +161,8 @@ class ListTablesReq {
   friend class Dbdict;
 
 public:
-  STATIC_CONST( oldSignalLength = 3 );
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 oldSignalLength = 3;
+  static constexpr Uint32 SignalLength = 5;
 
 public:  
   Uint32 senderData;
@@ -233,7 +233,7 @@ class ListTablesConf {
   friend class Table;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 public:
   Uint32 senderData;
@@ -259,9 +259,9 @@ public:
   /**
    * Note: last signal is indicated by having length < 25
    */
-  STATIC_CONST( SignalLength = 25 );
-  STATIC_CONST( HeaderLength = 2  );
-  STATIC_CONST( DataLength   = 23 );
+  static constexpr Uint32 SignalLength = 25;
+  static constexpr Uint32 HeaderLength = 2;
+  static constexpr Uint32 DataLength = 23;
 
 public:  
   Uint32 senderData;

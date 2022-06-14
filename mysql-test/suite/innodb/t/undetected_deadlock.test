@@ -1,0 +1,154 @@
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Bug #29882690  UNDETECTED DEADLOCK WITH GAP AND INSERT INTENTION LOCKS
+--echo #                IS POSSIBLE
+--echo #
+
+# Save the original settings, to be restored at the end of test
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+# Make sure that transactions will not finish prematurely
+SET @@global.innodb_lock_wait_timeout = 20;
+
+--source ../include/prepare_show_locks.inc
+
+# Scenario for a deadlock which can be undetected if we move granted gap lock
+# in front of waiting insert intention lock.
+# Initially we have (1,"a"),(3,"c"),(4,"d")
+# 1. con1 obtains a GRANTED LOCK_GAP on gap before row id=3
+# 2. con2 obtains a GRANTED LOCK_X on row id=4
+#    (exact type, and row is not very important)
+# 3. con2 enqueues a waiting LOCK_INSERT_INTENTION into the gap before id=3
+#    (and is blocked by con1)
+# 4. con3 obtains a GRANTED LOCK_GAP on gap before row id=3
+#    (gap locks don't wait for II)
+# 5. con3 enqueues a waiting lock on same row as in step 2.
+#    (we have: con3 `waits-for` con2 `waits-for` con1 - no deadlock so far)
+# 6. con1 resizes the row with id=3 ("c"->"cccccccccccccccc") causing locks
+#    to be moved from one `heap_no` to another
+# 7. it depends on implementation of move opeartion, if con3's LOCK_GAP lands in
+#    front of con2's waiting II or behind
+# 8. con1 commits
+# 9. if con3's LOCK_GAP is behind con2's II, then
+#       con2's II becomes granted.
+#       con2 re-attempts to insert.
+#       con2 notices the con3's gap lock.
+#       con2 decides to wait.
+#       This creates a deadlock cycle, con2 has to wait-for con3, but con3 is
+#       already waiting for con2.
+#       if we perform deadlock detection from requesting thread then
+#          con2 notices the deadlock immediately,
+#       otherwise, if we perform deadlock detection from dedicated thread then
+#          we notice the deadlock after a while.
+#       In either case, deadlock is resolved.
+#    else:
+#       We have a deadlock cycle, as con2's II lock is behind con3's GAP lock,
+#       so con2 waits-for con3, and con3 waits for con2 already, but this cycle
+#       can go undetected unless we have a dedicated deadlock detector thread.
+#       When con1 lock is released, con2 sees a con3's GAP lock in front of it,
+#       thus con2's II is not granted, so it continues to be waiting.
+#       Both con2 and con3 wait (and finally someone timesout).
+
+
+
+
+  CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val VARCHAR(200));
+  INSERT INTO t1 (id,val) VALUES (1, "a"),     (3, "c"), (4, "d");
+
+  # These SELECTS are just to identify transactions easily as con1,con2,con3 in
+  # show_locks() by checking which row is locked by which.
+  --connect (con1, localhost, root,,)
+    CALL register_connection("con1");
+    BEGIN;
+
+  --connect (con2, localhost, root,,)
+    CALL register_connection("con2");
+    BEGIN;
+
+  --connect (con3, localhost, root,,)
+    CALL register_connection("con3");
+    BEGIN;
+
+  --echo # 1. con1 obtains a GRANTED LOCK_GAP on gap before row id=3
+  --connection con1
+    SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+
+  --connection default
+    CALL show_locks();
+
+  --echo # 2. con2 obtains a GRANTED LOCK_X on row id=4
+  --connection con2
+    SELECT * FROM t1 WHERE id=4 FOR UPDATE;
+
+  --connection default
+    CALL show_locks();
+
+  --echo # 3. con2 enqueues a waiting LOCK_INSERT_INTENTION into the gap
+  --echo #    before id=3
+  --connection con2
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+    --send INSERT INTO t1 (id, val) VALUES (2, "b")
+
+  --connection default
+    SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+    CALL show_locks();
+
+  --echo # 4. con3 obtains a GRANTED LOCK_GAP on gap before row id=3
+  --connection con3
+    SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+
+  --connection default
+    CALL show_locks();
+
+  --echo # 5. con3 enqueues a waiting lock on same row as in step 2.
+  --connection con3
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con3_will_wait';
+    --send SELECT * FROM t1 WHERE id=4 FOR UPDATE
+
+  --connection default
+    SET DEBUG_SYNC = 'now WAIT_FOR con3_will_wait';
+    CALL show_locks();
+
+  --echo # 6. con1 resizes the row with id=3 ("c"->"cccccccccccccccc") causing
+  --echo #    locks to be moved
+  --connection con1
+    UPDATE t1 SET val="cccccccccccccccc" WHERE id=3;
+
+  --echo # 7. it depends on implementation of con3's LOCK_GAP lands is in front
+  --echo #    of con2's waiting II or not
+  --echo # 8. con1 commits
+    COMMIT;
+
+  # At this point there should be no waiters at all, as the deadlock should be
+  # noticed and resolved - either when re-acquiring II lock, on in dedicated
+  # deadlock detector thread.
+  # Yet on a faulty implementation, we will see an unresolved deadlock:
+  # two threads, each with a lock WAITING for another transaction.
+  # Eventually transactions will timeout, and we will see ER_LOCK_WAIT_TIMEOUT
+  # as opposed to expected: success, or ER_LOCK_DEADLOCK.
+
+  --connection con2
+    --reap
+    ROLLBACK;
+
+  --connection con3
+    --error ER_LOCK_DEADLOCK
+    --reap
+    ROLLBACK;
+
+
+
+  --connection default
+  --disconnect con1
+  --disconnect con2
+  --disconnect con3
+
+  DROP TABLE t1;
+
+
+
+--source ../include/cleanup_show_locks.inc
+
+# Restore saved settings
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;

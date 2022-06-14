@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@ import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.ValueHandlerFactory;
-import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Dictionary;
@@ -53,6 +52,8 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
 
     static Class[] exceptions = new Class[] {NullPointerException.class, IllegalAccessException.class};
 
+    static boolean crazyDomainTypeHandlerFactoryUsed = false;
+
     static {
         for (Class exception: exceptions) {
             try {
@@ -65,11 +66,20 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
         }
     }
 
+    static public void resetCrazyDomainTypeHandlerFactoryUsed() {
+        crazyDomainTypeHandlerFactoryUsed = false;
+    }
+
+    static public boolean wasCrazyDomainTypeHandlerFactoryUsed() {
+        return crazyDomainTypeHandlerFactoryUsed;
+    }
+
     public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary,
             ValueHandlerFactory valueHandlerFactory) {
         String className = domainClass.getSimpleName();
         if (className.startsWith("Throw")) {
             String throwClassName = className.substring(5);
+            crazyDomainTypeHandlerFactoryUsed = throwClassName.equals("NullPointerException");
             try {
                 Constructor ctor = constructorMap.get(throwClassName);
                 RuntimeException throwable = (RuntimeException) ctor.newInstance(new Object[]{});
@@ -109,7 +119,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public Class getProxyClass() {
+                public Class<?>[] getProxyInterfaces() {
                     throw new UnsupportedOperationException("Nice Job!");
                 }
 
@@ -134,10 +144,6 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                 }
 
                 public void objectSetValues(ResultData rs, ValueHandler handler) {
-                    throw new UnsupportedOperationException("Not supported yet.");
-                }
-
-                public void objectSetValuesExcept(ResultData rs, ValueHandler handler, String indexName) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 

@@ -1,0 +1,195 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Kill the server
+CREATE DATABASE tde_db;
+USE tde_db;
+# Kill the server
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SET GLOBAL innodb_redo_log_encrypt = 0;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+0
+CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+FLUSH LOGS;
+# Kill the server
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+START TRANSACTION;
+SET GLOBAL innodb_redo_log_encrypt = 1;
+INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+ROLLBACK;
+START TRANSACTION;
+INSERT INTO t1 (a, b) VALUES (2, REPEAT('a', 6*512*512));
+INSERT INTO t2 (a, b) VALUES (2, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+COMMIT;
+CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+START TRANSACTION;
+SET GLOBAL innodb_redo_log_encrypt = 0;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+0
+INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+ROLLBACK;
+START TRANSACTION;
+INSERT INTO t3 (a, b) VALUES (2, REPEAT('a', 6*512*512));
+INSERT INTO t4 (a, b) VALUES (2, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+COMMIT;
+# Kill the server
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SET GLOBAL innodb_redo_log_encrypt = 0;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+0
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+2	aaaaaaaaaa
+CREATE USER encryptnonprivuser@localhost IDENTIFIED BY 'noauth';
+GRANT SELECT ON *.* to encryptnonprivuser@localhost;
+FLUSH PRIVILEGES;
+# In connection 1 - with encryptnonprivuser
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+SET GLOBAL innodb_redo_log_encrypt = 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+SET GLOBAL innodb_undo_log_encrypt = 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@global.innodb_undo_log_encrypt ;
+@@global.innodb_undo_log_encrypt
+0
+SET GLOBAL innodb_redo_log_encrypt = 1;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+SET GLOBAL innodb_undo_log_encrypt = 1;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@global.innodb_undo_log_encrypt ;
+@@global.innodb_undo_log_encrypt
+0
+# In connection default
+DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

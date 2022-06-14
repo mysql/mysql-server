@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,8 @@ public:
                    int record,
                    int numRecords = 1,
                    NdbOperation::LockMode lm = NdbOperation::LM_Read,
-                   NdbOperation::LockMode * lmused = 0);
+                   NdbOperation::LockMode * lmused = 0,
+                   bool noWait = false);
   
   int pkReadRandRecord(Ndb*,
                        int records,
@@ -147,7 +148,7 @@ public:
 
   NdbIndexScanOperation* pIndexScanOp;
 
-  NDBT_ResultRow& get_row(Uint32 idx) { return *rows[idx];}
+  NDBT_ResultRow& get_row(Uint32 index) { return *rows[index];}
 
   int execute_async(Ndb*, NdbTransaction::ExecType, NdbOperation::AbortOption = NdbOperation::AbortOnError);
   int execute_async_prepare(Ndb*, NdbTransaction::ExecType, NdbOperation::AbortOption = NdbOperation::AbortOnError);

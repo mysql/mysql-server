@@ -1,0 +1,42 @@
+--source include/big_test.inc
+
+DELIMITER |;
+CREATE PROCEDURE prepare_data(IN val INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+
+  WHILE i < val DO
+    INSERT INTO t1 (b) VALUES (i);
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT);
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='sampled_pages_read';
+
+CALL prepare_data(30000);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME FROM information_schema.column_statistics WHERE COLUMN_NAME = 'b';
+DROP TABLE t1;
+
+--replace_regex /[0-9]+/XX/
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Cleanup
+--echo #
+
+SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_disable = default;
+SET GLOBAL innodb_monitor_reset_all = default;
+
+DROP PROCEDURE prepare_data;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,11 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_system_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_system_v1);
+#define REQUIRES_PSI_SYSTEM_SERVICE REQUIRES_SERVICE(psi_system_v1)
+#define REQUIRES_PSI_SYSTEM_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(psi_system_v1)
+
+extern REQUIRES_PSI_SYSTEM_SERVICE_PLACEHOLDER;
 
 #define PSI_SYSTEM_CALL(M) mysql_service_psi_system_v1->M
 

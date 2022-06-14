@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "NdbImportImpl.hpp"
+
+#include <inttypes.h>
 
 NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   NdbImport(*this),
@@ -637,6 +640,7 @@ void
 NdbImportImpl::Job::start_resume()
 {
   log_debug(1, "start_resume jobno=" << m_jobno);
+  if(m_util.c_opt.m_stats)
   // verify old stats counts against old rowmap
   {
     uint64 old_rows;
@@ -648,7 +652,7 @@ NdbImportImpl::Job::start_resume()
       m_util.set_error_gen(m_error, __LINE__,
                            "inconsistent counts from old state files"
                            " (*.stt vs *.map)"
-                           " rows %llu vs %llu reject %llu vs %llu",
+                           " rows %" PRIu64 " vs %" PRIu64 " reject %" PRIu64 " vs %" PRIu64,
                            m_old_rows, old_rows, m_old_reject, old_reject);
       return;
     }
@@ -1558,7 +1562,7 @@ NdbImportImpl::RandomInputWorker::create_row(uint64 rowid, const Table& table)
   const uint attrcnt = attrs.size();
   char keychr[100];
   uint keylen;
-  sprintf(keychr, "%llu:", rowid);
+  sprintf(keychr, "%" PRIu64 ":", rowid);
   keylen = strlen(keychr);
   for (uint i = 0; i < attrcnt; i++)
   {
@@ -1758,7 +1762,7 @@ NdbImportImpl::CsvInputWorker::do_init()
         log_debug(1, "file " << file.get_path() << ": "
              "seek to pos " << seekpos << " done");
         m_csvinput->do_resume(range_in);
-        (void)ranges_in.pop_front();
+        rowmap_in.free_range(ranges_in.pop_front());
       }
       else
       {
@@ -1892,7 +1896,16 @@ NdbImportImpl::CsvInputWorker::state_parse()
   log_debug(2, "state_parse");
   m_csvinput->do_parse();
   log_debug(2, "lines parsed:" << m_csvinput->m_line_list.cnt());
-  m_inputstate = InputState::State_movetail;
+  if(m_csvinput->has_error())
+  {
+    /* Cannot recover from parser error */
+    m_util.copy_error(m_error, m_csvinput->m_error);
+    m_team.m_job.m_fatal = true;
+  }
+  else
+  {
+    m_inputstate = InputState::State_movetail;
+  }
 }
 
 void
@@ -2124,6 +2137,11 @@ NdbImportImpl::Op::Op()
   m_opsize = 0;
 }
 
+NdbImportImpl::Op::~Op()
+{
+  delete m_row;
+}
+
 NdbImportImpl::OpList::OpList()
 {
 }
@@ -2133,7 +2151,8 @@ NdbImportImpl::OpList::~OpList()
   Op* one_op = NULL;
   while ((one_op = pop_front()) != NULL)
   {
-    require(one_op->m_row == NULL);
+    // See bug 30192989
+    //  require(one_op->m_row == NULL);
     delete one_op;
   }
 }
@@ -2742,6 +2761,14 @@ NdbImportImpl::ExecOpWorker::state_receive()
 }
 
 void
+NdbImportImpl::ExecOpWorker::handle_error(Op *op)
+{
+  m_rows_free.push_back(op->m_row);
+  op->m_row = NULL;
+  free_op(op);
+}
+
+void
 NdbImportImpl::ExecOpWorker::reject_row(Row* row, const Error& error)
 {
   const Opt& opt = m_util.c_opt;
@@ -2787,11 +2814,26 @@ NdbImportImpl::ExecOpWorkerSynch::do_end()
   {
     require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.cnt() != 0)
+  else if (m_tx_open.cnt() != 0 &&
+           m_execstate == ExecState::State_prepare)
   {
+    // Error occurred in State_define:
+    //   1) Close the txs
     require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
+  }
+  //   2) Release the ops not called with insertTuple()
+  //      These will be taken care of when import resumes
+  Op* one_op = NULL;
+  while ((one_op = m_ops.pop_front()) != NULL)
+  {
+    if (one_op->m_row != NULL)
+    {
+      m_rows_free.push_back(one_op->m_row);
+      one_op->m_row = NULL;
+    }
+    free_op(one_op);
   }
 }
 
@@ -2923,11 +2965,24 @@ NdbImportImpl::ExecOpWorkerAsynch::do_end()
   }
   else if (m_execstate == ExecState::State_prepare)
   {
-    // error in State_define, simply close the txs
+    // Error occurred in State_define:
+    //   1) Close the txs
     while (m_tx_open.cnt() != 0)
     {
       Tx* tx = m_tx_open.front();
       close_trans(tx);
+    }
+    //   2) Release the ops not called with insertTuple()
+    //      These will be taken care of when import resumes
+    Op* one_op = NULL;
+    while ((one_op = m_ops.pop_front()) != NULL)
+    {
+      if (one_op->m_row != NULL)
+      {
+        m_rows_free.push_back(one_op->m_row);
+        one_op->m_row = NULL;
+      }
+      free_op(one_op);
     }
   }
   else
@@ -2987,6 +3042,8 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
       require(row != 0);
       log_debug(1, "push back to input: rowid " << row->m_rowid);
       rows_in.push_back_force(row);
+      op->m_row = NULL;
+      free_op(op);
     }
     rows_in.unlock();
   }
@@ -3015,6 +3072,75 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
 }
 
 void
+NdbImportImpl::ExecOpWorkerAsynch::set_auto_inc_val(const Attr& attr,
+                                                     Row *row,
+                                                     Uint64 val,
+                                                     Error& error) {
+  switch (attr.m_type) {
+    case NdbDictionary::Column::Tinyint: {
+      const int8 byteval = val;
+      attr.set_value(row, &byteval, 1);
+      break;
+    }
+    case NdbDictionary::Column::Tinyunsigned: {
+      const uint8 byteval = val;
+      attr.set_value(row, &byteval, 1);
+      break;
+    }
+    case NdbDictionary::Column::Smallint: {
+      const int16 shortval = val;
+      attr.set_value(row, &shortval, 2);
+      break;
+    }
+    case NdbDictionary::Column::Smallunsigned: {
+      const uint16 shortval = val;
+      attr.set_value(row, &shortval, 2);
+      break;
+    }
+    case NdbDictionary::Column::Mediumint: {
+      uchar val3[3];
+      int3store(val3, val);
+      attr.set_value(row, val3, 3);
+      break;
+    }
+    case NdbDictionary::Column::Mediumunsigned:
+    {
+      uchar val3[3];
+      int3store(val3, val);
+      attr.set_value(row, val3, 3);
+      break;
+    }
+    case NdbDictionary::Column::Int:
+    {
+      const Int32 intval = val;
+      attr.set_value(row, &intval, 4);
+      break;
+    }
+    case NdbDictionary::Column::Unsigned:
+    {
+      const Uint32 uintval = val;
+      attr.set_value(row, &uintval, 4);
+      break;
+    }
+    case NdbDictionary::Column::Bigint:
+    {
+      const Int64 int64val = val;
+      attr.set_value(row, &int64val, 8);
+      break;
+    }
+    case NdbDictionary::Column::Bigunsigned: {
+      // val is of type Uint64, no conversion needed
+      attr.set_value(row, &val, 8);
+      break;
+    }
+    default: {
+      require(false);
+      break;
+    }
+  }
+}
+
+void
 NdbImportImpl::ExecOpWorkerAsynch::state_define()
 {
   log_debug(2, "state_define/asynch");
@@ -3028,52 +3154,68 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
    * don't want to get stuck here on "permanent" temporary errors.
    * So we limit them by opt.m_tmperrors (counted per op).
    */
+  Op* op = NULL;
   while (m_ops.cnt() != 0)
   {
-    Op* op = m_ops.pop_front();
+    op = m_ops.pop_front();
     Row* row = op->m_row;
     require(row != 0);
+
     const Table& table = m_util.get_table(row->m_tabid);
-    if (table.m_has_hidden_pk)
-    {
+    if (table.m_autoIncAttrId != Inval_uint) {
       const Attrs& attrs = table.m_attrs;
-      const uint attrcnt = attrs.size();
-      const Attr& attr = attrs[attrcnt - 1];
-      require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-      uint64 val;
-      if (m_ndb->getAutoIncrementValue(table.m_tab, val,
-                                       opt.m_ai_prefetch_sz,
-                                       opt.m_ai_increment,
-                                       opt.m_ai_offset) == -1)
-      {
-        const NdbError& ndberror = m_ndb->getNdbError();
-        require(ndberror.code != 0);
-        if (ndberror.status == NdbError::TemporaryError)
+      const Attr& attr = attrs[table.m_autoIncAttrId];
+
+      const bool ai_value_not_provided = attr.ai_value_not_provided(row);
+      if (ai_value_not_provided) {
+        // No auto inc value was provided in the input file for an
+        // auto inc field, generate one
+        Uint64 val;
+        /**
+         * Each and every worker caches opt.m_ai_prefetch_sz auto inc
+         * values by calling getAutoIncrementValue(). If no cahced
+         * value available, this call will update the table meta data
+         * next-autoincrement value in SYSTAB to cache another
+         * opt.m_ai_prefetch_sz range exclusively for this worker.
+         */
+        if (m_ndb->getAutoIncrementValue(table.m_tab, val,
+                                         opt.m_ai_prefetch_sz,
+                                         opt.m_ai_increment,
+                                         opt.m_ai_offset) == -1)
         {
-          m_errormap.add_one(ndberror.code);
-          uint temperrors = m_errormap.get_sum();
-          if (temperrors <= opt.m_temperrors)
+          const NdbError& ndberror = m_ndb->getNdbError();
+          require(ndberror.code != 0);
+          if (ndberror.status == NdbError::TemporaryError)
           {
-            log_debug(1, "get autoincr try " << temperrors << ": " << ndberror);
-            m_ops.push_front(op);
-            NdbSleep_MilliSleep(opt.m_tempdelay);
-            continue;
+            m_errormap.add_one(ndberror.code);
+            uint temperrors = m_errormap.get_sum();
+            if (temperrors <= opt.m_temperrors)
+            {
+              log_debug(1, "get autoincr try " << temperrors << ": " << ndberror);
+              m_ops.push_front(op);
+              NdbSleep_MilliSleep(opt.m_tempdelay);
+              continue;
+            }
+            m_util.set_error_gen(m_error, __LINE__,
+                                 "number of transaction tries with"
+                                 " temporary errors is %u (limit %u)",
+                                 temperrors, opt.m_temperrors);
+            break;
           }
-          m_util.set_error_gen(m_error, __LINE__,
-                               "number of transaction tries with"
-                               " temporary errors is %u (limit %u)",
-                               temperrors, opt.m_temperrors);
-          break;
+          else
+          {
+            m_util.set_error_ndb(m_error, __LINE__, ndberror,
+                                 "table %s: get autoincrement failed",
+                                 table.m_tab->getName());
+            break;
+          }
         }
-        else
-        {
-          m_util.set_error_ndb(m_error, __LINE__, ndberror,
-                               "table %s: get autoincrement failed",
-                               table.m_tab->getName());
+
+        set_auto_inc_val(attr, row, val, m_error);
+        if (m_util.has_error()) {
           break;
         }
       }
-      attr.set_value(row, &val, 8);
     }
     const bool no_hint = opt.m_no_hint;
     Tx* tx = 0;
@@ -3148,15 +3290,33 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
           break;
         }
       }
-      bool batch = false;
-      if (bh->preExecute(NdbTransaction::Commit, batch) == -1)
+      NdbBlob::BlobAction rc =
+        bh->preExecute(NdbTransaction::Commit);
+
+      if (rc != NdbBlob::BA_DONE)
       {
-        m_util.set_error_ndb(m_error, __LINE__, bh->getNdbError());
+        if (rc == NdbBlob::BA_ERROR)
+        {
+          m_util.set_error_ndb(m_error, __LINE__, bh->getNdbError());
+        }
+        else
+        {
+          m_util.set_error_gen(m_error, __LINE__, "Blob execution error %u",
+                               rc);
+        }
         break;
       }
     }
+    if (has_error())
+    {
+      break;
+    }
     op->m_rowop = rowop;
     tx->m_ops.push_back(op);
+  }
+  if (has_error())
+  {
+    handle_error(op);
   }
   m_execstate = ExecState::State_prepare;
 }
@@ -3338,24 +3498,23 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     return;
   }
   // csv input requires at least 2 instances
-  Buf* buf[2];
+  Buf buf[2] = {{true}, {true}};
   CsvInput* csvinput[2];
   RowList rows_reject;
+  RowMap rowmap_in[] = {m_util, m_util};
   for (uint i = 0; i < 2; i++)
   {
     uint pagesize = opt.m_pagesize;
     uint pagecnt = opt.m_pagecnt;
-    buf[i] = new Buf(true);
-    buf[i]->alloc(pagesize, 2 * pagecnt);
-    RowMap rowmap_in(m_util);   // dummy
+    buf[i].alloc(pagesize, 2 * pagecnt);
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
                                csvspec,
                                table,
-                               *buf[i],
+                               buf[i],
                                rows_out,
                                rows_reject,
-                               rowmap_in,
+                               rowmap_in[i],
                                m_job.m_stats);
     csvinput[i]->do_init();
   }
@@ -3366,8 +3525,8 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     {
       uint j = 1 - i;
       CsvInput& csvinput1 = *csvinput[i];
-      Buf& b1 = *buf[i];
-      Buf& b2 = *buf[j];
+      Buf& b1 = buf[i];
+      Buf& b2 = buf[j];
       b1.reset();
       if (file.do_read(b1) == -1)
       {
@@ -3405,6 +3564,12 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     }
     log_debug(1, "read_old_diags: " << name << " count=" << rows_out.cnt());
   }
+
+  for (uint i = 0; i < 2; i++)
+  {
+    delete csvinput[i];
+  }
+
   // XXX diag errors not yet handled
   require(rows_reject.cnt() == 0);
 }
@@ -3509,6 +3674,7 @@ NdbImportImpl::DiagTeam::read_old_diags()
     log_debug(1, "old rowmap:" << rowmap_in);
   }
   // old counts
+  if (opt.m_stats)
   {
     const char* path = opt.m_stats_file;
     const Table& table = m_util.c_stats_table;

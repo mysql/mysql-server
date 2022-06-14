@@ -5,6 +5,10 @@
 #                                                      #
 ########################################################
 
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+# because max_length in metadata is different in PS protocol.
+--source include/no_protocol.inc
+
 #    
 # NOTE: PLEASE SEE ps_1general.test (bottom) 
 #       BEFORE ADDING NEW TABLES HERE !!!

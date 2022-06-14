@@ -1,0 +1,126 @@
+# *************************************************************
+# Test the following DDL not to replay on slave
+# ALTER INSTANCE [ENABLE|DISABLE] INNODB REDO_LOG and
+# Check Red-Log Archive error cases when redo_log disable
+# *************************************************************
+--source include/master-slave.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
+--echo [Connection Master]
+--connection master
+
+# Check Default status of the redo_log on Master
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+#Check DDL and DML operations on Master
+CREATE TABLE tab1(c1 int,c2 text);
+INSERT INTO tab1 VALUES(1,'Test');
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+#Check Default status of the redo_log on Slave
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+#Check DDL and DML operations on Slave
+SELECT * FROM tab1;
+
+--echo [Connection Master]
+--connection master
+
+--let $IRLA_DIRECTORY_1  = $MYSQLTEST_VARDIR/log/redo_log_archive_1
+--mkdir $IRLA_DIRECTORY_1
+
+--let $saved_master_dirs = `SELECT @@global.innodb_redo_log_archive_dirs`
+
+# Set the redo_log_archive path on master
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+
+# Set Disable On Master
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+
+# Check redo_log status DISABLE on Master as set
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+# Try to start redo log Archiving On Master
+--error ER_INNODB_REDO_DISABLED
+SELECT innodb_redo_log_archive_start('label1');
+
+#Check DDL and DML operations on Master, after redo_log status disable
+CREATE TABLE tab2(c1 int,c2 text);
+INSERT INTO tab2 VALUES(1,'Test');
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--let $saved_slave_dirs = `SELECT @@global.innodb_redo_log_archive_dirs`
+
+# Check redo_log status still ENABLE on Slave
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+# Set the redo_log_archive path on slave
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label2:$IRLA_DIRECTORY_1';
+
+#Check DDL and DML operations on Slave
+SELECT * FROM tab1;
+SELECT * FROM tab2;
+
+# Set Disable On Slave
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+
+# Check redo_log status DISABLE on Slave
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+# Try to start redo log Archiving On Slave
+--error ER_INNODB_REDO_DISABLED
+DO innodb_redo_log_archive_start("label2");
+
+--echo [Connection Master]
+--connection master
+
+# Check redo_log status still Disable on Slave
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+# Set Enable On Master
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+#clean up
+DROP TABLE tab1;
+DROP TABLE tab2;
+
+# Check redo_log status Enable on Master
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+--echo # Set Default value on master side
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_master_dirs';
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Set Enable On Slave
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+# Check redo_log status Enable on Slave
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+--echo # Set Default value on master side
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_master_dirs';
+
+--remove_files_wildcard $IRLA_DIRECTORY_1/ archive*
+--rmdir $IRLA_DIRECTORY_1
+
+--source include/rpl_end.inc

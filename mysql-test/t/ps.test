@@ -1,6 +1,9 @@
 -- source include/have_log_bin.inc
 
-call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.'); 
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 #
 # SQL Syntax for Prepared Statements test
 #
@@ -1901,12 +1904,8 @@ show create view v1;
 select * from v1;
 drop view v1;
 
+--error ER_VIEW_WRONG_LIST
 prepare stmt from "create view v1 (a,b,c) as select * from t1";
---error ER_VIEW_WRONG_LIST
-execute stmt;
---error ER_VIEW_WRONG_LIST
-execute stmt;
-deallocate prepare stmt;
 
 drop table t1;
 create temporary table t1 (a int, b int);
@@ -2894,8 +2893,10 @@ CREATE TABLE t1 (a TIME NOT NULL, b TINYINT);
 INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
 PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
 ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > '1234abc'))";
+--disable_warnings
 EXECUTE stmt;
 EXECUTE stmt;
+--enable_warnings
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
@@ -3118,7 +3119,7 @@ DROP PROCEDURE p2;
 
 ###########################################################################
 
---source t/wl4435_generated.inc
+--source include/ps_out_params_generated.inc
 
 ###########################################################################
 
@@ -3423,8 +3424,131 @@ INSERT INTO bug19894382(f2, f3, f4, f5, f6, f7)
 SELECT * FROM bug19894382 ORDER BY f2;
 
 --echo # Cleanup
-DROP DATABASE client_test_db;
 DROP TABLE bug19894382;
 --remove_file $MYSQLTEST_VARDIR/log/bug19894382.out.log
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
 --rmdir $MYSQLTEST_VARDIR/tmp/test
+
+--echo # Test parameter string longer than 65k
+SET @a=repeat('a', 100000);
+prepare s from "select length(?)";
+execute s using @a;
+
+DROP DATABASE client_test_db;
+
+--echo # Bug#28929657: Assertion !is_temporal() at Item::get_time_from_int()
+
+CREATE TABLE t1 (t time DEFAULT NULL);
+INSERT INTO t1 VALUES ('16:07:44');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE t = ?";
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
+CREATE TABLE t1 (dt datetime DEFAULT NULL);
+INSERT INTO t1 VALUES ('2018-11-11 16:07:44');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE dt = ?";
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
+CREATE TABLE t1 (d date DEFAULT NULL);
+INSERT INTO t1 VALUES ('2018-11-11');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE d = ?";
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+--echo #
+--echo # Bug#30438038: MAIN.LOCK_MULTI_BUG38499 FAILS ON PB2
+--echo #
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+PREPARE ps FROM
+  'UPDATE t, (SELECT 1 FROM t UNION SELECT 2 FROM t) e SET a = 0 WHERE FALSE';
+EXECUTE ps;
+EXECUTE ps;  # The second execution used to fail.
+DROP PREPARE ps;
+DROP TABLE t;
+
+--echo # Bug#31437028: SIG11 AT FIELD::HIDDEN() IN SQL/FIELD.H WITH PREPARED SHOW CREATE VIEW
+
+CREATE TABLE t1(c1 int);
+INSERT INTO t1 VALUES(1),(2);
+CREATE FUNCTION f1() returns INT deterministic return 1;
+CREATE VIEW v1 AS SELECT c1 FROM t1 WHERE c1 = f1();
+DROP FUNCTION f1;
+PREPARE stmt FROM "SHOW CREATE VIEW v1";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo # Bug#32077842: "Illegal mix of collations" errors when matching ASCII field and UNICODE
+
+CREATE TABLE t1 (a char (64) character set latin1, b int unsigned);
+PREPARE s FROM 'SELECT a FROM t1 WHERE a=? AND b=?';
+SET @a = 'test';
+SET @b = 2;
+EXECUTE s USING @a, @b;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32751973: REGRESSION: HEAP-USE-AFTER-FREE IN ITEM_FIELD::BIND_FIELDS
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+PREPARE s FROM 'SELECT 1 FROM t1 WHERE TRUE OR ( SELECT 1 FROM (SELECT a) q ) = 1';
+EXECUTE s;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32808790: DON'T ADD CACHES AROUND PREPARED STATEMENT PARAMETERS
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER NOT NULL, a INTEGER );
+
+# Verify there's no <cache> around the 2.
+PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
+SET @v = 2;
+--replace_regex /  \(cost=.*//
+EXECUTE q USING @v;
+
+DROP TABLE t1;
+
+--echo # Bug#32213576: MySQL tries to parse string-bound float as integer
+--echo #               and returns wrong error
+
+CREATE TABLE t (f INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t (f) VALUES (0);
+PREPARE stmt FROM 'UPDATE t SET f = 100 * ?';
+SET @a = '0.3';
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo # Bug#32787037: Passed string type binding for integer column
+--echo #               incorrectly cast to integer
+
+CREATE TABLE t1 (int_column INT NOT NULL);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+SELECT * from t1 where int_column < '1.9';
+
+PREPARE stmt FROM 'SELECT * from t1 where int_column < ?';
+SET @a = '1.9';
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1;
+
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

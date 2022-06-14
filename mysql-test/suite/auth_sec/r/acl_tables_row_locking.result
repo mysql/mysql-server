@@ -1,0 +1,4834 @@
+#
+# WL#14087 Avoid locking reads from ACL tables
+#
+# Test scenarios that involve reading ACL tables and updating
+# ACL tables concurrently. This tests are related to WL#14087.
+#
+# Following ACL tables are considered for testing:
+#   mysql.user
+#   mysql.db
+#   mysql.tables_priv
+#   mysql.columns_priv
+#   mysql.procs_priv
+#   mysql.proxies_priv
+#   mysql.role_edges
+#   mysql.default_roles
+#   mysql.global_grants
+#   mysql.password_history
+#
+# Setup schema for the test
+# We create new users so that we can populate rows in all acl tables.
+# We avoid using 'root' user here, because that might affect execution
+# of other tests. Also, we would need more than one users for below
+# test cases.
+#
+CREATE TABLE t1 (f1 INT);
+CREATE PROCEDURE proc1() BEGIN SELECT * FROM t1; END //
+# User accounts used for testing.
+CREATE USER u1;
+GRANT SELECT ON mysql.* TO u1;
+GRANT SELECT ON performance_schema.* TO u1;
+GRANT LOCK TABLES  ON *.* TO u1;
+GRANT RELOAD ON *.* TO u1;
+CREATE USER writer1;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.* TO writer1;
+GRANT SELECT ON performance_schema.* TO writer1;
+GRANT CREATE, DROP ON *.* TO writer1;
+GRANT CREATE USER ON *.* TO writer1;
+CREATE USER writer2;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.* TO writer2;
+GRANT SELECT ON performance_schema.* TO writer2;
+GRANT CREATE, DROP ON *.* TO writer2;
+GRANT CREATE USER ON *.* TO writer2;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO writer2;
+GRANT REFERENCES ON mysql.user TO writer2;
+# Populate all ACL tables with some rows for u2.
+# This user is used for checking purpose.
+CREATE USER u2 PASSWORD HISTORY 3;
+GRANT SELECT ON test.* TO u2;
+GRANT SELECT ON test.t1 TO u2;
+GRANT SELECT (f1) ON test.t1 TO u2;
+GRANT EXECUTE ON PROCEDURE test.proc1 TO u2;
+GRANT PROXY ON writer1 TO u2;
+GRANT BACKUP_ADMIN ON *.* to u2;
+GRANT writer1 TO u2;
+SET DEFAULT ROLE writer1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'newpass1';
+# Verify that all ACL tables has some rows for u2.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.db WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.tables_priv WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.columns_priv WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.procs_priv WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.proxies_priv WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.global_grants WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.password_history WHERE User='u2';
+User
+u2
+SELECT User FROM mysql.default_roles WHERE User='u2';
+User
+u2
+SELECT To_user FROM mysql.role_edges WHERE To_user='u2';
+To_user
+u2
+# Backup user 'u2' and rename it as 'u2x'. This row
+# is used to test DML on mysql.user.
+CREATE TABLE user_bk AS SELECT * FROM mysql.user WHERE User='u2';
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+CREATE TABLE user_copy AS SELECT * FROM mysql.user LIMIT 0;
+CREATE PROCEDURE proc2 ()
+BEGIN
+UPDATE mysql.user SET user='u2x' WHERE User='u2';
+END|
+CREATE FUNCTION func1 () RETURNS INTEGER
+BEGIN
+UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+RETURN 0;
+END|
+GRANT EXECUTE ON PROCEDURE test.proc2 TO writer2;
+GRANT EXECUTE ON FUNCTION test.func1 TO writer2;
+SET GLOBAL optimizer_switch = "skip_scan=off";
+# Connections used for testing.
+# Case 1:
+# Execute SELECT FOR UPDATE on ACL table after a concurrent
+# connection has started reading ACL table.
+#
+# SQL commands using ACL tables for read operation would skip
+# acquiring row lock. This will enable execution of
+# 'SELECT ... FOR UPDATE' statement without blocking.
+# connection which is reading a ACL table. We test all the ACL tables.
+#
+# Run the test for all isolation level for table mysql.user
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.user
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.user
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.user
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.user
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.user
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.db
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.db WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.db
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.db WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.db
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.db WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.db
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.db WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.db
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.db
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.tables_priv
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.tables_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.columns_priv
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.columns_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.procs_priv
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.procs_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.proxies_priv
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.proxies_priv
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.global_grants
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.global_grants
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.global_grants
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.password_history
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.password_history WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.password_history
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.password_history WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.password_history
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.password_history WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.password_history
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.password_history WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.password_history
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.password_history
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.default_roles
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles WHERE User='u2';
+User
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.default_roles
+WHERE User='u2' LOCK IN SHARE MODE;
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT User FROM mysql.default_roles
+WHERE User='u2' FOR UPDATE;
+User
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Run the test for all isolation level for table mysql.role_edges
+"Case 1.1: Start a transaction in SERIALIZABLE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges WHERE To_user='u2';
+To_user
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' LOCK IN SHARE MODE;
+To_user
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Start a transaction in REPEATABLE READ"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges WHERE To_user='u2';
+To_user
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' LOCK IN SHARE MODE;
+To_user
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Start a transaction in READ COMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges WHERE To_user='u2';
+To_user
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.3: Using READ COMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' LOCK IN SHARE MODE;
+To_user
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Start a transaction in READ UNCOMMITTED"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges WHERE To_user='u2';
+To_user
+u2
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+"Case 1.4: Using READ UNCOMMITTED with SELECT LOCK IN SHARE MODE"
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' LOCK IN SHARE MODE;
+To_user
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no read row lock is held on row 'u2'.
+eval SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
+"Allow the same row to be read for update by SELECT FOR UPDATE"
+  connection update_con
+SELECT To_user FROM mysql.role_edges
+WHERE To_user='u2' FOR UPDATE;
+To_user
+u2
+# Make sure X record locks are held on row 'u2'
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+COMMIT;
+# Case 2 (with SERIALIZABLE isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 2.1 (with SERIALIZABLE isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT .. HIGH PRIORITY in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT HIGH_PRIORITY User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 3 (with SERIALIZABLE isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+set autocommit=0;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+set autocommit=default;
+# Case 4 (with SERIALIZABLE isolation level):
+# Read ACL table in DO command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+DO (SELECT User FROM mysql.user WHERE User='u2');
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 5 (with SERIALIZABLE isolation level):
+# Read ACL table in SET command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SET @u2_host = (SELECT Host FROM mysql.user WHERE User='u2');
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 6:
+# Read ACL table in INSERT ... SELECT command in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 7:
+# Read ACL table in UPDATE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 8:
+# Read ACL table in Multi-table UPDATE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+UPDATE t1, user_copy SET user_copy.Host='instance1'
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 9:
+# Read ACL table in DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+DELETE FROM user_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 10:
+# Read ACL table in Multi-table DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+DELETE user_copy FROM user_copy JOIN (SELECT * FROM user_copy) tuser_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 11:
+# Read ACL table in CREATE TABLE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET SESSION DEBUG_SYNC='create_select_after_write_rows_event SIGNAL parked WAIT_FOR go';
+CREATE TABLE tmp AS SELECT * FROM mysql.user WHERE User='u2';
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+SET DEBUG_SYNC= 'now SIGNAL go';
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION DEBUG_SYNC=RESET;
+COMMIT;
+SET SESSION DEBUG_SYNC=RESET;
+DROP TABLE tmp;
+# Case 12:
+# Read ACL table in LOCK TABLE for READ mode and
+# Make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+LOCK TABLE mysql.user READ;
+SET SESSION lock_wait_timeout=1;
+SET SESSION innodb_lock_wait_timeout=1;
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 13:
+# Run FTWRL READ mode and
+# make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+FLUSH TABLES WITH READ LOCK;
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 14:
+# Update ACL table in a DML inside a SP in different isolation mode.
+# Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+CALL proc2();
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT func1();
+func1()
+0
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 15:
+# Reference ACL table in a foreign key. Reading ACL table while
+# updating the table in different isolation mode.
+# Make sure a concurrent ACL DML on ACL table is blocked.
+CREATE TABLE fk_to_acl_table
+(Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
+address CHAR(255),
+FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
+ALGORITHM=COPY;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+INSERT INTO fk_to_acl_table VALUES ('%', 'u2', '2nd cross, 1st main, downtown');
+# Make sure S record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Cleanup
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+DROP TABLE fk_to_acl_table;
+# Case 16:
+# Case 16.1 Update ACL table in a multi-table UPDATE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+UPDATE mysql.user u, user_copy SET u.User='u2x' WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 16.2 Read ACL table in a multi-table UPDATE command in
+# different isolation level. Ideally concurrent DML on ACL table
+# should have been blocked. Due to Bug#31731752 we acquire
+# stronger lock on the table and hence acquire X clock on the
+# ACL table being read.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+UPDATE mysql.user u1, user_copy u2 SET u2.User='u2x' WHERE u2.User LIKE 'u2';
+# Check that X record locks is held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 17:
+# Case 17.1: Delete row in ACL table in a multi-table DELETE in
+# different isolation level. Make sure a concurrent DML on ACL
+# table is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT User FROM user_copy;
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+DELETE u, cu FROM mysql.user u JOIN user_copy cu WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+# Case 17.2 Read ACL table in a multi-table DELETE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is not blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+DELETE u1 FROM user_copy u1 JOIN mysql.user u2 ON u2.User = u1.User;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 18:
+# Read ACL table in a DML inside a trigger in different isolation
+# mode. Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+CREATE TABLE tmp1 (f1 INT);
+CREATE TRIGGER read_trig1 BEFORE INSERT ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE user_copy SET User='u2x'
+      WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+END|
+CREATE TRIGGER update_trig1 BEFORE UPDATE ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE mysql.user SET user='u2x' WHERE User='u2';
+END|
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+INSERT INTO tmp1 VALUES (20);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+UPDATE tmp1 SET f1=30;
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION lock_wait_timeout=default;
+SET SESSION innodb_lock_wait_timeout=default;
+ROLLBACK;
+DROP TABLE tmp1;
+DELETE FROM user_copy;
+# Case 2 (with REPEATABLE READ isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 2.1 (with REPEATABLE READ isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT .. HIGH PRIORITY in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT HIGH_PRIORITY User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 3 (with REPEATABLE READ isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+set autocommit=0;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+set autocommit=default;
+# Case 4 (with REPEATABLE READ isolation level):
+# Read ACL table in DO command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+DO (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 5 (with REPEATABLE READ isolation level):
+# Read ACL table in SET command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SET @u2_host = (SELECT Host FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 6:
+# Read ACL table in INSERT ... SELECT command in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 7:
+# Read ACL table in UPDATE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 8:
+# Read ACL table in Multi-table UPDATE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+UPDATE t1, user_copy SET user_copy.Host='instance1'
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 9:
+# Read ACL table in DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+DELETE FROM user_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 10:
+# Read ACL table in Multi-table DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+DELETE user_copy FROM user_copy JOIN (SELECT * FROM user_copy) tuser_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 11:
+# Read ACL table in CREATE TABLE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET SESSION DEBUG_SYNC='create_select_after_write_rows_event SIGNAL parked WAIT_FOR go';
+CREATE TABLE tmp AS SELECT * FROM mysql.user WHERE User='u2';
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+SET DEBUG_SYNC= 'now SIGNAL go';
+SET SESSION DEBUG_SYNC=RESET;
+COMMIT;
+SET SESSION DEBUG_SYNC=RESET;
+DROP TABLE tmp;
+# Case 12:
+# Read ACL table in LOCK TABLE for READ mode and
+# Make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+LOCK TABLE mysql.user READ;
+SET SESSION lock_wait_timeout=1;
+SET SESSION innodb_lock_wait_timeout=1;
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 13:
+# Run FTWRL READ mode and
+# make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+FLUSH TABLES WITH READ LOCK;
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 14:
+# Update ACL table in a DML inside a SP in different isolation mode.
+# Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+CALL proc2();
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT func1();
+func1()
+0
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 15:
+# Reference ACL table in a foreign key. Reading ACL table while
+# updating the table in different isolation mode.
+# Make sure a concurrent ACL DML on ACL table is blocked.
+CREATE TABLE fk_to_acl_table
+(Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
+address CHAR(255),
+FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
+ALGORITHM=COPY;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+INSERT INTO fk_to_acl_table VALUES ('%', 'u2', '2nd cross, 1st main, downtown');
+# Make sure S record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Cleanup
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+DROP TABLE fk_to_acl_table;
+# Case 16:
+# Case 16.1 Update ACL table in a multi-table UPDATE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+UPDATE mysql.user u, user_copy SET u.User='u2x' WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 16.2 Read ACL table in a multi-table UPDATE command in
+# different isolation level. Ideally concurrent DML on ACL table
+# should have been blocked. Due to Bug#31731752 we acquire
+# stronger lock on the table and hence acquire X clock on the
+# ACL table being read.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+UPDATE mysql.user u1, user_copy u2 SET u2.User='u2x' WHERE u2.User LIKE 'u2';
+# Check that X record locks is held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 17:
+# Case 17.1: Delete row in ACL table in a multi-table DELETE in
+# different isolation level. Make sure a concurrent DML on ACL
+# table is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT User FROM user_copy;
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+DELETE u, cu FROM mysql.user u JOIN user_copy cu WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+# Case 17.2 Read ACL table in a multi-table DELETE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is not blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+DELETE u1 FROM user_copy u1 JOIN mysql.user u2 ON u2.User = u1.User;
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 18:
+# Read ACL table in a DML inside a trigger in different isolation
+# mode. Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+CREATE TABLE tmp1 (f1 INT);
+CREATE TRIGGER read_trig1 BEFORE INSERT ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE user_copy SET User='u2x'
+      WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+END|
+CREATE TRIGGER update_trig1 BEFORE UPDATE ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE mysql.user SET user='u2x' WHERE User='u2';
+END|
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+INSERT INTO tmp1 VALUES (20);
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+UPDATE tmp1 SET f1=30;
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION lock_wait_timeout=default;
+SET SESSION innodb_lock_wait_timeout=default;
+ROLLBACK;
+DROP TABLE tmp1;
+DELETE FROM user_copy;
+# Case 2 (with READ COMMITTED isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 2.1 (with READ COMMITTED isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT .. HIGH PRIORITY in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT HIGH_PRIORITY User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 3 (with READ COMMITTED isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+set autocommit=0;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+set autocommit=default;
+# Case 4 (with READ COMMITTED isolation level):
+# Read ACL table in DO command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+DO (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 5 (with READ COMMITTED isolation level):
+# Read ACL table in SET command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SET @u2_host = (SELECT Host FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 6:
+# Read ACL table in INSERT ... SELECT command in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 7:
+# Read ACL table in UPDATE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 8:
+# Read ACL table in Multi-table UPDATE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+UPDATE t1, user_copy SET user_copy.Host='instance1'
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 9:
+# Read ACL table in DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+DELETE FROM user_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 10:
+# Read ACL table in Multi-table DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+DELETE user_copy FROM user_copy JOIN (SELECT * FROM user_copy) tuser_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 11:
+# Read ACL table in CREATE TABLE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION DEBUG_SYNC='create_select_after_write_rows_event SIGNAL parked WAIT_FOR go';
+CREATE TABLE tmp AS SELECT * FROM mysql.user WHERE User='u2';
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+SET DEBUG_SYNC= 'now SIGNAL go';
+SET SESSION DEBUG_SYNC=RESET;
+COMMIT;
+SET SESSION DEBUG_SYNC=RESET;
+DROP TABLE tmp;
+# Case 12:
+# Read ACL table in LOCK TABLE for READ mode and
+# Make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+LOCK TABLE mysql.user READ;
+SET SESSION lock_wait_timeout=1;
+SET SESSION innodb_lock_wait_timeout=1;
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 13:
+# Run FTWRL READ mode and
+# make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+FLUSH TABLES WITH READ LOCK;
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 14:
+# Update ACL table in a DML inside a SP in different isolation mode.
+# Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+CALL proc2();
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT func1();
+func1()
+0
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 15:
+# Reference ACL table in a foreign key. Reading ACL table while
+# updating the table in different isolation mode.
+# Make sure a concurrent ACL DML on ACL table is blocked.
+CREATE TABLE fk_to_acl_table
+(Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
+address CHAR(255),
+FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
+ALGORITHM=COPY;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO fk_to_acl_table VALUES ('%', 'u2', '2nd cross, 1st main, downtown');
+# Make sure S record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Cleanup
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+DROP TABLE fk_to_acl_table;
+# Case 16:
+# Case 16.1 Update ACL table in a multi-table UPDATE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+UPDATE mysql.user u, user_copy SET u.User='u2x' WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 16.2 Read ACL table in a multi-table UPDATE command in
+# different isolation level. Ideally concurrent DML on ACL table
+# should have been blocked. Due to Bug#31731752 we acquire
+# stronger lock on the table and hence acquire X clock on the
+# ACL table being read.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+UPDATE mysql.user u1, user_copy u2 SET u2.User='u2x' WHERE u2.User LIKE 'u2';
+# Check that X record locks is held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 17:
+# Case 17.1: Delete row in ACL table in a multi-table DELETE in
+# different isolation level. Make sure a concurrent DML on ACL
+# table is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT User FROM user_copy;
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+DELETE u, cu FROM mysql.user u JOIN user_copy cu WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+# Case 17.2 Read ACL table in a multi-table DELETE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is not blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+DELETE u1 FROM user_copy u1 JOIN mysql.user u2 ON u2.User = u1.User;
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 18:
+# Read ACL table in a DML inside a trigger in different isolation
+# mode. Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+CREATE TABLE tmp1 (f1 INT);
+CREATE TRIGGER read_trig1 BEFORE INSERT ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE user_copy SET User='u2x'
+      WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+END|
+CREATE TRIGGER update_trig1 BEFORE UPDATE ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE mysql.user SET user='u2x' WHERE User='u2';
+END|
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO tmp1 VALUES (20);
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+UPDATE tmp1 SET f1=30;
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION lock_wait_timeout=default;
+SET SESSION innodb_lock_wait_timeout=default;
+ROLLBACK;
+DROP TABLE tmp1;
+DELETE FROM user_copy;
+# Case 2 (with READ UNCOMMITTED isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 2.1 (with READ UNCOMMITTED isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT .. HIGH PRIORITY in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT HIGH_PRIORITY User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 3 (with READ UNCOMMITTED isolation level):
+# Using a separate transaction (With START TRANSACTION)
+# Read ACL table in SELECT in all isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+set autocommit=0;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+set autocommit=default;
+# Case 4 (with READ UNCOMMITTED isolation level):
+# Read ACL table in DO command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+DO (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 5 (with READ UNCOMMITTED isolation level):
+# Read ACL table in SET command in different isolation mode
+# and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SET @u2_host = (SELECT Host FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 6:
+# Read ACL table in INSERT ... SELECT command in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 7:
+# Read ACL table in UPDATE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+UPDATE user_copy SET User='u2x'
+    WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 8:
+# Read ACL table in Multi-table UPDATE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+UPDATE t1, user_copy SET user_copy.Host='instance1'
+    WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 9:
+# Read ACL table in DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+DELETE FROM user_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 10:
+# Read ACL table in Multi-table DELETE ... WHERE SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+DELETE user_copy FROM user_copy JOIN (SELECT * FROM user_copy) tuser_copy
+WHERE EXISTS (SELECT User FROM mysql.user WHERE User='u2');
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+# Case 11:
+# Read ACL table in CREATE TABLE ... SELECT in different
+# isolation mode and run DDL/DML on ACL tables in concurrent.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SET SESSION DEBUG_SYNC='create_select_after_write_rows_event SIGNAL parked WAIT_FOR go';
+CREATE TABLE tmp AS SELECT * FROM mysql.user WHERE User='u2';
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+SET DEBUG_SYNC= 'now SIGNAL go';
+SET SESSION DEBUG_SYNC=RESET;
+COMMIT;
+SET SESSION DEBUG_SYNC=RESET;
+DROP TABLE tmp;
+# Case 12:
+# Read ACL table in LOCK TABLE for READ mode and
+# Make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+LOCK TABLE mysql.user READ;
+SET SESSION lock_wait_timeout=1;
+SET SESSION innodb_lock_wait_timeout=1;
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 13:
+# Run FTWRL READ mode and
+# make sure a concurrent ACL DML on same table is blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+FLUSH TABLES WITH READ LOCK;
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+# Case 14:
+# Update ACL table in a DML inside a SP in different isolation mode.
+# Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+CALL proc2();
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT func1();
+func1()
+0
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 15:
+# Reference ACL table in a foreign key. Reading ACL table while
+# updating the table in different isolation mode.
+# Make sure a concurrent ACL DML on ACL table is blocked.
+CREATE TABLE fk_to_acl_table
+(Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
+address CHAR(255),
+FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
+ALGORITHM=COPY;
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+INSERT INTO fk_to_acl_table VALUES ('%', 'u2', '2nd cross, 1st main, downtown');
+# Make sure S record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Cleanup
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+DROP TABLE fk_to_acl_table;
+# Case 16:
+# Case 16.1 Update ACL table in a multi-table UPDATE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+UPDATE mysql.user u, user_copy SET u.User='u2x' WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 16.2 Read ACL table in a multi-table UPDATE command in
+# different isolation level. Ideally concurrent DML on ACL table
+# should have been blocked. Due to Bug#31731752 we acquire
+# stronger lock on the table and hence acquire X clock on the
+# ACL table being read.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+UPDATE mysql.user u1, user_copy u2 SET u2.User='u2x' WHERE u2.User LIKE 'u2';
+# Check that X record locks is held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL tables.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+# Case 17:
+# Case 17.1: Delete row in ACL table in a multi-table DELETE in
+# different isolation level. Make sure a concurrent DML on ACL
+# table is blocked.
+UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SELECT User FROM user_copy;
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+DELETE u, cu FROM mysql.user u JOIN user_copy cu WHERE u.User LIKE 'u2';
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
+# Case 17.2 Read ACL table in a multi-table DELETE command in
+# different isolation level. Make sure a concurrent DML on ACL table
+# is not blocked.
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+DELETE u1 FROM user_copy u1 JOIN mysql.user u2 ON u2.User = u1.User;
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+ROLLBACK;
+# Case 18:
+# Read ACL table in a DML inside a trigger in different isolation
+# mode. Make sure a concurrent ACL DML on same table is blocked.
+INSERT INTO user_copy SELECT * FROM mysql.user WHERE User='u2';
+CREATE TABLE tmp1 (f1 INT);
+CREATE TRIGGER read_trig1 BEFORE INSERT ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE user_copy SET User='u2x'
+      WHERE User IN (SELECT User FROM mysql.user WHERE User='u2');
+END|
+CREATE TRIGGER update_trig1 BEFORE UPDATE ON tmp1 FOR EACH ROW
+BEGIN
+UPDATE mysql.user SET user='u2x' WHERE User='u2';
+END|
+SELECT User FROM mysql.user WHERE User='u2';
+User
+u2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+INSERT INTO tmp1 VALUES (20);
+# Make sure no record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+DELETE FROM mysql.user WHERE User='u2';
+INSERT INTO mysql.user SELECT * FROM user_bk;
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+UPDATE mysql.user SET user='u2' WHERE user LIKE 'u2x';
+CREATE USER someuser;
+ALTER USER someuser IDENTIFIED BY 'somepass';
+DROP USER someuser;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+UPDATE tmp1 SET f1=30;
+# Make sure X record locks are held on ACL table.
+SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
+tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
+FROM performance_schema.data_locks
+WHERE LOCK_TYPE='RECORD' AND
+(LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
+tab	INDEX_NAME	LOCK_MODE	Has_lock
+mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+# Make sure that we do not allow updating ACL table.
+INSERT INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REPLACE INTO mysql.user SELECT * FROM user_bk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE mysql.user SET user='u2x' WHERE user LIKE 'u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM mysql.user WHERE User='u2';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION lock_wait_timeout=default;
+SET SESSION innodb_lock_wait_timeout=default;
+ROLLBACK;
+DROP TABLE tmp1;
+DELETE FROM user_copy;
+Cleanup
+DROP PROCEDURE proc1;
+DROP PROCEDURE proc2;
+DROP FUNCTION func1;
+DROP USER u1;
+DROP USER u2;
+DROP USER writer1;
+DROP USER writer2;
+DROP TABLE t1;
+DROP TABLE user_copy;
+DROP TABLE user_bk;

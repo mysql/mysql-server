@@ -1,0 +1,39 @@
+# **********************************************************
+# wl#5655: Test the functionality of the double write system
+#          variables with Non-Default values
+# Test     innodb_doublewrite_dir,innodb_doublewrite_files
+#          innodb_doublewrite_pages
+#          innodb_doublewrite_batch_size
+#          Test innodb_doublewrite_dir inside --datadir with
+#          "#DBWL-DIR", Check master.opt files
+# **********************************************************
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+
+--let $MYSQLD_DATADIR =`SELECT @@datadir`
+
+# Check datadir path
+--replace_result $MYSQLD_DATADIR DATADIR
+SELECT @@datadir;
+
+# Check the following variables as set
+--replace_result $MYSQLTEST_VARDIR DBWL-DIR
+SELECT @@innodb_doublewrite_dir;
+
+SELECT @@innodb_doublewrite_files;
+
+SELECT @@innodb_doublewrite_pages;
+
+SELECT @@innodb_doublewrite_batch_size;
+
+# Check double write file exist
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/#DBWL-DIR/#ib_16384_0.dblwr
+
+CREATE TABLE tab(c1 int, c2 TEXT);
+
+INSERT INTO tab VALUES(1,'Test wl#5655');
+
+SELECT * FROM tab;
+
+#cleanup
+DROP TABLE tab;

@@ -12,7 +12,7 @@ create table t4(id int primary key, val int default 11001) engine=ndb;
 create table t5(id int primary key, val text) engine=ndb;
 create table t6(id int primary key, val int unique) engine=ndb;
 create table t7(id int auto_increment, val1 int, val2 int, primary key(id,val1)) engine=ndb;
-create table t8(id int primary key, val varchar(256)) engine=ndb;
+create table t8(id int primary key, val varbinary(29990)) engine=ndb;
 create table t9(
   auto int(5) unsigned NOT NULL auto_increment,
   string char(10) default "hello",
@@ -63,7 +63,7 @@ while ($i)
   eval insert into t5 values($i,REPEAT('$i', 4000));
   eval insert into t6 values($i,$i);
   eval insert into t7(val1,val2) values($i,$i);
-  eval insert into t8 values($i,REPEAT('$i',100));
+  eval insert into t8 values($i,REPEAT('$i',29000));
   eval insert into t9 (string,vstring,tiny,short,medium,long_int,longlong,
   real_float,real_double, real_decimal,utiny, ushort, umedium,ulong,ulonglong,
   bits,options,flags,date_field,year_field,time_field,date_time)
@@ -89,18 +89,13 @@ while ($i)
   (NULL,NULL,10,10,10,10,10,10.1,NULL,NULL,10,10,10,10,10,
    NULL,'two','two',NULL,NULL,NULL,NULL);
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"
+--exec $NDB_MGM -e "all error 10039"
 
 if ($snapshotstart)
 {
-  --echo "Starting backup as nowait,snapshotstart"
-  --source suite/ndb/t/ndb_backup_nowait_snapshotstart_start.inc
+  let $start_backup_extra = SNAPSHOTSTART;
 }
-if (!$snapshotstart)
-{
-  --echo "Starting backup as nowait"
-  --source suite/ndb/t/ndb_backup_nowait_start.inc
-}
+--source suite/ndb/t/ndb_backup_nowait_start.inc
 
 --echo "Update tables during backup"
 --disable_query_log
@@ -113,7 +108,7 @@ update t4 set val = 44 where id = 4;
 update t5 set val = REPEAT("123  $#",1000) where id = 5;
 update t6 set val = 66 where id = 6;
 update t7 set val1 = 77 where id = 7;
-update t8 set val = 88 where id = 8;
+update t8 set val = REPEAT("8", 29900) where id = 8;
 update t9 set string="bbbb",vstring="bbbb",tiny=-22,short=-22,medium=-22,
 long_int=-22,longlong=-22,real_float=22.22,real_double=22.22,real_decimal=22.22,
 utiny=22,ushort=22,umedium=22,ulong=22,ulonglong=22, bits=b'010',
@@ -121,7 +116,7 @@ options='two',flags='two', date_field='1922-02-22',year_field='1922',
 time_field='22:22:22',date_time='1922-02-22 22:22:22' where auto=1;
 --enable_query_log
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 
 --echo "Wait for backup to complete"
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
@@ -139,9 +134,9 @@ drop table t6;
 drop table t7;
 drop table t8;
 drop table t9;
+--enable_query_log
 
 --source include/ndb_backup_id.inc
---enable_query_log
 
 if (!$serialrestore)
 {

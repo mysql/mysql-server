@@ -12,13 +12,6 @@ SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
---disable_query_log
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---source include/restart_mysqld.inc
---enable_query_log
-
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW VARIABLES LIKE 'innodb_directories';
 
@@ -666,19 +659,15 @@ DROP TABLESPACE s_bad;
 --echo #
 --echo # Try the syntax that MySQL docs say is ignored.
 --echo #
-CREATE TABLESPACE s_ignore1 ADD DATAFILE 's_ignore1.ibd' AUTOEXTEND_SIZE = 10M;
-CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' MAX_SIZE = 1G;
-CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' NODEGROUP = 5;
-CREATE TABLESPACE s_ignore4 ADD DATAFILE 's_ignore4.ibd' WAIT;
-CREATE TABLESPACE s_ignore5 ADD DATAFILE 's_ignore5.ibd' COMMENT = 'This comment is ignored';
+CREATE TABLESPACE s_ignore1 ADD DATAFILE 's_ignore1.ibd' NODEGROUP = 5;
+CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' WAIT;
+CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' COMMENT = 'This comment is ignored';
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 DROP TABLESPACE s_ignore1;
 DROP TABLESPACE s_ignore2;
 DROP TABLESPACE s_ignore3;
-DROP TABLESPACE s_ignore4;
-DROP TABLESPACE s_ignore5;
 
 --echo #
 --echo # Try various ALTER TABLE statements.
@@ -1039,7 +1028,7 @@ SHOW WARNINGS;
 
 --echo # Restart in normal mode for cleanup.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart --innodb-directories=$MYSQL_TMP_DIR;
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 DROP TABLESPACE s1;
 
@@ -1214,6 +1203,7 @@ call mtr.add_suppression("\\[Warning\\].* Skip re-populating collations and char
 call mtr.add_suppression("\\[Warning\\].* Skip updating information_schema metadata in InnoDB read-only mode");
 call mtr.add_suppression("\\[Warning\\].* Skipped updating resource group metadata in InnoDB read only mode");
 call mtr.add_suppression("\\[Warning\\].* '.*tablespace.ibd' is a directory, can't delete!");
+call mtr.add_suppression("\\[Warning\\].* Can't create test file");
 call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");
 call mtr.add_suppression("\\[ERROR\\].* File .* 'stat' returned OS error .*");
 call mtr.add_suppression("\\[ERROR\\].* File .*\.ibd: 'create' returned OS error .*");
@@ -1224,6 +1214,7 @@ call mtr.add_suppression("\\[ERROR\\].* Error number .* means");
 call mtr.add_suppression("\\[ERROR\\].* Cannot create file");
 call mtr.add_suppression("\\[ERROR\\].* Invalid use of ':' in");
 call mtr.add_suppression("\\[ERROR\\].* The file .* already exists though the corresponding table did not exist.");
-call mtr.add_suppression("\\[ERROR\\].* The directory '.*' does not exist");
+call mtr.add_suppression("\\[ERROR\\].* The directory for tablespace .* does not exist or is incorrect");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
 --enable_query_log
 

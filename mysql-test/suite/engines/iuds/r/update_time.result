@@ -1076,7 +1076,7 @@ c1
 00:00:00
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=8385958 WHERE c2='34 22:59:59';
-ERROR 23000: Duplicate entry '838:59:58' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '838:59:58' for key 't1.PRIMARY'
 UPDATE t1 SET c2='def' WHERE c1=59;
 Warnings:
 Warning	1265	Data truncated for column 'c2' at row 1

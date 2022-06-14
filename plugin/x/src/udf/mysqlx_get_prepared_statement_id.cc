@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,32 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "plugin/x/src/udf/mysqlx_get_prepared_statement_id.h"
 
 #include <cstring>
-#include "include/my_sys.h"
-#include "include/mysql/thread_pool_priv.h"
-#include "plugin/x/src/xpl_server.h"
+
+#include "my_sys.h"  // NOLINT(build/include_subdir)
+
+#include "mysql/thread_pool_priv.h"
+#include "plugin/x/src/module_mysqlx.h"
 
 namespace xpl {
-
 namespace {
+
+bool get_prepared_statement_id(const THD *thd, const uint32_t client_stmt_id,
+                               uint32_t *out_stmt_id) {
+  auto server = modules::Module_mysqlx::get_instance_server();
+
+  if (nullptr == server.container()) return false;
+
+  auto client = server->get_client(thd);
+
+  if (!client) return false;
+
+  auto session = client->session_shared_ptr();
+
+  if (!session) return false;
+
+  return session->get_prepared_statement_id(client_stmt_id, out_stmt_id);
+}
+
 bool mysqlx_get_prepared_statement_id_init(UDF_INIT *, UDF_ARGS *args,
                                            char *message) {
   if (args->arg_count == 1 && args->arg_type[0] == INT_RESULT) return false;
@@ -38,23 +57,27 @@ bool mysqlx_get_prepared_statement_id_init(UDF_INIT *, UDF_ARGS *args,
   return true;
 }
 
+// NOLINTNEXTLINE(runtime/int)
 long long mysqlx_get_prepared_statement_id(UDF_INIT *, UDF_ARGS *args,
                                            unsigned char *is_null,
                                            unsigned char *error) {
   *error = 0;
   uint32_t stmt_id = 0;
-  if (xpl::Server::get_prepared_statement_id(
-          thd_get_current_thd(), *reinterpret_cast<long long *>(args->args[0]),
-          &stmt_id)) {
+  if (get_prepared_statement_id(thd_get_current_thd(),
+                                // NOLINTNEXTLINE(runtime/int)
+                                *reinterpret_cast<long long *>(args->args[0]),
+                                &stmt_id)) {
     *is_null = 0;
     return stmt_id;
   }
   *is_null = 1;
   return 0;
 }
+
 }  // namespace
 
 namespace udf {
+
 Registrator::Record get_mysqlx_get_prepared_statement_id_record() {
   return {
       "mysqlx_get_prepared_statement_id",
@@ -64,5 +87,6 @@ Registrator::Record get_mysqlx_get_prepared_statement_id_record() {
       nullptr,
   };
 }
+
 }  // namespace udf
 }  // namespace xpl

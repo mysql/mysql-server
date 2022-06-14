@@ -1,0 +1,19 @@
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENCRYPTION='Y';
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+# Ensure that dirty pages of table t1 is flushed.
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SELECT space from INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name =
+'test/t1' INTO @space_id;
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET global innodb_fil_make_page_dirty_debug=@space_id;
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_saved_page_number_debug = 6;
+SET global innodb_fil_make_page_dirty_debug=@space_id;
+SET GLOBAL innodb_saved_page_number_debug = 0;
+DROP TABLE t1;

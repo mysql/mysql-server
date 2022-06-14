@@ -49,7 +49,7 @@ Warnings:
 Note	1003	/* select#1 */ select inet_aton('122.256') AS `inet_aton("122.256")`,inet_aton('122.226.') AS `inet_aton("122.226.")`,inet_aton('') AS `inet_aton("")`
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
 length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
-36	utf8	16
+36	utf8mb3	16
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -97,8 +97,8 @@ create table t1 as select uuid(), length(uuid());
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `uuid()` varchar(36) CHARACTER SET utf8 NOT NULL DEFAULT '',
-  `length(uuid())` int(10) NOT NULL DEFAULT '0'
+  `uuid()` varchar(36) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
+  `length(uuid())` int NOT NULL DEFAULT '0'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #------------------------------------------------------------------------
@@ -129,7 +129,7 @@ create table t1 select INET_ATON('255.255.0.1') as `a`;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(21) unsigned DEFAULT NULL
+  `a` bigint unsigned DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table if exists table_26093;
@@ -711,11 +711,13 @@ SELECT INET6_NTOA('1234'), INET6_NTOA(BINARY('1234'));
 INET6_NTOA('1234')	INET6_NTOA(BINARY('1234'))
 NULL	49.50.51.52
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1411	Incorrect string value: ''1234'' for function inet6_ntoa
 SELECT INET6_NTOA('0123456789abcdef'), INET6_NTOA(BINARY('0123456789abcdef'));
 INET6_NTOA('0123456789abcdef')	INET6_NTOA(BINARY('0123456789abcdef'))
 NULL	3031:3233:3435:3637:3839:6162:6364:6566
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1411	Incorrect string value: ''0123456789abcdef'' for function inet6_ntoa
 
 # -- Checking double-conversion...
@@ -903,7 +905,7 @@ x
 
 SELECT IS_IPV4(NULL);
 IS_IPV4(NULL)
-0
+NULL
 SELECT IS_IPV4(1);
 IS_IPV4(1)
 0
@@ -925,9 +927,11 @@ IS_IPV4('::1')
 SELECT IS_IPV4(BINARY('1.2.3.4'));
 IS_IPV4(BINARY('1.2.3.4'))
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT IS_IPV6(NULL);
 IS_IPV6(NULL)
-0
+NULL
 SELECT IS_IPV6(1);
 IS_IPV6(1)
 0
@@ -955,6 +959,8 @@ IS_IPV6('0000:0000:0000:0000:0000:0000:0000:0001')
 SELECT IS_IPV6(BINARY('0000:0000:0000:0000:0000:0000:0000:0001'));
 IS_IPV6(BINARY('0000:0000:0000:0000:0000:0000:0000:0001'))
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 
 # -- Checking IS_IPV4_MAPPED() and IS_IPV4_COMPAT()...
 
@@ -1120,9 +1126,45 @@ DO (!(SECOND(0xb16beeb7)));
 Warnings:
 Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 Warning	1292	Truncated incorrect time value: '\xB1k\xEE\xB7'
-
-# -- Done.
-
+# Bug #26319675:"ILLEGAL MIX OF COLLATIONS" HAPPENS IN CONCAT WITH
+# NAME_CONST
+#
+SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a;
+a
+test0
+CREATE TABLE t1 AS SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(6) CHARACTER SET cp932 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Bug#28892294: Segmentation fault at get_time_value()
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+col_time TIME DEFAULT NULL,
+col_varchar VARCHAR(1) DEFAULT NULL,
+KEY (col_varchar)
+);
+INSERT INTO t1 VALUES(5, '11:03:56', 'I');
+PREPARE st FROM
+"SELECT * FROM t1
+ WHERE pk = 5 AND (col_time, col_varchar) IN ((23, 'Y'), (92, 'W'))";
+Warnings:
+Warning	1292	Truncated incorrect time value: '92'
+EXECUTE st;
+pk	col_time	col_varchar
+EXECUTE st;
+pk	col_time	col_varchar
+DEALLOCATE PREPARE st;
+DROP TABLE t1;
+#
+# Bug #32231620 JSON_WRAPPER::COMPARE CONST:
+#               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+do (is_ipv4_mapped(bin_to_uuid(@a:=34)))
+<=>
+(json_objectagg('key2',42 ) and rtrim(""));
+ERROR HY000: Incorrect string value: '34' for function bin_to_uuid
 #
 # End of tests
 #

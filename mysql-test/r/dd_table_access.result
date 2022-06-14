@@ -400,6 +400,8 @@ innodb_index_stats	Altered
 CHECK TABLE mysql.innodb_index_stats;
 Table	Op	Msg_type	Msg_text
 mysql.innodb_index_stats	check	status	OK
+# Reset innodb_index_stats
+ALTER TABLE mysql.innodb_index_stats COMMENT '';
 # Reset innodb_stats_auto_recalc.
 SET @@global.innodb_stats_auto_recalc= default;
 DROP TABLE t;

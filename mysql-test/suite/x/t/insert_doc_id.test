@@ -7,7 +7,7 @@
 create schema xtest default charset='utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/insert_doc_id.tmp
+--write_file $MYSQL_TMP_DIR/insert_doc_id.xpl
 ## Test data
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
@@ -36,9 +36,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_doc_id.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_doc_id.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/insert_doc_id.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

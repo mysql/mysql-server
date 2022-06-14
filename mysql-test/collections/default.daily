@@ -19,11 +19,26 @@
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-# Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --force --timer --big-test --non-parallel-test --testcase-timeout=90  --comment=all-default-big --vardir=var-all-default-big --report-features --unit-tests-report --no-skip
-
+#
+# Non-Windows platforms
+#
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=all-default-big --vardir=var-all-default-big --report-features --unit-tests-report --no-skip --exclude-platform=windows --skip-ndb
+# Run all ndb tests separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=ndb-default-big --vardir=var-ndb-default-big --report-features --no-skip --with-ndb-only
 # Run default suites with ps protocol
-perl mysql-test-run.pl --force --timer  --comment=ps --vardir=var-ps --ps-protocol
+perl mysql-test-run.pl --force --timer  --comment=ps --vardir=var-ps --ps-protocol --exclude-platform=windows --skip-ndb
+# Run all ndb tests with ps protocol separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --force --timer  --comment=ndb-ps --vardir=var-ndb-ps --ps-protocol --with-ndb-only
+#
+# Windows - run RPL separately with 8 threads
+#
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=all-default-big --vardir=var-all-default-big --report-features --unit-tests-report --no-skip --skip-rpl --platform=windows --skip-ndb
+perl mysql-test-run.pl --force --timer --parallel=8 --big-test --testcase-timeout=90 --comment=rpl-suites --vardir=var-rpl-suites --suite=rpl,rpl_gtid,rpl_nogtid --platform=windows
+# Run default suites with ps protocol
+perl mysql-test-run.pl --force --timer  --comment=ps --vardir=var-ps --ps-protocol --skip-rpl --platform=windows --skip-ndb
+perl mysql-test-run.pl --force --timer  --parallel=8 --comment=ps --vardir=var-ps-rpl --ps-protocol --suite=rpl,rpl_gtid,rpl_nogtid --platform=windows
 
 ############END OF SECTION1(DEFAULT SUITES) ######################
 
@@ -31,7 +46,7 @@ perl mysql-test-run.pl --force --timer  --comment=ps --vardir=var-ps --ps-protoc
 
 #################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-# interactive_utilities,engines, memcached, audit_null
+# engines, memcached, audit_null
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60    --comment=audit_null-big  --vardir=var-audit_null-big --suite=audit_null --no-skip
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60    --comment=funcs1-big  --vardir=var-funcs1-big --suite=funcs_1 --no-skip
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60    --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
@@ -39,7 +54,6 @@ perl mysql-test-run.pl --force --timer --big-test   --comment=stress --vardir=va
 perl mysql-test-run.pl --force --timer --big-test   --comment=jp --vardir=var-jp --suite=jp --no-skip
 perl mysql-test-run.pl --force --timer  --big-test  --comment=nist  --vardir=var-nist --suite=nist --no-skip
 perl mysql-test-run.pl --force --timer    --comment=nist+ps --vardir=var-ps_nist  --suite=nist  --ps-protocol --no-skip
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60  --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities --no-skip
 # Engine independent tests
 perl mysql-test-run.pl --timer --force     --comment=eits-tests-myisam-engine --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip
 perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb  --no-skip
@@ -55,16 +69,24 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication 
 # Add runs of rpl and binlog test suites with additional
 # MTR or mysqld options in this section
 
-# Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip
-perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip
+# Additional modes for rpl. DATABASE Multi-Threaded Applier and Single-Threaded Applier
+perl mysql-test-run.pl --timer  --force  --comment=rpl_MTA_db_part --vardir=var-mta-rpl_db --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=database --mysqld=--replica-preserve-commit-order=0  --do-suite=rpl --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer  --force  --parallel=8 --comment=rpl_MTA_db_part --vardir=var-mta-rpl_db --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=database --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip --platform=windows
+perl mysql-test-run.pl --timer  --force  --comment=rpl_STA --vardir=var-rpl_sta --mysqld=--replica-parallel-workers=0 --do-suite=rpl --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer  --parallel=8 --force  --comment=rpl_STA --vardir=var-rpl_sta --mysqld=--replica-parallel-workers=0 --do-suite=rpl --no-skip --platform=windows
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
-perl mysql-test-run.pl --force --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+perl mysql-test-run.pl --force --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --force --parallel=8 --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --platform=windows
 
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer   --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+
+# Additional rpl run with binlog Compression enabled.
+perl mysql-test-run.pl --timer --force --comment=rpl_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer --force --parallel=8 --comment=rpl_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip --platform=windows
+
 ################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 
 

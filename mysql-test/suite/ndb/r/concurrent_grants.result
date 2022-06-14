@@ -1,0 +1,3 @@
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
+CREATE USER 'priv_test_U'@'localhost' IDENTIFIED by 'priv_test_pass';
+GRANT NDB_STORED_USER ON *.* to 'priv_test_U'@'localhost';

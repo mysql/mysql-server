@@ -1,0 +1,58 @@
+include/only_with_option.inc [GLOBAL.replica_transaction_retries > 2]
+#
+# 1. Create source-replica topology.
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 2. Save the current variables on source.
+#    2.1 Save current binlog_row_image.
+SET @old_binlog_row_image= @@binlog_row_image;
+#
+# 3. Setup neccsary variables on source.
+#    3.1 Set the binlog_row_image=MINIMAL.
+SET @@session.binlog_row_image = 'MINIMAL';
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
+#
+# 4.Create table and procedure on source.
+CREATE TABLE t( a tinyint unsigned primary key, b tinyint, c int, d bigint,
+f char(10), g char(255), h text, i longtext, unique key(g,f),
+unique key(f,c), key(c,d,b), key(i(10),f(10),b)) ENGINE=InnoDB;
+drop procedure if exists p;
+Warnings:
+Note	1305	PROCEDURE test.p does not exist
+create procedure p(p_i bigint)
+begin
+declare v_i bigint default 0;
+repeat
+replace into t values(
+floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5),
+floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5)
+),
+(
+floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5),
+floor(rand()*5),floor(rand()*5),floor(rand()*5),floor(rand()*5)
+);
+set v_i=v_i+1;
+until v_i > p_i end repeat;
+end|
+#
+#
+# 5. Switch to source and call procedure.
+[connection master]
+call p(1000);
+include/sync_slave_sql_with_master.inc
+#
+# 6. Clear system variables on source.
+#
+[connection master]
+SET SESSION binlog_row_image= @old_binlog_row_image;
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = OLD_TRX_TRACKER;
+[connection slave]
+CALL mtr.add_suppression("Worker .* failed executing transaction.*");
+[connection master]
+DROP TABLE t;
+DROP PROCEDURE p;
+include/rpl_end.inc

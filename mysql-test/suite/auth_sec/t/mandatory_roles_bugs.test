@@ -1,0 +1,43 @@
+--echo #
+--echo # Bug #28699403: SHOW GRANTS THROW ERROR FOR EXISTING SESSION WHEN
+--echo #  MANDATORY_ROLES CHANGED
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+CREATE USER u1@localhost;
+CREATE ROLE r1;
+CREATE TABLE t1 (a INT);
+GRANT ALL ON t1 TO r1;
+SET GLOBAL mandatory_roles="r1";
+SET GLOBAL activate_all_roles_on_login = 'ON';
+
+connect(con1,localhost,u1,,test);
+connection con1;
+--echo # in connection con1
+SHOW GRANTS;
+SELECT a FROM t1;
+connection default;
+--echo # in connection default
+SET GLOBAL mandatory_roles="";
+connection con1;
+--echo # in connection con1
+--echo # test: Must not fail
+SHOW GRANTS;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM t1;
+
+connection default;
+--echo # in connection default
+
+disconnect con1;
+DROP USER u1@localhost;
+DROP ROLE r1;
+DROP TABLE t1;
+SET GLOBAL mandatory_roles=DEFAULT;
+SET GLOBAL activate_all_roles_on_login=DEFAULT;
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+
+--echo # End of 8.0 tests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,14 +242,13 @@ static const uchar sort_order_sjis[] = {
   ((0x40 <= (c) && (c) <= 0x7e) || (0x80 <= (c) && (c) <= 0xfc))
 
 extern "C" {
-static uint ismbchar_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_sjis(const CHARSET_INFO *cs [[maybe_unused]],
                           const char *p, const char *e) {
   return (issjishead((uchar)*p) && (e - p) > 1 && issjistail((uchar)p[1]) ? 2
                                                                           : 0);
 }
 
-static uint mbcharlen_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           uint c) {
+static uint mbcharlen_sjis(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (issjishead((uchar)c) ? 2 : 1);
 }
 }  // extern "C"
@@ -1308,38 +1307,55 @@ static const MY_UNICASE_CHARACTER c84[256] = {
     {0, 0, 0}};
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_sjis[256] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, c81,  c82,  c83,  c84,  NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* A */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, c81,     c82,     c83,
+    c84,     nullptr, nullptr, nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* A */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr};
 
 static MY_UNICASE_INFO my_caseinfo_sjis = {0xFFFF, my_caseinfo_pages_sjis};
 
@@ -17827,8 +17843,8 @@ static const uint16 unicode_to_sjis[65536] = {
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 extern "C" {
-static int my_mb_wc_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                         const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -17867,8 +17883,8 @@ static int my_mb_wc_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in SJIS
 */
-static int my_wc_mb_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                         uchar *s, uchar *e) {
   int code;
 
   if ((int)wc < 0x80) /* ASCII: [U+0000..U+007F] -> [00-7F] */
@@ -17907,7 +17923,7 @@ mb:
   return 2;
 }
 
-static size_t my_numcells_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_numcells_sjis(const CHARSET_INFO *cs [[maybe_unused]],
                                const char *str, const char *str_end) {
   size_t clen;
   const uchar *b = (const uchar *)str;
@@ -17932,9 +17948,9 @@ static size_t my_numcells_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   Returns a well formed length of a SJIS string.
   CP932 additional characters are also accepted.
 */
-static size_t my_well_formed_len_sjis(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_sjis(const CHARSET_INFO *cs [[maybe_unused]],
+                                      const char *b, const char *e, size_t pos,
+                                      int *error) {
   const char *b0 = b;
   *error = 0;
   while (pos-- && b < e) {
@@ -17972,7 +17988,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {
     my_hash_sort_simple,
     my_propagate_simple};
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_sjis,
                                                 mbcharlen_sjis,
                                                 my_numchars_mb,
@@ -18005,22 +18021,22 @@ CHARSET_INFO my_charset_sjis_japanese_ci = {
     0,
     0, /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM |
-        MY_CS_NONASCII, /* state */
-    "sjis",             /* cs name    */
-    "sjis_japanese_ci", /* name */
-    "",                 /* comment    */
-    NULL,               /* tailoring */
-    NULL,               /* coll_param */
+        MY_CS_NONASCII,   /* state */
+    "sjis",               /* cs name    */
+    "sjis_japanese_ci",   /* m_coll_name */
+    "Shift-JIS Japanese", /* comment    */
+    nullptr,              /* tailoring */
+    nullptr,              /* coll_param */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
     sort_order_sjis,
-    NULL,              /* uca          */
-    NULL,              /* tab_to_uni   */
-    NULL,              /* tab_from_uni */
+    nullptr,           /* uca          */
+    nullptr,           /* tab_to_uni   */
+    nullptr,           /* tab_from_uni */
     &my_caseinfo_sjis, /* caseinfo     */
-    NULL,              /* state_map    */
-    NULL,              /* ident_map    */
+    nullptr,           /* state_map    */
+    nullptr,           /* ident_map    */
     1,                 /* strxfrm_multiply */
     1,                 /* caseup_multiply  */
     1,                 /* casedn_multiply  */
@@ -18030,7 +18046,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci = {
     0,                 /* min_sort_char */
     0xFCFC,            /* max_sort_char */
     ' ',               /* pad char      */
-    1,                 /* escape_with_backslash_is_dangerous */
+    true,              /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
@@ -18042,20 +18058,20 @@ CHARSET_INFO my_charset_sjis_bin = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_NONASCII, /* state  */
     "sjis",                                          /* cs name    */
-    "sjis_bin",                                      /* name */
-    "",                                              /* comment    */
-    NULL,                                            /* tailoring */
-    NULL,                                            /* coll_param */
+    "sjis_bin",                                      /* m_coll_name */
+    "Shift-JIS Japanese",                            /* comment    */
+    nullptr,                                         /* tailoring */
+    nullptr,                                         /* coll_param */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
-    NULL,              /* sort_order   */
-    NULL,              /* uca          */
-    NULL,              /* tab_to_uni   */
-    NULL,              /* tab_from_uni */
+    nullptr,           /* sort_order   */
+    nullptr,           /* uca          */
+    nullptr,           /* tab_to_uni   */
+    nullptr,           /* tab_from_uni */
     &my_caseinfo_sjis, /* caseinfo     */
-    NULL,              /* state_map    */
-    NULL,              /* ident_map    */
+    nullptr,           /* state_map    */
+    nullptr,           /* ident_map    */
     1,                 /* strxfrm_multiply */
     1,                 /* caseup_multiply  */
     1,                 /* casedn_multiply  */
@@ -18065,7 +18081,7 @@ CHARSET_INFO my_charset_sjis_bin = {
     0,                 /* min_sort_char */
     0xFCFC,            /* max_sort_char */
     ' ',               /* pad char      */
-    1,                 /* escape_with_backslash_is_dangerous */
+    true,              /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_handler,
     &my_collation_mb_bin_handler,

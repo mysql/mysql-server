@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Optimizer hints are not supported.
+
 --echo # WL#8017 Infrastructure for Optimizer Hints
 
 CREATE TABLE t1(f1 INT, f2 INT);
@@ -89,12 +91,14 @@ set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
 
 --echo # Check statistics without hint
 FLUSH STATUS;
+--sorted_result
 SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
+--sorted_result
 SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 SHOW STATUS LIKE 'handler_read%';
@@ -162,7 +166,7 @@ EXPLAIN SELECT /*+ QB_NAME(QB1) NO_BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 --echo # UPDATE|DELETE|INSERT|REPLACE hint testing
-set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
+set optimizer_switch='batched_key_access=off,mrr_cost_based=off,semijoin=off,materialization=off';
 
 EXPLAIN UPDATE t3
 SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
@@ -304,6 +308,7 @@ INSERT INTO t3 VALUES (1,1),(2,2);
 
 --echo # Check statistics without hint
 FLUSH STATUS;
+--sorted_result
 SELECT t1.* FROM t1,t2,t3;
 SHOW STATUS LIKE 'handler_read%';
 
@@ -673,6 +678,8 @@ SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 
 DROP TABLE таблица;
 
+SET NAMES DEFAULT;
+
 --echo
 --echo # derived tables and other subqueries:
 --echo
@@ -991,10 +998,8 @@ drop view v1;
 drop table t1,t2,t3;
 
 --echo #
---echo # Unbalanced commentary test
+--echo # Non-terminated comment test
 --echo #
 
 --error ER_PARSE_ERROR
-SELECT /*+ 10;
-# PLEASE DON'T INSERT NEW STUFF TREE: WE ARE TESTING UNBALANCED COMMENTARY
-# END OF FILE
+PREPARE stmt FROM 'SELECT /*+ 10';

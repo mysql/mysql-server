@@ -1,6 +1,6 @@
 /*****************************************************************************
 This file was modified by Oracle on 2015/02/05
-Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 *****************************************************************************/
 
 #include "config.h"

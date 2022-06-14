@@ -1,7 +1,6 @@
 #################################################
 # Checks if mysqld_safe is installed in the path
-# specified by MTR. mysqld_safe is obsolete on
-# platforms that use systemd to monitor mysqld.
+# specified by MTR.
 #################################################
 
 --disable_query_log
@@ -23,7 +22,7 @@ EOF
 
 if (!$is_found)
 {
---skip Tests using mysqld_safe skipped.
+--die Test requires mysqld_safe (not found)
 }
 
 --remove_file $temp_inc

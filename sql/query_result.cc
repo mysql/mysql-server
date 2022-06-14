@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,22 +22,22 @@
 
 #include "sql/query_result.h"
 
-#include "my_config.h"
-
 #include <fcntl.h>
-#include <limits.h>
-#include <string.h>
 #include <sys/stat.h>
+
+#include "my_config.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
 #include <algorithm>
+#include <climits>
+#include <cstring>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/udf_registration_types.h"
@@ -55,19 +55,24 @@
 #include "sql/sql_exchange.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "template_utils.h"  // pointer_cast
 
 using std::min;
 
-bool Query_result_send::send_result_set_metadata(THD *thd, List<Item> &list,
-                                                 uint flags) {
+uint Query_result::field_count(const mem_root_deque<Item *> &fields) const {
+  return CountVisibleFields(fields);
+}
+
+bool Query_result_send::send_result_set_metadata(
+    THD *thd, const mem_root_deque<Item *> &list, uint flags) {
   bool res;
-  if (!(res = thd->send_result_metadata(&list, flags)))
+  if (!(res = thd->send_result_metadata(list, flags)))
     is_result_set_started = true;
   return res;
 }
 
 void Query_result_send::abort_result_set(THD *thd) {
-  DBUG_ENTER("Query_result_send::abort_result_set");
+  DBUG_TRACE;
 
   if (is_result_set_started && thd->sp_runtime_ctx) {
     /*
@@ -81,23 +86,23 @@ void Query_result_send::abort_result_set(THD *thd) {
     */
     thd->sp_runtime_ctx->end_partial_result_set = true;
   }
-  DBUG_VOID_RETURN;
 }
 
 /* Send data to client. Returns 0 if ok */
 
-bool Query_result_send::send_data(THD *thd, List<Item> &items) {
+bool Query_result_send::send_data(THD *thd,
+                                  const mem_root_deque<Item *> &items) {
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("Query_result_send::send_data");
+  DBUG_TRACE;
 
   protocol->start_row();
-  if (thd->send_result_set_row(&items)) {
+  if (thd->send_result_set_row(items)) {
     protocol->abort_row();
-    DBUG_RETURN(true);
+    return true;
   }
 
   thd->inc_sent_row_count(1);
-  DBUG_RETURN(protocol->end_row());
+  return protocol->end_row();
 }
 
 bool Query_result_send::send_eof(THD *thd) {
@@ -107,7 +112,7 @@ bool Query_result_send::send_eof(THD *thd) {
   */
   if (thd->is_error()) return true;
   ::my_eof(thd);
-  is_result_set_started = 0;
+  is_result_set_started = false;
   return false;
 }
 
@@ -120,14 +125,14 @@ static const String my_empty_string("", default_charset_info);
 sql_exchange::sql_exchange(const char *name, bool flag,
                            enum enum_filetype filetype_arg)
     : file_name(name), dumpfile(flag), skip_lines(0) {
-  field.opt_enclosed = 0;
+  field.opt_enclosed = false;
   filetype = filetype_arg;
   field.field_term = &default_field_term;
   field.enclosed = line.line_start = &my_empty_string;
   line.line_term =
       filetype == FILETYPE_CSV ? &default_line_term : &default_xml_row_term;
   field.escaped = &default_escaped;
-  cs = NULL;
+  cs = nullptr;
 }
 
 bool sql_exchange::escaped_given(void) {
@@ -161,6 +166,10 @@ bool Query_result_to_file::send_eof(THD *thd) {
 }
 
 void Query_result_to_file::cleanup(THD *) {
+  DBUG_TRACE;
+  DBUG_PRINT("print_select_into_flush_stats",
+             ("[select_to_file][flush_count] %03lu\n", cache.disk_writes));
+
   /* In case of error send_eof() may be not called: close the file here. */
   if (file >= 0) {
     (void)end_io_cache(&cache);
@@ -230,17 +239,23 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 #else
   (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
 #endif
-  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME))) {
+  if (init_io_cache(cache, file, thd->variables.select_into_buffer_size,
+                    WRITE_CACHE, 0L, true, MYF(MY_WME))) {
     mysql_file_close(file, MYF(0));
     /* Delete file on error, it was just created */
     mysql_file_delete(key_select_to_file, path, MYF(0));
     return -1;
   }
+  if (thd->variables.select_into_disk_sync) {
+    cache->disk_sync = true;
+    if (thd->variables.select_into_disk_sync_delay)
+      cache->disk_sync_delay = thd->variables.select_into_disk_sync_delay;
+  }
   return file;
 }
 
-bool Query_result_export::prepare(THD *thd, List<Item> &list,
-                                  SELECT_LEX_UNIT *u) {
+bool Query_result_export::prepare(THD *thd, const mem_root_deque<Item *> &list,
+                                  Query_expression *u) {
   bool blob_flag = false;
   bool string_results = false, non_string_results = false;
   unit = u;
@@ -250,19 +265,15 @@ bool Query_result_export::prepare(THD *thd, List<Item> &list,
   write_cs = exchange->cs ? exchange->cs : &my_charset_bin;
 
   /* Check if there is any blobs in data */
-  {
-    List_iterator_fast<Item> li(list);
-    Item *item;
-    while ((item = li++)) {
-      if (item->max_length >= MAX_BLOB_WIDTH) {
-        blob_flag = true;
-        break;
-      }
-      if (item->result_type() == STRING_RESULT)
-        string_results = true;
-      else
-        non_string_results = true;
+  for (Item *item : VisibleFields(list)) {
+    if (item->max_length >= MAX_BLOB_WIDTH) {
+      blob_flag = true;
+      break;
     }
+    if (item->result_type() == STRING_RESULT)
+      string_results = true;
+    else
+      non_string_results = true;
   }
   if (exchange->field.escaped->numchars() > 1 ||
       exchange->field.enclosed->numchars() > 1) {
@@ -340,8 +351,9 @@ bool Query_result_export::start_execution(THD *thd) {
              : (int)(uchar)(x) == field_term_char) || \
    (int)(uchar)(x) == line_sep_char || !(x))
 
-bool Query_result_export::send_data(THD *thd, List<Item> &items) {
-  DBUG_ENTER("Query_result_export::send_data");
+bool Query_result_export::send_data(THD *thd,
+                                    const mem_root_deque<Item *> &items) {
+  DBUG_TRACE;
   char buff[MAX_FIELD_WIDTH], null_buff[2], space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
   String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
@@ -350,16 +362,14 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
   tmp.length(0);
 
   row_count++;
-  Item *item;
   size_t used_length = 0;
-  uint items_left = items.elements;
-  List_iterator_fast<Item> li(items);
+  uint items_left = CountVisibleFields(items);
 
   if (my_b_write(&cache,
                  pointer_cast<const uchar *>(exchange->line.line_start->ptr()),
                  exchange->line.line_start->length()))
     goto err;
-  while ((item = li++)) {
+  for (Item *item : VisibleFields(items)) {
     Item_result result_type = item->result_type();
     bool enclosed =
         (exchange->field.enclosed->length() &&
@@ -376,7 +386,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
           ((uint64)res->length() / res->charset()->mbminlen + 1) *
               write_cs->mbmaxlen +
           1;
-      set_if_smaller(estimated_bytes, UINT_MAX32);
+      estimated_bytes = std::min(estimated_bytes, uint64(UINT_MAX32));
       if (cvt_str.mem_realloc((uint32)estimated_bytes)) {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32)estimated_bytes);
         goto err;
@@ -452,9 +462,9 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
           so we have to use mbmaxlenlen == 2 here, which is only true
           for gb18030 currently.
         */
-        DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
-                    my_mbmaxlenlen(character_set_client) == 2 ||
-                    !character_set_client->escape_with_backslash_is_dangerous);
+        assert(character_set_client->mbmaxlen == 2 ||
+               my_mbmaxlenlen(character_set_client) == 2 ||
+               !character_set_client->escape_with_backslash_is_dangerous);
         for (start = pos = res->ptr(), end = pos + used_length; pos != end;
              pos++) {
           bool need_escape = false;
@@ -498,7 +508,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
             mbcharlen is equal to 2, because there are no
             character sets with mbmaxlen longer than 2
             and with escape_with_backslash_is_dangerous set.
-            DBUG_ASSERT before the loop makes that sure.
+            assert before the loop makes that sure.
 
             But gb18030 is an exception. First of all, 2-byte codes
             would be affected by the issue above without doubt.
@@ -528,9 +538,9 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
             an ASCII char when we read it, which is correct.
           */
 
-          DBUG_ASSERT(in_escapable_4_bytes >= 0);
+          assert(in_escapable_4_bytes >= 0);
           if (in_escapable_4_bytes > 0) {
-            DBUG_ASSERT(check_following_byte);
+            assert(check_following_byte);
             /* We should escape or not escape all the 4 bytes. */
             need_escape = escape_4_bytes;
           } else if (NEED_ESCAPING(*pos)) {
@@ -585,7 +595,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         }
 
         /* Assert that no escape mode is active here */
-        DBUG_ASSERT(in_escapable_4_bytes == 0);
+        assert(in_escapable_4_bytes == 0);
 
         if (my_b_write(&cache, pointer_cast<const uchar *>(start),
                        (uint)(pos - start)))
@@ -626,9 +636,9 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
                  pointer_cast<const uchar *>(exchange->line.line_term->ptr()),
                  exchange->line.line_term->length()))
     goto err;
-  DBUG_RETURN(false);
+  return false;
 err:
-  DBUG_RETURN(true);
+  return true;
 }
 
 void Query_result_export::cleanup(THD *thd) {
@@ -640,7 +650,8 @@ void Query_result_export::cleanup(THD *thd) {
 ** Dump of query to a binary file
 ***************************************************************************/
 
-bool Query_result_dump::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_dump::prepare(THD *, const mem_root_deque<Item *> &,
+                                Query_expression *u) {
   unit = u;
   return false;
 }
@@ -650,19 +661,17 @@ bool Query_result_dump::start_execution(THD *thd) {
   return false;
 }
 
-bool Query_result_dump::send_data(THD *, List<Item> &items) {
-  List_iterator_fast<Item> li(items);
+bool Query_result_dump::send_data(THD *, const mem_root_deque<Item *> &items) {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
   tmp.length(0);
-  Item *item;
-  DBUG_ENTER("Query_result_dump::send_data");
+  DBUG_TRACE;
 
   if (row_count++ > 1) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
   }
-  while ((item = li++)) {
+  for (Item *item : VisibleFields(items)) {
     res = item->val_str(&tmp);
     if (!res)  // If NULL
     {
@@ -674,19 +683,20 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
       goto err;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 err:
-  DBUG_RETURN(true);
+  return true;
 }
 
 /***************************************************************************
   Dump of select to variables
 ***************************************************************************/
 
-bool Query_dumpvar::prepare(THD *, List<Item> &list, SELECT_LEX_UNIT *u) {
+bool Query_dumpvar::prepare(THD *, const mem_root_deque<Item *> &list,
+                            Query_expression *u) {
   unit = u;
 
-  if (var_list.elements != list.elements) {
+  if (var_list.elements != CountVisibleFields(list)) {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return true;
   }
@@ -694,42 +704,40 @@ bool Query_dumpvar::prepare(THD *, List<Item> &list, SELECT_LEX_UNIT *u) {
   return false;
 }
 
-bool Query_dumpvar::check_simple_select() const {
+bool Query_dumpvar::check_simple_query_block() const {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return true;
 }
 
-bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
+bool Query_dumpvar::send_data(THD *thd, const mem_root_deque<Item *> &items) {
   List_iterator_fast<PT_select_var> var_li(var_list);
-  List_iterator<Item> it(items);
-  Item *item;
+  auto it = VisibleFields(items).begin();
   PT_select_var *mv;
-  DBUG_ENTER("Query_dumpvar::send_data");
+  DBUG_TRACE;
 
   if (row_count++) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
-  while ((mv = var_li++) && (item = it++)) {
+  while ((mv = var_li++) && it != VisibleFields(items).end()) {
+    Item *item = *it++;
     if (mv->is_local()) {
       if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
-        DBUG_RETURN(true);
+        return true;
     } else {
-      /*
-        Create Item_func_set_user_vars with delayed non-constness. We
-        do this so that Item_get_user_var::const_item() will return
-        the same result during
-        Item_func_set_user_var::save_item_result() as they did during
-        optimization and execution.
-       */
-      Item_func_set_user_var *suv =
-          new Item_func_set_user_var(mv->name, item, true);
-      if (suv->fix_fields(thd, 0)) DBUG_RETURN(true);
+      Item_func_set_user_var *suv = new Item_func_set_user_var(mv->name, item);
+      if (suv->fix_fields(thd, nullptr)) return true;
       suv->save_item_result(item);
-      if (suv->update()) DBUG_RETURN(true);
+      if (suv->update()) return true;
+      /*
+        Note that this variable isn't added to LEX::set_var_list, as it's not
+        an _in-query_ assignment but rather a post-query one. It thus doesn't
+        affect constness of this variable when read by the query, for example
+        in   SELECT @a / * <- this is const * / INTO @a FROM ... ;
+      */
     }
   }
-  DBUG_RETURN(thd->is_error());
+  return thd->is_error();
 }
 
 bool Query_dumpvar::send_eof(THD *thd) {
@@ -743,5 +751,5 @@ bool Query_dumpvar::send_eof(THD *thd) {
   if (thd->is_error()) return true;
 
   ::my_ok(thd, row_count);
-  return 0;
+  return false;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,15 +29,16 @@
 
 #include "storage/perfschema/table_replication_applier_status_by_coordinator.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -84,8 +85,8 @@ PFS_engine_table_share
     table_replication_applier_status_by_coordinator::m_share = {
         &pfs_readonly_acl,
         table_replication_applier_status_by_coordinator::create,
-        NULL, /* write_row */
-        NULL, /* delete_all_rows */
+        nullptr, /* write_row */
+        nullptr, /* delete_all_rows */
         table_replication_applier_status_by_coordinator::get_row_count,
         sizeof(pos_t), /* ref length */
         &m_table_lock,
@@ -122,7 +123,7 @@ bool PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi) {
     mysql_mutex_lock(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
-      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+      PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -150,7 +151,7 @@ table_replication_applier_status_by_coordinator::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_applier_status_by_coordinator::
-    ~table_replication_applier_status_by_coordinator() {}
+    ~table_replication_applier_status_by_coordinator() = default;
 
 void table_replication_applier_status_by_coordinator::reset_position(void) {
   m_pos.m_index = 0;
@@ -192,7 +193,7 @@ int table_replication_applier_status_by_coordinator::rnd_next(void) {
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
 
   set_position(pos);
 
@@ -209,7 +210,7 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {
 
 int table_replication_applier_status_by_coordinator::index_init(uint idx,
                                                                 bool) {
-  PFS_index_rpl_applier_status_by_coord *result = NULL;
+  PFS_index_rpl_applier_status_by_coord *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -219,7 +220,7 @@ int table_replication_applier_status_by_coordinator::index_init(uint idx,
       result = PFS_NEW(PFS_index_rpl_applier_status_by_coord_by_thread);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   m_opened_index = result;
@@ -261,8 +262,8 @@ int table_replication_applier_status_by_coordinator::index_next(void) {
 }
 
 int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  assert(mi != nullptr);
+  assert(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -274,7 +275,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
 
   if (mi->rli->slave_running) {
-    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -337,12 +338,12 @@ int table_replication_applier_status_by_coordinator::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* channel_name */
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
@@ -401,7 +402,7 @@ int table_replication_applier_status_by_coordinator::read_row_values(
           set_field_timestamp(f, m_row.processing_trx_start_buffer_timestamp);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,8 +35,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 class THD;
 struct TABLE_LIST;
-
-const char plugin_author[] = "Oracle Corporation";
 
 extern struct st_mysql_plugin i_s_innodb_trx;
 extern struct st_mysql_plugin i_s_innodb_cmp;

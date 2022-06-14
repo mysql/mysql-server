@@ -10,17 +10,38 @@ drop table if exists `£Ô£¹`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET collation_connection = ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE TABLE `£Ô£±` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£²` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£³` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£´` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£µ` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¶` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£·` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¸` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO `£Ô£±` VALUES
 ('PQRSTUVWXYZ[\\]^_')
 ,(' ¡¢£¤¥¦§¨©ª«¬­®¯')
@@ -103,6 +124,8 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 °±²³´µ¶·¸¹º»¼½¾¿	°±²³´µ¶·¸¹º»¼½¾¿
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£±`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
  ¡¢£¤¥¦§¨©ª«¬­®¯	 ¡¢£¤¥¦§¨©ª«¬­®¯
@@ -130,6 +153,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£²`;
 ¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³	¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£²`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 ¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û	¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
@@ -159,6 +184,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£³`;
 °Ü°İ°Ş°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï	°Ü°İ°Ş°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£³`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦??~??¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦???¡¦¡¦¡¦
@@ -184,6 +211,8 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 °±²³´µ¶·¸¹º»¼½¾¿	°±²³´µ¶·¸¹º»¼½¾¿
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£´`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
  ¡¢£¤¥¦§¨©ª«¬­®¯	 ¡¢£¤¥¦§¨©ª«¬­®¯
@@ -211,6 +240,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£µ`;
 ¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³	¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£µ`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 ¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û	¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
@@ -240,6 +271,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¶`;
 °Ü°İ°Ş°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï	°Ü°İ°Ş°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¶`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦??~??¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦???¡¦¡¦¡¦
@@ -265,6 +298,8 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 °±²³´µ¶·¸¹º»¼½¾¿	°±²³´µ¶·¸¹º»¼½¾¿
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£·`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
@@ -292,6 +327,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¸`;
 ¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³	¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³
 ¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³	¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¸`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
@@ -321,6 +358,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¹`;
 ¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³	¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¹`;
 £Ã£±	CONVERT(`£Ã£±` using sjis)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦??~??¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦???¡¦¡¦¡¦

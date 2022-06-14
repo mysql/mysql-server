@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,12 +38,12 @@ Ndb::checkFailedNode()
 
   DBUG_PRINT("enter", ("theNoOfDBnodes: %d", tNoOfDbNodes));
 
-  DBUG_ASSERT(tNoOfDbNodes < MAX_NDB_NODES);
+  assert(tNoOfDbNodes < MAX_NDB_NODES);
   for (Uint32 i = 0; i < tNoOfDbNodes; i++){
     const NodeId node_id = theDBnodes[i];
     DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
-    DBUG_ASSERT(node_id < MAX_NDB_NODES);    
+    assert(node_id < MAX_NDB_NODES);    
     if (the_release_ind[node_id] == 1){
 
       /**
@@ -379,7 +379,7 @@ void
 Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
 {
   DBUG_ENTER("Ndb::releaseScanOperation");
-  DBUG_PRINT("enter", ("op: 0x%lx", (long) aScanOperation));
+  DBUG_PRINT("enter", ("op: %p", aScanOperation));
 #ifdef ndb_release_check_dup
   { NdbIndexScanOperation* tOp = theScanOpIdleList;
     while (tOp != NULL) {
@@ -512,7 +512,7 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
   } else if (ret_code == -5) {
     TRACE_DEBUG("Node stopping when TCRELEASE sent");
   } else {
-    ndbout << "Impossible return from sendRecSignal when TCRELEASE" << endl;
+    g_eventLogger->info("Impossible return from sendRecSignal when TCRELEASE");
     abort();
   }//if
   releaseNdbCon(a_con);

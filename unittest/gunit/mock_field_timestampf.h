@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,33 +27,28 @@
 #include "unittest/gunit/fake_table.h"
 
 class Mock_field_timestampf : public Field_timestampf {
-  static const int PACK_LENGTH = 8;
-  uchar null_byte;
   void initialize() {
     table = new Fake_TABLE(this);
-    EXPECT_FALSE(table == NULL) << "Out of memory";
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
-    set_null_ptr(&null_byte, 1);
+    EXPECT_FALSE(table == nullptr) << "Out of memory";
+    ptr = table->record[0] + 1;
+    set_null_ptr(table->record[0], 1);
   }
 
  public:
-  uchar buffer[PACK_LENGTH];
   bool store_timestamp_internal_called;
   Mock_field_timestampf(uchar auto_flags_arg, int scale)
-      : Field_timestampf(static_cast<uchar *>(buffer),  // ptr_arg
-                         &null_byte,                    // null_ptr_arg
-                         '\0',                          // null_bit_arg
-                         auto_flags_arg,                // auto_flags_arg
-                         "",                            // field_name_arg
-                         static_cast<uint8>(scale)),    // dec_arg a.k.a. scale.
-        null_byte(0),
+      : Field_timestampf(nullptr,                     // ptr_arg
+                         nullptr,                     // null_ptr_arg
+                         '\0',                        // null_bit_arg
+                         auto_flags_arg,              // auto_flags_arg
+                         "",                          // field_name_arg
+                         static_cast<uint8>(scale)),  // dec_arg a.k.a. scale.
         store_timestamp_internal_called(false) {
     initialize();
   }
 
-  timeval to_timeval() {
-    timeval tm;
+  my_timeval to_timeval() {
+    my_timeval tm;
     int warnings = 0;
     get_timestamp(&tm, &warnings);
     EXPECT_EQ(0, warnings);
@@ -61,14 +56,14 @@ class Mock_field_timestampf : public Field_timestampf {
   }
 
   /* Averts ASSERT_COLUMN_MARKED_FOR_WRITE assertion. */
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
 
-  void store_timestamp_internal(const timeval *tm) {
+  void store_timestamp_internal(const my_timeval *tm) override {
     store_timestamp_internal_called = true;
     return Field_timestampf::store_timestamp_internal(tm);
   }
 
-  ~Mock_field_timestampf() { delete static_cast<Fake_TABLE *>(table); }
+  ~Mock_field_timestampf() override { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif  // MOCK_FIELD_TIMESTAMPF_H

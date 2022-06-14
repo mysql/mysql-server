@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,9 @@
 */
 
 #include <thread>
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "common.h"
 
@@ -131,4 +132,9 @@ TEST(TestCommon, SerialComma) {
   expect_output(2, "2 and 3");
   expect_output(3, "2, 3, and 5");
   expect_output(5, "2, 3, 5, 7, and 11");
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

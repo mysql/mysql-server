@@ -9,7 +9,10 @@ Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'b' at row 2
 Warning	1264	Out of range value for column 'c' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 3 is superfluous and is deprecated. Please remove.
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 1 is superfluous and is deprecated. Please remove.
 SELECT * from t1;
 a	b	c	d
 0000-00-00	NULL	0000-00-00	0000-00-00
@@ -24,6 +27,7 @@ Warning	1265	Data truncated for column 'd' at row 1
 Warning	1264	Out of range value for column 'b' at row 2
 Warning	1264	Out of range value for column 'c' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 3 is superfluous and is deprecated. Please remove.
 SELECT * from t1;
 a	b	c	d
 NULL	NULL	0000-00-00	0000-00-00
@@ -621,7 +625,7 @@ ERROR 0A000: LOAD DATA is not allowed in stored procedures
 SET @save_local_infile = @@local_infile;
 SET GLOBAL local_infile = OFF;
 LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
-ERROR 42000: The used command is not allowed with this MySQL version
+ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server sides
 SET GLOBAL local_infile = @save_local_infile;
 DROP TABLE t1;
 CREATE TABLE t2(a BLOB);
@@ -632,3 +636,111 @@ CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
 LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
 ERROR 23000: Column 'i' cannot be null
 DROP TABLE t3;
+#
+# Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+#              VIA SET
+#
+# Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+# columns. However, if the column is set using the SET clause,
+# LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y);
+ERROR HY000: Field 'g' doesn't have a default value
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+x	y	ST_AsText(g)	ST_SRID(g)
+10	20	POINT(20 10)	4326
+30	40	POINT(40 30)	4326
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Bug#30126375 - LOAD DATA WITH SET CLAUSE IGNORES NO_AUTO_VALUE_ON_ZERO
+#                MODE
+#-----------------------------------------------------------------------
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j INT);
+INSERT INTO t1 VALUES (0, 1);
+# NO_AUTO_VALUE_ON_ZERO should prevent generation of new
+# auto-increment value. So row should get 0 as id.
+SELECT * FROM t1;
+id	j
+0	1
+# LOAD DATA from file with separators.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt';
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 SET j = 2;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row.
+SELECT * FROM t1;
+id	j
+0	2
+# LOAD DATA from file in fixed row format.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' SET j = 3;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row too.
+SELECT * FROM t1;
+id	j
+0	3
+# LOAD DATA from XML file.
+# Use mysqldump --xml to produce t1.xml file.
+DELETE FROM t1;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/t1.xml" IGNORE INTO TABLE t1 SET j = 4;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row as well.
+SELECT * FROM t1;
+id	j
+0	4
+# Clean up.
+DROP TABLE t1;
+SET sql_mode=@old_sql_mode;
+#
+# Bug#31024266 LOAD DATA INFILE FAILS IF THERE IS A FUNCTIONAL INDEX.
+#
+CREATE TABLE t1 (
+json_col JSON , KEY json_col ((CAST(json_col -> '$' AS UNSIGNED ARRAY)))
+);
+INSERT INTO t1 VALUES('[]');
+# LOAD DATA from file with separators.
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' from t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+json_col
+[]
+[]
+# LOAD DATA from file in fixed row format.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';;
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';;
+SELECT * FROM t1;
+json_col
+[]
+[]
+# LOAD DATA from XML file.
+DELETE FROM t1;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/t1.xml" INTO TABLE t1;;
+SELECT * FROM t1;
+json_col
+[]
+[]
+DROP TABLE t1;
+#
+# Bug 33714885 - LOAD DATA INFILE fails with ERROR 1054 :
+#   Unknown column XXXX in 'where clause'
+#
+CREATE TABLE t1 (c1 varchar(5), c2 varchar(5));
+INSERT INTO t1 VALUES ('a','a');
+CREATE TABLE t2 (d1 varchar(5), d2 varchar(5));
+INSERT INTO t2 VALUES ('a','a'), ('b','b');
+SELECT * FROM t2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t2.csv' FIELDS TERMINATED BY ',';;
+DELETE FROM t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t2.csv' INTO TABLE t2 FIELDS TERMINATED BY ',' SET d1=(SELECT 1 FROM t1 WHERE c1=d2);;
+SELECT * FROM t2;
+d1	d2
+1	a
+NULL	b
+DROP TABLE t1, t2;

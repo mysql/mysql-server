@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,39 +21,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// dbutil.h: interface for the database utilities class.
-// Supplies a database to the test application
+// Interface for the database utilities class that supplies an object
+// oriented way to work with MySQL in test applications
 
 #ifndef DBUTIL_HPP
 #define DBUTIL_HPP
 
-#include <NDBT.hpp>
 #include <BaseString.hpp>
 #include <Properties.hpp>
-#include <Vector.hpp>
-#include <mysql.h>
 
-//#define DEBUG
-#define  DIE_UNLESS(expr) \
-           ((void) ((expr) ? 0 : (Die(__FILE__, __LINE__, #expr), 0)))
-#define DIE(expr) \
-          Die(__FILE__, __LINE__, #expr)
-#define myerror(msg) printError(msg)
-#define mysterror(stmt, msg) printStError(stmt, msg)
-#define  CheckStmt(stmt) \
-{ \
-if ( stmt == 0) \
-  myerror(NULL); \
-DIE_UNLESS(stmt != 0); \
-}
-
-#define  check_execute(stmt, r) \
-{ \
-if (r) \
-  mysterror(stmt, NULL); \
-DIE_UNLESS(r == 0);\
-}
-
+struct MYSQL;
 
 class SqlResultSet : public Properties {
 public:
@@ -61,9 +38,9 @@ public:
   // Get row with number
   bool get_row(int row_num);
   // Load next row
-  bool next(void);
+  bool next();
   // Reset iterator
-  void reset(void);
+  void reset();
   // Remove current row from resultset
   void remove();
   // Clear result
@@ -78,7 +55,7 @@ public:
 
   unsigned long long insertId();
   unsigned long long affectedRows();
-  uint numRows(void);
+  uint numRows();
   uint mysqlErrno();
   const char* mysqlError();
   const char* mysqlSqlstate();
@@ -97,6 +74,15 @@ class DbUtil
 {
 public:
 
+  /*
+   The DbUtil class can be used in two modes.
+    1) The class owns its MySQL object which it will create,
+       connect and release.
+    2) The class only uses a MYSQL object which is passed in by the
+       caller, in this mode it's assumed that the MYSQL object has been
+       created and is connected. The class will not release the MySQL
+       object (since it's not owned by the class).
+   */
   DbUtil(MYSQL* mysql);
   DbUtil(const char* dbname = "mysql",
          const char* suffix = NULL);
@@ -114,39 +100,13 @@ public:
 
   bool waitConnected(int timeout = 120);
 
-  bool  databaseLogin(const char * host,
-                      const char * user,
-                      const char * password,
-                      unsigned int portIn,
-                      const char * sockIn,
-                      bool transactional);
-
-  const char * getDbName()  {return m_dbname.c_str();}
-  const char * getUser()    {return m_user.c_str();}
-  const char * getPassword(){return m_pass.c_str();}
-  const char * getHost()    {return m_host.c_str();}
-  const char * getSocket()  {return m_socket.c_str();}
-  const char * getServerType(){return mysql_get_server_info(m_mysql);}
-  const char * getError();
-
-  MYSQL * getMysql(){return m_mysql;}
-  MYSQL_STMT * STDCALL mysqlSimplePrepare(const char *query);
-
-  void databaseLogout();
-  void mysqlCloseStmHandle(MYSQL_STMT *my_stmt);
-
-  bool connect();
-  void disconnect();
-  bool selectDb();
-  bool selectDb(const char *);
-  bool createDb(BaseString&);
-  int getErrorNumber();
-  const char* last_error() const { return m_last_error.c_str(); }
-  int last_errno() const { return m_last_errno; }
-
   unsigned long long selectCountTable(const char * table);
 
-  void silent() { m_silent= true; }
+  /*
+     Usage of DbUtil initializes the MySQL library and allocates resources in
+     the thread that need to be released.
+     */
+  static void thread_end();
 
 protected:
 
@@ -156,41 +116,21 @@ protected:
 
   bool isConnected();
 
-  MYSQL * m_mysql;
-  bool m_free_mysql; /* Don't free mysql* if allocated elsewhere */
-
 private:
+  MYSQL * m_mysql;
+  const bool m_owns_mysql; // The MYSQL object is owned by this class
 
-  bool m_connected;
-
-  BaseString m_host;       // Computer to connect to
   BaseString m_user;       // MySQL User
   BaseString m_pass;       // MySQL User Password
   BaseString m_dbname;     // Database to use
-  BaseString m_socket;     // MySQL Server Unix Socket
   BaseString m_default_file;
   BaseString m_default_group;
 
-  unsigned int m_port;     // MySQL Server port
+  bool connect();
+  void disconnect();
 
-  int m_last_errno;
-  BaseString m_last_error;
-
-  bool m_silent;
-
-  void report_error(const char* message, MYSQL* mysql);
-  void clear_error(void) { m_last_errno= 0; m_last_error.clear(); }
-
-  void setDbName(const char * name){m_dbname.assign(name);}
-  void setUser(const char * user_name){m_user.assign(user_name);}
-  void setPassword(const char * password){m_pass.assign(password);}
-  void setHost(const char * system){m_host.assign(system);}
-  void setPort(unsigned int portIn){m_port=portIn;}
-  void setSocket(const char * sockIn){m_socket.assign(sockIn);}
-  void printError(const char *msg);
-  void printStError(MYSQL_STMT *stmt, const char *msg);
-  void die(const char *file, int line, const char *expr); // stop program
-
+  void report_error(const char* message) const;
+  void printError(const char *msg) const;
 };
 #endif
 

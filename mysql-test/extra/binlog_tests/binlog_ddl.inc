@@ -270,3 +270,23 @@ DEALLOCATE PREPARE stmt;
 --let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'
 --let $post_binlog_crash_check=SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= CREATE TABLE test.t1(a int)
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t1'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t1'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= CREATE TABLE test.t2 AS SELECT * FROM t1;
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t2'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t2'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= DROP TABLE test.t1
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t1'
+--let $post_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t1'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= DROP TABLE test.t2
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t2'
+--let $post_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t2'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc

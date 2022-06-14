@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,6 @@
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -39,15 +37,16 @@
 
 #include "config_builder.h"
 #include "dim.h"
-#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 #include "mysqlrouter/rest_client.h"
+
+using namespace std::chrono_literals;
 
 static const std::string http_auth_realm_name("somerealm");
 static const std::string http_auth_backend_name("somebackend");
@@ -84,33 +83,31 @@ static const std::vector<SwaggerPath> kMetadataSwaggerPaths{
 size_t g_refresh_failed = 0, g_refresh_succeeded = 0;
 std::string g_time_last_refresh_succeeded, g_time_last_refresh_failed;
 
-#if 0
-// precondition to these tests is that we can start a router agianst a metadata-cluster
-// which has no nodes. But with Bug#28352482 (no empty bootstrap_server_addresses) fixed
-// we can't bring the metadata into that state anymore. We just won't start.
-//
-// An empty dynamic_config file will also not allow to start.
-//
-// In case that functionally ever comes back, we'll leave this code around, but disabled.
-
-
 class RestMetadataCacheApiWithoutClusterTest
     : public RestApiTestBase,
       public ::testing::WithParamInterface<RestApiTestParams> {};
 
-TEST_P(RestMetadataCacheApiWithoutClusterTest, ensure_openapi) {
+// precondition to these tests is that we can start a router agianst a
+// metadata-cluster which has no nodes. But with Bug#28352482 (no empty
+// bootstrap_server_addresses) fixed we can't bring the metadata into that state
+// anymore. We just won't start.
+//
+// An empty dynamic_config file will also not allow to start.
+//
+// In case that functionally ever comes back, we'll leave this code around, but
+// disabled.
+TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string userfile = create_password_file();
   const std::string http_uri = GetParam().uri;
 
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "rest_metadata_cache", {
                                  {"require_realm", http_auth_realm_name},
                              }));
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
           {"user", keyring_username},
@@ -118,14 +115,15 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, ensure_openapi) {
       }));
 
   std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section_)};
   ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
   g_refresh_failed = 0;
   g_time_last_refresh_failed = "";
 
-  fetch_and_validate_schema_and_resource(GetParam(), http_server);
+  ASSERT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().status_code == HttpMethod::Get &&
@@ -135,12 +133,13 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, ensure_openapi) {
 
     // check the resources again, we want to compare them against the previous
     // ones
-    fetch_and_validate_schema_and_resource(GetParam(), http_server);
+    ASSERT_NO_FATAL_FAILURE(
+        fetch_and_validate_schema_and_resource(GetParam(), http_server));
   }
 }
 
 static const RestApiTestParams rest_api_params_without_cluster[]{
-    // The socpe of WL#12441 was limited and does not include those
+    // The scope of WL#12441 was limited and does not include those
     //    {"cluster_list_no_cluster",
     //     std::string(rest_api_basepath) + "/clusters/",
     //     "/clusters",
@@ -278,13 +277,12 @@ static const RestApiTestParams rest_api_params_without_cluster[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, RestMetadataCacheApiWithoutClusterTest,
     ::testing::ValuesIn(rest_api_params_without_cluster),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
       return info.param.test_name;
     });
-#endif
 
 /**
  * with cluster.
@@ -296,11 +294,71 @@ class RestMetadataCacheApiTest
   const uint16_t metadata_server_port_{port_pool_.get_next_available()};
 };
 
+/**
+ * wait until metadata has fetched data once.
+ *
+ * @param http_hostname hostname of the http server
+ * @param http_port TCP port of the http server
+ * @param user_name username to authenticate against http server
+ * @param user_password password to authenticate against http server
+ * @param metadata_status_uri URI to metadata status, like
+ *   /baseuri/metadata/{section}/status
+ *
+ * uses googletest's ASSERT macros to signal failure
+ */
+static void wait_metadata_fetched(const std::string &http_hostname,
+                                  uint16_t http_port,
+                                  const std::string &user_name,
+                                  const std::string &user_password,
+                                  const std::string &metadata_status_uri,
+                                  std::chrono::milliseconds timeout = 1s) {
+  ASSERT_GT(timeout, 0ms);
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
+  // wait for metadata-cache to finish its first fetch
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname, http_port, user_name,
+                         user_password);
+
+  ASSERT_NO_FATAL_FAILURE(wait_for_rest_endpoint_ready(
+      metadata_status_uri, http_port, user_name, user_password));
+
+  const char refresh_sucesseed_json_pointer[] = "/refreshSucceeded";
+  const size_t max_rounds = 10;
+  size_t rounds{};
+  do {
+    JsonDocument json_doc;
+    ASSERT_NO_FATAL_FAILURE(
+        fetch_json(rest_client, metadata_status_uri, json_doc));
+
+    const auto jp = JsonPointer(refresh_sucesseed_json_pointer);
+    ASSERT_TRUE(jp.IsValid());
+    const auto *val = jp.Get(json_doc);
+
+    ASSERT_TRUE(val != nullptr);
+
+    ASSERT_TRUE(val->IsInt());
+    if (val->GetInt() > 0) {
+      break;
+    }
+
+    // only try a few times before we give up
+    ASSERT_LT(rounds, max_rounds)
+        << metadata_status_uri << " " << refresh_sucesseed_json_pointer
+        << " stayed at 0 for too long";
+
+    std::this_thread::sleep_for(timeout / max_rounds);
+    ++rounds;
+  } while (true);
+}
+
 TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
 
-  auto &md_server = ProcessManager::launch_mysql_server_mock(
+  /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
       get_data_dir().join("metadata_1_node_repeat.js").str(),
       metadata_server_port_, EXIT_SUCCESS, false);
 
@@ -309,13 +367,12 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
 
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "rest_metadata_cache", {
                                  {"require_realm", http_auth_realm_name},
                              }));
 
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
           {"user", keyring_username},
@@ -327,30 +384,37 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
       }));
 
   std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section_)};
 
-  // delay the wait until we really need it.
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port_, 5000))
-      << md_server.get_full_output();
   auto &router_proc{launch_router({"-c", conf_file})};
 
   g_refresh_succeeded = 0;
   g_time_last_refresh_failed = "";
 
-  EXPECT_NO_FATAL_FAILURE(
-      fetch_and_validate_schema_and_resource(GetParam(), router_proc))
-      << router_proc.get_full_output();
+  if (GetParam().methods == HttpMethod::Get &&
+      GetParam().status_code == HttpStatusCode::Ok) {
+    // waits until /refreshSucceeded increments at least once
+    ASSERT_NO_FATAL_FAILURE(
+        wait_metadata_fetched(http_hostname, http_port_, GetParam().user_name,
+                              GetParam().user_password,
+                              rest_api_basepath + "/metadata/" +
+                                  metadata_cache_section_name + "/status"));
+  }
+
+  ASSERT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), router_proc));
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
-  if (GetParam().status_code == HttpMethod::Get &&
-      GetParam().methods == HttpStatusCode::Ok) {
-    // sleep a while to make the counters and timestamps change
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+  if (GetParam().methods == HttpMethod::Get &&
+      GetParam().status_code == HttpStatusCode::Ok) {
+    // sleep ~2*TTL to make the counters and timestamps change
+    std::this_thread::sleep_for(500ms);
 
     // check the resources again, we want to compare them against the previous
     // ones
-    fetch_and_validate_schema_and_resource(GetParam(), router_proc);
+    ASSERT_NO_FATAL_FAILURE(
+        fetch_and_validate_schema_and_resource(GetParam(), router_proc));
   }
 }
 
@@ -441,9 +505,11 @@ static const RestApiTestParams rest_api_valid_methods[]{
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsInt());
 
-            // check if it is more than last time we checked
-            ASSERT_GT(value->GetInt(), g_refresh_succeeded);
-            g_refresh_succeeded = static_cast<size_t>(value->GetInt());
+            if (!getenv("WITH_VALGRIND")) {
+              // check if it is more than last time we checked
+              ASSERT_GT(value->GetInt(), g_refresh_succeeded);
+              g_refresh_succeeded = static_cast<size_t>(value->GetInt());
+            }
           }},
          {"/timeLastRefreshSucceeded",
           [](const JsonValue *value) -> void {
@@ -529,7 +595,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethods, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_valid_methods),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -603,7 +669,7 @@ static const RestApiTestParams rest_api_non_existig_resouces[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NoNexistingResources, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_non_existig_resouces),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -674,7 +740,7 @@ static const RestApiTestParams rest_api_valid_methods_invalid_auth_params[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsInvalidAuth, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_invalid_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -734,7 +800,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kMetadataSwaggerPaths},
 
     {"metadata_status_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/" +
@@ -746,7 +813,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kMetadataSwaggerPaths},
 
     {"metadata_config_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/" +
@@ -758,10 +826,11 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethods, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -782,21 +851,18 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
   auto config_sections = get_restapi_config("rest_metadata_cache", userfile,
                                             /*request_authentication=*/false);
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(
-      router_output.find("plugin 'rest_metadata_cache' init failed: option "
-                         "require_realm in [rest_metadata_cache] is required"),
-      router_output.npos)
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr(
+                  "  init 'rest_metadata_cache' failed: option "
+                  "require_realm in [rest_metadata_cache] is required"))
       << router_output;
 }
 
@@ -810,22 +876,19 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
       get_restapi_config("rest_metadata_cache", userfile,
                          /*request_authentication=*/true, "invalidrealm");
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(router_output.find(
-                "Configuration error: unknown authentication "
-                "realm for [rest_metadata_cache] '': invalidrealm, known "
-                "realm(s): somerealm"),
-            router_output.npos)
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr(
+          "Configuration error: The option 'require_realm=invalidrealm' "
+          "in [rest_metadata_cache] does not match any http_auth_realm."))
       << router_output;
 }
 
@@ -837,50 +900,39 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
 TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_rest_api) {
   const std::string userfile = create_password_file();
   auto config_sections = get_restapi_config("rest_metadata_cache", userfile,
-                                            /*request_authentication=*/false);
+                                            /*request_authentication=*/true);
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
-
-  const std::string router_output = router.get_full_output();
-  EXPECT_NE(router_output.find("Plugin 'rest_metadata_cache' needs plugin "
-                               "'rest_api' which is missing in the "
-                               "configuration"),
-            router_output.npos)
-      << router_output;
+  launch_router({"-c", conf_file}, EXIT_SUCCESS);
 }
 
 /**
- * @test Start router with the REST routing API plugin [rest_metadata_cache],
- * [http_plugin] and [rest_api] enabled but not the [metadata_cache] plugin.
+ * @test Start router with the REST routing API plugin [rest_metadata_cache] and
+ * [http_plugin] enabled but not the [metadata_cache] plugin.
  *
+ * disabled for now as we can't declare the requirement in the plugin
+ * structures yet: "requires any metadata-cache", but only "that named
+ * metadata-cache section"
  */
-// TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_mdc_secion) {
-//  const std::string userfile = create_password_file();
-//  auto config_sections = get_restapi_config("rest_metadata_cache", userfile,
-//                                            /*request_authentication=*/true);
+TEST_F(RestMetadataCacheApiTest, DISABLED_metadata_cache_api_no_mdc_section) {
+  const std::string userfile = create_password_file();
+  auto config_sections = get_restapi_config("rest_metadata_cache", userfile,
+                                            /*request_authentication=*/true);
 
-//  // [rest_api] is always required
-//  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
+  auto &router = launch_router({"-c", conf_file});
 
-//  const std::string conf_file{create_config_file(
-//      conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-//  auto router = launch_router({"-c", conf_file});
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
-//  const unsigned wait_for_process_exit_timeout{10000};
-//  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
-
-//  const std::string router_output = router.get_full_output();
-//  EXPECT_NE(router_output.find("Plugin 'rest_metadata_cache' needs plugin "
-//                               "'metadata_cache' which is missing in the "
-//                               "configuration"),
-//            router_output.npos)
-//      << router_output;
-//}
+  const std::string router_output = router.get_full_output();
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr("Plugin 'rest_metadata_cache' needs plugin "
+                                   "'metadata_cache' which is missing in the "
+                                   "configuration"))
+      << router_output;
+}
 
 /**
  * @test Add [rest_metadata_cache] twice to the configuration file. Start
@@ -892,25 +944,22 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
   auto config_sections = get_restapi_config("rest_metadata_cache", userfile,
                                             /*request_authentication=*/true);
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   // force [rest_metadata_cache] twice in the config
   config_sections.push_back(
-      ConfigBuilder::build_section("rest_metadata_cache", {}));
+      mysql_harness::ConfigBuilder::build_section("rest_metadata_cache", {}));
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+      conf_dir_.name(), mysql_harness::join(config_sections, ""))};
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
-  EXPECT_NE(
-      router_output.find(
-          "Configuration error: Section 'rest_metadata_cache' already exists"),
-      router_output.npos)
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr(
+          "Configuration error: Section 'rest_metadata_cache' already exists"))
       << router_output;
 }
 
@@ -925,22 +974,18 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
   auto config_sections = get_restapi_config("rest_metadata_cache:A", userfile,
                                             /*request_authentication=*/true);
 
-  // [rest_api] is always required
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
-
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  const unsigned wait_for_process_exit_timeout{10000};
-  EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(
-      router_output.find(
-          "plugin 'rest_metadata_cache' init failed: [rest_metadata_cache] "
-          "section does not expect a key, found 'A'"),
-      router_output.npos)
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr(
+                  "  init 'rest_metadata_cache' failed: [rest_metadata_cache] "
+                  "section does not expect a key, found 'A'"))
       << router_output;
 }
 

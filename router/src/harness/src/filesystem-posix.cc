@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,25 +30,26 @@
 #define _DARWIN_C_SOURCE
 #endif
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
 
 #include <cassert>
+#include <cerrno>
+#include <climits>
+#include <cstring>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
 
 #include <dirent.h>
-#include <errno.h>
+#include <fcntl.h>
 #include <fnmatch.h>
-#include <limits.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-using std::ostringstream;
-using std::string;
+#include "mysql/harness/access_rights.h"
+#include "mysql/harness/stdx/expected.h"
 
 namespace {
 const std::string dirsep("/");
@@ -56,6 +57,8 @@ const std::string extsep(".");
 }  // namespace
 
 namespace mysql_harness {
+
+const perm_mode kStrictDirectoryPerm = S_IRWXU;
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
@@ -104,13 +107,25 @@ Path::FileType Path::type(bool refresh) const {
   return type_;
 }
 
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+  if (path_[0] == '/') return true;
+  return false;
+}
+
+bool Path::is_readable() const {
+  validate_non_empty_path();
+  return exists() && std::ifstream(real_path().str()).good();
+}
+
 ////////////////////////////////////////////////////////////////
 // Directory::DirectoryIterator
 
 class Directory::DirectoryIterator::State {
  public:
   State();
-  State(const Path &path, const string &pattern);  // throws std::system_error
+  State(const Path &path,
+        const std::string &pattern);  // throws std::system_error
   ~State();
 
   bool eof() const { return result_ == nullptr; }
@@ -141,7 +156,7 @@ class Directory::DirectoryIterator::State {
   };
 
   std::unique_ptr<dirent, free_dealloc> entry_;
-  const string pattern_;
+  const std::string pattern_;
   struct dirent *result_;
 };
 
@@ -150,7 +165,7 @@ Directory::DirectoryIterator::State::State()
 
 // throws std::system_error
 Directory::DirectoryIterator::State::State(const Path &path,
-                                           const string &pattern)
+                                           const std::string &pattern)
     : dirp_(opendir(path.c_str())), pattern_(pattern) {
   // dirent can be NOT large enough to hold a directory name, so we need to
   // ensure there's extra space for it. From the "man readdir_r":
@@ -174,7 +189,7 @@ Directory::DirectoryIterator::State::State(const Path &path,
   result_ = entry_.get();
 
   if (dirp_ == nullptr) {
-    ostringstream msg;
+    std::ostringstream msg;
     msg << "Failed to open directory '" << path << "'";
     throw std::system_error(errno, std::system_category(), msg.str());
   }
@@ -197,11 +212,13 @@ void Directory::DirectoryIterator::State::fill_result() {
   if (result_ == nullptr) return;
 
   while (true) {
-    // new GCC doesn't like readdir_r(), and deprecates it in favor of
-    // readdir(). However, readdir() is not thread-safe on all platforms yet.
-    MYSQL_HARNESS_DISABLE_WARNINGS()
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    // new glibc 2.24-and-later don't like readdir_r(), and deprecate it in
+    // favor of readdir(). However, readdir() is not thread-safe according to
+    // POSIX.1:2008 yet.
     int error = readdir_r(dirp_, entry_.get(), &result_);
-    MYSQL_HARNESS_ENABLE_WARNINGS()
+#pragma GCC diagnostic pop
 
     if (error) {
       throw std::system_error(errno, std::system_category(),
@@ -225,7 +242,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     } else if (error == 0) {
       break;
     } else {
-      ostringstream msg;
+      std::ostringstream msg;
       msg << "Matching name pattern '" << pattern_.c_str()
           << "' against directory entry '" << result_->d_name << "' failed";
       throw std::system_error(errno, std::system_category(), msg.str());
@@ -240,13 +257,10 @@ void Directory::DirectoryIterator::State::fill_result() {
 // be here since the automatically generated default
 // constructor/destructor uses the definition of the class 'State',
 // which is not available when the header file is read.
-Directory::DirectoryIterator::~DirectoryIterator() {}
+Directory::DirectoryIterator::~DirectoryIterator() = default;
 Directory::DirectoryIterator::DirectoryIterator(DirectoryIterator &&) = default;
-Directory::DirectoryIterator::DirectoryIterator(const DirectoryIterator &other)
-    : DirectoryIteratorBase(other),
-      path_(other.path_),
-      pattern_(other.pattern_),
-      state_(other.state_) {}
+Directory::DirectoryIterator::DirectoryIterator(const DirectoryIterator &) =
+    default;
 
 Directory::DirectoryIterator::DirectoryIterator()
     : path_("*END*"), state_(std::make_shared<State>()) {}
@@ -291,15 +305,29 @@ Path Path::real_path() const {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-int delete_dir(const std::string &dir) noexcept { return ::rmdir(dir.c_str()); }
+stdx::expected<void, std::error_code> delete_dir(
+    const std::string &dir) noexcept {
+  if (::rmdir(dir.c_str()) != 0) {
+    return stdx::make_unexpected(
+        std::error_code(errno, std::generic_category()));
+  }
 
-int delete_file(const std::string &path) noexcept {
-  return ::unlink(path.c_str());
+  return {};
+}
+
+stdx::expected<void, std::error_code> delete_file(
+    const std::string &path) noexcept {
+  if (::unlink(path.c_str()) != 0) {
+    return stdx::make_unexpected(
+        std::error_code(errno, std::generic_category()));
+  }
+
+  return {};
 }
 
 std::string get_tmp_dir(const std::string &name) {
   const size_t MAX_LEN = 256;
-  const std::string pattern_str = std::string(name + "-XXXXXX");
+  const std::string pattern_str = std::string("/tmp/" + name + "-XXXXXX");
   const char *pattern = pattern_str.c_str();
   if (strlen(pattern) >= MAX_LEN) {
     throw std::runtime_error(
@@ -309,7 +337,8 @@ std::string get_tmp_dir(const std::string &name) {
   strncpy(buf, pattern, sizeof(buf) - 1);
   const char *res = mkdtemp(buf);
   if (res == nullptr) {
-    throw std::runtime_error("Could not create temporary directory");
+    throw std::system_error(errno, std::generic_category(),
+                            "mkdtemp(" + pattern_str + ") failed");
   }
 
   return std::string(res);
@@ -319,6 +348,36 @@ int mkdir_wrapper(const std::string &dir, perm_mode mode) {
   auto res = ::mkdir(dir.c_str(), mode);
   if (res != 0) return errno;
   return 0;
+}
+
+void make_file_public(const std::string &file_name) {
+  const auto set_res =
+      access_rights_set(file_name, S_IRWXU | S_IRWXG | S_IRWXO);
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(ec, "chmod() failed: " + file_name);
+  }
+}
+
+void make_file_private(const std::string &file_name,
+                       const bool read_only_for_local_service
+                       [[maybe_unused]]) {
+  const auto set_res = access_rights_set(file_name, S_IRUSR | S_IWUSR);
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(
+        ec, "Could not set permissions for file '" + file_name + "'");
+  }
+}
+
+void make_file_readonly(const std::string &file_name) {
+  const auto set_res =
+      access_rights_set(file_name, (S_IRUSR | S_IXUSR) | (S_IRGRP | S_IXGRP) |
+                                       (S_IROTH | S_IXOTH));
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(ec, "chmod() failed: " + file_name);
+  }
 }
 
 }  // namespace mysql_harness

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,11 +54,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -91,6 +93,8 @@ public abstract class AbstractClusterJTest extends TestCase {
     protected Session session;
     protected SessionFactory sessionFactory;
     protected Transaction tx;
+    /** Set of all SessionFactories created by the tests */
+    private static Set<SessionFactory> existingSessionFactories = new HashSet<SessionFactory>();
 
     /**
      *
@@ -107,6 +111,7 @@ public abstract class AbstractClusterJTest extends TestCase {
      *
      * A list of registered oid instances.
      * Corresponding pc instances are deleted in <code>localTearDown</code>.
+     *
      */
     private Collection<Object> tearDownInstances = new LinkedList<Object>();
 
@@ -142,8 +147,22 @@ public abstract class AbstractClusterJTest extends TestCase {
             Properties modifiedProperties = modifyProperties();
             if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
             sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
+            existingSessionFactories.add(sessionFactory);
             loadSchema();
         }
+    }
+
+    /** Close any open session factories.
+     * Tests can call this function to close any open session factories,
+     * to prevent them from causing any interference with their testing.
+     */
+    protected static void closeAllExistingSessionFactories () {
+        for (SessionFactory sessionFactory : existingSessionFactories) {
+            if (sessionFactory.currentState() != SessionFactory.State.Closed) {
+                sessionFactory.close();
+            }
+        }
+        existingSessionFactories.clear();
     }
 
     protected Properties modifyProperties() {
@@ -245,7 +264,12 @@ public abstract class AbstractClusterJTest extends TestCase {
     protected void verifyException(String message, Exception ex, String exceptionPattern) {
         if(ex == null) {
             error(message + ", didn't fail.");
-        } else if(!ex.getMessage().matches(exceptionPattern)) {
+            return;
+        }
+        // Some exception messages have multiple lines.
+        // Enable single line mode in the expectedPattern regex to get a proper match.
+        exceptionPattern = "(?s)" + exceptionPattern;
+        if(!ex.getMessage().matches(exceptionPattern)) {
             error(message + ", failed with wrong exception :");
             error(ex.getMessage());
         }
@@ -272,31 +296,11 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
-    /** Get a connection with special properties. If the connection is open,
-     * close it and get a new one.
-     * 
-     */
-    protected void getConnection(Properties extraProperties) {
-        // characterEncoding = utf8 property is especially useful
-        Properties properties = new Properties(props);
-        properties.putAll(extraProperties);
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                connection = null;
-            }
-            if (debug) System.out.println("Getting new connection with properties " + properties);
-            connection = DriverManager.getConnection(jdbcURL, properties);
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            throw new ClusterJException("Exception getting connection to " + jdbcURL + "; username " + jdbcUsername, ex);
-        }
-    }
-
     /** Get a connection with properties from the Properties instance.
      * 
      */
     protected Connection getConnection() {
+        Properties props = modifyProperties();
         if (connection == null) {
             try {
                 Class.forName(jdbcDriverName, true, ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER);
@@ -308,21 +312,6 @@ public abstract class AbstractClusterJTest extends TestCase {
             }
         }
         return connection;
-    }
-
-    /** Get a connection with properties from a file.
-     * 
-     * @param propertiesFileName the name of the properties file
-     */
-    protected void getConnection(String propertiesFileName) {
-        Properties props = getProperties(propertiesFileName);
-        String url = props.getProperty(JDBC_URL);
-        try {
-            connection = DriverManager.getConnection(url, props);
-            setAutoCommit(connection, false);
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not get Connection: " + url, e);
-        }
     }
 
     /**
@@ -502,6 +491,10 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     /** Load properties from clusterj.properties */
     protected void loadProperties() {
+        if (props != null) {
+            // Properties have been loaded already
+            return;
+        }
         props = getProperties(PROPS_FILE_NAME);
         jdbcDriverName = props.getProperty(Constants.PROPERTY_JDBC_DRIVER_NAME);
         jdbcURL = props.getProperty(Constants.PROPERTY_JDBC_URL);
@@ -612,6 +605,8 @@ System.out.println(this.getClass().getName());
         }
         session = null;
         sessionFactory = null;
+        // close the jdbc connection
+        closeConnection();
     }
 
     protected void removeAll(Class<?> cls) {

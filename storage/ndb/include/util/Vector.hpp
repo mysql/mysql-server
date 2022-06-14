@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef NDB_VECTOR_HPP
 #define NDB_VECTOR_HPP
 
+#include <utility>
+
 #include <ndb_global.h>
 #include <portlib/NdbMutex.h>
 
@@ -41,7 +43,7 @@ public:
   
   int push_back(const T &);
   int push(const T&, unsigned pos);
-  T& set(T&, unsigned pos, T& fill_obj);
+  T& set(const T&, unsigned pos, const T& fill_obj);
   T& back();
   const T& back() const;
   
@@ -49,9 +51,10 @@ public:
   
   void clear();
   
-  int fill(unsigned new_size, T & obj);
+  int fill(unsigned new_size, const T & obj);
 
   Vector<T>& operator=(const Vector<T>&);
+  Vector<T>& operator=(Vector<T>&&);
 
   /** Does deep copy.*/
   Vector(const Vector&); 
@@ -222,9 +225,9 @@ Vector<T>::push(const T & t, unsigned pos)
 
 template<class T>
 T&
-Vector<T>::set(T & t, unsigned pos, T& fill_obj)
+Vector<T>::set(const T & t, unsigned pos, const T& fill_obj)
 {
-  if (fill(pos, fill_obj))
+  if (fill(pos + 1, fill_obj))
     abort();
   T& ret = m_items[pos];
   m_items[pos] = t;
@@ -250,11 +253,12 @@ Vector<T>::clear(){
 
 template<class T>
 int
-Vector<T>::fill(unsigned new_size, T & obj){
+Vector<T>::fill(unsigned new_size, const T & obj)
+{
   const int err = expand(new_size);
   if (unlikely(err))
     return err;
-  while(m_size <= new_size)
+  while (m_size < new_size)
     if (push_back(obj))
       return -1;
   return 0;
@@ -266,7 +270,7 @@ Vector<T>::fill(unsigned new_size, T & obj){
  *  an error code instead of aborting.
  */
 template<class T>
-Vector<T>& 
+Vector<T>&
 Vector<T>::operator=(const Vector<T>& obj){
   if(this != &obj){
     clear();
@@ -279,6 +283,17 @@ Vector<T>::operator=(const Vector<T>& obj){
     }
   }
   return * this;
+}
+
+template<class T>
+Vector<T>&
+Vector<T>::operator=(Vector<T>&& obj){
+  using std::swap;
+  swap(m_items, obj.m_items);
+  swap(m_size, obj.m_size);
+  swap(m_incSize, obj.m_incSize);
+  swap(m_arraySize, obj.m_arraySize);
+  return *this;
 }
 
 template<class T>
@@ -334,7 +349,7 @@ public:
   void clear();
   void clear(bool lockMutex);
 
-  int fill(unsigned new_size, T & obj);
+  int fill(unsigned new_size, const T & obj);
 private:
   // Don't allow copy and assignment of MutexVector
   MutexVector(const MutexVector&); 
@@ -518,8 +533,9 @@ MutexVector<T>::clear(bool l){
 
 template<class T>
 int
-MutexVector<T>::fill(unsigned new_size, T & obj){
-  while(m_size <= new_size)
+MutexVector<T>::fill(unsigned new_size, const T & obj)
+{
+  while (m_size < new_size)
     if (push_back(obj))
       return -1;
   return 0;

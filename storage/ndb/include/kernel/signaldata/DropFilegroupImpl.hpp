@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ struct DropFilegroupImplReq {
    */
   friend bool printDROP_FILEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
   
   enum RequestInfo {
     Prepare = 0x1,
@@ -73,7 +73,7 @@ struct DropFilegroupImplRef {
    */
   friend bool printDROP_FILEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum ErrorCode {
     NoError = 0,
@@ -100,7 +100,7 @@ struct DropFilegroupImplConf {
    */
   friend bool printDROP_FILEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -119,7 +119,7 @@ struct DropFileImplReq {
    */
   friend bool printDROP_FILE_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
   
   enum RequestInfo {
     Prepare = 0x1,
@@ -148,7 +148,7 @@ struct DropFileImplRef {
    */
   friend bool printDROP_FILE_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   enum ErrorCode {
     NoError = 0,
@@ -176,7 +176,7 @@ struct DropFileImplConf {
    */
   friend bool printDROP_FILE_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;

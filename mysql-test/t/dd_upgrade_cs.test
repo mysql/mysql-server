@@ -5,11 +5,14 @@
 
 --source include/have_case_sensitive_file_system.inc
 --source include/not_valgrind.inc
+--source include/big_test.inc
 
 --echo ########################################################################
 --echo # Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS
 --echo #               SQL_MODE ALLOW_INVALID_DATES
 --echo ########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade.log
 
 --echo ########################################################################
 --echo # Copy and unzip the datadir, and stop the server.
@@ -32,15 +35,14 @@
 --file_exists $MYSQL_TMP_DIR/data_80013_sql_modes.zip
 --exec unzip -qo $MYSQL_TMP_DIR/data_80013_sql_modes.zip -d $MYSQL_TMP_DIR
 --let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_80013_sql_modes
---let $MYSQLD_LOG_UPGRADE = $MYSQLTEST_VARDIR/log/save_dd_upgrade_sql_modes.log
 
 --echo ########################################################################
 --echo # Restart the server to trigger upgrade.
 --echo ########################################################################
 --let $shutdown_server_timeout= 300
 --let $wait_counter= 10000
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3
---replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG_UPGRADE MYSQLD_LOG_UPGRADE
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG --log-error-verbosity=3
+--replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
 --source include/restart_mysqld.inc
 
 --echo ########################################################################
@@ -60,6 +62,7 @@ SHOW CREATE TRIGGER trg;
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/data_80013_sql_modes.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80013_sql_modes
+--remove_file $MYSQLD_LOG
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc
 
@@ -68,8 +71,6 @@ SHOW CREATE TRIGGER trg;
 --echo #         Test case to verify upgrade from version before check
 --echo #         constraint suppport.
 --echo #-----------------------------------------------------------------------
-
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_1.log
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80014.zip $MYSQL_TMP_DIR/data_80014.zip
@@ -108,6 +109,7 @@ DROP TABLE t1;
 --echo # Remove copied files
 --remove_file $MYSQL_TMP_DIR/data_80014.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80014
+--remove_file $MYSQLD_LOG
 --echo # Restart the server with default options.
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc
@@ -149,11 +151,50 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
                TABLE_NAME = 'x$schema_flattened_keys'
          ORDER BY TABLE_NAME;
 
+--echo #
+--echo # Bug#29596053  USER 'MYSQL.SESSION' GETS TBL_ENCR_ADM DURING UPGRADE,
+--echo # BUT NOT DURING INITIALIZE
+--echo #
+
+--echo # Make sure mysql.session user do not have TABLE_ENCRYPTION_ADMIN privilege.
+SELECT COUNT(*) FROM mysql.global_grants
+  WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+
+--echo # We should also verify that the privilege is removed when
+--echo # upgrading from a previous release where the mysql.session
+--echo # was granted this privilege.  We simulate this by explicitly
+--echo # granting the privilege, and then restarting the server with
+--echo # '--upgrade=force'.
+
+GRANT TABLE_ENCRYPTION_ADMIN ON  *.* to 'mysql.session'@localhost;
+
+--echo # Verify that the privilege has been granted.
+SELECT COUNT(*) FROM mysql.global_grants
+  WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG --upgrade=force
+--replace_result $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+--echo # Now, after upgrade, the privilege should be gone.
+SELECT COUNT(*) FROM mysql.global_grants
+  WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+
 --echo # Stop the server and do cleanup.
 --source include/shutdown_mysqld.inc
 --echo # Remove copied files
 --remove_file $MYSQL_TMP_DIR/data_80012.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80012
+--remove_file $MYSQLD_LOG
+
 --echo # Restart the server with default options.
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc
@@ -161,8 +202,6 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --echo #
 --echo # Bug#29697670: OVERRIDING SERVER DEFAULT CHARSET/COLLATION AFFECTS UPGRADE
 --echo #
-
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_3.log
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80015.zip $MYSQL_TMP_DIR/data_80015.zip
@@ -194,8 +233,6 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --echo # is being set, this fails since it's not allowed within the scope of an
 --echo # active transaction.
 
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_4.log
-
 --let $shutdown_server_timeout= 300
 --let $wait_counter= 3000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --autocommit=0 --completion_type=chain --upgrade=force
@@ -207,6 +244,7 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --echo # Remove copied files
 --remove_file $MYSQL_TMP_DIR/data_80015.zip
 --force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_LOG
 
 
 --echo #
@@ -215,9 +253,9 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --echo # This is the test case for case sensitive file systems. A corresponding test case
 --echo # for case insensitive file systems can be found in dd_upgrade_ci.test.
 --echo #
+--echo # The issue is now fixed and Upgrade should be successful from 8.0.14-16 -> 8.0.18
 
 --echo # Test with lctn=1 and no partitioned tables. Upgrade should succeed.
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_5.log
 --let $name_base = data_80016_lctn1_lin_nopart
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
 --file_exists $MYSQL_TMP_DIR/$name_base.zip
@@ -237,10 +275,10 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/$name_base.zip
 --force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_LOG
 
 
---echo # Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_6.log
+--echo # Test with lctn=1 and partitioned tables. Upgrade should not be rejected
 --let $name_base = data_80016_lctn1_lin_part
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
 --file_exists $MYSQL_TMP_DIR/$name_base.zip
@@ -250,39 +288,29 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # Upgrading the server should be rejected.
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
---error 1
---exec $MYSQLD --no-defaults --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=1
-
---let SEARCH_FILE = $MYSQLD_LOG
---let SEARCH_PATTERN = with partitioned tables and lower_case_table_names == 1
---source include/search_pattern.inc
-
---echo # Retry upgrading the server.
+--echo # Try upgrading the server.
 --let $wait_counter= 3000
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=1
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
 --source include/start_mysqld.inc
 
---echo # Table rebuild will fail.
---error ER_GET_ERRNO
-ALTER TABLE test.t ENGINE = InnoDB;
-
---echo # After RENAME, table rebuild will succeed.
-RENAME TABLE test.t TO test.t_new;
-RENAME TABLE test.t_new TO test.t;
+--echo # Table rebuild should succeed.
 ALTER TABLE test.t ENGINE = InnoDB;
 SHOW CREATE TABLE test.t;
+
+--echo # Error log file must not contain following error. Patch for Bug#29440725 suppresses it.
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Table 'information_schema.TABLES' doesn't exist
+source include/search_pattern.inc;
 
 --echo # Stop the server and do cleanup.
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/$name_base.zip
 --force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_LOG
 
 
 --echo # Test with lctn=0 and no partitioned tables. Upgrade should succeed.
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_7.log
 --let $name_base = data_80016_lctn0_lin_nopart
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
 --file_exists $MYSQL_TMP_DIR/$name_base.zip
@@ -302,10 +330,10 @@ SHOW CREATE TABLE test.t;
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/$name_base.zip
 --force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_LOG
 
 
 --echo # Test with lctn=0 and partitioned tables. Upgrade should succeed.
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_8.log
 --let $name_base = data_80016_lctn0_lin_part
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
 --file_exists $MYSQL_TMP_DIR/$name_base.zip
@@ -328,6 +356,54 @@ ALTER TABLE test.t ENGINE = InnoDB;
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/$name_base.zip
 --force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_LOG
+
+
+--echo #
+--echo # Bug#30360695: TABLE WITH SUBPARTITIONS CAN NOT ADD COLUMN AFTER UPGRADE
+--echo #
+
+--let $name_base= 80016_subpart
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/$name_base.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$name_base.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQLD_DATADIR
+
+--echo # Start DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
+
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--echo # Verify that we can add a column (instant) to upgraded table with
+--echo # subpartitions
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
+
+--echo # Search log file for warning.
+
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= sdi_delete failed
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/$name_base.zip
+--force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_LOG
 
 
 --echo # Restart the server with default options.

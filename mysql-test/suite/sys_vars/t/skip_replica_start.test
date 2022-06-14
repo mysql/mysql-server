@@ -1,0 +1,163 @@
+# Variable Name: skip_replica_start
+# Scope: Global
+# Access Type: Persist-only
+# Data Type: boolean
+#
+# Creation Date: 2020-12-14
+# Author : Pedro Figueiredo
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+--let $assert_text = Default GLOBAL value is FALSE
+--let $assert_cond = [SELECT @@global.skip_replica_start = 0]
+--source include/assert.inc
+
+####################################################################
+#   Check if Value can set and that P_S reports the correct value  #
+####################################################################
+
+--let $ps_table = global_variables
+
+# 1, TRUE, ON, 0, FALSE, OFF with `SET PERSIST_ONLY`
+--let $j = 6
+
+while($j > 0)
+{
+  if ($j == 6)
+  {
+    --let $to_set = ON
+    --let $expected = ON
+  }
+  if ($j == 5)
+  {
+    --let $to_set = OFF
+    --let $expected = OFF
+  }
+  if ($j == 4)
+  {
+    --let $to_set = TRUE
+    --let $expected = ON
+  }
+  if ($j == 3)
+  {
+    --let $to_set = FALSE
+    --let $expected = OFF
+  }
+  if ($j == 2)
+  {
+    --let $to_set = 1
+    --let $expected = ON
+  }
+  if ($j == 1)
+  {
+    --let $to_set = 0
+    --let $expected = OFF
+  }
+
+  --let $scope = PERSIST_ONLY
+  --let $ps_table = global_variables
+
+  --eval SET $scope skip_replica_start = $to_set
+
+  --source include/restart_mysqld.inc
+
+  --let $reported=`SELECT variable_value FROM performance_schema.$ps_table WHERE variable_name = 'skip_replica_start'`
+  --let $assert_text= Reported value matches the one set (set $to_set in $scope scope)
+  --let $assert_cond = "$reported" = "$expected"
+  --source include/assert.inc
+
+  --dec $j
+}
+RESET PERSIST skip_replica_start;
+
+# 1, TRUE, ON, 0, FALSE, OFF with `--skip-replica-start`
+--let $j = 6
+
+while($j > 0)
+{
+  if ($j == 6)
+  {
+    --let $to_set = ON
+    --let $expected = ON
+  }
+  if ($j == 5)
+  {
+    --let $to_set = OFF
+    --let $expected = OFF
+  }
+  if ($j == 4)
+  {
+    --let $to_set = TRUE
+    --let $expected = ON
+  }
+  if ($j == 3)
+  {
+    --let $to_set = FALSE
+    --let $expected = OFF
+  }
+  if ($j == 2)
+  {
+    --let $to_set = 1
+    --let $expected = ON
+  }
+  if ($j == 1)
+  {
+    --let $to_set = 0
+    --let $expected = OFF
+  }
+
+  --let $restart_parameters = restart: --skip-replica-start=$to_set
+  --source include/restart_mysqld.inc
+
+  --let $reported=`SELECT variable_value FROM performance_schema.$ps_table WHERE variable_name = 'skip_replica_start'`
+  --let $assert_text= Reported value matches the one set (set $to_set in `--skip-replica-start` parameter)
+  --let $assert_cond = "$reported" = "$expected"
+  --source include/assert.inc
+
+  --dec $j
+}
+
+####################################################################
+# Privileges                                                       #
+####################################################################
+
+CREATE USER user1;
+--connect(conn_user1,localhost,user1,,)
+
+# assert that one cannot change the value without privileges
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY skip_replica_start = 1;
+--disconnect conn_user1
+
+# assert that one can change the value if SYSTEM_VARIABLES_ADMIN and
+# PERSIST_RO_VARIABLES_ADMIN is given
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN, PERSIST_RO_VARIABLES_ADMIN ON *.* TO user1@'%';
+FLUSH PRIVILEGES;
+
+--connect(conn2_user1,localhost,user1,,)
+SET PERSIST_ONLY skip_replica_start = 1;
+--disconnect conn2_user1
+
+--connection default
+DROP USER user1;
+RESET PERSIST skip_replica_start;
+
+####################################################################
+# Transactional context                                            #
+####################################################################
+
+BEGIN;
+
+# can change the variable's value in global scope while inside a transaction
+SET PERSIST_ONLY skip_replica_start = ON;
+
+ROLLBACK;
+
+####################################################################
+# End of tests                                                     #
+####################################################################
+
+RESET PERSIST skip_replica_start;

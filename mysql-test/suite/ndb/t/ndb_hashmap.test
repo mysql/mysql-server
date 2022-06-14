@@ -3,29 +3,15 @@
 # use data nodes DefaultHashmapSize
 create table t1 (x int primary key) engine=ndbcluster;
 
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
-
---source ndb_show_tables_result.inc
-
 # Expect to not find any 'HASHMAP...-7'
-select name from ndb_show_tables_results
-where type like '%HashMap%' and name like '%HASHMAP%-7%';
+select fq_name from ndbinfo.dict_obj_info
+  where type = 24 /* HashMap */ and fq_name like '%HASHMAP%-7%';
 
 # use api nodes DefaultHashmapSize
 alter table t1 partition by key() partitions 7;
 
---source ndb_show_tables_result.inc
-
 # Check that a 'HASHMAP...-7' for 'partitions 7' was created
-select name from ndb_show_tables_results
-where type like '%HashMap%' and name like '%HASHMAP%-7%';
+select fq_name from ndbinfo.dict_obj_info
+  where type = 24 /* HashMap */ and fq_name like '%HASHMAP%-7%';
 
-drop table t1, ndb_show_tables_results;
+drop table t1;

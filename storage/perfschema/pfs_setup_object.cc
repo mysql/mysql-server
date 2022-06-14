@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,10 @@
 
 #include "storage/perfschema/pfs_setup_object.h"
 
+#include <assert.h>
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql_string.h"
@@ -68,12 +69,85 @@ static const uchar *setup_object_hash_get_key(const uchar *entry,
   const PFS_setup_object *setup_object;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_setup_object *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != nullptr);
   setup_object = *typed_entry;
-  DBUG_ASSERT(setup_object != NULL);
-  *length = setup_object->m_key.m_key_length;
-  result = setup_object->m_key.m_hash_key;
+  assert(setup_object != nullptr);
+  *length = sizeof(setup_object->m_key);
+  result = &setup_object->m_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static bool is_table(enum_object_type object_type) {
+  if ((object_type == OBJECT_TYPE_TABLE) ||
+      (object_type == OBJECT_TYPE_TEMPORARY_TABLE)) {
+    return true;
+  }
+  return false;
+}
+
+static uint setup_object_hash_func(const LF_HASH *, const uchar *key,
+                                   size_t key_len [[maybe_unused]]) {
+  const PFS_setup_object_key *setup_object_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_setup_object_key));
+  setup_object_key = reinterpret_cast<const PFS_setup_object_key *>(key);
+  assert(setup_object_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  nr1 = setup_object_key->m_object_type;
+  setup_object_key->m_schema_name.hash(&nr1, &nr2);
+
+  if (is_table(setup_object_key->m_object_type)) {
+    setup_object_key->m_object_name.hash_as_table(&nr1, &nr2);
+  } else {
+    setup_object_key->m_object_name.hash_as_routine(&nr1, &nr2);
+  }
+
+  return nr1;
+}
+
+static int setup_object_hash_cmp_func(const uchar *key1,
+                                      size_t key_len1 [[maybe_unused]],
+                                      const uchar *key2,
+                                      size_t key_len2 [[maybe_unused]]) {
+  const PFS_setup_object_key *setup_object_key1;
+  const PFS_setup_object_key *setup_object_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_setup_object_key));
+  assert(key_len2 == sizeof(PFS_setup_object_key));
+  setup_object_key1 = reinterpret_cast<const PFS_setup_object_key *>(key1);
+  setup_object_key2 = reinterpret_cast<const PFS_setup_object_key *>(key2);
+  assert(setup_object_key1 != nullptr);
+  assert(setup_object_key2 != nullptr);
+
+  if (setup_object_key1->m_object_type > setup_object_key2->m_object_type) {
+    return +1;
+  }
+
+  if (setup_object_key1->m_object_type < setup_object_key2->m_object_type) {
+    return -1;
+  }
+
+  cmp =
+      setup_object_key1->m_schema_name.sort(&setup_object_key2->m_schema_name);
+  if (cmp != 0) {
+    return cmp;
+  }
+
+  if (is_table(setup_object_key1->m_object_type)) {
+    cmp = setup_object_key1->m_object_name.sort_as_table(
+        &setup_object_key2->m_object_name);
+  } else {
+    cmp = setup_object_key1->m_object_name.sort_as_routine(
+        &setup_object_key2->m_object_name);
+  }
+
+  return cmp;
 }
 
 /**
@@ -82,8 +156,10 @@ static const uchar *setup_object_hash_get_key(const uchar *entry,
 */
 int init_setup_object_hash(const PFS_global_param *param) {
   if ((!setup_object_hash_inited) && (param->m_setup_object_sizing != 0)) {
-    lf_hash_init(&setup_object_hash, sizeof(PFS_setup_object *), LF_HASH_UNIQUE,
-                 0, 0, setup_object_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&setup_object_hash, sizeof(PFS_setup_object *),
+                  LF_HASH_UNIQUE, setup_object_hash_get_key,
+                  setup_object_hash_func, setup_object_hash_cmp_func,
+                  nullptr /* ctor */, nullptr /* dtor */, nullptr /* init */);
     setup_object_hash_inited = true;
   }
   return 0;
@@ -98,9 +174,9 @@ void cleanup_setup_object_hash(void) {
 }
 
 static LF_PINS *get_setup_object_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_setup_object_hash_pins == NULL)) {
+  if (unlikely(thread->m_setup_object_hash_pins == nullptr)) {
     if (!setup_object_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_setup_object_hash_pins = lf_hash_get_pins(&setup_object_hash);
   }
@@ -109,34 +185,24 @@ static LF_PINS *get_setup_object_hash_pins(PFS_thread *thread) {
 
 static void set_setup_object_key(PFS_setup_object_key *key,
                                  enum_object_type object_type,
-                                 const char *schema, uint schema_length,
-                                 const char *object, uint object_length) {
-  DBUG_ASSERT(schema_length <= NAME_LEN);
-  DBUG_ASSERT(object_length <= NAME_LEN);
-
-  char *ptr = &key->m_hash_key[0];
-  ptr[0] = (char)object_type;
-  ptr++;
-  memcpy(ptr, schema, schema_length);
-  ptr += schema_length;
-  ptr[0] = 0;
-  ptr++;
-  memcpy(ptr, object, object_length);
-  ptr += object_length;
-  ptr[0] = 0;
-  ptr++;
-  key->m_key_length = ptr - &key->m_hash_key[0];
+                                 const PFS_schema_name *schema,
+                                 const PFS_object_name *object) {
+  key->m_object_type = object_type;
+  key->m_schema_name = *schema;
+  key->m_object_name = *object;
 }
 
-int insert_setup_object(enum_object_type object_type, const String *schema,
-                        const String *object, bool enabled, bool timed) {
+int insert_setup_object(enum_object_type object_type,
+                        const PFS_schema_name *schema,
+                        const PFS_object_name *object, bool enabled,
+                        bool timed) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -144,13 +210,8 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   pfs_dirty_state dirty_state;
 
   pfs = global_setup_object_container.allocate(&dirty_state);
-  if (pfs != NULL) {
-    set_setup_object_key(&pfs->m_key, object_type, schema->ptr(),
-                         schema->length(), object->ptr(), object->length());
-    pfs->m_schema_name = &pfs->m_key.m_hash_key[1];
-    pfs->m_schema_name_length = schema->length();
-    pfs->m_object_name = pfs->m_schema_name + pfs->m_schema_name_length + 1;
-    pfs->m_object_name_length = object->length();
+  if (pfs != nullptr) {
+    set_setup_object_key(&pfs->m_key, object_type, schema, object);
     pfs->m_enabled = enabled;
     pfs->m_timed = timed;
 
@@ -174,29 +235,29 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   return HA_ERR_RECORD_FILE_FULL;
 }
 
-int delete_setup_object(enum_object_type object_type, const String *schema,
-                        const String *object) {
+int delete_setup_object(enum_object_type object_type,
+                        const PFS_schema_name *schema,
+                        const PFS_object_name *object) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   PFS_setup_object_key key;
-  set_setup_object_key(&key, object_type, schema->ptr(), schema->length(),
-                       object->ptr(), object->length());
+  set_setup_object_key(&key, object_type, schema, object);
 
   PFS_setup_object **entry;
-  entry = reinterpret_cast<PFS_setup_object **>(lf_hash_search(
-      &setup_object_hash, pins, key.m_hash_key, key.m_key_length));
+  entry = reinterpret_cast<PFS_setup_object **>(
+      lf_hash_search(&setup_object_hash, pins, &key, sizeof(key)));
 
   if (entry && (entry != MY_LF_ERRPTR)) {
     PFS_setup_object *pfs = *entry;
-    lf_hash_delete(&setup_object_hash, pins, key.m_hash_key, key.m_key_length);
+    lf_hash_delete(&setup_object_hash, pins, &key, sizeof(key));
     global_setup_object_container.deallocate(pfs);
   }
 
@@ -208,11 +269,10 @@ int delete_setup_object(enum_object_type object_type, const String *schema,
 
 class Proc_reset_setup_object : public PFS_buffer_processor<PFS_setup_object> {
  public:
-  Proc_reset_setup_object(LF_PINS *pins) : m_pins(pins) {}
+  explicit Proc_reset_setup_object(LF_PINS *pins) : m_pins(pins) {}
 
-  virtual void operator()(PFS_setup_object *pfs) {
-    lf_hash_delete(&setup_object_hash, m_pins, pfs->m_key.m_hash_key,
-                   pfs->m_key.m_key_length);
+  void operator()(PFS_setup_object *pfs) override {
+    lf_hash_delete(&setup_object_hash, m_pins, &pfs->m_key, sizeof(pfs->m_key));
 
     global_setup_object_container.deallocate(pfs);
   }
@@ -223,12 +283,12 @@ class Proc_reset_setup_object : public PFS_buffer_processor<PFS_setup_object> {
 
 int reset_setup_object() {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -242,10 +302,11 @@ int reset_setup_object() {
 
 long setup_object_count() { return setup_object_hash.count; }
 
-void lookup_setup_object(PFS_thread *thread, enum_object_type object_type,
-                         const char *schema_name, int schema_name_length,
-                         const char *object_name, int object_name_length,
-                         bool *enabled, bool *timed) {
+static void lookup_setup_object(PFS_thread *thread,
+                                enum_object_type object_type,
+                                const PFS_schema_name *schema,
+                                const PFS_object_name *object, bool *enabled,
+                                bool *timed) {
   PFS_setup_object_key key;
   PFS_setup_object **entry;
   PFS_setup_object *pfs;
@@ -258,34 +319,48 @@ void lookup_setup_object(PFS_thread *thread, enum_object_type object_type,
     - TABLE foo.bar
     - TEMPORARY TABLE foo.bar
   */
-  DBUG_ASSERT(object_type != OBJECT_TYPE_TEMPORARY_TABLE);
+  assert(object_type != OBJECT_TYPE_TEMPORARY_TABLE);
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     *enabled = false;
     *timed = false;
     return;
+  }
+
+  PFS_schema_name any_schema;
+  PFS_object_name any_object;
+  any_schema.set("%", 1);
+
+  /*
+    In practice, any_object is '%' in both cases,
+    but we want to enforce a strict api to make sure
+    the proper collation rules are used,
+    which depends on the object type.
+  */
+  if (object_type == OBJECT_TYPE_TABLE) {
+    any_object.set_as_table("%", 1);
+  } else {
+    any_object.set_as_routine("%", 1);
   }
 
   for (i = 1; i <= 3; i++) {
     switch (i) {
       case 1:
         /* Lookup OBJECT_TYPE + OBJECT_SCHEMA + OBJECT_NAME in SETUP_OBJECTS */
-        set_setup_object_key(&key, object_type, schema_name, schema_name_length,
-                             object_name, object_name_length);
+        set_setup_object_key(&key, object_type, schema, object);
         break;
       case 2:
         /* Lookup OBJECT_TYPE + OBJECT_SCHEMA + "%" in SETUP_OBJECTS */
-        set_setup_object_key(&key, object_type, schema_name, schema_name_length,
-                             "%", 1);
+        set_setup_object_key(&key, object_type, schema, &any_object);
         break;
       case 3:
         /* Lookup OBJECT_TYPE + "%" + "%" in SETUP_OBJECTS */
-        set_setup_object_key(&key, object_type, "%", 1, "%", 1);
+        set_setup_object_key(&key, object_type, &any_schema, &any_object);
         break;
     }
-    entry = reinterpret_cast<PFS_setup_object **>(lf_hash_search(
-        &setup_object_hash, pins, key.m_hash_key, key.m_key_length));
+    entry = reinterpret_cast<PFS_setup_object **>(
+        lf_hash_search(&setup_object_hash, pins, &key, sizeof(key)));
 
     if (entry && (entry != MY_LF_ERRPTR)) {
       pfs = *entry;
@@ -300,6 +375,27 @@ void lookup_setup_object(PFS_thread *thread, enum_object_type object_type,
   *enabled = false;
   *timed = false;
   return;
+}
+
+void lookup_setup_object_table(PFS_thread *thread, enum_object_type object_type,
+                               const PFS_schema_name *schema_name,
+                               const PFS_table_name *table_name, bool *enabled,
+                               bool *timed) {
+  PFS_object_name object_name;
+  object_name = *table_name;
+  lookup_setup_object(thread, object_type, schema_name, &object_name, enabled,
+                      timed);
+}
+
+void lookup_setup_object_routine(PFS_thread *thread,
+                                 enum_object_type object_type,
+                                 const PFS_schema_name *schema_name,
+                                 const PFS_routine_name *routine_name,
+                                 bool *enabled, bool *timed) {
+  PFS_object_name object_name;
+  object_name = *routine_name;
+  lookup_setup_object(thread, object_type, schema_name, &object_name, enabled,
+                      timed);
 }
 
 /** @} */

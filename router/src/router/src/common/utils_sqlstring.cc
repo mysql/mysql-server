@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "utils_sqlstring.h"
-#include <string.h>
+#include "mysqlrouter/utils_sqlstring.h"
+
+#include <cstring>
+#include <string>
 
 #ifdef _WIN32
 #define strcasecmp _stricmp
@@ -262,7 +264,7 @@ static const char *reserved_keywords[] = {"ACCESSIBLE",
                                           "XOR",
                                           "YEAR_MONTH",
                                           "ZEROFILL",
-                                          NULL};
+                                          nullptr};
 
 namespace mysqlrouter {
 //--------------------------------------------------------------------------------------------------
@@ -358,7 +360,7 @@ std::string escape_backticks(const std::string &s) {
 //--------------------------------------------------------------------------------------------------
 
 bool is_reserved_word(const std::string &word) {
-  for (const char **kw = reserved_keywords; *kw != NULL; ++kw) {
+  for (const char **kw = reserved_keywords; *kw != nullptr; ++kw) {
     if (strcasecmp(word.c_str(), *kw) == 0) return true;
   }
   return false;
@@ -413,10 +415,7 @@ sqlstring::sqlstring(const char *format_string, const sqlstringformat format)
   append(consume_until_next_escape());
 }
 
-sqlstring::sqlstring(const sqlstring &copy)
-    : _formatted(copy._formatted),
-      _format_string_left(copy._format_string_left),
-      _format(copy._format) {}
+sqlstring::sqlstring(const sqlstring &) = default;
 
 sqlstring::sqlstring() : _format(0) {}
 

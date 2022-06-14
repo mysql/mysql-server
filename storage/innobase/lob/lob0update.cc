@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,17 +37,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Replace a large object (LOB) with the given new data of equal length.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
-@param[in]	count		number of replace done on current LOB.
+@param[in]      count           number of replace done on current LOB.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
@@ -55,28 +55,27 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
 
 /** Replace a small portion of large object (LOB) with the given new data of
 equal length.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
-@param[in]	count		number of replace done on current LOB.
 @return DB_SUCCESS on success, error code on failure. */
 static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
                               dict_index_t *index, ref_t ref,
                               first_page_t &first_page, ulint offset, ulint len,
-                              byte *buf, int count);
+                              byte *buf);
 
 #ifdef UNIV_DEBUG
 /** Print an information message in the server log file, informing
 that the LOB partial update feature code is hit.
-@param[in]	uf	the update field information
-@param[in]	index	index where partial update happens.*/
+@param[in]      uf      the update field information
+@param[in]      index   index where partial update happens.*/
 static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
   ib::info(ER_IB_MSG_632) << "LOB partial update of field=("
                           << uf->mysql_field->field_name << ") on index=("
@@ -86,14 +85,16 @@ static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 #endif /* UNIV_DEBUG */
 
 /** Update a portion of the given LOB.
-@param[in] trx       the transaction that is doing the modification.
-@param[in] index     the clustered index containing the LOB.
-@param[in] upd       update vector
-@param[in] field_no  the LOB field number
+@param[in]      ctx             update operation context information.
+@param[in]      trx             the transaction that is doing the modification.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      upd             update vector
+@param[in]      field_no        the LOB field number
+@param[in]      blobref         LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                const upd_t *upd, ulint field_no, ref_t blobref) {
-  DBUG_ENTER("lob::update");
+  DBUG_TRACE;
   dberr_t err = DB_SUCCESS;
   mtr_t *mtr = ctx.get_mtr();
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
@@ -142,7 +143,7 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
     if (small_change) {
       err = replace_inline(ctx, trx, index, blobref, first_page,
                            bdiff->offset(), bdiff->length(),
-                           (byte *)bdiff->new_data(uf->mysql_field), count);
+                           (byte *)bdiff->new_data(uf->mysql_field));
 
     } else {
       err = replace(ctx, trx, index, blobref, first_page, bdiff->offset(),
@@ -157,16 +158,18 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
   blobref.set_offset(lob_version, mtr);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 #ifdef UNIV_DEBUG
-/** Validate the size of a BLOB.
-@param[in]	lob_size	the given lob size.
-@param[in]	index		the index to which BLOB belongs.
-@param[in]	node_loc	the file node location of BLOB.
-@param[in]	mtr		the latching context.
-@return true if LOB size is valid, false otherwise. */
+
+/** Validate the size of the given LOB.
+@param[in]  lob_size  Expected size of the LOB, mostly obtained from
+                      the LOB reference.
+@param[in]  index     Clustered index containing the LOB.
+@param[in]  node_loc  Location of the first LOB index entry.
+@param[in]  mtr       Mini-transaction context.
+@return true if size is valid, false otherwise. */
 bool validate_size(const ulint lob_size, dict_index_t *index,
                    fil_addr_t node_loc, mtr_t *mtr) {
   buf_block_t *block = nullptr;
@@ -205,15 +208,14 @@ bool validate_size(const ulint lob_size, dict_index_t *index,
 
 /** Find the file location of the index entry which gives the portion of LOB
 containing the requested offset.
-@param[in]	trx		the current transaction.
-@param[in]	index		the clustered index containing LOB.
-@param[in]	node_loc	Location of first index entry.
-@param[in]	offset		the LOB offset whose location we seek.
-@param[in]	mtr		mini-transaction context.
+@param[in]      index           The clustered index containing LOB.
+@param[in]      node_loc        Location of first index entry.
+@param[in]      offset          The LOB offset whose location we seek.
+@param[in]      mtr             Mini-transaction context.
 @return file location of index entry which contains requested LOB offset.*/
-fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
-                       ulint &offset, mtr_t *mtr) {
-  DBUG_ENTER("find_offset");
+fil_addr_t find_offset(dict_index_t *index, fil_addr_t node_loc, ulint &offset,
+                       mtr_t *mtr) {
+  DBUG_TRACE;
   ut_ad(!fil_addr_is_null(node_loc));
 
   buf_block_t *block = nullptr;
@@ -246,26 +248,26 @@ fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
     node_loc = entry.get_next();
   }
 
-  DBUG_RETURN(node_loc);
+  return node_loc;
 }
 
 /** Replace a large object (LOB) with the given new data of equal length.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
-@param[in]	count		number of replace done on current LOB.
+@param[in]      count           number of replace done on current LOB.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
                 int count) {
-  DBUG_ENTER("lob::replace");
+  DBUG_TRACE;
 
   dberr_t ret(DB_SUCCESS);
   mtr_t *mtr = ctx.get_mtr();
@@ -307,7 +309,7 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
 
   ulint page_offset = offset;
 
-  node_loc = find_offset(trx, index, node_loc, page_offset, mtr);
+  node_loc = find_offset(index, node_loc, page_offset, mtr);
   ulint want = len; /* want to be replaced. */
   const byte *ptr = buf;
 
@@ -410,7 +412,7 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
       goto error;
     }
 
-    new_page.write(trx->id, ptr, want);
+    new_page.write(ptr, want);
 
     /* Allocate a new index entry */
     flst_node_t *new_node = first_page.alloc_index_entry(false);
@@ -491,19 +493,19 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
   first_page.print_index_entries(std::cout);
 #endif /* LOB_DEBUG */
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 
 error:
   ut_ad(ret != DB_SUCCESS);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
                               dict_index_t *index, ref_t ref,
                               first_page_t &first_page, ulint offset, ulint len,
-                              byte *buf, int count) {
-  DBUG_ENTER("lob::replace_inline");
+                              byte *buf) {
+  DBUG_TRACE;
 
   mtr_t *mtr = ctx.get_mtr();
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
@@ -535,7 +537,7 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
 
   ulint page_offset = offset;
 
-  node_loc = find_offset(trx, index, node_loc, page_offset, mtr);
+  node_loc = find_offset(index, node_loc, page_offset, mtr);
   ulint want = len; /* want to be replaced. */
 
   /* This code is only meant for small changes to LOB. */
@@ -562,7 +564,7 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
       number, then first page is already loaded. Just update
       the pointer. */
       first_page.set_block(tmp_block);
-      first_page.replace_inline(trx, page_offset, ptr, want, mtr);
+      first_page.replace_inline(page_offset, ptr, want, mtr);
 
     } else {
       /* If current page number is NOT the same as first page
@@ -570,7 +572,7 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
       first_page.load_x(first_page_id, page_size);
       data_page_t page(mtr, index);
       page.load_x(cur_page_no);
-      page.replace_inline(trx, page_offset, ptr, want, mtr);
+      page.replace_inline(page_offset, ptr, want, mtr);
     }
 
     /* Even the LOB index is just updated in place itself. If a
@@ -595,12 +597,12 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
   }
 #endif /* UNIV_DEBUG */
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
-dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
+dberr_t apply_undolog(mtr_t *mtr, dict_index_t *index, ref_t ref,
                       const upd_field_t *uf) {
-  DBUG_ENTER("lob::apply_undolog");
+  DBUG_TRACE;
 
   const Lob_diff_vector &lob_diffs = *uf->lob_diffs;
 
@@ -635,7 +637,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
       if (offset < DICT_ANTELOPE_MAX_INDEX_COL_LEN) {
         /* In this case, partial update was not done.
         It is possible to do it, but not yet done.*/
-        DBUG_RETURN(DB_SUCCESS);
+        return DB_SUCCESS;
       }
     }
   }
@@ -663,7 +665,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
 
     ut_ad(validate_size(lob_size, index, node_loc, mtr));
 
-    node_loc = find_offset(nullptr, index, node_loc, page_offset, mtr);
+    node_loc = find_offset(index, node_loc, page_offset, mtr);
 
     ut_ad(!node_loc.is_null());
 
@@ -689,7 +691,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
         Just update the pointer. */
 
         first_page.set_block(tmp_block);
-        first_page.replace_inline(trx, page_offset, ptr, want, mtr);
+        first_page.replace_inline(page_offset, ptr, want, mtr);
 
       } else {
         /* If current page number is NOT the same as
@@ -697,7 +699,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
         first_page.load_x(first_page_id, page_size);
         data_page_t page(mtr, index);
         page.load_x(cur_page_no);
-        page.replace_inline(trx, page_offset, ptr, want, mtr);
+        page.replace_inline(page_offset, ptr, want, mtr);
       }
 
       /* Ensure that only 1 or 2 index entries will be modified.*/
@@ -721,7 +723,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
     ut_ad(want == 0);
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 }  // namespace lob

@@ -25,7 +25,7 @@ c1	c2	c3	c4
 12345.00001	NULL	NULL	NULL
 99999.99999	-99999.99999	100000	3
 INSERT INTO t1 VALUES('100000.000002','-100000.000002','100000.000002',5);
-ERROR 23000: Duplicate entry '99999.99999--99999.99999' for key 'idx'
+ERROR 23000: Duplicate entry '99999.99999--99999.99999' for key 't1.idx'
 DELETE FROM t1 WHERE c1='99999.99999' AND c2='-99999.99999';
 SELECT * FROM t1;
 c1	c2	c3	c4
@@ -1056,7 +1056,7 @@ c1	c2	c3	c4
 12345.00000	NULL	NULL	NULL
 100000.00000	-100000.00000	100000	3
 INSERT INTO t1 VALUES('100000.000002','-100000.000002','100000.000002',5);
-ERROR 23000: Duplicate entry '100000.00000--100000.00000' for key 'idx'
+ERROR 23000: Duplicate entry '100000.00000--100000.00000' for key 't1.idx'
 DELETE FROM t1 WHERE c1>'99999' AND c2<'-99999';
 INSERT INTO t1 VALUES('100000.000002','-100000.000002','100000.000002',5);
 Warnings:
@@ -1183,7 +1183,7 @@ total_rows	min_value	max_value	sum	avg
 7	-100000.00000	100000.00000	-99.15000	-16.525000509
 SELECT count(*) as total_rows, min(c3) as min_value, max(c3) as max_value, sum(c3) as sum, avg(c3) as avg FROM t1;
 total_rows	min_value	max_value	sum	avg
-7	-0.10000000149011612	111111112	111211212.95000306	18535202.15833384
+7	-0.1	111111000	111211212.95000306	18535202.15833384
 SELECT count(*) as total_rows, min(c1) as min_value, max(c1) as max_value, sum(c1) as sum, avg(c1) as avg FROM t2;
 total_rows	min_value	max_value	sum	avg
 30	-10000000000	10000000000	31322222339	1044074077.9667
@@ -1192,7 +1192,7 @@ total_rows	min_value	max_value	sum	avg
 30	0	10000000000	43444444564	1448148152.1333
 SELECT count(*) as total_rows, min(c3) as min_value, max(c3) as max_value, sum(c3) as sum, avg(c3) as avg FROM t2;
 total_rows	min_value	max_value	sum	avg
-30	-3.4028234663852886e38	3.4028234663852886e38	1.0208470399155866e39	3.4028234663852886e37
+30	-3.40282e38	3.40282e38	1.0208470399155866e39	3.4028234663852886e37
 SELECT * FROM t1;
 c1	c2	c3	c4
 0.00000	-0.10000	-0.1	13
@@ -1937,7 +1937,7 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 INSERT INTO t5 VALUES(1.1325,3);
 SELECT ROUND(c1,c2),TRUNCATE(c1,c2) FROM t5;
 ROUND(c1,c2)	TRUNCATE(c1,c2)
-1.133000	1.132000
+1.133	1.132
 DROP TABLE t5;
 CREATE TABLE t7(c1 FLOAT(5,10));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'c1').
@@ -1965,7 +1965,7 @@ c1	c2	c3	c4
 12345.00001	NULL	NULL	NULL
 99999.99999	-99999.99999	99999.99999	3
 INSERT INTO t1 VALUES('100000.000002','-100000.000002','100000.000002',5);
-ERROR 23000: Duplicate entry '99999.99999--99999.99999' for key 'idx'
+ERROR 23000: Duplicate entry '99999.99999--99999.99999' for key 't1.idx'
 DELETE FROM t1 WHERE c1='99999.99999' AND c2='-99999.99999';
 INSERT INTO t1 VALUES('100000.000002','-100000.000002','100000.000002',5);
 Warnings:
@@ -2895,7 +2895,7 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 INSERT INTO t5 VALUES(1.1325,3);
 SELECT ROUND(c1,c2),TRUNCATE(c1,c2) FROM t5;
 ROUND(c1,c2)	TRUNCATE(c1,c2)
-1.132000	1.132000
+1.132	1.132
 DROP TABLE t5;
 CREATE TABLE t7(c1 DOUBLE(5,10));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'c1').

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@
  */
 class AllocNodeIdReq {
 public:
-  STATIC_CONST( SignalLength = 5 );
-  STATIC_CONST( SignalLengthQMGR = 7 );
+  static constexpr Uint32 SignalLength = 5;
+  static constexpr Uint32 SignalLengthQMGR = 7;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -51,7 +51,7 @@ public:
 
 class AllocNodeIdConf {
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -62,7 +62,7 @@ public:
 
 class AllocNodeIdRef {
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   enum ErrorCodes {
     NoError = 0,
@@ -73,7 +73,8 @@ public:
     NodeReserved = 1701,
     NodeConnected = 1702,
     NodeFailureHandlingNotCompleted = 1703,
-    NodeTypeMismatch = 1704
+    NodeTypeMismatch = 1704,
+    NotReady = 1705,
   };
 
   Uint32 senderRef;
@@ -88,7 +89,7 @@ class AllocNodeIdRep
 private:
   friend class Dbdih;
   friend class Qmgr;
-  STATIC_CONST( SignalLength = 1);
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };

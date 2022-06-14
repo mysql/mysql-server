@@ -1,4 +1,4 @@
--- Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,11 @@ GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
+
+-- this is a plugin priv that might not be registered
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'AUDIT_ABORT_EXEMPT', 'N');
 
 -- Create an user that is definer for information_schema view
 CREATE USER 'mysql.infoschema'@localhost IDENTIFIED WITH caching_sha2_password
@@ -48,3 +52,7 @@ CREATE USER 'mysql.infoschema'@localhost IDENTIFIED WITH caching_sha2_password
  ACCOUNT LOCK;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.infoschema'@localhost;
 GRANT SELECT ON *.* TO 'mysql.infoschema'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.infoschema'@localhost;
+
+-- this is a plugin priv that might not be registered
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.infoschema', 'localhost', 'AUDIT_ABORT_EXEMPT', 'N');

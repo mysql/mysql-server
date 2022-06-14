@@ -1,0 +1,437 @@
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+"Case 1.1: Using SERIALIZABLE"
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+"Test using mysql.user"
+CREATE TABLE t1 AS SELECT * FROM mysql.user;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM mysql.user;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE mysql.user ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE mysql.user DROP COLUMN c1;
+ALTER TABLE mysql.user ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE mysql.user DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM mysql.user);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM mysql.user);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.db"
+CREATE TABLE t1 AS SELECT * FROM  mysql.db;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.db;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.db ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.db DROP COLUMN c1;
+ALTER TABLE  mysql.db ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.db DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.db);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.db);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.tables_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.tables_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.tables_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.tables_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.tables_priv DROP COLUMN c1;
+ALTER TABLE  mysql.tables_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.tables_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.columns_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.columns_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.columns_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.columns_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.columns_priv DROP COLUMN c1;
+ALTER TABLE  mysql.columns_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.columns_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.procs_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.procs_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.procs_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.procs_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.procs_priv DROP COLUMN c1;
+ALTER TABLE  mysql.procs_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.procs_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.proxies_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.proxies_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.proxies_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.proxies_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.proxies_priv DROP COLUMN c1;
+ALTER TABLE  mysql.proxies_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.proxies_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.global_grants"
+CREATE TABLE t1 AS SELECT * FROM  mysql.global_grants;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.global_grants;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.global_grants ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.global_grants DROP COLUMN c1;
+ALTER TABLE  mysql.global_grants ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.global_grants DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.password_history"
+CREATE TABLE t1 AS SELECT * FROM  mysql.password_history;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.password_history;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.password_history ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.password_history DROP COLUMN c1;
+ALTER TABLE  mysql.password_history ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.password_history DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.password_history);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.password_history);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.default_roles"
+CREATE TABLE t1 AS SELECT * FROM  mysql.default_roles;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.default_roles;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.default_roles ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.default_roles DROP COLUMN c1;
+ALTER TABLE  mysql.default_roles ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.default_roles DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Case 1.2: Using REPEATABLE READ"
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+"Test using mysql.user"
+CREATE TABLE t1 AS SELECT * FROM mysql.user;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM mysql.user;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE mysql.user ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE mysql.user DROP COLUMN c1;
+ALTER TABLE mysql.user ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE mysql.user DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM mysql.user);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM mysql.user);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.db"
+CREATE TABLE t1 AS SELECT * FROM  mysql.db;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.db;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.db ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.db DROP COLUMN c1;
+ALTER TABLE  mysql.db ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.db DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.db);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.db);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.tables_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.tables_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.tables_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.tables_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.tables_priv DROP COLUMN c1;
+ALTER TABLE  mysql.tables_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.tables_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.columns_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.columns_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.columns_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.columns_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.columns_priv DROP COLUMN c1;
+ALTER TABLE  mysql.columns_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.columns_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.procs_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.procs_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.procs_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.procs_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.procs_priv DROP COLUMN c1;
+ALTER TABLE  mysql.procs_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.procs_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.proxies_priv"
+CREATE TABLE t1 AS SELECT * FROM  mysql.proxies_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.proxies_priv;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.proxies_priv ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.proxies_priv DROP COLUMN c1;
+ALTER TABLE  mysql.proxies_priv ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.proxies_priv DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.global_grants"
+CREATE TABLE t1 AS SELECT * FROM  mysql.global_grants;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.global_grants;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.global_grants ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.global_grants DROP COLUMN c1;
+ALTER TABLE  mysql.global_grants ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.global_grants DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.password_history"
+CREATE TABLE t1 AS SELECT * FROM  mysql.password_history;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.password_history;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.password_history ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.password_history DROP COLUMN c1;
+ALTER TABLE  mysql.password_history ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.password_history DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.password_history);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.password_history);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+"Test using  mysql.default_roles"
+CREATE TABLE t1 AS SELECT * FROM  mysql.default_roles;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1;
+INSERT INTO t1 SELECT * FROM  mysql.default_roles;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;
+ALTER TABLE  mysql.default_roles ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE  mysql.default_roles DROP COLUMN c1;
+ALTER TABLE  mysql.default_roles ADD COLUMN c1 INT, ALGORITHM=COPY;
+ALTER TABLE  mysql.default_roles DROP COLUMN c1;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (10);
+UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DELETE FROM t1 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave.
+DROP TABLE t1;

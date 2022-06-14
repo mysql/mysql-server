@@ -8,6 +8,7 @@ SET @old_log_output=       @@global.log_output;
 SET @old_slow_query_log=   @@global.slow_query_log;
 SET @old_general_log=      @@global.general_log;
 SET @old_long_query_time=  @@session.long_query_time;
+SET GLOBAL log_output="FILE,TABLE";
 
 --disable_ps_protocol
 use mysql;
@@ -64,6 +65,7 @@ insert into join_test values ("User performed a usual SQL query", "Query");
 insert into join_test values ("New DB connection was registered", "Connect");
 insert into join_test values ("Get the table info", "Field List");
 
+--sorted_result
 --replace_column 2 USER_HOST
 select verbose_comment, user_host, argument
   from  mysql.general_log join join_test
@@ -176,7 +178,7 @@ drop table bug16905;
 truncate table mysql.slow_log;
 set session long_query_time=1;
 select sleep(2);
---replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 11 QUERY 12 THREAD_ID
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 4 LOCK_TIME 11 QUERY 12 THREAD_ID
 select * from mysql.slow_log;
 set @@session.long_query_time = @saved_long_query_time;
 
@@ -823,6 +825,8 @@ SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f2=3;
 SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2;
 
 --replace_column 1 TIMESTAMP
+--sorted_result
+--skip_if_hypergraph   # rows_examined is not set.
 SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE sql_text LIKE '%Bug#31700%' ORDER BY start_time;
 
 DROP TABLE t1;
@@ -865,3 +869,5 @@ SET @@session.long_query_time= @old_long_query_time;
 SET @@global.log_output=       @old_log_output;
 SET @@global.slow_query_log=   @old_slow_query_log;
 SET @@global.general_log=      @old_general_log;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;

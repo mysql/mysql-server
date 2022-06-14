@@ -1,0 +1,82 @@
+################################################################################
+# Test script to test working of innodb_idle_flush_pct.
+################################################################################
+
+--source include/have_debug.inc
+
+--echo #########
+--echo # Setup #
+--echo #########
+CREATE TABLE t1 (c INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+SET @innodb_io_capacity_saved = @@global.innodb_io_capacity;
+SET @innodb_idle_flush_pct_saved = @@global.innodb_idle_flush_pct;
+
+# Set io capacity to 200
+SET GLOBAL innodb_io_capacity = 200;
+SHOW VARIABLES LIKE "%innodb_io_capacity%";
+
+# Disable page cleaner
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+
+# Set varaible to 0 so no flush happens
+set global innodb_idle_flush_pct=0;
+
+# Enable monitoring of Innodb
+SET GLOBAL innodb_monitor_enable = all;
+
+# Make sure counter are 0
+SELECT COUNT=0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME='buffer_flush_batch_total_pages';
+
+# Every page keeps 2 recods max
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+# Insert multiple rows to make sure we have enough pages dirty
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+# Till now we must have some dirty pages in Buffer Pool
+--sleep 2
+
+# Total dirty pages in buffer pool
+SELECT COUNT>0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME='buffer_pool_pages_dirty';
+
+# Noting would have flushed yet, so counter should be 0
+SELECT COUNT=0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME='buffer_flush_batch_total_pages';
+
+# Enable page cleaner
+SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
+
+# Set varaible to value > 0 so that flush happens
+SET GLOBAL innodb_idle_flush_pct=25;
+
+# Let flush happen
+--echo # Waiting for buffer pool pages to get flushed
+let $wait_condition=SELECT COUNT=0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+                    WHERE NAME='buffer_pool_pages_dirty';
+--source include/wait_condition.inc
+
+# Pages should have been flushed now
+SELECT COUNT>0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME='buffer_flush_background_total_pages';
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+SET GLOBAL innodb_io_capacity = @innodb_io_capacity_saved;
+SET GLOBAL innodb_idle_flush_pct = @innodb_idle_flush_pct_saved;
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+SET GLOBAL innodb_monitor_disable = all;
+SET GLOBAL innodb_monitor_reset_all = all;
+SELECT COUNT>0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME='buffer_flush_background_total_pages';
+DROP TABLE t1;
+--source include/innodb_monitor_restore.inc

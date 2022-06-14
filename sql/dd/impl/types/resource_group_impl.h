@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,20 +88,18 @@ class Resource_group_impl : public Entity_object_impl, public Resource_group {
   }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() override {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual const Entity_object_impl *impl() const override {
-    return Entity_object_impl::impl();
-  }
-  virtual Object_id id() const override { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const override {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const override {
+  const String_type &name() const override {
     return Entity_object_impl::name();
   }
-  virtual void set_name(const String_type &name) override {
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
@@ -114,6 +112,11 @@ class Resource_group_impl : public Entity_object_impl, public Resource_group {
 
   Resource_group *clone() const override {
     return new Resource_group_impl(*this);
+  }
+
+  Resource_group *clone_dropped_object_placeholder() const override {
+    // Play simple. Proper placeholder will take the same memory as clone.
+    return clone();
   }
 };
 

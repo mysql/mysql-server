@@ -19,9 +19,6 @@ SET @@sql_mode = "";
 
 #
 # I.
-DROP SCHEMA IF EXISTS xtest;
-Warnings:
-Note	1008	Can't drop database 'xtest'; database doesn't exist
 #
 ## Setup tests: tables and stored procedures
 [Execute `empty`()]

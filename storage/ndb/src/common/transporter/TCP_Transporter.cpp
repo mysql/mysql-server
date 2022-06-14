@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include <NdbTCP.h>
@@ -30,8 +31,15 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 // End of stuff to be moved
+
+//#define DEBUG_MULTI_TRP 1
+
+#ifdef DEBUG_MULTI_TRP
+#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MULTI_TRP(arglist) do { } while (0)
+#endif
 
 #ifdef DEBUG_TRANSPORTER
 #ifdef _WIN32
@@ -93,7 +101,9 @@ Uint32 overload_limit(const TransporterConfiguration* conf)
 TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 				 const TransporterConfiguration* conf)
   :
-  Transporter(t_reg, tt_TCP_TRANSPORTER,
+  Transporter(t_reg,
+              conf->transporterIndex,
+              tt_TCP_TRANSPORTER,
 	      conf->localHostName,
 	      conf->remoteHostName,
 	      conf->s_port,
@@ -105,7 +115,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      conf->checksum,
 	      conf->signalId,
 	      conf->tcp.sendBufferSize,
-	      conf->preSendChecksum),
+	      conf->preSendChecksum,
+              conf->tcp.tcpSpintime),
   receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
@@ -127,6 +138,38 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   send_checksum_state.init();
 }
 
+TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
+				 const TCP_Transporter* t)
+  :
+  Transporter(t_reg,
+              0,
+              tt_TCP_TRANSPORTER,
+	      t->localHostName,
+	      t->remoteHostName,
+	      t->m_s_port,
+	      t->isMgmConnection,
+	      t->localNodeId,
+	      t->remoteNodeId,
+	      t->isServer ? t->localNodeId : t->remoteNodeId,
+	      0,
+              false, 
+	      t->checksumUsed,
+	      t->signalIdUsed,
+	      t->m_max_send_buffer,
+	      t->check_send_checksum,
+              t->m_spintime),
+  receiveBuffer()
+{
+  maxReceiveSize = t->maxReceiveSize;
+  sockOptNodelay    = 1;
+  sockOptRcvBufSize = t->sockOptRcvBufSize;
+  sockOptSndBufSize = t->sockOptSndBufSize;
+  sockOptTcpMaxSeg = t->sockOptTcpMaxSeg;
+  m_overload_limit = t->m_overload_limit;
+  m_slowdown_limit = t->m_slowdown_limit;
+  send_checksum_state.init();
+}
+
 
 bool
 TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
@@ -141,7 +184,6 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
 
   return false; // Can't reconfigure
 }
-
 
 TCP_Transporter::~TCP_Transporter() {
   
@@ -179,10 +221,10 @@ bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   setSocketOptions(sockfd);
   setSocketNonBlocking(sockfd);
 
-  get_callback_obj()->lock_transporter(remoteNodeId);
+  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
   theSocket = sockfd;
   send_checksum_state.init();
-  get_callback_obj()->unlock_transporter(remoteNodeId);
+  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 
   DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
               remoteNodeId));
@@ -285,7 +327,6 @@ TCP_Transporter::doSend(bool need_wakeup)
   {
     return false;
   }
-
   Uint32 sum = 0;
   for(Uint32 i = 0; i<cnt; i++)
   {
@@ -361,6 +402,7 @@ TCP_Transporter::doSend(bool need_wakeup)
       sum_sent += nBytesSent;
       assert(sum >= sum_sent);
       remain = sum - sum_sent;
+      //g_eventLogger->info("Sent %d bytes on trp %u", nBytesSent, getTransporterIndex());
       break;
     }
     else if (nBytesSent > 0)           //Sent some, more pending
@@ -401,10 +443,59 @@ TCP_Transporter::doSend(bool need_wakeup)
                            remoteNodeId, nBytesSent, ndb_socket_errno(),
                            (char*)ndbstrerror(err));
 #endif
-
+      if (err == ENOMEM)
+      {
+        if (sum_sent != 0)
+        {
+          /**
+           * We've successfully sent something, so no need to stop the
+           * connection. Simply return as from a successful call that
+           * didn't succeed to send everything.
+           */
+          break;
+        }
+        /**
+         * ENOMEM means that the OS is out of memory buffers to handle
+         * the request. The manual on the OS calls says that one in this
+         * case should change the parameters, thus try to send less. One
+         * reason could be that the OS accessible memory is fragmented and
+         * it can find memory but not the size requested. If we fail with
+         * 2 kBytes there is no reason to proceed, the error is treated
+         * as a permanent error.
+         */
+        if (sum >= (IO_SIZE / 4))
+        {
+#ifdef VM_TRACE
+          g_eventLogger->info("send to node %u failed with ENOMEM",
+                              remoteNodeId);
+#endif
+          if (cnt > 1)
+          {
+            cnt = 1;
+            iov[0].iov_len = MIN(iov[0].iov_len, IO_SIZE);
+            continue;
+          }
+          else
+          {
+            if (iov[0].iov_len > IO_SIZE)
+            {
+              iov[0].iov_len = IO_SIZE;
+              continue;
+            }
+            else if (iov[0].iov_len >= (IO_SIZE / 2))
+            {
+              iov[0].iov_len /= 2;
+              continue;
+            }
+          }
+        }
+      }
       if ((DISCONNECT_ERRNO(err, nBytesSent)))
       {
-        do_disconnect(err); //Initiate pending disconnect
+        if (!do_disconnect(err, true)) //Initiate pending disconnect
+        {
+          return true;
+        }
         remain = 0;
       }
       break;
@@ -428,6 +519,24 @@ TCP_Transporter::doSend(bool need_wakeup)
   return (remain>0); // false if nothing remains or disconnected, else true
 }
 
+void
+TCP_Transporter::shutdown()
+{
+  if (ndb_socket_valid(theSocket))
+  {
+    DEB_MULTI_TRP(("Close socket for trp %u",
+                   getTransporterIndex()));
+    ndb_socket_close(theSocket);
+    ndb_socket_invalidate(&theSocket);
+  }
+  else
+  {
+    DEB_MULTI_TRP(("Socket already closed for trp %u",
+                   getTransporterIndex()));
+  }
+  m_connected = false;
+}
+
 int
 TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 {
@@ -435,55 +544,127 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
   // before this method is called
   // It reads the external TCP/IP interface once
   Uint32 size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
-  if(size > 0){
-    const int nBytesRead = (int)ndb_recv(theSocket,
-				receiveBuffer.insertPtr,
-				size < maxReceiveSize ? size : maxReceiveSize,
-				0);
+  if(size > 0)
+  {
+    do
+    {
+      const int nBytesRead = (int)ndb_recv(theSocket,
+				  receiveBuffer.insertPtr,
+				  size < maxReceiveSize ? size : maxReceiveSize,
+				  0);
 
-    if (nBytesRead > 0) {
-      receiveBuffer.sizeOfData += nBytesRead;
-      receiveBuffer.insertPtr  += nBytesRead;
-      require(receiveBuffer.insertPtr <= (char*)(receiveBuffer.startOfBuffer) +
-                 receiveBuffer.sizeOfBuffer); // prevent buf overflow
+      if (nBytesRead > 0)
+      {
+        receiveBuffer.sizeOfData += nBytesRead;
+        receiveBuffer.insertPtr  += nBytesRead;
+        require(receiveBuffer.insertPtr <= (char*)(receiveBuffer.startOfBuffer) +
+                  receiveBuffer.sizeOfBuffer); // prevent buf overflow
       
-      if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
+        if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
-        g_eventLogger->error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-                             receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-        g_eventLogger->error("nBytesRead = %d", nBytesRead);
+          g_eventLogger->error(
+            "receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+            receiveBuffer.sizeOfData,
+            receiveBuffer.sizeOfBuffer);
+          g_eventLogger->error("nBytesRead = %d", nBytesRead);
 #endif
-        g_eventLogger->error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-                             receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-	report_error(TE_INVALID_MESSAGE_LENGTH);
-	return 0;
+          g_eventLogger->error(
+            "receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+            receiveBuffer.sizeOfData,
+            receiveBuffer.sizeOfBuffer);
+	  report_error(TE_INVALID_MESSAGE_LENGTH);
+	  return 0;
+        }
+      
+        receiveCount ++;
+        receiveSize  += nBytesRead;
+        m_bytes_received += nBytesRead;
+      
+        if(receiveCount == reportFreq)
+        {
+          recvdata.reportReceiveLen(remoteNodeId,
+                                    receiveCount,
+                                    receiveSize);
+	  receiveCount = 0;
+	  receiveSize  = 0;
+        }
+        return nBytesRead;
       }
-      
-      receiveCount ++;
-      receiveSize  += nBytesRead;
-      m_bytes_received += nBytesRead;
-      
-      if(receiveCount == reportFreq){
-        recvdata.reportReceiveLen(remoteNodeId,
-                                  receiveCount, receiveSize);
-	receiveCount = 0;
-	receiveSize  = 0;
+      else
+      {
+        int err;
+        if (nBytesRead == 0)
+        {
+          /**
+           * According to documentation of recv on a socket, returning 0 means
+           * that the peer has closed the connection. Not likely that the
+           * errno is set in this case, so we set it ourselves to
+           * 0, do_disconnect will write special message for this situation.
+           */
+          err = 0;
+        }
+        else
+        {
+          err = ndb_socket_errno();
+        }
+#if defined DEBUG_TRANSPORTER
+        g_eventLogger->error(
+          "Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
+          "errno = %d strerror = %s",
+          DISCONNECT_ERRNO(err, nBytesRead),
+          remoteNodeId,
+          nBytesRead,
+          err,
+          (char*)ndbstrerror(err));
+#endif
+        if (err == ENOMEM)
+        {
+          /**
+           * The OS had issues with the size, try with smaller sizes, but if
+           * not even sizes below 1 kB works then we will report it as a
+           * permanent error.
+           *
+           * At least in one version of Linux we have seen this error turn up
+           * even when lots of memory is available. One reason could be that
+           * memory in Linux kernel is too fragmented to be accessible and in
+           * one version of Linux it will return ENOMEM with the intention
+           * that the user should retry with a new set of parameters in the
+           * write call (meaning sending with a size that fits into one
+           * kernel page). This we start a resend with size set to 4 kByte,
+           * next try with 2 kByte and finally with 1 kByte. If even the
+           * attempt with 1 kByte fails, we will treat it as a permanent
+           * error.
+           */
+#ifdef VM_TRACE
+          g_eventLogger->info("recv from node %u failed with ENOMEM,"
+                              " size: %u",
+                              remoteNodeId,
+                              size);
+#endif
+          if (size > IO_SIZE)
+          {
+            size = IO_SIZE;
+            continue;
+          }
+          else if (size >= (IO_SIZE / 2))
+          {
+            size /= 2;
+            continue;
+          }
+        }
+        if(DISCONNECT_ERRNO(err, nBytesRead))
+        {
+	  if (!do_disconnect(err, false))
+          {
+            return 0;
+          }
+        }
       }
       return nBytesRead;
-    } else {
-#if defined DEBUG_TRANSPORTER
-      g_eventLogger->error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
-                           "errno = %d strerror = %s",
-                           DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead),
-                           remoteNodeId, nBytesRead, ndb_socket_errno(),
-                           (char*)ndbstrerror(ndb_socket_errno()));
-#endif   
-      if(DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead)){
-	do_disconnect(ndb_socket_errno());
-      } 
-    }
-    return nBytesRead;
-  } else {
+    } while (1);
+  }
+  else
+  {
     return 0;
   }
 }
@@ -491,15 +672,17 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 void
 TCP_Transporter::disconnectImpl()
 {
-  get_callback_obj()->lock_transporter(remoteNodeId);
+  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
   NDB_SOCKET_TYPE sock = theSocket;
   ndb_socket_invalidate(&theSocket);
 
-  get_callback_obj()->unlock_transporter(remoteNodeId);
+  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 
   if(ndb_socket_valid(sock))
   {
+    DEB_MULTI_TRP(("Disconnect socket for trp %u",
+                   getTransporterIndex()));
     if(ndb_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }

@@ -1,0 +1,44 @@
+--source include/have_debug.inc
+
+#
+# BUG#30226841 ASSERTION FAILURE: SRV0START.CC:NNN:TRX_SYS_ANY_ACTIVE_TRANSACTIONS() == 0
+#
+
+CREATE TABLE t (a INT);
+
+--echo # 0. Disable checkpoints and page cleaners.
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+
+--echo # 1. Commit transaction.
+BEGIN;
+INSERT INTO t(a) VALUES(1);
+COMMIT;
+
+--echo # 2. Crash trying to execute next transaction.
+BEGIN;
+INSERT INTO t(a) VALUES(2);
+
+SET GLOBAL innodb_log_flush_now = ON;
+--source include/kill_mysqld.inc
+
+--echo # 3. Start MySQL after crash but pause trx_recovery_rollback thread to simulate delay.
+let $restart_parameters = "restart: --innodb-fast-shutdown=1 --debug=d,pause_rollback_on_recovery";
+--source include/start_mysqld.inc
+
+--echo # 4. Stop MySQL using fast shutdown.
+# This failed on assertion ut_a(trx_sys_any_active_transactions() == 0) in srv_pre_dd_shutdown()
+# during the shutdown (fast shutdown).
+--source include/shutdown_mysqld.inc
+
+--echo # Verifying that recovery found transactions which need rollback
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= MY-013023;
+--source include/search_pattern.inc
+
+--echo # 5. Restart MySQL and restore defaults (clean up for next tests).
+let $restart_parameters = restart;
+--source include/start_mysqld.inc
+
+DROP TABLE t;

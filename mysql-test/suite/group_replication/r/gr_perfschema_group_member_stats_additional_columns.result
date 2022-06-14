@@ -19,12 +19,12 @@ include/rpl_sync.inc
 [connection server2]
 [connection server1]
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
-include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 2 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
 [connection server2]
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
-include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 2 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
 
@@ -44,7 +44,7 @@ INSERT INTO t1 VALUES (3);
 include/rpl_sync.inc
 [connection server1]
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
-include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
@@ -53,7 +53,7 @@ include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server
 include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2']
 [connection server2]
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
-include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
@@ -66,7 +66,7 @@ include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server
 #####################################################################
 [connection server1]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 [connection server1]
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 10 on server 1']
@@ -76,7 +76,7 @@ include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE sho
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
 [connection server1]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 include/rpl_sync.inc
 
@@ -87,7 +87,7 @@ include/rpl_sync.inc
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1']
-include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 10 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
@@ -98,7 +98,7 @@ include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1']
-include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 10 on server 2']
 include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']

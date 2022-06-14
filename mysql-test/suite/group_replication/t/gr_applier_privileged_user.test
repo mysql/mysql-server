@@ -1,0 +1,133 @@
+# ==== Purpose ====
+#
+# To verify that `PRIVILEGE_CHECKS_USER` option is settable for GR channels and
+# that checks are enforced while applying the events from the replication
+# stream.
+#
+# ==== Implementation ====
+#
+#  1) Create a new database and a table on the group.
+#  2) Stop GR on `server1`.
+#  3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
+#  4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set it as
+#    the `PRIVILEGE_CHECKS_USER` user.
+#  5) Start `server1`.
+#  6) Execute an `INSERT` statement on `server2`.
+#  7) Expect an error as the user doesn't have INSERT privilege.
+#  8) Stop slave and grant INSERT privilege.
+#  9) Start server1
+# 10) Ensure that table was properly replicated
+#
+# ==== References ====
+#
+# WL#12966: Replication with Restricted Privileges
+# WL#12968: Configure replication applier to require row-based replication
+#
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1) Create a new database and a table on the group.
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+SET @@sql_log_bin = 0;
+CALL mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': INSERT command denied to user 'u1'@'localhost' for table 't1'.*");
+CALL mtr.add_suppression(".*Worker .* failed executing transaction .* INSERT command denied to user 'u1'@'localhost' for table 't1'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'.*");
+CALL mtr.add_suppression(".*Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+SET @@sql_log_bin = 1;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo # 2) Stop GR on `server1`.
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_row_format = "YES" AND Channel_name = "group_replication_applier"`
+--let $assert_text = Require_row_format column in performance_schema.replication_applier_configuration is set to YES for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_row_format = "YES" AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Require_row_format column in performance_schema.replication_applier_configuration is set to YES for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo
+--echo # 4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set
+--echo #    it as the `PRIVILEGE_CHECKS_USER` user.
+SET @@sql_log_bin = 0;
+--let $applier_user = 'u1'@'localhost'
+--eval CREATE USER $applier_user
+--eval GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
+SET @@sql_log_bin = 1;
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $applier_user FOR CHANNEL "group_replication_applier"
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user"`
+--let $assert_text = Privilege_checks_user column in performance_schema.replication_applier_configuration is set to $applier_user
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo
+--echo # 5) Start `server1`.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user"`
+--let $assert_text = Privilege_checks_user column in performance_schema.replication_applier_configuration is set to $applier_user
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo
+--echo # 6) Execute an `INSERT` statement on `server2`.
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+INSERT INTO db1.t1 VALUES (1), (2);
+
+--echo
+--echo # 7) Expect an error as the user doesn't have INSERT privilege.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--let $explicit_default_wait_timeout = 12000
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 8) Stop slave and grant INSERT privilege.
+--source include/stop_group_replication.inc
+SET @@sql_log_bin = 0;
+--eval GRANT INSERT ON *.* TO $applier_user
+SET @@sql_log_bin = 1;
+
+--echo
+--echo # 9) Start server1
+--source include/start_group_replication.inc
+
+--echo
+--echo # 10) Ensure that table was properly replicated
+--source include/rpl_sync.inc
+--let $count = `SELECT COUNT(*) FROM db1.t1`
+--let $assert_text = Table properly replicated in server1
+--let $assert_cond = 2 = $count
+--source include/assert.inc
+
+--echo
+--echo # Cleanup
+DROP DATABASE db1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+SET @@sql_log_bin = 0;
+--eval DROP USER $applier_user
+SET @@sql_log_bin = 1;
+--source include/group_replication_end.inc

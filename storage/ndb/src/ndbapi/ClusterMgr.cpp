@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,17 +37,21 @@
 #include <NdbTick.h>
 #include <ProcessInfo.hpp>
 #include <OwnProcessInfo.hpp>
+#include "ndb_internal.hpp"
 
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/AlterTable.hpp>
+#include "kernel/signaldata/DumpStateOrd.hpp"
+#include "kernel/signaldata/TestOrd.hpp"
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/ProcessInfoRep.hpp>
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
+#include <EventLogger.hpp>
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -80,6 +84,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedNodes(0),
   noOfConnectedDBNodes(0),
   minDbVersion(0),
+  minApiVersion(0),
   theClusterMgrThread(NULL),
   m_process_info(NULL),
   m_cluster_state(CS_waiting_for_clean_cache),
@@ -93,7 +98,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   Uint32 ret = this->open(&theFacade, API_CLUSTERMGR);
   if (unlikely(ret == 0))
   {
-    ndbout_c("Failed to register ClusterMgr! ret: %d", ret);
+    g_eventLogger->info("Failed to register ClusterMgr! ret: %d", ret);
     abort();
   }
   DBUG_VOID_RETURN;
@@ -124,7 +129,7 @@ void
 ClusterMgr::configure(Uint32 nodeId,
                       const ndb_mgm_configuration* config)
 {
-  ndb_mgm_configuration_iterator iter(* config, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()){
     Uint32 nodeId = 0;
     if(iter.get(CFG_NODE_ID, &nodeId))
@@ -235,7 +240,9 @@ ClusterMgr::startThread()
                                          NDB_THREAD_PRIO_HIGH);
   if (theClusterMgrThread == NULL)
   {
-    ndbout_c("ClusterMgr::startThread: Failed to create thread for cluster management.");
+    g_eventLogger->info(
+        "ClusterMgr::startThread:"
+        " Failed to create thread for cluster management.");
     assert(theClusterMgrThread != NULL);
     DBUG_VOID_RETURN;
   }
@@ -389,8 +396,9 @@ ClusterMgr::threadMain()
 
     NodeFailRep * nodeFailRep = CAST_PTR(NodeFailRep,
                                          nodeFail_signal.getDataPtrSend());
+    Uint32 theAllNodes[NodeBitmask::Size];
     nodeFailRep->noOfNodes = 0;
-    NodeBitmask::clear(nodeFailRep->theAllNodes);
+    NodeBitmask::clear(theAllNodes);
 
     for (int i = 1; i < MAX_NODES; i++)
     {
@@ -447,7 +455,8 @@ ClusterMgr::threadMain()
           signal.theReceiversBlockNumber = QMGR;
 
 #ifdef DEBUG_REG
-	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
+        g_eventLogger->info("ClusterMgr: Sending API_REGREQ to node %d",
+                            (int)nodeId);
 #endif
         if (nodeId == getOwnNodeId())
         {
@@ -460,7 +469,7 @@ ClusterMgr::threadMain()
       if (cm_node.hbMissed == 4 && cm_node.hbFrequency > 0)
       {
         nodeFailRep->noOfNodes++;
-        NodeBitmask::set(nodeFailRep->theAllNodes, nodeId);
+        NodeBitmask::set(theAllNodes, nodeId);
       }
     }
     flush_send_buffers();
@@ -469,7 +478,11 @@ ClusterMgr::threadMain()
     if (nodeFailRep->noOfNodes)
     {
       lock();
-      raw_sendSignal(&nodeFail_signal, getOwnNodeId());
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = theAllNodes;
+      lsptr[0].sz = NodeBitmask::getPackedLengthInWords(theAllNodes);
+
+      raw_sendSignal(&nodeFail_signal, getOwnNodeId(), lsptr, 1);
       flush_send_buffers();
       unlock();
     }
@@ -501,6 +514,10 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
 
   case GSN_API_REGREF:
     execAPI_REGREF(theData);
+    break;
+
+  case GSN_DUMP_STATE_ORD:
+    execDUMP_STATE_ORD(sig, ptr);
     break;
 
   case GSN_NODE_FAILREP:
@@ -674,6 +691,52 @@ ClusterMgr::recalcMinDbVersion()
   minDbVersion = newMinDbVersion;
 }
 
+/**
+ * recalcMinApiVersion
+ *
+ * This method is called whenever the 'minimum API node
+ * version' data for the connected DB nodes changes
+ * It calculates the minimum version of all the connected
+ * API nodes.
+ * This information is cached by Ndb object instances.
+ * This information is useful when implementing API compatibility
+ * with older API nodes
+ */
+void
+ClusterMgr::recalcMinApiVersion()
+{
+  Uint32 newMinApiVersion = ~ (Uint32) 0;
+
+  for (Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    trp_node& node = theNodes[i];
+
+    if (node.is_connected() &&
+        node.is_confirmed() &&
+        node.m_info.getType() == NodeInfo::DB)
+    {
+      /* Include this node in the set of nodes used to
+       * compute the lowest current API node version
+       */
+      assert(node.m_info.m_version);
+
+      if (node.minApiVersion < newMinApiVersion)
+      {
+        newMinApiVersion = node.minApiVersion;
+      }
+    }
+  }
+
+  /* Now update global min Api version if we have one.
+   * Otherwise set it to 0
+   */
+  newMinApiVersion = (newMinApiVersion == ~ (Uint32) 0) ?
+                     0 :
+                     newMinApiVersion;
+
+  minApiVersion = newMinApiVersion;
+}
+
 /******************************************************************************
  * Send PROCESSINFO_REP
  ******************************************************************************/
@@ -723,7 +786,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   const NodeId nodeId = refToNode(apiRegReq->ref);
 
 #ifdef DEBUG_REG
-  ndbout_c("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
+  g_eventLogger->info("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
 #endif
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -744,8 +807,6 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   if(node.m_info.m_version != apiRegReq->version){
     node.m_info.m_version = apiRegReq->version;
     node.m_info.m_mysql_version = apiRegReq->mysql_version;
-    if (node.m_info.m_version < NDBD_SPLIT_VERSION)
-      node.m_info.m_mysql_version = 0;
 
     if (getMajor(node.m_info.m_version) < getMajor(NDB_VERSION) ||
 	getMinor(node.m_info.m_version) < getMinor(NDB_VERSION)) {
@@ -773,11 +834,16 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->apiHeartbeatFrequency = m_hbFrequency/10;
 
   conf->minDbVersion= 0;
+  conf->minApiVersion= 0;
   conf->nodeState= node.m_state;
 
+  DEBUG_FPRINTF((stderr, "set_confirmed on node: %u\n", nodeId));
   node.set_confirmed(true);
   if (safe_sendSignal(&signal, nodeId) != 0)
+  {
+    DEBUG_FPRINTF((stderr, "reset_confirmed on node: %u\n", nodeId));
     node.set_confirmed(false);
+  }
 }
 
 void
@@ -789,7 +855,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
 #ifdef DEBUG_REG
-  ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
+  g_eventLogger->info("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -802,8 +868,6 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
     node.m_info.m_mysql_version = apiRegConf->mysql_version;
-    if (node.m_info.m_version < NDBD_SPLIT_VERSION)
-      node.m_info.m_mysql_version = 0;
         
     if(theNodes[theFacade.ownId()].m_info.m_type == NodeInfo::MGM)
       node.compatible = ndbCompatible_mgmt_ndb(NDB_VERSION,
@@ -813,6 +877,8 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
 					      node.m_info.m_version);
   }
 
+  DEBUG_FPRINTF((stderr, "2:set_confirmed on node %u\n", nodeId));
+
   node.set_confirmed(true);
 
   if (node.minDbVersion != apiRegConf->minDbVersion)
@@ -821,17 +887,14 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     recalcMinDbVersion();
   }
 
-  if (node.m_info.m_version >= NDBD_255_NODES_VERSION)
+  if (ndbd_send_min_api_version(apiRegConf->mysql_version) &&
+      node.minApiVersion != apiRegConf->minApiVersion)
   {
-    node.m_state = apiRegConf->nodeState;
+    node.minApiVersion = apiRegConf->minApiVersion;
+    recalcMinApiVersion();
   }
-  else
-  {
-    /**
-     * from 2 to 8 words = 6 words diff, 6*4 = 24
-     */
-    memcpy(&node.m_state, &apiRegConf->nodeState, sizeof(node.m_state) - 24);
-  }
+
+  node.m_state = apiRegConf->nodeState;
   
   if (node.m_info.m_type == NodeInfo::DB)
   {
@@ -928,11 +991,172 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
 
   switch(ref->errorCode){
   case ApiRegRef::WrongType:
-    ndbout_c("Node %d reports that this node should be a NDB node", nodeId);
+    g_eventLogger->info("Node %d reports that this node should be a NDB node",
+                        nodeId);
     abort();
   case ApiRegRef::UnsupportedVersion:
   default:
     break;
+  }
+}
+
+void
+ClusterMgr::execDUMP_STATE_ORD(const NdbApiSignal* signal,
+                               const LinearSectionPtr ptr[])
+{
+  const Uint32* data = signal->getDataPtr();
+  const Uint32 length = signal->getLength();
+  if (length < 1)
+  {
+    return;
+  }
+  switch (data[0])
+  {
+  case DumpStateOrd::CmvmiDummySignal:
+  {
+    /* Log in event logger that signal sent by dump command
+     * CmvmiSendDummySignal is received.  Include information about
+     * signal size and its sections and which node sent it.
+     *
+     * Use rep node as reporting node, typically a data node.
+     */
+    const Uint32 rep_node_id = data[1];
+    const Uint32 node_id = data[2];
+    const Uint32 num_secs = signal->m_noOfSections;
+    char msg[24*4];
+    snprintf(msg,
+             sizeof(msg),
+             "Receiving CmvmiDummySignal"
+             " (size %u+%u+%u+%u+%u) from %u to %u.",
+             length,
+             num_secs,
+             (num_secs > 0) ? ptr[0].sz : 0,
+             (num_secs > 1) ? ptr[1].sz : 0,
+             (num_secs > 2) ? ptr[2].sz : 0,
+             node_id,
+             getOwnNodeId());
+    const Uint32 len = strlen(msg) + 1;
+    assert(len <= 24*4);
+    NdbApiSignal aSignal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
+    aSignal.theTrace                = TestOrd::TraceAPI;
+    aSignal.theReceiversBlockNumber = CMVMI;
+    aSignal.theVerId_signalNumber   = GSN_EVENT_REP;
+    aSignal.theLength               = ((len + 3) / 4) + 1;
+    Uint32* data = aSignal.getDataPtrSend();
+    data[0] = NDB_LE_InfoEvent;
+    memcpy(&data[1], msg, len);
+    safe_sendSignal(&aSignal, rep_node_id);
+    return;
+  }
+  case DumpStateOrd::CmvmiSendDummySignal:
+  {
+    /* Send a CmvmiDummySignal to specified node with specified size and
+     * sections.  This is used to verify that messages with certain
+     * signal sizes and sections can be sent and received.
+     *
+     * The sending is also logged in event logger.  This log entry should
+     * be matched with corresponding log when receiving the
+     * CmvmiDummySignal dump command.  See preceding dump command above.
+     *
+     * args: rep-node dest-node padding frag-size
+     *       #secs sec#1-len sec#2-len sec#3-len
+     */
+    if (length < 5)
+    {
+      // Not enough words to send a dummy signal
+      return;
+    }
+    const Uint32 rep_node_id = data[1];
+    const Uint32 node_id = data[2];
+    const Uint32 fill_word = data[3];
+    const Uint32 frag_size = data[4];
+    if (frag_size != 0)
+    {
+      // Fragmented signals are not supported yet.
+      return;
+    }
+    const Uint32 num_secs = (length > 5) ? data[5] : 0;
+    if (num_secs > 3)
+    {
+      return;
+    }
+    Uint32 tot_len = length;
+    LinearSectionPtr ptr[3];
+    Uint32 sec_max_len = 0;
+    for (Uint32 i = 0; i < num_secs; i++)
+    {
+      const Uint32 sec_len = data[6 + i];
+      if (sec_len > sec_max_len)
+      {
+        sec_max_len = sec_len;
+      }
+      ptr[i].sz = sec_len;
+      tot_len += sec_len;
+    }
+    Uint32* dummy_data = new Uint32[sec_max_len];
+    for (Uint32 i = 0; i < sec_max_len; i++)
+    {
+      dummy_data[i] = fill_word;
+    }
+    for (Uint32 i = 0; i < num_secs; i++)
+    {
+      ptr[i].p = dummy_data;
+    }
+    for (Uint32 i = num_secs; i < 3; i++)
+    {
+      ptr[i].sz = 0;
+      ptr[i].p = NULL;
+    }
+    NdbApiSignal dummy_signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
+    Uint32* dummy_sigdata = dummy_signal.getDataPtrSend();
+    dummy_sigdata[0] = DumpStateOrd::CmvmiDummySignal;
+    for (Uint32 i = 1; i < length; i++)
+    {
+      dummy_sigdata[i] = data[i];
+    }
+    dummy_sigdata[2] = getOwnNodeId();
+    dummy_signal.theVerId_signalNumber = GSN_DUMP_STATE_ORD;
+    const trp_node & theNode = theNodes[node_id];
+    dummy_signal.theReceiversBlockNumber =
+      (theNode.m_info.m_type == NodeInfo::DB)
+      ? CMVMI
+      : API_CLUSTERMGR;
+    dummy_signal.theTrace  = 0;
+    dummy_signal.theLength = length;
+    dummy_signal.m_noOfSections = num_secs;
+    safe_sendSignal(&dummy_signal, node_id, ptr, num_secs);
+    delete[] dummy_data;
+
+    /* Send event log about the sending of CmvmiDummySignal.
+     * Use rep node as reporting node, typically a data node.
+     */
+    char msg[24 * sizeof(Uint32)];
+    snprintf(msg,
+             sizeof(msg),
+             "Sending CmvmiDummySignal"
+             " (size %u+%u+%u+%u+%u) from %u to %u.",
+             length,
+             num_secs,
+             ptr[0].sz,
+             ptr[1].sz,
+             ptr[2].sz,
+             getOwnNodeId(),
+             node_id);
+    const Uint32 len = strlen(msg) + 1;
+    assert(len <= 24*4);
+    NdbApiSignal aSignal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
+    aSignal.theTrace                = TestOrd::TraceAPI;
+    aSignal.theReceiversBlockNumber = CMVMI;
+    aSignal.theVerId_signalNumber   = GSN_EVENT_REP;
+    aSignal.theLength               = (Uint32)((len+3)/4)+1;
+    Uint32* data = aSignal.getDataPtrSend();
+    data[0] = NDB_LE_InfoEvent;
+    memcpy(&data[1], msg, len);
+    safe_sendSignal(&aSignal, rep_node_id);
+    return;
+  }
+  default:
+    return;
   }
 }
 
@@ -1019,6 +1243,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_node_fail_rep = false;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
+  theNode.minApiVersion = 0;
 
   /**
    * End of protected ClusterMgr updates of shared global data.
@@ -1066,7 +1291,6 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
    */
   if (unlikely(!node_connected))
   {
-    assert(node_connected);
     if (theFacade.m_poll_owner != this)
       unlock();
     return;
@@ -1124,14 +1348,19 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
     signal.theReceiversBlockNumber = API_CLUSTERMGR;
     signal.theTrace  = 0;
     signal.theLength = NodeFailRep::SignalLengthLong;
+    signal.m_noOfSections = 1;
 
     NodeFailRep * rep = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
+    Uint32 theAllNodes[NodeBitmask::Size];
     rep->failNo = 0;
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
-    NodeBitmask::clear(rep->theAllNodes);
-    NodeBitmask::set(rep->theAllNodes, nodeId);
-    execNODE_FAILREP(&signal, 0);
+    NodeBitmask::clear(theAllNodes);
+    NodeBitmask::set(theAllNodes, nodeId);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = theAllNodes;
+    lsptr[0].sz = NodeBitmask::getPackedLengthInWords(theAllNodes);
+    execNODE_FAILREP(&signal, lsptr);
   }
 }
 
@@ -1141,13 +1370,18 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
 {
   const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
   NodeBitmask mask;
-  if (sig->getLength() == NodeFailRep::SignalLengthLong)
+  if (sig->getLength() == NodeFailRep::SignalLengthLong_v1)
   {
     mask.assign(NodeBitmask::Size, rep->theAllNodes);
   }
+  else if (sig->getLength() == NodeFailRep::SignalLength_v1)
+  {
+    mask.assign(NdbNodeBitmask48::Size, rep->theNodes);
+  }
   else
   {
-    mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+    assert(sig->m_noOfSections == 1);
+    mask.assign(ptr[0].sz, ptr[0].p);
   }
 
   NdbApiSignal signal(sig->theSendersBlockRef);
@@ -1155,12 +1389,14 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   signal.theReceiversBlockNumber = API_CLUSTERMGR;
   signal.theTrace  = 0;
   signal.theLength = NodeFailRep::SignalLengthLong;
+  signal.m_noOfSections = 1;
 
   NodeFailRep * copy = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
   copy->failNo = 0;
   copy->masterNodeId = 0;
   copy->noOfNodes = 0;
-  NodeBitmask::clear(copy->theAllNodes);
+  Uint32 theAllNodes[NodeBitmask::Size];
+  NodeBitmask::clear(theAllNodes);
 
   for (Uint32 i = mask.find_first(); i != NodeBitmask::NotFound;
        i = mask.find_next(i + 1))
@@ -1175,7 +1411,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
     if (node_failrep == false)
     {
       theNode.m_node_fail_rep = true;
-      NodeBitmask::set(copy->theAllNodes, i);
+      NodeBitmask::set(theAllNodes, i);
       copy->noOfNodes++;
     }
 
@@ -1186,9 +1422,13 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   }
 
   recalcMinDbVersion();
+  recalcMinApiVersion();
   if (copy->noOfNodes)
   {
-    theFacade.for_each(this, &signal, 0); // report GSN_NODE_FAILREP
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = theAllNodes;
+    lsptr[0].sz = NodeBitmask::getPackedLengthInWords(theAllNodes);
+    theFacade.for_each(this, &signal, lsptr); // report GSN_NODE_FAILREP
   }
 
   if (noOfAliveNodes == 0)
@@ -1400,7 +1640,8 @@ ArbitMgr::doStart(const Uint32* theData)
     NDB_THREAD_PRIO_HIGH);
   if (theThread == NULL)
   {
-    ndbout_c("ArbitMgr::doStart: Failed to create thread for arbitration.");
+    g_eventLogger->info(
+        "ArbitMgr::doStart: Failed to create thread for arbitration.");
     assert(theThread != NULL);
   }
   NdbMutex_Unlock(theThreadMutex);

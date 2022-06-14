@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,459 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-/**
- * @defgroup MDC Metadata Cache
- *
- * Synopsis
- * ========
- *
- * Metadata Cache plugin communicates with Metadata and Group Replication
- * exposed by the cluster to obtain its topology and availablity information.
- * The digest of this information is then exposed to Routing Plugin in form of a
- * routing table.
- * Key components:
- * - Metadata Cache API - interface through which it exposes its service
- * - Refresh Mechansim - responsible for updating routing table
- *
- *
- *
- *
- *
- * Glossary
- * ========
- *
- * replicaset = group of servers that contain the same data; in simple cases
- *              replicaset and cluster are interchangeable, but in case of
- *              sharded cluster this no longer applies, as the cluster will be
- *              composed of multiple replicasets, each handling a different
- *              shard.
- *
- * MD = metadata, several tables residing on the metadata server, which (among
- *      other things) contain cluster topology information. It reflects the
- *      desired "as it should be" version of topology.
- *
- * GR = Group Replication, a server-side plugin responsible for synchronising
- *      data between cluster nodes. It exposes certain dynamic tables (views)
- *      that we query to obtain health status of the cluster. It reflects the
- *      real "as it actually is" version of topology.
- *
- * MDC = MD Cache, this plugin (the code that you're reading now).
- *
- * MM = multi-master, a replication mode in which all GR members are RW.
- *
- * SM = single-master, a replication mode in which only one GR member is RW,
- *      rest are RO.
- *
- * ATTOW = contraction for "at the time of writing".
- *
- * [xx] (where x is a digit) = reference to a note in Notes section.
- *
- *
- *
- *
- *
- * Refresh Mechanism
- * =================
- *
- * @note
- * To keep docs simpler, all below describes how MDC behaves in case of handling
- * just one replicaset. It has been designed to handle more than one, however,
- * ATTOW we don't test it with more than one, so we are uncertain if it would
- * actually deliver on that promise.  This is also the reason why throughout the
- * MDC code there are data structures that are collections of replicasets and
- * for loops that iterate over them, yet in reality we always deal with just one
- * element in those containers and such loops iterate only once.
- *
- *
- *
- *
- *
- * ## Overview
- * MDC refresh runs in its own thread and periodically queries both MD and GR
- * for status, then updates routing table which is queried by the Routing
- * Plugin. Its entry point is `MetadataCache::start()`, which (indirectly) runs
- * a "forever loop" in `MetadataCache::refresh_thread()`, which in turn is
- * responsible for perodically running `MetadataCache::refresh()`.
- *
- * `MetadataCache::refresh()` is the "workhorse" of refresh mechanism.
- *
- *
- *
- *
- *
- * ## Refresh trigger
- * `MetadataCache::refresh_thread()` call to `MetadataCache::refresh()` can be
- * triggered in 2 ways:
- * - `<TTL>` seconds passed since last refresh
- * - emergency mode (replicaset is flagged to have at least one node
- * unreachable).
- *
- * It's implemented by running a sleep loop between refreshes. The loop sleeps 1
- * second at a time, until `<TTL>` iterations have gone or emergency mode is
- * enabled.
- *
- *
- *
- * ### Emergency mode
- * Emergency mode is entered, when Routing Plugin discovers that it's unable to
- * connect to a node that's declared by MDC as routable (node that is labelled
- * as writable or readonly). In such situation, it will flag the replicaset as
- * missing a node, and MDC will react by increasing refresh rate to 1/s (if it
- * is currently lower).
- *
- * This emergency mode will stay enabled, until routing table resulting from
- * most recent MD and GR query is different from the one before it _AND_ the
- * replicaset is in RW mode.
- *
- * @note
- * The reason why we require the routing table to be different before we disable
- * the emergency mode, is because it usually takes several seconds for GR to
- * figure out that some node went down. Thus we want to wait until GR gives us a
- * topology that reflects the change. This strategy might have a bug however
- * [05].
- *
- * @note
- * The reason why we require the replicaset to be in RW mode before we disable
- * the emergency mode, is the assumption that the user wants the replicaset to
- * be RW and if it is in RO, it is undergoing a failure. This assumption is
- * probably flawed [06].
- *
- *
- *
- *
- *
- * ## Refresh process
- * Once refresh is called, it goes through the following stages:
- * - Stage 1: Query MD
- * - Stage 2: Query GR, combine results with MD, determine availability
- * - Stage 3: Update routing table
- *
- * In subsequent sections each stage is described in more detail
- *
- *
- *
- *
- *
- * ### Stage 1: Query MD
- * This stage can be divided into two major substages:
- *   1. Connect to MD server
- *   2. Extract MD information
- *
- *
- *
- * #### Stage 1.1: Connect to MD server
- *
- * Implemented in: `ClusterMetadata::connect()`
- *
- * MDC starts with a list of MD servers written in the dynamic configuration
- * (state) file, such as:
- *
- *
- * "cluster-metadata-servers": [
- *          "mysql://192.168.56.101:3310",
- *          "mysql://192.168.56.101:3320",
- *          "mysql://192.168.56.101:3330"
- *      ]
- *
- * It iterates through the list and tries to connect to each one, until
- * connection succeeds.
- *
- * @note
- * This behavior might change in near future, because it does not ensure that
- * connected MD server holds valid MD data [01].
- *
- * @note
- * Iteration always starting from 1st server on the list might also change [02].
- *
- * @note
- * New connection is always established and old one closed off, even if old one
- * is still alive and usable.
- *
- *
- *
- * #### Stage 1.2: Extract MD Information
- *
- * Implemented in: `ClusterMetadata::fetch_instances_from_metadata_server()`
- *
- * Using connection established in Stage 1.1, MDC runs a SQL query which
- * extracts a list of nodes (GR members) belonging to the replicaset. Note that
- * this the configured "should be" view of replicaset topology, which might not
- * correspond to actual topology, if for example some nodes became unavailable,
- * changed their role or new nodes were added without updating MD in the
- * server.
- *
- * @note
- * ATTOW, if this query fails, whole refresh process fails [03].
- *
- *
- *
- *
- *
- * ### Stage 2: Query GR, combine results with MD, determine availability
- *
- * Implemented in: `ClusterMetadata::update_replicaset_status()`
- *
- * Here MDC iterates through the list of GR members obtained from MD in Stage
- * 1.2, until it finds a "trustworthy" GR node. A "trustworthy" GR node is one
- * that passes the following substages:
- *   1. successfully connects
- *   2. successfully responds to 2 GR status SQL queries
- *   3. is part of quorum (regardless of whether it's available or not)
- *
- * If MDC doesn't find a "trustworthy" node, it clears the routing table,
- * resulting in Routing Plugin not routing any new connections.
- *
- * @note
- * Since Stage 2 got its list of candidate GR nodes from MD server, it follows
- * that MDC will never query any nodes not present in MD for GR status.
- *
- * @note
- * Any routing table updates will not go into effect until Stage 3, where it is
- * applied.
- *
- * @note
- * ATTOW clearing routing table will not automatically close off old
- * connections. This is a bug which is addressed by upcoming WL#11954.
- *
- *
- *
- * #### Stage 2.1: Connect to GR node
- *
- * Implemented in: `ClusterMetadata::update_replicaset_status()`
- *
- * New connection to GR node is established (on failure, Stage 2 progresses to
- * next iteration).
- *
- * @note
- * Since connection to MD server in Stage 1.1 is not closed after that stage
- * finishes, there's an optimisation done for when connecting to a GR member
- * that's the same node as the MD server - in such case, the connection is
- * simply re-used rather than new one opened.
- *
- *
- *
- * #### Stage 2.2: Extract GR status
- *
- * Implemented in: `fetch_group_replication_members()` and
- *                   `find_group_replication_primary_member()`
- *
- * Two SQL queries are ran and combined to produce a status report of all nodes
- * seen by this node (which would be the entire replicaset if it was in perfect
- * health, or its subset if some nodes became unavailable or the replicaset was
- * experiencing a split-brain scenario):
- *
- *   1. determine the PRIMARY member of the replicaset (if there is more than
- *      one, such as in MM setups, the first one is returned and the rest are
- *      ignored)
- *
- *   2. get the membership and health status of all GR nodes, as seen by this
- *      node
- *
- * If either SQL query fails to execute, Stage 2 iterates to next GR node.
- *
- * @note
- * ATTOW, 1st query is always ran, regardless of whether we're in MM mode or
- * not. As all nodes are PRIMARY in MM setups, we could optimise this query away
- * in MM setups.
- *
- *
- *
- * #### Stage 2.3: Quorum test
- *
- * Implemented in: `ClusterMetadata::update_replicaset_status()` and
- *                   `ClusterMetadata::check_replicaset_status()`
- *
- * MD and GR data collected up to now are compared, to see if GR node just
- * queried belongs to an available replicaset (or to an available replicaset
- * partition, if replicaset has partitioned). For a replicaset (partition) to
- * be considered available, it has to have quorum, that is, meet the following
- * condition:
- *
- *     count(ONLINE nodes) + count(RECOVERING nodes)
- *         is greater than
- *     1/2 * count(all original nodes according to MD).
- *
- * If particular GR node does not meet the quorum condition, Stage 2 iterates
- * to next GR node.
- *
- * OTOH, if GR node is part of quorum, Stage 2 will not iterate further,
- * because it would be pointless (it's not possible to find a member that's
- * part of another quorum, because there can only be one quorum, the one we
- * just found). This matters, because having quorum does not automatically
- * imply being available, as next paragraph explains.
- *
- * The availability test will resolve node's replicaset to be in of the 4
- * possible states:
- * - Unavailable (this node is not part of quorum)
- * - UnavailableRecovering (quorum is met, but it consists of only RECOVERING
- *   nodes - this is a rare cornercase)
- * - AvailableWritable (quorum is met, at least one RW node present)
- * - AvailableReadOnly (quorum is met, no RW nodes present)
- *
- * As already mentioned, reaching 1st of the 4 above states will result in
- * Stage 2 iterating to the next node. OTOH, achieving one of remaining 3
- * states will cause MDC to move on to Stage 3, where it sets the routing table
- * accordingly.
- *
- *
- * ##### GR-MD dishorenecy
- *
- * ATTOW, our Router has a certain limitation: it assumes that MD contains an
- * exact set or superset of nodes in GR. The user is normally expected to use
- * MySQL Shell to reconfigure the replicaset, which automatically updates both
- * GR and MD, keeping them in sync. But if for some reason the user tinkers with
- * GR directly and adds nodes without updating MD accordingly,
- * availablity/quorum calculations will be skewed. We run checks to detect such
- * situation, and log a warning like so:
- *
- *     log_error("Member %s:%d (%s) found in replicaset, yet is not defined in
- *     metadata!"
- *
- * but beyond that we just act defensively by having our quorum calculation be
- * conservative, and error on the side of caution when such discrepancy happens
- * (quorum becomes harder to reach than if MD contained all GR members).
- *
- * Quorum is evaluated in code as follows:
- *
- *     bool have_quorum = (quorum_count > member_status.size()/2);
- *
- * - `quorum_count` is the sum of PRIMARY, SECONDARY and RECOVERING nodes that
- *   appear in MD _and_ GR
- * - `member_status.size()` is the sum of all nodes in GR, regardless of if they
- *   show up in MD or not
- * - any nodes in MD but not in GR will be marked as Unavailable, this is an
- *   expected scenario, and we react correctly; they do not increment
- *   `quorum_count` nor `member_status.size()`
- * - any nodes in GR but not in MD will never become routing destinations,
- *   but they will increment the `member_status.size()`, making quorum harder to
- *   reach.
- *
- * To illustrate how our quorum calculation will behave when GR and MD get out
- * sync, below are some example scenarios:
- *
- * ###### Scenario 1
- *
- *     MD defines nodes A, B, C
- *     GR defines nodes A, B, C, D, E
- *     A, B are alive; C, D, E are dead
- *
- * Availability calculation should deem replicaset to be unavailable, because
- * only 2 of 5 nodes are alive, even though looking purely from MD
- * point-of-view, 2 of its 3 nodes are still alive, thus could be considered a
- * quorum. In such case:
- *
- *     quorum_count = 2 (A and B)
- *     member_status.size() = 5
- *
- * and thus:
- *
- *     have_quorum = (2 > 5/2) = false
- *
- * ###### Scenario 2
- *
- *     MD defines nodes A, B, C
- *     GR defines nodes A, B, C, D, E
- *     A, B are dead, C, D, E are alive
- *
- * Availability calculation, if fully GR-aware, could deem replicaset as
- * available, because looking from purely GR perspective, 3 of 5 nodes form
- * quorum. OTOH, looking from MD perspective, only 1 of 3 its nodes (C) is
- * alive.
- *
- * Our availability calculation prefers to err on the side of caution. So here
- * the availability is judged as not available, even though it could be. But
- * that's the price we pay in exchange for the safety the algorithm provides
- * demonstrated in the previous scenario:
- *
- *     quorum_count = 1 (C)
- *     member_status.size() = 5
- *
- * and thus:
- *
- *     have_quorum = (1 > 5/2) = false
- *
- * ###### Scenario 3
- *
- *     MD defines nodes A, B, C
- *     GR defines nodes       C, D, E
- *     A, B are not reported by GR, C, D, E are alive
- *
- * According to GR, there's a quorum between nodes C, D and E. However, from MD
- * point-of-view, A and B went missing and only C is known to be alive.
- *
- * Again, our available calculation prefers to err on the safe side:
- *
- *     quorum_count = 1 (C)
- *     member_status.size() = 5
- *
- * and thus:
- *
- *     have_quorum = (1 > 5/2) = false
- *
- *
- * ##### Why don't we just use GR data (and do away with Metadata)?
- *
- * Need for cluster configuration aside, there is another challenge. GR can
- * provide IP/hostnames of nodes as it sees them from its own perspective, but
- * those IP/hostnames might not be externally-reachable. OTOH, MD tables provide
- * external IP/hostnames which Router relies upon to reach the GR nodes.
- *
- *
- *
- *
- *
- * ### Stage 3: Update routing table
- *
- * Implemented in: `MetadataCache::refresh()`
- *
- * Once stage 2 is complete, the resulting routing table from Stage 2 is
- * applied. It is also compared to the old routing table and if there is a
- * difference between them, two things happen:
- *
- * 1. Appropriate log messages are issued advising of availability change.
- *
- * 2. A check is run if replicaset is in RW mode. If it is, emergency mode is
- *    called off (see "Emergency mode" section for more information).
- *
- *
- *
- *
- *
- * ##NOTES
- *
- * ### Emergency mode
- * [05] Imagine a scenario where a replicaset is perfectly healthy, but Routing
- *      Plugin has a network hickup and fails to connect to one of its nodes. As
- *      a result, it will flag the replicaset as missing a node, triggerring
- *      emergency mode. Emergency mode will only be turned off after routing
- *      table changes (the assumption is that the current one is stale and we're
- *      waiting for an updated one reflecting the problem Routing Plugin
- *      observed). However, since the replicaset is healthy, as long as it stays
- *      that way no such update will come, leaving emergency mode enabled
- *      indefinitely. This has been reported as BUG#27065614
- *
- * [06] Requiring replicaset to be available in RW mode before disabling
- *      emergency mode has a flaw: if replicaset is placed in super-read-only
- *      mode, it is possible for PRIMARY node to be read-only.
- *
- *
- * ### Stage 1.1
- * [01] There has been a recent concern ATTOW, that MD returned might be stale,
- *      if MD server node is in RECOVERING state. This assumes the MD server is
- *      also deployed on an InnoDB cluster.
- *
- * [02] It might be better to always start from the last successfully-connected
- *      server, rather than 1st on the list, to avoid unneccessary connection
- *      attempts when 1st server is dead.
- *
- *
- * ### Stage 1.2
- * [03] If MD-fetching SQL statement fails to execute or process properly, it
- *      will raise an exception that is caught by the topmost catch of the
- *      refresh process, meaning, another MD server will not be queried. This is
- *      a bug, reported as BUG#28082473
- */
-
 #include "metadata_cache.h"
 
 #include <cassert>
@@ -483,34 +30,48 @@
 #include <stdexcept>
 #include <vector>
 
-#include "common.h"
+#include "my_thread.h"  // my_thread_self_setname
+#include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/plugin.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"
+
+using namespace std::chrono_literals;
+using namespace std::string_literals;
+using mysql_harness::EventStateTracker;
+using mysql_harness::logging::LogLevel;
 
 IMPORT_LOG_FUNCTIONS()
 
 MetadataCache::MetadataCache(
-    const std::string &group_replication_id,
+    const unsigned router_id, const std::string &cluster_type_specific_id,
+    const std::string &clusterset_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-    std::shared_ptr<MetaData>
-        cluster_metadata,  // this could be changed to UniquePtr
-    std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
-    const std::string &cluster, size_t thread_stack_size,
-    bool use_gr_notifications)
-    : group_replication_id_(group_replication_id),
+    std::shared_ptr<MetaData> cluster_metadata,
+    const metadata_cache::MetadataCacheTTLConfig &ttl_config,
+    const mysqlrouter::SSLOptions &ssl_options,
+    const mysqlrouter::TargetCluster &target_cluster,
+    const metadata_cache::RouterAttributes &router_attributes,
+    size_t thread_stack_size, bool use_cluster_notifications)
+    : target_cluster_(target_cluster),
+      cluster_type_specific_id_(cluster_type_specific_id),
+      clusterset_id_(clusterset_id),
+      ttl_config_(ttl_config),
+      ssl_options_(ssl_options),
+      router_id_(router_id),
+      meta_data_(std::move(cluster_metadata)),
       refresh_thread_(thread_stack_size),
-      use_gr_notifications_(use_gr_notifications) {
+      use_cluster_notifications_(use_cluster_notifications),
+      router_attributes_(router_attributes) {
   for (const auto &s : metadata_servers) {
     metadata_servers_.emplace_back(s);
   }
-  ttl_ = ttl;
-  cluster_name_ = cluster;
-  meta_data_ = cluster_metadata;
-  ssl_options_ = ssl_options;
 }
 
 MetadataCache::~MetadataCache() {
-  meta_data_->shutdown_gr_notifications_listener();
+  meta_data_->shutdown_notifications_listener();
 }
 
 void *MetadataCache::run_thread(void *context) {
@@ -523,7 +84,7 @@ void *MetadataCache::run_thread(void *context) {
 }
 
 void MetadataCache::refresh_thread() {
-  mysql_harness::rename_thread("MDC Refresh");
+  my_thread_self_setname("MDC Refresh");
   log_info("Starting metadata cache refresh thread");
 
   // this will be only useful if the TTL is set to some value that is more than
@@ -531,34 +92,96 @@ void MetadataCache::refresh_thread() {
   const std::chrono::milliseconds kTerminateOrForcedRefreshCheckInterval =
       std::chrono::seconds(1);
 
+  auto auth_cache_ttl_left = ttl_config_.auth_cache_refresh_interval;
+  bool auth_cache_force_update = true;
   while (!terminated_) {
-    refresh();
+    bool refresh_ok{false};
+    const bool needs_writable_node =
+        update_router_attributes_ || last_check_in_updated_ % 10 == 0;
+    try {
+      // Component tests are using this log message as a indicator of metadata
+      // refresh start
+      log_debug("Started refreshing the cluster metadata");
+      refresh_ok = refresh(needs_writable_node);
+      // Component tests are using this log message as a indicator of metadata
+      // refresh finish
+      log_debug("Finished refreshing the cluster metadata");
+      on_refresh_completed();
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+      log_info(
+          "Cluster metadata upgrade in progress, aborting the metada refresh");
+    } catch (const std::exception &e) {
+      log_info("Failed refreshing metadata: %s", e.what());
+      on_refresh_failed(true);
+    }
 
-    auto ttl_left = ttl_;
-    // wait for up to TTL until next refresh, unless some replicaset loses an
-    // online (primary or secondary) server - in that case, "emergency mode" is
-    // enabled and we refresh every 1s until "emergency mode" is called off.
-    while (ttl_left > std::chrono::milliseconds(0)) {
+    if (refresh_ok) {
+      if (!ready_announced_) {
+        ready_announced_ = true;
+        mysql_harness::on_service_ready(
+            "metadata_cache:" +
+            metadata_cache::MetadataCacheAPI::instance()->instance_name());
+      }
+      // we want to update router attributes in the routers table once when we
+      // start
+      update_router_attributes();
+
+      if (auth_cache_force_update) {
+        update_auth_cache();
+        auth_cache_force_update = false;
+      }
+
+      // we want to update the router.last_check_in every 10 ttl queries
+      update_router_last_check_in();
+    }
+
+    auto ttl_left = ttl_config_.ttl;
+    while (ttl_left > 0ms) {
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
 
       {
         std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
-        refresh_wait_.wait_for(lock, sleep_for);
+        // frist check if we were not told to leave or refresh again while we
+        // were outside of the wait_for
         if (terminated_) return;
         if (refresh_requested_) {
+          auth_cache_force_update = true;
+          refresh_requested_ = false;
+          break;  // go to the refresh() in the outer loop
+        }
+
+        if (sleep_for >= auth_cache_ttl_left) {
+          refresh_wait_.wait_for(lock, auth_cache_ttl_left);
+          ttl_left -= auth_cache_ttl_left;
+          auto start_timestamp = std::chrono::steady_clock::now();
+          if (refresh_ok && update_auth_cache())
+            auth_cache_ttl_left = ttl_config_.auth_cache_refresh_interval;
+          auto end_timestamp = std::chrono::steady_clock::now();
+          auto time_spent =
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  end_timestamp - start_timestamp);
+          ttl_left -= time_spent;
+        } else {
+          refresh_wait_.wait_for(lock, sleep_for);
+          auth_cache_ttl_left -= sleep_for;
+          ttl_left -= sleep_for;
+        }
+        if (terminated_) return;
+        if (refresh_requested_) {
+          auth_cache_force_update = true;
           refresh_requested_ = false;
           break;  // go to the refresh() in the outer loop
         }
       }
 
-      ttl_left -= sleep_for;
       {
-        std::lock_guard<std::mutex> lock(
-            replicasets_with_unreachable_nodes_mtx_);
-
-        if (!replicasets_with_unreachable_nodes_.empty())
-          break;  // we're in "emergency mode", don't wait until TTL expires
+        std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+        // if the metadata is not consistent refresh it at a higher rate (if the
+        // ttl>1s) until it becomes consistent again
+        if (cluster_data_.md_discrepancy) {
+          break;
+        }
       }
     }
   }
@@ -578,65 +201,47 @@ void MetadataCache::start() {
  */
 void MetadataCache::stop() noexcept {
   {
-    std::unique_lock<std::mutex> lk(refresh_wait_mtx_);
+    std::unique_lock<std::mutex> lk(refresh_wait_mtx_, std::defer_lock);
+    std::unique_lock<std::mutex> lk2(refresh_completed_mtx_, std::defer_lock);
+    std::lock(lk, lk2);
     terminated_ = true;
   }
   refresh_wait_.notify_one();
+  refresh_completed_.notify_one();
   refresh_thread_.join();
 }
 
 /**
- * Return a list of servers that are part of a replicaset.
+ * Return a list of servers that are part of a cluster.
  *
- * @param replicaset_name The replicaset that is being looked up.
+ * TODO: this is not needed, get rid of this API
  */
-MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
-    const std::string &replicaset_name) {
+metadata_cache::cluster_nodes_list_t MetadataCache::get_cluster_nodes() {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  auto replicaset = (replicaset_name.empty())
-                        ? replicaset_data_.begin()
-                        : replicaset_data_.find(replicaset_name);
-
-  if (replicaset == replicaset_data_.end()) {
-    log_warning("Replicaset '%s' not available", replicaset_name.c_str());
-    return {};
-  }
-
-  return replicaset->second.members;
+  return cluster_data_.members;
 }
 
 bool metadata_cache::ManagedInstance::operator==(
     const ManagedInstance &other) const {
-  return mysql_server_uuid == other.mysql_server_uuid &&
-         replicaset_name == other.replicaset_name && role == other.role &&
-         mode == other.mode &&
-         std::fabs(weight - other.weight) <
-             0.001 &&  // 0.001 = reasonable guess, change if needed
-         host == other.host &&
-         location == other.location && port == other.port &&
-         version_token == other.version_token && xport == other.xport;
+  return mysql_server_uuid == other.mysql_server_uuid && mode == other.mode &&
+         host == other.host && port == other.port && xport == other.xport &&
+         hidden == other.hidden &&
+         disconnect_existing_sessions_when_hidden ==
+             other.disconnect_existing_sessions_when_hidden;
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
-    const std::string &p_replicaset_name,
-    const std::string &p_mysql_server_uuid, const std::string &p_role,
-    const ServerMode p_mode, const float p_weight,
-    const unsigned int p_version_token, const std::string &p_location,
+    const std::string &p_mysql_server_uuid, const ServerMode p_mode,
     const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
-    : replicaset_name(p_replicaset_name),
-      mysql_server_uuid(p_mysql_server_uuid),
-      role(p_role),
+    : mysql_server_uuid(p_mysql_server_uuid),
       mode(p_mode),
-      weight(p_weight),
-      version_token(p_version_token),
-      location(p_location),
       host(p_host),
       port(p_port),
       xport(p_xport) {}
 
 metadata_cache::ManagedInstance::ManagedInstance(const TCPAddress &addr) {
-  host = addr.addr == "localhost" ? "127.0.0.1" : addr.addr;
-  port = addr.port;
+  host = addr.address();
+  port = addr.port();
 }
 
 metadata_cache::ManagedInstance::operator TCPAddress() const {
@@ -645,28 +250,28 @@ metadata_cache::ManagedInstance::operator TCPAddress() const {
   return result;
 }
 
-inline bool compare_instance_lists(const MetaData::ReplicaSetsByName &map_a,
-                                   const MetaData::ReplicaSetsByName &map_b) {
-  if (map_a.size() != map_b.size()) return false;
-  auto ai = map_a.begin();
-  auto bi = map_b.begin();
-  for (; ai != map_a.end(); ++ai, ++bi) {
-    if ((ai->first != bi->first)) return false;
-    // we need to compare 2 vectors if their content is the same
-    // but order of their elements can be different as we use
-    // SQL with no "ORDER BY" to fetch them from different nodes
-    if (ai->second.members.size() != bi->second.members.size()) return false;
-    if (!std::is_permutation(ai->second.members.begin(),
-                             ai->second.members.end(),
-                             bi->second.members.begin())) {
-      return false;
-    }
+bool operator==(const metadata_cache::ManagedCluster &cluster_a,
+                const metadata_cache::ManagedCluster &cluster_b) {
+  if (cluster_a.md_discrepancy != cluster_b.md_discrepancy) return false;
+  // we need to compare 2 vectors if their content is the same
+  // but order of their elements can be different as we use
+  // SQL with no "ORDER BY" to fetch them from different nodes
+  if (cluster_a.members.size() != cluster_b.members.size()) return false;
+  if (cluster_a.view_id != cluster_b.view_id) return false;
+  if (!std::is_permutation(cluster_a.members.begin(), cluster_a.members.end(),
+                           cluster_b.members.begin())) {
+    return false;
   }
 
   return true;
 }
 
-static const char *str_mode(metadata_cache::ServerMode mode) {
+bool operator!=(const metadata_cache::ManagedCluster &cluster_a,
+                const metadata_cache::ManagedCluster &cluster_b) {
+  return !(cluster_a == cluster_b);
+}
+
+std::string to_string(metadata_cache::ServerMode mode) {
   switch (mode) {
     case metadata_cache::ServerMode::ReadWrite:
       return "RW";
@@ -679,174 +284,114 @@ static const char *str_mode(metadata_cache::ServerMode mode) {
   }
 }
 
-/**
- * Refresh the metadata information in the cache.
- */
-void MetadataCache::refresh() {
-  bool changed{false}, fetched{false};
-  // fetch metadata
-  bool broke_loop = false;
-  for (auto &metadata_server : metadata_servers_) {
-    if (terminated_) {
-      broke_loop = true;
-      break;
-    }
-
-    if (!meta_data_->connect(metadata_server)) {
-      log_error("Failed to connect to metadata server %s",
-                metadata_server.mysql_server_uuid.c_str());
-      continue;
-    }
-    fetched = fetch_metadata_from_connected_instance(metadata_server, changed);
-    if (fetched) {
-      last_refresh_succeeded_ = std::chrono::system_clock::now();
-      last_metadata_server_host_ = metadata_server.host;
-      last_metadata_server_port_ = metadata_server.port;
-      refresh_succeeded_++;
-      break;  // successfully updated metadata
-    }
+std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
+  std::string result;
+  // if both values are default return empty string
+  if (instance.hidden || !instance.disconnect_existing_sessions_when_hidden) {
+    result =
+        "hidden=" + (instance.hidden ? "yes"s : "no"s) +
+        " disconnect_when_hidden=" +
+        (instance.disconnect_existing_sessions_when_hidden ? "yes"s : "no"s);
   }
 
-  if (fetched) {
-    // only now we can safely update the list of metadata servers
-    // when we no longer iterate over it
-    if (changed) {
-      auto metadata_servers_tmp =
-          replicaset_lookup(/*cluster_name_ (all clusters)*/ "");
-      // never let the list that we iterate over become empty as we would
-      // not recover from that
-      if (!metadata_servers_tmp.empty()) {
-        metadata_servers_ = std::move(metadata_servers_tmp);
-      }
-    }
-    return;
-  }
+  return result;
+}
 
-  refresh_failed_++;
-  last_refresh_failed_ = std::chrono::system_clock::now();
+void MetadataCache::on_refresh_failed(bool terminated,
+                                      bool md_servers_reachable) {
+  stats_([](auto &stats) {
+    stats.refresh_failed++;
+    stats.last_refresh_failed = std::chrono::system_clock::now();
+  });
+
+  const bool refresh_state_changed =
+      EventStateTracker::instance().state_changed(
+          false, EventStateTracker::EventId::MetadataRefreshOk);
 
   // we failed to fetch metadata from any of the metadata servers
-  if (!broke_loop)
-    log_error("Failed fetching metadata from any of the %u metadata servers.",
-              static_cast<unsigned>(metadata_servers_.size()));
+  if (!terminated) {
+    const auto log_level =
+        refresh_state_changed ? LogLevel::kError : LogLevel::kDebug;
+    log_custom(log_level,
+               "Failed fetching metadata from any of the %u metadata servers.",
+               static_cast<unsigned>(metadata_servers_.size()));
+  }
 
   // clearing metadata
   {
     bool clearing;
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      clearing = !replicaset_data_.empty();
-      if (clearing) replicaset_data_.clear();
+      clearing = !cluster_data_.empty();
+      if (clearing) cluster_data_.clear();
     }
     if (clearing) {
-      log_info("... cleared current routing table as a precaution");
-      on_instances_changed(/*md_servers_reachable=*/false);
+      const auto log_level =
+          refresh_state_changed ? LogLevel::kInfo : LogLevel::kDebug;
+      log_custom(log_level,
+                 "... cleared current routing table as a precaution");
+      on_instances_changed(md_servers_reachable, {}, {});
     }
   }
 }
 
-bool MetadataCache::fetch_metadata_from_connected_instance(
-    const metadata_cache::ManagedInstance &instance, bool &changed) {
-  try {
-    changed = false;
-    // Fetch the metadata and store it in a temporary variable.
-    auto replicaset_data_temp =
-        meta_data_->fetch_instances(cluster_name_, group_replication_id_);
-
-    // this node no longer contains metadata for our group replication
-    // check the next node (if available)
-    if (replicaset_data_temp.empty()) {
-      log_warning(
-          "Tried node %s on host %s, port %d as a metadata server, it does not "
-          "contain metadata for replication group %s",
-          instance.mysql_server_uuid.c_str(), instance.host.c_str(),
-          instance.port, group_replication_id_.c_str());
-      return false;
-    }
-
-    {
-      // Ensure that the refresh does not result in an inconsistency during the
-      // lookup.
-      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (!compare_instance_lists(replicaset_data_, replicaset_data_temp)) {
-        replicaset_data_ = replicaset_data_temp;
-        changed = true;
-      }
-    }
-
-    // we want to trigger those actions not only if the metadata has really
-    // changed but also when something external (like unsuccessful client
-    // connection) triggered the refresh so that we verified if this wasn't
-    // false alarm and turn it off if it was
-    if (changed) {
-      log_info(
-          "Potential changes detected in cluster '%s' after metadata refresh",
-          cluster_name_.c_str());
-      // dump some informational/debugging information about the replicasets
-      if (replicaset_data_.empty())
-        log_error("Metadata for cluster '%s' is empty!", cluster_name_.c_str());
-      else {
-        log_info("Metadata for cluster '%s' has %i replicasets:",
-                 cluster_name_.c_str(), (int)replicaset_data_.size());
-        for (auto &rs : replicaset_data_) {
-          log_info(
-              "'%s' (%i members, %s)", rs.first.c_str(),
-              (int)rs.second.members.size(),
-              rs.second.single_primary_mode ? "single-master" : "multi-master");
-          for (auto &mi : rs.second.members) {
-            log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
-                     mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
-
-            if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-              // If we were running with a primary or secondary node gone
-              // missing before (in so-called "emergency mode"), we trust that
-              // the update fixed the problem. This is wrong behavior that
-              // should be fixed, see notes [05] and [06] in Notes section of
-              // Metadata Cache module in Doxygen.
-              std::lock_guard<std::mutex> lock(
-                  replicasets_with_unreachable_nodes_mtx_);
-              auto rs_with_unreachable_node =
-                  replicasets_with_unreachable_nodes_.find(rs.first);
-              if (rs_with_unreachable_node !=
-                  replicasets_with_unreachable_nodes_.end()) {
-                // disable "emergency mode" for this replicaset
-                replicasets_with_unreachable_nodes_.erase(
-                    rs_with_unreachable_node);
-              }
-            }
-          }
-        }
-      }
-
-      on_instances_changed(/*md_servers_reachable=*/true);
-    }
-  } catch (const std::runtime_error &exc) {
-    // fetching the meatadata failed
-    log_error("Failed fetching metadata: %s", exc.what());
-    return false;
-  }
-
-  return true;
+void MetadataCache::on_refresh_succeeded(
+    const metadata_cache::metadata_server_t &metadata_server) {
+  EventStateTracker::instance().state_changed(
+      true, EventStateTracker::EventId::MetadataRefreshOk);
+  stats_([&metadata_server](auto &stats) {
+    stats.last_refresh_succeeded = std::chrono::system_clock::now();
+    stats.last_metadata_server_host = metadata_server.address();
+    stats.last_metadata_server_port = metadata_server.port();
+    stats.refresh_succeeded++;
+  });
 }
 
-void MetadataCache::on_instances_changed(const bool md_servers_reachable) {
-  auto instances = replicaset_lookup("" /*cluster_name_*/);
+void MetadataCache::on_instances_changed(
+    const bool md_servers_reachable,
+    const metadata_cache::cluster_nodes_list_t &cluster_nodes,
+    const metadata_cache::metadata_servers_list_t &metadata_servers,
+    uint64_t view_id) {
+  // Socket acceptors state will be updated when processing new instances
+  // information.
+  trigger_acceptor_update_on_next_refresh_ = false;
+
   {
-    std::lock_guard<std::mutex> lock(
-        replicaset_instances_change_callbacks_mtx_);
+    std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
 
-    for (auto &replicaset_clb : listeners_) {
-      const std::string replicaset_name = replicaset_clb.first;
-
-      for (auto each : listeners_[replicaset_name]) {
-        each->notify(instances, md_servers_reachable);
-      }
+    for (auto each : state_listeners_) {
+      each->notify_instances_changed(cluster_nodes, metadata_servers,
+                                     md_servers_reachable, view_id);
     }
   }
 
-  if (use_gr_notifications_) {
-    meta_data_->setup_gr_notifications_listener(
-        instances, [this]() { on_refresh_requested(); });
+  if (use_cluster_notifications_) {
+    meta_data_->setup_notifications_listener(
+        cluster_nodes, target_cluster_, [this]() { on_refresh_requested(); });
+  }
+}
+
+void MetadataCache::on_handle_sockets_acceptors() {
+  auto instances = get_cluster_nodes();
+  {
+    std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+
+    trigger_acceptor_update_on_next_refresh_ = false;
+    for (const auto &callback : acceptor_update_listeners_) {
+      // If setting up any acceptor failed we should retry on next md refresh
+      if (!callback->update_socket_acceptor_state(instances)) {
+        trigger_acceptor_update_on_next_refresh_ = true;
+      }
+    }
+  }
+}
+
+void MetadataCache::on_md_refresh(
+    const bool cluster_nodes_changed,
+    const metadata_cache::cluster_nodes_list_t &cluster_nodes) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  for (auto &each : md_refresh_listeners_) {
+    each->on_md_refresh(cluster_nodes_changed, cluster_nodes);
   }
 }
 
@@ -858,86 +403,242 @@ void MetadataCache::on_refresh_requested() {
   refresh_wait_.notify_one();
 }
 
-void MetadataCache::mark_instance_reachability(
-    const std::string &instance_id, metadata_cache::InstanceStatus status) {
-  // If the status is that the primary or secondary instance is physically
-  // unreachable, we enable "emergency mode" (temporarily increase the refresh
-  // rate to 1/s if currently lower) until the replicaset routing table
-  // reflects this reality (or at least that is the the intent; in practice
-  // this mechanism is buggy - see Metadata Cache module documentation in
-  // Doxygen, section "Emergency mode")
+void MetadataCache::on_refresh_completed() { refresh_completed_.notify_one(); }
 
-  std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  // the replicaset that the given instance belongs to
-  metadata_cache::ManagedInstance *instance = nullptr;
-  metadata_cache::ManagedReplicaSet *replicaset = nullptr;
-  for (auto &rs : replicaset_data_) {
-    for (auto &inst : rs.second.members) {
-      if (inst.mysql_server_uuid == instance_id) {
-        instance = &inst;
-        replicaset = &rs.second;
-        break;
-      }
+/**
+ * check if primary has changed.
+ *
+ * - hidden members are ignored
+ *
+ * @param members container current membership info
+ * @param primary_server_uuid server-uuid of the previous PRIMARY
+ */
+static bool primary_has_changed(
+    const std::vector<metadata_cache::ManagedInstance> &members,
+    const std::string &primary_server_uuid) {
+  // if we have a member, that's PRIMARY and not "server_uuid" -> success
+  for (auto const &member : members) {
+    if (member.hidden) continue;
+
+    if (member.mode != metadata_cache::ServerMode::ReadWrite) continue;
+
+    if (member.mysql_server_uuid != primary_server_uuid) {
+      return true;
     }
-    if (replicaset) break;
   }
 
-  // If the instance got marked as invalid we want to trigger metadata-cache
-  // update ASAP to aviod keeping try to route to that instance
-  if (replicaset) {
-    std::lock_guard<std::mutex> lplock(replicasets_with_unreachable_nodes_mtx_);
-    switch (status) {
-      case metadata_cache::InstanceStatus::Reachable:
-        break;
-      case metadata_cache::InstanceStatus::InvalidHost:
-        log_warning(
-            "Instance '%s:%i' [%s] of replicaset '%s' is invalid. Increasing "
-            "metadata cache refresh frequency.",
-            instance->host.c_str(), instance->port, instance_id.c_str(),
-            replicaset->name.c_str());
-        replicasets_with_unreachable_nodes_.insert(replicaset->name);
-        break;
-      case metadata_cache::InstanceStatus::Unreachable:
-        log_warning(
-            "Instance '%s:%i' [%s] of replicaset '%s' is unreachable. "
-            "Increasing metadata cache refresh frequency.",
-            instance->host.c_str(), instance->port, instance_id.c_str(),
-            replicaset->name.c_str());
-        replicasets_with_unreachable_nodes_.insert(replicaset->name);
-        break;
-      case metadata_cache::InstanceStatus::Unusable:
-        break;
+  return false;
+}
+
+bool MetadataCache::wait_primary_failover(const std::string &server_uuid,
+                                          const std::chrono::seconds &timeout) {
+  log_debug("Waiting for failover to happen in '%s' for %lds",
+            target_cluster_.c_str(), static_cast<long>(timeout.count()));
+
+  using clock_type = std::chrono::steady_clock;
+  const auto end_time = clock_type::now() + timeout;
+  do {
+    if (terminated_) return false;
+
+    // if we have a member, that's PRIMARY and not "server_uuid" -> success
+    if (primary_has_changed(get_cluster_nodes(), server_uuid)) {
+      return true;
     }
+
+    // wait until a refresh finished.
+    std::unique_lock<std::mutex> lock(refresh_completed_mtx_);
+    const auto wait_res = refresh_completed_.wait_until(lock, end_time);
+    if (wait_res == std::cv_status::timeout) {
+      // timed out waiting for refresh to finish.
+      //
+      // Either the wait-time was smaller than the metadata-cache-ttl or the
+      // metadata-cache refresh took longer than expected.
+      break;
+    }
+  } while (clock_type::now() < end_time);
+
+  // if we have a member, that's PRIMARY and not "server_uuid" -> success
+  return primary_has_changed(get_cluster_nodes(), server_uuid);
+}
+
+void MetadataCache::add_state_listener(
+    metadata_cache::ClusterStateListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
+  state_listeners_.insert(listener);
+}
+
+void MetadataCache::remove_state_listener(
+    metadata_cache::ClusterStateListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
+  state_listeners_.erase(listener);
+}
+
+void MetadataCache::add_acceptor_handler_listener(
+    metadata_cache::AcceptorUpdateHandlerInterface *listener) {
+  std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+  acceptor_update_listeners_.insert(listener);
+}
+
+void MetadataCache::remove_acceptor_handler_listener(
+    metadata_cache::AcceptorUpdateHandlerInterface *listener) {
+  std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+  acceptor_update_listeners_.erase(listener);
+}
+
+void MetadataCache::add_md_refresh_listener(
+    metadata_cache::MetadataRefreshListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  md_refresh_listeners_.insert(listener);
+}
+
+void MetadataCache::remove_md_refresh_listener(
+    metadata_cache::MetadataRefreshListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  md_refresh_listeners_.erase(listener);
+}
+
+void MetadataCache::check_auth_metadata_timers() const {
+  if (ttl_config_.auth_cache_ttl > 0ms &&
+      ttl_config_.auth_cache_ttl < ttl_config_.ttl) {
+    throw std::invalid_argument(
+        "'auth_cache_ttl' option value '" +
+        std::to_string(static_cast<float>(ttl_config_.auth_cache_ttl.count()) /
+                       1000) +
+        "' cannot be less than the 'ttl' value which is '" +
+        std::to_string(static_cast<float>(ttl_config_.ttl.count()) / 1000) +
+        "'");
+  }
+  if (ttl_config_.auth_cache_refresh_interval < ttl_config_.ttl) {
+    throw std::invalid_argument(
+        "'auth_cache_refresh_interval' option value '" +
+        std::to_string(static_cast<float>(
+                           ttl_config_.auth_cache_refresh_interval.count()) /
+                       1000) +
+        "' cannot be less than the 'ttl' value which is '" +
+        std::to_string(static_cast<float>(ttl_config_.ttl.count()) / 1000) +
+        "'");
+  }
+  if (ttl_config_.auth_cache_ttl > 0ms &&
+      ttl_config_.auth_cache_refresh_interval > ttl_config_.auth_cache_ttl) {
+    throw std::invalid_argument(
+        "'auth_cache_ttl' option value '" +
+        std::to_string(static_cast<float>(ttl_config_.auth_cache_ttl.count()) /
+                       1000) +
+        "' cannot be less than the 'auth_cache_refresh_interval' value which "
+        "is '" +
+        std::to_string(static_cast<float>(
+                           ttl_config_.auth_cache_refresh_interval.count()) /
+                       1000) +
+        "'");
   }
 }
 
-bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
-                                          int timeout) {
-  log_debug("Waiting for failover to happen in '%s' for %is",
-            replicaset_name.c_str(), timeout);
-  time_t stime = std::time(NULL);
-  while (std::time(NULL) - stime <= timeout) {
-    {
-      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {
-        return true;
-      }
+std::pair<bool, MetaData::auth_credentials_t::mapped_type>
+MetadataCache::get_rest_user_auth_data(const std::string &user) {
+  auto auth_cache_ttl = ttl_config_.auth_cache_ttl;
+
+  return rest_auth_([&user, auth_cache_ttl](auto &rest_auth)
+                        -> std::pair<
+                            bool, MetaData::auth_credentials_t::mapped_type> {
+    // negative TTL is treated as infinite
+    if (auth_cache_ttl.count() >= 0 &&
+        rest_auth.last_credentials_update_ + auth_cache_ttl <
+            std::chrono::system_clock::now()) {
+      // auth cache expired
+      return {false, std::make_pair("", rapidjson::Document{})};
     }
-    std::this_thread::sleep_for(metadata_cache::kDefaultMetadataTTL);
+
+    auto pos = rest_auth.rest_auth_data_.find(user);
+    if (pos == std::end(rest_auth.rest_auth_data_))
+      return {false, std::make_pair("", rapidjson::Document{})};
+
+    auto &auth_data = pos->second;
+    rapidjson::Document temp_privileges;
+    temp_privileges.CopyFrom(auth_data.second, auth_data.second.GetAllocator());
+    return {true, std::make_pair(auth_data.first, std::move(temp_privileges))};
+  });
+}
+
+bool MetadataCache::update_auth_cache() {
+  if (meta_data_ && auth_metadata_fetch_enabled_) {
+    try {
+      rest_auth_([this](auto &rest_auth) {
+        rest_auth.rest_auth_data_ = meta_data_->fetch_auth_credentials(
+            target_cluster_, this->cluster_type_specific_id());
+        rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
+      });
+      return true;
+    } catch (const std::exception &e) {
+      log_warning("Updating the authentication credentials failed: %s",
+                  e.what());
+    }
   }
   return false;
 }
 
-void MetadataCache::add_listener(
-    const std::string &replicaset_name,
-    metadata_cache::ReplicasetStateListenerInterface *listener) {
-  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  listeners_[replicaset_name].insert(listener);
+void MetadataCache::update_router_attributes() {
+  if (!update_router_attributes_) {
+    return;
+  }
+
+  if (cluster_data_.writable_server) {
+    const auto &rw_server = cluster_data_.writable_server.value();
+    try {
+      meta_data_->update_router_attributes(rw_server, router_id_,
+                                           router_attributes_);
+      log_debug(
+          "Successfully updated the Router attributes in the metadata using "
+          "instance %s",
+          rw_server.str().c_str());
+      update_router_attributes_ = false;
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
+        // if the update fails because of the lack of the access rights that
+        // most likely means that the Router has been upgraded, we need to
+        // keep retrying it untill the metadata gets upgraded too and our db
+        // user gets missing access rights
+
+        // we log it only once
+        const bool first_time = EventStateTracker::instance().state_changed(
+            true, EventStateTracker::EventId::NoRightsToUpdateRouterAttributes);
+        if (first_time) {
+          log_warning(
+              "Updating the router attributes in metadata failed: %s (%u)\n"
+              "Make sure to follow the correct steps to upgrade your "
+              "metadata.\n"
+              "Run the dba.upgradeMetadata() then launch the new Router "
+              "version when prompted",
+              e.message().c_str(), e.code());
+        }
+      } else {
+        log_warning("Updating the router attributes in metadata failed: %s",
+                    e.what());
+        update_router_attributes_ = false;
+      }
+    } catch (const std::exception &e) {
+      log_warning("Updating the router attributes in metadata failed: %s",
+                  e.what());
+      update_router_attributes_ = false;
+    }
+  } else {
+    log_debug(
+        "Did not find writable instance to update the Router attributes in "
+        "the metadata.");
+  }
 }
 
-void MetadataCache::remove_listener(
-    const std::string &replicaset_name,
-    metadata_cache::ReplicasetStateListenerInterface *listener) {
-  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  listeners_[replicaset_name].erase(listener);
+void MetadataCache::update_router_last_check_in() {
+  if (last_check_in_updated_ % 10 == 0) {
+    last_check_in_updated_ = 0;
+    if (cluster_data_.writable_server) {
+      const auto &rw_server = cluster_data_.writable_server.value();
+      try {
+        meta_data_->update_router_last_check_in(rw_server, router_id_);
+      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+      } catch (...) {
+      }
+    }
+  }
+  ++last_check_in_updated_;
 }

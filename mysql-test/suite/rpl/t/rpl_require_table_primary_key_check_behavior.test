@@ -1,0 +1,214 @@
+# ==== Purpose ====
+#
+# This test checks the behavior of REQUIRE_TABLE_PRIMARY_KEY_CHECK.
+#
+# ==== Requirements ====
+#
+# TC1: If REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
+#      You can't replicate a table create/alter query if the privileged
+#      user does not have `SESSION_VARIABLES_ADMIN`
+# TC2: If REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
+#      You can replicate a table create/alter query if the privileged
+#      user has `SESSION_VARIABLES_ADMIN`
+# TC3.1: If **REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON**:
+#        Verify that you cannot replicate a table creation or alteration query
+#        that results on a table with no primary key whatever the master value
+#        for `sql_require_primary_key`
+# TC3.2: If **REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON**:
+#        Verify that you can replicate a table creation or alteration query
+#         that results on a table with a primary key.
+# TC4.1: If **REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF**:
+#        Verify that you can replicate a table creation or alteration query
+#        that results on a table with no primary key whatever the master value
+#        for `sql_require_primary_key`
+# TC4.2: If **REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF**:
+#        Verify that you can replicate a table creation or alteration query
+#        that results on a table with a primary key.
+#
+# ==== Implementation ====
+#
+# 0. Setup a master slave connection with a privilege user
+#
+# # STREAM
+#
+# 1. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
+#    Create a table on the master
+#    The slave applier user lacks privileges for CREATE/ALTER queries
+#    The slave applier fails while replicating.
+# 2. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
+#    Give the slave applier user SESSION_VARIABLES_ADMIN privileges
+#    The slave applier can now replicate CREATE/ALTER queries
+#
+# # ON
+#
+# 3. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
+#    Revoke privileges.
+#    Create a table on the master with no primary key
+#    The slave applier fails while replicating due to the lack of PK
+# 4. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
+#    Create a table on the master with a primary key
+#    The slave applier replication is working properly
+#
+# # OFF
+#
+# 5. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF.
+#    Create a table on the master with a primary key and without
+#    The slave applier replication replicates both
+#
+# 6. Cleanup
+#
+# ==== References ====
+#
+# WL#13239: Enable/disable primary key checks on slaves
+
+# Only with RBR can the applier privilege work with minimal privileges
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo # 0. Setup a master slave connection with a privilege user
+
+--let $applier_user = 'u'@'localhost'
+--let $rpl_privilege_checks_user = *:$applier_user
+--let $rpl_require_row_format= *:1
+--let $rpl_skip_grant_privilege_checks_user_roles = 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--eval GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO $applier_user
+
+# This test assumes the slave is working using the default: STREAM
+--let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+
+--echo
+--echo # 1. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
+--echo #    Create a table on the master
+--echo #    The slave applier user lacks privileges for CREATE/ALTER queries
+--echo #    The slave applier fails while replicating.
+
+--source include/rpl_connection_master.inc
+
+--let $sql_require_primary_key = `SELECT @@global.sql_require_primary_key`
+SET @@global.sql_require_primary_key = 1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+--source include/rpl_connection_slave.inc
+
+START SLAVE;
+
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo # 2. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
+--echo #    Give the slave applier user SESSION_VARIABLES_ADMIN privileges
+--echo #    The slave applier can now replicate CREATE/ALTER queries
+
+STOP SLAVE;
+--eval GRANT SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
+START SLAVE;
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 3. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
+--echo #    Revoke privileges.
+--echo #    Create a table on the master with no primary key
+--echo #    The slave applier fails while replicating due to the lack of PK
+
+STOP SLAVE;
+
+--eval REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM $applier_user
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t2 (a INT);
+
+--source include/rpl_connection_slave.inc
+
+START SLAVE;
+
+--let $slave_sql_errno = convert_error(ER_TABLE_WITHOUT_PK)
+--source include/wait_for_slave_sql_error.inc
+
+# Cleanup for step 3
+# Make the master and slave forget about table t2
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t2;
+RESET MASTER;
+
+--source include/rpl_connection_slave.inc
+
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+
+--echo
+--echo # 4. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
+--echo #    Create a table on the master with a primary key
+--echo #    The slave applier replication is working properly
+
+--source include/rpl_connection_master.inc
+
+SET @@global.sql_require_primary_key = 0;
+CREATE TABLE t3 (a INT PRIMARY KEY);
+
+--source include/rpl_connection_slave.inc
+
+START SLAVE;
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 5. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF.
+--echo #    Create a table on the master with a primary key and without
+--echo #    The slave applier replication replicates both
+
+STOP SLAVE;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+
+START SLAVE;
+
+--source include/rpl_connection_master.inc
+
+SET @@global.sql_require_primary_key = 1;
+CREATE TABLE t4 (a INT PRIMARY KEY);
+SET @@global.sql_require_primary_key = 0;
+CREATE TABLE t5 (a INT);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 6. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+
+--replace_result $sql_require_primary_key SQL_REQUIRE_PRIMARY_KEY
+--eval SET @@global.sql_require_primary_key = $sql_require_primary_key
+
+--source include/rpl_connection_slave.inc
+
+CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*Unable to create or change a table without a primary key*");
+
+--source include/stop_slave_sql.inc
+--replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
+--source include/start_slave_sql.inc
+
+--source include/rpl_end.inc

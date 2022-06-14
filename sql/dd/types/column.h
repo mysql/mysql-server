@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,15 @@
 #ifndef DD__COLUMN_INCLUDED
 #define DD__COLUMN_INCLUDED
 
+#include <optional>
+
+#include "lex_string.h"  // LEX_CSTRING
 #include "my_inttypes.h"
-#include "nullable.h"
 #include "sql/dd/collection.h"           // dd::Collection
 #include "sql/dd/sdi_fwd.h"              // RJ_Document
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 #include "sql/gis/srid.h"
-
-using Mysql::Nullable;
 
 namespace dd {
 
@@ -98,10 +98,14 @@ class Column : virtual public Entity_object {
     HT_HIDDEN_SE = 2,
     /// The column is visible to the server, but hidden from the user.
     /// This is used for i.e. implementing functional indexes.
-    HT_HIDDEN_SQL = 3
+    HT_HIDDEN_SQL = 3,
+    /// User table column marked as INVISIBLE by using the column visibility
+    /// attribute. Column is hidden from the user unless it is explicitly
+    /// referenced in the statement. Column is visible to the server.
+    HT_HIDDEN_USER = 4
   };
 
-  virtual ~Column() {}
+  ~Column() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // Table.
@@ -180,8 +184,8 @@ class Column : virtual public Entity_object {
   // srid
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void set_srs_id(Nullable<gis::srid_t> srs_id) = 0;
-  virtual Nullable<gis::srid_t> srs_id() const = 0;
+  virtual void set_srs_id(std::optional<gis::srid_t> srs_id) = 0;
+  virtual std::optional<gis::srid_t> srs_id() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // numeric_scale.
@@ -306,6 +310,16 @@ class Column : virtual public Entity_object {
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data(const Properties &se_private_data) = 0;
   virtual bool set_se_private_data(const String_type &se_private_data_raw) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // SE-specific json attributes
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual LEX_CSTRING engine_attribute() const = 0;
+  virtual void set_engine_attribute(LEX_CSTRING attrs) = 0;
+
+  virtual LEX_CSTRING secondary_engine_attribute() const = 0;
+  virtual void set_secondary_engine_attribute(LEX_CSTRING attrs) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Column key type.

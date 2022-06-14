@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,23 +20,15 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <components/mysql_server/host_application_signal_imp.h>
+#include "host_application_signal_imp.h"
 #include "my_config.h"
 #include "mysqld_error.h"
 
-#include <components/mysql_server/server_component.h>
+#include <mysql/components/minimal_chassis.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql_version.h>
 #include <sql/mysqld.h>
-
-/**
-  A dummy initialization function. And it will be called from
-  server_component_init(). Else linker, is cutting out (as library
-  optimization) this file's code because libsql code
-  is not calling any functions of it.
-*/
-void host_application_signal_imp_init() { return; }
 
 /**
   Process signals for the mysql server binary.

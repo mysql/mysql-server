@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -256,10 +256,14 @@ struct mysql_metadata_ref_t {
   Carries information on the specific Component, all Service Implementations it
   provides, all its requirements and metadata.
 */
+#ifdef __clang__
+struct __attribute__((visibility("default"))) mysql_component_t {
+#else
 struct mysql_component_t {
+#endif
   const char *name;
   struct mysql_service_ref_t *provides;
-  struct mysql_service_placeholder_ref_t *requires;
+  struct mysql_service_placeholder_ref_t *requires_service;
   struct mysql_metadata_ref_t *metadata;
   mysql_service_status_t (*init)();
   mysql_service_status_t (*deinit)();

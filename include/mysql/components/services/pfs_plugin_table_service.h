@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -234,7 +234,7 @@ struct PSI_plugin_key_string {
   // FIXME: size_t
   /* length of the key value in buffer */
   unsigned int m_value_buffer_length;
-  /* Maximum size of buffer */
+  /* buffer size = number of characters * max multibyte length */
   unsigned int m_value_buffer_capacity;
 };
 typedef struct PSI_plugin_key_string PSI_plugin_key_string;
@@ -276,14 +276,15 @@ typedef int (*rnd_pos_t)(PSI_table_handle *handle);
   @param handle Table handle.
   @param idx    Index of the index to be initialized (in case of multiple
                 indexes on table)
-  @param sorted
+  @param sorted True if he index is sorted (typically a BTREE), false if not
+  sorted (typically a HASH)
   @param index  Initialized index handle.
 
   @return Operation status
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*index_init_t)(PSI_table_handle *table, unsigned int idx,
+typedef int (*index_init_t)(PSI_table_handle *handle, unsigned int idx,
                             bool sorted, PSI_index_handle **index);
 /**
   API to read keys in index.
@@ -307,7 +308,7 @@ typedef int (*index_read_t)(PSI_index_handle *index, PSI_key_reader *reader,
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*index_next_t)(PSI_table_handle *table);
+typedef int (*index_next_t)(PSI_table_handle *handle);
 
 /**
   API to reset cursor position
@@ -338,7 +339,7 @@ typedef int (*read_column_value_t)(PSI_table_handle *handle, PSI_field *field,
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*write_column_value_t)(PSI_table_handle *handle, PSI_field *fields,
+typedef int (*write_column_value_t)(PSI_table_handle *handle, PSI_field *field,
                                     unsigned int index);
 /**
   API to write a record in table.
@@ -356,8 +357,8 @@ typedef int (*write_row_values_t)(PSI_table_handle *handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*update_column_value_t)(PSI_table_handle *handle,
-                                     PSI_field *fields, unsigned int index);
+typedef int (*update_column_value_t)(PSI_table_handle *handle, PSI_field *field,
+                                     unsigned int index);
 /**
   API to write a record in table.
   @param handle Table handle having updated record to be updated.

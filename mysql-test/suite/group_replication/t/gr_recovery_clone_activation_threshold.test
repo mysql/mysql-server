@@ -1,0 +1,77 @@
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that, in GR the new joiner node
+# correctly chooses CLONE instead of GR Recovery channel when the joiner is
+# very far from the group.
+#
+# ==== Requirements ====
+# If the number of missing transactions for a member joining is above the
+# threshold, it should use clone to recover, even if the number of missing
+# transactions would wrap and become a small number when casting it into a
+# 64 bit integer.
+#
+# ==== Implementation ====
+# - The test requires two servers: M1 and M2.
+# - Start M1.
+# - Set a large number of GTIDs as purged so that new members joining will be
+#   very far from the group.
+# - Bootstrap group with M1.
+# - Start GR on M2.
+# - Verify that M2 chooses distributed recovery using clone by checking message
+#   in the error log.
+# - Clean up.
+
+# ==== References ====
+# Bug#:32086209: INCORRECT DECISION TO CLONE OR RECOVER WHEN GTID
+#                DIFFERENCE IS HUGE
+#
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The integer component of the GTID number is high");
+SET SESSION sql_log_bin = 1;
+
+--let $dummy_server_id1= cccccccc-cccc-cccc-cccc-cccccccccccc
+--let $dummy_server_id2= dddddddd-dddd-dddd-dddd-dddddddddddd
+--let $dummy_server_id3= eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee
+
+--echo
+--echo ############################################################
+--echo # Start server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--eval SET GLOBAL gtid_purged = CONCAT('$dummy_server_id1:1-', (1 << 63) - 10)
+--eval SET GLOBAL gtid_purged = CONCAT('+$dummy_server_id2:1-', (1 << 63) - 10)
+--eval SET GLOBAL gtid_purged = CONCAT('+$dummy_server_id3:1-25')
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # Start server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Plugin group_replication reported.*");
+SET SESSION sql_log_bin = 1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+# Assert that recovery using clone is logged to the server error log.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select = This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold
+--let $assert_count = 1
+--let $assert_text = ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD found in server error log
+--source include/assert_grep.inc
+
+--echo #
+--echo # Cleaning up
+--echo #
+--source include/stop_group_replication.inc
+--source include/group_replication_end.inc

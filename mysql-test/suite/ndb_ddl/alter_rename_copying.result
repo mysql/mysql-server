@@ -12,7 +12,8 @@ algorithm=copy,
 RENAME TO ndb_ddl_test2.t4_new_name;
 ALTER TABLE t5
 algorithm=copy,
-RENAME TO t5_new_name;
+RENAME TO t2;
+ERROR 42S01: Table 't2' already exists
 ALTER TABLE t6
 algorithm=copy,
 RENAME TO t6_new_name;
@@ -28,3 +29,5 @@ RENAME TO t9_new_name;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 == verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0

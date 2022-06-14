@@ -1,0 +1,211 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+
+--source include/count_sessions.inc
+
+SET DEBUG_SYNC = 'RESET';
+
+--echo #
+--echo # Bug#15863023 SUPPORT IN-PLACE EXTENSION OF VARCHAR COLUMN
+--echo #
+create table t1 (a SERIAL PRIMARY KEY, c varchar(2) UNIQUE) ENGINE=InnoDB;
+INSERT INTO t1 (c) VALUES('a'),('bb');
+--enable_info
+SET DEBUG = '+d,ib_rename_column_error';
+--error ER_RECORD_FILE_FULL
+ALTER TABLE t1 CHANGE c b varchar(2), drop index c, add index (b,a);
+SET DEBUG = '-d,ib_rename_column_error';
+ALTER TABLE t1 CHANGE c b varchar(2), drop index c, add index (b,a);
+SET DEBUG = '+d,ib_resize_column_error';
+--error ER_RECORD_FILE_FULL
+ALTER TABLE t1 CHANGE b fail varchar(4);
+SET DEBUG = '-d,ib_resize_column_error';
+ALTER TABLE t1 CHANGE b c varchar(4);
+--disable_info
+INSERT IGNORE INTO t1 (c) VALUES('eeeee'),('ffffff');
+INSERT INTO t1 (c) VALUES('ccc'),('dddd');
+SELECT * FROM t1 ORDER BY c;
+DROP TABLE t1;
+
+--echo # Bug#15863023 - case1
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE = Innodb;
+INSERT IGNORE INTO t1 (b) VALUES (repeat('a',254)),(repeat('b',254)),(repeat('c',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'innodb_commit_inplace_alter_table_enter SIGNAL s1 WAIT_FOR s2';
+--send ALTER TABLE t1 CHANGE b b varchar(255) charset latin1;
+connection default;
+# DML no go through in paralle as whole operation happen during
+# commit_inplace_alter_table, under an exclusive MDL
+SET lock_wait_timeout = 1;
+SET DEBUG_SYNC='now WAIT_FOR s1';
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 (b) VALUES (repeat('d',300));
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE b = repeat('y',254);
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+SET DEBUG_SYNC='now SIGNAL s2';
+
+connection con1;
+reap;
+SHOW CREATE TABLE t1;
+disconnect con1;
+
+connection default;
+INSERT IGNORE INTO t1 (b) VALUES (repeat('d',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+
+--echo # Bug#15863023 - case2 . enlarge varchar with add.drop index/column
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT , b VARCHAR(254) charset latin1) ENGINE=Innodb;
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
+--send ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) charset latin1 ,ALGORITHM=INPLACE;
+connection default;
+# DML go through
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',254);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+SET DEBUG_SYNC='now SIGNAL s2';
+
+connection con1;
+reap;
+SHOW CREATE TABLE t1;
+disconnect con1;
+
+connection default;
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('d',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+
+--echo # Bug#15863023 - case3. enlarge varchar other alter operations+charset
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
+c VARCHAR(254) CHARACTER SET utf8) ENGINE=Innodb CHARSET=utf8;
+CREATE INDEX c1 ON t1(c);
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
+--send ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) CHARACTER SET latin1,CHANGE c c varchar(255) CHARACTER SET utf8,DROP INDEX c1 ,ALGORITHM=INPLACE;
+connection default;
+# DML go through
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',254);
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+INSERT IGNORE INTO t1 (b,c) VALUES (repeat('z',300),"Môžem");
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+SET DEBUG_SYNC='now SIGNAL s2';
+
+connection con1;
+reap;
+SHOW CREATE TABLE t1;
+disconnect con1;
+
+connection default;
+INSERT IGNORE INTO t1 (a,b,c) VALUES (5,repeat('d',300),"Môžem");
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+
+--echo # Bug#15863023 - case4. enlarge varchar other alter operations runs copy
+--echo # if length is more than 255
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
+c VARCHAR(254) CHARACTER SET utf8, d CHAR(10) DEFAULT 'test') ENGINE=Innodb CHARSET=utf8;
+CREATE INDEX c1 ON t1(c);
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+# increase size > 255
+--ERROR ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(256) CHARACTER SET latin1,CHANGE c c varchar(256) CHARACTER SET utf8,DROP INDEX c1 ,ALGORITHM=INPLACE;
+# can not enlarge change size of char inplace
+--ERROR ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE d d char(100) ,ALGORITHM=INPLACE;
+# can not change column type inplace
+--ERROR ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX idx1(b),CHANGE d d VARCHAR(100) ,ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(355) CHARACTER SET latin1,CHANGE c c varchar(255) CHARACTER SET utf8,DROP INDEX c1 ;
+DROP TABLE t1;
+
+
+--echo # Bug#15863023 - case6 enlarge varchar other
+--echo # alter operations with fk on parent
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1, KEY(b)) ENGINE=Innodb;
+CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
+connect (con1,localhost,root,,);
+connection con1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
+--send ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) charset latin1, ALGORITHM=INPLACE;
+connection default;
+# DML go through
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',254);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+SET DEBUG_SYNC='now SIGNAL s2';
+
+connection con1;
+reap;
+SET foreign_key_checks = 1;
+SHOW CREATE TABLE t1;
+disconnect con1;
+
+connection default;
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+DROP TABLE t2,t1;
+
+SET DEBUG_SYNC = 'RESET';
+
+--source include/wait_until_count_sessions.inc

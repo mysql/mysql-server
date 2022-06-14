@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,10 +42,11 @@
 #endif
 
 int my_mkdir(const char *dir, int Flags, myf MyFlags) {
-  DBUG_ENTER("my_dir");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("dir: %s", dir));
 
 #if defined(_WIN32)
+  (void)Flags;  // [[maybe_unused]]
   if (_mkdir(dir))
 #else
   if (mkdir(dir, Flags & my_umask_dir))
@@ -54,12 +55,10 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags) {
     set_my_errno(errno);
     DBUG_PRINT("error",
                ("error %d when creating direcory %s", my_errno(), dir));
-    if (MyFlags & (MY_FFNF | MY_FAE | MY_WME)) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_CANT_MKDIR, MYF(0), dir, my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    if (MyFlags & (MY_FAE | MY_WME)) {
+      MyOsError(my_errno(), EE_CANT_MKDIR, MYF(0), dir);
     }
-    DBUG_RETURN(-1);
+    return -1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }

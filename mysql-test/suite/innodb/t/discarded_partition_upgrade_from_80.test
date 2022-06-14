@@ -1,0 +1,36 @@
+# Variation of discarded partition test which takes data
+# from v8.0.20, upgrades and compares results
+#
+#	Have a look at include/discarded_partition.inc for more details
+
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+--source include/have_case_sensitive_file_system.inc
+
+--echo # Testing discarded partitions imported from 8.0.20
+--let $discarded_partition_option = PREPARE_FROM_8020
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = SELECT_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = REBUILD_PARTITION_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = CREATE_SECONDARY_INDEX_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = DROP_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = CLEANUP_FROM_8020
+--source suite/innodb/include/discarded_partition.inc
+
+
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* Tablespace .*, name '.*', file '.*' is missing");
+call mtr.add_suppression("\\[Warning\\].* Tablespace for table `.*`\\.`.*` /\\* Partition `.*` \\*/ is set as discarded");
+call mtr.add_suppression("\\[Warning\\].* Cannot calculate statistics for table `.*`.`.*` /\\* Partition `.*` \\*/ because the \\.ibd file is missing\\. Please refer to http://dev\\.mysql\\.com/doc/refman/8.0/en/innodb-troubleshooting\\.html for how to resolve the issue");
+--enable_query_log
+

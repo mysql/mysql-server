@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-  ${GTEST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
 )
@@ -30,80 +29,67 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
 
 SET(TESTS
   #example
+  fil_path
   ha_innodb
   log0log
   mem0mem
+  os0file
   os0thread-create
+  srv0conc
+  sync0rw
   ut0crc32
   ut0lock_free_hash
   ut0mem
   ut0new
 )
 
+# Treat warnings as errors on MSVC for InnoDB's unittests
+IF(MSVC AND NOT WIN32_CLANG)
+  ADD_COMPILE_OPTIONS("/WX")
+ENDIF()
+
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(MSVC)
+  ADD_COMPILE_FLAGS(
+    ut0new-t.cc
+    COMPILE_FLAGS "/bigobj"
+    )
+ENDIF()
+
 SET(ALL_INNODB_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_INNODB_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-IF (MERGE_UNITTESTS)
-  IF(WIN32)
-    LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
-  ENDIF()
-  MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS} SKIP_INSTALL)
-  SET_TARGET_PROPERTIES(merge_innodb_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
+IF(WIN32)
+  LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
+ENDIF()
+MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
+  ENABLE_EXPORTS
+  ADD_TEST merge_innodb_tests-t
+  LINK_LIBRARIES gunit_large server_unittest_library
+  )
 
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    gunit_large strings dbug mysys)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t ${ICU_LIBRARIES})
+# Download TBB from https://www.threadingbuildingblocks.org
+#SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
+#SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
+#TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
+#INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
-  # Download TBB from https://www.threadingbuildingblocks.org
-  #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
-  #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
-  #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
-  #INCLUDE_DIRECTORIES(${TBB_INCDIR})
-
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
-  ENDIF()
-
-  ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
-
-  # See ../CMakeLists.txt
-  IF(ADD_MERGE_LARGE_TESTS)
-    ADD_TEST(merge_innodb_tests-t
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_innodb_tests-t)
-  ELSE()
-    MESSAGE(WARNING
-      "Likely link failure for this compiler, skipping merge_innodb_tests-t")
-    SET_PROPERTY(TARGET merge_innodb_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-  ENDIF()
-
-ENDIF(MERGE_UNITTESTS)
+ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
   ENDIF()
-  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
-
-  TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
-  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
-
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-  ENDIF()
-
-  ADD_DEPENDENCIES(${test}-t GenError)
-
-  IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
-  ENDIF()
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL
+    SKIP_INSTALL
+    LINK_LIBRARIES gunit_large server_unittest_library
+    DEPENDENCIES GenError
+    )
 ENDFOREACH()
 
 ADD_SUBDIRECTORY(lob)

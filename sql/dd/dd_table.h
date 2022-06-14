@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,6 @@ class Dictionary_client;
 }
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
-static const char FOREIGN_KEY_NAME_SUBSTR[] = "_ibfk_";
 static const char CHECK_CONSTRAINT_NAME_SUBSTR[] = "_chk_";
 
 /**
@@ -207,16 +206,18 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
 
   @param table_name         Table name.
   @param table_name_length  Table name length.
+  @param hton               Table storage engine.
   @param fk                 Foreign key to be checked.
 
   @note We assume that the name is generated if it starts with
-        *table_name*_ibfk_. i.e. follow InnoDB approach.
+        (table name)(SE-specific or default foreign key name suffix)
+        (e.g. "_ibfk_" for InnoDB or "_fk_" for NDB).
 
   @returns true if name is generated, false otherwise.
 */
 
 bool is_generated_foreign_key_name(const char *table_name,
-                                   size_t table_name_length,
+                                   size_t table_name_length, handlerton *hton,
                                    const dd::Foreign_key &fk);
 
 /**
@@ -226,18 +227,16 @@ bool is_generated_foreign_key_name(const char *table_name,
   @param thd             Thread context.
   @param old_db          Table's database before rename.
   @param old_table_name  Table name before rename.
+  @param hton            Table's storage engine.
   @param new_db          Table's database after rename.
   @param new_tab         New version of the table with new name set.
-
-  @todo Implement new naming scheme (or move responsibility of
-        naming to the SE layer).
 
   @returns true if error, false otherwise.
 */
 
 bool rename_foreign_keys(THD *thd, const char *old_db,
-                         const char *old_table_name, const char *new_db,
-                         dd::Table *new_tab);
+                         const char *old_table_name, handlerton *hton,
+                         const char *new_db, dd::Table *new_tab);
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of
@@ -362,7 +361,8 @@ bool fill_dd_columns_from_create_fields(THD *thd, Abstract_table *tab_obj,
   @return dd::String_type representing column type.
 */
 
-dd::String_type get_sql_type_by_create_field(TABLE *table, Create_field *field);
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             const Create_field &field);
 
 /**
   Helper method to get numeric scale for types using Create_field type
@@ -476,5 +476,34 @@ bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab);
 */
 bool uses_general_tablespace(const Table &t);
 
+/**
+  Throw deprecation warnings if table uses prefix keys in the partitioning
+  function.
+
+  @param  thd             Thread handler
+  @param  schema_name     Schema name
+  @param  orig_table_name Original table name (required in case of ALTER TABLE,
+  since temporary table name is created)
+  @param  table           dd::Table instance
+  @param  is_upgrade      True if this is called during upgrade. Warning will be
+  sent to error log instead of the client.
+
+*/
+void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
+                                             const char *orig_table_name,
+                                             const Table *table,
+                                             const bool is_upgrade);
+
+/**
+  Get the autoextend_size option value for implicit tablespaces
+  @param  thd             Thread handler
+  @param  table           dd::Table instance
+  @param  autoextend_size Value of autoextend_size attribute
+
+  @return true  - On failure
+  @return false - On success
+*/
+bool get_implicit_tablespace_options(THD *thd, const Table *table,
+                                     ulonglong *autoextend_size);
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

@@ -1,0 +1,90 @@
+# ==== Purpose ====
+#
+# This test verifies that executing START SLAVE command after restart of an
+# initialized slave shall return no error.
+#
+# ==== Implementation ====
+#
+# 1. Initialize the slave by sourcing master-slave.inc without starting the
+#    slave threads.
+#
+# 2. Verify that START SLAVE doesn't throw any error when
+#
+#    2.1 Server is shutdown and restarted with --relay-log-recovery=1 so that
+#        STOP EVENT is generated in the relay log.
+#
+#    2.2 Server is killed and restarted with --relay-log-recovery=1 and when no
+#        STOP EVENTS is generated in the relay log.
+#
+# 3. Verify that a warning saying that "Server was not able to find a rotate
+#    event from a master server to initialize relay log recovery" is logged in
+#    the error log.
+#
+# ==== References ====
+#
+# Bug#28996606 REPLICATION DOES NOT START IF RESTART MYSQL AFTER INIT
+#              WITHOUT START SLAVE
+
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+--source include/not_rpl_gtid_only.inc
+
+# 1. Initialize the slave by sourcing master-slave.inc without starting the
+#    slave threads.
+--let $rpl_multi_source= 1
+--let $rpl_topology= 1->2,3->2
+--let $rpl_skip_start_slave=1
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+CALL mtr.add_suppression("Error during --relay-log-recovery*");
+CALL mtr.add_suppression("Server was not able to find a rotate event*");
+CALL mtr.add_suppression("Recovery from master pos*");
+
+# 2. Verify that START SLAVE doesn't throw any error when
+#
+# 2.1 Server is shutdown and restarted with --relay-log-recovery=1 so that
+#     STOP EVENT is generated in the relay log.
+#
+# 2.2 Server is killed and restarted with --relay-log-recovery=1 and when no
+#     STOP EVENTS is generated in the relay log.
+
+--let $i=0
+while ($i < 2)
+{
+  if ($i == 1)
+  {
+    # Force kill the slave server and restart it with --relay-log-recovery=1 so
+    # that STOP_EVENT is not generated in the relay log.
+    --let $rpl_force_stop= 1
+  }
+  --let $rpl_server_number= 2
+  --let $rpl_server_parameters= --skip_replica_start=1
+  --source include/rpl_restart_server.inc
+
+  --let $rpl_connection_name= server_2
+  --source include/rpl_connection.inc
+
+  # START SLAVE should not throw any error.
+  --source include/start_slave.inc
+
+  # Reset all servers to a clean state without syncing the servers.
+  --let $rpl_skip_sync=1
+  --source include/rpl_reset.inc
+  --inc $i
+}
+
+# 3. Verify that a warning saying that "Server was not able to find a rotate
+#    event from a master server to initialize relay log recovery" is logged in
+#    the error log.
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+# Each test will log two warnings, one fore each channel.
+--let $assert_count= 2
+--let $assert_select=.* \[Warning\] .* Server was not able to find a rotate event
+--let $assert_text= Found the expected warning line in the error log.
+--source include/assert_grep.inc
+
+--source include/rpl_end.inc

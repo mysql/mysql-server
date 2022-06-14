@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,14 +137,14 @@ struct pos_replication_applier_status_by_worker : public PFS_double_index {
 
 class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index {
  public:
-  PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
+  explicit PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
       : PFS_engine_index(key) {}
 
   PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key_1,
                                          PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_rpl_applier_status_by_worker() {}
+  ~PFS_index_rpl_applier_status_by_worker() override = default;
 
   virtual bool match(Master_info *mi) = 0;
   virtual bool match(Master_info *mi, Slave_worker *w) = 0;
@@ -158,10 +158,10 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
         m_key_1("CHANNEL_NAME"),
         m_key_2("WORKER_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_channel() {}
+  ~PFS_index_rpl_applier_status_by_worker_by_channel() override = default;
 
-  virtual bool match(Master_info *mi);
-  virtual bool match(Master_info *mi, Slave_worker *w);
+  bool match(Master_info *mi) override;
+  bool match(Master_info *mi, Slave_worker *w) override;
 
  private:
   PFS_key_name m_key_1;
@@ -174,10 +174,10 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
   PFS_index_rpl_applier_status_by_worker_by_thread()
       : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_thread() {}
+  ~PFS_index_rpl_applier_status_by_worker_by_thread() override = default;
 
-  virtual bool match(Master_info *mi);
-  virtual bool match(Master_info *mi, Slave_worker *w);
+  bool match(Master_info *mi) override;
+  bool match(Master_info *mi, Slave_worker *w) override;
 
  private:
   PFS_key_thread_id m_key;
@@ -194,7 +194,8 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
     information in STS mode
   */
   int make_row(Master_info *);
-  void populate_trx_info(Gtid_monitoring_info *, mysql_mutex_t *);
+  void populate_trx_info(Trx_monitoring_info const &applying_trx,
+                         Trx_monitoring_info const &last_applied_trx);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -217,25 +218,25 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_replication_applier_status_by_worker();
 
  public:
-  ~table_replication_applier_status_by_worker();
+  ~table_replication_applier_status_by_worker() override;
 
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  private:
   PFS_index_rpl_applier_status_by_worker *m_opened_index;

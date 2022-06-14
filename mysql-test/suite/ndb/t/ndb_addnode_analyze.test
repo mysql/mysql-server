@@ -1,0 +1,100 @@
+--source include/have_ndb.inc
+
+--echo Testing the behaviour of ANALYZE TABLE before and
+--echo after table reorganisation, and then during subsequent
+--echo node restarts
+--echo
+
+--echo Create initial table
+create table t_offset(a int primary key) engine=ndb;
+create table t_orig(id int PRIMARY KEY, d1 bigint, d2 int, key(d1), key(d2)) engine=ndb;
+
+--echo Put some data in with different key distributions
+--disable_result_log
+--disable_query_log
+insert into t_orig values (1,1,1), (2,1,1);
+
+let $TOTROWS=2000;
+let $ROWS=$TOTROWS;
+set @a:=1;
+set @b:=1;
+set @c:=@a+@b;
+
+while ($ROWS)
+{
+  # d1 has fibonacci based distribution
+  # d2 has low cardinality distribution
+  --eval insert into t_orig values (3+($TOTROWS-$ROWS), @a+@b, ($ROWS % 2));
+  set @a:=@b % (2 << 32);
+  set @b:=@c % (2 << 32);
+  set @c:=@a+@b;
+  --dec $ROWS
+}
+
+#select * from t_orig order by id;
+--enable_query_log
+--enable_result_log
+
+--echo Analyze the indices on the table
+analyze table test.t_orig;
+
+--echo Add the nodes
+--exec $NDB_MGM -e "create nodegroup 3,4" >> $NDB_TOOLS_OUTPUT
+
+--echo Create a table with the new topology
+create table t_new(id int PRIMARY KEY, d1 bigint, d2 int, key(d1), key(d2)) engine=ndb;
+
+--echo Insert data into it
+insert into t_new select * from t_orig;
+
+--echo Analyze the new table
+analyze table test.t_new;
+
+--echo Reorganize the original table across the new set of nodes
+alter table t_orig reorganize partition;
+
+--echo Check ANALYZE succeeds after table reorganization
+analyze table t_orig;
+analyze table t_new;
+
+--echo Restart data nodes, checking that ANALYZE TABLE
+--echo succeeds in all intermediate states
+#
+# Restarting data nodes in ascending or descending order has
+# an effect on outcomes
+# 
+let $ascending=1;
+let $nodes = 4;
+let $cnt = $nodes;
+while ($cnt)
+{
+  let $nid=$cnt;  # descending
+  if ($ascending)
+  {
+    --disable_query_log
+    --disable_result_log
+    let $nid=query_get_value("select 1 + $nodes-$cnt as c", c, 1); # low to high
+    --enable_query_log
+    --enable_result_log
+  }
+  --echo Restart node $nid
+  --exec $NDB_MGM --execute "$nid restart -n" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --wait-nodes=$nid --not-started >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "$nid start" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --wait-nodes=$nid >> $NDB_TOOLS_OUTPUT
+  --echo Restart finished
+
+  --echo Analyze the tables
+  analyze table test.t_orig;
+  analyze table test.t_new;
+ 
+  --dec $cnt
+}
+
+--echo Cleanup
+drop table t_offset,t_orig,t_new;
+
+## Drop nodegroup with "new" nodes
+--exec $NDB_MGM -e "drop nodegroup 1" >> $NDB_TOOLS_OUTPUT
+
+--remove_file $NDB_TOOLS_OUTPUT

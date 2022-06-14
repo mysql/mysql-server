@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ static void set_transactions_committed(void *const context, const char &value,
   struct st_row_group_member_stats *row =
       static_cast<struct st_row_group_member_stats *>(context);
 
-  if (row->trx_committed != NULL) {
+  if (row->trx_committed != nullptr) {
     my_free(row->trx_committed);
   }
 
@@ -189,8 +189,8 @@ Plugin_table table_replication_group_member_stats::m_table_def(
 PFS_engine_table_share table_replication_group_member_stats::m_share = {
     &pfs_readonly_acl,
     &table_replication_group_member_stats::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_group_member_stats::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -208,13 +208,13 @@ PFS_engine_table *table_replication_group_member_stats::create(
 
 table_replication_group_member_stats::table_replication_group_member_stats()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
-  m_row.trx_committed = NULL;
+  m_row.trx_committed = nullptr;
 }
 
 table_replication_group_member_stats::~table_replication_group_member_stats() {
-  if (m_row.trx_committed != NULL) {
+  if (m_row.trx_committed != nullptr) {
     my_free(m_row.trx_committed);
-    m_row.trx_committed = NULL;
+    m_row.trx_committed = nullptr;
   }
 }
 
@@ -243,21 +243,20 @@ int table_replication_group_member_stats::rnd_next(void) {
 }
 
 int table_replication_group_member_stats::rnd_pos(const void *pos) {
-  if (!is_group_replication_plugin_loaded()) {
+  if (!is_group_replication_plugin_loaded() || get_row_count() == 0) {
     return HA_ERR_END_OF_FILE;
   }
 
-  if (get_row_count() == 0) {
-    return HA_ERR_END_OF_FILE;
+  if (m_pos.m_index >= get_row_count()) {
+    return HA_ERR_RECORD_DELETED;
   }
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < get_row_count());
   return make_row(m_pos.m_index);
 }
 
 int table_replication_group_member_stats::make_row(uint index) {
-  DBUG_ENTER("table_replication_group_member_stats::make_row");
+  DBUG_TRACE;
   // Set default values.
   m_row.channel_name_length = 0;
   m_row.view_id_length = 0;
@@ -296,7 +295,7 @@ int table_replication_group_member_stats::make_row(uint index) {
     DBUG_PRINT("info", ("Group Replication stats not available!"));
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int table_replication_group_member_stats::read_row_values(TABLE *table,
@@ -305,12 +304,12 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
                                                           bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /** channel_name */
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
@@ -353,7 +352,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

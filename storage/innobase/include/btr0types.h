@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,9 +57,10 @@ extern ulong btr_ahi_parts;
 /** The size of a reference to data stored on a different page.
 The reference is stored at the end of the prefix of the field
 in the index record. */
-#define BTR_EXTERN_FIELD_REF_SIZE FIELD_REF_SIZE
+constexpr uint32_t BTR_EXTERN_FIELD_REF_SIZE = FIELD_REF_SIZE;
 
 /** If the data don't exceed the size, the data are stored locally. */
-#define BTR_EXTERN_LOCAL_STORED_MAX_SIZE (BTR_EXTERN_FIELD_REF_SIZE * 2)
+constexpr uint32_t BTR_EXTERN_LOCAL_STORED_MAX_SIZE =
+    BTR_EXTERN_FIELD_REF_SIZE * 2;
 
 #endif

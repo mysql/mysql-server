@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,12 +50,9 @@ class Recovery_module {
               reference to the applier
     @param channel_obsr_mngr
               reference to the channel hooks observation manager
-    @param components_stop_timeout
-              timeout value for the recovery module during shutdown.
    */
   Recovery_module(Applier_module_interface *applier,
-                  Channel_observation_manager *channel_obsr_mngr,
-                  ulong components_stop_timeout);
+                  Channel_observation_manager *channel_obsr_mngr);
 
   ~Recovery_module();
 
@@ -159,26 +156,34 @@ class Recovery_module {
      @param ssl_crl                 SSL revocation list file
      @param ssl_crlpath             path with revocation list files
      @param ssl_verify_server_cert  verify the hostname against the certificate
+     @param tls_version             the list of TLS versions to use
+     @param tls_ciphersuites        the list of TLS ciphersuites to use
   */
   void set_recovery_ssl_options(bool use_ssl, const char *ssl_ca,
                                 const char *ssl_capath, const char *ssl_cert,
                                 const char *ssl_cipher, const char *ssl_key,
                                 const char *ssl_crl, const char *ssl_crlpath,
-                                bool ssl_verify_server_cert) {
+                                bool ssl_verify_server_cert, char *tls_version,
+                                char *tls_ciphersuites) {
     recovery_state_transfer.set_recovery_use_ssl(use_ssl);
-    if (ssl_ca != NULL) recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
-    if (ssl_capath != NULL)
+    if (ssl_ca != nullptr) recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
+    if (ssl_capath != nullptr)
       recovery_state_transfer.set_recovery_ssl_capath(ssl_capath);
-    if (ssl_cert != NULL)
+    if (ssl_cert != nullptr)
       recovery_state_transfer.set_recovery_ssl_cert(ssl_cert);
-    if (ssl_cipher != NULL)
+    if (ssl_cipher != nullptr)
       recovery_state_transfer.set_recovery_ssl_cipher(ssl_cipher);
-    if (ssl_key != NULL) recovery_state_transfer.set_recovery_ssl_key(ssl_key);
-    if (ssl_crl != NULL) recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
-    if (ssl_crlpath != NULL)
+    if (ssl_key != nullptr)
+      recovery_state_transfer.set_recovery_ssl_key(ssl_key);
+    if (ssl_crl != nullptr)
+      recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
+    if (ssl_crlpath != nullptr)
       recovery_state_transfer.set_recovery_ssl_crlpath(ssl_crlpath);
     recovery_state_transfer.set_recovery_ssl_verify_server_cert(
         ssl_verify_server_cert);
+    if (tls_version != nullptr)
+      recovery_state_transfer.set_recovery_tls_version(tls_version);
+    recovery_state_transfer.set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
   /** Set the option that forces the use of SSL on recovery connections */
@@ -227,6 +232,16 @@ class Recovery_module {
         ssl_verify_server_cert);
   }
 
+  /** Set TLS version to be used */
+  void set_recovery_tls_version(const char *tls_version) {
+    recovery_state_transfer.set_recovery_tls_version(tls_version);
+  }
+
+  /** Set TLS ciphersuites to be used */
+  void set_recovery_tls_ciphersuites(const char *tls_ciphersuites) {
+    recovery_state_transfer.set_recovery_tls_ciphersuites(tls_ciphersuites);
+  }
+
   /**
     @return Is recovery configured to use SSL
   */
@@ -246,14 +261,12 @@ class Recovery_module {
     recovery_state_transfer.get_recovery_base_ssl_options(ssl_ca, ssl_cert,
                                                           ssl_key);
   }
-
   /**
     Sets the recovery shutdown timeout.
 
     @param[in]  timeout      the timeout
   */
   void set_stop_wait_timeout(ulong timeout) {
-    stop_wait_timeout = timeout;
     recovery_state_transfer.set_stop_wait_timeout(timeout);
   }
 
@@ -269,13 +282,23 @@ class Recovery_module {
 
   /** Set a public key file*/
   void set_recovery_public_key_path(const char *public_key_path) {
-    if (public_key_path != NULL)
+    if (public_key_path != nullptr)
       recovery_state_transfer.set_recovery_public_key_path(public_key_path);
   }
 
   /** Get public key automatically */
   void set_recovery_get_public_key(bool set) {
     recovery_state_transfer.set_recovery_get_public_key(set);
+  }
+
+  /** Set compression algorithm */
+  void set_recovery_compression_algorithm(const char *name) {
+    recovery_state_transfer.set_recovery_compression_algorithm(name);
+  }
+
+  /** Set compression level */
+  void set_recovery_zstd_compression_level(uint level) {
+    recovery_state_transfer.set_recovery_zstd_compression_level(level);
   }
 
   /**
@@ -287,6 +310,18 @@ class Recovery_module {
       @retval false  the id doesn't match any thread
   */
   bool is_own_event_channel(my_thread_id id);
+
+  /**
+   Checks to see if the recovery IO/SQL thread is still running, probably caused
+   by an timeout on shutdown.
+   If the threads are still running, we try to stop them again.
+   If not possible, an error is reported.
+
+   @return are the threads stopped
+      @retval 0      All is stopped.
+      @retval !=0    Threads are still running
+  */
+  int check_recovery_thread_status();
 
  private:
   /** Sets the thread context */
@@ -341,8 +376,8 @@ class Recovery_module {
   /* Recovery strategy when waiting for the cache transaction handling*/
   enum_recovery_completion_policies recovery_completion_policy;
 
-  /* Recovery module's timeout on shutdown */
-  ulong stop_wait_timeout;
+  /* The return value from state transfer operation*/
+  State_transfer_status m_state_transfer_return;
 };
 
 #endif /* RECOVERY_INCLUDE */

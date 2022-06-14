@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,24 +48,30 @@ public:
   Uint32 m_receiver_thread_idx;
 
   /**
-   * Assign nodes to this TransporterReceiveHandle
+   * Assign trps to this TransporterReceiveHandle
    */
-  void assign_nodes(NodeId *recv_thread_idx_array);
+  void assign_trps(Uint32 *recv_thread_idx_array);
 #endif
+  void *m_trpman;
 
+  void assign_trpman(void *trpman)
+  {
+    m_trpman = trpman;
+  }
   /* TransporterCallback interface. */
   bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
+                      TransporterError &error_code,
                       Uint32 * const signalData,
-                      LinearSectionPtr ptr[3]);
-  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
-  void reportConnect(NodeId nodeId);
-  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+                      LinearSectionPtr ptr[3]) override;
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
+  void reportConnect(NodeId nodeId) override;
+  void reportDisconnect(NodeId nodeId, Uint32 errNo) override;
   void reportError(NodeId nodeId, TransporterError errorCode,
-                   const char *info = 0);
-  void transporter_recv_from(NodeId node);
-  int checkJobBuffer();
-  virtual ~TransporterReceiveHandleKernel() { }
+                   const char *info = 0) override;
+  void transporter_recv_from(NodeId node) override;
+  int checkJobBuffer() override;
+  ~TransporterReceiveHandleKernel() override { }
 };
 
 

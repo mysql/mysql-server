@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,24 +22,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+// Implements
 #include "NdbInfo.hpp"
-#include "NdbInfoScanVirtual.hpp"
+
+#include "ndbapi/ndb_cluster_connection.hpp"
 #include "NdbInfoScanNodes.hpp"
+#include "NdbInfoScanVirtual.hpp"
 
-#include <ndbapi/ndb_cluster_connection.hpp>
-
-NdbInfo::NdbInfo(class Ndb_cluster_connection* connection,
-                 const char* prefix, const char* dbname,
-                 const char* table_prefix) :
+NdbInfo::NdbInfo(class Ndb_cluster_connection* connection, const char* prefix) :
   m_connect_count(connection->get_connect_count()),
   m_min_db_version(0),
   m_connection(connection),
   m_tables_table(NULL), m_columns_table(NULL),
-  m_prefix(prefix),
-  m_dbname(dbname),
-  m_table_prefix(table_prefix),
+  m_full_prefix(prefix),
   m_id_counter(0)
 {
+  m_short_prefix.assign(m_full_prefix,
+                        m_full_prefix.lastIndexOf(DIR_SEPARATOR[0]) + 1);
 }
 
 bool NdbInfo::init(void)
@@ -59,11 +58,13 @@ NdbInfo::~NdbInfo(void)
   native_mutex_destroy(&m_mutex);
 }
 
-BaseString NdbInfo::mysql_table_name(const char* table_name) const
+BaseString NdbInfo::mysql_table_name(const Table & table) const
 {
   DBUG_ENTER("mysql_table_name");
   BaseString mysql_name;
-  mysql_name.assfmt("%s%s", m_prefix.c_str(), table_name);
+  mysql_name.assfmt("%s%s",
+      table.m_use_full_prefix ? m_full_prefix.c_str() : m_short_prefix.c_str(),
+      table.m_name.c_str());
   DBUG_PRINT("exit", ("mysql_name: %s", mysql_name.c_str()));
   DBUG_RETURN(mysql_name);
 }
@@ -71,13 +72,14 @@ BaseString NdbInfo::mysql_table_name(const char* table_name) const
 bool NdbInfo::load_hardcoded_tables(void)
 {
   {
-    Table tabs("tables", 0);
+    Table tabs("tables", (Uint32) 0, 0, true);
     if (!tabs.addColumn(Column("table_id", 0, Column::Number)) ||
         !tabs.addColumn(Column("table_name", 1, Column::String)) ||
-        !tabs.addColumn(Column("comment", 2, Column::String)))
+        !tabs.addColumn(Column("comment", 2, Column::String)) ||
+        !tabs.addColumn(Column("rows_estimate", 3, Column::Number)))
       return false;
 
-    BaseString hash_key = mysql_table_name(tabs.getName());
+    BaseString hash_key = mysql_table_name(tabs);
     if (!m_tables.insert(hash_key.c_str(), tabs))
       return false;
     if (!m_tables.search(hash_key.c_str(), &m_tables_table))
@@ -85,7 +87,7 @@ bool NdbInfo::load_hardcoded_tables(void)
   }
 
   {
-    Table cols("columns", 1);
+    Table cols("columns", 1, 0, true);
     if (!cols.addColumn(Column("table_id", 0, Column::Number)) ||
         !cols.addColumn(Column("column_id", 1, Column::Number)) ||
         !cols.addColumn(Column("column_name", 2, Column::String)) ||
@@ -93,7 +95,7 @@ bool NdbInfo::load_hardcoded_tables(void)
         !cols.addColumn(Column("comment", 4, Column::String)))
       return false;
 
-    BaseString hash_key = mysql_table_name(cols.getName());
+    BaseString hash_key = mysql_table_name(cols);
     if (!m_tables.insert(hash_key.c_str(), cols))
       return false;
     if (!m_tables.search(hash_key.c_str(), &m_columns_table))
@@ -138,7 +140,8 @@ bool NdbInfo::load_ndbinfo_tables(void)
 
     const NdbInfoRecAttr *tableIdRes = scanOp->getValue("table_id");
     const NdbInfoRecAttr *tableNameRes = scanOp->getValue("table_name");
-    if (!tableIdRes || !tableNameRes)
+    const NdbInfoRecAttr *estRowsRes = scanOp->getValue("rows_estimate");
+    if (!tableIdRes || !tableNameRes || !estRowsRes)
     {
       releaseScanOperation(scanOp);
       DBUG_RETURN(false);
@@ -153,10 +156,12 @@ bool NdbInfo::load_ndbinfo_tables(void)
     int err;
     while ((err = scanOp->nextResult()) == 1)
     {
+      m_tables_table->m_rows_estimate++;
       Uint32 tableId = tableIdRes->u_32_value();
       const char * tableName = tableNameRes->c_str();
-      DBUG_PRINT("info", ("table: '%s', id: %u",
-                 tableName, tableId));
+      Uint32 est_rows = 0;
+      if (! estRowsRes->isNULL()) est_rows = estRowsRes->u_32_value();
+      DBUG_PRINT("info", ("table: '%s', id: %u", tableName, tableId));
       switch (tableId) {
       case 0:
         assert(strcmp(tableName, "tables") == 0);
@@ -166,10 +171,9 @@ bool NdbInfo::load_ndbinfo_tables(void)
         break;
 
       default:
-        BaseString hash_key = mysql_table_name(tableName);
-        if (!m_tables.insert(hash_key.c_str(),
-                             Table(tableName, tableId)))
-        {
+        Table table(tableName, tableId, est_rows);
+        BaseString hash_key = mysql_table_name(table);
+        if (!m_tables.insert(hash_key.c_str(), table)) {
           DBUG_PRINT("error", ("Failed to insert Table('%s', %u)",
                      tableName, tableId));
           releaseScanOperation(scanOp);
@@ -179,7 +183,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     }
     releaseScanOperation(scanOp);
 
-   if (err != 0)
+    if (err != 0)
       DBUG_RETURN(false);
   }
 
@@ -213,6 +217,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     int err;
     while ((err = scanOp->nextResult()) == 1)
     {
+      m_columns_table->m_rows_estimate++;
       Uint32 tableId = tableIdRes->u_32_value();
       Uint32 columnId = columnIdRes->u_32_value();
       const char * columnName = columnNameRes->c_str();
@@ -332,11 +337,12 @@ int NdbInfo::createScanOperation(const Table* table,
 {
   if (table->m_virt != NULL)
   {
-    // The table is a virtual table which returns
-    // hardcoded values. Use the special NdbInfoScanVirtual implementation
-    NdbInfoScanVirtual* virtual_scan =
-        new NdbInfoScanVirtual(table,
-                               table->m_virt);
+    // The table is a virtual table which does not exist in the data nodes,
+    // instead it returns hardcoded values or dynamic information about the
+    // cluster which it retrieves using NdbApi functions. Use the special
+    // NdbInfoScanVirtual implementation
+    NdbInfoScanVirtual *virtual_scan =
+        new NdbInfoScanVirtual(m_connection, table, table->m_virt);
     if (!virtual_scan)
       return ERR_OutOfMemory;
 
@@ -351,7 +357,6 @@ int NdbInfo::createScanOperation(const Table* table,
     return 0;
   }
 
-
   Uint32 max_nodes = 0;
   if (table->getTableId() < NUM_HARDCODED_TABLES)
   {
@@ -359,7 +364,7 @@ int NdbInfo::createScanOperation(const Table* table,
     max_nodes = 1;
   }
 
-  NdbInfoScanNodes* scan_op = new NdbInfoScanNodes(*this, m_connection,
+  NdbInfoScanNodes* scan_op = new NdbInfoScanNodes(m_connection,
                                                    table, max_rows,
                                                    max_bytes,
                                                    max_nodes);
@@ -500,53 +505,52 @@ NdbInfo::Column::Column(const char* name, Uint32 col_id,
 {
 }
 
-NdbInfo::Column::Column(const NdbInfo::Column & col)
+NdbInfo::Column::Column(const NdbInfo::Column & col) :
+  m_type(col.m_type),
+  m_column_id(col.m_column_id),
+  m_name(col.m_name)
 {
-  m_column_id = col.m_column_id;
-  m_name.assign(col.m_name);
-  m_type = col.m_type;
 }
-
-NdbInfo::Column &
-NdbInfo::Column::operator=(const NdbInfo::Column & col)
-{
-  m_column_id = col.m_column_id;
-  m_name.assign(col.m_name);
-  m_type = col.m_type;
-  return *this;
-}
-
 
 // Table
 
-NdbInfo::Table::Table(const char *name, Uint32 id, const VirtualTable* virt) :
+NdbInfo::Table::Table(const char *name, Uint32 id, Uint32 est_rows,
+                      bool exact_row_count) :
   m_name(name),
   m_table_id(id),
+  m_rows_estimate(est_rows),
+  m_exact_row_count(exact_row_count),
+  m_use_full_prefix(true),
+  m_virt(nullptr)
+{
+}
+
+NdbInfo::Table::Table(const char * table_name, const VirtualTable* virt,
+                      Uint32 est_rows, bool exact_row_count,
+                      TableName prefixed) :
+  m_name(table_name),
+  m_table_id(InvalidTableId),
+  m_rows_estimate(est_rows),
+  m_exact_row_count(exact_row_count),
+  m_use_full_prefix((prefixed == TableName::WithPrefix)),
   m_virt(virt)
 {
+  assert(virt);                // constructor for virtual tables only
+  assert(m_rows_estimate);
+  assert(m_exact_row_count || (m_rows_estimate > 2));
 }
 
 NdbInfo::Table::Table(const NdbInfo::Table& tab) :
+  m_name(tab.m_name),
+  m_table_id(tab.m_table_id),
+  m_rows_estimate(tab.m_rows_estimate),
+  m_exact_row_count(tab.m_exact_row_count),
   m_virt(tab.m_virt)
 {
   DBUG_ENTER("Table(const Table&");
-  m_table_id = tab.m_table_id;
-  m_name.assign(tab.m_name);
   for (unsigned i = 0; i < tab.m_columns.size(); i++)
     addColumn(*tab.m_columns[i]);
   DBUG_VOID_RETURN;
-}
-
-const NdbInfo::Table &
-NdbInfo::Table::operator=(const NdbInfo::Table& tab)
-{
-  DBUG_ENTER("Table::operator=");
-  m_table_id = tab.m_table_id;
-  m_name.assign(tab.m_name);
-  for (unsigned i = 0; i < tab.m_columns.size(); i++)
-    addColumn(*tab.m_columns[i]);
-  m_virt = tab.m_virt;
-  DBUG_RETURN(*this);
 }
 
 NdbInfo::Table::~Table()
@@ -617,7 +621,6 @@ const VirtualTable* NdbInfo::Table::getVirtualTable() const
   return m_virt;
 }
 
-
 bool NdbInfo::load_virtual_tables(void)
 {
   // The virtual tables should already have been created
@@ -628,8 +631,12 @@ bool NdbInfo::load_virtual_tables(void)
   {
     Table* tab = m_virtual_tables[i];
     assert(tab->m_virt);
-
-    BaseString hash_key = mysql_table_name(tab->getName());
+    const BaseString hash_key = mysql_table_name(*tab);
+    if(m_tables.remove(hash_key)) {
+      fprintf(stderr, "Duplicate table name: %s\n", hash_key.c_str());
+      assert(false);
+      return false;
+    }
     tab->m_table_id = m_tables.entries(); // Set increasing table id
     if (!m_tables.insert(hash_key.c_str(), *tab))
       return false;

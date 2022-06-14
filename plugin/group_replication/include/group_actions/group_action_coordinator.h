@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Group_action_information {
 };
 
 /**
-  @Group_action_coordinator
+  @class Group_action_coordinator
   The coordinator class where group actions are submitted
 */
 class Group_action_coordinator : public Group_event_observer {
@@ -66,7 +66,7 @@ class Group_action_coordinator : public Group_event_observer {
   Group_action_coordinator(ulong components_stop_timeout);
 
   /** The group coordinator destructor  */
-  ~Group_action_coordinator();
+  ~Group_action_coordinator() override;
 
   /**
    Register the coordinator observers
@@ -120,7 +120,6 @@ class Group_action_coordinator : public Group_event_observer {
 
   /**
     The main thread process for the action execution process
-    @return
   */
   int execute_group_action_handler();
 
@@ -131,7 +130,7 @@ class Group_action_coordinator : public Group_event_observer {
   */
   void set_stop_wait_timeout(ulong timeout);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Flag for cases where we don't have debug execution tools
     Can be an enum if other cases emerge
@@ -142,19 +141,19 @@ class Group_action_coordinator : public Group_event_observer {
  private:
   // The listeners for group events
 
-  virtual int after_view_change(
-      const std::vector<Gcs_member_identifier> &joining,
-      const std::vector<Gcs_member_identifier> &leaving,
-      const std::vector<Gcs_member_identifier> &group, bool is_leaving,
-      bool *skip_election, enum_primary_election_mode *election_mode,
-      std::string &suggested_primary);
-  virtual int after_primary_election(std::string primary_uuid,
-                                     bool primary_changed,
-                                     enum_primary_election_mode election_mode,
-                                     int error);
-  virtual int before_message_handling(const Plugin_gcs_message &message,
-                                      const std::string &message_origin,
-                                      bool *skip_message);
+  int after_view_change(const std::vector<Gcs_member_identifier> &joining,
+                        const std::vector<Gcs_member_identifier> &leaving,
+                        const std::vector<Gcs_member_identifier> &group,
+                        bool is_leaving, bool *skip_election,
+                        enum_primary_election_mode *election_mode,
+                        std::string &suggested_primary) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
+  int before_message_handling(const Plugin_gcs_message &message,
+                              const std::string &message_origin,
+                              bool *skip_message) override;
 
   /**
     Handle incoming start action message
@@ -162,7 +161,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param message_origin the message origin
     @return true if something wrong happen, false otherwise
   */
-  bool handle_action_start_message(Group_action_message *msg,
+  bool handle_action_start_message(Group_action_message *message,
                                    const std::string &message_origin);
 
   /**
@@ -171,7 +170,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param message_origin the message origin
     @return true if something wrong happen, false otherwise
   */
-  bool handle_action_stop_message(Group_action_message *msg,
+  bool handle_action_stop_message(Group_action_message *message,
                                   const std::string &message_origin);
 
   /**
@@ -214,7 +213,6 @@ class Group_action_coordinator : public Group_event_observer {
 
   /**
     Declare this action as terminated to other members
-    @param message_type for the sent message
   */
   int signal_action_terminated();
 
@@ -233,13 +231,6 @@ class Group_action_coordinator : public Group_event_observer {
    @return true if yes, false otherwise
   */
   bool thread_killed();
-
-  /**
-    Internal method that contains the logic for leaving and killing transactions
-
-    @param error_msg error to log in case an action error is not present
-  */
-  void kill_transactions_and_leave();
 
   /** The list of members known for the current action */
   std::list<std::string> known_members_addresses;

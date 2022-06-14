@@ -1,6 +1,3 @@
-DROP SCHEMA IF EXISTS xtest;
-Warnings:
-Note	1008	Can't drop database 'xtest'; database doesn't exist
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.table (id INT DEFAULT 0, name VARCHAR(40) DEFAULT 'Bob', value FLOAT DEFAULT 3.14 );
 CREATE TABLE xtest.fault (value INT NOT NULL);
@@ -213,4 +210,3 @@ id	name	value
 0	Bob	3.14
 SELECT * FROM xtest.fault;
 value
-DROP SCHEMA IF EXISTS xtest;

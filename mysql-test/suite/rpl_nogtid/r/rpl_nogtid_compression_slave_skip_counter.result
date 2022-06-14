@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t(a int);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL sql_replica_skip_counter = 1;
+include/start_slave.inc
+[connection master]
+SET SESSION binlog_transaction_compression = ON;
+INSERT INTO t VALUES (10);
+INSERT INTO t VALUES (10);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [There should be exactly 1 row in table t]
+[connection master]
+DROP TABLE t;
+CREATE TABLE t(a int);
+DROP TABLE t;
+SET SESSION binlog_transaction_compression = BINLOG_TRANSACTION_COMPRESSION_SOURCE;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

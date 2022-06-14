@@ -23,7 +23,7 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 SELECT "1062" as 'Last_SQL_Errno';
 Last_SQL_Errno
 1062
-call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: MY-001062");
+call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SELECT * FROM t1;
 a
@@ -31,6 +31,8 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 DELETE FROM t1 WHERE a = 1;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 ---- Sync slave and verify that there is no error ----
 include/check_slave_no_error.inc

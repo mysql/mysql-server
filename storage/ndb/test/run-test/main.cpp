@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <time.h>
+
 #ifdef _WIN32
 #define DEFAULT_PREFIX "c:/atrt"
 #endif
@@ -30,6 +32,7 @@
 #include <NdbOut.hpp>
 #include "atrt.hpp"
 #include "test_execution_resources.hpp"
+#include "process_management.hpp"
 
 #include <util/File.hpp>
 #include <FileLogHandler.hpp>
@@ -37,19 +40,25 @@
 
 #include <NdbSleep.h>
 #include "my_alloc.h"  // MEM_ROOT
+#include "my_sys.h" // my_realpath()
+#include "my_io.h" // FN_REFLEN
 #include <ndb_version.h>
 #include <vector>
 #include <ndb_version.h>
+#include "template_utils.h"
+#include "typelib.h"
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 1
+#define ATRT_VERSION_NUMBER 11
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
 static const char *g_gather_progname = 0;
 static const char *g_analyze_progname = 0;
 static const char *g_setup_progname = 0;
+static const char *g_analyze_coverage_progname = 0;
+static const char *g_compute_coverage_progname = 0;
 
 static const char *g_log_filename = 0;
 static const char *g_test_case_filename = 0;
@@ -78,7 +87,31 @@ int g_mt = 0;
 int g_mt_rr = 0;
 int g_restart = 0;
 int g_default_max_retries = 0;
-static int g_default_force_cluster_restart = 0;
+bool g_clean_shutdown = false;
+
+FailureMode g_default_behaviour_on_failure = Restart;
+const char *default_behaviour_on_failure[] = {"Restart", "Abort", "Skip",
+                                              "Continue", nullptr};
+TYPELIB behaviour_typelib = {array_elements(default_behaviour_on_failure) - 1,
+                             "default_behaviour_on_failure",
+                             default_behaviour_on_failure, nullptr};
+
+RestartMode g_default_force_cluster_restart = None;
+const char *force_cluster_restart_mode[] = {"none", "before", "after",
+                                            "both", nullptr};
+TYPELIB restart_typelib = {array_elements(force_cluster_restart_mode) -1,
+                           "force_cluster_restart_mode",
+                           force_cluster_restart_mode, nullptr};
+
+coverage::Coverage g_coverage = coverage::Coverage::None;
+const char *coverage_mode[] = {"none", "testcase", "testsuite", nullptr};
+TYPELIB coverage_typelib = {array_elements(coverage_mode) - 1, "coverage_mode",
+                            coverage_mode, nullptr};
+
+CoverageTools g_coverage_tool = Lcov;
+const char *coverage_tools[] = {"lcov", "fastcov", nullptr};
+TYPELIB coverage_tools_typelib = {array_elements(coverage_tools) - 1,
+                                  "coverage_tools", coverage_tools, nullptr};
 
 const char *g_cwd = 0;
 const char *g_basedir = 0;
@@ -86,6 +119,7 @@ const char *g_my_cnf = 0;
 const char *g_prefix = NULL;
 const char *g_prefix0 = NULL;
 const char *g_prefix1 = NULL;
+const char *g_build_dir = NULL;
 const char *g_clusters = 0;
 const char *g_config_type = NULL;  // "cnf" or "ini"
 const char *g_site = NULL;
@@ -96,6 +130,7 @@ const char *g_dummy;
 char *g_env_path = 0;
 const char *g_mysqld_host = 0;
 
+
 TestExecutionResources g_resources;
 
 static BaseString get_atrt_path(const char *arg);
@@ -105,11 +140,43 @@ const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
 static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
+TestResult run_test_case(ProcessManagement& processManagement,
+                         const atrt_testcase& testcase,
+                         bool is_last_testcase,
+                         RestartMode next_testcase_forces_restart,
+                         atrt_coverage_config& coverage_config);
+int test_case_init(ProcessManagement &, const atrt_testcase &);
+int test_case_execution_loop(ProcessManagement &, const time_t, const time_t);
+void test_case_results(TestResult *, const atrt_testcase &);
+
+void test_case_coverage_results(TestResult *,
+                                atrt_config &,
+                                atrt_coverage_config &,
+                                int);
+bool gather_coverage_results(atrt_config &,
+                             atrt_coverage_config &,
+                             int test_case = 0);
+int compute_path_level(const char *);
+int compute_test_coverage(atrt_coverage_config &, const char *);
+
+bool do_command(ProcessManagement& processManagement,
+                atrt_config& config);
+bool setup_test_case(ProcessManagement& processManagement,
+                     atrt_config&, const atrt_testcase&);
+/**
+ * check configuration if any changes has been
+ *   done for the duration of the latest running test
+ *   if so, return true, and reset those changes
+ *   (true, indicates that a restart is needed to actually
+ *    reset the running processes)
+ */
+bool reset_config(ProcessManagement &processManagement, atrt_config&);
+
 static struct my_option g_options[] = {
     {"help", '?', "Display this help and exit.", (uchar **)&g_help,
      (uchar **)&g_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
     {"site", 256, "Site", (uchar **)&g_site, (uchar **)&g_site, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"clusters", 256, "Cluster", (uchar **)&g_clusters, (uchar **)&g_clusters,
@@ -169,17 +236,34 @@ static struct my_option g_options[] = {
      "the test suite file)",
      (uchar **)&g_default_max_retries, (uchar **)&g_default_max_retries, 0,
      GET_INT, REQUIRED_ARG, g_default_max_retries, 0, 0, 0, 0, 0},
-    {"default-force-cluster-restart", 0,
+    {"default-force-cluster-restart", 256,
      "Force cluster to restart for each testrun (can be overwritten in test "
      "suite file)",
      (uchar **)&g_default_force_cluster_restart,
-     (uchar **)&g_default_force_cluster_restart, 0, GET_BOOL, NO_ARG,
-     g_default_force_cluster_restart, 0, 0, 0, 0, 0},
+     (uchar **)&g_default_force_cluster_restart, &restart_typelib, GET_ENUM,
+     REQUIRED_ARG, g_default_force_cluster_restart, 0, 0, 0, 0, 0},
+    {"default-behaviour-on-failure", 256, "default to do when a test fails",
+     (uchar **)&g_default_behaviour_on_failure,
+     (uchar **)&g_default_behaviour_on_failure, &behaviour_typelib, GET_ENUM,
+     REQUIRED_ARG, g_default_behaviour_on_failure, 0, 0, 0, 0, 0},
+    {"clean-shutdown", 0,
+     "Enables clean cluster shutdown when passed as a command line argument",
+     (uchar **)&g_clean_shutdown, (uchar **)&g_clean_shutdown, 0, GET_BOOL,
+     NO_ARG, g_clean_shutdown, 0, 0, 0, 0, 0},
+    {"coverage", 256,
+     "Enables coverage and specifies if coverage is computed, "
+     "per 'testcase' (default) or  per 'testsuite'.",
+     (uchar **)&g_coverage, (uchar **)&g_coverage,
+     &coverage_typelib, GET_ENUM, OPT_ARG, g_coverage, 0, 0, 0, 0, 0},
+    {"build-dir", 256, "Full path to build directory which contains gcno files",
+     (uchar **)&g_build_dir, (uchar **)&g_build_dir, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"coverage-tool", 256,
+     "Specifies if coverage is computed using 'lcov'(default) or 'fastcov'",
+     (uchar **)&g_coverage_tool, (uchar **)&g_coverage_tool,
+     &coverage_tools_typelib, GET_ENUM, REQUIRED_ARG, g_coverage_tool, 0, 0, 0,
+     0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-
-const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
-const int p_servers = atrt_process::AP_MYSQLD | atrt_process::AP_CUSTOM;
-const int p_clients = atrt_process::AP_CLIENT | atrt_process::AP_NDB_API;
 
 static int check_testcase_file_main(int argc, char **argv);
 static void print_testcase_file_syntax();
@@ -187,10 +271,7 @@ static void print_testcase_file_syntax();
 int main(int argc, char **argv) {
   ndb_init();
 
-  bool restart = true;
-  int lineno = 1;
-  int test_no = 1;
-  int return_code = TESTSUITE_SUCCESS;
+  AtrtExitCodes return_code = AtrtExitCodes::TESTSUITE_SUCCESS;
 
   g_logger.setCategory(progname);
   g_logger.enable(Logger::LL_ALL);
@@ -206,11 +287,37 @@ int main(int argc, char **argv) {
   MEM_ROOT alloc = MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};
   if (!parse_args(argc, argv, &alloc)) {
     g_logger.critical("Failed to parse arguments");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
 
   g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
+
+  atrt_coverage_config coverage_config = {0, g_coverage, g_coverage_tool};
+
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
+    if (g_default_force_cluster_restart == Before ||
+        g_default_force_cluster_restart == Both) {
+      g_logger.critical(
+          "Conflicting cluster restart parameter used with coverage parameter");
+      return atrt_exit(ATRT_FAILURE);
+    }
+    g_default_force_cluster_restart = After;
+    g_clean_shutdown = true;
+
+    if (g_build_dir == nullptr) {
+      g_logger.critical(
+          "--build-dir parameter is required for coverage builds");
+      return atrt_exit(ATRT_FAILURE);
+    }
+    struct stat buf;
+    if (lstat(g_build_dir, &buf) != 0) {
+      g_logger.critical(
+          "Build directory does not exist at location specified "
+          "in --build-dir parameter");
+      return atrt_exit(ATRT_FAILURE);
+    }
+    coverage_config.m_prefix_strip = compute_path_level(g_build_dir);
+  }
 
   if (g_mt != 0) {
     g_resources.setRequired(g_resources.NDBMTD);
@@ -224,9 +331,8 @@ int main(int argc, char **argv) {
 
       for (auto msg : error) {
         g_logger.critical("%s", msg.c_str());
-        return_code = ATRT_FAILURE;
-        goto end;
       }
+      return atrt_exit(ATRT_FAILURE);
     }
 
     for (auto msg : info) {
@@ -240,8 +346,7 @@ int main(int argc, char **argv) {
 
     if (!find_scripts(atrt_path.c_str())) {
       g_logger.critical("Failed to find required atrt scripts for execution");
-      return_code = ATRT_FAILURE;
-      goto end;
+      return atrt_exit(ATRT_FAILURE);
     }
   }
 
@@ -252,44 +357,39 @@ int main(int argc, char **argv) {
 
     if (!find_config_ini_files()) {
       g_logger.critical("Failed to find required config.ini files");
-      return_code = ATRT_FAILURE;
-      goto end;
+      return atrt_exit(ATRT_FAILURE);
     }
   }
 
   g_config.m_generated = false;
   g_config.m_replication = g_replicate;
-  if (!setup_config(g_config, g_mysqld_host)) {
+  if (!setup_config(g_config, coverage_config, g_mysqld_host,
+                    g_clean_shutdown)) {
     g_logger.critical("Failed to setup configuration");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
 
   if (!g_config.m_processes.size()) {
     g_logger.critical("Error: No processes defined in cluster configuration");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
 
   if (!configure(g_config, g_do_setup)) {
     g_logger.critical("Failed to configure");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
 
   g_logger.info("Setting up directories...");
   if (!setup_directories(g_config, g_do_setup)) {
     g_logger.critical("Failed to set up directories");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
 
   if (g_do_setup) {
     g_logger.info("Setting up files...");
     if (!setup_files(g_config, g_do_setup, g_do_sshx)) {
       g_logger.critical("Failed to set up files");
-      return_code = ATRT_FAILURE;
-      goto end;
+      return atrt_exit(ATRT_FAILURE);
     }
   }
 
@@ -297,350 +397,146 @@ int main(int argc, char **argv) {
     g_logger.info("Deploying files...");
     if (!deploy(g_do_deploy, g_config)) {
       g_logger.critical("Failed to deploy");
-      return_code = ATRT_FAILURE;
-      goto end;
+      return atrt_exit(ATRT_FAILURE);
     }
   }
 
   if (g_do_quit) {
-    goto end;
+    return atrt_exit(TESTSUITE_SUCCESS);
   }
 
   if (!setup_hosts(g_config)) {
     g_logger.critical("Failed to setup hosts");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
+
+  ProcessManagement processManagement(g_config, g_setup_progname);
 
   if (g_do_sshx) {
     g_logger.info("Starting xterm-ssh");
     if (!sshx(g_config, g_do_sshx)) {
       g_logger.critical("Failed to start xterm-ssh");
-      return_code = ATRT_FAILURE;
-      goto end;
+      return atrt_exit(ATRT_FAILURE);
     }
 
     g_logger.info("Done...sleeping");
     while (true) {
-      if (!do_command(g_config)) {
+      if (!do_command(processManagement, g_config)) {
         g_logger.critical("Failed to do ssh command");
-        return_code = ATRT_FAILURE;
-        goto end;
+        return atrt_exit(ATRT_FAILURE);
       }
 
       NdbSleep_SecSleep(1);
     }
-    goto end;
+    return atrt_exit(TESTSUITE_SUCCESS);
   }
 
+  /**
+   * contact each ndb_cpcd
+   */
   g_logger.info("Connecting to hosts...");
   if (!connect_hosts(g_config)) {
     g_logger.critical("Failed to connect to CPCD on hosts");
-    return_code = ATRT_FAILURE;
-    goto end;
+    return atrt_exit(ATRT_FAILURE);
   }
-
-#ifndef _WIN32
-  if (g_do_start && !g_test_case_filename) {
-    g_logger.info("Starting server processes: %x", g_do_start);
-    if (!start(g_config, g_do_start)) {
-      g_logger.critical("Failed to start server processes");
-      return_code = ATRT_FAILURE;
-      goto end;
-    }
-
-    g_logger.info("Setting up database...");
-    if (!setup_db(g_config)) {
-      g_logger.critical("Failed to setup database");
-      return_code = ATRT_FAILURE;
-      goto end;
-    }
-
-    g_logger.info("Done...sleeping");
-    while (true) {
-      if (!do_command(g_config)) {
-        g_logger.info("Exiting");
-        return_code = ATRT_FAILURE;
-        goto end;
-      }
-
-      NdbSleep_SecSleep(1);
-    }
-    goto end;
-  }
-#endif
 
   /**
-   * Main loop
+   * Collect all the testcases
    */
+  std::vector<atrt_testcase> testcases;
+  if (!read_test_cases(g_test_case_file, &testcases)) {
+    g_logger.critical("Failed to read all the testcases");
+    return atrt_exit(ATRT_FAILURE);
+  }
+
+  switch(coverage_config.m_analysis) {
+     case coverage::Coverage::Testcase:
+       g_logger.info("Running coverage analysis per test case");
+       break;
+     case coverage::Coverage::Testsuite:
+       g_logger.info("Running coverage analysis per test suite");
+       break;
+     case coverage::Coverage::None:
+       break;
+   }
+
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
+    const char *coverage_tool =
+        (g_coverage_tool == CoverageTools::Lcov) ? "lcov" : "fastcov";
+    g_logger.info("Using %s for coverage analysis", coverage_tool);
+  }
+
+  /**
+   * Run all tests
+   */
+
   g_logger.debug("Entering main loop");
-  while (!feof(g_test_case_file)) {
-    atrt_testcase test_case;
-    const int num_element_lines =
-        read_test_case(g_test_case_file, test_case, lineno);
-    if (num_element_lines == 0) {
-      // Should be at end of file.  Let while condition catch that.
-      continue;
+  FailureMode current_failure_mode = FailureMode::Continue;
+  unsigned int last_testcase_idx = testcases.size() - 1;
+  for (unsigned int i = 0; i <= last_testcase_idx; i++) {
+    atrt_testcase testcase = testcases[i];
+    g_logger.info("#%d - %s", testcase.test_no, testcase.m_name.c_str());
+
+    TestResult test_result;
+    bool is_last_testcase = (last_testcase_idx == i);
+    if (current_failure_mode == FailureMode::Skip) {
+      test_result = {0, 0, ERR_TEST_SKIPPED};
+    } else {
+      RestartMode next_testcase_forces_restart = None;
+      if (!is_last_testcase) {
+        next_testcase_forces_restart = testcases[i+1].m_force_cluster_restart;
+      }
+      test_result = run_test_case(processManagement, testcase,
+                                  is_last_testcase,
+                                  next_testcase_forces_restart,
+                                  coverage_config);
+      if (test_result.result != ErrorCodes::ERR_OK) {
+        current_failure_mode = testcase.m_behaviour_on_failure;
+      }
     }
-    if (num_element_lines < 0) {
-      g_logger.critical("Corrupt testcase at line %d (error %d)", lineno,
-                        num_element_lines);
-      return_code = ATRT_FAILURE;
-      goto cleanup;
-    }
-    g_logger.info("#%d - %s", test_no, test_case.m_name.c_str());
-
-    int result = 0;
-    time_t elapsed = 0;
-    int testruns = 0;
-    bool retry_test = false;
-
-    do {
-      testruns++;
-      /**
-       * Do we need to restart ndb
-       */
-      if (restart || test_case.m_force_cluster_restart) {
-        if (test_case.m_force_cluster_restart) {
-          g_logger.info(
-              "(Re)starting all NDB Cluster processes as required by "
-              "testcase %s",
-              test_case.m_name.c_str());
-        }
-
-        restart = false;
-        g_logger.info("(Re)starting server processes...");
-
-        if (!stop_processes(g_config, ~0)) {
-          g_logger.critical("Failed to stop all processes");
-          return_code = ATRT_FAILURE;
-          goto end;
-        }
-
-        g_logger.info("Waiting for all processes to stop...");
-        if (!wait_for_processes_to_stop(g_config, ~0)) {
-          g_logger.critical("Fail to stop all processes");
-          return_code = ATRT_FAILURE;
-          goto end;
-        }
-
-        if (!setup_directories(g_config, 2)) {
-          g_logger.critical("Failed to setup directories");
-          return_code = ATRT_FAILURE;
-          goto end;
-        }
-
-        if (!setup_files(g_config, 2, 1)) {
-          g_logger.critical("Failed to setup files");
-          return_code = ATRT_FAILURE;
-          goto end;
-        }
-
-        if (!setup_hosts(g_config)) {
-          g_logger.critical("Failed to setup hosts");
-          return_code = ATRT_FAILURE;
-          goto end;
-        }
-
-        g_logger.debug("Setup complete, starting servers");
-        if (!start(g_config, p_ndb | p_servers)) {
-          g_logger.critical("Failed to start server processes");
-          g_logger.info("Gathering logs and saving them as test %u", test_no);
-
-          int tmp;
-          if (!gather_result(g_config, &tmp)) {
-            g_logger.critical("Failed to gather results");
-            return_code = ATRT_FAILURE;
-            goto cleanup;
-          }
-
-          if (g_report_file != 0) {
-            fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "start servers",
-                    test_no, ERR_FAILED_TO_START, 0, 0);
-            fflush(g_report_file);
-          }
-
-          BaseString resdir;
-          resdir.assfmt("result.%d", test_no);
-          remove_dir(resdir.c_str(), true);
-
-          if (rename("result", resdir.c_str()) != 0) {
-            g_logger.critical("Failed to rename %s as %s", "result",
-                              resdir.c_str());
-            return_code = ATRT_FAILURE;
-            goto cleanup;
-          }
-          goto cleanup;
-        }
-
-        if (!setup_db(g_config)) {
-          g_logger.critical("Failed to setup database");
-          return_code = ATRT_FAILURE;
-          goto cleanup;
-        }
-
-        g_logger.info("All servers start completed");
-      }
-
-      // Assign processes to programs
-      if (!setup_test_case(g_config, test_case)) {
-        g_logger.critical("Failed to setup test case");
-        return_code = ATRT_FAILURE;
-        goto cleanup;
-      }
-
-      if (!start_processes(g_config, p_clients)) {
-        g_logger.critical("Failed to start client processes");
-        return_code = ATRT_FAILURE;
-        goto cleanup;
-      }
-
-      const time_t start = time(0);
-      time_t now = start;
-      do {
-        if (!update_status(g_config, atrt_process::AP_ALL)) {
-          g_logger.critical("Failed to get updated status for all processes");
-          return_code = ATRT_FAILURE;
-          goto cleanup;
-        }
-
-        if ((result = check_ndb_or_servers_failures(g_config))) {
-          break;
-        }
-
-        if (!is_client_running(g_config)) {
-          break;
-        }
-
-        if (!do_command(g_config)) {
-          result = ERR_COMMAND_FAILED;
-          g_logger.critical("Failure on client command execution");
-          break;
-        }
-
-        now = time(0);
-        if (now > (start + test_case.m_max_time)) {
-          g_logger.debug("Timed out");
-          result = ERR_MAX_TIME_ELAPSED;
-          g_logger.info("Timeout '%s' after %ld seconds",
-                        test_case.m_name.c_str(), test_case.m_max_time);
-          break;
-        }
-        NdbSleep_SecSleep(1);
-      } while (true);
-
-      elapsed = time(0) - start;
-      if (!stop_processes(g_config, p_clients)) {
-        g_logger.critical("Failed to stop client processes");
-        return_code = ATRT_FAILURE;
-        goto cleanup;
-      }
-
-      if (!wait_for_processes_to_stop(g_config, p_clients)) {
-        g_logger.critical("Failed to stop client processes");
-        return_code = ATRT_FAILURE;
-        goto cleanup;
-      }
-
-      int tmp, *rp = result ? &tmp : &result;
-      if (!gather_result(g_config, rp)) {
-        g_logger.critical("Failed to gather result after test run");
-        return_code = ATRT_FAILURE;
-        goto end;
-      }
-
-      const char *test_status;
-      switch (result) {
-        case ErrorCodes::ERR_OK:
-          test_status = "OK";
-          break;
-        case ErrorCodes::ERR_TEST_SKIPPED:
-          test_status = "SKIPPED";
-          break;
-        default:
-          test_status = "FAILED";
-          break;
-      }
-      g_logger.info("#%d %s(%d)", test_no, test_status, result);
-
-      const bool failed = (result != ErrorCodes::ERR_OK &&
-                           result != ErrorCodes::ERR_TEST_SKIPPED);
-
-      restart = failed;
-
-      retry_test = failed && testruns <= test_case.m_max_retries;
-      if (retry_test) {
-        g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
-                      test_case.m_name.c_str(), testruns,
-                      test_case.m_max_retries);
-        reset_config(g_config);
-      }
-    } while (retry_test);
-
-    if (result != ErrorCodes::ERR_OK &&
-        result != ErrorCodes::ERR_TEST_SKIPPED) {
-      return_code = TESTSUITE_FAILURES;
-    }
+    update_atrt_result_code(test_result, &return_code);
 
     if (g_report_file != 0) {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
-              test_case.m_name.c_str(), test_no, result, elapsed, testruns);
+              testcase.m_name.c_str(), testcase.test_no, test_result.result,
+              test_result.elapsed, test_result.testruns);
       fflush(g_report_file);
     }
 
-    if (g_mode == 0 && result) {
-      g_logger.info(
-          "Encountered failed test in interactive mode - terminating");
+    if (g_mode == 0 && test_result.result != ERR_OK) {
+      g_logger.info("Encountered failed test in interactive mode");
+    }
+
+    const char *test_status = get_test_status(test_result.result);
+    g_logger.info("#%d %s(%d)", testcase.test_no, test_status,
+                  test_result.result);
+
+    if (current_failure_mode == FailureMode::Abort) {
+      g_logger.info("Aborting the test suite execution!");
       break;
     }
+  }
 
-    BaseString resdir;
-    resdir.assfmt("result.%d", test_no);
-    remove_dir(resdir.c_str(), true);
-
-    if (test_case.m_report || g_mode == 2 || (g_mode && result)) {
-      if (rename("result", resdir.c_str()) != 0) {
-        g_logger.critical("Failed to rename %s as %s", "result",
-                          resdir.c_str());
-        return_code = ATRT_FAILURE;
-        goto end;
-      }
+  if (coverage_config.m_analysis != coverage::Coverage::None) {
+    if (testcases.empty()) {
+      g_logger.debug("No testcases were run to compute coverage report");
     } else {
-      remove_dir("result", true);
+      if (g_coverage == coverage::Coverage::Testsuite) {
+        gather_coverage_results(g_config, coverage_config);
+      }
+      g_logger.debug("Computing coverage report..");
+      if (compute_test_coverage(coverage_config, g_build_dir) == 0) {
+        g_logger.debug("Coverage report generated for the run!!");
+      }
     }
-
-    if (!update_status(g_config, atrt_process::AP_ALL)) {
-      g_logger.critical("Failed to get updated status for all processes");
-    }
-
-    if (reset_config(g_config)) {
-      restart = true;
-    }
-    test_no++;
   }
 
-cleanup:
-  g_logger.info("Stopping all processes");
-  stop_processes(g_config, atrt_process::AP_ALL);
-  wait_for_processes_to_stop(g_config, atrt_process::AP_ALL);
-
-end:
-  g_logger.info("Finishing, result: %d", return_code);
-  if (return_code == ATRT_FAILURE && g_report_file != 0) {
-    fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "critical error",
-            test_no, ERR_FAILED_TO_START, 0, 0);
-    fflush(g_report_file);
-  }
   if (g_report_file != 0) {
     fclose(g_report_file);
     g_report_file = 0;
   }
 
-  if (g_test_case_file != 0 && g_test_case_file != stdin) {
-    fclose(g_test_case_file);
-    g_test_case_file = 0;
-  }
-
+  g_logger.info("Finishing, result: %d", return_code);
   return return_code;
 }
 
@@ -740,10 +636,10 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
           g_do_sshx = atrt_process::AP_ALL;
           break;
         case 's':
-          g_do_start = p_ndb;
+          g_do_start = ProcessManagement::P_NDB;
           break;
         case 'S':
-          g_do_start = p_ndb | p_servers;
+          g_do_start = ProcessManagement::P_NDB | ProcessManagement::P_SERVERS;
           break;
         case 'f':
           g_fqpn = 1;
@@ -836,7 +732,8 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
     }
     if (g_do_setup == 0) g_do_setup = 2;
 
-    if (g_do_start == 0) g_do_start = p_ndb | p_servers;
+    if (g_do_start == 0) g_do_start =
+      ProcessManagement::P_NDB | ProcessManagement::P_SERVERS;
 
     if (g_mode == 0) g_mode = 1;
 
@@ -893,11 +790,14 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   }
 
   /* Read username from environment, default to sakila */
-  g_user = strdup(getenv("LOGNAME"));
-  if (g_user == 0) {
+  const char * logname = getenv("LOGNAME");
+  if ((logname != nullptr) && (strlen(logname) > 0)) {
+    g_user = strdup(logname);
+  } else {
     g_user = "sakila";
-    g_logger.info("No default user specified, will use 'sakila'.");
-    g_logger.info("Please set LOGNAME environment variable for other username");
+    g_logger.info(
+      "No default user specified, will use 'sakila'. "
+      "Please set LOGNAME environment variable for other username");
   }
 
   return true;
@@ -929,450 +829,280 @@ bool connect_hosts(atrt_config &config) {
   return true;
 }
 
-bool connect_ndb_mgm(atrt_process &proc) {
-  NdbMgmHandle handle = ndb_mgm_create_handle();
-  if (handle == 0) {
-    g_logger.critical("Unable to create mgm handle");
-    return false;
+bool is_client_running(atrt_config &config) {
+  for (unsigned i = 0; i < config.m_processes.size(); i++) {
+    atrt_process &proc = *config.m_processes[i];
+    if ((ProcessManagement::P_CLIENTS & proc.m_type) != 0
+      && proc.m_proc.m_status == "running") {
+      return true;
+    }
   }
-  BaseString tmp = proc.m_host->m_hostname;
-  const char *val;
-  proc.m_options.m_loaded.get("--PortNumber=", &val);
-  tmp.appfmt(":%s", val);
-
-  if (ndb_mgm_set_connectstring(handle, tmp.c_str())) {
-    g_logger.critical("Unable to create parse connectstring");
-    return false;
-  }
-
-  if (ndb_mgm_connect(handle, 30, 1, 0) != -1) {
-    proc.m_ndb_mgm_handle = handle;
-    return true;
-  }
-
-  g_logger.critical("Unable to connect to ndb mgm %s", tmp.c_str());
   return false;
 }
 
-bool connect_ndb_mgm(atrt_config &config) {
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if ((proc.m_type & atrt_process::AP_NDB_MGMD) != 0) {
-      if (!connect_ndb_mgm(proc)) {
-        return false;
-      }
+const char *get_test_status(int result) {
+  switch (result) {
+    case ErrorCodes::ERR_OK:
+      return "OK";
+    case ErrorCodes::ERR_TEST_SKIPPED:
+      return "SKIPPED";
+    case ErrorCodes::ERR_CRITICAL:
+      return "CRITICAL";
+  }
+  return "FAILED";
+}
+
+int atrt_exit(int return_code) {
+  g_logger.info("Finishing, result: %d", return_code);
+  return return_code;
+}
+
+bool read_test_cases(FILE *file, std::vector<atrt_testcase> *testcases) {
+  int lineno = 1;
+  int test_no = 1;
+  while (!feof(file)) {
+    atrt_testcase testcase;
+    const int num_element_lines = read_test_case(file, lineno, testcase);
+    if (num_element_lines == 0) {
+      continue;
     }
+    if (num_element_lines == ERR_CORRUPT_TESTCASE) {
+      g_logger.critical("Corrupted testcase at line %d (error %d)", lineno,
+                        num_element_lines);
+      return false;
+    }
+    testcase.test_no = test_no++;
+    testcases->push_back(std::move(testcase));
+  }
+
+  if (file != stdin) {
+    fclose(file);
   }
 
   return true;
 }
 
-static int remap(int i) {
-  if (i == NDB_MGM_NODE_STATUS_NO_CONTACT) return NDB_MGM_NODE_STATUS_UNKNOWN;
-  if (i == NDB_MGM_NODE_STATUS_UNKNOWN) return NDB_MGM_NODE_STATUS_NO_CONTACT;
-  return i;
-}
-
-bool wait_ndb(atrt_config &config, int goal) {
-  goal = remap(goal);
-
-  size_t cnt = 0;
-  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-    atrt_cluster *cluster = config.m_clusters[i];
-
-    if (strcmp(cluster->m_name.c_str(), ".atrt") == 0) {
-      /**
-       * skip atrt mysql
-       */
-      cnt++;
-      continue;
-    }
-
-    /**
-     * Get mgm handle for cluster
-     */
-    NdbMgmHandle handle = 0;
-    for (unsigned j = 0; j < cluster->m_processes.size(); j++) {
-      atrt_process &proc = *cluster->m_processes[j];
-      if ((proc.m_type & atrt_process::AP_NDB_MGMD) != 0) {
-        handle = proc.m_ndb_mgm_handle;
+TestResult run_test_case(ProcessManagement &processManagement,
+                         const atrt_testcase &testcase, bool is_last_testcase,
+                         RestartMode next_testcase_forces_restart,
+                         atrt_coverage_config &coverage_config) {
+  TestResult test_result = {0, 0, 0};
+  for (; test_result.testruns <= testcase.m_max_retries;
+       test_result.testruns++) {
+    if (test_result.testruns > 0) {
+      if (test_result.result == ERR_OK ||
+          test_result.result == ERR_TEST_SKIPPED) {
         break;
       }
+      g_logger.info("Retrying #%d - %s (%d/%d)...", testcase.test_no,
+                    testcase.m_name.c_str(), test_result.testruns,
+                    testcase.m_max_retries);
     }
 
-    if (handle == 0) {
-      return true;
+    test_result.result = test_case_init(processManagement, testcase);
+
+    if (test_result.result == ERR_OK) {
+      const time_t start = time(0);
+      test_result.result = test_case_execution_loop(processManagement, start,
+                                                    testcase.m_max_time);
+      test_result.elapsed = time(0) - start;
     }
 
-    if (goal == NDB_MGM_NODE_STATUS_STARTED) {
-      /**
-       * 1) wait NOT_STARTED
-       * 2) send start
-       * 3) wait STARTED
-       */
-      if (!wait_ndb(config, NDB_MGM_NODE_STATUS_NOT_STARTED)) return false;
-
-      ndb_mgm_start(handle, 0, 0);
+    if (!processManagement.stopClientProcesses()) {
+      g_logger.critical("Failed to stop client processes");
+      test_result.result = ERR_CRITICAL;
     }
 
-    struct ndb_mgm_cluster_state *state;
+    test_case_results(&test_result, testcase);
+
+    bool configuration_reset = reset_config(processManagement, g_config);
+    bool restart_on_error = test_result.result != ERR_TEST_SKIPPED &&
+                      test_result.result != ERR_OK &&
+                      testcase.m_behaviour_on_failure == FailureMode::Restart;
+
+    bool current_testcase_requires_restart =
+        testcase.m_force_cluster_restart == RestartMode::After ||
+        testcase.m_force_cluster_restart == RestartMode::Both;
+    bool next_testcase_requires_restart =
+        next_testcase_forces_restart == RestartMode::Before ||
+        next_testcase_forces_restart == RestartMode::Both;
+
+    bool stop_cluster = is_last_testcase || current_testcase_requires_restart ||
+                        next_testcase_requires_restart || configuration_reset ||
+                        restart_on_error;
+    if (stop_cluster) {
+      g_logger.debug("Stopping all cluster processes on condition(s):");
+      if (is_last_testcase) g_logger.debug("- Last test case");
+      if (current_testcase_requires_restart)
+        g_logger.debug("- Current test case forces restart");
+      if (next_testcase_requires_restart)
+        g_logger.debug("- Next test case forces restart");
+      if (configuration_reset) g_logger.debug("- Configuration forces reset");
+      if (restart_on_error) g_logger.debug("- Restart on test error");
+
+      if (!processManagement.stopAllProcesses()) {
+        g_logger.critical("Failed to stop all processes");
+        test_result.result = ERR_CRITICAL;
+      }
+    }
+
+    if (coverage_config.m_analysis == coverage::Coverage::Testcase) {
+      test_case_coverage_results(&test_result, g_config, coverage_config,
+                                 testcase.test_no);
+    }
+  }
+
+  return test_result;
+}
+
+int test_case_init(ProcessManagement &processManagement,
+                         const atrt_testcase &testcase) {
+  g_logger.debug("Starting test case initialization");
+
+  if (!processManagement.startAllProcesses()) {
+      g_logger.critical("Cluster could not be started");
+      return ERR_CRITICAL;
+  }
+
+  g_logger.info("All servers are running and ready");
+
+  // Assign processes to programs
+  if (!setup_test_case(processManagement, g_config, testcase)) {
+    g_logger.critical("Failed to setup test case");
+    return ERR_CRITICAL;
+  }
+
+  if (!processManagement.startClientProcesses()) {
+    g_logger.critical("Failed to start client processes");
+    return ERR_CRITICAL;
+  }
+
+  g_logger.debug("Successful test case initialization");
+
+  return ERR_OK;
+}
+
+int test_case_execution_loop(ProcessManagement &processManagement,
+                             const time_t start_time,
+                             const time_t max_execution_time) {
+  g_logger.debug("Starting test case execution loop");
+
+  const time_t stop_time = start_time + max_execution_time;
+  int result = ERR_OK;
+
+  do {
+    result = processManagement.updateProcessesStatus();
+    if (result != ERR_OK) {
+      g_logger.critical("Failed to get updated status for all processes");
+      return result;
+    }
+
+    if (!is_client_running(g_config)) {
+      g_logger.debug("Finished test case execution loop");
+      return result;
+    }
+
+    if (!do_command(processManagement, g_config)) {
+      g_logger.critical("Failure on client command execution");
+      return ERR_COMMAND_FAILED;
+    }
 
     time_t now = time(0);
-    time_t end = now + 360;
-    int min = remap(NDB_MGM_NODE_STATUS_NO_CONTACT);
-    int min2 = goal;
-
-    while (now < end) {
-      /**
-       * 1) retreive current state
-       */
-      state = 0;
-      do {
-        state = ndb_mgm_get_status(handle);
-        if (state == 0) {
-          const int err = ndb_mgm_get_latest_error(handle);
-          g_logger.error("Unable to poll db state: %d %s %s",
-                         ndb_mgm_get_latest_error(handle),
-                         ndb_mgm_get_latest_error_msg(handle),
-                         ndb_mgm_get_latest_error_desc(handle));
-          if (err == NDB_MGM_SERVER_NOT_CONNECTED && connect_ndb_mgm(config)) {
-            g_logger.error("Reconnected...");
-            continue;
-          }
-          return false;
-        }
-      } while (state == 0);
-      NdbAutoPtr<void> tmp(state);
-
-      min2 = goal;
-      for (int j = 0; j < state->no_of_nodes; j++) {
-        if (state->node_states[j].node_type == NDB_MGM_NODE_TYPE_NDB) {
-          const int s = remap(state->node_states[j].node_status);
-          min2 = (min2 < s ? min2 : s);
-
-          if (s < remap(NDB_MGM_NODE_STATUS_NO_CONTACT) ||
-              s > NDB_MGM_NODE_STATUS_STARTED) {
-            g_logger.critical("Strange DB status during start: %d %d", j, min2);
-            return false;
-          }
-
-          if (min2 < min) {
-            g_logger.critical("wait ndb failed node: %d %d %d %d",
-                              state->node_states[j].node_id, min, min2, goal);
-          }
-        }
-      }
-
-      if (min2 < min) {
-        g_logger.critical("wait ndb failed %d %d %d", min, min2, goal);
-        return false;
-      }
-
-      if (min2 == goal) {
-        cnt++;
-        goto next;
-      }
-
-      min = min2;
-      now = time(0);
+    if (now > stop_time) {
+      g_logger.info("Timeout after %ld seconds", max_execution_time);
+      return ERR_MAX_TIME_ELAPSED;
     }
-
-    g_logger.critical("wait ndb timed out %d %d %d", min, min2, goal);
-    break;
-
-  next:;
-  }
-
-  return cnt == config.m_clusters.size();
+    NdbSleep_SecSleep(1);
+  } while (true);
 }
 
-bool start_process(atrt_process &proc, bool run_setup) {
-  if (proc.m_proc.m_id != -1) {
-    g_logger.critical("starting already started process: %u",
-                      (unsigned)proc.m_index);
-    return false;
+void test_case_results(TestResult *test_result, const atrt_testcase &testcase) {
+  int tmp, *rp = test_result->result != ERR_OK ? &tmp : &(test_result->result);
+  g_logger.debug("Starting result gathering");
+
+  if (!gather_result(g_config, rp)) {
+    g_logger.critical("Failed to gather result after test run");
+    test_result->result = ERR_CRITICAL;
   }
 
-  if (run_setup) {
-    BaseString tmp = g_setup_progname;
-    tmp.appfmt(" %s %s/ %s", proc.m_host->m_hostname.c_str(),
-               proc.m_proc.m_cwd.c_str(), proc.m_proc.m_cwd.c_str());
+  BaseString res_dir;
+  res_dir.assfmt("result.%d", testcase.test_no);
+  remove_dir(res_dir.c_str(), true);
 
-    g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = sh(tmp.c_str());
-    if (r1 != 0) {
-      g_logger.critical("Failed to setup process");
-      return false;
+  if (testcase.m_report || test_result->result != ERR_OK) {
+    if (rename("result", res_dir.c_str()) != 0) {
+      g_logger.critical("Failed to rename %s as %s", "result", res_dir.c_str());
+      remove_dir("result", true);
+      test_result->result = ERR_CRITICAL;
     }
+  } else {
+    remove_dir("result", true);
   }
 
-  /**
-   * For MySQL server program we need to pass the correct basedir.
-   */
-  const bool mysqld = proc.m_type & atrt_process::AP_MYSQLD;
-  if (mysqld) {
-    BaseString basedir;
-    /**
-     * If MYSQL_BASE_DIR is set use that for basedir.
-     */
-    ssize_t pos = proc.m_proc.m_env.indexOf("MYSQL_BASE_DIR=");
-    if (pos > 0) {
-      pos = proc.m_proc.m_env.indexOf(" MYSQL_BASE_DIR=");
-      if (pos != -1) pos++;
-    }
-    if (pos >= 0) {
-      pos += strlen("MYSQL_BASE_DIR=");
-      ssize_t endpos = proc.m_proc.m_env.indexOf(' ', pos);
-      if (endpos == -1) endpos = proc.m_proc.m_env.length();
-      basedir = proc.m_proc.m_env.substr(pos, endpos);
-    } else {
-      /**
-       * If no MYSQL_BASE_DIR set, derive basedir from program path.
-       * Assumming that program path is on the form
-       *   <basedir>/{bin,sql}/mysqld
-       */
-      const BaseString sep("/");
-      Vector<BaseString> dir_parts;
-      int num_of_parts = proc.m_proc.m_path.split(dir_parts, sep);
-      dir_parts.erase(num_of_parts - 1);  // remove trailing /mysqld
-      dir_parts.erase(num_of_parts - 2);  // remove trailing /bin
-      num_of_parts -= 2;
-      basedir.assign(dir_parts, sep);
-    }
-    if (proc.m_proc.m_args.indexOf("--basedir=") == -1) {
-      proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
-      g_logger.info("appended '--basedir=%s' to mysqld process",
-                    basedir.c_str());
-    }
-  }
-  BaseString save_args(proc.m_proc.m_args);
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->define_process(proc.m_proc, reply) != 0) {
-      BaseString msg;
-      reply.get("errormessage", msg);
-      g_logger.error("Unable to define process: %s", msg.c_str());
-      if (mysqld) {
-        proc.m_proc.m_args = save_args; /* restore args */
-      }
-      return false;
-    }
-  }
-  if (mysqld) {
-    proc.m_proc.m_args = save_args; /* restore args */
-  }
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->start_process(proc.m_proc.m_id, reply) != 0) {
-      BaseString msg;
-      reply.get("errormessage", msg);
-      g_logger.error("Unable to start process: %s", msg.c_str());
-      return false;
-    }
-  }
-  return true;
+  g_logger.debug("Finished result gathering");
 }
 
-bool start_processes(atrt_config &config, int types) {
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if (IF_WIN(!(proc.m_type & atrt_process::AP_MYSQLD), 1) &&
-        (types & proc.m_type) != 0 && proc.m_proc.m_path != "") {
-      if (!start_process(proc)) {
-        return false;
-      }
-    }
+void test_case_coverage_results(TestResult *test_result, atrt_config &config,
+                                atrt_coverage_config &coverage_config,
+                                int test_number) {
+  g_logger.debug("Gathering coverage files");
+
+  if (!gather_coverage_results(config, coverage_config, test_number)) {
+    g_logger.critical("Failed to gather coverage result after test run");
+    test_result->result = ERR_CRITICAL;
   }
-  return true;
+  remove_dir("coverage_result", true);
+
+  g_logger.debug("Finished coverage files gathering");
 }
 
-bool stop_process(atrt_process &proc) {
-  if (proc.m_proc.m_id == -1) {
-    return true;
-  }
-
-  if (proc.m_type == atrt_process::AP_MYSQLD) {
-    disconnect_mysqld(proc);
-  }
-
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->stop_process(proc.m_proc.m_id, reply) != 0) {
-      Uint32 status;
-      reply.get("status", &status);
-      if (status != 4) {
-        BaseString msg;
-        reply.get("errormessage", msg);
-        g_logger.error(
-            "Unable to stop process id: %d host: %s cmd: %s, "
-            "msg: %s, status: %d",
-            proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-            proc.m_proc.m_path.c_str(), msg.c_str(), status);
-        return false;
-      }
+int compute_path_level(const char *g_build_dir) {
+  int path_level = 0;
+  for (unsigned i = 0; g_build_dir[i] != '\0'; i++) {
+    if (g_build_dir[i] == '/' && g_build_dir[i + 1] != '/' &&
+        g_build_dir[i + 1] != '\0') {
+      path_level++;
     }
   }
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->undefine_process(proc.m_proc.m_id, reply) != 0) {
-      BaseString msg;
-      reply.get("errormessage", msg);
-      g_logger.error("Unable to stop process id: %d host: %s cmd: %s, msg: %s",
-                     proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-                     proc.m_proc.m_path.c_str(), msg.c_str());
-      return false;
-    }
-  }
-
-  return true;
+  return path_level;
 }
 
-bool stop_processes(atrt_config &config, int types) {
-  int failures = 0;
+int compute_test_coverage(atrt_coverage_config &coverage_config,
+                          const char *build_dir) {
+  BaseString compute_coverage_cmd = g_compute_coverage_progname;
+  compute_coverage_cmd.appfmt(" --results-dir=%s", g_cwd);
+  compute_coverage_cmd.appfmt(" --build-dir=%s", build_dir);
 
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if ((types & proc.m_type) != 0) {
-      if (!stop_process(proc)) {
-        failures++;
-      }
-    }
+  switch (coverage_config.m_tool) {
+    case CoverageTools::Lcov:
+      compute_coverage_cmd.appfmt(" --coverage-tool=lcov");
+      break;
+    case CoverageTools::Fastcov:
+      compute_coverage_cmd.appfmt(" --coverage-tool=fastcov");
+      break;
   }
-  return failures == 0;
-}
-
-bool update_status(atrt_config &config, int types, bool fail_on_missing) {
-  Vector<Vector<SimpleCpcClient::Process> > m_procs;
-
-  Vector<SimpleCpcClient::Process> dummy;
-  m_procs.fill(config.m_hosts.size(), dummy);
-  for (unsigned i = 0; i < config.m_hosts.size(); i++) {
-    if (config.m_hosts[i]->m_hostname.length() == 0) continue;
-
-    Properties p;
-    config.m_hosts[i]->m_cpcd->list_processes(m_procs[i], p);
-  }
-
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-
-    if (proc.m_proc.m_id == -1 || (proc.m_type & types) == 0) {
-      continue;
-    }
-
-    Vector<SimpleCpcClient::Process> &h_procs = m_procs[proc.m_host->m_index];
-    bool found = false;
-    for (unsigned j = 0; j < h_procs.size() && !found; j++) {
-      if (proc.m_proc.m_id == h_procs[j].m_id) {
-        found = true;
-        proc.m_proc.m_status = h_procs[j].m_status;
-      }
-    }
-
-    if (found) continue;
-
-    if (!fail_on_missing) {
-      proc.m_proc.m_id = -1;
-      proc.m_proc.m_status.clear();
-    } else {
-      g_logger.error("update_status: not found");
-      g_logger.error("id: %d host: %s cmd: %s", proc.m_proc.m_id,
-                     proc.m_host->m_hostname.c_str(),
-                     proc.m_proc.m_path.c_str());
-      for (unsigned j = 0; j < h_procs.size(); j++) {
-        g_logger.error("found: %d %s", h_procs[j].m_id,
-                       h_procs[j].m_path.c_str());
-      }
-      return false;
-    }
-  }
-  return true;
-}
-
-int check_ndb_or_servers_failures(atrt_config &config) {
-  int failed_processes = 0;
-  const int types = p_ndb | p_servers;
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    bool skip =
-        proc.m_atrt_stopped || IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
-    bool isRunning = proc.m_proc.m_status == "running";
-    if ((types & proc.m_type) != 0 && !isRunning && !skip) {
-      g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
-                        proc.m_index, proc.m_host->m_hostname.c_str());
-      failed_processes |= proc.m_type;
-    }
-  }
-  if ((failed_processes & p_ndb) && (failed_processes & p_servers)) {
-    return ERR_NDB_AND_SERVERS_FAILED;
-  }
-  if ((failed_processes & p_ndb) != 0) {
-    return ERR_NDB_FAILED;
-  }
-  if ((failed_processes & p_servers) != 0) {
-    return ERR_SERVERS_FAILED;
+  const int result = sh(compute_coverage_cmd.c_str());
+  if (result != 0) {
+    g_logger.critical("Failed to compute coverage report");
+    return -1;
   }
   return 0;
 }
 
-bool is_client_running(atrt_config &config) {
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if ((p_clients & proc.m_type) != 0 && proc.m_proc.m_status == "running") {
-      return true;
-    }
+void update_atrt_result_code(const TestResult &test_result,
+                             AtrtExitCodes *return_code) {
+  if (*return_code == ATRT_FAILURE) return;
+
+  switch (test_result.result) {
+    case ErrorCodes::ERR_OK:
+      break;
+    case ErrorCodes::ERR_CRITICAL:
+      *return_code = ATRT_FAILURE;
+      break;
+    default:
+      *return_code = TESTSUITE_FAILURES;
+      break;
   }
-  return false;
-}
-
-bool wait_for_processes_to_stop(atrt_config &config, int types, int retries,
-                                int wait_between_retries_s) {
-  for (int attempts = 0; attempts < retries; attempts++) {
-    bool last_attempt = attempts == (retries - 1);
-
-    update_status(config, types, false);
-
-    int found = 0;
-    for (unsigned i = 0; i < config.m_processes.size(); i++) {
-      atrt_process &proc = *config.m_processes[i];
-      if ((types & proc.m_type) == 0 || proc.m_proc.m_id == -1) continue;
-
-      found++;
-
-      if (!last_attempt) continue;  // skip logging
-      g_logger.error(
-          "Failed to stop process id: %d host: %s status: %s cmd: %s",
-          proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-          proc.m_proc.m_status.c_str(), proc.m_proc.m_path.c_str());
-    }
-
-    if (found == 0) return true;
-
-    if (!last_attempt) NdbSleep_SecSleep(wait_between_retries_s);
-  }
-
-  return false;
-}
-
-bool wait_for_process_to_stop(atrt_config &config, atrt_process &proc,
-                              int retries, int wait_between_retries_s) {
-  for (int attempts = 0; attempts < retries; attempts++) {
-    update_status(config, proc.m_type, false);
-
-    if (proc.m_proc.m_id == -1) return true;
-
-    bool last_attempt = attempts == (retries - 1);
-    if (!last_attempt) {
-      NdbSleep_SecSleep(wait_between_retries_s);
-      continue;
-    }
-
-    g_logger.error("Failed to stop process id: %d host: %s status: %s cmd: %s",
-                   proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-                   proc.m_proc.m_status.c_str(), proc.m_proc.m_path.c_str());
-  }
-
-  return false;
 }
 
 int insert(const char *pair, Properties &p) {
@@ -1393,10 +1123,10 @@ int insert(const char *pair, Properties &p) {
  *
  * On success return a positive number with actual lines describing
  * the test case not counting blank lines and comments.
- * On end of file it returns 0.
- * On failure a nehative number is returned.
+ * On end of file, it returns 0.
+ * On failure, ERR_CORRUPT_TESTCASE is returned.
  */
-int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
+int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
   Properties p;
   int elements = 0;
   char buf[1024];
@@ -1413,8 +1143,12 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
     tmp.trim(" \t\n\r");
 
     if (tmp.length() == 0) {
-      break;  // End of test case definition
+      if (elements == 0) {
+        continue;   // Blank line before test case definition
+      }
+      break;        // End of test case definition
     }
+
 
     if (insert(tmp.c_str(), p) != 0) {
       // Element line had no : or =
@@ -1432,7 +1166,7 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
         return 1;
       }
       g_logger.critical("Invalid test file: Corrupt line: %d: %s", line, buf);
-      return -1;
+      return ERR_CORRUPT_TESTCASE;
     }
 
     elements++;
@@ -1448,7 +1182,7 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
   if (!p.get("cmd", tc.m_cmd.m_exe)) {
     g_logger.critical(
         "Invalid test file: cmd is missing in test case above line: %d", line);
-    return -2;
+    return ERR_CORRUPT_TESTCASE;
   }
   used_elements++;
 
@@ -1500,8 +1234,16 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
   }
 
   tc.m_force_cluster_restart = g_default_force_cluster_restart;
-  if (p.get("force-cluster-restart", &str)) {
-    tc.m_force_cluster_restart = (strcmp(str, "yes") == 0);
+    if (p.get("force-cluster-restart", &str)) {
+    std::map<std::string, RestartMode> restart_mode_values = {
+        {"after", RestartMode::After},
+        {"before", RestartMode::Before},
+        {"both", RestartMode::Both}};
+    if (restart_mode_values.find(str) == restart_mode_values.end()) {
+      g_logger.critical("Invalid Restart Type!!");
+      return ERR_CORRUPT_TESTCASE;
+    }
+    tc.m_force_cluster_restart = restart_mode_values[str];
     used_elements++;
   }
 
@@ -1514,7 +1256,7 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
   if (tc.m_max_retries < 0) {
     g_logger.error("No of retries must not be less than zero for test '%s'",
                    tc.m_name.c_str());
-    return -4;
+    return ERR_CORRUPT_TESTCASE;
   }
 
   if (tc.m_max_retries > TESTCASE_RETRIES_THRESHOLD_WARNING)
@@ -1522,17 +1264,33 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
         "No of retries should be less than or equal to %d for test '%s'",
         TESTCASE_RETRIES_THRESHOLD_WARNING, tc.m_name.c_str());
 
+  tc.m_behaviour_on_failure = (FailureMode)g_default_behaviour_on_failure;
+  if (p.get("on-failure", &str)) {
+    std::map<std::string, FailureMode> failure_mode_values = {
+        {"Restart", FailureMode::Restart},
+        {"Abort", FailureMode::Abort},
+        {"Skip", FailureMode::Skip},
+        {"Continue", FailureMode::Continue}};
+    if (failure_mode_values.find(str) == failure_mode_values.end()) {
+      g_logger.critical("Invalid Failure mode!!");
+      return ERR_CORRUPT_TESTCASE;
+    }
+    tc.m_behaviour_on_failure = failure_mode_values[str];
+    used_elements++;
+  }
+
   if (used_elements != elements) {
     g_logger.critical(
         "Invalid test file: unknown properties in test case above line: %d",
         line);
-    return -3;
+    return ERR_CORRUPT_TESTCASE;
   }
 
   return elements;
 }
 
-bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
+bool setup_test_case(ProcessManagement &processManagement, atrt_config &config,
+                     const atrt_testcase &tc) {
   if (!remove_dir("result", true)) {
     g_logger.critical("setup_test_case: Failed to clear result");
     return false;
@@ -1586,11 +1344,11 @@ bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
     for (unsigned i = 0; i < config.m_processes.size(); i++) {
       atrt_process &proc = *config.m_processes[i];
       if (proc.m_type == atrt_process::AP_MYSQLD) {
-        if (!stop_process(proc)) {
+        if (!processManagement.stopProcess(proc)) {
           return false;
         }
 
-        if (!wait_for_process_to_stop(config, proc)) {
+        if (!processManagement.waitForProcessToStop(proc)) {
           return false;
         }
 
@@ -1598,7 +1356,7 @@ bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
         proc.m_save.m_saved = true;
         proc.m_proc.m_args.appfmt(" %s", tc.m_mysqld_options.c_str());
 
-        if (!start_process(proc)) {
+        if (!processManagement.startProcess(proc)) {
           return false;
         }
 
@@ -1615,6 +1373,7 @@ bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
 bool gather_result(atrt_config &config, int *result) {
   BaseString tmp = g_gather_progname;
 
+  tmp.appfmt(" --result");
   for (unsigned i = 0; i < config.m_hosts.size(); i++) {
     if (config.m_hosts[i]->m_hostname.length() == 0) continue;
 
@@ -1660,6 +1419,67 @@ bool setup_hosts(atrt_config &config) {
                         config.m_hosts[i]->m_hostname.c_str());
       return false;
     }
+  }
+  return true;
+}
+
+bool gather_coverage_results(atrt_config &config,
+                             atrt_coverage_config &coverage_config,
+                             int test_number) {
+  BaseString gather_cmd = g_gather_progname;
+  gather_cmd.appfmt(" --coverage");
+
+  BaseString coverage_gather_dir;
+  if (coverage_config.m_analysis == coverage::Coverage::Testsuite) {
+    coverage_gather_dir = g_cwd;
+  }
+
+  for (unsigned i = 0; i < config.m_hosts.size(); i++) {
+    if (config.m_hosts[i]->m_hostname.length() == 0) continue;
+    const char *hostname = config.m_hosts[i]->m_hostname.c_str();
+
+    if (coverage_config.m_analysis == coverage::Coverage::Testcase) {
+      coverage_gather_dir = config.m_hosts[i]->m_basedir.c_str();
+    }
+    gather_cmd.appfmt(" %s:%s/%s/%s", hostname, coverage_gather_dir.c_str(),
+                      "gcov", hostname);
+  }
+
+  g_logger.debug("system(%s)", gather_cmd.c_str());
+  const int r1 = sh(gather_cmd.c_str());
+  if (r1 != 0) {
+    g_logger.critical("Failed to gather coverage files!");
+    return false;
+  }
+
+  BaseString analyze_coverage_cmd = g_analyze_coverage_progname;
+  analyze_coverage_cmd.appfmt(" --results-dir=%s", g_cwd);
+  analyze_coverage_cmd.appfmt(" --build-dir=%s", g_build_dir);
+
+  switch (coverage_config.m_analysis) {
+    case coverage::Coverage::Testcase:
+      analyze_coverage_cmd.appfmt(" --test-case-no=%d", test_number);
+      break;
+    case coverage::Coverage::Testsuite:
+      [[fallthrough]];
+    case coverage::Coverage::None:
+      break;
+  }
+
+  switch (coverage_config.m_tool) {
+    case CoverageTools::Lcov:
+      analyze_coverage_cmd.appfmt(" --coverage-tool=lcov");
+      break;
+    case CoverageTools::Fastcov:
+      analyze_coverage_cmd.appfmt(" --coverage-tool=fastcov");
+      break;
+  }
+  g_logger.debug("system(%s)", analyze_coverage_cmd.c_str());
+  const int r2 = sh(analyze_coverage_cmd.c_str());
+
+  if (r2 != 0 ) {
+    g_logger.critical("Failed to analyse coverage files!");
+    return false;
   }
   return true;
 }
@@ -1755,38 +1575,14 @@ bool sshx(atrt_config &config, unsigned mask) {
   return true;
 }
 
-bool start(atrt_config &config, unsigned proc_mask) {
-  if (proc_mask & atrt_process::AP_NDB_MGMD)
-    if (!start_processes(g_config, atrt_process::AP_NDB_MGMD)) return false;
-
-  if (proc_mask & atrt_process::AP_NDBD) {
-    if (!connect_ndb_mgm(g_config)) {
-      return false;
-    }
-
-    if (!start_processes(g_config, atrt_process::AP_NDBD)) return false;
-
-    if (!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NOT_STARTED)) return false;
-
-    for (Uint32 i = 0; i < 3; i++)
-      if (wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED)) goto started;
-    return false;
-  }
-
-started:
-  if (!start_processes(g_config, p_servers & proc_mask)) return false;
-
-  return true;
-}
-
-bool reset_config(atrt_config &config) {
+bool reset_config(ProcessManagement &processManagement, atrt_config &config) {
   bool changed = false;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
     if (proc.m_save.m_saved) {
       if (proc.m_proc.m_id != -1) {
-        if (!stop_process(proc)) return false;
-        if (!wait_for_process_to_stop(config, proc)) return false;
+        if (!processManagement.stopProcess(proc)) return false;
+        if (!processManagement.waitForProcessToStop(proc)) return false;
 
         changed = true;
       }
@@ -1808,17 +1604,24 @@ bool find_scripts(const char *atrt_path) {
   std::vector<struct script_path> scripts = {
       {"atrt-gather-result.sh", &g_gather_progname},
       {"atrt-analyze-result.sh", &g_analyze_progname},
-      {"atrt-setup.sh", &g_setup_progname}};
+      {"atrt-backtrace.sh", nullptr},  // used by atrt-analyze-result.sh
+      {"atrt-setup.sh", &g_setup_progname},
+      {"atrt-analyze-coverage.sh", &g_analyze_coverage_progname},
+      {"atrt-compute-coverage.sh", &g_compute_coverage_progname}};
 
   for (auto &script : scripts) {
     BaseString script_full_path;
     script_full_path.assfmt("%s/%s", atrt_path, script.name);
+
     if (!File_class::exists(script_full_path.c_str())) {
       g_logger.critical("atrt script %s could not be found in %s", script.name,
                         atrt_path);
       return false;
     }
-    *script.path = strdup(script_full_path.c_str());
+
+    if (script.path != nullptr) {
+      *script.path = strdup(script_full_path.c_str());
+    }
   }
   return true;
 }
@@ -1847,8 +1650,9 @@ static bool find_config_ini_files() {
 }
 
 BaseString get_atrt_path(const char *arg) {
-  char *fullPath = realpath(arg, nullptr);
-  if (fullPath == nullptr) return {};
+  char fullPath[FN_REFLEN];
+  int ret = my_realpath(fullPath, arg, 0);
+  if (ret == -1) return {};
 
   BaseString path;
   char *last_folder_sep = strrchr(fullPath, '/');
@@ -1857,7 +1661,6 @@ BaseString get_atrt_path(const char *arg) {
     path.assign(fullPath);
   }
 
-  free(fullPath);
   return path;
 }
 
@@ -1888,17 +1691,18 @@ int check_testcase_file_main(int argc, char **argv) {
       int line_num = 0;
       int ntests = 0;
       int num_element_lines;
-      while ((num_element_lines = read_test_case(f, tc_dummy, line_num)) > 0) {
+      while ((num_element_lines = read_test_case(f, line_num, tc_dummy)) > 0) {
+        if (num_element_lines == ERR_CORRUPT_TESTCASE) break;
         ntests++;
       }
-      // If line count does not change that indicates end of file.
-      if (num_element_lines >= 0) {
-        printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests,
-               line_num);
-      } else {
+      // If line count is 0, it indicates end of file.
+      if (num_element_lines == ERR_CORRUPT_TESTCASE) {
         ok = false;
         g_logger.critical("%s: Error at line %d (error %d)\n", argv[argi],
                           line_num, num_element_lines);
+      } else {
+        printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests,
+               line_num);
       }
       fclose(f);
     }
@@ -1929,8 +1733,13 @@ void print_testcase_file_syntax() {
       "mysqld   - Arguments that atrt will use when starting mysqld.\n"
       "cmd-type - If 'mysql' change test process type from ndbapi to client.\n"
       "name     - Change name of test.  Default is given by cmd and args.\n"
-      "force-cluster-restart - If 'yes' force restart the cluster before\n"
-      "                        running test.\n"
+      "force-cluster-restart - If 'before', force restart the cluster before\n"
+      "                        running the test case.\n"
+      "                        If 'after', force restart the cluster after\n"
+      "                        running the test case.\n"
+      "                        If 'both', force restart the cluster before\n"
+      "                        and after running the test case.\n"
+      "                        If 'none', no forceful cluster restart.\n"
       "max-retries - Maximum number of retries after test failed.\n"
       ""
       "\n"

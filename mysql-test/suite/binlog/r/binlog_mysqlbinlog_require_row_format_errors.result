@@ -1,0 +1,124 @@
+#
+# 0. Execute a RESET MASTER to clean old binary logs
+#    Add suppressions for the test.
+#    Create a test include.
+RESET MASTER;
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+#
+# 1. Log a DML transaction using statement based logging (T1)
+CREATE TABLE t1 (c01 BIT);
+INSERT INTO t1 VALUES (0);
+DROP TABLE t1;
+FLUSH LOGS;
+#
+# 1.1 Check mysqlbinlog errors out (T1)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The INSERT query is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The INSERT query is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The INSERT query is written without --require_row_format]
+RESET MASTER;
+#
+# 2. Log a transaction with a LOAD DATA event (T2)
+CREATE TABLE tload (c1 TEXT);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+DROP TABLE tload;
+FLUSH LOGS;
+#
+# 2.1 Check mysqlbinlog errors out (T2)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The LOAD DATA event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The LOAD DATA event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The LOAD DATA event is written without --require_row_format]
+RESET MASTER;
+#
+# 3. Log a transaction with a USER_VAR event (T2)
+CREATE TABLE t1(i INT) ENGINE=InnoDB;
+SET @v= 10;
+INSERT INTO t1 VALUES (@v);
+FLUSH LOGS;
+#
+# 3.1 Check mysqlbinlog errors out (T2)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The USER_VAR event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The USER_VAR event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The USER_VAR event is written without --require_row_format]
+RESET MASTER;
+#
+# 4. Log a transaction with a RAND event (T2)
+INSERT INTO t1 VALUES (Rand());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TABLE t1;
+FLUSH LOGS;
+#
+# 4.1 Check mysqlbinlog errors out (T2)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The RAND event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The RAND event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The RAND event is written without --require_row_format]
+RESET MASTER;
+#
+# 5. Log a transaction with a INTVAR event (T2)
+CREATE TABLE t2 (j INT PRIMARY KEY AUTO_INCREMENT);
+INSERT INTO t2 VALUES();
+DROP TABLE t2;
+FLUSH LOGS;
+#
+# 5.1 Check mysqlbinlog errors out (T2)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The INTVAR event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The INTVAR event is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The INTVAR event is written without --require_row_format]
+RESET MASTER;
+#
+# 6. Log a transaction with a CREATE TEMPORARY TABLE query (T3)
+CREATE TEMPORARY TABLE t1 (k INT PRIMARY KEY);
+FLUSH LOGS;
+#
+# 6.1 Check mysqlbinlog errors out (T3)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The CREATE TEMPORARY TABLE is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The CREATE TEMPORARY TABLE is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The CREATE TEMPORARY TABLE is written without --require_row_format]
+RESET MASTER;
+#
+# 7. Log a transaction with a DROP TEMPORARY TABLE query (T3)
+DROP TEMPORARY TABLE t1;
+FLUSH LOGS;
+#
+# 7.1 Check mysqlbinlog errors out (T3)
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog]
+include/assert_grep.inc [The DROP TEMPORARY TABLE is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
+include/assert_grep.inc [The DROP TEMPORARY TABLE is not written with --require_row_format]
+include/mysqlbinlog.inc
+include/assert_grep.inc [The DROP TEMPORARY TABLE is written without --require_row_format]
+RESET MASTER;
+#
+# 8. Cleanup

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   bool connectedToNode= getNodeInfo(nodeId).m_connected;
   const Uint32 type= getNodeInfo(nodeId).m_type;
   const bool is_api= (type >= NodeInfo::API && type <= NodeInfo::MGM);
-  //const bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(6,4,0));
 
   if (ERROR_INSERTED(4006) && (nodeId != getOwnNodeId())){
     // Use error insert to turn routing on
@@ -327,10 +326,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     if(nodeId != getOwnNodeId())
     {
       jamDebug();
-    
-      //Assume no prehistoric versions not supporting long TRANSID_AI signals anymore
-      ndbassert(getNodeInfo(nodeId).m_version >= MAKE_VERSION(6,4,0));
-
       if (is_api)
       {
         sendAPI_TRANSID_AI(signal, recBlockref,
@@ -339,10 +334,11 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
 
       /**
        * Send long signal if 'long' data.
-       * Note that SPJ can *only* handle long signals
+       * Note that older versions of SPJ can *only* handle long signals
        */
       else if (ToutBufIndex > TransIdAI::DataLength ||
-               refToMain(recBlockref) == DBSPJ)
+               (refToMain(recBlockref) == DBSPJ &&
+                !ndbd_spj_support_short_TRANSID_AI(getNodeInfo(nodeId).m_version)))
       {
         jam();
         /**
@@ -381,13 +377,27 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     const bool sameInstance = refToInstance(recBlockref) == instance();
     const Uint32 blockNumber= refToMain(recBlockref);
     if (sameInstance &&
-        (blockNumber == BACKUP ||
-         blockNumber == DBLQH ||
+        (blockNumber == getBACKUP() ||
+         blockNumber == getDBLQH() ||
          blockNumber == SUMA))
     {
+      static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
+                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength);
+      ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <=
+                 NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,
                      TransIdAI::HeaderLength + ToutBufIndex);
       jamEntryDebug();
+    }
+    else if (ToutBufIndex <= TransIdAI::DataLength)
+    {
+      /**
+       * Data is 'short', send short signal
+       */
+      jam();
+      const JobBufferLevel prioLevel = req_struct->m_prio_a_flag ? JBA : JBB;
+      sendSignal(recBlockref, GSN_TRANSID_AI, signal,
+                 TransIdAI::HeaderLength+ToutBufIndex, prioLevel);
     }
     else
     {
@@ -395,9 +405,11 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       LinearSectionPtr ptr[3];
       ptr[0].p= &signal->theData[TransIdAI::HeaderLength];
       ptr[0].sz= ToutBufIndex;
-      if (ERROR_INSERTED(4038))
+      if (ERROR_INSERTED(4038) &&
+          refToMain(recBlockref) != BACKUP)
       {
         /* Copy data to Seg-section for delayed send */
+        jam();
         Uint32 sectionIVal = RNIL;
         ndbrequire(appendToSection(sectionIVal, ptr[0].p, ptr[0].sz));
         SectionHandle sh(this, sectionIVal);

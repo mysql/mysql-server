@@ -1,0 +1,41 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+CREATE TABLE t1 (f1 INT PRIMARY KEY AUTO_INCREMENT INVISIBLE,
+f2 INT INVISIBLE DEFAULT 5, f3 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f2` int DEFAULT '5' /*!80023 INVISIBLE */,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (10), (20);
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET f2 = 10 WHERE f1 = 1;
+include/sync_slave_sql_with_master.inc
+# check that t1 exists and has same values in both servers.
+include/diff_tables.inc [master:t1, slave:t1]
+# check that INDEX_SCAN is used at replica.
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+Variable_name	Value
+Replica_rows_last_search_algorithm_used	INDEX_SCAN
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+include/rpl_end.inc

@@ -1,0 +1,76 @@
+--source include/have_ndb.inc
+
+# ======= TEST CONCURRENCY
+# =======
+#
+# Issue simultaneous ACL statements from many servers.
+#
+# ACL changes are executed *without* holding the Global Schema lock,
+# but the locking inside Ndb_schema_dist_client::acl_notify() serializes
+# ACL changes on a single server, and each server has a distinct name that
+# is used as part of the primary key in ndb_schema.
+#
+
+#
+# Set up environment
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
+CREATE USER 'priv_test_U'@'localhost' IDENTIFIED by 'priv_test_pass';
+GRANT NDB_STORED_USER ON *.* to 'priv_test_U'@'localhost';
+
+disable_query_log;
+
+connect (conn1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (conn2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (conn3,127.0.0.1,root,,test,$MASTER_MYPORT1,);
+connect (conn4,127.0.0.1,root,,test,$MASTER_MYPORT1,);
+connect (conn5,127.0.0.1,root,,test,$MASTER_MYPORT2,);
+connect (conn6,127.0.0.1,root,,test,$MASTER_MYPORT2,);
+connect (conn7,127.0.0.1,root,,test,$MASTER_MYPORT3,);
+connect (conn8,127.0.0.1,root,,test,$MASTER_MYPORT3,);
+
+#
+# Issue a simple ACL change simultaneously on all 8 connections
+#
+
+connection conn1;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn2;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn3;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn4;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn5;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn6;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn7;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+connection conn8;
+send GRANT SELECT ON test.t1 to 'priv_test_U'@'localhost';
+
+connection conn1;
+reap;
+connection conn2;
+reap;
+connection conn3;
+reap;
+connection conn4;
+reap;
+connection conn5;
+reap;
+connection conn6;
+reap;
+connection conn7;
+reap;
+connection conn8;
+reap;
+
+#
+# Clean up
+#
+
+connection default;
+drop user priv_test_U@localhost;
+drop table t1;

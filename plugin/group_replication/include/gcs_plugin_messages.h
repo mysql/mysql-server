@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,8 +161,12 @@ class Plugin_gcs_message {
     // This cargo type is used to inform about prepared transactions.
     CT_TRANSACTION_PREPARED_MESSAGE = 12,
 
+    // This cargo type is used for messages that are for
+    // senders/consumers outside the GR plugin.
+    CT_MESSAGE_SERVICE_MESSAGE = 13,
+
     // No valid type codes can appear after this one.
-    CT_MAX = 13
+    CT_MAX = 14
   };
 
  private:
@@ -187,7 +191,7 @@ class Plugin_gcs_message {
   enum_cargo_type m_cargo_type;
 
  public:
-  virtual ~Plugin_gcs_message() {}
+  virtual ~Plugin_gcs_message() = default;
 
   /**
    @return the value of the version field.
@@ -254,6 +258,22 @@ class Plugin_gcs_message {
     @param[in] cargo_type Message type to be sent
    */
   explicit Plugin_gcs_message(enum_cargo_type cargo_type);
+
+  /**
+    Encodes the header of this instance into the buffer.
+
+    @param[out] buffer the buffer to encode to.
+  */
+  void encode_header(std::vector<unsigned char> *buffer) const;
+
+  /**
+    Decodes the header of the buffer into this instance.
+
+    @param[out] slider before call `decode_header`: the start of the buffer
+                       after call `decode_header`: the position on which the
+                                                   header ends on the buffer.
+  */
+  void decode_header(const unsigned char **slider);
 
   /**
     Encodes the contents of this instance payload into the buffer.
@@ -380,7 +400,7 @@ class Plugin_gcs_message {
     @param[out] value  the value of the payload item
   */
   void decode_payload_item_int8(const unsigned char **buffer, uint16 *type,
-                                ulonglong *value);
+                                uint64 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as

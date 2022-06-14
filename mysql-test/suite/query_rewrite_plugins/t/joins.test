@@ -45,6 +45,7 @@ ON ( test.t1.c1 = test.t2.c1 AND test.t1.c2 <> 3 );
 
 WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT c1 FROM qn;
 
+--sorted_result
 WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT * FROM qn, qn AS qn1;
 
 DROP TABLE t1;

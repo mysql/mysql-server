@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ struct Callback_data {
     affected_rows = 0;
     last_insert_id = 0;
     shutdown = 0;
-    shutdown_called = 0;
+    shutdown_called = false;
   }
 };
 
@@ -145,7 +145,7 @@ struct st_send_field_n {
   enum_field_types type;
 };
 
-const CHARSET_INFO *sql_resultcs = NULL;
+const CHARSET_INFO *sql_resultcs = nullptr;
 uint sql_num_meta_rows = 0;
 uint sql_num_rows = 0;
 uint col_count = 0;
@@ -157,19 +157,19 @@ int row_count = 0;
 
 static int sql_start_result_metadata(void *, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs) {
-  DBUG_ENTER("sql_start_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
   DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->m_coll_name));
   row_count = 0;
   sql_num_cols = num_cols;
   sql_resultcs = resultcs;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_field_metadata(void *, struct st_send_field *field,
                               const CHARSET_INFO *) {
-  DBUG_ENTER("sql_field_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("field->db_name: %s", field->db_name));
   DBUG_PRINT("info", ("field->table_name: %s", field->table_name));
   DBUG_PRINT("info", ("field->org_table_name: %s", field->org_table_name));
@@ -190,76 +190,73 @@ static int sql_field_metadata(void *, struct st_send_field *field,
   sql_field[col_count][row_count].flags = field->flags;
   sql_field[col_count][row_count].decimals = field->decimals;
   sql_field[col_count][row_count].type = field->type;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_end_result_metadata(void *, uint, uint) {
-  DBUG_ENTER("sql_end_result_metadata");
+  DBUG_TRACE;
   sql_num_meta_rows = row_count;
   row_count = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_start_row(void *) {
-  DBUG_ENTER("sql_start_row");
+  DBUG_TRACE;
   col_count = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_end_row(void *) {
-  DBUG_ENTER("sql_end_row");
+  DBUG_TRACE;
   row_count++;
-  DBUG_RETURN(false);
+  return false;
 }
 
-static void sql_abort_row(void *) {
-  DBUG_ENTER("sql_abort_row");
-  DBUG_VOID_RETURN;
-}
+static void sql_abort_row(void *) { DBUG_TRACE; }
 
 static ulong sql_get_client_capabilities(void *) {
-  DBUG_ENTER("sql_get_client_capabilities");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 static int sql_get_null(void *) {
-  DBUG_ENTER("sql_get_null");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_integer(void *, longlong) {
-  DBUG_ENTER("sql_get_integer");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_longlong(void *, longlong, uint) {
-  DBUG_ENTER("sql_get_longlong");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_decimal(void *, const decimal_t *) {
-  DBUG_ENTER("sql_get_decimal");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_double(void *, double, uint32) {
-  DBUG_ENTER("sql_get_double");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_date(void *, const MYSQL_TIME *) {
-  DBUG_ENTER("sql_get_date");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_time(void *, const MYSQL_TIME *, uint) {
-  DBUG_ENTER("sql_get_time");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_datetime(void *, const MYSQL_TIME *, uint) {
-  DBUG_ENTER("sql_get_datetime");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 char sql_str_value[64][64][256];
@@ -267,17 +264,17 @@ size_t sql_str_len[64][64];
 
 static int sql_get_string(void *, const char *const value, size_t length,
                           const CHARSET_INFO *const) {
-  DBUG_ENTER("sql_get_string");
+  DBUG_TRACE;
   strncpy(sql_str_value[col_count][row_count], value, length);
   sql_str_len[col_count][row_count] = length;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void sql_handle_ok(void *ctx, uint server_status,
                           uint statement_warn_count, ulonglong affected_rows,
                           ulonglong last_insert_id, const char *const message) {
-  DBUG_ENTER("sql_handle_ok");
+  DBUG_TRACE;
 
   Callback_data *cbd = (Callback_data *)ctx;
 
@@ -286,30 +283,26 @@ static void sql_handle_ok(void *ctx, uint server_status,
   cbd->affected_rows = affected_rows;
   cbd->last_insert_id = last_insert_id;
   cbd->message = message ? message : "";
-
-  DBUG_VOID_RETURN;
 }
 
 static void sql_handle_error(void *ctx, uint sql_errno,
                              const char *const err_msg,
                              const char *const sqlstate) {
-  DBUG_ENTER("sql_handle_error");
+  DBUG_TRACE;
   Callback_data *cbd = (Callback_data *)ctx;
   WRITE_VAL("ERROR %i %s\n", sql_errno, err_msg);
   cbd->error_called = true;
   cbd->err = sql_errno;
   cbd->errmsg = err_msg ? err_msg : "";
   cbd->sqlstate = sqlstate ? sqlstate : "";
-  DBUG_VOID_RETURN;
 }
 
 static void sql_shutdown(void *ctx, int shutdown_server) {
-  DBUG_ENTER("sql_shutdown");
+  DBUG_TRACE;
   Callback_data *cbd = (Callback_data *)ctx;
 
   cbd->shutdown = shutdown_server;
   cbd->shutdown_called = true;
-  DBUG_VOID_RETURN;
 }
 
 const struct st_command_service_cbs sql_cbs = {
@@ -332,16 +325,17 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 /****************************************************************************************/
 
-static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_com_query");
+static void test_com_query(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
 
   /* Session declarations */
   MYSQL_SESSION st_session;
-  void *plugin_ctx = NULL;
+  void *plugin_ctx = nullptr;
   bool session_ret = false;
   bool fail = false;
   COM_DATA cmd;
@@ -360,6 +354,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
       "-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
   memset(&sql_str_len, 0, 64 * 64 * sizeof(size_t));
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "SELECT id,info FROM information_schema.processlist";
   cmd.com_query.length = strlen(cmd.com_query.query);
   WRITE_VAL("%s\n", cmd.com_query.query);
@@ -373,7 +368,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
     /* get values */
     WRITE_STR(
         "-----------------------------------------------------------------\n");
-    WRITE_VAL("%s\t\%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
+    WRITE_VAL("%s\t%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
     for (uint row = 0; row < sql_num_rows; row++) {
       for (uint col = 0; col < sql_num_cols; col++) {
         WRITE_VAL("%s\n", sql_str_value[col][row]);
@@ -397,6 +392,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
       "-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
   memset(&sql_str_len, 0, 64 * 64 * sizeof(size_t));
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query =
       "SELECT * FROM performance_schema.global_variables WHERE variable_name "
       "LIKE 'INNODB_READ_IO_THREADS'";
@@ -413,10 +409,10 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
     /* get values */
     WRITE_STR(
         "-----------------------------------------------------------------\n");
-    WRITE_VAL("%s\t\%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
+    WRITE_VAL("%s\t%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
     for (uint row = 0; row < sql_num_rows; row++) {
       for (uint col = 0; col < sql_num_cols; col += 2) {
-        WRITE_VAL("%s\t\%s\n", sql_str_value[col][row],
+        WRITE_VAL("%s\t%s\n", sql_str_value[col][row],
                   sql_str_value[col + 1][row]);
       }
     }
@@ -434,6 +430,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
 
   // 3. statement must fail
   cbd.reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "garbage";
   cmd.com_query.length = strlen(cmd.com_query.query);
 
@@ -448,12 +445,10 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
   session_ret = srv_session_close(st_session);
   if (session_ret)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_close failed.");
-
-  DBUG_VOID_RETURN;
 }
 
 static int test_com_init_db(void *p) {
-  DBUG_ENTER("test_com_init_db");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
 
@@ -477,13 +472,13 @@ static int test_com_init_db(void *p) {
 
   ENSURE_API_OK(srv_session_close(st_session));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
 static int test_com_list_fields(void *p)
 {
-  DBUG_ENTER("test_com_list_fields");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
 
@@ -519,7 +514,7 @@ char*)cmd.com_field_list.query);
 
   ENSURE_API_OK(srv_session_close(st_session));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 */
 
@@ -533,7 +528,7 @@ struct Test_data {
   Test_data() {
     ready = 0;
     native_cond_init(&cond);
-    native_mutex_init(&mutex, NULL);
+    native_mutex_init(&mutex, nullptr);
   }
 
   ~Test_data() {
@@ -566,6 +561,7 @@ static void *test_session_thread(Test_data *tdata) {
   WRITE_VAL("session is dead? %i\n",
             thd_killed(srv_session_info_get_thd(tdata->session)));
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "select sleep(10)";
   cmd.com_query.length = strlen("select sleep(10)");
 
@@ -590,7 +586,7 @@ static void *test_session_thread(Test_data *tdata) {
 
   srv_session_deinit_thread();
 
-  return NULL;
+  return nullptr;
 }
 
 static void session_error_cb(void *, unsigned int sql_errno,
@@ -601,7 +597,7 @@ static void session_error_cb(void *, unsigned int sql_errno,
 }
 
 static int test_query_kill(void *p) {
-  DBUG_ENTER("test_query_kill");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
 
@@ -644,6 +640,7 @@ static int test_query_kill(void *p) {
   snprintf(buffer, sizeof(buffer), "kill query %i",
            srv_session_info_get_session_id(st_session_victim));
   WRITE_STR("run KILL QUERY\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = buffer;
   cmd.com_query.length = strlen(buffer);
   ENSURE_API_OK(command_service_run_command(
@@ -657,11 +654,11 @@ static int test_query_kill(void *p) {
   ENSURE_API_OK(srv_session_close(st_session));
   ENSURE_API_OK(srv_session_close(st_session_victim));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_com_process_kill(void *p) {
-  DBUG_ENTER("test_com_process_kill");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
   Callback_data cbd;
@@ -691,11 +688,11 @@ static int test_com_process_kill(void *p) {
   ENSURE_API_OK(srv_session_close(st_session));
   ENSURE_API_OK(srv_session_close(st_session_victim));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_priv(void *p) {
-  DBUG_ENTER("test_priv");
+  DBUG_TRACE;
 
   MYSQL_SESSION root_session;
   Callback_data cbd;
@@ -707,6 +704,7 @@ static int test_priv(void *p) {
 
   switch_user(root_session, user_privileged);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "create user ordinary@localhost";
   cmd.com_query.length = strlen(cmd.com_query.query);
   ENSURE_API_OK(command_service_run_command(
@@ -721,6 +719,7 @@ static int test_priv(void *p) {
     switch_user(ordinary_session, user_ordinary);
 
     cbd.reset();
+    memset(&cmd, 0, sizeof(cmd));
     cmd.com_query.query = "create user bogus@localhost";
     cmd.com_query.length = strlen(cmd.com_query.query);
     ENSURE_API_OK(command_service_run_command(
@@ -734,6 +733,7 @@ static int test_priv(void *p) {
   }
 
   cbd.reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "drop user ordinary@localhost";
   cmd.com_query.length = strlen(cmd.com_query.query);
   ENSURE_API_OK(command_service_run_command(
@@ -743,11 +743,11 @@ static int test_priv(void *p) {
 
   ENSURE_API_OK(srv_session_close(root_session));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
-static void test_sql(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql");
+static void test_sql(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   WRITE_SEP();
@@ -762,8 +762,6 @@ static void test_sql(void *p MY_ATTRIBUTE((unused))) {
   test_query_kill(p);
   WRITE_SEP();
   test_priv(p);
-
-  DBUG_VOID_RETURN;
 }
 
 static void create_log_file(const char *log_name) {
@@ -778,9 +776,8 @@ static void create_log_file(const char *log_name) {
 static const char *log_filename = "test_sql_cmds_1";
 
 static int test_sql_service_plugin_init(void *p) {
-  DBUG_ENTER("test_sql_service_plugin_init");
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  DBUG_TRACE;
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
@@ -789,14 +786,14 @@ static int test_sql_service_plugin_init(void *p) {
   test_sql(p);
 
   my_close(outfile, MYF(0));
-  DBUG_RETURN(0);
+  return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql_service_plugin_deinit");
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_daemon test_sql_service_plugin = {
@@ -810,15 +807,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_sql_cmds_1",
-    "Horst Hunger, Andrey Hristov",
+    PLUGIN_AUTHOR_ORACLE,
     "Test sql service commands",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

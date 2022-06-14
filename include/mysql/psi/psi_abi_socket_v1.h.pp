@@ -2,14 +2,23 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_socket_bits.h"
-#include <mysql/components/services/my_io_bits.h>
+#include "mysql/components/services/bits/psi_socket_bits.h"
+#include <mysql/components/services/bits/my_io_bits.h>
 typedef int File;
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
 typedef int my_socket;
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_socket_key;
-struct PSI_socket;
+struct PSI_socket : PSI_instr {};
 typedef struct PSI_socket PSI_socket;
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
@@ -49,7 +58,7 @@ struct PSI_socket_locker_state_v1 {
   struct PSI_socket *m_socket;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   unsigned long long (*m_timer)(void);
   enum PSI_socket_operation m_operation;
   const char *m_src_file;

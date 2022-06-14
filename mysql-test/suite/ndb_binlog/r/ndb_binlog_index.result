@@ -5,17 +5,17 @@ epoch end position information
 show create table mysql.ndb_binlog_index;
 Table	Create Table
 ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
-  `Position` bigint(20) unsigned NOT NULL,
+  `Position` bigint unsigned NOT NULL,
   `File` varchar(255) NOT NULL,
-  `epoch` bigint(20) unsigned NOT NULL,
-  `inserts` int(10) unsigned NOT NULL,
-  `updates` int(10) unsigned NOT NULL,
-  `deletes` int(10) unsigned NOT NULL,
-  `schemaops` int(10) unsigned NOT NULL,
-  `orig_server_id` int(10) unsigned NOT NULL,
-  `orig_epoch` bigint(20) unsigned NOT NULL,
-  `gci` int(10) unsigned NOT NULL,
-  `next_position` bigint(20) unsigned NOT NULL,
+  `epoch` bigint unsigned NOT NULL,
+  `inserts` int unsigned NOT NULL,
+  `updates` int unsigned NOT NULL,
+  `deletes` int unsigned NOT NULL,
+  `schemaops` int unsigned NOT NULL,
+  `orig_server_id` int unsigned NOT NULL,
+  `orig_epoch` bigint unsigned NOT NULL,
+  `gci` int unsigned NOT NULL,
+  `next_position` bigint unsigned NOT NULL,
   `next_file` varchar(255) NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
@@ -27,13 +27,6 @@ insert into t1 values(1, repeat('B', 400));
 insert into t1 values(1, repeat('F', 400));
 insert into t1 values(1, repeat('E', 400));
 flush logs;
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ---------------------------------------------------------------------------
 Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
@@ -48,13 +41,6 @@ insert into t1 values(1, repeat('A', 400));
 create table t3 (a int) engine=ndb;
 insert into t1 value(1, repeat('A', 400));
 flush logs;
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ---------------------------------------------------------------------------
 Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
@@ -106,13 +92,6 @@ call ddlload(25);
 call dmlload(25);
 Now check binlog index vs binlog itself on Server1
 flush logs;
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ---------------------------------------------------------------------------
 Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
@@ -120,13 +99,6 @@ epoch	calculated_pos	stored_pos
 Done
 Now check binlog index vs binlog itself on Server2
 flush logs;
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ---------------------------------------------------------------------------
 Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
@@ -148,16 +120,16 @@ reset master;
 show create table mysql.ndb_binlog_index;
 Table	Create Table
 ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
-  `Position` bigint(20) unsigned NOT NULL,
+  `Position` bigint unsigned NOT NULL,
   `File` varchar(255) NOT NULL,
-  `epoch` bigint(20) unsigned NOT NULL,
-  `inserts` int(10) unsigned NOT NULL,
-  `updates` int(10) unsigned NOT NULL,
-  `deletes` int(10) unsigned NOT NULL,
-  `schemaops` int(10) unsigned NOT NULL,
-  `orig_server_id` int(10) unsigned NOT NULL,
-  `orig_epoch` bigint(20) unsigned NOT NULL,
-  `gci` int(10) unsigned NOT NULL,
+  `epoch` bigint unsigned NOT NULL,
+  `inserts` int unsigned NOT NULL,
+  `updates` int unsigned NOT NULL,
+  `deletes` int unsigned NOT NULL,
+  `schemaops` int unsigned NOT NULL,
+  `orig_server_id` int unsigned NOT NULL,
+  `orig_epoch` bigint unsigned NOT NULL,
+  `gci` int unsigned NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 mysql.ndb_binlog_index has next_file column? 0
@@ -228,13 +200,6 @@ flush logs;
 Nothing to verify
 Now check binlog index vs binlog itself on Server2
 flush logs;
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ---------------------------------------------------------------------------
 Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------

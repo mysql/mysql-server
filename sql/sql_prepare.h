@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <new>
@@ -29,20 +30,19 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_command.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql_com.h"
-#include "sql/protocol_classic.h"
-#include "sql/query_result.h"  // Query_result_send
-#include "sql/sql_class.h"     // Query_arena
+#include "sql/sql_class.h"  // Query_arena
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
 class Item;
 class Item_param;
 class Prepared_statement;
+class Query_result_send;
 class String;
 struct LEX;
 struct PS_PARAM;
@@ -86,13 +86,33 @@ class Reprepare_observer final {
     simple, we only need the THD to report an error.
   */
   bool report_error(THD *thd);
+  /**
+    @returns true if some table metadata is changed and statement should be
+                  re-prepared.
+  */
   bool is_invalidated() const { return m_invalidated; }
   void reset_reprepare_observer() { m_invalidated = false; }
+  /// @returns true if prepared statement can (and will) be retried
+  bool can_retry() const {
+    // Only call for a statement that is invalidated
+    assert(is_invalidated());
+    return m_attempt <= MAX_REPREPARE_ATTEMPTS &&
+           DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
+                            true);
+  }
 
  private:
-  bool m_invalidated;
+  bool m_invalidated{false};
+  int m_attempt{0};
+
+  /*
+    We take only 3 attempts to reprepare the query, otherwise we might end up
+    in endless loop.
+  */
+  static constexpr int MAX_REPREPARE_ATTEMPTS = 3;
 };
 
+bool ask_to_reprepare(THD *thd);
 bool mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
                          enum enum_server_command cmd,
                          Prepared_statement **stmt);
@@ -108,10 +128,8 @@ void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows);
 void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt);
 void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
                              uint param_number, uchar *longdata, ulong length);
-bool reinit_stmt_before_use(THD *thd, LEX *lex);
 bool select_like_stmt_cmd_test(THD *thd, class Sql_cmd_dml *cmd,
                                ulong setup_tables_done_option);
-bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables);
 
 /**
   Execute a fragment of server code in an isolated context, so that
@@ -150,16 +168,21 @@ class Ed_result_set final {
                 MEM_ROOT *mem_root_arg);
 
   /** We don't call member destructors, they all are POD types. */
-  ~Ed_result_set() {}
+  ~Ed_result_set() = default;
 
   size_t get_field_count() const { return m_column_count; }
+
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t & = std::nothrow) noexcept {
+    return mem_root->Alloc(size);
+  }
 
   static void operator delete(void *, size_t) noexcept {
     // Does nothing because m_mem_root is deallocated in the destructor
   }
 
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */
   }
 
  private:
@@ -300,7 +323,7 @@ class Ed_row final {
     return *get_column(column_index);
   }
   const Ed_column *get_column(const unsigned int column_index) const {
-    DBUG_ASSERT(column_index < size());
+    assert(column_index < size());
     return m_column_array + column_index;
   }
   size_t size() const { return m_column_count; }
@@ -311,22 +334,6 @@ class Ed_row final {
  private:
   Ed_column *m_column_array;
   size_t m_column_count; /* TODO: change to point to metadata */
-};
-
-/**
-  A result class used to send cursor rows using the binary protocol.
-*/
-
-class Query_fetch_protocol_binary final : public Query_result_send {
-  Protocol_binary protocol;
-
- public:
-  explicit Query_fetch_protocol_binary(THD *thd)
-      : Query_result_send(), protocol(thd) {}
-  bool send_result_set_metadata(THD *thd, List<Item> &list,
-                                uint flags) override;
-  bool send_data(THD *thd, List<Item> &items) override;
-  bool send_eof(THD *thd) override;
 };
 
 class Server_side_cursor;
@@ -343,6 +350,8 @@ class Prepared_statement final {
   THD *thd;
   Item_param **param_array;
   Server_side_cursor *cursor;
+  /// Used to check that the protocol is stable during execution
+  const Protocol *m_active_protocol{nullptr};
   uint param_count;
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
@@ -385,7 +394,7 @@ class Prepared_statement final {
 
   /**
     The memory root to allocate parsed tree elements (instances of Item,
-    SELECT_LEX and other classes).
+    Query_block and other classes).
   */
   MEM_ROOT main_mem_root;
 
@@ -398,7 +407,9 @@ class Prepared_statement final {
   bool is_in_use() const { return flags & (uint)IS_IN_USE; }
   bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
   void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
-  bool prepare(const char *packet, size_t packet_length);
+  bool prepare(const char *packet, size_t packet_length,
+               Item_param **orig_param_array);
+  bool prepare_query();
   bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -409,18 +420,22 @@ class Prepared_statement final {
   bool set_parameters(String *expanded_query, bool has_new_types,
                       PS_PARAM *parameters);
   bool set_parameters(String *expanded_query);
+  void trace_parameter_types();
 
  private:
   void cleanup_stmt();
-  void setup_set_params();
+  void setup_stmt_logging();
+  bool check_parameter_types();
+  void copy_parameter_types(Item_param **from_param_array);
   bool set_db(const LEX_CSTRING &db_length);
 
   bool execute(String *expanded_query, bool open_cursor);
   bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
-  bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);
-  bool insert_params(String *query, PS_PARAM *parameters);
+  bool insert_parameters_from_vars(List<LEX_STRING> &varnames, String *query);
+  bool insert_parameters(String *query, bool has_new_types,
+                         PS_PARAM *parameters);
 };
 
 #endif  // SQL_PREPARE_H

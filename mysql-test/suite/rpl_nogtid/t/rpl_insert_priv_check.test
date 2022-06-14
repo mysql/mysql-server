@@ -1,0 +1,197 @@
+# ==== Purpose ====
+#
+# To Verify that Write_rows_log_event, Update_rows_log_event,
+# Partial_update_rows_log_event, and Delete_rows_log_event can fail
+# due to insufficient privileges, and succeed with sufficient privileges.
+#
+# ==== Implementation ====
+#
+# TC1. Execute INSERT/UPDATE/DELETE with and without the necessary privileges
+# ----------------------------------------------------------------------------
+# 1) Create a table on master and insert a row
+# 2) On slave create an user 'u1' which will be used as a
+#    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
+# 3) Start slave and expect an error as the user doesn't have INSERT privilege.
+# 4) Stop slave and grant INSERT privilege.
+# 5) Start slave again and this time there should not be any error.
+# 6) Revoke the privilege granted in step 4)
+# 7) Ensure the table is the same on master and slave.
+# 9) Drop the table from master and slave.
+#
+# The above described test-case will be repeated for the combinations of the
+# pair `privilege target` and `privilege`, where each has the following values:
+# - `privilege target`: *.*, $RPL_PRIV_DB.*, $RPL_PRIV_DB.t
+# - `privilege`: INSERT, UPDATE, UPDATE with partial updates, DELETE,
+#    INSERT(c,d), UPDATE(c)
+# where `c` and `d` are columns in the create table.
+#
+# ==== References ====
+#
+# WL#12966: Replication with Restricted Privileges
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/skip_config_privilege_checks_user.inc
+--let $applier_user = 'a_bigger_username_just_for_test'
+if ($grant_to == '')
+{
+  --let $grant_to = $applier_user
+}
+--let $rpl_privilege_checks_user = 2:$applier_user
+# Since $rpl_privilege_checks_user is instantiated the replication applier has
+# no privileges on the test database
+--let $RPL_PRIV_DB = test
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+--write_file $MYSQLTEST_VARDIR/tmp/check_privilege.inc PROCEDURE
+
+  --source include/rpl_connection_master.inc
+  --eval $sql_statment
+  --source include/save_master_pos.inc
+
+  --source include/rpl_connection_slave.inc
+  # 3) Start slave and expect an error as the user doesn't have the privilege.
+  START SLAVE;
+  --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
+  --source include/wait_for_slave_sql_error.inc
+
+  # 4) Stop slave and grant the privilege.
+  STOP SLAVE;
+  --eval GRANT $privilege ON $priv_context TO $grant_to
+
+  # 5) Start slave again and this time there should not be any error.
+  START SLAVE;
+  --source include/sync_slave_sql.inc
+
+  # 6) Revoke the privilege granted in step 4)
+  --eval REVOKE $privilege ON $priv_context FROM $grant_to
+
+#END OF
+PROCEDURE
+
+# 1) Create a table on master and insert a row
+SET @@session.sql_log_bin = OFF;
+CREATE TABLE t(c INT, d INT);
+SET @@session.sql_log_bin = ON;
+
+# 2) On slave create an user 'u1' which will be used as a
+#    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression(".*command denied to user.");
+CALL mtr.add_suppression(".*the option binlog_row_value_options.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*Slave worker thread has failed to apply an event. As a consequence, the coordinator*");
+CREATE TABLE t(c INT, d INT);
+
+--let $context = 3
+
+while ($context != 0)
+{
+  --let $privileges = 6
+
+  if ($context == 3)
+  {
+    --let $priv_context = *.*
+  }
+  if ($context == 2)
+  {
+    --let $priv_context = $RPL_PRIV_DB.*
+  }
+  if ($context == 1)
+  {
+    --let $priv_context = $RPL_PRIV_DB.t
+  }
+
+  while ($privileges != 0)
+  {
+    if ($privileges == 6)
+    {
+      --let $privilege = INSERT
+      --let $sql_statment = INSERT INTO t VALUES(10, 10)
+    }
+    if ($privileges == 5)
+    {
+      --let $privilege = UPDATE
+      --let $sql_statment = UPDATE t SET c = 12 WHERE c = 10
+    }
+    if ($privileges == 4)
+    {
+      --let $privilege = UPDATE
+      --let $sql_statment = UPDATE t SET c = 8 WHERE c = 12
+
+      --source include/rpl_connection_slave.inc
+      # Set the options to generate partial_update_rows_event on slave
+      --disable_warnings
+      SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+      SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+      --enable_warnings
+    }
+    if ($privileges == 3)
+    {
+      --let $privilege = DELETE
+      --let $sql_statment = DELETE FROM t WHERE c = 8
+    }
+    if (`SELECT $privileges = 2 AND $context = 1`)
+    {
+      # Added a negative test for column level privilege check when row type is
+      # MINIMAL
+      if (`SELECT @@SESSION.binlog_row_image = "MINIMAL"`)
+      {
+        --eval GRANT INSERT(c) ON $priv_context TO $grant_to
+        --source include/rpl_connection_master.inc
+        INSERT INTO t VALUES(10, 10);
+        --source include/save_master_pos.inc
+        --source include/rpl_connection_slave.inc
+        START SLAVE;
+        --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
+        --source include/wait_for_slave_sql_error.inc
+        STOP SLAVE;
+      }
+      --let $privilege = INSERT(c, d)
+      --let $sql_statment = INSERT INTO t VALUES(10, 10)
+    }
+    if (`SELECT $privileges = 1 AND $context = 1`)
+    {
+      --let $privilege = UPDATE(c)
+      --let $sql_statment = UPDATE t SET c = 12 WHERE c = 10
+    }
+
+    if (`SELECT $privileges > 2 OR ($privileges <= 2 AND $context = 1)`)
+    {
+      --echo #
+      --echo # Running test for
+      --echo #    GRANT $privilege ON $priv_context TO ...
+      --echo #
+
+      --source $MYSQLTEST_VARDIR/tmp/check_privilege.inc
+      STOP SLAVE;
+
+      if ($privileges == 4)
+      {
+        --disable_warnings
+        SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
+        --enable_warnings
+      }
+
+      # 8) Ensure the table is the same on master and slave.
+      --let $diff_tables = master:t, slave:t
+      --source include/diff_tables.inc
+    }
+
+    --dec $privileges
+  }
+
+  --dec $context
+}
+
+# 9) Drop the table from master and slave.
+DROP TABLE t;
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+
+# Clean up
+--remove_file $MYSQLTEST_VARDIR/tmp/check_privilege.inc
+--let $rpl_only_running_threads=1
+--source include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/components/services/mysql_cond.h>
 #include <mysql/components/services/mysql_mutex.h>
 #include <mysql/components/services/mysql_rwlock.h>
@@ -38,10 +39,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/psi_system.h>
 #include <mysql/components/services/psi_table.h>
 #include <mysql/components/services/psi_thread.h>
+#include <mysql/components/services/psi_tls_channel.h>
 #include <mysql/components/services/psi_transaction.h>
-
-// FIXME: need to be visible in include
-#include <mysql/psi/psi_base.h>
 
 /* Mutex */
 
@@ -133,8 +132,8 @@ static mysql_service_status_t pfs_example_deinit() {
 }
 
 static void test_mysql_mutex_part_1() {
-  mysql_mutex_init(key_mutex_x, &my_mutex_x, NULL);
-  mysql_mutex_init(key_mutex_y, &my_mutex_y, NULL);
+  mysql_mutex_init(key_mutex_x, &my_mutex_x, nullptr);
+  mysql_mutex_init(key_mutex_y, &my_mutex_y, nullptr);
 
   mysql_mutex_lock(&my_mutex_x);
   mysql_mutex_trylock(&my_mutex_y);
@@ -149,8 +148,8 @@ static void test_mysql_mutex_part_2() {
 }
 
 static void test_psi_mutex_part_1() {
-  psi_mutex_z = PSI_MUTEX_CALL(init_mutex)(key_mutex_z, NULL);
-  psi_mutex_t = PSI_MUTEX_CALL(init_mutex)(key_mutex_t, NULL);
+  psi_mutex_z = PSI_MUTEX_CALL(init_mutex)(key_mutex_z, nullptr);
+  psi_mutex_t = PSI_MUTEX_CALL(init_mutex)(key_mutex_t, nullptr);
 }
 
 static void test_psi_mutex_part_2() {
@@ -186,40 +185,40 @@ static void test_psi_rwlock_part_1() {
   PSI_rwlock_locker_state state;
   PSI_rwlock_locker *locker;
 
-  psi_rwlock_s1 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s1, NULL);
-  psi_rwlock_s2 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s2, NULL);
+  psi_rwlock_s1 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s1, nullptr);
+  psi_rwlock_s2 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s2, nullptr);
 
-  if (psi_rwlock_s1 != NULL) {
+  if (psi_rwlock_s1 != nullptr) {
     locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
         &state, psi_rwlock_s1, PSI_RWLOCK_SHAREDLOCK, "HERE", 12);
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
     }
   }
 
-  if (psi_rwlock_s2 != NULL) {
+  if (psi_rwlock_s2 != nullptr) {
     locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
         &state, psi_rwlock_s2, PSI_RWLOCK_EXCLUSIVELOCK, "THERE", 13);
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
     }
   }
 
-  if (psi_rwlock_s1 != NULL) {
+  if (psi_rwlock_s1 != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s1, PSI_RWLOCK_SHAREDUNLOCK);
   }
 
-  if (psi_rwlock_s2 != NULL) {
+  if (psi_rwlock_s2 != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s2, PSI_RWLOCK_EXCLUSIVEUNLOCK);
   }
 }
 
 static void test_psi_rwlock_part_2() {
-  if (psi_rwlock_s1 != NULL) {
+  if (psi_rwlock_s1 != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(psi_rwlock_s1);
   }
 
-  if (psi_rwlock_s2 != NULL) {
+  if (psi_rwlock_s2 != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(psi_rwlock_s2);
   }
 }
@@ -253,6 +252,25 @@ static void do_something_part_2() {
 BEGIN_COMPONENT_PROVIDES(pfs_example)
 END_COMPONENT_PROVIDES();
 
+REQUIRES_MYSQL_MUTEX_SERVICE_PLACEHOLDER;
+REQUIRES_MYSQL_RWLOCK_SERVICE_PLACEHOLDER;
+REQUIRES_MYSQL_COND_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_COND_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_ERROR_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_FILE_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_IDLE_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_MDL_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_MUTEX_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_RWLOCK_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_SOCKET_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_STAGE_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_STATEMENT_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_TABLE_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_TRANSACTION_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_TLS_CHANNEL_SERVICE_PLACEHOLDER;
+
 BEGIN_COMPONENT_REQUIRES(pfs_example)
 REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
     REQUIRES_MYSQL_COND_SERVICE, REQUIRES_PSI_COND_SERVICE,
@@ -262,10 +280,11 @@ REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
     REQUIRES_PSI_RWLOCK_SERVICE, REQUIRES_PSI_SOCKET_SERVICE,
     REQUIRES_PSI_STAGE_SERVICE, REQUIRES_PSI_STATEMENT_SERVICE,
     REQUIRES_PSI_TABLE_SERVICE, REQUIRES_PSI_THREAD_SERVICE,
-    REQUIRES_PSI_TRANSACTION_SERVICE, END_COMPONENT_REQUIRES();
+    REQUIRES_PSI_TRANSACTION_SERVICE, REQUIRES_PSI_TLS_CHANNEL_SERVICE,
+    END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(pfs_example)
-METADATA("mysql.author", "Marc Alff, Oracle Corporation"),
+METADATA("mysql.author", "Oracle Corporation"),
     METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(pfs_example, "mysql:pfs_example")

@@ -59,8 +59,6 @@ select @a;
 drop trigger trg;
 drop table t1;
 
-# PS doesn't work with multi-row statements
---disable_ps_protocol
 # Before update trigger
 # (In future we will achieve this via proper error handling in triggers)
 create table t1 (aid int not null primary key, balance int not null default 0);
@@ -82,7 +80,6 @@ select * from t1|
 drop trigger trg|
 drop table t1|
 delimiter ;|
---enable_ps_protocol
 
 # After update trigger
 create table t1 (i int);
@@ -939,6 +936,7 @@ create trigger t1_bi before insert on t1 for each row set @a:=new.id;
 create trigger t1_ai after insert on test.t1 for each row set @b:=new.id;
 insert into t1 values (101);
 select @a, @b;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
@@ -946,6 +944,7 @@ rename table t1 to t2;
 # Trigger should work after rename
 insert into t2 values (102);
 select @a, @b;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
@@ -953,6 +952,7 @@ select trigger_schema, trigger_name, event_object_schema,
 alter table t2 rename to t3;
 insert into t3 values (103);
 select @a, @b;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
@@ -960,6 +960,7 @@ select trigger_schema, trigger_name, event_object_schema,
 alter table t3 rename to t4, add column val int default 0;
 insert into t4 values (104, 1);
 select @a, @b;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
@@ -974,6 +975,7 @@ create table t1 (id int);
 create trigger t1_bi before insert on t1 for each row set @a:=new.id;
 insert into t1 values (101);
 select @a;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test' or event_object_schema = 'mysqltest';
@@ -981,6 +983,7 @@ select trigger_schema, trigger_name, event_object_schema,
 rename table t1 to test.t2;
 insert into t1 values (102);
 select @a;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test' or event_object_schema = 'mysqltest';
@@ -992,6 +995,7 @@ drop trigger test.t1_bi;
 alter table t1 rename to test.t1;
 insert into t1 values (103);
 select @a;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test' or event_object_schema = 'mysqltest';
@@ -1002,6 +1006,7 @@ drop trigger test.t1_bi;
 alter table t1 rename to test.t1, add column val int default 0;
 insert into t1 values (104);
 select @a;
+--sorted_result
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test' or event_object_schema = 'mysqltest';
@@ -2485,7 +2490,7 @@ DROP USER 'u1'@'localhost';
 
 --error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 
 DROP TABLE t1;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,14 +32,15 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/field.h"        // Field
-#include "sql/mysqld.h"       // key_LOCK_cost_const
-#include "sql/records.h"      // READ_RECORD
-#include "sql/row_iterator.h"
+#include "sql/current_thd.h"            // current_thd
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress()
+#include "sql/field.h"                  // Field
+#include "sql/iterators/row_iterator.h"
+#include "sql/mysqld.h"     // key_LOCK_cost_const
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"   // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"        // lex_start/lex_end
 #include "sql/sql_tmp_table.h"  // init_cache_tmp_engine_properties
 #include "sql/table.h"          // TABLE
@@ -49,7 +50,7 @@
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
-Cost_constant_cache *cost_constant_cache = NULL;
+Cost_constant_cache *cost_constant_cache = nullptr;
 
 static void read_cost_constants(Cost_model_constants *cost_constants);
 
@@ -59,18 +60,18 @@ static void read_cost_constants(Cost_model_constants *cost_constants);
 */
 
 Cost_constant_cache::Cost_constant_cache()
-    : current_cost_constants(NULL), m_inited(false) {}
+    : current_cost_constants(nullptr), m_inited(false) {}
 
 Cost_constant_cache::~Cost_constant_cache() {
   // Verify that close has been called
-  DBUG_ASSERT(current_cost_constants == NULL);
-  DBUG_ASSERT(m_inited == false);
+  assert(current_cost_constants == nullptr);
+  assert(m_inited == false);
 }
 
 void Cost_constant_cache::init() {
-  DBUG_ENTER("Cost_constant_cache::init");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(m_inited == false);
+  assert(m_inited == false);
 
   // Initialize the mutex that is used for protecting the cost constants
   mysql_mutex_init(key_LOCK_cost_const, &LOCK_cost_const, MY_MUTEX_INIT_FAST);
@@ -82,21 +83,19 @@ void Cost_constant_cache::init() {
   update_current_cost_constants(cost_constants);
 
   m_inited = true;
-
-  DBUG_VOID_RETURN;
 }
 
 void Cost_constant_cache::close() {
-  DBUG_ENTER("Cost_constant_cache::close");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(m_inited);
+  assert(m_inited);
 
-  if (m_inited == false) DBUG_VOID_RETURN; /* purecov: inspected */
+  if (m_inited == false) return; /* purecov: inspected */
 
   // Release the current cost constant set
   if (current_cost_constants) {
     release_cost_constants(current_cost_constants);
-    current_cost_constants = NULL;
+    current_cost_constants = nullptr;
   }
 
   // To ensure none is holding the mutex when deleting it, lock/unlock it.
@@ -106,13 +105,11 @@ void Cost_constant_cache::close() {
   mysql_mutex_destroy(&LOCK_cost_const);
 
   m_inited = false;
-
-  DBUG_VOID_RETURN;
 }
 
 void Cost_constant_cache::reload() {
-  DBUG_ENTER("Cost_constant_cache::reload");
-  DBUG_ASSERT(m_inited = true);
+  DBUG_TRACE;
+  assert(m_inited = true);
 
   // Create cost constants from the constants defined in the source code
   Cost_model_constants *cost_constants = create_defaults();
@@ -122,8 +119,6 @@ void Cost_constant_cache::reload() {
 
   // Set this to be the current set of cost constants
   update_current_cost_constants(cost_constants);
-
-  DBUG_VOID_RETURN;
 }
 
 Cost_model_constants *Cost_constant_cache::create_defaults() const {
@@ -186,7 +181,7 @@ static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
              value);
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -225,7 +220,7 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
              cost_name.str, se_name.str, storage_category, value);
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -242,7 +237,7 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
 
 static void read_server_cost_constants(THD *thd, TABLE *table,
                                        Cost_model_constants *cost_constants) {
-  DBUG_ENTER("read_server_cost_constants");
+  DBUG_TRACE;
 
   /*
     The server constant table has the following columns:
@@ -253,16 +248,15 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
     comment     VARCHAR(1024) DEFAULT NULL
   */
 
-  READ_RECORD read_record_info;
-
   // Prepare to read from the table
-  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false,
-                                    /*ignore_not_found_rows=*/false);
-  if (!ret) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
+  if (iterator != nullptr) {
     table->use_all_columns();
 
     // Read one record
-    while (!read_record_info->Read()) {
+    while (!iterator->Read()) {
       /*
         Check if a non-default value has been configured for this cost
         constant.
@@ -291,8 +285,6 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   } else {
     LogErr(WARNING_LEVEL, ER_SERVER_COST_FAILED_TO_READ);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -308,7 +300,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
 
 static void read_engine_cost_constants(THD *thd, TABLE *table,
                                        Cost_model_constants *cost_constants) {
-  DBUG_ENTER("read_engine_cost_constants");
+  DBUG_TRACE;
 
   /*
     The engine constant table has the following columns:
@@ -321,16 +313,15 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
     comment     VARCHAR(1024) DEFAULT NULL,
   */
 
-  READ_RECORD read_record_info;
-
   // Prepare to read from the table
-  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false,
-                                    /*ignore_not_found_rows=*/false);
-  if (!ret) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
+  if (iterator != nullptr) {
     table->use_all_columns();
 
     // Read one record
-    while (!read_record_info->Read()) {
+    while (!iterator->Read()) {
       /*
         Check if a non-default value has been configured for this cost
         constant.
@@ -371,8 +362,6 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   } else {
     LogErr(WARNING_LEVEL, ER_ENGINE_COST_FAILED_TO_READ);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -385,7 +374,7 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
 */
 
 static void read_cost_constants(Cost_model_constants *cost_constants) {
-  DBUG_ENTER("read_cost_constants");
+  DBUG_TRACE;
 
   /*
     This function creates its own THD. If there exists a current THD this needs
@@ -397,29 +386,41 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
 
   // Create and initialize a new THD.
   THD *thd = new THD;
-  DBUG_ASSERT(thd);
+  assert(thd);
   thd->thread_stack = pointer_cast<char *>(&thd);
   thd->store_globals();
   lex_start(thd);
 
-  TABLE_LIST tables[2] = {
-      TABLE_LIST(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("server_cost"),
-                 "server_cost", TL_READ),
-      TABLE_LIST(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("engine_cost"),
-                 "engine_cost", TL_READ)};
+  TABLE_LIST tables[2] = {TABLE_LIST("mysql", "server_cost", TL_READ),
+                          TABLE_LIST("mysql", "engine_cost", TL_READ)};
   tables[0].next_global = tables[0].next_local =
       tables[0].next_name_resolution_table = &tables[1];
 
   if (!open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT)) {
-    DBUG_ASSERT(tables[0].table != NULL);
-    DBUG_ASSERT(tables[1].table != NULL);
+    assert(tables[0].table != nullptr);
+    assert(tables[1].table != nullptr);
 
     // Read the server constants table
     read_server_cost_constants(thd, tables[0].table, cost_constants);
     // Read the storage engine table
     read_engine_cost_constants(thd, tables[1].table, cost_constants);
   } else {
-    LogErr(WARNING_LEVEL, ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES);
+    /*
+      During --initialize, we will try to reload the cost model at a point
+      where the cost model cache is initialized yet its tables are not yet
+      created. This happens when handlertons are initialized. Hence, during
+      --initialize, up to the point after plugins are initialized, we may
+      suppress this warning.
+      The warning may also be emitted during upgrade from a mysql 5.7 version
+      where the cost model tables are not present. This happens at the same
+      point as above because the cost model tables are upgraded at a later
+      stage in the upgrade process. Thus, we can suppress the warning also in
+      this case.
+    */
+    if (dynamic_plugins_are_initialized ||
+        (!opt_initialize && !dd::upgrade_57::in_progress())) {
+      LogErr(WARNING_LEVEL, ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES);
+    }
   }
 
   trans_commit_stmt(thd);
@@ -431,12 +432,10 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
 
   // If the caller already had a THD, this must be restored
   if (orig_thd) orig_thd->store_globals();
-
-  DBUG_VOID_RETURN;
 }
 
 void init_optimizer_cost_module(bool enable_plugins) {
-  DBUG_ASSERT(cost_constant_cache == NULL);
+  assert(cost_constant_cache == nullptr);
   cost_constant_cache = new Cost_constant_cache();
   cost_constant_cache->init();
   /*
@@ -450,7 +449,7 @@ void delete_optimizer_cost_module() {
   if (cost_constant_cache) {
     cost_constant_cache->close();
     delete cost_constant_cache;
-    cost_constant_cache = NULL;
+    cost_constant_cache = nullptr;
   }
 }
 

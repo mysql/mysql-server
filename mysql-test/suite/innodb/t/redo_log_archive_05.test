@@ -3,7 +3,7 @@
 #
 
 if (!$IRLA_SMALL_DIR) {
-  --skip "Run with env \$IRLA_SMALL_DIR set to dir with max 100MB space
+  --skip Run with env \$IRLA_SMALL_DIR set to dir with max 100MB space
   #
   # If the skip is skipped, fail.
   #

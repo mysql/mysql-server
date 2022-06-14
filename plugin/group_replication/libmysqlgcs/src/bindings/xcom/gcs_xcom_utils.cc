@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <cinttypes>  // std::strtoumax
 #include <cstdlib>
 #include <sstream>
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #ifndef _WIN32
 #include <netdb.h>
 #include <sys/socket.h>
@@ -54,11 +53,16 @@ static const unsigned int JOIN_ATTEMPTS = 0;
 static const uint64_t JOIN_SLEEP_TIME = 5;
 
 /*
-  Default and Min value for the maximum size of the XCom cache.
+  Default value for the maximum size of the XCom cache.
 */
 static const uint64_t DEFAULT_XCOM_MAX_CACHE_SIZE = 1073741824;
 
-Gcs_xcom_utils::~Gcs_xcom_utils() {}
+/*
+  Min value for the maximum size of the XCom cache.
+*/
+static const uint64_t MIN_XCOM_MAX_CACHE_SIZE = 134217728;
+
+Gcs_xcom_utils::~Gcs_xcom_utils() = default;
 
 u_long Gcs_xcom_utils::build_xcom_group_id(Gcs_group_identifier &group_id) {
   std::string group_id_str = group_id.get_group_id();
@@ -134,7 +138,7 @@ bool is_valid_hostname(const std::string &server_and_port) {
   }
 
   /* handle hostname*/
-  error = (checked_getaddrinfo(hostname, 0, NULL, &addr) != 0);
+  error = (checked_getaddrinfo(hostname, nullptr, nullptr, &addr) != 0);
   if (error) goto end;
 
 end:
@@ -149,10 +153,10 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("compression_threshold"));
   std::string *wait_time_str =
       const_cast<std::string *>(interface_params.get_parameter("wait_time"));
-  std::string *ip_whitelist_str =
-      const_cast<std::string *>(interface_params.get_parameter("ip_whitelist"));
-  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
-      interface_params.get_parameter("reconfigure_ip_whitelist"));
+  std::string *ip_allowlist_str =
+      const_cast<std::string *>(interface_params.get_parameter("ip_allowlist"));
+  std::string *ip_allowlist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_allowlist"));
   std::string *join_attempts_str = const_cast<std::string *>(
       interface_params.get_parameter("join_attempts"));
   std::string *join_sleep_time_str = const_cast<std::string *>(
@@ -163,6 +167,14 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("fragmentation_threshold"));
   std::string *xcom_cache_size_str = const_cast<std::string *>(
       interface_params.get_parameter("xcom_cache_size"));
+  std::string *communication_stack_str = const_cast<std::string *>(
+      interface_params.get_parameter("communication_stack"));
+
+  // Sets the default value for the communication stack to use
+  if (!communication_stack_str) {  // Default is XCom...
+    interface_params.add_parameter("communication_stack",
+                                   std::to_string(XCOM_PROTOCOL));
+  }
 
   // sets the default value for compression (ON by default)
   if (!compression_str) {
@@ -183,15 +195,15 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     interface_params.add_parameter("wait_time", ss.str());
   }
 
-  bool should_configure_whitelist = true;
-  if (ip_whitelist_reconfigure_str) {
-    should_configure_whitelist =
-        ip_whitelist_reconfigure_str->compare("on") == 0 ||
-        ip_whitelist_reconfigure_str->compare("true") == 0;
+  bool should_configure_allowlist = true;
+  if (ip_allowlist_reconfigure_str) {
+    should_configure_allowlist =
+        ip_allowlist_reconfigure_str->compare("on") == 0 ||
+        ip_allowlist_reconfigure_str->compare("true") == 0;
   }
 
-  // sets the default ip whitelist
-  if (should_configure_whitelist && !ip_whitelist_str) {
+  // sets the default ip allowlist
+  if (should_configure_allowlist && !ip_allowlist_str) {
     std::stringstream ss;
     std::string iplist;
     std::map<std::string, int> out;
@@ -212,9 +224,9 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     iplist.erase(iplist.end() - 1);  // remove trailing comma
 
     MYSQL_GCS_LOG_INFO("Added automatically IP ranges " << iplist
-                                                        << " to the whitelist");
+                                                        << " to the allowlist");
 
-    interface_params.add_parameter("ip_whitelist", iplist);
+    interface_params.add_parameter("ip_allowlist", iplist);
   }
 
   // sets the default join attempts
@@ -305,7 +317,8 @@ end:
 }
 
 bool is_parameters_syntax_correct(
-    const Gcs_interface_parameters &interface_params) {
+    const Gcs_interface_parameters &interface_params,
+    Network_namespace_manager *netns_manager) {
   enum_gcs_error error = GCS_OK;
   Gcs_sock_probe_interface *sock_probe_interface =
       new Gcs_sock_probe_interface_impl();
@@ -337,14 +350,16 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("suspicions_processing_period");
   const std::string *member_expel_timeout_str =
       interface_params.get_parameter("member_expel_timeout");
-  const std::string *reconfigure_ip_whitelist_str =
-      interface_params.get_parameter("reconfigure_ip_whitelist");
+  const std::string *reconfigure_ip_allowlist_str =
+      interface_params.get_parameter("reconfigure_ip_allowlist");
   const std::string *fragmentation_threshold_str =
       interface_params.get_parameter("fragmentation_threshold");
   const std::string *fragmentation_str =
       interface_params.get_parameter("fragmentation");
   const std::string *xcom_cache_size_str =
       interface_params.get_parameter("xcom_cache_size");
+  const std::string *communication_stack_str =
+      interface_params.get_parameter("communication_stack");
 
   /*
     -----------------------------------------------------
@@ -353,7 +368,7 @@ bool is_parameters_syntax_correct(
    */
 
   // validate group name
-  if (group_name_str != NULL && group_name_str->size() == 0) {
+  if (group_name_str != nullptr && group_name_str->size() == 0) {
     MYSQL_GCS_LOG_ERROR("The group_name parameter (" << group_name_str << ")"
                                                      << " is not valid.")
     error = GCS_NOK;
@@ -362,14 +377,14 @@ bool is_parameters_syntax_correct(
 
   // validate bootstrap string
   // accepted values: true, false, on, off
-  if (bootstrap_group_str != NULL) {
+  if (bootstrap_group_str != nullptr) {
     std::string &flag = const_cast<std::string &>(*bootstrap_group_str);
     error = is_valid_flag("bootstrap_group", flag);
     if (error == GCS_NOK) goto end;
   }
 
   // validate peer addresses addresses
-  if (peer_nodes_str != NULL) {
+  if (peer_nodes_str != nullptr) {
     /*
      Parse and validate hostname and ports.
      */
@@ -401,10 +416,19 @@ bool is_parameters_syntax_correct(
     }
   }
 
+  // Communication Stack
+  if (communication_stack_str && (communication_stack_str->size() == 0 ||
+                                  !is_number(*communication_stack_str))) {
+    MYSQL_GCS_LOG_ERROR("The Commmunication Stack parameter ("
+                        << communication_stack_str << ") is not valid.")
+    error = GCS_NOK;
+    goto end;
+  }
+
   // local peer address
-  if (local_node_str != NULL) {
+  if (local_node_str != nullptr) {
     bool matches_local_ip = false;
-    std::map<std::string, int> ips;
+    std::map<std::string, int> ips, namespace_ips;
     std::map<std::string, int>::iterator it;
 
     char host_str[IP_MAX_SIZE];
@@ -412,8 +436,7 @@ bool is_parameters_syntax_correct(
     if (get_ip_and_port(const_cast<char *>(local_node_str->c_str()), host_str,
                         &local_node_port)) {
       MYSQL_GCS_LOG_ERROR("Invalid hostname or IP address ("
-                          << *local_node_str->c_str()
-                          << ") assigned to the parameter "
+                          << *local_node_str << ") assigned to the parameter "
                           << "local_node!");
       error = GCS_NOK;
       goto end;
@@ -421,7 +444,8 @@ bool is_parameters_syntax_correct(
 
     std::string host(host_str);
     std::vector<std::string> ip;
-
+    int configured_protocol;
+    std::string net_namespace;
     // first validate hostname
     if (!is_valid_hostname(*local_node_str)) {
       MYSQL_GCS_LOG_ERROR("Invalid hostname or IP address ("
@@ -455,7 +479,7 @@ bool is_parameters_syntax_correct(
       goto end;
     }
 
-    // see if any IP matches
+    // see if any IP matches fromt he root namespace
     for (it = ips.begin(); it != ips.end() && !matches_local_ip; it++) {
       for (auto &ip_entry : ip) {
         matches_local_ip = (*it).first.compare(ip_entry) == 0;
@@ -464,6 +488,42 @@ bool is_parameters_syntax_correct(
       }
     }
 
+    // If this server is configured to use a MySQL connection, we must check
+    //  if we have a network namespace configured. If so, we must also check
+    //  if the address exists in the network namespace
+    configured_protocol = std::stoi(*communication_stack_str);
+    /* purecov: begin deadcode */
+    if (!matches_local_ip && netns_manager &&
+        configured_protocol > XCOM_PROTOCOL) {
+      // Check if we have a namespace configured
+      netns_manager->channel_get_network_namespace(net_namespace);
+      if (!net_namespace.empty()) {  // If the namespace is configured
+        netns_manager->set_network_namespace(net_namespace);
+
+        // second check that this host has that IP assigned in a namespace
+        //  Use all interfaces, active or not, that contain an IP address
+        if (get_local_addresses(*sock_probe_interface, namespace_ips)) {
+          MYSQL_GCS_LOG_ERROR(
+              "Unable to get the list of local IP addresses for "
+              "the server!");
+          error = GCS_NOK;
+          netns_manager->restore_original_network_namespace();
+          goto end;
+        }
+
+        // see if any IP matches fromt he root namespace
+        for (it = namespace_ips.begin();
+             it != namespace_ips.end() && !matches_local_ip; it++) {
+          for (auto &ip_entry : ip) {
+            matches_local_ip = (*it).first.compare(ip_entry) == 0;
+
+            if (matches_local_ip) break;
+          }
+        }
+        netns_manager->restore_original_network_namespace();
+      }
+    }
+    /* purecov: end */
     if (!matches_local_ip) {
       MYSQL_GCS_LOG_ERROR(
           "There is no local IP address matching the one "
@@ -484,7 +544,7 @@ bool is_parameters_syntax_correct(
   }
 
   // validate compression
-  if (compression_str != NULL) {
+  if (compression_str != nullptr) {
     std::string &flag = const_cast<std::string &>(*compression_str);
     error = is_valid_flag("compression", flag);
     if (error == GCS_NOK) goto end;
@@ -550,11 +610,11 @@ bool is_parameters_syntax_correct(
     goto end;
   }
 
-  // Validate whitelist reconfiguration parameter
-  if (reconfigure_ip_whitelist_str != NULL) {
+  // Validate allowlist reconfiguration parameter
+  if (reconfigure_ip_allowlist_str != nullptr) {
     std::string &flag =
-        const_cast<std::string &>(*reconfigure_ip_whitelist_str);
-    error = is_valid_flag("reconfigure_ip_whitelist", flag);
+        const_cast<std::string &>(*reconfigure_ip_allowlist_str);
+    error = is_valid_flag("reconfigure_ip_allowlist", flag);
     if (error == GCS_NOK) goto end;
   }
 
@@ -576,16 +636,17 @@ bool is_parameters_syntax_correct(
 
   // Validate XCom cache size
   errno = 0;
-  if (xcom_cache_size_str != NULL &&
+  if (xcom_cache_size_str != nullptr &&
       // Verify if the input value is a valid number
       (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
        // Check that it is not lower than the min value allowed for the var
-       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
-           DEFAULT_XCOM_MAX_CACHE_SIZE ||
+       (strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
+        MIN_XCOM_MAX_CACHE_SIZE) ||
        // Check that it is not higher than the max value allowed
-       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX ||
-       // Check that it is within the range of values allowed for the var type.
-       // This is need in addition to the check above because of overflows.
+       (strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX) ||
+       // Check that it is within the range of values allowed for the var
+       // type. This is need in addition to the check above because of
+       // overflows.
        errno == ERANGE)) {
     MYSQL_GCS_LOG_ERROR("The xcom_cache_size parameter ("
                         << xcom_cache_size_str->c_str() << ") is not valid.")
@@ -607,8 +668,10 @@ std::string gcs_protocol_to_mysql_version(Gcs_protocol_version protocol) {
     case Gcs_protocol_version::V2:
       version = "8.0.16";
       break;
+    case Gcs_protocol_version::HIGHEST_KNOWN:
+      version = "8.0.27";
+      break;
     case Gcs_protocol_version::UNKNOWN:
-    case Gcs_protocol_version::V3:
     case Gcs_protocol_version::V4:
     case Gcs_protocol_version::V5:
       /* This should not happen... */

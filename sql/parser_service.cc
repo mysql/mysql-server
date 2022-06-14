@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ class Service_visitor : public Select_lex_visitor {
       : m_processor(processor), m_arg(arg) {}
 
  protected:
-  bool visit_item(Item *item) {
+  bool visit_item(Item *item) override {
     switch (item->type()) {
         // These are all the literals.
       case Item::PARAM_ITEM:
@@ -113,25 +113,25 @@ class Plugin_error_handler : public Internal_error_handler {
   Plugin_error_handler(THD *thd, sql_condition_handler_function handle_error,
                        void *state)
       : m_thd(thd),
-        m_message(NULL),
+        m_message(nullptr),
         m_handle_error(handle_error),
         m_state(state) {
-    if (handle_error != NULL) thd->push_internal_handler(this);
+    if (handle_error != nullptr) thd->push_internal_handler(this);
   }
 
-  virtual bool handle_condition(THD *, uint sql_errno_u, const char *sqlstate,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) {
+  bool handle_condition(THD *, uint sql_errno_u, const char *sqlstate,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     int sql_errno = static_cast<int>(sql_errno_u);
-    if (m_handle_error != NULL)
+    if (m_handle_error != nullptr)
       return m_handle_error(sql_errno, sqlstate, msg, m_state) != 0;
     return false;
   }
 
   const char *get_message() { return m_message; }
 
-  ~Plugin_error_handler() {
-    if (m_handle_error != NULL) m_thd->pop_internal_handler();
+  ~Plugin_error_handler() override {
+    if (m_handle_error != nullptr) m_thd->pop_internal_handler();
   }
 };
 
@@ -142,11 +142,11 @@ MYSQL_THD mysql_parser_open_session() {
 
   // See create_thd()
   THD *thd = new (std::nothrow) THD;
-  if (thd == NULL) return NULL;
+  if (thd == nullptr) return nullptr;
 
   thd->security_context()->set_host_ptr(STRING_WITH_LEN(my_localhost));
   thd->lex = new LEX;
-  thd->lex->set_current_select(NULL);
+  thd->lex->set_current_query_block(nullptr);
 
   thd->variables.character_set_client = old_thd->variables.character_set_client;
 
@@ -168,36 +168,36 @@ void *parser_service_start_routine(void *arg) {
   THD *thd = tt->m_thd;
   my_thread_init();
 
-  DBUG_ENTER("parser_service_start_routine");
+  {
+    DBUG_TRACE;
 
-  Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
-  thd->thread_stack = reinterpret_cast<char *>(&thd);
-  thd->set_new_thread_id();
-  mysql_thread_set_psi_id(thd->thread_id());
-  thd->store_globals();
-  thd->set_time();
+    Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
+    thd->thread_stack = reinterpret_cast<char *>(&thd);
+    thd->set_new_thread_id();
+    mysql_thread_set_psi_id(thd->thread_id());
+    thd->store_globals();
+    thd->set_time();
 
-  thd_manager->add_thd(thd);
-  (tt->m_fun)(tt->m_arg);
+    thd_manager->add_thd(thd);
+    (tt->m_fun)(tt->m_arg);
 
-  trans_commit_stmt(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
-  close_mysql_tables(thd);
+    trans_commit_stmt(thd);
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
+    close_mysql_tables(thd);
 
-  thd->release_resources();
-  thd->restore_globals();
-  thd_manager->remove_thd(thd);
+    thd->release_resources();
+    thd->restore_globals();
+    thd_manager->remove_thd(thd);
 
-  LEX *lex = thd->lex;
-  delete thd;
-  delete lex;
-  delete tt;
-
-  DBUG_LEAVE;
+    LEX *lex = thd->lex;
+    delete thd;
+    delete lex;
+    delete tt;
+  }
   my_thread_end();
-  my_thread_exit(0);
-  return 0;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 
 }  // namespace
@@ -215,13 +215,13 @@ void mysql_parser_start_thread(THD *thd, callback_function fun, void *arg,
 }
 
 void mysql_parser_join_thread(my_thread_handle *thread_id) {
-  my_thread_join(thread_id, NULL);
+  my_thread_join(thread_id, nullptr);
 }
 
 void mysql_parser_set_current_database(MYSQL_THD thd,
                                        const MYSQL_LEX_STRING db) {
   if (db.length == 0) {
-    LEX_CSTRING db_const = {NULL, 0};
+    LEX_CSTRING db_const = {nullptr, 0};
     thd->set_db(db_const);
   } else {
     LEX_CSTRING db_const = {db.str, db.length};
@@ -250,6 +250,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
   Parser_state parser_state;
   if (parser_state.init(thd, query.str, query.length)) return 1;
 
+  parser_state.m_input.m_has_digest = true;
   parser_state.m_input.m_compute_digest = true;
   thd->m_digest = &thd->m_digest_state;
   thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -263,7 +264,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
   Plugin_error_handler error_handler(thd, handle_condition,
                                      condition_handler_state);
 
-  int parse_status = parse_sql(thd, &parser_state, NULL);
+  int parse_status = parse_sql(thd, &parser_state, nullptr);
 
   /*
     Handled conditions are thrown away at this point - they are supposedly
@@ -271,7 +272,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
     diagnostics area is not touched. It will contain any errors thrown by the
     parser.
   */
-  if (handle_condition != NULL) {
+  if (handle_condition != nullptr) {
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->get_stmt_da()->reset_condition_info(thd);
   }
@@ -284,16 +285,20 @@ int mysql_parser_get_statement_type(MYSQL_THD thd) {
   switch (lex->sql_command) {
     case SQLCOM_SELECT:
       return STATEMENT_TYPE_SELECT;
-    case SQLCOM_UPDATE:  // Fall through
+    case SQLCOM_UPDATE:
+      [[fallthrough]];
     case SQLCOM_UPDATE_MULTI:
       return STATEMENT_TYPE_UPDATE;
-    case SQLCOM_INSERT:  // Fall through
+    case SQLCOM_INSERT:
+      [[fallthrough]];
     case SQLCOM_INSERT_SELECT:
       return STATEMENT_TYPE_INSERT;
-    case SQLCOM_REPLACE:  // Fall through
+    case SQLCOM_REPLACE:
+      [[fallthrough]];
     case SQLCOM_REPLACE_SELECT:
       return STATEMENT_TYPE_REPLACE;
-    case SQLCOM_DELETE:  // Fall through
+    case SQLCOM_DELETE:
+      [[fallthrough]];
     case SQLCOM_DELETE_MULTI:
       return STATEMENT_TYPE_DELETE;
     default:
@@ -306,7 +311,7 @@ int mysql_parser_get_statement_digest(MYSQL_THD thd, uchar *digest) {
                 "If you change the digest hash, PARSER_SERVICE_DIGEST_LENGTH "
                 "needs to adjust");
 
-  if (thd->m_digest == NULL) return true;
+  if (thd->m_digest == nullptr) return true;
   compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   return false;
 }
@@ -334,7 +339,7 @@ MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item) {
   static_cast<Item *>(item)->print(mysql_parser_current_session(), &str,
                                    QT_ORDINARY);
   MYSQL_LEX_STRING res = {new char[str.length()], 0};
-  if (res.str != NULL) {
+  if (res.str != nullptr) {
     res.length = str.length();
     std::copy(str.ptr(), str.ptr() + str.length(), res.str);
   }

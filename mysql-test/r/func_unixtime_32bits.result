@@ -1,0 +1,264 @@
+#
+# Time related tests with canon differences for hosts with UNIX time
+# representation of 32 or 64 bits.
+# When we discontinue support for 32 bits time platforms, these can be
+# moved (back) to where they came from.
+#
+# ------ 1. func_time.test   BEGIN
+#
+# check for from_unixtime(2^31-1) and from_unixtime(2^31)
+select from_unixtime(2147483647);
+from_unixtime(2147483647)
+2038-01-19 06:14:07
+select from_unixtime(2147483648);
+from_unixtime(2147483648)
+NULL
+select from_unixtime(0);
+from_unixtime(0)
+1970-01-01 03:00:00
+select from_unixtime(-1);
+from_unixtime(-1)
+NULL
+select from_unixtime(-2147483648);
+from_unixtime(-2147483648)
+NULL
+#
+# Some more tests for bug #9191 "TIMESTAMP/from_unixtime() no
+# longer accepts 2^31-1". Here we test that from_unixtime and
+# unix_timestamp are consistent, when working with boundary dates.
+#
+select unix_timestamp(from_unixtime(2147483647));
+unix_timestamp(from_unixtime(2147483647))
+2147483647
+select unix_timestamp(from_unixtime(2147483648));
+unix_timestamp(from_unixtime(2147483648))
+NULL
+# check for invalid dates
+# bad year
+select unix_timestamp('2039-01-20 01:00:00');
+unix_timestamp('2039-01-20 01:00:00')
+0
+select unix_timestamp('1968-01-20 01:00:00');
+unix_timestamp('1968-01-20 01:00:00')
+0
+# bad month
+select unix_timestamp('2038-02-10 01:00:00');
+unix_timestamp('2038-02-10 01:00:00')
+0
+select unix_timestamp('1969-11-20 01:00:00');
+unix_timestamp('1969-11-20 01:00:00')
+0
+# bad day
+select unix_timestamp('2038-01-20 01:00:00');
+unix_timestamp('2038-01-20 01:00:00')
+0
+select unix_timestamp('1969-12-30 01:00:00');
+unix_timestamp('1969-12-30 01:00:00')
+0
+#
+# Check negative shift (we subtract several days for boundary dates during
+# conversion).
+select unix_timestamp('2038-01-17 12:00:00');
+unix_timestamp('2038-01-17 12:00:00')
+2147331600
+#
+# Check positive shift. (it happens only on
+# platfroms with unsigned time_t, such as QNX)
+#
+select unix_timestamp('1970-01-01 03:00:01');
+unix_timestamp('1970-01-01 03:00:01')
+1
+# check bad date, close to the boundary (we cut them off in the very end)
+select unix_timestamp('2038-01-19 07:14:07');
+unix_timestamp('2038-01-19 07:14:07')
+0
+# ------ 1. func_time.test   END
+# ------ 2. time_zone.test   BEGIN
+#
+# Test for fix for Bug#2523 Check that boundary dates are processed
+# correctly.
+#
+set time_zone="+01:00";
+select unix_timestamp('1970-01-01 01:00:00'),
+unix_timestamp('1970-01-01 01:00:01'),
+unix_timestamp('2038-01-19 04:14:07'),
+unix_timestamp('2038-01-19 04:14:08');
+unix_timestamp('1970-01-01 01:00:00')	unix_timestamp('1970-01-01 01:00:01')	unix_timestamp('2038-01-19 04:14:07')	unix_timestamp('2038-01-19 04:14:08')
+0	1	2147483647	0
+set time_zone=default;
+# ------ 2. time_zone.test   END
+# ------ 3. time_zone2.test   BEGIN
+select convert_tz('2038-01-19 04:14:08', '+01:00', 'UTC');
+convert_tz('2038-01-19 04:14:08', '+01:00', 'UTC')
+2038-01-19 04:14:08
+select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
+convert_tz('2103-01-01 04:00:00', 'MET', 'UTC')
+2103-01-01 04:00:00
+Will work on a 64 bits time system, no-op on 32 bits time
+select convert_tz('3001-01-18 23:59:59', 'UTC', '+01:00');
+convert_tz('3001-01-18 23:59:59', 'UTC', '+01:00')
+3001-01-18 23:59:59
+Will not work, beyond range of UNIX timestamp support
+select convert_tz('3001-01-19 00:00:00', 'UTC', '+01:00');
+convert_tz('3001-01-19 00:00:00', 'UTC', '+01:00')
+3001-01-19 00:00:00
+# ------ 3. time_zone2.test   END
+# ------ 4. type_temporal_fractional.test   BEGIN
+#
+# Testing rounding with FROM_UNIXTIME
+#
+SET time_zone='+00:00';
+CREATE TABLE t1 (a DECIMAL(20,7));
+INSERT INTO t1 VALUES
+(32536771199.999999),
+(32536771199.9999990),
+(32536771199.9999991),
+(32536771199.9999992),
+(32536771199.9999993),
+(32536771199.9999994),
+(32536771199.9999995),
+(32536771199.9999996),
+(32536771199.9999997),
+(32536771199.9999998),
+(32536771199.9999999);
+SELECT a, FROM_UNIXTIME(a) FROM t1;
+a	FROM_UNIXTIME(a)
+32536771199.9999990	NULL
+32536771199.9999990	NULL
+32536771199.9999991	NULL
+32536771199.9999992	NULL
+32536771199.9999993	NULL
+32536771199.9999994	NULL
+32536771199.9999995	NULL
+32536771199.9999996	NULL
+32536771199.9999997	NULL
+32536771199.9999998	NULL
+32536771199.9999999	NULL
+DROP TABLE t1;
+SET time_zone=DEFAULT;
+#
+# Bug #28671811 FROM_UNIXTIME ACCEPTS AN OUT OF RANGE PARAMETER
+#               THROUGH ROUNDING
+#
+SET time_zone='+00:00';
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3,
+FROM_UNIXTIME(32536771199) AS c4,
+FROM_UNIXTIME(32536771199.9999999) AS c5;
+c1	c2	c3	c4	c5
+2038-01-19 03:14:07	NULL	NULL	NULL	NULL
+SET time_zone=default;
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3,
+FROM_UNIXTIME(32536771199) AS c4,
+FROM_UNIXTIME(32536771199.9999999) AS c5;
+c1	c2	c3	c4	c5
+2038-01-19 06:14:07	NULL	NULL	NULL	NULL
+SET sql_mode=time_truncate_fractional;
+SET time_zone='+00:00';
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3,
+FROM_UNIXTIME(32536771199) AS c4,
+FROM_UNIXTIME(32536771199.9999999) AS c5;
+c1	c2	c3	c4	c5
+2038-01-19 03:14:07	NULL	2038-01-19 03:14:07.999999	NULL	NULL
+SET time_zone=default;
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3,
+FROM_UNIXTIME(32536771199) AS c4,
+FROM_UNIXTIME(32536771199.9999999) AS c5;
+c1	c2	c3	c4	c5
+2038-01-19 06:14:07	NULL	2038-01-19 06:14:07.999999	NULL	NULL
+SET sql_mode=default;
+# ------ 4. type_temporal_fractional.test   END
+# ------ 5 and 6. type_timestamp{_explicit}.test   BEGIN
+SET SESSION explicit_defaults_for_timestamp=OFF;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET TIMESTAMP=1000000019;
+CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
+INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
+INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
+INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
+INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
+INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME(99999999990));
+UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
+SELECT f1,f2-f3 FROM t1;
+f1	f2-f3
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+SET SESSION explicit_defaults_for_timestamp=DEFAULT;
+INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
+INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
+ERROR 23000: Column 'f3' cannot be null
+INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
+ERROR 23000: Column 'f3' cannot be null
+INSERT INTO t1 (f2,f3) VALUES (NOW(), COALESCE(FROM_UNIXTIME('9999999999'), "0000-00-00 00:00:00"));
+INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
+ERROR 23000: Column 'f3' cannot be null
+INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME(99999999990));
+ERROR 23000: Column 'f3' cannot be null
+UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
+Warnings:
+Warning	1048	Column 'f3' cannot be null
+SELECT f1,f2-f3 FROM t1;
+f1	f2-f3
+1	20010909044659
+2	20010909044659
+DROP TABLE t1;
+SET SESSION sql_mode=DEFAULT;
+SET TIMESTAMP=0;
+# ------ 5 and 6. type_timestamp{_explicit}.test   END
+SET time_zone = "Japan";
+SELECT FROM_UNIXTIME(2147483647);
+FROM_UNIXTIME(2147483647)
+2038-01-19 12:14:07
+SELECT FROM_UNIXTIME(2147483648);
+FROM_UNIXTIME(2147483648)
+NULL
+SELECT UNIX_TIMESTAMP("2038-01-19 12:14:07");
+UNIX_TIMESTAMP("2038-01-19 12:14:07")
+2147483647
+# Overflow:
+SELECT UNIX_TIMESTAMP("2038-01-19 12:14:08");
+UNIX_TIMESTAMP("2038-01-19 12:14:08")
+0
+SET TIME_ZONE = "US/Pacific";
+SELECT FROM_UNIXTIME(2147483647);
+FROM_UNIXTIME(2147483647)
+2038-01-18 19:14:07
+SELECT FROM_UNIXTIME(2147483648);
+FROM_UNIXTIME(2147483648)
+NULL
+SELECT UNIX_TIMESTAMP('2038-01-18 19:14:07');
+UNIX_TIMESTAMP('2038-01-18 19:14:07')
+2147483647
+# Overflow:
+SELECT UNIX_TIMESTAMP('2038-01-18 19:14:08');
+UNIX_TIMESTAMP('2038-01-18 19:14:08')
+0
+SET TIME_ZONE = DEFAULT;

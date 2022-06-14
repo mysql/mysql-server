@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "sql_string.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/table_helper.h"
 
 class Field;
@@ -59,7 +60,7 @@ class PFS_index_events_statements : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_statements() {}
+  ~PFS_index_events_statements() override = default;
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events *pfs);
@@ -104,20 +105,14 @@ struct row_events_statements {
   /** Column DIGEST and DIGEST_TEXT. */
   PFS_digest_row m_digest;
   /** Column CURRENT_SCHEMA. */
-  char m_current_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_current_schema_name. */
-  uint m_current_schema_name_length;
+  PFS_schema_name m_current_schema_name;
 
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column OBJECT_SCHEMA. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  PFS_object_name m_object_name;
 
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE + 1];
@@ -161,9 +156,13 @@ struct row_events_statements {
   ulonglong m_no_index_used;
   /** Column NO_GOOD_INDEX_USED. */
   ulonglong m_no_good_index_used;
+  /** Column CPU_TIME. */
+  ulonglong m_cpu_time;
 
   /** Column STATEMENT_ID. */
   ulonglong m_statement_id;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */
@@ -202,13 +201,13 @@ struct pos_events_statements_history : public PFS_double_index {
 */
 class table_events_statements_common : public PFS_engine_table {
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_events_statements_common(const PFS_engine_table_share *share,
                                  void *pos);
 
-  ~table_events_statements_common() {}
+  ~table_events_statements_common() override = default;
 
   int make_row_part_1(PFS_events_statements *statement,
                       sql_digest_storage *digest);
@@ -229,20 +228,20 @@ class table_events_statements_current : public table_events_statements_common {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
   table_events_statements_current();
 
  public:
-  ~table_events_statements_current() {}
+  ~table_events_statements_current() override = default;
 
  private:
   friend class table_events_statements_history;
@@ -272,19 +271,19 @@ class table_events_statements_history : public table_events_statements_common {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 
  protected:
   table_events_statements_history();
 
  public:
-  ~table_events_statements_history() {}
+  ~table_events_statements_history() override = default;
 
  private:
   /** Table share lock. */
@@ -312,16 +311,16 @@ class table_events_statements_history_long
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 
  protected:
   table_events_statements_history_long();
 
  public:
-  ~table_events_statements_history_long() {}
+  ~table_events_statements_history_long() override = default;
 
  private:
   /** Table share lock. */

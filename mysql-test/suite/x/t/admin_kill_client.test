@@ -1,0 +1,107 @@
+## Kill client
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+create user unpriv@localhost;
+set password for unpriv@localhost = 'x';
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.xpl
+--write_file $xtest_file
+-->quiet
+## Test data
+
+-->varlet %CLIENT_ID1% %ACTIVE_CLIENT_ID%
+
+-->stmtadmin list_clients
+-->recvresult
+
+-->stmtadmin list_clients	{"what":"all"}
+-->expecterror ER_X_CMD_INVALID_ARGUMENT
+-->recvresult
+
+
+## create and activate new session
+-->newsession aux	x_root
+
+-->varlet %CLIENT_ID2% %ACTIVE_CLIENT_ID%
+
+-->wait_for 2	SELECT COUNT(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' AND (command LIKE 'Sleep%' OR command LIKE 'Query%');
+
+-->stmtadmin list_clients
+-->recvresult
+
+-->echo switched to session default
+-->setsession
+
+-->stmtadmin list_clients
+-->recvresult
+
+-->stmtadmin kill_client
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->recvresult
+
+
+-->stmtadmin kill_client	{"id": %CLIENT_ID2% }
+-->recvresult
+
+-->setsession aux
+-->recvuntildisc show-received
+
+-->setsession
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
+
+-->stmtadmin list_clients
+-->recvresult
+
+
+### Create a separate session with diff account
+-->newsession unpriv	unpriv	x
+
+-->varlet %CLIENT_ID3% %ACTIVE_CLIENT_ID%
+
+-->wait_for 1	SELECT COUNT(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' AND (command LIKE 'Sleep%' OR command LIKE 'Query%');
+
+-->echo Should list unprivs session only
+-->stmtadmin list_clients
+-->recvresult
+
+
+## Try to kill a x_root session from unpriv
+-->stmtadmin kill_client	{"id": %CLIENT_ID1% }
+-->expecterror ER_KILL_DENIED_ERROR
+-->recvresult
+
+-->echo switched to session default
+-->setsession
+
+-->sleep 1;
+
+
+## Should list all sessions
+-->stmtadmin list_clients
+-->recvresult
+
+
+## kill the unpriv session
+-->stmtadmin kill_client	{"id": %CLIENT_ID3% }
+-->recvresult
+
+-->setsession unpriv
+-->recvuntildisc show-received
+
+-->setsession
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
+
+## Should list only x_root session
+-->stmtadmin list_clients
+-->recvresult
+EOF
+
+--replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+drop user unpriv@localhost;
+--source ../include/xplugin_cleanup.inc

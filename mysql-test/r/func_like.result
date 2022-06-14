@@ -65,74 +65,72 @@ select * from t1 where a like '2004-03-11 12:00:21';
 a
 2004-03-11 12:00:21
 drop table t1;
-SET NAMES koi8r;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
-INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
-INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
-INSERT INTO t1 VALUES ('фывАпролдж'),('фываПролдж'),('фывапРолдж'),('фывапрОлдж');
-INSERT INTO t1 VALUES ('фывапроЛдж'),('фывапролДж'),('фывапролдЖ'),('ФЫВАПРОЛДЖ');
-SELECT * FROM t1 WHERE a LIKE '%фЫва%';
+INSERT INTO t1 VALUES ('я└я▀п╡п╟'),('п╓я▀п╡п╟'),('я└п╚п╡п╟'),('я└я▀п▓п╟'),('я└я▀п╡п░'),('п╓п╚п▓п░');
+INSERT INTO t1 VALUES ('я└я▀п╡п╟п©я─п╬п╩п╢п╤'),('п╓я▀п╡п╟п©я─п╬п╩п╢п╤'),('я└п╚п╡п╟п©я─п╬п╩п╢п╤'),('я└я▀п▓п╟п©я─п╬п╩п╢п╤');
+INSERT INTO t1 VALUES ('я└я▀п╡п░п©я─п╬п╩п╢п╤'),('я└я▀п╡п╟п÷я─п╬п╩п╢п╤'),('я└я▀п╡п╟п©п═п╬п╩п╢п╤'),('я└я▀п╡п╟п©я─п·п╩п╢п╤');
+INSERT INTO t1 VALUES ('я└я▀п╡п╟п©я─п╬п⌡п╢п╤'),('я└я▀п╡п╟п©я─п╬п╩п■п╤'),('я└я▀п╡п╟п©я─п╬п╩п╢п√'),('п╓п╚п▓п░п÷п═п·п⌡п■п√');
+SELECT * FROM t1 WHERE a LIKE '%я└п╚п╡п╟%';
 a
-фыва
-Фыва
-фЫва
-фыВа
-фывА
-ФЫВА
-фывапролдж
-Фывапролдж
-фЫвапролдж
-фыВапролдж
-фывАпролдж
-фываПролдж
-фывапРолдж
-фывапрОлдж
-фывапроЛдж
-фывапролДж
-фывапролдЖ
-ФЫВАПРОЛДЖ
-SELECT * FROM t1 WHERE a LIKE '%фЫв%';
+я└я▀п╡п╟
+п╓я▀п╡п╟
+я└п╚п╡п╟
+я└я▀п▓п╟
+я└я▀п╡п░
+п╓п╚п▓п░
+я└я▀п╡п╟п©я─п╬п╩п╢п╤
+п╓я▀п╡п╟п©я─п╬п╩п╢п╤
+я└п╚п╡п╟п©я─п╬п╩п╢п╤
+я└я▀п▓п╟п©я─п╬п╩п╢п╤
+я└я▀п╡п░п©я─п╬п╩п╢п╤
+я└я▀п╡п╟п÷я─п╬п╩п╢п╤
+я└я▀п╡п╟п©п═п╬п╩п╢п╤
+я└я▀п╡п╟п©я─п·п╩п╢п╤
+я└я▀п╡п╟п©я─п╬п⌡п╢п╤
+я└я▀п╡п╟п©я─п╬п╩п■п╤
+я└я▀п╡п╟п©я─п╬п╩п╢п√
+п╓п╚п▓п░п÷п═п·п⌡п■п√
+SELECT * FROM t1 WHERE a LIKE '%я└п╚п╡%';
 a
-фыва
-Фыва
-фЫва
-фыВа
-фывА
-ФЫВА
-фывапролдж
-Фывапролдж
-фЫвапролдж
-фыВапролдж
-фывАпролдж
-фываПролдж
-фывапРолдж
-фывапрОлдж
-фывапроЛдж
-фывапролДж
-фывапролдЖ
-ФЫВАПРОЛДЖ
-SELECT * FROM t1 WHERE a LIKE 'фЫва%';
+я└я▀п╡п╟
+п╓я▀п╡п╟
+я└п╚п╡п╟
+я└я▀п▓п╟
+я└я▀п╡п░
+п╓п╚п▓п░
+я└я▀п╡п╟п©я─п╬п╩п╢п╤
+п╓я▀п╡п╟п©я─п╬п╩п╢п╤
+я└п╚п╡п╟п©я─п╬п╩п╢п╤
+я└я▀п▓п╟п©я─п╬п╩п╢п╤
+я└я▀п╡п░п©я─п╬п╩п╢п╤
+я└я▀п╡п╟п÷я─п╬п╩п╢п╤
+я└я▀п╡п╟п©п═п╬п╩п╢п╤
+я└я▀п╡п╟п©я─п·п╩п╢п╤
+я└я▀п╡п╟п©я─п╬п⌡п╢п╤
+я└я▀п╡п╟п©я─п╬п╩п■п╤
+я└я▀п╡п╟п©я─п╬п╩п╢п√
+п╓п╚п▓п░п÷п═п·п⌡п■п√
+SELECT * FROM t1 WHERE a LIKE 'я└п╚п╡п╟%';
 a
-фыва
-Фыва
-фЫва
-фыВа
-фывА
-ФЫВА
-фывапролдж
-Фывапролдж
-фЫвапролдж
-фыВапролдж
-фывАпролдж
-фываПролдж
-фывапРолдж
-фывапрОлдж
-фывапроЛдж
-фывапролДж
-фывапролдЖ
-ФЫВАПРОЛДЖ
+я└я▀п╡п╟
+п╓я▀п╡п╟
+я└п╚п╡п╟
+я└я▀п▓п╟
+я└я▀п╡п░
+п╓п╚п▓п░
+я└я▀п╡п╟п©я─п╬п╩п╢п╤
+п╓я▀п╡п╟п©я─п╬п╩п╢п╤
+я└п╚п╡п╟п©я─п╬п╩п╢п╤
+я└я▀п▓п╟п©я─п╬п╩п╢п╤
+я└я▀п╡п░п©я─п╬п╩п╢п╤
+я└я▀п╡п╟п÷я─п╬п╩п╢п╤
+я└я▀п╡п╟п©п═п╬п╩п╢п╤
+я└я▀п╡п╟п©я─п·п╩п╢п╤
+я└я▀п╡п╟п©я─п╬п⌡п╢п╤
+я└я▀п╡п╟п©я─п╬п╩п■п╤
+я└я▀п╡п╟п©я─п╬п╩п╢п√
+п╓п╚п▓п░п÷п═п·п⌡п■п√
 DROP TABLE t1;
-SET NAMES cp1250;
 CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
 INSERT INTO t1 VALUES
 ('Techni Tapes Sp. z o.o.'),
@@ -165,12 +163,11 @@ DROP TABLE t1;
 select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
 _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin
 1
-set names koi8r;
-select 'andre%' like 'andreй%' escape 'й';
-'andre%' like 'andreй%' escape 'й'
+select 'andre%' like 'andreп╧%' escape 'п╧';
+'andre%' like 'andreп╧%' escape 'п╧'
 1
-select _cp1251'andre%' like convert('andreй%' using cp1251)  escape 'й';
-_cp1251'andre%' like convert('andreй%' using cp1251)  escape 'й'
+select _cp1251 'andre%' like convert('andreп╧%' using cp1251)  escape 'п╧';
+_cp1251 'andre%' like convert('andreп╧%' using cp1251)  escape 'п╧'
 1
 End of 4.1 tests
 #
@@ -189,8 +186,7 @@ DROP TABLE t1, t2;
 # Bug#59149 valgrind warnings with "like .. escape .." function
 #
 SELECT '' LIKE '1' ESCAPE COUNT(1);
-'' LIKE '1' ESCAPE COUNT(1)
-0
+ERROR HY000: Incorrect arguments to ESCAPE
 End of 5.1 tests
 #
 # Bug #18114294	 CRASH IN ITEM_FUNC_LIKE::BM_MATCHES
@@ -263,15 +259,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	idx	NULL	NULL	NULL	2	50.00	Using where; Using filesort
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t2` where (`test`.`t2`.`y` like 'abc%%') order by `test`.`t2`.`y`
+Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t2` where (`test`.`t2`.`y` like 'abc%%' escape (/* select#2 */ select 'c' from `test`.`t1`)) order by `test`.`t2`.`y`
 SELECT * FROM t2 WHERE y LIKE 'abc%%' ESCAPE (SELECT 'c' FROM t1) ORDER BY y;
 x	y
 2	ab%cde
 DROP TABLE t1, t2;
 # Bug#20035071: Out of range error in subselect lead to assertion failed
 CREATE TABLE t1(a INTEGER) engine=innodb;
+INSERT INTO t1 VALUES(1);
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
-1
+ERROR 22003: DOUBLE value is out of range in 'exp(now())'
 DROP TABLE t1;
 #
 # Bug #25140629: WRONG RESULT WHEN USING LIKE FUNCTION WITH UCA
@@ -417,3 +414,63 @@ SELECT * FROM t WHERE col1 LIKE '2019-06-1%';
 col1
 2019-06-13
 DROP TABLE t;
+#
+# Bug#31249687 WL9384: RESULTSET MISMATCH WITH LIKE KEYWORD USING PREPARE STATEMENT
+#
+create table t1(a int);
+insert into t1 values(0);
+set @pattern="%1%";
+select 1 from t1 where a like @pattern;
+1
+prepare s from 'select 1 from t1 where a like ?';
+execute s using @pattern;
+1
+drop table t1;
+#
+# Bug#26086751: LIKE LOSES ESCAPE CLAUSE WHEN USED IN VIEW
+# Bug#29224931: LIKE ... ESCAPE IS NOT WRITTEN TO DICTIONARY
+# Bug#30211596: `EXPLAIN ... LIKE ... ESCAPE` DOESN'T OUTPUT `ESCAPE`
+#               CLAUSE IN THE WARNING
+#
+EXPLAIN SELECT 'abba' LIKE 'abba' ESCAPE 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select ('abba' like 'abba' escape 'b') AS `'abba' LIKE 'abba' ESCAPE 'b'`
+CREATE TABLE t(x VARCHAR(10),
+gc INTEGER GENERATED ALWAYS AS (x LIKE 'abba' ESCAPE 'b'));
+INSERT INTO t(x) VALUES ('abba'), ('aba'), ('abbbba');
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` varchar(10) DEFAULT NULL,
+  `gc` int GENERATED ALWAYS AS ((`x` like _utf8mb4'abba' escape _utf8mb4'b')) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT x FROM t WHERE gc <> 0;
+x
+aba
+CREATE VIEW v AS SELECT x, 'abba' LIKE x ESCAPE 'b' AS y FROM t;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`x` AS `x`,('abba' like `t`.`x` escape 'b') AS `y` from `t`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT x FROM v WHERE y <> 0;
+x
+abbbba
+DROP VIEW v;
+DROP TABLE t;
+#
+# Bug#32446508: INCONSISTENT HANDLING OF LIKE WITH AN EMPTY ESCAPE SEQUENCE
+#
+# Used to return (0, 1, 1), should return (0, 0, 0).
+SELECT _latin1'abc' LIKE _latin1'a\\bc' ESCAPE _latin1'' AS col1,
+_utf8mb4'abc' LIKE _utf8mb4'a\\bc' ESCAPE _utf8mb4'' AS col2,
+_latin1'abc' LIKE _latin1'a\\bc' ESCAPE _ascii'' AS col3;
+col1	col2	col3
+0	0	0
+SET sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
+# Used to return (1, 0), should return (1, 1).
+SELECT _latin1'a\bc' LIKE _latin1'a\%' AS col1,
+_utf8mb4'a\bc' LIKE _utf8mb4'a\%' AS col2;
+col1	col2
+1	1
+SET sql_mode = DEFAULT;

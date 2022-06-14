@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 #define SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 
-// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -91,33 +91,29 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
                    rtr_mbr_t *b);
 
-/// Returns true.
+/// Checks if two MBRs intersect each other
 ///
-/// @warning Despite the name, this function does not compute the intersection
-/// relationship. It always returns true.
+/// @param[in] srs Spatial reference system.
+/// @param[in] a The first MBR.
+/// @param[in] b The second MBR.
 ///
 /// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
 /// than or equal to the corresponding coordinates of the maximum corner.
 ///
-/// @param[in] a Ignored.
-/// @param[in] b Ignored.
-///
-/// @return Always returns true.
-bool mbr_intersect_cmp(rtr_mbr_t *a, rtr_mbr_t *b);
+/// @retval true The MBRs intersect each other.
+/// @retval false The MBRs are disjoint.
+bool mbr_intersect_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                       rtr_mbr_t *b);
 
-/// Returns false.
-///
-/// @warning Despite the name, this function does not compute the disjoint
-/// relationship. It always returns false.
+/// Checks if two MBRs are disjoint
 ///
 /// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
 /// than or equal to the corresponding coordinates of the maximum corner.
 ///
-/// @param[in] a Ignored.
-/// @param[in] b Ignored.
-///
-/// @return Always returns false.
-bool mbr_disjoint_cmp(rtr_mbr_t *a, rtr_mbr_t *b);
+/// @retval true The MBRs are disjoint.
+/// @retval false The MBRs intersect each other.
+bool mbr_disjoint_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                      rtr_mbr_t *b);
 
 /// Checks if one MBR is covered by another MBR.
 ///

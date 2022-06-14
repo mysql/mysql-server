@@ -1,0 +1,270 @@
+--echo #
+--echo # WL#12261 Control (enforce and disable) table encryption
+--echo #
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+connect (con1, localhost, u1);
+
+--echo # This test run CREATE/ALTER DATABASE in different configurations,
+--echo #
+--echo # - Setting table_encryption_privilege_check to true/false.
+--echo # - Setting default_table_encryption to true/false.
+--echo # - With and without ENCRYPTION clause.
+--echo # - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+--echo # - Test SHOW CREATE DATABASE
+--echo # - Test INFORMATION_SCHEMA.SCHEMATA
+--echo # - Check for warnings generated.
+--echo #
+
+# Initialization
+--let caseno=0
+--let expected_error=0
+--let has_grant=false
+--let with_default=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # CREATE DATABASE without DEFAULT ENCRYPTION clause
+--echo # and with different values for system variable
+--echo # 'table_encryption_privilege_check' and 'default_table_encryption'
+
+--let explicit_encryption_clause=false
+--let privilege_check=false
+--let global_database_encryption_default=false;
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--source ./create_database.inc
+
+--let privilege_check=true
+--let global_database_encryption_default=false;
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--source ./create_database.inc
+
+--let has_grant=true
+--let global_database_encryption_default=false;
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--source ./create_database.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # CREATE DATABASE with DEFAULT ENCRYPTION clause 'y/n'
+--echo # and with different values for system variable
+--echo # 'table_encryption_privilege_check' and 'default_table_encryption'.
+--let explicit_encryption_clause=true
+
+--let privilege_check=false
+--let global_database_encryption_default=false;
+--let database_encryption='y'
+--source ./create_database.inc
+--let database_encryption='n'
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--let database_encryption='y'
+--source ./create_database.inc
+--let database_encryption='n'
+--source ./create_database.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Without the keyword DEFAULT.
+--let with_default=false
+--let global_database_encryption_default=false;
+--let database_encryption='y'
+--source ./create_database.inc
+--let database_encryption='n'
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--let database_encryption='y'
+--source ./create_database.inc
+--let database_encryption='n'
+--source ./create_database.inc
+--let with_default=true
+
+--let privilege_check=true
+--let global_database_encryption_default=false;
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure because the encryption request is different from
+--echo # global 'default_table_encryption' setting.
+--let database_encryption='y'
+--let expected_error=ER_CANNOT_SET_DATABASE_ENCRYPTION
+--source ./create_database.inc
+--let expected_error=0
+--let database_encryption='n'
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--let database_encryption='y'
+--source ./create_database.inc
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure because the encryption request is different from
+--echo # global 'default_table_encryption' setting.
+--let database_encryption='n'
+--let expected_error=ER_CANNOT_SET_DATABASE_ENCRYPTION
+--source ./create_database.inc
+
+--let has_grant=true
+--let global_database_encryption_default=false;
+--let expected_error=0
+--let database_encryption='y'
+--source ./create_database.inc
+--let expected_error=0
+--let database_encryption='n'
+--source ./create_database.inc
+--let global_database_encryption_default=true;
+--let database_encryption='y'
+--source ./create_database.inc
+--let expected_error=0
+--let database_encryption='n'
+--source ./create_database.inc
+--let has_grant=false
+--let privilege_check=false
+--let global_database_encryption_default=false;
+
+--echo `````````````````````````````````````````````````````````
+--echo # With invalid value for DEFAULT ENCRYPTION
+--let expected_error=ER_WRONG_VALUE
+--let database_encryption='k'
+--source ./create_database.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Check with legacy syntax.
+CREATE DATABASE `db1` /*!80016 DEFAULT ENCRYPTION='Y' */;
+SHOW CREATE DATABASE db1;
+DROP DATABASE db1;
+--echo `````````````````````````````````````````````````````````
+--echo # See that we ignore the clause with invalid mysql version.
+CREATE DATABASE `db1` /*!99999 DEFAULT ENCRYPTION='Y' */;
+SHOW CREATE DATABASE db1;
+DROP DATABASE db1;
+
+--echo `````````````````````````````````````````````````````````
+--echo # ALTER DATABASE withDEFAULT ENCRYPTION clause 'y/n'
+--echo # and with different values for system variable
+--echo # 'table_encryption_privilege_check' and 'default_table_encryption'
+
+--let expected_error=0
+--let caseno=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # Following cases are with database DEFAULT ENCRYPTION 'y'
+--let database_encryption='n'
+
+--let privilege_check=false
+--let global_database_encryption_default=false;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let alter_encryption='y'
+--source ./alter_database.inc
+--let global_database_encryption_default=true;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let alter_encryption='y'
+--source ./alter_database.inc
+
+--let privilege_check=true
+--let global_database_encryption_default=false;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure because the encryption request is different from
+--echo # global 'default_table_encryption' setting.
+--let alter_encryption='y'
+--let expected_error=ER_CANNOT_SET_DATABASE_ENCRYPTION
+--source ./alter_database.inc
+--let global_database_encryption_default=true;
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure because the encryption request is different from
+--echo # global 'default_table_encryption' setting.
+--let alter_encryption='n'
+--let expected_error=ER_CANNOT_SET_DATABASE_ENCRYPTION
+--source ./alter_database.inc
+--let expected_error=0
+--let alter_encryption='y'
+--source ./alter_database.inc
+
+--let has_grant=true
+--let global_database_encryption_default=false;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let alter_encryption='y'
+--let expected_error=0
+--source ./alter_database.inc
+--let global_database_encryption_default=true;
+--let expected_error=0
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let expected_error=0
+--let alter_encryption='y'
+--source ./alter_database.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Following cases are with database DEFAULT ENCRYPTION 'y'
+--let database_encryption='y'
+
+--let privilege_check=false
+--let global_database_encryption_default=false;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let alter_encryption='y'
+--source ./alter_database.inc
+--let global_database_encryption_default=true;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let alter_encryption='y'
+--source ./alter_database.inc
+
+--let privilege_check=true
+--let global_database_encryption_default=false;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure because the encryption request is different from
+--echo # global 'default_table_encryption' setting.
+--let alter_encryption='y'
+--let expected_error=ER_CANNOT_SET_DATABASE_ENCRYPTION
+--source ./alter_database.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure because the encryption request is different from
+--echo # global 'default_table_encryption' setting.
+--let global_database_encryption_default=true;
+--let alter_encryption='n'
+--let expected_error=ER_CANNOT_SET_DATABASE_ENCRYPTION
+--source ./alter_database.inc
+--let expected_error=0
+--let alter_encryption='y'
+--source ./alter_database.inc
+
+--let has_grant=true
+--let global_database_encryption_default=false;
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let expected_error=0
+--let alter_encryption='y'
+--source ./alter_database.inc
+--let global_database_encryption_default=true;
+--let expected_error=0
+--let alter_encryption='n'
+--source ./alter_database.inc
+--let expected_error=0
+--let alter_encryption='y'
+--source ./alter_database.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Invalid encryption option.
+--let privilege_check=false
+--let global_database_encryption_default=false;
+--let expected_error=ER_WRONG_VALUE
+--let alter_encryption='k'
+--source ./alter_database.inc
+
+--echo # Cleanup
+disconnect con1;
+connection default;
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

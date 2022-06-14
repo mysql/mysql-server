@@ -1,0 +1,57 @@
+#
+# Bug #30190227 CRASH IMPORTING TABLESPACE WITH DIFFERENT DATA DIRECTORY
+# BUT NOT .CFG FILE
+#
+# Test-case-1
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO t1 VALUES (1), (2), (3);
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table uses a DATA DIRECTORY but the destination table does not.)
+DROP TABLE t1;
+#
+# Test-case-2
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table does not use a DATA DIRECTORY but the destination table does.)
+DROP TABLE t1;
+#
+# Bug #30190199 ERROR WHEN IMPORTING TABLESPACE WITH DIFFERENT DATA
+# DIRECTORY LACKS DETAILS
+#
+# Test-case-3
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO t1 VALUES (1), (2), (3);
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table uses a DATA DIRECTORY but the destination table does not.)
+DROP TABLE t1;
+#
+# Test-case-4
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table does not use a DATA DIRECTORY but the destination table does.)
+DROP TABLE t1;
+#
+# Cleanup
+#

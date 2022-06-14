@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ struct TABLE;
 
 class System_table_access {
  public:
-  virtual ~System_table_access() {}
+  virtual ~System_table_access() = default;
 
   /**
     Opens and locks a system table.
@@ -61,14 +61,43 @@ class System_table_access {
     @param[out] table         We will store the open table here
     @param[out] backup        Save the lock info. here
 
-    @return
-      @retval true open and lock failed - an error message is pushed into the
+    @retval true open and lock failed - an error message is pushed into the
                                           stack
-      @retval false success
+    @retval false success
   */
   bool open_table(THD *thd, const LEX_CSTRING dbstr, const LEX_CSTRING tbstr,
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE **table, Open_tables_backup *backup);
+
+  /**
+    Opens and locks a system table.
+
+    It's assumed that the caller knows what they are doing:
+    - whether it was necessary to reset-and-backup the open tables state
+    - whether the requested lock does not lead to a deadlock
+    - whether this open mode would work under LOCK TABLES, or inside a
+    stored function or trigger.
+
+    Note that if the table can't be locked successfully this operation will
+    close it. Therefore it provides guarantee that it either opens and locks
+    table or fails without leaving any tables open.
+
+    @param[in]  thd           Thread requesting to open the table
+    @param[in]  dbstr         Database where the table resides
+    @param[in]  tbstr         Table to be openned
+    @param[in]  max_num_field Maximum number of fields
+    @param[in]  lock_type     How to lock the table
+    @param[out] table         We will store the open table here
+    @param[out] backup        Save the lock info. here
+
+    @retval true open and lock failed - an error message is pushed into the
+                                          stack
+    @retval false success
+  */
+  bool open_table(THD *thd, std::string dbstr, std::string tbstr,
+                  uint max_num_field, enum thr_lock_type lock_type,
+                  TABLE **table, Open_tables_backup *backup);
+
   /**
     Prepares before opening table.
 
@@ -88,9 +117,9 @@ class System_table_access {
     @param[in] need_commit Need to commit current transaction
                            if it is true.
 
-    @return
-      @retval  true   failed
-      @retval  false  success
+    @retval  true   failed
+    @retval  false  success
+
     If there is an error, rolls back the current statement. Otherwise,
     commits it. However, if a new thread was created and there is an
     error, the transaction must be rolled back. Otherwise, it must be
@@ -104,8 +133,7 @@ class System_table_access {
     Creates a new thread in the bootstrap process or in the mysqld startup,
     a thread is created in order to be able to access a table.
 
-    @return
-      @retval THD* Pointer to thread structure
+    @return THD* Pointer to thread structure
   */
   THD *create_thd();
   /**

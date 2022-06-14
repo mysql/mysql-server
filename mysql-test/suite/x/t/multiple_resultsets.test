@@ -100,7 +100,6 @@ SET @@sql_mode = "";
 --echo
 --echo #
 --echo # I.
-eval DROP SCHEMA IF EXISTS $STORED_PROC_DB_NAME;
 --source ../include/stored_procedures.inc
 exec $MYSQLXTEST
   -ux_root --password=''
@@ -132,5 +131,4 @@ exec $MYSQLXTEST
 
 ## Cleanup
 eval DROP SCHEMA IF EXISTS $STORED_PROC_DB_NAME;
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

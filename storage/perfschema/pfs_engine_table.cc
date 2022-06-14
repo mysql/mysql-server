@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,10 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
+#include "my_time.h"
 #include "myisampack.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -53,6 +54,7 @@
 /* For show status */
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/table_accounts.h"
+#include "storage/perfschema/table_binary_log_transaction_compression_stats.h"
 #include "storage/perfschema/table_data_lock_waits.h"
 #include "storage/perfschema/table_data_locks.h"
 #include "storage/perfschema/table_ees_by_account_by_error.h"
@@ -60,6 +62,7 @@
 #include "storage/perfschema/table_ees_by_thread_by_error.h"
 #include "storage/perfschema/table_ees_by_user_by_error.h"
 #include "storage/perfschema/table_ees_global_by_error.h"
+#include "storage/perfschema/table_error_log.h"
 #include "storage/perfschema/table_esgs_by_account_by_event_name.h"
 #include "storage/perfschema/table_esgs_by_host_by_event_name.h"
 #include "storage/perfschema/table_esgs_by_thread_by_event_name.h"
@@ -96,6 +99,7 @@
 #include "storage/perfschema/table_global_variables.h"
 #include "storage/perfschema/table_host_cache.h"
 #include "storage/perfschema/table_hosts.h"
+#include "storage/perfschema/table_keyring_component_status.h"
 #include "storage/perfschema/table_keyring_keys.h"
 #include "storage/perfschema/table_md_locks.h"
 #include "storage/perfschema/table_mems_by_account_by_event_name.h"
@@ -107,6 +111,7 @@
 #include "storage/perfschema/table_performance_timers.h"
 #include "storage/perfschema/table_persisted_variables.h"
 #include "storage/perfschema/table_prepared_stmt_instances.h"
+#include "storage/perfschema/table_processlist.h"
 #include "storage/perfschema/table_replication_applier_configuration.h"
 #include "storage/perfschema/table_replication_applier_filters.h"
 #include "storage/perfschema/table_replication_applier_global_filters.h"
@@ -115,10 +120,12 @@
 #include "storage/perfschema/table_replication_applier_status_by_worker.h"
 /* For replication related perfschema tables. */
 #include "storage/perfschema/table_log_status.h"
+#include "storage/perfschema/table_replication_asynchronous_connection_failover.h"
 #include "storage/perfschema/table_replication_connection_configuration.h"
 #include "storage/perfschema/table_replication_connection_status.h"
 #include "storage/perfschema/table_replication_group_member_stats.h"
 #include "storage/perfschema/table_replication_group_members.h"
+#include "storage/perfschema/table_rpl_async_connection_failover_managed.h"
 #include "storage/perfschema/table_session_account_connect_attrs.h"
 #include "storage/perfschema/table_session_connect_attrs.h"
 #include "storage/perfschema/table_session_status.h"
@@ -140,6 +147,7 @@
 #include "storage/perfschema/table_threads.h"
 #include "storage/perfschema/table_tiws_by_index_usage.h"
 #include "storage/perfschema/table_tiws_by_table.h"
+#include "storage/perfschema/table_tls_channel_status.h"
 #include "storage/perfschema/table_tlws_by_table.h"
 #include "storage/perfschema/table_user_defined_functions.h"
 #include "storage/perfschema/table_users.h"
@@ -470,90 +478,9 @@
   @{
 */
 
-bool PFS_table_context::initialize(void) {
-  if (m_restore) {
-    /* Restore context from TLS. */
-    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
-    DBUG_ASSERT(context != NULL);
-
-    if (context) {
-      m_last_version = context->m_current_version;
-      m_map = context->m_map;
-      DBUG_ASSERT(m_map_size == context->m_map_size);
-      m_map_size = context->m_map_size;
-      m_word_size = context->m_word_size;
-    }
-  } else {
-    /* Check that TLS is not in use. */
-    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
-
-    context = this;
-
-    /* Initialize a new context, store in TLS. */
-    m_last_version = m_current_version;
-    m_map = NULL;
-    m_word_size = sizeof(ulong) * 8;
-
-    /* Write to TLS. */
-    THR_PFS_contexts[m_thr_key] = context;
-  }
-
-  m_initialized = (m_map_size > 0) ? (m_map != NULL) : true;
-
-  return m_initialized;
-}
-
-/* Constructor for global or single thread tables, map size = 0.  */
-PFS_table_context::PFS_table_context(ulonglong current_version, bool restore,
-                                     THR_PFS_key key)
-    : m_thr_key(key),
-      m_current_version(current_version),
-      m_last_version(0),
-      m_map(NULL),
-      m_map_size(0),
-      m_word_size(sizeof(ulong)),
-      m_restore(restore),
-      m_initialized(false),
-      m_last_item(0) {
-  initialize();
-}
-
-/* Constructor for by-thread or aggregate tables, map size = max
- * thread/user/host/account. */
-PFS_table_context::PFS_table_context(ulonglong current_version, ulong map_size,
-                                     bool restore, THR_PFS_key key)
-    : m_thr_key(key),
-      m_current_version(current_version),
-      m_last_version(0),
-      m_map(NULL),
-      m_map_size(map_size),
-      m_word_size(sizeof(ulong)),
-      m_restore(restore),
-      m_initialized(false),
-      m_last_item(0) {
-  initialize();
-}
-
-PFS_table_context::~PFS_table_context(void) {}
-
-void PFS_table_context::set_item(ulong n) {
-  if (n == m_last_item) {
-    return;
-  }
-  ulong word = n / m_word_size;
-  ulong bit = n % m_word_size;
-  m_map[word] |= (1UL << bit);
-  m_last_item = n;
-}
-
-bool PFS_table_context::is_item_set(ulong n) {
-  ulong word = n / m_word_size;
-  ulong bit = n % m_word_size;
-  return (m_map[word] & (1UL << bit));
-}
-
 static PFS_engine_table_share *all_shares[] = {
     &table_cond_instances::m_share,
+    &table_error_log::m_share,
     &table_events_waits_current::m_share,
     &table_events_waits_history::m_share,
     &table_events_waits_history_long::m_share,
@@ -570,6 +497,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_mutex_instances::m_share,
     &table_os_global_by_type::m_share,
     &table_performance_timers::m_share,
+    &table_processlist::m_share,
     &table_rwlock_instances::m_share,
     &table_setup_actors::m_share,
     &table_setup_consumers::m_share,
@@ -651,6 +579,8 @@ static PFS_engine_table_share *all_shares[] = {
     &table_replication_group_member_stats::m_share,
     &table_replication_applier_filters::m_share,
     &table_replication_applier_global_filters::m_share,
+    &table_replication_asynchronous_connection_failover::m_share,
+    &table_rpl_async_connection_failover_managed::m_share,
     &table_log_status::m_share,
 
     &table_prepared_stmt_instances::m_share,
@@ -669,8 +599,10 @@ static PFS_engine_table_share *all_shares[] = {
     &table_variables_info::m_share,
     &table_persisted_variables::m_share,
     &table_user_defined_functions::m_share,
-
-    NULL};
+    &table_binary_log_transaction_compression_stats::m_share,
+    &table_tls_channel_status::m_share,
+    &table_keyring_component_status::m_share,
+    nullptr};
 
 static PSI_mutex_key key_LOCK_pfs_share_list;
 static PSI_mutex_info info_LOCK_pfs_share_list = {
@@ -698,7 +630,7 @@ PFS_dynamic_table_shares pfs_external_table_shares;
 void PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     tables->push_back((*current)->m_table_def);
   }
 }
@@ -707,7 +639,7 @@ void PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables) {
 void PFS_engine_table_share::init_all_locks(void) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     thr_lock_init((*current)->m_thr_lock_ptr);
   }
 }
@@ -716,7 +648,7 @@ void PFS_engine_table_share::init_all_locks(void) {
 void PFS_engine_table_share::delete_all_locks(void) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     thr_lock_delete((*current)->m_thr_lock_ptr);
   }
 }
@@ -730,7 +662,7 @@ int PFS_engine_table_share::write_row(PFS_engine_table *pfs_table, TABLE *table,
                                       Field **fields) const {
   my_bitmap_map *org_bitmap;
 
-  if (m_write_row == NULL) {
+  if (m_write_row == nullptr) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -772,15 +704,15 @@ int compare_table_names(const char *name1, const char *name2) {
 */
 PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
     const char *name) {
-  DBUG_ENTER("PFS_engine_table::find_table_share");
+  DBUG_TRACE;
   PFS_engine_table_share *result;
 
   /* First try to find in native performance schema table shares */
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0) {
-      DBUG_RETURN(*current);
+      return *current;
     }
   }
 
@@ -788,7 +720,7 @@ PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
   result = pfs_external_table_shares.find_share(name, false);
 
   // FIXME : here we return an object that could be destroyed, unsafe.
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -892,21 +824,21 @@ int PFS_engine_table::update_row_values(TABLE *, const unsigned char *,
 int PFS_engine_table::index_read(KEY *key_infos, uint index, const uchar *key,
                                  uint key_len,
                                  enum ha_rkey_function find_flag) {
-  // DBUG_ASSERT(m_index != NULL);
-  if (m_index == NULL) {
+  // assert(m_index != NULL);
+  if (m_index == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
   // FIXME: Unclear what to do here
-  DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST);
-  DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST_OR_PREV);
+  assert(find_flag != HA_READ_PREFIX_LAST);
+  assert(find_flag != HA_READ_PREFIX_LAST_OR_PREV);
 
   // No GIS here
-  DBUG_ASSERT(find_flag != HA_READ_MBR_CONTAIN);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_INTERSECT);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_WITHIN);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_DISJOINT);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_EQUAL);
+  assert(find_flag != HA_READ_MBR_CONTAIN);
+  assert(find_flag != HA_READ_MBR_INTERSECT);
+  assert(find_flag != HA_READ_MBR_WITHIN);
+  assert(find_flag != HA_READ_MBR_DISJOINT);
+  assert(find_flag != HA_READ_MBR_EQUAL);
 
   KEY *key_info = key_infos + index;
   m_index->set_key_info(key_info);
@@ -942,7 +874,7 @@ PFS_engine_table_share *PFS_dynamic_table_shares::find_share(
       return it;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -965,13 +897,14 @@ void PFS_dynamic_table_shares::remove_share(PFS_engine_table_share *share) {
 /** Implementation of internal ACL checks, for the performance schema. */
 class PFS_internal_schema_access : public ACL_internal_schema_access {
  public:
-  PFS_internal_schema_access() {}
+  PFS_internal_schema_access() = default;
 
-  ~PFS_internal_schema_access() {}
+  ~PFS_internal_schema_access() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 
-  const ACL_internal_table_access *lookup(const char *name) const;
+  const ACL_internal_table_access *lookup(const char *name) const override;
 };
 
 static bool allow_drop_schema_privilege() {
@@ -980,28 +913,31 @@ static bool allow_drop_schema_privilege() {
     in particular, as a schema level privilege:
     - DROP SCHEMA
     - GRANT DROP on performance_schema.*
+    - REVOKE DROP ON performance_schema.*
     - DROP TABLE performance_schema.*
 
     As a table level privilege:
     - DROP TABLE performance_schema.foo
     - GRANT DROP on performance_schema.foo
+    - REVOKE DROP on performance_schema.foo
     - TRUNCATE TABLE performance_schema.foo
 
     Here, we want to:
     - always prevent DROP SCHEMA (SQLCOM_DROP_DB)
-    - allow GRANT to give the TRUNCATE on any tables
+    - allow GRANT/REVOKE to give the TRUNCATE on any tables
     - allow DROP TABLE checks to proceed further,
       in particular to drop unknown tables,
       see PFS_unknown_acl::check()
   */
   THD *thd = current_thd;
-  if (thd == NULL) {
+  if (thd == nullptr) {
     return false;
   }
 
-  DBUG_ASSERT(thd->lex != NULL);
+  assert(thd->lex != nullptr);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT) &&
+      (thd->lex->sql_command != SQLCOM_REVOKE) &&
       (thd->lex->sql_command != SQLCOM_DROP_TABLE)) {
     return false;
   }
@@ -1080,11 +1016,11 @@ static bool allow_drop_table_privilege() {
     Note that we must also allow GRANT to transfer the truncate privilege.
   */
   THD *thd = current_thd;
-  if (thd == NULL) {
+  if (thd == nullptr) {
     return false;
   }
 
-  DBUG_ASSERT(thd->lex != NULL);
+  assert(thd->lex != nullptr);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT)) {
     return false;
@@ -1118,6 +1054,33 @@ ACL_internal_access_result PFS_readonly_world_acl::check(
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
+  return res;
+}
+
+PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
+
+ACL_internal_access_result PFS_readonly_processlist_acl::check(
+    ulong want_access, ulong *save_priv) const {
+  ACL_internal_access_result res =
+      PFS_readonly_acl::check(want_access, save_priv);
+
+  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access == SELECT_ACL)) {
+    THD *thd = current_thd;
+    if (thd != nullptr) {
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROCESSLIST ||
+          thd->lex->sql_command == SQLCOM_SELECT) {
+        /*
+          For compatibility with the historical
+          SHOW PROCESSLIST command,
+          SHOW PROCESSLIST does not require a
+          SELECT privilege on table performance_schema.processlist,
+          when rewriting the query using table processlist.
+        */
+        return ACL_INTERNAL_ACCESS_GRANTED;
+      }
+    }
+  }
+
   return res;
 }
 
@@ -1195,10 +1158,14 @@ PFS_unknown_acl pfs_unknown_acl;
 
 ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
                                                   ulong *) const {
+  /*
+    Only enforce ACL_INTERNAL_ACCESS_DENIED
+    for operations that can create unwanted SQL objects
+    in the performance schema,
+    relax error messages otherwise.
+  */
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL |
-                                 INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 SHOW_VIEW_ACL | LOCK_TABLES_ACL;
+                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
@@ -1232,10 +1199,10 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
 #define READ_INT_COMMON(DS, KT, DT, KORR)                                \
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {  \
     size_t data_size = DS;                                               \
-    DBUG_ASSERT(m_remaining_key_part_info->type == KT);                  \
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);   \
+    assert(m_remaining_key_part_info->type == KT);                       \
+    assert(m_remaining_key_part_info->store_length >= data_size);        \
     isnull = false;                                                      \
-    if (m_remaining_key_part_info->field->real_maybe_null()) {           \
+    if (m_remaining_key_part_info->field->is_nullable()) {               \
       if (m_remaining_key[0]) {                                          \
         isnull = true;                                                   \
       }                                                                  \
@@ -1250,7 +1217,7 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
     *value = data;                                                       \
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT); \
   }                                                                      \
-  DBUG_ASSERT(m_remaining_key_len == 0);                                 \
+  assert(m_remaining_key_len == 0);                                      \
   return HA_READ_INVALID
 
 enum ha_rkey_function PFS_key_reader::read_int8(enum ha_rkey_function find_flag,
@@ -1303,9 +1270,39 @@ enum ha_rkey_function PFS_key_reader::read_ulonglong(
   READ_INT_COMMON(8, HA_KEYTYPE_ULONGLONG, unsigned long long, uint8korr);
 }
 
+enum ha_rkey_function PFS_key_reader::read_timestamp(
+    enum ha_rkey_function find_flag, bool &isnull, ulonglong *value, uint dec) {
+  size_t data_size = 4 + ((size_t)((dec + 1) / 2));
+  my_timeval tm;
+
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
+    assert(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
+    assert(m_remaining_key_part_info->store_length >= data_size);
+    isnull = false;
+    if (m_remaining_key_part_info->field->is_nullable()) {
+      if (m_remaining_key[0]) {
+        isnull = true;
+      }
+      m_remaining_key += HA_KEY_NULL_LENGTH;
+      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
+    }
+    my_timestamp_from_binary(&tm, m_remaining_key, dec);
+    ulonglong data =
+        static_cast<ulonglong>(tm.m_tv_sec) * 1000000ULL + tm.m_tv_usec;
+    m_remaining_key += data_size;
+    m_remaining_key_len -= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+    *value = data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+  assert(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
 enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     enum ha_rkey_function find_flag, bool &isnull, char *buffer,
-    uint *buffer_length, uint buffer_capacity) {
+    uint *buffer_length, uint buffer_capacity [[maybe_unused]]) {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:
@@ -1318,8 +1315,8 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     size_t length_offset = 0;
     size_t data_offset = 2;
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
-      DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
+    if (m_remaining_key_part_info->field->is_nullable()) {
+      assert(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
       data_offset++;
@@ -1328,19 +1325,14 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
       }
     }
 
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
-                m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT2);
+    assert(m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+           m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT2);
 
-    DBUG_ASSERT(data_offset <= m_remaining_key_len);
+    assert(data_offset <= m_remaining_key_len);
     size_t string_len = uint2korr(m_remaining_key + length_offset);
-    DBUG_ASSERT(data_offset + string_len <=
-                m_remaining_key_part_info->store_length);
-    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
-
-    // DBUG_ASSERT(string_len <= buffer_capacity);
-    if (string_len > buffer_capacity) {
-      string_len = buffer_capacity;
-    }
+    assert(data_offset + string_len <= m_remaining_key_part_info->store_length);
+    assert(data_offset + string_len <= m_remaining_key_len);
+    assert(string_len <= buffer_capacity);
 
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
@@ -1356,13 +1348,13 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
   }
 
-  DBUG_ASSERT(m_remaining_key_len == 0);
+  assert(m_remaining_key_len == 0);
   return HA_READ_INVALID;
 }
 
 enum ha_rkey_function PFS_key_reader::read_text_utf8(
     enum ha_rkey_function find_flag, bool &isnull, char *buffer,
-    uint *buffer_length, uint buffer_capacity) {
+    uint *buffer_length, uint buffer_capacity [[maybe_unused]]) {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:
@@ -1370,13 +1362,13 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
       - followed by data
       - Length determined by key definition
     */
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_TEXT);
+    assert(m_remaining_key_part_info->type == HA_KEYTYPE_TEXT);
 
     size_t length_offset = 0;
     size_t data_offset = 0;
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
-      DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
+    if (m_remaining_key_part_info->field->is_nullable()) {
+      assert(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
       data_offset++;
@@ -1385,17 +1377,11 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
       }
     }
 
-    DBUG_ASSERT(data_offset <= m_remaining_key_len);
+    assert(data_offset <= m_remaining_key_len);
     size_t string_len = m_remaining_key_part_info->length;
-    DBUG_ASSERT(data_offset + string_len <=
-                m_remaining_key_part_info->store_length);
-    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
-
-    // DBUG_ASSERT(string_len <= buffer_capacity);
-    if (string_len > buffer_capacity)  // FIXME
-    {
-      string_len = buffer_capacity;
-    }
+    assert(data_offset + string_len <= m_remaining_key_part_info->store_length);
+    assert(data_offset + string_len <= m_remaining_key_len);
+    assert(string_len <= buffer_capacity);
 
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
@@ -1406,7 +1392,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
       size_t char_length;
       char_length =
           my_charpos(cs, pos, pos + string_len, string_len / cs->mbmaxlen);
-      set_if_smaller(string_len, char_length);
+      string_len = std::min(string_len, char_length);
     }
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);
@@ -1418,7 +1404,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
   }
 
-  DBUG_ASSERT(m_remaining_key_len == 0);
+  assert(m_remaining_key_len == 0);
   return HA_READ_INVALID;
 }
 
@@ -1426,28 +1412,34 @@ void PFS_engine_index::read_key(const uchar *key, uint key_len,
                                 enum ha_rkey_function find_flag) {
   PFS_key_reader reader(m_key_info, key, key_len);
 
-  if (m_key_ptr_1 != NULL) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[0].field->field_name,
-                                  m_key_ptr_1->m_name) == 0);
+  if (m_key_ptr_1 != nullptr) {
+    assert(native_strcasecmp(m_key_info->key_part[0].field->field_name,
+                             m_key_ptr_1->m_name) == 0);
     m_key_ptr_1->read(reader, find_flag);
   }
 
-  if (m_key_ptr_2 != NULL) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[1].field->field_name,
-                                  m_key_ptr_2->m_name) == 0);
+  if (m_key_ptr_2 != nullptr) {
+    assert(native_strcasecmp(m_key_info->key_part[1].field->field_name,
+                             m_key_ptr_2->m_name) == 0);
     m_key_ptr_2->read(reader, find_flag);
   }
 
-  if (m_key_ptr_3 != NULL) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[2].field->field_name,
-                                  m_key_ptr_3->m_name) == 0);
+  if (m_key_ptr_3 != nullptr) {
+    assert(native_strcasecmp(m_key_info->key_part[2].field->field_name,
+                             m_key_ptr_3->m_name) == 0);
     m_key_ptr_3->read(reader, find_flag);
   }
 
-  if (m_key_ptr_4 != NULL) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[3].field->field_name,
-                                  m_key_ptr_4->m_name) == 0);
+  if (m_key_ptr_4 != nullptr) {
+    assert(native_strcasecmp(m_key_info->key_part[3].field->field_name,
+                             m_key_ptr_4->m_name) == 0);
     m_key_ptr_4->read(reader, find_flag);
+  }
+
+  if (m_key_ptr_5 != nullptr) {
+    assert(native_strcasecmp(m_key_info->key_part[4].field->field_name,
+                             m_key_ptr_5->m_name) == 0);
+    m_key_ptr_5->read(reader, find_flag);
   }
 
   m_fields = reader.m_parts_found;

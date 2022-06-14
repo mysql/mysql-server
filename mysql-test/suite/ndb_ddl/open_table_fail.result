@@ -1,0 +1,20 @@
+#
+# Test failure to acquire NDB_SHARE while opening table. This is an
+# unusual error condition and can thus be reproduced only with
+# error injection.
+#
+CREATE TABLE t1(
+id INT PRIMARY KEY,
+val INT
+) ENGINE=ndbcluster;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_share_acquire_fail1";
+SELECT * FROM t1;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Could not open NDB_SHARE for 'test.t1'
+Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+# Cleanup and remove the table
+DROP TABLE t1;

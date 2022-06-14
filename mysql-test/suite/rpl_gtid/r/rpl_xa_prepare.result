@@ -11,6 +11,8 @@ CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@
 CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
 CALL mtr.add_suppression("Cannot execute the current event group");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Error writing relay log configuration.*");
+CALL mtr.add_suppression("Error reading relay log event for channel.*");
 include/stop_slave.inc
 [connection master]
 XA START 'trx1';
@@ -28,26 +30,26 @@ slave-relay-bin.000005	#	Query	#	#	XA COMMIT X'74727831',X'',1
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
-START SLAVE SQL_THREAD;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1782, 1755]
 ALTER TABLE t1 engine=MyISAM;
-START SLAVE SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_sql_to_stop.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
-START SLAVE SQL_THREAD;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1837]
 ALTER TABLE t1 engine=Innodb;
 DELETE FROM t1;
 RESET MASTER;
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 include/stop_slave_sql.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 include/start_slave_sql.inc
 include/sync_slave_sql_with_io.inc
 include/diff_tables.inc [master:t1, slave:t1]

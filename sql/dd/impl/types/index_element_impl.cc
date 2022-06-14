@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ bool Index_element_impl::restore_attributes(const Raw_record &r) {
 
   m_hidden = r.read_bool(Index_column_usage::FIELD_HIDDEN);
 
-  return (m_column == NULL);
+  return (m_column == nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -114,9 +114,9 @@ bool Index_element_impl::store_attributes(Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(
-    Index_column_usage::FIELD_HIDDEN == 5,
-    "Index_column_usage definition has changed, review (de)ser memfuns!");
+static_assert(Index_column_usage::NUMBER_OF_FIELDS == 6,
+              "Index_column_usage definition has changed, check if serialize() "
+              "and deserialize() need to be updated!");
 void Index_element_impl::serialize(Sdi_wcontext *, Sdi_writer *w) const {
   w->StartObject();
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
@@ -195,8 +195,8 @@ Index_element_impl *Index_element_impl::clone(const Index_element_impl &other,
                                               Index_impl *index) {
   Column *dstcol =
       (*index->table_impl().columns())[other.column().ordinal_position() - 1];
-  DBUG_ASSERT(dstcol->ordinal_position() == other.column().ordinal_position() &&
-              dstcol->name() == other.column().name());
+  assert(dstcol->ordinal_position() == other.column().ordinal_position() &&
+         dstcol->name() == other.column().name());
   return new Index_element_impl(other, index, dstcol);
 }
 

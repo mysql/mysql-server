@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define PLUGIN_X_SRC_UDF_REGISTRY_H_
 
 #include <initializer_list>
+
 #include "plugin/x/src/udf/registrator.h"
 
-#define UDF(name) udf::get_##name##_record()
+#define UDF(name) xpl::udf::get_##name##_record()
 
 namespace xpl {
 namespace udf {
@@ -38,7 +39,9 @@ class Registry {
   using Record_list = std::initializer_list<Record>;
 
   Registry() = default;
-  ~Registry() { drop(); }
+  ~Registry() {
+    if (!m_function_names.empty()) drop();
+  }
 
   void insert(const Record_list &list);
   void drop();

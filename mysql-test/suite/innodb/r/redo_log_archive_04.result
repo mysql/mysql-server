@@ -29,7 +29,7 @@ DO innodb_redo_log_archive_start('label1');
 #
 # Check the redo log archive file for existence and permissions.
 #
--r--r-----
+include/assert.inc [File permissions should be equal to 440]
 #
 # Stop redo log archiving.
 #
@@ -37,7 +37,7 @@ DO innodb_redo_log_archive_stop();
 #
 # Check the redo log archive file again.
 #
--r--r-----
+include/assert.inc [File permissions should be equal to 440]
 #
 # Remove the redo log archive file.
 #

@@ -41,6 +41,7 @@ if ($c == 1)
 set optimizer_switch="firstmatch=off,materialization=on";
 }
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch;
 
 let $query=
@@ -96,6 +97,7 @@ ON (t1.a IN
 (SELECT /*+ NO_SEMIJOIN(FIRSTMATCH,LOOSESCAN,DUPSWEEDOUT) */ a FROM
 t1 t3 WHERE a > 2));
 eval EXPLAIN FORMAT=JSON $query;
+--sorted_result
 eval $query;
 
 # Verify that AJ nest isn't in SJ-or-AJ nest: the middle-level
@@ -359,8 +361,6 @@ SELECT * FROM t1 LEFT JOIN t1 AS t2
 ON 1 AND t1.col_int > ( SELECT @var FROM t1 as t3 ) AND
 NOT EXISTS ( SELECT * FROM t1 as t4);
 eval EXPLAIN $query;
-# Show that the iterator executor is used
-eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 # Also crashed without any antijoin
@@ -434,6 +434,67 @@ FROM t1 AS alias1 LEFT JOIN t1 AS alias2
   ON NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE ( SELECT 1 FROM DUAL ) IS NULL );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29759277 ASSERTION FAILED: !"NO DERIVED TABLE FOUND!"
+--echo #
+
+CREATE TABLE t1 (c1 INT, c2 INT);
+EXPLAIN FORMAT=JSON
+SELECT c1 FROM t1
+ WHERE NOT EXISTS (SELECT /*+ NO_MERGE() */ c2
+                   FROM (SELECT c1 FROM t1) AS dt
+                   WHERE FALSE);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30691682 MIN/MAX ISSUE WITH NOT EXISTS SUBQUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, index (a));
+CREATE TABLE t2(a INT NOT NULL);
+INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t2 VALUES(2),(3);
+explain SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#31376809 PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+--echo #
+
+create table t(a int, b int);
+insert into t values(1,1),(2,2),(3,3),(4,4),(5,5);
+
+# Should not transform subquery to antijoin and should evaluate it at
+# optimization time
+--skip_if_hypergraph  # Different plan; does not evaluate at optimization time.
+explain format=tree select a from t where (not exists (select b from t));
+select a from t where (not exists (select b from t));
+
+--skip_if_hypergraph  # Different plan; does not evaluate at optimization time.
+explain format=tree select a from t where 1 not in (select 1 from t);
+select a from t where 1 not in (select 1 from t);
+
+drop table t;
+
+--echo #
+--echo # Bug#31425664 RECENT REGRESSION: CRASH IN ITEM::SAVE_IN_FIELD
+--echo #
+
+CREATE TABLE t (a TIME);
+CREATE TABLE s (b INT);
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO t VALUES('11:11:11.1111'),('22:22:22.2222');
+INSERT INTO s VALUES(1),(2),(3),(4);
+SELECT 1 FROM t WHERE NOT EXISTS
+  (
+    SELECT 1 FROM s
+    WHERE a=FROM_UNIXTIME(1536999178)
+  );
+DROP TABLE t,s;

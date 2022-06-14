@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,56 +20,46 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(XTEST_EXE_NAME mysqlxtest)
 
-FILE(GLOB XTEST_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/connector/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/formatters/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsers/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/processor/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/processor/commands/*.cc"
-  "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
-)
+INCLUDE(source_files.cmake)
+IF(HAVE_SETNS)
+  LIST(APPEND XTEST_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
+ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
   ${MYSQLX_PROJECT_DIR}
-  ${MYSQLX_PROJECT_DIR}/ngs/include
   ${MYSQLX_PROTOCOL_INCLUDE_DIR}
   ${MYSQLX_CLIENT_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 
-MYSQL_ADD_EXECUTABLE(${XTEST_EXE_NAME}
-  ${XTEST_SRC} COMPONENT Test
-)
-
-ADD_DEPENDENCIES(${XTEST_EXE_NAME}
-  GenError GenClientError
-  ${MYSQLX_PROTOCOL_FULL_LIB}
-  ${MYSQLX_CLIENT_FULL_LIB}
-)
-
-MYSQLX_APPEND_COMPILE_FLAGS(${XTEST_EXE_NAME}
-  "${MYSQLX_PROTOCOL_FLAGS}"
-)
-
-MYSQLX_APPEND_COMPILE_DEFINITIONS(${XTEST_EXE_NAME}
-  "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO"
-)
-
-TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
+MYSQL_ADD_EXECUTABLE(mysqlxtest
+  ${XTEST_SRC}
+  COMPONENT Test
+  DEPENDENCIES GenError GenClientError
+  LINK_LIBRARIES
   mysys
   strings
   mysqlclient
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
+  ${LZ4_LIBRARY}
+)
+
+IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+  ADD_INSTALL_RPATH_FOR_PROTOBUF(mysqlxtest)
+ENDIF()
+
+MYSQLX_APPEND_COMPILE_FLAGS(mysqlxtest
+  "${MYSQLX_PROTOCOL_FLAGS}"
+)
+
+MYSQLX_APPEND_COMPILE_DEFINITIONS(mysqlxtest
+  "NGS_DISABLE_LOGGING"
 )
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)

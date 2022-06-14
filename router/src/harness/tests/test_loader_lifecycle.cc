@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,26 +54,16 @@
 #include "my_config.h"
 
 ////////////////////////////////////////
-// Harness include files
-#include "exception.h"
-#include "lifecycle.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/loader.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
-#include "test/helpers.h"
-#include "utilities.h"
-
-////////////////////////////////////////
 // Third-party include files
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 ////////////////////////////////////////
 // Standard include files
-#include <signal.h>
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -84,6 +74,18 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+////////////////////////////////////////
+// Harness include files
+#include "exception.h"
+#include "lifecycle.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/logging/registry.h"
+#include "mysql/harness/plugin.h"
+#include "mysql/harness/utility/string.h"
+#include "test/helpers.h"
+#include "utilities.h"
 
 // see loader.cc for more info on this define
 #ifndef _WIN32
@@ -123,11 +125,37 @@ using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
 using mysql_harness::test::LifecyclePluginSyncBus;
-using ::testing::HasSubstr;
+
+using namespace ::testing;
+
 namespace ch = std::chrono;
 
 // try increasing these if unit tests fail
-const int kSleepShutdown = 10;
+const int kSleepShutdown{10};
+
+template <class Arg>
+auto has_init_plugins(Arg &&arg) {
+  return HasSubstr("Initializing plugins: " +
+                   mysql_harness::join(std::forward<Arg>(arg), ", ") + ".");
+}
+
+template <class Arg>
+auto has_deinit_plugins(Arg &&arg) {
+  return HasSubstr("Deinitializing plugins: " +
+                   mysql_harness::join(std::forward<Arg>(arg), ", ") + ".");
+}
+
+template <class Arg>
+auto has_starting(Arg &&arg) {
+  return HasSubstr(
+      "Starting: " + mysql_harness::join(std::forward<Arg>(arg), ", ") + ".");
+}
+
+template <class Arg>
+auto has_stopping(Arg &&arg) {
+  return HasSubstr("Shutting down. Signaling stop to: " +
+                   mysql_harness::join(std::forward<Arg>(arg), ", ") + ".");
+}
 
 Path g_here;
 
@@ -135,65 +163,64 @@ class TestLoader : public Loader {
  public:
   TestLoader(const std::string &program, mysql_harness::LoaderConfig &config)
       : Loader(program, config) {
-    unittest_backdoor::set_shutdown_pending(0);
+    unittest_backdoor::set_shutdown_pending(false);
   }
-
-  // lifecycle plugin exposes all four lifecycle functions. But we can
-  // override any of them into nullptr using this struct in
-  // init_lifecycle_plugin()
-  struct ApiFunctionEnableSwitches {
-    bool init;
-    bool start;
-    bool stop;
-    bool deinit;
-  };
 
   void read(std::istream &stream) {
     config_.Config::read(stream);
     config_.fill_and_check();
   }
 
+  void load_all() { Loader::load_all(); }
+
+  std::exception_ptr main_loop() { return Loader::main_loop(); }
+  std::exception_ptr init_all() { return Loader::init_all(); }
+  void start_all() { return Loader::start_all(); }
+  std::exception_ptr run() { return Loader::run(); }
+  std::exception_ptr deinit_all() { return Loader::deinit_all(); }
+
+  std::list<std::string> order() const { return this->order_; }
+
   // Loader::load_all() with ability to disable functions
-  void load_all(ApiFunctionEnableSwitches switches) {
-    Loader::load_all();
+  void load_all(int switches) {
+    load_all();
     init_lifecycle_plugin(switches);
   }
 
-  LifecyclePluginSyncBus &get_msg_bus_from_lifecycle_plugin(const char *key) {
-    return *lifecycle_plugin_itc_->get_bus_from_key(key);
+  LifecyclePluginSyncBus &get_msg_bus_from_lifecycle_plugin(
+      const std::string &key) {
+    return *lifecycle_get_bus_from_key_(key);
   }
 
  private:
-  void init_lifecycle_plugin(ApiFunctionEnableSwitches switches) {
-    Plugin *plugin = plugins_.at(kPluginNameLifecycle).plugin;
+  using lifecycle_init_type = void (*)(int);
+  using lifecycle_get_bus_from_key_type =
+      mysql_harness::test::LifecyclePluginSyncBus *(*)(const std::string &);
 
-#if !USE_DLCLOSE
-    // with address sanitizer we don't unload the plugin which means
-    // the overwritten plugin hooks don't get reset to their initial values
-    //
-    // we need to capture original pointers and reset them
-    // each time
-    static Plugin virgin_plugin = *plugin;
-    *plugin = virgin_plugin;
-#endif
+  void init_lifecycle_plugin(const int switches) {
+    auto const &plugin_info = plugins_.at(kPluginNameLifecycle);
 
-    // signal plugin to reset state and init our lifecycle_plugin_itc_
-    // (we use a special hack (tag the pointer with last bit=1) to tell it that
-    // this is not a normal init() call, but a special call meant to
-    // pre-initialize the plugin for the test). In next line, +1 = pointer tag
-    uintptr_t ptr = reinterpret_cast<uintptr_t>(&lifecycle_plugin_itc_) + 1;
-    plugin->init(reinterpret_cast<mysql_harness::PluginFuncEnv *>(ptr));
+    auto res = plugin_info.library().symbol("lifecycle_init");
+    if (!res) {
+      FAIL() << res.error() << ", " << plugin_info.library().error_msg();
+      return;
+    }
+    lifecycle_init_ = reinterpret_cast<lifecycle_init_type>(res.value());
+
+    res = plugin_info.library().symbol("lifecycle_get_bus_from_key");
+    if (!res) {
+      FAIL() << res.error() << ", " << plugin_info.library().error_msg();
+      return;
+    }
+    lifecycle_get_bus_from_key_ =
+        reinterpret_cast<lifecycle_get_bus_from_key_type>(res.value());
 
     // override plugin functions as requested
-    if (!switches.init) plugin->init = nullptr;
-    if (!switches.start) plugin->start = nullptr;
-    if (!switches.stop) plugin->stop = nullptr;
-    if (!switches.deinit) plugin->deinit = nullptr;
+    lifecycle_init_(switches);
   }
 
-  // struct to expose additional things we need from lifecycle plugin,
-  // pointer owner = lifecycle plugin
-  mysql_harness::test::LifecyclePluginITC *lifecycle_plugin_itc_;
+  lifecycle_init_type lifecycle_init_{};
+  lifecycle_get_bus_from_key_type lifecycle_get_bus_from_key_{};
 };  // class TestLoader
 
 class BasicConsoleOutputTest : public ::testing::Test {
@@ -206,7 +233,7 @@ class BasicConsoleOutputTest : public ::testing::Test {
   std::stringstream log;
 
  private:
-  void SetUp() {
+  void SetUp() override {
     std::ostream *log_stream =
         mysql_harness::logging::get_default_logger_stream();
 
@@ -214,7 +241,7 @@ class BasicConsoleOutputTest : public ::testing::Test {
     log_stream->rdbuf(log.rdbuf());
   }
 
-  void TearDown() {
+  void TearDown() override {
     if (orig_log_stream_) {
       std::ostream *log_stream =
           mysql_harness::logging::get_default_logger_stream();
@@ -258,9 +285,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
                         kPluginNameLifecycle + ":instance1]         \n";
   }
 
-  void init_test(std::istream &config_text,
-                 TestLoader::ApiFunctionEnableSwitches switches = {
-                     true, true, true, true}) {
+  void init_test(std::istream &config_text, int switches) {
     loader_.read(config_text);
     loader_.load_all(switches);
     clear_log();
@@ -268,7 +293,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
 
   void init_test_without_lifecycle_plugin(std::istream &config_text) {
     loader_.read(config_text);
-    loader_.Loader::load_all();
+    loader_.load_all();
     clear_log();
   }
 
@@ -289,7 +314,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
   // because if we freeze_bus(), an attempt to pass another message from plugin
   // will block it, until we unfreeze_and_wait_for_msg().
 
-  LifecyclePluginSyncBus &msg_bus(const char *key) {
+  LifecyclePluginSyncBus &msg_bus(const std::string &key) {
     return loader_.get_msg_bus_from_lifecycle_plugin(key);
   }
 
@@ -303,13 +328,6 @@ class LifecycleTest : public BasicConsoleOutputTest {
     // block until we receive message we're interested in
     bus.cv.wait(lock,
                 [&bus, msg]() { return bus.msg.find(msg) != bus.msg.npos; });
-  }
-
-  long count_in_log(const std::string &needle) {
-    long cnt = 0;
-    for (const std::string &line : log_lines_)
-      if (line.find(needle) != line.npos) cnt++;
-    return cnt;
   }
 
   const std::map<std::string, std::string> params_;
@@ -432,7 +450,9 @@ TEST(StdLibrary, FutureWaitUntil) {
 //   }
 
 TEST_F(LifecycleTest, Simple_None) {
-  init_test(config_text_, {false, false, false, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(
+      init_test(config_text_, NoInit | NoDeinit | NoStart | NoStop));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -441,17 +461,19 @@ TEST_F(LifecycleTest, Simple_None) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all init():begin"),
+                                HasSubstr("lifecycle:all init():EXIT"),
+                                HasSubstr("lifecycle:instance1 start():begin"),
+                                HasSubstr("lifecycle:instance1 start():EXIT"),
+                                HasSubstr("lifecycle:instance1 stop():begin"),
+                                HasSubstr("lifecycle:instance1 stop():EXIT"),
+                                HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT")})));
 }
 
 TEST_F(LifecycleTest, Simple_AllFunctions) {
@@ -459,7 +481,7 @@ TEST_F(LifecycleTest, Simple_AllFunctions) {
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -470,41 +492,66 @@ TEST_F(LifecycleTest, Simple_AllFunctions) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:all init():EXIT."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(1,
-            count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:sleeping"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf(
+          {HasSubstr("lifecycle:all init():begin"),
+           HasSubstr("lifecycle:all init():EXIT."),
+           HasSubstr("lifecycle:instance1 start():begin"),
+           HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:sleeping")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf(
+                  {HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:done"),
+                   HasSubstr("lifecycle:instance1 stop():begin"),
+                   HasSubstr("lifecycle:instance1 stop():EXIT"),
+                   HasSubstr("lifecycle:all deinit():begin"),
+                   HasSubstr("lifecycle:all deinit():EXIT")})));
 
   // signal shutdown after 10ms, main_loop() should block until then
   run_then_signal_shutdown([&]() { EXPECT_EQ(loader_.main_loop(), nullptr); });
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT."));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT."));
+
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameMagic,
+  };
+
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+  };
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({has_starting(starting_sections),
+                    has_stopping(stopping_sections),
+                    HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:done"),
+                    HasSubstr("lifecycle:instance1 stop():begin"),
+                    HasSubstr("lifecycle:instance1 stop():EXIT.")}))
+      << mysql_harness::join(log_lines_, "\n");
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT.")})));
 
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:all deinit():EXIT."));
+
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                            HasSubstr("lifecycle:all deinit():EXIT.")}));
 }
 
 TEST_F(LifecycleTest, Simple_Init) {
   config_text_ << "init = exit\n";
-  init_test(config_text_, {true, false, false, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -513,23 +560,29 @@ TEST_F(LifecycleTest, Simple_Init) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:all init():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("lifecycle:all init():begin"),
+                            HasSubstr("lifecycle:all init():EXIT")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:instance1 start():begin"),
+                                HasSubstr("lifecycle:instance1 start():EXIT"),
+                                HasSubstr("lifecycle:instance1 stop():begin"),
+                                HasSubstr("lifecycle:instance1 stop():EXIT"),
+                                HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT")})));
 }
 
 TEST_F(LifecycleTest, Simple_StartStop) {
   config_text_ << "start = exitonstop\n";
   config_text_ << "stop  = exit\n";
-  init_test(config_text_, {false, true, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -540,19 +593,25 @@ TEST_F(LifecycleTest, Simple_StartStop) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():EXIT."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(1,
-            count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:sleeping"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf(
+          {HasSubstr("lifecycle:instance1 start():begin"),
+           HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:sleeping")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf(
+                  {HasSubstr("lifecycle:all init():begin"),
+                   HasSubstr("lifecycle:all init():EXIT."),
+                   HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:done"),
+                   HasSubstr("lifecycle:instance1 stop():begin"),
+                   HasSubstr("lifecycle:instance1 stop():EXIT"),
+                   HasSubstr("lifecycle:all deinit():begin"),
+                   HasSubstr("lifecycle:all deinit():EXIT")})));
 
   // signal shutdown after 10ms, main_loop() should block until then
   run_then_signal_shutdown([&]() { EXPECT_EQ(loader_.main_loop(), nullptr); });
@@ -560,12 +619,17 @@ TEST_F(LifecycleTest, Simple_StartStop) {
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT."));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT."));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({HasSubstr("Shutting down. Signaling stop to:"),
+                    HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:done"),
+                    HasSubstr("lifecycle:instance1 stop():begin"),
+                    HasSubstr("lifecycle:instance1 stop():EXIT.")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT.")})));
 }
 
 TEST_F(LifecycleTest, Simple_StartStopBlocking) {
@@ -574,7 +638,9 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
 
   config_text_ << "start = exitonstop_s\n";  // <--- note the "_s" postfix
   config_text_ << "stop  = exit\n";
-  init_test(config_text_, {false, true, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -585,20 +651,27 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():EXIT."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(1, count_in_log(
-                   "lifecycle:instance1 start():EXIT_ON_STOP_SYNC:sleeping"));
-  EXPECT_EQ(0,
-            count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SYNC:done"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf(
+          {HasSubstr("lifecycle:instance1 start():begin"),
+           HasSubstr(
+               "lifecycle:instance1 start():EXIT_ON_STOP_SYNC:sleeping")}));
+
+  EXPECT_THAT(
+      log_lines_,
+      Not(IsSupersetOf(
+          {HasSubstr("lifecycle:all init():begin"),
+           HasSubstr("lifecycle:all init():EXIT."),
+           HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP_SYNC:done"),
+           HasSubstr("lifecycle:instance1 stop():begin"),
+           HasSubstr("lifecycle:instance1 stop():EXIT"),
+           HasSubstr("lifecycle:all deinit():begin"),
+           HasSubstr("lifecycle:all deinit():EXIT")})));
 
   // signal shutdown after 10ms, main_loop() should block until then
   run_then_signal_shutdown([&]() { EXPECT_EQ(loader_.main_loop(), nullptr); });
@@ -606,18 +679,25 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SYNC:done"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT."));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT."));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf(
+          {HasSubstr("Shutting down. Signaling stop to:"),
+           HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP_SYNC:done"),
+           HasSubstr("lifecycle:instance1 stop():begin"),
+           HasSubstr("lifecycle:instance1 stop():EXIT.")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT.")})));
 }
 
 TEST_F(LifecycleTest, Simple_Start) {
   config_text_ << "start = exitonstop\n";
-  init_test(config_text_, {false, true, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStop | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -628,19 +708,25 @@ TEST_F(LifecycleTest, Simple_Start) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():EXIT."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(1,
-            count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:sleeping"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf(
+          {HasSubstr("lifecycle:instance1 start():begin"),
+           HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:sleeping")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf(
+                  {HasSubstr("lifecycle:all init():begin"),
+                   HasSubstr("lifecycle:all init():EXIT."),
+                   HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:done"),
+                   HasSubstr("lifecycle:instance1 stop():begin"),
+                   HasSubstr("lifecycle:instance1 stop():EXIT"),
+                   HasSubstr("lifecycle:all deinit():begin"),
+                   HasSubstr("lifecycle:all deinit():EXIT")})));
 
   // signal shutdown after 10ms, main_loop() should block until then
   run_then_signal_shutdown([&]() { EXPECT_EQ(loader_.main_loop(), nullptr); });
@@ -648,53 +734,69 @@ TEST_F(LifecycleTest, Simple_Start) {
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT."));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT."));
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf(
+          {HasSubstr("Shutting down."),
+           HasSubstr("lifecycle:instance1 start():EXIT_ON_STOP:done")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:instance1 stop():begin"),
+                                HasSubstr("lifecycle:instance1 stop():EXIT."),
+                                HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT.")})));
 }
 
 TEST_F(LifecycleTest, Simple_Stop) {
   config_text_ << "stop = exit\n";
-  init_test(config_text_, {false, false, true, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoDeinit));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all init():begin"),
+                                HasSubstr("lifecycle:all init():EXIT"),
+                                HasSubstr("lifecycle:instance1 start():begin"),
+                                HasSubstr("lifecycle:instance1 start():EXIT"),
+                                HasSubstr("lifecycle:instance1 stop():begin"),
+                                HasSubstr("lifecycle:instance1 stop():EXIT"),
+                                HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT")})))
+      << mysql_harness::join(log_lines_, "\n");
 
   EXPECT_EQ(loader_.main_loop(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("lifecycle:instance1 stop():begin"),
+                            HasSubstr("lifecycle:instance1 stop():EXIT")}));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT")})));
 
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT")})));
 }
 
 TEST_F(LifecycleTest, Simple_Deinit) {
   config_text_ << "deinit = exit\n";
-  init_test(config_text_, {false, false, false, true});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoStop));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -702,23 +804,27 @@ TEST_F(LifecycleTest, Simple_Deinit) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all init():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({HasSubstr("lifecycle:all init():begin"),
+                                HasSubstr("lifecycle:all init():EXIT"),
+                                HasSubstr("lifecycle:instance1 start():begin"),
+                                HasSubstr("lifecycle:instance1 start():EXIT"),
+                                HasSubstr("lifecycle:instance1 stop():begin"),
+                                HasSubstr("lifecycle:instance1 stop():EXIT"),
+                                HasSubstr("lifecycle:all deinit():begin"),
+                                HasSubstr("lifecycle:all deinit():EXIT")})));
 
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:all deinit():EXIT"));
+
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("lifecycle:all deinit():begin"),
+                            HasSubstr("lifecycle:all deinit():EXIT")}));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -746,7 +852,8 @@ TEST_F(LifecycleTest, ThreeInstances_NoError) {
                << "[" + kPluginNameLifecycle + ":instance3]\n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() { loader_.run(); });
@@ -754,86 +861,63 @@ TEST_F(LifecycleTest, ThreeInstances_NoError) {
   // all 3 plugins should have remained on the list of "to be deinitialized",
   // since they all should have initialized properly
   const std::list<std::string> initialized = {
-      "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  // initialisation proceeds in defined order
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' initializing"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' initializing"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle + "' initializing"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle + "' init exit ok"));
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  // plugins may be started in arbitrary order (they run in separate threads)
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic + ":' starting"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-
+  // plugins may be started in arbitrary order (they
+  // run in separate threads)
   // similarly, they may stop in arbitrary order
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stopping"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' stopping"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' stopping"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' start exit ok"));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({
+                  has_init_plugins(initialized),
+                  has_starting(starting_sections),
+                  has_stopping(stopping_sections),
+                  has_deinit_plugins(deinit_plugins),
 
-  // deinitializasation proceeds in reverse order of initialisation
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinitializing"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinitializing"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+                  HasSubstr("  start '" + kPluginNameLifecycle +
+                            ":instance1' succeeded."),
+                  HasSubstr("  start '" + kPluginNameLifecycle +
+                            ":instance2' succeeded."),
+                  HasSubstr("  start '" + kPluginNameLifecycle +
+                            ":instance3' succeeded."),
+                  HasSubstr("  start '" + kPluginNameMagic + "' succeeded."),
+
+                  HasSubstr("  stop '" + kPluginNameLifecycle +
+                            ":instance1' succeeded."),
+                  HasSubstr("  stop '" + kPluginNameLifecycle +
+                            ":instance2' succeeded."),
+                  HasSubstr("  stop '" + kPluginNameLifecycle +
+                            ":instance3' succeeded."),
+
+              }));
 
   // this is a sunny day scenario, nothing should fail
-  EXPECT_EQ(0, count_in_log("failed"));
 
-  // failure messages would look like this:
-  // init()   -> "plugin 'lifecycle' init failed: <message>"
-  // start()  -> "plugin 'lifecycle:instance1' start terminated with exception:
-  // <message>" stop()   -> "plugin 'lifecycle:instance1' stop failed:
-  // <message>" deinit() -> "plugin 'lifecycle' deinit failed: <message>"
+  EXPECT_THAT(log_lines_, Not(IsSupersetOf({
+                              HasSubstr("failed"),
+                          })));
 }
 
 TEST_F(LifecycleTest, BothLifecycles_NoError) {
@@ -843,61 +927,69 @@ TEST_F(LifecycleTest, BothLifecycles_NoError) {
                << "deinit = exit           \n"
                << "                        \n"
                << "[" + kPluginNameLifecycle2 + "]\n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() { loader_.run(); });
 
   const std::list<std::string> initialized = {
-      "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle,
-      kPluginNameLifecycle2};
-  EXPECT_EQ(initialized, loader_.order_);
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+      kPluginNameLifecycle2,
+  };
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle2 + "' init exit ok"));
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle2,
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle2,
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle2,
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle2 +
-                            ":' start exit ok"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(initialized),
+          has_starting(starting_sections),
+          has_stopping(stopping_sections),
+          has_deinit_plugins(deinit_plugins),
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle2 +
-                            ":' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' start exit ok"));
+          HasSubstr("  init '" + kPluginNameLifecycle + "' succeeded."),
+          HasSubstr("  init '" + kPluginNameLifecycle2 + "' succeeded."),
+          HasSubstr("  init '" + kPluginNameLifecycle3 + "' succeeded."),
+          HasSubstr("  init '" + kPluginNameMagic + "' succeeded."),
 
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle2 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+          HasSubstr("  start '" + kPluginNameLifecycle +
+                    ":instance1' succeeded."),
+          HasSubstr("  start '" + kPluginNameMagic + "' succeeded."),
 
-  EXPECT_EQ(0, count_in_log("failed"));
+          HasSubstr("  stop '" + kPluginNameLifecycle +
+                    ":instance1' succeeded."),
+          HasSubstr("  stop '" + kPluginNameLifecycle2 + "' succeeded."),
+
+          HasSubstr("  deinit '" + kPluginNameLifecycle + "' succeeded."),
+          HasSubstr("  deinit '" + kPluginNameLifecycle2 + "' succeeded."),
+          HasSubstr("  deinit '" + kPluginNameLifecycle3 + "' succeeded."),
+
+      }))
+      << mysql_harness::join(log_lines_, "\n");
+
+  EXPECT_THAT(log_lines_, Not(IsSupersetOf({
+                              HasSubstr("failed"),
+                          })));
 }
 
 TEST_F(LifecycleTest, OneInstance_NothingPersists_NoError) {
@@ -905,7 +997,8 @@ TEST_F(LifecycleTest, OneInstance_NothingPersists_NoError) {
                << "start  = exit           \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // Router should just shut down on it's own, since there's nothing to run
   // (all plugin start() functions just exit)
@@ -913,41 +1006,35 @@ TEST_F(LifecycleTest, OneInstance_NothingPersists_NoError) {
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle + "' init exit ok"));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' start exit ok"));
+  EXPECT_THAT(log_lines_, IsSupersetOf({
+                              has_init_plugins(init_plugins),
+                              has_starting(starting_sections),
+                              has_stopping(stopping_sections),
+                              has_deinit_plugins(deinit_plugins),
+                          }))
+      << mysql_harness::join(log_lines_, "\n");
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
-
-  EXPECT_EQ(0, count_in_log("failed"));
+  EXPECT_THAT(log_lines_, Not(IsSupersetOf({
+                              HasSubstr("failed"),
+                          })));
 }
 
 TEST_F(LifecycleTest, OneInstance_NothingPersists_StopFails) {
@@ -955,7 +1042,8 @@ TEST_F(LifecycleTest, OneInstance_NothingPersists_StopFails) {
                << "start  = exit           \n"
                << "stop   = error          \n"
                << "deinit = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // Router should just shut down on it's own, since there's nothing to run
   // (all plugin start() functions just exit)
@@ -971,41 +1059,35 @@ TEST_F(LifecycleTest, OneInstance_NothingPersists_StopFails) {
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle + "' init exit ok"));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' start exit ok"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({
+                  has_init_plugins(init_plugins),
+                  has_starting(starting_sections),
+                  has_stopping(stopping_sections),
+                  has_deinit_plugins(deinit_plugins),
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance1' stop failed: "
-                         "lifecycle:instance1 stop(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+                  HasSubstr("  stop '" + kPluginNameLifecycle +
+                            ":instance1' failed: "
+                            "lifecycle:instance1 stop(): I'm returning error!"),
+              }));
 }
 
 TEST_F(LifecycleTest, ThreeInstances_InitFails) {
@@ -1021,7 +1103,8 @@ TEST_F(LifecycleTest, ThreeInstances_InitFails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1035,33 +1118,44 @@ TEST_F(LifecycleTest, ThreeInstances_InitFails) {
 
   // lifecycle should not be on the list of to-be-deinitialized, since it
   // failed initialisation
-  const std::list<std::string> initialized = {"logger", kPluginNameMagic,
-                                              kPluginNameLifecycle3};
-  EXPECT_EQ(initialized, loader_.order_);
+  const std::list<std::string> initialized = {
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+  };
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  // lifecycle2 should not be initialized
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' init exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' init failed: "
-                            "lifecycle:all init(): I'm returning error!"));
-  // start() and stop() shouldn't run
-  EXPECT_EQ(0, count_in_log("Starting all plugins."));
-  EXPECT_EQ(0, count_in_log("Shutting down. Stopping all plugins."));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
 
-  // lifecycle2 should not be deinintialized
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(0, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle3,
+  };
+
+  // lifecycle2 should not be initialized
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(init_plugins),
+          has_deinit_plugins(deinit_plugins),
+
+          HasSubstr("  init '" + kPluginNameLifecycle +
+                    "' failed: lifecycle:all init(): I'm returning error!"),
+      }))
+      << mysql_harness::join(log_lines_, "\n");
+
+  EXPECT_THAT(
+      log_lines_,
+      Not(IsSupersetOf({HasSubstr("  deinit '" + kPluginNameLifecycle + "'"),
+                        // start() and stop() shouldn't run
+                        HasSubstr("Starting "), HasSubstr("Shutting down.")})));
 }
 
 TEST_F(LifecycleTest, BothLifecycles_InitFails) {
@@ -1071,7 +1165,8 @@ TEST_F(LifecycleTest, BothLifecycles_InitFails) {
                << "deinit = exit           \n"
                << "                        \n"
                << "[" + kPluginNameLifecycle2 + "]            \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1084,42 +1179,51 @@ TEST_F(LifecycleTest, BothLifecycles_InitFails) {
   }
 
   // lifecycle should not be on the list of to-be-deinitialized, since it
-  // failed initialisation; neither should lifecycle2, because it never reached
-  // initialisation phase
-  const std::list<std::string> initialized = {"logger", kPluginNameMagic,
-                                              kPluginNameLifecycle3};
-  EXPECT_EQ(initialized, loader_.order_);
+  // failed initialisation; neither should lifecycle2, because it never
+  // reached initialisation phase
+  const std::list<std::string> initialized = {
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+  };
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  // lifecycle2 should not be initialized
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle3 + "' init exit ok"));
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle + "' initializing"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' init failed: "
-                            "lifecycle:all init(): I'm returning error!"));
-  EXPECT_EQ(
-      0, count_in_log("  plugin " + kPluginNameLifecycle2 + "' initializing"));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,  // fails
+      kPluginNameLifecycle2,
+  };
 
-  // start() and stop() shouldn't run
-  EXPECT_EQ(0, count_in_log("Starting all plugins."));
-  EXPECT_EQ(0, count_in_log("Shutting down. Stopping all plugins."));
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle3,
+  };
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(init_plugins),
+          has_deinit_plugins(deinit_plugins),
+
+          HasSubstr("  init '" + kPluginNameLifecycle +
+                    "' failed: lifecycle:all init(): I'm returning error!"),
+      }))
+      << mysql_harness::join(log_lines_, "\n");
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({
+                  HasSubstr("  init '" + kPluginNameLifecycle2 + "'."),
+                  // start() and stop() shouldn't run
+                  HasSubstr("Starting"),
+                  HasSubstr("Shutting down."),
+                  HasSubstr("  deinit '" + kPluginNameLifecycle2 + "'."),
+                  HasSubstr("  deinit '" + kPluginNameLifecycle + "'."),
+              })));
 
   // lifecycle2 should not be deinintialized
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(0, count_in_log("  plugin " + kPluginNameLifecycle2 +
-                            "' deinitializing"));
-  EXPECT_EQ(0, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
 }
 
 TEST_F(LifecycleTest, ThreeInstances_Start1Fails) {
@@ -1135,7 +1239,8 @@ TEST_F(LifecycleTest, ThreeInstances_Start1Fails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1149,43 +1254,45 @@ TEST_F(LifecycleTest, ThreeInstances_Start1Fails) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",  // fails
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance1' start failed: "
-                         "lifecycle:instance1 start(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' starting"));
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(init_plugins),
+          has_starting(starting_sections),
+          has_stopping(stopping_sections),
+          has_deinit_plugins(deinit_plugins),
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' stop exit ok"));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+          HasSubstr("  start '" + kPluginNameLifecycle +
+                    ":instance1' failed: "
+                    "lifecycle:instance1 start(): I'm returning error!"),
+      }))
+      << mysql_harness::join(log_lines_, "\n");
 }
 
 TEST_F(LifecycleTest, ThreeInstances_Start2Fails) {
@@ -1201,7 +1308,8 @@ TEST_F(LifecycleTest, ThreeInstances_Start2Fails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1215,43 +1323,51 @@ TEST_F(LifecycleTest, ThreeInstances_Start2Fails) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance2' start failed: "
-                         "lifecycle:instance2 start(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' starting"));
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",  // fails
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' stop exit ok"));
+  // magic: no stop
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
 
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+  // magic: no deinit
+  // logger: no deinit
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(init_plugins),
+          has_starting(starting_sections),
+          has_stopping(stopping_sections),
+          has_deinit_plugins(deinit_plugins),
+
+          HasSubstr("  start '" + kPluginNameLifecycle +
+                    ":instance2' failed: "
+                    "lifecycle:instance2 start(): I'm returning error!"),
+      }))
+      << mysql_harness::join(log_lines_, "\n");
 }
 
 TEST_F(LifecycleTest, ThreeInstances_Start3Fails) {
@@ -1267,7 +1383,8 @@ TEST_F(LifecycleTest, ThreeInstances_Start3Fails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = error          \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1281,43 +1398,51 @@ TEST_F(LifecycleTest, ThreeInstances_Start3Fails) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' starting"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance3' start failed: "
-                         "lifecycle:instance3 start(): I'm returning error!"));
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",  // fails
+      kPluginNameMagic,
+  };
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' stop exit ok"));
+  // magic: no stop
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
 
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+  // magic: no deinit
+  // logger: no deinit
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
+
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(init_plugins),
+          has_starting(starting_sections),
+          has_stopping(stopping_sections),
+          has_deinit_plugins(deinit_plugins),
+
+          HasSubstr("  start '" + kPluginNameLifecycle +
+                    ":instance3' failed: "
+                    "lifecycle:instance3 start(): I'm returning error!"),
+      }))
+      << mysql_harness::join(log_lines_, "\n");
 }
 
 TEST_F(LifecycleTest, ThreeInstances_2StartsFail) {
@@ -1333,7 +1458,8 @@ TEST_F(LifecycleTest, ThreeInstances_2StartsFail) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = error          \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1347,44 +1473,47 @@ TEST_F(LifecycleTest, ThreeInstances_2StartsFail) {
   }
 
   const std::list<std::string> initialized = {
-      "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance1' start failed: "
-                         "lifecycle:instance1 start(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' starting"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance3' start failed: "
-                         "lifecycle:instance3 start(): I'm returning error!"));
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({
+          has_init_plugins(initialized),
+          has_starting(starting_sections),
+          has_stopping(stopping_sections),
+          has_deinit_plugins(deinit_plugins),
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' stop exit ok"));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+          HasSubstr("  start '" + kPluginNameLifecycle +
+                    ":instance1' failed: "
+                    "lifecycle:instance1 start(): I'm returning error!"),
+          HasSubstr("  start '" + kPluginNameLifecycle + ":instance2'"),
+          HasSubstr("  start '" + kPluginNameLifecycle +
+                    ":instance3' failed: "
+                    "lifecycle:instance3 start(): I'm returning error!"),
+      }));
 }
 
 TEST_F(LifecycleTest, ThreeInstances_StopFails) {
@@ -1400,7 +1529,8 @@ TEST_F(LifecycleTest, ThreeInstances_StopFails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() {
@@ -1418,51 +1548,42 @@ TEST_F(LifecycleTest, ThreeInstances_StopFails) {
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic + ":' starting"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' starting"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' starting"));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({
+                  has_init_plugins(init_plugins),
+                  has_starting(starting_sections),
+                  has_stopping(stopping_sections),
+                  has_deinit_plugins(deinit_plugins),
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance2' stop failed: "
-                         "lifecycle:instance2 stop(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' stop exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance2' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' start exit ok"));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+                  HasSubstr("  stop '" + kPluginNameLifecycle +
+                            ":instance2' failed: "
+                            "lifecycle:instance2 stop(): I'm returning error!"),
+              }));
 }
 
-TEST_F(LifecycleTest, ThreeInstances_DeinintFails) {
+TEST_F(LifecycleTest, ThreeInstances_DeinitFails) {
   config_text_ << "init   = exit           \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
@@ -1475,7 +1596,8 @@ TEST_F(LifecycleTest, ThreeInstances_DeinintFails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() {
@@ -1492,20 +1614,39 @@ TEST_F(LifecycleTest, ThreeInstances_DeinintFails) {
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> init_plugins{
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({
+                  has_init_plugins(init_plugins),
+                  has_starting(starting_sections),
+                  has_stopping(stopping_sections),
+                  has_deinit_plugins(deinit_plugins),
 
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit failed: "
-                            "lifecycle:all deinit(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
+                  HasSubstr("  deinit '" + kPluginNameLifecycle +
+                            "' failed: "
+                            "lifecycle:all deinit(): I'm returning error!"),
+              }));
 }
 
 TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
@@ -1521,7 +1662,8 @@ TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = error          \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // exception from start() should get propagated
   try {
@@ -1535,57 +1677,53 @@ TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
   }
 
   const std::list<std::string> initialized = {
-      "logger", "" + kPluginNameMagic + "", "" + kPluginNameLifecycle3 + "",
-      "" + kPluginNameLifecycle + ""};
-  EXPECT_EQ(initialized, loader_.order_);
+      "logger",
+      kPluginNameMagic,
+      kPluginNameLifecycle3,
+      kPluginNameLifecycle,
+  };
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
+  const std::vector<std::string> starting_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+      kPluginNameMagic,
+  };
+  const std::vector<std::string> stopping_sections{
+      kPluginNameLifecycle + ":instance1",
+      kPluginNameLifecycle + ":instance2",
+      kPluginNameLifecycle + ":instance3",
+  };
+  const std::vector<std::string> deinit_plugins{
+      kPluginNameLifecycle,
+      kPluginNameLifecycle3,
+  };
 
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameMagic + ":' start exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement start()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' starting"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance2' start failed: "
-                         "lifecycle:instance2 start(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance3' starting"));
-
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            ":' doesn't implement stop()"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            ":instance1' stop exit ok"));
-  EXPECT_EQ(1,
-            count_in_log("  plugin '" + kPluginNameLifecycle +
-                         ":instance3' stop failed: "
-                         "lifecycle:instance3 stop(): I'm returning error!"));
-
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' deinit failed: "
-                            "lifecycle:all deinit(): I'm returning error!"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle3 +
-                            "' deinit exit ok"));
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameMagic +
-                            "' doesn't implement deinit()"));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({
+                  has_init_plugins(initialized),
+                  has_starting(starting_sections),
+                  has_stopping(stopping_sections),
+                  has_deinit_plugins(deinit_plugins),
+                  HasSubstr("  stop '" + kPluginNameLifecycle +
+                            ":instance3' failed: "
+                            "lifecycle:instance3 stop(): I'm returning error!"),
+                  HasSubstr("  deinit '" + kPluginNameLifecycle +
+                            "' failed: "
+                            "lifecycle:all deinit(): I'm returning error!"),
+              }));
 }
 
 TEST_F(LifecycleTest, NoInstances) {
-  // This test tests Loader's ability to correctly start up and shut down
-  // without any plugins.  However note, that currently we expect our Router to
-  // exit with an error when there's not plugins to run, but that is a
-  // higher-level concern.  So while the check happens inside Loader (because
-  // it's not possible to check from the outside), this test bypasses this
-  // check.
+  // This test tests Loader's ability to correctly start up and
+  // shut down without any plugins.  However note, that currently
+  // we expect our Router to exit with an error when there's not
+  // plugins to run, but that is a higher-level concern.  So while
+  // the check happens inside Loader (because it's not possible to
+  // check from the outside), this test bypasses this check.
   const std::string plugin_dir = mysql_harness::get_plugin_dir(g_here.str());
   config_text_.str(
       "[DEFAULT]                                      \n"
@@ -1605,11 +1743,20 @@ TEST_F(LifecycleTest, NoInstances) {
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("Initializing all plugins."));
-  EXPECT_EQ(1, count_in_log("Starting all plugins."));
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("Deinitializing all plugins."));
-  EXPECT_EQ(0, count_in_log("failed"));
+  const std::vector<std::string> init_plugins{"logger"};
+
+  EXPECT_THAT(log_lines_, IsSupersetOf({
+                              has_init_plugins(init_plugins),
+                              HasSubstr("Waiting for readiness of: "),
+                              HasSubstr("Shutting down."),
+                          }));
+
+  EXPECT_THAT(log_lines_,
+              Not(IsSupersetOf({
+                  HasSubstr("Starting:"),  // no plugin with a start() method
+                  HasSubstr("Deinitializing"),  // no plugin with a deinit()
+                  HasSubstr("failed"),
+              })));
 }
 
 // note: we don't test an equivalent scenario when the plugin throws (an empty
@@ -1622,14 +1769,15 @@ TEST_F(LifecycleTest, NoInstances) {
 //       complaining about a null std::string. In other words, what() returning
 //       a null string in harness' catch block is not likely.
 TEST_F(LifecycleTest, EmptyErrorMessage) {
-  // this test tests PluginFuncEnv::set_error() function, when passed a null
-  // string.
+  // this test tests PluginFuncEnv::set_error() function, when
+  // passed a null string.
 
   config_text_ << "init   = error_empty    \n"
                << "start  = exit           \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, false, false, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   // null string should be replaced with '<empty message>'
   try {
@@ -1644,9 +1792,10 @@ TEST_F(LifecycleTest, EmptyErrorMessage) {
 
   // null string should be replaced with '<empty message>'
   refresh_log();
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' init "
-                            "failed: <empty message>"));
+  EXPECT_THAT(log_lines_, IsSupersetOf({
+                              HasSubstr("  init '" + kPluginNameLifecycle +
+                                        "' failed: <empty message>"),
+                          }));
 }
 
 // maybe these should be moved to test_loader.cc (or wherever PluginFuncEnv
@@ -1665,11 +1814,10 @@ TEST_F(LifecycleTest, set_error_message) {
                            "foo", "bar", 42);
   std::tie(emsg, std::ignore) = ctx.pop_error();
   EXPECT_STREQ("[foo:bar] 42", emsg.c_str());
-
   // cornercase: empty
 #ifndef __GNUC__
-  // gcc/clang catch it at compile time: error: zero-length gnu_printf format
-  // string [-Werror=format-zero-length]
+  // gcc/clang catch it at compile time: error: zero-length
+  // gnu_printf format string [-Werror=format-zero-length]
   mysql_harness::set_error(&ctx, mysql_harness::kRuntimeError, "");
   std::tie(emsg, std::ignore) = ctx.pop_error();
   EXPECT_STREQ("", emsg.c_str());
@@ -1681,7 +1829,8 @@ TEST_F(LifecycleTest, set_error_message) {
   EXPECT_STREQ("<empty message>", emsg.c_str());
 
 #ifndef __GNUC__
-  // gcc/clang catch it at compile time: error: too many arguments for format
+  // gcc/clang catch it at compile time: error: too many
+  // arguments for format
   // [-Werror=format-extra-args] cornercase: NULL + arg
   mysql_harness::set_error(&ctx, mysql_harness::kRuntimeError, nullptr, "foo");
   std::tie(emsg, std::ignore) = ctx.pop_error();
@@ -1733,7 +1882,8 @@ TEST_F(LifecycleTest, send_signals) {
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -1742,12 +1892,14 @@ TEST_F(LifecycleTest, send_signals) {
   unfreeze_and_wait_for_msg(
       bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
 
-  // nothing should happen - all signals but the ones we care about should be
-  // ignored (here we only test a few, the rest is assumed to behave the same)
+  // nothing should happen - all signals but the ones we care
+  // about should be ignored (here we only test a few, the rest
+  // is assumed to behave the same)
   kill(getpid(), SIGUSR1);
   kill(getpid(), SIGALRM);
 
-  // signal shutdown after 10ms, main_loop() should block until then
+  // signal shutdown after 10ms, main_loop() should block until
+  // then
   auto call_SIGINT = []() {
     std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
     kill(getpid(), SIGINT);
@@ -1756,7 +1908,9 @@ TEST_F(LifecycleTest, send_signals) {
   EXPECT_EQ(loader_.main_loop(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
+
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("Shutting down. Signaling stop to:")}));
 }
 
 TEST_F(LifecycleTest, send_signals2) {
@@ -1766,7 +1920,8 @@ TEST_F(LifecycleTest, send_signals2) {
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -1775,7 +1930,8 @@ TEST_F(LifecycleTest, send_signals2) {
   unfreeze_and_wait_for_msg(
       bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
 
-  // signal shutdown after 10ms, main_loop() should block until then
+  // signal shutdown after 10ms, main_loop() should block until
+  // then
   auto call_SIGTERM = []() {
     std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
     kill(getpid(), SIGTERM);
@@ -1784,7 +1940,9 @@ TEST_F(LifecycleTest, send_signals2) {
   EXPECT_EQ(loader_.main_loop(), nullptr);
 
   refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
+
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("Shutting down. Signaling stop to:")}));
 }
 #endif
 
@@ -1798,30 +1956,34 @@ TEST_F(LifecycleTest, send_signals2) {
 TEST_F(LifecycleTest, wait_for_stop) {
   // SCENARIO #1: When Router is "running"
   // EXPECTATION:
-  //   wait_for_stop() inside should block for 100ms, then return false (time
-  //   out)
+  //   wait_for_stop() inside should block for 100ms, then
+  //   return false (time out)
   // EXPLANATION:
-  //   When plugin function start() is called, Router will be in a "running"
-  //   state. Inside start() calls wait_for_stop(timeout = 100ms), which
-  //   means wait_for_stop() SHOULD block and time out after 100ms. Then the
-  //   start() will just exit, and when it does that, it will cause Router to
-  //   initiate shutdown (and set the shutdown flag), as there are no more
-  //   plugins running.
+  //   When plugin function start() is called, Router will be in
+  //   a "running" state. Inside start() calls
+  //   wait_for_stop(timeout = 100ms), which means
+  //   wait_for_stop() SHOULD block and time out after 100ms.
+  //   Then the start() will just exit, and when it does that,
+  //   it will cause Router to initiate shutdown (and set the
+  //   shutdown flag), as there are no more plugins running.
   config_text_ << "start = exitonstop_shorttimeout\n";
 
   // SCENARIO #2: When Router is "stopping"
   // EXPECTATION:
-  //   wait_for_stop() inside should return immediately, then return true (due
-  //   to shut down flag being set)
+  //   wait_for_stop() inside should return immediately, then
+  //   return true (due to shut down flag being set)
   // EXPLANATION:
-  //   Now that start() has exited, Router has progressed to "stopping" state,
-  //   and as a result, plugin function stop() will be called. stop() makes a
-  //   call to wait_for_stop(<big timeout value>). Since this time around,
-  //   Router is already in the "stopping" state, the function SHOULD exit
-  //   immediately, returing control back to stop(), which just exits after.
+  //   Now that start() has exited, Router has progressed to
+  //   "stopping" state, and as a result, plugin function stop()
+  //   will be called. stop() makes a call to wait_for_stop(<big
+  //   timeout value>). Since this time around, Router is
+  //   already in the "stopping" state, the function SHOULD exit
+  //   immediately, returing control back to stop(), which just
+  //   exits after.
   config_text_ << "stop  = exitonstop_longtimeout\n";
 
-  init_test(config_text_, {false, true, true, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -1835,26 +1997,40 @@ TEST_F(LifecycleTest, wait_for_stop) {
     loader_.start_all();
 
     // wait to enter scenario #1
-    unfreeze_and_wait_for_msg(
-        bus, "lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:sleeping");
+    unfreeze_and_wait_for_msg(bus,
+                              "lifecycle:instance1 "
+                              "start():EXIT_ON_STOP_SHORT_TIMEOUT:sleeping");
 
     // we are now in scenario #1
-    // (wait_for_stop() in start() should be sleeping right now; main_loop() is
-    // blocked waiting for start() to exit)
+    // (wait_for_stop() in start() should be sleeping right now;
+    // main_loop() is blocked waiting for start() to exit)
     refresh_log();
-    // clang-format off
-    EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-    EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:sleeping"));
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = true (stop request received)"));
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = false (timed out)"));
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = true (stop request received)"));
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = false (timed out)"));
-    // clang-format on
+    EXPECT_THAT(log_lines_,
+                IsSupersetOf({HasSubstr("lifecycle:instance1 start():begin"),
+                              HasSubstr("lifecycle:instance1 "
+                                        "start():EXIT_ON_STOP_SHORT_TIMEOUT:"
+                                        "sleeping")}));
+
+    EXPECT_THAT(
+        log_lines_,
+        Not(IsSupersetOf({HasSubstr("lifecycle:instance1 "
+                                    "start():EXIT_ON_STOP_SHORT_TIMEOUT:done, "
+                                    "ret = true (stop request received)"),
+                          HasSubstr("lifecycle:instance1 "
+                                    "start():EXIT_ON_STOP_SHORT_TIMEOUT:done, "
+                                    "ret = false (timed out)"),
+                          HasSubstr("lifecycle:instance1 stop():begin"),
+                          HasSubstr("lifecycle:instance1 "
+                                    "stop():EXIT_ON_STOP_LONG_TIMEOUT:done, "
+                                    "ret = true (stop request received)"),
+                          HasSubstr("lifecycle:instance1 "
+                                    "stop():EXIT_ON_STOP_LONG_TIMEOUT:done, "
+                                    "ret = false (timed out)")})));
 
     // wait for scenario #1 to finish and scenario #2 to run
-    // (start() should exit without error, causing main_loop() to unblock and
-    // progress to calling stop(), then finally return)
+    // (start() should exit without error, causing main_loop()
+    // to unblock and progress to calling stop(), then finally
+    // return)
     EXPECT_EQ(loader_.main_loop(), nullptr);
 
     // stop the timer
@@ -1864,35 +2040,42 @@ TEST_F(LifecycleTest, wait_for_stop) {
   // verify expectations
   {
     // first, we measure the time to run scenarios #1 and #2:
-    // - Scenario #1 should take 100+ ms to execute (wait_for_stop() should
+    // - Scenario #1 should take 100+ ms to execute
+    // (wait_for_stop() should
     //   block for 100ms, everything else is fast)
-    // - Scenario #2 should take close to 0 ms to execute (wait_for_stop()
+    // - Scenario #2 should take close to 0 ms to execute
+    // (wait_for_stop()
     //   should return immiedately, everything else is fast)
     //
-    // Therefore, we expect that the cumulative time should be close to just
-    // over 100ms:
+    // Therefore, we expect that the cumulative time should be
+    // close to just over 100ms:
     // - if it was less than 100ms, scenario #1 must have failed
     //   (wait_for_stop() failed to block).
-    // - if it takes 10 seconds or more, scenario #2 must have failed
-    //   (wait_for_stop(timeout = 10 seconds) timed out, instead of returning
-    //   immediately)
+    // - if it takes 10 seconds or more, scenario #2 must have
+    // failed
+    //   (wait_for_stop(timeout = 10 seconds) timed out, instead
+    //   of returning immediately)
 
     // NOTE about a choice of timeout (10 seconds):
-    // 10s timeout is a little arbitrary.  In theory, all we need is something
-    // just a little over 100ms, since Scenario #2 has no blocking states and
-    // should run really quick.  So we might be tempted to pick something like
-    // 110ms or 200ms, however as we have learned, it's possible to exceed such
-    // timeout on a busy OSX machine and fail the test.  The fault lies with
-    // calls to std::condition_variable::wait_for() (called inside of
-    // wait_for_stop()) which calls syscall psync_cvwait().  Deeper underneath,
-    // it turns out that unless a thread making this syscall has heightened
-    // priority (which it does not), OSX is free to delay delivering signal
-    // for performance reasons.
+    // 10s timeout is a little arbitrary.  In theory, all we
+    // need is something just a little over 100ms, since
+    // Scenario #2 has no blocking states and should run really
+    // quick.  So we might be tempted to pick something like
+    // 110ms or 200ms, however as we have learned, it's possible
+    // to exceed such timeout on a busy OSX machine and fail the
+    // test.  The fault lies with calls to
+    // std::condition_variable::wait_for() (called inside of
+    // wait_for_stop()) which calls syscall psync_cvwait().
+    // Deeper underneath, it turns out that unless a thread
+    // making this syscall has heightened priority (which it
+    // does not), OSX is free to delay delivering signal for
+    // performance reasons.
     //
-    // We don't bother #ifdef-ing the timeout for OSX, because in principle,
-    // many/all non-RT OSes probably have no tight guarrantees for wait_for()
-    // just like OSX, and an excessive timeout value does not slow down the
-    // test run time.
+    // We don't bother #ifdef-ing the timeout for OSX, because
+    // in principle, many/all non-RT OSes probably have no tight
+    // guarrantees for wait_for() just like OSX, and an
+    // excessive timeout value does not slow down the test run
+    // time.
 
     // expect 100ms <= (t1-t0) < 10s
     EXPECT_LE(100, time_diff(t0, t1));        // 100 = scenario #1 timeout
@@ -1900,13 +2083,24 @@ TEST_F(LifecycleTest, wait_for_stop) {
 
     // verify what both wait_for_stop()'s returned
     refresh_log();
-    // clang-format off
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = true (stop request received)"));
-    EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = false (timed out)"));
-    EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-    EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = true (stop request received)"));
-    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = false (timed out)"));
-    // clang-format on
+
+    EXPECT_THAT(
+        log_lines_,
+        IsSupersetOf({HasSubstr("lifecycle:instance1 "
+                                "start():EXIT_ON_STOP_SHORT_TIMEOUT:done, "
+                                "ret = false (timed out)"),
+                      HasSubstr("lifecycle:instance1 stop():begin"),
+                      HasSubstr("lifecycle:instance1 "
+                                "stop():EXIT_ON_STOP_LONG_TIMEOUT:done, "
+                                "ret = true (stop request received)")}));
+    EXPECT_THAT(
+        log_lines_,
+        Not(IsSupersetOf({HasSubstr("lifecycle:instance1 "
+                                    "start():EXIT_ON_STOP_SHORT_TIMEOUT:done, "
+                                    "ret = true (stop request received)"),
+                          HasSubstr("lifecycle:instance1 "
+                                    "stop():EXIT_ON_STOP_LONG_TIMEOUT:done, "
+                                    "ret = false (timed out)")})));
   }
 }
 
@@ -1919,7 +2113,9 @@ TEST_F(LifecycleTest, wait_for_stop) {
                // case sensitive) will define it
 TEST_F(LifecycleTest, InitThrows) {
   config_text_ << "init = throw\n";
-  init_test(config_text_, {true, false, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1933,18 +2129,19 @@ TEST_F(LifecycleTest, InitThrows) {
 
   refresh_log();
 
-  EXPECT_EQ(
-      1,
-      count_in_log(
-          "  plugin '" + kPluginNameLifecycle +
-          "' init threw unexpected "
-          "exception - please contact plugin developers for more information: "
-          "lifecycle:all init(): I'm throwing!"));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("  plugin '" + kPluginNameLifecycle +
+                                      "' init threw unexpected "
+                                      "exception - please contact plugin "
+                                      "developers for more information: "
+                                      "lifecycle:all init(): I'm throwing!")}));
 }
 
 TEST_F(LifecycleTest, StartThrows) {
   config_text_ << "start = throw\n";
-  init_test(config_text_, {false, true, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1958,17 +2155,21 @@ TEST_F(LifecycleTest, StartThrows) {
 
   refresh_log();
 
-  EXPECT_EQ(
-      1, count_in_log(
-             "  plugin '" + kPluginNameLifecycle +
-             ":instance1' start threw "
-             "unexpected exception - please contact plugin developers for more "
-             "information: lifecycle:instance1 start(): I'm throwing!"));
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({HasSubstr("  plugin '" + kPluginNameLifecycle +
+                              ":instance1' start threw "
+                              "unexpected exception - please contact "
+                              "plugin developers for more "
+                              "information: lifecycle:instance1 start(): "
+                              "I'm throwing!")}));
 }
 
 TEST_F(LifecycleTest, StopThrows) {
   config_text_ << "stop = throw\n";
-  init_test(config_text_, {false, false, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1982,17 +2183,21 @@ TEST_F(LifecycleTest, StopThrows) {
 
   refresh_log();
 
-  EXPECT_EQ(
-      1, count_in_log(
-             "  plugin '" + kPluginNameLifecycle +
-             ":instance1' stop threw "
-             "unexpected exception - please contact plugin developers for more "
-             "information: lifecycle:instance1 stop(): I'm throwing!"));
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({HasSubstr("  plugin '" + kPluginNameLifecycle +
+                              ":instance1' stop threw "
+                              "unexpected exception - please contact "
+                              "plugin developers for more "
+                              "information: lifecycle:instance1 stop(): "
+                              "I'm throwing!")}));
 }
 
 TEST_F(LifecycleTest, DeinitThrows) {
   config_text_ << "deinit = throw\n";
-  init_test(config_text_, {false, false, false, true});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoStop));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -2006,13 +2211,13 @@ TEST_F(LifecycleTest, DeinitThrows) {
 
   refresh_log();
 
-  EXPECT_EQ(
-      1,
-      count_in_log(
-          "  plugin '" + kPluginNameLifecycle +
-          "' deinit threw unexpected "
-          "exception - please contact plugin developers for more information: "
-          "lifecycle:all deinit(): I'm throwing!"));
+  EXPECT_THAT(
+      log_lines_,
+      IsSupersetOf({HasSubstr("  plugin '" + kPluginNameLifecycle +
+                              "' deinit threw unexpected "
+                              "exception - please contact plugin "
+                              "developers for more information: "
+                              "lifecycle:all deinit(): I'm throwing!")}));
 }
 
 // The following 4 are the same as above 4, but this time we throw unusual
@@ -2020,57 +2225,66 @@ TEST_F(LifecycleTest, DeinitThrows) {
 // in Loader's code
 TEST_F(LifecycleTest, InitThrowsWeird) {
   config_text_ << "init = throw_weird\n";
-  init_test(config_text_, {true, false, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
     FAIL() << "init() should throw non-standard exception object";
-  } catch (const std::runtime_error &e) {
+  } catch (const std::runtime_error &) {
     FAIL() << "init() should throw non-standard exception object";
   } catch (...) {
   }
 
   refresh_log();
 
-  EXPECT_EQ(1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                            "' init threw unexpected "
-                            "exception - please contact plugin developers for "
-                            "more information."));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf(
+                  {HasSubstr("  plugin '" + kPluginNameLifecycle +
+                             "' init threw unexpected "
+                             "exception - please contact plugin developers for "
+                             "more information.")}));
 }
 
 TEST_F(LifecycleTest, StartThrowsWeird) {
   config_text_ << "start = throw_weird\n";
-  init_test(config_text_, {false, true, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
     FAIL() << "start() should throw non-standard exception object";
-  } catch (const std::runtime_error &e) {
+  } catch (const std::runtime_error &) {
     FAIL() << "start() should throw non-standard exception object";
   } catch (...) {
   }
 
   refresh_log();
 
-  EXPECT_EQ(
-      1, count_in_log("  plugin '" + kPluginNameLifecycle +
-                      ":instance1' start "
-                      "threw unexpected "
-                      "exception - please contact plugin developers for more "
-                      "information."));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("  plugin '" + kPluginNameLifecycle +
+                                      ":instance1' start "
+                                      "threw unexpected "
+                                      "exception - please contact plugin "
+                                      "developers for more "
+                                      "information.")}));
 }
 
 TEST_F(LifecycleTest, StopThrowsWeird) {
   config_text_ << "stop = throw_weird\n";
-  init_test(config_text_, {false, false, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
     FAIL() << "stop() should throw non-standard exception object";
-  } catch (const std::runtime_error &e) {
+  } catch (const std::runtime_error &) {
     FAIL() << "stop() should throw non-standard exception object";
   } catch (...) {
   }
@@ -2078,24 +2292,28 @@ TEST_F(LifecycleTest, StopThrowsWeird) {
   refresh_log();
 
   EXPECT_THAT(log_lines_,
-              ::testing::Contains(::testing::HasSubstr(
-                  "  plugin '" + kPluginNameLifecycle +
-                  ":instance1' stop threw "
-                  "unexpected "
-                  "exception - please contact plugin developers for "
-                  "more information.")));
+              IsSupersetOf(
+                  {HasSubstr("  plugin '" + kPluginNameLifecycle +
+                             ":instance1' stop threw "
+                             "unexpected "
+                             "exception - please contact plugin developers for "
+                             "more information.")}));
 }
 
 TEST_F(LifecycleTest, DeinitThrowsWeird) {
   config_text_ << "deinit = throw_weird\n";
-  init_test(config_text_, {false, false, false, true});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoStop));
 
   try {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
-    FAIL() << "deinit() should throw non-standard exception object";
+    FAIL() << "deinit() should throw non-standard exception "
+              "object";
   } catch (const std::runtime_error &e) {
-    FAIL() << "deinit() should throw non-standard exception object, got "
+    FAIL() << "deinit() should throw non-standard exception "
+              "object, got "
            << e.what();
   } catch (...) {
   }
@@ -2115,10 +2333,11 @@ TEST_F(LifecycleTest, DeinitThrowsWeird) {
 TEST_F(LifecycleTest, LoadingNonExistentPlugin) {
   clear_log();
 
-  config_text_
-      << "[nonexistent_plugin]\n";  // should cause Loader::load_all() to throw
-  config_text_
-      << "[nonexistent_plugin_2]\n";  // no attempt to load this should be made
+  config_text_ << "[nonexistent_plugin]\n";    // should cause
+                                               // Loader::load_all()
+                                               // to throw
+  config_text_ << "[nonexistent_plugin_2]\n";  // no attempt to load
+                                               // this should be made
   loader_.read(config_text_);
 
   try {
@@ -2130,20 +2349,19 @@ TEST_F(LifecycleTest, LoadingNonExistentPlugin) {
     FAIL() << "Loader::start() should throw bad_plugin, but got: " << e.what();
   }
 
-  // Expect something like so:
-  // "2017-07-13 14:38:57 main ERROR [7ffff7fd5780]   plugin
-  // 'nonexistent_plugin' failed to load: <OS-specific error text>" "2017-07-13
-  // 14:38:57 main INFO [7ffff7fd5780] Unloading all plugins."
   refresh_log();
-  EXPECT_EQ(1,
-            count_in_log("]   plugin 'nonexistent_plugin' failed to load: "));
-  EXPECT_EQ(1, count_in_log("] Unloading all plugins."));
 
-  // Loader::load_all() should have stopped loading as soon as it encountered
-  // 'nonexistent_plugin'. Therefore, it should not attempt to load the next
-  // plugin, 'nonexistent_plugin_2', thus we should find no trace of such string
-  // in the log.
-  EXPECT_EQ(0, count_in_log("nonexistent_plugin_2"));
+  EXPECT_THAT(log_lines_,
+              IsSupersetOf({HasSubstr("] Unloading all plugins.")}));
+
+  // Loader::load_all() should have stopped loading as soon as
+  // it encountered 'nonexistent_plugin'. Therefore, it should
+  // not attempt to load the next plugin,
+  // 'nonexistent_plugin_2', thus we should find no trace of
+  // such string in the log.
+  EXPECT_THAT(log_lines_, Not(IsSupersetOf({
+                              HasSubstr("loading 'nonexistent_plugin_2'"),
+                          })));
 }
 
 int main(int argc, char *argv[]) {

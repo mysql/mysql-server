@@ -15,7 +15,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 server2
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @debug_save_ret_count= @@GLOBAL.group_replication_recovery_retry_count;
-CHANGE MASTER TO MASTER_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
 SET GLOBAL group_replication_recovery_reconnect_interval= 10 # seconds;
 SET GLOBAL group_replication_recovery_retry_count= 2;
 #
@@ -25,10 +25,11 @@ set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.*");
 set session sql_log_bin=1;
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_cleanup';
@@ -54,7 +55,7 @@ server1
 include/start_and_bootstrap_group_replication.inc
 server2
 include/stop_group_replication.inc
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 INSERT INTO t1 VALUES (1);
 include/rpl_sync.inc

@@ -210,6 +210,7 @@ CHECK TABLES t1;
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 RENAME t2;
 UNLOCK TABLES;
+--sorted_result
 select * from t2;
 DROP TABLE t2;
 
@@ -273,14 +274,13 @@ drop table t1;
 # Test that data get converted when character set is changed
 # Test that data doesn't get converted when src or dst is BINARY/BLOB
 #
-set names koi8r;
 create table t1 (a char(10) character set koi8r);
-insert into t1 values ('ÔÅÓÔ');
+insert into t1 values ('Ñ‚ÐµÑÑ‚');
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 alter table t1 change a a binary(4);
-select a,hex(a) from t1;
+select hex(a) from t1;
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set koi8r;
@@ -355,7 +355,7 @@ DROP TABLE T12207;
 # modified. In other words, the values were reinterpreted
 # as UTF8 instead of being converted.
 create table t1 (a text) character set koi8r;
-insert into t1 values (_koi8r'ÔÅÓÔ');
+insert into t1 values ('Ñ‚ÐµÑÑ‚');
 select hex(a) from t1;
 alter table t1 convert to character set cp1251;
 select hex(a) from t1;
@@ -1537,7 +1537,7 @@ CREATE TABLE db (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE user (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE func (dummy int) ENGINE=csv;
+CREATE TABLE func (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE servers (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
@@ -1545,7 +1545,7 @@ CREATE TABLE procs_priv (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE tables_priv (dummy int) ENGINE=heap;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE columns_priv (dummy int) ENGINE=csv;
+CREATE TABLE columns_priv (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE time_zone (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
@@ -2911,8 +2911,6 @@ SHOW CREATE TABLE t1;
 --echo #
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER TABLE t1 ADD KEY(j), ALGORITHM=INSTANT;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
-ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 15, DROP COLUMN j, ALGORITHM=INSTANT;
 
 --echo #
 --echo # 5) For MyISAM tables we support INSTANT algorithm for metadata-only
@@ -3173,7 +3171,6 @@ SET GLOBAL max_allowed_packet=default;
 --echo # inplace operation, Step 1, NO INDEX
 --echo #
 
-SET NAMES UTF8MB4;
 --echo # VARCHAR(512): SWE7 -> BINARY
 CREATE TABLE t1(c1 VARCHAR(512) CHARSET SWE7);
 ALTER TABLE t1 MODIFY COLUMN c1 VARCHAR(512) CHARSET BINARY,
@@ -3476,7 +3473,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 
---echo # Collation cannot be changed inplace for indexed columns/Fields
+--echo # Charset cannot be changed inplace for indexed columns
 CREATE TABLE t1(c VARCHAR(1) CHARSET ASCII UNIQUE KEY);
 INSERT INTO t1 VALUES('a');
 SELECT * FROM t1;
@@ -3484,10 +3481,40 @@ SELECT * FROM t1;
 ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET BINARY, ALGORITHM = INPLACE;
 DROP TABLE t1;
 
+--echo # Collation cannot be changed inplace for indexed columns even
+--echo # if the character set stays the same (see bug#30386119).
+CREATE TABLE t1(c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci PRIMARY KEY);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ALGORITHM = INPLACE;
+--echo # Using the copy algorithm works.
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ALGORITHM = COPY;
+DROP TABLE t1;
+
+--echo # Collation cannot be changed inplace for non-indexed columns if an index
+--echo # on the column is added in the same statement.
+CREATE TABLE t1(c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD UNIQUE INDEX(c), ALGORITHM = INPLACE;
+--echo # Using the copy algorithm works.
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD UNIQUE INDEX(c), ALGORITHM = COPY;
+DROP TABLE t1;
+
+--echo # Add a composite index using a prefix key part.
+CREATE TABLE t1(i INT, c VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD INDEX idx(i, c(5)), ALGORITHM = INPLACE;
+--echo # Using the copy algorithm works.
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD INDEX idx(i, c(5)), ALGORITHM = COPY;
+DROP TABLE t1;
+
+--echo # Collation can be changed inplace for indexed columns if the index is dropped
+--echo # in the same statement.
+CREATE TABLE t1(c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci, UNIQUE INDEX idx(c));
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, DROP INDEX idx, ALGORITHM = INPLACE;
+DROP TABLE t1;
 
 --echo # No change (charset or otherwise) which makes
 --echo # Field::max_display_length exceed 255, can be done inplace
-
 CREATE TABLE t1(c VARCHAR(1) CHARSET ASCII);
 INSERT INTO t1 VALUES('a');
 SELECT * FROM t1;
@@ -3505,4 +3532,181 @@ ALTER TABLE t1 CONVERT TO CHARSET BINARY, ALGORITHM = INPLACE;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-SET NAMES default;
+--echo #
+--echo #  Bug #31361838 WRONG RESULT FOR COLUMN CHANGED TO CASE-SENSITIVE COLLATION AFTER ADD INDEX
+--echo #
+
+CREATE TABLE t1 (a INT,b VARCHAR(255),KEY(a))ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (100,'1A204A9228E5201A36122351DA1744AF');
+INSERT INTO t1 VALUES (100,'1a204a9228e5201a36122351da1744af');
+ALTER TABLE t1 MODIFY b VARCHAR(255) COLLATE UTF8MB4_BIN;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD KEY(b);
+SELECT b FROM t1 USE INDEX (b) WHERE  b='1A204A9228E5201A36122351DA1744AF';
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT,b TEXT(255),KEY(a))ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (100,'1A204A9228E5201A36122351DA1744AF');
+INSERT INTO t1 VALUES (100,'1a204a9228e5201a36122351da1744af');
+ALTER TABLE t1 MODIFY b TEXT(255) COLLATE UTF8MB4_BIN;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD KEY(b(255));
+SELECT b FROM t1 USE INDEX (b) WHERE  b='1A204A9228E5201A36122351DA1744AF';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29501324	ADD VIRTUAL FIRST + ADD COLUMN CAUSES ASSERTION FAILURE.
+--echo #
+
+CREATE TABLE t1 (b INT);
+--echo # The below ALTER TABLE causes assertion failure without the fix.
+ALTER TABLE t1 ADD gcol INT AS (b + 1) VIRTUAL FIRST, ADD COLUMN a INT;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#30943642 ERROR 1846 (0A000) AT LINE 1: ALGORITHM=INPLACE IS NOT
+--echo # SUPPORTED. REASON: CANNO
+--echo #
+
+CREATE TABLE t1 (c1
+SET('1234567890123456789a','1234567890123456789b','12345678901234567890c'));
+ALTER TABLE t1 ADD c2 INT NULL AFTER c1, ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1
+SET('1234567890123456789a','1234567890123456789b','12345678901234567890cd')
+DEFAULT NULL);
+
+--echo # Verify that it is possible to add column to table with set column
+--echo # having display width in bytes >= 256
+ALTER TABLE t1 ADD c2 INT NULL AFTER c1, ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+--echo # Enums are not affected, because in order for display width in bytes
+--echo # to exceed 255 we need an invidual enum value with this this size,
+--echo # and this is not permitted.
+--error ER_TOO_LONG_SET_ENUM_VALUE
+CREATE TABLE t1 (c1 ENUM ('000', '001',
+'0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'));
+
+CREATE TABLE t1 (c1 SET ('00', '01', '02', '03', '04', '05', '06'));
+
+--echo # Verify that a SET change which requires more space still cannot be
+--echo # done inplace
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c1 SET ('00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15'), ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 ENUM ('000', '001', '002', '003'));
+
+--echo # Verify that an ENUM change which requires more space still cannot be
+--echo # done inplace
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c1 ENUM (
+'000', '001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014', '015', '016', '017', '018', '019', '020', '021', '022', '023', '024', '025', '026', '027', '028', '029', '030', '031', '032', '033', '034', '035', '036', '037', '038', '039', '040', '041', '042', '043', '044', '045', '046', '047', '048', '049', '050', '051', '052', '053', '054', '055', '056', '057', '058', '059', '060', '061', '062', '063', '064', '065', '066', '067', '068', '069', '070', '071', '072', '073', '074', '075', '076', '077', '078', '079', '080', '081', '082', '083', '084', '085', '086', '087', '088', '089', '090', '091', '092', '093', '094', '095', '096', '097', '098', '099', '100', '101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '111', '112', '113', '114', '115', '116', '117', '118', '119', '120', '121', '122', '123', '124', '125', '126', '127', '128', '129', '130', '131', '132', '133', '134', '135', '136', '137', '138', '139', '140', '141', '142', '143', '144', '145', '146', '147', '148', '149', '150', '151', '152', '153', '154', '155', '156', '157', '158', '159', '160', '161', '162', '163', '164', '165', '166', '167', '168', '169', '170', '171', '172', '173', '174', '175', '176', '177', '178', '179', '180', '181', '182', '183', '184', '185', '186', '187', '188', '189', '190', '191', '192', '193', '194', '195', '196', '197', '198', '199', '200', '201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212', '213', '214', '215', '216', '217', '218', '219', '220', '221', '222', '223', '224', '225', '226', '227', '228', '229', '230', '231', '232', '233', '234', '235', '236', '237', '238', '239', '240', '241', '242', '243', '244', '245', '246', '247', '248', '249', '250', '251', '252', '253', '254', '255', '256'), ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31396191: ASSERTION `LEX->SQL_COMMAND != SQLCOM_ALTER_TABLE' FAILED
+--echo #
+
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+ALTER TABLE z ADD b INT AS (EXISTS((SELECT 1 UNION DISTINCT SELECT 2) LIMIT 3));
+
+
+--echo #
+--echo # Bug#31330789: "ALTER TABLE ... ADD ... DEFAULT NOW()" GENERATES WRONG
+--echo # TIME AT FIRST INSERT
+--echo # Fixed by WL#9384
+
+--echo # Set a fixed reference TIMESTAMP
+SET TIMESTAMP=1558818549;
+
+--echo # Add column with default now() to table without defaults
+CREATE TABLE t1 (i INT PRIMARY KEY, no_default DATETIME);
+ALTER TABLE t1 ADD alter_default DATETIME DEFAULT (now());
+CREATE TABLE t2(i INT, alter_date DATETIME);
+INSERT INTO t2 VALUES (0, now()), (1, now()), (2, now());
+
+--echo # Advance TIMESTAMP 5 seconds to ensure timestamps have changed
+SET TIMESTAMP=1558818554;
+
+--echo # Insert rows in t1 which should all be newer than t2.alter_time
+INSERT INTO t1 (i, no_default) VALUES (0, now()), (1, now()), (2, now());
+
+--echo # Verify
+SELECT (t1.no_default > t2.alter_date) AS no_default_newer_than_alter,
+(t1.alter_default > t2.alter_date) AS alter_default_newer_than_alter FROM t1
+NATURAL JOIN t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo # Set a fixed reference TIMESTAMP
+SET TIMESTAMP=1558818549;
+
+--echo # Add column with default now() to table with existing column with
+--echo # default now()
+CREATE TABLE t1 (i INT, no_default DATETIME, create_default DATETIME DEFAULT (now()) );
+ALTER TABLE t1 ADD alter_default DATETIME DEFAULT (now());
+CREATE TABLE t2(i INT, alter_date DATETIME);
+INSERT INTO t2 VALUES (0, now()), (1, now()), (2, now());
+
+--echo # Advance TIMESTAMP 5 seconds to ensure timestamps have changed
+SET TIMESTAMP=1558818554;
+INSERT INTO t1 (i, no_default) VALUES (0, now()), (1, now()), (2, now());
+
+--echo # Verify
+SELECT (no_default > alter_date) AS no_default_newer_than_alter,
+(create_default > alter_date) AS create_default_newer_than_alter,
+(alter_default > alter_date) AS alter_default_newer_than_alter FROM t1 NATURAL
+JOIN t2;
+DROP TABLE t2, t1;
+SET TIMESTAMP=default;
+
+--echo #
+--echo # Bug#32187507: MEMORY LEAK WHEN SETTING SECONDARY_ENGINE_ATTRIBUTE
+--echo #
+
+--echo # Verify that CREATE TABLE with invalid type and SECONDARY_ENGINE
+--echo # attribute does not leak.
+--error ER_TOO_BIG_DISPLAYWIDTH
+CREATE TABLE t1(a VARBINARY(9223372036854775806) SECONDARY_ENGINE_ATTRIBUTE '');
+
+--echo # Verify that ALTER TABLE with invalid type and SECONDARY_ENGINE
+--echo # attribute does not leak.
+--error ER_TOO_BIG_DISPLAYWIDTH
+ALTER TABLE t1 ADD COLUMN b VARBINARY(9223372036854775806)
+SECONDARY_ENGINE_ATTRIBUTE '';
+
+--echo #
+--echo # Bug#32235058: PREPARE_DEFAULT_VALUE: ASSERTION
+--echo # `FIELD.CONSTANT_DEFAULT->TYPE() != ITEM::FUNC_ITEM' FAILED.
+--echo #
+
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT TRUE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32235671: ITEM_FUNC_CONV_CHARSET::VAL_STR(: ASSERTION `FIXED == 1' FAILED.
+--echo # (duplicate of Bug#32235058 above).
+--echo #
+
+CREATE TABLE t1(a SET('a') CHARACTER SET BINARY);
+--error ER_INVALID_DEFAULT
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT TRUE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32234194: DDL: DIAGNOSTICS_AREA::SET_OK_STATUS: ASSERTION `!IS_SET()'
+--echo #
+
+CREATE TABLE t1(a INT);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+ALTER TABLE t1 MODIFY COLUMN a DECIMAL DEFAULT '4648-04-10';
+DROP TABLE t1;
+

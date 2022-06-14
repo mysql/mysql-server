@@ -62,7 +62,7 @@ EXPLAIN SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t1 AS it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using index; FirstMatch
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where true
 SELECT * FROM t1 AS ot
@@ -106,7 +106,7 @@ EXPLAIN SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.ik = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	it	NULL	ref	ik	ik	5	const	1	100.00	Using index; FirstMatch
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`ik` = 1)
 SELECT * FROM t1 AS ot
@@ -116,7 +116,7 @@ EXPLAIN SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`d` = 1)
 SELECT * FROM t1 AS ot
@@ -180,7 +180,7 @@ EXPLAIN SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d = ot.d);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`d` = `test`.`ot`.`d`)
@@ -243,7 +243,7 @@ EXPLAIN SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t1 AS it WHERE it.d > ot.d);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t1` `it`) where (`test`.`it`.`d` > `test`.`ot`.`d`)
@@ -321,11 +321,11 @@ EXPLAIN SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t2 AS it WHERE ot.d = it.pk - 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	8	test.ot.d	1	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	8	test.ot.d	1	100.00	Using where
 2	MATERIALIZED	it	NULL	index	NULL	PRIMARY	4	NULL	80	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`d` = `<subquery2>`.`tmp_field_0`)
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`d` = `<subquery2>`.`(it.pk - 1)`)
 SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t2 AS it WHERE ot.d = it.pk - 1);
 pk	uk	ukn	ik	d
@@ -387,36 +387,36 @@ EXISTS (SELECT * FROM t1) AND
 EXISTS (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(t1); Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) where true
 SELECT * FROM t1

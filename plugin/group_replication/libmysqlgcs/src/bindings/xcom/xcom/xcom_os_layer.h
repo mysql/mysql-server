@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,6 @@
 #ifndef XCOM_OS_LAYER_H
 #define XCOM_OS_LAYER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Required for FreeBSD, NetBSD and MacOS */
 #ifndef MAXHOSTNAMELEN
 #ifdef _SC_HOST_NAME_MAX
@@ -34,10 +30,6 @@ extern "C" {
 #else
 #define MAXHOSTNAMELEN 1024
 #endif
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

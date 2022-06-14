@@ -47,6 +47,7 @@ create table t1 (
 );
 insert into t1 set a=0x5ff;
 insert into t1 set a=0xff;
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 

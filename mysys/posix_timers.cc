@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,15 +51,6 @@ int my_timer_initialize() { return 0; }
 
 void my_timer_deinitialize() {}
 
-/**
-  Create a timer object.
-
-  @param  timer   Location where the timer ID is returned.
-
-  @return On success, 0.
-          On error, -1 is returned, and errno is set to indicate the error.
-*/
-
 int my_timer_create(my_timer_t *timer) {
   struct sigevent sigev;
 
@@ -92,7 +83,7 @@ int my_timer_set(my_timer_t *timer, unsigned long time) {
   spec.it_interval.tv_nsec = 0;
   spec.it_value.tv_sec = static_cast<time_t>(time / 1000);
   spec.it_value.tv_nsec = static_cast<long>((time % 1000) * 1000000);
-  return timer_settime(timer->id, 0, &spec, NULL);
+  return timer_settime(timer->id, 0, &spec, nullptr);
 }
 
 /**

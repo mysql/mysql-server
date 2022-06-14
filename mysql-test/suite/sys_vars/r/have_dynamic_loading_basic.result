@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.have_dynamic_loading);
 COUNT(@@GLOBAL.have_dynamic_loading)
 1
 1 Expected
-SELECT have_dynamic_loading = @@SESSION.have_dynamic_loading;
+SELECT have_dynamic_loading;
 ERROR 42S22: Unknown column 'have_dynamic_loading' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

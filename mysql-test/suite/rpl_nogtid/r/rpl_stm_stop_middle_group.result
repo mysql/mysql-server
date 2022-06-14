@@ -7,7 +7,7 @@ SET @@session.binlog_direct_non_transactional_updates= FALSE;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,stop_replica_middle_group";
 begin;
 insert into ti set a=null;
 insert into tm set a=null;
@@ -16,17 +16,18 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 commit;
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("Slave SQL.*Slave SQL Thread stopped with incomplete event group having non-transactional changes");
+call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_no_error.inc
 include/assert.inc [Everything that was read, was executed]
 include/assert.inc [There is one row in table tm]
 include/assert.inc [There is one row in table ti]
 include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
 include/start_slave.inc
 truncate table tm;
 truncate table ti;
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,stop_replica_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 begin;
 insert into ti set a=null;
@@ -34,25 +35,25 @@ insert into tm set a=null;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
-include/wait_for_slave_sql_error.inc [errno=13117]
-Last_SQL_Error = 'Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).'
+include/wait_for_slave_sql_error.inc [errno=13117,1756]
 include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [There is one row in table tm]
 include/assert.inc [There is no row in table ti]
 include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 truncate table tm;
 include/start_slave.inc
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,stop_replica_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
-include/wait_for_slave_sql_error.inc [errno=13117]
-Last_SQL_Error = 'Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).'
+include/wait_for_slave_sql_error.inc [errno=13117,1756]
 include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [The max value for field 'a' is 2]
 include/assert.inc [The max value for field 'a' is 1]
 include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 include/rpl_reset.inc
 drop table tm, ti;
 include/rpl_end.inc

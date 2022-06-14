@@ -1,8 +1,9 @@
---source include/have_ssl.inc
 
 --echo #
 --echo # Bug#20693153 : ACCESS DENIED WITH SSL CONNECTION FROM MYSQL CLIENT
 --echo #
+
+--source include/allowed_ciphers.inc
 
 connection default;
 CREATE USER u_20693153@localhost IDENTIFIED BY 'abcd';

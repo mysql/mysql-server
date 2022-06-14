@@ -1,0 +1,306 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+# Allowed cipher regex
+--source include/allowed_ciphers.inc
+
+--echo # Setup
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--echo # Create test user
+CREATE USER admin_user IDENTIFIED BY 'abcd';
+--echo # Grant required privilege so that test user
+--echo # can connect to server using admin interface
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
+
+--echo # Restarting server with admin interface
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT"
+--source include/restart_mysqld_no_echo.inc
+
+--echo # 1. Admin channel should reuse main channel's TLS
+       # context if TLS is not configured for admin channel
+
+--echo # Verify that TLS is not configured for admin channel
+--query_vertical SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled'
+
+--echo # Try to connect using TLS
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_user -pabcd --ssl-mode=REQUIRED -e "SELECT 1"
+
+--echo # 2. If any of the parameter for admin channel is configured,
+--echo #    server channel's TLS context should not be used. Even if
+--echo #    configuration for admin channel is not correct and TLS
+--echo #    is not enabled for admin channel
+
+--echo # Restarting server with admin interface without TLS support
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --admin-ssl=OFF"
+--source include/restart_mysqld_no_echo.inc
+
+--echo # Verify that TLS is not configured for admin channel
+--query_vertical SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled'
+
+--echo # Try to connect using TLS
+--error 1 # CR_SSL_CONNECTION_ERROR
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_user -pabcd --ssl-mode=REQUIRED -e "SELECT 1;"
+
+--echo # Restarting server with admin interface with TLS support
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --ssl=OFF --admin-port=$MASTER_ADMINPORT --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem"
+--source include/restart_mysqld_no_echo.inc
+
+--echo # Verify that TLS is configured for admin channel
+--query_vertical SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled'
+
+--echo # Try to connect using TLS
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_user -pabcd --ssl-mode=REQUIRED -e "SELECT 1"
+
+--echo # 3. Admin channel TLS parameters can be changed at runtime check if
+--echo #    new sessions get the new vals Save the defaults in admin_conn
+
+--echo # Restarting server with admin interface with TLS support
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem"
+
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # Check if ssl is still turned on after reload
+SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
+  WHERE VARIABLE_NAME='Ssl_cipher';
+
+--echo # check if old sessions continue
+--connect(admin_conn1, 127.0.0.1, root,,,$MASTER_ADMINPORT,,SSL)
+
+SET @must_be_present= 'present';
+
+--connection default
+
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--connection admin_conn1
+
+--echo # Success criteria: value must be present
+SELECT @must_be_present;
+
+--connection default
+--disconnect admin_conn1
+
+# Wait until all sessions are disconnected
+--source include/wait_until_count_sessions.inc
+
+--connect(admin_conn1, 127.0.0.1, root,,,$MASTER_ADMINPORT,,SSL)
+
+let $orig_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
+SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
+
+--echo # check if the session has the original values
+--replace_result $orig_cipher orig_cipher
+SHOW STATUS LIKE 'Ssl_cipher';
+
+--echo # in default connection
+--connection default
+
+--echo # setting new values for ssl_cipher
+SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL admin_tls_version = "TLSv1.2";
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # in admin_conn2
+--connect(admin_conn2, 127.0.0.1, root,,,$MASTER_ADMINPORT,,SSL)
+--echo # Save the new defaults
+let $new_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
+
+--echo # Check if the old and the new not afters differ
+let $the_same=`SELECT "$new_cipher" = "$orig_cipher"`;
+if ($the_same == 1)
+{
+  die the not-after values must be different;
+}
+
+--echo # in admin_conn1
+--connection admin_conn1
+
+--echo # the con session must have the original values
+--replace_result $orig_cipher orig_cipher;
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# cleanup
+--echo # in default connection
+--connection default
+--disconnect admin_conn1
+--disconnect admin_conn2
+
+SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # new values effective only after RELOAD TLS
+--echo # Save the defaults
+--connect(admin_conn1, 127.0.0.1, root,,,$MASTER_ADMINPORT,,SSL)
+let $orig_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
+
+--connection default
+SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
+
+--echo # setting new values for ssl_cipher
+SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+
+--echo # In admin_conn2
+--connect(admin_conn2, 127.0.0.1, root,,,$MASTER_ADMINPORT,,SSL)
+let $new_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
+
+--echo # Check if the old and the new not afters differ
+let $the_same=`SELECT "$new_cipher" = "$orig_cipher"`;
+if ($the_same == 0)
+{
+  die the old non-after must still be active;
+}
+
+--connection default
+--disconnect admin_conn1
+--disconnect admin_conn2
+
+SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
+
+--echo # Disable TLS support on wrong values
+
+--echo # save the original value
+SET @orig_admin_ssl_ca = @@global.admin_ssl_ca;
+
+SET GLOBAL admin_ssl_ca = 'gizmo';
+
+--echo # Must fail and not change the SSL params
+--error ER_DA_SSL_LIBRARY_ERROR
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # Must not show 'gizmo'
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
+
+--echo # Must return gizmo
+SELECT @@global.admin_ssl_ca;
+
+--echo # Must connect successfully
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 --port=$MASTER_ADMINPORT -e "SELECT 1"
+
+--echo # Must pass with a warning and disable TLS
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin NO ROLLBACK ON ERROR;
+
+--echo # Must show 'gizmo'
+SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = 'gizmo';
+
+--echo # Must fail
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 --port=$MASTER_ADMINPORT -e "SELECT 1"
+
+--echo # Reset
+SET GLOBAL admin_ssl_ca = @orig_admin_ssl_ca;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # Must pass
+SET GLOBAL admin_ssl_ca = 'gizmo';
+SET GLOBAL admin_ssl_cert = 'gizmo';
+SET GLOBAL admin_ssl_key = 'gizmo';
+SET GLOBAL admin_ssl_capath = 'gizmo';
+SET GLOBAL admin_ssl_crl = 'gizmo';
+SET GLOBAL admin_ssl_crlpath = 'gizmo';
+SET GLOBAL admin_ssl_cipher = 'gizmo';
+SET GLOBAL admin_tls_ciphersuites = 'gizmo';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL admin_tls_version = 'gizmo';
+
+--echo # Must fail
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_ca = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_cert = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_key = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_capath = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_crl = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_crlpath = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_ssl_cipher = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_tls_ciphersuites = 'gizmo';
+--error ER_GLOBAL_VARIABLE
+SET SESSION admin_tls_version = 'gizmo';
+
+--echo # Must return more than 1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin';
+
+--echo # 4. Main channel and Admin channel can be independent of
+--echo #    each other wrt TLS context
+
+--echo # Restarting server with admin interface with TLS support
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem"
+--source include/restart_mysqld_no_echo.inc
+
+--echo # save the original value
+SET @orig_admin_ssl_ca = @@global.admin_ssl_ca;
+SET @orig_admin_ssl_cert = @@global.admin_ssl_cert;
+SET @orig_admin_ssl_key = @@global.admin_ssl_key;
+
+SET @orig_ssl_ca = @@global.ssl_ca;
+SET @orig_ssl_cert = @@global.ssl_cert;
+SET @orig_ssl_key = @@global.ssl_key;
+
+--echo # Should be all 1
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_cert' AND VALUE = @orig_admin_ssl_cert;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_key' AND VALUE = @orig_admin_ssl_key;
+
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_ssl_ca;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_cert' AND VALUE = @orig_ssl_cert;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_key' AND VALUE = @orig_ssl_key;
+
+--echo # Setting admin certs to different value
+--disable_query_log
+--eval SET GLOBAL admin_ssl_ca = '$MYSQL_TEST_DIR/std_data/cacert.pem'
+--eval SET GLOBAL admin_ssl_cert = '$MYSQL_TEST_DIR/std_data/server-cert.pem'
+--eval SET GLOBAL admin_ssl_key = '$MYSQL_TEST_DIR/std_data/server-key.pem'
+--enable_query_log
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # Admin certs won't match but regular certs will
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_cert' AND VALUE = @orig_admin_ssl_cert;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_key' AND VALUE = @orig_admin_ssl_key;
+
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_ca' AND VALUE = @orig_ssl_ca;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_cert' AND VALUE = @orig_ssl_cert;
+SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Current_tls_key' AND VALUE = @orig_ssl_key;
+
+--connection default
+
+SET GLOBAL admin_ssl_ca = @orig_admin_ssl_ca;
+SET GLOBAL admin_ssl_cert = @orig_admin_ssl_cert;
+SET GLOBAL admin_ssl_key = @orig_admin_ssl_key;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # Syntax check
+
+--error ER_SYNTAX_ERROR
+ALTER INSTANCE RELOAD TLS FOR CHANNEL haha;
+
+--error ER_SYNTAX_ERROR
+ALTER INSTANCE RELOAD TLS FOR CHANNEL haha NO ROLLBACK ON ERROR;
+
+ALTER INSTANCE RELOAD TLS FOR CHANNEL MySqL_AdMin;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_MAIN;
+
+ALTER INSTANCE RELOAD TLS FOR CHANNEL MySqL_AdMin NO ROLLBACK ON ERROR;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_MAIN NO ROLLBACK ON ERROR;
+
+--echo # Cleanup
+DROP USER admin_user;
+--source include/force_restart.inc
+# Wait until all sessions are disconnected
+--source include/wait_until_count_sessions.inc

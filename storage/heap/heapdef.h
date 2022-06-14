@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ extern LIST *heap_open_list, *heap_share_list;
 #define test_active(info)                  \
   if (!(info->update & HA_STATE_AKTIV)) {  \
     set_my_errno(HA_ERR_NO_ACTIVE_RECORD); \
-    DBUG_RETURN(-1);                       \
+    return -1;                             \
   }
 #define hp_find_hash(A, B) ((HASH_INFO *)hp_find_block((A), (B)))
 

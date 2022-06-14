@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,13 +47,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class dict_intrinsic_table_t {
  public:
   /** Constructor
-  @param[in,out]	handler		table handler. */
+  @param[in,out]        handler         table handler. */
   dict_intrinsic_table_t(dict_table_t *handler) : m_handler(handler) {
     /* Do nothing. */
   }
 
   /** Destructor */
-  ~dict_intrinsic_table_t() { m_handler = NULL; }
+  ~dict_intrinsic_table_t() { m_handler = nullptr; }
 
  public:
   /* Table Handler holding other metadata information commonly needed
@@ -64,7 +64,7 @@ class dict_intrinsic_table_t {
 /** InnoDB private data that is cached in THD */
 typedef std::map<
     std::string, dict_intrinsic_table_t *, std::less<std::string>,
-    ut_allocator<std::pair<const std::string, dict_intrinsic_table_t *>>>
+    ut::allocator<std::pair<const std::string, dict_intrinsic_table_t *>>>
     table_cache_t;
 
 class innodb_session_t {
@@ -77,7 +77,7 @@ class innodb_session_t {
 
   /** Destructor */
   ~innodb_session_t() {
-    m_trx = NULL;
+    m_trx = nullptr;
 
     for (table_cache_t::iterator it = m_open_tables.begin();
          it != m_open_tables.end(); ++it) {
@@ -96,23 +96,23 @@ class innodb_session_t {
   }
 
   /** Cache table handler.
-  @param[in]	table_name	name of the table
-  @param[in,out]	table		table handler to register */
+  @param[in]    table_name      name of the table
+  @param[in,out]        table           table handler to register */
   void register_table_handler(const char *table_name, dict_table_t *table) {
-    ut_ad(lookup_table_handler(table_name) == NULL);
+    ut_ad(lookup_table_handler(table_name) == nullptr);
     m_open_tables.insert(table_cache_t::value_type(
         table_name, new dict_intrinsic_table_t(table)));
   }
 
   /** Lookup for table handler given table_name.
-  @param[in]	table_name	name of the table to lookup */
+  @param[in]    table_name      name of the table to lookup */
   dict_table_t *lookup_table_handler(const char *table_name) {
     table_cache_t::iterator it = m_open_tables.find(table_name);
-    return ((it == m_open_tables.end()) ? NULL : it->second->m_handler);
+    return ((it == m_open_tables.end()) ? nullptr : it->second->m_handler);
   }
 
   /** Remove table handler entry.
-  @param[in]	table_name	name of the table to remove */
+  @param[in]    table_name      name of the table to remove */
   void unregister_table_handler(const char *table_name) {
     table_cache_t::iterator it = m_open_tables.find(table_name);
     if (it == m_open_tables.end()) {

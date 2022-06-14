@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ static struct my_err_head {
   const char *(*get_errmsg)(int); /* returns error message format */
   int meh_first;                  /* error number matching array slot 0 */
   int meh_last;                   /* error number matching last slot */
-} my_errmsgs_globerrs = {NULL, get_global_errmsg, EE_ERROR_FIRST,
+} my_errmsgs_globerrs = {nullptr, get_global_errmsg, EE_ERROR_FIRST,
                          EE_ERROR_LAST};
 
 static struct my_err_head *my_errmsgs_list = &my_errmsgs_globerrs;
@@ -103,7 +103,7 @@ static struct my_err_head *my_errmsgs_list = &my_errmsgs_globerrs;
   @param  len  the size of the aforementioned buffer
   @param  nr   the error number
 
-  @retval buf  always buf. for signature compatibility with strerror(3).
+  @returns buf always buf. for signature compatibility with strerror(3).
 */
 
 char *my_strerror(char *buf, size_t len, int nr) {
@@ -118,7 +118,7 @@ char *my_strerror(char *buf, size_t len, int nr) {
   if ((nr >= HA_ERR_FIRST) && (nr <= HA_ERR_LAST))
     msg = handler_error_messages[nr - HA_ERR_FIRST];
 
-  if (msg != NULL)
+  if (msg != nullptr)
     strmake(buf, msg, len - 1);
   else {
     /*
@@ -194,9 +194,9 @@ const char *my_get_err_msg(int nr) {
     we return NULL.
   */
   if (!(format = (meh_p && (nr >= meh_p->meh_first)) ? meh_p->get_errmsg(nr)
-                                                     : NULL) ||
+                                                     : nullptr) ||
       !*format)
-    return NULL;
+    return nullptr;
 
   return format;
 }
@@ -215,7 +215,7 @@ const char *my_get_err_msg(int nr) {
 void my_error(int nr, myf MyFlags, ...) {
   const char *format;
   char ebuff[ERRMSGSIZE];
-  DBUG_ENTER("my_error");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
 
   if (!(format = my_get_err_msg(nr)))
@@ -247,7 +247,6 @@ void my_error(int nr, myf MyFlags, ...) {
   }
 
   (*error_handler_hook)(nr, ebuff, MyFlags);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -265,7 +264,7 @@ void my_error(int nr, myf MyFlags, ...) {
 void my_printf_error(uint error, const char *format, myf MyFlags, ...) {
   va_list args;
   char ebuff[ERRMSGSIZE];
-  DBUG_ENTER("my_printf_error");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  Format: %s", error,
                     MyFlags, errno, format));
 
@@ -273,7 +272,6 @@ void my_printf_error(uint error, const char *format, myf MyFlags, ...) {
   (void)vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   (*error_handler_hook)(error, ebuff, MyFlags);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -290,13 +288,12 @@ void my_printf_error(uint error, const char *format, myf MyFlags, ...) {
 
 void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap) {
   char ebuff[ERRMSGSIZE];
-  DBUG_ENTER("my_printv_error");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s", error,
                     MyFlags, errno, format));
 
   (void)vsnprintf(ebuff, sizeof(ebuff), format, ap);
   (*error_handler_hook)(error, ebuff, MyFlags);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -413,14 +410,14 @@ bool my_error_unregister(int first, int last) {
 void my_error_unregister_all(void) {
   struct my_err_head *cursor, *saved_next;
 
-  for (cursor = my_errmsgs_globerrs.meh_next; cursor != NULL;
+  for (cursor = my_errmsgs_globerrs.meh_next; cursor != nullptr;
        cursor = saved_next) {
     /* We need this ptr, but we're about to free its container, so save it. */
     saved_next = cursor->meh_next;
 
     my_free(cursor);
   }
-  my_errmsgs_globerrs.meh_next = NULL; /* Freed in first iteration above. */
+  my_errmsgs_globerrs.meh_next = nullptr; /* Freed in first iteration above. */
 
   my_errmsgs_list = &my_errmsgs_globerrs;
 }
@@ -446,7 +443,7 @@ void my_error_unregister_all(void) {
 void my_message_local_stderr(enum loglevel ll, uint ecode, va_list args) {
   char buff[1024];
   size_t len;
-  DBUG_ENTER("my_message_local_stderr");
+  DBUG_TRACE;
 
   len = snprintf(
       buff, sizeof(buff), "[%s] ",
@@ -454,8 +451,6 @@ void my_message_local_stderr(enum loglevel ll, uint ecode, va_list args) {
   vsnprintf(buff + len, sizeof(buff) - len, EE(ecode), args);
 
   my_message_stderr(0, buff, MYF(0));
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -476,11 +471,9 @@ void my_message_local_stderr(enum loglevel ll, uint ecode, va_list args) {
 */
 void my_message_local(enum loglevel ll, uint ecode, ...) {
   va_list args;
-  DBUG_ENTER("my_message_local");
+  DBUG_TRACE;
 
   va_start(args, ecode);
   (*local_message_hook)(ll, ecode, args);
   va_end(args);
-
-  DBUG_VOID_RETURN;
 }

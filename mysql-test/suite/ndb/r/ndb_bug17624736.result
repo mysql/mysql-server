@@ -11,17 +11,11 @@ key t2x1 (b),
 primary key using hash (a),
 constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
-select type,name from ndb_show_tables_results
-where (type like '%Index%' or type like '%ForeignKey%')
-and (name like '%t1%' or name like '%t2%')
-order by name;
+Expect fk and indexes to exist
 type	name
-'ForeignKey'	'XX/XX/t2fk1'
-'UniqueHashIndex'	't1x1$unique'
-'OrderedIndex'	't2x1'
+Unique hash index	t1x1$unique
+Foreign key definition	t2fk1
+Ordered index	t2x1
 insert into t1 values (1,10),(2,20),(3,30),(4,40),(5,50);
 insert into t2 values (1,10),(2,10),(3,30),(4,50),(5,50);
 select * from t1 where b = 10 order by a;
@@ -32,13 +26,7 @@ a	b
 1	10
 2	10
 # run restart skip indexes
-
-ndb_show_tables completed.....
-
-select type,name from ndb_show_tables_results
-where (type like '%Index%' or type like '%ForeignKey%')
-and (name like '%t1%' or name like '%t2%')
-order by name;
+Expect neither fk or indexes since restart was without indexes
 type	name
 # run backup
 # create empty schema
@@ -56,17 +44,11 @@ key t2x1 (b),
 primary key using hash (a),
 constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
-select type,name from ndb_show_tables_results
-where (type like '%Index%' or type like '%ForeignKey%')
-and (name like '%t1%' or name like '%t2%')
-order by name;
+Expect fk and indexes to exist again
 type	name
-'ForeignKey'	'XX/XX/t2fk1'
-'UniqueHashIndex'	't1x1$unique'
-'OrderedIndex'	't2x1'
+Unique hash index	t1x1$unique
+Foreign key definition	t2fk1
+Ordered index	t2x1
 # run restore
 select * from t1 where b = 10 order by a;
 a	b

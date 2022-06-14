@@ -100,7 +100,7 @@ SELECT DATABASE();
 DATABASE()
 db2
 SELECT db1.f1(1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 SELECT DATABASE();
 DATABASE()
 db2
@@ -173,13 +173,13 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION testf_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
+testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int
 BEGIN
 RETURN 0;
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION TESTF_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
+testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int
 BEGIN
 RETURN 0;
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -433,7 +433,7 @@ ERROR 42000: PROCEDURE очень_очень_очень_очень_очень_о
 SHOW CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e`()
-BEGIN END	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+BEGIN END	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 #
 # Test case to verify stored function with case and accent insensitive names.
@@ -464,3 +464,90 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#
 DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 SET NAMES default;
+#
+# Bug#30034972 - Deterministic function returns different value after
+#                error.
+#
+CREATE FUNCTION myfunc(dt VARCHAR(50)) RETURNS VARCHAR(32) DETERMINISTIC
+BEGIN
+DECLARE dt_local TIMESTAMP(0);
+SET dt_local = dt;
+RETURN CONCAT(UNIX_TIMESTAMP(dt_local));
+END; //
+# Stored function returns seconds without fractional
+# part (e.g. 1546290000)
+SELECT myfunc('2019-01-01 00:00:00');
+myfunc('2019-01-01 00:00:00')
+1546290000
+SELECT myfunc('2019-01-01 00:00:71');
+ERROR 22007: Incorrect datetime value: '2019-01-01 00:00:71' for column 'dt_local' at row 1
+# Without the fix, the following returned second value with fractional
+# part (e.g. 1546290000.000000).
+SELECT myfunc('2019-01-01 00:00:00');
+myfunc('2019-01-01 00:00:00')
+1546290000
+DROP FUNCTION myfunc;
+# Issue exists with Prepared Statements too.
+PREPARE stmt FROM 'SELECT CONCAT(UNIX_TIMESTAMP(?))';
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+CONCAT(UNIX_TIMESTAMP(?))
+1546290000.000000
+SET @var = '2019-01-01 00:00:71';
+EXECUTE stmt USING @var;
+CONCAT(UNIX_TIMESTAMP(?))
+0.000000
+Warnings:
+Warning	1292	Incorrect datetime value: '2019-01-01 00:00:71'
+# Without the fix, the following returned second value with fractional
+# part (e.g. 1546290000.000000).
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+CONCAT(UNIX_TIMESTAMP(?))
+1546290000.000000
+DEALLOCATE PREPARE stmt;
+#
+# Bug#30561920 - Handler fails to trigger on error 1049 or SQLSTATE 42000
+#                or plain SQLEXCEPTION
+#
+CREATE FUNCTION func1() RETURNS INT
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+SELECT * INTO @a FROM fake_table;
+RETURN 1;
+END|
+CREATE FUNCTION func2() RETURNS INT
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+SELECT * INTO @a FROM fake_db.fake_table;
+RETURN 1;
+END|
+SELECT func1();
+func1()
+NULL
+# Without fix, exit handler is not triggered and unknown DB error
+# is reported.
+SELECT func2();
+func2()
+NULL
+DROP FUNCTION func1;
+DROP FUNCTION func2;
+#
+# Bug#33079184 - sp_lex_instr::reset_lex_and_exec_core: assertion
+#                `error || m_lex->is_exec_started()' failed.
+# Assertion to make sure sp instruction execution is started unless
+# there is an error, failed.
+#
+CREATE PROCEDURE p()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+SET @x = 0;
+WHILE @x < 2 DO
+CASE((SELECT q > 1)) WHEN 1 THEN SELECT 1; END CASE;
+SET @x = @x + 1;
+END WHILE;
+END$
+# Without fix, assertion fails for following statement in debug build.
+# In non-debug build, statement executes successfully.
+CALL p();
+DROP PROCEDURE p;

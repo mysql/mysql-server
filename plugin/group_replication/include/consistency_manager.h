@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include <map>
 #include <utility>
 
-#include "my_dbug.h"
+#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/pipeline_interfaces.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
@@ -183,6 +183,8 @@ class Transaction_consistency_info {
   const rpl_gno m_gno;
   const enum_group_replication_consistency_level m_consistency_level;
   std::list<Gcs_member_identifier> *m_members_that_must_prepare_the_transaction;
+  std::unique_ptr<Checkable_rwlock>
+      m_members_that_must_prepare_the_transaction_lock;
   bool m_transaction_prepared_locally;
   bool m_transaction_prepared_remotely;
 };
@@ -210,7 +212,7 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   */
   Transaction_consistency_manager();
 
-  virtual ~Transaction_consistency_manager();
+  ~Transaction_consistency_manager() override;
 
   /**
     Clear all information.
@@ -292,8 +294,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
-                           rpl_gno gno);
+  int after_commit(my_thread_id thread_id, rpl_sidno sidno,
+                   rpl_gno gno) override;
 
   /**
     Call action before a transaction starts.
@@ -304,7 +306,7 @@ class Transaction_consistency_manager : public Group_transaction_listener {
 
     @param[in]  thread_id         the thread that is executing the
                                   transaction
-    @param[in]  consistency_level the transaction consistency
+    @param[in]  gr_consistency_level the transaction consistency
     @param[in]  timeout           maximum time to wait
     @param[in]  rpl_channel_type  type of the channel that receives the
                                   transaction
@@ -313,10 +315,9 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  virtual int before_transaction_begin(my_thread_id thread_id,
-                                       ulong gr_consistency_level,
-                                       ulong timeout,
-                                       enum_rpl_channel_type channel_type);
+  int before_transaction_begin(my_thread_id thread_id,
+                               ulong gr_consistency_level, ulong timeout,
+                               enum_rpl_channel_type rpl_channel_type) override;
 
   /**
     Call action once a Sync_before_execution_message is received,
@@ -381,15 +382,27 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   */
   void unregister_transaction_observer();
 
-  virtual int before_commit(
+  int before_commit(
       my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
+      Group_transaction_listener::enum_transaction_origin origin) override;
 
-  virtual int before_rollback(
+  int before_rollback(
       my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
+      Group_transaction_listener::enum_transaction_origin origin) override;
 
-  virtual int after_rollback(my_thread_id thread_id);
+  int after_rollback(my_thread_id thread_id) override;
+
+  /**
+    Tells the consistency manager that a primary election is running so it
+    shall enable primary election checks
+  */
+  void enable_primary_election_checks();
+
+  /**
+    Tells the consistency manager that a primary election ended so it
+    shall disable primary election checks
+  */
+  void disable_primary_election_checks();
 
  private:
   /**
@@ -455,9 +468,15 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   std::list<Transaction_consistency_manager_key>
       m_prepared_transactions_on_my_applier;
   std::list<my_thread_id> m_new_transactions_waiting;
-  std::list<Pipeline_event *> m_delayed_view_change_events;
+  std::list<std::pair<Pipeline_event *, Transaction_consistency_manager_key>>
+      m_delayed_view_change_events;
+  Transaction_consistency_manager_key m_last_local_transaction;
 
   std::atomic<bool> m_plugin_stopping;
+  std::atomic<bool> m_primary_election_active;
+
+  /** Hold transaction mechanism */
+  Hold_transactions m_hold_transactions;
 };
 
 #endif /* CONSISTENCY_MANAGER_INCLUDED */

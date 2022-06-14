@@ -8,6 +8,11 @@
 
 # Reference: Bug #27147095: ADD RPL_READ_SIZE OPTION
 
+# this test requires a deterministic transaction size to be
+# handled by the slave. Therefore it is incompatible with
+# compression.
+--source include/not_binlog_transaction_compression_on.inc
+
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc

@@ -14,7 +14,7 @@
 --echo # 5. Unprivileged user fails to change ServerHello notice configuration;
 --echo #
 
---write_file $MYSQL_TMP_DIR/mysqlx-hello-notice.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-hello-notice.xpl
 -->import connection.macro
 
 echo;
@@ -71,12 +71,10 @@ CREATE USER 'some_user' @'localhost' IDENTIFIED WITH 'mysql_native_password';
 exec $MYSQLXTEST
   -ux_root --password=''
   --ssl-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/mysqlx-hello-notice.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-hello-notice.xpl 2>&1;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-hello-notice.tmp
-
 SET GLOBAL mysqlx_enable_hello_notice= DEFAULT;
 DROP USER 'some_user' @'localhost';
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

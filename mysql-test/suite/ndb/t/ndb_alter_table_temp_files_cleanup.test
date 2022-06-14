@@ -1,0 +1,60 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+#
+# BUG#24935788 COPYING ALTER LEAVES EXTRANEOUS TEMPORARY TABLE AND FOREIGN KEYS
+# During this test aims to reproduce bug with given conditions:
+#   - at least two tables
+#   - one table contains foreign keys
+#   - simulate failure of mysqld during copying alter table
+# This should lead to situation where:
+#   - foreign keys refers to temporary table
+#   - having left behind temporary tables may break operations such as alter table or mysqldump:
+#       * according to bugs #24935788 and #29892252
+#
+
+call mtr.add_suppression("NDB: Found temporary table test.#sql-[a-z0-9_]+.+");
+
+--echo # create table t1
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b INT UNIQUE KEY
+)ENGINE = NDB;
+
+--echo # create table t2 with fks referring columns from t1
+CREATE TABLE t2(
+  a INT,
+  b INT,
+  c INT UNIQUE KEY,
+  CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES t1(a),
+  CONSTRAINT fk2 FOREIGN KEY (b) REFERENCES t1(b)
+)ENGINE = NDB;
+
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30), (4,40);
+INSERT INTO t2 VALUES (1,10,100), (2,20,200);
+
+--echo # mysqld will crash during alter table and leave temporary named table behind
+SET debug='+d,ndb_simulate_crash_during_alter_table_rename1';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+--error 2013,2003
+ALTER TABLE t1 ALGORITHM=COPY;
+--echo # mysqld will restart after crash and remove the temporary named table during connecting to the cluster
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+--source include/wait_until_connected_again.inc
+
+--let $assert_text=require temporary table warning message
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_select=NDB: Found temporary table test.#sql-[a-z0-9_]+.+
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--echo # verify that no temporary table left
+SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
+
+--echo # verify that original data has not been affected by temporary table cleanup
+SELECT a, b FROM t1 ORDER BY a;
+SELECT a, b, c FROM t2 ORDER BY a;
+
+--echo # cleanup
+DROP TABLE t2, t1;

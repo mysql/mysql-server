@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,38 +24,40 @@
 #define COMPONENTS_SERVICES_MYSQL_COND_H
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/bits/mysql_mutex_bits.h>
 #include <mysql/components/services/mysql_cond_service.h>
-#include <mysql/components/services/mysql_mutex_bits.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(mysql_cond_v1);
+#define REQUIRES_MYSQL_COND_SERVICE REQUIRES_SERVICE(mysql_cond_v1)
+#define REQUIRES_MYSQL_COND_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(mysql_cond_v1)
+
+extern REQUIRES_MYSQL_COND_SERVICE_PLACEHOLDER;
+
+#define MYSQL_COND_CALL(M) mysql_service_mysql_cond_v1->M
 
 #define mysql_cond_register(P1, P2, P3) \
-  mysql_service_mysql_cond_v1->register_info(P1, P2, P3)
+  MYSQL_COND_CALL(register_info)(P1, P2, P3)
 
 #define mysql_cond_init(K, C) mysql_cond_init_with_src(K, C, __FILE__, __LINE__)
-#define mysql_cond_init_with_src(K, C, F, L) \
-  mysql_service_mysql_cond_v1->init(K, C, F, L)
+#define mysql_cond_init_with_src(K, C, F, L) MYSQL_COND_CALL(init)(K, C, F, L)
 
 #define mysql_cond_destroy(C) mysql_cond_destroy_with_src(C, __FILE__, __LINE__)
-#define mysql_cond_destroy_with_src(C, F, L) \
-  mysql_service_mysql_cond_v1->destroy(C, F, L)
+#define mysql_cond_destroy_with_src(C, F, L) MYSQL_COND_CALL(destroy)(C, F, L)
 
 #define mysql_cond_wait(C, M) mysql_cond_wait_with_src(C, M, __FILE__, __LINE__)
-#define mysql_cond_wait_with_src(C, M, F, L) \
-  mysql_service_mysql_cond_v1->wait(C, M, F, L)
+#define mysql_cond_wait_with_src(C, M, F, L) MYSQL_COND_CALL(wait)(C, M, F, L)
 
 #define mysql_cond_timedwait(C, M, T) \
   mysql_cond_timedwait_with_src(C, M, T, __FILE__, __LINE__)
 #define mysql_cond_timedwait_with_src(C, M, T, F, L) \
-  mysql_service_mysql_cond_v1->timedwait(C, M, T, F, L)
+  MYSQL_COND_CALL(timedwait)(C, M, T, F, L)
 
 #define mysql_cond_signal(C) mysql_cond_signal_with_src(C, __FILE__, __LINE__)
-#define mysql_cond_signal_with_src(C, F, L) \
-  mysql_service_mysql_cond_v1->signal(C, F, L)
+#define mysql_cond_signal_with_src(C, F, L) MYSQL_COND_CALL(signal)(C, F, L)
 
 #define mysql_cond_broadcast(C) \
   mysql_cond_broadcast_with_src(C, __FILE__, __LINE__)
 #define mysql_cond_broadcast_with_src(C, F, L) \
-  mysql_service_mysql_cond_v1->broadcast(C, F, L)
+  MYSQL_COND_CALL(broadcast)(C, F, L)
 
 #endif /* COMPONENTS_SERVICES_MYSQL_COND_H */

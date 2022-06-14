@@ -1,0 +1,273 @@
+-- source include/have_ndb.inc
+
+#
+# This test is a subset of index_stat.test. All the ANALYZE TABLE
+# statements have been removed and we instead wait for the stats
+# to be automatically updated
+#
+
+create table t1 (
+  a1 int unsigned not null,
+  b1 int unsigned not null,
+  c1 int unsigned not null,
+  primary key (a1),
+  index b1x (b1),
+  index c1x (c1)
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+create table t2 (
+  a2 int unsigned not null,
+  b2 int unsigned not null,
+  c2 int unsigned not null,
+  primary key (a2),
+  index b2x (b2),
+  index c2x (c2)
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+# Disable index stats at the handler level so that it can be
+# reasonably ascertained that the latest stats are in the
+# cache later. This protects us from using stale stats and thus
+# leading to non-deterministic EXPLAIN output
+set @is_enable = 0;
+--source index_stat_enable.inc
+--let $old_event_count=query_get_value(SHOW STATUS LIKE 'Ndb_index_stat_event_count', Value, 1)
+
+# enough rows to make index stats more approximate
+
+--disable_query_log
+let $i = 1000;
+while ($i)
+{
+  dec $i;
+  eval insert into t1 values ($i, $i % 100, $i % 10);
+}
+
+set @is_enable = 1;
+--source index_stat_enable.inc
+--let $index_stat_db=test
+--let $index_stat_table=t1
+--source wait_index_stat_cache_updated.inc
+set @is_enable = 0;
+--source index_stat_enable.inc
+--let $old_event_count=query_get_value(SHOW STATUS LIKE 'Ndb_index_stat_event_count', Value, 1)
+
+let $i = 1000;
+while ($i)
+{
+  dec $i;
+  eval insert into t2 values ($i, $i % 10, $i % 100);
+}
+--enable_query_log
+
+set @is_enable = 1;
+--source index_stat_enable.inc
+--let $index_stat_db=test
+--let $index_stat_table=t2
+--source wait_index_stat_cache_updated.inc
+
+# TEST: key equal constant
+
+--echo # must use b1x
+--replace_column 10 # 11 #
+explain select * from t1
+  where b1 = 5 and c1 = 5;
+
+--echo # must use c2x
+--replace_column 10 # 11 #
+explain select * from t2
+  where b2 = 5 and c2 = 5;
+
+# TEST: keys equal constant in join
+
+--echo # must use b1x, c2x
+--replace_column 10 # 11 #
+explain select * from t1, t2
+  where c1 = c2 and b1 = 5 and b2 = 5;
+
+--echo # must use c2x, b1x
+--replace_column 10 # 11 #
+explain select * from t1, t2
+  where b1 = b2 and c1 = 5 and c2 = 5;
+
+# TEST: join via keys of different selectivity
+
+--echo # must use t1, c2x
+--replace_column 10 # 11 #
+explain select * from t1, t2
+  where c1 = c2;
+--echo # must use t2, b1x
+--replace_column 10 # 11 #
+explain select * from t1, t2
+  where b1 = b2;
+
+# TEST: bug#44760 quick distinct
+# QUICK_GROUP_MIN_MAX_SELECT says "Using index for group-by".
+# Should happen only for low cardinality index.
+# wl4124_todo: result is wrong until HA_KEYREAD_ONLY is set
+
+--echo # should NOT say: Using index for group-by
+--replace_column 10 # 11 #
+explain select distinct (a1) from t1;
+
+--echo # must say: Using index for group by
+--replace_column 10 # 11 #
+explain select distinct (b1) from t1;
+
+--echo # must say: Using index for group by
+--replace_column 10 # 11 #
+explain select distinct (c1) from t1;
+
+# TEST: end
+drop table t1, t2;
+
+#
+# Check estimates of records per key for partial keys using unique/primary ordered index
+#
+
+create table t1 (a1 int, b1 int, primary key(b1), key(a1)) engine=ndbcluster partition by key() partitions 1;
+create table t2 (b2 int, c2 int, primary key(b2,c2)) engine=ndbcluster partition by key() partitions 1;
+set @is_enable = 0;
+--source index_stat_enable.inc
+--let $old_event_count=query_get_value(SHOW STATUS LIKE 'Ndb_index_stat_event_count', Value, 1)
+--disable_query_log
+let $i = 100;
+while ($i)
+{
+  eval insert into t1 (a1,b1) values ($i,$i);
+  dec $i;
+}
+--enable_query_log
+
+set @is_enable = 1;
+--source index_stat_enable.inc
+--let $index_stat_db=test
+--let $index_stat_table=t1
+--source wait_index_stat_cache_updated.inc
+
+set @is_enable = 0;
+--source index_stat_enable.inc
+--let $old_event_count=query_get_value(SHOW STATUS LIKE 'Ndb_index_stat_event_count', Value, 1)
+--disable_query_log
+let $i = 100;
+while ($i)
+{
+  eval insert into t2 (b2,c2) values ($i mod 2, $i div 2);
+  dec $i;
+}
+--enable_query_log
+
+--echo # table t1 is only for forcing record by key count for table t2 that should be near 50 (not 1)
+set @is_enable = 1;
+--source index_stat_enable.inc
+--let $index_stat_db=test
+--let $index_stat_table=t2
+--source wait_index_stat_cache_updated.inc
+# Hide Extra column
+--replace_column 10 #
+explain select * from t1, t2 where b2 = b1 and a1 = 1;
+
+drop table t1, t2;
+
+# bugXXXXX rule b3.3 fix
+
+CREATE TABLE t1(
+  K INT NOT NULL AUTO_INCREMENT,
+  I INT,
+  J INT,
+  L INT,
+  PRIMARY KEY(K),
+  KEY(I,J),
+  KEY(L)
+) ENGINE=ndbcluster
+  partition by key (K) partitions 1;
+
+set @is_enable = 0;
+--source index_stat_enable.inc
+--let $old_event_count=query_get_value(SHOW STATUS LIKE 'Ndb_index_stat_event_count', Value, 1)
+
+INSERT INTO t1(I,J,L) VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
+
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+
+set @is_enable = 1;
+--source index_stat_enable.inc
+--let $index_stat_db=test
+--let $index_stat_table=t1
+--source wait_index_stat_cache_updated.inc
+
+select i, count(*) from t1 group by 1 order by 1;
+select l, count(*) from t1 group by 1 order by 1;
+
+explain SELECT count(*) as Count FROM t1 WHERE I = 5;
+SELECT count(*) as Count FROM t1 WHERE I = 5;
+
+# before fix rows was 128 instead of 256
+explain SELECT count(*) as Count FROM t1 WHERE L = 5;
+SELECT count(*) as Count FROM t1 WHERE L = 5;
+
+drop table t1;
+
+--echo #
+--echo # Bug#28714864: Creating a table with unsupported index length crashes the data nodes
+--echo #
+
+--echo #setup
+create table t1(
+  a int auto_increment primary key,
+  b varchar(3053),
+  c varchar(3056),
+  d varchar(3072),
+  col1 varchar(762) not null,
+  col2 varchar(762) not null,
+  col3 varchar(762) not null,
+  col4 varchar(762) not null
+) engine ndb charset latin1;
+
+--echo # populate enough rows to generate index stats
+--disable_query_log
+insert into t1 (b, c, d, col1, col2, col3, col4)
+  values (repeat('a', 3051), repeat('b', 3056), repeat('c', 3072),
+          repeat('d', 762), repeat('e', 762), repeat('f', 762), repeat('g', 762));
+insert into t1 (b, c, d, col1, col2, col3, col4)
+  values (repeat('h', 3051), repeat('i', 3056), repeat('j', 3072),
+          repeat('k', 762), repeat('l', 762), repeat('m', 762), repeat('n', 762));
+let $i = 5;
+while ($i)
+{
+  eval insert into t1 (b, c, d, col1, col2, col3, col4)
+    select b, c, d, col1, col2, col3, col4 from t1;
+  dec $i;
+}
+--enable_query_log
+
+--echo # create index on b - it has the maximum key size supported by ndb index stat
+create index idxb on t1(b); # max key size = 3056 (col size = 3053, length bytes = 2, nullmask = 1)
+
+drop index idxb on t1;
+
+--echo # create index on c - it has a key size unsupported by ndb index stat
+--echo # a warning should be returned
+create index idxc on t1(c); # max key size = 3059 (col size = 3056, length bytes = 2, nullmask = 1)
+
+--echo # create index on d - it has the maximum key size allowed by mysql(3072)
+--echo # but the key size is unsupported by ndb index stat
+--echo # a warning should be returned
+create index idxd on t1(d); # max key size = 3075 (col size = 3072, length bytes = 2, nullmask = 1)
+
+--echo # create index on col1..col4 - it has the maximum key size supported by ndb index stat
+# max key size = 3056 (total col size = 3048[762 * 4], length bytes = 8[2 * 4], nullmask = 0)
+create index idxcol on t1(col1, col2, col3, col4);
+
+drop index idxcol on t1;
+
+--echo #cleanup
+drop table t1;

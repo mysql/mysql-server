@@ -88,14 +88,18 @@ DROP DATABASE db2;
 --echo # Test default upgrade option
 --echo ###########################################################################
 
---let HELP_OUTPUT= $MYSQLTEST_VARDIR/log/mysql_upgrade_help.log
+--let HELP_OUTPUT_LOG= $MYSQLTEST_VARDIR/log/mysql_upgrade_help.log
+--let HELP_OUTPUT_ERR= $MYSQLTEST_VARDIR/log/mysql_upgrade_help.err
 --error 1
---exec $MYSQLD --upgrade --help --verbose > $HELP_OUTPUT 2>&1
---let SEARCH_FILE= $HELP_OUTPUT
+--exec $MYSQLD --upgrade --help --verbose > $HELP_OUTPUT_LOG 2>$HELP_OUTPUT_ERR
+--let SEARCH_FILE= $HELP_OUTPUT_LOG
 --let SEARCH_PATTERN= upgrade\\s+AUTO
 --source include/search_pattern.inc
+--let SEARCH_FILE= $HELP_OUTPUT_ERR
 --let SEARCH_PATTERN = option \'--upgrade\' requires an argument\.
 --source include/search_pattern.inc
+--remove_file $HELP_OUTPUT_ERR
+--remove_file $HELP_OUTPUT_LOG
 
 --echo ###########################################################################
 --echo # Cleanup

@@ -23,6 +23,15 @@
 ################################################################################
 --source include/big_test.inc
 --source include/have_debug.inc
+
+# skip this test if compression is enabled.
+# This test requires that inspection is done on a per event basis
+# on the applier, and act when a Write_rows_log_event is received.
+# With compression, a full transaction is commpressed inside a
+# Transaction_payload event, thence no partial transaction can be
+# received and handled at the expected point in time in the pipeline.
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/have_group_replication_plugin.inc
 
 --echo ########################################################################

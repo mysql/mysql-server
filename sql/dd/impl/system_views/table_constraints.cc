@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,79 +37,46 @@ const Table_constraints &Table_constraints::instance() {
 Table_constraints::Table_constraints() {
   m_target_def.set_view_name(view_name());
 
-  // First SELECT for UNION
-  System_view_select_definition_impl &first_select = m_target_def.get_select();
-
-  first_select.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
+  m_target_def.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
+  m_target_def.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME", "idx.name");
-  first_select.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
+  m_target_def.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
+                         "constraints.CONSTRAINT_NAME");
+  m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
+  m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
                          "tbl.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_CONSTRAINT_TYPE, "CONSTRAINT_TYPE",
-                         "IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type)");
-  first_select.add_field(FIELD_ENFORCED, "ENFORCED", "'YES'");
+  m_target_def.add_field(FIELD_CONSTRAINT_TYPE, "CONSTRAINT_TYPE",
+                         "constraints.CONSTRAINT_TYPE");
+  m_target_def.add_field(FIELD_ENFORCED, "ENFORCED", "constraints.ENFORCED");
 
-  first_select.add_from("mysql.indexes idx");
-  first_select.add_from("JOIN mysql.tables tbl ON idx.table_id=tbl.id");
-  first_select.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
-  first_select.add_from(
-      "JOIN mysql.catalogs cat ON cat.id=sch.catalog_id"
-      " AND idx.type IN ('PRIMARY', 'UNIQUE')");
-
-  first_select.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
-  first_select.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)");
-
-  // Second SELECT for UNION
-  System_view_select_definition_impl &second_select = m_target_def.get_select();
-
-  second_select.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
-                          "cat.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
-                          "sch.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-                          "fk.name COLLATE utf8_tolower_ci");
-  second_select.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
-                          "sch.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
-                          "tbl.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_CONSTRAINT_TYPE, "CONSTRAINT_TYPE",
-                          "'FOREIGN KEY'");
-  second_select.add_field(FIELD_ENFORCED, "ENFORCED", "'YES'");
-
-  second_select.add_from("mysql.foreign_keys fk");
-  second_select.add_from("JOIN mysql.tables tbl ON fk.table_id=tbl.id");
-  second_select.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
-  second_select.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-
-  second_select.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
-  second_select.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
-
-  // Third SELECT for UNION
-  System_view_select_definition_impl &third_select = m_target_def.get_select();
-
-  third_select.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
-                         "cat.name" + m_target_def.fs_name_collation());
-  third_select.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
-                         "sch.name" + m_target_def.fs_name_collation());
-  third_select.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME", "cc.name");
-  third_select.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
-                         "sch.name" + m_target_def.fs_name_collation());
-  third_select.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
-                         "tbl.name" + m_target_def.fs_name_collation());
-  third_select.add_field(FIELD_CONSTRAINT_TYPE, "CONSTRAINT_TYPE", "'CHECK'");
-  third_select.add_field(FIELD_ENFORCED, "ENFORCED", "cc.enforced");
-
-  third_select.add_from("mysql.check_constraints cc");
-  third_select.add_from("JOIN mysql.tables tbl ON cc.table_id=tbl.id");
-  third_select.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
-  third_select.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-
-  third_select.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
-  third_select.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
+  m_target_def.add_from("mysql.tables tbl");
+  m_target_def.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
+  m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id = sch.catalog_id");
+  m_target_def.add_from(
+      ", LATERAL ( SELECT"
+      "    idx.name AS CONSTRAINT_NAME,"
+      "    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,"
+      "    'YES' as ENFORCED"
+      "  FROM mysql.indexes idx"
+      "    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')"
+      "          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)"
+      " UNION ALL"
+      "  SELECT"
+      "    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,"
+      "    'FOREIGN KEY' as CONSTRAINT_TYPE,"
+      "    'YES' as ENFORCED"
+      "  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id"
+      " UNION ALL"
+      "  SELECT"
+      "    cc.name AS CONSTRAINT_NAME,"
+      "    'CHECK' as CONSTRAINT_TYPE,"
+      "    cc.enforced as ENFORCED"
+      "  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id"
+      ") constraints");
+  m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
+  m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
 }
 
 }  // namespace system_views

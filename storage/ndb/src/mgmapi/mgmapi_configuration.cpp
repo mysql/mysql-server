@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,8 @@
 #include "../mgmsrv/ConfigInfo.hpp"
 
 ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
-(const ndb_mgm_configuration & conf, unsigned type_of_section)
-  : m_config(conf.m_config)
+(const ndb_mgm_configuration * conf, unsigned type_of_section)
+  : m_config(conf->m_config_values)
 {
   m_sectionNo = ~0;
   m_typeOfSection = type_of_section;
@@ -118,23 +118,15 @@ ndb_mgm_configuration_iterator::get(int param, const char ** value) const {
  */
 extern "C"
 ndb_mgm_configuration_iterator* 
-ndb_mgm_create_configuration_iterator(ndb_mgm_configuration * conf, 
+ndb_mgm_create_configuration_iterator(/* const */ ndb_mgm_configuration * conf,
 				      unsigned type_of_section){
-  ndb_mgm_configuration_iterator* iter = (ndb_mgm_configuration_iterator*)
-    malloc(sizeof(ndb_mgm_configuration_iterator));
-  if(iter == 0)
-    return 0;
-
-  return new(iter) ndb_mgm_configuration_iterator(* conf, type_of_section);
+  return new (std::nothrow)
+      ndb_mgm_configuration_iterator(conf, type_of_section);
 }
-
 
 extern "C"
 void ndb_mgm_destroy_iterator(ndb_mgm_configuration_iterator* iter){
-  if(iter != 0){
-    iter->~ndb_mgm_configuration_iterator();
-    free(iter);
-  }
+  delete iter;
 }
 
 extern "C"

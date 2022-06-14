@@ -50,6 +50,7 @@ INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
 --error ER_DUP_ENTRY
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;

@@ -9,9 +9,10 @@
 --echo #
 
 --let $MESSAGES_DIR =    `select @@lc_messages_dir`
+--let $PLUGIN_DIR   = 	 `select @@plugin_dir`
 --let $WL11109_DATADIR = $MYSQL_TMP_DIR/wl11109dir
 --let $LOG_FILE =        $WL11109_DATADIR/mysqld.log
---let $MYSQLD_ARGS =     --no-defaults --secure-file-priv="" --lc-messages-dir=$MESSAGES_DIR --datadir=$WL11109_DATADIR --log-error=$LOG_FILE
+--let $MYSQLD_ARGS =     --no-defaults --plugin-dir=$PLUGIN_DIR --secure-file-priv="" --lc-messages-dir=$MESSAGES_DIR --datadir=$WL11109_DATADIR --log-error=$LOG_FILE
 
 --let SEARCH_FILE=       $LOG_FILE
 

@@ -21,14 +21,14 @@ create table t1 (id int primary key auto_increment, data int, unique(data)) engi
 insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
 insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
 Warnings:
-Warning	1062	Duplicate entry '110' for key 'data'
-Warning	1062	Duplicate entry '120' for key 'data'
-Warning	1062	Duplicate entry '100' for key 'data'
+Warning	1062	Duplicate entry '110' for key 't1.data'
+Warning	1062	Duplicate entry '120' for key 't1.data'
+Warning	1062	Duplicate entry '100' for key 't1.data'
 insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
 Warnings:
-Warning	1062	Duplicate entry '110' for key 'data'
-Warning	1062	Duplicate entry '120' for key 'data'
-Warning	1062	Duplicate entry '100' for key 'data'
+Warning	1062	Duplicate entry '110' for key 't1.data'
+Warning	1062	Duplicate entry '120' for key 't1.data'
+Warning	1062	Duplicate entry '100' for key 't1.data'
 select * from t1 order by id;
 id	data
 1	100

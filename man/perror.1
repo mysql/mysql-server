@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBperror\fR
+.\"     Title: perror
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBPERROR\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "PERROR" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\&.\fR
+perror [\fIoptions\fR] \fIerrorcode\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -65,7 +65,7 @@ ER_WRONG_VALUE_FOR_VAR\&.
 .RS 4
 .\}
 .nf
-shell> \fBperror 1231\fR
+$> \fBperror 1231\fR
 MySQL error code MY\-001231 (ER_WRONG_VALUE_FOR_VAR): Variable \*(Aq%\-\&.64s\*(Aq
 can\*(Aqt be set to the value of \*(Aq%\-\&.200s\*(Aq
 .fi
@@ -81,7 +81,7 @@ displays both error messages:
 .RS 4
 .\}
 .nf
-shell> \fBperror 1 13\fR
+$> \fBperror 1 13\fR
 OS error code   1:  Operation not permitted
 MySQL error code MY\-000001: Can\*(Aqt create/write to file \*(Aq%s\*(Aq (OS errno %d \- %s)
 OS error code  13:  Permission denied
@@ -112,7 +112,6 @@ supports the following options\&.
 \fB\-\-info\fR,
 \fB\-I\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -125,7 +124,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ndb\fR
-.sp
 Print the error message for a MySQL Cluster error code\&.
 .sp
 This option was removed in MySQL 8\&.0\&.13\&. Use the
@@ -143,7 +141,6 @@ utility instead\&.
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Silent mode\&. Print only the error message\&.
 .RE
 .sp
@@ -157,7 +154,6 @@ Silent mode\&. Print only the error message\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print error code and message\&. This is the default behavior\&.
 .RE
 .sp
@@ -171,13 +167,12 @@ Verbose mode\&. Print error code and message\&. This is the default behavior\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

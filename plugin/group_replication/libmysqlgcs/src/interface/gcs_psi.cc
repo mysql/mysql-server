@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,26 +25,30 @@
 
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
+#include "template_utils.h"
 
 PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
     key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
-    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread;
+    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread,
+    key_GCS_THD_Gcs_xcom_network_provider_m_network_provider_tcp_server;
 
 static PSI_thread_info all_gcs_psi_thread_keys_info[] = {
     {&key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
-     "THD_Gcs_ext_logger_impl::m_consumer", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
+     "THD_Gcs_ext_logger_impl::m_consumer", "gcs_ext_log", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
-     "THD_Gcs_xcom_engine::m_engine_thread", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
+     "THD_Gcs_xcom_engine::m_engine_thread", "gcs_engine", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
-     "THD_Gcs_xcom_control::m_xcom_thread", PSI_FLAG_SINGLETON, 0,
+     "THD_Gcs_xcom_control::m_xcom_thread", "gcs_xcom", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread,
-     "THD_Gcs_xcom_control::m_suspicions_processing_thread", PSI_FLAG_SINGLETON,
-     0, PSI_DOCUMENT_ME},
-};
+     "THD_Gcs_xcom_control::m_suspicions_processing_thread", "gcs_suspect",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GCS_THD_Gcs_xcom_network_provider_m_network_provider_tcp_server,
+     "THD_Gcs_xcom_network_provider::m_network_provider_tcp_server",
+     "gcs_xcom_comm", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 PSI_mutex_key key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
     key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex,
@@ -178,16 +182,16 @@ static uint64_t current_count = 0;
 /**
   Reports to PSI the allocation of 'size' bytes of data.
 */
-extern "C" int psi_report_mem_alloc(size_t size) {
+int psi_report_mem_alloc(size_t size) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  PSI_thread *owner = NULL;
+  PSI_thread *owner = nullptr;
   PSI_memory_key key = key_MEM_XCOM_xcom_cache;
   if (PSI_MEMORY_CALL(memory_alloc)(key, size, &owner) ==
       PSI_NOT_INSTRUMENTED) {
     return 0;
   }
   /* This instrument is flagged global, so there should be no thread owner. */
-  DBUG_ASSERT(owner == NULL);
+  assert(owner == nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
   current_count += size;
   return 1;
@@ -196,14 +200,14 @@ extern "C" int psi_report_mem_alloc(size_t size) {
 /**
   Reports to PSI the deallocation of 'size' bytes of data.
 */
-extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
+void psi_report_mem_free(size_t size, int is_instrumented) {
   if (!is_instrumented) {
     return;
   }
   current_count -= size;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, NULL);
+  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
@@ -212,4 +216,4 @@ extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
   we have allocated data that has not been deallocated (or has not been
   reported as deallocated).
 */
-extern "C" void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }
+void psi_report_cache_shutdown() { assert(current_count == 0); }

@@ -328,6 +328,30 @@ SELECT session.max_delayed_threads;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT max_delayed_threads = @@session.max_delayed_threads;
 ERROR 42S22: Unknown column 'max_delayed_threads' in 'field list'
+'#---------------------FN_DYNVARS_001_12----------------------#'
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.max_delayed_threads;
+@@session.max_delayed_threads
+2048
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
+SET @@session.max_delayed_threads = 2048;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.max_delayed_threads;
+@@session.max_delayed_threads
+2048
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
+SET @@session.max_delayed_threads = 2048;
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
+SELECT @@session.max_delayed_threads;
+@@session.max_delayed_threads
+2048
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
+DROP USER foo, bar;
 SET @@global.max_delayed_threads = @start_global_value;
 Warnings:
 Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.

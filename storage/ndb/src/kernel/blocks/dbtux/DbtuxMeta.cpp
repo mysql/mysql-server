@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
       errorCode = TuxFragRef::InvalidRequest;
       break;
     }
-    c_indexPool.getPtr(indexPtr, req->tableId);
+    ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
     if (indexPtr.p->m_state != Index::NotDefined)
     {
       jam();
@@ -78,8 +78,7 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
     }
 
     // get new operation record
-    c_fragOpPool.seize(fragOpPtr);
-    ndbrequire(fragOpPtr.i != RNIL);
+    ndbrequire(c_fragOpPool.seize(fragOpPtr));
     new (fragOpPtr.p) FragOp();
     fragOpPtr.p->m_userPtr = req->senderData;
     fragOpPtr.p->m_userRef = req->senderRef;
@@ -89,7 +88,8 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
     fragOpPtr.p->m_numAttrsRecvd = 0;
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      debugOut << "Seize frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+      tuxDebugOut << "Seize frag op " << fragOpPtr.i << " "
+                  << *fragOpPtr.p << endl;
     }
 #endif
     // check if index has place for more fragments
@@ -157,8 +157,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
   // get the records
   FragOpPtr fragOpPtr;
   IndexPtr indexPtr;
-  c_fragOpPool.getPtr(fragOpPtr, req->tuxConnectPtr);
-  c_indexPool.getPtr(indexPtr, fragOpPtr.p->m_indexId);
+  ndbrequire(c_fragOpPool.getPtr(fragOpPtr, req->tuxConnectPtr));
+  ndbrequire(c_indexPool.getPtr(indexPtr, fragOpPtr.p->m_indexId));
   TuxAddAttrRef::ErrorCode errorCode = TuxAddAttrRef::NoError;
   do {
     // expected attribute id
@@ -189,11 +189,12 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     new (&keyAttr) AttributeHeader(primaryAttrId, sizeInBytes);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      debugOut << "attr " << attrId << " " << keyType << endl;
+      tuxDebugOut << "attr " << attrId << " " << keyType << endl;
     }
 #endif
     if (csNumber != 0) {
       unsigned err;
+      ndbrequire(csNumber <= NDB_ARRAY_SIZE(all_charsets));
       CHARSET_INFO *cs = all_charsets[csNumber];
       ndbrequire(cs != 0);
       if ((err = NdbSqlUtil::check_column_for_ordered_index(typeId, cs))) {
@@ -245,7 +246,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       // fragment is defined
 #ifdef VM_TRACE
       if (debugFlags & DebugMeta) {
-        debugOut << "Release frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+        tuxDebugOut << "Release frag op " << fragOpPtr.i << " " << *fragOpPtr.p
+                    << endl;
       }
 #endif
       c_fragOpPool.release(fragOpPtr);
@@ -266,7 +268,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       signal, TuxAddAttrRef::SignalLength, JBB);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      debugOut << "Release on attr error frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+      tuxDebugOut << "Release on attr error frag op " << fragOpPtr.i << " "
+                  << *fragOpPtr.p << endl;
     }
 #endif
   // let DICT drop the unfinished index
@@ -295,7 +298,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
       errorCode = TuxFragRef::InvalidRequest;
       break;
     }
-    c_indexPool.getPtr(indexPtr, req->tableId);
+    ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
     if (false && indexPtr.p->m_state != Index::Defining) {
       jam();
       errorCode = TuxFragRef::InvalidRequest;
@@ -314,8 +317,8 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     }
 
     FragPtr fragPtr;
-    c_fragPool.seize(fragPtr);
-    if (fragPtr.i == RNIL) {
+    if (!c_fragPool.seize(fragPtr))
+    {
       jam();
       errorCode = TuxFragRef::NoFreeFragment;
       break;
@@ -334,7 +337,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     indexPtr.p->m_numFrags++;
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      debugOut << "Add frag " << fragPtr.i << " " << *fragPtr.p << endl;
+      tuxDebugOut << "Add frag " << fragPtr.i << " " << *fragPtr.p << endl;
     }
 #endif
     // error inserts
@@ -374,14 +377,14 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
       if (fragNo == 0) {
-        debugOut << "Index id=" << indexPtr.i;
-        debugOut << " nodeSize=" << tree.m_nodeSize;
-        debugOut << " headSize=" << NodeHeadSize;
-        debugOut << " prefSize=" << tree.m_prefSize;
-        debugOut << " entrySize=" << TreeEntSize;
-        debugOut << " minOccup=" << tree.m_minOccup;
-        debugOut << " maxOccup=" << tree.m_maxOccup;
-        debugOut << endl;
+        tuxDebugOut << "Index id=" << indexPtr.i;
+        tuxDebugOut << " nodeSize=" << tree.m_nodeSize;
+        tuxDebugOut << " headSize=" << NodeHeadSize;
+        tuxDebugOut << " prefSize=" << tree.m_prefSize;
+        tuxDebugOut << " entrySize=" << TreeEntSize;
+        tuxDebugOut << " minOccup=" << tree.m_minOccup;
+        tuxDebugOut << " maxOccup=" << tree.m_maxOccup;
+        tuxDebugOut << endl;
       }
     }
 #endif
@@ -418,11 +421,12 @@ Dbtux::abortAddFragOp(Signal* signal)
 {
   FragOpPtr fragOpPtr;
   IndexPtr indexPtr;
-  c_fragOpPool.getPtr(fragOpPtr, signal->theData[1]);
-  c_indexPool.getPtr(indexPtr, fragOpPtr.p->m_indexId);
+  ndbrequire(c_fragOpPool.getPtr(fragOpPtr, signal->theData[1]));
+  ndbrequire(c_indexPool.getPtr(indexPtr, fragOpPtr.p->m_indexId));
 #ifdef VM_TRACE
   if (debugFlags & DebugMeta) {
-    debugOut << "Release on abort frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+    tuxDebugOut << "Release on abort frag op " << fragOpPtr.i << " "
+                << *fragOpPtr.p << endl;
   }
 #endif
   c_fragOpPool.release(fragOpPtr);
@@ -441,8 +445,9 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
   const AlterIndxImplReq* const req = &reqCopy;
 
   IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, req->indexId);
+  ndbrequire(c_indexPool.getPtr(indexPtr, req->indexId));
 
+  ndbassert(!m_is_query_block);
   //Uint32 save = indexPtr.p->m_state;
   if (! (refToBlock(req->senderRef) == DBDICT) &&
       ! (isNdbMt() && refToMain(req->senderRef) == DBTUX && 
@@ -467,7 +472,8 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
       indexPtr.p->m_state = Index::Building;
       break;
     default:
-      jam(); // fall-through
+      jam();
+      [[fallthrough]];
     case AlterIndxImplReq::AlterIndexOnline:
       jam();
       indexPtr.p->m_state = Index::Online;
@@ -520,11 +526,11 @@ Dbtux::execDROP_TAB_REQ(Signal* signal)
     return;
   }
   
-  c_indexPool.getPtr(indexPtr, req->tableId);
+  ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
   // drop works regardless of index state
 #ifdef VM_TRACE
   if (debugFlags & DebugMeta) {
-    debugOut << "Drop index " << indexPtr.i << " " << *indexPtr.p << endl;
+    tuxDebugOut << "Drop index " << indexPtr.i << " " << *indexPtr.p << endl;
   }
 #endif
   ndbrequire(req->senderRef != 0);
@@ -545,14 +551,7 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
     jam();
     Uint32 i = --indexPtr.p->m_numFrags;
     FragPtr fragPtr;
-    c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-    /*
-     * Verify that LQH has terminated scans.  (If not, then drop order
-     * must change from TUP,TUX to TUX,TUP and we must wait for scans).
-     */
-    ScanOpPtr scanPtr;
-    bool b = fragPtr.p->m_scanList.first(scanPtr);
-    ndbrequire(!b);
+    ndbrequire(c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]));
     c_fragPool.release(fragPtr);
   }
   // drop attributes
@@ -624,7 +623,7 @@ void
 Dbtux::freeDescEnt(IndexPtr indexPtr)
 {
   DescPagePtr pagePtr;
-  c_descPagePool.getPtr(pagePtr, indexPtr.p->m_descPage);
+  ndbrequire(c_descPagePool.getPtr(pagePtr, indexPtr.p->m_descPage));
   Uint32* const data = pagePtr.p->m_data;
   const Uint32 size = getDescSize(*indexPtr.p);
   Uint32 off = indexPtr.p->m_descOff;
@@ -668,7 +667,7 @@ Dbtux::execDROP_FRAG_REQ(Signal* signal)
   DropFragReq *req = &copy;
 
   IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, req->tableId);
+  ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
 
   for (Uint32 i = 0; i < indexPtr.p->m_numFrags; i++)
   {
@@ -677,7 +676,7 @@ Dbtux::execDROP_FRAG_REQ(Signal* signal)
     {
       jam();
       FragPtr fragPtr;
-      c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
+      ndbrequire(c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]));
       c_fragPool.release(fragPtr);
 
       for (i++; i < indexPtr.p->m_numFrags; i++)

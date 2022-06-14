@@ -22,7 +22,7 @@ test	t1_x_gap	RECORD	X	GRANTED	1
 test	t1_x_gap	RECORD	X	GRANTED	2
 test	t1_x_gap	RECORD	X	GRANTED	3
 test	t1_x_gap	RECORD	X	GRANTED	4
-test	t1_x_gap	RECORD	X	GRANTED	5
+test	t1_x_gap	RECORD	X,GAP	GRANTED	5
 test	t1_x_gap	TABLE	IX	GRANTED	NULL
 start transaction;
 insert into t1_x_gap values (0,0);
@@ -35,7 +35,7 @@ test	t1_x_gap	RECORD	X	GRANTED
 test	t1_x_gap	RECORD	X	GRANTED
 test	t1_x_gap	RECORD	X	GRANTED
 test	t1_x_gap	RECORD	X	GRANTED
-test	t1_x_gap	RECORD	X	GRANTED
+test	t1_x_gap	RECORD	X,GAP	GRANTED
 test	t1_x_gap	RECORD	X,GAP,INSERT_INTENTION	WAITING
 test	t1_x_gap	TABLE	IX	GRANTED
 test	t1_x_gap	TABLE	IX	GRANTED

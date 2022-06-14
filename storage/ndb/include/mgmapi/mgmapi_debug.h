@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,12 +88,12 @@ extern "C" {
    *
    * @param handle the NDB management handle.
    * @param nodeId the node id.
-   * @param errrorCode the errorCode.
+   * @param errorCode the errorCode.
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
   int ndb_mgm_insert_error(NdbMgmHandle handle,
-			   int nodeId, 
+			   int nodeId,
 			   int errorCode,
 			   struct ndb_mgm_reply* reply);
 
@@ -102,7 +102,7 @@ extern "C" {
    *
    * @param handle the NDB management handle.
    * @param nodeId the node id.
-   * @param errrorCode the errorCode.
+   * @param errorCode the errorCode.
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
@@ -112,22 +112,14 @@ extern "C" {
                             int extra,
                             struct ndb_mgm_reply* reply);
 
-  /**
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node id. 0 = all db nodes
-   * @param errrorCode the errorCode.
-   * @param reply the reply message.
-   * @return 0 if successful or an error code.
-   */
   int ndb_mgm_set_int_parameter(NdbMgmHandle handle,
-				int node, 
+				int node,
 				int param,
 				unsigned value,
 				struct ndb_mgm_reply* reply);
-  
+
   int ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
-				  int node, 
+				  int node,
 				  int param,
 				  unsigned long long value,
 				  struct ndb_mgm_reply* reply);

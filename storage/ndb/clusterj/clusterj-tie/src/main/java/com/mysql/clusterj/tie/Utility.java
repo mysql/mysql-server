@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -2183,7 +2183,7 @@ public class Utility {
         int date = packedDate & 0x1f;
         packedDate = packedDate >>> 5;
         int month = (packedDate & 0x0f) - 1; // Month value is 0-based. e.g., 0 for January.
-        int year = packedDate >>> 4;
+        int year = (packedDate >>> 4) & 0x7FFF;
         Calendar calendar = Calendar.getInstance();
         calendar.clear();
         calendar.set(year, month, date);

@@ -1,0 +1,278 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+
+--echo ************************************
+--echo *Blob table handing with pk changes*
+--echo ************************************
+--echo No changes to Blobs
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d text(3000),
+  primary key(a,b)) engine=ndb;
+
+insert into test.t1 values 
+        ("1a","1b","1c",repeat("1d", 1000)), 
+        ("2a","2b","2c",repeat("2d", 1000)), 
+        ("3a","3b","3c",repeat("3d", 1000)), 
+        ("4a","4b","4c",repeat("4d", 1000)), 
+        ("5a","5b","5c",repeat("5d", 1000)), 
+        ("6a","6b","6c",repeat("6d", 1000));
+
+create table test.t2 (a varchar(20) not null,
+                      b varchar(20) not null,
+                      c text not null,
+                      d text not null,
+  primary key (a,b)) engine=ndb;
+
+insert into test.t2 values
+        ("Ein", "Ein", repeat("Ein", 1000), repeat("Ein", 1000)),
+        ("Zwei", "Zwei", repeat("Zwei", 1000), repeat("Zwei", 1000)),
+        ("Drei", "Drei", repeat("Drei", 1000), repeat("Drei", 1000)),
+        ("Vier", "Vier", repeat("Vier", 1000), repeat("Vier", 1000)),
+        ("Funf", "Funf", repeat("Funf", 1000), repeat("Funf", 1000)),
+        ("Sechs", "Sechs", repeat("Sechs", 1000), repeat("Sechs", 1000)),
+        ("Sieben", "Sieben", repeat("Sieben", 1000), repeat("Sieben", 1000));
+
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.t1 values 
+        ("7a","7b","7c",repeat("7d",1000)), 
+        ("8a","8b","8c",repeat("8d",1000)), 
+        ("9a","9b","9c",repeat("9d",1000));
+
+# Column c becomes part of key in some testcases
+# Cause it to be considered updated without any 
+# actual change occurring
+update test.t1 set c=c, d=concat(d, "-modified");
+
+delete from test.t1 where a in ("5a","8a");
+
+# And t2...
+insert into test.t2 values
+        ("Acht", "Acht", repeat("Acht", 10), repeat("Acht", 2000)),
+        ("Neun", "Neun", repeat("Neun", 200), repeat("Neun", 5));
+
+# Following is logging as DELETE, INSERT as existing PK col is changed
+update test.t2 set b=concat(b, "-jah") where a like "%ei";
+
+delete from test.t2 where a like "S%";
+
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+select a,b,length(c), md5(c), right(c, 20), length(d), md5(d), right(d,20) from test.t2 order by a;
+
+
+drop table test.t1;
+truncate table test.t2;
+
+
+--echo ********************************************
+--echo * Tests with column change from pk <-> !pk *
+--echo ********************************************
+
+--echo Extend pk (a,b) -> (a,b,c)
+--echo **************************
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d text(3000),
+  primary key(a,b,c)) engine=ndb;
+
+--echo Restore will require use of a staging table due to the blobs
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Extend pk (a,b) -> (a,b,c) with pk type promotion
+--echo *************************************************
+create table test.t1 (a varchar(40) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d text(3000),
+  primary key(a,b,c)) engine=ndb;
+
+--echo Restore will require use of a staging table due to the blobs
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Extend pk (a,b) -> (a,b,c) with pk type demotion
+--echo ************************************************
+create table test.t1 (a varchar(15) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d text(3000),
+  primary key(a,b,c)) engine=ndb;
+
+--echo Restore will require use of a staging table due to the blobs
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Extend pk (a,b) -> (a,b,c) with pk and blob type changes
+--echo ********************************************************
+create table test.t1 (a varchar(40) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(2500),
+  primary key(a,b,c)) engine=ndb;
+
+--echo Restore will require use of a staging table due to the blobs
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Contract pk (a,b) -> (b)
+--echo **************************
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d text(3000),
+  primary key(b)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Contract pk (a,b) -> (b), dropping a
+--echo ************************************
+create table test.t1 (b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d text(3000),
+  primary key(b)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select b,c,length(d), md5(d), right(d,20) from test.t1 order by b;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Contract pk (a,b) -> (b)
+--echo Also add type changes
+--echo **************************
+create table test.t1 (a varchar(200) not null, 
+                      b varchar(15) not null, 
+                      c varchar(200) not null, 
+                      d text(3000),
+  primary key(b)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+
+--echo Contract pk (a,b) -> (b)
+--echo Also blob changes requiring staging
+--echo **************************
+create table test.t1 (a varchar(200) not null, 
+                      b varchar(15) not null, 
+                      c varchar(200) not null, 
+                      d varchar(2500),
+  primary key(b)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Contract pk (a,b) -> (b)
+--echo Also blob changes requiring staging
+--echo Also drop column
+--echo **************************
+create table test.t1 (b varchar(15) not null, 
+                      c varchar(200) not null, 
+                      d varchar(2500),
+  primary key(b)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select b,c,length(d), md5(d), right(d,20) from test.t1 order by b;
+
+drop table test.t1;
+truncate table test.t2;
+
+--echo Test with multiple table requiring changes
+--echo ------------------------------------------
+drop table test.t2;
+
+--echo Contract pk (a,b) -> (b)
+--echo Also blob changes requiring staging
+--echo **************************
+create table test.t1 (a varchar(200) not null, 
+                      b varchar(15) not null, 
+                      c varchar(200) not null, 
+                      d varchar(2500),
+  primary key(b)) engine=ndb;
+
+--echo Contract pk (a,b) -> (a)
+--echo Also blob changes requiring staging
+--echo **************************
+create table test.t2 (a varchar(20) not null,
+                      b varchar(20) not null,
+                      c varchar(4000) not null,
+                      d text(2000) not null,
+  primary key (a)) engine=ndb;
+
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+select a,b,length(c), md5(c), right(c, 20), length(d), md5(d), right(d,20) from test.t2 order by a;
+
+drop table test.t1;
+drop table test.t2;
+
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

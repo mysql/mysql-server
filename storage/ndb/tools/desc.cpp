@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <NDBT.hpp>
@@ -46,6 +47,8 @@ static int _partinfo = 0;
 static int _blobinfo = 0;
 static int _indexinfo = 0;
 static int _nodeinfo = 0;
+static int _autoinc = 0;
+static int _context = 0;
 
 static int _retries = 0;
 
@@ -76,15 +79,23 @@ static struct my_option my_long_options[] =
   { "table", 't', "Base table for index",
     (uchar**) &_tblname, (uchar**) &_tblname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "autoinc", 'a', "Show autoincrement information",
+    (uchar**) &_autoinc, (uchar**) &_autoinc, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "context", 'x', "Show context information",
+    (uchar**) &_context, (uchar**) &_context, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static void print_context_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
+static void print_autoinc_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
 static void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_desc.trace";
 #endif
   if (opts.handle_options())
@@ -280,7 +291,17 @@ int desc_table(Ndb *myndb, char const* name)
     return 0;
 
   ndbout << "-- " << pTab->getName() << " --" << endl;
+  if (_context)
+  {
+    print_context_info(myndb, pTab);
+  }
+
   dict->print(ndbout, *pTab);
+
+  if (_autoinc)
+  {
+    print_autoinc_info(myndb, pTab);
+  }
 
   if (_partinfo)
   {
@@ -342,6 +363,47 @@ struct InfoInfo
   NdbRecAttr* m_rec_attr;
   const NdbDictionary::Column* m_column;
 };
+
+static
+void print_context_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
+{
+  ndbout << "Database: " << pNdb->getDatabaseName() << endl;
+  ndbout << "Schema: " << pNdb->getSchemaName() << endl;
+  ndbout << "Name: " << pTab->getName() << endl;
+  ndbout << "Table id: " << pTab->getTableId() << endl;
+}
+
+static
+void print_autoinc_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
+{
+  if (pTab->getNoOfAutoIncrementColumns() == 0)
+  {
+    return;
+  }
+
+  ndbout << "-- AutoIncrement info" << endl;
+
+
+  /**
+   * DICT Api conceptually allows > 1 autoinc column,
+   * but implementation has one value per table
+   */
+  Uint64 value = 0;
+  int rc = pNdb->readAutoIncrementValue(pTab, value);
+
+  if (rc == 0)
+  {
+    ndbout << "AutoIncrement: " << value << endl;
+  }
+  else
+  {
+    ndbout << "Error reading autoincrement value for table "
+           << pTab->getName()
+           << " : "
+           << pNdb->getNdbError()
+           << endl;
+  }
+}
 
 
 static 

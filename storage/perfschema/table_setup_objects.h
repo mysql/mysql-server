@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,13 +52,9 @@ struct row_setup_objects {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  PFS_object_name m_object_name;
   /** Column ENABLED. */
   bool *m_enabled_ptr;
   /** Column TIMED. */
@@ -73,10 +69,9 @@ class PFS_index_setup_objects : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_setup_objects() {}
+  ~PFS_index_setup_objects() override = default;
 
   virtual bool match(PFS_setup_object *pfs);
-  virtual bool match(row_setup_objects *row);
 
  private:
   PFS_key_object_type_enum m_key_1;
@@ -96,28 +91,28 @@ class table_setup_objects : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
-  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields);
+  int update_row_values(TABLE *table, const unsigned char *old_buf,
+                        unsigned char *new_buf, Field **fields) override;
 
-  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
-                                Field **fields);
+  int delete_row_values(TABLE *table, const unsigned char *buf,
+                        Field **fields) override;
 
   table_setup_objects();
 
  public:
-  ~table_setup_objects() {}
+  ~table_setup_objects() override = default;
 
  private:
   int make_row(PFS_setup_object *pfs);

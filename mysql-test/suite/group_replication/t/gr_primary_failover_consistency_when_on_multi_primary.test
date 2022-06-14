@@ -84,10 +84,8 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
---let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
---let $assert_text= The second insert transaction is received on slave
---let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:4-5"
---source include/assert.inc
+--let $wait_condition= SELECT received_transaction_set="$group_replication_group_name:4-5" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
+--source include/wait_condition.inc
 
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: applying buffered %"

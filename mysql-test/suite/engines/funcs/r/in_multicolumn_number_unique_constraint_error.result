@@ -8,11 +8,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -32,11 +32,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -56,11 +56,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -80,11 +80,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -104,11 +104,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -128,11 +128,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -152,11 +152,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -176,11 +176,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -200,11 +200,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -224,11 +224,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -248,11 +248,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -272,11 +272,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -296,11 +296,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10
@@ -320,11 +320,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES(11,11,10);
 INSERT INTO t1 (c1,c2,c3) VALUES(11,10,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,10);
-ERROR 23000: Duplicate entry '10-10-10' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-10' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,10,11);
-ERROR 23000: Duplicate entry '10-10-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-10-11' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES(10,11,11);
-ERROR 23000: Duplicate entry '10-11-11' for key 'c1'
+ERROR 23000: Duplicate entry '10-11-11' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 10	10	10

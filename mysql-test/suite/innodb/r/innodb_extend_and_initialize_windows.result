@@ -1,0 +1,24 @@
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.");
+SELECT @@GLOBAL.INNODB_EXTEND_AND_INITIALIZE;
+@@GLOBAL.INNODB_EXTEND_AND_INITIALIZE
+1
+select @@global.innodb_extend_and_initialize;
+@@global.innodb_extend_and_initialize
+1
+SET @@GLOBAL.INNODB_EXTEND_AND_INITIALIZE = FALSE;
+Warnings:
+Warning	3996	Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.
+select @@global.innodb_extend_and_initialize;
+@@global.innodb_extend_and_initialize
+1
+SET PERSIST INNODB_EXTEND_AND_INITIALIZE = FALSE;
+Warnings:
+Warning	3996	Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.
+select @@global.innodb_extend_and_initialize;
+@@global.innodb_extend_and_initialize
+1
+# restart: --innodb-extend-and-initialize=FALSE
+select @@global.innodb_extend_and_initialize;
+@@global.innodb_extend_and_initialize
+1
+RESET PERSIST innodb_extend_and_initialize;

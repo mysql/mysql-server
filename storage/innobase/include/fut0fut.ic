@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,18 +34,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0rw.h"
 
 /** Gets a pointer to a file address and latches the page.
-@param[in]	space		space id
-@param[in]	page_size	page size
-@param[in]	addr		file address
-@param[in]	rw_latch	RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH
-@param[in,out]	mtr		mini-transaction
-@param[out]	ptr_block	file page
+@param[in]      space           Space id
+@param[in]      page_size       Page size
+@param[in]      addr            File address
+@param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH
+@param[in,out]  mtr             Mini-transaction
+@param[out]     ptr_block       File page
 @return pointer to a byte in (*ptr_block)->frame; the *ptr_block is
 bufferfixed and latched */
-UNIV_INLINE
-byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
-                  fil_addr_t addr, rw_lock_type_t rw_latch, mtr_t *mtr,
-                  buf_block_t **ptr_block) {
+static inline byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
+                                fil_addr_t addr, rw_lock_type_t rw_latch,
+                                mtr_t *mtr, buf_block_t **ptr_block) {
   buf_block_t *block;
   byte *ptr;
 
@@ -53,11 +52,12 @@ byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
   ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH) ||
         (rw_latch == RW_SX_LATCH));
 
-  block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch, mtr);
+  block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch,
+                       UT_LOCATION_HERE, mtr);
   ptr = buf_block_get_frame(block) + addr.boffset;
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-  if (ptr_block != NULL) {
+  if (ptr_block != nullptr) {
     *ptr_block = block;
   }
 

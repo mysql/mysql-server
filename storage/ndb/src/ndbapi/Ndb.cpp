@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 Name:          Ndb.cpp
 ******************************************************************************/
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "API.hpp"
@@ -466,7 +467,7 @@ Ndb::computeHash(Uint32 *retval,
       partcols[j++] = cols[i];
     }
   }
-  DBUG_ASSERT(j == parts);
+  assert(j == parts);
 
   for (Uint32 i = 0; i<parts; i++)
   {
@@ -862,8 +863,8 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
-    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
-                       (long) trans,
+    DBUG_PRINT("exit",("start trans: %p  transid: 0x%lx",
+                       trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
     DBUG_RETURN(trans);
   }
@@ -885,8 +886,8 @@ Ndb::startTransaction(Uint32 nodeId,
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, instanceId);
-    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
-                       (long) trans,
+    DBUG_PRINT("exit",("start trans: %p  transid: 0x%lx",
+                       trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
     DBUG_RETURN(trans);
   }
@@ -961,8 +962,8 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
-      DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
-			 (long) trans,
+      DBUG_PRINT("exit",("start trans: %p  transid: 0x%lx",
+			 trans,
                          (long) (trans ? trans->getTransactionId() : 0)));
       DBUG_RETURN(trans);
     }
@@ -984,7 +985,7 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
 {
   DBUG_ENTER("Ndb::hupp");
 
-  DBUG_PRINT("enter", ("trans: 0x%lx", (long) pBuddyTrans));
+  DBUG_PRINT("enter", ("trans: %p", pBuddyTrans));
 
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
@@ -1012,8 +1013,8 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
-    DBUG_PRINT("exit", ("hupp trans: 0x%lx transid: 0x%lx",
-                        (long) pCon,
+    DBUG_PRINT("exit", ("hupp trans: %p transid: 0x%lx",
+                        pCon,
                         (long) (pCon ? pCon->getTransactionId() : 0)));
     DBUG_RETURN(pCon);
   } else {
@@ -1081,7 +1082,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
   }//if
 #ifdef VM_TRACE
   if (tConnection->theListState != NdbTransaction::NotInList) {
-    printState("startTransactionLocal %lx", (long)tConnection);
+    printState("startTransactionLocal %p", tConnection);
     abort();
   }
 #endif
@@ -1141,7 +1142,7 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
 {
   DBUG_ENTER("Ndb::closeTransaction");
   NdbTransaction* tCon;
-  NdbTransaction* tPreviousCon;
+  NdbTransaction* tPreviousCon = nullptr;
 
   if (aConnection == NULL) {
 //-----------------------------------------------------
@@ -1163,8 +1164,8 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
     NdbSleep_MilliSleep(1000);
     fprintf(stderr, "Ndb::closeTransaction() resuming\n");
   });
-  DBUG_PRINT("info",("close trans: 0x%lx  transid: 0x%lx",
-                     (long) aConnection,
+  DBUG_PRINT("info",("close trans: %p  transid: 0x%lx",
+                     aConnection,
                      (long) aConnection->getTransactionId()));
   DBUG_PRINT("info",("magic number: 0x%x TCConPtr: 0x%x theMyRef: 0x%x 0x%x",
 		     aConnection->theMagicNumber, aConnection->theTCConPtr,
@@ -1298,6 +1299,15 @@ Ndb::getAutoIncrementValue(const char* aTableName,
 {
   DBUG_ENTER("Ndb::getAutoIncrementValue");
   ASSERT_NOT_MYSQLD;
+
+  // Check that db and schema name is set
+  if (theImpl->m_dbname.empty() ||
+      theImpl->m_schemaname.empty())
+  {
+    theError.code = 4377;
+    DBUG_RETURN(-1);
+  }
+
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
@@ -1456,6 +1466,15 @@ Ndb::readAutoIncrementValue(const char* aTableName,
 {
   DBUG_ENTER("Ndb::readAutoIncrementValue");
   ASSERT_NOT_MYSQLD;
+
+  // Check that db and schema name is set
+  if (theImpl->m_dbname.empty() ||
+      theImpl->m_schemaname.empty())
+  {
+    theError.code = 4377;
+    DBUG_RETURN(-1);
+  }
+
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
@@ -1550,6 +1569,15 @@ Ndb::setAutoIncrementValue(const char* aTableName,
 {
   DBUG_ENTER("Ndb::setAutoIncrementValue");
   ASSERT_NOT_MYSQLD;
+
+  // Check that db and schema name is set
+  if (theImpl->m_dbname.empty() ||
+      theImpl->m_schemaname.empty())
+  {
+    theError.code = 4377;
+    DBUG_RETURN(-1);
+  }
+
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
@@ -1823,7 +1851,7 @@ error_handler:
     theError.code = tConnection->theError.code;
   if (theError.code == 0 && tOperation != NULL)
     theError.code = tOperation->theError.code;
-  DBUG_ASSERT(theError.code != 0);
+  assert(theError.code != 0);
 
   NdbError savedError;
   savedError = theError;
@@ -1854,7 +1882,6 @@ convertEndian(Uint32 Data)
 #endif
 }
 
-// <internal>
 Ndb_cluster_connection &
 Ndb::get_ndb_cluster_connection()
 {
@@ -1866,16 +1893,21 @@ const char * Ndb::getCatalogName() const
   return theImpl->m_dbname.c_str();
 }
 
-int Ndb::setCatalogName(const char * a_catalog_name)
+int Ndb::setCatalogName(const char * catalog_name)
 {
-  // TODO can table_name_separator be escaped?
-  if (a_catalog_name && ! strchr(a_catalog_name, table_name_separator)) {
-    if (!theImpl->m_dbname.assign(a_catalog_name) ||
-        theImpl->update_prefix())
-    {
-      theError.code = 4000;
-      return -1;
-    }
+  // Catalog name parameter is required and may not contain the separator (i.e
+  // forward slash) used for the internal name format
+  if (catalog_name == nullptr ||
+     strchr(catalog_name, table_name_separator))
+  {
+    theError.code = 4118; // Invalid parameter
+    return -1;
+  }
+
+  if (!theImpl->m_dbname.assign(catalog_name))
+  {
+    theError.code = 4000;
+    return -1;
   }
   return 0;
 }
@@ -1885,20 +1917,24 @@ const char * Ndb::getSchemaName() const
   return theImpl->m_schemaname.c_str();
 }
 
-int Ndb::setSchemaName(const char * a_schema_name)
+int Ndb::setSchemaName(const char * schema_name)
 {
-  // TODO can table_name_separator be escaped?
-  if (a_schema_name && ! strchr(a_schema_name, table_name_separator)) {
-    if (!theImpl->m_schemaname.assign(a_schema_name) ||
-        theImpl->update_prefix())
-    {
-      theError.code = 4000;
-      return -1;
-    }
+  // Schema name parameter is required and may not contain the separator (i.e
+  // forward slash) used for the internal name format
+  if (schema_name == nullptr ||
+     strchr(schema_name, table_name_separator))
+  {
+    theError.code = 4118; // Invalid parameter
+    return -1;
+  }
+
+  if (!theImpl->m_schemaname.assign(schema_name))
+  {
+    theError.code = 4000;
+    return -1;
   }
   return 0;
 }
-// </internal>
  
 const char* Ndb::getNdbObjectName() const
 {
@@ -1957,18 +1993,9 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
         sprintf(buf, "%.*s", (int) (s2 - (s1 + 1)), s1 + 1);
         setDatabaseSchemaName(buf);
 #ifdef VM_TRACE
-        // verify that m_prefix looks like abc/def/
-        const char* s0 = theImpl->m_prefix.c_str();
-        const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
-        const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
-        if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
-        {
-          ndbout_c("t->m_impl.m_internalName.c_str(): %s", t->m_impl.m_internalName.c_str());
-          ndbout_c("s0: %s", s0);
-          ndbout_c("s1: %s", s1);
-          ndbout_c("s2: %s", s2);
-          assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
-        }
+        // verify that both db and schema name are set
+        assert(theImpl->m_dbname.length());
+        assert(theImpl->m_schemaname.length());
 #endif
         return 0;
       }
@@ -1979,7 +2006,7 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
  
 bool Ndb::usingFullyQualifiedNames()
 {
-  return fullyQualifiedNames;
+  return true; // Always on
 }
  
 const char *
@@ -2002,12 +2029,6 @@ Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNam
   }
   else
     return internalTableName;
-}
-
-const char *
-Ndb::externalizeTableName(const char * internalTableName)
-{
-  return externalizeTableName(internalTableName, usingFullyQualifiedNames());
 }
 
 const char *
@@ -2036,13 +2057,6 @@ Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNam
   }
 }
 
-const char *
-Ndb::externalizeIndexName(const char * internalIndexName)
-{
-  return externalizeIndexName(internalIndexName, usingFullyQualifiedNames());
-}
-
-
 const BaseString
 Ndb::internalize_table_name(const char *external_name) const
 {
@@ -2050,96 +2064,21 @@ Ndb::internalize_table_name(const char *external_name) const
   DBUG_ENTER("internalize_table_name");
   DBUG_PRINT("enter", ("external_name: %s", external_name));
 
-  if (fullyQualifiedNames)
-  {
-    /* Internal table name format <db>/<schema>/<table>
-       <db>/<schema>/ is already available in m_prefix
-       so just concat the two strings
-     */
 #ifdef VM_TRACE
-    // verify that m_prefix looks like abc/def/
-    const char* s0 = theImpl->m_prefix.c_str();
-    const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
-    const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
-    if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
-    {
-      ndbout_c("s0: %s", s0);
-      ndbout_c("s1: %s", s1);
-      ndbout_c("s2: %s", s2);
-      assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
-    }
+  // verify that both db and schema name are set
+  assert(theImpl->m_dbname.length());
+  assert(theImpl->m_schemaname.length());
 #endif
-    ret.assfmt("%s%s",
-               theImpl->m_prefix.c_str(),
-               external_name);
-  }
-  else
-    ret.assign(external_name);
+
+  // Internal table name format <db>/<schema>/<table>
+  ret.assfmt("%s%c%s%c%s",
+             theImpl->m_dbname.c_str(), table_name_separator,
+             theImpl->m_schemaname.c_str(), table_name_separator,
+             external_name);
 
   DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
   DBUG_RETURN(ret);
 }
-
-const BaseString
-Ndb::old_internalize_index_name(const NdbTableImpl * table,
-				const char * external_name) const
-{
-  BaseString ret;
-  DBUG_ENTER("old_internalize_index_name");
-  DBUG_PRINT("enter", ("external_name: %s, table_id: %d",
-                       external_name, table ? table->m_id : ~0));
-  if (!table)
-  {
-    DBUG_PRINT("error", ("!table"));
-    DBUG_RETURN(ret);
-  }
-
-  if (fullyQualifiedNames)
-  {
-    /* Internal index name format <db>/<schema>/<tabid>/<table> */
-    ret.assfmt("%s%d%c%s",
-               theImpl->m_prefix.c_str(),
-               table->m_id,
-               table_name_separator,
-               external_name);
-  }
-  else
-    ret.assign(external_name);
-
-  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
-  DBUG_RETURN(ret);
-}
-
-const BaseString
-Ndb::internalize_index_name(const NdbTableImpl * table,
-                           const char * external_name) const
-{
-  BaseString ret;
-  DBUG_ENTER("internalize_index_name");
-  DBUG_PRINT("enter", ("external_name: %s, table_id: %d",
-                       external_name, table ? table->m_id : ~0));
-  if (!table)
-  {
-    DBUG_PRINT("error", ("!table"));
-    DBUG_RETURN(ret);
-  }
-
-  if (fullyQualifiedNames)
-  {
-    /* Internal index name format sys/def/<tabid>/<table> */
-    ret.assfmt("%s%d%c%s",
-               theImpl->m_systemPrefix.c_str(),
-               table->m_id,
-               table_name_separator,
-               external_name);
-  }
-  else
-    ret.assign(external_name);
-
-  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
-  DBUG_RETURN(ret);
-}
-
 
 const BaseString
 Ndb::getDatabaseFromInternalName(const char * internalName)
@@ -2186,13 +2125,13 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   return ret;
 }
 
-unsigned Ndb::get_eventbuf_max_alloc()
+Uint64 Ndb::get_eventbuf_max_alloc()
 {
     return theEventBuffer->m_max_alloc;
 }
 
 void
-Ndb::set_eventbuf_max_alloc(unsigned sz)
+Ndb::set_eventbuf_max_alloc(Uint64 sz)
 {
   if (theEventBuffer != NULL)
   {
@@ -2309,11 +2248,11 @@ Ndb::printOverflowErrorAndExit()
                        getReference(), getNdbObjectName());
   g_eventLogger->error("Ndb Event Buffer : Event buffer out of memory.");
   g_eventLogger->error("Ndb Event Buffer : Fatal error.");
-  Uint32 maxalloc = get_eventbuf_max_alloc();
+  Uint64 maxalloc = get_eventbuf_max_alloc();
   if (maxalloc != 0)
   {
     // limited memory is allocated for event buffer, give recommendation
-    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %u).", maxalloc);
+    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %llu).", maxalloc);
   }
   g_eventLogger->error("Ndb Event Buffer : Consider using the new API.");
   exit(-1);

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ SET(MYISAM_SOURCES
 # MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
 # As MyISAM is not maintained anymore, it is not worth fixing these,
 # so we turn off the warning instead.
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(
     ${MYISAM_SOURCES}
     myisam_ftdump.cc
@@ -111,18 +111,21 @@ MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
   LINK_LIBRARIES myisam_library
 )
 
-MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam_library)
+DISABLE_MISSING_PROFILE_WARNING()
 
-MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.cc)
-TARGET_LINK_LIBRARIES(myisamchk myisam_library)
+MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc
+  LINK_LIBRARIES myisam_library)
 
-MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.cc)
-TARGET_LINK_LIBRARIES(myisamlog myisam_library ${LIBSOCKET})
+MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.cc
+  LINK_LIBRARIES myisam_library)
 
-MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
-TARGET_LINK_LIBRARIES(myisampack myisam_library)
+MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.cc
+  LINK_LIBRARIES myisam_library ${LIBSOCKET})
 
-IF (MSVC)
-  SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
+MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc
+  LINK_LIBRARIES myisam_library)
+
+IF (WIN32)
+  MY_TARGET_LINK_OPTIONS(myisamchk  "setargv.obj")
+  MY_TARGET_LINK_OPTIONS(myisampack "setargv.obj")
 ENDIF()

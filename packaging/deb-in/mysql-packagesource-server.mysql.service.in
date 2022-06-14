@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,9 @@ WantedBy=multi-user.target
 User=mysql
 Group=mysql
 Type=notify
-PermissionsStartOnly=true
-ExecStartPre=/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre
+ExecStartPre=+/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre
 ExecStart=/usr/sbin/mysqld
-TimeoutSec=600
+TimeoutSec=0
 LimitNOFILE = 10000
 Restart=on-failure
 RestartPreventExitStatus=1
@@ -49,6 +48,3 @@ RestartForceExitStatus=16
 
 # Set enviroment variable MYSQLD_PARENT_PID. This is required for restart.
 Environment=MYSQLD_PARENT_PID=1
-
-RuntimeDirectory=mysqld
-RuntimeDirectoryMode=755

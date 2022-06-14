@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,8 @@
 #include "sql/histograms/equi_height.h"
 
 #include <stdlib.h>
-#include <cmath>  // std::lround
+#include <algorithm>  // std::is_sorted
+#include <cmath>      // std::lround
 #include <iterator>
 #include <new>
 
@@ -39,7 +40,7 @@
 #include "sql/histograms/equi_height_bucket.h"
 #include "sql/histograms/value_map.h"  // Value_map
 #include "sql/json_dom.h"              // Json_*
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
@@ -48,39 +49,59 @@ struct MEM_ROOT;
 
 namespace histograms {
 
+// Private constructor
 template <class T>
 Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
                             const std::string &tbl_name,
                             const std::string &col_name,
-                            Value_map_type data_type)
+                            Value_map_type data_type, bool *error)
     : Histogram(mem_root, db_name, tbl_name, col_name,
-                enum_histogram_type::EQUI_HEIGHT, data_type),
-      m_buckets(Histogram_comparator(),
-                Memroot_allocator<equi_height::Bucket<T>>(mem_root)) {}
+                enum_histogram_type::EQUI_HEIGHT, data_type, error),
+      m_buckets(mem_root) {}
+
+// Public factory method
+template <class T>
+Equi_height<T> *Equi_height<T>::create(MEM_ROOT *mem_root,
+                                       const std::string &db_name,
+                                       const std::string &tbl_name,
+                                       const std::string &col_name,
+                                       Value_map_type data_type) {
+  bool error = false;
+  Equi_height<T> *equi_height = new (mem_root)
+      Equi_height<T>(mem_root, db_name, tbl_name, col_name, data_type, &error);
+  if (error) return nullptr;
+  return equi_height;
+}
 
 template <class T>
-Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other)
-    : Histogram(mem_root, other),
-      m_buckets(Histogram_comparator(),
-                Memroot_allocator<equi_height::Bucket<T>>(mem_root)) {
-  for (const auto &bucket : other.m_buckets) m_buckets.emplace(bucket);
+Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other,
+                            bool *error)
+    : Histogram(mem_root, other, error), m_buckets(mem_root) {
+  if (m_buckets.reserve(other.m_buckets.size())) {
+    *error = true;
+    return;
+  }
+  for (const auto &bucket : other.m_buckets) m_buckets.push_back(bucket);
 }
 
 template <>
 Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
-                                 const Equi_height<String> &other)
-    : Histogram(mem_root, other),
-      m_buckets(Histogram_comparator(),
-                Memroot_allocator<equi_height::Bucket<String>>(mem_root)) {
+                                 const Equi_height<String> &other, bool *error)
+    : Histogram(mem_root, other, error), m_buckets(mem_root) {
   /*
     Copy bucket contents. We need to make duplicates of String data, since they
     are allocated on a MEM_ROOT that most likely will be freed way too early.
   */
+  if (m_buckets.reserve(other.m_buckets.size())) {
+    *error = true;
+    return;
+  }
   for (const auto &pair : other.m_buckets) {
     char *lower_string_data = pair.get_lower_inclusive().dup(mem_root);
     char *upper_string_data = pair.get_upper_inclusive().dup(mem_root);
     if (lower_string_data == nullptr || upper_string_data == nullptr) {
-      DBUG_ASSERT(false); /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
+      *error = true;
       return;
     }
 
@@ -90,9 +111,10 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
     String upper_string_dup(upper_string_data,
                             pair.get_upper_inclusive().length(),
                             pair.get_upper_inclusive().charset());
-
-    m_buckets.emplace(lower_string_dup, upper_string_dup,
-                      pair.get_cumulative_frequency(), pair.get_num_distinct());
+    equi_height::Bucket<String> bucket_dup(lower_string_dup, upper_string_dup,
+                                           pair.get_cumulative_frequency(),
+                                           pair.get_num_distinct());
+    m_buckets.push_back(bucket_dup);
   }
 }
 
@@ -100,7 +122,7 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
   This function will build an equi-height histogram. The algorithm works like
   the following:
 
-  - If the number of buckets specified is euqal to or greater than the number
+  - If the number of buckets specified is equal to or greater than the number
     of distinct values, a single bucket is created for each value.
 
   - If we have more distinct values than the number of buckets, we calculate a
@@ -120,7 +142,7 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
 template <class T>
 bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
                                      size_t num_buckets) {
-  DBUG_ASSERT(num_buckets > 0);
+  assert(num_buckets > 0);
   if (num_buckets < 1) return true; /* purecov: inspected */
 
   // Set the number of buckets that was specified/requested by the user.
@@ -148,7 +170,7 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
     return false;
   }
 
-  DBUG_ASSERT(num_buckets > 0);
+  assert(num_buckets > 0);
 
   // Set the fraction of NULL values.
   const ha_rows total_count =
@@ -164,6 +186,12 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
   const double avg_bucket_size =
       num_non_null_values / static_cast<double>(num_buckets);
   double current_threshold = avg_bucket_size;
+
+  /*
+    Ensure that the capacity of the vector is at least num_buckets in order to
+    avoid the overhead of additional allocations when inserting buckets.
+  */
+  if (m_buckets.reserve(num_buckets)) return true;
 
   ha_rows cumulative_sum = 0;
   ha_rows sum = 0;
@@ -235,29 +263,26 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
                                   cumulative_frequency, num_distinct_estimate);
 
     /*
-      Since we are using a std::vector with Memroot_allocator, we are forced to
-      wrap the following section in a try-catch. The Memroot_allocator will
-      throw an exception of class std::bad_alloc when it runs out of memory.
+      In case the histogram construction algorithm unintendedly inserts more
+      buckets than we have reserved space for and triggers a reallocation that
+      fails, push_back() returns true.
     */
-    try {
-      m_buckets.emplace(bucket);
-    } catch (const std::bad_alloc &) {
-      // Out of memory.
-      return true;
-    }
+    assert(m_buckets.capacity() > m_buckets.size());
+    if (m_buckets.push_back(bucket)) return true;
+
     /*
       In debug, check that the lower value actually is less than or equal to
       the upper value.
     */
-    DBUG_ASSERT(!Histogram_comparator()(bucket.get_upper_inclusive(),
-                                        bucket.get_lower_inclusive()));
+    assert(!Histogram_comparator()(bucket.get_upper_inclusive(),
+                                   bucket.get_lower_inclusive()));
 
     /*
       We also check that the lower inclusive value of the current bucket is
       greater than the upper inclusive value of the previous bucket.
     */
     if (m_buckets.size() > 1) {
-      DBUG_ASSERT(Histogram_comparator()(
+      assert(Histogram_comparator()(
           std::prev(m_buckets.end(), 2)->get_upper_inclusive(),
           bucket.get_lower_inclusive()));
     }
@@ -269,7 +294,7 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
     if (next != value_map.end()) lowest_value = &next->first;
   }
 
-  DBUG_ASSERT(m_buckets.size() <= num_buckets);
+  assert(m_buckets.size() <= num_buckets);
   return false;
 }
 
@@ -312,18 +337,21 @@ bool Equi_height<T>::json_to_histogram(const Json_object &json_object) {
     return true; /* purecov: deadcode */
 
   const Json_dom *buckets_dom = json_object.get(buckets_str());
-  DBUG_ASSERT(buckets_dom->json_type() == enum_json_type::J_ARRAY);
+  assert(buckets_dom->json_type() == enum_json_type::J_ARRAY);
 
   const Json_array *buckets = down_cast<const Json_array *>(buckets_dom);
+  if (m_buckets.reserve(buckets->size())) return true;
   for (size_t i = 0; i < buckets->size(); ++i) {
     const Json_dom *bucket_dom = (*buckets)[i];
-    DBUG_ASSERT(bucket_dom->json_type() == enum_json_type::J_ARRAY);
+    assert(bucket_dom->json_type() == enum_json_type::J_ARRAY);
 
     const Json_array *bucket = down_cast<const Json_array *>(bucket_dom);
-    DBUG_ASSERT(bucket->size() == 4);
+    assert(bucket->size() == 4);
 
     if (add_bucket_from_json(bucket)) return true; /* purecov: deadcode */
   }
+  assert(std::is_sorted(m_buckets.begin(), m_buckets.end(),
+                        Histogram_comparator()));
   return false;
 }
 
@@ -352,24 +380,21 @@ bool Equi_height<T>::add_bucket_from_json(const Json_array *json_bucket) {
       extract_json_dom_value(lower_inclusive_dom, &lower_value))
     return true; /* purecov: deadcode */
 
-  try {
-    m_buckets.emplace(lower_value, upper_value, cumulative_frequency->value(),
-                      num_distinct->value());
-  } catch (const std::bad_alloc &) {
-    return true; /* purecov: deadcode */
-  }
+  equi_height::Bucket<T> bucket(lower_value, upper_value,
+                                cumulative_frequency->value(),
+                                num_distinct->value());
+  if (m_buckets.push_back(bucket)) return true;
   return false;
 }
 
 template <class T>
 Histogram *Equi_height<T>::clone(MEM_ROOT *mem_root) const {
   DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
-
-  try {
-    return new (mem_root) Equi_height<T>(mem_root, *this);
-  } catch (const std::bad_alloc &) {
-    return nullptr; /* purecov: deadcode */
-  }
+  bool error = false;
+  Histogram *equi_height =
+      new (mem_root) Equi_height<T>(mem_root, *this, &error);
+  if (error) return nullptr;
+  return equi_height;
 }
 
 template <class T>
@@ -412,42 +437,21 @@ double Equi_height<T>::get_equal_to_selectivity(const T &value) const {
     bucket_frequency = found->get_cumulative_frequency() -
                        previous->get_cumulative_frequency();
 
-    DBUG_ASSERT(bucket_frequency >= 0.0);
-    DBUG_ASSERT(bucket_frequency <= get_non_null_values_frequency());
+    assert(bucket_frequency >= 0.0);
+    assert(bucket_frequency <= get_non_null_values_frequency());
   }
 
-  /*
-    Take into account how high the probability is for a given value existing
-    in the bucket. For example, consider the following bucket:
-
-      DOUBLE VALUES
-      Lower inclusive value: 0.0
-      Upper inclusive value: 1000000.0
-      Number of distinct values: 10
-
-    Any of the values between have a very low probability since there are so
-    many possible values for this data type.
-
-    For a different example, consider this bucket:
-
-      INTEGER VALUES
-      Lower inclusive value: 1
-      Upper inclusive value: 4
-      Number of distinct values: 4
-
-    Here we can see that all values must be present, since there are only four
-    possible values between 1 and 4 (1, 2, 3 and 4), and we have 4 distinct
-    values in the bucket.
-  */
-  return (bucket_frequency / found->get_num_distinct()) *
-         found->value_probability();
+  return (bucket_frequency / found->get_num_distinct());
 }
 
 template <class T>
-double Equi_height<T>::get_less_than_equal_selectivity(const T &value) const {
+double Equi_height<T>::get_less_than_selectivity(const T &value) const {
   /*
-    Find the first bucket where the upper inclusive value is not less than the
-    provided value.
+    Find the first bucket with endpoints [a, b] where the upper inclusive value
+    b is not less than the provided value, i.e. we have value <= b.
+    Buckets that come before the found bucket (previous buckets) have an upper
+    inclusive value strictly less than the provided value, and will therefore
+    count towards the selectivity.
   */
   const auto found = std::lower_bound(m_buckets.begin(), m_buckets.end(), value,
                                       Histogram_comparator());
@@ -466,51 +470,76 @@ double Equi_height<T>::get_less_than_equal_selectivity(const T &value) const {
                              previous->get_cumulative_frequency();
   }
 
-  const double distance = found->get_distance_from_lower(value);
-
-  DBUG_ASSERT(distance >= 0.0);
-  DBUG_ASSERT(distance <= 1.0);
-
-  const double selectivity = previous_bucket_cumulative_frequency +
-                             (found_bucket_frequency * distance);
-
   /*
-    If we found the distance from lower to be zero and the value actually
-    is equal to the lower inclusive value, we must add the "equal_to"
-    selectivity in order to include the selectivity for the lower value.
+    We now consider how the found bucket contributes to the selectivity.
+    There are two cases:
 
-    Imagine these two buckets: [1   4]  [5   7]
-    Given the following predicate: foo <= 5;
+    1) a < value <= b
+    The value lies inside the bucket and we know that the bucket is
+    non-singleton since a < b. We include a fraction of the bucket's frequency
+    corresponding to the position of the value between a and b.
 
-    We would get the second bucket from std::lower_bound. The distance function
-    will return 0.0, since 5 is actually equal to 5. But that would cause the
-    selectivity to NOT include the selectivity for the value 5 itself.
-
-    We do this adjustment only if distance == 0.0, because if we have a bucket
-    where the upper and lower value are equal, the distance function will return
-    1.0 and we already have included the selectivity for the value itself.
+    2) value <= a <= b
+    In this case the found bucket contributes nothing since the lower inclusive
+    endpoint a is greater than or equal to the value.
   */
-  if (distance > 0.0 ||
-      Histogram_comparator()(found->get_lower_inclusive(), value))
-    return selectivity;
-
-  return selectivity + get_equal_to_selectivity(value);
+  if (Histogram_comparator()(found->get_lower_inclusive(), value)) {
+    const double distance = found->get_distance_from_lower(value);
+    assert(distance >= 0.0);
+    assert(distance <= 1.0);
+    return previous_bucket_cumulative_frequency +
+           (found_bucket_frequency * distance);
+  } else {
+    return previous_bucket_cumulative_frequency;
+  }
 }
 
 template <class T>
 double Equi_height<T>::get_greater_than_selectivity(const T &value) const {
-  const double less_than_equal = get_less_than_equal_selectivity(value);
+  /*
+    Find the first bucket with endpoints [a, b] where the upper inclusive value
+    b is greater than the provided value, i.e. we have value < b.
+    Buckets that come after the found bucket (next buckets) have a lower
+    inclusive value greater than the provided value, and will therefore
+    count towards the selectivity.
+  */
+  const auto found = std::upper_bound(m_buckets.begin(), m_buckets.end(), value,
+                                      Histogram_comparator());
 
-  return get_non_null_values_frequency() -
-         std::min(less_than_equal, get_non_null_values_frequency());
-}
+  if (found == m_buckets.end()) return 0.0;
 
-template <class T>
-double Equi_height<T>::get_less_than_selectivity(const T &value) const {
-  const double less_than_equal = get_less_than_equal_selectivity(value);
-  const double equal_to = get_equal_to_selectivity(value);
+  double found_bucket_frequency;
+  if (found == m_buckets.begin()) {
+    found_bucket_frequency = found->get_cumulative_frequency();
+  } else {
+    const auto previous = std::prev(found, 1);
+    found_bucket_frequency = found->get_cumulative_frequency() -
+                             previous->get_cumulative_frequency();
+  }
+  double next_buckets_frequency =
+      get_non_null_values_frequency() - found->get_cumulative_frequency();
 
-  return less_than_equal - equal_to;
+  /*
+    We now consider how the found bucket contributes to the selectivity.
+    There are two cases:
+
+    1) value < a <= b
+    The provided value is smaller than the inclusive lower endpoint and the
+    entire bucket should be included.
+
+    2) a <= value < b
+    The value lies inside the bucket and we know that the bucket is
+    non-singleton since a < b. We include a fraction of the bucket's frequency
+    corresponding to the position of the value between a and b.
+  */
+  if (Histogram_comparator()(value, found->get_lower_inclusive())) {
+    return found_bucket_frequency + next_buckets_frequency;
+  } else {
+    const double distance = found->get_distance_from_upper(value);
+    assert(distance >= 0.0);
+    assert(distance <= 1.0);
+    return distance * found_bucket_frequency + next_buckets_frequency;
+  }
 }
 
 // Explicit template instantiations.

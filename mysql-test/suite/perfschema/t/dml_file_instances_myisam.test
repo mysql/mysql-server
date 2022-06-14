@@ -1,0 +1,69 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
+--disable_result_log
+select * from performance_schema.file_instances limit 1;
+
+select * from performance_schema.file_instances
+  where file_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.file_instances
+  set file_name='FOO', event_name='BAR', open_count=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.file_instances
+  set file_name='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.file_instances
+  where event_name like "wait/%";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.file_instances;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.file_instances READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.file_instances WRITE;
+UNLOCK TABLES;
+
+--echo ###
+--echo ### Bug#26152751: INNODB LEAKS MEMORY, PERFORMANCE_SCHEMA FILE_INSTANCES
+--echo ###               #SQL-IB3129987-252773.IBD
+--echo ###
+
+CREATE DATABASE db_26152751;
+USE db_26152751;
+
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+
+CREATE TABLE t_db_26152751 (a INT) ENGINE=MYISAM;
+
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751.sdi/ /.*\/t_db_26152751/t_db_26152751/
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+
+RENAME TABLE t_db_26152751 to t_db_26152751_new;
+
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751_new.sdi/ /.*\/t_db_26152751/t_db_26152751/
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+
+RENAME TABLE t_db_26152751_new to t_db_26152751;
+
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751.sdi/ /.*\/t_db_26152751/t_db_26152751/
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+
+ALTER TABLE t_db_26152751 ADD COLUMN b INT;
+
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751.sdi/ /.*\/t_db_26152751/t_db_26152751/
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+
+DROP TABLE t_db_26152751;
+
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+
+DROP DATABASE db_26152751;

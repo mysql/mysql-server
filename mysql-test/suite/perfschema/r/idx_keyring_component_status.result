@@ -1,0 +1,10 @@
+show create table performance_schema.keyring_component_status;
+Table	Create Table
+keyring_component_status	CREATE TABLE `keyring_component_status` (
+  `STATUS_KEY` varchar(256) NOT NULL,
+  `STATUS_VALUE` varchar(1024) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "keyring_component_status";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION

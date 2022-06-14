@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,36 +24,20 @@
 
 #include <typeinfo>
 
+#include <gmock/gmock.h>
+
 #include "../src/metadata_cache.h"
 #include "../src/plugin_config.h"
 
+#include "mysqlrouter/utils.h"  // ms_to_second_string
 #include "router_test_helpers.h"
 #include "test/helpers.h"
-
-#include "gmock/gmock.h"
 
 using ::testing::ContainerEq;
 using ::testing::Eq;
 using ::testing::StrEq;
 
 using mysql_harness::TCPAddress;
-
-// demangle the symbols returned by typeid().name() if needed
-//
-// typeid() on gcc/clang returns a mangled name, msvc doesn't.
-static std::string cxx_demangle_name(const char *mangled) {
-#if defined(__GNUC__) && defined(__cplusplus)
-  // gcc and clang are mangling the names
-  std::shared_ptr<char> demangled_name(
-      abi::__cxa_demangle(mangled, 0, 0, nullptr), [&](char *p) {
-        if (p) free(p);
-      });
-
-  return std::string(demangled_name.get());
-#else
-  return mangled;
-#endif
-}
 
 // the Good
 
@@ -108,13 +92,13 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
 
   EXPECT_THAT(plugin_config.user, StrEq(test_data.expected.user));
   EXPECT_THAT(plugin_config.ttl, Eq(test_data.expected.ttl));
-  EXPECT_THAT(plugin_config.metadata_cluster,
+  EXPECT_THAT(plugin_config.cluster_name,
               StrEq(test_data.expected.metadata_cluster));
   EXPECT_THAT(plugin_config.metadata_servers_addresses,
               ContainerEq(test_data.expected.bootstrap_addresses));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SomethingUseful, MetadataCachePluginConfigGoodTest,
     ::testing::ValuesIn(std::vector<GoodTestData>({
         // minimal config
@@ -273,64 +257,63 @@ TEST_P(MetadataCachePluginConfigBadTest, BadConfigs) {
     MetadataCachePluginConfig plugin_config(&section);
     FAIL() << "should have failed";
   } catch (const std::exception &exc) {
-    EXPECT_THAT(
-        cxx_demangle_name(typeid(exc).name()),
-        StrEq(cxx_demangle_name(test_data.expected.exception_type.name())));
+    EXPECT_THAT(typeid(exc).name(),
+                StrEq(test_data.expected.exception_type.name()));
     EXPECT_THAT(exc.what(), StrEq(test_data.expected.exception_msg));
   }
 }
 
-INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
-                        ::testing::ValuesIn(std::vector<BadTestData>({
-                            // user option is required
-                            {{
-                                 std::map<std::string, std::string>(),
-                             },
+INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
+                         ::testing::ValuesIn(std::vector<BadTestData>({
+                             // user option is required
+                             {{
+                                  std::map<std::string, std::string>(),
+                              },
 
-                             {
-                                 typeid(mysqlrouter::option_not_present),
-                                 "option user in [metadata_cache] is required",
-                             }},
-                            // ttl is garbage
-                            {{
-                                 std::map<std::string, std::string>({
-                                     {"user", "foo"},  // required
-                                     {"ttl", "garbage"},
-                                 }),
-                             },
-                             {
-                                 typeid(std::invalid_argument),
-                                 "option ttl in [metadata_cache] needs value "
-                                 "between 0 and 3600 inclusive, was 'garbage'",
-                             }},
-                            // ttl is too big
-                            {{
-                                 std::map<std::string, std::string>({
-                                     {"user", "foo"},  // required
-                                     {"ttl", "3600.1"},
-                                 }),
-                             },
+                              {
+                                  typeid(mysql_harness::option_not_present),
+                                  "option user in [metadata_cache] is required",
+                              }},
+                             // ttl is garbage
+                             {{
+                                  std::map<std::string, std::string>({
+                                      {"user", "foo"},  // required
+                                      {"ttl", "garbage"},
+                                  }),
+                              },
+                              {
+                                  typeid(std::invalid_argument),
+                                  "option ttl in [metadata_cache] needs value "
+                                  "between 0 and 3600 inclusive, was 'garbage'",
+                              }},
+                             // ttl is too big
+                             {{
+                                  std::map<std::string, std::string>({
+                                      {"user", "foo"},  // required
+                                      {"ttl", "3600.1"},
+                                  }),
+                              },
 
-                             {
-                                 typeid(std::invalid_argument),
-                                 "option ttl in [metadata_cache] needs value "
-                                 "between 0 and 3600 inclusive, was '3600.1'",
-                             }},
-                            // ttl is negative
-                            {{
-                                 std::map<std::string, std::string>({
-                                     {"user", "foo"},  // required
-                                     {"ttl", "-0.1"},
-                                 }),
-                             },
-                             {
-                                 typeid(std::invalid_argument),
-                                 "option ttl in [metadata_cache] needs value "
-                                 "between 0 and 3600 inclusive, was '-0.1'",
-                             }},
-                        })));
+                              {
+                                  typeid(std::invalid_argument),
+                                  "option ttl in [metadata_cache] needs value "
+                                  "between 0 and 3600 inclusive, was '3600.1'",
+                              }},
+                             // ttl is negative
+                             {{
+                                  std::map<std::string, std::string>({
+                                      {"user", "foo"},  // required
+                                      {"ttl", "-0.1"},
+                                  }),
+                              },
+                              {
+                                  typeid(std::invalid_argument),
+                                  "option ttl in [metadata_cache] needs value "
+                                  "between 0 and 3600 inclusive, was '-0.1'",
+                              }},
+                         })));
 
-using mysqlrouter::BasePluginConfig;
+using mysql_harness::BasePluginConfig;
 
 // Valid millisecond configuration values
 using GetOptionMillisecondsOkTestData =
@@ -344,10 +327,10 @@ TEST_P(GetOptionMillisecondsOkTest, StringToMilliseconds) {
   GetOptionMillisecondsOkTestData test_data = GetParam();
 
   ASSERT_EQ(test_data.second,
-            BasePluginConfig::get_option_milliseconds(test_data.first));
+            mysql_harness::MilliSecondsOption()(test_data.first, "someoption"));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OkData, GetOptionMillisecondsOkTest,
     ::testing::ValuesIn(std::vector<GetOptionMillisecondsOkTestData>({
         {"1.0", std::chrono::milliseconds(1000)},
@@ -385,12 +368,12 @@ class GetOptionMillisecondsBadTest
 TEST_P(GetOptionMillisecondsBadTest, StringToMilliseconds) {
   GetOptionMillisecondsBadTestData test_data = GetParam();
 
-  ASSERT_THROW_LIKE(
-      BasePluginConfig::get_option_milliseconds(test_data.first, 0.0, 3600.0),
-      std::invalid_argument, test_data.second);
+  ASSERT_THROW_LIKE(mysql_harness::MilliSecondsOption(0.0, 3600.0)(
+                        test_data.first, "someoption"),
+                    std::invalid_argument, test_data.second);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OkData, GetOptionMillisecondsBadTest,
     ::testing::ValuesIn(std::vector<GetOptionMillisecondsBadTestData>({
         {"-1.0", "needs value between 0 and 3600 inclusive, was '-1.0'"},

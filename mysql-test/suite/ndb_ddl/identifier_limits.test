@@ -9,12 +9,10 @@
 --echo # Bug11753491: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64
 --echo #              CHARACTER TABLE NAME
 --echo # ####################################################################
---error ER_TOO_LONG_IDENT
 create table abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(
   id int primary key
 ) engine=ndb;
-show warnings;
-
+drop table abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 
 --echo # ############################################################
 --echo # Bug19550973: CREATE/DROP DATABASE STATEMENT SEGFAULTS IF
@@ -28,7 +26,6 @@ call mtr.add_suppression("Failed to distribute");
 
 --echo #
 --echo # 1. Testing schema identifier with length 63
---echo # NOTE! ndb_schema identifier length limit is currently 63
 --echo #
 CREATE DATABASE
   abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
@@ -43,7 +40,6 @@ DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
 
 --echo #
 --echo # 2. Testing schema identifier with length 64
---echo # NOTE! MySQL Server allows 64, but ndb_schema limit is currently 63
 --echo #
 CREATE DATABASE
   abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
@@ -54,20 +50,19 @@ USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 CREATE TABLE t1 (
   a int
 );
---echo # Create NDB table should fail
---error ER_TOO_LONG_IDENT
+--echo # Create NDB table
 CREATE TABLE t2 (
   a int
 ) ENGINE=NDB;
-show warnings;
 
 --echo #
---echo # 3. Databases with identifier length = 64 won't be replicated to other
---echo # MySQL Servers. Verify that the above created dabatase is not present
+--echo # 3. Databases with identifier length = 64 is synchronized to other
+--echo # MySQL Servers. Verify that the above created dabatase is present
 --echo # in the other Server
+--echo # NOTE! This testcase was fixed by BUG#27447958 which extended ndb_schema
+--echo # to support identifiers > 63
 --echo #
 --connection mysqld2
---error ER_BAD_DB_ERROR
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 --connection mysqld1
 
@@ -82,26 +77,21 @@ CREATE DATABASE db1;
 CREATE TABLE db1.t1 (
   a int
 ) ENGINE=NDB;
+CREATE TABLE db1.t2 (
+  a int
+) ENGINE=NDB;
 
 --echo #
---echo # 4.1 Renaming table to too long database name should fail
+--echo # 4.1 Renaming table to long database name
 --echo #
---error ER_TOO_LONG_IDENT
 ALTER TABLE db1.t1
   RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
-# replace win slashes since not using default database
---replace_regex /[\\]/\//
-SHOW WARNINGS;
 
 --echo #
---echo # 4.2 Renaming table to too long table name should fail
+--echo # 4.2 Renaming table to long table name
 --echo #
---error ER_TOO_LONG_IDENT
-ALTER TABLE db1.t1
+ALTER TABLE db1.t2
   RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
-# replace win slashes since not using default database
---replace_regex /[\\]/\//
-SHOW WARNINGS;
 
 DROP DATABASE db1;
 DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;

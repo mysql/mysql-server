@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,16 @@
   Instrumentation helpers for system-level events.
 */
 
+#include "my_compiler.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_system.h"
-#ifdef MYSQL_SERVER
-#ifndef MYSQL_DYNAMIC_PLUGIN
-#include "pfs_system_provider.h"
-#endif
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_SYSTEM_CALL() as direct call. */
+#include "pfs_system_provider.h"  // IWYU pragma: keep
 #endif
 
 #ifndef PSI_SYSTEM_CALL
@@ -45,6 +49,19 @@
   @ingroup psi_api
   @{
 */
+
+/**
+  @def mysql_unload_plugin(P1)
+  Psi system unload plugin event.
+*/
+#define mysql_unload_plugin(P1) inline_mysql_unload_plugin(P1)
+
+static inline void inline_mysql_unload_plugin(const char *plugin_name
+                                              [[maybe_unused]]) {
+#ifdef HAVE_PSI_SYSTEM_INTERFACE
+  PSI_SYSTEM_CALL(unload_plugin)(plugin_name);
+#endif
+}
 
 /** @} (end of group psi_api_system) */
 

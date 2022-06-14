@@ -1,0 +1,86 @@
+#
+# This testcase is to check the various debug injection points
+# to make sure error conditions react corectly and acheive
+# better code coverage.
+#
+
+# the DBUG_EXECUTE_IF() macro needs a debug server.
+--source include/have_debug.inc
+
+--disable_query_log
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+# These messages are expected in the log
+call mtr.add_suppression("Cannot find space id [0-9]+ in the tablespace memory cache");
+call mtr.add_suppression("Cannot rename table 'test/t1' to 'test/t2' since the dictionary cache already contains 'test/t2'.");
+
+# Set up some variables
+LET $MYSQL_DATA_DIR = `select @@datadir`;
+LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
+--enable_query_log
+
+SET GLOBAL innodb_file_per_table=ON;
+
+--echo #
+--echo # WL5980 Remote tablespace debug error injection tests.
+--echo #
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a int KEY, b text) ENGINE=Innodb $data_directory_clause ;
+INSERT INTO t1 VALUES (1, "tablespace");
+SELECT * FROM t1;
+
+
+--echo #
+--echo # Test the first injection point in fil_rename_tablespace().
+--echo # Make sure the table is useable after this failure.
+--echo #
+SET SESSION debug="+d,fil_rename_tablespace_failure_1";
+--disable_result_log
+--error ER_ERROR_ON_RENAME
+RENAME TABLE t1 TO t2;
+--enable_result_log
+SET SESSION debug="-d,fil_rename_tablespace_failure_1";
+INSERT INTO t1 VALUES (2, "tablespace");
+SELECT * FROM t1;
+
+--echo #
+--echo # Test the second injection point in fil_rename_tablespace().
+--echo # Make sure the table is useable after this failure.
+--echo #
+SET SESSION debug="+d,fil_rename_tablespace_failure_2";
+--disable_result_log
+--error ER_ERROR_ON_RENAME
+RENAME TABLE t1 TO t2;
+--enable_result_log
+SET SESSION debug="-d,fil_rename_tablespace_failure_2";
+INSERT INTO t1 VALUES (3, "tablespace");
+SELECT * FROM t1;
+
+--echo #
+--echo # Test the injection point in dict_table_rename_in_cache().
+--echo # Make sure the table is useable after this failure.
+--echo #
+SET SESSION debug="+d,dict_table_rename_in_cache_failure";
+--disable_result_log
+--error ER_ERROR_ON_RENAME
+RENAME TABLE t1 TO t2;
+--enable_result_log
+SET SESSION debug="-d,dict_table_rename_in_cache_failure";
+INSERT INTO t1 VALUES (4, "tablespace");
+SELECT * FROM t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+
+--rmdir $MYSQL_TMP_DIR/alt_dir/test
+--rmdir $MYSQL_TMP_DIR/alt_dir
+
+-- disable_query_log
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+-- enable_query_log
+

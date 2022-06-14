@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,8 @@
 #ifndef TASK_OS_H
 #define TASK_OS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
+#include "xcom/result.h"
+#include "xcom/task_debug.h"
 
 #ifdef _WIN32
 
@@ -43,6 +40,7 @@ extern "C" {
 #define SOCK_EINPROGRESS WSAEINPROGRESS
 #define SOCK_EALREADY WSAEALREADY
 #define SOCK_ECONNREFUSED WSAECONNREFUSED
+#define SOCK_ECONNRESET WSAECONNRESET
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_EXCLUSIVEADDRUSE
 #define GET_OS_ERR WSAGetLastError()
@@ -67,7 +65,7 @@ static inline int hard_select_err(int err) {
 typedef ULONG nfds_t;
 typedef struct pollfd pollfd;
 static inline int poll(pollfd *fds, nfds_t nfds, int timeout) {
-  return WSAPoll(fds, nfds, timeout);
+  return nfds == 0 ? 0 : WSAPoll(fds, nfds, timeout);
 }
 
 static inline int is_socket_error(int x) { return x == SOCKET_ERROR || x < 0; }
@@ -78,6 +76,7 @@ static inline int is_socket_error(int x) { return x == SOCKET_ERROR || x < 0; }
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #define DIR_SEP '/'
@@ -93,12 +92,15 @@ static inline int is_socket_error(int x) { return x == SOCKET_ERROR || x < 0; }
 #define SOCK_EINPROGRESS EINPROGRESS
 #define SOCK_EALREADY EALREADY
 #define SOCK_ECONNREFUSED ECONNREFUSED
+#define SOCK_ECONNRESET ECONNRESET
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_REUSEADDR
 #define GET_OS_ERR errno
 #define SET_OS_ERR(x) errno = (x)
 #define CLOSESOCKET(x) close(x)
 #define SOCK_SHUT_RDWR (SHUT_RD | SHUT_WR)
+#define SOCK_SHUT_RW SHUT_WR
+#define SOCK_SHUT_RD SHUT_RD
 
 static inline int hard_connect_err(int err) {
   return err != 0 && from_errno(err) != EINTR && from_errno(err) != EINPROGRESS;
@@ -116,20 +118,6 @@ static inline int is_socket_error(int x) { return x < 0; }
 
 extern void remove_and_wakeup(int fd);
 
-static inline result close_socket(int *sock) {
-  result res = {0, 0};
-  if (*sock != -1) {
-    do {
-      SET_OS_ERR(0);
-      res.val = CLOSESOCKET(*sock);
-      res.funerr = to_errno(GET_OS_ERR);
-    } while (res.val == -1 && from_errno(res.funerr) == SOCK_EINTR);
-    remove_and_wakeup(*sock);
-    *sock = -1;
-  }
-  return res;
-}
-
 #if defined(_WIN32)
 
 static inline void shutdown_socket(int *sock) {
@@ -142,11 +130,19 @@ static inline void shutdown_socket(int *sock) {
              &dwBytesReturned, NULL, NULL);
   }
   if (DisconnectEx != NULL) {
-    (DisconnectEx(*sock, (LPOVERLAPPED)NULL, (DWORD)0, (DWORD)0) == TRUE) ? 0
-                                                                          : -1;
+    DisconnectEx(*sock, (LPOVERLAPPED)NULL, (DWORD)0, (DWORD)0);
   } else {
     shutdown(*sock, SOCK_SHUT_RDWR);
   }
+}
+
+static inline int xcom_getpeername(int sock, struct sockaddr *name,
+                                   socklen_t *namelen) {
+  int x, retval;
+  x = (int)*namelen;
+  retval = getpeername(sock, name, &x);
+  *namelen = (socklen_t)x;
+  return retval;
 }
 
 #else
@@ -155,19 +151,33 @@ static inline void shutdown_socket(int *sock) {
   shutdown(*sock, SOCK_SHUT_RDWR);
 }
 
+static inline int xcom_getpeername(int s, struct sockaddr *name,
+                                   socklen_t *namelen) {
+  return getpeername(s, name, namelen);
+}
+
 #endif
 
-static inline result shut_close_socket(int *sock) {
+static inline result xcom_close_socket(int *sock) {
   result res = {0, 0};
-  if (*sock >= 0) {
-    shutdown_socket(sock);
-    res = close_socket(sock);
+  if (*sock != -1) {
+    IFDBG(D_FILEOP, FN; STRLIT("closing socket "); NDBG(*sock, d));
+    do {
+      SET_OS_ERR(0);
+      res.val = CLOSESOCKET(*sock);
+      res.funerr = to_errno(GET_OS_ERR);
+    } while (res.val == -1 && from_errno(res.funerr) == SOCK_EINTR);
   }
   return res;
 }
 
-#ifdef __cplusplus
+static inline result xcom_shut_close_socket(int *sock) {
+  result res = {0, 0};
+  if (*sock >= 0) {
+    shutdown_socket(sock);
+    res = xcom_close_socket(sock);
+  }
+  return res;
 }
-#endif
 
 #endif

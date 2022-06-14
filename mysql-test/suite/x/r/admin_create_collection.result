@@ -1,226 +1,63 @@
-RUN drop schema if exists xtest
-
-0 rows affected
-RUN create schema xtest default charset 'utf8mb4'
-
-1 rows affected
-RUN use xtest
-
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xtest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "books"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
+create schema xtest default charset 'utf8mb4';
+create database xtest_1 default charset 'utf8mb4';
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Crud.Insert {
-  collection {
-    name: "books"
-    schema: "xtest"
-  }
-  data_model: DOCUMENT
-  row {
-    field {
-      type: LITERAL
-      literal {
-        type: V_STRING
-        v_string {
-          value: "{\"_id\": \"one\", \"name\": \"The Bla\"}"
-        }
-      }
-    }
-  }
-}
-
-
-1 rows affected
-send Mysqlx.Crud.Insert {
-  collection {
-    name: "books"
-    schema: "xtest"
-  }
-  data_model: DOCUMENT
-  row {
-    field {
-      type: LITERAL
-      literal {
-        type: V_STRING
-        v_string {
-          value: "{\"_id\": \"two\", \"name\": \"The Bla II\"}"
-        }
-      }
-    }
-  }
-}
-
-
-1 rows affected
-send Mysqlx.Crud.Insert {
-  collection {
-    name: "books"
-    schema: "xtest"
-  }
-  data_model: DOCUMENT
-  row {
-    field {
-      type: LITERAL
-      literal {
-        type: V_STRING
-        v_string {
-          value: "{\"_id\": \"one\", \"name\": \"The Bla II\"}"
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5116
-  msg: "Document contains a field value that is not unique but required to be"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xtest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "books"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
+Got expected error (code 0)
 
 command ok
-Negative cases now
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: ""
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: ""
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+Got expected error (code 0)
+Got expected error: Table 'books1' already exists (code 1050)
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5112
-  msg: "Invalid schema"
-  sql_state: "HY000"
-}
+command ok
+Got expected error (code 0)
+Got expected error: Table 'books1' already exists (code 1050)
 
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xtest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: ""
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+command ok
+Got expected error (code 0)
+Got expected error: Table 'stuff' already exists (code 1050)
+Got expected error: Invalid number of arguments, expected value for 'name' (code 5015)
+Got expected error: Invalid number of arguments, expected value for 'name' (code 5015)
+Got expected error: Invalid number of arguments, expected value for 'schema' (code 5015)
+Got expected error: Invalid number of arguments, expected value for 'schema' (code 5015)
+Got expected error: 'invalid_field_name' is not a valid field for create_collection command (code 5021)
+Got expected error: Invalid collection name (code 5113)
+Got expected error: Invalid schema (code 5112)
+Got expected error: Incorrect table name ' ' (code 1103)
+Got expected error: Incorrect database name ' ' (code 1102)
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5113
-  msg: "Invalid collection name"
-  sql_state: "HY000"
-}
+command ok
+Got expected error (code 0)
 
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xtest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "\000"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+command ok
+Got expected error (code 0)
+Got expected error: Invalid value for argument 'name' (code 5017)
+Tables_in_xtest
+a table name'with"bad`characters
+books0
+books1
+col lection
+0 rows affected
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5017
-  msg: "Invalid value for argument \'name\'"
-  sql_state: "HY000"
-}
+command ok
+Got expected error (code 0)
 
-RUN drop schema if exists xtest
+command ok
+Got expected error (code 0)
 
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+Got expected error: Invalid number of arguments, expected value for 'name' (code 5015)
+Got expected error: Invalid number of arguments, expected value for 'schema' (code 5015)
+Got expected error: 'extra' is not a valid field for drop_collection command (code 5021)
+Got expected error: Invalid number of arguments, expected value for 'schema' (code 5015)
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	27
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+drop database if exists xtest_1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -437,10 +437,6 @@ Dbtup::verifytabdes()
   }
   delete [] wt;
   ndbrequire(used_words + free_words == cnoOfTabDescrRec);
-  ndbout << "verifytabdes:"
-         << " total: " << cnoOfTabDescrRec
-         << " used: " << used_words
-         << " free: " << free_words
-         << " frags: " << free_frags
-         << endl;
+  g_eventLogger->info("verifytabdes: total: %u used: %u free: %u frags: %u",
+                      cnoOfTabDescrRec, used_words, free_words, free_frags);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,11 @@
 #ifndef DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 #define DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 
+#include <assert.h>
 #include <map>
 #include <memory>
 #include <vector>
 
-#include "my_dbug.h"
 #include "sql/dd/string_type.h"                    // dd::String_type
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/mysqld.h"                            // lower_case_table_names
@@ -77,7 +77,7 @@ class Object_table_definition_impl : public Object_table_definition {
       case Label::ELEMENT:
         return "elem";
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return "";
     }
   }
@@ -107,10 +107,10 @@ class Object_table_definition_impl : public Object_table_definition {
                    const String_type &element_definition,
                    Element_numbers *element_numbers,
                    Element_definitions *element_definitions) {
-    DBUG_ASSERT(element_numbers != nullptr && element_definitions != nullptr &&
-                element_numbers->find(element_name) == element_numbers->end() &&
-                element_definitions->find(element_number) ==
-                    element_definitions->end());
+    assert(element_numbers != nullptr && element_definitions != nullptr &&
+           element_numbers->find(element_name) == element_numbers->end() &&
+           element_definitions->find(element_number) ==
+               element_definitions->end());
 
     (*element_numbers)[element_name] = element_number;
     (*element_definitions)[element_number] = element_definition;
@@ -118,7 +118,7 @@ class Object_table_definition_impl : public Object_table_definition {
 
   int element_number(const String_type &element_name,
                      const Element_numbers &element_numbers) const {
-    DBUG_ASSERT(element_numbers.find(element_name) != element_numbers.end());
+    assert(element_numbers.find(element_name) != element_numbers.end());
     return element_numbers.find(element_name)->second;
   }
 
@@ -131,7 +131,7 @@ class Object_table_definition_impl : public Object_table_definition {
                               Element_definitions *element_defs);
 
  public:
-  Object_table_definition_impl() {}
+  Object_table_definition_impl() = default;
 
   Object_table_definition_impl(const String_type &schema_name,
                                const String_type &table_name,
@@ -140,7 +140,7 @@ class Object_table_definition_impl : public Object_table_definition {
         m_table_name(table_name),
         m_ddl_statement(ddl_statement) {}
 
-  virtual ~Object_table_definition_impl() {}
+  ~Object_table_definition_impl() override = default;
 
   static void set_dd_tablespace_encrypted(bool is_encrypted) {
     s_dd_tablespace_encrypted = is_encrypted;
@@ -186,8 +186,8 @@ class Object_table_definition_impl : public Object_table_definition {
     @param [in,out] buf  Buffer for storing lowercase'd string. Supplied
                          by the caller.
 
-    @retval  A pointer to the src string if l_c_t_n != 2
-    @retval  A pointer to the buf supplied by the caller, into which
+    @returns  A pointer to the src string if l_c_t_n != 2
+    @returns  A pointer to the buf supplied by the caller, into which
              the src string has been copied and lowercase'd, if l_c_t_n == 2
    */
 
@@ -206,20 +206,20 @@ class Object_table_definition_impl : public Object_table_definition {
 
   const String_type &get_table_name() const { return m_table_name; }
 
-  void set_table_name(const String_type &name) { m_table_name = name; }
+  void set_table_name(const String_type &name) override { m_table_name = name; }
 
   void set_schema_name(const String_type &name) { m_schema_name = name; }
 
   void add_field(int field_number, const String_type &field_name,
-                 const String_type field_definition) {
+                 const String_type field_definition) override {
     add_element(field_number, field_name, field_definition, &m_field_numbers,
                 &m_field_definitions);
   }
 
   void add_sql_mode_field(int field_number, const String_type &field_name);
 
-  virtual void add_index(int index_number, const String_type &index_name,
-                         const String_type &index_definition) {
+  void add_index(int index_number, const String_type &index_name,
+                 const String_type &index_definition) override {
     add_element(index_number, index_name, index_definition, &m_index_numbers,
                 &m_index_definitions);
   }
@@ -253,20 +253,20 @@ class Object_table_definition_impl : public Object_table_definition {
     return element_number(option_name, m_option_numbers);
   }
 
-  virtual String_type get_ddl() const;
+  String_type get_ddl() const override;
 
-  virtual const std::vector<String_type> &get_dml() const {
+  const std::vector<String_type> &get_dml() const override {
     return m_dml_statements;
   }
 
-  virtual void store_into_properties(Properties *table_def_properties) const;
+  void store_into_properties(Properties *table_def_properties) const override;
 
   virtual bool restore_from_string(const String_type &ddl_statement) {
     m_ddl_statement = ddl_statement;
     return false;
   }
 
-  virtual bool restore_from_properties(const Properties &table_def_properties);
+  bool restore_from_properties(const Properties &table_def_properties) override;
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -183,7 +183,10 @@ DROP TABLE insert_select_21104470;
 # The group identifier may be any of the items that compare equal
 CREATE TABLE t(a INT PRIMARY KEY);
 INSERT INTO t VALUES (1), (2), (3), (4), (5);
+# Different warnings in the hypergraph join optimizer.
+--disable_warnings
 SELECT 1 FROM t GROUP BY ST_ASGEOJSON(POINT(1, 1)) WITH ROLLUP;
+--enable_warnings
 SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, COUNT(DISTINCT a)
 FROM t GROUP BY je WITH ROLLUP;
 SELECT JSON_EXTRACT(NULL, '$.a') AS je, COUNT(DISTINCT a)
@@ -249,3 +252,26 @@ DROP TABLE D;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
+--echo #
+--echo # Bug#29669251: !THD->IS_ERROR() IN JOIN_READ_CONST_TABLE()
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+WITH
+  cte1 AS (SELECT STD(a) AS a1 FROM t ),
+  cte2 AS (SELECT (JSON_INSERT('$.KEY3', NULL, NULL)) AS a2 FROM t)
+  SELECT cte1.a1 FROM cte1,cte2 WHERE cte1.a1 LIKE cte2.a2;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30348554: JSON COLUMN INTERACTION WITH CHAR() SEEMS INCONSISTENT
+--echo #
+# Used to return true, should return false.
+SELECT JSON_ARRAY(_utf8mb4'abc') = JSON_ARRAY(_binary'abc');
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES (JSON_ARRAY('aaa'));
+# Used to be a no-op, should replace the string with a blob.
+UPDATE t SET j = JSON_REPLACE(j, '$[0]', REPEAT(CHAR(97), 3));
+SELECT j, JSON_TYPE(j->'$[0]') FROM t;
+DROP TABLE t;

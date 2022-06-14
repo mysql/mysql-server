@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqldumpslow\fR
+.\"     Title: mysqldumpslow
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMPSLOW\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLDUMPSLOW" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -61,19 +61,18 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldumpslow [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB \&.\&.\&.]\fR
+mysqldumpslow [\fIoptions\fR] [\fIlog_file\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-Example of usage:
+Example output with no options given:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmysqldumpslow\fR
 Reading mysql slow query log from /usr/local/mysql/data/mysqld80\-slow\&.log
 Count: 1  Time=4\&.32s (4s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
  insert into t2 select * from t1
@@ -98,7 +97,6 @@ supports the following options\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -128,8 +126,12 @@ and strings to
 .\}
 \fB\-\-debug\fR,
 \fB\-d\fR
-.sp
 Run in debug mode\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -310,13 +312,12 @@ queries in the output\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

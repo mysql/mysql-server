@@ -1,5 +1,5 @@
 
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_debug_sync.inc
 
 CALL mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
@@ -1962,39 +1962,6 @@ SET debug="-d,wl7158_replace_routine_table_3";
 DROP TABLE t1;
 DROP USER u1@h;
 
---echo
---echo ########################################################################
---echo # E. Check that it is possible to ALTER  storage engine for privilege
---echo #    tables to MyISAM.
---echo #    This is necessary for mysql_system_tables_fix_for_downgrade.sql
---echo #    to work.
---echo ########################################################################
-
-ALTER TABLE mysql.user ENGINE = MyISAM;
-
-ALTER TABLE mysql.db ENGINE = MyISAM;
-
-ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
-
-ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
-
-ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
-
-ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
-
-SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'mysql' AND
-      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
-                     'proxies_priv', 'tables_priv')
-ORDER BY table_name;
-
-ALTER TABLE mysql.user ENGINE = InnoDB;
-ALTER TABLE mysql.db ENGINE = InnoDB;
-ALTER TABLE mysql.columns_priv ENGINE = InnoDB;
-ALTER TABLE mysql.procs_priv ENGINE = InnoDB;
-ALTER TABLE mysql.proxies_priv ENGINE = InnoDB;
-ALTER TABLE mysql.tables_priv ENGINE = InnoDB;
-
 --echo ########################################################################
 --echo # Checking that it is possible to CREATE privilege tables in MyISAM.
 --echo # This is necessary for upgrade via mysqldump to work.
@@ -2280,25 +2247,6 @@ WHERE table_schema = 'mysql' AND
                      'proxies_priv', 'tables_priv')
 ORDER BY table_name;
 
---echo # Downgrading
---echo
-
---echo
---echo # Alter the storage engine to MyISAM (downgrade).
-
-ALTER TABLE mysql.user ENGINE = MyISAM;
-ALTER TABLE mysql.db ENGINE = MyISAM;
-ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
-ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
-ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
-ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
-
-SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'mysql' AND
-      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
-                     'proxies_priv', 'tables_priv')
-ORDER BY table_name;
-
 --echo # 
 --echo # Clean-up. Restore original state of privilege tables.
 
@@ -2312,18 +2260,26 @@ RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
 RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
 RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 
-#restore the state of the session user
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
-  'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
-  'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
-  'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
-  'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
-INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
- 'mysql.session', 'user', 'root\@localhost',
-  CURRENT_TIMESTAMP, 'Select', '');
-INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance\_schema',
- 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
- 'N','N','N','N','N','N','N');
+
+# Remove user mysql.session and re-created as defined in
+# scripts/mysql_system_users.sql
+
+DROP USER 'mysql.session'@localhost;
+
+CREATE USER 'mysql.session'@localhost IDENTIFIED WITH caching_sha2_password AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' ACCOUNT LOCK;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;
+GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
+GRANT SELECT ON `performance_schema`.* TO 'mysql.session'@localhost;
+GRANT SUPER ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
+
 --disable_query_log ONCE
 --eval UPDATE mysql.tables_priv SET timestamp ='$sess_user_account_priv' WHERE USER= 'mysql.session'
 --disable_query_log ONCE

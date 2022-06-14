@@ -64,7 +64,7 @@ unlock tables;
 # which will fail during copying the table and thus obtaining SNW metadata
 # lock.
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # Check that SNRW lock is compatible with S lock.
 lock table t1 write;
 insert into t1 values (1);
@@ -167,7 +167,7 @@ unlock tables;
 # which will fail during copying the table and thus obtaining SNW metadata
 # lock.
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # Check that SNRW lock is compatible with SH lock.
 lock table t1 write;
 delete from t1 limit 1;
@@ -284,7 +284,7 @@ unlock tables;
 # which will fail during copying the table and thus obtaining SNW metadata
 # lock.
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # Check that SNRW lock is not compatible with SR lock.
 # Sending:
 lock table t1 write;;
@@ -406,7 +406,7 @@ commit;
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'default'.
 begin;
@@ -510,7 +510,7 @@ commit;
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'default'.
 begin;
@@ -591,11 +591,11 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping first ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping another ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'default'.
 set debug_sync= 'alter_opened_table SIGNAL locked WAIT_FOR finish';
@@ -618,7 +618,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping LOCK TABLES
@@ -717,7 +717,7 @@ unlock tables;
 # Again we use ALTER TABLE which fails during copying
 # the table to avoid upgrade of SNW -> X.
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # Check that SNRW lock is incompatible with SRO lock.
 # Sending:
 lock table t1 write;;
@@ -807,7 +807,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping DELETE.
@@ -830,7 +830,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping DELETE.
@@ -853,11 +853,11 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping first ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping another ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # Switching to connection 'default'.
 set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
 # Sending:
@@ -884,7 +884,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping LOCK TABLES
@@ -909,7 +909,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping RENAME TABLE
@@ -997,7 +997,7 @@ unlock tables;
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'default'.
 lock table t1 write;
@@ -1234,7 +1234,7 @@ ERROR 42S01: Table 't2' already exists
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con2'.
 # Prepare for blocking RENAME TABLE.
@@ -1391,7 +1391,7 @@ delete from t1 limit 2;;
 # Check that DELETE is waiting with pending SW lock.
 # Check that SNW lock is compatible with pending SW lock
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 #
 # We can't do similar check for SNRW and X locks because
 # they will also be blocked by active SRO lock.
@@ -1438,7 +1438,7 @@ lock table t1 read;
 unlock tables;
 # Check that SNW lock is compatible with pending SWLP lock
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 #
 # We can't do similar check for SNRW and X locks because
 # they will also be blocked by active SRO lock.
@@ -1555,7 +1555,7 @@ commit;
 # 
 # Switching to connection 'default'.
 # Reaping ALTER.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping DELETE.
@@ -1583,7 +1583,7 @@ commit;
 # 
 # Switching to connection 'default'.
 # Reaping ALTER.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping DELETE.
@@ -1744,7 +1744,7 @@ lock table t1 write;;
 # Check that SNW is compatible with pending SNRW
 # So ALTER TABLE statements are not starved by LOCK TABLEs.
 alter table t1 add primary key (c1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'mdl_con2'.
 # Unblock LOCK TABLE.
@@ -1982,7 +1982,7 @@ ERROR 42S01: Table 't2' already exists
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # Restore pending X lock.
 # 
 # Switching to connection 'mdl_con2'.
@@ -2069,7 +2069,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'mdl_con1'.
 # Reap ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 # 
 # Switching to connection 'default'.
 # Reap INSERT.
@@ -2111,7 +2111,7 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'mdl_con1'.
 # Reap ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'default'.
 # Reap INSERT.
@@ -2141,7 +2141,7 @@ commit;
 # 
 # Switching to connection 'mdl_con1'.
 # Reap ALTER TABLE.
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 # 
 # Switching to connection 'default'.
 #
@@ -3361,7 +3361,7 @@ unlock tables;
 # Switching to connection 'default'.
 # Reaping SHOW FIELDS ...
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 drop table t2;
 # Switching to connection 'con46044_2'.
 lock tables t1 write;
@@ -3548,6 +3548,7 @@ SET DEBUG_SYNC= 'RESET';
 SET @@global.general_log= @old_general_log;
 SET @@global.log_output= @old_log_output;
 SET @@session.sql_log_off= @old_sql_log_off;
+TRUNCATE TABLE mysql.general_log;
 #
 # Additional coverage for bug #50913 "Deadlock between
 # open_and_lock_tables_derived and MDL". The main test

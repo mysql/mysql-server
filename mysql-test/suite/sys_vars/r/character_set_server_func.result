@@ -8,10 +8,10 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 'connection con1'
 SELECT @@global.character_set_server;
 @@global.character_set_server
-utf8
+utf8mb3
 SELECT @@session.character_set_server;
 @@session.character_set_server
-utf8
+utf8mb3
 '#--------------------FN_DYNVARS_009_02-------------------------#'
 'connection default'
 '---global character_set_server should not effects current connection---'
@@ -35,27 +35,27 @@ CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP DATABASE db1;
 select @@character_set_database;
 @@character_set_database
-utf8
+utf8mb3
 '----test with new connection----'
 'connect (con1,localhost,root,,,,)'
 'connection con1'
 SELECT @@session.character_set_server;
 @@session.character_set_server
-utf8
+utf8mb3
 '----------character set not specified---------'
 CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP DATABASE db1;
 SELECT @@character_set_database;
 @@character_set_database
-utf8
+utf8mb3
 '----------ascii character set specified----------'
 CREATE DATABASE db1 character set ascii;
 USE db1;
@@ -65,7 +65,7 @@ db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAU
 DROP DATABASE db1;
 select @@character_set_database;
 @@character_set_database
-utf8
+utf8mb3
 'connection default;'
 SET @@global.character_set_server = @global_character_set_server;
 SET @@session.character_set_server = @session_character_set_server;

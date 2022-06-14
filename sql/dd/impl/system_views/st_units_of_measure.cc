@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ static std::string to_string(const gis::Unit_Type unit_type) {
   if (unit_type == gis::Unit_Type::kLinear) {
     return "LINEAR";
   } else {
-    DBUG_ASSERT(false);
+    assert(false);
     return "";
   }
 }
@@ -78,11 +78,11 @@ St_units_of_measure::St_units_of_measure() {
        << "]";
   }
 
-  ss << "]', '$[*]' COLUMNS(UNIT_NAME VARCHAR(255) PATH '$[0]'"
+  ss << "]', '$[*]' COLUMNS(UNIT_NAME VARCHAR(255) CHARSET utf8mb4 PATH '$[0]'"
      << ", "
-     << "UNIT_TYPE VARCHAR(7) PATH '$[1]'"
+     << "UNIT_TYPE VARCHAR(7) CHARSET utf8mb4 PATH '$[1]'"
      << ", "
-     << "DESCRIPTION VARCHAR(255) PATH '$[2]'"
+     << "DESCRIPTION VARCHAR(255) CHARSET utf8mb4 PATH '$[2]'"
      << ", "
      << "CONVERSION_FACTOR DOUBLE PRECISION PATH '$[3]'"
      << ")) AS ST_UNITS_OF_MEASURE";

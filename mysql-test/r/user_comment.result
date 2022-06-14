@@ -1,0 +1,189 @@
+SET @org_partial_revokes= @@partial_revokes;
+SET @org_sql_mode= @@sql_mode;
+CREATE USER u1;
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+ALTER USER u1 COMMENT 'free form text';
+SELECT user,user_attributes FROM mysql.user WHERE user='u1';
+user	user_attributes
+u1	{"metadata": {"comment": "free form text"}}
+ALTER USER u1 COMMENT 'changed the free form text';
+SELECT user,user_attributes FROM mysql.user WHERE user='u1';
+user	user_attributes
+u1	{"metadata": {"comment": "changed the free form text"}}
+ALTER USER u1 ATTRIBUTE '{"uid" : "34234"}';
+SELECT user,user_attributes FROM mysql.user WHERE user='u1';
+user	user_attributes
+u1	{"metadata": {"uid": "34234", "comment": "changed the free form text"}}
+ALTER USER u1 ATTRIBUTE '{"speed" : "9000"}';
+SELECT user,user_attributes FROM mysql.user WHERE user='u1';
+user	user_attributes
+u1	{"metadata": {"uid": "34234", "speed": "9000", "comment": "changed the free form text"}}
+ALTER USER u1 ATTRIBUTE '{"speed" : null }';
+# should not contain the speed attribute!
+SELECT user,user_attributes FROM mysql.user WHERE user='u1';
+user	user_attributes
+u1	{"metadata": {"uid": "34234", "comment": "changed the free form text"}}
+# Should be NULL
+SELECT user_attributes->>"$.metadata.speed" FROM mysql.user WHERE user= 'u1';
+user_attributes->>"$.metadata.speed"
+NULL
+CREATE USER foo@localhost IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 4 PASSWORD_LOCK_TIME 6;
+ALTER USER foo@localhost COMMENT 'password lock time';
+SELECT user_attributes->>"$.metadata" FROM mysql.user WHERE user='foo';
+user_attributes->>"$.metadata"
+{"comment": "password lock time"}
+ALTER USER foo@localhost ATTRIBUTE '{"flag":"red"}';
+SHOW CREATE USER foo@localhost;
+CREATE USER for foo@localhost
+CREATE USER `foo`@`localhost` IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT FAILED_LOGIN_ATTEMPTS 4 PASSWORD_LOCK_TIME 6 ATTRIBUTE '{"flag": "red", "comment": "password lock time"}'
+SELECT user_attributes FROM mysql.user WHERE user='foo';
+user_attributes
+{"metadata": {"flag": "red", "comment": "password lock time"}, "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+ALTER USER foo@localhost ATTRIBUTE '{"flag":null}';
+SELECT user_attributes FROM mysql.user WHERE user='foo';
+user_attributes
+{"metadata": {"comment": "password lock time"}, "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+ALTER USER foo@localhost COMMENT 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+SELECT user_attributes FROM mysql.user WHERE user= 'foo';
+user_attributes
+{"metadata": {"comment": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"}, "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+ALTER USER foo@localhost COMMENT 'xxx';
+ALTER USER foo@localhost ATTRIBUTE 'not a valid object';
+ERROR HY000: The user attribute must be a valid JSON object
+ALTER USER foo@localhost ATTRIBUTE NULL;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+ALTER USER foo@localhost ATTRIBUTE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER USER foo@localhost COMMENT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER USER u4@sdasd ATTRIBUTE '{}';
+ERROR HY000: Operation ALTER USER failed for 'u4'@'sdasd'
+ALTER USER fff@asdasd COMMENT '';
+ERROR HY000: Operation ALTER USER failed for 'fff'@'asdasd'
+ALTER USER USER() COMMENT 'test';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COMMENT 'test'' at line 1
+CREATE USER foo2@localhost IDENTIFIED BY 'foo' COMMENT 'xxx';
+SHOW CREATE USER foo2@localhost;
+CREATE USER for foo2@localhost
+CREATE USER `foo2`@`localhost` IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT ATTRIBUTE '{"comment": "xxx"}'
+SELECT user,user_attributes FROM mysql.user WHERE user='foo2';
+user	user_attributes
+foo2	{"metadata": {"comment": "xxx"}}
+CREATE USER foo3 PASSWORD EXPIRE DEFAULT COMMENT 'abc';
+CREATE USER foo4 ACCOUNT LOCK ATTRIBUTE '{"stuff":"ffuts"}';
+ALTER USER foo4 ACCOUNT UNLOCK ATTRIBUTE '{"stuff":"unlocked"}';
+SHOW CREATE USER foo4;
+CREATE USER for foo4@%
+CREATE USER `foo4`@`%` IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT ATTRIBUTE '{"stuff": "unlocked"}'
+SELECT user,user_attributes FROM mysql.user WHERE user like 'foo%';
+user	user_attributes
+foo3	{"metadata": {"comment": "abc"}}
+foo4	{"metadata": {"stuff": "unlocked"}}
+foo	{"metadata": {"comment": "xxx"}, "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+foo2	{"metadata": {"comment": "xxx"}}
+SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER like 'foo%';
+USER	HOST	ATTRIBUTE
+foo3	%	{"comment": "abc"}
+foo4	%	{"stuff": "unlocked"}
+foo	localhost	{"comment": "xxx"}
+foo2	localhost	{"comment": "xxx"}
+SELECT `attribute`->>"$.comment" FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER like 'foo%';
+`attribute`->>"$.comment"
+abc
+NULL
+xxx
+xxx
+# Verify that comments can be added along with other json-attributes
+SET GLOBAL partial_revokes=ON;
+GRANT SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON mysql.* FROM foo@localhost;
+SELECT user, user_attributes FROM mysql.user WHERE user='foo';
+user	user_attributes
+foo	{"metadata": {"comment": "xxx"}, "Restrictions": [{"Database": "mysql", "Privileges": ["SELECT"]}], "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+ALTER USER foo@localhost ATTRIBUTE '{"key":"value"}';
+ALTER USER foo@localhost COMMENT 'Added key/value pair';
+SELECT user,user_attributes FROM mysql.user WHERE user='foo';
+user	user_attributes
+foo	{"metadata": {"key": "value", "comment": "Added key/value pair"}, "Restrictions": [{"Database": "mysql", "Privileges": ["SELECT"]}], "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+GRANT SELECT ON mysql.* TO foo@localhost;
+SELECT user,user_attributes FROM mysql.user WHERE user='foo';
+user	user_attributes
+foo	{"metadata": {"key": "value", "comment": "Added key/value pair"}, "Password_locking": {"failed_login_attempts": 4, "password_lock_time_days": 6}}
+CREATE USER redqueen@localhost IDENTIFIED BY 'shoo';
+ALTER USER redqueen@localhost IDENTIFIED BY 'madness' RETAIN CURRENT PASSWORD;
+SELECT user,char_length(user_attributes->>"$.additional_password") FROM mysql.user WHERE user='redqueen';
+user	char_length(user_attributes->>"$.additional_password")
+redqueen	70
+ALTER USER redqueen@localhost DISCARD OLD PASSWORD COMMENT 'Dropped old password';
+SELECT user,char_length(user_attributes->>"$.additional_password") as length_password,user_attributes->>"$.metadata.comment" as comment FROM mysql.user WHERE user='redqueen';
+user	length_password	comment
+redqueen	NULL	Dropped old password
+SET GLOBAL partial_revokes=OFF;
+DROP USER foo@localhost, u1, foo3, foo2@localhost, foo4, redqueen@localhost;
+**** NO_BACKSLASH_ESCAPES changes quoting of JSON
++++++ NO_BACKSLASH_ESCAPES = OFF
+CREATE USER u1 COMMENT 'Hello "Smith"';
+DROP USER u1;
+CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT ATTRIBUTE '{"comment": "Hello \\"Smith\\""}';
+DROP USER u1;
++++++ NO_BACKSLASH_ESCAPES = ON
+CREATE USER u1 COMMENT 'Hello "Smith"';
+SET @@sql_mode='NO_BACKSLASH_ESCAPES';
+DROP USER u1;
+CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT ATTRIBUTE '{"comment": "Hello \"Smith\""}';
+DROP USER u1;
+SET @@sql_mode = @org_sql_mode;
+*
+* Check privileges
+* 
+CREATE USER u1@localhost IDENTIFIED BY 'foo' COMMENT 'Not permitted to change this';
+GRANT SELECT ON *.* to u1@localhost;
+ALTER USER u1@localhost COMMENT 'I comment what I want';
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+ALTER USER u1@localhost ATTRIBUTE '{"key": "value"}';
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+DROP USER u1@localhost;
+*
+* Partial revokes and user comments
+*
+CREATE USER u1@localhost IDENTIFIED BY 'foo',u2@localhost IDENTIFIED BY 'foo' COMMENT "Works with partial restrictions";
+GRANT CREATE USER,SELECT ON *.* TO u2@localhost;
+GRANT INSERT, CREATE ON *.* TO u1@localhost;
+SET GLOBAL partial_revokes=ON;
+REVOKE INSERT ON mysql.* FROM u1@localhost;
+SELECT user_attributes FROM mysql.user WHERE user='u1';
+user_attributes
+{"metadata": {"comment": "Works with partial restrictions"}, "Restrictions": [{"Database": "mysql", "Privileges": ["INSERT"]}]}
+ALTER USER CURRENT_USER() COMMENT 'test';
+SELECT user_attributes->>"$.metadata.comment" FROM mysql.user WHERE user='u2';
+user_attributes->>"$.metadata.comment"
+test
+ALTER USER CURRENT_USER() ATTRIBUTE '{ "comment" : null }';
+REVOKE CREATE ON mysql.* FROM u1@localhost;
+ERROR 42000: Access denied for user 'u2'@'localhost' to database 'mysql'
+SHOW GRANTS FOR u1@localhost;
+Grants for u1@localhost
+GRANT INSERT, CREATE ON *.* TO `u1`@`localhost`
+REVOKE INSERT ON `mysql`.* FROM `u1`@`localhost`
+#
+# Add a fake Restrictions key as a metadata attribute. This should have no effect
+# on the existing restrictions.
+#
+ALTER USER u1@localhost ATTRIBUTE '{"Restrictions": [{"Database":"mysql","Privileges": [ "CREATE" ]}]}';
+SHOW GRANTS FOR u1@localhost;
+Grants for u1@localhost
+GRANT INSERT, CREATE ON *.* TO `u1`@`localhost`
+REVOKE INSERT ON `mysql`.* FROM `u1`@`localhost`
+# Above privilege should be REVOKE INSERT 
+# 
+# Below we should see both the fake Restrictions-key under the metadata key and 
+# the real Restrictions-key in the top of the hierarchy.
+SELECT user_attributes FROM mysql.user WHERE user='u1';
+user_attributes
+{"metadata": {"comment": "Works with partial restrictions", "Restrictions": [{"Database": "mysql", "Privileges": ["CREATE"]}]}, "Restrictions": [{"Database": "mysql", "Privileges": ["INSERT"]}]}
+DROP USER u1@localhost, u2@localhost;
+CREATE USER u1@localhost ATTRIBUTE "this is a string";
+ERROR HY000: The user attribute must be a valid JSON object
+SET GLOBAL partial_revokes=@org_partial_revokes;

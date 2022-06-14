@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,36 +30,42 @@
 #include <sstream>
 #include <utility>
 
+#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
+#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/log_event.h"
-#include "sql/mysqld.h"              // opt_mts_slave_parallel_workers
+#include "sql/mysqld.h"              // opt_mts_replica_parallel_workers
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/protocol_classic.h"
+#include "sql/raii/sentry.h"
+#include "sql/rpl_async_conn_failover_configuration_propagation.h"
+#include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info_factory.h"
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
-#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_mta_submode.h"
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
 #include "sql/rpl_rli_pdb.h"
-#include "sql/rpl_slave.h"
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -82,22 +88,22 @@
 int channel_stop(Master_info *mi, int threads_to_stop, long timeout);
 
 int initialize_channel_service_interface() {
-  DBUG_ENTER("initialize_channel_service_interface");
+  DBUG_TRACE;
 
   // master info and relay log repositories must be TABLE
   if (opt_mi_repository_id != INFO_REPOSITORY_TABLE ||
       opt_rli_repository_id != INFO_REPOSITORY_TABLE) {
     LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   // server id must be different from 0
   if (server_id == 0) {
     LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID);
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void set_mi_settings(Master_info *mi,
@@ -107,14 +113,18 @@ static void set_mi_settings(Master_info *mi,
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
 
+  mi->rli->set_ignore_write_set_memory_limit(
+      channel_info->m_ignore_write_set_memory_limit);
+  mi->rli->set_allow_drop_write_set(channel_info->m_allow_drop_write_set);
+
   mi->rli->replicate_same_server_id =
       (channel_info->replicate_same_server_id == RPL_SERVICE_SERVER_DEFAULT)
           ? replicate_same_server_id
           : channel_info->replicate_same_server_id;
 
-  mi->rli->opt_slave_parallel_workers =
+  mi->rli->opt_replica_parallel_workers =
       (channel_info->channel_mts_parallel_workers == RPL_SERVICE_SERVER_DEFAULT)
-          ? opt_mts_slave_parallel_workers
+          ? opt_mts_replica_parallel_workers
           : channel_info->channel_mts_parallel_workers;
 
   if (channel_info->channel_mts_parallel_type == RPL_SERVICE_SERVER_DEFAULT) {
@@ -131,11 +141,27 @@ static void set_mi_settings(Master_info *mi,
   }
 
   mi->rli->checkpoint_group =
-      (channel_info->channel_mts_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT)
-          ? opt_mts_checkpoint_group
-          : channel_info->channel_mts_checkpoint_group;
+      (channel_info->channel_mta_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT)
+          ? opt_mta_checkpoint_group
+          : channel_info->channel_mta_checkpoint_group;
 
-  mi->set_mi_description_event(new Format_description_log_event());
+  Format_description_log_event *fde = new Format_description_log_event();
+  /*
+    Group replication applier channel shall not use checksum on its relay log
+    files.
+  */
+  if (channel_map.is_group_replication_channel_name(mi->get_channel(), true)) {
+    fde->footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    /*
+      When the receiver thread connects to the master, it gets its current
+      binlog checksum algorithm, but as GR applier channel has no receiver
+      thread (and also does not connect to a master), we will set the variable
+      here to BINLOG_CHECKSUM_ALG_OFF as events queued after certification have
+      no checksum information.
+    */
+    mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  }
+  mi->set_mi_description_event(fde);
 
   mysql_mutex_unlock(&mi->data_lock);
   mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
@@ -163,42 +189,47 @@ static void delete_surrogate_thread(THD *thd) {
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->type = SLAVE_REPLICATION_CHANNEL;
-  channel_info->hostname = 0;
+  channel_info->hostname = nullptr;
   channel_info->port = 0;
-  channel_info->user = 0;
-  channel_info->password = 0;
-  channel_info->ssl_info = 0;
+  channel_info->user = nullptr;
+  channel_info->password = nullptr;
+  channel_info->ssl_info = nullptr;
   channel_info->auto_position = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_type = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_workers = RPL_SERVICE_SERVER_DEFAULT;
-  channel_info->channel_mts_checkpoint_group = RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->channel_mta_checkpoint_group = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->replicate_same_server_id = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->thd_tx_priority = 0;
   channel_info->sql_delay = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->preserve_relay_logs = false;
   channel_info->retry_count = 0;
   channel_info->connect_retry = 0;
-  channel_info->public_key_path = 0;
+  channel_info->public_key_path = nullptr;
   channel_info->get_public_key = 0;
+  channel_info->compression_algorithm = nullptr;
+  channel_info->zstd_compression_level = 0;
+  channel_info->m_ignore_write_set_memory_limit = false;
+  channel_info->m_allow_drop_write_set = false;
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
   channel_ssl_info->use_ssl = 0;
-  channel_ssl_info->ssl_ca_file_name = 0;
-  channel_ssl_info->ssl_ca_directory = 0;
-  channel_ssl_info->ssl_cert_file_name = 0;
-  channel_ssl_info->ssl_crl_file_name = 0;
-  channel_ssl_info->ssl_crl_directory = 0;
-  channel_ssl_info->ssl_key = 0;
-  channel_ssl_info->ssl_cipher = 0;
-  channel_ssl_info->tls_version = 0;
+  channel_ssl_info->ssl_ca_file_name = nullptr;
+  channel_ssl_info->ssl_ca_directory = nullptr;
+  channel_ssl_info->ssl_cert_file_name = nullptr;
+  channel_ssl_info->ssl_crl_file_name = nullptr;
+  channel_ssl_info->ssl_crl_directory = nullptr;
+  channel_ssl_info->ssl_key = nullptr;
+  channel_ssl_info->ssl_cipher = nullptr;
+  channel_ssl_info->tls_version = nullptr;
   channel_ssl_info->ssl_verify_server_cert = 0;
+  channel_ssl_info->tls_ciphersuites = nullptr;
 }
 
 void initialize_channel_connection_info(Channel_connection_info *channel_info) {
   channel_info->until_condition = CHANNEL_NO_UNTIL_CONDITION;
-  channel_info->gtid = 0;
-  channel_info->view_id = 0;
+  channel_info->gtid = nullptr;
+  channel_info->view_id = nullptr;
 }
 
 static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
@@ -238,13 +269,20 @@ static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
     lex_mi->ssl_cipher = channel_ssl_info->ssl_cipher;
   }
 
+  if (channel_ssl_info->tls_ciphersuites != nullptr) {
+    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_STRING;
+    lex_mi->tls_ciphersuites_string = channel_ssl_info->tls_ciphersuites;
+  } else {
+    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_NULL;
+  }
+
   lex_mi->ssl_verify_server_cert = (channel_ssl_info->ssl_verify_server_cert)
                                        ? LEX_MASTER_INFO::LEX_MI_ENABLE
                                        : LEX_MASTER_INFO::LEX_MI_DISABLE;
 }
 
 int channel_create(const char *channel, Channel_creation_info *channel_info) {
-  DBUG_ENTER("channel_create");
+  DBUG_TRACE;
 
   Master_info *mi = nullptr;
   int error = 0;
@@ -255,14 +293,14 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
 
   // Don't create default channels
   if (!strcmp(channel_map.get_default_channel(), channel))
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
+    return RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR;
 
-  /* Service channels are not supposed to use sql_slave_skip_counter */
-  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-  if (sql_slave_skip_counter > 0)
+  /* Service channels are not supposed to use sql_replica_skip_counter */
+  mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
+  if (sql_replica_skip_counter > 0)
     error = RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
-  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  if (error) DBUG_RETURN(error);
+  mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
+  if (error) return error;
 
   channel_map.wrlock();
 
@@ -320,6 +358,26 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     }
   }
 
+  if (channel_info->compression_algorithm != nullptr) {
+    lex_mi->compression_algorithm = channel_info->compression_algorithm;
+  }
+  if (channel_info->zstd_compression_level) {
+    lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
+  }
+
+  lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+  if (channel_info->m_source_connection_auto_failover) {
+    if (mi && !mi->is_source_connection_auto_failover()) {
+      lex_mi->m_source_connection_auto_failover =
+          LEX_MASTER_INFO::LEX_MI_ENABLE;
+    }
+  } else {
+    if (mi && mi->is_source_connection_auto_failover()) {
+      lex_mi->m_source_connection_auto_failover =
+          LEX_MASTER_INFO::LEX_MI_DISABLE;
+    }
+  }
+
   if (channel_info->ssl_info != nullptr) {
     set_mi_ssl_options(lex_mi, channel_info->ssl_info);
   }
@@ -339,9 +397,9 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
   set_mi_settings(mi, channel_info);
 
   if (channel_map.is_group_replication_channel_name(mi->get_channel())) {
-    thd->variables.max_allowed_packet = slave_max_allowed_packet;
-    thd->get_protocol_classic()->set_max_packet_size(slave_max_allowed_packet +
-                                                     MAX_LOG_EVENT_HEADER);
+    thd->variables.max_allowed_packet = replica_max_allowed_packet;
+    thd->get_protocol_classic()->set_max_packet_size(
+        replica_max_allowed_packet + MAX_LOG_EVENT_HEADER);
   }
 
 err:
@@ -353,27 +411,34 @@ err:
 
   delete lex_mi;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_start(const char *channel, Channel_connection_info *connection_info,
-                  int threads_to_start, int wait_for_connection) {
-  DBUG_ENTER("channel_start(channel, threads_to_start, wait_for_connection");
+                  int threads_to_start, int wait_for_connection,
+                  bool use_server_mta_configuration,
+                  bool channel_map_already_locked) {
+  DBUG_TRACE;
   int error = 0;
   int thread_mask = 0;
   LEX_MASTER_INFO lex_mi;
   ulong thread_start_id = 0;
   bool thd_created = false;
   THD *thd = current_thd;
+  String_set user, pass, auth;
 
-  /* Service channels are not supposed to use sql_slave_skip_counter */
-  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-  if (sql_slave_skip_counter > 0)
+  /* Service channels are not supposed to use sql_replica_skip_counter */
+  mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
+  if (sql_replica_skip_counter > 0)
     error = RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
-  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  if (error) DBUG_RETURN(error);
+  mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
+  if (error) return error;
 
-  channel_map.wrlock();
+  if (channel_map_already_locked) {
+    channel_map.assert_some_wrlock();
+  } else {
+    channel_map.wrlock();
+  }
 
   Master_info *mi = channel_map.get_mi(channel);
 
@@ -395,6 +460,16 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   LEX_SLAVE_CONNECTION lex_connection;
   lex_connection.reset();
 
+  if (!Rpl_channel_credentials::get_instance().get_credentials(channel, user,
+                                                               pass, auth)) {
+    lex_connection.user =
+        (user.first ? const_cast<char *>(user.second.c_str()) : nullptr);
+    lex_connection.password =
+        (pass.first ? const_cast<char *>(pass.second.c_str()) : nullptr);
+    lex_connection.plugin_auth =
+        (auth.first ? const_cast<char *>(auth.second.c_str()) : nullptr);
+  }
+
   if (connection_info->until_condition != CHANNEL_NO_UNTIL_CONDITION) {
     switch (connection_info->until_condition) {
       case CHANNEL_UNTIL_APPLIER_AFTER_GTIDS:
@@ -409,11 +484,11 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
         lex_mi.until_after_gaps = true;
         break;
       case CHANNEL_UNTIL_VIEW_ID:
-        DBUG_ASSERT((thread_mask & SLAVE_SQL) && connection_info->view_id);
+        assert((thread_mask & SLAVE_SQL) && connection_info->view_id);
         lex_mi.view_id = connection_info->view_id;
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -425,7 +500,8 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     thd = create_surrogate_thread();
   }
 
-  error = start_slave(thd, &lex_connection, &lex_mi, thread_mask, mi, false);
+  error = start_slave(thd, &lex_connection, &lex_mi, thread_mask, mi,
+                      use_server_mta_configuration);
 
   if (wait_for_connection && (thread_mask & SLAVE_IO) && !error) {
     mysql_mutex_lock(&mi->run_lock);
@@ -449,13 +525,15 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   }
 
 err:
-  channel_map.unlock();
+  if (!channel_map_already_locked) {
+    channel_map.unlock();
+  }
 
   if (thd_created) {
     delete_surrogate_thread(thd);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
@@ -473,7 +551,7 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   mi->channel_wrlock();
   lock_slave_threads(mi);
 
-  init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&server_thd_mask, mi, false /* not inverse*/);
 
   if ((threads_to_stop & CHANNEL_APPLIER_THREAD) &&
       (server_thd_mask & SLAVE_SQL)) {
@@ -482,6 +560,10 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
       (server_thd_mask & SLAVE_IO)) {
     thread_mask |= SLAVE_IO;
+  }
+  if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
+      (server_thd_mask & SLAVE_MONITOR)) {
+    thread_mask |= SLAVE_MONITOR;
   }
 
   if (thread_mask == 0) {
@@ -508,7 +590,7 @@ end:
 }
 
 int channel_stop(const char *channel, int threads_to_stop, long timeout) {
-  DBUG_ENTER("channel_stop(channel, stop_receiver, stop_applier, timeout");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -518,7 +600,7 @@ int channel_stop(const char *channel, int threads_to_stop, long timeout) {
 
   channel_map.unlock();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_stop_all(int threads_to_stop, long timeout,
@@ -567,8 +649,31 @@ int channel_stop_all(int threads_to_stop, long timeout,
   return error;
 }
 
+class Kill_binlog_dump : public Do_THD_Impl {
+ public:
+  Kill_binlog_dump() = default;
+
+  void operator()(THD *thd_to_kill) override {
+    if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||
+        thd_to_kill->get_command() == COM_BINLOG_DUMP_GTID) {
+      assert(thd_to_kill != current_thd);
+      MUTEX_LOCK(thd_data_lock, &thd_to_kill->LOCK_thd_data);
+      thd_to_kill->duplicate_slave_id = true;
+      thd_to_kill->awake(THD::KILL_CONNECTION);
+    }
+  }
+};
+
+int binlog_dump_thread_kill() {
+  DBUG_TRACE;
+  Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
+  Kill_binlog_dump kill_binlog_dump;
+  thd_manager->do_for_all_thd(&kill_binlog_dump);
+  return 0;
+}
+
 int channel_purge_queue(const char *channel, bool reset_all) {
-  DBUG_ENTER("channel_purge_queue(channel, only_purge");
+  DBUG_TRACE;
 
   channel_map.wrlock();
 
@@ -576,7 +681,7 @@ int channel_purge_queue(const char *channel, bool reset_all) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   bool thd_init = init_thread_context();
@@ -589,13 +694,13 @@ int channel_purge_queue(const char *channel, bool reset_all) {
     clean_thread_context();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool channel_is_active(const char *channel,
                        enum_channel_thread_types thd_type) {
   int thread_mask = 0;
-  DBUG_ENTER("channel_is_active(channel, thd_type");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -603,30 +708,30 @@ bool channel_is_active(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(false);
+    return false;
   }
 
-  init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&thread_mask, mi, false /* not inverse*/);
 
   channel_map.unlock();
 
   switch (thd_type) {
     case CHANNEL_NO_THD:
-      DBUG_RETURN(true);  // return true as the channel exists
+      return true;  // return true as the channel exists
     case CHANNEL_RECEIVER_THREAD:
-      DBUG_RETURN(thread_mask & SLAVE_IO);
+      return thread_mask & SLAVE_IO;
     case CHANNEL_APPLIER_THREAD:
-      DBUG_RETURN(thread_mask & SLAVE_SQL);
+      return thread_mask & SLAVE_SQL;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 int channel_get_thread_id(const char *channel,
                           enum_channel_thread_types thd_type,
                           unsigned long **thread_id) {
-  DBUG_ENTER("channel_get_thread_id(channel, thread_type ,*thread_id");
+  DBUG_TRACE;
 
   int number_threads = -1;
 
@@ -636,7 +741,7 @@ int channel_get_thread_id(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   switch (thd_type) {
@@ -654,7 +759,7 @@ int channel_get_thread_id(const char *channel,
       if (mi->rli != nullptr) {
         mysql_mutex_lock(&mi->rli->run_lock);
 
-        if (mi->rli->slave_parallel_workers > 0) {
+        if (mi->rli->replica_parallel_workers > 0) {
           // Parallel applier.
           size_t num_workers = mi->rli->get_worker_count();
           number_threads = 1 + num_workers;
@@ -712,11 +817,11 @@ int channel_get_thread_id(const char *channel,
 
   channel_map.unlock();
 
-  DBUG_RETURN(number_threads);
+  return number_threads;
 }
 
 long long channel_get_last_delivered_gno(const char *channel, int sidno) {
-  DBUG_ENTER("channel_get_last_delivered_gno(channel, sidno)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -724,7 +829,7 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   rpl_gno last_gno = 0;
@@ -734,7 +839,7 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
   last_gno = mi->rli->get_gtid_set()->get_last_gno(sidno);
   sid_lock->unlock();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   const Gtid_set *retrieved_gtid_set = mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string = nullptr;
   sid_lock->wrlock();
@@ -747,17 +852,17 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
 
   channel_map.unlock();
 
-  DBUG_RETURN(last_gno);
+  return last_gno;
 }
 
 int channel_add_executed_gtids_to_received_gtids(const char *channel) {
-  DBUG_ENTER("channel_add_executed_gtids_to_received_gtids(channel)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
   Master_info *mi = channel_map.get_mi(channel);
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   global_sid_lock->wrlock();
@@ -768,13 +873,13 @@ int channel_add_executed_gtids_to_received_gtids(const char *channel) {
   global_sid_lock->unlock();
   channel_map.unlock();
 
-  DBUG_RETURN(return_status != RETURN_STATUS_OK);
+  return return_status != RETURN_STATUS_OK;
 }
 
 int channel_queue_packet(const char *channel, const char *buf,
                          unsigned long event_len) {
   int result;
-  DBUG_ENTER("channel_queue_packet(channel, event_buffer, event_len)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -782,18 +887,18 @@ int channel_queue_packet(const char *channel, const char *buf,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
   channel_map.unlock();
 
   result = queue_event(mi, buf, event_len, false /*flush_master_info*/);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int channel_wait_until_apply_queue_applied(const char *channel,
                                            double timeout) {
-  DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -801,7 +906,7 @@ int channel_wait_until_apply_queue_applied(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   mi->inc_reference();
@@ -824,18 +929,17 @@ int channel_wait_until_apply_queue_applied(const char *channel,
   my_free(retrieved_gtid_set_buf);
   mi->dec_reference();
 
-  if (error == -1) DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
-  if (error == -2) DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
+  if (error == -1) return REPLICATION_THREAD_WAIT_TIMEOUT_ERROR;
+  if (error == -2) return REPLICATION_THREAD_WAIT_NO_INFO_ERROR;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_wait_until_transactions_applied(const char *channel,
                                             const char *gtid_set,
                                             double timeout,
                                             bool update_THD_status) {
-  DBUG_ENTER(
-      "channel_wait_until_transactions_applied(channel, gtid_set, timeout)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -843,9 +947,8 @@ int channel_wait_until_transactions_applied(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock(); /* purecov: inspected */
-    DBUG_RETURN(
-        RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR); /* purecov:
-                                                               inspected */
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR; /* purecov:
+                                                                  inspected */
   }
 
   mi->inc_reference();
@@ -855,14 +958,14 @@ int channel_wait_until_transactions_applied(const char *channel,
                                          update_THD_status);
   mi->dec_reference();
 
-  if (error == -1) DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
-  if (error == -2) DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
+  if (error == -1) return REPLICATION_THREAD_WAIT_TIMEOUT_ERROR;
+  if (error == -2) return REPLICATION_THREAD_WAIT_NO_INFO_ERROR;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_is_applier_waiting(const char *channel) {
-  DBUG_ENTER("channel_is_applier_waiting(channel)");
+  DBUG_TRACE;
   int result = RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
 
   channel_map.rdlock();
@@ -871,7 +974,7 @@ int channel_is_applier_waiting(const char *channel) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(result);
+    return result;
   }
 
   unsigned long *thread_ids = nullptr;
@@ -905,34 +1008,31 @@ end:
   channel_map.unlock();
   my_free(thread_ids);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
-  DBUG_ENTER("channel_is_applier_thread_waiting(thread_id, worker)");
+  DBUG_TRACE;
   int result = -1;
 
   Find_thd_with_id find_thd_with_id(thread_id);
-  THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd) {
-    result = 0;
-
-    const char *proc_info = thd->get_proc_info();
-    if (proc_info) {
-      const char *stage_name = stage_slave_has_read_all_relay_log.m_name;
-      if (worker)
-        stage_name = stage_slave_waiting_event_from_coordinator.m_name;
-
-      if (!strcmp(proc_info, stage_name)) result = 1;
-    }
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+  THD_ptr thd_ptr =
+      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd_ptr) {
+    if (thd_ptr->get_current_stage_key() ==
+        (worker ? stage_replica_waiting_event_from_coordinator
+                : stage_replica_has_read_all_relay_log)
+            .m_key)
+      result = 1;
+    else
+      result = 0;
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int channel_flush(const char *channel) {
-  DBUG_ENTER("channel_flush(channel)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -940,18 +1040,18 @@ int channel_flush(const char *channel) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   bool error = (flush_relay_logs(mi, mi->info_thd) == 1);
 
   channel_map.unlock();
 
-  DBUG_RETURN(error ? 1 : 0);
+  return error ? 1 : 0;
 }
 
 int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
-  DBUG_ENTER("channel_get_retrieved_gtid_set(channel,retrieved_set)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -959,7 +1059,7 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   mi->inc_reference();
@@ -972,43 +1072,74 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
 
   mi->dec_reference();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
-int channel_get_credentials(const char *channel, const char **user, char **pass,
-                            size_t *pass_size) {
-  DBUG_ENTER("channel_get_credentials(channel,user,password, pass_size)");
+int channel_get_credentials(const char *channel, std::string &username,
+                            std::string &password) {
+  DBUG_TRACE;
+  String_set user_store, pass_store, auth_store;
+
+  if (!Rpl_channel_credentials::get_instance().get_credentials(
+          channel, user_store, pass_store, auth_store)) {
+    if (user_store.first) username = user_store.second;
+    if (pass_store.first) password = pass_store.second;
+    return 0;
+  }
 
   channel_map.rdlock();
-
   Master_info *mi = channel_map.get_mi(channel);
 
-  if (mi == NULL) {
+  if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   mi->inc_reference();
   channel_map.unlock();
 
-  *user = mi->get_user();
-  mi->get_password(*pass, pass_size);
+  char pass[MAX_PASSWORD_LENGTH + 1];
+  size_t pass_size;
+  mi->get_password(pass, &pass_size);
+  username.assign(mi->get_user());
+  password.assign(pass, pass_size);
 
   mi->dec_reference();
 
-  DBUG_RETURN(0);
+  return 0;
+}
+
+int channel_get_network_namespace(const char *channel, std::string &net_ns) {
+  DBUG_TRACE;
+
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel);
+
+  if (mi == nullptr) {
+    channel_map.unlock();
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
+  }
+
+  mi->inc_reference();
+  channel_map.unlock();
+
+  net_ns.assign(mi->network_namespace_str());
+
+  mi->dec_reference();
+
+  return 0;
 }
 
 bool channel_is_stopping(const char *channel,
                          enum_channel_thread_types thd_type) {
   bool is_stopping = false;
-  DBUG_ENTER("channel_is_stopping(channel, thd_type");
+  DBUG_TRACE;
 
   channel_map.rdlock();
   Master_info *mi = channel_map.get_mi(channel);
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(false);
+    return false;
   }
 
   switch (thd_type) {
@@ -1021,29 +1152,52 @@ bool channel_is_stopping(const char *channel,
       is_stopping = likely(mi->rli->atomic_is_stopping);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   channel_map.unlock();
 
-  DBUG_RETURN(is_stopping);
+  return is_stopping;
 }
 
 bool is_partial_transaction_on_channel_relay_log(const char *channel) {
-  DBUG_ENTER("is_partial_transaction_on_channel_relay_log(channel)");
+  DBUG_TRACE;
   channel_map.rdlock();
   Master_info *mi = channel_map.get_mi(channel);
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(false);
+    return false;
   }
   bool ret = mi->transaction_parser.is_inside_transaction();
   channel_map.unlock();
-  DBUG_RETURN(ret);
+  return ret;
+}
+
+bool channel_has_same_uuid_as_group_name(const char *group_name) {
+  DBUG_TRACE;
+  Master_info *mi = nullptr;
+  channel_map.rdlock();
+  raii::Sentry<> map_lock_sentry{[&]() -> void { channel_map.unlock(); }};
+
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    mi = it->second;
+    if (mi != nullptr &&
+        mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+      if (!(strcmp((mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                        .get_value())
+                       .data(),
+                   group_name))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool is_any_slave_channel_running(int thread_mask) {
-  DBUG_ENTER("is_any_slave_channel_running");
+  DBUG_TRACE;
   Master_info *mi = nullptr;
   bool is_running;
 
@@ -1060,7 +1214,7 @@ bool is_any_slave_channel_running(int thread_mask) {
         mysql_mutex_unlock(&mi->run_lock);
         if (is_running) {
           channel_map.unlock();
-          DBUG_RETURN(true);
+          return true;
         }
       }
 
@@ -1070,19 +1224,60 @@ bool is_any_slave_channel_running(int thread_mask) {
         mysql_mutex_unlock(&mi->rli->run_lock);
         if (is_running) {
           channel_map.unlock();
-          DBUG_RETURN(true);
+          return true;
         }
       }
     }
   }
 
   channel_map.unlock();
-  DBUG_RETURN(false);
+  return false;
+}
+
+bool is_any_slave_channel_running_with_failover_enabled(int thread_mask) {
+  DBUG_TRACE;
+  Master_info *mi = nullptr;
+  bool is_running;
+
+  channel_map.rdlock();
+
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    mi = it->second;
+
+    if (mi && Master_info::is_configured(mi) &&
+        mi->is_source_connection_auto_failover()) {
+      if ((thread_mask & SLAVE_IO) != 0) {
+        mysql_mutex_lock(&mi->run_lock);
+        is_running = mi->slave_running;
+        mysql_mutex_unlock(&mi->run_lock);
+        if (is_running) {
+          channel_map.unlock();
+          return true;
+        }
+      }
+
+      if ((thread_mask & SLAVE_SQL) != 0) {
+        mysql_mutex_lock(&mi->rli->run_lock);
+        is_running = mi->rli->slave_running;
+        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (is_running) {
+          channel_map.unlock();
+          return true;
+        }
+      }
+    }
+  }
+
+  assert(!Source_IO_monitor::get_instance()->is_monitoring_process_running());
+
+  channel_map.unlock();
+  return false;
 }
 
 enum_slave_channel_status
 has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
-  DBUG_ENTER("has_any_slave_channel_open_temp_table_or_is_its_applier_running");
+  DBUG_TRACE;
   Master_info *mi = nullptr;
   bool is_applier_running = false;
   bool has_open_temp_tables = false;
@@ -1124,9 +1319,125 @@ has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
   channel_map.unlock();
 
   if (has_open_temp_tables)
-    DBUG_RETURN(SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE);
+    return SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE;
   else if (is_applier_running)
-    DBUG_RETURN(SLAVE_CHANNEL_APPLIER_IS_RUNNING);
+    return SLAVE_CHANNEL_APPLIER_IS_RUNNING;
 
-  DBUG_RETURN(SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE);
+  return SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE;
+}
+
+int channel_delete_credentials(const char *channel_name) {
+  DBUG_TRACE;
+  return Rpl_channel_credentials::get_instance().delete_credentials(
+      channel_name);
+}
+
+bool start_failover_channels() {
+  DBUG_TRACE;
+  bool error = false;
+  channel_map.wrlock();
+
+  for (mi_map::iterator it = channel_map.begin();
+       !error && it != channel_map.end(); it++) {
+    Master_info *mi = it->second;
+    if (Master_info::is_configured(mi) &&
+        mi->is_source_connection_auto_failover()) {
+      Channel_connection_info info;
+      initialize_channel_connection_info(&info);
+
+      int thread_mask = 0;
+      thread_mask |= CHANNEL_APPLIER_THREAD;
+      thread_mask |= CHANNEL_RECEIVER_THREAD;
+
+      DBUG_EXECUTE_IF("force_error_on_start_failover_channels", {
+        channel_map.unlock();
+        return 1;
+      });
+      error = channel_start(mi->get_channel(), &info, thread_mask, false,
+                            true /* use_server_mta_configuration*/,
+                            true /* channel_map_already_locked */);
+    }
+  }
+
+  channel_map.unlock();
+  return error;
+}
+
+bool channel_change_source_connection_auto_failover(const char *channel,
+                                                    bool status) {
+  bool error = false;
+  channel_map.assert_some_wrlock();
+
+  Master_info *mi = channel_map.get_mi(channel);
+  if (!Master_info::is_configured(mi)) {
+    LogErr(ERROR_LEVEL, ER_GRP_RPL_FAILOVER_CONF_CHANNEL_DOES_NOT_EXIST,
+           channel);
+    return true;
+  }
+
+  mi->channel_wrlock();
+  lock_slave_threads(mi);
+
+  if (status && !mi->is_source_connection_auto_failover()) {
+    mi->set_source_connection_auto_failover();
+    error |= (flush_master_info(mi, true, true, false) != 0);
+  }
+
+  if (!status && mi->is_source_connection_auto_failover()) {
+    mi->unset_source_connection_auto_failover();
+    error |= (flush_master_info(mi, true, true, false) != 0);
+  }
+
+  unlock_slave_threads(mi);
+  mi->channel_unlock();
+
+  return error;
+}
+
+bool unset_source_connection_auto_failover_on_all_channels() {
+  channel_map.assert_some_wrlock();
+  bool error = false;
+
+  for (mi_map::iterator it = channel_map.begin();
+       !error && it != channel_map.end(); it++) {
+    Master_info *mi = it->second;
+    if (Master_info::is_configured(mi) &&
+        mi->is_source_connection_auto_failover()) {
+      error |= channel_change_source_connection_auto_failover(mi->get_channel(),
+                                                              false);
+    }
+  }
+
+  return error;
+}
+
+void reload_failover_channels_status() {
+  DBUG_TRACE;
+  channel_map.rdlock();
+  rpl_acf_configuration_handler->reload_failover_channels_status();
+  channel_map.unlock();
+}
+
+bool get_replication_failover_channels_configuration(
+    std::string &serialized_configuration) {
+  DBUG_TRACE;
+  return rpl_acf_configuration_handler->get_configuration(
+      serialized_configuration);
+}
+
+bool set_replication_failover_channels_configuration(
+    const std::vector<std::string>
+        &exchanged_replication_failover_channels_serialized_configuration) {
+  DBUG_TRACE;
+  channel_map.wrlock();
+  bool error = rpl_acf_configuration_handler->set_configuration(
+      exchanged_replication_failover_channels_serialized_configuration);
+  channel_map.unlock();
+  return error;
+}
+
+bool force_my_replication_failover_channels_configuration_on_all_members() {
+  DBUG_TRACE;
+  return rpl_acf_configuration_handler
+      ->force_my_replication_failover_channels_configuration_on_all_members();
 }

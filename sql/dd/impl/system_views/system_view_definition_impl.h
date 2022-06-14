@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +45,6 @@ class System_view_definition_impl : public System_view_definition {
 
   /**
     Set view name.
-
-    @return void.
   */
   virtual void set_view_name(const String_type &name) { m_view_name = name; }
 
@@ -61,7 +59,7 @@ class System_view_definition_impl : public System_view_definition {
     return "";
   }
 
-  virtual String_type build_ddl_create_view() const = 0;
+  String_type build_ddl_create_view() const override = 0;
 
  private:
   // Name of I_S system view;
@@ -80,29 +78,31 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     @param field_definition Expression representing the projection.
     @param add_quotes    If true, output single quotes around the
                          field_definition.
-
-    @return void.
   */
   virtual void add_field(int field_number, const String_type &field_name,
                          const String_type &field_definition,
                          bool add_quotes = false) {
     // Make sure the field_number and field_name are not added twise.
-    DBUG_ASSERT(m_field_numbers.find(field_name) == m_field_numbers.end() &&
-                m_field_definitions.find(field_number) ==
-                    m_field_definitions.end());
+    assert(m_field_numbers.find(field_name) == m_field_numbers.end() &&
+           m_field_definitions.find(field_number) == m_field_definitions.end());
 
     // Store the field number.
     m_field_numbers[field_name] = field_number;
 
     // Store the field definition expression.
     Stringstream_type ss;
-    if (add_quotes) {
-      DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
-      ss << '\'' << field_definition << '\'';
-    } else
-      ss << field_definition;
+    if (field_name == "*") {
+      ss << " * ";
+    } else {
+      if (add_quotes) {
+        assert(field_definition.find('\'') == String_type::npos);
+        ss << '\'' << field_definition << '\'';
+      } else
+        ss << field_definition;
 
-    ss << " AS " << field_name;
+      ss << " AS " << field_name;
+    }
+
     m_field_definitions[field_number] = ss.str();
   }
 
@@ -112,8 +112,6 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     the previous FROM clause string.
 
     @param from  String representing the FROM clause.
-
-    @return void.
   */
   virtual void add_from(const String_type &from) {
     m_from_clauses.push_back(from);
@@ -125,13 +123,29 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     the previous WHERE clause string.
 
     @param where  String representing the WHERE clause.
-
-    @return void.
   */
   virtual void add_where(const String_type &where) {
     m_where_clauses.push_back(where);
   }
 
+  /**
+    Add CTE expression before SELECT.
+
+    @param cte  String representing the CTE expression.
+  */
+  virtual void add_cte_expression(const String_type &cte) {
+    m_cte_expression = cte;
+  }
+
+  /**
+    Indicates that we should add DISTINCT clause to SELECT.
+  */
+  virtual void add_distinct() { m_is_distinct = true; }
+
+  /**
+    Indicates selection of all field (SELECT '*').
+  */
+  virtual void add_star() { m_add_star = true; }
   /**
     Get the field ordinal position number for the given field name.
 
@@ -140,7 +154,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     @return Integer representing position of column in projection list.
   */
   virtual int field_number(const String_type &field_name) const {
-    DBUG_ASSERT(m_field_numbers.find(field_name) != m_field_numbers.end());
+    assert(m_field_numbers.find(field_name) != m_field_numbers.end());
     return m_field_numbers.find(field_name)->second;
   }
 
@@ -152,13 +166,21 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   String_type build_select_query() const {
     Stringstream_type ss;
 
-    ss << "SELECT \n";
-    // Output view column definitions
-    for (Field_definitions::const_iterator field = m_field_definitions.begin();
-         field != m_field_definitions.end(); ++field) {
-      if (field != m_field_definitions.begin()) ss << ",\n";
-      ss << "  " << field->second;
-    }
+    if (!m_cte_expression.empty()) ss << m_cte_expression << "\n ";
+
+    // Make SELECT [DISTINCT]
+    ss << "SELECT " << (m_is_distinct ? "DISTINCT \n" : "\n");
+
+    if (!m_add_star) {
+      // Output view column definitions
+      for (Field_definitions::const_iterator field =
+               m_field_definitions.begin();
+           field != m_field_definitions.end(); ++field) {
+        if (field != m_field_definitions.begin()) ss << ",\n";
+        ss << "  " << field->second;
+      }
+    } else
+      ss << "*";
 
     // Output FROM clauses
     for (From_clauses::const_iterator from = m_from_clauses.begin();
@@ -181,7 +203,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     return ss.str();
   }
 
-  virtual String_type build_ddl_create_view() const {
+  String_type build_ddl_create_view() const override {
     Stringstream_type ss;
     ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
        << "information_schema." << view_name() << " AS " + build_select_query();
@@ -206,8 +228,12 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   Field_definitions m_field_definitions;
   From_clauses m_from_clauses;
   Where_clauses m_where_clauses;
+  dd::String_type m_cte_expression;
+  bool m_is_distinct{false};
+  bool m_add_star{false};
 };
 
+// This class is unused and kept here for future use.
 class System_view_union_definition_impl : public System_view_definition_impl {
  public:
   /**
@@ -215,24 +241,24 @@ class System_view_union_definition_impl : public System_view_definition_impl {
 
     @return The System_view_select_definition_impl&.
   */
-  System_view_select_definition_impl &get_select() {
+  System_view_select_definition_impl &get_query_block() {
     m_selects.push_back(
         Select_definition(new System_view_select_definition_impl));
     return *(m_selects.back().get());
   }
 
-  virtual String_type build_ddl_create_view() const {
+  String_type build_ddl_create_view() const override {
     Stringstream_type ss;
-    bool first_select = true;
+    bool first_query_block = true;
     // Union definition must have minimum two SELECTs.
-    DBUG_ASSERT(m_selects.size() >= 2);
+    assert(m_selects.size() >= 2);
 
     for (auto &select : m_selects) {
-      if (first_select) {
+      if (first_query_block) {
         ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
            << "information_schema." << view_name() << " AS "
            << "(" << select->build_select_query() << ")";
-        first_select = false;
+        first_query_block = false;
       } else {
         ss << " UNION "
            << "(" << select->build_select_query() << ")";

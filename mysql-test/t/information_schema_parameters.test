@@ -62,6 +62,7 @@ USE i_s_parameters_test;
 --error ER_PARSE_ERROR
 CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)
 RETURN CONCAT('Hello', ,s,'!');
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 
@@ -78,9 +79,11 @@ USE i_s_parameters_test;
 
 CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
 RETURN CONCAT('Hello, ',s,'!');
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 DROP FUNCTION test_func1;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 
@@ -100,6 +103,7 @@ CREATE PROCEDURE testproc (OUT param1 INT)
   END;
 //
 delimiter ;//
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'testproc';
 
@@ -114,6 +118,7 @@ CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
 
 CREATE PROCEDURE test_proc(INOUT P INT) SET @x=P*2;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_proc';
 
@@ -127,6 +132,7 @@ CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
 
 CREATE PROCEDURE test_proc(OUT p VARCHAR(10)) SET P='test';
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_proc';
 
@@ -147,6 +153,7 @@ USE i_s_parameters_test;
 
 CREATE FUNCTION test_func1 (s char(20), t char(20)) RETURNS CHAR(40)
 RETURN CONCAT(s,t);
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 
@@ -163,6 +170,7 @@ USE i_s_parameters_test;
 
 CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
 RETURN CONCAT('Hello, ',s,'!');
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 
@@ -178,6 +186,7 @@ CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
 
 CREATE FUNCTION test_func2 (s int) RETURNS INT RETURN s*2;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func2';
 
@@ -193,6 +202,7 @@ USE i_s_parameters_test;
 
 CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
 RETURN CURRENT_TIMESTAMP;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 
@@ -210,9 +220,11 @@ USE i_s_parameters_test;
 
 CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
 RETURN CURRENT_TIMESTAMP;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 ALTER FUNCTION test_func5 COMMENT 'new comment added';
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 
@@ -230,6 +242,7 @@ USE i_s_parameters_test;
 
 CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)
 RETURN CONCAT('XYZ, ' ,s);
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 

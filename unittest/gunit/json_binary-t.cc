@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@ using namespace json_binary;
 
 class JsonBinaryTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
   THD *thd() const { return initializer.thd(); }
 };
@@ -68,12 +68,17 @@ static Json_dom_ptr parse_json(const char *json_text) {
 }
 
 TEST_F(JsonBinaryTest, BasicTest) {
+  std::string std_string;
   Json_dom_ptr dom = parse_json("false");
   String buf;
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val1 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val1.is_valid());
   EXPECT_EQ(Value::LITERAL_FALSE, val1.type());
+  EXPECT_FALSE(val1.to_std_string(&std_string));
+  EXPECT_STREQ("false", std_string.c_str());
+  EXPECT_FALSE(val1.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("false", std_string.c_str());
 
   dom = parse_json("-123");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -81,6 +86,10 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_TRUE(val2.is_valid());
   EXPECT_EQ(Value::INT, val2.type());
   EXPECT_EQ(-123LL, val2.get_int64());
+  EXPECT_FALSE(val2.to_std_string(&std_string));
+  EXPECT_STREQ("-123", std_string.c_str());
+  EXPECT_FALSE(val2.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("-123", std_string.c_str());
 
   dom = parse_json("3.14");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -116,6 +125,10 @@ TEST_F(JsonBinaryTest, BasicTest) {
     EXPECT_EQ(i + 1, v.get_int64());
   }
   EXPECT_EQ(Value::ERROR, val6.element(3).type());
+  EXPECT_FALSE(val6.to_std_string(&std_string));
+  EXPECT_STREQ("[1, 2, 3]", std_string.c_str());
+  EXPECT_FALSE(val6.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("[\n  1,\n  2,\n  3\n]", std_string.c_str());
 
   dom = parse_json("[ 1, [ \"a\", [ 3.14 ] ] ]");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -149,6 +162,8 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_TRUE(v7_5.is_valid());
   EXPECT_EQ(Value::DOUBLE, v7_5.type());
   EXPECT_EQ(3.14, v7_5.get_double());
+  EXPECT_FALSE(val7.to_std_string(&std_string));
+  EXPECT_STREQ("[1, [\"a\", [3.14]]]", std_string.c_str());
 
   dom = parse_json("{\"key\" : \"val\"}");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -167,6 +182,8 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_EQ("val", get_string(val8_v));
   EXPECT_EQ(Value::ERROR, val8.key(1).type());
   EXPECT_EQ(Value::ERROR, val8.element(1).type());
+  EXPECT_FALSE(val8.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("{\n  \"key\": \"val\"\n}", std_string.c_str());
 
   Value v8_v1 = val8.lookup("key");
   EXPECT_EQ(Value::STRING, v8_v1.type());
@@ -457,11 +474,11 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
 
   String buf;
   EXPECT_FALSE(serialize(thd(), &array, &buf));
-  Value val = parse_binary(buf.ptr(), buf.length());
-  EXPECT_TRUE(val.large_format());
+  Value val1 = parse_binary(buf.ptr(), buf.length());
+  EXPECT_TRUE(val1.large_format());
   {
     SCOPED_TRACE("");
-    validate_array_contents(val, array.size());
+    validate_array_contents(val1, array.size());
   }
 
   /*
@@ -469,7 +486,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
     that it is valid.
   */
   String raw;
-  EXPECT_FALSE(val.raw_binary(thd(), &raw));
+  EXPECT_FALSE(val1.raw_binary(thd(), &raw));
   {
     SCOPED_TRACE("");
     validate_array_contents(parse_binary(raw.ptr(), raw.length()),
@@ -760,7 +777,7 @@ class Invalid_binary_handler : public Internal_error_handler {
  private:
   THD *m_thd;
   bool m_called;
-  decltype(error_handler_hook) m_orig_handler;
+  ErrorHandlerFunctionPointer m_orig_handler;
 };
 
 /**
@@ -1082,8 +1099,8 @@ static const SpaceNeededTuple space_needed_tuples[] = {
     {nullptr, true, 0},
 };
 
-INSTANTIATE_TEST_CASE_P(JsonBinary, SpaceNeededTest,
-                        ::testing::ValuesIn(space_needed_tuples));
+INSTANTIATE_TEST_SUITE_P(JsonBinary, SpaceNeededTest,
+                         ::testing::ValuesIn(space_needed_tuples));
 
 /**
   Helper function for testing Value::has_space(). Serializes a JSON

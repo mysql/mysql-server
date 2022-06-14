@@ -9,25 +9,29 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE USER rpl_user;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_io.inc
-CHANGE MASTER TO master_user='rpl_user';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13120]
 CALL mtr.add_suppression(".*Slave I/O thread couldn't register on master.*");
 CALL mtr.add_suppression(".* Master command COM_REGISTER_SLAVE failed.*");
 #
 # Test Case 2: IO thread is killed when registering to master
 #
-CHANGE MASTER TO master_user='root';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-SET GLOBAL debug = '+d,simulate_register_slave_killed';
+SET GLOBAL debug = '+d,simulate_register_replica_killed';
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
-SET GLOBAL debug = '-d,simulate_register_slave_killed';
+SET GLOBAL debug = '-d,simulate_register_replica_killed';
 include/start_slave_io.inc
 [connection master]
 DROP USER rpl_user;

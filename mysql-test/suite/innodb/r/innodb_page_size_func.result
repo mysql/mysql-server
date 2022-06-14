@@ -34,3 +34,4 @@ Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_S
 #      In this case we omit the execution of the current sub test!
 # 7. Restart the server and cleanup
 # restart
+call mtr.add_suppression("Ignoring ib_4096_0.dblwr - page size doesn't match");

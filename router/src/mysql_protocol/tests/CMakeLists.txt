@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,25 +20,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(
-  ../include
-  ../../../tests/
-)
-
 SET(TEST_MODULE mysql_protocol)
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
-  MODULE ${TEST_MODULE}
-  LIB_DEPENDS mysql_protocol_static
-  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 
-ROUTERTEST_GET_TARGET(test_target "test_base_packet.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+FOREACH(test_file
+    test_classic_protocol_frame.cc
+    test_classic_protocol_message.cc
+    test_classic_protocol_session_track.cc
+    test_classic_protocol_wire.cc
+    test_classic_protocol.cc
+  )
+  ADD_GOOGLETEST_FILE(${test_file}
+    MODULE ${TEST_MODULE}
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+    INCLUDE_DIRS ../include/
+    LIB_DEPENDS harness_stdx)
+ENDFOREACH()
 
-ROUTERTEST_GET_TARGET(test_target "test_error_packet.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_handshake_packet.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    test_classic_protocol_message.cc
+    COMPILE_FLAGS "/bigobj")
+ENDIF()

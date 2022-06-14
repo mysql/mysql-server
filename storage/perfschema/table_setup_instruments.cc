@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_setup_instruments.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -66,8 +66,8 @@ Plugin_table table_setup_instruments::m_table_def(
 PFS_engine_table_share table_setup_instruments::m_share = {
     &pfs_updatable_acl,
     table_setup_instruments::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_setup_instruments::get_row_count,
     sizeof(pos_setup_instruments),
     &m_table_lock,
@@ -111,7 +111,7 @@ void table_setup_instruments::reset_position(void) {
 }
 
 int table_setup_instruments::rnd_next(void) {
-  PFS_instr_class *instr_class = NULL;
+  PFS_instr_class *instr_class = nullptr;
   PFS_builtin_memory_class *pfs_builtin;
   bool update_enabled;
 
@@ -157,10 +157,10 @@ int table_setup_instruments::rnd_next(void) {
       case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
         update_enabled = false;
         pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
-        if (pfs_builtin != NULL) {
+        if (pfs_builtin != nullptr) {
           instr_class = &pfs_builtin->m_class;
         } else {
-          instr_class = NULL;
+          instr_class = nullptr;
         }
         break;
       case pos_setup_instruments::VIEW_MEMORY:
@@ -184,7 +184,7 @@ int table_setup_instruments::rnd_next(void) {
 }
 
 int table_setup_instruments::rnd_pos(const void *pos) {
-  PFS_instr_class *instr_class = NULL;
+  PFS_instr_class *instr_class = nullptr;
   PFS_builtin_memory_class *pfs_builtin;
   bool update_enabled;
 
@@ -231,10 +231,10 @@ int table_setup_instruments::rnd_pos(const void *pos) {
     case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
       update_enabled = false;
       pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
-      if (pfs_builtin != NULL) {
+      if (pfs_builtin != nullptr) {
         instr_class = &pfs_builtin->m_class;
       } else {
-        instr_class = NULL;
+        instr_class = nullptr;
       }
       break;
     case pos_setup_instruments::VIEW_MEMORY:
@@ -255,10 +255,10 @@ int table_setup_instruments::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_instruments::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_setup_instruments::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_setup_instruments *result;
 
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_instruments);
 
   m_opened_index = result;
@@ -267,7 +267,7 @@ int table_setup_instruments::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_setup_instruments::index_next(void) {
-  PFS_instr_class *instr_class = NULL;
+  PFS_instr_class *instr_class = nullptr;
   PFS_builtin_memory_class *pfs_builtin;
   bool update_enabled;
 
@@ -318,10 +318,10 @@ int table_setup_instruments::index_next(void) {
         case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
           update_enabled = false;
           pfs_builtin = find_builtin_memory_class(m_pos.m_index_2);
-          if (pfs_builtin != NULL) {
+          if (pfs_builtin != nullptr) {
             instr_class = &pfs_builtin->m_class;
           } else {
-            instr_class = NULL;
+            instr_class = nullptr;
           }
           break;
         case pos_setup_instruments::VIEW_MEMORY:
@@ -344,7 +344,7 @@ int table_setup_instruments::index_next(void) {
         }
         m_pos.m_index_2++;
       }
-    } while (instr_class != NULL);
+    } while (instr_class != nullptr);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -366,7 +366,7 @@ int table_setup_instruments::read_row_values(TABLE *table, unsigned char *buf,
   uint properties;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   /*
@@ -375,11 +375,11 @@ int table_setup_instruments::read_row_values(TABLE *table, unsigned char *buf,
   */
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_instr_class->m_name,
-                                 m_row.m_instr_class->m_name_length);
+          set_field_varchar_utf8(f, m_row.m_instr_class->m_name.str(),
+                                 m_row.m_instr_class->m_name.length());
           break;
         case 1: /* ENABLED */
           set_field_enum(f,
@@ -417,14 +417,14 @@ int table_setup_instruments::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 5: /* DOCUMENTATION */
           doc = m_row.m_instr_class->m_documentation;
-          if (doc != NULL) {
+          if (doc != nullptr) {
             set_field_blob(f, doc, strlen(doc));
           } else {
             f->set_null();
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -440,10 +440,8 @@ int table_setup_instruments::update_row_values(TABLE *table,
   enum_yes_no value;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
-        case 0: /* NAME */
-          return HA_ERR_WRONG_COMMAND;
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 1: /* ENABLED */
           /* Do not raise error if m_update_enabled is false, silently ignore.
            */
@@ -459,12 +457,8 @@ int table_setup_instruments::update_row_values(TABLE *table,
             m_row.m_instr_class->m_timed = (value == ENUM_YES) ? true : false;
           }
           break;
-        case 3: /* PROPERTIES */
-        case 4: /* VOLATILITY */
-        case 5: /* DOCUMENTATION */
-          return HA_ERR_WRONG_COMMAND;
         default:
-          DBUG_ASSERT(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }
@@ -507,7 +501,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
       /* No flag to update. */
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 

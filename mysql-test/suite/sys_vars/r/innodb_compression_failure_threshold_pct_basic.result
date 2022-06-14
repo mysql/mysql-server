@@ -36,7 +36,7 @@ SELECT @@global.innodb_compression_failure_threshold_pct;
 '#--------------------FN_DYNVARS_046_04-------------------------#'
 SET @@global.innodb_compression_failure_threshold_pct = -1;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compression_failure_thres value: '-1'
+Warning	1292	Truncated incorrect innodb_compression_failure_threshold_pct value: '-1'
 SELECT @@global.innodb_compression_failure_threshold_pct;
 @@global.innodb_compression_failure_threshold_pct
 0
@@ -57,7 +57,7 @@ SELECT @@global.innodb_compression_failure_threshold_pct;
 0
 SET @@global.innodb_compression_failure_threshold_pct = 101;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compression_failure_thres value: '101'
+Warning	1292	Truncated incorrect innodb_compression_failure_threshold_pct value: '101'
 SELECT @@global.innodb_compression_failure_threshold_pct;
 @@global.innodb_compression_failure_threshold_pct
 100

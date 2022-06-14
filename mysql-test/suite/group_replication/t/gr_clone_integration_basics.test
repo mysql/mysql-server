@@ -12,14 +12,11 @@
 # 6. On a empty server2 start group replication
 #    Wait for it to restart and come back
 #    Check clone was completed
-# 7. Clone is not allowed on user sessions on group members.
-# 8. Cleanup
+# 7. Cleanup
 #
 
 --source include/have_mysqld_monitoring_process.inc
---source include/have_openssl.inc
 --source include/have_clone_plugin.inc
---source include/force_restart.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -59,6 +56,8 @@ INSERT INTO t1 VALUES (2);
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_on_boot= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 --let $plugin_list= $GROUP_REPLICATION
 --source include/spawn_monitoring_process.inc
@@ -72,6 +71,7 @@ INSERT INTO t1 VALUES (2);
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
@@ -141,17 +141,21 @@ START GROUP_REPLICATION;
 
 --echo
 --echo ############################################################
---echo # 7. Clone is not allowed on user sessions on group members.
+--echo # 7. Cleanup
 
---replace_result $server1_port SERVER1_PORT
---eval SET GLOBAL clone_valid_donor_list='localhost:$server1_port'
---replace_result $server1_port SERVER1_PORT
---error ER_CLONE_DISALLOWED
---eval CLONE INSTANCE FROM 'root'@localhost:$server1_port IDENTIFIED BY '';
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 
---echo
---echo ############################################################
---echo # 8. Cleanup
+UNINSTALL PLUGIN clone;
+
+DROP TABLE test.t1;
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+UNINSTALL PLUGIN clone;
 
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
 
@@ -159,15 +163,15 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
-DROP TABLE t1;
-
---source include/rpl_sync.inc
+--replace_result $_group_replication_start_on_boot START_ON_BOOT_VALUE
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_on_boot
 
 set session sql_log_bin=0;
 call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression(".*The member contains transactions not present *.*");
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

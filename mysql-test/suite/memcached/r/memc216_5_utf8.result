@@ -23,6 +23,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
 INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -33,11 +35,11 @@ t1	CREATE TABLE `t1` (
   `c23` varchar(40) DEFAULT NULL,
   `c24` varchar(40) DEFAULT NULL,
   `c25` varchar(40) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
@@ -89,6 +91,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
 INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -99,11 +103,11 @@ t1	CREATE TABLE `t1` (
   `c23` char(40) DEFAULT NULL,
   `c24` char(40) DEFAULT NULL,
   `c25` char(40) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012

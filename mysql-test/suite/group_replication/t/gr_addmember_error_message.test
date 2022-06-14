@@ -1,0 +1,85 @@
+################################################################################
+# Verify that when a new member is added to the group the important messages are
+# logged with SYSTEM level.
+#
+# 0. Start 2 servers
+# 1. Bootstrap group replication on first server
+# 2. Add second server to the group
+# 3. Verify that messages are logged with SYSTEM level
+# 4. Cleanup
+################################################################################
+
+--echo
+--echo ############################################################
+--echo # 0. Start 2 servers
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap group replication on first server
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Add second server to the group
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Verify that messages are logged with SYSTEM level
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
+--let $assert_select = \[System\] \[MY-013587\] \[Repl\] Plugin group_replication reported: 'Plugin 'group_replication' is starting\.'
+--let $assert_count = 1
+--let $assert_text = Found message informing that group replication plugin has started.
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
+--let $assert_only_after=  Plugin 'group_replication' is starting
+--let $assert_select = \[System\] \[MY-011565\] \[Repl\] Plugin group_replication reported: 'Setting super_read_only=ON\.'
+--let $assert_count = 1
+--let $assert_text = Found message informing that `super_read_only` is ON.
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
+--let $assert_only_after=  Plugin group_replication reported: 'Setting super_read_only=ON\.'
+--let $assert_select = \[System\] \[MY-013471\] \[Repl\] Plugin group_replication reported: 'Distributed recovery will transfer data using: Incremental recovery from a group donor'
+--let $assert_count = 1
+--let $assert_text = Found message informing the strategy for distributed recovery.
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
+--let $assert_only_after=  Plugin group_replication reported: 'Distributed recovery will transfer data using.*
+--let $assert_select = \[System\] \[MY-011503\] \[Repl\] Plugin group_replication reported: 'Group membership changed to .* on view .*'
+--let $assert_count = 1
+--let $assert_text = Found message informing that group membership has changed.
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
+--let $assert_only_after=  Plugin group_replication reported: 'Group membership changed to .* on view .*'
+--let $assert_select = \[System\] \[MY-011490\] \[Repl\] Plugin group_replication reported: 'This server was declared online within the replication group\.'
+--let $assert_count = 1
+--let $assert_text = Found message informing that server was declared online withing the replication group.
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
+--let $assert_only_after=  Plugin group_replication reported: 'This server was declared online within the replication group\.'
+--let $assert_select = \[System\] \[MY-011566\] \[Repl\] Plugin group_replication reported: 'Setting super_read_only=OFF\.'
+--let $assert_count = 1
+--let $assert_text = Found message informing that `super_read_only` is OFF.
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.1.err
+--let $assert_only_after=  Plugin group_replication reported: 'Setting super_read_only=OFF\.'
+--let $assert_select = \[System\] \[MY-011492\] \[Repl\] Plugin group_replication reported: 'The member with address .* was declared online within the replication group\.'
+--let $assert_count = 1
+--let $assert_text = Found message informing that member was declared online withing the group.
+--source include/assert_grep.inc
+
+--source include/group_replication_end.inc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,17 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
-#include "include/m_ctype.h"
 #include "include/mysql_com.h"
 #include "mysql/psi/mysql_thread.h"
+#include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
-void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any &any) {
-  DBUG_ASSERT(false && "This method should not be used with CapGet");
+void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any *any) {
+  assert(false && "This method should not be used with CapGet");
 }
 
 ngs::Error_code Capability_connection_attributes::set_impl(
@@ -74,7 +75,7 @@ void Capability_connection_attributes::commit() {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   const auto bytes_lost = PSI_THREAD_CALL(set_thread_connect_attrs)(
       reinterpret_cast<char *>(buffer.data()), buffer.size(),
-      &my_charset_utf8mb4_general_ci);
+      mysqld::get_default_charset());
 
   if (bytes_lost != 0)
     log_debug(
@@ -94,7 +95,7 @@ std::vector<unsigned char> Capability_connection_attributes::create_buffer() {
     const auto &key = attribute.first;
     const auto &value = attribute.second;
 
-    DBUG_ASSERT(!key.empty());
+    assert(!key.empty());
     ptr = write_length_encoded_string(ptr, key);
     ptr = write_length_encoded_string(ptr, value);
   }

@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want boost 1.69.0 in order to build our boost/geometry code.
+# We want boost 1.77.0 in order to build our boost/geometry code.
 # The boost tarball is fairly big, and takes several minutes
 # to download. So we recommend downloading/unpacking it
 # only once, in a place visible from any git sandbox.
@@ -38,10 +38,10 @@
 # we assume that the correct version (see below)
 # is installed on the compile host in the standard location.
 
-SET(BOOST_PACKAGE_NAME "boost_1_69_0")
-SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
+SET(BOOST_PACKAGE_NAME "boost_1_77_0")
+SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.bz2")
 SET(BOOST_DOWNLOAD_URL
-  "http://dl.bintray.com/boostorg/release/1.69.0/source/${BOOST_TARBALL}"
+  "https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
@@ -59,6 +59,11 @@ SET(OLD_PACKAGE_NAMES
   "boost_1_66_0"
   "boost_1_67_0"
   "boost_1_68_0"
+  "boost_1_69_0"
+  "boost_1_70_0"
+  "boost_1_71_0"
+  "boost_1_72_0"
+  "boost_1_73_0"
 )
 
 MACRO(RESET_BOOST_VARIABLES)
@@ -105,6 +110,7 @@ MACRO(COULD_NOT_FIND_BOOST)
     "This CMake script will look for boost in <directory>. "
     "If it is not there, it will download and unpack it "
     "(in that directory) for you.\n"
+    "You can also download boost manually, from ${BOOST_DOWNLOAD_URL}\n"
     "If you are inside a firewall, you may need to use an https proxy:\n"
     "export https_proxy=http://example.com:80\n"
     )
@@ -141,7 +147,7 @@ SET(OLD_WITH_BOOST ${WITH_BOOST} CACHE INTERNAL
 
 IF (WITH_BOOST)
   ## Did we get a full path name, including file name?
-  IF (${WITH_BOOST} MATCHES ".*\\.tar.gz" OR ${WITH_BOOST} MATCHES ".*\\.zip")
+  IF (${WITH_BOOST} MATCHES ".*\\.tar.bz2" OR ${WITH_BOOST} MATCHES ".*\\.zip")
     GET_FILENAME_COMPONENT(BOOST_DIR ${WITH_BOOST} PATH)
     GET_FILENAME_COMPONENT(BOOST_ZIP ${WITH_BOOST} NAME)
     FIND_FILE(LOCAL_BOOST_ZIP
@@ -150,9 +156,9 @@ IF (WITH_BOOST)
               NO_DEFAULT_PATH
              )
   ENDIF()
-  ## Did we get a path name to the directory of the .tar.gz or .zip file?
+  ## Did we get a path name to the directory of the .tar.bz2 or .zip file?
   FIND_FILE(LOCAL_BOOST_ZIP
-            NAMES "${BOOST_PACKAGE_NAME}.tar.gz" "${BOOST_PACKAGE_NAME}.zip"
+            NAMES "${BOOST_PACKAGE_NAME}.tar.bz2" "${BOOST_PACKAGE_NAME}.zip"
             PATHS ${WITH_BOOST}
             NO_DEFAULT_PATH
            )
@@ -173,10 +179,8 @@ IF (WITH_BOOST)
   ENDIF()
   IF(LOCAL_BOOST_ZIP)
     MESSAGE(STATUS "Local boost zip ${LOCAL_BOOST_ZIP}")
-    SET(LOCAL_BOOST_ZIP_ZERO_LENGTH)
-    FILE(STRINGS ${LOCAL_BOOST_ZIP} LOCAL_BOOST_ZIP_ZERO_LENGTH
-      LIMIT_INPUT 0)
-    IF(DEFINED LOCAL_BOOST_ZIP_ZERO_LENGTH)
+    GET_FILE_SIZE(${LOCAL_BOOST_ZIP} LOCAL_BOOST_ZIP_SIZE)
+    IF(LOCAL_BOOST_ZIP_SIZE EQUAL 0)
       # A previous failed download has left an empty file, most likely the
       # user pressed Ctrl-C to kill a hanging connection due to missing vpn
       # proxy.  Remove it!
@@ -236,9 +240,9 @@ ENDIF()
 IF(LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
   GET_FILENAME_COMPONENT(LOCAL_BOOST_DIR ${LOCAL_BOOST_ZIP} PATH)
   IF(NOT EXISTS "${LOCAL_BOOST_DIR}/${BOOST_PACKAGE_NAME}")
-    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfz ${LOCAL_BOOST_ZIP}")
+    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfj ${LOCAL_BOOST_ZIP}")
     EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E tar xfz "${LOCAL_BOOST_ZIP}"
+      COMMAND ${CMAKE_COMMAND} -E tar xfj "${LOCAL_BOOST_ZIP}"
       WORKING_DIRECTORY "${LOCAL_BOOST_DIR}"
       RESULT_VARIABLE tar_result
       )
@@ -279,7 +283,7 @@ ENDIF()
 # //  BOOST_VERSION % 100 is the patch level
 # //  BOOST_VERSION / 100 % 1000 is the minor version
 # //  BOOST_VERSION / 100000 is the major version
-# #define BOOST_VERSION 106900
+# #define BOOST_VERSION 107700
 FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp"
   BOOST_VERSION_NUMBER
   REGEX "^#define[\t ]+BOOST_VERSION[\t ][0-9]+.*"
@@ -297,9 +301,9 @@ IF(NOT BOOST_MAJOR_VERSION EQUAL 10)
   COULD_NOT_FIND_BOOST()
 ENDIF()
 
-IF(NOT BOOST_MINOR_VERSION EQUAL 69)
+IF(NOT BOOST_MINOR_VERSION EQUAL 77)
   MESSAGE(WARNING "Boost minor version found is ${BOOST_MINOR_VERSION} "
-    "we need 69"
+    "we need 77"
     )
   COULD_NOT_FIND_BOOST()
 ENDIF()
@@ -307,7 +311,7 @@ ENDIF()
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
-SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_69_0/patches")
+SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_77_0/patches")
 
 # Bug in sqrt(NaN) on 32bit platforms
 IF(SIZEOF_VOIDP EQUAL 4)
@@ -315,7 +319,7 @@ IF(SIZEOF_VOIDP EQUAL 4)
 ENDIF()
 
 # Boost gets confused about language support with Clang 7 + MSVC 15.9
-IF(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(WIN32_CLANG)
   ADD_DEFINITIONS(-DBOOST_NO_CXX17_HDR_STRING_VIEW)
 ENDIF()
 
@@ -323,4 +327,32 @@ IF(LOCAL_BOOST_DIR OR LOCAL_BOOST_ZIP)
   SET(USING_LOCAL_BOOST 1)
 ELSE()
   SET(USING_SYSTEM_BOOST 1)
+ENDIF()
+
+IF(NOT WIN32)
+  FILE(GLOB_RECURSE BOOST_PATCHES_LIST
+    RELATIVE ${BOOST_PATCHES_DIR}
+    ${BOOST_PATCHES_DIR}/*.hpp
+    )
+
+  SET(DIFF_COMMAND_LIST "#! /bin/bash")
+  FOREACH(PATCHED_FILE ${BOOST_PATCHES_LIST})
+    SET(ORIGINAL_FILE_PATH "${BOOST_INCLUDE_DIR}/${PATCHED_FILE}")
+    SET(PATCHED_FILE_PATH "${BOOST_PATCHES_DIR}/${PATCHED_FILE}")
+    LIST(APPEND DIFF_COMMAND_LIST "diff -u ${ORIGINAL_FILE_PATH} ${PATCHED_FILE_PATH}")
+  ENDFOREACH()
+  # Add true, to get zero exit status.
+  LIST(APPEND DIFF_COMMAND_LIST "true")
+
+  STRING(REPLACE ";" "\n" DIFF_COMMAND_LINES "${DIFF_COMMAND_LIST}")
+
+  FILE(GENERATE
+    OUTPUT ${CMAKE_BINARY_DIR}/boost_patch_diffs
+    CONTENT "${DIFF_COMMAND_LINES}"
+    )
+
+  ADD_CUSTOM_TARGET(show_boost_patches
+    COMMAND bash ${CMAKE_BINARY_DIR}/boost_patch_diffs
+    DEPENDS ${CMAKE_BINARY_DIR}/boost_patch_diffs
+    )
 ENDIF()

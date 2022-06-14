@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,15 +180,15 @@ static void my_crypt(char *to, const uchar *s1, const uchar *s2, uint len) {
   while (s1 < s1_end) *to++ = *s1++ ^ *s2++;
 }
 
-#if defined(HAVE_OPENSSL)
 extern "C" void my_make_scrambled_password(char *to, const char *password,
                                            size_t pass_len) {
   char salt[CRYPT_SALT_LENGTH + 1];
 
   generate_user_salt(salt, CRYPT_SALT_LENGTH + 1);
-  my_crypt_genhash(to, CRYPT_MAX_PASSWORD_SIZE, password, pass_len, salt, 0);
+  my_crypt_genhash(to, CRYPT_MAX_PASSWORD_SIZE, password, pass_len, salt,
+                   nullptr);
 }
-#endif
+
 /**
   Compute two stage SHA1 hash of the password :
 

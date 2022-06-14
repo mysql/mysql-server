@@ -30,7 +30,6 @@ call mtr.add_suppression("Slave I/O thread .* register on master");
 call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on master");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
-let $debug_saved= `select @@global.debug`;
 
 # set up two parameters to pass into extra/rpl_tests/rpl_get_master_version_and_clock
 let $dbug_sync_point= 'debug_lock.before_get_UNIX_TIMESTAMP';
@@ -47,16 +46,9 @@ source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 #Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
 connection slave;
 
-let $dbug_sync_point= 'dbug.before_get_MASTER_UUID';
-let $debug_sync_action= 'now SIGNAL signal.get_master_uuid';
+let $dbug_sync_point= 'dbug.before_get_SOURCE_UUID';
+let $debug_sync_action= 'now SIGNAL signal.get_source_uuid';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
-
-#
-# Note, due to # Bug#11765758 - 58754
-# make sure the slave threads stand still (SQL thread in this context)
-# while @@global.debug is being updated.
-#
-eval set global debug= '$debug_saved';
 
 #Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.
@@ -65,7 +57,7 @@ reset master;
 # replicate ourselves
 source include/stop_slave.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
-eval change master to master_port=$SLAVE_MYPORT;
+eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SLAVE_MYPORT;
 start slave;
 
 --echo *** must be having the replicate-same-server-id IO thread error ***
@@ -82,7 +74,7 @@ SET DEBUG_SYNC= 'RESET';
 --source include/stop_slave_sql.inc
 RESET SLAVE;
 --replace_result $MASTER_MYPORT MASTER_PORT
---eval CHANGE MASTER TO MASTER_PORT=$MASTER_MYPORT;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$MASTER_MYPORT;
 
 #
 # Bug #22748612 MYSQL-57 AND MYSQL-TRUNK(SLAVE) FAILS TO CONNECT TO MYSQL-55(MASTER)

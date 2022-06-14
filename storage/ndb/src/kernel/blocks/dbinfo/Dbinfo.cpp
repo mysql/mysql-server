@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ Dbinfo::Dbinfo(Block_context& ctx) :
 {
   BLOCK_CONSTRUCTOR(Dbinfo);
 
-  STATIC_ASSERT(sizeof(DbinfoScanCursor) == sizeof(Ndbinfo::ScanCursor));
+  static_assert(sizeof(DbinfoScanCursor) == sizeof(Ndbinfo::ScanCursor));
 
   /* Add Received Signals */
   addRecSignal(GSN_STTOR, &Dbinfo::execSTTOR);
@@ -80,9 +80,44 @@ void Dbinfo::execREAD_CONFIG_REQ(Signal *signal)
   const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
   Uint32 ref = req->senderRef;
   Uint32 senderData = req->senderData;
+  Uint32 ntable;
 
-  /* In the future, do something sensible here. */
+  const ndb_mgm_configuration_iterator * p =
+     m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &ntable));
 
+  // Estimated number of tables. Without actually counting the tables in dict,
+  // this estimate could be far off. Take the configured maximum and divide
+  // by 3; then any actual value in the range from 11% to 100% will be off by
+  // a factor of 3 at most.
+  counts.est_tables = ntable / 3;
+
+  // Count nodes
+  for(int i = 1 ; i < MAX_NODES ; i++) {
+    NodeInfo::NodeType type = getNodeInfo(i).getType();
+    if(type == NodeInfo::NodeType::DB)
+      counts.data_nodes++;
+    if(type == NodeInfo::NodeType::DB || type == NodeInfo::NodeType::API ||
+       type == NodeInfo::NodeType::MGM)
+      counts.all_nodes++;
+  }
+
+  // Count threads
+  const THRConfigApplier & thr_cf =
+    globalEmulatorData.theConfiguration->m_thr_config;
+  counts.threads.send = globalData.ndbMtSendThreads;
+  counts.threads.db = thr_cf.getThreadCount();
+  counts.threads.ldm = thr_cf.getThreadCount(THRConfig::T_LDM);
+  counts.cpus = Ndb_GetHWInfo(false)->cpu_cnt;
+
+  // Count block instances
+  counts.log_parts = globalData.ndbLogParts;
+  counts.instances.tc  = globalData.ndbMtTcWorkers;
+  counts.instances.lqh = globalData.ndbMtLqhWorkers;
+  counts.instances.pgman = counts.instances.lqh + 1;
+
+  // Send conf
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -106,27 +141,27 @@ void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
   {
   case DumpStateOrd::DbinfoListTables:
     jam();
-    ndbout_c("--- BEGIN NDB$INFO.TABLES ---");
+    g_eventLogger->info("--- BEGIN NDB$INFO.TABLES ---");
     for(int i = 0; i < Ndbinfo::getNumTables(); i++)
     {
       const Ndbinfo::Table& tab = Ndbinfo::getTable(i);
-      ndbout_c("%d,%s", i, tab.m.name);
+      g_eventLogger->info("%d,%s", i, tab.m.name);
     }
-    ndbout_c("--- END NDB$INFO.TABLES ---");
+    g_eventLogger->info("--- END NDB$INFO.TABLES ---");
     break;
 
   case DumpStateOrd::DbinfoListColumns:
     jam();
-    ndbout_c("--- BEGIN NDB$INFO.COLUMNS ---");
+    g_eventLogger->info("--- BEGIN NDB$INFO.COLUMNS ---");
     for(int i = 0; i < Ndbinfo::getNumTables(); i++)
     {
       const Ndbinfo::Table& tab = Ndbinfo::getTable(i);
 
       for(int j = 0; j < tab.m.ncols; j++)
-        ndbout_c("%d,%d,%s,%d", i, j,
-                 tab.col[j].name, tab.col[j].coltype);
+        g_eventLogger->info("%d,%d,%s,%d", i, j, tab.col[j].name,
+                            tab.col[j].coltype);
     }
-    ndbout_c("--- END NDB$INFO.COLUMNS ---");
+    g_eventLogger->info("--- END NDB$INFO.COLUMNS ---");
     break;
 
   };
@@ -153,8 +188,8 @@ switchRef(Uint32 block, Uint32 node)
 {
   const Uint32 ref = numberToRef(block, node);
 #ifdef DBINFO_SCAN_TRACE
-  ndbout_c("Dbinfo: switching to %s in node %d, ref: 0x%.8x",
-           getBlockName(block, "<unknown>"), node, ref);
+  g_eventLogger->info("Dbinfo: switching to %s in node %d, ref: 0x%.8x",
+                      getBlockName(block, "<unknown>"), node, ref);
 #endif
   return ref;
 }
@@ -267,6 +302,7 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint32(tableId);
       row.write_string(tab.m.name);
       row.write_string(tab.m.comment);
+      row.write_uint32(tab.m.estimate_rows(counts));
       ndbinfo_send_row(signal, req, row, rl);
 
       tableId++;
@@ -456,6 +492,22 @@ void Dbinfo::execNODE_FAILREP(Signal* signal)
 
   NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
 
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size, 0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   Uint32 theFailedNodes[NdbNodeBitmask::Size];
   for (Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
     theFailedNodes[i] = rep->theNodes[i];

@@ -1,0 +1,62 @@
+CREATE TABLE e (
+pk int NOT NULL,
+col_int_unique int DEFAULT NULL,
+UNIQUE KEY ix1 (col_int_unique)
+) ENGINE=ndbcluster;
+INSERT INTO e values (1, 12), (5, 20), (11, 8), (16, 10);
+# If NDB join pushdown is enabled, the query should use nested loop
+# instead of hash join (NDB expects joins to be executed using nested
+# loop).
+SET ndb_join_pushdown = on;
+EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM e AS table1
+LEFT JOIN e AS table2 ON table1.pk = table2.pk
+LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join  (cost=1254.38 rows=16)
+    -> Left hash join (table2.pk = table1.pk)  (cost=1251.78 rows=16)
+        -> Table scan on table1  (cost=1000.40 rows=4)
+        -> Hash
+            -> Table scan on table2  (cost=250.12 rows=4)
+    -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique)  (cost=0.07 rows=1)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-probe-branch which can't be referred.
+Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM e AS table1
+LEFT JOIN e AS table2 ON table1.pk = table2.pk
+LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
+pk	pk	pk
+1	1	1
+11	11	11
+16	16	16
+5	5	5
+SET ndb_join_pushdown = off;
+EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM e AS table1
+LEFT JOIN e AS table2 ON table1.pk = table2.pk
+LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join  (cost=1254.38 rows=16)
+    -> Left hash join (table2.pk = table1.pk)  (cost=1251.78 rows=16)
+        -> Table scan on table1  (cost=1000.40 rows=4)
+        -> Hash
+            -> Table scan on table2  (cost=250.12 rows=4)
+    -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique)  (cost=0.07 rows=1)
+
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM e AS table1
+LEFT JOIN e AS table2 ON table1.pk = table2.pk
+LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
+pk	pk	pk
+1	1	1
+11	11	11
+16	16	16
+5	5	5
+DROP TABLE e;

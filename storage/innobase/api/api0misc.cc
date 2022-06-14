@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,17 +53,17 @@ dberr_t ib_trx_lock_table_with_retry(
 
   return (lock_table_for_trx(table, trx, mode));
 }
-/* Handles user errors and lock waits detected by the database engine.
-@param[out]	new_err	possible new error encountered in lock wait, or if no
+/** Handles user errors and lock waits detected by the database engine.
+@param[out]     new_err possible new error encountered in lock wait, or if no
 new error, the value of trx->error_state at the entry of this function
-@param[in]	trx	transaction
-@param[in]	thr	query thread
-@param[in]	savept	savepoint or NULL
-@param[in]	is_sdi	true if table is SDI
-@return TRUE if it was a lock wait and we should continue running
+@param[in]      trx     transaction
+@param[in]      thr     query thread
+@param[in]      savept  savepoint or NULL
+@param[in]      is_sdi  true if table is SDI
+@return true if it was a lock wait and we should continue running
 the query thread. */
-ibool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
-                       trx_savept_t *savept, bool is_sdi) {
+bool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
+                      trx_savept_t *savept, bool is_sdi) {
   dberr_t err;
 handle_new_error:
   err = trx->error_state;
@@ -78,7 +78,7 @@ handle_new_error:
         trx_rollback_for_mysql(trx);
       }
       break;
-      /* fall through */
+      [[fallthrough]];
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:
@@ -105,7 +105,7 @@ handle_new_error:
 
       *new_err = err;
 
-      return (TRUE); /* Operation needs to be retried. */
+      return true; /* Operation needs to be retried. */
 
     case DB_DEADLOCK:
     case DB_LOCK_TABLE_FULL:
@@ -134,5 +134,5 @@ handle_new_error:
 
   trx->error_state = DB_SUCCESS;
 
-  return (FALSE);
+  return false;
 }

@@ -26,7 +26,7 @@ grant all on *.* to crudfindgroupuser@localhost;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/find_crud_table_groupby.tmp
+--write_file $MYSQL_TMP_DIR/find_crud_table_groupby.xpl
 -->sql
 DROP SCHEMA if EXISTS minisakila;
 CREATE SCHEMA minisakila;
@@ -892,8 +892,8 @@ DROP USER crudfindgroupuser@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u crudfindgroupuser --password='crudfindgroupuser' --file=$MYSQL_TMP_DIR/find_crud_table_groupby.tmp 2>&1
+--exec $MYSQLXTEST -u crudfindgroupuser --password='crudfindgroupuser' --file=$MYSQL_TMP_DIR/find_crud_table_groupby.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/find_crud_table_groupby.tmp
+--source ../include/xplugin_cleanup.inc
 

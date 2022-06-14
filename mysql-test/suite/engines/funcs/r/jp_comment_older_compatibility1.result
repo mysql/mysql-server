@@ -13,8 +13,8 @@ COLUMN_COMMENT	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c12` int(11) DEFAULT NULL,
+  `c1` int NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c12` int DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -40,14 +40,14 @@ COLUMN_COMMENT	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c12` int(11) DEFAULT NULL,
+  `c1` int NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c12` int DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c3` int(11) DEFAULT NULL COMMENT 'あイうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c4` int(11) DEFAULT NULL COMMENT 'あいウえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c2` int DEFAULT NULL COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c3` int DEFAULT NULL COMMENT 'あイうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c4` int DEFAULT NULL COMMENT 'あいウえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c5` int DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
@@ -68,14 +68,14 @@ COLUMN_COMMENT	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c12` int(11) DEFAULT NULL,
+  `c1` int NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c12` int DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c2` int DEFAULT NULL COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   `c3` char(10) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL COMMENT 'あいウえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c4` int DEFAULT NULL COMMENT 'あいウえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c5` int DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
@@ -96,14 +96,14 @@ COLUMN_COMMENT	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c12` int(11) DEFAULT NULL,
+  `c1` int NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c12` int DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c2` int DEFAULT NULL COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   `c3` char(10) DEFAULT NULL,
-  `c4_1` int(11) DEFAULT NULL COMMENT 'さしすせそたちつてと',
-  `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c4_1` int DEFAULT NULL COMMENT 'さしすせそたちつてと',
+  `c5` int DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
@@ -123,13 +123,13 @@ COLUMN_COMMENT	char_length(column_comment)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
-  `c12` int(11) DEFAULT NULL,
+  `c1` int NOT NULL COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c12` int DEFAULT NULL,
   `c13` datetime DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
-  `c4_1` int(11) DEFAULT NULL COMMENT 'さしすせそたちつてと',
-  `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
+  `c4_1` int DEFAULT NULL COMMENT 'さしすせそたちつてと',
+  `c5` int DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'

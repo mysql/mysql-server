@@ -5,7 +5,7 @@
 
 ## Test starts here
 
---let $xtest_file_session= $MYSQL_TMP_DIR/unknown_message_type_session.tmp
+--let $xtest_file_session= $MYSQL_TMP_DIR/unknown_message_type_session.xpl
 --write_file $xtest_file_session
 -->quiet
 -->import connection.macro
@@ -31,7 +31,7 @@
 EOF
 
 
---let $xtest_file_connection= $MYSQL_TMP_DIR/unknown_message_type_connection.tmp
+--let $xtest_file_connection= $MYSQL_TMP_DIR/unknown_message_type_connection.xpl
 --write_file $xtest_file_connection
 -->quiet
 -->import connection.macro
@@ -53,7 +53,7 @@ EOF
 EOF
 
 
---let $xtest_file_crud= $MYSQL_TMP_DIR/unknown_message_type_crud.tmp
+--let $xtest_file_crud= $MYSQL_TMP_DIR/unknown_message_type_crud.xpl
 --write_file $xtest_file_crud
 -->quiet
 
@@ -116,9 +116,4 @@ CREATE TABLE xtest.table(field INT);
 --source include/wait_condition_or_abort.inc
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file_crud
---remove_file $xtest_file_connection
---remove_file $xtest_file_session
---source include/xplugin_drop_user.inc
-
+--source ../include/xplugin_cleanup.inc

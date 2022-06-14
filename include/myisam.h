@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_check_opt.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -68,9 +69,9 @@
 #define MI_NAME_DEXT ".MYD"
 
 /* Possible values for myisam_block_size (must be power of 2) */
-#define MI_KEY_BLOCK_LENGTH 1024     /* default key block length */
-#define MI_MIN_KEY_BLOCK_LENGTH 1024 /* Min key block length */
-#define MI_MAX_KEY_BLOCK_LENGTH 16384
+#define MI_KEY_BLOCK_LENGTH 1024U     /* default key block length */
+#define MI_MIN_KEY_BLOCK_LENGTH 1024U /* Min key block length */
+#define MI_MAX_KEY_BLOCK_LENGTH 16384U
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.
@@ -86,9 +87,11 @@
 
 #if MI_MAX_KEY > MI_KEYMAP_BITS
 
-#define mi_is_key_active(_keymap_, _keyno_)                                 \
-  (((_keyno_) < MI_KEYMAP_BITS) ? MY_TEST((_keymap_) & (1ULL << (_keyno_))) \
-                                : MY_TEST((_keymap_)&MI_KEYMAP_HIGH_MASK))
+inline bool mi_is_key_active(uint64 _keymap_, unsigned int _keyno_) {
+  return (((_keyno_) < MI_KEYMAP_BITS) ? ((_keymap_) & (1ULL << (_keyno_)))
+                                       : ((_keymap_)&MI_KEYMAP_HIGH_MASK));
+}
+
 #define mi_set_key_active(_keymap_, _keyno_)                        \
   (_keymap_) |= (((_keyno_) < MI_KEYMAP_BITS) ? (1ULL << (_keyno_)) \
                                               : MI_KEYMAP_HIGH_MASK)
@@ -98,15 +101,16 @@
 
 #else
 
-#define mi_is_key_active(_keymap_, _keyno_) \
-  MY_TEST((_keymap_) & (1ULL << (_keyno_)))
+inline bool mi_is_key_active(uint64 _keymap_, unsigned int _keyno_) {
+  return ((_keymap_) & (1ULL << (_keyno_)));
+}
 #define mi_set_key_active(_keymap_, _keyno_) (_keymap_) |= (1ULL << (_keyno_))
 #define mi_clear_key_active(_keymap_, _keyno_) \
   (_keymap_) &= (~(1ULL << (_keyno_)))
 
 #endif
 
-#define mi_is_any_key_active(_keymap_) MY_TEST((_keymap_))
+inline bool mi_is_any_key_active(uint64 _keymap_) { return (_keymap_ != 0); }
 #define mi_is_all_keys_active(_keymap_, _keys_) \
   ((_keymap_) == mi_get_mask_all_keys_active(_keys_))
 #define mi_set_all_keys_active(_keymap_, _keys_) \
@@ -122,30 +126,30 @@
 
 struct MI_ISAMINFO /* Struct from h_info */
 {
-  ha_rows records;           /* Records in database */
-  ha_rows deleted;           /* Deleted records in database */
-  my_off_t recpos;           /* Pos for last used record */
-  my_off_t newrecpos;        /* Pos if we write new record */
-  my_off_t dupp_key_pos;     /* Position to record with dupp key */
-  my_off_t data_file_length, /* Length of data file */
-      max_data_file_length, index_file_length, max_index_file_length,
-      delete_length;
-  ulong reclength;      /* Recordlength */
-  ulong mean_reclength; /* Mean recordlength (if packed) */
-  ulonglong auto_increment;
-  ulonglong key_map; /* Which keys are used */
-  char *data_file_name, *index_file_name;
-  uint keys;          /* Number of keys in use */
-  uint options;       /* HA_OPTION_... used */
-  int errkey,         /* With key was dupplicated on err */
-      sortkey;        /* clustered by this key */
-  File filenr;        /* (uniq) filenr for datafile */
-  time_t create_time; /* When table was created */
-  time_t check_time;
-  time_t update_time;
-  uint reflength;
-  ulong record_offset;
-  ulong *rec_per_key; /* for sql optimizing */
+  ha_rows records{0};           /* Records in database */
+  ha_rows deleted{0};           /* Deleted records in database */
+  my_off_t recpos{0};           /* Pos for last used record */
+  my_off_t newrecpos{0};        /* Pos if we write new record */
+  my_off_t dupp_key_pos{0};     /* Position to record with dupp key */
+  my_off_t data_file_length{0}, /* Length of data file */
+      max_data_file_length{0}, index_file_length{0}, max_index_file_length{0},
+      delete_length{0};
+  ulong reclength{0};      /* Recordlength */
+  ulong mean_reclength{0}; /* Mean recordlength (if packed) */
+  ulonglong auto_increment{0};
+  ulonglong key_map{0}; /* Which keys are used */
+  char *data_file_name{nullptr}, *index_file_name{nullptr};
+  uint keys{0};          /* Number of keys in use */
+  uint options{};        /* HA_OPTION_... used */
+  int errkey{0},         /* With key was dupplicated on err */
+      sortkey{0};        /* clustered by this key */
+  File filenr{0};        /* (uniq) filenr for datafile */
+  time_t create_time{0}; /* When table was created */
+  time_t check_time{0};
+  time_t update_time{0};
+  uint reflength{0};
+  ulong record_offset{0};
+  ulong *rec_per_key{nullptr}; /* for sql optimizing */
 };
 
 struct MI_CREATE_INFO {

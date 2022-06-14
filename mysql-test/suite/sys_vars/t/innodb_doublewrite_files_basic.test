@@ -1,0 +1,21 @@
+#
+# It's a global variable
+#
+select @@global.innodb_doublewrite_files in (2, 64);
+select @@global.innodb_doublewrite_files;
+show global variables like 'innodb_doublewrite_files';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_doublewrite_files';
+--enable_warnings
+
+#
+# It's not writable
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_doublewrite_files=3;
+
+select @@global.innodb_doublewrite_files;
+
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_doublewrite_files';
+--enable_warnings

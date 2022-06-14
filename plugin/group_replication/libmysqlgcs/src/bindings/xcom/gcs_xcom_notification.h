@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class Gcs_xcom_notification {
     execution returns true.
   */
 
-  explicit Gcs_xcom_notification() {}
+  explicit Gcs_xcom_notification() = default;
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -78,7 +78,7 @@ class Gcs_xcom_notification {
     Destructor for the Gcs_xcom_notification.
   */
 
-  virtual ~Gcs_xcom_notification() {}
+  virtual ~Gcs_xcom_notification() = default;
 
  private:
   /*
@@ -207,13 +207,13 @@ class Parameterized_notification : public Gcs_xcom_notification {
     Constructor for Parameterized_notification.
   */
 
-  explicit Parameterized_notification() {}
+  explicit Parameterized_notification() = default;
 
   /**
     Destructor for Parameterized_notification.
   */
 
-  virtual ~Parameterized_notification() {}
+  ~Parameterized_notification() override = default;
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -221,7 +221,7 @@ class Parameterized_notification : public Gcs_xcom_notification {
     Return whether the notification should stop the engine or not.
   */
 
-  bool operator()() {
+  bool operator()() override {
     do_execute();
 
     return stop;
@@ -262,14 +262,14 @@ class Finalize_notification : public Parameterized_notification<true> {
     Destructor for Finalize_notification.
   */
 
-  ~Finalize_notification();
+  ~Finalize_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /**
     Pointer to the MySQL GCS Engine.
@@ -304,14 +304,14 @@ class Initialize_notification : public Parameterized_notification<false> {
     Destructor for Initialize_notification.
   */
 
-  ~Initialize_notification();
+  ~Initialize_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -326,8 +326,8 @@ class Initialize_notification : public Parameterized_notification<false> {
   Initialize_notification &operator=(Initialize_notification const &);
 };
 
-typedef void(xcom_receive_data_functor)(synode_no, Gcs_xcom_nodes *, synode_no,
-                                        u_int, char *);
+typedef void(xcom_receive_data_functor)(synode_no, synode_no, Gcs_xcom_nodes *,
+                                        synode_no, u_int, char *);
 /**
   Notification used to inform that data has been totally ordered.
 */
@@ -339,6 +339,7 @@ class Data_notification : public Parameterized_notification<false> {
     @param functor Pointer to a function that contains that actual
                     core of the execution.
     @param message_id Messaged Id.
+    @param origin XCom synod of origin.
     @param xcom_nodes Set of nodes that participated in the consensus
                   to deliver the message.
     @param size Size of the message's content.
@@ -348,14 +349,15 @@ class Data_notification : public Parameterized_notification<false> {
   */
 
   explicit Data_notification(xcom_receive_data_functor *functor,
-                             synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
-                             synode_no last_removed, u_int size, char *data);
+                             synode_no message_id, synode_no origin,
+                             Gcs_xcom_nodes *xcom_nodes, synode_no last_removed,
+                             u_int size, char *data);
 
   /**
     Destructor for Data_notification
   */
 
-  ~Data_notification();
+  ~Data_notification() override;
 
  private:
   /**
@@ -363,7 +365,7 @@ class Data_notification : public Parameterized_notification<false> {
     with the parameters provided in the contructor.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -375,6 +377,11 @@ class Data_notification : public Parameterized_notification<false> {
     Messaged Id.
   */
   synode_no m_message_id;
+
+  /*
+    XCom synode of origin.
+  */
+  synode_no m_origin;
 
   /*
     Set of nodes that participated in the consensus to deliver the
@@ -427,14 +434,14 @@ class Status_notification : public Parameterized_notification<false> {
     Destructor for Status_notification.
   */
 
-  ~Status_notification();
+  ~Status_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -472,6 +479,8 @@ class Global_view_notification : public Parameterized_notification<false> {
     @param message_id Messaged Id.
     @param xcom_nodes Set of nodes that participated in the consensus
                        to deliver the message.
+    @param event_horizon the XCom configuration's event horizon
+    @param max_synode XCom max synode
   */
 
   explicit Global_view_notification(xcom_global_view_functor *functor,
@@ -484,14 +493,14 @@ class Global_view_notification : public Parameterized_notification<false> {
     Destructor for Global_view_notification.
   */
 
-  ~Global_view_notification();
+  ~Global_view_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -546,27 +555,28 @@ class Local_view_notification : public Parameterized_notification<false> {
 
     @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param message_id Messaged Id.
+    @param config_id Configuration ID to which this view pertains to
     @param xcom_nodes Set of nodes that were defined when the notification
                        happened.
+    @param max_synode XCom max synode
   */
 
   explicit Local_view_notification(xcom_local_view_functor *functor,
-                                   synode_no message_id,
+                                   synode_no config_id,
                                    Gcs_xcom_nodes *xcom_nodes,
                                    synode_no max_synode);
 
   /**
     Destructor for Local_view_notification.
   */
-  ~Local_view_notification();
+  ~Local_view_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -575,9 +585,9 @@ class Local_view_notification : public Parameterized_notification<false> {
   xcom_local_view_functor *m_functor;
 
   /*
-    Message Id.
+    Configuration ID.
   */
-  synode_no m_message_id;
+  synode_no m_config_id;
 
   /*
     Set of nodes that were defined when the notification happened.
@@ -619,14 +629,14 @@ class Control_notification : public Parameterized_notification<false> {
   /**
     Destructor for Control_notification.
   */
-  ~Control_notification();
+  ~Control_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -667,14 +677,14 @@ class Expel_notification : public Parameterized_notification<false> {
     Destructor for Expel_notification.
   */
 
-  ~Expel_notification();
+  ~Expel_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the
@@ -702,7 +712,8 @@ class Protocol_change_notification : public Parameterized_notification<false> {
 
     @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param control_if Reference to Communication Interface.
+    @param protocol_changer communication protocol change logic
+    @param tag tag reference to the lock
   */
 
   explicit Protocol_change_notification(
@@ -713,14 +724,14 @@ class Protocol_change_notification : public Parameterized_notification<false> {
   /**
     Destructor for Protocol_change_notification.
   */
-  ~Protocol_change_notification();
+  ~Protocol_change_notification() override;
 
  private:
   /**
     Task implemented by this notification.
   */
 
-  void do_execute();
+  void do_execute() override;
 
   /*
     Pointer to a function that contains that actual core of the

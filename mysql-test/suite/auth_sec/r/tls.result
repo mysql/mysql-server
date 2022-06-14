@@ -11,7 +11,6 @@ Ssl_cipher	SSL_CIPHER
 Variable_name	Value
 Ssl_version	TLSv1.2
 #T7: Setting invalid TLS version value from the client, it should give error.
-#T8: Cipher which is not in the cipher list but not restricted permanently
 #T9: Cipher which is not in the cipher list but not restricted permanently, setting the server cipher as well
 Restart server and provide ssl-cipher at server startup
 Variable_name	Value

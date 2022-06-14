@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 class InclNodeHBProtocolRep
 {
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -41,7 +41,7 @@ public:
 class NdbcntrStartWaitRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -49,7 +49,7 @@ public:
 class NdbcntrStartedRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -57,7 +57,7 @@ public:
 class SumaHandoverCompleteRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -65,8 +65,8 @@ public:
 class LocalRecoveryCompleteRep
 {
 public:
-  STATIC_CONST ( SignalLengthLocal = 4 );
-  STATIC_CONST ( SignalLengthMaster = 2 );
+  static constexpr Uint32 SignalLengthLocal = 4;
+  static constexpr Uint32 SignalLengthMaster = 2;
 
   enum PhaseIds
   {

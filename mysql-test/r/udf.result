@@ -55,6 +55,12 @@ lookup("localhost")
 127.0.0.1
 select reverse_lookup();
 ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of arguments to reverse_lookup;  Use the source
+prepare s from "select myfunc_double(?)";
+set @one = 1;
+execute s using @one;
+myfunc_double(?)
+49.00
+deallocate prepare s;
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");
@@ -230,24 +236,45 @@ ERROR 42000: Incorrect parameters in the call to native function 'abs'
 drop function if exists pi;
 CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
 ERROR HY000: This function 'pi' has the same name as a native function
+
+# Bug#33301931 LOADABLE AND STORED FUNCTIONS SHARE NAMESPACE INCONSISTENTLY
+
+# Verify that UDF and Stored function can be created with the same name.
+
+# UDF can be created with the same name as SF. UDF eclipses the stored function when used without schema qualifier
 DROP FUNCTION IF EXISTS metaphon;
-CREATE FUNCTION metaphon(a int) RETURNS int
-return 0;
+CREATE FUNCTION metaphon(a int) RETURNS int return 0;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
-DROP FUNCTION metaphon;
-DROP FUNCTION metaphon;
+SELECT metaphon('a');
+metaphon('a')
+A
+SELECT test.metaphon(0);
+test.metaphon(0)
+0
+DROP FUNCTION test.metaphon;
+
+# SF can be created with the same name as UDF. UDF eclipses the stored function when used without schema qualifier
+DROP FUNCTION IF EXISTS metaphon;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
-CREATE FUNCTION metaphon(a int) RETURNS int
-return 0;
-ERROR HY000: Function 'metaphon' already exists
-CREATE FUNCTION test.metaphon(a int) RETURNS int
-return 0;
-ERROR HY000: Function 'metaphon' already exists
+CREATE FUNCTION metaphon(a int) RETURNS int return 0;
+Warnings:
+Note	4084	This function 'metaphon' has the same name as a loadable function (UDF). To invoke the stored function, it is necessary to qualify it with the schema name.
+SELECT metaphon('a');
+metaphon('a')
+A
+SELECT test.metaphon(0);
+test.metaphon(0)
+0
+DROP FUNCTION test.metaphon;
 create table t1(sum int, price float(24));
 select distinct avgcost(sum,price) from t1 order by avgcost(sum,price);
 avgcost(sum,price)
 NULL
 drop table t1;
+myfunc_int(20)
+20
+myfunc_double(20)
+49.00
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
 DROP FUNCTION myfunc_nonexist;
@@ -524,8 +551,55 @@ a	my_median(b)
 1	2
 2	200
 3	42
-DROP FUNCTION my_median;
 DROP TABLE t1;
+# Bug#32528898: Calling UDF aggregate function corrupts plugin with JOIN
+CREATE TABLE users(id INTEGER, name VARCHAR(255));
+INSERT INTO users(id, name) VALUES (1, 'Jason'), (2, 'Brian');
+CREATE TABLE user_values(id INTEGER, user_id INTEGER, value INTEGER);
+INSERT INTO user_values(id, user_id, value) VALUES (1,1,1), (2,2,10);
+SELECT my_median(value) FROM user_values;
+my_median(value)
+10
+SELECT my_median(value) FROM user_values;
+my_median(value)
+10
+SELECT user_id, my_median(value) FROM user_values GROUP BY user_id;
+user_id	my_median(value)
+1	1
+2	10
+SELECT user_id, my_median(value) FROM user_values GROUP BY user_id;
+user_id	my_median(value)
+1	1
+2	10
+SELECT users.id, my_median(value)
+FROM users,user_values
+WHERE users.id = user_values.user_id
+GROUP BY users.id;
+id	my_median(value)
+1	1
+2	10
+SELECT users.id, my_median(value)
+FROM users,user_values
+WHERE users.id = user_values.user_id
+GROUP BY users.id;
+id	my_median(value)
+1	1
+2	10
+prepare ps from "SELECT users.id, my_median(value)
+FROM users,user_values
+WHERE users.id = user_values.user_id
+GROUP BY users.id";
+execute ps;
+id	my_median(value)
+1	1
+2	10
+execute ps;
+id	my_median(value)
+1	1
+2	10
+DEALLOCATE PREPARE ps;
+DROP TABLE users, user_values;
+DROP FUNCTION my_median;
 #
 # WL8980 - Move udf metatable table from MyISAM to InnoDB.
 #
@@ -625,4 +699,30 @@ avgcost(T.TABLE_ROWS, 0e0)
 NULL
 DROP TABLE t1;
 DROP FUNCTION avgcost;
+#
+# WL#8084: Condition pushdown to materialized derived table
+#
+CREATE AGGREGATE FUNCTION my_median RETURNS INTEGER
+SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,100),(1,2),(2,100),(2,3);
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, my_median(f2) as median
+FROM t1 GROUP BY f1) as dt
+WHERE median != 1;
+EXPLAIN
+-> Table scan on dt  (cost=*** rows=***)
+    -> Materialize  (cost=*** rows=***)
+        -> Filter: (my_median(t1.f2) <> 1)  (cost=*** rows=***)
+            -> Group aggregate: my_median(t1.f2)  (cost=*** rows=***)
+                -> Sort: t1.f1  (cost=*** rows=***)
+                    -> Table scan on t1  (cost=*** rows=***)
+
+SELECT * FROM (SELECT f1, my_median(f2) as median
+FROM t1 GROUP BY f1) as dt
+WHERE median != 1;
+f1	median
+1	100
+2	100
+DROP TABLE t1;
+DROP FUNCTION my_median;
 # End of the 8.0 tests

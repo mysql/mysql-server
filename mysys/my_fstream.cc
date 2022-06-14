@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,109 +38,97 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
+#include "my_thread_local.h"  // set_my_errno
 #include "mysys_err.h"
-#include "template_utils.h"
+#include "template_utils.h"  // pointer_cast
 #if defined(_WIN32)
-#include "mysys/mysys_priv.h"
+#include "mysys/mysys_priv.h"  // my_win_x
 #endif
 
-#ifdef HAVE_FSEEKO
-#undef ftell
-#undef fseek
-#define ftell(A) ftello(A)
-#define fseek(A, B, C) fseeko((A), (B), (C))
-#endif
+namespace {
+/**
+   Portable fseek() wrapper (without the modified semantics of my_fseek()).
+*/
+int64_t fseek_(FILE *stream, int64_t offset, int whence) {
+#ifdef _WIN32
+  return _fseeki64(stream, offset, whence);
+#else
+  return fseeko(stream, offset, whence);
+#endif /* _WIN32 */
+}
+}  // namespace
 
-/*
-  Read a chunk of bytes from a FILE
+/**
+   Read a chunk of bytes from a FILE stream.
 
-  SYNOPSIS
-   my_fread()
-   stream	File descriptor
-   Buffer	Buffer to read to
-   Count	Number of bytes to read
-   MyFlags	Flags on what to do on error
+   @param stream  Source
+   @param Buffer  Destination
+   @param Count	  Number of bytes to read
+   @param MyFlags Flags for error handling
 
-  RETURN
-    (size_t) -1 Error
-    #		Number of bytes read
+   @retval Number of bytes read
+   @retval MY_FILE_ERROR in case of errors
  */
-
 size_t my_fread(FILE *stream, uchar *Buffer, size_t Count, myf MyFlags) {
   size_t readbytes;
-  DBUG_ENTER("my_fread");
-  DBUG_PRINT("my", ("stream: %p  Buffer: %p  Count: %u  MyFlags: %d", stream,
-                    Buffer, (uint)Count, MyFlags));
-
+  DBUG_TRACE;
   if ((readbytes = fread(Buffer, sizeof(char), Count, stream)) != Count) {
-    DBUG_PRINT("error", ("Read only %d bytes", (int)readbytes));
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
       if (ferror(stream)) {
-        char errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_READ, MYF(0), my_filename(my_fileno(stream)), errno,
-                 my_strerror(errbuf, sizeof(errbuf), errno));
+        MyOsError(my_errno(), EE_READ, MYF(0), my_filename(my_fileno(stream)));
       } else if (MyFlags & (MY_NABP | MY_FNABP)) {
-        char errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_EOFERR, MYF(0), my_filename(my_fileno(stream)), errno,
-                 my_strerror(errbuf, sizeof(errbuf), errno));
+        MyOsError(errno, EE_EOFERR, MYF(0), my_filename(my_fileno(stream)));
       }
     }
     set_my_errno(errno ? errno : -1);
     if (ferror(stream) || MyFlags & (MY_NABP | MY_FNABP))
-      DBUG_RETURN((size_t)-1); /* Return with error */
+      return MY_FILE_ERROR; /* Return with error */
   }
-  if (MyFlags & (MY_NABP | MY_FNABP)) DBUG_RETURN(0); /* Read ok */
-  DBUG_RETURN(readbytes);
-} /* my_fread */
+  if (MyFlags & (MY_NABP | MY_FNABP)) return 0; /* Read ok */
+  return readbytes;
+}
 
-/*
-  Write a chunk of bytes to a stream
+/**
+   Write a chunk of bytes to a FILE stream.
 
-   my_fwrite()
-   stream	File descriptor
-   Buffer	Buffer to write from
-   Count	Number of bytes to write
-   MyFlags	Flags on what to do on error
+   @param stream	  Destination
+   @param Buffer   Source
+   @param Count	  Number of bytes to write
+   @param MyFlags  Flags for error handling
 
-  RETURN
-    (size_t) -1 Error
-    #		Number of bytes written
+   @retval Number of bytes written
+   @retval MY_FILE_ERROR in case of errors
 */
-
 size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
   size_t writtenbytes = 0;
-  my_off_t seekptr;
+  int64_t seekptr;
 
-  DBUG_ENTER("my_fwrite");
-  DBUG_PRINT("my", ("stream: %p  Buffer: %p  Count: %u  MyFlags: %d", stream,
-                    Buffer, (uint)Count, MyFlags));
-  DBUG_EXECUTE_IF("simulate_fwrite_error", DBUG_RETURN(-1););
+  DBUG_TRACE;
+  DBUG_EXECUTE_IF("simulate_fwrite_error", return -1;);
 
-  seekptr = ftell(stream);
+  seekptr = my_ftell(stream);
   for (;;) {
+    errno = 0;
     size_t written =
         fwrite(pointer_cast<const char *>(Buffer), sizeof(char), Count, stream);
     if (written != Count) {
-      DBUG_PRINT("error", ("Write only %d bytes", (int)writtenbytes));
       set_my_errno(errno);
-      if (written != (size_t)-1) {
-        seekptr += written;
-        Buffer += written;
-        writtenbytes += written;
-        Count -= written;
-      }
+
+      assert(written != MY_FILE_ERROR);
+      seekptr += written;
+      Buffer += written;
+      writtenbytes += written;
+      Count -= written;
+
       if (errno == EINTR) {
-        (void)my_fseek(stream, seekptr, MY_SEEK_SET);
+        fseek_(stream, seekptr, MY_SEEK_SET);
         continue;
       }
       if (ferror(stream) || (MyFlags & (MY_NABP | MY_FNABP))) {
         if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
-          char errbuf[MYSYS_STRERROR_SIZE];
-          my_error(EE_WRITE, MYF(0), my_filename(my_fileno(stream)), errno,
-                   my_strerror(errbuf, sizeof(errbuf), errno));
+          MyOsError(errno, EE_WRITE, MYF(0), my_filename(my_fileno(stream)));
         }
-        writtenbytes = (size_t)-1; /* Return that we got error */
+        writtenbytes = MY_FILE_ERROR; /* Return that we got error */
         break;
       }
     }
@@ -150,32 +138,46 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
       writtenbytes += written;
     break;
   }
-  DBUG_RETURN(writtenbytes);
-} /* my_fwrite */
+  return writtenbytes;
+}
 
-/* Seek to position in file */
+/**
+   Seek to position in FILE stream. Note that the semantics differ from
+   normal fseek() in that it returns the new position, and not just
+   0/-1 to indicate success/failure.
 
+   @param stream to seek in
+   @param pos offset into stream
+   @param whence where to seek from
+
+   @retval new offset in stream
+   @retval MY_FILEPOS_ERROR in case of errors
+*/
 my_off_t my_fseek(FILE *stream, my_off_t pos, int whence) {
-  DBUG_ENTER("my_fseek");
-  DBUG_PRINT("my",
-             ("stream: %p  pos: %lu  whence: %d", stream, (long)pos, whence));
-  DBUG_RETURN(fseek(stream, (off_t)pos, whence) ? MY_FILEPOS_ERROR
-                                                : (my_off_t)ftell(stream));
-} /* my_seek */
+  DBUG_TRACE;
 
-/* Tell current position of file */
+  return fseek_(stream, pos, whence) ? MY_FILEPOS_ERROR : my_ftell(stream);
+}
 
+/**
+   Portable ftell() wrapper.
+*/
 my_off_t my_ftell(FILE *stream) {
-  off_t pos;
-  DBUG_ENTER("my_ftell");
-  DBUG_PRINT("my", ("stream: %p", stream));
-  pos = ftell(stream);
-  DBUG_PRINT("exit", ("ftell: %lu", (ulong)pos));
-  DBUG_RETURN((my_off_t)pos);
-} /* my_ftell */
+  int64_t pos;
+  DBUG_TRACE;
 
-/* Get a File corresponding to the stream*/
-int my_fileno(FILE *f) {
+#ifdef _WIN32
+  pos = _ftelli64(stream);
+#else
+  pos = ftello(stream);
+#endif /* _WIN32 */
+  return pos;
+}
+
+/**
+   Portable fileno() wrapper.
+*/
+File my_fileno(FILE *f) {
 #ifdef _WIN32
   return my_win_fileno(f);
 #else

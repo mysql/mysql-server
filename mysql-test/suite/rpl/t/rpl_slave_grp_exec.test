@@ -20,7 +20,9 @@
 # start position of the group.
 #############################################################
 --source include/not_group_replication_plugin.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 --echo
 
@@ -119,14 +121,14 @@ RENAME TABLE t3 TO t3_bak;
 if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
 {
   --disable_query_log
-  SET @saved_slave_preserve_commit_order= @@GLOBAL.slave_preserve_commit_order;
-  STOP SLAVE SQL_THREAD;
-  # Set slave_preserve_commit_order to ON to make the following
+  SET @saved_replica_preserve_commit_order= @@GLOBAL.replica_preserve_commit_order;
+  STOP REPLICA SQL_THREAD;
+  # Set replica_preserve_commit_order to ON to make the following
   # INSERT statements execute in commit order to make the following
   # SELECT statements output the consistent result even when
   # binlog_transaction_dependency_tracking is set to WRITESET.
-  SET GLOBAL slave_preserve_commit_order= ON;
-  START SLAVE SQL_THREAD;
+  SET GLOBAL replica_preserve_commit_order= ON;
+  START REPLICA SQL_THREAD;
   --enable_query_log
 }
 
@@ -164,7 +166,7 @@ SELECT * FROM t2 ORDER BY a;
 if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
 {
   --disable_query_log
-  SET GLOBAL slave_preserve_commit_order= @saved_slave_preserve_commit_order;
+  SET GLOBAL replica_preserve_commit_order= @saved_replica_preserve_commit_order;
   --enable_query_log
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,28 +56,29 @@ class TCP_Transporter : public Transporter {
 private:
   // Initialize member variables
   TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
+  TCP_Transporter(TransporterRegistry&, const TCP_Transporter*);
 
   // Disconnect, delete send buffers and receive buffer
-  virtual ~TCP_Transporter();
+  ~TCP_Transporter() override;
 
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
-  virtual void resetBuffers();
+  void resetBuffers() override;
 
-  virtual bool configure_derived(const TransporterConfiguration* conf);
+  bool configure_derived(const TransporterConfiguration* conf) override;
 
   /**
    * Allocate buffers for sending and receiving
    */
-  bool initTransporter();
+  bool initTransporter() override;
 
   /**
    * Retrieves the contents of the send buffers and writes it on
    * the external TCP/IP interface.
    */
-  bool doSend(bool need_wakeup = true);
+  bool doSend(bool need_wakeup = true) override;
   
   /**
    * It reads the external TCP/IP interface once 
@@ -101,6 +102,8 @@ private:
   inline bool hasReceiveData () const {
     return receiveBuffer.sizeOfData > 0;
   }
+
+  void shutdown() override;
 protected:
   /**
    * Setup client/server and perform connect/accept
@@ -108,14 +111,14 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
-  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_server_impl(NDB_SOCKET_TYPE sockfd) override;
+  bool connect_client_impl(NDB_SOCKET_TYPE sockfd) override;
   bool connect_common(NDB_SOCKET_TYPE sockfd);
   
   /**
    * Disconnects a TCP/IP node, possibly blocking.
    */
-  virtual void disconnectImpl();
+  void disconnectImpl() override;
   
 private:
   Uint32 maxReceiveSize;
@@ -131,14 +134,14 @@ private:
   void setSocketOptions(NDB_SOCKET_TYPE socket);
 
   static bool setSocketNonBlocking(NDB_SOCKET_TYPE aSocket);
-  virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
+  int pre_connect_options(NDB_SOCKET_TYPE aSocket) override;
   
-  bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(int timeout_millisec) const override;
   bool send_is_possible(NDB_SOCKET_TYPE fd, int timeout_millisec) const;
 
   ReceiveBuffer receiveBuffer;
 
-  bool send_limit_reached(int bufsize) { return bufsize > TCP_SEND_LIMIT; }
+  bool send_limit_reached(int bufsize) override { return bufsize > TCP_SEND_LIMIT; }
 };
 
 inline

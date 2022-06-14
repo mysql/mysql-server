@@ -1,7 +1,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---write_file $MYSQL_TMP_DIR/roles_test.tmp
+--write_file $MYSQL_TMP_DIR/roles_test.xpl
 ## Test data
 -->sql
 
@@ -21,8 +21,7 @@ DROP USER u1@localhost, u2;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/roles_test.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/roles_test.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/roles_test.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

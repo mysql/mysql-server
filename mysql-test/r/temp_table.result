@@ -66,7 +66,7 @@ drop table t1;
 create temporary table t1 (id int(10) not null unique);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-create temporary table t2 (id int(10) not null primary key, 
+create temporary table t2 (id int(10) not null primary key,
 val int(10) not null);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -82,7 +82,7 @@ drop table t1,t2;
 create temporary table t1 (a int not null);
 insert into t1 values (1),(1);
 alter table t1 add primary key (a);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 drop table t1;
 create temporary table v1 as select 'This is temp. table' A;
 create view v1 as select 'This is view' A;
@@ -199,7 +199,7 @@ INSERT INTO t2 SELECT f1();
 DROP TABLE t1,t2,t3;
 DROP FUNCTION f1;
 #
-# Bug #48067: A temp table with the same name as an existing table, 
+# Bug #48067: A temp table with the same name as an existing table,
 #             makes drop database fail.
 #
 DROP TEMPORARY TABLE IF EXISTS bug48067.t1;
@@ -347,3 +347,78 @@ ERROR HY000: Field 'a' doesn't have a default value
 # Create table would assert because REPLACE setting is not compatible with MDL for CREATE
 CREATE TABLE IF NOT EXISTS t2 (a INT);
 DROP TABLE t2;
+#
+# Bug #30716037 MEMORY CORRUPTION BUG IN MYSQLD
+#
+CREATE TEMPORARY TABLE v0 ( v1 INT UNIQUE ) ;
+WITH RECURSIVE v0 ( v1 ) AS ( SELECT -128 UNION SELECT v1 + 33 FROM v0 )
+SELECT 'x' , -1 , 54703121.000000 FROM v0 AS v3 , v0 AS v2 , v0 NATURAL JOIN
+v0 AS v5 NATURAL JOIN v0 AS v4 ;
+ERROR HY000: Recursive query aborted after 1001 iterations. Try increasing @@cte_max_recursion_depth to a larger value.
+DROP TABLE v0;
+WITH RECURSIVE v0 ( c1 ) AS (
+SELECT 0
+UNION
+SELECT c1 + 1 FROM v0
+)
+SELECT *
+FROM
+v0,
+v0 AS v1
+NATURAL JOIN v0 AS v2;
+ERROR HY000: Recursive query aborted after 1001 iterations. Try increasing @@cte_max_recursion_depth to a larger value.
+WITH RECURSIVE v0 ( c1 ) AS (
+SELECT 0
+UNION
+SELECT 1 FROM v0
+)
+SELECT *
+FROM
+v0,
+v0 AS v1
+NATURAL JOIN v0 AS v2;
+c1	c1
+0	0
+0	1
+1	0
+1	1
+#
+# Bug#29899151: CORE AT CREATE TABLE WITH FK FOR TABLE TRANSFERRED
+# FROM MYISAM TO INNODB
+#
+# Verify that default_tmp_storage_engine is substituted and works
+# when the source storage engine of LIKE does not support
+# temporary tables.
+CREATE TEMPORARY TABLE tt1(c1 INT);
+SHOW CREATE TABLE tt1;
+Table	Create Table
+tt1	CREATE TEMPORARY TABLE `tt1` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt1;
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+Table	Create Table
+tt1	CREATE TEMPORARY TABLE `tt1` (
+  `NAME` varchar(64) NOT NULL,
+  `ENABLED` enum('YES','NO') NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt1;
+SET default_tmp_storage_engine=MYISAM;
+CREATE TEMPORARY TABLE tt1(c1 INT);
+SHOW CREATE TABLE tt1;
+Table	Create Table
+tt1	CREATE TEMPORARY TABLE `tt1` (
+  `c1` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt1;
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+Table	Create Table
+tt1	CREATE TEMPORARY TABLE `tt1` (
+  `NAME` varchar(64) NOT NULL,
+  `ENABLED` enum('YES','NO') NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt1;

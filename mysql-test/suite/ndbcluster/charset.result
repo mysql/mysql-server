@@ -1,0 +1,404 @@
+create table t1 (
+a char(3) character set latin1 collate latin1_bin primary key
+) engine=ndb;
+insert into t1 values('aAa');
+insert into t1 values('aaa');
+insert into t1 values('AAA');
+select * from t1 order by a;
+a
+AAA
+aAa
+aaa
+select * from t1 where a = 'aAa';
+a
+aAa
+select * from t1 where a = 'aaa';
+a
+aaa
+select * from t1 where a = 'AaA';
+a
+select * from t1 where a = 'AAA';
+a
+AAA
+drop table t1;
+create table t1 (
+a char(3) character set latin1 collate latin1_swedish_ci primary key
+) engine=ndb;
+insert into t1 values('aAa');
+insert into t1 values('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 't1.PRIMARY'
+insert into t1 values('AAA');
+ERROR 23000: Duplicate entry 'AAA' for key 't1.PRIMARY'
+select * from t1 order by a;
+a
+aAa
+select * from t1 where a = 'aAa';
+a
+aAa
+select * from t1 where a = 'aaa';
+a
+aAa
+select * from t1 where a = 'AaA';
+a
+aAa
+select * from t1 where a = 'AAA';
+a
+aAa
+drop table t1;
+create table t1 (
+a varchar(20) character set latin1 collate latin1_swedish_ci primary key
+) engine=ndb;
+insert into t1 values ('A'),('b '),('C  '),('d      '),('E'),('f');
+insert into t1 values('b');
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
+insert into t1 values('a         ');
+ERROR 23000: Duplicate entry 'a         ' for key 't1.PRIMARY'
+select a,length(a) from t1 order by a;
+a	length(a)
+A	1
+b 	2
+C  	3
+d      	7
+E	1
+f	1
+select a,length(a) from t1 order by a desc;
+a	length(a)
+f	1
+E	1
+d      	7
+C  	3
+b 	2
+A	1
+select * from t1 where a = 'a';
+a
+A
+select * from t1 where a = 'a   ';
+a
+A
+select * from t1 where a = 'd';
+a
+d      
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_bin not null,
+unique key(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+select * from t1 order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+select * from t1 where a = 'aAa';
+p	a
+1	aAa
+select * from t1 where a = 'aaa';
+p	a
+2	aaa
+select * from t1 where a = 'AaA';
+p	a
+select * from t1 where a = 'AAA';
+p	a
+3	AAA
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_swedish_ci not null,
+unique key(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 't1.a'
+insert into t1 values(3, 'AAA');
+ERROR 23000: Duplicate entry 'AAA' for key 't1.a'
+select * from t1 order by p;
+p	a
+1	aAa
+select * from t1 where a = 'aAa';
+p	a
+1	aAa
+select * from t1 where a = 'aaa';
+p	a
+1	aAa
+select * from t1 where a = 'AaA';
+p	a
+1	aAa
+select * from t1 where a = 'AAA';
+p	a
+1	aAa
+drop table t1;
+create table t1 (
+p int primary key,
+a varchar(20) character set latin1 collate latin1_swedish_ci not null,
+unique key(a)
+) engine=ndb;
+insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
+insert into t1 values(99,'b');
+ERROR 23000: Duplicate entry 'b' for key 't1.a'
+insert into t1 values(99,'a         ');
+ERROR 23000: Duplicate entry 'a         ' for key 't1.a'
+select a,length(a) from t1 order by a;
+a	length(a)
+A	1
+b 	2
+C  	3
+d      	7
+E	1
+f	1
+select a,length(a) from t1 order by a desc;
+a	length(a)
+f	1
+E	1
+d      	7
+C  	3
+b 	2
+A	1
+select * from t1 where a = 'a';
+p	a
+1	A
+select * from t1 where a = 'a   ';
+p	a
+1	A
+select * from t1 where a = 'd';
+p	a
+4	d      
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_bin not null,
+index(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+select * from t1 order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'aAa' order by p;
+p	a
+1	aAa
+4	aAa
+select * from t1 where a = 'aaa' order by p;
+p	a
+2	aaa
+5	aaa
+select * from t1 where a = 'AaA' order by p;
+p	a
+select * from t1 where a = 'AAA' order by p;
+p	a
+3	AAA
+6	AAA
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_swedish_ci not null,
+index(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+select * from t1 order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'aAa' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'aaa' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'AaA' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'AAA' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+drop table t1;
+create table t1 (
+p int primary key,
+a varchar(20) character set latin1 collate latin1_swedish_ci not null,
+index(a, p)
+) engine=ndb;
+insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
+insert into t1 values (7,'a'),(8,'B '),(9,'c  '),(10,'D'),(11,'e'),(12,'F  ');
+select p,a,length(a) from t1 order by a, p;
+p	a	length(a)
+1	A	1
+7	a	1
+2	b 	2
+8	B 	2
+3	C  	3
+9	c  	3
+4	d      	7
+10	D	1
+5	E	1
+11	e	1
+6	f	1
+12	F  	3
+select * from t1 where a = 'a  ' order by a desc, p desc;
+p	a
+7	a
+1	A
+select * from t1 where a >= 'D' order by a, p;
+p	a
+4	d      
+10	D
+5	E
+11	e
+6	f
+12	F  
+select * from t1 where a < 'D' order by a, p;
+p	a
+1	A
+7	a
+2	b 
+8	B 
+3	C  
+9	c  
+select count(*) from t1 x, t1 y, t1 z where x.a = y.a and y.a = z.a;
+count(*)
+48
+drop table t1;
+create table t1 (
+a char(10) primary key
+) engine=ndbcluster default charset=latin1;
+insert into t1 values ('aaabb');
+select * from t1;
+a
+aaabb
+replace into t1 set a = 'AAABB';
+select * from t1;
+a
+AAABB
+replace into t1 set a = 'aAaBb';
+select * from t1;
+a
+aAaBb
+replace into t1 set a = 'aaabb';
+select * from t1;
+a
+aaabb
+drop table t1;
+create table t1(a int) engine = ndbcluster;
+create table T1(a int) engine = ndbcluster;
+drop table T1;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_0900_as_cs,
+primary key(c1)
+) engine = ndbcluster;
+insert into t1 values('ABC_x'), ('ABC_X');
+insert into t1 values('ABCDEF_x'), ('ABCDEF_X');
+insert into t1 values('ABCDEFGH_x'), ('ABCDEFGH_X');
+select * from t1;
+c1
+ABCDEFGH_X
+ABCDEFGH_x
+ABCDEF_X
+ABCDEF_x
+ABC_X
+ABC_x
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+primary key(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+primary key using hash(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+unique key(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) not null collate utf8mb4_ja_0900_as_cs_ks,
+unique key using hash(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+key(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t (
+ck char(1) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 't.PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;
+create table t (
+ck char(10) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 't.PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;
+create table t (
+ck varchar(1) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 't.PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;
+create table t (
+ck varchar(10) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 't.PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;

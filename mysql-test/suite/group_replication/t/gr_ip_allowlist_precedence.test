@@ -1,0 +1,90 @@
+################################################################################
+# This test verify changed values are accepted between
+# group_replication_ip_whitelist and group_replication_ip_allowlist.
+# group_replication_ip_allowlist has high precendence over
+# group_replication_ip_whitelist.
+#
+# Test:
+# 0. The test requires two servers.
+# 1. Bootstrap M1.
+# 2. Set group_replication_ip_whitelist as AUTOMATIC and
+#    group_replication_ip_allowlist as AUTOMATIC.
+#    M2 join the group.
+# 3. Set group_replication_ip_whitelist as incorrect_ip and
+#    group_replication_ip_allowlist as AUTOMATIC.
+#    M2 does not join the group, changed value of whitelist is used.
+# 4. Set group_replication_ip_whitelist as AUTOMATIC and
+#    group_replication_ip_allowlist as incorrect_ip.
+#    M2 does not join the group, changed value of allowlist is used.
+# 5. Set group_replication_ip_whitelist as incorrect_ip and
+#    group_replication_ip_allowlist as correct_ip.
+#    M2 joins the group, allowlist take precedence over whitelist.
+# 6. Cleanup.
+################################################################################
+--let $group_replication_group_name= 8a94f357-aabb-ccdc-8899-cccaaff29573
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $_incorrect_gr_ip_whitelist="192.256.1.20"
+--let $_correct_gr_ip_whitelist="127.0.0.1/8"
+
+--echo # 1. Bootstrap M1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo # 2. Set group_replication_ip_whitelist as AUTOMATIC and
+--echo #    group_replication_ip_allowlist as AUTOMATIC.
+--echo #    M2 join the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_group_name="$group_replication_group_name"
+SET @saved_gr_ip_whitelist = @@GLOBAL.group_replication_ip_whitelist;
+SET @saved_gr_ip_allowlist = @@GLOBAL.group_replication_ip_allowlist;
+
+SET GLOBAL group_replication_ip_whitelist="AUTOMATIC";
+SET GLOBAL group_replication_ip_allowlist="AUTOMATIC";
+--source include/start_group_replication.inc
+--source include/stop_group_replication.inc
+
+--echo # 3. Set group_replication_ip_whitelist as incorrect_ip and
+--echo #    group_replication_ip_allowlist as AUTOMATIC.
+--echo #    M2 does not join the group, changed value of whitelist is used.
+
+--eval SET GLOBAL group_replication_ip_whitelist=$_incorrect_gr_ip_whitelist
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--echo # 4. Set group_replication_ip_whitelist as AUTOMATIC and
+--echo #    group_replication_ip_allowlist as incorrect_ip.
+--echo #    M2 does not join the group, changed value of allowlist is used.
+
+SET GLOBAL group_replication_ip_whitelist="AUTOMATIC";
+--eval SET GLOBAL group_replication_ip_allowlist=$_incorrect_gr_ip_whitelist
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--echo # 5. Set group_replication_ip_whitelist as incorrect_ip and
+--echo #    group_replication_ip_allowlist as correct_ip.
+--echo #    M2 joins the group, allowlist take precedence over whitelist.
+
+--eval SET GLOBAL group_replication_ip_whitelist=$_incorrect_gr_ip_whitelist
+--eval SET GLOBAL group_replication_ip_allowlist=$_correct_gr_ip_whitelist
+--source include/start_group_replication.inc
+--source include/stop_group_replication.inc
+
+--echo # 6. Cleanup.
+
+SET @@GLOBAL.group_replication_ip_whitelist = @saved_gr_ip_whitelist;
+SET @@GLOBAL.group_replication_ip_allowlist = @saved_gr_ip_allowlist;
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unable to initialize the group communication engine");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("\\[GCS\\] Invalid IP or subnet mask in the allowlist:*");
+call mtr.add_suppression("\\[GCS\\] Automatically adding IPv. localhost address to the allowlist. It is mandatory that it is added.");
+call mtr.add_suppression("\\[GCS\\] Connection attempt from IP address*");
+SET SESSION sql_log_bin = 1;
+
+--source include/group_replication_end.inc

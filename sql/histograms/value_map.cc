@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,11 @@
 
 #include "sql/histograms/value_map.h"
 
+#include <assert.h>
 #include <algorithm>
 #include <new>
 #include <string>  // std::string
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -49,11 +49,11 @@ template <>
 bool Histogram_comparator::operator()(const String &lhs,
                                       const String &rhs) const {
   // The collation MUST be the same
-  DBUG_ASSERT(lhs.charset()->number == rhs.charset()->number);
+  assert(lhs.charset()->number == rhs.charset()->number);
 
   // The number of characters should already be limited.
-  DBUG_ASSERT(lhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
-  DBUG_ASSERT(rhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
+  assert(lhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
+  assert(rhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
 
   return sortcmp(&lhs, &rhs, lhs.charset()) < 0;
 }
@@ -77,9 +77,8 @@ Value_map_base::Value_map_base(const CHARSET_INFO *charset,
     : m_sampling_rate(sampling_rate),
       m_charset(charset),
       m_num_null_values(0),
-      m_data_type(data_type) {
-  init_alloc_root(key_memory_histograms, &m_mem_root, 256, 0);
-}
+      m_data_type(data_type),
+      m_mem_root(key_memory_histograms, 256) {}
 
 template <class T>
 bool Value_map_base::add_values(const T &value, const ha_rows count) {
@@ -102,7 +101,7 @@ bool Value_map<T>::add_values(const T &value, const ha_rows count) {
 template <>
 bool Value_map<String>::add_values(const String &value, const ha_rows count) {
   /*
-    We only consider the susbtring. That is, if the strings differs after
+    We only consider the substring. That is, if the strings differs after
     character number HISTOGRAM_MAX_COMPARE_LENGTH, they will be considered
     equal.
 
@@ -135,7 +134,7 @@ template <class T>
 bool Value_map<T>::insert(typename value_map_type::const_iterator begin,
                           typename value_map_type::const_iterator end) {
   try {
-    DBUG_ASSERT(m_value_map.empty());
+    assert(m_value_map.empty());
     m_value_map.insert(begin, end);
   } catch (const std::bad_alloc &) {
     // Out of memory.

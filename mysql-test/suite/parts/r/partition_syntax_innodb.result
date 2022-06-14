@@ -56,7 +56,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY (f_int2)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2;
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -66,7 +66,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY (f_int2)
 )
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -76,7 +76,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY (f_int2)
 )
 PARTITION BY KEY(f_int1) PARTITIONS 2;
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -86,7 +86,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY (f_int2)
 )
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 2;
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -97,7 +97,7 @@ PRIMARY KEY (f_int2)
 )
 PARTITION BY LIST(f_int1)
 (PARTITION part1 VALUES IN (1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -108,7 +108,7 @@ PRIMARY KEY (f_int2)
 )
 PARTITION BY LIST(f_int1 + f_int2)
 (PARTITION part1 VALUES IN (1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -119,7 +119,7 @@ PRIMARY KEY (f_int2)
 )
 PARTITION BY RANGE(f_int1)
 (PARTITION part1 VALUES LESS THAN (1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -130,7 +130,7 @@ PRIMARY KEY (f_int2)
 )
 PARTITION BY RANGE(f_int1 + f_int2)
 (PARTITION part1 VALUES LESS THAN (1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 #------------------------------------------------------------------------
 #  1.2 column of partitioning function not included in UNIQUE INDEX
 #               PARTITION BY HASH/KEY/LIST/RANGE
@@ -148,7 +148,7 @@ f_charbig VARCHAR(1000),
 UNIQUE INDEX (f_int2)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -158,7 +158,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY(f_int1,f_int2), UNIQUE INDEX (f_int2)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -168,7 +168,7 @@ f_charbig VARCHAR(1000),
 UNIQUE INDEX (f_int2)
 )
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -178,7 +178,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY(f_int1,f_int2), UNIQUE INDEX (f_int2)
 )
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -188,7 +188,7 @@ f_charbig VARCHAR(1000),
 UNIQUE INDEX (f_int2)
 )
 PARTITION BY KEY(f_int1) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -198,7 +198,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY(f_int1,f_int2), UNIQUE INDEX (f_int2)
 )
 PARTITION BY KEY(f_int1) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -208,7 +208,7 @@ f_charbig VARCHAR(1000),
 UNIQUE INDEX (f_int2)
 )
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -218,7 +218,7 @@ f_charbig VARCHAR(1000),
 PRIMARY KEY(f_int1,f_int2), UNIQUE INDEX (f_int2)
 )
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 2;
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -232,7 +232,7 @@ PARTITION BY LIST(MOD(f_int1,3))
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -246,7 +246,7 @@ PARTITION BY LIST(MOD(f_int1,3))
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -260,7 +260,7 @@ PARTITION BY LIST(MOD(f_int1 + f_int2,3))
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -274,7 +274,7 @@ PARTITION BY LIST(MOD(f_int1 + f_int2,3))
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -286,7 +286,7 @@ UNIQUE INDEX (f_int2)
 PARTITION BY RANGE(f_int1)
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -298,7 +298,7 @@ PRIMARY KEY(f_int1,f_int2), UNIQUE INDEX (f_int2)
 PARTITION BY RANGE(f_int1)
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -310,7 +310,7 @@ UNIQUE INDEX (f_int2)
 PARTITION BY RANGE(f_int1 + f_int2)
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -322,7 +322,7 @@ PRIMARY KEY(f_int1,f_int2), UNIQUE INDEX (f_int2)
 PARTITION BY RANGE(f_int1 + f_int2)
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 #------------------------------------------------------------------------
 #  1.3 column of subpartitioning function not included in PRIMARY KEY
 #               PARTITION BY RANGE/LIST -- SUBPARTITION BY HASH/KEY
@@ -338,7 +338,7 @@ PRIMARY KEY (f_int2)
 PARTITION BY RANGE(f_int2) SUBPARTITION BY HASH(f_int1)
 (PARTITION part1 VALUES LESS THAN (1)
 (SUBPARTITION subpart1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -350,7 +350,7 @@ PRIMARY KEY (f_int2)
 PARTITION BY RANGE(f_int2) SUBPARTITION BY KEY(f_int1)
 (PARTITION part1 VALUES LESS THAN (1)
 (SUBPARTITION subpart1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -362,7 +362,7 @@ PRIMARY KEY (f_int2)
 PARTITION BY LIST(f_int2) SUBPARTITION BY HASH(f_int1)
 (PARTITION part1 VALUES IN (1)
 (SUBPARTITION subpart1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -374,7 +374,7 @@ PRIMARY KEY (f_int2)
 PARTITION BY LIST(f_int2) SUBPARTITION BY KEY(f_int1)
 (PARTITION part1 VALUES IN (1)
 (SUBPARTITION subpart1));
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 #------------------------------------------------------------------------
 #  1.4 column of subpartitioning function not included in UNIQUE INDEX
 #               PARTITION BY RANGE/LIST -- SUBPARTITION BY HASH/KEY
@@ -393,7 +393,7 @@ PARTITION BY RANGE(f_int2)
 SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 3
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -406,7 +406,7 @@ PARTITION BY RANGE(f_int2)
 SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 3
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -419,7 +419,7 @@ PARTITION BY RANGE(f_int2)
 SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -432,7 +432,7 @@ PARTITION BY RANGE(f_int2)
 SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
 (PARTITION part1 VALUES LESS THAN (1),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -447,7 +447,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -462,7 +462,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -477,7 +477,7 @@ SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 2
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -492,7 +492,7 @@ SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 2
 PARTITION part0 VALUES IN (0),
 PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2));
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 
 #========================================================================
 #  2   Some properties around subpartitioning
@@ -652,8 +652,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -679,8 +679,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -713,8 +713,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -735,8 +735,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -820,8 +820,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -856,8 +856,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -881,8 +881,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -906,8 +906,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -931,8 +931,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1675,8 +1675,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1704,8 +1704,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL

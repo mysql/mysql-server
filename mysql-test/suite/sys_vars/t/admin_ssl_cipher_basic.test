@@ -1,0 +1,79 @@
+--echo '#---------------------BS_STVARS_048_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.admin_ssl_cipher);
+--echo 0 Expected
+
+
+--echo '#---------------------BS_STVARS_048_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.admin_ssl_cipher=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.admin_ssl_cipher);
+--echo 0 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_048_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.admin_ssl_cipher = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_ssl_cipher';
+--enable_warnings
+--echo NULL Expected
+
+SELECT COUNT(@@GLOBAL.admin_ssl_cipher);
+--echo 0 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_ssl_cipher';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_048_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@admin_ssl_cipher = @@GLOBAL.admin_ssl_cipher;
+--echo NULL Expected
+
+
+
+--echo '#---------------------BS_STVARS_048_05----------------------#'
+################################################################################
+#   Check if admin_ssl_cipher can be accessed with and without @@ sign         #
+################################################################################
+
+SELECT COUNT(@@admin_ssl_cipher);
+--echo 0 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.admin_ssl_cipher);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.admin_ssl_cipher);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.admin_ssl_cipher);
+--echo 0 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT admin_ssl_cipher;
+--echo Expected error 'Unknown column'
+

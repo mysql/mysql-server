@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,7 @@ class PasswdFrontend {
 
   PasswdFrontend(const std::string &exe_name,
                  const std::vector<std::string> &args,
-                 std::istream &is = std::cin, std::ostream &os = std::cout,
-                 std::ostream &es = std::cerr);
+                 std::ostream &os = std::cout, std::ostream &es = std::cerr);
 
   /**
    * run frontend according to configuration.
@@ -104,7 +103,6 @@ class PasswdFrontend {
 
   std::string program_name_;
   CmdArgHandler arg_handler_{true};  // allow arguments
-  std::istream &cin_;
   std::ostream &cout_;
   std::ostream &cerr_;
 

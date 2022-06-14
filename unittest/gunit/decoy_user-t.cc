@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,15 +24,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm>
 #include <cstdlib>
+#include <map>
 #include <set>
 #include <string>
 
 #include <gtest/gtest.h>
 
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_inttypes.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_utility.h"
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_authentication.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace decoy_user_unittest {
@@ -42,8 +47,8 @@ using std::rand;
 
 class Decoy_user_Test : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *get_thd() { return initializer.thd(); }
 
@@ -81,12 +86,12 @@ TEST_F(Decoy_user_Test, DecoyUserConsistency) {
 
   unknown_accounts = new Map_with_rw_lock<Auth_id, uint>(0);
 
-  const LEX_STRING users[] = {{C_STRING_WITH_LEN("foo")},
-                              {C_STRING_WITH_LEN("baz")},
-                              {C_STRING_WITH_LEN("quux")}};
-  const LEX_CSTRING hosts[] = {{C_STRING_WITH_LEN("bar")},
-                               {C_STRING_WITH_LEN("qux")},
-                               {C_STRING_WITH_LEN("quuz")}};
+  const LEX_CSTRING users[] = {{STRING_WITH_LEN("foo")},
+                               {STRING_WITH_LEN("baz")},
+                               {STRING_WITH_LEN("quux")}};
+  const LEX_CSTRING hosts[] = {{STRING_WITH_LEN("bar")},
+                               {STRING_WITH_LEN("qux")},
+                               {STRING_WITH_LEN("quuz")}};
 
   for (auto i = 0; i < 3; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -127,11 +132,11 @@ TEST_F(Decoy_user_Test, DecoyUserRandomness) {
   while (trials < hit_roof) {
     for (auto &element : unknown_authids) {
       decoy = nullptr;
-      LEX_STRING user;
+      LEX_CSTRING user;
       LEX_CSTRING host;
-      user.str = (char *)element.user().c_str();
+      user.str = element.user().c_str();
       user.length = element.user().length();
-      host.str = (char *)element.host().c_str();
+      host.str = element.host().c_str();
       host.length = element.host().length();
 
       decoy = decoy_user(user, host, thd->mem_root, &thd->rand, true);

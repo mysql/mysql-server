@@ -2,14 +2,14 @@ create table t1 (a int not null unique) engine=myisam;
 insert into t1 values (1),(2);
 insert ignore into t1 select 1 on duplicate key update a=2;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'a'
+Warning	1062	Duplicate entry '2' for key 't1.a'
 select * from t1;
 a
 1
 2
 insert ignore into t1 select a from t1 as t2 on duplicate key update a=t1.a+1 ;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'a'
+Warning	1062	Duplicate entry '2' for key 't1.a'
 select * from t1;
 a
 1
@@ -31,6 +31,8 @@ PRIMARY KEY  (a)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a) ;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 DROP TABLE t1;
 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE `t1` (

@@ -1,0 +1,28 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#
+# WL#3549
+#
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DDLs on the table performance_schema.binary_log_transaction_compression_stats
+
+--let $table = performance_schema.binary_log_transaction_compression_stats
+
+--error ER_DBACCESS_DENIED_ERROR
+--eval ALTER TABLE $table add column foo integer;
+
+--eval TRUNCATE TABLE $table
+
+--error ER_DBACCESS_DENIED_ERROR
+--eval ALTER TABLE $table ADD INDEX test_index(last_transaction_id);
+
+--error ER_DBACCESS_DENIED_ERROR
+--eval CREATE UNIQUE INDEX test_index ON $table(last_transaction_id);
+
+--error ER_DBACCESS_DENIED_ERROR
+--eval DROP INDEX `PRIMARY` ON $table
+
+--eval CREATE TABLE test.create_select AS SELECT * from $table;
+
+DROP TABLE test.create_select;

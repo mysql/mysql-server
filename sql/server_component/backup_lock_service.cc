@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 class THD;
 // release_backup_lock
 
-void mysql_backup_lock_service_init() { return; }
-
 DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
                    (MYSQL_THD opaque_thd,
                     enum enum_backup_lock_service_lock_kind lock_kind,
@@ -41,7 +39,7 @@ DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
     thd = current_thd;
 
   if (lock_kind == BACKUP_LOCK_SERVICE_DEFAULT)
-    return acquire_exclusive_backup_lock(thd, lock_timeout);
+    return acquire_exclusive_backup_lock(thd, lock_timeout, false);
 
   /*
     Return error in case lock_kind has an unexpected value.
@@ -58,7 +56,12 @@ DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD opaque_thd)) {
   else
     thd = current_thd;
 
-  release_backup_lock(thd);
+  // When called from the main thread as part of shutdown, current_thd will be
+  // nullptr. And the MDL system will already have been deinit'ed, so there is
+  // nothing to do.
+  if (thd != nullptr) {
+    release_backup_lock(thd);
+  }
 
   return false;
 }

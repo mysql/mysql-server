@@ -1,0 +1,14 @@
+CREATE TABLE t1(f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT, f3 CHAR, f4 TEXT)
+ENGINE=InnoDB;
+DELETE FROM t1 WHERE f1%2=0;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1(f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT, f3 CHAR, f4 TEXT)
+ENGINE=InnoDB;
+ALTER TABLE t1 DISCARD TABLESPACE;
+SET SESSION debug="+d,ib_import_page_corrupt";
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Operation cannot be performed. The table 'test.t1' is missing, corrupt or contains bad data.
+SET SESSION debug="-d,ib_import_page_corrupt";
+DROP TABLE t1;

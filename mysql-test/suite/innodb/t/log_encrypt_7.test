@@ -1,0 +1,62 @@
+# InnoDB transparent encryption on redo log.
+# This test case will test negative scenarios for encryption features.
+#
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb_max_16k.inc
+
+#Suppress following messages from myslqd log
+--disable_query_log
+call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
+call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("\\[Warning\\] .* Plugin mysqlx reported.*");
+call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
+--enable_query_log
+
+#Enable redo log encryption, should report error in server log, since keyring is not loaded.
+SET GLOBAL innodb_redo_log_encrypt = ON;
+
+# Create a table with encryption, should fail since keyring is not
+# loaded.
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
+
+let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
+
+--disable_warnings
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+USE tde_db;
+--enable_warnings
+# Server is not started with keyring plugin and run innodb_redo_log_encrypt=ON
+# Expected Result : Variable is ignored.
+# bug : expect warning or error
+SET GLOBAL innodb_redo_log_encrypt = ON;
+
+SHOW WARNINGS;
+--let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
+--source include/wait_condition.inc
+
+CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+# Restart server
+--source include/restart_mysqld.inc
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+DROP TABLE tde_db.t4;
+
+
+--disable_warnings
+DROP TABLE test.t1;
+DROP DATABASE tde_db;
+--enable_warnings

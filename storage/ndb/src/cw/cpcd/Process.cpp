@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+
+#include <time.h>
+
 #include "NdbSleep.h"
 
 #ifdef _WIN32
@@ -62,7 +66,7 @@ void CPCD::Process::print(FILE *f) {
   fprintf(f, "env: %s\n", m_env.c_str() ? m_env.c_str() : "");
   fprintf(f, "path: %s\n", m_path.c_str() ? m_path.c_str() : "");
   fprintf(f, "args: %s\n", m_args.c_str() ? m_args.c_str() : "");
-  fprintf(f, "type: %s\n", m_type.c_str() ? m_type.c_str() : "");
+  fprintf(f, "type: %s\n", m_type.c_str());
   fprintf(f, "cwd: %s\n", m_cwd.c_str() ? m_cwd.c_str() : "");
   fprintf(f, "owner: %s\n", m_owner.c_str() ? m_owner.c_str() : "");
   fprintf(f, "runas: %s\n", m_runas.c_str() ? m_runas.c_str() : "");
@@ -75,9 +79,11 @@ void CPCD::Process::print(FILE *f) {
           m_shutdown_options.c_str() ? m_shutdown_options.c_str() : "");
 }
 
-CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
+CPCD::Process::Process(const Properties &props, class CPCD *cpcd,
+                       const uintptr_t sessionid) {
   m_id = -1;
   m_pid = bad_pid;
+  m_sessionid = sessionid;
 
   props.get("id", (Uint32 *)&m_id);
   props.get("name", m_name);
@@ -87,7 +93,6 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
   props.get("args", m_args);
   props.get("cwd", m_cwd);
   props.get("owner", m_owner);
-  props.get("type", m_type);
   props.get("runas", m_runas);
   props.get("cpuset", m_cpuset);
 
@@ -100,15 +105,16 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
   m_remove_on_stopped = false;
   m_stopping_time = 0;
 
-  if (native_strcasecmp(m_type.c_str(), "temporary") == 0) {
-    m_processType = TEMPORARY;
-  } else {
+  BaseString procType;
+  props.get("type", procType);
+  m_type = ProcessType(procType.c_str());
+
 #ifdef _WIN32
-    logger.critical("Process type must be 'temporary' on windows");
+  if (m_type == ProcessType::PERMANENT) {
+    logger.critical("Process type must be '%s' on windows", m_type.c_str());
     exit(1);
-#endif
-    m_processType = PERMANENT;
   }
+#endif
 
   m_cpcd = cpcd;
 }
@@ -137,6 +143,10 @@ bool CPCD::Process::should_be_erased() const
   return (m_status == STOPPED) && m_remove_on_stopped;
 }
 
+bool CPCD::Process::allowsChangeFromSession(const uintptr_t sessionid) const {
+  return (m_type == ProcessType::TEMPORARY) && (m_sessionid == sessionid);
+}
+
 void CPCD::Process::monitor()
 {
   if (m_status != m_previous_monitored_status) {
@@ -156,9 +166,9 @@ void CPCD::Process::monitor()
       {
         logger.debug("Monitor : Process %s:%s:%d with pid %d no longer running",
                       m_group.c_str(), m_name.c_str(), m_id, m_pid);
-        switch (m_processType)
+        switch (m_type)
         {
-        case TEMPORARY:
+        case ProcessType::TEMPORARY:
           logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
           m_status = STOPPED;
@@ -166,7 +176,7 @@ void CPCD::Process::monitor()
           m_pid = bad_pid;
           break;
 
-        case PERMANENT:
+        case ProcessType::PERMANENT:
           logger.debug("Monitor : Process %s:%s:%d with previous pid %d is STARTING",
                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
           start();
@@ -548,7 +558,7 @@ void CPCD::Process::do_exec() {
   si.hStdOutput = (HANDLE)_get_osfhandle(1);
   si.hStdError = (HANDLE)_get_osfhandle(2);
 
-  if (!CreateProcessA(sh.c_str(), (LPSTR)shcmd.c_str(), NULL, NULL, TRUE,
+  if (!CreateProcessA(sh.c_str(), (LPSTR)shcmd.c_str(), NULL, NULL, true,
                       CREATE_SUSPENDED,  // Resumed after assigned to Job
                       NULL, NULL, &si, &pi)) {
     char *message;
@@ -616,7 +626,7 @@ void CPCD::Process::do_exec() {
 }
 
 #ifdef _WIN32
-void sched_yield() { Sleep(100); }
+void sched_yield() { NdbSleep_MilliSleep(100); }
 #endif
 
 int CPCD::Process::start() {
@@ -662,8 +672,8 @@ int CPCD::Process::start() {
   m_status = STARTING;
 
   int pid = -1;
-  switch (m_processType) {
-    case TEMPORARY: {
+  switch (m_type) {
+    case ProcessType::TEMPORARY: {
 #ifndef _WIN32
       /**
        * Simple fork
@@ -675,6 +685,7 @@ int CPCD::Process::start() {
           writePid(getpgrp());
           if (runas(m_runas.c_str()) == 0) {
             signal(SIGCHLD, SIG_DFL);
+            NdbThread_ClearSigMask();
             do_exec();
           }
           _exit(1);
@@ -694,7 +705,7 @@ int CPCD::Process::start() {
       break;
     }
 #ifndef _WIN32
-    case PERMANENT: {
+    case ProcessType::PERMANENT: {
       /**
        * PERMANENT
        */
@@ -709,6 +720,7 @@ int CPCD::Process::start() {
                 _exit(1);
               }
               signal(SIGCHLD, SIG_DFL);
+              NdbThread_ClearSigMask();
               do_exec();
               _exit(1);
               /* NOTREACHED */
@@ -765,7 +777,7 @@ int CPCD::Process::start() {
     /* retry */
 
     // For processtype PERMANENT pid and pgid must be -1 so never enter here.
-    require(m_processType == TEMPORARY);
+    require(m_type == ProcessType::TEMPORARY);
     logger.error("pgid and m_pid don't match: cpcd pid %d: forked pgid %d "
                  "pid %d: file m_pid %d",
                  getpid(),
@@ -867,7 +879,7 @@ void CPCD::Process::do_shutdown(bool force_sigkill)
   HANDLE proc;
   require(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid));
   require(IsProcessInJob(proc, m_job, &truth));
-  require(truth == TRUE);
+  require(truth);
   require(CloseHandle(proc));
   // Terminate process with exit code 37
   require(TerminateJobObject(m_job, 37));

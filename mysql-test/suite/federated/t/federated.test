@@ -1887,10 +1887,15 @@ connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE t1 (a INT, b INT, KEY(a,b)) ENGINE=federated
 CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+--sorted_result
 SELECT * FROM t1 WHERE a IS NULL;
+--sorted_result
 SELECT * FROM t1 WHERE a IS NOT NULL;
+--sorted_result
 SELECT * FROM t1 WHERE a=1 AND b=1;
+--sorted_result
 SELECT * FROM t1 WHERE a IS NULL AND b=1;
+--sorted_result
 SELECT * FROM t1 WHERE a IS NOT NULL AND b=1;
 DROP TABLE t1;
 

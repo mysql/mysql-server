@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,8 +58,8 @@ again. */
 void buf_dump_thread();
 
 /** Generate the path to the buffer pool dump/load file.
-@param[out]	path		generated path
-@param[in]	path_size	size of 'path', used as in snprintf(3). */
+@param[out]     path            generated path
+@param[in]      path_size       size of 'path', used as in snprintf(3). */
 void buf_dump_generate_path(char *path, size_t path_size);
 
 #endif /* buf0dump_h */

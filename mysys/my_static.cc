@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,9 @@
 
 #include "my_compiler.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysys/mysys_priv.h"  // IWYU pragma: keep
@@ -75,61 +75,124 @@ PSI_thread_key key_thread_timer_notifier;
 PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
 PSI_memory_key key_memory_win_PACL;
 PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
+PSI_memory_key key_memory_win_handle_info;
 #endif /* _WIN32 */
 
 /* from my_init */
-char *home_dir = 0;
-const char *my_progname = 0;
+char *home_dir = nullptr;
+const char *my_progname = nullptr;
 char curr_dir[FN_REFLEN] = {0}, home_dir_buff[FN_REFLEN] = {0};
-ulong my_stream_opened = 0, my_file_opened = 0, my_tmp_file_created = 0;
-ulong my_file_total_opened = 0;
-int my_umask = 0664, my_umask_dir = 0777;
 
-struct st_my_file_info my_file_info_default[MY_NFILE];
-uint my_file_limit = MY_NFILE;
-struct st_my_file_info *my_file_info = my_file_info_default;
+ulong my_tmp_file_created = 0;
+
+ulong my_stream_opened = 0;
+ulong my_file_opened = 0;
+ulong my_file_total_opened = 0;
+
+namespace file_info {
+/**
+   Increment status variables.
+   @relates file_info::CountFileOpen
+
+   @param pt previous file_type (only relevant when assigning an fd to a stream
+   in my_fdopen):
+   @param ct current file type (to differentiate betweeen streams and files).
+ */
+void CountFileOpen(OpenType pt, OpenType ct) {
+  mysql_mutex_assert_owner(&THR_LOCK_open);
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
+  assert(pt == OpenType::UNOPEN || ct == OpenType::STREAM_BY_FDOPEN);
+  switch (ct) {
+    case OpenType::UNOPEN:
+      assert(false);
+      return;
+
+    case OpenType::STREAM_BY_FDOPEN:
+      if (pt != OpenType::UNOPEN) {
+        // If fd was opened through mysys, we have already counted
+        // it in my_file_opened_. Since we will now increment
+        // my_file_stream_opened_ for it, we decrement my_file_opened_
+        // so that it is not counted twice.
+        assert(pt != OpenType::STREAM_BY_FOPEN &&
+               pt != OpenType::STREAM_BY_FDOPEN);
+        --my_file_opened;
+        ++my_stream_opened;
+        assert(my_file_opened + my_stream_opened == my_file_total_opened);
+        return;
+      }
+      [[fallthrough]];
+    case OpenType::STREAM_BY_FOPEN:
+      ++my_stream_opened;
+      break;
+
+    default:
+      ++my_file_opened;
+  }
+  ++my_file_total_opened;
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
+}
+
+/**
+   Decrement status variables.
+   @relates file_info::CountFileClose
+
+   @param ft file type (to differentiate betweeen streams and files).
+ */
+void CountFileClose(OpenType ft) {
+  mysql_mutex_assert_owner(&THR_LOCK_open);
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
+  switch (ft) {
+    case OpenType::UNOPEN:
+      return;
+    case OpenType::STREAM_BY_FOPEN:
+    case OpenType::STREAM_BY_FDOPEN:
+      --my_stream_opened;
+      break;
+    default:
+      --my_file_opened;
+  };
+  --my_file_total_opened;
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
+}
+}  // namespace file_info
+
+int my_umask = 0664, my_umask_dir = 0777;
 
 /* from mf_reccache.c */
 ulong my_default_record_cache_size = RECORD_CACHE_SIZE;
 
 /* from my_malloc */
-USED_MEM *my_once_root_block = 0;     /* pointer to first block */
-uint my_once_extra = ONCE_ALLOC_INIT; /* Memory to alloc / block */
+USED_MEM *my_once_root_block = nullptr; /* pointer to first block */
+uint my_once_extra = ONCE_ALLOC_INIT;   /* Memory to alloc / block */
 
-/* from errors.c */
-void (*error_handler_hook)(uint error, const char *str,
-                           myf MyFlags) = my_message_stderr;
-void (*fatal_error_handler_hook)(uint error, const char *str,
-                                 myf MyFlags) = my_message_stderr;
+std::atomic<ErrorHandlerFunctionPointer> error_handler_hook{my_message_stderr};
+
 void (*local_message_hook)(enum loglevel ll, uint ecode,
                            va_list args) = my_message_local_stderr;
 
-static void enter_cond_dummy(void *a MY_ATTRIBUTE((unused)),
-                             mysql_cond_t *b MY_ATTRIBUTE((unused)),
-                             mysql_mutex_t *c MY_ATTRIBUTE((unused)),
-                             const PSI_stage_info *d MY_ATTRIBUTE((unused)),
-                             PSI_stage_info *e MY_ATTRIBUTE((unused)),
-                             const char *f MY_ATTRIBUTE((unused)),
-                             const char *g MY_ATTRIBUTE((unused)),
-                             int h MY_ATTRIBUTE((unused))) {}
+static void enter_cond_dummy(
+    void *a [[maybe_unused]], mysql_cond_t *b [[maybe_unused]],
+    mysql_mutex_t *c [[maybe_unused]], const PSI_stage_info *d [[maybe_unused]],
+    PSI_stage_info *e [[maybe_unused]], const char *f [[maybe_unused]],
+    const char *g [[maybe_unused]], int h [[maybe_unused]]) {}
 
-static void exit_cond_dummy(void *a MY_ATTRIBUTE((unused)),
-                            const PSI_stage_info *b MY_ATTRIBUTE((unused)),
-                            const char *c MY_ATTRIBUTE((unused)),
-                            const char *d MY_ATTRIBUTE((unused)),
-                            int e MY_ATTRIBUTE((unused))) {}
+static void exit_cond_dummy(void *a [[maybe_unused]],
+                            const PSI_stage_info *b [[maybe_unused]],
+                            const char *c [[maybe_unused]],
+                            const char *d [[maybe_unused]],
+                            int e [[maybe_unused]]) {}
 
-static void enter_stage_dummy(void *a MY_ATTRIBUTE((unused)),
-                              const PSI_stage_info *b MY_ATTRIBUTE((unused)),
-                              PSI_stage_info *c MY_ATTRIBUTE((unused)),
-                              const char *d MY_ATTRIBUTE((unused)),
-                              const char *e MY_ATTRIBUTE((unused)),
-                              int f MY_ATTRIBUTE((unused))) {}
+static void enter_stage_dummy(void *a [[maybe_unused]],
+                              const PSI_stage_info *b [[maybe_unused]],
+                              PSI_stage_info *c [[maybe_unused]],
+                              const char *d [[maybe_unused]],
+                              const char *e [[maybe_unused]],
+                              int f [[maybe_unused]]) {}
 
-static void set_waiting_for_disk_space_dummy(void *a MY_ATTRIBUTE((unused)),
-                                             bool b MY_ATTRIBUTE((unused))) {}
+static void set_waiting_for_disk_space_dummy(void *a [[maybe_unused]],
+                                             bool b [[maybe_unused]]) {}
 
-static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused))) { return 0; }
+static int is_killed_dummy(const void *a [[maybe_unused]]) { return 0; }
 
 /*
   Initialize these hooks to dummy implementations. The real server
@@ -153,12 +216,12 @@ int (*is_killed_hook)(const void *) = is_killed_dummy;
 
 #if defined(ENABLED_DEBUG_SYNC)
 /**
-  Global pointer to be set if callback function is defined
-  (e.g. in mysqld). See sql/debug_sync.cc.
-*/
-void (*debug_sync_C_callback_ptr)(const char *, size_t);
+   Global pointer to be set if callback function is defined
+   (e.g. in mysqld). See sql/debug_sync.cc.
+ */
+DebugSyncCallbackFp debug_sync_C_callback_ptr;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
 /* How to disable options */
-bool my_disable_locking = 0;
+bool my_disable_locking = false;
 bool my_enable_symlinks = false;

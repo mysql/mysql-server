@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include <vector>
 
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
 #ifdef HAVE_POLL_H
 #include <poll.h>
@@ -50,36 +50,34 @@ extern const char *ipv6_all_addresses;
 extern PSI_statement_info stmt_info_new_packet;
 #endif
 
-/**
-  Key Comparator for socket_map_t used in Mysqld_socket_listener
-*/
-struct Socket_lt_type {
-  bool operator()(const MYSQL_SOCKET &s1, const MYSQL_SOCKET &s2) const {
-    return mysql_socket_getfd(s1) < mysql_socket_getfd(s2);
-  }
-};
-
 // Enum denoting type of socket whether unix socket or tcp socket.
 enum class Socket_type { UNIX_SOCKET, TCP_SOCKET };
-// Listen socket attributes.
-struct Socket_attr {
-  explicit Socket_attr(Socket_type socket_type) : m_socket_type(socket_type) {}
-  Socket_attr(Socket_type socket_type, const std::string &network_namespace)
-      : m_socket_type(socket_type), m_network_namespace(network_namespace) {}
+// Enum denoting the interface which the socket listens to.
+enum class Socket_interface_type { DEFAULT_INTERFACE, ADMIN_INTERFACE };
+// Listen socket and it's attributes.
+struct Listen_socket {
+  Listen_socket(MYSQL_SOCKET socket, Socket_type socket_type)
+      : m_socket(socket),
+        m_socket_type(socket_type),
+        m_network_namespace(nullptr),
+        m_socket_interface(Socket_interface_type::DEFAULT_INTERFACE) {}
+  Listen_socket(MYSQL_SOCKET socket, Socket_type socket_type,
+                const std::string *network_namespace,
+                Socket_interface_type socket_interface)
+      : m_socket(socket),
+        m_socket_type(socket_type),
+        m_network_namespace(network_namespace),
+        m_socket_interface(socket_interface) {}
+  MYSQL_SOCKET m_socket;
   Socket_type m_socket_type;
-  std::string m_network_namespace;
+  const std::string *m_network_namespace;
+  Socket_interface_type
+      m_socket_interface;  // Interface type which the socket listens for.
 };
 
-/**
-  Typedef representing socket map type which hold the sockets and a
-  corresponding bool which is true if it is unix socket and false for tcp
-  socket.
-*/
-typedef std::map<MYSQL_SOCKET, Socket_attr, Socket_lt_type> socket_map_t;
-
-// iterator type for socket map type.
-typedef std::map<MYSQL_SOCKET, Socket_attr, Socket_lt_type>::const_iterator
-    socket_map_const_iterator_t;
+// typedef for a container holding sockets which the server is listening for
+// connections.
+typedef std::vector<Listen_socket> socket_vector_t;
 
 /**
   Plain structure to collect together a host name/ip address and
@@ -123,11 +121,8 @@ class Mysqld_socket_listener {
   uint m_port_timeout;  // port timeout value
   std::string m_unix_sockname;  // unix socket pathname to bind to
   bool m_unlink_sockname;       // Unlink socket & lock file if true.
-  /*
-    Map indexed by MYSQL socket fds and correspoding bool to distinguish
-    between unix and tcp socket.
-  */
-  socket_map_t m_socket_map;  // map indexed by mysql socket fd and index
+  // Container storing listen socket and their attributes.
+  socket_vector_t m_socket_vector;
   MYSQL_SOCKET m_admin_interface_listen_socket;
 
 #ifdef HAVE_POLL
@@ -201,8 +196,16 @@ class Mysqld_socket_listener {
   void close_listener();
 
   ~Mysqld_socket_listener() {
-    if (!m_socket_map.empty()) close_listener();
+    if (!m_socket_vector.empty()) close_listener();
   }
+
+  /**
+    Spawn admin connection handler thread if separate thread is required to
+    accept admin connections.
+
+    @return true unable to spawn admin connect handler thread else false
+  */
+  bool check_and_spawn_admin_connection_handler_thread() const;
 
  private:
   /**
@@ -215,27 +218,19 @@ class Mysqld_socket_listener {
 
   /**
     Get a socket ready to accept incoming connection.
-    @param[out] is_unix_socket  has the value true in case a new incoming
-                                connection ready for acceptance pertains
-                                to unix socket domain.
-    @param[out] is_admin_socket  has the value true in case a new incoming
-                                 connection is waiting for acceptance on
-                                 admin interface.
-
     @return A socket ready to accept a new incoming connection.
   */
-  MYSQL_SOCKET get_ready_socket(bool *is_unix_socket,
-                                bool *is_admin_socket) const;
+  const Listen_socket *get_listen_socket() const;
 
   /**
     Set up connection events for poll or select.
 
-    @param socket_map  sockets to listen for connection requests.
+    @param socket_vector  sockets to listen for connection requests.
   */
-  void setup_connection_events(const socket_map_t &socket_map);
+  void setup_connection_events(const socket_vector_t &socket_vector);
 };
 
-ulong get_connection_errors_select();
+ulong get_connection_errors_query_block();
 
 ulong get_connection_errors_accept();
 

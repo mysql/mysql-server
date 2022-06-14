@@ -2,12 +2,21 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_file_bits.h"
-#include <mysql/components/services/my_io_bits.h>
+#include "mysql/components/services/bits/psi_file_bits.h"
+#include <mysql/components/services/bits/my_io_bits.h>
 typedef int File;
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
 typedef int my_socket;
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_file_key;
 struct PSI_file;
 typedef struct PSI_file PSI_file;
@@ -49,9 +58,9 @@ struct PSI_file_locker_state_v1 {
   void *m_class;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0ULL};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
 typedef void (*register_file_v1_t)(const char *category,
@@ -85,6 +94,11 @@ typedef void (*start_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                            unsigned int src_line);
 typedef void (*end_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                          int rc);
+typedef void (*start_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
+                                            size_t count, const char *old_name,
+                                            const char *new_name,
+                                            const char *src_file,
+                                            unsigned int src_line);
 typedef void (*end_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
                                           const char *old_name,
                                           const char *new_name, int rc);
@@ -93,7 +107,7 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 struct PSI_file_bootstrap {
   void *(*get_interface)(int version);
 };
-struct PSI_file_service_v1 {
+struct PSI_file_service_v2 {
   register_file_v1_t register_file;
   create_file_v1_t create_file;
   get_thread_file_name_locker_v1_t get_thread_file_name_locker;
@@ -109,7 +123,8 @@ struct PSI_file_service_v1 {
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;
   end_file_close_wait_v1_t end_file_close_wait;
+  start_file_rename_wait_v1_t start_file_rename_wait;
   end_file_rename_wait_v1_t end_file_rename_wait;
 };
-typedef struct PSI_file_service_v1 PSI_file_service_t;
+typedef struct PSI_file_service_v2 PSI_file_service_t;
 extern PSI_file_service_t *psi_file_service;

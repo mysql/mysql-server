@@ -10,7 +10,7 @@ create unique index idx3 on bug51378(col1, col3);
 SHOW CREATE TABLE bug51378;
 Table	Create Table
 bug51378	CREATE TABLE `bug51378` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   `col2` blob NOT NULL,
   `col3` time NOT NULL,
   UNIQUE KEY `idx3` (`col1`,`col3`),
@@ -21,7 +21,7 @@ drop index idx3 on bug51378;
 SHOW CREATE TABLE bug51378;
 Table	Create Table
 bug51378	CREATE TABLE `bug51378` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   `col2` blob NOT NULL,
   `col3` time NOT NULL,
   UNIQUE KEY `idx` (`col1`,`col2`(31)),
@@ -31,7 +31,7 @@ alter table bug51378 add primary key idx3(col1, col2(31));
 SHOW CREATE TABLE bug51378;
 Table	Create Table
 bug51378	CREATE TABLE `bug51378` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   `col2` blob NOT NULL,
   `col3` time NOT NULL,
   PRIMARY KEY (`col1`,`col2`(31)),
@@ -47,7 +47,7 @@ create unique index idx on bug51378(col1, col2(31));
 SHOW CREATE TABLE bug51378;
 Table	Create Table
 bug51378	CREATE TABLE `bug51378` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   `col2` blob NOT NULL,
   `col3` time NOT NULL,
   PRIMARY KEY (`col1`,`col2`(31)),
@@ -61,8 +61,8 @@ create unique index idx on bug51378(col1, col2);
 SHOW CREATE TABLE bug51378;
 Table	Create Table
 bug51378	CREATE TABLE `bug51378` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   UNIQUE KEY `idx` (`col1`,`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug51378;

@@ -5,7 +5,7 @@
 call mtr.add_suppression("Error during SSL handshake");
 --enable_query_log
 
---write_file $MYSQL_TMP_DIR/mysqlx_fips_test.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx_fips_test.xpl
 -->sql
 SHOW STATUS LIKE 'ssl_cipher';
 -->endsql
@@ -22,9 +22,12 @@ EOF
 let $wait_condition=SELECT 1 FROM performance_schema.global_status WHERE variable_name='mysqlx_port' AND variable_value!='';
 --source include/wait_condition_or_abort.inc
 
---error 1
---exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx_fips_test.tmp --ssl-mode=required --ssl-fips-mode=on --ssl-cipher=CAMELLIA256-SHA 2>&1
---exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx_fips_test.tmp --ssl-mode=required --ssl-fips-mode=off --ssl-cipher=CAMELLIA256-SHA 2>&1
+exec $MYSQLXTEST
+  -u root
+  --file=$MYSQL_TMP_DIR/mysqlx_fips_test.xpl
+  --ssl-mode=required --ssl-fips-mode=on --ssl-cipher=CAMELLIA256-SHA
+  --expect-error 2026 2>&1;
+--exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx_fips_test.xpl --ssl-mode=required --ssl-fips-mode=off --ssl-cipher=CAMELLIA256-SHA 2>&1
 
 --echo ##Cleanup: Restore ssl-cipher to default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -33,4 +36,4 @@ let $wait_condition=SELECT 1 FROM performance_schema.global_status WHERE variabl
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
---remove_file $MYSQL_TMP_DIR/mysqlx_fips_test.tmp
+--source ../include/xplugin_cleanup.inc

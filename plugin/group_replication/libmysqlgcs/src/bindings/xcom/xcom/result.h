@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,7 @@
 #ifndef RESULT_H
 #define RESULT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "xcom/x_platform.h"
 
 /* Combined return value and error code */
 struct result {
@@ -47,9 +43,5 @@ static inline int from_errno(int err) { return err; }
 static inline int from_ssl_err(int err) { return err - ssl_zero; }
 
 static inline int is_ssl_err(int err) { return err > errno_max; }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

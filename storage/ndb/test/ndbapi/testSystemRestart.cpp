@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -33,6 +35,7 @@
 #include <Bitmask.hpp>
 #include <DbUtil.hpp>
 #include <NdbMgmd.hpp>
+#include <NdbSleep.h>
 
 #define CHK(b,e) \
   if (!(b)) { \
@@ -111,6 +114,9 @@ int
 clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   backup.clearOldBackups();
   return NDBT_OK;
 }
@@ -727,7 +733,7 @@ int runSystemRestartLCP_1(NDBT_Context *ctx, NDBT_Step *step)
                                          false,
                                          0,
                                          false,
-                                         true,
+                                         false,
                                          row_step) == NDBT_OK);
       if (result == NDBT_FAILED)
         return result;
@@ -852,7 +858,7 @@ int runSystemRestartLCP_2(NDBT_Context *ctx, NDBT_Step *step)
                                          false,
                                          0,
                                          false,
-                                         true,
+                                         false,
                                          1) == NDBT_OK);
       if (result == NDBT_FAILED)
         return result;
@@ -964,7 +970,7 @@ int runSystemRestartLCP_3(NDBT_Context *ctx, NDBT_Step *step)
                                            false,
                                            0,
                                            false,
-                                           true,
+                                           false,
                                            10)) == NDBT_OK);
         if (result == NDBT_FAILED)
           return result;
@@ -1087,7 +1093,7 @@ int runSystemRestartLCP_4(NDBT_Context *ctx, NDBT_Step *step)
                                        false,
                                        0,
                                        false,
-                                       true,
+                                       false,
                                        1) == NDBT_OK);
     if (result == NDBT_FAILED)
       return result;
@@ -1213,7 +1219,7 @@ int runSystemRestartLCP_5(NDBT_Context *ctx, NDBT_Step *step)
                                        false,
                                        0,
                                        false,
-                                       true,
+                                       false,
                                        1) == NDBT_OK);
     if (result == NDBT_FAILED)
       return result;
@@ -2435,6 +2441,9 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 loops = ctx->getNumLoops();
   NdbRestarter restarter;
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
 
@@ -2557,6 +2566,9 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
   int error = (int)ctx->getProperty("ERROR", (unsigned)0);
@@ -2688,6 +2700,9 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
   int error = (int)ctx->getProperty("ERROR", (unsigned)0);
@@ -2994,10 +3009,10 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     
     do 
     {
-      bzero(&event, sizeof(event));
+      std::memset(&event, 0, sizeof(event));
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted)
-        bzero(&event, sizeof(event));
+        std::memset(&event, 0, sizeof(event));
       
       if (event.type == NDB_LE_LocalCheckpointCompleted &&
           event.LocalCheckpointCompleted.lci < LCP + 3)
@@ -3053,12 +3068,32 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int createCopy(NDBT_Context* ctx,
+               NDBT_Step* step,
+               NdbDictionary::Object::PartitionBalance bal)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+
+  NdbDictionary::Table copy(* NDBT_Tables::getTable(ctx->getTableName(0)));
+
+  // Create table with disk storage and a particular balance
+  copy.setName("BUG_45154");
+  copy.setDefaultNoPartitionsFlag(true);
+  copy.setFragmentType(NdbDictionary::Object::HashMapPartition);
+  copy.setPartitionBalance(bal);
+  if (pDict->createTable(copy) != 0)
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
-  int result = NDBT_OK;
-  Uint32 loops = ctx->getNumLoops();
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
 
@@ -3066,73 +3101,115 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
   NdbLogEventHandle handle =
     ndb_mgm_create_logevent_handle(restarter.handle, filter);
-
   struct ndb_logevent event;
 
-  Uint32 frag_data[128];
-  bzero(frag_data, sizeof(frag_data));
-
-  NdbDictionary::HashMap map;
-  pDict->getDefaultHashMap(map, 2*restarter.getNumDbNodes());
-  pDict->createHashMap(map);
-
-  pDict->getDefaultHashMap(map, restarter.getNumDbNodes());
-  pDict->createHashMap(map);  
-
-  for(Uint32 i = 0; i < loops && result != NDBT_FAILED; i++)
+  /**
+   * Start by creating and dropping both table types so
+   * that all necessary hashmaps are created before
+   * testing further, and tableids are stable
+   */
+  if (createCopy(ctx,
+                 step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDMx4) != NDBT_OK)
   {
-    ndbout_c("loop %u", i);
+    return NDBT_FAILED;
+  }
+  pDict->dropTable("BUG_45154");
 
-    NdbDictionary::Table copy = *ctx->getTab();
-    copy.setName("BUG_45154");
-    copy.setFragmentType(NdbDictionary::Object::DistrKeyLin);
-    copy.setFragmentCount(2 * restarter.getNumDbNodes());
-    copy.setPartitionBalance(
-      NdbDictionary::Object::PartitionBalance_Specific);
-    copy.setFragmentData(frag_data, 2*restarter.getNumDbNodes());
+  if (createCopy(ctx,
+                 step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDM) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+
+  for(int i = 0; i < ctx->getNumLoops(); i++)
+  {
+    /* Create a table with disk storage and a fairly large number of fragments.
+       Insert some rows, force an LCP, then drop the table.
+       Recreate the table with the same id, but fewer fragments.
+       Insert some rows, then force a system restart.
+    */
+    ndbout_c("loop %u", i);
     pDict->dropTable("BUG_45154");
-    int res = pDict->createTable(copy);
-    if (res != 0)
+
+    // Create table with disk storage and a fairly large number of fragments
+    if (createCopy(ctx,
+                   step,
+                   NdbDictionary::Object::PartitionBalance_ForRAByLDMx4) != NDBT_OK)
     {
-      ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    const NdbDictionary::Table* copyptr= pDict->getTable("BUG_45154");
 
+    const NdbDictionary::Table* actualTable;
+    int tableId;
+    unsigned int nFragments;
+
+    actualTable= pDict->getTable("BUG_45154");
+    tableId = actualTable->getTableId();
+    nFragments = actualTable->getPartitionCount();
+    ndbout_c("[1st table] Id: %u  Fragments: %u (%s)", tableId, nFragments,
+               actualTable->getPartitionBalanceString());
+
+    // Insert rows
     {
-      HugoTransactions hugoTrans(*copyptr);
+      HugoTransactions hugoTrans(*actualTable);
       hugoTrans.loadTable(pNdb, rows);
     }
 
+    // LCP
     int dump[] = { DumpStateOrd::DihStartLcpImmediately };
     for (int l = 0; l<2; l++)
     {
-      CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+      if(restarter.dumpStateAllNodes(dump, 1) != 0)
+      {
+        g_err << "Failed at line " << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointStarted);
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted);
     }
 
+    // Drop the table
     pDict->dropTable("BUG_45154");
-    copy.setFragmentCount(restarter.getNumDbNodes());
-    copy.setPartitionBalance(
-      NdbDictionary::Object::PartitionBalance_Specific);
-    copy.setFragmentData(frag_data, restarter.getNumDbNodes());
-    res = pDict->createTable(copy);
-    if (res != 0)
+
+    // Recreate the table with the same id, but fewer fragments.
+    if (createCopy(ctx,
+                   step,
+                   NdbDictionary::Object::PartitionBalance_ForRAByLDM) != NDBT_OK)
     {
-      ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    copyptr = pDict->getTable("BUG_45154");
 
+    actualTable= pDict->getTable("BUG_45154");
+
+    ndbout_c("[2nd table] Id: %u  Fragments: %u (%s)",
+             actualTable->getTableId(), actualTable->getPartitionCount(),
+             actualTable->getPartitionBalanceString());
+
+    if(actualTable->getTableId() != tableId)
     {
-      HugoTransactions hugoTrans(*copyptr);
+      ndbout << "FAIL: Table Id was not reused" << endl;
+      return NDBT_FAILED;
+    }
+
+    if(actualTable->getPartitionCount() >= nFragments)
+    {
+      ndbout << "FAIL: Second table does not have fewer fragments" << endl;
+      return NDBT_FAILED;
+    }
+
+    // Insert rows
+    {
+      HugoTransactions hugoTrans(*actualTable);
       hugoTrans.loadTable(pNdb, rows);
       for (Uint32 pp = 0; pp<3; pp++)
         hugoTrans.scanUpdateRecords(pNdb, rows);
     }
+
+    // System restart
     restarter.restartAll(false, true, true);
     restarter.waitClusterNoStart();
     restarter.startAll();
@@ -3143,7 +3220,7 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   ctx->stopTest();
-  return result;
+  return NDBT_OK;
 }
 
 int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
@@ -3239,6 +3316,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug46412(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Uint32 partialSR = ctx->getProperty("PartialSRvar");
   Uint32 loops = ctx->getNumLoops();
   NdbRestarter res;
   const Uint32 nodeCount = res.getNumDbNodes();
@@ -3249,10 +3327,9 @@ runBug46412(NDBT_Context* ctx, NDBT_Step* step)
 
   for (Uint32 l = 0; l<loops; l++)
   {
-loop:
     printf("checking nodegroups of getNextMasterNodeId(): ");
     int nodes[256];
-    bzero(nodes, sizeof(nodes));
+    std::memset(nodes, 0, sizeof(nodes));
     nodes[0] = res.getMasterNodeId();
     printf("%d ", nodes[0]);
     for (Uint32 i = 1; i<nodeCount; i++)
@@ -3264,7 +3341,9 @@ loop:
 
     Bitmask<256/32> ng;
     int cnt = 0;
+    int cnt_stop_partial = 0;
     int restartnodes[256];
+    int stopnodes_partial[256];
 
     Uint32 limit = (nodeCount / 2);
     for (Uint32 i = 0; i<limit; i++)
@@ -3283,6 +3362,7 @@ loop:
         }
         else
         {
+          stopnodes_partial[cnt_stop_partial++] = nodes[i];
           ng.set(tmp);
           ndbout_c(" OK");
         }
@@ -3304,33 +3384,67 @@ loop:
       if (res.waitClusterStarted())
         return NDBT_FAILED;
 
-      goto loop;
+      if (partialSR == 0)
+        continue;
     }
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     res.dumpStateAllNodes(val2, 2);
 
-    Bitmask<256/32> mask;
-    for (Uint32 i = 0; i<(nodeCount / 2); i++)
+    if (partialSR == 0)
     {
-      int node = nodes[(nodeCount / 2) - (i + 1)];
-      mask.set(node);
-      res.insertErrorInNode(node, 7218);
-    }
+      Bitmask<256/32> mask;
+      for (Uint32 i = 0; i<(nodeCount / 2); i++)
+      {
+        int node = nodes[(nodeCount / 2) - (i + 1)];
+        mask.set(node);
+        res.insertErrorInNode(node, 7218);
+      }
     
-    for (Uint32 i = 0; i<nodeCount; i++)
-    {
-      int node = nodes[i];
-      if (mask.get(node))
-        continue;
-      res.insertErrorInNode(node, 7220);
+      for (Uint32 i = 0; i<nodeCount; i++)
+      {
+        int node = nodes[i];
+        if (mask.get(node))
+          continue;
+        res.insertErrorInNode(node, 7220);
+      }
+
+      int lcp = 7099;
+      res.dumpStateAllNodes(&lcp, 1);
+
+      res.waitClusterNoStart();
+      res.startAll();
     }
-
-    int lcp = 7099;
-    res.dumpStateAllNodes(&lcp, 1);
-
-    res.waitClusterNoStart();
-    res.startAll();
+    else
+    {
+      ndbout_c("cnt_stop_partial = %u", cnt_stop_partial);
+      for (Uint32 i = 0; i < nodeCount; i++)
+      {
+        int node = nodes[i];
+        bool found = false;
+        for (int j = 0; j < cnt_stop_partial; j++)
+        {
+          if (stopnodes_partial[j] == node)
+            found = true;
+        }
+        if (found)
+        {
+          ndbout_c("Stop node %u", node);
+          res.restartOneDbNode(node, false, true, true, true);
+        }
+      }
+      ndbout_c("Wait for a while to allow the first set of nodes to stop");
+      NdbSleep_SecSleep(6);
+      ndbout_c("Cluster restart");
+      res.restartAll(false, true, true, true);
+      res.waitClusterNoStart();
+      for (Uint32 i = 0; i < nodeCount; i++)
+      {
+        ndbout_c("Start node %u", nodes[i]);
+        res.startNodes(&nodes[i], 1);
+        NdbSleep_SecSleep(4);
+      }
+    }
     if (res.waitClusterStarted())
       return NDBT_FAILED;
   }
@@ -3385,7 +3499,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
       case 0:
       case 1:
         res.dumpStateAllNodes(&val, 1);
-        // Fall through
+        [[fallthrough]];
       case 2:
       case 3:
       case 4:
@@ -3395,7 +3509,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         res.dumpStateOneNode(nodes[0], val2, 2);
         res.insertErrorInNode(nodes[0], 5054); // crash during restart
         res.startAll();
-        sleep(3);
+        NdbSleep_SecSleep(3);
         res.waitNodesNoStart(nodes+0,1);
         res.startAll();
         break;
@@ -3406,14 +3520,14 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         break;
       case 7:
         res.dumpStateAllNodes(&val, 1);
-        // Fall through
+        [[fallthrough]];
       case 8:
         res.restartOneDbNode(nodes[1], false, true, true);
         res.waitNodesNoStart(nodes+1,1);
         res.dumpStateOneNode(nodes[1], val2, 2);
         res.insertErrorInNode(nodes[1], 5054); // crash during restart
         res.startAll();
-        sleep(3);
+        NdbSleep_SecSleep(3);
         res.waitNodesNoStart(nodes+1,1);
         res.startAll();
         break;
@@ -3608,7 +3722,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     g_info << "Executing query : "<< query.c_str() << endl;
     if(!sql.doQuery(query.c_str(), resultSet)){
       if(nodesKilledDuringStep &&
-          sql.getErrorNumber() == 0)
+         resultSet.mysqlErrno() == 0)
       {
         /* query failed probably because of a node kill in another step.
            wait for the nodes to get into start phase before retrying */
@@ -3643,6 +3757,9 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
+
+  DbUtil::thread_end();
+
   return NDBT_OK;
 }
 
@@ -4052,11 +4169,13 @@ runLoad(NDBT_Context* ctx, NDBT_Step* step)
   int retries = 0;
   while (!ctx->isTestStopped() && myDict->createTable(*copy)!= 0)
   {
-    /* '4009 - Cluster Failure' is acceptable since SR is in progress.
+    /* '4009 - Cluster Failure' or '4035 - Cluster temporarily unavailable'
+     * are acceptable since SR is in progress.
      * '711 - System busy with node restart, schema operations not allowed'
      * is acceptable since the stale node performs an NR during SR.
      */
     CHK((myDict->getNdbError().code == 4009 ||
+         myDict->getNdbError().code == 4035 ||
          myDict->getNdbError().code == 711),
         myDict->getNdbError().message);
     retries++;
@@ -4132,6 +4251,59 @@ runCheckStaleNodeTakeoverDuringSR(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+int
+runCheckLaggardShutdown(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  /**
+   * Perform system restart, but with error
+   * insert which causes 1 node to be slow to shutdown.
+   * Check that the others wait for it, to ensure a clean
+   * shutdown
+   *  Error     Subcase
+   *   1022     Slow node
+   *   1023     Slow node which fails
+   *   1024     Slow node, and master fails
+   */
+  if (restarter.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  int errorCodes[] = {1022, 1023, 1024};
+
+  for (Uint32 e=0; e < 3; e++)
+  {
+    const Uint32 laggard = restarter.getRandomNotMasterNodeId(rand());
+
+    ndbout_c("Configuring all nodes to restart -n on CRASH_INSERTION");
+    int dumpCodes[2] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    CHK((restarter.dumpStateAllNodes(&dumpCodes[0], 2) == 0),
+        "Failed to set crash restarttype");
+
+    ndbout_c("Inserting error %u in node %u", errorCodes[e], laggard);
+
+    CHK((restarter.insertErrorInNode(laggard, errorCodes[e]) == 0),
+        "Failed to insert error");
+
+    ndbout_c("Performing system restart");
+
+    CHK((restarter.restartNodes(NULL,
+                                0,
+                                0) == 0),
+        "System restart failed.");
+
+    CHK((restarter.waitClusterStarted() == 0),
+        "Failed waiting for cluster to start again");
+  }
+
+  /* System restart will have cleared error insert state */
+
+  return NDBT_OK;
+}
+
 /**************************************************************************/
 
 NDBT_TESTSUITE(testSystemRestart);
@@ -4565,6 +4737,12 @@ TESTCASE("Bug46651", "")
 }
 TESTCASE("Bug46412", "")
 {
+  TC_PROPERTY("PartialSRvar", Uint32(0));
+  INITIALIZER(runBug46412);
+}
+TESTCASE("PartialSR", "")
+{
+  TC_PROPERTY("PartialSRvar", Uint32(1));
   INITIALIZER(runBug46412);
 }
 TESTCASE("Bug48436", "")
@@ -4655,6 +4833,11 @@ TESTCASE("StaleNodeTakeoverDuringSR",
 {
   STEP(runCheckStaleNodeTakeoverDuringSR);
   STEP(runLoad);
+}
+TESTCASE("LaggardShutdown",
+         "One node is slow during a shutdown")
+{
+  STEP(runCheckLaggardShutdown);
 }
 NDBT_TESTSUITE_END(testSystemRestart)
 

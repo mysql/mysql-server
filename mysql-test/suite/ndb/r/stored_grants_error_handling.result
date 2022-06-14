@@ -1,0 +1,18 @@
+CREATE USER "mcmd"@"localhost";
+GRANT ALL PRIVILEGES ON *.* to "mcmd"@"localhost";
+CALL mtr.add_suppression("NDB: Error 626, Tuple did not exist");
+GRANT ALL PRIVILEGES ON *.* to "mcmd"@"localhost";
+Expect 33
+max_questions
+33
+Expect 0
+max_questions
+0
+Expect 55
+max_questions
+55
+Expect 0
+max_questions
+0
+DROP USER mcmd@localhost;
+DROP USER lu1@a;

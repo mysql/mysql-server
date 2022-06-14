@@ -2871,7 +2871,7 @@ EXPLAIN SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	366	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j`,count(0) AS `COUNT(*)` from `test`.`t` group by `test`.`t`.`j` with rollup
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t`.`j`,0) AS `j`,rollup_sum_switcher(count(0)) AS `COUNT(*)` from `test`.`t` group by `test`.`t`.`j` with rollup
 SELECT j, COUNT(*) FROM t GROUP BY j ORDER BY j;
 j	COUNT(*)
 NULL	2
@@ -4302,7 +4302,7 @@ a	c	json_length( c, '$' )
 
 # invalid json text
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 3;
-ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 0.
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 4;
 a	c	json_length( c, '$' )
 4	"abc"	1
@@ -7089,9 +7089,9 @@ insert into t_ooa values
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', null );
 select id, doc, one_or_all, json_search( doc, one_or_all, 'foo%' ) from t_ooa order by id;
 id	doc	one_or_all	json_search( doc, one_or_all, 'foo%' )
-1	{"a": "foot", "b": "fool", "c": "food"}	one	"$.a"
-1	{"a": "foot", "b": "fool", "c": "food"}	all	["$.a", "$.b", "$.c"]
 1	{"a": "foot", "b": "fool", "c": "food"}	NULL	NULL
+1	{"a": "foot", "b": "fool", "c": "food"}	all	["$.a", "$.b", "$.c"]
+1	{"a": "foot", "b": "fool", "c": "food"}	one	"$.a"
 select id, doc, json_search( doc, 'one', 'foo%' ) from t_ooa order by id;
 id	doc	json_search( doc, 'one', 'foo%' )
 1	{"a": "foot", "b": "fool", "c": "food"}	"$.a"
@@ -7228,11 +7228,17 @@ SET GLOBAL net_buffer_length = 1024;
 SET GLOBAL max_allowed_packet = 1024;
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 REPEAT(j, 2)	COUNT(*)
-NULL	1
-NULL	1
+	1
+	1
 NULL	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
+SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i;
+REPEAT(j, 2)	COUNT(*)
+	1
+Warnings:
 Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
 SET GLOBAL max_allowed_packet = default;
 SET GLOBAL net_buffer_length = default;
@@ -8318,7 +8324,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`i` AS `i` fr
 EXPLAIN SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`j` AS `j`,`test`.`a`.`i` AS `i`,`test`.`b`.`j` AS `j`,`test`.`b`.`i` AS `i` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`j` > `test`.`b`.`i`) order by `test`.`b`.`i`,`test`.`a`.`i`
 SELECT * FROM t1 WHERE j > i ORDER BY i;
@@ -8361,7 +8367,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`i` AS `i` fr
 EXPLAIN SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	b	NULL	ALL	t1_idx	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	t1_idx	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use range access on index 't1_idx' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`a`.`j` AS `j`,`test`.`a`.`i` AS `i`,`test`.`b`.`j` AS `j`,`test`.`b`.`i` AS `i` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`j` > `test`.`b`.`i`) order by `test`.`b`.`i`,`test`.`a`.`i`
@@ -8538,16 +8544,22 @@ DROP TABLE t;
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	[1]
 INSERT INTO t VALUES (1, '[1,2]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	{"ab": [1, 2]}
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	{"abc": [1, 2, 3]}
@@ -9242,6 +9254,7 @@ DROP TABLE t;
 # Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
 #
 CREATE TABLE t(a DATE);
+INSERT INTO t VALUES ('1970-01-01');
 SELECT 1 FROM t WHERE 1 <>
 (
 SELECT 1 FROM
@@ -9697,24 +9710,13 @@ UPDATE t SET j1 = JSON_SET(j1, '$.a', 'x'),
 j2 = JSON_SET(j2, '$.a', 'y'),
 j1 = JSON_SET(j1, '$.b', 'z');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.a','x'),`t`.`j2` = json_set(`t`.`j2`,'$.a','y'),`t`.`j1` = json_set(`t`.`j1`,'$.b','z')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9767,24 +9769,13 @@ UPDATE t SET j1 = JSON_SET(j1, '$.a', 's'),
 j2 = JSON_SET(j2, '$.a', 'abcdefghi'),
 j1 = JSON_SET(j1, '$.b', 't');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.a','s'),`t`.`j2` = json_set(`t`.`j2`,'$.a','abcdefghi'),`t`.`j1` = json_set(`t`.`j1`,'$.b','t')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9832,24 +9823,13 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.x.
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.x.y.z', 'abc', '$.b', 'X');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.x.y.z','abc','$.b','X')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9896,24 +9876,13 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_replace(`test`.`t`.`j1`,'
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_REPLACE(j1, '$.x', 'abc', '$.b', 'Y');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_replace(`t`.`j1`,'$.x','abc','$.b','Y')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9960,24 +9929,13 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.x'
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.x', 'abc', '$.b', 'Z');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.x','abc','$.b','Z')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -10021,29 +9979,18 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j2`,'$.a'
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j2, '$.a', 'ABC');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-            {
-              "table": "`t`",
-              "column": "j1",
-              "cause": "Updated using a function that does not support partial update, or source and target column differ"
-            }
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j2`,'$.a','ABC')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+        {
+          "table": "`t`",
+          "column": "j1",
+          "cause": "Updated using a function that does not support partial update, or source and target column differ"
+        }
+      ]
     }
   ]
 }
@@ -10079,29 +10026,18 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_array(`test`.`t`.`j1`,`te
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_ARRAY(j1, j1);
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-            {
-              "table": "`t`",
-              "column": "j1",
-              "cause": "Updated using a function that does not support partial update, or source and target column differ"
-            }
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_array(`t`.`j1`,`t`.`j1`)"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+        {
+          "table": "`t`",
+          "column": "j1",
+          "cause": "Updated using a function that does not support partial update, or source and target column differ"
+        }
+      ]
     }
   ]
 }
@@ -10142,29 +10078,18 @@ SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j2, '$.a', 1),
 j2 = JSON_SET(j2, '$.a', 1);
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-            {
-              "table": "`t`",
-              "column": "j1",
-              "cause": "Updated using a function that does not support partial update, or source and target column differ"
-            }
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j2`,'$.a',1),`t`.`j2` = json_set(`t`.`j2`,'$.a',1)"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+        {
+          "table": "`t`",
+          "column": "j1",
+          "cause": "Updated using a function that does not support partial update, or source and target column differ"
+        }
+      ]
     },
     {
       "json_partial_update": {
@@ -10568,7 +10493,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": []}, {"table": "`t1`", "eligible_columns": ["j"]}]
+[{"table": "`t1`", "eligible_columns": ["j"]}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -10663,7 +10588,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": []}, {"table": "`t1`", "eligible_columns": ["j"]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
+[{"table": "`t1`", "eligible_columns": ["j"]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -10729,7 +10654,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": [{"cause": "Updated using a function that does not support partial update, or source and target column differ", "table": "`t1`", "column": "j"}]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
+[{"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -10753,7 +10678,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": [{"cause": "Storage engine does not support partial update", "table": "`t`", "column": "j"}]}]
+NULL
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
 [1]	8	0
@@ -11122,3 +11047,70 @@ SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON within a ROW in the IN operator'
 DROP TABLE t1;
+#
+# Bug#30753642: ASSERTION `FALSE' FAILED. IN ITEM_JSON::VAL_STR
+#
+CREATE TABLE t(a DATETIME);
+INSERT INTO t VALUES ('2019-01-13 00:00:00');
+SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
+1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a)
+0
+DROP TABLE t;
+#
+# Bug#25840784: PARTIAL UPDATE ON VIEWS DOES NOT WORK AS EXPECTED ON BASE TABLES
+#
+CREATE TABLE t1(id INT PRIMARY KEY, j JSON);
+CREATE VIEW v1 AS SELECT id, j, JSON_REMOVE(j, '$.b') jj FROM t1;
+INSERT INTO t1 VALUES
+(1, '{"a": "abcdefghijklmnopqrstuvwxyz", "b":"abcdef"}'),
+(2, '{"a": "abcdefghijklmnopqrstuvwxyz"}'),
+(3, '{"b":"abcdef"}');
+UPDATE v1 SET j = JSON_SET(j, '$.a', 'abcdefghijklm');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+{"a": "abcdefghijklm", "b": "abcdef"}	55	13
+{"a": "abcdefghijklm"}	40	13
+{"a": "abcdefghijklm", "b": "abcdef"}	42	0
+UPDATE v1 SET j = JSON_SET(jj, '$.a', 'abcdefg');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+{"a": "abcdefg"}	55	34
+{"a": "abcdefg"}	40	19
+{"a": "abcdefg"}	42	21
+UPDATE v1 SET j = JSON_REMOVE(j, '$.a');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+{}	55	50
+{}	40	35
+{}	42	37
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Bug#32248705: PUTTING A MISSING ROW INTO JSON_OBJECT CAUSES
+#               JSON_EXTRACT TO FAIL
+#
+CREATE TABLE t1(x VARCHAR(1));
+CREATE TABLE t2(y VARCHAR(1));
+INSERT INTO t1 VALUES ('a');
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_ARRAY(y) <> 3;
+x	y
+a	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_OBJECT('y', y) <> 3;
+x	y
+a	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_ARRAY_APPEND('[]', '$', y) <> 3;
+x	y
+a	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_INSERT('{}', '$.a', y) <> 3;
+x	y
+a	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_ARRAY_INSERT('[]', '$[0]', y) <> 3;
+x	y
+a	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_SET('{}', '$.a', y) <> 3;
+x	y
+a	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_REPLACE('{}', '$.a', y) <> 3;
+x	y
+a	NULL
+DROP TABLE t1, t2;

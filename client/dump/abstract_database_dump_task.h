@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ namespace Dump {
  */
 class Abstract_database_dump_task : public Abstract_dump_task {
  public:
-  Abstract_database_dump_task(Database *related_database);
+  explicit Abstract_database_dump_task(Database *related_database);
 
   /**
     Returns database the current task is created for.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,6 @@
 #ifndef NODE_NO_H
 #define NODE_NO_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define ull_void ~((synode_cnt)0)
 #define ul_void ~((u_long)0)
 #define u_void ~((u_int)0)
@@ -37,9 +33,5 @@ extern "C" {
   value of uint32_t.
 */
 #define VOID_NODE_NO (~((node_no)0))
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

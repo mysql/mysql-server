@@ -28,15 +28,15 @@ SELECT a, round(MATCH  b,c AGAINST ('lala lkjh'),5) FROM t1;
 a	round(MATCH  b,c AGAINST ('lala lkjh'),5)
 1	0.22764
 2	0.22764
-3	0.00000
+3	0
 SELECT a, round(MATCH  c,c AGAINST ('lala lkjh'),5) FROM t1;
 a	round(MATCH  c,c AGAINST ('lala lkjh'),5)
 1	0.22764
 2	0.22764
-3	0.00000
+3	0
 SELECT a, round(MATCH b,c AGAINST ('lala lkjh'),5) FROM t1;
 a	round(MATCH b,c AGAINST ('lala lkjh'),5)
 1	0.22764
 2	0.22764
-3	0.00000
+3	0
 drop table t1;

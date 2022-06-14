@@ -4,7 +4,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_table_expr_object.tmp
+--write_file $MYSQL_TMP_DIR/crud_table_expr_object.xpl
 
 ## Test data
 -->sql
@@ -287,8 +287,7 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_table_expr_object.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_table_expr_object.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/crud_table_expr_object.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -136,9 +136,8 @@ insert into t1 values(concat("for_23_",UUID()));
 insert into t1 select "yesterday_24_";
 create table t2 select rpad(UUID(),100,' ');
 create table t3 select 1 union select UUID();
-create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
 create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
-insert ignore into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
+insert ignore into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3);
 create procedure foo()
 begin
 insert into t1 values("work_25_");
@@ -371,9 +370,6 @@ count(*)
 select count(*) from t3;
 count(*)
 1
-select count(*) from t4;
-count(*)
-29
 select count(*) from t5;
 count(*)
 58

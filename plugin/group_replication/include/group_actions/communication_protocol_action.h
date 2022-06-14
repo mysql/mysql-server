@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,20 +42,22 @@ class Communication_protocol_action final : public Group_action {
  public:
   Communication_protocol_action();
   explicit Communication_protocol_action(Gcs_protocol_version gcs_protocol);
-  ~Communication_protocol_action() final override;
+  ~Communication_protocol_action() final;
 
   // Group_action implementation
-  void get_action_message(Group_action_message **message) final override;
+  void get_action_message(Group_action_message **message) final;
   int process_action_message(Group_action_message &message,
-                             const std::string &message_origin) final override;
+                             const std::string &message_origin) final;
   enum_action_execution_result execute_action(
-      bool invoking_member,
-      Plugin_stage_monitor_handler *stage_handler) final override;
-  bool stop_action_execution(bool killed) final override;
-  const char *get_action_name() final override;
-  Group_action_diagnostics *get_execution_info() final override;
+      bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
+      Notification_context *) final;
+  bool stop_action_execution(bool killed) final;
+  const char *get_action_name() final;
+  Group_action_diagnostics *get_execution_info() final;
 
  private:
+  int set_consensus_leaders() const;
+
   /** Stores textual information about the action's execution. */
   Group_action_diagnostics m_diagnostics;
 

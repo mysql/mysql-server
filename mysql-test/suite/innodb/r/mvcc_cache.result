@@ -6,7 +6,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT, c TEXT, INDEX (b(1)));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   `c` text,
   PRIMARY KEY (`a`),
@@ -29,7 +29,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT, c TEXT, INDEX (b(1)));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   `c` text,
   PRIMARY KEY (`a`),

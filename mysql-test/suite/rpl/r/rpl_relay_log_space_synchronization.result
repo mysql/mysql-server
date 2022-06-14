@@ -9,6 +9,8 @@ include/stop_slave_sql.inc
 SET GLOBAL debug='+d,wait_in_purge_index_entry';
 FLUSH LOCAL RELAY LOGS;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SET DEBUG_SYNC="now WAIT_FOR in_purge_index_entry";
 [connection master]
 INSERT INTO t1 VALUES (1);

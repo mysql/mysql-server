@@ -175,7 +175,7 @@ Warnings:
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE SCHEMA s;
 Database	Create Database
-s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP SCHEMA s;
 ERROR HY000: Schema directory './s/' does not exist
 DROP SCHEMA s;
@@ -311,3 +311,45 @@ DROP SCHEMA IF EXISTS broken;
 # Create and drop schema again to make sure nothing is left behind
 CREATE SCHEMA broken;
 DROP SCHEMA broken;
+
+Bug#30344462: CHANGING DEFAULT ENCRYPTION FOR A SCHEMA WILL RESET
+DEFAULT COLLATION
+
+CREATE SCHEMA s CHARACTER SET ascii;
+USE s;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW VARIABLES LIKE 'collation_database';
+Variable_name	Value
+collation_database	ascii_general_ci
+ALTER SCHEMA s ENCRYPTION = 'n';
+# Without the patch, altering encryption would also
+# reset the default collation, and if the schema is
+# the currently used schema, the 'collation_database'
+# variable would also be reset.
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW VARIABLES LIKE 'collation_database';
+Variable_name	Value
+collation_database	ascii_general_ci
+DROP SCHEMA s;
+#
+# Bug#32248313: TABLE_CACHE_MANAGER::FREE_TABLE: ASSERTION `CACHE_EL[I]->USED_TABLES.IS_EMPTY()' FAILED.
+#
+CREATE SCHEMA s1;
+USE s1;
+CREATE TABLE t1(a INT);
+HANDLER t1 OPEN;
+ALTER SCHEMA s1 READ ONLY DEFAULT;
+DROP table t1;
+DROP SCHEMA s1;
+#
+# Bug #33183590: COLLATE maybe overwritten by charset if both specified in create database stmt
+#
+CREATE DATABASE test1 COLLATE utf8mb4_bin CHARACTER SET utf8mb4;
+SHOW CREATE DATABASE test1;
+Database	Create Database
+test1	CREATE DATABASE `test1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+DROP DATABASE test1;

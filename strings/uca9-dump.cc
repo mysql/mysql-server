@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 
   This can also be used to dump weight table of Japanese Han characters.
   How to use:
-    1. Copy the line of Han characters in CLDR file ja.xml to a seperate file,
+    1. Copy the line of Han characters in CLDR file ja.xml to a separate file,
        e.g. ja_han.txt.
     2. Make sure the file is saved in UTF-8 (use 'file' command to check), or
        use iconv to convert.
@@ -41,7 +41,7 @@
     1. Make sure you have uca900_weights and all the weight tables in strings/
        uca900_data.h. If no, please refer to above comments about how to
        generate those tables.
-    2. Copy the lines of Han characters in CLDR file zh.xml to a seperate
+    2. Copy the lines of Han characters in CLDR file zh.xml to a separate
        file, e.g. zh_han.txt.
     3. Make sure the file is saved in UTF-8 (use 'file' command to check), or
        use iconv to convert.
@@ -433,7 +433,7 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
     int bytes = my_mb_wc_utf8mb4(&ja_ch_u16, ja_han, ja_han + ja_length);
     if (bytes <= 0) break;
     ja_han += bytes;
-    int page MY_ATTRIBUTE((unused)) = ja_ch_u16 >> 8;
+    int page [[maybe_unused]] = ja_ch_u16 >> 8;
     assert(page >= 0x4E && page <= 0x9F);
     MY_UCA_ITEM *item = &uca->item[ja_ch_u16 - 0x4E00];
     item->num_of_ce = 1;
@@ -616,16 +616,16 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
       // There is same page in DUCET.
       if (uca900_weight[page]) {
         for (int off = 0; off < MY_UCA_CHARS_PER_PAGE; off++) {
-          int ch = (page << 8) + off;
+          int ch_off = (page << 8) + off;
           // Copy other characters' weight from DUCET.
-          if (uca->item[ch].num_of_ce == 0) {
-            uca->item[ch].num_of_ce =
+          if (uca->item[ch_off].num_of_ce == 0) {
+            uca->item[ch_off].num_of_ce =
                 UCA900_NUM_OF_CE(uca900_weight[page], off);
             for (int level = 0; level < 3; level++) {
               uint16 *weight =
                   UCA900_WEIGHT_ADDR(uca900_weight[page], level, off);
-              uint16 *dst = uca->item[ch].weight + level;
-              for (int ce = 0; ce < uca->item[ch].num_of_ce; ce++) {
+              uint16 *dst = uca->item[ch_off].weight + level;
+              for (int ce = 0; ce < uca->item[ch_off].num_of_ce; ce++) {
                 if (*weight >= 0x1C47 && *weight <= 0x54A3) {
                   *dst = *weight + 0xBDC4 - 0x1C47;
                 } else if (*weight >= 0xFB00) {  // implicit weight

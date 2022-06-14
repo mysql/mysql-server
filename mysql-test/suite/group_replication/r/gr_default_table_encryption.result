@@ -44,7 +44,13 @@ ERROR HY000: The default_table_encryption option cannot be changed when Group re
 SET @@SESSION.default_table_encryption = OFF;
 
 ############################################################
-# 6. Clean up.
+# 6. Try to PERSIST default_table_encryption while
+#    Group Replication is running, it shall fail.
+SET PERSIST default_table_encryption=ON;
+ERROR HY000: The default_table_encryption option cannot be changed when Group replication is running.
+
+############################################################
+# 7. Clean up.
 [connection server1]
 include/stop_group_replication.inc
 SET @@GLOBAL.default_table_encryption= @table_encryption_default;

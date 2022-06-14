@@ -1,5 +1,5 @@
 struct st_mysql_client_plugin {
-  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *); int (*get_options)(const char *option, void *);
 };
 struct MYSQL;
 #include "plugin_auth_common.h"
@@ -33,7 +33,7 @@ typedef struct MYSQL_PLUGIN_VIO {
       int *result);
 } MYSQL_PLUGIN_VIO;
 struct auth_plugin_t {
-  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);int (*get_options)(const char *option, void *);
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
   enum net_async_status (*authenticate_user_nonblocking)(MYSQL_PLUGIN_VIO *vio,
                                                          struct MYSQL *mysql,
@@ -53,3 +53,5 @@ struct st_mysql_client_plugin *mysql_client_register_plugin(
     struct MYSQL *mysql, struct st_mysql_client_plugin *plugin);
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
+                         const char *option, void *value);

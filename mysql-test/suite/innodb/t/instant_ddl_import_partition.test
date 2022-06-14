@@ -1,0 +1,23 @@
+##########################################################################
+# Test script to test EXPORT/IMPORT for partitioned table having INSTANT
+# ADD/DROP columns.
+##########################################################################
+
+#--echo ##############################################
+#--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+#--echo ##############################################
+let $row_format = redundant;
+--source suite/innodb/include/instant_ddl_import_partition.inc
+
+#--echo ############################################
+#--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+#--echo ############################################
+let $row_format = dynamic;
+--source suite/innodb/include/instant_ddl_import_partition.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = compact;
+--source suite/innodb/include/instant_ddl_import_partition.inc
+

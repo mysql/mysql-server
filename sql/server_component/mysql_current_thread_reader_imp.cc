@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,11 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <components/mysql_server/mysql_current_thread_reader_imp.h>
-#include <components/mysql_server/server_component.h>
+#include "sql/server_component/mysql_current_thread_reader_imp.h"
+
+#include <mysql/components/minimal_chassis.h>
 #include <mysql/components/service_implementation.h>
 #include <sql/current_thd.h>
-
-/**
-  A dummy initialization function. And it will be called from
-  server_component_init(). Else linker, is cutting out (as library
-  optimization) this file's code because libsql code
-  is not calling any functions of it.
-*/
-void mysql_current_thread_reader_imp_init() { return; }
 
 /**
   Return current thd

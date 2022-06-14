@@ -286,7 +286,7 @@ CREATE TABLE t(i INT, b TINYBLOB  DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `b` tinyblob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(254, DEFAULT);
@@ -340,7 +340,7 @@ CREATE TABLE t(i BIGINT, b MEDIUMBLOB  DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` bigint(20) DEFAULT NULL,
+  `i` bigint DEFAULT NULL,
   `b` mediumblob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(16777214, DEFAULT);
@@ -394,7 +394,7 @@ CREATE TABLE t(i INT, b BLOB DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `b` blob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(65534, DEFAULT);
@@ -448,7 +448,7 @@ CREATE TABLE t(i BIGINT, b LONGBLOB  DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` bigint(20) DEFAULT NULL,
+  `i` bigint DEFAULT NULL,
   `b` longblob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(4294967295, DEFAULT);
@@ -528,7 +528,7 @@ ON UPDATE NOW());
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 1 minute)) ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(a) VALUES (5);
@@ -545,7 +545,7 @@ CREATE TABLE t1 (a INT, b TIMESTAMP NOT NULL DEFAULT (TIMESTAMPADD(MINUTE, 1,'20
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` timestamp NOT NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 1 minute))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1(a) values (1);
@@ -554,7 +554,7 @@ CREATE TABLE t1 (a INT, c TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 5,'2003-01-02'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `c` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 5 minute))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(a) VALUES (5),(6);
@@ -562,7 +562,7 @@ ALTER TABLE t1 ADD COLUMN d TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 10,'2003-01-
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `c` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 5 minute)),
   `d` timestamp NULL DEFAULT ((_utf8mb4'2003-01-03' + interval 10 minute)) ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -588,7 +588,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
@@ -604,9 +604,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)), j INT GENERATED ALWAYS AS (i*2));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
-j	int(11)	YES		NULL	VIRTUAL GENERATED
+j	int	YES		NULL	VIRTUAL GENERATED
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
 INSERT INTO t1(i, b) VALUES (3, "some string");
@@ -857,7 +857,7 @@ ERROR HY000: DEFAULT function cannot be used with default value expressions
 create table t1 ( i int, j int default ( i * i ), primary key(j));
 insert into t1 (i) values (4), (5);
 insert into t1 values (4, DEFAULT), (5, DEFAULT);
-ERROR 23000: Duplicate entry '16' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '16' for key 't1.PRIMARY'
 insert into t1 values (6, DEFAULT), (7, DEFAULT);
 select * from t1;
 i	j
@@ -876,13 +876,11 @@ v1 INT AS ( d2 = c2 % ASIN( d1 ) > i2 ) VIRTUAL);
 INSERT ignore INTO D1 (  i2, d1, d2, c2, def2)
 VALUES ( 1548385958 , d1 ,128158532 , 0.0 , DEFAULT);
 ALTER TABLE D1 ADD UNIQUE KEY uidx ( def2 , v1 , d2 );
-ERROR 22012: Division by 0
 DROP TABLE D1;
 CREATE TABLE IF NOT EXISTS D1 (def2 DOUBLE DEFAULT( 100 DIV 0 ),
 v1 INT AS (1) VIRTUAL);
 INSERT IGNORE INTO D1 (def2) VALUES (1);
 ALTER TABLE D1 ADD UNIQUE KEY uidx ( def2 , v1 );
-ERROR 22012: Division by 0
 DROP TABLE D1;
 #
 # Bug#28046624 	WL#9418: INCORRECT BEHAVIOR OF DEFAULT WITH MODIFY COLUMN
@@ -997,4 +995,343 @@ INSERT INTO t1(a) VALUES (now());
 ERROR 22001: Data too long for column 'b' at row 1
 SELECT * FROM t1;
 a	b
+DROP TABLE t1;
+#
+# Bug#29480711   DEBUG ASSERTION IN CREATE TABLE WITH ENUM OR SET
+# COLUMNS HAVING EXPLICIT DEFAULT
+#
+CREATE TABLE t1 (truth ENUM('y','n') DEFAULT('y'));
+CREATE TABLE t2 (truths SET('y','n') DEFAULT('y'));
+INSERT INTO t1 values (DEFAULT);
+INSERT INTO t1 values ();
+INSERT INTO t2 values (DEFAULT);
+INSERT INTO t2 values ();
+SELECT * from t1;
+truth
+y
+y
+SELECT * from t2;
+truths
+y
+y
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (truth ENUM('y','n') DEFAULT('s'));
+CREATE TABLE t2 (truths SET('y','n') DEFAULT('p'));
+INSERT INTO t1 values (DEFAULT);
+ERROR 01000: Data truncated for column 'truth' at row 1
+INSERT INTO t1 values ();
+ERROR 01000: Data truncated for column 'truth' at row 1
+INSERT INTO t2 values (DEFAULT);
+ERROR 01000: Data truncated for column 'truths' at row 1
+INSERT INTO t2 values ();
+ERROR 01000: Data truncated for column 'truths' at row 1
+SELECT * from t1;
+truth
+SELECT * from t2;
+truths
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Bug#30271792 "SERVER CRASH DURING ALTER TABLER ADD COLUMN IN
+#               DIAGNOSTICS_AREA::SET_OK_STATUS".
+#
+CREATE TEMPORARY TABLE t1 (pk INT PRIMARY KEY);
+# The below ALTER TABLE should not fail on assert.
+# Since the table is empty no erroneous default value is
+# evaluated so there is no error either.
+ALTER TABLE t1 ADD COLUMN i INT DEFAULT ( "foobar" ), ALGORITHM=COPY;
+DROP TEMPORARY TABLE t1;
+#
+# Bug#29596969: DEFAULT EXPRESSION IS IGNORED IN CREATE TABLE QUERY,
+# IF THE FIELD IS MARKED AS PK
+#
+CREATE TABLE bug(`id` binary(16) NOT NULL DEFAULT (uuid_to_bin(uuid())),
+PRIMARY KEY (`id`));
+SHOW CREATE TABLE bug;
+Table	Create Table
+bug	CREATE TABLE `bug` (
+  `id` binary(16) NOT NULL DEFAULT (uuid_to_bin(uuid())),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE bug;
+# more tests with PRIMARY KEY
+CREATE TABLE pk_t1(i INT NOT NULL);
+INSERT INTO pk_t1 VALUES (1),(2),(3),(4);
+ALTER TABLE pk_t1 ADD COLUMN
+(`id` BINARY(16) DEFAULT (uuid_to_bin(uuid())) PRIMARY KEY NOT NULL);
+ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ALTER TABLE pk_t1 ADD COLUMN
+(`id` INT DEFAULT (10 + i) PRIMARY KEY NOT NULL);
+SHOW CREATE TABLE pk_t1;
+Table	Create Table
+pk_t1	CREATE TABLE `pk_t1` (
+  `i` int NOT NULL,
+  `id` int NOT NULL DEFAULT ((10 + `i`)),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO pk_t1(i) VALUES (5);
+INSERT INTO pk_t1(i, id) VALUES (6, DEFAULT);
+SELECT * FROM pk_t1;
+i	id
+1	11
+2	12
+3	13
+4	14
+5	15
+6	16
+ALTER TABLE  pk_t1 DROP COLUMN  id;
+DROP TABLE pk_t1;
+#
+# Bug#30331053: CREATE TABLE WITH AUTO_INCREMENT AND DEFAULT EXPRESSION
+# SHOULD BE REJECTED
+#
+CREATE TABLE t2 (a INT AUTO_INCREMENT DEFAULT(0));
+ERROR 42000: Invalid default value for 'a'
+#
+# Bug#31331454: ALTER TABLE WITH AUTO_INCREMENT AND DEFAULT EXPRESSION
+# SHOULD BE REJECTED
+#
+CREATE TABLE t1 (i INT);
+ALTER TABLE t1 MODIFY COLUMN i INT AUTO_INCREMENT PRIMARY KEY DEFAULT(GROUPING(r));
+ERROR 42000: Invalid default value for 'i'
+ALTER TABLE t1 MODIFY COLUMN i INT AUTO_INCREMENT PRIMARY KEY;
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT(GROUPING(r));
+ERROR 42000: Invalid default value for 'i'
+DROP TABLE t1;
+#
+# Bug#30302907 "ADDITION OF COLUMNS WITH GENERATED DEFAULTS IS
+#               BROKEN IN ALTER TABLE COPY".
+#
+#
+# 1) Simple case, when generated column value depends on generated
+#    default value.
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT (a), ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED;
+# Repeat the test with explicit ALGORITHM=COPY
+ALTER TABLE t2 ADD COLUMN b INT DEFAULT (a), ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED, ALGORITHM=COPY;
+# INPLACE addition of generated columns and defaults is not supported.
+ALTER TABLE t3 ADD COLUMN b INT DEFAULT (a), ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+SELECT * FROM t1;
+a	b	c
+1	1	-1
+2	2	-2
+SELECT * FROM t2;
+a	b	c
+1	1	-1
+2	2	-2
+SELECT * FROM t3;
+a
+1
+2
+DROP TABLES t1, t2, t3;
+#
+# 2) Column with generated default "replaces" old column.
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 DROP COLUMN b, ADD COLUMN c INT DEFAULT (a);
+ALTER TABLE t2 DROP COLUMN b, ADD COLUMN c INT DEFAULT (a), ALGORITHM=COPY;
+# INPLACE addition of generated defaults is not supported.
+ALTER TABLE t3 DROP COLUMN b, ADD COLUMN c INT DEFAULT (a), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+SELECT * FROM t1;
+a	c
+1	1
+2	2
+SELECT * FROM t2;
+a	c
+1	1
+2	2
+SELECT * FROM t3;
+a	b
+1	1
+2	2
+DROP TABLES t1, t2, t3;
+#
+# 3) Column with generated default which is shifted to new poisition.
+CREATE TABLE t1 (a INT, b INT DEFAULT (1+1));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1, 0), (2, 0);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN c INT AFTER a;
+ALTER TABLE t2 ADD COLUMN c INT AFTER a, ALGORITHM=COPY;
+ALTER TABLE t3 ADD COLUMN c INT AFTER a, ALGORITHM=INPLACE;
+SELECT * FROM t1;
+a	c	b
+1	NULL	0
+2	NULL	0
+SELECT * FROM t2;
+a	c	b
+1	NULL	0
+2	NULL	0
+SELECT * FROM t3;
+a	c	b
+1	NULL	0
+2	NULL	0
+DROP TABLES t1, t2, t3;
+#
+# 4) Complex case. Addition of generated column which depends on
+#    generated default, which depends on generated column, which
+#    which depends on generated default.
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT (a),
+ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED,
+ADD COLUMN d INT DEFAULT (c),
+ADD COLUMN e INT GENERATED ALWAYS AS (-d) STORED;
+ALTER TABLE t2 ADD COLUMN b INT DEFAULT (a),
+ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED,
+ADD COLUMN d INT DEFAULT (c),
+ADD COLUMN e INT GENERATED ALWAYS AS (-d) STORED,
+ALGORITHM=COPY;
+# INPLACE addition of generated columns and defaults is not supported.
+ALTER TABLE t3 ADD COLUMN b INT DEFAULT (a),
+ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED,
+ADD COLUMN d INT DEFAULT (c),
+ADD COLUMN e INT GENERATED ALWAYS AS (-d) STORED,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+SELECT * FROM t1;
+a	b	c	d	e
+1	1	-1	-1	1
+2	2	-2	-2	2
+3	3	-3	-3	3
+SELECT * FROM t2;
+a	b	c	d	e
+1	1	-1	-1	1
+2	2	-2	-2	2
+3	3	-3	-3	3
+SELECT * FROM t3;
+a
+1
+2
+3
+DROP TABLES t1, t2, t3;
+#
+# Bug#29661106 DROP COLUMN FAILS WHEN DEFAULT EXPRESSION RETURNS
+# INCORRECT VALUE
+#
+CREATE TABLE t1(i INT, j INT DEFAULT("foobar"));
+ALTER TABLE t1 DROP COLUMN i ;
+DROP TABLE  t1;
+CREATE TABLE t2(i INT, j DATETIME DEFAULT(0) );
+ALTER TABLE t2 DROP COLUMN i ;
+DROP TABLE  t2;
+CREATE TABLE t1 (
+pk_col      INT NOT NULL AUTO_INCREMENT,
+json_col    JSON,
+blob_col    BLOB,
+text_col    TEXT,
+tblob_col   TINYBLOB,
+ttext_col   TINYTEXT,
+json_col_d  JSON DEFAULT (JSON_OBJECT('key','val')),
+blob_col_d  BLOB DEFAULT ('asda'),
+text_col_d  TEXT DEFAULT (CONCAT('adasdada','ds')),
+tblob_col_d TINYBLOB DEFAULT ('asda'),
+ttext_col_d TINYTEXT DEFAULT (CONCAT('adasdada','ds')),
+PRIMARY KEY (`pk_col`));
+SELECT COLUMN_NAME, COLUMN_DEFAULT, DATA_TYPE, EXTRA
+FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+COLUMN_NAME	COLUMN_DEFAULT	DATA_TYPE	EXTRA
+blob_col	NULL	blob	
+blob_col_d	_utf8mb4\'asda\'	blob	DEFAULT_GENERATED
+json_col	NULL	json	
+json_col_d	json_object(_utf8mb4\'key\',_utf8mb4\'val\')	json	DEFAULT_GENERATED
+pk_col	NULL	int	auto_increment
+tblob_col	NULL	tinyblob	
+tblob_col_d	_utf8mb4\'asda\'	tinyblob	DEFAULT_GENERATED
+text_col	NULL	text	
+text_col_d	concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	text	DEFAULT_GENERATED
+ttext_col	NULL	tinytext	
+ttext_col_d	concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	tinytext	DEFAULT_GENERATED
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+pk_col	int	NO	PRI	NULL	auto_increment
+json_col	json	YES		NULL	
+blob_col	blob	YES		NULL	
+text_col	text	YES		NULL	
+tblob_col	tinyblob	YES		NULL	
+ttext_col	tinytext	YES		NULL	
+json_col_d	json	YES		json_object(_utf8mb4\'key\',_utf8mb4\'val\')	DEFAULT_GENERATED
+blob_col_d	blob	YES		_utf8mb4\'asda\'	DEFAULT_GENERATED
+text_col_d	text	YES		concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	DEFAULT_GENERATED
+tblob_col_d	tinyblob	YES		_utf8mb4\'asda\'	DEFAULT_GENERATED
+ttext_col_d	tinytext	YES		concat(_utf8mb4\'adasdada\',_utf8mb4\'ds\')	DEFAULT_GENERATED
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk_col` int NOT NULL AUTO_INCREMENT,
+  `json_col` json DEFAULT NULL,
+  `blob_col` blob,
+  `text_col` text,
+  `tblob_col` tinyblob,
+  `ttext_col` tinytext,
+  `json_col_d` json DEFAULT (json_object(_utf8mb4'key',_utf8mb4'val')),
+  `blob_col_d` blob DEFAULT (_utf8mb4'asda'),
+  `text_col_d` text DEFAULT (concat(_utf8mb4'adasdada',_utf8mb4'ds')),
+  `tblob_col_d` tinyblob DEFAULT (_utf8mb4'asda'),
+  `ttext_col_d` tinytext DEFAULT (concat(_utf8mb4'adasdada',_utf8mb4'ds')),
+  PRIMARY KEY (`pk_col`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Bug#32121425: ERROR WHEN UTC_TIMESTAMP SET AS DEFAULT VALUE
+#
+# Verify that it is possible to add columns to tables which have a
+# column with a non-constant default expression.
+# This already worked because the flag Field::DEFAULT_NOW is used
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+# The new syntax DEFAULT (F()) did not work, because it uses the new
+# Field::GENERATED_FROM_EXPRESSION flag which was not handled in ALTER.
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (CURTIME()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (CURRENT_TIME()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (LOCALTIME()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (LOCALTIMESTAMP()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (NOW()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (SYSDATE()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (UNIX_TIMESTAMP()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (UTC_DATE()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
+DROP TABLE t1;
+CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (UTC_TIME()));
+ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
 DROP TABLE t1;

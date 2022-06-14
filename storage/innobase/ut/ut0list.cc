@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,7 +37,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Create a new list.
  @return list */
 ib_list_t *ib_list_create(void) {
-  return (static_cast<ib_list_t *>(ut_zalloc_nokey(sizeof(ib_list_t))));
+  return (static_cast<ib_list_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(ib_list_t))));
 }
 
 /** Free a list. */
@@ -47,7 +48,7 @@ void ib_list_free(ib_list_t *list) /*!< in: list */
   to e.g. have all the nodes allocated from a single heap that is then
   freed after the list itself is freed. */
 
-  ut_free(list);
+  ut::free(list);
 }
 
 /** Add the data after the indicated node.
@@ -70,15 +71,15 @@ static ib_list_node_t *ib_list_add_after(
 
     ut_a(!prev_node);
 
-    node->prev = NULL;
-    node->next = NULL;
+    node->prev = nullptr;
+    node->next = nullptr;
 
     list->first = node;
     list->last = node;
   } else if (!prev_node) {
     /* Start of list. */
 
-    node->prev = NULL;
+    node->prev = nullptr;
     node->next = list->first;
 
     list->first->prev = node;
@@ -112,10 +113,10 @@ ib_list_node_t *ib_list_add_last(
   return (ib_list_add_after(list, ib_list_get_last(list), data, heap));
 }
 
-/** Remove the node from the list. */
-void ib_list_remove(ib_list_t *list,      /*!< in: list */
-                    ib_list_node_t *node) /*!< in: node to remove */
-{
+/** Remove the node from the list.
+@param[in] list List
+@param[in] node Node to remove */
+void ib_list_remove(ib_list_t *list, ib_list_node_t *node) {
   if (node->prev) {
     node->prev->next = node->next;
   } else {
@@ -136,5 +137,5 @@ void ib_list_remove(ib_list_t *list,      /*!< in: list */
     list->last = node->prev;
   }
 
-  node->prev = node->next = NULL;
+  node->prev = node->next = nullptr;
 }

@@ -22,9 +22,19 @@
 
 # This test should run only on debug build
 # (rpl_receive_count.inc's restriction)
+
+# The test cannot run in Valgrind since it generates an assert on the slave
+--source include/not_valgrind.inc
+--source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
+# this test case requires that certain events appear in the
+# relay log, therefore they cannot be enclosed in a Transaction_payload
+# event.
+--source include/not_binlog_transaction_compression_on.inc
+
+--source include/have_myisam.inc
 # This test script changes SQL thread coordinates in between
 # which is not possible if AUTO_POSITION is active. So disable
 # it for the testing purpose.
@@ -42,6 +52,8 @@ CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@
 CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
 CALL mtr.add_suppression("Cannot execute the current event group");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Error writing relay log configuration.*");
+CALL mtr.add_suppression("Error reading relay log event for channel.*");
 --source include/stop_slave.inc
 
 ###################################################
@@ -103,8 +115,8 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 #           ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
 #           or ER_MTS_CANT_PARALLEL (incase of MTS enabled server).
 ###############################################################################
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
-START SLAVE SQL_THREAD;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
+START REPLICA SQL_THREAD;
 --let $sts_error= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
 --let $mts_error= convert_error(ER_MTS_CANT_PARALLEL)
 --let $slave_sql_errno= $sts_error, $mts_error
@@ -122,10 +134,10 @@ START SLAVE SQL_THREAD;
 ALTER TABLE t1 engine=MyISAM;
 
 # Start SQL thread from the begining of the XA transaction.
-START SLAVE SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 --source include/wait_for_slave_sql_to_stop.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
-START SLAVE SQL_THREAD;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+START REPLICA SQL_THREAD;
 
 # SQL thread should fail with ER_GTID_NEXT_TYPE_UNDEFINED_GTID
 --let $slave_sql_errno= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID)
@@ -141,7 +153,7 @@ RESET MASTER;
 #           This time SQL thread should succesfully apply full XA transaction
 #           without any issues.
 ###############################################################################
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 --source include/start_slave_sql.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
@@ -161,7 +173,7 @@ CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 #           executed once).
 ###############################################################################
 --source include/stop_slave_sql.inc
-CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 --source include/start_slave_sql.inc
 
 # Check that SQL thread reached end point.

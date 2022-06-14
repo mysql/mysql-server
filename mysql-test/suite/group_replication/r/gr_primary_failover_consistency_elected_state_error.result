@@ -24,7 +24,7 @@ include/start_group_replication.inc
 # 3. Stop the applier sql thread, will make primary election fail
 [connection server2]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 4. Execute action to set server2 as new primary
 [connection server1]

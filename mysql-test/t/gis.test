@@ -504,7 +504,7 @@ drop table t1;
 
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
---error 1048
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 insert into t1 values (null,null);
 drop table t1;
 
@@ -869,6 +869,7 @@ INSERT INTO g1 VALUES (ST_geomfromtext('point(1 2)'));
 
 FLUSH TABLES;
 
+--skip_if_hypergraph   # Differing warnings.
 SELECT 1 FROM g1 WHERE a = date_sub(now(), interval 2808.4 year_month);
 
 DROP TABLE g1;
@@ -2389,6 +2390,7 @@ SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
 --error ER_WRONG_ARGUMENTS
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
+--error ER_WRONG_VALUE
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
 DROP TABLE t;
 
@@ -4203,4 +4205,22 @@ is_uuid(
 )
 );
 
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32975221 5.7.29+ REGRESSION, SPATIAL INDEX NOT USED ANYMORE FOR MBRCONTAINS
+--echo #
+
+CREATE TABLE t (
+  c1 VARCHAR(8) NOT NULL,
+  c2 VARCHAR(16) NOT NULL,
+  geom POINT NOT NULL SRID 0,
+  PRIMARY KEY (c2,c1),
+  SPATIAL KEY coord (geom)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+INSERT INTO t VALUES (1, 2, POINT(1, 2));
+
+--replace_column 10 ## 11 ##
+EXPLAIN SELECT COUNT(*) FROM t WHERE MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((1 2, 2 2, 2 3, 1 2))'), geom) AND c1 <> '10';
 DROP TABLE t;

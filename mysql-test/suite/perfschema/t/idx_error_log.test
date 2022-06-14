@@ -1,0 +1,66 @@
+# Performance schema tests generally depend on specific query plans
+# and behavior, and much of the perfschema suite is therefore disabled
+# if the hypergraph optimizer is active.
+--source include/not_hypergraph.inc
+
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = ERROR_CODE;
+let $table = performance_schema.error_log;
+
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+
+###########################################################################
+# Test index on LOGGED, THREAD_ID, PRIO, ERROR_CODE, SUBSYSTEM
+###########################################################################
+
+let $column_count = 1;
+
+let $col1 = LOGGED;
+let $col1_act = @startup;
+--source ../include/idx_explain_error_log.inc
+
+let $col1 = THREAD_ID;
+let $col1_act = "0";
+--source ../include/idx_explain_error_log.inc
+
+let $col1 = PRIO;
+let $col1_act = "System";
+--source ../include/idx_explain_error_log.inc
+
+let $col1 = ERROR_CODE;
+let $col1_act = "MY-010116";
+--source ../include/idx_explain_error_log.inc
+
+let $col1 = SUBSYSTEM;
+let $col1_act = "Server";
+--source ../include/idx_explain_error_log.inc
+
+--echo
+--echo #
+--echo # read key
+--echo #
+
+let $col1 = LOGGED;
+let $col1_act = @startup;
+
+FLUSH STATUS;
+let $count1 = query_get_value(SHOW SESSION STATUS LIKE "handler_read_key", Value, 1);
+
+--disable_result_log
+eval SELECT COUNT($select_column) FROM $table WHERE $col1 = $col1_act;
+--enable_result_log
+
+let $count2 = query_get_value(SHOW SESSION STATUS LIKE "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}

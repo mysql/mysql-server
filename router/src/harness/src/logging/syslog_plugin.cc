@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,22 +23,14 @@
 */
 
 #include "syslog_plugin.h"
-#include "mysql/harness/logging/handler.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
 
-#include <cstdarg>
-
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::logging::LogLevel;
+#include "mysql/harness/logging/logger_plugin.h"
+#include "mysql/harness/plugin.h"  // Plugin
 
 extern "C" {
-Plugin harness_plugin_syslog = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
+mysql_harness::Plugin harness_plugin_syslog = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Logging using syslog",
     VERSION_NUMBER(0, 0, 1),
     0,
@@ -49,5 +41,8 @@ Plugin harness_plugin_syslog = {
     nullptr,  // deinit,
     nullptr,  // start
     nullptr,  // stop
+    false,    // declares_readiness
+    sink_supported_options.size(),
+    sink_supported_options.data(),
 };
 }

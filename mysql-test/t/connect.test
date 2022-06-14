@@ -507,3 +507,6 @@ DROP DATABASE test1;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+# Restore default values
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

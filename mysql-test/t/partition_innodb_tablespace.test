@@ -46,31 +46,31 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo # Verifying .ibd files
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 
 --echo # Verifying that there are no MyISAM files
 --error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.myd
+--file_exists $MYSQLD_DATADIR/test/t1#p#p0.myd
 --error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.myi
+--file_exists $MYSQLD_DATADIR/test/t1#p#p0.myi
 --error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.myd
+--file_exists $MYSQLD_DATADIR/test/t1#p#p1.myd
 --error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.myi
+--file_exists $MYSQLD_DATADIR/test/t1#p#p1.myi
 --error 1
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.myd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#p#p0.myd
 --error 1
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.myi
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#p#p0.myi
 --error 1
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.myd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#p#p1.myd
 --error 1
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.myi
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#p#p1.myi
 # The ibd tablespaces should not be directly under the DATA DIRECTORY
 --error 1
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#p#p0.ibd
 --error 1
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#p#p1.ibd
 
 --echo # Test TRUNCATE TABLE with partitioned InnoDB tables
 INSERT INTO t1 VALUES (1, "red");
@@ -84,8 +84,8 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # Verifying .ibd files
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 
 --echo # Test RENAME TABLE with partitioned InnoDB tables
 RENAME TABLE t1 TO t11;
@@ -94,8 +94,8 @@ SHOW CREATE TABLE t11;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # Verifying .ibd files
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t11#P#p0.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t11#P#p1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
 
 DROP TABLE t11;
 
@@ -150,12 +150,12 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo # Verifying .ibd files
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1#SP#s3.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p2#SP#s4.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p2#SP#s5.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 DROP TABLE t1;
 
 --echo # Same as above except with ROW_FORMAT=Dyamic.
@@ -193,12 +193,12 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo # Verifying .ibd files
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1#SP#s3.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p2#SP#s4.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p2#SP#s5.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 
 --echo #
 --echo # Cleanup
@@ -231,15 +231,15 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 3
   SUBPARTITION sp7 DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data_subpart',
   SUBPARTITION sp8));
 --echo # Verifying .ibd files
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp0.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp2.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p2#SP#sp6.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p2#SP#sp8.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#P#p1#SP#sp3.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#P#p1#SP#sp5.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#P#p0#SP#sp1.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#P#p1#SP#sp4.ibd
---file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#P#p2#SP#sp7.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#p#p0#sp#sp0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#p#p0#sp#sp2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#p#p2#sp#sp6.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#p#p2#sp#sp8.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p1#sp#sp3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p1#sp#sp5.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#p#p0#sp#sp1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#p#p1#sp#sp4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#p#p2#sp#sp7.ibd
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 DROP TABLE t1;

@@ -1,4 +1,3 @@
--- source include/have_ssl.inc
 
 --echo #
 --echo # Bug #29009331: SSL CLIENT CONNECTION ALLOWED ON
@@ -13,6 +12,7 @@ let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
 
 SET PERSIST_ONLY ssl_ca = 'mohit';
 CALL mtr.add_suppression('Failed to set up SSL because of the following SSL library error');
+CALL mtr.add_suppression('Failed to initialize TLS for channel: mysql_main');
 
 --source include/restart_mysqld.inc
 

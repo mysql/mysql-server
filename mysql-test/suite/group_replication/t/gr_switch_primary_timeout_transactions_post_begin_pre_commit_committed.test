@@ -1,0 +1,233 @@
+################################################################################
+# This test proves that if transaction passes to commit state during
+# `running_transactions_timeout` time, transactions are committed.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+# 2. Execute a transaction on server1 and block it in begin.
+#    It is yet not known if a transaction will be binlogged or not.
+# 3. Begin change of primary from server2(secondary) with timeout of 1800.
+# 4. Now unblock transaction on server1.
+# 5. Reap transaction running on server1.
+#    It should pass since it will move to commit state during timeout.
+# 6. Assert primary changed.
+#    Assert data is present on M1 and M2.
+# 7. Execute a transaction on server2 and block it in begin.
+#    It is yet not known if a transaction will be binlogged or not.
+# 8. Begin change of primary from server2(primary) with timeout of 1800.
+# 9. Now unblock transaction on server2.
+# 10. Reap transaction running on server2.
+#     It should pass since it will move to commit state during timeout.
+#     Also reap the change primary operation it should succeed.
+# 11. Assert primary changed.
+#     Assert data is present on M1 and M2.
+# 12. Cleanup.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET @debug_save_m1= @@GLOBAL.DEBUG;
+
+CREATE TABLE t1(c1 int primary key);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET @debug_save_m2= @@GLOBAL.DEBUG;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Execute a transaction on server1 and block it in begin.
+--echo #    It is yet not known if a transaction will be binlogged or not.
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
+--send INSERT INTO t1 values(1)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Debug point group_replication_wait_on_observer_trans is present in begin hook.
+# If we do not remove debug point group_replication_wait_on_observer_trans
+# UDF group_replication_set_as_primary will block and will cause a deadlock.
+# i.e. UDF will wait for signal group_replication_wait_on_observer_trans_continue
+# and INSERT will wait for UDF to finish.
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
+
+--echo
+--echo # 3. Begin change of primary from server2(secondary) with timeout of 1800.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid SERVER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid", 1800);
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped new transactions"
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Now unblock transaction on server1.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
+
+--echo
+--echo # 5. Reap transaction running on server1.
+--echo #    It should pass since it will move to commit state during timeout.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+SET GLOBAL DEBUG= @debug_save_m1;
+
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET GLOBAL DEBUG= @debug_save_m2;
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $server2_uuid SERVER2_UUID
+--reap
+
+--echo
+--echo # 6. Assert primary changed.
+--echo #    Assert data is present on M1 and M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is a value 1 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo # 7. Execute a transaction on server2 and block it in begin.
+--echo #    It is yet not known if a transaction will be binlogged or not.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
+--send INSERT INTO t1 values(2)
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Debug point group_replication_wait_on_observer_trans is present in begin hook.
+# If we do not remove debug point group_replication_wait_on_observer_trans
+# UDF group_replication_set_as_primary will block and will cause a deadlock.
+# i.e. UDF will wait for signal group_replication_wait_on_observer_trans_continue
+# and INSERT will wait for UDF to finish.
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
+
+--echo
+--echo # 8. Begin change of primary from server2(primary) with timeout of 1800.
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--send_eval SELECT group_replication_set_as_primary("$server1_uuid", 1800);
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped new transactions"
+--source include/wait_condition.inc
+
+--echo
+--echo # 9. Now unblock transaction on server2.
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
+
+--echo
+--echo # 10. Reap transaction running on server2.
+--echo #     It should pass since it will move to commit state during timeout.
+--echo #     Also reap the change primary operation it should succeed.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--reap
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--replace_result $server1_uuid SERVER1_UUID
+--reap
+
+--echo
+--echo # 11. Assert primary changed.
+--echo #     Assert data is present on M1 and M2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is a value 2 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 12. Cleanup.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

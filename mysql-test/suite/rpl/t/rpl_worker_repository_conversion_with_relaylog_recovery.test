@@ -1,0 +1,118 @@
+# ==== Purpose ====
+#
+# This test checks realy log recovery does not affect the process of converting
+# replica information repositories from FILE to TABLE and vice versa
+#
+# ==== Requirements ====
+#
+# R1: When restarted with relay-log-recovery, the replica allows repository conversions.
+#
+# ==== Implementation ====
+#
+# 1. Start by testing FILE to TABLE conversions
+#    Setup the replica to use FILE repositories and start it
+# 2. Restart the replica server with relay log recovery
+#    Skip the start of replication
+# 3. Convert the repositories to TABLE.
+#    Check replication works as expected
+# 4. Now switch to TABLE to FILE conversions
+#    Restart the replica server with relay log recovery and skip_replica_start
+# 5. Convert the repositories to FILE.
+#    Check replication works as expected
+# 6. Cleanup
+#
+# ==== References ====
+#
+# Bug#30571587 MYSQL 8.0.18 FAILS ON STOP SLAVE/START SLAVE STRESS TEST
+#
+
+--source include/only_mts_replica_parallel_workers.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Start by testing FILE to TABLE conversions
+--echo #    Setup the replica to use FILE repositories and start it
+
+--source include/rpl_connection_slave.inc
+
+call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
+
+--let $save_rli_repo_type=`SELECT @@GLOBAL.relay_log_info_repository`
+
+SET @@GLOBAL.relay_log_info_repository= "FILE";
+
+--source include/start_slave.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Restart the replica server with relay log recovery
+--echo #    Skip the start of replication
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--skip_replica_start=1 --relay-log-recovery=1 --relay-log-info-repository=FILE
+--source include/rpl_restart_server.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Convert the repositories to TABLE.
+--echo #    Check replication works as expected
+
+--source include/rpl_connection_slave.inc
+
+SET @@GLOBAL.relay_log_info_repository= "TABLE";
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Now switch to TABLE to FILE conversions
+--echo #    Restart the replica server with relay log recovery and skip_slave_start
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--skip_replica_start=1 --relay-log-recovery=1
+--source include/rpl_restart_server.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Convert the repositories to FILE.
+--echo #    Check replication works as expected
+
+--source include/rpl_connection_slave.inc
+
+SET @@GLOBAL.relay_log_info_repository= "FILE";
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES(2);
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Cleanup
+
+--source include/stop_slave.inc
+
+--replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
+--eval SET @@GLOBAL.relay_log_info_repository='$save_rli_repo_type'
+
+# Start again to make rpl_end happy
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

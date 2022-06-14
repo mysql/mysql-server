@@ -21,3 +21,20 @@ Generate a backup
 drop table test.t1;
 Restore with offline (parallel) rebuild
 drop table test.t1;
+Test that exclude-missing-tables does not exclude tables in rewritten databases
+create database dbfrom;
+use dbfrom;
+create table t1(id int primary key, val int unique) engine=ndb;
+insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5);
+drop table t1;
+drop database dbfrom;
+create database dbto;
+use dbto;
+select * from t1 order by id;
+id	val
+1	1
+2	2
+3	3
+4	4
+5	5
+drop database dbto;

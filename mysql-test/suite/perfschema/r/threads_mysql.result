@@ -69,10 +69,10 @@ WHERE name LIKE 'thread/sql%'
 ORDER BY name;
 name	thread/sql/event_scheduler
 type	FOREGROUND
-processlist_user	root
+processlist_user	event_scheduler
 processlist_host	localhost
 processlist_db	NULL
-processlist_command	Sleep
+processlist_command	Daemon
 processlist_info	NULL
 unified_parent_thread_id	unified parent_thread_id
 role	NULL
@@ -97,10 +97,10 @@ WHERE name LIKE 'thread/sql%'
 ORDER BY name;
 name	thread/sql/event_worker
 type	FOREGROUND
-processlist_user	root
+processlist_user	event_scheduler
 processlist_host	localhost
 processlist_db	test
-processlist_command	Sleep
+processlist_command	Connect
 processlist_info	SELECT SLEEP(3)
 unified_parent_thread_id	unified parent_thread_id
 role	NULL

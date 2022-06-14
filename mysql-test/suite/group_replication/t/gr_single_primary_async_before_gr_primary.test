@@ -24,7 +24,7 @@
 --echo
 --echo # 1. Create and start new channel ch2_1: server1(slave), server2(master)
 --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_2 for channel 'ch2_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_2 for channel 'ch2_1'
 
 # start slave
 --let $rpl_channel_name='ch2_1'

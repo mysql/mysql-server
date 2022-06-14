@@ -1,7 +1,7 @@
 CREATE TABLE `example` (
-`ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`ID_EXAMPLE` int unsigned NOT NULL AUTO_INCREMENT,
 `DESCRIPTION` varchar(30) NOT NULL,
-`LEVEL` smallint(5) unsigned DEFAULT NULL,
+`LEVEL` smallint unsigned DEFAULT NULL,
 PRIMARY KEY (`ID_EXAMPLE`)
 )
 PARTITION BY HASH(ID_EXAMPLE)(
@@ -11,6 +11,10 @@ PARTITION p2 DATA DIRECTORY = '/not/existent/p2Data',
 PARTITION p3 DATA DIRECTORY = '/not/existent/p3Data'
 );
 Got one of the listed errors
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	The DATA DIRECTORY location must be in a known directory.
+Error	1031	Table storage engine for 'example' doesn't have this option
 #
 # Bug#29053560 ERROR WHEN CREATING A TABLE WITH LONG PARTITION NAMES
 #

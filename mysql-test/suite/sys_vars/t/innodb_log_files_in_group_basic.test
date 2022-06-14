@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_files_in_group);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_log_files_in_group = @@SESSION.innodb_log_files_in_group;
---echo Expected error 'Readonly variable'
+SELECT innodb_log_files_in_group;
+--echo Expected error 'Unknown column'
 
 

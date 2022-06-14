@@ -1,0 +1,163 @@
+## XPLUGIN: Following test cases validates asserts, and its printouts
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+# Tests
+--write_file $MYSQL_TMP_DIR/assert.xpl
+-->echo
+-->echo # 1.
+-->echo #
+assert_eq 1	1;
+assert_eq A	A;
+assert_eq Abbc	Abbc;
+echo ok;
+
+-->echo
+-->echo # 2.
+-->echo #
+assert_ne 1	2;
+assert_ne A	B;
+assert_ne Abbc	Abbd;
+echo ok;
+
+-->echo
+-->echo # 3.
+-->echo #
+assert_gt 6000000000	2;
+assert_gt 6000000000	2000000000;
+assert_gt -10	-20;
+assert_gt 10	-20;
+echo ok;
+
+-->echo
+-->echo # 4.
+-->echo #
+assert_ge 6000000000	2;
+assert_ge 6000000000	6000000000;
+assert_ge 6000000000	2000000000;
+assert_ge -10	-20;
+assert_ge -10	-10;
+assert_ge 10	-20;
+assert_ge 10	10;
+echo ok;
+
+-->echo
+-->echo # 5.
+-->echo #
+assert 1	==	1;
+assert A	==	A;
+assert Abbc	==	Abbc;
+echo ok;
+
+-->echo
+-->echo # 6.
+-->echo #
+assert 1	!=	2;
+assert A	!=	B;
+assert Abbc	!=	Abbd;
+echo ok;
+
+-->echo
+-->echo # 7.
+-->echo #
+assert 6000000000	>	2;
+assert 6000000000	>	2000000000;
+assert -10	>	-20;
+assert 10	>	-20;
+echo ok;
+
+-->echo
+-->echo # 8.
+-->echo #
+assert 6000000000	>=	2;
+assert 6000000000	>=	6000000000;
+assert 6000000000	>=	2000000000;
+assert -10	>=	-20;
+assert -10	>=	-10;
+assert 10	>=	-20;
+assert 10	>=	10;
+echo ok;
+
+-->echo
+-->echo # 9.
+-->echo #
+assert 2	<	6000000000;
+assert 2000000000	<	6000000000;
+assert -20	<	-10;
+assert -20	<	10;
+echo ok;
+
+-->echo
+-->echo # 10.
+-->echo #
+assert 2	<=	6000000000;
+assert 6000000000	<=	6000000000;
+assert 2000000000	<=	6000000000;
+assert -20	<=	-10;
+assert -10	<=	-10;
+assert -20	<=	10;
+assert 10	<=	10;
+echo ok;
+
+-->echo
+-->echo # 11.
+-->echo #
+varlet %abbc_P2% Abbc;
+varlet %abbd_P2% Abbd;
+varlet %2_P2% 2;
+varlet %6000000000_P2% 6000000000;
+
+assert Abbc	==	%abbc_P2%;
+assert Abbc	!=	%abbd_P2%;
+assert 6000000000	>	%2_P2%;
+assert 6000000000	>=	%2_P2%;
+assert 6000000000	>=	%6000000000_P2%;
+assert 2	<	%6000000000_P2%;
+assert 2	<=	%6000000000_P2%;
+echo ok;
+
+-->echo
+-->echo # 12.
+-->echo #
+varlet %Abbc_P1% Abbc;
+varlet %2_P1% 2;
+varlet %6000000000_P1% 6000000000;
+
+assert %Abbc_P1%	==	Abbc;
+assert %Abbc_P1%	!=	Abbd;
+assert %6000000000_P1%	>	2;
+assert %6000000000_P1%	>=	2;
+assert %6000000000_P1%	>=	6000000000;
+assert %2_P1%	<	6000000000;
+assert %2_P1%	<=	6000000000;
+echo ok;
+
+EOF
+
+--echo
+--echo ################################################################
+--echo ## Test verifies "assert" commands, in following configurations:
+--echo #
+--echo # 1. verify assert_eq command
+--echo # 2. verify assert_ne command
+--echo # 3. verify assert_gt command
+--echo # 4. verify assert_ge command
+--echo # 5. verify assert command with equal operator (==)
+--echo # 6. verify assert command with not equal operator (!=)
+--echo # 7. verify assert command with greater operator (>)
+--echo # 8. verify assert command with greater or equal operator (>=)
+--echo # 9. verify assert command with less operator (<)
+--echo # 10. verify assert command with less or equal operator (<=)
+--echo # 11. verify assert command with veriable in thrid param
+--echo # 12. verify assert command with veriable in first param
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --host=127.0.0.1
+  --schema=test
+  --file=$MYSQL_TMP_DIR/assert.xpl  2>&1;
+
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

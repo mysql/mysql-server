@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -32,28 +32,26 @@
 #endif  // WIN32
 #include <openssl/ssl.h>
 #include <string.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
 #include "mysql/service_ssl_wrapper.h"
 
-namespace ssl_wrappe_service {
+namespace ssl_wrapper_service {
 
 int MY_ATTRIBUTE((visibility("default")))
     dummy_function_to_ensure_we_are_linked_into_the_server() {
   return 1;
 }
 
-}  // namespace ssl_wrappe_service
+}  // namespace ssl_wrapper_service
 
 static char *my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len) {
   int n_read;
-  char *res = NULL;
+  char *res = nullptr;
   BIO *bio = BIO_new(BIO_s_mem());
 
-  if (bio == NULL) return NULL;
+  if (bio == nullptr) return nullptr;
 
   if (!ASN1_TIME_print(bio, time)) goto end;
 
@@ -69,14 +67,6 @@ end:
   return res;
 }
 
-/**
-  Return version of SSL used in current connection
-
-  @param vio              VIO connection descriptor
-  @param buffer           Character buffer in which the version is going to be
-  placed
-  @param buffer_size      Size of the character buffer
-*/
 void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size) {
   const char *ssl_version = SSL_get_version((SSL *)vio->ssl_arg);
 
@@ -108,14 +98,14 @@ void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size) {
 */
 long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list,
                              const long maximun_num_of_elements) {
-  const char *cipher = NULL;
+  const char *cipher = nullptr;
   int index = 0;
   long element = 0;
 
   while (element < maximun_num_of_elements) {
     cipher = SSL_get_cipher_list((SSL *)vio->ssl_arg, index++);
 
-    if (NULL == cipher) break;
+    if (nullptr == cipher) break;
 
     clipher_list[element++] = cipher;
   }
@@ -150,7 +140,7 @@ long ssl_wrapper_verify_mode(Vio *vio) {
 */
 void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer,
                                              const size_t issuer_size) {
-  X509 *cert = NULL;
+  X509 *cert = nullptr;
   if (!(cert = SSL_get_peer_certificate((SSL *)vio->ssl_arg))) {
     issuer[0] = '\0';
     return;
@@ -170,7 +160,7 @@ void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer,
 */
 void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject,
                                               const size_t subject_size) {
-  X509 *cert = NULL;
+  X509 *cert = nullptr;
   if (!(cert = SSL_get_peer_certificate((SSL *)vio->ssl_arg))) {
     subject[0] = '\0';
     return;
@@ -195,7 +185,7 @@ long ssl_wrapper_get_verify_result_and_cert(Vio *vio) {
   if (X509_V_OK != (result = SSL_get_verify_result((SSL *)vio->ssl_arg)))
     return result;
 
-  X509 *cert = NULL;
+  X509 *cert = nullptr;
   if (!(cert = SSL_get_peer_certificate((SSL *)vio->ssl_arg))) return -1;
 
   X509_free(cert);
@@ -241,7 +231,7 @@ void ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl,
                                       char *no_after,
                                       const size_t no_after_size) {
   SSL *ssl = SSL_new(vio_ssl->ssl_context);
-  if (NULL == ssl) {
+  if (nullptr == ssl) {
     no_after[0] = '\0';
     return;
   }
@@ -270,7 +260,7 @@ void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl,
                                        char *no_before,
                                        const size_t no_before_size) {
   SSL *ssl = SSL_new(vio_ssl->ssl_context);
-  if (NULL == ssl) {
+  if (nullptr == ssl) {
     no_before[0] = '\0';
     return;
   }
@@ -301,9 +291,7 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl) {
 */
 void ssl_wrapper_thread_cleanup() {
   ERR_clear_error();
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
 }

@@ -47,7 +47,7 @@ reset master;
 # to bring it out of RO-mode.
 #############################################################
 --echo Disconnect mysqld from all datanodes
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
 
 #############################################################
 # The disconnect will create a GAP event in the binlog.
@@ -111,7 +111,7 @@ enable_query_log;
 reset master;
 
 --echo Disconnect mysqld from all datanodes
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
 
 --echo Wait for binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
@@ -171,8 +171,8 @@ if ($have_debug)
 enable_query_log;
 
 --echo Disconnect both mysqld servers from all datanodes -> binlog restarts
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
 
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
@@ -229,8 +229,8 @@ if ($have_debug)
 enable_query_log;
 
 --echo Disconnect both mysqld servers from all datanodes -> binlog restarts
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
 
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
@@ -245,13 +245,6 @@ connection server2;
 connection server1;
 --echo Wait for (fast) 'server1' to complete setup and get out of read-only mode
 --source include/ndb_not_readonly.inc
-
-connection server2;
---echo Reading 'mysql.ndb_schema' on 'server2' announce schema distr. participation as a side effect.
-disable_result_log;
---error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED,ER_NOT_FORM_FILE,ER_KEY_NOT_FOUND
-select * from mysql.ndb_schema where db="" and name="";
-enable_result_log;
 
 connection server1;
 --echo Create table operation on 'server1' grab MDL lock while waiting for

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,20 +24,20 @@
 
 #include "plugin/x/src/account_verification_handler.h"
 
-#include "my_sys.h"
+#include "my_sys.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/client.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/ssl_session_options.h"
-#include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 ngs::Error_code Account_verification_handler::authenticate(
-    const ngs::Authentication_interface &account_verificator,
-    ngs::Authentication_info *authenication_info,
+    const iface::Authentication &account_verificator,
+    iface::Authentication_info *authenication_info,
     const std::string &sasl_message) const {
   std::size_t message_position = 0;
   std::string schema = "";
@@ -54,10 +54,18 @@ ngs::Error_code Account_verification_handler::authenticate(
 
   if (account.empty()) return ngs::SQLError_access_denied();
 
-  return m_session->data_context().authenticate(
+  auto &sql_context = m_session->data_context();
+  const auto allow_expired = m_session->client().supports_expired_passwords();
+
+  const auto result = sql_context.authenticate(
       account.c_str(), m_session->client().client_hostname(),
       m_session->client().client_address(), schema.c_str(), passwd,
-      account_verificator, m_session->client().supports_expired_passwords());
+      account_verificator, allow_expired);
+
+  if (0 == result.error && sql_context.password_expired())
+    m_session->proto().send_notice_account_expired();
+
+  return result;
 }
 
 bool Account_verification_handler::extract_last_sub_message(
@@ -93,41 +101,40 @@ bool Account_verification_handler::extract_sub_message(
   return true;
 }
 
-const ngs::Account_verification_interface *
+const iface::Account_verification *
 Account_verification_handler::get_account_verificator(
-    const ngs::Account_verification_interface::Account_type account_type)
-    const {
+    const iface::Account_verification::Account_type account_type) const {
   Account_verificator_list::const_iterator i =
       m_verificators.find(account_type);
   return i == m_verificators.end() ? nullptr : i->second.get();
 }
 
-ngs::Account_verification_interface::Account_type
+iface::Account_verification::Account_type
 Account_verification_handler::get_account_verificator_id(
     const std::string &name) const {
   if (name == "mysql_native_password")
-    return ngs::Account_verification_interface::Account_native;
+    return iface::Account_verification::Account_type::k_native;
   if (name == "sha256_password")
-    return ngs::Account_verification_interface::Account_type::Account_sha256;
+    return iface::Account_verification::Account_type::k_sha256;
   if (name == "caching_sha2_password")
-    return ngs::Account_verification_interface::Account_sha2;
-  return ngs::Account_verification_interface::Account_unsupported;
+    return iface::Account_verification::Account_type::k_sha2;
+  return iface::Account_verification::Account_type::k_unsupported;
 }
 
 ngs::Error_code Account_verification_handler::verify_account(
     const std::string &user, const std::string &host, const std::string &passwd,
-    const ngs::Authentication_info *authenication_info) const {
+    const iface::Authentication_info *authenication_info) const {
   Account_record record;
   if (ngs::Error_code error = get_account_record(user, host, record))
     return error;
 
-  ngs::Account_verification_interface::Account_type account_verificator_id;
+  iface::Account_verification::Account_type account_verificator_id;
   // If SHA256_MEMORY is used then no matter what auth_plugin is used we
   // will be using cache-based verification
-  if (m_account_type == ngs::Account_verification_interface::Account_type::
-                            Account_sha256_memory) {
-    account_verificator_id = ngs::Account_verification_interface::Account_type::
-        Account_sha256_memory;
+  if (m_account_type ==
+      iface::Account_verification::Account_type::k_sha256_memory) {
+    account_verificator_id =
+        iface::Account_verification::Account_type::k_sha256_memory;
   } else {
     account_verificator_id =
         get_account_verificator_id(record.auth_plugin_name);
@@ -175,22 +182,23 @@ ngs::Error_code Account_verification_handler::verify_account(
 ngs::Error_code Account_verification_handler::get_account_record(
     const std::string &user, const std::string &host,
     Account_record &record) const try {
-  Sql_data_result result(m_session->data_context());
+  Sql_data_result result(&m_session->data_context());
   result.query(get_sql(user, host));
   // The query asks for primary key, thus here we should get only one row
   if (result.size() != 1)
     return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
-  result.get(record.require_secure_transport)
-      .get(record.db_password_hash)
-      .get(record.auth_plugin_name)
-      .get(record.is_account_locked)
-      .get(record.is_password_expired)
-      .get(record.disconnect_on_expired_password)
-      .get(record.is_offline_mode_and_not_super_user)
-      .get(record.user_required.ssl_type)
-      .get(record.user_required.ssl_cipher)
-      .get(record.user_required.ssl_x509_issuer)
-      .get(record.user_required.ssl_x509_subject);
+  result.get(&record.require_secure_transport, &record.db_password_hash,
+             &record.auth_plugin_name, &record.is_account_locked,
+             &record.is_password_expired,
+             &record.disconnect_on_expired_password,
+             &record.is_offline_mode_and_not_super_user,
+             &record.user_required.ssl_type, &record.user_required.ssl_cipher,
+             &record.user_required.ssl_x509_issuer,
+             &record.user_required.ssl_x509_subject);
+
+  if (result.is_server_status_set(SERVER_STATUS_IN_TRANS))
+    result.query("COMMIT");
+
   return ngs::Success();
 } catch (const ngs::Error_code &e) {
   return e;
@@ -211,20 +219,21 @@ ngs::PFS_string Account_verification_handler::get_sql(
   // column `is_offline_mode_and_not_super_user` is set true if it
   //  - offline mode and user has not super priv
   qb.put(
-        "/* xplugin authentication */ SELECT @@require_secure_transport, "
-        "`authentication_string`, `plugin`,"
+        "/* xplugin authentication */ "
+        "SELECT /*+ SET_VAR(SQL_MODE = 'TRADITIONAL') */ "
+        "@@require_secure_transport, `authentication_string`, `plugin`, "
         "(`account_locked`='Y') as is_account_locked, "
         "(`password_expired`!='N') as `is_password_expired`, "
         "@@disconnect_on_expired_password as "
         "`disconnect_on_expired_password`, "
         "@@offline_mode and (`Super_priv`='N') as "
-        "`is_offline_mode_and_not_super_user`,"
+        "`is_offline_mode_and_not_super_user`, "
         "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` "
         "FROM mysql.user WHERE ")
       .quote_string(user)
       .put(" = `user` AND ")
       .quote_string(host)
-      .put(" = `host` ");
+      .put(" = `host`");
 
   log_debug("Query user '%s'", qb.get().c_str());
   return qb.get();

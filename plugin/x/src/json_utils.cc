@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,11 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
-#include "include/my_dbug.h"
+#include <rapidjson/document.h>      // NOLINT(build/include_order)
+#include <rapidjson/stringbuffer.h>  // NOLINT(build/include_order)
+#include <rapidjson/writer.h>        // NOLINT(build/include_order)
+
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_regex.h"
 

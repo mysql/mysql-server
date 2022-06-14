@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,8 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
       row_data_length += row->m_row_data.size_of_element(column) * 2 + 3;
     }
   }
-  if (m_options->m_dump_column_names || row_group->m_has_generated_columns) {
+  if (m_options->m_dump_column_names || row_group->m_has_generated_columns ||
+      row_group->m_has_invisible_columns) {
     row_data_length += 3;  // Space for enclosing parentheses and space.
     const std::vector<Mysql_field> &fields = row_group->m_fields;
     for (std::vector<Mysql_field>::const_iterator field_iterator =
@@ -87,7 +88,8 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
   else
     row_string += "INSERT INTO ";
   row_string += this->get_quoted_object_full_name(row_group->m_source_table);
-  if (m_options->m_dump_column_names || row_group->m_has_generated_columns) {
+  if (m_options->m_dump_column_names || row_group->m_has_generated_columns ||
+      row_group->m_has_invisible_columns) {
     row_string += " (";
     const std::vector<Mysql_field> &fields = row_group->m_fields;
     for (std::vector<Mysql_field>::const_iterator field_iterator =
@@ -173,6 +175,17 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
   row_string += ";\n";
 
   this->append_output(row_string);
+  /*
+    user account is dumped in the form of INSERT statements, thus need
+    to append FLUSH PRIVILEGES
+  */
+  if (!use_show_create_user) {
+    std::string schema = row_group->m_source_table->get_schema();
+    std::string name = row_group->m_source_table->get_name();
+    if ((schema == "mysql") && (name == "user")) {
+      this->append_output("/*! FLUSH PRIVILEGES */;\n");
+    }
+  }
 }
 
 void Sql_formatter::format_table_indexes(
@@ -345,7 +358,7 @@ void Sql_formatter::format_dump_start(
 void Sql_formatter::format_plain_sql_object(
     Abstract_plain_sql_object_dump_task *plain_sql_dump_task) {
   View *new_view_task = dynamic_cast<View *>(plain_sql_dump_task);
-  if (new_view_task != NULL) {
+  if (new_view_task != nullptr) {
     /*
      DROP VIEW statement followed by CREATE VIEW must be written to output
      as an atomic operation, else there is a possibility of bug#21399236.
@@ -363,16 +376,16 @@ void Sql_formatter::format_plain_sql_object(
 
   Mysql_function *new_func_task =
       dynamic_cast<Mysql_function *>(plain_sql_dump_task);
-  if (new_func_task != NULL)
+  if (new_func_task != nullptr)
     format_sql_objects_definer(plain_sql_dump_task, "FUNCTION");
 
   Stored_procedure *new_proc_task =
       dynamic_cast<Stored_procedure *>(plain_sql_dump_task);
-  if (new_proc_task != NULL)
+  if (new_proc_task != nullptr)
     format_sql_objects_definer(plain_sql_dump_task, "PROCEDURE");
 
   Privilege *new_priv_task = dynamic_cast<Privilege *>(plain_sql_dump_task);
-  if (new_priv_task != NULL) {
+  if (new_priv_task != nullptr) {
     if (m_options->m_drop_user)
       this->append_output(
           "DROP USER " +
@@ -382,7 +395,7 @@ void Sql_formatter::format_plain_sql_object(
 
   Column_statistic *new_col_stats_task =
       dynamic_cast<Column_statistic *>(plain_sql_dump_task);
-  if (new_col_stats_task != NULL) {
+  if (new_col_stats_task != nullptr) {
     if (m_options->m_column_statistics)
       this->append_output(plain_sql_dump_task->get_sql_formatted_definition() +
                           ";\n");
@@ -419,11 +432,10 @@ void Sql_formatter::format_sql_objects_definer(
 /**
   Check if the table is innodb stats table in mysql database.
 
-   @param [in] db           Database name
-   @param [in] table        Table name
+  @param [in] db           Database name
+  @param [in] table        Table name
 
-  @return
-    @retval true if it is innodb stats table else false
+  @retval true if it is innodb stats table else false
 */
 bool Sql_formatter::innodb_stats_tables(std::string db, std::string table) {
   return ((db == "mysql") &&

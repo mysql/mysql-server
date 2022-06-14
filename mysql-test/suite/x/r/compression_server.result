@@ -1,0 +1,830 @@
+#
+## Setup tests: tables and stored procedures
+CREATE SCHEMA IF NOT EXISTS xtest;
+Warnings:
+Note	1007	Can't create database 'xtest'; database exists
+USE xtest;
+CREATE PROCEDURE recreate_tables()
+BEGIN
+CREATE TABLE IF NOT EXISTS xtable (phrase VARCHAR(30), prio INTEGER);
+TRUNCATE TABLE xtable;
+INSERT INTO xtable (phrase, prio) VALUES ('Alice has a cat', 1);
+INSERT INTO xtable (phrase, prio) VALUES ('Bob has a dog 1', 2);
+INSERT INTO xtable (phrase, prio) VALUES ('Peppa has a teddy', 1);
+INSERT INTO xtable (phrase, prio) VALUES ('Bob has a dog 2', 3);
+INSERT INTO xtable (phrase, prio) VALUES ('Row to delete', 4);
+CREATE TABLE IF NOT EXISTS xtable_with_pk (p_id INTEGER AUTO_INCREMENT PRIMARY KEY, description varchar(40));
+TRUNCATE TABLE xtable_with_pk;
+INSERT INTO xtable_with_pk (description) VALUES ('MyRow');
+END //
+CALL recreate_tables();
+
+## A. Execute the test using zlib/single
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 59]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## B. Execute the test using lz4/single
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 59]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## C. Execute the test using zlib/multiple
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 39]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## D. Execute the test using lz4/multiple
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 39]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## E. Execute the test using zlib/group
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 7]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## F. Execute the test using lz4/group
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 7]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## G. Execute the test using zstd/single
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 59]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## H. Execute the test using zstd/multiple
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 39]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## I. Execute the test using zstd/group
+#
+
+
+## I. Validate simple resultsets
+#
+# 1. Assert resultset for select with single column
+# 2. Assert resultset for select with multiple columns
+# 3. Assert resultset for select with multiple rows
+
+## II. Validate simple multi-resultsets
+#
+# 1. Assert two resultsets for select queries
+# 2. Assert three resultsets for select queries
+
+## III. Assert client side status variables
+#
+
+
+#
+# I.1
+RUN SELECT 1
+1
+1
+0 rows affected
+RUN SELECT 1 as "Value"
+Value
+1
+0 rows affected
+
+#
+# I.2
+RUN SELECT 1 as "Column1", 2 as "Column2", 3 as "Column3"
+Column1	Column2	Column3
+1	2	3
+0 rows affected
+RUN SELECT phrase FROM xtest.xtable
+phrase
+Alice has a cat
+Bob has a dog 1
+Peppa has a teddy
+Bob has a dog 2
+Row to delete
+0 rows affected
+RUN SELECT phrase, prio FROM xtest.xtable
+phrase	prio
+Alice has a cat	1
+Bob has a dog 1	2
+Peppa has a teddy	1
+Bob has a dog 2	3
+Row to delete	4
+0 rows affected
+
+#
+# II.1
+RUN CALL two_resultsets()
+c1t1
+1
+c1t2
+2006-07-03 00:00:00
+
+0 rows affected
+
+#
+# II.2
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+
+0 rows affected
+
+#
+# III
+Verify [Client handled Mysqlx.Connection.Compression message count is "==" 7]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

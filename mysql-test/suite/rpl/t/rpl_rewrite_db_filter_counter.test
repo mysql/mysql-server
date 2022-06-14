@@ -25,6 +25,7 @@
 # so it is skipped in group replication.
 --source include/not_group_replication_plugin.inc
 --let $rpl_skip_start_slave= 1
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

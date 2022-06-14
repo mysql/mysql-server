@@ -394,7 +394,7 @@ explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ref	i1	i1	4	const	1	100.00	NULL
-1	SIMPLE	t1	NULL	index_merge	i1,i8	i1,i8	4,4	NULL	2	100.00	Using union(i1,i8); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index_merge	i1,i8	i1,i8	4,4	NULL	2	100.00	Using union(i1,i8); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((`test`.`t0`.`key1` = 5) and ((`test`.`t1`.`key1` = 5) or (`test`.`t1`.`key8` = 5)))
 # Fix for bug#1974
@@ -492,7 +492,7 @@ where (a.key1 < 500000 or a.key2 < 3)
 and   (b.key1 < 500000 or b.key2 < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	1013	100.00	Using sort_union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	1013	100.00	Using sort_union(i1,i2); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	1013	100.00	Using sort_union(i1,i2); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` < 500000) or (`test`.`a`.`key2` < 3)) and ((`test`.`b`.`key1` < 500000) or (`test`.`b`.`key2` < 3)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
@@ -508,7 +508,7 @@ where (a.key1 = 1 or a.key2 = 1)
 and   (b.key1 = 1 or b.key2 = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	1020	100.00	Using union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	1020	100.00	Using union(i1,i2); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	1020	100.00	Using union(i1,i2); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` = 1) or (`test`.`a`.`key2` = 1)) and ((`test`.`b`.`key1` = 1) or (`test`.`b`.`key2` = 1)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
@@ -528,7 +528,7 @@ where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` join `test`.`t0` `b` where ((((`test`.`a`.`key7` = 1) and (`test`.`a`.`key6` = 1) and (`test`.`a`.`key5` = 1) and (`test`.`a`.`key4` = 1) and (`test`.`a`.`key3` = 1) and (`test`.`a`.`key2` = 1) and (`test`.`a`.`key1` = 1)) or (`test`.`a`.`key8` = 1)) and (((`test`.`b`.`key7` = 1) and (`test`.`b`.`key6` = 1) and (`test`.`b`.`key5` = 1) and (`test`.`b`.`key4` = 1) and (`test`.`b`.`key3` = 1) and (`test`.`b`.`key2` = 1) and (`test`.`b`.`key1` = 1)) or (`test`.`b`.`key8` = 1)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
@@ -554,12 +554,19 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	99.37	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
+explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
+EXPLAIN
+-> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=29)
+    -> Intersect rows sorted by row ID  (rows=29)
+        -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
+        -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
+
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	99.37	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 drop table t1;
@@ -585,7 +592,7 @@ key(a),key(b)
 ) engine=merge union=(t1,t2);
 explain select * from t1 where a=1 and b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	a,b	a,b	5,5	NULL	#	100.00	Using intersect(a,b); Using where
+1	SIMPLE	t1	NULL	index_merge	a,b	a,b	5,5	NULL	#	91.83	Using intersect(a,b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1))
 explain select * from t3 where a=1 and b=1;
@@ -828,7 +835,7 @@ count(*)
 # One row results tests for cases where a single row matches all conditions
 explain select key1,key2 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	77	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	77	99.62	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -889,7 +896,7 @@ insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4
 #  ROR-intersection, not covering
 explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	77	100.00	Using intersect(key1,key2); Using where
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	77	99.54	Using intersect(key1,key2); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
@@ -899,7 +906,7 @@ key1	key2	filler1
 #  ROR-intersection, covering
 explain select key1,key2 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	77	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	77	99.54	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -930,7 +937,7 @@ key1	key2	key3	key4	filler1
 #  3-way ROR-intersection
 explain select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2,key3	key1,key2,key3	5,5,5	NULL	2	100.00	Using intersect(key1,key2,key3); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2,key3	key1,key2,key3	5,5,5	NULL	2	74.83	Using intersect(key1,key2,key3); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3` from `test`.`t1` where ((`test`.`t1`.`key3` = 100) and (`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
@@ -980,7 +987,7 @@ key1	key2	key3	key4	filler1
 # ROR-intersection with empty result
 explain select key1,key2 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	76	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	76	98.86	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -1058,19 +1065,19 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1))
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	58	10.00	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	58	9.98	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt12a,stb_swt1b	12,8	NULL	58	10.00	Using intersect(sta_swt12a,stb_swt1b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt12a,stb_swt1b	12,8	NULL	58	9.96	Using intersect(sta_swt12a,stb_swt1b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt21a`) where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,stb_swt1b,sta_swt2a	8,8,8	NULL	57	10.00	Using intersect(sta_swt1a,stb_swt1b,sta_swt2a); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,stb_swt1b,sta_swt2a	8,8,8	NULL	57	9.90	Using intersect(sta_swt1a,stb_swt1b,sta_swt2a); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt12a`) IGNORE INDEX (`sta_swt21a`) where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
@@ -1082,25 +1089,25 @@ Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a`
 explain select * from t1
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	58	100.00	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	58	99.79	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	100.00	Using intersect(sta_swt1a,stb_swt1b); Using where
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	99.61	Using intersect(sta_swt1a,stb_swt1b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	100.00	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	99.61	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	100.00	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	99.61	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` where ((`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 drop table t0,t1;
@@ -1282,7 +1289,7 @@ count(*)
 explain select count(*) from t1 where
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	10,10	NULL	2	100.00	Using intersect(i1,i2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	10,10	NULL	2	#	Using intersect(i1,i2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key2a` = 2) and (`test`.`t1`.`key1a` = 2) and (`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key2b` is null))
 select count(*) from t1 where
@@ -1292,7 +1299,7 @@ count(*)
 explain select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	i1,i3	i1,i3	10,10	NULL	2	100.00	Using intersect(i1,i3); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	i1,i3	i1,i3	10,10	NULL	2	#	Using intersect(i1,i3); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key3a` = 2) and (`test`.`t1`.`key1a` = 2) and (`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key3b` is null))
 select count(*) from t1 where
@@ -1620,128 +1627,128 @@ index(key2)
 select * from t1 where (key1 >= 2 and key1 <= 10) or (pk >= 4 and pk <=8 );
 pk	key1	key2	filler	filler2
 10	10	10	filler-data	filler-data-2
-9	9	9	filler-data	filler-data-2
-8	8	8	filler-data	filler-data-2
-7	7	7	filler-data	filler-data-2
-6	6	6	filler-data	filler-data-2
-5	5	5	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
 2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+5	5	5	filler-data	filler-data-2
+6	6	6	filler-data	filler-data-2
+7	7	7	filler-data	filler-data-2
+8	8	8	filler-data	filler-data-2
+9	9	9	filler-data	filler-data-2
 set @maxv=1000;
 select * from t1 where
 (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
 or key1=18 or key1=60;
 pk	key1	key2	filler	filler2
-1000	1000	1000	filler-data	filler-data-2
-999	999	999	filler-data	filler-data-2
-998	998	998	filler-data	filler-data-2
-997	997	997	filler-data	filler-data-2
-996	996	996	filler-data	filler-data-2
-995	995	995	filler-data	filler-data-2
-994	994	994	filler-data	filler-data-2
-993	993	993	filler-data	filler-data-2
-992	992	992	filler-data	filler-data-2
-991	991	991	filler-data	filler-data-2
-60	60	60	filler-data	filler-data-2
-54	54	54	filler-data	filler-data-2
-53	53	53	filler-data	filler-data-2
-52	52	52	filler-data	filler-data-2
-51	51	51	filler-data	filler-data-2
-50	50	50	filler-data	filler-data-2
-18	18	18	filler-data	filler-data-2
-14	14	14	filler-data	filler-data-2
-13	13	13	filler-data	filler-data-2
-12	12	12	filler-data	filler-data-2
-11	11	11	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
 1	1	1	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+18	18	18	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+60	60	60	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
 select * from t1 where
 (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
 or key1 < 3 or key1 > @maxv-11;
 pk	key1	key2	filler	filler2
-1000	1000	1000	filler-data	filler-data-2
-999	999	999	filler-data	filler-data-2
-998	998	998	filler-data	filler-data-2
-997	997	997	filler-data	filler-data-2
-996	996	996	filler-data	filler-data-2
-995	995	995	filler-data	filler-data-2
-994	994	994	filler-data	filler-data-2
-993	993	993	filler-data	filler-data-2
-992	992	992	filler-data	filler-data-2
-991	991	991	filler-data	filler-data-2
-990	990	990	filler-data	filler-data-2
-54	54	54	filler-data	filler-data-2
-53	53	53	filler-data	filler-data-2
-52	52	52	filler-data	filler-data-2
-51	51	51	filler-data	filler-data-2
-50	50	50	filler-data	filler-data-2
-14	14	14	filler-data	filler-data-2
-13	13	13	filler-data	filler-data-2
-12	12	12	filler-data	filler-data-2
-11	11	11	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
 1	1	1	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+990	990	990	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
 select * from t1 where
 (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
 or
 (key1 < 5) or (key1 > 10 and key1 < 15) or (key1 >= 50 and key1 < 55 ) or (key1 > @maxv-10);
 pk	key1	key2	filler	filler2
-1000	1000	1000	filler-data	filler-data-2
-999	999	999	filler-data	filler-data-2
-998	998	998	filler-data	filler-data-2
-997	997	997	filler-data	filler-data-2
-996	996	996	filler-data	filler-data-2
-995	995	995	filler-data	filler-data-2
-994	994	994	filler-data	filler-data-2
-993	993	993	filler-data	filler-data-2
-992	992	992	filler-data	filler-data-2
-991	991	991	filler-data	filler-data-2
-54	54	54	filler-data	filler-data-2
-53	53	53	filler-data	filler-data-2
-52	52	52	filler-data	filler-data-2
-51	51	51	filler-data	filler-data-2
-50	50	50	filler-data	filler-data-2
-14	14	14	filler-data	filler-data-2
-13	13	13	filler-data	filler-data-2
-12	12	12	filler-data	filler-data-2
-11	11	11	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
 1	1	1	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
 select * from t1 where
 (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 )
 or
 (key1 < 5) or (key1 > @maxv-10);
 pk	key1	key2	filler	filler2
-1000	1000	1000	filler-data	filler-data-2
-999	999	999	filler-data	filler-data-2
-998	998	998	filler-data	filler-data-2
-997	997	997	filler-data	filler-data-2
-996	996	996	filler-data	filler-data-2
-995	995	995	filler-data	filler-data-2
-994	994	994	filler-data	filler-data-2
-993	993	993	filler-data	filler-data-2
-992	992	992	filler-data	filler-data-2
-991	991	991	filler-data	filler-data-2
-54	54	54	filler-data	filler-data-2
-53	53	53	filler-data	filler-data-2
-52	52	52	filler-data	filler-data-2
-51	51	51	filler-data	filler-data-2
-50	50	50	filler-data	filler-data-2
-14	14	14	filler-data	filler-data-2
-13	13	13	filler-data	filler-data-2
-12	12	12	filler-data	filler-data-2
-11	11	11	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
 1	1	1	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
 drop table t1;
 #---------------- Clustered PK ROR-index_merge tests -----------------------------
 # (Start of test file: index_merge_ror_cpk.inc)
@@ -2083,8 +2090,8 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_merge	col_int_key,col_time_key	col_int_key,col_time_key	4,3	NULL	3	100.00	Using intersect(col_int_key,col_time_key); Using where; Using index
+1	UPDATE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	index_merge	col_int_key,col_time_key	col_int_key,col_time_key	4,3	NULL	3	85.71	Using intersect(col_int_key,col_time_key); Using where; Using index; FirstMatch(t1)
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key
@@ -2101,19 +2108,19 @@ SET sql_mode = default;
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='index_merge=off,index_merge_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='index_merge_union=on';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default,index_merge_sort_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch=4;
 set optimizer_switch=NULL;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
@@ -2139,21 +2146,21 @@ set optimizer_switch=default;
 set optimizer_switch='index_merge=off,index_merge_union=off,default';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set @@global.optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 #
 # Check index_merge's @@optimizer_switch flags
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, c int, filler char(100), 
@@ -2297,5 +2304,5 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 set optimizer_switch=default;
 show variables like 'optimizer_switch';
 Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 drop table t0, t1;

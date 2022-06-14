@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
   @file storage/myisam/mi_extrafunc.h
 */
 
-void _mi_report_crashed(MI_INFO *file MY_ATTRIBUTE((unused)),
-                        const char *message MY_ATTRIBUTE((unused)),
-                        const char *sfile MY_ATTRIBUTE((unused)),
-                        uint sline MY_ATTRIBUTE((unused))) {}
+void _mi_report_crashed(MI_INFO *file [[maybe_unused]],
+                        const char *message [[maybe_unused]],
+                        const char *sfile [[maybe_unused]],
+                        uint sline [[maybe_unused]]) {}

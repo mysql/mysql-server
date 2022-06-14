@@ -1,0 +1,139 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken by
+# a server once it has involuntarily left the group.
+# This test shall verify that the exit state action is not executed when
+# an error occurs upon joining the group on server start (in this case, when
+# the joining member's transaction set is not a subset of the group's
+# transaction set).
+#
+# Test:
+# 0) Setup group of 2 members (M1 and M2).
+# 1) Run a few transactions on M1.
+#    BootStrap GR on M1.
+#    Add a errand transaction on M2 before start.
+# 2) Restart M2 with start_on_boot enabled and exit_state_action set to
+#    OFFLINE_MODE.
+# 3) M2 @@GLOBAL.super_read_only and @@GLOBAL.offline_mode must be OFF.
+#    M2 member state must be OFFLINE (since it failed to join the group).
+# 4) Remove the extra transactions.
+#    The server should start normally and be able to join the group.
+# 5) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 2 members (M1 and M2).
+--echo #########################################################################
+--echo
+--let $rpl_skip_group_replication_start = 1
+--source include/group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 1) Run a few transactions on M1.
+--echo #    BootStrap GR on M1.
+--echo #    Add a errand transaction on M2 before start.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t3(a INT PRIMARY KEY);
+INSERT INTO t3 VALUES (2);
+--source include/start_and_bootstrap_group_replication.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $errand_transaction_uuid= aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa
+# Advance GTID_NEXT so that we have a transaction that will cause a
+# GTID mismatch with group and disallow server2 to join the group
+--eval SET GTID_NEXT= "$errand_transaction_uuid:1"
+CREATE TABLE t2(a INT PRIMARY KEY);
+SET GTID_NEXT= "AUTOMATIC";
+
+--echo
+--echo #########################################################################
+--echo # 2) Restart M2 with start_on_boot enabled and exit_state_action set to
+--echo #    OFFLINE_MODE.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_transaction_mismatch_offline_mode.2.err
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--let $allow_rpl_inited=1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --group_replication_exit_state_action=OFFLINE_MODE
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--echo
+--echo #########################################################################
+--echo # 3) M2 @@GLOBAL.super_read_only and @@GLOBAL.offline_mode must be OFF.
+--echo #    M2 member state must be OFFLINE (since it failed to join the group).
+--echo #########################################################################
+--echo
+# Wait for server 1 to see that server 2 didn't join
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source include/gr_wait_for_number_of_members.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Verify that super_read_only mode is reverted to its original value
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
+
+# Verify that offline_mode is disabled
+--let $assert_text= offline mode must be disabled
+--let $assert_cond= [SELECT @@GLOBAL.offline_mode] = 0
+--source include/assert.inc
+
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected transaction mismatch
+--let $assert_select = This member has more executed transactions than those present in the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) Remove the errand transactions.
+--echo #    The server should start normally and be able to join the group.
+--echo #########################################################################
+--echo
+# Delete all transations on server 2's binary log, so that we may join the group
+# finally
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t2;
+RESET MASTER;
+
+SET @@GLOBAL.group_replication_start_on_boot = OFF;
+SET @@GLOBAL.group_replication_exit_state_action = DEFAULT;
+
+# Start GR on server 2 and verify that the group stabilizes itself
+--source include/start_group_replication.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 5) Cleanup.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t3;
+
+--source include/group_replication_end.inc

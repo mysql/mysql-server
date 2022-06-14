@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,13 @@
 
 #include "sql/dd/impl/raw/object_keys.h"
 
+#include <assert.h>
 #include <new>
 #include <sstream>
 
 #include "m_ctype.h"
 #include "my_base.h"  // HA_WHOLE_KEY
-#include "my_dbug.h"
+
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/impl/raw/raw_key.h"              // dd::Raw_key
 #include "sql/dd/impl/raw/raw_table.h"            // dd::Raw_table
@@ -48,13 +49,13 @@ Raw_key *Primary_id_key::create_access_key(Raw_table *db_table) const {
   // It is 0 for any DD-table (PK-Index is the 1st index on a DD-table).
   const int ID_INDEX_NO =
       static_cast<int>(Object_table_impl::Common_index::PK_ID);
-  DBUG_ASSERT(ID_INDEX_NO == 0);
+  assert(ID_INDEX_NO == 0);
 
   // Positional index of PK-object-id-column.
   // It is 0 for any DD-table (object-id is the 1st column on a DD-table).
   const int ID_COLUMN_NO =
       static_cast<int>(Object_table_impl::Common_field::ID);
-  DBUG_ASSERT(ID_COLUMN_NO == 0);
+  assert(ID_COLUMN_NO == 0);
 
   TABLE *t = db_table->get_table();
 
@@ -130,7 +131,7 @@ Raw_key *Global_name_key::create_access_key(Raw_table *db_table) const {
   const int NAME_INDEX_NO =
       static_cast<int>(Object_table_impl::Common_index::UK_NAME);
 
-  DBUG_ASSERT(NAME_INDEX_NO == 1);
+  assert(NAME_INDEX_NO == 1);
 
   TABLE *t = db_table->get_table();
 
@@ -164,7 +165,7 @@ Raw_key *Item_name_key::create_access_key(Raw_table *db_table) const {
   const int NAME_INDEX_NO =
       static_cast<int>(Object_table_impl::Common_index::UK_NAME);
 
-  DBUG_ASSERT(NAME_INDEX_NO == 1);
+  assert(NAME_INDEX_NO == 1);
 
   TABLE *t = db_table->get_table();
 
@@ -527,6 +528,69 @@ String_type Sub_partition_range_key::str() const {
   dd::Stringstream_type ss;
   ss << m_parent_partition_id_column_no << ":" << m_parent_partition_id << ":"
      << m_table_id_column_no << ":" << m_table_id;
+  return ss.str();
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Definer_reference_range_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *Definer_reference_range_key::create_access_key(
+    Raw_table *db_table) const {
+  TABLE *t = db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_definer_column_no]->store(m_definer.c_str(), m_definer.length(),
+                                       &my_charset_bin);
+  t->field[m_definer_column_no]->set_notnull();
+
+  KEY *key_info = t->key_info + m_index_no;
+
+  // Use one column of the key.
+  // TODO: Investigate why HA_WHOLE_KEY does not give the expected result.
+  Raw_key *k = new (std::nothrow) Raw_key(m_index_no, key_info->key_length, 1);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+String_type Definer_reference_range_key::str() const { return m_definer; }
+
+///////////////////////////////////////////////////////////////////////////
+// View_definer_reference_range_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *View_definer_reference_range_key::create_access_key(
+    Raw_table *db_table) const {
+  TABLE *t = db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_table_type_column_no]->store(m_table_type, true);
+  t->field[m_definer_column_no]->store(m_definer.c_str(), m_definer.length(),
+                                       &my_charset_bin);
+  t->field[m_definer_column_no]->set_notnull();
+
+  KEY *key_info = t->key_info + m_index_no;
+
+  // Use two columns of the key.
+  // TODO: Investigate why HA_WHOLE_KEY does not give the expected result.
+  Raw_key *k = new (std::nothrow) Raw_key(m_index_no, key_info->key_length, 3);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+String_type View_definer_reference_range_key::str() const {
+  dd::Stringstream_type ss;
+  ss << m_table_type << ":" << m_definer;
   return ss.str();
 }
 

@@ -1,0 +1,857 @@
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+PARTITION BY KEY(col1) PARTITIONS 5;
+CREATE PROCEDURE execute_dml(
+p_dml_type	INT,
+p_key_min	INT,
+p_key_range	INT,
+p_loop_count	INT,
+p_frequency	INT,
+p_is_rand	INT)
+BEGIN
+DECLARE v_idx		INT DEFAULT 0;
+DECLARE v_commit	INT DEFAULT 0;
+DECLARE v_key		INT DEFAULT 0;
+/* Loop and INSERT data at random position */
+WHILE(v_idx < p_loop_count) DO
+/* Generate key between 1 to p_loop_count */
+IF p_is_rand = 1 THEN
+SET v_key = p_key_min + FLOOR(RAND() * p_key_range);
+ELSE
+SET v_key = p_key_min + (v_idx  % p_key_range);
+END IF;
+CASE p_dml_type
+WHEN 0 THEN
+SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+WHEN 1 THEN
+UPDATE t1 SET col2 = v_idx + 1 WHERE col1 = v_key;
+UPDATE t2 SET col2 = v_idx + 1 WHERE col1 = v_key;
+WHEN 2 THEN
+DELETE FROM t1 WHERE col1 = v_key;
+DELETE FROM t2 WHERE col1 = v_key;
+ELSE
+DELETE FROM t1;
+DELETE FROM t2;
+END CASE;
+SET v_idx = v_idx + 1;
+/* Commit or rollback work at specified frequency. */
+IF v_idx % p_frequency = 0 THEN
+SET v_commit = FLOOR(RAND() * 2);
+IF v_commit = 0 AND p_is_rand = 1 THEN
+ROLLBACK;
+START TRANSACTION;
+ELSE
+COMMIT;
+START TRANSACTION;
+END IF;
+END IF;
+END WHILE;
+COMMIT;
+END|
+call execute_dml(0, 0, 100, 100, 10, 0);
+CREATE TABLE t SELECT * FROM t1;
+CREATE TABLE t0 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t01 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t3 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t11 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t21 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+INSERT INTO t11 SELECT * FROM t;
+INSERT INTO t21 SELECT * FROM t;
+SHOW VARIABLES LIKE 'clone_ddl_timeout';
+Variable_name	Value
+clone_ddl_timeout	300
+SHOW VARIABLES LIKE 'clone_block_ddl';
+Variable_name	Value
+clone_block_ddl	OFF
+# 1. CREATE UNDO TABLESPACE while clone in progress
+RESET MASTER;
+SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
+CREATE UNDO TABLESPACE undo_00 ADD DATAFILE 'undo_00.ibu';
+SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_file WAIT_FOR resume_file';
+SET DEBUG_SYNC = 'clone_file_copy_end_before_ack SIGNAL start_ddl_file_ack WAIT_FOR resume_file_ack';
+SET DEBUG_SYNC = 'clone_before_file_ddl_meta SIGNAL start_ddl_file_meta WAIT_FOR resume_file_meta';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_page WAIT_FOR resume_page';
+SET DEBUG_SYNC = 'clone_before_page_ddl_meta SIGNAL start_ddl_page_meta WAIT_FOR resume_page_meta';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl_redo WAIT_FOR resume_redo';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+CREATE UNDO TABLESPACE undo_001 ADD DATAFILE 'undo_001.ibu';
+SET DEBUG_SYNC = 'now SIGNAL resume_file_init';
+# Waiting for clone to reach 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file';
+# Wait finished
+# For remote clone, let the donor progress concurrently
+# otherwise file pins may not be released causing deadlock
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_file';
+CREATE UNDO TABLESPACE undo_01 ADD DATAFILE 'undo_01.ibu';
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+# Flush all dirty pages to track
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET DEBUG_SYNC = 'now SIGNAL resume_file';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_ack';
+SET DEBUG_SYNC = 'now SIGNAL resume_file_ack';
+CREATE UNDO TABLESPACE undo_011 ADD DATAFILE 'undo_011.ibu';
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_file_meta';
+# Waiting for clone to reach 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page';
+# Wait finished
+CREATE UNDO TABLESPACE undo_02 ADD DATAFILE 'undo_02.ibu';
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_page';
+# Waiting for clone to reach 'redo copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_redo';
+# Wait finished
+CREATE UNDO TABLESPACE undo_021 ADD DATAFILE 'undo_021.ibu';
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+CREATE UNDO TABLESPACE undo_03 ADD DATAFILE 'undo_03.ibu';
+SET DEBUG_SYNC = 'now SIGNAL resume_redo';
+# In connection DEFAULT
+# Waiting for clone to complete
+# Wait finished
+SET GLOBAL DEBUG = '-d,remote_release_clone_file_pin';
+# Restart server on cloned data directory
+# restart: --datadir=CLONE_DATADIR
+# Check cloned data
+SHOW TABLES;
+Tables_in_test
+t
+t0
+t01
+t1
+t11
+t2
+t21
+t3
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) from t1;
+count(*)
+100
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	3	Clone Test Row - 0
+1	13	Clone Test Row - 1
+2	23	Clone Test Row - 2
+3	33	Clone Test Row - 3
+4	43	Clone Test Row - 4
+5	53	Clone Test Row - 5
+6	63	Clone Test Row - 6
+7	73	Clone Test Row - 7
+8	83	Clone Test Row - 8
+9	93	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	993	Clone Test Row - 99
+98	983	Clone Test Row - 98
+97	973	Clone Test Row - 97
+96	963	Clone Test Row - 96
+95	953	Clone Test Row - 95
+94	943	Clone Test Row - 94
+93	933	Clone Test Row - 93
+92	923	Clone Test Row - 92
+91	913	Clone Test Row - 91
+90	903	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_00	Undo	active
+undo_001	Undo	active
+undo_01	Undo	active
+undo_011	Undo	active
+undo_02	Undo	active
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_00	./undo_00.ibu	UNDO LOG	InnoDB
+undo_001	./undo_001.ibu	UNDO LOG	InnoDB
+undo_01	./undo_01.ibu	UNDO LOG	InnoDB
+undo_011	./undo_011.ibu	UNDO LOG	InnoDB
+undo_02	./undo_02.ibu	UNDO LOG	InnoDB
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t11 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t11	check	status	OK
+SELECT count(*) from t11;
+count(*)
+100
+SELECT col1, col2, col3 FROM t11 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	0	Clone Test Row - 0
+1	10	Clone Test Row - 1
+2	20	Clone Test Row - 2
+3	30	Clone Test Row - 3
+4	40	Clone Test Row - 4
+5	50	Clone Test Row - 5
+6	60	Clone Test Row - 6
+7	70	Clone Test Row - 7
+8	80	Clone Test Row - 8
+9	90	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t11 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	990	Clone Test Row - 99
+98	980	Clone Test Row - 98
+97	970	Clone Test Row - 97
+96	960	Clone Test Row - 96
+95	950	Clone Test Row - 95
+94	940	Clone Test Row - 94
+93	930	Clone Test Row - 93
+92	920	Clone Test Row - 92
+91	910	Clone Test Row - 91
+90	900	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_00	Undo	active
+undo_001	Undo	active
+undo_01	Undo	active
+undo_011	Undo	active
+undo_02	Undo	active
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_00	./undo_00.ibu	UNDO LOG	InnoDB
+undo_001	./undo_001.ibu	UNDO LOG	InnoDB
+undo_01	./undo_01.ibu	UNDO LOG	InnoDB
+undo_011	./undo_011.ibu	UNDO LOG	InnoDB
+undo_02	./undo_02.ibu	UNDO LOG	InnoDB
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 5 */
+CHECK TABLE t2 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT count(*) from t2;
+count(*)
+100
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	3	Clone Test Row - 0
+1	13	Clone Test Row - 1
+2	23	Clone Test Row - 2
+3	33	Clone Test Row - 3
+4	43	Clone Test Row - 4
+5	53	Clone Test Row - 5
+6	63	Clone Test Row - 6
+7	73	Clone Test Row - 7
+8	83	Clone Test Row - 8
+9	93	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	993	Clone Test Row - 99
+98	983	Clone Test Row - 98
+97	973	Clone Test Row - 97
+96	963	Clone Test Row - 96
+95	953	Clone Test Row - 95
+94	943	Clone Test Row - 94
+93	933	Clone Test Row - 93
+92	923	Clone Test Row - 92
+91	913	Clone Test Row - 91
+90	903	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_00	Undo	active
+undo_001	Undo	active
+undo_01	Undo	active
+undo_011	Undo	active
+undo_02	Undo	active
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_00	./undo_00.ibu	UNDO LOG	InnoDB
+undo_001	./undo_001.ibu	UNDO LOG	InnoDB
+undo_01	./undo_01.ibu	UNDO LOG	InnoDB
+undo_011	./undo_011.ibu	UNDO LOG	InnoDB
+undo_02	./undo_02.ibu	UNDO LOG	InnoDB
+CALL execute_dml(1, 0, 100, 100, 10, 0);
+# Restart server back on base data directory
+# restart:
+SET DEBUG_SYNC = 'RESET';
+# 2. TRUNCATE UNDO TABLESPACE while clone in progress
+RESET MASTER;
+SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
+ALTER UNDO TABLESPACE undo_00 SET INACTIVE ;
+SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_file WAIT_FOR resume_file';
+SET DEBUG_SYNC = 'clone_file_copy_end_before_ack SIGNAL start_ddl_file_ack WAIT_FOR resume_file_ack';
+SET DEBUG_SYNC = 'clone_before_file_ddl_meta SIGNAL start_ddl_file_meta WAIT_FOR resume_file_meta';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_page WAIT_FOR resume_page';
+SET DEBUG_SYNC = 'clone_before_page_ddl_meta SIGNAL start_ddl_page_meta WAIT_FOR resume_page_meta';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl_redo WAIT_FOR resume_redo';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+ALTER UNDO TABLESPACE undo_001 SET INACTIVE ;
+SET DEBUG_SYNC = 'now SIGNAL resume_file_init';
+# Waiting for clone to reach 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file';
+# Wait finished
+# For remote clone, let the donor progress concurrently
+# otherwise file pins may not be released causing deadlock
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_file';
+ALTER UNDO TABLESPACE undo_01 SET INACTIVE ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+# Flush all dirty pages to track
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET DEBUG_SYNC = 'now SIGNAL resume_file';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_ack';
+SET DEBUG_SYNC = 'now SIGNAL resume_file_ack';
+ALTER UNDO TABLESPACE undo_011 SET INACTIVE ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_file_meta';
+# Waiting for clone to reach 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page';
+# Wait finished
+ALTER UNDO TABLESPACE undo_02 SET INACTIVE ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_page';
+# Waiting for clone to reach 'redo copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_redo';
+# Wait finished
+ALTER UNDO TABLESPACE undo_021 SET INACTIVE ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+ALTER UNDO TABLESPACE undo_03 SET INACTIVE ;
+SET DEBUG_SYNC = 'now SIGNAL resume_redo';
+# In connection DEFAULT
+# Waiting for clone to complete
+# Wait finished
+SET GLOBAL DEBUG = '-d,remote_release_clone_file_pin';
+# Restart server on cloned data directory
+# restart: --datadir=CLONE_DATADIR
+# Check cloned data
+SHOW TABLES;
+Tables_in_test
+t
+t0
+t01
+t1
+t11
+t2
+t21
+t3
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) from t1;
+count(*)
+100
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	7	Clone Test Row - 0
+1	17	Clone Test Row - 1
+2	27	Clone Test Row - 2
+3	37	Clone Test Row - 3
+4	47	Clone Test Row - 4
+5	57	Clone Test Row - 5
+6	67	Clone Test Row - 6
+7	77	Clone Test Row - 7
+8	87	Clone Test Row - 8
+9	97	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	997	Clone Test Row - 99
+98	987	Clone Test Row - 98
+97	977	Clone Test Row - 97
+96	967	Clone Test Row - 96
+95	957	Clone Test Row - 95
+94	947	Clone Test Row - 94
+93	937	Clone Test Row - 93
+92	927	Clone Test Row - 92
+91	917	Clone Test Row - 91
+90	907	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_00	Undo	empty
+undo_001	Undo	empty
+undo_01	Undo	empty
+undo_011	Undo	empty
+undo_02	Undo	empty
+undo_021	Undo	active
+undo_03	Undo	active
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_00	./undo_00.ibu	UNDO LOG	InnoDB
+undo_001	./undo_001.ibu	UNDO LOG	InnoDB
+undo_01	./undo_01.ibu	UNDO LOG	InnoDB
+undo_011	./undo_011.ibu	UNDO LOG	InnoDB
+undo_02	./undo_02.ibu	UNDO LOG	InnoDB
+undo_021	./undo_021.ibu	UNDO LOG	InnoDB
+undo_03	./undo_03.ibu	UNDO LOG	InnoDB
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t11 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t11	check	status	OK
+SELECT count(*) from t11;
+count(*)
+100
+SELECT col1, col2, col3 FROM t11 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	0	Clone Test Row - 0
+1	10	Clone Test Row - 1
+2	20	Clone Test Row - 2
+3	30	Clone Test Row - 3
+4	40	Clone Test Row - 4
+5	50	Clone Test Row - 5
+6	60	Clone Test Row - 6
+7	70	Clone Test Row - 7
+8	80	Clone Test Row - 8
+9	90	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t11 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	990	Clone Test Row - 99
+98	980	Clone Test Row - 98
+97	970	Clone Test Row - 97
+96	960	Clone Test Row - 96
+95	950	Clone Test Row - 95
+94	940	Clone Test Row - 94
+93	930	Clone Test Row - 93
+92	920	Clone Test Row - 92
+91	910	Clone Test Row - 91
+90	900	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_00	Undo	empty
+undo_001	Undo	empty
+undo_01	Undo	empty
+undo_011	Undo	empty
+undo_02	Undo	empty
+undo_021	Undo	active
+undo_03	Undo	active
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_00	./undo_00.ibu	UNDO LOG	InnoDB
+undo_001	./undo_001.ibu	UNDO LOG	InnoDB
+undo_01	./undo_01.ibu	UNDO LOG	InnoDB
+undo_011	./undo_011.ibu	UNDO LOG	InnoDB
+undo_02	./undo_02.ibu	UNDO LOG	InnoDB
+undo_021	./undo_021.ibu	UNDO LOG	InnoDB
+undo_03	./undo_03.ibu	UNDO LOG	InnoDB
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 5 */
+CHECK TABLE t2 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT count(*) from t2;
+count(*)
+100
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	7	Clone Test Row - 0
+1	17	Clone Test Row - 1
+2	27	Clone Test Row - 2
+3	37	Clone Test Row - 3
+4	47	Clone Test Row - 4
+5	57	Clone Test Row - 5
+6	67	Clone Test Row - 6
+7	77	Clone Test Row - 7
+8	87	Clone Test Row - 8
+9	97	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	997	Clone Test Row - 99
+98	987	Clone Test Row - 98
+97	977	Clone Test Row - 97
+96	967	Clone Test Row - 96
+95	957	Clone Test Row - 95
+94	947	Clone Test Row - 94
+93	937	Clone Test Row - 93
+92	927	Clone Test Row - 92
+91	917	Clone Test Row - 91
+90	907	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_00	Undo	empty
+undo_001	Undo	empty
+undo_01	Undo	empty
+undo_011	Undo	empty
+undo_02	Undo	empty
+undo_021	Undo	active
+undo_03	Undo	active
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_00	./undo_00.ibu	UNDO LOG	InnoDB
+undo_001	./undo_001.ibu	UNDO LOG	InnoDB
+undo_01	./undo_01.ibu	UNDO LOG	InnoDB
+undo_011	./undo_011.ibu	UNDO LOG	InnoDB
+undo_02	./undo_02.ibu	UNDO LOG	InnoDB
+undo_021	./undo_021.ibu	UNDO LOG	InnoDB
+undo_03	./undo_03.ibu	UNDO LOG	InnoDB
+CALL execute_dml(1, 0, 100, 100, 10, 0);
+# Restart server back on base data directory
+# restart:
+SET DEBUG_SYNC = 'RESET';
+# 3. DROP UNDO TABLESPACE while clone in progress
+RESET MASTER;
+SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
+DROP UNDO TABLESPACE undo_00  ;
+SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_file WAIT_FOR resume_file';
+SET DEBUG_SYNC = 'clone_file_copy_end_before_ack SIGNAL start_ddl_file_ack WAIT_FOR resume_file_ack';
+SET DEBUG_SYNC = 'clone_before_file_ddl_meta SIGNAL start_ddl_file_meta WAIT_FOR resume_file_meta';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_page WAIT_FOR resume_page';
+SET DEBUG_SYNC = 'clone_before_page_ddl_meta SIGNAL start_ddl_page_meta WAIT_FOR resume_page_meta';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl_redo WAIT_FOR resume_redo';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+DROP UNDO TABLESPACE undo_001  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_file_init';
+# Waiting for clone to reach 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file';
+# Wait finished
+# For remote clone, let the donor progress concurrently
+# otherwise file pins may not be released causing deadlock
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_file';
+DROP UNDO TABLESPACE undo_01  ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+# Flush all dirty pages to track
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET DEBUG_SYNC = 'now SIGNAL resume_file';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_ack';
+SET DEBUG_SYNC = 'now SIGNAL resume_file_ack';
+DROP UNDO TABLESPACE undo_011  ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_file_meta';
+# Waiting for clone to reach 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page';
+# Wait finished
+DROP UNDO TABLESPACE undo_02  ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_page';
+# Waiting for clone to reach 'redo copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_redo';
+# Wait finished
+DROP UNDO TABLESPACE undo_021  ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+DROP UNDO TABLESPACE undo_03  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_redo';
+# In connection DEFAULT
+# Waiting for clone to complete
+# Wait finished
+SET GLOBAL DEBUG = '-d,remote_release_clone_file_pin';
+# Restart server on cloned data directory
+# restart: --datadir=CLONE_DATADIR
+# Check cloned data
+SHOW TABLES;
+Tables_in_test
+t
+t0
+t01
+t1
+t11
+t2
+t21
+t3
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) from t1;
+count(*)
+100
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	11	Clone Test Row - 0
+1	21	Clone Test Row - 1
+2	31	Clone Test Row - 2
+3	41	Clone Test Row - 3
+4	51	Clone Test Row - 4
+5	61	Clone Test Row - 5
+6	71	Clone Test Row - 6
+7	81	Clone Test Row - 7
+8	91	Clone Test Row - 8
+9	101	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	1001	Clone Test Row - 99
+98	991	Clone Test Row - 98
+97	981	Clone Test Row - 97
+96	971	Clone Test Row - 96
+95	961	Clone Test Row - 95
+94	951	Clone Test Row - 94
+93	941	Clone Test Row - 93
+92	931	Clone Test Row - 92
+91	921	Clone Test Row - 91
+90	911	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_021	Undo	empty
+undo_03	Undo	empty
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_021	./undo_021.ibu	UNDO LOG	InnoDB
+undo_03	./undo_03.ibu	UNDO LOG	InnoDB
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t11 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t11	check	status	OK
+SELECT count(*) from t11;
+count(*)
+100
+SELECT col1, col2, col3 FROM t11 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	0	Clone Test Row - 0
+1	10	Clone Test Row - 1
+2	20	Clone Test Row - 2
+3	30	Clone Test Row - 3
+4	40	Clone Test Row - 4
+5	50	Clone Test Row - 5
+6	60	Clone Test Row - 6
+7	70	Clone Test Row - 7
+8	80	Clone Test Row - 8
+9	90	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t11 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	990	Clone Test Row - 99
+98	980	Clone Test Row - 98
+97	970	Clone Test Row - 97
+96	960	Clone Test Row - 96
+95	950	Clone Test Row - 95
+94	940	Clone Test Row - 94
+93	930	Clone Test Row - 93
+92	920	Clone Test Row - 92
+91	910	Clone Test Row - 91
+90	900	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_021	Undo	empty
+undo_03	Undo	empty
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_021	./undo_021.ibu	UNDO LOG	InnoDB
+undo_03	./undo_03.ibu	UNDO LOG	InnoDB
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 5 */
+CHECK TABLE t2 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT count(*) from t2;
+count(*)
+100
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	11	Clone Test Row - 0
+1	21	Clone Test Row - 1
+2	31	Clone Test Row - 2
+3	41	Clone Test Row - 3
+4	51	Clone Test Row - 4
+5	61	Clone Test Row - 5
+6	71	Clone Test Row - 6
+7	81	Clone Test Row - 7
+8	91	Clone Test Row - 8
+9	101	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	1001	Clone Test Row - 99
+98	991	Clone Test Row - 98
+97	981	Clone Test Row - 97
+96	971	Clone Test Row - 96
+95	961	Clone Test Row - 95
+94	951	Clone Test Row - 94
+93	941	Clone Test Row - 93
+92	931	Clone Test Row - 92
+91	921	Clone Test Row - 91
+90	911	Clone Test Row - 90
+SELECT NAME, SPACE_TYPE, STATE
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo'
+    ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_021	Undo	empty
+undo_03	Undo	empty
+SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
+FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo_0%'
+    ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_NAME	FILE_TYPE	ENGINE
+innodb_undo_001	./undo_001	UNDO LOG	InnoDB
+innodb_undo_002	./undo_002	UNDO LOG	InnoDB
+undo_021	./undo_021.ibu	UNDO LOG	InnoDB
+undo_03	./undo_03.ibu	UNDO LOG	InnoDB
+CALL execute_dml(1, 0, 100, 100, 10, 0);
+# Restart server back on base data directory
+# restart:
+SET DEBUG_SYNC = 'RESET';
+# Cleanup
+DROP TABLE t;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE execute_dml;
+DROP TABLE t0;
+DROP TABLE t01;
+DROP TABLE t3;
+DROP TABLE t11;
+DROP TABLE t21;
+# Uninstall clone
+UNINSTALL PLUGIN clone;

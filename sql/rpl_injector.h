@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 
 #include <stddef.h>
 
-#include "control_events.h"  // enum_incidents
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"  // enum_incidents
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/table.h"  // TABLE
@@ -341,11 +341,11 @@ class injector {
         -1    Incorrect call sequence
      */
     int check_state(enum_state const target_state) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       static char const *state_name[] = {"START_STATE", "TABLE_STATE",
                                          "ROW_STATE", "STATE_COUNT"};
 
-      DBUG_ASSERT(0 <= target_state && target_state <= STATE_COUNT);
+      assert(0 <= target_state && target_state <= STATE_COUNT);
       DBUG_PRINT("info", ("In state %s", state_name[m_state]));
 #endif
 
@@ -378,7 +378,7 @@ class injector {
 
  private:
   explicit injector();
-  ~injector() {}              /* Nothing needs to be done */
+  ~injector() = default;      /* Nothing needs to be done */
   injector(injector const &); /* You're not allowed to copy injector
                                  instances.
                               */

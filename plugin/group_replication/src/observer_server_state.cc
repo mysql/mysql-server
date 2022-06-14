@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,14 @@ int group_replication_after_engine_recovery(Server_state_param *) { return 0; }
 
 int group_replication_after_recovery(Server_state_param *) { return 0; }
 
-int group_replication_before_server_shutdown(Server_state_param *) { return 0; }
+int group_replication_before_server_shutdown(Server_state_param *) {
+  enable_server_shutdown_status();
+  plugin_group_replication_leave_group();
+
+  return 0;
+}
+
+int group_replication_after_dd_upgrade(Server_state_param *) { return 0; }
 
 int group_replication_after_server_shutdown(Server_state_param *) {
   enable_server_shutdown_status();
@@ -63,4 +70,5 @@ Server_state_observer server_state_observer = {
     group_replication_after_recovery,            // after recovery
     group_replication_before_server_shutdown,    // before shutdown
     group_replication_after_server_shutdown,     // after shutdown
+    group_replication_after_dd_upgrade,          // after DD upgrade from 5.7
 };

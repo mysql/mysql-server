@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,17 +36,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 
 /** Read a 64-bit integer in a much compressed form.
-@param[in,out]	ptr	pointer to memory where to read,
+@param[in,out]  ptr     pointer to memory from where to read,
 advanced by the number of bytes consumed, or set NULL if out of space
-@param[in]	end_ptr	end of the buffer
-@return unsigned 64-bit integer
-@see mach_u64_read_much_compressed() */
-ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
-                                           const byte *end_ptr) {
+@param[in]      end_ptr end of the buffer
+@return unsigned 64-bit integer */
+uint64_t mach_parse_u64_much_compressed(const byte **ptr, const byte *end_ptr) {
   ulint val;
 
   if (*ptr >= end_ptr) {
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -58,15 +56,15 @@ ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
 
   ++*ptr;
 
-  ib_uint64_t n = mach_parse_compressed(ptr, end_ptr);
-  if (*ptr == NULL) {
+  uint64_t n = mach_parse_compressed(ptr, end_ptr);
+  if (*ptr == nullptr) {
     return (0);
   }
 
   n <<= 32;
 
   n |= mach_parse_compressed(ptr, end_ptr);
-  if (*ptr == NULL) {
+  if (*ptr == nullptr) {
     return (0);
   }
 
@@ -74,15 +72,15 @@ ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
 }
 
 /** Read a 32-bit integer in a compressed form.
-@param[in,out]	ptr	pointer to memory where to read;
+@param[in,out]  ptr     pointer to memory from where to read;
 advanced by the number of bytes consumed, or set NULL if out of space
-@param[in]	end_ptr	end of the buffer
+@param[in]      end_ptr end of the buffer
 @return unsigned value */
-ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
+uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
   ulint val;
 
   if (*ptr >= end_ptr) {
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -91,7 +89,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
   if (val < 0x80) {
     /* 0nnnnnnn (7 bits) */
     ++*ptr;
-    return (static_cast<ib_uint32_t>(val));
+    return (static_cast<uint32_t>(val));
   }
 
   /* Workaround GCC bug
@@ -113,9 +111,9 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       val = mach_read_from_2(*ptr) & 0x3FFF;
       ut_ad(val > 0x7F);
       *ptr += 2;
-      return (static_cast<ib_uint32_t>(val));
+      return (static_cast<uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -129,9 +127,9 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       val = mach_read_from_3(*ptr) & 0x1FFFFF;
       ut_ad(val > 0x3FFF);
       *ptr += 3;
-      return (static_cast<ib_uint32_t>(val));
+      return (static_cast<uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -145,9 +143,59 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       val = mach_read_from_4(*ptr) & 0xFFFFFFF;
       ut_ad(val > 0x1FFFFF);
       *ptr += 4;
-      return (static_cast<ib_uint32_t>(val));
+      return (static_cast<uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
+    return (0);
+  }
+
+#ifdef DEPLOY_FENCE
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+  if (val < 0xF8) {
+    ut_ad(val == 0xF0);
+
+    /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
+    if (end_ptr >= *ptr + 5) {
+      val = mach_read_from_4(*ptr + 1);
+      ut_ad(val > 0xFFFFFFF);
+      *ptr += 5;
+      return (static_cast<uint32_t>(val));
+    }
+
+    *ptr = nullptr;
+    return (0);
+  }
+
+#ifdef DEPLOY_FENCE
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+  if (val < 0xFC) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    if (end_ptr >= *ptr + 2) {
+      val = (mach_read_from_2(*ptr) & 0x3FF) | 0xFFFFFC00;
+      *ptr += 2;
+      return (static_cast<uint32_t>(val));
+    }
+    *ptr = nullptr;
+    return (0);
+  }
+
+#ifdef DEPLOY_FENCE
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+  if (val < 0xFE) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    if (end_ptr >= *ptr + 3) {
+      val = (mach_read_from_3(*ptr) & 0x1FFFF) | 0xFFFE0000;
+      ut_ad(val < 0xFFFFFC00);
+      *ptr += 3;
+      return (static_cast<uint32_t>(val));
+    }
+    *ptr = nullptr;
     return (0);
   }
 
@@ -157,16 +205,16 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
 
 #undef DEPLOY_FENCE
 
-  ut_ad(val == 0xF0);
+  ut_ad(val == 0xFE);
 
-  /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
-  if (end_ptr >= *ptr + 5) {
-    val = mach_read_from_4(*ptr + 1);
-    ut_ad(val > 0xFFFFFFF);
-    *ptr += 5;
-    return (static_cast<ib_uint32_t>(val));
+  /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
+  if (end_ptr >= *ptr + 4) {
+    val = mach_read_from_3(*ptr + 1) | 0xFF000000;
+    ut_ad(val < 0xFFFE0000);
+    *ptr += 4;
+    return (static_cast<uint32_t>(val));
   }
 
-  *ptr = NULL;
+  *ptr = nullptr;
   return (0);
 }

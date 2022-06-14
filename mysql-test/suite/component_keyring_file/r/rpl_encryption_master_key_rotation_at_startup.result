@@ -1,0 +1,105 @@
+# ----------------------------------------------------------------------
+# Setup
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+Restart the master enabling the rotate option only
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be OFF]
+include/assert_grep.inc [Server ignored binlog_rotate_encryption_master_key_at_startup]
+include/assert.inc [Binary log rotated]
+include/assert.inc [2nd binary log is not encrypted on master]
+include/rpl_stop_server.inc [server_number=1]
+# Force the server to fail storing master key index
+Try to restart the master enabling the options with debug instrumentation
+include/assert_grep.inc [Server reported: Failed to store key]
+include/assert_grep.inc [Server failed to initialize binlog encryption]
+include/assert_grep.inc [Server did not failed to rotate binlog encryption master key at startup]
+include/assert_grep.inc [Server aborted to start]
+Restart the master enabling the options
+include/rpl_start_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated]
+include/assert.inc [3rd binary log is encrypted on master]
+include/assert.inc [Binary log is encrypted with 2nd key]
+include/rpl_stop_server.inc [server_number=1]
+# Force the server to fail storing master key index
+Try to restart the master enabling the options with debug instrumentation
+include/assert_grep.inc [Server reported: Failed to store key]
+include/assert_grep.inc [Server failed to initialize binlog encryption]
+include/assert_grep.inc [Server did not failed to rotate binlog encryption master key at startup]
+include/assert_grep.inc [Server aborted to start]
+Restart the master enabling just the binlog_encryption option
+include/rpl_start_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated]
+include/assert.inc [4th binary log is encrypted on master]
+include/assert.inc [Binary log is encrypted with 3th key]
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
+INSERT INTO t1 (c2) VALUES ("MySQL");
+Restart the master enabling the options to generate key #4
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated as expected]
+include/assert.inc [Binary log is encrypted with key #4]
+INSERT INTO t1 (c2) VALUES ("MySQL");
+Restart the master enabling the options to generate key #5
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated as expected]
+include/assert.inc [Binary log is encrypted with key #5]
+INSERT INTO t1 (c2) VALUES ("MySQL");
+Restart the master enabling the options to generate key #6
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated as expected]
+include/assert.inc [Binary log is encrypted with key #6]
+INSERT INTO t1 (c2) VALUES ("MySQL");
+Restart the master enabling the options to generate key #7
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated as expected]
+include/assert.inc [Binary log is encrypted with key #7]
+INSERT INTO t1 (c2) VALUES ("MySQL");
+Restart the master enabling the options to generate key #8
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated as expected]
+include/assert.inc [Binary log is encrypted with key #8]
+INSERT INTO t1 (c2) VALUES ("MySQL");
+Restart the master enabling the options to generate key #9
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log rotated as expected]
+include/assert.inc [Binary log is encrypted with key #9]
+INSERT INTO t1 (c2) VALUES ("MySQL");
+[connection slave]
+include/start_slave.inc
+[connection master]
+SET GLOBAL binlog_encryption = OFF;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+[connection slave]
+SET GLOBAL keyring_operations= ON;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl_end.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

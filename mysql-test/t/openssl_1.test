@@ -1,7 +1,5 @@
-# Tests for SSL connections, only run if mysqld is compiled
-# with support for SSL.
-
--- source include/have_ssl.inc
+# Tests for SSL connections
+--source include/allowed_ciphers.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -134,7 +132,7 @@ drop table t1;
 #
 # Bug#21611 Slave can't connect when master-ssl-cipher specified
 # - Apparently selecting a cipher doesn't work at all
-# - Usa a cipher that both yaSSL and OpenSSL supports
+# - Usa a cipher that OpenSSL supports
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr

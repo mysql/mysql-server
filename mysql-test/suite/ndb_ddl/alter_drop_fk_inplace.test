@@ -1,0 +1,7 @@
+#
+# Test ALTER DROP FOREIGN KEY .. ALGORITHM = INPLACE
+#
+
+let algorithm=inplace;
+
+--source alter_drop_fk.inc

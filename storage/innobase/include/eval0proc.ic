@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,8 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Performs an execution step of a procedure node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
 {
   proc_node_t *node;
 
@@ -53,12 +52,12 @@ que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
     thr->run_node = node->stat_list;
   } else {
     /* Move to the next statement */
-    ut_ad(que_node_get_next(thr->prev_node) == NULL);
+    ut_ad(que_node_get_next(thr->prev_node) == nullptr);
 
-    thr->run_node = NULL;
+    thr->run_node = nullptr;
   }
 
-  if (thr->run_node == NULL) {
+  if (thr->run_node == nullptr) {
     thr->run_node = que_node_get_parent(node);
   }
 
@@ -67,8 +66,7 @@ que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
 
 /** Performs an execution step of a procedure call node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *proc_eval_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *proc_eval_step(que_thr_t *thr) /*!< in: query thread */
 {
   func_node_t *node;
 

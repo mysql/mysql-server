@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ test_context(Uint32 pages)
   for (Uint32 resid = 1; resid < RG_COUNT; resid++)
   {
     rl.m_min = 0;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = resid;
     mm.set_resource_limit(rl);
   }
@@ -71,7 +71,8 @@ test_context(Uint32 pages)
     abort();
   }
 
-  mm.map(NULL /* watchCounter */, 0 /* memlock */); // Map all
+  Uint32 dummy_watchdog_counter_marking_page_mem = 0;
+  mm.map(&dummy_watchdog_counter_marking_page_mem, 0 /* memlock */); // Map all
 
   return pc;
 }

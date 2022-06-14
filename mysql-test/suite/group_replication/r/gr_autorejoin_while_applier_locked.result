@@ -1,0 +1,93 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table t1 on server1 with binlog disabled and bootstrap the
+#    group
+SET sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Create table t1 on server2 with binlog disabled and join to the
+#    group
+[connection server2]
+SET sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET sql_log_bin=1;
+include/start_group_replication.inc
+
+# 3. Server3 will do three attempts of rejoin to validate that not block
+#    and reduce stop_component timeout to recovery module stop faster
+[connection server3]
+SET @group_replication_autorejoin_tries_save = @@GLOBAL.group_replication_autorejoin_tries;
+SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
+SET GLOBAL group_replication_autorejoin_tries = 3;
+SET GLOBAL group_replication_components_stop_timeout = 30;
+
+# 4. Server3 disable binlog and suppress warnings, create table t1 and
+#    get pid. Pid will be used to expel member from group. Join group.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression('On shutdown there was a timeout on the Group Replication applier termination.');
+call mtr.add_suppression('Failed to stop the group replication applier thread.');
+call mtr.add_suppression('Member was expelled from the group due to network failures, changing member status to ERROR.');
+call mtr.add_suppression('The server was automatically set into read only mode after an error was detected.');
+call mtr.add_suppression('The group_replication_applier channel is still running, most likely it is waiting for a database/table lock*');
+call mtr.add_suppression('Unable to confirm whether the server has left the group or not.*');
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET SESSION sql_log_bin= 1;
+[connection server3]
+include/start_group_replication.inc
+
+# 5. Enable super read only not to avoid problem set it after LOCK
+#    tables READ. Table locked will prevent server to finish recovery
+[connection server_3]
+SET GLOBAL super_read_only= 1;
+FLUSH TABLES WITH READ LOCK;
+
+# 6. Insert data on group
+[connection server1]
+INSERT INTO test.t1 VALUES (1, 1);
+INSERT INTO test.t1 VALUES (2, 1);
+
+# 7. Wait until group_replication_applier channel waits on table t1
+#    read lock
+[connection server3]
+
+# 8. Expel server3 from the group
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server3]
+
+# 9. Server3 should change is status to ERROR
+include/gr_wait_for_member_state.inc
+
+# 10. Waiting for two auto-rejoin to happen, only the third attempt
+#     will be successful. First will fail due recovery fail to stop.
+#     Second fail to start applier module due channel being active
+include/gr_wait_for_member_state.inc
+
+# 11. Wait that message about applier being blocked was logged
+
+# 12. UNLOCK tables on server3
+[connection server_3]
+UNLOCK TABLES;
+
+# 13. Confirm that group_replication_applier channel is stopped
+
+# 14. Wait for member to be ONLINE after autorejoin third attempt succeed
+[connection server3]
+include/gr_wait_for_member_state.inc
+
+# 15. Cleanup
+DROP TABLE t1;
+SET GLOBAl group_replication_autorejoin_tries = @group_replication_autorejoin_tries_save;
+SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
+include/group_replication_end.inc

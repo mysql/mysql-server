@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <OutputStream.hpp>
@@ -73,6 +74,11 @@ my_long_options[] =
     " API nodes starting at N must exist",
     &g_opt.m_connections, &g_opt.m_connections, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_connections, 0, 0, 0, 0, 0 },
+  { "table", 't',
+   "Name of the table where to import the data."
+   "Default is the basename from the input csv file name",
+   &g_opt.m_table, &g_opt.m_table, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "state-dir", NDB_OPT_NOSHORT,
     "Where to write state files (t1.res etc)."
     " Default is \".\" (currect directory)",
@@ -143,17 +149,20 @@ my_long_options[] =
     &g_opt.m_monitor, &g_opt.m_monitor, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_monitor, 0, 0, 0, 0, 0 },
   { "ai-prefetch-sz", NDB_OPT_NOSHORT,
-    "For table with hidden PK, specify number of autoincrement values"
+    "For table with an auto inc (including hidden) PK,"
+    " specify number of autoincrement values"
     " that are prefetched. See mysqld",
     &g_opt.m_ai_prefetch_sz, &g_opt.m_ai_prefetch_sz, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ai_prefetch_sz, 0, 0, 0, 0, 0 },
   { "ai-increment", NDB_OPT_NOSHORT,
-    "For table with hidden PK, specify autoincrement increment."
+    "For table with an auto inc (including hidden) PK,"
+    " specify autoincrement increment."
     " See mysqld",
     &g_opt.m_ai_increment, &g_opt.m_ai_increment, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ai_increment, 0, 0, 0, 0, 0 },
   { "ai-offset", NDB_OPT_NOSHORT,
-    "For table with hidden PK, specify autoincrement offset."
+    "For table with an auto inc (including hidden) PK,"
+    " specify autoincrement offset."
     " See mysqld",
     &g_opt.m_ai_offset, &g_opt.m_ai_offset, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ai_offset, 0, 0, 0, 0, 0 },
@@ -326,6 +335,9 @@ short_usage_sub(void)
     "The basename of each file specifies the table name.\n"
     "E.g. %s test foo/t1.csv foo/t2.csv loads tables\n"
     "test.t1 test.t2.\n"
+    "Alternatively, the optional parameter --table can be used to\n"
+    "specify the table where to import the data avoiding the need of\n"
+    "csv basename/table name matching.\n"
     "\n"
     "For each job (load of one table), results, rejected rows,\n"
     "and processed row ranges are written to \"state files\" with\n"
@@ -424,13 +436,16 @@ checkarg(TableArg& arg, const char* str)
     {
       stem = base.substr(0, rdot);
     }
-    std::string table = stem;   // t1
-    std::size_t ldot = stem.find(".");
-    if (ldot != std::string::npos)
+    if(g_opt.m_table == nullptr)
     {
-      table = stem.substr(0, ldot);
+      std::string table = stem;  // t1
+      std::size_t ldot = stem.find(".");
+      if (ldot != std::string::npos)
+      {
+        table = stem.substr(0, ldot);
+      }
+      arg.m_table = table;
     }
-    arg.m_table = table;
     arg.m_input_file = full;
     std::string path = "";
     if (strcmp(g_opt.m_state_dir, ".") != 0)
@@ -491,8 +506,6 @@ checkopts(int argc, char** argv)
   do
   {
     CHK1(checkerrins() == 0);
-    if (g_opt.m_csvopt != 0)
-      CHK1(checkcsvopt() == 0);
     g_state_dir = g_opt.m_state_dir;
     convertpath(g_state_dir);
     g_opt.m_state_dir = g_state_dir.c_str();
@@ -502,6 +515,10 @@ checkopts(int argc, char** argv)
     argv++;
     g_tablecnt = argc;
     g_tablearg = new TableArg [g_tablecnt];
+    if(g_opt.m_table)
+    {
+      g_tablearg->m_table = std::string(g_opt.m_table);
+    }
     for (uint i = 0; i < g_tablecnt; i++)
     {
       CHK1(checkarg(g_tablearg[i], argv[i]) == 0);
@@ -952,13 +969,24 @@ doall()
   return ret;
 }
 
+static bool get_one_option(int optid, const struct my_option *opt, char *arg)
+{
+  bool ret = false;
+  if(strcmp(opt->name, "csvopt") == 0)
+    ret = (checkcsvopt() != 0);
+  else
+    ret = ndb_std_get_one_option(optid, opt, arg);
+  return ret;
+}
+
+
 int
 main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage);
-  if (opts.handle_options() != 0)
+  if (opts.handle_options(&get_one_option) != 0)
     return 1;
   if (listerrins())
     return 0;

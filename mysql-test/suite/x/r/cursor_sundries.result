@@ -141,10 +141,10 @@ Mysqlx.Ok {
 }
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 
 ## Assert global variables
 include/assert.inc [Global plugin variable Mysqlx_cursor_open must match number of send Mysqlx.Cursor.Open messages]
 include/assert.inc [Global plugin variable Mysqlx_cursor_close must match number of send Mysqlx.Cursor.Close messages]
 include/assert.inc [Global plugin variable Mysqlx_cursor_fetch must match number of send Mysqlx.Cursor.Fetch messages]
 include/assert.inc [Global system status Prepared_stmt_count must be set to zero, all prep-stmt must be deallocated.]
-DROP SCHEMA IF EXISTS xtest;

@@ -6,10 +6,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 use test;
 create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 reset master;
-call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
-STOP SLAVE;
-CHANGE MASTER TO MASTER_LOG_POS=4;
-START SLAVE;
+STOP REPLICA;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
+START REPLICA;
 Capture current count of epoch decline warnings
 insert into test.t1 values (6, repeat('B', 1000));
 insert into test.t1 values (5, repeat('B', 1000));
@@ -33,9 +32,9 @@ repeat_err_count
 skipped_err_count
 0
 Now stop and manually replay old binlog.
-stop slave;
-change master to master_log_pos=4;
-start slave;
+STOP REPLICA;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
+START REPLICA;
 Any slave positioning warnings?
 Should be one
 lower_warn_count
@@ -47,9 +46,9 @@ repeat_err_count
 skipped_err_count
 0
 Repeat
-stop slave;
-change master to master_log_pos=4;
-start slave;
+STOP REPLICA;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
+START REPLICA;
 Any slave positioning warnings?
 Should be two
 lower_warn_count
@@ -61,8 +60,8 @@ repeat_err_count
 skipped_err_count
 0
 Now try re-positioning after RESET SLAVE
-STOP SLAVE;
-RESET SLAVE;
+STOP REPLICA;
+RESET REPLICA;
 include/rpl_start_slaves.inc
 Any slave positioning warnings?
 Should be two, e.g. no extras after the RESET SLAVE
@@ -91,9 +90,6 @@ insert into test.t1 values (4 + 6, repeat('E', 1000));
 insert into test.t1 values (3 + 6, repeat('E', 1000));
 insert into test.t1 values (2 + 6, repeat('E', 1000));
 insert into test.t1 values (1 + 6, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave: SQL thread stopped as applying epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
@@ -108,9 +104,10 @@ skipped_err_count
 Now check that we can manually restart the slave
 set global debug = @old_debug;
 reset master;
-stop slave;
-change master to master_log_pos=4;
-start slave;
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+STOP REPLICA;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
+START REPLICA;
 insert into test.t1 values (13, repeat('A', 1000));
 Check slave warnings now, should be no extras
 e.g. 2 warnings, 1 error
@@ -138,9 +135,6 @@ insert into test.t1 values (4, repeat('E', 1000));
 insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave: SQL thread stopped as attempted to reapply already committed epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
@@ -156,9 +150,10 @@ skipped_err_count
 Now check that we can manually restart the slave
 set global debug = @old_debug;
 reset master;
-stop slave;
-change master to master_log_pos=4;
-start slave;
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+STOP REPLICA;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
+START REPLICA;
 insert into test.t1 values (13, repeat('A', 1000));
 Check slave warnings now, should be no extras
 lower_warn_count
@@ -173,10 +168,10 @@ delete from test.t1;
 Now get skipped epoch using fault injection on the slave
 set @old_debug = @@global.debug;
 set global debug="";
-set global debug="+d,ndb_slave_fail_marking_epoch_committed";
+set global debug="+d,ndb_replica_fail_marking_epoch_committed";
 show variables like 'debug';
 Variable_name	Value
-debug	d,ndb_slave_fail_marking_epoch_committed
+debug	d,ndb_replica_fail_marking_epoch_committed
 Let's make some epochs
 insert into test.t1 values (6, repeat('E', 1000));
 insert into test.t1 values (5, repeat('E', 1000));
@@ -184,9 +179,6 @@ insert into test.t1 values (4, repeat('E', 1000));
 insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave: SQL thread stopped as attempting to apply new epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
@@ -202,9 +194,10 @@ skipped_err_count
 Now check that we can manually restart the slave
 set global debug = @old_debug;
 reset master;
-stop slave;
-change master to master_log_pos=4;
-start slave;
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+STOP REPLICA;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
+START REPLICA;
 insert into test.t1 values (13, repeat('A', 1000));
 Check slave warnings now, should be no extras
 lower_warn_count

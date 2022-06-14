@@ -19,6 +19,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/big_test.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo ########################################################################
 --echo # Assert target schema ids.
@@ -85,6 +86,18 @@
 
 --echo ########################################################################
 --let  $VERSION = 80016
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80017
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80018
 --echo # Test upgrade from $VERSION.
 --echo ########################################################################
 --source include/dd_schema_definition_after_upgrade_debug.inc

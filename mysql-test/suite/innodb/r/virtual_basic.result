@@ -17,17 +17,17 @@ INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
 CREATE INDEX idx ON t(c);
 SELECT c FROM t;
 c
-NULL
 14
 19
 29
+NULL
 UPDATE t SET a = 10 WHERE a = 11;
 SELECT c FROM t;
 c
-NULL
 13
 19
 29
+NULL
 SELECT * FROM t;
 a	b	c	h
 10	3	13	mm
@@ -37,18 +37,18 @@ NULL	NULL	NULL	mm
 DELETE FROM t WHERE a = 18;
 SELECT c FROM t;
 c
-NULL
 13
 29
+NULL
 START TRANSACTION;
 INSERT INTO t VALUES (128, 22, DEFAULT, "xx");
 INSERT INTO t VALUES (1290, 212, DEFAULT, "xmx");
 ROLLBACK;
 SELECT c FROM t;
 c
-NULL
 13
 29
+NULL
 SELECT * FROM t;
 a	b	c	h
 10	3	13	mm
@@ -62,22 +62,22 @@ INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
 SELECT c FROM t;
 c
 3
-7
 33
+7
 SELECT m FROM t;
 m
-5
 11
 30
+5
 SELECT p FROM t;
 p
+XXXAAA
 ummuooo
 uuuuu
-XXXAAA
 SELECT * FROM t;
 a	b	c	h	j	m	n	p
-11	22	33	AAA	8	30	XXX	XXXAAA
 1	2	3	uuu	9	11	uu	uuuuu
+11	22	33	AAA	8	30	XXX	XXXAAA
 3	4	7	uooo	1	5	umm	ummuooo
 update t set a = 13 where a =11;
 delete from t where a =13;
@@ -118,9 +118,9 @@ UPDATE t SET a =22 WHERE a = 18;
 UPDATE t SET a = 33 WHERE a = 22;
 SELECT c FROM t;
 c
+103
 29
 34
-103
 ROLLBACK;
 SELECT c FROM t;
 c
@@ -240,7 +240,7 @@ c
 3
 CREATE unique INDEX idx1 ON t(c);
 INSERT INTO t(h)VALUES ('mm');
-ERROR 23000: Duplicate entry '3' for key 'idx1'
+ERROR 23000: Duplicate entry '3' for key 't.idx1'
 DROP TABLE t;
 CREATE TABLE `t1` ( `a` INT(11) DEFAULT NULL,   `b` INT(11) DEFAULT NULL,   `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,   `x` INT(11) NOT NULL,   `h` VARCHAR(10) DEFAULT NULL,   PRIMARY KEY (`x`),   KEY `idx` (`c`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
@@ -312,23 +312,23 @@ END|
 CALL UPDATE_t();
 SELECT c FROM t;
 c
-NULL
 19
-29
 2103
+29
+NULL
 CALL DELETE_insert_t();
 SELECT c FROM t;
 c
-NULL
 19
-29
 2103
+29
+NULL
 DROP INDEX idx ON t;
 CALL UPDATE_t();
 SELECT c FROM t;
 c
-2103
 19
+2103
 29
 NULL
 DROP PROCEDURE DELETE_insert_t;
@@ -369,6 +369,9 @@ col_VARCHAR_nokey
 (0, NULL, '21:22:34.025509', '2002-02-13 17:30:06.013935', 'j'),
 (8, '2004-09-18', '10:50:38.059966', '2008-09-27
 00:34:58.026613', 'v');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-09-27
+00:34:58.026613' at row 2 is deprecated. Prefer the standard ' '.
 EXPLAIN SELECT col_INT_key FROM b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	b	NULL	index	NULL	col_INT_key	5	NULL	2	100.00	Using index
@@ -401,8 +404,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -517,10 +520,10 @@ INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
 CREATE INDEX idx ON t(a, c);
 SELECT a, c FROM t;
 a	c
-NULL	NULL
 11	14
 18	19
 28	29
+NULL	NULL
 START TRANSACTION;
 UPDATE t SET a = 13 where a = 11;
 ROLLBACK;
@@ -534,20 +537,20 @@ INSERT INTO t VALUES (null, null, DEFAULT, "d", 4);
 CREATE INDEX idx ON t(a, c, h);
 SELECT a, c FROM t;
 a	c
-NULL	NULL
 11	14
 18	19
 28	29
+NULL	NULL
 START TRANSACTION;
 UPDATE t SET m =10 WHERE m = 1;
 UPDATE t SET h = "e" WHERE h="a";
 ROLLBACK;
 SELECT a, c, h FROM t;
 a	c	h
-NULL	NULL	d
 11	14	a
 18	19	b
 28	29	c
+NULL	NULL	d
 DROP TABLE t;
 CREATE TABLE `t1` (
 `col1` int(11) NOT NULL,
@@ -574,15 +577,15 @@ ALTER TABLE t1 CHANGE COLUMN extra col6 INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
-  `col3` int(11) NOT NULL,
-  `col4` int(11) DEFAULT NULL,
-  `col5` int(11) GENERATED ALWAYS AS ((`col2` % `col3`)) VIRTUAL,
-  `col7` int(11) GENERATED ALWAYS AS ((`col5` * `col5`)) VIRTUAL,
-  `col8` int(11) GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
+  `col3` int NOT NULL,
+  `col4` int DEFAULT NULL,
+  `col5` int GENERATED ALWAYS AS ((`col2` % `col3`)) VIRTUAL,
+  `col7` int GENERATED ALWAYS AS ((`col5` * `col5`)) VIRTUAL,
+  `col8` int GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
   `col9` text,
-  `col6` int(11) DEFAULT NULL,
+  `col6` int DEFAULT NULL,
   UNIQUE KEY `uidx` (`col5`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
@@ -605,8 +608,8 @@ ALTER TABLE t DROP COLUMN p, ADD COLUMN s VARCHAR(20) GENERATED ALWAYS AS(CONCAT
 SELECT s FROM t;
 s
 XXXAAA
-uuuuu
 ummuooo
+uuuuu
 ALTER TABLE t ADD  x VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), ADD INDEX idx (x), algorithm=inplace;
 DROP TABLE t;
 CREATE TABLE `t1` (
@@ -715,10 +718,10 @@ INSERT INTO t1 VALUES(4, 18, default);
 CREATE INDEX idx ON t1(x);
 SELECT x FROM t1;
 x
-3
-7
 15
 22
+3
+7
 DROP TABLE t1;
 CREATE TABLE t1 (
 id INT NOT NULL,
@@ -739,9 +742,9 @@ ERROR HY000: Table has no partition for value 22
 CREATE INDEX idx ON t1(x);
 SELECT x FROM t1;
 x
+15
 3
 7
-15
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) ,c int) PARTITION BY RANGE (b) (
 PARTITION p0 VALUES LESS THAN (6),
@@ -754,9 +757,9 @@ CREATE INDEX idx ON t1 (b);
 INSERT INTO t1 VALUES (5,DEFAULT,9);
 SELECT * FROM t1;
 a	b	c
-5	6	9
 10	11	2
 19	20	8
+5	6	9
 ALTER TABLE t1 REMOVE PARTITIONING;
 DROP TABLE t1;
 CREATE TABLE `t#P#1` (a INT, bt INT GENERATED ALWAYS AS (a+1) ,c int)
@@ -804,8 +807,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -856,8 +859,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -908,8 +911,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -1049,9 +1052,9 @@ Warning	1831	Duplicate index 'pk' defined on the table 'test.t'. This is depreca
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `col_int_nokey` int(11) DEFAULT NULL,
-  `col_int` int(11) GENERATED ALWAYS AS ((`col_int_nokey` + `col_int_nokey`)) STORED NOT NULL,
-  `col_int_key` int(11) GENERATED ALWAYS AS ((`col_int` + `col_int_nokey`)) VIRTUAL NOT NULL,
+  `col_int_nokey` int DEFAULT NULL,
+  `col_int` int GENERATED ALWAYS AS ((`col_int_nokey` + `col_int_nokey`)) STORED NOT NULL,
+  `col_int_key` int GENERATED ALWAYS AS ((`col_int` + `col_int_nokey`)) VIRTUAL NOT NULL,
   `col_date_nokey` date DEFAULT NULL,
   `col_date` date GENERATED ALWAYS AS ((`col_date_nokey` + interval 30 day)) STORED NOT NULL,
   `col_date_key` date GENERATED ALWAYS AS ((`col_date` + interval 30 day)) VIRTUAL NOT NULL,
@@ -1164,10 +1167,10 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT x FROM t;
 x
-NULL
 14
 19
 29
+NULL
 DROP TABLE t;
 CREATE TABLE t1 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
 INSERT INTO t1 VALUES (11, 3, DEFAULT, 'mm');
@@ -1190,10 +1193,10 @@ ALTER TABLE t1 CHANGE  d d INT GENERATED ALWAYS AS(a+b) FIRST;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `d` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `h` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1355,7 +1358,7 @@ insert into t set a=1;
 alter table t add column c int generated always as (1) virtual;
 insert into t set a=2;
 alter table t add unique index(c);
-ERROR 23000: Duplicate entry '1' for key 'c'
+ERROR 23000: Duplicate entry '1' for key 't.c'
 insert into t set a=1;
 drop table t;
 create table t (
@@ -1503,7 +1506,7 @@ t'),(0,1,0,1,'yzgktb'),(0,0,0,0,'zgktb'),(0,0,0,0,'gktbkj'),(0,0,0,0,0),(0,0,1
 0,0,0,0,'mkn'),(0,0,0,0,'knbtoervql'),(0,0,1,0,1),(0,0,0,0,'nbtoerv'),(0,0,0,0
 ,'btoerv'),(0,0,1,0,'toer'),(1,0,0,0,0),(0,0,0,0,'ervq'),(0,0,0,0,'rvqlzsvasu'
 ),(0,0,0,0,'vqlzs'),(0,0,0,0,0),(0,1,0,0,'lzsvasu'),(0,0,0,0,'zsvasurq');
-ERROR 23000: Duplicate entry '00' for key 'c9k'
+ERROR 23000: Duplicate entry '00' for key 't.c9k'
 SELECT
 DISTINCT * FROM t
 FORCE KEY(PRIMARY,c3k,c3,c9k,c9)
@@ -1528,17 +1531,17 @@ CREATE INDEX idx2 ON t(e, c, d);
 ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
 SELECT d FROM t;
 d
-NULL
 17
 20
 30
+NULL
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `d` int GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
   KEY `idx` (`d`),
   KEY `idx2` (`e`,`d`)
@@ -1552,11 +1555,11 @@ Warning	1831	Duplicate index 'idx' defined on the table 'test.t'. This is deprec
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx` (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1564,11 +1567,11 @@ ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`)
@@ -1580,15 +1583,15 @@ ALTER TABLE t ADD INDEX (x), ADD COLUMN k INT, ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
-  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`)
@@ -1599,16 +1602,16 @@ ALTER TABLE t ADD COLUMN l INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (l), ALGORI
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
-  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `i` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`),
@@ -1616,10 +1619,10 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT l FROM t;
 l
-NULL
 25
 37
 57
+NULL
 SELECT * FROM t;
 a	b	e	h	c	x	i	j	k	l
 11	3	11	mm	14	mm	25	NULL	NULL	25
@@ -1637,10 +1640,10 @@ KEY vidx (c, d)
 INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
 SELECT c, d FROM t;
 c	d
-NULL	NULL
-NULL	NULL
-NULL	NULL
 0	0
+NULL	NULL
+NULL	NULL
+NULL	NULL
 SELECT * FROM t;
 a	b	c	d
 0	0	0	0
@@ -1650,10 +1653,10 @@ NULL	NULL	NULL	NULL
 ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
 SELECT d FROM t;
 d
-NULL
-NULL
-NULL
 0
+NULL
+NULL
+NULL
 SELECT * FROM t;
 a	b	d
 0	0	0
@@ -1677,10 +1680,10 @@ NULL	NULL	NULL	NULL
 ALTER TABLE t DROP COLUMN c, ADD INDEX vidx(d), ALGORITHM=INPLACE;
 SELECT d FROM t;
 d
-NULL
-NULL
-NULL
 0
+NULL
+NULL
+NULL
 SELECT * FROM t;
 a	b	d
 0	0	0
@@ -1751,7 +1754,7 @@ INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM = INSTANT;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%t1%';
 instant_cols
-2
+0
 ALTER TABLE t1 ADD COLUMN e INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM = INSTANT;
 DROP TABLE t1;
 #

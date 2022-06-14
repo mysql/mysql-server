@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/plugin.h>
 
-#include "../../components/mysql_server/component_sys_var_service.h"
 #include "my_macros.h"
 #include "typelib.h"
 
@@ -36,12 +35,17 @@ char log_text[MAX_BUFFER_LENGTH];
 FILE *outfile;
 const char *filename = "test_component_sys_var_service_str.log";
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
-#define WRITE_LOG2(format, a1, a2)                  \
-  log_text_len = sprintf(log_text, format, a1, a2); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                                 \
+  log_text_len = sprintf(log_text, format, lit_log_text);               \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
+
+#define WRITE_LOG2(format, a1, a2)                                      \
+  log_text_len = sprintf(log_text, format, a1, a2);                     \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
@@ -59,17 +63,18 @@ static char *str_variable_value;
   the service.
 */
 static mysql_service_status_t test_component_sys_var_service_str_init() {
+  str_variable_value = nullptr;
   unlink(filename);
   outfile = fopen(filename, "w+");
 
   WRITE_LOG("%s\n", "test_component_sys_var_str init:");
 
   STR_CHECK_ARG(str) str_arg;
-  str_arg.def_val = NULL;
+  str_arg.def_val = nullptr;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component_str", "str_sys_var",
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
-          "Registering string sys_variable", NULL, NULL, (void *)&str_arg,
+          "Registering string sys_variable", nullptr, nullptr, (void *)&str_arg,
           (void *)&str_variable_value)) {
     WRITE_LOG("%s\n", "register_variable failed.");
   }
@@ -88,9 +93,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
 
-    /* Use too small buffer, value is 7 bytes long (utf8mb4). */
+    /* Use too small buffer, value is 8 bytes long ("utf8mb4\0"). */
     char var2[7];
-    len = sizeof(var2) - 1;
+    len = sizeof(var2);
     pvar = &var2[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {
@@ -102,10 +107,10 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
 
-    /* Use smallest buffer that can hold the value, value is 7 bytes long
-     * (utf8mb4). */
+    /* Use smallest buffer that can hold the value, value is 8 bytes long
+     * ("utf8mb4\0"). */
     char var3[8];
-    len = sizeof(var3) - 1;
+    len = sizeof(var3);
     pvar = &var3[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {
@@ -118,7 +123,7 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     }
   }
   {
-    char var[160];
+    char var[FN_REFLEN];
     char *pvar;
     size_t len = sizeof(var) - 1;
 
@@ -167,6 +172,7 @@ static mysql_service_status_t test_component_sys_var_service_str_deinit() {
 
   delete[] var_value;
   fclose(outfile);
+  str_variable_value = nullptr;
   return false;
 }
 

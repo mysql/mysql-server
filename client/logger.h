@@ -1,7 +1,7 @@
 #ifndef LOGGER_UTIL_INCLUDED
 #define LOGGER_UTIL_INCLUDED
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ std::ostream &operator<<(std::ostream &os, const Datetime &dt);
 
 class Gen_spaces {
  public:
-  Gen_spaces(int s) { m_spaces.assign(s, ' '); }
+  explicit Gen_spaces(int s) { m_spaces.assign(s, ' '); }
   std::ostream &operator<<(std::ostream &os) { return os; }
   friend std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
 
@@ -48,7 +48,7 @@ std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
 class Log : public std::ostream {
  public:
   Log(std::ostream &str, std::string logclass)
-      : std::ostream(NULL), m_buffer(str, logclass) {
+      : std::ostream(nullptr), m_buffer(str, logclass) {
     this->init(&m_buffer);
   }
   void enabled(bool s) { m_buffer.enabled(s); }
@@ -60,7 +60,8 @@ class Log : public std::ostream {
         : m_os(str), m_logc(logc), m_enabled(true) {}
     void set_log_class(std::string &s) { m_logc = s; }
     void enabled(bool s) { m_enabled = s; }
-    virtual int sync();
+    bool is_enabled() { return m_enabled; }
+    int sync() override;
 
    private:
     std::ostream &m_os;

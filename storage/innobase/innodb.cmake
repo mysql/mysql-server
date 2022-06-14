@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,11 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
-IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+IF(LZ4_LIBRARY)
   ADD_DEFINITIONS(-DHAVE_LZ4=1)
-  INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
 ENDIF()
+
+#ADD_DEFINITIONS("-O0")
 
 # OS tests
 IF(UNIX AND NOT IGNORE_AIO_CHECK)
@@ -59,22 +60,18 @@ ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Turn off unused parameter warnings.
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
   # Turn off warnings about implicit casting away const.
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-cast-qual")
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-# After: WL#5825 Using C++ Standard Library with MySQL code
-#       we no longer use -fno-exceptions
-#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
-
-# Add -Wconversion if compiling with GCC
-## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
-## please fix them and enable the following code:
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+IF(MY_COMPILER_IS_GNU)
+  # Add -Wconversion if compiling with GCC
+  ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
+  ## please fix them and enable the following code:
+  #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 
   IF (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR
       CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
@@ -83,7 +80,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     IF (HAVE_NO_BUILTIN_MEMCMP)
       # Work around http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
       SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0cmp.cc
-	PROPERTIES COMPILE_FLAGS -fno-builtin-memcmp)
+        PROPERTIES COMPILE_FLAGS -fno-builtin-memcmp)
     ENDIF()
   ENDIF()
 ENDIF()
@@ -135,10 +132,31 @@ IF(NOT MSVC)
   }"
   HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
   )
+  CHECK_C_SOURCE_COMPILES(
+  "
+  #ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+  #endif
+  #include <fcntl.h>
+  #include <linux/falloc.h>
+  int main()
+  {
+    /* Ignore the return value for now. Check if the flags exist.
+    The return value is checked  at runtime. */
+    fallocate(0, FALLOC_FL_ZERO_RANGE, 0, 0);
+
+    return(0);
+  }"
+  HAVE_FALLOC_FL_ZERO_RANGE
+  )
 ENDIF()
 
 IF(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE)
  ADD_DEFINITIONS(-DHAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE=1)
+ENDIF()
+
+IF(HAVE_FALLOC_FL_ZERO_RANGE)
+ ADD_DEFINITIONS(-DHAVE_FALLOC_FL_ZERO_RANGE=1)
 ENDIF()
 
 IF(NOT MSVC)
@@ -162,21 +180,6 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_THREAD_FENCE
   )
-  CHECK_C_SOURCE_RUNS(
-  "#include<stdint.h>
-  int main()
-  {
-    unsigned char	a = 0;
-    unsigned char	b = 0;
-    unsigned char	c = 1;
-
-    __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
-    __atomic_compare_exchange(&a, &b, &c, 0,
-			      __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
-    return(0);
-  }"
-  HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
-  )
 ENDIF()
 
 IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
@@ -185,36 +188,6 @@ ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_THREAD_FENCE=1)
-ENDIF()
-
-IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
- ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
-ENDIF()
-
- # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
-IF(NOT CMAKE_CROSSCOMPILING)
-  CHECK_C_SOURCE_RUNS(
-  "
-  #include <pthread.h>
-  #include <string.h>
-
-  int main() {
-    pthread_t       x1;
-    pthread_t       x2;
-    pthread_t       x3;
-
-    memset(&x1, 0x0, sizeof(x1));
-    memset(&x2, 0x0, sizeof(x2));
-    memset(&x3, 0x0, sizeof(x3));
-
-    __sync_bool_compare_and_swap(&x1, x2, x3);
-
-    return(0);
-  }"
-  HAVE_IB_ATOMIC_PTHREAD_T_GCC)
-ENDIF()
-IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
-  ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_GCC=1)
 ENDIF()
 
 # Only use futexes on Linux if GCC atomics are available
@@ -230,24 +203,24 @@ IF(NOT MSVC AND NOT CMAKE_CROSSCOMPILING)
   #include <sys/syscall.h>
 
    int futex_wait(int* futex, int v) {
-	return(syscall(SYS_futex, futex, FUTEX_WAIT_PRIVATE, v, NULL, NULL, 0));
+        return(syscall(SYS_futex, futex, FUTEX_WAIT_PRIVATE, v, NULL, NULL, 0));
    }
 
    int futex_signal(int* futex) {
-	return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
+        return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
    }
 
   int main() {
-	int	ret;
-	int	m = 1;
+        int     ret;
+        int     m = 1;
 
-	/* It is setup to fail and return EWOULDBLOCK. */
-	ret = futex_wait(&m, 0);
-	assert(ret == -1 && errno == EWOULDBLOCK);
-	/* Shouldn't wake up any threads. */
-	assert(futex_signal(&m) == 0);
+        /* It is setup to fail and return EWOULDBLOCK. */
+        ret = futex_wait(&m, 0);
+        assert(ret == -1 && errno == EWOULDBLOCK);
+        /* Shouldn't wake up any threads. */
+        assert(futex_signal(&m) == 0);
 
-	return(0);
+        return(0);
   }"
   HAVE_IB_LINUX_FUTEX)
 ENDIF()
@@ -288,6 +261,6 @@ ENDIF()
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
-		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
-		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/include
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
+                    )

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 # NOTE: grep these for CPACK_COMPONENT, rest of the name is dynamically generated
 
 SET(CPACK_COMPONENTS_USED
-    "Router;SharedLibraries")
+    "Router;SharedLibraries;Info")
 
 # Some components are optional
 # We will build MSI without optional components that are not selected for build

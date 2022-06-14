@@ -1,0 +1,97 @@
+/*
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ */
+syntax = "proto2";
+
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
+
+// ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
+
+/**
+@namespace Mysqlx::Expect
+@brief Expect operations
+
+@par Tip
+    For more information, see @ref mysqlx_protocol_expectations "Expectations".
+*/
+package Mysqlx.Expect;
+option java_package = "com.mysql.cj.x.protobuf";
+
+
+/**
+Open an Expect block and set/unset the conditions that have to
+be fulfilled.
+
+If any of the conditions fail, all enclosed messages will fail
+with a ``Mysqlx::Error`` message.
+
+@returns @ref Mysqlx::Ok on success, @ref Mysqlx::Error on error
+*/
+message Open {
+  message Condition {
+    enum Key {
+      /** Change error propagation behaviour */
+      EXPECT_NO_ERROR = 1;
+
+      /** Check if X Protocol field exists */
+      EXPECT_FIELD_EXIST = 2;
+
+      /** Check if X Protocol supports document _id generation */
+      EXPECT_DOCID_GENERATED = 3;
+    }
+    enum ConditionOperation {
+      /** set the condition; set, if not set; overwrite, if set */
+      EXPECT_OP_SET = 0;
+
+      /** unset the condition */
+      EXPECT_OP_UNSET = 1;
+    }
+    required uint32 condition_key = 1;
+    optional bytes condition_value = 2;
+    optional ConditionOperation op = 3 [ default = EXPECT_OP_SET ];
+  }
+  enum CtxOperation {
+    /** copy the operations from the parent Expect-block */
+    EXPECT_CTX_COPY_PREV = 0;
+
+    /** start with a empty set of operations */
+    EXPECT_CTX_EMPTY = 1;
+  }
+  optional CtxOperation op = 1 [ default = EXPECT_CTX_COPY_PREV ];
+  repeated Condition cond = 2;
+
+  option (client_message_id) = EXPECT_OPEN; // comment_out_if PROTOBUF_LITE
+}
+
+/**
+Close a Expect block.
+
+Closing a Expect block restores the state of the previous Expect
+block for the following messages.
+
+@returns @ref Mysqlx::Ok on success,  @ref Mysqlx::Error on error
+*/
+message Close {
+  option (client_message_id) = EXPECT_CLOSE; // comment_out_if PROTOBUF_LITE
+}
+

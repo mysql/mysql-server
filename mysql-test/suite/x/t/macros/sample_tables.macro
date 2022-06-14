@@ -1,0 +1,58 @@
+## This include file contains following macros:
+#
+# * Create_table_xtbl_with_phrase_and_prio
+# * Create_collection_coll_with_phrase_and_prio
+#
+
+
+-->macro Create_table_xtbl_with_phrase_and_prio
+echo # Create table "xtbl" and fill it with data;
+quiet;
+noquery_result;
+DROP TABLE IF EXISTS xtbl;
+CREATE TABLE xtbl (phrase VARCHAR(30), prio INTEGER);
+INSERT INTO xtbl (phrase, prio) VALUES ('Alice has a cat', 1);
+INSERT INTO xtbl (phrase, prio) VALUES ('Bob has a dog 1', 2);
+INSERT INTO xtbl (phrase, prio) VALUES ('Peppa has a teddy', 1);
+INSERT INTO xtbl (phrase, prio) VALUES ('Bob has a dog 2', 3);
+query_result;
+noquiet;
+-->endmacro
+
+
+-->macro internal_coll_insert	%ROW%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+      type: V_STRING
+      v_string {
+        value: "%ROW%"
+      }
+    }}
+  }
+}
+recvresult;
+-->endmacro
+
+
+-->macro Create_collection_coll_with_phrase_and_prio
+quiet;
+noquery_result;
+DROP TABLE IF EXISTS coll;
+echo # Create collection "coll" and fill it with data;
+stmtadmin create_collection	{"schema":"xtest","name":"coll"};
+recvresult;
+callmacro internal_coll_insert	{\"foo\": \"Alice has a cat\", \"prio\": 1};
+callmacro internal_coll_insert	{\"foo\": \"Bob has a dog 1\", \"prio\": 2};
+callmacro internal_coll_insert	{\"foo\": \"Peppa has a teddy\", \"prio\": 1};
+callmacro internal_coll_insert	{\"foo\": \"Bob has a dog 2\", \"prio\": 3};
+noquiet;
+query_result;
+-->endmacro

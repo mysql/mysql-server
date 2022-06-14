@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,92 +25,73 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
-#include "mysqlrouter/plugin_config.h"
-#include "socket_operations.h"
-#include "tcp_address.h"
+#include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/routing_export.h"
 
+#include <chrono>
 #include <map>
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <poll.h>
-#endif
-
-#ifdef _WIN32
-typedef ULONG nfds_t;
-typedef long ssize_t;
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
 namespace routing {
 
-/** @brief Timeout for idling clients (in seconds)
+/** Timeout for idling clients (in seconds).
  *
  * Constant defining how long (in seconds) a client can keep the connection
  * idling. This is similar to the wait_timeout variable in the MySQL Server.
+ *
+ * 0 == no timeout used.
  */
-extern const int kDefaultWaitTimeout;
+constexpr const int kDefaultWaitTimeout{0};
 
-/** @brief Max number of active routes for this routing instance */
-extern const int kDefaultMaxConnections;
+/** Max number of active routes for this routing instance.
+ *
+ * 0 == no limit per route
+ */
+constexpr const int kDefaultMaxConnections{0};
 
-/** @brief Timeout connecting to destination (in seconds)
+/** Timeout connecting to destination (in seconds).
  *
  * Constant defining how long we wait to establish connection with the server
  * before we give up.
  */
-extern const std::chrono::seconds kDefaultDestinationConnectionTimeout;
+constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{
+    mysqlrouter::MySQLSession::kDefaultConnectTimeout};
 
-/** @brief Maximum connect or handshake errors per host
+/** Maximum connect or handshake errors per host.
  *
  * Maximum connect or handshake errors after which a host will be
  * blocked. Such errors can happen when the client does not reply
  * the handshake, sends an incorrect packet, or garbage.
- *
  */
-extern const unsigned long long kDefaultMaxConnectErrors;
+constexpr const unsigned long long kDefaultMaxConnectErrors{100};
 
-/** @brief Maximum connect or handshake errors per host
- *
- * Maximum connect or handshake errors after which a host will be
- * blocked. Such errors can happen when the client does not reply
- * the handshake, sends an incorrect packet, or garbage.
- *
+/**
+ * Default bind address.
  */
-extern const unsigned long long kDefaultMaxConnectErrors;
+constexpr const std::string_view kDefaultBindAddress{"127.0.0.1"};
 
-/** @brief Default bind address
- *
- */
-extern const std::string kDefaultBindAddress;
-
-/** @brief Default net buffer length
+/** Default net buffer length.
  *
  * Default network buffer length which can be set in the MySQL Server.
  *
  * This should match the default of the latest MySQL Server.
  */
-extern const unsigned int kDefaultNetBufferLength;
+constexpr const unsigned int kDefaultNetBufferLength{16384};
 
-/** @brief Timeout waiting for handshake response from client
+/**
+ * Timeout waiting for handshake response from client.
  *
  * The number of seconds that MySQL Router waits for a handshake response.
  * The default value is 9 seconds (default MySQL Server minus 1).
- *
  */
-extern const std::chrono::seconds kDefaultClientConnectTimeout;
+constexpr const std::chrono::seconds kDefaultClientConnectTimeout{9};
 
-#ifdef _WIN32
-const SOCKET kInvalidSocket =
-    INVALID_SOCKET;  // windows defines INVALID_SOCKET already
-#else
-const int kInvalidSocket = -1;
-#endif
+/**
+ * The number of seconds that MySQL Router waits between checking for
+ * reachability of an unreachable destination.
+ */
+constexpr const std::chrono::seconds
+    kDefaultUnreachableDestinationRefreshInterval{1};
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
@@ -131,7 +112,7 @@ enum class RoutingStrategy {
 /** @brief Get comma separated list of all access mode names
  *
  */
-std::string get_access_mode_names();
+std::string ROUTING_EXPORT get_access_mode_names();
 
 /** @brief Returns AccessMode for its literal representation
  *
@@ -141,7 +122,7 @@ std::string get_access_mode_names();
  * @param value literal representation of the access mode
  * @return AccessMode for the given string or AccessMode::kUndefined
  */
-AccessMode get_access_mode(const std::string &value);
+AccessMode ROUTING_EXPORT get_access_mode(const std::string &value);
 
 /** @brief Returns literal name of given access mode
  *
@@ -151,7 +132,8 @@ AccessMode get_access_mode(const std::string &value);
  * @param access_mode Access mode to look up
  * @return Name of access mode as std::string or empty string
  */
-std::string get_access_mode_name(AccessMode access_mode) noexcept;
+std::string ROUTING_EXPORT
+get_access_mode_name(AccessMode access_mode) noexcept;
 
 /** @brief Get comma separated list of all routing stategy names
  *         for a given routing type (metadata cache or static)
@@ -161,7 +143,7 @@ std::string get_access_mode_name(AccessMode access_mode) noexcept;
  *                       strategies supported for metadata_cache
  *                        or static routing
  */
-std::string get_routing_strategy_names(bool metadata_cache);
+std::string ROUTING_EXPORT get_routing_strategy_names(bool metadata_cache);
 
 /** @brief Returns RoutingStrategy for its literal representation
  *
@@ -171,7 +153,7 @@ std::string get_routing_strategy_names(bool metadata_cache);
  * @param value literal representation of the access mode
  * @return RoutingStrategy for the given string or RoutingStrategy::kUndefined
  */
-RoutingStrategy get_routing_strategy(const std::string &value);
+RoutingStrategy ROUTING_EXPORT get_routing_strategy(const std::string &value);
 
 /** @brief Returns literal name of given routing strategy
  *
@@ -181,64 +163,8 @@ RoutingStrategy get_routing_strategy(const std::string &value);
  * @param routing_strategy Routing strategy to look up
  * @return Name of routing strategy as std::string or empty string
  */
-std::string get_routing_strategy_name(
-    RoutingStrategy routing_strategy) noexcept;
-
-/** @class RoutingSockOpsInterface
- * @brief Interface class to allow multiple RoutingSockOps implementations
- *        (at least one "real" and one mock for testing purposes)
- */
-class RoutingSockOpsInterface {
- public:
-  virtual ~RoutingSockOpsInterface() = default;
-  virtual int get_mysql_socket(mysql_harness::TCPAddress addr,
-                               std::chrono::milliseconds connect_timeout_ms,
-                               bool log = true) noexcept = 0;
-  virtual mysql_harness::SocketOperationsBase *so() const = 0;
-};
-
-/** @class RoutingSockOps
- * @brief This class provides a "real" (not mock) implementation
- */
-class RoutingSockOps : public RoutingSockOpsInterface {
- public:
-  RoutingSockOps(mysql_harness::SocketOperationsBase *sock_ops)
-      : so_(sock_ops) {}
-
-  static RoutingSockOps *instance(
-      mysql_harness::SocketOperationsBase *sock_ops);
-
-  /** @brief Returns socket descriptor of connected MySQL server
-   *
-   * Iterates through all available connections (until it succesfully connects)
-   * to the selected address as returned by getaddrinfo()
-   * (see its documentation for the details).
-   * If it's not able to connect via any path, it returns value < 0.
-   *
-   * Returns a socket descriptor for the connection to the MySQL Server or
-   * negative value when error occurred:
-   *  -2 - if connection timeout has expired for at least one of the attempted
-   * paths -1 - in case of any other error
-   *
-   * @param addr information of the server we connect with
-   * @param connect_timeout timeout waiting for connection
-   * @param log whether to log errors or not
-   * @return a socket descriptor
-   */
-  int get_mysql_socket(mysql_harness::TCPAddress addr,
-                       std::chrono::milliseconds connect_timeout,
-                       bool log = true) noexcept override;
-
-  /** @brief Returns SocketOperations implementation used by this class */
-  mysql_harness::SocketOperationsBase *so() const override { return so_; }
-
- private:
-  RoutingSockOps() = default;
-  RoutingSockOps(const RoutingSockOps &) = delete;
-  RoutingSockOps operator=(const RoutingSockOps &) = delete;
-
-  mysql_harness::SocketOperationsBase *so_;
-};
+std::string ROUTING_EXPORT
+get_routing_strategy_name(RoutingStrategy routing_strategy) noexcept;
 
 }  // namespace routing
 

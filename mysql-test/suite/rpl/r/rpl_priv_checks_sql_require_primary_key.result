@@ -1,0 +1,36 @@
+#
+# TC1. Run slave without `SESSION_VARIABLES_ADMIN` privilege
+# ----------------------------------------------------------
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO 'u'@'localhost';
+CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+[connection master]
+SET @@global.sql_require_primary_key = 1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+[connection slave]
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1227]
+#
+# TC2. Run slave with `SESSION_VARIABLES_ADMIN` privilege
+# -------------------------------------------------------
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u'@'localhost';
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@global.sql_require_primary_key = SQL_REQUIRE_PRIMARY_KEY;
+DROP TABLE t1;
+include/rpl_end.inc

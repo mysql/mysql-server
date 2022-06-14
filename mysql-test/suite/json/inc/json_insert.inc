@@ -84,8 +84,6 @@ INSERT INTO t1(j) VALUES (TIMESTAMP '2015-02-24 15:52:00');
 --echo # ----------------------------------------------------------------------
 create table pt1(j json);
 create table pt2(j json);
-prepare ps1 from 'insert into pt1 values (cast(? as json))';
-prepare ps2 from 'insert into pt2 values (?)';
 
 set @a=123;
 set @b='123';
@@ -95,29 +93,84 @@ set @e='"123"';
 set @f='2010-12-01 18:44:25';
 set @g=null;
 
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @a;
+
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @b;
+
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @c;
+
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @d;
+
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @e;
+
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 execute ps1 using @f;
+
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @g;
 
+prepare ps2 from 'insert into pt2 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps2 using @a;
+
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @b;
+
+prepare ps2 from 'insert into pt2 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps2 using @c;
+
+prepare ps2 from 'insert into pt2 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps2 using @d;
+
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @e;
+
+prepare ps2 from 'insert into pt2 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps2 using @f;
+
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @g;
 
 select json_type(j), j from pt1 order by j;
 select json_type(j), j from pt2 order by j;
+
+delete from pt1;
+delete from pt2;
+
+# Check different character sets
+set @string_utf8=CONVERT(x'616263C3A6C3B8C3A578797A' USING utf8mb4);
+set @json_utf8=CONCAT('{"label" : "', @string_utf8, '"}');
+set @json_latin1=CONVERT(@json_utf8 USING LATIN1);
+select @string_utf8, @json_utf8, @json_latin1;
+
+execute ps1 using @json_utf8;
+execute ps1 using @json_latin1;
+execute ps2 using @json_utf8;
+execute ps2 using @json_latin1;
+
+set @string_ucs2=_ucs2 0x0627064A0631062706460650;
+# What to expect when reading from the JSON column:
+select HEX(CONVERT(@string_ucs2 USING utf8mb4));
+set @json_ucs2=CONCAT('{"label" : "', @string_ucs2, '"}');
+# Check it's a UCS2 string:
+select collation(@json_ucs2);
+
+# insert:
+execute ps1 using @json_ucs2;
+execute ps2 using @json_ucs2;
+
+# and read:
+select hex(j->>"$.label") from pt1 order by (j->>"$.label");
+select hex(j->>"$.label") from pt2 order by (j->>"$.label");
 
 drop prepare ps1;
 drop prepare ps2;

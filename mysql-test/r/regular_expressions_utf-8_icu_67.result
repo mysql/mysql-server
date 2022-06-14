@@ -1,0 +1,9 @@
+#
+# Bug #33290090 regression:
+#               bool regexp::check_icu_status: Assertion `false' failed.
+#
+SELECT "hello hello" regexp '\\X' as yesno;
+yesno
+1
+Warnings:
+Note	4077	Regular expression library used default (root) locale.

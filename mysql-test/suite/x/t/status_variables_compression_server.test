@@ -1,0 +1,124 @@
+## Compression done on server side
+#
+# server->client: Mysqlx.Connection.Compression
+#
+# In which X Plugin compress by default following messages
+#
+# * NOTICE - 11, 0x0b
+# * RESULTSET_COLUMN_META_DATA - 12, 0x0c
+# * RESULTSET_ROW  - 13, 0x0d
+# * RESULTSET_FETCH_DONE - 14, 0x0e
+#
+# followed with uncompressed:
+#
+# * SQL_STMT_EXECUTE_OK = 17   0x11
+#
+# The server is going to use following messages to transfer
+# compressed payload:
+#
+# * COMPRESSION = 19;   0x13
+#
+# The goal of this test is to verify that after enabling compression,
+# and sending compressed messages be the server, following system variables
+# are incremented:
+#
+# * Mysqlx_bytes_sent_compressed_payload
+# * Mysqlx_bytes_sent_uncompressed_frame
+#
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/compression_server.xpl
+-->import connection.macro
+use performance_schema;
+
+SELECT (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_sent') ,
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'Mysqlx_bytes_sent_compressed_payload'),
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'Mysqlx_bytes_sent_uncompressed_frame')
+       INTO @send1,@send_comp1,@send_uncomp1;
+
+stmtsql SHOW STATUS LIKE 'Mysqlx_%';
+recvresult be-quiet;
+
+SELECT (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_sent') ,
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'Mysqlx_bytes_sent_compressed_payload'),
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'Mysqlx_bytes_sent_uncompressed_frame')
+       INTO @send2,@send_comp2,@send_uncomp2;
+
+stmtsql SHOW STATUS LIKE 'Mysqlx_%';
+recvresult be-quiet;
+
+SELECT (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_sent') ,
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'Mysqlx_bytes_sent_compressed_payload'),
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'Mysqlx_bytes_sent_uncompressed_frame')
+       INTO @send3,@send_comp3,@send_uncomp3;
+
+#
+#Following SQL code may give different results of different configurations, machines, linking liblaries.
+#
+## echo;
+## echo # Compression ratio only for the first query;
+## SELECT @send2-@send1 as tot_bytes_in_last_query , (@send_uncomp2 - @send_uncomp1) as uncompressed,
+##        (@send_comp2 - @send_comp1) as compressed, (@send_uncomp2 -@send_uncomp1) / (@send_comp2 - @send_comp1) as ratio;
+##
+##
+## echo;
+## echo # Compression ratio only for the second query;
+## SELECT @send3-@send2 as tot_bytes_in_last_query , (@send_uncomp3 - @send_uncomp2) as uncompressed, (@send_comp3 - @send_comp2) as compressed,
+##        (@send_uncomp3 -@send_uncomp2) / (@send_comp3 - @send_comp2) as ratio;
+#
+# Thus it can't be tested here directly, instead it will test if relations between cocnrete variables.
+#
+
+import assert_select.macro;
+
+callmacro Assert_select0	1	SELECT @send3 > 0;
+callmacro Assert_select0	1	SELECT @send2 > 0;
+callmacro Assert_select0	1	SELECT @send1 > 0;
+
+callmacro Assert_select0	1	SELECT @send_uncomp3 > 0;
+callmacro Assert_select0	1	SELECT @send_uncomp2 > 0;
+callmacro Assert_select0	1	SELECT @send_uncomp3 > 0+@send_uncomp2;
+
+callmacro Assert_select0	1	SELECT @send_comp3 > 0;
+callmacro Assert_select0	1	SELECT @send_comp2 > 0;
+# There is some bug here, doing "SELECT @send_comp3 > @send_comp2" is going to fail !
+callmacro Assert_select0	1	SELECT @send_comp3 > 0+@send_comp2;
+
+# Following SQL is not true for every algorithm.
+# Only stream algorithm will improved ratio after processing more data.
+#
+##SELECT (@send_comp2 - @send_comp1), (@send_comp3 - @send_comp2);
+##callmacro Assert_select0	1	SELECT (@send_comp2 - @send_comp1) > (@send_comp3 - @send_comp2);
+#
+
+EOF
+
+echo ## 1. Verify compression at server side using ZLIB algorithm;
+exec $MYSQLXTEST
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  --compression-combine-mixed-messages=1
+  --compression-max-combine-messages=0
+  -ux_root --password='' --file=$MYSQL_TMP_DIR/compression_server.xpl 2>&1;
+
+echo ## 2. Verify compression at server side using LZ4frame algorithm;
+exec $MYSQLXTEST
+  --compression-mode=required
+  --compression-algorithm=lz4_message
+  --compression-combine-mixed-messages=1
+  --compression-max-combine-messages=0
+  -ux_root --password='' --file=$MYSQL_TMP_DIR/compression_server.xpl 2>&1;
+
+echo ## 3. Verify compression at server side using ZSTD algorithm;
+exec $MYSQLXTEST
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  --compression-combine-mixed-messages=1
+  --compression-max-combine-messages=0
+  -ux_root --password='' --file=$MYSQL_TMP_DIR/compression_server.xpl 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

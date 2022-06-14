@@ -60,12 +60,10 @@ Mysqlx.Connection.CapabilitiesSet {
 }
 -->endmacro
 
--->macro Assert_no_attribute_inserted
+-->macro Assert_no_attribute_inserted	%KEY%
 -->login x_root
--->stmtsql SELECT COUNT(ATTR_VALUE) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME="%TEST_KEY%";
--->recvtovar %COUNT%
 -->echo [Assert that no session connect attributes were inserted]
--->assert_eq %COUNT%	0
+-->wait_for 0	SELECT COUNT(ATTR_VALUE) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME="%KEY%";
 -->endmacro
 
 -->macro Check_connect_attributes	%KEY%	%VALUE%

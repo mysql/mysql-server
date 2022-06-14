@@ -111,3 +111,27 @@ DISCONNECT con1;
 DROP TABLE t1;
 DROP PREPARE stmt;
 SET DEBUG_SYNC=RESET;
+
+--echo #
+--echo # WL#13369: Read only schema
+--echo #
+--echo # Test parsing of corrupted property string.
+--echo #
+
+CREATE SCHEMA s;
+SELECT SCHEMA_NAME, OPTIONS FROM INFORMATION_SCHEMA.SCHEMATA_EXTENSIONS
+  WHERE SCHEMA_NAME = 's';
+
+SET debug = '+d,skip_dd_table_access_check';
+UPDATE mysql.schemata SET options = 'abc' WHERE name = 's';
+SELECT options FROM mysql.schemata WHERE name = 's';
+
+SET debug = '+d,continue_on_property_string_parse_failure';
+SELECT SCHEMA_NAME, OPTIONS FROM INFORMATION_SCHEMA.SCHEMATA_EXTENSIONS
+  WHERE SCHEMA_NAME = 's';
+
+SET debug = DEFAULT;
+DROP SCHEMA s;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+--let SEARCH_PATTERN= Could not parse key-value pairs in property string 'abc'
+--source include/search_pattern.inc

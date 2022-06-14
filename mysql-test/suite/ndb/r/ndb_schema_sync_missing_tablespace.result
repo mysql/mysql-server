@@ -1,0 +1,108 @@
+Backup from 7.6 restored
+Restart server 1 to trigger schema synchronization
+# restart: --debug=d,ndb_install_tablespace_fail
+Restart server 2 to trigger schema synchronization
+# restart: --debug=d,ndb_install_tablespace_fail
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b
+1	Sad Cypress
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b
+1	Sad Cypress
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+a
+1
+2
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB
+TABLESPACE ts1
+STORAGE DISK;
+INSERT INTO t1 VALUES (1,'And Then There Were None');
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+Restart server 1 to trigger schema synchronization
+# restart: --debug=d,ndb_install_tablespace_fail
+Restart server 2 to trigger schema synchronization
+# restart: --debug=d,ndb_install_tablespace_fail
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+1	And Then There Were None
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+1	And Then There Were None
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+a
+1
+2
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;

@@ -1,0 +1,32 @@
+#
+# Check creating table with record size at the limits of
+# what is supported by NDB and MySQL
+#
+CREATE TABLE t1(
+col1 int unsigned not null primary key,
+col3 varchar(15000),
+col4 varchar(14000))
+charset=latin1 engine=ndbcluster;
+drop table t1;
+CREATE TABLE t2(
+col1 int unsigned not null primary key,
+col3 varchar(15000),
+col4 varchar(14990))
+charset=latin1 engine=ndbcluster;
+drop table t2;
+CREATE TABLE t3_too_large_for_ndb(
+col1 int unsigned not null primary key,
+col3 varchar(15000),
+col4 varchar(14991))
+charset=latin1 engine=ndbcluster;
+ERROR HY000: Can't create table 't3_too_large_for_ndb' (use SHOW WARNINGS for more info).
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1005	Can't create table 't3_too_large_for_ndb' (use SHOW WARNINGS for more info).
+CREATE TABLE t4_too_large_for_mysql(
+col1 int unsigned not null primary key,
+col3 varchar(35000),
+col4 varchar(35000))
+charset=latin1 engine=ndbcluster;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs

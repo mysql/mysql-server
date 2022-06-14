@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include "filesystem_utils.h"
+
+#include <fstream>
+#include <sstream>
+
+#include <gmock/gmock.h>
+
 #include "gtest_consoleoutput.h"
+#include "mysql/harness/access_rights.h"
 #include "mysql/harness/filesystem.h"
 
 /** @file
@@ -36,80 +43,59 @@ namespace {
 
 #ifdef _WIN32
 
-using mysql_harness::SecurityDescriptorPtr;
-using mysql_harness::SidPtr;
-
-void check_ace_access_rights_local_service(const std::string &file_name,
-                                           ACCESS_ALLOWED_ACE *access_ace,
-                                           const bool read_only,
-                                           bool &is_local_service_ace) {
-  is_local_service_ace = false;
-  SID *sid = reinterpret_cast<SID *>(&access_ace->SidStart);
-  DWORD sid_size = SECURITY_MAX_SID_SIZE;
-  SidPtr local_service_sid(static_cast<SID *>(std::malloc(sid_size)));
-
-  if (CreateWellKnownSid(WinLocalServiceSid, nullptr, local_service_sid.get(),
-                         &sid_size) == FALSE) {
-    throw std::runtime_error("CreateWellKnownSid() failed: " +
-                             std::to_string(GetLastError()));
+void check_ace_access_rights_local_service(
+    const std::string &file_name,
+    const mysql_harness::win32::access_rights::AccessAllowedAce &access_ace,
+    const bool read_only) {
+  if (access_ace.mask() & (FILE_EXECUTE)) {
+    FAIL() << "Invalid file access rights for file " << file_name
+           << " (Execute privilege granted to Local Service user).";
   }
 
-  if (EqualSid(sid, local_service_sid.get())) {
-    if (access_ace->Mask & (FILE_EXECUTE)) {
+  const auto read_perm = FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES;
+  if ((access_ace.mask() & read_perm) != read_perm) {
+    FAIL() << "Invalid file access rights for file " << file_name
+           << "(Read privilege for Local Service user missing).";
+  }
+
+  const auto write_perm =
+      FILE_WRITE_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES;
+  if (read_only) {
+    if ((access_ace.mask() & write_perm) != 0) {
       FAIL() << "Invalid file access rights for file " << file_name
-             << " (Execute privilege granted to Local Service user).";
+             << "(Write privilege for Local Service user not expected).";
     }
-
-    const auto read_perm = FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES;
-    if ((access_ace->Mask & read_perm) != read_perm) {
+  } else {
+    if ((access_ace.mask() & write_perm) != write_perm) {
       FAIL() << "Invalid file access rights for file " << file_name
-             << "(Read privilege for Local Service user missing).";
+             << "(Write privilege for Local Service user missing).";
     }
-
-    const auto write_perm =
-        FILE_WRITE_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES;
-    if (read_only) {
-      if ((access_ace->Mask & write_perm) != 0) {
-        FAIL() << "Invalid file access rights for file " << file_name
-               << "(Write privilege for Local Service user not expected).";
-      }
-    } else {
-      if ((access_ace->Mask & write_perm) != write_perm) {
-        FAIL() << "Invalid file access rights for file " << file_name
-               << "(Write privilege for Local Service user missing).";
-      }
-    }
-
-    is_local_service_ace = true;
   }
 }
 
 void check_acl_access_rights_local_service(const std::string &file_name,
                                            ACL *dacl, const bool read_only) {
-  ACL_SIZE_INFORMATION dacl_size_info;
+  auto sid_res = mysql_harness::win32::access_rights::create_well_known_sid(
+      WinLocalServiceSid);
 
-  if (GetAclInformation(dacl, &dacl_size_info, sizeof(dacl_size_info),
-                        AclSizeInformation) == FALSE) {
-    throw std::runtime_error("GetAclInformation() failed: " +
-                             std::to_string(GetLastError()));
+  if (!sid_res) {
+    auto ec = sid_res.error();
+
+    FAIL() << "getting the sid for 'LocalService' failed :( " << ec;
   }
 
+  mysql_harness::win32::access_rights::Sid local_service_sid{sid_res->get()};
+
   bool checked_local_service_ace = false;
-  for (DWORD ace_idx = 0; ace_idx < dacl_size_info.AceCount; ++ace_idx) {
-    LPVOID ace = nullptr;
+  for (auto const &ace : mysql_harness::win32::access_rights::Acl(dacl)) {
+    if (ace.type() != ACCESS_ALLOWED_ACE_TYPE) continue;
 
-    if (GetAce(dacl, ace_idx, &ace) == FALSE) {
-      throw std::runtime_error("GetAce() failed: " +
-                               std::to_string(GetLastError()));
-      continue;
-    }
+    mysql_harness::win32::access_rights::AccessAllowedAce access_ace(
+        static_cast<ACCESS_ALLOWED_ACE *>(ace.data()));
 
-    if (static_cast<ACE_HEADER *>(ace)->AceType == ACCESS_ALLOWED_ACE_TYPE) {
-      bool is_local_service_ace;
-      check_ace_access_rights_local_service(
-          file_name, static_cast<ACCESS_ALLOWED_ACE *>(ace), read_only,
-          is_local_service_ace);
-      checked_local_service_ace |= is_local_service_ace;
+    if (access_ace.sid() == local_service_sid) {
+      check_ace_access_rights_local_service(file_name, access_ace, read_only);
+      checked_local_service_ace |= true;
     }
   }
 
@@ -118,26 +104,30 @@ void check_acl_access_rights_local_service(const std::string &file_name,
            << file_name << "'.";
 }
 
-void check_security_descriptor_access_rights(const std::string &file_name,
-                                             SecurityDescriptorPtr &sec_desc,
-                                             bool read_only) {
-  BOOL dacl_present;
-  ACL *dacl;
-  BOOL dacl_defaulted;
+void check_security_descriptor_access_rights(
+    const std::string &file_name,
+    mysql_harness::security_descriptor_type &sec_desc, bool read_only) {
+  auto optional_dacl_res =
+      mysql_harness::win32::access_rights::SecurityDescriptor(sec_desc.get())
+          .dacl();
 
-  if (GetSecurityDescriptorDacl(sec_desc.get(), &dacl_present, &dacl,
-                                &dacl_defaulted) == FALSE) {
-    throw std::runtime_error("GetSecurityDescriptorDacl() failed: " +
-                             std::to_string(GetLastError()));
+  if (!optional_dacl_res) {
+    auto ec = optional_dacl_res.error();
+
+    FAIL() << "getting the dacl failed :( " << ec;
   }
 
-  if (!dacl_present) {
+  auto optional_dacl = std::move(optional_dacl_res.value());
+
+  if (!optional_dacl) {
     // No DACL means: no access allowed. That's not good.
     FAIL() << "No access allowed to file: " << file_name;
     return;
   }
 
-  if (!dacl) {
+  auto *dacl = std::move(optional_dacl.value());
+
+  if (dacl == nullptr) {
     // Empty DACL means: all access allowed.
     FAIL() << "Invalid file " << file_name
            << " access rights "
@@ -153,34 +143,25 @@ void check_security_descriptor_access_rights(const std::string &file_name,
 
 void check_config_file_access_rights(const std::string &file_name,
                                      const bool read_only) {
+  auto rights_res = mysql_harness::access_rights_get(file_name);
+  if (!rights_res) {
+    auto ec = rights_res.error();
+
+    FAIL() << "get-access-rights() failed: " << ec;
+  }
+
 #ifdef _WIN32
-  SecurityDescriptorPtr sec_descr;
-  try {
-    sec_descr = mysql_harness::get_security_descriptor(file_name);
-  } catch (const std::system_error &) {
-    // that means that the system does not support ACL, in that case nothing
-    // really to check
-    return;
-  }
-  check_security_descriptor_access_rights(file_name, sec_descr, read_only);
+  check_security_descriptor_access_rights(file_name, rights_res.value(),
+                                          read_only);
 #else
-  // on other OSes we ALWAYS expect 600 access rights for the config file
-  // weather it's static or dynamic one
-  (void)read_only;
-  struct stat status;
+  (void)read_only;  // unused.
 
-  if (stat(file_name.c_str(), &status) != 0) {
-    if (errno == ENOENT) return;
-    FAIL() << "stat() failed (" << file_name
-           << "): " << mysql_harness::get_strerror(errno);
-  }
-
-  static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);
-  static constexpr mode_t kRequiredAccessMask = (S_IRUSR | S_IWUSR);
-
-  if ((status.st_mode & kFullAccessMask) != kRequiredAccessMask)
+  auto verify_res = mysql_harness::access_rights_verify(
+      rights_res.value(), mysql_harness::AllowUserReadWritableVerifier());
+  if (!verify_res) {
     FAIL() << "Config file (" << file_name
            << ") has file permissions that are not strict enough"
               " (only RW for file's owner is allowed).";
+  }
 #endif
 }

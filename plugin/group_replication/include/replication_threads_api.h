@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,13 +35,11 @@
 
 class Replication_thread_api {
  public:
-  Replication_thread_api(const char *channel_interface)
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface) {}
+  Replication_thread_api(const char *channel_interface);
 
-  Replication_thread_api()
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL) {}
+  Replication_thread_api();
 
-  ~Replication_thread_api() {}
+  ~Replication_thread_api() = default;
 
   /**
     Set the channel name to be used on the interface method invocation.
@@ -74,6 +72,12 @@ class Replication_thread_api {
     @param preserve_logs If logs should be always preserved
     @param public_key_path The file with public key path information
     @param get_public_key Preference to get public key if unavailable.
+    @param compression_algorithm The compression algorithm
+    @param zstd_compression_level The compression level
+    @param tls_version   TLS versions
+    @param tls_ciphersuites Permissible ciphersuites for TLS 1.3.
+    @param ignore_ws_mem_limit Shall ignore write set mem limits
+    @param allow_drop_write_set Shall not require write set to be preserved
 
     @return the operation status
       @retval 0      OK
@@ -85,7 +89,11 @@ class Replication_thread_api {
                          char *ssl_crl, char *ssl_crlpath,
                          bool ssl_verify_server_cert, int priority,
                          int retry_count, bool preserve_logs,
-                         char *public_key_path, bool get_public_key);
+                         char *public_key_path, bool get_public_key,
+                         char *compression_algorithm,
+                         uint zstd_compression_level, char *tls_version,
+                         char *tls_ciphersuites, bool ignore_ws_mem_limit,
+                         bool allow_drop_write_set);
 
   /**
     Start the Applier/Receiver threads according to the given options.
@@ -245,7 +253,8 @@ class Replication_thread_api {
        @retval true   the id matches a SQL or worker thread
        @retval false  the id doesn't match any thread
    */
-  bool is_own_event_applier(my_thread_id id, const char *channel_name = NULL);
+  bool is_own_event_applier(my_thread_id id,
+                            const char *channel_name = nullptr);
 
   /**
      Checks if the given id matches the receiver thread for
@@ -266,8 +275,7 @@ class Replication_thread_api {
                     last GNO of group's already certified transactions
                     on relay log.
 
-    @return
-      @retval       GNO value
+    @retval       GNO value
   */
   rpl_gno get_last_delivered_gno(rpl_sidno sidno);
 
@@ -284,18 +292,17 @@ class Replication_thread_api {
     @param[out] retrieved_set the set in string format.
     @param channel_name the name of the channel to get the information.
 
-    @return
-      @retval true there was an error.
-      @retval false the operation has succeeded.
+    @retval true there was an error.
+    @retval false the operation has succeeded.
   */
   bool get_retrieved_gtid_set(std::string &retrieved_set,
-                              const char *channel_name = NULL);
+                              const char *channel_name = nullptr);
 
   /**
     Checks if the channel's relay log contains partial transaction.
-    @return
-      @retval true  If relaylog contains partial transaction.
-      @retval false If relaylog does not contain partial transaction.
+
+    @retval true  If relaylog contains partial transaction.
+    @retval false If relaylog does not contain partial transaction.
   */
   bool is_partial_transaction_on_relay_log();
 
@@ -305,15 +312,34 @@ class Replication_thread_api {
 
     @param threads_to_stop      The types of threads to be stopped
     @param timeout              The max time in which the thread should stop
-    @param ecode                The error message code
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  static int rpl_channel_stop_all(
-      int threads_to_stop, long timeout,
-      int ecode = ER_GRP_RPL_ERROR_STOPPING_CHANNELS);
+  static int rpl_channel_stop_all(int threads_to_stop, long timeout);
+
+  /**
+    Interface to kill binlog dump thread.
+    Kills binlog dump thread thus killing all slave connections.
+    @note binlog dump GTID thread is not killed as of now.
+
+    @return the operation status
+      @retval 0      OK
+  */
+  static int rpl_binlog_dump_thread_kill();
+
+  /**
+    Interface to remove stored credentials from thread api.
+    Removes credentials for the channel from thread api.
+
+    @param channel_name  Credential associated channel name
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  static int delete_credential(const char *channel_name);
 
   /**
     Method to get the credentials configured for a channel
@@ -327,7 +353,33 @@ class Replication_thread_api {
       @retval true    Error, channel not found
   */
   bool get_channel_credentials(std::string &username, std::string &password,
-                               const char *channel_name = NULL);
+                               const char *channel_name = nullptr);
+
+  /**
+      Method to get the network namespace configured for a channel
+
+      @param[out] net_ns      The network namespace to extract
+      @param[in]  channel_name  The name of the channel to get the information.
+
+      @return the operation status
+        @retval false   OK
+        @retval true    Error, channel not found
+    */
+  bool get_channel_network_namespace(std::string &net_ns,
+                                     const char *channel_name = nullptr);
+
+  /**
+    Checks if any channel uses the same UUID for
+    assign_gtids_to_anonymous_transactions as the given uuid
+
+    @param[in]       uuid_param         the group name
+
+    @retval          true               at least one channel has the same uuid
+    @retval          false              none of the the channels have the same
+    uuid
+  */
+  bool is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
+      const char *uuid_param);
 
  private:
   ulong stop_wait_timeout;

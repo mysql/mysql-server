@@ -221,7 +221,7 @@ The router log file says:
     2017-01-24 12:28:30 INFO    [7fc57dfec700] Connected with metadata server running on 127.0.0.1:5500
     2017-01-24 12:28:30 INFO    [7fc57dfec700] Changes detected in cluster 'test' after metadata refresh
     2017-01-24 12:28:30 INFO    [7fc57dfec700] Metadata for cluster 'test' has 1 replicasets:
-    2017-01-24 12:28:30 INFO    [7fc57dfec700] 'default' (3 members, single-master)
+    2017-01-24 12:28:30 INFO    [7fc57dfec700] 'default' (3 members, single-primary)
     2017-01-24 12:28:30 INFO    [7fc57dfec700]     localhost:5100 / 50000 - role=HA mode=RW
     2017-01-24 12:28:30 INFO    [7fc57dfec700]     localhost:5110 / 50100 - role=HA mode=RO
     2017-01-24 12:28:30 INFO    [7fc57dfec700]     localhost:5120 / 50200 - role=HA mode=RO
@@ -231,7 +231,7 @@ The ``metadata-store`` mock outputs:
 
     2017-01-24 12:28:10,322 MAIN INFO: listening on 5500
     2017-01-24 12:28:20,774 MAIN INFO: accepted connection from ('127.0.0.1', 53278)
-    2017-01-24 12:28:20,775 MAIN DEBUG: received: SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, I.version_token, H.location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON F.cluster_id = R.cluster_id JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id = I.replicaset_id JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = H.host_id WHERE F.cluster_name = 'test';
+    2017-01-24 12:28:20,775 MAIN DEBUG: received: SELECT R.replicaset_name, I.mysql_server_uuid, H.location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON F.cluster_id = R.cluster_id JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id = I.replicaset_id JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = H.host_id WHERE F.cluster_name = 'test';
     2017-01-24 12:28:20,775 MAIN DEBUG: sending Result
 
 The ``group-replication`` mock outputs:

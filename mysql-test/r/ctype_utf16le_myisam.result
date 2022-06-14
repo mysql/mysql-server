@@ -134,8 +134,14 @@ a CHAR(10) CHARACTER SET utf16le NOT NULL,
 INDEX a (a)
 ) engine=myisam;
 INSERT INTO t1 VALUES (REPEAT(_ucs2 0x201f, 10));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2020, 10));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2021, 10));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # make sure "index read" is used
 explain SELECT HEX(a) FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

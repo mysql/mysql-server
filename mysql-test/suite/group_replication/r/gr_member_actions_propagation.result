@@ -1,0 +1,35 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start a group in single-primary mode with two members.
+#    The primary is server1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert_grep.inc [Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was triggered]
+[connection server2]
+include/start_group_replication.inc
+include/assert_grep.inc [Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was not triggered]
+
+############################################################
+# 2. Disable the action `mysql_disable_super_read_only_if_primary`
+#    on the primary.
+[connection server1]
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+include/assert.inc [The version of replication_group_member_actions must be 2]
+
+############################################################
+# 3. server2 will receive the member actions configuration
+#    from the primary.
+[connection server2]
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+
+############################################################
+# 4. Clean up.
+include/group_replication_end.inc

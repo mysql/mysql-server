@@ -3,6 +3,8 @@
 * available on all platforms.
 ***********************************************************************
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform.");
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 ***************************************************************
 * 0. Verify that variables present in performance_schema.global
 * variables are actually global variables and can be set using
@@ -31,13 +33,14 @@ SELECT * FROM performance_schema.global_variables
 WHERE variable_name NOT IN
 ('rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
+AND variable_name NOT LIKE 'debug_%'
 ORDER BY variable_name;
 
 include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are checking for fewer ]
 
 # Test SET PERSIST
 
-include/assert.inc [Expect 379 persisted variables in the table.]
+include/assert.inc [Expect 446 persisted variables in the table.]
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -45,9 +48,9 @@ include/assert.inc [Expect 379 persisted variables in the table.]
 ************************************************************
 # restart
 
-include/assert.inc [Expect 379 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 379 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 379 persisted variables with matching peristed and global values.]
+include/assert.inc [Expect 446 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 446 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 446 persisted variables with matching peristed and global values.]
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,64 +24,146 @@
 
 #include "hostname_validator.h"
 
-////////////////////////////////////////
-// Test system include files
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-
-////////////////////////////////////////
-// Standard include files
-
-using mysql_harness::is_valid_hostname;
+#include <gmock/gmock.h>
+#include <gtest/gtest-param-test.h>
+#include <gtest/gtest.h>
 
 /**
  * @file
  * @brief Unit tests for simple hostname validator
  */
 
+struct ValidatorParam {
+  const char *test_name;
+  std::string name;
+
+  bool is_host_name;
+  bool is_domain_name;
+};
+
+class ValidatorTest : public ::testing::Test,
+                      public ::testing::WithParamInterface<ValidatorParam> {};
+
 /**
  * @test verify that is_valid_hostname() returns true for valid hostnames
- *
- * @note Please see function documentation for expected behavior, it may be
- *       surprising.
  */
-TEST(TestHostnameValidator, valid_hostname) {
-  EXPECT_TRUE(is_valid_hostname("foo"));
-  EXPECT_TRUE(is_valid_hostname("foo.BAR"));
-  EXPECT_TRUE(is_valid_hostname("foo-BAR_baz"));
-  EXPECT_TRUE(is_valid_hostname("1.2.3.4"));
-  EXPECT_TRUE(is_valid_hostname("x"));
+TEST_P(ValidatorTest, is_host_name) {
+  EXPECT_EQ(mysql_harness::is_valid_hostname(GetParam().name),
+            GetParam().is_host_name)
+      << GetParam().name;
 }
 
-/**
- * @test verify that is_valid_hostname() returns false for invalid hostnames
- *
- * @note Please see function documentation for expected behavior, it may be
- *       surprising.
- */
-TEST(TestHostnameValidator, invalid_hostname) {
-  EXPECT_FALSE(is_valid_hostname(""));
-  EXPECT_FALSE(is_valid_hostname(" "));
-  EXPECT_FALSE(is_valid_hostname("foo bar"));
-  EXPECT_FALSE(is_valid_hostname("^"));
-  EXPECT_FALSE(is_valid_hostname("foo^bar"));
+TEST_P(ValidatorTest, is_domain_name) {
+  EXPECT_EQ(mysql_harness::is_valid_domainname(GetParam().name),
+            GetParam().is_domain_name)
+      << GetParam().name;
 }
 
-/**
- * @note Things that pass at the time of implementing is_valid_hostname(), but
- *       probably shouldn't. This testcase is disabled, its sole purpose is to
- *       make the developer aware of this problem.
- */
-TEST(TestHostnameValidator, DISABLED_known_mishandled_cornercases) {
-  // NOTE: If any of these start failing one day, that's probably a good thing!
-  //       Please see function description for details.
-  EXPECT_TRUE(is_valid_hostname(".foo"));
-  EXPECT_TRUE(is_valid_hostname("foo."));
-  EXPECT_TRUE(is_valid_hostname(".foo.bar."));
-  EXPECT_TRUE(is_valid_hostname("."));
-  EXPECT_TRUE(is_valid_hostname("-"));
-  EXPECT_TRUE(is_valid_hostname("1_2-3.4"));
-  EXPECT_TRUE(is_valid_hostname("foo.bar.1.2"));
+const ValidatorParam validator_param[] = {
+    {"one_part_lowercase",  //
+     "foo", true, true},
+    {"one_part_uppercase",  //
+     "FOO", true, true},
+    {"with_dot",  //
+     "foo.BAR", true, true},
+    {"with_dash",  //
+     "foo-BAR", true, true},
+    {"ipv4",  //
+     "1.2.3.4", true, true},
+    {"ipv6",  //
+     "::1", false, true},
+    {"ipv6_scope",  //
+     "::1%1", false, true},
+    {"one_lowercase",  //
+     "x", true, true},
+    {"one_uppercase",  //
+     "X", true, true},
+    {"leading_digits",  //
+     "foo.bar.1.3", true, true},
+    {"empty",  //
+     "", false, false},
+    {"space",  //
+     " ", false, true},
+    {"parts_with_space",  //
+     "foo bar", false, true},
+    {"caret",  //
+     "^", false, true},
+    {"parts_with_caret",  //
+     "foo^bar", false, true},
+    {"leading_dot",  //
+     ".foo", false, false},
+    {"trailing_dot",  // invalid hostname, but valid domain name.
+     "foo.", false, true},
+    {"leading_and_trailing_dot",  //
+     ".foo.bar.", false, false},
+    {"dot",  // DNS root, not a valid domainname
+     ".", false, false},
+    {"dotdot",  // label too short
+     "..", false, false},
+    {"dotdot_start",  //
+     "..start", false, false},
+    {"dotdot_end",  //
+     "start..", false, false},
+    {"dotdot_middle",  //
+     "start..end", false, false},
+    {"dash",  //
+     "-", false, true},
+    {"underscore",  //
+     "1_2-3.4", false, true},
+    {"label_63_chars",  //
+     "a123456789"       // 0
+     "a123456789"       // 1
+     "a123456789"       // 2
+     "a123456789"       // 3
+     "a123456789"       // 4
+     "a123456789"       // 5
+     "a12",             // 6
+     true, true},
+    {"label_63_chars_multi",  //
+     "a.a123456789"           // 0
+     "a123456789"             // 1
+     "a123456789"             // 2
+     "a123456789"             // 3
+     "a123456789"             // 4
+     "a123456789"             // 5
+     "a12",                   // 6
+     true, true},
+    {"label_too_long",  //
+     "a123456789"       // 0
+     "a123456789"       // 1
+     "a123456789"       // 2
+     "a123456789"       // 3
+     "a123456789"       // 4
+     "a123456789"       // 5
+     "a123",            // 6
+     false, false},
+    {"name_max",                         //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  // 32
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  // 64
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  // 128
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."  //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a",  // 255
+     true, true},
+    {"name_too_long",                     //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   // 32
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   // 64
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   // 128
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a."   //
+     "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.aa",  // 256
+     false, false},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, ValidatorTest,
+                         ::testing::ValuesIn(validator_param),
+                         [](auto const &info) { return info.param.test_name; });
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

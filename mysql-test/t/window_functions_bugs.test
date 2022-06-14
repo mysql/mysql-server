@@ -156,11 +156,11 @@ SELECT FIRST_VALUE(-2605.952148) OVER
 SELECT LAST_VALUE(-2605.952148) OVER
          (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
   FROM t WINDOW w1 AS (PARTITION BY a);
---echo These don't suffer from the error as their maybe_null==true,
+--echo These don't suffer from the error as their m_nullable==true,
 --echo but including tests since we updated their code in case this
 --echo changes: NTH(<non-null arg>, 1) is really the same as
 --echo FIRST_VALUE, for example, and could have been made
---echo maybe_null==false.
+--echo m_nullable==false.
 SELECT NTH_VALUE(-2605.952148, 1) OVER
          (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
   FROM t WINDOW w1 AS (PARTITION BY a);
@@ -527,7 +527,7 @@ CREATE TABLE t(
   a TEXT CHARACTER SET CP1251
   GENERATED ALWAYS AS (LPAD(1,10621933,10)) VIRTUAL,
   b BLOB
-  GENERATED ALWAYS AS (LPAD(1,10621933,10)) VIRTUAL
+  GENERATED ALWAYS AS (LPAD(1,10622,10)) VIRTUAL
   ) ENGINE=INNODB;
 INSERT INTO t VALUES (), ();
 
@@ -607,3 +607,224 @@ WITH RECURSIVE cte AS (
                    COUNT(*) OVER (ORDER BY num DESC) cnt_direct
        FROM cte
        WINDOW frame AS (ORDER BY num DESC);
+
+--echo #
+--echo # Bug#32028154: INCORRECT ERROR PROPAGATION FROM WINDOW FUNCTIONS
+--echo #
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(FIRST_VALUE(CAST('' AS JSON)) OVER (), '');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(NTH_VALUE(CAST('' AS JSON), 1) OVER (), '');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(LEAD(CAST('true' AS JSON), 2, CAST('' AS JSON)) OVER (), '');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(JSON_ARRAYAGG(CAST('' AS JSON)) OVER (), '');
+
+--echo #
+--echo # Bug #32802301: REGRESSION: TYPE_CONVERSION_STATUS FIELD_VARSTRING::STORE: ASSERTION `!TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TABLE->WRITE_SET, FIELD_INDEX()))' FAILED.
+--echo #
+
+CREATE TABLE t1 (a TIMESTAMP NOT NULL);
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+SELECT a + INTERVAL(LAST_VALUE(1) OVER ()) SECOND FROM (SELECT a FROM t1) q;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32820802: WRONG RESULT WITH WINDOW FUNCTION AS PART OF EXPRESSION
+--echo #
+
+CREATE TABLE t1 (
+  f1 INTEGER,
+  t1_partkey INTEGER
+);
+
+CREATE TABLE t2 (
+  t2_partkey INTEGER PRIMARY KEY
+);
+
+INSERT INTO t1 VALUES (34, 1), (10, 1), (4, 1), (6, 1),
+                      (9, 2), (64, 2), (31,2);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7);
+
+ANALYZE TABLE t1, t2;
+
+SELECT 0.2 * AVG(f1) OVER w AS avg, f1
+ FROM t1 JOIN t2 ON t1_partkey = t2_partkey
+ WINDOW w AS (PARTITION BY t1_partkey);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#32328576: BOOL PROCESS_BUFFERED_WINDOWING_RECORD: ASSERTION `!ROW_ADDED
+--echo #               && !FOUND_FIRST' FAILED.
+--echo #
+
+CREATE TABLE t(f1 SET('a','b'), f2 INTEGER);
+INSERT INTO t VALUES ('b',1), ('a',2), ('a,b',3), ('b',0), ('a',1);
+SELECT FIRST_VALUE(f2) OVER(ORDER BY f1 RANGE CURRENT ROW) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #33012642: WL#14419: ASSERTION `*TO_LEN >= 2 + FROM->SIGN' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER NOT NULL );
+INSERT INTO t1 VALUES (4);
+
+# Make sure we don't try to sort-ahead on a, SUM(a) before the grouping.
+SELECT a, SUM(a) OVER () AS s
+FROM t1
+GROUP BY a
+ORDER BY a, s;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33014346: WL#14419: ASSERTION `RECEIVER.HASSECONDARYENGINECOSTHOOK()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+
+# The (a,b,m) ordering is pre-reduced and combined with (a,b),
+# so we can't ignore it for GROUP BY on the grounds that it
+# used to contain an aggregate.
+SELECT ROW_NUMBER() OVER (ORDER BY a), COUNT(*) AS m
+FROM t1
+GROUP BY a, b
+ORDER BY a, b, m;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33041041: WL#14419: SIG 11 IN WINDOW::APPLY_TEMP_TABLE|SQL/WINDOW.CC
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+PREPARE stmt FROM "SELECT RANK() OVER (ORDER BY a) FROM t1 GROUP BY a";
+EXECUTE stmt;
+EXECUTE stmt;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33067989: WL#14419: RESULT MISMATCH SEEN WITH WINDOW FUNCTION IN SUBQUERY
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (0), (1);
+
+SELECT a
+  FROM t1 AS outer_t1
+  WHERE (a,a) IN (
+    SELECT MAX(a) OVER (), a FROM t1
+  );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33072114: WL#14419: ASSERTION `STATIC_CAST<SIZE_T>(END_BIT_NUM) <= CAPACITY()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, f INTEGER, g INTEGER, h INTEGER, i INTEGER, j INTEGER, k INTEGER );
+
+SELECT
+  CUME_DIST() OVER (ORDER BY t1.a)
+FROM
+  t1
+  NATURAL JOIN t1 AS t2
+  NATURAL JOIN t1 AS t3
+  NATURAL JOIN t1 AS t4
+GROUP BY t1.a
+WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33028408: WL#14419: ASSERTION `M_COUNT >= M_FRAME_NULL_COUNT && M_FRAME_NULL_COUNT > 0' FA
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (2);
+ANALYZE TABLE t1;
+
+SELECT SUM(pk) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM t1 GROUP BY pk WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33036143: WL#14419: ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED.
+--echo #
+
+CREATE TABLE t1 ( a LONGTEXT, b INTEGER );
+INSERT INTO t1 VALUES ('1', 0);
+
+SELECT
+  a,
+  SUM(1) OVER (ORDER BY b),
+  SUM(1) OVER (ORDER BY b DESC)
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33067260: WL#14419: SIG11 IN MY_FILL_8BIT|STRINGS/CTYPE-SIMPLE.CC
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b VARCHAR(255));
+INSERT INTO t1 VALUES (1,'x');
+INSERT INTO t1 VALUES (-3,'y');
+
+CREATE TABLE t2 ( a INTEGER );
+
+SET sql_mode='';
+
+SELECT MIN(a) AS field1 FROM t1 WHERE b IN ( SELECT a FROM t2 ) ORDER BY LEAD(a, 5, 7) OVER (ORDER BY b);
+SELECT MIN(a), LEAD(a, 5, 7) OVER (ORDER BY b) AS field1 FROM t1 WHERE b IN ( SELECT a FROM t2 ) ORDER BY b;
+
+SET sql_mode=DEFAULT;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #33075752: WL#14419: ASSERTION `N < SIZE()' FAILED|INCLUDE/PREALLOCED_ARRAY.H
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT DISTINCT
+  0 AS field1,
+  RANK() OVER (ORDER BY a) AS field2,
+  LAST_VALUE(a) OVER (ORDER BY a + 1) AS field3
+FROM t1
+GROUP BY a, field1 WITH ROLLUP
+ORDER BY field1, field2, field3;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33181670: Recent regression: Memory leak with window functions and user variables
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT LAST_VALUE(0) OVER (ORDER BY (@f:='x')) FROM t1;
+# NOTE: To actually show the bug in MTR, a shutdown; needs to be inserted here.
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#33399696: Switch slice before reaching execution end
+--echo #
+CREATE TABLE t(a INT, b DOUBLE);
+INSERT INTO t VALUES(1, 2.1);
+INSERT INTO t VALUES(2, 1.4);
+INSERT INTO t VALUES(1, 2.56);
+INSERT INTO t VALUES(2, 2.23);
+
+SELECT a, SUM(b)+1 AS cnt,
+       ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn;
+
+SELECT a, ROUND(SUM(b), 2) AS cnt,
+       ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn DESC;
+
+DROP TABLE t;

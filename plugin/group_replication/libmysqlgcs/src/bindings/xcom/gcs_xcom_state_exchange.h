@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class Xcom_member_state {
     @param[in] configuration_id Configuration identifier in use when the state
                                 exchange message was created
     @param[in] version Protocol version used to represent the state
-    @param[in] cached_ids Snapshot information currently in use
+    @param[in] snapshot Snapshot information currently in use
     @param[in] data the generic data to be exchanged
     @param[in] data_size data's size
   */
@@ -186,8 +186,8 @@ class Xcom_member_state {
   /**
    Decodes Member State that was sent through the network.
 
-   @param[out] buffer where the data was stored.
-   @param[out] buffer_len pointer to the variable that holds the
+   @param[out] data where the data was stored.
+   @param[out] data_size pointer to the variable that holds the
    data's size.
 
    @return True if for any reason the data could not be exchanged.
@@ -368,7 +368,7 @@ class Xcom_member_state {
 */
 class Gcs_xcom_state_exchange_interface {
  public:
-  virtual ~Gcs_xcom_state_exchange_interface() {}
+  virtual ~Gcs_xcom_state_exchange_interface() = default;
 
   /**
     Accomplishes all necessary initialization steps.
@@ -409,6 +409,7 @@ class Gcs_xcom_state_exchange_interface {
     @param[in] current_view   the currently installed view
     @param[in] group          group name
     @param[in] local_info     the local GCS member identifier
+    @param[in] xcom_nodes     list of nodes
 
     @return true if the member is leaving
   */
@@ -427,8 +428,10 @@ class Gcs_xcom_state_exchange_interface {
 
     @param[in] ms_info received Member State
     @param[in] p_id the node that the Member State pertains
-    @param[in] protocol_version protocol version in use by a member during the
-               state exchange phase
+    @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+    @param[in] used_protocol_version protocol version in use by a member during
+    the state exchange phase
 
     @return true if State Exchanged is to be finished and the view can be
                  installed
@@ -515,16 +518,16 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
   explicit Gcs_xcom_state_exchange(Gcs_communication_interface *comm);
 
-  virtual ~Gcs_xcom_state_exchange();
+  ~Gcs_xcom_state_exchange() override;
 
   // Implementation of gcs_xcom_state_exchange_interface
-  void init();
+  void init() override;
 
-  void reset();
+  void reset() override;
 
-  void reset_with_flush();
+  void reset_with_flush() override;
 
-  void end();
+  void end() override;
 
   bool state_exchange(
       synode_no configuration_id, std::vector<Gcs_member_identifier *> &total,
@@ -533,32 +536,38 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
       std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data,
       Gcs_view *current_view, std::string *group,
       const Gcs_member_identifier &local_info,
-      const Gcs_xcom_nodes &xcom_nodes);
+      const Gcs_xcom_nodes &xcom_nodes) override;
 
   bool process_member_state(
       Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
       Gcs_protocol_version maximum_supported_protocol_version,
-      Gcs_protocol_version used_protocol_version);
+      Gcs_protocol_version used_protocol_version) override;
 
-  std::vector<Gcs_xcom_node_information> compute_incompatible_members();
+  std::vector<Gcs_xcom_node_information> compute_incompatible_members()
+      override;
 
-  bool process_recovery_state();
+  bool process_recovery_state() override;
 
-  Gcs_xcom_view_identifier *get_new_view_id();
+  Gcs_xcom_view_identifier *get_new_view_id() override;
 
-  std::set<Gcs_member_identifier *> *get_joined() { return &m_ms_joined; }
+  std::set<Gcs_member_identifier *> *get_joined() override {
+    return &m_ms_joined;
+  }
 
-  std::set<Gcs_member_identifier *> *get_left() { return &m_ms_left; }
+  std::set<Gcs_member_identifier *> *get_left() override { return &m_ms_left; }
 
-  std::set<Gcs_member_identifier *> *get_total() { return &m_ms_total; }
+  std::set<Gcs_member_identifier *> *get_total() override {
+    return &m_ms_total;
+  }
 
-  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states() {
+  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states()
+      override {
     return &m_member_states;
   }
 
-  std::string *get_group() { return m_group_name; }
+  std::string *get_group() override { return m_group_name; }
 
-  void compute_maximum_supported_protocol_version();
+  void compute_maximum_supported_protocol_version() override;
 
  private:
   /**
@@ -616,7 +625,9 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
    @param ms_info state
    @param p_id member
-   @param protocol_version protocol version
+   @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+   @param used_protocol_version protocol version
    */
   void save_member_state(
       Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
@@ -703,7 +714,7 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 */
 class Gcs_xcom_view_change_control_interface {
  public:
-  virtual ~Gcs_xcom_view_change_control_interface() {}
+  virtual ~Gcs_xcom_view_change_control_interface() = default;
 
   virtual void start_view_exchange() = 0;
   virtual void end_view_exchange() = 0;
@@ -727,6 +738,10 @@ class Gcs_xcom_view_change_control_interface {
   virtual void set_belongs_to_group(bool belong) = 0;
   virtual void set_unsafe_current_view(Gcs_view *current_view) = 0;
   virtual Gcs_view *get_unsafe_current_view() = 0;
+
+  // Keep track if GCS as a whole has been ordered to finalize;
+  virtual void finalize() = 0;
+  virtual bool is_finalized() = 0;
 };
 
 /*
@@ -738,27 +753,30 @@ class Gcs_xcom_view_change_control
     : public Gcs_xcom_view_change_control_interface {
  public:
   explicit Gcs_xcom_view_change_control();
-  virtual ~Gcs_xcom_view_change_control();
+  ~Gcs_xcom_view_change_control() override;
 
-  void start_view_exchange();
-  void end_view_exchange();
-  void wait_for_view_change_end();
-  bool is_view_changing();
+  void start_view_exchange() override;
+  void end_view_exchange() override;
+  void wait_for_view_change_end() override;
+  bool is_view_changing() override;
 
-  bool start_leave();
-  void end_leave();
-  bool is_leaving();
+  bool start_leave() override;
+  void end_leave() override;
+  bool is_leaving() override;
 
-  bool start_join();
-  void end_join();
-  bool is_joining();
+  bool start_join() override;
+  void end_join() override;
+  bool is_joining() override;
 
-  void set_current_view(Gcs_view *current_view);
-  Gcs_view *get_current_view();
-  bool belongs_to_group();
-  void set_belongs_to_group(bool belong);
-  void set_unsafe_current_view(Gcs_view *current_view);
-  Gcs_view *get_unsafe_current_view();
+  void set_current_view(Gcs_view *current_view) override;
+  Gcs_view *get_current_view() override;
+  bool belongs_to_group() override;
+  void set_belongs_to_group(bool belong) override;
+  void set_unsafe_current_view(Gcs_view *current_view) override;
+  Gcs_view *get_unsafe_current_view() override;
+
+  void finalize() override;
+  bool is_finalized() override;
 
  private:
   bool m_view_changing;
@@ -784,6 +802,10 @@ class Gcs_xcom_view_change_control
     Whether the current node belongs to a group or not.
   */
   bool m_belongs_to_group;
+
+  /*
+   */
+  std::atomic<bool> m_finalized;
 
   /*
     Disabling the copy constructor and assignment operator.

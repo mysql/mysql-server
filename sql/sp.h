@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,15 @@
 #ifndef _SP_H_
 #define _SP_H_
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <string>
 
+#include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
-#include "my_alloc.h"
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/item.h"     // Item::Type
@@ -41,7 +41,9 @@
 class Object_creation_ctx;
 class Query_arena;
 class THD;
+struct CHARSET_INFO;
 struct LEX_USER;
+struct MEM_ROOT;
 
 namespace dd {
 class Routine;
@@ -149,21 +151,15 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
                                                    TABLE *proc_tbl);
 
  public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
-    return new (mem_root)
-        Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
-  }
+  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override;
 
  protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
-    DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
-    DBUG_RETURN(new (thd->mem_root) Stored_routine_creation_ctx(thd));
-  }
-
-  virtual void delete_backup_ctx() { destroy(this); }
+  Object_creation_ctx *create_backup_ctx(THD *thd) const override;
+  void delete_backup_ctx() override;
 
  private:
-  Stored_routine_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
+  explicit Stored_routine_creation_ctx(THD *thd)
+      : Stored_program_creation_ctx(thd) {}
 
   Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,
@@ -172,7 +168,7 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
 };
 
 /* Drop all routines in database 'db' */
-enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema);
+bool sp_drop_db_routines(THD *thd, const dd::Schema &schema);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
@@ -195,8 +191,9 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
 enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp);
 
-enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                                     bool lookup_only, sp_head **sp);
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
+                                     const sp_name *name, bool lookup_only,
+                                     sp_head **sp);
 
 bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
@@ -210,7 +207,8 @@ enum_sp_return_code db_load_routine(
     const char *definer_host, longlong created, longlong modified,
     Stored_program_creation_ctx *creation_ctx);
 
-bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
+bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
+                       bool if_not_exists, bool &sp_already_exists);
 
 bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
                        st_sp_chistics *chistics);
@@ -305,11 +303,11 @@ class Sroutine_hash_entry {
   }
 
   const char *part_mdl_key() {
-    DBUG_ASSERT(!use_normalized_key());
+    assert(!use_normalized_key());
     return (char *)m_key + 1;
   }
   size_t part_mdl_key_length() {
-    DBUG_ASSERT(!use_normalized_key());
+    assert(!use_normalized_key());
     return m_key_length - 1U;
   }
 
@@ -366,8 +364,8 @@ inline bool sp_add_own_used_routine(Query_tables_list *prelocking_ctx,
                                     Query_arena *arena,
                                     Sroutine_hash_entry::entry_type type,
                                     sp_name *sp_name) {
-  DBUG_ASSERT(type == Sroutine_hash_entry::FUNCTION ||
-              type == Sroutine_hash_entry::PROCEDURE);
+  assert(type == Sroutine_hash_entry::FUNCTION ||
+         type == Sroutine_hash_entry::PROCEDURE);
 
   return sp_add_used_routine(
       prelocking_ctx, arena, type, sp_name->m_db.str, sp_name->m_db.length,

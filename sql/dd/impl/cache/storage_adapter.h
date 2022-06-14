@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 
 #include <stddef.h>
 
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/dd/cache/object_registry.h"  // Object_registry
 #include "sql/dd/object_id.h"
 #include "sql/handler.h"  // enum_tx_isolation
@@ -233,7 +233,6 @@ class Storage_adapter {
   /**
     Sync a dictionary object from persistent to core storage.
 
-    @tparam      K         Key type.
     @tparam      T         Dictionary object type.
     @param       thd       Thread context.
     @param       key       Key for object to get from persistent storage.

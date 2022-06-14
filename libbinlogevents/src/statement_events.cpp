@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,11 @@ namespace binary_log {
 */
 Query_event::Query_event(Log_event_type type_arg)
     : Binary_log_event(type_arg),
-      query(0),
-      db(0),
-      user(0),
+      query(nullptr),
+      db(nullptr),
+      user(nullptr),
       user_len(0),
-      host(0),
+      host(nullptr),
       host_len(0),
       db_len(0),
       q_len(0) {}
@@ -59,18 +59,18 @@ Query_event::Query_event(
       query(query_arg),
       db(db_arg),
       catalog(catalog_arg),
-      user(0),
+      user(nullptr),
       user_len(0),
-      host(0),
+      host(nullptr),
       host_len(0),
       thread_id(thread_id_arg),
       db_len(0),
       error_code(errcode),
       status_vars_len(0),
       q_len(query_length),
-      flags2_inited(1),
-      sql_mode_inited(1),
-      charset_inited(1),
+      flags2_inited(true),
+      sql_mode_inited(true),
+      charset_inited(true),
       sql_mode(sql_mode_arg),
       auto_increment_increment(
           static_cast<uint16_t>(auto_increment_increment_arg)),
@@ -109,20 +109,20 @@ static void copy_str_and_move(Log_event_header::Byte **dst, const char **src,
 Query_event::Query_event(const char *buf, const Format_description_event *fde,
                          Log_event_type event_type)
     : Binary_log_event(&buf, fde),
-      query(0),
-      db(0),
-      catalog(0),
-      time_zone_str(0),
-      user(0),
+      query(nullptr),
+      db(nullptr),
+      catalog(nullptr),
+      time_zone_str(nullptr),
+      user(nullptr),
       user_len(0),
-      host(0),
+      host(nullptr),
       host_len(0),
       db_len(0),
       status_vars_len(0),
       q_len(0),
-      flags2_inited(0),
-      sql_mode_inited(0),
-      charset_inited(0),
+      flags2_inited(false),
+      sql_mode_inited(false),
+      charset_inited(false),
       auto_increment_increment(1),
       auto_increment_offset(1),
       time_zone_len(0),
@@ -145,17 +145,17 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
   data_len = READER_CALL(available_to_read);
   data_len = data_len - post_header_len;
 
-  READER_TRY_SET(thread_id, read_and_letoh<uint32_t>);
-  READER_TRY_SET(query_exec_time, read_and_letoh<uint32_t>);
+  READER_TRY_SET(thread_id, read<uint32_t>);
+  READER_TRY_SET(query_exec_time, read<uint32_t>);
   READER_TRY_SET(db_len, read<uint8_t>);
-  READER_TRY_SET(error_code, read_and_letoh<uint16_t>);
+  READER_TRY_SET(error_code, read<uint16_t>);
   /*
     5.0 format starts here.
     Depending on the format, we may or not have affected/warnings etc
     The remnant post-header to be parsed has length:
   */
   if (post_header_len > QUERY_HEADER_MINIMAL_LEN) {
-    READER_TRY_SET(status_vars_len, read_and_letoh<uint16_t>);
+    READER_TRY_SET(status_vars_len, read<uint16_t>);
     /*
       Check if status variable length is corrupt and will lead to very
       wrong data. We could be even more strict and require data_len to
@@ -185,12 +185,12 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
     READER_TRY_SET(variable_type, read<uint8_t>);
     switch (variable_type) {
       case Q_FLAGS2_CODE:
-        flags2_inited = 1;
-        READER_TRY_SET(flags2, read_and_letoh<uint32_t>);
+        flags2_inited = true;
+        READER_TRY_SET(flags2, read<uint32_t>);
         break;
       case Q_SQL_MODE_CODE:
-        sql_mode_inited = 1;
-        READER_TRY_SET(sql_mode, read_and_letoh<uint64_t>);
+        sql_mode_inited = true;
+        READER_TRY_SET(sql_mode, read<uint64_t>);
         break;
       case Q_CATALOG_NZ_CODE:
         READER_TRY_SET(catalog_len, read<uint8_t>);
@@ -200,11 +200,11 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         }
         break;
       case Q_AUTO_INCREMENT:
-        READER_TRY_SET(auto_increment_increment, read_and_letoh<uint16_t>);
-        READER_TRY_SET(auto_increment_offset, read_and_letoh<uint16_t>);
+        READER_TRY_SET(auto_increment_increment, read<uint16_t>);
+        READER_TRY_SET(auto_increment_offset, read<uint16_t>);
         break;
       case Q_CHARSET_CODE:
-        charset_inited = 1;
+        charset_inited = true;
         READER_TRY_CALL(memcpy<char *>, charset, 6);
         break;
       case Q_TIME_ZONE_CODE:
@@ -223,16 +223,16 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         }
         break;
       case Q_LC_TIME_NAMES_CODE:
-        READER_TRY_SET(lc_time_names_number, read_and_letoh<uint16_t>);
+        READER_TRY_SET(lc_time_names_number, read<uint16_t>);
         break;
       case Q_CHARSET_DATABASE_CODE:
-        READER_TRY_SET(charset_database_number, read_and_letoh<uint16_t>);
+        READER_TRY_SET(charset_database_number, read<uint16_t>);
         break;
       case Q_TABLE_MAP_FOR_UPDATE_CODE:
-        READER_TRY_SET(table_map_for_update, read_and_letoh<uint64_t>);
+        READER_TRY_SET(table_map_for_update, read<uint64_t>);
         break;
       case Q_MICROSECONDS: {
-        READER_TRY_SET(header()->when.tv_usec, read_and_letoh<uint32_t>, 3);
+        READER_TRY_SET(header()->when.tv_usec, read<uint32_t>, 3);
         break;
       }
       case Q_INVOKER: {
@@ -255,7 +255,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       }
       case Q_UPDATED_DB_NAMES: {
         unsigned char i = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         bool is_corruption_injected = false;
 #endif
 
@@ -277,10 +277,10 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
              i < mts_accessed_dbs && READER_CALL(position) < end_variable_part;
              i++) {
           uint64_t remaining;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           /*
             This is specific to mysql test run on the server
-            for the keyword "query_log_event_mts_corrupt_db_names"
+            for the keyword "query_log_event_mta_corrupt_db_names"
           */
           if (binary_log_debug::debug_query_mts_corrupt_db_names) {
             if (mts_accessed_dbs == 2) {
@@ -300,7 +300,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
                           NAME_LEN);
         }
         if (i != mts_accessed_dbs
-#ifndef DBUG_OFF
+#ifndef NDEBUG
             || is_corruption_injected
 #endif
         )
@@ -318,11 +318,10 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
           Like in Xid_log_event case, the xid value is not used on the slave
           so the number does not really need to respect endiness.
         */
-        READER_TRY_SET(ddl_xid, read_and_letoh<uint64_t>);
+        READER_TRY_SET(ddl_xid, read<uint64_t>);
         break;
       case Q_DEFAULT_COLLATION_FOR_UTF8MB4:
-        READER_TRY_SET(default_collation_for_utf8mb4_number,
-                       read_and_letoh<uint16_t>);
+        READER_TRY_SET(default_collation_for_utf8mb4_number, read<uint16_t>);
         break;
       case Q_SQL_REQUIRE_PRIMARY_KEY:
         READER_TRY_SET(sql_require_primary_key, read<uint8_t>);
@@ -407,7 +406,7 @@ User_var_event::User_var_event(const char *buf,
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[USER_VAR_EVENT - 1]);
 
-  READER_TRY_SET(name_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(name_len, read<uint32_t>);
   if (name_len == 0) READER_THROW("Invalid name length");
   name = READER_CALL(strndup<const char *>, name_len);
   READER_TRY_SET(is_null, read<uint8_t>);
@@ -421,7 +420,7 @@ User_var_event::User_var_event(const char *buf,
      */
     charset_number = 63;
     val_len = 0;
-    val = 0;
+    val = nullptr;
   } else {
     uint8_t type_tmp;
     READER_TRY_SET(type_tmp, read<uint8_t>);
@@ -435,8 +434,8 @@ User_var_event::User_var_event(const char *buf,
       default:
         READER_THROW("Invalid type found while deserializing User_var_event");
     }
-    READER_TRY_SET(charset_number, read_and_letoh<uint32_t>);
-    READER_TRY_SET(val_len, read_and_letoh<uint32_t>);
+    READER_TRY_SET(charset_number, read<uint32_t>);
+    READER_TRY_SET(val_len, read<uint32_t>);
     val = const_cast<char *>(READER_CALL(ptr, val_len));
     // val[0] is precision and val[1] is scale so precision >= scale for decimal
     if (type == DECIMAL_RESULT) {
@@ -488,7 +487,7 @@ Intvar_event::Intvar_event(const char *buf, const Format_description_event *fde)
   READER_TRY_CALL(forward, fde->post_header_len[INTVAR_EVENT - 1]);
 
   READER_TRY_SET(type, read<uint8_t>);
-  READER_TRY_SET(val, read_and_letoh<uint64_t>);
+  READER_TRY_SET(val, read<uint64_t>);
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
@@ -501,8 +500,8 @@ Rand_event::Rand_event(const char *buf, const Format_description_event *fde)
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[RAND_EVENT - 1]);
 
-  READER_TRY_SET(seed1, read_and_letoh<uint64_t>);
-  READER_TRY_SET(seed2, read_and_letoh<uint64_t>);
+  READER_TRY_SET(seed1, read<uint64_t>);
+  READER_TRY_SET(seed2, read<uint64_t>);
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;

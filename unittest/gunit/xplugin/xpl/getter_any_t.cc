@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,22 +20,20 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "my_config.h"  // NOLINT(build/include_subdir)
 
-namespace ngs {
+#include "plugin/x/src/ngs/mysqlx/getter_any.h"
+
+namespace xpl {
 
 namespace test {
 
-using namespace Mysqlx::Datatypes;
-
 class Type_handler {
  public:
-  virtual ~Type_handler() {}
+  virtual ~Type_handler() = default;
 
   virtual void put(const ::google::protobuf::int64 &value) = 0;
   virtual void put(const ::google::protobuf::uint64 &value) = 0;
@@ -57,20 +55,23 @@ class Mock_type_handler : public Type_handler {
   MOCK_METHOD1(put_void, bool(const std::string &));
   MOCK_METHOD0(put_void, bool());
 
-  void put(const ::google::protobuf::int64 &arg) { put_void(arg); }
+  void put(const ::google::protobuf::int64 &arg) override { put_void(arg); }
 
-  void put(const ::google::protobuf::uint64 &arg) { put_void(arg); }
+  void put(const ::google::protobuf::uint64 &arg) override { put_void(arg); }
 
-  void put(const double &arg) { put_void(arg); }
+  void put(const double &arg) override { put_void(arg); }
 
-  void put(const float &arg) { put_void(arg); }
+  void put(const float &arg) override { put_void(arg); }
 
-  void put(const bool &arg) { put_void(arg); }
+  void put(const bool &arg) override { put_void(arg); }
 
-  void put(const std::string &arg) { put_void(arg); }
+  void put(const std::string &arg) override { put_void(arg); }
 
-  void put() { put_void(); }
+  void put() override { put_void(); }
 };
+
+using Any = Mysqlx::Datatypes::Any;
+using Scalar = Mysqlx::Datatypes::Scalar;
 
 class Getter_any_testsuite : public ::testing::Test {
  public:
@@ -86,151 +87,154 @@ class Getter_any_testsuite : public ::testing::Test {
 };
 
 TEST_F(Getter_any_testsuite, put_throwError_whenPutAnyWithoutType) {
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
 TEST_F(Getter_any_testsuite, put_executesNullCallback) {
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_NULL);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_NULL);
 
   EXPECT_CALL(mock, put_void());
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesSignedIntCallback) {
   const ::google::protobuf::int64 expected_value = -10;
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_SINT);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_SINT);
   any.mutable_scalar()->set_v_signed_int(expected_value);
 
   EXPECT_CALL(mock,
               put_void(::testing::Matcher<const ::google::protobuf::int64 &>(
                   expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesUnsignedIntCallback) {
   ::google::protobuf::uint64 expected_value = 10;
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_UINT);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_UINT);
   any.mutable_scalar()->set_v_unsigned_int(expected_value);
 
   EXPECT_CALL(mock,
               put_void(::testing::Matcher<const ::google::protobuf::uint64 &>(
                   expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesBoolCallback) {
   bool expected_value = true;
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_BOOL);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_BOOL);
   any.mutable_scalar()->set_v_bool(expected_value);
 
   EXPECT_CALL(mock, put_void(::testing::Matcher<const bool &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesFloatCallback) {
   float expected_value = 1.120f;
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_FLOAT);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_FLOAT);
   any.mutable_scalar()->set_v_float(expected_value);
 
   EXPECT_CALL(mock,
               put_void(::testing::Matcher<const float &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesDoubleCallback) {
   double expected_value = 2.2120;
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_DOUBLE);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_DOUBLE);
   any.mutable_scalar()->set_v_double(expected_value);
 
   EXPECT_CALL(mock,
               put_void(::testing::Matcher<const double &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
   std::string expected_value = "Expected string";
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_STRING);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_STRING);
   any.mutable_scalar()->mutable_v_string();
 
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
 TEST_F(Getter_any_testsuite, put_executesStringCallback) {
   std::string expected_value = "Expected string";
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_STRING);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_STRING);
   any.mutable_scalar()->mutable_v_string()->set_value(expected_value);
 
   EXPECT_CALL(
       mock, put_void(::testing::Matcher<const std::string &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesOctetsCallback) {
   std::string expected_value = "Expected string";
 
-  any.set_type(Any_Type_SCALAR);
-  any.mutable_scalar()->set_type(Scalar_Type_V_OCTETS);
+  any.set_type(Any::SCALAR);
+  any.mutable_scalar()->set_type(Scalar::V_OCTETS);
   any.mutable_scalar()->mutable_v_octets()->set_value(expected_value);
 
   EXPECT_CALL(
       mock, put_void(::testing::Matcher<const std::string &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 class Getter_any_type_testsuite
     : public Getter_any_testsuite,
-      public ::testing::WithParamInterface<Any_Type> {};
+      public ::testing::WithParamInterface<Any::Type> {};
 
 TEST_P(Getter_any_type_testsuite, put_throwError_whenNotSupportedType) {
   any.set_type(GetParam());
 
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationNegativeTests, Getter_any_type_testsuite,
-                        ::testing::Values(Any_Type_OBJECT, Any_Type_ARRAY));
+INSTANTIATE_TEST_SUITE_P(InstantiationNegativeTests, Getter_any_type_testsuite,
+                         ::testing::Values(Any::OBJECT, Any::ARRAY));
 
 class Getter_scalar_type_testsuite
     : public Getter_any_testsuite,
-      public ::testing::WithParamInterface<Scalar_Type> {};
+      public ::testing::WithParamInterface<Scalar::Type> {};
 
 TEST_P(Getter_scalar_type_testsuite, put_throwError_whenNotSupportedType) {
-  any.set_type(Any_Type_SCALAR);
+  any.set_type(Any::SCALAR);
   any.mutable_scalar()->set_type(GetParam());
 
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(
-    InstantiationNegativeTests, Getter_scalar_type_testsuite,
-    ::testing::Values(Scalar_Type_V_SINT, Scalar_Type_V_UINT,
-                      Scalar_Type_V_BOOL, Scalar_Type_V_FLOAT,
-                      Scalar_Type_V_DOUBLE, Scalar_Type_V_STRING,
-                      Scalar_Type_V_OCTETS));
+INSTANTIATE_TEST_SUITE_P(InstantiationNegativeTests,
+                         Getter_scalar_type_testsuite,
+                         ::testing::Values(Scalar::V_SINT, Scalar::V_UINT,
+                                           Scalar::V_BOOL, Scalar::V_FLOAT,
+                                           Scalar::V_DOUBLE, Scalar::V_STRING,
+                                           Scalar::V_OCTETS));
 
 }  // namespace test
-
-}  // namespace ngs
+}  // namespace xpl

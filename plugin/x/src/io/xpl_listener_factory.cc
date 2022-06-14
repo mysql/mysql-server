@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,20 +34,20 @@ Listener_factory::Listener_factory() {
   m_operations_factory = std::make_shared<Operations_factory>();
 }
 
-ngs::Listener_interface_ptr Listener_factory::create_unix_socket_listener(
-    const std::string &unix_socket_path, ngs::Socket_events_interface &event,
-    const uint32 backlog) {
-  return ngs::Listener_interface_ptr(ngs::allocate_object<Listener_unix_socket>(
-      m_operations_factory, unix_socket_path, std::ref(event), backlog));
+std::unique_ptr<iface::Listener> Listener_factory::create_unix_socket_listener(
+    const std::string &unix_socket_path, iface::Socket_events *event,
+    const uint32_t backlog) const {
+  return std::make_unique<Listener_unix_socket>(
+      m_operations_factory, unix_socket_path, std::ref(*event), backlog);
 }
 
-ngs::Listener_interface_ptr Listener_factory::create_tcp_socket_listener(
-    std::string &bind_address, const std::string &network_namespace,
-    const unsigned short port, const uint32 port_open_timeout,
-    ngs::Socket_events_interface &event, const uint32 backlog) {
-  return ngs::Listener_interface_ptr(ngs::allocate_object<Listener_tcp>(
-      m_operations_factory, std::ref(bind_address), network_namespace, port,
-      port_open_timeout, std::ref(event), backlog));
+std::unique_ptr<iface::Listener> Listener_factory::create_tcp_socket_listener(
+    const std::string &bind_address, const std::string &network_namespace,
+    const uint16_t port, const uint32_t port_open_timeout,
+    iface::Socket_events *event, const uint32_t backlog) const {
+  return std::make_unique<Listener_tcp>(
+      m_operations_factory, bind_address, network_namespace, port,
+      port_open_timeout, std::ref(*event), backlog);
 }
 
 }  // namespace xpl

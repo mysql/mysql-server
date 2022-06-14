@@ -1,4 +1,5 @@
-call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 0]
+call mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
 include/gtid_utils.inc
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 call mtr.add_suppression("Found 10 prepared XA transactions");
@@ -814,8 +815,8 @@ CREATE TABLE t(a INT);
 XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
-SET @@SESSION.pseudo_slave_mode=1;
-ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@SESSION.pseudo_replica_mode=1;
+ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 XA PREPARE 'xa1';
 # restart
 XA ROLLBACK 'xa1';
@@ -823,8 +824,8 @@ XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
 XA PREPARE 'xa1';
-SET @@SESSION.pseudo_slave_mode=1;
-ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@SESSION.pseudo_replica_mode=1;
+ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 XA COMMIT 'xa1';
 DROP TABLE t;
 include/gtid_utils_end.inc

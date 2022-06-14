@@ -29,3 +29,6 @@ while ($i)
 dec $i;
 }
 --enable_query_log
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

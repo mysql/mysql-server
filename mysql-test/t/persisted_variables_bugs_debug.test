@@ -1,0 +1,65 @@
+--source include/have_debug.inc
+# on windows behaviour of file handling is different compared to linux
+# when server crashes.
+--source include/not_windows.inc
+
+--echo #
+--echo # Bug#33038262: VARIOUS RACES IN PERSISTEN SYSTEM VARIABLE IMPLEMENTATION
+--echo #
+
+SET @@debug='+d,check_intern_find_sys_var_lock';
+# Success criteria: should not crash.
+SET PERSIST_ONLY sql_mode=DEFAULT;
+SET PERSIST sql_mode=DEFAULT;
+RESET PERSIST sql_mode;
+RESET PERSIST;
+SET @@debug='-d,check_intern_find_sys_var_lock';
+
+--echo # cleanup
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug #33830493: SET PERSIST statement is not atomic
+--echo #
+
+SET PERSIST max_connections=42;
+SET @@debug='+d,crash_after_open_persist_file';
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
+let $restart_parameters =;
+--source include/start_mysqld.inc
+
+SELECT @@max_connections, @@max_heap_table_size, @@replica_net_timeout;
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+
+SET @@debug='-d,crash_after_open_persist_file';
+SET @@debug='+d,crash_after_write_persist_file';
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET PERSIST replica_net_timeout=160;
+let $restart_parameters =;
+--source include/start_mysqld.inc
+SELECT @@max_connections, @@max_heap_table_size, @@replica_net_timeout;
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+
+SET @@debug='-d,crash_after_write_persist_file';
+SET @@debug='+d,crash_after_close_persist_file';
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET PERSIST replica_net_timeout=124;
+# backup file has latest contents, server restart should succeed in reading backup file.
+let $restart_parameters =;
+--source include/start_mysqld.inc
+SELECT @@max_connections, @@max_heap_table_size, @@replica_net_timeout;
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+SET @@debug='-d,crash_after_close_persist_file';
+
+#cleanup
+RESET PERSIST;
+# restore to default
+SET GLOBAL max_connections = default, replica_net_timeout = default, max_heap_table_size = default;
+
+# set to default
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc

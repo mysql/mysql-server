@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2021, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -145,17 +145,10 @@ NdbConnection.prototype.connect = function(properties, callback) {
 NdbConnection.prototype.getAsyncContext = function() {
   var AsyncNdbContext = adapter.ndb.impl.AsyncNdbContext;
 
-  if(adapter.ndb.impl.MULTIWAIT_ENABLED) {
-    if(! this.asyncNdbContext) {
-      this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
-    }
+  if(! this.asyncNdbContext) {
+    this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
   }
-  else if(this.asyncNdbContext == null) {
-    udebug.log_notice("NDB Async API support is disabled at build-time for " +
-                      "MySQL Cluster 7.3.1 - 7.3.2.  Async API will not be used."
-                     );
-    this.asyncNdbContext = false;
-  }
+
   return this.asyncNdbContext;
 };
 

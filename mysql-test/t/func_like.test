@@ -58,29 +58,23 @@ drop table t1;
 # Test like with non-default character set
 #
 
-SET NAMES koi8r;
-
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
 
---character_set koi8r
-INSERT INTO t1 VALUES ('∆Ÿ◊¡'),('ÊŸ◊¡'),('∆˘◊¡'),('∆Ÿ˜¡'),('∆Ÿ◊·'),('Ê˘˜·');
+INSERT INTO t1 VALUES ('—Ñ—ã–≤–∞'),('–§—ã–≤–∞'),('—Ñ–´–≤–∞'),('—Ñ—ã–í–∞'),('—Ñ—ã–≤–ê'),('–§–´–í–ê');
 
-INSERT INTO t1 VALUES ('∆Ÿ◊¡–“œÃƒ÷'),('ÊŸ◊¡–“œÃƒ÷'),('∆˘◊¡–“œÃƒ÷'),('∆Ÿ˜¡–“œÃƒ÷');
-INSERT INTO t1 VALUES ('∆Ÿ◊·–“œÃƒ÷'),('∆Ÿ◊¡“œÃƒ÷'),('∆Ÿ◊¡–ÚœÃƒ÷'),('∆Ÿ◊¡–“ÔÃƒ÷');
-INSERT INTO t1 VALUES ('∆Ÿ◊¡–“œÏƒ÷'),('∆Ÿ◊¡–“œÃ‰÷'),('∆Ÿ◊¡–“œÃƒˆ'),('Ê˘˜·ÚÔÏ‰ˆ');
+INSERT INTO t1 VALUES ('—Ñ—ã–≤–∞–ø—Ä–æ–ª–¥–∂'),('–§—ã–≤–∞–ø—Ä–æ–ª–¥–∂'),('—Ñ–´–≤–∞–ø—Ä–æ–ª–¥–∂'),('—Ñ—ã–í–∞–ø—Ä–æ–ª–¥–∂');
+INSERT INTO t1 VALUES ('—Ñ—ã–≤–ê–ø—Ä–æ–ª–¥–∂'),('—Ñ—ã–≤–∞–ü—Ä–æ–ª–¥–∂'),('—Ñ—ã–≤–∞–ø–†–æ–ª–¥–∂'),('—Ñ—ã–≤–∞–ø—Ä–û–ª–¥–∂');
+INSERT INTO t1 VALUES ('—Ñ—ã–≤–∞–ø—Ä–æ–õ–¥–∂'),('—Ñ—ã–≤–∞–ø—Ä–æ–ª–î–∂'),('—Ñ—ã–≤–∞–ø—Ä–æ–ª–¥–ñ'),('–§–´–í–ê–ü–†–û–õ–î–ñ');
 
-SELECT * FROM t1 WHERE a LIKE '%∆˘◊¡%';
-SELECT * FROM t1 WHERE a LIKE '%∆˘◊%';
-SELECT * FROM t1 WHERE a LIKE '∆˘◊¡%';
+SELECT * FROM t1 WHERE a LIKE '%—Ñ–´–≤–∞%';
+SELECT * FROM t1 WHERE a LIKE '%—Ñ–´–≤%';
+SELECT * FROM t1 WHERE a LIKE '—Ñ–´–≤–∞%';
 
 DROP TABLE t1;
-
---character_set utf8mb4
 
 # Bug #2547 Strange "like" behaviour in tables with default charset=cp1250
 # Test like with non-default character set using TurboBM
 #
-SET NAMES cp1250;
 CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
 INSERT INTO t1 VALUES
 ('Techni Tapes Sp. z o.o.'),
@@ -102,21 +96,19 @@ DROP TABLE t1;
 select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
 
 #
-# Check 8bit escape character
+# Check multi-byte escape character
 #
-set names koi8r;
-select 'andre%' like 'andre %' escape ' ';
+select 'andre%' like 'andre–π%' escape '–π';
 
-# Check 8bit escape character with charset conversion:
+# Check multi-byte escape character with charset conversion:
 # For "a LIKE b ESCAPE c" expressions,
 # escape character is converted into the operation character set,
 # which is result of aggregation  of character sets of "a" and "b".
 # "c" itself doesn't take part in aggregation, because its collation
 # doesn't matter, escape character is always compared binary.
-# In the example below, escape character is converted from koi8r into cp1251:
+# In the example below, escape character is converted from utf8mb4 into cp1251:
 #
-select _cp1251'andre%' like convert('andre %' using cp1251)  escape ' ';
-
+select _cp1251 'andre%' like convert('andre–π%' using cp1251)  escape '–π';
 
 --echo End of 4.1 tests
 
@@ -134,6 +126,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Bug#59149 valgrind warnings with "like .. escape .." function
 --echo #
+--error ER_WRONG_ARGUMENTS
 SELECT '' LIKE '1' ESCAPE COUNT(1);
 
 --echo End of 5.1 tests
@@ -206,7 +199,8 @@ DROP TABLE t1, t2;
 --echo # Bug#20035071: Out of range error in subselect lead to assertion failed
 
 CREATE TABLE t1(a INTEGER) engine=innodb;
-# Error is OK but not mandatory.
+INSERT INTO t1 VALUES(1);
+--error ER_DATA_OUT_OF_RANGE
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
 DROP TABLE t1;
 
@@ -326,3 +320,65 @@ SELECT * FROM t WHERE col1 LIKE '2019%';
 SELECT * FROM t WHERE col1 LIKE '2019-06-1%';
 DROP TABLE t;
 
+--echo #
+--echo # Bug#31249687 WL9384: RESULTSET MISMATCH WITH LIKE KEYWORD USING PREPARE STATEMENT
+--echo #
+
+create table t1(a int);
+insert into t1 values(0);
+
+set @pattern="%1%";
+
+# "0" doesn't match the pattern
+select 1 from t1 where a like @pattern;
+
+prepare s from 'select 1 from t1 where a like ?';
+execute s using @pattern;
+
+drop table t1;
+
+--echo #
+--echo # Bug#26086751: LIKE LOSES ESCAPE CLAUSE WHEN USED IN VIEW
+--echo # Bug#29224931: LIKE ... ESCAPE IS NOT WRITTEN TO DICTIONARY
+--echo # Bug#30211596: `EXPLAIN ... LIKE ... ESCAPE` DOESN'T OUTPUT `ESCAPE`
+--echo #               CLAUSE IN THE WARNING
+--echo #
+
+# Used to miss the ESCAPE clause.
+EXPLAIN SELECT 'abba' LIKE 'abba' ESCAPE 'b';
+
+CREATE TABLE t(x VARCHAR(10),
+               gc INTEGER GENERATED ALWAYS AS (x LIKE 'abba' ESCAPE 'b'));
+INSERT INTO t(x) VALUES ('abba'), ('aba'), ('abbbba');
+
+# Used to miss the ESCAPE clause.
+SHOW CREATE TABLE t;
+
+# Used to return the wrong row.
+SELECT x FROM t WHERE gc <> 0;
+
+CREATE VIEW v AS SELECT x, 'abba' LIKE x ESCAPE 'b' AS y FROM t;
+
+# Used to miss the ESCAPE clause.
+SHOW CREATE VIEW v;
+
+# Used to return the wrong row.
+SELECT x FROM v WHERE y <> 0;
+
+DROP VIEW v;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32446508: INCONSISTENT HANDLING OF LIKE WITH AN EMPTY ESCAPE SEQUENCE
+--echo #
+
+--echo # Used to return (0, 1, 1), should return (0, 0, 0).
+SELECT _latin1'abc' LIKE _latin1'a\\bc' ESCAPE _latin1'' AS col1,
+       _utf8mb4'abc' LIKE _utf8mb4'a\\bc' ESCAPE _utf8mb4'' AS col2,
+       _latin1'abc' LIKE _latin1'a\\bc' ESCAPE _ascii'' AS col3;
+
+SET sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
+--echo # Used to return (1, 0), should return (1, 1).
+SELECT _latin1'a\bc' LIKE _latin1'a\%' AS col1,
+       _utf8mb4'a\bc' LIKE _utf8mb4'a\%' AS col2;
+SET sql_mode = DEFAULT;

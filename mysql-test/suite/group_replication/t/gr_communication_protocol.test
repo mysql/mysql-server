@@ -45,12 +45,22 @@ SET SQL_LOG_BIN=1;
 --let $assert_cond= "$gr_protocol" = "$gr_new_protocol"
 --source include/assert.inc
 
+--let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
+--let $assert_text= protocol_version ($communication_protocol_table) should be $gr_protocol
+--let $assert_cond= "$communication_protocol_table" = "$gr_protocol"
+--source include/assert.inc
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --let $gr_protocol= `SELECT group_replication_get_communication_protocol()`
 --let $assert_text= communication_protocol is supposed to be $gr_new_protocol
 --let $assert_cond= "$gr_protocol" = "$gr_new_protocol"
+--source include/assert.inc
+
+--let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
+--let $assert_text= protocol_version ($communication_protocol_table) should be $gr_protocol
+--let $assert_cond= "$communication_protocol_table" = "$gr_protocol"
 --source include/assert.inc
 
 --echo ###############################################################################
@@ -67,12 +77,22 @@ SET SQL_LOG_BIN=1;
 --let $assert_cond= "$gr_protocol" = "$gr_new_protocol"
 --source include/assert.inc
 
+--let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
+--let $assert_text= protocol_version ($communication_protocol_table) should be $gr_protocol
+--let $assert_cond= "$communication_protocol_table" = "$gr_protocol"
+--source include/assert.inc
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --let $gr_protocol= `SELECT group_replication_get_communication_protocol()`
 --let $assert_text= communication_protocol is supposed to be $gr_new_protocol
 --let $assert_cond= "$gr_protocol" = "$gr_new_protocol"
+--source include/assert.inc
+
+--let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
+--let $assert_text= protocol_version ($communication_protocol_table) should be $gr_protocol
+--let $assert_cond= "$communication_protocol_table" = "$gr_protocol"
 --source include/assert.inc
 
 --echo ###############################################################################

@@ -18,7 +18,7 @@ ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 # session default
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and name not in
 ('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
@@ -37,8 +37,8 @@ ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -52,7 +52,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 COMMIT;
 # session con1
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
-ERROR 23000: Duplicate entry '4' for key 'c2'
+ERROR 23000: Duplicate entry '4' for key 't1.c2'
 # session default
 DELETE FROM t1 WHERE c1 = 7;
 # session con1
@@ -65,8 +65,8 @@ Warning	1831	Duplicate index 'c2_2' defined on the table 'test.t1'. This is depr
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
@@ -76,8 +76,8 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping a primary key 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
@@ -95,15 +95,15 @@ BEGIN;
 INSERT INTO t1 VALUES(4,7,2);
 SET DEBUG_SYNC = 'now SIGNAL insert_done';
 # session con1
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 # session default
 ROLLBACK;
 # session con1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
@@ -117,9 +117,9 @@ subsystem = 'ddl' and name not in
 name	count
 # session default
 INSERT INTO t1 VALUES(6,3,1);
-ERROR 23000: Duplicate entry '3' for key 'c2_2'
+ERROR 23000: Duplicate entry '3' for key 't1.c2_2'
 INSERT INTO t1 VALUES(7,4,2);
-ERROR 23000: Duplicate entry '4' for key 'c2_2'
+ERROR 23000: Duplicate entry '4' for key 't1.c2_2'
 DROP INDEX c2_2 ON t1;
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
@@ -165,8 +165,8 @@ test.t1	analyze	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -225,7 +225,7 @@ SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt3 WAIT_FOR dml3_done
 ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 ERROR 42000: Multiple primary key defined
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'N' for key 't1.PRIMARY'
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
 CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
 ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
@@ -264,7 +264,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5));
-ERROR 23000: Duplicate entry '' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '' for key 't1.PRIMARY'
 UPDATE t1 SET c3 = NULL WHERE c3 = '';
 SET lock_wait_timeout = 1;
 ALTER TABLE t1 DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
@@ -331,8 +331,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c22f` int(11) NOT NULL,
-  `c1` int(11) NOT NULL,
+  `c22f` int NOT NULL,
+  `c1` int NOT NULL,
   `c3` text NOT NULL,
   `c4` varchar(6) NOT NULL DEFAULT 'Online',
   PRIMARY KEY (`c1`,`c22f`,`c4`(5))

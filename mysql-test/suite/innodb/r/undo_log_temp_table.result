@@ -1,0 +1,261 @@
+set global innodb_file_per_table = off;
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+begin;
+call populate_t1();
+rollback;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+delete from t1 where a < 500;
+select count(*) from t1;
+count(*)
+1501
+update t1 set b = 'innodb' where b = 'a';
+update t1 set c = 'mysql' where c = 'b' and a < 1000;
+begin;
+update t1 set c = 'sqldb' where c = 'mysql' and a < 1000;
+select count(*) from t1 where c = 'sqldb';
+count(*)
+500
+rollback;
+drop procedure populate_t1;
+drop table t1;
+create table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+begin;
+call populate_t1();
+rollback;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+delete from t1 where a < 500;
+select count(*) from t1;
+count(*)
+1501
+update t1 set b = 'innodb' where b = 'a';
+update t1 set c = 'mysql' where c = 'b' and a < 1000;
+begin;
+update t1 set c = 'sqldb' where c = 'mysql' and a < 1000;
+select count(*) from t1 where c = 'sqldb';
+count(*)
+500
+rollback;
+drop procedure populate_t1;
+drop table t1;
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1_t2()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t1_t2_small()
+begin
+declare i int default 1;
+while (i <= 200) DO
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1_t2();
+commit;
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+2000
+begin;
+delete from t1 where a <= 100;
+delete from t2 where a > 1900;
+select count(*) from t1;
+count(*)
+1900
+select count(*) from t2;
+count(*)
+1900
+commit;
+begin;
+update t1 set b = 'innodb' where b = 'a' and a <= 1000;
+update t2 set b = 'myisam' where c = 'b' and a > 1000;
+commit;
+delete from t1 where b = 'a';
+delete from t2 where c = 'myisam';
+select count(*) from t1;
+count(*)
+900
+select count(*) from t2;
+count(*)
+1900
+insert into t1 values (1000000, 'mysql', 'db');
+begin;
+call populate_t1_t2_small();
+select count(*) from t1;
+count(*)
+1101
+select count(*) from t2;
+count(*)
+2100
+rollback;
+select count(*) from t1;
+count(*)
+901
+select count(*) from t2;
+count(*)
+1900
+drop table t2;
+drop table t1;
+drop procedure populate_t1_t2;
+drop procedure populate_t1_t2_small;
+# The use of temporary tables in XA transactions is only permitted when
+# xa_detach_on_prepare is OFF.
+SET @saved_xa_detach_on_prepare = @@SESSION.xa_detach_on_prepare;
+SET SESSION xa_detach_on_prepare = OFF;
+create temporary table t1 (i int) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1);
+insert into t2 values (101);
+select * from t1;
+i
+1
+select * from t2;
+i
+101
+xa start 'tx1';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+i
+1
+2
+3
+select * from t2;
+i
+101
+202
+303
+xa end 'tx1';
+xa prepare 'tx1';
+xa commit 'tx1';
+select * from t1;
+i
+1
+2
+3
+select * from t2;
+i
+101
+202
+303
+xa start 'tx1';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+i
+1
+2
+3
+2
+3
+select * from t2;
+i
+101
+202
+303
+202
+303
+xa end 'tx1';
+xa prepare 'tx1';
+xa rollback 'tx1';
+select * from t1;
+i
+1
+2
+3
+select * from t2;
+i
+101
+202
+303
+xa start 'tx1';
+insert into t1 values (2), (3);
+select * from t1;
+i
+1
+2
+3
+2
+3
+xa end 'tx1';
+xa prepare 'tx1';
+xa commit 'tx1';
+select * from t1;
+i
+1
+2
+3
+2
+3
+drop table t1;
+drop table t2;
+SET SESSION xa_detach_on_prepare = @saved_xa_detach_on_prepare;
+set global innodb_file_per_table=default;

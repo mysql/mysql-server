@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@
 #include <NdbEnv.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
 static bool g_first_create_ndb = true;
 static bool g_force_short_signals = false;
+static bool g_force_acc_table_scans = false;
 #endif
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
@@ -49,7 +49,7 @@ Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
   : theImpl(NULL)
 {
   DBUG_ENTER("Ndb::Ndb()");
-  DBUG_PRINT("enter",("Ndb::Ndb this: 0x%lx", (long) this));
+  DBUG_PRINT("enter",("Ndb::Ndb this: %p", this));
   setup(ndb_cluster_connection, aDataBase, aSchema);
   DBUG_VOID_RETURN;
 }
@@ -84,8 +84,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theNode= 0;
   theMyRef= 0;
 
-  fullyQualifiedNames = true;
-
 #ifdef POORMANSPURIFY
   cgetSignals =0;
   cfreeSignals = 0;
@@ -109,7 +107,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   theImpl->m_dbname.assign(aDataBase);
   theImpl->m_schemaname.assign(aSchema);
-  theImpl->update_prefix();
 
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
@@ -119,7 +116,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     // theImpl->theWaiter.m_mutex must be set before this
     theEventBuffer= new NdbEventBuffer(this);
     if (theEventBuffer == NULL) {
-      ndbout_c("Failed NdbEventBuffer()");
+      g_eventLogger->info("Failed NdbEventBuffer()");
       exit(-1);
     }
   }
@@ -138,7 +135,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 Ndb::~Ndb()
 { 
   DBUG_ENTER("Ndb::~Ndb()");
-  DBUG_PRINT("enter",("this: 0x%lx", (long) this));
+  DBUG_PRINT("enter",("this: %p", this));
 
   if (theImpl == NULL)
   {
@@ -155,13 +152,11 @@ Ndb::~Ndb()
   {
     g_eventLogger->warning("Deleting Ndb-object with NdbEventOperation still"
                            " active");
-    printf("this: %p NdbEventOperation(s): ", this);
+    g_eventLogger->info("this: %p NdbEventOperation(s): ", this);
     for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
     {
-      printf("%p ", op);
+      g_eventLogger->info("%p ", op);
     }
-    printf("\n");
-    fflush(stdout);
   }
 
   assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's
@@ -254,9 +249,6 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
   m_optimized_node_selection=
     m_ndb_cluster_connection.m_optimized_node_selection;
 
-  m_systemPrefix.assfmt("%s%c%s%c", NDB_SYSTEM_DATABASE, table_name_separator,
-			NDB_SYSTEM_SCHEMA, table_name_separator);
-
   forceShortRequests = false;
 
 #ifdef VM_TRACE
@@ -268,7 +260,14 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     {
       g_force_short_signals = true;
     }
+
+    f= NdbEnv_GetEnv("NDB_FORCE_ACC_TABLE_SCANS", (char*)0, 0);
+    if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
+    {
+      g_force_acc_table_scans = true;
+    }
   }
+  forceAccTableScans = g_force_acc_table_scans;
   forceShortRequests = g_force_short_signals;
 #endif
 

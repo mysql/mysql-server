@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <stddef.h>
 #include <algorithm>
+#include <cassert>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -41,6 +42,9 @@
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/make_join_hypergraph.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -195,13 +199,9 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
   return to;
 }
 
-int ha_mock::prepare_load_table(const TABLE &table_arg) {
-  loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
-  return 0;
-}
-
 int ha_mock::load_table(const TABLE &table_arg) {
-  DBUG_ASSERT(table_arg.file != nullptr);
+  assert(table_arg.file != nullptr);
+  loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
   if (loaded_tables->get(table_arg.s->db.str, table_arg.s->table_name.str) ==
       nullptr) {
     my_error(ER_NO_SUCH_TABLE, MYF(0), table_arg.s->db.str,
@@ -235,13 +235,49 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
   auto context = new (thd->mem_root) Mock_execution_context;
   if (context == nullptr) return true;
   lex->set_secondary_engine_execution_context(context);
+
+  // Disable use of constant tables and evaluation of subqueries during
+  // optimization.
+  lex->add_statement_options(OPTION_NO_CONST_TABLES |
+                             OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
+
   return false;
 }
 
-static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
-                                    LEX *lex MY_ATTRIBUTE((unused))) {
+static void AssertSupportedPath(const AccessPath *path) {
+  switch (path->type) {
+    // The only supported join type is hash join. Other join types are disabled
+    // in handlerton::secondary_engine_flags.
+    case AccessPath::NESTED_LOOP_JOIN: /* purecov: deadcode */
+    case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+    case AccessPath::BKA_JOIN:
+    // Index access is disabled in ha_mock::table_flags(), so we should see none
+    // of these access types.
+    case AccessPath::INDEX_SCAN:
+    case AccessPath::REF:
+    case AccessPath::REF_OR_NULL:
+    case AccessPath::EQ_REF:
+    case AccessPath::PUSHED_JOIN_REF:
+    case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::INDEX_SKIP_SCAN:
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+    case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::ROWID_UNION:
+    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+      assert(false); /* purecov: deadcode */
+      break;
+    default:
+      break;
+  }
+
+  // This secondary storage engine does not yet store anything in the auxiliary
+  // data member of AccessPath.
+  assert(path->secondary_engine_data == nullptr);
+}
+
+static bool OptimizeSecondaryEngine(THD *thd [[maybe_unused]], LEX *lex) {
   // The context should have been set by PrepareSecondaryEngine.
-  DBUG_ASSERT(lex->secondary_engine_execution_context() != nullptr);
+  assert(lex->secondary_engine_execution_context() != nullptr);
 
   DBUG_EXECUTE_IF("secondary_engine_mock_optimize_error", {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
@@ -250,16 +286,32 @@ static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
 
   DEBUG_SYNC(thd, "before_mock_optimize");
 
+  if (lex->using_hypergraph_optimizer) {
+    WalkAccessPaths(lex->unit->root_access_path(), nullptr,
+                    WalkAccessPathPolicy::ENTIRE_TREE,
+                    [](AccessPath *path, const JOIN *) {
+                      AssertSupportedPath(path);
+                      return false;
+                    });
+  }
+
   return false;
 }
 
-static bool CompareJoinCost(
-    THD *thd, const JOIN &join,
-    const Candidate_table_order &table_order MY_ATTRIBUTE((unused)),
-    double optimizer_cost, bool *cheaper, double *secondary_engine_cost) {
+static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
+                            bool *use_best_so_far, bool *cheaper,
+                            double *secondary_engine_cost) {
+  *use_best_so_far = false;
+
   DBUG_EXECUTE_IF("secondary_engine_mock_compare_cost_error", {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
     return true;
+  });
+
+  DBUG_EXECUTE_IF("secondary_engine_mock_choose_first_plan", {
+    *use_best_so_far = true;
+    *cheaper = true;
+    *secondary_engine_cost = optimizer_cost;
   });
 
   // Just use the cost calculated by the optimizer by default.
@@ -268,9 +320,9 @@ static bool CompareJoinCost(
   // This debug flag makes the cost function prefer orders where a table with
   // the alias "X" is closer to the beginning.
   DBUG_EXECUTE_IF("secondary_engine_mock_change_join_order", {
-    double cost = table_order.size();
-    for (size_t i = 0; i < table_order.size(); ++i) {
-      const TABLE_LIST *ref = table_order.table_ref(i);
+    double cost = join.tables;
+    for (size_t i = 0; i < join.tables; ++i) {
+      const TABLE_LIST *ref = join.positions[i].table->table_ref;
       if (std::string(ref->alias) == "X") {
         cost += i;
       }
@@ -283,6 +335,16 @@ static bool CompareJoinCost(
                  thd->lex->secondary_engine_execution_context())
                  ->BestPlanSoFar(join, *secondary_engine_cost);
 
+  return false;
+}
+
+static bool ModifyAccessPathCost(THD *thd [[maybe_unused]],
+                                 const JoinHypergraph &hypergraph
+                                 [[maybe_unused]],
+                                 AccessPath *path) {
+  assert(!thd->is_error());
+  assert(hypergraph.query_block()->join == hypergraph.join());
+  AssertSupportedPath(path);
   return false;
 }
 
@@ -302,6 +364,9 @@ static int Init(MYSQL_PLUGIN p) {
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
+  hton->secondary_engine_modify_access_path_cost = ModifyAccessPathCost;
   return 0;
 }
 
@@ -318,7 +383,7 @@ mysql_declare_plugin(mock){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &mock_storage_engine,
     "MOCK",
-    "MySQL",
+    PLUGIN_AUTHOR_ORACLE,
     "Mock storage engine",
     PLUGIN_LICENSE_GPL,
     Init,

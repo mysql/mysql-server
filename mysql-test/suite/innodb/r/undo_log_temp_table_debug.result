@@ -1,0 +1,128 @@
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
+			 "in the InnoDB internal");
+call mtr.add_suppression("Found .* prepared XA transactions");
+set global innodb_file_per_table = off;
+# The use of temporary tables inside XA transactions is only permitted
+# when xa_detach_on_prepare is OFF.
+SET SESSION xa_detach_on_prepare = OFF;
+create temporary table t1 (i int) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t2 values (301);
+xa start 'tx2';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+i
+2
+3
+select * from t2;
+i
+301
+202
+303
+xa end 'tx2';
+set session debug="+d,ib_trx_crash_during_xa_prepare_step";
+xa prepare 'tx2';
+ERROR HY000: Lost connection to MySQL server during query
+select * from t2;
+i
+301
+drop table t2;
+SET SESSION xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1_t2()
+begin
+declare i int default 1;
+while (i <= 50) DO
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+call populate_t1_t2;
+begin;
+call populate_t1_t2();
+update t1 set a = a + 1;
+update t2 set a = a + 1;
+select count(*) from t1;
+count(*)
+100
+select count(*) from t2;
+count(*)
+100
+set session debug="+d,ib_trx_crash_during_commit";
+commit;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+select count(*) from t2;
+count(*)
+50
+drop table t2;
+drop procedure populate_t1_t2;
+# restart: --innodb_rollback_segments=1
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+drop table t;
+drop table t2;
+create procedure populate_t1_t2()
+begin
+declare i int default 1;
+while (i <= 100) DO
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create table t2
+(a int, b char(100), c char(100)) engine = innodb;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+call populate_t1_t2();
+select count(*) from t1;
+count(*)
+100
+drop table t1;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+call populate_t1_t2();
+commit;
+select count(*) from t1;
+count(*)
+100
+drop table t1;
+drop table t2;
+drop procedure populate_t1_t2;
+# restart: --innodb_rollback_segments=1
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+drop table t;
+drop table t2;
+# restart: --innodb_rollback_segments=8
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+drop table t;
+drop table t2;
+# restart:

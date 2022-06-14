@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 /**
  * Test of HttpUri.
  */
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 
 #include <gmock/gmock.h>
 
@@ -58,7 +58,7 @@ static std::string sanitise(const std::string &name) {
   return out;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, ConanicalizeTest,
     ::testing::Values(
         std::make_tuple("canonical case, single slash", "/", "/"),

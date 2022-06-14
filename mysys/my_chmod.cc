@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,11 +85,11 @@ MY_MODE get_file_perm(ulong perm_flags) {
     @retval false : File permission changed successfully
 */
 
-bool my_chmod(const char *filename, ulong perm_flags, myf my_flags) {
+bool my_chmod(const char *filename, ulong perm_flags, myf MyFlags) {
   int ret_val;
   MY_MODE file_perm;
-  DBUG_ENTER("my_chmod");
-  DBUG_ASSERT(filename && filename[0]);
+  DBUG_TRACE;
+  assert(filename && filename[0]);
 
   file_perm = get_file_perm(perm_flags);
 #ifdef _WIN32
@@ -98,12 +98,10 @@ bool my_chmod(const char *filename, ulong perm_flags, myf my_flags) {
   ret_val = chmod(filename, file_perm);
 #endif
 
-  if (ret_val && (my_flags & (MY_FAE + MY_WME))) {
-    char errbuf[MYSYS_STRERROR_SIZE];
+  if (ret_val && (MyFlags & (MY_FAE | MY_WME))) {
     set_my_errno(errno);
-    my_error(EE_CHANGE_PERMISSIONS, MYF(0), filename, errno,
-             my_strerror(errbuf, sizeof(errbuf), errno));
+    MyOsError(my_errno(), EE_CHANGE_PERMISSIONS, MYF(0), filename);
   }
 
-  DBUG_RETURN(ret_val ? true : false);
+  return ret_val ? true : false;
 }

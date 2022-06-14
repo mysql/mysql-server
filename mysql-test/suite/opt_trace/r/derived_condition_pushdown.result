@@ -1,0 +1,2051 @@
+SET optimizer_trace_max_mem_size=1048576;
+SET @@session.optimizer_trace="enabled=on";
+set optimizer_switch="derived_condition_pushdown=on";
+set optimizer_switch="derived_merge=off";
+set sql_mode="";
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER,
+KEY(f1), KEY(f1,f2), KEY(f3));
+INSERT INTO t1 VALUES (1,26,1);
+INSERT INTO t1 VALUES (2,32,1);
+INSERT INTO t1 VALUES (3,90,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1,f2)
+FROM t1 GROUP BY f1) as dt WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
+f1	f2	SUM(f3) OVER(PARTITION BY f1,f2)
+3	90	1
+SELECT trace FROM information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,sum(`t1`.`f3`) OVER (PARTITION BY `t1`.`f1`,`t1`.`f2` )  AS `SUM(f3) OVER(PARTITION BY f1,f2)` from `t1` group by `t1`.`f1`"
+                }
+              ]
+            }
+          },
+          {
+            "derived": {
+              "table": " `dt`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
+          {
+            "expanded_query": "/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt`.`SUM(f3) OVER(PARTITION BY f1,f2)` AS `SUM(f3) OVER(PARTITION BY f1,f2)` from (/* select#2 */ select `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,sum(`t1`.`f3`) OVER (PARTITION BY `t1`.`f1`,`t1`.`f2` )  AS `SUM(f3) OVER(PARTITION BY f1,f2)` from `t1` group by `t1`.`f1`) `dt` where ((`dt`.`f1` > 2) and (`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))"
+          },
+          {
+            "condition_pushdown_to_derived": {
+              "table": " `dt`",
+              "original_condition": "((`dt`.`f1` > 2) and (`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))",
+              "condition_to_push": "((`dt`.`f1` > 2) and (`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))",
+              "remaining_condition": null,
+              "pushdown_to_query_blocks": [
+                {
+                  "query_block": 2,
+                  "pushing_past_window_functions": {
+                    "condition_to_push_to_having": "((`dt`.`f1` > 2) and (`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))",
+                    "remaining_condition": null
+                  },
+                  "pushing_past_group_by": {
+                    "condition_to_push_to_having": "((`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))",
+                    "condition_to_push_to_where": "(`dt`.`f1` > 2)",
+                    "remaining_condition": null
+                  },
+                  "pushed_having_condition": "((`dt`.`f2` > 30) and ((`dt`.`f1` + `dt`.`f2`) > 40))",
+                  "pushed_where_condition": "(`dt`.`f1` > 2)",
+                  "remaining_condition": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "(`t1`.`f1` > 2)",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "(`t1`.`f1` > 2)"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "(`t1`.`f1` > 2)"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "(`t1`.`f1` > 2)"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "condition_processing": {
+                    "condition": "HAVING",
+                    "original_condition": "((`t1`.`f2` > 30) and ((`t1`.`f1` + `t1`.`f2`) > 40))",
+                    "steps": [
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "((`t1`.`f2` > 30) and ((`t1`.`f1` + `t1`.`f2`) > 40))"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "((`t1`.`f2` > 30) and ((`t1`.`f1` + `t1`.`f2`) > 40))"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "`t1`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ref_optimizer_key_uses": [
+                  ]
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "`t1`",
+                      "range_analysis": {
+                        "table_scan": {
+                          "rows": 3,
+                          "cost": 2.65
+                        },
+                        "potential_range_indexes": [
+                          {
+                            "index": "f1",
+                            "usable": true,
+                            "key_parts": [
+                              "f1"
+                            ]
+                          },
+                          {
+                            "index": "f1_2",
+                            "usable": true,
+                            "key_parts": [
+                              "f1",
+                              "f2"
+                            ]
+                          },
+                          {
+                            "index": "f3",
+                            "usable": false,
+                            "cause": "not_applicable"
+                          }
+                        ],
+                        "setup_range_conditions": [
+                        ],
+                        "group_index_range": {
+                          "potential_group_range_indexes": [
+                            {
+                              "index": "f1",
+                              "usable": false,
+                              "cause": "not_covering"
+                            },
+                            {
+                              "index": "f1_2",
+                              "usable": false,
+                              "cause": "not_covering"
+                            }
+                          ]
+                        },
+                        "skip_scan_range": {
+                          "chosen": false,
+                          "cause": "has_group_by"
+                        },
+                        "analyzing_range_alternatives": {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f1",
+                              "ranges": [
+                                "2 < f1"
+                              ],
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": false,
+                              "in_memory": 1,
+                              "rows": 1,
+                              "cost": 0.61,
+                              "chosen": true
+                            },
+                            {
+                              "index": "f1_2",
+                              "ranges": [
+                                "2 < f1"
+                              ],
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": false,
+                              "in_memory": 1,
+                              "rows": 1,
+                              "cost": 0.61,
+                              "chosen": false,
+                              "cause": "cost"
+                            }
+                          ],
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          }
+                        },
+                        "chosen_range_access_summary": {
+                          "range_access_plan": {
+                            "type": "range_scan",
+                            "index": "f1",
+                            "rows": 1,
+                            "ranges": [
+                              "2 < f1"
+                            ]
+                          },
+                          "rows_for_plan": 1,
+                          "cost_for_plan": 0.61,
+                          "chosen": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ],
+                            "final_filtering_effect": 1,
+                            "access_type": "range",
+                            "range_details": {
+                              "used_index": "f1"
+                            },
+                            "resulting_rows": 1,
+                            "cost": 0.71,
+                            "chosen": true,
+                            "use_tmp_table": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 1,
+                      "cost_for_plan": 0.71,
+                      "sort_cost": 1,
+                      "new_cost_for_plan": 1.71,
+                      "chosen": true,
+                      "windowing_sort_cost": 1,
+                      "new_cost_for_plan": 2.71
+                    }
+                  ]
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "(`t1`.`f1` > 2)",
+                    "attached_conditions_computation": [
+                    ],
+                    "attached_conditions_summary": [
+                      {
+                        "table": "`t1`",
+                        "attached": "(`t1`.`f1` > 2)"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_group_by": {
+                      "original_clause": "`t1`.`f1`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": false,
+                      "resulting_clause": "`t1`.`f1`"
+                    }
+                  }
+                },
+                {
+                  "finalizing_table_conditions": [
+                    {
+                      "table": "`t1`",
+                      "original_table_condition": "(`t1`.`f1` > 2)",
+                      "final_table_condition   ": "(`t1`.`f1` > 2)"
+                    }
+                  ]
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "`t1`",
+                      "pushed_index_condition": "(`t1`.`f1` > 2)",
+                      "table_condition_attached": null
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_tmp_table_in_plan_at_position": 1,
+                      "write_method": "write_all_rows"
+                    },
+                    {
+                      "adding_tmp_table_in_plan_at_position": 2,
+                      "cause": "output_for_window_functions",
+                      "with_buffer": true,
+                      "write_method": "write_all_rows"
+                    },
+                    {
+                      "creating_tmp_table": {
+                        "tmp_table_info": {
+                          "table": "intermediate_tmp_table",
+                          "columns": 3,
+                          "row_length": 13,
+                          "key_length": 0,
+                          "unique_constraint": false,
+                          "makes_grouped_rows": false,
+                          "cannot_insert_duplicates": false,
+                          "location": "TempTable"
+                        }
+                      }
+                    },
+                    {
+                      "filesort": {
+                        "adding_sort_to_table": ""
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": " `dt`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": " `dt`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2.525
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": " `dt`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 2.725,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 2.725,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": " `dt`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
+            "refine_plan": [
+              {
+                "table": " `dt`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": " `dt`",
+                "in_plan_at_position": 0,
+                "columns": 3,
+                "row_length": 24,
+                "key_length": 0,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "materialize": {
+              "select#": 2,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 1,
+                      "columns": 3,
+                      "row_length": 15,
+                      "key_length": 5,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": true,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                },
+                {
+                  "materialize": {
+                    "select#": 2,
+                    "steps": [
+                    ]
+                  }
+                },
+                {
+                  "sorting_table": "<temporary>",
+                  "filesort_information": [
+                    {
+                      "direction": "asc",
+                      "expression": "`t1`.`f1`"
+                    },
+                    {
+                      "direction": "asc",
+                      "expression": "`t1`.`f2`"
+                    }
+                  ],
+                  "filesort_priority_queue_optimization": {
+                    "usable": false,
+                    "cause": "not applicable (no LIMIT)"
+                  },
+                  "filesort_execution": [
+                  ],
+                  "filesort_summary": {
+                    "memory_available": 262144,
+                    "key_size": 18,
+                    "row_size": 31,
+                    "max_rows_per_buffer": 15,
+                    "num_rows_estimate": 15,
+                    "num_rows_found": 1,
+                    "num_initial_chunks_spilled_to_disk": 0,
+                    "peak_memory_used": "NNN",
+                    "sort_algorithm": "none",
+                    "unpacked_addon_fields": "skip_heuristic",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+SELECT * FROM
+(SELECT (i+j) AS g, f1 FROM
+(SELECT (f1+f2) AS i, (f1-f2) AS j FROM
+(SELECT f1+10 AS f1, f2+10 AS f2 FROM t1) AS dt0) AS dt1,
+(SELECT f1, f2 FROM t1) AS dt2) AS dt3
+WHERE g > 26 and g+f1 > 31;
+g	f1
+SELECT trace FROM information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "join_preparation": {
+                    "select#": 3,
+                    "steps": [
+                      {
+                        "join_preparation": {
+                          "select#": 4,
+                          "steps": [
+                            {
+                              "expanded_query": "/* select#4 */ select (`t1`.`f1` + 10) AS `f1`,(`t1`.`f2` + 10) AS `f2` from `t1`"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "derived": {
+                          "table": " `dt0`",
+                          "select#": 4,
+                          "materialized": true
+                        }
+                      },
+                      {
+                        "expanded_query": "/* select#3 */ select (`dt0`.`f1` + `dt0`.`f2`) AS `i`,(`dt0`.`f1` - `dt0`.`f2`) AS `j` from (/* select#4 */ select (`t1`.`f1` + 10) AS `f1`,(`t1`.`f2` + 10) AS `f2` from `t1`) `dt0`"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derived": {
+                    "table": " `dt1`",
+                    "select#": 3,
+                    "materialized": true
+                  }
+                },
+                {
+                  "join_preparation": {
+                    "select#": 5,
+                    "steps": [
+                      {
+                        "expanded_query": "/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1`"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derived": {
+                    "table": " `dt2`",
+                    "select#": 5,
+                    "materialized": true
+                  }
+                },
+                {
+                  "expanded_query": "/* select#2 */ select (`dt1`.`i` + `dt1`.`j`) AS `g`,`dt2`.`f1` AS `f1` from (/* select#3 */ select (`dt0`.`f1` + `dt0`.`f2`) AS `i`,(`dt0`.`f1` - `dt0`.`f2`) AS `j` from (/* select#4 */ select (`t1`.`f1` + 10) AS `f1`,(`t1`.`f2` + 10) AS `f2` from `t1`) `dt0`) `dt1` join (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1`) `dt2`"
+                }
+              ]
+            }
+          },
+          {
+            "derived": {
+              "table": " `dt3`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
+          {
+            "expanded_query": "/* select#1 */ select `dt3`.`g` AS `g`,`dt3`.`f1` AS `f1` from (/* select#2 */ select (`dt1`.`i` + `dt1`.`j`) AS `g`,`dt2`.`f1` AS `f1` from (/* select#3 */ select (`dt0`.`f1` + `dt0`.`f2`) AS `i`,(`dt0`.`f1` - `dt0`.`f2`) AS `j` from (/* select#4 */ select (`t1`.`f1` + 10) AS `f1`,(`t1`.`f2` + 10) AS `f2` from `t1`) `dt0`) `dt1` join (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1`) `dt2`) `dt3` where ((`dt3`.`g` > 26) and ((`dt3`.`g` + `dt3`.`f1`) > 31))"
+          },
+          {
+            "condition_pushdown_to_derived": {
+              "table": " `dt3`",
+              "original_condition": "((`dt3`.`g` > 26) and ((`dt3`.`g` + `dt3`.`f1`) > 31))",
+              "condition_to_push": "((`dt3`.`g` > 26) and ((`dt3`.`g` + `dt3`.`f1`) > 31))",
+              "remaining_condition": null,
+              "pushdown_to_query_blocks": [
+                {
+                  "query_block": 2,
+                  "pushed_having_condition": null,
+                  "pushed_where_condition": "((`dt3`.`g` > 26) and ((`dt3`.`g` + `dt3`.`f1`) > 31))",
+                  "remaining_condition": null
+                }
+              ]
+            }
+          },
+          {
+            "condition_pushdown_to_derived": {
+              "table": " `dt1`",
+              "original_condition": "(((`dt1`.`i` + `dt1`.`j`) > 26) and (((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31))",
+              "condition_to_push": "((`dt1`.`i` + `dt1`.`j`) > 26)",
+              "remaining_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)",
+              "pushdown_to_query_blocks": [
+                {
+                  "query_block": 3,
+                  "pushed_having_condition": null,
+                  "pushed_where_condition": "((`dt1`.`i` + `dt1`.`j`) > 26)",
+                  "remaining_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+                }
+              ]
+            }
+          },
+          {
+            "condition_pushdown_to_derived": {
+              "table": " `dt2`",
+              "original_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)",
+              "condition_to_push": null,
+              "remaining_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+            }
+          },
+          {
+            "condition_pushdown_to_derived": {
+              "table": " `dt0`",
+              "original_condition": "(((`dt0`.`f1` + `dt0`.`f2`) + (`dt0`.`f1` - `dt0`.`f2`)) > 26)",
+              "condition_to_push": "(((`dt0`.`f1` + `dt0`.`f2`) + (`dt0`.`f1` - `dt0`.`f2`)) > 26)",
+              "remaining_condition": null,
+              "pushdown_to_query_blocks": [
+                {
+                  "query_block": 4,
+                  "pushed_having_condition": null,
+                  "pushed_where_condition": "(((`dt0`.`f1` + `dt0`.`f2`) + (`dt0`.`f1` - `dt0`.`f2`)) > 26)",
+                  "remaining_condition": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "join_optimization": {
+                    "select#": 3,
+                    "steps": [
+                      {
+                        "join_optimization": {
+                          "select#": 4,
+                          "steps": [
+                            {
+                              "condition_processing": {
+                                "condition": "WHERE",
+                                "original_condition": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)",
+                                "steps": [
+                                  {
+                                    "transformation": "equality_propagation",
+                                    "resulting_condition": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)"
+                                  },
+                                  {
+                                    "transformation": "constant_propagation",
+                                    "resulting_condition": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)"
+                                  },
+                                  {
+                                    "transformation": "trivial_condition_removal",
+                                    "resulting_condition": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "substitute_generated_columns": {
+                              }
+                            },
+                            {
+                              "table_dependencies": [
+                                {
+                                  "table": "`t1`",
+                                  "row_may_be_null": false,
+                                  "map_bit": 0,
+                                  "depends_on_map_bits": [
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "ref_optimizer_key_uses": [
+                              ]
+                            },
+                            {
+                              "rows_estimation": [
+                                {
+                                  "table": "`t1`",
+                                  "range_analysis": {
+                                    "table_scan": {
+                                      "rows": 3,
+                                      "cost": 2.65
+                                    },
+                                    "potential_range_indexes": [
+                                      {
+                                        "index": "f1",
+                                        "usable": false,
+                                        "cause": "not_applicable"
+                                      },
+                                      {
+                                        "index": "f1_2",
+                                        "usable": true,
+                                        "key_parts": [
+                                          "f1",
+                                          "f2"
+                                        ]
+                                      },
+                                      {
+                                        "index": "f3",
+                                        "usable": false,
+                                        "cause": "not_applicable"
+                                      }
+                                    ],
+                                    "best_covering_index_scan": {
+                                      "index": "f1_2",
+                                      "cost": 0.550975,
+                                      "chosen": true
+                                    },
+                                    "setup_range_conditions": [
+                                    ],
+                                    "group_index_range": {
+                                      "chosen": false,
+                                      "cause": "not_group_by_or_distinct"
+                                    },
+                                    "skip_scan_range": {
+                                      "chosen": false,
+                                      "cause": "disjuntive_predicate_present"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "considered_execution_plans": [
+                                {
+                                  "plan_prefix": [
+                                  ],
+                                  "table": "`t1`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "rows_to_scan": 3,
+                                        "filtering_effect": [
+                                        ],
+                                        "final_filtering_effect": 1,
+                                        "access_type": "scan",
+                                        "resulting_rows": 3,
+                                        "cost": 0.55,
+                                        "chosen": true
+                                      }
+                                    ]
+                                  },
+                                  "condition_filtering_pct": 100,
+                                  "rows_for_plan": 3,
+                                  "cost_for_plan": 0.55,
+                                  "chosen": true
+                                }
+                              ]
+                            },
+                            {
+                              "attaching_conditions_to_tables": {
+                                "original_condition": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)",
+                                "attached_conditions_computation": [
+                                ],
+                                "attached_conditions_summary": [
+                                  {
+                                    "table": "`t1`",
+                                    "attached": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "finalizing_table_conditions": [
+                                {
+                                  "table": "`t1`",
+                                  "original_table_condition": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)",
+                                  "final_table_condition   ": "((((`t1`.`f1` + 10) + (`t1`.`f2` + 10)) + ((`t1`.`f1` + 10) - (`t1`.`f2` + 10))) > 26)"
+                                }
+                              ]
+                            },
+                            {
+                              "refine_plan": [
+                                {
+                                  "table": "`t1`"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "table": " `dt0`",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "rows_estimation": [
+                          {
+                            "table": " `dt0`",
+                            "table_scan": {
+                              "rows": 3,
+                              "cost": 2.5375
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "considered_execution_plans": [
+                          {
+                            "plan_prefix": [
+                            ],
+                            "table": " `dt0`",
+                            "best_access_path": {
+                              "considered_access_paths": [
+                                {
+                                  "rows_to_scan": 3,
+                                  "access_type": "scan",
+                                  "resulting_rows": 3,
+                                  "cost": 2.8375,
+                                  "chosen": true
+                                }
+                              ]
+                            },
+                            "condition_filtering_pct": 100,
+                            "rows_for_plan": 3,
+                            "cost_for_plan": 2.8375,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": null,
+                          "attached_conditions_computation": [
+                          ],
+                          "attached_conditions_summary": [
+                            {
+                              "table": " `dt0`",
+                              "attached": null
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "finalizing_table_conditions": [
+                        ]
+                      },
+                      {
+                        "refine_plan": [
+                          {
+                            "table": " `dt0`"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "join_optimization": {
+                    "select#": 5,
+                    "steps": [
+                      {
+                        "table_dependencies": [
+                          {
+                            "table": "`t1`",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "rows_estimation": [
+                          {
+                            "table": "`t1`",
+                            "table_scan": {
+                              "rows": 3,
+                              "cost": 0.25
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "considered_execution_plans": [
+                          {
+                            "plan_prefix": [
+                            ],
+                            "table": "`t1`",
+                            "best_access_path": {
+                              "considered_access_paths": [
+                                {
+                                  "rows_to_scan": 3,
+                                  "access_type": "scan",
+                                  "resulting_rows": 3,
+                                  "cost": 0.55,
+                                  "chosen": true
+                                }
+                              ]
+                            },
+                            "condition_filtering_pct": 100,
+                            "rows_for_plan": 3,
+                            "cost_for_plan": 0.55,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": null,
+                          "attached_conditions_computation": [
+                          ],
+                          "attached_conditions_summary": [
+                            {
+                              "table": "`t1`",
+                              "attached": null
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "finalizing_table_conditions": [
+                        ]
+                      },
+                      {
+                        "refine_plan": [
+                          {
+                            "table": "`t1`"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "table": " `dt1`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    },
+                    {
+                      "table": " `dt2`",
+                      "row_may_be_null": false,
+                      "map_bit": 1,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ref_optimizer_key_uses": [
+                  ]
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": " `dt1`",
+                      "table_scan": {
+                        "rows": 3,
+                        "cost": 2.5375
+                      }
+                    },
+                    {
+                      "table": " `dt2`",
+                      "table_scan": {
+                        "rows": 3,
+                        "cost": 2.5375
+                      }
+                    }
+                  ]
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": " `dt1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ],
+                            "final_filtering_effect": 1,
+                            "access_type": "scan",
+                            "resulting_rows": 3,
+                            "cost": 2.8375,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 3,
+                      "cost_for_plan": 2.8375,
+                      "rest_of_plan": [
+                        {
+                          "plan_prefix": [
+                            " `dt1`"
+                          ],
+                          "table": " `dt2`",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "rows_to_scan": 3,
+                                "filtering_effect": [
+                                ],
+                                "final_filtering_effect": 1,
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "buffers_needed": 1,
+                                "resulting_rows": 3,
+                                "cost": 3.43799,
+                                "chosen": true
+                              }
+                            ]
+                          },
+                          "condition_filtering_pct": 100,
+                          "rows_for_plan": 9,
+                          "cost_for_plan": 6.27549,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": " `dt2`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ],
+                            "final_filtering_effect": 1,
+                            "access_type": "scan",
+                            "resulting_rows": 3,
+                            "cost": 2.8375,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 3,
+                      "cost_for_plan": 2.8375,
+                      "pruned_by_heuristic": true
+                    }
+                  ]
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)",
+                    "attached_conditions_computation": [
+                    ],
+                    "attached_conditions_summary": [
+                      {
+                        "table": " `dt1`",
+                        "attached": null
+                      },
+                      {
+                        "table": " `dt2`",
+                        "attached": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "finalizing_table_conditions": [
+                    {
+                      "table": " `dt2`",
+                      "original_table_condition": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)",
+                      "final_table_condition   ": "(((`dt1`.`i` + `dt1`.`j`) + `dt2`.`f1`) > 31)"
+                    }
+                  ]
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": " `dt1`"
+                    },
+                    {
+                      "table": " `dt2`"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": " `dt3`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": " `dt3`",
+                "table_scan": {
+                  "rows": 9,
+                  "cost": 2.6125
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": " `dt3`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 9,
+                      "access_type": "scan",
+                      "resulting_rows": 9,
+                      "cost": 3.5125,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 9,
+                "cost_for_plan": 3.5125,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": " `dt3`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
+            "refine_plan": [
+              {
+                "table": " `dt3`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": " `dt3`",
+                "in_plan_at_position": 0,
+                "columns": 2,
+                "row_length": 13,
+                "key_length": 0,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "materialize": {
+              "select#": 2,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "table": " `dt1`",
+                      "in_plan_at_position": 0,
+                      "columns": 2,
+                      "row_length": 17,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                },
+                {
+                  "materialize": {
+                    "select#": 3,
+                    "steps": [
+                      {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "table": " `dt0`",
+                            "in_plan_at_position": 0,
+                            "columns": 2,
+                            "row_length": 17,
+                            "key_length": 0,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": false,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          }
+                        }
+                      },
+                      {
+                        "materialize": {
+                          "select#": 4,
+                          "steps": [
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+SELECT * FROM
+(SELECT f1, SUM(f1) OVER() AS f2 FROM t1 GROUP BY f1 UNION
+SELECT f1, f1+10 FROM t1
+) as dt1 WHERE f1 > 26 and f2 > 31;
+f1	f2
+SELECT trace FROM information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f1` AS `f1`,sum(`t1`.`f1`) OVER ()  AS `f2` from `t1` group by `t1`.`f1`"
+                }
+              ]
+            }
+          },
+          {
+            "join_preparation": {
+              "select#": 3,
+              "steps": [
+                {
+                  "expanded_query": "/* select#3 */ select `t1`.`f1` AS `f1`,(`t1`.`f1` + 10) AS `f1+10` from `t1`"
+                }
+              ]
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "columns": 2,
+                "row_length": 20,
+                "key_length": 21,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": true,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "join_preparation": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "expanded_query": "/* select#fake */ select `f1` AS `f1`,`f2` AS `f2` from dual"
+                }
+              ]
+            }
+          },
+          {
+            "derived": {
+              "table": " `dt1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
+          {
+            "expanded_query": "/* select#1 */ select `dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2` from (/* select#2 */ select `t1`.`f1` AS `f1`,sum(`t1`.`f1`) OVER ()  AS `f2` from `t1` group by `t1`.`f1` union /* select#3 */ select `t1`.`f1` AS `f1`,(`t1`.`f1` + 10) AS `f1+10` from `t1`) `dt1` where ((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+          },
+          {
+            "condition_pushdown_to_derived": {
+              "table": " `dt1`",
+              "original_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))",
+              "condition_to_push": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))",
+              "remaining_condition": null,
+              "pushdown_to_query_blocks": [
+                {
+                  "query_block": 2,
+                  "pushing_past_window_functions": {
+                    "condition_to_push_to_having": null,
+                    "remaining_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+                  }
+                },
+                {
+                  "query_block": 3,
+                  "pushed_having_condition": null,
+                  "pushed_where_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))",
+                  "remaining_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "`t1`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "`t1`",
+                      "const_keys_added": {
+                        "keys": [
+                          "f1",
+                          "f1_2"
+                        ],
+                        "cause": "group_by"
+                      },
+                      "range_analysis": {
+                        "table_scan": {
+                          "rows": 3,
+                          "cost": 2.65
+                        },
+                        "potential_range_indexes": [
+                          {
+                            "index": "f1",
+                            "usable": true,
+                            "key_parts": [
+                              "f1"
+                            ]
+                          },
+                          {
+                            "index": "f1_2",
+                            "usable": true,
+                            "key_parts": [
+                              "f1",
+                              "f2"
+                            ]
+                          },
+                          {
+                            "index": "f3",
+                            "usable": false,
+                            "cause": "not_applicable"
+                          }
+                        ],
+                        "best_covering_index_scan": {
+                          "index": "f1",
+                          "cost": 0.550671,
+                          "chosen": true
+                        },
+                        "group_index_range": {
+                          "potential_group_range_indexes": [
+                            {
+                              "index": "f1",
+                              "covering": true,
+                              "rows": 4,
+                              "cost": 0.85
+                            },
+                            {
+                              "index": "f1_2",
+                              "covering": true,
+                              "rows": 4,
+                              "cost": 0.85
+                            }
+                          ]
+                        },
+                        "best_group_range_summary": {
+                          "type": "index_group",
+                          "index": "f1",
+                          "group_attribute": null,
+                          "min_aggregate": false,
+                          "max_aggregate": false,
+                          "distinct_aggregate": false,
+                          "rows": 4,
+                          "cost": 0.85,
+                          "key_parts_used_for_access": [
+                            "f1"
+                          ],
+                          "ranges": [
+                          ],
+                          "chosen": false,
+                          "cause": "cost"
+                        },
+                        "skip_scan_range": {
+                          "chosen": false,
+                          "cause": "has_group_by"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 3,
+                            "access_type": "scan",
+                            "resulting_rows": 3,
+                            "cost": 0.55,
+                            "chosen": true,
+                            "use_tmp_table": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 3,
+                      "cost_for_plan": 0.55,
+                      "sort_cost": 3,
+                      "new_cost_for_plan": 3.55,
+                      "chosen": true
+                    }
+                  ]
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ],
+                    "attached_conditions_summary": [
+                      {
+                        "table": "`t1`",
+                        "attached": null
+                      }
+                    ]
+                  }
+                },
+                {
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_group_by": {
+                      "original_clause": "`t1`.`f1`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": false,
+                      "resulting_clause": "`t1`.`f1`"
+                    }
+                  }
+                },
+                {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_tmp_table_in_plan_at_position": 1,
+                      "write_method": "write_all_rows"
+                    },
+                    {
+                      "adding_tmp_table_in_plan_at_position": 2,
+                      "cause": "output_for_window_functions",
+                      "with_buffer": true,
+                      "write_method": "write_all_rows"
+                    },
+                    {
+                      "creating_tmp_table": {
+                        "tmp_table_info": {
+                          "table": "intermediate_tmp_table",
+                          "columns": 2,
+                          "row_length": 9,
+                          "key_length": 0,
+                          "unique_constraint": false,
+                          "makes_grouped_rows": false,
+                          "cannot_insert_duplicates": false,
+                          "location": "TempTable"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "join_optimization": {
+              "select#": 3,
+              "steps": [
+                {
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "`t1`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ref_optimizer_key_uses": [
+                  ]
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "`t1`",
+                      "range_analysis": {
+                        "table_scan": {
+                          "rows": 3,
+                          "cost": 2.65
+                        },
+                        "potential_range_indexes": [
+                          {
+                            "index": "f1",
+                            "usable": true,
+                            "key_parts": [
+                              "f1"
+                            ]
+                          },
+                          {
+                            "index": "f1_2",
+                            "usable": true,
+                            "key_parts": [
+                              "f1",
+                              "f2"
+                            ]
+                          },
+                          {
+                            "index": "f3",
+                            "usable": false,
+                            "cause": "not_applicable"
+                          }
+                        ],
+                        "best_covering_index_scan": {
+                          "index": "f1",
+                          "cost": 0.550671,
+                          "chosen": true
+                        },
+                        "setup_range_conditions": [
+                        ],
+                        "group_index_range": {
+                          "chosen": false,
+                          "cause": "not_group_by_or_distinct"
+                        },
+                        "skip_scan_range": {
+                          "potential_skip_scan_indexes": [
+                            {
+                              "index": "f1",
+                              "usable": false,
+                              "cause": "prefix_not_const_equality"
+                            },
+                            {
+                              "index": "f1_2",
+                              "usable": false,
+                              "cause": "prefix_not_const_equality"
+                            }
+                          ]
+                        },
+                        "analyzing_range_alternatives": {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f1",
+                              "ranges": [
+                                "26 < f1"
+                              ],
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "in_memory": 1,
+                              "rows": 1,
+                              "cost": 0.36,
+                              "chosen": true
+                            },
+                            {
+                              "index": "f1_2",
+                              "ranges": [
+                                "26 < f1"
+                              ],
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "in_memory": 1,
+                              "rows": 1,
+                              "cost": 0.36,
+                              "chosen": false,
+                              "cause": "cost"
+                            }
+                          ],
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          }
+                        },
+                        "chosen_range_access_summary": {
+                          "range_access_plan": {
+                            "type": "range_scan",
+                            "index": "f1",
+                            "rows": 1,
+                            "ranges": [
+                              "26 < f1"
+                            ]
+                          },
+                          "rows_for_plan": 1,
+                          "cost_for_plan": 0.36,
+                          "chosen": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ],
+                            "final_filtering_effect": 1,
+                            "access_type": "range",
+                            "range_details": {
+                              "used_index": "f1"
+                            },
+                            "resulting_rows": 1,
+                            "cost": 0.46,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 1,
+                      "cost_for_plan": 0.46,
+                      "chosen": true
+                    }
+                  ]
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))",
+                    "attached_conditions_computation": [
+                    ],
+                    "attached_conditions_summary": [
+                      {
+                        "table": "`t1`",
+                        "attached": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "finalizing_table_conditions": [
+                    {
+                      "table": "`t1`",
+                      "original_table_condition": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))",
+                      "final_table_condition   ": "((`t1`.`f1` > 26) and ((`t1`.`f1` + 10) > 31))"
+                    }
+                  ]
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "`t1`"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "join_optimization": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "``",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "``",
+                      "table_scan": {
+                        "rows": 0,
+                        "cost": 2.5
+                      }
+                    }
+                  ]
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": "``",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 0,
+                            "access_type": "scan",
+                            "resulting_rows": 0,
+                            "cost": 2.5,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 0,
+                      "cost_for_plan": 2.5,
+                      "chosen": true
+                    }
+                  ]
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ],
+                    "attached_conditions_summary": [
+                      {
+                        "table": "``",
+                        "attached": null
+                      }
+                    ]
+                  }
+                },
+                {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "``"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": " `dt1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": " `dt1`"
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": " `dt1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 5,
+                      "access_type": "scan",
+                      "resulting_rows": 5,
+                      "cost": 3.0625,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 5,
+                "cost_for_plan": 3.0625,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": " `dt1`",
+                  "attached": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+                }
+              ]
+            }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": " `dt1`",
+                "original_table_condition": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))",
+                "final_table_condition   ": "((`dt1`.`f1` > 26) and (`dt1`.`f2` > 31))"
+              }
+            ]
+          },
+          {
+            "refine_plan": [
+              {
+                "table": " `dt1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": " `dt1`",
+                "in_plan_at_position": 0,
+                "columns": 2,
+                "row_length": 20,
+                "key_length": 21,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": true,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "materialize": {
+              "select#": 2,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 1,
+                      "columns": 2,
+                      "row_length": 11,
+                      "key_length": 5,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": true,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                },
+                {
+                  "materialize": {
+                    "select#": 2,
+                    "steps": [
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "materialize": {
+              "select#": 3,
+              "steps": [
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+set optimizer_switch=default;
+set sql_mode=default;
+DROP TABLE t1;

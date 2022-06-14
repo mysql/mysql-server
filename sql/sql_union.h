@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,13 @@
 #include "sql/temp_table_param.h"  // Temp_table_param
 
 class Item;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class THD;
 template <class T>
 class List;
 
 class Query_result_union : public Query_result_interceptor {
+ protected:
   Temp_table_param tmp_table_param;
   /// Count of rows successfully stored in tmp table
   ha_rows m_rows_in_table;
@@ -45,8 +46,9 @@ class Query_result_union : public Query_result_interceptor {
   TABLE *table;
 
   Query_result_union()
-      : Query_result_interceptor(), m_rows_in_table(0), table(0) {}
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+      : Query_result_interceptor(), m_rows_in_table(0), table(nullptr) {}
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               Query_expression *u) override;
   /**
     Do prepare() if preparation has been postponed until column type
     information is computed (used by Query_result_union_direct).
@@ -56,20 +58,24 @@ class Query_result_union : public Query_result_interceptor {
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(THD *thd MY_ATTRIBUTE((unused)),
-                                 List<Item> &types MY_ATTRIBUTE((unused))) {
+  virtual bool postponed_prepare(THD *thd [[maybe_unused]],
+                                 const mem_root_deque<Item *> &types
+                                 [[maybe_unused]]) {
     return false;
   }
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   virtual bool flush();
   void cleanup(THD *) override { (void)reset(); }
   bool reset() override;
-  bool create_result_table(THD *thd, List<Item> *column_types, bool is_distinct,
-                           ulonglong options, const char *alias,
-                           bool bit_fields_as_long, bool create_table);
+  bool create_result_table(THD *thd, const mem_root_deque<Item *> &column_types,
+                           bool is_distinct, ulonglong options,
+                           const char *alias, bool bit_fields_as_long,
+                           bool create_table);
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
-  virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
+  friend bool TABLE_LIST::optimize_derived(THD *thd);
+  const ha_rows *row_count() const override { return &m_rows_in_table; }
+  uint get_hidden_field_count() { return tmp_table_param.hidden_field_count; }
 };
 
 #endif /* SQL_UNION_INCLUDED */

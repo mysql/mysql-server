@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,10 @@
 /*
  * From configure.cmake, in order of appearance
  */
-#cmakedefine HAVE_LLVM_LIBCPP 1
 
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
 #cmakedefine HAVE_LIBNSL 1
-#cmakedefine HAVE_LIBCRYPT 1
 #cmakedefine HAVE_LIBSOCKET 1
 #cmakedefine HAVE_LIBDL 1
 #cmakedefine HAVE_LIBRT 1
@@ -45,9 +43,7 @@
 #cmakedefine HAVE_EXECINFO_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
-#cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_LANGINFO_H 1
-#cmakedefine HAVE_LSAN_INTERFACE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_POLL_H 1
@@ -68,14 +64,7 @@
 #cmakedefine HAVE_SYS_PARAM_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_SYS_UN_H 1
-#cmakedefine HAVE_VIS_H 1
 #cmakedefine HAVE_SASL_SASL_H 1
-
-/* Libevent */
-#cmakedefine HAVE_DEVPOLL 1
-#cmakedefine HAVE_SYS_DEVPOLL_H 1
-#cmakedefine HAVE_SYS_EPOLL_H 1
-#cmakedefine HAVE_TAILQFOREACH 1
 
 /* Functions */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
@@ -90,15 +79,12 @@
 #cmakedefine HAVE_FDATASYNC 1
 #cmakedefine HAVE_DECL_FDATASYNC 1
 #cmakedefine HAVE_FEDISABLEEXCEPT 1
-#cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
 #cmakedefine HAVE_GETHRTIME 1
-#cmakedefine HAVE_GETNAMEINFO 1
 #cmakedefine HAVE_GETPASS 1
 #cmakedefine HAVE_GETPASSPHRASE 1
 #cmakedefine HAVE_GETPWNAM 1
 #cmakedefine HAVE_GETPWUID 1
-#cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine HAVE_GETRUSAGE 1
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
@@ -109,40 +95,31 @@
 #cmakedefine HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK 1
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_MALLOC_INFO 1
-#cmakedefine HAVE_MEMRCHR 1
 #cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP64 1
 #cmakedefine HAVE_POLL 1
 #cmakedefine HAVE_POSIX_FALLOCATE 1
 #cmakedefine HAVE_POSIX_MEMALIGN 1
-#cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_GETAFFINITY_NP 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_SETFD 1
-#cmakedefine HAVE_SIGACTION 1
+#cmakedefine HAVE_PTHREAD_SETNAME_NP_LINUX 1
+#cmakedefine HAVE_PTHREAD_SETNAME_NP_MACOS 1
+#cmakedefine HAVE_SET_THREAD_DESCRIPTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
+#cmakedefine HAVE_STRPTIME 1
 #cmakedefine HAVE_STRSIGNAL 1
-#cmakedefine HAVE_FGETLN 1
-#cmakedefine HAVE_STRSEP 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_HTONLL 1
 #cmakedefine HAVE_EPOLL 1
-/* #cmakedefine HAVE_EVENT_PORTS 1 */
-#cmakedefine HAVE_INET_NTOP 1
-#cmakedefine HAVE_WORKING_KQUEUE 1
-#cmakedefine HAVE_TIMERADD 1
-#cmakedefine HAVE_TIMERCLEAR 1
-#cmakedefine HAVE_TIMERCMP 1
-#cmakedefine HAVE_TIMERISSET 1
 
 /* WL2373 */
 #cmakedefine HAVE_SYS_TIME_H 1
@@ -158,8 +135,6 @@
 #cmakedefine HAVE_MADV_DONTDUMP 1
 #cmakedefine HAVE_O_TMPFILE
 
-#cmakedefine HAVE_ISINF 1
-
 #cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_SETNS 1
 #cmakedefine HAVE_KQUEUE_TIMERS 1
@@ -167,6 +142,7 @@
 
 /* Endianess */
 #cmakedefine WORDS_BIGENDIAN 1
+#cmakedefine HAVE_ENDIAN_CONVERSION_MACROS 1
 
 /* Type sizes */
 #cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
@@ -175,7 +151,6 @@
 #cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
 #cmakedefine SIZEOF_INT       @SIZEOF_INT@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
-#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
@@ -197,7 +172,6 @@
 #cmakedefine HAVE_BUILTIN_UNREACHABLE 1
 #cmakedefine HAVE_BUILTIN_EXPECT 1
 #cmakedefine HAVE_BUILTIN_STPCPY 1
-#cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_GCC_SYNC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
 #cmakedefine HAVE_SYS_GETTID 1
@@ -216,16 +190,22 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine LINUX_ALPINE 1
 #cmakedefine LINUX_SUSE
+#cmakedefine LINUX_RHEL6
+#cmakedefine LINUX_RHEL7
+#cmakedefine LINUX_RHEL8
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
+#cmakedefine WITH_SYSTEMD_DEBUG
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
+#cmakedefine APPLE_ARM 1
 
 /*
  * From main CMakeLists.txt
  */
+#cmakedefine CHECK_ERRMSG_FORMAT
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 #cmakedefine WITH_INNODB_MEMCACHED 1
 #cmakedefine ENABLE_MEMCACHED_SASL 1
@@ -236,6 +216,10 @@
 #cmakedefine HAVE_UBSAN
 #cmakedefine HAVE_TSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
+#cmakedefine KERBEROS_LIB_CONFIGURED
+#cmakedefine SCRAM_LIB_CONFIGURED
+#cmakedefine WITH_HYPERGRAPH_OPTIMIZER
+#cmakedefine KERBEROS_LIB_SSPI
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
@@ -250,6 +234,8 @@
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 #cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
+#cmakedefine MYSQL_ICU_DATADIR "@MYSQL_ICU_DATADIR@"
+#cmakedefine ICUDT_DIR "@ICUDT_DIR@"
 /*
  * Readline
  */
@@ -263,11 +249,20 @@
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
 #cmakedefine USE_NEW_EDITLINE_INTERFACE 1
+#cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
+
 
 /*
  * Libedit
  */
-#cmakedefine HAVE_DECL_TGOTO 1
+#cmakedefine HAVE_GETLINE 1
+#cmakedefine HAVE___SECURE_GETENV 1
+#cmakedefine HAVE_SECURE_GETENV 1
+#cmakedefine HAVE_VIS
+#cmakedefine HAVE_UNVIS
+#cmakedefine HAVE_GETPW_R_DRAFT
+#cmakedefine HAVE_GETPW_R_POSIX
 
 /*
  * Character sets
@@ -313,10 +308,12 @@
  * CPU info
  */
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
+#cmakedefine CPU_PAGE_SIZE @CPU_PAGE_SIZE@
 
 /*
  * NDB
  */
+#cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 
@@ -324,6 +321,7 @@
  * Other
  */
 #cmakedefine EXTRA_DEBUG 1
+#cmakedefine HANDLE_FATAL_SIGNALS 1
 
 /*
  * Hardcoded values needed by libevent/NDB/memcached
@@ -331,10 +329,6 @@
 #define HAVE_FCNTL_H 1
 #define HAVE_GETADDRINFO 1
 #define HAVE_INTTYPES_H 1
-/* libevent's select.c is not Windows compatible */
-#ifndef _WIN32
-#define HAVE_SELECT 1
-#endif
 #define HAVE_SIGNAL_H 1
 #define HAVE_STDARG_H 1
 #define HAVE_STDINT_H 1
@@ -344,11 +338,6 @@
 #define HAVE_SYS_STAT_H 1
 #define HAVE_SYS_TYPES_H 1
 #define SIZEOF_CHAR 1
-
-/*
- * Needed by libevent
- */
-#cmakedefine HAVE_SOCKLEN_T 1
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
@@ -361,5 +350,13 @@
 #define DEFAULT_PARTIAL_REVOKES @DEFAULT_PARTIAL_REVOKES@
 
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+
+
+/* From libmysql/CMakeLists.txt */
+#cmakedefine HAVE_UNIX_DNS_SRV @HAVE_UNIX_DNS_SRV@
+#cmakedefine HAVE_WIN32_DNS_SRV @HAVE_WIN32_DNS_SRV@
+
+/* ARM crc32 support */
+#cmakedefine HAVE_ARMV8_CRC32_INTRINSIC @HAVE_ARMV8_CRC32_INTRINSIC@
 
 #endif

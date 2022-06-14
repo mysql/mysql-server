@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,22 @@ namespace xpl {
 
 class RWLock {
  public:
-  RWLock(PSI_rwlock_key key);
+  explicit RWLock(PSI_rwlock_key key);
   ~RWLock();
 
   operator mysql_rwlock_t *() { return &m_rwlock; }
 
-  void rlock() { mysql_rwlock_rdlock(&m_rwlock); }
+  bool rlock() {
+    const auto result = mysql_rwlock_rdlock(&m_rwlock);
+    assert(EDEADLK != result);
+    return 0 == result;
+  }
 
-  void wlock() { mysql_rwlock_wrlock(&m_rwlock); }
+  bool wlock() {
+    auto result = mysql_rwlock_wrlock(&m_rwlock);
+    assert(EDEADLK != result);
+    return 0 == result;
+  }
 
   bool try_wlock() { return mysql_rwlock_trywrlock(&m_rwlock) == 0; }
 
@@ -53,39 +61,48 @@ class RWLock {
 
 class RWLock_readlock {
  public:
-  RWLock_readlock(RWLock &lock) : m_lock(lock) { m_lock.rlock(); }
+  explicit RWLock_readlock(RWLock *lock) : m_lock(lock) {
+    if (!m_lock->rlock()) m_lock = nullptr;
+  }
 
-  ~RWLock_readlock() { m_lock.unlock(); }
+  RWLock_readlock(RWLock_readlock &&obj) : m_lock(obj.m_lock) {
+    obj.m_lock = nullptr;
+  }
+
+  ~RWLock_readlock() {
+    if (m_lock) m_lock->unlock();
+  }
 
  private:
-  RWLock_readlock(const RWLock_readlock &) = delete;
-  RWLock_readlock &operator=(RWLock_readlock &) = delete;
-
-  RWLock &m_lock;
+  RWLock *m_lock;
 };
 
 class RWLock_writelock {
  public:
-  RWLock_writelock(RWLock &lock, const bool dont_wait_when_cant_lock = false)
+  explicit RWLock_writelock(RWLock *lock,
+                            const bool dont_wait_when_cant_lock = false)
       : m_lock(lock) {
-    if (dont_wait_when_cant_lock)
-      m_locked = m_lock.try_wlock() == 0;
-    else {
-      m_lock.wlock();
-      m_locked = true;
+    if (dont_wait_when_cant_lock) {
+      // Don't hold reference to the lock, in case when
+      // it was not locked.
+      if (!m_lock->try_wlock()) m_lock = nullptr;
+    } else {
+      if (!m_lock->wlock()) m_lock = nullptr;
     }
   }
 
-  ~RWLock_writelock() { m_lock.unlock(); }
+  RWLock_writelock(RWLock_writelock &&obj) : m_lock(obj.m_lock) {
+    obj.m_lock = nullptr;
+  }
 
-  bool locked() const { return m_locked; }
+  ~RWLock_writelock() {
+    if (m_lock) m_lock->unlock();
+  }
+
+  bool locked() const { return m_lock; }
 
  private:
-  RWLock_writelock(const RWLock_writelock &) = delete;
-  RWLock_writelock &operator=(RWLock_writelock &) = delete;
-
-  RWLock &m_lock;
-  bool m_locked;
+  RWLock *m_lock;
 };
 
 }  // namespace xpl

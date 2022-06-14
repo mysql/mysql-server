@@ -9,7 +9,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 # Sync slave with master and setup debug sync point
 include/sync_slave_sql_with_master.inc
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,stop_io_after_reading_write_rows_log_event';
+SET GLOBAL DEBUG='+d,stop_io_after_reading_write_rows_log_event';
 # Insert the data in the master
 [connection master]
 BEGIN;
@@ -20,6 +20,8 @@ COMMIT;
 [connection slave]
 include/wait_for_slave_io_to_stop.inc
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
 # Stop the SQL thread (it should be in the middle of the transaction/group)
 include/stop_slave_sql.inc

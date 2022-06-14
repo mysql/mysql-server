@@ -260,6 +260,27 @@ SELECT session.min_examined_row_limit;
 --Error ER_BAD_FIELD_ERROR
 SELECT min_examined_row_limit = @@session.min_examined_row_limit;
 
+--echo '#---------------------FN_DYNVARS_089_12----------------------#'
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.min_examined_row_limit;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.min_examined_row_limit = 1;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.min_examined_row_limit;
+SET @@session.min_examined_row_limit = 1;
+SELECT @@session.min_examined_row_limit;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
 
 ####################################
 #     Restore initial value        #

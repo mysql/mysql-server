@@ -228,12 +228,12 @@ IMPORT TABLE FROM 't1_*.sdi', 't2_*.sdi';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 i
@@ -441,10 +441,10 @@ de DECIMAL(10,2), j INT GENERATED ALWAYS AS (42+i)) ENGINE=MYISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT '42',
+  `i` int DEFAULT '42',
   `dt` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
   `de` decimal(10,2) DEFAULT NULL,
-  `j` int(11) GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
+  `j` int GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(dt,de) VALUES ('2017-03-28 18:48:01', 1.1),
 ('2017-03-28 18:48:02', 1.2),
@@ -463,10 +463,10 @@ IMPORT TABLE FROM 't1_*.sdi';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT '42',
+  `i` int DEFAULT '42',
   `dt` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
   `de` decimal(10,2) DEFAULT NULL,
-  `j` int(11) GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
+  `j` int GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 i	dt	de	j
@@ -509,7 +509,7 @@ IMPORT TABLE FROM 'test/t1*.sdi';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

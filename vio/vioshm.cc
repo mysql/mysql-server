@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "vio_priv.h"
 
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_shm_defaults.h"
 
 size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size) {
@@ -31,7 +32,7 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size) {
   uchar *current_position;
   HANDLE events[2];
   DWORD timeout;
-  DBUG_ENTER("vio_read_shared_memory");
+  DBUG_TRACE;
 
   remain_local = size;
   current_position = buf;
@@ -64,9 +65,9 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size) {
         if (wait_status == WAIT_TIMEOUT)
           SetLastError(SOCKET_ETIMEDOUT);
         else if (wait_status == (WAIT_OBJECT_0 + 1))
-          DBUG_RETURN(0);
+          return 0;
 
-        DBUG_RETURN(-1);
+        return -1;
       }
 
       vio->shared_memory_pos = vio->handle_map;
@@ -87,12 +88,12 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size) {
     remain_local -= length;
 
     if (!vio->shared_memory_remain) {
-      if (!SetEvent(vio->event_client_read)) DBUG_RETURN(-1);
+      if (!SetEvent(vio->event_client_read)) return -1;
     }
   } while (remain_local);
   length = size;
 
-  DBUG_RETURN(length);
+  return length;
 }
 
 size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size) {
@@ -101,7 +102,7 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size) {
   const uchar *current_position;
   HANDLE events[2];
   DWORD timeout;
-  DBUG_ENTER("vio_write_shared_memory");
+  DBUG_TRACE;
 
   remain = size;
   current_position = buf;
@@ -123,7 +124,7 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size) {
       else
         SetLastError(ERROR_GRACEFUL_DISCONNECT);
 
-      DBUG_RETURN((size_t)-1);
+      return (size_t)-1;
     }
 
     sz = (remain > shared_memory_buffer_length ? shared_memory_buffer_length
@@ -134,11 +135,11 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size) {
     memcpy(pos, current_position, sz);
     remain -= sz;
     current_position += sz;
-    if (!SetEvent(vio->event_client_wrote)) DBUG_RETURN((size_t)-1);
+    if (!SetEvent(vio->event_client_wrote)) return (size_t)-1;
   }
   length = size;
 
-  DBUG_RETURN(length);
+  return length;
 }
 
 bool vio_is_connected_shared_memory(Vio *vio) {
@@ -146,9 +147,9 @@ bool vio_is_connected_shared_memory(Vio *vio) {
 }
 
 void vio_delete_shared_memory(Vio *vio) {
-  DBUG_ENTER("vio_delete_shared_memory");
+  DBUG_TRACE;
 
-  if (!vio) DBUG_VOID_RETURN;
+  if (!vio) return;
 
   if (vio->inactive == false) vio->vioshutdown(vio);
 
@@ -178,8 +179,6 @@ void vio_delete_shared_memory(Vio *vio) {
     DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
 
   vio_delete(vio);
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -194,7 +193,7 @@ void vio_delete_shared_memory(Vio *vio) {
   called and this completes the vio cleanup operation in its entirety.
 */
 int vio_shutdown_shared_memory(Vio *vio) {
-  DBUG_ENTER("vio_shutdown_shared_memory");
+  DBUG_TRACE;
   if (vio->inactive == false) {
     /*
       Set event_conn_closed for notification of both client and server that
@@ -206,5 +205,5 @@ int vio_shutdown_shared_memory(Vio *vio) {
   vio->inactive = true;
   vio->mysql_socket = MYSQL_INVALID_SOCKET;
 
-  DBUG_RETURN(0);
+  return 0;
 }

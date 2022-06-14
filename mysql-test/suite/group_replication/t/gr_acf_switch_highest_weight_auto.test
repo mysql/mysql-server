@@ -1,0 +1,339 @@
+#
+# Test case to verify that source gets selected based on highest weight
+# even if source is from different group.
+#
+# Test:
+# 1. Configure first group members: server1 and 2.
+# 2. Start GR on first group members: server1 and 2.
+# 3. Configure second group members: server3 and 4.
+# 4. Start GR on second group members: server3 and 4.
+# 5. Add two asynchronous connection failover servers from two different
+#    groups and verify that they are inserted successfully in
+#    performance_schema.replication_asynchronous_connection_failover.
+# 6. Create and start new channel ch1_5: server5(slave), server1(master)
+#    and verify channel ch1_5 IO and SQL THREADS are ON.
+# 7. Verify four senders are added automatically to
+#    replication_asynchronous_connection_failover table.
+# 8. Verify it gets reconnected to source with highest
+#    weight which will be server3.
+# 9. Clean Up.
+#
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+call mtr.add_suppression("The source.*for channel.*has joined the group.*and so added its entry into replication_asynchronous_connection_failover table");
+call mtr.add_suppression("The source.*for channel.*has left the group.*and so removed its entry from replication_asynchronous_connection_failover table");
+call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
+call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The Monitor IO thread failed to detect if the source belongs to the group majority on the source .* for channel 'ch1_5'.");
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo # 1. Configure first group members: server1 and 2.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+#check which stack are we using
+--let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
+
+--let $_group_replication_group_seeds=
+--let $_rpl_gcs_server_address= localhost
+
+--let $_rpl_server= 2
+while ($_rpl_server)
+{
+
+  --let $_rpl_gcs_server_port=
+  if ($have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
+  }
+  if (!$have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
+  }
+
+  if ($_group_replication_group_seeds != "")
+  {
+    --let $_group_replication_group_seeds= $_group_replication_group_seeds,
+  }
+
+  --let $_rpl_gcs_member= $_rpl_gcs_server_address:$_rpl_gcs_server_port
+  --let $_group_replication_group_seeds= $_group_replication_group_seeds$_rpl_gcs_member
+
+  --dec $_rpl_server
+}
+
+--let $_group_replication_group_name1= `SELECT UUID()`
+--let $_rpl_server= 2
+while ($_rpl_server)
+{
+  --let $_rpl_connection_name= server$_rpl_server
+  --connection $_rpl_connection_name
+
+  --replace_result $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+  --eval SET GLOBAL group_replication_group_seeds= "$_group_replication_group_seeds"
+
+  --replace_result $_group_replication_group_name1 GROUP_REPLICATION_GROUP_NAME
+  --eval SET GLOBAL group_replication_group_name= "$_group_replication_group_name1"
+
+  if ($_rpl_server == 1)
+  {
+    --let $_group_replication_group_seeds_tmp1 = $_group_replication_group_seeds
+    --let $_group_replication_group_name_tmp1 = $_group_replication_group_name1
+  }
+
+  --dec $_rpl_server
+}
+
+
+--echo
+--echo # 2. Start GR on first group members: server1 and 2.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_group_name= $_group_replication_group_name1
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_group_name= $_group_replication_group_name1
+--source include/start_group_replication.inc
+
+
+--echo
+--echo # 3. Configure second group members: server3 and 4.
+--echo
+
+--let $_group_replication_group_seeds=
+
+--let $_rpl_server=4
+while ($_rpl_server > 2)
+{
+  --let $_rpl_gcs_server_port=
+  if ($have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
+  }
+  if (!$have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
+  }
+
+  if ($_group_replication_group_seeds != "")
+  {
+    --let $_group_replication_group_seeds= $_group_replication_group_seeds,
+  }
+
+  --let $_rpl_gcs_member= $_rpl_gcs_server_address:$_rpl_gcs_server_port
+  --let $_group_replication_group_seeds= $_group_replication_group_seeds$_rpl_gcs_member
+
+  --dec $_rpl_server
+}
+
+
+--let $_group_replication_group_name2= `SELECT UUID()`
+--let $_rpl_server= 4
+while ($_rpl_server > 2)
+{
+  --let $_rpl_connection_name= server$_rpl_server
+  --connection $_rpl_connection_name
+
+  --replace_result $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+  --eval SET GLOBAL group_replication_group_seeds= "$_group_replication_group_seeds"
+
+  --replace_result $_group_replication_group_name2 GROUP_REPLICATION_GROUP_NAME
+  --eval SET GLOBAL group_replication_group_name= "$_group_replication_group_name2"
+
+  --dec $_rpl_server
+}
+
+
+--echo
+--echo # 4. Start GR on second group members: server3 and 4.
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_group_name= $_group_replication_group_name2
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $group_replication_group_name= $_group_replication_group_name2
+--source include/start_group_replication.inc
+
+
+--echo #
+--echo # 5. Add two asynchronous connection failover servers from two different
+--echo #    groups and verify that they are inserted successfully in
+--echo #    performance_schema.replication_asynchronous_connection_failover.
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $_tmp_gr_group_name1= `SELECT @@GLOBAL.group_replication_group_name`
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $_tmp_gr_group_name2= `SELECT @@GLOBAL.group_replication_group_name`
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $_tmp_gr_group_name1 GROUP_NAME
+--eval SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', '$_tmp_gr_group_name1', '127.0.0.1', $SERVER_MYPORT_2, '', 70, 60);
+
+--replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4 $_tmp_gr_group_name2 GROUP_NAME
+--eval SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', '$_tmp_gr_group_name2', '127.0.0.1', $SERVER_MYPORT_4, '', 80, 60);
+
+--let $assert_text= 'There are two rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+
+--echo
+--echo # 6. Create and start new channel ch1_5: server5(slave), server1(master)
+--echo #    and verify channel ch1_5 IO and SQL THREADS are ON.
+--echo
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5'
+
+--let $rpl_channel_name='ch1_5'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $assert_text= Verify channel ch1_5 IO_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name = \'ch1_5\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1_5 SQL_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch1_5\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+
+--echo
+--echo # 7. Verify four senders are added automatically to
+--echo #    replication_asynchronous_connection_failover table.
+--echo
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=4 FROM performance_schema.replication_asynchronous_connection_failover;
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 8. Verify it gets reconnected to source with highest
+--echo #    weight which will be server3.
+--echo
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_configuration WHERE HOST = '127.0.0.1' AND PORT = $SERVER_MYPORT_3
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=4 FROM performance_schema.replication_asynchronous_connection_failover;
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 9. Clean Up.
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 FOR CHANNEL 'ch1_3'
+
+--let $rpl_channel_name='ch1_3'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 FOR CHANNEL 'ch3_1'
+
+--let $rpl_channel_name='ch3_1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--let $sync_slave_connection= server5
+--source include/sync_slave_sql_with_master.inc
+
+
+--let $_rpl_server= 4
+while ($_rpl_server)
+{
+  --let $_rpl_connection_name= server$_rpl_server
+  --connection $_rpl_connection_name
+  --source include/stop_group_replication.inc
+  --dec $_rpl_server
+}
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1_5'
+--source include/stop_slave.inc
+--let $rpl_multi_source= 1
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+
+--replace_result $_tmp_gr_group_name1 GROUP_NAME1
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1_5', '$_tmp_gr_group_name1')
+
+--replace_result $_tmp_gr_group_name2 GROUP_NAME2
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1_5', '$_tmp_gr_group_name2')
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1_3'
+--source include/stop_slave.inc
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch3_1'
+--source include/stop_slave.inc
+--let $rpl_multi_source= 1
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_multi_source=
+
+
+--let $skip_recovery_configuration= 1
+--let $rpl_server_count= 4
+--source include/group_replication_end.inc

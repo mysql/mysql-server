@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,8 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Performs an execution step of a procedure node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *proc_step(que_thr_t *thr); /*!< in: query thread */
+static inline que_thr_t *proc_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an if-statement node.
  @return query thread to run next or NULL */
 que_thr_t *if_step(que_thr_t *thr); /*!< in: query thread */
@@ -56,8 +55,8 @@ que_thr_t *for_step(que_thr_t *thr); /*!< in: query thread */
 que_thr_t *assign_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of a procedure call node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *proc_eval_step(que_thr_t *thr); /*!< in: query thread */
+static inline que_thr_t *proc_eval_step(
+    que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an exit statement node.
  @return query thread to run next or NULL */
 que_thr_t *exit_step(que_thr_t *thr); /*!< in: query thread */

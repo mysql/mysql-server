@@ -1,0 +1,214 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Check that the parameter count is equal to 8.
+#
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify all mandatory arguments.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60, 11);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify all mandatory arguments.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 2. Check that the channel name is provided.
+#
+SELECT asynchronous_connection_failover_add_managed(9, 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify channel name.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 3. Check that host parameters values is provided and not empty.
+#
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '', 3310, '', 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify hostname.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 4. Check that port parameters values is provided.
+#
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', '3310', '', 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The port argument should be integer between 1-65535.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 5. Check that the primary_weight parameter value is integer value
+#    between 1-100.
+#
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 0, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The primary_weight argument should be integer between 1-100.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 180, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The primary_weight argument should be integer between 1-100.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', '80', 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The primary_weight argument should be integer between 1-100.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 6. Check that the secondary_weight parameter value is integer value
+#    between 1-100.
+#
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 0);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The secondary_weight argument should be integer between 1-100.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 160);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The secondary_weight argument should be integer between 1-100.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, '60');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: The secondary_weight argument should be integer between 1-100.
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 7. Check that the default value of weight parameter is
+#    secondary_weight.
+#
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover with weight=60']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
+#
+# 8. Check correct string value is provided for network_namespace.
+#
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '127.0.0.1', 3310, 100, 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong arguments: You need to specify a string value for network_namespace.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+	127.0.0.1	3310		60	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.10', 1111, 'nets', 20, 10);
+asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.10', 1111, 'nets', 20, 10)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+	10.0.0.10	1111		10	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb
+	127.0.0.1	3310		60	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb	GroupReplication	{"Primary_weight": 20, "Secondary_weight": 10}
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.11', 2222, 'blue', 25, 15);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb', '10.0.0.11', 2222, 'blue', 25, 15)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover_managed']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+	10.0.0.10	1111		10	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb
+	127.0.0.1	3310		60	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+ch1	10.0.0.11	2222		15	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 80, "Secondary_weight": 60}
+	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb	GroupReplication	{"Primary_weight": 20, "Secondary_weight": 10}
+ch1	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb	GroupReplication	{"Primary_weight": 25, "Secondary_weight": 15}
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb');
+asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb');
+asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaabb')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+#
+# 9. Check that the parameter count is equal to 2.
+#    i.e. channel_name, managed_name must be provided.
+#
+SELECT asynchronous_connection_failover_delete_managed('');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Wrong arguments: You need to specify all mandatory arguments.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 3);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Wrong arguments: You must specify all arguments.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 10. Check that the channel name is provided.
+#
+SELECT asynchronous_connection_failover_delete_managed(9, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Wrong arguments: You need to specify channel name.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 11. Check that managed_name parameter value is provided and not empty.
+#
+SELECT asynchronous_connection_failover_delete_managed('', '');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Wrong arguments: You need to specify managed_name.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 12. Verify user without SUPER or REPLICATION_SLAVE_ADMIN fails with
+#     ER_SPECIFIC_ACCESS_DENIED_ERROR error when execute
+#     asynchronous_connection_failover_add_managed and
+#     asynchronous_connection_failover_delete_managed UDF.
+#
+CREATE USER 'async_user' IDENTIFIED BY 'pass';
+[connection connect_async]
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa');
+ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
+SELECT * FROM mysql.replication_asynchronous_connection_failover;
+ERROR 42000: SELECT command denied to user 'async_user'@'localhost' for table 'replication_asynchronous_connection_failover'
+SELECT * FROM mysql.replication_asynchronous_connection_failover_managed;
+ERROR 42000: SELECT command denied to user 'async_user'@'localhost' for table 'replication_asynchronous_connection_failover_managed'
+#
+# 13. Verify user with REPLICATION_SLAVE_ADMIN privilege can execute
+#     asynchronous_connection_failover_add_source and
+#     asynchronous_connection_failover_delete_source UDF.
+#
+[connection master]
+GRANT REPLICATION_SLAVE_ADMIN ON *.* TO 'async_user';
+[connection connect_async]
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+ERROR HY000: asynchronous_connection_failover_add_managed UDF failed; Error inserting row to the table.
+SELECT asynchronous_connection_failover_add_managed('', 'AsyncReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong value: Managed type must be GroupReplication.
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'UUID', '127.0.0.1', 3100, '', 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Wrong value: Please specify valid UUID for managed name.
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa');
+asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa');
+ERROR HY000: asynchronous_connection_failover_delete_managed UDF failed; Error no matching row was found to be deleted.
+SELECT asynchronous_connection_failover_delete_managed('', 'UUID');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Wrong value: Please specify valid UUID for managed name.
+[connection master]
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover_managed table is empty']
+#
+# 14. Cleanup.
+#
+DROP USER 'async_user';
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel '.*' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+SET SESSION sql_log_bin = 1;
+include/rpl_end.inc

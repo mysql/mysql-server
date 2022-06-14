@@ -6,18 +6,20 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/stop_slave.inc
 CREATE TABLE test(id INTEGER NOT NULL PRIMARY KEY);
 INSERT INTO test VALUES (1), (2), (3);
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip-slave-start]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip-replica-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-replica-start]
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository= "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository= "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.master_info_repository= "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
@@ -26,4 +28,9 @@ ERROR HY000: This operation cannot be performed with running replication threads
 include/sync_slave_sql_with_master.inc
 DROP TABLE test;
 include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @@GLOBAL.master_info_repository= "TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
 include/rpl_end.inc

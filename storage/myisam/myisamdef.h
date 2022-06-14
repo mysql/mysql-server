@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #define STORAGE_MYISAM_MYISAMDEF_INCLUDED 1
 
 #include "my_alloc.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_icp.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam.h"     /* Structs & some defines */
@@ -75,7 +76,7 @@ struct MI_STATE_INFO {
     uchar unique_key_parts[2];  /* Key parts + unique parts */
     uchar keys;                 /* number of keys in file */
     uchar uniques;              /* number of UNIQUE definitions */
-    uchar language;             /* Language for indexes */
+    uchar language;             /* Language (collation) for indexes */
     uchar max_block_size_index; /* max keyblock size */
     uchar fulltext_keys;
     uchar not_used; /* To align to 8 */
@@ -245,9 +246,7 @@ struct MI_BIT_BUFF { /* Used for packing of record */
   uint error;
 };
 
-C_MODE_START
 typedef ICP_RESULT (*index_cond_func_t)(void *param);
-C_MODE_END
 
 struct MI_INFO {
   MYISAM_SHARE *s; /* Shared between open:s */
@@ -461,7 +460,7 @@ struct MI_SORT_PARAM {
 
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 
-#define MI_MIN_BLOCK_LENGTH 20    /* Because of delete-link */
+#define MI_MIN_BLOCK_LENGTH 20U   /* Because of delete-link */
 #define MI_EXTEND_BLOCK_LENGTH 20 /* Don't use to small record-blocks */
 #define MI_SPLIT_LENGTH ((MI_EXTEND_BLOCK_LENGTH + 4) * 2)
 #define MI_MAX_DYN_BLOCK_HEADER 20 /* Max prefix of record-block */
@@ -712,7 +711,7 @@ struct MI_BLOCK_INFO { /* Parameter to _mi_get_block_info */
 #define USE_BUFFER_INIT (((1024L * 512L - MALLOC_OVERHEAD) / IO_SIZE) * IO_SIZE)
 #define READ_BUFFER_INIT (1024L * 256L - MALLOC_OVERHEAD)
 #define SORT_BUFFER_INIT (2048L * 1024L - MALLOC_OVERHEAD)
-#define MIN_SORT_BUFFER (4096 - MALLOC_OVERHEAD)
+#define MIN_SORT_BUFFER (4096ULL - MALLOC_OVERHEAD)
 
 enum myisam_log_commands {
   MI_LOG_OPEN,
@@ -844,7 +843,6 @@ extern thread_local st_keycache_thread_var *keycache_tls;
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
-C_MODE_START
 extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
     mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
 
@@ -860,10 +858,7 @@ extern PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
 extern PSI_thread_key mi_key_thread_find_all_keys;
 
 void init_myisam_psi_keys();
-C_MODE_END
 #endif /* HAVE_PSI_INTERFACE */
-
-C_MODE_START
 
 extern PSI_memory_key mi_key_memory_MYISAM_SHARE;
 extern PSI_memory_key mi_key_memory_MI_INFO;
@@ -887,7 +882,5 @@ extern PSI_memory_key mi_key_memory_preload_buffer;
 extern PSI_memory_key mi_key_memory_stPageList_pages;
 extern PSI_memory_key mi_key_memory_keycache_thread_var;
 extern PSI_memory_key key_memory_QUEUE;
-
-C_MODE_END
 
 #endif  // STORAGE_MYISAM_MYISAMDEF_INCLUDED

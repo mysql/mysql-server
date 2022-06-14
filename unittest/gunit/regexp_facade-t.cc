@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 
 #include "my_config.h"
 
+#include <optional>
+
 #include "unittest/gunit/mock_parse_tree.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -43,8 +45,8 @@ using namespace regexp;
 
 class RegexpFacadeTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -58,7 +60,7 @@ class MockRegexpFacade : public Regexp_facade {
         m_pattern_expr(make_fixed_literal(thd, pattern)),
         m_is_error(SetPattern(m_pattern_expr, 0)) {}
 
-  Mysql::Nullable<int32_t> Find(const char *subject) {
+  std::optional<int32_t> Find(const char *subject) {
     Item *subject_expr = make_fixed_literal(m_thd, subject);
     return Regexp_facade::Find(subject_expr, 1, 0, false);
   }
@@ -90,7 +92,7 @@ TEST_F(RegexpFacadeTest, Find) {
     MockRegexpFacade regex(thd(), "a");
     ASSERT_FALSE(is_error);
     EXPECT_EQ(1, regex.FindValue("abc"));
-    EXPECT_EQ(Nullable<int>(), regex.Find(nullptr));
+    EXPECT_EQ(std::optional<int>(), regex.Find(nullptr));
   }
 
   // No error wanted.
@@ -103,7 +105,7 @@ TEST_F(RegexpFacadeTest, Find) {
     ASSERT_FALSE(is_error);
     {
       SCOPED_TRACE("Failure value of: ");
-      EXPECT_EQ(Nullable<int>(1), regex.Find("abc"));
+      EXPECT_EQ(std::optional<int>(1), regex.Find("abc"));
     }
   }
 }
@@ -122,6 +124,23 @@ TEST_F(RegexpFacadeTest, SetPattern) {
   MockRegexpFacade regex(thd(), "a");
   regex.SetPattern(nullptr, 0);
   regex.SetPattern(nullptr, 0);
+}
+
+TEST_F(RegexpFacadeTest, Replace) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
+  Item *subject1 = make_fixed_literal(thd(), " aaa");
+  Item *subject2 = make_fixed_literal(thd(), "");
+  Item *replacement = make_fixed_literal(thd(), "aamz");
+  const char *pattern = " +";
+  MockRegexpFacade regex(thd(), pattern);
+
+  regex.Replace(subject1, replacement, 1, 0, &buf);
+  // These arguments to Replace() will set U_STRING_NOT_TERMINATED_WARNING.
+  EXPECT_TRUE(regex.EngineHasWarning());
+
+  regex.Replace(subject2, replacement, 1, 0, &buf);
+  // The previous warning should have been cleared.
+  EXPECT_FALSE(regex.EngineHasWarning());
 }
 
 }  // namespace regexp_facade_unittest

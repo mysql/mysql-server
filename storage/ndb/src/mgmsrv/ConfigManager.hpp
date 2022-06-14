@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,8 @@ class ConfigManager : public MgmtThread {
 
   NdbMutex *m_config_mutex;
   const Config * m_config;
-  BaseString m_packed_config; // base64 packed
+  BaseString m_packed_config_v1; // base64 packed
+  BaseString m_packed_config_v2; // base64 packed
 
   ConfigRetriever m_config_retriever;
 
@@ -131,7 +132,7 @@ class ConfigManager : public MgmtThread {
 
   /* Functions used from 'init' */
   static Config* load_init_config(const char*);
-  static Config* load_init_mycnf(void);
+  static Config* load_init_mycnf(const char* cluster_config_suffix);
   Config* load_config(void) const;
   Config* fetch_config(void);
   bool save_config(const Config* conf);
@@ -211,7 +212,7 @@ class ConfigManager : public MgmtThread {
                   const char* bind_address,
                   NodeId nodeid);
     bool init();
-    virtual void run();
+    void run() override;
   };
   bool init_checkers(const Config* config);
   void start_checkers();
@@ -241,10 +242,10 @@ class ConfigManager : public MgmtThread {
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
                 const char* configdir);
-  virtual ~ConfigManager();
+  ~ConfigManager() override;
   bool init();
   void set_facade(TransporterFacade* facade);
-  virtual void run();
+  void run() override;
 
 
   /*
@@ -257,10 +258,14 @@ public:
     Retrieve the current configuration in base64 packed format
    */
   bool get_packed_config(ndb_mgm_node_type nodetype,
-                         BaseString * buf64, BaseString& error);
+                         BaseString * buf64,
+                         BaseString& error,
+                         bool v2,
+                         Uint32 node_id);
 
   static Config* load_config(const char* config_filename, bool mycnf,
-                             BaseString& msg);
+                             BaseString& msg,
+                             const char* cluster_config_suffix);
 
   bool set_dynamic_port(int node1, int node2, int value, BaseString& msg);
   bool set_dynamic_ports(int node, MgmtSrvr::DynPortSpec ports[],

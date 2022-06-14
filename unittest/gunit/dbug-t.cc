@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 
 #include "my_dbug.h"
@@ -33,7 +30,7 @@ using thread::Thread;
 
 namespace dbug_unittest {
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 TEST(DebugTest, NoSuicide) { DBUG_SUICIDE(); }
 #else
 TEST(DebugDeathTest, Suicide) {
@@ -42,7 +39,7 @@ TEST(DebugDeathTest, Suicide) {
 }
 #endif
 
-#if !defined(DBUG_OFF) && !defined(_WIN32)
+#if !defined(NDEBUG) && !defined(_WIN32)
 class DbugGcovThread : public Thread {
  public:
   DbugGcovThread(Notification *start_notification)
@@ -69,7 +66,7 @@ TEST(DebugFlushGcov, FlushGcovParallel) {
 }
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 TEST(DebugPrintTest, PrintEval) {
   int y = 0;
 
@@ -159,5 +156,17 @@ TEST(DebugSetTest, DebugKeywordsTest) {
   EXPECT_STREQ("d,keyword1,keyword2,keyword3", buf);
   DBUG_SET("");
 }
-#endif /* DBUG_OFF */
+
+class DbugLogThread : public Thread {
+ public:
+  void run() override { DBUG_LOG("TEST", "The test has been run"); }
+};
+TEST(DebugLogTest, DbugLogFromAFreshThreadTest) {
+  DBUG_SET_INITIAL("+d,foo");
+  DbugLogThread debug_thread{};
+  debug_thread.start();
+  debug_thread.join();
+  DBUG_SET_INITIAL("");
+}
+#endif /* NDEBUG */
 }  // namespace dbug_unittest

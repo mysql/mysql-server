@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0recv.h"
 #include "mtr0mtr.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #include "os0file.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -52,12 +52,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
-#define BUF_READ_AHEAD_RANDOM_THRESHOLD(b) (5 + BUF_READ_AHEAD_AREA(b) / 8)
+inline page_no_t BUF_READ_AHEAD_RANDOM_THRESHOLD(const buf_pool_t *b) {
+  return 5 + b->read_ahead_area / 8;
+}
 
 /** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
-static constexpr size_t BUF_READ_AHEAD_PEND_LIMIT = 2;
+static constexpr uint32_t BUF_READ_AHEAD_PEND_LIMIT = 2;
 
 ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
                         const page_id_t &page_id, const page_size_t &page_size,
@@ -67,9 +69,10 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   *err = DB_SUCCESS;
 
   if (page_id.space() == TRX_SYS_SPACE &&
-      buf_dblwr_page_inside(page_id.page_no())) {
+      dblwr::v1::is_inside(page_id.page_no())) {
     ib::error(ER_IB_MSG_139)
-        << "Trying to read doublewrite buffer page " << page_id;
+        << "Trying to read legacy doublewrite buffer page " << page_id;
+
     return (0);
   }
 
@@ -77,7 +80,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
     /* Trx sys header is so low in the latching order that we play
     safe and do not leave the i/o-completion to an asynchronous
     i/o-thread. Ibuf bitmap pages must always be read with
-    syncronous i/o, to make sure they do not get involved in
+    synchronous i/o, to make sure they do not get involved in
     thread deadlocks. */
 
     sync = true;
@@ -89,7 +92,9 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   completed */
   bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
 
-  if (bpage == NULL) {
+  ut_a(bpage == nullptr || bpage->get_space()->id == page_id.space());
+
+  if (bpage == nullptr) {
     return (0);
   }
 
@@ -102,7 +107,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
   if (sync) {
-    thd_wait_begin(NULL, THD_WAIT_DISKIO);
+    thd_wait_begin(nullptr, THD_WAIT_DISKIO);
   }
 
   void *dst;
@@ -121,7 +126,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
                 bpage);
 
   if (sync) {
-    thd_wait_end(NULL);
+    thd_wait_end(nullptr);
   }
 
   if (*err != DB_SUCCESS) {
@@ -134,9 +139,8 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   }
 
   if (sync) {
-    /* The i/o is already completed when we arrive from
-    fil_read */
-    if (!buf_page_io_complete(bpage)) {
+    /* The i/o is already completed when we arrive from fil_read */
+    if (!buf_page_io_complete(bpage, false)) {
       return (0);
     }
   }
@@ -153,7 +157,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   page_no_t low, high;
   dberr_t err;
   page_no_t i;
-  const page_no_t buf_read_ahead_random_area = BUF_READ_AHEAD_AREA(buf_pool);
+  const page_no_t buf_read_ahead_random_area = buf_pool->read_ahead_area;
 
   if (!srv_random_read_ahead) {
     /* Disabled by user */
@@ -182,7 +186,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   /* Remember the tablespace version before we ask the tablespace size
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     if (high > space->size) {
       high = space->size;
     }
@@ -207,7 +211,9 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage != NULL && buf_page_is_accessed(bpage) &&
+    if (bpage != nullptr &&
+        buf_page_is_accessed(bpage) !=
+            std::chrono::steady_clock::time_point{} &&
         buf_page_peek_if_young(bpage)) {
       recent_blocks++;
 
@@ -217,7 +223,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
       }
     }
 
-    if (bpage != NULL) {
+    if (bpage != nullptr) {
       rw_lock_s_unlock(hash_lock);
     }
   }
@@ -238,7 +244,7 @@ read_ahead:
 
   for (i = low; i < high; i++) {
     /* It is only sensible to do read-ahead in the non-sync aio
-    mode: hence FALSE as the first parameter */
+    mode: hence false as the first parameter */
 
     const page_id_t cur_page_id(page_id.space(), i);
 
@@ -318,75 +324,13 @@ bool buf_read_page_background(const page_id_t &page_id,
   return (count > 0);
 }
 
-size_t buf_phy_read_ahead(const page_id_t &page_id,
-                          const page_size_t &page_size, size_t n_pages) {
-  buf_pool_t *buf_pool = buf_pool_get(page_id);
-
-  if (srv_startup_is_before_trx_rollback_phase) {
-    /* No read-ahead to avoid thread deadlocks */
-    return (0);
-  }
-
-  auto low = page_id.page_no();
-  auto high = low + n_pages;
-
-  /* Remember the tablespace version before we ask the tablespace size
-  below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
-  do not try to read outside the bounds of the tablespace! */
-  page_no_t space_size{};
-
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
-    space_size = space->size;
-
-    fil_space_release(space);
-
-    if (high > space_size) {
-      /* The area is not whole */
-      return (0);
-    }
-  } else {
-    return (0);
-  }
-
-  size_t count{};
-
-  /* Since Windows XP seems to schedule the i/o handler thread
-  very eagerly, and consequently it does not wait for the
-  full read batch to be posted, we use special heuristics here */
-
-  os_aio_simulated_put_read_threads_to_sleep();
-
-  for (page_no_t i = low; i < high; ++i) {
-    dberr_t err;
-    const page_id_t cur_page_id(page_id.space(), i);
-
-    count +=
-        buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE,
-                          BUF_READ_ANY_PAGE, cur_page_id, page_size, false);
-
-    ut_a(err != DB_TABLESPACE_DELETED);
-  }
-
-  /* In simulated AIO we wake the AIO handler threads only after
-  queuing all AIO requests. */
-
-  os_aio_simulated_wake_handler_threads();
-
-  /* Read ahead is considered one I/O operation for the purpose of
-  LRU policy decision. */
-  buf_LRU_stat_inc_io();
-
-  buf_pool->stat.n_ra_pages_read += count;
-  return (count);
-}
-
 ulint buf_read_ahead_linear(const page_id_t &page_id,
                             const page_size_t &page_size, bool inside_ibuf) {
   buf_pool_t *buf_pool = buf_pool_get(page_id);
   buf_page_t *bpage;
   buf_frame_t *frame;
-  buf_page_t *pred_bpage = NULL;
-  unsigned pred_bpage_is_accessed = 0;
+  buf_page_t *pred_bpage = nullptr;
+  std::chrono::steady_clock::time_point pred_bpage_is_accessed;
   page_no_t pred_offset;
   page_no_t succ_offset;
   int asc_or_desc;
@@ -395,7 +339,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   page_no_t low, high;
   dberr_t err;
   page_no_t i;
-  const page_no_t buf_read_ahead_linear_area = BUF_READ_AHEAD_AREA(buf_pool);
+  const page_no_t buf_read_ahead_linear_area = buf_pool->read_ahead_area;
   page_no_t threshold;
 
   /* check if readahead is disabled */
@@ -427,12 +371,12 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     return (0);
   }
 
-  /* Remember the tablespace version before we ask te tablespace size
+  /* Remember the tablespace version before we ask the tablespace size
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
   ulint space_size;
 
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     space_size = space->size;
 
     fil_space_release(space);
@@ -467,7 +411,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   /* How many out of order accessed pages can we ignore
   when working out the access pattern for linear readahead */
   threshold = std::min(static_cast<page_no_t>(64 - srv_read_ahead_threshold),
-                       BUF_READ_AHEAD_AREA(buf_pool));
+                       buf_pool->read_ahead_area);
 
   fail_count = 0;
 
@@ -477,7 +421,8 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage == NULL || !buf_page_is_accessed(bpage)) {
+    if (bpage == nullptr || buf_page_is_accessed(bpage) ==
+                                std::chrono::steady_clock::time_point{}) {
       /* Not accessed */
       fail_count++;
 
@@ -490,8 +435,14 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
       the latest access times were linear.  The
       threshold (srv_read_ahead_factor) should help
       a little against this. */
-      int res =
-          ut_ulint_cmp(buf_page_is_accessed(bpage), pred_bpage_is_accessed);
+      int res = 0;
+      if (buf_page_is_accessed(bpage) == pred_bpage_is_accessed) {
+        res = 0;
+      } else if (buf_page_is_accessed(bpage) < pred_bpage_is_accessed) {
+        res = -1;
+      } else {
+        res = 1;
+      }
       /* Accesses not in the right order */
       if (res != 0 && res != asc_or_desc) {
         fail_count++;
@@ -507,7 +458,8 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     }
 
     if (bpage) {
-      if (buf_page_is_accessed(bpage)) {
+      if (buf_page_is_accessed(bpage) !=
+          std::chrono::steady_clock::time_point{}) {
         pred_bpage = bpage;
         pred_bpage_is_accessed = buf_page_is_accessed(bpage);
       }
@@ -521,7 +473,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
 
   bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
 
-  if (bpage == NULL) {
+  if (bpage == nullptr) {
     return (0);
   }
 
@@ -594,7 +546,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
 
   for (i = low; i < high; i++) {
     /* It is only sensible to do read-ahead in the non-sync
-    aio mode: hence FALSE as the first parameter */
+    aio mode: hence false as the first parameter */
 
     const page_id_t cur_page_id(page_id.space(), i);
 
@@ -647,14 +599,14 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (!found) {
       /* The tablespace was not found, remove the
       entries for that page */
-      ibuf_merge_or_delete_for_page(NULL, page_id, NULL, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, nullptr, false);
       continue;
     }
 
     os_rmb;
     while (buf_pool->n_pend_reads >
            buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-      os_thread_sleep(500000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     dberr_t err;
@@ -666,7 +618,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (err == DB_TABLESPACE_DELETED) {
       /* We have deleted or are deleting the single-table
       tablespace: remove the entries for that page */
-      ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, false);
     }
   }
 
@@ -683,7 +635,7 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
   ulint count;
   fil_space_t *space = fil_space_get(space_id);
 
-  if (space == NULL) {
+  if (space == nullptr) {
     /* The tablespace is missing: do nothing */
     return;
   }
@@ -728,7 +680,7 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 
     while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
       os_aio_simulated_wake_handler_threads();
-      os_thread_sleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
       count++;
 

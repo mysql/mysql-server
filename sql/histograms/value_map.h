@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,11 +42,14 @@
 class String;
 class my_decimal;
 template <class T>
-class Memroot_allocator;
+class Mem_root_allocator;
 
 namespace histograms {
 
 class Histogram;
+template <class T>
+struct SingletonBucket;
+
 namespace equi_height {
 template <class T>
 class Bucket;
@@ -81,16 +84,62 @@ struct Histogram_comparator {
     return std::less<T>()(lhs, rhs);
   }
 
+  /**
+    Used by std::lower_bound when computing equal-to and less-than selectivity
+    to find the first bucket with an upper bound that is not less than b.
+  */
   template <class T>
   bool operator()(const equi_height::Bucket<T> &a, const T &b) const {
     return Histogram_comparator()(a.get_upper_inclusive(), b);
   }
 
+  /**
+   * Same as above, but for singleton histogram buckets.
+   */
+  template <class T>
+  bool operator()(const SingletonBucket<T> &a, const T &b) const {
+    return Histogram_comparator()(a.value, b);
+  }
+
+  /**
+    Used by std::upper_bound when computing greater-than selectivity in order to
+    find the first bucket with an upper bound that is greater than a.
+    Notice that the comparison function used by std::lower_bound and
+    std::upper_bound have the collection element as the first and second
+    argument, respectively.
+  */
+  template <class T>
+  bool operator()(const T &a, const equi_height::Bucket<T> &b) const {
+    return Histogram_comparator()(a, b.get_upper_inclusive());
+  }
+
+  /**
+   * Same as above, but for singleton histogram buckets.
+   */
+  template <class T>
+  bool operator()(const T &a, const SingletonBucket<T> &b) const {
+    return Histogram_comparator()(a, b.value);
+  }
+
+  /**
+    Used by std::is_sorted to verify that equi-height histogram buckets are
+    stored in sorted order. We consider bucket a = [a1, a2] to be less than
+    bucket b = [b1, b2]  if a2 < b1.
+  */
   template <class T>
   bool operator()(const equi_height::Bucket<T> &a,
                   const equi_height::Bucket<T> &b) const {
     return Histogram_comparator()(a.get_upper_inclusive(),
                                   b.get_lower_inclusive());
+  }
+
+  /**
+   * Same as above, but for singleton histogram buckets.
+   */
+  template <class T>
+  bool operator()(const SingletonBucket<T> &a,
+                  const SingletonBucket<T> &b) const {
+    return Histogram_comparator()(a.value, b.value);
   }
 };
 
@@ -131,7 +180,7 @@ class Value_map_base {
   Value_map_base(const CHARSET_INFO *charset, double sampling_rate,
                  Value_map_type data_type);
 
-  virtual ~Value_map_base() {}
+  virtual ~Value_map_base() = default;
 
   /**
     Returns the number of [value, count] pairs in the Value_map.
@@ -216,7 +265,7 @@ class Value_map final : public Value_map_base {
  private:
   using value_map_type =
       std::map<T, ha_rows, Histogram_comparator,
-               Memroot_allocator<std::pair<const T, ha_rows>>>;
+               Mem_root_allocator<std::pair<const T, ha_rows>>>;
 
   value_map_type m_value_map;
 
@@ -255,9 +304,10 @@ class Value_map final : public Value_map_base {
   bool insert(typename value_map_type::const_iterator begin,
               typename value_map_type::const_iterator end);
 
-  virtual Histogram *build_histogram(
-      MEM_ROOT *mem_root, size_t num_buckets, const std::string &db_name,
-      const std::string &tbl_name, const std::string &col_name) const override;
+  Histogram *build_histogram(MEM_ROOT *mem_root, size_t num_buckets,
+                             const std::string &db_name,
+                             const std::string &tbl_name,
+                             const std::string &col_name) const override;
 
   /// @return the overhead in bytes for each distinct value stored in the
   ///         Value_map. The value 32 is obtained from both GCC 8.2 and

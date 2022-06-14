@@ -1,0 +1,78 @@
+--source include/have_ndb.inc
+
+#
+# Open connections
+#
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+
+#
+# Bug#30556487 MYSQLD HANG IN NDB_STORED_GRANTS CODE ON CREATE USER
+#
+CREATE USER "mcmd"@"localhost";
+GRANT ALL PRIVILEGES ON *.* to "mcmd"@"localhost";
+
+# Delete the user record stored in NDB
+--disable_result_log
+--exec $NDB_DELETE_ALL -d mysql ndb_sql_metadata
+
+# Now grant again
+CALL mtr.add_suppression("NDB: Error 626, Tuple did not exist");
+GRANT ALL PRIVILEGES ON *.* to "mcmd"@"localhost";
+
+#
+# Bug#30600321 MAX_QUERIES_PER_HOUR 0 ONLY REMOVES THE LIMIT ON 1 MYSQLD
+#
+--enable_result_log
+--disable_query_log
+
+# Bug#30600321 Test (1): Alter resource limit of stored user
+ALTER USER "mcmd"@"localhost" WITH MAX_QUERIES_PER_HOUR 33;
+
+connection mysqld2;
+echo Expect 33;
+SELECT max_questions from mysql.user where user = 'mcmd';
+
+connection default;
+ALTER USER "mcmd"@"localhost" WITH MAX_QUERIES_PER_HOUR 0;
+
+connection mysqld2;
+let $max= `SELECT max_questions from mysql.user where user = 'mcmd'`;
+if ($max != 0)
+{
+  die Test failed -- max_questions was not zero;
+}
+
+# Bug#30600321 Test (2): Alter both resource limit and password of stored user
+connection default;
+ALTER USER "mcmd"@"localhost" WITH MAX_QUERIES_PER_HOUR 44;
+ALTER USER "mcmd"@"localhost" IDENTIFIED BY "Garb_farb_earb" WITH MAX_QUERIES_PER_HOUR 0;
+
+connection mysqld2;
+echo Expect 0;
+SELECT max_questions from mysql.user where user = 'mcmd';
+
+# Bug#30600321 Test (3): Alter resource limit of stored and non-stored users
+connection default;
+CREATE USER "lu1"@"a";
+ALTER USER "lu1"@"a", "mcmd"@"localhost" WITH MAX_QUERIES_PER_HOUR 55;
+
+connection mysqld2;
+echo Expect 55;
+SELECT max_questions from mysql.user where user = 'mcmd';
+
+connection default;
+ALTER USER "lu1"@"a", "mcmd"@"localhost" WITH MAX_QUERIES_PER_HOUR 0;
+
+connection mysqld2;
+echo Expect 0;
+SELECT max_questions from mysql.user where user = 'mcmd';
+
+--enable_query_log
+
+#
+# Cleanup
+#
+connection default;
+DROP USER mcmd@localhost;
+DROP USER lu1@a;
+

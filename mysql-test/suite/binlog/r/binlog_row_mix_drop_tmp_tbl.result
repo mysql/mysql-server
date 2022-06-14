@@ -35,7 +35,6 @@ RESET MASTER;
 # Bug 83003: Using temporary tables on slaves increases GTID sequence number
 #
 CREATE TEMPORARY TABLE temp_trx(a INT) ENGINE=InnoDB;
-CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE temp_needs_logging_in_stmt(a INT) ENGINE=InnoDB;
 SET SESSION sql_log_bin= 0;
 CREATE TEMPORARY TABLE temp_binlog_disabled(a INT) ENGINE=InnoDB;

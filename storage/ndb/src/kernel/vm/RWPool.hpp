@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,14 @@
 #include "NdbOut.hpp"
 #include "Pool.hpp"
 
+#include <EventLogger.hpp>
+
 #define JAM_FILE_ID 311
 
 
 struct RWPage
 {
-  STATIC_CONST( RWPAGE_WORDS = GLOBAL_PAGE_SIZE_WORDS - 4 );
+  static constexpr Uint32 RWPAGE_WORDS = GLOBAL_PAGE_SIZE_WORDS - 4;
 
   Uint32 m_type_id;
   Uint16 m_first_free;
@@ -69,7 +71,7 @@ public:
   void * getPtr(Uint32 i) const;
   void * getPtr(const Record_info&ri, Uint32 i) const;
   
-  STATIC_CONST( WORDS_PER_PAGE = RWPage::RWPAGE_WORDS );
+  static constexpr Uint32 WORDS_PER_PAGE = RWPage::RWPAGE_WORDS;
 
 private:  
   [[noreturn]] void handle_invalid_release(Ptr<T>);

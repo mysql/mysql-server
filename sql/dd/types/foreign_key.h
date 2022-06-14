@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class Foreign_key : virtual public Entity_object {
   };
 
  public:
-  virtual ~Foreign_key() {}
+  ~Foreign_key() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // parent table.
@@ -165,9 +165,8 @@ class Foreign_key : virtual public Entity_object {
     deserialization process
     @param val subobject of rapidjson DOM containing json
     representation of this object
-    @return
-      @retval false success
-      @retval true  failure
+    @retval false success
+    @retval true  failure
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;

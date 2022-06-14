@@ -1,0 +1,70 @@
+include/have_replication_observers_example_plugin.inc
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Load plugin replication observers example on server1
+include/install_replication_observers_example.inc
+
+# 2. Load plugin replication observers example on server2 and store
+#    variables to use when start GR
+[connection server2]
+include/install_replication_observers_example.inc
+
+# 3. Stop GR on server2
+include/stop_group_replication.inc
+
+# 4. Server2 will not be able to send message, GR is stopped
+SELECT group_replication_service_message_send("tag", "Server2 sent a message");
+ERROR HY000: group_replication_service_message_send UDF failed; No send service to propagate message to a group.
+
+# 5. Server1 send a message on GR delivery system
+[connection server1]
+SELECT group_replication_service_message_send("tag", "Server1 sent a message");
+group_replication_service_message_send("tag", "Server1 sent a message")
+The tag and message was sent to the group.
+
+# 6. Start Group Replication on server 2
+[connection server2]
+include/start_group_replication.inc
+
+# 7. Uninstall GR from server1
+[connection server1]
+include/uninstall_group_replication_plugin.inc
+
+# 8. Server1 will not be able to send message, GR plugin isn't present
+SELECT group_replication_service_message_send("tag", "Server1 sent another message");
+ERROR HY000: group_replication_service_message_send UDF failed; No send service to propagate message to a group.
+
+# 9. Server2 send another message on GR delivery system. This will be
+#    delivered.
+[connection server2]
+SELECT group_replication_service_message_send("tag", "Server2 sent another message");
+group_replication_service_message_send("tag", "Server2 sent another message")
+The tag and message was sent to the group.
+
+# 10. Start GR on server1, which will make it wait for the delivery of new
+#     view, and that will happen only after delivery of service message.
+#     This will give some time to server to receive and write it to error
+#     log.
+[connection server1]
+include/install_group_replication_plugin.inc
+SET @@global.group_replication_group_seeds="GROUP_SEEDS";
+SET @@global.group_replication_local_address="LOCAL_ADDRESS";
+include/start_group_replication.inc
+
+# 11. Assert server 2 received message from itself
+[connection server2]
+include/assert_grep.inc [Server 2 received message from itself.]
+
+# 12. Assert server 1 received message from itself
+[connection server1]
+include/assert_grep.inc [Server 1 received one message from itself.]
+
+# 13. Cleanup
+include/uninstall_replication_observers_example.inc
+[connection server2]
+include/uninstall_replication_observers_example.inc
+include/group_replication_end.inc

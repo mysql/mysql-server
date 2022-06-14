@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
 
       // g1 and g2 must have at least one interior point in common.
       bool shared_interior = false;
-      DBUG_ASSERT(g1_mpy->empty());  // Should have returned already.
+      assert(g1_mpy->empty());  // Should have returned already.
       if (g1->coordinate_system() == Coordinate_system::kCartesian) {
         if (g1_mpy->empty() && !g1_mls->empty() && g2_mpy->empty() &&
             !g2_mls->empty()) {
@@ -156,7 +156,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
                          mask);
         }
       } else {
-        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
         if (g1_mpy->empty() && !g1_mls->empty() && g2_mpy->empty() &&
             !g2_mls->empty()) {
           // Both g1 and g2 are of dimenision 1, so the common interior has to
@@ -201,11 +201,11 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
           boost::geometry::de9im::mask mask("T********");
           boost::geometry::strategy::within::geographic_winding<
               Geographic_point>
-          geographic_pl_pa_strategy(
-              bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
+              geographic_pl_pa_strategy(
+                  bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
           boost::geometry::strategy::intersection::geographic_segments<>
-          geographic_ll_la_aa_strategy(
-              bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
+              geographic_ll_la_aa_strategy(
+                  bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
 
           shared_interior = bg::relate(
               *down_cast<Geographic_multipoint *>(g1_mpt.get()),
@@ -243,18 +243,16 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
       if (!shared_interior) return false;
 
       // At least one point of g1 must be in g2's exterior.
-      std::unique_ptr<Multipoint> mpt_diff;
+      std::unique_ptr<Geometry> pt_diff;
       Difference d(f.semi_major(), f.semi_minor());
-      mpt_diff.reset(down_cast<Multipoint *>(d(g1_mpt.get(), g2_mpt.get())));
-      mpt_diff.reset(down_cast<Multipoint *>(d(mpt_diff.get(), g2_mls.get())));
-      mpt_diff.reset(down_cast<Multipoint *>(d(mpt_diff.get(), g2_mpy.get())));
-      if (mpt_diff->size() > 0) return true;
-      std::unique_ptr<Multilinestring> mls_diff;
-      mls_diff.reset(
-          down_cast<Multilinestring *>(d(g1_mls.get(), g2_mls.get())));
-      mls_diff.reset(
-          down_cast<Multilinestring *>(d(mls_diff.get(), g2_mpy.get())));
-      return (mls_diff->size() > 0);
+      pt_diff = d(g1_mpt.get(), g2_mpt.get());
+      pt_diff = d(pt_diff.get(), g2_mls.get());
+      pt_diff = d(pt_diff.get(), g2_mpy.get());
+      if (!pt_diff->is_empty()) return true;
+      std::unique_ptr<Geometry> ls_diff;
+      ls_diff = d(g1_mls.get(), g2_mls.get());
+      ls_diff = d(ls_diff.get(), g2_mpy.get());
+      return (!ls_diff->is_empty());
     } else {
       if (g1->coordinate_system() == Coordinate_system::kCartesian) {
         Cartesian_geometrycollection gc;
@@ -262,7 +260,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
         return geometry_collection_apply_crosses<Cartesian_geometrycollection>(
             f, g1, &gc);
       } else {
-        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
         Geographic_geometrycollection gc;
         gc.push_back(*g2);
         return geometry_collection_apply_crosses<Geographic_geometrycollection>(
@@ -277,7 +275,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
         return geometry_collection_apply_crosses<Cartesian_geometrycollection>(
             f, &gc, g2);
       } else {
-        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
         Geographic_geometrycollection gc;
         gc.push_back(*g1);
         return geometry_collection_apply_crosses<Geographic_geometrycollection>(
@@ -303,7 +301,7 @@ bool Crosses::operator()(const Geometry *g1, const Geometry *g2) const {
 
 bool Crosses::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
-  DBUG_ASSERT(false);
+  assert(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
@@ -871,19 +869,19 @@ bool crosses(const dd::Spatial_reference_system *srs, const Geometry *g1,
              const Geometry *g2, const char *func_name, bool *crosses,
              bool *null) noexcept {
   try {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(g1->coordinate_system() == g2->coordinate_system());
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g1->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 
     Crosses crosses_func(srs ? srs->semi_major_axis() : 0.0,
                          srs ? srs->semi_minor_axis() : 0.0);
     *crosses = crosses_func(g1, g2);
-  } catch (const null_value_exception &e) {
+  } catch (const null_value_exception &) {
     *null = true;
     return false;
   } catch (...) {

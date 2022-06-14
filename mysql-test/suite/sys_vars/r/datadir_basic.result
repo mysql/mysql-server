@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.datadir);
 COUNT(@@GLOBAL.datadir)
 1
 1 Expected
-SELECT datadir = @@SESSION.datadir;
+SELECT datadir;
 ERROR 42S22: Unknown column 'datadir' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

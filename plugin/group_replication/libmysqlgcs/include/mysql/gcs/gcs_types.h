@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ class Gcs_interface_parameters {
 
   Gcs_interface_parameters() : parameters() {}
 
-  virtual ~Gcs_interface_parameters() {}
+  virtual ~Gcs_interface_parameters() = default;
 
  private:
   std::map<std::string, std::string> parameters;
@@ -129,10 +129,10 @@ enum class Gcs_protocol_version : unsigned short {
   UNKNOWN = 0,
   V1 = 1,
   V2 = 2,
-  /* Define the highest known version. */
-  HIGHEST_KNOWN = V2,
-  /* Currently used in test cases. */
   V3 = 3,
+  /* Define the highest known version. */
+  HIGHEST_KNOWN = V3,
+  /* Currently used in test cases. */
   V4 = 4,
   V5 = 5,
   /*

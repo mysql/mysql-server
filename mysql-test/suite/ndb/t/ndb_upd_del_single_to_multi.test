@@ -1,0 +1,32 @@
+-- source include/have_ndb.inc
+
+# WL#6057 make semijoin work with single-table UPDATE/DELETE
+# Verify that NDB isn't affected (this is to preserve
+# the possibility to use read-before-write removal)
+
+create table t1(a int) engine=ndbcluster;
+create table t2(a int) engine=ndbcluster;
+insert into t1 values(10),(11),(12),(13),(14),(15),(16);
+insert into t2 values(100),(11),(120);
+analyze table t1,t2;
+
+# Does not become multi-table even though there is IN(subquery):
+
+explain format=tree update t1 set t1.a=3 where a=(select a from t2);
+explain update t1 set t1.a=3 where a in (select a from t2);
+update t1 set t1.a=3 where a in (select a from t2);
+--sorted_result
+select * from t1;
+
+# restore the data for next test
+delete from t1;
+insert into t1 values(10),(11),(12),(13),(14),(15),(16);
+analyze table t1;
+
+explain format=tree delete from t1 where a=(select a from t2);
+explain delete from t1 where a in (select a from t2);
+delete from t1 where a in (select a from t2);
+--sorted_result
+select * from t1;
+
+drop table t1,t2;

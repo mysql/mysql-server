@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 
 #include <memory>
 
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
 
 using mysql_harness::Path;
 using std::string;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,7 +161,7 @@ class Transaction_ctx {
       m_rw_ha_count = 0;
       reset_unsafe_rollback_flags();
     }
-    bool is_empty() const { return m_ha_list == NULL; }
+    bool is_empty() const { return m_ha_list == nullptr; }
   };
 
  private:
@@ -187,7 +187,7 @@ class Transaction_ctx {
     bool real_commit;  // Is this a "real" commit?
     bool commit_low;   // see MYSQL_BIN_LOG::ordered_commit
     bool run_hooks;    // Call the after_commit hook
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool ready_preempt;  // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
   } m_flags;
@@ -218,21 +218,21 @@ class Transaction_ctx {
   void store_commit_parent(int64 last_arg) { last_committed = last_arg; }
 
   Transaction_ctx();
-  virtual ~Transaction_ctx() { free_root(&m_mem_root, MYF(0)); }
+  virtual ~Transaction_ctx() { m_mem_root.Clear(); }
 
   void cleanup() {
-    DBUG_ENTER("Transaction_ctx::cleanup");
-    m_savepoints = NULL;
+    DBUG_TRACE;
+    m_savepoints = nullptr;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
-    m_transaction_write_set_ctx.clear_write_set();
+    m_transaction_write_set_ctx.reset_state();
     trans_begin_hook_invoked = false;
-    free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
-    DBUG_VOID_RETURN;
+    m_mem_root.ClearForReuse();
+    return;
   }
 
   bool is_active(enum_trx_scope scope) const {
-    return m_scope_info[scope].m_ha_list != NULL;
+    return m_scope_info[scope].m_ha_list != nullptr;
   }
 
   void push_unsafe_rollback_warnings(THD *thd);
@@ -256,11 +256,9 @@ class Transaction_ctx {
 
   void *allocate_memory(unsigned int size) { return m_mem_root.Alloc(size); }
 
-  void claim_memory_ownership() { m_mem_root.Claim(); }
+  void claim_memory_ownership(bool claim) { m_mem_root.Claim(claim); }
 
-  void free_memory(myf root_alloc_flags) {
-    free_root(&m_mem_root, root_alloc_flags);
-  }
+  void free_memory() { m_mem_root.Clear(); }
 
   char *strmake(const char *str, size_t len) {
     return strmake_root(&m_mem_root, str, len);
@@ -279,9 +277,9 @@ class Transaction_ctx {
   }
 
   void set_ha_trx_info(enum_trx_scope scope, Ha_trx_info *trx_info) {
-    DBUG_ENTER("Transaction_ctx::set_ha_trx_info");
+    DBUG_TRACE;
     m_scope_info[scope].m_ha_list = trx_info;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   XID_STATE *xid_state() { return &m_xid_state; }
@@ -355,11 +353,11 @@ class Transaction_ctx {
   }
 
   void reset_scope(enum_trx_scope scope) {
-    DBUG_ENTER("Transaction_ctx::reset_scope");
-    m_scope_info[scope].m_ha_list = 0;
-    m_scope_info[scope].m_no_2pc = 0;
+    DBUG_TRACE;
+    m_scope_info[scope].m_ha_list = nullptr;
+    m_scope_info[scope].m_no_2pc = false;
     m_scope_info[scope].m_rw_ha_count = 0;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Rpl_transaction_ctx *get_rpl_transaction_ctx() {
@@ -412,10 +410,10 @@ class Ha_trx_info {
   */
 
   void register_ha(Transaction_ctx::THD_TRANS *trans, handlerton *ht_arg) {
-    DBUG_ENTER("Ha_trx_info::register_ha");
-    DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
+    DBUG_TRACE;
+    assert(m_flags == 0);
+    assert(m_ht == nullptr);
+    assert(m_next == nullptr);
 
     m_ht = ht_arg;
     m_flags = (int)TRX_READ_ONLY; /* Assume read-only at start. */
@@ -425,7 +423,7 @@ class Ha_trx_info {
       trans->m_ha_list = this;
     }
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -433,26 +431,26 @@ class Ha_trx_info {
   */
 
   void reset() {
-    DBUG_ENTER("Ha_trx_info::reset");
-    m_next = NULL;
-    m_ht = NULL;
+    DBUG_TRACE;
+    m_next = nullptr;
+    m_ht = nullptr;
     m_flags = 0;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Ha_trx_info() { reset(); }
 
   void set_trx_read_write() {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     m_flags |= (int)TRX_READ_WRITE;
   }
 
   bool is_trx_read_write() const {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_flags & (int)TRX_READ_WRITE;
   }
 
-  bool is_started() const { return m_ht != NULL; }
+  bool is_started() const { return m_ht != nullptr; }
 
   /**
     Mark this transaction read-write if the argument is read-write.
@@ -464,17 +462,17 @@ class Ha_trx_info {
       Can be called many times, e.g. when we have many
       read-write statements in a transaction.
     */
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     if (stmt_trx->is_trx_read_write()) set_trx_read_write();
   }
 
   Ha_trx_info *next() const {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_next;
   }
 
   handlerton *ht() const {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_ht;
   }
 

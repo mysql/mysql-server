@@ -1,6 +1,7 @@
 var log = new Duktape.Logger()
 
-exports.take = function (times, iter) {
+exports.take =
+    function(times, iter) {
   return new Duktape.Thread(function() {
     var yield = Duktape.Thread.yield;
     var resume = Duktape.Thread.resume;
@@ -14,7 +15,8 @@ exports.take = function (times, iter) {
   });
 }
 
-exports.repeat = function (obj) {
+    exports.repeat =
+        function(obj) {
   return new Duktape.Thread(function() {
     var yield = Duktape.Thread.yield;
 
@@ -22,13 +24,14 @@ exports.repeat = function (obj) {
   });
 }
 
-// collect a iterable into a array
-exports.collect = function (iter) {
+        // collect a iterable into a array
+        exports.collect =
+            function(iter) {
   var resume = Duktape.Thread.resume;
 
   var ar = [];
 
-  while(true) {
+  while (true) {
     v = resume(iter);
 
     if (v === undefined) break;
@@ -39,7 +42,8 @@ exports.collect = function (iter) {
   return ar;
 }
 
-exports.chain = function (iters) {
+            exports.chain =
+                function(iters) {
   return new Duktape.Thread(function() {
     var yield = Duktape.Thread.yield;
     var resume = Duktape.Thread.resume;
@@ -61,7 +65,8 @@ exports.chain = function (iters) {
   });
 }
 
-exports.cycle = function (iter) {
+                exports.cycle =
+                    function(iter) {
   return new Duktape.Thread(function() {
     var yield = Duktape.Thread.yield;
     var resume = Duktape.Thread.resume;
@@ -87,8 +92,8 @@ exports.cycle = function (iter) {
   });
 }
 
-// return an iterable for an array
-exports.iter_arr = function (arr) {
+                    // return an iterable for an array
+                    exports.iter_arr = function(arr) {
   return new Duktape.Thread(function() {
     var yield = Duktape.Thread.yield;
 
@@ -97,4 +102,3 @@ exports.iter_arr = function (arr) {
     }
   });
 }
-

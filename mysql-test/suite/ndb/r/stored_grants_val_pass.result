@@ -1,0 +1,7 @@
+INSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password";
+CREATE USER 'ndb_u1'@'localhost' IDENTIFIED by '123_Strong_Password_321';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u1'@'localhost';
+DROP USER 'ndb_u1'@'localhost';
+UNINSTALL COMPONENT "file://component_validate_password";
+UNINSTALL COMPONENT "file://component_validate_password";

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ char from[BUFLEN];
 
 class PartitionTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Save global settings.
     m_charset = system_charset_info;
     m_locale = my_default_lc_messages;
@@ -60,7 +60,7 @@ class PartitionTest : public ::testing::Test {
     EXPECT_FALSE(errmsgs->replace_msg(ER_RENAMED_NAME, "Renamed"));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Restore global settings.
     system_charset_info = m_charset;
     my_default_lc_messages = m_locale;
@@ -74,7 +74,7 @@ class PartitionTest : public ::testing::Test {
 void test_1(const char *in, const char *exp, enum_explain_filename_mode mode) {
   char out[BUFLEN];
 
-  size_t len1 = explain_filename(0, in, out, BUFLEN, mode);
+  size_t len1 = explain_filename(nullptr, in, out, BUFLEN, mode);
 
   /* expected output and actual output must be same */
   bool pass = (strcmp(exp, out) == 0);

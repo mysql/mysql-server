@@ -1,0 +1,78 @@
+# Tests for the binary collations.
+
+--echo #
+--echo # Bug#30350111: UTF8MB4_0900_BIN STRINGS CANNOT BE COMPARED WITH
+--echo #               UTF8MB4_0900_AI_CI STRINGS
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
+               col_aici VARCHAR(10) COLLATE utf8mb4_0900_ai_ci,
+               col_bin VARCHAR(10) COLLATE utf8mb4_bin,
+               col_0900_bin VARCHAR(10) COLLATE utf8mb4_0900_bin);
+INSERT INTO t(col_aici)
+VALUES ('abc'), ('ABC'), ('Abc'), ('abc '), ('ABC  '), ('Abc   ');
+UPDATE t SET col_bin = col_aici, col_0900_bin = col_aici;
+
+# Binary collation wins over non-binary collation. Comparison should
+# be done using the utf8mb4_bin collation (PAD SPACE).
+SELECT CONCAT('''', t1.col_aici, ''' = ''', t2.col_aici, '''')
+  FROM t t1, t t2
+  WHERE t1.col_aici = t2.col_bin
+  ORDER BY t1.id, t2.id;
+
+# Binary collation wins over non-binary collation. Comparison should
+# be done using the utf8mb4_0900_bin collation (NO PAD).
+SELECT CONCAT('''', t1.col_aici, ''' = ''', t2.col_aici, '''')
+  FROM t t1, t t2
+  WHERE t1.col_aici = t2.col_0900_bin
+  ORDER BY t1.id, t2.id;
+
+# Two different binary collations. Don't know which to choose.
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT CONCAT('''', t1.col_aici, ''' = ''', t2.col_aici, '''')
+  FROM t t1, t t2
+  WHERE t1.col_bin = t2.col_0900_bin
+  ORDER BY t1.id, t2.id;
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT CONCAT('''', t1.col_aici, ''' = ''', t2.col_aici, '''')
+  FROM t t1, t t2
+  WHERE t1.col_0900_bin = t2.col_bin
+  ORDER BY t1.id, t2.id;
+
+# Binary collation wins over non-binary collation. The UNION uses the
+# utf8mb4_bin collation (PAD SPACE).
+--sorted_result
+SELECT col_aici FROM t UNION SELECT col_bin FROM t;
+
+# Binary collation wins over non-binary collation. The UNION uses the
+# utf8mb4_0900_bin collation (NO PAD).
+--sorted_result
+SELECT col_aici FROM t UNION SELECT col_0900_bin FROM t;
+
+# Cannot decide whether to use PAD SPACE or NO_PAD.
+--error ER_CANT_AGGREGATE_NCOLLATIONS
+SELECT col_bin FROM t UNION SELECT col_0900_bin FROM t;
+--error ER_CANT_AGGREGATE_NCOLLATIONS
+SELECT col_0900_bin FROM t UNION SELECT col_bin FROM t;
+--error ER_CANT_AGGREGATE_NCOLLATIONS
+SELECT col_bin FROM t UNION SELECT col_0900_bin FROM t
+  UNION SELECT col_aici FROM t;
+
+# Add an explicit collation into the mix. The explicit collation is used.
+--sorted_result
+SELECT col_bin FROM t UNION SELECT col_0900_bin FROM t
+  UNION SELECT col_aici COLLATE utf8mb4_0900_ai_ci FROM t;
+--sorted_result
+SELECT col_bin FROM t UNION SELECT col_0900_bin FROM t
+  UNION SELECT col_aici COLLATE utf8mb4_bin FROM t;
+--sorted_result
+SELECT col_bin FROM t UNION SELECT col_0900_bin FROM t
+  UNION SELECT col_aici COLLATE utf8mb4_0900_bin FROM t;
+
+DROP TABLE t;
+
+# Verify that the deprecated BINARY type attribute uses utf8mb4_bin as
+# the binary collation of utf8mb4.
+CREATE TABLE t(x VARCHAR(10) BINARY);
+SELECT COLLATION(MAX(x)) FROM t;
+DROP TABLE t;

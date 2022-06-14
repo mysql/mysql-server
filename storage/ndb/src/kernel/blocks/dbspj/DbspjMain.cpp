@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #define DBSPJ_C
 #include "Dbspj.hpp"
 
+#include <cstring>
 #include <ndb_version.h>
 #include <SectionReader.hpp>
 #include <signaldata/LqhKey.hpp>
@@ -56,24 +57,49 @@
 
 #define JAM_FILE_ID 479
 
-extern EventLogger* g_eventLogger;
 extern Uint32 ErrorSignalReceive;
 extern Uint32 ErrorMaxSegmentsToSeize;
 
-#ifdef VM_TRACE
 /**
  * 12 bits are used to represent the 'parent-row-correlation-id'.
  * Effectively limiting max rows in a batch.
  */
-static const Uint32 MaxCorrelationId = (1 << 12);
+static constexpr Uint32 MaxCorrelationId = (1 << 12);
 
 /**
- * DEBUG options for different parts of SPJ block
+ * Limits for job-buffer congestion control, counted in number of
+ * outstanding signal in a SPJ-request:
+ *
+ * If 'HighlyCongestedLimit' is reached, we start to defer LQHKEYREQ signals
+ * by buffering the *parent-row* of the LQHKEYREQ, and storing its
+ * correlation-id. (The LQHKEYREQ is not sent yet)
+ *
+ * When the reach 'MildlyCongestedLimit' we start resuming deferred
+ * LQHKEYREQ signals by iterating the stored correlation-id's, locate the
+ * related buffered row, which is then used to produce LQHKEYREQ's.
+ * (See ::resumeCongestedNode())
+ *
+ * We will resume maximum 'ResumeCongestedQuota' LQHKEYREQ signals at
+ * once. This serves both as a realtime break for the scheduler, and as a
+ * mechanism for keeping the congestion level at ~MildlyCongestedLimit.
+ * Note that we *do not* CONTINUEB when we take a real time break - Instead
+ * we wait for the congestion level to reach 'MildlyCongestedLimit' again, which
+ * will resume more LQHKEYREQ's. The intention of this is to leave some slack
+ * for further incoming parent-rows to immediately create LQHKEYREQ's,
+ * without these also having to be deferred.
+ */
+static constexpr Uint32 HighlyCongestedLimit = 256;
+static constexpr Uint32 MildlyCongestedLimit = (HighlyCongestedLimit/2);
+static constexpr Uint32 ResumeCongestedQuota = 32;
+
+#ifdef VM_TRACE
+/**
+ * DEBUG options for different parts of SPJ block.
  * Comment out those part you don't want DEBUG'ed.
  */
 //#define DEBUG(x) ndbout << "DBSPJ: "<< x << endl
 //#define DEBUG_DICT(x) ndbout << "DBSPJ: "<< x << endl
-//#define DEBUG_LQHKEREQ
+//#define DEBUG_LQHKEYREQ
 //#define DEBUG_SCAN_FRAGREQ
 #endif
 
@@ -91,7 +117,78 @@ static const Uint32 MaxCorrelationId = (1 << 12);
 #define DEBUG_CRASH() ndbassert(false)
 
 const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr(0, RNIL );
-const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, { 0 } };
+const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS};
+
+
+/**
+ * The guarded pointers add an extra level of safety where incomming
+ * signals refers internal objects via an 'i-pointer'. The getPtr()
+ * method itself offer little protection agains 'out of bounds' i-pointers.
+ * Thus we maintain the guarded pointers in an internal hash list as well.
+ * Using the hash list for looking up untrusty 'i-pointer' guarantees that
+ * only valid i-pointers will find their real objects.
+ */
+void Dbspj::insertGuardedPtr(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
+{
+  treeNodePtr.p->key = treeNodePtr.i;
+  m_treenode_hash.add(treeNodePtr);
+}
+
+void Dbspj::removeGuardedPtr(Ptr<TreeNode> treeNodePtr)
+{
+  m_treenode_hash.remove(treeNodePtr);
+}
+
+inline
+bool Dbspj::getGuardedPtr(Ptr<TreeNode> &treeNodePtr, Uint32 ptrI)
+{
+  /**
+   * We could have looked up the pointer directly with getPtr(). However that
+   * is regarded unsafe for a 'guarded pointer', as there is no checks
+   * in getPtr() for the page_no / pos being within legal bounds.
+   * So we use our internal (trusted) hash structures instead and search
+   * for an object with the specified 'i-pointer'.
+   */
+  const bool found = m_treenode_hash.find(treeNodePtr, ptrI);
+#if !defined(NDEBUG)
+  if (found)
+  {
+    Ptr<TreeNode> check;
+    ndbrequire(m_treenode_pool.getPtr(check, ptrI));
+    ndbassert(check.p == treeNodePtr.p);
+    ndbassert(check.i == treeNodePtr.i);
+  }
+#endif
+  return found;
+}
+
+
+void Dbspj::insertGuardedPtr(Ptr<Request> requestPtr, Ptr<ScanFragHandle> scanFragPtr)
+{
+  scanFragPtr.p->key = scanFragPtr.i;
+  m_scanfraghandle_hash.add(scanFragPtr);
+}
+
+void Dbspj::removeGuardedPtr(Ptr<ScanFragHandle> scanFragPtr)
+{
+  m_scanfraghandle_hash.remove(scanFragPtr);
+}
+
+inline
+bool Dbspj::getGuardedPtr(Ptr<ScanFragHandle> &scanFragPtr, Uint32 ptrI)
+{
+  const bool found = m_scanfraghandle_hash.find(scanFragPtr, ptrI);
+#if !defined(NDEBUG)
+  if (found)
+  {
+    Ptr<ScanFragHandle> check;
+    ndbrequire(m_scanfraghandle_pool.getPtr(check, ptrI));
+    ndbassert(check.p == scanFragPtr.p);
+    ndbassert(check.i == scanFragPtr.i);
+  }
+#endif
+  return found;
+}
 
 
 void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
@@ -145,9 +242,9 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
     const Uint32 ptrI = truncatedTransIdAI->connectPtr;
 
     Ptr<TreeNode> treeNodePtr;
-    m_treenode_pool.getPtr(treeNodePtr, ptrI);
+    ndbrequire(getGuardedPtr(treeNodePtr, ptrI));
     Ptr<Request> requestPtr;
-    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+    ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   
     /**
      * Register signal as arrived -> 'done' if this completed this treeNode
@@ -155,7 +252,7 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
     ndbassert(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_countSignal);
     (this->*(treeNodePtr.p->m_info->m_countSignal))(signal,
                                                     requestPtr,
-                                                    treeNodePtr);
+                                                    treeNodePtr, 1);
 
     abort(signal, requestPtr, DbspjErr::OutOfSectionMemory);
     break;
@@ -481,6 +578,8 @@ void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
   m_scanfraghandle_pool.arena_pool_init(&m_arenaAllocator, RT_SPJ_SCANFRAG, pc);
   m_lookup_request_hash.setSize(16);
   m_scan_request_hash.setSize(16);
+  m_treenode_hash.setSize(256);
+  m_scanfraghandle_hash.setSize(1024);
   void* ptr = m_ctx.m_mm.get_memroot();
   m_page_pool.set((RowPage*)ptr, (Uint32)~0);
 
@@ -528,8 +627,10 @@ void Dbspj::execSTTOR(Signal* signal)
   if (tphase == 1)
   {
     jam();
-    signal->theData[0] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+    signal->theData[0] = 0;  // 0 -> Start the releaseGlobal() 'thread'
+    signal->theData[1] = 0;  // 0 -> ... and sample usage statistics
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
+    c_tc = (Dbtc*)globalData.getBlock(DBTC, instance());
   }
 
   if (tphase == 4)
@@ -546,18 +647,18 @@ void Dbspj::execSTTOR(Signal* signal)
 #ifdef UNIT_TEST_DATABUFFER2
   if (tphase == 120)
   {
-    ndbout_c("basic test of ArenaPool / DataBuffer");
+    g_eventLogger->info("basic test of ArenaPool / DataBuffer");
 
     for (Uint32 i = 0; i<100; i++)
     {
       ArenaHead ah;
       if (!m_arenaAllocator.seize(ah))
       {
-        ndbout_c("Failed to allocate arena");
+        g_eventLogger->info("Failed to allocate arena");
         break;
       }
 
-      ndbout_c("*** LOOP %u", i);
+      g_eventLogger->info("*** LOOP %u", i);
       Uint32 sum = 0;
       Dependency_map::Head head;
       LocalArenaPool<DataBufferSegment<14> > pool(ah, m_dependency_map_pool);
@@ -565,7 +666,7 @@ void Dbspj::execSTTOR(Signal* signal)
       {
         Uint32 sz = rand() % 1000;
         if (0)
-          ndbout_c("adding %u", sz);
+          g_eventLogger->info("adding %u", sz);
         Local_dependency_map list(pool, head);
         for (Uint32 i = 0; i<sz; i++)
           signal->theData[i] = sum + i;
@@ -590,19 +691,19 @@ void Dbspj::execSTTOR(Signal* signal)
       Resource_limit rl;
       if (m_ctx.m_mm.get_resource_limit(7, rl))
       {
-        ndbout_c("Resource %d min: %d max: %d curr: %d",
-                 7, rl.m_min, rl.m_max, rl.m_curr);
+        g_eventLogger->info("Resource %d min: %d max: %d curr: %d", 7, rl.m_min,
+                            rl.m_max, rl.m_curr);
       }
 
       {
-        ndbout_c("release map");
+        g_eventLogger->info("release map");
         Local_dependency_map list(pool, head);
         list.release();
       }
 
-      ndbout_c("release all");
+      g_eventLogger->info("release all");
       m_arenaAllocator.release(ah);
-      ndbout_c("*** LOOP %u sum: %u", i, sum);
+      g_eventLogger->info("*** LOOP %u sum: %u", i, sum);
     }
   }
 #endif
@@ -630,19 +731,27 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
   jamEntry();
 
   ReadNodesConf * const conf = (ReadNodesConf *)signal->getDataPtr();
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&conf->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
 
   if (getNodeState().getNodeRestartInProgress())
   {
     jam();
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes = conf->startedNodes;
     c_alive_nodes.set(getOwnNodeId());
   }
   else
   {
     jam();
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startingNodes);
-    NdbNodeBitmask tmp;
-    tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes = conf->startingNodes;
+    NdbNodeBitmask tmp = conf->startedNodes;
     c_alive_nodes.bitOR(tmp);
   }
 
@@ -651,11 +760,9 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
     m_location_domain_id[i] = 0;
   }
 
-  ndb_mgm_configuration *p =
-    m_ctx.m_config.getClusterConfig();
   ndb_mgm_configuration_iterator *p_iter =
-    ndb_mgm_create_configuration_iterator(p, CFG_SECTION_NODE);
-
+    ndb_mgm_create_configuration_iterator(m_ctx.m_config.getClusterConfig(),
+                                          CFG_SECTION_NODE);
   for (ndb_mgm_first(p_iter);
        ndb_mgm_valid(p_iter);
        ndb_mgm_next(p_iter))
@@ -706,7 +813,24 @@ Dbspj::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
 
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed;
   failed.assign(NdbNodeBitmask::Size, rep->theNodes);
 
@@ -725,8 +849,11 @@ Dbspj::execNODE_FAILREP(Signal* signal)
   signal->theData[0] = 1;
   signal->theData[1] = 0;
   failed.copyto(NdbNodeBitmask::Size, signal->theData + 2);
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2 + NdbNodeBitmask::Size,
-             JBB);
+  LinearSectionPtr lsptr[3];
+  lsptr[0].p = signal->theData + 2;
+  lsptr[0].sz = failed.getPackedLengthInWords();
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2,
+             JBB, lsptr, 1);
 }
 
 void
@@ -771,8 +898,8 @@ Dbspj::execCONTINUEB(Signal* signal)
   {
     Ptr<TreeNode> treeNodePtr;
     Ptr<Request> requestPtr;
-    m_treenode_pool.getPtr(treeNodePtr, signal->theData[1]);
-    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+    ndbrequire(getGuardedPtr(treeNodePtr, signal->theData[1]));
+    ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
     scanFrag_sendDihGetNodesReq(signal, requestPtr, treeNodePtr);
     checkPrepareComplete(signal, requestPtr);
     return;
@@ -790,7 +917,14 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   const Uint32 bucket = signal->theData[1];
 
   NdbNodeBitmask failed;
-  failed.assign(NdbNodeBitmask::Size, signal->theData+2);
+  ndbrequire(signal->getNoOfSections() == 1);
+
+  SegmentedSectionPtr ptr;
+  SectionHandle handle(this,signal);
+  ndbrequire(handle.getSection(ptr, 0));
+  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+  copy(failed.rep.data, ptr);
+  releaseSections(handle);
 
   Request_iterator iter;
   Request_hash * hash = NULL;
@@ -823,9 +957,12 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
     jam();
     signal->theData[0] = type;
     signal->theData[1] = bucket;
-    failed.copyto(NdbNodeBitmask::Size, signal->theData+2);
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2 + NdbNodeBitmask::Size,
-               JBB);
+    failed.copyto(NdbNodeBitmask::Size, signal->theData + 2);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData + 2;
+    lsptr[0].sz = failed.getPackedLengthInWords();
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2,
+               JBB, lsptr, 1);
   }
   else if (type == 1)
   {
@@ -833,8 +970,11 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
     signal->theData[0] = 2;
     signal->theData[1] = 0;
     failed.copyto(NdbNodeBitmask::Size, signal->theData+2);
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2 + NdbNodeBitmask::Size,
-               JBB);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData + 2;
+    lsptr[0].sz = failed.getPackedLengthInWords();
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2,
+               JBB, lsptr, 1);
   }
   else if (type == 2)
   {
@@ -848,6 +988,12 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
 void Dbspj::execLQHKEYREQ(Signal* signal)
 {
   jamEntry();
+  if (unlikely(!assembleFragments(signal)))
+  {
+    jam();
+    return;
+  }
+
   c_Counters.incr_counter(CI_READS_RECEIVED, 1);
 
   if (ERROR_INSERTED(17014))
@@ -864,12 +1010,13 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
    *       but this is not yet implemented)
    */
   SegmentedSectionPtr attrPtr;
-  SectionHandle handle = SectionHandle(this, signal);
-  handle.getSection(attrPtr, LqhKeyReq::AttrInfoSectionNum);
+  SectionHandle handle(this, signal);
+  ndbrequire(handle.getSection(attrPtr, LqhKeyReq::AttrInfoSectionNum));
   const Uint32 keyPtrI = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
 
   Uint32 err;
   Ptr<Request> requestPtr(0, RNIL);
+  bool in_hash = false;
   do
   {
     ArenaHead ah;
@@ -880,8 +1027,9 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     if (ERROR_INSERTED_CLEAR(17001))
     {
       jam();
-      ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting OutOfQueryMem error 17001 at line %d file %s", __LINE__,
+          __FILE__);
       break;
     }
     if (unlikely(!m_request_pool.seize(ah, requestPtr)))
@@ -936,6 +1084,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
      * Store request in list(s)/hash(es)
      */
     store_lookup(requestPtr);
+    in_hash = true;
 
     /**
      * A query being shipped as a LQHKEYREQ may return at most a row
@@ -962,7 +1111,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
   if (!requestPtr.isNull())
   {
     jam();
-    cleanup(requestPtr);
+    cleanup(requestPtr, in_hash);
   }
   releaseSections(handle);  // a NOOP, if we reached 'handle.clear()' above
   handle_early_lqhkey_ref(signal, req, err);
@@ -977,14 +1126,15 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_node_cnt = 0;
   requestP->m_cnt_active = 0;
   requestP->m_rows = 0;
-  requestP->m_active_nodes.clear();
-  requestP->m_completed_nodes.set();
+  requestP->m_active_tree_nodes.clear();
+  requestP->m_completed_tree_nodes.set();
+  requestP->m_suspended_tree_nodes.clear();
   requestP->m_outstanding = 0;
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootFragId = LqhKeyReq::getFragmentId(req->fragmentData);
   requestP->m_rootFragCnt = 1;
-  bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
+  std::memset(requestP->m_lookup_node_data, 0, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
   requestP->m_sum_rows = 0;
@@ -1170,7 +1320,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  ndbout_c("Incomming SCAN_FRAGREQ ");
+  g_eventLogger->info("Incoming SCAN_FRAGREQ ");
   printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
                     ScanFragReq::SignalLength + 2,
                     DBLQH);
@@ -1183,12 +1333,13 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
    * #1 - KEYINFO if first op is index scan - contains bounds for first scan
    *              if first op is lookup - contains keyinfo for lookup
    */
-  SectionHandle handle = SectionHandle(this, signal);
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr attrPtr;
-  handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum);
+  ndbrequire(handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum));
 
   Uint32 err;
   Ptr<Request> requestPtr(0, RNIL);
+  bool in_hash = false;
   do
   {
     ArenaHead ah;
@@ -1198,8 +1349,9 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
 
     if (ERROR_INSERTED_CLEAR(17002))
     {
-      ndbout_c("Injecting OutOfQueryMem error 17002 at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting OutOfQueryMem error 17002 at line %d file %s", __LINE__,
+          __FILE__);
       jam();
       break;
     }
@@ -1281,6 +1433,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
      * Store request in list(s)/hash(es)
      */
     store_scan(requestPtr);
+    in_hash = true;
 
     if (ERROR_INSERTED_CLEAR(17013) ||
         unlikely(!requestPtr.p->isScan() || requestPtr.p->m_node_cnt != cnt))
@@ -1303,7 +1456,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   if (!requestPtr.isNull())
   {
     jam();
-    cleanup(requestPtr);
+    cleanup(requestPtr, in_hash);
   }
   releaseSections(handle);  // a NOOP, if we reached 'handle.clear()' above
   handle_early_scanfrag_ref(signal, req, err);
@@ -1318,8 +1471,9 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_node_cnt = 0;
   requestP->m_cnt_active = 0;
   requestP->m_rows = 0;
-  requestP->m_active_nodes.clear();
-  requestP->m_completed_nodes.set();
+  requestP->m_active_tree_nodes.clear();
+  requestP->m_completed_tree_nodes.set();
+  requestP->m_suspended_tree_nodes.clear();
   requestP->m_outstanding = 0;
   requestP->m_senderRef = senderRef;
   requestP->m_senderData = req->senderData;
@@ -1328,7 +1482,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_rootResultData = req->resultData;
   requestP->m_rootFragId = req->fragmentNoKeyLen;
   requestP->m_rootFragCnt = 0; //Filled in later
-  bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
+  std::memset(requestP->m_lookup_node_data, 0, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
   requestP->m_sum_rows = 0;
@@ -1452,8 +1606,9 @@ Dbspj::build(Build_context& ctx,
     }
     if (ERROR_INSERTED_CLEAR(17006))
     {
-      ndbout_c("Injecting UnknowQueryOperation error 17006 at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting UnknowQueryOperation error 17006 at line %d file %s",
+          __LINE__, __FILE__);
       jam();
       goto error;
     }
@@ -1513,7 +1668,7 @@ Dbspj::build(Build_context& ctx,
        * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
        *  - The QN_ScanIndexParameters has split the single batchSize into
-       *    two seperate 'batch_size' members and introduced an additional
+       *    two separate 'batch_size' members and introduced an additional
        *    three unused Uint32 members for future use. (Total 4)
        *    Extend entire param block to make room for it,
        *    fill in from old batchSize argument.
@@ -1613,61 +1768,38 @@ error:
 Uint32
 Dbspj::initRowBuffers(Ptr<Request> requestPtr)
 {
-  jam();
-
   /**
-   * Init BUFFERS iff Request has to buffer any rows/matches
+   * Init BUFFERS in case TreeNode need to buffer any rows/matches
    */
-  if (requestPtr.p->m_bits & Request::RT_BUFFERS)
+  Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+  Ptr<TreeNode> treeNodePtr;
+  for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
   {
-    jam();
+    ndbassert(treeNodePtr.p->m_batch_size > 0);
+    /**
+     * Construct the local treeNode RowBuffer allocator.
+     * As the RowBuffers are pr TreeNode, entire buffer area
+     * may be released, instead of releasing row by row.
+     */
+    treeNodePtr.p->m_rowBuffer.init();
 
     /**
-     * Iff, multi-scan is non-bushy (normal case)
-     *   we don't strictly need BUFFER_VAR for RT_BUFFERS
-     *   but could instead pop-row stack frame,
-     *     however this is not implemented...
-     *
-     * so, currently use BUFFER_VAR if 'RT_MULTI_SCAN'
-     *
-     * NOTE: This should easily be solvable by having a 
-     *       RowBuffer for each TreeNode instead
+     * Construct a List or Map RowCollection for those TreeNodes
+     * requiring rows to be buffered.
      */
-    if (requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MAP)
     {
       jam();
-      requestPtr.p->m_rowBuffer.init(BUFFER_VAR);
+      treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_MAP,
+                                       treeNodePtr.p->m_rowBuffer,
+                                       MaxCorrelationId);
     }
     else
     {
       jam();
-      requestPtr.p->m_rowBuffer.init(BUFFER_STACK);
-    }
-
-    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
-    Ptr<TreeNode> treeNodePtr;
-    for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
-    {
-      jam();
-      ndbassert(treeNodePtr.p->m_batch_size > 0);
-      /**
-       * Construct a List or Map RowCollection for those TreeNodes
-       * requiring rows to be buffered.
-       */
-      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MAP)
-      {
-        jam();
-        treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_MAP,
-                                         requestPtr.p->m_rowBuffer,
-                                         treeNodePtr.p->m_batch_size);
-      }
-      else if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
-      {
-        jam();
-        treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_LIST,
-                                         requestPtr.p->m_rowBuffer,
-                                         treeNodePtr.p->m_batch_size);
-      }
+      treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_LIST,
+                                       treeNodePtr.p->m_rowBuffer,
+                                       MaxCorrelationId);
     }
   }
 
@@ -1703,7 +1835,7 @@ Dbspj::setupAncestors(Ptr<Request>  requestPtr,
   {
     jam();
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, *it.data);
+    ndbrequire(m_treenode_pool.getPtr(childPtr, *it.data));
 
     childPtr.p->m_ancestors = treeNodePtr.p->m_ancestors;
     childPtr.p->m_ancestors.set(treeNodePtr.p->m_node_no);
@@ -1749,12 +1881,35 @@ Dbspj::buildExecPlan(Ptr<Request> requestPtr)
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
   list.first(treeRootPtr);
 
+  /**
+   * Brute force solution to ensure that all rows in
+   * batch are sorted if requested:
+   *
+   * In a scan-scan (MULTI_SCAN) request the result is effectively
+   * generated as a cross product between the scans. If the child-scans
+   * batches need another NEXTREQ to retrieve remaining rows, the parent
+   * scans result rows will effectively be repeated together with the new
+   * rows from the child scans.
+   * By restricting the parent scan to a batch size of one row, the
+   * parent rows will still be sorted, even if multiple child batches
+   * has to be fetched.
+   */
+  if (treeRootPtr.p->m_bits & TreeNode::T_SORTED_ORDER &&
+      requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
+  {
+    jam();
+    ndbassert(treeRootPtr.p->m_bits & TreeNode::T_SCAN_PARALLEL);
+    ScanFragData& data = treeRootPtr.p->m_scanFrag_data;
+    ScanFragReq* const dst = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
+    dst->batch_size_rows = 1;
+  }
+
   setupAncestors(requestPtr, treeRootPtr, RNIL);
 
   if (requestPtr.p->isScan())
   {
     const Uint32 err = planSequentialExec(requestPtr, treeRootPtr,
-                                          NullTreeNodePtr, NullTreeNodePtr);
+                                          NullTreeNodePtr);
     if (unlikely(err))
       return err;
   }
@@ -1808,7 +1963,7 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
   for (child.first(it); !it.isNull(); child.next(it))
   {
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, *it.data);
+    ndbrequire(m_treenode_pool.getPtr(childPtr, *it.data));
     if (unlikely(!execList.append(&childPtr.i, 1)))
     {
       jam();
@@ -1830,14 +1985,14 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  * planSequentialExec()
  *
  *   Build an execution plan where INNER-joined TreeNodes are executed in
- *   sequence, such that further evaluation of not matching rows could be
+ *   sequence, such that further evaluation of non-matching rows could be
  *   skipped as early as possible.
  *
  *  Steps:
  *
  * 1)
  *  Each 'branch' has the property that it starts with either a scan-TreeNode,
- *  or an outer joined (lookup-) TreeNode. Any INNER-joined lookup-nodes having
+ *  or an outer joined TreeNode. Any INNER-joined lookup-nodes having
  *  this TreeNode as a (grand-)parent, is also a member of the branch.
  *
  *  Such a 'branch' of INNER-joined lookups has the property that an EQ-match
@@ -1882,35 +2037,18 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  *  it used to be prior to introducing these INNER-join optimizations.
  *
  * 3)
- *  Recursively append all non-INNER-joined lookup branches to be executed
- *  after the sequence of INNER-joined-lookups (from 1). Note that these
- *  branches are executed in sequence in a left -> right order, such
- *  that when the 'left' branch as completed, we 'RESUME' into the 'right'
- *  branch. This is done in order to avoid overflowing the job buffers
- *  due to too many LQHKEYREQ-signals being sent at once.
- *  The 'nextBranchPtr' is set up by this step as the 'right' branch
- *  to RESUME. (See appendTreeNode() for more about RESUME handling)
- * 
- * 4)
- *  Recursively append all non-INNER-joined scan branches to be executed
+ *  Recursively append all non-INNER-joined branches to be executed
  *  in *parallel* after the sequence of INNER-joined-lookups (from 1).
- *  As we do not really handle OUTER-joined scans (yet), this is only
- *  in effect when we get a SPJ request from an old-API, which do not
- *  specify INNER-join for a scan-TreeNode. Thus the old type 'submit
- *  scan in parallel'-plan will be produced.
- *  For a client using the updated SPJ-API, all scans will be handled in 2)
- *  
  */
 Uint32
 Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
-                       const Ptr<TreeNode> branchPtr,
-                       Ptr<TreeNode> prevExecPtr,
-		       const Ptr<TreeNode> nextBranchPtr)
+                          const Ptr<TreeNode> branchPtr,
+                          Ptr<TreeNode> prevExecPtr)
 {
   DEBUG("planSequentialExec, start branch at treeNode no: " << branchPtr.p->m_node_no);
 
   // Append head of branch to be executed after 'prevExecPtr'
-  const Uint32 err = appendTreeNode(requestPtr, branchPtr, prevExecPtr, nextBranchPtr);
+  const Uint32 err = appendTreeNode(requestPtr, branchPtr, prevExecPtr);
   if (unlikely(err))
     return err;
 
@@ -1932,14 +2070,13 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
         treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN &&
 	treeNodePtr.p->isLookup())
     {
-      
       DEBUG("planSequentialExec, append INNER-join lookup treeNode: "
-	<< treeNodePtr.p->m_node_no
-	<< ", to branch at: " << branchPtr.p->m_node_no
+        << treeNodePtr.p->m_node_no
+        << ", to branch at: " << branchPtr.p->m_node_no
         << ", as 'descendant' of node: " << prevExecPtr.p->m_node_no);
 
       // Add INNER-joined lookup treeNode to the join plan:
-      const Uint32 err = appendTreeNode(requestPtr, treeNodePtr, prevExecPtr, nextBranchPtr);
+      const Uint32 err = appendTreeNode(requestPtr, treeNodePtr, prevExecPtr);
       if (unlikely(err))
         return err;
 
@@ -1960,93 +2097,51 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   while (list.next(treeNodePtr))
   {
     /**
-     * Scan has to be executed in same order as found in the 
+     * Scan has to be executed in same order as found in the
      * list of TreeNodes. (Legacy of the original SPJ-API result protocol)
      */
     if (treeNodePtr.p->m_predecessors.isclear() &&
         predecessors.contains(treeNodePtr.p->m_ancestors) &&
 	treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN)
     {
-      DEBUG("planSequentialExec, append INNER-joined scan-branch at treeNode: "
-	<< treeNodePtr.p->m_node_no);
+      DEBUG("planSequentialExec, append INNER-joined scan-branch at: "
+        << treeNodePtr.p->m_node_no);
       
       ndbassert(treeNodePtr.p->isScan());
-      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr, nextBranchPtr);
+      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr);
       if (unlikely(err))
         return err;
       break;
     }
   } //for 'all request TreeNodes', starting from branchPtr
 
-
   /**
    * Note: All INNER-Joins within current 'branch' will now have been handled,
    * either directly within this method at 1), or by recursively calling it in 2).
    *
-   * 3a) collect any non-INNER-joined lookup branches
+   * 3) Append the non-INNER-joined branches to the end of the INNER-joined
+   * lookup sequence, (at 'prevExecPtr'), will be executed in parallel
+   * with the scan branch from 2).
    */
-  Ptr<TreeNode> outerBranches[NDB_SPJ_MAX_TREE_NODES+1];
-  int outerCnt = 0;
-
   treeNodePtr = branchPtr;    //Start over
   while (list.next(treeNodePtr))
   {
     if (treeNodePtr.p->m_predecessors.isclear() &&
-	predecessors.contains(treeNodePtr.p->m_ancestors))
+        predecessors.contains(treeNodePtr.p->m_ancestors) &&
+        !branchPtr.p->m_predecessors.contains(treeNodePtr.p->m_ancestors))
     {
-      if (treeNodePtr.p->isLookup() &&
-	  !branchPtr.p->m_predecessors.contains(treeNodePtr.p->m_ancestors))
-      {	
-        // A non-INNER joined lookup-TreeNode
-        outerBranches[outerCnt++] = treeNodePtr;
-      }
+      DEBUG("planSequentialExec, append non-INNER-joined branch at: "
+        << treeNodePtr.p->m_node_no
+        << ", to branch at: " << branchPtr.p->m_node_no
+        << ", as 'descendant' of node: " << prevExecPtr.p->m_node_no);
+
+      // A non-INNER joined TreeNode
+      ndbassert((treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN) == 0);
+      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr);
+      if (unlikely(err))
+        return err;
     }
   } //for 'all request TreeNodes', starting from branchPtr
-
-  /**
-   * 3b) Append the non-INNER-joined lookup branches to the end of the INNER-joined
-   * lookup sequence, (at 'prevExecPtr'), will be executed in a sequence, parallell
-   * with the scan branch from 2).
-   *
-   */
-  outerBranches[outerCnt] = nextBranchPtr;                      //Resume point for last
-  for (int i = 0; i < outerCnt; i++)
-  {
-    DEBUG("planSequentialExec, append non-INNER-joined branch no: "
-      << outerBranches[i].p->m_node_no);
-    
-    const Uint32 err = planSequentialExec(requestPtr, outerBranches[i], prevExecPtr,
-				          outerBranches[i+1]);  //RESUME point
-    if (unlikely(err))
-      return err;
-  }
-
-  /**
-   * 4) Append any non-INNER joined scan branches to the end of the INNER-joined
-   * lookup sequence, (at 'prevExecPtr')
-   */
-  treeNodePtr = branchPtr;    //Start over
-  while (list.next(treeNodePtr))
-  {
-    if (treeNodePtr.p->m_predecessors.isclear() &&
-	predecessors.contains(treeNodePtr.p->m_ancestors))
-    {
-      if (!branchPtr.p->m_predecessors.contains(treeNodePtr.p->m_ancestors))
-      {
-	jam();
-        ndbassert(treeNodePtr.p->isScan());
-	
-        DEBUG("planSequentialExec, append non-INNER-joined scan-treeNode: "
-	  << treeNodePtr.p->m_node_no
-          << ", to branch at: " << branchPtr.p->m_node_no
-          << ", as 'descendant' of node: " << prevExecPtr.p->m_node_no);
-
-        const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr, NullTreeNodePtr);
-        if (unlikely(err))
-          return err;
-      }
-    }
-  }
 
   return 0;
 } // ::planSequentialExec
@@ -2056,30 +2151,21 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
  * appendTreeNode()
  *
  *  Appends 'treeNodePtr' to the execution plan after 'prevExecPtr'.
- *  In case 'treeNodePtr' is part of an outer joined tree branch,
- *  'nextBranchPtr' may refer a 'resume point' outside of the current
- *  outer joined branch.
- *
- *  In case of execution of a row set within the current branch is
- *  terminated due to no INNER-joined matches found, execution will be
- *  resumed at 'nextBranchPtr'
  *
  *  Fills in the 'predecessors' and 'dependencies' bitmask.
  *
- *  Sets of extra 'scheduling policy' described by 'm_resumeEvents'
- *  and 'm_resumePtrI', and BUFFERing of rows and/or their match bitmask
+ *  Sets of extra 'scheduling policy' described by 'm_resumeEvents',
+ *  and BUFFERing of rows and/or their match bitmask
  *  as required by the choosen scheduling.
  */
 Uint32
 Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
                       Ptr<TreeNode> treeNodePtr,
-                      Ptr<TreeNode> prevExecPtr,
-                      const Ptr<TreeNode> nextBranchPtr)
+                      Ptr<TreeNode> prevExecPtr)
 {
   if (prevExecPtr.isNull())
   {
-    // Assert that no further action would have been required below.
-    ndbassert(nextBranchPtr.isNull());
+    // Is root, assert that no further action would have been required below.
     ndbassert(treeNodePtr.p->m_parentPtrI == RNIL);
     ndbassert(treeNodePtr.p->m_scanAncestorPtrI == RNIL);
     return 0;
@@ -2119,64 +2205,21 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    */
 
   /**
-   * If a 'next branch' is specified, the current branch should start execution
-   * from this branch when it completes. This is part of our load regulation logic
-   * which prevents it from overflowing the job buffers due to a scan driven 
-   * star-join query topology submitting all its LQHKEYREQSs at once.
-   * 
-   * Instead we now start only the first child lookup operation when a scan
-   * completes. Completion of requests from this lookup operation will in turn
-   * either start the next INNER-joined lookup when a TRANSID_AI result arrives,
-   * or use the 'next branch'-RESUME logic set up below if not INNER-joined.
-   * Together this maintain a steady pace of LQHKEYREQSs being submitted, where
-   * the total number of submitted REQs in the pipeline will be <= number
-   * of rows returned from the preceeding scan batch. (A 1::1 fanout)
+   * Job-buffer congestion control:
    *
-   * The 'next branch'-RESUME logic is controlled by setting the following
-   * m_resumeEvents flags:
-   *
-   *  - TN_ENQUEUE_OP: The first TreeNode in a 'next branch' will enqueue
-   *      the correlation-id of all rows TRANSID_AI-returned from its parent.
-   *      (As opposed to submit it for immediate execution). Any of the
-   *      RESUME-actions below will later pick one of the ENQUED rows
-   *      for execution. (Also implies that the parent of any ENQUEUing-TreeNode
-   *      need to BUFFER_ROW).
-   *  - TN_RESUME_REF: If we get a LQHKEYREF-reply it terminate any further
-   *      INNER-join operations originating from the head of this branch.
-   *      As this frees a scheduling quota, we may start an operation from
-   *      the nextBranch to be executed.
-   *  - TN_RESUME_CONF: Set only for the last operation in the branch.
-   *      When it succesfully completes, a scheduling quota is available,
-   *      and we may start an operation from the nextBranch to be executed.
+   * A large number of rows may be returned in each scanBatch, each of them
+   * resulting in a LQHKEYREQ being sent to any lookup child-TreeNodes.
+   * The congestion control aims to limit the number of such LQHKEYREQs
+   * to be 'outstanding'. Thus, all scan-TreeNodes having lookup children
+   * should have T_CHK_CONGESTION set in order to activate the congestion
+   * control. As T_CHK_CONGESTION may storeRow() on the scan-TreeNode,
+   * later being looked up from its correlation-id, T_BUFFER_MAP is also
+   * needed for such buffered rows.
    */
-  if (!nextBranchPtr.isNull())
+  if (treeNodePtr.p->isLookup() && prevExecPtr.p->isScan())
   {
-    // Should only be used for lookup resuming another branch of lookups,
-    // Within the same scanAncestor scope.
-    ndbassert(treeNodePtr.p->isLookup());
-    ndbassert(nextBranchPtr.p->isLookup());
-    ndbassert(nextBranchPtr.p->m_scanAncestorPtrI == treeNodePtr.p->m_scanAncestorPtrI);
-
-    treeNodePtr.p->m_resumePtrI = nextBranchPtr.i;
-    nextBranchPtr.p->m_predecessors.set(treeNodePtr.p->m_node_no);
-
-    /**
-     * Only the last TreeNode in a branch should have TN_RESUME_CONF set.
-     * If we now append to a branch having a resume position, remove RESUME_CONF.
-     */
-    if (prevExecPtr.p->m_resumePtrI != RNIL)
-    {
-      ndbassert(prevExecPtr.p->m_resumeEvents & TreeNode::TN_RESUME_REF);
-      // Only for the last resuming TreeNode 
-      prevExecPtr.p->m_resumeEvents &= ~TreeNode::TN_RESUME_CONF;
-    }
-
-    // Assume: Last node in this outer-joined tree branch: Always resume 'next'.
-    treeNodePtr.p->m_resumeEvents |= TreeNode::TN_RESUME_CONF |
-                                     TreeNode::TN_RESUME_REF;
-
-    // The 'to be resumed' operations are enqueued at the head of nextBranch.
-    nextBranchPtr.p->m_resumeEvents |= TreeNode::TN_ENQUEUE_OP;
+    prevExecPtr.p->m_bits |= TreeNode::T_CHK_CONGESTION;
+    prevExecPtr.p->m_bits |= TreeNode::T_BUFFER_MAP;
   }
 
   /**    Example:
@@ -2219,7 +2262,8 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
       treeNodePtr.p->m_scanAncestorPtrI != RNIL)
   {
     Ptr<TreeNode> scanAncestorPtr;
-    m_treenode_pool.getPtr(scanAncestorPtr, treeNodePtr.p->m_scanAncestorPtrI);
+    ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                      treeNodePtr.p->m_scanAncestorPtrI));
     Ptr<TreeNode> ancestorPtr(scanAncestorPtr);
 
     // Note that scans are always added to exec plan such that their
@@ -2229,22 +2273,21 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
     while (list.next(ancestorPtr) && ancestorPtr.i != treeNodePtr.i)
     {
       if (ancestorPtr.p->isScan() &&
-	  treeNodePtr.p->m_dependencies.get(ancestorPtr.p->m_node_no))
+          treeNodePtr.p->m_dependencies.get(ancestorPtr.p->m_node_no))
       {
-	/**
+        /**
          * 'ancestorPtr' is a scan executed inbetween this scan and its scanAncestor.
          * It is not among the ancestors of the TreeNode to be executed
          */
 
         // Need 'resume-node' scheduling in preparation for 'next' scan-branch:
         treeNodePtr.p->m_resumeEvents |= TreeNode::TN_EXEC_WAIT |
-	                                 TreeNode::TN_RESUME_NODE;
-	
-        requestPtr.p->m_bits |= Request::RT_BUFFERS;
+                                         TreeNode::TN_RESUME_NODE;
+
         scanAncestorPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
                                      TreeNode::T_BUFFER_MATCH;
 
-	/**
+        /**
          * BUFFER_MATCH all scan ancestors of this treeNode which we
          * depends on (May exclude some outer-joined scan branches.)
          */
@@ -2255,7 +2298,7 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
         }
       }
     }
-  }	
+  }
 
   /**
    * Only the result rows from the 'prevExec' is directly available when
@@ -2271,7 +2314,6 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    * to-be-resumed nodes, as described above.
    */
   if (treeNodePtr.p->m_parentPtrI != prevExecPtr.i ||
-      (treeNodePtr.p->m_resumeEvents & TreeNode::TN_ENQUEUE_OP) ||
       (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_NODE))
   {
     /**
@@ -2280,10 +2322,9 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
      * such that they can be located when needed.
      */
     Ptr<TreeNode> parentPtr;
-    m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+    ndbrequire(m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI));
     parentPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
                            TreeNode::T_BUFFER_ROW;
-    requestPtr.p->m_bits |= Request::RT_BUFFERS;
   }
 
   return 0;
@@ -2318,22 +2359,9 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   {
     DEBUG("  has EXEC_WAIT");
   }
-  
-  if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_ENQUEUE_OP)
-  {
-    DEBUG("  ENQUEUE, wait to be resumed");
-  }
   if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_NODE)
   {
     DEBUG("  has RESUME_NODE");
-  }
-  if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_CONF)
-  {
-    DEBUG("  has RESUME_CONF");
-  }
-  if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_REF)
-  {
-    DEBUG("  has RESUME_REF");
   }
 
   static const Uint32 BufferAll = (TreeNode::T_BUFFER_ROW|TreeNode::T_BUFFER_MATCH);
@@ -2349,18 +2377,15 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   {
     DEBUG("  BUFFER 'MATCH'");
   }
-
-  if (treeNodePtr.p->m_resumePtrI != RNIL)
+  if (treeNodePtr.p->m_bits & TreeNode::T_CHK_CONGESTION)
   {
-    Ptr<TreeNode> resumeTreeNodePtr;
-    m_treenode_pool.getPtr(resumeTreeNodePtr, treeNodePtr.p->m_resumePtrI);
-    DEBUG("  may resume node: " << resumeTreeNodePtr.p->m_node_no);
+    DEBUG("  BUFFER 'ROWS' If 'congested'");
   }
 
   for (nextExec.first(it); !it.isNull(); nextExec.next(it))
   {
     Ptr<TreeNode> nextPtr;
-    m_treenode_pool.getPtr(nextPtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(nextPtr, * it.data));
     DEBUG("  TreeNode no: " << treeNodePtr.p->m_node_no
        << ", has nextExec: " << nextPtr.p->m_node_no);
   }
@@ -2368,7 +2393,7 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   for (nextExec.first(it); !it.isNull(); nextExec.next(it))
   {
     Ptr<TreeNode> nextPtr;
-    m_treenode_pool.getPtr(nextPtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(nextPtr, * it.data));
     dumpExecPlan(requestPtr, nextPtr);
   }
 }
@@ -2385,8 +2410,9 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
    */
   if (ERROR_INSERTED_CLEAR(17005))
   {
-    ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfOperations error 17005 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfOperations;
   }
@@ -2398,6 +2424,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
     list.addLast(treeNodePtr);
     treeNodePtr.p->m_node_no = ctx.m_cnt;
+    insertGuardedPtr(requestPtr, treeNodePtr);
     return 0;
   }
   return DbspjErr::OutOfOperations;
@@ -2578,7 +2605,8 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
     /**
      * Entire Request completed
      */
-    cleanup(requestPtr);
+    constexpr bool in_hash = true;
+    cleanup(requestPtr, in_hash);
   }
   else
   {
@@ -2594,14 +2622,16 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
 /**
  * Locate next TreeNode(s) to retrieve more rows from.
  *
- *   Calculate set of the 'm_active_nodes' we will receive from in NEXTREQ.
+ *   Calculate set of the 'm_active_tree_nodes' we will receive from in NEXTREQ.
  *   Add these TreeNodes to the cursor list to be iterated.
  */
 void
 Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
 {
+  ndbassert(requestPtr.p->m_suspended_tree_nodes.isclear());
   requestPtr.p->m_cursor_nodes.init();
-  requestPtr.p->m_active_nodes.clear();
+  requestPtr.p->m_active_tree_nodes.clear();
+  requestPtr.p->m_suspended_tree_nodes.clear();
 
   if (requestPtr.p->m_cnt_active == 0)
   {
@@ -2665,7 +2695,7 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
       for (list.next(nodePtr); !nodePtr.isNull(); list.next(nodePtr))
       {
 	jam();
-        if (!nodePtr.p->m_predecessors.overlaps (requestPtr.p->m_active_nodes))
+        if (!nodePtr.p->m_predecessors.overlaps (requestPtr.p->m_active_tree_nodes))
         {
           jam();
           ndbrequire(nodePtr.p->m_state != TreeNode::TN_ACTIVE);
@@ -2688,9 +2718,9 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
          *   of our ancestor,  is 'active' it will also re-activate this TreeNode.
          *   Has to inform the API about that.
          */
-        else if (!nodePtr.p->m_ancestors.overlaps (requestPtr.p->m_active_nodes))
+        else if (!nodePtr.p->m_ancestors.overlaps (requestPtr.p->m_active_tree_nodes))
         {
-          requestPtr.p->m_active_nodes.set(nodePtr.p->m_node_no);
+          requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no);
         }
       }
     } // if (!nodePtr.isNull()
@@ -2730,15 +2760,15 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
     }
   } // if (RT_REPEAT_SCAN_RESULT)
 
-  DEBUG("Calculated 'm_active_nodes': " << requestPtr.p->m_active_nodes.rep.data[0]);
+  DEBUG("Calculated 'm_active_tree_nodes': " << requestPtr.p->m_active_tree_nodes.rep.data[0]);
 }
 
 void
 Dbspj::registerActiveCursor(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 {
   Uint32 bit = treeNodePtr.p->m_node_no;
-  ndbrequire(!requestPtr.p->m_active_nodes.get(bit));
-  requestPtr.p->m_active_nodes.set(bit);
+  ndbrequire(!requestPtr.p->m_active_tree_nodes.get(bit));
+  requestPtr.p->m_active_tree_nodes.set(bit);
 
   Local_TreeNodeCursor_list list(m_treenode_pool, requestPtr.p->m_cursor_nodes);
 #ifdef VM_TRACE
@@ -2780,8 +2810,28 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       conf->transId2 = requestPtr.p->m_transId[1];
       conf->completedOps = requestPtr.p->m_rows;
       conf->fragmentCompleted = is_complete ? 1 : 0;
-      conf->total_len = requestPtr.p->m_active_nodes.rep.data[0];
+      conf->total_len = requestPtr.p->m_active_tree_nodes.rep.data[0];
 
+      /**
+       * Collect the map of nodes still having more rows to return.
+       * Note that this 'activeMask' is returned as part of the
+       * extended format of the ScanFragConf signal introduced in wl7636.
+       * If returned to a TC node not yet upgraded, the extended part
+       * of the ScanFragConf is simply ignored.
+       */
+      Uint32 activeMask = 0;
+      Ptr<TreeNode> treeNodePtr;
+      Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+
+      for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
+      {
+        if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+        {
+          ndbassert(treeNodePtr.p->m_node_no <= 31);
+          activeMask |= (1 << treeNodePtr.p->m_node_no);
+        }
+      }
+      conf->activeMask = activeMask;
       c_Counters.incr_counter(CI_SCAN_BATCHES_RETURNED, 1);
       c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, requestPtr.p->m_rows);
 
@@ -2798,11 +2848,11 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       if (is_complete)
       {
         Uint32 cnt = requestPtr.p->m_cnt_batches;
-        ndbout_c("batches: %u avg_rows: %u avg_running: %u avg_wait: %u",
-                 cnt,
-                 (requestPtr.p->m_sum_rows / cnt),
-                 (requestPtr.p->m_sum_running / cnt),
-                 cnt == 1 ? 0 : requestPtr.p->m_sum_waiting / (cnt - 1));
+        g_eventLogger->info(
+            "batches: %u avg_rows: %u avg_running: %u avg_wait: %u", cnt,
+            (requestPtr.p->m_sum_rows / cnt),
+            (requestPtr.p->m_sum_running / cnt),
+            cnt == 1 ? 0 : requestPtr.p->m_sum_waiting / (cnt - 1));
       }
 #endif
 
@@ -2816,13 +2866,13 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
         requestPtr.p->m_state |= Request::RS_WAITING;
       }
 #ifdef DEBUG_SCAN_FRAGREQ
-      ndbout_c("Dbspj::sendConf() sending SCAN_FRAGCONF ");
+      g_eventLogger->info("Dbspj::sendConf() sending SCAN_FRAGCONF ");
       printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
                          conf->total_len,
                          DBLQH);
 #endif
       sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
-                 ScanFragConf::SignalLength, JBB);
+                 ScanFragConf::SignalLength_ext, JBB);
     }
     else
     {
@@ -2900,49 +2950,21 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
    */
   ndbassert(requestPtr.p->m_cnt_active >= 1);
 
-  /**
-   * Release any buffered rows for the TreeNode branches
-   * getting new rows.
-   */
-  if ((requestPtr.p->m_bits & Request::RT_BUFFERS) != 0)
-  {
-    if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
-    {
-      jam();
-      /**
-       * A MULTI_SCAN may selectively retrieve rows from only
-       * some of the (scan-) branches in the Request.
-       * Selectively release from only these branches.
-       */
-      releaseScanBuffers(requestPtr);
-    }
-    else
-    {
-      jam();
-      /**
-       * if not multiple scans in request, simply release all pages allocated
-       * for row buffers (all rows will be released anyway)
-       */
-      // Root node should be the one and only being active
-      ndbassert(requestPtr.p->m_cnt_active == 1);
-      ndbassert(requestPtr.p->m_active_nodes.get(0));
-      releaseRequestBuffers(requestPtr);
-    }
-  } //RT_BUFFERS
-
   Ptr<TreeNode> treeNodePtr;
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
 
   for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
   {
     /**
-     * Re-init row buffer structures for those treeNodes getting more rows
-     * in the following NEXTREQ, including all its childs.
+     * Release and re-init row buffer structures for those treeNodes getting
+     * more rows in the following NEXTREQ, including all its childs.
      */
-    if (requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no) ||
-        requestPtr.p->m_active_nodes.overlaps(treeNodePtr.p->m_predecessors))
+    if (requestPtr.p->m_active_tree_nodes.get(treeNodePtr.p->m_node_no) ||
+        requestPtr.p->m_active_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
     {
+      // Release rowBuffers used by this TreeNode.
       jam();
+      releasePages(treeNodePtr.p->m_rowBuffer);
       treeNodePtr.p->m_rows.init();
     }
 
@@ -2954,10 +2976,9 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
       {
         jam();
         RowPtr row;
-        setupRowPtr(treeNodePtr, row, 
-                    iter.m_base.m_ref, iter.m_base.m_row_ptr);
+        setupRowPtr(treeNodePtr, row, iter.m_base.m_row_ptr);
 
-        row.m_matched->bitANDC(requestPtr.p->m_active_nodes);
+        row.m_matched->bitANDC(requestPtr.p->m_active_tree_nodes);
       }
     }
 
@@ -2965,7 +2986,7 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
      * Do further cleanup in treeNodes having predecessors getting more rows.
      * (Which excludes the restarted treeNode itself)
      */
-    if (requestPtr.p->m_active_nodes.overlaps(treeNodePtr.p->m_predecessors))
+    if (requestPtr.p->m_active_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
     {
       jam();
       /**
@@ -2996,144 +3017,6 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
   }
 }
 
-void
-Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
-{
-  Ptr<TreeNode> treeNodePtr;
-  Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
-
-  for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
-  {
-    /**
-     * Release buffered rows for all treeNodes getting more rows
-     * in the following NEXTREQ, including all its childs.
-     */
-    if (requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no) ||
-        requestPtr.p->m_active_nodes.overlaps(treeNodePtr.p->m_predecessors))
-    {
-      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
-      {
-        jam();
-        releaseNodeRows(requestPtr, treeNodePtr);
-      }
-    }
-  }
-}
-
-void
-Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
-{
-  /**
-   * Release all rows associated with tree node
-   */
-  DEBUG("releaseNodeRows"
-     << ", node: " << treeNodePtr.p->m_node_no
-     << ", request: " << requestPtr.i
-  );
-
-  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY);
-
-  Uint32 cnt = 0;
-  RowIterator iter;
-  for (first(treeNodePtr.p->m_rows, iter); !iter.isNull(); )
-  {
-    jam();
-    RowRef pos = iter.m_base.m_ref;
-    next(iter);
-    releaseRow(treeNodePtr, pos);
-    cnt ++;
-  }
-  DEBUG("RowIterator: released " << cnt << " rows!");
-
-  if (treeNodePtr.p->m_rows.m_type == RowCollection::COLLECTION_MAP)
-  {
-    jam();
-    // Release the (now empty) RowMap
-    RowMap& map = treeNodePtr.p->m_rows.m_map;
-    if (!map.isNull())
-    {
-      jam();
-      RowRef ref;
-      map.copyto(ref);
-      releaseRow(treeNodePtr, ref);  // Map was allocated in row memory
-    }
-  }
-}
-
-void
-Dbspj::releaseRow(Ptr<TreeNode> treeNodePtr, RowRef pos)
-{
-  // Only when var-alloc, or else stack will be popped wo/ consideration
-  // to individual rows
-  const RowCollection& collection = treeNodePtr.p->m_rows;
-  ndbassert(collection.m_base.m_rowBuffer != NULL);
-  ndbassert(collection.m_base.m_rowBuffer->m_type == BUFFER_VAR);
-  ndbassert(pos.m_alloc_type == BUFFER_VAR);
-
-  RowBuffer& rowBuffer = *collection.m_base.m_rowBuffer;
-  Ptr<RowPage> ptr;
-  m_page_pool.getPtr(ptr, pos.m_page_id);
-  ((Var_page*)ptr.p)->free_record(pos.m_page_pos, Var_page::CHAIN);
-  Uint32 free_space = ((Var_page*)ptr.p)->free_space;
-  if (free_space == Var_page::DATA_WORDS - 1)
-  {
-    jam();
-    Local_RowPage_fifo list(m_page_pool,
-                                  rowBuffer.m_page_list);
-    const bool last = list.hasNext(ptr) == false;
-    list.remove(ptr);
-    if (list.isEmpty())
-    {
-      jam();
-      /**
-       * Don't remove last page...
-       */
-      list.addLast(ptr);
-      rowBuffer.m_var.m_free = free_space;
-    }
-    else
-    {
-      jam();
-      if (last)
-      {
-        jam();
-        /**
-         * If we were last...set m_var.m_free to free_space of newLastPtr
-         */
-        Ptr<RowPage> newLastPtr;
-        ndbrequire(list.last(newLastPtr));
-        rowBuffer.m_var.m_free = ((Var_page*)newLastPtr.p)->free_space;
-      }
-      releasePage(ptr);
-    }
-  }
-  else if (free_space > rowBuffer.m_var.m_free)
-  {
-    jam();
-    Local_RowPage_fifo list(m_page_pool,
-                                  rowBuffer.m_page_list);
-    list.remove(ptr);
-    list.addLast(ptr);
-    rowBuffer.m_var.m_free = free_space;
-  }
-}
-
-void
-Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr)
-{
-  DEBUG("releaseRequestBuffers"
-     << ", request: " << requestPtr.i
-  );
-  /**
-   * Release all pages for request
-   */
-  {
-    Local_RowPage_list freelist(m_page_pool, m_free_page_list);
-    freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
-  }
-  requestPtr.p->m_rowBuffer.reset();
-}
-
 /**
  * Handle that batch for this 'TreeNode' is complete.
  */
@@ -3144,15 +3027,15 @@ Dbspj::handleTreeNodeComplete(Signal * signal, Ptr<Request> requestPtr,
   if ((requestPtr.p->m_state & Request::RS_ABORTING) == 0)
   {
     jam();
-    ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
-    requestPtr.p->m_completed_nodes.set(treeNodePtr.p->m_node_no);
+    ndbassert(requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
     /**
      * If all predecessors are complete, this has to be reported
      * as we might be waiting for this condition to start more
      * operations.
      */
-    if (requestPtr.p->m_completed_nodes.contains(treeNodePtr.p->m_predecessors))
+    if (requestPtr.p->m_completed_tree_nodes.contains(treeNodePtr.p->m_predecessors) &&
+        !requestPtr.p->m_suspended_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
     {
       jam();
       reportAncestorsComplete(signal, requestPtr, treeNodePtr);
@@ -3170,6 +3053,7 @@ Dbspj::reportAncestorsComplete(Signal * signal, Ptr<Request> requestPtr,
 {
   DEBUG("reportAncestorsComplete: " << treeNodePtr.p->m_node_no);
 
+  if (!requestPtr.p->m_suspended_tree_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
@@ -3180,17 +3064,16 @@ Dbspj::reportAncestorsComplete(Signal * signal, Ptr<Request> requestPtr,
     {
       jam();
       Ptr<TreeNode> nextTreeNodePtr;
-      m_treenode_pool.getPtr(nextTreeNodePtr, *it.data);
+      ndbrequire(m_treenode_pool.getPtr(nextTreeNodePtr, *it.data));
 
       /**
        * Notify all TreeNodes which depends on the completed predecessors.
        */
-      if (requestPtr.p->m_completed_nodes.contains(nextTreeNodePtr.p->m_predecessors))
+      if (requestPtr.p->m_completed_tree_nodes.contains(nextTreeNodePtr.p->m_predecessors))
       {
-        ndbassert(nextTreeNodePtr.p->m_deferred.isEmpty());
-
         if (nextTreeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_NODE)
         {
+          jam();
           resumeBufferedNode(signal, requestPtr, nextTreeNodePtr);
         }
 
@@ -3224,31 +3107,6 @@ void
 Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
 {
   jam();
-
-  /**
-   * Need to handle online upgrade as the protocol for 
-   * signaling errors for Lookup-request changed in 7.2.5.
-   * If API-version is <= 7.2.4 we increase the severity 
-   * of the error to a 'NodeFailure' as this is the only
-   * errorcode for which the API will stop further
-   * 'outstanding-counting' in pre 7.2.5.
-   * (Starting from 7.2.5 we will stop counting for all 'hard errors')
-   * 
-   * In case we are only partially connected, there might be no 
-   * valid 'API-version' info yet: We do the optimistic assumption that
-   * version > 7.2.4 rather than sending a NodeFailure (bug#23049170)
-   * (Partly based on assumption that there are few/no left on <= 7.2.4)
-   */
-  if (requestPtr.p->isLookup())
-  {
-    const Uint32 API_version = getNodeInfo(getResultRef(requestPtr)).m_version;
-    if (unlikely(API_version != 0 && !ndbd_fixed_lookup_query_abort(API_version)))
-    {
-      jam();
-      errCode = DbspjErr::NodeFailure;
-    }
-  }
-
   if ((requestPtr.p->m_state & Request::RS_ABORTING) != 0)
   {
     jam();
@@ -3257,6 +3115,7 @@ Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
 
   requestPtr.p->m_state |= Request::RS_ABORTING;
   requestPtr.p->m_errCode = errCode;
+  requestPtr.p->m_suspended_tree_nodes.clear();
 
   {
     Ptr<TreeNode> nodePtr;
@@ -3369,8 +3228,7 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
  * The Request itself is *not* released yet as it may still be needed
  * to track the state of the request. (Set to include RS_DONE)
  */
-void
-Dbspj::cleanup(Ptr<Request> requestPtr)
+void Dbspj::cleanup(Ptr<Request> requestPtr, bool in_hash)
 {
   ndbrequire(requestPtr.p->m_cnt_active == 0);
   {
@@ -3382,6 +3240,7 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
       ndbrequire(nodePtr.p->m_info != 0 && nodePtr.p->m_info->m_cleanup != 0);
       (this->*(nodePtr.p->m_info->m_cleanup))(requestPtr, nodePtr);
 
+      removeGuardedPtr(nodePtr);
       m_treenode_pool.release(nodePtr);
     }
   }
@@ -3407,17 +3266,17 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
     if (unlikely((requestPtr.p->m_state & Request::RS_WAITING) != 0))
     {
       jam();
+      ndbrequire(in_hash);
       requestPtr.p->m_state = Request::RS_ABORTED;
       return;
     }
-    m_scan_request_hash.remove(requestPtr, *requestPtr.p);
+    ndbrequire(in_hash == m_scan_request_hash.remove(requestPtr, *requestPtr.p));
   }
   else
   {
     jam();
-    m_lookup_request_hash.remove(requestPtr, *requestPtr.p);
+    ndbrequire(in_hash == m_lookup_request_hash.remove(requestPtr, *requestPtr.p));
   }
-  releaseRequestBuffers(requestPtr);
   ArenaHead ah = requestPtr.p->m_arena;
   m_request_pool.release(requestPtr);
   m_arenaAllocator.release(ah);
@@ -3461,6 +3320,8 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
     jam();
     releaseSection(treeNodePtr.p->m_send.m_attrInfoPtrI);
   }
+
+  releasePages(treeNodePtr.p->m_rowBuffer);
 }
 
 static
@@ -3540,11 +3401,11 @@ Dbspj::execLQHKEYREF(Signal* signal)
   const LqhKeyRef* ref = reinterpret_cast<const LqhKeyRef*>(signal->getDataPtr());
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ref->connectPtr);
+  ndbrequire(getGuardedPtr(treeNodePtr, ref->connectPtr));
 
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
+  ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
   ndbassert(checkRequest(requestPtr));
 
@@ -3569,11 +3430,11 @@ Dbspj::execLQHKEYCONF(Signal* signal)
 
   const LqhKeyConf* conf = reinterpret_cast<const LqhKeyConf*>(signal->getDataPtr());
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, conf->opPtr);
+  ndbrequire(getGuardedPtr(treeNodePtr, conf->opPtr));
 
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
+  ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
   DEBUG("execLQHKEYCONF"
      << ", node: " << treeNodePtr.p->m_node_no
@@ -3595,12 +3456,13 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
   const ScanFragRef* ref = reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, ref->senderData);
+  ndbrequire(getGuardedPtr(scanFragHandlePtr, ref->senderData));
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr,
+                                    scanFragHandlePtr.p->m_treeNodePtrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
+  ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
   ndbassert(checkRequest(requestPtr));
 
@@ -3610,6 +3472,12 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
      << ", errorCode: " << ref->errorCode
   );
 
+  Uint32 sig_len = signal->getLength();
+  if (likely(sig_len == ScanFragRef::SignalLength_query))
+  {
+    jam();
+    scanFragHandlePtr.p->m_next_ref = ref->senderRef;
+  }
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execSCAN_FRAGREF);
   (this->*(treeNodePtr.p->m_info->m_execSCAN_FRAGREF))(signal,
                                                        requestPtr,
@@ -3624,23 +3492,63 @@ Dbspj::execSCAN_HBREP(Signal* signal)
 {
   jamEntry();
 
+  BlockReference senderRef = signal->senderBlockRef();
   Uint32 senderData = signal->theData[0];
-  //Uint32 transId[2] = { signal->theData[1], signal->theData[2] };
+  Uint32 transid1 = signal->theData[1];
+  Uint32 transid2 = signal->theData[2];
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, senderData);
+  ndbrequire(getGuardedPtr(scanFragHandlePtr, senderData));
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   DEBUG("execSCAN_HBREP"
      << ", node: " << treeNodePtr.p->m_node_no
      << ", request: " << requestPtr.i
   );
 
+  if (refToMain(scanFragHandlePtr.p->m_next_ref) == V_QUERY)
+  {
+    jam();
+    /**
+     * Since we will send signal below in send_close_scan we need to
+     * save the signal data at signal reception since this is used to
+     * send SCAN_HBREP to DBTC as well.
+     */
+    scanFragHandlePtr.p->m_next_ref = senderRef;
+    if (scanFragHandlePtr.p->m_state ==
+        ScanFragHandle::SFH_SCANNING_WAIT_CLOSE)
+    {
+      jam();
+      send_close_scan(signal, scanFragHandlePtr, requestPtr);
+    }
+  }
   Uint32 ref = requestPtr.p->m_senderRef;
   signal->theData[0] = requestPtr.p->m_senderData;
+  signal->theData[1] = transid1;
+  signal->theData[2] = transid2;
   sendSignal(ref, GSN_SCAN_HBREP, signal, 3, JBB);
+}
+
+void
+Dbspj::send_close_scan(Signal *signal,
+                       Ptr<ScanFragHandle> fragPtr,
+                       Ptr<Request> requestPtr)
+{
+  fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+  ScanFragNextReq* req =
+  CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
+  req->requestInfo = 0;
+  ScanFragNextReq::setCloseFlag(req->requestInfo, 1);
+  req->transId1 = requestPtr.p->m_transId[0];
+  req->transId2 = requestPtr.p->m_transId[1];
+  req->batch_size_rows = 0;
+  req->batch_size_bytes = 0;
+  req->senderData = fragPtr.i;
+  ndbrequire(refToMain(fragPtr.p->m_next_ref) != V_QUERY);
+  sendSignal(fragPtr.p->m_next_ref, GSN_SCAN_NEXTREQ, signal,
+             ScanFragNextReq::SignalLength, JBB);
 }
 
 void
@@ -3648,25 +3556,26 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
 {
   jamEntry();
 
-  const ScanFragConf* conf = reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
+  const ScanFragConf* conf =
+    reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  ndbout_c("Dbspj::execSCAN_FRAGCONF() receiveing SCAN_FRAGCONF ");
+  g_eventLogger->info("Dbspj::execSCAN_FRAGCONF() receiving SCAN_FRAGCONF ");
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
                      conf->total_len,
                      DBLQH);
 #endif
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, conf->senderData);
+  ndbrequire(getGuardedPtr(scanFragHandlePtr, conf->senderData));
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   
   ndbassert(checkRequest(requestPtr));
 
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no) ||
+  ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no) ||
             requestPtr.p->m_state & Request::RS_ABORTING);
 
   DEBUG("execSCAN_FRAGCONF"
@@ -3674,6 +3583,12 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
      << ", request: " << requestPtr.i
   );
 
+  Uint32 sig_len = signal->getLength();
+  if (likely(sig_len == ScanFragConf::SignalLength_query))
+  {
+    jam();
+    scanFragHandlePtr.p->m_next_ref = conf->senderRef;
+  }
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execSCAN_FRAGCONF);
   (this->*(treeNodePtr.p->m_info->m_execSCAN_FRAGCONF))(signal,
                                                         requestPtr,
@@ -3690,7 +3605,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   const ScanFragNextReq * req = (ScanFragNextReq*)&signal->theData[0];
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  DEBUG("Incomming SCAN_NEXTREQ");
+  DEBUG("Incoming SCAN_NEXTREQ");
   printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
                        ScanFragNextReq::SignalLength, DBLQH);
 #endif
@@ -3825,12 +3740,12 @@ Dbspj::execTRANSID_AI(Signal* signal)
   Uint32 ptrI = req->connectPtr;
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ptrI);
+  ndbrequire(getGuardedPtr(treeNodePtr, ptrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   
   ndbassert(checkRequest(requestPtr));
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+  ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
   ndbassert(treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI);
 
   DEBUG("execTRANSID_AI"
@@ -3838,28 +3753,48 @@ Dbspj::execTRANSID_AI(Signal* signal)
      << ", request: " << requestPtr.i
   );
 
-  ndbrequire(signal->getNoOfSections() != 0);
-
-  SegmentedSectionPtr dataPtr;
+  /**
+   * Copy the received row in SegmentedSection memory into Linear memory.
+   */
+  LinearSectionPtr linearPtr;
+  if (signal->getNoOfSections() == 0)  // Short signal
   {
+    ndbrequire(signal->getLength() >= TransIdAI::HeaderLength);
+    memcpy(m_buffer1, &signal->theData[TransIdAI::HeaderLength],
+           4 * (signal->getLength() - TransIdAI::HeaderLength));
+    linearPtr.p = m_buffer1;
+    linearPtr.sz = signal->getLength() - TransIdAI::HeaderLength;
+  }
+  else
+  {
+    SegmentedSectionPtr dataPtr;
     SectionHandle handle(this, signal);
-    handle.getSection(dataPtr, 0);
-    handle.clear();
+    ndbrequire(handle.getSection(dataPtr, 0));
+
+    // Use the Dbspj::m_buffer1[] as temporary Linear storage for row.
+    static_assert(sizeof(m_buffer1) >=
+		  4*(MAX_ATTRIBUTES_IN_TABLE+MAX_TUPLE_SIZE_IN_WORDS),
+		  "Dbspj::m_buffer1[] too small");
+    copy(m_buffer1, dataPtr);
+    linearPtr.p = m_buffer1;
+    linearPtr.sz = dataPtr.sz;
+    releaseSections(handle);
   }
 
 #if defined(DEBUG_LQHKEYREQ) || defined(DEBUG_SCAN_FRAGREQ)
   printf("execTRANSID_AI: ");
-  print(dataPtr, stdout);
+  for (Uint32 i = 0; i<linearPtr.sz; i++)
+    printf("0x%.8x ", linearPtr.p[i]);
+  printf("\n");
 #endif
 
   /**
-   * Register signal as arrived -> 'done' if this completed this treeNode
+   * Register signal as arrived.
    */ 
   ndbassert(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_countSignal);
-  const bool done = (this->*(treeNodePtr.p->m_info->m_countSignal))(
-                                                     signal,
-                                                     requestPtr,
-                                                     treeNodePtr);
+  (this->*(treeNodePtr.p->m_info->m_countSignal))(signal,
+                                                  requestPtr,
+                                                  treeNodePtr, 1);
 
   /**
    * build easy-access-array for row
@@ -3867,27 +3802,67 @@ Dbspj::execTRANSID_AI(Signal* signal)
   Uint32 tmp[2+MAX_ATTRIBUTES_IN_TABLE];
   RowPtr::Header* header = CAST_PTR(RowPtr::Header, &tmp[0]);
 
-  Uint32 cnt = buildRowHeader(header, dataPtr);
+  Uint32 cnt = buildRowHeader(header, linearPtr);
   ndbassert(header->m_len < NDB_ARRAY_SIZE(tmp));
 
   struct RowPtr row;
-  row.m_type = RowPtr::RT_SECTION;
-  row.m_matched = NULL;
+  row.m_matched = nullptr;
   row.m_src_node_ptrI = treeNodePtr.i;
-  row.m_row_data.m_section.m_header = header;
-  row.m_row_data.m_section.m_dataPtr.assign(dataPtr);
+  row.m_row_data.m_header = header;
+  row.m_row_data.m_data = linearPtr.p;
 
-  getCorrelationData(row.m_row_data.m_section,
+  getCorrelationData(row.m_row_data,
                      cnt - 1,
                      row.m_src_correlation);
 
   do  //Dummy loop to allow 'break' into error handling
   {
-    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
+    if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
     {
       jam();
-      Uint32 err;
+      break;
+    }
 
+    // Set 'matched' bit in previous scan ancestors
+    if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
+    {
+      RowPtr scanAncestorRow(row);
+      Uint32 scanAncestorPtrI = treeNodePtr.p->m_scanAncestorPtrI;
+      while (scanAncestorPtrI != RNIL)  // or 'break' below
+      {
+        jam();
+        Ptr<TreeNode> scanAncestorPtr;
+        ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtrI));
+        if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
+        {
+          jam();
+          break;
+        }
+
+        getBufferedRow(scanAncestorPtr, (scanAncestorRow.m_src_correlation >> 16),
+                       &scanAncestorRow);
+
+        if (scanAncestorRow.m_matched->get(treeNodePtr.p->m_node_no))
+        {
+          jam();
+          break;
+        }
+        scanAncestorRow.m_matched->set(treeNodePtr.p->m_node_no);
+        scanAncestorPtrI = scanAncestorPtr.p->m_scanAncestorPtrI;
+      } //while
+    } //RT_MULTI_SCAN
+
+    const bool isCongested =
+        treeNodePtr.p->m_bits & TreeNode::T_CHK_CONGESTION  &&
+        requestPtr.p->m_outstanding >= HighlyCongestedLimit;
+
+    /**
+     * Buffer the row if either decided by execution plan, or needed by
+     * congestion control logic.
+     */
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY || isCongested)
+    {
+      jam();
       DEBUG("Need to storeRow"
         << ", node: " << treeNodePtr.p->m_node_no
       );
@@ -3901,24 +3876,59 @@ Dbspj::execTRANSID_AI(Signal* signal)
         abort(signal, requestPtr, DbspjErr::OutOfRowMemory);
         break;
       }
-      else if ((err = storeRow(treeNodePtr, row)) != 0)
+
+      const Uint32 err = storeRow(treeNodePtr, row);
+      if (unlikely(err != 0))
       {
         jam();
         abort(signal, requestPtr, err);
         break;
       }
     }
-    common_execTRANSID_AI(signal, requestPtr, treeNodePtr, row);
+
+    if (isCongested)
+    {
+      jam();
+      DEBUG("Congested, store correlation-id for row"
+        << ", node: " << treeNodePtr.p->m_node_no
+      );
+
+      /**
+       * Append correlation values of congested operations being deferred
+       * to a list / fifo. Upon resume, we will then be able to
+       * relocate all BUFFER'ed rows for which to resume operations.
+       */
+      bool appended;
+      {
+        // Need an own scope for correlation_list, as ::lookup_abort() will
+        // also construct such a list. Such nested usage is not allowed.
+        LocalArenaPool<DataBufferSegment<14> >
+            pool(treeNodePtr.p->m_batchArena, m_dependency_map_pool);
+        Local_correlation_list
+            correlations(pool,treeNodePtr.p->m_deferred.m_correlations);
+        appended = correlations.append(&row.m_src_correlation, 1);
+      }
+      if (unlikely(!appended))
+      {
+        jam();
+        abort(signal, requestPtr, DbspjErr::OutOfQueryMemory);
+        break;
+      }
+      // Setting TreeNode as suspended will trigger later resumeCongestedNodes()
+      requestPtr.p->m_suspended_tree_nodes.set(treeNodePtr.p->m_node_no);
+      break;  // -> Don't startNextNodes()
+    }
+
+    // Submit operations to next-TreeNodes to be executed after 'this'
+    startNextNodes(signal, requestPtr, treeNodePtr, row);
   }
   while(0);
 
-  release(dataPtr);
-
   /**
-   * When TreeNode is 'done' we might have to reply, or 
+   * When TreeNode is completed we might have to reply, or
    * resume other parts of the request.
    */
-  if (done && treeNodePtr.p->m_deferred.isEmpty())
+  if (requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     handleTreeNodeComplete(signal, requestPtr, treeNodePtr);
@@ -3928,22 +3938,37 @@ Dbspj::execTRANSID_AI(Signal* signal)
   checkBatchComplete(signal, requestPtr);
 }
 
+/**
+ * Store the row(if T_BUFFER_ROW), or possibly only its correlationId, together with:
+ *  - The RowPtr::Header, describing the row
+ *  - The 'Match' bitmask, if 'T_BUFFER_MATCH'
+ *
+ *  ----------------------------------
+ *  | 'Match'-mask (1xUint32)        |  (present if T_BUFFER_MATCH)
+ *  +--------------------------------+
+ *  | RowPtr::Header::m_len          |  Size of Header array
+ *  | RowPtr::Header::m_offset[]     |  Variable size array
+ *  | ... more offsets ...           |
+ *  | ... m_offfset[len-1]           |  Last offset is always 'corrId offset'
+ *  +--------------------------------+
+ *  | The row, or only its corrId    |  Row as described by Header
+ *  | .. variable sized....          |
+ *  ---------------------------------- 
+ */
 Uint32
 Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
 {
-  ndbassert(row.m_type == RowPtr::RT_SECTION);
-  RowCollection& collection = treeNodePtr.p->m_rows;
-  SegmentedSectionPtr dataPtr = row.m_row_data.m_section.m_dataPtr;
+  RowCollection &collection = treeNodePtr.p->m_rows;
   Uint32 datalen;
-  Uint32 *headptr;
+  const RowPtr::Header *headptr;
   Uint32 headlen;
 
   Uint32 tmpHeader[2];
-  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
+  if (treeNodePtr.p->m_bits & (TreeNode::T_BUFFER_ROW | TreeNode::T_CHK_CONGESTION))
   {
-    headptr = (Uint32*)row.m_row_data.m_section.m_header;
-    headlen = 1 + row.m_row_data.m_section.m_header->m_len;
-    datalen = dataPtr.sz;
+    headptr = row.m_row_data.m_header;
+    headlen = 1 + headptr->m_len;
+    datalen = headptr->m_offset[headptr->m_len-1]+2;
   }
   else
   {
@@ -3951,8 +3976,8 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
     RowPtr::Header *header = CAST_PTR(RowPtr::Header, &tmpHeader[0]);
     header->m_len = 1;
     header->m_offset[0] = 0;
-    headptr = (Uint32*)header;
-    headlen = 1 + header->m_len;
+    headptr = header;
+    headlen = 2;  // sizeof(m_len + m_offset[0])
 
     // 2 words: AttributeHeader + CorrelationId
     datalen = 2;
@@ -3968,7 +3993,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   const Uint32 totlen = offset + matchlen + headlen + datalen;
 
   RowRef ref;
-  Uint32* dstptr = rowAlloc(*collection.m_base.m_rowBuffer, ref, totlen);
+  Uint32* dstptr = stackAlloc(*collection.m_base.m_rowBuffer, ref, totlen);
   if (unlikely(dstptr == NULL))
   {
     jam();
@@ -3982,26 +4007,24 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   {
     TreeNodeBitMask matched(treeNodePtr.p->m_dependencies);
     matched.set(treeNodePtr.p->m_node_no);
-    memcpy(dstptr, &matched, 4 * matchlen);
-    dstptr += matchlen;
+    memcpy(dstptr, &matched, sizeof(matched));
+    dstptr++;
   }
 
   memcpy(dstptr, headptr, 4 * headlen);
   dstptr += headlen;
 
-  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
+  if (treeNodePtr.p->m_bits & (TreeNode::T_BUFFER_ROW | TreeNode::T_CHK_CONGESTION))
   {
     //Store entire row, include correlationId (last column)
-    copy(dstptr, dataPtr);
+    memcpy(dstptr, row.m_row_data.m_data, 4 * datalen);
   }
   else
   {
     //Store only the correlation-id if not 'BUFFER_ROW':
-    const RowPtr::Header *header = row.m_row_data.m_section.m_header;
+    const RowPtr::Header *header = row.m_row_data.m_header;
     const Uint32 pos = header->m_offset[header->m_len-1];
-    SectionReader reader(dataPtr, getSectionSegmentPool());
-    ndbrequire(reader.step(pos));
-    ndbrequire(reader.getWords(dstptr, 2));
+    memcpy(dstptr, row.m_row_data.m_data+pos, 4 * datalen);
   }
 
   /**
@@ -4027,7 +4050,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
 
 void
 Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
-                   RowPtr& row, RowRef ref, const Uint32 * src)
+                   RowPtr &row, const Uint32 *src)
 {
   ndbassert(src != NULL);
   const Uint32 offset = treeNodePtr.p->m_rows.rowOffset();
@@ -4037,10 +4060,8 @@ Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
   const Uint32 headlen = 1 + headptr->m_len;
 
   // Setup row, containing either entire row or only the correlationId.
-  row.m_type = RowPtr::RT_LINEAR;
-  row.m_row_data.m_linear.m_row_ref = ref;
-  row.m_row_data.m_linear.m_header = headptr;
-  row.m_row_data.m_linear.m_data = (Uint32*)headptr + headlen;
+  row.m_row_data.m_header = headptr;
+  row.m_row_data.m_data = (Uint32*)headptr + headlen;
 
   if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH)
   {
@@ -4053,7 +4074,7 @@ Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
 }
 
 void
-Dbspj::add_to_list(SLFifoRowList & list, RowRef rowref)
+Dbspj::add_to_list(SLFifoRowList &list, RowRef rowref)
 {
   if (list.isNull())
   {
@@ -4068,7 +4089,6 @@ Dbspj::add_to_list(SLFifoRowList & list, RowRef rowref)
      * add last to list
      */
     RowRef last;
-    last.m_alloc_type = rowref.m_alloc_type;
     last.m_page_id = list.m_last_row_page_id;
     last.m_page_pos = list.m_last_row_page_pos;
     Uint32 * const rowptr = get_row_ptr(last);
@@ -4083,18 +4103,8 @@ Uint32 *
 Dbspj::get_row_ptr(RowRef pos)
 {
   Ptr<RowPage> ptr;
-  m_page_pool.getPtr(ptr, pos.m_page_id);
-  if (pos.m_alloc_type == BUFFER_STACK) // ::stackAlloc() memory
-  {
-    jam();
-    return ptr.p->m_data + pos.m_page_pos;
-  }
-  else                                 // ::varAlloc() memory
-  {
-    jam();
-    ndbassert(pos.m_alloc_type == BUFFER_VAR);
-    return ((Var_page*)ptr.p)->get_ptr(pos.m_page_pos);
-  }
+  ndbrequire(m_page_pool.getPtr(ptr, pos.m_page_id));
+  return ptr.p->m_data + pos.m_page_pos;
 }
 
 inline
@@ -4109,8 +4119,6 @@ Dbspj::first(const SLFifoRowList& list,
     return false;
   }
 
-  //  const Buffer_type allocator = list.m_rowBuffer->m_type;
-  iter.m_ref.m_alloc_type = list.m_rowBuffer->m_type;
   iter.m_ref.m_page_id = list.m_first_row_page_id;
   iter.m_ref.m_page_pos = list.m_first_row_page_pos;
   iter.m_row_ptr = get_row_ptr(iter.m_ref);
@@ -4145,8 +4153,8 @@ Dbspj::add_to_map(RowMap& map,
     Uint32 sz16 = RowMap::MAP_SIZE_PER_REF_16 * map.m_size;
     Uint32 sz32 = (sz16 + 1) / 2;
     RowRef ref;
-    mapptr = rowAlloc(*map.m_rowBuffer, ref, sz32);
-    if (unlikely(mapptr == 0))
+    mapptr = stackAlloc(*map.m_rowBuffer, ref, sz32);
+    if (unlikely(mapptr == nullptr))
     {
       jam();
       return DbspjErr::OutOfRowMemory;
@@ -4157,7 +4165,6 @@ Dbspj::add_to_map(RowMap& map,
   }
   else
   {
-    jam();
     RowRef ref;
     map.copyto(ref);
     mapptr = get_row_ptr(ref);
@@ -4167,7 +4174,7 @@ Dbspj::add_to_map(RowMap& map,
   ndbrequire(pos < map.m_size);
   ndbrequire(map.m_elements < map.m_size);
 
-  if (1)
+  if (false)
   {
     /**
      * Check that *pos* is empty
@@ -4178,7 +4185,6 @@ Dbspj::add_to_map(RowMap& map,
   }
 
   map.store(mapptr, pos, rowref);
-
   return 0;
 }
 
@@ -4196,7 +4202,6 @@ Dbspj::first(const RowMap& map,
 
   iter.m_map_ptr = get_row_ptr(map.m_map_ref);
   iter.m_size = map.m_size;
-  iter.m_ref.m_alloc_type = map.m_rowBuffer->m_type;
 
   Uint32 pos = 0;
   while (RowMap::isNull(iter.m_map_ptr, pos) && pos < iter.m_size)
@@ -4208,14 +4213,10 @@ Dbspj::first(const RowMap& map,
     iter.setNull();
     return false;
   }
-  else
-  {
-    jam();
-    RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
-    iter.m_element_no = pos;
-    iter.m_row_ptr = get_row_ptr(iter.m_ref);
-    return true;
-  }
+  RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
+  iter.m_element_no = pos;
+  iter.m_row_ptr = get_row_ptr(iter.m_ref);
+  return true;
 }
 
 inline
@@ -4232,14 +4233,10 @@ Dbspj::next(RowMapIterator & iter)
     iter.setNull();
     return false;
   }
-  else
-  {
-    jam();
-    RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
-    iter.m_element_no = pos;
-    iter.m_row_ptr = get_row_ptr(iter.m_ref);
-    return true;
-  }
+  RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
+  iter.m_element_no = pos;
+  iter.m_row_ptr = get_row_ptr(iter.m_ref);
+  return true;
 }
 
 bool
@@ -4283,9 +4280,9 @@ Dbspj::stackAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
   Ptr<RowPage> ptr;
   Local_RowPage_fifo list(m_page_pool, buffer.m_page_list);
 
-  Uint32 pos = buffer.m_stack.m_pos;
-  const Uint32 SIZE = RowPage::SIZE;
-  if (list.isEmpty() || (pos + sz) > SIZE)
+  Uint32 pos = buffer.m_stack_pos;
+  static const Uint32 SIZE = RowPage::SIZE;
+  if (unlikely(list.isEmpty() || (pos + sz) > SIZE))
   {
     jam();
     bool ret = allocPage(ptr);
@@ -4305,67 +4302,8 @@ Dbspj::stackAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
 
   dst.m_page_id = ptr.i;
   dst.m_page_pos = pos;
-  dst.m_alloc_type = BUFFER_STACK;
-  buffer.m_stack.m_pos = pos + sz;
+  buffer.m_stack_pos = pos + sz;
   return ptr.p->m_data + pos;
-}
-
-inline
-Uint32 *
-Dbspj::varAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
-{
-  Ptr<RowPage> ptr;
-  Local_RowPage_fifo list(m_page_pool, buffer.m_page_list);
-
-  Uint32 free_space = buffer.m_var.m_free;
-  if (list.isEmpty() || free_space < (sz + 1))
-  {
-    jam();
-    bool ret = allocPage(ptr);
-    if (unlikely(ret == false))
-    {
-      jam();
-      return 0;
-    }
-
-    list.addLast(ptr);
-    ((Var_page*)ptr.p)->init();
-  }
-  else
-  {
-    jam();
-    list.last(ptr);
-  }
-
-  Var_page * vp = (Var_page*)ptr.p;
-  Uint32 pos = vp->alloc_record(sz, (Var_page*)m_buffer0, Var_page::CHAIN);
-
-  dst.m_page_id = ptr.i;
-  dst.m_page_pos = pos;
-  dst.m_alloc_type = BUFFER_VAR;
-  buffer.m_var.m_free = vp->free_space;
-  return vp->get_ptr(pos);
-}
-
-Uint32 *
-Dbspj::rowAlloc(RowBuffer& rowBuffer, RowRef& dst, Uint32 sz)
-{
-  if (rowBuffer.m_type == BUFFER_STACK)
-  {
-    jam();
-    return stackAlloc(rowBuffer, dst, sz);
-  }
-  else if (rowBuffer.m_type == BUFFER_VAR)
-  {
-    jam();
-    return varAlloc(rowBuffer, dst, sz);
-  }
-  else
-  {
-    jam();
-    ndbabort();
-    return NULL;
-  }
 }
 
 bool
@@ -4377,56 +4315,81 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     if (ERROR_INSERTED_CLEAR(17003))
     {
       jam();
-      ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
-               __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting failed '::allocPage', error 17003 at line %d file %s",
+          __LINE__, __FILE__);
       return false;
     }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
                                             &ptr.i,
                                             Ndbd_mem_manager::NDB_ZONE_LE_32);
-    if (ptr.p == 0)
+    if (unlikely(ptr.p == nullptr))
     {
       jam();
       return false;
     }
-    return true;
+    m_allocedPages++;
   }
   else
   {
     jam();
     Local_RowPage_list list(m_page_pool, m_free_page_list);
-    bool ret = list.removeFirst(ptr);
+    const bool ret = list.removeFirst(ptr);
     ndbrequire(ret);
-    return ret;
   }
+  const Uint32 usedPages = getUsedPages();
+  if (usedPages > m_maxUsedPages)
+    m_maxUsedPages = usedPages;
+  return true;
 }
 
+/* Release all pages allocated to this RowBuffer */
 void
-Dbspj::releasePage(Ptr<RowPage> ptr)
+Dbspj::releasePages(RowBuffer &rowBuffer)
 {
   Local_RowPage_list list(m_page_pool, m_free_page_list);
-  list.addFirst(ptr);
+  list.prependList(rowBuffer.m_page_list);
+  rowBuffer.reset();
 }
 
 void
 Dbspj::releaseGlobal(Signal * signal)
 {
-  Uint32 delay = 100;
-  Local_RowPage_list list(m_page_pool, m_free_page_list);
-  if (list.isEmpty())
+  // Add to statistics the max number of pages used in last 10/100ms-periode
+  if (signal->theData[1] == 0)
   {
-    jam();
-    delay = 300;
-  }
-  else
-  {
-    Ptr<RowPage> ptr;
-    list.removeFirst(ptr);
-    m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
+    m_usedPagesStat.update(m_maxUsedPages);
+    m_maxUsedPages = getUsedPages();
   }
 
-  signal->theData[0] = 0;
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
+  // Get the upper 95 percentile of max pages being used
+  const double used_mean = m_usedPagesStat.getMean();
+  const double used_upper95 = used_mean + 2*m_usedPagesStat.getStdDev();
+
+  // Free excess pages if any such held in the m_free_page_list
+  int cnt = 0;
+  Local_RowPage_list free_list(m_page_pool, m_free_page_list);
+  while (m_allocedPages > used_upper95 && !free_list.isEmpty())
+  {
+    if (++cnt > 16)  // Take realtime break
+    {
+      jam();
+      signal->theData[0] = 0;  // 0 -> releaseGlobal()
+      signal->theData[1] = 1;  // 1 -> Continue release without new sample
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      break;
+    }
+    Ptr<RowPage> ptr;
+    free_list.removeFirst(ptr);
+    m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
+    m_allocedPages--;
+  }
+
+  // If there are many free_pages, we want the sample+release to happen faster
+  const Uint32 delay = free_list.getCount() > 16 ? 10 : 100;
+  signal->theData[0] = 0;  // 0 -> releaseGlobal()
+  signal->theData[1] = 0;  // 0 -> Take new UsedPages sample after 'delay'
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 2);
 }
 
 Uint32
@@ -4456,8 +4419,9 @@ Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("::checkTableError, injecting NoSuchTable error at line %d file %s",
-              __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "::checkTableError, injecting NoSuchTable error at line %d file %s",
+        __LINE__, __FILE__);
     return DbspjErr::NoSuchTable;
   }
   return err;
@@ -4469,13 +4433,11 @@ Dbspj::dumpScanFragHandle(Ptr<ScanFragHandle> fragPtr) const
   jam();
   
   g_eventLogger->info("DBSPJ %u :         SFH fragid %u state %u ref 0x%x "
-                      "range_sz %u range_cnt %u rangePtr 0x%x",
+                      "rangePtr 0x%x",
                       instance(),
                       fragPtr.p->m_fragId,
                       fragPtr.p->m_state,
                       fragPtr.p->m_ref,
-                      fragPtr.p->m_range_builder.m_range_size,
-                      fragPtr.p->m_range_builder.m_range_cnt,
                       fragPtr.p->m_rangePtrI);
 }
 
@@ -4585,10 +4547,10 @@ void Dbspj::getBufferedRow(const Ptr<TreeNode> treeNodePtr, Uint32 rowId,
 
   RowPtr _row;
   _row.m_src_node_ptrI = treeNodePtr.i;
-  setupRowPtr(treeNodePtr, _row, ref, rowptr);
+  setupRowPtr(treeNodePtr, _row, rowptr);
 
-  getCorrelationData(_row.m_row_data.m_linear,
-                     _row.m_row_data.m_linear.m_header->m_len - 1,
+  getCorrelationData(_row.m_row_data,
+                     _row.m_row_data.m_header->m_len - 1,
                      _row.m_src_correlation);
   *row = _row;
 }
@@ -4611,7 +4573,7 @@ Dbspj::resumeBufferedNode(Signal* signal,
                           Ptr<TreeNode> treeNodePtr)
 {
   Ptr<TreeNode> parentPtr;
-  m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+  ndbrequire(m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI));
   ndbassert(treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_NODE);
   ndbassert(parentPtr.p->m_bits & TreeNode::T_BUFFER_ROW);
 
@@ -4624,11 +4586,10 @@ Dbspj::resumeBufferedNode(Signal* signal,
     total++;
 
     parentRow.m_src_node_ptrI = treeNodePtr.p->m_parentPtrI;
-    setupRowPtr(parentPtr, parentRow, 
-                iter.m_base.m_ref, iter.m_base.m_row_ptr);
+    setupRowPtr(parentPtr, parentRow, iter.m_base.m_row_ptr);
 
-    getCorrelationData(parentRow.m_row_data.m_linear,
-                       parentRow.m_row_data.m_linear.m_header->m_len - 1,
+    getCorrelationData(parentRow.m_row_data,
+                       parentRow.m_row_data.m_header->m_len - 1,
                        parentRow.m_src_correlation);
 
     // Need to consult the Scan-ancestor(s) to determine if
@@ -4638,7 +4599,8 @@ Dbspj::resumeBufferedNode(Signal* signal,
     if (treeNodePtr.p->m_parentPtrI != treeNodePtr.p->m_scanAncestorPtrI)
     {
       jam();
-      m_treenode_pool.getPtr(scanAncestorPtr, treeNodePtr.p->m_scanAncestorPtrI);
+      ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                        treeNodePtr.p->m_scanAncestorPtrI));
       getBufferedRow(scanAncestorPtr, (parentRow.m_src_correlation >> 16),
                      &scanAncestorRow);
     }
@@ -4658,16 +4620,17 @@ Dbspj::resumeBufferedNode(Signal* signal,
       if (scanAncestorPtr.p->m_coverage.contains(treeNodePtr.p->m_dependencies))
       {
         jam();
-	goto row_accepted;
+        goto row_accepted;
       }
 
       // Has to consult grand-ancestors to verify their matches.
-      m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtr.p->m_scanAncestorPtrI);
+      ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                        scanAncestorPtr.p->m_scanAncestorPtrI));
 
       if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
       {
         jam();
-	goto row_accepted;
+        goto row_accepted;
       }
 
       getBufferedRow(scanAncestorPtr, (scanAncestorRow.m_src_correlation >> 16),
@@ -4678,10 +4641,12 @@ Dbspj::resumeBufferedNode(Signal* signal,
 row_accepted:
     ndbassert(treeNodePtr.p->m_info != NULL);
     ndbassert(treeNodePtr.p->m_info->m_parent_row != NULL);
-    (this->*(treeNodePtr.p->m_info->m_parent_row))(signal, requestPtr, treeNodePtr, parentRow);
+    (this->*(treeNodePtr.p->m_info->m_parent_row))(signal, requestPtr,
+        treeNodePtr, parentRow);
   }
 
-  DEBUG("resumeBufferedNode: #buffered rows: " << total << ", skipped: " << skipped);
+  DEBUG("resumeBufferedNode: #buffered rows: "
+      << total << ", skipped: " << skipped);
 }
 
 /**
@@ -4689,146 +4654,160 @@ row_accepted:
  */
 
 void
-Dbspj::common_execTRANSID_AI(Signal* signal,
-                             Ptr<Request> requestPtr,
-                             Ptr<TreeNode> treeNodePtr,
-                             const RowPtr & rowRef)
+Dbspj::resumeCongestedNode(Signal* signal,
+                           Ptr<Request> requestPtr,
+                           Ptr<TreeNode> scanAncestorPtr)
 {
-  if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
+  DEBUG("resumeCongestedNode, from scanAncestor: "
+      << scanAncestorPtr.p->m_node_no);
+
+  ndbassert(scanAncestorPtr.p->isScan());
+  ndbassert(scanAncestorPtr.p->m_bits & TreeNode::T_CHK_CONGESTION);
+  ndbassert(requestPtr.p->m_suspended_tree_nodes.get(
+      scanAncestorPtr.p->m_node_no));
+
+  if (scanAncestorPtr.p->m_deferred.m_it.isNull())
   {
-    // Set 'matched' bit in previous scan ancestors
-    if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
+    LocalArenaPool<DataBufferSegment<14> >
+        pool(scanAncestorPtr.p->m_batchArena, m_dependency_map_pool);
+    Local_correlation_list
+        correlations(pool, scanAncestorPtr.p->m_deferred.m_correlations);
+    ndbassert(!correlations.isEmpty());
+    correlations.first(scanAncestorPtr.p->m_deferred.m_it);
+    ndbassert(!scanAncestorPtr.p->m_deferred.m_it.isNull());
+  }
+
+  Uint32 resumed = 0;
+  while (!scanAncestorPtr.p->m_deferred.m_it.isNull())
+  {
+    jam();
+
+    // Break out if congested again
+    if (requestPtr.p->m_outstanding >= HighlyCongestedLimit)
     {
-      RowPtr scanAncestorRow(rowRef);
-      Uint32 scanAncestorPtrI = treeNodePtr.p->m_scanAncestorPtrI;
-      while (scanAncestorPtrI != RNIL)  // or 'break' below
-      {
-        jam();
-        Ptr<TreeNode> scanAncestorPtr;
-        m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtrI);
-        if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
-        {
-          jam();
-          break;
-        }
-
-        getBufferedRow(scanAncestorPtr, (scanAncestorRow.m_src_correlation >> 16),
-                       &scanAncestorRow);
-
-        if (scanAncestorRow.m_matched->get(treeNodePtr.p->m_node_no))
-        {
-          jam();
-          break;
-        }
-        scanAncestorRow.m_matched->set(treeNodePtr.p->m_node_no);
-        scanAncestorPtrI = scanAncestorPtr.p->m_scanAncestorPtrI;
-      } //while
-    } //RT_MULTI_SCAN
-    
-    LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-    Local_dependency_map nextExec(pool, treeNodePtr.p->m_next_nodes);
-    Dependency_map::ConstDataBufferIterator it;
-
-    /**
-     * Activate 'next' operations in two steps:
-     * 1) Any child operations being 'ENQUEUED' are prepared
-     *    for later resumed exec by appending rowRefs to the deferred
-     *    list.
-     * 2) Start immediate executing non-ENQUEUED child operations.
-     */
-    for (nextExec.first(it); !it.isNull(); nextExec.next(it))
-    {
-      Ptr<TreeNode> nextTreeNodePtr;
-      m_treenode_pool.getPtr(nextTreeNodePtr, * it.data);
-
-      if (nextTreeNodePtr.p->m_resumeEvents & TreeNode::TN_ENQUEUE_OP)
-      {
-        jam();
-        DEBUG("ENQUEUE row for deferred TreeNode: " << nextTreeNodePtr.p->m_node_no);
-
-	/**
-         * 'rowRef' is the ancestor row from the immediate ancestor in
-         * the execution plan. In case this is different from the parent-treeNode
-         * in the 'query', we have to find the 'real' parentRow from the
-         * parent as defined in the 'query'
-         */
-        RowPtr parentRow(rowRef);
-        if (nextTreeNodePtr.p->m_parentPtrI != treeNodePtr.i)
-        {
-          Ptr<TreeNode> parentPtr;
-          const Uint32 parentRowId = (parentRow.m_src_correlation >> 16);
-          m_treenode_pool.getPtr(parentPtr, nextTreeNodePtr.p->m_parentPtrI);
-          getBufferedRow(parentPtr, parentRowId, &parentRow);
-        }
-	
-        /**
-         * Append correlation values of deferred operations
-         * to a list / fifo. Upon resume, we will then be able to 
-         * relocate all BUFFER'ed parent rows for which to resume operations.
-         */
-        bool appended;
-        {
-          // Need an own scope for correlation_list, as ::lookup_abort() will also
-          // construct such a list. Such nested usage is not allowed.
-          LocalArenaPool<DataBufferSegment<14> > pool(nextTreeNodePtr.p->m_batchArena, m_dependency_map_pool);
-          Local_correlation_list correlations(pool, nextTreeNodePtr.p->m_deferred.m_correlations);
-          appended = correlations.append(&parentRow.m_src_correlation, 1);
-        }
-        if (unlikely(!appended))
-        {
-          jam();
-          abort(signal, requestPtr, DbspjErr::OutOfQueryMemory);
-          return;
-        }
-
-        // As there are pending deferred operations we are not complete
-        requestPtr.p->m_completed_nodes.clear(nextTreeNodePtr.p->m_node_no);
-      } //TN_ENQUEUE_OP
+      jam();
+      DEBUG("resumeCongestedNode, congested again -> break"
+        << ", node: " << scanAncestorPtr.p->m_node_no
+        << ", resumed: " << resumed
+        << ", outstanding: " << requestPtr.p->m_outstanding
+      );
+      return;  // -> will re-resumeCongestedNodes() later
     }
 
-    for (nextExec.first(it); !it.isNull(); nextExec.next(it))
+    if (resumed > ResumeCongestedQuota)
     {
-      Ptr<TreeNode> nextTreeNodePtr;
-      m_treenode_pool.getPtr(nextTreeNodePtr, * it.data);
+      jam();
+      DEBUG("resumeCongestedNode, RT-break"
+        << ", node: " << scanAncestorPtr.p->m_node_no
+        << ", resumed: " << resumed
+        << ", outstanding: " << requestPtr.p->m_outstanding
+      );
+      return;  // -> will re-resume when below MildlyCongestedLimit again
+    }
+
+    const Uint32 corrVal = *scanAncestorPtr.p->m_deferred.m_it.data;
+
+    // Set up RowPtr & RowRef for this parent row
+    RowPtr row;
+    row.m_src_node_ptrI = scanAncestorPtr.i;
+    row.m_src_correlation = corrVal;
+
+    ndbassert(scanAncestorPtr.p->m_rows.m_type ==
+              RowCollection::COLLECTION_MAP);
+    RowRef ref;
+    scanAncestorPtr.p->m_rows.m_map.copyto(ref);
+    const Uint32* const mapptr = get_row_ptr(ref);
+
+    // Relocate parent row from correlation value.
+    const Uint32 rowId = (corrVal & 0xFFFF);
+    scanAncestorPtr.p->m_rows.m_map.load(mapptr, rowId, ref);
+
+    const Uint32* const rowptr = get_row_ptr(ref);
+    setupRowPtr(scanAncestorPtr, row, rowptr);
+
+    startNextNodes(signal, requestPtr, scanAncestorPtr, row);
+    resumed++;
+    {
+      LocalArenaPool<DataBufferSegment<14> >
+          pool(scanAncestorPtr.p->m_batchArena, m_dependency_map_pool);
+      Local_correlation_list
+          correlations(pool, scanAncestorPtr.p->m_deferred.m_correlations);
+      correlations.next(scanAncestorPtr.p->m_deferred.m_it);
+    }
+  }
+  // All deferred operations has been resumed:
+  DEBUG("resumeCongestedNode: #rows: " << resumed);
+
+  // Not congested any more, clear m_suspended state
+  requestPtr.p->m_suspended_tree_nodes.clear(scanAncestorPtr.p->m_node_no);
+
+  // Reset / release the deferred operation containers
+  m_arenaAllocator.release(scanAncestorPtr.p->m_batchArena);
+  scanAncestorPtr.p->m_deferred.init();
+
+  if (requestPtr.p->m_completed_tree_nodes.get(scanAncestorPtr.p->m_node_no))
+  {
+    jam();
+    // All rows from scanAncestorPtr in this batch has been received
+    handleTreeNodeComplete(signal, requestPtr, scanAncestorPtr);
+  }
+}  // ::resumeCongestedNodes
+
+void
+Dbspj::startNextNodes(Signal *signal,
+                      Ptr<Request> requestPtr,
+                      Ptr<TreeNode> treeNodePtr,
+                      const RowPtr &rowRef)
+{
+  LocalArenaPool<DataBufferSegment<14> >
+      pool(requestPtr.p->m_arena, m_dependency_map_pool);
+  Local_dependency_map nextExec(pool, treeNodePtr.p->m_next_nodes);
+  Dependency_map::ConstDataBufferIterator it;
+
+  /**
+   * Activate 'next' operations to be executed, based on 'rowRef'.
+   */
+  for (nextExec.first(it); !it.isNull(); nextExec.next(it))
+  {
+    Ptr<TreeNode> nextTreeNodePtr;
+    ndbrequire(m_treenode_pool.getPtr(nextTreeNodePtr, * it.data));
+
+    /**
+     * Execution of 'next' TreeNode may have to be delayed as we
+     * will like to see which INNER-joins which had matches first.
+     * Will be resumed later by resumeBufferedNode()
+     */
+    if ((nextTreeNodePtr.p->m_resumeEvents & TreeNode::TN_EXEC_WAIT) == 0)
+    {
+      jam();
 
       /**
-       * Execution of 'next' TreeNode may have to be delayed. Will be resumed
-       * later, either by lookup_resume() or resumeBufferedNode()
+       * 'rowRef' is the ancestor row from the immediate ancestor in
+       * the execution plan. In case this is different from the parent-treeNode
+       * in the 'query', we have to find the 'real' parentRow from the
+       * parent as defined in the 'query'
        */
-      static const Uint32 delayExec = TreeNode::TN_ENQUEUE_OP
-	                            | TreeNode::TN_EXEC_WAIT;
-      
-      if ((nextTreeNodePtr.p->m_resumeEvents & delayExec) == 0)
+      RowPtr parentRow(rowRef);
+      if (unlikely(nextTreeNodePtr.p->m_parentPtrI != treeNodePtr.i))
+      {
+        Ptr<TreeNode> parentPtr;
+        const Uint32 parentRowId = (parentRow.m_src_correlation >> 16);
+        ndbrequire(m_treenode_pool.getPtr(parentPtr,
+                                          nextTreeNodePtr.p->m_parentPtrI));
+        getBufferedRow(parentPtr, parentRowId, &parentRow);
+      }
+
+      ndbassert(nextTreeNodePtr.p->m_info != NULL);
+      ndbassert(nextTreeNodePtr.p->m_info->m_parent_row != NULL);
+
+      (this->*(nextTreeNodePtr.p->m_info->m_parent_row))(signal, requestPtr,
+	  nextTreeNodePtr, parentRow);
+
+      /* Recheck RS_ABORTING as 'next' operation might have aborted */
+      if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
       {
         jam();
-
-	/**
-         * 'rowRef' is the ancestor row from the immediate ancestor in
-         * the execution plan. In case this is different from the parent-treeNode
-         * in the 'query', we have to find the 'real' parentRow from the
-         * parent as defined in the 'query'
-         */
-        RowPtr parentRow(rowRef);
-        if (nextTreeNodePtr.p->m_parentPtrI != treeNodePtr.i)
-        {
-          Ptr<TreeNode> parentPtr;
-          const Uint32 parentRowId = (parentRow.m_src_correlation >> 16);
-          m_treenode_pool.getPtr(parentPtr, nextTreeNodePtr.p->m_parentPtrI);
-          getBufferedRow(parentPtr, parentRowId, &parentRow);
-        }
-
-        ndbassert(nextTreeNodePtr.p->m_info != NULL);
-        ndbassert(nextTreeNodePtr.p->m_info->m_parent_row != NULL);
-
-        (this->*(nextTreeNodePtr.p->m_info->m_parent_row))(signal,
-                                                    requestPtr, nextTreeNodePtr, parentRow);
-
-        /* Recheck RS_ABORTING as 'next' operation might have aborted */
-        if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
-        {
-          jam();
-          return;
-        }
+        return;
       }
     }
   }
@@ -4907,7 +4886,7 @@ Dbspj::lookup_build(Build_context& ctx,
 
     Uint32 treeBits = node->requestInfo;
     Uint32 paramBits = param->requestInfo;
-    //ndbout_c("Dbspj::lookup_build() treeBits=%.8x paramBits=%.8x",
+    // g_eventLogger->info("Dbspj::lookup_build() treeBits=%.8x paramBits=%.8x",
     //         treeBits, paramBits);
     LqhKeyReq* dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
     {
@@ -4941,6 +4920,11 @@ Dbspj::lookup_build(Build_context& ctx,
       LqhKeyReq::setNoDiskFlag(requestInfo,
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
+
+      // FirstMatch in a lookup request can just be ignored
+      //if (treeBits & DABits::NI_FIRST_MATCH)
+      //{}
+
       dst->requestInfo = requestInfo;
     }
 
@@ -4991,7 +4975,8 @@ Dbspj::lookup_build(Build_context& ctx,
     {
       jam();
       Ptr<TreeNode> parentPtr;
-      m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+      ndbrequire(m_treenode_pool.getPtr(parentPtr,
+                                        treeNodePtr.p->m_parentPtrI));
       treeNodePtr.p->m_batch_size = parentPtr.p->m_batch_size;
     }
 
@@ -5007,8 +4992,9 @@ Dbspj::lookup_build(Build_context& ctx,
                                                 instanceNo, getOwnNodeId());
 #else
       treeNodePtr.p->m_send.m_ref =
-        numberToRef(DBLQH, getInstanceKey(src->tableSchemaVersion & 0xFFFF,
-                                          src->fragmentData & 0xFFFF),
+        numberToRef(get_query_block_no(getOwnNodeId()),
+                    getInstance(src->tableSchemaVersion & 0xFFFF,
+                                src->fragmentData & 0xFFFF),
                     getOwnNodeId());
 #endif
 
@@ -5182,8 +5168,9 @@ Dbspj::lookup_send(Signal* signal,
         {
           jam();
           CLEAR_ERROR_INSERT_VALUE;
-          ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                   __LINE__,  __FILE__);
+          g_eventLogger->info(
+              "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+              __FILE__);
           releaseSection(keyInfoPtrI);
           err = DbspjErr::OutOfSectionMemory;
           break;
@@ -5230,7 +5217,7 @@ Dbspj::lookup_send(Signal* signal,
     }
 
 #if defined DEBUG_LQHKEYREQ
-    ndbout_c("LQHKEYREQ to %x", ref);
+    g_eventLogger->info("LQHKEYREQ to %x", ref);
     printLQHKEYREQ(stdout, signal->getDataPtrSend(),
                    NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
                    DBLQH);
@@ -5282,14 +5269,6 @@ Dbspj::lookup_send(Signal* signal,
       err = DbspjErr::NodeFailure;
       break;
     }
-    // Test for online downgrade.
-    if (unlikely(!ndbd_join_pushdown(getNodeInfo(Tnode).m_version)))
-    {
-      jam();
-      releaseSections(handle);
-      err = 4003; // Function not implemented.
-      break;
-    }
 
     if (unlikely(!c_alive_nodes.get(Tnode)))
     {
@@ -5303,13 +5282,34 @@ Dbspj::lookup_send(Signal* signal,
       // Register signal 'cnt' required before completion
       jam();
       ndbassert(Tnode < NDB_ARRAY_SIZE(requestPtr.p->m_lookup_node_data));
-      requestPtr.p->m_completed_nodes.clear(treeNodePtr.p->m_node_no);
+      requestPtr.p->m_completed_tree_nodes.clear(treeNodePtr.p->m_node_no);
       requestPtr.p->m_outstanding += cnt;
       requestPtr.p->m_lookup_node_data[Tnode] += cnt;
       // number wrapped
       ndbrequire(requestPtr.p->m_lookup_node_data[Tnode] != 0);
     }
-
+    Uint32 blockNo = refToMain(ref);
+    if (blockNo == V_QUERY)
+    {
+      Uint32 instance_no = refToInstance(ref);
+      if (LqhKeyReq::getNoDiskFlag(req->requestInfo))
+      {
+        if (Tnode == getOwnNodeId() &&
+            globalData.ndbMtQueryThreads > 0)
+        {
+          jam();
+          ref = get_lqhkeyreq_ref(&c_tc->m_distribution_handle, instance_no);
+        }
+      }
+      else
+      {
+        /**
+         * We need to put back DBLQH as receiving block number as query
+         * thread for the moment cannot handle disk data requests.
+         */
+        ref = numberToRef(DBLQH, instance_no, Tnode);
+      }
+    }
     sendSignal(ref, GSN_LQHKEYREQ, signal,
                NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
                JBB, &handle);
@@ -5333,25 +5333,62 @@ Dbspj::lookup_send(Signal* signal,
   abort(signal, requestPtr, err);
 } //Dbspj::lookup_send
 
-bool
-Dbspj::lookup_countSignal(const Signal* signal,
-                       Ptr<Request> requestPtr,
-                       Ptr<TreeNode> treeNodePtr)
+void
+Dbspj::lookup_countSignal(Signal* signal,
+                          Ptr<Request> requestPtr,
+                          Ptr<TreeNode> treeNodePtr,
+                          Uint32 cnt)
 {
-  jam();
   const Uint32 Tnode = refToNode(signal->getSendersBlockRef());
 
-  ndbassert(requestPtr.p->m_lookup_node_data[Tnode] > 0);
-  requestPtr.p->m_lookup_node_data[Tnode]--;
+  ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= cnt);
+  requestPtr.p->m_lookup_node_data[Tnode] -= cnt;
 
-  ndbassert(requestPtr.p->m_outstanding > 0);
-  requestPtr.p->m_outstanding--;
+  ndbassert(requestPtr.p->m_outstanding >= cnt);
+  requestPtr.p->m_outstanding -= cnt;
 
-  ndbassert(treeNodePtr.p->m_lookup_data.m_outstanding > 0);
-  treeNodePtr.p->m_lookup_data.m_outstanding--;
+  ndbassert(treeNodePtr.p->m_lookup_data.m_outstanding >= cnt);
+  treeNodePtr.p->m_lookup_data.m_outstanding -= cnt;
 
-  // Return 'true' if this completes the wait for this treeNode
-  return (treeNodePtr.p->m_lookup_data.m_outstanding == 0);
+  if (treeNodePtr.p->m_lookup_data.m_outstanding == 0)
+  {
+    jam();
+    // We have received all rows for this treeNode in this batch.
+    requestPtr.p->m_completed_tree_nodes.set(treeNodePtr.p->m_node_no);
+  }
+
+  if (!requestPtr.p->m_suspended_tree_nodes.isclear() &&
+      requestPtr.p->m_outstanding <= MildlyCongestedLimit)
+  {
+    // Had congestion: Can we resume some suspended operations?
+    // First try to resume from the scan ancestor of this TreeNode.
+    Ptr<TreeNode> scanAncestorPtr;
+    ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                      treeNodePtr.p->m_scanAncestorPtrI));
+    if (likely(requestPtr.p->m_suspended_tree_nodes.get(scanAncestorPtr.p->m_node_no)))
+    {
+      jam();
+      resumeCongestedNode(signal, requestPtr, scanAncestorPtr);
+    }
+    else
+    {
+      Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+      Ptr<TreeNode> suspendedTreeNodePtr;
+      list.first(suspendedTreeNodePtr);
+
+      while(true)
+      {
+        ndbassert(!suspendedTreeNodePtr.isNull());
+        if (requestPtr.p->m_suspended_tree_nodes.get(suspendedTreeNodePtr.p->m_node_no))
+        {
+          jam();
+          resumeCongestedNode(signal, requestPtr, suspendedTreeNodePtr);
+          break;
+        }
+        list.next(suspendedTreeNodePtr);
+      }
+    }
+  }
 }
 
 void
@@ -5369,12 +5406,14 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
   if (treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI)
   {
-    // Count the non-arriving TRANSID_AI due to the 'REF'
-    lookup_countSignal(signal, requestPtr, treeNodePtr);
+    // Count(==2) the REF and the non-arriving TRANSID_AI
+    lookup_countSignal(signal, requestPtr, treeNodePtr, 2);
   }
-  
-  // Count awaiting CONF/REF
-  const bool done = lookup_countSignal(signal, requestPtr, treeNodePtr);
+  else
+  {
+    // Count(==1) only awaiting CONF/REF
+    lookup_countSignal(signal, requestPtr, treeNodePtr, 1);
+  }
 
   /**
    * If Request is still actively running: API need to
@@ -5407,20 +5446,7 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
     }
   }
 
-  /**
-   * Another TreeNode awaited for completion of this request
-   * before it could resume its operation.
-   */
-  if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_REF)
-  {
-    jam();
-    ndbassert(treeNodePtr.p->m_resumePtrI != RNIL);
-    Ptr<TreeNode> resumeTreeNodePtr;
-    m_treenode_pool.getPtr(resumeTreeNodePtr, treeNodePtr.p->m_resumePtrI);
-    lookup_resume(signal, requestPtr, resumeTreeNodePtr);
-  }
-
-  if (done && treeNodePtr.p->m_deferred.isEmpty())
+  if (requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     // We have received all rows for this treeNode in this batch.
@@ -5478,7 +5504,7 @@ Dbspj::lookup_stop_branch(Signal* signal,
     ndbrequire(list.first(it));
     ndbrequire(list.getSize() == 1); // should only be 1 child
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(childPtr, * it.data));
     if (childPtr.p->isLeaf())
     {
       jam();
@@ -5542,7 +5568,6 @@ Dbspj::lookup_sendLeafCONF(Signal* signal,
   sendTCKEYCONF(signal, sigLen, resultRef, requestPtr.p->m_senderRef);
 }
 
-
 void
 Dbspj::lookup_execLQHKEYCONF(Signal* signal,
                              Ptr<Request> requestPtr,
@@ -5557,22 +5582,9 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
   }
 
   // Count awaiting CONF. If non-leaf, there will also be a TRANSID_AI
-  const bool done = lookup_countSignal(signal, requestPtr, treeNodePtr);
+  lookup_countSignal(signal, requestPtr, treeNodePtr, 1);
 
-  /**
-   * Another TreeNode awaited for completion of this request
-   * before it could resume its operation.
-   */
-  if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_CONF)
-  {
-    jam();
-    ndbassert(treeNodePtr.p->m_resumePtrI != RNIL);
-    Ptr<TreeNode> resumeTreeNodePtr;
-    m_treenode_pool.getPtr(resumeTreeNodePtr, treeNodePtr.p->m_resumePtrI);
-    lookup_resume(signal, requestPtr, resumeTreeNodePtr);
-  }
-
-  if (done && treeNodePtr.p->m_deferred.isEmpty())
+  if (requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     // We have received all rows for this treeNode in this batch.
@@ -5584,80 +5596,11 @@ void
 Dbspj::lookup_parent_row(Signal* signal,
                          Ptr<Request> requestPtr,
                          Ptr<TreeNode> treeNodePtr,
-                         const RowPtr & rowRef)
+                         const RowPtr &rowRef)
 {
   jam();
-
   DEBUG("::lookup_parent_row"
      << ", node: " << treeNodePtr.p->m_node_no);
-  lookup_row(signal, requestPtr, treeNodePtr, rowRef);
-} // Dbspj::lookup_parent_row()
-
-/**
- * lookup_resume() is a delayed lookup_parent_row.
- * It will locate the next parent row now allowed to execute,
- * and create a child lookup request for that row.
- */
-void
-Dbspj::lookup_resume(Signal* signal,
-                     Ptr<Request> requestPtr,
-                     Ptr<TreeNode> treeNodePtr)
-{
-  jam();
-  DEBUG("::lookup_resume"
-     << ", node: " << treeNodePtr.p->m_node_no
-  );
-
-  ndbassert(treeNodePtr.p->m_parentPtrI != RNIL);
-  Ptr<TreeNode> parentPtr;
-  m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
-
-  if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
-  {
-    jam();
-    return;
-  }
-  ndbassert(!treeNodePtr.p->m_deferred.isEmpty());
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
- 
-  Uint32 corrVal;
-  {
-    LocalArenaPool<DataBufferSegment<14> > pool(treeNodePtr.p->m_batchArena, m_dependency_map_pool);
-    Local_correlation_list correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
-
-    Local_correlation_list::DataBufferIterator it;
-    const bool valid = correlations.position(it, (Uint32)(treeNodePtr.p->m_deferred.m_pos++));
-    (void)valid; ndbassert(valid);
-    corrVal = *it.data;
-  }
-
-  // Set up RowPtr & RowRef for this parent row
-  RowPtr row;
-  row.m_src_node_ptrI = parentPtr.i;
-  row.m_src_correlation = corrVal;
-
-  ndbassert(parentPtr.p->m_rows.m_type == RowCollection::COLLECTION_MAP);
-  RowRef ref;
-  parentPtr.p->m_rows.m_map.copyto(ref);
-  const Uint32* const mapptr = get_row_ptr(ref);
-
-  // Relocate parent row from correlation value.
-  const Uint32 rowId = (corrVal & 0xFFFF);
-  parentPtr.p->m_rows.m_map.load(mapptr, rowId, ref);
-
-  const Uint32* const rowptr = get_row_ptr(ref);
-  setupRowPtr(parentPtr, row, ref, rowptr);
-
-  lookup_row(signal, requestPtr, treeNodePtr, row);
-} // Dbspj::lookup_resume()
-
-void
-Dbspj::lookup_row(Signal* signal,
-                         Ptr<Request> requestPtr,
-                         Ptr<TreeNode> treeNodePtr,
-                         const RowPtr & rowRef)
-{
-  jam();
 
   /**
    * Here we need to...
@@ -5668,9 +5611,6 @@ Dbspj::lookup_row(Signal* signal,
   Uint32 err = 0;
   const Uint32 tableId = treeNodePtr.p->m_tableOrIndexId;
   const Uint32 corrVal = rowRef.m_src_correlation;
-
-  DEBUG("::lookup_row"
-     << ", node: " << treeNodePtr.p->m_node_no);
 
   do
   {
@@ -5728,8 +5668,7 @@ Dbspj::lookup_row(Signal* signal,
          * to be REFused with errorCode = 626 (Row not found).
          *
          * Scan requests can simply ignore these child LQHKEYREQs
-         * as REFs are not needed, either by the API protocoll,
-         * or in order to handle TN_RESUME_REF.
+         * as REFs are not needed by the API protocol.
          *
          * Lookup requests has to send the same KEYREFs as would have
          * been produced by LQH. 
@@ -5747,19 +5686,14 @@ Dbspj::lookup_row(Signal* signal,
         }
 
         /**
-         * Another TreeNode awaited completion of this treeNode
-         * or sub-branch before it could resume its operation.
+         * This possibly completed this treeNode, handle it.
          */
-        if ((treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_REF))
+        if (requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no))
         {
           jam();
-          DEBUG("handling TN_RESUME_REF");
-          ndbassert(treeNodePtr.p->m_resumePtrI != RNIL);
-          Ptr<TreeNode> resumeTreeNodePtr;
-          m_treenode_pool.getPtr(resumeTreeNodePtr, treeNodePtr.p->m_resumePtrI);
-          lookup_resume(signal, requestPtr, resumeTreeNodePtr);
+          handleTreeNodeComplete(signal, requestPtr, treeNodePtr);
         }
-
+	
         return;  // Bailout, KEYREQ would have returned KEYREF(626) anyway
       } // keyIsNull
 
@@ -5780,6 +5714,9 @@ Dbspj::lookup_row(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
     {
       jam();
+      // Need to build a modified attrInfo, extended with a parameter
+      // build with the 'attrParamPattern' applied to the parent rowRef
+      DEBUG("parent_row w/ T_ATTRINFO_CONSTRUCTED");
       Uint32 tmp = RNIL;
 
       /**
@@ -5795,8 +5732,9 @@ Dbspj::lookup_row(Signal* signal,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                 __LINE__,  __FILE__);
+        g_eventLogger->info(
+            "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+            __FILE__);
         err = DbspjErr::OutOfSectionMemory;
         break;
       }
@@ -5815,7 +5753,14 @@ Dbspj::lookup_row(Signal* signal,
         getSection(ptr, tmp);
         org_size = ptr.sz;
       }
-
+      Uint32 paramLen = 0;  // Set paramLen after it has been expand'ed
+      if (unlikely(!appendToSection(tmp, &paramLen, 1)))
+      {
+        jam();
+        releaseSection(tmp);
+        err = DbspjErr::OutOfSectionMemory;
+        break;
+      }
       bool hasNull;
       LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
       Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
@@ -5826,17 +5771,20 @@ Dbspj::lookup_row(Signal* signal,
         releaseSection(tmp);
         break;
       }
-//    ndbrequire(!hasNull);
 
       /**
-       * Update size of subsrouting section, which contains arguments
+       * Set size of this parameter. Note that parameter 'hasNull' is OK.
        */
       SegmentedSectionPtr ptr;
       getSection(ptr, tmp);
       Uint32 new_size = ptr.sz;
-      Uint32 * sectionptrs = ptr.p->theData;
-      sectionptrs[4] = new_size - org_size;
+      paramLen = new_size - org_size;
+      writeToSection(tmp, org_size, &paramLen, 1);
 
+      Uint32 * sectionptrs = ptr.p->theData;
+      sectionptrs[4] = paramLen;
+
+      // Set new constructed attrInfo, containing the constructed parameter
       treeNodePtr.p->m_send.m_attrInfoPtrI = tmp;
     }
 
@@ -5893,17 +5841,13 @@ Dbspj::lookup_abort(Signal* signal,
                     Ptr<TreeNode> treeNodePtr)
 {
   jam();
-  // Correlation ids for deferred operations are allocated in the batch specific
-  // arena. It is sufficient to release entire memory arena.
-  m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
-  treeNodePtr.p->m_deferred.init();
 }
 
 Uint32
 Dbspj::lookup_execNODE_FAILREP(Signal* signal,
                                Ptr<Request> requestPtr,
                                Ptr<TreeNode> treeNodePtr,
-                               NdbNodeBitmask mask)
+                               const NdbNodeBitmask mask)
 {
   jam();
   Uint32 node = 0;
@@ -6175,7 +6119,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   const Uint32 err = signal->theData[0] ? signal->theData[1] : 0;
   Uint32 Tdata2 = conf->reqinfo;
   Uint32 nodeId = conf->nodes[0];
-  Uint32 instanceKey = (Tdata2 >> 24) & 127;
+  Uint32 instanceKey = conf->instanceKey;
 
   DEBUG("HASH to nodeId:" << nodeId << ", instanceKey:" << instanceKey);
 
@@ -6221,7 +6165,9 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 
   dst.fragId = conf->fragId;
   dst.fragDistKey = (Tdata2 >> 16) & 255;
-  dst.receiverRef = numberToRef(DBLQH, instanceKey, nodeId);
+  dst.receiverRef = numberToRef(get_query_block_no(nodeId),
+                                getInstanceNo(nodeId, instanceKey),
+                                nodeId);
 
   return 0;
 
@@ -6450,19 +6396,23 @@ Dbspj::scanFrag_build(Build_context& ctx,
             jam();
             Ptr<ScanFragHandle> fragPtr;
             const Uint32 fragId  = signal->theData[variableLen++];
-            const Uint32 ref = numberToRef(DBLQH,
-                                           getInstanceKey(req->tableId, fragId),
-                                           getOwnNodeId());
+            const Uint32 ref =
+              numberToRef(get_query_block_no(getOwnNodeId()),
+                          getInstance(req->tableId,fragId),
+                          getOwnNodeId());
 
             DEBUG("Scan build, fragId: " << fragId << ", ref: " << ref);
 
             if (!ERROR_INSERTED_CLEAR(17004) &&
-                likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
+                likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena,
+                                                   fragPtr)))
             {
               fragPtr.p->init(fragId, readBackup);
               fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
               fragPtr.p->m_ref = ref;
+              fragPtr.p->m_next_ref = ref;
               list.addLast(fragPtr);
+              insertGuardedPtr(requestPtr, fragPtr);
             }
             else
             {
@@ -6479,8 +6429,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
           data.m_fragCount = 1;
 
           const Uint32 ref =
-            numberToRef(DBLQH,
-                        getInstanceKey(req->tableId, req->fragmentNoKeyLen),
+            numberToRef(get_query_block_no(getOwnNodeId()),
+                        getInstance(req->tableId, req->fragmentNoKeyLen),
                         getOwnNodeId());
 
           if (!ERROR_INSERTED_CLEAR(17004) &&
@@ -6490,7 +6440,9 @@ Dbspj::scanFrag_build(Build_context& ctx,
             fragPtr.p->init(req->fragmentNoKeyLen, readBackup);
             fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
             fragPtr.p->m_ref = ref;
+            fragPtr.p->m_next_ref = ref;
             list.addLast(fragPtr);
+            insertGuardedPtr(requestPtr, fragPtr);
           }
           else
           {
@@ -6535,6 +6487,18 @@ Dbspj::scanFrag_build(Build_context& ctx,
                                  (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                  (paramBits & DABits::PI_DISK_ATTR) == 0);
 
+      if (treeBits & DABits::NI_FIRST_MATCH && treeNodePtr.p->isLeaf())
+      {
+        // Can only push firstMatch elimination to data nodes if results does
+        // not depends of finding matches from children -> has to be a leaf
+        ScanFragReq::setFirstMatchFlag(requestInfo, 1);
+      }
+      if (treeBits & DABits::NI_ANTI_JOIN && treeNodePtr.p->isLeaf())
+      {
+        // ANTI_JOIN's cares about whether a match was found or not
+        // Thus, returning only the first match is sufficient here as well
+        ScanFragReq::setFirstMatchFlag(requestInfo, 1);
+      }
       dst->requestInfo = requestInfo;
     }
 
@@ -6667,10 +6631,16 @@ Dbspj::parseScanFrag(Build_context& ctx,
 
     if ((treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE) == 0 &&
         ((treeBits & Node::SF_PARALLEL) ||
-         ((paramBits & Params::SFP_PARALLEL))))
+         (paramBits & Params::SFP_PARALLEL)))
     {
       jam();
       treeNodePtr.p->m_bits |= TreeNode::T_SCAN_PARALLEL;
+    }
+
+    if (paramBits & Params::SFP_SORTED_ORDER)
+    {
+      jam();
+      treeNodePtr.p->m_bits |= TreeNode::T_SORTED_ORDER;
     }
 
     return 0;
@@ -6747,9 +6717,9 @@ Dbspj::execDIH_SCAN_TAB_REF(Signal* signal)
   DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ref->senderData);
+  ndbrequire(getGuardedPtr(treeNodePtr, ref->senderData));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
 
   ndbrequire(requestPtr.p->isScan());
   ndbrequire(requestPtr.p->m_outstanding >= 1);
@@ -6765,8 +6735,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, conf->senderData);
-
+  ndbrequire(getGuardedPtr(treeNodePtr, conf->senderData));
   ndbrequire(treeNodePtr.p->m_info == &g_ScanFragOpInfo);
 
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
@@ -6798,21 +6767,22 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     (tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0;
 
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   ndbassert(requestPtr.p->m_outstanding > 0);
   requestPtr.p->m_outstanding--;
 
   // Add a skew in the fragment lists such that we don't scan 
   // the same subset of frags from all SPJ requests in case of
   // the scan not being 'T_SCAN_PARALLEL'
-  Uint16 fragNoOffs = (getOwnNodeId()*requestPtr.p->m_rootFragCnt) % fragCount;
+  const Uint16 fragNoOffs =
+    (requestPtr.p->m_rootFragId*requestPtr.p->m_rootFragCnt) % fragCount;
   Uint32 err = 0;
 
   do
   {
     Ptr<ScanFragHandle> fragPtr;
 
-    /** Allocate & init all 'fragCnt' fragment desriptors */
+    /** Allocate & init all 'fragCnt' fragment descriptors */
     {
       Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
 
@@ -6834,6 +6804,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
           fragPtr.p->init(fragNo, readBackup);
           fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
           list.addLast(fragPtr);
+          insertGuardedPtr(requestPtr, fragPtr);
         }
         else
         {
@@ -6874,6 +6845,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
       fragPtr.p->m_fragId = tmp.fragId;
       fragPtr.p->m_ref = tmp.receiverRef;
+      fragPtr.p->m_next_ref = tmp.receiverRef;
       ndbassert(data.m_fragCount == 1);
     }
     else if (fragCount == 1)
@@ -7025,7 +6997,8 @@ Dbspj::scanFrag_sendDihGetNodesReq(Signal* signal,
         jamEntry();
         /* Node cnt from DIH ignores primary, presumably to fit in 2 bits */
         Uint32 cnt = (conf->reqinfo & 3) + 1;
-        Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+        Uint32 instanceKey = conf->instanceKey;
+        ndbrequire(instanceKey > 0);
         NodeId nodeId = conf->nodes[0];
         if (nodeId != getOwnNodeId() &&
             fragPtr.p->m_readBackup)
@@ -7051,7 +7024,12 @@ Dbspj::scanFrag_sendDihGetNodesReq(Signal* signal,
             }
           }
         }
-        fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, nodeId);
+        Uint32 instanceNo = getInstanceNo(nodeId, instanceKey);
+        Uint32 blockNo = get_query_block_no(nodeId);
+        fragPtr.p->m_ref = numberToRef(blockNo,
+                                       instanceNo,
+                                       nodeId);
+        fragPtr.p->m_next_ref = fragPtr.p->m_ref;
         /**
          * For Fully replicated tables we can change the fragment id to a local
          * fragment as part of DIGETNODESREQ. So set it again here.
@@ -7209,6 +7187,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
        * TODO: Also double check table-reorg
        */
       fragPtr.p->m_ref = tmp.receiverRef;
+      fragPtr.p->m_next_ref = tmp.receiverRef;
     }
     else
     {
@@ -7220,7 +7199,6 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       list.first(fragPtr);
     }
 
-    bool hasNull = false;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
       jam();
@@ -7240,13 +7218,35 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                 __LINE__,  __FILE__);
+        g_eventLogger->info(
+            "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+            __FILE__);
         err = DbspjErr::OutOfSectionMemory;
         break;
       }
 
-      err = expand(fragPtr.p->m_rangePtrI, pattern, rowRef, hasNull);
+      bool hasNull = false;
+      Uint32 keyPtrI = RNIL;
+      err = expand(keyPtrI, pattern, rowRef, hasNull);
+      if (unlikely(err != 0))
+      {
+        jam();
+        break;
+      }
+      if (hasNull)
+      {
+        jam();
+        DEBUG("Key contain NULL values, ignoring it");
+        ndbassert((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
+        // Ignore this request as 'NULL == <column>' will never give a match
+        releaseSection(keyPtrI);
+        return;  // Bailout, SCANREQ would have returned 0 rows anyway
+      }
+      scanFrag_fixupBound(keyPtrI, rowRef.m_src_correlation);
+
+      SectionReader key(keyPtrI, getSectionSegmentPool());
+      err = appendReaderToSection(fragPtr.p->m_rangePtrI, key, key.getSize());
+      releaseSection(keyPtrI);
       if (unlikely(err != 0))
       {
         jam();
@@ -7259,8 +7259,49 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       // Fixed key...fix later...
       ndbabort();
     }
-//  ndbrequire(!hasNull);  // FIXME, can't ignore request as we already added it to keyPattern
-    scanFrag_fixupBound(fragPtr, fragPtr.p->m_rangePtrI, rowRef.m_src_correlation);
+
+    if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+    {
+      jam();
+      // Append to fragPtr's parameter set
+      // Build with the 'attrParamPattern' applied to the parent rowRef
+      DEBUG("parent_row w/ T_ATTRINFO_CONSTRUCTED");
+      Uint32 paramPtrI = fragPtr.p->m_paramPtrI;
+      Uint32 org_size = 0;
+      if (paramPtrI != RNIL)
+      {
+        // Get current end of parameter section
+        SegmentedSectionPtr ptr;
+        getSection(ptr, paramPtrI);
+        org_size = ptr.sz;
+      }
+      Uint32 paramLen = 0;  // Set paramLen after it has been expanded
+      if (unlikely(!appendToSection(paramPtrI, &paramLen, 1)))
+      {
+        jam();
+        err = DbspjErr::OutOfSectionMemory;
+        break;
+      }
+      bool hasNull = false;
+      Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
+      err = expand(paramPtrI, pattern, rowRef, hasNull);
+      if (unlikely(err != 0))
+      {
+        jam();
+        break;
+      }
+
+      /**
+       * Set size of this parameter. Note that parameter 'isNull' is OK.
+       */
+      {
+        SegmentedSectionPtr ptr;
+        getSection(ptr, paramPtrI);
+        paramLen = ptr.sz - org_size;
+      }
+      writeToSection(paramPtrI, org_size, &paramLen, 1);
+      fragPtr.p->m_paramPtrI = paramPtrI;
+    }
 
     if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT)
     {
@@ -7282,8 +7323,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
 
 
 void
-Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
-                           Uint32 ptrI, Uint32 corrVal)
+Dbspj::scanFrag_fixupBound(Uint32 ptrI, Uint32 corrVal)
 {
   /**
    * Index bounds...need special tender and care...
@@ -7291,9 +7331,7 @@ Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
    * 1) Set #bound no, bound-size, and renumber attributes
    */
   SectionReader r0(ptrI, getSectionSegmentPool());
-  ndbrequire(r0.step(fragPtr.p->m_range_builder.m_range_size));
-  const Uint32 boundsz = r0.getSize() - fragPtr.p->m_range_builder.m_range_size;
-  const Uint32 boundno = fragPtr.p->m_range_builder.m_range_cnt + 1;
+  const Uint32 boundsz = r0.getSize();
 
   Uint32 tmp;
   ndbrequire(r0.peekWord(&tmp));
@@ -7302,21 +7340,18 @@ Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
   ndbrequire(r0.updateWord(tmp));
   ndbrequire(r0.step(1));    // Skip first BoundType
 
-  // TODO: Renumbering below assume there are only EQ-bounds !!
+  // Note: Renumbering below assume there are only EQ-bounds !!
   Uint32 id = 0;
   Uint32 len32;
   do
   {
     ndbrequire(r0.peekWord(&tmp));
     AttributeHeader ah(tmp);
-    Uint32 len = ah.getByteSize();
+    const Uint32 len = ah.getByteSize();
     AttributeHeader::init(&tmp, id++, len);
     ndbrequire(r0.updateWord(tmp));
     len32 = (len + 3) >> 2;
   } while (r0.step(2 + len32));  // Skip AttributeHeader(1) + Attribute(len32) + next BoundType(1)
-
-  fragPtr.p->m_range_builder.m_range_cnt = boundno;
-  fragPtr.p->m_range_builder.m_range_size = r0.getSize();
 }
 
 void
@@ -7428,13 +7463,15 @@ Dbspj::scanFrag_send(Signal* signal,
   {
     /**
      * No valid statistics yet to estimate 'parallism' from. We start
-     * by reading a single fragment, which will get the entire 'batch',
-     * in order to hopefully give us a valid sample. Note that SCAN_FRAGCONF
-     * may start more scans when this scan completes, if there are a
-     * sufficient amount of unused batch size left.
+     * by reading a few fragments, but suffient many to take full advantage
+     * of scan parallelism. Batch completion will provide a parallelism sample,
+     * such that we can do a better parallelism guess next time.
+     * Note that SCAN_FRAGCONF may start more scans when this scan completes,
+     * if there are a sufficient amount of unused batch size left.
      */
     jam();
-    data.m_parallelism = 1;
+    data.m_parallelism = MIN(requestPtr.p->m_rootFragCnt,
+                             data.m_frags_not_started);
   }
   else
   {
@@ -7446,15 +7483,15 @@ Dbspj::scanFrag_send(Signal* signal,
      * in the other direction is more costly).
      */
     Int32 parallelism = 
-      static_cast<Int32>(MIN(data.m_parallelismStat.getMean()
+      static_cast<Int32>(MIN(data.m_parallelismStat.getMean() +
                              // Add 0.5 to get proper rounding.
                              - 2 * data.m_parallelismStat.getStdDev() + 0.5,
                              org->batch_size_rows));
 
-    if (parallelism < 1)
+    if (parallelism < static_cast<Int32>(requestPtr.p->m_rootFragCnt))
     {
       jam();
-      parallelism = 1;
+      parallelism = MIN(requestPtr.p->m_rootFragCnt, data.m_frags_not_started);
     }
     else if (data.m_frags_not_started % parallelism != 0)
     {
@@ -7528,7 +7565,7 @@ Dbspj::scanFrag_send(Signal* signal,
     data.m_batch_chunks = 1;
     requestPtr.p->m_cnt_active++;
     requestPtr.p->m_outstanding++;
-    requestPtr.p->m_completed_nodes.clear(treeNodePtr.p->m_node_no);
+    requestPtr.p->m_completed_tree_nodes.clear(treeNodePtr.p->m_node_no);
     treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
   }
 }
@@ -7569,7 +7606,7 @@ Dbspj::scanFrag_send(Signal* signal,
 
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   ndbassert(noOfFrags > 0);
-  ndbassert(data.m_frags_not_started >= noOfFrags);
+  ndbassert(noOfFrags <= data.m_frags_not_started);
   ScanFragReq* const req =
     reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   const ScanFragReq * const org
@@ -7615,7 +7652,7 @@ Dbspj::scanFrag_send(Signal* signal,
         continue;
       }
 
-      const Uint32 ref = fragPtr.p->m_ref;
+      Uint32 ref = fragPtr.p->m_ref;
 
       if (noOfFrags==1 && !prune &&
           data.m_frags_not_started == data.m_fragCount &&
@@ -7642,15 +7679,6 @@ Dbspj::scanFrag_send(Signal* signal,
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
       req->variableData[0] = batchRange;
 
-      // Test for online downgrade.
-      if (unlikely(ref != 0 && 
-                   !ndbd_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
-      {
-        jam();
-        err = 4003; // Function not implemented.
-        break;
-      }
-
       /**
        * Set up the key-/attrInfo to be sent with the SCAN_FRAGREQ.
        * Determine whether these should released as part of the
@@ -7662,13 +7690,14 @@ Dbspj::scanFrag_send(Signal* signal,
        * - Only the rootNode is ONE_SHOT.
        * - keyInfo comes from either m_send.m_keyInfoPtrI or
        *   fragPtr.p->m_rangePtrI (not both! - 'XOR').
-       * - If the child scan is pruned, a seperate 'rangePtr' is
+       * - If the child scan is pruned, a separate 'rangePtr' is
        *   build for each frag - Non-pruned scan store the 'rangePtr'
        *   in the first frag, which is reused for all the frags.
        * - Child nodes can possibly be 'repeatable', which implies
        *   that m_rangePtrI can't be released yet.
-       * - attrInfo is always taken from m_send.m_attrInfoPtrI, and
-       *   is reused from all frag scans, either repeated or not!
+       * - attrInfo is always taken from m_send.m_attrInfoPtrI, possibly
+       *   with constructed parameters appended. It is reused from
+       *   all frag scans, either repeated or not!
        *
        * Note the somewhat different lifetime of key- vs attrInfo:
        * Except for the ONE_SHOT rootNode, the attrInfo always has
@@ -7691,6 +7720,7 @@ Dbspj::scanFrag_send(Signal* signal,
         jam();
         ndbassert(!repeatable);
         ndbassert(fragPtr.p->m_rangePtrI == RNIL);
+        ndbassert(fragPtr.p->m_paramPtrI == RNIL);
         /**
          * Pass sections to send and release them (root only)
          */
@@ -7726,9 +7756,12 @@ Dbspj::scanFrag_send(Signal* signal,
         /**
          * 'releaseAtSend' is set above based on the keyInfo lifetime.
          * Copy the attrInfo (comment above) whenever needed.
+         * If the attrInfo is constructed it has to be duplicated as well
+         * in preparation for the parameter to be appended
          */
-        if (releaseAtSend)
-        {
+        if (releaseAtSend ||
+            treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+	{
           jam();
           /**
            * Test execution terminated due to 'OutOfSectionMemory' which
@@ -7745,8 +7778,9 @@ Dbspj::scanFrag_send(Signal* signal,
           {
             jam();
             CLEAR_ERROR_INSERT_VALUE;
-            ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                     __LINE__,  __FILE__);
+            g_eventLogger->info(
+                "Injecting OutOfSectionMemory error at line %d file %s",
+                __LINE__, __FILE__);
             err = DbspjErr::OutOfSectionMemory;
             break;
           }
@@ -7759,10 +7793,41 @@ Dbspj::scanFrag_send(Signal* signal,
             break;
           }
           attrInfoPtrI = tmp;
+        } //if (releaseAtSend || ATTRINFO_CONSTRUCTED)
 
+        if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+        {
+          jam();
+          /**
+           * We constructed a parameter section in scanFrag_parent_row(), append
+           * it to the attrInfo as we send each fragment scans.
+           */
+          SectionReader params(fragWithRangePtr.p->m_paramPtrI, getSectionSegmentPool());
+          const Uint32 paramLen = params.getSize();
+          err = appendReaderToSection(attrInfoPtrI, params, paramLen);
+          if (unlikely(err != 0))
+          {
+            jam();
+            releaseSection(attrInfoPtrI);
+            break;
+          }
+          SegmentedSectionPtr ptr;
+          getSection(ptr, attrInfoPtrI);
+          Uint32 *sectionptrs = ptr.p->theData;
+          sectionptrs[4] = paramLen;
+        } //ATTRINFO_CONSTRUCTED
+
+        if (releaseAtSend)
+        {
+          jam();
           /** Reflect the release of the keyInfo 'range' set above */
           fragWithRangePtr.p->m_rangePtrI = RNIL;
-          fragWithRangePtr.p->reset_ranges();
+
+          if (fragWithRangePtr.p->m_paramPtrI != RNIL)
+          {
+            releaseSection(fragWithRangePtr.p->m_paramPtrI);
+            fragWithRangePtr.p->m_paramPtrI = RNIL;
+          }
         } //if (releaseAtSend)
       }
 
@@ -7775,9 +7840,9 @@ Dbspj::scanFrag_send(Signal* signal,
         getSection(handle.m_ptr[1], keyInfoPtrI);
         handle.m_cnt++;
       }
-      
+
 #if defined DEBUG_SCAN_FRAGREQ
-      ndbout_c("SCAN_FRAGREQ to %x", ref);
+      g_eventLogger->info("SCAN_FRAGREQ to %x", fragPtr.p->m_ref);
       printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
                         NDB_ARRAY_SIZE(treeNodePtr.p->m_scanFrag_data.m_scanFragReq),
                         DBLQH);
@@ -7790,11 +7855,12 @@ Dbspj::scanFrag_send(Signal* signal,
       }
 #endif
 
+      Uint32 nodeId = refToNode(ref);
       if (!ScanFragReq::getRangeScanFlag(req->requestInfo))
       {
         c_Counters.incr_counter(CI_LOCAL_TABLE_SCANS_SENT, 1);
       }
-      else if (refToNode(ref) == getOwnNodeId())
+      else if (nodeId == getOwnNodeId())
       {
         c_Counters.incr_counter(CI_LOCAL_RANGE_SCANS_SENT, 1);
       }
@@ -7816,12 +7882,155 @@ Dbspj::scanFrag_send(Signal* signal,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Injecting invalid schema version error at line %d file %s",
-                 __LINE__,  __FILE__);
+        g_eventLogger->info(
+            "Injecting invalid schema version error at line %d file %s",
+            __LINE__, __FILE__);
         // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
         req->schemaVersion++;
       }
 
+      Uint32 instance_no = refToInstance(ref);
+      if (ScanFragReq::getNoDiskFlag(req->requestInfo))
+      {
+        if (nodeId == getOwnNodeId())
+        {
+          if (globalData.ndbMtQueryThreads > 0)
+          {
+            /**
+             * ReadCommittedFlag is always set in DBSPJ when Query threads are
+             * used.
+             *
+             * We have retrieved the block reference from fragPtr.p->m_ref.
+             * This block reference might be reused for multiple scans, thus
+             * we cannot update it. However we need to ensure that SCAN_NEXTREQ
+             * is sent to the same block that this signal is sent to. This is
+             * taken care of when SCAN_FRAGCONF/SCAN_FRAGREF is returned. In
+             * this return message we get the block reference of the DBLQH/
+             * DBQLQH that sent the signal. We store this value in m_next_ref
+             * on the fragment record.
+             *
+             * Since the scheduling to the query thread happens here we will
+             * set m_next_ref already here and have no need to wait for return
+             * signal to set m_next_ref.
+             *
+             * m_next_ref is used in sending SCAN_NEXTREQ always, since this
+             * must be sent after receiving a SCAN_FRAGCONF/SCAN_FRAGREF
+             * signal the m_next_ref should always be set to something
+             * proper.
+             *
+             * This way of handling things means that we are able to schedule
+             * the SCAN_FRAGREQ dynamically each time we send SCAN_FRAGREQ
+             * and thus don't have to care what previous SCAN_FRAGREQ's did
+             * even though they were part of the same SQL query and even the
+             * same pushdown join part.
+             *
+             * We need to set the query thread flag since this ensures that
+             * the query thread use shared access to the fragment.
+             */
+            jam();
+            ref = get_scan_fragreq_ref(&c_tc->m_distribution_handle,
+                                       instance_no);
+            fragPtr.p->m_next_ref = ref;
+          }
+          else
+          {
+            jam();
+            /**
+             * We are not using query threads in this node, we can set
+             * m_next_ref immediately, we can also set m_ref to the proper
+             * DBLQH location since there is no flexible scheduling without
+             * query threads.
+             *
+             * There is no need to set the query thread flag here since we
+             * already know the location where SCAN_FRAGREQ is executed.
+             */
+            ref = numberToRef(DBLQH, instance_no, nodeId);
+            fragPtr.p->m_ref = ref;
+            fragPtr.p->m_next_ref = ref;
+          }
+        }
+        else
+        {
+          Uint32 num_query_threads = getNodeInfo(nodeId).m_query_threads;
+          if (num_query_threads > 0)
+          {
+            /**
+             * The message is sent to a remote node id using query threads.
+             * The scheduling of this signal to a receiver will be made by
+             * the receiver thread in the receiving node. Thus we don't know
+             * which block instance that will execute this signal at this
+             * point in time. We set the Query thread flag to ensure that
+             * the receiver will return his block reference in subsequent
+             * SCAN_FRAGCONF/SCAN_FRAGREF signals.
+             *
+             * It is ok to send this flag to old nodes as well since they will
+             * simply ignore it. It is also ok to send it even if the receiver
+             * doesn't use query threads since the only action it will incur is
+             * that it will add the reference of the sender in the SCAN_FRAGCONF
+             * and SCAN_FRAGREF signals.
+             */
+            jam();
+            Uint32 signal_size = 0;
+            for (Uint32 i = 0; i < handle.m_cnt; i++)
+            {
+              signal_size += handle.m_ptr[i].sz;
+            }
+            signal_size += NDB_ARRAY_SIZE(data.m_scanFragReq);
+            if (signal_size <= MAX_SIZE_SINGLE_SIGNAL)
+            {
+              jam();
+              /* Single signals can be sent to virtual blocks. */
+              fragPtr.p->m_next_ref =
+                numberToRef(V_QUERY, instance_no, nodeId);
+              ScanFragReq::setQueryThreadFlag(req->requestInfo, 1);
+            }
+            else
+            {
+              jam();
+              /**
+               * We are about to send a fragmented signal, fragmented signals
+               * cannot be handled with virtual blocks when sent to remote
+               * nodes since each signal would be independently decided where
+               * to send and thus would cause complete confusion.
+               *
+               * We avoid this by always sending to the LDM thread instance
+               * in the LDM group in this particular case.
+               */
+              ref = numberToRef(DBLQH, instance_no, nodeId);
+              fragPtr.p->m_ref = ref;
+              fragPtr.p->m_next_ref = ref;
+            }
+          }
+          else
+          {
+            /**
+             * The receiver node isn't using query threads, so we simply send
+             * it to the normal DBLQH instance.
+             */
+            jam();
+            ref = numberToRef(DBLQH, instance_no, nodeId);
+            fragPtr.p->m_ref = ref;
+            fragPtr.p->m_next_ref = ref;
+          }
+        }
+      }
+      else
+      {
+        /* Here the receiver is known, so no need to set m_next_ref to 0 */
+        jam();
+        ref = numberToRef(DBLQH, instance_no, nodeId);
+        fragPtr.p->m_ref = ref;
+        fragPtr.p->m_next_ref = ref;
+      }
+      if (!ScanFragReq::getRangeScanFlag(req->requestInfo))
+      {
+        jam();
+        /**
+         * Always TUP scans for full table scans to avoid ACC scans
+         * that would create issues with query threads.
+         */
+        ScanFragReq::setTupScanFlag(req->requestInfo, 1);
+      }
       /**
        * To reduce the copy burden we want to keep hold of the
        * AttrInfo and KeyInfo sections after sending them to 
@@ -7832,35 +8041,31 @@ Dbspj::scanFrag_send(Signal* signal,
        * signal receiver can still take realtime breaks when 
        * receiving.
        * 
-       * Indicate to sendFirstFragment that we want to keep the
-       * fragments, so it must not free them, unless this is the
-       * last request in which case they can be freed. If the
-       * last request is a local send then a copy is avoided.
+       * Indicate to sendBatchedFragmentedSignal that we want to
+       * keep the fragments, so it must not free them, unless this
+       * is the last request in which case they can be freed. If
+       * the last request is a local send then a copy is avoided.
        */
       {
         jam();
-        FragmentSendInfo fragSendInfo;
-        sendFirstFragment(fragSendInfo,
-                          ref,
-                          GSN_SCAN_FRAGREQ,
-                          signal,
-                          NDB_ARRAY_SIZE(data.m_scanFragReq),
-                          JBB,
-                          &handle,
-                          !releaseAtSend); //Keep sent sections,
-                                           //unless last send
-
-        while (fragSendInfo.m_status != FragmentSendInfo::SendComplete)
-        {
-          jam();
-          // Send remaining fragments
-          sendNextSegmentedFragment(signal, fragSendInfo);
-        }
+        sendBatchedFragmentedSignal(ref,
+                                    GSN_SCAN_FRAGREQ,
+                                    signal,
+                                    NDB_ARRAY_SIZE(data.m_scanFragReq),
+                                    JBB,
+                                    &handle,
+                                    !releaseAtSend); //Keep sent sections,
+                                                     //unless last send
       }
 
       if (releaseAtSend)
       {
         ndbassert(handle.m_cnt == 0);
+      }
+      else if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+      {
+        // Release the constructed attrInfo
+        releaseSection(attrInfoPtrI);
       }
       handle.clear();
 
@@ -7910,14 +8115,14 @@ Dbspj::scanFrag_parent_batch_repeat(Signal* signal,
   }
 }
 
-bool
-Dbspj::scanFrag_countSignal(const Signal* signal,
-                       Ptr<Request> requestPtr,
-                       Ptr<TreeNode> treeNodePtr)
+void
+Dbspj::scanFrag_countSignal(Signal* signal,
+                            Ptr<Request> requestPtr,
+                            Ptr<TreeNode> treeNodePtr,
+                            Uint32 cnt)
 {
-  jam();
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
-  data.m_rows_received++;
+  data.m_rows_received += cnt;
 
   if (data.m_frags_outstanding == 0 &&
       data.m_rows_received == data.m_rows_expecting)
@@ -7925,9 +8130,10 @@ Dbspj::scanFrag_countSignal(const Signal* signal,
     jam();
     ndbassert(requestPtr.p->m_outstanding > 0);
     requestPtr.p->m_outstanding--;
-    return true;
+
+    // We have received all rows for this treeNode in this batch.
+    requestPtr.p->m_completed_tree_nodes.set(treeNodePtr.p->m_node_no);
   }
-  return false;
 }
 
 void
@@ -7954,6 +8160,47 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
      * We sent an explicit close request...ignore this...a close will come later
      */
     return;
+  }
+  if (state == ScanFragHandle::SFH_SCANNING_WAIT_CLOSE)
+  {
+    if (done == 0)
+    {
+      jam();
+      /**
+       * The request was aborted and we were handling the first SCAN_FRAGREQ.
+       * In this case fragPtr.p->m_next_ref was still set to 0, thus we could
+       * not send the SCAN_NEXTREQ to close the scan when the request was
+       * aborted, we had to wait for the first return signal to arrive.
+       *
+       * If the return signal is a SCAN_FRAGREF we can simply treat it as if
+       * we were in the state SFH_WAIT_CLOSE, if we are done when receiving
+       * this message we can also simply treat it as if we already were in
+       * the state SFH_WAIT_CLOSE.
+       *
+       * However when receiving this and not being done, this requires a
+       * special close signal to be sent. Now that we have received a
+       * SCAN_FRAGCONF we know the exact location of the scan block and are
+       * able to send the request now using the updated m_next_ref variable.
+       * So we send the close immediately from here.
+       *
+       * The signal we received here is ignored since the request is already
+       * aborted.
+       *
+       * The reason for this special handling comes from the fact that the
+       * receiver can schedule the SCAN_FRAGREQ to many different query
+       * threads. DBSPJ only knows this location if the SCAN_FRAGREQ is
+       * sent in the same node. If it is sent to another node, the receiving
+       * node will perform the scheduling of the signal to its destination
+       * query thread or LDM thread.
+       */
+      send_close_scan(signal, fragPtr, requestPtr);
+      return;
+    }
+    else
+    {
+      jam();
+      state = fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+    }
   }
 
   requestPtr.p->m_rows += rows;
@@ -8100,13 +8347,14 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
         jam();
       }
     } // if (isFirstBatch ...)
-    
+
     if (data.m_rows_received == data.m_rows_expecting ||
         state == ScanFragHandle::SFH_WAIT_CLOSE)
     {
       jam();
       ndbassert(requestPtr.p->m_outstanding > 0);
       requestPtr.p->m_outstanding--;
+      requestPtr.p->m_completed_tree_nodes.set(treeNodePtr.p->m_node_no);
       handleTreeNodeComplete(signal, requestPtr, treeNodePtr);
     }
   } // if (data.m_frags_outstanding == 0)
@@ -8125,6 +8373,7 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
 
   Uint32 state = fragPtr.p->m_state;
   ndbrequire(state == ScanFragHandle::SFH_SCANNING ||
+             state == ScanFragHandle::SFH_SCANNING_WAIT_CLOSE ||
              state == ScanFragHandle::SFH_WAIT_CLOSE);
 
   fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
@@ -8225,6 +8474,12 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
       data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
                                MAX(1, data.m_parallelism/2));
     }
+    if (data.m_parallelism < requestPtr.p->m_rootFragCnt)
+    {
+      // Avoid starting so few scans that some LDM-threads are sitting idle
+      data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
+      requestPtr.p->m_rootFragCnt);
+    }
     ndbassert(data.m_parallelism > 0);
 #ifdef DEBUG_SCAN_FRAGREQ
     DEBUG("::scanFrag_execSCAN_NEXTREQ() Asking for new batches from " <<
@@ -8234,7 +8489,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
           " bytes.");
 #endif
   }
-  else
+  else // Max parallelism
   {
     jam();
     data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
@@ -8288,7 +8543,8 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
 #endif
 
         req->senderData = fragPtr.i;
-        sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
+        ndbrequire(refToMain(fragPtr.p->m_next_ref) != V_QUERY);
+        sendSignal(fragPtr.p->m_next_ref, GSN_SCAN_NEXTREQ, signal,
                    ScanFragNextReq::SignalLength + 1,
                    JBB);
         sentFragCount++;
@@ -8326,7 +8582,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
     data.m_batch_chunks++;
 
     requestPtr.p->m_outstanding++;
-    requestPtr.p->m_completed_nodes.clear(treeNodePtr.p->m_node_no);
+    requestPtr.p->m_completed_tree_nodes.clear(treeNodePtr.p->m_node_no);
     ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
   }
 }
@@ -8357,6 +8613,10 @@ Dbspj::scanFrag_abort(Signal* signal,
                       Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  // Correlation ids for deferred operations are allocated in the batch specific
+  // arena. It is sufficient to release entire memory arena.
+  m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
+  treeNodePtr.p->m_deferred.init();
 
   switch(treeNodePtr.p->m_state){
   case TreeNode::TN_BUILDING:
@@ -8364,10 +8624,10 @@ Dbspj::scanFrag_abort(Signal* signal,
   case TreeNode::TN_INACTIVE:
   case TreeNode::TN_COMPLETING:
   case TreeNode::TN_END:
-    ndbout_c("H'%.8x H'%.8x scanFrag_abort state: %u",
-             requestPtr.p->m_transId[0],
-             requestPtr.p->m_transId[1],
-             treeNodePtr.p->m_state);
+    DEBUG("scanFrag_abort"
+	  << ", transId: " << hex << requestPtr.p->m_transId[0]
+	  << ","           << hex << requestPtr.p->m_transId[1]
+	  << ", state: " << treeNodePtr.p->m_state);
     return;
 
   case TreeNode::TN_ACTIVE:
@@ -8392,6 +8652,9 @@ Dbspj::scanFrag_abort(Signal* signal,
   for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
   {
     switch(fragPtr.p->m_state){
+    case ScanFragHandle::SFH_SCANNING_WAIT_CLOSE:
+      ndbabort();
+      break;
     case ScanFragHandle::SFH_NOT_STARTED:
     case ScanFragHandle::SFH_COMPLETE:
     case ScanFragHandle::SFH_WAIT_CLOSE:
@@ -8408,10 +8671,24 @@ Dbspj::scanFrag_abort(Signal* signal,
       goto do_abort;
     do_abort:
       req->senderData = fragPtr.i;
-      sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
-                 ScanFragNextReq::SignalLength, JBB);
-
-      fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+      if (refToMain(fragPtr.p->m_next_ref) != V_QUERY)
+      {
+        jam();
+        sendSignal(fragPtr.p->m_next_ref, GSN_SCAN_NEXTREQ, signal,
+                   ScanFragNextReq::SignalLength, JBB);
+        fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+      }
+      else
+      {
+        jam();
+        /**
+         * We don't know where the SCAN_FRAGREQ is executing yet. We will
+         * be informed of this when the SCAN_FRAGCONF is received.
+         * We will handle the close sending when this signal is received.
+         */
+        ndbrequire(fragPtr.p->m_state == ScanFragHandle::SFH_SCANNING);
+        fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING_WAIT_CLOSE;
+      }
       break;
     }
   }
@@ -8445,7 +8722,7 @@ Uint32
 Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
                                  Ptr<Request> requestPtr,
                                  Ptr<TreeNode> treeNodePtr,
-                                 NdbNodeBitmask nodes)
+                                 const NdbNodeBitmask nodes)
 {
   jam();
 
@@ -8463,7 +8740,6 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
     jam();
     break;
   }
-
 
   Uint32 sum = 0;
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
@@ -8491,7 +8767,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       data.m_frags_complete++;
       ndbrequire(data.m_frags_not_started > 0);
       data.m_frags_not_started--;
-      // fall through
+      [[fallthrough]];
     case ScanFragHandle::SFH_COMPLETE:
       jam();
       sum++; // indicate that we should abort
@@ -8503,10 +8779,11 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       break;
     case ScanFragHandle::SFH_WAIT_CLOSE:
     case ScanFragHandle::SFH_SCANNING:
+    case ScanFragHandle::SFH_SCANNING_WAIT_CLOSE:
       jam();
       ndbrequire(data.m_frags_outstanding > 0);
       data.m_frags_outstanding--;
-      // fall through
+      [[fallthrough]];
     case ScanFragHandle::SFH_WAIT_NEXTREQ:
       jam();
       sum++;
@@ -8515,6 +8792,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       break;
     }
     fragPtr.p->m_ref = 0;
+    fragPtr.p->m_next_ref = 0;
     fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
   }
 
@@ -8559,7 +8837,11 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
         releaseSection(fragPtr.p->m_rangePtrI);
         fragPtr.p->m_rangePtrI = RNIL;
       }
-      fragPtr.p->reset_ranges();
+      if (fragPtr.p->m_paramPtrI != RNIL)
+      {
+        releaseSection(fragPtr.p->m_paramPtrI);
+        fragPtr.p->m_paramPtrI = RNIL;
+      }
     }
   }
   else
@@ -8572,14 +8854,18 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
       releaseSection(fragPtr.p->m_rangePtrI);
       fragPtr.p->m_rangePtrI = RNIL;
     }
-    fragPtr.p->reset_ranges();
+    if (fragPtr.p->m_paramPtrI != RNIL)
+    {
+      releaseSection(fragPtr.p->m_paramPtrI);
+      fragPtr.p->m_paramPtrI = RNIL;
+    }
   }
 }
 
 /**
  * Parent batch has completed, and will not refetch (X-joined) results
- * from its childs. Release & reset range keys which are unsent or we
- * have kept for possible resubmits.
+ * from its childs. Release & reset range keys and parameters which are
+ * unsent or we have kept for possible resubmits.
  */
 void
 Dbspj::scanFrag_parent_batch_cleanup(Ptr<Request> requestPtr,
@@ -8606,6 +8892,18 @@ Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
    * parent batches...release them to avoid memleak.
    */
   scanFrag_release_rangekeys(requestPtr,treeNodePtr);
+
+  /**
+   * Disallow refering the fragPtr memory object from incomming signals.
+   */
+  {
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      removeGuardedPtr(fragPtr);
+    }
+  }
 
   if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
   {
@@ -8667,6 +8965,7 @@ Dbspj::scanFrag_checkNode(const Ptr<Request> requestPtr,
         frags_outstanding_scan++;
         break;
       case ScanFragHandle::SFH_WAIT_CLOSE:
+      case ScanFragHandle::SFH_SCANNING_WAIT_CLOSE:
         jam();
         frags_outstanding_close++;
         break;
@@ -8821,20 +9120,21 @@ error:
  *   which can be used to do random access inside the row
  */
 Uint32
-Dbspj::buildRowHeader(RowPtr::Header * header, SegmentedSectionPtr ptr)
+Dbspj::buildRowHeader(RowPtr::Header *header, LinearSectionPtr ptr)
 {
-  Uint32 tmp, len;
-  Uint32 * dst = header->m_offset;
-  const Uint32 * const save = dst;
-  SectionReader r0(ptr, getSectionSegmentPool());
+  const Uint32 *src = ptr.p;
+  const Uint32 len = ptr.sz;
+  Uint32 *dst = header->m_offset;
+  const Uint32 *const save = dst;
   Uint32 offset = 0;
   do
   {
-    * dst++ = offset;
-    r0.getWord(&tmp);
-    len = AttributeHeader::getDataSize(tmp);
-    offset += 1 + len;
-  } while (r0.step(len));
+    *dst++ = offset;
+    const Uint32 tmp = *src++;
+    const Uint32 tmp_len = AttributeHeader::getDataSize(tmp);
+    offset += 1 + tmp_len;
+    src += tmp_len;
+  } while (offset < len);
 
   return header->m_len = static_cast<Uint32>(dst - save);
 }
@@ -8844,20 +9144,21 @@ Dbspj::buildRowHeader(RowPtr::Header * header, SegmentedSectionPtr ptr)
  *   which can be used to do random access inside the row
  */
 Uint32
-Dbspj::buildRowHeader(RowPtr::Header * header, const Uint32 *& src, Uint32 len)
+Dbspj::buildRowHeader(RowPtr::Header * header, const Uint32 *& src, Uint32 cnt)
 {
+  const Uint32 *_src = src;
   Uint32 * dst = header->m_offset;
   const Uint32 * save = dst;
   Uint32 offset = 0;
-  for (Uint32 i = 0; i<len; i++)
+  for (Uint32 i = 0; i<cnt; i++)
   {
     * dst ++ = offset;
-    Uint32 tmp = * src++;
+    Uint32 tmp = * _src++;
     Uint32 tmp_len = AttributeHeader::getDataSize(tmp);
     offset += 1 + tmp_len;
-    src += tmp_len;
+    _src += tmp_len;
   }
-
+  src = _src;
   return header->m_len = static_cast<Uint32>(dst - save);
 }
 
@@ -8871,8 +9172,9 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
 
   if (ERROR_INSERTED_CLEAR(17008))
   {
-    ndbout_c("Injecting OutOfQueryMemory error 17008 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfQueryMemory error 17008 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfQueryMemory;
   }
@@ -8884,8 +9186,8 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
 }
 
 Uint32
-Dbspj::appendParamToPattern(Local_pattern_store& dst,
-                            const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendParamToPattern(Local_pattern_store &dst,
+                            const RowPtr::Row &row, Uint32 col)
 {
   jam();
   Uint32 offset = row.m_header->m_offset[col];
@@ -8896,8 +9198,9 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
 
   if (ERROR_INSERTED_CLEAR(17009))
   {
-    ndbout_c("Injecting OutOfQueryMemory error 17009 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfQueryMemory error 17009 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfQueryMemory;
   }
@@ -8909,13 +9212,14 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
 static int fi_cnt = 0;
 bool
 Dbspj::appendToSection(Uint32& firstSegmentIVal,
-                         const Uint32* src, Uint32 len)
+                        const Uint32* src, Uint32 len)
 {
   if (ERROR_INSERTED(17510) && fi_cnt++ % 13 == 0)
   {
     jam();
-    ndbout_c("Injecting appendToSection error 17510 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting appendToSection error 17510 at line %d file %s", __LINE__,
+        __FILE__);
     return false;
   }
   else
@@ -8926,8 +9230,8 @@ Dbspj::appendToSection(Uint32& firstSegmentIVal,
 #endif
 
 Uint32
-Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
-                                const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendParamHeadToPattern(Local_pattern_store &dst,
+                                const RowPtr::Row &row, Uint32 col)
 {
   jam();
   Uint32 offset = row.m_header->m_offset[col];
@@ -8938,8 +9242,9 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
 
   if (ERROR_INSERTED_CLEAR(17010))
   {
-    ndbout_c("Injecting OutOfQueryMemory error 17010 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfQueryMemory error 17010 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfQueryMemory;
   }
@@ -8948,52 +9253,23 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
 }
 
 Uint32
-Dbspj::appendTreeToSection(Uint32 & ptrI, SectionReader & tree, Uint32 len)
+Dbspj::appendReaderToSection(Uint32 &ptrI, SectionReader &reader, Uint32 len)
 {
-  /**
-   * TODO handle errors
-   */
-  jam();
-  Uint32 SZ = 16;
-  Uint32 tmp[16];
-  while (len > SZ)
+  while (len > 0)
   {
     jam();
-    tree.getWords(tmp, SZ);
-    if (!appendToSection(ptrI, tmp, SZ))
+    const Uint32* readPtr;
+    Uint32 readLen;
+    ndbrequire(reader.getWordsPtr(len, readPtr, readLen));
+    if (unlikely(!appendToSection(ptrI, readPtr, readLen)))
       return DbspjErr::OutOfSectionMemory;
-    len -= SZ;
+    len -= readLen;
   }
-
-  tree.getWords(tmp, len);
-  if (!appendToSection(ptrI, tmp, len))
-    return DbspjErr::OutOfSectionMemory;
-
   return 0;
 }
 
 void
-Dbspj::getCorrelationData(const RowPtr::Section & row,
-                          Uint32 col,
-                          Uint32& correlationNumber)
-{
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.getWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  ndbrequire(len == 1);
-  ndbrequire(AttributeHeader::getAttributeId(tmp) == AttributeHeader::CORR_FACTOR32);
-  ndbrequire(reader.getWord(&correlationNumber));
-}
-
-void
-Dbspj::getCorrelationData(const RowPtr::Linear & row,
+Dbspj::getCorrelationData(const RowPtr::Row &row,
                           Uint32 col,
                           Uint32& correlationNumber)
 {
@@ -9009,31 +9285,7 @@ Dbspj::getCorrelationData(const RowPtr::Linear & row,
 }
 
 Uint32
-Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row,
-                          Uint32 col, bool& hasNull)
-{
-  jam();
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.getWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  if (unlikely(len==0))
-  {
-    jam();
-    hasNull = true;  // NULL-value in key
-    return 0;
-  }
-  return appendTreeToSection(dst, reader, len);
-}
-
-Uint32
-Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row,
+Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Row &row,
                           Uint32 col, bool& hasNull)
 {
   jam();
@@ -9050,7 +9302,7 @@ Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row,
 }
 
 Uint32
-Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row,
+Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Row &row,
                                Uint32 col, bool& hasNull)
 {
   jam();
@@ -9065,58 +9317,12 @@ Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row,
   return appendToSection(dst, ptr, 1 + len) ? 0 : DbspjErr::OutOfSectionMemory;
 }
 
-Uint32
-Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row,
-                               Uint32 col, bool& hasNull)
-{
-  jam();
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.peekWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  if (unlikely(len==0))
-  {
-    jam();
-    hasNull = true;  // NULL-value in key
-  }
-  return appendTreeToSection(dst, reader, 1 + len);
-}
-
 /**
  * 'PkCol' is the composite NDB$PK column in an unique index consisting of
  * a fragment id and the composite PK value (all PK columns concatenated)
  */
 Uint32
-Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 col)
-{
-  jam();
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.getWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  ndbrequire(len>1);  // NULL-value in PkKey is an error
-  ndbrequire(reader.step(1)); // Skip fragid
-  return appendTreeToSection(dst, reader, len-1);
-}
-
-/**
- * 'PkCol' is the composite NDB$PK column in an unique index consisting of
- * a fragment id and the composite PK value (all PK columns concatenated)
- */
-Uint32
-Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Row &row, Uint32 col)
 {
   jam();
   Uint32 offset = row.m_header->m_offset[col];
@@ -9134,7 +9340,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
 {
   jam();
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, rowptr.m_src_node_ptrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr, rowptr.m_src_node_ptrI));
   Uint32 corrVal = rowptr.m_src_correlation;
   RowPtr targetRow;
   DEBUG("appendFromParent-of"
@@ -9147,7 +9353,8 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
       DEBUG_CRASH();
       return DbspjErr::InvalidPattern;
     }
-    m_treenode_pool.getPtr(treeNodePtr, treeNodePtr.p->m_parentPtrI);
+    ndbrequire(m_treenode_pool.getPtr(treeNodePtr,
+                                      treeNodePtr.p->m_parentPtrI));
     DEBUG("appendFromParent"
        << ", node: " << treeNodePtr.p->m_node_no);
     if (unlikely(treeNodePtr.p->m_rows.m_type != RowCollection::COLLECTION_MAP))
@@ -9171,13 +9378,13 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     treeNodePtr.p->m_rows.m_map.load(mapptr, pos, ref);
 
     const Uint32* const rowptr = get_row_ptr(ref);
-    setupRowPtr(treeNodePtr, targetRow, ref, rowptr);
+    setupRowPtr(treeNodePtr, targetRow, rowptr);
 
     if (levels)
     {
       jam();
-      getCorrelationData(targetRow.m_row_data.m_linear,
-                         targetRow.m_row_data.m_linear.m_header->m_len - 1,
+      getCorrelationData(targetRow.m_row_data,
+                         targetRow.m_row_data.m_header->m_len - 1,
                          corrVal);
     }
   }
@@ -9195,13 +9402,13 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   switch(type){
   case QueryPattern::P_COL:
     jam();
-    return appendColToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
+    return appendColToSection(dst, targetRow.m_row_data, val, hasNull);
   case QueryPattern::P_UNQ_PK:
     jam();
-    return appendPkColToSection(dst, targetRow.m_row_data.m_linear, val);
+    return appendPkColToSection(dst, targetRow.m_row_data, val);
   case QueryPattern::P_ATTRINFO:
     jam();
-    return appendAttrinfoToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
+    return appendAttrinfoToSection(dst, targetRow.m_row_data, val, hasNull);
   case QueryPattern::P_DATA:
     jam();
     // retreiving DATA from parent...is...an error
@@ -9291,8 +9498,8 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
  * This function takes a pattern and a row and expands it into a section
  */
 Uint32
-Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
-               const RowPtr & row, bool& hasNull)
+Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
+              const RowPtr & row, bool& hasNull)
 {
   Uint32 err;
   Uint32 dst = _dst;
@@ -9308,77 +9515,15 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     switch(type){
     case QueryPattern::P_COL:
       jam();
-      err = appendColToSection(dst, row.m_row_data.m_section, val, hasNull);
+      err = appendColToSection(dst, row.m_row_data, val, hasNull);
       break;
     case QueryPattern::P_UNQ_PK:
       jam();
-      err = appendPkColToSection(dst, row.m_row_data.m_section, val);
+      err = appendPkColToSection(dst, row.m_row_data, val);
       break;
     case QueryPattern::P_ATTRINFO:
       jam();
-      err = appendAttrinfoToSection(dst, row.m_row_data.m_section, val, hasNull);
-      break;
-    case QueryPattern::P_DATA:
-      jam();
-      err = appendDataToSection(dst, pattern, it, val, hasNull);
-      break;
-    case QueryPattern::P_PARENT:
-      jam();
-      // P_PARENT is a prefix to another pattern token
-      // that permits code to access rows from earlier than immediate parent.
-      // val is no of levels to move up the tree
-      err = appendFromParent(dst, pattern, it, val, row, hasNull);
-      break;
-      // PARAM's was converted to DATA by ::expand(pattern...)
-    case QueryPattern::P_PARAM:
-    case QueryPattern::P_PARAM_HEADER:
-    default:
-      jam();
-      err = DbspjErr::InvalidPattern;
-      DEBUG_CRASH();
-    }
-    if (unlikely(err != 0))
-    {
-      jam();
-      _dst = dst;
-      return err;
-    }
-  }
-
-  _dst = dst;
-  return 0;
-}
-
-/**
- * This function takes a pattern and a row and expands it into a section
- */
-Uint32
-Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
-               const RowPtr & row, bool& hasNull)
-{
-  Uint32 err;
-  Uint32 dst = _dst;
-  hasNull = false;
-  Local_pattern_store::ConstDataBufferIterator it;
-  pattern.first(it);
-  while (!it.isNull())
-  {
-    Uint32 info = *it.data;
-    Uint32 type = QueryPattern::getType(info);
-    Uint32 val = QueryPattern::getLength(info);
-    pattern.next(it);
-    switch(type){
-    case QueryPattern::P_COL:
-      jam();
-      err = appendColToSection(dst, row.m_row_data.m_linear, val, hasNull);
-      break;
-    case QueryPattern::P_UNQ_PK:
-      jam();
-      err = appendPkColToSection(dst, row.m_row_data.m_linear, val);
-      break;
-    case QueryPattern::P_ATTRINFO:
-      jam();
-      err = appendAttrinfoToSection(dst, row.m_row_data.m_linear, val, hasNull);
+      err = appendAttrinfoToSection(dst, row.m_row_data, val, hasNull);
       break;
     case QueryPattern::P_DATA:
       jam();
@@ -9422,7 +9567,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
    */
   Uint32 err = 0;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
-  struct RowPtr::Linear row;
+  struct RowPtr::Row row;
   row.m_data = param.ptr;
   row.m_header = CAST_PTR(RowPtr::Header, &tmp[0]);
   buildRowHeader(CAST_PTR(RowPtr::Header, &tmp[0]), param.ptr, paramCnt);
@@ -9502,7 +9647,7 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
    */
   Uint32 err;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
-  struct RowPtr::Linear row;
+  struct RowPtr::Row row;
   row.m_header = CAST_PTR(RowPtr::Header, &tmp[0]);
   row.m_data = param.ptr;
   buildRowHeader(CAST_PTR(RowPtr::Header, &tmp[0]), param.ptr, paramCnt);
@@ -9550,18 +9695,16 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       // Locate requested grandparent and request it to
       // T_BUFFER_ROW its result rows
       Ptr<TreeNode> parentPtr;
-      m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+      ndbrequire(m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI));
       while (val--)
       {
         jam();
-        ndbassert(parentPtr.p->m_parentPtrI != RNIL);
-        m_treenode_pool.getPtr(parentPtr, parentPtr.p->m_parentPtrI);
+        ndbrequire(m_treenode_pool.getPtr(parentPtr, parentPtr.p->m_parentPtrI));
         parentPtr.p->m_bits |= TreeNode::T_BUFFER_ROW;
         parentPtr.p->m_bits |= TreeNode::T_BUFFER_MAP;
       }
       Ptr<Request> requestPtr;
-      m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-      requestPtr.p->m_bits |= Request::RT_BUFFERS;
+      ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
       break;
     }
     default:
@@ -9582,8 +9725,8 @@ Uint32
 Dbspj::parseDA(Build_context& ctx,
                Ptr<Request> requestPtr,
                Ptr<TreeNode> treeNodePtr,
-               DABuffer& tree, Uint32 treeBits,
-               DABuffer& param, Uint32 paramBits)
+               DABuffer& tree, const Uint32 treeBits,
+               DABuffer& param, const Uint32 paramBits)
 {
   Uint32 err;
   Uint32 attrInfoPtrI = RNIL;
@@ -9606,8 +9749,9 @@ Dbspj::parseDA(Build_context& ctx,
     {
       jam();
       CLEAR_ERROR_INSERT_VALUE;
-      ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+          __FILE__);
       err = DbspjErr::OutOfSectionMemory;
       break;
     }
@@ -9625,6 +9769,16 @@ Dbspj::parseDA(Build_context& ctx,
       DEBUG("INNER_JOIN optimization used");
       treeNodePtr.p->m_bits |= TreeNode::T_INNER_JOIN;
     } // DABits::NI_INNER_JOIN
+
+    // TODO: FirstMatch not implemented in SPJ block yet.
+    // Later implementation will build on the BUFFER_ROW / _MATCH mechanisms
+    // to eliminate already found matches from SCAN_NEXTREQ
+    if (treeBits & DABits::NI_FIRST_MATCH)
+    {
+      jam();
+      DEBUG("FIRST_MATCH optimization used");
+      treeNodePtr.p->m_bits |= TreeNode::T_FIRST_MATCH;
+    } // DABits::NI_FIRST_MATCH
 
     if (treeBits & DABits::NI_HAS_PARENT)
     {
@@ -9669,7 +9823,6 @@ Dbspj::parseDA(Build_context& ctx,
           jam();
           break;
         }
-        parentPtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
         treeNodePtr.p->m_parentPtrI = parentPtr.i;
       }
 
@@ -9764,8 +9917,8 @@ Dbspj::parseDA(Build_context& ctx,
     } // DABits::NI_KEY_...
 
     const Uint32 mask =
-      DABits::NI_LINKED_ATTR | DABits::NI_ATTR_INTERPRET |
-      DABits::NI_ATTR_LINKED | DABits::NI_ATTR_PARAMS;
+      DABits::NI_LINKED_ATTR |
+      DABits::NI_ATTR_INTERPRET | DABits::NI_ATTR_LINKED;
 
     if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
     {
@@ -9777,16 +9930,10 @@ Dbspj::parseDA(Build_context& ctx,
 
        * - NI_ATTR_INTERPRET - tree contains interpreted program
        * - NI_ATTR_LINKED - means that the attr-info contains linked-values
-       * - NI_ATTR_PARAMS - means that the attr-info is parameterized
-       *   PI_ATTR_PARAMS - means that the parameters contains attr parameters
        *
        * IF NI_ATTR_INTERPRET
        *   DATA0[LO/HI] = Length of program / total #arguments to program
        *   DATA1..N     = Program
-       *
-       * IF NI_ATTR_PARAMS
-       *   DATA0[LO/HI] = Length / #param
-       *   DATA1..N     = PARAM-0...PARAM-M
        *
        * IF PI_ATTR_INTERPRET
        *   DATA0[LO/HI] = Length of program / Length of subroutine-part
@@ -9794,19 +9941,17 @@ Dbspj::parseDA(Build_context& ctx,
        *
        * IF NI_ATTR_LINKED
        *   DATA0[LO/HI] = Length / #
-       *
-       *
        */
-      Uint32 sections[5] = { 0, 0, 0, 0, 0 };
-      Uint32 * sectionptrs = 0;
+      Uint32 *sectionptrs = nullptr;
 
-      bool interpreted =
+      const bool interpreted =
         (treeBits & DABits::NI_ATTR_INTERPRET) ||
         (paramBits & DABits::PI_ATTR_INTERPRET) ||
         (treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED);
 
       if (interpreted)
       {
+        static constexpr Uint32 sections[5] = { 0, 0, 0, 0, 0 };
         /**
          * Add section headers for interpreted execution
          *   and create pointer so that they can be updated later
@@ -9823,47 +9968,66 @@ Dbspj::parseDA(Build_context& ctx,
         getSection(ptr, attrInfoPtrI);
         sectionptrs = ptr.p->theData;
 
-        if (treeBits & DABits::NI_ATTR_INTERPRET)
+        /**
+         * Note that there might be a NI_ATTR_LINKED without a NI_ATTR_INTERPRET.
+         * INTERPRET code can then be specified with PI_ATTR_INTERPRET. (or not)
+         */
+        if (treeBits & (DABits::NI_ATTR_INTERPRET
+                        | DABits::NI_ATTR_LINKED))
         {
           jam();
-
-          /**
-           * Having two interpreter programs is an error.
-           */
-          err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
-          if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
-          {
-            jam();
-            break;
-          }
-
-          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
           Uint32 len2 = * tree.ptr++;
           Uint32 len_prg = len2 & 0xFFFF; // Length of interpret program
           Uint32 len_pattern = len2 >> 16;// Length of attr param pattern
-          err = DbspjErr::OutOfSectionMemory;
-          if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
+
+          // Note: NI_ATTR_INTERPRET seems to never have been used, nor tested
+          if (treeBits & DABits::NI_ATTR_INTERPRET)
           {
             jam();
-            break;
-          }
+            /**
+             * Having two interpreter programs is an error.
+             */
+            err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
+            if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
+            {
+              jam();
+              break;
+            }
 
-          tree.ptr += len_prg;
-          sectionptrs[1] = len_prg; // size of interpret program
+            treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
+            {
+              jam();
+              break;
+            }
+            tree.ptr += len_prg;
+            sectionptrs[1] = len_prg; // size of interpret program
+          }  // NI_ATTR_INTERPRET
 
-          Uint32 tmp = * tree.ptr ++; // attr-pattern header
-          Uint32 cnt = tmp & 0xFFFF;
+          /**
+           * We do not support (or need) API supplied parameters to
+           * be expand'ed into the interpreter parameter section.
+           * Such parameters has always been included directly into the
+           * generated interpreter code. Thus the no_param being set up
+           * as expand() arguemt here.
+           */
+          DABuffer no_param;
+          no_param.ptr = nullptr;
 
           if (treeBits & DABits::NI_ATTR_LINKED)
           {
             jam();
+            DEBUG("NI_ATTR_LINKED" << ", len_pattern:" << len_pattern);
             /**
              * Expand pattern into a new pattern (with linked values)
+             * Real attrInfo will be constructed with another expand
+             * when parent row values arrives.
              */
             LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena,
                                     m_dependency_map_pool);
             Local_pattern_store pattern(pool,treeNodePtr.p->m_attrParamPattern);
-            err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
+            err = expand(pattern, treeNodePtr, tree, len_pattern, no_param, 0);
             if (unlikely(err))
             {
               jam();
@@ -9874,36 +10038,81 @@ Dbspj::parseDA(Build_context& ctx,
              */
             treeNodePtr.p->m_bits |= TreeNode::T_ATTRINFO_CONSTRUCTED;
           }
-          else
+          else if (len_pattern > 0)
           {
             jam();
+            // This code branch has never been tested, unused as well.
+            ndbassert(false);  // Need validation before being used.
+
             /**
              * Expand pattern directly into attr-info param
              *   This means a "fixed" attr-info param from here on
              */
             bool hasNull;
-            err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
+            err = expand(attrParamPtrI, tree, len_pattern, no_param, 0, hasNull);
             if (unlikely(err))
             {
               jam();
               break;
             }
-//          ndbrequire(!hasNull);
-          }
-        }
-        else // if (treeBits & DABits::NI_ATTR_INTERPRET)
+          }  // NI_ATTR_LINKED
+        } // NI_ATTR_INTERPRET | NI_ATTR_LINKED
+
+        /**
+         * Interpreter code may also be (usually is) specified in the
+         * param-section. That might be combined with a NI_ATTR_LINKED
+         * containing the constructor receipe for a parameter.
+         */
+        if (paramBits & DABits::PI_ATTR_INTERPRET)
         {
           jam();
-          /**
-           * Only relevant for interpreted stuff
-           */
-          ndbrequire((treeBits & DABits::NI_ATTR_PARAMS) == 0);
-          ndbrequire((paramBits & DABits::PI_ATTR_PARAMS) == 0);
-          ndbrequire((treeBits & DABits::NI_ATTR_LINKED) == 0);
+          DEBUG("PI_ATTR_INTERPRET");
 
+          /**
+           * Add the interpreted code that represents the scan filter.
+           */
+          const Uint32 len2 = * param.ptr++;
+          const Uint32 program_len = len2 & 0xFFFF;
+          const Uint32 subroutine_len = len2 >> 16;
+          err = DbspjErr::OutOfSectionMemory;
+          if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
+          {
+            jam();
+            break;
+          }
+          /**
+           * The interpreted code is added is in the "Interpreted execute region"
+           * of the attrinfo (see Dbtup::interpreterStartLab() for details).
+           * It will thus execute before reading the attributes that constitutes
+           * the projections.
+           */
+          sectionptrs[1] = program_len;
+          param.ptr += program_len;
+
+          if (subroutine_len > 0)
+          {
+            jam();
+            // This code branch has never been tested, unused as well.
+            ndbassert(false);  // Need validation before being used.
+
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrParamPtrI,
+                                          param.ptr, subroutine_len)))
+            {
+              jam();
+              break;
+            }
+            sectionptrs[4] = subroutine_len;
+            param.ptr += subroutine_len;
+          }
+          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+        }
+        else // not PI_ATTR_INTERPRET
+        {
+          jam();
           treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
 
-          if (! (paramBits & DABits::PI_ATTR_INTERPRET))
+          if (! (treeBits & DABits::NI_ATTR_INTERPRET))
           {
             jam();
 
@@ -9921,47 +10130,8 @@ Dbspj::parseDA(Build_context& ctx,
             }
             sectionptrs[1] = 1;
           }
-        } // if (treeBits & DABits::NI_ATTR_INTERPRET)
+        } // PI_ATTR_INTERPRET)
       } // if (interpreted)
-
-      if (paramBits & DABits::PI_ATTR_INTERPRET)
-      {
-        jam();
-
-        /**
-         * Add the interpreted code that represents the scan filter.
-         */
-        const Uint32 len2 = * param.ptr++;
-        Uint32 program_len = len2 & 0xFFFF;
-        Uint32 subroutine_len = len2 >> 16;
-        err = DbspjErr::OutOfSectionMemory;
-        if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
-        {
-          jam();
-          break;
-        }
-        /**
-         * The interpreted code is added is in the "Interpreted execute region"
-         * of the attrinfo (see Dbtup::interpreterStartLab() for details).
-         * It will thus execute before reading the attributes that constitutes
-         * the projections.
-         */
-        sectionptrs[1] = program_len;
-        param.ptr += program_len;
-
-        if (subroutine_len)
-        {
-          if (unlikely(!appendToSection(attrParamPtrI,
-                                        param.ptr, subroutine_len)))
-          {
-            jam();
-            break;
-          }
-          sectionptrs[4] = subroutine_len;
-          param.ptr += subroutine_len;
-        }
-        treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-      }
 
       Uint32 sum_read = 0;
       Uint32 dst[MAX_ATTRIBUTES_IN_TABLE + 2];
@@ -10059,6 +10229,9 @@ Dbspj::parseDA(Build_context& ctx,
         }
         sum_read += cnt;
         treeNodePtr.p->m_bits |= TreeNode::T_EXPECT_TRANSID_AI;
+
+        // Having a key projection for LINKED child, implies not-LEAF
+        treeNodePtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
       }
       /**
        * If no LINKED_ATTR's including the CORR_FACTOR was requested by
@@ -10104,7 +10277,7 @@ Dbspj::parseDA(Build_context& ctx,
           getSection(ptr, attrParamPtrI);
           {
             SectionReader r0(ptr, getSectionSegmentPool());
-            err = appendTreeToSection(attrInfoPtrI, r0, ptr.sz);
+            err = appendReaderToSection(attrInfoPtrI, r0, ptr.sz);
             if (unlikely(err != 0))
             {
               jam();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,15 @@
  */
 
 #include "plugin/x/src/custom_command_delegates.h"
+
+#include <cinttypes>
+
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 Cursor_command_delegate::Cursor_command_delegate(
-    ngs::Session_interface *session,
-    const bool ignore_fetch_suspended_at_cursor_open)
+    iface::Session *session, const bool ignore_fetch_suspended_at_cursor_open)
     : Streaming_command_delegate(session),
       m_ignore_fetch_suspended(ignore_fetch_suspended_at_cursor_open) {}
 
@@ -45,11 +47,11 @@ void Cursor_command_delegate::handle_ok(uint32_t server_status,
                                         uint64_t affected_rows,
                                         uint64_t last_insert_id,
                                         const char *const message) {
-  log_debug(
-      "Cursor_command_delegate::handle_ok %i, warnings: %i, "
-      "affected_rows:%i, last_insert_id: %i, msg: %s",
-      (int)server_status, (int)statement_warn_count, (int)affected_rows,
-      (int)last_insert_id, message);
+  log_debug("Cursor_command_delegate::handle_ok %" PRIu32 ", warnings: %" PRIu32
+            ", affected_rows: %" PRIu64 ", last_insert_id: %" PRIu64
+            ", msg: %s",
+            server_status, statement_warn_count, affected_rows, last_insert_id,
+            message);
 
   m_got_eof = !(server_status & SERVER_STATUS_CURSOR_EXISTS) ||
               (server_status & SERVER_STATUS_LAST_ROW_SENT);
@@ -75,14 +77,15 @@ void Cursor_command_delegate::handle_ok(uint32_t server_status,
   if (m_sent_result) {
     if (server_status & SERVER_MORE_RESULTS_EXISTS) {
       if (!(server_status & SERVER_PS_OUT_PARAMS)) m_handle_ok_received = true;
-    } else
+    } else {
       m_proto->send_result_fetch_done();
+    }
   }
   Command_delegate::handle_ok(server_status, statement_warn_count,
                               affected_rows, last_insert_id, message);
 }
 
-Crud_command_delegate::Crud_command_delegate(ngs::Session_interface *session)
+Crud_command_delegate::Crud_command_delegate(iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Crud_command_delegate::~Crud_command_delegate() { on_destruction(); }
@@ -95,12 +98,13 @@ bool Crud_command_delegate::try_send_notices(
                        last_insert_id, message))
     return false;
 
-  if (message && strlen(message) != 0) notices::send_message(*m_proto, message);
+  if (message && strlen(message) != 0)
+    m_proto->send_notice_txt_message(message);
 
   return true;
 }
 
-Stmt_command_delegate::Stmt_command_delegate(ngs::Session_interface *session)
+Stmt_command_delegate::Stmt_command_delegate(iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Stmt_command_delegate::~Stmt_command_delegate() { on_destruction(); }
@@ -113,12 +117,12 @@ bool Stmt_command_delegate::try_send_notices(
                        last_insert_id, message))
     return false;
 
-  notices::send_rows_affected(*m_proto, affected_rows);
+  m_proto->send_notice_rows_affected(affected_rows);
 
-  if (last_insert_id > 0)
-    notices::send_generated_insert_id(*m_proto, last_insert_id);
+  if (last_insert_id > 0) m_proto->send_notice_last_insert_id(last_insert_id);
 
-  if (message && strlen(message) != 0) notices::send_message(*m_proto, message);
+  if (message && strlen(message) != 0)
+    m_proto->send_notice_txt_message(message);
 
   return true;
 }
@@ -140,8 +144,7 @@ int Stmt_command_delegate::end_result_metadata(uint32_t server_status,
                                                          warn_count);
 }
 
-Prepare_command_delegate::Prepare_command_delegate(
-    ngs::Session_interface *session)
+Prepare_command_delegate::Prepare_command_delegate(iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Prepare_command_delegate::~Prepare_command_delegate() { on_destruction(); }
@@ -154,18 +157,18 @@ bool Prepare_command_delegate::try_send_notices(
                        last_insert_id, message))
     return false;
 
-  if (message && strlen(message) != 0) notices::send_message(*m_proto, message);
+  if (message && strlen(message) != 0)
+    m_proto->send_notice_txt_message(message);
 
   if (m_notice_level.test(Notice_level_flags::k_send_affected_rows))
-    notices::send_rows_affected(*m_proto, affected_rows);
+    m_proto->send_notice_rows_affected(affected_rows);
 
   if (m_notice_level.test(Notice_level_flags::k_send_generated_insert_id))
-    if (last_insert_id > 0)
-      notices::send_generated_insert_id(*m_proto, last_insert_id);
+    if (last_insert_id > 0) m_proto->send_notice_last_insert_id(last_insert_id);
 
   if (m_notice_level.test(Notice_level_flags::k_send_generated_document_ids))
-    notices::send_generated_document_ids(
-        *m_proto, m_session->get_document_id_aggregator().get_ids());
+    m_proto->send_notice_generated_document_ids(
+        m_session->get_document_id_aggregator().get_ids());
 
   return true;
 }

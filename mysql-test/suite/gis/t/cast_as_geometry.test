@@ -1,0 +1,440 @@
+###############################################################################
+#                                                                             #
+# CAST(... AS <GEOMETRY_TYPE>) allows casting between                         #
+# certain geometry types.                                                     #
+#                                                                             #
+# Creation Date:  2020-08-02                                                  #
+# Author: Magnus Rushfeldt                                                    #
+#                                                                             #
+###############################################################################
+
+--echo #####################################
+--echo # Testing of general requirements   #
+--echo #####################################
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-1a:                                                #
+--echo # Casting using CONVERT(..., <geometry type>) must be allowed      #
+--echo # and give the same result as CAST(... AS <geometry type>).        #
+--echo ####################################################################
+--echo #
+
+--echo # Casting using CONVERT(..., POINT) must give the same result
+--echo # as CAST(... AS POINT).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1))') AS POINT), CONVERT(ST_GEOMFROMTEXT('MULTIPOINT((1 1))'), POINT));
+--echo #
+
+--echo # Casting using CONVERT(..., LINESTRING) must give the same result
+--echo # as CAST(... AS LINESTRING).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2))') AS LINESTRING), CONVERT(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2))'), LINESTRING));
+--echo #
+
+--echo # Casting using CONVERT(..., POLYGON) must give the same result
+--echo # as CAST(... AS POLYGON).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)))') AS POLYGON), CONVERT(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)))'), POLYGON));
+--echo #
+
+--echo # Casting using CONVERT(..., MULTIPOINT) must give the same result
+--echo # as CAST(... AS MULTIPOINT).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS MULTIPOINT), CONVERT(ST_GEOMFROMTEXT('POINT(1 1)'), MULTIPOINT));
+--echo #
+
+--echo # Casting using CONVERT(..., MULTILINESTRING) must give the same result
+--echo # as CAST(... AS MULTILINESTRING).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS MULTILINESTRING), CONVERT(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'), MULTILINESTRING));
+--echo #
+
+--echo # Casting using CONVERT(..., MULTIPOLYGON) must give the same result
+--echo # as CAST(... AS MULTIPOLYGON).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') AS MULTIPOLYGON), CONVERT(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))'), MULTIPOLYGON));
+--echo #
+
+--echo # Casting using CONVERT(..., GEOMETRYCOLLECTION) must give the same result
+--echo # as CAST(... AS GEOMETRYCOLLECTION).
+--echo # Must return 1.
+SELECT ST_EQUALS(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION), CONVERT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))'), GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-1b:                                                #
+--echo # Casting to geometry types using                                  #
+--echo # JSON_VALUE(... RETURNING <geometry type>) must not be allowed.   #
+--echo ####################################################################
+--echo #
+
+--echo # Casting to POINT using JSON_VALUE(... RETURNING POINT) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type" : "Point", "coordinates": [1.0, 1.0]}}', '$.geometry' RETURNING POINT);
+--echo #
+
+--echo # Casting to LINESTRING using JSON_VALUE(... RETURNING LINESTRING) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type": "LineString", "coordinates": [[1.0, 1.0], [2.0, 2.0]]}}', '$.geometry' RETURNING LINESTRING);
+--echo #
+
+--echo # Casting to POLYGON using JSON_VALUE(... RETURNING POLYGON) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type": "Polygon", "coordinates": [[[1.0, 1.0], [4.0, 1.0], [4.0, 4.0], [1.0, 4.0], [1.0, 1.0]]]}}', '$.geometry' RETURNING POLYGON);
+--echo #
+
+--echo # Casting to MULTIPOINT using JSON_VALUE(... RETURNING MULTIPOINT) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type": "MultiPoint", "coordinates": [[1.0, 1.0], [2.0, 2.0]]}}', '$.geometry' RETURNING MULTIPOINT);
+--echo #
+
+--echo # Casting to MULTILINESTRING using JSON_VALUE(... RETURNING MULTILINESTRING) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type": "MultiLineString", "coordinates": [[[1.0, 1.0], [2.0, 2.0]], [[3.0, 3.0], [4.0, 4.0]]]}}', '$.geometry' RETURNING MULTILINESTRING);
+--echo #
+
+--echo # Casting to MULTIPOLYGON using JSON_VALUE(... RETURNING MULTIPOLYGON) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type": "{"type": "MultiPolygon", "coordinates": [[[[1.0, 1.0], [4.0, 1.0], [4.0, 4.0], [1.0, 4.0], [1.0, 1.0]]], [[[2.0, 2.0], [2.0, 3.0], [3.0, 3.0], [3.0, 2.0], [2.0, 2.0]]]]}}', '$.geometry' RETURNING MULTIPOLYGON);
+--echo #
+
+--echo # Casting to GEOMETRYCOLLECTION using JSON_VALUE(... RETURNING GEOMETRYCOLLECTION) must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO JSON_VALUE('{"geometry": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "LineString", "coordinates": [[2.0, 2.0], [3.0, 3.0]]}]}}', '$.geometry' RETURNING GEOMETRYCOLLECTION);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-1c:                                                #
+--echo # Casting to ARRAY of geometry types must not be allowed.          #
+--echo ####################################################################
+--echo #
+
+--echo # Casting using CAST(... AS POINT ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT ARRAY);
+--echo #
+
+--echo # Casting using CAST(... AS LINESTRING ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING ARRAY);
+--echo #
+
+--echo # Casting using CAST(... POLYGON ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') AS POLYGON ARRAY);
+--echo #
+
+--echo # Casting using CAST(... MULTIPOINT ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS MULTIPOINT ARRAY);
+--echo #
+
+--echo # Casting using CAST(... MULTILINESTRING ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING ARRAY);
+--echo #
+
+--echo # Casting using CAST(... MULTIPOLYGON ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON ARRAY);
+--echo #
+
+--echo # Casting using CAST(... GEOMETRYCOLLECTION ARRAY) must raise error.
+--error ER_NOT_SUPPORTED_YET
+DO CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION ARRAY);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-1d:                                                #
+--echo # Non-instantiable target types must not be allowed.               #
+--echo ####################################################################
+--echo #
+
+--echo # Casting to GEOMETRY must raise error.
+--error ER_PARSE_ERROR
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS GEOMETRY));
+--echo #
+
+--echo # Casting to CURVE must raise error.
+--error ER_PARSE_ERROR
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS CURVE));
+--echo #
+
+--echo # Casting to SURFACE must raise error.
+--error ER_PARSE_ERROR
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS SURFACE));
+--echo #
+
+--echo # Casting to MULTICURVE must raise error.
+--error ER_PARSE_ERROR
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS MULTICURVE));
+--echo #
+
+--echo # Casting to MULTISURFACE must raise error.
+--error ER_PARSE_ERROR
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS MULTISURFACE));
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-1e:                                                #
+--echo # Casting to non-geometry types must give same result as before.   #
+--echo ####################################################################
+--echo #
+
+--echo # Casting geometry to SIGNED must raise error.
+--error ER_WRONG_ARGUMENTS
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS SIGNED);
+--echo #
+
+--echo # Casting geometry to UNSIGNED must raise error.
+--error ER_WRONG_ARGUMENTS
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS UNSIGNED);
+--echo #
+
+--echo # Casting geometry to YEAR must raise error.
+--error ER_WRONG_ARGUMENTS
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS YEAR);
+--echo #
+
+--disable_warnings
+
+--echo # Casting geometry to DATE must return NULL.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS DATE);
+--echo #
+
+--echo # Casting geometry to TIME must return NULL.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS TIME);
+--echo #
+
+--echo # Casting geometry to DATETIME must return NULL.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS DATETIME);
+--echo #
+
+--echo # Casting geometry to BINARY must return SWKB.
+SELECT HEX(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS BINARY));
+--echo #
+
+--echo # Casting geometry to DECIMAL must return 0.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS DECIMAL);
+--echo #
+
+--echo # Casting geometry to FLOAT must return 0.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS FLOAT);
+--echo #
+
+--echo # Casting geometry to DOUBLE must return 0.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS DOUBLE);
+--echo #
+
+--enable_warnings
+
+--echo # Casting geometry to JSON must return JSON-string.
+SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS JSON);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-2:                                                 #
+--echo # Casting NULL to geometry types must return NULL.               #
+--echo ####################################################################
+--echo #
+
+SELECT CAST(NULL AS POINT);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-3:                                                 #
+--echo # Casting geometries that are not syntactically well-formed        #
+--echo # must not be allowed.                                             #
+--echo ####################################################################
+--echo #
+
+--echo # Casting 'POINT(1)' to POINT must raise error.
+--error ER_GIS_INVALID_DATA
+DO CAST(0x000000000101000000000000000000F03F AS POINT);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-4:                                                 #
+--echo # Casting geometry with undefined SRS must raise error.          #
+--echo ####################################################################
+--echo #
+
+--error ER_SRS_NOT_FOUND
+DO CAST(ST_GEOMFROMTEXT('POINT(1 1)', 256) AS POINT);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-5:                                                 #
+--echo # Casting must not change coordinate values or order.              #
+--echo ####################################################################
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 1)'), CAST(ST_GEOMFROMTEXT('POINT(0 1)') AS POINT));
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(1 2, 3 4)'), CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 2), (3 4))') AS LINESTRING));
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))'), CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 4 1, 4 4, 1 4, 1 1)') AS POLYGON));
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT((1 2), (3 4))'), CAST(ST_GEOMFROMTEXT('LINESTRING(1 2, 3 4)') AS MULTIPOINT));
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2))'), CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2))') AS MULTILINESTRING));
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 3 2, 3 3, 2 3, 2 2)))'), CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 3 2, 3 3, 2 3, 2 2))') AS MULTIPOLYGON));
+--echo #
+
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 2), POINT(3 4))'), CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 2), (3 4))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-6a:                                                #
+--echo # Casting must not change the SRS of the geometry.                 #
+--echo ####################################################################
+--echo #
+
+--echo # Must return 0.
+SELECT ST_SRID(CAST(ST_GEOMFROMTEXT('POINT(1 1)', 0) AS POINT));
+--echo #
+
+--echo # Must return 4326.
+SELECT ST_SRID(CAST(ST_GEOMFROMTEXT('POINT(45 90)', 4326) AS POINT));
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-6b:                                                #
+--echo # Casting geographic geometry with longitude outside of            #
+--echo # (-180, 180] must not be allowed.                                 #
+--echo ####################################################################
+--echo #
+
+--echo # Casting POINT(0 180.000000001) with SRID=4326 to POINT must raise error.
+--error ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE
+DO CAST(0xE6100000010100000070890000008066400000000000000000 AS POINT);
+--echo #
+
+--echo # Casting POINT(0 -180.000000001) with SRID=4326 to POINT must raise error.
+--error ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE
+DO CAST(0xE6100000010100000070890000008066C00000000000000000 AS POINT);
+--echo #
+
+--echo ####################################################################
+--echo # Requirement F-6c:                                                #
+--echo # Casting geographic geometry with latitude outside of             #
+--echo # [-90, 90] must not be allowed.                                   #
+--echo ####################################################################
+--echo #
+
+--echo # Casting POINT(90.000000001 0) with SRID=4326 to POINT must raise error.
+--error ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE
+DO CAST(0xE610000001010000000000000000000000E112010000805640 AS POINT);
+--echo #
+
+--echo # Casting POINT(-90.000000001 0) with SRID=4326 to POINT must raise error.
+--error ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE
+DO CAST(0xE610000001010000000000000000000000E1120100008056C0 AS POINT);
+--echo #
+
+--echo ####################################################################
+--echo # Queries with EXPLAIN should return appropiate function name      #
+--echo ####################################################################
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('point(1 1)') as point) AS `CAST(ST_GEOMFROMTEXT('POINT((1 1))') AS POINT)'
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT);
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('LINESTRING(1 1, 2 2)') as linestring) AS `CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING)`
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING);
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') as polygon) AS `CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') AS POLYGON)`
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') AS POLYGON);
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('MULTIPOINT((1 1), (2 2))') as multipoint) AS `CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS MULTIPOINT)`
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS MULTIPOINT);
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') as multilinestring) AS `CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING)`
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING);
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') as multipolygon) AS `CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON)`
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON);
+--echo #
+
+--echo # Should return /* select#1 */ select cast(st_geomfromtext('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') as geometrycollection) AS `CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION)`
+EXPLAIN SELECT CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION);
+
+--echo ####################################################################
+--echo # SELECT ... UNION SELECT ... with                                 #
+--echo # CAST(... AS <GEOMETRY_TYPE>) columns should work as expected     #
+--echo ####################################################################
+--echo #
+
+--echo # Should return Point.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT))
+SELECT ST_ASTEXT(g1) FROM g;
+--echo #
+
+--echo # Should return Linestring.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING))
+SELECT ST_ASTEXT(g1) FROM g;
+--echo #
+
+--echo # Should return Polygon.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') AS POLYGON)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))') AS POLYGON))
+SELECT ST_ASTEXT(g1) FROM g;
+--echo #
+
+--echo # Should return Multipoint.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS MULTIPOINT)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS MULTIPOINT))
+SELECT ST_ASTEXT(g1) FROM g;
+--echo #
+
+--echo # Should return Multilinestring.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING) UNION SELECT CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING) UNION SELECT CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS MULTILINESTRING))
+SELECT ST_ASTEXT(g1) FROM g;
+--echo #
+
+--echo # Should return Multipolygon.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON) UNION SELECT CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON) UNION SELECT CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((2 2, 2 3, 3 3, 3 2, 2 2)))') AS MULTIPOLYGON))
+SELECT ST_ASTEXT(g1) FROM g;
+--echo #
+
+--echo # Should return Geometrycollection.
+WITH g(g1) AS (
+    SELECT CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION) UNION SELECT CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION)
+    UNION
+    SELECT CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION) UNION SELECT CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION))
+SELECT ST_ASTEXT(g1) FROM g;

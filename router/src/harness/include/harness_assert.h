@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,8 @@
  * This is essentially the assert(0) idiom, but with more explicit name
  * to clarify the intent.
  */
-#define harness_assert_this_should_not_execute() \
-  harness_assert("If execution reached this line, you have a bug" == nullptr)
+[[noreturn]] inline void harness_assert_this_should_not_execute() {
+  harness_assert("If execution reached this line, you have a bug" == nullptr);
+}
 
 #endif /* MYSQL_HARNESS_HARNESS_ASSERT_INCLUDED */

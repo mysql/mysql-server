@@ -194,6 +194,7 @@ ANALYZE TABLE all_types UPDATE HISTOGRAM ON col_bool,
 
 --echo # Remove 'last-updated' from the histogram, since it will change on every
 --echo # run.
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
@@ -280,6 +281,7 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer,
                                      stored_generated
                  WITH 100 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
@@ -288,6 +290,7 @@ ALTER TABLE t1 DROP COLUMN virtual_generated, DROP COLUMN stored_generated;
 
 --echo # The histogram for 'virtual_generated' and 'stored_generated' should now
 --echo # be gone
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 DELETE FROM t1;
@@ -301,12 +304,14 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 10 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_singleton
 FROM information_schema.COLUMN_STATISTICS;
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 9 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_equiheight
 FROM information_schema.COLUMN_STATISTICS;
@@ -356,6 +361,7 @@ CREATE TABLE t1 (col1 INT PRIMARY KEY,
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3 WITH 100 BUCKETS;
 
 --echo # We should end up with histogram statistics for 'col3'
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 
@@ -364,6 +370,7 @@ FROM information_schema.COLUMN_STATISTICS;
 ALTER TABLE t1 ALTER INDEX index_1 INVISIBLE;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 100 BUCKETS;
 
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 DROP TABLE t1;
@@ -409,6 +416,34 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col1 WITH 10 BUCKETS;
 
 DROP TABLE t1;
 
+--echo #
+--echo # ANALYZE ... UPDATE HISTOGRAM and LOCK TABLES.
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (10), (20), (30);
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 (c2) VALUES (10), (20), (30);
+
+--echo #
+--echo # Check that ANALYZE TABLE UPDATE HISTOGRAM fails under LOCK TABLES
+--echo # if table is not locked at least for READ.
+--echo #
+LOCK TABLES t2 READ;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
+
+--echo # There should be no histograms.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
+
+--echo # There should be histograms for t2.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+UNLOCK TABLES;
+DROP TABLES t1, t2;
 
 --echo ################
 --echo # DROP HISTOGRAM
@@ -470,6 +505,13 @@ ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
 
 
 --echo #
+--echo # Temporary table
+--echo #
+CREATE TEMPORARY TABLE temp_table (col1 INT);
+ANALYZE TABLE temp_table DROP HISTOGRAM ON col1;
+DROP TABLE temp_table;
+
+--echo #
 --echo # The same column specified multiple times
 --echo #
 --error ER_DUP_FIELDNAME
@@ -484,6 +526,37 @@ ANALYZE TABLE t1, t2 DROP HISTOGRAM ON col1;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # ANALYZE ... DROP HISTOGRAM and LOCK TABLES.
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 (c2) VALUES (10), (20), (30);
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
+
+--echo #
+--echo # Check that ANALYZE TABLE DROP HISTOGRAM fails under LOCK TABLES
+--echo # if table is not locked at least for READ.
+--echo #
+LOCK TABLES t2 READ;
+
+ANALYZE TABLE t1 DROP HISTOGRAM ON c1;
+
+--echo # We should still have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t2 DROP HISTOGRAM ON c2;
+
+--echo # There should be only histogram for t1 now.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+UNLOCK TABLES;
+DROP TABLES t1, t2;
 
 --echo #####################################
 --echo # HISTOGRAM REMOVAL ON DDL STATEMENTS
@@ -612,6 +685,7 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5
                  WITH 10 BUCKETS;
 ALTER TABLE t1 MODIFY COLUMN col1 VARCHAR(255) CHARACTER SET latin1;
 --echo # col2, col3, col4 and col5 should remain
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 
@@ -862,6 +936,7 @@ DROP TABLE encrypted1;
 DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;
 DROP TABLE not_encrypted2;
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring2
 
 --echo #
 --echo # Bug#26114424 WL8943:SIG11 IN DROP_HISTOGRAMS AT SQL/SQL_TABLE.CC
@@ -1551,6 +1626,16 @@ AND OUTR . col_varchar_key IS NULL
 HAVING x <= 3
 ORDER BY OUTR . pk , OUTR . pk;
 
+
+--echo #
+--echo # Bug#104108 CUMULATIVE FREQUENCY MAY GROW OVER 1.0 DUE TO FLOAT ERRORS
+--echo #
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 100 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS WHERE table_name = 't2' and column_name = 'col_datetime';
+
 DROP TABLE t1, t2;
 SET @@SESSION.sql_mode=DEFAULT;
 
@@ -1664,6 +1749,7 @@ SELECT LEFT(col_varchar_key, 1) AS field1 FROM view_AA WHERE ( pk, NULL ) IN
  (  SELECT col_time_key AS subfield21, pk AS subfield22, col_time_key AS subfield23 FROM t1 WHERE col_varchar != col_varchar_key    )
  ORDER BY subfield12   ) OR col_int IS NOT NULL  ORDER BY field1 LIMIT 10 OFFSET 25;
 
+DROP VIEW view_AA, view_CC;
 DROP TABLE t1, t2;
 
 --echo #
@@ -1687,98 +1773,191 @@ SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 > 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 >= 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 = 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 = 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <= 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 < 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 < 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 2;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 2;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 3;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 3;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 4;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 4;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 5;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 5;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 6;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 6;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 7;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 7;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 8;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 8;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 1 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 1 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 2 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 2 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 3 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 3 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 4 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 4 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 5 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 5 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 6 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 6 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 7 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 7 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 8 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 8 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (2,3,4,5,6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,3,4,5,6,7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (3,4,5,6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (3,4,5,6,7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (4,5,6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (4,5,6,7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (5,6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (5,6,7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (6,7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (7,8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (8,9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (9);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (1,3,5,7);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (1,3,5,7);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (2,4,6,8);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,4,6,8);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (2,5,6);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,5,6);
+SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (9,10,11,12,13);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (9,10,11,12,13);
 
 DROP TABLE tbl_int;
@@ -1793,98 +1972,191 @@ SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.2;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.2;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.3;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.3;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.4;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.4;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.5;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.5;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.6;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.6;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.7;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.7;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.8;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.8;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.1 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.1 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.2 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.2 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.3 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.3 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.4 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.4 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.5 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.5 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.6 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.6 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.7 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.7 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.8 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.8 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.3,0.4,0.5,0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.4,0.5,0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.4,0.5,0.6,0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.5,0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.5,0.6,0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.6,0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.7,0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.8,0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.9);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.1,0.3,0.5,0.7);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.1,0.3,0.5,0.7);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.2,0.4,0.6,0.8);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.4,0.6,0.8);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.2,0.5,0.6);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.5,0.6);
+SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.9,1.0,1.1,1.2,1.3);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.9,1.0,1.1,1.2,1.3);
 
 DROP TABLE tbl_float;
@@ -1968,3 +2240,8 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 5 BUCKETS;
 UNLOCK INSTANCE;
 DROP TABLE t1;
 --disconnect con1
+
+# Run a restart without any special parameters, which causes "check testcase" to
+# be run. Always keep this at the very end of the test!
+let $restart_parameters = restart:;
+source include/restart_mysqld.inc;

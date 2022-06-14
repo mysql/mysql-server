@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,15 @@
 #ifndef MY_TABLE_MAP_INCLUDED
 #define MY_TABLE_MAP_INCLUDED
 
-#include "my_inttypes.h"
+#include <stdint.h>
 
-/*
-  TODO Convert these to use Bitmap class.
- */
-typedef ulonglong table_map;   /* Used for table bits in join */
-typedef ulonglong nesting_map; /* Used for flags of nesting constructs */
+using table_map = uint64_t;    // Used for table bits in join.
+using nesting_map = uint64_t;  // Used for flags of nesting constructs.
+using qep_tab_map = uint64_t;  // Used for indexing QEP_TABs in a JOIN.
+
+// Test whether "map" contains the given table.
+static inline bool ContainsTable(uint64_t map, unsigned idx) {
+  return map & (uint64_t{1} << idx);
+}
 
 #endif  // MY_TABLE_MAP_INCLUDED

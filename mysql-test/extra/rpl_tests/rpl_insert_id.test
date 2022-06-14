@@ -18,6 +18,7 @@
 --echo # We also check how the foreign_key_check variable is replicated
 --echo #
 
+--source include/set_privilege_checks_user_as_system_user.inc
 -- source include/master-slave.inc
 #should work for both SBR and RBR
 

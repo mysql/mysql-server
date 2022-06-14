@@ -1,0 +1,87 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Set binlog_checksum to CRC32 and start GR on server1.
+[connection server1]
+SET @binlog_checksum_saved= @@GLOBAL.binlog_checksum;
+SET @@GLOBAL.binlog_checksum= CRC32;
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+#  2. Set binlog_checksum to NONE and start GR on server2.
+[connection server2]
+SET @binlog_checksum_saved= @@GLOBAL.binlog_checksum;
+SET @@GLOBAL.binlog_checksum= NONE;
+include/start_group_replication.inc
+
+############################################################
+#  3. Commit data on both members, all is OK.
+[connection server1]
+INSERT INTO t1 VALUES (1);
+[connection server2]
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+include/assert.inc ['There are 2 rows in table t1']
+include/diff_tables.inc [server1:t1, server2:t1]
+############################################################
+#  4. Validate that server1 binary log has checksums.
+[connection server1]
+include/mysqlbinlog.inc
+include/assert_grep.inc [binary log have checksums]
+include/stop_group_replication.inc
+
+############################################################
+#  5. Validate that server2 binary log does not have checksums.
+[connection server2]
+include/mysqlbinlog.inc
+include/assert_grep.inc [binary log does not have checksums]
+include/stop_group_replication.inc
+
+############################################################
+#  6. Set binlog_checksum to NONE and start GR on server1.
+[connection server1]
+SET @@GLOBAL.binlog_checksum= NONE;
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+#  7. Set binlog_checksum to CRC32 and start GR on server2.
+[connection server2]
+SET @@GLOBAL.binlog_checksum= CRC32;
+include/start_group_replication.inc
+
+############################################################
+#  8. Commit data on both members, all is OK.
+[connection server1]
+INSERT INTO t2 VALUES (1);
+[connection server2]
+INSERT INTO t2 VALUES (2);
+include/rpl_sync.inc
+include/assert.inc ['There are 2 rows in table t2']
+include/diff_tables.inc [server1:t1, server2:t1]
+############################################################
+#  9. Validate that server1 binary log does not have checksums.
+[connection server1]
+include/mysqlbinlog.inc
+include/assert_grep.inc [binary log does not have checksums]
+
+############################################################
+#  10. Validate that server2 binary log has checksums.
+[connection server2]
+include/mysqlbinlog.inc
+include/assert_grep.inc [binary log have checksums]
+
+############################################################
+# 11. Clean up.
+[connection server1]
+SET @@GLOBAL.binlog_checksum = @binlog_checksum_saved;
+[connection server2]
+SET @@GLOBAL.binlog_checksum = @binlog_checksum_saved;
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

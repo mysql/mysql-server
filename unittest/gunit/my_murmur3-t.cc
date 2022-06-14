@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ TEST(Murmur3, Basic) {
 /* Test for empty key. */
 
 TEST(Murmur3, Empty) {
-  uint hash = murmur3_32(NULL, 0, 0);
+  uint hash = murmur3_32(nullptr, 0, 0);
   EXPECT_EQ(0U, hash);
 }
 

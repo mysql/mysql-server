@@ -2,7 +2,7 @@
 #define OPT_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "sql/opt_costconstants.h"
-#include "sql/sql_const.h"  // defines for cost constants
+
+/*
+  For sequential disk seeks the cost formula is:
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip
+
+  The cost of average seek
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
+*/
+constexpr const double DISK_SEEK_BASE_COST{0.9};
+constexpr const int BLOCKS_IN_AVG_SEEK{128};
+constexpr const double DISK_SEEK_PROP_COST{0.1 / BLOCKS_IN_AVG_SEEK};
 
 struct TABLE;
 
@@ -45,8 +55,9 @@ class Cost_model_server {
   */
   enum enum_tmptable_type { MEMORY_TMPTABLE, DISK_TMPTABLE };
 
-  Cost_model_server() : m_cost_constants(NULL), m_server_cost_constants(NULL) {
-#if !defined(DBUG_OFF)
+  Cost_model_server()
+      : m_cost_constants(nullptr), m_server_cost_constants(nullptr) {
+#if !defined(NDEBUG)
     m_initialized = false;
 #endif
   }
@@ -81,8 +92,8 @@ class Cost_model_server {
   */
 
   double row_evaluate_cost(double rows) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(rows >= 0.0);
+    assert(m_initialized);
+    assert(rows >= 0.0);
 
     return rows * m_server_cost_constants->row_evaluate_cost();
   }
@@ -96,8 +107,8 @@ class Cost_model_server {
   */
 
   double key_compare_cost(double keys) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(keys >= 0.0);
+    assert(m_initialized);
+    assert(keys >= 0.0);
 
     return keys * m_server_cost_constants->key_compare_cost();
   }
@@ -158,7 +169,7 @@ class Cost_model_server {
   */
 
   double tmptable_create_cost(enum_tmptable_type tmptable_type) const {
-    DBUG_ASSERT(m_initialized);
+    assert(m_initialized);
 
     if (tmptable_type == MEMORY_TMPTABLE) return memory_tmptable_create_cost();
     return disk_tmptable_create_cost();
@@ -177,9 +188,9 @@ class Cost_model_server {
 
   double tmptable_readwrite_cost(enum_tmptable_type tmptable_type,
                                  double write_rows, double read_rows) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(write_rows >= 0.0);
-    DBUG_ASSERT(read_rows >= 0.0);
+    assert(m_initialized);
+    assert(write_rows >= 0.0);
+    assert(read_rows >= 0.0);
 
     return (write_rows + read_rows) * tmptable_row_cost(tmptable_type);
   }
@@ -193,7 +204,7 @@ class Cost_model_server {
   */
 
   const Cost_model_constants *get_cost_constants() const {
-    DBUG_ASSERT(m_initialized);
+    assert(m_initialized);
 
     return m_cost_constants;
   }
@@ -210,7 +221,7 @@ class Cost_model_server {
   */
   const Server_cost_constants *m_server_cost_constants;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /**
     Used for detecting if this object is used without having been initialized.
   */
@@ -228,8 +239,10 @@ class Cost_model_server {
 class Cost_model_table {
  public:
   Cost_model_table()
-      : m_cost_model_server(NULL), m_se_cost_constants(NULL), m_table(NULL) {
-#if !defined(DBUG_OFF)
+      : m_cost_model_server(nullptr),
+        m_se_cost_constants(nullptr),
+        m_table(nullptr) {
+#if !defined(NDEBUG)
     m_initialized = false;
 #endif
   }
@@ -258,8 +271,8 @@ class Cost_model_table {
   */
 
   double row_evaluate_cost(double rows) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(rows >= 0.0);
+    assert(m_initialized);
+    assert(rows >= 0.0);
 
     return m_cost_model_server->row_evaluate_cost(rows);
   }
@@ -273,8 +286,8 @@ class Cost_model_table {
   */
 
   double key_compare_cost(double keys) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(keys >= 0.0);
+    assert(m_initialized);
+    assert(keys >= 0.0);
 
     return m_cost_model_server->key_compare_cost(keys);
   }
@@ -288,8 +301,8 @@ class Cost_model_table {
   */
 
   double io_block_read_cost(double blocks) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(blocks >= 0.0);
+    assert(m_initialized);
+    assert(blocks >= 0.0);
 
     return blocks * m_se_cost_constants->io_block_read_cost();
   }
@@ -304,8 +317,8 @@ class Cost_model_table {
   */
 
   double buffer_block_read_cost(double blocks) const {
-    DBUG_ASSERT(m_initialized);
-    DBUG_ASSERT(blocks >= 0.0);
+    assert(m_initialized);
+    assert(blocks >= 0.0);
 
     return blocks * m_se_cost_constants->memory_block_read_cost();
   }
@@ -339,7 +352,7 @@ class Cost_model_table {
   */
 
   double disk_seek_base_cost() const {
-    DBUG_ASSERT(m_initialized);
+    assert(m_initialized);
 
     return DISK_SEEK_BASE_COST * io_block_read_cost(1.0);
   }
@@ -352,9 +365,7 @@ class Cost_model_table {
     disk head to the correct cylinder.
 
     @todo Check that the BLOCKS_IN_AV_SEEK is correct to include in the
-          DISK_SEEK_PROP_COST (@see sql_const.h).
-
-    See the comments for this constant in sql_const.h.
+          DISK_SEEK_PROP_COST
   */
 
   double disk_seek_prop_cost() const {
@@ -372,8 +383,8 @@ class Cost_model_table {
   */
 
   double disk_seek_cost(double seek_blocks) const {
-    DBUG_ASSERT(seek_blocks >= 0.0);
-    DBUG_ASSERT(m_initialized);
+    assert(seek_blocks >= 0.0);
+    assert(m_initialized);
 
     const double cost =
         disk_seek_base_cost() + disk_seek_prop_cost() * seek_blocks;
@@ -392,7 +403,7 @@ class Cost_model_table {
   */
   const SE_cost_constants *m_se_cost_constants;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /**
     Used for detecting if this object is used without having been initialized.
   */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,13 @@
 
 #include "sql/item_regexp_func.h"
 
+#include <optional>
+
 #include "my_dbug.h"
-#include "mysql_com.h"  // MAX_BLOB_WIDTH
-#include "nullable.h"
+#include "mysql_com.h"      // MAX_BLOB_WIDTH
 #include "sql/item_func.h"  // agg_arg_charsets_for_comparison()
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"    // Disable_semijoin_flattening
-
-using Mysql::Nullable;
 
 /**
   Transforms a textual option string from the user to a bitmask of ICU flags.
@@ -89,15 +88,42 @@ static bool ParseRegexpOptions(const std::string &options_string,
   return false;
 }
 
-bool Item_func_regexp::resolve_type(THD *) {
+static bool is_binary_string(Item *item) {
+  return item->data_type() == MYSQL_TYPE_VARCHAR &&
+         item->type() != Item::PARAM_ITEM &&
+         item->type() != Item::NULL_ITEM &&  // NULL literals appear to have the
+                                             // binary charset.
+         item->charset_for_protocol() == &my_charset_bin;
+}
+
+static bool is_binary_compatible(Item *item) {
+  if ((item->data_type() == MYSQL_TYPE_BLOB ||
+       item->data_type() == MYSQL_TYPE_STRING ||
+       item->data_type() == MYSQL_TYPE_VARCHAR) &&
+      item->charset_for_protocol() != &my_charset_bin)
+    return false;
+  return true;
+}
+
+bool Item_func_regexp::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 2)) return true;
+
+  const CHARSET_INFO *subject_charset = subject()->charset_for_protocol();
+  const CHARSET_INFO *pattern_charset = pattern()->charset_for_protocol();
+
+  if ((is_binary_string(subject()) && !is_binary_compatible(pattern())) ||
+      (is_binary_string(pattern()) && !is_binary_compatible(subject()))) {
+    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), subject_charset->m_coll_name,
+             pattern_charset->m_coll_name, func_name());
+    return error_bool();
+  }
+
   return agg_arg_charsets_for_comparison(collation, args, 2);
 }
 
 bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
   if (Item_func::fix_fields(thd, arguments)) return true;
 
-  // Make sure that cleanup() deleted the facade in case of re-resolution.
-  DBUG_ASSERT(m_facade.get() == nullptr);
   m_facade = make_unique_destroy_only<regexp::Regexp_facade>(thd->mem_root);
 
   fixed = true;
@@ -107,7 +133,7 @@ bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
 }
 
 void Item_func_regexp::cleanup() {
-  m_facade.reset();
+  if (m_facade != nullptr) m_facade->cleanup();
   Item_func::cleanup();
 }
 
@@ -141,99 +167,146 @@ bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
   return false;
 }
 
+bool Item_func_regexp_instr::resolve_type(THD *thd) {
+  if (Item_func_regexp::resolve_type(thd)) return true;
+  if (param_type_is_default(thd, 2, 4, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_rejected(4, 6))  // as we evaluate it in fix_fields
+    return true;
+  return false;
+}
+
 longlong Item_func_regexp_instr::val_int() {
-  DBUG_ENTER("Item_func_regexp_instr::val_int");
-  DBUG_ASSERT(fixed);
-  Nullable<int> pos = position();
-  Nullable<int> occ = occurrence();
-  Nullable<int> retopt = return_option();
+  DBUG_TRACE;
+  assert(fixed);
+  std::optional<int> pos = position();
+  std::optional<int> occ = occurrence();
+  std::optional<int> retopt = return_option();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value() ||
       !retopt.has_value()) {
-    null_value = true;
-    DBUG_RETURN(0);
+    return error_int();
   }
 
-  Nullable<int32_t> result =
+  std::optional<int32_t> result =
       m_facade->Find(subject(), pos.value(), occ.value(), retopt.value());
-  if (result.has_value()) DBUG_RETURN(result.value());
+  if (current_thd->is_error()) return error_int();
+
+  if (result.has_value()) {
+    null_value = false;
+    return result.value();
+  }
   null_value = true;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 longlong Item_func_regexp_like::val_int() {
-  DBUG_ENTER("Item_func_regexp_like::val_int");
-  DBUG_ASSERT(fixed);
+  DBUG_TRACE;
+  assert(fixed);
 
   if (set_pattern()) {
-    null_value = true;
-    DBUG_RETURN(0);
+    return error_int();
   }
 
   /*
     REGEXP_LIKE() does not take position and occurence arguments, so we trust
     that the calls to their accessors below will return the default values.
   */
-  Nullable<bool> result =
+  std::optional<bool> result =
       m_facade->Matches(subject(), position().value(), occurrence().value());
-  null_value = !result.has_value();
-  if (null_value) DBUG_RETURN(0);
+  if (current_thd->is_error()) return error_int();
 
-  DBUG_RETURN(result.value());
+  if (result.has_value()) {
+    null_value = false;
+    return result.value();
+  }
+  null_value = true;
+  return 0;
+}
+
+bool Item_func_regexp_like::resolve_type(THD *thd) {
+  if (Item_func_regexp::resolve_type(thd)) return true;
+  if (param_type_is_rejected(2, 3))  // as we evaluate it in fix_fields
+    return true;
+  return false;
 }
 
 bool Item_func_regexp_replace::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
+  if (param_type_is_default(thd, 2, 3)) return true;
+  if (param_type_is_default(thd, 3, 5, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_rejected(5, 6))  // as we evaluate it in fix_fields
+    return true;
+
+  const CHARSET_INFO *resolved_charset = collation.collation;
+  const CHARSET_INFO *replacement_charset =
+      replacement()->charset_for_protocol();
+
+  // If either of subject, pattern or replacement use the binary charset, the
+  // other two must be implicitly castable to binary charset, too.  The other
+  // combinations are checked in Item_func_regexp::resolve_type().
+  if (((is_binary_string(subject()) || is_binary_string(pattern())) &&
+       !is_binary_compatible(replacement())) ||
+      (is_binary_string(replacement()) && (!is_binary_compatible(subject()) ||
+                                           !is_binary_compatible(pattern())))) {
+    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), resolved_charset->m_coll_name,
+             replacement_charset->m_coll_name, func_name());
+    return error_bool();
+  }
+
   set_data_type_string(ulonglong{MAX_BLOB_WIDTH});
   return false;
 }
 
 String *Item_func_regexp_replace::val_str(String *buf) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
-  Nullable<int> pos = position();
-  Nullable<int> occ = occurrence();
+  std::optional<int> pos = position();
+  std::optional<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   buf->set_charset(collation.collation);
   String *result = m_facade->Replace(subject(), replacement(), pos.value(),
                                      occ.value(), buf);
+  if (current_thd->is_error()) return error_str();
+
   null_value = (result == nullptr);
   return result;
 }
 
 bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
+  if (param_type_is_default(thd, 2, 4, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_rejected(4, 5))  // as we evaluate it in fix_fields
+    return true;
   set_data_type_string(subject()->max_char_length());
+  set_nullable(true);
   return false;
 }
 
 String *Item_func_regexp_substr::val_str(String *buf) {
-  DBUG_ASSERT(fixed);
-  Nullable<int> pos = position();
-  Nullable<int> occ = occurrence();
+  assert(fixed);
+  std::optional<int> pos = position();
+  std::optional<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
-    null_value = true;
-    return nullptr;
+    return null_return_str();
   }
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
   buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);
+  if (current_thd->is_error()) return error_str();
+
   null_value = (result == nullptr);
   return result;
 }

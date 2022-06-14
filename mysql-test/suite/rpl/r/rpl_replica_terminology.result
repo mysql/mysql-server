@@ -1,0 +1,84 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+DROP TABLE t1;
+[connection slave]
+START REPLICA UNTIL MASTER_LOG_FILE='source_file',MASTER_LOG_POS=source_pos;
+Warnings:
+Warning	1287	'MASTER_LOG_FILE' is deprecated and will be removed in a future release. Please use SOURCE_LOG_FILE instead
+Warning	1287	'MASTER_LOG_POS' is deprecated and will be removed in a future release. Please use SOURCE_LOG_POS instead
+include/assert.inc [Until condition is 'source' on replica]
+include/wait_for_slave_sql_to_stop.inc
+include/start_slave.inc
+[connection master]
+SHOW SLAVE HOSTS;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
+SHOW REPLICAS;
+SHOW WARNINGS;
+Level	Code	Message
+[connection slave]
+SHOW SLAVE STATUS;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
+SHOW REPLICA STATUS;
+SHOW WARNINGS;
+Level	Code	Message
+include/stop_slave.inc
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_to_start.inc
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/wait_for_slave_to_stop.inc
+START REPLICA;
+include/wait_for_slave_to_start.inc
+STOP REPLICA;
+include/wait_for_slave_to_stop.inc
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT,SOURCE_USER='root' for CHANNEL '';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+[connection slave]
+START REPLICA UNTIL SOURCE_LOG_FILE='LOG_FILE', SOURCE_LOG_POS=LOG_POS;
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
+include/diff_tables.inc [master:t1,slave:t1]
+DROP TABLE t1;
+RESET REPLICA;
+RESET MASTER;
+START REPLICA UNTIL MASTER_LOG_FILE='LOG_FILE', MASTER_LOG_POS=LOG_POS;
+Warnings:
+Warning	1287	'MASTER_LOG_FILE' is deprecated and will be removed in a future release. Please use SOURCE_LOG_FILE instead
+Warning	1287	'MASTER_LOG_POS' is deprecated and will be removed in a future release. Please use SOURCE_LOG_POS instead
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
+include/diff_tables.inc [master:t1,slave:t1]
+[connection master]
+DROP TABLE t1;
+RESET MASTER;
+[connection slave]
+DROP TABLE t1;
+RESET REPLICA;
+RESET MASTER;
+include/start_slave.inc
+[connection master]
+include/rpl_end.inc

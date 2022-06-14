@@ -1,6 +1,6 @@
 ## Script connection_ssl.inc
 #
-# Extracted test logic form 'connection_(wolf|open)ssl.test' and changed to
+# Extracted test logic form 'connection_openssl.test' and changed to
 # a parametric test.
 #
 # Arguments:
@@ -38,7 +38,7 @@ call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-enable-ssl.xpl
 -->import connection.macro
 -->noquery_result
 -->recvmessage Mysqlx.Notice.Frame {type:5}
@@ -56,7 +56,7 @@ Mysqlx.Connection.CapabilitiesGet {
 
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.xpl
 -->echo # setting read/write tls param with possible invalid data types:
 -->echo # V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING
 -->noquery_result
@@ -149,7 +149,7 @@ Mysqlx.Connection.CapabilitiesSet {
 EOF
 
 
---write_file $MYSQL_TMP_DIR/verify-ssl-connection-info.tmp
+--write_file $MYSQL_TMP_DIR/verify-ssl-connection-info.xpl
 -->import assert_select.macro
 -->import assert_status_variable.macro
 
@@ -185,7 +185,7 @@ callmacro Assert_status_variable
 EOF
 
 
---write_file $MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
+--write_file $MYSQL_TMP_DIR/verify-non-ssl-connection-info.xpl
 -->import assert_select.macro
 -->import assert_status_variable.macro
 
@@ -219,24 +219,26 @@ EOF
 
 # Using "connect-expired-password" Option to allow expired password.
 
---write_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.xpl
 -->sql
 ALTER USER USER() IDENTIFIED BY 'alter-new-auth';
 -->endsql
 EOF
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-set-pwd.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-set-pwd.xpl
 -->sql
 SET PASSWORD='set-new-auth';
 -->endsql
 EOF
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-status.tmp
--->sql
-SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
--->endsql
+--write_file $MYSQL_TMP_DIR/mysqlx-status.xpl
+-->import assert_status_variable.macro
+SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
+
+callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	DHE-RSA-AES256-SHA;
+callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	AES256-SHA;
 EOF
 
 ############################################################################
@@ -286,13 +288,13 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 let $MYSQLXTEST=$MYSQLXTEST $USE_SOCKET;
 let $MYSQLXTEST_VERIFY_SSL=
    $MYSQLXTEST
-	--tls-version=TLSv1
-	--file=$MYSQL_TMP_DIR/verify-ssl-connection-info.tmp
+	--tls-version=TLSv1.2
+	--file=$MYSQL_TMP_DIR/verify-ssl-connection-info.xpl
 	--ssl-mode=REQUIRED
 	--quiet;
 let $MYSQLXTEST_VERIFY_NON_SSL=
   $MYSQLXTEST
-	--file=$MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
+	--file=$MYSQL_TMP_DIR/verify-non-ssl-connection-info.xpl
 	--ssl-mode=DISABLED
 	--quiet;
 
@@ -316,13 +318,13 @@ exec $MYSQLXTEST_VERIFY_SSL -u user1_mysqlx --password='auth_string1'
 --echo # II.1
 exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1
 	--no-auth
-	--file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1;
+	--file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.xpl 2>&1;
 
 --echo # II.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1
 	--no-auth --ssl-mode=REQUIRED
-	--file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1;
+	--file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.xpl 2>&1;
 
 
 --echo
@@ -348,7 +350,7 @@ exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -u user
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2'
 	--connect-expired-password --ssl-mode=REQUIRED
-	--file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1;
+	--file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.xpl 2>&1;
 
 --echo # III.3
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
@@ -360,7 +362,7 @@ ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST -u user2_mysqlx --password='alter-new-auth'
 	--connect-expired-password --ssl-mode=REQUIRED
-	--file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1;
+	--file=$MYSQL_TMP_DIR/mysqlx-set-pwd.xpl 2>&1;
 
 --echo # III.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
@@ -529,7 +531,7 @@ replace_regex /4294967295/-1/ /18446744073709551615/-1/;
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST -u x_root
 	--ssl-cipher="AES256-SHA" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
-	--file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1;
+	--file=$MYSQL_TMP_DIR/mysqlx-status.xpl 2>&1;
 
 
 --echo
@@ -556,15 +558,7 @@ SET GLOBAL require_secure_transport:=0;
 --echo
 --echo
 --echo ## Cleanup
---remove_file $MYSQL_TMP_DIR/verify-ssl-connection-info.tmp
---remove_file $MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-set-pwd.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-status.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp
-
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 
 DROP USER user1_mysqlx@localhost;
 DROP USER user2_mysqlx@localhost;

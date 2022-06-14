@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@
 */
 
 static_assert((PFS_DD_VERSION <= MYSQL_VERSION_ID) ||
-                  ((PFS_DD_VERSION == 800171) && (MYSQL_VERSION_ID == 80017)),
+                  ((PFS_DD_VERSION == 800172) && (MYSQL_VERSION_ID == 80017)),
               "This release can not use a version number from the future");
 
 class KEY;
@@ -102,7 +102,7 @@ class Table;
 template <class T>
 class List;
 
-handlerton *pfs_hton = NULL;
+handlerton *pfs_hton = nullptr;
 
 #define PFS_ENABLED() \
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
@@ -126,6 +126,22 @@ static handler *pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
   return new (mem_root) ha_perfschema(hton, table);
 }
 
+static size_t size_of_global_error_stat_buffer() {
+  size_t size = sizeof(PFS_error_single_stat) * max_global_server_errors;
+  return size;
+}
+
+static size_t size_of_session_error_stat_buffer() {
+  size_t size;
+  if (max_session_server_errors != 0) {
+    size = sizeof(PFS_error_stat) +
+           sizeof(PFS_error_single_stat) * max_session_server_errors;
+  } else {
+    size = 0;
+  }
+  return size;
+}
+
 /**
   SHOW ENGINE PERFORMANCE_SCHEMA STATUS.
   @param thd                Current thread
@@ -140,7 +156,7 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
   int i;
   size_t size;
 
-  DBUG_ENTER("pfs_show_status");
+  DBUG_TRACE;
 
   /*
     Note about naming conventions:
@@ -150,7 +166,7 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
     as in '(pfs_mutex_class)'.
   */
   if (stat != HA_ENGINE_STATUS) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   size_t total_memory = 0;
@@ -1192,77 +1208,98 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         total_memory += size;
         break;
       case 228:
-        name = "events_error_summary_by_thread_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_thread_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 229:
-        name = "events_error_summary_by_thread_by_error.count";
+        name = "events_errors_summary_by_thread_by_error.count";
         size = global_thread_container.get_row_count() * error_class_max;
         break;
       case 230:
-        name = "events_error_summary_by_thread_by_error.memory";
+        name = "events_errors_summary_by_thread_by_error.memory";
         size = global_thread_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 231:
-        name = "events_error_summary_by_account_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_account_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 232:
-        name = "events_error_summary_by_account_by_error.count";
+        name = "events_errors_summary_by_account_by_error.count";
         size = global_account_container.get_row_count() * error_class_max;
         break;
       case 233:
-        name = "events_error_summary_by_account_by_error.memory";
+        name = "events_errors_summary_by_account_by_error.memory";
         size = global_account_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 234:
-        name = "events_error_summary_by_user_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_user_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 235:
-        name = "events_error_summary_by_user_by_error.count";
+        name = "events_errors_summary_by_user_by_error.count";
         size = global_user_container.get_row_count() * error_class_max;
         break;
       case 236:
-        name = "events_error_summary_by_user_by_error.memory";
+        name = "events_errors_summary_by_user_by_error.memory";
         size = global_user_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 237:
-        name = "events_error_summary_by_host_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_host_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 238:
-        name = "events_error_summary_by_host_by_error.count";
+        name = "events_errors_summary_by_host_by_error.count";
         size = global_host_container.get_row_count() * error_class_max;
         break;
       case 239:
-        name = "events_error_summary_by_host_by_error.memory";
+        name = "events_errors_summary_by_host_by_error.memory";
         size = global_host_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 240:
+        name = "events_errors_summary_global_by_error.size";
+        size = size_of_global_error_stat_buffer();
+        break;
+      case 241:
+        name = "events_errors_summary_global_by_error.count";
+        size = error_class_max;
+        break;
+      case 242:
+        name = "events_errors_summary_global_by_error.memory";
+        size = size_of_global_error_stat_buffer() * error_class_max;
+        total_memory += size;
+        break;
+      case 243:
         name = "(pfs_buffer_scalable_container).count";
         size = builtin_memory_scalable_buffer.m_stat.m_alloc_count -
                builtin_memory_scalable_buffer.m_stat.m_free_count;
         break;
-      case 241:
+      case 244:
         name = "(pfs_buffer_scalable_container).memory";
         size = builtin_memory_scalable_buffer.m_stat.m_alloc_size -
                builtin_memory_scalable_buffer.m_stat.m_free_size;
         total_memory += size;
         break;
+      case 245:
+        name = "(max_global_server_errors).count";
+        size = max_global_server_errors;
+        break;
+      case 246:
+        name = "(max_session_server_errors).count";
+        size = max_session_server_errors;
+        break;
       /*
         This case must be last,
         for aggregation in total_memory.
       */
-      case 242:
+      case 247:
         name = "performance_schema.memory";
         size = total_memory;
         break;
@@ -1274,12 +1311,12 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
     buflen = (uint)(longlong10_to_str(size, buf, 10) - buf);
     if (print(thd, PERFORMANCE_SCHEMA_str.str, PERFORMANCE_SCHEMA_str.length,
               name, strlen(name), buf, buflen)) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
 end:
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void inc_ref_count(PFS_engine_table_share *share) {
@@ -1303,15 +1340,15 @@ static int compare_database_names(const char *name1, const char *name2) {
 
 static PFS_engine_table_share *find_table_share(const char *db,
                                                 const char *name) {
-  DBUG_ENTER("find_table_share");
+  DBUG_TRACE;
 
   if (compare_database_names(db, PERFORMANCE_SCHEMA_str.str) != 0) {
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
 
   PFS_engine_table_share *result;
   result = PFS_engine_table::find_engine_table_share(name);
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1338,10 +1375,11 @@ static PFS_engine_table_share *find_table_share(const char *db,
   @retval false                   Success - no errors.
 */
 
-static bool pfs_dict_init(
-    dict_init_mode_t dict_init_mode, uint version MY_ATTRIBUTE((unused)),
-    List<const Plugin_table> *tables,
-    List<const Plugin_tablespace> *tablespaces MY_ATTRIBUTE((unused))) {
+static bool pfs_dict_init(dict_init_mode_t dict_init_mode,
+                          uint version [[maybe_unused]],
+                          List<const Plugin_table> *tables,
+                          List<const Plugin_tablespace> *tablespaces
+                          [[maybe_unused]]) {
   if (dict_init_mode != DICT_INIT_CREATE_FILES) {
     return false;
   }
@@ -1351,7 +1389,7 @@ static bool pfs_dict_init(
 }
 
 static int pfs_init_func(void *p) {
-  DBUG_ENTER("pfs_init_func");
+  DBUG_TRACE;
 
   pfs_hton = reinterpret_cast<handlerton *>(p);
 
@@ -1380,17 +1418,17 @@ static int pfs_init_func(void *p) {
 
   PFS_engine_table_share::init_all_locks();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int pfs_done_func(void *) {
-  DBUG_ENTER("pfs_done_func");
+  DBUG_TRACE;
 
-  pfs_hton = NULL;
+  pfs_hton = nullptr;
 
   PFS_engine_table_share::delete_all_locks();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int show_func_mutex_instances_lost(THD *, SHOW_VAR *var, char *buff) {
@@ -1485,28 +1523,28 @@ mysql_declare_plugin(perfschema)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &pfs_storage_engine,
   pfs_engine_name,
-  "Marc Alff, Oracle", /* Formerly Sun Microsystems, formerly MySQL */
+  PLUGIN_AUTHOR_ORACLE,
   "Performance Schema",
   PLUGIN_LICENSE_GPL,
   pfs_init_func,                                /* Plugin Init */
-  NULL,                                         /* Plugin Check uninstall */
+  nullptr,                                         /* Plugin Check uninstall */
   pfs_done_func,                                /* Plugin Deinit */
   0x0001 /* 0.1 */,
   pfs_status_vars,                              /* status variables */
-  NULL,                                         /* system variables */
-  NULL,                                         /* config options */
+  nullptr,                                         /* system variables */
+  nullptr,                                         /* config options */
   0,                                            /* flags */
 }
 mysql_declare_plugin_end;
 /* clang-format on */
 
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
-    : handler(hton, share), m_table_share(NULL), m_table(NULL) {}
+    : handler(hton, share), m_table_share(nullptr), m_table(nullptr) {}
 
-ha_perfschema::~ha_perfschema() {}
+ha_perfschema::~ha_perfschema() = default;
 
 int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
-  DBUG_ENTER("ha_perfschema::open");
+  DBUG_TRACE;
 
   lock_pfs_external_table_shares();
   if (!m_table_share)
@@ -1514,10 +1552,10 @@ int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
         find_table_share(table_share->db.str, table_share->table_name.str);
   if (!m_table_share) {
     unlock_pfs_external_table_shares();
-    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+    return HA_ERR_NO_SUCH_TABLE;
   }
 
-  thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
+  thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, nullptr);
   ref_length = m_table_share->m_ref_length;
 
   /* Only for table added by plugin/components */
@@ -1526,39 +1564,39 @@ int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
   }
 
   unlock_pfs_external_table_shares();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::close(void) {
-  DBUG_ENTER("ha_perfschema::close");
+  DBUG_TRACE;
 
   /* Only for table added by plugin/components */
   if (!IS_NATIVE_TABLE(m_table_share)) {
     dec_ref_count(m_table_share);
   }
 
-  m_table_share = NULL;
+  m_table_share = nullptr;
   delete m_table;
-  m_table = NULL;
+  m_table = nullptr;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::write_row(uchar *buf) {
   int result;
 
-  DBUG_ENTER("ha_perfschema::write_row");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
-  DBUG_ASSERT(m_table_share);
-  if (m_table == NULL) {
+  assert(m_table_share);
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   }
   ha_statistic_increment(&System_status_var::ha_write_count);
   result = m_table_share->write_row(m_table, table, buf, table->field);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void ha_perfschema::use_hidden_primary_key(void) {
@@ -1572,70 +1610,70 @@ void ha_perfschema::use_hidden_primary_key(void) {
 }
 
 int ha_perfschema::update_row(const uchar *old_data, uchar *new_data) {
-  DBUG_ENTER("ha_perfschema::update_row");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
   if (is_executed_by_slave()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_update_count);
   int result = m_table->update_row(table, old_data, new_data, table->field);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::delete_row(const uchar *buf) {
-  DBUG_ENTER("ha_perfschema::delete_row");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_delete_count);
   int result = m_table->delete_row(table, buf, table->field);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::rnd_init(bool scan) {
   int result;
-  DBUG_ENTER("ha_perfschema::rnd_init");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+  assert(m_table_share);
+  assert(m_table_share->m_open_table != nullptr);
 
   stats.records = 0;
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   } else {
     m_table->reset_position();
   }
 
-  if (m_table != NULL) {
+  if (m_table != nullptr) {
     m_table->rnd_init(scan);
   }
 
   result = m_table ? 0 : HA_ERR_OUT_OF_MEM;
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::rnd_end(void) {
-  DBUG_ENTER("ha_perfschema::rnd_end");
-  DBUG_ASSERT(m_table);
+  DBUG_TRACE;
+  assert(m_table);
   delete m_table;
-  m_table = NULL;
-  DBUG_RETURN(0);
+  m_table = nullptr;
+  return 0;
 }
 
 int ha_perfschema::rnd_next(uchar *buf) {
-  DBUG_ENTER("ha_perfschema::rnd_next");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   int result = m_table->rnd_next();
@@ -1645,63 +1683,62 @@ int ha_perfschema::rnd_next(uchar *buf) {
       stats.records++;
     }
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 void ha_perfschema::position(const uchar *) {
-  DBUG_ENTER("ha_perfschema::position");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   m_table->get_position(ref);
-  DBUG_VOID_RETURN;
 }
 
 int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
-  DBUG_ENTER("ha_perfschema::rnd_pos");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int result = m_table->rnd_pos(pos);
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::info(uint flag) {
-  DBUG_ENTER("ha_perfschema::info");
-  DBUG_ASSERT(m_table_share);
+  DBUG_TRACE;
+  assert(m_table_share);
   if (flag & HA_STATUS_VARIABLE) {
     stats.records = m_table_share->get_row_count();
   }
   if (flag & HA_STATUS_CONST) {
     ref_length = m_table_share->m_ref_length;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::delete_all_rows(void) {
   int result;
 
-  DBUG_ENTER("ha_perfschema::delete_all_rows");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is_executed_by_slave()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  DBUG_ASSERT(m_table_share);
+  assert(m_table_share);
   if (m_table_share->m_delete_all_rows) {
     result = m_table_share->m_delete_all_rows();
   } else {
     result = HA_ERR_WRONG_COMMAND;
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::truncate(dd::Table *) { return delete_all_rows(); }
@@ -1717,21 +1754,21 @@ THR_LOCK_DATA **ha_perfschema::store_lock(THD *, THR_LOCK_DATA **to,
 }
 
 int ha_perfschema::delete_table(const char *, const dd::Table *) {
-  DBUG_ENTER("ha_perfschema::delete_table");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int ha_perfschema::rename_table(const char *, const char *, const dd::Table *,
                                 dd::Table *) {
-  DBUG_ENTER("ha_perfschema::rename_table ");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_TRACE;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
                           dd::Table *) {
-  DBUG_ENTER("ha_perfschema::create");
-  DBUG_ASSERT(table_arg);
-  DBUG_ASSERT(table_arg->s);
+  DBUG_TRACE;
+  assert(table_arg);
+  assert(table_arg->s);
   lock_pfs_external_table_shares();
   if (find_table_share(table_arg->s->db.str, table_arg->s->table_name.str)) {
     /*
@@ -1741,7 +1778,7 @@ int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
       This should fail once .FRM are removed.
     */
     unlock_pfs_external_table_shares();
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /*
@@ -1749,7 +1786,7 @@ int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
     Failure to CREATE TABLE is the expected result.
   */
   unlock_pfs_external_table_shares();
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  return HA_ERR_WRONG_COMMAND;
 }
 
 void ha_perfschema::print_error(int error, myf errflag) {
@@ -1787,7 +1824,7 @@ ulong ha_perfschema::index_flags(uint, uint, bool) const {
   const PFS_engine_table_share *tmp;
 
   lock_pfs_external_table_shares();
-  if (m_table_share != NULL) {
+  if (m_table_share != nullptr) {
     tmp = m_table_share;
   } else {
     tmp = find_table_share(table_share->db.str, table_share->table_name.str);
@@ -1811,12 +1848,12 @@ ulong ha_perfschema::index_flags(uint, uint, bool) const {
 */
 int ha_perfschema::index_init(uint idx, bool sorted) {
   int result;
-  DBUG_ENTER("ha_perfschema::index_init");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+  assert(m_table_share);
+  assert(m_table_share->m_open_table != nullptr);
 
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   } else {
     m_table->reset_position();
@@ -1830,17 +1867,17 @@ int ha_perfschema::index_init(uint idx, bool sorted) {
     result = HA_ERR_OUT_OF_MEM;
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::index_end() {
-  DBUG_ENTER("ha_perfschema::index_end");
-  DBUG_ASSERT(m_table);
-  DBUG_ASSERT(active_index != MAX_KEY);
+  DBUG_TRACE;
+  assert(m_table);
+  assert(active_index != MAX_KEY);
   delete m_table;
-  m_table = NULL;
+  m_table = nullptr;
   active_index = MAX_KEY;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1850,26 +1887,26 @@ int ha_perfschema::index_end() {
 */
 int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
                               enum ha_rkey_function find_flag) {
-  DBUG_ENTER("ha_perfschema::index_read");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
-  DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+  assert(m_table_share);
+  assert(m_table_share->m_open_table != nullptr);
 
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   } else {
     m_table->reset_position();
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
 
-  DBUG_ASSERT(table != NULL);
-  DBUG_ASSERT(table->s != NULL);
-  DBUG_ASSERT(table->s->key_info != NULL);
+  assert(table != nullptr);
+  assert(table->s != nullptr);
+  assert(table->s->key_info != nullptr);
   KEY *key_infos = table->s->key_info;
 
   int result =
@@ -1877,7 +1914,7 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1886,20 +1923,20 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   @return 0, HA_ERR_END_OF_FILE, or error
 */
 int ha_perfschema::index_next(uchar *buf) {
-  DBUG_ENTER("ha_perfschema::index_next");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
 
   int result = m_table->index_next();
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1907,25 +1944,25 @@ int ha_perfschema::index_next(uchar *buf) {
   @return 0, HA_ERR_END_OF_FILE, or error
 */
 int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
-  DBUG_ENTER("ha_perfschema::index_next_same");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
 
   int result = m_table->index_next_same(key, keylen);
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool ha_perfschema::is_executed_by_slave() const {
-  DBUG_ASSERT(table != NULL);
-  DBUG_ASSERT(table->in_use != NULL);
+  assert(table != nullptr);
+  assert(table->in_use != nullptr);
   return table->in_use->slave_thread;
 }

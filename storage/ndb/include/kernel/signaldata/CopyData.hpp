@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 struct CopyDataReq
 {
 
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   enum RequestType {
     ReorgCopy = 0,
@@ -64,7 +64,7 @@ struct CopyDataReq
 struct CopyDataConf
 {
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   union {
@@ -76,7 +76,7 @@ struct CopyDataConf
 
 struct CopyDataRef
 {
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
   Uint32 senderData;

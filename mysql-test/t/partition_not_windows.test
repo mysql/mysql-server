@@ -2,15 +2,19 @@
 --source include/not_windows.inc
 
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number");
-CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means mysqld does not have the access");
+CALL mtr.add_suppression("\\[ERROR\\].* Operating system error number");
+CALL mtr.add_suppression("\\[ERROR\\].* The error means mysqld does not have the access");
+CALL mtr.add_suppression("\\[ERROR\\].* Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+# Different error messages on MacOS
+CALL mtr.add_suppression("\\[ERROR\\].* Error number 30 means 'Read-only file system'");
+CALL mtr.add_suppression("\\[ERROR\\].* 'mkdir' returned OS error 130");
 --enable_query_log
 
---error ER_GET_ERRNO,1
+--error ER_GET_ERRNO,1,ER_WRONG_FILE_NAME
 CREATE TABLE `example` (
-  `ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `ID_EXAMPLE` int unsigned NOT NULL AUTO_INCREMENT,
   `DESCRIPTION` varchar(30) NOT NULL,
-  `LEVEL` smallint(5) unsigned DEFAULT NULL,
+  `LEVEL` smallint unsigned DEFAULT NULL,
   PRIMARY KEY (`ID_EXAMPLE`)
 )
 PARTITION BY HASH(ID_EXAMPLE)(
@@ -19,6 +23,7 @@ PARTITION p1 DATA DIRECTORY = '/not/existent/p1Data',
 PARTITION p2 DATA DIRECTORY = '/not/existent/p2Data',
 PARTITION p3 DATA DIRECTORY = '/not/existent/p3Data'
 );
+SHOW WARNINGS;
 
 --echo #
 --echo # Bug#29053560 ERROR WHEN CREATING A TABLE WITH LONG PARTITION NAMES

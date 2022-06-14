@@ -7,7 +7,7 @@
 create schema xtest default charset='utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/insert_table_bad_column.tmp
+--write_file $MYSQL_TMP_DIR/insert_table_bad_column.xpl
 ## Test data
 -->sql
 use xtest;
@@ -116,9 +116,7 @@ Mysqlx.Crud.Insert {
 -->recv
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_bad_column.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_bad_column.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/insert_table_bad_column.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

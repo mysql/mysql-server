@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 
 #include "my_inttypes.h"
 
-typedef struct {
+struct Field_type {
   std::string db_name;
   std::string table_name;
   std::string org_table_name;
@@ -41,7 +41,7 @@ typedef struct {
   unsigned int flags;
   unsigned int decimals;
   enum_field_types type;
-} Field_type;
+};
 
 struct Field_value {
   Field_value();
@@ -75,7 +75,7 @@ class Sql_resultset {
         num_cols(0),
         num_rows(0),
         num_metarow(0),
-        m_resultcs(NULL),
+        m_resultcs(nullptr),
         m_server_status(0),
         m_warn_count(0),
         m_affected_rows(0),
@@ -312,7 +312,7 @@ class Sql_resultset {
 
   /* get string field type column */
   char *getString(uint columnIndex) {
-    if (result_value[current_row][columnIndex] != NULL)
+    if (result_value[current_row][columnIndex] != nullptr)
       return result_value[current_row][columnIndex]->value.v_string;
     return const_cast<char *>("");
   }

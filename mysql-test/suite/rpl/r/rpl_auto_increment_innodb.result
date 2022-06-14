@@ -1,0 +1,136 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1 (a int not null auto_increment, primary key (a)) engine=innodb;
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+select * from t1;
+a
+1
+5
+6
+250
+251
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+select * from t1;
+a
+1
+5
+6
+250
+251
+400
+401
+1000
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a
+1
+5
+6
+250
+251
+400
+401
+1000
+drop table t1;
+set auto_increment_increment=1;
+set auto_increment_offset=1;
+CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/sync_slave_sql_with_master.inc
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+include/rpl_reset.inc
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
+SET SQL_MODE='';
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+id
+1
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+id
+1
+2
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1;
+id
+1
+2
+3
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1;
+id
+0
+1
+2
+3
+INSERT INTO t1 VALUES(4);
+FLUSH LOGS;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET MASTER;
+RESET MASTER;
+FLUSH LOGS;
+include/start_slave.inc
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+SET SQL_MODE='';
+include/sync_slave_sql_with_master.inc
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+BEGIN;
+# Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+# zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+# Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+# affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+SELECT * FROM t1;
+id	data
+0	2
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+id	data
+0	2
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+create table t1(a int auto_increment primary key) engine=innodb;
+insert into t1 values (null),(null),(1025),(null);
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a
+1
+2
+1025
+1026
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

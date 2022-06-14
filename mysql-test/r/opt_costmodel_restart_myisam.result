@@ -23,9 +23,14 @@ c3 CHAR(250),
 c4 CHAR(250),
 INDEX i1_key (i1)
 ) ENGINE=MyISAM;
+# Since ANALYZE TABLE only reads a subset of the data, the statistics for
+# table t1 depends on the row order. And since the INSERT INTO ... SELECT
+# may be executed using different execution plans, we've added ORDER BY
+# to ensure that we rows has the same order every time. If not, the
+# estimated number of rows in EXPLAIN may change on different platforms.
 INSERT INTO t1_myisam
 SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
-FROM t0 AS a0, t0 AS a1;
+FROM t0 AS a0, t0 AS a1 ORDER BY a0.i1, a1.i1;
 ANALYZE TABLE t1_myisam;
 Table	Op	Msg_type	Msg_text
 test.t1_myisam	analyze	status	Table is already up to date

@@ -1,9 +1,3 @@
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
-ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -37,57 +31,6 @@ Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
 ERROR HY000: Invalid encryption option.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
-INSERT INTO t1 VALUES(0, "aaaaa");
-INSERT INTO t1 VALUES(1, "bbbbb");
-INSERT INTO t1 VALUES(2, "ccccc");
-INSERT INTO t1 VALUES(3, "ddddd");
-INSERT INTO t1 VALUES(4, "eeeee");
-INSERT INTO t1 VALUES(5, "fffff");
-INSERT INTO t1 VALUES(6, "ggggg");
-INSERT INTO t1 VALUES(7, "hhhhh");
-INSERT INTO t1 VALUES(8, "iiiii");
-INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1	c2
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-# restart
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1	c2
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-DROP TABLE t1;
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -99,6 +42,7 @@ INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 # Kill the server
+# restart:
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -141,7 +85,7 @@ INSERT INTO t1 VALUES(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB' ENCRYPTION='Y'
 FLUSH TABLES t1 WITH READ LOCK;
@@ -158,6 +102,7 @@ c1
 7
 8
 9
+# restart:
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -176,7 +121,7 @@ INSERT INTO t1 VALUES(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
@@ -192,6 +137,7 @@ c1
 7
 8
 9
+# restart:
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -219,7 +165,7 @@ INSERT INTO t1 VALUES(9, POINT(9, 9));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `g` geometry NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `g` (`g`)
@@ -238,6 +184,7 @@ c1	ST_AsText(g)
 7	POINT(7 7)
 8	POINT(8 8)
 9	POINT(9 9)
+# restart: --innodb_strict_mode=OFF --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 c1	ST_AsText(g)
 0	POINT(0 0)
@@ -263,3 +210,4 @@ ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;
+# restart:

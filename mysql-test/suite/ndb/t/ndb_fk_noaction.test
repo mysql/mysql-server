@@ -52,10 +52,11 @@ begin;
 delete from parent;
 
 connection con1;
+## Insert into child cannot commit as FK check at commit time cannot get lock on parent row to check
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
---error 1451
 commit;
 
 delete from child;
@@ -101,10 +102,11 @@ begin;
 delete from parent;
 
 connection con1;
+## Insert into child cannot commit as FK check at commit time cannot get lock on parent row to check
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
---error 1451
 commit;
 
 delete from child;
@@ -150,10 +152,11 @@ begin;
 delete from parent;
 
 connection con1;
+## Insert into child cannot commit as FK check at commit time cannot get lock on parent row to check
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
---error 1451
 commit;
 
 delete from child;
@@ -202,10 +205,11 @@ begin;
 delete from parent;
 
 connection con1;
+## Insert into child cannot commit as FK check at commit time cannot get lock on parent row to check
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
---error 1451
 commit;
 
 delete from child;
@@ -251,10 +255,11 @@ begin;
 delete from parent;
 
 connection con1;
+## Insert into child cannot commit as FK check at commit time cannot get lock on parent row to check
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
---error 1451
 commit;
 
 delete from child;
@@ -303,10 +308,11 @@ begin;
 delete from parent;
 
 connection con1;
+## Insert into child cannot commit as FK check at commit time cannot get lock on parent row to check
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
---error 1451
 commit;
 
 delete from child;

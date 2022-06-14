@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class GetConfigReq {
   friend class MgmtSrvr;
   friend bool printGET_CONFIG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 nodeId; // Node id of the receiver node
   Uint32 senderRef;
@@ -58,7 +58,7 @@ class GetConfigRef {
   friend class MgmtSrvr;
   friend bool printGET_CONFIG_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 error;
 
@@ -78,7 +78,7 @@ class GetConfigConf {
   friend class MgmtSrvr;
   friend bool printGET_CONFIG_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 configLength; // config blob size
 };

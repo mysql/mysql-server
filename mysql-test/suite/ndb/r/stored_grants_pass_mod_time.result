@@ -1,0 +1,20 @@
+result_format: 2
+## When a MySQL server starts up, it has to catch up on all the changes
+## to NDB stored users as recorded in the ndb_sql_metadata table. The snapshots
+## in the table include the output of SHOW CREATE USER. If the local result
+## from SHOW CREATE USER is identical to the one stored in the snapshot, it
+## can mark a user as synchronized without touching their password_last_changed
+## timestamp.
+##
+## We are going to record some output from SHOW CREATE USER in the result file
+## here, so that this test will fail whenever that output changes. Any time
+## that output changes from one release to the next we should respond, either
+## by writing code that expects the change, or by writing a release note to
+## tell users that upgrading will cause password timestamps to get bumped.
+set print_identified_with_as_hex = true;
+SHOW CREATE USER t331@localhost;
+CREATE USER for t331@localhost	CREATE USER `t331`@`localhost` IDENTIFIED WITH 'caching_sha2_password' AS 0x_hashed_password_ REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+set print_identified_with_as_hex = false;
+
+## Cleanup
+DROP USER t331@localhost;

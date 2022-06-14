@@ -1,0 +1,87 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL clone_ddl_timeout = 0;
+
+############################################################
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+#######################################################################
+# 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+[connection server2]
+include/spawn_monitoring_process.inc
+
+############################################################
+# 4. Setup the server so group replication starts on boot
+#    Install the Clone plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 5. On a empty server2 start group replication
+#    Pause it and execute a DDL query on the donor
+#    The clone process should fail on the joiner
+SET GLOBAL group_replication_clone_threshold= 1;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 1;
+SET GLOBAL clone_ddl_timeout = 0;
+SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
+START GROUP_REPLICATION;
+SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
+SET @@GLOBAL.DEBUG='-d,gr_clone_wait';
+[connection server_1_1]
+ALTER TABLE t1 ADD COLUMN col2 int, ALGORITHM=COPY;
+[connection server1]
+[connection server2]
+SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
+include/gr_wait_for_member_state.inc
+include/assert.inc [Clone should have failed]
+include/assert_grep.inc [Clone failed and no recovery is possible]
+
+############################################################
+# 6. Restart Group replication
+#    The clone process should now be successful
+include/stop_group_replication.inc
+START GROUP_REPLICATION;
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+
+############################################################
+# 7. Cleanup
+SET GLOBAL group_replication_clone_threshold= CLONE_THRESHOLD_VALUE;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
+[connection server_1_1]
+DROP TABLE t1;
+include/rpl_sync.inc
+[connection server2]
+include/clean_monitoring_process.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 3633 : Concurrent DDL is performed during clone operation. Please try again.");
+call mtr.add_suppression("Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+set session sql_log_bin=1;
+[connection server1]
+UNINSTALL PLUGIN clone;
+[connection server2]
+UNINSTALL PLUGIN clone;
+include/group_replication_end.inc

@@ -22,18 +22,19 @@ SET @group_replication_recovery_use_ssl= @@GLOBAL.group_replication_recovery_use
 SET GLOBAL group_replication_recovery_use_ssl= FALSE;
 SET @group_replication_recovery_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
-CHANGE MASTER TO MASTER_USER='u1_caching_sha2_password', MASTER_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Can't locate server public key '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
 call mtr.add_suppression("Public key is not in Privacy Enhanced Mail format: '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET SESSION sql_log_bin= 1;
 
 ############################################################

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
 #ifndef PIPELINE_HANDLERS_INCLUDED
 #define PIPELINE_HANDLERS_INCLUDED
 
+#include <assert.h>
 #include <mysql/group_replication_priv.h>
 
-#include "my_dbug.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/pipeline_interfaces.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
@@ -81,7 +81,7 @@ class Handler_start_action : public Pipeline_action {
  public:
   Handler_start_action() : Pipeline_action(HANDLER_START_ACTION) {}
 
-  ~Handler_start_action() {}
+  ~Handler_start_action() override = default;
 };
 
 /**
@@ -93,7 +93,7 @@ class Handler_stop_action : public Pipeline_action {
  public:
   Handler_stop_action() : Pipeline_action(HANDLER_STOP_ACTION) {}
 
-  ~Handler_stop_action() {}
+  ~Handler_stop_action() override = default;
 };
 
 /**
@@ -120,7 +120,7 @@ class Handler_applier_configuration_action : public Pipeline_action {
         applier_shutdown_timeout(plugin_shutdown_timeout),
         group_sidno(group_sidno),
         initialization_conf(true) {
-    DBUG_ASSERT(applier_name != NULL);
+    assert(applier_name != nullptr);
   }
 
   /**
@@ -130,13 +130,13 @@ class Handler_applier_configuration_action : public Pipeline_action {
   */
   Handler_applier_configuration_action(ulong plugin_shutdown_timeout)
       : Pipeline_action(HANDLER_APPLIER_CONF_ACTION),
-        applier_name(NULL),
+        applier_name(nullptr),
         reset_logs(false),
         applier_shutdown_timeout(plugin_shutdown_timeout),
         group_sidno(0),
         initialization_conf(false) {}
 
-  ~Handler_applier_configuration_action() {}
+  ~Handler_applier_configuration_action() override = default;
 
   /**
     @return the applier's name
@@ -155,9 +155,8 @@ class Handler_applier_configuration_action : public Pipeline_action {
    Informs if this is a action with configurations for initialization or just
    timeout configurations.
 
-   @return
-     @retval true    if initialization action
-     @retval false   if timeout configuration action
+   @retval true    if initialization action
+   @retval false   if timeout configuration action
   */
   bool is_initialization_conf() { return initialization_conf; }
 

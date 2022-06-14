@@ -119,12 +119,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 INT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -948,11 +948,11 @@ INSERT INTO mt2 VALUES (3,4433,10005,493,500);
 INSERT INTO mt2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE mt2,mt1 set mt2.colE = mt2.colE + 1,colF=0 WHERE mt1.colA = mt2.colA AND (mt1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-496' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-497' for key 'mt2.PRIMARY'
 SELECT * FROM mt2;
 colC	colA	colD	colE	colF
 3	4433	10005	492	500
@@ -1258,12 +1258,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 TINYINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 TINYINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -2033,12 +2033,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 SMALLINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 SMALLINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -2780,12 +2780,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 MEDIUMINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 MEDIUMINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -3527,12 +3527,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BIGINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,11 +145,11 @@ struct THR_LOCK {
   /* write_lock_count is incremented for write locks and reset on read locks */
   ulong write_lock_count{0};
   uint read_no_write_count{0};
-  void (*get_status)(void *, int){0}; /* When one gets a lock */
-  void (*copy_status)(void *, void *){0};
-  void (*update_status)(void *){0};  /* Before release of write */
-  void (*restore_status)(void *){0}; /* Before release of read */
-  bool (*check_status)(void *){0};
+  void (*get_status)(void *, int){nullptr}; /* When one gets a lock */
+  void (*copy_status)(void *, void *){nullptr};
+  void (*update_status)(void *){nullptr};  /* Before release of write */
+  void (*restore_status)(void *){nullptr}; /* Before release of read */
+  bool (*check_status)(void *){nullptr};
 };
 
 extern LIST *thr_lock_thread_list;
@@ -171,8 +171,6 @@ void thr_multi_unlock(THR_LOCK_DATA **data, uint count);
 void thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
 void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread);
 void thr_print_locks(void); /* For debugging */
-void thr_downgrade_write_lock(THR_LOCK_DATA *data,
-                              enum thr_lock_type new_lock_type);
 void thr_set_lock_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void));
 #endif /* _thr_lock_h */

@@ -1,0 +1,30 @@
+include/gtid_utils.inc
+RESET MASTER;
+SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT='00000000-0000-0000-0000-000000000000:2';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+INSERT INTO t1 VALUES (2);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:2';
+INSERT INTO t1 VALUES (3);
+SET GTID_NEXT=AUTOMATIC;
+[==========] Running 5 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 5 tests from TestMysqlProtoReader
+[ RUN      ] TestMysqlProtoReader.ReadEmptyState
+[       OK ] TestMysqlProtoReader.ReadEmptyState
+[ RUN      ] TestMysqlProtoReader.ReadUpdatedState
+[       OK ] TestMysqlProtoReader.ReadUpdatedState
+[ RUN      ] TestMysqlProtoReader.RereadUpdatedState
+[       OK ] TestMysqlProtoReader.RereadUpdatedState
+[ RUN      ] TestMysqlProtoReader.RereadSerializedState
+[       OK ] TestMysqlProtoReader.RereadSerializedState
+[ RUN      ] TestMysqlProtoReader.ReadUpdateImplicitState
+[       OK ] TestMysqlProtoReader.ReadUpdateImplicitState
+[----------] Global test environment tear-down
+[==========] 5 tests from 1 test suite ran.
+[  PASSED  ] 5 tests.
+DROP TABLE t1;
+RESET MASTER;
+include/gtid_utils_end.inc

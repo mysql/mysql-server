@@ -1,0 +1,128 @@
+--echo #
+--echo # WL#12261 Control (enforce and disable) table encryption
+--echo #
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT ALL ON db2.* TO u1@localhost;
+GRANT ALL ON sch1.* TO u1@localhost;
+GRANT ALL ON sch2.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+connect (con1, localhost, u1);
+
+--echo # The test cases run RENAME TABLE to move tables from one database
+--echo # to another, with tables using file-per-table or general
+--echo # tablespace. And these operations are run in below configuration,
+--echo #
+--echo # - Setting table_encryption_privilege_check to true/false.
+--echo # - Setting per database default encryption to 'y' and 'n'
+--echo # - Setting table's encryption mode to 'y' and 'n'.
+--echo # - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+--echo # -
+--echo # - Check for warnings generated.
+--echo #
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test using innodb_file_per_table tablespace.
+--let alter_tablespace_name=innodb_file_per_table
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+--let caseno=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=false
+--let privilege_check=false
+
+--let table_encryption='n'
+--source ./rename_table.inc
+--let table_encryption='y'
+--source ./rename_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=true
+--let privilege_check=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure when the table encryption does not match
+--echo # with default database encryption.
+--let table_encryption='n'
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./rename_table.inc
+
+--let has_grant=true
+--let table_encryption='n'
+--source ./alter_rename_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure when the table encryption does not match
+--echo # with default database encryption.
+--let table_encryption='y'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./rename_table.inc
+
+--let has_grant=true
+--let table_encryption='y'
+--source ./alter_rename_table.inc
+--let has_grant=false
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test using general tablespace.
+--let alter_tablespace_name=ts1
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=false
+--let privilege_check=false
+
+--let table_encryption='n'
+--source ./rename_table.inc
+--let table_encryption='y'
+--source ./rename_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=true
+--let privilege_check=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure when the table encryption does not match
+--echo # with default database encryption.
+--let table_encryption='n'
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./rename_table.inc
+
+--let has_grant=true
+--let table_encryption='n'
+--source ./alter_rename_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # We expect failure when the table encryption does not match
+--echo # with default database encryption.
+--let table_encryption='y'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./rename_table.inc
+
+--let has_grant=true
+--let table_encryption='y'
+--source ./alter_rename_table.inc
+--let has_grant=false
+
+--echo # Cleanup
+disconnect con1;
+connection default;
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,11 +32,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Returns a new row id.
  @return the new id */
-UNIV_INLINE
-row_id_t dict_sys_get_new_row_id(void) {
+static inline row_id_t dict_sys_get_new_row_id(void) {
   row_id_t id;
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   id = dict_sys->row_id;
 
@@ -46,40 +45,34 @@ row_id_t dict_sys_get_new_row_id(void) {
 
   dict_sys->row_id++;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   return (id);
 }
 
 /** Reads a row id from a record or other 6-byte stored form.
  @return row id */
-UNIV_INLINE
-row_id_t dict_sys_read_row_id(const byte *field) /*!< in: record field */
+static inline row_id_t dict_sys_read_row_id(
+    const byte *field) /*!< in: record field */
 {
-#if DATA_ROW_ID_LEN != 6
-#error "DATA_ROW_ID_LEN != 6"
-#endif
+  static_assert(DATA_ROW_ID_LEN == 6, "DATA_ROW_ID_LEN != 6");
 
   return (mach_read_from_6(field));
 }
 
 /** Writes a row id to a record or other 6-byte stored form. */
-UNIV_INLINE
-void dict_sys_write_row_id(byte *field,     /*!< in: record field */
-                           row_id_t row_id) /*!< in: row id */
+static inline void dict_sys_write_row_id(byte *field, /*!< in: record field */
+                                         row_id_t row_id) /*!< in: row id */
 {
-#if DATA_ROW_ID_LEN != 6
-#error "DATA_ROW_ID_LEN != 6"
-#endif
+  static_assert(DATA_ROW_ID_LEN == 6, "DATA_ROW_ID_LEN != 6");
 
   mach_write_to_6(field, row_id);
 }
 
 /** Check if a table id belongs to old innodb internal system table.
-@param[in]	id		table id
+@param[in]      id              table id
 @return true if the table id belongs to a system table. */
-UNIV_INLINE
-bool dict_is_old_sys_table(table_id_t id) {
+static inline bool dict_is_old_sys_table(table_id_t id) {
   if (srv_is_upgrade_mode) {
     return (id < DICT_HDR_FIRST_ID);
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,15 @@
 
 #include "sql/conn_handler/init_net_server_extension.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_socket_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_idle.h"  // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_statement.h"
@@ -48,11 +49,11 @@
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
-                                  void *user_data, size_t /* unused: count */) {
+static void net_before_header_psi(NET *net [[maybe_unused]], void *user_data,
+                                  size_t /* unused: count */) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
-  DBUG_ASSERT(thd != NULL);
+  assert(thd != nullptr);
 
   if (thd->m_server_idle) {
     /*
@@ -65,14 +66,15 @@ static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
     MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
     MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
   }
+
+  mysql_thread_set_secondary_engine(false);
 }
 
-static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
-                                 void *user_data, size_t /* unused: count */,
-                                 bool rc) {
+static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
+                                 size_t /* unused: count */, bool rc) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
-  DBUG_ASSERT(thd != NULL);
+  assert(thd != nullptr);
 
   if (thd->m_server_idle) {
     /*
@@ -89,10 +91,10 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
 
     if (!rc) {
-      DBUG_ASSERT(thd->m_statement_psi == NULL);
+      assert(thd->m_statement_psi == nullptr);
       thd->m_statement_psi = MYSQL_START_STATEMENT(
           &thd->m_statement_state, stmt_info_new_packet.m_key, thd->db().str,
-          thd->db().length, thd->charset(), NULL);
+          thd->db().length, thd->charset(), nullptr);
 
       /*
         Starts a new stage in performance schema, if compiled in and enabled.
@@ -112,15 +114,15 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
 
 void init_net_server_extension(THD *thd) {
   /* Start with a clean state for connection events. */
-  thd->m_idle_psi = NULL;
-  thd->m_statement_psi = NULL;
+  thd->m_idle_psi = nullptr;
+  thd->m_statement_psi = nullptr;
   thd->m_server_idle = false;
 
   /* Hook up the NET_SERVER callback in the net layer. */
   thd->m_net_server_extension.m_user_data = thd;
   thd->m_net_server_extension.m_before_header = net_before_header_psi;
   thd->m_net_server_extension.m_after_header = net_after_header_psi;
-
+  thd->m_net_server_extension.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   /* Activate this private extension for the mysqld server. */
   thd->get_protocol_classic()->get_net()->extension =
       &thd->m_net_server_extension;

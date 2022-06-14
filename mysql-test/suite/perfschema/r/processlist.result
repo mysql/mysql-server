@@ -1,0 +1,201 @@
+##
+## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+##
+## Test cases:
+##   1. Execute the new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
+##   2. Execute the legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
+##   3. Verify that performance_schema_show_processlist = ON executes the new implementation
+##   4. Verify that performance_schema_show_processlist = OFF executes the legacy code path
+##
+## Results must be manually verified.
+
+### Setup ###
+
+select @@global.performance_schema_show_processlist into @save_processlist;
+
+create user user1@localhost, user2@localhost,
+user3@localhost, user4@localhost;
+
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+
+flush privileges;
+
+use test;
+create table test.t1 (s1 int, s2 int, s3 int, s4 int);
+
+# Switch to (con0, localhost, root, , )
+
+insert into test.t1 values(1, 1, 1, 1);
+insert into test.t1 values(2, 2, 2, 2);
+insert into test.t1 values(3, 3, 3, 3);
+insert into test.t1 values(4, 4, 4, 4);
+
+# Lock test.t1, insert/update/deletes will block
+lock tables t1 read;
+
+# Connect (con1, localhost, user1, , )
+insert into test.t1 values (0, 0, 0, 0);
+
+# Connect (con2, localhost, user2, , )
+update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999;;
+
+# Connect (con3, localhost, user3, , )
+delete from test.t1 where s1 = 3;
+
+# Connect (con4, localhost, user4, , )
+insert into test.t1 values (4, 4, 4, 4);
+
+# Connection default
+
+# Wait for queries to appear in the processlist table
+
+
+### Execute new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
+
+set @@global.performance_schema_show_processlist = on;
+
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+
+# Performance Schema processlist table
+
+select * from performance_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
+
+# Information Schema processlist table
+
+select * from information_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+
+
+### Execute legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
+
+set @@global.performance_schema_show_processlist = off;
+
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+
+# Performance Schema processlist table
+
+select * from performance_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
+
+# Information Schema processlist table
+
+select * from information_schema.processlist order by user, id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+
+
+### Verify feature code path
+
+# Enable SHOW PROCESSLIST via the Performance Schema
+set @@global.performance_schema_show_processlist = on;
+
+# Connection default, send SHOW PROCESSLIST
+SET DEBUG_SYNC='pfs_show_processlist_performance_schema SIGNAL pfs_processlist_pfs WAIT_FOR continue';
+SHOW FULL PROCESSLIST;
+
+# Connection con0
+SET DEBUG_SYNC='now WAIT_FOR pfs_processlist_pfs';
+SET DEBUG_SYNC='now SIGNAL continue';
+
+# Connection default, reap
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	<Info>
+
+
+### Verify legacy code path
+
+# Enable the legacy SHOW PROCESSLIST
+set @@global.performance_schema_show_processlist = off;
+
+# Connection default, send SHOW PROCESSLIST
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='pfs_show_processlist_legacy SIGNAL pfs_processlist_legacy WAIT_FOR continue';
+SHOW FULL PROCESSLIST;
+
+# Connection con0
+SET DEBUG_SYNC='now WAIT_FOR pfs_processlist_legacy';
+SET DEBUG_SYNC='now SIGNAL continue';
+
+# Connection default, reap
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	<Info>
+
+
+### Clean up ###
+
+# Connection con0, unlock test.t1, disconnect
+unlock tables;
+
+# Connection con1, reap, disconnect
+# Connection con2, reap, disconnect
+# Connection con3, reap, disconnect
+# Connection con4, reap, disconnect
+
+# Connection default
+
+drop table test.t1;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+
+set @@global.performance_schema_show_processlist = @save_processlist;

@@ -1,0 +1,27 @@
+#
+# Validate that list of senders is updated when a replica has two configured
+# groups
+#
+# Test:
+#   0. The test requires 5 servers:
+#        server1: group A primary
+#        server2: group A secondary
+#        server3: group B primary
+#        server4: group B secondary
+#        server5: single server
+#   1. Deploy a 1 member group A in single primary mode.
+#   2. Deploy a 1 member group B in single primary mode.
+#   3. Configure replica to manage the asynchronous connection
+#      to groups A and B.
+#   4. Create and start the managed channel.
+#   5. Add secondary member to group A and validate is added to list of senders
+#   6. Add secondary member to group B and validate is added to list of senders
+#   7. Remove secondary member from group B and validate is removed from
+#      list of senders
+#   8. Remove secondary member from group A and validate is removed from
+#      list of senders
+#   9. Clean up.
+#
+################################################################################
+
+--source ../include/gr_acf_membership_updates_2groups.inc

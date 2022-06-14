@@ -16,7 +16,7 @@ CREATE TABLE t3 (f3 INT);
 
 PREPARE check_view_columns FROM
   'SELECT table_name, column_name, column_type FROM information_schema.columns
-   WHERE table_name= ?';
+   WHERE table_name= ? ORDER BY table_name, column_name';
 PREPARE check_view_status FROM
   'SELECT table_name, table_comment FROM information_schema.tables WHERE
    table_name= ?';
@@ -80,6 +80,7 @@ ALTER TABLE t2 CHANGE f2 f2 CHAR(100);
 SET @view='v2';
 EXECUTE check_view_columns USING @view;
 SET @view='v3';
+--sorted_result
 EXECUTE check_view_columns USING @view;
 --echo #
 --echo #
@@ -132,6 +133,7 @@ SET @view='v2';
 EXECUTE check_view_status USING @view;
 SET @view='v3';
 EXECUTE check_view_status USING @view;
+--skip_if_hypergraph   # Different warnings.
 EXECUTE check_view_columns USING @view;
 --echo #
 --echo #
@@ -312,12 +314,14 @@ EXECUTE check_view_status USING @view;
 --echo # CASE 20 - Alter view v2 to non-updatable. Verify view v2 and vw status.
 --echo # EXPECTATION: v2 and vw should be set as non-updatable.
 --echo #
+--sorted_result
 SELECT table_schema, table_name, is_updatable FROM information_schema.views
   WHERE table_name='v2';
 
 ALTER VIEW v2 AS SELECT * FROM t2 GROUP BY(f2);
 CREATE VIEW vw AS SELECT * FROM v2;
 
+--sorted_result
 SELECT table_schema, table_name, is_updatable FROM information_schema.views
   WHERE table_name='v2' OR table_name='vw';
 
@@ -327,6 +331,7 @@ SELECT table_schema, table_name, is_updatable FROM information_schema.views
 --echo #
 ALTER VIEW v2 AS SELECT * FROM t2;
 
+--sorted_result
 SELECT table_schema, table_name, is_updatable FROM information_schema.views
   WHERE table_name='v2' OR table_name='vw';
 DROP VIEW vw;

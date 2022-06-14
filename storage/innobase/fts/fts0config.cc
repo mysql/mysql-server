@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,9 +39,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Callback function for fetching the config value.
  @return always returns true */
-static ibool fts_config_fetch_value(void *row,      /*!< in: sel_node_t* */
-                                    void *user_arg) /*!< in: pointer to
-                                                     ib_vector_t */
+static bool fts_config_fetch_value(void *row,      /*!< in: sel_node_t* */
+                                   void *user_arg) /*!< in: pointer to
+                                                    ib_vector_t */
 {
   sel_node_t *node = static_cast<sel_node_t *>(row);
   fts_string_t *value = static_cast<fts_string_t *>(user_arg);
@@ -54,14 +54,14 @@ static ibool fts_config_fetch_value(void *row,      /*!< in: sel_node_t* */
   ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
 
   if (len != UNIV_SQL_NULL) {
-    ulint max_len = ut_min(value->f_len - 1, len);
+    ulint max_len = std::min(value->f_len - 1, len);
 
     memcpy(value->f_str, data, max_len);
     value->f_len = max_len;
     value->f_str[value->f_len] = '\0';
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Get value from the config table. The caller must ensure that enough
@@ -134,8 +134,8 @@ char *fts_config_create_index_param_name(
   len = strlen(param);
 
   /* Caller is responsible for deleting name. */
-  name = static_cast<char *>(
-      ut_malloc_nokey(len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
+  name = static_cast<char *>(ut::malloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
   ::strcpy(name, param);
   name[len] = '_';
 
@@ -167,7 +167,7 @@ dberr_t fts_config_get_index_value(trx_t *trx,          /*!< transaction */
 
   error = fts_config_get_value(trx, &fts_table, name, value);
 
-  ut_free(name);
+  ut::free(name);
 
   return (error);
 }
@@ -259,7 +259,7 @@ dberr_t fts_config_set_index_value(trx_t *trx,          /*!< transaction */
 
   error = fts_config_set_value(trx, &fts_table, name, value);
 
-  ut_free(name);
+  ut::free(name);
 
   return (error);
 }
@@ -278,7 +278,8 @@ dberr_t fts_config_get_index_ulint(trx_t *trx,          /*!< in: transaction */
   /* We set the length of value to the max bytes it can hold. This
   information is used by the callback that reads the value.*/
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = static_cast<byte *>(ut_malloc_nokey(value.f_len + 1));
+  value.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
   error = fts_config_get_index_value(trx, index, name, &value);
 
@@ -289,7 +290,7 @@ dberr_t fts_config_get_index_ulint(trx_t *trx,          /*!< in: transaction */
     *int_value = strtoul((char *)value.f_str, NULL, 10);
   }
 
-  ut_free(value.f_str);
+  ut::free(value.f_str);
 
   return (error);
 }
@@ -307,7 +308,8 @@ dberr_t fts_config_set_index_ulint(trx_t *trx,          /*!< in: transaction */
   /* We set the length of value to the max bytes it can hold. This
   information is used by the callback that reads the value.*/
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = static_cast<byte *>(ut_malloc_nokey(value.f_len + 1));
+  value.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
   // FIXME: Get rid of snprintf
   ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
@@ -322,7 +324,7 @@ dberr_t fts_config_set_index_ulint(trx_t *trx,          /*!< in: transaction */
         << "(" << ut_strerr(error) << ") writing `" << name << "'";
   }
 
-  ut_free(value.f_str);
+  ut::free(value.f_str);
 
   return (error);
 }
@@ -342,7 +344,8 @@ dberr_t fts_config_get_ulint(trx_t *trx,             /*!< in: transaction */
   /* We set the length of value to the max bytes it can hold. This
   information is used by the callback that reads the value.*/
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = static_cast<byte *>(ut_malloc_nokey(value.f_len + 1));
+  value.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
   error = fts_config_get_value(trx, fts_table, name, &value);
 
@@ -350,10 +353,10 @@ dberr_t fts_config_get_ulint(trx_t *trx,             /*!< in: transaction */
     ib::error(ER_IB_MSG_459)
         << "(" << ut_strerr(error) << ") reading `" << name << "'";
   } else {
-    *int_value = strtoul((char *)value.f_str, NULL, 10);
+    *int_value = strtoul((char *)value.f_str, nullptr, 10);
   }
 
-  ut_free(value.f_str);
+  ut::free(value.f_str);
 
   return (error);
 }
@@ -372,9 +375,10 @@ dberr_t fts_config_set_ulint(trx_t *trx,             /*!< in: transaction */
   /* We set the length of value to the max bytes it can hold. This
   information is used by the callback that reads the value.*/
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = static_cast<byte *>(ut_malloc_nokey(value.f_len + 1));
+  value.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
-  ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
+  static_assert(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
   value.f_len =
       snprintf((char *)value.f_str, FTS_MAX_INT_LEN, ULINTPF, int_value);
@@ -386,7 +390,7 @@ dberr_t fts_config_set_ulint(trx_t *trx,             /*!< in: transaction */
         << "(" << ut_strerr(error) << ") writing `" << name << "'";
   }
 
-  ut_free(value.f_str);
+  ut::free(value.f_str);
 
   return (error);
 }

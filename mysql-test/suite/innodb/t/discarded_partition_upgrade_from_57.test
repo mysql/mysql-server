@@ -1,0 +1,51 @@
+# Tests if upgrade from 5.7, containing partitioned Tables with discarded
+# Tablespaces fails as it should.
+#
+# Uses data prepared by discarded_partition.inc script
+#
+
+--source include/have_case_sensitive_file_system.inc
+--source include/have_innodb_16k.inc
+--source include/no_valgrind_without_big.inc
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Unzip data files from 5.7
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/discarded_partition_data_5730.zip $MYSQL_TMP_DIR/discarded_partition_data_5730.zip
+--file_exists $MYSQL_TMP_DIR/discarded_partition_data_5730.zip
+--exec unzip -qo $MYSQL_TMP_DIR/discarded_partition_data_5730.zip -d $MYSQL_TMP_DIR
+
+# Start MySQL with datadir containing data from 5.7 and log errors
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+--error 0,1
+--remove_file $error_log
+let SEARCH_FILE= $error_log;
+
+let $BUGDATADIR = $MYSQL_TMP_DIR/data_upgrade;
+
+# Make sure that MySQL start failed and search error log for message
+# about impossible upgrade because of discarded Tablespaces
+--error 1
+--exec $MYSQLD_CMD --loose-console --datadir=$BUGDATADIR > $error_log 2>&1
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Upgrade failed because database contains discarded tablespaces\.;
+--source include/search_pattern.inc
+
+# Cleanup
+--remove_file $error_log
+--force-rmdir $MYSQL_TMP_DIR/data_upgrade
+--remove_file $MYSQL_TMP_DIR/discarded_partition_data_5730.zip
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $restart_file
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect

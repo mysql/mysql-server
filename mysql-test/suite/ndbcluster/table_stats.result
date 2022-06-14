@@ -1,0 +1,238 @@
+# ###################################################################
+# Show that local table stats are correctly reflecting number of
+# records in table at failure to insert, both with and without trans
+# - in particular this shows how the "uncomitted rows" value in Thd_ndb
+#   is handled
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "this is in the way");
+SELECT COUNT(*) as "count should be 1" FROM t1;
+count should be 1
+1
+INSERT INTO t1 VALUES (1, "duplicate key");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+INSERT INTO t1 VALUES
+(2, "val2"), (3, "val3"), (4, "val4"),
+(1, "duplicate key, 3 uncommitted");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES
+(2, "val2"), (3, "val3"), (4, "val4");
+SELECT COUNT(*) as "count should be 4" FROM t1;
+count should be 4
+4
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction, 3 uncommitted");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1, whole trans aborted" FROM t1;
+count should still be 1, whole trans aborted
+1
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+ROLLBACK;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES
+(2, "val2"), (3, "val3"), (4, "val4");
+SELECT COUNT(*) as "count should be 4" FROM t1;
+count should be 4
+4
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction, 3 uncommitted");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1, whole trans aborted" FROM t1;
+count should still be 1, whole trans aborted
+1
+ROLLBACK;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t2 VALUES
+(10, "val10"), (12, "val12"), (13, "val13"), (14, "val14"), (15, "val15");
+BEGIN;
+INSERT INTO t2 VALUES (1, "val1"), (2, "val2"), (3, "val3"), (4, "val4");
+SELECT COUNT(*) as "count should be 9" FROM t2;
+count should be 9
+9
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+SELECT COUNT(*) as "count should be 5, trans aborted" FROM t2;
+count should be 5, trans aborted
+5
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+SELECT COUNT(*) as "count should be 5" FROM t2;
+count should be 5
+5
+DROP TABLE t2;
+DROP TABLE t1;
+# ###################################################################
+# Test I_S and SHOW commands that present table stats
+#
+# Test with 0, 1, 2 and 10 rows in the table since special case exists
+# for masking out 0 and 1 row for other queries.
+#
+# NOTE! This test shows that only SHOW INDEX and SHOW TABLE STATUS
+# bypass the "records = min(records, 2)" while all the I_S queries
+# never show less than 2 rows.
+#
+# Turn off "cached statistics" in INFORMATION_SCHEMA to always fetch
+# latest stats from storage engine
+set @save_information_schema_stats_expiry = @@information_schema_stats_expiry;
+set @@information_schema_stats_expiry=0;
+#
+# Create table with only one primary key index
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255),
+c int NOT NULL
+) ENGINE = NDB;
+#### TEST LOOP 0 ####
+SELECT COUNT(*) as "rows in table" FROM t1;
+rows in table
+0
+# SELECT .. FROM INFORMATION_SCHEMA.TABLES
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+TABLE_ROWS
+2
+# SHOW TABLE STATUS
+Rows: 0
+# SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+2
+# SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+Cardinality: 0
+INSERT INTO t1 VALUES (0, "Row 0", 37+0);
+#### TEST LOOP 1 ####
+SELECT COUNT(*) as "rows in table" FROM t1;
+rows in table
+1
+# SELECT .. FROM INFORMATION_SCHEMA.TABLES
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+TABLE_ROWS
+2
+# SHOW TABLE STATUS
+Rows: 1
+# SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+2
+# SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+Cardinality: 1
+INSERT INTO t1 VALUES (1, "Row 1", 37+1);
+#### TEST LOOP 2 ####
+SELECT COUNT(*) as "rows in table" FROM t1;
+rows in table
+2
+# SELECT .. FROM INFORMATION_SCHEMA.TABLES
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+TABLE_ROWS
+2
+# SHOW TABLE STATUS
+Rows: 2
+# SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+2
+# SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+Cardinality: 2
+INSERT INTO t1 VALUES (2, "Row 2", 37+2);
+#### TEST LOOP 3 ####
+SELECT COUNT(*) as "rows in table" FROM t1;
+rows in table
+3
+# SELECT .. FROM INFORMATION_SCHEMA.TABLES
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+TABLE_ROWS
+3
+# SHOW TABLE STATUS
+Rows: 3
+# SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+3
+# SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+Cardinality: 3
+INSERT INTO t1 VALUES (3, "Row 3", 37+3);
+INSERT INTO t1 VALUES
+(14, "extra row 4", 44), (15, "extra row 5", 45), (16, "extra row 6", 46),
+(17, "extra row 7", 47), (18, "extra row 8", 48), (19, "extra row 9", 49);
+#### TEST LOOP 4 ####
+SELECT COUNT(*) as "rows in table" FROM t1;
+rows in table
+10
+# SELECT .. FROM INFORMATION_SCHEMA.TABLES
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+TABLE_ROWS
+10
+# SHOW TABLE STATUS
+Rows: 10
+# SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+10
+# SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+Cardinality: 10
+INSERT INTO t1 VALUES (4, "Row 4", 37+4);
+DROP TABLE t1;
+set @@information_schema_stats_expiry = @save_information_schema_stats_expiry;
+# ###################################################################
+#
+# Test table stats with several tables updated in transaction.
+# - when transaction is committed the "cached table stats" for all
+#   tables registered in the transaction will be updated with number
+#   of rows changed by transaction, nothing is updated during rollback.
+# - This test exercise the logic for maintaining "cached table stats"
+#   by using 32 different tables in same transaction, however
+#   it's not possible to check the value from SQL level
+#
+# Create tables and load data
+# Run transaction with update of all tables, commit
+# Run transaction with update of all tables, rollback
+# Drop tables

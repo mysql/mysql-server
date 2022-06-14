@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include "univ.i"
 
 #include <atomic>
@@ -44,6 +42,9 @@
 #include "ut0new.h"
 #include "ut0rnd.h"
 
+#include <mysql/components/minimal_chassis.h> /* minimal_chassis_init() */
+#include <mysql/components/service.h>         /* SERVICE_TYPE_NO_CONST */
+
 static std::map<std::string, std::vector<std::string>> log_sync_points = {
     {"log_buffer_exclussive_access",
      {"log_buffer_x_lock_enter_before_lock",
@@ -57,7 +58,7 @@ static std::map<std::string, std::vector<std::string>> log_sync_points = {
       "log_wait_for_space_in_buf_middle"}},
 
     {"log_buffer_reserve",
-     {"log_buffer_reserve_before_sn_limit_for_end",
+     {"log_buffer_reserve_before_buf_limit_sn",
       "log_buffer_reserve_before_confirmation"}},
 
     {"log_buffer_write",
@@ -74,9 +75,7 @@ static std::map<std::string, std::vector<std::string>> log_sync_points = {
       "log_writer_before_write_new_incomplete_block",
       "log_writer_before_write_ahead", "log_writer_after_checkpoint_check",
       "log_writer_after_archiver_check", "log_writer_before_lsn_update",
-      "log_writer_before_limits_update", "log_writer_write_end",
-      "log_update_limits_middle_1", "log_update_limits_middle_2",
-      "log_update_limits_middle_3"}},
+      "log_writer_before_buf_limit_update", "log_writer_write_end"}},
 
     {"log_closer",
      {"log_advance_dpa_before_reclaim", "log_advance_dpa_before_update"}},
@@ -115,6 +114,11 @@ constexpr int LOG_TEST_N_STEPS = 20;
 
 fil_space_t *log_space;
 
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+
+extern ulong srv_log_checkpoint_every;
+extern ulong srv_log_wait_for_flush_timeout;
+
 static bool log_test_general_init() {
   ut_new_boot_safe();
 
@@ -125,11 +129,12 @@ static bool log_test_general_init() {
   srv_log_flush_events = 64;
   srv_log_recent_written_size = 4 * 4096;
   srv_log_recent_closed_size = 4 * 4096;
+  srv_log_writer_threads = true;
   srv_log_wait_for_write_spin_delay = 0;
   srv_log_wait_for_flush_timeout = 100000;
   srv_log_write_max_size = 4096;
   srv_log_writer_spin_delay = 25000;
-  srv_log_checkpoint_every = 1000000000;
+  srv_log_checkpoint_every = INNODB_LOG_CHECKPOINT_EVERY_DEFAULT;
   srv_log_flusher_spin_delay = 25000;
   srv_log_write_notifier_spin_delay = 0;
   srv_log_flush_notifier_spin_delay = 0;
@@ -147,6 +152,7 @@ static bool log_test_general_init() {
   srv_n_read_io_threads = 1;
   srv_n_write_io_threads = 1;
 
+  os_event_global_init();
   sync_check_init(srv_max_n_threads);
   recv_sys_var_init();
   os_thread_open();
@@ -154,16 +160,16 @@ static bool log_test_general_init() {
   os_create_block_cache();
   clone_init();
 
-  const size_t max_n_pending_sync_ios = 100;
-
-  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads,
-                   max_n_pending_sync_ios)) {
+  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads)) {
     std::cerr << "Cannot initialize aio system" << std::endl;
     return (false);
   }
 
   const size_t max_n_open_files = 1000;
 
+  /* Below function will initialize the srv_registry variable which is
+  required for the mysql_plugin_registry_acquire() */
+  minimal_chassis_init(&srv_registry, nullptr);
   fil_init(max_n_open_files);
 
   log_space = fil_space_create(
@@ -212,9 +218,8 @@ static bool log_test_init() {
       return (false);
     }
 
-    ret =
-        os_file_set_size(filename, files[i], 0, (os_offset_t)srv_log_file_size,
-                         srv_read_only_mode, false);
+    ret = os_file_set_size(filename, files[i], 0,
+                           (os_offset_t)srv_log_file_size, false);
     if (!ret) {
       std::cerr << "Cannot set log file " << filename << " to size "
                 << (srv_log_file_size >> 20) << " MB" << std::endl;
@@ -264,7 +269,8 @@ static bool log_test_recovery() {
   srv_is_being_started = true;
   recv_sys_create();
 
-  recv_sys_init(4 * 1024 * 1024);
+  /** DBLWR directory is the current directory. */
+  recv_sys_init();
 
   const bool result = log_sys_init(srv_n_log_files, srv_log_file_size,
                                    dict_sys_t::s_log_space_first_id);
@@ -278,7 +284,7 @@ static bool log_test_recovery() {
   srv_is_being_started = false;
 
   if (err == DB_SUCCESS) {
-    auto *ret = recv_recovery_from_checkpoint_finish(log, true);
+    auto *ret = recv_recovery_from_checkpoint_finish(true);
     EXPECT_EQ(nullptr, ret);
 
   } else {
@@ -286,7 +292,7 @@ static bool log_test_recovery() {
 
     /* XXX: Shouldn't this be guaranteed within log0recv.cc ? */
     while (srv_thread_is_active(srv_threads.m_recv_writer)) {
-      os_thread_sleep(100 * 1000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
 
@@ -310,7 +316,7 @@ static void run_threads(TFunctor f, size_t n_threads) {
         [&f, &ready, &started](size_t thread_no) {
           ++ready;
           while (!started) {
-            os_thread_sleep(0);
+            std::this_thread::sleep_for(std::chrono::seconds(0));
           }
           f(thread_no);
         },
@@ -318,7 +324,7 @@ static void run_threads(TFunctor f, size_t n_threads) {
   }
 
   while (ready < n_threads) {
-    os_thread_sleep(0);
+    std::this_thread::sleep_for(std::chrono::seconds(0));
   }
   started = true;
 
@@ -345,16 +351,16 @@ static lsn_t write_single_mlog_test(Log_test::Key key) {
   mach_write_to_8(record_end - 8, handle.end_lsn);
 
   const lsn_t end_lsn =
-      log_buffer_write(log, handle, record, rec_len, handle.start_lsn);
+      log_buffer_write(log, record, rec_len, handle.start_lsn);
 
   ut_a(end_lsn == handle.end_lsn);
 
   if (handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
       end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-    log_buffer_set_first_record_group(log, handle, end_lsn);
+    log_buffer_set_first_record_group(log, end_lsn);
   }
 
-  log_buffer_write_completed(log, handle, handle.start_lsn, end_lsn);
+  log_buffer_write_completed(log, handle.start_lsn, end_lsn);
 
   log_wait_for_space_in_log_recent_closed(log, handle.start_lsn);
 
@@ -442,7 +448,7 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
       ++end;
     }
 
-    end_lsn = log_buffer_write(log, handle, ptr, rec_len, start_lsn);
+    end_lsn = log_buffer_write(log, ptr, rec_len, start_lsn);
 
     left_to_write -= rec_len;
     ptr = end;
@@ -450,10 +456,10 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
 
     if (left_to_write == 0 && group_start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
                                   end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-      log_buffer_set_first_record_group(log, handle, end_lsn);
+      log_buffer_set_first_record_group(log, end_lsn);
     }
 
-    log_buffer_write_completed(log, handle, start_lsn, end_lsn);
+    log_buffer_write_completed(log, start_lsn, end_lsn);
 
     start_lsn = end_lsn;
   }
@@ -531,9 +537,13 @@ static void log_test_general_close() {
 
   fil_close();
 
+  minimal_chassis_deinit(srv_registry, nullptr);
+
   os_thread_close();
 
   sync_check_close();
+
+  os_event_global_destroy();
 
   srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
@@ -625,9 +635,10 @@ for context switch. However that's good enough for now. */
 
     void sync() override {
       if (m_max_us == 0) {
-        os_thread_yield();
+        std::this_thread::yield();
       } else {
-        os_thread_sleep(ut_rnd_interval(m_min_us, m_max_us));
+        std::this_thread::sleep_for(
+            std::chrono::microseconds(ut_rnd_interval(m_min_us, m_max_us)));
       }
     }
 
@@ -666,7 +677,7 @@ static void test_single(const std::string &group) {
 
 class Log_test_disturber {
  public:
-  virtual ~Log_test_disturber() {}
+  virtual ~Log_test_disturber() = default;
 
   virtual void disturb() = 0;
 };
@@ -710,7 +721,7 @@ void Log_background_disturber::run() {
 
     const auto sleep_time = ut_rnd_interval(0, 300 * 1000);
 
-    os_thread_sleep(sleep_time);
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
   }
 }
 

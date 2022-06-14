@@ -1,6 +1,7 @@
 #
 # WL#11652 -- Support multiple addresses for the --bind-address command option
 #
+# restart: --bind-address=127.0.0.1,::1
 #
 # Server is started with --bind-address=127.0.0.1,::1
 # Check that server accepts incoming connection both
@@ -42,7 +43,7 @@ SELECT @@global.bind_address;
 @@global.bind_address
 ::
 # Stop DB server which was created by MTR default
-# Check seperators not being ','.
+# Check separators not being ','.
 # Check that specially treated value :: is not allowed as part of
 # multi-value option bind-address.
 Pattern "Invalid value for command line option bind-addresses:" found

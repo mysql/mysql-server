@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "unittest/gunit/libmysqlgcs/include/gcs_base_test.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,8 @@
 
 using std::string;
 
+using ::testing::NiceMock;
+
 namespace gcs_xcom_control_unittest {
 typedef enum { JJ = 0, LL = 1, JL = 2, LJ = 3 } InvocationOrder;
 
@@ -48,7 +51,7 @@ class InvocationHelper {
         order(o),
         count_fail(0),
         count_success(0) {
-    mutex.init(PSI_NOT_INSTRUMENTED, NULL);
+    mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
   }
 
   ~InvocationHelper() { mutex.destroy(); }
@@ -127,7 +130,7 @@ class mock_gcs_xcom_view_change_control_interface
 
  public:
   mock_gcs_xcom_view_change_control_interface()
-      : m_current_view(NULL),
+      : m_current_view(nullptr),
         m_belongs_to_group(false),
         m_mutex_current_view(),
         m_joining_leaving_mutex(),
@@ -135,11 +138,11 @@ class mock_gcs_xcom_view_change_control_interface
         m_leaving(false)
 
   {
-    m_mutex_current_view.init(PSI_NOT_INSTRUMENTED, NULL);
-    m_joining_leaving_mutex.init(PSI_NOT_INSTRUMENTED, NULL);
+    m_mutex_current_view.init(PSI_NOT_INSTRUMENTED, nullptr);
+    m_joining_leaving_mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
   }
 
-  ~mock_gcs_xcom_view_change_control_interface() {
+  ~mock_gcs_xcom_view_change_control_interface() override {
     m_mutex_current_view.destroy();
     m_joining_leaving_mutex.destroy();
   }
@@ -149,7 +152,10 @@ class mock_gcs_xcom_view_change_control_interface
   MOCK_METHOD0(wait_for_view_change_end, void());
   MOCK_METHOD0(is_view_changing, bool());
 
-  bool start_leave() {
+  MOCK_METHOD0(finalize, void());
+  MOCK_METHOD0(is_finalized, bool());
+
+  bool start_leave() override {
     bool retval = false;
 
     m_joining_leaving_mutex.lock();
@@ -160,13 +166,13 @@ class mock_gcs_xcom_view_change_control_interface
     return !retval;
   }
 
-  void end_leave() {
+  void end_leave() override {
     m_joining_leaving_mutex.lock();
     m_leaving = false;
     m_joining_leaving_mutex.unlock();
   }
 
-  bool is_leaving() {
+  bool is_leaving() override {
     bool retval;
 
     m_joining_leaving_mutex.lock();
@@ -176,7 +182,7 @@ class mock_gcs_xcom_view_change_control_interface
     return retval;
   }
 
-  bool start_join() {
+  bool start_join() override {
     bool retval = false;
 
     m_joining_leaving_mutex.lock();
@@ -187,13 +193,13 @@ class mock_gcs_xcom_view_change_control_interface
     return !retval;
   }
 
-  void end_join() {
+  void end_join() override {
     m_joining_leaving_mutex.lock();
     m_joining = false;
     m_joining_leaving_mutex.unlock();
   }
 
-  bool is_joining() {
+  bool is_joining() override {
     bool retval;
 
     m_joining_leaving_mutex.lock();
@@ -203,30 +209,34 @@ class mock_gcs_xcom_view_change_control_interface
     return retval;
   }
 
-  void set_current_view(Gcs_view *view) {
+  void set_current_view(Gcs_view *view) override {
     m_mutex_current_view.lock();
     delete m_current_view;
     m_current_view = view;
     m_mutex_current_view.unlock();
   }
 
-  void set_unsafe_current_view(Gcs_view *view) { set_current_view(view); }
+  void set_unsafe_current_view(Gcs_view *view) override {
+    set_current_view(view);
+  }
 
-  Gcs_view *get_current_view() {
-    Gcs_view *view = NULL;
+  Gcs_view *get_current_view() override {
+    Gcs_view *view = nullptr;
 
     m_mutex_current_view.lock();
-    if (m_current_view != NULL) view = new Gcs_view(*m_current_view);
+    if (m_current_view != nullptr) view = new Gcs_view(*m_current_view);
     m_mutex_current_view.unlock();
 
     return view;
   }
 
-  Gcs_view *get_unsafe_current_view() { return m_current_view; }
+  Gcs_view *get_unsafe_current_view() override { return m_current_view; }
 
-  bool belongs_to_group() { return m_belongs_to_group; }
+  bool belongs_to_group() override { return m_belongs_to_group; }
 
-  void set_belongs_to_group(bool belong) { m_belongs_to_group = belong; }
+  void set_belongs_to_group(bool belong) override {
+    m_belongs_to_group = belong;
+  }
 };
 
 // This typedef is needed because GMock can't deal with multiple template args.
@@ -316,8 +326,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
 
  public:
   mock_gcs_xcom_proxy() {
-    ON_CALL(*this, xcom_exit(_)).WillByDefault(Return(0));
-    ON_CALL(*this, xcom_input_connect()).WillByDefault(Return(true));
+    ON_CALL(*this, xcom_input_connect(_, _)).WillByDefault(Return(true));
     ON_CALL(*this, test_xcom_tcp_connection(_, _)).WillByDefault(Return(true));
     ON_CALL(*this, xcom_client_boot(_, _)).WillByDefault(Return(true));
     ON_CALL(*this, xcom_client_add_node(_, _, _)).WillByDefault(Return(false));
@@ -334,7 +343,8 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   }
 
   MOCK_METHOD3(new_node_address_uuid,
-               node_address *(unsigned int n, char *names[], blob uuids[]));
+               node_address *(unsigned int n, char const *names[],
+                              blob uuids[]));
   MOCK_METHOD2(delete_node_address, void(unsigned int n, node_address *na));
   MOCK_METHOD3(xcom_client_add_node, bool(connection_descriptor *con,
                                           node_list *nl, uint32_t group_id));
@@ -348,6 +358,13 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
                     xcom_event_horizon event_horizon));
   MOCK_METHOD2(xcom_client_set_event_horizon,
                bool(uint32_t group_id, xcom_event_horizon event_horizon));
+  MOCK_METHOD2(xcom_client_set_max_leaders,
+               bool(uint32_t group_id, node_no max_leaders));
+  MOCK_METHOD4(xcom_client_set_leaders,
+               bool(uint32_t group_id, u_int n, char const *names[],
+                    node_no max_nr_leaders));
+  MOCK_METHOD2(xcom_client_get_leaders,
+               bool(uint32_t gid, leader_info_data &leaders));
   MOCK_METHOD4(xcom_client_get_synode_app_data,
                bool(connection_descriptor *con, uint32_t group_id,
                     synode_no_array &synodes, synode_app_data_array &reply));
@@ -362,7 +379,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD2(xcom_client_send_data,
                bool(unsigned long long size, char *data));
   MOCK_METHOD1(xcom_init, void(xcom_port listen_port));
-  MOCK_METHOD1(xcom_exit, bool(bool xcom_input_open));
+  MOCK_METHOD0(xcom_exit, void());
   MOCK_METHOD0(xcom_set_cleanup, void());
   MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
   MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
@@ -371,12 +388,8 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(xcom_init_ssl, bool());
   MOCK_METHOD0(xcom_destroy_ssl, void());
   MOCK_METHOD0(xcom_use_ssl, bool());
-  MOCK_METHOD10(xcom_set_ssl_parameters,
-                void(const char *server_key_file, const char *server_cert_file,
-                     const char *client_key_file, const char *client_cert_file,
-                     const char *ca_file, const char *ca_path,
-                     const char *crl_file, const char *crl_path,
-                     const char *cipher, const char *tls_version));
+  MOCK_METHOD2(xcom_set_ssl_parameters,
+               void(ssl_parameters ssl, tls_parameters tls));
   MOCK_METHOD1(find_site_def, site_def const *(synode_no synode));
   MOCK_METHOD0(xcom_wait_ready, enum_gcs_error());
   MOCK_METHOD0(xcom_is_ready, bool());
@@ -398,7 +411,9 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(get_should_exit, bool());
   MOCK_METHOD1(set_should_exit, void(bool should_exit));
 
-  MOCK_METHOD0(xcom_input_connect, bool());
+  MOCK_METHOD2(xcom_input_connect,
+               bool(std::string const &address, xcom_port port));
+  MOCK_METHOD0(xcom_input_disconnect, void());
   MOCK_METHOD1(xcom_input_try_push, bool(app_data_ptr data));
   /* Mocking fails compilation on Windows. It attempts to copy the std::future
    * which is non-copyable. */
@@ -432,22 +447,49 @@ class mock_my_xp_socket_util : public My_xp_socket_util {
   MOCK_METHOD1(disable_nagle_in_socket, int(int fd));
 };
 
+class mock_gcs_network_provider_operations_interface
+    : public Network_provider_operations_interface {
+ public:
+  mock_gcs_network_provider_operations_interface() {
+    ON_CALL(*this, start_active_network_provider())
+        .WillByDefault(Return(false));
+    ON_CALL(*this, stop_all_network_providers()).WillByDefault(Return(false));
+    ON_CALL(*this, stop_active_network_provider()).WillByDefault(Return(false));
+    ON_CALL(*this, configure_active_provider(_)).WillByDefault(Return(false));
+    ON_CALL(*this, configure_active_provider_secure_connections(_))
+        .WillByDefault(Return(false));
+  }
+
+  MOCK_METHOD0(start_active_network_provider, bool());
+  MOCK_METHOD0(stop_all_network_providers, bool());
+  MOCK_METHOD0(stop_active_network_provider, bool());
+  MOCK_METHOD1(configure_active_provider,
+               bool(Network_configuration_parameters &params));
+  MOCK_METHOD1(configure_active_provider_secure_connections,
+               bool(Network_configuration_parameters &params));
+  MOCK_METHOD0(remove_all_network_provider, void());
+  MOCK_METHOD1(remove_network_provider,
+               void(enum_transport_protocol provider_key));
+};
+
 class mock_gcs_xcom_control : public Gcs_xcom_control {
  public:
-  mock_gcs_xcom_control(Gcs_xcom_node_address *xcom_node_address,
-                        std::vector<Gcs_xcom_node_address *> &xcom_peers,
-                        Gcs_group_identifier group_identifier,
-                        Gcs_xcom_proxy *xcom_proxy,
-                        Gcs_xcom_group_management *xcom_group_management,
-                        Gcs_xcom_engine *gcs_engine,
-                        Gcs_xcom_state_exchange_interface *state_exchange,
-                        Gcs_xcom_view_change_control_interface *view_control,
-                        bool boot, My_xp_socket_util *socket_util)
+  mock_gcs_xcom_control(
+      Gcs_xcom_node_address *xcom_node_address,
+      std::vector<Gcs_xcom_node_address *> &xcom_peers,
+      Gcs_group_identifier group_identifier, Gcs_xcom_proxy *xcom_proxy,
+      Gcs_xcom_group_management *xcom_group_management,
+      Gcs_xcom_engine *gcs_engine,
+      Gcs_xcom_state_exchange_interface *state_exchange,
+      Gcs_xcom_view_change_control_interface *view_control, bool boot,
+      My_xp_socket_util *socket_util,
+      std::unique_ptr<Network_provider_operations_interface> network_ops)
       : Gcs_xcom_control(xcom_node_address, xcom_peers, group_identifier,
                          xcom_proxy, xcom_group_management, gcs_engine,
-                         state_exchange, view_control, boot, socket_util) {}
+                         state_exchange, view_control, boot, socket_util,
+                         std::move(network_ops)) {}
 
-  enum_gcs_error join() { return join(NULL); }
+  enum_gcs_error join() override { return join(nullptr); }
 
   enum_gcs_error join(Gcs_view *view) {
     enum_gcs_error ret = GCS_NOK;
@@ -476,7 +518,7 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
     return ret;
   }
 
-  enum_gcs_error leave() {
+  enum_gcs_error leave() override {
     enum_gcs_error ret = GCS_NOK;
 
     if (!m_view_control->start_leave()) {
@@ -491,7 +533,7 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
     ret = do_leave();
 
     if (ret == GCS_OK) {
-      m_view_control->set_current_view(NULL);
+      m_view_control->set_current_view(nullptr);
       m_view_control->set_belongs_to_group(false);
     }
 
@@ -507,18 +549,18 @@ void finalize_xcom() { extern_xcom_control_if->do_leave(); }
 
 class XComControlTest : public GcsBaseTest {
  protected:
-  XComControlTest() {}
+  XComControlTest() = default;
 
-  virtual ~XComControlTest() {}
+  ~XComControlTest() override = default;
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_wait_called = false;
-    m_wait_called_mutex.init(PSI_NOT_INSTRUMENTED, NULL);
+    m_wait_called_mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
     m_wait_called_cond.init(PSI_NOT_INSTRUMENTED);
 
-    mock_se = new mock_gcs_xcom_state_exchange_interface();
+    mock_se = new NiceMock<mock_gcs_xcom_state_exchange_interface>();
 
-    mock_vce = new mock_gcs_xcom_view_change_control_interface();
+    mock_vce = new NiceMock<mock_gcs_xcom_view_change_control_interface>();
 
     xcom_node_address = new Gcs_xcom_node_address("127.0.0.1:12345");
     peers.push_back(new Gcs_xcom_node_address("127.0.0.1:12345"));
@@ -528,21 +570,24 @@ class XComControlTest : public GcsBaseTest {
     string group_name("only_group");
     group_id = new Gcs_group_identifier(group_name);
 
-    mock_socket_util = new mock_my_xp_socket_util();
+    mock_socket_util = new NiceMock<mock_my_xp_socket_util>();
 
-    gcs_engine.initialize(NULL);
+    gcs_engine.initialize(nullptr);
 
     xcom_group_mgm = new Gcs_xcom_group_management(&proxy, *group_id);
 
-    xcom_control_if = new mock_gcs_xcom_control(
-        xcom_node_address, peers, *group_id, &proxy, xcom_group_mgm,
-        &gcs_engine, mock_se, mock_vce, true, mock_socket_util);
-    extern_xcom_control_if = xcom_control_if;
+    mock_net_ops_for_interface =
+        std::make_unique<mock_gcs_network_provider_operations_interface>();
+    mock_net_ops = mock_net_ops_for_interface.get();
 
-    My_xp_util::init_time();
+    xcom_control_if = new NiceMock<mock_gcs_xcom_control>(
+        xcom_node_address, peers, *group_id, &proxy, xcom_group_mgm,
+        &gcs_engine, mock_se, mock_vce, true, mock_socket_util,
+        std::move(mock_net_ops_for_interface));
+    extern_xcom_control_if = xcom_control_if;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     gcs_engine.finalize(finalize_xcom);
 
     delete mock_socket_util;
@@ -565,13 +610,16 @@ class XComControlTest : public GcsBaseTest {
 
   Gcs_group_identifier *group_id;
 
-  mock_gcs_xcom_proxy proxy;
-  mock_gcs_control_event_listener mock_ev_listener;
+  NiceMock<mock_gcs_xcom_proxy> proxy;
+  NiceMock<mock_gcs_control_event_listener> mock_ev_listener;
 
-  mock_gcs_xcom_control *xcom_control_if;
-  mock_gcs_xcom_state_exchange_interface *mock_se;
-  mock_gcs_xcom_view_change_control_interface *mock_vce;
-  mock_my_xp_socket_util *mock_socket_util;
+  NiceMock<mock_gcs_xcom_control> *xcom_control_if;
+  NiceMock<mock_gcs_xcom_state_exchange_interface> *mock_se;
+  NiceMock<mock_gcs_xcom_view_change_control_interface> *mock_vce;
+  NiceMock<mock_my_xp_socket_util> *mock_socket_util;
+  mock_gcs_network_provider_operations_interface *mock_net_ops;
+  std::unique_ptr<mock_gcs_network_provider_operations_interface>
+      mock_net_ops_for_interface;
 
   bool m_wait_called;
   My_xp_mutex_impl m_wait_called_mutex;
@@ -601,18 +649,22 @@ class XComControlTest : public GcsBaseTest {
   }
 };
 
+/**
+ * @brief This test exercices a basic leave-join scenario.
+ *
+ */
 TEST_F(XComControlTest, JoinLeaveTest) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
-  EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_))
+  /*EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_))
       .Times(1)
-      .WillOnce(SetArgReferee<0>(GCS_OK));
+      .WillOnce(SetArgReferee<0>(GCS_OK));*/
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_wait_exit()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
 
   enum_gcs_error result = xcom_control_if->join(create_fake_view());
   ASSERT_EQ(GCS_OK, result);
@@ -623,18 +675,20 @@ TEST_F(XComControlTest, JoinLeaveTest) {
   ASSERT_FALSE(xcom_control_if->is_xcom_running());
 }
 
+/**
+ * @brief This test exercises a join() after a successful join()
+ *
+ */
 TEST_F(XComControlTest, JoinTestFailedMultipleJoins) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
-  EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_))
-      .Times(1)
-      .WillOnce(SetArgReferee<0>(GCS_OK));
+
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_wait_exit()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
 
   enum_gcs_error result = xcom_control_if->join(create_fake_view());
   ASSERT_EQ(GCS_OK, result);
@@ -649,11 +703,14 @@ TEST_F(XComControlTest, JoinTestFailedMultipleJoins) {
   ASSERT_FALSE(xcom_control_if->is_xcom_running());
 }
 
+/**
+ * @brief This test exercises a failed
+ *
+ */
 TEST_F(XComControlTest, JoinTestFailedToStartComms) {
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(0);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
 
   /*
     The join is forced to wait until the XCOM's tread is running.
@@ -676,11 +733,11 @@ TEST_F(XComControlTest, JoinTestFailedToStartComms) {
  * mechanism by failing to join the group. */
 TEST_F(XComControlTest, JoinTestFailedToConnectToXComQueueSignallingMechanism) {
   /* We fail to connect to XCom's local server. */
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1).WillOnce(Return(false));
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(0);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
+  EXPECT_CALL(proxy, xcom_exit()).Times(1);
 
   enum_gcs_error result = xcom_control_if->join();
   ASSERT_EQ(GCS_NOK, result);
@@ -690,48 +747,25 @@ TEST_F(XComControlTest, JoinTestFailedToConnectToXComQueueSignallingMechanism) {
 /* This tests ensures that GCS handles a failure to send the boot command to
  * XCom by failing to join the group. */
 TEST_F(XComControlTest, JoinTestFailedToSendBootToXCom) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   /* We fail to send the boot command. */
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1).WillOnce(Return(false));
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(0);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
+  EXPECT_CALL(proxy, xcom_exit()).Times(1);
 
   enum_gcs_error result = xcom_control_if->join();
   ASSERT_EQ(GCS_NOK, result);
   ASSERT_FALSE(xcom_control_if->is_xcom_running());
-}
-
-TEST_F(XComControlTest, JoinTestTimeoutStartingComms) {
-  Gcs_xcom_proxy *my_proxy = new Gcs_xcom_proxy_impl();
-
-  EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
-
-  /*
-    The join is forced to wait until the XCOM's tread is running.
-    In this test case though, we make the operation time out.
-  */
-  EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_))
-      .Times(1)
-      .WillOnce(Invoke(
-          my_proxy, &Gcs_xcom_proxy::xcom_wait_for_xcom_comms_status_change));
-
-  enum_gcs_error result = xcom_control_if->join();
-  ASSERT_EQ(GCS_NOK, result);
-  ASSERT_FALSE(xcom_control_if->is_xcom_running());
-
-  delete my_proxy;
 }
 
 TEST_F(XComControlTest, JoinTestFailedToStartXCom) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1).WillOnce(Return(GCS_NOK));
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_)).Times(1);
+  EXPECT_CALL(proxy, xcom_exit()).Times(1);
 
   enum_gcs_error result = xcom_control_if->join();
 
@@ -741,15 +775,14 @@ TEST_F(XComControlTest, JoinTestFailedToStartXCom) {
 TEST_F(XComControlTest, JoinTestTimeoutStartingXCom) {
   Gcs_xcom_proxy *my_proxy = new Gcs_xcom_proxy_impl();
 
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready())
       .Times(1)
       .WillOnce(Invoke(my_proxy, &Gcs_xcom_proxy::xcom_wait_ready));
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_)).Times(1);
+  EXPECT_CALL(proxy, xcom_exit()).Times(1);
 
   enum_gcs_error result = xcom_control_if->join();
 
@@ -760,11 +793,11 @@ TEST_F(XComControlTest, JoinTestTimeoutStartingXCom) {
 
 TEST_F(XComControlTest, JoinTestWithoutBootNorPeers) {
   EXPECT_CALL(proxy, new_node_address_uuid(_, _, _)).Times(0);
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(0);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(0);
   EXPECT_CALL(proxy, xcom_init(_)).Times(0);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(proxy, delete_node_address(_, _)).Times(0);
 
   xcom_control_if->set_boot_node(false);
@@ -778,19 +811,45 @@ TEST_F(XComControlTest, JoinTestWithoutBootNorPeers) {
 
 TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   connection_descriptor *con =
-      (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+      (connection_descriptor *)malloc(sizeof(connection_descriptor));
   con->fd = 0;
 
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  /*connection_descriptor *failed_con =
+      (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+  failed_con->fd = -1;*/
+
+  auto create_failed_con_lambda = [](std::string a, xcom_port b) {
+    (void)a;
+    (void)b;
+
+    connection_descriptor *failed_con =
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
+    failed_con->fd = -1;
+
+    return failed_con;
+  };
+
+  auto create_good_con_lambda = [](std::string a, xcom_port b) {
+    (void)a;
+    (void)b;
+
+    connection_descriptor *failed_con =
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
+    failed_con->fd = 0;
+
+    return failed_con;
+  };
+
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   // Fail to connect to the peer every time.
   EXPECT_CALL(proxy, xcom_client_open_connection(Eq("127.0.0.1"), Eq(12346)))
       .Times(3)
-      .WillRepeatedly(Return((connection_descriptor *)NULL));
+      .WillRepeatedly(create_failed_con_lambda);
 
   /*
    Fail to connect on the first attempt.
@@ -799,8 +858,8 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   */
   EXPECT_CALL(proxy, xcom_client_open_connection(Eq("127.0.0.1"), Eq(12347)))
       .Times(3)
-      .WillOnce(Return((connection_descriptor *)NULL))
-      .WillRepeatedly(Return((connection_descriptor *)con));
+      .WillOnce(create_failed_con_lambda)
+      .WillRepeatedly(create_good_con_lambda);
   EXPECT_CALL(*mock_socket_util, disable_nagle_in_socket(_))
       .Times(2)
       .WillOnce(Return(-1))
@@ -822,24 +881,34 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   result = xcom_control_if->leave();
   ASSERT_EQ(GCS_OK, result);
   ASSERT_FALSE(xcom_control_if->is_xcom_running());
-
-  free(con);
 }
 
 TEST_F(XComControlTest, JoinTestAllPeersUnavailable) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  auto create_failed_con_lambda = [](std::string a, xcom_port b) {
+    (void)a;
+    (void)b;
+
+    connection_descriptor *failed_con =
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
+    failed_con->fd = -1;
+
+    return failed_con;
+  };
+
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(0);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(1);
+  EXPECT_CALL(proxy, xcom_exit()).Times(1);
+
   /*
    Fail to connect to all peers every time.
    peers.size() - 1 because we skip our own address.
   */
   EXPECT_CALL(proxy, xcom_client_open_connection(_, _))
       .Times((peers.size() - 1) * Gcs_xcom_control::CONNECTION_ATTEMPTS)
-      .WillRepeatedly(Return((connection_descriptor *)NULL));
+      .WillRepeatedly(create_failed_con_lambda);
   EXPECT_CALL(*mock_socket_util, disable_nagle_in_socket(_)).Times(0);
   EXPECT_CALL(proxy, xcom_client_add_node(_, _, _)).Times(0);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _, _)).Times(0);
@@ -852,11 +921,11 @@ TEST_F(XComControlTest, JoinTestAllPeersUnavailable) {
 
 TEST_F(XComControlTest, LeaveTestWithoutJoin) {
   EXPECT_CALL(proxy, new_node_address_uuid(_, _, _)).Times(0);
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(0);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(0);
   EXPECT_CALL(proxy, xcom_init(_)).Times(0);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(0);
 
   enum_gcs_error result = xcom_control_if->leave();
@@ -865,13 +934,13 @@ TEST_F(XComControlTest, LeaveTestWithoutJoin) {
 }
 
 TEST_F(XComControlTest, LeaveTestMultiMember) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
 
   string member_id_1 = xcom_node_address->get_member_address();
   Gcs_member_identifier local_member_information_1(member_id_1);
@@ -1015,9 +1084,14 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
   uuid_2.encode(reinterpret_cast<uchar **>(&blob_2.data.data_val),
                 &blob_2.data.data_len);
 
-  node_address node_addrs[2] = {
-      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12346"), blob_2, {x_1_0, x_1_2}}};
+  node_address node_addrs[2] = {{const_cast<char *>("127.0.0.1:12345"),
+                                 blob_1,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12346"),
+                                 blob_2,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   // Common unit test data
   Gcs_xcom_view_identifier *view_id = new Gcs_xcom_view_identifier(999999, 27);
@@ -1085,7 +1159,7 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
     installed any view.
   */
   ASSERT_FALSE(xcom_control_if->belongs_to_group());
-  ASSERT_TRUE(xcom_control_if->get_current_view() == NULL);
+  ASSERT_TRUE(xcom_control_if->get_current_view() == nullptr);
 
   synode_no message_id;
   message_id.group_id = Gcs_xcom_utils::build_xcom_group_id(*this->group_id);
@@ -1101,7 +1175,7 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
     Note that nodes are freed by the caller.
   */
   bool view_accepted = !xcom_control_if->xcom_receive_global_view(
-      message_id, xcom_nodes, false, null_synode);
+      null_synode, message_id, xcom_nodes, false, null_synode);
   ASSERT_TRUE(view_accepted);
 
   /*
@@ -1111,7 +1185,7 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
     Note that nodes are freed by the caller.
   */
   view_accepted = !xcom_control_if->xcom_receive_global_view(
-      message_id, xcom_nodes, true, null_synode);
+      null_synode, message_id, xcom_nodes, true, null_synode);
   ASSERT_FALSE(view_accepted);
 
   /*
@@ -1125,11 +1199,11 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
 
   Gcs_view *current_view = xcom_control_if->get_current_view();
   ASSERT_TRUE(xcom_control_if->belongs_to_group());
-  ASSERT_TRUE(current_view != NULL);
+  ASSERT_TRUE(current_view != nullptr);
 
   const Gcs_xcom_view_identifier &current_view_id =
       down_cast<const Gcs_xcom_view_identifier &>(current_view->get_view_id());
-  ASSERT_TRUE((&current_view_id) != NULL);
+  ASSERT_TRUE((&current_view_id) != nullptr);
   ASSERT_EQ(typeid(Gcs_xcom_view_identifier).name(),
             typeid(current_view_id).name());
 
@@ -1150,7 +1224,7 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
   delete left_set;
   delete current_view;
   delete xcom_nodes;
-  mock_vce->set_current_view(NULL);
+  mock_vce->set_current_view(nullptr);
 
   // TODO: replace the following with free_site_def(site_config) once
   //       the header file in site_def.h is fixed
@@ -1166,12 +1240,12 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
 TEST_F(XComControlTest, FailedNodeRemovalTest) {
   // Setting Expectations and Return Values
   // First the node joins the group.
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(proxy, delete_node_address(_, _)).Times(4);
   EXPECT_CALL(mock_ev_listener, on_view_changed(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(3);
@@ -1197,10 +1271,18 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
   uuid_3.encode(reinterpret_cast<uchar **>(&blob_3.data.data_val),
                 &blob_3.data.data_len);
 
-  node_address node_addrs[3] = {
-      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12341"), blob_3, {x_1_0, x_1_2}}};
+  node_address node_addrs[3] = {{const_cast<char *>("127.0.0.1:12345"),
+                                 blob_1,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12343"),
+                                 blob_2,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12341"),
+                                 blob_3,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   site_def *site_config = new_site_def();
   init_site_def(3, node_addrs, site_config);
@@ -1253,7 +1335,7 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
   Gcs_xcom_nodes *xcom_nodes = new Gcs_xcom_nodes(site_config, nodes);
 
   bool view_accepted = xcom_control_if->xcom_receive_global_view(
-      message_id, xcom_nodes, false, null_synode);
+      null_synode, message_id, xcom_nodes, false, null_synode);
   ASSERT_TRUE(view_accepted);
 
   // Run thread to remove failed node
@@ -1268,7 +1350,8 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
   unreachable.push_back(local_member_information_2);
 
   EXPECT_CALL(mock_ev_listener, on_suspicions(members, unreachable)).Times(1);
-  xcom_control_if->xcom_receive_local_view(xcom_nodes, null_synode);
+  xcom_control_if->xcom_receive_local_view(null_synode, xcom_nodes,
+                                           null_synode);
 
   // Run thread to remove failed node
   mgr->run_process_suspicions(true);
@@ -1297,12 +1380,12 @@ void check_view_expelled(const Gcs_view &view) {
 TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
   // Setting Expectations and Return Values
   // First the node joins the group.
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(mock_ev_listener, on_suspicions(_, _)).Times(0);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
 
@@ -1320,9 +1403,14 @@ TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
   uuid_2.encode(reinterpret_cast<uchar **>(&blob_2.data.data_val),
                 &blob_2.data.data_len);
 
-  node_address node_addrs[2] = {
-      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}}};
+  node_address node_addrs[2] = {{const_cast<char *>("127.0.0.1:12345"),
+                                 blob_1,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12343"),
+                                 blob_2,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   site_def *site_config = new_site_def();
   init_site_def(2, node_addrs, site_config);
@@ -1371,7 +1459,7 @@ TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
   Gcs_xcom_nodes *xcom_nodes = new Gcs_xcom_nodes(site_config, nodes);
 
   bool view_accepted = xcom_control_if->xcom_receive_global_view(
-      message_id, xcom_nodes, true, null_synode);
+      null_synode, message_id, xcom_nodes, true, null_synode);
   ASSERT_TRUE(view_accepted);
 
   result = xcom_control_if->leave();
@@ -1385,7 +1473,7 @@ TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
 }
 
 TEST_F(XComControlTest, SuspectMembersRemoval) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(2);
@@ -1413,8 +1501,8 @@ TEST_F(XComControlTest, SuspectMembersRemoval) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12349", false));
 
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    no_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, null_synode);
 
   // Run thread to remove failed node
   mgr->run_process_suspicions(true);
@@ -1440,7 +1528,7 @@ TEST_F(XComControlTest, SuspectMembersRemoval) {
 }
 
 TEST_F(XComControlTest, SuspectMemberFailedRemovalDueToMajorityLoss) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(2);
@@ -1466,8 +1554,8 @@ TEST_F(XComControlTest, SuspectMemberFailedRemovalDueToMajorityLoss) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12347", false));
 
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    no_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, null_synode);
 
   // Check that the majority is disabled
   ASSERT_EQ(mgr->has_majority(), false);
@@ -1489,8 +1577,8 @@ TEST_F(XComControlTest, SuspectMemberFailedRemovalDueToMajorityLoss) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12349", false));
 
   // Process same view but with more group members
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    no_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, null_synode);
 
   // Check if the manager has kept the majority
   ASSERT_EQ(mgr->has_majority(), true);
@@ -1515,7 +1603,7 @@ TEST_F(XComControlTest, SuspectMemberFailedRemovalDueToMajorityLoss) {
 }
 
 TEST_F(XComControlTest, ThreeSuspectNodesRemoval) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(3);
@@ -1549,8 +1637,9 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemoval) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12348", false));
 
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    non_member_suspect_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, non_member_suspect_nodes, true,
+                    null_synode);
 
   // Check that the majority is enabled
   ASSERT_EQ(mgr->has_majority(), true);
@@ -1562,8 +1651,9 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemoval) {
   MYSQL_GCS_LOG_TRACE("List has %lu suspects.", number_suspects);
 
   // Verify if duplicate suspicions aren't inserted
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    non_member_suspect_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, non_member_suspect_nodes, true,
+                    null_synode);
 
   // Check if the manager has kept the majority
   ASSERT_EQ(mgr->has_majority(), true);
@@ -1643,8 +1733,9 @@ TEST_F(XComControlTest, FalseThreeSuspectNodesWithdrawn) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12348", false));
 
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    non_member_suspect_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, non_member_suspect_nodes, true,
+                    null_synode);
 
   // Check that the majority is disabled
   ASSERT_EQ(mgr->has_majority(), false);
@@ -1672,8 +1763,8 @@ TEST_F(XComControlTest, FalseThreeSuspectNodesWithdrawn) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12348", true));
 
   // Remove suspicions in alive_nodes
-  mgr->process_view(&xcom_nodes, alive_nodes, no_nodes, no_nodes, no_nodes,
-                    true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, alive_nodes, no_nodes, no_nodes,
+                    no_nodes, true, null_synode);
 
   // Check if the manager has kept the majority
   ASSERT_EQ(mgr->has_majority(), true);
@@ -1701,7 +1792,7 @@ TEST_F(XComControlTest, FalseThreeSuspectNodesWithdrawn) {
 }
 
 TEST_F(XComControlTest, ThreeSuspectNodesRemovalAndWithdrawn) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(2);
@@ -1731,8 +1822,9 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemovalAndWithdrawn) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12348", false));
 
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    non_member_suspect_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, non_member_suspect_nodes, true,
+                    null_synode);
 
   // Check that the majority is disabled
   ASSERT_EQ(mgr->has_majority(), false);
@@ -1754,8 +1846,8 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemovalAndWithdrawn) {
   xcom_nodes.remove_node(Gcs_xcom_node_information("127.0.0.1:12346", false));
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12346", true));
 
-  mgr->process_view(&xcom_nodes, alive_nodes, no_nodes, no_nodes, no_nodes,
-                    true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, alive_nodes, no_nodes, no_nodes,
+                    no_nodes, true, null_synode);
 
   // Check if the manager has kept the majority
   ASSERT_EQ(mgr->has_majority(), true);
@@ -1772,8 +1864,8 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemovalAndWithdrawn) {
   xcom_nodes.remove_node(Gcs_xcom_node_information("127.0.0.1:12348", false));
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12348", true));
 
-  mgr->process_view(&xcom_nodes, alive_nodes, no_nodes, no_nodes, no_nodes,
-                    true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, alive_nodes, no_nodes, no_nodes,
+                    no_nodes, true, null_synode);
 
   // Run thread to remove failed node
   mgr->run_process_suspicions(true);
@@ -1824,7 +1916,7 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemovalAndWithdrawn) {
 }
 
 TEST_F(XComControlTest, ThreeSuspectNodesRemovalAfterTimeoutReset) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(2);
@@ -1854,8 +1946,9 @@ TEST_F(XComControlTest, ThreeSuspectNodesRemovalAfterTimeoutReset) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12348", false));
 
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    non_member_suspect_nodes, true, null_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, non_member_suspect_nodes, true,
+                    null_synode);
 
   // Check that the majority is disabled
   ASSERT_EQ(mgr->has_majority(), false);
@@ -1913,28 +2006,27 @@ void *parallel_invocation(void *ptr) {
   InvocationHelper *helper = (InvocationHelper *)ptr;
   helper->invokeMethod();
 
-  return NULL;
+  return nullptr;
 }
 
 TEST_F(XComControlTest, ParallellJoinsTest) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
-  EXPECT_CALL(proxy, xcom_wait_for_xcom_comms_status_change(_)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
 
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, JJ);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 1);
   ASSERT_EQ(helper->count_fail, 1);
@@ -1944,12 +2036,12 @@ TEST_F(XComControlTest, ParallellJoinsTest) {
 }
 
 TEST_F(XComControlTest, ParallelLeavesTest) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
   EXPECT_CALL(proxy, delete_node_address(_, _)).Times(2);
 
@@ -1959,12 +2051,12 @@ TEST_F(XComControlTest, ParallelLeavesTest) {
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, LL);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 1);
   ASSERT_EQ(helper->count_fail, 1);
@@ -1974,13 +2066,13 @@ TEST_F(XComControlTest, ParallelLeavesTest) {
 }
 
 TEST_F(XComControlTest, ParallelLeaveAndDelayedJoinTest) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(2);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(2);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(2);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(2);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(2);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(2);
   EXPECT_CALL(proxy, xcom_init(_)).Times(2);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
 
   enum_gcs_error result = xcom_control_if->join(create_fake_view());
   ASSERT_EQ(GCS_OK, result);
@@ -1988,12 +2080,12 @@ TEST_F(XComControlTest, ParallelLeaveAndDelayedJoinTest) {
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, LJ);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 2);
 
@@ -2002,24 +2094,24 @@ TEST_F(XComControlTest, ParallelLeaveAndDelayedJoinTest) {
 }
 
 TEST_F(XComControlTest, ParallelJoinAndDelayedLeaveTest) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(proxy, delete_node_address(_, _)).Times(2);
 
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, JL);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 2);
 
@@ -2028,12 +2120,12 @@ TEST_F(XComControlTest, ParallelJoinAndDelayedLeaveTest) {
 }
 
 TEST_F(XComControlTest, NodeTooFarMessage) {
-  EXPECT_CALL(proxy, xcom_input_connect()).Times(1);
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
   EXPECT_CALL(proxy, xcom_init(_)).Times(1);
-  EXPECT_CALL(proxy, xcom_exit(_)).Times(0);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
   EXPECT_CALL(proxy, delete_node_address(_, _)).Times(2);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
 
@@ -2066,8 +2158,8 @@ TEST_F(XComControlTest, NodeTooFarMessage) {
 
   synode_no suspicion_synode = {1, 100, 0};
   // Insert suspicions into manager
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    no_nodes, true, suspicion_synode);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, suspicion_synode);
 
   // Run thread and check that messages have not yet been lost since nothing
   // has yet been removed from the cache.
@@ -2087,7 +2179,7 @@ TEST_F(XComControlTest, NodeTooFarMessage) {
   mgr->update_last_removed(last_removed);
   mgr->run_process_suspicions(true);
 
-  Gcs_xcom_node_information *node = NULL;
+  Gcs_xcom_node_information *node = nullptr;
   for (it = member_suspect_nodes.begin(); it != member_suspect_nodes.end();
        ++it) {
     node = const_cast<Gcs_xcom_node_information *>(
@@ -2099,8 +2191,8 @@ TEST_F(XComControlTest, NodeTooFarMessage) {
   // Clear current suspicions...
   mgr->clear_suspicions();
   // ...and add them again to see if the message related vars are cleared.
-  mgr->process_view(&xcom_nodes, no_nodes, no_nodes, member_suspect_nodes,
-                    no_nodes, true, last_removed);
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, last_removed);
 
   for (it = member_suspect_nodes.begin(); it != member_suspect_nodes.end();
        ++it) {
@@ -2164,8 +2256,10 @@ TEST_F(XComControlTest, LocalViewAfterExpel) {
   uuid.encode(reinterpret_cast<uchar **>(&blob.data.data_val),
               &blob.data.data_len);
 
-  node_address node_addrs[1] = {
-      {const_cast<char *>(member_id_2.c_str()), blob, {x_1_0, x_1_2}}};
+  node_address node_addrs[1] = {{const_cast<char *>(member_id_2.c_str()),
+                                 blob,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   site_def *site_config = new_site_def();
   init_site_def(1, node_addrs, site_config);
@@ -2180,14 +2274,14 @@ TEST_F(XComControlTest, LocalViewAfterExpel) {
 
   // Install expel view and verify that it succeeded
   bool expel_view_accepted = xcom_control_if->xcom_receive_global_view(
-      message_id, xcom_nodes, false, null_synode);
+      null_synode, message_id, xcom_nodes, false, null_synode);
   ASSERT_TRUE(expel_view_accepted);
   Gcs_view *current_view = mock_vce->get_current_view();
   check_view_expelled(*current_view);
 
   // Try to Install local view and verify that it fails
-  bool local_view_accepted =
-      xcom_control_if->xcom_receive_local_view(xcom_nodes, null_synode);
+  bool local_view_accepted = xcom_control_if->xcom_receive_local_view(
+      null_synode, xcom_nodes, null_synode);
   ASSERT_FALSE(local_view_accepted);
 
   // Leave and cleanup
@@ -2198,7 +2292,134 @@ TEST_F(XComControlTest, LocalViewAfterExpel) {
   free_node_set(&nodes);
   delete xcom_nodes;
   delete current_view;
-  mock_vce->set_current_view(NULL);
+  mock_vce->set_current_view(nullptr);
+}
+
+/* This test validates that GCS, given the right sequence of views, does not
+   expel the entire group.
+
+   The test mimics the following scenario.
+
+   Members:
+     {me, suspect_1, suspect_2}
+
+   Views, composed of a sequence of alive members A, and a set of failed
+   members F:
+      V1: A=(me, suspect_1) F={suspect_2}
+      V2: A=(me, suspect_2) F={suspect_1}
+      V3: A=(suspect_1, suspect_2) F={me}
+
+   The test mimics the delivery of V1, V2, and V3 on member `me` before any
+   expel takes effect, i.e. any expelled member is actually removed from the
+   view. The test verifies that `me` does the following.
+
+   Upon receiving V1, expels `suspect_2`.
+
+   Upon receiving V2, does NOT expel `suspect_1`. The only reason to expel
+   `suspect_1` is because the view states that there is a majority of members
+   alive, `(me, suspect_2)` vs. `{suspect_1}`. But we have already ordered
+   the expel of `suspect_2`, so it should be counted as if it is failed. In
+   this case, there is no majority, `(me)` vs. `{suspect_1, suspect_2}`, so
+   `suspect_1` should not be expelled.
+
+   Upon receiving V3, expels `me`, due to the `force_remove` flag in the
+   suspicion manager.
+*/
+TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
+  auto me = std::make_unique<Gcs_member_identifier>("127.0.0.1:12345");
+  auto suspect_1 = std::make_unique<Gcs_member_identifier>("127.0.0.1:12346");
+  auto suspect_2 = std::make_unique<Gcs_member_identifier>("127.0.0.1:12347");
+
+  Gcs_xcom_nodes xcom_nodes;
+  xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12345", true));
+  xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12346", true));
+  xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12347", true));
+
+  auto suspect_is_me = [suspect = me.get()](node_list *nl) -> bool {
+    EXPECT_EQ(nl->node_list_len, 1);
+    EXPECT_EQ(std::string{nl->node_list_val[0].address},
+              suspect->get_member_id());
+    return true;
+  };
+  auto suspect_is_2 = [suspect = suspect_2.get()](node_list *nl) -> bool {
+    EXPECT_EQ(nl->node_list_len, 1);
+    EXPECT_EQ(std::string{nl->node_list_val[0].address},
+              suspect->get_member_id());
+    return true;
+  };
+
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
+  EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
+  EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
+  EXPECT_CALL(proxy, xcom_client_remove_node(_, _))
+      .Times(2)  // once for expulsion, once for leave
+      .WillOnce(WithArgs<0>(Invoke(suspect_is_2)))
+      .WillOnce(WithArgs<0>(Invoke(suspect_is_me)));
+  EXPECT_CALL(proxy, delete_node_address(_, _))
+      .Times(3);  // once for boot, once for expulsion, once for leave
+
+  enum_gcs_error result = xcom_control_if->join(create_fake_view());
+  ASSERT_EQ(GCS_OK, result);
+  ASSERT_TRUE(xcom_control_if->is_xcom_running());
+
+  // Get Gcs_suspicions_manager and set default parameters values
+  Gcs_suspicions_manager *mgr = xcom_control_if->get_suspicions_manager();
+  mgr->set_suspicions_processing_period(15u);
+  mgr->set_non_member_expel_timeout_seconds(60ul);
+  mgr->set_member_expel_timeout_seconds(0ul);
+
+  /* Test expulsion of suspect_2.
+     We should issue the expel, as specified in the EXPECT_CALL(proxy,
+     xcom_client_remove_node(_, _)) above. */
+  // Build vector with suspect nodes
+  std::vector<Gcs_member_identifier *> no_nodes;
+  std::vector<Gcs_member_identifier *> member_suspect_nodes{suspect_2.get()};
+
+  // Insert suspicions into manager
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, null_synode);
+
+  // Run thread to remove failed node suspect_2.
+  mgr->run_process_suspicions(true);
+
+  // Check that the manager has majority
+  ASSERT_EQ(mgr->has_majority(), true);
+
+  /* Test expulsion of suspect_1.
+     We should NOT issue the expel, as specified in the EXPECT_CALL(proxy,
+     xcom_client_remove_node(_, _)) above. */
+  // Build vector with suspect nodes
+  member_suspect_nodes = std::vector<Gcs_member_identifier *>{suspect_1.get()};
+
+  // Insert suspicions into manager
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, null_synode);
+
+  // Run thread to try to remove failed node me.
+  mgr->run_process_suspicions(true);
+
+  // Check that the manager does not have majority
+  ASSERT_EQ(mgr->has_majority(), false);
+
+  /* Test expulsion of me.
+     We should NOT issue the expel, as specified in the EXPECT_CALL(proxy,
+     xcom_client_remove_node(_, _)) above. */
+  // Build vector with suspect nodes
+  member_suspect_nodes = std::vector<Gcs_member_identifier *>{me.get()};
+
+  // Insert suspicions into manager
+  mgr->process_view(null_synode, &xcom_nodes, no_nodes, no_nodes,
+                    member_suspect_nodes, no_nodes, true, null_synode);
+
+  // Run thread to try to remove failed node me.
+  mgr->run_process_suspicions(true);
+
+  // Check that the manager does not have majority
+  ASSERT_EQ(mgr->has_majority(), false);
+
+  result = xcom_control_if->leave();
+  ASSERT_EQ(GCS_OK, result);
+  ASSERT_FALSE(xcom_control_if->is_xcom_running());
 }
 
 }  // namespace gcs_xcom_control_unittest

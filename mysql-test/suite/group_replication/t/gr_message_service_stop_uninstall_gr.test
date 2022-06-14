@@ -1,0 +1,152 @@
+########################################################################
+#
+# This test validate that all servers that have GR stopped or uninstalled
+# do not receive or send messages to the group.
+#
+# Test:
+#    0. This test requires two servers with GR
+#    1. Load plugin replication observers example on server1
+#    2. Load plugin replication observers example on server2 and store
+#       variables to use when start GR
+#    3. Stop GR on server2
+#    4. Server2 will not be able to send message, GR is stopped
+#    5. Server1 send a message on GR delivery system
+#    6. Start Group Replication on server 2
+#    7. Uninstall GR from server1
+#    8. Server1 will not be able to send message, GR plugin isn't present
+#    9. Server2 send another message on GR delivery system. This will be
+#       delivered.
+#   10. Start GR on server1, which will make it wait for the delivery of new
+#       view, and that will happen only after delivery of service message.
+#       This will give some time to server to receive and write it to error
+#       log.
+#   11. Assert server 2 received message from itself
+#   12. Assert server 1 received message from itself
+#   13. Cleanup
+#
+########################################################################
+
+--source include/have_replication_observers_example_plugin.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Load plugin replication observers example on server1
+
+--source include/install_replication_observers_example.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--echo
+--echo # 2. Load plugin replication observers example on server2 and store
+--echo #    variables to use when start GR
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/install_replication_observers_example.inc
+
+--echo
+--echo # 3. Stop GR on server2
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 4. Server2 will not be able to send message, GR is stopped
+
+--error ER_UDF_ERROR
+SELECT group_replication_service_message_send("tag", "Server2 sent a message");
+
+--echo
+--echo # 5. Server1 send a message on GR delivery system
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_service_message_send("tag", "Server1 sent a message");
+
+--echo
+--echo # 6. Start Group Replication on server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 7. Uninstall GR from server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/uninstall_group_replication_plugin.inc
+
+--echo
+--echo # 8. Server1 will not be able to send message, GR plugin isn't present
+
+--error ER_UDF_ERROR
+SELECT group_replication_service_message_send("tag", "Server1 sent another message");
+
+--echo
+--echo # 9. Server2 send another message on GR delivery system. This will be
+--echo #    delivered.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SELECT group_replication_service_message_send("tag", "Server2 sent another message");
+
+--echo
+--echo # 10. Start GR on server1, which will make it wait for the delivery of new
+--echo #     view, and that will happen only after delivery of service message.
+--echo #     This will give some time to server to receive and write it to error
+--echo #     log.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/install_group_replication_plugin.inc
+
+--replace_result $_group_replication_group_seeds GROUP_SEEDS
+--eval SET @@global.group_replication_group_seeds="$_group_replication_group_seeds"
+--replace_result $_group_replication_local_address LOCAL_ADDRESS
+--eval SET @@global.group_replication_local_address="$_group_replication_local_address"
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 11. Assert server 2 received message from itself
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_stop_uninstall_gr.2.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: "tag", TAG_SIZE: 3, MSG: "Server2 sent another message", MSG_SIZE: 28.'
+--let $assert_text = Server 2 received message from itself.
+--source include/assert_grep.inc
+
+--echo
+--echo # 12. Assert server 1 received message from itself
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_stop_uninstall_gr.1.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: "tag", TAG_SIZE: 3, MSG: "Server1 sent a message", MSG_SIZE: 22.'
+--let $assert_text = Server 1 received one message from itself.
+--source include/assert_grep.inc
+
+--echo
+--echo # 13. Cleanup
+
+--source include/uninstall_replication_observers_example.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/uninstall_replication_observers_example.inc
+
+--source include/group_replication_end.inc

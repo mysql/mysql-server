@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@ namespace gcs_xcom_statistics_unittest {
 
 class XcomStatisticsTest : public GcsBaseTest {
  protected:
-  XcomStatisticsTest() {}
+  XcomStatisticsTest() = default;
 
-  virtual void SetUp() { xcom_stats_if = new Gcs_xcom_statistics(); }
+  void SetUp() override { xcom_stats_if = new Gcs_xcom_statistics(); }
 
-  virtual void TearDown() { delete xcom_stats_if; }
+  void TearDown() override { delete xcom_stats_if; }
 
   Gcs_xcom_statistics *xcom_stats_if;
 };
@@ -65,7 +65,7 @@ TEST_F(XcomStatisticsTest, UpdateMessageReceivedTest) {
 
   EXPECT_EQ(message_length, xcom_stats_if->get_total_bytes_received());
   EXPECT_EQ(1, xcom_stats_if->get_total_messages_received());
-  EXPECT_GE(time(0), xcom_stats_if->get_last_message_timestamp());
+  EXPECT_GE(time(nullptr), xcom_stats_if->get_last_message_timestamp());
   EXPECT_EQ(message_length, xcom_stats_if->get_max_message_length());
   EXPECT_EQ(message_length, xcom_stats_if->get_min_message_length());
 }
@@ -81,7 +81,7 @@ TEST_F(XcomStatisticsTest, UpdateMessagesReceivedTest) {
             xcom_stats_if->get_total_bytes_received());
 
   EXPECT_EQ(2, xcom_stats_if->get_total_messages_received());
-  EXPECT_GE(time(0), xcom_stats_if->get_last_message_timestamp());
+  EXPECT_GE(time(nullptr), xcom_stats_if->get_last_message_timestamp());
   EXPECT_EQ(message_length_big, xcom_stats_if->get_max_message_length());
   EXPECT_EQ(message_length_small, xcom_stats_if->get_min_message_length());
 }

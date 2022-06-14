@@ -155,4 +155,32 @@ SELECT a, b FROM t;
 --connection master
 DROP TABLE t;
 
+--echo #
+--echo # Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR
+--echo #              FUNCTIONAL INDEXES
+--echo #
+--echo # What we want to see here, is that the order of the columns (both
+--echo # hidden and visible) are the same on master and slave, even though
+--echo # the columns are created in different order.
+--echo #
+--echo # Note that this bug is only visible with row-based replication.
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT, INDEX ((a+1)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+--connection slave
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT, b INT, INDEX ((a+1)));
+SET @@session.sql_log_bin = 1;
+--connection master
+INSERT INTO t VALUES (1, 2);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let diff_tables= master:test.t,slave:test.t
+--source include/diff_tables.inc
+
+--connection master
+DROP TABLE t;
+
 --source include/rpl_end.inc

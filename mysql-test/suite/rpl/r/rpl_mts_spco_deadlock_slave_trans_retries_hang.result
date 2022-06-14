@@ -1,0 +1,130 @@
+#
+# 1. Create source-replica topolgy.
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 2. Setup testing environment.
+#    2.1. Create table on source and insert few rows.
+#    2.2. Setup necessary variables on replica server.
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET GLOBAL replica_transaction_retries = 0;
+SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 8;
+SET GLOBAL replica_preserve_commit_order = ON;
+SET GLOBAL innodb_lock_wait_timeout = 1000;
+#
+# Case 1
+# ======
+#
+# Verify replica server can find the deadlock when the victim thread
+# (DELETE) is waiting for its turn to commit and is handled properly.
+#
+# 3.1 Execute transactions on source server that would generate deadlock on the
+#     replica server.
+[connection master]
+INSERT INTO t1 VALUES(10, 10);
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES(11, NULL);
+DELETE FROM t1 WHERE c2 <= 3;
+INSERT INTO t1 VALUES(21, 21);
+INSERT INTO t1 VALUES(22, 22);
+INSERT INTO t1 VALUES(23, 23);
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES(11, 11);
+[connection slave1]
+include/start_slave_sql.inc
+[connection slave]
+ROLLBACK;
+# Add error supressions.
+CALL mtr.add_suppression("Worker .* failed executing transaction.*");
+#
+# 3.2. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
+include/wait_for_slave_sql_error.inc [errno=1213]
+#
+# 3.3. Restart replication threads, sync the replica and verify that table
+#      data is consistent.
+include/start_slave.inc
+include/rpl_diff.inc
+#
+# Case 2
+# ======
+#
+# Verify that replica server can find the deadlock when the victim
+# thread (DELETE) is in the middle of transaction and is handled
+# properly.
+#
+# 3.4 Execute transactions on source server that would generate deadlock on the
+#     replica server.
+[connection master]
+TRUNCATE t1;
+INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+INSERT INTO t1 VALUES(20, NULL);
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES(21, NULL);
+BEGIN;
+INSERT INTO t1 VALUES(22, 22);
+DELETE FROM t1 WHERE c2 <= 3;
+INSERT INTO t1 VALUES(23, 23);
+INSERT INTO t1 VALUES(24, NULL);
+INSERT INTO t1 VALUES(25, 25);
+COMMIT;
+INSERT INTO t1 VALUES(26, 26);
+INSERT INTO t1 VALUES(27, 27);
+INSERT INTO t1 VALUES(28, 28);
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES(21, 21);
+[connection server_2_1]
+BEGIN;
+INSERT INTO t1 VALUES(23, 23);
+[connection slave1]
+include/start_slave_sql.inc
+[connection slave]
+ROLLBACK;
+[connection server_2_1]
+ROLLBACK;
+#
+# 3.5. Wait till the co-ordinator thread to error out with ER_MTS_INCONSISTENT_DATA.
+include/wait_for_slave_sql_error.inc [errno=1756]
+#
+# 3.6. Restart replication threads, sync the replica and verify that table
+#      data is consistent.
+include/start_slave.inc
+include/rpl_diff.inc
+#
+# 4. Cleanup.
+#
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+include/stop_slave.inc
+SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
+SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+include/rpl_end.inc

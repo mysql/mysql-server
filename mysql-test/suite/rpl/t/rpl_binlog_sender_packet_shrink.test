@@ -15,6 +15,10 @@
 --source include/master-slave.inc
 --source include/stop_dump_threads.inc
 
+# this test requires some large events to be able to test
+# buffer size dynamic behavior
+--source include/not_binlog_transaction_compression_on.inc
+
 --let $default_packet_size=`SELECT @@GLOBAL.net_buffer_length`
 
 CREATE TABLE t1 (a TEXT(1048576));

@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_FACADE_H_
 #define SQL_REGEXP_REGEXP_FACADE_H_
 
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,10 @@
 */
 
 #include <stdint.h>
+
+#include <optional>
 #include <string>
 
-#include "nullable.h"
 #include "sql/item.h"
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
@@ -92,7 +93,7 @@ class Regexp_facade {
     doesn't have to make a special case for when the regular expression is
     NULL. Instead, the case is handled here in the facade.
   */
-  Mysql::Nullable<bool> Matches(Item *subject_expr, int start, int occurrence);
+  std::optional<bool> Matches(Item *subject_expr, int start, int occurrence);
 
   /**
     Searches the subject for a match of the compiled regular expression and
@@ -106,8 +107,8 @@ class Regexp_facade {
 
     @return The first character of the match, or a null value if not found.
   */
-  Mysql::Nullable<int> Find(Item *subject_expr, int start, int occurrence,
-                            bool after_match);
+  std::optional<int> Find(Item *subject_expr, int start, int occurrence,
+                          bool after_match);
 
   /**
     @param subject_expr The string to search.
@@ -116,10 +117,18 @@ class Regexp_facade {
     @param occurrence Which occurrence of the pattern should be searched for.
     @param[in,out] result Holds the buffer for writing the result.
   */
-  String *Replace(Item *subject_expr, Item *replacement_expr, int64_t start,
+  String *Replace(Item *subject_expr, Item *replacement_expr, int start,
                   int occurrence, String *result);
 
   String *Substr(Item *subject_expr, int start, int occurrence, String *result);
+
+  /// Delete the "engine" data structure after execution.
+  void cleanup() { m_engine = nullptr; }
+
+  /// Did any operation return a warning? For unit testing.
+  bool EngineHasWarning() const {
+    return m_engine != nullptr && m_engine->HasWarning();
+  }
 
  private:
   /**
@@ -154,6 +163,21 @@ class Regexp_facade {
   int ConvertLibPositionToCodePoint(int position) const;
 
   /**
+    Helper function for setting the result from SQL regular expression
+    functions that return a string value. Depending on character sets used by
+    arguments and result, this function may copy, convert or just set the
+    result. In particular, it handles the special case of the BINARY character
+    set being interpreted as CP-1252.
+
+     @param str The result string from the regexp function.
+     @param length Length in bytes.
+     @param[out] result The result string.
+     @return A pointer to the same string as the argument, or nullptr in case of
+    failure.
+   */
+  String *AssignResult(const char *str, size_t length, String *result);
+
+  /**
     Used for all the actual regular expression matching, search-and-replace,
     and positional and string information. If either the regular expression
     pattern or the subject is `NULL`, this pointer is empty.
@@ -167,16 +191,6 @@ class Regexp_facade {
     @see Regexp_engine::reset()
   */
   std::u16string m_current_subject;
-
-  /**
-    `NULL` handling. In case the reset() function is called with a `NULL`
-    value, or some expression that evaluates to it, all matching functions
-    will return `NULL`. This avoids having to handle the case in all the
-    val_xxx() function in the Item_func_regexp subclasses.
-  */
-  bool m_is_reset_with_null_string;
-
-  Item *m_pattern{nullptr};
 };
 
 }  // namespace regexp

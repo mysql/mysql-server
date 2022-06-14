@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -115,8 +115,45 @@ then
 	${gendata} --dsn=$dsn ${data}
 cat > /tmp/sproc.$$ <<EOF
 
+
+DROP PROCEDURE IF EXISTS modifydata;
 DROP PROCEDURE IF EXISTS copydb;
+DROP PROCEDURE IF EXISTS alterengine;
+DROP PROCEDURE IF EXISTS analyzedb;
+
 delimiter |;
+
+# modifydata will change the non-unique integer contents
+# to contain more duplicates. Improves test coverage of
+# firstmatch duplicate elimination, as well as join result
+# produced over multiple result batches.
+CREATE PROCEDURE modifydata (db varchar(64))
+BEGIN
+
+  declare tabname varchar(255);
+  declare done integer default 0;
+  declare c cursor for
+  SELECT table_name
+  FROM INFORMATION_SCHEMA.TABLES where table_schema = db;
+  declare continue handler for not found set done = 1;
+
+  open c;
+
+  repeat
+    fetch c into tabname;
+    if not done then
+       set @ddl = CONCAT('UPDATE ', db, '.', tabname,
+                         ' set col_int = col_int % 4',
+                         ', col_int_key = col_int_key % 4');
+       select @ddl;
+       PREPARE stmt from @ddl;
+       EXECUTE stmt;
+    end if;
+  until done end repeat;
+  close c;
+END
+\G
+
 CREATE PROCEDURE copydb(dstdb varchar(64), srcdb varchar(64),
                         dstengine varchar(64))
 BEGIN
@@ -279,7 +316,6 @@ BEGIN
 END
 \G
 
-DROP PROCEDURE IF EXISTS alterengine\G
 CREATE PROCEDURE alterengine (db varchar(64), newengine varchar(64))
 BEGIN
 
@@ -306,7 +342,6 @@ BEGIN
 END
 \G
 
-DROP PROCEDURE IF EXISTS analyzedb\G
 CREATE PROCEDURE analyzedb(db varchar(64))
 BEGIN
 
@@ -338,6 +373,7 @@ BEGIN
 END
 \G
 
+CALL modifydata('${pre}_innodb')\G
 CALL copydb('${pre}_ndb', '${pre}_innodb', 'ndb')\G
 CALL analyzedb('${pre}_ndb')\G
 
@@ -367,6 +403,7 @@ $ecp
 --sorted_result
 --error 0,233,1242,4006,1055
 $sql
+--enable_warnings
 --exit
 EOF
 
@@ -466,6 +503,7 @@ do
 	echo "$ecp"
 	${gensql} --seed=$us --queries=$queries --dsn=$dsn --grammar=$grammar|
         awk '{ print "--sorted_result"; print "--error 0,233,1055,1242,4006"; print; }'
+        echo "--enable_warnings"
 	echo "--exit"
     ) > ${opre}_test.sql
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(
-  ${GTEST_INCLUDE_DIRS}
-)
-
 SET(TESTS
   allocator
   cell_calculator
@@ -32,47 +28,32 @@ SET(TESTS
   result
 )
 
-IF (MERGE_UNITTESTS)
-  SET(ALL_TEMPTABLE_TESTS)
-  FOREACH(test ${TESTS})
-    LIST(APPEND ALL_TEMPTABLE_TESTS ${test}-t.cc)
-  ENDFOREACH()
+SET(ALL_TEMPTABLE_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_TEMPTABLE_TESTS ${test}-t.cc)
+ENDFOREACH()
 
-  IF(WIN32)
-    LIST(APPEND ALL_TEMPTABLE_TESTS ../../../sql/nt_servc.cc)
-  ENDIF()
-  MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
-    SKIP_INSTALL)
-  SET_TARGET_PROPERTIES(merge_temptable_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
+IF(WIN32)
+  LIST(APPEND ALL_TEMPTABLE_TESTS ../../../sql/nt_servc.cc)
+ENDIF()
+MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
+  ENABLE_EXPORTS
+  ADD_TEST merge_temptable_tests-t)
 
-  TARGET_LINK_LIBRARIES(merge_temptable_tests-t
-    sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(merge_temptable_tests-t gunit_large strings dbug mysys)
-  TARGET_LINK_LIBRARIES(merge_temptable_tests-t ${ICU_LIBRARIES})
+TARGET_LINK_LIBRARIES(merge_temptable_tests-t
+  gunit_large
+  server_unittest_library
+  )
 
-  # Download TBB from https://www.threadingbuildingblocks.org
-  #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
-  #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
-  #TARGET_LINK_LIBRARIES(merge_temptable_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
-  #INCLUDE_DIRECTORIES(${TBB_INCDIR})
+# Download TBB from https://www.threadingbuildingblocks.org
+#SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
+#SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
+#TARGET_LINK_LIBRARIES(merge_temptable_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
+#INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_temptable_tests-t perfschema)
-  ENDIF()
+TARGET_LINK_LIBRARIES(merge_temptable_tests-t perfschema)
 
-  ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
-
-  # See ../CMakeLists.txt
-  IF(ADD_MERGE_LARGE_TESTS)
-    ADD_TEST(merge_temptable_tests-t
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_temptable_tests-t)
-  ELSE()
-    MESSAGE(WARNING
-      "Likely link failure for this compiler, skipping merge_temptable_tests-t")
-    SET_PROPERTY(TARGET merge_temptable_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-  ENDIF()
-
-ENDIF(MERGE_UNITTESTS)
+ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
@@ -80,22 +61,15 @@ FOREACH(test ${TESTS})
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
   ENDIF()
 
-  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
 
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
-  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
-
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-  ENDIF()
+    gunit_large
+    server_unittest_library
+    )
 
   ADD_DEPENDENCIES(${test}-t GenError)
 
-  IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
-  ENDIF()
 ENDFOREACH()
 

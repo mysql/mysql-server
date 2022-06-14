@@ -45,7 +45,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":false}}
 -->recvresult
 -->callmacro Insert_two	DOCUMENT	%NAME%	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
 -->callmacro Show	%NAME%
@@ -54,7 +54,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup_without_data %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":false}}
 -->recvresult
 -->endmacro
 
@@ -78,7 +78,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test2 - Match on secondary key only
 -->callmacro Setup	col2
--->callmacro Upsert_one	DOCUMENT	col2	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	col2	%DOC3_FOOBARCOM_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col2
 
 -->title -Test3 - Match on _id only, missing secondary index
@@ -88,7 +88,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test4 - Match on _id and secondary, but from different rows
 -->callmacro Setup	col4
--->callmacro Upsert_one	DOCUMENT	col4	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	col4	%DOC1_BLABARCOM_FOO%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col4
 
 -->title -Test5 - Match on _id and secondary key (other field value updated)
@@ -136,7 +136,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test2-2 - Match on secondary key only (upsert two rows)
 -->callmacro Setup	col22
--->callmacro Upsert_two	DOCUMENT	col22	%DOC4_BLABLACOM_BLA%	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_two	DOCUMENT	col22	%DOC4_BLABLACOM_BLA%	%DOC3_FOOBARCOM_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col22
 
 -->title -Test3-2 - Match on _id only (upsert two rows)
@@ -146,7 +146,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test4-2 - Match on _id and secondary, but from different rows (upsert two rows)
 -->callmacro Setup	col24
--->callmacro Upsert_two	DOCUMENT	col24	%DOC4_BLABLACOM_BLA%	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_two	DOCUMENT	col24	%DOC4_BLABLACOM_BLA%	%DOC1_BLABARCOM_FOO%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col24
 
 
@@ -157,22 +157,22 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test1-3 - Match on _id and secondary key (insert instead upsert)
 -->callmacro Setup	col31
--->callmacro Insert_one	DOCUMENT	col31	%DOC1_FOOORACOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Insert_one	DOCUMENT	col31	%DOC1_FOOORACOM_FOO%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col31
 
 -->title -Test2-3 - Match on secondary key only (insert instead upsert)
 -->callmacro Setup	col32
--->callmacro Insert_one	DOCUMENT	col32	%DOC3_FOOBARCOM_BLA%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Insert_one	DOCUMENT	col32	%DOC3_FOOBARCOM_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col32
 
 -->title -Test3-3 - Match on _id only (insert instead upsert)
 -->callmacro Setup	col33
--->callmacro Insert_one	DOCUMENT	col33	%DOC1_BLA%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Insert_one	DOCUMENT	col33	%DOC1_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col33
 
 -->title -Test4-3 - Match on _id and secondary, but from different rows (insert instead upsert)
 -->callmacro Setup	col34
--->callmacro Insert_one	DOCUMENT	col34	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Insert_one	DOCUMENT	col34	%DOC1_BLABARCOM_FOO%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col34
 
 
@@ -188,7 +188,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test2-4 - Match on secondary key only (drop _id coulmn)
 -->callmacro Setup_drop_id	col42
--->callmacro Upsert_one	DOCUMENT	col42	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	col42	%DOC3_FOOBARCOM_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col42
 
 -->title -Test3-4 - Match on _id only (drop _id coulmn)
@@ -198,7 +198,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test4-4 - Match on _id and secondary, but from different rows (drop _id coulmn)
 -->callmacro Setup_drop_id	col44
--->callmacro Upsert_one	DOCUMENT	col44	%DOC1_BLABARCOM_FOO%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	col44	%DOC1_BLABARCOM_FOO%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col44
 
 EOF
@@ -211,7 +211,7 @@ EOF
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"add_or_replace"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"add_or_replace", "name":"_name", "unique":true, "constraint":{"member":"$.name", "type":"TEXT(50)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"add_or_replace", "name":"_name", "unique":true, "fields":{"field":"$.name", "type":"TEXT(50)","required":true}}
 -->recvresult
 
 -->varlet %DOC1_BASIC% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_001", "name":"basic"}' content_type:2}}
@@ -222,8 +222,8 @@ EOF
 
 -->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC1_BASIC%	ER_SUCCESS
 -->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_TO_UPDATE%	ER_SUCCESS
--->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC3_BASIC%	ER_X_BAD_UPSERT_DATA
--->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_BASIC%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC3_BASIC%	ER_X_DUPLICATE_ENTRY
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_BASIC%	ER_X_DUPLICATE_ENTRY
 -->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_ADVENCED%	ER_SUCCESS
 -->callmacro Show	add_or_replace
 
@@ -237,9 +237,9 @@ EOF
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"multi"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_first", "unique":true, "constraint":{"member":"$.first", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_first", "unique":true, "fields":{"field":"$.first", "type":"TEXT(20)","required":true}}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_second", "unique":true, "constraint":{"member":"$.second", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_second", "unique":true, "fields":{"field":"$.second", "type":"TEXT(20)","required":true}}
 -->recvresult
 
 -->varlet %DOC1_A_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"001", "first":"A", "second":"A"}' content_type:2}}
@@ -253,12 +253,12 @@ EOF
 
 -->callmacro Upsert_one	DOCUMENT	multi	%DOC1_A_A%	ER_SUCCESS
 -->callmacro Upsert_one	DOCUMENT	multi	%DOC2_B_B%	ER_SUCCESS
--->callmacro Upsert_one	DOCUMENT	multi	%DOC3_A_B%	ER_X_BAD_UPSERT_DATA
--->callmacro Upsert_one	DOCUMENT	multi	%DOC1_A_B%	ER_X_DOC_ID_DUPLICATE
--->callmacro Upsert_one	DOCUMENT	multi	%DOC2_A_B%	ER_X_DOC_ID_DUPLICATE
--->callmacro Upsert_one	DOCUMENT	multi	%DOC3_B_A%	ER_X_BAD_UPSERT_DATA
--->callmacro Upsert_one	DOCUMENT	multi	%DOC1_B_A%	ER_X_DOC_ID_DUPLICATE
--->callmacro Upsert_one	DOCUMENT	multi	%DOC2_B_A%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC3_A_B%	ER_X_DUPLICATE_ENTRY
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC1_A_B%	ER_X_DUPLICATE_ENTRY
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC2_A_B%	ER_X_DUPLICATE_ENTRY
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC3_B_A%	ER_X_DUPLICATE_ENTRY
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC1_B_A%	ER_X_DUPLICATE_ENTRY
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC2_B_A%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	multi
 
 EOF
@@ -302,6 +302,4 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/crud_insert_upsert_numerical_id.xpl 2>&1;
 
 ## Cleanup
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
-DROP SCHEMA IF EXISTS xtest;
+--source ../include/xplugin_cleanup.inc

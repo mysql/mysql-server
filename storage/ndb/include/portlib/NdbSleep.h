@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,10 @@
 
 #include <ndb_global.h>
 
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
+
 static inline void NdbSleep_MilliSleep(int milliseconds);
 
 static inline
@@ -38,7 +42,7 @@ void NdbSleep_MicroSleep(int microseconds)
   LARGE_INTEGER liDueTime;
   liDueTime.QuadPart = -10LL * microseconds;
 
-  HANDLE hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+  HANDLE hTimer = CreateWaitableTimer(NULL, true, NULL);
   if (NULL == hTimer ||
       !SetWaitableTimer(hTimer, &liDueTime, 0, NULL, NULL, 0) ||
       WaitForSingleObject(hTimer, INFINITE) != WAIT_OBJECT_0)
@@ -80,13 +84,11 @@ void NdbSleep_MilliSleep(int milliseconds)
 {
 #ifdef _WIN32
   Sleep(milliseconds);
-#elif defined(HAVE_SELECT)
+#else
   struct timeval t;
   t.tv_sec =  milliseconds / 1000L;
   t.tv_usec = (milliseconds % 1000L) * 1000L;
   select(0,0,0,0,&t);
-#else
-#error No suitable function found to implement millisecond sleep.
 #endif
 }
 

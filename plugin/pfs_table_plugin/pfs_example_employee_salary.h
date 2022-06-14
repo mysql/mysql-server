@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ extern PFS_engine_table_share_proxy esalary_st_share;
 extern mysql_mutex_t LOCK_esalary_records_array;
 
 /* A structure to denote a single row of the table. */
-struct {
+struct Esalary_Record {
  public:
   PSI_int e_number;
   PSI_bigint e_salary;
@@ -53,7 +53,7 @@ struct {
 
   /* If there is a value in this row */
   bool m_exist;
-} typedef Esalary_Record;
+};
 
 /**
  * An array to keep rows of the tables.
@@ -68,7 +68,7 @@ class Esalary_POS {
   unsigned int m_index;
 
  public:
-  ~Esalary_POS() {}
+  ~Esalary_POS() = default;
   Esalary_POS() { m_index = 0; }
 
   bool has_more() {
@@ -89,7 +89,7 @@ class Esalary_POS {
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct {
+struct Esalary_Table_Handle {
   /* Current position instance */
   Esalary_POS m_pos;
   /* Next position instance */
@@ -97,7 +97,7 @@ typedef struct {
 
   /* Current row for the table */
   Esalary_Record current_row;
-} Esalary_Table_Handle;
+};
 
 PSI_table_handle *esalary_open_table(PSI_pos **pos);
 void esalary_close_table(PSI_table_handle *handle);

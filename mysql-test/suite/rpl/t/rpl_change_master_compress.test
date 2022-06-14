@@ -1,0 +1,43 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to ensure that proper error is
+# reported if the value of `SOURCE_COMPRESSION_ALGORITHMS`
+# exceeds the maximum allowed for the option of 99 characters.
+#
+# ==== Requirements ====
+#
+# R1. While executing `CHANGE REPLICATION SOURCE TO` the value of
+#     `SOURCE_COMPRESSION_ALGORITHMS` option value must not
+#     exceed 99 characters.
+#
+# ==== Implementation ====
+#
+# 1. Setup replication normally.
+# 2. Execute `CHANGE REPLICATION SOURCE TO` with
+#    `SOURCE_COMPRESSION_ALGORITHMS` option value to a string
+#    higher then 99 characters.
+# 3. Expect
+#    `ER_CHANGE_REPLICATION_SOURCE_WRONG_COMPRESSION_ALGORITHM_SIZE`.
+#
+# ==== References ====
+#
+# BUG#32008597 `ALGORITHM_NAMES.LENGTH() < ((32 * 3) +
+#              3)' FAILED.
+#
+
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+--source include/rpl_connection_slave.inc
+
+--echo # Success criteria: should produce an error
+--error ER_CHANGE_RPL_SRC_WRONG_COMPRESSION_ALGORITHM_SIZE
+CHANGE REPLICATION SOURCE TO
+SOURCE_COMPRESSION_ALGORITHMS='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeee
+eeeffffffffffgggggggggghhhhhhhhhhhiiiiiiiiiijjjjjjjjjjkkkkkkkkkk';
+
+--source include/start_slave.inc
+--source include/rpl_end.inc
+--echo # End of 8.0 tests
+

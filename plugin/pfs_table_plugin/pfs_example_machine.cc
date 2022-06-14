@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -83,8 +83,8 @@ int machine_rnd_next(PSI_table_handle *handle) {
   return PFS_HA_ERR_END_OF_FILE;
 }
 
-int machine_rnd_init(PSI_table_handle *h MY_ATTRIBUTE((unused)),
-                     bool scan MY_ATTRIBUTE((unused))) {
+int machine_rnd_init(PSI_table_handle *h [[maybe_unused]],
+                     bool scan [[maybe_unused]]) {
   return 0;
 }
 
@@ -101,25 +101,24 @@ int machine_rnd_pos(PSI_table_handle *handle) {
 }
 
 /* Initialize the table index */
-int machine_index_init(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                       uint idx MY_ATTRIBUTE((unused)),
-                       bool sorted MY_ATTRIBUTE((unused)),
-                       PSI_index_handle **index MY_ATTRIBUTE((unused))) {
+int machine_index_init(PSI_table_handle *handle [[maybe_unused]],
+                       uint idx [[maybe_unused]], bool sorted [[maybe_unused]],
+                       PSI_index_handle **index [[maybe_unused]]) {
   /* Do nothing as there are no index */
   return 0;
 }
 
 /* For each key in index, read value specified in query */
-int machine_index_read(PSI_index_handle *index MY_ATTRIBUTE((unused)),
-                       PSI_key_reader *reader MY_ATTRIBUTE((unused)),
-                       unsigned int idx MY_ATTRIBUTE((unused)),
-                       int find_flag MY_ATTRIBUTE((unused))) {
+int machine_index_read(PSI_index_handle *index [[maybe_unused]],
+                       PSI_key_reader *reader [[maybe_unused]],
+                       unsigned int idx [[maybe_unused]],
+                       int find_flag [[maybe_unused]]) {
   /* Do nothing as there are no index */
   return 0;
 }
 
 /* Read the next indexed value */
-int machine_index_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+int machine_index_next(PSI_table_handle *handle [[maybe_unused]]) {
   /* Do nothing as there are no index */
   return PFS_HA_ERR_END_OF_FILE;
 }
@@ -152,7 +151,7 @@ int machine_read_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->set_field_integer(field, h->current_row.employee_number);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -208,7 +207,7 @@ int machine_write_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_integer(field, &h->current_row.employee_number);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -221,7 +220,7 @@ int machine_update_row_values(PSI_table_handle *handle) {
 
   Machine_Record *cur = &machine_records_vector[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_machine_records_array);
   copy_record(cur, &h->current_row);
@@ -251,7 +250,7 @@ int machine_update_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_integer(field, &h->current_row.employee_number);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -264,7 +263,7 @@ int machine_delete_row_values(PSI_table_handle *handle) {
 
   Machine_Record *cur = &machine_records_vector.at(h->m_pos.get_index());
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_machine_records_array);
   cur->m_exist = false;

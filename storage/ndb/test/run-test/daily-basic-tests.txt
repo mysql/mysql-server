@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2021 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -2031,11 +2031,11 @@ args: -n SlowDihFileWrites T1
 
 max-time : 300
 cmd: testScan
-args: -n TupCheckSumError T18
+args: -n TupCheckSumError T1
 
 max-time : 300
 cmd: testScan
-args: -n InterpretNok6000 T18
+args: -n InterpretNok6000 T1
 
 # Bug18408671 added on 17.04.2014
 #max-time : 300
@@ -2206,3 +2206,6 @@ max-time: 300
 cmd: testSystemRestart
 args: -n OneNodeWithCleanFilesystem T1
 
+cmd: test_event
+args: -n SubscribeNR T1
+max-time: 1200

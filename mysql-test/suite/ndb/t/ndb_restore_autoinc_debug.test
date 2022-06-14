@@ -2,33 +2,53 @@
 --source include/have_ndb_debug.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
 --echo Check some behaviours around restoring autoinc
 --echo tables where autoinc values are used in the log
 
 use test;
 
+create table signed (a int auto_increment primary key, b int) engine=ndb;
 create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
 create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+
+# Create some default auto inc entries
+insert into signed (b) values (1), (2), (3);
+# Add a negative entry
+insert into signed (a,b) values (-20, -20);
 
 insert into test.t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 insert into test.t2 (b) values (1), (2);
 
 --echo Cause backup stall
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/t/ndb_backup_nowait_start.inc
+
+# Add some more default entries and a negative entry, which
+# will be in the backup log.
+insert into signed (b) values (4), (5), (6), (7);
+insert into signed (a,b) values (-30, -30);
 
 insert into test.t1 (b) values (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
 insert into test.t2 (b) values (3), (4);
 
+select auto_increment from information_schema.tables where table_schema='test' and table_name='signed';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
+drop table signed;
 drop table test.t1;
 drop table test.t2;
+
+create table signed (a int auto_increment primary key, b int) engine=ndb;
 
 --echo Recreate tables in opposite order so they swap table ids
 
@@ -42,11 +62,15 @@ create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo Check restored auto-inc metadata :
+select auto_increment from information_schema.tables where table_schema='test' and table_name='signed';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 
+drop table signed;
 drop table test.t1;
 drop table test.t2;
+
+create table signed (a int auto_increment primary key, b int) engine=ndb;
 
 --echo Recreate tables in opposite order so they swap table ids
 
@@ -60,11 +84,17 @@ create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo Check restored auto-inc metadata :
+select auto_increment from information_schema.tables where table_schema='test' and table_name='signed';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 
+drop table signed;
 drop table test.t1;
 drop table test.t2;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log

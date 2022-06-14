@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,8 @@
 class DictTakeoverReq {
   friend class Dbdict;
 public:
-  STATIC_CONST( SignalLength = 1 );
-  STATIC_CONST( GSN = GSN_DICT_TAKEOVER_REQ );
+  static constexpr Uint32 SignalLength = 1;
+  static constexpr Uint32 GSN = GSN_DICT_TAKEOVER_REQ;
 private:
   Uint32 senderRef;
 };
@@ -42,8 +42,8 @@ private:
 class DictTakeoverConf {
   friend class Dbdict;
 public:
-  STATIC_CONST( SignalLength = 10 );
-  STATIC_CONST( GSN = GSN_DICT_TAKEOVER_CONF );
+  static constexpr Uint32 SignalLength = 10;
+  static constexpr Uint32 GSN = GSN_DICT_TAKEOVER_CONF;
 private:
   Uint32 senderRef;
   Uint32 clientRef;
@@ -75,8 +75,8 @@ private:
 };
 
 struct DictTakeoverRef {
-  STATIC_CONST( SignalLength = 3 );
-  STATIC_CONST( GSN = GSN_DICT_TAKEOVER_REF );
+  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 GSN = GSN_DICT_TAKEOVER_REF;
 
   Uint32 senderRef;
   union { Uint32 masterRef, senderData; };

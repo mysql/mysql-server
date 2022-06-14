@@ -1,0 +1,84 @@
+--source include/have_ndb.inc
+
+# Select which engine to use(for easy comparison)
+let $engine = NDB;
+#let $engine = InnoDB;
+
+# Choose if table have primary key or not
+# NOTE! Without pk, the table get a hidden primary key
+# which is a "bigint auto increment" when using engine=ndb
+let $table_pk = ;
+#let $table_pk = ,PRIMARY KEY(counter1);
+
+--replace_result $engine engine
+eval CREATE TABLE t1 (
+  counter1 integer,
+  counter2 integer,
+  counter3 integer,
+  counter4 integer
+  $table_pk
+) ENGINE=$engine;
+
+#
+# Create a second connection to the same mysqld
+# to use for running the concurrent select queries
+#
+connect (j1,localhost,root,,test);
+connection j1;
+
+#
+# Create procedure performing select queries
+# repeatedly for specified number of seconds
+#
+--disable_query_log
+delimiter %;
+create procedure query_select_repeat (seconds int)
+begin
+  set @x=time_to_sec(current_time()) + seconds;
+  repeat
+    select counter1,counter2,counter3 from t1;
+  until @x <= time_to_sec(current_time())
+  end repeat;
+end%
+
+delimiter ;%
+--enable_query_log
+
+#
+# Start the select queries to run repeatedly for a couple of seconds
+#
+send call query_select_repeat(5);
+
+#
+# Switch back to default connection and run the ALTERs
+# and INSERTs which locks up with the repeated SELECTs
+#
+connection default;
+INSERT INTO t1 (counter1, counter2, counter3, counter4)
+  VALUES (1,1,1,1);
+INSERT INTO t1 (counter1, counter2, counter3, counter4)
+  VALUES (2,2,2,2);
+ALTER TABLE t1 DROP COLUMN counter4;
+INSERT INTO t1 (counter1, counter2, counter3)
+  VALUES (3,3,3);
+ALTER TABLE t1 ADD COLUMN counter4 integer;
+INSERT INTO t1 (counter1, counter2, counter3, counter4)
+  VALUES (4,4,4,4);
+
+#
+# Wait for the read queries to complete
+#
+connection j1;
+--disable_query_log
+--disable_result_log
+reap;
+--enable_result_log
+--enable_query_log
+
+drop procedure query_select_repeat;
+
+#
+# Switch back to default connection and clean up
+#
+connection default;
+DROP TABLE t1;

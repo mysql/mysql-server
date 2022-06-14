@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysql_config_editor\fR
+.\"     Title: mysql_config_editor
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL_CONFIG_EDITOR" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -119,7 +119,7 @@ option, client programs read the same option groups from the login path file tha
 .RS 4
 .\}
 .nf
-shell> \fBmysql\fR
+mysql
 .fi
 .if n \{\
 .RE
@@ -150,7 +150,7 @@ option, client programs additionally read the named login path from the login pa
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=mypath\fR
+mysql \-\-login\-path=mypath
 .fi
 .if n \{\
 .RE
@@ -200,7 +200,7 @@ prevents passwords from appearing in
 as cleartext and provides a measure of security by preventing inadvertent password exposure\&. For example, if you display a regular unobfuscated
 my\&.cnf
 option file on the screen, any passwords it contains are visible for anyone to see\&. With
-\&.mylogin\&.cnf, that is not true\&. But the obfuscation used will not deter a determined attacker and you should not consider it unbreakable\&. A user who can gain system administration privileges on your machine to access your files could unobfuscate the
+\&.mylogin\&.cnf, that is not true, but the obfuscation used is not likely to deter a determined attacker and you should not consider it unbreakable\&. A user who can gain system administration privileges on your machine to access your files could unobfuscate the
 \&.mylogin\&.cnf
 file with some effort\&.
 .PP
@@ -216,7 +216,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor [\fR\fB\fIprogram_options\fR\fR\fB] \fR\fB\fIcommand\fR\fR\fB [\fR\fB\fIcommand_options\fR\fR\fB]\fR
+mysql_config_editor [\fIprogram_options\fR] \fIcommand\fR [\fIcommand_options\fR]
 .fi
 .if n \{\
 .RE
@@ -280,8 +280,8 @@ The position of the command name within the set of program arguments is signific
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor \-\-help set\fR
-shell> \fBmysql_config_editor set \-\-help\fR
+mysql_config_editor \-\-help set
+mysql_config_editor set \-\-help
 .fi
 .if n \{\
 .RE
@@ -340,10 +340,10 @@ commands\&. Enter each command on a single line, and enter the appropriate passw
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor set \-\-login\-path=client
+$> \fBmysql_config_editor set \-\-login\-path=client
          \-\-host=localhost \-\-user=localuser \-\-password\fR
 Enter password: \fIenter password "localpass" here\fR
-shell> \fBmysql_config_editor set \-\-login\-path=remote
+$> \fBmysql_config_editor set \-\-login\-path=remote
          \-\-host=remote\&.example\&.com \-\-user=remoteuser \-\-password\fR
 Enter password: \fIenter password "remotepass" here\fR
 .fi
@@ -370,7 +370,7 @@ command:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor print \-\-all\fR
+$> \fBmysql_config_editor print \-\-all\fR
 [client]
 user = localuser
 password = *****
@@ -410,7 +410,7 @@ option when you invoke a client program\&. For example, to connect to the remote
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=remote\fR
+mysql \-\-login\-path=remote
 .fi
 .if n \{\
 .RE
@@ -434,7 +434,7 @@ To connect to the local server, use this command:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=client\fR
+mysql \-\-login\-path=client
 .fi
 .if n \{\
 .RE
@@ -454,7 +454,7 @@ option does not add anything in this case\&. That command is equivalent to this 
 .RS 4
 .\}
 .nf
-shell> \fBmysql\fR
+mysql
 .fi
 .if n \{\
 .RE
@@ -489,13 +489,14 @@ remote2\&.example\&.com, connect to the server on that host like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=remote \-\-host=remote2\&.example\&.com\fR
+mysql \-\-login\-path=remote \-\-host=remote2\&.example\&.com
 .fi
 .if n \{\
 .RE
 .\}
 .sp
-mysql_config_editor General Options.PP
+mysql_config_editor General Options
+.PP
 \fBmysql_config_editor\fR
 supports the following general options, which may be used preceding any command named on the command line\&. For descriptions of command\-specific options, see
 mysql_config_editor Commands and Command-Specific Options\&.
@@ -510,7 +511,6 @@ mysql_config_editor Commands and Command-Specific Options\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a general help message and exit\&.
 .sp
 To see a command\-specific help message, invoke
@@ -524,7 +524,7 @@ help:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
+mysql_config_editor \fIcommand\fR \-\-help
 .fi
 .if n \{\
 .RE
@@ -541,12 +541,16 @@ shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:o,/tmp/mysql_config_editor\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -559,7 +563,6 @@ d:t:o,/tmp/mysql_config_editor\&.trace\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&. This option may be helpful in diagnosing problems if an operation does not have the effect you expect\&.
 .RE
 .sp
@@ -573,10 +576,10 @@ Verbose mode\&. Print more information about what the program does\&. This optio
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
-mysql_config_editor Commands and Command\-Specific Options.PP
+mysql_config_editor Commands and Command\-Specific Options
+.PP
 This section describes the permitted
 \fBmysql_config_editor\fR
 commands, and, for each one, the command\-specific options permitted following the command name on the command line\&.
@@ -612,7 +615,7 @@ help:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
+mysql_config_editor \fIcommand\fR \-\-help
 .fi
 .if n \{\
 .RE
@@ -725,7 +728,7 @@ login path:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor remove \-\-login\-path=mypath \-\-user\fR
+mysql_config_editor remove \-\-login\-path=mypath \-\-user
 .fi
 .if n \{\
 .RE
@@ -739,7 +742,7 @@ login path:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor remove \-\-login\-path=mypath\fR
+mysql_config_editor remove \-\-login\-path=mypath
 .fi
 .if n \{\
 .RE
@@ -1001,7 +1004,7 @@ displays the prompt, type the password and press Enter\&. To prevent other users
 \fBmysql_config_editor\fR
 does not echo it\&.
 .sp
-To specify an empty password, press Enter at the password prompt\&. The resulting login path written to the login path file will include a line like this:
+To specify an empty password, press Enter at the password prompt\&. The resulting login path written to the login path file includes a line like this:
 .sp
 .if n \{\
 .RS 4
@@ -1075,7 +1078,7 @@ to disable it\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

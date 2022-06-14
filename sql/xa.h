@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <list>
+#include <mutex>
 
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator
-#include "sql/psi_memory_key.h"    // key_memory_Recovered_xa_transactions
+#include "sql/psi_memory_key.h"    // key_memory_xa_recovered_transactions
 #include "sql/sql_cmd.h"           // Sql_cmd
 #include "sql/sql_list.h"          // List
 #include "sql/sql_plugin_ref.h"    // plugin_ref
@@ -68,9 +69,9 @@ class Sql_cmd_xa_start : public Sql_cmd {
   Sql_cmd_xa_start(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_START; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_XA_START; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_start(THD *thd);
@@ -88,9 +89,9 @@ class Sql_cmd_xa_end : public Sql_cmd {
   Sql_cmd_xa_end(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_END; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_XA_END; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_end(THD *thd);
@@ -108,11 +109,11 @@ class Sql_cmd_xa_prepare : public Sql_cmd {
  public:
   explicit Sql_cmd_xa_prepare(xid_t *xid_arg) : m_xid(xid_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_PREPARE;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_prepare(THD *thd);
@@ -130,11 +131,11 @@ class Sql_cmd_xa_recover : public Sql_cmd {
   explicit Sql_cmd_xa_recover(bool print_xid_as_hex)
       : m_print_xid_as_hex(print_xid_as_hex) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_RECOVER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool check_xa_recover_privilege(THD *thd) const;
@@ -154,15 +155,18 @@ class Sql_cmd_xa_commit : public Sql_cmd {
   Sql_cmd_xa_commit(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_COMMIT; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_XA_COMMIT;
+  }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   enum xa_option_words get_xa_opt() const { return m_xa_opt; }
 
  private:
   bool trans_xa_commit(THD *thd);
-  bool process_external_xa_commit(THD *thd, xid_t *xid, XID_STATE *xid_state);
+  bool process_external_xa_commit(THD *thd, xid_t *xid,
+                                  XID_STATE *thd_xid_state);
   bool process_internal_xa_commit(THD *thd, XID_STATE *xid_state);
 
   xid_t *m_xid;
@@ -178,11 +182,11 @@ class Sql_cmd_xa_rollback : public Sql_cmd {
  public:
   explicit Sql_cmd_xa_rollback(xid_t *xid_arg) : m_xid(xid_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_ROLLBACK;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_rollback(THD *thd);
@@ -239,10 +243,10 @@ typedef struct xid_t {
   long get_format_id() const { return formatID; }
 
   void set_format_id(long v) {
-    DBUG_ENTER("xid_t::set_format_id");
+    DBUG_TRACE;
     DBUG_PRINT("debug", ("SETTING XID_STATE formatID: %ld", v));
     formatID = v;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   long get_gtrid_length() const { return gtrid_length; }
@@ -256,7 +260,7 @@ typedef struct xid_t {
   const char *get_data() const { return data; }
 
   void set_data(const void *v, long l) {
-    DBUG_ASSERT(l <= XIDDATASIZE);
+    assert(l <= XIDDATASIZE);
     memcpy(data, v, l);
   }
 
@@ -268,13 +272,13 @@ typedef struct xid_t {
   }
 
   void set(long f, const char *g, long gl, const char *b, long bl) {
-    DBUG_ENTER("xid_t::set");
+    DBUG_TRACE;
     DBUG_PRINT("debug", ("SETTING XID_STATE formatID: %ld", f));
     formatID = f;
     memcpy(data, g, gtrid_length = gl);
     bqual_length = bl;
     if (bl > 0) memcpy(data + gl, b, bl);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   my_xid get_my_xid() const;
@@ -312,7 +316,7 @@ typedef struct xid_t {
     return serialize_xid(buf, formatID, gtrid_length, bqual_length, data);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Get printable XID value.
 
@@ -323,7 +327,14 @@ typedef struct xid_t {
   */
   char *xid_to_str(char *buf) const;
 #endif
+  /**
+    Check if equal to another xid.
 
+    @param[in]  xid   the id of another X/Open XA transaction
+
+    @return true iff formats, gtrid_length, bqual_length and the content of
+            gtrid_length+bqual_length bytes is exactly the same
+  */
   bool eq(const xid_t *xid) const {
     return xid->formatID == formatID && xid->gtrid_length == gtrid_length &&
            xid->bqual_length == bqual_length &&
@@ -374,9 +385,17 @@ class XID_STATE {
   static const char *xa_state_names[];
 
   XID m_xid;
+  /**
+    This mutex used for eliminating a possibility to run two
+    XA COMMIT/XA ROLLBACK statements concurrently against the same xid value.
+    m_xa_lock is used on handling XA COMMIT/XA ROLLBACK and acquired only for
+    external XA branches.
+  */
+  std::mutex m_xa_lock;
+
   /// Used by external XA only
   xa_states xa_state;
-  bool in_recovery;
+  bool m_is_detached = false;
   /// Error reported by the Resource Manager (RM) to the Transaction Manager.
   uint rm_error;
   /*
@@ -390,13 +409,11 @@ class XID_STATE {
   bool m_is_binlogged;
 
  public:
-  XID_STATE()
-      : xa_state(XA_NOTR),
-        in_recovery(false),
-        rm_error(0),
-        m_is_binlogged(false) {
+  XID_STATE() : xa_state(XA_NOTR), rm_error(0), m_is_binlogged(false) {
     m_xid.null();
   }
+
+  std::mutex &get_xa_lock() { return m_xa_lock; }
 
   void set_state(xa_states state) { xa_state = state; }
 
@@ -433,27 +450,27 @@ class XID_STATE {
   void reset() {
     xa_state = XA_NOTR;
     m_xid.null();
-    in_recovery = false;
+    m_is_detached = false;
     m_is_binlogged = false;
   }
 
   void start_normal_xa(const XID *xid) {
-    DBUG_ASSERT(m_xid.is_null());
+    assert(m_xid.is_null());
     xa_state = XA_ACTIVE;
     m_xid.set(xid);
-    in_recovery = false;
+    m_is_detached = false;
     rm_error = 0;
   }
 
-  void start_recovery_xa(const XID *xid, bool binlogged_arg = false) {
+  void start_detached_xa(const XID *xid, bool binlogged_arg = false) {
     xa_state = XA_PREPARED;
     m_xid.set(xid);
-    in_recovery = true;
+    m_is_detached = true;
     rm_error = 0;
     m_is_binlogged = binlogged_arg;
   }
 
-  bool is_in_recovery() const { return in_recovery; }
+  bool is_detached() const { return m_is_detached; }
 
   bool is_binlogged() const { return m_is_binlogged; }
 
@@ -702,4 +719,6 @@ void cleanup_trans_state(THD *thd);
 */
 
 bool xa_trans_force_rollback(THD *thd);
+
+bool disconnect_native_trx(THD *, plugin_ref, void *);
 #endif

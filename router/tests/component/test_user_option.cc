@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <chrono>
+
+#include <gmock/gmock.h>
 #include "router_component_test.h"
+
+using namespace std::chrono_literals;
 
 class RouterUserOptionTest : public RouterComponentTest {};
 
@@ -32,13 +36,13 @@ class RouterUserOptionTest : public RouterComponentTest {};
 
 // check that using --user with no sudo gives a proper error
 TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
-  auto &router = launch_router(
-      {"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"},
+                    EXIT_FAILURE, true, false, -1s);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
-      "Error: One can only use the -u/--user switch if running as root"))
-      << router.get_full_output();
+      "Error: One can only use the -u/--user switch if running as root"));
 
   // That's more to test the framework itself:
   // The consecutive calls to exit_code() should be possible  and return the
@@ -49,26 +53,26 @@ TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
 
 // check that using --user parameter before --bootstrap gives a proper error
 TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
-  auto &router = launch_router(
-      {"--user=mysqlrouter", "--bootstrap=127.0.0.1:5000"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"--user=mysqlrouter", "--bootstrap=127.0.0.1:5000"},
+                    EXIT_FAILURE, true, false, -1s);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
-      "Error: One can only use the -u/--user switch if running as root"))
-      << router.get_full_output();
+      "Error: One can only use the -u/--user switch if running as root"));
 
-  EXPECT_EQ(router.exit_code(), EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
 }
 
 #else
 // check that it really is not supported on Windows
 TEST_F(RouterUserOptionTest, UserOptionOnWindows) {
-  auto &router = launch_router(
-      {"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"},
+                    EXIT_FAILURE, true, false, -1s);
 
-  ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."))
-      << router.get_full_output();
-  ASSERT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."));
+  check_exit_code(router, EXIT_FAILURE);
 }
 #endif
 

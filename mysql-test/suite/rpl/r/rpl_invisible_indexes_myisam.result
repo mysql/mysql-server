@@ -1,0 +1,43 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[Connection Master]
+# Creation of invisible indexes on MyISAM tables
+CREATE TABLE t1  (i INT, KEY(i) INVISIBLE) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (2),(3),(5),(7),(11);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	i	1	i	A	5	NULL	NULL	YES	BTREE			NO	NULL
+EXPLAIN SELECT i FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
+[Connection Master]
+# Make index visible
+ALTER TABLE t1 ALTER INDEX i INVISIBLE, ALTER INDEX i VISIBLE, ALTER INDEX i VISIBLE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	i	1	i	A	5	NULL	NULL	YES	BTREE			YES	NULL
+EXPLAIN SELECT i FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i	5	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
+[Connection Master]
+# Clean up
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

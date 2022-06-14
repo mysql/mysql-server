@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class WaitGCPReq {
   friend class Trix;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 public:
   enum RequestType {
     Complete = 1,           ///< Wait for a GCP to complete
@@ -61,7 +61,8 @@ public:
     BlockStartGcp     = 9,
     UnblockStartGcp   = 10,
     WaitEpoch         = 11, // If GCP is blocked, wait for epoch to not start
-    RestartGCI        = 12  // Return restart GCI
+    RestartGCI        = 12, // Return restart GCI
+    ShutdownSync      = 13  // System-wide shutdown synchronisation
   };
 
   Uint32 senderRef;
@@ -85,7 +86,7 @@ class WaitGCPConf {
   friend class Trix;
 
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
 public:
   Uint32 senderData;
@@ -111,7 +112,7 @@ class WaitGCPRef {
   friend class NdbDictInterface;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   enum ErrorCode {
     StopOK = 0,

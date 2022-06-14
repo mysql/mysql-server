@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef FILELOGHANDLER_H
 #define FILELOGHANDLER_H
 
+#include <time.h>
+
 #include "LogHandler.hpp"
 
 class File_class;
@@ -45,7 +47,7 @@ class FileLogHandler : public LogHandler
 {
 public:
 
-  virtual const char* handler_type() {return "FILE"; }
+  const char* handler_type() override {return "FILE"; }
 
   /**
    * Creates a new file handler with the specified filename, 
@@ -64,26 +66,26 @@ public:
   /**
    * Destructor.
    */
-  virtual ~FileLogHandler();
+  ~FileLogHandler() override;
   
-  virtual bool open();
-  virtual bool close();
+  bool open() override;
+  bool close() override;
 
-  virtual bool is_open();
+  bool is_open() override;
 
-  virtual bool setParam(const BaseString &param, const BaseString &value);
-  virtual bool checkParams();
+  bool setParam(const BaseString &param, const BaseString &value) override;
+  bool checkParams() override;
 
-  virtual bool getParams(BaseString &config);
+  bool getParams(BaseString &config) override;
 
-  virtual off_t getCurrentSize();
-  virtual off_t getMaxSize() { return m_maxFileSize; }
+  off_t getCurrentSize() override;
+  off_t getMaxSize() override { return m_maxFileSize; }
 
 protected:	
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                           time_t now);
-  virtual void writeMessage(const char* pMsg);
-  virtual void writeFooter();
+  void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                   time_t now) override;
+  void writeMessage(const char* pMsg) override;
+  void writeFooter() override;
   
 private:
   /** Prohibit */

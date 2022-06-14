@@ -1,0 +1,272 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+#
+#  Test BigInt [un]signed behaviours wrt offset remapping
+#
+#     2^64 = 18446744073709551616
+#     2^63 = 9223372036854775808
+# 
+#  Unsigned : 0 ... 18446744073709551615
+#  Signed   : -9223372036854775808 ... 9223372036854775807
+#
+
+create table t1 (kbu bigint unsigned,
+                 kbs bigint,
+                 dbu_low bigint unsigned,
+                 dbu_hi bigint unsigned,
+                 dbs_low bigint,
+                 dbs_hi bigint,
+                 d int,
+                 t text,
+                 primary key(kbu, kbs))
+engine = ndb;
+
+insert into t1 values 
+  (10, 10, 0, 18446744073709551606, -9223372036854775808, 9223372036854775798, 10, repeat("10", 1000)),
+  (11, 11, 1, 18446744073709551607, -9223372036854775807, 9223372036854775799, 11, repeat("11", 1000)),
+  (12, 12, 2, 18446744073709551608, -9223372036854775806, 9223372036854775800, 12, repeat("12", 1000)),
+  (13, 13, 3, 18446744073709551609, -9223372036854775805, 9223372036854775801, 13, repeat("13", 1000)),
+  (14, 14, 4, 18446744073709551610, -9223372036854775804, 9223372036854775802, 14, repeat("14", 1000)),
+  (15, 15, 5, 18446744073709551611, -9223372036854775803, 9223372036854775803, 15, repeat("15", 1000)),
+  (16, 16, 6, 18446744073709551612, -9223372036854775802, 9223372036854775804, 16, repeat("16", 1000)),
+  (17, 17, 7, 18446744073709551613, -9223372036854775801, 9223372036854775805, 17, repeat("17", 1000)),
+  (18, 18, 8, 18446744073709551614, -9223372036854775800, 9223372036854775806, 18, repeat("18", 1000)),
+  (19, 19, 9, 18446744073709551615, -9223372036854775799, 9223372036854775807, 19, repeat("19", 1000));
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Create a table with NULL-value columns
+create table t2(
+  col1 int unsigned not null primary key,
+  col2 int unsigned DEFAULT NULL)
+charset = utf8mb4 engine=ndbcluster;
+
+insert into t2 values(1, 1), (2,2), (3,NULL), (4,4), (5,5);
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+--echo Restore with no key offsets + 0 + 0
+--let remap_args = -x test.t1.kbu:offset:0
+--let remap_args = $remap_args -x test.t1.kbs:offset:0
+
+--echo Remapping a column having NULL values with an offset.
+--echo NULL values will be preserved.
+--let remap_args = $remap_args -x test.t2.col2:offset:10
+
+truncate test.t1;
+truncate table t2;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+select * from t2 order by col1;
+
+--echo Restore with small overlapping key offset + 5
+--let remap_args = -x test.t1.kbu:offset:5
+--let remap_args = $remap_args -x test.t1.kbs:offset:5
+
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with larger gap key offset + 20
+--let remap_args = -x test.t1.kbu:offset:20
+--let remap_args = $remap_args -x test.t1.kbs:offset:20
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with low data values + max offset (9223372036854775807)
+--let remap_args = -x test.t1.dbu_low:offset:9223372036854775807
+--let remap_args = $remap_args -x test.t1.dbs_low:offset:9223372036854775807
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with key offset + 30 and low data offset + 110
+--let remap_args = -x test.t1.kbu:offset:30
+--let remap_args = $remap_args -x test.t1.kbs:offset:30
+--let remap_args = $remap_args -x test.t1.dbu_low:offset:110
+--let remap_args = $remap_args -x test.t1.dbs_low:offset:110
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with high data values - max offset (-9223372036854775808)
+--let remap_args = -x test.t1.dbu_hi:offset:-9223372036854775808
+--let remap_args = $remap_args -x test.t1.dbs_hi:offset:-9223372036854775808
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with key offset - 10
+--let remap_args = -x test.t1.kbu:offset:-10
+--let remap_args = $remap_args -x test.t1.kbs:offset:-10
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with max positive key offset kbu + 9223372036854775807 kbs + 9223372036854775807-19
+--let remap_args = -x test.t1.kbu:offset:9223372036854775807
+--let remap_args = $remap_args -x test.t1.kbs:offset:9223372036854775788
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+--echo Restore with max negative key offset kbu -10 kbs -9223372036854775808
+--let remap_args = -x test.t1.kbu:offset:-10
+--let remap_args = $remap_args -x test.t1.kbs:offset:-9223372036854775808
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
+
+drop table test.t1;
+drop table test.t2;
+
+
+#
+#  Test Int [un]signed behaviours wrt offset remapping
+#
+#     2^32 = 4294967296
+#     2^31 = 2147483648
+# 
+#  Unsigned : 0 ... 4294967295
+#  Signed   : -2147483648 ... 2147483647
+#
+#
+
+create table t1 (kiu int unsigned,
+                 kis int,
+                 diu_low int unsigned,
+                 diu_hi int unsigned,
+                 dis_low int,
+                 dis_hi int,
+                 d int,
+                 t text,
+                 primary key(kiu, kis))
+engine = ndb;
+
+insert into t1 values 
+  (10, 10, 0, 4294967286, -2147483648, 2147483638, 10, repeat("10", 1000)),
+  (11, 11, 1, 4294967287, -2147483647, 2147483639, 11, repeat("11", 1000)),
+  (12, 12, 2, 4294967288, -2147483646, 2147483640, 12, repeat("12", 1000)),
+  (13, 13, 3, 4294967289, -2147483645, 2147483641, 13, repeat("13", 1000)),
+  (14, 14, 4, 4294967290, -2147483644, 2147483642, 14, repeat("14", 1000)),
+  (15, 15, 5, 4294967291, -2147483643, 2147483643, 15, repeat("15", 1000)),
+  (16, 16, 6, 4294967292, -2147483642, 2147483644, 16, repeat("16", 1000)),
+  (17, 17, 7, 4294967293, -2147483641, 2147483645, 17, repeat("17", 1000)),
+  (18, 18, 8, 4294967294, -2147483640, 2147483646, 18, repeat("18", 1000)),
+  (19, 19, 9, 4294967295, -2147483639, 2147483647, 19, repeat("19", 1000));
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+--echo Restore with no key offsets + 0 + 0
+--let remap_args = -x test.t1.kiu:offset:0
+--let remap_args = $remap_args -x test.t1.kis:offset:0
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with small overlapping key offset + 5
+--let remap_args = -x test.t1.kiu:offset:5
+--let remap_args = $remap_args -x test.t1.kis:offset:5
+
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with larger gap key offset + 20
+--let remap_args = -x test.t1.kiu:offset:20
+--let remap_args = $remap_args -x test.t1.kis:offset:20
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with low data values + max offset (2147483647)
+--let remap_args = -x test.t1.diu_low:offset:2147483647
+--let remap_args = $remap_args -x test.t1.dis_low:offset:2147483647
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with key offset + 30 and low data offset + 110
+--let remap_args = -x test.t1.kiu:offset:30
+--let remap_args = $remap_args -x test.t1.kis:offset:30
+--let remap_args = $remap_args -x test.t1.diu_low:offset:110
+--let remap_args = $remap_args -x test.t1.dis_low:offset:110
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with high data values - max offset (-2147483648)
+--let remap_args = -x test.t1.diu_hi:offset:-2147483648
+--let remap_args = $remap_args -x test.t1.dis_hi:offset:-2147483648
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with key offset - 10
+--let remap_args = -x test.t1.kiu:offset:-10
+--let remap_args = $remap_args -x test.t1.kis:offset:-10
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with max positive key offset kiu + 2147483647 kis + 2147483647-19
+--let remap_args = -x test.t1.kiu:offset:2147483647
+--let remap_args = $remap_args -x test.t1.kis:offset:2147483628
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+--echo Restore with max negative key offset kiu -10 kis -2147483648
+--let remap_args = -x test.t1.kiu:offset:-10
+--let remap_args = $remap_args -x test.t1.kis:offset:-2147483648
+truncate test.t1;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
+
+drop table test.t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT
+

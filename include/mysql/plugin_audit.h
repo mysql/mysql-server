@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #ifndef MYSQL_ABI_CHECK
 #include "m_string.h"
 #endif
+#include <mysql/components/services/bits/plugin_audit_connection_types.h>
 #include "my_command.h"
 #include "my_sqlcommand.h"
 #include "plugin_audit_message_types.h"
@@ -141,22 +142,6 @@ struct mysql_event_general {
   MYSQL_LEX_CSTRING general_external_user;
   MYSQL_LEX_CSTRING general_ip;
 };
-
-/**
-  @enum mysql_event_connection_subclass_t
-
-  Events for MYSQL_AUDIT_CONNECTION_CLASS event class.
-*/
-typedef enum {
-  /** occurs after authentication phase is completed. */
-  MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
-  /** occurs after connection is terminated. */
-  MYSQL_AUDIT_CONNECTION_DISCONNECT = 1 << 1,
-  /** occurs after COM_CHANGE_USER RPC is completed. */
-  MYSQL_AUDIT_CONNECTION_CHANGE_USER = 1 << 2,
-  /** occurs before authentication. */
-  MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE = 1 << 3
-} mysql_event_connection_subclass_t;
 
 #define MYSQL_AUDIT_CONNECTION_ALL                                      \
   (MYSQL_AUDIT_CONNECTION_CONNECT | MYSQL_AUDIT_CONNECTION_DISCONNECT | \

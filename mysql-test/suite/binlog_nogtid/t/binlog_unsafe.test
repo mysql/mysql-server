@@ -106,6 +106,8 @@
 # Thread stack overrun in debug mode on sparc
 --source include/not_sparc_debug.inc
 
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 
 --disable_query_log
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -113,7 +115,9 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 
 --echo #### Setup tables ####
 
-CREATE TABLE t0 (a CHAR(100));
+# t0.a must be big enough to hold the result from
+# CONCAT(@@hostname, @@hostname), which can be 2*255 characters wide.
+CREATE TABLE t0 (a VARCHAR(510));
 CREATE TABLE t1 (a CHAR(100));
 CREATE TABLE t2 (a CHAR(100));
 CREATE TABLE t3 (a CHAR(100));
@@ -499,7 +503,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@session.insert_id);
   INSERT INTO t2 SELECT UUID();
   INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@global.init_replica);
   RETURN 0;
 END|
 DELIMITER ;|
@@ -518,7 +522,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@global.auto_increment_increment);
   INSERT INTO t2 SELECT UUID();
   INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@global.init_replica);
   INSERT INTO t2 VALUES (@@hostname);
 END|
 DELIMITER ;|
@@ -670,7 +674,7 @@ INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));  #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));  #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat')); #marked unsafe in BUG#39701
-INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (SOURCE_POS_WAIT('dummy arg', 4711, 1));
 INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));  #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (ROW_COUNT());          #marked unsafe before BUG#47995
 INSERT INTO t1 VALUES (SESSION_USER());       #marked unsafe before BUG#47995
@@ -782,4 +786,6 @@ SELECT f();
 DROP FUNCTION f;
 DROP TABLE t;
 
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
 --echo "End of tests"

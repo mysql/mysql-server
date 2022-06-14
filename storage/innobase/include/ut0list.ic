@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,25 +32,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Get the first node in the list.
  @return first node, or NULL */
-UNIV_INLINE
-ib_list_node_t *ib_list_get_first(ib_list_t *list) /*!< in: list */
+static inline ib_list_node_t *ib_list_get_first(
+    ib_list_t *list) /*!< in: list */
 {
   return (list->first);
 }
 
 /** Get the last node in the list.
  @return last node, or NULL */
-UNIV_INLINE
-ib_list_node_t *ib_list_get_last(ib_list_t *list) /*!< in: list */
+static inline ib_list_node_t *ib_list_get_last(ib_list_t *list) /*!< in: list */
 {
   return (list->last);
 }
 
 /********************************************************************
 Check if list is empty. */
-UNIV_INLINE
-ibool ib_list_is_empty(
-    /* out: TRUE if empty else FALSE */
+static inline bool ib_list_is_empty(
+    /* out: true if empty else false */
     const ib_list_t *list) /* in: list */
 {
   return (!(list->first || list->last));

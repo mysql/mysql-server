@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,8 @@
 
 #include <gmock/gmock.h>
 
-#include "sql/opt_range.cc"
+#include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "unittest/gunit/fake_table.h"
 
 using ::testing::_;
@@ -54,28 +55,23 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
       : m_kpis(alloc_arg), fake_table(number_columns, columns_nullable) {
     m_kpis.reserve(64);
 
-    thd = thd_arg;
-    mem_root = alloc_arg;
+    real_keynr = alloc_arg->ArrayAlloc<uint>(MAX_KEY);
+    key = alloc_arg->ArrayAlloc<KEY_PART *>(MAX_KEY);
+
+    return_mem_root = alloc_arg;
+    temp_mem_root = alloc_arg;
+    query_block = thd_arg->lex->current_query_block();
 
     if (number_columns != 0) {
       table = &fake_table;
-      current_table = table->pos_in_table_list->map();
     } else {
-      table = NULL;
-      current_table = 1;
+      table = nullptr;
     }
 
     using_real_indexes = true;
     key_parts = m_key_parts;
     key_parts_end = m_key_parts;
     keys = 0;
-    /*
-      Controls whether or not ranges that do not have conditions on
-      the first keypart are removed before two trees are ORed in such
-      a way that index merge is required. The value of 'true' means
-      that such ranges are removed.
-    */
-    remove_jump_scans = true;
 
     const Mock_HANDLER *mock_handler = &fake_table.mock_handler;
 

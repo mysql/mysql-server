@@ -1,0 +1,485 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Prepare for creating Encrypted Table
+# create bootstrap file
+# Create and start mysqld with keyring plugin.
+## Install plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+PARTITION BY KEY(col1) PARTITIONS 5;
+CREATE PROCEDURE execute_dml(
+p_dml_type	INT,
+p_key_min	INT,
+p_key_range	INT,
+p_loop_count	INT,
+p_frequency	INT,
+p_is_rand	INT)
+BEGIN
+DECLARE v_idx		INT DEFAULT 0;
+DECLARE v_commit	INT DEFAULT 0;
+DECLARE v_key		INT DEFAULT 0;
+/* Loop and INSERT data at random position */
+WHILE(v_idx < p_loop_count) DO
+/* Generate key between 1 to p_loop_count */
+IF p_is_rand = 1 THEN
+SET v_key = p_key_min + FLOOR(RAND() * p_key_range);
+ELSE
+SET v_key = p_key_min + (v_idx  % p_key_range);
+END IF;
+CASE p_dml_type
+WHEN 0 THEN
+SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
+INSERT INTO t1 VALUES(v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+INSERT INTO t2 VALUES(v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+WHEN 1 THEN
+UPDATE t1 SET col2 = v_idx + 1 WHERE col1 = v_key;
+UPDATE t2 SET col2 = v_idx + 1 WHERE col1 = v_key;
+WHEN 2 THEN
+DELETE FROM t1 WHERE col1 = v_key;
+DELETE FROM t2 WHERE col1 = v_key;
+ELSE
+DELETE FROM t1;
+DELETE FROM t2;
+END CASE;
+SET v_idx = v_idx + 1;
+/* Commit or rollback work at specified frequency. */
+IF v_idx % p_frequency = 0 THEN
+SET v_commit = FLOOR(RAND() * 2);
+IF v_commit = 0 AND p_is_rand = 1 THEN
+ROLLBACK;
+START TRANSACTION;
+ELSE
+COMMIT;
+START TRANSACTION;
+END IF;
+END IF;
+END WHILE;
+END|
+# In connection default - starting clone
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL set_encryption WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection con1 - Set redo and undo encryption
+SET DEBUG_SYNC = 'now WAIT_FOR set_encryption';
+SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
+Variable_name	Value
+innodb_redo_log_encrypt	OFF
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
+Variable_name	Value
+innodb_undo_log_encrypt	OFF
+SET GLOBAL innodb_undo_log_encrypt = ON;
+SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
+Variable_name	Value
+innodb_undo_log_encrypt	ON
+SET DEBUG_SYNC = 'now SIGNAL resume_clone';
+# In connection default - finishing Clone
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_undo_log_encrypt = OFF;
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+ROW_FORMAT = COMPRESSED ENCRYPTION = "Y";
+CREATE TABLESPACE tbs1 ADD DATAFILE 'tbs1_data1.ibd' ENCRYPTION="Y";
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+ENCRYPTION="Y" TABLESPACE = tbs1;
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+SET GLOBAL innodb_undo_log_encrypt = ON;
+SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
+Variable_name	Value
+innodb_undo_log_encrypt	ON
+call execute_dml(0, 0, 200, 200, 100, 0);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+SELECT count(*) from t1;
+count(*)
+200
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+0	0	Clone Test Row - 0	umn Data Large Column Data Large
+1	10	Clone Test Row - 1	umn Data Large Column Data Large
+2	20	Clone Test Row - 2	umn Data Large Column Data Large
+3	30	Clone Test Row - 3	umn Data Large Column Data Large
+4	40	Clone Test Row - 4	umn Data Large Column Data Large
+5	50	Clone Test Row - 5	umn Data Large Column Data Large
+6	60	Clone Test Row - 6	umn Data Large Column Data Large
+7	70	Clone Test Row - 7	umn Data Large Column Data Large
+8	80	Clone Test Row - 8	umn Data Large Column Data Large
+9	90	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+199	1990	Clone Test Row - 199	umn Data Large Column Data Large
+198	1980	Clone Test Row - 198	umn Data Large Column Data Large
+197	1970	Clone Test Row - 197	umn Data Large Column Data Large
+196	1960	Clone Test Row - 196	umn Data Large Column Data Large
+195	1950	Clone Test Row - 195	umn Data Large Column Data Large
+194	1940	Clone Test Row - 194	umn Data Large Column Data Large
+193	1930	Clone Test Row - 193	umn Data Large Column Data Large
+192	1920	Clone Test Row - 192	umn Data Large Column Data Large
+191	1910	Clone Test Row - 191	umn Data Large Column Data Large
+190	1900	Clone Test Row - 190	umn Data Large Column Data Large
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) /*!50100 TABLESPACE `tbs1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!80016 ENCRYPTION='Y' */
+SELECT count(*) from t2;
+count(*)
+200
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+0	0	Clone Test Row - 0	umn Data Large Column Data Large
+1	10	Clone Test Row - 1	umn Data Large Column Data Large
+2	20	Clone Test Row - 2	umn Data Large Column Data Large
+3	30	Clone Test Row - 3	umn Data Large Column Data Large
+4	40	Clone Test Row - 4	umn Data Large Column Data Large
+5	50	Clone Test Row - 5	umn Data Large Column Data Large
+6	60	Clone Test Row - 6	umn Data Large Column Data Large
+7	70	Clone Test Row - 7	umn Data Large Column Data Large
+8	80	Clone Test Row - 8	umn Data Large Column Data Large
+9	90	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+199	1990	Clone Test Row - 199	umn Data Large Column Data Large
+198	1980	Clone Test Row - 198	umn Data Large Column Data Large
+197	1970	Clone Test Row - 197	umn Data Large Column Data Large
+196	1960	Clone Test Row - 196	umn Data Large Column Data Large
+195	1950	Clone Test Row - 195	umn Data Large Column Data Large
+194	1940	Clone Test Row - 194	umn Data Large Column Data Large
+193	1930	Clone Test Row - 193	umn Data Large Column Data Large
+192	1920	Clone Test Row - 192	umn Data Large Column Data Large
+191	1910	Clone Test Row - 191	umn Data Large Column Data Large
+190	1900	Clone Test Row - 190	umn Data Large Column Data Large
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+# Restart cloned database
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+SELECT count(*) from t1;
+count(*)
+200
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+0	Clone Test Row - 0	umn Data Large Column Data Large
+1	Clone Test Row - 1	umn Data Large Column Data Large
+2	Clone Test Row - 2	umn Data Large Column Data Large
+3	Clone Test Row - 3	umn Data Large Column Data Large
+4	Clone Test Row - 4	umn Data Large Column Data Large
+5	Clone Test Row - 5	umn Data Large Column Data Large
+6	Clone Test Row - 6	umn Data Large Column Data Large
+7	Clone Test Row - 7	umn Data Large Column Data Large
+8	Clone Test Row - 8	umn Data Large Column Data Large
+9	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+199	Clone Test Row - 199	umn Data Large Column Data Large
+198	Clone Test Row - 198	umn Data Large Column Data Large
+197	Clone Test Row - 197	umn Data Large Column Data Large
+196	Clone Test Row - 196	umn Data Large Column Data Large
+195	Clone Test Row - 195	umn Data Large Column Data Large
+194	Clone Test Row - 194	umn Data Large Column Data Large
+193	Clone Test Row - 193	umn Data Large Column Data Large
+192	Clone Test Row - 192	umn Data Large Column Data Large
+191	Clone Test Row - 191	umn Data Large Column Data Large
+190	Clone Test Row - 190	umn Data Large Column Data Large
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) /*!50100 TABLESPACE `tbs1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!80016 ENCRYPTION='Y' */
+SELECT count(*) from t2;
+count(*)
+200
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+0	Clone Test Row - 0	umn Data Large Column Data Large
+1	Clone Test Row - 1	umn Data Large Column Data Large
+2	Clone Test Row - 2	umn Data Large Column Data Large
+3	Clone Test Row - 3	umn Data Large Column Data Large
+4	Clone Test Row - 4	umn Data Large Column Data Large
+5	Clone Test Row - 5	umn Data Large Column Data Large
+6	Clone Test Row - 6	umn Data Large Column Data Large
+7	Clone Test Row - 7	umn Data Large Column Data Large
+8	Clone Test Row - 8	umn Data Large Column Data Large
+9	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+199	Clone Test Row - 199	umn Data Large Column Data Large
+198	Clone Test Row - 198	umn Data Large Column Data Large
+197	Clone Test Row - 197	umn Data Large Column Data Large
+196	Clone Test Row - 196	umn Data Large Column Data Large
+195	Clone Test Row - 195	umn Data Large Column Data Large
+194	Clone Test Row - 194	umn Data Large Column Data Large
+193	Clone Test Row - 193	umn Data Large Column Data Large
+192	Clone Test Row - 192	umn Data Large Column Data Large
+191	Clone Test Row - 191	umn Data Large Column Data Large
+190	Clone Test Row - 190	umn Data Large Column Data Large
+call execute_dml(3, 0, 1, 1, 1, 0);
+call execute_dml(0, 0, 200, 200, 100, 0);
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+0	0	Clone Test Row - 0	umn Data Large Column Data Large
+1	10	Clone Test Row - 1	umn Data Large Column Data Large
+2	20	Clone Test Row - 2	umn Data Large Column Data Large
+3	30	Clone Test Row - 3	umn Data Large Column Data Large
+4	40	Clone Test Row - 4	umn Data Large Column Data Large
+5	50	Clone Test Row - 5	umn Data Large Column Data Large
+6	60	Clone Test Row - 6	umn Data Large Column Data Large
+7	70	Clone Test Row - 7	umn Data Large Column Data Large
+8	80	Clone Test Row - 8	umn Data Large Column Data Large
+9	90	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+199	1990	Clone Test Row - 199	umn Data Large Column Data Large
+198	1980	Clone Test Row - 198	umn Data Large Column Data Large
+197	1970	Clone Test Row - 197	umn Data Large Column Data Large
+196	1960	Clone Test Row - 196	umn Data Large Column Data Large
+195	1950	Clone Test Row - 195	umn Data Large Column Data Large
+194	1940	Clone Test Row - 194	umn Data Large Column Data Large
+193	1930	Clone Test Row - 193	umn Data Large Column Data Large
+192	1920	Clone Test Row - 192	umn Data Large Column Data Large
+191	1910	Clone Test Row - 191	umn Data Large Column Data Large
+190	1900	Clone Test Row - 190	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+0	0	Clone Test Row - 0	umn Data Large Column Data Large
+1	10	Clone Test Row - 1	umn Data Large Column Data Large
+2	20	Clone Test Row - 2	umn Data Large Column Data Large
+3	30	Clone Test Row - 3	umn Data Large Column Data Large
+4	40	Clone Test Row - 4	umn Data Large Column Data Large
+5	50	Clone Test Row - 5	umn Data Large Column Data Large
+6	60	Clone Test Row - 6	umn Data Large Column Data Large
+7	70	Clone Test Row - 7	umn Data Large Column Data Large
+8	80	Clone Test Row - 8	umn Data Large Column Data Large
+9	90	Clone Test Row - 9	umn Data Large Column Data Large
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SET GLOBAL innodb_undo_log_encrypt = ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) /*!50100 TABLESPACE `tbs1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!80016 ENCRYPTION='Y' */
+# In connection default - Cloning database
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection con1 - Running Update Random [0 - 200 Key Range]
+SET DEBUG_SYNC = 'now WAIT_FOR start_dml1';
+START TRANSACTION;
+CALL execute_dml(1, 0, 200, 500, 100, 1);
+COMMIT;
+# Flush all dirty buffers
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET DEBUG_SYNC = 'now SIGNAL resume_clone1';
+SET DEBUG_SYNC = 'now WAIT_FOR start_dml2';
+START TRANSACTION;
+CALL execute_dml(1, 0, 200, 500, 100, 1);
+COMMIT;
+SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
+# In connection default - Cloning database
+# Restart cloned database
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+SELECT count(*) from t1;
+count(*)
+200
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+0	Clone Test Row - 0	umn Data Large Column Data Large
+1	Clone Test Row - 1	umn Data Large Column Data Large
+2	Clone Test Row - 2	umn Data Large Column Data Large
+3	Clone Test Row - 3	umn Data Large Column Data Large
+4	Clone Test Row - 4	umn Data Large Column Data Large
+5	Clone Test Row - 5	umn Data Large Column Data Large
+6	Clone Test Row - 6	umn Data Large Column Data Large
+7	Clone Test Row - 7	umn Data Large Column Data Large
+8	Clone Test Row - 8	umn Data Large Column Data Large
+9	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+199	Clone Test Row - 199	umn Data Large Column Data Large
+198	Clone Test Row - 198	umn Data Large Column Data Large
+197	Clone Test Row - 197	umn Data Large Column Data Large
+196	Clone Test Row - 196	umn Data Large Column Data Large
+195	Clone Test Row - 195	umn Data Large Column Data Large
+194	Clone Test Row - 194	umn Data Large Column Data Large
+193	Clone Test Row - 193	umn Data Large Column Data Large
+192	Clone Test Row - 192	umn Data Large Column Data Large
+191	Clone Test Row - 191	umn Data Large Column Data Large
+190	Clone Test Row - 190	umn Data Large Column Data Large
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) /*!50100 TABLESPACE `tbs1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!80016 ENCRYPTION='Y' */
+SELECT count(*) from t2;
+count(*)
+200
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+0	Clone Test Row - 0	umn Data Large Column Data Large
+1	Clone Test Row - 1	umn Data Large Column Data Large
+2	Clone Test Row - 2	umn Data Large Column Data Large
+3	Clone Test Row - 3	umn Data Large Column Data Large
+4	Clone Test Row - 4	umn Data Large Column Data Large
+5	Clone Test Row - 5	umn Data Large Column Data Large
+6	Clone Test Row - 6	umn Data Large Column Data Large
+7	Clone Test Row - 7	umn Data Large Column Data Large
+8	Clone Test Row - 8	umn Data Large Column Data Large
+9	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
+col1	col3	SUBSTRING(col4, 1000, 32)
+199	Clone Test Row - 199	umn Data Large Column Data Large
+198	Clone Test Row - 198	umn Data Large Column Data Large
+197	Clone Test Row - 197	umn Data Large Column Data Large
+196	Clone Test Row - 196	umn Data Large Column Data Large
+195	Clone Test Row - 195	umn Data Large Column Data Large
+194	Clone Test Row - 194	umn Data Large Column Data Large
+193	Clone Test Row - 193	umn Data Large Column Data Large
+192	Clone Test Row - 192	umn Data Large Column Data Large
+191	Clone Test Row - 191	umn Data Large Column Data Large
+190	Clone Test Row - 190	umn Data Large Column Data Large
+call execute_dml(3, 0, 1, 1, 1, 0);
+call execute_dml(0, 0, 200, 200, 100, 0);
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+0	0	Clone Test Row - 0	umn Data Large Column Data Large
+1	10	Clone Test Row - 1	umn Data Large Column Data Large
+2	20	Clone Test Row - 2	umn Data Large Column Data Large
+3	30	Clone Test Row - 3	umn Data Large Column Data Large
+4	40	Clone Test Row - 4	umn Data Large Column Data Large
+5	50	Clone Test Row - 5	umn Data Large Column Data Large
+6	60	Clone Test Row - 6	umn Data Large Column Data Large
+7	70	Clone Test Row - 7	umn Data Large Column Data Large
+8	80	Clone Test Row - 8	umn Data Large Column Data Large
+9	90	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+199	1990	Clone Test Row - 199	umn Data Large Column Data Large
+198	1980	Clone Test Row - 198	umn Data Large Column Data Large
+197	1970	Clone Test Row - 197	umn Data Large Column Data Large
+196	1960	Clone Test Row - 196	umn Data Large Column Data Large
+195	1950	Clone Test Row - 195	umn Data Large Column Data Large
+194	1940	Clone Test Row - 194	umn Data Large Column Data Large
+193	1930	Clone Test Row - 193	umn Data Large Column Data Large
+192	1920	Clone Test Row - 192	umn Data Large Column Data Large
+191	1910	Clone Test Row - 191	umn Data Large Column Data Large
+190	1900	Clone Test Row - 190	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+0	0	Clone Test Row - 0	umn Data Large Column Data Large
+1	10	Clone Test Row - 1	umn Data Large Column Data Large
+2	20	Clone Test Row - 2	umn Data Large Column Data Large
+3	30	Clone Test Row - 3	umn Data Large Column Data Large
+4	40	Clone Test Row - 4	umn Data Large Column Data Large
+5	50	Clone Test Row - 5	umn Data Large Column Data Large
+6	60	Clone Test Row - 6	umn Data Large Column Data Large
+7	70	Clone Test Row - 7	umn Data Large Column Data Large
+8	80	Clone Test Row - 8	umn Data Large Column Data Large
+9	90	Clone Test Row - 9	umn Data Large Column Data Large
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
+col1	col2	col3	SUBSTRING(col4, 1000, 32)
+199	1990	Clone Test Row - 199	umn Data Large Column Data Large
+198	1980	Clone Test Row - 198	umn Data Large Column Data Large
+197	1970	Clone Test Row - 197	umn Data Large Column Data Large
+196	1960	Clone Test Row - 196	umn Data Large Column Data Large
+195	1950	Clone Test Row - 195	umn Data Large Column Data Large
+194	1940	Clone Test Row - 194	umn Data Large Column Data Large
+193	1930	Clone Test Row - 193	umn Data Large Column Data Large
+192	1920	Clone Test Row - 192	umn Data Large Column Data Large
+191	1910	Clone Test Row - 191	umn Data Large Column Data Large
+190	1900	Clone Test Row - 190	umn Data Large Column Data Large
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE execute_dml;
+DROP TABLESPACE tbs1;
+UNINSTALL PLUGIN clone;
+SET DEBUG_SYNC = 'RESET';
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE MASTER TO MASTER_DELAY= 7;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 7;
 include/start_slave.inc
 include/assert.inc [Assert that the desired delay from performance_schema is same as set in the Change master to command.]
 include/assert.inc [Assert that the sql_delay in show slave status is same as set in the Change master to command.]
@@ -18,7 +18,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 INSERT INTO t1 VALUES (1);
 [connection slave]
@@ -28,7 +28,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 UPDATE t1 SET a=2;
 [connection slave]
@@ -38,7 +38,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 DELETE FROM t1 WHERE a=2;
 [connection slave]
@@ -48,7 +48,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 START TRANSACTION;
 INSERT INTO t1 VALUES (1);
@@ -62,7 +62,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 DROP TABLE t1;
 [connection slave]
@@ -72,12 +72,12 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug
 include/stop_slave_sql.inc
-CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
 include/start_slave_sql.inc
 [connection master]
 include/rpl_end.inc

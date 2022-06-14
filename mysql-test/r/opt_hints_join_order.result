@@ -27,10 +27,10 @@ explain SELECT count(*) FROM t1 JOIN t2 JOIN t3
 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 explain SELECT /*+ QB_NAME(q1) JOIN_PREFIX(t3, t2, t2@subq2) */ count(*) FROM t1 JOIN t2 JOIN t3
@@ -38,10 +38,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t2) AND
 t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.f1	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.f1	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.f1	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.f1	1	100.00	NULL
 3	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 Warnings:
@@ -59,10 +59,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.f1	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.f1	1	100.00	NULL
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Warning	3126	Hint JOIN_PREFIX( `t2`,`t1`) is ignored as conflicting/duplicated
@@ -80,10 +80,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3126	Hint JOIN_SUFFIX( `t2`,`t1`) is ignored as conflicting/duplicated
 Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t3`,`t2`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
@@ -98,9 +98,9 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t2`) JOIN_ORDER(@`select#1` `t1`,`t2`,`t5`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
@@ -117,10 +117,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
 Warning	3128	Unresolved name `t7` for JOIN_ORDER hint
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
@@ -138,9 +138,9 @@ AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`) JOIN_ORDER(@`select#1` `t4`@`subq1`,`t3`) JOIN_SUFFIX(@`select#1` `t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -155,10 +155,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t2`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 # JOIN_SUFFIX is silently ignored
@@ -172,10 +172,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t2`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 # JOIN_PREFIX is silently ignored
@@ -189,10 +189,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t2`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 # All hints are applicable
@@ -209,9 +209,9 @@ AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`@`subq1`,`t3`) JOIN_SUFFIX(@`select#1` `t1`) JOIN_PREFIX(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -228,9 +228,9 @@ AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -247,9 +247,9 @@ AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -266,9 +266,9 @@ AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -289,9 +289,9 @@ AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`,`t3`,`t1`) JOIN_ORDER(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`,`t3`,`t1`) JOIN_PREFIX(@`select#1` `t2`,`t5`@`subq2`,`t4`@`subq1`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -306,12 +306,12 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 3	SUBQUERY	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_key> where ((`test`.`t2`.`f1` = `materialized-subquery`.`f1`))))))
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`f1` from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`f1` = `<materialized_subquery>`.`f1`))))))
 SELECT /*+  QB_NAME(q1) JOIN_FIXED_ORDER(@q1) */ count(*) FROM t1 JOIN t2 JOIN t3
 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
@@ -322,12 +322,12 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 3	SUBQUERY	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_FIXED_ORDER(@`q1`) */ straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_key> where ((`test`.`t2`.`f1` = `materialized-subquery`.`f1`))))))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_FIXED_ORDER(@`q1`) */ straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`f1` from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`f1` = `<materialized_subquery>`.`f1`))))))
 SELECT /*+  QB_NAME(q1) */ count(*) FROM t1 JOIN t2 JOIN t3
 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
@@ -338,10 +338,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 SELECT count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3
@@ -352,10 +352,10 @@ explain SELECT count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3
 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` straight_join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 # t3 can not be first
@@ -367,10 +367,10 @@ explain SELECT /*+ JOIN_PREFIX(t3, t1) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN
 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` straight_join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `test`.`t4`.`f1`))
 # hint is applicable
@@ -381,11 +381,11 @@ count(*)
 explain SELECT /*+ JOIN_PREFIX(t1, t2, t3) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3
 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.f1	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.f1	1	100.00	NULL
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t1`,`t2`,`t3`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` straight_join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`<subquery2>`.`f1` = `test`.`t1`.`f1`))
@@ -397,10 +397,10 @@ count(*)
 explain SELECT /*+ JOIN_SUFFIX(t4, t5) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3
 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.f1	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.f1	1	100.00	NULL
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
@@ -417,10 +417,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_ORDER(@`q1` `t2`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -436,10 +436,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f1	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.f1	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.f1	1	100.00	NULL
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_PREFIX(@`q1` `t2`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t5`.`f1` = `test`.`t2`.`f1`) and (`<subquery2>`.`f1` = `test`.`t1`.`f1`))
@@ -455,10 +455,10 @@ WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_SUFFIX(@`q1` `t2`,`t3`,`t1`) */ count(0) AS `count(*)` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t2`.`f1` = `test`.`t5`.`f1`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -473,9 +473,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 EXPLAIN SELECT /*+ JOIN_ORDER(t2, t1, t4)  */ 1  FROM t1
@@ -484,9 +484,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t1`,`t4`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 EXPLAIN SELECT /*+ JOIN_ORDER(t4, t1, t2)  */ 1  FROM t1
@@ -495,9 +495,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`,`t1`,`t2`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 EXPLAIN SELECT /*+ JOIN_ORDER(t3, t4)  */ 1  FROM t1
@@ -506,9 +506,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t4`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 EXPLAIN SELECT /*+ JOIN_ORDER(t4, t3)  */ 1  FROM t1
@@ -517,9 +517,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t4`,`t3`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 EXPLAIN SELECT /*+ JOIN_SUFFIX(t1)  */ 1  FROM t1
@@ -528,9 +528,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t1`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 EXPLAIN SELECT /*+ JOIN_SUFFIX(t2, t1)  */ 1  FROM t1
@@ -539,9 +539,9 @@ RIGHT JOIN t3 ON 1
 JOIN t4 ON  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_SUFFIX(@`select#1` `t2`,`t1`) */ 1 AS `1` from `test`.`t3` left join (`test`.`t1` join `test`.`t2`) on((true)) join `test`.`t4` where true
 DROP TABLE t1, t2, t3, t4;
@@ -709,19 +709,22 @@ FROM ( t2 INNER JOIN t3 ON t3.f2 = t2.f2 LEFT JOIN t1 ON t1.f1 = t3.f1 )
 WHERE NOT (t2.f1 >= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	f2,f1	f1	5	NULL	1	100.00	Using index condition
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	f2	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ref	f1	f1	5	test.t3.f1	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t3`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (convert(`test`.`t3`.`f2` using utf8) = `test`.`t2`.`f2`))
+Warning	1739	Cannot use ref access on index 'f2' due to type or collation conversion on field 'f2'
+Warning	1739	Cannot use range access on index 'f2' due to type or collation conversion on field 'f2'
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t3`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (`test`.`t3`.`f2` = `test`.`t2`.`f2`))
 EXPLAIN SELECT /*+ JOIN_ORDER(t1, t2)  JOIN_ORDER(t2, t3) */ t3.f1
 FROM ( t2 INNER JOIN t3 ON t3.f2 = t2.f2 LEFT JOIN t1 ON t1.f1 = t3.f1 )
 WHERE NOT (t2.f1 >= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	f2	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t1	NULL	ref	f1	f1	5	test.t3.f1	1	100.00	Using index
-1	SIMPLE	t2	NULL	ref	f2,f1	f2	768	func	1	100.00	Using index condition; Using where
+1	SIMPLE	t2	NULL	ref	f2,f1	f2	768	test.t3.f2	1	100.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`t2`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (convert(`test`.`t3`.`f2` using utf8) = `test`.`t2`.`f2`))
+Warning	1739	Cannot use ref access on index 'f2' due to type or collation conversion on field 'f2'
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`t2`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (`test`.`t3`.`f2` = `test`.`t2`.`f2`))
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (
 f1 INT(11) NOT NULL AUTO_INCREMENT,
@@ -773,11 +776,11 @@ RIGHT OUTER JOIN t3 AS als4 ON (als1.f3 = als4.f2)
 SET als1.f4 = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc'
 WHERE ('i','b') IN (SELECT f3, f1 FROM t2 WHERE f2 <> f2 AND als2.f2 IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Warning	3126	Hint JOIN_FIXED_ORDER( ) is ignored as conflicting/duplicated
 Note	1276	Field or reference 'test.als2.f2' of SELECT #2 was resolved in SELECT #1
-Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`als1`,`als3`) */ `test`.`t3` `als4` left join (`test`.`t3` `als1` join `test`.`t1` `als2` join `test`.`t1` `als3`) on(((`test`.`als1`.`f3` = `test`.`als4`.`f2`) and multiple equal(`test`.`als1`.`f1`, `test`.`als3`.`f3`) and multiple equal(`test`.`als1`.`f3`, `test`.`als2`.`f1`))) semi join (`test`.`t2`) set `test`.`als1`.`f4` = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc' where ((`test`.`t2`.`f2` <> `test`.`t2`.`f2`) and (`test`.`als2`.`f2` is null) and multiple equal('i', `test`.`t2`.`f3`) and multiple equal('b', `test`.`t2`.`f1`))
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`als1`,`als3`) */ `test`.`t3` `als4` left join (`test`.`t3` `als1` join `test`.`t1` `als2` join `test`.`t1` `als3`) on(((`test`.`als1`.`f3` = `test`.`als4`.`f2`) and multiple equal(`test`.`als1`.`f1`, `test`.`als3`.`f3`) and multiple equal(`test`.`als1`.`f3`, `test`.`als2`.`f1`))) semi join (`test`.`t2`) set `test`.`als1`.`f4` = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc' where false
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(
 f1 VARCHAR(1)) ENGINE=myisam;
@@ -949,7 +952,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias8	NULL	ref	f2	f2	5	test.alias5.f1	1	100.00	Using index
 1	SIMPLE	alias6	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias5.f1	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `alias8`,`alias6`) */ 1 AS `1` from `test`.`t1` `alias1` left join (`test`.`t7` `alias7` join `test`.`t2` `alias2` left join (`test`.`t3` `alias3` join `test`.`t4` `alias4`) on(((`test`.`alias3`.`f1` = `test`.`alias4`.`f2`) and (`test`.`alias4`.`f1` = `test`.`alias2`.`f1`))) join `test`.`t10` `alias5` left join (`test`.`t6` `alias6` join `test`.`t2` `alias8`) on(((`test`.`alias8`.`f2` = `test`.`alias5`.`f1`) and (`test`.`alias6`.`f1` = `test`.`alias5`.`f1`)))) on(((`test`.`alias7`.`f1` = `test`.`alias1`.`f2`) and (`test`.`alias5`.`f3` = `test`.`alias1`.`f2`) and (`test`.`alias2`.`f2` = `test`.`alias1`.`f2`))) where true
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `alias8`,`alias6`) */ 1 AS `1` from `test`.`t1` `alias1` left join (`test`.`t7` `alias7` join `test`.`t2` `alias2` left join (`test`.`t3` `alias3` join `test`.`t4` `alias4`) on(((`test`.`alias3`.`f1` = `test`.`alias4`.`f2`) and (cast(`test`.`alias4`.`f1` as double) = cast(`test`.`alias2`.`f1` as double)))) join `test`.`t10` `alias5` left join (`test`.`t6` `alias6` join `test`.`t2` `alias8`) on(((`test`.`alias8`.`f2` = `test`.`alias5`.`f1`) and (`test`.`alias6`.`f1` = `test`.`alias5`.`f1`)))) on(((`test`.`alias7`.`f1` = `test`.`alias1`.`f2`) and (`test`.`alias5`.`f3` = `test`.`alias1`.`f2`) and (cast(`test`.`alias2`.`f2` as double) = cast(`test`.`alias1`.`f2` as double)))) where true
 DROP TABLES t1, t2, t3, t4, t6, t7, t10;
 #
 # Bug#23144230 WL#9158 : OPT_HINTS_QB::APPLY_JOIN_ORDER_HINTS - MYSQLD GOT SIGNAL 11
@@ -1101,7 +1104,7 @@ WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
 ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	ta4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t4.f1	1	100.00	Using index; End temporary
 1	SIMPLE	t2	NULL	index	f2	f2	5	NULL	3	66.67	Using where; Using index; LooseScan
 1	SIMPLE	ta3	NULL	ref	f2	f2	5	test.t2.f2	1	100.00	Using index
@@ -1119,10 +1122,10 @@ WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
 ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	f2	f2	5	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	ta3	NULL	ref	f2	f2	5	test.t2.f2	1	100.00	Using index
 1	SIMPLE	ta4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t4.f1	1	100.00	Using index; End temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t2`@`qb2`,`t4`@`qb1`,`ta3`,`ta4`) */ count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` `ta3` join `test`.`t2` `ta4` semi join (`test`.`t4`) semi join (`test`.`t2`) where ((`test`.`ta3`.`f2` = `test`.`t2`.`f2`) and (`test`.`ta4`.`f1` = `test`.`t4`.`f1`))
 DROP TABLE t1, t2, t4;

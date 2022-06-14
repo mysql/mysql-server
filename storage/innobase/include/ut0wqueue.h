@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,24 +53,29 @@ ib_wqueue_t *ib_wqueue_create();
 /** Free a work queue. */
 void ib_wqueue_free(ib_wqueue_t *wq); /*!< in: work queue */
 
-/** Add a work item to the queue. */
-void ib_wqueue_add(ib_wqueue_t *wq,   /*!< in: work queue */
-                   void *item,        /*!< in: work item */
-                   mem_heap_t *heap); /*!< in: memory heap to use for
-                                      allocating the list node */
+/** Add a work item to the queue.
+@param[in] wq Work queue
+@param[in] item Work item
+@param[in] heap Memory heap to use for allocating the list node */
+void ib_wqueue_add(ib_wqueue_t *wq, void *item, mem_heap_t *heap);
+
+/** read total number of work item to the queue.
+@param[in] wq Work queue
+@return total count of work item in the queue */
+uint64_t ib_wqueue_get_count(ib_wqueue_t *wq);
 
 /********************************************************************
 Check if queue is empty. */
-ibool ib_wqueue_is_empty(
-    /* out: TRUE if queue empty
-    else FALSE */
+bool ib_wqueue_is_empty(
+    /* out: true if queue empty
+    else false */
     const ib_wqueue_t *wq); /* in: work queue */
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
 void *ib_wqueue_timedwait(
     /* out: work item or NULL on timeout*/
-    ib_wqueue_t *wq,          /* in: work queue */
-    ib_time_t wait_in_usecs); /* in: wait time in micro seconds */
+    ib_wqueue_t *wq,                 /* in: work queue */
+    std::chrono::microseconds wait); /* in: wait time */
 
 #endif /* IB_WORK_QUEUE_H */

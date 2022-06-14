@@ -42,15 +42,19 @@ include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
 
 ############################################################
 # 3. Stop Group Replication while GTID_NEXT is specified
-#    and check that GTID is not used by STOP GROUP_REPLICATION
-#    to prove that STOP GROUP_REPLICATION does not create any
+#    and check an error is thrown to prove that
+#    STOP GROUP_REPLICATION does not create any
 #    implicit commits.
 ############################################################
 [connection server1]
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
-include/stop_group_replication.inc
+STOP GROUP_REPLICATION;
+ERROR HY000: Can't execute the given command when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
+[connection server_1]
 include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
 include/assert.inc [GTID_OWNED is still set since aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1 transaction was not committed]
+include/stop_group_replication.inc
+[connection server1]
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
 include/assert.inc [GTID_OWNED is empty after committing aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1]
@@ -100,19 +104,26 @@ SET SESSION sql_log_bin= 1;
 
 ############################################################
 # 6. Start Group Replication while GTID_NEXT is specified.
+#    It shall fail leaving GTID_NEXT untouched
 ############################################################
 include/stop_group_replication.inc
 DROP TABLE t1;
 RESET MASTER;
 [connection server1]
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
-include/start_group_replication.inc
-include/assert.inc [GTID_EXECUTED must contain 6 group transactions]
-include/assert.inc [GTID_OWNED is still set since ongoing transaction was not committed]
+START GROUP_REPLICATION;
+ERROR HY000: Can't execute the given command when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
+[connection server_1]
+include/assert.inc [GTID_EXECUTED is empty]
+include/assert.inc [GTID_OWNED is still set since the ongoing transaction was not committed]
+[connection server1]
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
 include/assert.inc [GTID_OWNED is empty after committing aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1]
-include/assert.inc [GTID_EXECUTED must contain 6 group transactions and 1 local transaction]
+include/assert.inc [GTID_EXECUTED must contain only the local transaction]
+RESET MASTER;
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain 6 group transactions]
 
 #################################################################
 # 7. Verify that if a session is in lock_table_mode (exclusively

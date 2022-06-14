@@ -69,14 +69,7 @@ SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	0	idx	1	i	A	6	NULL	NULL	YES	BTREE			YES	NULL
 [Connection Master]
-# Creation of invisible indexes on MyISAM tables
-CREATE TABLE t2  (i INT, KEY(i) INVISIBLE) ENGINE=MYISAM;
-INSERT INTO t2 VALUES (2),(3),(5),(7),(11);
-include/sync_slave_sql_with_master.inc
-[Connection Slave]
-[Connection Master]
-# Alter the engine and then alter the index
-ALTER TABLE t1 ENGINE = MYISAM;
+# Alter the engine
 ALTER TABLE t1 ALTER INDEX idx INVISIBLE, ALTER INDEX idx VISIBLE;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -87,21 +80,8 @@ SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	0	idx	1	i	A	6	NULL	NULL	YES	BTREE			YES	NULL
 [Connection Master]
-# Alter the engine and then alter the index
-ALTER TABLE t2 ENGINE = INNODB;
-ALTER TABLE t2 ALTER INDEX i INVISIBLE, ALTER INDEX i VISIBLE, ALTER INDEX i INVISIBLE;
-ANALYZE TABLE t2;
-Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
-include/sync_slave_sql_with_master.inc
-[Connection Slave]
-SHOW INDEXES FROM t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t2	1	i	1	i	A	5	NULL	NULL	YES	BTREE			NO	NULL
-[Connection Master]
 # Clean up
 DROP TABLE t1;
-DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SELECT * FROM t1;

@@ -1,0 +1,225 @@
+#
+# Bug #29627690	NOT ABLE TO IMPORT PARTITIONED TABLESPACE OLDER THAN 8.0.14
+# After wl#13352, we no longer try to induce 8.0.14 behaviour by debug
+# variable. innodb.partition_upgrade* tests checks import from 8.0.14.
+# Keeping this test to run on current version.
+select @@lower_case_table_names;
+@@lower_case_table_names
+1
+# Test 1: With Hash partitions
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY HASH (c1) PARTITIONS 3;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
+SELECT c1 FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+FLUSH TABLES t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY HASH (c1) PARTITIONS 3;
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+DROP TABLE t1;
+# Test 2 With range partitions/subpartitions with mixed cases partiton names
+create table t1 (f1 int ,f2 int) partition by range (f1)
+subpartition by key (f2)
+(
+partition ABCdef values less than (10) (
+subpartition SUB_ABCdef0,
+subpartition SUB_abcdef1
+),
+partition ABC values less than (50) (
+subpartition SUB_ABC0,
+subpartition SUB_abc1
+) ,
+partition def values less than (100) (
+subpartition sub_def0,
+subpartition SUB_DEF1
+));
+insert into t1 values (90,10) ,(40,78) ,(5,76);
+SELECT * from t1 order by f1;
+f1	f2
+5	76
+40	78
+90	10
+FLUSH TABLES t1 FOR EXPORT;
+backup: t1#p#abcdef#sp#sub_abcdef0
+backup: t1#p#abcdef#sp#sub_abcdef1
+backup: t1#p#abc#sp#sub_abc0
+backup: t1#p#abc#sp#sub_abc1
+backup: t1#p#def#sp#sub_def0
+backup: t1#p#def#sp#sub_def1
+unlock tables;
+drop table t1;
+create table t1 (f1 int ,f2 int) partition by range (f1)
+subpartition by key (f2)
+(
+partition ABCdef values less than (10) (
+subpartition SUB_ABCdef0,
+subpartition SUB_abcdef1
+),
+partition ABC values less than (50) (
+subpartition SUB_ABC0,
+subpartition SUB_abc1
+) ,
+partition def values less than (100) (
+subpartition sub_def0,
+subpartition SUB_DEF1
+));
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1#p#abcdef#sp#sub_abcdef0 .ibd and .cfg files
+restore: t1#p#abcdef#sp#sub_abcdef1 .ibd and .cfg files
+restore: t1#p#abc#sp#sub_abc0 .ibd and .cfg files
+restore: t1#p#abc#sp#sub_abc1 .ibd and .cfg files
+restore: t1#p#def#sp#sub_def0 .ibd and .cfg files
+restore: t1#p#def#sp#sub_def1 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY f1;
+f1	f2
+5	76
+40	78
+90	10
+DROP TABLE t1;
+# Test 3 : With encryption
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
+PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
+SELECT c1 FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+FLUSH TABLES t1 FOR EXPORT;
+backup: t1#p#abc
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
+PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1#p#abc .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+DROP TABLE t1;
+# Restarting server without keyring to restore server state
+# restart: 
+Test 4 : Missing cfg file
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(8);
+SELECT c1 FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+8
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1#p#abcd .ibd file
+ALTER TABLE t1 IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1#p#abcd.cfg', will attempt to import without schema verification
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+8
+DROP TABLE t1;
+Test 5:-
+# 1. Create table in 8.0.13 version
+# 2. Upgrade the table to 8.0.15 version
+# 3. Add another partition (PART_two)
+# 4. Do flush table and generate cfg files
+# 5. These ibd and cfg files are present in 8.0.15_cfg.zip
+# 6. Do import from the cfg file and ibd from 8.0.15_cfg.zip.
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE t1 (
+f1 int
+) ENGINE=InnoDB
+PARTITION BY RANGE (f1)
+(PARTITION PART_one VALUES LESS THAN (10),
+PARTITION PART_two VALUES LESS THAN (20));
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * from t1 ORDER BY f1;
+f1
+9
+19
+ALTER TABLE t1 FORCE;
+SELECT * from t1 ORDER BY f1;
+f1
+9
+19
+DROP TABLE t1;
+Test 6:-
+# 1. Create table in 8.0.13 version
+# 2. Upgrade the table to 8.0.15 version
+# 3. Add another partition (PART_two)
+# 4. Upgrade to 8.0.17 versiosn
+# 5. Add another partition (PART_three)
+# 6. Do flush table and generate cfg files
+# 7. These ibd and cfg files are present in 8.0.17_cfg.zip
+# 6. Do import from the cfg file and ibd from 8.0.17_cfg.zip
+use db1;
+CREATE TABLE t1 (
+f1 int
+) ENGINE=InnoDB
+PARTITION BY RANGE (f1)
+(PARTITION PART_one VALUES LESS THAN (10),
+PARTITION PART_two VALUES LESS THAN (20),
+PARTITION PART_three VALUES LESS THAN (30));
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * from t1 ORDER BY f1;
+f1
+9
+19
+29
+ALTER TABLE t1 FORCE;
+SELECT * from t1 ORDER BY f1;
+f1
+9
+19
+29
+DROP TABLE t1;
+DROP DATABASE db1;

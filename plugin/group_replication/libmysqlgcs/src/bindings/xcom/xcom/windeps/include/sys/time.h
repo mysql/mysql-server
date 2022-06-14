@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 */
 
 #ifndef _TIME_H
-#define _TIME_H     1
+#define _TIME_H 1
 
 /* redirect sys/time.h to <sdk>/time.h */
 #include <time.h>
 
-#endif  /* time.h */
+#endif /* time.h */

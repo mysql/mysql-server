@@ -1,0 +1,76 @@
+
+# Suppress warnings if IP address cannot not be resolved.
+call mtr.add_suppression("192.0.2.4");
+
+# Enforce a clean state
+flush status;
+TRUNCATE TABLE performance_schema.host_cache;
+flush user_resources;
+flush privileges;
+select @@global.debug;
+@@global.debug
+
+select @@global.max_connect_errors;
+@@global.max_connect_errors
+100
+select @@global.max_user_connections;
+@@global.max_user_connections
+0
+select @@global.max_connections;
+@@global.max_connections
+151
+select `User`, `Host` from mysql.`user` where `host` like '%\\%%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '192.%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '2001:%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
+User	Host
+TRUNCATE TABLE performance_schema.accounts;
+
+#########################################################################
+#
+# Bug#29704941 CONNECTION PASSES FOR HOSTNAME LONGER THAN 255 CHARACTERS
+#
+#########################################################################
+
+# Simulate fake ipv4 host address 192.0.2.4 and create a user.
+SET GLOBAL DEBUG = '+d, vio_peer_addr_fake_ipv4, getaddrinfo_fake_good_ipv4';
+CREATE USER 'rick'@'192.0.2.4';
+
+# CASE 1: Simulate hostname length = HOSTNAME_LENGTH + 1 characters.
+# The hostname will be "aaaa..... <upto 256 chars>".
+SET GLOBAL DEBUG = '+d, getnameinfo_fake_max_length_plus_1';
+# Try to connect. Should not be allowed.
+connect(127.0.0.1,rick,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Hostname cannot be longer than 255 characters.
+SET GLOBAL DEBUG = '-d, getnameinfo_fake_max_length_plus_1';
+
+# CASE 2: Simulate hostname length = HOSTNAME_LENGTH characters.
+# The hostname will be "aaaa..... <upto 255 chars>".
+SET GLOBAL DEBUG = '+d, getnameinfo_fake_max_length';
+# Try to connect. Should be allowed.
+SELECT CURRENT_USER();
+CURRENT_USER()
+rick@192.0.2.4
+
+# Check for successfully connected host in P_S.
+SHOW VARIABLES LIKE 'performance_schema';
+Variable_name	Value
+performance_schema	ON
+SELECT host FROM performance_schema.hosts WHERE host LIKE 'aaaa%';
+host
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SELECT user, host FROM performance_schema.accounts WHERE user='rick';
+user	host
+rick	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SELECT ip, host FROM performance_schema.host_cache WHERE host LIKE 'aaaa%';
+ip	host
+192.0.2.4	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SET GLOBAL DEBUG = '-d, getnameinfo_fake_max_length';
+SET GLOBAL DEBUG = '-d, vio_peer_addr_fake_ipv4, getaddrinfo_fake_good_ipv4';
+
+# Clean up
+DROP USER 'rick'@'192.0.2.4';
+SET GLOBAL DEBUG = default;

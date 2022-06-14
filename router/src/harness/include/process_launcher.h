@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,14 @@
 #ifndef _PROCESS_LAUNCHER_H_
 #define _PROCESS_LAUNCHER_H_
 
+#include <chrono>
+#include <cstdint>
+#include <mutex>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 #include <utility>
-#include "harness_export.h"
+#include <vector>
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS 1
@@ -36,11 +41,18 @@
 #else
 #include <unistd.h>
 #endif
-#include <stdint.h>
-#include <stdexcept>
-#include <string>
+
+#include "harness_export.h"
 
 namespace mysql_harness {
+#ifdef _WIN32
+namespace win32 {
+// reverse of CommandLineToArgv()
+HARNESS_EXPORT std::string cmdline_quote_arg(const std::string &arg);
+HARNESS_EXPORT std::string cmdline_from_args(
+    const std::string &executable_path, const std::vector<std::string> &args);
+}  // namespace win32
+#endif
 
 /** an alive, spawned process
  *
@@ -55,17 +67,19 @@ namespace mysql_harness {
  */
 class HARNESS_EXPORT SpawnedProcess {
  public:
-  SpawnedProcess(const char *pcmd_line, const char **pargs,
+  SpawnedProcess(std::string pexecutable_path, std::vector<std::string> pargs,
+                 std::vector<std::pair<std::string, std::string>> penv_vars,
                  bool predirect_stderr = true)
-      : cmd_line{pcmd_line},
-        args{pargs},
+      : executable_path{std::move(pexecutable_path)},
+        args{std::move(pargs)},
+        env_vars{std::move(penv_vars)},
 #ifdef _WIN32
         child_in_rd{INVALID_HANDLE_VALUE},
         child_in_wr{INVALID_HANDLE_VALUE},
         child_out_rd{INVALID_HANDLE_VALUE},
         child_out_wr{INVALID_HANDLE_VALUE},
-  // pi
-  // si
+        pi{},
+        si{},
 #else
         childpid{-1},
         fd_in{-1, -1},
@@ -76,13 +90,14 @@ class HARNESS_EXPORT SpawnedProcess {
 
   SpawnedProcess(const SpawnedProcess &) = default;
 
-  virtual ~SpawnedProcess() {}
+  virtual ~SpawnedProcess() = default;
 
-  const std::string &get_cmd_line() { return cmd_line; }
+  std::string get_cmd_line() const;
 
  protected:
-  const std::string cmd_line;
-  const char **args;
+  const std::string executable_path;
+  const std::vector<std::string> args;
+  const std::vector<std::pair<std::string, std::string>> env_vars;
 #ifdef _WIN32
   HANDLE child_in_rd;
   HANDLE child_in_wr;
@@ -98,10 +113,10 @@ class HARNESS_EXPORT SpawnedProcess {
   bool redirect_stderr;
 };
 
-// Launches a process as child of current process and exposes the stdin & stdout
-// of the child process (implemented thru pipelines) so the client of this class
-// can read from the child's stdout and write to the child's stdin. For usage,
-// see unit tests.
+// Launches a process as child of current process and exposes the stdin &
+// stdout of the child process (implemented thru pipelines) so the client of
+// this class can read from the child's stdout and write to the child's
+// stdin. For usage, see unit tests.
 //
 class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
 #ifdef _WIN32
@@ -109,8 +124,8 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * After ProcessLauncher sends all data to remote process, it closes the
    * handle to notify the remote process that no more data will be sent.
    *
-   * Since you cannot close the same handle more than once, store information if
-   * handle should be closed in child_in_wr_closed.
+   * Since you cannot close the same handle more than once, store
+   * information if handle should be closed in child_in_wr_closed.
    */
   bool child_in_wr_closed = false;
 #endif
@@ -118,13 +133,15 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
  public:
   /**
    * Creates a new process and launch it.
-   * Argument 'args' must have a last entry that is NULL.
-   * If redirect_stderr is true, the child's stderr is redirected to the same
-   * stream than child's stdout.
+   * If redirect_stderr is true, the child's stderr is redirected to the
+   * same stream than child's stdout.
    */
-  ProcessLauncher(const char *pcmd_line, const char **pargs,
+  ProcessLauncher(std::string pexecutable_path, std::vector<std::string> pargs,
+                  std::vector<std::pair<std::string, std::string>> penv_vars,
                   bool predirect_stderr = true)
-      : SpawnedProcess(pcmd_line, pargs, predirect_stderr), is_alive{false} {}
+      : SpawnedProcess(std::move(pexecutable_path), std::move(pargs),
+                       std::move(penv_vars), predirect_stderr),
+        is_alive{false} {}
 
   // copying a Process results in multiple destructors trying
   // to kill the same alive process. Disable it.
@@ -139,22 +156,23 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
     rhs.is_alive = false;
   }
 
-  ~ProcessLauncher();
+  ~ProcessLauncher() override;
 
-  /** Launches the child process, and makes pipes available for read/write. */
+  /** Launches the child process, and makes pipes available for read/write.
+   */
   void start();
 
   /**
    * Read up to a 'count' bytes from the stdout of the child process.
-   * This method blocks until the amount of bytes is read or specified timeout
-   * expires.
+   * This method blocks until the amount of bytes is read or specified
+   * timeout expires.
    * @param buf already allocated buffer where the read data will be stored.
    * @param count the maximum amount of bytes to read.
-   * @param timeout_ms timeout (in milliseconds) for the read to complete
+   * @param timeout timeout (in milliseconds) for the read to complete
    * @return the real number of bytes read.
    * Returns an shcore::Exception in case of error when reading.
    */
-  int read(char *buf, size_t count, unsigned timeout_ms);
+  int read(char *buf, size_t count, std::chrono::milliseconds timeout);
 
   /**
    * Writes several butes into stdin of child process.
@@ -178,19 +196,7 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * If the child process is already dead, wait() just returns.
    * Returns the exit code of the process.
    */
-  int wait(unsigned int timeout_ms = 1000);
-
-  /**
-   * Returns the file descriptor write handle (to write child's stdin).
-   * In Linux this needs to be cast to int, in Windows to cast to HANDLE.
-   */
-  uint64_t get_fd_write() const;
-
-  /**
-   * Returns the file descriptor read handle (to read child's stdout).
-   * In Linux this needs to be cast to int, in Windows to cast to HANDLE.
-   */
-  uint64_t get_fd_read() const;
+  int wait(std::chrono::milliseconds timeout = std::chrono::milliseconds(1000));
 
   /**
    * Closes pipe to process' STDIN in order to notify the process that all
@@ -203,7 +209,8 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
     KILL   // immediate (and abrupt) shutdown (ie. SIGKILL on Unix)
   };
   /**
-   * Sends a shutdown event to child process (SIGTERM on Unix, Ctrl+C on Win)
+   * Sends a shutdown event to child process (SIGTERM on Unix, Ctrl+C on
+   * Win)
    *
    * @param event type of shutdown event
    * @return std::error_code indicating success/failure
@@ -213,13 +220,6 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
 
  private:
   /**
-   * Throws an exception with the specified message, if msg == NULL, the
-   * exception's message is specific of the platform error. (errno in Linux /
-   * GetLastError in Windows).
-   */
-  void report_error(const char *msg, const char *prefix = nullptr);
-
-  /**
    * Closes child process and returns process' exit code.
    *
    * @throws std::system_error if sending signal to child process fails
@@ -228,6 +228,9 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * @return process exit code.
    */
   int close();
+
+  std::mutex fd_in_mtx_;
+  std::mutex fd_out_mtx_;
 
   bool is_alive;
 };

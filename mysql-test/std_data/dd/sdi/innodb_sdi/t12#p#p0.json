@@ -47,8 +47,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -83,8 +85,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -119,8 +123,10 @@
                 "generation_expression_utf8": "(`id` + `store_id`)",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -155,6 +161,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -191,6 +199,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -227,6 +237,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -240,6 +252,8 @@
         "last_checked_for_upgrade_version_id": X,
         "comment": "",
         "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
         "row_format": 2,
         "partition_type": 7,
         "partition_expression": "`store_id`",
@@ -263,6 +277,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -331,7 +347,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p0"
                     }
-                ]
+                ],
+                "subpartitions": []
             },
             {
                 "name": "p1",
@@ -359,7 +376,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p1"
                     }
-                ]
+                ],
+                "subpartitions": []
             },
             {
                 "name": "p2",
@@ -387,7 +405,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p2"
                     }
-                ]
+                ],
+                "subpartitions": []
             },
             {
                 "name": "p3",
@@ -415,7 +434,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p3"
                     }
-                ]
+                ],
+                "subpartitions": []
             }
         ],
         "collation_id": 255
@@ -435,9 +455,10 @@
     "dd_object": {
         "name": "test/t12#p#p0",
         "comment": "",
-        "options": "encryption=N;",
+        "options": "autoextend_size=0;encryption=N;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
+        "engine_attribute": "",
         "files": [
             {
                 "ordinal_position": 1,

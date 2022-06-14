@@ -13,11 +13,13 @@ set session sql_log_bin=1;
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 include/rpl_sync.inc
 
-# 1. Get a transaction stuck on server 2 (the new primary) with a table lock
+# 1. Get a transaction stuck on server 2 (the new primary)
 [connection server_2]
-LOCK TABLE t1 WRITE;
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
 [connection server_1]
 INSERT INTO t1 VALUES (1);
+[connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 # 2. Do a change to single primary mode with server 2 as the new primary
 # Get the connection ID
@@ -40,9 +42,10 @@ include/rpl_gr_wait_for_number_of_members.inc
 [connection server1]
 ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. This operation was locally killed and for that reason terminated. However the member is already configured to run in single primary mode, but the configuration was not persisted. The member will now leave the group.
 
-# 5. Unlock the table, check the action completed in the other members
+# 5. Resume transactions, check the action completed in the other members
 [connection server_2]
-UNLOCK TABLES;
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
 include/gr_assert_primary_member.inc
 [connection server3]
 include/gr_assert_secondary_member.inc

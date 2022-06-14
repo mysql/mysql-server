@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,11 @@ inline void mysql_error_service_printf(int error_id, int flags, ...) {
   mysql_service_mysql_runtime_error->emit(error_id, flags, args);
   va_end(args);
 }
+
+typedef int myf; /* Type of MyFlags in my_funcs */
+
+/* Macros for converting *constants* to the right type */
+#define MYF(v) (myf)(v)
 
 #ifndef MYSQL_SERVER
 #define my_error mysql_error_service_printf

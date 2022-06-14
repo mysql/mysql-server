@@ -1,3 +1,4 @@
+SET @saved_binlog_format= @@SESSION.binlog_format;
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SET @@foreign_key_checks= DEFAULT;
 #
@@ -12,9 +13,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
@@ -27,9 +28,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (c) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   KEY `c` (`c`),
@@ -45,9 +46,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`),
   KEY `b` (`b`),
@@ -65,9 +66,9 @@ ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`),
   KEY `b` (`b`),
@@ -83,9 +84,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`),
   KEY `b` (`b`),
@@ -131,8 +132,8 @@ FOREIGN KEY (fk) REFERENCES parent(j));
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
@@ -162,13 +163,13 @@ CREATE TABLE child_copy LIKE child;
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child_copy');
 name
-fk
 PRIMARY
+fk
 ## ... but not the constraint.
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
@@ -207,8 +208,10 @@ INSERT INTO source VALUES (1, 1);
 CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
 UNIQUE KEY my_key(j));
 INSERT INTO parent VALUES (2, 1);
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
 FOREIGN KEY (fk) REFERENCES parent(j)) AS SELECT pk, j AS fk FROM source;
+SET SESSION binlog_format= @saved_binlog_format;
 SELECT * FROM child;
 pk	fk
 1	1
@@ -216,8 +219,8 @@ pk	fk
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
@@ -235,14 +238,16 @@ FOREIGN KEY (fk) REFERENCES parent(j));
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
 NULL
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
 UNIQUE KEY my_key(j)) AS SELECT * FROM source;
+SET SESSION binlog_format= @saved_binlog_format;
 SELECT * FROM child;
 pk	fk
 SET @@foreign_key_checks= 1;
@@ -288,9 +293,9 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
-siebling_ibfk_1	parent_key	test	parent
 grandchild_ibfk_1	child_key	test	siebling
 orphan_grandchild_ibfk_1	child_key	test	siebling
+siebling_ibfk_1	parent_key	test	parent
 # Constraint is still enforced.
 INSERT INTO siebling VALUES (1, 2, 3);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`siebling`, CONSTRAINT `siebling_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`j`))

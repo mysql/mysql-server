@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,8 +55,7 @@ the row buffer that is passed to `write_row()` is 352 bytes:
 
 hex | raw | description
 --- | --- | -----------
-f0  | .   | NULLs bitmask 11110000 denoting that out of 4 columns that could
-            possibly be NULL (c1, c3, c5 and c7) none is actually NULL.
+f0  | .   | NULLs bitmask 11110000 denoting that out of 4 columns that could possibly be NULL (c1, c3, c5 and c7) none is actually NULL.
 7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
@@ -99,8 +98,7 @@ a5  | .   | from above (4/4)
 20  |     | from above (6/8)
 20  |     | from above (7/8)
 20  |     | from above (8/8)
-04  | .   | the length (occupying 2 bytes) of the following data
-            (for VARCHAR cells): 4 (1/2)
+04  | .   | the length (occupying 2 bytes) of the following data (for VARCHAR cells): 4 (1/2)
 00  | .   | from above (2/2)
 61  | a   | c7='abcd' - the actual data (1/4)
 62  | b   | from above (2/4)
@@ -130,19 +128,16 @@ the indexed cells buffer that is passed to `index_read()` is 350 bytes:
 
 hex | raw | description
 --- | --- | -----------
-00  | .   | c1 NULL byte, denoting that c1 is not NULL
-            (would have been 01 is c1 was NULL)
+00  | .   | c1 NULL byte, denoting that c1 is not NULL (would have been 01 is c1 was NULL)
 7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-7b  | {   | c2=123 stored in 4 bytes (little endian) (because c2 cannot be NULL
-            there is no leading byte to indicate NULL or not NULL) (1/4)
+7b  | {   | c2=123 stored in 4 bytes (little endian) (because c2 cannot be NULL there is no leading byte to indicate NULL or not NULL) (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-00  | .   | c3 NULL byte, denoting that c3 is not NULL
-            (would have been 01 if c3 was NULL)
+00  | .   | c3 NULL byte, denoting that c3 is not NULL (would have been 01 if c3 was NULL)
 04  | .   | c3 length (4), always 2 bytes (1/2)
 00  | .   | from above (2/2)
 61  | a   | c3='abcd' - the actual data (1/4)
@@ -163,8 +158,7 @@ hex | raw | description
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-00  | .   | c5 NULL byte, denoting that c5 is not NULL
-            (would have been 01 if c5 was NULL)
+00  | .   | c5 NULL byte, denoting that c5 is not NULL (would have been 01 if c5 was NULL)
 61  | a   | c5='abcd    ' (1/8)
 62  | b   | from above (2/8)
 63  | c   | from above (3/8)
@@ -238,8 +232,7 @@ hex | raw | description
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c1 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c1 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -255,8 +248,7 @@ f1  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c2 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c2 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -272,8 +264,7 @@ f2  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c3 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c3 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -289,8 +280,7 @@ f3  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c4 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c4 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -306,8 +296,7 @@ f4  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c5 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c5 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 08  | .   | from above (4/4)
@@ -323,8 +312,7 @@ f5  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c6 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c6 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 08  | .   | from above (4/4)
@@ -340,8 +328,7 @@ f6  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c7 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c7 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -395,9 +382,9 @@ f7  | .   | from above (8/8)
 #ifndef TEMPTABLE_ROW_H
 #define TEMPTABLE_ROW_H
 
+#include <assert.h>
 #include <algorithm>
 
-#include "my_dbug.h"
 #include "sql/field.h"
 #include "storage/temptable/include/temptable/allocator.h"
 #include "storage/temptable/include/temptable/cell.h"
@@ -463,7 +450,7 @@ class Row {
       /** [in,out] Seconds row to swap. */
       Row &r2);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Compare to another row. Used by Table::update() and Table::remove() to
    * double check that the row which is passed as "old row" indeed equals to
    * the row pointed to by the specified position.
@@ -480,7 +467,7 @@ class Row {
       /** [in] List of MySQL column definitions,
        * used for querying metadata. */
       Field **mysql_fields);
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
  private:
   /** Get a pointer to the cells array. Only defined if
@@ -553,15 +540,15 @@ inline Cell Row::cell(const Column &column, size_t i) const {
 }
 
 inline Cell *Row::cells() const {
-  DBUG_ASSERT(!m_data_is_in_mysql_memory);
-  DBUG_ASSERT(m_ptr != nullptr);
+  assert(!m_data_is_in_mysql_memory);
+  assert(m_ptr != nullptr);
   return reinterpret_cast<Cell *>(m_ptr + sizeof(size_t));
 }
 
 inline Cell Row::cell_in_row(size_t i) const { return cells()[i]; }
 
 inline Cell Row::cell_in_mysql_memory(const Column &column) const {
-  DBUG_ASSERT(m_data_is_in_mysql_memory);
+  assert(m_data_is_in_mysql_memory);
 
   const bool is_null = column.read_is_null(m_ptr);
   const uint32_t data_length = column.read_user_data_length(m_ptr);
@@ -571,8 +558,8 @@ inline Cell Row::cell_in_mysql_memory(const Column &column) const {
 }
 
 inline size_t Row::buf_length() const {
-  DBUG_ASSERT(!m_data_is_in_mysql_memory);
-  DBUG_ASSERT(m_ptr != nullptr);
+  assert(!m_data_is_in_mysql_memory);
+  assert(m_ptr != nullptr);
   return *reinterpret_cast<size_t *>(m_ptr);
 }
 

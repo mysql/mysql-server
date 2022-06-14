@@ -16,7 +16,7 @@ let $snapshotstart = 1;
 --source ndb_backup_restore.inc
 
 --echo Case 3: start backup wait completed
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait completed" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup wait completed" >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

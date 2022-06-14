@@ -1,9 +1,10 @@
-#
-# A series of tests to show the correct file-per-table tablespace behavior.
-# See also; parts.partition_basic_symlink_innodb.test for
-# partition related tests with remote tablespaces.
-# See innodb.innodb-restart for tablespace migration tests.
-#
+--echo #
+--echo # A series of tests to show the correct file-per-table tablespace behavior.
+--echo # See also; parts.partition_basic_symlink_innodb.test for
+--echo # partition related tests with remote tablespaces.
+--echo # See innodb.innodb-restart for tablespace migration tests.
+--echo #
+
 SET default_storage_engine=InnoDB;
 
 --echo #

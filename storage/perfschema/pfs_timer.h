@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,15 @@
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_rdtsc.h"
+
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_histogram.h"
 
 /** Conversion factor, from micro seconds to pico seconds. */
 #define MICROSEC_TO_PICOSEC 1000000
+
+/** Conversion factor, from nano seconds to pico seconds. */
+#define NANOSEC_TO_PICOSEC 1000
 
 #ifndef MY_CONFIG_H
 /* my_config.h MUST be included before testing HAVE_XXX flags. */
@@ -102,6 +106,8 @@ ulonglong inline get_stage_timer() { return USED_TIMER(); }
 ulonglong inline get_statement_timer() { return USED_TIMER(); }
 
 ulonglong inline get_transaction_timer() { return USED_TIMER(); }
+
+ulonglong inline get_thread_cpu_timer() { return my_timer_thread_cpu(); }
 
 /**
   A time normalizer.

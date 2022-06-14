@@ -281,9 +281,22 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
   INSERT INTO t3 VALUES (1,1) ;
   let $point=   before_reset_query_plan;let $query=  SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic) ;
   --source include/explain_for_connection.inc
-  let $point=   planned_single_delete;let $query=  DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) ;
+
+# Row-based binary logging adds the columns of t1's PK to the read_set;
+# this is visible in the "used_columns" information of the JSON format.
+# So, depending on the binary log format used to run this query, the
+# JSON output is of varying length, which influences the line numbers in
+# diff hunk headers like "@@ -12,3". As this test displays the diff,
+# it can fail for certain binlog formats. Force one format:
+
+set binlog_format=mixed;
+
+  let $point=   before_reset_query_plan;let $query=  DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) ;
   --source include/explain_for_connection.inc
-  drop table t1, t2, t3 ;
+
+set binlog_format=default;
+
+drop table t1, t2, t3 ;
 
 SET sql_mode = default;
 

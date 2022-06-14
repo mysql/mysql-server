@@ -106,8 +106,10 @@ SET global.sync_binlog = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.sync_binlog = 1' at line 1
 SELECT global.sync_binlog;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT sync_binlog = @@session.sync_binlog;
+SELECT sync_binlog;
 ERROR 42S22: Unknown column 'sync_binlog' in 'field list'
+SELECT @@session.sync_binlog;
+ERROR HY000: Variable 'sync_binlog' is a GLOBAL variable
 SET @@global.sync_binlog = @start_value;
 SELECT @@global.sync_binlog;
 @@global.sync_binlog

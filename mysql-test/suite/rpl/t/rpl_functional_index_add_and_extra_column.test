@@ -1,0 +1,240 @@
+# ==== Purpose ====
+#
+# Tests the row-based replication of tables with functional indexes and with
+# extra columns or columns added with `ALTER TABLE`.
+#
+# ==== Requirements ====
+#
+# R1. Replication should work when hidden generated columns were added to the
+#     table definition in different orders on master and slave.
+#
+# R2. Replication should work when either master or slave has extra columns that
+#     were added after the creation of hidden generated columns.
+#
+# ==== Implementation ====
+#
+# TC1. Add one of the columns after `CREATE` with `ALTER TABLE`
+# ------------------------------------------------------------------------
+# 1) Create a table with functional indexes, in one of the nodes.
+# 2) Create the same table in the other node, but with one less normal column.
+# 3) Add the missing column with `ALTER TABLE`
+# 4) Execute `INSERT`, `UPDATE` and `DELETE` statements.
+# 5) Check the tables have the same content in both nodes.
+# 6) Repeat the above process for all the combinations of:
+#    a) `binlog_row_image` being `FULL` or `MINIMAL`
+#    b) the node to which the column is added with `ALTER TABLE` being the
+#       master or the slave.
+#    c) the table has a `PRIMARY KEY` or it doesn't
+#
+# TC2. Add one extra column with `ALTER TABLE`
+# ------------------------------------------------------------------------
+# 1) Create a table with functional indexes, in the master.
+# 2) Replicate the table.
+# 3) Add one extra column with `ALTER TABLE`, in one of the nodes.
+# 4) Execute `INSERT`, `UPDATE` and `DELETE` statements.
+# 5) Check the tables have the same content in both nodes, for the common
+#    columns.
+# 6) Repeat the above process for all the combinations of:
+#    a) `binlog_row_image` being `FULL` or `MINIMAL`
+#    b) the node to which the column is added with `ALTER TABLE` being the
+#       master or the slave.
+#    c) the table has a `PRIMARY KEY` or it doesn't
+#
+# ==== References ====
+#
+# BUG#29390506 HIDDEN GENERATED COLUMNS PREVENT SLAVE FROM HAVING EXTRA COLUMNS IN TABLES
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+--let $initial_row_image = `SELECT @@global.binlog_row_image`
+
+# Procedure that adds, after `CREATE*`, one of the columns with `ALTER TABLE`
+# and tests the replication of `INSERT`, `UPDATE` and `DELETE`.
+#
+--write_file $MYSQLTEST_VARDIR/tmp/add_one_of_the_columns.inc PROCEDURE
+  --let $aditional_column_prop =
+
+  if ($primary_key == true) {
+    --let $aditional_column_prop = PRIMARY KEY
+  }
+
+  if ($alter_on == master) {
+    --let $dont_alter_on = slave
+  }
+  if ($alter_on == slave) {
+    --let $dont_alter_on = master
+  }
+
+  --echo #
+  --echo # Add one of the columns in the $alter_on, with binlog_row_image equal to
+  --echo # $row_image and aditional columns props equal to '$aditional_column_prop'
+  --echo #
+
+  --connection $alter_on
+  --echo [connection $alter_on]
+  SET @@session.sql_log_bin = 0;
+  eval CREATE TABLE t (a INT $aditional_column_prop,
+                       INDEX ((a+1)), KEY ((a+10)));
+  ALTER TABLE t ADD COLUMN b INT;
+  SET @@session.sql_log_bin = 1;
+
+  --connection $dont_alter_on
+  --echo [connection $dont_alter_on]
+  SET @@session.sql_log_bin = 0;
+  eval CREATE TABLE t (a INT $aditional_column_prop, b INT,
+                       INDEX ((a+1)), KEY ((a+10)));
+  SET @@session.sql_log_bin = 1;
+
+  --source include/rpl_connection_master.inc
+  INSERT INTO t VALUES (1, 2);
+  UPDATE t SET b = 1 WHERE a = 1;
+  INSERT INTO t VALUES (2, 2);
+  DELETE FROM t WHERE b = 2;
+  --source include/sync_slave_sql_with_master.inc
+
+  --let $diff_tables = master:t, slave:t
+  --source include/diff_tables.inc
+
+  --source include/rpl_connection_master.inc
+  DROP TABLE t;
+  --source include/sync_slave_sql_with_master.inc
+#END OF
+PROCEDURE
+
+# Procedure that adds, after `CREATE*`, one extra column with `ALTER TABLE`
+# and tests the replication of `INSERT`, `UPDATE` and `DELETE`.
+#
+--write_file $MYSQLTEST_VARDIR/tmp/add_one_extra_column.inc PROCEDURE
+  --let $aditional_column_prop =
+
+  if ($primary_key == true) {
+    --let $aditional_column_prop = PRIMARY KEY
+  }
+
+  --echo #
+  --echo # Add one extra column in the $alter_on, with binlog_row_image equal to
+  --echo # $row_image and aditional columns props equal to '$aditional_column_prop'
+  --echo #
+
+  --source include/rpl_connection_master.inc
+  eval CREATE TABLE t (a INT $aditional_column_prop, b INT,
+                       INDEX ((a+1)), KEY ((a+10)));
+  --source include/sync_slave_sql_with_master.inc
+
+  --connection $alter_on
+  --echo [connection $alter_on]
+  SET @@session.sql_log_bin = 0;
+  ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+  SET @@session.sql_log_bin = 1;
+
+  --source include/rpl_connection_master.inc
+  INSERT INTO t (a, b) VALUES (1, 2);
+  UPDATE t SET b = 1 WHERE a = 1;
+  INSERT INTO t (a, b) VALUES (2, 2);
+  DELETE FROM t WHERE b = 2;
+
+  --let $rpl_diff_statement = SELECT a, b FROM t
+  --source include/rpl_diff.inc
+
+  --source include/rpl_connection_master.inc
+  DROP TABLE t;
+  --source include/sync_slave_sql_with_master.inc
+#END OF
+PROCEDURE
+
+--echo #
+--echo # TC1. Add one of the columns after `CREATE` with `ALTER TABLE`
+--echo #
+
+--let $k = 0
+while ($k != 2) {
+  if ($k == 0) {
+    --let $row_image = FULL
+  }
+  if ($k == 1) {
+    --let $row_image = MINIMAL
+  }
+
+  --eval SET @@global.binlog_row_image = $row_image
+
+  --let $n = 0
+  while ($n != 2) {
+    if ($n == 0) {
+      --let $alter_on = master
+    }
+    if ($n == 1) {
+      --let $alter_on = slave
+    }
+
+    --let $l = 0
+    while ($l != 2) {
+      if ($l == 0) {
+        --let $primary_key = true
+      }
+      if ($l == 1) {
+        --let $primary_key =
+      }
+
+      --source $MYSQLTEST_VARDIR/tmp/add_one_of_the_columns.inc
+
+      --inc $l
+    }
+
+    --inc $n
+  }
+
+  --inc $k
+}
+
+--echo #
+--echo # TC2. Add one extra column with `ALTER TABLE`
+--echo #
+
+--let $k = 0
+while ($k != 2) {
+  if ($k == 0) {
+    --let $row_image = FULL
+  }
+  if ($k == 1) {
+    --let $row_image = MINIMAL
+  }
+
+  --eval SET @@global.binlog_row_image = $row_image
+
+  --let $n = 0
+  while ($n != 2) {
+    if ($n == 0) {
+      --let $alter_on = master
+    }
+    if ($n == 1) {
+      --let $alter_on = slave
+    }
+
+    --let $l = 0
+    while ($l != 2) {
+      if ($l == 0) {
+        --let $primary_key = true
+      }
+      if ($l == 1) {
+        --let $primary_key =
+      }
+
+      --source $MYSQLTEST_VARDIR/tmp/add_one_extra_column.inc
+
+      --inc $l
+    }
+
+    --inc $n
+  }
+
+  --inc $k
+}
+
+# Clean up
+--remove_file $MYSQLTEST_VARDIR/tmp/add_one_of_the_columns.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/add_one_extra_column.inc
+--replace_result $initial_row_image INITIAL_ROW_IMAGE
+--eval SET @@global.binlog_row_image = $initial_row_image
+--source include/rpl_end.inc

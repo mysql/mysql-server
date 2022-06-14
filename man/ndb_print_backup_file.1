@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_print_backup_file\fR
+.\"     Title: ndb_print_backup_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_PRINT_BACKUP_FILE\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_BACKUP_FILE" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,13 +36,282 @@ ndb_print_backup_file \- print NDB backup file contents
 .PP
 \fBndb_print_backup_file\fR
 obtains diagnostic information from a cluster backup file\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&23.39.\ \&Command\-line options used with the program ndb_print_backup_file
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
+T{
+.PP
+\fB--backup-password=password\fR,
+.PP
+\fB \fR\fB-P password\fR\fB \fR
+T}:T{
+Use this password to decrypt file
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--backup-password-from-stdin\fR\fB \fR
+T}:T{
+Get decryption password in a secure fashion from STDIN
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--control-directory-number=#\fR,
+.PP
+\fB \fR\fB-c #\fR\fB \fR
+T}:T{
+Control directory number
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
+T}:T{
+Read given file after global files are read
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-file=path\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--fragment-id=#\fR,
+.PP
+\fB \fR\fB-f #\fR\fB \fR
+T}:T{
+Fragment ID
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--help\fR,
+.PP
+\fB--usage\fR,
+.PP
+\fB-h\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Print usage information
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB \fR\fB--login-path=path\fR\fB \fR
+T}:T{
+Read given path from login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--no-defaults\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--no-print-rows\fR,
+.PP
+\fB \fR\fB-u\fR\fB \fR
+T}:T{
+Do not print rows
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB \fR\fB--print-defaults\fR\fB \fR
+T}:T{
+Print program argument list and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--print-header-words\fR,
+.PP
+\fB \fR\fB-h\fR\fB \fR
+T}:T{
+Print header words
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB \fR\fB--print-restored-rows\fR\fB \fR
+T}:T{
+Print restored rows
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--print-rows\fR,
+.PP
+\fB \fR\fB-U\fR\fB \fR
+T}:T{
+Print rows. Enabled by default; disable with --no-print-rows
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB \fR\fB--print-rows-per-page\fR\fB \fR
+T}:T{
+Print rows per page
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--rowid-file=path\fR,
+.PP
+\fB \fR\fB-n path\fR\fB \fR
+T}:T{
+File containing row ID to check for
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--show-ignored-rows\fR,
+.PP
+\fB \fR\fB-i\fR\fB \fR
+T}:T{
+Show ignored rows
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--table-id=#\fR,
+.PP
+\fB \fR\fB-t #\fR\fB \fR
+T}:T{
+Table ID; used with --print-restored rows
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --help
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--verbose[=#]\fR,
+.PP
+\fB \fR\fB-v\fR\fB \fR
+T}:T{
+Verbosity level
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Display version information and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+.TE
+.sp 1
 Usage
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-ndb_print_backup_file \fIfile_name\fR
+ndb_print_backup_file [\-P \fIpassword\fR] \fIfile_name\fR
 .fi
 .if n \{\
 .RE
@@ -56,7 +325,7 @@ file) found in a cluster backup directory\&. These files are found in the data n
 BACKUP\-\fI#\fR, where
 \fI#\fR
 is the sequence number for the backup\&. For more information about cluster backup files and their contents, see
-Section\ \&22.5.3.1, \(lqNDB Cluster Backup Concepts\(rq\&.
+Section\ \&23.6.8.1, \(lqNDB Cluster Backup Concepts\(rq\&.
 .PP
 Like
 \fBndb_print_schema_file\fR
@@ -68,13 +337,759 @@ utilities that are intended to be run on a management server host or to connect 
 \fBndb_print_backup_file\fR
 must be run on a cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
 .PP
-In NDB 8\&.0\&.17 and later, this program can also be used to read undo log files\&.
-Additional Options.PP
-None\&.
+In NDB 8\&.0, this program can also be used to read undo log files\&.
+Options
+.PP
+Prior to NDB 8\&.0\&.24,
+\fBndb_print_backup_file\fR
+supported only the
+\fB\-P\fR
+option\&. Beginning with NDB 8\&.0\&.24, the program supports a number of options, which are described in the following list\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-backup\-password\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--backup-password=password
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Specify the password needed to decrypt an encrypted backup\&.
+.sp
+The long form of this option is available beginning with NDB 8\&.0\&.24\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-backup\-password\-from\-stdin\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--backup-password-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Allow input of the password from standard input, similar to entering a password after invoking
+\fBmysql\fR
+\fB\-\-password\fR
+with no password supplied\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-control\-directory\-number\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--control-directory-number=#
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
+Control file directory number\&. Used together with
+\fB\-\-print\-restored\-rows\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-fragment\-id\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--fragment-id=#
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
+Fragment ID\&. Used together with
+\fB\-\-print\-restored\-rows\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+.PP
+--help
+.PP
+--usage
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Print program usage information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-print\-rows\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-print-rows
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Do not include rows in output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-header\-words\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-header-words
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Include header words in output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-restored\-rows\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-restored-rows
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Include restored rows in output, using the file
+LCP/\fIc\fR/T\fIt\fRF\fIf\fR\&.ctl, for which the values are set as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIc\fR
+is the control file number set using
+\fB\-\-control\-directory\-number\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIt\fR
+is the table ID set using
+\fB\-\-table\-id\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIf\fR
+is the fragment ID set using
+\fB\-\-fragment\-id\fR
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-rows\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-rows
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Print rows\&. This option is enabled by default; to disable it, use
+\fB\-\-no\-print\-rows\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-rows\-per\-page\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-rows-per-page
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Print rows per page\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-rowid\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--rowid-file=path
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+File to check for row ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-show\-ignored\-rows\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--show-ignored-rows
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
+Show ignored rows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-table\-id\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--table-id=#
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Table ID\&. Used together with
+\fB\-\-print\-restored\-rows\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+.TE
+.sp 1
+Display help text and exit; same as
+\fB\-\-help\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-verbose\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose[=#]
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
+Verbosity level of output\&. A greater value indicates increased verbosity\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
+Display version information and exit\&.
+.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

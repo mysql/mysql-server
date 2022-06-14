@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,19 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include <cstdint>
 #include <fstream>
 #include <stdexcept>
 
-#include "my_dbug.h"
-#include "my_loglevel.h"
-#include "my_sys.h"
+#include "my_dbug.h"      // NOLINT(build/include_subdir)
+#include "my_loglevel.h"  // NOLINT(build/include_subdir)
+#include "my_sys.h"       // NOLINT(build/include_subdir)
+#include "violite.h"      // NOLINT(build/include_subdir)
+
 #include "plugin/x/tests/driver/driver_command_line_options.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
-#include "violite.h"
 
-static void ignore_traces_from_libraries(enum loglevel ll, uint ecode,
+static void ignore_traces_from_libraries(enum loglevel ll, uint32_t ecode,
                                          va_list args) {}
 
 bool parse_mysql_connstring(const std::string &connstring,
@@ -110,7 +112,10 @@ int client_connect_and_process(const Driver_command_line_options &options,
                                std::istream &input) {
   Variable_container variables(options.m_variables);
   Console console(options.m_console_options);
-  Connection_manager cm{options.m_connection_options, &variables, console};
+  std::stringstream flow_history;
+  Console console_history_flow({}, &flow_history, &flow_history);
+  Connection_manager cm{options.m_connection_options, &variables,
+                        console_history_flow, console};
   Execution_context context(options.m_context_options, &cm, &variables,
                             console);
 
@@ -135,8 +140,12 @@ int client_connect_and_process(const Driver_command_line_options &options,
                     " (code ", e.error(), ")\n");
       return 0;
     }
+    if (options.m_connection_options.trace_protocol_history) {
+      console.print_error("Error, printing flow history:");
+      console.print_error(flow_history.str());
+      console.print_error("\n");
+    }
     console.print_error_red(context.m_script_stack, e, '\n');
-
     return 1;
   }
 }
@@ -151,7 +160,7 @@ std::istream &get_input(Driver_command_line_options *opt, std::ifstream &file,
     }
 
     file.open(opt->m_run_file.c_str());
-    file.rdbuf()->pubsetbuf(NULL, 0);
+    file.rdbuf()->pubsetbuf(nullptr, 0);
 
     if (!file.is_open()) {
       std::cerr << "ERROR: Could not open file " << opt->m_run_file << "\n";
@@ -195,7 +204,7 @@ static void daemonize() {
 
 int main(int argc, char **argv) {
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
 
   local_message_hook = ignore_traces_from_libraries;
 
@@ -215,13 +224,13 @@ int main(int argc, char **argv) {
 #ifdef WIN32
   if (!have_tcpip) {
     std::cerr << "OS doesn't have tcpip\n";
-    DBUG_RETURN(1);
+    return 1;
   }
 #endif
 
   ssl_start();
 
-  bool return_code = 0;
+  bool return_code = false;
   try {
     return_code = client_connect_and_process(options, input);
     const bool is_ok = 0 == return_code;
@@ -232,10 +241,10 @@ int main(int argc, char **argv) {
       std::cerr << "not ok\n";
   } catch (std::exception &e) {
     std::cerr << "ERROR: " << e.what() << "\n";
-    return_code = 1;
+    return_code = true;
   }
 
   vio_end();
   my_end(0);
-  DBUG_RETURN(return_code);
+  return return_code;
 }

@@ -7,6 +7,7 @@
 # [--let $binlog_file= [<FILENAME> | LAST]]
 # [--let $binlog_start= <POSITION> ]
 # [--let $binlog_limit= 1, 3 ]
+# [--let $keep_transaction_payload_events = 0]
 # [--let $keep_gtid_events= 1]
 # [--let $keep_view_change_events= 1]
 # [--let $mask_binlog_commit_events= 1]
@@ -41,6 +42,11 @@
 #     By default, View Change Events are filtered out, so that the output is
 #     independent of Group Replication being enabled. If this flag is set,
 #     events are kept.
+#
+#   $keep_transaction_payload_events
+#     By default, transaction payload events are not filtered out. If this
+#     flag is set to 1 Transaction_payload_events are kept in the output.
+#     If set to 0, Transaction_payload_events are omitted.
 #
 #   $mask_binlog_commit_events
 #     If specified, any Xid_log_event is masked as a

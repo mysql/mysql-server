@@ -19,7 +19,7 @@ include/sync_slave_sql_with_master.inc
 # Stop the IO thread
 include/stop_slave_io.inc
 Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 # Restart IO thread
 include/start_slave_io.inc
 # Do one more insert on master and then sync slave with master

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_TRANSFORM_FUNCTOR_H_INCLUDED
 #define SQL_GIS_TRANSFORM_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,13 @@
 #include <memory>  // std::unique_ptr
 #include <string>
 
+#include "my_compiler.h"
+
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
 #include <boost/geometry.hpp>
 #include <boost/geometry/srs/transformation.hpp>
+MY_COMPILER_DIAGNOSTIC_POP()
 
 #include "sql/gis/functor.h"
 #include "sql/gis/geometries.h"

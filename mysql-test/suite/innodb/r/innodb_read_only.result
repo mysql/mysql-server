@@ -1,0 +1,49 @@
+CREATE DATABASE WL6445;
+CREATE TABLE WL6445.t1(c1 INT, c2 INT, INDEX sec_idx(c2)) ENGINE=InnoDB;
+INSERT INTO WL6445.t1 VALUES(0,0),(1,1),(2,2);
+SHOW CREATE TABLE WL6445.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  KEY `sec_idx` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+SELECT COUNT(*) FROM WL6445.t1;
+COUNT(*)
+3
+INSERT INTO WL6445.t1 VALUES(3,3);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+INSERT INTO WL6445.t1 SELECT * FROM WL6445.t1;
+ERROR HY000: Table 't1' is read only
+REPLACE INTO WL6445.t1 VALUES(1,1);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+UPDATE WL6445.t1 SET c1 = c1 + 100;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+DELETE FROM WL6445.t1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ALTER TABLE WL6445.t1 ADD COLUMN c2 INT;
+ERROR 42S21: Duplicate column name 'c2'
+ALTER TABLE WL6445.t1 ADD UNIQUE INDEX(c1);
+ERROR HY000: Running in read-only mode
+ALTER TABLE WL6445.t1 DROP INDEX sec_idx;
+ERROR HY000: Running in read-only mode
+DROP TABLE WL6445.t1;
+ERROR HY000: Storage engine can't drop table 'WL6445.t1'
+TRUNCATE TABLE WL6445.t1;
+ERROR HY000: Table 't1' is read only
+RENAME TABLE WL6445.t1 TO WL6444.t2;
+ERROR 42000: Unknown database 'WL6444'
+DROP DATABASE WL6445;
+ERROR HY000: Storage engine can't drop table 'WL6445.t1'
+SHOW CREATE TABLE WL6445.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  KEY `sec_idx` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# restart
+DROP TABLE WL6445.t1;
+DROP DATABASE WL6445;

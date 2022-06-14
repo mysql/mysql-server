@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_esms_global_by_event_name.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -75,6 +75,8 @@ Plugin_table table_esms_global_by_event_name::m_table_def(
     "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
     "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
     "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_CPU_TIME BIGINT unsigned not null,\n"
+    "  COUNT_SECONDARY BIGINT unsigned not null,\n"
     "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -84,7 +86,7 @@ Plugin_table table_esms_global_by_event_name::m_table_def(
 PFS_engine_table_share table_esms_global_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_esms_global_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_global_by_event_name::delete_all_rows,
     table_esms_global_by_event_name::get_row_count,
     sizeof(PFS_simple_index),
@@ -143,7 +145,7 @@ int table_esms_global_by_event_name::rnd_init(bool) { return 0; }
 int table_esms_global_by_event_name::rnd_next(void) {
   PFS_statement_class *statement_class;
 
-  if (global_instr_class_statements_array == NULL) {
+  if (global_instr_class_statements_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -163,7 +165,7 @@ int table_esms_global_by_event_name::rnd_pos(const void *pos) {
 
   set_position(pos);
 
-  if (global_instr_class_statements_array == NULL) {
+  if (global_instr_class_statements_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -175,10 +177,10 @@ int table_esms_global_by_event_name::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_esms_global_by_event_name::index_init(uint idx [[maybe_unused]],
                                                 bool) {
-  PFS_index_esms_global_by_event_name *result = NULL;
-  DBUG_ASSERT(idx == 0);
+  PFS_index_esms_global_by_event_name *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_esms_global_by_event_name);
   m_opened_index = result;
   m_index = result;
@@ -188,7 +190,7 @@ int table_esms_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
 int table_esms_global_by_event_name::index_next(void) {
   PFS_statement_class *statement_class;
 
-  if (global_instr_class_statements_array == NULL) {
+  if (global_instr_class_statements_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -205,7 +207,7 @@ int table_esms_global_by_event_name::index_next(void) {
       }
       m_pos.m_index++;
     }
-  } while (statement_class != NULL);
+  } while (statement_class != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -237,16 +239,16 @@ int table_esms_global_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* NAME */
           m_row.m_event_name.set_field(f);
           break;
         default: /* 1, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stat.set_field(f->field_index - 1, f);
+          m_row.m_stat.set_field(f->field_index() - 1, f);
           break;
       }
     }

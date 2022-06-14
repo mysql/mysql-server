@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,8 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 #include "EventLogger.hpp"
-extern EventLogger * g_eventLogger;
 
+#include "ndb_stacktrace.h"
 #include "TimeModule.hpp"
 
 #include <NdbAutoPtr.hpp>
@@ -263,6 +263,8 @@ ErrorReporter::handleError(int messageID,
 			   const char* objRef,
 			   NdbShutdownType nst)
 {
+  ndb_print_stacktrace();
+
   if(messageID == NDBD_EXIT_ERROR_INSERT)
   {
     nst = NST_ErrorInsert;
@@ -342,7 +344,8 @@ WriteMessage(int thrdMessageID,
     stream = fopen(theErrorFileName, "w");
     if(stream == NULL)
     {
-      fprintf(stderr,"Unable to open error log file: %s\n", theErrorFileName);
+      g_eventLogger->info("Unable to open error log file: %s",
+                          theErrorFileName);
       return -1;
     }
     fprintf(stream, "%s%u%s", "Current byte-offset of file-pointer is: ", 69,

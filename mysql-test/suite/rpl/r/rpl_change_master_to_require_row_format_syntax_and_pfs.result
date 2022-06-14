@@ -1,0 +1,132 @@
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 2;
+ERROR HY000: The requested value 2 is invalid for REQUIRE_ROW_FORMAT, must be either 0 or 1.
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+include/rpl_init.inc [topology=1->2, 1->3, 1->4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '2']
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '3']
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '4']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	NO	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 0 for server '2']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	NO	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 0 for server '3']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	NO	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 0 for server '4']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '2']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '3']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '4']
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '2']
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '3']
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	YES	STREAM	OFF	NULL
+check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '4']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/rpl_end.inc

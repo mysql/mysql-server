@@ -1,0 +1,110 @@
+#
+# WL#13979: MySQL GCS: Reduce minimum value of group_replication_message_cache_size
+#
+# This test case does:
+# - configure the xcom cache to be capped at 128 MB
+# - start a two member group: {server1, server2}
+# - create 201 transactions, out of which 200 are larger than 1MB
+# - checks that these are replicated
+# - asserts that more messages than 201 were sent
+# - asserts that the cache remains below the cap
+#
+
+# this test needs large transactions
+--source include/not_binlog_transaction_compression_on.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $saved_gr_message_cache_size = `SELECT @@global.group_replication_message_cache_size`
+--let $min = `SELECT 128 * 1024 * 1024`
+--let $message_size = `SELECT 1024 * 1024`
+--let $nmessages = 200
+
+## configure server 1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $min MESSAGE_CACHE_SIZE_MIN
+--eval SET GLOBAL group_replication_message_cache_size = $min
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The value of group_replication_message_cache_size should be MESSAGE_CACHE_SIZE_MIN
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = $min
+--source include/assert.inc
+
+## configure server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $min MESSAGE_CACHE_SIZE_MIN
+--eval SET GLOBAL group_replication_message_cache_size = $min
+--source include/start_group_replication.inc
+
+## generate some load
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+--disable_query_log
+--let $i = $nmessages
+--echo # sending $nmessages messages of approx 1MB each
+while ($i > 0) {
+  BEGIN;
+  --eval INSERT INTO t1 VALUES($i, REPEAT('A', $message_size))
+
+  # just to clear the c2 table to be able to diff tables quicker below
+  # and not run into sort buffer size issues
+  UPDATE t1 SET c2 = NULL;
+
+  COMMIT;
+
+  --dec $i
+}
+--echo # sent all $nmessages messages
+--enable_query_log
+
+## synchronize servers
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $diff_tables=server1:test.t1,server2:test.t1
+--source include/diff_tables.inc
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+## now assert perfschema readings and cleanup
+
+--let $s=2
+while ($s > 0) {
+
+  --let $rpl_connection_name= server$s
+  --source include/rpl_connection.inc
+
+  --let $count_alloc = `SELECT count_alloc FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/GCS_XCom::xcom_cache'`
+  --let $curr_used = `SELECT current_number_of_bytes_used FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/GCS_XCom::xcom_cache'`
+
+  --let $assert_text= Assert that we allocated more than $nmessages entries
+  --let $assert_cond= $count_alloc > $nmessages
+  --source include/assert.inc
+
+  --let $assert_text= Assert that the cache has not exceeded the cap
+  --let $assert_cond= $curr_used < $min
+  --source include/assert.inc
+
+  --source include/stop_group_replication.inc
+  --replace_result $saved_gr_message_cache_size MESSAGE_CACHE_SIZE_SAVED
+  --eval SET GLOBAL group_replication_message_cache_size = $saved_gr_message_cache_size
+
+  --dec $s
+}
+
+--source include/group_replication_end.inc

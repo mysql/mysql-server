@@ -27,10 +27,10 @@ FLUSH PRIVILEGES;
 --echo [connection slave]
 --let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
 --replace_column 2 ####
-CHANGE MASTER TO 
-  MASTER_USER=     'plug_user',
-  MASTER_PASSWORD= 'plug_user',
-  MASTER_RETRY_COUNT= 0;
+CHANGE REPLICATION SOURCE TO 
+  SOURCE_USER=     'plug_user',
+  SOURCE_PASSWORD= 'plug_user',
+  SOURCE_RETRY_COUNT= 0;
 
 #
 # Start slave with new replication account - this should trigger connection
@@ -57,7 +57,7 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 --echo # Cleanup (on slave).
 --source include/stop_slave.inc
 --replace_column 2 ####
-eval CHANGE MASTER TO MASTER_USER='$master_user';
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$master_user';
 DROP USER 'plug_user';
 
 --echo # Cleanup (on master).

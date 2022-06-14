@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,12 +53,12 @@ int main(int argc, char **argv) {
   }
   FILE *input_file = fopen(argv[1], "rb");
   FILE *output_file = fopen(argv[2], "wb");
-  if (input_file == NULL) {
+  if (input_file == nullptr) {
     fprintf(stderr,
             "zlib_decompress: [Error] Cannot open input file for reading.\n");
     exit(1);
   }
-  if (output_file == NULL) {
+  if (output_file == nullptr) {
     fprintf(stderr, "zlib_decompress: [Error] Cannot create output file.\n");
     exit(1);
   }
@@ -96,8 +96,15 @@ int main(int argc, char **argv) {
         exit(1);
       }
 
-      fwrite(output_buffer, 1,
-             OUTPUT_BUFFER_SIZE - decompression_context.avail_out, output_file);
+      size_t bytes_to_write =
+          OUTPUT_BUFFER_SIZE - decompression_context.avail_out;
+      if (fwrite(output_buffer, 1, bytes_to_write, output_file) !=
+          bytes_to_write) {
+        fprintf(stderr,
+                "zlib_decompress: [Error] Encountered problem during "
+                "file write.\n");
+        exit(1);
+      }
     } while (decompression_context.avail_out == 0);
   }
 

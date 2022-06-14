@@ -2320,15 +2320,15 @@ ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t5(c3) VALUES(NULL);
 ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t4(c1,c3) VALUES(-101,105) /*throws error as the row with c1=-101 exists */;
-ERROR 23000: Duplicate entry '-101' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-101' for key 't4.PRIMARY'
 INSERT INTO t2(c1,c6) VALUES(101,106) /*throws error as the row with c1=101,c6=106 exists */;
-ERROR 23000: Duplicate entry '101-106' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101-106' for key 't2.PRIMARY'
 INSERT INTO t5(c1,c2,c3) VALUES(101,-102,4) /*throws error as the row with c1=101,c2=-102 exists */;
-ERROR 23000: Duplicate entry '101--102' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101--102' for key 't5.PRIMARY'
 INSERT INTO t5(c3) VALUES(-103) /*throws error as the row with c3=-103 exists */;
-ERROR 23000: Duplicate entry '-103' for key 'c3'
+ERROR 23000: Duplicate entry '-103' for key 't5.c3'
 INSERT INTO t4(c2,c3) VALUES(102,103) /*throws error as the row with c2=102,c3=103 exists */;
-ERROR 23000: Duplicate entry '102-103' for key 'idx'
+ERROR 23000: Duplicate entry '102-103' for key 't4.idx'
 CREATE TABLE t6(c1 TINYINT UNSIGNED NOT NULL, c2 TINYINT NULL, c3 SMALLINT, c4 MEDIUMINT , c5 INT, c6 INTEGER, c7 BIGINT);
 INSERT INTO t6 SELECT * FROM t2 where c1 >= 109;
 SELECT * FROM t6;
@@ -2354,12 +2354,12 @@ SELECT * FROM t8;
 c1	c2	c3	c4	c5	c6	c7
 1	NULL	NULL	NULL	NULL	NULL	NULL
 INSERT INTO t7(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't7.PRIMARY'
 SELECT c1 FROM t7;
 c1
 1
 INSERT INTO t8(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't8.PRIMARY'
 SELECT c1 FROM t8;
 c1
 1
@@ -2367,7 +2367,7 @@ TRUNCATE TABLE t6;
 TRUNCATE TABLE t7;
 INSERT INTO t6(c1) VALUES(0),(1),(2),(3),(3),(4),(4),(5);
 INSERT INTO t7(c1) SELECT c1 FROM t6;
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 't7.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:
@@ -2405,7 +2405,7 @@ INSERT INTO t3 VALUES(0,-128,1,2,3,4,5),(255,127,6,7,8,9,10);
 INSERT INTO t4 VALUES(-128,0,1,2,3,4,5,5),(127,255,6,7,8,9,10,10);
 INSERT INTO t5 VALUES(0,-128,1,2,3,4,5,5),(255,127,6,7,8,9,10,10);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '127' for key 't4.PRIMARY'
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
@@ -7927,15 +7927,15 @@ ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t5(c3) VALUES(NULL);
 ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t4(c1,c3) VALUES(-101,105) /*throws error as the row with c1=-101 exists */;
-ERROR 23000: Duplicate entry '-101' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-101' for key 't4.PRIMARY'
 INSERT INTO t2(c1,c6) VALUES(101,106) /*throws error as the row with c1=101,c6=106 exists */;
-ERROR 23000: Duplicate entry '101-106' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101-106' for key 't2.PRIMARY'
 INSERT INTO t5(c1,c2,c3) VALUES(101,-102,4) /*throws error as the row with c1=101,c2=-102 exists */;
-ERROR 23000: Duplicate entry '101--102' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101--102' for key 't5.PRIMARY'
 INSERT INTO t5(c3) VALUES(-103) /*throws error as the row with c3=-103 exists */;
-ERROR 23000: Duplicate entry '-103' for key 'c3'
+ERROR 23000: Duplicate entry '-103' for key 't5.c3'
 INSERT INTO t4(c2,c3) VALUES(102,103) /*throws error as the row with c2=102,c3=103 exists */;
-ERROR 23000: Duplicate entry '102-103' for key 'idx'
+ERROR 23000: Duplicate entry '102-103' for key 't4.idx'
 CREATE TABLE t6(c1 SMALLINT UNSIGNED NOT NULL, c2 SMALLINT NULL, c3 TINYINT, c4 MEDIUMINT , c5 INT, c6 INTEGER, c7 BIGINT);
 INSERT INTO t6 SELECT * FROM t2 where c1 >= 109;
 SELECT * FROM t6;
@@ -7961,9 +7961,9 @@ SELECT * FROM t8;
 c1	c2	c3	c4	c5	c6	c7
 1	NULL	NULL	NULL	NULL	NULL	NULL
 INSERT INTO t7(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't7.PRIMARY'
 INSERT INTO t8(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't8.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:
@@ -8001,7 +8001,7 @@ INSERT INTO t3 VALUES(0,-32768,1,2,3,4,5),(255,-128,6,7,8,9,10),(65535,32767,11,
 INSERT INTO t4 VALUES(-32768,0,1,2,3,4,5,5),(-128,255,6,7,8,9,10,10),(32767,65535,11,12,13,14,15,15);
 INSERT INTO t5 VALUES(0,-32768,1,2,3,4,5,5),(255,-128,6,7,8,9,10,10),(65535,32767,11,12,13,14,15,15);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '32767' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '32767' for key 't4.PRIMARY'
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
@@ -13628,15 +13628,15 @@ ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t5(c3) VALUES(NULL);
 ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t4(c1,c3) VALUES(-101,105) /*throws error as the row with c1=-101 exists */;
-ERROR 23000: Duplicate entry '-101' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-101' for key 't4.PRIMARY'
 INSERT INTO t2(c1,c6) VALUES(101,106) /*throws error as the row with c1=101,c6=106 exists */;
-ERROR 23000: Duplicate entry '101-106' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101-106' for key 't2.PRIMARY'
 INSERT INTO t5(c1,c2,c3) VALUES(101,-102,4) /*throws error as the row with c1=101,c2=-102 exists */;
-ERROR 23000: Duplicate entry '101--102' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101--102' for key 't5.PRIMARY'
 INSERT INTO t5(c3) VALUES(-103) /*throws error as the row with c3=-103 exists */;
-ERROR 23000: Duplicate entry '-103' for key 'c3'
+ERROR 23000: Duplicate entry '-103' for key 't5.c3'
 INSERT INTO t4(c2,c3) VALUES(102,103) /*throws error as the row with c2=102,c3=103 exists */;
-ERROR 23000: Duplicate entry '102-103' for key 'idx'
+ERROR 23000: Duplicate entry '102-103' for key 't4.idx'
 CREATE TABLE t6(c1 MEDIUMINT UNSIGNED NOT NULL, c2 MEDIUMINT NULL, c3 TINYINT, c4 SMALLINT , c5 INT, c6 INTEGER, c7 BIGINT);
 INSERT INTO t6 SELECT * FROM t2 where c1 >= 109;
 SELECT * FROM t6;
@@ -13662,9 +13662,9 @@ SELECT * FROM t8;
 c1	c2	c3	c4	c5	c6	c7
 1	NULL	NULL	NULL	NULL	NULL	NULL
 INSERT INTO t7(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't7.PRIMARY'
 INSERT INTO t8(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't8.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:
@@ -13702,7 +13702,7 @@ INSERT INTO t3 VALUES(0,-8388608,1,2,3,4,5),(255,-32768,6,7,8,9,10),(65535,-128,
 INSERT INTO t4 VALUES(-8388608,0,1,2,3,4,5,5),(-32768,255,6,7,8,9,10,10),(-128,65535,11,12,13,14,15,15),(8388607,16777215,16,17,18,19,20,20);
 INSERT INTO t5 VALUES(0,-8388608,1,2,3,4,5,5),(255,-32768,6,7,8,9,10,10),(65535,-128,11,12,13,14,15,15),(16777215,8388607,16,17,18,19,20,20);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '8388607' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '8388607' for key 't4.PRIMARY'
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
@@ -19434,15 +19434,15 @@ ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t5(c3) VALUES(NULL);
 ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t4(c1,c3) VALUES(-101,105) /*throws error as the row with c1=-101 exists */;
-ERROR 23000: Duplicate entry '-101' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-101' for key 't4.PRIMARY'
 INSERT INTO t2(c1,c6) VALUES(101,106) /*throws error as the row with c1=101,c6=106 exists */;
-ERROR 23000: Duplicate entry '101-106' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101-106' for key 't2.PRIMARY'
 INSERT INTO t5(c1,c2,c3) VALUES(101,-102,4) /*throws error as the row with c1=101,c2=-102 exists */;
-ERROR 23000: Duplicate entry '101--102' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101--102' for key 't5.PRIMARY'
 INSERT INTO t5(c3) VALUES(-103) /*throws error as the row with c3=-103 exists */;
-ERROR 23000: Duplicate entry '-103' for key 'c3'
+ERROR 23000: Duplicate entry '-103' for key 't5.c3'
 INSERT INTO t4(c2,c3) VALUES(102,103) /*throws error as the row with c2=102,c3=103 exists */;
-ERROR 23000: Duplicate entry '102-103' for key 'idx'
+ERROR 23000: Duplicate entry '102-103' for key 't4.idx'
 CREATE TABLE t6(c1 INT UNSIGNED NOT NULL, c2 INT NULL, c3 TINYINT, c4 SMALLINT , c5 MEDIUMINT, c6 INTEGER, c7 BIGINT);
 INSERT INTO t6 SELECT * FROM t2 where c1 >= 109;
 SELECT * FROM t6;
@@ -19468,9 +19468,9 @@ SELECT * FROM t8;
 c1	c2	c3	c4	c5	c6	c7
 1	NULL	NULL	NULL	NULL	NULL	NULL
 INSERT INTO t7(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't7.PRIMARY'
 INSERT INTO t8(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't8.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:
@@ -19508,7 +19508,7 @@ INSERT INTO t3 VALUES(0,-2147483648,1,2,3,4,5),(255,-8388608,6,7,8,9,10),(65535,
 INSERT INTO t4 VALUES(-2147483648,0,1,2,3,4,5,5),(-8388608,255,6,7,8,9,10,10),(-32768,65535,11,12,13,14,15,15),(-128,16777215,16,17,18,19,20,20),(2147483647,4294967295,21,22,23,24,25,25);
 INSERT INTO t5 VALUES(0,-2147483648,1,2,3,4,5,5),(255,-8388608,6,7,8,9,10,10),(65535,-32768,11,12,13,14,15,15),(16777215,-128,16,17,18,19,20,20),(4294967295,2147483647,21,22,23,24,25,25);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2147483647' for key 't4.PRIMARY'
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
@@ -25345,15 +25345,15 @@ ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t5(c3) VALUES(NULL);
 ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t4(c1,c3) VALUES(-101,105) /*throws error as the row with c1=-101 exists */;
-ERROR 23000: Duplicate entry '-101' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-101' for key 't4.PRIMARY'
 INSERT INTO t2(c1,c6) VALUES(101,106) /*throws error as the row with c1=101,c6=106 exists */;
-ERROR 23000: Duplicate entry '101-106' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101-106' for key 't2.PRIMARY'
 INSERT INTO t5(c1,c2,c3) VALUES(101,-102,4) /*throws error as the row with c1=101,c2=-102 exists */;
-ERROR 23000: Duplicate entry '101--102' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101--102' for key 't5.PRIMARY'
 INSERT INTO t5(c3) VALUES(-103) /*throws error as the row with c3=-103 exists */;
-ERROR 23000: Duplicate entry '-103' for key 'c3'
+ERROR 23000: Duplicate entry '-103' for key 't5.c3'
 INSERT INTO t4(c2,c3) VALUES(102,103) /*throws error as the row with c2=102,c3=103 exists */;
-ERROR 23000: Duplicate entry '102-103' for key 'idx'
+ERROR 23000: Duplicate entry '102-103' for key 't4.idx'
 CREATE TABLE t6(c1 INTEGER UNSIGNED NOT NULL, c2 INTEGER NULL, c3 TINYINT, c4 SMALLINT , c5 MEDIUMINT, c6 INT, c7 BIGINT);
 INSERT INTO t6 SELECT * FROM t2 where c1 >= 109;
 SELECT * FROM t6;
@@ -25379,9 +25379,9 @@ SELECT * FROM t8;
 c1	c2	c3	c4	c5	c6	c7
 1	NULL	NULL	NULL	NULL	NULL	NULL
 INSERT INTO t7(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't7.PRIMARY'
 INSERT INTO t8(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't8.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:
@@ -25419,7 +25419,7 @@ INSERT INTO t3 VALUES(0,-2147483648,1,2,3,4,5),(255,-8388608,6,7,8,9,10),(65535,
 INSERT INTO t4 VALUES(-2147483648,0,1,2,3,4,5,5),(-8388608,255,6,7,8,9,10,10),(-32768,65535,11,12,13,14,15,15),(-128,16777215,16,17,18,19,20,20),(2147483647,4294967295,21,22,23,24,25,25);
 INSERT INTO t5 VALUES(0,-2147483648,1,2,3,4,5,5),(255,-8388608,6,7,8,9,10,10),(65535,-32768,11,12,13,14,15,15),(16777215,-128,16,17,18,19,20,20),(4294967295,2147483647,21,22,23,24,25,25);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2147483647' for key 't4.PRIMARY'
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
@@ -31256,15 +31256,15 @@ ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t5(c3) VALUES(NULL);
 ERROR 23000: Column 'c3' cannot be null
 INSERT INTO t4(c1,c3) VALUES(-101,105) /*throws error as the row with c1=-101 exists */;
-ERROR 23000: Duplicate entry '-101' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '-101' for key 't4.PRIMARY'
 INSERT INTO t2(c1,c6) VALUES(101,106) /*throws error as the row with c1=101,c6=106 exists */;
-ERROR 23000: Duplicate entry '101-106' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101-106' for key 't2.PRIMARY'
 INSERT INTO t5(c1,c2,c3) VALUES(101,-102,4) /*throws error as the row with c1=101,c2=-102 exists */;
-ERROR 23000: Duplicate entry '101--102' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '101--102' for key 't5.PRIMARY'
 INSERT INTO t5(c3) VALUES(-103) /*throws error as the row with c3=-103 exists */;
-ERROR 23000: Duplicate entry '-103' for key 'c3'
+ERROR 23000: Duplicate entry '-103' for key 't5.c3'
 INSERT INTO t4(c2,c3) VALUES(102,103) /*throws error as the row with c2=102,c3=103 exists */;
-ERROR 23000: Duplicate entry '102-103' for key 'idx'
+ERROR 23000: Duplicate entry '102-103' for key 't4.idx'
 CREATE TABLE t6(c1 BIGINT UNSIGNED NOT NULL, c2 BIGINT NULL, c3 TINYINT, c4 SMALLINT , c5 MEDIUMINT, c6 INT, c7 INTEGER);
 INSERT INTO t6 SELECT * FROM t2 where c1 >= 109;
 SELECT * FROM t6;
@@ -31290,9 +31290,9 @@ SELECT * FROM t8;
 c1	c2	c3	c4	c5	c6	c7
 1	NULL	NULL	NULL	NULL	NULL	NULL
 INSERT INTO t7(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't7.PRIMARY'
 INSERT INTO t8(c1) SELECT t6.c1 FROM t6 /* throws error as t6 contains duplicate rows for c1=1 */;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't8.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:
@@ -31330,7 +31330,7 @@ INSERT INTO t3 VALUES(0,-9223372036854775808,1,2,3,4,5),(255,-2147483648,6,7,8,9
 INSERT INTO t4 VALUES(-9223372036854775808,0,1,2,3,4,5,5),(-2147483648,255,6,7,8,9,10,10),(-8388608,65535,11,12,13,14,15,15),(-32768,16777215,16,17,18,19,20,20),(-128,4294967295,21,22,23,24,25,25),(9223372036854775807,18446744073709551615,26,27,28,29,30,30);
 INSERT INTO t5 VALUES(0,-9223372036854775808,1,2,3,4,5,5),(255,-2147483648,6,7,8,9,10,10),(65535,-8388608,11,12,13,14,15,15),(16777215,-32768,16,17,18,19,20,20),(4294967295,-128,21,22,23,24,25,25),(18446744073709551615,9223372036854775807,26,27,28,29,30,30);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '9223372036854775807' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '9223372036854775807' for key 't4.PRIMARY'
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 ERROR HY000: Failed to read auto-increment value from storage engine
 SELECT * FROM t4;

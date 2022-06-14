@@ -688,12 +688,15 @@ SELECT COUNT(*) FROM t1 WHERE b like 'abc%';
 COUNT(*)
 4
 # k4 index used since it's  covering.
-EXPLAIN SELECT COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT /*+ INDEX(t1 k4) */ COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k2,k3,k4	k4	4	NULL	2	66.67	Using where; Using index
+1	SIMPLE	t1	NULL	range	k4	k4	4	NULL	2	16.67	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`a` > 4) and (`test`.`t1`.`b` like 'abc%'))
-SELECT COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `k4`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`a` > 4) and (`test`.`t1`.`b` like 'abc%'))
+SELECT /*+ INDEX(t1 k4) */ COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
 COUNT(*)
 2
 # k3 index is used since it's shorters key.

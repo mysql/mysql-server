@@ -86,7 +86,7 @@ SELECT COUNT(@@SESSION.innodb_adaptive_max_sleep_delay);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_adaptive_max_sleep_delay = @@SESSION.innodb_adaptive_max_sleep_delay;
+SELECT innodb_adaptive_max_sleep_delay;
 
 # Reset the default
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=150000;

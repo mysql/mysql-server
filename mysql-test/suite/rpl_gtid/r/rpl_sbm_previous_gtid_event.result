@@ -5,8 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET @save_global_debug=@@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,dbug.calculate_sbm_after_previous_gtid_log_event';
-SET @saved_slave_transaction_retries=@@global.slave_transaction_retries;
-SET @@global.slave_transaction_retries=0;
+SET @saved_replica_transaction_retries=@@global.replica_transaction_retries;
+SET @@global.replica_transaction_retries=0;
 include/start_slave_io.inc
 include/stop_slave_io.inc
 include/start_slave_io.inc
@@ -57,5 +57,5 @@ SET DEBUG_SYNC="now wait_for signal.reached";
 include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET @@GLOBAL.DEBUG=@save_global_debug;
-SET @@global.slave_transaction_retries=@saved_slave_transaction_retries;
+SET @@global.replica_transaction_retries=@saved_replica_transaction_retries;
 include/rpl_end.inc

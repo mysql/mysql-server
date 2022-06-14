@@ -8,10 +8,10 @@ call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsaf
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 set @save_binlog_cache_size = @@global.binlog_cache_size;
 set @save_binlog_checksum = @@global.binlog_checksum;
-set @save_master_verify_checksum = @@global.master_verify_checksum;
+set @save_source_verify_checksum = @@global.source_verify_checksum;
 set @@global.binlog_cache_size = 4096;
 set @@global.binlog_checksum = CRC32;
-set @@global.master_verify_checksum = 1;
+set @@global.source_verify_checksum = 1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
@@ -124,7 +124,7 @@ commit;
 drop table t1, t2, t3;
 set @@global.binlog_cache_size = @save_binlog_cache_size;
 set @@global.binlog_checksum = @save_binlog_checksum;
-set @@global.master_verify_checksum = @save_master_verify_checksum;
+set @@global.source_verify_checksum = @save_source_verify_checksum;
 drop procedure test.p_init;
 drop procedure test.p1;
 include/rpl_end.inc

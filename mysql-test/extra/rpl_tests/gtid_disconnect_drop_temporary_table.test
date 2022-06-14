@@ -103,7 +103,7 @@ while ($i <= 4)
   # Sync with slave and assert slave has dropped the temp table.
   --source include/sync_slave_sql_with_master.inc
   --let $assert_text= Slave should not have any open temporary tables.
-  --let $assert_cond= VARIABLE_VALUE = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = "SLAVE_OPEN_TEMP_TABLES"
+  --let $assert_cond= VARIABLE_VALUE = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = "REPLICA_OPEN_TEMP_TABLES"
   --source include/assert.inc
   # Verify that one gtid was added if gtid_mode=on
   --connection master

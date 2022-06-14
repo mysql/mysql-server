@@ -2,8 +2,8 @@ include/master-slave.inc
 [connection master]
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
-SET GLOBAL slave_parallel_workers = 4;
+SET @old_replica_parallel_workers= @@global.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 select CHANNEL_NAME, WORKER_ID, THREAD_ID
@@ -112,7 +112,7 @@ explain select SERVICE_STATE
 from performance_schema.replication_applier_status_by_worker
 where THREAD_ID = @t_id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	replication_applier_status_by_worker	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+1	SIMPLE	replication_applier_status_by_worker	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select SERVICE_STATE
@@ -123,6 +123,8 @@ SERVICE_STATE
 OK: handler_read_key incremented
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 RESET SLAVE ALL;
-SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+SET GLOBAL replica_parallel_workers= @old_replica_parallel_workers;
 include/start_slave.inc
 include/rpl_end.inc

@@ -64,34 +64,42 @@ DROP TABLE t1;
 --echo #
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_after_reset_slave
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_thread_start
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_before_request_transmit
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_after_read_event
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_after_queue_event
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_applier_start
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_applier_stop
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_thread_stop
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $rpl_only_running_threads= 1

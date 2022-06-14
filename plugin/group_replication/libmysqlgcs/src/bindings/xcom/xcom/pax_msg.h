@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,10 @@
 #ifndef PAX_MSG_H
 #define PAX_MSG_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/site_struct.h"
+#include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if 0
+#ifdef PAX_MSG_SANITY_CHECK
 #define PAX_MSG_SANITY_CHECK(p)                      \
   {                                                  \
     if ((p) && !(p)->a && (p)->msg_type == normal) { \
@@ -57,6 +53,7 @@ ballot *init_ballot(ballot *bal, int cnt, node_no node);
 pax_msg *pax_msg_new(synode_no synode, site_def const *site);
 pax_msg *pax_msg_new_0(synode_no synode);
 void dbg_ballot(ballot const *p, char *s);
+void add_ballot_event(ballot const bal);
 char *dbg_pax_msg(pax_msg const *p);
 void delete_pax_msg(pax_msg *p);
 /* void replace_pax_msg(pax_msg **target, pax_msg *p); */
@@ -67,9 +64,5 @@ void unchecked_replace_pax_msg(pax_msg **target, pax_msg *p);
     PAX_MSG_SANITY_CHECK(p);              \
     unchecked_replace_pax_msg(target, p); \
   }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

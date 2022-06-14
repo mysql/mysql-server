@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,12 @@
 
 #include "storage/perfschema/pfs_events_statements.h"
 
+#include <assert.h>
 #include <atomic>
 
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"
@@ -44,6 +45,8 @@
 #include "template_utils.h"
 
 PFS_ALIGNED size_t events_statements_history_long_size = 0;
+/** Consumer flag for CPU_TIME columns. */
+PFS_ALIGNED bool flag_events_statements_cpu = false;
 /** Consumer flag for table EVENTS_STATEMENTS_CURRENT. */
 PFS_ALIGNED bool flag_events_statements_current = false;
 /** Consumer flag for table EVENTS_STATEMENTS_HISTORY. */
@@ -56,9 +59,10 @@ PFS_ALIGNED bool events_statements_history_long_full = false;
 /** Index in EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_cacheline_atomic_uint32 events_statements_history_long_index;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
-PFS_ALIGNED PFS_events_statements *events_statements_history_long_array = NULL;
-static unsigned char *h_long_stmts_digest_token_array = NULL;
-static char *h_long_stmts_text_array = NULL;
+PFS_ALIGNED PFS_events_statements *events_statements_history_long_array =
+    nullptr;
+static unsigned char *h_long_stmts_digest_token_array = nullptr;
+static char *h_long_stmts_text_array = nullptr;
 
 /**
   Initialize table EVENTS_STATEMENTS_HISTORY_LONG.
@@ -79,7 +83,7 @@ int init_events_statements_history_long(
       events_statements_history_long_size, sizeof(PFS_events_statements),
       PFS_events_statements, MYF(MY_ZEROFILL));
 
-  if (events_statements_history_long_array == NULL) {
+  if (events_statements_history_long_array == nullptr) {
     cleanup_events_statements_history_long();
     return 1;
   }
@@ -93,7 +97,7 @@ int init_events_statements_history_long(
                          events_statements_history_long_size, digest_text_size,
                          unsigned char, MYF(MY_ZEROFILL));
 
-    if (h_long_stmts_digest_token_array == NULL) {
+    if (h_long_stmts_digest_token_array == nullptr) {
       cleanup_events_statements_history_long();
       return 1;
     }
@@ -108,7 +112,7 @@ int init_events_statements_history_long(
                          events_statements_history_long_size, sqltext_size,
                          char, MYF(MY_ZEROFILL));
 
-    if (h_long_stmts_text_array == NULL) {
+    if (h_long_stmts_text_array == nullptr) {
       cleanup_events_statements_history_long();
       return 1;
     }
@@ -141,9 +145,9 @@ void cleanup_events_statements_history_long(void) {
                  events_statements_history_long_size,
                  (pfs_max_sqltext * sizeof(char)), h_long_stmts_text_array);
 
-  events_statements_history_long_array = NULL;
-  h_long_stmts_digest_token_array = NULL;
-  h_long_stmts_text_array = NULL;
+  events_statements_history_long_array = nullptr;
+  h_long_stmts_digest_token_array = nullptr;
+  h_long_stmts_text_array = nullptr;
 }
 
 static inline void copy_events_statements(PFS_events_statements *dest,
@@ -179,7 +183,7 @@ void insert_events_statements_history(PFS_thread *thread,
     return;
   }
 
-  DBUG_ASSERT(thread->m_statements_history != NULL);
+  assert(thread->m_statements_history != nullptr);
 
   uint index = thread->m_statements_history_index;
 
@@ -210,7 +214,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement) {
     return;
   }
 
-  DBUG_ASSERT(events_statements_history_long_array != NULL);
+  assert(events_statements_history_long_array != nullptr);
 
   uint index = events_statements_history_long_index.m_u32++;
 
@@ -229,7 +233,7 @@ static void fct_reset_events_statements_current(PFS_thread *pfs_thread) {
   PFS_events_statements *pfs_stmt_last = pfs_stmt + statement_stack_max;
 
   for (; pfs_stmt < pfs_stmt_last; pfs_stmt++) {
-    pfs_stmt->m_class = NULL;
+    pfs_stmt->m_class = nullptr;
   }
 }
 
@@ -245,7 +249,7 @@ static void fct_reset_events_statements_history(PFS_thread *pfs_thread) {
   pfs_thread->m_statements_history_index = 0;
   pfs_thread->m_statements_history_full = false;
   for (; pfs < pfs_last; pfs++) {
-    pfs->m_class = NULL;
+    pfs->m_class = nullptr;
   }
 }
 
@@ -262,7 +266,7 @@ void reset_events_statements_history_long(void) {
   PFS_events_statements *pfs = events_statements_history_long_array;
   PFS_events_statements *pfs_last = pfs + events_statements_history_long_size;
   for (; pfs < pfs_last; pfs++) {
-    pfs->m_class = NULL;
+    pfs->m_class = nullptr;
   }
 }
 

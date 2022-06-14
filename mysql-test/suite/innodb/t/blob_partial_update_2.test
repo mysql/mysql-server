@@ -1,0 +1,365 @@
+#
+# Bug #29846292 ROLLBACK OF BIG TRANSACTION DUE TO CONFLICT REMAINS IN HUNG STATE
+#
+# This file is based on blob_partial_update.test, with following modifications:
+# - the json's members being changed are longer than LOB_SMALL_CHANGE_THRESHOLD,
+#   so that the "small change" optimization (which stores modifications inside
+#   undo log record itself instead of creating new versions of blob via partial
+#   updates) does not kick in, and the partial update logic is really tested
+# - each query is run twice - once with ROLLBACK, once with COMMIT - so that we
+#   can check the behaviour of rollback()
+# - we mostly modify item [1] instead of item [0] to force rollback() logic to
+#   apply changes on the middle of the blob (instead of the front), which helped
+#   to expose wrong assumptions about loop invariants
+--source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
+
+USE test;
+
+CREATE TABLE tab(j1 JSON);
+
+--disable_query_log
+set @chars128 = repeat('x',128);
+set @data_1 = repeat('abcdefghijklmnopqrstuvwxyz1234', 6006);
+set @json_doc_1 = concat('["', @data_1, '", "Sven', @chars128 ,'", "', @data_1, '"]');
+INSERT INTO tab VALUES
+(@json_doc_1);
+ANALYZE TABLE tab;
+--echo # Sven
+select json_extract(j1, '$[1]') from tab;
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Viswa',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # Show Viswa
+select json_extract(j1, '$[1]') from tab;
+let $sql_to_do=UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Nath',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # Show Nath
+select json_extract(j1, '$[1]') from tab;
+
+--echo # Modify column type from JSON to LONGTEXT
+
+ALTER TABLE tab MODIFY j1 LONGTEXT ;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Setlongtext',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Check JSON functions works on TEXT datatype
+SELECT JSON_STORAGE_SIZE(j1) FROM tab;
+
+SELECT JSON_STORAGE_FREE(j1) FROM tab;
+
+--echo # Show Setlongtext
+SELECT json_extract(j1, '$[1]') FROM tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Replongtext',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+
+ANALYZE TABLE tab;
+
+--echo # Check JSON functions works on TEXT datatype
+SELECT JSON_STORAGE_SIZE(j1) FROM tab;
+
+SELECT JSON_STORAGE_FREE(j1) FROM tab;
+
+--echo # Show Replongtext
+SELECT json_extract(j1, '$[1]') from tab;
+
+--echo When column modify from LONGTEXT to JSON
+ALTER TABLE tab MODIFY j1 JSON ;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Setjson',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+
+ANALYZE TABLE tab;
+
+--echo # Show Setjson
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repjson',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+
+ANALYZE TABLE tab;
+
+--echo # Show Repjson
+SELECT json_extract(j1, '$[1]') FROM tab;
+
+--echo To COMPRESSED
+ALTER TABLE tab ROW_FORMAT = COMPRESSED ;
+
+SHOW CREATE TABLE tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Setcomp',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Show Setcomp
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repcomp',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # Show Repcomp
+SELECT json_extract(j1, '$[1]') FROM tab;
+
+--echo COMPRESSED to DYNAMIC
+ALTER TABLE tab ROW_FORMAT = DYNAMIC;
+
+ANALYZE TABLE tab;
+
+SHOW CREATE TABLE tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Setdyna',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Show Setdyna
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repdyna',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Show Repdyna
+SELECT json_extract(j1, '$[1]') FROM tab;
+
+--echo DYNAMIC to REDUNDANT
+ALTER TABLE tab ROW_FORMAT = REDUNDANT ;
+
+SHOW CREATE TABLE tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Setredu',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Show Setredu
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repredu',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # Show Repredu
+SELECT json_extract(j1, '$[1]') FROM tab;
+
+--echo REDUNDANT to COMPACT
+ALTER TABLE tab ROW_FORMAT = COMPACT ;
+
+SHOW CREATE TABLE tab;
+
+ANALYZE TABLE tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('Setcomp',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Show Setcomp
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+
+let $sql_to_do= UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repcomp',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # Show Repcomp
+SELECT json_extract(j1, '$[1]') FROM tab;
+
+--echo # Create a view on JSON column
+CREATE VIEW view_tab AS SELECT * FROM tab;
+
+
+let $sql_to_do= UPDATE view_tab SET j1 = JSON_SET(j1, '$[1]', concat('Setview',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+ANALYZE TABLE tab;
+
+--echo # Check JSON functions works on views
+SELECT JSON_STORAGE_SIZE(j1) FROM view_tab;
+
+SELECT JSON_STORAGE_FREE(j1) FROM view_tab;
+
+--echo # Show Setview
+SELECT  json_extract(j1, '$[1]') FROM view_tab;
+
+
+let $sql_to_do= UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Repview',@chars128));
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # Show Repview
+SELECT json_extract(j1, '$[1]') FROM view_tab;
+
+ANALYZE TABLE tab;
+
+--echo # Check JSON functions works on views
+SELECT JSON_STORAGE_SIZE(j1) FROM view_tab;
+
+SELECT JSON_STORAGE_FREE(j1) FROM view_tab;
+
+--echo # Modify Compression to ZLIB
+ALTER TABLE tab COMPRESSION = 'ZLIB';
+
+SHOW CREATE TABLE tab;
+
+delimiter |;
+
+--echo # Check partial update through procedure
+CREATE PROCEDURE proc_json_update()
+begin
+
+UPDATE tab SET j1 = JSON_REPLACE(j1, '$[1]', concat('Reppro',@chars128));
+
+end|
+
+delimiter ;|
+
+CALL proc_json_update();
+
+ANALYZE TABLE tab;
+
+--echo # Show Reppro
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+--echo # Check JSON functions on views
+SELECT JSON_STORAGE_SIZE(j1) FROM view_tab;
+
+SELECT JSON_STORAGE_FREE(j1) FROM view_tab;
+
+DROP PROCEDURE proc_json_update;
+
+--echo # Modify Compression to 'LZ4'
+ALTER TABLE tab COMPRESSION = 'LZ4';
+
+SHOW CREATE TABLE tab;
+
+delimiter |;
+
+--echo # Check partial update through procedure
+CREATE PROCEDURE proc_json_update()
+begin
+  START TRANSACTION;
+  UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('SetLZ',@chars128));
+  ROLLBACK;
+  START TRANSACTION;
+  UPDATE tab SET j1 = JSON_SET(j1, '$[1]', concat('SetLZ',@chars128));
+  COMMIT;
+end|
+
+delimiter ;|
+
+set debug = '+d,lob_print_partial_update_hit';
+
+CALL proc_json_update();
+
+ANALYZE TABLE tab;
+
+--echo # Show SetLZ
+SELECT  json_extract(j1, '$[1]') FROM tab;
+
+--echo # Check pattern for LOB partial update exist
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+let SEARCH_PATTERN= LOB partial update;
+--source include/search_pattern.inc
+
+--echo # Check JSON functions does not work on BLOB type
+CREATE TABLE tab1(id INT PRIMARY KEY, j1 JSON);
+
+INSERT INTO tab1 VALUES(1, '{"a":"a","b":"b"}');
+
+INSERT INTO tab1 VALUES(2, NULL);
+
+ALTER TABLE tab1 modify j1 BLOB;
+
+SHOW CREATE TABLE tab1;
+
+--error ER_INVALID_JSON_CHARSET
+UPDATE tab1 SET j1 = JSON_SET(j1, '$.a', 'x');
+
+--error ER_INVALID_JSON_CHARSET
+SELECT JSON_STORAGE_SIZE(j1) FROM tab1;
+
+--error ER_INVALID_JSON_CHARSET
+SELECT JSON_STORAGE_FREE(j1) FROM tab1;
+
+--echo # Check partial update with Generated columns
+CREATE TABLE tab2(id INT PRIMARY KEY, c1 JSON, c2 JSON GENERATED ALWAYS AS (c1) STORED);
+
+INSERT INTO tab2 VALUES(1, '{"a":"a","b":"b"}', DEFAULT);
+
+ANALYZE TABLE tab2;
+
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+EXPLAIN FORMAT=JSON UPDATE tab2 SET c2 = JSON_SET(c2, '$.a', 'x');
+
+--echo # Check partial update with partition table
+CREATE TABLE tab3 (a INT, j1 JSON, j2 JSON) PARTITION BY LINEAR HASH(a) PARTITIONS 3;
+
+SHOW CREATE TABLE tab3;
+
+INSERT INTO tab3 VALUES(1, '{"a":"a","b":"b"}', '{"a":"a","b":"b"}');
+
+INSERT INTO tab3 VALUES(2, NULL, NULL);
+
+INSERT INTO tab3 VALUES(1, '{"a":"aa","b":"bb"}', '{"a":"aa","b":"bb"}');
+
+INSERT INTO tab3 VALUES(2, '["Sachin","Tendulkar"]','["Virat","Kohili"]');
+
+INSERT INTO tab3 VALUES(3, '[100 ,{"A1": "Amarnath","B1": "Binni"}]','[200,{"A2": "Azar","S1": "Srikanth"}]');
+
+INSERT INTO tab3 VALUES(3, '{"Chetan": [300,400],"Sasri": [500,600]}','{"Dhoni": [700,800],"Sidhu": [900,100]}');
+
+SELECT * FROM tab3 order by a;
+
+--echo Check with JSON_SET
+
+let $sql_to_do= UPDATE tab3 SET j1 = JSON_SET(j1, '$.a', 'x'),
+j2 = JSON_SET(j2, '$.a', 'y'),
+j1 = JSON_SET(j1, '$.b', 'z');
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+SELECT * FROM tab3 order by a;
+
+--echo Check with JSON_REPLACE
+
+let $sql_to_do= UPDATE tab3 SET j1 = JSON_REPLACE(j1,'$[1].A1', 'PartRe') ;
+--source suite/innodb/include/explain_then_rollback_and_commit.inc
+
+--echo # show PartRe
+SELECT json_extract(j1, '$[1].A1') FROM tab3;
+
+SELECT * FROM tab3 order by a;
+
+# clean up
+DROP TABLE tab2;
+
+DROP TABLE tab3;
+
+DROP PROCEDURE proc_json_update;
+
+DROP VIEW view_tab;
+
+DROP TABLE tab;
+
+DROP TABLE tab1;
+set debug = '-d,lob_print_partial_update_hit';

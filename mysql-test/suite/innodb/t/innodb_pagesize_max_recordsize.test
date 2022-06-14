@@ -207,7 +207,7 @@ let SEARCH_PATTERN= \[Warning\] .*MY-\\d+.* innodb-page-size has been changed fr
 --source include/search_pattern.inc
 
 # Restart the datadir with same page size 32k and check , server should be started
---echo # Restart the DB server with datadir1 with same 32k page size 
+--echo # Restart the DB server with datadir1 with same 32k page size
 # Wait for 300 seconds instead of the default 100
 --let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
@@ -280,6 +280,7 @@ DROP TABLE tab5;
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot add field.*");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+call mtr.add_suppression("Ignoring ib_.*_0.dblwr - page size doesn't match");
 --enable_query_log
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K

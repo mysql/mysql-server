@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ Single_primary_message::Single_primary_message(std::string &uuid,
       primary_uuid(uuid),
       election_mode(mode) {}
 
-Single_primary_message::~Single_primary_message() {}
+Single_primary_message::~Single_primary_message() = default;
 
 Single_primary_message::Single_primary_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE),
@@ -49,7 +49,7 @@ Single_primary_message::Single_primary_message(const uchar *buf, size_t len)
 
 void Single_primary_message::decode_payload(const unsigned char *buffer,
                                             const unsigned char *end) {
-  DBUG_ENTER("Single_primary_message::decode_payload");
+  DBUG_TRACE;
 
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
@@ -69,8 +69,8 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
     switch (payload_item_type) {
       case PIT_SINGLE_PRIMARY_SERVER_UUID:
         if (slider + payload_item_length <= end) {
-          DBUG_ASSERT(single_primary_message_type ==
-                      SINGLE_PRIMARY_PRIMARY_ELECTION);
+          assert(single_primary_message_type ==
+                 SINGLE_PRIMARY_PRIMARY_ELECTION);
           primary_uuid.assign(slider, slider + payload_item_length);
           slider += payload_item_length;
         }
@@ -78,21 +78,19 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
 
       case PIT_SINGLE_PRIMARY_ELECTION_MODE:
         if (slider + payload_item_length <= end) {
-          DBUG_ASSERT(single_primary_message_type ==
-                      SINGLE_PRIMARY_PRIMARY_ELECTION);
+          assert(single_primary_message_type ==
+                 SINGLE_PRIMARY_PRIMARY_ELECTION);
           uint16 election_mode_aux = uint2korr(slider);
           election_mode = (enum_primary_election_mode)election_mode_aux;
           slider += payload_item_length;
         }
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Single_primary_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Single_primary_message::encode_payload");
+  DBUG_TRACE;
 
   uint16 single_primary_message_type_aux = (uint16)single_primary_message_type;
   encode_payload_item_int2(buffer, PIT_SINGLE_PRIMARY_MESSAGE_TYPE,
@@ -107,16 +105,14 @@ void Single_primary_message::encode_payload(
     encode_payload_item_int2(buffer, PIT_SINGLE_PRIMARY_ELECTION_MODE,
                              election_mode);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 std::string &Single_primary_message::get_primary_uuid() {
-  DBUG_ASSERT(single_primary_message_type == SINGLE_PRIMARY_PRIMARY_ELECTION);
+  assert(single_primary_message_type == SINGLE_PRIMARY_PRIMARY_ELECTION);
   return primary_uuid;
 }
 
 enum_primary_election_mode Single_primary_message::get_election_mode() {
-  DBUG_ASSERT(single_primary_message_type == SINGLE_PRIMARY_PRIMARY_ELECTION);
+  assert(single_primary_message_type == SINGLE_PRIMARY_PRIMARY_ELECTION);
   return election_mode;
 }

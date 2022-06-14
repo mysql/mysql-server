@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,9 +34,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Gets the plan node for the nth table in a join.
  @return plan node */
-UNIV_INLINE
-plan_t *sel_node_get_nth_plan(sel_node_t *node, /*!< in: select node */
-                              ulint i)          /*!< in: get ith plan node */
+static inline plan_t *sel_node_get_nth_plan(
+    sel_node_t *node, /*!< in: select node */
+    ulint i)          /*!< in: get ith plan node */
 {
   ut_ad(i < node->n_tables);
 
@@ -47,16 +47,15 @@ plan_t *sel_node_get_nth_plan(sel_node_t *node, /*!< in: select node */
  means that it will start fetching from the start of the result set again,
  regardless of where it was before, and it will set intention locks on the
  tables. */
-UNIV_INLINE
-void sel_node_reset_cursor(sel_node_t *node) /*!< in: select node */
+static inline void sel_node_reset_cursor(
+    sel_node_t *node) /*!< in: select node */
 {
   node->state = SEL_NODE_OPEN;
 }
 
 /** Performs an execution step of an open or close cursor statement node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *open_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *open_step(que_thr_t *thr) /*!< in: query thread */
 {
   sel_node_t *sel_node;
   open_node_t *node;
@@ -72,10 +71,10 @@ que_thr_t *open_step(que_thr_t *thr) /*!< in: query thread */
   err = DB_SUCCESS;
 
   if (node->op_type == ROW_SEL_OPEN_CURSOR) {
-    /*		if (sel_node->state == SEL_NODE_CLOSED) { */
+    /*          if (sel_node->state == SEL_NODE_CLOSED) { */
 
     sel_node_reset_cursor(sel_node);
-    /*		} else {
+    /*          } else {
     err = DB_ERROR;
     } */
   } else {
@@ -104,24 +103,23 @@ and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INLINE
-dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
-                             row_prebuilt_t *prebuilt, ulint match_mode,
-                             ulint direction) {
+static inline dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
+                                           row_prebuilt_t *prebuilt,
+                                           ulint match_mode, ulint direction) {
   if (!prebuilt->table->is_intrinsic()) {
     return (row_search_mvcc(buf, mode, prebuilt, match_mode, direction));
   } else {

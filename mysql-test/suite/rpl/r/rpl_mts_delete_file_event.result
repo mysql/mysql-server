@@ -6,6 +6,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t1 (c1 INT KEY) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1);
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 DROP TABLE t1;
 include/rpl_end.inc

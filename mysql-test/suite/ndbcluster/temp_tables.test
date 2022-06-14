@@ -1,0 +1,46 @@
+--source include/have_ndb.inc
+
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+
+--echo #
+--echo # Verifying that temporary tables are handled the same way after
+--echo # bug#29899151
+--echo #
+
+--echo # Verify that creating temporary tables in NDB is rejected
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t1(a int PRIMARY KEY, b varchar(255)) ENGINE=NDBCLUSTER;
+
+CREATE TABLE t1 (a int PRIMARY KEY, b varchar(255)) ENGINE=NDBCLUSTER;
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1;
+SHOW CREATE TABLE tt1;
+
+--echo # CREATE LIKE without engine should fall back to default temp engine
+--echo # but is rejected earlier due to another condition. (dtjeldvo FIXME)
+--error ER_PARTITION_NO_TEMPORARY
+CREATE TEMPORARY TABLE tt1 LIKE t1;
+
+--echo # Verify that substitution is not done if the default temp engine is set
+--echo # to NDB (silly configuration)
+SET default_tmp_storage_engine=NDBCLUSTER;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE tt1 LIKE t1;
+
+--echo # Verify that substitution is not done if default temp engine is
+--echo # disabled
+SET default_tmp_storage_engine=MEMORY;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE tt1 LIKE t1;
+
+SET default_tmp_storage_engine=default;
+DROP TABLE t1;
+
+#
+# alter temporary table to engine=ndb should give an error
+#
+CREATE TEMPORARY TABLE t1 (a int KEY) ENGINE=MYISAM;
+--error ER_PARTITION_NO_TEMPORARY
+ALTER TABLE t1 ENGINE=NDB;
+DROP TABLE t1;

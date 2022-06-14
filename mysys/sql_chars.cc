@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,12 @@
 
 #include "sql_chars.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 
 static void hint_lex_init_maps(CHARSET_INFO *cs,
@@ -46,31 +47,32 @@ static void hint_lex_init_maps(CHARSET_INFO *cs,
     else if (my_isdigit(cs, i))
       hint_map[i] = HINT_CHR_DIGIT;
     else if (my_isspace(cs, i)) {
-      DBUG_ASSERT(!my_ismb1st(cs, i));
+      assert(!my_ismb1st(cs, i));
       hint_map[i] = HINT_CHR_SPACE;
     } else
       hint_map[i] = HINT_CHR_CHAR;
   }
-  hint_map[(uchar)'*'] = HINT_CHR_ASTERISK;
-  hint_map[(uchar)'@'] = HINT_CHR_AT;
-  hint_map[(uchar)'`'] = HINT_CHR_BACKQUOTE;
-  hint_map[(uchar)'"'] = HINT_CHR_DOUBLEQUOTE;
-  hint_map[(uchar)'_'] = HINT_CHR_IDENT;
-  hint_map[(uchar)'$'] = HINT_CHR_IDENT;
-  hint_map[(uchar)'/'] = HINT_CHR_SLASH;
-  hint_map[(uchar)'\n'] = HINT_CHR_NL;
-  hint_map[(uchar)'\''] = HINT_CHR_QUOTE;
+  hint_map[u'*'] = HINT_CHR_ASTERISK;
+  hint_map[u'@'] = HINT_CHR_AT;
+  hint_map[u'`'] = HINT_CHR_BACKQUOTE;
+  hint_map[u'.'] = HINT_CHR_DOT;
+  hint_map[u'"'] = HINT_CHR_DOUBLEQUOTE;
+  hint_map[u'$'] = HINT_CHR_IDENT;
+  hint_map[u'_'] = HINT_CHR_IDENT;
+  hint_map[u'\n'] = HINT_CHR_NL;
+  hint_map[u'\''] = HINT_CHR_QUOTE;
+  hint_map[u'/'] = HINT_CHR_SLASH;
 }
 
 bool init_state_maps(CHARSET_INFO *cs) {
   uint i;
   uchar *ident_map;
-  enum my_lex_states *state_map = NULL;
+  enum my_lex_states *state_map = nullptr;
 
   lex_state_maps_st *lex_state_maps = (lex_state_maps_st *)my_once_alloc(
       sizeof(lex_state_maps_st), MYF(MY_WME));
 
-  if (lex_state_maps == NULL) return true;  // OOM
+  if (lex_state_maps == nullptr) return true;  // OOM
 
   cs->state_maps = lex_state_maps;
   state_map = lex_state_maps->main_map;

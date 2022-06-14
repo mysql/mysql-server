@@ -1,3 +1,4 @@
+--source include/not_hypergraph.inc  # Does not use ha_delete_all_rows().
 -- source include/force_binlog_format_statement.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

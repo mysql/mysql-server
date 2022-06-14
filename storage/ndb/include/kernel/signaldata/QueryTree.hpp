@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ struct DABits
     NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by children
 
     NI_ATTR_INTERPRET = 0x20,  // Is attr-info a interpreted program
-    NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
+    //NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
     NI_ATTR_LINKED    = 0x80,  // Does attrinfo contain linked values
 
     /**
@@ -138,8 +138,22 @@ struct DABits
      *
      * In Sql terms this is an INNER JOIN. Not setting an INNER_JOIN 
      * is similar to 'LEFT OUTER JOIN' result being produced.
-     */ 
+     */
     NI_INNER_JOIN = 0x400,
+
+    /**
+     * A FIRST_MATCH may return only a single matching row for each
+     * key / range specified.
+     */
+    NI_FIRST_MATCH = 0x800,
+
+    /**
+     * A ANTI_JOIN return only the rows not having a match on the right side.
+     * .. it is the inverse of NI_INNER_JOIN.
+     * It also implies FIRST_MATCH like behaviour as we can conclude that
+     * the row should not be returned as soon as a FIRST_MATCH has been found.
+     */
+    NI_ANTI_JOIN = 0x1000,
 
     NI_END = 0
   };
@@ -155,7 +169,7 @@ struct DABits
     /**
      * These 2 must match their resp. QueryNode-definitions
      */
-    PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
+    //PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
     PI_KEY_PARAMS  = 0x4, // key-info parameters  (NI_KEY_PARAMS)
 
     /**
@@ -184,7 +198,7 @@ struct QN_LookupNode // Is a QueryNode subclass
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   /**
    * See DABits::NodeInfoBits
@@ -214,7 +228,7 @@ struct QN_LookupParameters // Is a QueryNodeParameters subclass
   Uint32 len;
   Uint32 requestInfo;
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 3 );
+  static constexpr Uint32 NodeSize = 3;
 
   /**
    * See DABits::ParamInfoBits
@@ -231,7 +245,7 @@ struct QN_ScanFragNode_v1 // Is a QueryNode subclass
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   /**
    * See DABits::NodeInfoBits
@@ -248,7 +262,7 @@ struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
   Uint32 len;
   Uint32 requestInfo;
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 3 );
+  static constexpr Uint32 NodeSize = 3;
 
   /**
    * See DABits::ParamInfoBits
@@ -265,7 +279,7 @@ struct QN_ScanIndexNode_v1
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   enum ScanIndexBits
   {
@@ -304,9 +318,9 @@ struct QN_ScanIndexParameters_v1
   Uint32 requestInfo;
   Uint32 batchSize;    // (bytes << 11) | (rows)
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
   // Number of bits for representing row count in 'batchSize'.
-  STATIC_CONST ( BatchRowBits = 11 );
+  static constexpr Uint32 BatchRowBits = 11;
 
   enum ScanIndexParamBits
   {
@@ -341,7 +355,7 @@ struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   enum ScanFragBits    // Note: Same enum as old ScanIndexBits_v1
   {
@@ -386,7 +400,7 @@ struct QN_ScanFragParameters
   Uint32 unused1;
   Uint32 unused2;
 
-  STATIC_CONST ( NodeSize = 8 );
+  static constexpr Uint32 NodeSize = 8;
 
   enum ScanFragParamBits
   {
@@ -401,6 +415,13 @@ struct QN_ScanFragParameters
      *   with (partial) ordering
      */
     SFP_PARALLEL = 0x20000,
+
+    /**
+     * Should it produce result rows strictly in
+     *   the order defined by the ordered index being used.
+     *   (Also require SFP_PARALLEL)
+     */
+    SFP_SORTED_ORDER = 0x40000,
 
     SFP_END = 0
   };

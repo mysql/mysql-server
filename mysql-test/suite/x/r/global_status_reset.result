@@ -12,7 +12,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 SHOW GLOBAL STATUS LIKE 'mysqlx%connections%';
 Variable_name	Value
 Mysqlx_connections_accepted	1

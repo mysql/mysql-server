@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,22 +110,22 @@ class My_xp_thread {
 
   virtual native_thread_t *get_native_thread() = 0;
 
-  virtual ~My_xp_thread() {}
+  virtual ~My_xp_thread() = default;
 };
 
 #ifndef XCOM_STANDALONE
 class My_xp_thread_server : public My_xp_thread {
  public:
   explicit My_xp_thread_server();
-  virtual ~My_xp_thread_server();
+  ~My_xp_thread_server() override;
 
   int create(PSI_thread_key key, const native_thread_attr_t *attr,
-             native_start_routine func, void *arg);
+             native_start_routine func, void *arg) override;
   int create_detached(PSI_thread_key key, native_thread_attr_t *attr,
-                      native_start_routine func, void *arg);
-  int join(void **value_ptr);
-  int cancel();
-  native_thread_t *get_native_thread();
+                      native_start_routine func, void *arg) override;
+  int join(void **value_ptr) override;
+  int cancel() override;
+  native_thread_t *get_native_thread() override;
 
  protected:
   native_thread_handle *m_thread_handle;
@@ -137,8 +137,8 @@ class My_xp_thread_impl : public My_xp_thread_server
 #endif
 {
  public:
-  explicit My_xp_thread_impl() {}
-  ~My_xp_thread_impl() {}
+  explicit My_xp_thread_impl() = default;
+  ~My_xp_thread_impl() override = default;
 };
 
 class My_xp_thread_util {

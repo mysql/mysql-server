@@ -161,38 +161,40 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                             {
                               "index": "f2",
                               "ranges": [
-                                "5 <= f2 <= 5"
+                                "f2 = 5"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 8,
-                              "cost": 1.0628,
+                              "cost": 1.06277,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 1.0628
+                          "cumulated_cost": 1.06277
                         },
                         {
                           "range_scan_alternatives": [
                             {
                               "index": "f3",
                               "ranges": [
-                                "c <= f3 <= c"
+                                "f3 = 'c'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 16,
-                              "cost": 1.8659,
+                              "cost": 1.86594,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f3",
-                          "cumulated_cost": 2.9287
+                          "cumulated_cost": 2.92872
                         },
                         {
                           "range_scan_alternatives": [
@@ -206,7 +208,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                           "cause": "cost"
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 2.9287,
+                      "cost_of_reading_ranges": 2.92872,
                       "chosen": false,
                       "cause": "cost"
                     }
@@ -227,7 +229,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                       "rows_to_scan": 288,
                       "filtering_effect": [
                       ] /* filtering_effect */,
-                      "final_filtering_effect": 0.5312,
+                      "final_filtering_effect": 0.53125,
                       "access_type": "scan",
                       "resulting_rows": 153,
                       "cost": 29.05,
@@ -348,19 +350,19 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                 "table": "`t1`",
                 "field": "f2",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "f3",
                 "equals": "'b'",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "f4",
                 "equals": "'h'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -437,12 +439,13 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                       {
                         "index": "f2",
                         "ranges": [
-                          "2 <= f2 <= 2"
+                          "f2 = 2"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": 1,
                         "rows": 128,
                         "cost": 45.06,
                         "chosen": false,
@@ -456,12 +459,13 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                       {
                         "index": "f4",
                         "ranges": [
-                          "h <= f4 <= h"
+                          "f4 = 'h'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": 1,
                         "rows": 128,
                         "cost": 45.06,
                         "chosen": false,
@@ -472,10 +476,10 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                       "intersecting_indexes": [
                         {
                           "index": "f2",
-                          "index_scan_cost": 0.3003,
-                          "cumulated_index_scan_cost": 0.3003,
+                          "index_scan_cost": 0.300317,
+                          "cumulated_index_scan_cost": 0.300317,
                           "disk_sweep_cost": 1,
-                          "cumulated_total_cost": 1.3003,
+                          "cumulated_total_cost": 1.30032,
                           "usable": true,
                           "matching_rows_now": 128,
                           "isect_covering_with_this_index": false,
@@ -483,12 +487,12 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                         },
                         {
                           "index": "f4",
-                          "index_scan_cost": 0.3003,
-                          "cumulated_index_scan_cost": 0.6006,
+                          "index_scan_cost": 0.300317,
+                          "cumulated_index_scan_cost": 0.600634,
                           "disk_sweep_cost": 1,
-                          "cumulated_total_cost": 1.6006,
+                          "cumulated_total_cost": 1.60063,
                           "usable": true,
-                          "matching_rows_now": 56.889,
+                          "matching_rows_now": 56.8889,
                           "isect_covering_with_this_index": false,
                           "chosen": false,
                           "cause": "does_not_reduce_cost"
@@ -539,7 +543,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                       "rows_to_scan": 288,
                       "filtering_effect": [
                       ] /* filtering_effect */,
-                      "final_filtering_effect": 0.0878,
+                      "final_filtering_effect": 0.0877915,
                       "access_type": "scan",
                       "resulting_rows": 25.284,
                       "cost": 29.05,
@@ -547,7 +551,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 19.753,
+                "condition_filtering_pct": 19.7531,
                 "rows_for_plan": 25.284,
                 "cost_for_plan": 13.55,
                 "chosen": true
@@ -750,41 +754,43 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f2",
                               "ranges": [
-                                "5 <= f2 <= 5"
+                                "f2 = 5"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 8,
-                              "cost": 1.0628,
+                              "cost": 1.06277,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 1.0628
+                          "cumulated_cost": 1.06277
                         },
                         {
                           "range_scan_alternatives": [
                             {
                               "index": "f3",
                               "ranges": [
-                                "b <= f3 <= b"
+                                "f3 = 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 128,
-                              "cost": 13.11,
+                              "cost": 13.1103,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f3",
-                          "cumulated_cost": 14.173
+                          "cumulated_cost": 14.1731
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 14.173,
+                      "cost_of_reading_ranges": 14.1731,
                       "use_roworder_union": true,
                       "cause": "always_cheaper_than_not_roworder_retrieval",
                       "analyzing_roworder_scans": [
@@ -793,7 +799,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f2",
                           "rows": 8,
                           "ranges": [
-                            "5 <= f2 <= 5"
+                            "f2 = 5"
                           ] /* ranges */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
@@ -805,7 +811,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f3",
                           "rows": 128,
                           "ranges": [
-                            "b <= f3 <= b"
+                            "f3 = 'b'"
                           ] /* ranges */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
@@ -813,7 +819,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           } /* analyzing_roworder_intersect */
                         }
                       ] /* analyzing_roworder_scans */,
-                      "index_roworder_union_cost": 21.973,
+                      "index_roworder_union_cost": 21.8231,
                       "members": 2,
                       "chosen": true
                     },
@@ -830,6 +836,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": false,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.36,
                               "chosen": true
@@ -843,12 +850,13 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f4",
                               "ranges": [
-                                "b <= f4 <= b"
+                                "f4 = 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.36,
                               "chosen": true
@@ -860,7 +868,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                       ] /* indexes_to_merge */,
                       "cost_of_reading_ranges": 0.72,
                       "cost_sort_rowid_and_read_disk": 0.4375,
-                      "cost_duplicate_removal": 0.2545,
+                      "cost_duplicate_removal": 0.254503,
                       "total_cost": 1.412
                     }
                   ] /* analyzing_index_merge_union */,
@@ -881,7 +889,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f4",
                           "rows": 1,
                           "ranges": [
-                            "b <= f4 <= b"
+                            "f4 = 'b'"
                           ] /* ranges */
                         }
                       ] /* index_merge_of */
@@ -967,7 +975,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
 }	0	0
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 1 AND 10 OR f4 = 'b');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	136	100.00	Using union(f2,f3); Using where
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	133	100.00	Using union(f2,f3); Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'b')) and ((`test`.`t1`.`f2` between 1 and 10) or (`test`.`t1`.`f4` = 'b')))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -1111,41 +1119,43 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f2",
                               "ranges": [
-                                "5 <= f2 <= 5"
+                                "f2 = 5"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 8,
-                              "cost": 1.0628,
+                              "cost": 1.06277,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 1.0628
+                          "cumulated_cost": 1.06277
                         },
                         {
                           "range_scan_alternatives": [
                             {
                               "index": "f3",
                               "ranges": [
-                                "b <= f3 <= b"
+                                "f3 = 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 128,
-                              "cost": 13.11,
+                              "cost": 13.1103,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f3",
-                          "cumulated_cost": 14.173
+                          "cumulated_cost": 14.1731
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 14.173,
+                      "cost_of_reading_ranges": 14.1731,
                       "use_roworder_union": true,
                       "cause": "always_cheaper_than_not_roworder_retrieval",
                       "analyzing_roworder_scans": [
@@ -1154,7 +1164,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f2",
                           "rows": 8,
                           "ranges": [
-                            "5 <= f2 <= 5"
+                            "f2 = 5"
                           ] /* ranges */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
@@ -1166,7 +1176,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f3",
                           "rows": 128,
                           "ranges": [
-                            "b <= f3 <= b"
+                            "f3 = 'b'"
                           ] /* ranges */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
@@ -1174,7 +1184,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           } /* analyzing_roworder_intersect */
                         }
                       ] /* analyzing_roworder_scans */,
-                      "index_roworder_union_cost": 21.973,
+                      "index_roworder_union_cost": 21.8231,
                       "members": 2,
                       "chosen": true
                     },
@@ -1191,38 +1201,40 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": false,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 288,
-                              "cost": 29.174,
+                              "cost": 29.1737,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 29.174
+                          "cumulated_cost": 29.1737
                         },
                         {
                           "range_scan_alternatives": [
                             {
                               "index": "f4",
                               "ranges": [
-                                "b <= f4 <= b"
+                                "f4 = 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.36,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f4",
-                          "cumulated_cost": 29.534
+                          "cumulated_cost": 29.5337
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 29.534,
+                      "cost_of_reading_ranges": 29.5337,
                       "cost_sort_rowid_and_read_disk": 1,
-                      "cost_duplicate_removal": 195.92,
-                      "total_cost": 226.45
+                      "cost_duplicate_removal": 195.921,
+                      "total_cost": 226.454
                     }
                   ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
@@ -1234,7 +1246,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f2",
                           "rows": 8,
                           "ranges": [
-                            "5 <= f2 <= 5"
+                            "f2 = 5"
                           ] /* ranges */
                         },
                         {
@@ -1242,13 +1254,13 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f3",
                           "rows": 128,
                           "ranges": [
-                            "b <= f3 <= b"
+                            "f3 = 'b'"
                           ] /* ranges */
                         }
                       ] /* union_of */
                     } /* range_access_plan */,
-                    "rows_for_plan": 136,
-                    "cost_for_plan": 21.973,
+                    "rows_for_plan": 133,
+                    "cost_for_plan": 21.8231,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1264,7 +1276,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 136,
+                      "rows_to_scan": 133,
                       "filtering_effect": [
                       ] /* filtering_effect */,
                       "final_filtering_effect": 1,
@@ -1272,15 +1284,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                       "range_details": {
                         "used_index": "union(f2,f3)"
                       } /* range_details */,
-                      "resulting_rows": 136,
-                      "cost": 35.573,
+                      "resulting_rows": 133,
+                      "cost": 35.1231,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 136,
-                "cost_for_plan": 35.573,
+                "rows_for_plan": 133,
+                "cost_for_plan": 35.1231,
                 "chosen": true
               }
             ] /* considered_execution_plans */

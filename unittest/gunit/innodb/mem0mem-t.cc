@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,12 @@
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <stddef.h>
 
 #include "sql/handler.h"
 #include "storage/innobase/include/mem0mem.h"
+#include "storage/innobase/include/os0event.h"
 #include "storage/innobase/include/srv0conc.h"
 #include "storage/innobase/include/srv0srv.h"
 #include "storage/innobase/include/univ.i"
@@ -40,9 +38,13 @@ class mem0mem : public ::testing::Test {
  protected:
   static void SetUpTestCase() {
     srv_max_n_threads = srv_sync_array_size + 1;
+    os_event_global_init();
     sync_check_init(srv_max_n_threads);
   }
-  static void TearDownTestCase() { sync_check_close(); }
+  static void TearDownTestCase() {
+    sync_check_close();
+    os_event_global_destroy();
+  }
 };
 
 /* test mem_heap_is_top() */
@@ -55,7 +57,7 @@ TEST_F(mem0mem, memheapistop) {
 
 #define INITIAL_HEAP_SIZE 512
 
-  heap = mem_heap_create(INITIAL_HEAP_SIZE);
+  heap = mem_heap_create(INITIAL_HEAP_SIZE, UT_LOCATION_HERE);
 
   str_in_heap = mem_heap_strdup(heap, str);
 
@@ -68,7 +70,7 @@ TEST_F(mem0mem, memheapistop) {
   /* Allocate another chunk and check that our string is not at the
   top anymore. */
   dummy = mem_heap_alloc(heap, 32);
-  ut_a(dummy != NULL);
+  ut_a(dummy != nullptr);
   EXPECT_FALSE(mem_heap_is_top(heap, str_in_heap, str_len + 1));
 
   /* Cause the heap to allocate a second block and retest. */
@@ -101,7 +103,7 @@ TEST_F(mem0mem, memheapreplace) {
   void *p5;
   const ulint p5_size = 256;
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   p1 = mem_heap_alloc(heap, p1_size);
   p2 = mem_heap_alloc(heap, p2_size);

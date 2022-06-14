@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,9 +116,9 @@ bool Partition_value_impl::store_attributes(Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(
-    Table_partition_values::FIELD_MAX_VALUE == 4,
-    "Table_partition_value definition has changed, review (de)ser memfuns!");
+static_assert(Table_partition_values::NUMBER_OF_FIELDS == 5,
+              "Table_partition_value definition has changed, check if "
+              "serialize() and deserialize() need to be updated!");
 void Partition_value_impl::serialize(Sdi_wcontext *, Sdi_writer *w) const {
   w->StartObject();
   write(w, m_max_value, STRING_WITH_LEN("max_value"));

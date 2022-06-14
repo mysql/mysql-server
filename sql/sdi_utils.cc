@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,10 @@
 #include "mysqld_error.h"
 
 /* purecov: begin deadcode */
-bool create_serialized_meta_data(const char *schema_name MY_ATTRIBUTE((unused)),
-                                 const char *table_name MY_ATTRIBUTE((unused)),
-                                 uchar **meta_data MY_ATTRIBUTE((unused)),
-                                 size_t *meta_data_length
-                                     MY_ATTRIBUTE((unused))) {
+bool create_serialized_meta_data(const char *schema_name [[maybe_unused]],
+                                 const char *table_name [[maybe_unused]],
+                                 uchar **meta_data [[maybe_unused]],
+                                 size_t *meta_data_length [[maybe_unused]]) {
   /*
     TODO: This function is currently not implemented. The procedure here
     will be along the following lines:
@@ -56,13 +55,13 @@ bool create_serialized_meta_data(const char *schema_name MY_ATTRIBUTE((unused)),
     11. Assign output parameters and return.
   */
   *meta_data_length = 0;
-  *meta_data = NULL;
+  *meta_data = nullptr;
   return false;
 }
 
-bool import_serialized_meta_data(const uchar *meta_data MY_ATTRIBUTE((unused)),
-                                 size_t meta_data_length MY_ATTRIBUTE((unused)),
-                                 bool readonly MY_ATTRIBUTE((unused))) {
+bool import_serialized_meta_data(const uchar *meta_data [[maybe_unused]],
+                                 size_t meta_data_length [[maybe_unused]],
+                                 bool readonly [[maybe_unused]]) {
   // TODO: This function is currently not implemented. Return error so
   // that client code will not attempt to open a non-existent table
   my_error(ER_FEATURE_DISABLED, MYF(0), "Serialized metadata import",

@@ -82,7 +82,7 @@ doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
-Got expected error: Unable upsert data in document collection 'col2' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
@@ -317,7 +317,7 @@ doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
-Got expected error: Unable upsert data in document collection 'col22' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
@@ -539,7 +539,7 @@ doc
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
-Got expected error: Unable upsert data in document collection 'col42' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
@@ -588,7 +588,7 @@ doc
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
-Got expected error: Unable upsert data in document collection 'col44' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
@@ -607,7 +607,7 @@ Got expected error (code 0)
 
 1 rows affected
 Got expected error (code 0)
-Got expected error: Unable upsert data in document collection 'add_or_replace' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 
 2 rows affected
@@ -632,10 +632,10 @@ Got expected error (code 0)
 
 1 rows affected
 Got expected error (code 0)
-Got expected error: Unable upsert data in document collection 'multi' (code 5018)
 Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 Got expected error: Document contains a field value that is not unique but required to be (code 5116)
-Got expected error: Unable upsert data in document collection 'multi' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 doc
@@ -667,4 +667,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

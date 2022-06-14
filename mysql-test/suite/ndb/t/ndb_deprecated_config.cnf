@@ -1,0 +1,14 @@
+!include ../my.cnf
+
+[cluster_config]
+
+MaxNoOfConcurrentIndexOperations=100
+MaxNoOfConcurrentOperations=100
+MaxNoOfConcurrentScans=100
+MaxNoOfConcurrentTransactions=100
+MaxNoOfFiredTriggers=100
+MaxNoOfLocalOperations=100
+MaxNoOfLocalScans=100
+BatchSizePerLocalScan=100
+TransactionBufferMemory=100M
+

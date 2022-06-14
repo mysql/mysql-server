@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,11 @@
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"                           // ER_*
-#include "sql/dd/impl/properties_impl.h"            // Properties_impl
-#include "sql/dd/impl/raw/raw_record.h"             // Raw_record
-#include "sql/dd/impl/sdi_impl.h"                   // sdi read/write functions
+#include "mysqld_error.h"                         // ER_*
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_bootstrap_ctx
+#include "sql/dd/impl/properties_impl.h"          // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"           // Raw_record
+#include "sql/dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "sql/dd/impl/tables/index_column_usage.h"  // Index_column_usage
 #include "sql/dd/impl/tables/indexes.h"             // Indexes
 #include "sql/dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
@@ -78,7 +79,7 @@ Index_impl::Index_impl()
       m_algorithm(IA_BTREE),
       m_is_algorithm_explicit(false),
       m_is_visible(true),
-      m_table(NULL),
+      m_table(nullptr),
       m_elements(),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
@@ -96,7 +97,7 @@ Index_impl::Index_impl(Table_impl *table)
       m_elements(),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
-Index_impl::~Index_impl() {}
+Index_impl::~Index_impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -177,6 +178,14 @@ bool Index_impl::restore_attributes(const Raw_record &r) {
 
   m_engine = r.read_str(Indexes::FIELD_ENGINE);
 
+  // m_engine_attribute and m_secondary_engine_attribute was added in 80020
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021)) {
+    m_engine_attribute = r.read_str(Indexes::FIELD_ENGINE_ATTRIBUTE, "");
+    m_secondary_engine_attribute =
+        r.read_str(Indexes::FIELD_SECONDARY_ENGINE_ATTRIBUTE, "");
+  }
+
   return false;
 }
 
@@ -192,6 +201,17 @@ bool Index_impl::store_attributes(Raw_record *r) {
   //   - Store NULL in options if there are no key=value pairs
   //   - Store NULL in se_private_data if there are no key=value pairs
 
+  // Store engine_attributes and secondary_engine_attributes only if
+  // we're not upgrading
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021) &&
+      (r->store(Indexes::FIELD_ENGINE_ATTRIBUTE, m_engine_attribute,
+                m_engine_attribute.empty()) ||
+       r->store(Indexes::FIELD_SECONDARY_ENGINE_ATTRIBUTE,
+                m_secondary_engine_attribute,
+                m_secondary_engine_attribute.empty()))) {
+    return true;
+  }
   return store_id(r, Indexes::FIELD_ID) || store_name(r, Indexes::FIELD_NAME) ||
          r->store(Indexes::FIELD_TABLE_ID, m_table->id()) ||
          r->store(Indexes::FIELD_TYPE, m_type) ||
@@ -210,8 +230,9 @@ bool Index_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(Indexes::FIELD_ENGINE == 14,
-              "Indexes definition has changed, review (de)ser memfuns!");
+static_assert(Indexes::NUMBER_OF_FIELDS == 17,
+              "Indexes definition has changed, check if serialize() and "
+              "deserialize() need to be updated!");
 void Index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);
@@ -228,6 +249,9 @@ void Index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_is_algorithm_explicit, STRING_WITH_LEN("is_algorithm_explicit"));
   write(w, m_is_visible, STRING_WITH_LEN("is_visible"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
+  write(w, m_engine_attribute, STRING_WITH_LEN("engine_attribute"));
+  write(w, m_secondary_engine_attribute,
+        STRING_WITH_LEN("secondary_engine_attribute"));
 
   serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
 
@@ -252,6 +276,8 @@ bool Index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_is_algorithm_explicit, val, "is_algorithm_explicit");
   read(&m_is_visible, val, "is_visible");
   read(&m_engine, val, "engine");
+  read(&m_engine_attribute, val, "engine_attribute");
+  read(&m_secondary_engine_attribute, val, "secondary_engine_attribute");
 
   deserialize_each(
       rctx, [this]() { return add_element(nullptr); }, val, "elements");
@@ -286,6 +312,8 @@ void Index_impl::debug_print(String_type &outb) const {
      << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_tablespace {OID: " << m_tablespace_id << "}; "
      << "m_engine: " << m_engine << "; "
+     << "m_engine_attribute: " << m_engine_attribute << "; "
+     << "m_secondary_engine_attribute: " << m_secondary_engine_attribute << "; "
      << "m_elements: " << m_elements.size() << " [ ";
 
   {
@@ -369,6 +397,8 @@ Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
       m_is_algorithm_explicit(src.m_is_algorithm_explicit),
       m_is_visible(src.m_is_visible),
       m_engine(src.m_engine),
+      m_engine_attribute(src.m_engine_attribute),
+      m_secondary_engine_attribute(src.m_secondary_engine_attribute),
       m_table(parent),
       m_elements(),
       m_tablespace_id(src.m_tablespace_id) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,6 +119,18 @@ public:
    * Get config by beeing friend to ndb_cluster_connection_impl - ugly
    */
   NdbApiConfig const& getConfig() const;
+
+  /**
+   * get a subrange of records - useful for splitting work amongst
+   * threads and avoiding contention.
+   */
+  static
+  void getRecordSubRange(int records,
+                         int rangeCount,
+                         int rangeId,
+                         int& startRecord,
+                         int& stopRecord);
+
 private:
   friend class NDBT_Step;
   friend class NDBT_TestSuite;
@@ -159,12 +171,17 @@ public:
   const char* getName() { return name; }
   int getStepNo() { return step_no; }
   void setStepNo(int n) { step_no = n; }
+  /* Parallel steps : Step x/y (x counting from 0) */
+  int getStepTypeNo() { return step_type_no; }
+  int getStepTypeCount() { return step_type_count; }
 protected:
   NDBT_Context* m_ctx;
   const char* name;
   NDBT_TESTFUNC* func;
   NDBT_TestCase* testcase;
   int step_no;
+  int step_type_no;
+  int step_type_count;
 
 private:
   int setUp(Ndb_cluster_connection&);
@@ -180,8 +197,10 @@ class NDBT_ParallelStep : public NDBT_Step {
 public:
   NDBT_ParallelStep(NDBT_TestCase* ptest,
 		    const char* pname,
-		    NDBT_TESTFUNC* pfunc);
-  virtual ~NDBT_ParallelStep() {}
+		    NDBT_TESTFUNC* pfunc,
+                    int num = 0,
+                    int count = 1);
+  ~NDBT_ParallelStep() override {}
 };
 
 class NDBT_Verifier : public NDBT_Step {
@@ -189,7 +208,7 @@ public:
   NDBT_Verifier(NDBT_TestCase* ptest,
 		const char* name,
 		NDBT_TESTFUNC* func);
-  virtual ~NDBT_Verifier() {}
+  ~NDBT_Verifier() override {}
 };
 
 class NDBT_Initializer  : public NDBT_Step {
@@ -197,7 +216,7 @@ public:
   NDBT_Initializer(NDBT_TestCase* ptest,
 		   const char* name,
 		   NDBT_TESTFUNC* func);
-  virtual ~NDBT_Initializer() {}
+  ~NDBT_Initializer() override {}
 };
 
 class NDBT_Finalizer  : public NDBT_Step {
@@ -205,7 +224,7 @@ public:
   NDBT_Finalizer(NDBT_TestCase* ptest,
 		 const char* name,
 		 NDBT_TESTFUNC* func);
-  virtual ~NDBT_Finalizer() {}
+  ~NDBT_Finalizer() override {}
 };
 
 
@@ -308,30 +327,30 @@ public:
   NDBT_TestCaseImpl1(NDBT_TestSuite* psuite, 
 		const char* name, 
 		const char* comment);
-  virtual ~NDBT_TestCaseImpl1();
+  ~NDBT_TestCaseImpl1() override;
   int addStep(NDBT_Step*);
   int addVerifier(NDBT_Verifier*);
   int addInitializer(NDBT_Initializer*, bool first= false);
   int addFinalizer(NDBT_Finalizer*);
-  void addTable(const char*, bool);
-  bool tableExists(NdbDictionary::Table*);
-  bool isVerify(const NdbDictionary::Table*);
+  void addTable(const char*, bool) override;
+  bool tableExists(NdbDictionary::Table*) override;
+  bool isVerify(const NdbDictionary::Table*) override;
   void reportStepResult(const NDBT_Step*, int result);
   //  int execute(NDBT_Context* ctx);
-  int runInit(NDBT_Context* ctx);
-  int runSteps(NDBT_Context* ctx);
-  int runVerifier(NDBT_Context* ctx);
-  int runFinal(NDBT_Context* ctx);
-  void print();
-  void printHTML();
+  int runInit(NDBT_Context* ctx) override;
+  int runSteps(NDBT_Context* ctx) override;
+  int runVerifier(NDBT_Context* ctx) override;
+  int runFinal(NDBT_Context* ctx) override;
+  void print() override;
+  void printHTML() override;
 
-  virtual int getNoOfRunningSteps() const;
-  virtual int getNoOfCompletedSteps() const;
+  int getNoOfRunningSteps() const override;
+  int getNoOfCompletedSteps() const override;
 private:
   static const int  NORESULT = 999;
   
-  void saveTestResult(const char*, int result);
-  void printTestResult();
+  void saveTestResult(const char*, int result) override;
+  void printTestResult() override;
 
   void startStepInThread(int stepNo, NDBT_Context* ctx);
   void waitSteps();
@@ -409,6 +428,8 @@ public:
 
   bool getForceShort() const;
 
+  void setEnsureIndexStatTables(bool val);
+
   int createTables(Ndb_cluster_connection&) const;
   int dropTables(Ndb_cluster_connection&) const;
 
@@ -454,6 +475,7 @@ private:
   NDBT_DriverType m_driverType;
   bool m_noddl;
   bool m_forceShort;
+  bool m_ensureIndexStatTables;
 };
 
 
@@ -494,7 +516,7 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 // Add a number of equal steps to the testcase
 #define STEPS(stepfunc, num) \
   { int i; for (i = 0; i < num; i++){ \
-    pts = new NDBT_ParallelStep(pt, #stepfunc, stepfunc); \
+    pts = new NDBT_ParallelStep(pt, #stepfunc, stepfunc, i, num); \
     pt->addStep(pts);\
   } }
 

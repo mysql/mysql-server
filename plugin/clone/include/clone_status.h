@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Table_pfs {
   Table_pfs(uint32_t num_rows);
 
   /** Destructor. */
-  virtual ~Table_pfs() {}
+  virtual ~Table_pfs() = default;
 
   /** Read column at index of current row. Implementation
   is specific to table.
@@ -87,7 +87,7 @@ class Table_pfs {
       return (0);
     }
     /* All rows are read. */
-    DBUG_ASSERT(m_position == m_rows + 1);
+    assert(m_position == m_rows + 1);
     return (PFS_HA_ERR_END_OF_FILE);
   }
 
@@ -162,8 +162,7 @@ class Table_pfs {
   @return error code. */
   static int create_proxy_tables();
 
-  /** Drop PFS proxy tables.
-  @return error code. */
+  /** Drop PFS proxy tables. */
   static void drop_proxy_tables();
 
  private:
@@ -220,7 +219,7 @@ class Status_pfs : public Table_pfs {
 
     /** Set PFS table data while starting Clone operation.
     @param[in]	id		clone ID
-    @param[in]	THD		session THD
+    @param[in]	thd		session THD
     @param[in]	host		clone source host
     @param[in]	port		clone source port
     @param[in]	destination	clone destination directory or host */
@@ -400,7 +399,7 @@ class Progress_pfs : public Table_pfs {
                      uint64_t estimate) {
       next_stage(m_current_stage);
       if (m_current_stage == STAGE_NONE) {
-        DBUG_ASSERT(false); /* purecov: inspected */
+        assert(false); /* purecov: inspected */
         return;
       }
       m_states[m_current_stage] = STATE_STARTED;

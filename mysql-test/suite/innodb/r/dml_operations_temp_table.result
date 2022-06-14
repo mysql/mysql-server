@@ -1,0 +1,216 @@
+use test;
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+update t set i = 50 where i = 40;
+update t set i = 60 where i = 30;
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+50	5.5
+60	4.4
+delete from t where i = 10;
+delete from t where f < 3.4;
+rollback;
+select * from t;
+i	f
+50	5.5
+60	4.4
+delete from t where i = 10;
+delete from t;
+select * from t;
+i	f
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+commit;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+rollback;
+select * from t;
+i	f
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t;
+select * from t;
+i	f
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+begin;
+update t set i = 50 where i = 40;
+update t set i = 60 where i = 30;
+select * from t;
+i	f
+10	2.2
+20	3.3
+50	5.5
+60	4.4
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
+start transaction;
+savepoint first;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+rollback to first;
+select * from t;
+i	f
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t where i = 10;
+select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
+savepoint first;
+delete from t;
+select * from t;
+i	f
+rollback to first;
+select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
+commit;
+select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
+begin;
+update t set i = 50 where i = 40;
+savepoint first;
+update t set i = 60 where i = 30;
+select * from t;
+i	f
+20	3.3
+50	5.5
+60	4.4
+rollback to first;
+select * from t;
+i	f
+20	3.3
+30	4.4
+50	5.5
+commit;
+drop table if exists t;
+use test;
+create temporary table t1 (i int, f float,
+primary key pk(i),
+unique index fk(f)
+) engine = innodb;
+insert into t1 values (1, 1.2), (2, 2.3), (3, 3.4);
+select * from t1;
+i	f
+1	1.2
+2	2.3
+3	3.4
+insert into t1 values (4, 4.5), (1, 5.6);
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+select * from t1;
+i	f
+1	1.2
+2	2.3
+3	3.4
+insert into t1 values (4, 4.5), (5, 5.6);
+select * from t1;
+i	f
+1	1.2
+2	2.3
+3	3.4
+4	4.5
+5	5.6
+update t1 set i = 1 where i = 4;
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+truncate table t1;
+insert into t1 values (1, 1.2), (3, 2.3), (5, 3.4), (6, 7.4);
+select * from t1;
+i	f
+1	1.2
+3	2.3
+5	3.4
+6	7.4
+update t1 set i = i + 1;
+ERROR 23000: Duplicate entry '6' for key 't1.PRIMARY'
+select * from t1;
+i	f
+1	1.2
+3	2.3
+5	3.4
+6	7.4
+drop table t1;

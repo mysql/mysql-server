@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,18 +21,21 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-  ${NDB_SOURCE_DIR}/src/mgmapi
-  ${NDB_SOURCE_DIR}/src/ndbapi
-  ${NDB_SOURCE_DIR}/src/mgmclient)
-
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
+  )
 
 ADD_CONVENIENCE_LIBRARY(ndbconf
-               Config.cpp
-               ConfigInfo.cpp
-               InitConfigFileParser.cpp
-               ${NDB_SOURCE_DIR}/src/kernel/vm/mt_thr_config.cpp
-               LINK_LIBRARIES ndbmgmapi
-               )
+  Config.cpp
+  ConfigInfo.cpp
+  InitConfigFileParser.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigObject.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigSection.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm/mt_thr_config.cpp
+  LINK_LIBRARIES ndbmgmapi
+  )
 
 IF(WITHOUT_SERVER)
   RETURN()
@@ -62,13 +65,24 @@ IF(WIN32)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_mgmd
-  MgmtSrvr.cpp main.cpp Services.cpp ConfigManager.cpp
   ${NDB_MGMD_EXTRA_SRC}
-  DESTINATION ${INSTALL_SBINDIR}
-  COMPONENT ClusterManagementServer)
-TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient_static ndbmgmclient)
-IF(UNIX)
-  TARGET_LINK_LIBRARIES(ndb_mgmd ${EDITLINE_LIBRARY})
-ENDIF(UNIX)
+  ConfigManager.cpp
+  MgmtSrvr.cpp
+  Services.cpp
+  main.cpp
 
-NDB_ADD_TEST(MgmConfig-t testConfig.cpp LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)
+  DESTINATION ${INSTALL_SBINDIR}
+  COMPONENT ClusterManagementServer
+  ENABLE_EXPORTS
+  LINK_LIBRARIES
+  ${EDITLINE_LIBRARY}
+  ndbclient_static
+  ndbconf
+  ndbmgmclient
+  )
+
+NDB_ADD_TEST(MgmConfig-t testConfig.cpp
+  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
+  )
+NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
+  LIBS ndbconf ndbgeneral ndbportlib)

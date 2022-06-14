@@ -775,11 +775,11 @@ SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ a,
 --echo This query does not support Subquery Materialization due to type mismatch
 EXPLAIN
 SELECT * FROM t2
-WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ sum(b) FROM t1 group by a);
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ concat(sum(b),"") FROM t1 group by a);
 --echo Trying to force Subquery Materialization will not change anything
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
-WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ sum(b) FROM t1 group by a);
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ concat(sum(b),"") FROM t1 group by a);
 
 --echo Test hints with prepared statements
 PREPARE stmt1 FROM "EXPLAIN

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #include "plugin/group_replication/include/group_actions/communication_protocol_action.h"
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
 #include "plugin/group_replication/include/group_actions/primary_election_action.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
@@ -42,7 +43,7 @@ Group_action_information::Group_action_information()
       execution_message_area(new Group_action_diagnostics()),
       action_result(Group_action::GROUP_ACTION_RESULT_END) {}
 
-Group_action_information::~Group_action_information() {}
+Group_action_information::~Group_action_information() = default;
 
 /**
  The 'action' / 'action information' object life cycle:
@@ -124,7 +125,7 @@ Group_action_coordinator::Group_action_coordinator(
                    &group_thread_end_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_group_action_coordinator_thread_end,
                   &group_thread_end_cond);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   failure_debug_flag = false;
 #endif
 }
@@ -153,7 +154,7 @@ void Group_action_coordinator::set_stop_wait_timeout(ulong timeout) {
 static void *launch_handler_thread(void *arg) {
   Group_action_coordinator *handler = (Group_action_coordinator *)arg;
   handler->execute_group_action_handler();
-  return 0;
+  return nullptr;
 }
 
 bool Group_action_coordinator::is_group_action_running() {
@@ -181,7 +182,7 @@ void Group_action_coordinator::reset_coordinator_process() {
   member_leaving_group = false;
   remote_warnings_reported = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_group_action_start_msg_error",
                   { failure_debug_flag = true; });
 #endif
@@ -380,7 +381,7 @@ end:
 }
 
 bool Group_action_coordinator::thread_killed() {
-  return current_thd != NULL && current_thd->is_killed();
+  return current_thd != nullptr && current_thd->is_killed();
 }
 
 bool Group_action_coordinator::handle_action_message(
@@ -388,10 +389,10 @@ bool Group_action_coordinator::handle_action_message(
   // If we are not online just ignore it
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
-  if (member_status != Group_member_info::MEMBER_ONLINE) return 0;
+  if (member_status != Group_member_info::MEMBER_ONLINE) return false;
 
   if (coordinator_terminating) {
-    return 0; /* purecov: inspected */
+    return false; /* purecov: inspected */
   }
 
   Group_action_message::enum_action_message_phase message_phase =
@@ -410,7 +411,7 @@ bool Group_action_coordinator::handle_action_message(
       break; /* purecov: inspected */
   }
 
-  return 0;
+  return false;
 }
 
 bool Group_action_coordinator::handle_action_start_message(
@@ -486,7 +487,7 @@ bool Group_action_coordinator::handle_action_start_message(
   if (!is_sender) {
     Group_action_message::enum_action_message_type message_type =
         message->get_group_action_message_type();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (failure_debug_flag) {
       message_type = Group_action_message::ACTION_UNKNOWN_MESSAGE;
     }
@@ -630,11 +631,11 @@ void Group_action_coordinator::terminate_action() {
 
   signal_and_wait_action_termination(true);
 
-  DBUG_ASSERT(current_executing_action);
+  assert(current_executing_action);
 
   // Log what was the result of the action
   LogPluginErr(
-      INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
+      SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
       current_executing_action->executing_action->get_action_name(),
       current_executing_action->execution_message_area->get_execution_message()
           .c_str());
@@ -729,11 +730,13 @@ int Group_action_coordinator::signal_action_terminated() {
                                      number_of_terminated_members);
 
   DBUG_EXECUTE_IF("group_replication_block_group_action_stop", {
-    const char act[] = "now wait_for signal.action_stop_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    const char act[] =
+        "now signal signal.action_stopping wait_for "
+        "signal.action_stop_continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  Group_action_message *end_message = NULL;
+  Group_action_message *end_message = nullptr;
   current_executing_action->executing_action->get_action_message(&end_message);
   end_message->set_group_action_message_phase(
       Group_action_message::ACTION_END_PHASE);
@@ -755,20 +758,20 @@ int Group_action_coordinator::signal_action_terminated() {
 }
 
 int Group_action_coordinator::launch_group_action_handler_thread() {
-  DBUG_ENTER("Group_action_coordinator::launch_group_action_handler_thread()");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&group_thread_run_lock);
 
   if (action_handler_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&group_thread_run_lock); /* purecov: inspected */
-    DBUG_RETURN(0);                             /* purecov: inspected */
+    return 0;                                   /* purecov: inspected */
   }
 
   if (mysql_thread_create(key_GR_THD_group_action_coordinator,
                           &action_execution_pthd, get_connection_attrib(),
                           launch_handler_thread, (void *)this)) {
     mysql_mutex_unlock(&group_thread_run_lock); /* purecov: inspected */
-    DBUG_RETURN(1);                             /* purecov: inspected */
+    return 1;                                   /* purecov: inspected */
   }
   action_handler_thd_state.set_created();
 
@@ -779,20 +782,21 @@ int Group_action_coordinator::launch_group_action_handler_thread() {
   }
   mysql_mutex_unlock(&group_thread_run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Group_action_coordinator::execute_group_action_handler() {
-  DBUG_ENTER("Group_action_coordinator::execute_group_action_handler()");
+  DBUG_TRACE;
   int error = 0;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
   global_thd_manager_add_thd(thd);
+  Notification_context notification_ctx;
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_running();
@@ -801,7 +805,7 @@ int Group_action_coordinator::execute_group_action_handler() {
 
   DBUG_EXECUTE_IF("group_replication_block_group_action", {
     const char act[] = "now wait_for signal.action_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   current_executing_action->action_result =
@@ -810,14 +814,20 @@ int Group_action_coordinator::execute_group_action_handler() {
   monitoring_stage_handler.initialize_stage_monitor();
   is_group_action_being_executed = true;
 
-  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
                current_executing_action->executing_action->get_action_name());
   while (Group_action::GROUP_ACTION_RESULT_RESTART ==
          current_executing_action->action_result) {
     current_executing_action->action_result =
         current_executing_action->executing_action->execute_action(
-            is_sender, &monitoring_stage_handler);
+            is_sender, &monitoring_stage_handler, &notification_ctx);
   }
+  Gcs_view *view = gcs_module->get_current_view();
+  if (view != nullptr) {
+    notification_ctx.set_view_id(view->get_view_id().get_representation());
+    delete view;
+  }
+  notify_and_reset_ctx(notification_ctx);
   is_group_action_being_executed = false;
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
                current_executing_action->executing_action->get_action_name());
@@ -831,10 +841,28 @@ int Group_action_coordinator::execute_group_action_handler() {
       signal_action_terminated();
       break;
     case Group_action::GROUP_ACTION_RESULT_KILLED:
-    case Group_action::GROUP_ACTION_RESULT_ERROR:
-      kill_transactions_and_leave();
+    case Group_action::GROUP_ACTION_RESULT_ERROR: {
+      if (get_exit_state_action_var() != EXIT_STATE_ACTION_ABORT_SERVER) {
+        current_executing_action->execution_message_area
+            ->append_execution_message(" The member will now leave the group.");
+      }
+
+      std::string exit_state_action_abort_log_message(
+          "Fatal error during a Group Replication configuration change. ");
+      exit_state_action_abort_log_message.append(
+          current_executing_action->execution_message_area
+              ->get_execution_message());
+      leave_group_on_failure::mask leave_actions;
+      leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+      leave_group_on_failure::leave(
+          leave_actions, ER_GRP_RPL_CONFIGURATION_ACTION_KILLED_ERROR,
+          PSESSION_INIT_THREAD, nullptr,
+          exit_state_action_abort_log_message.c_str());
+
       awake_coordinator_on_error(current_executing_action, is_sender, true);
       break;
+    }
     case Group_action::GROUP_ACTION_RESULT_ABORTED:
       if (!coordinator_terminating) {
         signal_action_terminated();
@@ -845,7 +873,7 @@ int Group_action_coordinator::execute_group_action_handler() {
     default:
       awake_coordinator_on_error(current_executing_action, is_sender,
                                  true); /* purecov: inspected */
-      DBUG_ASSERT(0);                   /* purecov: inspected */
+      assert(0);                        /* purecov: inspected */
       break;                            /* purecov: inspected */
   }
 
@@ -886,6 +914,8 @@ int Group_action_coordinator::execute_group_action_handler() {
 
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
+  delete thd;
+  my_thread_end();
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_terminated();
@@ -895,10 +925,7 @@ int Group_action_coordinator::execute_group_action_handler() {
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
-  my_thread_end();
-  delete thd;
-
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Group_action_coordinator::after_view_change(
@@ -938,116 +965,13 @@ int Group_action_coordinator::after_view_change(
   return 0;
 }
 
-int Group_action_coordinator::after_primary_election(std::string, bool,
-                                                     enum_primary_election_mode,
-                                                     int) {
+int Group_action_coordinator::after_primary_election(
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 
 int Group_action_coordinator::before_message_handling(
     const Plugin_gcs_message &, const std::string &, bool *) {
   return 0;
-}
-
-void Group_action_coordinator::kill_transactions_and_leave() {
-  DBUG_ENTER("Group_action_coordinator::kill_transactions_and_leave");
-
-  Notification_context ctx;
-
-  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_KILLED_ERROR);
-  if (get_exit_state_action_var() != EXIT_STATE_ACTION_ABORT_SERVER) {
-    current_executing_action->execution_message_area->append_execution_message(
-        " The member will now leave the group.");
-  }
-
-  /*
-    Suspend the applier for the uncommon case of a network restore happening
-    when this termination process is ongoing.
-    Don't care if an error is returned because the applier failed.
-  */
-  applier_module->add_suspension_packet();
-
-  /* Notify member status update. */
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR, ctx);
-
-  /*
-    unblock threads waiting for the member to become ONLINE
-  */
-  terminate_wait_on_start_process();
-
-  /* Single state update. Notify right away. */
-  notify_and_reset_ctx(ctx);
-
-  bool set_read_mode = false;
-  Plugin_gcs_view_modification_notifier view_change_notifier;
-  view_change_notifier.start_view_modification();
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
-
-  Gcs_operations::enum_leave_state leave_state =
-      gcs_module->leave(&view_change_notifier);
-
-  longlong errcode = 0;
-  longlong log_severity = WARNING_LEVEL;
-  switch (leave_state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP; /* purecov:
-                                                                    inspected */
-      log_severity = ERROR_LEVEL; /* purecov: inspected */
-      set_read_mode = true;       /* purecov: inspected */
-      break;                      /* purecov: inspected */
-    case Gcs_operations::ALREADY_LEAVING:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
-      break;                                          /* purecov: inspected */
-    case Gcs_operations::ALREADY_LEFT:
-      errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT; /* purecov: inspected */
-      break;                                    /* purecov: inspected */
-    case Gcs_operations::NOW_LEAVING:
-      set_read_mode = true;
-      errcode = ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS;
-      log_severity = ERROR_LEVEL;
-      break;
-  }
-  LogPluginErr(log_severity, errcode);
-
-  /*
-    If true it means:
-    1) The plugin is stopping and waiting on some transactions to finish.
-       No harm in unblocking them first cutting the stop command time
-    2) There was an error in the applier and the plugin will leave the group.
-       No problem, both processes will try to kill the transactions and set the
-       read mode to true.
-  */
-  bool already_locked = shared_plugin_stop_lock->try_grab_write_lock();
-
-  // kill pending transactions
-  blocked_transaction_handler->unblock_waiting_transactions();
-
-  if (!already_locked) shared_plugin_stop_lock->release_write_lock();
-
-  if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
-
-  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-      Gcs_operations::ALREADY_LEFT != leave_state) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier.wait_for_view_modification()) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN); /* purecov:
-                                                                    inspected */
-    }
-  }
-  gcs_module->remove_view_notifer(&view_change_notifier);
-
-  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
-    std::string error_message(
-        "Fatal error during a Group Replication configuration change. ");
-    error_message.append(current_executing_action->execution_message_area
-                             ->get_execution_message());
-    abort_plugin_process(error_message.c_str());
-  }
-
-  DBUG_VOID_RETURN;
 }

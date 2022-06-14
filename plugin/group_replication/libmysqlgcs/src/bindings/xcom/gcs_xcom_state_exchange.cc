@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      Gcs_protocol_version version,
                                      const Gcs_xcom_synode_set &snapshot,
                                      const uchar *data, uint64_t data_size)
-    : m_view_id(NULL),
+    : m_view_id(nullptr),
       m_configuration_id(configuration_id),
-      m_data(NULL),
+      m_data(nullptr),
       m_data_size(0),
       m_snapshot(snapshot),
       m_version(version) {
@@ -57,9 +57,9 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
 
 Xcom_member_state::Xcom_member_state(Gcs_protocol_version version,
                                      const uchar *data, uint64_t data_size)
-    : m_view_id(NULL),
+    : m_view_id(nullptr),
       m_configuration_id(null_synode),
-      m_data(NULL),
+      m_data(nullptr),
       m_data_size(0),
       m_version(version) {
   decode(data, data_size);
@@ -86,6 +86,7 @@ uint64_t Xcom_member_state::get_encode_snapshot_size() const {
 
   return snapshot_size;
 }
+extern uint32_t get_my_xcom_id();
 
 bool Xcom_member_state::encode_header(uchar *buffer,
                                       uint64_t *buffer_len) const {
@@ -97,9 +98,10 @@ bool Xcom_member_state::encode_header(uchar *buffer,
   uint64_t encoded_size = get_encode_header_size();
   unsigned char *slider = buffer;
 
-  MYSQL_GCS_LOG_TRACE("Encoding header for exchangeable data.")
+  MYSQL_GCS_LOG_TRACE("xcom_id %x Encoding header for exchangeable data.",
+                      get_my_xcom_id())
 
-  if (buffer == NULL || buffer_len == NULL) {
+  if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
         "Buffer to return information on encoded data or encoded data "
         "size is not properly configured.");
@@ -117,7 +119,7 @@ bool Xcom_member_state::encode_header(uchar *buffer,
 
   *buffer_len = encoded_size;
 
-  if (m_view_id != NULL) {
+  if (m_view_id != nullptr) {
     fixed_view_id = htole64(m_view_id->get_fixed_part());
     monotonic_view_id = htole32(m_view_id->get_monotonic_part());
   }
@@ -144,8 +146,11 @@ bool Xcom_member_state::encode_header(uchar *buffer,
   slider += WIRE_XCOM_NODE_ID_SIZE;
   assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
 
-  MYSQL_GCS_LOG_TRACE("Encoded header for exchangeable data: (header)=%llu",
-                      static_cast<long long unsigned>(encoded_size));
+  MYSQL_GCS_LOG_TRACE(
+      "xcom_id %x Encoded header for exchangeable data: (header)=%llu view_id "
+      "%s",
+      get_my_xcom_id(), static_cast<long long unsigned>(encoded_size),
+      m_view_id->get_representation().c_str());
 
   return false;
 }
@@ -159,7 +164,8 @@ bool Xcom_member_state::encode_snapshot(uchar *buffer,
   /* There is no snapshot information on protocol V1. */
   if (m_version == Gcs_protocol_version::V1) goto end;
 
-  MYSQL_GCS_LOG_TRACE("Encoding snapshot for exchangeable data.")
+  MYSQL_GCS_LOG_TRACE("xcom_id %x Encoding snapshot for exchangeable data.",
+                      get_my_xcom_id())
 
   if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
@@ -310,7 +316,7 @@ Gcs_xcom_state_exchange::Gcs_xcom_state_exchange(
       m_member_states(),
       m_member_versions(),
       m_member_max_versions(),
-      m_group_name(NULL),
+      m_group_name(nullptr),
       m_local_information("none"),
       m_configuration_id(null_synode),
       m_ms_xcom_nodes() {}
@@ -385,7 +391,7 @@ void Gcs_xcom_state_exchange::reset() {
   m_awaited_vector.clear();
 
   delete m_group_name;
-  m_group_name = NULL;
+  m_group_name = nullptr;
 
   m_ms_xcom_nodes.clear_nodes();
 }
@@ -427,9 +433,9 @@ bool Gcs_xcom_state_exchange::state_exchange(
    */
   update_communication_channel(xcom_nodes);
 
-  if (m_group_name == NULL) m_group_name = new std::string(*group);
+  if (m_group_name == nullptr) m_group_name = new std::string(*group);
 
-  if (current_view != NULL) {
+  if (current_view != nullptr) {
     /*
       If a view has been already installed, disseminate this information
       to other members so that a member that is joining may learn about
@@ -510,8 +516,8 @@ bool Gcs_xcom_state_exchange::is_leaving() {
 enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
     const Gcs_xcom_view_identifier &proposed_view,
     std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data) {
-  uchar *buffer = NULL;
-  uchar *slider = NULL;
+  uchar *buffer = nullptr;
+  uchar *slider = nullptr;
   uint64_t buffer_len = 0;
   uint64_t exchangeable_header_len = 0;
   uint64_t exchangeable_data_len = 0;
@@ -524,7 +530,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
       xcom_communication->get_msg_pipeline().get_snapshot();
   Xcom_member_state member_state(proposed_view, m_configuration_id,
                                  Gcs_protocol_version::HIGHEST_KNOWN, snapshot,
-                                 NULL, 0);
+                                 nullptr, 0);
 
   /*
     The exchangeable_data may have a list with Gcs_message_data
@@ -564,7 +570,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   buffer_len = exchangeable_header_len + exchangeable_data_len +
                exchangeable_snapshot_len;
   buffer = slider = static_cast<uchar *>(malloc(buffer_len * sizeof(uchar)));
-  if (buffer == NULL) {
+  if (buffer == nullptr) {
     MYSQL_GCS_LOG_ERROR("Error allocating buffer to carry exchangeable data")
     return GCS_NOK;
   }
@@ -589,7 +595,6 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
    However, it will send an empty message anyway.
    */
   if (exchangeable_data_len > 0) {
-    uint64_t slider_total_len = 0;
     uint64_t slider_len = 0;
     for (auto it = exchangeable_data.begin(); it != it_ends; ++it) {
       auto &msg_data = (*it);
@@ -601,13 +606,11 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
             static_cast<long long unsigned>(slider_len));
         msg_data->encode(slider, &slider_len);
         slider += slider_len;
-        slider_total_len += slider_len;
       }
     }
   }
 
   member_state.encode_snapshot(slider, &exchangeable_snapshot_len);
-  slider += exchangeable_snapshot_len;
 
   /*
     There is another copy here but we cannot avoid this right now
@@ -620,7 +623,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   Gcs_message_data *message_data = new Gcs_message_data(0, buffer_len);
   message_data->append_to_payload(buffer, buffer_len);
   free(buffer);
-  buffer = NULL;
+  buffer = nullptr;
 
   Gcs_group_identifier group_id(*m_group_name);
   Gcs_message message(m_local_information, group_id, message_data);
@@ -749,7 +752,7 @@ Gcs_xcom_state_exchange::compute_incompatible_members() {
 std::pair<bool, Gcs_protocol_version>
 Gcs_xcom_state_exchange::members_announce_same_version() const {
   /* Validate preconditions. */
-  DBUG_ASSERT(m_member_versions.size() > 1);
+  assert(m_member_versions.size() > 1);
 
   bool constexpr SAME_VERSION = true;
   bool constexpr DIFFERENT_VERSIONS = false;
@@ -841,7 +844,7 @@ bool Gcs_xcom_state_exchange::incompatible_with_group() const {
           "again.");
       goto end;
     } else {
-      DBUG_ASSERT(group_version != Gcs_protocol_version::UNKNOWN);
+      assert(group_version != Gcs_protocol_version::UNKNOWN);
     }
 
     /*
@@ -851,12 +854,11 @@ bool Gcs_xcom_state_exchange::incompatible_with_group() const {
     bool const supports_protocol =
         (group_version <= Gcs_protocol_version::HIGHEST_KNOWN);
     if (supports_protocol) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool const failed =
 #endif
           pipeline.set_version(group_version);
-      DBUG_ASSERT(!failed &&
-                  "Setting the pipeline version should not have failed");
+      assert(!failed && "Setting the pipeline version should not have failed");
       MYSQL_GCS_LOG_INFO("This server adjusted its communication protocol to "
                          << gcs_protocol_to_mysql_version(group_version)
                          << " in order to join the group.");
@@ -869,7 +871,7 @@ bool Gcs_xcom_state_exchange::incompatible_with_group() const {
       goto end;
     }
   } else {
-    DBUG_ASSERT(m_member_versions.begin()->first == m_local_information);
+    assert(m_member_versions.begin()->first == m_local_information);
   }
 
   result = COMPATIBLE;
@@ -890,11 +892,11 @@ Gcs_xcom_state_exchange::compute_incompatible_joiners() {
 
   /* Compute the set of incompatible joiners. */
   for (Gcs_member_identifier const *joiner_id : m_ms_joined) {
-    DBUG_ASSERT(m_member_versions.find(*joiner_id) != m_member_versions.end());
+    assert(m_member_versions.find(*joiner_id) != m_member_versions.end());
     Gcs_protocol_version const &joiner_version = m_member_versions[*joiner_id];
 
-    DBUG_ASSERT(m_member_max_versions.find(*joiner_id) !=
-                m_member_max_versions.end());
+    assert(m_member_max_versions.find(*joiner_id) !=
+           m_member_max_versions.end());
     Gcs_protocol_version const &joiner_max_version =
         m_member_max_versions[*joiner_id];
 
@@ -968,7 +970,7 @@ bool Gcs_xcom_state_exchange::process_recovery_state() {
    */
   bool const only_i_exist = (m_member_states.size() == 1);
   if (only_i_exist) {
-    DBUG_ASSERT(m_member_states.begin()->first == m_local_information);
+    assert(m_member_states.begin()->first == m_local_information);
     successful = true;
     goto end;
   }
@@ -1044,7 +1046,7 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
       . If a view with a monotonic part equals to zero is chosen, this
         means that all views have the monotonic part equal to zero.
   */
-  Gcs_xcom_view_identifier *view_id = NULL;
+  Gcs_xcom_view_identifier *view_id = nullptr;
 
   std::map<Gcs_member_identifier, Xcom_member_state *>::iterator state_it;
   for (state_it = m_member_states.begin(); state_it != m_member_states.end();
@@ -1054,7 +1056,7 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
     if (view_id->get_monotonic_part() != 0) break;
   }
 
-  assert(view_id != NULL);
+  assert(view_id != nullptr);
   MYSQL_GCS_DEBUG_EXECUTE(for (state_it = m_member_states.begin();
                                state_it != m_member_states.end(); state_it++) {
     Gcs_xcom_view_identifier member_state_view =
@@ -1064,10 +1066,12 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
       the same value.
     */
     if (member_state_view.get_monotonic_part() != 0) {
-      if ((*view_id) != member_state_view) return NULL;
+      if ((*view_id) != member_state_view) return nullptr;
     }
   });
 
+  MYSQL_GCS_LOG_TRACE("get_new_view_id returns view_id %s",
+                      view_id->get_representation().c_str());
   return view_id;
 }
 
@@ -1078,17 +1082,20 @@ Gcs_xcom_view_change_control::Gcs_xcom_view_change_control()
       m_wait_for_view_cond(),
       m_wait_for_view_mutex(),
       m_joining_leaving_mutex(),
-      m_current_view(NULL),
+      m_current_view(nullptr),
       m_current_view_mutex(),
-      m_belongs_to_group(false) {
+      m_belongs_to_group(false),
+      m_finalized(false) {
   m_wait_for_view_cond.init(
       key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond);
   m_wait_for_view_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex,
+      nullptr);
   m_joining_leaving_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex,
+      nullptr);
   m_current_view_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex, nullptr);
 }
 
 Gcs_xcom_view_change_control::~Gcs_xcom_view_change_control() {
@@ -1113,10 +1120,10 @@ void Gcs_xcom_view_change_control::set_unsafe_current_view(Gcs_view *view) {
 /* purecov: end */
 
 Gcs_view *Gcs_xcom_view_change_control::get_current_view() {
-  Gcs_view *ret = NULL;
+  Gcs_view *ret = nullptr;
 
   m_current_view_mutex.lock();
-  if (m_current_view != NULL) ret = new Gcs_view(*m_current_view);
+  if (m_current_view != nullptr) ret = new Gcs_view(*m_current_view);
   m_current_view_mutex.unlock();
 
   return ret;
@@ -1218,3 +1225,7 @@ bool Gcs_xcom_view_change_control::is_joining() {
 
   return retval;
 }
+
+void Gcs_xcom_view_change_control::finalize() { m_finalized.store(true); }
+
+bool Gcs_xcom_view_change_control::is_finalized() { return m_finalized.load(); }

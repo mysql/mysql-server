@@ -10,7 +10,7 @@ SET SESSION sql_log_bin= 0;
 INSERT INTO t1 VALUES(10);
 SET SESSION sql_log_bin= 1;
 INSERT INTO t1 VALUES (5),(10);
-ERROR 23000: Duplicate entry '10' for key 's'
+ERROR 23000: Duplicate entry '10' for key 't1.s'
 DROP TABLE t1;
 CREATE TABLE t2(s INT);
 INSERT INTO t2 VALUES(10);
@@ -21,5 +21,7 @@ DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert_grep.inc [Found the expected information about the ER_INCONSISTENT_ERROR being skipped.]
 include/rpl_end.inc

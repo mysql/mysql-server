@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 #include "lex_string.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"  // enum_sql_command
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "sql/sql_cmd.h"         // Sql_cmd
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 
@@ -46,7 +46,7 @@ extern const char *global_plugin_typelib_names[];
 extern mysql_mutex_t LOCK_plugin;
 extern mysql_mutex_t LOCK_plugin_delete;
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define plugin_ref_to_int(A) A
 #define plugin_int_to_ref(A) A
 #else
@@ -60,6 +60,7 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define PLUGIN_INIT_SKIP_DYNAMIC_LOADING 1
 #define PLUGIN_INIT_SKIP_PLUGIN_TABLE 2
 #define PLUGIN_INIT_SKIP_INITIALIZATION 4
+#define PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE 8
 
 #define MYSQL_ANY_PLUGIN -1
 
@@ -76,6 +77,7 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define PLUGIN_IS_READY 8
 #define PLUGIN_IS_DYING 16
 #define PLUGIN_IS_DISABLED 32
+#define PLUGIN_IS_WAITING_FOR_UPGRADE 64
 
 /* A handle for the dynamic library containing a plugin or plugins. */
 
@@ -93,10 +95,10 @@ struct st_plugin_dl {
 
 class Sql_cmd_install_plugin : public Sql_cmd {
  public:
-  Sql_cmd_install_plugin(const LEX_STRING &comment, const LEX_STRING &ident)
+  Sql_cmd_install_plugin(const LEX_CSTRING &comment, const LEX_STRING &ident)
       : m_comment(comment), m_ident(ident) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_INSTALL_PLUGIN;
   }
 
@@ -109,10 +111,10 @@ class Sql_cmd_install_plugin : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
-  LEX_STRING m_comment;
+  LEX_CSTRING m_comment;
   LEX_STRING m_ident;
 };
 
@@ -122,10 +124,10 @@ class Sql_cmd_install_plugin : public Sql_cmd {
 
 class Sql_cmd_uninstall_plugin : public Sql_cmd {
  public:
-  explicit Sql_cmd_uninstall_plugin(const LEX_STRING &comment)
+  explicit Sql_cmd_uninstall_plugin(const LEX_CSTRING &comment)
       : m_comment(comment) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_UNINSTALL_PLUGIN;
   }
 
@@ -138,10 +140,10 @@ class Sql_cmd_uninstall_plugin : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
-  LEX_STRING m_comment;
+  LEX_CSTRING m_comment;
 };
 
 typedef int (*plugin_type_init)(struct st_plugin_int *);
@@ -150,12 +152,20 @@ extern I_List<i_string> *opt_plugin_load_list_ptr;
 extern I_List<i_string> *opt_early_plugin_load_list_ptr;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
-extern const LEX_STRING plugin_type_names[];
+extern const LEX_CSTRING plugin_type_names[];
 
 extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
 extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
 extern bool plugin_register_dynamic_and_init_all(int *argc, char **argv,
                                                  int init_flags);
+extern bool update_persisted_plugin_sysvars(const char *name);
+
+namespace dd {
+namespace upgrade {
+extern bool plugin_initialize_delayed_after_upgrade();
+}
+}  // namespace dd
+
 extern bool is_builtin_and_core_se_initialized();
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
@@ -184,9 +194,6 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
-int lock_plugin_data();
-int unlock_plugin_data();
-
 bool end_transaction(THD *thd, bool error);
 
 /**

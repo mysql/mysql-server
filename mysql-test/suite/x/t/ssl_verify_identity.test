@@ -10,8 +10,9 @@
 #
 # Note that these test cases are written keeping in mind that the openssl version used by the system will
 # be 1.0.2+. For older versions of openssl, the test will be skipped.
+
+--source include/allowed_ciphers.inc
 --source include/have_openssl_binary.inc
---source include/have_openssl.inc
 --source include/check_openssl_version.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
@@ -22,4 +23,5 @@ let PARAM_CIPHER_VARIABLE=Mysqlx_ssl_cipher;
 let PARAM_VERIFY_IDENTITY_ERROR=ERROR: No such host is known 'nonexistent' \(code 2005\);
 --source include/test_ssl_verify_identity.inc
 
---source include/xplugin_drop_user.inc
+## Cleanup
+--source ../include/xplugin_cleanup.inc

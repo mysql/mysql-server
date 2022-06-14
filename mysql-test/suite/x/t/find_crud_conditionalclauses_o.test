@@ -27,7 +27,7 @@ grant all on *.* to crudfinduser@localhost;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/find_crud_table.tmp
+--write_file $MYSQL_TMP_DIR/find_crud_table.xpl
 -->sql
 DROP SCHEMA if EXISTS minisakila;
 CREATE SCHEMA minisakila;
@@ -709,11 +709,11 @@ Mysqlx.Crud.Find {
 
 EOF
 
---exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_crud_table.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/find_crud_table.tmp
+--exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_crud_table.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/find_crud_table.xpl
 
 
---write_file $MYSQL_TMP_DIR/find_crud_coll.tmp
+--write_file $MYSQL_TMP_DIR/find_crud_coll.xpl
 CREATE SCHEMA mysqlxcoll;
 
 -->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
@@ -1281,8 +1281,8 @@ DROP USER crudfinduser@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_crud_coll.tmp 2>&1
+--exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_crud_coll.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/find_crud_coll.tmp
+--source ../include/xplugin_cleanup.inc
 

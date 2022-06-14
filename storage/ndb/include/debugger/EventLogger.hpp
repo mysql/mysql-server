@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 class EventLoggerBase {
 public:
-  virtual ~EventLoggerBase();
+  EventLoggerBase() = default;
 
   /**
    * LogLevel settings
@@ -110,7 +110,7 @@ public:
   /**
    * Destructor.
    */
-  virtual ~EventLogger();
+  ~EventLogger() override;
 
   /**
    * Closes the eventlog.
@@ -124,9 +124,10 @@ public:
    * @param theData the event data.
    * @param nodeId the node id of event origin.
    */
-  virtual void log(int, const Uint32*, Uint32 len, NodeId = 0,const class LogLevel * = 0);
+  virtual void log(int eventType, const Uint32* theData, Uint32 len,
+		   NodeId nodeId = 0,const class LogLevel * = 0);
 
-  
+
   /**
    * Returns the event text for the specified event report type.
    *
@@ -146,8 +147,10 @@ private:
   EventLogger operator = (const EventLogger&);
   bool operator == (const EventLogger&);
 
-  STATIC_CONST(MAX_TEXT_LENGTH = 384);
+  static constexpr Uint32 MAX_TEXT_LENGTH = 384;
 };
+
+extern EventLogger * g_eventLogger;
 
 extern void getRestartAction(Uint32 action, BaseString &str);
 #endif

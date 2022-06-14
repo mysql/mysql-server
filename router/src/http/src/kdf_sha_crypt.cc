@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,15 @@
 #include "kdf_sha_crypt.h"
 
 #include <algorithm>
+#include <cstddef>  // size_t
+#include <cstdlib>  // std::strtol
 #include <cstring>
+#include <iterator>  // std::distance
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // std::tie
 #include <vector>
-
-#include <iostream>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -42,6 +44,10 @@
 
 constexpr char ShaCryptMcfType::kTypeSha256[];
 constexpr char ShaCryptMcfType::kTypeSha512[];
+constexpr char ShaCryptMcfType::kTypeCachingSha2Password[];
+constexpr unsigned long ShaCryptMcfAdaptor::kDefaultRounds;
+constexpr unsigned long ShaCryptMcfAdaptor::kMinRounds;
+constexpr unsigned long ShaCryptMcfAdaptor::kMaxRounds;
 
 std::string ShaCrypt::salt() {
   // 12 byte input, generate 16 byte output
@@ -65,6 +71,8 @@ ShaCryptMcfAdaptor ShaCryptMcfAdaptor::from_mcf(const std::string &crypt_data) {
     throw std::invalid_argument("no $ after prefix");
   }
   const auto algorithm = std::string{algo_begin, algo_end};
+  if (algorithm == "A")
+    return CachingSha2Adaptor::from_mcf({algo_end + 1, crypt_data.end()});
 
   Type type;
   bool success;
@@ -120,6 +128,32 @@ std::string ShaCryptMcfAdaptor::to_mcf() const {
          "$" + salt() + "$" + checksum();
 }
 
+ShaCryptMcfAdaptor CachingSha2Adaptor::from_mcf(const std::string &crypt_data) {
+  unsigned long rounds = kDefaultRounds;
+  const auto rounds_begin = crypt_data.begin();
+  const auto rounds_end = std::find(rounds_begin, crypt_data.end(), '$');
+  if (rounds_end != crypt_data.end()) {
+    rounds = std::stoi(std::string{rounds_begin, rounds_end});
+    rounds *= 1000;  // caching_sha2 encodes rounds/1000 (e.g. 5000 as 005)
+  }
+
+  auto salt_begin = rounds_end + 1;
+  if (std::distance(salt_begin, std::end(crypt_data)) <
+      static_cast<long>(kCachingSha2SaltLength)) {
+    throw std::runtime_error("invalid MCF for caching_sha2_password");
+  }
+
+  const auto salt_end = salt_begin + kCachingSha2SaltLength;
+  const auto salt = std::string{salt_begin, salt_end};
+
+  // may be empty
+  const auto checksum_b64 = salt_end < std::end(crypt_data)
+                                ? std::string{salt_end, std::end(crypt_data)}
+                                : "";
+
+  return {Type::CachingSha2Password, rounds, salt, checksum_b64};
+}
+
 /**
  * get Digest::Type for ShaCrypt::Type.
  */
@@ -129,6 +163,8 @@ static Digest::Type get_digest_type(ShaCrypt::Type type) {
       return Digest::Type::Sha256;
     case ShaCrypt::Type::Sha512:
       return Digest::Type::Sha512;
+    case ShaCrypt::Type::CachingSha2Password:
+      return Digest::Type::Sha256;
   }
 
   throw std::invalid_argument("unreachable: type wasn't part of Type");
@@ -278,7 +314,7 @@ std::string ShaCrypt::derive(ShaCrypt::Type type, unsigned long rounds,
   // shuffle
   std::vector<uint8_t> shuffled(Digest::digest_size(md));
 
-  if (type == Type::Sha256) {
+  if (get_digest_type(type) == Digest::Type::Sha256) {
     const std::array<std::uint8_t, 32> shuffle_ndxes{
         20, 10, 0,  11, 1, 21, 2, 22, 12, 23, 13, 3,  14, 4, 24, 5,
         25, 15, 26, 16, 6, 17, 7, 27, 8,  28, 18, 29, 19, 9, 30, 31};

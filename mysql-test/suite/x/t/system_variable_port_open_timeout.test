@@ -104,3 +104,7 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 --let $assert_text= 1Kilo is outside the range of Mysqlx_port_open_timeout global variable, MySQL Server is going to set it to 120
 --let $assert_cond= [SELECT @@GLOBAL.Mysqlx_port_open_timeout as Result;, Result, 1] =120
 --source include/assert.inc
+
+## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

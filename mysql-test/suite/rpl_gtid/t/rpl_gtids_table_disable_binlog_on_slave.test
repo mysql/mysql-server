@@ -9,12 +9,14 @@
 # GLOBAL.GTID_PURGED correctly when binlog is disabled.
 #
 
+--source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
 
 # required by extra/rpl_tests/rpl_xa_gtid_next.inc
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
@@ -134,6 +136,10 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
 COMMIT;
+--eval SET GTID_NEXT='AUTOMATIC'
+
+--echo # Trigger compression explicitly
+FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 --replace_result $master_uuid MASTER_UUID
@@ -147,7 +153,6 @@ SELECT * FROM mysql.gtid_executed;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "[SELECT @@GLOBAL.GTID_PURGED]"
 --source include/assert.inc
 
---eval SET GTID_NEXT='AUTOMATIC'
 --echo #
 --echo # Verify that no gtid is generated for transaction
 --echo # when binlog is disabled
@@ -246,11 +251,14 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
 COMMIT;
+--eval SET GTID_NEXT='AUTOMATIC'
+
+--echo # Trigger compression explicitly
+FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
---eval SET GTID_NEXT='AUTOMATIC'
 
 --connection master
 DROP TABLE t3;

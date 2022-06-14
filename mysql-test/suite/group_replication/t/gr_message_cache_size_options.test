@@ -49,8 +49,9 @@ SET GLOBAL group_replication_message_cache_size= -100000000000000000;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL group_replication_message_cache_size= 0.5;
 
+# minimum boundary is 128 MB
 --error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL group_replication_message_cache_size= 1000000000;
+--eval SET GLOBAL group_replication_message_cache_size = 134217727
 
 # Check for overflows
 ## Long long

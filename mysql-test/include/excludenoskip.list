@@ -4,9 +4,11 @@
 #         - Below listed inc files will continue to skip with --no-skip option#
 #                                                                             #
 # Creation Date: 2016-July-26                                                 #
-# Author : Mohit Joshi							      #
-#									      #
-#									      #
+# Author : Mohit Joshi                                                        #
+#                                                                             #
+# Make sure to not add trailing blanks or bad things can happen when using    #
+# this list on the command line of mysqltest: following entries will become   #
+# a new argument instead of being part of the value of --no-skip-exclude-list #
 ###############################################################################
 
 # 1.0 OS dependent files
@@ -18,6 +20,8 @@ freebsd.inc
 not_freebsd.inc
 have_32bit.inc
 have_64bit.inc
+have_32bit_ulong.inc
+have_64bit_ulong.inc
 have_little_endian.inc
 have_case_insensitive_file_system.inc
 have_case_sensitive_file_system.inc
@@ -29,22 +33,24 @@ linux_core_pattern.inc
 linux-version.inc
 windows.inc
 not_debian.inc
+not_solaris.inc
 not_windows.inc
 not_ubuntu.inc
 have_open_file_limit_more_than_5000.inc
 have_partition_open_file_limit.inc
-table_compress_2.test
-table_compress_3.test
 have_posix_locale.inc
-# Checks if mysqld_safe is installed in the path specified by MTR. mysqld_safe
-# is obsolete on platforms that use systemd to monitor mysqld.
-have_mysqld_safe.inc
+have_punch_hole.inc
+have_no_punch_hole.inc
 # Test need to run only on Linux and OSX and skip all other platforms.
 costmodel_planchange.test
 # Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
 have_met_timezone.inc
 # Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
 have_moscow_leap_timezone.inc
+
+# 32/64 bits time_t
+have_32bits_time.inc
+have_64bits_time.inc
 
 # 2.0 Binlog formats
 # Below files are included because rpl suite runs each test with 3 different
@@ -97,16 +103,10 @@ have_innochecksum_debug.inc
 have_udf.inc
 have_mecab.inc
 fix_priv_tables.test
+federated_bug_25714.test
 
 # 4.4
-# Test with wolfssl is supported only on community build.
-# Test will openssl is supported only on commercial build.
-have_yassl.inc
-have_openssl.inc
 have_openssl_binary.inc
-have_ssl.inc
-have_ssl_crypto_functs.inc
-not_openssl.inc
 check_openssl_version.inc
 have_tlsv13.inc
 not_have_tlsv13.inc
@@ -180,6 +180,8 @@ have_grep.inc
 # 10.2 Make sure we have sed. Note that MacOS and FreeBSD do not support
 # replacement patterns containing escape sequences, e.g. newline.
 have_util_sed.inc
+# 10.3 Check if nc or netcat is available
+have_util_nc.inc
 
 # 11.0
 # In mysql source, all the plugins might not be in the same location. Some MTR
@@ -198,25 +200,32 @@ not_group_replication_plugin.inc
 # 13.0 Memcached plugin is not available on all PB2 builds. Only supported by
 # Linux, Solaris and OS X platforms.
 have_memcached_plugin.inc
-
-# 13.1 NDB Memcached is not available on all PB2 builds. The ndb_memcache
-# suite should only be run if all required components have been found.
-have_memcache.inc
+have_memcached_sasl.inc
 
 # 14.0 MTR tests that runs only with specific rpl modes:
 
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
-have_slave_parallel_type_logical_clock.inc
-have_slave_parallel_type_database.inc
-only_mts_slave_parallel_workers.inc
-only_mts_slave_parallel_type_logical_clock.inc
-only_mts_slave_parallel_type_database.inc
-not_mts_slave_parallel_workers.inc
+have_replica_parallel_type_logical_clock.inc
+have_replica_parallel_type_database.inc
+only_mts_replica_parallel_workers.inc
+only_mts_replica_parallel_type_logical_clock.inc
+only_mts_replica_parallel_type_database.inc
+not_mts_replica_parallel_workers.inc
+only_replica_preserve_commit_order.inc
 # 14.2 rpl misc files
 have_slave_repository_type_table.inc
 not_relay_log_info_file.inc
 not_master_info_file.inc
 have_transaction_write_set_extraction.inc
+have_default_replica_transaction_retries.inc
+have_default_slave_rows_search_algorithms.inc
+
+#14.3 Some replication tests cannot run with GTID_ONLY == 1
+not_rpl_gtid_only.inc
+
+# 14.4 Generic RPL include file to skip a test if a variable is not
+# set to a specific value
+only_with_option.inc
 
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
@@ -245,6 +254,8 @@ resource_group_init.inc
 # This file skips test for certain features in versions of the library where
 # the feature is missing.
 require_icu_version.inc
+not_have_zstd_proper_ver.inc
+have_zstd_proper_ver.inc
 
 #21.0 fips realted test will be run only on system where opensssl fips module is installed
 # currently we are checking via this env $OPENSSL_FIPS_INSTALLED
@@ -257,3 +268,57 @@ redo_log_archive_05.test
 
 # 23.0 Tests that do/don't need clone plugin.
 have_clone_plugin.inc
+
+# 24.0 Binlog_transaction_dependency_tracking
+# The below files included because default value of
+# binlog_transaction_dependency_tracking is COMMIT_ORDER and few rpl suite runs
+# with binlog_transaction_dependency_tracking=WRITESET and all the test may not
+# be meant to run on binlog_transaction_dependency_tracking=WRITESET.
+have_binlog_transaction_dependency_tracking_commit_order.inc
+
+# 25.0 Binlog_transaction_compression
+# The below file is included because by default
+# binlog_transaction_compression is disabled and few rpl suite runs
+# with binlog_transaction_compression set to ON and all the test may not
+# be meant to run with binlog_transaction_compression set to ON.
+not_binlog_transaction_compression_on.inc
+
+# 26.0 This file is used by test scenarios which should be skipped when
+# the configuration of parameter PRIVILEGE_CHECKS_USER is changed for replication
+# applier channels. The change can be invalid if:
+# 1. Test expects that PRIVILEGE_CHECKS_USER has default configuration.
+# 2. The new account used to check privileges of replication applier does not
+#    have the correct set of privileges.
+# 3. A new account needs to created and the test checks the list of accounts.
+not_have_privilege_checks_user.inc
+
+# 27. The file $MYSQLTEST_VARDIR/log/no_checkpoint_cleanup.inc file is generated by
+# mysql-test/include/no_checkpoint_end.inc file.  It can contain the skip command.
+# Check the test case innodb.missing_redologs for an example.
+no_checkpoint_cleanup.inc
+
+# 28. This file is used by test scenarios which should be skipped when
+# PARTIAL_REVOKES feature is set to ON. Setting this variables to ON
+# disables wildcard grants at database level.
+not_partial_revokes.inc
+
+# 29. These files are used for skipping tests which cannot be run successfully
+# with the hypergraph optimizer yet, or need the hypergraph optimizer to run.
+have_hypergraph.inc
+not_hypergraph.inc
+
+# 30. Keyring_file component - can be skipped based on cmake configuration
+have_component_keyring_file.inc
+
+# 31. MTR test case can be skipped because it is just used to exercise
+# a unit test that requires a runninng server.
+have_cs_test_mysql_proto_reader_mtr.inc
+
+# skip the test if it's running with the wrong openssl command line version
+have_openssl_binary_version.inc
+
+# skip the test if the openssl library doesn't support TLS 1.3 (not openssl 1.1)
+not_tlsv13.inc
+
+# skip tests which require thread_pool_have_transactions_limit in configs which # don't have it
+have_max_transactions_limit.inc

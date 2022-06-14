@@ -1,0 +1,2 @@
+--replica-transaction-retries=0
+--skip-log-bin --log-replica-updates=0

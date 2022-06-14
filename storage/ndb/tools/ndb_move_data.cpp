@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <NdbSleep.h>
 #include <ndb_limits.h>
 #include <ndb_lib_move_data.hpp>
+#include "util/cstrbuf.h"
 
 static const char* opt_dbname = "TEST_DB";
 static bool opt_exclude_missing_columns = false;
@@ -310,39 +311,33 @@ checkopts(int argc, char** argv)
 
     CHK2(argc == 2, "arguments are: source target");
 
-    memset(g_source, 0, MAX_TAB_NAME_SIZE);
-    memset(g_sourcedb, 0, MAX_TAB_NAME_SIZE);
-    memset(g_sourcename, 0, MAX_TAB_NAME_SIZE);
-    memset(g_target, 0, MAX_TAB_NAME_SIZE);
-    memset(g_targetdb, 0, MAX_TAB_NAME_SIZE);
-    memset(g_targetname, 0, MAX_TAB_NAME_SIZE);
-
     CHK2(strlen(opt_dbname) < MAX_TAB_NAME_SIZE, "db name too long");
     CHK2(strlen(argv[0]) < MAX_TAB_NAME_SIZE, "source name too long");
     CHK2(strlen(argv[1]) < MAX_TAB_NAME_SIZE, "target name too long");
-    strcpy(g_source, argv[0]);
-    strcpy(g_target, argv[1]);
+
+    require(cstrbuf_copy(g_source, argv[0]) == 0);
+    require(cstrbuf_copy(g_target, argv[1]) == 0);
 
     const char* p;
     if ((p = strchr(g_source, '.')) == 0)
     {
-      strcpy(g_sourcedb, opt_dbname);
-      strcpy(g_sourcename, g_source);
+      require(cstrbuf_copy(g_sourcedb, opt_dbname) == 0);
+      require(cstrbuf_copy(g_sourcename, g_source) == 0);
     }
     else
     {
-      strncpy(g_sourcedb, g_source, p - g_source); // is null term
-      strcpy(g_sourcename, p + 1);
+      require(cstrbuf_copy(g_sourcedb, {g_source, size_t(p - g_source)}) == 0);
+      require(cstrbuf_copy(g_sourcename, p + 1) == 0);
     }
     if ((p = strchr(g_target, '.')) == 0)
     {
-      strcpy(g_targetdb, opt_dbname);
-      strcpy(g_targetname, g_target);
+      require(cstrbuf_copy(g_targetdb, opt_dbname) == 0);
+      require(cstrbuf_copy(g_targetname, g_target) == 0);
     }
     else
     {
-      strncpy(g_targetdb, g_target, p - g_target); // is null term
-      strcpy(g_targetname, p + 1);
+      require(cstrbuf_copy(g_targetdb, {g_target, size_t(p - g_target)}) == 0);
+      require(cstrbuf_copy(g_targetname, p + 1) == 0);
     }
   }
   while (0);

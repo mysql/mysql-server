@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,13 @@
 #include <string>
 
 #include "plugin/x/src/capabilities/handler.h"
+#include "plugin/x/src/interface/client.h"
 
 namespace xpl {
 
 class Capability_auth_mech : public Capability_handler {
  public:
-  Capability_auth_mech(ngs::Client_interface &client) : m_client(client) {}
+  explicit Capability_auth_mech(iface::Client *client) : m_client(client) {}
 
   std::string name() const override { return "authentication.mechanisms"; }
   bool is_gettable() const override { return true; }
@@ -42,11 +43,11 @@ class Capability_auth_mech : public Capability_handler {
   void commit() override;
 
  private:
-  void get_impl(::Mysqlx::Datatypes::Any &any) override;
+  void get_impl(::Mysqlx::Datatypes::Any *any) override;
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override;
 
-  ngs::Client_interface &m_client;
+  iface::Client *m_client;
 };
 
 }  // namespace xpl

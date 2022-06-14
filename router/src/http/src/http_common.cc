@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,42 +29,284 @@
 
 #include <cstring>
 #include <iostream>
+#include <map>
+#include <memory>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <utility>
 
 #include <event2/buffer.h>
+#include <event2/bufferevent.h>
+#include <event2/bufferevent_ssl.h>
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/http_struct.h>
 #include <event2/keyvalq_struct.h>
+#include <event2/thread.h>
 #include <event2/util.h>
 
 #include "http_request_impl.h"
 #include "mysql/harness/utility/string.h"
+#include "mysqlrouter/http_request.h"
+
+static_assert(EV_TIMEOUT == EventFlags::Timeout,
+              "libevent constant must match the wrappers constant");
+static_assert(EV_READ == EventFlags::Read,
+              "libevent constant must match the wrappers constant");
+static_assert(EV_WRITE == EventFlags::Write,
+              "libevent constant must match the wrappers constant");
+static_assert(EV_SIGNAL == EventFlags::Signal,
+              "libevent constant must match the wrappers constant");
+
+static_assert(BUFFEREVENT_SSL_OPEN ==
+                  static_cast<int>(EventBuffer::SslState::Open),
+              "libevent constant must match the wrappers constant");
+static_assert(BUFFEREVENT_SSL_CONNECTING ==
+                  static_cast<int>(EventBuffer::SslState::Connecting),
+              "libevent constant must match the wrappers constant");
+static_assert(BUFFEREVENT_SSL_ACCEPTING ==
+                  static_cast<int>(EventBuffer::SslState::Accepting),
+              "libevent constant must match the wrappers constant");
+
+static_assert(EventBufferOptionsFlags::CloseOnFree == BEV_OPT_CLOSE_ON_FREE,
+              "libevent constant must match the wrappers constant");
+static_assert(EventBufferOptionsFlags::ThreadSafe == BEV_OPT_THREADSAFE,
+              "libevent constant must match the wrappers constant");
+static_assert(EventBufferOptionsFlags::DeferCallbacks ==
+                  BEV_OPT_DEFER_CALLBACKS,
+              "libevent constant must match the wrappers constant");
+static_assert(EventBufferOptionsFlags::UnlockCallbacks ==
+                  BEV_OPT_UNLOCK_CALLBACKS,
+              "libevent constant must match the wrappers constant");
+
+static_assert(EVHTTP_REQ_GET == HttpMethod::Get,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_POST == HttpMethod::Post,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_HEAD == HttpMethod::Head,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_PUT == HttpMethod::Put,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_DELETE == HttpMethod::Delete,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_OPTIONS == HttpMethod::Options,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_TRACE == HttpMethod::Trace,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_CONNECT == HttpMethod::Connect,
+              "libevent constant must match the wrappers constant");
+static_assert(EVHTTP_REQ_PATCH == HttpMethod::Patch,
+              "libevent constant must match the wrappers constant");
+
+template <typename Unique>
+auto impl_get_base(Unique &unique) {
+  return unique.get()->base.get();
+}
+
+template <typename Impl, typename InnerType, typename Function_type>
+std::unique_ptr<Impl> impl_new(InnerType *inner, Function_type function) {
+  return std::unique_ptr<Impl>(new Impl{{inner, function}});
+}
+
+static evkeyval *get_node(HttpHeaders::Iterator::IteratorHandle handle) {
+  return reinterpret_cast<evkeyval *>(handle);
+}
+
+// wrap generic libevent functions
+
+bool Event::initialize_threads() {
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
+  return 0 == evthread_use_windows_threads();
+#elif EVTHREAD_USE_PTHREADS_IMPLEMENTED
+  return 0 == evthread_use_pthreads();
+#else
+  return false;
+#endif  // EVTHREAD_USE_PTHREADS_IMPLEMENTED
+}
+
+void Event::shutdown() { libevent_global_shutdown(); }
+
+void Event::set_log_callback(const CallbackLog cb) {
+  cbLog_ = cb;
+  event_set_log_callback([](int severity, const char *message) {
+    const static std::map<int, Log> map{{EVENT_LOG_DEBUG, Log::Debug},
+                                        {EVENT_LOG_ERR, Log::Error},
+                                        {EVENT_LOG_WARN, Log::Warning},
+                                        {EVENT_LOG_MSG, Log::Message}};
+
+    if (cbLog_) {
+      cbLog_(map.at(severity), message);
+    }
+  });
+}
+
+void Event::enable_debug_logging(const DebugLogLevel which) {
+  event_enable_debug_logging(static_cast<uint32_t>(which));
+}
+
+bool Event::has_ssl() {
+  // Do not bring `libevent` headers outside this file, thus macro/definitions
+  // must be check at runtime by calling such methods as these.
+#ifdef EVENT__HAVE_OPENSSL
+  return true;
+#else
+  return false;
+#endif
+}
+
+// wrap event_base
+struct EventBase::impl {
+  std::unique_ptr<event_base, decltype(&event_base_free)> base;
+};
+
+Event::CallbackLog Event::cbLog_ = nullptr;
+
+EventBase::EventBase()
+    : pImpl_{new impl{{event_base_new(), &event_base_free}}} {}
+
+EventBase::EventBase(EventBase &&event) : pImpl_{std::move(event.pImpl_)} {}
+
+EventBase::EventBase(std::unique_ptr<impl> &&pImpl)
+    : pImpl_(std::move(pImpl)) {}
+
+// Needed because of pimpl
+// Destructor must be placed in the compilation unit
+EventBase::~EventBase() = default;
+
+bool EventBase::once(const SocketHandle fd, const EventFlags::Bitset events,
+                     CallbackEvent cb, void *arg, const struct timeval *tv) {
+  return 0 == event_base_once(impl_get_base(pImpl_),
+                              static_cast<evutil_socket_t>(fd),
+                              events.to_ullong(), cb, arg, tv);
+}
+
+bool EventBase::loop_exit(const struct timeval *tv) {
+  return 0 == event_base_loopexit(impl_get_base(pImpl_), tv);
+}
+
+int EventBase::dispatch() { return event_base_dispatch(impl_get_base(pImpl_)); }
+
+// wrap for bufferevent
+
+struct EventBuffer::impl {
+  std::unique_ptr<bufferevent, decltype(&bufferevent_free)> base;
+};
+
+EventBuffer::EventBuffer(EventBase *base, const SocketHandle socket,
+                         TlsContext *tls_context, const SslState state,
+                         const EventBufferOptionsFlags::Bitset &options) {
+  // We receive a SSL_context from which we create a new SSL_connection,
+  // Thus the socket state can't be set to "already open".
+
+#ifdef EVENT__HAVE_OPENSSL
+  pImpl_ = impl_new<EventBuffer::impl>(
+      bufferevent_openssl_socket_new(
+          impl_get_base(base->pImpl_), static_cast<evutil_socket_t>(socket),
+          SSL_new(tls_context->get()),
+          static_cast<bufferevent_ssl_state>(state), options.to_ullong()),
+      &bufferevent_free);
+#endif  // EVENT__HAVE_OPENSSL
+}
+
+EventBuffer::EventBuffer(EventBuffer &&other)
+    : pImpl_(std::move(other.pImpl_)) {}
+
+// Needed because of pimpl
+// Destructor must be placed in the compilation unit
+EventBuffer::~EventBuffer() {}
+
+// wrap for evhttp
+
+struct EventHttp::impl {
+  std::unique_ptr<evhttp, decltype(&evhttp_free)> base;
+
+  CallbackBuffer bufferCallback_ = nullptr;
+  void *bufferArgument_ = nullptr;
+  CallbackRequest requestCallback_ = nullptr;
+  void *requestArgument_ = nullptr;
+};
+
+EventHttp::EventHttp(EventBase *base)
+    : pImpl_{
+          new impl{{evhttp_new(impl_get_base(base->pImpl_)), &evhttp_free}}} {}
+
+EventHttp::EventHttp(EventHttp &&http) : pImpl_(std::move(http.pImpl_)) {}
+
+// Needed because of pimpl
+// Destructor must be placed in the compilation unit
+EventHttp::~EventHttp() {}
+
+void EventHttp::set_allowed_http_methods(const HttpMethod::Bitset methods) {
+  evhttp_set_allowed_methods(impl_get_base(pImpl_), methods.to_ullong());
+}
+
+EventHttpBoundSocket EventHttp::accept_socket_with_handle(
+    const SocketHandle fd) {
+  return {evhttp_accept_socket_with_handle(impl_get_base(pImpl_),
+                                           static_cast<evutil_socket_t>(fd))};
+}
+
+void EventHttp::set_gencb(CallbackRequest cb, void *cbarg) {
+  pImpl_->requestCallback_ = cb;
+  pImpl_->requestArgument_ = cbarg;
+  evhttp_set_gencb(
+      impl_get_base(pImpl_),
+      [](evhttp_request *req, void *arg) {
+        HttpRequest request(
+            impl_new<HttpRequest::impl>(req, [](evhttp_request *) {}));
+        auto current = reinterpret_cast<EventHttp::impl *>(arg);
+        current->requestCallback_(&request, current->requestArgument_);
+      },
+      pImpl_.get());
+}
+
+void EventHttp::set_bevcb(CallbackBuffer cb, void *cbarg) {
+  pImpl_->bufferCallback_ = cb;
+  pImpl_->bufferArgument_ = cbarg;
+  evhttp_set_bevcb(
+      impl_get_base(pImpl_),
+      [](event_base *base, void *arg) {
+        auto current = reinterpret_cast<EventHttp::impl *>(arg);
+
+        auto impl = impl_new<EventBase::impl>(base, [](event_base *) {});
+
+        EventBase event(std::move(impl));
+        auto result =
+            current->bufferCallback_(&event, current->bufferArgument_);
+        return result.pImpl_->base.release();
+      },
+      pImpl_.get());
+}
 
 // wrap evhttp_uri
 
 struct HttpUri::impl {
-  std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri;
+  std::unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri;
 };
 
 HttpUri::HttpUri() : pImpl_(new impl{{evhttp_uri_new(), &evhttp_uri_free}}) {}
 
-HttpUri::HttpUri(
-    std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri) {
-  pImpl_.reset(new impl{std::move(uri)});
-}
+HttpUri::HttpUri(std::unique_ptr<impl> &&uri) { pImpl_ = std::move(uri); }
 
 HttpUri::HttpUri(HttpUri &&) = default;
-HttpUri::~HttpUri() {}
+HttpUri::~HttpUri() = default;
 
 HttpUri::operator bool() const { return pImpl_->uri.operator bool(); }
 
+std::string HttpUri::decode(const std::string &uri_str,
+                            const bool decode_plus) {
+  size_t out_size;
+  std::unique_ptr<char, decltype(&free)> decoded{
+      evhttp_uridecode(uri_str.c_str(), decode_plus ? 1 : 0, &out_size), &free};
+  return std::string(decoded.get(), out_size);
+}
+
 HttpUri HttpUri::parse(const std::string &uri_str) {
   // wrap a owned pointer
-  return HttpUri{std::unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)>{
-      evhttp_uri_parse(uri_str.c_str()), &evhttp_uri_free}};
+  auto evhttp_uri = evhttp_uri_parse(uri_str.c_str());
+  auto impl = impl_new<HttpUri::impl>(evhttp_uri, &evhttp_uri_free);
+  return HttpUri(std::move(impl));
 }
 
 std::string HttpUri::get_scheme() const {
@@ -175,9 +417,8 @@ struct HttpBuffer::impl {
 };
 
 // non-owning pointer
-HttpBuffer::HttpBuffer(
-    std::unique_ptr<evbuffer, std::function<void(evbuffer *)>> buffer) {
-  pImpl_.reset(new impl{std::move(buffer)});
+HttpBuffer::HttpBuffer(std::unique_ptr<impl> &&buffer) {
+  pImpl_ = std::move(buffer);
 }
 
 void HttpBuffer::add(const char *data, size_t data_size) {
@@ -209,7 +450,7 @@ std::vector<uint8_t> HttpBuffer::pop_front(size_t len) {
 }
 
 HttpBuffer::HttpBuffer(HttpBuffer &&) = default;
-HttpBuffer::~HttpBuffer() {}
+HttpBuffer::~HttpBuffer() = default;
 
 // wrap evkeyvalq
 
@@ -217,10 +458,8 @@ struct HttpHeaders::impl {
   std::unique_ptr<evkeyvalq, std::function<void(evkeyvalq *)>> hdrs;
 };
 
-HttpHeaders::HttpHeaders(
-    std::unique_ptr<evkeyvalq, std::function<void(evkeyvalq *)>> hdrs) {
-  pImpl_.reset(new impl{std::move(hdrs)});
-}
+HttpHeaders::HttpHeaders(std::unique_ptr<impl> &&impl)
+    : pImpl_(std::move(impl)) {}
 
 int HttpHeaders::add(const char *key, const char *value) {
   return evhttp_add_header(pImpl_->hdrs.get(), key, value);
@@ -231,11 +470,13 @@ const char *HttpHeaders::get(const char *key) const {
 }
 
 std::pair<std::string, std::string> HttpHeaders::Iterator::operator*() {
-  return {node_->key, node_->value};
+  auto node = get_node(node_);
+  return {node->key, node->value};
 }
 
 HttpHeaders::Iterator &HttpHeaders::Iterator::operator++() {
-  node_ = node_->next.tqe_next;
+  auto node = get_node(node_);
+  node_ = node->next.tqe_next;
 
   return *this;
 }
@@ -249,15 +490,9 @@ HttpHeaders::Iterator HttpHeaders::begin() { return pImpl_->hdrs->tqh_first; }
 HttpHeaders::Iterator HttpHeaders::end() { return *(pImpl_->hdrs->tqh_last); }
 
 HttpHeaders::HttpHeaders(HttpHeaders &&) = default;
-HttpHeaders::~HttpHeaders() {}
+HttpHeaders::~HttpHeaders() = default;
 
 // wrap evhttp_request
-
-HttpRequest::HttpRequest(
-    std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>
-        req) {
-  pImpl_.reset(new impl{std::move(req)});
-}
 
 struct RequestHandlerCtx {
   HttpRequest *req;
@@ -321,7 +556,7 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
       [](evhttp_request *req, void *ev_cb_arg) {
         auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
-        if ((req == NULL) && (errno != 0)) {
+        if ((req == nullptr) && (errno != 0)) {
           // request failed. Try to capture the last errno and hope
           // it is related to the failure
           ctx->req->socket_error_code({errno, std::system_category()});
@@ -345,14 +580,15 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
       });
 #endif
 
-  pImpl_.reset(new impl{
-      std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>(
-          ev_req, evhttp_request_free)});
+  pImpl_ = impl_new<HttpRequest::impl>(ev_req, evhttp_request_free);
 }
+
+HttpRequest::HttpRequest(std::unique_ptr<impl> &&impl)
+    : pImpl_{std::move(impl)} {}
 
 HttpRequest::HttpRequest(HttpRequest &&rhs) : pImpl_{std::move(rhs.pImpl_)} {}
 
-HttpRequest::~HttpRequest() {}
+HttpRequest::~HttpRequest() = default;
 
 void HttpRequest::socket_error_code(std::error_code error_code) {
   pImpl_->socket_error_code_ = error_code;
@@ -408,10 +644,13 @@ HttpUri HttpRequest::get_uri() const {
   // return a wrapper around a borrowed evhttp_uri
   //
   // it is owned by the HttpRequest, not by the HttpUri itself
-  return std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>>(
-      const_cast<evhttp_uri *>(
+
+  auto uri_impl = impl_new<HttpUri::impl>(
+      const_cast<struct evhttp_uri *>(
           evhttp_request_get_evhttp_uri(pImpl_->req.get())),
-      [](evhttp_uri *) {});
+      [](struct evhttp_uri *) {});
+
+  return HttpUri{std::move(uri_impl)};
 }
 
 HttpHeaders HttpRequest::get_output_headers() {
@@ -421,8 +660,8 @@ HttpHeaders HttpRequest::get_output_headers() {
     throw std::logic_error("request is null");
   }
   // wrap a non-owned pointer
-  return std::unique_ptr<evkeyvalq, std::function<void(evkeyvalq *)>>(
-      evhttp_request_get_output_headers(ev_req), [](evkeyvalq *) {});
+  return impl_new<HttpHeaders::impl>(evhttp_request_get_output_headers(ev_req),
+                                     [](evkeyvalq *) {});
 }
 
 HttpHeaders HttpRequest::get_input_headers() const {
@@ -432,8 +671,8 @@ HttpHeaders HttpRequest::get_input_headers() const {
     throw std::logic_error("request is null");
   }
   // wrap a non-owned pointer
-  return std::unique_ptr<evkeyvalq, std::function<void(evkeyvalq *)>>(
-      evhttp_request_get_input_headers(ev_req), [](evkeyvalq *) {});
+  return impl_new<HttpHeaders::impl>(evhttp_request_get_input_headers(ev_req),
+                                     [](evkeyvalq *) {});
 }
 
 HttpBuffer HttpRequest::get_output_buffer() {
@@ -444,8 +683,9 @@ HttpBuffer HttpRequest::get_output_buffer() {
     throw std::logic_error("request is null");
   }
 
-  return std::unique_ptr<evbuffer, std::function<void(evbuffer *)>>(
+  auto result = impl_new<HttpBuffer::impl>(
       evhttp_request_get_output_buffer(ev_req), [](evbuffer *) {});
+  return HttpBuffer(std::move(result));
 }
 
 unsigned HttpRequest::get_response_code() const {
@@ -480,8 +720,8 @@ HttpBuffer HttpRequest::get_input_buffer() const {
   }
 
   // wrap a non-owned pointer
-  return std::unique_ptr<evbuffer, std::function<void(evbuffer *)>>(
-      evhttp_request_get_input_buffer(ev_req), [](evbuffer *) {});
+  return impl_new<HttpBuffer::impl>(evhttp_request_get_input_buffer(ev_req),
+                                    [](evbuffer *) {});
 }
 
 HttpMethod::type HttpRequest::get_method() const {

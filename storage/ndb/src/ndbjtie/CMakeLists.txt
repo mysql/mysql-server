@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,27 +34,57 @@ ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(test)
 
 IF(HAVE_JDK)
-
-  INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
-
-  INCLUDE_DIRECTORIES(utils
-                      jtie)
-
-  ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)
-
+  ADD_CONVENIENCE_LIBRARY(ndbjtie
+    ndbjtie_lib.cpp
+    INCLUDE_DIRECTORIES
+    ${JNI_INCLUDE_DIRS}
+    jtie
+    utils
+    )
 ENDIF(HAVE_JDK)
 
 # the NdbJTie Java API
-SET(JAVA_SOURCE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql
-  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mgmapi
-  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi)
+SET(CLUSTERJ_NDBJTIE_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie)
 
-SET(JAVA_SOURCES "")
-FOREACH(D ${JAVA_SOURCE_DIRS})
-  FILE(GLOB tmp ${D}/*.java)
-  LIST(APPEND JAVA_SOURCES ${tmp})
-ENDFOREACH()
+SET(JAVA_SOURCES
+  ${CLUSTERJ_NDBJTIE_PREFIX}/mgmapi/MGMAPI.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/mysql/CharsetMap.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/mysql/CharsetMapConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/mysql/Utils.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NDBAPI.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NDBAPIConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/Ndb.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbBlob.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbBlobConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbDictionary.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbError.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbErrorConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbEventOperation.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbEventOperationConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbIndexOperation.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbIndexOperationConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbIndexScanOperation.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbIndexScanOperationConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbInterpretedCode.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbInterpretedCodeConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbLockHandle.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbLockHandleConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbOperation.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbOperationConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbRecAttr.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbRecAttrConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbRecord.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbRecordConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbScanFilter.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbScanFilterConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbScanOperation.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbScanOperationConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbTransaction.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/NdbTransactionConst.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/Ndb_cluster_connection.java
+  ${CLUSTERJ_NDBJTIE_PREFIX}/ndbapi/Ndb_cluster_connectionConst.java
+  )
 
 SET(CLASSPATH
   ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/target/classes

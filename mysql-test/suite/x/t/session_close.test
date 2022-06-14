@@ -1,0 +1,74 @@
+## This test-case was created for reproducing a Valgrind issue that occure
+#  between two session, one lising all session and second that is closing.
+
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+--source ../include/have_performance_schema_events_waits_history.inc
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--echo ## I. Reproduce race condition between closing session and listing
+--echo #     session (BUG#31490241):
+--echo # 1. Create X Protocol session(X1) using "x_root" account and hang it while closing
+--echo #    (sync point: srv_session_close)
+--echo # 2. Create classic protocol session(C1) and list all session,
+--echo #    hang it at "x_root" row generation while waking X1
+--echo # 3. Wait until the X1, is inside THD deregistration
+--echo #    and wakeup C1
+--echo # 4. Show at C1, processlist results
+--echo
+
+## Test Setup
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.xpl
+--write_file $xtest_file
+
+SET DEBUG_SYNC= 'srv_session_close WAIT_FOR listing_x_root';
+EOF
+
+--let $debug_point= test_fill_proc_with_x_root
+--source include/add_debug_point.inc
+
+# Connect C1
+--connect(con1,localhost,root,,)
+SET DEBUG_SYNC= 'fill_proc_list_with_x_root SIGNAL listing_x_root WAIT_FOR continue_fill_proc';
+
+
+## Test execution
+--echo
+--echo #
+--echo # I.1 connect X1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+--echo
+--echo #
+--echo # I.2 Use C1 and list all sessions
+send SELECT user from information_schema.processlist order by user;
+
+
+--echo
+--echo #
+--echo # I.3
+# Go back to C0, wait for X1
+--connection default
+let $wait_condition=
+  select count(*) from performance_schema.events_waits_current
+       where EVENT_NAME like 'wait/synch/mutex/sql/LOCK_thd_remove';
+--source include/wait_condition_or_abort.inc
+
+# Wake up C1
+SET DEBUG_SYNC= 'now SIGNAL continue_fill_proc';
+
+--echo
+--echo #
+--echo # I.4
+# Go back to C1, and receive process-list
+--connection con1
+reap;
+
+## Cleanup
+--connection default
+
+--let $debug_point= test_fill_proc_with_x_root
+--source include/remove_debug_point.inc
+--source ../include/xplugin_cleanup.inc

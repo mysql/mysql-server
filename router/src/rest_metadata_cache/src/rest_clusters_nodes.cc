@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,6 @@
 #include "rest_clusters_nodes.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -52,7 +50,7 @@ static const char *server_mode_to_string(metadata_cache::ServerMode mode) {
 
 bool RestClustersNodes::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
-    const std::vector<std::string> &path_matches) {
+    const std::vector<std::string> & /*path_matches*/) {
   if (!ensure_no_params(req)) return true;
 
   auto out_hdrs = req.get_output_headers();
@@ -63,18 +61,15 @@ bool RestClustersNodes::on_handle_request(
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     metadata_cache::LookupResult res =
-        metadata_cache::MetadataCacheAPI::instance()->lookup_replicaset(
-            path_matches[1]);
+        metadata_cache::MetadataCacheAPI::instance()->get_cluster_nodes();
 
     rapidjson::Value items(rapidjson::kArrayType);
 
     for (auto &inst : res.instance_vector) {
       rapidjson::Value o(rapidjson::kObjectType);
 
-      o.AddMember(
-          "replicasetName",
-          rapidjson::Value(inst.replicaset_name.c_str(), allocator).Move(),
-          allocator);
+      o.AddMember("replicasetName",
+                  rapidjson::Value("default", allocator).Move(), allocator);
       o.AddMember(
           "mysqlServerUuid",
           rapidjson::Value(inst.mysql_server_uuid.c_str(), allocator).Move(),
@@ -91,22 +86,6 @@ bool RestClustersNodes::on_handle_request(
 
       // backend_state: can the router reach the backend?
       // o.AddMember("backend_state", "", allocator);
-#if 0
-    // always HA and redundant
-    o.AddMember("role", rapidjson::Value(inst.role.c_str(), allocator).Move(),
-                allocator);
-
-    // may be used for load-balancing decisions later
-    // currently, unused
-    o.AddMember("weight", inst.weight, allocator);
-
-    // used to ensure that all routers are using the same version of the config
-    // currently, unused.
-    o.AddMember("version_token", inst.version_token, allocator);
-#endif
-      o.AddMember("location",
-                  rapidjson::Value(inst.location.c_str(), allocator).Move(),
-                  allocator);
       o.AddMember("hostname",
                   rapidjson::Value(inst.host.c_str(), allocator).Move(),
                   allocator);

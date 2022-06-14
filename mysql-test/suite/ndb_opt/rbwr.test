@@ -1,0 +1,379 @@
+#
+# Test for read before write removal(rbwr) optimization in MySQL Cluster
+#
+# Parameter based testcase using a table containing the different queries
+# and their expected number of roundtrips(regarding rbwr). This allows the
+# same queries  to be run with different settings while making sure that
+# the query result is always the same. Of course some settings causes the
+# rbwr optimzation to not apply and the expected number of roundtrips etc.
+# shouldn't be checked.
+#
+-- source include/have_ndb.inc
+
+--disable_query_log
+--disable_result_log
+
+### Setup parameter tables and utility procedures
+create table rbwr_tests (
+  test_id int primary key auto_increment,
+  table_name varchar(255),
+  query varchar(255),
+  execute_count int,
+  affected_rows int
+) engine = MEMORY;
+
+### Setup test tables
+# Same table as ndb_update_no_read
+create table t1 (
+  a int not null primary key,
+  b int not null,
+  c int,
+  unique index_b (b) using hash
+) engine = ndb;
+create temporary table data_t1 (
+  a int not null primary key,
+  b int not null,
+  c int
+);
+insert into data_t1 values
+  (1,10,1),(2,9,1),(3,8,1),(4,7,1),(5,6,1),
+  (6,5,2),(7,4,2),(8,3,2),(9,2,2),(10,1,2);
+
+# Composite PK
+create table t2 (
+  pk_a int not null,
+  pk_b int not null,
+  pk_c int not null,
+  PRIMARY KEY (pk_a,pk_b,pk_c),
+  d int
+) engine = ndb;
+create temporary table data_t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int
+);
+insert into data_t2 values
+  (1,10,1,37),(2,9,1,38),(3,8,1,39),(4,7,1,40),(5,6,1,41),
+  (6,5,2,42),(7,4,2,43),(8,3,2,44),(9,2,2,45),(10,1,2,46);
+
+#
+create table t3 (
+  pk_a varchar(256) not null,
+  b int not null,
+  c int not null,
+  PRIMARY KEY (pk_a),
+  unique index_cb (c,b) using hash,
+  d int
+) engine = ndb;
+create temporary table data_t3 (
+  a varchar(256) not null,
+  b int not null,
+  c int not null,
+  d int
+);
+insert into data_t3 values
+  ('11111',10,1,44),('22222',9,2,45),('33333',8,3,46),('44444',7,4,47),('55555',6,5,48),
+  ('66666',5,6,44),('77777',4,7,45),('88888',3,8,46),('99999',2,9,47),('00000',1,10,48);
+
+# Composite PK, more rows, random number of rows
+create table t4 (
+  pk_a varchar(256) not null,
+  pk_b int not null,
+  pk_c datetime not null,
+  PRIMARY KEY (pk_a, pk_b, pk_c),
+  d int,
+  e varchar(255),
+  f int,
+  unique index_f (f) using hash,
+  g bigint,
+  h bigint,
+  i bigint,
+  j bigint,
+  unique index_ghij (g,h,i,j) using hash
+) engine = ndb;
+create temporary table data_t4 (
+  a varchar(256) not null,
+  b int not null,
+  c datetime not null,
+  d int,
+  e varchar(255),
+  f int,
+  g bigint,
+  h int,
+  i bigint,
+  j char(11)
+);
+let $i = `select round(rand() * 10)`;
+while ($i)
+{
+  eval insert into data_t4 values (
+    REPEAT('$i', 4),
+    $i,
+    DATE_ADD("2012-10-15 11:11:11", INTERVAL $i SECOND),
+    100000-$i,
+    REPEAT(CHAR(64+25*RAND()), 1+254*RAND()),
+    $i,
+    1000+$i,
+    10000+$i,
+    100000+$i,
+    1000000+$i
+  );
+
+  dec $i;
+}
+
+#Table with BLOB
+create table t5 (
+  a int not null primary key,
+  b int not null,
+  c int,
+  d text,
+  unique index_b (b) using hash
+) engine = ndb;
+create temporary table data_t5 (
+  a int not null primary key,
+  b int not null,
+  c int,
+  d text
+);
+insert into data_t5 values
+  (1,10,1,'aaa'),(2,9,1,'bbb'),(3,8,1,'ccc'),(4,7,1,''),(5,6,1,NULL),
+  (6,5,2,'foo'),(7,4,2,'xxx'),(8,3,2,'yyy'),(9,2,2,'zzz'),(10,1,3,'xyz');
+
+#enable_result_log;
+#select * from data_t4;
+#exit;
+
+
+### Add test cases and their expected execute_count results
+
+# Same testcases as ndb_update_no_read
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "update t1 set c = 97, b = 98 where a = 1", 2),
+  ("t1", "delete from t1 where a = 1", 1),
+  ("t1", "update t1 set c = 97 where b = 2", 1),
+  ("t1", "update t1 set c = 97, b = 98 where b = 2", 2),
+  ("t1", "delete from t1 where b = 9", 1),
+  ("t1", "update t1 set c = 97 where a = 10 or a >= 10", 3),
+  ("t1", "update t1 set c = 97 where a in (8,10)", 1),
+  ("t1", "update t1 set c = 97 where a in (7,8) or a >= 10", 4),
+  ("t1", "update t1 set a = 99, b = 98 where a = 3", 4),
+  ("t1", "update t1 set a = 99, b = 98 where b = 7", 4),
+  ("t1", "update t1 set c = 97, b = 98 where a = 5 and b = 6", 2),
+  ("t1", "delete from t1 where b = 8 and c = 2", 2);
+
+# Using full primary key, one roundtrip
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "delete from t1 where a = 1", 1),
+  ("t1", "update t1 set c = 37 where a = 1", 1),
+  ("t2", "delete from t2 where pk_a = 1 and pk_b = 2 and pk_c = 3", 1),
+  ("t2", "update t2 set d = 37 where pk_a = 1 and pk_b = 2 and pk_c = 3", 1),
+  ("t3", "delete from t3 where pk_a = \"11111\"", 1),
+  ("t3", "update t3 set d = 37 where pk_a = \"11111\"", 1),
+  ("t4", "delete from t4 where pk_a = \"16161616\" and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1),
+  ("t4", "update t4 set d = 37 where pk_a = \"16161616\" and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1);
+
+# Using full primary key with constant parameter in value list, one roundtrip
+set @param37 = 37;
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "update t1 set c = @param37 where a = 1", 1),
+  ("t2", "update t2 set d = @param37 where pk_a = 1 and pk_b = 2 and
+            pk_c = 3", 1),
+  ("t3", "update t3 set d = @param37 where pk_a = \"11111\"", 1),
+  ("t4", "update t4 set d = @param37 where pk_a = \"16161616\" and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1);
+
+# Using full primary key with constant parameters in value list and where
+# clause, one roundtrip
+set @param1 = 1;
+set @param2 = 2;
+set @param3 = 3;
+set @param11111 = "11111";
+set @param16161616 = "16161616";
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "delete from t1 where a = @param1", 1),
+  ("t1", "update t1 set c = @param37 where a = @param1", 1),
+  ("t2", "delete from t2 where pk_a = @param1 and pk_b = @param2 and
+            pk_c = 3", 1),
+  ("t2", "update t2 set d = @param37 where pk_a = @param1 and pk_b = @param2 and
+            pk_c = 3", 1),
+  ("t3", "delete from t3 where pk_a = @param11111", 1),
+  ("t3", "update t3 set d = @param37 where pk_a = @param11111", 1),
+  ("t4", "delete from t4 where pk_a = @param16161616 and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1),
+  ("t4", "update t4 set d = @param37 where pk_a = @param16161616 and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1);
+
+# Using full unique key, one roundtrip
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "delete from t1 where b = 1", 1),
+  ("t1", "update t1 set c = 37 where b = 1", 1),
+   # no unique key in t2
+  ("t3", "delete from t3 where c = 2 and b = 9", 1),
+  ("t3", "update t3 set d = 37 where c = 2 and b = 9", 1),
+  # The 4 cases below should supposedly also use only 1 roundtrip
+  ("t4", "delete from t4 where f = 37", 2),
+  ("t4", "update t4 set d = 37 where f = 37", 2),
+  ("t4", "delete from t4
+            where g = 1009 and h = 10009 and i = 100009 and j = \"1000009\"", 2),
+  ("t4", "update t4 set d = 37
+            where g = 1009 and h = 10009 and i = 100009 and j = \"1000009\"", 2);
+
+# Update (part of) primary key (may require read+delete+insert+commit)
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  # All columns in PK updated
+  ("t1", "update t1 set a = 97 where a = 1", 4), #PK
+  ("t1", "update t1 set a = 98 where b = 1", 4), #Unique key
+
+  # Update PK as keyop
+  ("t2", "update t2 set pk_a = 37 where pk_a = 1 and pk_b = 2 and pk_c = 3", 2), #No match
+  ("t2", "update t2 set pk_a = 38 where pk_a = 9 and pk_b = 2 and pk_c = 2", 4),
+  ("t2", "update t2 set pk_b = 39 where pk_a = 9 and pk_b = 2 and pk_c = 2", 4),
+
+  # Update PK as index-rangeop
+  ("t2", "update t2 set pk_a = 47 where pk_a = 1 and pk_b = 2", 2), #No match
+  ("t2", "update t2 set pk_a = 48 where pk_a = 9 and pk_b = 2", 6),
+
+  # Update PK on table having BLOB
+  ("t5", "update t5 set a = 57 where a = 1", 4), #PK
+  ("t5", "update t5 set a = 58 where b = 1", 4), #Unique key
+
+  # Update PK on table having BLOB, non existing rows 
+  ("t5", "update t5 set a = 57 where a = 99", 2), #PK
+  ("t5", "update t5 set a = 58 where b = 99", 2)  #Unique key
+;
+
+# Update or delete of table with BLOB (Column 'd')
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t5", "update t5 set d = @b1  where a = 1", 3), #PK
+  ("t5", "update t5 set d = NULL where a = 1", 3), #PK
+
+  ("t5", "update t5 set d = @b1  where b = 1", 3), #UQ index
+  ("t5", "update t5 set d = NULL where b = 1", 3), #UQ index
+
+  ("t5", "update t5 set d = @b1  where c = 3", 3), #Scan 1 row
+  ("t5", "update t5 set d = NULL where c = 3", 3), #Scan, update 1 row
+  #("t5", "update t5 set d = @b1  where c > 1", 7), #Scan, update 5 rows
+  #("t5", "update t5 set d = @b1", 12),             #Scan, update 10 rows
+
+  # Update BLOB in non existing rows
+  ("t5", "update t5 set d = @b1  where a = 99", 2), #PK
+  ("t5", "update t5 set d = NULL where a = 99", 2), #PK
+
+  ("t5", "update t5 set d = @b1  where b = 99", 2), #UQ index
+  ("t5", "update t5 set d = NULL where b = 99", 2), #UQ index
+
+  ("t5", "update t5 set d = @b1  where c = 99", 2), #Scan
+  ("t5", "update t5 set d = NULL where c = 99", 2), #Scan
+
+  # Update BLOB also req. to read the BLOB column
+  ("t5", "update t5 set d = concat(d,@b1) where a = 1", 3), #PK
+  ("t5", "update t5 set d = concat(d,@b1) where b = 1", 3), #UQ index
+  ("t5", "update t5 set d = concat(d,@b1) where c = 3", 3), #Scan 1 row
+  #("t5", "update t5 set d = concat(d,@b1) where c > 1", 7), #Scan 5 rows
+  #("t5", "update t5 set d = concat(d,@b1)", 11),            #Scan 10 rows
+
+  # Delete rows with BLOB
+  ("t5", "delete from t5 where a = 1", 2), #PK
+  ("t5", "delete from t5 where b = 1", 2), #UQ index
+  ("t5", "delete from t5 where c = 3", 3), #Scan, single match
+  #("t5", "delete from t5 where c > 1", 4), #Scan, match 5  rows
+  #("t5", "delete from t5 where c > 0", 4), #Scan, match 10 rows
+  ("t5", "delete from t5 where c > 9", 2)  #Scan, no match
+  #("t5", "delete from t5", 4)
+;
+
+
+### Run testcases while there are tests left in the param table
+while (`select count(*) from rbwr_tests`)
+{
+  # Find one testcase
+  select @test_id := test_id,
+    @test_table := table_name,
+    @test_query := query,
+    @test_execute_count := execute_count,
+    @test_affected_rows := affected_rows
+      from rbwr_tests order by test_id limit 1;
+  let $test_query = `select @test_query`;
+  let $test_table = `select @test_table`;
+  let $test_execute_count = `select @test_execute_count`;
+
+  --source rbwr.inc
+
+  # Delete testcase
+  delete from rbwr_tests where test_id = @test_id;
+}
+
+## Table with triggers
+CREATE TABLE main(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, val int)engine=ndb;
+CREATE TABLE log(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, bug_text varchar(500) NOT NULL)engine=ndb;
+
+# Check execute count to verify that read removal is not done for
+# a delete on a table which has a delete trigger
+CREATE TRIGGER log_deletes AFTER DELETE ON main FOR EACH ROW
+INSERT INTO log (bug_text) VALUES ("one row deleted");
+
+let $before= `select VARIABLE_VALUE from performance_schema.session_status
+                where variable_name like 'NDB_EXECUTE_COUNT'`;
+DELETE FROM main WHERE id = 1;
+let $after= `select VARIABLE_VALUE from performance_schema.session_status
+               where variable_name like 'NDB_EXECUTE_COUNT'`;
+if (!`select $after-$before >= 4`)
+{
+  enable_result_log;
+  echo before: $before;
+  echo after: $after;
+  die Read removal used even when table has delete triggers;
+}
+
+# Check execute count to verify that read removal is not done for
+# an update on a table which has an update trigger
+CREATE TRIGGER log_updates AFTER UPDATE ON main FOR EACH ROW
+INSERT INTO log (bug_text) VALUES ("one row updated");
+
+let $before= `select VARIABLE_VALUE from performance_schema.session_status
+                where variable_name like 'NDB_EXECUTE_COUNT'`;
+UPDATE main SET val = 111 WHERE id = 1;
+let $after= `select VARIABLE_VALUE from performance_schema.session_status
+               where variable_name like 'NDB_EXECUTE_COUNT'`;
+if (!`select $after-$before >= 3`)
+{
+  enable_result_log;
+  echo before: $before;
+  echo after: $after;
+  die Read removal used even when table has update triggers;
+}
+
+### Cleanup
+# Drop test tables
+drop table t1, data_t1;
+drop table t2, data_t2;
+drop table t3, data_t3;
+drop table t4, data_t4;
+drop table t5, data_t5;
+
+drop trigger log_deletes;
+drop trigger log_updates;
+drop table main;
+drop table log;
+
+# Drop parameter tables
+drop table rbwr_tests;
+
+--enable_query_log
+--enable_result_log
+
+if ($ndb_rbwr_fail)
+{
+  die Test failure detected!;
+}
+
+

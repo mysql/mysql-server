@@ -21,6 +21,7 @@
 CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
 --source include/have_binlog_format_row.inc
 --source include/not_windows.inc
+--source include/not_binlog_transaction_compression_on.inc
 
 --let $saved_expire_logs_days= `SELECT @@GLOBAL.expire_logs_days`
 --let $saved_binlog_expire_logs_seconds= `SELECT @@GLOBAL.binlog_expire_logs_seconds`
@@ -89,6 +90,19 @@ SET GLOBAL expire_logs_days= 1;
 # This will test the expire period for three scenarios, described in the .inc file.
 --source suite/binlog/include/binlog_expire_logs_seconds.inc
 
+# code coverage for WL#14930 boundary conditions
+# this will make the math output a negative purge
+# window, meaning that no purge can happen
+RESET MASTER;
+# there is a bug in 32 bit plaforms that prevents using
+# the max value, so we use this one that makes the test
+# run without changes in 32 and 64 bis platforms
+SET GLOBAL binlog_expire_logs_seconds=2147483647;
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--file_exists $MYSQLD_DATADIR/$file
+SET GLOBAL binlog_expire_logs_seconds=DEFAULT;
+RESET MASTER;
 
 # reset the variables
 --eval SET GLOBAL binlog_expire_logs_seconds= $saved_binlog_expire_logs_seconds

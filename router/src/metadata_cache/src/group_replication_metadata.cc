@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,16 @@
 */
 
 #include "group_replication_metadata.h"
-#include "metadata.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/mysql_session.h"
 
-#include <assert.h>  // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <sstream>
+
+#include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/mysql_session.h"
 
 using mysqlrouter::MySQLSession;
 IMPORT_LOG_FUNCTIONS()
@@ -39,9 +40,9 @@ IMPORT_LOG_FUNCTIONS()
 // throws metadata_cache::metadata_error
 static std::string find_group_replication_primary_member(
     MySQLSession &connection) {
-  // NOTE: In single-master mode, this function will return primary node ID as
+  // NOTE: In single-primary mode, this function will return primary node ID as
   //       seen by this node (provided this node is currently part of GR),
-  //       but in multi-master node, it will always return <empty>.
+  //       but in multi-primary node, it will always return <empty>.
   //       Such is behavior of group_replication_primary_member variable.
 
   std::string primary_member;
@@ -74,13 +75,13 @@ static std::string find_group_replication_primary_member(
   // Get primary node (as seen by this node). primary_member will contain ID of
   // the primary node (such as "3acfe4ca-861d-11e6-9e56-08002741aeb6"), or "" if
   // this node is not (currently) part of GR It will also be empty if we're
-  // running GR in multi-master mode.
+  // running GR in multi-primary mode.
   try {
     connection.query("show status like 'group_replication_primary_member'",
                      result_processor);
   } catch (const MySQLSession::Error &e) {
     throw metadata_cache::metadata_error(e.what());
-  } catch (const metadata_cache::metadata_error &e) {
+  } catch (const metadata_cache::metadata_error &) {
     throw;
   } catch (...) {
     assert(
@@ -93,14 +94,14 @@ static std::string find_group_replication_primary_member(
 
 // throws metadata_cache::metadata_error
 std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
-    MySQLSession &connection, bool &single_master) {
+    MySQLSession &connection, bool &single_primary) {
   std::map<std::string, GroupReplicationMember> members;
 
   // who's the primary node? (throws metadata_cache::metadata_error)
   std::string primary_member =
       find_group_replication_primary_member(connection);
 
-  auto result_processor = [&members, &primary_member, &single_master](
+  auto result_processor = [&members, &primary_member, &single_primary](
                               const MySQLSession::Row &row) -> bool {
     // clang-format off
     // example response from node that left GR (sees only itself):
@@ -132,7 +133,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
     const char *member_host = row[1];
     const char *member_port = row[2];
     const char *member_state = row[3];
-    single_master =
+    single_primary =
         row[4] && (strcmp(row[4], "1") == 0 || strcmp(row[4], "ON") == 0);
     if (!member_id || !member_host || !member_port || !member_state) {
       log_warning("Query %s returned %s, %s, %s, %s, %s",
@@ -166,11 +167,10 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
       member.state = GroupReplicationMember::State::Other;
     }
 
-    // if single_master == true, we're in single-master mode, implying at most 1
-    // Primary(RW) node
-    // if single_master == false, we're in multi-master mode, implying all nodes
-    // are Primary(RW)
-    if (primary_member == member.member_id || !single_master)
+    // if single_primary == true, we're in single-primary mode, implying at most
+    // 1 Primary(RW) node if single_primary == false, we're in multi-primary
+    // mode, implying all nodes are Primary(RW)
+    if (primary_member == member.member_id || !single_primary)
       member.role = GroupReplicationMember::Role::Primary;
     else
       member.role = GroupReplicationMember::Role::Secondary;
@@ -197,7 +197,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
 
   } catch (const MySQLSession::Error &e) {
     throw metadata_cache::metadata_error(e.what());
-  } catch (const metadata_cache::metadata_error &e) {
+  } catch (const metadata_cache::metadata_error &) {
     throw;
   } catch (...) {
     assert(
@@ -206,4 +206,23 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
   }
 
   return members;
+}
+
+const char *to_string(GroupReplicationMember::State member_state) {
+  switch (member_state) {
+    case GroupReplicationMember::State::Online:
+      return "Online";
+    case GroupReplicationMember::State::Recovering:
+      return "Recovering";
+    case GroupReplicationMember::State::Unreachable:
+      return "Unreachable";
+    case GroupReplicationMember::State::Offline:
+      return "Offline";
+    case GroupReplicationMember::State::Error:
+      return "Error";
+    case GroupReplicationMember::State::Other:
+        /* fallthrough  */;
+  }
+
+  return "Other";
 }

@@ -29,6 +29,9 @@ CREATE TEMPORARY TABLE t2(c1 INT) ENGINE= InnoDB;
 --error ER_DISABLED_STORAGE_ENGINE
 ALTER TABLE t1 ENGINE= InnoDB;
 
+--echo # Create a table in MYISAM, which will become disabled after restart
+CREATE TABLE t2 (c1 INT) ENGINE=MYISAM;
+
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
@@ -50,9 +53,27 @@ CREATE TABLE t2(c1 INT) ENGINE= MyISAM;
 
 SELECT * FROM t1;
 
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t2 ENGINE=example;
+
+SET SQL_MODE='';
+ALTER TABLE t2 ENGINE=example;
+SHOW CREATE TABLE t2;
+SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
+
 --echo # Checking table creation with dynamic storage plugins
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+--error ER_DISABLED_STORAGE_ENGINE
+ALTER TABLE t2 ENGINE=example;
+
+SET SQL_MODE='';
+
+ALTER TABLE t2 ENGINE=example;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
 
 --ERROR ER_DISABLED_STORAGE_ENGINE
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
@@ -101,6 +122,43 @@ CREATE TABLE t8 (c1 INT) ENGINE= MyISAM;
 # If disabled engine and default engine both are in the disabled SE list.
 --error ER_DISABLED_STORAGE_ENGINE
 CREATE TABLE t8 (c1 INT) ENGINE= EXAMPLE;
+
+--echo #
+--echo # Bug#29899151: CORE AT CREATE TABLE WITH FK FOR TABLE TRANSFERRED
+--echo # FROM MYISAM TO INNODB
+--echo #
+
+--echo # Allow engine substitution
+SET sql_mode = "";
+SET DEFAULT_STORAGE_ENGINE= InnoDB;
+CREATE TABLE parent_table (i INT PRIMARY KEY);
+
+CREATE TABLE child_table (
+i INT,
+
+CONSTRAINT fk_parent_table
+FOREIGN KEY (i)
+REFERENCES parent_table (i) ON DELETE CASCADE
+) ENGINE=MyISAM;
+
+DROP TABLE child_table;
+DROP TABLE parent_table;
+
+--echo # Verify that creating a temporary table LIKE a table in a storage
+--echo # engine which does not support temporary tables, defaults to the 
+--echo # default_tmp_storage_engine, even with no_substitution.
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+SET default_tmp_storage_engine=MYISAM;
+
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TEMPORARY TABLE tt1(c1 INT);
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+
 
 # Cleanup
 UNINSTALL PLUGIN EXAMPLE;

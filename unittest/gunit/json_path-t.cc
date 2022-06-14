@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,9 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -45,8 +42,8 @@ namespace json_path_unittest {
 
 class JsonPathTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   THD *thd() const { return initializer.thd(); }
   my_testing::Server_initializer initializer;
   void vet_wrapper_seek(Json_wrapper *wrapper, const Json_path &path,
@@ -121,8 +118,8 @@ class JsonGoodLocationTestP : public ::testing::TestWithParam<Location_tuple> {
   arg of Json_wrapper.seek().
 */
 class JsonGoodOnoTestP : public ::testing::TestWithParam<Ono_tuple> {
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
 
  protected:
@@ -133,8 +130,8 @@ class JsonGoodOnoTestP : public ::testing::TestWithParam<Ono_tuple> {
   Class that contains parameterized test cases for cloning tests.
 */
 class JsonGoodCloneTestP : public ::testing::TestWithParam<Clone_tuple> {
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
 };
 
@@ -434,7 +431,7 @@ void vet_only_needs_one(const char *json_text, const char *path_text,
    Format a Json_dom object to JSON text using  Json_wrapper's
    to_string functionality.
 
-   @param d The DOM object to be formatted
+   @param dom The DOM object to be formatted
 */
 std::string format(Json_dom *dom) {
   String buffer;
@@ -547,8 +544,8 @@ TEST_P(JsonGoodPathTestP, GoodPaths) {
   good_path(param.m_path_expression, param.m_expected_path);
 }
 
-INSTANTIATE_TEST_CASE_P(PositiveNoColumnScope, JsonGoodPathTestP,
-                        ::testing::ValuesIn(good_paths_no_column_scope));
+INSTANTIATE_TEST_SUITE_P(PositiveNoColumnScope, JsonGoodPathTestP,
+                         ::testing::ValuesIn(good_paths_no_column_scope));
 
 /** Test that path leg types look correct. */
 TEST_F(JsonPathTest, LegTypes) {
@@ -805,8 +802,8 @@ static const Bad_path bad_paths_no_column_scope[] = {
     {"$[-]", 2},
 };
 
-INSTANTIATE_TEST_CASE_P(NegativeNoColumnScope, JsonBadPathTestP,
-                        ::testing::ValuesIn(bad_paths_no_column_scope));
+INSTANTIATE_TEST_SUITE_P(NegativeNoColumnScope, JsonBadPathTestP,
+                         ::testing::ValuesIn(bad_paths_no_column_scope));
 
 /** Good paths with column scope not supported yet */
 TEST_F(JsonPathTest, PositiveColumnScope) {
@@ -852,8 +849,8 @@ static const Good_path good_quoted_key_names[] = {
     {"$.\"a b\".\" c d \"", "$.\"a b\".\" c d \""},
 };
 
-INSTANTIATE_TEST_CASE_P(QuotedKeyNamesPositive, JsonGoodPathTestP,
-                        ::testing::ValuesIn(good_quoted_key_names));
+INSTANTIATE_TEST_SUITE_P(QuotedKeyNamesPositive, JsonGoodPathTestP,
+                         ::testing::ValuesIn(good_quoted_key_names));
 
 /** Test bad quoted key names */
 static const Bad_path bad_quoted_key_names[] = {
@@ -877,8 +874,8 @@ static const Bad_path bad_quoted_key_names[] = {
     //{ false, "$.ghi\"abcd\"", 5 },
 };
 
-INSTANTIATE_TEST_CASE_P(QuotedKeyNamesNegative, JsonBadPathTestP,
-                        ::testing::ValuesIn(bad_quoted_key_names));
+INSTANTIATE_TEST_SUITE_P(QuotedKeyNamesNegative, JsonBadPathTestP,
+                         ::testing::ValuesIn(bad_quoted_key_names));
 
 /* Test that unquoted key names may not be ECMAScript identifiers */
 
@@ -918,8 +915,8 @@ static const Good_path good_ecmascript_identifiers[] = {
      "bc"},
 };
 
-INSTANTIATE_TEST_CASE_P(GoodECMAScriptIdentifiers, JsonGoodPathTestP,
-                        ::testing::ValuesIn(good_ecmascript_identifiers));
+INSTANTIATE_TEST_SUITE_P(GoodECMAScriptIdentifiers, JsonGoodPathTestP,
+                         ::testing::ValuesIn(good_ecmascript_identifiers));
 
 TEST_F(JsonPathTest, BadECMAScriptIdentifiers) {
   // key names may not contain embedded quotes
@@ -1380,8 +1377,8 @@ TEST_P(JsonGoodLocationTestP, GoodLocations) {
   vet_dom_location(param.m_json_text, param.m_path_expression);
 }
 
-INSTANTIATE_TEST_CASE_P(LocationTesting, JsonGoodLocationTestP,
-                        ::testing::ValuesIn(location_tuples));
+INSTANTIATE_TEST_SUITE_P(LocationTesting, JsonGoodLocationTestP,
+                         ::testing::ValuesIn(location_tuples));
 
 // Tuples for the test of the only_needs_one arg of Json_wrapper.seek()
 static const Ono_tuple ono_tuples[] = {
@@ -1399,8 +1396,8 @@ TEST_P(JsonGoodOnoTestP, GoodOno) {
                      param.m_expected_hits, thd());
 }
 
-INSTANTIATE_TEST_CASE_P(OnoTesting, JsonGoodOnoTestP,
-                        ::testing::ValuesIn(ono_tuples));
+INSTANTIATE_TEST_SUITE_P(OnoTesting, JsonGoodOnoTestP,
+                         ::testing::ValuesIn(ono_tuples));
 
 // Tuples for tests of cloning
 static const Clone_tuple clone_tuples[] = {
@@ -1415,8 +1412,8 @@ TEST_P(JsonGoodCloneTestP, GoodClone) {
   verify_clone(param.m_path_expression_1, param.m_path_expression_2);
 }
 
-INSTANTIATE_TEST_CASE_P(CloneTesting, JsonGoodCloneTestP,
-                        ::testing::ValuesIn(clone_tuples));
+INSTANTIATE_TEST_SUITE_P(CloneTesting, JsonGoodCloneTestP,
+                         ::testing::ValuesIn(clone_tuples));
 
 /**
   A class used for parameterized test cases for the
@@ -1473,7 +1470,7 @@ static const std::pair<std::string, bool> autowrap_tuples[] = {
     {"[last-2 to last-1]", false},
 };
 
-INSTANTIATE_TEST_CASE_P(AutowrapTesting, JsonPathLegAutowrapP,
-                        ::testing::ValuesIn(autowrap_tuples));
+INSTANTIATE_TEST_SUITE_P(AutowrapTesting, JsonPathLegAutowrapP,
+                         ::testing::ValuesIn(autowrap_tuples));
 
 }  // end namespace json_path_unittest

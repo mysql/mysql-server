@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class Index_array_field : public Admin_command_index::Index_field_interface {
       ngs::Error_code *error);
 
   ngs::Error_code add_column_if_necessary(
-      ngs::Sql_session_interface *sql_session, const std::string &schema,
+      iface::Sql_session *sql_session, const std::string &schema,
       const std::string &collection, Query_string_builder *qb) const override;
   void add_field(Query_string_builder *qb) const override;
   bool is_required() const override { return false; }

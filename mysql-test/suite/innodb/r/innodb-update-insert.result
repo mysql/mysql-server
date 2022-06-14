@@ -7,7 +7,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` char(1) NOT NULL,
-  `f2` int(11) NOT NULL,
+  `f2` int NOT NULL,
   `f3` blob,
   PRIMARY KEY (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

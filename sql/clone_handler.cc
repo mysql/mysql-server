@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,14 @@
 
 #include "sql/clone_handler.h"
 
+#include <assert.h>
 #include <string.h>
+#include <cctype>
 #include <chrono>
+#include <cstdlib>
+#include <string>
 #include <thread>
 
-#include "my_dbug.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -41,16 +44,86 @@
 #include "sql/sql_class.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
-#include "sql_string.h"      // to_lex_cstring
+#include "sql/srv_session.h"
+#include "sql_string.h"  // to_lex_cstring
 #include "violite.h"
 
 class THD;
+
+/* To get current session thread default THD */
+THD *thd_get_current_thd();
 
 /** Clone handler global */
 Clone_handler *clone_handle = nullptr;
 
 /** Clone plugin name */
 const char *clone_plugin_nm = "clone";
+
+bool Clone_handler::get_donor_error(Srv_session *session, int &error,
+                                    const char *&message) {
+  error = 0;
+  message = nullptr;
+  THD *thd = nullptr;
+
+  if (session != nullptr) {
+    thd = session->get_thd();
+  }
+
+  /* Check if THD exists. */
+  if (thd == nullptr) {
+    /* Try to get current THD handle. */
+    thd = thd_get_current_thd();
+    if (thd == nullptr) {
+      return (false);
+    }
+  }
+
+  /* Check if DA exists. */
+  auto da = thd->get_stmt_da();
+  if (da == nullptr || !da->is_error()) {
+    return (false);
+  }
+
+  if (da->mysql_errno() != ER_CLONE_DONOR) {
+    return (false);
+  }
+
+  /* Assign current error from DA */
+  error = da->mysql_errno();
+  message = da->message_text();
+
+  /* Parse and find out donor error and message. */
+  size_t err_pos = 0;
+  std::string msg_string(message);
+
+  while (!std::isdigit(message[err_pos])) {
+    /* Find position of next ":". */
+    err_pos = msg_string.find(": ", err_pos);
+
+    /* No more separator, return. */
+    if (err_pos == std::string::npos) {
+      assert(false);
+      return (false);
+    }
+    /* Skip ":" and space. */
+    err_pos += 2;
+  }
+
+  error = std::atoi(message + err_pos);
+
+  if (error != 0) {
+    err_pos = msg_string.find(": ", err_pos);
+    /* Should find the error message following the error code. */
+    if (err_pos == std::string::npos) {
+      assert(false);
+      return (false);
+    }
+    /* Skip ":" and space. */
+    err_pos += 2;
+    message = message + err_pos;
+  }
+  return (true);
+}
 
 int Clone_handler::clone_local(THD *thd, const char *data_dir) {
   int error;
@@ -120,8 +193,8 @@ int Clone_handler::init() {
 
   plugin_ref plugin;
 
-  plugin = my_plugin_lock_by_name(0, to_lex_cstring(m_plugin_name.c_str()),
-                                  MYSQL_CLONE_PLUGIN);
+  plugin = my_plugin_lock_by_name(
+      nullptr, to_lex_cstring(m_plugin_name.c_str()), MYSQL_CLONE_PLUGIN);
   if (plugin == nullptr) {
     m_plugin_handle = nullptr;
     LogErr(ERROR_LEVEL, ER_CLONE_PLUGIN_NOT_LOADED_TRACE);
@@ -129,7 +202,7 @@ int Clone_handler::init() {
   }
 
   m_plugin_handle = (Mysql_clone *)plugin_decl(plugin)->info;
-  plugin_unlock(0, plugin);
+  plugin_unlock(nullptr, plugin);
 
   if (opt_initialize) {
     /* Inform that database initialization in progress. */
@@ -191,7 +264,7 @@ int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
 
     /* length must always decrease for the loop to terminate */
     if (length <= new_length) {
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
 
@@ -215,6 +288,20 @@ int clone_handle_create(const char *plugin_name) {
   }
 
   return clone_handle->init();
+}
+
+int clone_handle_check_drop(MYSQL_PLUGIN plugin_info) {
+  auto plugin = static_cast<st_plugin_int *>(plugin_info);
+  int error = 0;
+
+  mysql_mutex_lock(&LOCK_plugin);
+  assert(plugin->state == PLUGIN_IS_DYING);
+
+  if (plugin->ref_count > 0) {
+    error = ER_PLUGIN_CANNOT_BE_UNINSTALLED; /* purecov: inspected */
+  }
+  mysql_mutex_unlock(&LOCK_plugin);
+  return error;
 }
 
 int clone_handle_drop() {
@@ -244,7 +331,7 @@ Clone_handler *clone_plugin_lock(THD *thd, plugin_ref *plugin) {
   if (*plugin != nullptr && plugin_state(*plugin) == PLUGIN_IS_READY) {
     mysql_mutex_unlock(&LOCK_plugin);
 
-    DBUG_ASSERT(clone_handle != nullptr);
+    assert(clone_handle != nullptr);
     return clone_handle;
   }
 
@@ -260,6 +347,7 @@ void clone_plugin_unlock(THD *thd, plugin_ref plugin) {
 std::atomic<int> Clone_handler::s_xa_counter{0};
 std::atomic<bool> Clone_handler::s_xa_block_op{false};
 std::atomic<int> Clone_handler::s_provision_in_progress{0};
+std::atomic<bool> Clone_handler::s_is_data_dropped{false};
 
 mysql_mutex_t Clone_handler::s_xa_mutex;
 
@@ -338,7 +426,7 @@ bool Clone_handler::XA_Block::failed() const { return (!m_success); }
 
 bool Clone_handler::block_xa_operation(THD *thd) {
   bool ret = true;
-  DBUG_ASSERT(!s_xa_block_op.load());
+  assert(!s_xa_block_op.load());
 
   mysql_mutex_lock(&s_xa_mutex);
   /* Block new xa prepare/commit/rollback. No new XA operation can start after

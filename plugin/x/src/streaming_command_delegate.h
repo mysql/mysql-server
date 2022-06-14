@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,71 +25,67 @@
 #ifndef PLUGIN_X_SRC_STREAMING_COMMAND_DELEGATE_H_
 #define PLUGIN_X_SRC_STREAMING_COMMAND_DELEGATE_H_
 
-#include <vector>
-
 #include <sys/types.h>
 
-#include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/command_delegate.h"
-#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include <cstdint>
+#include <vector>
+
+#include "plugin/x/src/interface/notice_output_queue.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/ngs/command_delegate.h"
+#include "plugin/x/src/ngs/protocol/message.h"
+#include "plugin/x/src/ngs/protocol/metadata_builder.h"
 #include "plugin/x/src/notices.h"
-
-namespace ngs {
-
-class Protocol_encoder_interface;
-
-}  // namespace ngs
 
 namespace xpl {
 
 class Streaming_command_delegate : public ngs::Command_delegate {
  public:
-  Streaming_command_delegate(ngs::Session_interface *session);
+  explicit Streaming_command_delegate(iface::Session *session);
   Streaming_command_delegate(const Streaming_command_delegate &) = default;
-  virtual ~Streaming_command_delegate();
+  ~Streaming_command_delegate() override;
 
   void set_compact_metadata(bool flag) { m_compact_metadata = flag; }
   bool compact_metadata() const { return m_compact_metadata; }
 
-  virtual void reset();
+  void reset() override;
 
  protected:
-  virtual int start_result_metadata(uint num_cols, uint flags,
-                                    const CHARSET_INFO *resultcs);
-  virtual int field_metadata(struct st_send_field *field,
-                             const CHARSET_INFO *charset);
-  virtual int end_result_metadata(uint32_t server_status, uint32_t warn_count);
+  int start_result_metadata(uint32_t num_cols, uint32_t flags,
+                            const CHARSET_INFO *resultcs) override;
+  int field_metadata(struct st_send_field *field,
+                     const CHARSET_INFO *charset) override;
+  int end_result_metadata(uint32_t server_status, uint32_t warn_count) override;
 
-  virtual int start_row();
-  virtual int end_row();
-  virtual void abort_row();
-  virtual ulong get_client_capabilities();
-  virtual int get_null();
-  virtual int get_integer(longlong value);
-  virtual int get_longlong(longlong value, uint unsigned_flag);
-  virtual int get_decimal(const decimal_t *value);
-  virtual int get_double(double value, uint32 decimals);
-  virtual int get_date(const MYSQL_TIME *value);
-  virtual int get_time(const MYSQL_TIME *value, uint decimals);
-  virtual int get_datetime(const MYSQL_TIME *value, uint decimals);
-  virtual int get_string(const char *const value, size_t length,
-                         const CHARSET_INFO *const valuecs);
-  virtual void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
-                         uint64_t affected_rows, uint64_t last_insert_id,
-                         const char *const message);
+  int start_row() override;
+  int end_row() override;
+  void abort_row() override;
+  ulong get_client_capabilities() override;
+  int get_null() override;
+  int get_integer(longlong value) override;
+  int get_longlong(longlong value, uint32_t unsigned_flag) override;
+  int get_decimal(const decimal_t *value) override;
+  int get_double(double value, uint32_t decimals) override;
+  int get_date(const MYSQL_TIME *value) override;
+  int get_time(const MYSQL_TIME *value, uint32_t decimals) override;
+  int get_datetime(const MYSQL_TIME *value, uint32_t decimals) override;
+  int get_string(const char *const value, size_t length,
+                 const CHARSET_INFO *const valuecs) override;
+  void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
+                 uint64_t affected_rows, uint64_t last_insert_id,
+                 const char *const message) override;
   virtual bool try_send_notices(const uint32_t server_status,
                                 const uint32_t statement_warn_count,
                                 const uint64_t affected_rows,
                                 const uint64_t last_insert_id,
                                 const char *const message);
 
-  void handle_error(uint sql_errno, const char *const err_msg,
-                    const char *const sqlstate);
+  void handle_error(uint32_t sql_errno, const char *const err_msg,
+                    const char *const sqlstate) override;
+  bool connection_alive() override;
 
-  virtual enum cs_text_or_binary representation() const {
+  enum cs_text_or_binary representation() const override {
     return CS_BINARY_REPRESENTATION;
   }
 
@@ -103,15 +99,17 @@ class Streaming_command_delegate : public ngs::Command_delegate {
                         const uint64_t last_insert_id,
                         const char *const message);
 
-  ngs::Protocol_encoder_interface *m_proto;
+  iface::Protocol_encoder *m_proto;
+  ngs::Metadata_vector &m_metadata;
   const CHARSET_INFO *m_resultcs = nullptr;
-  ngs::Notice_output_queue_interface *m_notice_queue = nullptr;
+  iface::Notice_output_queue *m_notice_queue = nullptr;
   bool m_sent_result = false;
   bool m_wait_for_fetch_done = false;
   bool m_compact_metadata = false;
   bool m_handle_ok_received = false;
   bool m_send_notice_deferred = false;
-  ngs::Session_interface *m_session;
+  int m_filled_column_counter = 0;
+  iface::Session *m_session;
 };
 
 }  // namespace xpl

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <string.h>
+
 #include <string>
 #include <utility>
 
@@ -57,6 +58,7 @@
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_base.h"         // find_temporary_table()
 #include "sql/sql_class.h"
+#include "sql/sql_db.h"  // check_schema_readonly
 #include "sql/sql_error.h"
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables()
 #include "sql/sql_lex.h"
@@ -76,7 +78,7 @@ class Schema;
 bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
                            const LEX_STRING &trigger_name,
                            bool continue_if_not_exist, TABLE_LIST **table) {
-  DBUG_ENTER("get_table_for_trigger");
+  DBUG_TRACE;
   LEX *lex = thd->lex;
   *table = nullptr;
 
@@ -88,33 +90,33 @@ bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
   const dd::Schema *sch_obj = nullptr;
   if (mdl_locker.ensure_locked(db_name.str) ||
       thd->dd_client()->acquire(db_name.str, &sch_obj))
-    DBUG_RETURN(true);
+    return true;
 
   if (sch_obj == nullptr) {
     if (continue_if_not_exist) {
       push_warning(thd, Sql_condition::SL_NOTE, ER_BAD_DB_ERROR,
                    ER_THD(thd, ER_BAD_DB_ERROR));
-      DBUG_RETURN(false);
+      return false;
     }
 
     my_error(ER_BAD_DB_ERROR, MYF(0), db_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   dd::String_type table_name;
   if (thd->dd_client()->get_table_name_by_trigger_name(
           *sch_obj, trigger_name.str, &table_name))
-    DBUG_RETURN(true);
+    return true;
 
   if (table_name == "") {
     if (continue_if_not_exist) {
       push_warning(thd, Sql_condition::SL_NOTE, ER_TRG_DOES_NOT_EXIST,
                    ER_THD(thd, ER_TRG_DOES_NOT_EXIST));
-      DBUG_RETURN(false);
+      return false;
     }
 
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   char lc_table_name[NAME_LEN + 1];
@@ -133,43 +135,12 @@ bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
       thd->strmake(table_name_ptr, table_name_length), table_name_length,
       thd->mem_strdup(table_name_ptr), TL_IGNORE, MDL_SHARED_NO_WRITE);
 
-  if (*table == nullptr) DBUG_RETURN(true);
+  if (*table == nullptr) return true;
 
-  (*table)->select_lex = lex->current_select();
-  (*table)->cacheable_table = 1;
+  (*table)->query_block = lex->current_query_block();
+  (*table)->cacheable_table = true;
 
-  DBUG_RETURN(false);
-}
-
-// Only used by NDB.
-bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name) {
-  // Check if there is at least one trigger for the given table.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  dd::Table *table = nullptr;
-  if (thd->dd_client()->acquire_for_modification(db_name, table_name, &table)) {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (table == nullptr || !table->has_trigger()) return false;
-
-#ifdef HAVE_PSI_SP_INTERFACE
-  // Not very "transactional", but this is the same order it happens
-  // during drop table.
-  remove_all_triggers_from_perfschema(db_name, *table);
-#endif
-
-  for (const dd::Trigger *trigger : *table->triggers())
-    table->drop_trigger(trigger);
-
-  if (thd->dd_client()->update(table)) {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  return false;
 }
 
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -201,56 +172,22 @@ bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
   return false;
 }
 
-// Only used by NDB
-bool reload_triggers_for_table(THD *thd, const char *db_name,
-                               const char *table_alias MY_ATTRIBUTE((unused)),
-                               const char *table_name MY_ATTRIBUTE((unused)),
-                               const char *new_db_name,
-                               const char *new_table_name) {
-  // Check if there is at least one trigger for the given table.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
+                                       const char *trg_name) {
+  DBUG_TRACE;
 
-  const dd::Table *table = nullptr;
+  // Protect CREATE/DROP TRIGGER statement against concurrent global read lock.
+  if (thd->global_read_lock.can_acquire_protection()) return true;
 
-  if (thd->dd_client()->acquire(new_db_name, new_table_name, &table)) {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (table == nullptr || !table->has_trigger()) return false;
-
-  /*
-    Since triggers should be in the same schema as their subject tables
-    moving table with them between two schemas raises too many questions.
-    (E.g. what should happen if in new schema we already have trigger
-     with same name ?).
-  */
-
-  if (my_strcasecmp(table_alias_charset, db_name, new_db_name)) {
-    my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
-    return true;
-  }
-
-  /*
-    This method interfaces the mysql server code protected by
-    an exclusive metadata lock.
-  */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
-      MDL_key::TABLE, db_name, table_name, MDL_EXCLUSIVE));
-
-  DBUG_ASSERT(my_strcasecmp(table_alias_charset, table_alias, new_table_name));
-
-  return Table_trigger_dispatcher::check_n_load(thd, *table, new_db_name,
-                                                new_table_name);
+  return acquire_mdl_for_trigger(thd, db, trg_name, MDL_EXCLUSIVE);
 }
 
 bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,
                              enum_mdl_type trigger_name_mdl_type) {
-  DBUG_ASSERT(trg_name != nullptr);
-  DBUG_ASSERT(trigger_name_mdl_type == MDL_EXCLUSIVE ||
-              trigger_name_mdl_type == MDL_SHARED_HIGH_PRIO);
-
-  if (thd->global_read_lock.can_acquire_protection()) return true;
+  DBUG_TRACE;
+  assert(trg_name != nullptr);
+  assert(trigger_name_mdl_type == MDL_EXCLUSIVE ||
+         trigger_name_mdl_type == MDL_SHARED_HIGH_PRIO);
 
   MDL_key mdl_key;
   dd::Trigger::create_mdl_key(dd::String_type(db), dd::String_type(trg_name),
@@ -310,7 +247,7 @@ bool Sql_cmd_ddl_trigger_common::check_trg_priv_on_subj_table(
 TABLE *Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
     THD *thd, TABLE_LIST *tables, MDL_ticket **mdl_ticket) const {
   /* We should have only one table in table list. */
-  DBUG_ASSERT(tables->next_global == nullptr);
+  assert(tables->next_global == nullptr);
 
   /* We also don't allow creation of triggers on views. */
   tables->required_type = dd::enum_table_type::BASE_TABLE;
@@ -353,11 +290,16 @@ TABLE *Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
   Close all open instances of a trigger's table, reopen it if needed,
   invalidate SP-cache and possibly write a statement to binlog.
 
-  @param[in] thd         Current thread context
-  @param[in] db_name     Database name where trigger's table defined
-  @param[in] table       Table associated with a trigger
-  @param[in] stmt_query  Query string to write to binlog
-  @param[in] binlog_stmt Should the statement be binlogged?
+  @param[in] thd                     Current thread context
+  @param[in] db_name                 Database name where trigger's table
+                                     defined
+  @param[in] table                   Table associated with a trigger
+  @param[in] stmt_query              Query string to write to binlog
+  @param[in] binlog_stmt             Should the statement be binlogged?
+  @param[in] trg_created_or_dropped  Set to true if trigger is created or
+                                     dropped. Set to false if the statement
+                                     failed or the trigger already existed in
+                                     case of CREATE TRIGGER IF NOT EXISTS.
 
   @return Operation status.
     @retval false Success
@@ -365,7 +307,8 @@ TABLE *Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
 */
 
 static bool finalize_trigger_ddl(THD *thd, const char *db_name, TABLE *table,
-                                 const String &stmt_query, bool binlog_stmt) {
+                                 const String &stmt_query, bool binlog_stmt,
+                                 bool trg_created_or_dropped) {
   close_all_tables_for_name(thd, table->s, false, nullptr);
   /*
     Reopen the table if we were under LOCK TABLES.
@@ -374,17 +317,18 @@ static bool finalize_trigger_ddl(THD *thd, const char *db_name, TABLE *table,
   */
   thd->locked_tables_list.reopen_tables(thd);
   /*
-    Invalidate SP-cache. That's needed because triggers may change list of
-    pre-locking tables.
+    Invalidate SP-cache if trigger was created or dropped. This is needed
+    because triggers may change list of pre-locking tables.
   */
-  sp_cache_invalidate();
+  if (trg_created_or_dropped) sp_cache_invalidate();
 
   if (!binlog_stmt) return false;
 
   thd->add_to_binlog_accessed_dbs(db_name);
 
   DEBUG_SYNC(thd, "trigger_ddl_stmt_before_write_to_binlog");
-  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), true);
+  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(),
+                       trg_created_or_dropped);
 }
 
 void Sql_cmd_ddl_trigger_common::restore_original_mdl_state(
@@ -419,11 +363,11 @@ void Sql_cmd_ddl_trigger_common::restore_original_mdl_state(
 */
 
 bool Sql_cmd_create_trigger::execute(THD *thd) {
-  DBUG_ENTER("mysql_create_trigger");
+  DBUG_TRACE;
 
   if (!thd->lex->spname->m_db.length || !m_trigger_table->db_length) {
     my_error(ER_NO_DB_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Normally, the schema is locked in open_and_lock...() below,
@@ -432,7 +376,7 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
 
   if (thd->locked_tables_mode &&
       schema_mdl_locker.ensure_locked(m_trigger_table->db))
-    DBUG_RETURN(true);
+    return true;
 
   // This auto releaser will own the DD objects that we commit
   // at the bottom of this function.
@@ -443,7 +387,7 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
   */
   if (!my_strcasecmp(system_charset_info, "mysql", m_trigger_table->db)) {
     my_error(ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -461,25 +405,25 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
       !(sctx->check_access(SUPER_ACL) ||
         sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
     my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (check_trg_priv_on_subj_table(thd, m_trigger_table)) DBUG_RETURN(true);
+  if (check_trg_priv_on_subj_table(thd, m_trigger_table)) return true;
 
   /* We do not allow creation of triggers on temporary tables. */
   if (find_temporary_table(thd, m_trigger_table) != nullptr) {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), m_trigger_table->alias);
-    DBUG_RETURN(true);
+    return true;
   }
 
   MDL_ticket *mdl_ticket = nullptr;
   TABLE *table = open_and_lock_subj_table(thd, m_trigger_table, &mdl_ticket);
-  if (table == nullptr) DBUG_RETURN(true);
+  if (table == nullptr) return true;
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str)) {
     restore_original_mdl_state(thd, mdl_ticket);
-    DBUG_RETURN(true);
+    return true;
   }
 
   DEBUG_SYNC(thd, "create_trigger_has_acquired_mdl");
@@ -487,17 +431,21 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
   if (table->triggers == nullptr &&
       (table->triggers = Table_trigger_dispatcher::create(table)) == nullptr) {
     restore_original_mdl_state(thd, mdl_ticket);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Charset of the buffer for statement must be system one. */
   String stmt_query;
   stmt_query.set_charset(system_charset_info);
 
-  bool result = table->triggers->create_trigger(thd, &stmt_query);
+  bool trigger_already_exists = false;
+  bool result = table->triggers->create_trigger(
+      thd, &stmt_query,
+      thd->lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS,
+      trigger_already_exists);
 
   result |= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
-                                 !result);
+                                 !result, !(result || trigger_already_exists));
 
   DBUG_EXECUTE_IF("simulate_create_trigger_failure", {
     result = true;
@@ -516,7 +464,7 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
 
   restore_original_mdl_state(thd, mdl_ticket);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -536,26 +484,27 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
 */
 
 bool Sql_cmd_drop_trigger::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_drop_trigger::execute");
+  DBUG_TRACE;
 
   if (!thd->lex->spname->m_db.length) {
     my_error(ER_NO_DB_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (check_readonly(thd, true)) DBUG_RETURN(true);
+  if (check_readonly(thd, true)) return true;
 
   // This auto releaser will own the DD objects that we commit
   // at the bottom of this function.
   dd::Schema_MDL_locker schema_mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (schema_mdl_locker.ensure_locked(thd->lex->spname->m_db.str))
-    DBUG_RETURN(true);
+  if (schema_mdl_locker.ensure_locked(thd->lex->spname->m_db.str)) return true;
+
+  if (check_schema_readonly(thd, thd->lex->spname->m_db.str)) return true;
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str))
-    DBUG_RETURN(true);
+    return true;
 
   /* Charset of the buffer for statement must be system one. */
   String stmt_query;
@@ -565,10 +514,10 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
   if (get_table_for_trigger(thd, thd->lex->spname->m_db,
                             thd->lex->spname->m_name, thd->lex->drop_if_exists,
                             &tables))
-    DBUG_RETURN(true);
+    return true;
 
   if (tables == nullptr) {
-    DBUG_ASSERT(thd->lex->drop_if_exists == true);
+    assert(thd->lex->drop_if_exists == true);
     /*
       Since the trigger does not exist, there is no associated table,
       and therefore :
@@ -584,14 +533,14 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
         write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), false);
 
     if (!result) my_ok(thd);
-    DBUG_RETURN(result);
+    return result;
   }
 
-  if (check_trg_priv_on_subj_table(thd, tables)) DBUG_RETURN(true);
+  if (check_trg_priv_on_subj_table(thd, tables)) return true;
 
   MDL_ticket *mdl_ticket = nullptr;
   TABLE *table = open_and_lock_subj_table(thd, tables, &mdl_ticket);
-  if (table == nullptr) DBUG_RETURN(true);
+  if (table == nullptr) return true;
 
   DEBUG_SYNC(thd, "drop_trigger_has_acquired_mdl");
 
@@ -600,16 +549,16 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
                                                  &dd_table)) {
     // Error is reported by the dictionary subsystem.
     restore_original_mdl_state(thd, mdl_ticket);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_ASSERT(dd_table != nullptr);
+  assert(dd_table != nullptr);
 
   const dd::Trigger *dd_trig_obj =
       dd_table->get_trigger(thd->lex->spname->m_name.str);
   if (dd_trig_obj == nullptr) {
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
     restore_original_mdl_state(thd, mdl_ticket);
-    DBUG_RETURN(true);
+    return true;
   }
 
   dd_table->drop_trigger(dd_trig_obj);
@@ -618,7 +567,8 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
   if (!result)
     result = stmt_query.append(thd->query().str, thd->query().length);
 
-  result |= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
+  result |= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result,
+                                 !result);
 
   DBUG_EXECUTE_IF("simulate_drop_trigger_failure", {
     result = true;
@@ -642,5 +592,5 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
 
   restore_original_mdl_state(thd, mdl_ticket);
 
-  DBUG_RETURN(result);
+  return result;
 }

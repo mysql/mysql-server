@@ -1,0 +1,56 @@
+# Variable: mysqlx_zstd_default_compression_level
+# Default : 3
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+#should pass when zstd library version >= 1.4.0
+--error 0,ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_zstd_default_compression_level=1;
+
+#should pass when zstd library version >= 1.4.0
+--error 0,ER_WRONG_VALUE_FOR_VAR
+SET @@global.mysqlx_zstd_default_compression_level=2;
+
+SET @@global.mysqlx_zstd_default_compression_level=3;
+show variables like 'mysqlx_zstd_default_compression_level';
+
+#should pass when zstd library version >= 1.4.0
+--error 0,ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_zstd_default_compression_level=-1;
+
+#should pass when zstd library version >= 1.4.0
+--error 0,ER_WRONG_VALUE_FOR_VAR
+SET @@global.mysqlx_zstd_default_compression_level=-2;
+
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_zstd_default_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_zstd_default_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_zstd_default_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_zstd_default_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_zstd_default_compression_level=4;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_zstd_default_compression_level='5';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_zstd_default_compression_level=0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_zstd_default_compression_level=128;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_zstd_default_compression_level=-150000;
+
+
+SET @@global.mysqlx_zstd_default_compression_level= DEFAULT;

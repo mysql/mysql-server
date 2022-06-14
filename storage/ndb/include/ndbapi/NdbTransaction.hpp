@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,6 @@ class NdbTransaction
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
-  friend class ha_ndbcluster;
   friend class NdbQueryImpl;
   friend class NdbQueryOperationImpl;
 #endif
@@ -944,6 +943,18 @@ public:
   void setMaxPendingBlobReadBytes(Uint32 bytes);
   void setMaxPendingBlobWriteBytes(Uint32 bytes);
 
+  /*
+   * Release completed operations and queries.
+   *
+   * NOTE! Only applications which reads/write blobs fully and does not keep
+   * blobs open/active over execute can safely use this function to release
+   * completed.
+   */
+  void releaseCompletedOpsAndQueries() {
+    releaseCompletedOperations();
+    releaseCompletedQueries();
+  }
+
 private:						
   /**
    * Release completed operations
@@ -1169,8 +1180,8 @@ private:
    * 1) Bitmask with used nodes
    * 2) Bitmask with nodes failed during op
    */
-  Uint32 m_db_nodes[2];
-  Uint32 m_failed_db_nodes[2];
+  Uint32 m_db_nodes[5];
+  Uint32 m_failed_db_nodes[5];
   
   int report_node_failure(Uint32 id);
 
@@ -1190,6 +1201,7 @@ private:
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;
+  bool m_userDefinedBlobOps;
   Uint8 thePendingBlobOps;
   Uint32 maxPendingBlobReadBytes;
   Uint32 maxPendingBlobWriteBytes;

@@ -18,55 +18,8 @@ RUN USE xplugintest
 RUN CREATE TABLE table1 ( _id INT , doc JSON ) 
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest_1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW TABLES
@@ -77,7 +30,7 @@ table2
 RUN SHOW CREATE TABLE table1
 Table	Create Table
 table1	CREATE TABLE `table1` (
-  `_id` int(11) DEFAULT NULL,
+  `_id` int DEFAULT NULL,
   `doc` json DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
@@ -86,7 +39,9 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest_1.table2
@@ -94,28 +49,30 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO table2 (doc) VALUES ('{"a":1,"_id":[100,200]}')
 
 1 rows affected
 RUN SELECT * FROM table2
-doc	_id
-{"a": 1, "_id": [100, 200]}	[100, 200]
+doc	_id	_json_schema
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}
 0 rows affected
 RUN ALTER TABLE table2 ADD COLUMN col1 INT 
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
+doc	_id	_json_schema	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
 0 rows affected
 RUN SHOW CREATE TABLE table1
 Table	Create Table
 table1	CREATE TABLE `table1` (
-  `_id` int(11) DEFAULT NULL,
+  `_id` int DEFAULT NULL,
   `doc` json DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
@@ -124,25 +81,27 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `col1` int(11) DEFAULT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  `col1` int DEFAULT NULL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":2,"_id":[300,400]}',300)
 
 1 rows affected
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
-{"a": 2, "_id": [300, 400]}	[300, 400]	300
+doc	_id	_json_schema	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	{"type": "object"}	300
 0 rows affected
 RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400)
 While executing INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400):
 Got expected error: Column '_id' cannot be null (code 1048)
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
-{"a": 2, "_id": [300, 400]}	[300, 400]	300
+doc	_id	_json_schema	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	{"type": "object"}	300
 0 rows affected
 send Mysqlx.Crud.Insert {
   collection {
@@ -167,10 +126,10 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 auto-generated id(s): 0000XXXXXXXX0000000000000001
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	0000XXXXXXXX0000000000000001	null
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
-{"a": 2, "_id": [300, 400]}	[300, 400]	300
+doc	_id	_json_schema	col1
+{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	0000XXXXXXXX0000000000000001	{"type": "object"}	null
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	{"type": "object"}	300
 0 rows affected
 RUN ALTER TABLE table2 DROP COLUMN _id
 
@@ -202,46 +161,25 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 auto-generated id(s): 0000XXXXXXXX0000000000000002
 RUN SELECT * FROM table2
-doc	col1
-{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	null
-{"a": 1, "_id": [100, 200]}	null
-{"a": 2, "_id": [300, 400]}	300
-{"a": 4, "b": [400, 400]}	400
-{"a": 5, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000002"}	null
+doc	_json_schema	col1
+{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	{"type": "object"}	null
+{"a": 1, "_id": [100, 200]}	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	{"type": "object"}	300
+{"a": 4, "b": [400, 400]}	{"type": "object"}	400
+{"a": 5, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000002"}	{"type": "object"}	null
 0 rows affected
 RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `col1` int(11) DEFAULT NULL
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  `col1` int DEFAULT NULL,
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE table2
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW CREATE TABLE table2
@@ -249,152 +187,25 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN CREATE TABLE table2_tmp ( col1 INT)
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2_tmp"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW CREATE TABLE table2
 While executing SHOW CREATE TABLE table2:
 Got expected error: Table 'xplugintest.table2' doesn't exist (code 1146)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Unknown table 'xplugintest.table2' (code 1051)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest_non_existing"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Unknown table 'xplugintest_non_existing.table2' (code 1051)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid number of arguments, expected 2 but got 1 (code 5015)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: OBJECT
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
+Got expected error: Invalid number of arguments, expected value for 'name' (code 5015)
+Got expected error: Invalid value for argument 'name' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -439,29 +250,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest_user_access"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: CREATE command denied to user 'user1'@'localhost' for table 'table1' (code 1142)
 RUN SHOW CREATE TABLE xplugintest_user_access.table1
 While executing SHOW CREATE TABLE xplugintest_user_access.table1:
@@ -483,39 +271,12 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table3"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table4"
-      }
-    }
-  }
-  namespace: "xplugin"
+Got expected error: Invalid number of arguments, expected value for 'schema' (code 5015)
+Mysqlx.Ok {
+  msg: "bye!"
 }
-
-Got expected error: Invalid number of arguments, expected 2 but got 3 (code 5015)
+ok
+Got expected error: 'alias' is not a valid field for create_collection command (code 5021)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -523,20 +284,31 @@ ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
+    type: OBJECT
+    obj {
+      fld {
+        key: "schema"
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "xplugintest"
+            }
+          }
+        }
       }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
+      fld {
+        key: "name"
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "table2"
+            }
+          }
+        }
       }
     }
   }
@@ -548,110 +320,21 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "non_existing"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Unknown database 'non_existing' (code 1049)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_NULL
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid type for argument 'name' at #2 (should be string) (code 5016)
+Got expected error: Invalid value for argument 'name' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: OBJECT
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table3"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
+Got expected error: Invalid value for argument 'schema' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Table 'table1' already exists (code 1050)
 Mysqlx.Ok {
   msg: "bye!"

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class SystemError {
   friend bool printSYSTEM_ERROR(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
     GCPStopDetected = 3,
@@ -57,7 +57,8 @@ public:
     TestStopOnError = 6,
     CopySubscriptionRef = 7,
     CopySubscriberRef = 8,
-    StartFragRefError = 9
+    StartFragRefError = 9,
+    ProtocolError = 10
   };
   
   Uint32 errorRef;

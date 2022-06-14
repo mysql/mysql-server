@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,22 +23,13 @@
 #ifndef BITSET_H
 #define BITSET_H
 
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xdr_gen/xcom_vp.h"
 
 bit_set *clone_bit_set(bit_set *orig);
 bit_set *new_bit_set(uint32_t bits);
 void bit_set_or(bit_set *x, bit_set const *y);
 void bit_set_xor(bit_set *x, bit_set const *y);
-void dbg_bit_set(bit_set *bs);
 char *dbg_bitset(bit_set const *p, u_int nodes);
 void free_bit_set(bit_set *bs);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

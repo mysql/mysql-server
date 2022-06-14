@@ -5,6 +5,7 @@
 # It runs in only two mtr combinations, using TABLE_SCAN or HASH_SCAN
 # for slave_rows_search_algorithms.
 
+--source include/big_test.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/not_parallel.inc
 

@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @saved_binlog_transaction_dependency_tracking =
+@@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
+CREATE TABLE t (a INT NOT NULL,
+b INT NOT NULL INVISIBLE,
+UNIQUE KEY(b));
+INSERT INTO t SET a = 1, b = 1;
+UPDATE t SET b = 2;
+INSERT INTO t SET a = 3, b = 3;
+INSERT INTO t SET a = 1, b = 1;
+# Verify that the last INSERT depends on the UPDATE, which it
+# depends on using only an INVISIBLE column. This proves that the index
+# on the INVISIBLE column is accounted for in the writeset.
+FLUSH LOGS;
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+DROP TABLE t;
+SET @@global.binlog_transaction_dependency_tracking = @saved_binlog_transaction_dependency_tracking;
+include/rpl_end.inc

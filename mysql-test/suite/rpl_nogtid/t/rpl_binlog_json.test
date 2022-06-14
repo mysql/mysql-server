@@ -16,6 +16,9 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
+# this test prints the output of mysqlbinlog
+--source include/not_binlog_transaction_compression_on.inc
+
 connection master;
 CREATE TABLE tab1 (json_col1 JSON);
 INSERT INTO tab1 (json_col1) VALUES ('{"key": "value", "key2": [1, 2, 3]}');

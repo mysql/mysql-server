@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,34 +29,19 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
-
-namespace ngs {
-
-class Sql_session_interface;
-class Protocol_encoder_interface;
-
-}  // namespace ngs
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/error_code.h"
 
 namespace xpl {
 
 namespace notices {
-ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
-                              ngs::Protocol_encoder_interface &proto,
-                              bool skip_single_error = false);
-ngs::Error_code send_client_id(ngs::Protocol_encoder_interface &proto,
-                               uint64_t client_id);
-ngs::Error_code send_account_expired(ngs::Protocol_encoder_interface &proto);
-ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder_interface &proto,
-                                         uint64_t i);
-ngs::Error_code send_rows_affected(ngs::Protocol_encoder_interface &proto,
-                                   uint64_t i);
-ngs::Error_code send_message(ngs::Protocol_encoder_interface &proto,
-                             const std::string &message);
-ngs::Error_code send_generated_document_ids(
-    ngs::Protocol_encoder_interface &proto,
-    const std::vector<std::string> &ids);
+std::string serialize_warning(const iface::Warning_level level,
+                              const uint32_t code, const std::string &msg);
 
+ngs::Error_code send_warnings(iface::Sql_session *da,
+                              iface::Protocol_encoder *proto,
+                              bool skip_single_error = false);
 }  //  namespace notices
 }  // namespace xpl
 

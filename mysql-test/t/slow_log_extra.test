@@ -5,6 +5,7 @@
 # We'll be looking at the contents of the slow log later, and PS protocol
 # would give us extra lines for the prepare and drop phases.
 --source include/no_ps_protocol.inc
+--source include/not_valgrind.inc
 
 SET @save_sqlf=@@global.slow_query_log_file;
 
@@ -104,3 +105,37 @@ SET @@global.slow_query_log_file=@save_sqlf;
 SET GLOBAL slow_query_log=1;
 
 --remove_file $SLOW_LOG2
+
+--echo #
+--echo # Bug#30769965: WITH LOG_SLOW_EXTRA=ON ERRNO: INFO NOT GETTING UPDATED
+--echo # CORRECTLY FOR ERROR
+--echo #
+
+SET @save_sqlf=@@global.slow_query_log_file;
+
+--replace_result $MYSQL_TMP_DIR ...
+eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_extra_slow3.log';
+
+let SLOW_LOG3= `SELECT @@global.slow_query_log_file`;
+
+# Can also use SET SESSION, but NOT SET GLOBAL, as the check is not done
+# against the global variable.
+SET long_query_time=0;
+
+--error ER_WRONG_AUTO_KEY
+CREATE TABLE b(id INT NOT NULL AUTO_INCREMENT);
+
+--echo # Look for Errnos in slow log. There should be two,
+--echo # both SET and CREATE will be logged as slow.
+--perl
+open FILE, "$ENV{'SLOW_LOG3'}" or die "Could not open tmp slow log file: $!";
+while (<FILE>) {
+  if (/Errno: (\d+)/)  { print "# Found Errno: $1 in slow log\n"; }
+}
+close (FILE);
+EOF
+
+SET @@global.slow_query_log_file=@save_sqlf;
+SET GLOBAL slow_query_log=1;
+
+--remove_file $SLOW_LOG3

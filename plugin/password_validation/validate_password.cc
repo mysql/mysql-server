@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,6 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/service_locking.h"
 #include "mysql/service_mysql_alloc.h"
@@ -107,11 +106,11 @@ static const char *policy_names[] = {"LOW", "MEDIUM", "STRONG", NullS};
 
 static TYPELIB password_policy_typelib_t = {array_elements(policy_names) - 1,
                                             "password_policy_typelib_t",
-                                            policy_names, NULL};
+                                            policy_names, nullptr};
 
 typedef std::string string_type;
 typedef std::set<string_type> set_type;
-static set_type dictionary_words;
+static set_type *dictionary_words{nullptr};
 
 static int validate_password_length;
 static int validate_password_number_count;
@@ -119,7 +118,7 @@ static int validate_password_mixed_case_count;
 static int validate_password_special_char_count;
 static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
-static char *validate_password_dictionary_file_last_parsed = NULL;
+static char *validate_password_dictionary_file_last_parsed = nullptr;
 static long long validate_password_dictionary_file_words_count = 0;
 static bool check_user_name;
 
@@ -139,7 +138,7 @@ static void dictionary_activate(set_type *dict_words) {
   char *new_ts;
 
   /* fetch the start time */
-  start_time = my_time(MYF(0));
+  start_time = time(nullptr);
   localtime_r(&start_time, &tm);
   snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
@@ -147,8 +146,8 @@ static void dictionary_activate(set_type *dict_words) {
   new_ts = my_strdup(PSI_NOT_INSTRUMENTED, timebuf, MYF(0));
 
   mysql_rwlock_wrlock(&LOCK_dict_file);
-  std::swap(dictionary_words, *dict_words);
-  validate_password_dictionary_file_words_count = dictionary_words.size();
+  std::swap(*dictionary_words, *dict_words);
+  validate_password_dictionary_file_words_count = dictionary_words->size();
   std::swap(new_ts, validate_password_dictionary_file_last_parsed);
   mysql_rwlock_unlock(&LOCK_dict_file);
 
@@ -163,7 +162,7 @@ static void read_dictionary_file() {
   set_type dict_words;
   std::streamoff file_length;
 
-  if (validate_password_dictionary_file == NULL) {
+  if (validate_password_dictionary_file == nullptr) {
     if (validate_password_policy == PASSWORD_POLICY_STRONG)
       LogPluginErr(WARNING_LEVEL, ER_VALIDATE_PWD_DICT_FILE_NOT_SPECIFIED);
     /* NULL is a valid value, despite the warning */
@@ -198,10 +197,10 @@ static void read_dictionary_file() {
 /* Clear words from std::set */
 static void free_dictionary_file() {
   mysql_rwlock_wrlock(&LOCK_dict_file);
-  if (!dictionary_words.empty()) dictionary_words.clear();
+  if (!dictionary_words->empty()) dictionary_words->clear();
   if (validate_password_dictionary_file_last_parsed) {
     my_free(validate_password_dictionary_file_last_parsed);
-    validate_password_dictionary_file_last_parsed = NULL;
+    validate_password_dictionary_file_last_parsed = nullptr;
   }
   mysql_rwlock_unlock(&LOCK_dict_file);
 }
@@ -215,7 +214,7 @@ static int validate_dictionary_check(mysql_string_handle password) {
   int error = 0;
   char *buffer;
 
-  if (dictionary_words.empty()) return (1);
+  if (dictionary_words->empty()) return (1);
 
   /* New String is allocated */
   mysql_string_handle lower_string_handle = mysql_string_to_lowercase(password);
@@ -239,8 +238,8 @@ static int validate_dictionary_check(mysql_string_handle password) {
     substr_pos = 0;
     while (substr_pos + substr_length <= length) {
       password_substr = password_str.substr(substr_pos, substr_length);
-      itr = dictionary_words.find(password_substr);
-      if (itr != dictionary_words.end()) {
+      itr = dictionary_words->find(password_substr);
+      if (itr != dictionary_words->end()) {
         mysql_rwlock_unlock(&LOCK_dict_file);
         free(buffer);
         return (0);
@@ -299,7 +298,7 @@ static bool my_memcmp_reverse(const char *a, size_t a_len, const char *b,
 static bool is_valid_user(MYSQL_SECURITY_CONTEXT ctx, const char *buffer,
                           int length, const char *field_name,
                           const char *logical_name) {
-  MYSQL_LEX_CSTRING user = {NULL, 0};
+  MYSQL_LEX_CSTRING user = {nullptr, 0};
 
   if (security_context_get_option(ctx, field_name, &user)) {
     LogPluginErr(ERROR_LEVEL,
@@ -334,7 +333,7 @@ static bool is_valid_user(MYSQL_SECURITY_CONTEXT ctx, const char *buffer,
 static bool is_valid_password_by_user_name(mysql_string_handle password) {
   char buffer[MAX_PASSWORD_LENGTH];
   int length, error;
-  MYSQL_SECURITY_CONTEXT ctx = NULL;
+  MYSQL_SECURITY_CONTEXT ctx = nullptr;
 
   if (!check_user_name) return true;
 
@@ -474,6 +473,7 @@ static struct st_mysql_validate_password validate_password_descriptor = {
 static int validate_password_init(MYSQL_PLUGIN plugin_info) {
   push_deprecated_warn(thd_get_current_thd(), "validate password plugin",
                        "validate_password component");
+  dictionary_words = new set_type();
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return (1);
 
@@ -494,12 +494,14 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info) {
   It empty the std::set and returns 0
 */
 
-static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int validate_password_deinit(void *arg [[maybe_unused]]) {
   push_deprecated_warn(thd_get_current_thd(), "validate password plugin",
                        "validate_password component");
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+  delete dictionary_words;
+  dictionary_words = nullptr;
   return (0);
 }
 
@@ -508,9 +510,9 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
   If dictionary file is changed, this function will flush
   the cache and re-load the new dictionary file.
 */
-static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr, const void *save) {
+static void dictionary_update(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]], void *var_ptr,
+                              const void *save) {
   *static_cast<const char **>(var_ptr) =
       *static_cast<const char **>(const_cast<void *>(save));
   read_dictionary_file();
@@ -523,8 +525,8 @@ static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   3. validate_password_mixed_case_count
   4. validate_password_special_char_count
 */
-static void length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                          SYS_VAR *var MY_ATTRIBUTE((unused)), void *var_ptr,
+static void length_update(MYSQL_THD thd [[maybe_unused]],
+                          SYS_VAR *var [[maybe_unused]], void *var_ptr,
                           const void *save) {
   /* check if there is an actual change */
   if (*static_cast<int *>(var_ptr) == *static_cast<const int *>(save)) return;
@@ -545,49 +547,49 @@ static void length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
 static MYSQL_SYSVAR_INT(
     length, validate_password_length, PLUGIN_VAR_RQCMDARG,
-    "Password validate length to check for minimum password_length", NULL,
+    "Password validate length to check for minimum password_length", nullptr,
     length_update, 8, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(
     number_count, validate_password_number_count, PLUGIN_VAR_RQCMDARG,
     "password validate digit to ensure minimum numeric character in password",
-    NULL, length_update, 1, 0, 0, 0);
+    nullptr, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(mixed_case_count, validate_password_mixed_case_count,
                         PLUGIN_VAR_RQCMDARG,
                         "Password validate mixed case to ensure minimum "
                         "upper/lower case in password",
-                        NULL, length_update, 1, 0, 0, 0);
+                        nullptr, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(
     special_char_count, validate_password_special_char_count,
     PLUGIN_VAR_RQCMDARG,
     "password validate special to ensure minimum special character in password",
-    NULL, length_update, 1, 0, 0, 0);
+    nullptr, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_ENUM(
     policy, validate_password_policy, PLUGIN_VAR_RQCMDARG,
     "password_validate_policy choosen policy to validate password"
     "possible values are LOW MEDIUM (default), STRONG",
-    NULL, NULL, PASSWORD_POLICY_MEDIUM, &password_policy_typelib_t);
+    nullptr, nullptr, PASSWORD_POLICY_MEDIUM, &password_policy_typelib_t);
 
 static MYSQL_SYSVAR_STR(
     dictionary_file, validate_password_dictionary_file,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "password_validate_dictionary file to be loaded and check for password",
-    NULL, dictionary_update, NULL);
+    nullptr, dictionary_update, nullptr);
 
 static MYSQL_SYSVAR_BOOL(
     check_user_name, check_user_name, PLUGIN_VAR_NOCMDARG,
     "Check if the password matches the login or the effective user names "
     "or the reverse of them",
-    NULL, NULL, true);
+    nullptr, nullptr, true);
 
 static SYS_VAR *validate_password_system_variables[] = {
     MYSQL_SYSVAR(length),           MYSQL_SYSVAR(number_count),
     MYSQL_SYSVAR(mixed_case_count), MYSQL_SYSVAR(special_char_count),
     MYSQL_SYSVAR(policy),           MYSQL_SYSVAR(dictionary_file),
-    MYSQL_SYSVAR(check_user_name),  NULL};
+    MYSQL_SYSVAR(check_user_name),  nullptr};
 
 static SHOW_VAR validate_password_status_variables[] = {
     {"validate_password_dictionary_file_last_parsed",
@@ -602,15 +604,15 @@ mysql_declare_plugin(validate_password){
     MYSQL_VALIDATE_PASSWORD_PLUGIN, /*   type                            */
     &validate_password_descriptor,  /*   descriptor                      */
     "validate_password",            /*   name                            */
-    "Oracle Corporation",           /*   author                          */
+    PLUGIN_AUTHOR_ORACLE,           /*   author                          */
     "check password strength",      /*   description                     */
     PLUGIN_LICENSE_GPL,
     validate_password_init,             /*   init function (when loaded)     */
-    NULL,                               /*   cwcheck uninstall function      */
+    nullptr,                            /*   cwcheck uninstall function      */
     validate_password_deinit,           /*   deinit function (when unloaded) */
     0x0101,                             /*   version                         */
     validate_password_status_variables, /*   status variables                */
     validate_password_system_variables, /*   system variables                */
-    NULL,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

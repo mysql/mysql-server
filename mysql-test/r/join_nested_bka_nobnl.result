@@ -1,0 +1,2750 @@
+set optimizer_switch='batched_key_access=on,block_nested_loop=off,mrr_cost_based=off';
+DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+CREATE TABLE t0 (a int, b int, c int);
+CREATE TABLE t1 (a int, b int, c int);
+CREATE TABLE t2 (a int, b int, c int);
+CREATE TABLE t3 (a int, b int, c int);
+CREATE TABLE t4 (a int, b int, c int);
+CREATE TABLE t5 (a int, b int, c int);
+CREATE TABLE t6 (a int, b int, c int);
+CREATE TABLE t7 (a int, b int, c int);
+CREATE TABLE t8 (a int, b int, c int);
+CREATE TABLE t9 (a int, b int, c int);
+INSERT INTO t0 VALUES (1,1,0), (1,2,0), (2,2,0);
+INSERT INTO t1 VALUES (1,3,0), (2,2,0), (3,2,0);
+INSERT INTO t2 VALUES (3,3,0), (4,2,0), (5,3,0);
+INSERT INTO t3 VALUES (1,2,0), (2,2,0);
+INSERT INTO t4 VALUES (3,2,0), (4,2,0);
+INSERT INTO t5 VALUES (3,1,0), (2,2,0), (3,3,0);
+INSERT INTO t6 VALUES (3,2,0), (6,2,0), (6,1,0);
+INSERT INTO t7 VALUES (1,1,0), (2,2,0);
+INSERT INTO t8 VALUES (0,2,0), (1,2,0);
+INSERT INTO t9 VALUES (1,1,0), (1,2,0), (3,3,0);
+CREATE TABLE t34 (a3 int, b3 int, c3 int, a4 int, b4 int, c4 int);
+INSERT INTO t34
+SELECT t3.*, t4.*
+FROM t3 CROSS JOIN t4;
+CREATE TABLE t345 (a3 int, b3 int, c3 int, a4 int, b4 int, c4 int,
+a5 int, b5 int, c5 int);
+INSERT INTO t345
+SELECT t3.*, t4.*, t5.*
+FROM t3 CROSS JOIN t4 CROSS JOIN t5;
+CREATE TABLE t67 (a6 int, b6 int, c6 int, a7 int, b7 int, c7 int);
+INSERT INTO t67
+SELECT t6.*, t7.*
+FROM t6 CROSS JOIN t7;
+SELECT t2.a,t2.b
+FROM t2;
+a	b
+3	3
+4	2
+5	3
+SELECT t3.a,t3.b
+FROM t3;
+a	b
+1	2
+2	2
+SELECT t4.a,t4.b
+FROM t4;
+a	b
+3	2
+4	2
+SELECT t3.a,t3.b,t4.a,t4.b
+FROM t3,t4;
+a	b	a	b
+1	2	3	2
+1	2	4	2
+2	2	3	2
+2	2	4	2
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t2.b=t4.b;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+4	2	2	2	3	2
+4	2	2	2	4	2
+5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4
+FROM t2
+LEFT JOIN t34
+ON t2.b=t34.b4;
+a	b	a3	b3	a4	b4
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+4	2	2	2	3	2
+4	2	2	2	4	2
+5	3	NULL	NULL	NULL	NULL
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4
+FROM t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4;
+a	b	a3	b3	a4	b4
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t2.b=t4.b
+WHERE t3.a=1 OR t3.c IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where ((`test`.`t3`.`a` = 1) or (`test`.`t3`.`c` is null))
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t2.b=t4.b
+WHERE t3.a=1 OR t3.c IS NULL;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4
+FROM t2
+LEFT JOIN t34
+ON t2.b=t34.b4
+WHERE t34.a3=1 OR t34.c3 IS NULL;
+a	b	a3	b3	a4	b4
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t2.b=t4.b
+WHERE t3.a>1 OR t3.c IS NULL;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	2	2	3	2
+4	2	2	2	4	2
+5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4
+FROM t2
+LEFT JOIN t34
+ON t2.b=t34.b4
+WHERE t34.a3>1 OR t34.c3 IS NULL;
+a	b	a3	b3	a4	b4
+3	3	NULL	NULL	NULL	NULL
+4	2	2	2	3	2
+4	2	2	2	4	2
+5	3	NULL	NULL	NULL	NULL
+SELECT t5.a,t5.b
+FROM t5;
+a	b
+3	1
+2	2
+3	3
+SELECT t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+FROM t3,t4,t5;
+a	b	a	b	a	b
+1	2	3	2	2	2
+1	2	3	2	3	1
+1	2	3	2	3	3
+1	2	4	2	2	2
+1	2	4	2	3	1
+1	2	4	2	3	3
+2	2	3	2	2	2
+2	2	3	2	3	1
+2	2	3	2	3	3
+2	2	4	2	2	2
+2	2	4	2	3	1
+2	2	4	2	3	3
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+FROM t2
+LEFT JOIN              
+(t3, t4, t5)
+ON t2.b=t4.b;
+a	b	a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	3	2	2	2
+4	2	1	2	3	2	3	1
+4	2	1	2	3	2	3	3
+4	2	1	2	4	2	2	2
+4	2	1	2	4	2	3	1
+4	2	1	2	4	2	3	3
+4	2	2	2	3	2	2	2
+4	2	2	2	3	2	3	1
+4	2	2	2	3	2	3	3
+4	2	2	2	4	2	2	2
+4	2	2	2	4	2	3	1
+4	2	2	2	4	2	3	3
+5	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t345.a3,t345.b3,t345.a4,t345.b4,t345.a5,t345.b5
+FROM t2
+LEFT JOIN t345
+ON t2.b=t345.b4;
+a	b	a3	b3	a4	b4	a5	b5
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	3	2	2	2
+4	2	1	2	3	2	3	1
+4	2	1	2	3	2	3	3
+4	2	1	2	4	2	2	2
+4	2	1	2	4	2	3	1
+4	2	1	2	4	2	3	3
+4	2	2	2	3	2	2	2
+4	2	2	2	3	2	3	1
+4	2	2	2	3	2	3	3
+4	2	2	2	4	2	2	2
+4	2	2	2	4	2	3	1
+4	2	2	2	4	2	3	3
+5	3	NULL	NULL	NULL	NULL	NULL	NULL
+ANALYZE TABLE t2, t3, t4, t5;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+EXPLAIN
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+FROM t2
+LEFT JOIN              
+(t3, t4, t5)
+ON t2.b=t4.b
+WHERE t3.a>1 OR t3.c IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4` join `test`.`t5`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where ((`test`.`t3`.`a` > 1) or (`test`.`t3`.`c` is null))
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+FROM t2
+LEFT JOIN              
+(t3, t4, t5)
+ON t2.b=t4.b
+WHERE t3.a>1 OR t3.c IS NULL;
+a	b	a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	2	2	3	2	2	2
+4	2	2	2	3	2	3	1
+4	2	2	2	3	2	3	3
+4	2	2	2	4	2	2	2
+4	2	2	2	4	2	3	1
+4	2	2	2	4	2	3	3
+5	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t345.a3,t345.b3,t345.a4,t345.b4,t345.a5,t345.b5
+FROM t2
+LEFT JOIN t345
+ON t2.b=t345.b4
+WHERE t345.a3>1 OR t345.c3 IS NULL;
+a	b	a3	b3	a4	b4	a5	b5
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	2	2	3	2	2	2
+4	2	2	2	3	2	3	1
+4	2	2	2	3	2	3	3
+4	2	2	2	4	2	2	2
+4	2	2	2	4	2	3	1
+4	2	2	2	4	2	3	3
+5	3	NULL	NULL	NULL	NULL	NULL	NULL
+ANALYZE TABLE t2, t3, t4, t5;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+EXPLAIN
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+FROM t2
+LEFT JOIN              
+(t3, t4, t5)
+ON t2.b=t4.b
+WHERE (t3.a>1 OR t3.c IS NULL) AND 
+(t5.a<3 OR t5.c IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4` join `test`.`t5`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where (((`test`.`t3`.`a` > 1) or (`test`.`t3`.`c` is null)) and ((`test`.`t5`.`a` < 3) or (`test`.`t5`.`c` is null)))
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+FROM t2
+LEFT JOIN              
+(t3, t4, t5)
+ON t2.b=t4.b
+WHERE (t3.a>1 OR t3.c IS NULL) AND 
+(t5.a<3 OR t5.c IS NULL);
+a	b	a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	2	2	3	2	2	2
+4	2	2	2	4	2	2	2
+5	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t345.a3,t345.b3,t345.a4,t345.b4,t345.a5,t345.b5
+FROM t2
+LEFT JOIN t345
+ON t2.b=t345.b4
+WHERE (t345.a3>1 OR t345.c3 IS NULL) AND 
+(t345.a5<3 OR t345.c5 IS NULL);
+a	b	a3	b3	a4	b4	a5	b5
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	2	2	3	2	2	2
+4	2	2	2	4	2	2	2
+5	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t6.a,t6.b
+FROM t6;
+a	b
+3	2
+6	2
+6	1
+SELECT t7.a,t7.b
+FROM t7;
+a	b
+1	1
+2	2
+SELECT t6.a,t6.b,t7.a,t7.b
+FROM t6,t7;
+a	b	a	b
+3	2	1	1
+3	2	2	2
+6	1	1	1
+6	1	2	2
+6	2	1	1
+6	2	2	2
+SELECT t8.a,t8.b
+FROM t8;
+a	b
+0	2
+1	2
+ANALYZE TABLE t6, t7, t8;
+Table	Op	Msg_type	Msg_text
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+EXPLAIN
+SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM (t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t7`.`b`) and (`test`.`t6`.`b` < 10))) where true
+SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM (t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10;
+a	b	a	b	a	b
+3	2	1	1	NULL	NULL
+3	2	2	2	0	2
+3	2	2	2	1	2
+6	1	1	1	NULL	NULL
+6	1	2	2	0	2
+6	1	2	2	1	2
+6	2	1	1	NULL	NULL
+6	2	2	2	0	2
+6	2	2	2	1	2
+"Standard compliant copy of above query"
+SELECT t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10;
+a6	b6	a7	b7	a	b
+3	2	1	1	NULL	NULL
+3	2	2	2	0	2
+3	2	2	2	1	2
+6	1	1	1	NULL	NULL
+6	1	2	2	0	2
+6	1	2	2	1	2
+6	2	1	1	NULL	NULL
+6	2	2	2	0	2
+6	2	2	2	1	2
+SELECT t5.a,t5.b
+FROM t5;
+a	b
+3	1
+2	2
+3	3
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b;
+a	b	a	b	a	b	a	b
+2	2	3	2	2	2	0	2
+2	2	3	2	2	2	1	2
+2	2	6	2	2	2	0	2
+2	2	6	2	2	2	1	2
+3	1	3	2	1	1	NULL	NULL
+3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7;
+a	b	a6	b6	a7	b7	a	b
+2	2	3	2	2	2	0	2
+2	2	3	2	2	2	1	2
+2	2	6	2	2	2	0	2
+2	2	6	2	2	2	1	2
+3	1	3	2	1	1	NULL	NULL
+3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b AND
+(t8.a < 1 OR t8.c IS NULL);
+a	b	a	b	a	b	a	b
+2	2	3	2	2	2	0	2
+2	2	6	2	2	2	0	2
+3	1	3	2	1	1	NULL	NULL
+3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7 AND
+(t8.a < 1 OR t8.c IS NULL);
+a	b	a6	b6	a7	b7	a	b
+2	2	3	2	2	2	0	2
+2	2	6	2	2	2	0	2
+3	1	3	2	1	1	NULL	NULL
+3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4
+FROM t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4;
+a	b	a3	b3	a4	b4
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b;
+a	b	a	b	a	b	a	b	a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	3	2	2	2	3	2	2	2	0	2
+4	2	1	2	3	2	2	2	3	2	2	2	1	2
+4	2	1	2	3	2	2	2	6	2	2	2	0	2
+4	2	1	2	3	2	2	2	6	2	2	2	1	2
+4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	4	2	2	2	3	2	2	2	0	2
+4	2	1	2	4	2	2	2	3	2	2	2	1	2
+4	2	1	2	4	2	2	2	6	2	2	2	0	2
+4	2	1	2	4	2	2	2	6	2	2	2	1	2
+4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7;
+a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b
+3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	3	2	2	2	3	2	2	2	0	2
+4	2	1	2	3	2	2	2	3	2	2	2	1	2
+4	2	1	2	3	2	2	2	6	2	2	2	0	2
+4	2	1	2	3	2	2	2	6	2	2	2	1	2
+4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	4	2	2	2	3	2	2	2	0	2
+4	2	1	2	4	2	2	2	3	2	2	2	1	2
+4	2	1	2	4	2	2	2	6	2	2	2	0	2
+4	2	1	2	4	2	2	2	6	2	2	2	1	2
+4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b
+WHERE t2.a > 3 AND
+(t6.a < 6 OR t6.c IS NULL);
+a	b	a	b	a	b	a	b	a	b	a	b	a	b
+4	2	1	2	3	2	2	2	3	2	2	2	0	2
+4	2	1	2	3	2	2	2	3	2	2	2	1	2
+4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	4	2	2	2	3	2	2	2	0	2
+4	2	1	2	4	2	2	2	3	2	2	2	1	2
+4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7
+WHERE t2.a > 3 AND
+(t67.a6 < 6 OR t67.c6 IS NULL);
+a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b
+4	2	1	2	3	2	2	2	3	2	2	2	0	2
+4	2	1	2	3	2	2	2	3	2	2	2	1	2
+4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	2	1	2	4	2	2	2	3	2	2	2	0	2
+4	2	1	2	4	2	2	2	3	2	2	2	1	2
+4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t1.a,t1.b
+FROM t1;
+a	b
+1	3
+2	2
+3	2
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2);
+a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	3	3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7 
+)
+ON (t34.b3=2 OR t34.c3 IS NULL) AND (t67.b6=2 OR t67.c6 IS NULL) AND
+(t1.b=t5.b OR t34.c3 IS NULL OR t67.c6 IS NULL or t8.c IS NULL) AND
+(t1.a <> 2);
+a	b	a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	3	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	3	3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	2	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2)
+WHERE (t2.a >= 4 OR t2.c IS NULL);
+a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
+1	3	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7 
+)
+ON (t34.b3=2 OR t34.c3 IS NULL) AND (t67.b6=2 OR t67.c6 IS NULL) AND
+(t1.b=t5.b OR t34.c3 IS NULL OR t67.c6 IS NULL or t8.c IS NULL) AND
+(t1.a <> 2)
+WHERE (t2.a >= 4 OR t2.c IS NULL);
+a	b	a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b
+1	3	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+1	3	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
+3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT t0.a,t0.b
+FROM t0;
+a	b
+1	1
+1	2
+2	2
+ANALYZE TABLE t0, t1, t2, t3, t4, t5, t6, t7, t8;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2)
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or (`test`.`t3`.`c` is null)) and ((`test`.`t6`.`b` = 2) or (`test`.`t6`.`c` is null)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t6`.`c` is null) or (`test`.`t8`.`c` is null)) and (`test`.`t1`.`a` <> 2))) where ((`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or (`test`.`t2`.`c` is null)))
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2)
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL);
+a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
+1	2	3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
+1	2	3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b
+FROM t0
+CROSS JOIN t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7 
+)
+ON (t34.b3=2 OR t34.c3 IS NULL) AND (t67.b6=2 OR t67.c6 IS NULL) AND
+(t1.b=t5.b OR t34.c3 IS NULL OR t67.c6 IS NULL or t8.c IS NULL) AND
+(t1.a <> 2)
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL);
+a	b	a	b	a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
+1	2	3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
+1	2	3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+ANALYZE TABLE t0, t1, t2, t3, t4, t5, t6, t7, t8, t9;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+test.t9	analyze	status	OK
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or (`test`.`t3`.`c` is null)) and ((`test`.`t6`.`b` = 2) or (`test`.`t6`.`c` is null)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t6`.`c` is null) or (`test`.`t8`.`c` is null)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or (`test`.`t2`.`c` is null)) and ((`test`.`t3`.`a` < 5) or (`test`.`t3`.`c` is null)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t4`.`c` is null)) and ((`test`.`t5`.`a` >= 2) or (`test`.`t5`.`c` is null)) and ((`test`.`t6`.`a` >= 4) or (`test`.`t6`.`c` is null)) and ((`test`.`t7`.`a` <= 2) or (`test`.`t7`.`c` is null)) and ((`test`.`t8`.`a` < 1) or (`test`.`t8`.`c` is null)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or (`test`.`t8`.`c` is null)))
+SELECT t9.a,t9.b
+FROM t9;
+a	b
+1	1
+1	2
+3	3
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+"Standard compliant copy of above query"
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b,t9.a,t9.b
+FROM t0
+CROSS JOIN t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7 
+)
+ON (t34.b3=2 OR t34.c3 IS NULL) AND (t67.b6=2 OR t67.c6 IS NULL) AND
+(t1.b=t5.b OR t34.c3 IS NULL OR t67.c6 IS NULL or t8.c IS NULL) AND
+(t1.a <> 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t34.a3 < 5 OR t34.c3 IS NULL) AND
+(t34.b3=t34.b4 OR t34.c3 IS NULL OR t34.c4 IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t67.a6 >=4 OR t67.c6 IS NULL) AND
+(t67.a7 <= 2 OR t67.c7 IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+a	b	a	b	a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b	a	b
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+SELECT t1.a,t1.b
+FROM t1;
+a	b
+1	3
+2	2
+3	2
+SELECT t2.a,t2.b
+FROM t2;
+a	b
+3	3
+4	2
+5	3
+SELECT t3.a,t3.b
+FROM t3;
+a	b
+1	2
+2	2
+SELECT t2.a,t2.b,t3.a,t3.b
+FROM t2 
+LEFT JOIN              
+t3
+ON t2.b=t3.b;
+a	b	a	b
+3	3	NULL	NULL
+4	2	1	2
+4	2	2	2
+5	3	NULL	NULL
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
+FROM t1, t2 
+LEFT JOIN              
+t3
+ON t2.b=t3.b
+WHERE t1.a <= 2;
+a	b	a	b	a	b
+1	3	3	3	NULL	NULL
+1	3	4	2	1	2
+1	3	4	2	2	2
+1	3	5	3	NULL	NULL
+2	2	3	3	NULL	NULL
+2	2	4	2	1	2
+2	2	4	2	2	2
+2	2	5	3	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
+FROM t1
+CROSS JOIN t2
+LEFT JOIN              
+t3
+ON t2.b=t3.b
+WHERE t1.a <= 2;
+a	b	a	b	a	b
+1	3	3	3	NULL	NULL
+1	3	4	2	1	2
+1	3	4	2	2	2
+1	3	5	3	NULL	NULL
+2	2	3	3	NULL	NULL
+2	2	4	2	1	2
+2	2	4	2	2	2
+2	2	5	3	NULL	NULL
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
+FROM t1, t3 
+RIGHT JOIN              
+t2
+ON t2.b=t3.b
+WHERE t1.a <= 2;
+a	b	a	b	a	b
+1	3	3	3	NULL	NULL
+1	3	4	2	1	2
+1	3	4	2	2	2
+1	3	5	3	NULL	NULL
+2	2	3	3	NULL	NULL
+2	2	4	2	1	2
+2	2	4	2	2	2
+2	2	5	3	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
+FROM t1 CROSS JOIN
+(
+t3
+RIGHT JOIN              
+t2
+ON t2.b=t3.b
+)
+WHERE t1.a <= 2;
+a	b	a	b	a	b
+1	3	3	3	NULL	NULL
+1	3	4	2	1	2
+1	3	4	2	2	2
+1	3	5	3	NULL	NULL
+2	2	3	3	NULL	NULL
+2	2	4	2	1	2
+2	2	4	2	2	2
+2	2	5	3	NULL	NULL
+SELECT t3.a,t3.b,t4.a,t4.b
+FROM t3,t4;
+a	b	a	b
+1	2	3	2
+1	2	4	2
+2	2	3	2
+2	2	4	2
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2 
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2
+LEFT JOIN              
+(t3 CROSS JOIN t4)
+ON t3.a=1 AND t2.b=t4.b;
+a	b	a	b	a	b
+3	3	NULL	NULL	NULL	NULL
+4	2	1	2	3	2
+4	2	1	2	4	2
+5	3	NULL	NULL	NULL	NULL
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1 CROSS JOIN
+(
+t2 
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b
+)
+WHERE t1.a <= 2;
+a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2
+1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
+2	2	4	2	1	2	3	2
+2	2	4	2	1	2	4	2
+2	2	5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1 CROSS JOIN
+(
+t2
+LEFT JOIN              
+(t3 CROSS JOIN t4)
+ON t3.a=1 AND t2.b=t4.b
+)
+WHERE t1.a <= 2;
+a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2
+1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
+2	2	4	2	1	2	3	2
+2	2	4	2	1	2	4	2
+2	2	5	3	NULL	NULL	NULL	NULL
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1, (t3, t4) 
+RIGHT JOIN              
+t2
+ON t3.a=1 AND t2.b=t4.b
+WHERE t1.a <= 2;
+a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2
+1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
+2	2	4	2	1	2	3	2
+2	2	4	2	1	2	4	2
+2	2	5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1 CROSS JOIN
+(
+(t3 CROSS JOIN t4)
+RIGHT JOIN              
+t2
+ON t3.a=1 AND t2.b=t4.b
+)
+WHERE t1.a <= 2;
+a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2
+1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
+2	2	4	2	1	2	3	2
+2	2	4	2	1	2	4	2
+2	2	5	3	NULL	NULL	NULL	NULL
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1, (t3, t4)
+RIGHT JOIN              
+t2
+ON t3.a=1 AND t2.b=t4.b
+WHERE t1.a <= 2;
+a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2
+1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
+2	2	4	2	1	2	3	2
+2	2	4	2	1	2	4	2
+2	2	5	3	NULL	NULL	NULL	NULL
+"Standard compliant copy of above query"
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1 CROSS JOIN
+(
+(t3 CROSS JOIN t4)
+RIGHT JOIN              
+t2
+ON t3.a=1 AND t2.b=t4.b
+)
+WHERE t1.a <= 2;
+a	b	a	b	a	b	a	b
+1	3	3	3	NULL	NULL	NULL	NULL
+1	3	4	2	1	2	3	2
+1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
+2	2	4	2	1	2	3	2
+2	2	4	2	1	2	4	2
+2	2	5	3	NULL	NULL	NULL	NULL
+EXPLAIN
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t1, (t3, t4)
+RIGHT JOIN
+t2
+ON t3.a=1 AND t2.b=t4.b
+WHERE t1.a <= 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t1` join `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) where (`test`.`t1`.`a` <= 2)
+CREATE INDEX idx_b ON t2(b);
+EXPLAIN
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM (t3,t4)
+LEFT JOIN              
+(t1,t2)
+ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ref	idx_b	idx_b	5	test.t3.b	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t3` join `test`.`t4` left join (`test`.`t1` join `test`.`t2`) on(((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = 1))) where true
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM (t3,t4)
+LEFT JOIN              
+(t1,t2)
+ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+a	b	a	b	a	b
+4	2	1	2	3	2
+4	2	1	2	3	2
+4	2	1	2	3	2
+4	2	1	2	4	2
+4	2	1	2	4	2
+4	2	1	2	4	2
+NULL	NULL	2	2	3	2
+NULL	NULL	2	2	4	2
+"Standard compliant copy of above query"
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM (t3 CROSS JOIN t4)
+LEFT JOIN              
+(t1 CROSS JOIN t2)
+ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+a	b	a	b	a	b
+4	2	1	2	3	2
+4	2	1	2	3	2
+4	2	1	2	3	2
+4	2	1	2	4	2
+4	2	1	2	4	2
+4	2	1	2	4	2
+NULL	NULL	2	2	3	2
+NULL	NULL	2	2	4	2
+ANALYZE TABLE t0, t1, t2, t3, t4, t5, t6, t7, t8, t9;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+test.t9	analyze	status	OK
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or (`test`.`t3`.`c` is null)) and ((`test`.`t6`.`b` = 2) or (`test`.`t6`.`c` is null)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t6`.`c` is null) or (`test`.`t8`.`c` is null)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or (`test`.`t2`.`c` is null)) and ((`test`.`t3`.`a` < 5) or (`test`.`t3`.`c` is null)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t4`.`c` is null)) and ((`test`.`t5`.`a` >= 2) or (`test`.`t5`.`c` is null)) and ((`test`.`t6`.`a` >= 4) or (`test`.`t6`.`c` is null)) and ((`test`.`t7`.`a` <= 2) or (`test`.`t7`.`c` is null)) and ((`test`.`t8`.`a` < 1) or (`test`.`t8`.`c` is null)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or (`test`.`t8`.`c` is null)))
+CREATE INDEX idx_b ON t4(b);
+CREATE INDEX idx_b ON t5(b);
+ANALYZE TABLE t0, t1, t2, t3, t4, t5, t6, t7, t8, t9;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+test.t9	analyze	status	OK
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	idx_b	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	idx_b	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or (`test`.`t3`.`c` is null)) and ((`test`.`t6`.`b` = 2) or (`test`.`t6`.`c` is null)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t6`.`c` is null) or (`test`.`t8`.`c` is null)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or (`test`.`t2`.`c` is null)) and ((`test`.`t3`.`a` < 5) or (`test`.`t3`.`c` is null)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t4`.`c` is null)) and ((`test`.`t5`.`a` >= 2) or (`test`.`t5`.`c` is null)) and ((`test`.`t6`.`a` >= 4) or (`test`.`t6`.`c` is null)) and ((`test`.`t7`.`a` <= 2) or (`test`.`t7`.`c` is null)) and ((`test`.`t8`.`a` < 1) or (`test`.`t8`.`c` is null)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or (`test`.`t8`.`c` is null)))
+CREATE INDEX idx_b ON t8(b);
+ANALYZE TABLE t0, t1, t2, t3, t4, t5, t6, t7, t8, t9;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+test.t9	analyze	status	OK
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	idx_b	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	idx_b	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t8	NULL	ALL	idx_b	NULL	NULL	NULL	2	75.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or (`test`.`t3`.`c` is null)) and ((`test`.`t6`.`b` = 2) or (`test`.`t6`.`c` is null)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t6`.`c` is null) or (`test`.`t8`.`c` is null)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or (`test`.`t2`.`c` is null)) and ((`test`.`t3`.`a` < 5) or (`test`.`t3`.`c` is null)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t4`.`c` is null)) and ((`test`.`t5`.`a` >= 2) or (`test`.`t5`.`c` is null)) and ((`test`.`t6`.`a` >= 4) or (`test`.`t6`.`c` is null)) and ((`test`.`t7`.`a` <= 2) or (`test`.`t7`.`c` is null)) and ((`test`.`t8`.`a` < 1) or (`test`.`t8`.`c` is null)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or (`test`.`t8`.`c` is null)))
+CREATE INDEX idx_b ON t1(b);
+CREATE INDEX idx_a ON t0(a);
+ANALYZE TABLE t0, t1, t2, t3, t4, t5, t6, t7, t8, t9;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+test.t9	analyze	status	OK
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	idx_b	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t0	NULL	ref	idx_a	idx_a	5	const	2	33.33	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t4	NULL	ALL	idx_b	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	idx_b	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	SIMPLE	t8	NULL	ALL	idx_b	NULL	NULL	NULL	2	75.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or (`test`.`t3`.`c` is null)) and ((`test`.`t6`.`b` = 2) or (`test`.`t6`.`c` is null)) and ((`test`.`t5`.`b` = `test`.`t1`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t6`.`c` is null) or (`test`.`t8`.`c` is null)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t0`.`b` = `test`.`t1`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or (`test`.`t2`.`c` is null)) and ((`test`.`t3`.`a` < 5) or (`test`.`t3`.`c` is null)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or (`test`.`t3`.`c` is null) or (`test`.`t4`.`c` is null)) and ((`test`.`t5`.`a` >= 2) or (`test`.`t5`.`c` is null)) and ((`test`.`t6`.`a` >= 4) or (`test`.`t6`.`c` is null)) and ((`test`.`t7`.`a` <= 2) or (`test`.`t7`.`c` is null)) and ((`test`.`t8`.`a` < 1) or (`test`.`t8`.`c` is null)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or (`test`.`t8`.`c` is null)))
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+FROM t0,t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+(t3, t4)
+ON t3.a=1 AND t2.b=t4.b,
+t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b 
+)
+ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+(t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+(t1.a != 2),
+t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t3.a < 5 OR t3.c IS NULL) AND
+(t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t6.a >=4 OR t6.c IS NULL) AND
+(t7.a <= 2 OR t7.c IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+"Standard compliant copy of above query"
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4,
+t5.a,t5.b,t67.a6,t67.b6,t67.a7,t67.b7,t8.a,t8.b,t9.a,t9.b
+FROM t0
+CROSS JOIN t1
+LEFT JOIN                
+( 
+t2
+LEFT JOIN              
+t34
+ON t34.a3=1 AND t2.b=t34.b4
+CROSS JOIN t5 
+LEFT JOIN 
+( 
+t67
+LEFT JOIN 
+t8
+ON t67.b7=t8.b AND t67.b6 < 10
+)
+ON t67.b6 >= 2 AND t5.b=t67.b7 
+)
+ON (t34.b3=2 OR t34.c3 IS NULL) AND (t67.b6=2 OR t67.c6 IS NULL) AND
+(t1.b=t5.b OR t34.c3 IS NULL OR t67.c6 IS NULL or t8.c IS NULL) AND
+(t1.a <> 2)
+CROSS JOIN t9
+WHERE t0.a=1 AND
+t0.b=t1.b AND          
+(t2.a >= 4 OR t2.c IS NULL) AND
+(t34.a3 < 5 OR t34.c3 IS NULL) AND
+(t34.b3=t34.b4 OR t34.c3 IS NULL OR t34.c4 IS NULL) AND
+(t5.a >=2 OR t5.c IS NULL) AND
+(t67.a6 >=4 OR t67.c6 IS NULL) AND
+(t67.a7 <= 2 OR t67.c7 IS NULL) AND
+(t8.a < 1 OR t8.c IS NULL) AND
+(t8.b=t9.b OR t8.c IS NULL) AND
+(t9.a=1);
+a	b	a	b	a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b	a	b
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
+SELECT t2.a,t2.b
+FROM t2;
+a	b
+3	3
+4	2
+5	3
+SELECT t3.a,t3.b
+FROM t3;
+a	b
+1	2
+2	2
+SELECT t2.a,t2.b,t3.a,t3.b
+FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+WHERE t2.a = 4 OR (t2.a > 4 AND t3.a IS NULL);
+a	b	a	b
+4	2	1	2
+4	2	2	2
+5	3	NULL	NULL
+SELECT t2.a,t2.b,t3.a,t3.b
+FROM t2 LEFT JOIN (t3) ON t2.b=t3.b
+WHERE t2.a = 4 OR (t2.a > 4 AND t3.a IS NULL);
+a	b	a	b
+4	2	1	2
+4	2	2	2
+5	3	NULL	NULL
+ALTER TABLE t3
+CHANGE COLUMN a a1 int,
+CHANGE COLUMN c c1 int;
+SELECT t2.a,t2.b,t3.a1,t3.b
+FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
+a	b	a1	b
+4	2	1	2
+4	2	2	2
+5	3	NULL	NULL
+SELECT t2.a,t2.b,t3.a1,t3.b
+FROM t2 NATURAL LEFT JOIN t3
+WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
+a	b	a1	b
+4	2	1	2
+4	2	2	2
+5	3	NULL	NULL
+DROP TABLE t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+DROP TABLE t34, t345, t67;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t1 VALUES (2);
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a=t3.a) ON t1.a=t3.a;
+a	a	a
+1	NULL	NULL
+2	2	2
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+a	a	a
+1	NULL	NULL
+2	2	2
+DELETE FROM t1 WHERE a=2;
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+a	a	a
+1	NULL	NULL
+DELETE FROM t2;
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+a	a	a
+1	NULL	NULL
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1(a int, key (a));
+CREATE TABLE t2(b int, key (b));
+CREATE TABLE t3(c int, key (c));
+INSERT INTO t1 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+INSERT INTO t2 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+INSERT INTO t3 VALUES (0), (1), (2), (3), (4), (5);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON c < 3 and b = c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	100.00	Using index
+1	SIMPLE	t3	NULL	index	c	c	5	NULL	6	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t3`.`c` < 3))) where true
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	100.00	Using index
+1	SIMPLE	t3	NULL	index	c	c	5	NULL	6	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t3`.`c` < 3))) where true
+SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+1	0	0
+1	1	1
+1	2	2
+10	0	0
+10	1	1
+10	2	2
+11	0	0
+11	1	1
+11	2	2
+12	0	0
+12	1	1
+12	2	2
+13	0	0
+13	1	1
+13	2	2
+14	0	0
+14	1	1
+14	2	2
+15	0	0
+15	1	1
+15	2	2
+16	0	0
+16	1	1
+16	2	2
+17	0	0
+17	1	1
+17	2	2
+18	0	0
+18	1	1
+18	2	2
+19	0	0
+19	1	1
+19	2	2
+2	0	0
+2	1	1
+2	2	2
+3	0	0
+3	1	1
+3	2	2
+4	0	0
+4	1	1
+4	2	2
+5	0	0
+5	1	1
+5	2	2
+6	0	0
+6	1	1
+6	2	2
+7	0	0
+7	1	1
+7	2	2
+8	0	0
+8	1	1
+8	2	2
+9	0	0
+9	1	1
+9	2	2
+NULL	0	0
+NULL	1	1
+NULL	2	2
+DELETE FROM t3;
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	100.00	Using index
+1	SIMPLE	t3	NULL	index	c	c	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t3`.`c` < 3))) where true
+SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+a	b	c
+0	NULL	NULL
+1	NULL	NULL
+10	NULL	NULL
+11	NULL	NULL
+12	NULL	NULL
+13	NULL	NULL
+14	NULL	NULL
+15	NULL	NULL
+16	NULL	NULL
+17	NULL	NULL
+18	NULL	NULL
+19	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	NULL	NULL
+7	NULL	NULL
+8	NULL	NULL
+9	NULL	NULL
+NULL	NULL	NULL
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (c11 int);
+CREATE TABLE t2 (c21 int);
+CREATE TABLE t3 (c31 int);
+INSERT INTO t1 VALUES (4), (5);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SELECT * FROM t1 LEFT JOIN t2 ON c11=c21;
+c11	c21
+4	NULL
+5	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON c11=c21;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11`,`test`.`t2`.`c21` AS `c21` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`c21` = `test`.`t1`.`c11`)) where true
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
+c11	c21	c31
+4	NULL	NULL
+5	NULL	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11`,`test`.`t2`.`c21` AS `c21`,`test`.`t3`.`c31` AS `c31` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`c31` = `test`.`t1`.`c11`))) on((`test`.`t2`.`c21` = `test`.`t1`.`c11`)) where true
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (goods int(12) NOT NULL, price varchar(128) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (23, 2340), (26, 9900);
+CREATE TABLE t2 (goods int(12), name varchar(50), shop char(2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t2 VALUES (23, 'as300', 'fr'), (26, 'as600', 'fr');
+create table t3 (groupid int(12) NOT NULL, goodsid int(12) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t3 VALUES (3,23), (6,26);
+CREATE TABLE t4 (groupid int(12));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t4 VALUES (1), (2), (3), (4), (5), (6);
+SELECT * FROM
+(SELECT DISTINCT gl.groupid, gp.price
+FROM t4 gl 
+LEFT JOIN
+(t3 g INNER JOIN t2 p ON g.goodsid = p.goods 
+INNER JOIN t1 gp ON p.goods = gp.goods)
+ON gl.groupid = g.groupid and p.shop = 'fr') t;
+groupid	price
+1	NULL
+2	NULL
+3	2340
+4	NULL
+5	NULL
+6	9900
+CREATE VIEW v1 AS
+SELECT g.groupid groupid, p.goods goods,  
+p.name name, p.shop shop, 
+gp.price price
+FROM t3 g INNER JOIN t2 p ON g.goodsid = p.goods
+INNER JOIN t1 gp on p.goods = gp.goods;
+CREATE VIEW v2 AS
+SELECT DISTINCT g.groupid, fr.price
+FROM t4 g
+LEFT JOIN
+v1 fr on g.groupid = fr.groupid and fr.shop = 'fr';
+SELECT * FROM v2;
+groupid	price
+1	NULL
+2	NULL
+3	2340
+4	NULL
+5	NULL
+6	9900
+SELECT * FROM 
+(SELECT DISTINCT g.groupid, fr.price
+FROM t4 g
+LEFT JOIN
+v1 fr on g.groupid = fr.groupid and fr.shop = 'fr') t;
+groupid	price
+1	NULL
+2	NULL
+3	2340
+4	NULL
+5	NULL
+6	9900
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1(a int);
+CREATE TABLE t2(b int);
+CREATE TABLE t3(c int, d int);
+CREATE TABLE t4(d int);
+CREATE TABLE t5(e int, f int);
+CREATE TABLE t6(f int);
+CREATE VIEW v1 AS 
+SELECT e FROM t5 JOIN t6 ON t5.e=t6.f;
+CREATE VIEW v2 AS 
+SELECT e FROM t5 NATURAL JOIN t6;
+SELECT t1.a FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c JOIN t4 USING(d);
+a
+SELECT t1.x FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c JOIN t4 USING(d);
+ERROR 42S22: Unknown column 't1.x' in 'field list'
+SELECT t1.a FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c NATURAL JOIN t4;
+a
+SELECT t1.x FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c NATURAL JOIN t4;
+ERROR 42S22: Unknown column 't1.x' in 'field list'
+SELECT v1.e FROM v1 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+e
+SELECT v1.x FROM v1 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+ERROR 42S22: Unknown column 'v1.x' in 'field list'
+SELECT v2.e FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+e
+SELECT v2.x FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+ERROR 42S22: Unknown column 'v2.x' in 'field list'
+DROP VIEW v1, v2;
+DROP TABLE t1, t2, t3, t4, t5, t6;
+create table t1 (id1 int(11) not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+insert into t1 values (1),(2);
+create table t2 (id2 int(11) not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+insert into t2 values (1),(2),(3),(4);
+create table t3 (id3 char(16) not null);
+insert into t3 values ('100');
+create table t4 (id2 int(11) not null, id3 char(16));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+create table t5 (id1 int(11) not null, key (id1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+insert into t5 values (1),(2),(1);
+create view v1 as
+select t4.id3 from t4 join t2 on t4.id2 = t2.id2;
+select t1.id1 from t1 inner join (t3 left join v1 on t3.id3 = v1.id3);
+id1
+1
+2
+drop view v1;
+drop table t1, t2, t3, t4, t5;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3);
+create table t1(a int);
+insert into t1 select A.a + 10*(B.a) from t0 A, t0 B;
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2), (3,3);
+create table t3(a int, b int, filler char(200), key(a));
+insert into t3 select a,a,'filler' from t1;
+insert into t3 select a,a,'filler' from t1;
+create table t4 like t3;
+insert into t4 select * from t3;
+insert into t4 select * from t3;
+create table t5 like t4;
+insert into t5 select * from t4;
+insert into t5 select * from t4;
+create table t6 like t5;
+insert into t6 select * from t5;
+insert into t6 select * from t5;
+create table t7 like t6;
+insert into t7 select * from t6;
+insert into t7 select * from t6;
+ANALYZE TABLE t1, t2, t3, t4, t5, t6, t7;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+explain select * from t4 join 
+t2 left join (t3 join t5 on t5.a=t3.b) on t3.a=t2.b where t4.a<=>t3.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t5	NULL	ref	a	a	5	test.t3.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	a	a	5	test.t3.b	X	100.00	Using where; Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`filler` AS `filler` from `test`.`t4` join `test`.`t2` left join (`test`.`t3` join `test`.`t5`) on(((`test`.`t5`.`a` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`))) where (`test`.`t4`.`a` <=> `test`.`t3`.`b`)
+explain select * from (t4 join t6 on t6.a=t4.b) right join t3 on t4.a=t3.b
+join t2 left join (t5 join t7 on t7.a=t5.b) on t5.a=t2.b where t3.a<=>t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.b	X	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	a	a	5	test.t3.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t6	NULL	ref	a	a	5	test.t4.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t5	NULL	ref	a	a	5	test.t2.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t7	NULL	ref	a	a	5	test.t5.b	X	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`filler` AS `filler`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t6`.`filler` AS `filler`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`filler` AS `filler`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t7`.`filler` AS `filler` from `test`.`t3` left join (`test`.`t4` join `test`.`t6`) on(((`test`.`t6`.`a` = `test`.`t4`.`b`) and (`test`.`t4`.`a` = `test`.`t3`.`b`))) join `test`.`t2` left join (`test`.`t5` join `test`.`t7`) on(((`test`.`t7`.`a` = `test`.`t5`.`b`) and (`test`.`t5`.`a` = `test`.`t2`.`b`))) where (`test`.`t3`.`a` <=> `test`.`t2`.`b`)
+explain select * from t2 left join
+(t3 left join (t4 join t6 on t6.a=t4.b) on t4.a=t3.b 
+join t5 on t5.a=t3.b) on t3.a=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t5	NULL	ref	a	a	5	test.t3.b	X	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	a	a	5	test.t5.a	X	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t6	NULL	ref	a	a	5	test.t4.b	X	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`filler` AS `filler`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t6`.`filler` AS `filler`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`filler` AS `filler` from `test`.`t2` left join (`test`.`t3` left join (`test`.`t4` join `test`.`t6`) on(((`test`.`t6`.`a` = `test`.`t4`.`b`) and (`test`.`t4`.`a` = `test`.`t3`.`b`))) join `test`.`t5`) on(((`test`.`t5`.`a` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`))) where true
+drop table t0, t1, t2, t3, t4, t5, t6, t7;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, filler char(100), key(a));
+insert into t2 select A.a + 10*B.a, '' from t1 A, t1 B;
+create table t3 like t2;
+insert into t3 select * from t2;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+explain select * from t1 left join 
+(t2 left join t3 on (t2.a = t3.a)) 
+on (t1.a = t2.a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t2	NULL	ref	a	a	5	test.t1.a	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
+drop table t1, t2, t3;
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t2 (pid int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t3 (cid int NOT NULL PRIMARY KEY,
+id int NOT NULL,
+pid int NOT NULL);
+INSERT INTO t1 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t2 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t3 VALUES (1, 1, 1), (3, 3, 3);
+SELECT * FROM t1 p LEFT JOIN (t3 JOIN t1)
+ON (t1.id=t3.id AND t1.type='B' AND p.id=t3.id)
+LEFT JOIN t2 ON (t3.pid=t2.pid)
+WHERE p.id=1;
+id	type	cid	id	pid	id	type	pid	type
+1	A	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+CREATE VIEW v1 AS
+SELECT t3.* FROM t3 JOIN t1 ON t1.id=t3.id AND t1.type='B';
+SELECT * FROM t1 p LEFT JOIN v1 ON p.id=v1.id
+LEFT JOIN t2 ON v1.pid=t2.pid
+WHERE p.id=1;
+id	type	cid	id	pid	pid	type
+1	A	NULL	NULL	NULL	NULL	NULL
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t2 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t3 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t4 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t5 (id1 int PRIMARY KEY, id2 int);
+SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+LEFT OUTER JOIN
+(t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+ON t3.id2 IS NOT NULL
+WHERE t1.id1=2;
+id	ngroupbynsa
+PREPARE stmt FROM
+"SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2";
+EXECUTE stmt;
+id	ngroupbynsa
+EXECUTE stmt;
+id	ngroupbynsa
+EXECUTE stmt;
+id	ngroupbynsa
+EXECUTE stmt;
+id	ngroupbynsa
+INSERT INTO t1 VALUES (1,1), (2,1), (3,2);
+INSERT INTO t2 VALUES (2,1), (3,2), (4,3);
+INSERT INTO t3 VALUES (1,1), (3,2), (2,NULL);
+INSERT INTO t4 VALUES (1,1), (2,1), (3,3);
+INSERT INTO t5 VALUES (1,1), (2,2), (3,3), (4,3);
+EXECUTE stmt;
+id	ngroupbynsa
+2	1
+2	1
+EXECUTE stmt;
+id	ngroupbynsa
+2	1
+2	1
+EXECUTE stmt;
+id	ngroupbynsa
+2	1
+2	1
+EXECUTE stmt;
+id	ngroupbynsa
+2	1
+2	1
+SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+LEFT OUTER JOIN
+(t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+ON t3.id2 IS NOT NULL
+WHERE t1.id1=2;
+id	ngroupbynsa
+2	1
+2	1
+DROP TABLE t1,t2,t3,t4,t5;
+CREATE TABLE t1 (
+id int NOT NULL PRIMARY KEY,
+ct int DEFAULT NULL,
+pc int DEFAULT NULL,
+INDEX idx_ct (ct),
+INDEX idx_pc (pc)
+);
+INSERT INTO t1 VALUES  
+(1,NULL,NULL),(2,NULL,NULL),(3,NULL,NULL),(4,NULL,NULL),(5,NULL,NULL);
+CREATE TABLE t2 (
+id int NOT NULL PRIMARY KEY,
+sr int NOT NULL,
+nm varchar(255) NOT NULL,
+INDEX idx_sr (sr)
+);
+INSERT INTO t2 VALUES
+(2441905,4308,'LesAbymes'),(2441906,4308,'Anse-Bertrand');
+CREATE TABLE t3 (
+id int NOT NULL PRIMARY KEY,
+ct int NOT NULL,
+ln int NOT NULL,
+INDEX idx_ct (ct),
+INDEX idx_ln (ln)
+);
+CREATE TABLE t4 (
+id int NOT NULL PRIMARY KEY,
+nm varchar(255) NOT NULL
+);
+INSERT INTO t4 VALUES (4308,'Guadeloupe'),(4309,'Martinique');
+SELECT t1.*
+FROM t1 LEFT JOIN
+(t2 LEFT JOIN t3 ON t3.ct=t2.id AND t3.ln='5') ON t1.ct=t2.id
+WHERE t1.id='5';
+id	ct	pc
+5	NULL	NULL
+SELECT t1.*, t4.nm
+FROM t1 LEFT JOIN
+(t2 LEFT JOIN t3 ON t3.ct=t2.id AND t3.ln='5') ON t1.ct=t2.id
+LEFT JOIN t4 ON t2.sr=t4.id
+WHERE t1.id='5';
+id	ct	pc	nm
+5	NULL	NULL	NULL
+DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT, c INT);
+CREATE TABLE t4 (a INT, c INT);
+CREATE TABLE t5 (a INT, c INT);
+SELECT b FROM t1 JOIN (t2 LEFT JOIN t3 USING (a) LEFT JOIN t4 USING (a)
+LEFT JOIN t5 USING (a)) USING (a);
+b
+SELECT c FROM t1 JOIN (t2 LEFT JOIN t3 USING (a) LEFT JOIN t4 USING (a)
+LEFT JOIN t5 USING (a)) USING (a);
+ERROR 23000: Column 'c' in field list is ambiguous
+SELECT b FROM t1 JOIN (t2 JOIN t3 USING (a) JOIN t4 USING (a)
+JOIN t5 USING (a)) USING (a);
+b
+SELECT c FROM t1 JOIN (t2 JOIN t3 USING (a) JOIN t4 USING (a)
+JOIN t5 USING (a)) USING (a);
+ERROR 23000: Column 'c' in field list is ambiguous
+DROP TABLE t1,t2,t3,t4,t5;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t2 VALUES (1,1);
+INSERT INTO t3 VALUES (1,1);
+SELECT * FROM t1 JOIN (t2 JOIN t3 USING (b)) USING (a);
+ERROR 23000: Column 'a' in from clause is ambiguous
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (
+carrier char(2) default NULL,
+id int NOT NULL auto_increment PRIMARY KEY
+) CHARSET utf8mb4;
+INSERT INTO t1 VALUES
+('CO',235371754),('CO',235376554),('CO',235376884),('CO',235377874),
+('CO',231060394),('CO',231059224),('CO',231059314),('CO',231060484),
+('CO',231060274),('CO',231060124),('CO',231060244),('CO',231058594),
+('CO',231058924),('CO',231058504),('CO',231059344),('CO',231060424),
+('CO',231059554),('CO',231060304),('CO',231059644),('CO',231059464),
+('CO',231059764),('CO',231058294),('CO',231058624),('CO',231058864),
+('CO',231059374),('CO',231059584),('CO',231059734),('CO',231059014),
+('CO',231059854),('CO',231059494),('CO',231059794),('CO',231058534),
+('CO',231058324),('CO',231058684),('CO',231059524),('CO',231059974);
+CREATE TABLE t2 (
+scan_date date default NULL,
+package_id int default NULL,
+INDEX scan_date(scan_date),
+INDEX package_id(package_id)
+);
+INSERT INTO t2 VALUES
+('2008-12-29',231062944),('2008-12-29',231065764),('2008-12-29',231066124),
+('2008-12-29',231060094),('2008-12-29',231061054),('2008-12-29',231065644),
+('2008-12-29',231064384),('2008-12-29',231064444),('2008-12-29',231073774),
+('2008-12-29',231058594),('2008-12-29',231059374),('2008-12-29',231066004),
+('2008-12-29',231068494),('2008-12-29',231070174),('2008-12-29',231071884),
+('2008-12-29',231063274),('2008-12-29',231063754),('2008-12-29',231064144),
+('2008-12-29',231069424),('2008-12-29',231073714),('2008-12-29',231058414),
+('2008-12-29',231060994),('2008-12-29',231069154),('2008-12-29',231068614),
+('2008-12-29',231071464),('2008-12-29',231074014),('2008-12-29',231059614),
+('2008-12-29',231059074),('2008-12-29',231059464),('2008-12-29',231069094),
+('2008-12-29',231067294),('2008-12-29',231070144),('2008-12-29',231073804),
+('2008-12-29',231072634),('2008-12-29',231058294),('2008-12-29',231065344),
+('2008-12-29',231066094),('2008-12-29',231069034),('2008-12-29',231058594),
+('2008-12-29',231059854),('2008-12-29',231059884),('2008-12-29',231059914),
+('2008-12-29',231063664),('2008-12-29',231063814),('2008-12-29',231063904);
+CREATE TABLE t3 (
+package_id int default NULL,
+INDEX package_id(package_id)
+);
+INSERT INTO t3 VALUES
+(231058294),(231058324),(231058354),(231058384),(231058414),(231058444),
+(231058474),(231058504),(231058534),(231058564),(231058594),(231058624),
+(231058684),(231058744),(231058804),(231058864),(231058924),(231058954),
+(231059014),(231059074),(231059104),(231059134),(231059164),(231059194),
+(231059224),(231059254),(231059284),(231059314),(231059344),(231059374),
+(231059404),(231059434),(231059464),(231059494),(231059524),(231059554),
+(231059584),(231059614),(231059644),(231059674),(231059704),(231059734),
+(231059764),(231059794),(231059824),(231059854),(231059884),(231059914),
+(231059944),(231059974),(231060004),(231060034),(231060064),(231060094),
+(231060124),(231060154),(231060184),(231060214),(231060244),(231060274),
+(231060304),(231060334),(231060364),(231060394),(231060424),(231060454),
+(231060484),(231060514),(231060544),(231060574),(231060604),(231060634),
+(231060664),(231060694),(231060724),(231060754),(231060784),(231060814),
+(231060844),(231060874),(231060904),(231060934),(231060964),(231060994),
+(231061024),(231061054),(231061084),(231061144),(231061174),(231061204),
+(231061234),(231061294),(231061354),(231061384),(231061414),(231061474),
+(231061564),(231061594),(231061624),(231061684),(231061714),(231061774),
+(231061804),(231061894),(231061984),(231062074),(231062134),(231062224),
+(231062254),(231062314),(231062374),(231062434),(231062494),(231062554),
+(231062584),(231062614),(231062644),(231062704),(231062734),(231062794),
+(231062854),(231062884),(231062944),(231063004),(231063034),(231063064),
+(231063124),(231063154),(231063184),(231063214),(231063274),(231063334),
+(231063394),(231063424),(231063454),(231063514),(231063574),(231063664);
+CREATE TABLE t4 (
+carrier char(2) NOT NULL default '' PRIMARY KEY,
+id int(11) default NULL,
+INDEX id(id)
+) CHARSET utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t4 VALUES
+('99',6),('SK',456),('UA',486),('AI',1081),('OS',1111),('VS',1510);
+CREATE TABLE t5 (
+carrier_id int default NULL,
+INDEX carrier_id(carrier_id)
+);
+INSERT INTO t5 VALUES
+(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),
+(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),
+(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),
+(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),
+(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),
+(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(6),(456),(456),(456),
+(456),(456),(456),(456),(456),(456),(456),(456),(456),(456),(456),(456),
+(456),(486),(1081),(1111),(1111),(1111),(1111),(1510);
+ANALYZE TABLE t1, t2, t3, t4, t5;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+SELECT COUNT(*) 
+FROM((t2 JOIN t1 ON t2.package_id = t1.id) 
+JOIN t3 ON t3.package_id = t1.id);
+COUNT(*)
+6
+EXPLAIN
+SELECT COUNT(*) 
+FROM ((t2 JOIN t1 ON t2.package_id = t1.id) 
+JOIN t3 ON t3.package_id = t1.id)
+LEFT JOIN 
+(t5 JOIN t4 ON t5.carrier_id = t4.id)
+ON t4.carrier = t1.carrier;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	package_id	package_id	5	NULL	45	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.package_id	1	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY,id	PRIMARY	8	test.t1.carrier	1	100.00	NULL
+1	SIMPLE	t5	NULL	ref	carrier_id	carrier_id	5	test.t4.id	22	100.00	Using index
+1	SIMPLE	t3	NULL	ref	package_id	package_id	5	test.t2.package_id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` join `test`.`t3` left join (`test`.`t5` join `test`.`t4`) on(((`test`.`t5`.`carrier_id` = `test`.`t4`.`id`) and (`test`.`t4`.`carrier` = `test`.`t1`.`carrier`))) where ((`test`.`t1`.`id` = `test`.`t2`.`package_id`) and (`test`.`t3`.`package_id` = `test`.`t2`.`package_id`))
+SELECT COUNT(*) 
+FROM ((t2 JOIN t1 ON t2.package_id = t1.id) 
+JOIN t3 ON t3.package_id = t1.id)
+LEFT JOIN 
+(t5 JOIN t4 ON t5.carrier_id = t4.id)
+ON t4.carrier = t1.carrier;
+COUNT(*)
+6
+DROP TABLE t1,t2,t3,t4,t5;
+End of 5.0 tests
+#
+# Bug#24909223: EXCESSIVE MEMORY USAGE BY QUERY
+#
+CREATE TABLE t (
+a INT,
+b CHAR(255),
+c CHAR(255),
+d INT,
+e INT,
+PRIMARY KEY (e),
+KEY (d)
+) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1, '14effca2', 'cffa3819', 98927, 8767),
+(1, '2f7cbd33', '421aff88', 87613, 70956),
+(1, '5c44507d', '05fd27d3', 36002, 5146),
+(1, '6542ee43', 'c09ee30f', 3673, 91467),
+(1, '786737dd', '6ac95ccb', 46890, 62953),
+(1, '8929d195', '64102e63', 50531, 9712),
+(1, '8cc0c106', '17283316', 16399, 26119),
+(1, '8f3063de', 'ce5d0f35', 21769, 76667),
+(1, 'c32c9202', 'c9525fe8', 12704, 43998),
+(1, 'c5567e1c', 'bc2e97e6', 85805, 84174),
+(1, 'c7acb4d4', '6d67fea7', 58347, 51235),
+(1, 'dbd66341', '03b59a03', 46577, 52495),
+(1, 'f8e0354e', '41a6e523', 36055, 32646),
+(1, 'fb66b513', '10f3de43', 41297, 74334),
+(1, 'ffec6d1b', '2fca4073', 12896, 95807),
+(1, 'aa3fcff8', 'f4981ed8', 99211, 18778);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT a.c AS c FROM (
+SELECT a.c AS c FROM (
+SELECT a.a AS c FROM t AS a
+INNER JOIN t AS b ON a.b > b.b
+) AS a
+INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where
+1	SIMPLE	b	NULL	ALL	d	NULL	NULL	NULL	16	33.33	Range checked for each record (index map: 0x2)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `c` from `test`.`t` `a` join `test`.`t` `b` join `test`.`t` `b` join `test`.`t` `b` where ((`test`.`a`.`a` >= `test`.`b`.`d`) and (`test`.`a`.`a` >= `test`.`b`.`a`) and (`test`.`a`.`b` > `test`.`b`.`b`))
+TRUNCATE TABLE performance_schema.memory_summary_by_thread_by_event_name;
+SELECT a.c AS c FROM (
+SELECT a.c AS c FROM (
+SELECT a.a AS c FROM t AS a
+INNER JOIN t AS b ON a.b > b.b
+) AS a
+INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+c
+SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
+WHERE event_name = 'memory/sql/thd::main_mem_root'
+AND thread_id = ps_thread_id(connection_id())
+AND sum_number_of_bytes_alloc > 1000000
+DROP TABLE t;
+CREATE TABLE t5 (a int, b int, c int, PRIMARY KEY(a), KEY b_i (b));
+CREATE TABLE t6 (a int, b int, c int, PRIMARY KEY(a), KEY b_i (b));
+CREATE TABLE t7 (a int, b int, c int, PRIMARY KEY(a), KEY b_i (b));
+CREATE TABLE t8 (a int, b int, c int, PRIMARY KEY(a), KEY b_i (b));
+INSERT INTO t5 VALUES (1,1,0), (2,2,0), (3,3,0);
+INSERT INTO t6 VALUES (1,2,0), (3,2,0), (6,1,0);
+INSERT INTO t7 VALUES (1,1,0), (2,2,0);
+INSERT INTO t8 VALUES (0,2,0), (1,2,0);
+ANALYZE TABLE t5, t6, t7, t8;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+EXPLAIN
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b AND
+(t8.a > 0 OR t8.c IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	index	NULL	b_i	5	NULL	3	100.00	Using index
+1	SIMPLE	t7	NULL	ref	b_i	b_i	5	test.t5.b	1	100.00	Using index
+1	SIMPLE	t6	NULL	index	b_i	b_i	5	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t8	NULL	ALL	b_i	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2) and ((`test`.`t8`.`a` > 0) or (`test`.`t8`.`c` is null)))) where true
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 
+LEFT JOIN 
+( 
+(t6, t7)
+LEFT JOIN 
+t8
+ON t7.b=t8.b AND t6.b < 10
+)
+ON t6.b >= 2 AND t5.b=t7.b AND
+(t8.a > 0 OR t8.c IS NULL);
+a	b	a	b	a	b	a	b
+1	1	1	2	1	1	NULL	NULL
+1	1	3	2	1	1	NULL	NULL
+2	2	1	2	2	2	1	2
+2	2	3	2	2	2	1	2
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+DELETE FROM t5;
+DELETE FROM t6;
+DELETE FROM t7;
+DELETE FROM t8;
+INSERT INTO t5 VALUES (1,3,0), (3,2,0);
+INSERT INTO t6 VALUES (3,3,0);
+INSERT INTO t7 VALUES (1,2,0);
+INSERT INTO t8 VALUES (1,1,0);
+ANALYZE TABLE t5, t6, t7, t8;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+EXPLAIN
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 LEFT JOIN                
+(t6 LEFT JOIN t7 ON t7.a=1, t8)
+ON (t5.b=t8.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	index	NULL	b_i	5	NULL	2	100.00	Using index
+1	SIMPLE	t6	NULL	index	NULL	b_i	5	NULL	1	100.00	Using index
+1	SIMPLE	t7	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t8	NULL	ref	b_i	b_i	5	test.t5.b	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t5` left join (`test`.`t6` left join `test`.`t7` on((`test`.`t7`.`a` = 1)) join `test`.`t8`) on((`test`.`t8`.`b` = `test`.`t5`.`b`)) where true
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 LEFT JOIN                
+(t6 LEFT JOIN t7 ON t7.a=1, t8)
+ON (t5.b=t8.b);
+a	b	a	b	a	b	a	b
+1	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 LEFT JOIN                
+(t6 LEFT JOIN t7 ON t7.b=2, t8)
+ON (t5.b=t8.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	index	NULL	b_i	5	NULL	2	100.00	Using index
+1	SIMPLE	t6	NULL	index	NULL	b_i	5	NULL	1	100.00	Using index
+1	SIMPLE	t7	NULL	ref	b_i	b_i	5	const	1	100.00	Using index
+1	SIMPLE	t8	NULL	ref	b_i	b_i	5	test.t5.b	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t5` left join (`test`.`t6` left join `test`.`t7` on((`test`.`t7`.`b` = 2)) join `test`.`t8`) on((`test`.`t8`.`b` = `test`.`t5`.`b`)) where true
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 LEFT JOIN                
+(t6 LEFT JOIN t7 ON t7.b=2, t8)
+ON (t5.b=t8.b);
+a	b	a	b	a	b	a	b
+1	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 LEFT JOIN                
+(t8, t6 LEFT JOIN t7 ON t7.a=1)
+ON (t5.b=t8.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	index	NULL	b_i	5	NULL	2	100.00	Using index
+1	SIMPLE	t8	NULL	ref	b_i	b_i	5	test.t5.b	1	100.00	Using index
+1	SIMPLE	t6	NULL	index	NULL	b_i	5	NULL	1	100.00	Using index
+1	SIMPLE	t7	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t5` left join (`test`.`t8` join `test`.`t6` left join `test`.`t7` on((`test`.`t7`.`a` = 1))) on((`test`.`t8`.`b` = `test`.`t5`.`b`)) where true
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+FROM t5 LEFT JOIN                
+(t8, t6 LEFT JOIN t7 ON t7.a=1)
+ON (t5.b=t8.b);
+a	b	a	b	a	b	a	b
+1	3	NULL	NULL	NULL	NULL	NULL	NULL
+3	2	NULL	NULL	NULL	NULL	NULL	NULL
+DROP TABLE t5,t6,t7,t8;
+set optimizer_switch=default;

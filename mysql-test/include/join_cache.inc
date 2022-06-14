@@ -1,3 +1,14 @@
+-- disable_query_log
+-- disable_result_log
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+SET @innodb_stats_transient_sample_pages= @@GLOBAL.innodb_stats_transient_sample_pages;
+SET @@global.innodb_stats_transient_sample_pages=5000000000;
+SET @innodb_stats_persistent_sample_pages= @@GLOBAL.innodb_stats_persistent_sample_pages;
+SET @@global.innodb_stats_persistent_sample_pages=5000000000;
+-- enable_result_log
+-- enable_query_log
+
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
@@ -18,7 +29,7 @@ use world;
 --enable_warnings
 --enable_result_log
 --enable_query_log
-
+ANALYZE TABLE city, country, countrylanguage;
 SELECT COUNT(*) FROM country;
 SELECT COUNT(*) FROM city;
 SELECT COUNT(*) FROM countrylanguage;
@@ -53,7 +64,7 @@ SELECT city.Name, country.Name, countrylanguage.Language
         city.Name LIKE 'L%' AND country.Population > 3000000 AND
         countrylanguage.Percentage > 50;
 
-set join_buffer_size=256;
+set join_buffer_size=2048;
 show variables like 'join_buffer_size';
 
 EXPLAIN
@@ -101,7 +112,7 @@ use world;
 --enable_warnings
 --enable_result_log
 --enable_query_log
-
+ANALYZE TABLE city, country, countrylanguage;
 show variables like 'join_buffer_size';
 
 # Somewhat unstable filtering numbers
@@ -401,7 +412,9 @@ CREATE TABLE t11(
 CREATE INDEX t11_masterclip ON t11( masterclip);
 INSERT INTO t11 VALUES
   (19, "Pop & Dance", 95, 'Y'), (3, "Rock & Alternative", 100, 'Y');
-
+--disable_warnings
+ANALYZE TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11;
+--sorted_result
 EXPLAIN
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
        t8.name AS artistName, t8.artistid, 
@@ -442,6 +455,7 @@ WHERE t7.metaid = t2.metaid AND t7.artistid = t8.artistid AND
       t1.metaid = t2.metaid AND t1.affiliateid = '2';
 
 DROP TABLE t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
+--enable_warnings
 
 #
 # Bug #37131: 3-way join query with BKA used with a small buffer and
@@ -474,6 +488,9 @@ INSERT INTO t3 VALUES
  (93,933), (34,347), (82,829), (78,780), (63,634), 
  (32,329), (22,228), (11,114), (74,749), (23,236);
 
+ANALYZE TABLE t1, t2, t3;
+--replace_column 10 #
+
 EXPLAIN
 SELECT a1<>a2, a1, a2, b2, b3, c3,
        SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
@@ -485,7 +502,7 @@ SELECT a1<>a2, a1, a2, b2, b3, c3,
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
  
 set join_buffer_size=512;
-
+--replace_column 10 #
 EXPLAIN
 SELECT a1<>a2, a1, a2, b2, b3, c3,
        SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
@@ -509,7 +526,7 @@ INSERT INTO t2 VALUES (7,10), (1,20), (2,20), (8,20), (8,10), (1,20);
 INSERT INTO t2 VALUES (1,10), (4,20), (3,20), (7,20), (7,10), (1,20); 
     
 set join_buffer_size=32; 
- 
+ANALYZE TABLE t1, t2;
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30; 
 --sorted_result  
 SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;  
@@ -526,6 +543,8 @@ create table t2 (p int, a int, INDEX i_a(a));
 insert into t2 values
   (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
   (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+ANALYZE TABLE t1, t2;
+--replace_column 10 #
 explain
 select t1.a, count(t2.p) as count
   from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
@@ -543,7 +562,7 @@ CREATE TABLE t1 (a int NOT NULL);
 INSERT INTO t1 VALUES (2), (4), (3), (5), (1);
 CREATE TABLE t2 (a int NOT NULL, b int NOT NULL, INDEX i_a(a));
 INSERT INTO t2 VALUES (4,10), (2,10), (2,30), (2,20), (4,20);
-
+ANALYZE TABLE t1, t2;
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
@@ -578,7 +597,7 @@ create table t1 (a int, b int);
 insert into t1 values (2, 20), (3, 30), (1, 10);
 create table t2 (a int, c int);
 insert into t2 values (1, 101), (3, 102), (1, 100);
-
+ANALYZE TABLE t1, t2;
 --sorted_result
 select * from t1 left join t2 on t1.a=t2.a;
 explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
@@ -595,7 +614,7 @@ create table t1 (a int);
 insert into t1 values (30), (40), (20);
 create table t2 (b int);
 insert into t2 values (200), (100);
-
+ANALYZE TABLE t1, t2;
 select * from t1 left join t2 on (1=0);
 explain select * from t1 left join t2 on (1=0) where a=40;
 select * from t1 left join t2 on (1=0) where a=40;
@@ -645,7 +664,7 @@ SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 set join_buffer_size=default;
 
 DROP TABLE t1, t2;
-
+--disable_warnings
 --echo #
 --echo # Bug #41894: big join buffer of level 7 used to join records
 --echo #              with null values in place of varchar strings
@@ -677,7 +696,8 @@ CREATE TABLE t3 (a int NOT NULL PRIMARY KEY, b varchar(127) DEFAULT NULL);
 INSERT INTO t3 SELECT * FROM t1;
 
 set join_buffer_size=1024*1024;
-
+ANALYZE TABLE t1, t2, t3;
+--replace_column 3 # 9 #
 EXPLAIN
 SELECT COUNT(*) FROM t1,t2,t3
   WHERE t1.a=t2.a AND t2.a=t3.a AND
@@ -690,7 +710,7 @@ SELECT COUNT(*) FROM t1,t2,t3
 set join_buffer_size=default;
 
 DROP TABLE t1,t2,t3;
-
+--enable_warnings
 --echo #
 --echo # Bug #42020: join buffer is used  for outer join with fields of 
 --echo #             several outer tables in join buffer
@@ -732,7 +752,7 @@ SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val
     WHERE t1.a=t2.a; 
 
 set join_buffer_size=256;
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
@@ -743,7 +763,7 @@ SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val
     WHERE t1.a=t2.a;
 
 DROP INDEX idx ON t3;
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
@@ -776,6 +796,7 @@ insert into t2 values (3,1, 'qwerty'),(3,4, 'qwerty');
 insert into t2 values (4,1, 'qwerty'),(4,2, 'qwerty'),(4,3, 'qwerty'),
                       (4,4, 'qwerty');
 
+ANALYZE TABLE t1, t2;
 --sorted_result
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -797,11 +818,12 @@ create table t2 (id1 int, id2 int, index idx2 (id1));
 insert into t2 values 
   (20, 100), (30, 400), (20, 400), (30, 200), (10, 300), (10, 200), (40, 100),
   (40, 200), (30, 300), (10, 400), (20, 200), (20, 300);   
-
+ANALYZE TABLE t1, t2;
 explain
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
   where t1.d=3 group by t1.id1;
 
+--sorted_result
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
   where t1.d=3 group by t1.id1;
 
@@ -845,7 +867,7 @@ insert into t4 values
 analyze table t2,t3,t4;
 --enable_warnings
 --enable_result_log
-
+ANALYZE TABLE t1, t2, t3, t4;
 explain 
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
   where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
@@ -1227,7 +1249,8 @@ INSERT INTO t5 VALUES
 --enable_query_log
 
 set join_buffer_size=2048;
-
+ANALYZE TABLE t1, t2, t3, t4, t5;
+--replace_column 10 #
 EXPLAIN
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
   FROM t1 JOIN  t2 JOIN  t3 JOIN  t4 JOIN  t5 
@@ -1267,15 +1290,16 @@ INSERT INTO t2 VALUES (2),(3);
 --echo
 
 --echo # The query shall return 1 record with a max value 9 and one of the 
---echo # int_key values inserted above (undefined which one). A changed 
---echo # execution plan may change the value in the second column
+--echo # int_key values inserted above (undefined which one, so it's replaced
+--echo # with "#").
 --source include/turn_off_only_full_group_by.inc
+--replace_column 2 #
 SELECT  MAX(t1.int_key), t1.int_key
 FROM t1 STRAIGHT_JOIN t2  
 ORDER BY t1.int_key;
 
 --echo
-
+ANALYZE TABLE t1, t2;
 explain 
 SELECT  MAX(t1.int_key), t1.int_key
 FROM t1 STRAIGHT_JOIN t2  
@@ -1326,7 +1350,7 @@ CREATE TABLE t2 (
 );
 
 INSERT INTO t2 VALUES (1,'x'),(2,'y');
-
+ANALYZE TABLE t1, t2;
 --echo
 
 SELECT MAX(t1.i) 
@@ -1357,8 +1381,9 @@ INSERT INTO t2 VALUES (1,1),(2,2);
 
 CREATE TABLE t3 (a INT, b INT);
 INSERT INTO t3 VALUES (1,1),(2,2);
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
+--sorted_result
 SELECT t1.* FROM t1,t2,t3;
 
 DROP TABLE t1,t2,t3;
@@ -1391,7 +1416,7 @@ INSERT INTO t2 VALUES ('f'),('x');
 CREATE TABLE t3 (pk int(11) PRIMARY KEY);
 INSERT INTO t3 VALUES (2);
 CREATE TABLE t4 (a varchar(10));
-
+ANALYZE TABLE t1, t2, t3, t4;
 EXPLAIN SELECT 1
 FROM t2 LEFT JOIN
        ((t1 JOIN t3 ON t1.a = t3.pk)
@@ -1435,6 +1460,7 @@ CREATE TABLE t4 (
 );
 INSERT INTO t4 VALUES (31),(32);
 
+ANALYZE TABLE t1, t2, t3, t4;
 --echo
 SELECT COUNT(*)
   FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
@@ -1484,7 +1510,7 @@ INSERT INTO t1 VALUES (NULL),(3);
 
 CREATE TABLE t2 (a int, b int, KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,200);
-
+ANALYZE TABLE t1, t2;
 let $query= SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 --eval EXPLAIN $query
 --sorted_result
@@ -1493,7 +1519,7 @@ let $query= SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 # test crash when no key is worth collecting by BKA for t2's ref
 delete from t1;
 INSERT INTO t1 VALUES (NULL),(NULL);
-
+ANALYZE TABLE t1, t2;
 --eval EXPLAIN $query
 --sorted_result
 --eval $query
@@ -1506,7 +1532,7 @@ INSERT INTO t1 VALUES (NULL),("some varchar");
 
 CREATE TABLE t2 (a int, b varchar(100), KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varchar");
-
+ANALYZE TABLE t1, t2;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 --sorted_result
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
@@ -1533,7 +1559,7 @@ let $query_i= SELECT table2 .`col_int_key` FROM t1 table2,
 t1 table3 force index (`col_varchar_key`)
 where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
  and table3 .`col_varchar_key`  = table2 .`col_varchar_nokey`;
-
+ANALYZE TABLE t1;
 eval explain $query_i;
 eval $query_i;
 
@@ -1575,7 +1601,7 @@ WHERE t2.col_int_key = 1 AND t2.col_int >= 3
 GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
-
+ANALYZE TABLE t1, t2;
 eval explain $query;
 eval $query;
 
@@ -1587,7 +1613,7 @@ WHERE t2.col_int_key = 1 AND t2.col_int >= 3
 GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
-
+ANALYZE TABLE t1, t2;
 eval explain $query;
 eval $query;
 
@@ -1676,14 +1702,18 @@ INSERT INTO t2 VALUES (100,0),(150,200),(999, 0),(999, NULL);
 
 let $query1= SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
 let $query2= SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
-
+ANALYZE TABLE t1, t2;
 --echo
 --echo # t2b is NULL-able
 --echo
---eval EXPLAIN $query1
+--replace_column 10 #
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+--sorted_result
 --eval $query1
 --echo
---eval EXPLAIN $query2
+--replace_column 10 #
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+--sorted_result
 --eval $query2
 --echo
 
@@ -1691,14 +1721,19 @@ DROP TABLE t2;
 
 CREATE TABLE t2 (t2a int, t2b int NOT NULL, KEY idx (t2b));
 INSERT INTO t2 VALUES (100,0),(150,200),(999, 0);
+ANALYZE TABLE t2;
 
 --echo
 --echo # t2b is NOT NULL
 --echo
---eval EXPLAIN $query1
+--replace_column 10 #
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+--sorted_result
 --eval $query1
 --echo
---eval EXPLAIN $query2
+--replace_column 10 #
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+--sorted_result
 --eval $query2
 --echo
 
@@ -1765,16 +1800,23 @@ SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
 
+ANALYZE TABLE t1, t2, t3;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query_some;  # Tests FORMAT=tree for AlternativeIterator.
 eval explain $query_some;
 eval explain $query_any;
 eval explain $query_in;
 eval explain $query_notin;
 eval explain $query_in_toplevel;
+--sorted_result
 eval $query_some;
+--sorted_result
 eval $query_any;
+--sorted_result
 eval $query_in;
+--sorted_result
 eval $query_notin;
+--sorted_result
 eval $query_in_toplevel;
 
 
@@ -1824,6 +1866,7 @@ GROUP BY field2
 ORDER BY field1;
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1,t2;
@@ -1870,6 +1913,8 @@ INSERT INTO t2 VALUES
 (8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
 (15,'g'),(16,'p'),(17,'q'),(18,'w'),(19,'d'),(20,'e');
 
+ANALYZE TABLE t1, t2;
+
 let $query=SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
 FROM t1
 RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
@@ -1914,6 +1959,7 @@ INSERT INTO t2 VALUES (17,1,1);
 INSERT INTO t2 VALUES (18,6,9);
 INSERT INTO t2 VALUES (19,2,4);
 INSERT INTO t2 VALUES (20,9,8);
+ANALYZE TABLE t1, t2;
 
 let $query=SELECT t1.col_varchar_key AS field1, alias2.col_int_key AS field4 
 FROM t2 AS alias2 STRAIGHT_JOIN t2 AS alias3 ON alias3.pk =
@@ -1922,7 +1968,7 @@ left join t1
 ON alias3.col_int_nokey 
 GROUP BY field1, field4
 LIMIT 15;
-
+ANALYZE TABLE t1, t2, t3, t4;
 eval explain $query;
 --sorted_result
 eval $query;
@@ -1943,7 +1989,7 @@ INSERT INTO t1 VALUES (6,NULL,6),(0,1,11);
 INSERT INTO t2 VALUES (1,NULL,NULL),(4,7,NULL);
 INSERT INTO t3 VALUES (2,3,0),(3,4,4);
 INSERT INTO t4 VALUES (1,9,-1),(4,7,NULL);
-
+ANALYZE TABLE t1, t2, t3, t4;
 let $query=SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
   as t4_i FROM t1
   LEFT JOIN t2 ON t1.k = t2.pk
@@ -1951,6 +1997,7 @@ let $query=SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
   LEFT JOIN t4 ON t4.pk = t2.pk;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t3, t4; 
@@ -1986,17 +2033,22 @@ CREATE TABLE t4 (
 );
 INSERT INTO t4 VALUES (2,3), (6,1), (8,2);
 
-let query=
+ANALYZE TABLE t2, t3, t4;
+--replace_column 10 #
+EXPLAIN
 SELECT t4.col_int
   FROM t1 
     LEFT JOIN t2 ON t1.col_int = t2.col_int
     LEFT JOIN t3 ON t2.pk = t3.pk 
     LEFT JOIN t4 ON t4.pk = t2.pk
   WHERE t1.col_int OR t3.col_int;
-
-eval EXPLAIN $query;
-eval $query;
-
+--sorted_result
+SELECT t4.col_int
+  FROM t1 
+    LEFT JOIN t2 ON t1.col_int = t2.col_int
+    LEFT JOIN t3 ON t2.pk = t3.pk 
+    LEFT JOIN t4 ON t4.pk = t2.pk
+  WHERE t1.col_int OR t3.col_int;
 DROP TABLE t1, t2, t3, t4;
 
 --echo #
@@ -2054,6 +2106,7 @@ WHERE parent1.col_varchar_key IN
         WHERE parent1.col_datetime_nokey IS NULL
               AND t1.col_int_nokey IS NULL )
 ;
+ANALYZE TABLE t1, t2;
 eval EXPLAIN $query;
 eval $query;
 
@@ -2102,8 +2155,43 @@ WHERE
       t4 AS table4s LEFT JOIN
         (t3 AS table3s JOIN t2 AS table2s)
       ON table3s.col_int_unique = table4s.col_int_unique);
-
+ANALYZE TABLE t1, t2;
 eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # t2 and t3 are const tables, which makes for a t1-t4 join on a constant,
+--echo # where the constant comes from a multi-equality. Verify that we get the expected
+--echo # query plan and don't crash (we don't care about the result).
+--echo #
+
+CREATE TABLE t1 (
+  pk integer NOT NULL,
+  a integer,
+  b integer,
+  PRIMARY KEY (pk),
+  KEY idx1 (b)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,5,5);
+ANALYZE TABLE t1;
+
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=tree SELECT *
+FROM
+  t1
+  LEFT JOIN t1 AS t2 ON t1.a = t2.pk
+  LEFT JOIN t1 AS t3 ON t2.pk = t3.pk
+  LEFT JOIN t1 AS t4 ON t3.b = t4.b
+WHERE t2.pk = 1;
+
+DROP TABLE t1;
+
+-- disable_query_log
+-- disable_result_log
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample_pages;
+SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
+-- enable_result_log
+-- enable_query_log

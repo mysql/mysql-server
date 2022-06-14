@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,13 +69,10 @@ struct Library_file::Library_file_impl {
 };
 
 #ifdef _WIN32
+
 namespace {
-void throw_current_error(const std::string &prefix) {
-  char buffer[512];
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_MAX_WIDTH_MASK,
-                nullptr, GetLastError(), LANG_NEUTRAL, buffer, sizeof(buffer),
-                nullptr);
-  throw std::runtime_error(prefix + buffer);
+inline std::error_code last_win32_error_code() {
+  return {static_cast<int>(GetLastError()), std::system_category()};
 }
 }  // namespace
 #endif
@@ -88,20 +85,23 @@ Library_file::Library_file(const std::string &file_name,
 #ifndef _WIN32
   impl_->handle = dlopen(file_name.c_str(), RTLD_LOCAL | RTLD_LAZY);
   if (impl_->handle == nullptr) {
-    throw std::runtime_error("Could not load plugin file: " + file_name +
-                             ". Error: " + dlerror());
+    throw std::runtime_error("Could not load plugin file '" + file_name +
+                             "': " + dlerror());
   }
 #else
   mysql_harness::Path lib_file(file_name);
   // we need to do this so all the dlls that plugin library needs could be found
   auto res = SetCurrentDirectory(lib_file.dirname().c_str());
   if (!res) {
-    throw_current_error("Could not switch directory to " +
-                        lib_file.dirname().str() + ": ");
+    const auto ec = last_win32_error_code();
+    throw std::system_error(
+        ec, "Could not switch directory to " + lib_file.dirname().str());
   }
   impl_->handle = LoadLibrary(lib_file.real_path().c_str());
   if (impl_->handle == nullptr) {
-    throw_current_error("Could not load plugin file: " + file_name + ". ");
+    const auto ec = last_win32_error_code();
+    throw std::system_error(ec,
+                            "Could not load plugin file '" + file_name + "'");
   }
 #endif
 }
@@ -142,10 +142,10 @@ T *Library_file::get_plugin_struct_internal(const std::string &symbol) const {
 #else
   SetLastError(0);
   result = reinterpret_cast<T *>(GetProcAddress(impl_->handle, symbol.c_str()));
-  DWORD error = GetLastError();
-  if (error) {
-    throw_current_error("Loading plugin information for '" + file_name_ +
-                        "' failed: ");
+  const auto ec = last_win32_error_code();
+  if (ec) {
+    throw std::system_error(
+        ec, "Loading plugin information for '" + file_name_ + "' failed");
   }
 #endif
 

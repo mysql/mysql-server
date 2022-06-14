@@ -40,9 +40,9 @@ select sql_big_result distinct * from t1, t2;
 explain format = json select sql_big_result t1.b from t1, t2 group by t1.b;
 --sorted_result
 select sql_big_result t1.b from t1, t2 group by t1.b;
-explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
 --sorted_result
-select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
 
 #
 # a select with join and sorting
@@ -112,7 +112,9 @@ select * from t5;
 explain format = json select b from (select b from t5 where b > 5) tt;
 select b from (select b from t5 where b > 5) tt;
 # select with mutiple derived tables
+--sorted_result
 explain format = json select * from (select b from t1) as t1, (select b from t2) as t2;
+--sorted_result
 select * from (select b from t1) as t1, (select b from t2) as t2;
 # derived table uses 'ref' scan
 explain format = json select * from t1, (select * from t6) as t where t.a =5;

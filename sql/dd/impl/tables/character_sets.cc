@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@
 
 #include "sql/dd/impl/tables/character_sets.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 #include <set>
 #include <vector>
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "sql/dd/cache/dictionary_client.h"     // dd::cache::Dictionary_...
 #include "sql/dd/dd.h"                          // dd::create_object
@@ -66,7 +67,7 @@ Character_sets::Character_sets() {
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
@@ -148,10 +149,10 @@ bool Character_sets::populate(THD *thd) const {
   // therefore be deleted from the DD since they are not supported anymore.
   for (std::set<Object_id>::const_iterator del_it = prev_cset_ids.begin();
        del_it != prev_cset_ids.end(); ++del_it) {
-    const Charset *del_cset = NULL;
+    const Charset *del_cset = nullptr;
     if (thd->dd_client()->acquire(*del_it, &del_cset)) return true;
 
-    DBUG_ASSERT(del_cset);
+    assert(del_cset);
     if (thd->dd_client()->drop(del_cset)) return true;
   }
 

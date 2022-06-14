@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 
 #include "my_config.h"
 
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 
@@ -44,13 +44,13 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/thread_pool_priv.h"  // inc_thread_created
 #include "sql/sql_class.h"           // THD
 #include "thr_mutex.h"
 
 std::atomic<uint> Global_THD_manager::atomic_global_thd_count{0U};
-Global_THD_manager *Global_THD_manager::thd_manager = NULL;
+Global_THD_manager *Global_THD_manager::thd_manager = nullptr;
 
 static inline int thd_partition(my_thread_id thread_id) {
   return thread_id % Global_THD_manager::NUM_PARTITIONS;
@@ -58,11 +58,7 @@ static inline int thd_partition(my_thread_id thread_id) {
 
 bool Find_thd_with_id::operator()(THD *thd) {
   if (thd->get_command() == COM_DAEMON) return false;
-  if (thd->thread_id() == m_thread_id) {
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    return true;
-  }
-  return false;
+  return (thd->thread_id() == m_thread_id);
 }
 
 /**
@@ -70,7 +66,7 @@ bool Find_thd_with_id::operator()(THD *thd) {
   implementation.
 */
 
-class Do_THD : public std::unary_function<THD *, void> {
+class Do_THD {
  public:
   explicit Do_THD(Do_THD_Impl *impl) : m_impl(impl) {}
 
@@ -89,7 +85,7 @@ class Do_THD : public std::unary_function<THD *, void> {
   Internal class used in find_thd() implementation.
 */
 
-class Find_THD : public std::unary_function<THD *, bool> {
+class Find_THD {
  public:
   explicit Find_THD(Find_THD_Impl *impl) : m_impl(impl) {}
 
@@ -98,6 +94,35 @@ class Find_THD : public std::unary_function<THD *, bool> {
  private:
   Find_THD_Impl *m_impl;
 };
+
+THD_ptr::THD_ptr(THD *thd) : m_underlying(thd) {
+  if (m_underlying != nullptr) {
+    mysql_mutex_assert_not_owner(&m_underlying->LOCK_thd_data);
+    mysql_mutex_lock(&m_underlying->LOCK_thd_data);
+  }
+}
+
+THD_ptr::THD_ptr(THD_ptr &&thd_ptr) {
+  if (m_underlying != nullptr) mysql_mutex_unlock(&m_underlying->LOCK_thd_data);
+  m_underlying = thd_ptr.m_underlying;
+  thd_ptr.m_underlying = nullptr;
+}
+
+THD_ptr &THD_ptr::operator=(THD_ptr &&thd_ptr) {
+  if (m_underlying != nullptr) mysql_mutex_unlock(&m_underlying->LOCK_thd_data);
+  m_underlying = thd_ptr.m_underlying;
+  thd_ptr.m_underlying = nullptr;
+  return *this;
+}
+
+THD *THD_ptr::release() {
+  if (m_underlying == nullptr) return nullptr;
+
+  THD *tmp = m_underlying;
+  mysql_mutex_unlock(&m_underlying->LOCK_thd_data);
+  m_underlying = nullptr;
+  return tmp;
+}
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_thd_list;
@@ -164,12 +189,12 @@ Global_THD_manager::Global_THD_manager()
 Global_THD_manager::~Global_THD_manager() {
   thread_ids.erase_unique(reserved_thread_id);
   for (int i = 0; i < NUM_PARTITIONS; i++) {
-    DBUG_ASSERT(thd_list[i].empty());
+    assert(thd_list[i].empty());
     mysql_mutex_destroy(&LOCK_thd_list[i]);
     mysql_mutex_destroy(&LOCK_thd_remove[i]);
     mysql_cond_destroy(&COND_thd_list[i]);
   }
-  DBUG_ASSERT(thread_ids.empty());
+  assert(thread_ids.empty());
   mysql_mutex_destroy(&LOCK_thread_ids);
 }
 
@@ -178,20 +203,20 @@ Global_THD_manager::~Global_THD_manager() {
   This method do not require mutex guard as it is called only from main thread.
 */
 bool Global_THD_manager::create_instance() {
-  if (thd_manager == NULL)
+  if (thd_manager == nullptr)
     thd_manager = new (std::nothrow) Global_THD_manager();
-  return (thd_manager == NULL);
+  return (thd_manager == nullptr);
 }
 
 void Global_THD_manager::destroy_instance() {
   delete thd_manager;
-  thd_manager = NULL;
+  thd_manager = nullptr;
 }
 
 void Global_THD_manager::add_thd(THD *thd) {
   DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
   // Should have an assigned ID before adding to the list.
-  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
+  assert(thd->thread_id() != reserved_thread_id);
   const int partition = thd_partition(thd->thread_id());
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
   // Technically it is not supported to compare pointers, but it works.
@@ -199,7 +224,7 @@ void Global_THD_manager::add_thd(THD *thd) {
       thd_list[partition].insert_unique(thd);
   if (insert_result.second) ++atomic_global_thd_count;
   // Adding the same THD twice is an error.
-  DBUG_ASSERT(insert_result.second);
+  assert(insert_result.second);
 }
 
 void Global_THD_manager::remove_thd(THD *thd) {
@@ -208,7 +233,7 @@ void Global_THD_manager::remove_thd(THD *thd) {
   MUTEX_LOCK(lock_remove, &LOCK_thd_remove[partition]);
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
 
-  DBUG_ASSERT(unit_test || thd->release_resources_done());
+  assert(unit_test || thd->release_resources_done());
 
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -220,7 +245,7 @@ void Global_THD_manager::remove_thd(THD *thd) {
   const size_t num_erased = thd_list[partition].erase_unique(thd);
   if (num_erased == 1) --atomic_global_thd_count;
   // Removing a THD that was never added is an error.
-  DBUG_ASSERT(1 == num_erased);
+  assert(1 == num_erased);
   mysql_cond_broadcast(&COND_thd_list[partition]);
 }
 
@@ -237,14 +262,13 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id) {
   if (thread_id == reserved_thread_id)
     return;  // Some temporary THDs are never given a proper ID.
   MUTEX_LOCK(lock, &LOCK_thread_ids);
-  const size_t num_erased MY_ATTRIBUTE((unused)) =
-      thread_ids.erase_unique(thread_id);
+  const size_t num_erased [[maybe_unused]] = thread_ids.erase_unique(thread_id);
   // Assert if the ID was not found in the list.
-  DBUG_ASSERT(1 == num_erased);
+  assert(1 == num_erased);
 }
 
 void Global_THD_manager::set_thread_id_counter(my_thread_id new_id) {
-  DBUG_ASSERT(unit_test == true);
+  assert(unit_test == true);
   MUTEX_LOCK(lock, &LOCK_thread_ids);
   thread_id_counter = new_id;
 }
@@ -290,20 +314,24 @@ void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func) {
   }
 }
 
-THD *Global_THD_manager::find_thd(Find_THD_Impl *func) {
+THD_ptr Global_THD_manager::find_thd(Find_THD_Impl *func) {
   Find_THD find_thd(func);
   for (int i = 0; i < NUM_PARTITIONS; i++) {
     MUTEX_LOCK(lock, &LOCK_thd_list[i]);
     THD_array::const_iterator it =
         std::find_if(thd_list[i].begin(), thd_list[i].end(), find_thd);
-    if (it != thd_list[i].end()) return (*it);
+    if (it != thd_list[i].end()) {
+      THD_ptr thd_ptr(*it);
+      if (!thd_ptr->is_being_disposed()) return thd_ptr;
+      break;
+    }
   }
-  return NULL;
+  return THD_ptr{nullptr};
 }
 
 // Optimized version of the above function for when we know
 // the thread_id of the THD we are looking for.
-THD *Global_THD_manager::find_thd(Find_thd_with_id *func) {
+THD_ptr Global_THD_manager::find_thd(Find_thd_with_id *func) {
   Find_THD find_thd(func);
   // Since we know the thread_id, we can check the correct
   // partition directly.
@@ -311,8 +339,11 @@ THD *Global_THD_manager::find_thd(Find_thd_with_id *func) {
   MUTEX_LOCK(lock, &LOCK_thd_list[partition]);
   THD_array::const_iterator it = std::find_if(
       thd_list[partition].begin(), thd_list[partition].end(), find_thd);
-  if (it != thd_list[partition].end()) return (*it);
-  return NULL;
+  if (it != thd_list[partition].end()) {
+    THD_ptr thd_ptr(*it);
+    if (!thd_ptr->is_being_disposed()) return thd_ptr;
+  }
+  return THD_ptr{nullptr};
 }
 
 void inc_thread_created() {
@@ -339,7 +370,7 @@ class Run_free_function : public Do_THD_Impl {
 
   Run_free_function(do_thd_impl *f, T arg) : m_func(f), m_arg(arg) {}
 
-  virtual void operator()(THD *thd) { (*m_func)(thd, m_arg); }
+  void operator()(THD *thd) override { (*m_func)(thd, m_arg); }
 
  private:
   do_thd_impl *m_func;

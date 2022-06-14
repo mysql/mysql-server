@@ -146,7 +146,7 @@ ORDER BY EVENT_NAME;
 SELECT EVENT_NAME, TIMER_START > 0, TIMER_END > 0, TIMER_WAIT > 0,
 SQL_TEXT, CURRENT_SCHEMA
 FROM performance_schema.events_statements_history_long
-WHERE thread_id = sys.ps_thread_id(CONNECTION_ID())
+WHERE thread_id = ps_thread_id(CONNECTION_ID())
 AND event_name LIKE "statement/clone/%";
 
 SET DEBUG_SYNC='RESET';

@@ -1,0 +1,13 @@
+--source include/have_debug.inc
+
+let $query_clause = FROM performance_schema.setup_instruments
+                      WHERE NAME LIKE 'memory/sql/%'
+                        AND DOCUMENTATION IS NOT NULL
+                      ORDER BY NAME;
+
+eval SELECT NAME, DOCUMENTATION $query_clause;
+eval SET @rows = (SELECT COUNT(NAME) $query_clause);
+
+let $assert_cond = @rows = 60;
+let $assert_text = The number of documented P_S memory keys in the SQL category is as expected.;
+source include/assert.inc;

@@ -1,0 +1,82 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+[connection server2]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+include/start_group_replication.inc
+
+# 3. Restart server3 with a monitoring process (mysqld_safe) if needed
+[connection server3]
+include/spawn_monitoring_process.inc
+
+# 4. Setup the server so group replication starts on boot
+#    Install the Clone plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 5. Ensure clone is used on recovery
+SET GLOBAL group_replication_clone_threshold= 1;
+
+# 6. Activate debug point that will simulate failure on first clone
+#    donor
+[connection server3]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,gr_run_clone_query_fail_once';
+
+# 7. On a empty server3 start group replication
+[connection server3]
+START GROUP_REPLICATION;
+[connection server_3]
+
+# 8. Clone donor will fail due to debug point and succeed on second
+#    endpoint
+SET DEBUG_SYNC = "now WAIT_FOR signal.run_clone_query_waiting";
+SET DEBUG_SYNC = "now SIGNAL signal.run_clone_query_continue";
+# 9. Wait for server to restart and come back
+[connection server3]
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+
+# 10. Clone will continue iteration on recovery endpoints
+#     and will do recovery from second endpoint
+include/assert.inc [Clone must be completed]
+include/diff_tables.inc [server1:test.t1 ,server3:test.t1]
+
+# 11. Cleanup
+SET @@GLOBAL.DEBUG= @debug_save;
+SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST group_replication_communication_stack;
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
+DROP TABLE t1;
+include/rpl_sync.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel ''. Skipping relay log recovery for the channel.");
+call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the master.");
+call mtr.add_suppression("Relay log information for channel '' was found after a clone operation. Relay log recovery");
+set session sql_log_bin=1;
+include/clean_monitoring_process.inc
+UNINSTALL PLUGIN clone;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0 FOR CHANNEL '';
+[connection server2]
+UNINSTALL PLUGIN clone;
+[connection server1]
+UNINSTALL PLUGIN clone;
+include/group_replication_end.inc

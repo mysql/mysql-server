@@ -1,5 +1,4 @@
 
--- source include/have_ssl_crypto_functs.inc
 
 # These test data are from the NIST SHA Test Vectors for Hashing
 # Byte-Oriented Messages.  See http://csrc.nist.gov/cryptval/shs.htm

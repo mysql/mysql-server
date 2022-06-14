@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,90 +20,84 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(
-  ../include
-  ../src
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
-  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
-  ../../../tests/helpers
-)
+ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
-INCLUDE_DIRECTORIES(SYSTEM
-  ${MYSQLX_GENERATE_DIR}/protobuf_lite
-)
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
-ADD_LIBRARY(routing_tests STATIC ${ROUTING_SOURCE_FILES})
-TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
-                      metadata_cache_static mysql_protocol_static
-                      mysqlxclient_lite mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
-
-TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -DROUTING_STATIC_DEFINE=1)
-TARGET_INCLUDE_DIRECTORIES(routing_tests PUBLIC $<TARGET_PROPERTY:routing,INCLUDE_DIRECTORIES>)
-
-
-ADD_LIBRARY(routing_plugin_tests STATIC ${ROUTING_PLUGIN_SOURCE_FILES})
-TARGET_LINK_LIBRARIES(routing_plugin_tests routing_tests
-                      routertest_helpers router_lib)
-SET_TARGET_PROPERTIES(routing_plugin_tests PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
-TARGET_INCLUDE_DIRECTORIES(routing_plugin_tests PRIVATE ${include_dirs})
-
-TARGET_COMPILE_DEFINITIONS(routing_plugin_tests PUBLIC -DROUTING_STATIC_DEFINE=1)
-
-IF(SOLARIS)
-  TARGET_LINK_LIBRARIES(routing_tests -lnsl -lsocket)
-  TARGET_LINK_LIBRARIES(routing_plugin_tests -lnsl -lsocket)
+IF(MY_COMPILER_IS_CLANG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
-ENDIF()
+# routing-library as object-lib for testing
+STATICLIB_FROM_TARGET(routing_export_all routing)
+TARGET_COMPILE_DEFINITIONS(routing_export_all
+  PUBLIC ROUTING_STATIC_DEFINE=1)
 
 SET(TEST_MODULE "routing")
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
-  MODULE ${TEST_MODULE}
-  LIB_DEPENDS routing_tests test-helpers
-  INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src/harness/shared/include)
+SET(test_files
+  test_block_clients.cc
+  # test_connection.cc
+  test_connection_container.cc
+  test_first_available.cc
+  test_metadata_cache_group.cc
+  test_next_available.cc
+  test_round_robin.cc
+  test_routing.cc
+  test_setup_named_socket_service.cc
+  test_setup_tcp_service.cc
+  )
 
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
+FOREACH(test_file ${test_files})
+  ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+    MODULE ${TEST_MODULE}
+    LIB_DEPENDS
+      routing_export_all
+      test-helpers
+    INCLUDE_DIRS
+      ${CMAKE_CURRENT_SOURCE_DIR}/../src
+      ${CMAKE_CURRENT_SOURCE_DIR}/../../harness/tests  # mock_io_service.h
+  )
+ENDFOREACH()
+
+ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   MODULE "routing"
   LIB_DEPENDS
-    routing_tests
-    routing_plugin_tests
+    routing_export_all
     test-helpers
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${PROJECT_SOURCE_DIR}/tests/helpers
-    ${PROJECT_SOURCE_DIR}/src/harness/shared/include
+  EXTRA_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/plugin_config.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/routing_plugin.cc
+  )
+ROUTERTEST_GET_TARGET(T "plugin/test_plugin.cc" "routing")
+TARGET_COMPILE_DEFINITIONS(${T}
+  PRIVATE ROUTING_PLUGIN_STATIC_DEFINE=1
   )
 
-add_test_dir(issues MODULE issues
+ADD_ROUTER_TEST_FILE(
+  test_classic_protocol_splicer.cc
+  MODULE routing
   LIB_DEPENDS
-    routing_tests
-    routing_plugin_tests
+    mysql_protocol
     test-helpers
+    mysqlxclient_lite
+    mysqlxmessages_lite
+    connection_pool
+    ${PROTOBUF_LITE_LIBRARY}
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
-    ${PROJECT_SOURCE_DIR}/tests/helpers
-    ${PROJECT_SOURCE_DIR}/src/harness/shared/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+  EXTRA_SOURCES
+    ../src/channel.cc
+    ../src/context.cc
+    ../src/destination_ssl_context.cc
   )
 
-ROUTERTEST_GET_TARGET(test_target "test_classic_protocol.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_metadata_cache_group.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-  PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_routing.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+ROUTERTEST_GET_TARGET(T "test_classic_protocol_splicer.cc" "routing")
+TARGET_INCLUDE_DIRECTORIES(${T}
+  PRIVATE $<TARGET_PROPERTY:routing,INCLUDE_DIRECTORIES>)
+TARGET_COMPILE_DEFINITIONS(${T}
+  PRIVATE ROUTING_STATIC_DEFINE=1)

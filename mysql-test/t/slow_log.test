@@ -1,3 +1,6 @@
+--source include/not_parallel.inc
+--source include/not_valgrind.inc
+
 SET @save_sqlf=@@global.slow_query_log_file;
 
 --replace_result $MYSQL_TMP_DIR ...
@@ -33,3 +36,203 @@ EOF
 SET @@global.slow_query_log_file=@save_sqlf;
 
 --remove_file $MYSQL_TMP_DIR/my_slow.log
+
+
+--echo
+--echo #
+--echo # Bug#30789032: INCONSISTENT BEHAVIOR WHILE LOGGING A KILLED QUERY IN THE SLOW QUERY LOG
+--echo #
+--echo
+
+SET @old_slow_query_log_file= @@global.slow_query_log_file;
+SET @old_log_output         = @@global.log_output;
+
+--replace_result $MYSQL_TMP_DIR ...
+eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_slow.log';
+
+# SET timestamp=10;
+SET @main_thd_id=CONNECTION_ID();
+
+# Set slow log output to table
+SET GLOBAL log_output=        'TABLE,FILE';
+SET GLOBAL slow_query_log=    1;
+
+SET SESSION long_query_time=  0;
+
+--echo #
+--echo # LOG OUTPUT TO TABLE WITH KILL THREAD
+--echo # Should not write to the slow log.
+--echo #
+
+--echo # "long query" connection (killee)
+connect (con1, localhost, root,,);
+--connection con1
+--disable_reconnect
+TRUNCATE mysql.slow_log;
+--let $id= `SELECT CONNECTION_ID()`
+
+--echo # Check variables:
+SET SESSION long_query_time= 0;
+SELECT @@log_output,@@slow_query_log,@@long_query_time;
+
+# Wait in 'before_do_command_net_read' until killed.
+--send /* KILL CONNECTION: should not be logged */ SELECT SLEEP(1001)
+
+--echo # default connection (from whence we use KILL CONNECTION)
+--connection default
+let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.threads WHERE processlist_state="User sleep";
+--source include/wait_condition.inc
+--replace_result $id <CONNECTION_ID>
+--eval KILL CONNECTION $id
+
+--echo # show rows in slow_log:
+SELECT "1>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
+  FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+
+--echo # error indicates that the connection's gone (as expected):
+--connection con1
+# These are client-library errors, not ER_*, so we're using the numeric value.
+--error 1317,2013
+--reap
+# clean up
+--disconnect con1
+
+--echo #
+--echo # LOG OUTPUT TO TABLE WITH KILL QUERY
+--echo # Should write to the slow log.
+--echo #
+
+connect (con1, localhost, root,,);
+--connection con1
+--disable_reconnect
+TRUNCATE mysql.slow_log;
+--let $id= `SELECT CONNECTION_ID()`
+
+--echo # Check variables:
+SET SESSION long_query_time= 0;
+SELECT @@log_output,@@slow_query_log,@@long_query_time;
+
+# Wait in 'before_do_command_net_read' until killed.
+--send /* KILL QUERY: should be logged */ SELECT SLEEP(1002)
+
+# --echo # default connection (from whence we use KILL QUERY)
+--connection default
+let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.threads WHERE processlist_state="User sleep";
+--source include/wait_condition.inc
+--replace_result $id <CONNECTION_ID>
+--eval KILL QUERY $id
+
+--echo # show rows in slow_log:
+SELECT "2>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
+  FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+
+# show that the connection's gone:
+--connection con1
+--reap
+SELECT "con1 is still here.";
+
+# clean up
+--disconnect con1
+
+--connection default
+
+# show file log:
+let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
+
+--perl
+   use strict;
+
+   my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /SELECT SLEEP\(10/) {
+       print "F>".$line; }
+   }
+   close(FILE);
+EOF
+
+SET @@global.slow_query_log_file= @old_slow_query_log_file;
+SET @@global.log_output         = @old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
+
+
+--remove_file $MYSQL_TMP_DIR/my_slow.log
+
+--echo
+--echo #
+--echo # Bug#33732907: Slow query log logs password in plain text on syntax error
+--echo #
+--echo
+
+SET @save_sqlf=@@global.slow_query_log_file;
+SET @save_sql=@@global.slow_query_log;
+SET @save_lo=@@global.log_output;
+SET @save_lqt=@@session.long_query_time;
+
+--replace_result $MYSQL_TMP_DIR ...
+eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/slow33732907.log';
+SET @@global.slow_query_log=1;
+SET @@global.log_output='file,table';
+SET @@session.long_query_time=0;
+
+let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
+
+--echo
+--echo # This succeeds, and the password is correctly obfuscated.
+CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
+--echo # This fails, but the password is still correctly obfuscated.
+--error ER_CANNOT_USER
+CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
+
+--echo
+--echo # Since we throw an error during the parse stage, we don't know which
+--echo # part of the statement is the password (or whether there even is one),
+--echo # so we cannot obfuscate it. In that case, the statement should not be
+--echo # logged, either. The general log also behaves like this by default.
+--error ER_PARSE_ERROR
+CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "general table>",argument
+  FROM mysql.general_log
+ WHERE INSTR(argument,"CREATE USER")=1
+ ORDER BY event_time;
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "slow table>",sql_text
+  FROM mysql.slow_log
+ WHERE INSTR(sql_text,"CREATE USER")=1
+ ORDER BY start_time;
+
+SET @@global.slow_query_log_file=@save_sqlf;
+SET @@global.slow_query_log=@save_sql;
+SET @@global.log_output=@save_lo;
+SET @@session.long_query_time=@save_lqt;
+
+DROP USER 'duplicate_user'@'%';
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+--perl
+   use strict;
+
+   my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /CREATE USER /) {
+       print "slow file>".$line; }
+   }
+   close(FILE);
+EOF
+
+--remove_file $MYSQL_TMP_DIR/slow33732907.log
+TRUNCATE mysql.slow_log;
+TRUNCATE mysql.general_log;
+
+
+--echo #
+--echo # Done.

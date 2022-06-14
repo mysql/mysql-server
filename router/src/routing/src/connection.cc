@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,306 +21,266 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
 #include "connection.h"
 
-#include <cstring>
-#include <stdexcept>
 #include <string>
+#include <system_error>  // error_code
 
-#include "common.h"
-#include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysql_router_thread.h"
-#include "mysql_routing_common.h"
-#include "mysqlrouter/routing.h"
-#include "utils.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
+
 IMPORT_LOG_FUNCTIONS()
 
-static std::string make_client_address(
-    const struct sockaddr_storage &client_addr,
-    const MySQLRoutingContext &context,
-    mysql_harness::SocketOperationsBase *sock_op) noexcept {
-  try {
-    std::pair<std::string, int> c_ip = get_peer_name(&client_addr, sock_op);
+stdx::expected<void, std::error_code> ConnectorBase::init_destination() {
+  destinations_it_ = destinations_.begin();
 
-    if (c_ip.second == 0) {
-      // Unix socket/Windows Named pipe
-      return context.get_bind_named_socket().c_str();
+  if (destinations_it_ != destinations_.end()) {
+    const auto &destination = *destinations_it_;
+
+    return is_destination_good(destination->hostname(), destination->port())
+               ? resolve()
+               : next_destination();
+  } else {
+    // no backends
+    log_warning("%d: no connectable destinations :(", __LINE__);
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
+  }
+}
+
+stdx::expected<void, std::error_code> ConnectorBase::resolve() {
+  const auto &destination = *destinations_it_;
+
+  if (!destination->good()) {
+    return next_destination();
+  }
+
+  const auto resolve_res = resolver_.resolve(
+      destination->hostname(), std::to_string(destination->port()));
+
+  if (!resolve_res) {
+    destination->connect_status(resolve_res.error());
+
+    log_warning("%d: resolve() failed: %s", __LINE__,
+                resolve_res.error().message().c_str());
+    return next_destination();
+  }
+
+  endpoints_ = resolve_res.value();
+
+#if 0
+  std::cerr << __LINE__ << ": " << destination->hostname() << "\n";
+  for (auto const &ep : endpoints_) {
+    std::cerr << __LINE__ << ": .. " << ep.endpoint() << "\n";
+  }
+#endif
+
+  return init_endpoint();
+}
+
+stdx::expected<void, std::error_code> ConnectorBase::init_endpoint() {
+  endpoints_it_ = endpoints_.begin();
+
+  return connect_init();
+}
+
+stdx::expected<void, std::error_code> ConnectorBase::connect_init() {
+  // close socket if it is already open
+  server_sock_.close();
+
+  connect_timed_out(false);
+
+  auto endpoint = *endpoints_it_;
+
+  server_endpoint_ = endpoint.endpoint();
+
+  return {};
+}
+
+stdx::expected<void, std::error_code> ConnectorBase::try_connect() {
+#if 0
+  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+    log_debug("fd=%d: trying %s:%s (%s)", client_sock_.native_handle(),
+              endpoint.host_name().c_str(), endpoint.service_name().c_str(),
+              mysqlrouter::to_string(endpoint.endpoint()).c_str());
+  }
+#endif
+
+  const int socket_flags {
+#if defined(SOCK_NONBLOCK)
+    // linux|freebsd|sol11.4 allows to set NONBLOCK as part of the socket()
+    // call to save the extra syscall
+    SOCK_NONBLOCK
+#endif
+  };
+
+  auto open_res = server_sock_.open(server_endpoint_.protocol(), socket_flags);
+  if (!open_res) return open_res.get_unexpected();
+
+  const auto non_block_res = server_sock_.native_non_blocking(true);
+  if (!non_block_res) return non_block_res.get_unexpected();
+
+  server_sock_.set_option(net::ip::tcp::no_delay{true});
+
+#ifdef FUTURE_TASK_USE_SOURCE_ADDRESS
+  /* set the source address to take a specific route.
+   *
+   *
+   */
+
+  // IP address of the interface we want to route-through.
+  std::string src_addr_str;
+
+  // src_addr_str = "192.168.178.78";
+
+  if (!src_addr_str.empty()) {
+    const auto src_addr_res = net::ip::make_address_v4(src_addr_str.c_str());
+    if (!src_addr_res) return src_addr_res.get_unexpected();
+
+#if defined(IP_BIND_ADDRESS_NO_PORT)
+    // linux 4.2 introduced IP_BIND_ADDRESS_NO_PORT to delay assigning a
+    // source-port until connect()
+    net::socket_option::integer<IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT> sockopt;
+
+    const auto setsockopt_res = server_sock_.set_option(sockopt);
+    if (!setsockopt_res) {
+      // if the glibc supports IP_BIND_ADDRESS_NO_PORT, but the kernel
+      // doesn't: ignore it.
+      if (setsockopt_res.error() !=
+          make_error_code(std::errc::invalid_argument)) {
+        log_warning(
+            "%d: setsockopt(IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT) "
+            "failed: "
+            "%s",
+            __LINE__, setsockopt_res.error().message().c_str());
+        return setsockopt_res.get_unexpected();
+      }
+    }
+#endif
+
+    const auto bind_res = server_sock_.bind(net::ip::tcp::endpoint(
+        src_addr_res.value_or(net::ip::address_v4{}), 0));
+    if (!bind_res) return bind_res.get_unexpected();
+  }
+#endif
+
+  const auto connect_res = server_sock_.connect(server_endpoint_);
+  if (!connect_res) {
+    const auto ec = connect_res.error();
+    if (ec == make_error_condition(std::errc::operation_in_progress) ||
+        ec == make_error_condition(std::errc::operation_would_block)) {
+      // connect in progress, wait for completion.
+      func_ = Function::kConnectFinish;
+      return connect_res.get_unexpected();
     } else {
-      std::ostringstream oss;
-      oss << c_ip.first.c_str() << ":" << c_ip.second;
-      return oss.str();
+      last_ec_ = ec;
+      return next_endpoint();
     }
-  } catch (...) {
-  }
-  return "[unknown]";
-}
-
-MySQLRoutingConnection::MySQLRoutingConnection(
-    MySQLRoutingContext &context, int client_socket,
-    const sockaddr_storage &client_addr, int server_socket,
-    const mysql_harness::TCPAddress &server_address,
-    std::function<void(MySQLRoutingConnection *)> remove_callback)
-    : context_(context),
-      remove_callback_(remove_callback),
-      client_socket_(client_socket),
-      client_addr_(client_addr),
-      server_socket_(server_socket),
-      server_address_(server_address),
-      client_address_(make_client_address(client_addr, context,
-                                          context_.get_socket_operations())),
-      started_(std::chrono::system_clock::now()) {}
-
-void MySQLRoutingConnection::start(bool detached) {
-  try {
-    // both lines can throw std::runtime_error
-    mysql_harness::MySQLRouterThread connect_thread(
-        context_.get_thread_stack_size());
-
-    connect_thread.run(&run_thread, this, detached);
-  } catch (std::runtime_error &err) {
-    context_.get_protocol().send_error(
-        client_socket_, 1040,
-        "Router couldn't spawn a new thread to service new client connection",
-        "08004", context_.get_name());
-    context_.get_socket_operations()->close(
-        client_socket_);  // no shutdown() before close()
-
-    // we only want to log this message once, because in a low-resource
-    // situation, this would lead do a DoS against ourselves (heavy I/O and disk
-    // full)
-    static bool logged_this_before = false;
-    if (!logged_this_before) {
-      logged_this_before = true;
-      log_error(
-          "Couldn't spawn a new thread to service new client connection from "
-          "%s."
-          " This message will not be logged again until Router restarts, "
-          "error=%s",
-          client_address_.c_str(), err.what());
-    }
-
-    remove_callback_(this);
-  }
-}
-
-void *MySQLRoutingConnection::run_thread(void *context) {
-  MySQLRoutingConnection *connection(
-      static_cast<MySQLRoutingConnection *>(context));
-  connection->run();
-  return nullptr;
-}
-
-bool MySQLRoutingConnection::check_sockets() {
-  if ((server_socket_ == routing::kInvalidSocket) ||
-      (client_socket_ == routing::kInvalidSocket)) {
-    std::stringstream os;
-    os << "Can't connect to remote MySQL server for client connected to '"
-       << context_.get_bind_address().addr << ":"
-       << context_.get_bind_address().port << "'";
-
-    log_warning("[%s] fd=%d %s", context_.get_name().c_str(), client_socket_,
-                os.str().c_str());
-
-    // at this point, it does not matter whether client gets the error
-    context_.get_protocol().send_error(client_socket_, 2003, os.str(), "HY000",
-                                       context_.get_name());
-
-    if (client_socket_ != routing::kInvalidSocket)
-      context_.get_socket_operations()->shutdown(client_socket_);
-    if (server_socket_ != routing::kInvalidSocket)
-      context_.get_socket_operations()->shutdown(server_socket_);
-
-    if (client_socket_ != routing::kInvalidSocket) {
-      context_.get_socket_operations()->close(client_socket_);
-    }
-    if (server_socket_ != routing::kInvalidSocket) {
-      context_.get_socket_operations()->close(server_socket_);
-    }
-    return false;
   }
 
-  return true;
+  return connected();
 }
 
-void MySQLRoutingConnection::run() {
-  std::shared_ptr<void> thread_exit_guard(nullptr, [&](void *) {
-    // remove callback has to be executed as a last thing in connection
-    remove_callback_(this);
-  });
+stdx::expected<void, std::error_code> ConnectorBase::connect_finish() {
+  if (connect_timed_out()) {
+    last_ec_ = make_error_code(std::errc::timed_out);
 
-  mysql_harness::rename_thread(
-      get_routing_thread_name(context_.get_name(), "RtC")
-          .c_str());  // "Rt client thread" would be too long :(
-
-  std::size_t bytes_read = 0;
-  std::string extra_msg = "";
-  RoutingProtocolBuffer buffer(context_.get_net_buffer_length());
-  bool handshake_done = false;
-
-  if (!check_sockets()) {
-    return;
+    return next_endpoint();
   }
 
-  connected_server_ = std::chrono::system_clock::now();
+  net::socket_base::error sock_err;
+  const auto getopt_res = server_sock_.get_option(sock_err);
 
-  log_debug("[%s] fd=%d connected %s -> %s as fd=%d",
-            context_.get_name().c_str(), client_socket_,
-            client_address_.c_str(), get_server_address().str().c_str(),
-            server_socket_);
+  if (!getopt_res) {
+    last_ec_ = getopt_res.error();
+    return next_endpoint();
+  }
 
-  context_.increase_info_active_routes();
-  context_.increase_info_handled_routes();
-
-  int pktnr = 0;
-
-  bool connection_is_ok = true;
-  bool error_counter_already_cleared = false;
-  while (connection_is_ok && !disconnect_) {
-    const size_t kClientEventIndex = 0;
-    const size_t kServerEventIndex = 1;
-
-    struct pollfd fds[] = {
-        {routing::kInvalidSocket, POLLIN, 0},
-        {routing::kInvalidSocket, POLLIN, 0},
+  if (sock_err.value() != 0) {
+    std::error_code ec {
+      sock_err.value(),
+#if defined(_WIN32)
+          std::system_category()
+#else
+          std::generic_category()
+#endif
     };
 
-    fds[kClientEventIndex].fd = client_socket_;
-    fds[kServerEventIndex].fd = server_socket_;
+    last_ec_ = ec;
 
-    const std::chrono::milliseconds poll_timeout_ms =
-        handshake_done ? std::chrono::milliseconds(1000)
-                       : context_.get_client_connect_timeout();
-    int res = context_.get_socket_operations()->poll(
-        fds, sizeof(fds) / sizeof(fds[0]), poll_timeout_ms);
-
-    if (res < 0) {
-      const int last_errno = context_.get_socket_operations()->get_errno();
-      switch (last_errno) {
-        case EINTR:
-        case EAGAIN:
-          // got interrupted. Just retry
-          break;
-        default:
-          // break the loop, something ugly happened
-          connection_is_ok = false;
-          extra_msg = std::string(
-              "poll() failed: " +
-              mysqlrouter::to_string(get_message_error(last_errno)));
-          break;
-      }
-
-      continue;
-    } else if (res == 0) {
-      // timeout
-      if (!handshake_done) {
-        connection_is_ok = false;
-        extra_msg = std::string("client auth timed out");
-
-        break;
-      } else {
-        continue;
-      }
-    }
-
-    // something happened on the socket: either we have data or the socket was
-    // closed.
-    //
-    // closed sockets are signalled in two ways:
-    //
-    // * Linux: POLLIN + read() == 0
-    // * Windows: POLLHUP
-
-    const bool client_is_readable =
-        (fds[kClientEventIndex].revents & (POLLIN | POLLHUP)) != 0;
-    const bool server_is_readable =
-        (fds[kServerEventIndex].revents & (POLLIN | POLLHUP)) != 0;
-
-    // Handle traffic from Server to Client
-    // Note: In classic protocol Server _always_ talks first
-    if (context_.get_protocol().copy_packets(
-            server_socket_, client_socket_, server_is_readable, buffer, &pktnr,
-            handshake_done, &bytes_read, true) == -1) {
-      const int last_errno = context_.get_socket_operations()->get_errno();
-      if (last_errno > 0) {
-        // if read() against closed socket, errno will be 0. Don't log that.
-        extra_msg =
-            std::string("Copy server->client failed: " +
-                        mysqlrouter::to_string(get_message_error(last_errno)));
-      }
-
-      connection_is_ok = false;
-    } else {
-      last_received_from_server_ = std::chrono::system_clock::now();
-      bytes_up_ += bytes_read;
-    }
-
-    // after a successful handshake, we reset client-side connection error
-    // counter, just like the Server
-    if (!error_counter_already_cleared && handshake_done) {
-      context_.clear_error_counter(in_addr_to_array(client_addr_),
-                                   client_address_.c_str());
-      error_counter_already_cleared = true;
-    }
-
-    // Handle traffic from Client to Server
-    if (context_.get_protocol().copy_packets(
-            client_socket_, server_socket_, client_is_readable, buffer, &pktnr,
-            handshake_done, &bytes_read, false) == -1) {
-      const int last_errno = context_.get_socket_operations()->get_errno();
-      if (last_errno > 0) {
-        extra_msg =
-            std::string("Copy client->server failed: " +
-                        mysqlrouter::to_string(get_message_error(last_errno)));
-      } else if (!handshake_done) {
-        extra_msg = std::string(
-            "Copy client->server failed: unexpected connection close");
-      }
-      // client close on us.
-      connection_is_ok = false;
-    } else {
-      last_sent_to_server_ = std::chrono::system_clock::now();
-      bytes_down_ += bytes_read;
-    }
-
-  }  // while (connection_is_ok && !disconnect_.load())
-
-  if (!handshake_done) {
-    harness_assert(!error_counter_already_cleared);
-
-    log_info("[%s] fd=%d Pre-auth socket failure %s: %s",
-             context_.get_name().c_str(), client_socket_,
-             client_address_.c_str(), extra_msg.c_str());
-    auto ip_array = in_addr_to_array(client_addr_);
-    context_.block_client_host(ip_array, client_address_.c_str(),
-                               server_socket_);
+    return next_endpoint();
   }
 
-  // Either client or server terminated
-  context_.get_socket_operations()->shutdown(client_socket_);
-  context_.get_socket_operations()->shutdown(server_socket_);
-  context_.get_socket_operations()->close(client_socket_);
-  context_.get_socket_operations()->close(server_socket_);
-
-  context_.decrease_info_active_routes();
-#ifndef _WIN32
-  log_debug("[%s] fd=%d connection closed (up: %zub; down: %zub) %s",
-            context_.get_name().c_str(), client_socket_, bytes_up_, bytes_down_,
-            extra_msg.c_str());
-#else
-  log_debug("[%s] fd=%d connection closed (up: %Iub; down: %Iub) %s",
-            context_.get_name().c_str(), client_socket_, bytes_up_, bytes_down_,
-            extra_msg.c_str());
-#endif
+  return connected();
 }
 
-void MySQLRoutingConnection::disconnect() noexcept { disconnect_ = true; }
+stdx::expected<void, std::error_code> ConnectorBase::connected() {
+  destination_id_ =
+      endpoints_it_->host_name() + ":" + endpoints_it_->service_name();
 
-const mysql_harness::TCPAddress &MySQLRoutingConnection::get_server_address()
-    const noexcept {
-  return server_address_;
+  return {};
 }
 
-const std::string &MySQLRoutingConnection::get_client_address() const {
-  return client_address_;
+stdx::expected<void, std::error_code> ConnectorBase::next_endpoint() {
+  std::advance(endpoints_it_, 1);
+
+  if (endpoints_it_ != endpoints_.end()) {
+    return connect_init();
+  } else {
+    auto &destination = *destinations_it_;
+
+    // report back the connect status to the destination
+    destination->connect_status(last_ec_);
+
+    if (last_ec_ && on_connect_failure_) {
+      on_connect_failure_(destination->hostname(), destination->port(),
+                          last_ec_);
+    }
+
+    return next_destination();
+  }
+}
+
+stdx::expected<void, std::error_code> ConnectorBase::next_destination() {
+  do {
+    std::advance(destinations_it_, 1);
+
+    if (destinations_it_ == std::end(destinations_)) break;
+
+    const auto &destination = *destinations_it_;
+    if (is_destination_good(destination->hostname(), destination->port())) {
+      break;
+    }
+  } while (true);
+
+  if (destinations_it_ != destinations_.end()) {
+    // next destination
+    return resolve();
+  } else {
+    auto refresh_res = route_destination_->refresh_destinations(destinations_);
+    if (refresh_res) {
+      destinations_ = std::move(refresh_res.value());
+      return init_destination();
+    } else {
+      // we couldn't connect to any of the destinations. Give up.
+      return stdx::make_unexpected(last_ec_);
+    }
+  }
+}
+
+void MySQLRoutingConnectionBase::accepted() {
+  context().increase_info_active_routes();
+  context().increase_info_handled_routes();
+}
+
+void MySQLRoutingConnectionBase::connected() {
+  const auto now = clock_type::now();
+  stats_([now](Stats &stats) { stats.connected_to_server = now; });
+
+  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+    log_debug("[%s] connected %s -> %s", context().get_name().c_str(),
+              get_client_address().c_str(), get_server_address().c_str());
+  }
 }

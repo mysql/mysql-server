@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -22,185 +22,44 @@
 
 /// @file
 ///
-/// This file implements the difference functor and function.
+/// This file implements the difference function.
 
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
 #include "sql/gis/difference_functor.h"
-#include "sql/gis/disjoint_functor.h"
-#include "sql/gis/geometries.h"
-#include "sql/gis/geometries_traits.h"
-
-namespace bg = boost::geometry;
+#include "sql/gis/setops.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace gis {
 
-Difference::Difference(double semi_major, double semi_minor)
-    : m_semi_major(semi_major),
-      m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(
-          bg::srs::spheroid<double>(semi_major, semi_minor)),
-      m_geographic_ll_la_aa_strategy(
-          bg::srs::spheroid<double>(semi_major, semi_minor)) {}
+bool difference(const dd::Spatial_reference_system *srs, const Geometry *g1,
+                const Geometry *g2, const char *func_name,
+                std::unique_ptr<Geometry> *result) noexcept {
+  try {
+    assert(g1 && g2 && g1->coordinate_system() == g2->coordinate_system());
+    assert(((srs == nullptr || srs->is_cartesian()) &&
+            g1->coordinate_system() == Coordinate_system::kCartesian) ||
+           (srs && srs->is_geographic() &&
+            g1->coordinate_system() == Coordinate_system::kGeographic));
 
-Geometry *Difference::operator()(const Geometry *g1, const Geometry *g2) const {
-  return apply(*this, g1, g2);
-}
+    Difference difference_func(srs ? srs->semi_major_axis() : 0.0,
+                               srs ? srs->semi_minor_axis() : 0.0);
+    *result = difference_func(g1, g2);
 
-Geometry *Difference::eval(const Geometry *g1, const Geometry *g2) const {
-  DBUG_ASSERT(false);
-  throw not_implemented_exception::for_non_projected(*g1, *g2);
-}
+    if (result->get()->type() != Geometry_type::kGeometrycollection &&
+        result->get()->is_empty()) {
+      if (result->get()->coordinate_system() == Coordinate_system::kCartesian) {
+        *result = std::make_unique<Cartesian_geometrycollection>();
+      } else {
+        *result = std::make_unique<Geographic_geometrycollection>();
+      }
+    }
 
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Cartesian_linestring, *)
-
-Geometry *Difference::eval(const Cartesian_linestring *g1,
-                           const Cartesian_multilinestring *g2) const {
-  std::unique_ptr<Cartesian_multilinestring> result(
-      new Cartesian_multilinestring());
-  bg::difference(*g1, *g2, *result);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Cartesian_multipoint, *)
-
-Geometry *Difference::eval(const Cartesian_multipoint *g1,
-                           const Cartesian_multipoint *g2) const {
-  std::unique_ptr<Cartesian_multipoint> result(new Cartesian_multipoint());
-  bg::difference(*g1, *g2, *result);
-  return result.release();
-}
-
-Geometry *Difference::eval(const Cartesian_multipoint *g1,
-                           const Cartesian_multilinestring *g2) const {
-  std::unique_ptr<Cartesian_multipoint> result(new Cartesian_multipoint());
-  bg::difference(*g1, *g2, *result);
-  return result.release();
-}
-
-Geometry *Difference::eval(const Cartesian_multipoint *g1,
-                           const Cartesian_multipolygon *g2) const {
-  Disjoint disjoint(m_semi_major, m_semi_minor);
-  std::set<Cartesian_point> points;
-  for (auto &pt : *g1)
-    if (disjoint(&pt, g2)) points.insert(pt);
-
-  std::unique_ptr<Cartesian_multipoint> result(new Cartesian_multipoint());
-  for (auto &pt : points) result->push_back(pt);
-
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Cartesian_multilinestring, *)
-
-Geometry *Difference::eval(const Cartesian_multilinestring *g1,
-                           const Cartesian_multilinestring *g2) const {
-  std::unique_ptr<Cartesian_multilinestring> result(
-      new Cartesian_multilinestring());
-  bg::difference(*g1, *g2, *result);
-  return result.release();
-}
-
-Geometry *Difference::eval(const Cartesian_multilinestring *g1,
-                           const Cartesian_multipolygon *g2) const {
-  std::unique_ptr<Cartesian_multilinestring> result(
-      new Cartesian_multilinestring());
-  bg::difference(*g1, *g2, *result);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Cartesian_multipolygon, *)
-
-Geometry *Difference::eval(const Cartesian_multipolygon *g1,
-                           const Cartesian_multipolygon *g2) const {
-  std::unique_ptr<Cartesian_multipolygon> result(new Cartesian_multipolygon());
-  bg::difference(*g1, *g2, *result);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Geographic_linestring, *)
-
-Geometry *Difference::eval(const Geographic_linestring *g1,
-                           const Geographic_multilinestring *g2) const {
-  std::unique_ptr<Geographic_multilinestring> result(
-      new Geographic_multilinestring());
-  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Geographic_multipoint, *)
-
-Geometry *Difference::eval(const Geographic_multipoint *g1,
-                           const Geographic_multipoint *g2) const {
-  std::unique_ptr<Geographic_multipoint> result(new Geographic_multipoint());
-  bg::difference(*g1, *g2, *result);  // Default strategy is OK.
-  return result.release();
-}
-
-Geometry *Difference::eval(const Geographic_multipoint *g1,
-                           const Geographic_multilinestring *g2) const {
-  std::unique_ptr<Geographic_multipoint> result(new Geographic_multipoint());
-  bg::difference(*g1, *g2, *result, m_geographic_pl_pa_strategy);
-  return result.release();
-}
-
-Geometry *Difference::eval(const Geographic_multipoint *g1,
-                           const Geographic_multipolygon *g2) const {
-  Disjoint disjoint(m_semi_major, m_semi_minor);
-  std::set<Geographic_point> points;
-  for (auto &pt : *g1)
-    if (disjoint(&pt, g2)) points.insert(pt);
-
-  std::unique_ptr<Geographic_multipoint> result(new Geographic_multipoint());
-  for (auto &pt : points) result->push_back(pt);
-
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Geographic_multilinestring, *)
-
-Geometry *Difference::eval(const Geographic_multilinestring *g1,
-                           const Geographic_multilinestring *g2) const {
-  std::unique_ptr<Geographic_multilinestring> result(
-      new Geographic_multilinestring());
-  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
-  return result.release();
-}
-
-Geometry *Difference::eval(const Geographic_multilinestring *g1,
-                           const Geographic_multipolygon *g2) const {
-  std::unique_ptr<Geographic_multilinestring> result(
-      new Geographic_multilinestring());
-  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// difference(Geographic_multipolygon, *)
-
-Geometry *Difference::eval(const Geographic_multipolygon *g1,
-                           const Geographic_multipolygon *g2) const {
-  std::unique_ptr<Geographic_multipolygon> result(
-      new Geographic_multipolygon());
-  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
-  return result.release();
+  } catch (...) {
+    handle_gis_exception(func_name);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace gis

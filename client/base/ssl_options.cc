@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,6 @@ void Mysql_connection_options::Ssl_options::create_options() {
   std::function<void(char *)> callback(std::bind(
       &Mysql_connection_options::Ssl_options::mode_option_callback, this, _1));
 
-#if defined(HAVE_OPENSSL)
   this->create_new_option(&this->m_ssl_mode_string, "ssl-mode",
                           "SSL connection mode.")
       ->add_callback(new std::function<void(char *)>(std::bind(
@@ -70,11 +69,17 @@ void Mysql_connection_options::Ssl_options::create_options() {
       ->add_callback(new std::function<void(char *)>(std::bind(
           &Mysql_connection_options::Ssl_options::fips_mode_option_callback,
           this, _1)));
-#endif /* HAVE_OPENSSL */
+  this->create_new_option(
+      &::opt_ssl_session_data, "ssl-session-data",
+      "Session data file to use to enable ssl session reuse");
+  this->create_new_option(&::opt_ssl_session_data_continue_on_failed_reuse,
+                          "ssl-session-data-continue-on-failed-reuse",
+                          "If set to ON, this option will allow connection to "
+                          "succeed even if session data cannot be reused.");
 }
 
-void Mysql_connection_options::Ssl_options::ca_option_callback(
-    char *argument MY_ATTRIBUTE((unused))) {
+void Mysql_connection_options::Ssl_options::ca_option_callback(char *argument [
+    [maybe_unused]]) {
   if (!ssl_mode_set_explicitly) ::opt_ssl_mode = SSL_MODE_VERIFY_CA;
 }
 
@@ -94,7 +99,13 @@ bool Mysql_connection_options::Ssl_options::apply_for_connection(
     MYSQL *connection) {
   if (SSL_SET_OPTIONS(connection)) {
     std::cerr << SSL_SET_OPTIONS_ERROR;
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
+}
+
+bool Mysql_connection_options::Ssl_options::check_connection(
+    MYSQL *connection) {
+  return ssl_client_check_post_connect_ssl_setup(
+      connection, [](const char *err) { std::cerr << err << std::endl; });
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "plugin/x/src/udf/mysqlx_generate_document_id.h"
 
 #include <cstring>
+#include <string>
 
-#include "include/my_sys.h"
-#include "include/mysql/thread_pool_priv.h"
-#include "plugin/x/src/xpl_server.h"
+#include "my_sys.h"  // NOLINT(build/include_subdir)
+#include "mysql/thread_pool_priv.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/module_mysqlx.h"
+#include "plugin/x/src/variables/system_variables.h"
 
 namespace xpl {
-
 namespace {
+
 bool mysqlx_generate_document_id_init(UDF_INIT *, UDF_ARGS *args,
                                       char *message) {
   switch (args->arg_count) {
@@ -57,6 +61,32 @@ bool mysqlx_generate_document_id_init(UDF_INIT *, UDF_ARGS *args,
   return true;
 }
 
+std::string get_document_id(const THD *thd, const uint16_t offset,
+                            const uint16_t increment) {
+  using Variables = iface::Document_id_generator::Variables;
+  Variables vars{static_cast<uint16_t>(
+                     xpl::Plugin_system_variables::m_document_id_unique_prefix),
+                 offset, increment};
+
+  auto server = modules::Module_mysqlx::get_instance_server();
+
+  if (server.container()) {
+    auto client = server->get_client(thd);
+
+    if (client) {
+      auto session = client->session_shared_ptr();
+
+      if (session) {
+        return session->get_document_id_aggregator().generate_id(vars);
+      }
+    }
+
+    return server->get_document_id_generator().generate(vars);
+  }
+
+  return "";
+}
+
 char *mysqlx_generate_document_id(UDF_INIT *, UDF_ARGS *args, char *result,
                                   unsigned long *length, unsigned char *is_null,
                                   unsigned char *error) {
@@ -67,10 +97,10 @@ char *mysqlx_generate_document_id(UDF_INIT *, UDF_ARGS *args, char *result,
         *is_null = 1;
         return nullptr;
       }
-      // fallthrough
+      [[fallthrough]];
     case 2:
       increment = *reinterpret_cast<long long *>(args->args[1]);
-      // fallthrough
+      [[fallthrough]];
     case 1:
       offset = *reinterpret_cast<long long *>(args->args[0]);
   }
@@ -79,13 +109,14 @@ char *mysqlx_generate_document_id(UDF_INIT *, UDF_ARGS *args, char *result,
   *is_null = 0;
   *length = sprintf(
       result, "%s",
-      xpl::Server::get_document_id(thd_get_current_thd(), offset, increment)
-          .c_str());
+      get_document_id(thd_get_current_thd(), offset, increment).c_str());
   return result;
 }
+
 }  // namespace
 
 namespace udf {
+
 Registrator::Record get_mysqlx_generate_document_id_record() {
   return {
       "mysqlx_generate_document_id",
@@ -95,5 +126,6 @@ Registrator::Record get_mysqlx_generate_document_id_record() {
       nullptr,
   };
 }
+
 }  // namespace udf
 }  // namespace xpl

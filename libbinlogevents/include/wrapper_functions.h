@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,21 +53,23 @@ extern PSI_memory_key key_memory_log_event;
 
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 #include "my_dbug.h"
 
 #ifdef HAVE_MYSYS
-#define BAPI_ASSERT(x) DBUG_ASSERT(x)
+#define BAPI_ASSERT(x) assert(x)
 #define BAPI_PRINT(name, params) DBUG_PRINT(name, params)
 #define BAPI_ENTER(x) DBUG_ENTER(x)
 #define BAPI_RETURN(x) DBUG_RETURN(x)
+#define BAPI_TRACE DBUG_TRACE
 #define BAPI_VOID_RETURN DBUG_VOID_RETURN
 #else
 #define BAPI_ASSERT(x) assert(x)
 #define BAPI_PRINT(name, params)
 #define BAPI_ENTER(x)
 #define BAPI_RETURN(x) return (x)
+#define BAPI_TRACE
 #define BAPI_VOID_RETURN return
 #endif
 #else
@@ -77,6 +79,7 @@ extern PSI_memory_key key_memory_log_event;
 #define BAPI_PRINT(name, params)
 #define BAPI_ENTER(x)
 #define BAPI_RETURN(x) return (x)
+#define BAPI_TRACE
 #define BAPI_VOID_RETURN return
 #endif
 
@@ -163,7 +166,7 @@ inline void *bapi_memdup(const void *source, size_t len) {
   @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
-inline void *bapi_malloc(size_t size, int flags MY_ATTRIBUTE((unused))) {
+inline void *bapi_malloc(size_t size, int flags [[maybe_unused]]) {
   void *dest = nullptr;
 #ifdef HAVE_MYSYS
   dest = my_malloc(key_memory_log_event, size, MYF(flags));

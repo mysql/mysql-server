@@ -1,0 +1,54 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+drop table if exists mysql.ndb_replication;
+Warnings:
+Note	1051	Unknown table 'mysql.ndb_replication'
+CREATE TABLE mysql.ndb_replication
+(db VARBINARY(63),
+table_name VARBINARY(63),
+server_id INT UNSIGNED,
+binlog_type INT UNSIGNED,
+conflict_fn VARBINARY(128),
+PRIMARY KEY USING HASH (db,table_name,server_id))
+ENGINE=NDB PARTITION BY KEY(db,table_name);
+Populate ndb_replication table as necessary
+replace into mysql.ndb_replication values
+("test", "t1", 0, 7, NULL);
+create table test.t1 (
+a int primary key,
+b int,
+c int,
+unique(c)) engine=ndb;
+Insert some data
+insert into test.t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+Now try to show problem
+Generate inserts and updates interleaved
+Updates are on existing keys, but do not affect existing key values
+insert into test.t1 values (6,6,6), (7,7,7), (8,8,8);
+update test.t1 set b=10 where a < 6;
+select * from t1 order by a;
+a	b	c
+1	10	1
+2	10	2
+3	10	3
+4	10	4
+5	10	5
+6	6	6
+7	7	7
+8	8	8
+select * from t1 order by a;
+a	b	c
+1	10	1
+2	10	2
+3	10	3
+4	10	4
+5	10	5
+6	6	6
+7	7	7
+8	8	8
+drop table test.t1;
+drop table mysql.ndb_replication;
+include/rpl_end.inc

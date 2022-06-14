@@ -1,6 +1,3 @@
-DROP SCHEMA IF EXISTS xtest;
-Warnings:
-Note	1008	Can't drop database 'xtest'; database doesn't exist
 CREATE SCHEMA xtest;
 USE xtest;
 CREATE TABLE xtable (doc JSON);
@@ -17,9 +14,15 @@ command ok
 fun	oper
 2015-10-08	2015-10-08
 command ok
+Warnings generated:
+WARNING | 4095 | Delimiter '.' in position 4 in datetime value '2015.10.05' at row 1 is deprecated. Prefer the standard '-'.
+WARNING | 4095 | Delimiter '.' in position 4 in datetime value '2015.10.05' at row 1 is deprecated. Prefer the standard '-'.
 fun	oper
 2015-10-02	2015-10-02
 command ok
+Warnings generated:
+WARNING | 4095 | Delimiter '.' in position 4 in datetime value '2015.10.05' at row 1 is deprecated. Prefer the standard '-'.
+WARNING | 4095 | Delimiter '.' in position 4 in datetime value '2015.10.05' at row 1 is deprecated. Prefer the standard '-'.
 string	number
 40	10
 command ok
@@ -74,8 +77,11 @@ command ok
 keys
 ["a", "b", "c", "d", "e", "f", "g", "sqrt", "extra"]
 command ok
+doc
+{"empty": {"a": 10, "b": 20, "c": "30", "d": "40", "e": "foo", "f": "bar", "g": "2015.10.05", "sqrt": 3.1622776601683795, "extra": "FOO"}}
+command ok
+Got expected error: Column name is required in ColumnIdentifier. (code 5152)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

@@ -164,7 +164,7 @@ XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
 --error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
-SET @@SESSION.pseudo_slave_mode=1;
+SET @@SESSION.pseudo_replica_mode=1;
 XA PREPARE 'xa1';
 
 --connection default
@@ -179,7 +179,7 @@ INSERT INTO t SET a = 1;
 XA END 'xa1';
 XA PREPARE 'xa1';
 --error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
-SET @@SESSION.pseudo_slave_mode=1;
+SET @@SESSION.pseudo_replica_mode=1;
 XA COMMIT 'xa1';
 
 DROP TABLE t;

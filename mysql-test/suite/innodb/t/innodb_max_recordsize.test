@@ -1,0 +1,39 @@
+#
+# Bug#33399379 : Missing PREFIX BLOB in calculating maximum length of possible row
+#
+
+--disable_query_log
+call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
+--enable_query_log
+
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(500)) ROW_FORMAT=COMPACT;
+
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(500)) ROW_FORMAT=REDUNDANT;
+
+SET SESSION innodb_strict_mode=OFF;
+# Create Table shall pass with a warning with strict mode off
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(500)) ROW_FORMAT=COMPACT;
+# Actual Insert shall return error as the row size is big
+--error ER_TOO_BIG_ROWSIZE
+INSERT INTO t1 VALUES(2, repeat('e', 4000), repeat('f', 4000), repeat('h', 500));
+DROP TABLE t1;
+
+# Create Table shall pass with a warning with strict mode off
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(500)) ROW_FORMAT=REDUNDANT;
+# Actual Insert shall return error as the row size is big
+--error ER_TOO_BIG_ROWSIZE
+INSERT INTO t1 VALUES(2, repeat('e', 4000), repeat('f', 4000), repeat('h', 500));
+DROP TABLE t1;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(500)) ROW_FORMAT=DYNAMIC;
+
+INSERT INTO t1 VALUES(2, repeat('e', 4000), repeat('f', 4000), repeat('h', 500));
+
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1;
+
+DROP TABLE t1;

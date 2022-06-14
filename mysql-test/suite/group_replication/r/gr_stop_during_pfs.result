@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Set the necessary debug points required for the simulation.
+#
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
+#
+# Send STOP GR command. The query shall wait before
+# "leave_group_and_terminate_plugin_modules()" function until it is signaled.
+#
+STOP GROUP_REPLICATION;
+#
+# Wait for STOP GR to reach the debug sync point.
+#
+[connection server_1_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
+#
+# Send PS query from different session. The query shall halt in
+# "get_group_member_stats()" function.
+#
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_get_group_member_stats';
+SELECT * FROM performance_schema.replication_group_member_stats;
+#
+# Block the PS query and allow STOP GR command to continue by
+# signalling it.
+#
+[connection server_1_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats";
+SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
+[connection server1]
+#
+# Allow the PS query to continue.
+#
+SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats";
+[connection server_1]
+#
+# Verify that MEMBER_STATE is OFFLINE on server_1.
+#
+[connection server_1]
+include/assert.inc [Verified that MEMBER_STATE is OFFLINE on server_1]
+#
+# Verify that MEMBER_STATE is ONLINE on server_2.
+#
+[connection server_2]
+include/assert.inc [Verified that MEMBER_STATE is ONLINE on server_2]
+[connection server1]
+SET GLOBAL DEBUG= @debug_save;
+SET DEBUG_SYNC= 'RESET';
+include/group_replication_end.inc

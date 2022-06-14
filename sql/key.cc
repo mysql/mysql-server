@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,8 +139,9 @@ void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
   if (key_length == 0) key_length = key_info->key_length;
   for (key_part = key_info->key_part; (int)key_length > 0; key_part++) {
     if (key_part->null_bit) {
-      *to_key++ =
-          MY_TEST(from_record[key_part->null_offset] & key_part->null_bit);
+      bool key_is_null =
+          from_record[key_part->null_offset] & key_part->null_bit;
+      *to_key++ = (key_is_null ? 1 : 0);
       key_length--;
     }
     if (key_part->key_part_flag & HA_BLOB_PART ||
@@ -262,7 +263,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
     1	Key has changed
 */
 
-bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
+bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
                      uint key_length) {
   uint store_length;
   KEY_PART_INFO *key_part;
@@ -274,9 +275,9 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
     store_length = key_part->store_length;
 
     if (key_part->null_bit) {
-      if (*key !=
-          MY_TEST(table->record[0][key_part->null_offset] & key_part->null_bit))
-        return 1;
+      bool key_is_null =
+          table->record[0][key_part->null_offset] & key_part->null_bit;
+      if (*key != (key_is_null ? 1 : 0)) return true;
       if (*key) continue;
       key++;
       store_length--;
@@ -286,13 +287,13 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
           (HA_BLOB_PART | HA_VAR_LENGTH_PART | HA_BIT_PART))) {
       // We can use memcpy.
       uint length = min((uint)(key_end - key), store_length);
-      if (memcmp(key, table->record[0] + key_part->offset, length)) return 1;
+      if (memcmp(key, table->record[0] + key_part->offset, length)) return true;
     } else {
       // Use the regular comparison function.
-      if (key_part->field->key_cmp(key, key_part->length)) return 1;
+      if (key_part->field->key_cmp(key, key_part->length)) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -307,12 +308,12 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
 
 void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
   String tmp;
-  DBUG_ENTER("field_unpack");
+  DBUG_TRACE;
   if (!max_length) max_length = field->pack_length();
   if (field) {
     if (field->is_null()) {
       to->append(STRING_WITH_LEN("NULL"));
-      DBUG_VOID_RETURN;
+      return;
     }
     const CHARSET_INFO *cs = field->charset();
     field->val_str(&tmp);
@@ -345,7 +346,6 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
     to->append(err.ptr());
   } else
     to->append(STRING_WITH_LEN("???"));
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -364,7 +364,7 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
 
 void key_unpack(String *to, TABLE *table, KEY *key) {
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
-  DBUG_ENTER("key_unpack");
+  DBUG_TRACE;
 
   to->length(0);
   KEY_PART_INFO *key_part_end = key->key_part + key->user_defined_key_parts;
@@ -381,7 +381,6 @@ void key_unpack(String *to, TABLE *table, KEY *key) {
                  (key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -409,7 +408,7 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
 
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&table->tmp_set);
-  if (overlapping) return 1;
+  if (overlapping) return true;
 
   /*
     If table handler has primary key as part of the index, check that primary
@@ -418,7 +417,7 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
   if (idx != table->s->primary_key && table->s->primary_key < MAX_KEY &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     return is_key_used(table, table->s->primary_key, fields);
-  return 0;
+  return false;
 }
 
 /**
@@ -497,9 +496,9 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
   @see key_cmp()
 */
 int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
-             const uchar *key2, uint key2_length MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(key_part && key1 && key2);
-  DBUG_ASSERT((key1_length == key2_length) && key1_length != 0);
+             const uchar *key2, uint key2_length [[maybe_unused]]) {
+  assert(key_part && key1 && key2);
+  assert((key1_length == key2_length) && key1_length != 0);
   uint store_length;
 
   /* Compare all the subkeys (if it is a composite key) */
@@ -584,15 +583,15 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   KEY *key_info = *(key++);  // Start with first key
   uint key_parts, key_part_num;
   KEY_PART_INFO *key_part = key_info->key_part;
-  uchar *rec0 = key_part->field->ptr - key_part->offset;
+  uchar *rec0 = key_part->field->field_ptr() - key_part->offset;
   ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
   int result = 0;
   Field *field;
-  DBUG_ENTER("key_rec_cmp");
+  DBUG_TRACE;
 
   /* Assert that at least the first key part is read. */
-  DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
-                            key_info->key_part->field->field_index));
+  assert(bitmap_is_set(key_info->table->read_set,
+                       key_info->key_part->field->field_index()));
   /* loop over all given keys */
   do {
     key_parts = key_info->user_defined_key_parts;
@@ -607,8 +606,8 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       field = key_part->field;
 
       /* If not read, compare is done and equal! */
-      if (!bitmap_is_set(field->table->read_set, field->field_index))
-        DBUG_RETURN(0);
+      if (!bitmap_is_set(field->table->read_set, field->field_index()))
+        return 0;
 
       if (key_part->null_bit) {
         /* The key_part can contain NULL values */
@@ -625,10 +624,10 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
           if (!sec_is_null)
             ; /* Fall through, no NULL fields */
           else {
-            DBUG_RETURN(sort_order);
+            return sort_order;
           }
         } else if (!sec_is_null) {
-          DBUG_RETURN(-sort_order);
+          return -sort_order;
         } else
           goto next_loop; /* Both were NULL */
       }
@@ -639,9 +638,10 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
         max length. The exceptions are the BLOB and VARCHAR field types
         that take the max length into account.
       */
-      if ((result = field->cmp_max(field->ptr + first_diff,
-                                   field->ptr + sec_diff, key_part->length)))
-        DBUG_RETURN((sort_order < 0) ? -result : result);
+      if ((result =
+               field->cmp_max(field->field_ptr() + first_diff,
+                              field->field_ptr() + sec_diff, key_part->length)))
+        return (sort_order < 0) ? -result : result;
     next_loop:
       key_part++;
       key_part_num++;
@@ -649,5 +649,5 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
 
     key_info = *(key++);
   } while (key_info); /* no more keys to test */
-  DBUG_RETURN(0);
+  return 0;
 }

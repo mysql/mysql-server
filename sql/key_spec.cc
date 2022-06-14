@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b) {
 }
 
 bool Key_part_spec::resolve_expression(THD *thd) {
-  DBUG_ASSERT(has_expression());
+  assert(has_expression());
   if (get_expression()->fixed) {
     return false;
   }
@@ -105,7 +105,7 @@ void Key_part_spec::set_name_and_prefix_length(const char *name,
 
 bool Foreign_key_spec::validate(THD *thd, const char *table_name,
                                 List<Create_field> &table_fields) const {
-  DBUG_ENTER("Foreign_key_spec::validate");
+  DBUG_TRACE;
 
   // Reject FKs to inaccessible DD tables.
   const dd::Dictionary *dictionary = dd::get_dictionary();
@@ -113,25 +113,25 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
                         thd->is_dd_system_thread(), true, ref_db.str,
                         ref_db.length, ref_table.str)) {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
-             ER_THD(thd, dictionary->table_type_error_code(ref_db.str,
-                                                           ref_table.str)),
+             ER_THD_NONCONST(thd, dictionary->table_type_error_code(
+                                      ref_db.str, ref_table.str)),
              ref_db.str, ref_table.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   Create_field *sql_field;
   List_iterator<Create_field> it(table_fields);
   if (ref_columns.size() != columns.size()) {
     my_error(ER_WRONG_FK_DEF, MYF(0),
-             (name.str ? name.str : "foreign key without name"),
+             (has_explicit_name ? name.str : "foreign key without name"),
              ER_THD(thd, ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
-    DBUG_RETURN(true);
+    return true;
   }
   for (const Key_part_spec *column : columns) {
     // Index prefixes on foreign keys columns are not supported.
     if (column->get_prefix_length() > 0) {
       my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), table_name);
-      DBUG_RETURN(true);
+      return true;
     }
 
     it.rewind();
@@ -141,23 +141,23 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
     }
     if (!sql_field) {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->get_field_name());
-      DBUG_RETURN(true);
+      return true;
     }
     if (sql_field->gcol_info) {
       if (delete_opt == FK_OPTION_SET_NULL) {
         my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0),
                  "ON DELETE SET NULL");
-        DBUG_RETURN(true);
+        return true;
       }
       if (update_opt == FK_OPTION_SET_NULL) {
         my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0),
                  "ON UPDATE SET NULL");
-        DBUG_RETURN(true);
+        return true;
       }
       if (update_opt == FK_OPTION_CASCADE) {
         my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0),
                  "ON UPDATE CASCADE");
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
@@ -165,9 +165,9 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
   for (const Key_part_spec *fk_col : ref_columns) {
     if (check_column_name(fk_col->get_field_name())) {
       my_error(ER_WRONG_COLUMN_NAME, MYF(0), fk_col->get_field_name());
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }

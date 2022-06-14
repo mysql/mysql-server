@@ -13,6 +13,8 @@
 #                                                                             #
 ###############################################################################
 
+--source include/set_privilege_checks_user_as_system_user.inc
+--let $rpl_privilege_checks_user_grant_option = 1
 --source include/master-slave.inc
 
 SELECT @@global.partial_revokes;
@@ -21,6 +23,7 @@ SELECT @@global.partial_revokes;
 CALL mtr.add_suppression("one or more privileges granted through");
 CALL mtr.add_suppression("these are not valid database privileges");
 CALL mtr.add_suppression("corresponding global privilege(s) are not granted");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
 --let $TEST_MODE=RPL

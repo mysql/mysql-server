@@ -16,7 +16,7 @@ id	code	name
 7	4	Matt
 update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
 Warnings:
-Warning	1062	Duplicate entry '8' for key 'PRIMARY'
+Warning	1062	Duplicate entry '8' for key 't1.PRIMARY'
 select id, code, name from t1 order by id;
 id	code	name
 2	1	Monty
@@ -28,7 +28,7 @@ id	code	name
 8	1	Sinisa
 update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
 Warnings:
-Warning	1062	Duplicate entry 'Ralph' for key 'name'
+Warning	1062	Duplicate entry 'Ralph' for key 't1.name'
 select id, code, name from t1 order by id;
 id	code	name
 3	2	David
@@ -104,36 +104,36 @@ id	parent_id	level
 1203	107	2
 update ignore t1 set id=id+1;
 Warnings:
-Warning	1062	Duplicate entry '1002' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1003' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1004' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1005' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1006' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1007' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1008' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1009' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1016' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1017' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1018' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1019' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1020' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1021' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1022' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1025' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1026' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1027' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1028' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1029' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1030' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1031' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1032' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1033' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1034' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1035' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1036' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1037' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1038' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1203' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1002' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1003' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1004' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1005' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1006' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1007' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1008' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1009' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1016' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1017' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1018' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1019' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1020' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1021' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1022' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1025' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1026' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1027' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1028' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1029' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1030' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1031' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1032' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1033' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1034' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1035' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1036' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1037' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1038' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1203' for key 't1.PRIMARY'
 select * from t1;
 id	parent_id	level
 1001	100	0
@@ -177,7 +177,7 @@ id	parent_id	level
 1204	107	2
 update ignore t1 set id=1023 where id=1010;
 Warnings:
-Warning	1062	Duplicate entry '1023' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1023' for key 't1.PRIMARY'
 select * from t1 where parent_id=102;
 id	parent_id	level
 1008	102	2
@@ -289,7 +289,7 @@ n	after commit
 commit;
 insert into t1 values (5);
 insert into t1 values (4);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 commit;
 select n, "after commit" from t1;
 n	after commit
@@ -298,7 +298,7 @@ n	after commit
 set autocommit=1;
 insert into t1 values (6);
 insert into t1 values (4);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 select n from t1;
 n
 4
@@ -373,7 +373,7 @@ drop table t1;
 CREATE TABLE t1 (id char(8) not null primary key, val int not null) engine=innodb;
 insert into t1 values ('pippo', 12);
 insert into t1 values ('pippo', 12);
-ERROR 23000: Duplicate entry 'pippo' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'pippo' for key 't1.PRIMARY'
 delete from t1;
 delete from t1 where id = 'pippo';
 select * from t1;
@@ -585,86 +585,86 @@ update t1 set id=1024 where id=1009;
 select * from t1;
 id	parent_id	level
 1001	100	0
+1002	101	1
 1003	101	1
 1004	101	1
+1005	101	1
+1006	101	1
+1007	101	1
 1008	102	2
-1024	102	2
+1015	102	2
+1016	103	2
 1017	103	2
+1018	103	2
+1019	103	2
+1020	103	2
+1021	104	2
 1022	104	2
+1024	102	2
 1024	104	2
+1025	105	2
+1026	105	2
+1027	105	2
 1028	105	2
 1029	105	2
 1030	105	2
 1031	106	2
 1032	106	2
 1033	106	2
-1203	107	2
-1202	107	2
-1020	103	2
-1157	100	0
-1193	105	2
-1040	107	2
-1002	101	1
-1015	102	2
-1006	101	1
 1034	106	2
 1035	106	2
-1016	103	2
-1007	101	1
 1036	107	2
-1018	103	2
-1026	105	2
-1027	105	2
-1183	104	2
-1038	107	2
-1025	105	2
 1037	107	2
-1021	104	2
-1019	103	2
-1005	101	1
+1038	107	2
+1040	107	2
+1157	100	0
 1179	105	2
+1183	104	2
+1193	105	2
+1202	107	2
+1203	107	2
 update ignore t1 set id=id+1;
 select * from t1;
 id	parent_id	level
 1002	100	0
+1003	101	1
 1004	101	1
 1005	101	1
+1006	101	1
+1007	101	1
+1008	101	1
 1009	102	2
-1025	102	2
+1016	102	2
+1017	103	2
 1018	103	2
+1019	103	2
+1020	103	2
+1021	103	2
+1022	104	2
 1023	104	2
+1025	102	2
 1025	104	2
+1026	105	2
+1027	105	2
+1028	105	2
 1029	105	2
 1030	105	2
 1031	105	2
 1032	106	2
 1033	106	2
 1034	106	2
-1204	107	2
-1203	107	2
-1021	103	2
-1158	100	0
-1194	105	2
-1041	107	2
-1003	101	1
-1016	102	2
-1007	101	1
 1035	106	2
 1036	106	2
-1017	103	2
-1008	101	1
 1037	107	2
-1019	103	2
-1027	105	2
-1028	105	2
-1184	104	2
-1039	107	2
-1026	105	2
 1038	107	2
-1022	104	2
-1020	103	2
-1006	101	1
+1039	107	2
+1041	107	2
+1158	100	0
 1180	105	2
+1184	104	2
+1194	105	2
+1203	107	2
+1204	107	2
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
 id	parent_id	level
@@ -678,20 +678,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`level` AS `level` from `test`.`t1` where (`test`.`t1`.`level` = 1)
 select level,id from t1 where level=1;
 level	id
+1	1003
 1	1004
 1	1005
-1	1003
+1	1006
 1	1007
 1	1008
-1	1006
 select level,id,parent_id from t1 where level=1;
 level	id	parent_id
+1	1003	101
 1	1004	101
 1	1005	101
-1	1003	101
+1	1006	101
 1	1007	101
 1	1008	101
-1	1006	101
 select level,id from t1 where level=1 order by id;
 level	id
 1	1003
@@ -705,37 +705,37 @@ select * from t1;
 id	parent_id	level
 1002	100	0
 1009	102	2
-1025	102	2
+1016	102	2
+1017	103	2
 1018	103	2
+1019	103	2
+1020	103	2
+1021	103	2
+1022	104	2
 1023	104	2
+1025	102	2
 1025	104	2
+1026	105	2
+1027	105	2
+1028	105	2
 1029	105	2
 1030	105	2
 1031	105	2
 1032	106	2
 1033	106	2
 1034	106	2
-1204	107	2
-1203	107	2
-1021	103	2
-1158	100	0
-1194	105	2
-1041	107	2
-1016	102	2
 1035	106	2
 1036	106	2
-1017	103	2
 1037	107	2
-1019	103	2
-1027	105	2
-1028	105	2
-1184	104	2
-1039	107	2
-1026	105	2
 1038	107	2
-1022	104	2
-1020	103	2
+1039	107	2
+1041	107	2
+1158	100	0
 1180	105	2
+1184	104	2
+1194	105	2
+1203	107	2
+1204	107	2
 drop table t1;
 CREATE TABLE t1 (
 sca_code char(6) NOT NULL,
@@ -846,7 +846,7 @@ create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(3
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 select id from t1;
 id
 0
@@ -864,7 +864,7 @@ insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJ
 LOCK TABLES t1 WRITE;
 begin;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 select id from t1;
 id
 0
@@ -872,7 +872,7 @@ id
 2
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
 Warnings:
-Warning	1062	Duplicate entry '1-1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1-1' for key 't1.PRIMARY'
 commit;
 select id,id3 from t1;
 id	id3
@@ -1018,7 +1018,7 @@ drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-t	int(11)	NO	MUL	1	
+t	int	NO	MUL	1	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
@@ -1077,18 +1077,18 @@ INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,0000000000000
 INSERT INTO t2 VALUES (333,'tubs',99,2,20020109113453,501,20020109113453,500,3,10,0);
 select * from t1;
 number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
-4077711111	SeanWheeler	90	2	2002-01-11 11:28:46	500	0000-00-00 00:00:00	-1	2	3	1
-9197722223	berry	90	3	2002-01-11 11:28:09	500	2002-01-02 11:45:32	501	4	10	0
-650	San Francisco	0	0	2001-12-27 11:13:36	342	0000-00-00 00:00:00	-1	1	24	1
 302467	Sue's Subshop	90	3	2002-01-09 11:32:41	500	2002-01-02 11:51:11	501	7	24	0
-6014911113	SudzCarwash	520	1	2002-01-02 11:52:34	500	2002-01-02 11:52:59	501	33	32768	0
 333	tubs	99	2	2002-01-09 11:34:40	501	2002-01-09 11:34:40	500	3	10	0
+4077711111	SeanWheeler	90	2	2002-01-11 11:28:46	500	0000-00-00 00:00:00	-1	2	3	1
+6014911113	SudzCarwash	520	1	2002-01-02 11:52:34	500	2002-01-02 11:52:59	501	33	32768	0
+650	San Francisco	0	0	2001-12-27 11:13:36	342	0000-00-00 00:00:00	-1	1	24	1
+9197722223	berry	90	3	2002-01-11 11:28:09	500	2002-01-02 11:45:32	501	4	10	0
 select * from t2;
 number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
-4077711111	SeanWheeler	0	2	2002-01-11 11:28:53	500	0000-00-00 00:00:00	-1	2	3	1
-9197722223	berry	90	3	2002-01-11 11:28:18	500	2002-01-02 11:45:32	501	4	10	0
-650	San Francisco	90	0	2002-01-09 11:31:58	342	0000-00-00 00:00:00	-1	1	24	1
 333	tubs	99	2	2002-01-09 11:34:53	501	2002-01-09 11:34:53	500	3	10	0
+4077711111	SeanWheeler	0	2	2002-01-11 11:28:53	500	0000-00-00 00:00:00	-1	2	3	1
+650	San Francisco	90	0	2002-01-09 11:31:58	342	0000-00-00 00:00:00	-1	1	24	1
+9197722223	berry	90	3	2002-01-11 11:28:18	500	2002-01-02 11:45:32	501	4	10	0
 delete t1, t2 from t1 left join t2 on t1.number=t2.number where (t1.carrier_id=90 and t1.number=t2.number) or (t2.carrier_id=90 and t1.number=t2.number) or  (t1.carrier_id=90 and t2.number is null);
 select * from t1;
 number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
@@ -1169,7 +1169,7 @@ insert into t1 values (1);
 insert into t1 values (1);
 insert into t2 values (1),(2);
 delete t2 from t2;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
 count(*)
 2
@@ -1182,7 +1182,7 @@ insert into t1 values (1);
 insert into t1 values (1);
 insert into t2 values (1),(2);
 delete t2 from t2;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
 count(*)
 2
@@ -1340,11 +1340,11 @@ insert into t1 (id) values (null),(null),(null),(null),(null);
 update t1 set fk=69 where fk is null order by id limit 1;
 SELECT * from t1;
 id	fk
+1	69
 2	NULL
 3	NULL
 4	NULL
 5	NULL
-1	69
 drop table t1;
 create table t1 (a int not null, b int not null, key (a));
 insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
@@ -1552,14 +1552,14 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1567,7 +1567,7 @@ create index id on t2 (id);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `id` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1577,7 +1577,7 @@ Warning	1831	Duplicate index 'id2' defined on the table 'test.t2'. This is depre
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `id` (`id`),
   KEY `id2` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1588,7 +1588,7 @@ ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `id` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1600,8 +1600,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   KEY `t1_id_fk` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1609,8 +1609,8 @@ create unique index id on t2 (id,id2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1622,8 +1622,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   KEY `t1_id_fk` (`id2`,`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
@@ -1636,8 +1636,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1649,8 +1649,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   KEY `t1_id_fk` (`id2`,`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
@@ -1663,8 +1663,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id2` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1677,8 +1677,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id2` int NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1686,8 +1686,8 @@ alter table t2 add index id_test (id), add index id_test2 (id,id2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id2` int NOT NULL,
   KEY `id_test` (`id`),
   KEY `id_test2` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1699,8 +1699,8 @@ create table t2 (a int auto_increment primary key, b int, index(b), foreign key 
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b_2` (`b`),
   KEY `b` (`b`),
@@ -1711,8 +1711,8 @@ create table t2 (a int auto_increment primary key, b int, foreign key (b) refere
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`),
@@ -1831,14 +1831,14 @@ variable_value
 SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 {checked_valid}
-SELECT variable_value - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
-variable_value - @innodb_rows_deleted_orig
+SELECT sum(variable_value) - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_deleted';
+sum(variable_value) - @innodb_rows_deleted_orig
 1830
-SELECT variable_value - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
-variable_value - @innodb_rows_inserted_orig
+SELECT sum(variable_value) - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_inserted';
+sum(variable_value) - @innodb_rows_inserted_orig
 2733
-SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
-variable_value - @innodb_rows_updated_orig
+SELECT sum(variable_value) - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_updated';
+sum(variable_value) - @innodb_rows_updated_orig
 2635
 SELECT variable_value - @innodb_row_lock_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
@@ -2074,7 +2074,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`v` between 'a' and 'a ') and (`test`.`t1`.`v` between 'a  ' and 'b\n'))
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+ERROR 23000: Duplicate entry '{ ' for key 't1.v_2'
 alter table t1 add key(v);
 Warnings:
 Warning	1831	Duplicate index 'v_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
@@ -2459,16 +2459,16 @@ SET NAMES utf8mb4;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
 insert into t1 values ('a ');
-ERROR 23000: Duplicate entry 'a' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 't1.a'
 alter table t1 modify a varchar(10);
 insert into t1 values ('a'),('á'),('à'),('å');
-ERROR 23000: Duplicate entry 'a' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 't1.a'
 insert into t1 values ('á');
-ERROR 23000: Duplicate entry 'á' for key 'a'
+ERROR 23000: Duplicate entry 'á' for key 't1.a'
 insert into t1 values ('A');
-ERROR 23000: Duplicate entry 'A' for key 'a'
+ERROR 23000: Duplicate entry 'A' for key 't1.a'
 insert into t1 values ('å');
-ERROR 23000: Duplicate entry 'å' for key 'a'
+ERROR 23000: Duplicate entry 'å' for key 't1.a'
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;
 concat(a,'.')
@@ -2505,7 +2505,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+  `v` char(10) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
@@ -2563,7 +2563,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
+  `v` mediumtext CHARACTER SET utf8mb3 COLLATE utf8_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
@@ -2587,8 +2587,8 @@ insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
 a	b
-3	1
 2	2
+3	1
 4	3
 truncate table t1;
 insert into t1 (b) values (1);
@@ -2597,8 +2597,8 @@ replace into t1 (b) values (1);
 replace into t1 (b) values (3);
 select * from t1;
 a	b
-3	1
 2	2
+3	1
 4	3
 drop table t1;
 create table t1 (rowid int not null auto_increment, val int not null,primary
@@ -2606,7 +2606,7 @@ key (rowid), unique(val)) engine=innodb;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 'val'
+ERROR 23000: Duplicate entry '1' for key 't1.val'
 select * from t1;
 rowid	val
 3	1
@@ -2621,7 +2621,7 @@ a	val
 2	1
 3	3
 insert into t1 values (2, 2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 select * from t1;
 a	val
 2	1
@@ -2821,13 +2821,13 @@ Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 't2.PRIMARY'
 insert into t2 values (0x41),(0x4120);
 insert into t3 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A ' for key 't3.PRIMARY'
 insert into t3 values (0x41),(0x4100);
 insert into t4 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 't4.PRIMARY'
 insert into t4 values (0x41),(0x4100);
 select hex(s1) from t1;
 hex(s1)
@@ -2930,7 +2930,7 @@ ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `t2_ibfk_0` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2,t1;
@@ -2968,8 +2968,8 @@ references t2(c1) on delete cascade;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`),
   CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
@@ -2978,8 +2978,8 @@ alter table t1 drop foreign key c2_fk;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3164,6 +3164,8 @@ a	b	c
 SELECT * FROM t2 WHERE BINARY b = 'customer_over';
 a	b	c
 1	customer_over	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
 a
 1
@@ -3171,9 +3173,13 @@ a
 SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t2, t1;
 CREATE TABLE t1 ( a int ) ENGINE=innodb;
 BEGIN;
@@ -3192,8 +3198,8 @@ DELETE CASCADE ON UPDATE CASCADE;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `f` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `f` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `f` (`f`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f`) REFERENCES `t1` (`f`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -3231,7 +3237,7 @@ id
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
@@ -3240,7 +3246,7 @@ ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3390,8 +3396,8 @@ c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3418,8 +3424,8 @@ COMMIT;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3428,10 +3434,10 @@ c1
 SELECT * FROM t2;
 c1	c2
 4	1
-7	1
 5	2
-8	2
 6	3
+7	1
+8	2
 9	3
 DROP TABLE t1;
 DROP TABLE t2;

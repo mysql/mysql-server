@@ -1,6 +1,7 @@
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_plugin_auth.inc
---source include/have_ssl.inc
+--source include/mysql_upgrade_preparation.inc
+
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 
 # Official builds include separate debug enabled plugins to be used by
@@ -40,8 +41,7 @@ connection plug_con;
 select USER(),CURRENT_USER();
 
 --echo ## test SET PASSWORD
-#--error ER_SET_PASSWORD_AUTH_PLUGIN
---echo Setting password is allowed but it won't affect the authentication mechanism.
+--error ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
 SET PASSWORD = 'plug_dest';
 
 connection default;
@@ -53,11 +53,15 @@ disconnect plug_con;
 connect(plug_con,localhost,plug,bad_credentials);
 --enable_query_log
 
---echo ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
+--echo ## test bad default plugin : As long as the server returns a compatible
+--echo ## plugin any default plugin set by the client is ignored. Only if the
+--echo ## client doesn't comprehend the servers plugin will the default be used.
 --disable_result_log
 --disable_query_log
---error 2059
 connect(plug_con_wrongp,localhost,plug,plug_dest,,,,,wrong_plugin_name);
+select USER(),CURRENT_USER();
+connection default;
+disconnect plug_con_wrongp;
 --enable_query_log
 --enable_result_log
 
@@ -83,15 +87,15 @@ DROP USER `Ÿ`;
 CREATE DATABASE test_grant_db;
 
 --error ER_PARSE_ERROR
-REVOKE SELECT on test_grant_db.* FROM joro 
+REVOKE SELECT on test_grant_db.* FROM joro
   INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 
 --error ER_PARSE_ERROR
-REVOKE SELECT on test_grant_db.* FROM joro 
+REVOKE SELECT on test_grant_db.* FROM joro
   INDENTIFIED BY 'plug_dest_passwd';
 
 --error ER_PARSE_ERROR
-REVOKE SELECT on test_grant_db.* FROM joro 
+REVOKE SELECT on test_grant_db.* FROM joro
   INDENTIFIED BY PASSWORD 'plug_dest_passwd';
 
 DROP DATABASE test_grant_db;
@@ -108,7 +112,7 @@ SET @@global.mysql_native_password_proxy_users=ON;
 SET @@global.sha256_password_proxy_users=ON;
 
 
-CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
+CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server'
   AS 'grant_plug_dest';
 CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
 CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
@@ -138,7 +142,7 @@ connect(grant_plug_dest_con,localhost,grant_plug_dest,grant_plug_dest_passwd);
 connection grant_plug_dest_con;
 --echo in grant_plug_dest_con
 
---echo ## testing what an ordinary user can grant 
+--echo ## testing what an ordinary user can grant
 --echo this should fail : no rights to grant all
 --error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 GRANT PROXY ON ''@'' TO grant_plug;
@@ -150,7 +154,7 @@ GRANT PROXY ON grant_plug TO grant_plug_dest;
 # Security context in THD contains two pairs of (user,host)
 # 1. (user,host) pair referring to inbound connection
 # 2. (priv_user,priv_host) pair obtained from mysql.user table after doing
-#    authnetication of incoming connection.
+#    authentication of incoming connection.
 # Granting/revoking proxy privileges, privileges should be checked wrt
 # (priv_user, priv_host) tuple that is obtained from mysql.user table
 # Following is a valid grant because effective user of connection is
@@ -294,6 +298,8 @@ DROP USER plug_dest;
 
 SET GLOBAL log_output=  @old_log_output;
 SET GLOBAL general_log= @old_general_log;
+TRUNCATE mysql.general_log;
+
 --echo ## END @@external_user tests
 
 --echo #
@@ -346,7 +352,7 @@ DROP DATABASE shared;
 --exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
 
 --echo #
---echo # Bug #59657: Move the client authentication_pam plugin into the 
+--echo # Bug #59657: Move the client authentication_pam plugin into the
 --echo #  server repository
 --echo #
 
@@ -369,64 +375,64 @@ disconnect cleartext_con;
 DROP USER uplain@localhost;
 
 --echo #
---echo # Bug #59038 : mysql.user.authentication_string column 
+--echo # Bug #59038 : mysql.user.authentication_string column
 --echo #   causes configuration wizard to fail
 
 INSERT INTO mysql.user(
-  Host, 
-  User, 
-  Select_priv, 
+  Host,
+  User,
+  Select_priv,
   Insert_priv,
-  Update_priv, 
-  Delete_priv, 
-  Create_priv, 
-  Drop_priv,  
-  Reload_priv, 
+  Update_priv,
+  Delete_priv,
+  Create_priv,
+  Drop_priv,
+  Reload_priv,
   Shutdown_priv,
-  Process_priv, 
-  File_priv, 
-  Grant_priv, 
-  References_priv,  
-  Index_priv, 
+  Process_priv,
+  File_priv,
+  Grant_priv,
+  References_priv,
+  Index_priv,
   Alter_priv,
-  Show_db_priv, 
-  Super_priv, 
-  Create_tmp_table_priv, 
-  Lock_tables_priv,  
+  Show_db_priv,
+  Super_priv,
+  Create_tmp_table_priv,
+  Lock_tables_priv,
   Execute_priv,
-  Repl_slave_priv, 
-  Repl_client_priv, 
-  /*!50001 
-  Create_view_priv, 
-  Show_view_priv, 
-  Create_routine_priv, 
-  Alter_routine_priv, 
-  Create_user_priv, 
-  */ 
-  ssl_type, 
+  Repl_slave_priv,
+  Repl_client_priv,
+  /*!50001
+  Create_view_priv,
+  Show_view_priv,
+  Create_routine_priv,
+  Alter_routine_priv,
+  Create_user_priv,
+  */
+  ssl_type,
   ssl_cipher,
-  x509_issuer, 
-  x509_subject, 
-  max_questions, 
-  max_updates, 
+  x509_issuer,
+  x509_subject,
+  max_questions,
+  max_updates,
   max_connections)
 VALUES (
-  'localhost', 
+  'localhost',
   'inserttest',
   'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
-  'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 
+  'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
   /*!50001 'Y', 'Y', 'Y', 'Y', 'Y', */'', '', '', '', '0', '0', '0');
 FLUSH PRIVILEGES;
 DROP USER inserttest@localhost;
-SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
-  COLUMN_NAME IN ('authentication_string', 'plugin') AND 
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE
+  COLUMN_NAME IN ('authentication_string', 'plugin') AND
   TABLE_NAME='user' AND
   TABLE_SCHEMA='mysql'
 ORDER BY COLUMN_NAME;
 
 
 --echo #
---echo # Bug #11936829: diff. between mysql.user (authentication_string) 
+--echo # Bug #11936829: diff. between mysql.user (authentication_string)
 --echo #   in fresh and upgraded 5.5.11
 --echo #
 
@@ -454,7 +460,7 @@ SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 --echo # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
 --echo #
 
-CREATE USER bug12610784@localhost; 
+CREATE USER bug12610784@localhost;
 SET PASSWORD FOR bug12610784@localhost = 'secret';
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
@@ -466,8 +472,8 @@ disconnect b12610784;
 DROP USER bug12610784@localhost;
 
 --echo #
---echo # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
---echo #  .-> USING PASSWORD: NO 
+--echo # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN
+--echo #  .-> USING PASSWORD: NO
 
 --echo # should contain "using password=yes"
 --error 1
@@ -478,13 +484,13 @@ DROP USER bug12610784@localhost;
 --exec $MYSQL -uunknown --ssl-mode=REQUIRED 2>&1
 
 --echo #
---echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
+--echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM
 --echo #   AUTHENTICATION SETTINGS
 --echo #
 
-CREATE USER bug12818542@localhost 
+CREATE USER bug12818542@localhost
   IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
-CREATE USER bug12818542_dest@localhost 
+CREATE USER bug12818542_dest@localhost
   IDENTIFIED BY 'bug12818542_dest_passwd';
 GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
 
@@ -492,6 +498,7 @@ connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
 connection bug12818542_con;
 SELECT USER(),CURRENT_USER();
 
+--error ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
 SET PASSWORD = 'bruhaha';
 
 connection default;
@@ -506,37 +513,6 @@ disconnect bug12818542_con2;
 
 DROP USER bug12818542@localhost;
 DROP USER bug12818542_dest@localhost;
-
---echo #
---echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
---echo #   AUTHENTICATION SETTINGS
---echo #
-
-CREATE USER bug12818542@localhost 
-  IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
-CREATE USER bug12818542_dest@localhost 
-  IDENTIFIED BY 'bug12818542_dest_passwd';
-GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
-
-connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
-connection bug12818542_con;
-SELECT USER(),CURRENT_USER();
-
-SET PASSWORD = 'bruhaha';
-
-connection default;
-disconnect bug12818542_con;
-
-connect(bug12818542_con2,localhost,bug12818542,bug12818542_dest);
-connection bug12818542_con2;
-SELECT USER(),CURRENT_USER();
-
-connection default;
-disconnect bug12818542_con2;
-
-DROP USER bug12818542@localhost;
-DROP USER bug12818542_dest@localhost;
-
 
 --echo End of 5.5 tests
 
@@ -799,3 +775,7 @@ DROP USER очень_очень_очень_длинный_юзер__@localhost;
 
 --connection default
 SET NAMES default;
+
+# Restore default settings in opt file
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

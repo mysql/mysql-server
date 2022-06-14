@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef _WIN32  // named sockets are not supported on Windows;
-                // on Unix, they're implemented using Unix sockets
-
 #include <stdexcept>
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #include "../../routing/src/mysql_routing.h"
 #include "router_test_helpers.h"
 #include "test/helpers.h"
 
 class TestSetupNamedSocketService : public ::testing::Test {};
+
+#ifndef _WIN32  // named sockets are not supported on Windows;
+                // on Unix, they're implemented using Unix sockets
 
 TEST_F(TestSetupNamedSocketService, unix_socket_permissions_failure) {
   /**
@@ -46,6 +46,7 @@ TEST_F(TestSetupNamedSocketService, unix_socket_permissions_failure) {
                     "Failed setting file permissions on socket file "
                     "'/no/such/file': No such file or directory");
 }
+#endif  // #ifndef _WIN32
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
@@ -53,5 +54,3 @@ int main(int argc, char *argv[]) {
   init_test_logger();
   return RUN_ALL_TESTS();
 }
-
-#endif  // #ifndef _WIN32

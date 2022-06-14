@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
 #include <HugoTransactions.hpp>
@@ -92,6 +93,11 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(*query);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
@@ -121,6 +127,11 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(*query);
 
   NdbRestarter restarter;
@@ -194,6 +205,11 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(* query);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
@@ -221,6 +237,11 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(* query);
 
   NdbRestarter restarter;
@@ -303,6 +324,11 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   qb2.setJoinLevel(joinlevel);
   const NdbQueryDef * q1 = qb1.createQuery();
   const NdbQueryDef * q2 = qb2.createQuery();
+  if (q1 == nullptr || q2 == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDefs" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans1(* q1, maxRetries);
   HugoQueries hugoTrans2(* q2, maxRetries);
   NdbRestarter restarter;
@@ -361,6 +387,11 @@ runAbortedJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb2.setJoinLevel(joinlevel);
   const NdbQueryDef * q2 = qb2.createQuery();
+  if (q2 == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans2(* q2, 1); //maxRetry==1 -> Don't retry temp errors
   NdbRestarter restarter;
 
@@ -631,7 +662,6 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 #define QRY_EMPTY_PROJECTION 4826
 
 /* Various error codes that are not specific to NdbQuery. */
-static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_WrongFieldLength = 4209;
 static const int Err_InvalidRangeNo = 4286;
@@ -1416,7 +1446,6 @@ NegativeTest::runFeatureDisabledTest() const
   
   int result = NDBT_OK;
 
-  if (ndbd_join_pushdown(ndbGetOwnVersion()))
   {
     if (parentOperation == NULL)
     {
@@ -1428,28 +1457,6 @@ NegativeTest::runFeatureDisabledTest() const
     {
       g_info << "scanTable() succeeded in version "
              << ndbGetOwnVersionString() << " as expected." << endl;
-    }
-  }
-  else
-  {
-    // Query pushdown should not be enabled in this version.
-    if (parentOperation != NULL)
-    {
-      g_err << "Succeeded with creating scan operation, which should not be "
-        "possible in version " << ndbGetOwnVersionString() << endl;
-      result = NDBT_FAILED;      
-    }
-    else if (builder->getNdbError().code != Err_FunctionNotImplemented)
-    {
-      g_err << "scanTable() failed with unexpected error: " 
-            << builder->getNdbError() << endl;
-      result = NDBT_FAILED;
-    }
-    else
-    {
-      g_info << "scanTable() failed in version "
-             << ndbGetOwnVersionString() << " as expected with error: " 
-             << builder->getNdbError() << endl;
     }
   }
 

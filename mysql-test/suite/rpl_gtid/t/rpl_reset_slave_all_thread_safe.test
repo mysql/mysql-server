@@ -1,7 +1,7 @@
 ################################################################################
 # BUG# reset slave all is not thread-safe
 #
-# RESET SLAVE ALL could delete a channel, even master_pos_wait and
+# RESET SLAVE ALL could delete a channel, even source_pos_wait and
 # wait_until_sql_thread_after_gtid were still waiting for binlog to be applied.
 # It caused server crash when the functions tried to access the channel which
 # had been deleted.
@@ -16,15 +16,15 @@
 --source include/master-slave.inc
 
 --echo #
---echo # Case 1: Verify master_pos_wait can block RESET SLAVE ALL
+--echo # Case 1: Verify source_pos_wait can block RESET SLAVE ALL
 --echo #
 
 --source include/rpl_connection_slave.inc
 
 # Just wait immediately after entering the function. RESET SLAVE ALL
 # should be blocked by it.
-SET debug_sync = "begin_master_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
---send SELECT master_pos_wait("master-bin.000001", 10000);
+SET debug_sync = "begin_source_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
+--send SELECT source_pos_wait("master-bin.000001", 10000);
 
 --source extra/rpl_tests/rpl_reset_slave_all_thread_safe.inc
 

@@ -1,3 +1,7 @@
+# Performance schema tests generally depend on specific query plans
+# and behavior, and much of the perfschema suite is therefore disabled
+# if the hypergraph optimizer is active.
+--source include/not_hypergraph.inc
 
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 

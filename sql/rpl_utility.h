@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #endif
 
 #include <sys/types.h>
+#include <algorithm>
+#include <string>
 #include <unordered_map>
 
 #include "field_types.h"  // enum_field_types
@@ -250,7 +252,7 @@ class table_def {
     containing an uninitialized table_def object which is only conditionally
     initialized. See Table_map_log_event::do_apply_event().
   */
-  table_def() {}
+  table_def() = default;
 
   /**
     Constructor.
@@ -304,7 +306,7 @@ class table_def {
     returned.
    */
   enum_field_types type(ulong index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     /*
       If the source type is MYSQL_TYPE_STRING, it can in reality be
       either MYSQL_TYPE_STRING, MYSQL_TYPE_ENUM, or MYSQL_TYPE_SET, so
@@ -349,7 +351,7 @@ class table_def {
     in the event that the master's field is smaller than the slave.
   */
   uint field_metadata(uint index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     if (m_field_metadata_size)
       return m_field_metadata[index];
     else
@@ -360,7 +362,7 @@ class table_def {
     Returns whether or not the field at `index` is a typed array.
    */
   bool is_array(uint index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     if (m_field_metadata_size)
       return m_is_array[index];
     else
@@ -372,7 +374,7 @@ class table_def {
     This value is derived from field->maybe_null().
   */
   bool maybe_null(uint index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     return ((m_null_bits[(index / 8)] & (1 << (index % 8))) ==
             (1 << (index % 8)));
   }
@@ -401,7 +403,7 @@ class table_def {
 
       - Each column on the master that also exists on the slave can be
         converted according to the current settings of @c
-        SLAVE_TYPE_CONVERSIONS.
+        REPLICA_TYPE_CONVERSIONS.
 
     @param thd   Current thread
     @param rli   Pointer to relay log info
@@ -463,7 +465,7 @@ struct RPL_TABLE_LIST : public TABLE_LIST {
   RPL_TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
                  const char *table_name_arg, size_t table_name_length_arg,
                  const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
+      : TABLE_LIST(db_name_arg, db_length_arg, table_name_arg,
                    table_name_length_arg, alias_arg, lock_type_arg) {}
 
   bool m_tabledef_valid;
@@ -515,17 +517,118 @@ class Deferred_log_events {
 */
 
 std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
-    const uchar *metadata_ptr, enum_field_types type);
+    const uchar *buffer, enum_field_types binlog_type);
 
 // NB. number of printed bit values is limited to sizeof(buf) - 1
-#define DBUG_PRINT_BITSET(N, FRM, BS)                           \
-  do {                                                          \
-    char buf[256];                                              \
-    uint i;                                                     \
-    for (i = 0; i < MY_MIN(sizeof(buf) - 1, (BS)->n_bits); i++) \
-      buf[i] = bitmap_is_set((BS), i) ? '1' : '0';              \
-    buf[i] = '\0';                                              \
-    DBUG_PRINT((N), ((FRM), buf));                              \
+#define DBUG_PRINT_BITSET(N, FRM, BS)                                   \
+  do {                                                                  \
+    char buf[256];                                                      \
+    uint i;                                                             \
+    for (i = 0; i < std::min(uint{sizeof(buf) - 1}, (BS)->n_bits); i++) \
+      buf[i] = bitmap_is_set((BS), i) ? '1' : '0';                      \
+    buf[i] = '\0';                                                      \
+    DBUG_PRINT((N), ((FRM), buf));                                      \
   } while (0)
+
+#ifdef MYSQL_SERVER
+/**
+  Sentry class for managing the need to create and dispose of a local `THD`
+  instance.
+
+  If the given `THD` object pointer passed on the constructor is `nullptr`, a
+  new instance will be initialized within the constructor and disposed of in the
+  destructor.
+
+  If the given `THD` object poitner passed on the constructor is not `nullptr`,
+  the reference is kept and nothing is disposed on the destructor.
+
+  Casting operator to `THD*` is also provided, to easy code replacemente.
+
+  Usage example:
+
+       THD_instance_guard thd{current_thd != nullptr ? current_thd :
+                                                       this->info_thd};
+       Acl_cache_lock_guard guard{thd, Acl_cache_lock_mode::READ_MODE};
+       if (guard.lock())
+         ...
+
+ */
+class THD_instance_guard {
+ public:
+  /**
+    If the given `THD` object pointer is `nullptr`, a new instance will be
+    initialized within the constructor and disposed of in the destructor.
+
+    If the given `THD` object poitner is not `nullptr`, the reference is kept
+    and nothing is disposed on the destructor.
+
+    @param thd `THD` object reference that determines if an existence instance
+    is used or a new instance of `THD` must be created.
+   */
+  THD_instance_guard(THD *thd);
+  /**
+    If a new instance of `THD` was created in the constructor, it will be
+    disposed here.
+   */
+  virtual ~THD_instance_guard();
+
+  /**
+    Returns the active `THD` object pointer.
+
+    @return a not-nullptr `THD` object pointer.
+   */
+  operator THD *();
+
+ private:
+  /** The active `THD` object pointer. */
+  THD *m_target{nullptr};
+  /**
+    Tells whether or not the active `THD` object was created in this object
+    constructor.
+   */
+  bool m_is_locally_initialized{false};
+};
+#endif  // MYSQL_SERVER
+
+/**
+  Replaces every occurrence of the string `find` by the string `replace`, within
+  the string `from` and return the resulting string.
+
+  The original string `from` remains untouched.
+
+  @param from the string to search within.
+  @param find the string to search for.
+  @param replace the string to replace every occurrence of `from`
+
+  @return a new string, holding the result of the search and replace operation.
+ */
+std::string replace_all_in_str(std::string from, std::string find,
+                               std::string replace);
+
+#ifdef MYSQL_SERVER
+
+/**
+  This method shall evaluate if a command being executed goes against any of
+  the restrictions of server variable session.require_row_format.
+
+  @param thd The thread associated to the command
+  @return true if it violates any restrictions
+          false otherwise
+ */
+bool evaluate_command_row_only_restrictions(THD *thd);
+
+/**
+  This function shall blindly replace some deprecated terms used in the
+  field names with more recent ones. This function must be removed
+  once the related syntax (SHOW SLAVE STATUS and friends) is removed.
+
+  @param thd the thread context.
+  @param field_list the list of fields that will have their name checked
+                    and altered if needed.
+ */
+void rename_fields_use_old_replica_source_terms(
+    THD *thd, mem_root_deque<Item *> &field_list);
+
+#endif  // MYSQL_SERVER
 
 #endif /* RPL_UTILITY_H */

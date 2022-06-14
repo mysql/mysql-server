@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,44 +64,39 @@ enum dict_stats_upd_option_t {
 /** Set the persistent statistics flag for a given table. This is set only in
 the in-memory table object and is not saved on disk. It will be read from the
 .frm file upon first open from MySQL after a server restart.
-@param[in,out]	table	table
-@param[in]	ps_on	persistent stats explicitly enabled
-@param[in]	ps_off	persistent stats explicitly disabled */
-UNIV_INLINE
-void dict_stats_set_persistent(dict_table_t *table, ibool ps_on, ibool ps_off);
+@param[in,out]  table   table
+@param[in]      ps_on   persistent stats explicitly enabled
+@param[in]      ps_off  persistent stats explicitly disabled */
+static inline void dict_stats_set_persistent(dict_table_t *table, bool ps_on,
+                                             bool ps_off);
 
 /** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
-UNIV_INLINE
-ibool dict_stats_is_persistent_enabled(
-    const dict_table_t *table) /*!< in: table */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool dict_stats_is_persistent_enabled(
+    const dict_table_t *table); /*!< in: table */
 
 /** Set the auto recalc flag for a given table (only honored for a persistent
 stats enabled table). The flag is set only in the in-memory table object and is
 not saved in InnoDB files. It will be read from the .frm file upon first open
 from MySQL after a server restart.
-@param[in,out]	table		table
-@param[in]	auto_recalc_on	explicitly enabled
-@param[in]	auto_recalc_off	explicitly disabled */
-UNIV_INLINE
-void dict_stats_auto_recalc_set(dict_table_t *table, ibool auto_recalc_on,
-                                ibool auto_recalc_off);
+@param[in,out]  table           table
+@param[in]      auto_recalc_on  explicitly enabled
+@param[in]      auto_recalc_off explicitly disabled */
+static inline void dict_stats_auto_recalc_set(dict_table_t *table,
+                                              bool auto_recalc_on,
+                                              bool auto_recalc_off);
 
 /** Check whether auto recalc is enabled for a given table.
  @return true if enabled, false otherwise */
-UNIV_INLINE
-ibool dict_stats_auto_recalc_is_enabled(
+static inline bool dict_stats_auto_recalc_is_enabled(
     const dict_table_t *table); /*!< in: table */
 
 /** Initialize table's stats for the first time when opening a table. */
-UNIV_INLINE
-void dict_stats_init(dict_table_t *table); /*!< in/out: table */
+static inline void dict_stats_init(dict_table_t *table); /*!< in/out: table */
 
 /** Deinitialize table's stats after the last close of the table. This is
  used to detect "FLUSH TABLE" and refresh the stats upon next open. */
-UNIV_INLINE
-void dict_stats_deinit(dict_table_t *table); /*!< in/out: table */
+static inline void dict_stats_deinit(dict_table_t *table); /*!< in/out: table */
 
 /** Calculates new estimates for table and index statistics. The statistics
  are used in query optimization.
@@ -149,12 +144,11 @@ dberr_t dict_stats_rename_table(const char *old_name, /*!< in: old table name */
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
  if the persistent stats do not exist. */
-dberr_t dict_stats_rename_index(
-    const dict_table_t *table,  /*!< in: table whose index
-                                is renamed */
-    const char *old_index_name, /*!< in: old index name */
-    const char *new_index_name) /*!< in: new index name */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t dict_stats_rename_index(
+    const dict_table_t *table,   /*!< in: table whose index
+                                 is renamed */
+    const char *old_index_name,  /*!< in: old index name */
+    const char *new_index_name); /*!< in: new index name */
 
 /** Evict the stats tables if they loaded in tablespace cache and also
 close the stats .ibd files. We have to close stats tables because
@@ -172,9 +166,9 @@ class TableStatsRecord {
   ~TableStatsRecord();
 
   /** Set the data for the innodb_table_stats record.
-  @param[in]	data		data to be set in the record
-  @param[in]	col_offset	column offset
-  @param[in]	len		length of the data. */
+  @param[in]    data            data to be set in the record
+  @param[in]    col_offset      column offset
+  @param[in]    len             length of the data. */
   void set_data(const byte *data, ulint col_offset, ulint len);
 
   /** Get the table name from innodb_table_stats record.
@@ -182,8 +176,8 @@ class TableStatsRecord {
   char *get_tbl_name() const;
 
   /** Set the table name for the innodb_table_stats record.
-  @param[in]	data	data to be set in the record
-  @param[in]	len	length of the data. */
+  @param[in]    data    data to be set in the record
+  @param[in]    len     length of the data. */
   void set_tbl_name(const byte *data, ulint len);
 
   /** Get the db name from the innodb_table_stats record.
@@ -191,17 +185,17 @@ class TableStatsRecord {
   char *get_db_name() const;
 
   /** Set the db name for the innodb_table_stats record.
-  @param[in]	data	data to be set
-  @param[in]	len	length of the data. */
+  @param[in]    data    data to be set
+  @param[in]    len     length of the data. */
   void set_db_name(const byte *data, ulint len);
 
   /** Get the n_rows from the innodb_table_stats record.
   @retval n_rows from the record. */
-  ib_uint64_t get_n_rows() const;
+  uint64_t get_n_rows() const;
 
   /** Set the n_rows for the innodb_table_stats record.
-  @param[in]	no_of_rows	number of rows. */
-  void set_n_rows(ib_uint64_t no_of_rows);
+  @param[in]    no_of_rows      number of rows. */
+  void set_n_rows(uint64_t no_of_rows);
 
   /** Get the clustered index size from
   innodb_table_stats record.
@@ -210,7 +204,7 @@ class TableStatsRecord {
 
   /** Set the clustered index size for the
   innodb_table_stats record.
-  @param[in]	clust_size	clustered index size. */
+  @param[in]    clust_size      clustered index size. */
   void set_clustered_index_size(ulint clust_size);
 
   /** Get the sum of other index size.
@@ -218,7 +212,7 @@ class TableStatsRecord {
   ulint get_sum_of_other_index_size() const;
 
   /** Set the sum of sec index size.
-  @param[in]	sum_of_other_index_size	sum of secondary index size. */
+  @param[in]    sum_of_other_index_size sum of secondary index size. */
   void set_sum_of_other_index_size(ulint sum_of_other_index_size);
 
   /** Column number of innodb_table_stats.database_name. */
@@ -238,7 +232,7 @@ class TableStatsRecord {
   /** Table name. */
   char *m_tbl_name;
   /** Number of rows. */
-  ib_uint64_t m_n_rows;
+  uint64_t m_n_rows;
   /** Clustered index size. */
   ulint m_clustered_index_size;
   /** Sum of other index size. */

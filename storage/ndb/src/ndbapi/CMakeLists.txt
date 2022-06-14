@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,58 +22,59 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${NDB_SOURCE_DIR}/src/mgmapi)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 
 ADD_CONVENIENCE_LIBRARY(ndbapi
-            NdbEventOperation.cpp
-            NdbEventOperationImpl.cpp
-            NdbIndexStat.cpp
-            NdbIndexStatImpl.cpp
-            NdbIndexStatFrmData.cpp
-            NdbInterpretedCode.cpp
-            TransporterFacade.cpp
-            ClusterMgr.cpp
-            Ndb.cpp
-            NdbPoolImpl.cpp
-            NdbPool.cpp
-            Ndblist.cpp
-            Ndbif.cpp
-            Ndbinit.cpp
-            Ndberr.cpp
-            ndberror.cpp
-            NdbErrorOut.cpp
-            NdbTransaction.cpp
-            NdbTransactionScan.cpp
-            NdbOperation.cpp
-            NdbOperationSearch.cpp
-            NdbOperationScan.cpp
-            NdbOperationInt.cpp
-            NdbOperationDefine.cpp
-            NdbOperationExec.cpp
-            NdbScanOperation.cpp
-            NdbScanFilter.cpp
-            NdbIndexOperation.cpp
-            NdbQueryBuilder.cpp
-            NdbQueryOperation.cpp
-            NdbApiSignal.cpp
-            NdbRecAttr.cpp
-            NdbUtil.cpp
-            NdbReceiver.cpp
-            NdbDictionary.cpp
-            NdbDictionaryImpl.cpp
-            DictCache.cpp
-            ndb_cluster_connection.cpp
-            NdbBlob.cpp
-            SignalSender.cpp
-            ObjectMap.cpp
-            NdbInfo.cpp
-            NdbInfoScanNodes.cpp
-            NdbInfoScanVirtual.cpp
-            ${NDB_SOURCE_DIR}/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
-            ${NDB_SOURCE_DIR}/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
-            NdbWaitGroup.cpp
-            WakeupHandler.cpp
-            ndb_internal.cpp
-	    trp_client.cpp
-            trp_node.cpp
-	    trp_buffer.cpp)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
+  AssembleFragments.cpp
+  ClusterMgr.cpp
+  DictCache.cpp
+  Ndb.cpp
+  NdbApiSignal.cpp
+  NdbBlob.cpp
+  NdbDictionary.cpp
+  NdbDictionaryImpl.cpp
+  NdbErrorOut.cpp
+  NdbEventOperation.cpp
+  NdbEventOperationImpl.cpp
+  NdbIndexOperation.cpp
+  NdbIndexStat.cpp
+  NdbIndexStatImpl.cpp
+  NdbInfo.cpp
+  NdbInfoScanNodes.cpp
+  NdbInfoScanVirtual.cpp
+  NdbInterpretedCode.cpp
+  NdbOperation.cpp
+  NdbOperationDefine.cpp
+  NdbOperationExec.cpp
+  NdbOperationInt.cpp
+  NdbOperationScan.cpp
+  NdbOperationSearch.cpp
+  NdbPool.cpp
+  NdbPoolImpl.cpp
+  NdbQueryBuilder.cpp
+  NdbQueryOperation.cpp
+  NdbRecAttr.cpp
+  NdbReceiver.cpp
+  NdbScanFilter.cpp
+  NdbScanOperation.cpp
+  NdbTransaction.cpp
+  NdbTransactionScan.cpp
+  NdbUtil.cpp
+  NdbWaitGroup.cpp
+  Ndberr.cpp
+  Ndbif.cpp
+  Ndbinit.cpp
+  Ndblist.cpp
+  ObjectMap.cpp
+  SignalSender.cpp
+  TransporterFacade.cpp
+  WakeupHandler.cpp
+  ndb_cluster_connection.cpp
+  ndb_internal.cpp
+  ndberror.cpp
+  trp_buffer.cpp
+  trp_client.cpp
+  trp_node.cpp
+  )

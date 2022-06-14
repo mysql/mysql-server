@@ -16,7 +16,9 @@
 #    Group Replication is running, it shall fail.
 # 5. Try to change SESSION.default_table_encryption while
 #    Group Replication is running, it shall succeed.
-# 6. Cleanup.
+# 6. Try to PERSIST default_table_encryption while
+#    Group Replication is running, it shall fail.
+# 7. Cleanup.
 ################################################################################
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -79,10 +81,16 @@ SET @@GLOBAL.default_table_encryption = OFF;
 --echo #    Group Replication is running, it shall succeed.
 SET @@SESSION.default_table_encryption = OFF;
 
+--echo
+--echo ############################################################
+--echo # 6. Try to PERSIST default_table_encryption while
+--echo #    Group Replication is running, it shall fail.
+--error ER_GROUP_REPLICATION_RUNNING
+SET PERSIST default_table_encryption=ON;
 
 --echo
 --echo ############################################################
---echo # 6. Clean up.
+--echo # 7. Clean up.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc

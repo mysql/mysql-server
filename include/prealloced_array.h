@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
   @file include/prealloced_array.h
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <algorithm>
 #include <new>
@@ -34,7 +35,7 @@
 #include <utility>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
@@ -49,6 +50,9 @@
 
   The interface is chosen to be similar to std::vector.
   We keep the std::vector property that storage is contiguous.
+
+  We have fairly low overhead over the inline storage; typically 8 bytes
+  (e.g. Prealloced_array<TABLE *, 4> needs 40 bytes on 64-bit platforms).
 
   @remark
   Unlike DYNAMIC_ARRAY, elements are properly copied
@@ -72,13 +76,31 @@ class Prealloced_array {
   static constexpr bool Has_trivial_destructor =
       std::is_trivially_destructible<Element_type>::value;
 
+  bool using_inline_buffer() const { return m_inline_size >= 0; }
+
   /**
-    Casts the raw buffer to the proper Element_type.
-    We use a raw buffer rather than Element_type[] in order to avoid having
-    CTORs/DTORs invoked by the C++ runtime.
+    Gets the buffer in use.
   */
-  Element_type *cast_rawbuff() {
-    return static_cast<Element_type *>(static_cast<void *>(m_buff));
+  Element_type *buffer() {
+    return using_inline_buffer() ? m_buff : m_ext.m_array_ptr;
+  }
+  const Element_type *buffer() const {
+    return using_inline_buffer() ? m_buff : m_ext.m_array_ptr;
+  }
+
+  void set_size(size_t n) {
+    if (using_inline_buffer()) {
+      m_inline_size = n;
+    } else {
+      m_ext.m_alloced_size = n;
+    }
+  }
+  void adjust_size(int delta) {
+    if (using_inline_buffer()) {
+      m_inline_size += delta;
+    } else {
+      m_ext.m_alloced_size += delta;
+    }
   }
 
  public:
@@ -93,11 +115,7 @@ class Prealloced_array {
   typedef Element_type *iterator;
   typedef const Element_type *const_iterator;
 
-  explicit Prealloced_array(PSI_memory_key psi_key)
-      : m_size(0),
-        m_capacity(Prealloc),
-        m_array_ptr(cast_rawbuff()),
-        m_psi_key(psi_key) {
+  explicit Prealloced_array(PSI_memory_key psi_key) : m_psi_key(psi_key) {
     static_assert(Prealloc != 0, "We do not want a zero-size array.");
   }
 
@@ -106,10 +124,7 @@ class Prealloced_array {
     Using 'Prealloc' for initial_size makes this similar to a raw C array.
   */
   Prealloced_array(PSI_memory_key psi_key, size_t initial_size)
-      : m_size(0),
-        m_capacity(Prealloc),
-        m_array_ptr(cast_rawbuff()),
-        m_psi_key(psi_key) {
+      : m_psi_key(psi_key) {
     static_assert(Prealloc != 0, "We do not want a zero-size array.");
 
     if (initial_size > Prealloc) {
@@ -117,11 +132,15 @@ class Prealloced_array {
       void *mem =
           my_malloc(m_psi_key, initial_size * element_size(), MYF(MY_WME));
       if (!mem) return;
-      m_array_ptr = static_cast<Element_type *>(mem);
-      m_capacity = initial_size;
+      m_inline_size = -1;
+      m_ext.m_alloced_size = initial_size;
+      m_ext.m_array_ptr = static_cast<Element_type *>(mem);
+      m_ext.m_alloced_capacity = initial_size;
+    } else {
+      m_inline_size = initial_size;
     }
     for (size_t ix = 0; ix < initial_size; ++ix) {
-      Element_type *p = &m_array_ptr[m_size++];
+      Element_type *p = &buffer()[ix];
       ::new (p) Element_type();
     }
   }
@@ -129,14 +148,14 @@ class Prealloced_array {
   /**
     An object instance "owns" its array, so we do deep copy here.
    */
-  Prealloced_array(const Prealloced_array &that)
-      : m_size(0),
-        m_capacity(Prealloc),
-        m_array_ptr(cast_rawbuff()),
-        m_psi_key(that.m_psi_key) {
+  Prealloced_array(const Prealloced_array &that) : m_psi_key(that.m_psi_key) {
     if (this->reserve(that.capacity())) return;
     for (const Element_type *p = that.begin(); p != that.end(); ++p)
       this->push_back(*p);
+  }
+
+  Prealloced_array(Prealloced_array &&that) : m_psi_key(that.m_psi_key) {
+    *this = std::move(that);
   }
 
   /**
@@ -148,13 +167,13 @@ class Prealloced_array {
   */
   Prealloced_array(PSI_memory_key psi_key, const_iterator first,
                    const_iterator last)
-      : m_size(0),
-        m_capacity(Prealloc),
-        m_array_ptr(cast_rawbuff()),
-        m_psi_key(psi_key) {
+      : m_psi_key(psi_key) {
     if (this->reserve(last - first)) return;
     for (; first != last; ++first) push_back(*first);
   }
+
+  Prealloced_array(std::initializer_list<Element_type> elems)
+      : Prealloced_array(PSI_NOT_INSTRUMENTED, elems.begin(), elems.end()) {}
 
   /**
     Copies all the elements from 'that' into this container.
@@ -168,6 +187,26 @@ class Prealloced_array {
     return *this;
   }
 
+  Prealloced_array &operator=(Prealloced_array &&that) {
+    this->clear();
+    if (!that.using_inline_buffer()) {
+      if (!using_inline_buffer()) my_free(m_ext.m_array_ptr);
+      // The array is on the heap, so we can just grab it.
+      m_ext.m_array_ptr = that.m_ext.m_array_ptr;
+      m_inline_size = -1;
+      m_ext.m_alloced_size = that.m_ext.m_alloced_size;
+      m_ext.m_alloced_capacity = that.m_ext.m_alloced_capacity;
+      that.m_inline_size = 0;
+    } else {
+      // Move over each element.
+      if (this->reserve(that.capacity())) return *this;
+      for (Element_type *p = that.begin(); p != that.end(); ++p)
+        this->push_back(std::move(*p));
+      that.clear();
+    }
+    return *this;
+  }
+
   /**
     Runs DTOR on all elements if needed.
     Deallocates array if we exceeded the Preallocated amount.
@@ -176,22 +215,26 @@ class Prealloced_array {
     if (!Has_trivial_destructor) {
       clear();
     }
-    if (m_array_ptr != cast_rawbuff()) my_free(m_array_ptr);
+    if (!using_inline_buffer()) my_free(m_ext.m_array_ptr);
   }
 
-  size_t capacity() const { return m_capacity; }
+  size_t capacity() const {
+    return using_inline_buffer() ? Prealloc : m_ext.m_alloced_capacity;
+  }
   size_t element_size() const { return sizeof(Element_type); }
-  bool empty() const { return m_size == 0; }
-  size_t size() const { return m_size; }
+  bool empty() const { return size() == 0; }
+  size_t size() const {
+    return using_inline_buffer() ? m_inline_size : m_ext.m_alloced_size;
+  }
 
   Element_type &at(size_t n) {
-    DBUG_ASSERT(n < size());
-    return m_array_ptr[n];
+    assert(n < size());
+    return buffer()[n];
   }
 
   const Element_type &at(size_t n) const {
-    DBUG_ASSERT(n < size());
-    return m_array_ptr[n];
+    assert(n < size());
+    return buffer()[n];
   }
 
   Element_type &operator[](size_t n) { return at(n); }
@@ -207,10 +250,10 @@ class Prealloced_array {
     begin : Returns a pointer to the first element in the array.
     end   : Returns a pointer to the past-the-end element in the array.
    */
-  iterator begin() { return m_array_ptr; }
-  iterator end() { return m_array_ptr + size(); }
-  const_iterator begin() const { return m_array_ptr; }
-  const_iterator end() const { return m_array_ptr + size(); }
+  iterator begin() { return buffer(); }
+  iterator end() { return buffer() + size(); }
+  const_iterator begin() const { return buffer(); }
+  const_iterator end() const { return buffer() + size(); }
   /// Returns a constant pointer to the first element in the array.
   const_iterator cbegin() const { return begin(); }
   /// Returns a constant pointer to the past-the-end element in the array.
@@ -240,26 +283,29 @@ class Prealloced_array {
     @retval true if out-of-memory, false otherwise.
   */
   bool reserve(size_t n) {
-    if (n <= m_capacity) return false;
+    if (n <= capacity()) return false;
 
     void *mem = my_malloc(m_psi_key, n * element_size(), MYF(MY_WME));
     if (!mem) return true;
     Element_type *new_array = static_cast<Element_type *>(mem);
 
     // Move all the existing elements into the new array.
-    for (size_t ix = 0; ix < m_size; ++ix) {
+    size_t old_size = size();
+    for (size_t ix = 0; ix < old_size; ++ix) {
       Element_type *new_p = &new_array[ix];
-      Element_type &old_p = m_array_ptr[ix];
+      Element_type &old_p = buffer()[ix];
       ::new (new_p) Element_type(std::move(old_p));  // Move into new location.
       if (!Has_trivial_destructor)
         old_p.~Element_type();  // Destroy the old element.
     }
 
-    if (m_array_ptr != cast_rawbuff()) my_free(m_array_ptr);
+    if (!using_inline_buffer()) my_free(m_ext.m_array_ptr);
 
     // Forget the old array;
-    m_array_ptr = new_array;
-    m_capacity = n;
+    m_ext.m_alloced_size = old_size;
+    m_inline_size = -1;
+    m_ext.m_array_ptr = new_array;
+    m_ext.m_alloced_capacity = n;
     return false;
   }
 
@@ -287,9 +333,10 @@ class Prealloced_array {
   template <typename... Args>
   bool emplace_back(Args &&... args) {
     const size_t expansion_factor = 2;
-    if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
+    if (size() == capacity() && reserve(capacity() * expansion_factor))
       return true;
-    Element_type *p = &m_array_ptr[m_size++];
+    Element_type *p = &buffer()[size()];
+    adjust_size(1);
     ::new (p) Element_type(std::forward<Args>(args)...);
     return false;
   }
@@ -299,9 +346,9 @@ class Prealloced_array {
     container size by one. This destroys the removed element.
    */
   void pop_back() {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     if (!Has_trivial_destructor) back().~Element_type();
-    m_size -= 1;
+    adjust_size(-1);
   }
 
   /**
@@ -420,7 +467,7 @@ class Prealloced_array {
     move-assignable.
   */
   iterator erase(const_iterator position) {
-    DBUG_ASSERT(position != end());
+    assert(position != end());
     return erase(position - begin());
   }
 
@@ -428,7 +475,7 @@ class Prealloced_array {
     Removes a single element from the array.
   */
   iterator erase(size_t ix) {
-    DBUG_ASSERT(ix < size());
+    assert(ix < size());
     iterator pos = begin() + ix;
     if (pos + 1 != end()) std::move(pos + 1, end(), pos);
     pop_back();
@@ -446,7 +493,7 @@ class Prealloced_array {
     if (!Has_trivial_destructor) {
       for (; first != last; ++first) first->~Element_type();
     }
-    m_size -= diff;
+    adjust_size(-diff);
   }
 
   /**
@@ -480,11 +527,10 @@ class Prealloced_array {
    */
   void swap(Prealloced_array &rhs) {
     // Just swap pointers if both arrays have done malloc.
-    if (m_array_ptr != cast_rawbuff() &&
-        rhs.m_array_ptr != rhs.cast_rawbuff()) {
-      std::swap(m_size, rhs.m_size);
-      std::swap(m_capacity, rhs.m_capacity);
-      std::swap(m_array_ptr, rhs.m_array_ptr);
+    if (!using_inline_buffer() && !rhs.using_inline_buffer()) {
+      std::swap(m_ext.m_alloced_size, rhs.m_ext.m_alloced_size);
+      std::swap(m_ext.m_alloced_capacity, rhs.m_ext.m_alloced_capacity);
+      std::swap(m_ext.m_array_ptr, rhs.m_ext.m_array_ptr);
       std::swap(m_psi_key, rhs.m_psi_key);
       return;
     }
@@ -496,7 +542,7 @@ class Prealloced_array {
    */
   void shrink_to_fit() {
     // Cannot shrink the pre-allocated array.
-    if (m_array_ptr == cast_rawbuff()) return;
+    if (using_inline_buffer()) return;
     // No point in swapping.
     if (size() == capacity()) return;
     Prealloced_array tmp(m_psi_key, begin(), end());
@@ -534,17 +580,17 @@ class Prealloced_array {
     container by inserting or erasing elements from it.
    */
   void resize(size_t n, const Element_type &val = Element_type()) {
-    if (n == m_size) return;
-    if (n > m_size) {
+    if (n == size()) return;
+    if (n > size()) {
       if (!reserve(n)) {
-        while (n != m_size) push_back(val);
+        while (n != size()) push_back(val);
       }
       return;
     }
     if (!Has_trivial_destructor) {
-      while (n != m_size) pop_back();
+      while (n != size()) pop_back();
     }
-    m_size = n;
+    set_size(n);
   }
 
   /**
@@ -556,16 +602,33 @@ class Prealloced_array {
       for (Element_type *p = begin(); p != end(); ++p)
         p->~Element_type();  // Destroy discarded element.
     }
-    m_size = 0;
+    set_size(0);
   }
 
  private:
-  size_t m_size;
-  size_t m_capacity;
-  // This buffer must be properly aligned.
-  alignas(Element_type) char m_buff[Prealloc * sizeof(Element_type)];
-  Element_type *m_array_ptr;
   PSI_memory_key m_psi_key;
+
+  // If >= 0, we're using the inline storage in m_buff, and contains the real
+  // size. If negative, we're using external storage (m_array_ptr),
+  // and m_alloced_size contains the real size.
+  int m_inline_size = 0;
+
+  // Defined outside the union because we need an initializer to avoid
+  // "may be used uninitialized" for -flto builds, and
+  // MSVC rejects initializers for individual members of an anonymous union.
+  // (otherwise, we'd make it an anonymous struct, to avoid m_ext everywhere).
+  struct External {
+    Element_type *m_array_ptr;
+    size_t m_alloced_size;
+    size_t m_alloced_capacity;
+  };
+
+  union {
+    External m_ext{};
+    Element_type m_buff[Prealloc];
+  };
 };
+static_assert(sizeof(Prealloced_array<void *, 4>) <= 40,
+              "Check for no unexpected padding");
 
 #endif  // PREALLOCED_ARRAY_INCLUDED

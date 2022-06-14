@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 
 #include "storage/perfschema/table_tiws_by_table.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -98,7 +98,7 @@ Plugin_table table_tiws_by_table::m_table_def(
 PFS_engine_table_share table_tiws_by_table::m_share = {
     &pfs_truncatable_acl,
     table_tiws_by_table::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_tiws_by_table::delete_all_rows,
     table_tiws_by_table::get_row_count,
     sizeof(PFS_simple_index),
@@ -166,11 +166,11 @@ int table_tiws_by_table::rnd_next(void) {
       global_table_share_container.iterate(m_pos.m_index);
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       m_next_pos.set_after(&m_pos);
       return make_row(pfs);
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -181,16 +181,16 @@ int table_tiws_by_table::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_table_share_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tiws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_tiws_by_table *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_tiws_by_table::index_init(uint idx [[maybe_unused]], bool) {
+  PFS_index_tiws_by_table *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_table);
   m_opened_index = result;
   m_index = result;
@@ -204,7 +204,7 @@ int table_tiws_by_table::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_share; m_pos.next()) {
     share = global_table_share_container.get(m_pos.m_index, &has_more_share);
 
-    if (share != NULL) {
+    if (share != nullptr) {
       if (m_opened_index->match(share)) {
         if (!make_row(share)) {
           m_next_pos.set_after(&m_pos);
@@ -243,16 +243,16 @@ int table_tiws_by_table::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* SCHEMA_NAME */
         case 2: /* OBJECT_NAME */
-          m_row.m_object.set_field(f->field_index, f);
+          m_row.m_object.set_nullable_field(f->field_index(), f);
           break;
         case 3: /* COUNT_STAR */
           set_field_ulonglong(f, m_row.m_stat.m_all.m_count);
@@ -360,7 +360,7 @@ int table_tiws_by_table::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_stat.m_delete.m_max);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

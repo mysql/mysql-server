@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,21 +28,24 @@
   Performance schema instrumentation (declarations).
 */
 
-#include "my_psi_config.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
-#if defined(HAVE_PSI_THREAD_INTERFACE) && defined(MYSQL_SERVER) && \
-    !defined(MYSQL_DYNAMIC_PLUGIN) && !defined(WITH_LOCK_ORDER) && \
-    defined(__cplusplus)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+#ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include <sys/types.h>
 #include <time.h>
 
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
 
+#ifdef __cplusplus
 class THD;
+#endif /* __cplusplus */
 
 /*
   Naming current apis as _vc (version 'current'),
@@ -55,12 +58,12 @@ class THD;
 void pfs_register_thread_vc(const char *category, PSI_thread_info *info,
                             int count);
 
-int pfs_spawn_thread_vc(PSI_thread_key key, my_thread_handle *thread,
-                        const my_thread_attr_t *attr,
+int pfs_spawn_thread_vc(PSI_thread_key key, unsigned int sequence_number,
+                        my_thread_handle *thread, const my_thread_attr_t *attr,
                         void *(*start_routine)(void *), void *arg);
 
-PSI_thread *pfs_new_thread_vc(PSI_thread_key key, const void *identity,
-                              ulonglong processlist_id);
+PSI_thread *pfs_new_thread_vc(PSI_thread_key key, unsigned int sequence_number,
+                              const void *identity, ulonglong processlist_id);
 
 void pfs_set_thread_id_vc(PSI_thread *thread, ulonglong processlist_id);
 
@@ -70,10 +73,15 @@ ulonglong pfs_get_thread_internal_id_vc(PSI_thread *thread);
 
 PSI_thread *pfs_get_thread_by_id_vc(ulonglong processlist_id);
 
+#ifdef __cplusplus
 void pfs_set_thread_THD_vc(PSI_thread *thread, THD *thd);
+#endif /* __cplusplus */
+
 void pfs_set_thread_os_id_vc(PSI_thread *thread);
 
 PSI_thread *pfs_get_thread_vc(void);
+
+void pfs_set_mem_cnt_THD_vc(THD *thd, THD **backup_thd);
 
 void pfs_set_thread_user_vc(const char *user, int user_len);
 
@@ -92,6 +100,8 @@ void pfs_set_connection_type_vc(opaque_vio_type conn_type);
 
 void pfs_set_thread_info_vc(const char *info, uint info_len);
 
+void pfs_set_thread_secondary_engine_vc(bool secondary);
+
 int pfs_set_thread_resource_group_vc(const char *group_name, int group_name_len,
                                      void *user_data);
 
@@ -101,6 +111,8 @@ int pfs_set_thread_resource_group_by_id_vc(PSI_thread *thread,
                                            int group_name_len, void *user_data);
 
 void pfs_set_thread_vc(PSI_thread *thread);
+
+void pfs_set_thread_peer_port_vc(PSI_thread *thread, uint port);
 
 void pfs_aggregate_thread_status_vc(PSI_thread *thread);
 
@@ -135,6 +147,9 @@ void pfs_notify_session_disconnect_vc(PSI_thread *thread);
 
 void pfs_notify_session_change_user_vc(PSI_thread *thread);
 
+#endif /* WITH_LOCK_ORDER */
+#endif /* MYSQL_DYNAMIC_PLUGIN */
+#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif

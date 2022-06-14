@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <time.h>
+
+#include <algorithm>
 
 #include "my_bit.h"
 #include "my_byteorder.h"
@@ -75,7 +77,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   ulong *rec_per_key_part;
   my_off_t key_root[HA_MAX_POSSIBLE_KEY], key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
-  DBUG_ENTER("mi_create");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u", keys,
                        columns, uniques, flags));
 
@@ -86,7 +88,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
 
   if (keys + uniques > MI_MAX_KEY || columns == 0) {
     set_my_errno(HA_WRONG_CREATE_OPTION);
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    return HA_WRONG_CREATE_OPTION;
   }
 
   errpos = 0;
@@ -111,7 +113,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
             (ulong *)my_malloc(mi_key_memory_MYISAM_SHARE,
                                (keys + uniques) * MI_MAX_KEY_SEG * sizeof(long),
                                MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(my_errno());
+    return my_errno();
 
   /* Start by checking fields and field-types used */
 
@@ -351,7 +353,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
             break;
         }
         if (keyseg->flag & HA_SPACE_PACK) {
-          DBUG_ASSERT(!(keyseg->flag & HA_VAR_LENGTH_PART));
+          assert(!(keyseg->flag & HA_VAR_LENGTH_PART));
           keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
           options |= HA_OPTION_PACK_KEYS; /* Using packed keys */
           length++;                       /* At least one length byte */
@@ -362,8 +364,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
           }
         }
         if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART)) {
-          DBUG_ASSERT(!test_all_bits(keyseg->flag,
-                                     (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
+          assert(!test_all_bits(keyseg->flag,
+                                (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
           keydef->flag |= HA_VAR_LENGTH_KEY;
           length++;                       /* At least one length byte */
           options |= HA_OPTION_PACK_KEYS; /* Using packed keys */
@@ -400,8 +402,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     block_length =
         (keydef->block_length ? my_round_up_to_next_power(keydef->block_length)
                               : myisam_block_size);
-    block_length = MY_MAX(block_length, MI_MIN_KEY_BLOCK_LENGTH);
-    block_length = MY_MIN(block_length, MI_MAX_KEY_BLOCK_LENGTH);
+    block_length = std::max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
+    block_length = std::min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
 
     keydef->block_length = (uint16)MI_BLOCK_SIZE(
         length - real_length_diff, pointer, MI_MAX_KEYPTR_SIZE, block_length);
@@ -410,7 +412,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
       set_my_errno(HA_WRONG_CREATE_OPTION);
       goto err_no_lock;
     }
-    set_if_bigger(max_key_block_length, keydef->block_length);
+    max_key_block_length =
+        std::max(max_key_block_length, uint(keydef->block_length));
     keydef->keylength = (uint16)key_length;
     keydef->minlength = (uint16)(length - min_key_length_skip);
     keydef->maxlength = (uint16)length;
@@ -475,7 +478,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   share.state.process = (ulong)getpid();
   share.state.unique = (ulong)0;
   share.state.update_count = (ulong)0;
-  share.state.version = (ulong)time((time_t *)0);
+  share.state.version = (ulong)time((time_t *)nullptr);
   share.state.sortkey = (ushort)~0;
   share.state.auto_increment = ci->auto_increment;
   share.options = options;
@@ -488,7 +491,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     got from MYI file header (see also myisampack.c:save_state)
   */
   share.base.key_reflength =
-      mi_get_pointer_length(MY_MAX(ci->key_file_length, tmp), 3);
+      mi_get_pointer_length(std::max(ci->key_file_length, tmp), 3);
   share.base.keys = share.state.header.keys = keys;
   share.state.header.uniques = uniques;
   share.state.header.fulltext_keys = fulltext_keys;
@@ -521,10 +524,10 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   share.base.min_block_length =
       (share.base.pack_reclength + 3 < MI_EXTEND_BLOCK_LENGTH &&
        !share.base.blobs)
-          ? MY_MAX(share.base.pack_reclength, MI_MIN_BLOCK_LENGTH)
+          ? std::max(share.base.pack_reclength, ulong{MI_MIN_BLOCK_LENGTH})
           : MI_EXTEND_BLOCK_LENGTH;
   if (!(flags & HA_DONT_TOUCH_DATA))
-    share.state.create_time = (long)time((time_t *)0);
+    share.state.create_time = (long)time((time_t *)nullptr);
 
   if (!internal_table) mysql_mutex_lock(&THR_LOCK_myisam);
 
@@ -562,7 +565,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     fn_format(filename, name, "", MI_NAME_IEXT,
               MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
                   (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
-    linkname_ptr = 0;
+    linkname_ptr = nullptr;
     /* Replace the current file */
     create_flag = (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
   }
@@ -619,7 +622,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
       } else {
         fn_format(filename, name, "", MI_NAME_DEXT,
                   MY_UNPACK_FILENAME | MY_APPEND_EXT);
-        linkname_ptr = 0;
+        linkname_ptr = nullptr;
         create_flag = (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
       }
       if ((dfile = mysql_file_create_with_symlink(
@@ -634,7 +637,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   if (mi_state_info_write(file, &share.state, 2) ||
       mi_base_info_write(file, &share.base))
     goto err;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if ((uint)mysql_file_tell(file, MYF(0)) != base_pos + MI_BASE_INFO_SIZE) {
     uint pos = (uint)mysql_file_tell(file, MYF(0));
     DBUG_PRINT("warning", ("base_length: %d  != used_length: %d",
@@ -717,7 +720,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   for (i = 0; i < share.base.fields; i++)
     if (mi_recinfo_write(file, &recinfo[i])) goto err;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if ((uint)mysql_file_tell(file, MYF(0)) != info_length) {
     uint pos = (uint)mysql_file_tell(file, MYF(0));
     DBUG_PRINT("warning",
@@ -737,7 +740,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
   if (mysql_file_close(file, MYF(0))) goto err_no_lock;
   my_free(rec_per_key_part);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
@@ -747,7 +750,7 @@ err_no_lock:
   switch (errpos) {
     case 3:
       (void)mysql_file_close(dfile, MYF(0));
-      /* fall through */
+      [[fallthrough]];
     case 2:
       if (!(flags & HA_DONT_TOUCH_DATA))
         mysql_file_delete_with_symlink(
@@ -755,7 +758,7 @@ err_no_lock:
             fn_format(filename, name, "", MI_NAME_DEXT,
                       MY_UNPACK_FILENAME | MY_APPEND_EXT),
             MYF(0));
-      /* fall through */
+      [[fallthrough]];
     case 1:
       (void)mysql_file_close(file, MYF(0));
       if (!(flags & HA_DONT_TOUCH_DATA))
@@ -767,11 +770,11 @@ err_no_lock:
   }
   my_free(rec_per_key_part);
   set_my_errno(save_errno);
-  DBUG_RETURN(save_errno); /* return the fatal errno */
+  return save_errno; /* return the fatal errno */
 }
 
 uint mi_get_pointer_length(ulonglong file_length, uint def) {
-  DBUG_ASSERT(def >= 2 && def <= 7);
+  assert(def >= 2 && def <= 7);
   if (file_length) /* If not default */
   {
     if (file_length >= 1ULL << 48)

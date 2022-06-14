@@ -354,10 +354,10 @@ PRIMARY(x) - OrderedIndex
 NDBT_ProgramExit: 0 - OK
 
 ALTER TABLE t03 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 ALTER TABLE t03 ALGORITHM=INPLACE, COALESCE PARTITION 2;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 show warnings;
@@ -494,10 +494,10 @@ PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 NDBT_ProgramExit: 0 - OK
 
 ALTER TABLE t05 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 ALTER TABLE t05 ALGORITHM=INPLACE, COALESCE PARTITION 2;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 show warnings;
@@ -800,10 +800,10 @@ PRIMARY KEY(y) - UniqueHashIndex
 NDBT_ProgramExit: 0 - OK
 
 ALTER TABLE t07 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 ALTER TABLE t07 ALGORITHM=INPLACE, COALESCE PARTITION 2;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 show warnings;

@@ -30,7 +30,7 @@
 --echo
 --echo # 1. Use the debug point "group_replication_block_group_action_stop" on server 1
 
-SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
@@ -48,7 +48,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: checking group pre-conditions%"
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: waiting for operation to complete on all members%"
 --source include/wait_condition.inc
 
 --echo
@@ -57,13 +57,15 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
+
 --replace_result $conn_id CONNECTION_ID
 --eval KILL QUERY $conn_id
 
 --echo
 --echo # 5. Unblock the debug point with "signal.action_stop_continue"
 
-SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 
 --echo
 --echo # 6. Check the action returns and it says: Despite being killed, the
@@ -88,7 +90,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

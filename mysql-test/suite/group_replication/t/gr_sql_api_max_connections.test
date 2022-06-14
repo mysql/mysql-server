@@ -1,0 +1,49 @@
+--echo #
+--echo # WL#13378: Component service to add a "admin" session
+--echo #
+
+# Validate that SQL API connections, when opened through
+# mysql_admin_session->open() are not limited by
+# max_connections option.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Set max_connections to the value of current connections.
+# 2. Start Group Replication, the connections established
+#    through SQL API must not be disallowed due to
+#    max_connections being reached.
+#    Start Group Replication must succeed.
+# 3. Clean up.
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo # 1. Set max_connections to the value of current connections.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @max_connections_saved = @@GLOBAL.max_connections;
+
+--source include/count_sessions.inc
+--replace_result $count_sessions CURRENT_CONNECTIONS
+--eval SET @@GLOBAL.max_connections= ($count_sessions + 2)
+
+--let $assert_text= max_connections must be the value of current connections
+--let $assert_cond= [SELECT @@GLOBAL.max_connections] = ($count_sessions + 2)
+--source include/assert.inc
+
+
+--echo # 2. Start Group Replication, the connections established
+--echo #    through SQL API must not be disallowed due to
+--echo #    max_connections being reached.
+--echo #    Start Group Replication must succeed.
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo # 3. Clean up.
+SET @@GLOBAL.max_connections = @max_connections_saved;
+
+--source include/group_replication_end.inc
+
+
+--echo # End of 8.0 tests

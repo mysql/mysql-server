@@ -1,0 +1,41 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/sync_slave_sql_with_master.inc
+==== Using MyIsam ====
+SET SQL_LOG_BIN=0;
+CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SQL_LOG_BIN=1;
+CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES(1, 1);
+INSERT INTO t2 VALUES(2, 1);
+INSERT INTO t2 VALUES(3, 1);
+INSERT INTO t2 VALUES(5, 1);
+SET SQL_LOG_BIN=0;
+DELETE FROM t2 WHERE id = 5;
+SET SQL_LOG_BIN=1;
+UPDATE t2 SET id= id + 3, data = 2;
+include/sync_slave_sql_with_master.inc
+
+**** We cannot execute a select as there are differences in the 
+**** behavior between STMT and RBR.
+==== Clean Up ====
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

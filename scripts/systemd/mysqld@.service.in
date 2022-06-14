@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,10 +43,10 @@ Type=notify
 TimeoutSec=0
 
 # Execute pre and post scripts as root
-PermissionsStartOnly=true
+@SYSTEMD_START_ONLY@
 
 # Needed to create system tables
-ExecStartPre=@bindir@/mysqld_pre_systemd %I
+ExecStartPre=@SYSTEMD_EXE_PREFIX@@bindir@/mysqld_pre_systemd %I
 
 # Start main service
 ExecStart=@libexecdir@/mysqld --defaults-group-suffix=@%I $MYSQLD_OPTS

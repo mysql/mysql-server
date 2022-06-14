@@ -14,41 +14,41 @@ CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `fid` int NOT NULL AUTO_INCREMENT,
   `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, ST_PointFromText('POINT(10 10)')),
@@ -406,10 +406,9 @@ MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	g1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	g2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	g2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	Table 'g1' is not pushable: select list can't contain BLOB columns
-Note	1003	Table 'g2' is not pushable: select list can't contain BLOB columns
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
@@ -425,7 +424,7 @@ gm  geometry
 );
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 gp	point	YES		NULL	
 ln	linestring	YES		NULL	
 pg	polygon	YES		NULL	
@@ -439,7 +438,7 @@ Warnings:
 Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable online ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 gp	point	YES		NULL	
 ln	linestring	YES		NULL	
 pg	polygon	YES		NULL	
@@ -448,7 +447,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)	YES		NULL	
+fid	int	YES		NULL	
 DROP TABLE t1;
 create table t1 (pk integer primary key auto_increment, a geometry not null);
 insert into t1 (a) values (ST_GeomFromText('Point(1 2)'));
@@ -574,41 +573,41 @@ CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `fid` int NOT NULL AUTO_INCREMENT,
   `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, ST_PointFromText('POINT(10 10)')),
@@ -966,10 +965,9 @@ MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	g1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	g2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	g2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	Table 'g1' is not pushable: select list can't contain BLOB columns
-Note	1003	Table 'g2' is not pushable: select list can't contain BLOB columns
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
@@ -985,7 +983,7 @@ gm  geometry
 );
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 gp	point	YES		NULL	
 ln	linestring	YES		NULL	
 pg	polygon	YES		NULL	
@@ -999,7 +997,7 @@ Warnings:
 Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable online ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 gp	point	YES		NULL	
 ln	linestring	YES		NULL	
 pg	polygon	YES		NULL	
@@ -1008,7 +1006,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)	YES		NULL	
+fid	int	YES		NULL	
 DROP TABLE t1;
 create table t1 (pk integer primary key auto_increment, a geometry not null);
 insert into t1 (a) values (ST_GeomFromText('Point(1 2)'));

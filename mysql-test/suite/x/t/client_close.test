@@ -28,7 +28,8 @@ select sleep(1);
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/client_close.tmp
+--write_file $MYSQL_TMP_DIR/client_close.xpl
+-->import assert_status_variable.macro
 -->import connection.macro
 # number of seconds to sleep... increase to a higher value once killing sessions on disconnect works
 -->varlet %SLEEP% 2
@@ -81,8 +82,8 @@ Mysqlx.Sql.StmtExecute {
 -->recv
 
 -->closesession abort
+-->callmacro Wait_for_global_status_variable	mysqlx_connections_closed	2
 -->sql
-select sleep(%SLEEP%);
 show global status like 'mysqlx_connections_%';
 -->endsql
 
@@ -96,9 +97,10 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->closesession abort
--->sleep 2
+
+-->callmacro Wait_for_global_status_variable	mysqlx_connections_closed	3
+
 -->sql
-select sleep(%SLEEP%);
 show global status like 'mysqlx_connections_%';
 -->endsql
 
@@ -115,7 +117,8 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->closesession abort
--->sleep 4
+-->callmacro Wait_for_global_status_variable	mysqlx_connections_closed	4
+
 -->sql
 show global status like 'mysqlx_connections_%';
 -->endsql
@@ -181,18 +184,7 @@ select 4;
 -->newsession sess	x_root
 -->varlet %SESS_CLIENT_ID% %ACTIVE_CLIENT_ID%
 -->setsession
-
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -201,6 +193,11 @@ Mysqlx.Sql.StmtExecute {
 
 -->setsession sess
 -->closesession abort
+
+# Due to race condition on the 'vio' level, we need some small delay
+# between tests. The 'valgrind' is a kind of catalyst and makes this
+# issue more probably. Bug#31593665 has been reported.
+-->sleep 1
 
 -->title -Kill a session executing query
 
@@ -214,17 +211,7 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->setsession
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -247,17 +234,7 @@ Mysqlx.Sql.StmtExecute {
 -->sleep 1
 
 -->setsession
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -284,17 +261,7 @@ Mysqlx.Connection.CapabilitiesGet {
 }
 
 -->setsession
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -413,10 +380,7 @@ Mysqlx.Connection.CapabilitiesGet {
 
 -->title -Final check of clients still around
 
-Mysqlx.Sql.StmtExecute {
-    stmt: "list_clients"
-    namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult
 
 
@@ -443,8 +407,9 @@ Mysqlx.Connection.Close {
 
 EOF
 
+
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.xpl 2>&1
 
 # sleep for a while to ensure clean up finished
 select sleep(10);
@@ -456,5 +421,4 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 drop procedure test.get_stuck;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/client_close.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

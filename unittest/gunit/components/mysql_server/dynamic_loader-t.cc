@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,358 +20,33 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <audit_api_message_service_imp.h>
-#include <component_status_var_service.h>
-#include <component_sys_var_service.h>
-#include <components/mysql_server/mysql_page_track.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
-#include <keyring_iterator_service_imp.h>
-#include <mysql.h>
-#include <mysql/components/component_implementation.h>
+#include <mysql/components/minimal_chassis.h>
 #include <mysql/components/my_service.h>
-#include <mysql/components/service.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/services/backup_lock_service.h>
-#include <mysql/components/services/clone_protocol_service.h>
-#include <mysql/components/services/component_sys_var_service.h>
-#include <mysql/components/services/dynamic_loader.h>
-#include <mysql/components/services/mysql_socket_bits.h>
-#include <mysql/components/services/page_track_service.h>
-#include <mysql/components/services/persistent_dynamic_loader.h>
-#include <mysql/components/services/psi_statement_bits.h>
-#include <mysql/components/services/psi_thread_bits.h>
-#include <mysql/mysql_lex_string.h>
-#include <mysql_ongoing_transaction_query.h>
-#include <security_context_imp.h>
-#include <server_component.h>
-#include <stddef.h>
-#include <system_variable_source_imp.h>
+#include <string>
 
-#include "components/mysql_server/persistent_dynamic_loader.h"
-#include "host_application_signal_imp.h"
-#include "lex_string.h"
 #include "m_ctype.h"
-#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
-#include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
-#include "sql/auth/dynamic_privileges_impl.h"
-#include "sql/udf_registration_imp.h"
-
-extern mysql_component_t COMPONENT_REF(mysql_server);
-
-struct mysql_component_t *mysql_builtin_components[] = {
-    &COMPONENT_REF(mysql_server), 0};
-
-DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
-                   (MYSQL_THD *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
-                   (int, void *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
-                   (void *, const char *[], int)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
-                   (void *, const char *[], int)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
-                   (const char *, size_t)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
-                   (const char *, size_t)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
-                   (Security_context_handle, const char *, size_t)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
-                   (const char *, int *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
-                   (const char *, enum Item_result, Udf_func_any, Udf_func_init,
-                    Udf_func_deinit, Udf_func_add, Udf_func_clear)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
-                   (const char *, Item_result, Udf_func_any, Udf_func_init,
-                    Udf_func_deinit)) {
-  return true;
-}
-
-void component_sys_var_init() {}
-
-void component_sys_var_deinit() {}
-
-DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
-                   (const char *, const char *, int, const char *,
-                    mysql_sys_var_check_func, mysql_sys_var_update_func, void *,
-                    void *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
-                   (const char *, const char *, void **, size_t *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
-                   (const char *, const char *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
-                   (SHOW_VAR *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
-                   (SHOW_VAR *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_system_variable_source_imp::get,
-                   (const char *, unsigned int, enum enum_variable_source *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
-                   (MYSQL_THD, enum enum_backup_lock_service_lock_kind,
-                    unsigned long)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD)) { return true; }
-
-DEFINE_METHOD(void, mysql_clone_start_statement,
-              (THD *&, PSI_thread_key, PSI_statement_key)) {
-  return;
-}
-
-DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
-
-DEFINE_METHOD(int, mysql_clone_get_charsets, (THD *, Mysql_Clone_Values &)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, mysql_clone_validate_charsets,
-              (THD *, Mysql_Clone_Values &)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, mysql_clone_get_configs, (THD *, Mysql_Clone_Key_Values &)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, mysql_clone_validate_configs,
-              (THD *, Mysql_Clone_Key_Values &)) {
-  return (0);
-}
-
-DEFINE_METHOD(MYSQL *, mysql_clone_connect,
-              (THD *, const char *, uint32_t, const char *, const char *,
-               mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
-  return nullptr;
-}
-
-DEFINE_METHOD(int, mysql_clone_send_command,
-              (THD *, MYSQL *, bool, uchar, uchar *, size_t)) {
-  return 0;
-}
-
-DEFINE_METHOD(int, mysql_clone_get_response,
-              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *, size_t *)) {
-  return 0;
-}
-
-DEFINE_METHOD(int, mysql_clone_kill, (MYSQL *, MYSQL *)) { return 0; }
-
-DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
-  return;
-}
-
-DEFINE_METHOD(void, mysql_clone_get_error, (THD *, uint32_t *, const char **)) {
-  return;
-}
-
-DEFINE_METHOD(int, mysql_clone_get_command,
-              (THD *, uchar *, uchar **, size_t *)) {
-  return 0;
-}
-
-DEFINE_METHOD(int, mysql_clone_send_response, (THD *, bool, uchar *, size_t)) {
-  return 0;
-}
-
-DEFINE_METHOD(int, mysql_clone_send_error, (THD *, uchar, bool)) { return 0; }
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
-                   (void *, Security_context_handle *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
-                   (void *, Security_context_handle)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::create,
-                   (Security_context_handle *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::destroy,
-                   (Security_context_handle)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::copy,
-                   (Security_context_handle, Security_context_handle *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
-                   (Security_context_handle, const char *, const char *,
-                    const char *, const char *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
-                   (Security_context_handle, const char *, void *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
-                   (Security_context_handle, const char *, void *)) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(
-    mysql_ongoing_transactions_query_imp::get_ongoing_server_transactions,
-    (unsigned long **, unsigned long *)) {
-  return 0;
-}
-
-DEFINE_BOOL_METHOD(
-    mysql_audit_api_message_imp::emit,
-    (mysql_event_message_subclass_t type MY_ATTRIBUTE((unused)),
-     const char *component MY_ATTRIBUTE((unused)),
-     size_t component_length MY_ATTRIBUTE((unused)),
-     const char *producer MY_ATTRIBUTE((unused)),
-     size_t producer_length MY_ATTRIBUTE((unused)),
-     const char *message MY_ATTRIBUTE((unused)),
-     size_t message_length MY_ATTRIBUTE((unused)),
-     mysql_event_message_key_value_t *key_value_map MY_ATTRIBUTE((unused)),
-     size_t key_value_map_length MY_ATTRIBUTE((unused)))) {
-  return true;
-}
-
-DEFINE_METHOD(int, Page_track_implementation::start,
-              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, Page_track_implementation::stop,
-              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, Page_track_implementation::get_page_ids,
-              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *,
-               unsigned char *, size_t, Page_Track_Callback, void *)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, Page_track_implementation::get_num_page_ids,
-              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *, uint64_t *)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, Page_track_implementation::purge,
-              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
-  return (0);
-}
-
-DEFINE_METHOD(int, Page_track_implementation::get_status,
-              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *)) {
-  return (0);
-}
-
-DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
-                   (my_h_keyring_iterator * iterator MY_ATTRIBUTE((unused)))) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::deinit,
-                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)))) {
-  return true;
-}
-
-DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
-                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)),
-                    char *key_id MY_ATTRIBUTE((unused)),
-                    size_t key_id_size MY_ATTRIBUTE((unused)),
-                    char *user_id MY_ATTRIBUTE((unused)),
-                    size_t user_id_size MY_ATTRIBUTE((unused)))) {
-  return true;
-}
-
-/* TODO following code resembles symbols used in sql library, these should be
-  some day extracted to be reused both in sql library and server component
-  unit tests. */
-struct CHARSET_INFO;
-
-CHARSET_INFO *system_charset_info = &my_charset_latin1;
-
-char opt_plugin_dir[FN_REFLEN];
-
-bool check_string_char_length(const LEX_CSTRING &, const char *, size_t,
-                              const CHARSET_INFO *, bool) {
-  return false;
-}
-
-bool check_valid_path(const char *path, size_t len) {
-  size_t prefix = my_strcspn(system_charset_info, path, path + len, FN_DIRSEP,
-                             strlen(FN_DIRSEP));
-  return prefix < len;
-}
-
-namespace dynamic_loader_unittest {
+#include "unit_test_common.h"
 
 using registry_type_t = SERVICE_TYPE_NO_CONST(registry);
 using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 
 class dynamic_loader : public ::testing::Test {
  protected:
-  virtual void SetUp() {
-    my_getwd(opt_plugin_dir, FN_REFLEN, MYF(0));
-    reg = NULL;
-    loader = NULL;
-    ASSERT_FALSE(mysql_services_bootstrap(&reg));
+  void SetUp() override {
+    reg = nullptr;
+    loader = nullptr;
+    ASSERT_FALSE(minimal_chassis_init(&reg, nullptr));
     ASSERT_FALSE(reg->acquire("dynamic_loader",
                               reinterpret_cast<my_h_service *>(
                                   const_cast<loader_type_t **>(&loader))));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (reg) {
       ASSERT_FALSE(reg->release(
           reinterpret_cast<my_h_service>(const_cast<registry_type_t *>(reg))));
@@ -380,107 +55,163 @@ class dynamic_loader : public ::testing::Test {
       ASSERT_FALSE(reg->release(
           reinterpret_cast<my_h_service>(const_cast<loader_type_t *>(loader))));
     }
-    shutdown_dynamic_loader();
-    ASSERT_FALSE(mysql_services_shutdown());
+    ASSERT_FALSE(minimal_chassis_deinit(reg, nullptr));
   }
-  SERVICE_TYPE(registry) * reg;
+  SERVICE_TYPE_NO_CONST(registry) * reg;
   SERVICE_TYPE(dynamic_loader) * loader;
 };
 
-TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != NULL); }
+TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != nullptr); }
 
 TEST_F(dynamic_loader, try_load_component) {
   static const char *urns[] = {"file://component_example_component1"};
-  ASSERT_FALSE(loader->load(urns, 1));
-  ASSERT_FALSE(loader->unload(urns, 1));
+  std::string path;
+  const char *absolute_urns;
+  make_absolute_urn(*urns, &path);
+  absolute_urns = path.c_str();
+  ASSERT_FALSE(loader->load(&absolute_urns, 1));
+  ASSERT_FALSE(loader->unload(&absolute_urns, 1));
 }
 
 TEST_F(dynamic_loader, try_unload_the_same_component_in_group) {
   static const char *urns[] = {"file://component_example_component1"};
-  ASSERT_FALSE(loader->load(urns, 1));
+  std::string path;
+  const char *absolute_urns[2];
+  for (int i = 0; i < 2; i++)
+    absolute_urns[i] = (char *)malloc(2046 * sizeof(char));
+  make_absolute_urn(*urns, &path);
+  strcpy(const_cast<char *>(absolute_urns[0]), path.c_str());
+  ASSERT_FALSE(loader->load(absolute_urns, 1));
   static const char *urns_bad[] = {"file://component_example_component1",
                                    "file://component_example_component1"};
-  ASSERT_TRUE(loader->unload(urns_bad, 2));
-  ASSERT_FALSE(loader->unload(urns, 1));
+  make_absolute_urn(urns_bad[1], &path);
+  strcpy(const_cast<char *>(absolute_urns[1]), path.c_str());
+  ASSERT_TRUE(loader->unload((const char **)absolute_urns, 2));
+  ASSERT_FALSE(loader->unload((const char **)&absolute_urns[0], 1));
+  for (int i = 0; i < 2; i++) free(const_cast<char *>(absolute_urns[i]));
 }
 
 TEST_F(dynamic_loader, try_load_twice) {
   static const char *urns[] = {"file://component_example_component1"};
-  ASSERT_FALSE(loader->load(urns, 1));
-  ASSERT_TRUE(loader->load(urns, 1));
+  std::string path;
+  const char *absolute_urns;
+  make_absolute_urn(*urns, &path);
+  absolute_urns = path.c_str();
+  ASSERT_FALSE(loader->load(&absolute_urns, 1));
+  ASSERT_TRUE(loader->load(&absolute_urns, 1));
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_FALSE((bool)service);
   }
 
-  ASSERT_FALSE(loader->unload(urns, 1));
+  ASSERT_FALSE(loader->unload(&absolute_urns, 1));
 }
 
 TEST_F(dynamic_loader, try_load_not_existing) {
   static const char *urns[] = {"file://component_example_component0"};
-  ASSERT_TRUE(loader->load(urns, 1));
+  std::string path;
+  const char *absolute_urns;
+  make_absolute_urn(*urns, &path);
+  absolute_urns = path.c_str();
+  ASSERT_TRUE(loader->load(&absolute_urns, 1));
 }
 
 TEST_F(dynamic_loader, try_load_with_unsatisfied_dependencies) {
   static const char *urns[] = {"file://component_example_component3"};
-  ASSERT_TRUE(loader->load(urns, 1));
+  std::string path;
+  const char *absolute_urns;
+  make_absolute_urn(*urns, &path);
+  absolute_urns = path.c_str();
+  ASSERT_TRUE(loader->load(&absolute_urns, 1));
 }
 
 TEST_F(dynamic_loader, try_load_and_forget) {
   static const char *urns[] = {"file://component_example_component1"};
-  ASSERT_FALSE(loader->load(urns, 1));
+  std::string path;
+  const char *absolute_urns;
+  make_absolute_urn(*urns, &path);
+  absolute_urns = path.c_str();
+  ASSERT_FALSE(loader->load(&absolute_urns, 1));
 }
 
 TEST_F(dynamic_loader, try_unload_not_existing) {
   static const char *urns[] = {"file://component_example_component0"};
-  ASSERT_TRUE(loader->unload(urns, 1));
+  std::string path;
+  const char *absolute_urns;
+  make_absolute_urn(*urns, &path);
+  absolute_urns = path.c_str();
+  ASSERT_TRUE(loader->unload(&absolute_urns, 1));
 }
 
 TEST_F(dynamic_loader, load_different_components) {
   static const char *urns1[] = {"file://component_example_component1"};
   static const char *urns2[] = {"file://component_example_component2",
                                 "file://component_example_component3"};
+  std::string path1, path2, path3;
+  const char *absolute_urn;
+  const char *absolute_urns[2];
+  for (int i = 0; i < 2; i++)
+    absolute_urns[i] = (char *)malloc(2046 * sizeof(char));
+  make_absolute_urn(*urns1, &path1);
+  absolute_urn = path1.c_str();
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_TRUE((bool)service);
   }
-  ASSERT_FALSE(loader->load(urns1, 1));
+  ASSERT_FALSE(loader->load(&absolute_urn, 1));
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_FALSE((bool)service);
   }
-  ASSERT_FALSE(loader->unload(urns1, 1));
-  ASSERT_FALSE(loader->load(urns2, 2));
+  ASSERT_FALSE(loader->unload(&absolute_urn, 1));
+  make_absolute_urn(urns2[0], &path2);
+  strcpy(const_cast<char *>(absolute_urns[0]), path2.c_str());
+  make_absolute_urn(urns2[1], &path3);
+  strcpy(const_cast<char *>(absolute_urns[1]), path3.c_str());
+  ASSERT_FALSE(loader->load(absolute_urns, 2));
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_FALSE((bool)service);
   }
-  ASSERT_FALSE(loader->unload(urns2, 2));
+  ASSERT_FALSE(loader->unload(absolute_urns, 2));
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_TRUE((bool)service);
   }
+  for (int i = 0; i < 2; i++) free(const_cast<char *>(absolute_urns[i]));
 }
 
 TEST_F(dynamic_loader, dependencies) {
   static const char *urns1[] = {"file://component_example_component3"};
   static const char *urns2[] = {"file://component_example_component1",
                                 "file://component_example_component3"};
+  std::string path1, path2;
+  const char *absolute_urn;
+  const char *absolute_urns[2];
+  for (int i = 0; i < 2; i++)
+    absolute_urns[i] = (char *)malloc(2046 * sizeof(char));
+  make_absolute_urn(*urns1, &path1);
+  absolute_urn = path1.c_str();
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_TRUE((bool)service);
   }
-  ASSERT_TRUE(loader->load(urns1, 1));
+  ASSERT_TRUE(loader->load(&absolute_urn, 1));
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_TRUE((bool)service);
   }
-  ASSERT_FALSE(loader->load(urns2, 2));
-  ASSERT_FALSE(loader->unload(urns2, 2));
+  make_absolute_urn(urns2[0], &path2);
+  strcpy(const_cast<char *>(absolute_urns[0]), path2.c_str());
+  make_absolute_urn(urns2[1], &path1);
+  strcpy(const_cast<char *>(absolute_urns[1]), path1.c_str());
+  ASSERT_FALSE(loader->load(absolute_urns, 2));
+  ASSERT_FALSE(loader->unload(absolute_urns, 2));
   {
     my_service<SERVICE_TYPE(example_math)> service("example_math", reg);
     ASSERT_TRUE((bool)service);
   }
+  for (int i = 0; i < 2; i++) free(const_cast<char *>(absolute_urns[i]));
 }
 
 TEST_F(dynamic_loader, cyclic_dependencies) {
@@ -494,32 +225,62 @@ TEST_F(dynamic_loader, cyclic_dependencies) {
       "file://component_cyclic_dependency_test_component_1",
       "file://component_cyclic_dependency_test_component_2"};
 
+  std::string path1, path2, path3;
+  const char *absolute_self_depends;
+  const char *absolute_cyclic_depends_broken1;
+  const char *absolute_cyclic_depends_broken2;
+  const char *absolute_cyclic_depends[2];
+  make_absolute_urn(*urns_self_depends, &path1);
+  absolute_self_depends = path1.c_str();
+
   /* Self-provided requirements should pass. */
-  ASSERT_FALSE(loader->load(urns_self_depends, 1));
-  ASSERT_FALSE(loader->unload(urns_self_depends, 1));
+  ASSERT_FALSE(loader->load(&absolute_self_depends, 1));
+  ASSERT_FALSE(loader->unload(&absolute_self_depends, 1));
 
   /* Broken cyclic dependency. */
-  ASSERT_TRUE(loader->load(urns_cyclic_depends_broken1, 1));
-  ASSERT_TRUE(loader->load(urns_cyclic_depends_broken2, 1));
+  make_absolute_urn(*urns_cyclic_depends_broken1, &path2);
+  absolute_cyclic_depends_broken1 = path2.c_str();
+  ASSERT_TRUE(loader->load(&absolute_cyclic_depends_broken1, 1));
+  make_absolute_urn(*urns_cyclic_depends_broken2, &path3);
+  absolute_cyclic_depends_broken2 = path3.c_str();
+  ASSERT_TRUE(loader->load(&absolute_cyclic_depends_broken2, 1));
 
   /* Correct cyclic dependency.*/
-  ASSERT_FALSE(loader->load(urns_cyclic_depends, 2));
-  ASSERT_FALSE(loader->unload(urns_cyclic_depends, 2));
+  for (int i = 0; i < 2; i++)
+    absolute_cyclic_depends[i] = (char *)malloc(2046 * sizeof(char));
+  make_absolute_urn(urns_cyclic_depends[0], &path2);
+  strcpy(const_cast<char *>(absolute_cyclic_depends[0]), path2.c_str());
+  make_absolute_urn(urns_cyclic_depends[1], &path3);
+  strcpy(const_cast<char *>(absolute_cyclic_depends[1]), path3.c_str());
+  ASSERT_FALSE(loader->load(absolute_cyclic_depends, 2));
+  ASSERT_FALSE(loader->unload(absolute_cyclic_depends, 2));
+  for (int i = 0; i < 2; i++)
+    free(const_cast<char *>(absolute_cyclic_depends[i]));
 }
 
 TEST_F(dynamic_loader, first_dependency) {
   static const char *urn1[] = {"file://component_example_component1"};
   static const char *urn2[] = {"file://component_example_component2"};
   static const char *urn3[] = {"file://component_example_component3"};
-  ASSERT_TRUE(loader->load(urn3, 1));
-  ASSERT_FALSE(loader->load(urn1, 1));
-  ASSERT_FALSE(loader->load(urn3, 1));
-  ASSERT_FALSE(loader->load(urn2, 1));
+  std::string path1, path2, path3;
+  const char *absolute_urn1;
+  const char *absolute_urn2;
+  const char *absolute_urn3;
+  make_absolute_urn(*urn1, &path1);
+  absolute_urn1 = path1.c_str();
+  make_absolute_urn(*urn2, &path2);
+  absolute_urn2 = path2.c_str();
+  make_absolute_urn(*urn3, &path3);
+  absolute_urn3 = path3.c_str();
+  ASSERT_TRUE(loader->load(&absolute_urn3, 1));
+  ASSERT_FALSE(loader->load(&absolute_urn1, 1));
+  ASSERT_FALSE(loader->load(&absolute_urn3, 1));
+  ASSERT_FALSE(loader->load(&absolute_urn2, 1));
   /*
     lib2 would be sufficient for lib3 to satisfy its dependencies, but lib3 is
     already using actively dependency on lib1, so we can't unload it here.
   */
-  ASSERT_TRUE(loader->unload(urn1, 1));
+  ASSERT_TRUE(loader->unload(&absolute_urn1, 1));
 }
 
 TEST_F(dynamic_loader, iteration) {
@@ -539,8 +300,18 @@ TEST_F(dynamic_loader, iteration) {
   static const char *urns[] = {"file://component_example_component1",
                                "file://component_example_component2",
                                "file://component_example_component3"};
+  std::string path;
+  const char *absolute_urns[3];
+  for (int i = 0; i < 3; i++)
+    absolute_urns[i] = (char *)malloc(2046 * sizeof(char));
+  make_absolute_urn(urns[0], &path);
+  strcpy(const_cast<char *>(absolute_urns[0]), path.c_str());
+  make_absolute_urn(urns[1], &path);
+  strcpy(const_cast<char *>(absolute_urns[1]), path.c_str());
+  make_absolute_urn(urns[2], &path);
+  strcpy(const_cast<char *>(absolute_urns[2]), path.c_str());
 
-  ASSERT_FALSE(loader->load(urns, 3));
+  ASSERT_FALSE(loader->load(absolute_urns, 3));
 
   ASSERT_FALSE(service->create(&iterator));
 
@@ -555,8 +326,7 @@ TEST_F(dynamic_loader, iteration) {
     ASSERT_FALSE(service->get(iterator, &name, &urn));
 
     count++;
-    test_library_found |= !strcmp(name, "mysql:example_component1") &&
-                          !strcmp(urn, "file://component_example_component1");
+    test_library_found |= !strcmp(name, "mysql:example_component1");
   }
   ASSERT_TRUE(service->get(iterator, &name, &urn));
   ASSERT_TRUE(service->next(iterator));
@@ -565,6 +335,7 @@ TEST_F(dynamic_loader, iteration) {
   /* there should be at least 3 test components loaded. */
   ASSERT_GE(count, 3);
   ASSERT_TRUE(test_library_found);
+  for (int i = 0; i < 3; i++) free(const_cast<char *>(absolute_urns[i]));
 }
 
 TEST_F(dynamic_loader, metadata) {
@@ -584,7 +355,18 @@ TEST_F(dynamic_loader, metadata) {
                                "file://component_example_component2",
                                "file://component_example_component3"};
 
-  ASSERT_FALSE(loader->load(urns, 3));
+  std::string path;
+  const char *absolute_urns[3];
+  for (int i = 0; i < 3; i++)
+    absolute_urns[i] = (char *)malloc(2046 * sizeof(char));
+  make_absolute_urn(urns[0], &path);
+  strcpy(const_cast<char *>(absolute_urns[0]), path.c_str());
+  make_absolute_urn(urns[1], &path);
+  strcpy(const_cast<char *>(absolute_urns[1]), path.c_str());
+  make_absolute_urn(urns[2], &path);
+  strcpy(const_cast<char *>(absolute_urns[2]), path.c_str());
+
+  ASSERT_FALSE(loader->load(absolute_urns, 3));
 
   my_h_component_iterator iterator;
   const char *name;
@@ -595,13 +377,12 @@ TEST_F(dynamic_loader, metadata) {
 
   ASSERT_FALSE(query_service->create(&iterator));
 
-  auto guard = create_scope_guard(
+  auto query_service_guard = create_scope_guard(
       [&query_service, &iterator]() { query_service->release(iterator); });
 
   for (; !query_service->is_valid(iterator); query_service->next(iterator)) {
     ASSERT_FALSE(query_service->get(iterator, &name, &urn));
-
-    if (!strcmp(urn, "file://component_example_component1")) {
+    if (!strcmp(urn, absolute_urns[0])) {
       ASSERT_FALSE(
           metadata_query_service->get_value(iterator, "mysql.author", &value));
       ASSERT_STREQ(value, "Oracle Corporation");
@@ -633,7 +414,7 @@ TEST_F(dynamic_loader, metadata) {
         ASSERT_FALSE(metadata_service->get(metadata_iterator, &name, &value));
 
         count++;
-        property_found |= strcmp(name, "test_property");
+        property_found |= (strcmp(name, "test_property") == 0);
       }
       ASSERT_TRUE(metadata_service->get(metadata_iterator, &name, &value));
       ASSERT_TRUE(metadata_service->next(metadata_iterator));
@@ -644,8 +425,8 @@ TEST_F(dynamic_loader, metadata) {
       ASSERT_TRUE(property_found);
     }
   }
+  for (int i = 0; i < 3; i++) free(const_cast<char *>(absolute_urns[i]));
 }
-}  // namespace dynamic_loader_unittest
 
 /* mandatory main function */
 int main(int argc, char **argv) {

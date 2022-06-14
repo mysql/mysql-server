@@ -1,6 +1,6 @@
 #ifndef DD_SQL_VIEW_INCLUDED
 #define DD_SQL_VIEW_INCLUDED
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
 
 class THD;
@@ -156,6 +156,61 @@ bool update_referencing_views_metadata(
 */
 
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname);
+
+/**
+  Mark views referencing the table as invalid.
+
+  @param          thd                 Thread handle.
+  @param          table               Views referencing this table need
+                                      to be marked as invalid.
+  @param          skip_same_db        Indicates whether it is OK to skip
+                                      views belonging to the same database
+                                      as table (as they will be dropped
+                                      anyway).
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param          mem_root            Memory root for allocation of temporary
+                                      objects which will be cleared after
+                                      each call to this function.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @note This call is a version of update_referencing_views_metadata(),
+        which is optimized for DROP DATABASE case.
+
+
+  @retval     false                   Success.
+  @retval     true                    Failure.
+*/
+
+bool mark_referencing_views_invalid(THD *thd, const TABLE_LIST *table,
+                                    bool skip_same_db, bool commit_dd_changes,
+                                    MEM_ROOT *mem_root);
+
+/**
+  Mark views using stored function as invalid.
+
+  @param      thd        Thread handle.
+  @param      spname     Name of the stored function.
+  @param      mem_root   Memory root for allocation of temporary objects
+                         which will be cleared after each call to this
+                         function.
+
+  @note This call is a version of update_referencing_views_metadata(),
+        which is optimized for DROP DATABASE case.
+
+  @retval     false      Success.
+  @retval     true       Failure.
+*/
+
+bool mark_referencing_views_invalid(THD *thd, const sp_name *spname,
+                                    MEM_ROOT *mem_root);
 
 /**
   Push error or warnings in case a view is invalid and return

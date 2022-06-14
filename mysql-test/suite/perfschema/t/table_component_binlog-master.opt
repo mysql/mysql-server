@@ -1,0 +1,3 @@
+$PFS_EXAMPLE_COMPONENT_POPULATION_OPT
+--gtid_mode=ON
+--enforce_gtid_consistency=true

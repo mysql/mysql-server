@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-// ensure windows.h doesn't expose min() nor max()
-#define NOMINMAX
-#endif
+#include <system_error>
+#include <thread>
 
 #include <gmock/gmock.h>
 
@@ -39,7 +37,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 // a placeholder that will be replaced with a valid value
 //
@@ -72,6 +70,8 @@ static const char kInvalidBindAddress[]{"::::::::::"};
 static_assert(sizeof(kInvalidBindAddress) > 7 + 1,
               "kInvalidBindAddress is too short");
 #endif
+
+using namespace std::chrono_literals;
 
 const std::string kHttpBasedir(kPlaceholderHttpBaseDir);
 
@@ -120,6 +120,8 @@ class HttpServerTestBase : public RouterComponentTest {};
 struct HttpServerPlainParams {
   std::string test_name;
   std::string test_scenario_id;
+
+  std::string http_hostname;
 
   std::vector<std::pair<std::string, std::string>> http_section;
 
@@ -172,9 +174,7 @@ class HttpServerPlainTest
       public ::testing::WithParamInterface<HttpServerPlainParams> {
  public:
   HttpServerPlainTest()
-      : port_pool_{},
-        http_port_{port_pool_.get_next_available()},
-        conf_dir_{} {}
+      : http_port_{port_pool_.get_next_available()}, conf_dir_{} {}
 
   static void SetUpTestCase() {
     auto http_base_path = mysql_harness::Path(http_base_dir_.name());
@@ -198,9 +198,7 @@ class HttpServerPlainTest
   }
 
  protected:
-  TcpPortPool port_pool_;
   uint16_t http_port_;
-  std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
   static TempDirectory http_base_dir_;
 };
@@ -246,18 +244,23 @@ TEST_P(HttpServerPlainTest, ensure) {
                     .str();
       }
     }
-    http_section.push_back({e.first, value});
+    http_section.emplace_back(e.first, value);
   }
 
   if (!has_port) {
     http_port = kHttpDefaultPort;
   }
 
+  // Add a DEBUG level to trigger the 'Running' message.
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      ConfigBuilder::build_section("http_server", http_section))};
+      mysql_harness::join(
+          std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
+              "http_server", http_section)},
+          ""))};
   ProcessWrapper &http_server{launch_router(
-      {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
+      {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE, true,
+      false, GetParam().expected_success ? 5s : -1s)};
 
   if (GetParam().expected_success) {
     std::string rel_uri = GetParam().raw_uri_path;
@@ -269,19 +272,40 @@ TEST_P(HttpServerPlainTest, ensure) {
     SCOPED_TRACE("// preparing client and connection object");
     IOContext io_ctx;
 
-    RestClient rest_client(io_ctx, http_hostname_, http_port);
+    RestClient rest_client(io_ctx, GetParam().http_hostname, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_TRUE(wait_for_port_ready(http_port))
-        << http_server.get_full_logfile();
+    try {
+      ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port,
+                                               kDefaultPortReadyTimeout,
+                                               GetParam().http_hostname))
+          << "http-server:\n"
+          << http_server.get_current_output();
+    } catch (const std::system_error &e) {
+      SCOPED_TRACE(
+          "// wait_for_port_ready() failed, waiting for process to startup "
+          "before we can kill it");
+      // if we tried to connect to an address we can't assign (like connect(::1)
+      // on a host IPv6 disabled), skip the test
+
+      ASSERT_EQ(e.code(),
+                make_error_condition(std::errc::address_not_available));
+
+      // wait a bit to let the process actually startup to not kill it too early
+      EXPECT_TRUE(wait_log_contains(http_server, "Running", 1000ms))
+          << "log: " << http_server.get_full_logfile();
+
+      // skip
+      return;
+    }
 
     SCOPED_TRACE("// requesting " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), GetParam().status_code);
   } else {
-    EXPECT_EQ(EXIT_FAILURE,
-              http_server.wait_for_exit(1000));  // assume it finishes in 1s
+    check_exit_code(http_server, EXIT_FAILURE,
+                    1000ms);  // assume it finishes in 1s
     EXPECT_THAT(http_server.get_full_output(),
                 ::testing::ContainsRegex(GetParam().stderr_regex));
     EXPECT_THAT(http_server.get_full_logfile(),
@@ -289,9 +313,13 @@ TEST_P(HttpServerPlainTest, ensure) {
   }
 }
 
+const std::string localhost_ipv4("127.0.0.1");
+const std::string localhost_ipv6("::1");
+
 static const HttpServerPlainParams http_server_static_files_params[]{
     {"bind-address-ipv4-any",
      "WL11891::TS-3",
+     localhost_ipv4,
      {
          {"bind_address", "0.0.0.0"},
          {"port", kPlaceholder},
@@ -304,8 +332,24 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      404},
 
+    {"bind-address-ipv6-any",
+     "WL11891::TS-3",
+     localhost_ipv6,
+     {
+         {"bind_address", "::"},
+         {"port", kPlaceholder},
+     },
+     true,
+     "^$",
+     "^$",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
     {"bind-address-ipv4-localhost",
      "WL11891::TS-6",
+     localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
          {"port", kPlaceholder},
@@ -320,6 +364,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"bind-address-ipv4-localhost-ws",
      "WL11891::TS-7",
+     localhost_ipv4,
      {
          {"bind_address", " 127.0.0.1"},
          {"port", kPlaceholder},
@@ -335,6 +380,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"bind-address-duplicated",
      "WL11891::TS-9",
+     localhost_ipv4,
      {
          {"bind_address", " 127.0.0.1"},
          {"bind_address", " 127.0.0.1"},
@@ -352,6 +398,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port-non-default",
      "WL11891::TS-10",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
      },
@@ -365,6 +412,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port-invalid",
      "WL11891::TS-12",
+     localhost_ipv4,
      {
          {"port", "-1"},
      },
@@ -378,6 +426,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port-duplicated",
      "WL11891::TS-13",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"port", kPlaceholder},
@@ -392,6 +441,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port",
      "WL11891::TS-14",
+     localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
          {"port", kPlaceholder},
@@ -408,6 +458,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, static_folder does not exist",
      "WL11891::TS-16",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", "does-not-exist"},
@@ -422,6 +473,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, empty static_folder with trailing spaces",
      "WL11891::TS-18",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", " "},
@@ -436,6 +488,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, empty static_folder",
      "WL11891::TS-18",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", ""},
@@ -450,6 +503,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, static_folder dirname with spaces",
      "WL11891::TS-18",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir + "/" + kSubdirWithSpace},
@@ -466,6 +520,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"TRACE, file-exists",
      "WL11891::TS-20",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -480,6 +535,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"CONNECT, file-exists",
      "WL11891::TS-21",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -494,6 +550,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"POST, file-exists",
      "WL11891::TS-22",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -508,6 +565,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, file exists",
      "WL11891:TS-23,WL11891::TS-15",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -522,6 +580,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, file does not exists",
      "WL11891::TS-24",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -536,6 +595,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"PUT, file-exists",
      "WL11891::TS-25",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -550,6 +610,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"PATCH, file-exists",
      "WL11891::TS-26",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -564,6 +625,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"DELETE, file-exists",
      "WL11891::TS-27",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -580,6 +642,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, escaping",
      "WL11891::TS-29",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -596,6 +659,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"dir, no index-file",
      "",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -610,6 +674,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"not leave root, ..",
      "WL11891::TS-31",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -624,6 +689,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"not leave root, ..%2f",
      "WL11891::TS-31",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -638,6 +704,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"long-uri",
      "WL11891::TS-32",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -652,6 +719,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"URI parser, double question-mark",
      "",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -666,6 +734,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"edge-case, special chars",
      "",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -682,6 +751,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"file exists, ssl=0, no ssl-params",
      "WL12524::TS_01",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -697,6 +767,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"file exists, ssl=0, ssl-params ignored",
      "WL12524::TS_02",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -737,6 +808,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
     // port is not in use by something else
     {"all defaults",
      "WL11891::TS-3",
+     localhost_ipv4,
      {},
      true,
      "^$",
@@ -747,6 +819,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
      404},
     {"bind-any-port-default",
      "WL11891::TS-5",
+     localhost_ipv4,
      {
          {"bind_address", "0.0.0.0"},
      },
@@ -759,6 +832,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
      404},
     {"bind-localhost-port-default",
      "WL11891::TS-6",
+     localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
      },
@@ -772,6 +846,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
 
     {"port",
      "WL11891::TS-11",
+     localhost_ipv4,
      {
          {"port", std::to_string(kHttpDefaultPort)},
      },
@@ -785,7 +860,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerPlainTest,
     ::testing::ValuesIn(http_server_static_files_params),
     [](const ::testing::TestParamInfo<HttpServerPlainParams> &info) {
@@ -800,7 +875,10 @@ INSTANTIATE_TEST_CASE_P(
 const char kServerCertFile[]{"server-cert.pem"};  // 2048 bit
 const char kServerKeyFile[]{"server-key.pem"};
 const char kServerCertCaFile[]{"cacert.pem"};
-static const char kServerCertRsa1024File[]{"crl-server-cert.pem"};  // 1024 bit
+#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
+static const char kServerCertRsa1024File[]{
+    "server-sha1-1024-cert.pem"};  // 1024 bit
+#endif
 
 #ifdef EVENT__HAVE_OPENSSL
 static const char kWrongServerCertCaFile[]{"ca-sha512.pem"};
@@ -852,7 +930,7 @@ class HttpClientSecureTest
         ssl_cert_data_dir_{SSL_TEST_DATA_DIR},
         conf_file_{create_config_file(
             conf_dir_.name(),
-            ConfigBuilder::build_section(
+            mysql_harness::ConfigBuilder::build_section(
                 "http_server",
                 {
                     {"port", std::to_string(http_port_)},  // port to listen on
@@ -860,18 +938,43 @@ class HttpClientSecureTest
                     {"ssl_cert",
                      ssl_cert_data_dir_.join(kServerCertFile).str()},
                     {"ssl_key", ssl_cert_data_dir_.join(kServerKeyFile).str()},
-                }))},
-        http_server_{launch_router({"-c", conf_file_})} {}
+                }))} {}
 
  protected:
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
   mysql_harness::Path ssl_cert_data_dir_;
   std::string conf_file_;
-  ProcessWrapper &http_server_;
 };
+
+/**
+ * pretty printer for TlsVersion for gtest.
+ */
+std::ostream &operator<<(std::ostream &os, TlsVersion v) {
+  switch (v) {
+    case TlsVersion::AUTO:
+      os << "AUTO";
+      break;
+    case TlsVersion::SSL_3:
+      os << "SSL3";
+      break;
+    case TlsVersion::TLS_1_0:
+      os << "TLS1.0";
+      break;
+    case TlsVersion::TLS_1_1:
+      os << "TLS1.1";
+      break;
+    case TlsVersion::TLS_1_2:
+      os << "TLS1.2";
+      break;
+    case TlsVersion::TLS_1_3:
+      os << "TLS1.3";
+      break;
+  }
+
+  return os;
+}
 
 /**
  * ensure HTTPS requests work against a well configured server.
@@ -884,22 +987,35 @@ TEST_P(HttpClientSecureTest, ensure) {
   bool should_succeeed = GetParam().should_succeeed;
   std::string cipher_list = GetParam().cipher_list;
 
-  HttpUri u;
-  u.set_scheme("https");
-  u.set_port(http_port_);
-  u.set_host(http_hostname_);
-  u.set_path("/");
-
   SCOPED_TRACE("// preparing client and connection object");
-  IOContext io_ctx;
   TlsClientContext tls_ctx;
+
+  // get the libraries min-version
+  //
+  // ubuntu/debian disable SSLv3 all the time, which makes TLSv1.0 the
+  // min-version
+  //
+  // check if this test can succeed at all
+  tls_ctx.version_range(TlsVersion::AUTO, TlsVersion::AUTO);
+  auto library_min_version = tls_ctx.min_version();
+
+  if (GetParam().max_version != TlsVersion::AUTO &&
+      GetParam().max_version < library_min_version) {
+    // the library will not allow us to set that value, assume it will fail
+    ASSERT_FALSE(should_succeeed)
+        << "test's TLS.max_version " << GetParam().max_version
+        << " is less than " << library_min_version
+        << " which can't succeed, but test is expected not fail";
+
+    return;
+  }
 
   tls_ctx.version_range(GetParam().min_version, GetParam().max_version);
 
   // as min-version isn't set, it may either be "AUTO" aka the lowest supported
   // or SSL_3 ... which is the lowest supported (openssl 1.1.0 and before)
   std::set<TlsVersion> allowed{TlsVersion::AUTO, GetParam().min_version,
-                               TlsVersion::SSL_3};
+                               library_min_version};
   EXPECT_THAT(allowed, ::testing::Contains(tls_ctx.min_version()));
 
   tls_ctx.ssl_ca(ssl_cert_data_dir_.join(ca_cert).str(), "");
@@ -955,9 +1071,7 @@ TEST_P(HttpClientSecureTest, ensure) {
     }
     if (where & SSL_CB_HANDSHAKE_START) {
       const char *cipher;
-      // wolfssl 3.14.0 needs the const_cast<>
-      for (int i = 0; (cipher = SSL_get_cipher_list(const_cast<SSL *>(ssl), i));
-           i++) {
+      for (int i = 0; (cipher = SSL_get_cipher_list(ssl, i)); i++) {
         std::cerr << __LINE__ << ": available cipher[" << i << "]: " << cipher
                   << std::endl;
       }
@@ -965,24 +1079,31 @@ TEST_P(HttpClientSecureTest, ensure) {
 
     if (where & SSL_CB_HANDSHAKE_DONE) {
       const char *cipher;
-      // wolfssl 3.14.0 needs the const_cast<>
-      for (int i = 0; (cipher = SSL_get_cipher_list(const_cast<SSL *>(ssl), i));
-           i++) {
+      for (int i = 0; (cipher = SSL_get_cipher_list(ssl, i)); i++) {
         std::cerr << __LINE__ << ": available cipher[" << i << "]: " << cipher
                   << std::endl;
       }
     }
   });
 
-  std::unique_ptr<HttpsClient> http_client(
-      new HttpsClient(io_ctx, std::move(tls_ctx), u.get_host(), u.get_port()));
+  HttpUri u;
+  u.set_scheme("https");
+  u.set_port(http_port_);
+  u.set_host(http_hostname_);
+  u.set_path("/");
+
+  IOContext io_ctx;
+
+  auto http_client = std::make_unique<HttpsClient>(io_ctx, std::move(tls_ctx),
+                                                   u.get_host(), u.get_port());
 
   RestClient rest_client(std::move(http_client));
 
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_))
-      << http_server_.get_full_output() << "\n"
-      << http_server_.get_full_logfile();
+
+  ProcessWrapper &http_server = launch_router({"-c", conf_file_});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
   SCOPED_TRACE("// GETing " + u.join());
   auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
@@ -1021,7 +1142,7 @@ static const HttpClientSecureParams http_client_secure_params[]{
      "DES-CBC-SHA", "invalid cipher"},
 #endif
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpClientSecureTest, ::testing::ValuesIn(http_client_secure_params),
     [](const ::testing::TestParamInfo<HttpClientSecureParams> &info) {
       return gtest_sanitize_param_name(
@@ -1068,15 +1189,13 @@ class HttpServerSecureTest
         ssl_cert_data_dir_{SSL_TEST_DATA_DIR} {}
 
  protected:
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
   mysql_harness::Path ssl_cert_data_dir_;
 };
 
-constexpr const char kErrmsgRegexWeakSslKey[]{
-    "keylength of RSA public-key of certificate"};
+constexpr const char kErrmsgRegexWeakSslKey[]{"key-size too small"};
 
 TEST_P(HttpServerSecureTest, ensure) {
   // const size_t placeholder_length = strlen(kPlaceholder);
@@ -1104,15 +1223,20 @@ TEST_P(HttpServerSecureTest, ensure) {
                     .str();
       }
     }
-    http_section.push_back({e.first, value});
+    http_section.emplace_back(e.first, value);
   }
 
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      ConfigBuilder::build_section("http_server", http_section))};
+      mysql_harness::ConfigBuilder::build_section("http_server", http_section),
+      nullptr, "mysqlrouter.conf", "", false)};
+
+  // timeout for waiting for ready notification is increased to adress the case
+  // of strong dh params which takes long on overloaded CPUs
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
-                    GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE)};
+                    GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE,
+                    true, false, GetParam().expected_success ? 20s : -1s)};
 
   if (GetParam().expected_success) {
     HttpUri u;
@@ -1133,17 +1257,15 @@ TEST_P(HttpServerSecureTest, ensure) {
     RestClient rest_client(std::move(http_client));
 
     SCOPED_TRACE("// wait for port ready");
-    ASSERT_TRUE(wait_for_port_ready(http_port_))
-        << http_server.get_full_logfile() << "\n"
-        << ConfigBuilder::build_section("http_server", http_section);
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
     SCOPED_TRACE("// GETing " + u.join());
     auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
-    EXPECT_EQ(EXIT_FAILURE,
-              http_server.wait_for_exit(1000));  // assume it finishes in 1s
+    check_exit_code(http_server, EXIT_FAILURE,
+                    1000ms);  // assume it finishes in 1s
     EXPECT_EQ(kSuccessfulLogOutput, http_server.get_full_output());
 
     // if openssl 1.1.0 is used and it is compiled with
@@ -1163,196 +1285,221 @@ TEST_P(HttpServerSecureTest, ensure) {
 constexpr const char kErrmsgRegexNoSslCertKey[]{
     "if ssl=1 is set, ssl_cert and ssl_key must be set too"};
 
-const HttpServerSecureParams http_server_secure_params[] {
-  {"ssl, no cert, no key",
-   "WL12524::TS_CR_01",
-   {
-       {"port", kPlaceholder}, {"ssl", "1"},  // enable SSL
-   },
-   false,
-   kErrmsgRegexNoSslCertKey},
-      {"ssl=1, no cert",
-       "WL12524::TS_CR_01",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},  // enable SSL
-           {"ssl_key", kPlaceholder},
-       },
-       false,
-       kErrmsgRegexNoSslCertKey},
-      {"ssl=1, no key",
-       "WL12524::TS_CR_01",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},  // enable SSL
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-       },
-       false,
-       kErrmsgRegexNoSslCertKey},
-      {"ssl=1, bad cert",
-       "WL12524::TS_CR_02",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key", "does-not-exist"},
-           {"ssl_cert", "does-not-exist"},
-       },
-       false,
-       "using SSL certificate file 'does-not-exist' failed"},
-// This fails with OpenSSL 1.1.1 that added TLS1.3 default ciphers that we can't
-// disable
-#if (OPENSSL_VERSION_NUMBER < 0x10101000L)
-      {"ssl=1, cert, only unacceptable ciphers",
-       "WL12524::TS_CR_04",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           {"ssl_cipher", "AES128-SHA"},
-       },
-       // connection will fail as ciphers can't be negotiated or libevent may
-       // not support SSL
-       false,
-       is_with_ssl_support() ? "no cipher match" : kSslSupportIsDisabled},
-#endif
-      {"ssl=1, cert, some unacceptable ciphers",
-       "WL12524::TS_CR_05",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           {"ssl_cipher", "AES128-SHA:TLSv1.2"},
-       },
-       // if SSL support is disabled in libevent, we should see a failure,
-       // success otherwise
-       is_with_ssl_support(),
-       is_with_ssl_support() ? "" : kSslSupportIsDisabled},
-      {"ssl=1, cert, only acceptable ciphers",
-       "WL12524::TS_CR_07",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           {"ssl_cipher", "ECDHE-RSA-AES128-SHA256"},
-       },
-       // if SSL support is disabled in libevent, we should see a failure,
-       // success otherwise
-       is_with_ssl_support(),
-       is_with_ssl_support() ? "" : kSslSupportIsDisabled},
-      {"dh_param file does not exist",
-       "",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           {"ssl_cipher", "AES128-SHA256"},
-           {"ssl_dh_param", "does-not-exist"},
-       },
-       false,
-       "failed to open dh-param"},
-      {"dh_param file is no PEM",
-       "WL12524::TS_CR_08",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           {"ssl_dh_param",
-            kPlaceholderDatadir + std::string("/") + "my_port.js"},
-       },
-       false,
-       "failed to parse dh-param file"},
-      {"dh ciphers, default dh-params",
-       "WL12524::TS_CR_09",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           // force a DHE cipher that's known to the server
-           {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
-       },
-       // if SSL support is disabled in libevent, we should see a failure,
-       // success otherwise
-       is_with_ssl_support(),
-       is_with_ssl_support() ? "" : kSslSupportIsDisabled},
-      {"dh ciphers, strong dh-params",
-       "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           // force a DHE cipher that's known to the server
-           {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
-           {"ssl_dh_param",
-            kPlaceholderDatadir + std::string("/") + kDhParams2048File},
-       },
-       // if SSL support is disabled in libevent, we should see a failure,
-       // success otherwise
-       is_with_ssl_support(),
-       is_with_ssl_support() ? "" : kSslSupportIsDisabled},
-      {"non-dh-cipher, strong dh-params",
-       "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           {"ssl_cipher", "AES128-SHA256"},
-           {"ssl_dh_param",
-            kPlaceholderDatadir + std::string("/") + kDhParams2048File},
-       },
-       // if SSL support is disabled in libevent, we should see a failure,
-       // success otherwise
-       is_with_ssl_support(),
-       is_with_ssl_support() ? "" : kSslSupportIsDisabled},
-      {"dh ciphers, weak dh-params",
-       "WL12524::TS_SR7_01",
-       {
-           {"port", kPlaceholder},
-           {"ssl", "1"},
-           {"ssl_key",
-            kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
-           {"ssl_cert",
-            kPlaceholderStddataDir + std::string("/") + kServerCertFile},
-           // force a DHE cipher that's known to the server
-           {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
-           {"ssl_dh_param",
-            kPlaceholderDatadir + std::string("/") + kDhParams4File},
-       },
-       false,
-       "key size of DH param"},
+const HttpServerSecureParams http_server_secure_params[]{
+    {"ssl, no cert, no key",
+     "WL12524::TS_CR_01",
+     {
+         {"port", kPlaceholder},  //
+         {"ssl", "1"},            // enable SSL
+     },
+     false,
+     kErrmsgRegexNoSslCertKey},
+
+    {"ssl_is_hex",
+     "",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "0x1"},  // hex-numbers should fail.
+         {"ssl_key", kPlaceholder},
+     },
+     false,
+     R"(option ssl in \[http_server\] needs value between 0 and 1 inclusive, was '0x1')"},
+
+    {"ssl=1, no cert",
+     "WL12524::TS_CR_01",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},  // enable SSL
+         {"ssl_key", kPlaceholder},
+     },
+     false,
+     kErrmsgRegexNoSslCertKey},
+
+    {"ssl=1, no key",
+     "WL12524::TS_CR_01",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},  // enable SSL
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+     },
+     false,
+     kErrmsgRegexNoSslCertKey},
+    {"ssl=1, bad cert",
+     "WL12524::TS_CR_02",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key", "does-not-exist"},
+         {"ssl_cert", "does-not-exist"},
+     },
+     false,
+     "SSL certificate file 'does-not-exist' failed"},
+
+    {"ssl=1, cert, some unacceptable ciphers",
+     "WL12524::TS_CR_05",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         {"ssl_cipher", "AES128-SHA:TLSv1.2"},
+     },
+     // if SSL support is disabled in libevent, we should see a failure,
+     // success otherwise
+     is_with_ssl_support(),
+     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+    {"ssl=1, cert, only acceptable ciphers",
+     "WL12524::TS_CR_07",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         {"ssl_cipher", "ECDHE-RSA-AES128-SHA256"},
+     },
+     // if SSL support is disabled in libevent, we should see a failure,
+     // success otherwise
+     is_with_ssl_support(),
+     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+    {"dh_param file does not exist",
+     "",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         {"ssl_cipher", "AES128-SHA256"},
+         {"ssl_dh_param", "does-not-exist"},
+     },
+     false,
+     "setting ssl_dh_params failed"},
+    {"dh_param file is no PEM",
+     "WL12524::TS_CR_08",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         {"ssl_dh_param",
+          kPlaceholderDatadir + std::string("/") + "my_port.js"},
+     },
+     false,
+     "setting ssl_dh_params failed"},
+    {"dh ciphers, default dh-params",
+     "WL12524::TS_CR_09",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         // force a DHE cipher that's known to the server
+         {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
+     },
+     // if SSL support is disabled in libevent, we should see a failure,
+     // success otherwise
+     is_with_ssl_support(),
+     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+    {"dh ciphers, strong dh-params",
+     "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         // force a DHE cipher that's known to the server
+         {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
+         {"ssl_dh_param",
+          kPlaceholderDatadir + std::string("/") + kDhParams2048File},
+     },
+     // if SSL support is disabled in libevent, we should see a failure,
+     // success otherwise
+     is_with_ssl_support(),
+     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+    {"non-dh-cipher, strong dh-params",
+     "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         {"ssl_cipher", "AES128-SHA256"},
+         {"ssl_dh_param",
+          kPlaceholderDatadir + std::string("/") + kDhParams2048File},
+     },
+     // if SSL support is disabled in libevent, we should see a failure,
+     // success otherwise
+     is_with_ssl_support(),
+     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+    {"dh ciphers, weak dh-params",
+     "WL12524::TS_SR7_01",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         // force a DHE cipher that's known to the server
+         {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
+         {"ssl_dh_param",
+          kPlaceholderDatadir + std::string("/") + kDhParams4File},
+     },
+     false,
+     "key size of DH param"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerSecureTest, ::testing::ValuesIn(http_server_secure_params),
     [](const ::testing::TestParamInfo<HttpServerSecureParams> &info) {
       return gtest_sanitize_param_name(
           info.param.test_name +
           (info.param.expected_success ? "_works" : "_fails"));
     });
+
+#if (OPENSSL_VERSION_NUMBER < 0x10101000L)
+// This fails with OpenSSL 1.1.1 that added TLS1.3 default ciphers that we
+// can't disable
+const HttpServerSecureParams http_server_secure_params_pre_openssl_111[]{
+    {"ssl_1_cert_only_unacceptable_ciphers",
+     "WL12524::TS_CR_04",
+     {
+         {"port", kPlaceholder},
+         {"ssl", "1"},
+         {"ssl_key",
+          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+         {"ssl_cert",
+          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+         {"ssl_cipher", "AES128-SHA"},
+     },
+     // connection will fail as ciphers can't be negotiated or libevent may
+     // not support SSL
+     false,
+     is_with_ssl_support() ? "no cipher match" : kSslSupportIsDisabled},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Openssl111, HttpServerSecureTest,
+    ::testing::ValuesIn(http_server_secure_params_pre_openssl_111),
+    [](const ::testing::TestParamInfo<HttpServerSecureParams> &info) {
+      return info.param.test_name +
+             (info.param.expected_success ? "_works" : "_fails");
+    });
+#endif
 
 #if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
 // the bitsize of the public key can only be determined with
@@ -1389,7 +1536,7 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
      "no-error"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Openssl102_plus, HttpServerSecureTest,
     ::testing::ValuesIn(http_server_secure_openssl102_plus_params),
     [](const ::testing::TestParamInfo<HttpServerSecureParams> &info) {
@@ -1430,32 +1577,35 @@ class HttpServerAuthTest
       public ::testing::WithParamInterface<HttpServerAuthParams> {
  public:
   HttpServerAuthTest()
-      : port_pool_{},
-        http_port_{port_pool_.get_next_available()},
+      : http_port_{port_pool_.get_next_available()},
         conf_dir_{},
         passwd_filename_{"passwd"},
         conf_file_{create_config_file(
             conf_dir_.name(),
             mysql_harness::join(
                 std::vector<std::string>{
-                    ConfigBuilder::build_section(
+                    mysql_harness::ConfigBuilder::build_section(
                         "http_server", {{"port", std::to_string(http_port_)},
                                         {"require_realm", "secure"}}),
-                    ConfigBuilder::build_section(
+                    mysql_harness::ConfigBuilder::build_section(
                         "http_auth_backend:local",
                         {{"backend", "file"},
-                         {"filename",
-                          get_data_dir().join(passwd_filename_).str()}}),
-                    ConfigBuilder::build_section("http_auth_realm:secure",
-                                                 {{"backend", "local"},
-                                                  {"method", "basic"},
-                                                  {"name", "API"},
-                                                  {"require", "valid-user"}})},
-                "\n"))},
-        http_server_{launch_router({"-c", conf_file_})} {
-    std::fstream pwf{get_data_dir().join(passwd_filename_).str(), pwf.out};
+                         {"filename", mysql_harness::Path(conf_dir_.name())
+                                          .join(passwd_filename_)
+                                          .str()}}),
+                    mysql_harness::ConfigBuilder::build_section(
+                        "http_auth_realm:secure", {{"backend", "local"},
+                                                   {"method", "basic"},
+                                                   {"name", "API"},
+                                                   {"require", "valid-user"}})},
+                ""))} {
+    std::string pwf_name(
+        mysql_harness::Path(conf_dir_.name()).join(passwd_filename_).str());
+    std::fstream pwf{pwf_name, pwf.out};
 
-    if (!pwf.is_open()) throw std::runtime_error("hmm");
+    if (!pwf.is_open())
+      throw std::runtime_error(pwf_name +
+                               " failed to open: " + std::to_string(errno));
     constexpr const char kPasswdUserTest[]{
         "user:$6$3ieWD5TQkakPm.iT$"  // sha512 and salt
         "4HI5XzmE4UCSOsu14jujlXYNYk2SB6gi2yVoAncaOzynEnTI0Rc9."
@@ -1464,13 +1614,11 @@ class HttpServerAuthTest
 
     pwf << kPasswdUserTest;
   }
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
   std::string passwd_filename_;
   std::string conf_file_;
-  ProcessWrapper &http_server_;
 };
 
 /**
@@ -1480,11 +1628,9 @@ class HttpServerAuthTest
  * - make a client connect to the http-server
  */
 TEST_P(HttpServerAuthTest, ensure) {
-  SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_))
-      << http_server_.get_full_logfile();
+  launch_router({"-c", conf_file_});
 
-  std::string http_uri = GetParam().url;
+  const std::string http_uri = GetParam().url;
   SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
                std::to_string(http_port_) + " for " + http_uri);
 
@@ -1497,18 +1643,17 @@ TEST_P(HttpServerAuthTest, ensure) {
 }
 
 const HttpServerAuthParams http_server_auth_params[]{
-    {"good creds", "WL12503::TS_2_1", "/", 404, "user", "test"},
-    {"wrong user", "WL12503::TS_2_2", "/", 401, "user", "wrong"},
-    {"no creds", "WL12503::TS_2_3", "/", 401, "", ""},
-    {"wrong password", "WL12503::TS_2_2", "/", 401, "other", "test"},
+    {"good_creds", "WL12503::TS_2_1", "/", 404, "user", "test"},
+    {"wrong_user", "WL12503::TS_2_2", "/", 401, "user", "wrong"},
+    {"no_creds", "WL12503::TS_2_3", "/", 401, "", ""},
+    {"wrong_password", "WL12503::TS_2_2", "/", 401, "other", "test"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerAuthTest, ::testing::ValuesIn(http_server_auth_params),
     [](const ::testing::TestParamInfo<HttpServerAuthParams> &info) {
-      return gtest_sanitize_param_name(
-          info.param.test_name +
-          (info.param.status_code == 401 ? " failed auth" : " succeeded auth"));
+      return info.param.test_name +
+             (info.param.status_code == 401 ? "_fails_auth" : "_succeeds_auth");
     });
 
 // Fail tests
@@ -1537,12 +1682,10 @@ class HttpServerAuthFailTest
       public ::testing::WithParamInterface<HttpServerAuthFailParams> {
  public:
   HttpServerAuthFailTest()
-      : port_pool_{},
-        http_port_{port_pool_.get_next_available()},
+      : http_port_{port_pool_.get_next_available()},
         conf_dir_{},
         passwd_filename_{"passwd"} {}
 
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
@@ -1557,11 +1700,12 @@ class HttpServerAuthFailTest
  */
 TEST_P(HttpServerAuthFailTest, ensure) {
   std::vector<std::string> config_sections{
-      ConfigBuilder::build_section("http_server",
-                                   {
-                                       {"port", std::to_string(http_port_)},
-                                       {"require_realm", "secure"},
-                                   }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server",
+          {
+              {"port", std::to_string(http_port_)},
+              {"require_realm", "secure"},
+          }),
   };
   std::string passwd_filename =
       Path(conf_dir_.name()).join(passwd_filename_).str();
@@ -1581,7 +1725,8 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
-                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE)};
+                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE,
+                    true, false, -1s)};
 
   std::fstream pwf{passwd_filename, std::ios::out};
 
@@ -1597,8 +1742,7 @@ TEST_P(HttpServerAuthFailTest, ensure) {
   pwf.close();
 
   if (GetParam().check_at_runtime) {
-    ASSERT_TRUE(wait_for_port_ready(http_port_))
-        << http_server.get_full_logfile();
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
     std::string http_uri = "/";
     SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
                  std::to_string(http_port_) + " for " + http_uri);
@@ -1610,88 +1754,116 @@ TEST_P(HttpServerAuthFailTest, ensure) {
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
     SCOPED_TRACE("// wait process to exit with with error");
-    EXPECT_NO_THROW({ ASSERT_NE(0, http_server.wait_for_exit()); });
+    check_exit_code(http_server, EXIT_FAILURE);
     EXPECT_THAT(http_server.get_full_logfile(),
                 ::testing::HasSubstr(GetParam().expected_errmsg));
   }
 }
 
 const HttpServerAuthFailParams http_server_auth_fail_params[]{
+    {"backend_no_section",
+     "",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend",
+             {{"backend", "file"}, {"filename", "does-not-exists"}}),
+     },
+     false,
+     "The config section [http_auth_backend] requires a name, like "
+     "[http_auth_backend:example]"},
     {"backend_file_filename_not_exists",
      "WL12503::TS_FR6_1",
-     {ConfigBuilder::build_section("http_auth_backend:local",
-                                   {
-                                       {"backend", "file"},
-                                       {"filename", "does-not-exists"},
-                                   }),
-      ConfigBuilder::build_section("http_auth_realm:secure",
-                                   {{"backend", "doesnotexist"},
-                                    {"method", "basic"},
-                                    {"name", "API"},
-                                    {"require", "valid-user"}})},
+     {mysql_harness::ConfigBuilder::build_section(
+          "http_auth_backend:local",
+          {
+              {"backend", "file"},
+              {"filename", "does-not-exists"},
+          }),
+      mysql_harness::ConfigBuilder::build_section("http_auth_realm:secure",
+                                                  {{"backend", "doesnotexist"},
+                                                   {"method", "basic"},
+                                                   {"name", "API"},
+                                                   {"require", "valid-user"}})},
      false,
      "parsing does-not-exists "},
     {"backend_method_unknown",
      "WL12503::TS_FR6_2",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "doesnotexist"},
-                                       {"method", "unknown"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "doesnotexist"},
+                                        {"method", "unknown"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
      },
      false,
      "unsupported authentication method for "},
     {"backend_does_not_exist",
      "WL12503::TS_FR6_1",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "doesnotexist"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "doesnotexist"},
+                                        {"method", "basic"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
      },
      false,
-     "unknown authentication backend for"},
+     "The option 'backend=doesnotexist' in [http_auth_realm:secure] does not "
+     "match any http_auth_backend. No [http_auth_backend:doesnotexist] "
+     "section defined."},
+    {"realm_no_section",
+     "WL12503::TS_FR6_1",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm", {{"backend", "doesnotexist"},
+                                 {"method", "basic"},
+                                 {"name", "API"},
+                                 {"require", "valid-user"}}),
+     },
+     false,
+     "The config section [http_auth_realm] requires a name, like "
+     "[http_auth_realm:example]"},
     {"multiple_backends",
      "WL12503::TS_2_7",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "local"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
-         ConfigBuilder::build_section("http_auth_backend:local",
-                                      {
-                                          {"backend", "file"},
-                                          {"filename", "@placeholder@"},
-                                      }),
-         ConfigBuilder::build_section("http_auth_backend:someother",
-                                      {
-                                          {"backend", "file"},
-                                          {"filename", "@placeholder@"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "local"},
+                                        {"method", "basic"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:local",
+             {
+                 {"backend", "file"},
+                 {"filename", "@placeholder@"},
+             }),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:someother",
+             {
+                 {"backend", "file"},
+                 {"filename", "@placeholder@"},
+             }),
      },
      true,
      ""},
     {"multiple_realms",
      "",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "local"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
-         ConfigBuilder::build_section("http_auth_realm:someother",
-                                      {{"backend", "local"},
-                                       {"method", "basic"},
-                                       {"name", "SomeOtherApi"},
-                                       {"require", "valid-user"}}),
-         ConfigBuilder::build_section("http_auth_backend:local",
-                                      {
-                                          {"backend", "file"},
-                                          {"filename", "@placeholder@"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "local"},
+                                        {"method", "basic"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:someother", {{"backend", "local"},
+                                           {"method", "basic"},
+                                           {"name", "SomeOtherApi"},
+                                           {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:local",
+             {
+                 {"backend", "file"},
+                 {"filename", "@placeholder@"},
+             }),
      },
      true,
      ""},
@@ -1699,13 +1871,13 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
     {"wrong_backend_type_doesnot_exist",
      "",
      {
-         ConfigBuilder::build_section("http_auth_backend:local",
-                                      {{"backend", "doesnotexist"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:local", {{"backend", "doesnotexist"}}),
      },
      false,
      "unknown backend=doesnotexist in section: http_auth_backend"}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerAuthFailTest,
     ::testing::ValuesIn(http_server_auth_fail_params),
     [](const ::testing::TestParamInfo<HttpServerAuthFailParams> &info) {

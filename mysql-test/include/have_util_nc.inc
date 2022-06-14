@@ -43,11 +43,10 @@ if (`SELECT LOCATE('/bin/netcat', @content) > 0`) {
  SET @content="";
 }
 
+enable_query_log;
+enable_result_log;
+
 # Skip the test case if utility not found
 if (`SELECT '$nc' = ''`) {
   --skip nc/netcat not found
 }
-
-enable_query_log;
-enable_result_log;
-

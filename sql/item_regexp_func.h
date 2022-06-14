@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,17 +58,25 @@
   it be done more rarely? On session close?
 */
 
+#include <assert.h>
 #include <unicode/uregex.h>
 
+#include <optional>
 #include <string>
 
-#include "my_dbug.h"      // DBUG_ASSERT
+// assert
 #include "my_inttypes.h"  // MY_INT32_NUM_DECIMAL_DIGITS
 #include "sql/item_cmpfunc.h"
 #include "sql/item_strfunc.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
 #include "sql/regexp/regexp_facade.h"
 #include "sql_string.h"  // String
+
+// GCC bug 80635.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 
 /**
   Base class for all regular expression function classes. Is responsible for
@@ -102,18 +110,18 @@ class Item_func_regexp : public Item_func {
   Item *pattern() const { return args[1]; }
 
   /// The value of the `position` argument, or its default if absent.
-  Mysql::Nullable<int> position() const {
+  std::optional<int> position() const {
     int the_index = pos_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       int value = args[the_index]->val_int();
       /*
         Note: Item::null_value() can't be trusted alone here; there are cases
         (for the DATE data type in particular) where we can have it set
-        without Item::maybe_null being set! This really should be cleaned up,
+        without Item::m_nullable being set! This really should be cleaned up,
         but until that happens, we need to have a more conservative check.
       */
-      if (args[the_index]->maybe_null && args[the_index]->null_value)
-        return Mysql::Nullable<int>();
+      if (args[the_index]->is_nullable() && args[the_index]->null_value)
+        return {};
       else
         return value;
     }
@@ -121,7 +129,7 @@ class Item_func_regexp : public Item_func {
   }
 
   /// The value of the `occurrence` argument, or its default if absent.
-  Mysql::Nullable<int> occurrence() const {
+  std::optional<int> occurrence() const {
     int the_index = occ_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       int value = args[the_index]->val_int();
@@ -131,8 +139,8 @@ class Item_func_regexp : public Item_func {
         without Item::maybe_null being set! This really should be cleaned up,
         but until that happens, we need to have a more conservative check.
       */
-      if (args[the_index]->maybe_null && args[the_index]->null_value)
-        return Mysql::Nullable<int>();
+      if (args[the_index]->is_nullable() && args[the_index]->null_value)
+        return {};
       else
         return value;
     }
@@ -140,7 +148,7 @@ class Item_func_regexp : public Item_func {
   }
 
   /// The value of the `match_parameter` argument, or an empty string if absent.
-  Mysql::Nullable<std::string> match_parameter() const {
+  std::optional<std::string> match_parameter() const {
     int the_index = match_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       StringBuffer<5> buf;  // Longer match_parameter doesn't make sense.
@@ -148,7 +156,7 @@ class Item_func_regexp : public Item_func {
       if (s != nullptr)
         return to_string(*s);
       else
-        return Mysql::Nullable<std::string>();
+        return {};
     }
     return std::string{};
   }
@@ -157,7 +165,7 @@ class Item_func_regexp : public Item_func {
 
  protected:
   String *convert_int_to_str(String *str) {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     longlong nr = val_int();
     if (null_value) return nullptr;
     str->set_int(nr, unsigned_flag, collation.collation);
@@ -165,7 +173,7 @@ class Item_func_regexp : public Item_func {
   }
 
   my_decimal *convert_int_to_decimal(my_decimal *value) {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     longlong nr = val_int();
     if (null_value) return nullptr; /* purecov: inspected */
     int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, value);
@@ -173,12 +181,12 @@ class Item_func_regexp : public Item_func {
   }
 
   double convert_int_to_real() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return val_int();
   }
 
   double convert_str_to_real() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     int err_not_used;
     const char *end_not_used;
     String *res = val_str(&str_value);
@@ -188,7 +196,7 @@ class Item_func_regexp : public Item_func {
   }
 
   longlong convert_str_to_int() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     int err;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0;
@@ -236,12 +244,12 @@ class Item_func_regexp_instr : public Item_func_regexp {
   const char *func_name() const override { return "regexp_instr"; }
 
   /// The value of the `return_option` argument, or its default if absent.
-  Mysql::Nullable<int> return_option() const {
+  std::optional<int> return_option() const {
     int the_index = retopt_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       int value = args[the_index]->val_int();
       if (args[the_index]->null_value)
-        return Mysql::Nullable<int>();
+        return std::optional<int>();
       else
         return value;
     }
@@ -268,6 +276,9 @@ class Item_func_regexp_instr : public Item_func_regexp {
   /// The position in the argument list of `occurrence`.
   int retopt_arg_pos() const { return 4; }
   int match_arg_pos() const override { return 5; }
+
+ private:
+  bool resolve_type(THD *) final;
 };
 
 class Item_func_regexp_like : public Item_func_regexp {
@@ -307,14 +318,15 @@ class Item_func_regexp_like : public Item_func_regexp {
   int pos_arg_pos() const override { return -1; }
   int occ_arg_pos() const override { return -1; }
   int match_arg_pos() const override { return 2; }
+
+ private:
+  bool resolve_type(THD *) final;
 };
 
 class Item_func_regexp_replace : public Item_func_regexp {
  public:
-  Item_func_regexp_replace(const POS &pos, PT_item_list *opt_list)
-      : Item_func_regexp(pos, opt_list) {
-    set_data_type_string_init();
-  }
+  Item_func_regexp_replace(const POS &pos, PT_item_list *item_list)
+      : Item_func_regexp(pos, item_list) {}
 
   Item_result result_type() const override { return STRING_RESULT; }
 
@@ -352,10 +364,8 @@ class Item_func_regexp_replace : public Item_func_regexp {
 
 class Item_func_regexp_substr : public Item_func_regexp {
  public:
-  Item_func_regexp_substr(const POS &pos, PT_item_list *opt_list)
-      : Item_func_regexp(pos, opt_list) {
-    set_data_type_string_init();
-  }
+  Item_func_regexp_substr(const POS &pos, PT_item_list *item_list)
+      : Item_func_regexp(pos, item_list) {}
 
   Item_result result_type() const override { return STRING_RESULT; }
 
@@ -397,5 +407,9 @@ class Item_func_icu_version final : public Item_static_string_func {
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif  // SQL_ITEM_REGEXP_FUNC_H_

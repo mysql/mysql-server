@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ void Event_reader::alloc_and_strncpy(char **destination, size_t length,
     set_error("Out of memory");
     return;
   }
-  strncpy(*destination, m_ptr, length);
+  if (length > 0) strncpy(*destination, m_ptr, length);
   (*destination)[length] = '\0';
   m_ptr = m_ptr + length;
 }
@@ -161,7 +161,7 @@ void Event_reader::read_data_set(uint32_t set_len,
   PRINT_READER_STATUS("Event_reader::read_data_set");
   uint16_t len = 0;
   for (uint32_t i = 0; i < set_len; i++) {
-    len = read_and_letoh<uint16_t>();
+    len = read<uint16_t>();
     if (m_error) break;
     const char *hash = strndup<const char *>(len);
     if (m_error) break;
@@ -174,7 +174,7 @@ void Event_reader::read_data_map(uint32_t map_len,
   PRINT_READER_STATUS("Event_reader::read_data_map");
   BAPI_ASSERT(map->empty());
   for (uint32_t i = 0; i < map_len; i++) {
-    uint16_t key_len = read_and_letoh<uint16_t>();
+    uint16_t key_len = read<uint16_t>();
     if (m_error) break;
     if (!can_read(key_len)) {
       set_error("Cannot read from out of buffer bounds");
@@ -183,7 +183,7 @@ void Event_reader::read_data_map(uint32_t map_len,
     std::string key(m_ptr, key_len);
     m_ptr += key_len;
 
-    uint32_t value_len = read_and_letoh<uint32_t>();
+    uint32_t value_len = read<uint32_t>();
     if (m_error) break;
     if (!can_read(value_len)) {
       set_error("Cannot read from out of buffer bounds");
@@ -205,7 +205,7 @@ void Event_reader::strncpyz(char *destination, size_t max_length,
     set_error("Cannot read from out of buffer bounds");
     return;
   }
-  strncpy(destination, m_ptr, max_length);
+  if (max_length > 0) strncpy(destination, m_ptr, max_length);
   destination[dest_length - 1] = 0;
   m_ptr = m_ptr + strlen(destination) + 1;
 }
@@ -219,7 +219,7 @@ void Event_reader::assign(std::vector<uint8_t> *vector, size_t length) {
   }
   try {
     vector->assign(m_ptr, m_ptr + length);
-  } catch (const std::bad_alloc &e) {
+  } catch (const std::bad_alloc &) {
     vector->clear();
     set_error("std::bad_alloc");
   }

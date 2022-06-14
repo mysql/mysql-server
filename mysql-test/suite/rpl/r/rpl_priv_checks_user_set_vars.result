@@ -1,0 +1,153 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# TC1. Verify that replication only succeeds with
+#      `SYSTEM_VARIABLES_ADMIN` due to the set of `pseudo_thread_id`
+# ------------------------------------------------------------------
+#
+CREATE TABLE t_system (c1 INT);
+INSERT INTO t_system VALUES (1), (2);
+[connection slave]
+CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+GRANT REPLICATION_APPLIER, CREATE, INSERT, DROP ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1227]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t_system, slave:t_system]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'u1'@'localhost';
+#
+# TC2. Verify that replication only succeeds with
+#      `SUPER` due to the set of `pseudo_thread_id`
+# -------------------------------------------------
+#
+[connection master]
+CREATE TABLE t_super (c1 INT);
+INSERT INTO t_super VALUES (1), (2);
+[connection slave]
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1227]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT SUPER ON *.* TO 'u1'@'localhost';
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP, SUPER ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t_super, slave:t_super]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+REVOKE SUPER ON *.* FROM 'u1'@'localhost';
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+#
+# TC3. Verify that replication only succeeds with
+#      `SESSION_VARIABLES_ADMIN` due to the set of `pseudo_thread_id`
+# -------------------------------------------------------------------
+#
+[connection master]
+CREATE TABLE t_session (c1 INT);
+INSERT INTO t_session VALUES (1), (2);
+[connection slave]
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1227]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t_session, slave:t_session]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+#
+# TC4. Verify that setting `default_table_encryption` only succeeds on
+#      the slave when having `SUPER` or `SYSTEM_VARIABLES_ADMIN` and
+#      `TABLE_ENCRYPTION_ADMIN`
+# --------------------------------------------------------------------
+#
+[connection master]
+SET default_table_encryption = 1;
+CREATE DATABASE new_db;
+[connection slave]
+REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'localhost';
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=1227]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+GRANT SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+Grants for u1@localhost
+GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
+GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u1`@`localhost`
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Database new_db exists on slave]
+[connection master]
+DROP TABLE t_system;
+DROP TABLE t_super;
+DROP TABLE t_session;
+DROP DATABASE new_db;
+SET default_table_encryption = OPT_DEFAULT_TABLE_ENCRYPTION;
+include/rpl_end.inc

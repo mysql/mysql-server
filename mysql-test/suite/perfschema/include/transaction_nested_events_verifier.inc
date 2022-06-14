@@ -13,8 +13,7 @@ let $wait_timeout= 10;
 let $wait_condition=
   SELECT COUNT(*) > 0 FROM performance_schema.threads
   WHERE THREAD_ID = @con1_thread_id
-    AND (PROCESSLIST_STATE = 'Sleep' OR PROCESSLIST_STATE IS NULL)
-    AND PROCESSLIST_INFO IS NULL;
+    AND (PROCESSLIST_STATE = 'Sleep' OR PROCESSLIST_STATE IS NULL);
 --source include/wait_condition.inc
 if(!$success)
 {

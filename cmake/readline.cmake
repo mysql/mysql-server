@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -90,15 +90,20 @@ MACRO (FIND_CURSES)
  ENDIF()
 ENDMACRO()
 
+SET(CURRENT_LIBEDIT_DIRECTORY "extra/libedit/libedit-20210910-3.1")
+
 MACRO (MYSQL_USE_BUNDLED_EDITLINE)
   SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
-  SET(EDITLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/libedit/editline)
+  SET(EDITLINE_HAVE_COMPLETION_CHAR 1 CACHE INTERNAL "")
+  SET(USE_NEW_EDITLINE_INTERFACE 1 CACHE INTERNAL "")
+  SET(EDITLINE_INCLUDE_DIR
+    ${CMAKE_SOURCE_DIR}/${CURRENT_LIBEDIT_DIRECTORY}/src/editline)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${EDITLINE_INCLUDE_DIR})
   SET(EDITLINE_LIBRARY edit)
   FIND_CURSES()
-  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/libedit)
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${CURRENT_LIBEDIT_DIRECTORY}/src)
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_EDITLINE)

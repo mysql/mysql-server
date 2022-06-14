@@ -23,7 +23,6 @@
 ##############################################################################
 
 --source include/big_test.inc
---source include/have_ssl.inc
 --source include/have_mysqlx_plugin.inc
 --source include/have_group_replication_plugin_base.inc
 
@@ -67,7 +66,7 @@ EOF
 --write_file $MYSQL_TMP_DIR/non_bootstrap_server.tmp
 -->sql
 SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa';
-CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 START GROUP_REPLICATION;
 -->endsql
 EOF
@@ -88,51 +87,9 @@ EOF
 ## server1
 
 --write_file $MYSQL_TMP_DIR/crud_on_server1.tmp
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_objects"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: ""
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin list_objects	{"schema":"test"}
 -->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "characters"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection	{"schema":"test","name":"characters"}
 -->recvresult
 
 Mysqlx.Crud.Insert {
@@ -743,28 +700,8 @@ Mysqlx.Crud.Find {
   data_model: DOCUMENT
 }
 -->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "characters"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+
+-->stmtadmin drop_collection	{"schema":"test", "name":"characters"}
 -->recvresult
 EOF
 --exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/crud_on_server3.tmp 2>&1

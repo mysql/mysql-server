@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <string>
 
 #include "http_auth_backend.h"
+#include "http_auth_error.h"
 #include "http_auth_method_basic.h"
 #include "matcher.h"
 #include "mysqlrouter/http_server_component.h"
@@ -108,7 +109,7 @@ static bool is_token68(char c) {
 HttpAuthCredentials HttpAuthCredentials::from_header(const std::string &hdr,
                                                      std::error_code &errc) {
   if (hdr.empty()) {
-    errc = std::make_error_code(std::errc::invalid_argument);
+    errc = make_error_code(std::errc::invalid_argument);
     return {{}, {}, {}};
   }
   // Basic dGVzdDoxMjPCow==
@@ -116,7 +117,7 @@ HttpAuthCredentials HttpAuthCredentials::from_header(const std::string &hdr,
   auto end_scheme = std::find_if_not(hdr.begin(), hdr.end(), is_tchar);
   // stopped too late
   if (begin_scheme == end_scheme) {
-    errc = std::make_error_code(std::errc::invalid_argument);
+    errc = make_error_code(std::errc::invalid_argument);
     return {{}, {}, {}};
   }
 
@@ -207,15 +208,17 @@ bool HttpAuth::require_auth(HttpRequest &req,
       return true;
     }
 
-    // we could log 'ec' with log_debug()
-    if (/* auto ec = */ realm->authenticate(auth_data.username,
-                                            auth_data.password)) {
+    ec = realm->authenticate(auth_data.username, auth_data.password);
+    if (ec) {
       out_hdrs.add(
           kWwwAuthenticate,
           HttpAuthChallenge(realm->method(), "", {{"realm", realm->name()}})
               .str()
               .c_str());
-      req.send_reply(HttpStatusCode::Unauthorized);
+      if (ec == make_error_code(HttpAuthErrc::kAuthorizationNotSupported))
+        req.send_reply(HttpStatusCode::Forbidden);
+      else
+        req.send_reply(HttpStatusCode::Unauthorized);
       return true;
     }
   } else {

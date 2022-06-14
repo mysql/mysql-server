@@ -9,7 +9,6 @@ call mtr.add_suppression("Unable to initialize the group communication engine");
 call mtr.add_suppression("Error on group communication engine initialization");
 call mtr.add_suppression("Error on group communication engine start");
 call mtr.add_suppression("Invalid hostname or IP address \\(.*\\) assigned to the parameter local_node!");
-call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 call mtr.add_suppression("\\[GCS\\] Unable to join the group: peers not configured.");
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
@@ -23,7 +22,6 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Unable to initialize the group communication engine");
 call mtr.add_suppression("Error on group communication engine initialization");
 call mtr.add_suppression("Peer address .* is not valid.");
-call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node or bootstrap_group parameters were not specified.");
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
@@ -39,6 +37,10 @@ SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 [connection server2]
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET PERSIST group_replication_ip_allowlist= "GROUP_LOCAL_IP_ALLOWLIST";
+[connection server1]
+SET PERSIST group_replication_ip_allowlist= "GROUP_LOCAL_IP_ALLOWLIST";
+[connection server2]
 #######################################################
 #  1. Try setting bootstrap_group variable with invalid
 #     values. It must fail.
@@ -94,7 +96,7 @@ ERROR HY000: The START GROUP_REPLICATION command failed as there was an error wh
 SET GLOBAL group_replication_bootstrap_group= 1;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "";
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 #######################################################
 #  8. Try start Group Replication on server2 with invalid
 #     invalid group_seeds, start must fail.
@@ -126,7 +128,7 @@ ERROR HY000: The START GROUP_REPLICATION command failed as there was an error wh
 #      succeed.
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= @local_address;
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 #######################################################
 #  12. We must have a group with two members.
 [connection server1]

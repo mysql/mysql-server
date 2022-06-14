@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef MYSQL_HARNESS_MPMC_UNBOUND_QUEUE_INCLUDED
 #define MYSQL_HARNESS_MPMC_UNBOUND_QUEUE_INCLUDED
 
+#include <atomic>
 #include <mutex>
 
 #include "mysql/harness/waiting_queue_adaptor.h"
@@ -79,11 +80,32 @@ class MPMCQueueMS2Lock {
    *
    * @returns if item was enqueued
    * @retval true item got assigned to queue
-   * @retval false queue is full
    */
   bool enqueue(const T &item) {
     Node *node = new Node;
     node->data = item;
+
+    {
+      std::unique_lock<std::mutex> lk(tail_mutex_);
+
+      tail_->next = node;
+      tail_ = node;
+    }
+
+    return true;
+  }
+
+  /**
+   * enqueue an element.
+   *
+   * @param item item to enqueue
+   *
+   * @returns if item was enqueued
+   * @retval true item got assigned to queue
+   */
+  bool enqueue(T &&item) {
+    Node *node = new Node;
+    node->data = std::move(item);
 
     {
       std::unique_lock<std::mutex> lk(tail_mutex_);
@@ -129,7 +151,7 @@ class MPMCQueueMS2Lock {
  private:
   struct Node {
     T data;
-    Node *next{nullptr};
+    std::atomic<Node *> next{nullptr};
   };
 
   std::mutex head_mutex_;

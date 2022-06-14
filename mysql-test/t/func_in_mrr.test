@@ -1,9 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
 --source include/no_valgrind_without_big.inc
---source include/force_myisam_default.inc
---source include/have_myisam.inc
 
 set optimizer_switch='mrr=on,mrr_cost_based=off';
 

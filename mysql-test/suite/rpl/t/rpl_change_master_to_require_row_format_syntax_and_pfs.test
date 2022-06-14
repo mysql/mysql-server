@@ -1,0 +1,225 @@
+# ==== Purpose ====
+#
+# This script tests how setting `REQUIRE_ROW_FORMAT` option on `CHANGE
+# MASTER TO ...` is accepted or rejected and how it impacts PFS tables.
+#
+# ==== Requirements ====
+#
+# R1. After `CHANGE MASTER TO ... REQUIRE_ROW_FORMAT=...` with valid value,
+#     column `require_row_format` from table
+#     `performance_schema.replication_applier_configuration` should have an
+#     updated value equal to the value passed on to the `REQUIRE_ROW_FORMAT`
+#     option.
+#
+# R2. After `RESET MASTER`, column `require_row_format` from table
+#     `performance_schema.replication_applier_configuration` should have it's
+#     value unchanged.
+#
+# ==== Implementation ====
+#
+# 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE MASTER TO ...` and check that
+#    an error is thrown.
+# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
+# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
+# 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER
+#    TO ...` and check that PFS table has the updated value.
+# 5. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` to set the value to
+#    0 and check that the PFS table has the updated value.
+# 6. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1` to set the value to
+#    a valid user and check that the PFS table has the updated value.
+# 7. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+#    `REQUIRE_ROW_FORMAT`.
+# 8. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+#    slave and expect an error.
+# 9. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+#    slave SQL thread and expect an error.
+# 10. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+#    slave IO thread and expect an error.
+#
+# ==== References ====
+#
+# WL#12968 Configure replication applier to require row-based replication
+#
+
+--source include/have_binlog_format_row.inc
+--source include/not_have_privilege_checks_user.inc
+--source include/not_rpl_gtid_only.inc
+
+# Procedure that checks if the PFS data regarding `REQUIRE_ROW_FORMAT` is
+# updated in a given server.
+--write_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc PROCEDURE
+  if ($expected_event_format == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_event_format
+  }
+  if ($expected_event_format == 1)
+  {
+    --let $_expected_event_format = "YES"
+  }
+  if ($expected_event_format == 0)
+  {
+    --let $_expected_event_format = "NO"
+  }
+  SELECT * FROM performance_schema.replication_applier_configuration;
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_Row_Format = $_expected_event_format`
+  --let $assert_text = Require_Row_Format column in performance_schema.replication_applier_configuration is set to $expected_event_format for server '$rpl_slave'
+  --let $assert_cond = 0 != $count
+  --source include/assert.inc
+  --echo check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to $expected_event_format for server '$rpl_slave']
+#END OF
+PROCEDURE
+
+# Procedure that sets the value of `REQUIRE_ROW_FORMAT` to a value in the
+# given server and checks if the PFS data regarding `REQUIRE_ROW_FORMAT` is
+# updated in the given server.
+--write_file $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc PROCEDURE
+  if ($expected_event_format == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_event_format
+  }
+  --source include/stop_slave.inc
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = $expected_event_format
+  --source include/start_slave.inc
+  --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+#END OF
+PROCEDURE
+
+# Procedure that resets the slave in the given server and checks if the PFS data
+# regarding `REQUIRE_ROW_FORMAT` is updated in the given server.
+--write_file $MYSQLTEST_VARDIR/tmp/reset_and_check_pfs.inc PROCEDURE
+  if ($expected_event_format == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_event_format
+  }
+  --source include/stop_slave.inc
+  RESET SLAVE;
+  --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+  --source include/start_slave.inc
+#END OF
+PROCEDURE
+
+# Procedure that tries to set the value of `REQUIRE_ROW_FORMAT` without stopping
+# the slave SQL thread.
+--write_file $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc PROCEDURE
+  if ($expected_event_format == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_event_format
+  }
+  if ($expected_error == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_error
+  }
+  if ($stop_slave_thread != '')
+  {
+    --eval STOP SLAVE $stop_slave_thread
+  }
+
+  --error $expected_error
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = $expected_event_format
+
+  if ($stop_slave_thread != '')
+  {
+    --eval START SLAVE $stop_slave_thread
+  }
+#END OF
+PROCEDURE
+
+#
+# 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE MASTER TO ...` and check that
+#    an error is thrown.
+#
+--error ER_REQUIRE_ROW_FORMAT_INVALID_VALUE
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 2;
+
+#
+# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
+#
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+
+#
+# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
+#
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+
+#
+# 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER
+#    TO ...` and check that PFS table has the updated value.
+#
+--let $rpl_topology = 1->2, 1->3, 1->4
+--let $rpl_require_row_format = *:1
+--source include/rpl_init.inc
+
+--let $expected_event_format = 1
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+#
+# 5. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` to set the value to
+#    0 and check that the PFS table has the updated value.
+#
+--let $expected_event_format = 0
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+#
+# 6. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1` to set the value to
+#    a valid user and check that the PFS table has the updated value.
+#
+--let $expected_event_format = 1
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+#
+# 7. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+#    `REQUIRE_ROW_FORMAT`.
+#
+--let $expected_event_format = 1
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/reset_and_check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+# 8. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+#    slave and expect an error.
+--let $expected_event_format = 1
+--let $expected_error = ER_SLAVE_CHANNEL_MUST_STOP
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+# 9. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+#    slave SQL thread and expect an error.
+--let $expected_event_format = 1
+--let $expected_error = ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+--let $stop_slave_thread = IO_THREAD
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+# 10. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+#    slave IO thread and expect an error.
+--let $expected_event_format = 1
+--let $expected_error = ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
+--let $stop_slave_thread = SQL_THREAD
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+--remove_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/reset_and_check_pfs.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
+--source include/rpl_end.inc

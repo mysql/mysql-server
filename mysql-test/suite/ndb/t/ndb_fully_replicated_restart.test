@@ -59,8 +59,11 @@ CREATE TABLE t2 (
 
 alter table t2 algorithm=inplace, add unique index (c);
 
-let $ndb_desc_opts= -b -i -d test t1;
-source suite/ndb/include/ndb_desc_print.inc;
+let $ndb_describe_table= t1;
+let $ndb_describe_blobs= 1;
+let $ndb_describe_indexes= 1;
+let $ndb_describe_print_exit= 2;
+source suite/ndb/include/ndb_describe_table.inc;
 
 insert into t1 values
 (0, "row 0", 0, REPEAT("qubit#0",500)),
@@ -105,9 +108,9 @@ rollback;
 --echo "Stop node 1"
 
 # Restart 1 node "nostart"
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "1 restart -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "1 restart -n" >> $NDB_TOOLS_OUTPUT
 # Wait for node to enter "nostart"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
 
 begin;
 # pk lookup
@@ -138,9 +141,9 @@ rollback;
 --echo "Start node 1"
 
 # Start node again
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "1 start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "1 start" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "started"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 begin;
 # pk lookup
@@ -206,13 +209,13 @@ insert into t1 values
 --echo "Restart cluster"
 
 # Restart cluster nodes "nostart"
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart -n" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "nostart"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
 # Start cluster nodes again
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all start" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "started"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 #
 # Wait until the connection to the
@@ -220,6 +223,9 @@ insert into t1 values
 #
 --echo "Wait reconnect"
 --source include/ndb_not_readonly.inc
+connection mysqld2;
+--source include/ndb_not_readonly.inc
+connection default;
 
 begin;
 # pk lookup

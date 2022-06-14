@@ -1,0 +1,173 @@
+--source include/have_ndb.inc
+--result_format 2
+
+# Bug#28584066 MYSQLD CANNOT HANDLE MISSING INDICES IN NDB
+
+create table t1(
+  a int not null primary key, # intrinsic PK plus PRIMARY ordered index
+  b int not null,
+  c int,
+  d int not null,
+  unique(b) using hash,       # unique index only
+  index(c),                   # ordered index only
+  unique(d)                   # ordered and unique indexes
+) engine=ndb;
+
+insert into t1 values (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4);
+
+## Select on the PRIMARY ordered index
+select a, count(*) from t1 group by a order by a;
+
+## You can make an index invisible, and then visible again
+select c, count(1) from t1 group by c order by c;
+EXPLAIN select c, count(1) from t1 group by c order by c;
+ALTER TABLE t1 ALTER INDEX c invisible;
+EXPLAIN select c, count(1) from t1 group by c order by c;
+ALTER TABLE t1 ALTER INDEX c visible;
+
+##########################################
+## Use ndb_drop_index to drop PRIMARY
+--exec $NDB_DROP_INDEX -d test t1 PRIMARY >> $NDB_TOOLS_OUTPUT
+
+## First query after drop fails with stale metadata
+--error ER_TABLE_DEF_CHANGED
+select * from t1 where a > 3;
+
+## Second time succeeds. No warnings. (Uses pushed condition, not an index)
+select * from t1 where a > 3;
+
+## A query trying to use the index fails and gives warning
+--error ER_NOT_KEYFILE
+select a, count(1) from t1 group by a;
+show warnings;
+
+## Add a column. This runs a DD-vs-NDB metadata check on the altered
+## table which previously would have failed. The new column has both
+## ordered and unique indexes.
+ALTER TABLE t1 ADD e int;
+ALTER TABLE t1 ADD unique(e);
+insert into t1 values (5,5,5,5,5);
+UPDATE t1 set e = d;
+--sorted_result
+SELECT * FROM t1;
+
+##########################################
+## Use ndb_drop_index to drop the unique index on b.
+--exec $NDB_DROP_INDEX -d test t1 b\$unique >> $NDB_TOOLS_OUTPUT
+
+ ## First attempt to use dropped index fails with stale metadata
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1 WHERE b = 3;
+
+## Second attempt fails with bad index.
+--error ER_NOT_KEYFILE
+SELECT * FROM t1 WHERE b = 3;
+show warnings;
+
+##########################################
+## Use ndb_drop_index to drop the index on c.
+--exec $NDB_DROP_INDEX -d test t1 c >> $NDB_TOOLS_OUTPUT
+
+## Stale metadata
+--error ER_TABLE_DEF_CHANGED
+select c, count(1) from t1 group by c order by c;
+
+## Use of index fails
+--error ER_NOT_KEYFILE
+select c, count(1) from t1 group by c order by c;
+
+## Make the dropped index invisible.  Then all tests will succeed.
+ALTER TABLE t1 ALTER INDEX c invisible;
+--sorted_result
+SELECT * FROM t1 WHERE c = 3;
+select c, count(1) from t1 group by c order by c;
+
+## Drop the index in MySQL
+ALTER TABLE t1 DROP INDEX c;
+
+## Then rebuild it in MySQL
+ALTER TABLE t1 add index(c);
+
+## And test once more
+select c, count(1) from t1 group by c order by c;
+
+##########################################
+## Use ndb_drop_index to drop d$unique
+## d will be downgraded from UNIQUE_ORDERED_INDEX to ORDERED_INDEX
+--exec $NDB_DROP_INDEX -d test t1 d\$unique >> $NDB_TOOLS_OUTPUT
+
+## Table scan succeeds.
+--sorted_result
+SELECT * FROM t1;
+
+## But, try to use the index? Stale metadata.
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1 where d = 3;
+
+## Then it succeeds (the ordered index is still available).
+SELECT * FROM t1 where d = 3;
+
+## How did it do it?  It used the ordered index.
+EXPLAIN SELECT * FROM t1 where d = 3;
+
+## Let's corrupt the unique index while it's not online!
+UPDATE t1 set d = 14;
+
+## ... and then fix it.
+UPDATE t1 set d = a;
+
+
+##########################################
+## Use ndb_drop_index to drop the ordered index on e.
+## e will be downgraded from UNIQUE_ORDERED_INDEX to UNIQUE_INDEX
+--exec $NDB_DROP_INDEX -d test t1 e >> $NDB_TOOLS_OUTPUT
+
+## Table scan succeeds.
+--sorted_result
+SELECT * FROM t1;
+
+## First attempt to use dropped index fails with stale metadata
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1 where e > 3;
+
+## Second attempt succeeds.
+SELECT * FROM t1 where e > 3 order by e;
+
+## A query trying to use the index fails and gives warning
+--error ER_NOT_KEYFILE
+select 3, count(*) from t1 group by e order by e;
+show warnings;
+
+##########################################
+## A small set of tests on a table with some two-part indexes
+
+create table t2 (
+  a int not null,
+  b int not null,
+  c int,
+  primary key (a,b),      # primary key ordered index on two columns
+  index(b,c)              # ordered index on two columns
+) engine=ndb;
+
+insert into t2 values (1,1,null), (2,1,0), (3,1,1), (1,2,1), (1,3,null);
+
+select * from t2 where a > 2;
+--exec $NDB_DROP_INDEX -d test t2 PRIMARY >> $NDB_TOOLS_OUTPUT
+--error ER_TABLE_DEF_CHANGED
+select * from t2 where a > 2;
+select * from t2 where a > 2;
+--exec $NDB_DROP_INDEX -d test t2 b >> $NDB_TOOLS_OUTPUT
+--error ER_TABLE_DEF_CHANGED
+select * from t2 where b = 2;
+--error ER_NOT_KEYFILE
+select * from t2 where b = 2;
+
+# This test results in an error message in the server log:
+# [ERROR] [MY-010211] [Server] Got error 126 when reading table './test/t2'
+call mtr.add_suppression(".*Got error 126 when reading table '.*t2'");
+
+## All done
+DROP TABLE t1;
+DROP TABLE t2;
+--remove_file $NDB_TOOLS_OUTPUT
+

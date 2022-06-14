@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,8 @@
 */
 
 #include "mysql_trace.h"
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql.h"
@@ -64,7 +65,7 @@
   Definition of the global trace_plugin pointer - see plugin_trace.h
   for declaration and description.
 */
-struct st_mysql_client_plugin_TRACE *trace_plugin = NULL;
+struct st_mysql_client_plugin_TRACE *trace_plugin = nullptr;
 
 /*
   Macros for manipulating trace_info structure.
@@ -100,7 +101,7 @@ void mysql_trace_start(MYSQL *m) {
     is loaded and thus trace_plugin pointer is not NULL. This
     is handled in MYSQL_TRACE_STAGE() macro (mysql_trace.h).
   */
-  DBUG_ASSERT(trace_plugin);
+  assert(trace_plugin);
 
   trace_info->plugin = trace_plugin;
   trace_info->stage = PROTOCOL_STAGE_CONNECTING;
@@ -113,7 +114,7 @@ void mysql_trace_start(MYSQL *m) {
     trace_info->trace_plugin_data = trace_info->plugin->tracing_start(
         trace_info->plugin, m, PROTOCOL_STAGE_CONNECTING);
   } else {
-    trace_info->trace_plugin_data = NULL;
+    trace_info->trace_plugin_data = nullptr;
   }
 
   /* Store trace_info in the connection handle. */
@@ -138,7 +139,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
                        struct st_trace_event_args args) {
   struct st_mysql_trace_info *trace_info = TRACE_DATA(m);
   struct st_mysql_client_plugin_TRACE *plugin =
-      trace_info ? trace_info->plugin : NULL;
+      trace_info ? trace_info->plugin : nullptr;
   int quit_tracing = 0;
 
   /*
@@ -146,7 +147,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
     function should not be called - this is handled inside MYSQL_TRACE()
     macro.
   */
-  DBUG_ASSERT(trace_info);
+  assert(trace_info);
 
   /* Call plugin's trace_event() method if defined */
 
@@ -158,8 +159,8 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
     */
     bool saved_reconnect_flag = m->reconnect;
 
-    TRACE_DATA(m) = NULL;
-    m->reconnect = 0;
+    TRACE_DATA(m) = nullptr;
+    m->reconnect = false;
     quit_tracing = plugin->trace_event(plugin, GET_DATA(trace_info), m,
                                        GET_STAGE(trace_info), ev, args);
     m->reconnect = saved_reconnect_flag;
@@ -171,7 +172,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
   if (quit_tracing || TEST_STAGE(trace_info, DISCONNECTED) ||
       TRACE_EVENT_DISCONNECTED == ev) {
     /* Note: this disables further tracing */
-    TRACE_DATA(m) = NULL;
+    TRACE_DATA(m) = nullptr;
 
     if (plugin->tracing_stop)
       plugin->tracing_stop(plugin, m, GET_DATA(trace_info));
@@ -180,7 +181,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   These functions are declared in plugin_trace.h.
 

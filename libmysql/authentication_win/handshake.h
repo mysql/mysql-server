@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class Security_buffer : public SecBufferDesc {
   const Security_buffer &operator=(const Security_buffer &);
 
  public:
-  Security_buffer(const Blob &);
+  explicit Security_buffer(const Blob &);
   Security_buffer();
 
   ~Security_buffer() { mem_free(); }
@@ -149,7 +149,7 @@ class Handshake {
   /// Write packet to the other end.
   virtual int write_packet(Blob &data) = 0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
  private:
   SecPkgInfo *m_ssp_info;

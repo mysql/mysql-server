@@ -1,0 +1,61 @@
+# This test tests the hypergraph optimizer's handling of a query with lots of
+# discarded access paths; before bug #33139205, it would use ~40 GB RAM
+# before hitting the maximum limit of 100k subgraph pairs. After that bug,
+# it still takes a very long time (since there is no reasonable pruning yet,
+# we keep way too many access paths on the Pareto frontier), but it should not
+# OOM. Eventually, of course, the query should be planned quickly, but for now,
+# we use this as a verification that setting a lower optimizer_max_subgraph_pairs
+# helps it be planned in reasonable time. If you wish to use it to study
+# memory usage, you can simply increase optimizer_max_subgraph_pairs again.
+#
+# Even though this is to test the hypergraph optimizer, it runs just fine
+# under the old one, so we don't include have_hypergraph.inc.
+
+set optimizer_max_subgraph_pairs=10000;
+
+CREATE TABLE t1 ( c INTEGER, b INTEGER, a INTEGER, KEY (b), KEY (a) );
+CREATE TABLE t2 ( pk INTEGER, b INTEGER, KEY (pk), KEY (b) );
+CREATE TABLE t3 ( a INTEGER, KEY (a) );
+CREATE TABLE t4 ( b INTEGER, c INTEGER, a INTEGER, pk INTEGER, KEY (b), KEY (a) );
+CREATE TABLE t5 ( b INTEGER, a INTEGER, KEY (b), KEY (a) );
+CREATE TABLE t7 ( pk INTEGER, a INTEGER, KEY (pk), KEY (a) );
+CREATE TABLE t8 ( pk INTEGER, c INTEGER, a INTEGER, b INTEGER, KEY (pk), KEY (b), KEY (a) );
+CREATE TABLE t12 ( b INTEGER, pk INTEGER, c INTEGER, a INTEGER, KEY (pk), KEY (b), KEY (a) );
+CREATE TABLE t13 ( pk INTEGER, a INTEGER, KEY (pk), KEY (a) );
+
+INSERT INTO t1 VALUES (1,56,1), (0,4,3), (2,79,0), (2,29,1), (0,80,2), (NULL,30,0), (3,2,3), (0,21,2), (2,61,0), (0,37,0), (NULL,85,2), (3,1,2), (2,19,2), (1,72,3), (0,6,3), (2,28,0), (0,84,3), (1,12,2), (3,0,2), (1,96,1), (2,86,3), (2,18,3), (NULL,78,1), (1,47,2), (1,65,2), (1,3,0);
+INSERT INTO t2 VALUES (1,37), (2,42), (3,2), (4,15), (5,53), (6,0), (7,62), (8,14), (9,1), (10,52), (11,10), (12,82), (13,47), (14,63), (15,NULL), (16,23), (17,4), (18,24), (19,35), (20,56), (21,31);
+INSERT INTO t3 VALUES (3), (3), (3), (2), (2), (0), (0), (2), (3), (0), (2), (0), (1), (1), (0), (2), (1), (1), (2), (0);
+INSERT INTO t4 VALUES (15,1,0,1), (49,2,2,2), (7,0,2,3), (24,2,2,4), (21,2,2,5), (58,3,2,6), (59,1,0,7), (14,1,0,8), (23,0,0,9), (80,NULL,NULL,10), (31,3,3,11), (71,1,3,12), (38,1,0,13), (66,0,2,14), (9,1,2,15), (16,2,0,16), (NULL,0,3,17), (99,1,2,18), (NULL,2,3,19), (44,0,1,20), (17,3,0,21), (3,0,1,22), (62,0,1,23), (37,0,3,24), (64,0,0,25), (65,3,2,26), (39,2,0,27), (28,1,3,28), (82,1,1,29), (8,1,3,30), (92,0,2,31), (0,1,3,32), (4,3,1,33), (87,0,2,34), (97,0,3,51), (NULL,0,1,52), (20,2,0,53), (NULL,0,3,54), (1,0,3,55), (NULL,NULL,1,56), (77,1,3,57), (27,2,0,58), (18,NULL,3,59), (47,1,2,60), (2,1,3,61), (NULL,1,1,62), (84,0,1,63), (41,2,2,64), (98,0,1,65), (NULL,3,1,66), (53,3,0,67), (42,3,0,68), (94,2,2,69), (52,0,3,70), (NULL,2,1,71);
+INSERT INTO t5 VALUES (86,0), (37,2), (31,2), (6,3), (2,0), (15,0), (41,1), (78,1), (55,1), (4,1), (5,1), (80,3), (32,1), (NULL,2), (9,2), (38,0), (83,2), (85,1), (44,2), (8,3), (10,2), (96,3);
+INSERT INTO t7 VALUES (1,3), (2,3), (3,3), (4,0), (5,1), (6,2), (7,2), (8,3), (9,2), (10,2), (11,3), (12,1), (13,0), (14,0), (15,2), (16,3), (17,3), (18,3), (19,1), (20,0), (21,2), (22,2), (23,0), (24,2);
+INSERT INTO t8 VALUES (1,0,1,11), (2,0,0,77), (3,3,1,90), (4,3,3,5), (5,2,2,73), (6,1,1,13), (7,2,1,14), (8,0,1,55), (9,2,3,29), (10,0,2,63), (11,1,NULL,76), (12,2,1,10), (13,0,2,41), (14,0,3,50), (15,3,1,0), (16,0,2,18), (17,0,0,61), (18,0,1,80), (19,0,0,9), (20,3,3,NULL), (21,1,1,62), (22,0,NULL,92), (23,2,2,1), (24,0,0,17), (25,1,0,43), (26,2,1,53), (27,1,2,31), (28,1,0,79), (29,2,2,30);
+INSERT INTO t12 VALUES (15,1,3,3), (49,2,1,2), (8,3,1,2), (32,4,0,3), (NULL,5,1,2), (73,6,0,NULL), (3,7,2,1), (25,8,1,2), (5,9,3,2), (71,10,1,0), (85,11,2,0), (89,12,2,3), (39,13,3,0), (18,14,NULL,3), (84,15,3,2), (11,16,0,1), (7,17,2,1), (87,18,3,2), (86,19,1,3), (95,20,1,3), (72,21,1,1), (23,22,0,1), (1,23,2,0), (43,24,1,3), (22,25,3,0), (6,26,1,1), (92,27,3,2), (14,28,3,1), (62,29,0,2), (19,30,3,3);
+INSERT INTO t13 VALUES (1,0), (2,1), (3,0), (4,0), (5,2), (6,0), (7,NULL), (8,1), (9,0), (10,3), (11,2), (12,NULL), (13,0), (14,0), (15,1), (16,1), (17,1), (18,0);
+
+ANALYZE TABLE t1,t2,t3,t4,t5,t7,t8,t12,t13;
+
+SELECT DISTINCT
+  1
+FROM
+  t7
+  JOIN t8 ON t7.pk = t8.pk
+  JOIN t4 AS t6 ON t6.c = t7.pk
+  JOIN (
+    t4 AS t9
+    JOIN t1 AS t10 ON t9.a = t10.a AND t9.b = t10.b
+  ) ON t8.a = t10.a AND t6.b = t10.b
+  JOIN t8 AS t11 ON t8.b = t11.c
+  JOIN t12 ON t8.c = t12.c AND t10.a = t12.a AND t8.b = t12.b
+  JOIN t5 ON t5.a = t10.c AND t5.b = t12.pk
+  JOIN t13 ON t6.b = t13.pk
+  JOIN t4 ON t4.a = t11.a
+  JOIN t3 ON t3.a = t10.b
+  JOIN t2 ON t2.pk = t7.a
+  JOIN t1 ON t1.a = t12.b
+WHERE
+  t10.c < 8
+  AND t6.pk = 6
+  AND t2.b <> 3;
+
+DROP TABLE t1,t2,t3,t4,t5,t7,t8,t12,t13;

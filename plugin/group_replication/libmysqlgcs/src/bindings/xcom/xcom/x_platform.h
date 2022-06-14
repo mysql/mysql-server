@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,6 @@
 
 #ifndef X_PLATFORM_H
 #define X_PLATFORM_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
  * Abstraction layer for lower level OS stuff needed
@@ -62,8 +58,10 @@ extern "C" {
 
 #define bzero(p, n) memset(p, 0, n)
 
+#ifndef __cplusplus
 #ifndef inline
 #define inline _inline
+#endif
 #endif
 #define xcom_close(fd) _close(fd)
 #define xcom_fclose(f) fclose(f)
@@ -82,8 +80,8 @@ extern "C" {
 #define xcom_srand48(x) srand(x)
 #define xcom_drand48() ((double)rand() / RAND_MAX)
 
-#define xcom_write(fd, buf, l) _write(fd, buf, l)
-#define xcom_read(fd, buf, c) _read(fd, buf, c)
+#define xcom_write(fd, buf, l) _write(fd, buf, (unsigned int)l)
+#define xcom_read(fd, buf, c) _read(fd, buf, (unsigned int)c)
 
 #define xcom_mktemp(s) _mktemp(s)
 
@@ -97,8 +95,6 @@ extern "C" {
 
 #define xcom_execv _execv
 
-#define xcom_g_io_channel_socket_new g_io_channel_win32_new_socket
-
 /** Posix states that the optval argument should be (const) void*, but
     on Windows it is (const) char* (See
     http://msdn.microsoft.com/en-us/library/windows/desktop/ms740476(v=vs.85).aspx
@@ -111,36 +107,37 @@ typedef char *xcom_sockoptptr_t;
 typedef int mode_t;
 typedef SSIZE_T ssize_t;
 
-#ifdef XCOM_STANDALONE
+#ifndef HAVE_STDINT_H
 #ifndef UINT64_MAX
 #define UINT64_MAX _UI64_MAX
-#endif #
+#endif
 #ifndef INT64_MAX
 #define INT64_MAX _I64_MAX
-#endif #
+#endif
 #ifndef INT64_MIN
 #define INT64_MIN _I64_MIN
-#endif #
+#endif
 #ifndef UINT32_MAX
 #define UINT32_MAX _UI32_MAX
-#endif #
+#endif
 #ifndef INT32_MAX
 #define INT32_MAX _I32_MAX
-#endif #
+#endif
 #ifndef INT32_MIN
 #define INT32_MIN _I32_MIN
-#endif #
+#endif
 #ifndef UINT16_MAX
 #define UINT16_MAX _UI16_MAX
-#endif #
+#endif
 #ifndef INT16_MAX
 #define INT16_MAX _I16_MAX
-#endif #
+#endif
 #ifndef INT16_MIN
 #define INT16_MIN _I16_MIN
-#endif #
+#endif
+#endif
 
-#ifndef HAVE_STDINT_H
+#ifndef PRIu64
 #ifdef _LP64
 #define PRIu64 "lu"
 #else /* _ILP32 */
@@ -148,7 +145,9 @@ typedef SSIZE_T ssize_t;
 #endif
 #endif
 
-#endif  // XCOM_STANDALONE
+#ifndef PRIu32
+#define PRIu32 "u"
+#endif
 
 #define XCOM_O_CREAT _O_CREAT
 #define XCOM_O_WRONLY _O_WRONLY
@@ -163,6 +162,8 @@ typedef SSIZE_T ssize_t;
 /* Only global flags can be set on Windows */
 #define XCOM_S_IRUSR _S_IREAD
 #define XCOM_S_IWUSR _S_IWRITE
+#define XCOM_S_IXUSR 0
+#define XCOM_S_IWRXU XCOM_S_IRUSR | XCOM_S_IWUSR | XCOM_S_IXUSR
 #define XCOM_S_IRGRP 0
 #define XCOM_S_IWGRP 0
 #define XCOM_S_IROTH 0
@@ -176,17 +177,12 @@ typedef SSIZE_T ssize_t;
  * EXCEPTION_ or STATUS_ exits on windows start with 0xCxxxxxxx. The below
  * attempts to use 2nd highest bit to determine if normal or error exit.
  *
- * These macros are normally found on *ix systems, and is used the the
- * xcom_exit_report message internally in the agent.
- *
- * NOTE:
- * Macros must handle -1 from os_process SM explicitly to mimic *ix
+ * These macros are normally found on *ix systems, and is used to mimic *ix.
  */
-
-#define WEXITSTATUS(s) ((int)(((s) == -1 ? 0 : (s)&0x40000000)))
-#define WIFEXITED(s) (((s) == -1 ? 0 : (s)&0x40000000) == 0)
-#define WIFSIGNALED(s) (((s) == -1 ? 0 : (s)&0x40000000) != 0)
-#define WTERMSIG(s) ((s) == -1 ? 0 : (s)&0x3FFFFFFF)
+#define WEXITSTATUS(s) (s)
+#define WIFEXITED(s) ((s) == -1 ? 1 : ((s)&0x40000000) == 0)
+#define WIFSIGNALED(s) ((s) == -1 ? 0 : ((s)&0x40000000) != 0)
+#define WTERMSIG(s) ((s) == -1 ? 0 : ((s)&0x3FFFFFFF))
 #define WCOREDUMP(s) (((s) == CORE_EXIT_VALUE_WIN32) ? TRUE : FALSE)
 
 typedef int mode_t;
@@ -242,12 +238,13 @@ static inline void thread_yield() { SwitchToThread(); }
 /* WARNING: snprintf() != _snprintf() */
 /* #define xcom_snprintf(argv) snprintf(argv) */
 #define xcom_strdup(x) strdup(x)
-
+#if defined(_WIN32)
+#define xcom_strtok(b, d, c) strtok_s(b, d, c)
+#else
 #define xcom_strtok(b, d, c) strtok_r(b, d, c)
+#endif
 
 #define xcom_strcasecmp(a, b) strcasecmp(a, b)
-
-#define xcom_g_io_channel_socket_new g_io_channel_unix_new
 
 /** Posix states that the optval argument should be (const) void*, but
     on Windows it is (const) char* and since we normally pass in int*
@@ -264,11 +261,18 @@ typedef void *xcom_sockoptptr_t;
 #define XCOM_O_EXCL O_EXCL
 #define XCOM_O_RDWR O_RDWR
 #define XCOM_O_RDONLY O_RDONLY
+#ifdef __APPLE__
+/* OSX does not define O_RSYNC, use O_DSYNC instead */
+#define XCOM_O_RSYNC O_DSYNC
+#else
 #define XCOM_O_RSYNC O_RSYNC
+#endif
 #define XCOM_O_BINARY 0 /** Empty define - applicable WIN32 only */
 
 #define XCOM_S_IRUSR S_IRUSR
 #define XCOM_S_IWUSR S_IWUSR
+#define XCOM_S_IXUSR S_IXUSR
+#define XCOM_S_IWRXU XCOM_S_IRUSR | XCOM_S_IWUSR | XCOM_S_IXUSR
 #define XCOM_S_IRGRP S_IRGRP
 #define XCOM_S_IWGRP S_IWGRP
 #define XCOM_S_IROTH S_IROTH
@@ -296,8 +300,10 @@ typedef void *xcom_sockoptptr_t;
 #define NEWLINE "\n"
 #endif
 
-#ifdef __cplusplus
-}
+#ifdef _WIN32
+#define xcom_buf char
+#else
+#define xcom_buf void
 #endif
 
 #endif

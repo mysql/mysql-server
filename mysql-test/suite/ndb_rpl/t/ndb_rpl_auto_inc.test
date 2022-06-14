@@ -72,7 +72,7 @@ insert into t1 values (500),(NULL),(502),(NULL),(600);
 select * from t1 ORDER BY a;
 set @@insert_id=600;
 # We expect a duplicate key error that we will ignore below
---error 1022
+--error ER_DUP_ENTRY
 insert into t1 values(600),(NULL),(NULL);
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);

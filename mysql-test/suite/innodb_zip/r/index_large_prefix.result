@@ -367,7 +367,7 @@ Level	Code	Message
 show create table worklog5743;
 Table	Create Table
 worklog5743	CREATE TABLE `worklog5743` (
-  `a1` int(11) DEFAULT NULL,
+  `a1` int DEFAULT NULL,
   `a2` varchar(20000) DEFAULT NULL,
   `a3` varchar(3073) DEFAULT NULL,
   `a4` varchar(3072) DEFAULT NULL,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,20 +20,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "../../components/mysql_server/component_status_var_service.h"
+#include "component_status_var_service_imp.h"
 
-#include "../../components/mysql_server/server_component.h"
+#include <mysql/components/minimal_chassis.h>
 #include "mysql/components/service_implementation.h"
 
 struct SHOW_VAR;
-
-/**
-  Its a dummy initialization function. And it will be called from
-  server_component_init(). Else linker, is cutting out (as library
-  optimization) the status variable service code because libsql code
-  is not calling any functions of it.
-*/
-void mysql_comp_status_var_services_init() { return; }
 
 /**
   Register status variable.

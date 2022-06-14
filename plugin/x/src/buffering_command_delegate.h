@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,12 @@ class Buffering_command_delegate : public Callback_command_delegate {
 
   // When vector is going to be reallocated then the Field pointers are copied
   // but are release by destructor of Row_data
-  typedef std::list<Row_data> Resultset;
+  using Resultset = std::list<Row_data>;
 
   void set_resultset(const Resultset &resultset) { m_resultset = resultset; }
   const Resultset &get_resultset() const { return m_resultset; }
-  virtual void reset();
+  void set_status_info(const Info &status_info) { m_info = status_info; }
+  void reset() override;
 
  private:
   Resultset m_resultset;

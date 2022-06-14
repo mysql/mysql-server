@@ -45,6 +45,8 @@ include/assert.inc [Nothing should be inserted on slave]
 ---- Clean up ----
 include/stop_slave_io.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP DATABASE db1;
 [connection master]

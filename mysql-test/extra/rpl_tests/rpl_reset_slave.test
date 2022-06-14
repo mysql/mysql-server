@@ -18,14 +18,14 @@ source include/show_slave_status.inc;
 
 source include/stop_slave.inc;
 --replace_column 2 ####
-change master to master_user='test';
+CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 source include/show_slave_status.inc;
 
 reset slave;
 source include/show_slave_status.inc;
 
 --replace_column 2 ####
-change master to master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 source include/start_slave.inc;
 sync_with_master;
 source include/show_slave_status.inc;
@@ -43,7 +43,7 @@ reset slave;
 reset master; # clear GTIDs metadata so that create temporary table is replayed
 source include/start_slave.inc;
 sync_with_master;
-show status like 'slave_open_temp_tables';
+show status like 'replica_open_temp_tables';
 connection master;
 drop temporary table if exists t1;
 sync_slave_with_master;
@@ -62,14 +62,14 @@ source include/check_slave_no_error.inc;
 #
 
 --replace_column 2 ####
-change master to master_user='impossible_user_name';
+CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 start slave;
 let $slave_io_errno= 1045;
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
 
 --replace_column 2 ####
-change master to master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 source include/start_slave.inc;
 source include/check_slave_no_error.inc;
 
@@ -86,7 +86,7 @@ source include/check_slave_no_error.inc;
 --source include/stop_slave.inc
 
 --replace_column 2 ####
-change master to master_user='impossible_user_name';
+CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 start slave;
 let $slave_io_errno= 1045;
 --source include/wait_for_slave_io_error.inc
@@ -95,7 +95,7 @@ let $slave_io_errno= 1045;
 reset slave;
 source include/check_slave_no_error.inc;
 --replace_column 2 ####
-change master to master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 
 
 #
@@ -129,7 +129,55 @@ if ($_show_master_host != No such row)
 
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT
 --replace_column 2 ####
---eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port
 --source include/start_slave.inc
+
+#
+# Bug#27357189 MASTER_USER BECOMES 'TEST' IF IT IS EMPTY WHEN READ FROM REPO
+#
+
+# Clean all the previous info
+
+# Sync with the master so we delete the temporary table before stop.
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+
+--echo # Configure the slave with an empty user
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
+
+--echo # Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
+
+--let $rpl_reset_slave_all= 0
+--source include/rpl_reset_slave.inc
+
+START SLAVE IO_THREAD;
+
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--source include/wait_for_slave_io_error.inc
+
+--echo # Check the user is still empty
+
+--let $_user= `SELECT user_name FROM mysql.slave_master_info`
+--let $assert_cond= "$_user" = ""
+--let $assert_text= User_name in slave_master_info is empty
+--source include/assert.inc
+
+--echo # Cleanup
+
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--source include/start_slave.inc
+
+call mtr.add_suppression("Slave I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the master server*");
 
 --source include/rpl_end.inc

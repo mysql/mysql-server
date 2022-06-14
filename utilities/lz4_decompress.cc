@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "lz4_decompress: [Error] Cannot create output file.\n");
     exit(1);
   }
-  LZ4F_decompressionContext_t decompression_context;
+  LZ4F_decompressionContext_t decompression_context = nullptr;
   LZ4F_createDecompressionContext(&decompression_context, LZ4F_VERSION);
   char *input_buffer = new char[INPUT_BUFFER_SIZE];
   char *output_buffer = new char[OUTPUT_BUFFER_SIZE];
@@ -98,7 +98,13 @@ int main(int argc, char **argv) {
 
       if (bytes_to_write == 0) break;
 
-      fwrite(output_buffer, 1, bytes_to_write, output_file);
+      if (fwrite(output_buffer, 1, bytes_to_write, output_file) !=
+          bytes_to_write) {
+        fprintf(stderr,
+                "lz4_decompress: [Error] Encountered problem during "
+                "writing to buffer.\n");
+        exit(1);
+      }
     }
   }
 

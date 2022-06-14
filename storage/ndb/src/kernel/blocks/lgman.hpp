@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,16 +39,18 @@
 
 #define JAM_FILE_ID 339
 
+class FsReadWriteReq;
 
 class Lgman : public SimulatedBlock
 {
 public:
   Lgman(Block_context& ctx);
-  virtual ~Lgman();
+  ~Lgman() override;
   BLOCK_DEFINES(Lgman);
   
+public:
+  void execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */;
 protected:
-  
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -62,7 +64,6 @@ protected:
   void execDROP_FILE_IMPL_REQ(Signal* signal);
   void execDROP_FILEGROUP_IMPL_REQ(Signal* signal);
   
-  void execFSWRITEREQ(Signal*);
   void execFSWRITEREF(Signal*);
   void execFSWRITECONF(Signal*);
 
@@ -246,6 +247,19 @@ public:
     Uint32 m_callback_buffer_words; // buffer words that has been
                                     // returned to user, but not yet consumed
     Log_waiter_list::Head m_log_buffer_waiters;
+    /**
+     * Each page range consists of up to 64 pages == 2 MByte.
+     * m_current_page.m_ptr_i points to position in Page_map (m_buffer_pages)
+     * m_current_page.m_idx indicates how many pages are left in range
+     * m_current_pos.m_ptr_i points to i-value of current page
+     * m_current_pos.m_idx indicates how many words are used in current page
+     * For PRODUCER m_current_pos.m_idx is updated when we write the UNDO log
+     * record from the get_log_buffer call. get_log_buffer also calls next_page
+     * to move to next page in range OR first page in next range.
+     * For CONSUMER m_current_pos.m_idx is only used during recovery, it is set
+     * to 0 when running in normal operation.
+     * 0 is reader == CONSUMER, 1 is writer == PRODUCER
+     */
     Page_map::Head m_buffer_pages; // Pairs of { ptr.i, count }
     struct Position {
       Buffer_idx m_current_page;   // { m_buffer_pages.i, left in range }
@@ -311,6 +325,7 @@ private:
   Uint32 m_end_lcp_senderdata;
   bool m_node_restart_ongoing;
   bool m_dropped_undo_log;
+  bool c_encrypted_filesystem;
 
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
@@ -364,7 +379,10 @@ private:
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
   void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);
 
-  void flush_log(Signal*, Ptr<Logfile_group>, Uint32 force);
+  void flush_log(Signal*,
+                 Ptr<Logfile_group>,
+                 Uint32 force,
+                 bool issue_continueb);
   Uint32 write_log_pages(Signal*, Ptr<Logfile_group>, 
 			 Uint32 pageId, Uint32 pages);
 
@@ -476,7 +494,13 @@ public:
   enum RequestFlags 
   {
   };
-  
+
+  /**
+   * Check if a logfile group exists
+   * @return true if a logfile group exists
+   *         false otherwise
+   */
+  bool exists_logfile_group();
   /**
    * Make sure a lsn is stored
    * @return -1, on error
@@ -503,6 +527,7 @@ public:
     Uint32 len;
   };
 
+  Uint64 get_latest_lsn();
   Uint64 add_entry_simple(const Change*,
                           Uint32 cnt,
                           Uint32 alloc_size,

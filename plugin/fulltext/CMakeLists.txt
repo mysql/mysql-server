@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,17 +23,29 @@
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="mecab")
 
 # Example parser
-MYSQL_ADD_PLUGIN(ftexample ./example/plugin_example.cc
-                MODULE_ONLY MODULE_OUTPUT_NAME "mypluglib")
+MYSQL_ADD_PLUGIN(ftexample
+  example/plugin_example.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "mypluglib"
+  )
 
 # Ngram parser
-MYSQL_ADD_PLUGIN(ngram_parser ./ngram_parser/plugin_ngram.cc
-                 DEFAULT MODULE_OUTPUT_NAME "libpluginngram")
+MYSQL_ADD_PLUGIN(ngram_parser
+  ngram_parser/plugin_ngram.cc
+  DEFAULT
+  MODULE_OUTPUT_NAME "libpluginngram"
+  )
 
-# Mecab parser
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
+# Mecab parser, OFF by default.
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 INCLUDE(mecab)
 MYSQL_CHECK_MECAB()
+
+SET(MECAB_WARN_GIVEN)
+WARN_MISSING_SYSTEM_MECAB(MECAB_WARN_GIVEN)
+IF(MECAB_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR "-DWITH_MECAB=system, but missing system libraries")
+ENDIF()
 
 IF(WITH_DEBUG)
   ADD_DEFINITIONS(-DDEBUG)
@@ -42,8 +54,10 @@ ENDIF()
 IF(WITH_MECAB)
   INCLUDE_DIRECTORIES(${MECAB_INCLUDE_DIR})
 
-  MYSQL_ADD_PLUGIN(mecab_parser ./mecab_parser/plugin_mecab.cc
-                   MODULE_ONLY MODULE_OUTPUT_NAME "libpluginmecab")
-
-  TARGET_LINK_LIBRARIES(mecab_parser ${MECAB_LIBRARY})
+  MYSQL_ADD_PLUGIN(mecab_parser
+    mecab_parser/plugin_mecab.cc
+    LINK_LIBRARIES ${MECAB_LIBRARY}
+    MODULE_ONLY
+    MODULE_OUTPUT_NAME "libpluginmecab"
+    )
 ENDIF()

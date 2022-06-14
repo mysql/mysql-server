@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,9 @@
 #include "config_builder.h"
 #include "mysql/harness/utility/string.h"
 #include "router_component_test.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
+
+using namespace std::chrono_literals;
 
 struct BrokenConfigParams {
   std::string test_name;
@@ -51,11 +53,12 @@ TEST_P(RouterTestBrokenConfig, ensure) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(GetParam().sections, ""),
       &default_section)};
-  auto &router{launch_router({"-c", conf_file}, EXIT_FAILURE)};
+  auto &router{
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
 
-  EXPECT_NO_THROW(EXPECT_EQ(EXIT_FAILURE, router.wait_for_exit()));
+  check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_THAT(router.get_full_logfile(),
               ::testing::HasSubstr(GetParam().expected_logfile_substring));
@@ -66,13 +69,14 @@ TEST_P(RouterTestBrokenConfig, ensure) {
 static const BrokenConfigParams broken_config_params[]{
     {"routing_connect_timeout_is_zero",
      {
-         ConfigBuilder::build_section("routing",
-                                      {
-                                          {"bind_address", "127.0.0.1:7001"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                          {"connect_timeout", "0"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"connect_timeout", "0"},
+             }),
      },
      "Configuration error: option connect_timeout in [routing] "
      "needs value between 1 and 65535 inclusive, was '0'",
@@ -80,75 +84,125 @@ static const BrokenConfigParams broken_config_params[]{
 
     {"routing_connect_timeout_is_negative",
      {
-         ConfigBuilder::build_section("routing",
-                                      {
-                                          {"bind_address", "127.0.0.1:7001"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                          {"connect_timeout", "-1"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"connect_timeout", "-1"},
+             }),
      },
      "Configuration error: option connect_timeout in [routing] "
      "needs value between 1 and 65535 inclusive, was '-1'",
      ""},
 
+    {"routing_connect_timeout_is_hex",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"connect_timeout", "0x0"},
+             }),
+     },
+     "Configuration error: option connect_timeout in [routing] "
+     "needs value between 1 and 65535 inclusive, was '0x0'",
+     ""},
+
     {"routing_client_connect_timeout_is_one",
      {
-         ConfigBuilder::build_section("routing",
-                                      {
-                                          {"bind_address", "127.0.0.1:7001"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                          {"client_connect_timeout", "1"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"client_connect_timeout", "1"},
+             }),
      },
      "Configuration error: option client_connect_timeout in [routing] "
      "needs value between 2 and 31536000 inclusive, was '1'",
      ""},
 
+    {"routing_client_connect_timeout_is_hex",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"client_connect_timeout", "0x0"},
+             }),
+     },
+     "Configuration error: option client_connect_timeout in [routing] "
+     "needs value between 2 and 31536000 inclusive, was '0x0'",
+     ""},
+
     {"routing_max_connect_error_is_zero",
      {
-         ConfigBuilder::build_section("routing",
-                                      {
-                                          {"bind_address", "127.0.0.1:7001"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                          {"max_connect_errors", "0"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"max_connect_errors", "0"},
+             }),
      },
      "Configuration error: option max_connect_errors in [routing] "
      "needs value between 1 and 4294967295 inclusive, was '0'",
      ""},
 
+    {"routing_max_connect_error_is_hex",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"max_connect_errors", "0x0"},
+             }),
+     },
+     "Configuration error: option max_connect_errors in [routing] "
+     "needs value between 1 and 4294967295 inclusive, was '0x0'",
+     ""},
+
     {"routing_protocol_is_invalid",
      {
-         ConfigBuilder::build_section("routing",
-                                      {
-                                          {"bind_address", "127.0.0.1:7001"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                          {"protocol", "invalid"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"protocol", "invalid"},
+             }),
      },
      "Configuration error: Invalid protocol name: 'invalid'",
      ""},
 
     {"routing_protocol_is_empty",
      {
-         ConfigBuilder::build_section("routing",
-                                      {
-                                          {"bind_address", "127.0.0.1:7001"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                          {"protocol", ""},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"protocol", ""},
+             }),
      },
      "Configuration error: Invalid protocol name: ''",
      ""},
 
     {"routing_client_connect_timeout_is_too_large",
      {
-         ConfigBuilder::build_section(
+         mysql_harness::ConfigBuilder::build_section(
              "routing",
              {
                  {"bind_address", "127.0.0.1:7001"},
@@ -163,7 +217,7 @@ static const BrokenConfigParams broken_config_params[]{
 
     {"metadata_cache_invalid_bind_address",
      {
-         ConfigBuilder::build_section(
+         mysql_harness::ConfigBuilder::build_section(
              "metadata_cache",
              {
                  {"bootstrap_server_addresses",
@@ -175,10 +229,10 @@ static const BrokenConfigParams broken_config_params[]{
      ""},
     {"metadata_cache_no_bootstrap_server_addresses",
      {
-         ConfigBuilder::build_section("metadata_cache",
-                                      {
-                                          {"user", "foobar"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section("metadata_cache",
+                                                     {
+                                                         {"user", "foobar"},
+                                                     }),
      },
      "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
      "configuration file is empty or not set and no known "
@@ -186,11 +240,12 @@ static const BrokenConfigParams broken_config_params[]{
      ""},
     {"metadata_cache_empty_bootstrap_server_addresses",
      {
-         ConfigBuilder::build_section("metadata_cache",
-                                      {
-                                          {"user", "foobar"},
-                                          {"bootstrap_server_address", ""},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "metadata_cache",
+             {
+                 {"user", "foobar"},
+                 {"bootstrap_server_addresses", ""},
+             }),
      },
      "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
      "configuration file is empty or not set and no known "
@@ -199,114 +254,158 @@ static const BrokenConfigParams broken_config_params[]{
 
     {"metadata_cache_must_be_single",
      {
-         ConfigBuilder::build_section("metadata_cache:one", {}),
-         ConfigBuilder::build_section("metadata_cache:two", {}),
+         mysql_harness::ConfigBuilder::build_section("metadata_cache:one", {}),
+         mysql_harness::ConfigBuilder::build_section("metadata_cache:two", {}),
      },
      "",
      "MySQL Router currently supports only one metadata_cache instance."},
 
     {"metadata_cache_user_is_required",
      {
-         ConfigBuilder::build_section("metadata_cache:one", {}),
+         mysql_harness::ConfigBuilder::build_section("metadata_cache:one", {}),
      },
      "option user in [metadata_cache:one] is required",
      ""},
-
+    {"metadata_cache_gr_notifications_for_rs_cluster",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "metadata_cache", {{"user", "whateva"},
+                                {"cluster_type", "rs"},
+                                {"use_gr_notifications", "1"}}),
+     },
+     "option 'use_gr_notifications' is not valid for cluster type 'rs'",
+     ""},
+    {"metadata_cache_invalid_cluster_type",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "metadata_cache",
+             {
+                 {"user", "whateva"},
+                 {"cluster_type", "invalid"},
+             }),
+     },
+     " option cluster_type in [metadata_cache] is incorrect 'invalid', "
+     "expected 'rs' or 'gr'",
+     ""},
+    {"metadata_cache_invalid_cluster_type2",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "metadata_cache",
+             {
+                 {"user", "whateva"},
+                 {"cluster_type", "<>."},
+             }),
+     },
+     " option cluster_type in [metadata_cache] is incorrect '<>.', expected "
+     "'rs' or 'gr'",
+     ""},
     {"no_plugin",
      {},
      "",
-     "Error: MySQL Router not configured to load or start "
-     "any plugin. Exiting."},
+     "Error: The service is not configured to load or start any plugin. "
+     "Exiting."},
 
     {"routing_no_bind_nor_socket",
      {
-         ConfigBuilder::build_section("routing:tests",
-                                      {
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"mode", "read-only"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+             }),
      },
      "either bind_address or socket option needs to be supplied, or both",
      ""},
 
     {"routing_no_destinations",
      {
-         ConfigBuilder::build_section("routing:tests",
-                                      {
-                                          {"bind_address", "127.0.0.1:3307"},
-                                          {"mode", "read-only"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"bind_address", "127.0.0.1:3307"},
+                 {"mode", "read-only"},
+             }),
      },
      "option destinations in [routing:tests] is required",
      ""},
 
     {"routing_bind_address_invalid_port",
      {
-         ConfigBuilder::build_section("routing:tests",
-                                      {
-                                          {"bind_address", "127.0.0.1:99999"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"routing_strategy", "round-robin"},
-                                      }),
-     },
-     "incorrect (invalid TCP port: impossible port number",
-     ""},
-
-    {"routing_bind_address_invalid_address",
-     {
-         ConfigBuilder::build_section(
+         mysql_harness::ConfigBuilder::build_section(
              "routing:tests",
              {
-                 {"bind_address", "512.512.512.512:3306"},
+                 {"bind_address", "127.0.0.1:99999"},
                  {"destinations", "127.0.0.1:3306"},
                  {"routing_strategy", "round-robin"},
              }),
      },
-     "in [routing:tests]: invalid IP or name in bind_address "
-     "'512.512.512.512:3306'",
+     "in [routing:tests]: '127.0.0.1:99999' is not a valid endpoint",
+     ""},
+
+    {"routing_bind_address_invalid_address",
+     // '....' should be invalid in all environments as each "label" is 0 chars
+     // which isn't allowed.
+     //
+     // - 512.512.512.512 is not an IPv4 address and will be tried to be
+     //   resolved which may timeout.
+     // - a domainname's label is at least 1-char.
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"bind_address", "....:3306"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"routing_strategy", "round-robin"},
+             }),
+     },
+     "in [routing:tests]: '....' in '....:3306' is not a valid IP-address or "
+     "hostname",
      ""},
 
     {"routing_bind_address_is_in_destinations",
      {
-         ConfigBuilder::build_section("routing:tests",
-                                      {
-                                          {"bind_address", "127.0.0.1:3306"},
-                                          {"destinations", "127.0.0.1"},
-                                          {"routing_strategy", "round-robin"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"bind_address", "127.0.0.1:3306"},
+                 {"destinations", "127.0.0.1"},
+                 {"routing_strategy", "round-robin"},
+             }),
      },
      "Bind Address can not be part of destination",
      ""},
 
     {"routing_mode_is_case_insenstive",
      {
-         ConfigBuilder::build_section("routing:tests",
-                                      {
-                                          {"bind_address", "127.0.0.1:3307"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"routing_strategy", "round-robin"},
-                                          {"mode", "Read-Only"},
-                                      }),
-         ConfigBuilder::build_section("routing:break", {}),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"bind_address", "127.0.0.1:3307"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"routing_strategy", "round-robin"},
+                 {"mode", "Read-Only"},
+             }),
+         mysql_harness::ConfigBuilder::build_section("routing:break", {}),
      },
      "routing:break",
      ""},
 
     {"routing_routing_strategy_is_case_insenstive",
      {
-         ConfigBuilder::build_section("routing:tests",
-                                      {
-                                          {"bind_address", "127.0.0.1:3307"},
-                                          {"destinations", "127.0.0.1:3306"},
-                                          {"routing_strategy", "Round-Robin"},
-                                      }),
-         ConfigBuilder::build_section("routing:break", {}),
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"bind_address", "127.0.0.1:3307"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"routing_strategy", "Round-Robin"},
+             }),
+         mysql_harness::ConfigBuilder::build_section("routing:break", {}),
      },
      "routing:break",
      ""},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, RouterTestBrokenConfig, ::testing::ValuesIn(broken_config_params),
     [](const ::testing::TestParamInfo<BrokenConfigParams> &info) {
       return info.param.test_name;
@@ -316,7 +415,7 @@ INSTANTIATE_TEST_CASE_P(
 static const BrokenConfigParams broken_config_params_unix[]{
     {"routing_bad_socket",
      {
-         ConfigBuilder::build_section(
+         mysql_harness::ConfigBuilder::build_section(
              "routing:tests",
              {
                  {"destinations", "127.0.0.1:3306"},
@@ -325,12 +424,12 @@ static const BrokenConfigParams broken_config_params_unix[]{
                  {"socket", "/this/path/does/not/exist/socket"},
              }),
      },
-     "Setting up named socket service '/this/path/does/not/exist/socket': No "
-     "such file or directory",
+     "Failed setting up named socket service "
+     "'/this/path/does/not/exist/socket': No such file or directory",
      ""},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SpecUnix, RouterTestBrokenConfig,
     ::testing::ValuesIn(broken_config_params_unix),
     [](const ::testing::TestParamInfo<BrokenConfigParams> &info) {
@@ -338,15 +437,60 @@ INSTANTIATE_TEST_CASE_P(
     });
 #endif
 
+class RouterDefaultConfigSectionTest : public RouterComponentTest {};
+
+class UnreachableDestinationRefreshIntervalOption
+    : public RouterDefaultConfigSectionTest,
+      public ::testing::WithParamInterface<std::string> {};
+
+/**
+ * @test WL14663:TS_R2_1
+ */
+TEST_P(UnreachableDestinationRefreshIntervalOption, ensure) {
+  TempDirectory conf_dir_;
+  auto default_section = get_DEFAULT_defaults();
+  const std::string unreachable_dest_refresh =
+      "unreachable_destination_refresh_interval = " + GetParam();
+
+  std::vector<std::string> sections{mysql_harness::ConfigBuilder::build_section(
+      "routing", {
+                     {"bind_address", "127.0.0.1:7001"},
+                     {"destinations", "127.0.0.1:3306"},
+                     {"mode", "read-only"},
+                     {"connect_timeout", "1"},
+                 })};
+  const std::string conf_file{
+      create_config_file(conf_dir_.name(), mysql_harness::join(sections, ""),
+                         &default_section, "test", unreachable_dest_refresh)};
+
+  auto &router{
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_THAT(router.get_full_logfile(),
+              ::testing::HasSubstr(
+                  "Configuration error: option "
+                  "unreachable_destination_refresh_interval in [default] needs "
+                  "value between 1 and 65535 inclusive, was '" +
+                  GetParam() + "'"));
+}
+
+INSTANTIATE_TEST_SUITE_P(UnreachableDestinationRefreshIntervalOptionTest,
+                         UnreachableDestinationRefreshIntervalOption,
+                         ::testing::ValuesIn(std::vector<std::string>{
+                             "0", "-1", "65536", "10a"}));
+
 class RouterCmdlineTest : public RouterComponentTest {
  protected:
   TempDirectory conf_dir_;
 };
 
 TEST_F(RouterCmdlineTest, help_output_is_sane) {
-  auto &router{launch_router(std::vector<std::string>{"--help"})};
+  auto &router{launch_router(std::vector<std::string>{"--help"}, EXIT_SUCCESS,
+                             true, false, -1s)};
 
-  EXPECT_NO_THROW(EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit()));
+  check_exit_code(router, EXIT_SUCCESS);
 
   EXPECT_THAT(router.get_full_output(),
               ::testing::StartsWith("MySQL Router  Ver "));
@@ -412,13 +556,13 @@ TEST_F(RouterCmdlineTest, help_output_is_sane) {
 
 TEST_F(RouterCmdlineTest, one_plugin_works) {
   std::vector<std::string> sections{
-      ConfigBuilder::build_section("routertestplugin_magic", {}),
+      mysql_harness::ConfigBuilder::build_section("routertestplugin_magic", {}),
   };
-  const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(sections, "\n"))};
+  const std::string conf_file{
+      create_config_file(conf_dir_.name(), mysql_harness::join(sections, ""))};
   auto &router{launch_router({"-c", conf_file})};
 
-  EXPECT_NO_THROW(EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit()));
+  check_exit_code(router, EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {

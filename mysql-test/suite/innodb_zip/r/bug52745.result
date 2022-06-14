@@ -1,5 +1,7 @@
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE bug52745 (
 a2 int(10) unsigned DEFAULT NULL,
 col37 time DEFAULT NULL,
@@ -42,7 +44,7 @@ col73 smallint(5) unsigned zerofill DEFAULT NULL,
 col74 longblob,
 col75 bit(34) DEFAULT NULL,
 col76 float unsigned zerofill DEFAULT NULL,
-col77 year(4) DEFAULT NULL,
+col77 year DEFAULT NULL,
 col78 tinyint(3) unsigned DEFAULT NULL,
 col79 set('msfheowh','tbpxbgf','by','wahnrjw','myqfasxz','rsokyumrt') CHARACTER SET latin2 DEFAULT NULL,
 col80 datetime DEFAULT NULL,
@@ -96,6 +98,7 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 Note	1291	Column 'col82' has duplicated value '' in ENUM
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 INSERT IGNORE INTO bug52745 SET
 col40='0000-00-00 00:00:00',

@@ -6,7 +6,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -21,7 +21,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -36,7 +36,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -51,7 +51,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -66,7 +66,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -81,7 +81,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -96,7 +96,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -111,7 +111,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -126,7 +126,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -141,7 +141,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -156,7 +156,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -171,7 +171,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -186,7 +186,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -201,7 +201,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -216,7 +216,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -231,7 +231,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -246,7 +246,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -261,7 +261,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -276,7 +276,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -291,7 +291,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -306,7 +306,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -321,7 +321,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -336,7 +336,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -351,7 +351,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -366,7 +366,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -381,7 +381,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -396,7 +396,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -411,7 +411,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -426,7 +426,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -441,7 +441,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -456,7 +456,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -471,7 +471,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -486,7 +486,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -501,7 +501,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -516,7 +516,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -531,7 +531,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -546,7 +546,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -561,7 +561,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -576,7 +576,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -591,7 +591,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -606,7 +606,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -621,7 +621,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -636,7 +636,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -651,7 +651,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -666,7 +666,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -681,7 +681,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -696,7 +696,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -711,7 +711,7 @@ t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

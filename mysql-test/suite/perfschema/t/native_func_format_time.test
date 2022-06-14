@@ -69,15 +69,24 @@ SELECT format_pico_time(8640000000000000000099 * 2);
 --echo
 
 --echo
---echo ## Bad input
---error ER_DATA_OUT_OF_RANGE
+--echo ## Text input
 SELECT format_pico_time("foo");
 --echo
+SELECT format_pico_time("");
+--echo
+SELECT format_pico_time("118059162071741143500099");
+--echo
+SELECT format_pico_time("-118059162071741143500099");
+--echo
+--echo ## Recognizes up to first non-numeric
+SELECT format_pico_time("40000 * 2000");
+--echo
+SELECT format_pico_time("40000 foo 2000");
 
 --echo ## Aggregate functions
 USE test;
 --echo
-CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 --echo
 # Max BIGINT unsigned is  18 446 744 073 709 551 615
 INSERT INTO timer_waits VALUES ('1 sec',          1000000000000);
@@ -97,3 +106,21 @@ SELECT min(wait), format_pico_time(min(wait)) FROM timer_waits;
 SELECT max(wait), format_pico_time(max(wait)) FROM timer_waits;
 --echo
 DROP TABLE timer_waits;
+
+--echo
+--echo ## Handling of NULL (bug#30525561)
+
+SELECT mytime,
+       FORMAT_PICO_TIME(mytime) AS PS_TIME,
+       sys.format_time(mytime) AS SYS_TIME
+  FROM (SELECT 1234 AS mytime
+        UNION ALL
+        SELECT 1234567890
+        UNION ALL
+        SELECT NULL
+        UNION ALL
+        SELECT 1234
+        UNION ALL
+        SELECT 1234567890
+       ) t;
+

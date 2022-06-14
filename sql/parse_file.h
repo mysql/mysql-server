@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,7 @@ struct File_option {
 
 class Unknown_key_hook {
  public:
-  Unknown_key_hook() {}          /* Remove gcc warning */
-  virtual ~Unknown_key_hook() {} /* Remove gcc warning */
+  virtual ~Unknown_key_hook() = default;
   virtual bool process_unknown_string(const char *&unknown_key, uchar *base,
                                       MEM_ROOT *mem_root, const char *end) = 0;
 };
@@ -69,9 +68,8 @@ class Unknown_key_hook {
 */
 class File_parser_dummy_hook : public Unknown_key_hook {
  public:
-  File_parser_dummy_hook() {} /* Remove gcc warning */
-  virtual bool process_unknown_string(const char *&unknown_key, uchar *,
-                                      MEM_ROOT *, const char *);
+  bool process_unknown_string(const char *&unknown_key, uchar *, MEM_ROOT *,
+                              const char *) override;
 };
 
 extern File_parser_dummy_hook file_parser_dummy_hook;
@@ -91,8 +89,8 @@ class File_parser {
   bool content_ok;
 
  public:
-  File_parser() : start(0), end(0), content_ok(0) {
-    file_type.str = 0;
+  File_parser() : start(nullptr), end(nullptr), content_ok(false) {
+    file_type.str = nullptr;
     file_type.length = 0;
   }
 

@@ -8,7 +8,7 @@ ERROR HY000: Cannot load component from specified URN: 'file://component_example
 UNINSTALL COMPONENT "file://component_example_component1";
 # Load not existing
 INSTALL COMPONENT "file://component_example_component4";
-ERROR HY000: Cannot load component from specified URN: 'file://component_example_component4'.
+ERROR HY000: Can't open shared library
 # Load with unsatisfied dependencies
 INSTALL COMPONENT "file://component_example_component3";
 ERROR HY000: Cannot satisfy dependency for service 'greetings' required by component 'mysql:example_component3'.
@@ -140,7 +140,7 @@ COUNT(*)
 INSTALL COMPONENT "dynamic_loader_test_lib1";
 ERROR HY000: Cannot find schema in specified URN: 'dynamic_loader_test_lib1'.
 INSTALL COMPONENT "file://dynamic_loader_test_lib2", "dynamic_loader_test_lib3";
-ERROR HY000: Cannot load component from specified URN: 'file://dynamic_loader_test_lib2'.
+ERROR HY000: Can't open shared library
 UNINSTALL COMPONENT "fle://dynamic_loader_test_lib1", "file://dynamic_loader_test_lib3";
 ERROR HY000: Component specified by URN 'fle://dynamic_loader_test_lib1' to unload has not been loaded before.
 UNINSTALL COMPONENT "dynamic_loader_test_lib2";
@@ -150,7 +150,7 @@ ERROR HY000: Cannot load component from specified URN: 'file://localhost/tmp/dyn
 INSTALL COMPONENT "http://dynamic_loader_test_lib1";
 ERROR HY000: Cannot acquire scheme load service implementation for schema 'http' in specified URN: 'http://dynamic_loader_test_lib1'.
 INSTALL COMPONENT "file://dynamic_loader_test_lib2", "http://dynamic_loader_test_lib3";
-ERROR HY000: Cannot load component from specified URN: 'file://dynamic_loader_test_lib2'.
+ERROR HY000: Can't open shared library
 UNINSTALL COMPONENT "file://dynamic_loader_test_lib1", "http://dynamic_loader_test_lib3";
 ERROR HY000: Component specified by URN 'file://dynamic_loader_test_lib1' to unload has not been loaded before.
 UNINSTALL COMPONENT "http://dynamic_loader_test_lib2";

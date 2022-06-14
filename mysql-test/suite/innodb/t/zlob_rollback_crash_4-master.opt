@@ -1,0 +1,2 @@
+--log_error_verbosity=3
+--debug=+d,lob_rollback_print_index_size

@@ -1,0 +1,742 @@
+#
+# IMPORT/EXPORT for non-partitioned tables with autoextend_size
+#
+
+# Create source and destination databases and stored procedure to load the tables
+
+CREATE DATABASE db_source;
+USE db_source;
+CREATE PROCEDURE bulk_insert_source()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE i < 500 DO
+INSERT INTO tsource VALUES(i, repeat('aaaaaa', 10000));
+SET i = i + 1;
+END WHILE;
+END
+|
+CREATE DATABASE db_destination;
+USE db_destination;
+CREATE PROCEDURE bulk_insert_dest()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE i < 500 DO
+INSERT INTO tsource VALUES(i, repeat('aaaaaa', 10000));
+SET i = i + 1;
+END WHILE;
+END
+|
+# Scenario-1:
+#   Create and populate a non-partitioned table on the source db with autoextend_size 4m
+#   Create a table on the destination db with same schema and autoextend_size
+#      values as that on the source db
+#   ALTER TABLE ... DISCARD TABLESPACE on the destination table
+#   FLUSH TABLE ... FOR EXPORT on the source table
+#   Copy .cfg and .ibd files from the source to the destination db
+#   UNLOCK TABLES
+#   ALTER TABLE ... IMPORT TABLESPACE on the destination table
+#   Verify that the number of rows seen on the destination table are same as seen on the source table
+
+USE db_source;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	37748736	4194304
+USE db_destination;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource.cfg
+tsource.ibd
+# List of files on destination
+tsource.cfg
+tsource.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	37748736	4194304
+db_destination/tsource	37748736	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-2:
+#   Same as scenario-1. But, do not copy the .cfg file and verify the contents on the source and destination
+
+USE db_source;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	37748736	4194304
+USE db_destination;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource.cfg
+tsource.ibd
+# List of files on destination
+tsource.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	37748736	4194304
+db_destination/tsource	37748736	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-3:
+#   Create an empty table on source with autoextend_size 8m
+#   Create a table with the same schema as the source but with autoextend_size 4m
+#   Discard tablespace on destination
+#   Flush source table for export
+#   Copy .cfg and .ibd file from source to destination
+#   UNLOCK TABLES
+#   Import tablespace on the destination
+#   Load data on the destination table
+
+USE db_source;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M;
+USE db_destination;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4m;
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource.cfg
+tsource.ibd
+# List of files on destination
+tsource.cfg
+tsource.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	8388608	8388608
+db_destination/tsource	8388608	4194304
+call bulk_insert_dest();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	8388608	8388608
+db_destination/tsource	37748736	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-4:
+#   Create a table with encryption turned on with autoextend_size as 8M
+#   Create a table on the destination with the same schema as the source but with autoextend_size 4M
+#   Discard tablespace on destination
+#   Flush source table for export
+#   Copy .cfg, .cfp and .ibd file from source to destination
+#   UNLOCK TABLES
+#   Import tablespace on the destination
+#   Load data on the destination table
+
+USE db_source;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M, ENCRYPTION='Y';
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+USE db_destination;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4m, ENCRYPTION='Y';
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource.cfg
+tsource.cfp
+tsource.ibd
+# List of files on destination
+tsource.cfg
+tsource.cfp
+tsource.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	41943040	8388608
+db_destination/tsource	41943040	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-5:
+#   Create a table with encryption turned on with autoextend_size as 8M
+#   Create a table on the destination with the same schema as the source but with default autoextend_size
+#   Discard tablespace on destination
+#   Flush source table for export
+#   Copy .cfg and .ibd file from source to destination but do not copy .cfp file
+#   UNLOCK TABLES
+#   Import tablespace on the destination
+#   Load data on the destination table
+
+USE db_source;
+CREATE TABLE tsource (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M, ENCRYPTION='Y';
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+USE db_destination;
+CREATE TABLE tsource (c1 INT, c2 TEXT) ENCRYPTION='Y';
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource.cfg
+tsource.cfp
+tsource.ibd
+# List of files on destination
+tsource.cfg
+tsource.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table is in an encrypted tablespace, but the encryption meta-data file cannot be found while importing.)
+DROP TABLE tsource;
+# List of files to be removed from destination
+tsource.cfg
+tsource.ibd
+CREATE TABLE tsource (c1 INT, c2 TEXT) ENCRYPTION='Y';
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	41943040	8388608
+db_destination/tsource	0	0
+# List of files on source
+tsource.cfg
+tsource.cfp
+tsource.ibd
+# List of files on destination
+tsource.cfg
+tsource.cfp
+tsource.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource	41943040	8388608
+db_destination/tsource	41943040	0
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+#
+# IMPORT/EXPORT for partitioned tables with autoextend_size
+#
+
+# Scenario-1:
+#   Create and populate a partitioned table on the source
+#   Create similar partitioned table on the destination
+#   Discard tablespace on the destination
+#   Flush table for export on source
+#   Copy .cfg and .ibd files from source to destination
+#   UNLOCK TABLES
+#   Import tablespace on the destination
+#   Verify the contents of the source and destination tables
+#   Verify that the autoextend_size values are retained
+#     on all the partitions after import
+
+USE db_source;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+USE db_destination;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M
+PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+db_destination/tsource#p#p0	20971520	8388608
+db_destination/tsource#p#p1	20971520	8388608
+db_destination/tsource#p#p2	4194304	8388608
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-2:
+#   Same as scenario-1, but without copying the .cfg files to the destination db
+
+USE db_source;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+USE db_destination;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M
+PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.ibd
+tsource#p#p1.ibd
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+db_destination/tsource#p#p0	20971520	8388608
+db_destination/tsource#p#p1	20971520	8388608
+db_destination/tsource#p#p2	4194304	8388608
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-3:
+#   Same as scenario-1, but without copying .cfg file for one partition
+
+USE db_source;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+USE db_destination;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M
+PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+db_destination/tsource#p#p0	20971520	8388608
+db_destination/tsource#p#p1	20971520	8388608
+db_destination/tsource#p#p2	4194304	8388608
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-4:
+#   Create a partitioned table on the source with encryption turned on and autoextend_size 4m
+#   Load the table on the source db
+#   Create a partitioned table on the destination with encryption turned on and autoextend_size
+#     4m and schema similar to that on the source db
+#   ALTER TABLE ... DISCARD TABLESPACE on destination db
+#   FLUSH TABLE ... FOR EXPORT on source db
+#   Copy the .ibd, .cfg and .cfp files from source db to destination db
+#   UNLOCK TABLES
+#   ALTER TABLE ... IMPORT TABLESPACE on destination db
+#   Verify that the data is successfully imported on the destination db
+
+USE db_source;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+USE db_destination;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+db_destination/tsource#p#p0	20971520	4194304
+db_destination/tsource#p#p1	20971520	4194304
+db_destination/tsource#p#p2	4194304	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-5:
+#   Same as scenario-4, but do not copy the .cfp files from the source
+#     to the destination db
+#   Verify that the data is successfully imported on the destination db
+
+USE db_source;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+USE db_destination;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table is in an encrypted tablespace, but the encryption meta-data file cannot be found while importing.)
+DROP TABLE tsource;
+# List of files to be removed from destination
+tsource#p#p0.cfg
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.ibd
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+db_destination/tsource#p#p0	20971520	4194304
+db_destination/tsource#p#p1	20971520	4194304
+db_destination/tsource#p#p2	4194304	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Scenario-6:
+#   Same as scenario-4, but do not copy the .cfp and .cfg files from the source
+#     to the destination db
+#   Verify that the data is successfully imported on the destination db
+
+USE db_source;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+call bulk_insert_source();
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+USE db_destination;
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.ibd
+tsource#p#p1.ibd
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table is in an encrypted tablespace, but the encryption meta-data file cannot be found while importing.)
+DROP TABLE tsource;
+# List of files to be removed from destination
+tsource#p#p0.ibd
+tsource#p#p1.ibd
+tsource#p#p2.ibd
+CREATE TABLE tsource(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M, ENCRYPTION='Y'
+  PARTITION BY RANGE(c1) (
+PARTITION p0 VALUES LESS THAN (250),
+PARTITION p1 VALUES LESS THAN (600),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ALTER TABLE tsource DISCARD TABLESPACE;
+USE db_source;
+FLUSH TABLE tsource FOR EXPORT;
+# List of files on source
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+# List of files on destination
+tsource#p#p0.cfg
+tsource#p#p0.cfp
+tsource#p#p0.ibd
+tsource#p#p1.cfg
+tsource#p#p1.cfp
+tsource#p#p1.ibd
+tsource#p#p2.cfg
+tsource#p#p2.cfp
+tsource#p#p2.ibd
+UNLOCK TABLES;
+USE db_destination;
+ALTER TABLE tsource IMPORT TABLESPACE;
+SELECT COUNT(*) FROM tsource;
+COUNT(*)
+499
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%tsource%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+db_source/tsource#p#p0	20971520	4194304
+db_source/tsource#p#p1	20971520	4194304
+db_source/tsource#p#p2	4194304	4194304
+db_destination/tsource#p#p0	20971520	4194304
+db_destination/tsource#p#p1	20971520	4194304
+db_destination/tsource#p#p2	4194304	4194304
+DROP TABLE tsource;
+USE db_source;
+DROP TABLE tsource;
+# Cleanup
+USE db_source;
+DROP PROCEDURE bulk_insert_source;
+DROP DATABASE db_source;
+USE db_destination;
+DROP PROCEDURE bulk_insert_dest;
+DROP DATABASE db_destination;

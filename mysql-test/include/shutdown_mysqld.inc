@@ -10,6 +10,14 @@ if ($rpl_inited)
 # Write file to make mysql-test-run.pl expect the "crash", but don't start it
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
+# Allow caller to provide a different server name rather than just using server_id
+# This is useful when the suffix is not just .serverid but .serverid.clusterid
+if ($mysqld_name)
+{
+  let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/$mysqld_name.expect;
+}
+
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server.

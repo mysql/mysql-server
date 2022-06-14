@@ -4,13 +4,13 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '' failed, t
 Bug #21472634
 RUN show processlist;
 Id	User	Host	db	Command		State	Info
-4	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
+5	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
 $PROC_1_ID	root	localhost	test	Sleep		null
-$PROC_2_ID	x_root	localhost	null	Query	null	PLUGIN: show processlist
+$PROC_2_ID	x_root	localhost	null	Query	init	PLUGIN: show processlist
 0 rows affected
 RUN SELECT id,user,command,state FROM information_schema.processlist ORDER BY id
 id	user	command	state
-4	event_scheduler	Daemon	Waiting on empty queue
+5	event_scheduler	Daemon	Waiting on empty queue
 $PROC_1_ID	root	Sleep	
 $PROC_2_ID	x_root	Query	executing
 0 rows affected
@@ -91,11 +91,6 @@ create user expired@localhost;
 alter user expired@localhost password expire;
 Check whether password expired sandbox applies to admin cmds
 NOTICE: Account password expired
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 send Mysqlx.Sql.StmtExecute {
   stmt: "set password=\'a\'"
@@ -103,11 +98,6 @@ send Mysqlx.Sql.StmtExecute {
 
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	sql_session
 N	expired	localhost	N
 command ok

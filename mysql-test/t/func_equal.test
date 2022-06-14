@@ -45,3 +45,29 @@ select * from t1 where a in ('4828532208463511553');
 drop table t1;
 
 # End of 4.1 tests
+
+--echo # 33790919: Null-safe compare works incorrectly with TIMESTAMP in trigger
+
+CREATE TABLE t1(id INT, ts TIMESTAMP NULL DEFAULT NULL);
+INSERT INTO t1 VALUES (1, "2022-01-01"), (2, NULL), (NULL, "2022-01-01");
+
+delimiter //;
+CREATE TRIGGER tr_bi_check_uniqueness_with_nulls
+BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  IF EXISTS (SELECT * FROM t1 WHERE t1.id <=> NEW.id AND t1.ts <=> NEW.ts) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Duplicated values not allowed.';
+  END IF;
+END
+//
+delimiter ;//
+--error ER_SIGNAL_EXCEPTION
+INSERT INTO t1 VALUES (1,'2022-01-01');
+--error ER_SIGNAL_EXCEPTION
+INSERT INTO t1 VALUES (2, NULL);
+--error ER_SIGNAL_EXCEPTION
+INSERT INTO t1 VALUES (NULL,'2022-01-01');
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

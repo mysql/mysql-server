@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ the file COPYING.Google.
 #define sync0sharded_rw_h
 
 #include "sync0rw.h"
+#include "ut0cpu_cache.h"
 #include "ut0rnd.h"
 #include "ut0ut.h"
 
@@ -60,13 +61,22 @@ in single rw-lock when a lot of threads need to acquire s-lock very often,
 but x-lock is very rare. */
 class Sharded_rw_lock {
  public:
-  void create(mysql_pfs_key_t pfs_key, latch_level_t latch_level,
-              size_t n_shards) {
+  void create(
+#ifdef UNIV_PFS_RWLOCK
+      mysql_pfs_key_t pfs_key,
+#endif
+      latch_level_t latch_level, size_t n_shards) {
+    ut_ad(ut_is_2pow(n_shards));
     m_n_shards = n_shards;
 
-    m_shards = static_cast<Shard *>(ut_zalloc_nokey(sizeof(Shard) * n_shards));
+    m_shards = static_cast<Shard *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(Shard) * n_shards));
 
-    for_each([pfs_key, latch_level](rw_lock_t &lock) {
+    for_each([
+#ifdef UNIV_PFS_RWLOCK
+                 pfs_key,
+#endif
+                 latch_level](rw_lock_t &lock) {
       static_cast<void>(latch_level);  // clang -Wunused-lambda-capture
       rw_lock_create(pfs_key, &lock, latch_level);
     });
@@ -77,29 +87,51 @@ class Sharded_rw_lock {
 
     for_each([](rw_lock_t &lock) { rw_lock_free(&lock); });
 
-    ut_free(m_shards);
+    ut::free(m_shards);
     m_shards = nullptr;
     m_n_shards = 0;
   }
 
-  size_t s_lock() {
-    const size_t shard_no = ut_rnd_interval(0, m_n_shards - 1);
-    rw_lock_s_lock(&m_shards[shard_no].lock);
+  size_t s_lock(ut::Location location) {
+    const size_t shard_no =
+        default_indexer_t<>::get_rnd_index() & (m_n_shards - 1);
+    rw_lock_s_lock_gen(&m_shards[shard_no], 0, location);
     return shard_no;
-  }
-
-  ibool s_lock_nowait(size_t &shard_no, const char *file, ulint line) {
-    shard_no = ut_rnd_interval(0, m_n_shards - 1);
-    return rw_lock_s_lock_nowait(&m_shards[shard_no].lock, file, line);
   }
 
   void s_unlock(size_t shard_no) {
     ut_a(shard_no < m_n_shards);
-    rw_lock_s_unlock(&m_shards[shard_no].lock);
+    rw_lock_s_unlock(&m_shards[shard_no]);
+  }
+  /** Checks if there is a thread requesting an x-latch waiting for threads to
+  release their s-latches on given shard.
+  @param[in]  shard_no  The shard to check.
+  @return true iff there is an x-latcher blocked by s-latchers on shard_no. */
+  bool is_x_blocked_by_s(size_t shard_no) {
+    ut_a(shard_no < m_n_shards);
+    return m_shards[shard_no].is_x_blocked_by_s();
+  }
+  /**
+  Tries to obtain exclusive latch - similar to x_lock(), but non-blocking, and
+  thus can fail.
+  @return true iff succeeded to acquire the exclusive latch
+  */
+  bool try_x_lock(ut::Location location) {
+    for (size_t shard_no = 0; shard_no < m_n_shards; ++shard_no) {
+      if (!rw_lock_x_lock_nowait(&m_shards[shard_no], location)) {
+        while (0 < shard_no--) {
+          rw_lock_x_unlock(&m_shards[shard_no]);
+        }
+        return (false);
+      }
+    }
+    return (true);
   }
 
-  void x_lock() {
-    for_each([](rw_lock_t &lock) { rw_lock_x_lock(&lock); });
+  void x_lock(ut::Location location) {
+    for_each([location](rw_lock_t &lock) {
+      rw_lock_x_lock_gen(&lock, 0, location);
+    });
   }
 
   void x_unlock() {
@@ -108,23 +140,18 @@ class Sharded_rw_lock {
 
 #ifdef UNIV_DEBUG
   bool s_own(size_t shard_no) const {
-    return rw_lock_own(&m_shards[shard_no].lock, RW_LOCK_S);
+    return rw_lock_own(&m_shards[shard_no], RW_LOCK_S);
   }
 
-  bool x_own() const { return rw_lock_own(&m_shards[0].lock, RW_LOCK_X); }
+  bool x_own() const { return rw_lock_own(&m_shards[0], RW_LOCK_X); }
 #endif /* !UNIV_DEBUG */
 
  private:
-  struct Shard {
-    rw_lock_t lock;
-
-    char pad[INNOBASE_CACHE_LINE_SIZE];
-  };
+  using Shard = ut::Cacheline_padded<rw_lock_t>;
 
   template <typename F>
   void for_each(F f) {
-    std::for_each(m_shards, m_shards + m_n_shards,
-                  [&f](Shard &shard) { f(shard.lock); });
+    std::for_each(m_shards, m_shards + m_n_shards, f);
   }
 
   Shard *m_shards = nullptr;
@@ -138,8 +165,12 @@ class Sharded_rw_lock {
 
 class Sharded_rw_lock {
  public:
-  void create(mysql_pfs_key_t pfs_key, latch_level_t latch_level,
-              size_t n_shards) {}
+  void create(
+#ifdef UNIV_PFS_RWLOCK
+      mysql_pfs_key_t pfs_key,
+#endif
+      latch_level_t latch_level, size_t n_shards) {
+  }
 
   void free() {}
 

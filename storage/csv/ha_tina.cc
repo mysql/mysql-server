@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,8 +61,10 @@ TODO:
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "template_utils.h"
@@ -101,6 +103,11 @@ static unique_ptr<collation_unordered_multimap<string, TINA_SHARE *>>
     tina_open_tables;
 static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table,
                                     bool partitioned, MEM_ROOT *mem_root);
+
+/* Interface to mysqld, to check system tables supported by SE */
+static bool tina_is_supported_system_table(const char *db,
+                                           const char *table_name,
+                                           bool is_sql_layer_system_table);
 
 /*****************************************************************************
  ** TINA tables
@@ -176,6 +183,7 @@ static int tina_init_func(void *p) {
       (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | HTON_NO_PARTITION);
   tina_hton->file_extensions = ha_tina_exts;
   tina_hton->rm_tmp_tables = default_rm_tmp_tables;
+  tina_hton->is_supported_system_table = tina_is_supported_system_table;
   return 0;
 }
 
@@ -209,7 +217,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *) {
                          &share, sizeof(*share), &tmp_name, length + 1,
                          NullS)) {
       mysql_mutex_unlock(&tina_mutex);
-      return NULL;
+      return nullptr;
     }
 
     share->use_count = 0;
@@ -228,7 +236,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *) {
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
     if (mysql_file_stat(csv_key_file_data, share->data_file_name, &file_stat,
-                        MYF(MY_WME)) == NULL)
+                        MYF(MY_WME)) == nullptr)
       goto error;
     share->saved_data_file_length = file_stat.st_size;
 
@@ -261,7 +269,7 @@ error:
   mysql_mutex_unlock(&tina_mutex);
   my_free(share);
 
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -287,12 +295,12 @@ static int read_meta_file(File meta_file, ha_rows *rows) {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr = meta_buffer;
 
-  DBUG_ENTER("ha_tina::read_meta_file");
+  DBUG_TRACE;
 
   mysql_file_seek(meta_file, 0, MY_SEEK_SET, MYF(0));
   if (mysql_file_read(meta_file, (uchar *)meta_buffer, META_BUFFER_SIZE, 0) !=
       META_BUFFER_SIZE)
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    return HA_ERR_CRASHED_ON_USAGE;
 
   /*
     Parse out the meta data, we ignore version at the moment
@@ -309,11 +317,11 @@ static int read_meta_file(File meta_file, ha_rows *rows) {
 
   /* check crashed bit and magic number */
   if ((meta_buffer[0] != (uchar)TINA_CHECK_HEADER) || ((bool)(*ptr) == true))
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    return HA_ERR_CRASHED_ON_USAGE;
 
   mysql_file_sync(meta_file, MYF(MY_WME));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -339,7 +347,7 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty) {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr = meta_buffer;
 
-  DBUG_ENTER("ha_tina::write_meta_file");
+  DBUG_TRACE;
 
   *ptr = (uchar)TINA_CHECK_HEADER;
   ptr += sizeof(uchar);
@@ -358,24 +366,22 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty) {
   mysql_file_seek(meta_file, 0, MY_SEEK_SET, MYF(0));
   if (mysql_file_write(meta_file, (uchar *)meta_buffer, META_BUFFER_SIZE, 0) !=
       META_BUFFER_SIZE)
-    DBUG_RETURN(-1);
+    return -1;
 
   mysql_file_sync(meta_file, MYF(MY_WME));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool ha_tina::check_and_repair(THD *thd) {
   HA_CHECK_OPT check_opt;
-  DBUG_ENTER("ha_tina::check_and_repair");
+  DBUG_TRACE;
 
-  check_opt.init();
-
-  DBUG_RETURN(repair(thd, &check_opt));
+  return repair(thd, &check_opt);
 }
 
 int ha_tina::init_tina_writer() {
-  DBUG_ENTER("ha_tina::init_tina_writer");
+  DBUG_TRACE;
 
   /*
     Mark the file as crashed. We will set the flag back when we close
@@ -389,23 +395,23 @@ int ha_tina::init_tina_writer() {
                            O_RDWR | O_APPEND, MYF(MY_WME))) == -1) {
     DBUG_PRINT("info", ("Could not open tina file writes"));
     share->crashed = true;
-    DBUG_RETURN(my_errno() ? my_errno() : -1);
+    return my_errno() ? my_errno() : -1;
   }
   share->tina_write_opened = true;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool ha_tina::is_crashed() const {
-  DBUG_ENTER("ha_tina::is_crashed");
-  DBUG_RETURN(share->crashed);
+  DBUG_TRACE;
+  return share->crashed;
 }
 
 /*
   Free lock controls.
 */
 static int free_share(TINA_SHARE *share) {
-  DBUG_ENTER("ha_tina::free_share");
+  DBUG_TRACE;
   mysql_mutex_lock(&tina_mutex);
   int result_code = 0;
   if (!--share->use_count) {
@@ -425,7 +431,7 @@ static int free_share(TINA_SHARE *share) {
   }
   mysql_mutex_unlock(&tina_mutex);
 
-  DBUG_RETURN(result_code);
+  return result_code;
 }
 
 /*
@@ -467,6 +473,39 @@ static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
   return new (mem_root) ha_tina(hton, table);
 }
 
+/**
+  @brief Check if the given db.tablename is a system table for this SE.
+
+  @param db                         database name.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
+*/
+static bool tina_is_supported_system_table(const char *db,
+                                           const char *table_name,
+                                           bool is_sql_layer_system_table) {
+  /*
+   Currently CSV does not support any other SE specific system tables. If
+   in future it does, please see ha_example.cc for reference implementation
+  */
+  if (!is_sql_layer_system_table) return false;
+
+  // Creating system tables in this SE is allowed to support logical upgrade.
+  THD *thd = current_thd;
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_ENGINE,
+                        ER_THD(thd, ER_UNSUPPORTED_ENGINE), "CSV", db,
+                        table_name);
+    return true;
+  }
+
+  // Any other usage is not allowed.
+  return false;
+}
+
 ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
       /*
@@ -476,11 +515,11 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
       current_position(0),
       next_position(0),
       local_saved_data_file_length(0),
-      file_buff(0),
+      file_buff(nullptr),
       chain_alloced(0),
       chain_size(DEFAULT_CHAIN_LENGTH),
       local_data_file_version(0),
-      records_is_known(0),
+      records_is_known(false),
       blobroot(csv_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE) {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, &my_charset_bin);
@@ -573,7 +612,7 @@ int ha_tina::chain_append() {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
         if ((chain = (tina_set *)my_realloc(
                  csv_key_memory_tina_set, (uchar *)chain,
-                 chain_size * sizeof(tina_set), MYF(MY_WME))) == NULL)
+                 chain_size * sizeof(tina_set), MYF(MY_WME))) == nullptr)
           return -1;
       } else {
         tina_set *ptr =
@@ -602,7 +641,7 @@ int ha_tina::find_current_row(uchar *buf) {
   my_bitmap_map *org_bitmap;
   int error;
   bool read_all;
-  DBUG_ENTER("ha_tina::find_current_row");
+  DBUG_TRACE;
 
   // Clear BLOB data from the previous row.
   blobroot.ClearForReuse();
@@ -614,7 +653,7 @@ int ha_tina::find_current_row(uchar *buf) {
   if ((end_offset = find_eoln_buff(file_buff, current_position,
                                    local_saved_data_file_length, &eoln_len)) ==
       0)
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
 
   /* We must read all columns in case a table is opened for update */
   read_all = !bitmap_is_clear_all(table->write_set);
@@ -730,7 +769,7 @@ int ha_tina::find_current_row(uchar *buf) {
       }
     }
 
-    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index())) {
       bool is_enum = ((*field)->real_type() == MYSQL_TYPE_ENUM);
       /*
         Here CHECK_FIELD_WARN checks that all values in the csv file are valid
@@ -740,21 +779,21 @@ int ha_tina::find_current_row(uchar *buf) {
         Thus, for enums we silence the warning, as it doesn't really mean
         an invalid value.
       */
-      if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset(),
+      if ((*field)->store(buffer.ptr(), buffer.length(), (*field)->charset(),
                           is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN)) {
         if (!is_enum) goto err;
       }
-      if ((*field)->flags & BLOB_FLAG) {
+      if ((*field)->is_flag_set(BLOB_FLAG)) {
         Field_blob *blob_field = down_cast<Field_blob *>(*field);
-        size_t length = blob_field->get_length(blob_field->ptr);
+        size_t length = blob_field->get_length();
         // BLOB data is not stored inside buffer. It only contains a
         // pointer to it. Copy the BLOB data into a separate memory
         // area so that it is not overwritten by subsequent calls to
         // Field::store() after moving the offset.
         if (length > 0) {
           unsigned char *new_blob = new (&blobroot) unsigned char[length];
-          if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-          memcpy(new_blob, blob_field->get_ptr(), length);
+          if (new_blob == nullptr) return HA_ERR_OUT_OF_MEM;
+          memcpy(new_blob, blob_field->get_blob_data(), length);
           blob_field->set_ptr(length, new_blob);
         }
       }
@@ -766,7 +805,7 @@ int ha_tina::find_current_row(uchar *buf) {
 err:
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -785,7 +824,7 @@ void tina_update_status(void *param) {
 }
 
 /* this should exist and return 0 for concurrent insert to work */
-bool tina_check_status(void *) { return 0; }
+bool tina_check_status(void *) { return false; }
 
 /*
   Save the state of the table
@@ -845,20 +884,20 @@ void ha_tina::update_status() {
   that need to be reset should be kept in the ::extra() call.
 */
 int ha_tina::open(const char *name, int, uint open_options, const dd::Table *) {
-  DBUG_ENTER("ha_tina::open");
+  DBUG_TRACE;
 
-  if (!(share = get_share(name, table))) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  if (!(share = get_share(name, table))) return HA_ERR_OUT_OF_MEM;
 
   if (share->crashed && !(open_options & HA_OPEN_FOR_REPAIR)) {
     free_share(share);
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    return HA_ERR_CRASHED_ON_USAGE;
   }
 
   local_data_file_version = share->data_file_version;
   if ((data_file = mysql_file_open(csv_key_file_data, share->data_file_name,
                                    O_RDONLY, MYF(MY_WME))) == -1) {
     free_share(share);
-    DBUG_RETURN(my_errno() ? my_errno() : -1);
+    return my_errno() ? my_errno() : -1;
   }
 
   /*
@@ -873,7 +912,7 @@ int ha_tina::open(const char *name, int, uint open_options, const dd::Table *) {
   share->lock.update_status = tina_update_status;
   share->lock.check_status = tina_check_status;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -882,9 +921,9 @@ int ha_tina::open(const char *name, int, uint open_options, const dd::Table *) {
 */
 int ha_tina::close(void) {
   int rc = 0;
-  DBUG_ENTER("ha_tina::close");
+  DBUG_TRACE;
   rc = mysql_file_close(data_file, MYF(0));
-  DBUG_RETURN(free_share(share) || rc);
+  return free_share(share) || rc;
 }
 
 /*
@@ -894,22 +933,22 @@ int ha_tina::close(void) {
 */
 int ha_tina::write_row(uchar *buf) {
   int size;
-  DBUG_ENTER("ha_tina::write_row");
+  DBUG_TRACE;
 
-  if (share->crashed) DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  if (share->crashed) return HA_ERR_CRASHED_ON_USAGE;
 
   ha_statistic_increment(&System_status_var::ha_write_count);
 
   size = encode_quote(buf);
 
   if (!share->tina_write_opened)
-    if (init_tina_writer()) DBUG_RETURN(-1);
+    if (init_tina_writer()) return -1;
 
   /* use pwrite, as concurrent reader could have changed the position */
   if (mysql_file_write(share->tina_write_filedes,
                        pointer_cast<const uchar *>(buffer.ptr()), size,
                        MYF(MY_WME | MY_NABP)))
-    DBUG_RETURN(-1);
+    return -1;
 
   /* update local copy of the max position to see our own changes */
   local_saved_data_file_length += size;
@@ -922,7 +961,7 @@ int ha_tina::write_row(uchar *buf) {
   mysql_mutex_unlock(&share->mutex);
 
   stats.records++;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_tina::open_update_temp_file_if_needed() {
@@ -952,7 +991,7 @@ int ha_tina::open_update_temp_file_if_needed() {
 int ha_tina::update_row(const uchar *, uchar *new_data) {
   int size;
   int rc = -1;
-  DBUG_ENTER("ha_tina::update_row");
+  DBUG_TRACE;
 
   ha_statistic_increment(&System_status_var::ha_update_count);
 
@@ -977,11 +1016,11 @@ int ha_tina::update_row(const uchar *, uchar *new_data) {
   rc = 0;
 
   /* UPDATE should never happen on the log tables */
-  DBUG_ASSERT(!share->is_log_table);
+  assert(!share->is_log_table);
 
 err:
   DBUG_PRINT("info", ("rc = %d", rc));
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*
@@ -994,22 +1033,22 @@ err:
   DESC, ASC).
 */
 int ha_tina::delete_row(const uchar *) {
-  DBUG_ENTER("ha_tina::delete_row");
+  DBUG_TRACE;
   ha_statistic_increment(&System_status_var::ha_delete_count);
 
-  if (chain_append()) DBUG_RETURN(-1);
+  if (chain_append()) return -1;
 
   stats.records--;
   /* Update shared info */
-  DBUG_ASSERT(share->rows_recorded);
+  assert(share->rows_recorded);
   mysql_mutex_lock(&share->mutex);
   share->rows_recorded--;
   mysql_mutex_unlock(&share->mutex);
 
   /* DELETE should never happen on the log table */
-  DBUG_ASSERT(!share->is_log_table);
+  assert(!share->is_log_table);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1067,17 +1106,17 @@ int ha_tina::init_data_file() {
 */
 
 int ha_tina::rnd_init(bool) {
-  DBUG_ENTER("ha_tina::rnd_init");
+  DBUG_TRACE;
 
   /* set buffer to the beginning of the file */
-  if (share->crashed || init_data_file()) DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  if (share->crashed || init_data_file()) return HA_ERR_CRASHED_ON_USAGE;
 
   current_position = next_position = 0;
   stats.records = 0;
-  records_is_known = 0;
+  records_is_known = false;
   chain_ptr = chain;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -1096,7 +1135,7 @@ int ha_tina::rnd_init(bool) {
 */
 int ha_tina::rnd_next(uchar *buf) {
   int rc;
-  DBUG_ENTER("ha_tina::rnd_next");
+  DBUG_TRACE;
 
   if (share->crashed) {
     rc = HA_ERR_CRASHED_ON_USAGE;
@@ -1118,7 +1157,7 @@ int ha_tina::rnd_next(uchar *buf) {
   stats.records++;
   rc = 0;
 end:
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*
@@ -1131,9 +1170,8 @@ end:
   where something other then a number is stored.
 */
 void ha_tina::position(const uchar *) {
-  DBUG_ENTER("ha_tina::position");
+  DBUG_TRACE;
   my_store_ptr(ref, ref_length, current_position);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1143,11 +1181,11 @@ void ha_tina::position(const uchar *) {
 
 int ha_tina::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
-  DBUG_ENTER("ha_tina::rnd_pos");
+  DBUG_TRACE;
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   current_position = my_get_ptr(pos, ref_length);
   rc = find_current_row(buf);
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*
@@ -1156,10 +1194,10 @@ int ha_tina::rnd_pos(uchar *buf, uchar *pos) {
   really needed. SHOW also makes use of this data
 */
 int ha_tina::info(uint) {
-  DBUG_ENTER("ha_tina::info");
+  DBUG_TRACE;
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
   if (!records_is_known && stats.records < 2) stats.records = 2;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -1168,13 +1206,13 @@ int ha_tina::info(uint) {
   You are not required to implement any of these.
 */
 int ha_tina::extra(enum ha_extra_function operation) {
-  DBUG_ENTER("ha_tina::extra");
+  DBUG_TRACE;
   if (operation == HA_EXTRA_MARK_AS_LOG_TABLE) {
     mysql_mutex_lock(&share->mutex);
     share->is_log_table = true;
     mysql_mutex_unlock(&share->mutex);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -1199,10 +1237,10 @@ bool ha_tina::get_write_pos(my_off_t *end_pos, tina_set *closest_hole) {
 int ha_tina::rnd_end() {
   char updated_fname[FN_REFLEN];
   my_off_t file_buffer_start = 0;
-  DBUG_ENTER("ha_tina::rnd_end");
+  DBUG_TRACE;
 
   blobroot.Clear();
-  records_is_known = 1;
+  records_is_known = true;
 
   if ((chain_ptr - chain) > 0) {
     tina_set *ptr = chain;
@@ -1227,7 +1265,7 @@ int ha_tina::rnd_end() {
     my_off_t write_begin = 0, write_end;
 
     /* create the file to write updated table if it wasn't yet created */
-    if (open_update_temp_file_if_needed()) DBUG_RETURN(-1);
+    if (open_update_temp_file_if_needed()) return -1;
 
     /* write the file with updated info */
     while ((file_buffer_start != (my_off_t)-1))  // while not end of file
@@ -1260,12 +1298,12 @@ int ha_tina::rnd_end() {
 
     if (mysql_file_sync(update_temp_file, MYF(MY_WME)) ||
         mysql_file_close(update_temp_file, MYF(0)))
-      DBUG_RETURN(-1);
+      return -1;
 
     share->update_file_opened = false;
 
     if (share->tina_write_opened) {
-      if (mysql_file_close(share->tina_write_filedes, MYF(0))) DBUG_RETURN(-1);
+      if (mysql_file_close(share->tina_write_filedes, MYF(0))) return -1;
       /*
         Mark that the writer fd is closed, so that init_tina_writer()
         will reopen it later.
@@ -1283,12 +1321,12 @@ int ha_tina::rnd_end() {
             fn_format(updated_fname, share->table_name, "", CSN_EXT,
                       MY_REPLACE_EXT | MY_UNPACK_FILENAME),
             share->data_file_name, MYF(0)))
-      DBUG_RETURN(-1);
+      return -1;
 
     /* Open the file again */
     if ((data_file = mysql_file_open(csv_key_file_data, share->data_file_name,
                                      O_RDONLY, MYF(MY_WME))) == -1)
-      DBUG_RETURN(my_errno() ? my_errno() : -1);
+      return my_errno() ? my_errno() : -1;
     /*
       As we reopened the data file, increase share->data_file_version
       in order to force other threads waiting on a table lock and
@@ -1312,11 +1350,11 @@ int ha_tina::rnd_end() {
     local_saved_data_file_length = temp_file_length;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 error:
   mysql_file_close(update_temp_file, MYF(0));
   share->update_file_opened = false;
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /*
@@ -1343,7 +1381,7 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
   int rc;
   ha_rows rows_repaired = 0;
   my_off_t write_begin = 0, write_end;
-  DBUG_ENTER("ha_tina::repair");
+  DBUG_TRACE;
 
   /* empty file */
   if (!share->saved_data_file_length) {
@@ -1355,10 +1393,10 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
   table->use_all_columns();
   if (!(buf = (uchar *)my_malloc(csv_key_memory_row, table->s->reclength,
                                  MYF(MY_WME))))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    return HA_ERR_OUT_OF_MEM;
 
   /* position buffer to the start of the file */
-  if (init_data_file()) DBUG_RETURN(HA_ERR_CRASHED_ON_REPAIR);
+  if (init_data_file()) return HA_ERR_CRASHED_ON_REPAIR;
 
   /*
     Local_saved_data_file_length is initialized during the lock phase.
@@ -1399,7 +1437,7 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
            fn_format(repaired_fname, share->table_name, "", CSN_EXT,
                      MY_REPLACE_EXT | MY_UNPACK_FILENAME),
            0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
-    DBUG_RETURN(HA_ERR_CRASHED_ON_REPAIR);
+    return HA_ERR_CRASHED_ON_REPAIR;
 
   file_buff->init_buff(data_file);
 
@@ -1407,12 +1445,12 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
   share->rows_recorded = rows_repaired;
 
   /* write repaired file */
-  while (1) {
+  while (true) {
     write_end = min(file_buff->end(), current_position);
     if ((write_end - write_begin) &&
         (mysql_file_write(repair_file, (uchar *)file_buff->ptr(),
                           (size_t)(write_end - write_begin), MYF_RW)))
-      DBUG_RETURN(-1);
+      return -1;
 
     write_begin = write_end;
     if (write_end == current_position)
@@ -1434,26 +1472,26 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
       to satisfy Win.
     */
     if (mysql_file_close(share->tina_write_filedes, MYF(0)))
-      DBUG_RETURN(my_errno() ? my_errno() : -1);
+      return my_errno() ? my_errno() : -1;
     share->tina_write_opened = false;
   }
   if (mysql_file_close(data_file, MYF(0)) ||
       mysql_file_close(repair_file, MYF(0)) ||
       mysql_file_rename(csv_key_file_data, repaired_fname,
                         share->data_file_name, MYF(0)))
-    DBUG_RETURN(-1);
+    return -1;
 
   /* Open the file again, it should now be repaired */
   if ((data_file = mysql_file_open(csv_key_file_data, share->data_file_name,
                                    O_RDWR | O_APPEND, MYF(MY_WME))) == -1)
-    DBUG_RETURN(my_errno() ? my_errno() : -1);
+    return my_errno() ? my_errno() : -1;
 
   /* Set new file size. The file size will be updated by ::update_status() */
   local_saved_data_file_length = (size_t)current_position;
 
 end:
   share->crashed = false;
-  DBUG_RETURN(HA_ADMIN_OK);
+  return HA_ADMIN_OK;
 }
 
 /*
@@ -1462,15 +1500,15 @@ end:
 
 int ha_tina::delete_all_rows() {
   int rc;
-  DBUG_ENTER("ha_tina::delete_all_rows");
+  DBUG_TRACE;
 
   if (!records_is_known) {
     set_my_errno(HA_ERR_WRONG_COMMAND);
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
   if (!share->tina_write_opened)
-    if (init_tina_writer()) DBUG_RETURN(-1);
+    if (init_tina_writer()) return -1;
 
   /* Truncate the file to zero size */
   rc = mysql_file_chsize(share->tina_write_filedes, 0, 0, MYF(MY_WME));
@@ -1481,7 +1519,7 @@ int ha_tina::delete_all_rows() {
   share->rows_recorded = 0;
   mysql_mutex_unlock(&share->mutex);
   local_saved_data_file_length = 0;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*
@@ -1504,15 +1542,15 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
                     dd::Table *) {
   char name_buff[FN_REFLEN];
   File create_file;
-  DBUG_ENTER("ha_tina::create");
+  DBUG_TRACE;
 
   /*
     check columns
   */
   for (Field **field = table_arg->s->field; *field; field++) {
-    if ((*field)->real_maybe_null()) {
+    if ((*field)->is_nullable()) {
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "nullable columns");
-      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+      return HA_ERR_UNSUPPORTED;
     }
   }
 
@@ -1521,7 +1559,7 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
                              fn_format(name_buff, name, "", CSM_EXT,
                                        MY_REPLACE_EXT | MY_UNPACK_FILENAME),
                              0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
-    DBUG_RETURN(-1);
+    return -1;
 
   write_meta_file(create_file, 0, false);
   mysql_file_close(create_file, MYF(0));
@@ -1531,11 +1569,11 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
                              fn_format(name_buff, name, "", CSV_EXT,
                                        MY_REPLACE_EXT | MY_UNPACK_FILENAME),
                              0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
-    DBUG_RETURN(-1);
+    return -1;
 
   mysql_file_close(create_file, MYF(0));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_tina::check(THD *thd, HA_CHECK_OPT *) {
@@ -1543,15 +1581,15 @@ int ha_tina::check(THD *thd, HA_CHECK_OPT *) {
   uchar *buf;
   const char *old_proc_info;
   ha_rows count = share->rows_recorded;
-  DBUG_ENTER("ha_tina::check");
+  DBUG_TRACE;
 
   old_proc_info = thd_proc_info(thd, "Checking table");
   if (!(buf = (uchar *)my_malloc(csv_key_memory_row, table->s->reclength,
                                  MYF(MY_WME))))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    return HA_ERR_OUT_OF_MEM;
 
   /* position buffer to the start of the file */
-  if (init_data_file()) DBUG_RETURN(HA_ERR_CRASHED);
+  if (init_data_file()) return HA_ERR_CRASHED;
 
   /*
     Local_saved_data_file_length is initialized during the lock phase.
@@ -1576,10 +1614,10 @@ int ha_tina::check(THD *thd, HA_CHECK_OPT *) {
 
   if ((rc != HA_ERR_END_OF_FILE) || count) {
     share->crashed = true;
-    DBUG_RETURN(HA_ADMIN_CORRUPT);
+    return HA_ADMIN_CORRUPT;
   }
 
-  DBUG_RETURN(HA_ADMIN_OK);
+  return HA_ADMIN_OK;
 }
 
 bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
@@ -1593,15 +1631,15 @@ mysql_declare_plugin(csv){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &csv_storage_engine,
     "CSV",
-    "Brian Aker, MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "CSV storage engine",
     PLUGIN_LICENSE_GPL,
     tina_init_func, /* Plugin Init */
-    NULL,           /* Plugin check uninstall */
+    nullptr,        /* Plugin check uninstall */
     tina_done_func, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

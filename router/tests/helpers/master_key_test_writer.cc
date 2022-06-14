@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -57,7 +57,6 @@ bool check_router_id() {
 #ifdef _WIN32
   char env_str[2000] = {0};
   size_t len = 0;
-  int err_code;
 
   return getenv_s(&len, env_str, sizeof(env_str), "ROUTER_ID") == 0;
 #else

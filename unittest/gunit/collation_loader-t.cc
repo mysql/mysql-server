@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ static void BM_LookupAllCollations(size_t num_iterations) {
   for (size_t i = 0; i < num_iterations; i++) {
     const CHARSET_INFO *cs = all_charsets[i % num_charsets];
     if (cs) {
-      EXPECT_NE(lookup_collation(cs->name), nullptr);
+      EXPECT_NE(lookup_collation(cs->m_coll_name), nullptr);
     }
   }
 }
@@ -101,7 +101,7 @@ BENCHMARK(BM_LookupAllCharsets)
 
 void TestRandomCollation() {
   char coll_name[65];
-  for (int i = 0; i < 100000; i++) {
+  for (int ix = 0; ix < 100000; ix++) {
     memset(coll_name, 0, 65);
     // Generate a random collation name whose length is in range [1, 64].
     size_t random_coll_name_len = 1 + rand() % 64;

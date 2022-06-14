@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,26 +45,26 @@ void Compression_lz4_writer::process_buffer(size_t lz4_result) {
 }
 
 void Compression_lz4_writer::append(const std::string &data_to_append) {
-  my_boost::mutex::scoped_lock lock(m_lz4_mutex);
+  std::lock_guard<std::mutex> lock(m_lz4_mutex);
   if (m_buffer.capacity() == 0) {
     LZ4F_createCompressionContext(&m_compression_context, LZ4F_VERSION);
     this->prepare_buffer(0);
     this->process_buffer(LZ4F_compressBegin(m_compression_context,
                                             (void *)&m_buffer[0],
-                                            m_buffer.capacity(), NULL));
+                                            m_buffer.capacity(), nullptr));
   }
   this->prepare_buffer(data_to_append.size());
   this->process_buffer(LZ4F_compressUpdate(
       m_compression_context, (void *)&m_buffer[0], m_buffer.capacity(),
-      data_to_append.c_str(), data_to_append.size(), NULL));
+      data_to_append.c_str(), data_to_append.size(), nullptr));
 }
 
 Compression_lz4_writer::~Compression_lz4_writer() {
-  my_boost::mutex::scoped_lock lock(m_lz4_mutex);
+  std::lock_guard<std::mutex> lock(m_lz4_mutex);
   if (m_buffer.capacity() != 0) {
     this->process_buffer(LZ4F_compressEnd(m_compression_context,
                                           (void *)&m_buffer[0],
-                                          m_buffer.capacity(), NULL));
+                                          m_buffer.capacity(), nullptr));
     LZ4F_freeCompressionContext(m_compression_context);
   }
 }

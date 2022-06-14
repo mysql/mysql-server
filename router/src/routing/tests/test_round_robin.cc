@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,42 +22,34 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <functional>
-#include <iostream>
-#include <stdexcept>
-
-#include "mysql/harness/logging/logging.h"
-#include "test/helpers.h"
-// TODO: what is needed ?
-//#include "router_test_helpers.h"
-//
 #include "dest_round_robin.h"
 
-#include "routing_mocks.h"
+#include <ostream>
+#include <stdexcept>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "mysql/harness/net_ts/io_context.h"
 #include "tcp_address.h"
+#include "test/helpers.h"  // init_test_logger
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-using mysql_harness::TCPAddress;
 using ::testing::StrEq;
 
 class RoundRobinDestinationTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
-
-  MockRoutingSockOps mock_routing_sock_ops_;
+  net::io_context io_ctx_;
 };
 
 TEST_F(RoundRobinDestinationTest, Constructor) {
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   size_t exp = 0;
   ASSERT_EQ(exp, d.size());
 }
 
 TEST_F(RoundRobinDestinationTest, Add) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   exp = 1;
   d.add("addr1", 1);
   ASSERT_EQ(exp, d.size());
@@ -73,7 +65,7 @@ TEST_F(RoundRobinDestinationTest, Add) {
 
 TEST_F(RoundRobinDestinationTest, Remove) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   d.add("addr1", 1);
   d.add("addr99", 99);
   d.add("addr2", 2);
@@ -88,23 +80,23 @@ TEST_F(RoundRobinDestinationTest, Remove) {
 }
 
 TEST_F(RoundRobinDestinationTest, Get) {
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   ASSERT_THROW(d.get("addr1", 1), std::out_of_range);
   d.add("addr1", 1);
   ASSERT_NO_THROW(d.get("addr1", 1));
 
-  TCPAddress addr = d.get("addr1", 1);
-  ASSERT_THAT(addr.addr, StrEq("addr1"));
-  EXPECT_EQ(addr.port, 1);
+  mysql_harness::TCPAddress addr = d.get("addr1", 1);
+  ASSERT_THAT(addr.address(), StrEq("addr1"));
+  EXPECT_EQ(addr.port(), 1);
 
   d.remove("addr1", 1);
-  ASSERT_THAT(addr.addr, StrEq("addr1"));
-  EXPECT_EQ(addr.port, 1);
+  ASSERT_THAT(addr.address(), StrEq("addr1"));
+  EXPECT_EQ(addr.port(), 1);
 }
 
 TEST_F(RoundRobinDestinationTest, Size) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   exp = 0;
   ASSERT_EQ(exp, d.size());
   d.add("addr1", 1);
@@ -117,7 +109,7 @@ TEST_F(RoundRobinDestinationTest, Size) {
 
 TEST_F(RoundRobinDestinationTest, RemoveAll) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
 
   d.add("addr1", 1);
   d.add("addr2", 2);
@@ -133,60 +125,79 @@ TEST_F(RoundRobinDestinationTest, RemoveAll) {
 /**
  * @test DestRoundRobin spawns the quarantine thread and
  *       joins it in the destructor. Make sure the destructor
- *       does not block/dealock and forces the thread close (bug#27145261).
+ *       does not block/deadlock and forces the thread close (bug#27145261).
  */
 TEST_F(RoundRobinDestinationTest, SpawnAndJoinQuarantineThread) {
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   d.start(nullptr);
 }
 
-TEST_F(RoundRobinDestinationTest, get_server_socket) {
-  int error;
+bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
+  return a->hostname() == b.hostname() && a->port() == b.port();
+}
 
-  // create round-robin (read-only) destination and add a few servers
-  DestRoundRobin dest(Protocol::get_default(), &mock_routing_sock_ops_,
-                      mysql_harness::kDefaultStackSizeInKiloBytes);
-  std::vector<int> dest_servers_addresses{11, 12, 13};
-  for (const auto &server_address : dest_servers_addresses) {
-    dest.add(std::to_string(server_address), 1 /*port - doesn't matter here*/);
+std::ostream &operator<<(std::ostream &os, const Destination &v) {
+  os << "{ address: " << v.hostname() << ":" << v.port()
+     << ", good: " << v.good() << "}";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const std::unique_ptr<Destination> &v) {
+  os << *v;
+  return os;
+}
+
+MATCHER(IsGoodEq, "") {
+  return ::testing::ExplainMatchResult(
+      ::testing::Property(&Destination::good, std::get<1>(arg)),
+      std::get<0>(arg).get(), result_listener);
+}
+
+TEST_F(RoundRobinDestinationTest, RepeatedFetch) {
+  DestRoundRobin dest(io_ctx_, Protocol::Type::kClassicProtocol);
+  dest.add("41", 41);
+  dest.add("42", 42);
+  dest.add("43", 43);
+
+  SCOPED_TRACE("// fetch 0, rotate 0");
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 
-  // NOTE: this test exploits the fact that
-  // MockSocketOperations::get_mysql_socket() returns the value based on the IP
-  // address it is given (it uses the number the address starts with)
-
-  using ThrPtr = std::unique_ptr<std::thread>;
-  std::vector<ThrPtr> client_threads;
-  std::map<int, size_t>
-      connections;  // number of connections per each destination address
-  std::mutex connections_mutex;
-
-  // spawn number of threads each trying to get the server socket at the same
-  // time
-  const size_t kNumClientThreads = dest_servers_addresses.size() * 10;
-  for (size_t i = 0; i < kNumClientThreads; ++i) {
-    client_threads.emplace_back(new std::thread([&]() {
-      int addr =
-          dest.get_server_socket(std::chrono::milliseconds::zero(), &error);
-      {
-        std::unique_lock<std::mutex> lock(connections_mutex);
-        // increment the counter for returned address
-        ++connections[addr];
-      }
-    }));
+  SCOPED_TRACE("// fetch 1, rotate 1");
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", "42", 42),
+                                               Destination("43", "43", 43),
+                                               Destination("41", "41", 41)));
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 
-  // wait for each thread to finish
-  for (auto &thr : client_threads) {
-    thr->join();
+  SCOPED_TRACE("// fetch 2, rotate 2");
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", "43", 43),
+                                               Destination("41", "41", 41),
+                                               Destination("42", "42", 42)));
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 
-  // we didn't simulate any connection errors so there should be no quarantine
-  // so the number of connections to the the destination addresses should be
-  // evenly distributed
-  for (const auto &server_address : dest_servers_addresses) {
-    EXPECT_EQ(connections[server_address],
-              kNumClientThreads / dest_servers_addresses.size());
+  SCOPED_TRACE("// fetch 3, rotate 0");
+  {
+    auto actual = dest.destinations();
+    EXPECT_THAT(actual, ::testing::SizeIs(3));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
+    EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 }
 

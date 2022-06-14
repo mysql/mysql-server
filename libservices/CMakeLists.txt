@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@ IF(WITHOUT_SERVER)
   MESSAGE(STATUS "The mysqlservices library is for server plugins only")
   RETURN()
 ENDIF()
+
+ADD_WSHADOW_WARNING()
 
 SET(MYSQLSERVICES_SOURCES
   service_command.c

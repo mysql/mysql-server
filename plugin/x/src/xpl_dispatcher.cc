@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include "plugin/x/src/interface/notice_output_queue.h"
+
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/xpl_dispatcher.h"
-#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
-#include "plugin/x/src/xpl_session.h"
+#include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
-bool Dispatcher::execute(const ngs::Message_request &command) {
+ngs::Error_code Dispatcher::execute(const ngs::Message_request &command) {
   ngs::Error_code error =
       m_expect_stack.pre_client_stmt(command.get_message_type());
   if (!error) {
@@ -38,7 +39,7 @@ bool Dispatcher::execute(const ngs::Message_request &command) {
   } else {
     m_session->proto().send_result(error);
   }
-  return error.error != ER_UNKNOWN_COM_ERROR;
+  return error;
 }
 
 ngs::Error_code Dispatcher::dispatch(const ngs::Message_request &command) {

@@ -27,7 +27,7 @@
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/crud_doc_expr_array.tmp
+--write_file $MYSQL_TMP_DIR/crud_doc_expr_array.xpl
 ## Test data
 -->sql
 DROP SCHEMA IF EXISTS xtest;
@@ -85,7 +85,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Inserting array into collection with all the datatypes
@@ -138,7 +138,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Selecting array from collection
@@ -278,7 +278,7 @@ Mysqlx.Crud.Find {
 -->recvresult
 -->sql
 use xtest;
-select * from xcoll;
+select doc from xcoll;
 -->endsql
 -->echo Selecting array with sub-array from collection with alias
 Mysqlx.Crud.Find {
@@ -408,7 +408,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Updating collection by array with null values
@@ -436,7 +436,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Updating collection by array in a current member value
@@ -464,7 +464,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Updating collection by appending an array in a current array member value
@@ -490,7 +490,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Updating collection by inserting an array in a current array member value using == criteria
@@ -536,7 +536,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Error: empty array
@@ -565,9 +565,8 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_doc_expr_array.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_doc_expr_array.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/crud_doc_expr_array.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

@@ -1,7 +1,7 @@
 #ifndef PARTITIONED_RWLOCK_INCLUDED
 #define PARTITIONED_RWLOCK_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@
 
 class Partitioned_rwlock {
  public:
-  Partitioned_rwlock() {}
+  Partitioned_rwlock() = default;
 
   /**
     @param parts    Number of partitions.
@@ -58,7 +58,7 @@ class Partitioned_rwlock {
   bool init(uint parts
 #ifdef HAVE_PSI_INTERFACE
             ,
-            PSI_rwlock_key psi_key MY_ATTRIBUTE((unused))
+            PSI_rwlock_key psi_key [[maybe_unused]]
 #endif
   ) {
     m_parts = parts;
@@ -119,7 +119,7 @@ class Partitioned_rwlock_read_guard {
   /** Release read lock. Optional method for early unlocking. */
   void unlock() {
     m_rwlock->rdunlock(m_thread_id);
-    m_rwlock = NULL;
+    m_rwlock = nullptr;
   }
 
  private:
@@ -162,7 +162,7 @@ class Partitioned_rwlock_write_guard {
   /** Release write lock. Optional method for early unlocking. */
   void unlock() {
     m_rwlock->wrunlock();
-    m_rwlock = NULL;
+    m_rwlock = nullptr;
   }
 
  private:

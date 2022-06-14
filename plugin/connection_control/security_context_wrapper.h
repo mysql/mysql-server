@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ namespace connection_control {
 class Security_context_wrapper {
  public:
   Security_context_wrapper(MYSQL_THD thd);
-  ~Security_context_wrapper() {}
+  ~Security_context_wrapper() = default;
   const char *get_proxy_user();
   const char *get_priv_user();
   const char *get_priv_host();

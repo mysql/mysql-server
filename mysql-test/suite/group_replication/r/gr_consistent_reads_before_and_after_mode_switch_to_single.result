@@ -1,0 +1,48 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 01. Create table and insert data
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+# 02. Enable debug point that will block transaction with consistency
+#     BEFORE_AND_AFTER
+[connection server_2]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# 03. Send transaction with consistency BEFORE_AND_AFTER
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+SELECT * FROM test.t1;
+
+# 04. Wait for execution reach debug point
+[connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# 05. Execution change of mode to single primary with server2 as primary
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER_UUID");;
+group_replication_switch_to_single_primary_mode("MEMBER_UUID")
+Mode switched to single-primary successfully.
+
+# 06. Assert server2 is primary on single primary mode
+[connection server2]
+include/gr_assert_primary_member.inc
+
+# 07. Signal to resume blocked transaction
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# 08. Reap pending transaction
+[connection server_2]
+a
+1
+
+# 09. Clean up
+[connection server2]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+DROP TABLE test.t1;
+[connection server1]
+include/group_replication_end.inc

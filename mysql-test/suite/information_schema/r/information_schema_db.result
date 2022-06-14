@@ -1,0 +1,447 @@
+set @orig_sql_mode= @@sql_mode;
+drop table if exists t1,t2;
+drop view if exists v1,v2;
+drop function if exists f1;
+drop function if exists f2;
+use INFORMATION_SCHEMA;
+show tables where Tables_in_information_schema NOT LIKE 'INNODB%' and Tables_in_information_schema NOT LIKE 'ndb%';
+Tables_in_information_schema
+ADMINISTRABLE_ROLE_AUTHORIZATIONS
+APPLICABLE_ROLES
+CHARACTER_SETS
+CHECK_CONSTRAINTS
+COLLATIONS
+COLLATION_CHARACTER_SET_APPLICABILITY
+COLUMNS
+COLUMNS_EXTENSIONS
+COLUMN_PRIVILEGES
+COLUMN_STATISTICS
+ENABLED_ROLES
+ENGINES
+EVENTS
+FILES
+KEYWORDS
+KEY_COLUMN_USAGE
+OPTIMIZER_TRACE
+PARAMETERS
+PARTITIONS
+PLUGINS
+PROCESSLIST
+PROFILING
+REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
+ROLE_COLUMN_GRANTS
+ROLE_ROUTINE_GRANTS
+ROLE_TABLE_GRANTS
+ROUTINES
+SCHEMATA
+SCHEMATA_EXTENSIONS
+SCHEMA_PRIVILEGES
+STATISTICS
+ST_GEOMETRY_COLUMNS
+ST_SPATIAL_REFERENCE_SYSTEMS
+ST_UNITS_OF_MEASURE
+TABLES
+TABLESPACES
+TABLESPACES_EXTENSIONS
+TABLES_EXTENSIONS
+TABLE_CONSTRAINTS
+TABLE_CONSTRAINTS_EXTENSIONS
+TABLE_PRIVILEGES
+TRIGGERS
+USER_ATTRIBUTES
+USER_PRIVILEGES
+VIEWS
+VIEW_ROUTINE_USAGE
+VIEW_TABLE_USAGE
+show tables from INFORMATION_SCHEMA like 'T%';
+Tables_in_information_schema (T%)
+TABLES
+TABLESPACES
+TABLESPACES_EXTENSIONS
+TABLES_EXTENSIONS
+TABLE_CONSTRAINTS
+TABLE_CONSTRAINTS_EXTENSIONS
+TABLE_PRIVILEGES
+TRIGGERS
+create database `inf%`;
+create database mbase;
+use `inf%`;
+show tables;
+Tables_in_inf%
+create user 'mysqltest_1'@'localhost';
+grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
+grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
+create table t1 (f1 int);
+create function func1(curr_int int) returns int
+begin
+declare ret_val int;
+select max(f1) from t1 into ret_val;
+return ret_val;
+end|
+create view v1 as select f1 from t1 where f1 = func1(f1);
+create function func2() returns int return 1;
+use mbase;
+create procedure p1 ()
+begin
+select table_name from information_schema.key_column_usage
+order by table_name;
+end|
+create table t1
+(f1 int(10) unsigned not null,
+f2 varchar(100) not null,
+primary key (f1), unique key (f2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+select * from information_schema.tables;
+call mbase.p1();
+call mbase.p1();
+call mbase.p1();
+use `inf%`;
+drop user mysqltest_1@localhost;
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop view v1;
+drop function func1;
+drop function func2;
+drop database `inf%`;
+drop procedure mbase.p1;
+drop database mbase;
+use test;
+create table t1 (i int);
+create function f1 () returns int return (select max(i) from t1);
+create view v1 as select f1();
+create table t2 (id int);
+create function f2 () returns int return (select max(i) from t2);
+create view v2 as select f2();
+drop table t2;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+t1	BASE TABLE	
+v1	VIEW	VIEW
+v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+v1	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop function f1;
+drop function f2;
+drop view v1, v2;
+create database testdb_1;
+create user testdb_1@localhost;
+grant all on testdb_1.* to testdb_1@localhost with grant option;
+create user testdb_2@localhost;
+grant all on test.* to testdb_2@localhost with grant option;
+use testdb_1;
+create table t1 (f1 char(4));
+create view v1 as select f1 from t1;
+grant insert on v1 to testdb_2@localhost;
+create view v5 as select f1 from t1;
+grant select, show view on v5 to testdb_2@localhost;
+create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
+use testdb_1;
+create view v6 as select f1 from t1;
+grant select, show view on v6 to testdb_2@localhost;
+create table t2 (f1 char(4));
+create definer=`no_such_user`@`no_such_host` view v7 as select * from t2;
+Warnings:
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
+show fields from testdb_1.v6;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v6;
+View	Create View	character_set_client	collation_connection
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+show create view testdb_1.v7;
+View	Create View	character_set_client	collation_connection
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
+show fields from testdb_1.v7;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+create table t3 (f1 char(4), f2 char(4));
+create view v3 as select f1,f2 from t3;
+grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
+create view v2 as select f1 from testdb_1.v1;
+create view v4 as select f1,f2 from testdb_1.v3;
+show fields from testdb_1.v5;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v5;
+View	Create View	character_set_client	collation_connection
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+show fields from testdb_1.v6;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v6;
+View	Create View	character_set_client	collation_connection
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+show fields from testdb_1.v7;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view testdb_1.v7;
+View	Create View	character_set_client	collation_connection
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
+revoke insert(f1) on v3 from testdb_2@localhost;
+revoke select,show view on v5 from testdb_2@localhost;
+use testdb_1;
+revoke select,show view on v6 from testdb_2@localhost;
+show fields from testdb_1.v5;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v5'
+show create view testdb_1.v5;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v5'
+show fields from testdb_1.v6;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v6'
+show create view testdb_1.v6;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v6'
+show fields from testdb_1.v7;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
+show create view testdb_1.v7;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
+show create view v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `testdb_1`.`v3`.`f1` AS `f1`,`testdb_1`.`v3`.`f2` AS `f2` from `testdb_1`.`v3`	utf8mb4	utf8mb4_0900_ai_ci
+show fields from v4;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+f2	char(4)	YES		NULL	
+show fields from v2;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show fields from testdb_1.v1;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `testdb_1`.`v1`.`f1` AS `f1` from `testdb_1`.`v1`	utf8mb4	utf8mb4_0900_ai_ci
+show create view testdb_1.v1;
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v1'
+select table_name from information_schema.columns a
+where a.table_name = 'v2';
+TABLE_NAME
+v2
+select view_definition from information_schema.views a
+where a.table_name = 'v2';
+VIEW_DEFINITION
+select `testdb_1`.`v1`.`f1` AS `f1` from `testdb_1`.`v1`
+select view_definition from information_schema.views a
+where a.table_name = 'testdb_1.v1';
+VIEW_DEFINITION
+select * from v2;
+ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+use test;
+drop view testdb_1.v1, v2, testdb_1.v3, v4;
+drop database testdb_1;
+drop user testdb_1@localhost;
+drop user testdb_2@localhost;
+create database testdb_1;
+create table testdb_1.t1 (a int);
+create view testdb_1.v1 as select * from testdb_1.t1;
+create user mysqltest_1@localhost;
+grant show view on testdb_1.* to mysqltest_1@localhost;
+grant select on testdb_1.v1 to mysqltest_1@localhost;
+select table_schema, table_name, view_definition from information_schema.views
+where table_name='v1';
+TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION
+testdb_1	v1	select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`
+show create view testdb_1.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v1` AS select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+revoke select on testdb_1.v1 from mysqltest_1@localhost;
+select table_schema, table_name, view_definition from information_schema.views
+where table_name='v1';
+TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION
+testdb_1	v1	
+show create view testdb_1.v1;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v1'
+drop user mysqltest_1@localhost;
+drop database testdb_1;
+set sql_mode= @orig_sql_mode;
+#
+# Bug#30158484 FULLY QUALIFIED COLUMN NAMES IN WHERE CLAUSE ARE
+#              FAILING WITH INFORMATION_SCHEMA TABLES IN 8.0
+#
+# Case 1: INFORMATION_SCHEMA name in SELECT clause with mixed case.
+#
+# These commands fail with ER_BAD_FIELD_ERROR without the fix.
+SELECT INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_NAME	TABLE_NAME	TABLE_NAME	TABLE_NAME
+SELECT INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME
+FROM information_schema.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_NAME	TABLE_NAME	TABLE_NAME	TABLE_NAME
+SELECT INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME
+FROM information_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_NAME	TABLE_NAME	TABLE_NAME	TABLE_NAME
+#
+# Case 2: INFORMATION_SCHEMA name used to specify '*' in SELECT
+# clause with mixed case.
+#
+SELECT INFORMATION_SCHEMA.TABLES.*
+FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+SELECT information_schema.TABLES.*
+FROM information_schema.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+SELECT INFORMATION_SCHEMA.TABLES.*
+FROM information_schema.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+SELECT INFORMATION_schema.TABLES.*
+FROM information_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+#
+# Case 3: INFORMATION_SCHEMA name in WHERE clause with mixed case.
+#
+SELECT COUNT(*) > 1 FROM INFORMATION_SCHEMA.TABLES
+WHERE INFORMATION_schema.TABLES.TABLE_NAME LIKE 'a%' AND
+information_SCHEMA.TABLES.TABLE_NAME LIKE 'b%' AND
+information_schema.TABLES.TABLE_NAME LIKE 'c%' AND
+INFORMATION_SCHEMA.TABLES.TABLE_NAME LIKE 'd%';
+COUNT(*) > 1
+0
+SELECT COUNT(*) > 1 FROM information_schema.TABLES
+WHERE INFORMATION_schema.TABLES.TABLE_NAME LIKE 'a%' AND
+information_SCHEMA.TABLES.TABLE_NAME LIKE 'b%' AND
+information_schema.TABLES.TABLE_NAME LIKE 'c%' AND
+INFORMATION_SCHEMA.TABLES.TABLE_NAME LIKE 'd%';
+COUNT(*) > 1
+0
+SELECT COUNT(*) > 1 FROM INFORMATION_schema.TABLES
+WHERE INFORMATION_schema.TABLES.TABLE_NAME LIKE 'a%' AND
+information_SCHEMA.TABLES.TABLE_NAME LIKE 'b%' AND
+information_schema.TABLES.TABLE_NAME LIKE 'c%' AND
+INFORMATION_SCHEMA.TABLES.TABLE_NAME LIKE 'd%';
+COUNT(*) > 1
+0
+#
+# Case 4: INFORMATION_SCHEMA name in ORDER BY clause with mixed case.
+#
+SELECT COUNT(*) > 1 FROM INFORMATION_SCHEMA.TABLES
+ORDER BY INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME;
+COUNT(*) > 1
+1
+SELECT COUNT(*) > 1 FROM information_schema.TABLES
+ORDER BY INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME;
+COUNT(*) > 1
+1
+SELECT COUNT(*) > 1 FROM INFORMATION_schema.TABLES
+ORDER BY INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME;
+COUNT(*) > 1
+1
+#
+# Case 5: INFORMATION_SCHEMA name in GROUP BY clause with mixed case.
+#
+SELECT COUNT(*) > 1 FROM INFORMATION_SCHEMA.TABLES
+GROUP BY INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME LIMIT 1;
+COUNT(*) > 1
+0
+SELECT COUNT(*) > 1 FROM information_schema.TABLES
+GROUP BY INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME LIMIT 1;
+COUNT(*) > 1
+0
+SELECT COUNT(*) > 1 FROM INFORMATION_schema.TABLES
+GROUP BY INFORMATION_schema.TABLES.TABLE_NAME,
+information_SCHEMA.TABLES.TABLE_NAME,
+information_schema.TABLES.TABLE_NAME,
+INFORMATION_SCHEMA.TABLES.TABLE_NAME LIMIT 1;
+COUNT(*) > 1
+0
+#
+# Case 6: Test behavior using INFORMATION_SCHEMA name, I_S table name
+# and I_S column name with mixed cases.
+#
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE INFORMATION_SCHEMA.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE INFORMATION_SCHEMA.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE INFORMATION_SCHEMA.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE INFORMATION_SCHEMA.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE information_schema.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE information_schema.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE information_schema.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE information_schema.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE INFORMATION_SCHEMA.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE INFORMATION_SCHEMA.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE INFORMATION_SCHEMA.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE INFORMATION_SCHEMA.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE information_schema.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE information_schema.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE information_schema.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+WHERE information_schema.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE INFORMATION_SCHEMA.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE INFORMATION_SCHEMA.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE INFORMATION_SCHEMA.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE INFORMATION_SCHEMA.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE information_schema.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE information_schema.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE information_schema.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+WHERE information_schema.schemata.schema_name = 'unknowdb';

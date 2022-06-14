@@ -14,9 +14,9 @@ Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed i
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 insert into t1 (ggid,passwd) values ('test2','this will fail');
-ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+ERROR 23000: Duplicate entry 'test2' for key 't1.ggid'
 insert into t1 (ggid,id) values ('this will fail',1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1 where ggid='test1';
 id	ggid	email	passwd
 1	test1		xxx
@@ -29,7 +29,7 @@ id	ggid	email	passwd
 replace into t1 (ggid,id) values ('this will work',1);
 replace into t1 (ggid,passwd) values ('test2','this will work');
 update t1 set id=100,ggid='test2' where id=1;
-ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+ERROR 23000: Duplicate entry 'test2' for key 't1.ggid'
 select * from t1;
 id	ggid	email	passwd
 1	this will work		

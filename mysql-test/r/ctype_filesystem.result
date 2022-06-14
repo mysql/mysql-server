@@ -7,5 +7,5 @@ Variable_name	Value
 character_set_filesystem	latin1
 SHOW VARIABLES like 'character_set_client';
 Variable_name	Value
-character_set_client	utf8
+character_set_client	utf8mb3
 SET CHARACTER SET default;

@@ -92,7 +92,7 @@ while ($i)
   (NULL,NULL,10,10,10,10,10,10.1,NULL,NULL,10,10,10,10,10,
    NULL,'two','two',NULL,NULL,NULL,NULL);
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"
+--exec $NDB_MGM -e "all error 10039"
 
 --echo "Starting backup as nowait"
 --source suite/ndb/t/ndb_backup_nowait_start.inc
@@ -116,7 +116,7 @@ options='two',flags='two', date_field='1922-02-22',year_field='1922',
 time_field='22:22:22',date_time='1922-02-22 22:22:22' where auto=1;
 --enable_query_log
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 
 --echo "Wait for backup to complete"
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
@@ -134,9 +134,9 @@ drop table t6;
 drop table t7;
 drop table t8;
 drop table t9;
+--enable_query_log
 
 --source include/ndb_backup_id.inc
---enable_query_log
 
 --echo Restore metadata using backup-part 1
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id-PART-1-OF-2 >> $NDB_TOOLS_OUTPUT 2>&1

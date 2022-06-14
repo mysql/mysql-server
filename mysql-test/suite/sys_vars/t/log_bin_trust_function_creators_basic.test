@@ -148,7 +148,9 @@ SELECT local.log_bin_trust_function_creators;
 --Error ER_UNKNOWN_TABLE
 SELECT session.log_bin_trust_function_creators;
 --Error ER_BAD_FIELD_ERROR
-SELECT log_bin_trust_function_creators = @@session.log_bin_trust_function_creators;
+SELECT log_bin_trust_function_creators;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_bin_trust_function_creators;
 
 
 ####################################

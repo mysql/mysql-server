@@ -54,37 +54,37 @@ STOP SLAVE IO_THREAD;
 --echo # No warning here since we are changing a configuration parameter only.
 --echo
 
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 
 --echo
 --echo # Use of (master/relay)log_file/log_pos options should generate a warning.
 --echo
 
 --let $save_autoposition= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 replace_result $master_log_file MASTER_LOG_FILE;
-eval CHANGE MASTER TO MASTER_LOG_FILE= '$master_log_file';
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE= '$master_log_file';
 
 let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 replace_result $master_log_pos MASTER_LOG_POS;
-eval CHANGE MASTER TO MASTER_LOG_POS= $master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS= $master_log_pos;
 
 let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 replace_result $relay_log_file RELAY_LOG_FILE;
-eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= '$relay_log_file';
 
 let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 replace_result $relay_log_pos RELAY_LOG_POS;
 --disable_warnings
-eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= $relay_log_pos;
 --enable_warnings
 # Do SHOW WARINGS explicitly to avoid replace_result affecting the output
 SHOW WARNINGS;
 
 --replace_result $save_autoposition SAVE_AUTOPOSITION
-eval CHANGE MASTER TO MASTER_AUTO_POSITION= $save_autoposition;
+eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= $save_autoposition;
 
 --echo
 --echo # cleanup

@@ -18,6 +18,7 @@
 --source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --let $group_replication_group_name= 6749cab0-93ae-11e5-a837-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -46,7 +47,7 @@ SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @debug_save_ret_count= @@GLOBAL.group_replication_recovery_retry_count;
 
 --disable_warnings
-CHANGE MASTER TO MASTER_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --eval SET GLOBAL group_replication_recovery_reconnect_interval= 10 # seconds
@@ -60,16 +61,17 @@ set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 # on slow runs (valgrind) it can happen because the connection
 # of the recovery thread may be slower than 5 seconds and the
 # server1 may actually be stopped before the reconnection attempt
 # TODO: the sleeps below should be replaced by debug sync points
 # For now ensure that we get coverage in most of the runs and
 # do not fail on valgrind
-call mtr.add_suppression("All donors left. Aborting group replication recovery.*");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.*");
 set session sql_log_bin=1;
 
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -119,7 +121,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --source include/stop_group_replication.inc
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 --source include/start_group_replication.inc
 

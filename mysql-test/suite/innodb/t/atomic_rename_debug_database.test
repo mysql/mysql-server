@@ -1,3 +1,10 @@
+--echo #
+--echo # Test rename table with fulltext index crash/recovery rollback.
+--echo # The table should be renamed from one database to another so
+--echo # that all tablespaces of aux tables would be renamed too.
+--echo #
+
+--source include/big_test.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
@@ -8,8 +15,6 @@ CALL mtr.add_suppression("Operating system error number .* in a file operation."
 CALL mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("Cannot open datafile for read-only: .*");
 --enable_query_log
-
---echo # Test rename table with fulltext index crash/recovery rollback. The table should be renamed from one database to another so that all tablepsace of aux tables would be renamed too..
 
 LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 CREATE DATABASE db_a;
@@ -39,3 +44,8 @@ eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_d
 
 DROP DATABASE db_a;
 DROP DATABASE db_b;
+
+-- disable_query_log
+call mtr.add_suppression("\\[ERROR\\].*Scanned file '.*' for tablespace .* cannot be opened because it is not in a sub-directory named for the schema");
+-- enable_query_log
+

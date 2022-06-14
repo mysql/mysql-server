@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Configure slave_rows_search_algorithms on master
 [connection master]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON on master
 [connection master]
 SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
@@ -33,6 +35,8 @@ include/stop_slave.inc
 # Configure slave_rows_search_algorithms and binlog_format
 [connection slave]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -51,12 +55,16 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 2. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -69,12 +77,16 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 3. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -87,12 +99,16 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 4. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -105,12 +121,16 @@ INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, 
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -129,12 +149,16 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -150,9 +174,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_op' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_op
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_op' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -161,12 +182,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading operation type (invalid operation code) while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 7. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -178,9 +203,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_path_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -189,12 +211,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 8. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -206,9 +232,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_path_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -217,12 +240,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping path while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 9. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -234,9 +261,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_path' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_path
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -245,12 +269,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 10. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -262,9 +290,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_path_char' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_path_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_char' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -273,12 +298,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, 'ÿ$.i', '[1]')
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 11. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -290,9 +319,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -301,12 +327,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 12. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -318,9 +348,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_doc_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -329,12 +356,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 13. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -346,9 +377,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_doc' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_doc
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -357,12 +385,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 14. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -374,9 +406,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_doc_char' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_doc_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_char' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -385,12 +414,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, '$.id', Error parsing json value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 15. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -402,9 +435,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_omit_last_column_from_table_map_event' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_omit_last_column_from_table_map_event
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_omit_last_column_from_table_map_event' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -424,24 +454,30 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ###   @1=NULL
 ### SET
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 [connection slave]
-include/rpl_restart_server.inc [server_number=2 parameters: --slave_skip_errors=1062,1032,3648,3649,1610,5]
+include/rpl_restart_server.inc [server_number=2 parameters: --replica_skip_errors=1062,1032,3648,3649,1610,5]
 [connection slave]
 ******** ERROR MODE: SKIP ********
 ---- Configure slave ----
 # Configure slave_rows_search_algorithms and binlog_format
 [connection slave]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -461,9 +497,11 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 17. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -477,9 +515,11 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 18. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -493,9 +533,11 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 19. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -509,9 +551,11 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -531,9 +575,11 @@ UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -549,16 +595,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_op' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_op
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_op' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 22. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -570,16 +615,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_path_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 23. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -591,16 +635,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_path_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 24. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -612,16 +655,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_path' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_path
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 25. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -633,16 +675,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_path_char' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_path_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_char' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 26. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -654,16 +695,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 27. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -675,16 +715,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_doc_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 28. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -696,16 +735,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_doc' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_doc
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 29. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -717,16 +755,15 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_doc_char' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_doc_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_char' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 30. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -738,29 +775,30 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_omit_last_column_from_table_map_event' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_omit_last_column_from_table_map_event
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_omit_last_column_from_table_map_event' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 [connection slave]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
 [connection slave]
-SET GLOBAL SLAVE_EXEC_MODE = IDEMPOTENT;
+SET GLOBAL REPLICA_EXEC_MODE = IDEMPOTENT;
 ******** ERROR MODE: IDEMPOTENT ********
 ---- Configure slave ----
 # Configure slave_rows_search_algorithms and binlog_format
 [connection slave]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -779,12 +817,16 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 32. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -797,12 +839,16 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 33. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -815,12 +861,16 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 34. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -834,9 +884,11 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -855,12 +907,16 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -876,9 +932,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_op' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_op
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_op' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -887,12 +940,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading operation type (invalid operation code) while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 37. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -904,9 +961,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_path_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -915,12 +969,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 38. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -932,9 +990,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_path_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -943,12 +998,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping path while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 39. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -960,9 +1019,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_path' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_path
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -971,12 +1027,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 40. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -988,9 +1048,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_path_char' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_path_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_char' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -999,12 +1056,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, 'ÿ$.i', '[1]')
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 41. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1016,9 +1077,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -1027,12 +1085,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 42. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1044,9 +1106,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_doc_length' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_length' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -1055,12 +1114,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 43. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1072,9 +1135,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_truncate_before_doc' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_truncate_before_doc
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -1083,12 +1143,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 44. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1100,9 +1164,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_corrupt_json_diff_bad_doc_char' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_corrupt_json_diff_bad_doc_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_char' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -1111,12 +1172,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, '$.id', Error parsing json value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ==== 45. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1128,9 +1193,6 @@ CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
 SET SQL_LOG_BIN = 1;
 ## Adding debug point 'binlog_omit_last_column_from_table_map_event' to @@SESSION.debug
-SELECT @@SESSION.DEBUG;
-@@SESSION.DEBUG
-d,binlog_omit_last_column_from_table_map_event
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_omit_last_column_from_table_map_event' from @@SESSION.debug
 ### UPDATE `test`.`t`
@@ -1150,12 +1212,16 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ###   @1=NULL
 ### SET
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=MASTER_PORT,SOURCE_HOST='127.0.0.1';
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
@@ -1164,7 +1230,12 @@ SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection slave]
 include/stop_slave_sql.inc
 include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+SET GLOBAL REPLICA_EXEC_MODE = STRICT;
 include/rpl_end.inc

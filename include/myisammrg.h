@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,6 @@ extern int myrg_rkey(MYRG_INFO *info, uchar *buf, int inx, const uchar *key,
                      key_part_map keypart_map,
                      enum ha_rkey_function search_flag);
 extern int myrg_rrnd(MYRG_INFO *file, uchar *buf, ulonglong pos);
-extern int myrg_rsame(MYRG_INFO *file, uchar *record, int inx);
 extern int myrg_update(MYRG_INFO *file, const uchar *old, uchar *new_rec);
 extern int myrg_write(MYRG_INFO *info, uchar *rec);
 extern int myrg_status(MYRG_INFO *file, MYMERGE_INFO *x, int flag);

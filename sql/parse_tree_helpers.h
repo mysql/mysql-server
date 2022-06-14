@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,28 +23,33 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <assert.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 #include <new>
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
+
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "mysql_time.h"
 #include "sql/item.h"
-#include "sql/item_func.h"  // Item etc.
-#include "sql/mem_root_array.h"
+#include "sql/item_func.h"       // Item etc.
+#include "sql/parse_location.h"  // POS
 #include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
 #include "sql/set_var.h"                                    // enum_var_type
+#include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
 class String;
 class THD;
 class my_decimal;
+struct Column_parse_context;
 struct MEM_ROOT;
 struct handlerton;
+
+template <typename Element_type>
+class Mem_root_array;
 
 /**
   Base class for parse-time Item objects
@@ -62,29 +67,29 @@ class Parse_tree_item : public Item {
  public:
   explicit Parse_tree_item(const POS &pos) : Item(pos) {}
 
-  virtual enum Type type() const { return INVALID_ITEM; }
-  virtual double val_real() {
-    DBUG_ASSERT(0);
+  enum Type type() const override { return INVALID_ITEM; }
+  double val_real() override {
+    assert(0);
     return 0;
   }
-  virtual longlong val_int() {
-    DBUG_ASSERT(0);
+  longlong val_int() override {
+    assert(0);
     return 0;
   }
-  virtual String *val_str(String *) {
-    DBUG_ASSERT(0);
-    return NULL;
+  String *val_str(String *) override {
+    assert(0);
+    return nullptr;
   }
-  virtual my_decimal *val_decimal(my_decimal *) {
-    DBUG_ASSERT(0);
-    return NULL;
+  my_decimal *val_decimal(my_decimal *) override {
+    assert(0);
+    return nullptr;
   }
-  virtual bool get_date(MYSQL_TIME *, uint) {
-    DBUG_ASSERT(0);
+  bool get_date(MYSQL_TIME *, uint) override {
+    assert(0);
     return false;
   }
-  virtual bool get_time(MYSQL_TIME *) {
-    DBUG_ASSERT(0);
+  bool get_time(MYSQL_TIME *) override {
+    assert(0);
     return false;
   }
 };
@@ -97,28 +102,29 @@ class PT_item_list : public Parse_tree_node {
   typedef Parse_tree_node super;
 
  public:
-  List<Item> value;
+  PT_item_list() : value(*THR_MALLOC) {}
 
-  virtual bool contextualize(Parse_context *pc) {
+  mem_root_deque<Item *> value;
+
+  bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
-    List_iterator<Item> it(value);
-    Item *item;
-    while ((item = it++)) {
+    for (Item *&item : value) {
       if (item->itemize(pc, &item)) return true;
-      it.replace(item);
     }
     return false;
   }
 
-  bool is_empty() const { return value.is_empty(); }
-  uint elements() const { return value.elements; }
+  bool is_empty() const { return value.empty(); }
+  uint elements() const { return value.size(); }
 
   bool push_back(Item *item) {
     /*
      Item may be NULL in case of OOM: just ignore it and check thd->is_error()
      in the caller code.
     */
-    return item == NULL || value.push_back(item);
+    if (item == nullptr) return true;
+    value.push_back(item);
+    return false;
   }
 
   bool push_front(Item *item) {
@@ -126,12 +132,16 @@ class PT_item_list : public Parse_tree_node {
      Item may be NULL in case of OOM: just ignore it and check thd->is_error()
      in the caller code.
     */
-    return item == NULL || value.push_front(item);
+    if (item == nullptr) return true;
+    value.push_front(item);
+    return false;
   }
 
   Item *pop_front() {
-    DBUG_ASSERT(!is_empty());
-    return value.pop();
+    assert(!is_empty());
+    Item *ret = value.front();
+    value.pop_front();
+    return ret;
   }
 
   Item *operator[](uint index) const { return value[index]; }
@@ -171,7 +181,7 @@ To *item_cond_cast(Item *const from) {
   return ((from->type() == Item::COND_ITEM &&
            static_cast<Item_func *>(from)->functype() == Tag)
               ? static_cast<To *>(from)
-              : NULL);
+              : nullptr);
 }
 
 /**
@@ -194,7 +204,7 @@ To *item_cond_cast(Item *const from) {
 template <class Class, Item_func::Functype Tag>
 Item *flatten_associative_operator(MEM_ROOT *mem_root, const POS &pos,
                                    Item *left, Item *right) {
-  if (left == NULL || right == NULL) return NULL;
+  if (left == nullptr || right == nullptr) return nullptr;
   Class *left_func = item_cond_cast<Class, Tag>(left);
   Class *right_func = item_cond_cast<Class, Tag>(right);
   if (left_func) {
@@ -217,17 +227,12 @@ Item *flatten_associative_operator(MEM_ROOT *mem_root, const POS &pos,
   }
 }
 
-Item_splocal *create_item_for_sp_var(THD *thd, LEX_STRING name,
+Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
                                      class sp_variable *spv,
                                      const char *query_start_ptr,
                                      const char *start, const char *end);
 
-bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp);
-bool set_system_variable(THD *thd, struct sys_var_with_base *tmp,
-                         enum enum_var_type var_type, Item *val);
-LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr);
-bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
-                         Item *expr_item, LEX_STRING expr_query);
+LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr);
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);
 bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,
@@ -242,12 +247,15 @@ inline bool is_identifier(const char *str, const char *ident) {
 inline bool is_identifier(const LEX_STRING &str, const char *ident) {
   return is_identifier(str.str, ident);
 }
-bool is_key_cache_variable_suffix(const char *suffix);
 
 bool validate_vcpu_range(const resourcegroups::Range &range);
 bool validate_resource_group_priority(THD *thd, int *priority,
                                       const LEX_CSTRING &name,
                                       const resourcegroups::Type &type);
 bool check_resource_group_support();
-bool check_resource_group_name_len(const LEX_CSTRING &name);
+bool check_resource_group_name_len(const LEX_CSTRING &name,
+                                   Sql_condition::enum_severity_level severity);
+
+void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc);
+
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

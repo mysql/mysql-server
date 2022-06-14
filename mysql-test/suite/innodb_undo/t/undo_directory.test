@@ -1,0 +1,86 @@
+--echo #
+--echo # Show the affect of using --innodb-undo-directory
+--echo #
+
+let $MYSQLD_BASE_DIR = `select @@basedir`;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
+--echo # Stop the MTR default mysqld since it was started with no --innodb-undo-directory
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # Initialize a temporary database that uses a separate undo directory.
+--echo #
+--write_file $MYSQL_TMP_DIR/boot.sql
+CREATE DATABASE test;
+EOF
+
+let $MYSQl_DATA_DIR = $MYSQL_TMP_DIR/data;
+let $MYSQL_UNDO_DIR = $MYSQL_TMP_DIR/undo;
+--mkdir $MYSQL_UNDO_DIR
+
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$INNODB_PAGE_SIZE --basedir=$MYSQLD_BASE_DIR --datadir=$MYSQL_DATA_DIR --innodb-undo-directory=$MYSQL_UNDO_DIR --init-file=$MYSQL_TMP_DIR/boot.sql --console </dev/null>>$MYSQL_TMP_DIR/bootstrap.log 2>&1;
+--exec $NEW_CMD
+
+--echo # Directory listing of MYSQL_UNDO_DIR
+--list_files $MYSQL_TMP_DIR/undo undo*
+
+--echo #
+--echo # Start the DB server with the temp datadir and undo directory
+--echo #
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
+--replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_UNDO_DIR MYSQL_UNDO_DIR  $INNODB_PAGE_SIZE PAGE_SIZE
+--let $restart_parameters="restart: --datadir=$MYSQL_DATA_DIR --innodb-undo-directory=$MYSQL_UNDO_DIR --innodb-page-size=$INNODB_PAGE_SIZE"
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Create 2 undo tablespaces in the undo directory
+--echo #
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+--replace_result $MYSQL_UNDO_DIR MYSQL_UNDO_DIR
+eval CREATE UNDO TABLESPACE undo_004 ADD DATAFILE '$MYSQL_UNDO_DIR/undo_004.ibu';
+
+--echo #
+--echo # The following filename is exactly like the original datafile so this error is caught by MySQL.
+--echo #
+--error ER_TABLESPACE_DUP_FILENAME
+CREATE UNDO TABLESPACE undo_999 ADD DATAFILE 'undo_003.ibu';
+SHOW WARNINGS;
+
+--echo #
+--echo # The following filename is different from the original datafile so this error is caught by InnoDB.
+--echo #
+--replace_result $MYSQL_UNDO_DIR MYSQL_UNDO_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE UNDO TABLESPACE undo_999 ADD DATAFILE '$MYSQL_UNDO_DIR/undo_003.ibu';
+--replace_result $MYSQL_UNDO_DIR MYSQL_UNDO_DIR
+SHOW WARNINGS;
+
+--echo #
+--echo # The following filename is different from the original datafile so this error is caught by InnoDB.
+--echo #
+--error ER_WRONG_FILE_NAME
+CREATE UNDO TABLESPACE undo_999 ADD DATAFILE 'undo_004.ibu';
+SHOW WARNINGS;
+
+--echo #
+--echo # The following filename is exactly like the original datafile so this error is caught by MySQL.
+--echo #
+--replace_result $MYSQL_UNDO_DIR MYSQL_UNDO_DIR
+--error ER_TABLESPACE_DUP_FILENAME
+eval CREATE UNDO TABLESPACE undo_999 ADD DATAFILE '$MYSQL_UNDO_DIR/undo_004.ibu';
+SHOW WARNINGS;
+
+--list_files $MYSQL_TMP_DIR/undo undo*
+
+--echo #
+--echo # Cleanup
+--echo #
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+
+--force-rmdir $MYSQL_UNDO_DIR
+--force-rmdir $MYSQL_DATA_DIR
+--remove_file $MYSQL_TMP_DIR/boot.sql

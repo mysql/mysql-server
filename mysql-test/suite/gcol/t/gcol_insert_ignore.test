@@ -1,0 +1,145 @@
+--source include/big_test.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Bug #30664660 GCOLS, CRASH AND CORRUPTIONS WITH DELETE IGNORE + JSON
+--echo #
+
+SET @@session.timestamp = 1100000000;
+
+CREATE TABLE data_examples (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  type_name TEXT,
+  value_sql TEXT
+);
+INSERT INTO data_examples (type_name,value_sql) VALUES
+  ('JSON', '"{}"'),
+  ('JSON', '''["hello beautiful world"]'''),
+  ('JSON', '"-1"'),
+  ('TINYINT', '-1'),
+  ('SMALLINT', '-1'),
+  ('MEDIUMINT', '-1'),
+  ('INT', '2000000000'),
+  ('INT', '-2000000000'),
+  ('INT UNSIGNED', '4000000000'),
+  ('BIGINT', '2000000000000000000'),
+  ('BIGINT', '-2000000000000000000'),
+  ('FLOAT', '-1.23456'),
+  ('FLOAT', '-1e38'),
+  ('FLOAT', '1e38'),
+  ('DOUBLE', '-1.23456789012345'),
+  ('DOUBLE', '1.23456789012345'),
+  ('DOUBLE', '-1e300'),
+  ('DOUBLE', '1e300'),
+  ('DECIMAL(4,2)', '-10.99'),
+  ('DECIMAL(34,4)', '20000000000000000000000000000.0001'),
+  ('DECIMAL(34,4)', '-20000000000000000000000000000.0001'),
+  ('BIT(64)', '0xDEADBEEFC0FEBABE'),
+  ('BIT(4)', '0b1000'),
+  ('YEAR', '2020'),
+  ('DATE', '"2030-04-05"'),
+  ('TIME', '"11:12:13"'),
+  ('DATETIME', '"2030-04-05 11:12:13"'),
+  ('TIMESTAMP', '"2030-04-05 11:12:13"'),
+  ('CHAR(40)', '"2000000000000000000000000000000000000"'),
+  ('BINARY(45)', '"200000000000000000000000000000000000000000"'),
+  ('VARCHAR(50)', '"2000000000000000000000000000000000000000000000000"'),
+  ('CHAR(24)', '"hello beautiful world"'),
+  ('BINARY(12)', '"hello world"'),
+  ('VARCHAR(6)', '"hello"'),
+  ('ENUM("up","down")', '"up"'),
+  ('SET("up","down")', '"up,down"'),
+  ('GEOMETRY', 'ST_GeomFromText("POINT(1 1)")'),
+  ('POINT', 'ST_GeomFromText("POINT(1 1)")'),
+  ('LINESTRING', 'ST_GeomFromText("LINESTRING(0 0,1 1,2 2)")'),
+  (
+    'POLYGON',
+    'ST_GeomFromText("POLYGON((0 0,1 0,1 1,0 1,0 0),(5 5,7 5,7 7,5 7,5 5))")'
+  );
+  # TODO:
+  #('MULTIPOINT',''),
+  #('MULTILINESTRING',''),
+  #('MULTIPOLYGON',''),
+  #('GEOMETRYCOLLECTION',''),
+
+CREATE TABLE data_types (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name TEXT
+);
+INSERT INTO data_types (name)
+  SELECT type_name FROM data_examples GROUP BY type_name ORDER BY MIN(id);
+
+--let $types_cnt = `SELECT COUNT(1) FROM data_types`
+--let $examples_cnt = `SELECT COUNT(1) FROM data_examples`
+
+--let $virtual_column_type_i = 1
+while($virtual_column_type_i <= $types_cnt)
+{
+  let $virtual_column_type =
+    `SELECT name FROM data_types WHERE id=$virtual_column_type_i`;
+  --echo #
+  --echo # Testing virtual column of type $virtual_column_type
+  --echo #
+
+  --let $example_i = 1
+  while($example_i <= $examples_cnt)
+  {
+    --let $type_name = `SELECT type_name FROM data_examples WHERE id=$example_i`
+    --let $value_sql = `SELECT value_sql FROM data_examples WHERE id=$example_i`
+    --echo # Testing example of type $type_name and value $value_sql
+    --disable_query_log
+    eval
+      CREATE TABLE t (
+        a $type_name NOT NULL,
+        b $virtual_column_type GENERATED ALWAYS as (a) VIRTUAL NOT NULL
+      ) ENGINE=INNODB;
+
+    # We can't have an index on virtual:
+    # - spatial types,
+    # - JSON
+    error 0
+      ,ER_BLOB_KEY_WITHOUT_LENGTH
+      ,ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+      ,ER_JSON_USED_AS_KEY
+    ;
+    CREATE INDEX on_b ON t(b);
+    error 0
+      ,ER_WRONG_SUB_KEY
+      ,ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+      ,ER_JSON_USED_AS_KEY
+    ;
+    CREATE INDEX on_b_prefix ON t(b(10));
+
+    --enable_query_log
+    SHOW CREATE TABLE t;
+
+    error 0
+      ,ER_INVALID_JSON_TEXT
+      ,ER_INVALID_JSON_CHARSET
+      ,ER_CANT_CREATE_GEOMETRY_OBJECT
+    ;
+    --eval INSERT IGNORE INTO t (a) VALUES ($value_sql)
+
+    SELECT * FROM t;
+
+    error 0
+      ,ER_INVALID_JSON_VALUE_FOR_CAST
+      ,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+      ,ER_TRUNCATED_WRONG_VALUE
+    ;
+    DELETE FROM t;
+
+    DELETE IGNORE FROM t;
+
+    CHECK TABLE t;
+    DROP TABLE t;
+
+    --inc $example_i
+  }
+
+  --inc $virtual_column_type_i
+}
+
+DROP TABLE data_types;
+DROP TABLE data_examples;
+SET timestamp=DEFAULT;

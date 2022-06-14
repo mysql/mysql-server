@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <string>
 
+#include "sql/intrusive_list_iterator.h"
 #include "sql/item_func.h"
 #include "sql/sql_lex.h"
 #include "template_utils.h"
@@ -48,10 +46,10 @@ class Intrusive_list_indexer {
   Intrusive_list_indexer(SQL_I_List<T> list) : m_list(list) {}
   T *operator[](int i) {
     int curr = 0;
-    for (T *t = m_list.first; t != NULL; t = t->next_local, ++curr)
+    for (T *t = m_list.first; t != nullptr; t = t->next_local, ++curr)
       if (curr == i) return t;
     EXPECT_TRUE(false);
-    return NULL;
+    return nullptr;
   }
 
  private:
@@ -60,8 +58,14 @@ class Intrusive_list_indexer {
 
 typedef Intrusive_list_indexer<TABLE_LIST> Table_list_indexer;
 
+using Local_tables_iterator =
+    IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_local>;
+
+/// A list interface over the TABLE_LIST::next_local pointer.
+using Local_tables_list = IteratorContainer<Local_tables_iterator>;
+
 TEST_F(LockingClauseSyntaxTest, LegacyForUpdate) {
-  SELECT_LEX *term = parse("SELECT * FROM t0, t1, t2 FOR UPDATE");
+  Query_block *term = parse("SELECT * FROM t0, t1, t2 FOR UPDATE");
 
   for (auto table : Local_tables_list(term->table_list.first)) {
     EXPECT_EQ(TL_WRITE, table->lock_descriptor().type);
@@ -70,7 +74,7 @@ TEST_F(LockingClauseSyntaxTest, LegacyForUpdate) {
 }
 
 TEST_F(LockingClauseSyntaxTest, LegacyShared) {
-  SELECT_LEX *term = parse("SELECT * FROM t0, t1, t2 LOCK IN SHARE MODE");
+  Query_block *term = parse("SELECT * FROM t0, t1, t2 LOCK IN SHARE MODE");
 
   for (auto table : Local_tables_list(term->table_list.first)) {
     EXPECT_EQ(TL_READ_WITH_SHARED_LOCKS, table->lock_descriptor().type);
@@ -79,7 +83,7 @@ TEST_F(LockingClauseSyntaxTest, LegacyShared) {
 }
 
 TEST_F(LockingClauseSyntaxTest, NameResolution) {
-  SELECT_LEX *term = parse(
+  Query_block *term = parse(
       "SELECT * "
       "FROM t0 t0_alias, "
       "test.t1, "

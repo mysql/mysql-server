@@ -37,13 +37,13 @@ engine=heap;
 insert into t1 values (1,1),(2,2),(1,3),(2,4),(2,5),(2,6);
 select * from t1 where x=1;
 x	y
-1	3
 1	1
+1	3
 select * from t1,t1 as t2 where t1.x=t2.y;
 x	y	x	y
 1	1	1	1
-2	2	2	2
 1	3	1	1
+2	2	2	2
 2	4	2	2
 2	5	2	2
 2	6	2	2
@@ -64,27 +64,27 @@ CREATE TABLE t1 ( a int not null default 0, b int not null default 0,  key  usin
 insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
 select * from t1 where a=1;
 a	b
-1	6
-1	5
-1	4
-1	3
-1	2
 1	1
+1	2
+1	3
+1	4
+1	5
+1	6
 insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
 select * from t1 where a=1;
 a	b
-1	6
-1	5
-1	4
-1	3
-1	2
 1	1
-1	6
-1	5
-1	4
-1	3
-1	2
 1	1
+1	2
+1	2
+1	3
+1	3
+1	4
+1	4
+1	5
+1	5
+1	6
+1	6
 drop table t1;
 create table t1 (id int unsigned not null, primary key  using HASH (id)) engine=HEAP;
 insert into t1 values(1);
@@ -171,7 +171,7 @@ SELECT * FROM t1 WHERE b<=>NULL;
 a	b
 99	NULL
 INSERT INTO t1 VALUES (1,3);
-ERROR 23000: Duplicate entry '3' for key 'b'
+ERROR 23000: Duplicate entry '3' for key 't1.b'
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null, primary key using HASH (a)) engine=heap;
 INSERT into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11);
@@ -383,7 +383,7 @@ t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES	NULL
 explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a = concat('',t1.name) and t3.b=t1.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	heap_idx	heap_idx	22	const	7	100.00	NULL
-1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	84	1.19	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	84	1.19	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` IGNORE INDEX (`btree_idx`) join `test`.`t3` where ((`test`.`t1`.`name` = 'matt') and (`test`.`t3`.`b` = 'matt') and (`test`.`t3`.`a` = concat('',`test`.`t1`.`name`)))
 drop table t1, t2, t3;
@@ -410,14 +410,14 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES('A', 'A');
 INSERT INTO t1 VALUES('A ', 'A ');
-ERROR 23000: Duplicate entry 'A -A ' for key 'key1'
+ERROR 23000: Duplicate entry 'A -A ' for key 't1.key1'
 DROP TABLE t1;
 CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, 
 col2 VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, 
 UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
 INSERT INTO t1 VALUES('A', 'A');
 INSERT INTO t1 VALUES('A ', 'A ');
-ERROR 23000: Duplicate entry 'A -A ' for key 'key1'
+ERROR 23000: Duplicate entry 'A -A ' for key 't1.key1'
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -446,10 +446,10 @@ INSERT INTO t1 VALUES (3, NULL);
 INSERT INTO t1 VALUES (4, NULL);
 SELECT * FROM t1 WHERE val IS NULL;
 pk	val
-4	NULL
-3	NULL
-2	NULL
 1	NULL
+2	NULL
+3	NULL
+4	NULL
 EXPLAIN SELECT * FROM t1 WHERE val IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	val	val	5	const	1	100.00	Using where
@@ -472,6 +472,49 @@ Note	1003	/* select#1 */ select `test`.`t1`.`c2` AS `c2`,count(`test`.`t1`.`c1`)
 SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
 c2	COUNT(c1)
 1	2
-5	1
 3	2
+5	1
+DROP TABLE t1;
+#
+# Bug#29527115 MYSQL USES COMPOSITE HASH INDEX WHEN NOT POSSIBLE AND RETURNS WRONG RESULT.
+#
+CREATE TABLE t1 (
+f1 int NOT NULL,
+f2 int NOT NULL,
+f3 date NOT NULL,
+KEY k1 (f2,f3) USING HASH
+) ENGINE=MEMORY;
+INSERT INTO t1 VALUES
+(1, 15409, '2019-02-25'), (2, 15911, '2019-02-25'), (3, 15929, '2019-02-25'), (4, 15936, '2019-02-25'),
+(5, 16004, '2019-02-25'), (6, 16005, '2019-02-25'), (7, 16007, '2019-02-25'),(8, 16029, '2019-02-25'),
+(9, 16031, '2019-02-25'), (10, 16052, '2019-02-25'), (11, 16054, '2019-02-25'), (12, 16040, '2019-02-25'),
+(13, 12485, '2019-02-25'), (14, 15892, '2019-02-25'), (15, 16035, '2019-02-25'), (16, 16060, '2019-02-25'),
+(17, 16066, '2019-02-25'), (18, 16093, '2019-02-25'), (19, 16057, '2019-02-25'), (20, 16027, '2019-02-25'),
+(21, 15988, '2019-02-25');
+SET eq_range_index_dive_limit = 1;
+EXPLAIN SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k1	NULL	NULL	NULL	21	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(1) AS `COUNT(1)` from `test`.`t1` where (`test`.`t1`.`f2` in (15409,15911))
+SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911);
+COUNT(1)
+2
+EXPLAIN SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 > '2018-02-25';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k1	NULL	NULL	NULL	21	6.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(1) AS `COUNT(1)` from `test`.`t1` where ((`test`.`t1`.`f2` in (15409,15911)) and (`test`.`t1`.`f3` > DATE'2018-02-25'))
+SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 > '2018-02-25';
+COUNT(1)
+2
+EXPLAIN SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 = '2019-02-25';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	7	NULL	42	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(1) AS `COUNT(1)` from `test`.`t1` where ((`test`.`t1`.`f3` = DATE'2019-02-25') and (`test`.`t1`.`f2` in (15409,15911)))
+SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 = '2019-02-25';
+COUNT(1)
+2
+SET eq_range_index_dive_limit = DEFAULT;
 DROP TABLE t1;

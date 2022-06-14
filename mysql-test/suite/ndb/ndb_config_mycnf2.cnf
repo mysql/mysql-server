@@ -27,5 +27,6 @@ mysqld = ,,,,
 NodeId=11
 [cluster_config.ndb_mgmd.1.cluster2]
 NodeId=1
+PortNumber = 6000
 [cluster_config.ndbd.1.cluster2]
 NodeId=3

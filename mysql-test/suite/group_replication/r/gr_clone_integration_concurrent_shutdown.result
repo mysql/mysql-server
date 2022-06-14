@@ -1,0 +1,63 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+############################################################
+# 3. Make a backup of server 2 to restore it at the end
+[connection server2]
+
+############################################################
+# 4. Install the clone plugin on server2
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 5. On a empty server2 start group replication
+#    Block clone progress
+SET GLOBAL group_replication_clone_threshold= 1;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 1;
+SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
+
+############################################################
+# 6. Shutdown the server while the clone is happening
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+
+############################################################
+# 7. Restart server2 using the backup folder
+# restart
+include/rpl_reconnect.inc
+
+############################################################
+# 8. Cleanup
+[connection server1]
+DROP TABLE t1;
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Plugin group_replication reported: 'Error, maximum number of retries exceeded when waiting for the internal server session state to be operating'");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("Info table is not ready to be used. *");
+call mtr.add_suppression("Error while starting the group replication applier thread");
+set session sql_log_bin=1;
+[connection server1]
+UNINSTALL PLUGIN clone;
+include/group_replication_end.inc

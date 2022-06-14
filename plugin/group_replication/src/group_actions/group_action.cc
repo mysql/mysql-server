@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,14 +41,14 @@ void Group_action_diagnostics::set_execution_message_level(
 
 void Group_action_diagnostics::set_execution_message(
     enum_action_result_level level, std::string &message) {
-  DBUG_ASSERT(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
+  assert(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
   log_message.assign(message);
   message_level = level;
 }
 
 void Group_action_diagnostics::set_execution_message(
     enum_action_result_level level, const char *message) {
-  DBUG_ASSERT(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
+  assert(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
   log_message.assign(message);
   message_level = level;
 }
@@ -65,8 +65,8 @@ void Group_action_diagnostics::set_warning_message(const char *warning_msg) {
   warning_message.assign(warning_msg);
 }
 
-void Group_action_diagnostics::append_warning_message(const char *warn_msg) {
-  warning_message.append(warn_msg);
+void Group_action_diagnostics::append_warning_message(const char *warning_msg) {
+  warning_message.append(warning_msg);
 }
 
 std::string &Group_action_diagnostics::get_execution_message() {
@@ -92,7 +92,7 @@ void Group_action_diagnostics::clear_info() {
   warning_message.clear();
 }
 
-Group_action::~Group_action() {}
+Group_action::~Group_action() = default;
 
 PSI_stage_key Group_action::get_action_stage_termination_key() {
   return -1; /* purecov: inspected */

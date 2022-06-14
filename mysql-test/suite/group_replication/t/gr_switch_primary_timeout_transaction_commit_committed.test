@@ -1,0 +1,209 @@
+################################################################################
+# This test validates committing transactions are not rolled back by a UDF
+# group_replication_set_as_primary even when timeout
+# `running_transactions_timeout` expires.
+#
+# Test:
+# 0. This test needs 2 server.
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+# 2. Execute a transaction on server1 and block it in committing state.
+# 3. Execute change primary on server2 and block the operation.
+# 4. Unblock transaction running on sever1 and reap result.
+#    Unblock change primary operation and reap result.
+# 5. Assert primary and secondary status are correct.
+#    Assert data is present on both members.
+# 6. Execute a transaction on server2 and block it in committing state.
+# 7. Execute change primary on server2 and block the operation.
+# 8. Unblock transaction running on sever2 and reap result.
+#    Unblock change primary operation and reap result.
+# 9. Assert primary and secondary status are correct.
+#    Assert data is present on both members.
+# 10. Cleanup.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1(c1 int primary key);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Execute a transaction on server1 and block it in committing state.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+--send INSERT INTO t1 values(1)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+
+--echo
+--echo # 3. Execute change primary on server2 and block the operation.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+
+--replace_result $server2_uuid SERVER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Unblock transaction running on sever1 and reap result.
+--echo #    Unblock change primary operation and reap result.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $server2_uuid SERVER2_UUID
+--reap
+
+--echo
+--echo # 5. Assert primary and secondary status are correct.
+--echo #    Assert data is present on both members.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 6. Execute a transaction on server2 and block it in committing state.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+--send INSERT INTO t1 values(2)
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+
+--echo
+--echo # 7. Execute change primary on server2 and block the operation.
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--replace_result $server1_uuid SERVER1_UUID
+--send_eval SELECT group_replication_set_as_primary("$server1_uuid", 0);
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"
+--source include/wait_condition.inc
+
+--echo
+--echo # 8. Unblock transaction running on sever2 and reap result.
+--echo #    Unblock change primary operation and reap result.
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--reap
+
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--replace_result $server1_uuid SERVER1_UUID
+--reap
+
+--echo
+--echo # 9. Assert primary and secondary status are correct.
+--echo #    Assert data is present on both members.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 10. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+--source include/group_replication_end.inc

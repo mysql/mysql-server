@@ -8,7 +8,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -20,7 +20,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -36,7 +36,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -48,7 +48,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -64,7 +64,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -76,7 +76,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -92,7 +92,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -104,7 +104,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` char(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -120,7 +120,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -132,7 +132,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -148,7 +148,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -160,7 +160,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -176,7 +176,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -188,7 +188,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -204,7 +204,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -216,7 +216,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` varchar(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -232,7 +232,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -244,7 +244,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -260,7 +260,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -272,7 +272,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -288,7 +288,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -300,7 +300,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -316,7 +316,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -328,7 +328,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` binary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -344,7 +344,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -356,7 +356,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -372,7 +372,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -384,7 +384,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -400,7 +400,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -412,7 +412,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -428,7 +428,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
@@ -440,7 +440,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` varbinary(20) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

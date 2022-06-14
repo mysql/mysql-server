@@ -480,7 +480,9 @@ INSERT INTO C (c8,c9) VALUES('1970-01-01',0),('1970-01-01',1);
 
 CREATE VIEW view_C AS SELECT * FROM C;
 
+--sorted_result
 SELECT /*+ NO_BNL(t1) */ t1.c13 FROM C AS t2 STRAIGHT_JOIN C AS t1 FORCE INDEX(c13);
+--sorted_result
 SELECT DISTINCT t1.c13 FROM C AS t1, view_C AS t2;
 
 DROP TABLE C;
@@ -805,6 +807,7 @@ INSERT INTO t2 (c1, c2) VALUES
  (3, 'ksa'), (6,'sate'), (3, 'a'), (NULL, 't'), (9, 'efq'),
  (NULL, 'f'), (6, 'qsdk'), (63, NULL), (3, 's'), (1,NULL);
 
+--skip_if_hypergraph  # Chooses a different plan and does not evaluate the subquery.
 --error ER_SUBQUERY_NO_1_ROW
 DELETE outr1.*
 FROM t2 AS outr1 INNER JOIN t1 AS outr2
@@ -1345,3 +1348,272 @@ SELECT * FROM t1 WHERE a + 10 = 10;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
 DROP TABLES t1;
+
+--echo #
+--echo # Bug #30417361: MAKE THE SORTING CODE INDEPENDENT OF QEP_TABS
+--echo #
+
+# Test that we can order by a generated virtual column that is not otherwise
+# mentioned in the query.
+CREATE TABLE t1 (i INTEGER, a INTEGER, vgc INTEGER GENERATED ALWAYS AS (-a) VIRTUAL);
+INSERT INTO t1 (i, a) VALUES (1, 1), (2, 2);
+SELECT i FROM t1 ORDER BY vgc;
+DROP TABLE t1;
+--echo #
+--echo # Bug #30664660 GCOLS, CRASH AND CORRUPTIONS WITH DELETE IGNORE + JSON
+--echo #
+
+CREATE TABLE t (
+  a JSON NOT NULL,
+  b TIMESTAMP GENERATED ALWAYS AS (a) VIRTUAL NOT NULL,
+  KEY (b)
+) ENGINE=INNODB;
+INSERT IGNORE INTO t(a) VALUES ('{}');
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #31463511: NATURAL JOIN RETURNS WRONG RESULT WHEN EXPRESSION INDEX IS USED
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (a INTEGER);
+CREATE INDEX idx ON t1 ((a+1));
+CREATE INDEX idx ON t2 ((a+2));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+# Verify that the generated (a+1) and (a+2) columns don't participate in the join;
+# if they did, the answer would be empty.
+SELECT * FROM t1 NATURAL JOIN t2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#31982292: ITEM_JSON_FUNC.CC:1406: BOOL SQL_SCALAR_TO_JSON(ITEM*,
+--echo # CONST CHAR*, STRING*, STR
+--echo #
+
+CREATE TABLE t(x VARCHAR(10),
+               y INT GENERATED ALWAYS AS (x),
+               z JSON GENERATED ALWAYS AS (JSON_ARRAY(x, y)));
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t (x) VALUES ('abc');
+DROP TABLE t;
+
+CREATE TABLE t(x VARCHAR(10));
+INSERT INTO t VALUES ('');
+ALTER TABLE t
+  ADD COLUMN g1 JSON GENERATED ALWAYS AS (x),
+  ADD COLUMN g2 JSON GENERATED ALWAYS AS (JSON_ARRAY(x));
+--error ER_INVALID_JSON_TEXT
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32234773: UPDATE_GENERATED_READ_FIELDS:
+--echo #               ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED
+--echo #
+
+CREATE TABLE t (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  i INT,
+  gc INT GENERATED ALWAYS AS (1) STORED,
+  KEY (i)
+);
+INSERT INTO t(i) VALUES (5853267), (32766);
+--error ER_DATA_OUT_OF_RANGE
+SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
+DROP TABLE t;
+
+--echo # Bug#32824978: Generated columns inconsistency
+
+CREATE TABLE t1 (
+  id INTEGER NOT NULL,
+  mac BIGINT UNSIGNED DEFAULT NULL,
+  str CHAR(12) AS (LPAD(CONVERT(HEX(mac) USING utf8mb4), 12,_utf8mb4'0')) VIRTUAL,
+  separated CHAR(17) AS (INSERT(INSERT(INSERT(INSERT(INSERT(str, 11, 0, _utf8mb4':'), 9, 0, _utf8mb4':'), 7, 0, _utf8mb4':'), 5, 0, _utf8mb4':'), 3, 0, _utf8mb4':')) VIRTUAL,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO t1 (id, mac) VALUES
+ (1, 10), (2, 564685488), (3, NULL), (4, 684756486);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+--echo # Bug#32427727: Functional index ignored by SELECT query from
+--echo #               within stored function
+
+CREATE TABLE t1
+ (pk BIGINT AUTO_INCREMENT PRIMARY KEY,
+  n1 varchar(30),
+  n2 varchar(30),
+  n3 varchar(30),
+  index n12((concat(n1, n2)))
+);
+
+ANALYZE TABLE t1;
+
+DELIMITER |;
+
+CREATE PROCEDURE p1 (str VARCHAR(60))
+BEGIN
+  EXPLAIN
+  SELECT n3, COUNT(*) as 'count'
+  FROM t1
+  WHERE CONCAT(n1,n2) = str
+  GROUP BY n3;
+  SELECT n3, COUNT(*) as 'count'
+  FROM t1
+  WHERE CONCAT(n1,n2) = str
+  GROUP BY n3;
+END |
+
+DELIMITER ;|
+
+CALL p1('str');
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo
+--echo # VARBINARY as primary key
+--echo
+
+CREATE TABLE t1 (
+  doc JSON,
+  id VARBINARY(32) GENERATED ALWAYS AS
+    (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+ (JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+
+SET @a = '2';
+SET @num = 2;
+
+let q1p = SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?;
+let q1r = SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+let q1n = SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = 2;
+let q2p = SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?;
+let q2r = SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+let q2n = SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = 2;
+let q3p = SELECT * FROM t1 WHERE id = ?;
+let q3r = SELECT * FROM t1 WHERE id = '2';
+let q3n = SELECT * FROM t1 WHERE id = 2;
+
+eval $q1r;
+eval explain $q1r;
+eval $q2r;
+eval explain $q2r;
+eval $q3r;
+eval explain $q3r;
+eval PREPARE s11 FROM "$q1p";
+--echo # Not using index, resulting JSON comparison delivers empty result.
+--echo # This deviates from the result when the GC is not indexed.
+EXECUTE s11 USING @a;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @a;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @a;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @a;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @a;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @a;
+
+DROP TABLE t1;
+
+--echo
+--echo # VARCHAR as primary key
+--echo
+
+CREATE TABLE t1 (
+  doc JSON,
+  id VARCHAR(32) COLLATE utf8mb4_bin GENERATED ALWAYS AS
+    (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+ (JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+
+eval $q1r;
+eval explain $q1r;
+eval $q2r;
+eval explain $q2r;
+eval $q3r;
+eval explain $q3r;
+eval PREPARE s11 FROM "$q1p";
+--echo # Not using index, resulting JSON comparison delivers expected row
+EXECUTE s11 USING @a;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @a;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @a;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @a;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @a;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @a;
+
+DROP TABLE t1;
+
+--echo
+--echo # BIGINT as primary key
+--echo
+
+CREATE TABLE t1 (
+  doc JSON,
+  id BIGINT GENERATED ALWAYS AS
+    (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+ (JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+
+eval $q1r;
+eval explain $q1r;
+eval $q2r;
+eval explain $q2r;
+eval $q2n;
+eval explain $q2n;
+eval $q3r;
+eval explain $q3r;
+eval PREPARE s11 FROM "$q1p";
+EXECUTE s11 USING @a;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @a;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @a;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @a;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @a;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @a;
+eval PREPARE s11 FROM "$q1p";
+EXECUTE s11 USING @num;
+eval PREPARE s21 FROM "$q1p";
+EXECUTE s11 USING @num;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @num;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @num;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @num;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @num;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @num;
+
+DROP TABLE t1;
+
+--echo # Bug#33142135: Assert for fields not marked as READ
+--error ER_GENERATED_COLUMN_REF_AUTO_INC
+CREATE TABLE v1(v2 INT SERIAL DEFAULT VALUE, v3 INT AS (DEFAULT(v2)/1 IS NULL));
+CREATE TABLE v1(v2 INT DEFAULT 10, v3 INT AS (DEFAULT(v2)/1 IS NULL));
+SHOW CREATE TABLE v1;
+DROP TABLE v1;

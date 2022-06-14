@@ -254,3 +254,35 @@ DROP USER nopriv_user@localhost;
 --echo #
 --echo # End Bug#54812
 --echo #
+
+--echo #
+--echo # Bug #32162954: REGRESSION: ASSERTION `!THD()->IS_ERROR()' FAILED. IN AGGREGATEITERATOR::READ()
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+do count(rand(st_latfromgeohash(st_geohash(point(5920138304254667057,24370),41))));
+--error ER_DATA_OUT_OF_RANGE
+do ((1)between(cot(_hebrew  ' $[  d'))and(var_pop((1))over()));
+--error ER_GIS_INVALID_DATA
+do ((st_isvalid(1))=(std(format(-29867 ,54,'es_DO')) over()));
+
+--echo #
+--echo # Bug #32206756: ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED IN SQL/ITEM_CMPFUNC.CC
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1));
+
+CREATE TABLE t2 (pk integer, a varchar(1), b varchar(1), c date, primary key(pk));
+CREATE INDEX idx1 ON t2 (b);
+
+INSERT INTO t1 VALUES ('d','7');
+INSERT INTO t2 VALUES (1,'q','7','1970-01-01');
+INSERT INTO t2 VALUES (2,'l','7','1970-01-01');
+
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE insert_select AS
+SELECT t2.c AS field3
+FROM t1, t2
+WHERE t1.b = t2.b AND t1.a <> t2.pk;
+
+DROP TABLE t1, t2;

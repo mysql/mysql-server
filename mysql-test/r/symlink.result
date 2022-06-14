@@ -38,9 +38,9 @@ alter table t9 add column c int not null;
 show create table t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(16) NOT NULL,
-  `c` int(11) NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 alter table t9 rename t8, add column d int not null;
@@ -50,10 +50,10 @@ drop table t1;
 SHOW CREATE TABLE t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(16) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 create database mysqltest;
@@ -76,10 +76,10 @@ count(*)
 show create table mysqltest.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(16) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 drop database mysqltest;
@@ -90,7 +90,7 @@ Warning	1618	<DATA DIRECTORY> option ignored
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add b int;
 alter table t1 data directory="MYSQLTEST_VARDIR/log";
@@ -99,8 +99,8 @@ Warning	1618	<DATA DIRECTORY> option ignored
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 index directory="MYSQLTEST_VARDIR/log";
 Warnings:
@@ -108,8 +108,8 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1(a INT) ENGINE = MYISAM
@@ -126,13 +126,13 @@ create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
 create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 99 a;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
 create table t1 (a int) engine=myisam select 42 a;
 select * from t1;
@@ -207,7 +207,7 @@ data directory="MYSQLTEST_VARDIR/tmp"
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 # CREATE TABLE LIKE statement on table with INDEX/DATA DIRECTORY
@@ -217,7 +217,7 @@ create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop tables t1, t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include "m_ctype.h"
 #include <NdbOut.hpp>
@@ -353,6 +354,15 @@ Ndb_move_data::check_tables()
         {
           continue;
         }
+
+        /* OK if columns just differ by being part of the PK */
+        a1ColCopy.setPrimaryKey(false);
+        a2ColCopy.setPrimaryKey(false);
+
+        if ((attr1.equal = attr2.equal = a1ColCopy.equal(a2ColCopy)))
+        {
+          continue;
+        }
       }
 
       if (attr1.type == Attr::TypeArray &&
@@ -436,6 +446,7 @@ Ndb_move_data::Op::Op()
   updateop = 0;
   values = 0;
   buflen = 32 * 1024;
+  static_assert(32 * 1024 >= (4 * MAX_TUPLE_SIZE_IN_WORDS));
   require(buflen >= (4 * MAX_TUPLE_SIZE_IN_WORDS));
   buf1 = new char [buflen];
   buf2 = new char [buflen];

@@ -1,0 +1,85 @@
+
+#########################################################################
+# 0) Setup group of 2 members (M1 and M2).
+#########################################################################
+
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
+
+#########################################################################
+# 1) Create a non-admin user and connect to member 1.
+#########################################################################
+
+CREATE USER 'user'@'localhost' IDENTIFIED BY 'pass';
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user@localhost	user@localhost
+
+#########################################################################
+# 2) Force applier error on member 1.
+#########################################################################
+
+[connection server1]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/rpl_sync.inc
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (1);
+SET SESSION sql_log_bin= 1;
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+[connection server2]
+INSERT INTO t1 VALUES (1);
+
+#########################################################################
+# 3) Verify that member 1 went to offline_mode and changed to ERROR state.
+#########################################################################
+
+[connection server1]
+include/gr_wait_for_member_state.inc
+include/assert_and_disable_read_only.inc
+include/assert_and_disable_offline_mode.inc
+
+#########################################################################
+# 4) Validate that non-admin users are disconnected.
+#########################################################################
+
+[connection server1_user]
+SELECT USER(), CURRENT_USER();
+Got one of the listed errors
+
+#########################################################################
+# 5) Validate that non-admin users cannot connect.
+#########################################################################
+
+connect(localhost,user,pass,test,MASTER_PORT,MASTER_MYSOCK);
+ERROR HY000: The server is currently in offline mode
+
+#########################################################################
+# 6) Cleanup.
+#########################################################################
+
+[connection server1]
+include/assert_and_disable_read_only.inc
+include/assert_and_disable_offline_mode.inc
+include/stop_group_replication.inc
+SET SESSION sql_log_bin= 0;
+DELETE FROM t1 WHERE a = 1;
+SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+include/start_group_replication.inc
+DROP TABLE t1;
+DROP USER 'user'@'localhost';
+include/group_replication_end.inc

@@ -1,0 +1,162 @@
+# === Purpose ===
+#
+# This test verifies that MTS crash recovery succeeds with GTID Auto Position=ON
+# and --relay-log-recovery=ON irrespective of repository type when relay logs
+# that are required to fill the gaps are missing.
+#
+# ==== Requirements ====
+#
+# If GTID_MODE = ON and SOURCE_AUTO_POSITION = 1 :
+#
+# R1: Verify that execution gaps on the relay log when using the multi threaded
+#     applier don't affect replica restarts when --relay-log-recovery=ON or OFF
+#
+# R2: Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+#     an warning stating that gaps were not calculated.
+#
+# === Implementation ====
+#
+# 0. Create helper files for restarting the server with gaps
+# 1. Check the replica can start after a restart that leaves gaps on the relay log
+#    and relay log recovery is not used
+# 2. Check the replica can start after a restart that leaves gaps on the relay log
+#    and relay log recovery is used
+# 3. Check the replica can't start after a restart that leaves gaps on the relay log
+#    if GTID_MODE != ON even with relay log recovery
+# 4. Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+#    an warning stating that gaps were not calculated.
+# 5. Cleanup
+#
+# === References ===
+#
+# Bug#28830834: MTS NOT REPLICATION CRASH-SAFE WITH GTID AND ALL THE RIGHT PARAMETERS.
+# Updated on:
+# Bug#30571587 MYSQL 8.0.18 FAILS ON STOP SLAVE/START SLAVE STRESS TEST
+#
+
+# This test case is binlog format agnostic
+--source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 0. Create helper files for restarting the server with gaps
+
+--source include/rpl_connection_slave.inc
+
+let $messages =
+Recovery from master pos .* and file .* for channel ''*
+Error looking for file after .*slave-relay-bin.000007.*
+Slave: Failed to initialize the master info structure for channel .* its record may still be present in*
+Failed to create or recover replication info repositories.*
+Slave SQL for channel .* Slave failed to initialize relay log info structure from the repository, Error_code*
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--let $restart_server_with_gaps_file = $MYSQL_TMP_DIR/restart_server_with_gaps.inc
+--write_file $restart_server_with_gaps_file END_OF_PROCEDURE
+
+  #    Replica is made to crash at a state where gaps are present in MTS execution.
+  #    This is done by sourcing
+  #    "extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc" file which
+  #    simulates MTS gaps and removes the relay logs that are required to fill MTS
+  #    gaps.
+  --source extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc
+  --source include/rpl_connection_slave.inc
+  --let $rpl_server_number= 2
+  --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=$relay_log_recovery_param --gtid_mode=$gtid_mode_param --enforce-gtid-consistency --log-replica-updates
+  --source include/rpl_start_server.inc
+END_OF_PROCEDURE
+
+--let $sync_check_clean_file = $MYSQL_TMP_DIR/sync_and_check.inc
+--write_file $sync_check_clean_file END_OF_PROCEDURE
+  --source include/rpl_connection_master.inc
+  --source include/sync_slave_sql_with_master.inc
+  # Compare the tables on master and slave they should be in sync
+  let $m=2;
+  while($m)
+  {
+    --let diff_tables=master:d$m.t, slave:d$m.t
+    --source include/diff_tables.inc
+    --dec $m
+  }
+
+  # Cleanup is done by sourcing
+  # extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_end.inc
+  --source extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_end.inc
+END_OF_PROCEDURE
+
+
+--echo #
+--echo # 1. Check the replica can start after a restart that leaves gaps on the relay log
+--echo #    and relay log recovery is not used
+
+--let $relay_log_recovery_param = 0
+--let $gtid_mode_param = ON
+
+--source $restart_server_with_gaps_file
+
+# The replica start is successful
+  --source include/start_slave.inc
+
+--source $sync_check_clean_file
+
+--echo #
+--echo # 2. Check the replica can start after a restart that leaves gaps on the relay log
+--echo #    and relay log recovery is used
+
+--let $relay_log_recovery_param = 1
+
+--source $restart_server_with_gaps_file
+
+# The replica start is successful
+  --source include/start_slave.inc
+
+--source $sync_check_clean_file
+
+--echo #
+--echo # 3. Check the replica can't start after a restart that leaves gaps on the relay log
+--echo #    if GTID_MODE != ON even with relay log recovery
+
+--let $relay_log_recovery_param = 1
+--let $gtid_mode_param = ON_PERMISSIVE
+
+--source $restart_server_with_gaps_file
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+--let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON --enforce-gtid-consistency --log-replica-updates
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+
+--source $sync_check_clean_file
+
+--echo #
+--echo # 4. Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+--echo #    an warning stating that gaps were not calculated.
+
+--let $relay_log_recovery_param = 0
+--let $gtid_mode_param = ON
+
+--source $restart_server_with_gaps_file
+
+START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
+# Wait for the SQL thread to stop (The command still makes the thread stop)
+--source include/wait_for_slave_sql_to_stop.inc
+# Stop the IO thread that is still running
+--source include/stop_slave_io.inc
+
+# The replica start is successful
+--source include/start_slave.inc
+
+--source $sync_check_clean_file
+
+--echo #
+--echo # 5. Cleanup
+
+--remove_file $restart_server_with_gaps_file
+--remove_file $sync_check_clean_file
+
+--source include/rpl_end.inc

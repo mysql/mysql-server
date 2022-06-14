@@ -11,6 +11,6 @@ INSERT INTO child VALUES (1);
 SET SESSION DEBUG='+d,test_upd_stats_if_needed_not_inited';
 DELETE FROM parent;
 SET SESSION DEBUG='-d,test_upd_stats_if_needed_not_inited';
-test_upd_stats_if_needed_not_inited was executed
+Pattern "test_upd_stats_if_needed_not_inited was executed" found
 DROP TABLE child;
 DROP TABLE parent;

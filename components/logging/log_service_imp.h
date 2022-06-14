@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -117,13 +117,6 @@ class log_service_imp {
     in case of severe failure, it may do so after FIRST
     securing the all further calls to run() will be rejected.
     "log_sink_test" implements an example of this.
-
-    @param   instance  State-pointer that was returned on open.
-    @param   ll        The log_line collection of log_items.
-
-    @retval  <0        an error occurred
-    @retval  =0        no work was done
-    @retval  >0        number of processed entities
   */
   static DEFINE_METHOD(int, run, (void *instance, log_line *ll));
 
@@ -131,59 +124,57 @@ class log_service_imp {
     Flush any buffers.  This function will be called by the server
     on FLUSH ERROR LOGS.  The service may write its buffers, close
     and re-open any log files to work with log-rotation, etc.
-    The flush function MUST NOT itself log anything!
+    The flush function MUST NOT itself log anything (as the caller
+    holds THR_LOCK_log_stack)!
     A service implementation may provide a nullptr if it does not
     wish to provide a flush function.
 
-    @param   instance  State-pointer that was returned on open.
-                       Value may be changed in flush.
-
-    @retval  <0        an error occurred
-    @retval  =0        no work was done
-    @retval  >0        flush completed without incident
+    @returns  <0        an error occurred
+    @returns  =0        no work was done
+    @returns  >0        flush completed without incident
   */
-  static DEFINE_METHOD(int, flush, (void **instance));
+  static DEFINE_METHOD(log_service_error, flush, (void **instance));
 
   /**
     Open a new instance.
 
-    @param   ll        optional arguments
-    @param   instance  If state is needed, the service may allocate and
-                       initialize it and return a pointer to it here.
-                       (This of course is particularly pertinent to
-                       components that may be opened multiple times,
-                       such as the JSON log writer.)
-                       This state is for use of the log-service component
-                       in question only and can take any layout suitable
-                       to that component's need. The state is opaque to
-                       the server/logging framework. It must be released
-                       on close.
-
-    @retval  <0        a new instance could not be created
-    @retval  =0        success, returned hande is valid
+    @returns  <0        a new instance could not be created
+    @returns  =0        success, returned hande is valid
   */
-  static DEFINE_METHOD(int, open, (log_line * ll, void **instance));
+  static DEFINE_METHOD(log_service_error, open,
+                       (log_line * ll, void **instance));
 
   /**
     Close and release an instance. Flushes any buffers.
 
-    @param   instance  State-pointer that was returned on open.
-                       If memory was allocated for this state,
-                       it should be released, and the pointer
-                       set to nullptr.
-
-    @retval  <0        an error occurred
-    @retval  =0        success
+    @returns  <0        an error occurred
+    @returns  =0        success
   */
-  static DEFINE_METHOD(int, close, (void **instance));
+  static DEFINE_METHOD(log_service_error, close, (void **instance));
 
   /**
     Get characteristics of a log-service.
 
-    @retval  <0        an error occurred
-    @retval  >=0       characteristics (a set of log_service_chistics flags)
+    @returns  <0        an error occurred
+    @returns  >=0       characteristics (a set of log_service_chistics flags)
   */
   static DEFINE_METHOD(int, characteristics, (void));
+
+  /**
+    Parse a single line in an error log of this format.  (optional)
+
+    @returns  0   Success
+    @returns !=0  Failure (out of memory, malformed argument, etc.)
+  */
+  static DEFINE_METHOD(log_service_error, parse_log_line,
+                       (const char *line_start, size_t line_length));
+
+  /**
+    Provide the name for a log file this service would access.
+
+  */
+  static DEFINE_METHOD(log_service_error, get_log_name,
+                       (void *instance, char *buf, size_t bufsize));
 };
 
 #endif /* LOG_SERVICE_IMP_H */

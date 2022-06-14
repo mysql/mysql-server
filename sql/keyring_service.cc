@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -85,13 +85,13 @@ class Callback {
   @return This function always returns true.
 */
 static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
-  plugin = my_plugin_lock(NULL, &plugin);
+  plugin = my_plugin_lock(nullptr, &plugin);
   if (plugin) {
     Callback *callback = reinterpret_cast<Callback *>(arg);
     callback->invoke(
         reinterpret_cast<st_mysql_keyring *>(plugin_decl(plugin)->info));
   }
-  plugin_unlock(NULL, plugin);
+  plugin_unlock(nullptr, plugin);
   // this function should get executed only for the first plugin. This is why
   // it always returns error. plugin_foreach will stop after first iteration.
   return true;
@@ -109,7 +109,7 @@ static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
 static bool iterate_plugins(std::function<bool(st_mysql_keyring *keyring)> fn,
                             bool check_access = true) {
   Callback callback(fn);
-  if (check_access && keyring_access_test()) return 1;
+  if (check_access && keyring_access_test()) return true;
   plugin_foreach(current_thd, key_plugin_cb_fn, MYSQL_KEYRING_PLUGIN,
                  &callback);
   return callback.result();

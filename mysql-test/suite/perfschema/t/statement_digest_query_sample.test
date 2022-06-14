@@ -203,7 +203,7 @@ UPDATE t1 SET s1 = 700;
 
 --echo
 --echo ## 2.4 WAIT 10 SECONDS
-real_sleep 10;
+sleep 10;
 
 --echo
 --echo ## 2.5 COLLECT DIGEST, MAX WAIT, QUERY SAMPLE, QUERY SEEN
@@ -290,7 +290,7 @@ eval $query_sample_1;
 
 --echo
 --echo ## 3.4 WAIT 10 SECONDS
-real_sleep 10;
+sleep 10;
 
 --echo
 --echo ## 3.5 QUERY_2: UPDATE 3 ROWS, QUERY SHOULD *NOT* BE SAMPLED
@@ -447,7 +447,7 @@ eval $query_sample_1;
 
 --echo
 --echo ## 5.4. WAIT 10 SECONDS, FORCE AGE
-real_sleep 10;
+sleep 10;
 
 --echo
 --echo ## 5.5. QUERY_2: UPDATE 3 ROWS

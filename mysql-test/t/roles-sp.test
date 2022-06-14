@@ -102,6 +102,35 @@ connection con1;
 --echo ++ Positive test
 CALL db1.sp3();
 
+connection default;
+--echo ############################################################
+--echo ## Make sure function privileges are aggregated correctly ##
+--echo ############################################################
+CREATE SCHEMA world;
+USE world;
+CREATE PROCEDURE world.proc_empty() BEGIN END;
+CREATE FUNCTION world.func_plusone(i int) RETURNS INT DETERMINISTIC RETURN i+1;
+CREATE FUNCTION world.func_plustwo(i int) RETURNS INT DETERMINISTIC RETURN i+2;
+CREATE ROLE r_worldrou;
+GRANT EXECUTE ON PROCEDURE world.proc_empty TO r_worldrou;
+GRANT EXECUTE ON FUNCTION world.func_plusone TO r_worldrou;
+CREATE USER u_worldrou@localhost IDENTIFIED BY 'xxx' DEFAULT ROLE r_worldrou;
+SHOW GRANTS FOR u_worldrou@localhost USING r_worldrou;
+
+connect(con_world,localhost,u_worldrou,xxx,world);
+SELECT CURRENT_ROLE();
+CALL world.proc_empty();
+SELECT world.func_plusone(1);
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT world.func_plustwo(1);
+
+connection default;
+disconnect con_world;
+DROP SCHEMA world;
+DROP ROLE r_worldrou;
+DROP USER u_worldrou@localhost;
+
+
 --echo ++ Clean up
 connection default;
 DROP DATABASE db1;

@@ -20,7 +20,7 @@ INSERT INTO t1 VALUES ('normal setup', 1);
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -36,7 +36,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -46,7 +46,7 @@ INSERT INTO t1 VALUES ('slave is already lagging: this statement should execute 
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -59,7 +59,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -81,7 +81,7 @@ include/start_slave.inc
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -102,7 +102,7 @@ include/start_slave.inc
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -113,30 +113,32 @@ include/check_slave_is_running.inc
 ==== Change back to no delay ====
 [on slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 0;
 include/assert.inc [Delay should be 0 when we set it to 0]
 ==== Reset delay with RESET SLAVE ====
-CHANGE MASTER TO MASTER_DELAY = 71;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 71;
 include/start_slave.inc
 include/assert.inc [Delay should be 71 when we set it to 71]
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 include/assert.inc [Delay should be 0 after RESET SLAVE]
 ==== Set an invalid value for the delay ====
 include/stop_slave.inc
 # Expect error for setting negative delay
-CHANGE MASTER TO MASTER_DELAY = -1;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 # Expect that it's ok to set delay of 2^31-1
-CHANGE MASTER TO MASTER_DELAY = 2147483647;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 2147483647;
 # Expect error for setting delay between 2^31 and 2^32-1
-CHANGE MASTER TO MASTER_DELAY = 2147483648;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 2147483648;
 ERROR HY000: The requested value 2147483648 for the master delay exceeds the maximum 2147483647
 # Expect error for setting delay to nonsense
-CHANGE MASTER TO MASTER_DELAY = blah;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = blah;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'blah' at line 1
-CHANGE MASTER TO MASTER_DELAY = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 0;
 include/start_slave.inc
 ==== Clean up ====
 [on master]

@@ -1,0 +1,37 @@
+# Create a schema on one mysqld, verify creation also on the other.
+connection mysqld1;
+CREATE SCHEMA s;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+connection mysqld2;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Set schema read only on one mysqld, verify read only also on the other.
+ALTER SCHEMA s READ ONLY = 1;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+connection mysqld1;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+# Verify that writes (table creation) fail on both mysqlds.
+CREATE TABLE s.t(i int);
+ERROR HY000: Schema 's' is in read only mode.
+connection mysqld2;
+CREATE TABLE s.t(i int);
+ERROR HY000: Schema 's' is in read only mode.
+# Verify that writes (table inserts) fail on both mysqlds.
+ALTER SCHEMA s READ ONLY = 0;
+CREATE TABLE s.t(i int) ENGINE NDB;
+ALTER SCHEMA s READ ONLY = 1;
+INSERT INTO s.t VALUES (1);
+ERROR HY000: Schema 's' is in read only mode.
+connection mysqld1;
+INSERT INTO s.t VALUES (1);
+ERROR HY000: Schema 's' is in read only mode.
+# Cleanup.
+ALTER SCHEMA s READ ONLY = 0;
+DROP SCHEMA s;

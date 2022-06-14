@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,11 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_idle_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_idle_v1);
+#define REQUIRES_PSI_IDLE_SERVICE REQUIRES_SERVICE(psi_idle_v1)
+#define REQUIRES_PSI_IDLE_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(psi_idle_v1)
+
+extern REQUIRES_PSI_IDLE_SERVICE_PLACEHOLDER;
 
 #define PSI_IDLE_CALL(M) mysql_service_psi_idle_v1->M
 

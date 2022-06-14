@@ -1,0 +1,39 @@
+## I. Reproduce race condition between closing session and listing
+#     session (BUG#31490241):
+# 1. Create X Protocol session(X1) using "x_root" account and hang it while closing
+#    (sync point: srv_session_close)
+# 2. Create classic protocol session(C1) and list all session,
+#    hang it at "x_root" row generation while waking X1
+# 3. Wait until the X1, is inside THD deregistration
+#    and wakeup C1
+# 4. Show at C1, processlist results
+
+# Adding debug point 'test_fill_proc_with_x_root' to @@GLOBAL.debug
+SET DEBUG_SYNC= 'fill_proc_list_with_x_root SIGNAL listing_x_root WAIT_FOR continue_fill_proc';
+
+#
+# I.1 connect X1
+RUN SET DEBUG_SYNC= 'srv_session_close WAIT_FOR listing_x_root'
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#
+# I.2 Use C1 and list all sessions
+SELECT user from information_schema.processlist order by user;
+
+#
+# I.3
+SET DEBUG_SYNC= 'now SIGNAL continue_fill_proc';
+
+#
+# I.4
+user
+event_scheduler
+root
+root
+x_root
+# Removing debug point 'test_fill_proc_with_x_root' from @@GLOBAL.debug

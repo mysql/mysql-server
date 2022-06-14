@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,27 +87,17 @@ class Unique {
       true   the value was inserted
   */
   inline bool unique_add(void *ptr) {
-    DBUG_ENTER("unique_add");
+    DBUG_TRACE;
     DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush()) DBUG_RETURN(1);
-    DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
+    if (tree.elements_in_tree > max_elements && flush()) return true;
+    return !tree_insert(&tree, ptr, 0, tree.custom_arg);
   }
 
   bool get(TABLE *table);
 
-  typedef Bounds_checked_array<uint> Imerge_cost_buf_type;
-
-  static double get_use_cost(Imerge_cost_buf_type buffer, uint nkeys,
-                             uint key_size, ulonglong max_in_memory_size,
+  static double get_use_cost(uint nkeys, uint key_size,
+                             ulonglong max_in_memory_size,
                              const Cost_model_table *cost_model);
-
-  // Returns the number of elements needed in Imerge_cost_buf_type.
-  inline static size_t get_cost_calc_buff_size(ulong nkeys, uint key_size,
-                                               ulonglong max_in_memory_size) {
-    ulonglong max_elems_in_tree =
-        (max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT) + key_size));
-    return 1 + static_cast<size_t>(nkeys / max_elems_in_tree);
-  }
 
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);

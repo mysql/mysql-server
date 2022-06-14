@@ -1,0 +1,170 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+--echo Check behaviour when restoring with remap
+--echo and log content.
+
+--let $backup_type=2
+
+while ($backup_type)
+{
+  --echo Backup type $backup_type
+  create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+
+  insert into t1 (b,c) values 
+    (1, repeat('B', 2000)),
+    (2, repeat('J', 3000)),
+    (3, repeat('C', 3500)),
+    (4, repeat('T', 3300)),
+    (5, repeat('S', 1234)),
+    (6, repeat('G', 3333));
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+
+  --echo Cause backup stall
+  --exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+
+  if ($backup_type == 1)
+  {
+    --let $start_backup_extra=SNAPSHOTSTART
+  }
+
+  --source suite/ndb/t/ndb_backup_nowait_start.inc
+
+  # Use autoinc value
+  insert into t1 (b,c) values
+    (7, repeat('D', 999));
+
+  # Specify auto-inc key
+  insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
+
+  delete from t1 where b=4;
+
+  # Update primary key
+  update t1 set a=1010 where a=2;
+
+  # Specify auto-inc key, and update [and delete] [and insert] in a transaction
+  # with + without blob
+  begin;
+    # ins->upd
+    # blob
+    insert into t1 (a,b,c) values (500, 500, repeat('AR', 1000));
+    update t1 set c=repeat('AG', 3000) where a=500;
+
+    # !blob
+    insert into t1 (a,b,c) values (501, 501, repeat('AR', 1000));
+    update t1 set b=5010 where a=501;
+  commit;
+
+  begin;
+    # ins->upd->del
+    # blob
+    insert into t1 (a,b,c) values (502, 502, repeat('AR', 1500));
+    update t1 set c=repeat('AG', 2000) where a=502;
+    delete from t1 where a=502;
+
+    # !blob
+    insert into t1 (a,b,c) values (503, 503, repeat('AR', 1500));
+    update t1 set b=5030 where a=503;
+    delete from t1 where a=503;
+  commit;
+
+  begin;  
+    # ins->upd->del->ins
+    # blob
+    insert into t1 (a,b,c) values (504, 504, repeat('AR', 2000));
+    update t1 set c=repeat('AG', 2500) where a=504;
+    delete from t1 where a=504;
+    insert into t1 (a,b,c) values (504, 5040, repeat('ON', 2500));
+
+    # !blob
+    insert into t1 (a,b,c) values (505, 505, repeat('AR', 2000));
+    update t1 set b=5050 where a=505;
+    delete from t1 where a=505;
+    insert into t1 (a,b,c) values (505, 50500, repeat('ON', 2000));
+  commit;
+
+  # Specify auto-inc key, and update [and delete] [and insert] in a transaction
+  # with + without blob
+  insert into t1 (a,b,c) values (510, 510, repeat('ON', 1500));
+  insert into t1 (a,b,c) values (511, 511, repeat('AG', 2000));
+  insert into t1 (a,b,c) values (512, 512, repeat('AR', 2500));
+  insert into t1 (a,b,c) values (513, 513, repeat('TR', 2500));
+  insert into t1 (a,b,c) values (514, 514, repeat('IZ', 2500));
+  insert into t1 (a,b,c) values (515, 515, repeat('EA', 2500));
+
+
+  begin;
+    # update->delete
+    # blob
+    update t1 set c=repeat('AG', 2700) where a=510;
+    delete from t1 where a=510;
+
+    # !blob
+    update t1 set b=5110 where a=511;
+    delete from t1 where a=511;
+  commit;
+
+  begin;
+    # update->delete->insert
+    # blob
+    update t1 set c=repeat('TR', 1300) where a=512;
+    delete from t1 where a=512;
+    insert into t1 (a,b,c) values (512, 5120, repeat('IZ', 2499));
+
+    # !blob
+    update t1 set b=5130 where a=513;
+    delete from t1 where a=513;
+    insert into t1 (a,b,c) values (513, 51300, repeat('ON', 1788));
+  commit;
+
+  begin;
+    # update->delete->insert->update
+    # blob
+    update t1 set c=repeat('ON', 1234) where a=514;
+    delete from t1 where a=514;
+    insert into t1 (a,b,c) values (514, 5140, repeat('EA', 1111));
+    update t1 set c=repeat('AG', 3000) where a=514;
+
+    # !blob
+    update t1 set b=5150 where a=515;
+    delete from t1 where a=515;
+    insert into t1 (a,b,c) values (515, 51500, repeat('TR', 2222));
+    update t1 set b=515000 where a=515;
+  commit;
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+  show create table t1;
+
+  --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
+  --source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+  drop table test.t1;
+
+  --echo Restore data
+
+  create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+
+  --echo Node 1
+  --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+  --echo Node 2
+  --exec $NDB_RESTORE -b $the_backup_id -n 2 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+
+  --echo Check restored auto-inc metadata :
+  --echo Expect that auto-increment next is 5011, e.g. > highest remapped row that
+  --echo existed at end of backup time
+  --echo (note that SNAPSHOTSTART does not snapshot autoinc metadata)
+  --echo
+  show create table t1;
+
+  drop table test.t1;
+
+  --dec $backup_type
+}
+
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

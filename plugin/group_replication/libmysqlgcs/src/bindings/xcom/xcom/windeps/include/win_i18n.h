@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,9 @@
 */
 
 #ifndef _WIN_I18N_H
-#define _WIN_I18N_H     1
+#define _WIN_I18N_H 1
 
 /* Currently don't do internationallization on windows */
 #define _(str) str
 
 #endif /* _WIN_I18N_H */
-

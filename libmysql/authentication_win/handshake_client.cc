@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,8 +139,8 @@ int Handshake_client::write_packet(Blob &data) {
       which can be used to allocate buffer of appropriate size.
   */
 
-  size_t len2 = 0;  // length of the second part of first data payload
-  byte saved_byte;  // for saving byte 255 in which data length is stored
+  size_t len2 = 0;      // length of the second part of first data payload
+  byte saved_byte = 0;  // for saving byte 255 in which data length is stored
 
   if (m_round == 1 && data.len() > 254) {
     len2 = data.len() - 254;
@@ -153,7 +153,7 @@ int Handshake_client::write_packet(Blob &data) {
     */
     unsigned block_count = data.len() / 512 + ((data.len() % 512) ? 1 : 0);
 
-#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+#if !defined(NDEBUG) && defined(WINAUTH_USE_DBUG_LIB)
 
     /*
       For testing purposes, use wrong block count to see how server
@@ -165,7 +165,7 @@ int Handshake_client::write_packet(Blob &data) {
 
 #endif
 
-    DBUG_ASSERT(block_count < (unsigned)0x100);
+    assert(block_count < (unsigned)0x100);
     saved_byte = data[254];
     data[254] = block_count;
 
@@ -210,7 +210,7 @@ int Handshake_client::write_packet(Blob &data) {
 */
 
 Blob Handshake_client::process_data(const Blob &data) {
-#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+#if !defined(NDEBUG) && defined(WINAUTH_USE_DBUG_LIB)
   /*
     Code for testing the logic for sending the first client payload.
 
@@ -414,7 +414,7 @@ Blob Handshake_client::process_data(const Blob &data) {
 */
 
 int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  DBUG_ENTER("win_auth_handshake_client");
+  DBUG_TRACE;
 
   /*
     Check if we should enable logging.
@@ -437,7 +437,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   // Create connection object.
 
   Connection con(vio);
-  DBUG_ASSERT(!con.error());
+  assert(!con.error());
 
   // Read initial packet from server containing service name.
 
@@ -445,7 +445,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   if (con.error() || service_name.is_null()) {
     ERROR_LOG(ERROR, ("Error reading initial packet"));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
   DBUG_PRINT("info", ("Got initial packet of length %d", service_name.len()));
 
@@ -456,10 +456,10 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
                           service_name.len());
   if (hndshk.error()) {
     ERROR_LOG(ERROR, ("Could not create authentication handshake context"));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
 
-  DBUG_ASSERT(!hndshk.error());
+  assert(!hndshk.error());
 
   /*
     Read and process packets from server until handshake is complete.
@@ -467,9 +467,9 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     (see Handshake_client::read_packet()) as we already have read the
     first packet to establish service name.
   */
-  if (hndshk.packet_processing_loop()) DBUG_RETURN(CR_ERROR);
+  if (hndshk.packet_processing_loop()) return CR_ERROR;
 
-  DBUG_ASSERT(!hndshk.error() && hndshk.is_complete());
+  assert(!hndshk.error() && hndshk.is_complete());
 
-  DBUG_RETURN(CR_OK);
+  return CR_OK;
 }

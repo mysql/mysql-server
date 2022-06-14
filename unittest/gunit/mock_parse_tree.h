@@ -1,6 +1,6 @@
 #ifndef MOCK_PARSE_TREE_INCLUDED
 #define MOCK_PARSE_TREE_INCLUDED
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,12 @@
 */
 
 #include "sql/parse_tree_items.h"
+#include "sql/sql_class.h"
 
 namespace my_testing {
 
 inline void fix(THD *thd, std::initializer_list<Item *> items) {
-  Parse_context pc(thd, thd->lex->select_lex);
+  Parse_context pc(thd, thd->lex->query_block);
   for (Item *item : items) {
     item->itemize(&pc, &item);
     item->fix_fields(thd, nullptr);
@@ -58,6 +59,16 @@ class Mock_pt_item_list : public PT_item_list {
  public:
   Mock_pt_item_list(std::initializer_list<const char *> strings) {
     for (auto string : strings) push_back(new Mock_text_literal(string));
+  }
+
+  template <typename T>
+  Mock_pt_item_list(T t) {
+    push_back(t);
+  }
+
+  template <typename T, typename... Ts>
+  Mock_pt_item_list(T t, Ts... ts) : Mock_pt_item_list(ts...) {
+    push_front(t);
   }
 };
 

@@ -1,0 +1,47 @@
+#
+# Bug #29846292 ROLLBACK OF BIG TRANSACTION DUE TO CONFLICT REMAINS IN HUNG STATE
+#
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+CREATE TABLE t1 (c1 LONGBLOB) ENGINE=InnoDB;
+
+SHOW CREATE TABLE t1;
+# must be long enough to force external storage
+SET @long_str_1 = REPEAT('abcdefghijklmnopqrstuvwxyz1234', 6006);
+# must be different enough to force creating new blob, as opposed to
+# just a new version of old blob via partial update
+SET @long_str_2 = REPEAT('1234abcdefghijklmnopqrstuvwxyz', 6006);
+
+INSERT INTO t1 (c1) VALUES (@long_str_1);
+
+SELECT SUBSTRING(c1, 1, 10) FROM t1;
+
+START TRANSACTION;
+
+UPDATE t1 SET c1 = @long_str_2;
+
+SELECT SUBSTRING(c1, 1, 10) FROM t1;
+SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
+--source include/expect_crash.inc
+
+--error CR_SERVER_LOST
+ROLLBACK;
+
+--echo # Verify that before the crash, we HAVE NOT reached the index length=0 yet
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+let SEARCH_PATTERN= Rolling back LOB for transaction \d+ undo number \d+ : current index length 0\.;
+--source include/search_pattern.inc
+
+
+--source include/start_mysqld.inc
+
+SELECT SUBSTRING(c1, 1, 10) FROM t1 FOR UPDATE;
+DROP TABLE t1;
+
+--echo # Verify that after the restart, we HAVE reached the index length=0
+--source include/search_pattern.inc

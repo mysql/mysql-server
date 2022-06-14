@@ -1,7 +1,7 @@
 
 %{
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,12 @@ void LOCK_ORDER_error(YYLTYPE *yyloc, LO_parser_param *p, const char* msg);
 %%
 
 graph:
-      list_of_declarations
+      list_of_declarations_opt
+    ;
+
+list_of_declarations_opt:
+      /* empty */
+    | list_of_declarations
     ;
 
 list_of_declarations:

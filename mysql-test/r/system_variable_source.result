@@ -38,3 +38,4 @@ test_system_variable_source_init start:
 Source of innodb_buffer_pool_size :  COMPILED.
 test_system_variable_source_init end:
 
+# restart:

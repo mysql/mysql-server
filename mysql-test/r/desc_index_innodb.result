@@ -7,8 +7,8 @@ flush tables;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `a_asc_b_desc` (`a`,`b` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -150,12 +150,12 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 select distinct a from t1;
 a
-6
-5
-4
-3
-2
 1
+2
+3
+4
+5
+6
 NULL
 explain select a from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -164,12 +164,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 select a from t1 group by a;
 a
-6
-5
-4
-3
-2
 1
+2
+3
+4
+5
+6
 NULL
 # Should use index backward
 explain select * from t1 order by a asc;
@@ -255,8 +255,8 @@ create index i1 on t1 (a desc, b desc);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `i1` (`a` DESC,`b` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -264,16 +264,16 @@ create table t2 (a int auto_increment, primary key (a desc)) engine= innodb;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert ignore into t2 select a from t1;
 Warnings:
-Warning	1062	Duplicate entry '5' for key 'PRIMARY'
-Warning	1062	Duplicate entry '4' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
-Warning	1062	Duplicate entry '2' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '2' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '4' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '5' for key 't2.PRIMARY'
 select * from t2;
 a
 7
@@ -368,36 +368,36 @@ SELECT * FROM t1
 WHERE (i1 BETWEEN 50 AND 52 OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
 ORDER BY i1 DESC;
 i1	i2	i3
-72	711	7
-72	713	7
-72	715	7
-72	717	7
-72	719	7
-71	701	7
-71	703	7
-71	705	7
-71	707	7
-71	709	7
-70	691	6
-70	693	6
-70	695	6
-70	697	6
-70	699	6
-52	511	5
-52	513	5
-52	515	5
-52	517	5
-52	519	5
-51	501	5
-51	503	5
-51	505	5
-51	507	5
-51	509	5
 50	491	4
 50	493	4
 50	495	4
 50	497	4
 50	499	4
+51	501	5
+51	503	5
+51	505	5
+51	507	5
+51	509	5
+52	511	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
+70	691	6
+70	693	6
+70	695	6
+70	697	6
+70	699	6
+71	701	7
+71	703	7
+71	705	7
+71	707	7
+71	709	7
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
 EXPLAIN SELECT * FROM t1
 WHERE ( (i1=50 AND i2=495) OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
 ORDER BY i1 DESC;
@@ -409,22 +409,22 @@ SELECT * FROM t1
 WHERE ( (i1=50 AND i2=495) OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
 ORDER BY i1 DESC;
 i1	i2	i3
-72	711	7
-72	713	7
-72	715	7
-72	717	7
-72	719	7
-71	701	7
-71	703	7
-71	705	7
-71	707	7
-71	709	7
+50	495	4
 70	691	6
 70	693	6
 70	695	6
 70	697	6
 70	699	6
-50	495	4
+71	701	7
+71	703	7
+71	705	7
+71	707	7
+71	709	7
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
 EXPLAIN SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	k1	k1	4	NULL	20	100.00	Using index condition
@@ -460,6 +460,9 @@ i1	i2	i3
 51	507	5
 51	509	5
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -469,22 +472,25 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2
 SELECT * FROM t1
 WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 i1	i2	i3
-52	519	5
-52	517	5
-52	515	5
-52	513	5
 52	511	5
-51	509	5
-51	507	5
-51	505	5
-51	503	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
 51	501	5
-50	499	4
-50	497	4
-50	495	4
-50	493	4
+51	503	5
+51	505	5
+51	507	5
+51	509	5
 50	491	4
+50	493	4
+50	495	4
+50	497	4
+50	499	4
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE i1 BETWEEN 50 AND 52 AND i2 BETWEEN 495 AND 515 ORDER BY i1, i2 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -516,6 +522,9 @@ i1	i2	i3
 52	511	5
 52	510	5
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
 i3 BETWEEN 4 AND 5 AND MOD(i1,2)=0 AND MOD(i2,2)=1
@@ -565,6 +574,9 @@ i1	i2	i3
 60	593	5
 60	591	5
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3 DESC);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
 i3 BETWEEN 4 AND 5 AND MOD(i1,2)=0 AND MOD(i2,2)=1
@@ -614,6 +626,9 @@ i1	i2	i3
 60	593	5
 60	591	5
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1   WHERE 
 ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
 i3 BETWEEN 4 AND 5) or i1 between 70 and 72) AND
@@ -675,6 +690,9 @@ i1	i2	i3
 48	477	4
 48	479	4
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1   WHERE 
 ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
 i3 BETWEEN 4 AND 5) or i1 between 70 and 72) AND
@@ -736,6 +754,9 @@ i1	i2	i3
 48	477	4
 48	479	4
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE ( (i1=50 AND i2=495 and i3=4) OR i1 BETWEEN 70 AND 72) AND
 MOD(i2,2)=1
@@ -768,6 +789,9 @@ i1	i2	i3
 ALTER TABLE t1 ADD COLUMN (i4 INTEGER NOT NULL);
 UPDATE t1 SET i4=i3;
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3 DESC, i4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1   WHERE
 ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
 i3 BETWEEN 4 AND 5 AND i4 BETWEEN 5 AND 6) OR
@@ -847,6 +871,9 @@ create table t1 (a int not null, b int, c varchar(10),
 key (a desc, b desc, c desc));
 insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
 insert into t1 values (0, NULL, NULL), (0, NULL, 'b'), (0, 0, NULL), (0, 0, 'b'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'c'),(0,0,'b');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	9	NULL	9	33.33	Using where; Using index
@@ -855,15 +882,15 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 flush status;
 select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 a	b	c
-2	3	c
-2	2	b
-2	2	a
-2	1	b
 2	1	a
-1	3	b
-1	1	b
-1	1	b
+2	1	b
+2	2	a
+2	2	b
+2	3	c
 1	1	NULL
+1	1	b
+1	1	b
+1	3	b
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -876,6 +903,9 @@ Handler_read_rnd_next	0
 drop table t1;
 create table t1 (a1 int, a2 char(3), key k1(a1 desc));
 insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # Shouldn't optimize tables away on DESC index
 explain select min(a1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1198,13 +1228,17 @@ INSERT INTO t2 VALUES
 (12,5,'qukkoeiws'),
 (13,9,'ukko'),
 (14,3,'kkoeiwsgp');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t1.pk, t2.col_int_key, 
 t1.col_varchar_key, t2.col_varchar_key
 FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
 AND t1.col_varchar_key != t2.col_varchar_key );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	pk_2	pk_2	47	NULL	#	#	Using index
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`pk` >= `test`.`t2`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` <> `test`.`t2`.`col_varchar_key`))
 SELECT t1.pk, t2.col_int_key, 
@@ -1213,12 +1247,12 @@ FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
 AND t1.col_varchar_key != t2.col_varchar_key );
 pk	col_int_key	col_varchar_key	col_varchar_key
 3	2	ksatefqs	kqukkoe
-4	2	sate	kqukkoe
-5	2	a	kqukkoe
-5	5	a	qukkoeiws
 3	3	ksatefqs	kkoeiwsgp
+4	2	sate	kqukkoe
 4	3	sate	kkoeiwsgp
+5	2	a	kqukkoe
 5	3	a	kkoeiwsgp
+5	5	a	qukkoeiws
 EXPLAIN SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
 t1.col_varchar_key, t2.col_varchar_key FROM
 t2 JOIN t1 ON ( t1.pk >= t2.col_int_key AND 
@@ -1234,12 +1268,12 @@ t2 JOIN t1 ON ( t1.pk >= t2.col_int_key AND
 t1.col_varchar_key != t2.col_varchar_key );
 pk	col_int_key	col_varchar_key	col_varchar_key
 3	2	ksatefqs	kqukkoe
-4	2	sate	kqukkoe
-5	2	a	kqukkoe
-5	5	a	qukkoeiws
 3	3	ksatefqs	kkoeiwsgp
+4	2	sate	kqukkoe
 4	3	sate	kkoeiwsgp
+5	2	a	kqukkoe
 5	3	a	kkoeiwsgp
+5	5	a	qukkoeiws
 DROP TABLE t1,t2;
 #End of test for Bug#23576305
 #
@@ -1296,8 +1330,8 @@ AND ( gp1 . col_varchar_key <> 'y' )
 ORDER BY gp1 . col_varchar_key LIMIT 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gp1	NULL	range	col_varchar_key,col_varchar_key_2,col_varchar_key_3	col_varchar_key_3	82	NULL	3	33.33	Using index condition; Using where
-1	SIMPLE	c1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(gp1)
 1	SIMPLE	gp2	NULL	ref	col_varchar_key	col_varchar_key	42	test.gp1.col_varchar_key	1	100.00	Using where
+1	SIMPLE	c1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 1	SIMPLE	p1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 1	SIMPLE	p2	NULL	index	NULL	col_varchar_key	46	NULL	5	100.00	Using where; Using index
 1	SIMPLE	c2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; FirstMatch(gp2)
@@ -1341,6 +1375,9 @@ INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT
 t1 . pk AS field1,
 t1 . pk AS field2
@@ -1405,6 +1442,9 @@ INSERT INTO t1 VALUES (25,9), (24,1), (23,-74383360), (22,-855900160),
 (15,1808465920), (14,NULL), (13,588644352), (12,3), (11,6), (10,NULL),
 (9,NULL), (8,8), (7,NULL), (6,NULL), (5,-1018232832), (4,5), (3,NULL),
 (2,NULL), (1,NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT DISTINCT
 t1 . pk AS field1
 FROM  t1  LEFT  JOIN t1 AS t2
@@ -1523,6 +1563,10 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(pk, col_int, col_int_key) VALUES (4,3,6), (5,4,8), (6,2,4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT STRAIGHT_JOIN
 t1 . col_int_key AS field1 ,
 t2 . col_int AS field2
@@ -1585,17 +1629,20 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_ke
 SELECT * FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 pk	col_int_key
-6	8
 2	1
+6	8
 ALTER TABLE t1 ADD INDEX key1 (pk);
 ALTER TABLE t1 ADD INDEX key2 (col_int_key);
-EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 FORCE INDEX (key1,col_int_key) WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,col_int_key,key1,key2	key1,col_int_key	4,5	NULL	2	100.00	Using sort_union(key1,col_int_key); Using where
+1	SIMPLE	t1	NULL	index_merge	col_int_key,key1	key1,col_int_key	4,5	NULL	2	100.00	Using sort_union(key1,col_int_key); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
-SELECT * FROM t1 WHERE pk IN (6,2)
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` FORCE INDEX (`col_int_key`) FORCE INDEX (`key1`) where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
+SELECT * FROM t1 FORCE INDEX (key1,col_int_key) WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 pk	col_int_key
 2	1
@@ -1625,7 +1672,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
 SET @g:='1';
 DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
-Warnings:
-Warning	1292	Incorrect date value: '1' for column 'b' at row 1
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
 DROP TABLE t1;
 # End of test for Bug#25899921

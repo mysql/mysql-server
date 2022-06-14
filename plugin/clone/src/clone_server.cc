@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,15 +34,6 @@ Clone Plugin: Server implementation
 /* Namespace for all clone data types */
 namespace myclone {
 
-/** All configuration parameters to be validated. */
-Key_Values Server::s_configs = {{"version", ""},
-                                {"version_compile_machine", ""},
-                                {"version_compile_os", ""},
-                                {"character_set_server", ""},
-                                {"character_set_filesystem", ""},
-                                {"collation_server", ""},
-                                {"innodb_page_size", ""}};
-
 Server::Server(THD *thd, MYSQL_SOCKET socket)
     : m_server_thd(thd),
       m_is_master(false),
@@ -50,7 +41,8 @@ Server::Server(THD *thd, MYSQL_SOCKET socket)
       m_pfs_initialized(false),
       m_acquired_backup_lock(false),
       m_protocol_version(CLONE_PROTOCOL_VERSION),
-      m_client_ddl_timeout() {
+      m_client_ddl_timeout(),
+      m_backup_lock(true) {
   m_ext_link.set_socket(socket);
   m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
 
@@ -61,7 +53,7 @@ Server::Server(THD *thd, MYSQL_SOCKET socket)
 }
 
 Server::~Server() {
-  DBUG_ASSERT(!m_storage_initialized);
+  assert(!m_storage_initialized);
   m_copy_buff.free();
   m_res_buff.free();
 }
@@ -93,7 +85,7 @@ int Server::clone() {
 
     if (done || err != 0) {
       if (m_storage_initialized) {
-        DBUG_ASSERT(err != 0);
+        assert(err != 0);
         /* Don't abort clone if worker thread fails during attach. */
         int in_err = (command == COM_ATTACH) ? 0 : err;
 
@@ -102,7 +94,7 @@ int Server::clone() {
       }
       /* Release if we have acquired backup lock */
       if (m_acquired_backup_lock) {
-        DBUG_ASSERT(m_is_master);
+        assert(m_is_master);
         mysql_service_mysql_backup_lock->release(get_thd());
       }
       break;
@@ -144,8 +136,8 @@ int Server::send_status(int err) {
 int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   auto thd = get_thd();
 
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(!m_pfs_initialized);
+  assert(thd != nullptr);
+  assert(!m_pfs_initialized);
 
   auto err = deserialize_init_buffer(com_buf, com_len);
 
@@ -159,7 +151,7 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
         thd, PSI_NOT_INSTRUMENTED, clone_stmt_server_key);
 
     /* Acquire backup lock */
-    if (m_client_ddl_timeout != 0) {
+    if (block_ddl()) {
       auto failed = mysql_service_mysql_backup_lock->acquire(
           thd, BACKUP_LOCK_SERVICE_DEFAULT, m_client_ddl_timeout);
 
@@ -172,14 +164,36 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   }
   m_pfs_initialized = true;
 
+  /* Work around to use client DDL timeout while waiting for backup
+  lock in clone_init_tablespaces if required. */
+  auto saved_donor_timeout = clone_ddl_timeout;
+  clone_ddl_timeout = m_client_ddl_timeout;
+
   /* Get server locators */
   err = hton_clone_begin(get_thd(), get_storage_vector(), m_tasks,
                          HA_CLONE_HYBRID, mode);
   if (err != 0) {
+    clone_ddl_timeout = saved_donor_timeout;
     return (err);
   }
-  /* Send locators back to client */
   m_storage_initialized = true;
+  clone_ddl_timeout = saved_donor_timeout;
+
+  if (m_is_master && mode == HA_CLONE_MODE_START) {
+    /* Validate local configurations. */
+    err = validate_local_params(get_thd());
+
+    if (err == 0) {
+      /* Send current server parameters for validation. */
+      err = send_params();
+    }
+
+    if (err != 0) {
+      return (err);
+    }
+  }
+
+  /* Send locators back to client */
   err = send_locators();
 
   return (err);
@@ -200,11 +214,10 @@ int Server::parse_command_buffer(uchar command, uchar *com_buf, size_t com_len,
 
     case COM_INIT:
       m_is_master = true;
+
+      /* Initialize storage, send locators and validating configurations.  */
       err = init_storage(HA_CLONE_MODE_START, com_buf, com_len);
-      if (err == 0) {
-        /* Send current server parameters for validation. */
-        err = send_params();
-      }
+
       log_error(get_thd(), false, err, "COM_INIT: Storage Initialize");
       break;
 
@@ -262,7 +275,7 @@ int Server::parse_command_buffer(uchar command, uchar *com_buf, size_t com_len,
       break;
 
     case COM_MAX:
-      /* Fall through */
+      [[fallthrough]];
     default:
       /* purecov: begin deadcode */
       err = ER_CLONE_PROTOCOL;
@@ -342,9 +355,13 @@ int Server::deserialize_init_buffer(const uchar *init_buf, size_t init_len) {
   init_len -= 4;
 
   /* Extract DDL timeout */
-  m_client_ddl_timeout = uint4korr(init_buf);
-  init_buf += 4;
-  init_len -= 4;
+  {
+    uint32_t client_ddl_timeout = uint4korr(init_buf);
+    init_buf += 4;
+    init_len -= 4;
+
+    set_client_timeout(client_ddl_timeout);
+  }
 
   /* Initialize locators */
   while (init_len > 0) {
@@ -384,8 +401,11 @@ int Server::send_key_value(Command_Response rcmd, String_Key &key_str,
   auto buf_len = key_str.length();
   buf_len += 4;
 
+  bool send_value = (rcmd == COM_RES_CONFIG || rcmd == COM_RES_PLUGIN_V2 ||
+                     rcmd == COM_RES_CONFIG_V3);
+
   /** Add length for value. */
-  if (rcmd == COM_RES_CONFIG) {
+  if (send_value) {
     buf_len += val_str.length();
     buf_len += 4;
   }
@@ -410,7 +430,7 @@ int Server::send_key_value(Command_Response rcmd, String_Key &key_str,
   buf_ptr += key_str.length();
 
   /* Store Value */
-  if (rcmd == COM_RES_CONFIG) {
+  if (send_value) {
     int4store(buf_ptr, val_str.length());
     buf_ptr += 4;
     memcpy(buf_ptr, val_str.c_str(), val_str.length());
@@ -428,24 +448,39 @@ int Server::send_params() {
   auto plugin_cbk = [](THD *, plugin_ref plugin, void *ctx) {
     auto server = static_cast<Server *>(ctx);
 
-    if (plugin == nullptr || plugin_state(plugin) == PLUGIN_IS_FREED ||
-        plugin_state(plugin) == PLUGIN_IS_DISABLED) {
-      return (false);
+    if (plugin == nullptr) {
+      return false;
     }
     /* Send plugin name string */
     String_Key pstring(plugin_name(plugin)->str, plugin_name(plugin)->length);
-    auto err = server->send_key_value(COM_RES_PLUGIN, pstring, pstring);
 
+    if (server->send_only_plugin_name()) {
+      auto err = server->send_key_value(COM_RES_PLUGIN, pstring, pstring);
+      return (err != 0);
+    }
+
+    /* Send plugin dynamic library name. */
+    String_Key dstring;
+
+    auto plugin_dl = plugin_dlib(plugin);
+    if (plugin_dl != nullptr) {
+      dstring.assign(plugin_dl->dl.str, plugin_dl->dl.length);
+    }
+
+    auto err = server->send_key_value(COM_RES_PLUGIN_V2, pstring, dstring);
     return (err != 0);
   };
 
-  auto result = plugin_foreach_with_mask(
-      get_thd(), plugin_cbk, MYSQL_ANY_PLUGIN, ~PLUGIN_IS_FREED, this);
+  /* Check only for plugins in active state - PLUGIN_IS_READY. We already have
+  backup lock here and no new plugins can be installed or uninstalled at this
+  point. However, there could be some left over plugins in PLUGIN_IS_DELETED
+  state which are uninstalled but not removed yet. */
+  auto result = plugin_foreach(get_thd(), plugin_cbk, MYSQL_ANY_PLUGIN, this);
 
   if (result) {
     err = ER_INTERNAL_ERROR;
     my_error(err, MYF(0), "Clone error sending plugin information");
-    return (err);
+    return err;
   }
 
   /* Send character sets and collations */
@@ -454,30 +489,59 @@ int Server::send_params() {
   err = mysql_service_clone_protocol->mysql_clone_get_charsets(get_thd(),
                                                                char_sets);
   if (err != 0) {
-    return (err);
+    return err;
   }
 
   for (auto &element : char_sets) {
     err = send_key_value(COM_RES_COLLATION, element, element);
     if (err != 0) {
-      return (err);
+      return err;
     }
   }
 
-  /* Send configurations */
-  err = mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(),
-                                                              s_configs);
-  if (err != 0) {
-    return (err);
+  /* Send configurations for validation. */
+  err = send_configs(COM_RES_CONFIG);
+
+  if (err != 0 || skip_other_configs()) {
+    return err;
   }
 
-  for (auto &key_val : s_configs) {
-    err = send_key_value(COM_RES_CONFIG, key_val.first, key_val.second);
+  /* Send other configurations required by recipient. */
+  err = send_configs(COM_RES_CONFIG_V3);
+
+  return err;
+}
+
+int Server::send_configs(Command_Response rcmd) {
+  /** All configuration parameters to be validated. */
+  Key_Values all_configs = {{"version", ""},
+                            {"version_compile_machine", ""},
+                            {"version_compile_os", ""},
+                            {"character_set_server", ""},
+                            {"character_set_filesystem", ""},
+                            {"collation_server", ""},
+                            {"innodb_page_size", ""}};
+
+  /** All other configuration required by recipient. */
+  Key_Values other_configs = {
+      {"clone_donor_timeout_after_network_failure", ""}};
+
+  auto &configs = (rcmd == COM_RES_CONFIG_V3) ? other_configs : all_configs;
+
+  auto err =
+      mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);
+
+  if (err != 0) {
+    return err;
+  }
+
+  for (auto &key_val : configs) {
+    err = send_key_value(rcmd, key_val.first, key_val.second);
     if (err != 0) {
       break;
     }
   }
-  return (err);
+  return err;
 }
 
 int Server::send_locators() {
@@ -659,15 +723,15 @@ int Server_Cbk::buffer_cbk(uchar *from_buffer, uint buf_len) {
 }
 
 /* purecov: begin deadcode */
-int Server_Cbk::apply_file_cbk(Ha_clone_file to_file MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);
+int Server_Cbk::apply_file_cbk(Ha_clone_file to_file [[maybe_unused]]) {
+  assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);
 }
 
-int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer MY_ATTRIBUTE((unused)),
-                                 uint &len MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);
+int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer [[maybe_unused]],
+                                 uint &len [[maybe_unused]]) {
+  assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);
 }

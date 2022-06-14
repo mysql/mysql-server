@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,6 +151,9 @@ public:
     Field* next() {
       return static_cast<Field*>(m_next);
     }
+    bool is_empty() const {
+      return (m_pos == m_end);
+    }
     uint m_fieldno;
     uint m_pos;
     uint m_end;
@@ -175,6 +178,12 @@ public:
     }
     uint cnt() const {
       return m_cnt;
+    }
+    bool final_field_is_empty() const {
+      return (static_cast<Field*>(m_back))->is_empty();
+    }
+    Field * pop_back() {
+      return static_cast<Field*>(List::pop_back());
     }
   };
 
@@ -223,6 +232,7 @@ public:
     Line* alloc_line();
     void free_data_list(DataList& data_list);
     void free_field_list(FieldList& field_list);
+    void free_field(Field *);
     void free_line_list(LineList& line_list);
     bool balanced();
     DataList m_data_free;
@@ -325,9 +335,10 @@ public:
     enum State {
       State_plain = 0,
       State_quote = 1,
-      State_escape = 2
+      State_escape = 2,
+      State_cr = 3
     };
-    static const int g_statecnt = State_escape + 1;
+    static const int g_statecnt = State_cr + 1;
     Parse(Input& input);
     void do_init();
     void push_state(State state);
@@ -362,6 +373,7 @@ public:
     void do_init();
     void do_eval();
     void eval_line(Row* row, Line* line);
+    void eval_auto_inc_field(Row* row, Line* line, Field* field, uint attr_id);
     void eval_field(Row* row, Line* line, Field* field);
     void eval_null(Row* row, Line* line, Field* field);
     Input& m_input;

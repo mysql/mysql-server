@@ -58,6 +58,23 @@ select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
+# Valgrind failures for Bug 29717909 MEMORY LIFETIME OF VARIABLES BETWEEN CHECK AND UPDATE INCORRECTLY MANAGED
+select @@clone_valid_donor_list;
+@@clone_valid_donor_list
+NULL
+set @blah = '127.0.0.1:8976';
+SET GLOBAL clone_valid_donor_list = @blah;
+select @@clone_valid_donor_list;
+@@clone_valid_donor_list
+127.0.0.1:8976
+SET GLOBAL clone_valid_donor_list = default;
+select @@clone_valid_donor_list;
+@@clone_valid_donor_list
+NULL
+SET GLOBAL clone_valid_donor_list = NULL;
+select @@clone_valid_donor_list;
+@@clone_valid_donor_list
+NULL
 # Error: space in clone_valid_donor_list
 SET GLOBAL clone_valid_donor_list = ' HOST:PORT';
 ERROR HY000: Clone system configuration: Invalid Format. Please enter "<hostname1>:<port1>,..."' with no extra space
@@ -183,6 +200,15 @@ ID	STAGE	STATE
 1	RESTART	Not Started
 1	RECOVERY	Not Started
 SET GLOBAL innodb_undo_log_encrypt = OFF;
+# 3. Enable sql_require_primary_key
+UNINSTALL PLUGIN clone;
+SELECT @@sql_require_primary_key into @saved_sql_require_primary_key;
+SET sql_require_primary_key = OFF;
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+UNINSTALL PLUGIN clone;
+SET sql_require_primary_key = ON;
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET global sql_require_primary_key = @saved_sql_require_primary_key;
 #Cleanup
 UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN keyring_file;

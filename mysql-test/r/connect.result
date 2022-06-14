@@ -20,6 +20,10 @@ password_history
 plugin
 procs_priv
 proxies_priv
+replication_asynchronous_connection_failover
+replication_asynchronous_connection_failover_managed
+replication_group_configuration_version
+replication_group_member_actions
 role_edges
 server_cost
 servers
@@ -65,6 +69,10 @@ password_history
 plugin
 procs_priv
 proxies_priv
+replication_asynchronous_connection_failover
+replication_asynchronous_connection_failover_managed
+replication_group_configuration_version
+replication_group_member_actions
 role_edges
 server_cost
 servers
@@ -382,3 +390,4 @@ Variable_name	Value
 Aborted_connects	4
 DROP USER 'new1'@'localhost';
 DROP DATABASE test1;
+# restart:

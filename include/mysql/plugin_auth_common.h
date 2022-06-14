@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,12 @@
   or not.
 */
 #define CR_OK_HANDSHAKE_COMPLETE -2
-
+/**
+  Authentication was successful with limited operations.
+  It means that the both client and server side plugins decided to allow
+  authentication with very limited operations ALTER USER to do registration.
+*/
+#define CR_OK_AUTH_IN_SANDBOX_MODE -3
 /**
 Flag to be passed back to server from authentication plugins via
 authenticated_as when proxy mapping should be done by the server.
@@ -105,7 +110,7 @@ authenticated_as when proxy mapping should be done by the server.
   We need HANDLE definition if on Windows. Define WIN32_LEAN_AND_MEAN (if
   not already done) to minimize amount of imported declarations.
 */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -121,7 +126,7 @@ struct MYSQL_PLUGIN_VIO_INFO {
     MYSQL_VIO_MEMORY
   } protocol;
   int socket; /**< it's set, if the protocol is SOCKET or TCP */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
   HANDLE handle; /**< it's set, if the protocol is PIPE or MEMORY */
 #endif
 };

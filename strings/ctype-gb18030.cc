@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,13 @@
 
 // This file is for Chinese character sets GB18030-2005.
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "template_utils.h"
 
@@ -3031,38 +3032,38 @@ static const MY_UNICASE_CHARACTER planeE6[] = {
   The UNICASE array
 */
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_gb18030[256] = {
-    plane00, plane01, plane02, plane03, plane04, NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    plane10, NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    plane1D, plane1E, plane1F,
-    plane20, NULL,    NULL,    plane23, NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    plane2A, plane2B, NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    plane51, plane52, NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    planeA2, planeA3, NULL,    NULL,    planeA6, planeA7,
-    planeA8, NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    planeE6, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL};
+    plane00, plane01, plane02, plane03, plane04, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    plane10, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, plane1D, plane1E, plane1F,
+    plane20, nullptr, nullptr, plane23, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, plane2A, plane2B, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, plane51, plane52, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, planeA2, planeA3, nullptr, nullptr, planeA6, planeA7,
+    planeA8, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, planeE6, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 /**
   UNICASE INFO
@@ -19164,7 +19165,7 @@ static const uint16 gb18030_4_weight_py_p2[] = {
 static inline uint gb18030_chs_to_code(const uchar *src, size_t srclen) {
   uint r = 0;
 
-  DBUG_ASSERT(srclen == 1 || srclen == 2 || srclen == 4);
+  assert(srclen == 1 || srclen == 2 || srclen == 4);
 
   switch (srclen) {
     case 1:
@@ -19177,7 +19178,7 @@ static inline uint gb18030_chs_to_code(const uchar *src, size_t srclen) {
       r = (src[0] << 24) + (src[1] << 16) + (src[2] << 8) + src[3];
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   return r;
@@ -19198,7 +19199,7 @@ static size_t code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code) {
   uchar r[4];
   for (i = 0; code != 0; i++, code >>= 8) r[i] = (uchar)(code & 0xFF);
 
-  DBUG_ASSERT(i == 1 || i == 2 || i == 4);
+  assert(i == 1 || i == 2 || i == 4);
   for (; i > 0 && dst < dst_end; --i, ++len) *dst++ = r[i - 1];
 
   return len;
@@ -19215,7 +19216,7 @@ static size_t code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code) {
                       0 otherwise
 */
 static uint diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff) {
-  DBUG_ASSERT(dstlen >= 4);
+  assert(dstlen >= 4);
 
   if (diff > MAX_GB18030_DIFF || dstlen < 4) return 0;
 
@@ -19238,16 +19239,16 @@ static uint diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff) {
 static uint gb18030_4_code_to_diff(uint code) {
   uint diff = 0;
 
-  DBUG_ASSERT(is_mb_odd((code >> 24) & 0xFF));
+  assert(is_mb_odd((code >> 24) & 0xFF));
   diff += ((code >> 24) & 0xFF) - MIN_MB_ODD_BYTE;
   diff *= 10;
-  DBUG_ASSERT(is_mb_even_4((code >> 16) & 0xFF));
+  assert(is_mb_even_4((code >> 16) & 0xFF));
   diff += ((code >> 16) & 0xFF) - MIN_MB_EVEN_BYTE_4;
   diff *= 126;
-  DBUG_ASSERT(is_mb_odd((code >> 8) & 0xFF));
+  assert(is_mb_odd((code >> 8) & 0xFF));
   diff += ((code >> 8) & 0xFF) - MIN_MB_ODD_BYTE;
   diff *= 10;
-  DBUG_ASSERT(is_mb_even_4(code & 0xFF));
+  assert(is_mb_even_4(code & 0xFF));
   diff += (code & 0xFF) - MIN_MB_EVEN_BYTE_4;
 
   return diff;
@@ -19276,9 +19277,9 @@ static inline uint gb18030_4_chs_to_diff(const uchar *src) {
                 0 if not
 */
 extern "C" {
-static uint my_ismbchar_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                                 const char *p, const char *e) {
-  DBUG_ASSERT(e > p);
+  assert(e > p);
 
   if (e - p <= 1 || !is_mb_odd(p[0])) return 0;
 
@@ -19300,7 +19301,7 @@ static uint my_ismbchar_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval       1/2/4 accordingly if the leading byte(s) indicate
                 the code would be gb18030, otherwise 0
 */
-static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                                  uint c) {
   if (c <= 0xFF)
     /* We use is_mb_odd instead of is_mb_1 here, because in other cs,
@@ -19326,7 +19327,7 @@ static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                     space is too small
                  3) MY_CS_ILUNI if we can't encode unicode to gb18030
 */
-static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
                                 my_wc_t wc, uchar *s, uchar *e) {
   uint idx = 0;
   uint len;
@@ -19395,12 +19396,12 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
       if (s + 4 > e) return MY_CS_TOOSMALL4;
 
       err = diff_to_gb18030_4(s, 4, idx);
-      DBUG_ASSERT(err != 0);
+      assert(err != 0);
 
       return err != 0 ? len : MY_CS_ILUNI;
   }
 
-  DBUG_ASSERT(0);
+  assert(0);
   return MY_CS_ILUNI;
 }
 
@@ -19417,7 +19418,7 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                   3) MY_CS_ILSEQ if gb18030 code is
                      wrong by sequence
 */
-static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                             my_wc_t *pwc, const uchar *s, const uchar *e) {
   uint idx = 0;
   uint cp = 0;
@@ -19485,7 +19486,7 @@ static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
       /* (GB+8431A439, GB+90308130) and (GB+E3329A35, GB+FE39FE39) */
       cp = 0x003F;
     else
-      DBUG_ASSERT(0);
+      assert(0);
 
     *pwc = cp;
     return 4;
@@ -19503,9 +19504,10 @@ static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @param[out] error 0 if every gb18030 code we get is correct, otherwise 1
   @return           the length of all well formed bytes
 */
-static size_t my_well_formed_len_gb18030(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_gb18030(const CHARSET_INFO *cs
+                                         [[maybe_unused]],
+                                         const char *b, const char *e,
+                                         size_t pos, int *error) {
   const char *b0 = b;
   const char *emb = e - 1;
 
@@ -19540,10 +19542,10 @@ static size_t my_well_formed_len_gb18030(
 static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
                                                  const uchar *src,
                                                  size_t srclen) {
-  const MY_UNICASE_CHARACTER *p = NULL;
+  const MY_UNICASE_CHARACTER *p = nullptr;
   uint diff, code;
 
-  DBUG_ASSERT(cs != NULL);
+  assert(cs != nullptr);
 
   switch (srclen) {
     case 1:
@@ -19551,10 +19553,10 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
     case 2:
       if (src[0] < ((MIN_2_BYTE_UNICASE >> 8) & 0xFF) ||
           src[0] > ((MAX_2_BYTE_UNICASE >> 8) & 0xFF))
-        return NULL;
+        return nullptr;
 
       p = cs->caseinfo->page[(uchar)src[0]];
-      return p ? &p[(uchar)src[1]] : NULL;
+      return p ? &p[(uchar)src[1]] : nullptr;
     case 4:
       diff = gb18030_4_chs_to_diff(src);
       code = 0;
@@ -19564,14 +19566,14 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
       else if (diff >= MIN_3_BYTE_FROM_UNI && diff <= MAX_3_BYTE_FROM_UNI)
         code = (diff & 0xFFFF);
       else
-        return NULL;
+        return nullptr;
 
       p = cs->caseinfo->page[(code >> 8) & 0xFF];
-      return p ? &p[code & 0xFF] : NULL;
+      return p ? &p[code & 0xFF] : nullptr;
   }
 
-  DBUG_ASSERT(0);
-  return NULL;
+  assert(0);
+  return nullptr;
 }
 
 /**
@@ -19594,10 +19596,10 @@ static uint case_info_code_to_gb18030(uint code) {
              code <= (MAX_3_BYTE_FROM_UNI & 0xFFFF))
       code += (MIN_3_BYTE_FROM_UNI & 0xFF0000);
     else
-      DBUG_ASSERT(0);
+      assert(0);
 
     r = diff_to_gb18030_4(gbchs, 4, code);
-    DBUG_ASSERT(r == 4);
+    assert(r == 4);
 
     return r == 4 ? gb18030_chs_to_code(gbchs, 4) : 0;
   }
@@ -19618,7 +19620,7 @@ static uint get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
                                 size_t srclen, size_t is_upper) {
   const MY_UNICASE_CHARACTER *ch = get_case_info(cs, src, srclen);
 
-  DBUG_ASSERT(srclen == 1 || srclen == 2 || srclen == 4);
+  assert(srclen == 1 || srclen == 2 || srclen == 4);
 
   return ch ? case_info_code_to_gb18030(is_upper ? ch->toupper : ch->tolower)
             : 0;
@@ -19648,7 +19650,7 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
   while (src < srcend) {
     uint mblen = my_ismbchar_gb18030(cs, src, srcend);
 
-    DBUG_ASSERT(dst < dst_end);
+    assert(dst < dst_end);
     if (mblen) {
       uint code = get_casefolded_code(cs, (uchar *)src, mblen, is_upper);
 
@@ -19656,12 +19658,12 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
         size_t mblen_dst =
             code_to_gb18030_chs((uchar *)dst, dst_end - dst, code);
 
-        DBUG_ASSERT(dst + mblen_dst <= dst_end);
+        assert(dst + mblen_dst <= dst_end);
         src += mblen;
         dst += mblen_dst;
       } else {
-        DBUG_ASSERT(mblen == 2 || mblen == 4);
-        DBUG_ASSERT(dst + mblen <= dst_end);
+        assert(mblen == 2 || mblen == 4);
+        assert(dst + mblen <= dst_end);
 
         if (mblen == 4) {
           *dst++ = *src++;
@@ -19691,10 +19693,10 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
 extern "C" {
 static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
                                 size_t srclen, char *dst, size_t dstlen) {
-  DBUG_ASSERT(cs != NULL);
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
-  DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
-  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, 0);
+  assert(cs != nullptr);
+  assert(src != dst || cs->casedn_multiply == 1);
+  assert(dstlen >= srclen * cs->casedn_multiply);
+  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, false);
 }
 
 /**
@@ -19709,10 +19711,10 @@ static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
 */
 static size_t my_caseup_gb18030(const CHARSET_INFO *cs, char *src,
                                 size_t srclen, char *dst, size_t dstlen) {
-  DBUG_ASSERT(cs != NULL);
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
-  DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
-  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, 1);
+  assert(cs != nullptr);
+  assert(src != dst || cs->caseup_multiply == 1);
+  assert(dstlen >= srclen * cs->caseup_multiply);
+  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, true);
 }
 
 /**
@@ -19733,9 +19735,9 @@ static size_t my_casedn_gb18030_uca(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
 
-  DBUG_ASSERT(cs != NULL);
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
-  DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
+  assert(cs != nullptr);
+  assert(src != dst || cs->casedn_multiply == 1);
+  assert(dstlen >= srclen * cs->casedn_multiply);
 
   uni_plane = cs->caseinfo;
 
@@ -19776,9 +19778,9 @@ static size_t my_caseup_gb18030_uca(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
 
-  DBUG_ASSERT(cs != NULL);
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
-  DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
+  assert(cs != nullptr);
+  assert(src != dst || cs->caseup_multiply == 1);
+  assert(dstlen >= srclen * cs->caseup_multiply);
 
   uni_plane = cs->caseinfo;
 
@@ -19870,7 +19872,7 @@ static uint get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src,
                                   size_t mblen) {
   uint weight, caseup_code, code = gb18030_chs_to_code(src, mblen);
 
-  DBUG_ASSERT(mblen == 2 || mblen == 4);
+  assert(mblen == 2 || mblen == 4);
 
   /* Make sure the max 4-byte gb18030 code has the max weight */
   if (code == 0xFE39FE39) return 0xFFFFFFFF;
@@ -19899,10 +19901,10 @@ static uint get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src,
 */
 static uint get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s,
                                        size_t s_len) {
-  DBUG_ASSERT(s_len == 1 || s_len == 2 || s_len == 4);
+  assert(s_len == 1 || s_len == 2 || s_len == 4);
 
   if (s_len == 1) {
-    DBUG_ASSERT(is_mb_1(*s));
+    assert(is_mb_1(*s));
     return cs->sort_order[(uchar)*s];
   }
 
@@ -19932,7 +19934,7 @@ static size_t get_code_and_length(const CHARSET_INFO *cs, const char *s,
 
   if ((len = my_ismbchar_gb18030(cs, s, e)) == 0) return 0;
 
-  DBUG_ASSERT(len == 2 || len == 4);
+  assert(len == 2 || len == 4);
   *code = gb18030_chs_to_code((const uchar *)s, len);
   return len;
 }
@@ -19960,7 +19962,7 @@ static int my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
   const uchar *se = s + s_length;
   const uchar *te = t + t_length;
 
-  DBUG_ASSERT(cs != NULL);
+  assert(cs != nullptr);
 
   while (s < se && t < te) {
     uint mblen_s = my_ismbchar_gb18030(cs, pointer_cast<const char *>(s),
@@ -20076,7 +20078,7 @@ static size_t my_strnxfrm_gb18030(const CHARSET_INFO *cs, uchar *dst,
   const uchar *se = src + srclen;
   const uchar *sort_order;
 
-  DBUG_ASSERT(cs != NULL);
+  assert(cs != nullptr);
   sort_order = cs->sort_order;
 
   for (; dst < de && src < se && nweights; nweights--) {
@@ -20128,11 +20130,11 @@ static uint unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode) {
   uint dst_len;
   int res;
 
-  DBUG_ASSERT(cs != NULL);
+  assert(cs != nullptr);
 
   res = cs->cset->wc_mb(cs, unicode, dst, dst + 4);
 
-  DBUG_ASSERT(res == 1 || res == 2 || res == 4);
+  assert(res == 1 || res == 2 || res == 4);
 
   dst_len = (uint)res;
   return gb18030_chs_to_code(dst, dst_len);
@@ -20165,8 +20167,8 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
 
   while (wildstr != wildend) {
-    while (1) {
-      bool escaped = 0;
+    while (true) {
+      bool escaped = false;
       if ((w_len = get_code_and_length(cs, wildstr, wildend, &w_gb)) == 0)
         return 1;
 
@@ -20181,7 +20183,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
           return 1;
 
         wildstr += w_len;
-        escaped = 1;
+        escaped = true;
       }
 
       if ((s_len = get_code_and_length(cs, str, str_end, &s_gb)) == 0) return 1;
@@ -20237,7 +20239,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
         }
       }
 
-      while (1) {
+      while (true) {
         /* Skip until the first character from wildstr is found */
         while (str != str_end) {
           if ((s_len = get_code_and_length(cs, str, str_end, &s_gb)) == 0)
@@ -20291,7 +20293,7 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
     to '%'. And for '_' and '%', their values are same in GB18030 and Unicode,
     we don't need to do conversion.
    */
-  DBUG_ASSERT((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
+  assert((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
   uint escape_gb = unicode_to_gb18030_code(cs, escape);
 
   return my_wildcmp_gb18030_impl(cs, str, str_end, wildstr, wildend, escape_gb,
@@ -20363,7 +20365,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {nullptr,
                                                        my_propagate_simple};
 
 static MY_CHARSET_HANDLER my_charset_gb18030_handler = {
-    NULL,
+    nullptr,
     my_ismbchar_gb18030,
     my_mbcharlen_gb18030,
     my_numchars_mb,
@@ -20391,7 +20393,7 @@ static MY_CHARSET_HANDLER my_charset_gb18030_handler = {
     my_strntoull10rnd_8bit,
     my_scan_8bit};
 
-MY_CHARSET_HANDLER my_charset_gb18030_uca_handler = {NULL,
+MY_CHARSET_HANDLER my_charset_gb18030_uca_handler = {nullptr,
                                                      my_ismbchar_gb18030,
                                                      my_mbcharlen_gb18030,
                                                      my_numchars_mb,
@@ -20425,20 +20427,20 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* number        */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state         */
     "gb18030",                                       /* cs name       */
-    "gb18030_chinese_ci",                            /* name          */
-    "",                                              /* comment       */
-    NULL,                                            /* tailoring     */
-    NULL,                                            /* coll_param    */
+    "gb18030_chinese_ci",                            /* m_coll_name   */
+    "China National Standard GB18030",               /* comment       */
+    nullptr,                                         /* tailoring     */
+    nullptr,                                         /* coll_param    */
     ctype_gb18030,                                   /* ctype         */
     to_lower_gb18030,                                /* lower         */
     to_upper_gb18030,                                /* UPPER         */
     sort_order_gb18030,                              /* sort          */
-    NULL,                                            /* uca           */
-    NULL,                                            /* tab_to_uni    */
-    NULL,                                            /* tab_from_uni  */
+    nullptr,                                         /* uca           */
+    nullptr,                                         /* tab_to_uni    */
+    nullptr,                                         /* tab_from_uni  */
     &my_caseinfo_gb18030,                            /* caseinfo      */
-    NULL,                                            /* state_map     */
-    NULL,                                            /* ident_map     */
+    nullptr,                                         /* state_map     */
+    nullptr,                                         /* ident_map     */
     2,                                               /* strxfrm_multiply */
     2,                                               /* caseup_multiply  */
     2,                                               /* casedn_multiply  */
@@ -20448,8 +20450,8 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* min_sort_char */
     0xFE39FE39,                                      /* max_sort_char */
     ' ',                                             /* pad char      */
-    1, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    true, /* escape_with_backslash_is_dangerous */
+    1,    /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
@@ -20457,34 +20459,34 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
 CHARSET_INFO my_charset_gb18030_bin = {
     249,
     0,
-    0,                              /* number        */
-    MY_CS_COMPILED | MY_CS_BINSORT, /* state         */
-    "gb18030",                      /* cs name       */
-    "gb18030_bin",                  /* name          */
-    "",                             /* comment       */
-    NULL,                           /* tailoring     */
-    NULL,                           /* coll_param    */
-    ctype_gb18030,                  /* ctype         */
-    to_lower_gb18030,               /* lower         */
-    to_upper_gb18030,               /* UPPER         */
-    NULL,                           /* sort order    */
-    NULL,                           /* uca           */
-    NULL,                           /* tab_to_uni    */
-    NULL,                           /* tab_from_uni  */
-    &my_caseinfo_gb18030,           /* caseinfo      */
-    NULL,                           /* state_map     */
-    NULL,                           /* ident_map     */
-    1,                              /* strxfrm_multiply */
-    2,                              /* caseup_multiply  */
-    2,                              /* casedn_multiply  */
-    1,                              /* mbminlen      */
-    4,                              /* mbmaxlen      */
-    2,                              /* mbmaxlenlen   */
-    0,                              /* min_sort_char */
-    0xFEFEFEFE,                     /* max_sort_char */
-    ' ',                            /* pad char      */
-    1,                              /* escape_with_backslash_is_dangerous */
-    1,                              /* levels_for_compare */
+    0,                                 /* number        */
+    MY_CS_COMPILED | MY_CS_BINSORT,    /* state         */
+    "gb18030",                         /* cs name       */
+    "gb18030_bin",                     /* m_coll_name   */
+    "China National Standard GB18030", /* comment       */
+    nullptr,                           /* tailoring     */
+    nullptr,                           /* coll_param    */
+    ctype_gb18030,                     /* ctype         */
+    to_lower_gb18030,                  /* lower         */
+    to_upper_gb18030,                  /* UPPER         */
+    nullptr,                           /* sort order    */
+    nullptr,                           /* uca           */
+    nullptr,                           /* tab_to_uni    */
+    nullptr,                           /* tab_from_uni  */
+    &my_caseinfo_gb18030,              /* caseinfo      */
+    nullptr,                           /* state_map     */
+    nullptr,                           /* ident_map     */
+    1,                                 /* strxfrm_multiply */
+    2,                                 /* caseup_multiply  */
+    2,                                 /* casedn_multiply  */
+    1,                                 /* mbminlen      */
+    4,                                 /* mbmaxlen      */
+    2,                                 /* mbmaxlenlen   */
+    0,                                 /* min_sort_char */
+    0xFEFEFEFE,                        /* max_sort_char */
+    ' ',                               /* pad char      */
+    true,                              /* escape_with_backslash_is_dangerous */
+    1,                                 /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_mb_bin_handler,
     PAD_SPACE};

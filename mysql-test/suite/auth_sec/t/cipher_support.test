@@ -1,0 +1,202 @@
+###############################################################################
+#                                                                             #
+# Tests for cipher support                                                    #
+#                                                                             #
+# We divide supported ciphers in 4 categories                                 #
+# 1. Preferred                                                                #
+# 2. Acceptable                                                               #
+# 3. Deprecated                                                               #
+# 4. Not defaults                                                             #
+# 4. Blocked                                                                  #
+#                                                                             #
+# Different ciphers require different certificates. We try to test with       #
+# following types of certificates:                                            #
+# -RSA certificates                                                           #
+# -DSA certificates                                                           #
+# -ECDSA certificates                                                         #
+#                                                                             #
+###############################################################################
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Setup
+--echo
+--connection default
+CREATE USER arthurdent@localhost IDENTIFIED BY 'abcd';
+CREATE DATABASE cipher_data;
+CREATE TABLE cipher_data.p(ciphers JSON);
+CREATE TABLE cipher_data.a(ciphers JSON);
+CREATE TABLE cipher_data.d(ciphers JSON);
+CREATE TABLE cipher_data.n(ciphers JSON);
+CREATE TABLE cipher_data.b(ciphers JSON);
+
+--let $CIPHER_DB = cipher_data
+--let $USER = arthurdent
+--let $PASSWORD = abcd
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Ciphers: ECDHE-RSA | Cert/Key type: RSA
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/server-key.pem'
+ALTER INSTANCE RELOAD TLS;
+
+TRUNCATE TABLE cipher_data.p;
+TRUNCATE TABLE cipher_data.a;
+TRUNCATE TABLE cipher_data.d;
+TRUNCATE TABLE cipher_data.n;
+TRUNCATE TABLE cipher_data.b;
+
+INSERT INTO cipher_data.p VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
+                                    "ECDHE-RSA-AES128-SHA256"]');
+INSERT INTO cipher_data.a VALUES ('["ECDHE-RSA-AES256-GCM-SHA384",
+                                    "ECDHE-RSA-AES256-SHA384"]');
+INSERT INTO cipher_data.d VALUES ('["ECDHE-RSA-AES128-SHA",
+                                    "ECDHE-RSA-AES256-SHA"]');
+INSERT INTO cipher_data.b VALUES ('["ECDHE-RSA-DES-CBC3-SHA",
+                                    "ECDHE-RSA-RC4-SHA"]');
+
+--source suite/auth_sec/include/cipher_test.inc
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Ciphers: DHE-RSA | Cert/Key type: RSA
+--echo
+
+# No need to reload TLS material
+
+TRUNCATE TABLE cipher_data.p;
+TRUNCATE TABLE cipher_data.a;
+TRUNCATE TABLE cipher_data.d;
+TRUNCATE TABLE cipher_data.n;
+TRUNCATE TABLE cipher_data.b;
+
+INSERT INTO cipher_data.a VALUES ('["DHE-RSA-AES256-GCM-SHA384",
+                                    "DHE-RSA-AES128-GCM-SHA256",
+                                    "DHE-RSA-AES256-SHA256",
+                                    "DHE-RSA-AES128-SHA256"]');
+INSERT INTO cipher_data.d VALUES ('["DHE-RSA-AES256-SHA",
+                                    "DHE-RSA-AES128-SHA"]');
+INSERT INTO cipher_data.n VALUES ('["DHE-RSA-CAMELLIA256-SHA",
+                                    "DHE-RSA-CAMELLIA128-SHA"]');
+INSERT INTO cipher_data.b VALUES ('["DHE-RSA-DES-CBC3-SHA"]');
+
+--source suite/auth_sec/include/cipher_test.inc
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Ciphers: other | Cert/Key type: RSA
+--echo
+
+# No need to reload TLS material
+
+TRUNCATE TABLE cipher_data.p;
+TRUNCATE TABLE cipher_data.a;
+TRUNCATE TABLE cipher_data.d;
+TRUNCATE TABLE cipher_data.n;
+TRUNCATE TABLE cipher_data.b;
+
+INSERT INTO cipher_data.b VALUES ('["DES-CBC3-SHA", "RC4-SHA",
+                                    "RC4-MD5", "PSK-RC4-SHA",
+                                    "PSK-AES256-CBC-SHA", "PSK-AES128-CBC-SHA",
+                                    "PSK-3DES-EDE-CBC-SHA",
+                                    "EDH-RSA-DES-CBC3-SHA",
+                                    "EDH-DSS-DES-CBC3-SHA", "DES-CBC3-SHA"]');
+
+--source suite/auth_sec/include/cipher_test.inc
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Ciphers: ECDHE-ECDSA | Cert/Key type: ECDH certificate signed with RSA
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS;
+
+TRUNCATE TABLE cipher_data.p;
+TRUNCATE TABLE cipher_data.a;
+TRUNCATE TABLE cipher_data.d;
+TRUNCATE TABLE cipher_data.n;
+TRUNCATE TABLE cipher_data.b;
+
+INSERT INTO cipher_data.p VALUES ('["ECDHE-ECDSA-AES256-GCM-SHA384",
+                                    "ECDHE-ECDSA-AES128-GCM-SHA256",
+                                    "ECDHE-ECDSA-AES128-SHA256"]');
+INSERT INTO cipher_data.a VALUES ('["ECDHE-ECDSA-AES256-SHA384"]');
+INSERT INTO cipher_data.d VALUES ('["ECDHE-ECDSA-AES256-SHA",
+                                    "ECDHE-ECDSA-AES128-SHA"]');
+INSERT INTO cipher_data.b VALUES ('["ECDHE-ECDSA-DES-CBC3-SHA",
+                                    "ECDHE-ECDSA-RC4-SHA"]');
+
+--source suite/auth_sec/include/cipher_test.inc
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Ciphers: ECDHE-ECDSA | Cert/Key type: ECDH certificate signed with DSA
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/ecdh_dsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/ecdh_dsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/ecdh_dsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS;
+
+# Cipher lists are already populated
+
+--source suite/auth_sec/include/cipher_test.inc
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Ciphers: ECDHE-ECDSA | Cert/Key type: ECDSA
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS;
+
+# Cipher lists are already populated
+
+--source suite/auth_sec/include/cipher_test.inc
+
+--echo
+--echo #-----------------------------------------------------------------------
+--echo
+--echo # Cleanup
+--echo
+
+DROP DATABASE cipher_data;
+DROP USER arthurdent@localhost;
+
+--echo
+--echo #-----------------------------------------------------------------------
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+# Clean slate
+--source include/force_restart.inc

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@ then
 fi
 
 core=$1
-out=$2
 
 if [ ! -f "$core" ]
 then
@@ -45,29 +44,16 @@ fi
 # gdb command file
 #
 bt=`dirname $core`/bt.gdb
-echo "thread apply all bt" > $bt
+echo "bt" > $bt
+echo "thread apply all bt" >> $bt
 echo "quit" >> $bt
 
-#
-# Fix output
-#
-if [ -z "$out" ]
-then
-    out=`dirname $core`/bt.txt
-fi
-outarg=">> $out 2>&1"
-if [ "$out" = "-" ]
-then
-    outarg=""
-fi
+out=`dirname $core`/bt.txt
 
 #
 # get binary
 #
-tmp=`echo ${core}.tmp`
-gdb -c $core -x $bt -q 2>&1 | grep "Core was generated" | awk '{ print $5;}' | sed 's!`!!' | sed `echo "s/'\.//"` > $tmp
-exe=`cat $tmp`
-rm -f $tmp
+exe=`file $core | sed 's/.*execfn//' | cut -d"'" -f 2`
 
 if [ -x "$exe" ]
 then

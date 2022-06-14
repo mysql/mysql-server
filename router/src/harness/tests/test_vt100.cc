@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -176,10 +176,10 @@ const Vt100Param vt100_params[]{
     Vt100Param{"reset", Vt100::reset(), {ESC "c"}}  //
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, Vt100Test, ::testing::ValuesIn(vt100_params),
-                        [](const testing::TestParamInfo<Vt100Param> &info) {
-                          return info.param.test_name + "_works";
-                        });
+INSTANTIATE_TEST_SUITE_P(Spec, Vt100Test, ::testing::ValuesIn(vt100_params),
+                         [](const testing::TestParamInfo<Vt100Param> &info) {
+                           return info.param.test_name + "_works";
+                         });
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

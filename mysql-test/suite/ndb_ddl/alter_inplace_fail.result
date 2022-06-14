@@ -1,0 +1,83 @@
+#
+# Test INPLACE ALTER failures at various stages
+#  - on failure, they should rollback restoring the
+#    original table definitions if not already committed.
+#
+# Failure when meta-data is missing when trying to commit
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime NOT NULL,
+  `d` int unsigned DEFAULT NULL,
+  `e` int NOT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t8 ORDER BY a;
+a	b	c	d	e
+1	1-t8	2017-10-20 09:13:01	NULL	1
+2	2-t8	2017-10-20 09:13:02	NULL	2
+3	3-t8	2017-10-20 09:13:03	NULL	3
+4	4-t8	2017-10-20 09:13:04	NULL	4
+5	5-t8	2017-10-20 09:13:05	NULL	5
+set @save_debug = @@global.debug;
+set global debug='-d';
+set global debug='+d,ndb_missing_table_in_inplace_alter';
+call mtr.add_suppression("Failed to complete inplace alter table commit");
+ALTER TABLE t8
+RENAME COLUMN d to d_new,
+ALGORITHM = INPLACE;
+ERROR HY000: Internal error: Failed to complete inplace alter table commit, table not found
+set global debug=@save_debug;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int DEFAULT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime NOT NULL,
+  `d_new` int unsigned DEFAULT NULL,
+  `e` int NOT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+-- t8 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 6
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int NULL AT=FIXED ST=MEMORY
+b Longvarchar(1020;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY
+c Datetime2(0) NOT NULL AT=FIXED ST=MEMORY
+d_new Unsigned NULL AT=FIXED ST=MEMORY
+e Int NOT NULL AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+-- Indexes -- 
+PRIMARY KEY($PK) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+#
+# Bug#31419144 FIX MEMORY LEAK OF NDB_ALTER_DATA IN PREPARE_INPLACE_ALTER_TABLE
+#
+set @save_debug = @@global.debug;
+set global debug='+d,ndb_schema_dist_not_ready_early';
+ALTER TABLE t1 ADD INDEX idx(a), ALGORITHM = INPLACE;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+set global debug=@save_debug;

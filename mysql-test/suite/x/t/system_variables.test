@@ -7,7 +7,7 @@
 # Please update the test case when the variable count changes
 # add/remove variable
 let $wait_condition=
-  SELECT COUNT(*)=22 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=29 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -102,5 +102,33 @@ let $wait_condition=
 
 --let $assert_text= Mysqlx_enable_hello_notice must be 0, the default value
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_enable_hello_notice", Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_compression_algorithms must be DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_compression_algorithms", Value, 1]" = "DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM"
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_deflate_default_compression_level must be 3, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_deflate_default_compression_level", Value, 1]" = 3
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_lz4_default_compression_level must be 2, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_lz4_default_compression_level", Value, 1]" = 2
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_zstd_default_compression_level must be 3, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_zstd_default_compression_level", Value, 1]" = 3
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_deflate_max_client_compression_level must be 5, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_deflate_max_client_compression_level", Value, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_lz4_max_client_compression_level must be 8, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_lz4_max_client_compression_level", Value, 1]" = 8
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_zstd_max_client_compression_level must be 11 or 3, the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_zstd_max_client_compression_level", Value, 1]" IN (11,3)
 --source include/assert.inc
 

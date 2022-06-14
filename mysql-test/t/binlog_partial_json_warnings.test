@@ -26,7 +26,6 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --source include/restart_mysqld.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after= CURRENT_TEST: main.binlog_partial_json_warnings
 --let $assert_count= 1
 --let $assert_select= When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON
 --let $assert_text= There shall be a warning when binlog_format=STATEMENT
@@ -53,7 +52,7 @@ SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 
 --echo # the binlog is disabled
---let $restart_parameters= "restart: --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL --skip-log-bin --skip-log-slave-updates"
+--let $restart_parameters= "restart: --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL --skip-log-bin --skip-log-replica-updates"
 --source include/restart_mysqld.inc
 
 --let $assert_select= When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON

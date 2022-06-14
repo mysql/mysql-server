@@ -1,7 +1,9 @@
 # Requires binlog_format=statement format since query involving
 # get_lock() is logged in row format if binlog_format=mixed or row.
 -- source include/have_binlog_format_statement.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 -- source include/master-slave.inc
+-- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -34,7 +36,7 @@ connection master;
 #
 # Give slave time to do at last one failed connect retry
 # This one must be short so that the slave will not stop retrying
-real_sleep 2;
+sleep 2;
 set password for root@"localhost" = '';
 # Give slave time to connect (will retry every second)
 sleep 2;
@@ -123,7 +125,7 @@ connection slave;
 --let $slave_sql_errno= convert_error(ER_ERROR_ON_MASTER)
 ###--source include/wait_for_slave_sql_error_and_skip.inc
 --source include/wait_for_slave_sql_error.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
 source include/start_slave.inc;
 
 select count(*) from t1;

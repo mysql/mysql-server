@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "portlib/ndb_compiler.h"
 #include <ndb_global.h>
 
 #include <NdbOut.hpp>
@@ -218,17 +219,6 @@ ndbout_c(const char * fmt, ...){
   vndbout_c(fmt, ap);
   va_end(ap);
 }
-
-int ndbout_printer(const char * fmt, ...)
-{
-  va_list ap;
-
-  va_start(ap, fmt);
-  vndbout_c(fmt, ap);
-  va_end(ap);
-  return 1;
-}
-
 
 FilteredNdbOut::FilteredNdbOut(OutputStream & out, 
 			       int threshold, int level)

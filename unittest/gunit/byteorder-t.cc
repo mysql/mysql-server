@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,6 @@ namespace byteorder_unittest {
 
 using std::numeric_limits;
 
-#if defined(GTEST_HAS_PARAM_TEST)
-
 /*
   This class is used to instantiate parameterized tests for float and double.
  */
@@ -48,63 +46,59 @@ class FloatingTest {
 
 class Float4Test : public FloatingTest<float>,
                    public ::testing::TestWithParam<float> {
-  virtual void SetUp() {
+  void SetUp() override {
     input = GetParam();
     output = numeric_limits<float>::quiet_NaN();
   }
 };
 
-INSTANTIATE_TEST_CASE_P(Foo, Float4Test,
-                        ::testing::Values(numeric_limits<float>::min(),
-                                          numeric_limits<float>::max(),
-                                          numeric_limits<float>::epsilon(),
-                                          -numeric_limits<float>::min(),
-                                          -numeric_limits<float>::max(),
-                                          -numeric_limits<float>::epsilon(),
-                                          -1.0f, 0.0f, 1.0f));
+INSTANTIATE_TEST_SUITE_P(Foo, Float4Test,
+                         ::testing::Values(numeric_limits<float>::min(),
+                                           numeric_limits<float>::max(),
+                                           numeric_limits<float>::epsilon(),
+                                           -numeric_limits<float>::min(),
+                                           -numeric_limits<float>::max(),
+                                           -numeric_limits<float>::epsilon(),
+                                           -1.0f, 0.0f, 1.0f));
 /*
   The actual test case for float: store and get some values.
  */
 TEST_P(Float4Test, PutAndGet) {
   float4store(buf, input);
-  float4get(&output, buf);
+  output = float4get(buf);
   EXPECT_EQ(input, output);
   floatstore(buf, input);
-  floatget(&output, buf);
+  output = floatget(buf);
   EXPECT_EQ(input, output);
 }
 
 class Float8Test : public FloatingTest<double>,
                    public ::testing::TestWithParam<double> {
-  virtual void SetUp() {
+  void SetUp() override {
     input = GetParam();
     output = numeric_limits<double>::quiet_NaN();
   }
 };
 
-INSTANTIATE_TEST_CASE_P(Foo, Float8Test,
-                        ::testing::Values(numeric_limits<double>::min(),
-                                          numeric_limits<double>::max(),
-                                          numeric_limits<double>::epsilon(),
-                                          -numeric_limits<double>::min(),
-                                          -numeric_limits<double>::max(),
-                                          -numeric_limits<double>::epsilon(),
-                                          -1.0, 0.0, 1.0));
+INSTANTIATE_TEST_SUITE_P(Foo, Float8Test,
+                         ::testing::Values(numeric_limits<double>::min(),
+                                           numeric_limits<double>::max(),
+                                           numeric_limits<double>::epsilon(),
+                                           -numeric_limits<double>::min(),
+                                           -numeric_limits<double>::max(),
+                                           -numeric_limits<double>::epsilon(),
+                                           -1.0, 0.0, 1.0));
 /*
   The actual test case for double: store and get some values.
  */
 TEST_P(Float8Test, PutAndGet) {
   float8store(buf, input);
-  float8get(&output, buf);
+  output = float8get(buf);
   EXPECT_EQ(input, output);
   doublestore(buf, input);
-  doubleget(&output, buf);
+  output = doubleget(buf);
   EXPECT_EQ(input, output);
 }
-
-#endif  // GTEST_HAS_PARAM_TEST
-
-#if defined(GTEST_HAS_TYPED_TEST)
 
 /*
   A test fixture class, parameterized on type.
@@ -123,7 +117,7 @@ class IntegralTest : public ::testing::Test {
 
   IntegralTest() : input(0), output(0) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     values.push_back(Limit::min());
     values.push_back(Limit::min() / T(2));
     values.push_back(T(0));
@@ -180,7 +174,7 @@ typedef ::testing::Types<short, ushort, sizeNint<3>, sizeNint<5>, sizeNint<6>,
                          int, unsigned, longlong, ulonglong>
     IntegralTypes;
 
-TYPED_TEST_CASE(IntegralTest, IntegralTypes);
+TYPED_TEST_SUITE(IntegralTest, IntegralTypes);
 
 /*
   Wrap all the __get, __store, __korr macros in functions.
@@ -200,7 +194,7 @@ void put_integral(uchar *buf, short val) {
 }
 template <>
 void get_integral(short &val, uchar *buf) {
-  shortget(&val, buf);
+  val = shortget(buf);
 }
 
 // Hmm, there's no ushortstore...
@@ -210,7 +204,7 @@ void put_integral(uchar *buf, ushort val) {
 }
 template <>
 void get_integral(ushort &val, uchar *buf) {
-  ushortget(&val, buf);
+  val = ushortget(buf);
 }
 
 template <>
@@ -219,7 +213,7 @@ void put_integral(uchar *buf, int val) {
 }
 template <>
 void get_integral(int &val, uchar *buf) {
-  longget(&val, buf);
+  val = longget(buf);
 }
 
 // Hmm, there's no ulongstore...
@@ -229,7 +223,7 @@ void put_integral(uchar *buf, unsigned val) {
 }
 template <>
 void get_integral(unsigned &val, uchar *buf) {
-  ulongget(&val, buf);
+  val = ulongget(buf);
 }
 
 template <>
@@ -238,7 +232,7 @@ void put_integral(uchar *buf, longlong val) {
 }
 template <>
 void get_integral(longlong &val, uchar *buf) {
-  longlongget(&val, buf);
+  val = longlongget(buf);
 }
 
 // Reading ulonglong is different from all the above ....
@@ -293,5 +287,4 @@ TYPED_TEST(IntegralTest, PutAndGet) {
   }
 }
 
-#endif  // GTEST_HAS_TYPED_TEST
 }  // namespace byteorder_unittest

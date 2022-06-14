@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 
 namespace mysql_harness {
 
@@ -359,22 +360,21 @@ struct Plugin {
    *
    * A typical use is:
    * @code
-   * const char *requires[] = {
+   * static const std::array<char *, 2> required = {{
    *   "first",
    *   "second",
-   * };
+   * }};
    *
    * Plugin my_plugin = {
    *   ...
-   *   sizeof(requires)/sizeof(*requires),
-   *   requires,
+   *   required.size(), required.data(),
    *   ...
    * };
    * @endcode
    */
 
   size_t requires_length;
-  const char **requires;
+  const char *const *requires;
 
   /**
    * Array of names of plugins it conflicts with.
@@ -384,7 +384,7 @@ struct Plugin {
    */
 
   size_t conflicts_length;
-  const char **conflicts;
+  const char *const *conflicts;
 
   /**
    * Module initialization function.
@@ -484,6 +484,15 @@ struct Plugin {
    */
 
   void (*stop)(PluginFuncEnv *env);  // not allowed to throw!
+
+  bool declares_readiness;
+
+  /**
+   * Array of names of option this plugin supports.
+   *
+   */
+  size_t supported_options_length;
+  const char *const *supported_options;
 };
 
 /**
@@ -539,6 +548,10 @@ const char *const ARCHITECTURE_DESCRIPTOR =
  */
 #define ABI_VERSION_MAJOR(VER) (((VER) >> 8) & 0xFF)
 #define ABI_VERSION_MINOR(VER) ((VER)&0xFF)
+
+void HARNESS_EXPORT on_service_ready(const std::string &name);
+void HARNESS_EXPORT on_service_ready(PluginFuncEnv *plugin_env);
+
 }  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_PLUGIN_INCLUDED */

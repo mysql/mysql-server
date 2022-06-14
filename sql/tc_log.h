@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,15 @@
 #ifndef TC_LOG_H
 #define TC_LOG_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"  // my_msync
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 
 class THD;
@@ -64,8 +64,8 @@ class TC_LOG {
   */
   bool using_heuristic_recover();
 
-  TC_LOG() {}
-  virtual ~TC_LOG() {}
+  TC_LOG() = default;
+  virtual ~TC_LOG() = default;
 
   enum enum_result { RESULT_SUCCESS, RESULT_ABORTED, RESULT_INCONSISTENT };
 
@@ -134,12 +134,12 @@ class TC_LOG {
 class TC_LOG_DUMMY : public TC_LOG  // use it to disable the logging
 {
  public:
-  TC_LOG_DUMMY() {}
-  int open(const char *) { return 0; }
-  void close() {}
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all);
-  int prepare(THD *thd, bool all);
+  TC_LOG_DUMMY() = default;
+  int open(const char *) override { return 0; }
+  void close() override {}
+  enum_result commit(THD *thd, bool all) override;
+  int rollback(THD *thd, bool all) override;
+  int prepare(THD *thd, bool all) override;
 };
 
 class TC_LOG_MMAP : public TC_LOG {
@@ -190,11 +190,11 @@ class TC_LOG_MMAP : public TC_LOG {
 
  public:
   TC_LOG_MMAP() : inited(0) {}
-  int open(const char *opt_name);
-  void close();
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all);
-  int prepare(THD *thd, bool all);
+  int open(const char *opt_name) override;
+  void close() override;
+  enum_result commit(THD *thd, bool all) override;
+  int rollback(THD *thd, bool all) override;
+  int prepare(THD *thd, bool all) override;
   int recover();
   uint size() const;
 
@@ -227,7 +227,7 @@ class TC_LOG_MMAP : public TC_LOG {
     /* searching for an empty slot */
     while (*p->ptr) {
       p->ptr++;
-      DBUG_ASSERT(p->ptr < p->end);  // because p->free > 0
+      assert(p->ptr < p->end);  // because p->free > 0
     }
 
     /* found! store xid there and mark the page dirty */
@@ -244,9 +244,8 @@ class TC_LOG_MMAP : public TC_LOG {
 
     @param   p   pointer to the PAGE to store to the disk
 
-    @return
-      @retval false   Success
-      @retval true    Failure
+    @retval false   Success
+    @retval true    Failure
   */
   bool wait_sync_completion(PAGE *p) {
     p->waiters++;

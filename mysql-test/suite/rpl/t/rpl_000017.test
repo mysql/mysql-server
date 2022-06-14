@@ -5,12 +5,14 @@
 # ==== Notes ====
 #
 # This test uses the -slave.opt file to start the slave with
-# --skip-slave-start.
+# --skip-replica-start.
 
 --source include/not_group_replication_plugin.inc
 --source include/not_windows.inc
 
 --let $rpl_skip_start_slave= 1
+--source include/set_privilege_checks_user_as_system_user.inc
+--let $rpl_privilege_checks_user_grant_option = 1
 --source include/master-slave.inc
 
 --connection slave

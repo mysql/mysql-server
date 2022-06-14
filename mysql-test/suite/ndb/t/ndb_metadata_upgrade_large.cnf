@@ -1,7 +1,10 @@
 !include suite/ndb/my.cnf
 
-[cluster_config]
+[mysqld]
+# Turn off auto sync so it doesn't interfere with the test
+ndb_metadata_check = false
 
+[cluster_config]
 MaxNoOfOrderedIndexes = 2000
 MaxNoOfAttributes = 22500
 # Uncomment the below parameter when upgrading 1000 tables

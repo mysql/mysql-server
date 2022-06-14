@@ -26,7 +26,7 @@ a	b	c
 3	4	1020
 5	6	130
 INSERT t1 VALUES (1,9,70) ON DUPLICATE KEY UPDATE c=c+100000, b=4;
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 't1.b'
 SELECT * FROM t1;
 a	b	c
 1	2	10010
@@ -49,6 +49,8 @@ a	b	c
 5	0	30
 8	9	60
 INSERT t1 VALUES (2,1,11), (7,4,40) ON DUPLICATE KEY UPDATE c=c+VALUES(a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT *, VALUES(a) FROM t1;
 a	b	c	VALUES(a)
 1	2	10	NULL
@@ -56,6 +58,8 @@ a	b	c	VALUES(a)
 5	0	30	NULL
 8	9	60	NULL
 2	1	11	NULL
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -63,11 +67,13 @@ explain SELECT *, VALUES(a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
+Warning	1#81	'VALUES function' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,NULL AS `VALUES(a)` from `test`.`t1`
 explain select * from t1 where values(a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where false
 DROP TABLE t1;
 create table t1(a int primary key, b int);
@@ -135,7 +141,7 @@ a	b	c
 3	4	1020
 5	6	130
 INSERT t1 SELECT 1,9,70 FROM DUAL ON DUPLICATE KEY UPDATE c=c+100000, b=4;
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 't1.b'
 SELECT * FROM t1;
 a	b	c
 1	2	10010
@@ -163,6 +169,8 @@ a	b	c
 INSERT t1 SELECT a,b,c FROM t2 WHERE d=2 ON DUPLICATE KEY UPDATE c=c+VALUES(a);
 ERROR 23000: Column 'c' in field list is ambiguous
 INSERT t1 SELECT a,b,c FROM t2 WHERE d=2 ON DUPLICATE KEY UPDATE c=t1.c+VALUES(t1.a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT *, VALUES(a) FROM t1;
 a	b	c	VALUES(a)
 1	2	10	NULL
@@ -170,6 +178,8 @@ a	b	c	VALUES(a)
 5	0	30	NULL
 8	9	60	NULL
 2	1	11	NULL
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 CREATE TABLE t1
@@ -180,16 +190,25 @@ PRIMARY KEY (a)
 );
 INSERT INTO t1 VALUES (45, 1) ON DUPLICATE KEY UPDATE b =
 IF(VALUES(b) > t1.b, VALUES(b), t1.b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t1;
 a	b
 45	1
 INSERT INTO t1 VALUES (45, 2) ON DUPLICATE KEY UPDATE b =
 IF(VALUES(b) > t1.b, VALUES(b), t1.b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t1;
 a	b
 45	2
 INSERT INTO t1 VALUES (45, 1) ON DUPLICATE KEY UPDATE b = 
 IF(VALUES(b) > t1.b, VALUES(b), t1.b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t1;
 a	b
 45	2
@@ -347,54 +366,51 @@ SET SQL_MODE="STRICT_TRANS_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t1 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO t1 values(x'6162', x'6162', x'6162');
+UPDATE t1 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 1
 INSERT INTO t2 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t2 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO t2 values(x'6162', x'6162', x'6162');
+UPDATE t2 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 1
 INSERT INTO t3 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t3 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO t3 values(x'6162', x'6162', x'6162');
+UPDATE t3 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 1
 SET SQL_MODE="";
 INSERT INTO t1 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t1 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO t1 values(x'6162', x'6162', x'6162');
+UPDATE t1 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 3
 INSERT INTO t2 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t2 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO t2 values(x'6162', x'6162', x'6162');
+UPDATE t2 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 3
 INSERT INTO t3 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t3 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO t3 values(x'6162', x'6162', x'6162');
+UPDATE t3 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 3
 CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v2 AS SELECT * FROM t2;
 CREATE VIEW v3 AS SELECT * FROM t3;
@@ -402,54 +418,51 @@ SET SQL_MODE="STRICT_TRANS_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO v1 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v1 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO v1 values(x'6162', x'6162', x'6162');
+UPDATE v1 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 4
 INSERT INTO v2 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v2 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO v2 values(x'6162', x'6162', x'6162');
+UPDATE v2 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 4
 INSERT INTO v3 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v3 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO v3 values(x'6162', x'6162', x'6162');
+UPDATE v3 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 4
 SET SQL_MODE="";
 INSERT INTO v1 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v1 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO v1 values(x'6162', x'6162', x'6162');
+UPDATE v1 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 6
 INSERT INTO v2 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v2 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO v2 values(x'6162', x'6162', x'6162');
+UPDATE v2 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 6
 INSERT INTO v3 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v3 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO v3 values(x'6162', x'6162', x'6162');
+UPDATE v3 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 6
 DROP VIEW v1;
 DROP VIEW v2;
 DROP VIEW v3;
@@ -732,3 +745,335 @@ pk	col
 1	Carmen
 2	Martin
 DROP TABLE t1;
+# WL#6312: Referencing new row in INSERT .. VALUES .. ON DUPLICATE KEY UPDATE.
+CREATE TABLE t0(a INT PRIMARY KEY, b INT);
+CREATE TABLE t1(x INT PRIMARY KEY, y INT);
+# Allowed: Referencing VALUES from the update list.
+INSERT INTO t0 VALUES (1, 3), (2, 3) AS n(a, b)
+ON DUPLICATE KEY UPDATE b= t0.b + n.b;
+SELECT * FROM t0;
+a	b
+1	3
+2	3
+INSERT INTO t0 VALUES (1, 3), (2, 3) AS n(a, b)
+ON DUPLICATE KEY UPDATE b= t0.b + n.b;
+SELECT * FROM t0;
+a	b
+1	6
+2	6
+# Allowed: Not naming columns for VALUES table.
+INSERT INTO t0 VALUES (1, 5), (2, 7) AS n
+ON DUPLICATE KEY UPDATE b= t0.b + n.b;
+SELECT * FROM t0;
+a	b
+1	11
+2	13
+# Not allowed: Naming the VALUES table the same as the table inserted into.
+INSERT INTO t0 VALUES (1, 5), (2, 7) AS t0
+ON DUPLICATE KEY UPDATE b= t0.a;
+ERROR 42000: Not unique table/alias: 't0'
+# Not allowed: Naming multiple VALUES columns the same.
+INSERT INTO t0 VALUES (1, 5), (2, 7) AS n(a, a)
+ON DUPLICATE KEY UPDATE b= t0.a;
+ERROR 42S21: Duplicate column name 'a'
+# Not allowed: Unequal number of columns in VALUES table and inserted rows.
+INSERT INTO t0 VALUES (1, 5), (2, 7) AS n(a)
+ON DUPLICATE KEY UPDATE b= t0.a;
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
+# Allowed: Referencing VALUES table from within a subquery.
+INSERT INTO t1 VALUES (1, 50), (2, 100);
+INSERT INTO t0 VALUES (1, 10), (2, 20) AS n
+ON DUPLICATE KEY UPDATE b= (SELECT y FROM t1 WHERE x = n.a);
+SELECT * FROM t0;
+a	b
+1	50
+2	100
+# Allowed: Overriding the VALUES table name from within a subquery.
+INSERT INTO t0 VALUES (1, 10) AS n(a, b)
+ON DUPLICATE KEY UPDATE b= 20 + (SELECT n.y FROM t1 AS n WHERE n.x = t0.a);
+SELECT * FROM t0;
+a	b
+1	70
+2	100
+# Allowed: VALUES table name overriding table names.
+CREATE TABLE n(a INT, b INT);
+INSERT INTO t0 VALUES (1, 10) AS n(a, b)
+ON DUPLICATE KEY UPDATE b= n.b;
+SELECT * FROM t0;
+a	b
+1	10
+2	100
+# Allowed: FROM clause in subquery overriding VALUES table name.
+INSERT INTO n VALUES (1, 50);
+INSERT INTO t0 VALUES (1, 20) AS n(a, b)
+ON DUPLICATE KEY UPDATE b= (SELECT n.b FROM n);
+SELECT * FROM t0;
+a	b
+1	50
+2	100
+# Allowed: Discrepancy between specified insert columns and column names of VALUES table.
+CREATE TABLE t2(a INT, b INT PRIMARY KEY, c INT);
+INSERT INTO t2 VALUES (1, 10, 100);
+INSERT INTO t2(b, c) VALUES (10, 20) AS n(a, b)
+ON DUPLICATE KEY UPDATE c= n.b;
+SELECT * FROM t2;
+a	b	c
+1	10	20
+# Allowed: Using the «INSERT .. SET» syntax.
+DROP TABLE t0;
+CREATE TABLE t0(a INT PRIMARY KEY, b INT);
+INSERT INTO t0 VALUES (1, 10);
+INSERT INTO t0 SET a=1, b=20 AS n
+ON DUPLICATE KEY UPDATE b= n.b;
+SELECT * FROM t0;
+a	b
+1	20
+# Allowed: Referring to the VALUES table from inside functions.
+DROP TABLE t1;
+CREATE TABLE t1(a BIGINT UNSIGNED PRIMARY KEY, b BIGINT UNSIGNED);
+INSERT INTO t1 VALUES (45, 1) AS n
+ON DUPLICATE KEY UPDATE b= IF(n.b > t1.b, n.b, t1.b);
+SELECT * FROM t1;
+a	b
+45	1
+INSERT INTO t1 VALUES (45, 2) AS n
+ON DUPLICATE KEY UPDATE b= IF(n.b > t1.b, n.b, t1.b);
+SELECT * FROM t1;
+a	b
+45	2
+INSERT INTO t1 VALUES (45, 1) AS n
+ON DUPLICATE KEY UPDATE b= IF(n.b > t1.b, n.b, t1.b);
+SELECT * FROM t1;
+a	b
+45	2
+# Allowed: Using ODKU when inserting into a view.
+DROP TABLE t1;
+CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 3, b INT);
+CREATE VIEW v AS SELECT b FROM t1;
+INSERT INTO t1 VALUES(3, 2);
+INSERT INTO v VALUES(3) AS n
+ON DUPLICATE KEY UPDATE b= n.b;
+SELECT * FROM t1;
+a	b
+3	3
+SELECT * FROM v;
+b
+3
+# Allowed: Creating a VALUES alias with no ODKU statement.
+DROP TABLE t1;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES(1, 10) as n;
+SELECT * FROM t1;
+a	b
+1	10
+# Not allowed: Referencing the VALUES table inside the VALUES clause.
+INSERT INTO t1 VALUES(n.a, 10) as n
+ON DUPLICATE KEY UPDATE b= n.b;
+ERROR 42S22: Unknown column 'n.a' in 'field list'
+# If a table reference within an update expression does not find the
+# column in the VALUES table, it should look further in outer contexts.
+DROP TABLE n;
+CREATE TABLE n(x INT, y INT);
+DROP TABLE t0;
+CREATE TABLE t0(a INT PRIMARY KEY, b INT);
+DELETE FROM t0;
+INSERT INTO t0 VALUES(1, 10);
+INSERT INTO n VALUES(1, 11);
+INSERT INTO t0 VALUES(1, 19) as n(a, b)
+ON DUPLICATE KEY UPDATE b= (SELECT n.y FROM n);
+SELECT * FROM t0;
+a	b
+1	11
+# Allowed: Referring to the old row of the insert table from within an
+# ODKU update expression.
+DELETE FROM t0;
+INSERT INTO t0 VALUES(1, 10);
+INSERT INTO t0 VALUES(2, 20);
+INSERT INTO t0 VALUES(2, 29) as n
+ON DUPLICATE KEY UPDATE b= t0.b+1;
+SELECT * FROM t0;
+a	b
+1	10
+2	21
+DROP TABLE t0;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE n;
+DROP VIEW v;
+# WL#6312: Referencing new row in INSERT .. VALUES .. ON DUPLICATE KEY UPDATE.
+# Compare old and new syntax (VALUES() vs. AS new) for regressions.
+# binlog_unsafe.test. More than one unique key.
+# Old syntax.
+CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY);
+INSERT INTO insert_2_keys values (1, 1);
+INSERT INTO insert_2_keys VALUES (1, 2)
+ON DUPLICATE KEY UPDATE a= VALUES(a) + 10, b= VALUES(b) + 10;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM insert_2_keys;
+a	b
+11	12
+DROP TABLE insert_2_keys;
+# New syntax.
+CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY);
+INSERT INTO insert_2_keys values (1, 1);
+INSERT INTO insert_2_keys VALUES (1, 2) AS n
+ON DUPLICATE KEY UPDATE a= n.a + 10, b= n.b + 10;
+SELECT * FROM insert_2_keys;
+a	b
+11	12
+DROP TABLE insert_2_keys;
+# json_functions.inc. JSON should work with INSERT .. ON DUPLICATE KEY UPDATE.
+# Old syntax.
+CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '[1]')
+ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t;
+id	j
+1	[1]
+INSERT INTO t VALUES (1, '[1,2]')
+ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t;
+id	j
+1	{"ab": [1, 2]}
+INSERT INTO t VALUES (1, '[1,2,3]')
+ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t;
+id	j
+1	{"abc": [1, 2, 3]}
+DROP TABLE t;
+# New syntax.
+CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '[1]') AS n
+ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", n.j);
+SELECT * FROM t;
+id	j
+1	[1]
+INSERT INTO t VALUES (1, '[1,2]') AS n
+ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", n.j);
+SELECT * FROM t;
+id	j
+1	{"ab": [1, 2]}
+INSERT INTO t VALUES (1, '[1,2,3]') AS n
+ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", n.j);
+SELECT * FROM t;
+id	j
+1	{"abc": [1, 2, 3]}
+DROP TABLE t;
+# errors.test. Subquery with VALUES table reference.
+# Old syntax.
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2(a, b) VALUES (1, 0);
+INSERT INTO t2(a, b) VALUES (1, 0)
+ON DUPLICATE KEY UPDATE b= (SELECT VALUES(a) + 2 FROM t1);
+Warnings:
+Warning	1287	The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause.
+SELECT * FROM t2;
+a	b
+1	NULL
+DROP TABLE t1;
+DROP TABLE t2;
+# New syntax.
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2(a, b) VALUES (1, 0);
+INSERT INTO t2(a, b) VALUES (1, 0) AS n
+ON DUPLICATE KEY UPDATE b= (SELECT n.a + 2 FROM t1);
+SELECT * FROM t2;
+a	b
+1	3
+DROP TABLE t1;
+DROP TABLE t2;
+# func_test.test. New syntax should work inside functions.
+# Old syntax.
+CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (1, 3)
+ON DUPLICATE KEY UPDATE b= GREATEST(b, VALUES(b));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t1;
+a	b
+1	3
+DROP TABLE t1;
+# New syntax.
+CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (1, 3) AS n
+ON DUPLICATE KEY UPDATE b= GREATEST(t1.b, n.b);
+SELECT * FROM t1;
+a	b
+1	3
+DROP TABLE t1;
+# type_blob-bug13901905_myisam.test. INSERT .. SET syntax should work with blobs.
+# Old syntax.
+CREATE TABLE t1 (a INT, b BLOB, UNIQUE KEY(a));
+INSERT INTO t1 SET b='11', a=0
+ON DUPLICATE KEY UPDATE b= VALUES(a), a= values(b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+INSERT INTO t1 SET b='11', a=0
+ON DUPLICATE KEY UPDATE b= VALUES(a), a= values(b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t1;
+a	b
+11	0
+DROP TABLE t1;
+# New syntax
+CREATE TABLE t1 (a INT, b BLOB, UNIQUE KEY(a));
+INSERT INTO t1 SET b='11', a=0 AS n
+ON DUPLICATE KEY UPDATE b= n.a, a= n.b;
+INSERT INTO t1 SET b='11', a=0 AS n
+ON DUPLICATE KEY UPDATE b= n.a, a= n.b;
+SELECT * FROM t1;
+a	b
+11	0
+DROP TABLE t1;
+# insert-bug25361251.test. Text fields should work.
+# Old syntax.
+CREATE TABLE t1(id INT NOT NULL, text1 TEXT, text2 TEXT, PRIMARY KEY (id));
+INSERT INTO t1 VALUES (0, "x",  "x"), (1, "y",  "y");
+INSERT INTO t1 (id, text1, text2) VALUES (0, "x", "y")
+ON DUPLICATE KEY UPDATE text1 = VALUES(text1), text2 = VALUES(text2);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t1;
+id	text1	text2
+0	x	y
+1	y	y
+DROP TABLE t1;
+# New syntax.
+CREATE TABLE t1(id INT NOT NULL, text1 TEXT, text2 TEXT, PRIMARY KEY (id));
+INSERT INTO t1 VALUES (0, "x",  "x"), (1, "y",  "y");
+INSERT INTO t1 (id, text1, text2) VALUES (0, "x", "y") AS n
+ON DUPLICATE KEY UPDATE text1 = n.text1, text2 = n.text2;
+SELECT * FROM t1;
+id	text1	text2
+0	x	y
+1	y	y
+DROP TABLE t1;
+# Bug#30051303: SERVER CRASHED WHILE RUNNING INSERT ON DUPLICATE KEY
+#               UPDATE OVER VIEW
+CREATE TABLE t0(a INT PRIMARY KEY, b INT, c INT);
+CREATE VIEW v AS SELECT t0.a AS va, t0.b AS vb, t0.c AS vc FROM t0;
+INSERT INTO v(va, vb, vc) VALUES(1, 10, 100) AS n
+ON DUPLICATE KEY UPDATE vc= 199;
+SELECT * FROM t0;
+a	b	c
+1	10	100
+DROP TABLE t0;
+DROP VIEW v;

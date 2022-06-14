@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define RPL_SERVICE_INTERFACE_INCLUDE
 
 #include <string>
+#include <vector>
 
 // Channel errors
 
@@ -74,6 +75,7 @@ struct Channel_ssl_info {
   char *ssl_cipher;            // list of permissible ciphers to use for SSL
   int ssl_verify_server_cert;  // check the server's Common Name value
   char *tls_version;           // TLS version to use for SSL
+  char *tls_ciphersuites;      // list of permissible ciphersuites for TLS 1.3
 };
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info);
@@ -92,7 +94,7 @@ struct Channel_creation_info {
   int auto_position;
   int channel_mts_parallel_type;
   int channel_mts_parallel_workers;
-  int channel_mts_checkpoint_group;
+  int channel_mta_checkpoint_group;
   int replicate_same_server_id;
   int thd_tx_priority;  // The applier thread priority
   int sql_delay;
@@ -102,6 +104,12 @@ struct Channel_creation_info {
   char *public_key_path;     // RSA Public key information
   int get_public_key;        // Preference to get public key from donor if not
                              // available
+  char *compression_algorithm;
+  unsigned int zstd_compression_level;
+  /* to enable async connection failover */
+  int m_source_connection_auto_failover{0};
+  bool m_ignore_write_set_memory_limit;
+  bool m_allow_drop_write_set;
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);
@@ -167,13 +175,23 @@ int channel_create(const char *channel,
   @param threads_to_start     The types of threads to be started
   @param wait_for_connection  If when starting the receiver, the method should
                               wait for the connection to succeed
+  @param use_server_mta_configuration
+                              If true, the channel uses the server parallel
+                              applier configuration when starting the applier
+                              thread, instead of the configuration given on
+                              `channel_create()`
+  @param channel_map_already_locked
+                              If set to true, will not acquire a write
+                              lock of channel_map
 
   @return the operation status
     @retval 0      OK
     @retval !=0    Error
  */
 int channel_start(const char *channel, Channel_connection_info *connection_info,
-                  int threads_to_start, int wait_for_connection);
+                  int threads_to_start, int wait_for_connection,
+                  bool use_server_mta_configuration = false,
+                  bool channel_map_already_locked = false);
 
 /**
   Stops the channel threads according to the given options.
@@ -186,6 +204,14 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     @retval !=0    Error
 */
 int channel_stop(const char *channel, int threads_to_stop, long timeout);
+
+/**
+  Kills the Binlog Dump threads.
+
+  @return the operation status
+    @retval 0      OK
+*/
+int binlog_dump_thread_kill();
 
 /**
   Stops all the running channel threads according to the given options.
@@ -397,9 +423,8 @@ bool channel_is_stopping(const char *channel, enum_channel_thread_types type);
 
   @param channel  The channel name
 
-  @return
-    @retval true    If relaylog contains partial transcation.
-    @retval false   If relaylog does not contain partial transaction.
+  @retval true    If relaylog contains partial transcation.
+  @retval false   If relaylog does not contain partial transaction.
 */
 bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
@@ -408,11 +433,33 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
 
-  @return
-    @retval          true               atleast one channel threads are running.
-    @retval          false              none of the the channels are running.
+  @retval          true               atleast one channel threads are running.
+  @retval          false              none of the the channels are running.
 */
 bool is_any_slave_channel_running(int thread_mask);
+
+/**
+  Checks if any slave threads of any channel configured with
+  SOURCE_CONNECTION_AUTO_FAILOVER is running.
+
+  @param[in]        thread_mask       type of slave thread- IO/SQL or any
+
+  @retval          true               at least one channel threads are running.
+  @retval          false              none of the the channels are running.
+*/
+bool is_any_slave_channel_running_with_failover_enabled(int thread_mask);
+
+/**
+  Checks if any running channel uses the same UUID for
+  assign_gtids_to_anonymous_transactions as the group_name
+
+  @param[in]        group_name        the group name
+
+  @retval          true               atleast one channel has the same uuid
+  @retval          false              none of the the channels have the same
+  uuid
+*/
+bool channel_has_same_uuid_as_group_name(const char *group_name);
 
 /**
   Method to get the credentials configured for a channel
@@ -420,14 +467,25 @@ bool is_any_slave_channel_running(int thread_mask);
   @param[in]  channel       The channel name
   @param[out] user          The user to extract
   @param[out] password      The password to extract
-  @param[out] pass_size     The password size
 
   @return the operation status
     @retval false   OK
     @retval true    Error, channel not found
 */
-int channel_get_credentials(const char *channel, const char **user,
-                            char **password, size_t *pass_size);
+int channel_get_credentials(const char *channel, std::string &user,
+                            std::string &password);
+
+/**
+  Method to get the network namespace configured for a channel
+
+  @param[in]  channel  The channel name
+  @param[out] net_ns   The network namespace to extract
+
+  @return the operation status
+    @retval false   OK
+    @retval true    Error, channel not found
+*/
+int channel_get_network_namespace(const char *channel, std::string &net_ns);
 
 /**
   Return type for function
@@ -457,5 +515,101 @@ enum enum_slave_channel_status {
 */
 enum_slave_channel_status
 has_any_slave_channel_open_temp_table_or_is_its_applier_running();
+
+/**
+  Delete stored credentials from Slave_credentials
+  @param[in]  channel_name  The channel name
+
+  @return the operation status
+    @retval 0  OK
+    @retval 1  Error, channel not found
+
+ */
+int channel_delete_credentials(const char *channel_name);
+
+/**
+  Start channels which have SOURCE_CONNECTION_AUTO_FAILOVER=1.
+
+  @return the operation status
+    @retval false  OK
+    @retval true   Error
+ */
+bool start_failover_channels();
+
+/**
+  Set SOURCE_CONNECTION_AUTO_FAILOVER on the given channel
+  to the given status value.
+
+  @param[in]  channel       The channel name
+  @param[in]  status        true,  enables  SOURCE_CONNECTION_AUTO_FAILOVER
+                            false, disables SOURCE_CONNECTION_AUTO_FAILOVER
+
+  @return the operation status
+    @retval false  OK
+    @retval true   Error
+ */
+bool channel_change_source_connection_auto_failover(const char *channel,
+                                                    bool status);
+
+/**
+  Unset SOURCE_CONNECTION_AUTO_FAILOVER=0 on all channels.
+
+  @return the operation status
+    @retval false  OK
+    @retval true   Error
+ */
+bool unset_source_connection_auto_failover_on_all_channels();
+
+/**
+  Reload the status values on `Rpl_acf_status_configuration`
+  singleton.
+ */
+void reload_failover_channels_status();
+
+/**
+  Get replication failover channels configuration in
+  a serialized
+  protobuf_replication_asynchronous_connection_failover::SourceAndManagedAndStatusList
+  message.
+
+  @param[out] serialized_configuration  the serialized configuration
+
+  @return the operation status
+    @retval false  OK
+    @retval true   Error
+ */
+bool get_replication_failover_channels_configuration(
+    std::string &serialized_configuration);
+
+/**
+  Set replication failover channels configuration that was
+  received from the group.
+  Each member of the group will send its own configuration
+  in a serialized
+  protobuf_replication_asynchronous_connection_failover::SourceAndManagedAndStatusList
+  message.
+
+  @param[in]  exchanged_replication_failover_channels_serialized_configuration
+              vector with the serialized configuration from each member
+
+  @return the operation status
+    @retval false  OK
+    @retval true   Error
+ */
+bool set_replication_failover_channels_configuration(
+    const std::vector<std::string>
+        &exchanged_replication_failover_channels_serialized_configuration);
+
+/**
+  Collect and broadcast the replication failover channels configuration
+  in a serialized
+  protobuf_replication_asynchronous_connection_failover::SourceAndManagedAndStatusList
+  message, that will override the configuration on all group members.
+
+  @return the operation status
+    @retval false  OK
+    @retval true   Error
+ */
+bool force_my_replication_failover_channels_configuration_on_all_members();
 
 #endif  // RPL_SERVICE_INTERFACE_INCLUDE

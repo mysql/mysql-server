@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,8 +79,8 @@ void log_primary_member_details() {
     group_member_mgr->get_primary_member_uuid(primary_member_uuid);
     Group_member_info *primary_member_info =
         group_member_mgr->get_group_member_info(primary_member_uuid);
-    if (primary_member_info != NULL) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY,
+    if (primary_member_info != nullptr) {
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port());
       delete primary_member_info;

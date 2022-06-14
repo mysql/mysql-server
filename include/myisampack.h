@@ -1,7 +1,7 @@
 #ifndef MYISAMPACK_INCLUDED
 #define MYISAMPACK_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,9 +33,6 @@
 
 #include "my_config.h"
 
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#endif
 #include <sys/types.h>
 
 #include "my_inttypes.h"
@@ -288,19 +285,7 @@ static inline double mi_float8get(const uchar *M) {
 #define mi_rowstore(T, A) mi_int8store(T, A)
 #define mi_rowkorr(T) mi_uint8korr(T)
 
-#if SIZEOF_OFF_T > 4
 #define mi_sizestore(T, A) mi_int8store(T, A)
 #define mi_sizekorr(T) mi_uint8korr(T)
-#else
-#define mi_sizestore(T, A)        \
-  {                               \
-    if ((A) == HA_OFFSET_ERROR)   \
-      memset((T), 255, 8);        \
-    else {                        \
-      mi_int4store((T), 0);       \
-      mi_int4store(((T) + 4), A); \
-    }                             \
-  }
-#define mi_sizekorr(T) mi_uint4korr((uchar *)(T) + 4)
-#endif
+
 #endif /* MYISAMPACK_INCLUDED */

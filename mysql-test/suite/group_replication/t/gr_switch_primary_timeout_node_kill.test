@@ -1,0 +1,181 @@
+################################################################################
+# This test validates transactions monitor does not die when second election
+# caused by view change happens while previous election is going on.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 and server3 secondary.
+# 2. Create table on server1.
+# 3. Start transaction on server1.
+# 4. At server3 start primary change from server1 to server2.
+# 5. Wait for the THD_transaction_monitor thread to start.
+# 6. Kill and restart server3.
+# 7. Wait for server3 to be expelled
+# 8. Check the monitor thread exited.
+#    Wait for client disconnection on server1.
+#    Client will be disconnected post timeout.
+# 9. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 10. Cleanup
+#
+################################################################################
+
+
+# This test does crashes servers, hence we skip it on asan and valgrind.
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start group in single primary mode.
+--echo #    Server1 will be primary and server 2 and server3 secondary.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Create table on server1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+--echo
+--echo # 3. Start transaction on server1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1);
+
+--echo
+--echo # 4. At server3 start primary change from server1 to server2.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid",30)
+
+--echo
+--echo # 5. Wait for the THD_transaction_monitor thread to start.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--echo
+--echo # 6. Kill and restart server3.
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $restart_parameters=restart:--group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo
+--echo # 7. Wait for server3 to be expelled
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 8. Check the monitor thread exited.
+--echo #    Wait for client disconnection on server1.
+--echo #    Client will be disconnected post timeout.
+
+# NOTE: First client disconnects followed by transaction monitor thread exit.
+# Timeout mentioned in UDF is 30 seconds.
+# For slow machines wait for monitor thread has been inceased to 120.
+# So transaction monitor exit is being checked first.
+# If wait_until_disconnected can wait for 120 seconds, we can check that first.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_timeout= 120
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo
+--echo # 9. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 10. Cleanup
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--error CR_SERVER_LOST
+--reap
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET @@GLOBAL.read_only= 0;
+SET @@SESSION.sql_log_bin= 0;
+DROP TABLE t1;
+SET @@SESSION.sql_log_bin= 1;
+
+--source include/group_replication_end.inc

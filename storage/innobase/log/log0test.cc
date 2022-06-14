@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -98,20 +98,20 @@ void Log_test::purge(lsn_t max_dirty_page_age) {
     /* Fragment below would make it more similar to real env.
     However there is some issue now. */
 #if 0
-		/* We need to avoid deadlock when resizing log
-		buffer in background ... (because of m_mutex). */
-		if (page.newest_modification > log_sys->write_lsn.load()) {
+                /* We need to avoid deadlock when resizing log
+                buffer in background ... (because of m_mutex). */
+                if (page.newest_modification > log_sys->write_lsn.load()) {
 
-			lock.unlock();
+                        lock.unlock();
 
-			log_write_up_to(
-				*log_sys,
-				page.newest_modification,
-				true);
+                        log_write_up_to(
+                                *log_sys,
+                                page.newest_modification,
+                                true);
 
-			lock.lock();
-			continue;
-		}
+                        lock.lock();
+                        continue;
+                }
 #endif
 
     m_written[page.key] = page;

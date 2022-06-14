@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,6 @@
 
 #ifndef DD_INCLUDED
 #define DD_INCLUDED
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -85,7 +82,7 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
       : Base_mock_HANDLER(hton, share) {}
 
-  virtual ~Mock_dd_HANDLER() {}
+  virtual ~Mock_dd_HANDLER() = default;
 };
 
 /**
@@ -123,7 +120,7 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
 
   Mock_dd_field_longlong() : Base_mock_field_longlong() {}
 
-  virtual ~Mock_dd_field_longlong() {}
+  virtual ~Mock_dd_field_longlong() = default;
 };
 
 /**
@@ -162,7 +159,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   Mock_dd_field_varstring(uint32 length, TABLE_SHARE *share)
       : Base_mock_field_varstring(length, share) {}
 
-  virtual ~Mock_dd_field_varstring() {}
+  virtual ~Mock_dd_field_varstring() = default;
 };
 
 /**
@@ -170,7 +167,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
 */
 inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   List<Field> m_field_list;
-  Fake_TABLE *table = NULL;
+  Fake_TABLE *table = nullptr;
   Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
@@ -222,8 +219,7 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   table->s->default_values = new uchar[table->s->reclength];
   table->s->tmp_table = NON_TRANSACTIONAL_TMP_TABLE;
 
-  // Allocate dummy records to avoid failures in the handler functions.
-  table->record[0] = new uchar[table->s->reclength];
+  // Allocate dummy record[1] to avoid failures in the handler functions.
   table->record[1] = new uchar[table->s->reclength];
 
   return table;
@@ -420,8 +416,7 @@ inline void set_attributes(dd::Column_statistics *obj,
   value_map.add_values(-1, 10);
   value_map.add_values(1, 10);
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   /*
     The Column_statistics object will take over the histogram data and free the
@@ -435,7 +430,7 @@ inline void set_attributes(dd::Column_statistics *obj,
 
 template <typename T>
 T *nullp() {
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace dd_unittest

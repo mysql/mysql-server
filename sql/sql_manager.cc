@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@
 #include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"  // my_thread_t
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
@@ -59,65 +59,66 @@ mysql_mutex_t LOCK_manager;
 mysql_cond_t COND_manager;
 
 extern "C" {
-static void *handle_manager(void *arg MY_ATTRIBUTE((unused))) {
+static void *handle_manager(void *arg [[maybe_unused]]) {
   int error = 0;
   struct timespec abstime;
   bool reset_flush_time = true;
   my_thread_init();
-  DBUG_ENTER("handle_manager");
+  {
+    DBUG_TRACE;
 
-  manager_thread = my_thread_self();
-  manager_thread_in_use = 1;
+    manager_thread = my_thread_self();
+    manager_thread_in_use = true;
 
-  for (;;) {
-    mysql_mutex_lock(&LOCK_manager);
-    /* XXX: This will need to be made more general to handle different
-     * polling needs. */
-    if (flush_time) {
-      if (reset_flush_time) {
-        set_timespec(&abstime, flush_time);
-        reset_flush_time = false;
+    for (;;) {
+      mysql_mutex_lock(&LOCK_manager);
+      /* XXX: This will need to be made more general to handle different
+       * polling needs. */
+      if (flush_time) {
+        if (reset_flush_time) {
+          set_timespec(&abstime, flush_time);
+          reset_flush_time = false;
+        }
+        while ((!error || error == EINTR) && !abort_manager)
+          error = mysql_cond_timedwait(&COND_manager, &LOCK_manager, &abstime);
+      } else {
+        while ((!error || error == EINTR) && !abort_manager)
+          error = mysql_cond_wait(&COND_manager, &LOCK_manager);
       }
-      while ((!error || error == EINTR) && !abort_manager)
-        error = mysql_cond_timedwait(&COND_manager, &LOCK_manager, &abstime);
-    } else {
-      while ((!error || error == EINTR) && !abort_manager)
-        error = mysql_cond_wait(&COND_manager, &LOCK_manager);
-    }
-    mysql_mutex_unlock(&LOCK_manager);
+      mysql_mutex_unlock(&LOCK_manager);
 
-    if (abort_manager) break;
+      if (abort_manager) break;
 
-    if (is_timeout(error)) {
-      tdc_flush_unused_tables();
-      error = 0;
-      reset_flush_time = true;
+      if (is_timeout(error)) {
+        tdc_flush_unused_tables();
+        error = 0;
+        reset_flush_time = true;
+      }
     }
-  }
-  manager_thread_in_use = 0;
-  DBUG_LEAVE;  // Can't use DBUG_RETURN after my_thread_end
+    manager_thread_in_use = false;
+  }  // Can't use DBUG_RETURN after my_thread_end
   my_thread_end();
-  return (NULL);
+  return (nullptr);
 }
 }  // extern "C"
 
 /* Start handle manager thread */
 void start_handle_manager() {
-  DBUG_ENTER("start_handle_manager");
+  DBUG_TRACE;
   abort_manager = false;
   if (flush_time && flush_time != ~(ulong)0L) {
     my_thread_handle hThread;
     int error;
-    if ((error = mysql_thread_create(key_thread_handle_manager, &hThread,
-                                     &connection_attrib, handle_manager, 0)))
+    if ((error =
+             mysql_thread_create(key_thread_handle_manager, &hThread,
+                                 &connection_attrib, handle_manager, nullptr)))
       LogErr(WARNING_LEVEL, ER_CANT_CREATE_HANDLE_MGR_THREAD, error);
   }
-  DBUG_VOID_RETURN;
 }
 
 /* Initiate shutdown of handle manager thread */
 void stop_handle_manager() {
-  DBUG_ENTER("stop_handle_manager");
+  DBUG_TRACE;
   abort_manager = true;
   mysql_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use) {
@@ -126,5 +127,4 @@ void stop_handle_manager() {
     mysql_cond_signal(&COND_manager);
   }
   mysql_mutex_unlock(&LOCK_manager);
-  DBUG_VOID_RETURN;
 }

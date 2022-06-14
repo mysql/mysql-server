@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,9 @@ extern PSI_statement_key clone_stmt_server_key;
 file to network or destination file. */
 extern uint clone_buffer_size;
 
+/** Clone system variable: If clone should block concurrent DDL */
+extern bool clone_block_ddl;
+
 /** Clone system variable: timeout for DDL lock */
 extern uint clone_ddl_timeout;
 
@@ -96,23 +99,39 @@ extern char *clone_client_ssl_certificate;
 /** Clone system variable: SSL Certificate authority */
 extern char *clone_client_ssl_certficate_authority;
 
+/** Clone system variable: time delay after removing data */
+extern uint clone_delay_after_data_drop;
+
 /** Number of storage engines supporting clone. */
 const uint MAX_CLONE_STORAGE_ENGINE = 16;
-
-/** Sleep time in microseconds between multiple failed attempts. */
-const uint CLONE_CONN_REATTEMPT_INTERVAL = 5 * 1000 * 1000;  // 5 sec
-
-/** Maximum number of connection retry during re-connect */
-const uint CLONE_MAX_CONN_RETRY = 60;  // 60 x 5 sec = 5 minutes
 
 /** Maximum number of restart attempts */
 const uint CLONE_MAX_RESTART = 100;
 
+/** Minimum block size of clone data. */
+const uint CLONE_MIN_BLOCK = 1024 * 1024;
+
+/** Minimum network packet. Safe margin for meta information */
+const uint CLONE_MIN_NET_BLOCK = 2 * CLONE_MIN_BLOCK;
+
 /* Namespace for all clone data types */
 namespace myclone {
 
-/**  Clone protocol version */
-const uint32_t CLONE_PROTOCOL_VERSION = 0x0100;
+/**  Clone protocol oldest version */
+const uint32_t CLONE_PROTOCOL_VERSION_V1 = 0x0100;
+
+/** Send also SO names along with plugin name */
+const uint32_t CLONE_PROTOCOL_VERSION_V2 = 0x0101;
+
+/** Send more configurations required by recipient. */
+const uint32_t CLONE_PROTOCOL_VERSION_V3 = 0x0102;
+
+/**  Clone protocol latest version */
+const uint32_t CLONE_PROTOCOL_VERSION = CLONE_PROTOCOL_VERSION_V3;
+
+/** Flag to indicate no backup lock for DDL. This is multiplexed with
+clone_ddl_timeout and sent to donor server. */
+const uint32_t NO_BACKUP_LOCK_FLAG = 1ULL << 31;
 
 /** Clone protocol commands. Please bump the protocol version before adding
 new command. */
@@ -160,6 +179,12 @@ typedef enum Type_Command_Response : uchar {
   /** Character set collation */
   COM_RES_COLLATION,
 
+  /** Plugin with shared object name : introduced in version 0x0101 */
+  COM_RES_PLUGIN_V2,
+
+  /** Additional configuration : introduced in version 0x0102 */
+  COM_RES_CONFIG_V3,
+
   /** End of response data */
   COM_RES_COMPLETE = 99,
 
@@ -199,7 +224,7 @@ struct Buffer {
   @return error if allocation fails. */
   int allocate(size_t length) {
     if (m_length >= length) {
-      DBUG_ASSERT(m_buffer != nullptr);
+      assert(m_buffer != nullptr);
       return (0);
     }
 
@@ -257,7 +282,7 @@ struct Data_Link {
   correct handle type.
   @return clone buffer */
   Buffer *get_buffer() {
-    DBUG_ASSERT(m_type == CLONE_HANDLE_BUFFER);
+    assert(m_type == CLONE_HANDLE_BUFFER);
     return (&m_buffer);
   }
 
@@ -275,7 +300,7 @@ struct Data_Link {
   correct handle type.
   @return clone file */
   File *get_file() {
-    DBUG_ASSERT(m_type == CLONE_HANDLE_FILE);
+    assert(m_type == CLONE_HANDLE_FILE);
     return (&m_file);
   }
 
@@ -308,6 +333,10 @@ struct Data_Link {
   };
 };
 
+/** Validate all local configuration parameters.
+@param[in]	thd	current session THD
+@return error code */
+int validate_local_params(THD *thd);
 }  // namespace myclone
 
 #endif /* CLONE_H */

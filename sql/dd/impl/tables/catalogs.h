@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ class Catalogs : public Object_table_impl {
                            "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
     m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                            "name VARCHAR(64) NOT NULL COLLATE " +
-                               String_type(name_collation()->name));
+                               String_type(name_collation()->m_coll_name));
     m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
                            "created TIMESTAMP NOT NULL");
     m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",

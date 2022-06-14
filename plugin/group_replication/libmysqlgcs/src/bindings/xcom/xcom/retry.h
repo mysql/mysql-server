@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,11 @@
 #ifndef RETRY_H
 #define RETRY_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "xcom/result.h"
+#include "xcom/task_debug.h"
+#include "xcom/task_os.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 
 static inline int can_retry(int err) {
   if (is_ssl_err(err))
@@ -58,22 +55,27 @@ static inline int can_retry_write(int err) {
 }
 #else
 static inline int can_retry(int err) {
-  return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
-         from_errno(err) == SOCK_EWOULDBLOCK;
+  int retval = from_errno(err) == SOCK_EAGAIN ||
+               from_errno(err) == SOCK_EINTR ||
+               from_errno(err) == SOCK_EWOULDBLOCK;
+  if (!retval) IFDBG(D_NONE, FN; STRLIT("cannot retry "); NDBG(err, d));
+  return retval;
 }
 
 static inline int can_retry_read(int err) {
-  return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
-         from_errno(err) == SOCK_EWOULDBLOCK;
+  int retval = from_errno(err) == SOCK_EAGAIN ||
+               from_errno(err) == SOCK_EINTR ||
+               from_errno(err) == SOCK_EWOULDBLOCK;
+  if (!retval) IFDBG(D_NONE, FN; STRLIT("cannot retry "); NDBG(err, d));
+  return retval;
 }
 
 static inline int can_retry_write(int err) {
-  return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
-         from_errno(err) == SOCK_EWOULDBLOCK;
-}
-#endif
-
-#ifdef __cplusplus
+  int retval = from_errno(err) == SOCK_EAGAIN ||
+               from_errno(err) == SOCK_EINTR ||
+               from_errno(err) == SOCK_EWOULDBLOCK;
+  if (!retval) IFDBG(D_NONE, FN; STRLIT("cannot retry "); NDBG(err, d));
+  return retval;
 }
 #endif
 

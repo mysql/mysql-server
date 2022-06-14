@@ -1,0 +1,370 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Unknown storage engine 'MOCK'");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Secondary engine operation failed. No secondary engine defined");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statement written to the binary log using statement format");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+[ Connection Master ]
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @@secondary_engine_cost_threshold = 0;
+[ Connection Slave ]
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @@secondary_engine_cost_threshold = 0;
+[ Connection Master ]
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(10), j JSON, b BLOB, vb VARBINARY(32)) SECONDARY_ENGINE=MOCK;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+[ Connection Master ]
+INSERT INTO t1 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
+INSERT INTO t1 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]', 'Boxer', x'abcd');
+INSERT INTO t1 VALUES(NULL, 'Beagle', '[1,2,3]', 'Pitbull', x'abcd1234');
+INSERT INTO t1 VALUES(NULL, 'Collie', '["ab","bc","cd"]', 'Huskey', x'1ab2c3d4');
+INSERT INTO t1 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
+ALTER TABLE t1 SECONDARY_LOAD;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+ALTER TABLE t1 SECONDARY_LOAD;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+SET @save_use_secondary_engine = @@use_secondary_engine;
+SET use_secondary_engine = OFF;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SET use_secondary_engine = FORCED;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+SET use_secondary_engine = @save_use_secondary_engine;
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=ON)*/ * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+[ Connection Master ]
+CREATE TABLE t2 LIKE t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN INSERT INTO t2 SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union all /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+CREATE TABLE t3 SELECT * from t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+INSERT INTO t2 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
+INSERT INTO t2 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]',
+'Boxer', x'abcd');
+INSERT INTO t2 VALUES(NULL, 'Beagle', '[1,2,3]', 'Pitbull', x'abcd1234');
+INSERT INTO t2 VALUES(NULL, 'Collie', '["ab","bc","cd"]', 'Huskey',
+x'1ab2c3d4');
+INSERT INTO t2 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
+ALTER TABLE t2 SECONDARY_LOAD;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `pk` int NOT NULL DEFAULT '0',
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+ALTER TABLE t2 SECONDARY_LOAD;
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+[ Connection Master ]
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+ALTER TABLE t1 SECONDARY_UNLOAD;
+DROP TABLE t3;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+ALTER TABLE t1 SECONDARY_UNLOAD;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SET use_secondary_engine = FORCED;
+FLUSH STATUS;
+SELECT * FROM t1;
+Got one of the listed errors
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+CREATE TABLE t3 SELECT * from t1;
+Got one of the listed errors
+SET use_secondary_engine = @save_use_secondary_engine;
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
+Got one of the listed errors
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+ALTER TABLE t2 SECONDARY_ENGINE=NULL;
+include/stop_slave_sql.inc
+[ Connection Master ]
+ALTER TABLE t2 SECONDARY_LOAD;
+[ Connection Slave ]
+ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_ENGINE=HELLO;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=HELLO
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+ALTER TABLE t1 SECONDARY_ENGINE=NADA;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NADA
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+ALTER TABLE t1 SECONDARY_UNLOAD;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+ALTER TABLE t2 SECONDARY_UNLOAD;
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+UNINSTALL PLUGIN mock;
+include/stop_slave_sql.inc
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_LOAD;
+[ Connection Slave ]
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+[ Connection Master ]
+DROP TABLE t1;
+DROP TABLE t2;
+UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
+include/sync_slave_sql_with_master.inc
+UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
+include/rpl_end.inc

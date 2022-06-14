@@ -57,8 +57,7 @@ a	b	c1
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -324,8 +323,7 @@ a	b	c1
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -591,8 +589,7 @@ a	b	c1
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

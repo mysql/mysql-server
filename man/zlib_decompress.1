@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBzlib_decompress\fR
+.\"     Title: zlib_decompress
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBZLIB_DECOMPRESS\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "ZLIB_DECOMPRESS" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -70,7 +70,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBzlib_decompress \fR\fB\fIinput_file\fR\fR\fB \fR\fB\fIoutput_file\fR\fR
+zlib_decompress \fIinput_file\fR \fIoutput_file\fR
 .fi
 .if n \{\
 .RE
@@ -82,8 +82,8 @@ Example:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-compress\-output=ZLIB > dump\&.zlib\fR
-shell> \fBzlib_decompress dump\&.zlib dump\&.txt\fR
+mysqlpump \-\-compress\-output=ZLIB > dump\&.zlib
+zlib_decompress dump\&.zlib dump\&.txt
 .fi
 .if n \{\
 .RE
@@ -97,11 +97,11 @@ To decompress
 \fBmysqlpump\fR
 LZ4\-compressed output, use
 \fBlz4_decompress\fR\&. See
-\fBlz4_decompress\fR(1)\&.
+lz4_decompress(1)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

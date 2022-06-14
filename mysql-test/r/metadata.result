@@ -1,6 +1,6 @@
 select 1, 1.0, -1, "hello", NULL;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					1	8	1	1	N	32897	0	63
+def					1	8	2	1	N	32897	0	63
 def					1.0	246	4	3	N	32897	1	63
 def					-1	8	2	2	N	32897	0	63
 def					hello	253	20	5	N	1	31	255
@@ -61,7 +61,7 @@ id	data	data
 2	female	no
 select t1.id from t1 union select t2.id from t2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				id	id	1	4	1	Y	32768	0	63
+def				id	id	2	4	1	Y	32768	0	63
 id
 1
 2
@@ -72,22 +72,22 @@ insert into t1 values (2,'two');
 set @arg00=1 ;
 select @arg00 FROM t1 where a=1 union distinct select 1 FROM t1 where a=1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				@arg00	@arg00	8	20	1	Y	32768	0	63
+def				@arg00	@arg00	8	21	1	Y	32768	0	63
 @arg00
 1
 select * from (select @arg00) aaa;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			aaa	@arg00	@arg00	8	20	1	Y	32768	0	63
+def			aaa	@arg00	@arg00	8	21	1	Y	32768	0	63
 @arg00
 1
 select 1 union select 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				1	1	8	1	1	N	32769	0	63
+def				1	1	8	2	1	N	32769	0	63
 1
 1
 select * from (select 1 union select 1) aaa;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			aaa	1	1	8	1	1	N	32769	0	63
+def			aaa	1	1	8	2	1	N	32769	0	63
 1
 1
 drop table t1;
@@ -104,12 +104,12 @@ affected rows: 1
 affected rows: 0
 select a.* from (select 2147483648 as v_large) a;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			a	v_large	v_large	8	10	10	N	32769	0	63
+def			a	v_large	v_large	8	11	10	N	32769	0	63
 v_large
 2147483648
 select a.* from (select 214748364 as v_small) a;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			a	v_small	v_small	3	9	9	N	32769	0	63
+def			a	v_small	v_small	8	10	9	N	32769	0	63
 v_small
 214748364
 CREATE TABLE t1 (c1 CHAR(1));
@@ -128,13 +128,13 @@ c1
 3
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
-def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
-c1	c2
 1	1
 2	2
-3	3
 2	2
+3	3
+c1	c2
+def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
+def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	v1	c1	c1	254	4	1	Y	32768	0	255
@@ -350,7 +350,7 @@ a	b	d
 10	10	20
 SELECT * FROM (SELECT DISTINCT f1 FROM t1) AS dt;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		t1	dt	f1	f1	3	11	2	Y	32768	0	63
+def	test	t1	dt	f1	f1	3	11	2	Y	32768	0	63
 f1
 10
 SELECT * FROM (SELECT DISTINCT t1.f1+t2.f1 AS d FROM t1 JOIN t1 AS t2) AS dt;
@@ -366,7 +366,7 @@ f1	f2
 10	A
 SELECT * FROM v2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		t1	v2	f1	f1	3	11	2	Y	32768	0	63
+def	test	t1	v2	f1	f1	3	11	2	Y	32768	0	63
 f1
 10
 SELECT * FROM (SELECT * FROM v1) AS dt;
@@ -377,9 +377,78 @@ f1	f2
 10	A
 SELECT * FROM (SELECT * FROM v2) AS dt;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		v2	dt	f1	f1	3	11	2	Y	32768	0	63
+def	test	v2	dt	f1	f1	3	11	2	Y	32768	0	63
 f1
 10
 DROP VIEW v1,v2;
 DROP TABLE t1;
 # End of test for Bug#22364401
+# Testing Org_table/Table/DB returned to client for derived tables
+create table t(a int);
+create view v as select a as d, 2*a as two from t;
+select a as d from t limit 1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	t	a	d	3	11	0	Y	32768	0	63
+d
+select * from (select a as d, 2*a as two from t) dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	dt	d	d	3	11	0	Y	32768	0	63
+def			dt	two	two	8	12	0	Y	32896	0	63
+d	two
+select d, two from (select a as d, 2*a as two from t) dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	dt	d	d	3	11	0	Y	32768	0	63
+def			dt	two	two	8	12	0	Y	32896	0	63
+d	two
+select d as e, two as f from (select a as d, 2*a as two from t) dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	dt	d	e	3	11	0	Y	32768	0	63
+def			dt	two	f	8	12	0	Y	32896	0	63
+e	f
+select * from v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v	v	d	d	3	11	0	Y	32768	0	63
+def		v	v	two	two	8	12	0	Y	32896	0	63
+d	two
+select d, two from v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v	v	d	d	3	11	0	Y	32768	0	63
+def		v	v	two	two	8	12	0	Y	32896	0	63
+d	two
+select d as e, two as f from v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v	v	d	e	3	11	0	Y	32768	0	63
+def		v	v	two	f	8	12	0	Y	32896	0	63
+e	f
+set optimizer_switch="derived_merge=off";
+select * from (select a as d, 2*a as two from t) dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	dt	d	d	3	11	0	Y	32768	0	63
+def			dt	two	two	8	12	0	Y	32768	0	63
+d	two
+select d from (select a as d, 2*a as two from t) dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	dt	d	d	3	11	0	Y	32768	0	63
+d
+select d as e from (select a as d, 2*a as two from t) dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	dt	d	e	3	11	0	Y	32768	0	63
+e
+select * from v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t	v	d	d	3	11	0	Y	32768	0	63
+def	test	v	v	two	two	8	12	0	Y	32768	0	63
+d	two
+select d, two from v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v	v	d	d	3	11	0	Y	32768	0	63
+def	test	v	v	two	two	8	12	0	Y	32768	0	63
+d	two
+select d as e, two as f from v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v	v	d	e	3	11	0	Y	32768	0	63
+def	test	v	v	two	f	8	12	0	Y	32768	0	63
+e	f
+set optimizer_switch=default;
+drop view v;
+drop table t;

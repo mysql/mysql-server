@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,15 @@
   Instrumentation helpers for metadata locks.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_mdl.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_METADATA_CALL() as direct call. */
+#include "pfs_metadata_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_METADATA_CALL
 #define PSI_METADATA_CALL(M) psi_mdl_service->M
@@ -67,6 +75,14 @@
   } while (0)
 #endif
 
+#ifdef HAVE_PSI_METADATA_INTERFACE
+#define mysql_mdl_set_duration(L, D) inline_mysql_mdl_set_duration(L, D)
+#else
+#define mysql_mdl_set_duration(L, D) \
+  do {                               \
+  } while (0)
+#endif
+
 /**
   @def mysql_mdl_destroy(M)
   Instrumented metadata lock destruction.
@@ -99,14 +115,21 @@ static inline PSI_metadata_lock *inline_mysql_mdl_create(
 
 static inline void inline_mysql_mdl_set_status(
     PSI_metadata_lock *psi, MDL_ticket::enum_psi_status mdl_status) {
-  if (psi != NULL) {
+  if (psi != nullptr) {
     PSI_METADATA_CALL(set_metadata_lock_status)(psi, mdl_status);
+  }
+}
+
+static inline void inline_mysql_mdl_set_duration(
+    PSI_metadata_lock *psi, enum_mdl_duration mdl_duration) {
+  if (psi != nullptr) {
+    PSI_METADATA_CALL(set_metadata_lock_duration)(psi, mdl_duration);
   }
 }
 
 static inline void inline_mysql_mdl_destroy(PSI_metadata_lock *psi,
                                             const char *, uint) {
-  if (psi != NULL) {
+  if (psi != nullptr) {
     PSI_METADATA_CALL(destroy_metadata_lock)(psi);
   }
 }

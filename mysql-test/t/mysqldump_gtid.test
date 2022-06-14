@@ -16,5 +16,6 @@ INSERT INTO t1 VALUES(3);
 
 DROP TABLE t1;
 
+RESET MASTER;
 
 --echo # End of 8.0 tests

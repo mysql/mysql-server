@@ -31,9 +31,11 @@ select case when 1<0 then "TRUE" else "FALSE" END;
 #
 create table t1 (a int);
 insert into t1 values(1),(2),(3),(4);
+--sorted_result
 select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 analyze table t1;
 explain select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+--sorted_result
 select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 drop table t1;
 
@@ -335,3 +337,41 @@ SELECT IFNULL(e2,i1) nullif_c,
        GROUP BY e2,i1 ORDER BY nullif_c, SUM(d1);
 
 DROP TABLE t;
+
+--echo # Bug#29463760 In cases like ifnull(datetime(2), time(3), wrong answer
+
+# Establish a specific date for use when extending TIME values:
+SET TIMESTAMP=UNIX_TIMESTAMP('2019-03-11 12:00:00');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1;
+SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1 GROUP BY col1;
+SET TIMESTAMP=DEFAULT;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test for a memory leak in WL#6570
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(110));
+INSERT INTO t1 VALUES (REPEAT("a",100));
+SELECT (t1.a,t1.a) IN (('a','c'),('a','b')) END FROM t1;
+SELECT CASE t1.a WHEN 'a' THEN 'c' ELSE 'd' END FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32591239: VAL_JSON(JSON_WRAPPER*):ASSERTION
+--echo #               `!CURRENT_THD->IS_ERROR() && HAS_VALUE' FAILED
+--echo #
+CREATE TABLE t1 (col_int int, col_double double, j json);
+INSERT INTO t1 VALUES (382218415, -36452.389, '{"key1": 220655528}');
+--error ER_DATA_OUT_OF_RANGE
+SELECT col_int FROM t1
+WHERE CASE WHEN POWER(col_double, col_int) THEN j ELSE j END;
+DROP TABLE t1;
+--echo # Bug#32865008: GROUP_CONCAT: setup_fields: assertion `!thd->is_error()' failed
+
+--error ER_WRONG_ARGUMENTS
+DO GROUP_CONCAT(DISTINCT NULLIF(1, PERIOD_ADD(0x6f09c5f8 ,'7451-01-27')));
+

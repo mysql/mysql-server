@@ -29,10 +29,12 @@ END IF;
 CASE p_dml_type
 WHEN 0 THEN
 SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-INSERT INTO t1 VALUES(v_key, v_key * 10,
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
-INSERT INTO t2 VALUES(v_key, v_key * 10,
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 WHEN 1 THEN
@@ -58,6 +60,7 @@ START TRANSACTION;
 END IF;
 END IF;
 END WHILE;
+COMMIT;
 END|
 DROP TABLE t1;
 DROP TABLE t2;
@@ -70,8 +73,8 @@ call execute_dml(0, 0, 200, 200, 100, 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -106,8 +109,8 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -161,8 +164,8 @@ ID	STAGE	STATE
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -197,8 +200,8 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -271,24 +274,6 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 # restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SET GLOBAL innodb_undo_log_encrypt = ON;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` varchar(64) DEFAULT NULL,
-  `col4` blob,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESSION='LZ4' ENCRYPTION='Y'
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` varchar(64) DEFAULT NULL,
-  `col4` blob,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESSION='ZLIB'
 # In connection default - Cloning database
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -315,8 +300,8 @@ SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -351,8 +336,8 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -442,6 +427,5 @@ DROP TABLESPACE tbs1;
 UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN keyring_file;
 SET DEBUG_SYNC = 'RESET';
-# restart:
 # Restart server and remove encrypted data directory
 # restart:

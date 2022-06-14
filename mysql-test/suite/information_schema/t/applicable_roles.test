@@ -1,0 +1,166 @@
+# This test case test INFORMATION_SCHEMA.APPLICABLE_ROLES as well as
+# INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS, because the later
+# is just a view over INFORMATION_SCHEMA.APPLICABLE_ROLES listing only roles
+# with IS_GRANTABLE='Yes'.
+
+--echo # SETUP SCHEMA
+--source suite/information_schema/include/roles_schema.inc
+
+--echo #
+--echo # USER WITH NO ROLES ASSIGNED.
+--echo #
+connect(con1, localhost, user0, foo, test);
+
+--echo # List all APPLICABLE ROLES for user0
+SELECT
+  USER,           /* SQL Standard   */
+  HOST,           /* MySQL Specific */
+  GRANTEE,        /* SQL Standard   */
+  GRANTEE_HOST,   /* MySQL Specific */
+  ROLE_NAME,      /* SQL Standard   */
+  ROLE_HOST,      /* MySQL Specific */
+  IS_GRANTABLE,   /* SQL Standard   */
+  IS_DEFAULT,     /* MySQL Specific */
+  IS_MANDATORY    /* MySQL Specific */
+FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
+SELECT * FROM INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+
+disconnect con1;
+connection default;
+
+--let $ORDER_BY= ORDER BY GRANTEE, ROLE_NAME
+
+--echo # USER WITH ROLES.
+
+--echo #
+--echo # Case 1: Login as user1
+--echo #
+--let USER_NAME=user1
+--let ROLE_LIST=hr_rules
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 2: Login as user2
+--echo #
+--let USER_NAME=user2
+--let ROLE_LIST=hr_rules
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 3: Login as lead_user1 with mandatory roles.
+--echo #
+
+# Set role task2 as mandatory which is not directly granted to lead_user1
+SET GLOBAL mandatory_roles = 'task2';
+--let USER_NAME=lead_user1
+--let ROLE_LIST=NONE
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+
+# Set role hr_access as mandatory which is directly granted to lead_user1
+SET GLOBAL mandatory_roles = 'hr_access';
+--let ROLE_LIST=hr_access
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+
+# Set role hr_access as mandatory and enable it upon connection.
+SET GLOBAL activate_all_roles_on_login=on;
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+SET GLOBAL activate_all_roles_on_login=off;
+
+SET GLOBAL mandatory_roles = default;
+
+--echo #
+--echo # Case 4: Login as lead_user2 with default roles.
+--echo #
+SET DEFAULT ROLE hr_access TO lead_user2;
+--let USER_NAME=lead_user2
+--let ROLE_LIST=task2_lead
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+SET DEFAULT ROLE NONE TO lead_user1;
+
+--echo #
+--echo # Case 5: Login as project_lead_user with role graph.
+--echo #
+--let USER_NAME=project_lead_user
+--let ROLE_LIST=hr_access
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 6: Login as project_lead_user with cyclic role graph.
+--echo #
+--echo # Form a role graph loop.
+--echo #
+--echo #              reader
+--echo #                |
+--echo #                V
+--echo #             updater<------------\
+--echo #                |                |
+--echo #        |``````````````|         |
+--echo #        V              V         |
+--echo #   task1_lead     task2_lead     |
+--echo #        |              |         |
+--echo #        ````````|```````         |
+--echo #                V                |
+--echo #          project_lead-----------/
+--echo #
+connection default;
+# GRANT project_lead to updater;
+INSERT INTO mysql.role_edges (FROM_USER,FROM_HOST,TO_USER,TO_HOST)
+  VALUES('project_lead','%','updater','%');
+FLUSH PRIVILEGES;
+
+--let USER_NAME=project_lead_user
+--let ROLE_LIST=hr_access
+--let $TEST_TABLE=APPLICABLE_ROLES
+--source suite/information_schema/include/roles_i_s_test.inc
+--let $TEST_TABLE=ADMINISTRABLE_ROLE_AUTHORIZATIONS
+--source suite/information_schema/include/roles_i_s_test.inc
+
+REVOKE project_lead FROM updater;
+
+--echo #
+--echo # Bug#30292102 WL10895 APPLICABLE_ROLES DISPLAYS
+--echo # DUPLICATE ENTRY FOR ROLE
+--echo #
+CREATE USER u1 IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 to u1;
+GRANT SELECT ON test.* TO u1;
+
+SET GLOBAL mandatory_roles='r1';
+GRANT r1 TO u1 WITH ADMIN OPTION;
+SET GLOBAL activate_all_roles_on_login = 'ON';
+
+connect(con1, localhost, u1, foo, test);
+--echo # Should not show duplicate entry for r1->u1 edge after the fix.
+SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
+
+connection default;
+disconnect con1;
+SET GLOBAL mandatory_roles=default;
+SET GLOBAL activate_all_roles_on_login=default;
+DROP USER u1;
+DROP ROLE r1;
+
+--echo # Cleanup
+--source suite/information_schema/include/roles_schema_clean.inc

@@ -30,7 +30,9 @@ drop table t1;
 create table t1 (x int not null, y int not null, key x  using HASH (x), unique y  using HASH (y))
 engine=heap;
 insert into t1 values (1,1),(2,2),(1,3),(2,4),(2,5),(2,6);
+--sorted_result
 select * from t1 where x=1;
+--sorted_result
 select * from t1,t1 as t2 where t1.x=t2.y;
 explain select * from t1,t1 as t2 where t1.x=t2.y;
 drop table t1;
@@ -42,8 +44,10 @@ drop table t1;
 
 CREATE TABLE t1 ( a int not null default 0, b int not null default 0,  key  using HASH (a),  key  using HASH (b)  ) ENGINE=HEAP;
 insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
+--sorted_result
 select * from t1 where a=1; 
 insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
+--sorted_result
 select * from t1 where a=1;
 drop table t1;
 
@@ -299,6 +303,7 @@ INSERT INTO t1 VALUES (2, NULL);
 INSERT INTO t1 VALUES (3, NULL);
 INSERT INTO t1 VALUES (4, NULL);
 
+--sorted_result
 SELECT * FROM t1 WHERE val IS NULL;
 EXPLAIN SELECT * FROM t1 WHERE val IS NULL;
 DROP TABLE t1;
@@ -317,6 +322,42 @@ CREATE TABLE t1(
 INSERT INTO t1(c1,c2) VALUES (5,1), (4,1), (3,5), (2,3), (1,3);
 
 EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+--sorted_result
 SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29527115 MYSQL USES COMPOSITE HASH INDEX WHEN NOT POSSIBLE AND RETURNS WRONG RESULT.
+--echo #
+
+CREATE TABLE t1 (
+  f1 int NOT NULL,
+  f2 int NOT NULL,
+  f3 date NOT NULL,
+  KEY k1 (f2,f3) USING HASH
+) ENGINE=MEMORY;
+
+INSERT INTO t1 VALUES
+(1, 15409, '2019-02-25'), (2, 15911, '2019-02-25'), (3, 15929, '2019-02-25'), (4, 15936, '2019-02-25'),
+(5, 16004, '2019-02-25'), (6, 16005, '2019-02-25'), (7, 16007, '2019-02-25'),(8, 16029, '2019-02-25'),
+(9, 16031, '2019-02-25'), (10, 16052, '2019-02-25'), (11, 16054, '2019-02-25'), (12, 16040, '2019-02-25'),
+(13, 12485, '2019-02-25'), (14, 15892, '2019-02-25'), (15, 16035, '2019-02-25'), (16, 16060, '2019-02-25'),
+(17, 16066, '2019-02-25'), (18, 16093, '2019-02-25'), (19, 16057, '2019-02-25'), (20, 16027, '2019-02-25'),
+(21, 15988, '2019-02-25');
+
+SET eq_range_index_dive_limit = 1;
+# Range is not used
+let $query = SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911);
+eval EXPLAIN $query;
+eval $query;
+let $query = SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 > '2018-02-25';
+eval EXPLAIN $query;
+eval $query;
+# Range is used.
+let $query = SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 = '2019-02-25';
+eval EXPLAIN $query;
+eval $query;
+SET eq_range_index_dive_limit = DEFAULT;
 
 DROP TABLE t1;

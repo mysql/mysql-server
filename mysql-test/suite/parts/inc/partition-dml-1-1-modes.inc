@@ -20,6 +20,7 @@ set @@global.sql_mode= '';
 --echo # UPDATE without partition selection
 
 connect (session1, localhost, test_user_1,'testpw',test);
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 --echo send
 send
@@ -29,25 +30,31 @@ connect (session2, localhost, test_user_2,'testpw',test);
 let $wait_condition= SELECT count(*)= 4 FROM t1 WHERE b ='table-upd-1';
 --source include/wait_condition.inc
 UPDATE t1 SET b='table-upd-2' WHERE a BETWEEN 0 AND 9;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 INSERT INTO t1 VALUES (11, 'table-ins');
 INSERT INTO t1 VALUES (12, 'table-ins');
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 DELETE FROM t1 WHERE b= 'table-ins';
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session1;
 --echo reap
 reap;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session2;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 --echo #######################################################
 --echo # UPDATE with partition selection
 #connect (session1, localhost, test_user_1,'testpw',test);
 connection session1;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 --echo send
 send
@@ -58,19 +65,24 @@ connection session2;
 let $wait_condition= SELECT count(*)= 4 FROM t1 WHERE b ='p0-29-upd-1';
 --source include/wait_condition.inc
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 0 AND 9;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (11, '(p0-29-)ins');
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (12, '(p0-29-)ins');
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 DELETE FROM t1 PARTITION (`p0-29`,subp5) WHERE b= '(p0-29-)ins';
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session1;
 --echo reap
 reap;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session2;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 disconnect session1;
@@ -86,6 +98,7 @@ set @@global.sql_mode= ansi;
 --echo # UPDATE without partition selection
 
 connect (session1, localhost, test_user_1,'testpw',test);
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 --echo send
 send
@@ -95,25 +108,31 @@ connect (session2, localhost, test_user_2,'testpw',test);
 let $wait_condition= SELECT count(*)= 4 FROM t1 WHERE b ='table-upd-1';
 --source include/wait_condition.inc
 UPDATE t1 SET b='table-upd-2' WHERE a BETWEEN 0 AND 9;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 INSERT INTO t1 VALUES (11, 'table-ins');
 INSERT INTO t1 VALUES (12, 'table-ins');
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 DELETE FROM t1 WHERE b= 'table-ins';
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session1;
 --echo reap
 reap;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session2;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 --echo #######################################################
 --echo # UPDATE with partition selection
 #connect (session1, localhost, test_user_1,'testpw',test);
 connection session1;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 --echo send
 send
@@ -124,19 +143,24 @@ connection session2;
 let $wait_condition= SELECT count(*)= 4 FROM t1 WHERE b ='p0-29-upd-1';
 --source include/wait_condition.inc
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 0 AND 9;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (11, '(p0-29-)ins');
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (12, '(p0-29-)ins');
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 DELETE FROM t1 PARTITION (`p0-29`,subp5) WHERE b= '(p0-29-)ins';
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session1;
 --echo reap
 reap;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session2;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 disconnect session1;
@@ -152,6 +176,7 @@ set @@global.sql_mode= traditional;
 --echo # UPDATE without partition selection
 
 connect (session1, localhost, test_user_1,'testpw',test);
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 --echo send
 send
@@ -161,25 +186,31 @@ connect (session2, localhost, test_user_2,'testpw',test);
 let $wait_condition= SELECT count(*)= 4 FROM t1 WHERE b ='table-upd-1';
 --source include/wait_condition.inc
 UPDATE t1 SET b='table-upd-2' WHERE a BETWEEN 0 AND 9;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 INSERT INTO t1 VALUES (11, 'table-ins');
 INSERT INTO t1 VALUES (12, 'table-ins');
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 DELETE FROM t1 WHERE b= 'table-ins';
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session1;
 --echo reap
 reap;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session2;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 --echo #######################################################
 --echo # UPDATE with partition selection
 #connect (session1, localhost, test_user_1,'testpw',test);
 connection session1;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 --echo send
 send
@@ -190,19 +221,24 @@ connection session2;
 let $wait_condition= SELECT count(*)= 4 FROM t1 WHERE b ='p0-29-upd-1';
 --source include/wait_condition.inc
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 0 AND 9;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (11, '(p0-29-)ins');
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (12, '(p0-29-)ins');
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 DELETE FROM t1 PARTITION (`p0-29`,subp5) WHERE b= '(p0-29-)ins';
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session1;
 --echo reap
 reap;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 connection session2;
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 disconnect session1;

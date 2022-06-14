@@ -9,7 +9,11 @@
 # ==== Related Bugs and Worklogs ====
 #
 # BUG#25800025 SQL THREAD ERROR 1778 WHEN GTID SKIPPING PARTIAL TRX
-#
+
+# this test requires certain events to appear in the relay log.
+# With compression enabled, this is not the case.
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $rpl_gtid_utils= 1

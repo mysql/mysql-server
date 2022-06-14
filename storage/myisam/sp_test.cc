@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims);
 
 static char blob_key[MAX_REC_LENGTH];
 
-int main(int argc MY_ATTRIBUTE((unused)), char *argv[]) {
+int main(int argc [[maybe_unused]], char *argv[]) {
   MY_INIT(argv[0]);
   exit(run_test("sp_test"));
 }

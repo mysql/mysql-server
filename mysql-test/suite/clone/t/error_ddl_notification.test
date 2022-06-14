@@ -1,0 +1,126 @@
+# Test clone with concurrent DDL interrupted
+--source include/have_innodb_max_16k.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--source ../include/encrypt_begin.inc
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+ENCRYPTION = 'Y';
+
+CREATE UNDO TABLESPACE undo_02 ADD DATAFILE 'undo_02.ibu';
+
+ALTER UNDO TABLESPACE undo_02 SET INACTIVE;
+
+--let $inactive_undo_space = undo_02
+--source include/wait_until_undo_space_is_empty.inc
+
+SET DEBUG_SYNC = 'clone_state_transit_file_copy SIGNAL start_ddl WAIT_FOR resume_clone_file';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_inplace WAIT_FOR resume_clone_page';
+--source ../include/clone_command_send.inc
+
+connect (con1,localhost,root,,);
+--echo # In connection CON1
+
+connect (con2,localhost,root,,);
+--echo # In connection CON2
+
+--echo # Waiting for clone to reach state transition
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+--echo # Wait finished
+
+--echo # 1. CREATE TABLE
+--let $ddl_stmt = CREATE TABLE t3(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+--source ../include/ddl_kill.inc
+
+--echo # 2A. ALTER TABLE COPY
+--let $ddl_stmt = ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM = COPY
+--source ../include/ddl_kill.inc
+
+--echo # 2B. ALTER TABLE IN PLACE
+--let $ddl_stmt = ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM = INPLACE
+--source ../include/ddl_kill.inc
+
+--echo # 3. ALTER TABLE RENAME
+--let $ddl_stmt = ALTER TABLE t1 RENAME t3
+--source ../include/ddl_kill.inc
+
+--echo # 4. TRUNCATE TABLE
+--let $ddl_stmt = TRUNCATE TABLE t1
+--source ../include/ddl_kill.inc
+
+--echo # 5A. ALTER ENABLE Encryption
+--let $ddl_stmt = ALTER TABLE t1 ENCRYPTION = "Y"
+--source ../include/ddl_kill.inc
+
+--echo # 5B. ALTER DISABLE ENCRYPTION
+--let $ddl_stmt = ALTER TABLE t2 ENCRYPTION = "N"
+--source ../include/ddl_kill.inc
+
+--echo # 6. CREATE UNDO TABLESPACE
+--let $ddl_stmt = CREATE UNDO TABLESPACE undo_01 ADD DATAFILE 'undo_01.ibu'
+--source ../include/ddl_kill.inc
+
+--echo # 7A. ENABLE REDO ENCRYPTION
+--let $ddl_stmt = SET GLOBAL innodb_redo_log_encrypt = ON
+--source ../include/ddl_kill.inc
+
+--echo # 7B. ENABLE UNDO ENCRYPTION
+--let $ddl_stmt = SET GLOBAL innodb_undo_log_encrypt = ON
+--source ../include/ddl_kill.inc
+
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_file';
+
+--echo # Waiting for clone to reach page copy state
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_inplace';
+--echo # Wait finished
+
+--echo # 8. ALTER TABLE INPLACE during PAGE COPY
+--let $ddl_stmt = ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM = INPLACE
+--source ../include/ddl_kill.inc
+
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_page';
+
+## DROP commands deleted the file and sends notofication
+## to clone as post DDL action. By this time the DDL command
+## is already committed and KILL must be ignored.
+--let $no_interrupt = 1
+
+--echo # 9A. DROP TABLE
+--let $ddl_stmt = DROP TABLE t1
+--source ../include/ddl_kill.inc
+
+--echo # 9B. DROP UNDO TABLESPACE
+--let $ddl_stmt = DROP UNDO TABLESPACE undo_02
+--source ../include/ddl_kill.inc
+
+--let $no_interrupt =
+
+--connection default
+
+--echo # In connection default
+--echo # Waiting for Clone to complete
+--reap
+--echo # Wait finished
+
+--echo # Cleanup
+DROP TABLE t2;
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_count_sessions.inc
+
+--force-rmdir $CLONE_DATADIR
+SET DEBUG_SYNC = 'RESET';
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;
+
+--source ../include/encrypt_end.inc

@@ -1,6 +1,5 @@
 /***********************************************************************
-
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -38,10 +37,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  Created 10/21/1995 Heikki Tuuri
  *******************************************************/
 
-/** NOTE: The functions in this file should only use functions from
+/* NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include "buf0checksum.h"
 #include "db0err.h"
 #include "fil0fil.h"
 #include "mach0data.h"
@@ -51,7 +51,7 @@ external tools. */
 #include <lz4.h>
 #include <zlib.h>
 
-/**
+/** Convert to a "string".
 @param[in]      type            The compression type
 @return the string representation */
 const char *Compression::to_string(Type type) {
@@ -64,13 +64,13 @@ const char *Compression::to_string(Type type) {
       return ("LZ4");
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 
-  return ("<UNKNOWN>");
+  ut_o(return ("<UNKNOWN>"));
 }
 
 /**
-@param[in]      meta		Page Meta data
+@param[in]      meta            Page Meta data
 @return the string representation */
 std::string Compression::to_string(const Compression::meta_t &meta) {
   std::ostringstream stream;
@@ -90,12 +90,21 @@ bool Compression::is_compressed_page(const byte *page) {
   return (mach_read_from_2(page + FIL_PAGE_TYPE) == FIL_PAGE_COMPRESSED);
 }
 
+bool Compression::is_compressed_encrypted_page(const byte *page) {
+  return (mach_read_from_2(page + FIL_PAGE_TYPE) ==
+          FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
+}
+
+bool Compression::is_valid_page_version(uint8_t version) {
+  return (version == FIL_PAGE_VERSION_1 || version == FIL_PAGE_VERSION_2);
+}
+
 /** Deserizlise the page header compression meta-data
-@param[in]	page		Pointer to the page header
-@param[out]	control		Deserialised data */
+@param[in]      page            Pointer to the page header
+@param[out]     control         Deserialised data */
 void Compression::deserialize_header(const byte *page,
                                      Compression::meta_t *control) {
-  ut_ad(is_compressed_page(page));
+  ut_ad(is_compressed_page(page) || is_compressed_encrypted_page(page));
 
   control->m_version =
       static_cast<uint8_t>(mach_read_from_1(page + FIL_PAGE_VERSION));
@@ -115,13 +124,15 @@ void Compression::deserialize_header(const byte *page,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_recover	true of double write recovery in progress
-@param[in,out]	src		Data read from disk, decompressed data will be
+@param[in]      dblwr_read      true if double write recovery in progress
+@param[in,out]  src             Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression
-@param[in]	dst_len		Size of the scratch area in bytes
+@param[in,out]  dst             Scratch area to use for decompression or
+                                nullptr.
+@param[in]      dst_len         If dst is valid, size of the scratch area in
+                                bytes.
 @return DB_SUCCESS or error code */
-dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
+dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
                                  ulint dst_len) {
   if (!is_compressed_page(src)) {
     /* There is nothing we can do. */
@@ -134,27 +145,31 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
   byte *ptr = src + FIL_PAGE_DATA;
 
-  if (header.m_version != 1 ||
+  if (!is_valid_page_version(header.m_version) ||
       header.m_original_size < UNIV_PAGE_SIZE_MIN - (FIL_PAGE_DATA + 8) ||
-      header.m_original_size > UNIV_PAGE_SIZE_MAX - FIL_PAGE_DATA ||
-      dst_len < header.m_original_size + FIL_PAGE_DATA) {
-    /* The last check could potentially return DB_OVERFLOW,
-    the caller should be able to retry with a larger buffer. */
-
-    return (DB_CORRUPTION);
+      header.m_original_size > UNIV_PAGE_SIZE_MAX - FIL_PAGE_DATA) {
+    return DB_CORRUPTION;
   }
+
+  if (dst != nullptr && dst_len < header.m_original_size + FIL_PAGE_DATA) {
+    /* The caller can retry with a larger buffer. */
+    return DB_OVERFLOW;
+  }
+
+  ut_ad(dst == nullptr || dst_len == header.m_original_size + FIL_PAGE_DATA);
 
   // FIXME: We should use TLS for this and reduce the malloc/free
   bool allocated;
 
   /* The caller doesn't know what to expect */
-  if (dst == NULL) {
+  if (dst == nullptr) {
     /* Add a safety margin of an additional 50% */
     ulint n_bytes = header.m_original_size + (header.m_original_size / 2);
 
-    dst = reinterpret_cast<byte *>(ut_malloc_nokey(n_bytes));
+    dst = reinterpret_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, n_bytes));
 
-    if (dst == NULL) {
+    if (dst == nullptr) {
       return (DB_OUT_OF_MEMORY);
     }
 
@@ -175,12 +190,13 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
       if (uncompress(dst, &zlen, ptr, header.m_compressed_size) != Z_OK) {
         if (allocated) {
-          ut_free(dst);
+          ut::free(dst);
         }
 
         return (DB_IO_DECOMPRESS_FAIL);
       }
 
+      ut_ad(zlen <= len);
       len = static_cast<ulint>(zlen);
 
       break;
@@ -188,7 +204,7 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
     case Compression::LZ4:
 
-      if (dblwr_recover) {
+      if (dblwr_read) {
         ret = LZ4_decompress_safe(
             reinterpret_cast<char *>(ptr), reinterpret_cast<char *>(dst),
             header.m_compressed_size, header.m_original_size);
@@ -208,7 +224,7 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
       if (ret < 0) {
         if (allocated) {
-          ut_free(dst);
+          ut::free(dst);
         }
 
         return (DB_IO_DECOMPRESS_FAIL);
@@ -226,7 +242,7 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
           << Compression::to_string(compression.m_type);
 
       if (allocated) {
-        ut_free(dst);
+        ut::free(dst);
       }
 
       return (DB_UNSUPPORTED);
@@ -237,13 +253,11 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
   mach_write_to_2(src + FIL_PAGE_TYPE, header.m_original_type);
 
-  ut_ad(dblwr_recover || memcmp(src + FIL_PAGE_LSN + 4,
-                                src + (header.m_original_size + FIL_PAGE_DATA) -
-                                    FIL_PAGE_END_LSN_OLD_CHKSUM + 4,
-                                4) == 0);
+  ut_ad(dblwr_read || BlockReporter::is_lsn_valid(
+                          src, header.m_original_size + FIL_PAGE_DATA));
 
   if (allocated) {
-    ut_free(dst);
+    ut::free(dst);
   }
 
   return (DB_SUCCESS);
@@ -251,13 +265,15 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_recover	true of double write recovery in progress
-@param[in,out]	src		Data read from disk, decompressed data will be
+@param[in]      dblwr_read      true of double write recovery in progress
+@param[in,out]  src             Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression
-@param[in]	dst_len		Size of the scratch area in bytes
+@param[in,out]  dst             Scratch area to use for decompression or
+                                nullptr.
+@param[in]      dst_len         If dst is valid, then size of the scratch area
+                                in bytes
 @return DB_SUCCESS or error code */
-dberr_t os_file_decompress_page(bool dblwr_recover, byte *src, byte *dst,
+dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,
                                 ulint dst_len) {
-  return (Compression::deserialize(dblwr_recover, src, dst, dst_len));
+  return (Compression::deserialize(dblwr_read, src, dst, dst_len));
 }

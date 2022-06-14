@@ -1,0 +1,86 @@
+--echo # SETUP SCHEMA
+--source suite/information_schema/include/roles_schema.inc
+
+--let $TEST_TABLE=ROLE_COLUMN_GRANTS
+--let $ORDER_BY=ORDER BY GRANTEE, TABLE_NAME, COLUMN_NAME, PRIVILEGE_TYPE
+
+--echo # USER WITH ROLES.
+
+--echo #
+--echo # Case 1: Login as user1
+--echo #
+--let USER_NAME=user1
+--let ROLE_LIST=hr_rules
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 2: Login as user2
+--echo #
+--let USER_NAME=user2
+--let ROLE_LIST=hr_rules
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 3: Login as lead_user1 with mandatory roles.
+--echo #
+SET GLOBAL mandatory_roles = 'hr_access';
+--let USER_NAME=lead_user1
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+
+SET GLOBAL activate_all_roles_on_login=on;
+--let USER_NAME=lead_user1
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+SET GLOBAL activate_all_roles_on_login=off;
+
+SET GLOBAL mandatory_roles = default;
+
+--echo #
+--echo # Case 4: Login as lead_user2 with default roles.
+--echo #
+SET DEFAULT ROLE hr_access TO lead_user2;
+--let USER_NAME=lead_user2
+--let ROLE_LIST=task2_lead
+--source suite/information_schema/include/roles_i_s_test.inc
+SET DEFAULT ROLE NONE TO lead_user1;
+
+--echo #
+--echo # Case 5: Login as project_lead_user with role graph.
+--echo #
+--let USER_NAME=project_lead_user
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 6: Login as project_lead_user with cyclic role graph.
+--echo #
+--echo # Form a role graph loop.
+--echo #
+--echo #              reader
+--echo #                |
+--echo #                V
+--echo #             updater<------------\
+--echo #                |                |
+--echo #        |``````````````|         |
+--echo #        V              V         |
+--echo #   task1_lead     task2_lead     |
+--echo #        |              |         |
+--echo #        ````````|```````         |
+--echo #                V                |
+--echo #          project_lead-----------/
+--echo #
+connection default;
+# GRANT project_lead to updater;
+INSERT INTO mysql.role_edges (FROM_USER,FROM_HOST,TO_USER,TO_HOST)
+  VALUES('project_lead','%','updater','%');
+FLUSH PRIVILEGES;
+
+--let USER_NAME=project_lead_user
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+
+REVOKE project_lead FROM updater;
+
+--echo # Cleanup
+--source suite/information_schema/include/roles_schema_clean.inc

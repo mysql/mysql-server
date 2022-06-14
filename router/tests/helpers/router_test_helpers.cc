@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,19 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <regex>
 #include <stdexcept>
+#include <string>
+#include <system_error>
 #include <thread>
+#include <vector>
 
 #ifndef _WIN32
 #include <sys/socket.h>
@@ -43,15 +50,22 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #define getcwd _getcwd
-typedef long ssize_t;
 #endif
 
 #include "keyring/keyring_manager.h"
+#include "my_inttypes.h"  // ssize_t
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
+#include "test/temp_directory.h"
 
 using mysql_harness::Path;
+using namespace std::chrono_literals;
 
 Path get_cmake_source_dir() {
   Path result;
@@ -74,7 +88,7 @@ Path get_cmake_source_dir() {
 
   if (env_value == nullptr) {
     // try a few places
-    result = Path(get_cwd()).join("..");
+    result = Path(stdx::filesystem::current_path().native()).join("..");
     result = Path(result).real_path();
   } else {
     result = Path(env_value).real_path();
@@ -104,98 +118,6 @@ Path get_envvar_path(const std::string &envvar, Path alternative = Path()) {
   }
   return result;
 }
-
-const std::string get_cwd() {
-  char buffer[FILENAME_MAX];
-  if (!getcwd(buffer, FILENAME_MAX)) {
-    throw std::runtime_error("getcwd failed: " + std::string(strerror(errno)));
-  }
-  return std::string(buffer);
-}
-
-const std::string change_cwd(std::string &dir) {
-  auto cwd = get_cwd();
-#ifndef _WIN32
-  if (chdir(dir.c_str()) == -1) {
-#else
-  if (!SetCurrentDirectory(dir.c_str())) {
-#endif
-    throw std::runtime_error("chdir failed: " + mysqlrouter::get_last_error());
-  }
-  return cwd;
-}
-
-size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
-                               uint64_t timeout_in_ms) {
-  // returns epoch time (aka unix time, etc), expressed in milliseconds
-  auto get_epoch_in_ms = []() -> uint64_t {
-    using namespace std::chrono;
-    time_point<system_clock> now = system_clock::now();
-    return static_cast<uint64_t>(
-        duration_cast<milliseconds>(now.time_since_epoch()).count());
-  };
-
-  // calculate deadline time
-  uint64_t now_in_ms = get_epoch_in_ms();
-  uint64_t deadline_epoch_in_ms = now_in_ms + timeout_in_ms;
-
-  // read until 1 of 3 things happen: enough bytes were read, we time out or
-  // read() fails
-  size_t bytes_read = 0;
-  while (true) {
-#ifndef _WIN32
-    ssize_t res = read(sockfd, static_cast<char *>(buffer) + bytes_read,
-                       n_bytes - bytes_read);
-#else
-    WSASetLastError(0);
-    ssize_t res = recv(sockfd, static_cast<char *>(buffer) + bytes_read,
-                       n_bytes - bytes_read, 0);
-#endif
-
-    if (res == 0) {  // reached EOF?
-      return bytes_read;
-    }
-
-    if (get_epoch_in_ms() > deadline_epoch_in_ms) {
-      throw std::runtime_error("read() timed out");
-    }
-
-    if (res == -1) {
-#ifndef _WIN32
-      if (errno != EAGAIN) {
-        throw std::runtime_error(std::string("read() failed: ") +
-                                 strerror(errno));
-      }
-#else
-      int err_code = WSAGetLastError();
-      if (err_code != 0) {
-        throw std::runtime_error("recv() failed with error: " +
-                                 get_last_error(err_code));
-      }
-
-#endif
-    } else {
-      bytes_read += static_cast<size_t>(res);
-      if (bytes_read >= n_bytes) {
-        assert(bytes_read == n_bytes);
-        return bytes_read;
-      }
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-}
-
-#ifdef _WIN32
-std::string get_last_error(int err_code) {
-  char message[512];
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
-                    FORMAT_MESSAGE_ALLOCATE_BUFFER,
-                nullptr, err_code, LANG_NEUTRAL, message, sizeof(message),
-                nullptr);
-  return std::string(message);
-}
-#endif
 
 void init_windows_sockets() {
 #ifdef _WIN32
@@ -235,7 +157,7 @@ int close_socket(SOCKET sock) {
 #endif
 }  // namespace
 
-bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
+bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
                          const std::string &hostname) {
   struct addrinfo hints, *ainfo;
   memset(&hints, 0, sizeof hints);
@@ -243,9 +165,11 @@ bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
+  auto step_ms = 10ms;
   // Valgrind needs way more time
   if (getenv("WITH_VALGRIND")) {
-    timeout_msec *= 10;
+    timeout *= 10;
+    step_ms *= 10;
   }
 
   int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
@@ -258,30 +182,143 @@ bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
   std::shared_ptr<void> exit_freeaddrinfo(nullptr,
                                           [&](void *) { freeaddrinfo(ainfo); });
 
-  const unsigned MSEC_STEP = 10;
   const auto started = std::chrono::steady_clock::now();
   do {
     auto sock_id =
         socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
     if (sock_id < 0) {
-      throw std::runtime_error("wait_for_port_ready(): socket() failed: " +
-                               std::to_string(mysqlrouter::get_socket_errno()));
+      throw std::system_error(net::impl::socket::last_error_code(),
+                              "wait_for_port_ready(): socket() failed");
     }
     std::shared_ptr<void> exit_close_socket(
         nullptr, [&](void *) { close_socket(sock_id); });
 
+#ifdef _WIN32
+    // On Windows if the port is not ready yet when we try the connect() first
+    // time it will block for 500ms (depends on the OS wide configuration) and
+    // retry again internally. Here we sleep for 100ms but will save this 500ms
+    // for most of the cases which is still a good deal
+    std::this_thread::sleep_for(100ms);
+#endif
     status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
     if (status < 0) {
-      unsigned step = std::min(timeout_msec, MSEC_STEP);
+      // if the address is not available, it is a client side problem.
+#ifdef _WIN32
+      if (WSAGetLastError() == WSAEADDRNOTAVAIL) {
+        throw std::system_error(net::impl::socket::last_error_code());
+      }
+#else
+      if (errno == EADDRNOTAVAIL) {
+        throw std::system_error(net::impl::socket::last_error_code());
+      }
+#endif
+      const auto step = std::min(timeout, step_ms);
       std::this_thread::sleep_for(std::chrono::milliseconds(step));
-      timeout_msec -= step;
+      timeout -= step;
     }
-  } while (status < 0 &&
-           timeout_msec > std::chrono::duration_cast<std::chrono::milliseconds>(
-                              std::chrono::steady_clock::now() - started)
-                              .count());
+  } while (status < 0 && timeout > std::chrono::steady_clock::now() - started);
 
   return status >= 0;
+}
+
+inline bool is_port_available_fallback(const uint16_t port) {
+  net::io_context io_ctx;
+  net::ip::tcp::acceptor acceptor(io_ctx);
+
+  net::ip::tcp::resolver resolver(io_ctx);
+  const auto &resolve_res = resolver.resolve("127.0.0.1", std::to_string(port));
+  if (!resolve_res) {
+    throw std::runtime_error(std::string("resolve failed: ") +
+                             resolve_res.error().message());
+  }
+
+  acceptor.set_option(net::socket_base::reuse_address(true));
+  const auto &open_res =
+      acceptor.open(resolve_res->begin()->endpoint().protocol());
+  if (!open_res) return false;
+
+  const auto &bind_res = acceptor.bind(resolve_res->begin()->endpoint());
+  if (!bind_res) return false;
+
+  const auto &listen_res = acceptor.listen(128);
+  if (!listen_res) return false;
+
+  return true;
+}
+
+bool is_port_available(const uint16_t port) {
+#if defined(__linux__)
+  const std::string netstat_cmd{"netstat -tnl"};
+#elif defined(_WIN32)
+  const std::string netstat_cmd{"netstat -p tcp -n -a"};
+#elif defined(__sun)
+  const std::string netstat_cmd{"netstat -na -P tcp"};
+#else
+  // BSD and MacOS
+  const std::string netstat_cmd{"netstat -p tcp -an"};
+#endif
+
+  TempDirectory temp_dir;
+  std::string filename = Path(temp_dir.name()).join("netstat_output.txt").str();
+  const std::string cmd{netstat_cmd + " > " + filename};
+  if (std::system(cmd.c_str()) != 0) {
+    // netstat command failed, do the check by trying to bind to the port
+    // instead
+    return is_port_available_fallback(port);
+  }
+
+  std::ifstream file{filename};
+  if (!file) throw std::runtime_error("Could not open " + filename);
+
+  std::string line;
+  while (std::getline(file, line)) {
+    // Check if netstat output contains listening port <XYZ> given the following
+    // netstat outputs:
+    //
+    // MacOS
+    // tcp46   0   0 *.XYZ             *.*          LISTEN
+    // tcp4    0   0 127.0.0.1.XYZ     *.*          LISTEN
+    //
+    // Windows
+    //  TCP    127.0.0.1:XYZ          0.0.0.0:0              LISTENING
+    //  TCP    0.0.0.0:XYZ            0.0.0.0:0              LISTENING
+    //
+    //  Linux/BSD
+    //  tcp     0    0 0.0.0.0:XYZ       0.0.0.0:*               LISTEN
+    //  tcp     0    0 127.0.0.1:XYZ     0.0.0.0:*               LISTEN
+    //
+    //  SunOS
+    //  *.XYZ                 *.*              0      0  256000      0 LISTEN
+    //  127.0.0.1.XYZ         *.*              0      0  256000      0 LISTEN
+    if (pattern_found(line, "[\\*,0,127]\\..*[.:]" + std::to_string(port) +
+                                "[^\\d].*LISTEN")) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool wait_for_port(const bool available, const uint16_t port,
+                          std::chrono::milliseconds timeout = 2s) {
+  const std::chrono::milliseconds step = 50ms;
+  using clock_type = std::chrono::steady_clock;
+  const auto end = clock_type::now() + timeout;
+  do {
+    if (available == is_port_available(port)) return true;
+    std::this_thread::sleep_for(step);
+  } while (clock_type::now() < end);
+  return false;
+}
+
+bool wait_for_port_not_available(const uint16_t port,
+                                 std::chrono::milliseconds timeout) {
+  return wait_for_port(/*available*/ false, port, timeout);
+}
+
+bool wait_for_port_available(const uint16_t port,
+                             std::chrono::milliseconds timeout) {
+  return wait_for_port(/*available*/ true, port, timeout);
 }
 
 void init_keyring(std::map<std::string, std::string> &default_section,
@@ -302,34 +339,12 @@ void init_keyring(std::map<std::string, std::string> &default_section,
   default_section["master_key_path"] = masterkey_file;
 }
 
-void replace_process_env(std::istream &ins, std::ostream &outs,
-                         const std::map<std::string, std::string> &env_vars) {
-  std::string line;
-  const char *regex = "^(.*)process\\.env\\.([A-Za-z_][A-Za-z0-9_]*)(.*)$";
-
-  std::regex js_process_env_regex(regex);
-  while (std::getline(ins, line)) {
-    std::smatch m;
-    if (std::regex_match(line, m, js_process_env_regex)) {
-      try {
-        outs << m[1].str() << "\"" << env_vars.at(m[2].str()) << "\""
-             << m[3].str() << std::endl;
-      } catch (const std::out_of_range &) {
-        throw std::runtime_error("Envvar " + m[2].str() +
-                                 " requested, but isn't defined");
-      }
-    } else {
-      outs << line << std::endl;
-    }
-  }
-}
-
 namespace {
 
 bool real_find_in_file(
     const std::string &file_path,
     const std::function<bool(const std::string &)> &predicate,
-    std::ifstream &in_file, std::ios::streampos &cur_pos) {
+    std::ifstream &in_file, std::streampos &cur_pos) {
   if (!in_file.is_open()) {
     in_file.clear();
     Path file(file_path);
@@ -362,7 +377,7 @@ bool find_in_file(const std::string &file_path,
                   std::chrono::milliseconds sleep_time) {
   const auto STEP = std::chrono::milliseconds(100);
   std::ifstream in_file;
-  std::ios::streampos cur_pos;
+  std::streampos cur_pos;
   do {
     try {
       // This is proxy function to account for the fact that I/O can sometimes
@@ -387,22 +402,73 @@ bool find_in_file(const std::string &file_path,
 }
 
 std::string get_file_output(const std::string &file_name,
-                            const std::string &file_path) {
-  return get_file_output(file_path + "/" + file_name);
+                            const std::string &file_path,
+                            bool throw_on_error /*=false*/) {
+  return get_file_output(file_path + "/" + file_name, throw_on_error);
 }
 
-std::string get_file_output(const std::string &file_name) {
+std::string get_file_output(const std::string &file_name,
+                            bool throw_on_error /*=false*/) {
   Path file(file_name);
   std::ifstream in_file;
-  in_file.open(file.c_str(), std::ifstream::in);
-  if (!in_file) {
-    return "Could not open file " + file.str() + " for reading.";
+  in_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  try {
+    in_file.open(file.c_str(), std::ifstream::in);
+  } catch (const std::exception &e) {
+    const std::string msg =
+        "Could not open file '" + file.str() + "' for reading: ";
+    if (throw_on_error)
+      throw std::runtime_error(msg + e.what());
+    else
+      return "<THIS ERROR COMES FROM TEST FRAMEWORK'S get_file_output(), IT IS "
+             "NOT PART OF PROCESS OUTPUT: " +
+             msg + e.what() + ">";
+  }
+  assert(in_file);
+
+  std::string result;
+  try {
+    result.assign((std::istreambuf_iterator<char>(in_file)),
+                  std::istreambuf_iterator<char>());
+  } catch (const std::exception &e) {
+    const std::string msg = "Reading file '" + file.str() + "' failed: ";
+    if (throw_on_error)
+      throw std::runtime_error(msg + e.what());
+    else
+      return "<THIS ERROR COMES FROM TEST FRAMEWORK'S get_file_output(), IT IS "
+             "NOT PART OF PROCESS OUTPUT: " +
+             msg + e.what() + ">";
   }
 
-  std::string result((std::istreambuf_iterator<char>(in_file)),
-                     std::istreambuf_iterator<char>());
-
   return result;
+}
+
+bool add_line_to_config_file(const std::string &config_path,
+                             const std::string &section_name,
+                             const std::string &key, const std::string &value) {
+  std::ifstream config_stream{config_path};
+  if (!config_stream) return false;
+
+  std::vector<std::string> config;
+  std::string line;
+  bool found{false};
+  while (std::getline(config_stream, line)) {
+    config.push_back(line);
+    if (line == "[" + section_name + "]") {
+      config.push_back(key + "=" + value);
+      found = true;
+    }
+  }
+  config_stream.close();
+  if (!found) return false;
+
+  std::ofstream out_stream{config_path};
+  if (!out_stream) return false;
+
+  std::copy(std::begin(config), std::end(config),
+            std::ostream_iterator<std::string>(out_stream, "\n"));
+  out_stream.close();
+  return true;
 }
 
 void connect_client_and_query_port(unsigned router_port, std::string &out_port,
@@ -442,11 +508,70 @@ void connect_client_and_query_port(unsigned router_port, std::string &out_port,
   out_port = std::string((*result)[0]);
 }
 
-void rewrite_js_to_tracefile(
-    const std::string &infile_name, const std::string &outfile_name,
-    const std::map<std::string, std::string> &env_vars) {
-  std::ifstream js_file(infile_name);
-  std::ofstream json_file(outfile_name);
+// Wait for the nth occurence of the log_regex in the log_file with the timeout
+// If it's found returns the full line containing the log_regex
+// If the timeout has been reached returns unexpected
+static std::optional<std::string> wait_log_line(
+    const std::string &log_file, const std::string &log_regex,
+    const unsigned n_occurence = 1,
+    const std::chrono::milliseconds timeout = 1s) {
+  const auto start_timestamp = std::chrono::steady_clock::now();
+  const auto kStep = 50ms;
 
-  replace_process_env(js_file, json_file, env_vars);
+  do {
+    std::istringstream ss{get_file_output(log_file)};
+
+    unsigned current_occurence = 0;
+    for (std::string line; std::getline(ss, line);) {
+      if (pattern_found(line, log_regex)) {
+        current_occurence++;
+        if (current_occurence == n_occurence) return {line};
+      }
+    }
+
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start_timestamp) >= timeout) {
+      return std::nullopt;
+    }
+    std::this_thread::sleep_for(kStep);
+  } while (true);
+}
+
+std::optional<std::chrono::time_point<std::chrono::system_clock>>
+get_log_timestamp(const std::string &log_file, const std::string &log_regex,
+                  const unsigned occurence,
+                  const std::chrono::milliseconds timeout) {
+  // first wait for the nth occurence of the pattern
+  const auto log_line = wait_log_line(log_file, log_regex, occurence, timeout);
+  if (!log_line) {
+    return std::nullopt;
+  }
+
+  const std::string log_line_str = log_line.value();
+  // make sure the line is prefixed with the expected timestamp
+  // 2020-06-09 03:53:26.027 foo bar
+  if (!pattern_found(log_line_str,
+                     "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*")) {
+    return std::nullopt;
+  }
+
+  // extract the timestamp prefix and convert to the duration
+  std::string timestamp_str =
+      log_line_str.substr(0, strlen("2020-06-09 03:53:26.027"));
+  std::tm tm{};
+#ifdef HAVE_STRPTIME
+  char *rest = strptime(timestamp_str.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+  assert(*rest == '.');
+  int milliseconds = atoi(++rest);
+#else
+  std::stringstream timestamp_ss(timestamp_str);
+  char dot;
+  unsigned milliseconds;
+  timestamp_ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S") >> dot >>
+      milliseconds;
+#endif
+  auto result = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+  result += std::chrono::milliseconds(milliseconds);
+
+  return result;
 }

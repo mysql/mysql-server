@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,18 +28,38 @@
 #include "ndb_limits.h"
 #include "kernel_types.h"
 #include <Bitmask.hpp>
+#include "../transporter/TransporterDefinitions.hpp"
 
 #define JAM_FILE_ID 2
 
 
 /**
- * No of 32 bits words needed to store a node bitmask
- *   containing all the nodes in the system
- *   Both NDB nodes and API, MGM... nodes
+ * No. of 32 bits words needed to store a node bitmask
+ * containing all the nodes in the system
+ *
+ * - Data nodes, API and MGMD nodes
  *
  * Note that this is used in a lot of signals
  */
 #define _NODE_BITMASK_SIZE 8
+
+/**
+ * No. of 32 bits words needed to store a node bitmask
+ * containing all the nodes in the system prior to 8.0.15
+ *
+ * The maximum number of total nodes is 255 prior to 8.0.15
+ *
+ * - Data nodes, API and MGMD nodes
+ * Note that this is used in a lot of signals
+ */
+#define _NODE_BITMASK_SIZE_255_NODES 8
+
+/**
+ * No of 32 bits words needed to store a transporter bitmask
+ *   containing all the transporters in the system
+ *   Both NDB nodes and API, MGM... nodes
+ */
+#define _TRP_BITMASK_SIZE 11
 
 /**
  * No of 32 bits words needed to store a node bitmask
@@ -47,8 +67,22 @@
  *
  * Note that this is used in a lot of signals
  */
-#define _NDB_NODE_BITMASK_SIZE 2
+#define _NDB_NODE_BITMASK_SIZE 5
 
+/**
+ * No of 32 bits words needed to store a node bitmask
+ * containing all the data nodes in the system prior to 8.0.15
+ *
+ * The maximum number of data nodes is 48 prior to 8.0.15
+ *
+ * Note that this is used in a lot of signals_NDB_NODE_BITMASK_SIZE
+ */
+#define _NDB_NODE_BITMASK_SIZE_48_NODES 2
+
+#define _NDB_NBM_DIFF_BYTES (_NDB_NODE_BITMASK_SIZE - _NDB_NODE_BITMASK_SIZE_48_NODES)\
+  * sizeof(Uint32)
+#define _NBM_DIFF_BYTES (_NODE_BITMASK_SIZE - _NODE_BITMASK_SIZE_255_NODES)\
+  * sizeof(Uint32)
 /**
  * No of 32 bits word needed to store B bits for N nodes
  */
@@ -57,14 +91,26 @@
 typedef Bitmask<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmask;
 typedef BitmaskPOD<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmaskPOD;
 
+typedef Bitmask<(unsigned int)_TRP_BITMASK_SIZE> TrpBitmask;
+typedef BitmaskPOD<(unsigned int)_TRP_BITMASK_SIZE> TrpBitmaskPOD;
+
 typedef Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmask;
 typedef BitmaskPOD<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmaskPOD;
 
+typedef Bitmask<(unsigned int)_NODE_BITMASK_SIZE_255_NODES> NodeBitmask255;
+typedef Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE_48_NODES> NdbNodeBitmask48;
+
+
 #define __NBM_SZ  ((MAX_NODES >> 5) + ((MAX_NODES & 31) != 0))
+#define __TBM_SZ  ((MAX_NTRANSPORTERS >> 5) + ((MAX_NTRANSPORTERS & 31) != 0))
 #define __NNBM_SZ ((MAX_NDB_NODES >> 5) + ((MAX_NDB_NODES & 31) != 0))
 
 #if ( __NBM_SZ > _NODE_BITMASK_SIZE)
 #error "MAX_NODES can not fit into NODE_BITMASK_SIZE"
+#endif
+
+#if ( __TBM_SZ > _TRP_BITMASK_SIZE)
+#error "MAX_NTRANSPORTERS can not fit into TRP_BITMASK_SIZE"
 #endif
 
 #if ( __NNBM_SZ > _NDB_NODE_BITMASK_SIZE)

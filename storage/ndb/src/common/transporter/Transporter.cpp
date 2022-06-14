@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include "Transporter.hpp"
@@ -31,11 +32,26 @@
 #include <SocketAuthenticator.hpp>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
+#include "util/cstrbuf.h"
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
+//#define DEBUG_MULTI_TRP 1
+
+#ifdef DEBUG_MULTI_TRP
+#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MULTI_TRP(arglist) do { } while (0)
+#endif
 
 Transporter::Transporter(TransporterRegistry &t_reg,
+                         TrpId transporter_index,
 			 TransporterType _type,
 			 const char *lHostName,
 			 const char *rHostName, 
@@ -49,14 +65,20 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 bool _checksum,
 			 bool _signalId,
              Uint32 max_send_buffer,
-             bool _presend_checksum)
-  : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
+             bool _presend_checksum,
+             Uint32 spintime)
+  : m_s_port(s_port),
+    m_spintime(spintime),
+    remoteNodeId(rNodeId),
+    localNodeId(lNodeId),
+    m_transporter_index(transporter_index),
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), m_slowdown_limit(0xFFFFFFFF),
     m_bytes_sent(0), m_bytes_received(0),
     m_connect_count(0),
     m_overload_count(0), m_slowdown_count(0),
+    m_connect_address(IN6ADDR_ANY_INIT),
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
@@ -71,21 +93,39 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 
   // Initialize member variables
   ndb_socket_invalidate(&theSocket);
+  m_multi_transporter_instance = 0;
+  m_recv_thread_idx = 0;
+  m_is_active = true;
 
-  DBUG_ASSERT(rHostName);
-  if (rHostName && strlen(rHostName) > 0){
-    strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
+  assert(rHostName);
+  if (rHostName && strlen(rHostName) > 0)
+  {
+    if (cstrbuf_copy(remoteHostName, rHostName) == 1)
+    {
+      ndbout << "Unable to setup transporter. Node " << rNodeId
+             << " had a too long hostname '" << rHostName
+             << "'. Update configuration." << endl;
+      exit(-1);
+    }
   }
   else
   {
     if (!isServer) {
-      ndbout << "Unable to setup transporter. Node " << rNodeId 
-	     << " must have hostname. Update configuration." << endl; 
+      g_eventLogger->info(
+          "Unable to setup transporter. Node %u must have hostname."
+          " Update configuration.",
+          rNodeId);
       exit(-1);
     }
     remoteHostName[0]= 0;
   }
-  strncpy(localHostName, lHostName, sizeof(localHostName));
+  if (cstrbuf_copy(localHostName, lHostName) == 1)
+  {
+    ndbout << "Unable to setup transporter. Node " << lNodeId
+           << " had a too long hostname '" << lHostName
+           << "'. Update configuration." << endl;
+    exit(-1);
+  }
 
   DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s s_port=%d",
 		     remoteNodeId, localNodeId, isServer,
@@ -99,8 +139,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   signalIdUsed    = _signalId;
 
   m_timeOutMillis = 3000;
-
-  m_connect_address.s_addr= 0;
 
   if (isServer)
     m_socket_client= 0;
@@ -129,6 +167,33 @@ Transporter::~Transporter()
   delete m_socket_client;
 }
 
+bool Transporter::do_disconnect(int err, bool send_source)
+{
+  if (m_is_active)
+  {
+    DEB_MULTI_TRP(("Disconnect trp_id %u for node %u in active mode",
+                    getTransporterIndex(), remoteNodeId));
+    return m_transporter_registry.do_disconnect(remoteNodeId,
+                                                err,
+                                                send_source);
+  }
+  else
+  {
+    if (ndb_socket_valid(theSocket))
+    {
+      DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",
+                     getTransporterIndex()));
+      ndb_socket_close(theSocket);
+      ndb_socket_invalidate(&theSocket);
+    }
+    else
+    {
+      DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket invalid",
+                     getTransporterIndex()));
+    }
+    return true;
+  }
+}
 
 bool
 Transporter::configure(const TransporterConfiguration* conf)
@@ -165,6 +230,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   if (m_connected)
   {
     msg.assfmt("line: %u : already connected ??", __LINE__);
+    DEBUG_FPRINTF((stderr, "Transporter already connected\n"));
     DBUG_RETURN(false);
   }
 
@@ -174,9 +240,18 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   if (!connect_server_impl(sockfd))
   {
     msg.assfmt("line: %u : connect_server_impl failed", __LINE__);
+    DEBUG_FPRINTF((stderr, "connect_server_impl failed\n"));
     DBUG_RETURN(false);
   }
 
+#ifdef DEBUG_FPRINTF
+  if (isPartOfMultiTransporter())
+  {
+    DEBUG_FPRINTF((stderr, "connect_server node_id: %u, trp_id: %u\n",
+                   getRemoteNodeId(),
+                   getTransporterIndex()));
+  }
+#endif
   m_connect_count++;
   resetCounters();
 
@@ -191,6 +266,7 @@ Transporter::connect_client()
   NDB_SOCKET_TYPE sockfd;
   DBUG_ENTER("Transporter::connect_client");
 
+  require(!isMultiTransporter());
   if(m_connected)
   {
     DBUG_RETURN(true);
@@ -208,6 +284,7 @@ Transporter::connect_client()
 
   if(isMgmConnection)
   {
+    require(!isPartOfMultiTransporter());
     sockfd= m_transporter_registry.connect_ndb_mgmd(remoteHostName,
                                                     port);
   }
@@ -215,11 +292,15 @@ Transporter::connect_client()
   {
     if (!m_socket_client->init())
     {
+      DEBUG_FPRINTF((stderr, "m_socket_client->init failed, node: %u\n",
+                             getRemoteNodeId()));
       DBUG_RETURN(false);
     }
 
     if (pre_connect_options(m_socket_client->m_sockfd) != 0)
     {
+      DEBUG_FPRINTF((stderr, "pre_connect_options failed, node: %u\n",
+                             getRemoteNodeId()));
       DBUG_RETURN(false);
     }
 
@@ -227,6 +308,8 @@ Transporter::connect_client()
     {
       if (m_socket_client->bind(localHostName, 0) != 0)
       {
+        DEBUG_FPRINTF((stderr, "m_socket_client->bind failed, node: %u\n",
+                               getRemoteNodeId()));
         DBUG_RETURN(false);
       }
     }
@@ -238,7 +321,6 @@ Transporter::connect_client()
   DBUG_RETURN(connect_client(sockfd));
 }
 
-
 bool
 Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
 {
@@ -247,6 +329,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   if(m_connected)
   {
     DBUG_PRINT("error", ("Already connected"));
+    DEBUG_FPRINTF((stderr, "Already connected\n"));
     DBUG_RETURN(true);
   }
 
@@ -254,17 +337,64 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   {
     DBUG_PRINT("error", ("Socket " MY_SOCKET_FORMAT " is not valid",
                          MY_SOCKET_FORMAT_VALUE(sockfd)));
+    DEBUG_FPRINTF((stderr, "Socket not valid\n"));
     DBUG_RETURN(false);
   }
 
   DBUG_PRINT("info",("server port: %d, isMgmConnection: %d",
                      m_s_port, isMgmConnection));
 
-  // Send "hello"
-  DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
-                      localNodeId, m_type));
+  /**
+   * Send "hello"
+   *
+   * We can add more optional parameters here, so long as the
+   * receiver can safely ignore them, and the string does
+   * not get longer than the max size allowed by supported
+   * receivers - see below.
+   *
+   * Currently have
+   *   nodeId      0..255   :  3 chars
+   *   space                :  1 char
+   *   type          0..4   :  1 char
+   *   space                :  1 char
+   *   nodeId      0..255   :  3 chars
+   *   space                :  1 char
+   *   instance id  0..32   :  2 chars
+   *   ------------------------------
+   *   total                : 12 chars
+   */
+  char helloBuf[256];
+  const int helloLen = BaseString::snprintf(helloBuf, sizeof(helloBuf),
+                                            "%d %d %d %d",
+                                            localNodeId,
+                                            m_type,
+                                            remoteNodeId,
+                                            m_multi_transporter_instance);
+  if (helloLen < 0)
+  {
+    DBUG_PRINT("error", ("Failed to buffer hello %d", helloLen));
+    DBUG_RETURN(false);
+  }
+  /**
+   * Received in TransporterRegistry::connect_server()
+   * with tight limit up to 8.0.20.
+   * When servers older than 8.0.20 are no longer supported
+   * the higher limit can be used.
+   */
+  const int OldMaxHandshakeBytesLimit = 23; /* 24 - 1 for \n */
+  if (unlikely(helloLen > OldMaxHandshakeBytesLimit))
+  {
+    /* Cannot send this many bytes to older versions */
+    g_eventLogger->info("Failed handshake string length %u : \"%s\"", helloLen,
+                        helloBuf);
+    abort();
+  }
+
+  DBUG_PRINT("info", ("Sending hello : %s", helloBuf));
+  DEBUG_FPRINTF((stderr, "Sending hello : %s\n"));
+
   SocketOutputStream s_output(sockfd);
-  if (s_output.println("%d %d", localNodeId, m_type) < 0)
+  if (s_output.println("%s", helloBuf) < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
     ndb_socket_close(sockfd);
@@ -287,10 +417,6 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
   switch (r) {
   case 2:
-    break;
-  case 1:
-    // we're running version prior to 4.1.9
-    // ok, but with no checks on transporter configuration compatability
     break;
   default:
     DBUG_PRINT("error", ("Failed to parse reply"));
@@ -332,7 +458,16 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   m_connect_count++;
   resetCounters();
 
+#ifdef DEBUG_FPRINTF
+  if (isPartOfMultiTransporter())
+  {
+    DEBUG_FPRINTF((stderr, "connect_client multi trp node: %u\n",
+                           getRemoteNodeId()));
+  }
+#endif
+  m_transporter_registry.lockMultiTransporters();
   update_connect_state(true);
+  m_transporter_registry.unlockMultiTransporters();
   DBUG_RETURN(true);
 }
 
@@ -365,18 +500,10 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
                                                  size_t len) const
 {
   /* Timestamped event showing issue, followed by details */
-  /* As eventLogger and stderr may not be in-sync, put details together */
-  g_eventLogger->error("Transporter::checksum_state::compute() failed");
-  fprintf(stderr,
-          "checksum_state::compute() failed "
-          "with sum 0x%x.\n"
-          "Input sum 0x%x compute offset %llu len %u "
-          "bufflen %llu\n",
-          badSum,
-          inputSum,
-          Uint64(offset),
-          sig_remaining,
-          Uint64(len));
+  g_eventLogger->error(
+      "Transporter::checksum_state::compute() failed with sum 0x%x", badSum);
+  g_eventLogger->info("Input sum 0x%x compute offset %llu len %u  bufflen %llu",
+                      inputSum, Uint64(offset), sig_remaining, Uint64(len));
   /* Next dump buf content, with word alignment
    * Buffer is a byte aligned window on signals made of words
    * remaining bytes to end of multiple-of-word sized signal
@@ -392,13 +519,15 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       /* Partial first word */
       Uint32 word = 0;
       memcpy(&word, data, firstWordBytes);
-      fprintf(stderr, "\n-%4x  : 0x%08x\n", 4 - firstWordBytes, word);
+      g_eventLogger->info("-%4x  : 0x%08x", 4 - firstWordBytes, word);
       buf_remain -= firstWordBytes;
       pos += firstWordBytes;
     }
 
+    char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
+
     if (buf_remain)
-      fprintf(stderr, "\n %4x  : ", pos);
+      BaseString::snappend(logbuf, sizeof(logbuf), " %4x  : ", pos);
 
     while (buf_remain > 4)
     {
@@ -406,18 +535,22 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       memcpy(&word, data+pos, 4);
       pos += 4;
       buf_remain -= 4;
-      fprintf(stderr, "0x%08x ", word);
+      BaseString::snappend(logbuf, sizeof(logbuf), "0x%08x ", word);
       if (((pos + firstWordBytes) % 24) == 0)
-        fprintf(stderr, "\n %4x  : ", pos);
+      {
+        g_eventLogger->info("%s", logbuf);
+
+        logbuf[0] = '\0';
+        BaseString::snappend(logbuf, sizeof(logbuf), " %4x  : ", pos);
+      }
     }
     if (buf_remain > 0)
     {
       /* Partial last word */
       Uint32 word = 0;
       memcpy(&word, data + pos, buf_remain);
-      fprintf(stderr, "0x%08x\n", word);
+      g_eventLogger->info("%s 0x%08x", logbuf, word);
     }
-    fprintf(stderr, "\n\n");
   }
 }
 

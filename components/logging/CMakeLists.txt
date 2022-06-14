@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,22 +20,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-)
-
 MYSQL_ADD_COMPONENT(log_sink_syseventlog
   log_sink_syseventlog.cc
-  MODULE)
-
+  MODULE_ONLY
+  )
 MYSQL_ADD_COMPONENT(log_sink_json
   log_sink_json.cc
-  MODULE)
-
+  MODULE_ONLY
+  )
 MYSQL_ADD_COMPONENT(log_filter_dragnet
   log_filter_dragnet.cc
-  MODULE)
+  MODULE_ONLY
+  )
+
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_COMPONENT(log_sink_test
   log_sink_test.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )

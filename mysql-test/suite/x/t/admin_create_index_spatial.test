@@ -4,7 +4,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_spatial.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_spatial.xpl
 --write_file $xtest_file
 -->import use_of_index.macro
 -->quiet
@@ -51,14 +51,14 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->title =Create and drop spatial index
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true}}
 -->recvresult
 -->callmacro Show	spatial1
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
 -->recvresult
 -->callmacro Show	spatial1
 -->title =re-create spatial index after drop and check case sensitiveness for geojson term
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"GEOJSON", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"GEOJSON", "required":true}}
 -->recvresult
 -->title =Check default value of srid and options
 -->sql
@@ -70,7 +70,7 @@ ALTER TABLE xtest.spatial1 DROP COLUMN `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57
 -->endsql
 -->callmacro Show	spatial1
 -->title =create_collection_index with by explicitly setting value of  srid and options
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "options":1,"srid":4326}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true, "options":1,"srid":4326}}
 -->recvresult
 -->callmacro Show	spatial1
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
@@ -82,7 +82,7 @@ SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
 SHOW STATUS like 'Mysqlx_stmt_drop_collection_index%';
 SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->endsql
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "options":1,"srid":4326}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true, "options":1,"srid":4326}}
 -->recvresult
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
 -->recvresult
@@ -93,7 +93,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->endsql
 
 -->title =Run geomtery query on generated column  
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "options":1,"srid":4326}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true, "options":1,"srid":4326}}
 -->recvresult
 -->callmacro Insert	spatial1	'{"_id": "one", "first":{"type": "Point", "coordinates": [10, 11]}}'	ER_SUCCESS
 -->callmacro Insert	spatial1	'{"_id": "two", "first":{"type": "LineString", "coordinates": [[0, 0], [0, 10], [10, 10], [10, 0]]}}'	ER_SUCCESS
@@ -113,15 +113,15 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->recvresult
 
 -->title =create_collection_index with nested member path
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.b[1].c", "type":"geojson", "required":true, "options":1,"srid":4326}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.b[1].c", "type":"geojson", "required":true, "options":1,"srid":4326}}
 -->recvresult
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
 -->recvresult
 
 -->title =Create two spatial indexes on the same member and drop one
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true}}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"two", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"two", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true}}
 -->recvresult
 -->callmacro Show	spatial1
 
@@ -135,7 +135,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->recvresult
 
 -->title =Create spatial index with(out) optional type name
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"three", "unique":false, "constraint":{"member":"$.second", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"three", "unique":false, "fields":{"field":"$.second", "required":true}}
 -->recvresult
 -->callmacro Show	spatial1
 
@@ -150,42 +150,42 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 
 -->title =Try to create spatial index on two memebers
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":false, "constraint":[{"member":"$.first", "type":"geojson", "required":true},{"member":"$.second", "type":"geojson", "required":true}]}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":false, "fields":[{"field":"$.first", "type":"geojson", "required":true},{"field":"$.second", "type":"geojson", "required":true}]}
 -->expecterror ER_TOO_MANY_KEY_PARTS
 -->recvresult
 
 -->title =Try to create "regular" index with spatial options
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "name":"regular", "unique":false, "constraint":{"member":"$.first", "type":"int", "required":true, "options":1, "srid":4326}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "name":"regular", "unique":false, "fields":{"field":"$.first", "type":"int", "required":true, "options":1, "srid":4326}}
 -->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Try to create unique spatial index
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":true, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":true, "fields":{"field":"$.first", "type":"geojson", "required":true}}
 -->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Try to create spatial index on not requiered member
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":false}}
 -->expecterror ER_X_DOC_REQUIRED_FIELD_MISSING
 -->recvresult
 
 -->title =Try to create "regular" index on geometry member
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"index", "name":"regular", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"index", "name":"regular", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":false}}
 -->expecterror ER_X_DOC_REQUIRED_FIELD_MISSING
 -->recvresult
 
 -->title =Try to create spatial index with negative options
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "options":-1}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true, "options":-1}}
 -->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Try to create spatial index with negative srid
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true, "srid":-1}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true, "srid":-1}}
 -->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->title =Try to insert invalid value to collection with spatial index
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"three", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true}}
 -->recvresult
 -->callmacro Insert	spatial2	'{"_id": "one", "first":30}'	ER_INVALID_GEOJSON_UNSPECIFIED
 
@@ -197,10 +197,9 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 -->title =Try to create spatial index on missing member
 -->callmacro Insert	spatial2	'{"_id": "one", "second":30}'	ER_SUCCESS
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "fields":{"field":"$.first", "type":"geojson", "required":true}}
 -->expecterror ER_BAD_NULL_ERROR_NOT_IGNORED
 -->recvresult
-
 
 EOF
 
@@ -209,6 +208,4 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

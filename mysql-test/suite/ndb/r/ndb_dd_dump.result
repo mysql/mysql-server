@@ -207,9 +207,9 @@ ALTER TABLE test.t ADD INDEX (d), ADD INDEX (f);
 SHOW CREATE TABLE test.t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` smallint(6) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` bigint(20) NOT NULL,
+  `a` smallint NOT NULL,
+  `b` int NOT NULL,
+  `c` bigint NOT NULL,
   `d` char(10) DEFAULT NULL,
   `e` text,
   `f` varchar(255) DEFAULT NULL,

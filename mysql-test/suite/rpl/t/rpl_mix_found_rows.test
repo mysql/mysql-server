@@ -1,6 +1,7 @@
 --source include/have_binlog_format_mixed.inc
 # Thread stack overrun in debug mode on sparc
 --source include/not_sparc_debug.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 # It is not possible to replicate FOUND_ROWS() using statement-based

@@ -1,0 +1,4 @@
+--replica-parallel-workers=5
+--disable-log-bin
+--disable-log-replica-updates
+--replica-transaction-retries=10

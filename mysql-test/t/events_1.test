@@ -64,9 +64,10 @@ drop event event2;
 # BUG #16537 (Events: mysql.event.starts is null)
 #
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 10 SECOND COMMENT "" DO SELECT 1;
+
 SELECT interval_field, interval_value, event_definition FROM information_schema.events WHERE event_name='event_starts_test';
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
-ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
+ALTER EVENT event_starts_test ON SCHEDULE AT date_add(now(), interval 5 day);
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
@@ -74,7 +75,7 @@ ALTER EVENT event_starts_test COMMENT "";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 DROP EVENT event_starts_test;
 
-CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
+CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS date_add(now(), interval 5 day) ENDS date_add(now(), interval 10 day) DO SELECT 2;
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
@@ -219,21 +220,4 @@ let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();
 --source include/wait_condition.inc
-
-
---echo #
---echo # Bug#2469962 - INVALID UTF-8 IN COMMENT OF AN EVENT DDL CAUSES ASSERT.
---echo #
-SET @orig_character_set_client = @@character_set_client;
-SET character_set_client = utf8;
---character_set binary
---error ER_INVALID_CHARACTER_STRING
-CREATE EVENT t÷est ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
---error ER_INVALID_CHARACTER_STRING
-CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'testÿ' DO SELECT 1;
-CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'test' DO SELECT 1;
---error ER_INVALID_CHARACTER_STRING
-ALTER EVENT event COMMENT 'testÿ';
-
-SET character_set_client = @orig_character_set_client;
 DROP DATABASE events_test;

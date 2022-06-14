@@ -1,0 +1,74 @@
+--echo '#---------------------BS_STVARS_045_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.admin_ssl_crlpath);
+--echo 0 Expected
+
+
+--echo '#---------------------BS_STVARS_045_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.admin_ssl_crlpath=1;
+--echo Expected error 'Incorrect argument type'
+
+SELECT COUNT(@@GLOBAL.admin_ssl_crlpath);
+--echo 0 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_045_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_ssl_crlpath';
+--echo NULL Expected
+
+SELECT COUNT(@@GLOBAL.admin_ssl_crlpath);
+--echo 0 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='admin_ssl_crlpath';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_045_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@admin_ssl_crlpath = @@GLOBAL.admin_ssl_crlpath;
+--echo NULL Expected
+
+
+
+--echo '#---------------------BS_STVARS_045_05----------------------#'
+################################################################################
+#   Check if admin_ssl_crlpath can be accessed with and without @@ sign                   #
+################################################################################
+
+SELECT COUNT(@@admin_ssl_crlpath);
+--echo 0 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.admin_ssl_crlpath);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.admin_ssl_crlpath);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.admin_ssl_crlpath);
+--echo 0 Expected
+
+--Error ER_GLOBAL_VARIABLE
+SET admin_ssl_crlpath = @@GLOBAL.admin_ssl_crlpath;
+--echo Expected error 'Variable is a GLOBAL variable'

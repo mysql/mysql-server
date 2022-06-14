@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
   TablerecPtr regTabPtr;
   jamEntryDebug();
   regOperPtr.i = signal->theData[0];
-  c_operation_pool.getPtr(regOperPtr);
+  ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
   regTabPtr.i = signal->theData[1];
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
@@ -122,21 +122,27 @@ void Dbtup::deleteScanProcedure(Signal* signal,
 {
   StoredProcPtr storedPtr;
   Uint32 storedProcId = signal->theData[4];
-  c_storedProcPool.getPtr(storedPtr, storedProcId);
-  ndbrequire(storedPtr.p->storedCode != ZSTORED_PROCEDURE_FREE);
-  if (unlikely(storedPtr.p->storedCode == ZCOPY_PROCEDURE))
+  storedPtr.i = storedProcId;
+  if (storedPtr.i != RNIL)
   {
-    releaseCopyProcedure();
+    jam();
+    ndbrequire(c_storedProcPool.getValidPtr(storedPtr));
+    ndbrequire(storedPtr.p->storedCode != ZSTORED_PROCEDURE_FREE);
+    if (unlikely(storedPtr.p->storedCode == ZCOPY_PROCEDURE))
+    {
+      releaseCopyProcedure();
+    }
+    else
+    {
+      /* ZSCAN_PROCEDURE */
+      releaseSection(storedPtr.p->storedProcIVal);
+    }
+    storedPtr.p->storedCode = ZSTORED_PROCEDURE_FREE;
+    storedPtr.p->storedProcIVal= RNIL;
+    c_storedProcPool.release(storedPtr);
+    checkPoolShrinkNeed(DBTUP_STORED_PROCEDURE_TRANSIENT_POOL_INDEX,
+                        c_storedProcPool);
   }
-  else
-  {
-    /* ZSCAN_PROCEDURE */
-    releaseSection(storedPtr.p->storedProcIVal);
-  }
-  storedPtr.p->storedCode = ZSTORED_PROCEDURE_FREE;
-  storedPtr.p->storedProcIVal= RNIL;
-  c_storedProcPool.release(storedPtr);
-
   set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = 0; /* Success */
   signal->theData[1] = storedProcId;
@@ -154,12 +160,21 @@ void Dbtup::scanProcedure(Signal* signal,
   ndbrequire( handle->m_ptr[0].p->m_sz > 0 );
 
   StoredProcPtr storedPtr;
-  c_storedProcPool.seize(storedPtr);
-  ndbrequire(storedPtr.i != RNIL);
-  storedPtr.p->storedCode = (isCopy)? ZCOPY_PROCEDURE : ZSCAN_PROCEDURE;
+  if (unlikely(!c_storedProcPool.seize(storedPtr)))
+  {
+    jam();
+    handle->clear();
+    storedProcBufferSeizeErrorLab(signal, 
+                                  regOperPtr,
+                                  RNIL,
+                                  ZOUT_OF_STORED_PROC_MEMORY_ERROR);
+    return;
+  }
   Uint32 lenAttrInfo= handle->m_ptr[0].p->m_sz;
-  storedPtr.p->storedProcIVal= handle->m_ptr[0].i;
   handle->clear();
+  storedPtr.p->storedCode = (isCopy)? ZCOPY_PROCEDURE : ZSCAN_PROCEDURE;
+  storedPtr.p->storedProcIVal= handle->m_ptr[0].i;
+  storedPtr.p->storedParamNo = 0;
 
   set_trans_state(regOperPtr, TRANS_IDLE);
   
@@ -226,7 +241,7 @@ void Dbtup::prepareCopyProcedure(Uint32 numAttrs,
   ndbassert(cCopyOverwrite == 0);
   ndbassert(cCopyOverwriteLen == 0);
   Ptr<SectionSegment> first;
-  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+  ndbrequire(g_sectionSegmentPool.getPtr(first, cCopyProcedure));
 
   /* Record original 'last segment' of section */
   cCopyLastSeg= first.p->m_lastSegment;
@@ -264,7 +279,7 @@ void Dbtup::prepareCopyProcedure(Uint32 numAttrs,
   Ptr<SectionSegment> curr= first;  
   while(newSize > SectionSegment::DataLength)
   {
-    g_sectionSegmentPool.getPtr(curr, curr.p->m_nextSegment);
+    ndbrequire(g_sectionSegmentPool.getPtr(curr, curr.p->m_nextSegment));
     newSize-= SectionSegment::DataLength;
   }
   first.p->m_lastSegment= curr.i;
@@ -277,7 +292,7 @@ void Dbtup::releaseCopyProcedure()
   ndbassert(cCopyLastSeg != RNIL);
   
   Ptr<SectionSegment> first;
-  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+  ndbrequire(g_sectionSegmentPool.getPtr(first, cCopyProcedure));
   
   ndbassert(first.p->m_sz <= MAX_COPY_PROC_LEN);
   first.p->m_sz= MAX_COPY_PROC_LEN;
@@ -330,7 +345,7 @@ void Dbtup::copyProcedure(Signal* signal,
                 &handle,
                 true); // isCopy
   Ptr<SectionSegment> first;
-  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+  ndbrequire(g_sectionSegmentPool.getPtr(first, cCopyProcedure));
   signal->theData[2] = first.p->m_sz;
 }//Dbtup::copyProcedure()
 

@@ -1,0 +1,5 @@
+--source include/have_component_keyring_file.inc
+# Load-Unload test for component_keyring_file
+
+--source ../inc/setup_component.inc
+--source ../inc/teardown_component.inc

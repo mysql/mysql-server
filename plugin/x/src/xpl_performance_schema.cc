@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/src/ngs/memory.h"
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -32,8 +32,10 @@ PSI_thread_key KEY_thread_x_acceptor;
 PSI_thread_key KEY_thread_x_worker;
 
 static PSI_thread_info all_x_threads[] = {
-    {&KEY_thread_x_acceptor, "acceptor_network", 0, 0, PSI_DOCUMENT_ME},
-    {&KEY_thread_x_worker, "worker", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_thread_x_acceptor, "acceptor_network", "xpl_accept",
+     PSI_FLAG_AUTO_SEQNUM, 0, PSI_DOCUMENT_ME},
+    {&KEY_thread_x_worker, "worker", "xpl_worker",
+     PSI_FLAG_USER | PSI_FLAG_AUTO_SEQNUM, 0, PSI_DOCUMENT_ME},
 };
 
 PSI_mutex_key KEY_mutex_x_lock_list_access;
@@ -41,7 +43,6 @@ PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending;
 PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
 PSI_mutex_key KEY_mutex_x_document_id_generate;
 PSI_mutex_key KEY_mutex_x_notice_output_queue;
-PSI_mutex_key KEY_mutex_x_xpl_server_accepting;
 PSI_mutex_key KEY_mutex_x_client_session_exit;
 PSI_mutex_key KEY_mutex_x_socket_events_timers;
 PSI_mutex_key KEY_mutex_x_scheduler_post;
@@ -63,8 +64,6 @@ static PSI_mutex_info all_x_mutexes[] = {
     {&KEY_mutex_x_document_id_generate, "document_id_generate", 0, 0,
      PSI_DOCUMENT_ME},
     {&KEY_mutex_x_notice_output_queue, "notice_output_queue", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&KEY_mutex_x_xpl_server_accepting, "xpl_server_accepting", 0, 0,
      PSI_DOCUMENT_ME},
     {&KEY_mutex_x_client_session_exit, "client_session_exit", 0, 0,
      PSI_DOCUMENT_ME},
@@ -136,14 +135,13 @@ static PSI_socket_info all_x_sockets[] = {
     {&KEY_socket_x_unix, "unix_socket", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_socket_x_client_connection, "client_connection", 0, 0,
      PSI_DOCUMENT_ME},
-
 };
 
 #endif  // HAVE_PSI_SOCKET_INTERFACE
 
-PSI_memory_key KEY_memory_x_objects;
-PSI_memory_key KEY_memory_x_recv_buffer;
-PSI_memory_key KEY_memory_x_send_buffer;
+PSI_memory_key KEY_memory_x_objects = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_recv_buffer = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_send_buffer = PSI_NOT_INSTRUMENTED;
 
 static PSI_memory_info all_x_memory[] = {
     {&KEY_memory_x_objects, "objects", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
@@ -156,7 +154,9 @@ static PSI_memory_info all_x_memory[] = {
 
 #endif  // HAVE_PSI_INTERFACE
 
-void xpl_init_performance_schema() {
+namespace xpl {
+
+void init_performance_schema() {
 #ifdef HAVE_PSI_INTERFACE
 
   const char *const category = "mysqlx";
@@ -173,6 +173,7 @@ void xpl_init_performance_schema() {
                         static_cast<int>(array_elements(all_x_sockets)));
   mysql_memory_register(category, all_x_memory,
                         static_cast<int>(array_elements(all_x_memory)));
-
 #endif  // HAVE_PSI_INTERFACE
 }
+
+}  // namespace xpl

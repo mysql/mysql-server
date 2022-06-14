@@ -769,3 +769,61 @@ eval $my_stmt;
 eval EXPLAIN $my_stmt;
 SELECT * FROM t3 ORDER BY c1;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#98692 multi-table UPDATE has problem when updating a table in Performance Schema
+--echo #
+
+let $check_query=
+  SELECT enabled FROM performance_schema.setup_instruments
+    WHERE name = 'wait/lock/metadata/sql/mdl';
+eval $check_query;
+let $query=
+  UPDATE performance_schema.setup_instruments, (SELECT 1) AS dt
+    SET enabled = 'NO' WHERE name = 'wait/lock/metadata/sql/mdl';
+eval EXPLAIN $query;
+eval $query;
+# Not testing DELETE, as it's not possible on
+# performance_schema.setup_instruments.
+eval $check_query;
+let $query=
+  UPDATE (VALUES ROW(1),ROW(2)) AS dt(a)
+    LEFT JOIN performance_schema.setup_instruments ON dt.a=enabled
+    SET enabled = 'YES' WHERE name = 'wait/lock/metadata/sql/mdl';
+eval EXPLAIN $query;
+eval $query;
+eval $check_query;
+
+# Now update an InnoDB const table, and check that it does get updated.
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES(1,1);
+
+let $query=
+  UPDATE t1 STRAIGHT_JOIN performance_schema.setup_instruments
+    SET t1.b = 2 WHERE t1.a = 1 AND name = 'wait/lock/metadata/sql/mdl';
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t1;
+
+let $query=
+  UPDATE performance_schema.setup_instruments STRAIGHT_JOIN t1
+    SET t1.b = 3 WHERE t1.a = 1 AND name = 'wait/lock/metadata/sql/mdl';
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
+
+CREATE TABLE t1(pk INTEGER PRIMARY KEY, a INTEGER);
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+PREPARE s FROM 'UPDATE t1, (SELECT 1 FROM DUAL) AS dt SET a=a+1';
+EXECUTE s;
+SELECT ROW_COUNT();
+EXECUTE s;
+SELECT ROW_COUNT();
+DEALLOCATE PREPARE s;
+
+DROP TABLE t1;

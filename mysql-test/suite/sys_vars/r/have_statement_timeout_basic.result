@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.have_statement_timeout);
 COUNT(@@GLOBAL.have_statement_timeout)
 1
 1 Expected
-SELECT have_statement_timeout = @@SESSION.have_statement_timeout;
+SELECT have_statement_timeout;
 ERROR 42S22: Unknown column 'have_statement_timeout' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

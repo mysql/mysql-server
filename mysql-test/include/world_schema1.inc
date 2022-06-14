@@ -14,5 +14,5 @@ CREATE TABLE city (
 CREATE TABLE countrylanguage (
   Country char(3) NOT NULL default '',
   Language char(30) NOT NULL default '',
-  Percentage float(3,1) NOT NULL default '0.0'
+  Percentage float NOT NULL default '0.0'
 );

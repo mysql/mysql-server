@@ -1,0 +1,41 @@
+#
+#Bug #29454828 ASSERTION ON IMPORT VIA TRANSPORTABLE TABLESPACE
+#
+--source include/have_debug.inc
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let $DB = `SELECT DATABASE()`
+
+CREATE TABLE t1(f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT, f3 CHAR, f4 TEXT)
+ENGINE=InnoDB;
+--let $inserts= 2000
+--disable_query_log
+while ($inserts)
+{
+  INSERT INTO t1(f2,f3,f4) VALUES(mod(floor(rand() * 100000),99969),
+  char(65 + mod(floor(rand() * 27),26)),
+  repeat(char(65 + mod(floor(rand() * 27),26)),
+  mod(floor(rand() * 200),+100) + 1));
+  --dec $inserts
+}
+--enable_query_log
+
+DELETE FROM t1 WHERE f1%2=0;
+
+FLUSH TABLES t1 FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd $MYSQL_TMP_DIR/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQL_TMP_DIR/t1.cfg
+
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1(f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT, f3 CHAR, f4 TEXT)
+ENGINE=InnoDB;
+ALTER TABLE t1 DISCARD TABLESPACE;
+--move_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/$DB/t1.ibd
+--move_file $MYSQL_TMP_DIR/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg
+
+SET SESSION debug="+d,ib_import_page_corrupt";
+--error ER_TABLE_CORRUPT
+ALTER TABLE t1 IMPORT TABLESPACE;
+SET SESSION debug="-d,ib_import_page_corrupt";
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd

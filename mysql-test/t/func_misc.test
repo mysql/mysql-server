@@ -343,6 +343,7 @@ DROP TABLE t1;
 #
 create table t1 (a int not null);
 insert into t1 values (-1), (-2);
+--skip_if_hypergraph   # Different warnings.
 select min(a) from t1 group by inet_ntoa(a);
 drop table t1;
 
@@ -838,10 +839,44 @@ DO DATEDIFF(UUID_TO_BIN(UUID()), 0x32df2ce8);
 --enable_warnings
 DO (!(SECOND(0xb16beeb7)));
 
+--echo # Bug #26319675:"ILLEGAL MIX OF COLLATIONS" HAPPENS IN CONCAT WITH
+--echo # NAME_CONST
+--echo #
+--let $query = SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a
+--eval $query
+--eval CREATE TABLE t1 AS $query
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 
---echo
---echo # -- Done.
---echo
+--echo # Bug#28892294: Segmentation fault at get_time_value()
+
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+col_time TIME DEFAULT NULL,
+col_varchar VARCHAR(1) DEFAULT NULL,
+KEY (col_varchar)
+);
+
+INSERT INTO t1 VALUES(5, '11:03:56', 'I');
+
+PREPARE st FROM
+"SELECT * FROM t1
+ WHERE pk = 5 AND (col_time, col_varchar) IN ((23, 'Y'), (92, 'W'))";
+
+EXECUTE st;
+EXECUTE st;
+DEALLOCATE PREPARE st;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32231620 JSON_WRAPPER::COMPARE CONST:
+--echo #               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+
+--error ER_WRONG_VALUE_FOR_TYPE
+do (is_ipv4_mapped(bin_to_uuid(@a:=34)))
+<=>
+   (json_objectagg('key2',42 ) and rtrim(""));
+
 --echo #
 --echo # End of tests
 --echo #

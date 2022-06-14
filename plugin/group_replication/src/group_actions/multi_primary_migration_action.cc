@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,9 @@
 
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
 #include <plugin/group_replication/include/plugin_handlers/persistent_variables_handler.h>
+#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/server_ongoing_transactions_handler.h"
 
 bool send_multi_primary_action_message(Plugin_gcs_message *message) {
@@ -81,7 +83,7 @@ int Multi_primary_migration_action::process_action_message(
   }
 
   Group_member_info *primary_info = group_member_mgr->get_primary_member_info();
-  if (primary_info != NULL) {
+  if (primary_info != nullptr) {
     primary_uuid.assign(primary_info->get_uuid());
     primary_gcs_id.assign(primary_info->get_gcs_member_id().get_member_id());
     is_primary = !primary_uuid.compare(local_member_info->get_uuid());
@@ -96,12 +98,13 @@ int Multi_primary_migration_action::process_action_message(
 
 Group_action::enum_action_execution_result
 Multi_primary_migration_action::execute_action(
-    bool, Plugin_stage_monitor_handler *stage_handler) {
+    bool, Plugin_stage_monitor_handler *stage_handler,
+    Notification_context *ctx) {
   bool mode_is_set = false;
   bool action_terminated = false;
   int error = 0;
 
-  DBUG_ENTER("Multi_primary_migration_action::execute_action");
+  DBUG_TRACE;
 
   /**
     Wait for all packets in the applier module to be consumed.
@@ -165,6 +168,7 @@ Multi_primary_migration_action::execute_action(
 
   set_single_primary_mode_var(false);
   group_member_mgr->update_primary_member_flag(false);
+  ctx->set_member_role_changed();
   mode_is_set = true;
 
   if (!multi_primary_switch_aborted) {
@@ -191,15 +195,25 @@ Multi_primary_migration_action::execute_action(
       events_handler->disable_read_mode_for_compatible_members(true);
     }
   } else {
-    /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
-     * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
-    if (!multi_primary_switch_aborted &&
-        Compatibility_module::check_version_incompatibility(
-            local_member_info->get_member_version(),
-            group_member_mgr->get_group_lowest_online_version()) ==
-            READ_COMPATIBLE) {
-      if (enable_server_read_mode(PSESSION_USE_THREAD)) {
-        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+    if (!multi_primary_switch_aborted) {
+      /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
+       * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
+      if (Compatibility_module::check_version_incompatibility(
+              local_member_info->get_member_version(),
+              group_member_mgr->get_group_lowest_online_version()) ==
+          READ_COMPATIBLE) {
+        if (enable_server_read_mode(PSESSION_USE_THREAD)) {
+          /* purecov: begin inspected */
+          LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+          /* purecov: end */
+        }
+      } else {
+        /*
+          Even when this members was the primary on single-primary mode, it
+          might had read_only_mode enabled, as such we need to disable
+          read_only_mode.
+        */
+        events_handler->disable_read_mode_for_compatible_members(true);
       }
     }
   }
@@ -224,17 +238,27 @@ end:
     log_result_execution(multi_primary_switch_aborted && !action_terminated,
                          mode_is_set);
 
-  if ((!multi_primary_switch_aborted && !error) || action_terminated)
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_TERMINATED);
+  if ((!multi_primary_switch_aborted && !error) || action_terminated) {
+    Member_version const communication_protocol =
+        convert_to_mysql_version(gcs_module->get_protocol_version());
+    Gcs_member_identifier const my_gcs_id =
+        local_member_info->get_gcs_member_id();
+
+    consensus_leaders_handler->set_consensus_leaders(
+        communication_protocol, false, Group_member_info::MEMBER_ROLE_PRIMARY,
+        my_gcs_id);
+
+    return Group_action::GROUP_ACTION_RESULT_TERMINATED;
+  }
 
   if (action_killed) {
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_KILLED);
+    return Group_action::GROUP_ACTION_RESULT_KILLED;
   }
   if (error) {
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ERROR);
+    return Group_action::GROUP_ACTION_RESULT_ERROR;
   }
 
-  DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ABORTED);
+  return Group_action::GROUP_ACTION_RESULT_ABORTED;
 }
 
 bool Multi_primary_migration_action::stop_action_execution(bool killed) {
@@ -290,7 +314,8 @@ int Multi_primary_migration_action::after_view_change(
 }
 
 int Multi_primary_migration_action::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0; /* purecov: inspected */
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,31 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 #endif
 
 #ifdef _WIN32
+/**
+  Windows EventLog messages
+
+  See sql/message.mc for the defined messages on Windows
+  (and on how to add/modify messages).
+
+  Presently, only one message is used: message 100 (MSG_DEFAULT)
+  is a template "%1" into which we insert the message my_syslog()
+  is given.
+
+  0x[C][000][0064] -- 32 bits, left to right:
+
+  0xC:
+     2:Severity         (0x3    == Error)          (0xC>>2)
+     1:Custom or System (0x0    == System)         ((0xC>>1) & 1)
+     1:Rsrvd            (0x0)                      (0xC & 1)
+
+  0x000:
+    12:Facility         (0x000  == FACILITY_NULL)
+
+  0x0064
+    16:Code             (0x0064 == 100)
+*/
 #define MSG_DEFAULT 0xC0000064L
+
 static HANDLE hEventLog = NULL;  // global
 #endif
 
@@ -63,26 +87,33 @@ static HANDLE hEventLog = NULL;  // global
 
   @param cs                   Character set info of the message string
   @param level                Log level
-  @param msg                  Message to be logged
+  @param msg                  Message to be logged (C-string)
 
   @return
      0 Success
     -1 Error
 */
-int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-              enum loglevel level, const char *msg) {
+int my_syslog(const CHARSET_INFO *cs [[maybe_unused]], enum loglevel level,
+              const char *msg) {
 #ifdef _WIN32
   int _level = EVENTLOG_INFORMATION_TYPE;
   wchar_t buff[MAX_SYSLOG_MESSAGE_SIZE];
   wchar_t *u16buf = NULL;
-  size_t nchars;
-  uint dummy_errors;
+  size_t msg_len;     // bytes (not wide-chars) in input
+  size_t nbytes;      // bytes (not wide-chars) in output
+  uint dummy_errors;  // number of conversion errors
 
-  DBUG_ENTER("my_syslog");
+  DBUG_TRACE;
+
+  if ((msg == nullptr) || ((msg_len = strlen(msg)) == 0)) return 0;
+
+  // limit input to buffer size
+  if (msg_len >= MAX_SYSLOG_MESSAGE_SIZE) msg_len = MAX_SYSLOG_MESSAGE_SIZE - 1;
 
   switch (level) {
-    case INFORMATION_LEVEL:
     case SYSTEM_LEVEL:
+      // fall-through. consider EVENTLOG_SUCCESS.
+    case INFORMATION_LEVEL:
       _level = EVENTLOG_INFORMATION_TYPE;
       break;
     case WARNING_LEVEL:
@@ -92,35 +123,45 @@ int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
       _level = EVENTLOG_ERROR_TYPE;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   if (hEventLog) {
-    nchars = my_convert((char *)buff, sizeof(buff) - sizeof(buff[0]),
-                        &my_charset_utf16le_bin, msg, MAX_SYSLOG_MESSAGE_SIZE,
-                        cs, &dummy_errors);
+    nbytes =
+        my_convert((char *)buff, sizeof(buff) - sizeof(buff[0]),
+                   &my_charset_utf16le_bin, msg, msg_len, cs, &dummy_errors);
 
     // terminate it with NULL
-    buff[nchars / sizeof(wchar_t)] = L'\0';
+    buff[nbytes / sizeof(wchar_t)] = L'\0';
     u16buf = buff;
 
-    if (!ReportEventW(hEventLog, _level, 0, MSG_DEFAULT, NULL, 1, 0,
-                      (LPCWSTR *)&u16buf, NULL))
+    // Fetch mysqld's Windows default message, insert u16buf, log the result.
+    if (!ReportEventW(hEventLog,
+                      _level,       // severity
+                      0,            // app-defined event category
+                      MSG_DEFAULT,  // event ID / message ID (see above)
+                      NULL,         // security identifier
+                      1,            // number of strings in u16buf
+                      0,            // number of bytes in raw data
+                      const_cast<LPCWSTR *>(&u16buf),  // 0-terminated strings
+                      NULL))                           // raw (binary data)
       goto err;
   }
 
   // Message successfully written to the event log.
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   // map error appropriately
   my_osmaperr(GetLastError());
-  DBUG_RETURN(-1);
+  return -1;
 
 #else
   int _level = LOG_INFO;
 
-  DBUG_ENTER("my_syslog");
+  DBUG_TRACE;
+
+  if ((msg == nullptr) || (*msg == '\0')) return 0;
 
   switch (level) {
     case INFORMATION_LEVEL:
@@ -134,11 +175,11 @@ err:
       _level = LOG_ERR;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   syslog(_level, "%s", msg);
-  DBUG_RETURN(0);
+  return 0;
 
 #endif /* _WIN32 */
 }
@@ -178,10 +219,10 @@ static int windows_eventlog_create_registry_entry(const char *key) {
 
   int ret = 0;
 
-  DBUG_ENTER("my_syslog");
+  DBUG_TRACE;
 
   if ((buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
-    DBUG_RETURN(-1);
+    return -1;
 
   snprintf(buff, l, "%s%s", registry_prefix, key);
 
@@ -202,7 +243,7 @@ static int windows_eventlog_create_registry_entry(const char *key) {
                         "logging for that application.",
                         MYF(0));
     }
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   /* Name of the PE module that contains the message resource */
@@ -222,7 +263,7 @@ static int windows_eventlog_create_registry_entry(const char *key) {
 
   RegCloseKey(hRegKey);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 #endif
 
@@ -245,30 +286,32 @@ int my_openlog(const char *name, int option, int facility) {
 #ifndef _WIN32
   int opts = (option & MY_SYSLOG_PIDS) ? LOG_PID : 0;
 
-  DBUG_ENTER("my_openlog");
+  DBUG_TRACE;
   openlog(name, opts | LOG_NDELAY, facility);
 
 #else
+  (void)option;    // maybe unused
+  (void)facility;  // maybe unused
 
   HANDLE hEL_new;
 
-  DBUG_ENTER("my_openlog");
+  DBUG_TRACE;
 
   // OOM failsafe.  Not needed for syslog.
-  if (name == NULL) DBUG_RETURN(-1);
+  if (name == NULL) return -1;
 
   if ((windows_eventlog_create_registry_entry(name) != 0) ||
       !(hEL_new = RegisterEventSource(NULL, name))) {
     // map error appropriately
     my_osmaperr(GetLastError());
-    DBUG_RETURN((hEventLog == NULL) ? -1 : -2);
+    return (hEventLog == NULL) ? -1 : -2;
   } else {
     if (hEventLog != NULL) DeregisterEventSource(hEventLog);
     hEventLog = hEL_new;
   }
 #endif
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -282,20 +325,20 @@ int my_openlog(const char *name, int option, int facility) {
     -1 Error
 */
 int my_closelog(void) {
-  DBUG_ENTER("my_closelog");
+  DBUG_TRACE;
 #ifndef _WIN32
   closelog();
-  DBUG_RETURN(0);
+  return 0;
 #else
   if ((hEventLog != NULL) && (!DeregisterEventSource(hEventLog))) goto err;
 
   hEventLog = NULL;
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   hEventLog = NULL;
   // map error appropriately
   my_osmaperr(GetLastError());
-  DBUG_RETURN(-1);
+  return -1;
 #endif
 }

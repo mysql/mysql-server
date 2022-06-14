@@ -47,36 +47,36 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath does not have a proper filename.
 Error	3121	The ADD DATAFILE filepath must end with '.ibd'.
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories '.\'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../spaces/'.
 CREATE TABLESPACE bad ADD DATAFILE 'test/bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name 'test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE './test/bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name './test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE './test//bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name './test//bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../data/test/bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../data/test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../data/../data/test/bad.ibd';
@@ -84,7 +84,7 @@ ERROR HY000: The ADD DATAFILE filepath cannot contain circular directory referen
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath cannot contain circular directory references.
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../data/../data/test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../data/../data/bad.ibd';
@@ -95,11 +95,11 @@ Error	3121	The ADD DATAFILE filepath cannot contain circular directory reference
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../data/../data/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../does_not_exist/bad.ibd';
-ERROR HY000: The directory does not exist.
+ERROR HY000: The directory does not exist or is incorrect.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories '.\'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../does_not_exist/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE 'test/../bad.ibd';

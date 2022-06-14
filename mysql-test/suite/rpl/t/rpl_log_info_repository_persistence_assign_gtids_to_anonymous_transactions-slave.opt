@@ -1,0 +1,1 @@
+--relay-log-info-repository=FILE --gtid_mode=OFF --enforce_gtid_consistency=ON

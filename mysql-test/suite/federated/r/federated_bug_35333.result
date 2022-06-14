@@ -31,13 +31,13 @@ FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'realdb' OR TABLE_SCHEMA = 'federated'
   ORDER BY TABLE_SCHEMA, TABLE_NAME;
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_ROWS	DATA_LENGTH	TABLE_COMMENT
-federated	t0	BASE TABLE	FEDERATED	Dynamic	NULL	0	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+federated	t0	BASE TABLE	FEDERATED	Dynamic	NULL	0	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1:63333' (socket errno)
 realdb	t0	BASE TABLE	MyISAM	Dynamic	0	0	
 Warnings:
-Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1:63333' (socket errno)
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1:63333' (socket errno)
 #
 # Create a MyISAM table then corrupt the file
 #

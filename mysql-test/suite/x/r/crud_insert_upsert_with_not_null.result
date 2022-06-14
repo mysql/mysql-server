@@ -82,7 +82,7 @@ doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
-Got expected error: Unable upsert data in document collection 'col2' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
@@ -220,4 +220,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef DD__INDEX_INCLUDED
 #define DD__INDEX_INCLUDED
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "sql/dd/collection.h"           // dd::Collection
 #include "sql/dd/sdi_fwd.h"              // dd::Sdi_rcontext
@@ -68,7 +69,7 @@ class Index : virtual public Entity_object {
     IA_FULLTEXT };
 
  public:
-  virtual ~Index() {}
+  ~Index() override = default;
 
   /**
     Dummy method to be able to use Partition_index and Index interchangeably
@@ -160,6 +161,16 @@ class Index : virtual public Entity_object {
 
   virtual bool is_visible() const = 0;
   virtual void set_visible(bool is_visible) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // SE-specific json attributes
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual LEX_CSTRING engine_attribute() const = 0;
+  virtual void set_engine_attribute(LEX_CSTRING) = 0;
+
+  virtual LEX_CSTRING secondary_engine_attribute() const = 0;
+  virtual void set_secondary_engine_attribute(LEX_CSTRING) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Index-element collection.

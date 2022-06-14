@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "my_bitmap.h"
 #include "my_io.h"
 #include "sql/rpl_info_handler.h"  // enum_return_check
 
@@ -76,21 +77,32 @@ class Rpl_info_factory {
                                      Relay_log_info *rli,
                                      bool is_gaps_collecting_phase);
   static bool reset_workers(Relay_log_info *rli);
+  /**
+    If GTID_ONLY is set for this channel, receiver and applier positions
+    will be marked as invalid.
+
+    @param mi the repository info object whose positions will be invalidated
+  */
+  static void invalidate_repository_position(Master_info *mi);
 
  private:
-  typedef struct {
+  typedef struct file_data {
     uint n_fields;
     char name[FN_REFLEN];
     char pattern[FN_REFLEN];
     bool name_indexed;  // whether file name should include instance number
+    MY_BITMAP nullable_fields;
+    virtual ~file_data() { bitmap_free(&nullable_fields); }
   } struct_file_data;
 
-  typedef struct {
+  typedef struct table_data {
     uint n_fields;
     const char *schema;
     const char *name;
     uint n_pk_fields;
     const uint *pk_field_indexes;
+    MY_BITMAP nullable_fields;
+    virtual ~table_data() { bitmap_free(&nullable_fields); }
   } struct_table_data;
 
   static struct_table_data rli_table_data;
@@ -121,10 +133,42 @@ class Rpl_info_factory {
   static bool init_repositories(Rpl_info *info, Rpl_info_handler **handler_src,
                                 Rpl_info_handler **handler_dst,
                                 const char **msg);
-  static bool scan_repositories(uint *found_instances, uint *found_rep_option,
-                                const struct_table_data &table_data,
-                                const struct_file_data &file_data,
-                                const char **msg);
+  /**
+    Scan table and files for repositories.
+    If both file and table repositories are found an error is returned.
+    This method returns the number of repository instances found which
+    might imply a table scan.
+
+    @param[out] found_instances  the number of repo instances found
+    @param[out] found_rep_option what is the type of repo found (FILE or TABLE)
+    @param[in]  table_data       the data on the tables to scan
+    @param[in]  file_data        the data on the files to scan
+    @param[out] msg              the error message returned
+
+    @return true if an error occurs, false otherwise
+  */
+  static bool scan_and_count_repositories(ulonglong &found_instances,
+                                          uint &found_rep_option,
+                                          const struct_table_data &table_data,
+                                          const struct_file_data &file_data,
+                                          std::string &msg);
+  /**
+    Scan table and files for repositories.
+    If both file and table repositories are found an error is returned.
+    This method does not try to count the number of repositories, only
+    checks if they are present
+
+    @param[out] found_rep_option what is the type of repo found (FILE or TABLE)
+    @param[in]  table_data       the data on the tables to scan
+    @param[in]  file_data        the data on the files to scan
+    @param[out] msg              the error message returned
+
+    @return true if an error occurs, false otherwise
+  */
+  static bool scan_and_check_repositories(uint &found_rep_option,
+                                          const struct_table_data &table_data,
+                                          const struct_file_data &file_data,
+                                          std::string &msg);
   static bool load_channel_names_from_repository(
       std::vector<std::string> &channel_list, uint mi_instances,
       uint mi_repository, const char *default_channel,

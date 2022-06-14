@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT GMOCK_FOUND OR DISABLE_SHARED)
+IF (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)
   RETURN()
 ENDIF()
 
@@ -29,23 +29,36 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-INCLUDE_DIRECTORIES(SYSTEM
-  ${GMOCK_INCLUDE_DIRS}
-)
-
 # Add tests
 SET(TESTS
-    group_replication_member_info
-    group_replication_compatibility_module
-    group_replication_member_version
-    group_replication_mysql_version_gcs_protocol_map
-   )
+  group_replication_member_info
+  group_replication_compatibility_module
+  group_replication_member_version
+  group_replication_mysql_version_gcs_protocol_map
+  group_replication_gcs_mysql_network_provider
+  )
 
 FOREACH(test ${TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
-  TARGET_LINK_LIBRARIES(${test}-t
-    gr_unit_test_resource gunit_small ${GCS_LIBRARY})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
-  TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+  ENDIF()
+
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+    ADD_TEST ${test}
+    ENABLE_EXPORTS
+    LINK_LIBRARIES
+    gr_unit_test_resource
+    gunit_large
+    server_unittest_library
+    mysqlclient
+    mysqlgcs
+    )
 ENDFOREACH()
 
+IF(WIN32)
+  # LNK4286: symbol 'unknown_sqlstate' is imported from mysqlclient.lib
+  MY_TARGET_LINK_OPTIONS(
+    group_replication_gcs_mysql_network_provider-t "/ignore:4286"
+    )
+ENDIF()

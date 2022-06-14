@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,7 @@ struct MEM_ROOT;
 typedef unsigned int PSI_memory_key;
 extern thread_local MEM_ROOT **THR_MALLOC;
 
-void init_sql_alloc(PSI_memory_key key, MEM_ROOT *root, size_t block_size,
-                    size_t pre_alloc_size);
+void init_sql_alloc(PSI_memory_key key, MEM_ROOT *root, size_t block_size);
 
 void *sql_calloc(size_t);
 char *sql_strdup(const char *str);

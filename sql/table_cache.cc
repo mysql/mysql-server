@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "sql/sql_test.h"  // lock_descriptions[]
 #include "thr_lock.h"
 #include "thr_mutex.h"
@@ -53,7 +53,7 @@ PSI_mutex_info Table_cache::m_mutex_keys[] = {
 
 bool Table_cache::init() {
   mysql_mutex_init(m_lock_key, &m_lock, MY_MUTEX_INIT_FAST);
-  m_unused_tables = NULL;
+  m_unused_tables = nullptr;
   m_table_count = 0;
   return false;
 }
@@ -98,7 +98,7 @@ void Table_cache::check_unused() {
     while ((entry = it++)) {
       /* We must not have TABLEs in the free list that have their file closed.
        */
-      DBUG_ASSERT(entry->db_stat && entry->file);
+      assert(entry->db_stat && entry->file);
 
       if (entry->in_use)
         DBUG_PRINT("error", ("Used table is in share's list of unused tables"));
@@ -129,7 +129,7 @@ void Table_cache::free_all_unused_tables() {
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Print debug information for the contents of the table cache.
 */
@@ -160,7 +160,7 @@ void Table_cache::print_tables() {
     }
   }
 
-  if (m_unused_tables != NULL) {
+  if (m_unused_tables != nullptr) {
     TABLE *start_link = m_unused_tables;
     TABLE *lnk = m_unused_tables;
     do {
@@ -242,6 +242,16 @@ void Table_cache_manager::unlock_all_and_tdc() {
 }
 
 /**
+  Assert that caller owns lock on the table cache.
+
+  @param thd Thread handle
+*/
+void Table_cache_manager::assert_owner(THD *thd) {
+  Table_cache *tc = get_cache(thd);
+  tc->assert_owner();
+}
+
+/**
   Assert that caller owns locks on all instances of table cache.
 */
 
@@ -272,9 +282,9 @@ void Table_cache_manager::assert_owner_all_and_tdc() {
    @note Caller should own LOCK_open and locks on all table cache
          instances.
 */
-void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
+void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
                                      enum_tdc_remove_table_type remove_type
-                                         MY_ATTRIBUTE((unused)),
+                                     [[maybe_unused]],
                                      TABLE_SHARE *share) {
   Table_cache_element *cache_el[MAX_TABLE_CACHES];
 
@@ -295,17 +305,23 @@ void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
       Table_cache_element::TABLE_list::Iterator it(cache_el[i]->free_tables);
       TABLE *table;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (remove_type == TDC_RT_REMOVE_ALL)
-        DBUG_ASSERT(cache_el[i]->used_tables.is_empty());
+        assert(cache_el[i]->used_tables.is_empty());
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
                remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
         while ((table = it2++)) {
-          if (table->in_use != thd) DBUG_ASSERT(0);
+          if (table->in_use != thd) assert(0);
         }
       }
 #endif
+      if (remove_type == TDC_RT_MARK_FOR_REOPEN) {
+        Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
+        while ((table = it2++)) {
+          table->invalidate_stats();
+        }
+      }
 
       while ((table = it++)) {
         m_table_cache[i].remove_table(table);
@@ -324,7 +340,7 @@ void Table_cache_manager::free_all_unused_tables() {
     m_table_cache[i].free_all_unused_tables();
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Print debug information for the contents of all table cache instances.
 */

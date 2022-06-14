@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_size.pl\fR
+.\"     Title: ndb_size.pl
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SIZE\&.PL\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_SIZE\&.PL" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -92,16 +92,15 @@ ndb_size\&.pl
 can also be found in the MySQL sources in
 storage/ndb/tools\&.
 .PP
-The following table includes options that are specific to the NDB Cluster program
-\fBndb_size\&.pl\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_size\&.pl\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+Options that can be used with
+\fBndb_size\&.pl\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.357.\ \&Command\-line options for the ndb_size\&.pl program
+.B Table\ \&23.48.\ \&Command\-line options used with the program ndb_size\&.pl
 .TS
 allbox tab(:);
 lB lB lB.
@@ -113,117 +112,116 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
---database=dbname
+\fB \fR\fB--database=string\fR\fB \fR
 T}:T{
-The database or databases to examine; accepts a comma-delimited list;
-              the default is ALL (use all databases found on the server)
+Database or databases to examine; a comma-delimited list; default is ALL
+              (use all databases found on server)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---hostname[:port]
+\fB \fR\fB--hostname=string\fR\fB \fR
 T}:T{
-Specify host and optional port as host[:port]
+Specify host and optional port in host[:port] format
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---socket=file_name
+\fB \fR\fB--socket=path\fR\fB \fR
 T}:T{
-Specify a socket to connect to
+Specify socket to connect to
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---user=string
+\fB \fR\fB--user=string\fR\fB \fR
 T}:T{
-Specify a MySQL user name
+Specify MySQL user name
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---password=string
+\fB \fR\fB--password=password\fR\fB \fR
 T}:T{
-Specify a MySQL user password
+Specify MySQL user password
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---format=string
+\fB \fR\fB--format=string\fR\fB \fR
 T}:T{
 Set output format (text or HTML)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---excludetables=tbl_list
+\fB \fR\fB--excludetables=list\fR\fB \fR
 T}:T{
-Skip any tables in a comma-separated list of tables
+Skip any tables in comma-separated list
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---excludedbs=db_list
+\fB \fR\fB--excludedbs=list\fR\fB \fR
 T}:T{
-Skip any databases in a comma-separated list of databases
+Skip any databases in comma-separated list
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---savequeries=file
+\fB \fR\fB--savequeries=path\fR\fB \fR
 T}:T{
-Saves all queries to the database into the file specified
+Saves all queries on database into file specified
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---loadqueries=file
+\fB \fR\fB--loadqueries=path\fR\fB \fR
 T}:T{
-Loads all queries from the file specified; does not connect to a
-              database
+Loads all queries from file specified; does not connect to database
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---real_table_name=table
+\fB \fR\fB--real_table_name=string\fR\fB \fR
 T}:T{
-Designates a table to handle unique index size calculations
+Designates table to handle unique index size calculations
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -269,7 +267,7 @@ being the default\&. An example of the text output is shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock\fR
+$> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock\fR
 ndb_size\&.pl report for database: \*(Aqtest\*(Aq (1 tables)
 \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
 Connected to: DBI:mysql:host=localhost;mysql_socket=/tmp/mysql\&.sock
@@ -338,7 +336,7 @@ option and redirect the output to a file, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock \-\-format=html > ndb_size\&.html\fR
+$> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock \-\-format=html > ndb_size\&.html\fR
 .fi
 .if n \{\
 .RE
@@ -395,7 +393,7 @@ required per table and table row\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

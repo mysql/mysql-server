@@ -28,7 +28,7 @@
 # in normal slave operation (there is no retrieval of the transaction
 # from the begin when MASTER_AUTO_POSITION = 0). Enabling this test
 # case on MTS may hit some MTS asserts.
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --let $master_uuid=`SELECT @@SERVER_UUID`
@@ -66,7 +66,7 @@ COMMIT;
 # Make the I/O thread to ask for the full transaction from beginning
 # without purging the relay log (SQL thread is active).
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
---eval CHANGE MASTER TO MASTER_LOG_FILE='$master_file', MASTER_LOG_POS=$master_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='$master_file', SOURCE_LOG_POS=$master_pos
 
 # Restart the I/O thread
 --source include/start_slave_io.inc

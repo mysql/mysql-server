@@ -1,0 +1,268 @@
+###############################################################################
+# Validate that UDFs
+#   asynchronous_connection_failover_add_managed
+#   asynchronous_connection_failover_delete_managed
+# can be used on groups in multi-primary mode.
+#
+# Test:
+#   0. This test requires 4 servers
+#       server1: multi-primary group A primary
+#       server2: multi-primary group A primary
+#       server3: multi-primary group B primary
+#       server4: multi-primary group B primary
+#      Group B will replicate from group A.
+#   1. Deploy a 2 members group A in multi-primary mode.
+#   2. Deploy a 2 members group A in multi-primary mode.
+#   3. Add group A replication failover managed source into a member in
+#      group B, server3.
+#      It will be allowed but the configuration will not be propagated.
+#   4. Create and start the managed channel on group B, server3.
+#   5. Delete group A replication failover managed source in a member in
+#      group B, server3.
+#      It will be allowed but the configuration will not be propagated.
+#   6. Clean up
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+# Use the appropriate XCom port, that does depend on
+# `group_replication_communication_stack`.
+--let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
+--let $group_a_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2"
+--let $group_b_group_seeds= "localhost:$SERVER_GR_PORT_3,localhost:$SERVER_GR_PORT_4"
+if (!$have_xcom_stack) {
+  --let $group_a_group_seeds= "localhost:$SERVER_MYPORT_1,localhost:$SERVER_MYPORT_2"
+  --let $group_b_group_seeds= "localhost:$SERVER_MYPORT_3,localhost:$SERVER_MYPORT_4"
+}
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a 2 members group A in multi-primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+--let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--let $group_a= $group_replication_group_name
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= $group_a_group_seeds
+--enable_query_log
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= `SELECT @@server_uuid`
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= $group_a_group_seeds
+--enable_query_log
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Deploy a 2 members group A in multi-primary mode.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $server3_uuid= `SELECT @@server_uuid`
+--let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+--let $group_b= $group_replication_group_name
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= $group_b_group_seeds
+--enable_query_log
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $server4_uuid= `SELECT @@server_uuid`
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= $group_b_group_seeds
+--enable_query_log
+--source include/start_group_replication.inc
+
+
+
+--echo ############################################################
+--echo # 3. Add group A replication failover managed source into a member in
+--echo #    group B, server3.
+--echo #    It will be allowed but the configuration will not be propagated.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_a GROUP_A
+--eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_2, '', 90, 70);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover can be equal or greater than 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] >= 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_a", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Create and start the managed channel on group B, server3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server1_uuid\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover can be equal or greater than 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] >= 2
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_a", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There is no replication channel ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', count, 1] = 0
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 5. Delete group A replication failover managed source in a member in
+--echo #    group B, server3.
+--echo #    It will be allowed but the configuration will not be propagated.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+
+--replace_result $group_a GROUP_A
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_a')
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover can be equal or greater than 3'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] >= 3
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 2
+--source include/assert.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There is no replication channel ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_channel_name='ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

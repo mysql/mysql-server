@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,11 @@ FILE *outfile;
 const char *filename = "test_component_status_var_service.log";
 class THD;
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((unsigned char *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                             \
+  log_text_len = sprintf(log_text, format, lit_log_text);           \
+  if (fwrite((unsigned char *)log_text, sizeof(char), log_text_len, \
+             outfile) != static_cast<size_t>(log_text_len))         \
+    return true;
 
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
@@ -74,37 +76,44 @@ static void char_ptr_foo() {
 static SHOW_VAR status_int_var[] = {
     {"test_component.int_var", (char *)&int_variable_value, SHOW_INT,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_bool_var[] = {
     {"test_component.bool_var", (char *)&bool_variable_value, SHOW_BOOL,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_long_var[] = {
     {"test_component.long_var", (char *)&long_variable_value, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_longlong_var[] = {
     {"test_component.longlong_var", (char *)&longlong_variable_value,
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_char_var[] = {
     {"test_component.char_var", (char *)&char_variable_value, SHOW_CHAR,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_char_ptr_var[] = {
     {"test_component.char_ptr_var", (char *)&char_ptr_variable_value,
      SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_double_var[] = {
     {"test_component.double_var", (char *)&double_variable_value, SHOW_DOUBLE,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 static int show_func_example(THD *, SHOW_VAR *var, char *buf) {
@@ -116,7 +125,8 @@ static int show_func_example(THD *, SHOW_VAR *var, char *buf) {
 static SHOW_VAR status_func_var[] = {
     {"test_component.func_var", (char *)show_func_example, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 struct example_vars_t {
@@ -127,12 +137,14 @@ example_vars_t example_vars = {"MySQL", 8.0};
 static SHOW_VAR array_value[] = {
     {"var1", (char *)&example_vars.var1, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
     {"var2", (char *)&example_vars.var2, SHOW_DOUBLE, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 static SHOW_VAR status_array_var[] = {
     {"test_component.array", (char *)array_value, SHOW_ARRAY,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /**

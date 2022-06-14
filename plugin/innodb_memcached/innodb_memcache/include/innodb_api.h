@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ connection specific operations */
   }
 
 #define LOCK_CURRENT_CONN_TRYLOCK(conn) \
-  pthread_mutex_trylock(&(conn)->curr_conn_mutex);
+  pthread_mutex_trylock(&(conn)->curr_conn_mutex)
 
 #define UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn) \
   if (!(has_lock)) {                                      \
@@ -278,10 +278,12 @@ ib_err_t innodb_verify_low(
 /*************************************************************/ /**
  Following are a set of InnoDB callback function wrappers for functions
  that will be used outside innodb_api.c
- @return DB_SUCCESS if successful or error code */
-ib_err_t innodb_cb_cursor_close(
-    /*===================*/
-    ib_crsr_t ib_crsr); /*!< in: cursor to close */
+*/
+
+/** Closes a crsr if it is non-null, and sets it to null.
+@param[in,out]  ib_crsr  a reference to crsr field to close
+*/
+void innodb_cb_cursor_close(ib_crsr_t &ib_crsr);
 
 /*************************************************************/ /**
  Commit the transaction
@@ -340,10 +342,10 @@ ib_err_t innodb_cb_read_row(
 /*****************************************************************/ /**
  Get a column type, length and attributes from the tuple.
  @return len of column data */
-ib_ulint_t innodb_cb_col_get_meta(
+uint64_t innodb_cb_col_get_meta(
     /*===================*/
     ib_tpl_t ib_tpl,             /*!< in: tuple instance */
-    ib_ulint_t i,                /*!< in: column index in tuple */
+    uint64_t i,                  /*!< in: column index in tuple */
     ib_col_meta_t *ib_col_meta); /*!< out: column meta data */
 
 /*****************************************************************/ /**
@@ -355,7 +357,7 @@ void innodb_cb_tuple_delete(
 /*****************************************************************/ /**
  Return the number of columns in the tuple definition.
  @return number of columns */
-ib_ulint_t innodb_cb_tuple_get_n_cols(
+uint64_t innodb_cb_tuple_get_n_cols(
     /*=======================*/
     const ib_tpl_t ib_tpl); /*!< in: Tuple for table/index */
 
@@ -365,7 +367,7 @@ ib_ulint_t innodb_cb_tuple_get_n_cols(
 const void *innodb_cb_col_get_value(
     /*====================*/
     ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i);   /*!< in: column index in tuple */
+    uint64_t i);     /*!< in: column index in tuple */
 
 /********************************************************************/ /**
  Open a table using the table name.
@@ -382,7 +384,7 @@ ib_err_t innodb_cb_open_table(
 const char *innodb_cb_col_get_name(
     /*===================*/
     ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
-    ib_ulint_t i);     /*!< in: column index in tuple */
+    uint64_t i);       /*!< in: column index in tuple */
 
 /*****************************************************************/ /**
  Open an InnoDB secondary index cursor and return a cursor handle to it.

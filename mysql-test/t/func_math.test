@@ -235,6 +235,7 @@ CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
 SELECT a DIV 900 y FROM t1 GROUP BY y;
 SELECT DISTINCT a DIV 900 y FROM t1;
+--skip_if_hypergraph  # Different warnings.
 SELECT b DIV 900 y FROM t1 GROUP BY y;
 SELECT c DIV 900 y FROM t1 GROUP BY y;
 DROP TABLE t1;
@@ -951,8 +952,10 @@ SELECT truncate(
 --echo # Bug#28401869 ARM BUILD ALLOWS NUMERIC VALUES OUT OF BOUNDS
 --echo #
 
+--error ER_DATA_OUT_OF_RANGE
 select cast(pow(2,63) as signed) as pp;
-select 1-cast(pow(2,63) as signed) as qq;
+select cast(pow(2,63)-1024 as signed) as pp;
+select cast(1-pow(2,63) as signed) as qq;
 
 --echo #
 --echo # Bug#17081376 ITEM_FUNC_MUL::INT_OP() MISHANDLES 9223372036854775809*-1
@@ -979,3 +982,290 @@ DROP TABLE t;
 SELECT 1-CAST(POW(2,100) AS SIGNED);
 --error ER_DATA_OUT_OF_RANGE
 SELECT 1-CAST(POW(2,1000) AS SIGNED);
+
+--echo #
+--echo # Bug#29581610 UBSAN ERROR IN ITEM_FUNC_MUL::INT_OP()
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+do ((3273059463432352943 )* (-9223372036854775808 )) ;
+--error ER_DATA_OUT_OF_RANGE
+do ((-9223372036854775808)* ( 3273059463432352943)) ;
+
+select -9223372036854775808 * 0 as result;
+select 0 * -9223372036854775808 as result;
+
+select -9223372036854775808 * 1 as result;
+select 1 * -9223372036854775808 as result;
+
+--error ER_DATA_OUT_OF_RANGE
+select -9223372036854775808 * -1 as result;
+--error ER_DATA_OUT_OF_RANGE
+select -1 * -9223372036854775808 as result;
+
+--error ER_DATA_OUT_OF_RANGE
+select -9223372036854775808 * 2 as result;
+--error ER_DATA_OUT_OF_RANGE
+select 2 * -9223372036854775808 as result;
+
+--echo #
+--echo # Bug#30139913 CEILING AND FLOOR HAVE INCORRECT RESOLVED TYPES FOR BIGINT
+--echo #              ARGUMENTS
+--echo #
+
+CREATE TABLE t1(a BIGINT UNSIGNED);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(18446744073709551615);
+CREATE TABLE t2 AS
+SELECT CEILING(a) AS c, FLOOR(a) AS f FROM t1;
+DESCRIBE t2;
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+
+--echo # BIGINT should resolve to BIGINT.
+CREATE TABLE t AS
+SELECT CEILING(18446744073709551615) AS c,
+       FLOOR(18446744073709551615) AS f;
+DESCRIBE t;
+DROP TABLE t;
+
+--echo # DECIMAL should resolve to DECIMAL when too big for BIGINT.
+CREATE TABLE t AS
+SELECT CEILING(18446744073709551616) AS c,
+       FLOOR(18446744073709551616) AS f;
+DESCRIBE t;
+DROP TABLE t;
+
+--echo # CEILING/FLOOR has to always assume a signed DECIMAL, making this too
+--echo # big for BIGINT.
+CREATE TABLE t AS
+SELECT CEILING(CAST(1844674407370955161 AS DECIMAL(19, 0))) AS c,
+       FLOOR(CAST(1844674407370955161 AS DECIMAL(19, 0))) AS f;
+DESCRIBE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+CREATE TABLE t AS
+SELECT CEILING(CAST(-9223372036854775808 AS DECIMAL(19, 0))) AS c,
+       FLOOR(CAST(-9223372036854775808 AS DECIMAL(19, 0))) AS f;
+DESCRIBE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo # DECIMAL should resolve to BIGINT when it fits.
+CREATE TABLE t AS
+SELECT CEILING(CAST(184467440737095516 AS DECIMAL(18, 0))) AS c,
+       FLOOR(CAST(184467440737095516 AS DECIMAL(18, 0))) AS f;
+DESCRIBE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+CREATE TABLE t AS
+SELECT CEILING(CAST(-922337203685477580 AS DECIMAL(18, 0))) AS c,
+       FLOOR(CAST(-922337203685477580 AS DECIMAL(18, 0))) AS f;
+DESCRIBE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo # Account for possible increase of order of magnitude when rounding.
+CREATE TABLE t AS
+SELECT CEILING(CAST(99999999999999999.9 AS DECIMAL(18, 1))) AS c,
+       FLOOR(CAST(-99999999999999999.9 AS DECIMAL(18, 1))) AS f;
+DESCRIBE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+CREATE TABLE t AS
+SELECT CEILING(CAST(999999999999999999.9 AS DECIMAL(19, 1))) AS c,
+       FLOOR(CAST(-999999999999999999.9 AS DECIMAL(19, 1))) AS f;
+DESCRIBE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #29952066 CAST OF NEGATIVE FUNCTION RETURN VALUE TO
+--echo #               UNSIGNED MALFUNCTIONS WITH BIGINT
+--echo #
+
+CREATE TABLE t0(c0 BIGINT UNSIGNED);
+INSERT INTO t0(c0) VALUES(NULL);
+SELECT * FROM t0 WHERE CAST(COALESCE(t0.c0, -1) AS UNSIGNED);
+SELECT * FROM t0 WHERE CAST(IFNULL(t0.c0, -1) AS UNSIGNED);
+SELECT CAST(COALESCE(t0.c0, -1) AS UNSIGNED) IS TRUE FROM t0;
+SELECT CAST(COALESCE(t0.c0, -1) AS UNSIGNED) FROM t0;
+
+DROP TABLE t0;
+
+SELECT CAST(-1.1 AS UNSIGNED);
+
+--echo #
+--echo #
+--echo # Bug #30680384 UBSAN: RUNTIME ERROR: NEGATION
+--echo #               OF -9223372036854775808 IN ITEM_FUNC_ROUND::INT_OP()
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+select (round(-9223372036854775808, -4));
+
+delimiter //;
+CREATE PROCEDURE test_round(in arg bigint)
+BEGIN
+  DECLARE i int;
+  SET i = 0;
+  WHILE (i >= -20) DO
+    BEGIN
+      # Ignore SQLSTATE 22003 numeric value out of range
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '22003' SHOW ERRORS;
+      SELECT arg, i, round(arg, i);
+    END;
+    SET i = i - 1;
+  END WHILE;
+END//
+delimiter ;//
+
+delimiter //;
+CREATE PROCEDURE test_round_unsigned(in arg bigint unsigned)
+BEGIN
+  DECLARE i int;
+  SET i = 0;
+  WHILE (i >= -20) DO
+    BEGIN
+      # Ignore SQLSTATE 22003 numeric value out of range
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '22003' SHOW ERRORS;
+      SELECT arg, i, round(arg, i);
+    END;
+    SET i = i - 1;
+  END WHILE;
+END//
+delimiter ;//
+
+CALL test_round(-123456);
+CALL test_round(-9223372036854775807);
+CALL test_round(-9223372036854775808);
+CALL test_round(9223372036854775807);
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL test_round(9223372036854775808);
+
+CALL test_round_unsigned(9223372036854775807);
+CALL test_round_unsigned(9223372036854775808);
+CALL test_round_unsigned(18446744073709551614);
+
+DROP PROCEDURE test_round;
+DROP PROCEDURE test_round_unsigned;
+
+--echo # Bug#31128028 ROUND and TRUNCATE sometimes produce wrong result types
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(11, -1);
+CREATE TABLE t2 AS SELECT a, ROUND(a, b) AS c FROM t1;
+DESCRIBE t2;
+DROP TABLE t1, t2;
+
+--echo # Bug#29602947: The behavior between INSERT stmt and "PREPARE stmt and
+--echo #               EXECUTE stmt" different
+
+CREATE TABLE t (a INTEGER);
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t VALUES (1.0E+01+'a');
+
+PREPARE st1 FROM "INSERT INTO t VALUES (? + ?)";
+SET @a=1.0E+01;
+SET @b='a';
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE st1 USING @a,@b;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #19186271 MANY, MANY CLASSES OF STRING-TO-INTEGER CONVERSION BUG
+--echo #
+
+SET sql_mode = '';
+CREATE TABLE t1 (i INT, iu INT UNSIGNED,
+                 b BIGINT, bu BIGINT UNSIGNED);
+
+DELETE FROM t1;
+INSERT INTO t1 (i,iu,b,bu)
+# The second '.' and anything after it should be ignored.
+VALUES ('1.2.3.4', '1.2.3.4', '1.2.3.4', '1.2.3.4');
+SELECT i,iu,b,bu FROM t1;
+
+DELETE FROM t1;
+INSERT INTO t1 (b,bu) VALUES ('92233720368547758000e+', '92233720368547758000e+');
+SELECT b,bu FROM t1;
+
+DELETE FROM t1;
+INSERT INTO t1 (b,bu) VALUES ('92233720368547758000', '92233720368547758000');
+SELECT b,bu FROM t1;
+
+DELETE FROM t1;
+INSERT INTO t1 (i,b) VALUES ('0.9223372036854775807', '0.9223372036854775807');
+INSERT INTO t1 (i,b) VALUES ('0.9223372036854775808', '0.9223372036854775808');
+SELECT i,b FROM t1;
+
+DELETE FROM t1;
+INSERT INTO t1 (iu,bu) VALUES ('-1e19', '-1e19');
+INSERT INTO t1 (iu,bu) VALUES ('-2e19', '-2e19');
+INSERT INTO t1 (iu,bu) VALUES ('-18446744073709551615','-18446744073709551615');
+INSERT INTO t1 (iu,bu) VALUES ('-18446744073709551616','-18446744073709551616');
+SELECT iu,bu FROM t1;
+
+DROP TABLE t1;
+SET sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug #30156563 TYPE RESOLUTION OF DIV OPERATOR
+--echo #               PRODUCES ONE LESS PRECISION.
+--echo #
+
+SELECT 5.0 + 96 DIV 1;
+CREATE TABLE t1 SELECT
+  5.0 + 96 DIV 1,                     # Dividend is integer
+  5.0 + 96.1234 DIV 1,                # Dividend is decimal
+  5.0 + '96' DIV 1,                   # Dividend is string
+  5.0 + CAST('96' AS SIGNED) DIV 1,   # Dividend is function
+  5.0 + CAST('96' AS UNSIGNED) DIV 1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32693863 MINUS BETWEEN CONST VALUE 0 AND FIELD WITH
+--echo #               MIN BIGINT VALUE GETS WRONG RESULT
+--echo #
+
+CREATE TABLE t1(a BIGINT);
+INSERT INTO t1 VALUES (-9223372036854775808);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT a, 0-a FROM t1;
+
+DELETE FROM t1;
+INSERT INTO t1 VALUES (-9223372036854775807);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT a, 1-a FROM t1;
+
+DROP TABLE t1;
+
+--echo # Bug#31641064: Decimal returned function value overflow with GROUP BY
+
+CREATE TABLE t1(c1 INTEGER, c2 INTEGER);
+INSERT INTO t1 VALUES(97, 1);
+SET SQL_MODE='';
+SELECT 27 DIV (c2/c1) / 17 AS c1 FROM t1 GROUP BY c1;
+SELECT 27 DIV CAST(c2/c1 AS CHAR) / 17 AS c1 FROM t1 GROUP BY c1;
+SELECT 27 DIV CAST(c2/c1 AS DOUBLE) / 17 AS c1 FROM t1 GROUP BY c1;
+SET SQL_MODE=DEFAULT;
+DROP TABLE t1;
+
+--echo # Bug#32863037: Assertion `scale >= 0 && precision > 0 &&
+--echo #               scale <= precision' failed
+
+SELECT * FROM (SELECT -TRUE AS a, --TRUE AS b) AS dt;
+
+--echo # Bug#33142010: Failure on complex const argument to string functions
+
+CREATE VIEW v AS SELECT -(1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+SELECT * FROM v;
+DROP VIEW v;

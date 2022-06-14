@@ -80,4 +80,42 @@ count(*)
 1024
 drop table t1;
 drop table t2;
+Test that real uniqeuness constraint violations are detected
+when replicating
+create table t1 (a int primary key, b int, c int, unique(c)) engine=ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6);
+Modify replica so that there can be conflicts in replication
+insert into t1 values (11,11,11), (12,12,12), (13,13,13), (14,14,14);
+call mtr.add_suppression(".*duplicate key in table.*");
+call mtr.add_suppression(".*Duplicate key on write or update.*");
+call mtr.add_suppression(".*duplicate value in unique index.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+Single insert
+insert into t1 values (7,7,11);
+include/wait_for_slave_sql_error.inc [errno=1022]
+delete from t1 where c=11;
+start replica;
+Single update
+update t1 set c=12 where a=2;
+include/wait_for_slave_sql_error.inc [errno=1022]
+delete from t1 where c=12;
+start replica;
+Check blob handling
+create table t2 (a int primary key, b text, c int, unique(c)) engine=ndb;
+insert into t2 values (1, repeat('VRA', 10000),1);
+insert into t2 values (2, repeat('VRA', 10000),2);
+insert into t2 values (3, repeat('VRA', 10000),3);
+insert into t2 values (4, repeat('VRA', 10000),4);
+insert into t2 values (5, repeat('VRA', 10000),5);
+insert into t2 values (6, repeat('VRA', 10000),6);
+insert into t2 values (7, repeat('VRA', 10000),7);
+insert into t2 values (8, repeat('VRA', 10000),8);
+insert into t2 values (9, repeat('VRA', 10000),9);
+insert into t2 values (11, repeat('VRA', 10000), 11);
+update t2 set b=repeat('GEO', 20000), c=c+10 order by c desc;
+include/wait_for_slave_sql_error.inc [errno=1022]
+delete from t2 where c=11;
+start replica;
+drop table t1;
+drop table t2;
 include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "storage/perfschema/table_prepared_stmt_instances.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -60,6 +61,7 @@ Plugin_table table_prepared_stmt_instances::m_table_def(
     "                         'TRIGGER') DEFAULT NULL,\n"
     "  OWNER_OBJECT_SCHEMA varchar(64) DEFAULT NULL,\n"
     "  OWNER_OBJECT_NAME varchar(64) DEFAULT NULL,\n"
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
     "  TIMER_PREPARE bigint(20) unsigned NOT NULL,\n"
     "  COUNT_REPREPARE bigint(20) unsigned NOT NULL,\n"
     "  COUNT_EXECUTE bigint(20) unsigned NOT NULL,\n"
@@ -86,6 +88,8 @@ Plugin_table table_prepared_stmt_instances::m_table_def(
     "  SUM_SORT_SCAN bigint(20) unsigned NOT NULL,\n"
     "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
     "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_CPU_TIME BIGINT unsigned not null,\n"
+    "  COUNT_SECONDARY bigint(20) unsigned NOT NULL,\n"
     "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
     "  UNIQUE KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH,\n"
     "  KEY (STATEMENT_ID) USING HASH,\n"
@@ -100,7 +104,7 @@ Plugin_table table_prepared_stmt_instances::m_table_def(
 PFS_engine_table_share table_prepared_stmt_instances::m_share = {
     &pfs_truncatable_acl,
     table_prepared_stmt_instances::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_prepared_stmt_instances::delete_all_rows,
     table_prepared_stmt_instances::get_row_count,
     sizeof(PFS_simple_index),
@@ -211,7 +215,7 @@ int table_prepared_stmt_instances::rnd_next(void) {
   PFS_prepared_stmt_iterator it =
       global_prepared_stmt_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -225,7 +229,7 @@ int table_prepared_stmt_instances::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_prepared_stmt_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -233,7 +237,7 @@ int table_prepared_stmt_instances::rnd_pos(const void *pos) {
 }
 
 int table_prepared_stmt_instances::index_init(uint idx, bool) {
-  PFS_index_prepared_stmt_instances *result = NULL;
+  PFS_index_prepared_stmt_instances *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -252,7 +256,7 @@ int table_prepared_stmt_instances::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_object);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -268,7 +272,7 @@ int table_prepared_stmt_instances::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more; m_pos.next()) {
     pfs = global_prepared_stmt_container.get(m_pos.m_index, &has_more);
 
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -304,17 +308,10 @@ int table_prepared_stmt_instances::make_row(PFS_prepared_stmt *prepared_stmt) {
   }
 
   m_row.m_owner_object_type = prepared_stmt->m_owner_object_type;
+  m_row.m_owner_object_name = prepared_stmt->m_owner_object_name;
+  m_row.m_owner_object_schema = prepared_stmt->m_owner_object_schema;
 
-  m_row.m_owner_object_name_length = prepared_stmt->m_owner_object_name_length;
-  if (m_row.m_owner_object_name_length > 0)
-    memcpy(m_row.m_owner_object_name, prepared_stmt->m_owner_object_name,
-           m_row.m_owner_object_name_length);
-
-  m_row.m_owner_object_schema_length =
-      prepared_stmt->m_owner_object_schema_length;
-  if (m_row.m_owner_object_schema_length > 0)
-    memcpy(m_row.m_owner_object_schema, prepared_stmt->m_owner_object_schema,
-           m_row.m_owner_object_schema_length);
+  m_row.m_secondary = prepared_stmt->m_secondary;
 
   /* Get prepared statement prepare stats. */
   m_row.m_prepare_stat.set(m_normalizer, &prepared_stmt->m_prepare_stat);
@@ -339,12 +336,12 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
   /*
     Set the null bits.
   */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
           break;
@@ -384,29 +381,22 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
           }
           break;
         case 7: /* OWNER_OBJECT_SCHEMA */
-          if (m_row.m_owner_object_schema_length > 0)
-            set_field_varchar_utf8(f, m_row.m_owner_object_schema,
-                                   m_row.m_owner_object_schema_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_schema_name(f, &m_row.m_owner_object_schema);
           break;
         case 8: /* OWNER_OBJECT_NAME */
-          if (m_row.m_owner_object_name_length > 0)
-            set_field_varchar_utf8(f, m_row.m_owner_object_name,
-                                   m_row.m_owner_object_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_object_name(f, &m_row.m_owner_object_name);
           break;
-        case 9: /* TIMER_PREPARE */
+        case 9: /* EXECUTION_ENGINE */
+          set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
+          break;
+        case 10: /* TIMER_PREPARE */
           m_row.m_prepare_stat.set_field(1, f);
           break;
-        case 10: /* COUNT_REPREPARE */
+        case 11: /* COUNT_REPREPARE */
           m_row.m_reprepare_stat.set_field(0, f);
           break;
-        default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_execute_stat.set_field(f->field_index - 11, f);
+        default: /* 12, ... COUNT/SUM/MIN/AVG/MAX */
+          m_row.m_execute_stat.set_field(f->field_index() - 12, f);
           break;
       }
     }

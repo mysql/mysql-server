@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_api_enable_mdl);
 COUNT(@@GLOBAL.innodb_api_enable_mdl)
 1
 1 Expected
-SELECT innodb_api_enable_mdl = @@SESSION.innodb_api_enable_mdl;
+SELECT innodb_api_enable_mdl;
 ERROR 42S22: Unknown column 'innodb_api_enable_mdl' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

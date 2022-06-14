@@ -2,8 +2,8 @@ DROP TABLE IF EXISTS t1,t2,t3,t4;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
 CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR, UNIQUE INDEX idx(c1,c2));
-CREATE TABLE t3(c1 YEAR(4) NOT NULL,c2 YEAR(4), PRIMARY KEY(c1));
-CREATE TABLE t4(c1 YEAR(4), c2 YEAR(4), UNIQUE INDEX idx(c1,c2));
+CREATE TABLE t3(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
+CREATE TABLE t4(c1 YEAR, c2 YEAR, UNIQUE INDEX idx(c1,c2));
 INSERT INTO t1 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
 INSERT INTO t2 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
 INSERT INTO t3 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
@@ -770,17 +770,17 @@ UPDATE IGNORE t1 SET c1=NULL WHERE c2 < 1975;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 Warning	1048	Column 'c1' cannot be null
-Warning	1062	Duplicate entry '0000' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0000' for key 't1.PRIMARY'
 SELECT c1 from t1 WHERE c2 < 1975;
 c1
 0000
@@ -819,9 +819,9 @@ c1
 2155
 NULL
 UPDATE t1 SET c1=1971 WHERE c2=1995;
-ERROR 23000: Duplicate entry '1971' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1971' for key 't1.PRIMARY'
 UPDATE t1,t2,t3,t4 SET t3.c1=t4.c1+t4.c2 WHERE t3.c1=61 AND t4.c2=4;
-ERROR 23000: Duplicate entry '0000' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0000' for key 't3.PRIMARY'
 UPDATE t1 SET t1.c1=2073 WHERE c1=2074 AND c2=2064;
 SELECT * FROM t1;
 c1	c2

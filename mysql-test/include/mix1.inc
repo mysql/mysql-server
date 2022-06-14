@@ -213,6 +213,7 @@ CREATE TABLE t1 (
   INDEX idx (a6,a7(239),a5)
 ) charset latin1 ENGINE=InnoDB;
 
+ANALYZE TABLE t1;
 EXPLAIN SELECT a4 FROM t1 WHERE
 a6=NULL AND
 a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
@@ -400,6 +401,7 @@ drop table t1;
 create table t1 (f1 int, f2 char(1), primary key(f1,f2)) stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
+ANALYZE TABLE t1;
 explain select distinct f1 a, f1 b from t1;
 explain select distinct f1, f2 from t1;
 drop table t1;
@@ -455,9 +457,13 @@ INSERT INTO t1(id, dept, age, name) VALUES
   (4011, 'cs7', 10, 'rs4'), (4012, 'cs8', 20, 'rs4'), (4019, 'cs9', 10, 'rs5'),
   (4020, 'cs10', 20, 'rs5'),(4027, 'cs11', 10, 'rs6'),(4028, 'cs12', 20, 'rs6');
 
+ANALYZE TABLE t1;
+--echo # Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
+--replace_column 10 #
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 DELETE FROM t1;
+ANALYZE TABLE t1;
 --echo # Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
 --replace_column 10 #
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
@@ -967,6 +973,7 @@ SELECT * FROM t1 WHERE b=20 FOR UPDATE;
 # This statement gives a "failed: 1205: Lock wait timeout exceeded; try
 # restarting transaction" message when the bug is present.
 START TRANSACTION;
+--skip_if_hypergraph
 SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
 ROLLBACK;
 
@@ -1646,6 +1653,7 @@ analyze table t2;
 -- enable_query_log
 
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+--sorted_result
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 
 drop table t1,t2;

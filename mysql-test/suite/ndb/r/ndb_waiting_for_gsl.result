@@ -1,0 +1,6 @@
+CREATE TABLE t1 (a int) engine ndb;
+ALTER TABLE t1 ALGORITHM = COPY, ADD COLUMN b INT;;
+# restart
+ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
+drop table t1;
+include/assert_grep.inc [Checking if ndb-wait-setup timeout]

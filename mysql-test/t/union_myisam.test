@@ -35,7 +35,9 @@ INSERT INTO t2 (id, id_master, text1, text2) VALUES("3", "1", NULL,
 "bar3");
 INSERT INTO t2 (id, id_master, text1, text2) VALUES("4", "1",
 "foo4", "bar4");
+--sorted_result
 SELECT 1 AS id_master, 1 AS id, NULL AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
+--sorted_result
 SELECT 1 AS id_master, 1 AS id, 'ABCDE' AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
 drop tables t1,t2;
 

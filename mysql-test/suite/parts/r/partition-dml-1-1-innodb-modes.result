@@ -71,151 +71,151 @@ set @@global.sql_mode= '';
 connect  session1, localhost, test_user_1,'testpw',test;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-3	(p0-29-)subp3
-21	(p0-29-)subp5
-24	(p0-29-)subp5
 1	(p0-29-)subp3
-4	(p0-29-)subp3
-22	(p0-29-)subp5
 2	(p0-29-)subp3
+21	(p0-29-)subp5
+22	(p0-29-)subp5
 23	(p0-29-)subp5
+24	(p0-29-)subp5
+3	(p0-29-)subp3
+4	(p0-29-)subp3
 send
 UPDATE t1 SET b='table-upd-1' WHERE a BETWEEN 0 AND 9;
 connect  session2, localhost, test_user_2,'testpw',test;
 UPDATE t1 SET b='table-upd-2' WHERE a BETWEEN 0 AND 9;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 INSERT INTO t1 VALUES (11, 'table-ins');
 INSERT INTO t1 VALUES (12, 'table-ins');
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-21	(p0-29-)subp5
-24	(p0-29-)subp5
-12	table-ins
-3	table-upd-2
-22	(p0-29-)subp5
 1	table-upd-2
-4	table-upd-2
-23	(p0-29-)subp5
 11	table-ins
+12	table-ins
 2	table-upd-2
+21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
+24	(p0-29-)subp5
+3	table-upd-2
+4	table-upd-2
 DELETE FROM t1 WHERE b= 'table-ins';
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 connection session1;
 reap
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 #######################################################
 # UPDATE with partition selection
 connection session1;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 send
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-1' WHERE a BETWEEN 0 AND 9;
 connection session2;
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 0 AND 9;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (11, '(p0-29-)ins');
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (12, '(p0-29-)ins');
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+11	(p0-29-)ins
 12	(p0-29-)ins
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-11	(p0-29-)ins
-23	(p0-29-)subp5
-2	p0-29-upd-2
 DELETE FROM t1 PARTITION (`p0-29`,subp5) WHERE b= '(p0-29-)ins';
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 connection session1;
 reap
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 disconnect session1;
 disconnect session2;
 connection default;
@@ -287,151 +287,151 @@ set @@global.sql_mode= ansi;
 connect  session1, localhost, test_user_1,'testpw',test;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-3	(p0-29-)subp3
-21	(p0-29-)subp5
-24	(p0-29-)subp5
 1	(p0-29-)subp3
-4	(p0-29-)subp3
-22	(p0-29-)subp5
 2	(p0-29-)subp3
+21	(p0-29-)subp5
+22	(p0-29-)subp5
 23	(p0-29-)subp5
+24	(p0-29-)subp5
+3	(p0-29-)subp3
+4	(p0-29-)subp3
 send
 UPDATE t1 SET b='table-upd-1' WHERE a BETWEEN 0 AND 9;
 connect  session2, localhost, test_user_2,'testpw',test;
 UPDATE t1 SET b='table-upd-2' WHERE a BETWEEN 0 AND 9;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 INSERT INTO t1 VALUES (11, 'table-ins');
 INSERT INTO t1 VALUES (12, 'table-ins');
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-21	(p0-29-)subp5
-24	(p0-29-)subp5
-12	table-ins
-3	table-upd-2
-22	(p0-29-)subp5
 1	table-upd-2
-4	table-upd-2
-23	(p0-29-)subp5
 11	table-ins
+12	table-ins
 2	table-upd-2
+21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
+24	(p0-29-)subp5
+3	table-upd-2
+4	table-upd-2
 DELETE FROM t1 WHERE b= 'table-ins';
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 connection session1;
 reap
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 #######################################################
 # UPDATE with partition selection
 connection session1;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 send
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-1' WHERE a BETWEEN 0 AND 9;
 connection session2;
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 0 AND 9;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (11, '(p0-29-)ins');
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (12, '(p0-29-)ins');
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+11	(p0-29-)ins
 12	(p0-29-)ins
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-11	(p0-29-)ins
-23	(p0-29-)subp5
-2	p0-29-upd-2
 DELETE FROM t1 PARTITION (`p0-29`,subp5) WHERE b= '(p0-29-)ins';
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 connection session1;
 reap
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 disconnect session1;
 disconnect session2;
 connection default;
@@ -503,151 +503,151 @@ set @@global.sql_mode= traditional;
 connect  session1, localhost, test_user_1,'testpw',test;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-3	(p0-29-)subp3
-21	(p0-29-)subp5
-24	(p0-29-)subp5
 1	(p0-29-)subp3
-4	(p0-29-)subp3
-22	(p0-29-)subp5
 2	(p0-29-)subp3
+21	(p0-29-)subp5
+22	(p0-29-)subp5
 23	(p0-29-)subp5
+24	(p0-29-)subp5
+3	(p0-29-)subp3
+4	(p0-29-)subp3
 send
 UPDATE t1 SET b='table-upd-1' WHERE a BETWEEN 0 AND 9;
 connect  session2, localhost, test_user_2,'testpw',test;
 UPDATE t1 SET b='table-upd-2' WHERE a BETWEEN 0 AND 9;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 INSERT INTO t1 VALUES (11, 'table-ins');
 INSERT INTO t1 VALUES (12, 'table-ins');
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-21	(p0-29-)subp5
-24	(p0-29-)subp5
-12	table-ins
-3	table-upd-2
-22	(p0-29-)subp5
 1	table-upd-2
-4	table-upd-2
-23	(p0-29-)subp5
 11	table-ins
+12	table-ins
 2	table-upd-2
+21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
+24	(p0-29-)subp5
+3	table-upd-2
+4	table-upd-2
 DELETE FROM t1 WHERE b= 'table-ins';
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 connection session1;
 reap
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 #######################################################
 # UPDATE with partition selection
 connection session1;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	table-upd-2
+2	table-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	table-upd-2
-22	(p0-29-)subp5
-1	table-upd-2
 4	table-upd-2
-23	(p0-29-)subp5
-2	table-upd-2
 send
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-1' WHERE a BETWEEN 0 AND 9;
 connection session2;
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 0 AND 9;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (11, '(p0-29-)ins');
 INSERT INTO t1 PARTITION (`p0-29`, subp4) VALUES (12, '(p0-29-)ins');
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+11	(p0-29-)ins
 12	(p0-29-)ins
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-11	(p0-29-)ins
-23	(p0-29-)subp5
-2	p0-29-upd-2
 DELETE FROM t1 PARTITION (`p0-29`,subp5) WHERE b= '(p0-29-)ins';
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 connection session1;
 reap
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
+1	p0-29-upd-2
+2	p0-29-upd-2
 21	(p0-29-)subp5
+22	(p0-29-)subp5
+23	(p0-29-)subp5
 24	(p0-29-)subp5
 3	p0-29-upd-2
-22	(p0-29-)subp5
-1	p0-29-upd-2
 4	p0-29-upd-2
-23	(p0-29-)subp5
-2	p0-29-upd-2
 disconnect session1;
 disconnect session2;
 connection default;

@@ -1,0 +1,111 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Add a single server and managed sources to failover
+#    channel 'ch1' to server1.
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3306, '', 50);
+asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3306, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.2', 3306, '', 90, 70);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.2', 3306, '', 90, 70)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER=1 must be persisted on ch1']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	10.0.0.1	3306		50	
+ch1	10.0.0.2	3306		70	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+ch1	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 90, "Secondary_weight": 70}
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover%';
+name	version
+replication_asynchronous_connection_failover	2
+replication_asynchronous_connection_failover_managed	1
+
+############################################################
+# 2. Bootstrap the group on server1, all failover configuration
+#    will be preserved.
+[connection server1]
+SELECT group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The action mysql_start_failover_channels_if_primary must be disabled]
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER=1 must be persisted on ch1']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	10.0.0.1	3306		50	
+ch1	10.0.0.2	3306		70	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+ch1	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 90, "Secondary_weight": 70}
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover%';
+name	version
+replication_asynchronous_connection_failover	2
+replication_asynchronous_connection_failover_managed	1
+
+############################################################
+# 3. Join server2 to the group, it will replace its failover
+#    configuration.
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_source('ch9', '10.0.0.19', 3306, '', 50);
+asynchronous_connection_failover_add_source('ch9', '10.0.0.19', 3306, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch9', '10.0.0.20', 3306, '', 50);
+asynchronous_connection_failover_add_source('ch9', '10.0.0.20', 3306, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_managed('ch9', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.29', 3306, '', 90, 70);
+asynchronous_connection_failover_add_managed('ch9', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.29', 3306, '', 90, 70)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER=0 must be persisted on ch1']
+include/start_group_replication.inc
+include/assert.inc [The action mysql_start_failover_channels_if_primary must be disabled]
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	10.0.0.1	3306		50	
+ch1	10.0.0.2	3306		70	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+CHANNEL_NAME	MANAGED_NAME	MANAGED_TYPE	CONFIGURATION
+ch1	aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	GroupReplication	{"Primary_weight": 90, "Secondary_weight": 70}
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover%';
+name	version
+replication_asynchronous_connection_failover	2
+replication_asynchronous_connection_failover_managed	1
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER=1 must be persisted on ch1']
+
+############################################################
+# 4. Clean up.
+[connection server1]
+include/rpl_reset_slave.inc
+[connection server2]
+include/rpl_reset_slave.inc
+include/group_replication_end.inc

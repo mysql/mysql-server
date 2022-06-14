@@ -1,7 +1,7 @@
 %top{
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -54,30 +54,30 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 %%
 
-[\t ]+	/* Ignore whitespace */ ;
+[\t ]+  /* Ignore whitespace */ ;
 
-[*()+\-<>~@]		{
-	val->oper = fts0bget_text(yyscanner)[0];
+[*()+\-<>~@]            {
+        val->oper = fts0bget_text(yyscanner)[0];
 
-	return(val->oper);
+        return(val->oper);
 }
 
-[0-9]+			{
-	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
+[0-9]+                  {
+        val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
-	return(FTS_NUMB);
+        return(FTS_NUMB);
 }
 
-[^" \n*()+\-<>~@%]*		{
-	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
+[^" \n*()+\-<>~@%]*             {
+        val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
-	return(FTS_TERM);
+        return(FTS_TERM);
 }
 
-\"[^\"\n]*\"		{
-	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
+\"[^\"\n]*\"            {
+        val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
-	return(FTS_TEXT);
+        return(FTS_TEXT);
 }
 
 \n

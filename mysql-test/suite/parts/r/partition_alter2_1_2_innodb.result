@@ -64,8 +64,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -520,8 +520,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -984,8 +984,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1453,8 +1453,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1916,8 +1916,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -2383,8 +2383,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -2857,8 +2857,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -3329,8 +3329,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -3791,8 +3791,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -3809,7 +3809,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -4283,8 +4283,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -4301,7 +4301,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -4783,8 +4783,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -4808,7 +4808,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -5288,8 +5288,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -5311,7 +5311,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -5787,8 +5787,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -5810,7 +5810,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -6290,8 +6290,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -6320,7 +6320,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -6800,8 +6800,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -6830,7 +6830,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -7308,8 +7308,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -7330,7 +7330,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -7805,8 +7805,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -7823,7 +7823,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -8297,8 +8297,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -8315,7 +8315,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -8797,8 +8797,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -8822,7 +8822,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -9302,8 +9302,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -9325,7 +9325,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -9801,8 +9801,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -9824,7 +9824,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -10304,8 +10304,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -10334,7 +10334,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -10814,8 +10814,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -10844,7 +10844,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -11322,8 +11322,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) NOT NULL,
-  `f_int2` bigint(20) NOT NULL,
+  `f_int1` bigint NOT NULL,
+  `f_int2` bigint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -11344,7 +11344,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-2' for key 't1.PRIMARY'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -11820,8 +11820,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -11838,7 +11838,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -12328,8 +12328,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -12346,7 +12346,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -12844,8 +12844,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -12869,7 +12869,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -13365,8 +13365,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -13388,7 +13388,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -13880,8 +13880,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -13903,7 +13903,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -14399,8 +14399,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -14429,7 +14429,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -14925,8 +14925,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -14955,7 +14955,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -15449,8 +15449,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -15471,7 +15471,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -15962,8 +15962,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -15980,7 +15980,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -16470,8 +16470,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -16488,7 +16488,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -16986,8 +16986,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -17011,7 +17011,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -17507,8 +17507,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -17530,7 +17530,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -18022,8 +18022,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -18045,7 +18045,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -18541,8 +18541,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -18571,7 +18571,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -19067,8 +19067,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -19097,7 +19097,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -19591,8 +19591,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` bigint(20) DEFAULT NULL,
-  `f_int2` bigint(20) DEFAULT NULL,
+  `f_int1` bigint DEFAULT NULL,
+  `f_int2` bigint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -19613,7 +19613,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Duplicate entry '2-2' for key 'uidx'
+ERROR 23000: Duplicate entry '2-2' for key 't1.uidx'
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)

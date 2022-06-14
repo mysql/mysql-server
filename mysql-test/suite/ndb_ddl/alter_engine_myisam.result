@@ -1,0 +1,57 @@
+ALTER TABLE t1
+ENGINE=MyISAM;
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+from information_schema.tables
+where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+ndb_ddl_test	t1	MyISAM
+ndb_ddl_test	t2	ndbcluster
+ndb_ddl_test	t3	ndbcluster
+ndb_ddl_test	t4	ndbcluster
+ndb_ddl_test	t5	ndbcluster
+ndb_ddl_test	t6	ndbcluster
+ndb_ddl_test	t7	ndbcluster
+ndb_ddl_test	t8	ndbcluster
+ndb_ddl_test	t9	ndbcluster
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+from information_schema.tables
+where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+ndb_ddl_test	t2	ndbcluster
+ndb_ddl_test	t3	ndbcluster
+ndb_ddl_test	t4	ndbcluster
+ndb_ddl_test	t5	ndbcluster
+ndb_ddl_test	t6	ndbcluster
+ndb_ddl_test	t7	ndbcluster
+ndb_ddl_test	t8	ndbcluster
+ndb_ddl_test	t9	ndbcluster
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+from information_schema.tables
+where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+ndb_ddl_test	t2	ndbcluster
+ndb_ddl_test	t3	ndbcluster
+ndb_ddl_test	t4	ndbcluster
+ndb_ddl_test	t5	ndbcluster
+ndb_ddl_test	t6	ndbcluster
+ndb_ddl_test	t7	ndbcluster
+ndb_ddl_test	t8	ndbcluster
+ndb_ddl_test	t9	ndbcluster
+ALTER TABLE t1
+ENGINE=NDB;
+== verify_mysql_dd.inc ==
+set debug='+d,ndb_simulate_alter_failure_rename1';
+ALTER TABLE ndb_ddl_test.t1 ENGINE = MyISAM;
+ERROR HY000: Internal error: Simulated : Failed to rename original table to a temp name.
+== verify_mysql_dd.inc ==
+ALTER TABLE ndb_ddl_test.t1 ENGINE = MyISAM;
+set debug='+d,ndb_simulate_alter_failure_rename2';
+ALTER TABLE ndb_ddl_test.t1 ENGINE = NDB;
+ERROR HY000: Internal error: Simulated : Failed to rename new table to target name.
+Number of tables with temp name in NDB
+0
+ALTER TABLE ndb_ddl_test.t1 ENGINE = NDB;
+== verify_mysql_dd.inc ==

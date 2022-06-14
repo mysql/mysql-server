@@ -5,10 +5,15 @@ metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
 metadata_table_reference_count	disabled
 lock_deadlocks	disabled
+lock_deadlock_false_positives	disabled
+lock_deadlock_rounds	disabled
+lock_threads_waiting	disabled
 lock_timeouts	disabled
 lock_rec_lock_waits	disabled
 lock_table_lock_waits	disabled
 lock_rec_lock_requests	disabled
+lock_rec_release_attempts	disabled
+lock_rec_grant_attempts	disabled
 lock_rec_lock_created	disabled
 lock_rec_lock_removed	disabled
 lock_rec_locks	disabled
@@ -20,6 +25,7 @@ lock_row_lock_time	disabled
 lock_row_lock_time_max	disabled
 lock_row_lock_waits	disabled
 lock_row_lock_time_avg	disabled
+lock_schedule_refreshes	disabled
 buffer_pool_size	disabled
 buffer_pool_reads	disabled
 buffer_pool_read_requests	disabled
@@ -49,6 +55,7 @@ buffer_flush_neighbor_total_pages	disabled
 buffer_flush_neighbor	disabled
 buffer_flush_neighbor_pages	disabled
 buffer_flush_n_to_flush_requested	disabled
+buffer_flush_n_to_flush_by_dirty_page	disabled
 buffer_flush_n_to_flush_by_age	disabled
 buffer_flush_adaptive_avg_time_slot	disabled
 buffer_LRU_batch_flush_avg_time_slot	disabled
@@ -150,6 +157,7 @@ trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
 trx_rollback_active	disabled
 trx_active_transactions	disabled
+trx_allocations	disabled
 trx_on_log_no_waits	disabled
 trx_on_log_waits	disabled
 trx_on_log_wait_loops	disabled
@@ -167,11 +175,7 @@ purge_resume_count	disabled
 purge_truncate_history_count	disabled
 purge_truncate_history_usec	disabled
 undo_truncate_count	disabled
-undo_truncate_sweep_count	disabled
-undo_truncate_sweep_usec	disabled
 undo_truncate_start_logging_count	disabled
-undo_truncate_flush_count	disabled
-undo_truncate_flush_usec	disabled
 undo_truncate_done_logging_count	disabled
 undo_truncate_usec	disabled
 log_lsn_last_flush	disabled
@@ -280,6 +284,12 @@ dml_reads	disabled
 dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
+dml_system_reads	disabled
+dml_system_inserts	disabled
+dml_system_deletes	disabled
+dml_system_updates	disabled
+sampled_pages_read	disabled
+sampled_pages_skipped	disabled
 ddl_background_drop_tables	disabled
 ddl_online_create_index	disabled
 ddl_pending_alter_table	disabled
@@ -300,6 +310,11 @@ page_track_resets	disabled
 page_track_partial_block_writes	disabled
 page_track_full_block_writes	disabled
 page_track_checkpoint_partial_flush_request	disabled
+module_dblwr	disabled
+dblwr_async_requests	disabled
+dblwr_sync_requests	disabled
+dblwr_flush_requests	disabled
+dblwr_flush_wait_events	disabled
 set global innodb_monitor_enable = all;
 select name from information_schema.innodb_metrics where status!='enabled';
 name
@@ -320,10 +335,15 @@ select name, status from information_schema.innodb_metrics
 where name like "%lock%";
 name	status
 lock_deadlocks	disabled
+lock_deadlock_false_positives	disabled
+lock_deadlock_rounds	disabled
+lock_threads_waiting	disabled
 lock_timeouts	disabled
 lock_rec_lock_waits	disabled
 lock_table_lock_waits	disabled
 lock_rec_lock_requests	disabled
+lock_rec_release_attempts	disabled
+lock_rec_grant_attempts	disabled
 lock_rec_lock_created	disabled
 lock_rec_lock_removed	disabled
 lock_rec_locks	disabled
@@ -335,6 +355,7 @@ lock_row_lock_time	disabled
 lock_row_lock_time_max	disabled
 lock_row_lock_waits	disabled
 lock_row_lock_time_avg	disabled
+lock_schedule_refreshes	disabled
 log_full_block_writes	disabled
 log_partial_block_writes	disabled
 innodb_rwlock_s_spin_waits	disabled
@@ -520,6 +541,10 @@ dml_reads	4	NULL	4	4	NULL	4	enabled
 dml_inserts	1	NULL	1	1	NULL	1	enabled
 dml_deletes	0	NULL	0	0	NULL	0	enabled
 dml_updates	2	NULL	2	2	NULL	2	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 delete from monitor_test;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -530,6 +555,10 @@ dml_reads	6	NULL	6	6	NULL	6	enabled
 dml_inserts	1	NULL	1	1	NULL	1	enabled
 dml_deletes	2	NULL	2	2	NULL	2	enabled
 dml_updates	2	NULL	2	2	NULL	2	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 set global innodb_monitor_reset =  module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -540,6 +569,10 @@ dml_reads	6	NULL	6	0	NULL	0	enabled
 dml_inserts	1	NULL	1	0	NULL	0	enabled
 dml_deletes	2	NULL	2	0	NULL	0	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 insert into monitor_test values(9);
 insert into monitor_test values(1);
 delete from monitor_test;
@@ -552,6 +585,10 @@ dml_reads	8	NULL	8	2	NULL	2	enabled
 dml_inserts	3	NULL	3	2	NULL	2	enabled
 dml_deletes	4	NULL	4	2	NULL	2	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 set global innodb_monitor_reset_all  =  module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -562,6 +599,10 @@ dml_reads	8	NULL	8	2	NULL	2	enabled
 dml_inserts	3	NULL	3	2	NULL	2	enabled
 dml_deletes	4	NULL	4	2	NULL	2	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 set global innodb_monitor_disable = module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -572,6 +613,10 @@ dml_reads	8	NULL	8	2	NULL	2	disabled
 dml_inserts	3	NULL	3	2	NULL	2	disabled
 dml_deletes	4	NULL	4	2	NULL	2	disabled
 dml_updates	2	NULL	2	0	NULL	0	disabled
+dml_system_reads	0	NULL	0	0	NULL	0	disabled
+dml_system_inserts	0	NULL	0	0	NULL	0	disabled
+dml_system_deletes	0	NULL	0	0	NULL	0	disabled
+dml_system_updates	0	NULL	0	0	NULL	0	disabled
 set global innodb_monitor_reset_all  = module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -582,6 +627,10 @@ dml_reads	NULL	NULL	0	NULL	NULL	0	disabled
 dml_inserts	NULL	NULL	0	NULL	NULL	0	disabled
 dml_deletes	NULL	NULL	0	NULL	NULL	0	disabled
 dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_reads	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_inserts	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_deletes	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_updates	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_enable = dml_inserts;
 insert into monitor_test values(9);
 insert into monitor_test values(1);
@@ -595,6 +644,10 @@ dml_reads	NULL	NULL	0	NULL	NULL	0	disabled
 dml_inserts	2	NULL	2	2	NULL	2	enabled
 dml_deletes	NULL	NULL	0	NULL	NULL	0	disabled
 dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_reads	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_inserts	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_deletes	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_updates	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_disable = module_dml;
 drop table monitor_test;
 set global innodb_monitor_enable = file_num_open_files;
@@ -683,7 +736,4 @@ SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
 LIKE 'buffer_page_written_index_leaf';
 NAME	COUNT
 buffer_page_written_index_leaf	NNNN
-SET GLOBAL innodb_monitor_enable=default;
-SET GLOBAL innodb_monitor_disable=default;
-SET GLOBAL innodb_monitor_reset_all=default;
 DROP TABLE t1;

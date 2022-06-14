@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ enum fk_match_opt {
   FK_MATCH_SIMPLE
 };
 
-enum enum_order { ORDER_NOT_RELEVANT = 1, ORDER_ASC, ORDER_DESC };
+enum enum_order : int { ORDER_NOT_RELEVANT = 1, ORDER_ASC, ORDER_DESC };
 
 class KEY_CREATE_INFO {
  public:
@@ -79,6 +79,9 @@ class KEY_CREATE_INFO {
   KEY_CREATE_INFO() = default;
 
   explicit KEY_CREATE_INFO(bool is_visible_arg) : is_visible(is_visible_arg) {}
+
+  LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
 };
 
 extern KEY_CREATE_INFO default_key_create_info;
@@ -128,7 +131,7 @@ class Key_part_spec {
   uint get_prefix_length() const { return m_prefix_length; }
 
   Item *get_expression() const {
-    DBUG_ASSERT(has_expression());
+    assert(has_expression());
     return m_expression;
   }
 
@@ -231,7 +234,7 @@ class Key_spec {
     while ((column = it++)) columns.push_back(column);
   }
 
-  virtual ~Key_spec() {}
+  virtual ~Key_spec() = default;
 };
 
 class Foreign_key_spec : public Key_spec {
@@ -244,6 +247,15 @@ class Foreign_key_spec : public Key_spec {
   const fk_option delete_opt;
   const fk_option update_opt;
   const fk_match_opt match_opt;
+  /**
+    Indicates whether foreign key name was provided explicitly or
+    was generated automatically.
+
+    @todo Get rid of this flag once we implement a better way for
+          NDB SE to get generated foreign key name from SQL-layer.
+    @sa   prepare_foreign_key().
+  */
+  const bool has_explicit_name;
 
   Foreign_key_spec(MEM_ROOT *mem_root, const LEX_CSTRING &name_arg,
                    List<Key_part_spec> cols, const LEX_CSTRING &ref_db_arg,
@@ -263,7 +275,8 @@ class Foreign_key_spec : public Key_spec {
         ref_columns(mem_root),
         delete_opt(delete_opt_arg),
         update_opt(update_opt_arg),
-        match_opt(match_opt_arg) {
+        match_opt(match_opt_arg),
+        has_explicit_name(name_arg.str != nullptr) {
     if (ref_cols) {
       ref_columns.reserve(ref_cols->elements);
       List_iterator<Key_part_spec> it(*ref_cols);
@@ -282,7 +295,7 @@ class Foreign_key_spec : public Key_spec {
 
     @retval false   Key valid
     @retval true    Key invalid
- */
+   */
   bool validate(THD *thd, const char *table_name,
                 List<Create_field> &table_fields) const;
 };

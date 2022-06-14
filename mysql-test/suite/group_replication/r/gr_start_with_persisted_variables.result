@@ -24,6 +24,7 @@ variable_name	variable_source
 group_replication_bootstrap_group	PERSISTED
 group_replication_group_name	PERSISTED
 group_replication_group_seeds	PERSISTED
+group_replication_ip_allowlist	PERSISTED
 group_replication_local_address	PERSISTED
 group_replication_recovery_get_public_key	PERSISTED
 group_replication_start_on_boot	PERSISTED
@@ -47,6 +48,7 @@ SELECT variable_name, variable_source FROM performance_schema.variables_info WHE
 variable_name	variable_source
 group_replication_group_name	PERSISTED
 group_replication_group_seeds	PERSISTED
+group_replication_ip_allowlist	PERSISTED
 group_replication_local_address	PERSISTED
 group_replication_recovery_get_public_key	PERSISTED
 group_replication_start_on_boot	PERSISTED
@@ -60,3 +62,7 @@ SET GLOBAL group_replication_start_on_boot= OFF;
 RESET PERSIST;
 SET GLOBAL group_replication_start_on_boot= OFF;
 include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

@@ -1,0 +1,444 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#### Specify scenarios ####
+
+#### Initialize Server State ####
+include/disable_binlog.inc
+SET @save_replica_parallel_workers = @@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers = 4;
+include/start_slave_sql.inc
+SET @save_replica_net_timeout = @@global.replica_net_timeout;
+SET @@global.replica_net_timeout = 300;
+CREATE TABLE statement_result (name VARCHAR(256), KEY(name));
+include/disable_binlog.inc
+CREATE TABLE statement_result (name VARCHAR(256), KEY(name));
+# Adding debug point 'syncpoint_begin_register_replica' to @@GLOBAL.debug
+SET @@session.debug_sync = "now WAIT_FOR reached_begin_register_replica";
+START REPLICA IO_THREAD;
+
+#### Test terminology_use_previous=0 ####
+
+SET @@session.terminology_use_previous = 0;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SELECT @@session.terminology_use_previous;
+@@session.terminology_use_previous
+NONE
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SET @@session.terminology_use_previous = 0;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SELECT @@session.terminology_use_previous;
+@@session.terminology_use_previous
+NONE
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+
+---- mutex ----
+* performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_instance(EVENT_NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.mutex_instances(NAME)
+include/assert.inc [There should be 12 unique 'new' mutex names in performance_schema.mutex_instances(NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' mutex names in performance_schema.mutex_instances(NAME) on server 2]
+
+---- rwlock ----
+* performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_instance(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.rwlock_instances(NAME)
+include/assert.inc [There should be 1 unique 'new' rwlock names in performance_schema.rwlock_instances(NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' rwlock names in performance_schema.rwlock_instances(NAME) on server 2]
+
+---- cond ----
+* performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_instance(EVENT_NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.cond_instances(NAME)
+include/assert.inc [There should be 7 unique 'new' cond names in performance_schema.cond_instances(NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' cond names in performance_schema.cond_instances(NAME) on server 2]
+
+---- memory ----
+* performance_schema.memory_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 5 unique 'new' memory names in performance_schema.memory_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' memory names in performance_schema.memory_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 5 unique 'new' memory names in performance_schema.memory_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' memory names in performance_schema.memory_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 5 unique 'new' memory names in performance_schema.memory_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' memory names in performance_schema.memory_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 5 unique 'new' memory names in performance_schema.memory_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' memory names in performance_schema.memory_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 5 unique 'new' memory names in performance_schema.memory_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' memory names in performance_schema.memory_summary_global_by_event_name(EVENT_NAME) on server 2]
+
+---- thread ----
+* performance_schema.threads(NAME)
+include/assert.inc [There should be 3 unique 'new' thread names in performance_schema.threads(NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' thread names in performance_schema.threads(NAME) on server 2]
+
+---- stage ----
+* performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.threads(PROCESSLIST_STATE)
+include/assert.inc [There should be 2 unique 'new' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
+* performance_schema.processlist(STATE)
+include/assert.inc [There should be 2 unique 'new' stage names in performance_schema.processlist(STATE) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.processlist(STATE) on server 2]
+* INFORMATION_SCHEMA.PROCESSLIST(STATE)
+include/assert.inc [There should be 2 unique 'new' stage names in INFORMATION_SCHEMA.PROCESSLIST(STATE) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in INFORMATION_SCHEMA.PROCESSLIST(STATE) on server 2]
+* SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 7)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 2 unique 'new' stage names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 7) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 7) on server 2]
+* SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 7)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 2 unique 'new' stage names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 7) on server 2]
+include/assert.inc [There should be 0 unique 'old' stage names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 7) on server 2]
+
+---- command ----
+* performance_schema.events_statements_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.events_statements_summary_by_account_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.events_statements_summary_by_account_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.events_statements_summary_by_host_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.events_statements_summary_by_host_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.events_statements_summary_by_thread_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.events_statements_summary_by_thread_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.events_statements_summary_by_user_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.events_statements_summary_by_user_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.threads(PROCESSLIST_COMMAND)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.threads(PROCESSLIST_COMMAND) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.threads(PROCESSLIST_COMMAND) on server 1]
+* performance_schema.processlist(COMMAND)
+include/assert.inc [There should be 1 unique 'new' command names in performance_schema.processlist(COMMAND) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in performance_schema.processlist(COMMAND) on server 1]
+* INFORMATION_SCHEMA.PROCESSLIST(COMMAND)
+include/assert.inc [There should be 1 unique 'new' command names in INFORMATION_SCHEMA.PROCESSLIST(COMMAND) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in INFORMATION_SCHEMA.PROCESSLIST(COMMAND) on server 1]
+* SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 5)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 1 unique 'new' command names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 5) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 5) on server 1]
+* SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 5)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 1 unique 'new' command names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 5) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 5) on server 1]
+* SHOW REPLICA STATUS(column 1)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW REPLICA STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW REPLICA STATUS -> statement_result]
+include/assert.inc [There should be 1 unique 'new' command names in SHOW REPLICA STATUS(column 1) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in SHOW REPLICA STATUS(column 1) on server 1]
+* SHOW REPLICA STATUS(column 45)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW REPLICA STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW REPLICA STATUS -> statement_result]
+include/assert.inc [There should be 1 unique 'new' command names in SHOW REPLICA STATUS(column 45) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in SHOW REPLICA STATUS(column 45) on server 1]
+* SHOW SLAVE STATUS(column 1)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW SLAVE STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW SLAVE STATUS -> statement_result]
+include/assert.inc [There should be 1 unique 'new' command names in SHOW SLAVE STATUS(column 1) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in SHOW SLAVE STATUS(column 1) on server 1]
+* SHOW SLAVE STATUS(column 45)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW SLAVE STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 0; SHOW SLAVE STATUS -> statement_result]
+include/assert.inc [There should be 1 unique 'new' command names in SHOW SLAVE STATUS(column 45) on server 1]
+include/assert.inc [There should be 0 unique 'old' command names in SHOW SLAVE STATUS(column 45) on server 1]
+
+#### Test terminology_use_previous=1 ####
+
+SET @@session.terminology_use_previous = 1;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SELECT @@session.terminology_use_previous;
+@@session.terminology_use_previous
+BEFORE_8_0_26
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SET @@session.terminology_use_previous = 1;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SELECT @@session.terminology_use_previous;
+@@session.terminology_use_previous
+BEFORE_8_0_26
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+
+---- mutex ----
+* performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_instance(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.mutex_instances(NAME)
+include/assert.inc [There should be 0 unique 'new' mutex names in performance_schema.mutex_instances(NAME) on server 2]
+include/assert.inc [There should be 12 unique 'old' mutex names in performance_schema.mutex_instances(NAME) on server 2]
+
+---- rwlock ----
+* performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_instance(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.rwlock_instances(NAME)
+include/assert.inc [There should be 0 unique 'new' rwlock names in performance_schema.rwlock_instances(NAME) on server 2]
+include/assert.inc [There should be 1 unique 'old' rwlock names in performance_schema.rwlock_instances(NAME) on server 2]
+
+---- cond ----
+* performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.events_waits_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.events_waits_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_instance(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.events_waits_summary_by_instance(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.events_waits_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.events_waits_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.events_waits_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.cond_instances(NAME)
+include/assert.inc [There should be 0 unique 'new' cond names in performance_schema.cond_instances(NAME) on server 2]
+include/assert.inc [There should be 7 unique 'old' cond names in performance_schema.cond_instances(NAME) on server 2]
+
+---- memory ----
+* performance_schema.memory_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' memory names in performance_schema.memory_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 5 unique 'old' memory names in performance_schema.memory_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' memory names in performance_schema.memory_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 5 unique 'old' memory names in performance_schema.memory_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' memory names in performance_schema.memory_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 5 unique 'old' memory names in performance_schema.memory_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' memory names in performance_schema.memory_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 5 unique 'old' memory names in performance_schema.memory_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.memory_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' memory names in performance_schema.memory_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 5 unique 'old' memory names in performance_schema.memory_summary_global_by_event_name(EVENT_NAME) on server 2]
+
+---- thread ----
+* performance_schema.threads(NAME)
+include/assert.inc [There should be 0 unique 'new' thread names in performance_schema.threads(NAME) on server 2]
+include/assert.inc [There should be 3 unique 'old' thread names in performance_schema.threads(NAME) on server 2]
+
+---- stage ----
+* performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
+* performance_schema.threads(PROCESSLIST_STATE)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
+include/assert.inc [There should be 2 unique 'old' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
+* performance_schema.processlist(STATE)
+include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.processlist(STATE) on server 2]
+include/assert.inc [There should be 2 unique 'old' stage names in performance_schema.processlist(STATE) on server 2]
+* INFORMATION_SCHEMA.PROCESSLIST(STATE)
+include/assert.inc [There should be 0 unique 'new' stage names in INFORMATION_SCHEMA.PROCESSLIST(STATE) on server 2]
+include/assert.inc [There should be 2 unique 'old' stage names in INFORMATION_SCHEMA.PROCESSLIST(STATE) on server 2]
+* SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 7)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 0 unique 'new' stage names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 7) on server 2]
+include/assert.inc [There should be 2 unique 'old' stage names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 7) on server 2]
+* SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 7)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 0 unique 'new' stage names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 7) on server 2]
+include/assert.inc [There should be 2 unique 'old' stage names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 7) on server 2]
+
+---- command ----
+* performance_schema.events_statements_summary_by_account_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.events_statements_summary_by_account_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.events_statements_summary_by_account_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_by_host_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.events_statements_summary_by_host_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.events_statements_summary_by_host_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_by_thread_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.events_statements_summary_by_thread_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.events_statements_summary_by_thread_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_by_user_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.events_statements_summary_by_user_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.events_statements_summary_by_user_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.events_statements_summary_global_by_event_name(EVENT_NAME) on server 1]
+* performance_schema.threads(PROCESSLIST_COMMAND)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.threads(PROCESSLIST_COMMAND) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.threads(PROCESSLIST_COMMAND) on server 1]
+* performance_schema.processlist(COMMAND)
+include/assert.inc [There should be 0 unique 'new' command names in performance_schema.processlist(COMMAND) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in performance_schema.processlist(COMMAND) on server 1]
+* INFORMATION_SCHEMA.PROCESSLIST(COMMAND)
+include/assert.inc [There should be 0 unique 'new' command names in INFORMATION_SCHEMA.PROCESSLIST(COMMAND) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in INFORMATION_SCHEMA.PROCESSLIST(COMMAND) on server 1]
+* SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 5)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 0 unique 'new' command names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 5) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST(column 5) on server 1]
+* SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 5)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST -> statement_result]
+include/assert.inc [There should be 0 unique 'new' command names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 5) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST(column 5) on server 1]
+* SHOW REPLICA STATUS(column 1)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW REPLICA STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW REPLICA STATUS -> statement_result]
+include/assert.inc [There should be 0 unique 'new' command names in SHOW REPLICA STATUS(column 1) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in SHOW REPLICA STATUS(column 1) on server 1]
+* SHOW REPLICA STATUS(column 45)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW REPLICA STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW REPLICA STATUS -> statement_result]
+include/assert.inc [There should be 0 unique 'new' command names in SHOW REPLICA STATUS(column 45) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in SHOW REPLICA STATUS(column 45) on server 1]
+* SHOW SLAVE STATUS(column 1)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW SLAVE STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW SLAVE STATUS -> statement_result]
+include/assert.inc [There should be 0 unique 'new' command names in SHOW SLAVE STATUS(column 1) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in SHOW SLAVE STATUS(column 1) on server 1]
+* SHOW SLAVE STATUS(column 45)
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW SLAVE STATUS -> statement_result]
+include/include/save_result_in_table.inc [SET @@session.terminology_use_previous = 1; SHOW SLAVE STATUS -> statement_result]
+include/assert.inc [There should be 0 unique 'new' command names in SHOW SLAVE STATUS(column 45) on server 1]
+include/assert.inc [There should be 1 unique 'old' command names in SHOW SLAVE STATUS(column 45) on server 1]
+# Check SET terminology_use_previous = DEFAULT
+SET @@session.terminology_use_previous = DEFAULT;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SELECT @@session.terminology_use_previous;
+@@session.terminology_use_previous
+NONE
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+
+#### Clean up ####
+SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
+include/wait_for_slave_io_to_start.inc
+SET @@global.replica_parallel_workers = @save_replica_parallel_workers;
+SET @@global.replica_net_timeout = @save_replica_net_timeout;
+include/restore_binlog.inc
+# Removing debug point 'syncpoint_begin_register_replica' from @@GLOBAL.debug
+DROP TABLE statement_result;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

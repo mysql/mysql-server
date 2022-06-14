@@ -119,5 +119,7 @@ def	events_test	three_event	ev_test@localhost	SQL	SELECT 123	RECURRING	NULL	20	S
 def	events_test	two_event	ev_test@localhost	SQL	SELECT 123	RECURRING	NULL	20	SECOND	ENABLED	NOT PRESERVE	two event
 def	events_test2	five_event	root@localhost	SQL	SELECT 42	RECURRING	NULL	20	SECOND	ENABLED	NOT PRESERVE	
 DROP USER ev_test@localhost;
+Warnings:
+Warning	4005	User 'ev_test'@'localhost' is referenced as a definer account in an event.
 DROP DATABASE events_test2;
 DROP DATABASE events_test;

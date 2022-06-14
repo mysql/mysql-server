@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef PLUGIN_INCLUDE
 #define PLUGIN_INCLUDE
 
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
 
@@ -46,13 +47,16 @@
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/ps_information.h"
 #include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/services/registry.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 // Forward declarations
 class Autorejoin_thread;
-class Hold_transactions;
 class Transaction_consistency_manager;
+class Member_actions_handler;
+class Consensus_leaders_handler;
+class Mysql_thread;
 
 // Definition of system var structures
 
@@ -71,9 +75,15 @@ enum enum_channel_observation_manager_position {
   END_CHANNEL_OBSERVATION_MANAGER_POS
 };
 
+/**
+  @enum enum_exit_state_action
+  @brief Action performed when the member leaves the group
+  unexpectedly.
+*/
 enum enum_exit_state_action {
   EXIT_STATE_ACTION_READ_ONLY = 0,
-  EXIT_STATE_ACTION_ABORT_SERVER
+  EXIT_STATE_ACTION_ABORT_SERVER,
+  EXIT_STATE_ACTION_OFFLINE_MODE
 };
 
 /**
@@ -103,10 +113,35 @@ struct gr_modules {
     COMPATIBILITY_MANAGER,
     GCS_EVENTS_HANDLER,
     REMOTE_CLONE_HANDLER,
+    MESSAGE_SERVICE_HANDLER,
+    BINLOG_DUMP_THREAD_KILL,
+    MEMBER_ACTIONS_HANDLER,
+    MYSQL_THREAD_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
   static constexpr mask all_modules = (1 << NUM_MODULES) - 1;
+};
+
+/**
+  @enum enum_tls_source_values
+  @brief Source of TLS configuration for the connection between Group
+  Replication members.
+*/
+enum enum_tls_source_values {
+  TLS_SOURCE_MYSQL_MAIN = 0,
+  TLS_SOURCE_MYSQL_ADMIN
+};
+
+/**
+  @enum enum_wait_on_start_process_result
+  @brief Reasons why asynchronous channels start wait for Group
+  Replication status can be aborted.
+*/
+enum enum_wait_on_start_process_result {
+  WAIT_ON_START_PROCESS_SUCCESS = 0,
+  WAIT_ON_START_PROCESS_ABORT_ON_CLONE,
+  WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER
 };
 
 /**
@@ -134,8 +169,10 @@ extern Shared_writelock *shared_plugin_stop_lock;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 extern Group_action_coordinator *group_action_coordinator;
 extern Primary_election_handler *primary_election_handler;
-extern Hold_transactions *hold_transactions;
 extern Autorejoin_thread *autorejoin_module;
+extern Message_service_handler *message_service_handler;
+extern Member_actions_handler *member_actions_handler;
+extern Mysql_thread *mysql_thread_handler;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;
@@ -144,15 +181,17 @@ extern Compatibility_module *compatibility_mgr;
 extern Group_partition_handling *group_partition_handler;
 extern Blocked_transaction_handler *blocked_transaction_handler;
 extern Remote_clone_handler *remote_clone_handler;
+extern Consensus_leaders_handler *consensus_leaders_handler;
 // Latch used as the control point of the event driven
 // management of the transactions.
 extern Wait_ticket<my_thread_id> *transactions_latch;
+extern SERVICE_TYPE_NO_CONST(mysql_runtime_error) * mysql_runtime_error_service;
 
 // Plugin global methods
 bool server_engine_initialized();
 void *get_plugin_pointer();
-mysql_mutex_t *get_plugin_running_lock();
-Plugin_waitlock *get_plugin_online_lock();
+Checkable_rwlock *get_plugin_running_lock();
+mysql_mutex_t *get_plugin_applier_module_initialize_terminate_lock();
 int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
                                Delayed_initialization_thread *delayed_init_thd);
 int initialize_plugin_modules(gr_modules::mask modules_to_init);
@@ -170,11 +209,12 @@ void set_auto_increment_handler_values();
 void reset_auto_increment_handler_values(bool force_reset = false);
 SERVICE_TYPE(registry) * get_plugin_registry();
 rpl_sidno get_group_sidno();
+rpl_sidno get_view_change_sidno();
 bool is_autorejoin_enabled();
 uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();
 void declare_plugin_cloning(bool is_running);
-
+bool get_allow_single_leader();
 /**
   Encapsulates the logic necessary to attempt a rejoin, i.e. gracefully leave
   the group, terminate GCS infrastructure, terminate auto-rejoin relevant plugin
@@ -193,6 +233,7 @@ bool get_server_shutdown_status();
 void set_plugin_is_setting_read_mode(bool value);
 bool get_plugin_is_setting_read_mode();
 const char *get_group_name_var();
+const char *get_view_change_uuid_var();
 ulong get_exit_state_action_var();
 ulong get_flow_control_mode_var();
 long get_flow_control_certifier_threshold_var();
@@ -204,18 +245,21 @@ int get_flow_control_member_quota_percent_var();
 int get_flow_control_period_var();
 int get_flow_control_hold_percent_var();
 int get_flow_control_release_percent_var();
+ulong get_components_stop_timeout_var();
+ulong get_communication_stack_var();
 
 // Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
 int plugin_group_replication_deinit(void *p);
-int plugin_group_replication_start(char **error_message = NULL);
-int plugin_group_replication_stop(char **error_message = NULL);
+int plugin_group_replication_start(char **error_message = nullptr);
+int plugin_group_replication_stop(char **error_message = nullptr);
 bool plugin_is_group_replication_running();
 bool plugin_is_group_replication_cloning();
 bool is_plugin_auto_starting_on_non_bootstrap_member();
 bool is_plugin_configured_and_starting();
-bool initiate_wait_on_start_process();
-void terminate_wait_on_start_process(bool abort = false);
+enum_wait_on_start_process_result initiate_wait_on_start_process();
+void terminate_wait_on_start_process(
+    enum_wait_on_start_process_result abort = WAIT_ON_START_PROCESS_SUCCESS);
 void set_wait_on_start_process(bool cond);
 bool plugin_get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks);
@@ -225,6 +269,7 @@ bool plugin_get_group_member_stats(
     uint index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 uint plugin_get_group_members_number();
+int plugin_group_replication_leave_group();
 
 /**
   Method to set retrieved certification info from a recovery channel extracted

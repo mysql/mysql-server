@@ -2,6 +2,7 @@
 
 # Stop table io recording
 update performance_schema.setup_consumers set enabled='NO';
+--skip_if_hypergraph  # Depends on query plan.
 eval select event_name,
   left(source, locate(":", source)) as short_source,
   object_type, object_schema,

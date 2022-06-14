@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -21,10 +21,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
+#include <cinttypes>
+#include <string>
 
-#include "violite.h"
+#include "violite.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/src/ngs/log.h"
 #include "plugin/x/src/ssl_context.h"
 #include "plugin/x/src/ssl_context_options.h"
 
@@ -33,7 +35,8 @@ namespace xpl {
 struct Ssl_context::Config {
   class Value {
    public:
-    Value(const char *value) : m_value(value ? value : "") {}
+    Value(const char *value)  // NOLINT(runtime/explicit)
+        : m_value(value ? value : "") {}
     operator const char *() const {
       return m_value.empty() ? nullptr : m_value.c_str();
     }
@@ -66,14 +69,14 @@ bool Ssl_context::setup(const char *tls_version, const char *ssl_key,
 bool Ssl_context::setup(const Config &config) {
   enum_ssl_init_error error = SSL_INITERR_NOERROR;
 
-  long ssl_ctx_flags = process_tls_version(config.tls_version);
+  int64_t ssl_ctx_flags = process_tls_version(config.tls_version);
 
-  m_ssl_acceptor =
-      new_VioSSLAcceptorFd(config.ssl_key, config.ssl_cert, config.ssl_ca,
-                           config.ssl_capath, config.ssl_cipher, NULL, &error,
-                           config.ssl_crl, config.ssl_crlpath, ssl_ctx_flags);
+  m_ssl_acceptor = new_VioSSLAcceptorFd(
+      config.ssl_key, config.ssl_cert, config.ssl_ca, config.ssl_capath,
+      config.ssl_cipher, nullptr, &error, config.ssl_crl, config.ssl_crlpath,
+      ssl_ctx_flags);
 
-  if (NULL == m_ssl_acceptor) {
+  if (nullptr == m_ssl_acceptor) {
     log_warning(ER_XPLUGIN_FAILED_AT_SSL_CONF, sslGetErrString(error));
     return false;
   }
@@ -89,13 +92,13 @@ Ssl_context::~Ssl_context() {
 
 /** Start a TLS session in the connection.
  */
-bool Ssl_context::activate_tls(ngs::Vio_interface *conn,
-                               const int handshake_timeout) {
-  unsigned long error;
+bool Ssl_context::activate_tls(iface::Vio *conn,
+                               const int32_t handshake_timeout) {
+  unsigned long error = 0;  // NOLINT(runtime/int)
   auto vio = conn->get_vio();
   if (sslaccept(m_ssl_acceptor, vio, handshake_timeout, &error) != 0) {
-    log_debug("Error during SSL handshake for client connection (%i)",
-              (int)error);
+    log_debug("Error during SSL handshake for client connection (%" PRIu64 ")",
+              static_cast<uint64_t>(error));
     return false;
   }
 

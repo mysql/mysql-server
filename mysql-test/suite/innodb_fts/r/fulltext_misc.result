@@ -21,15 +21,15 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
-2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
+2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
-2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
+2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DEALLOCATE PREPARE stmt;
@@ -123,6 +123,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 ERROR HY000: Can't find FULLTEXT index matching the column list
@@ -198,3 +201,67 @@ b
 2
 DROP TABLE t1,t2;
 End of 5.1 tests
+#
+# Bug#32979815: WL#14422: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+#
+CREATE TABLE t (x VARCHAR(10), FULLTEXT (x));
+SELECT 1 FROM t
+WHERE x IN
+(SELECT MATCH (t2.x) AGAINST ('abc')
+FROM t AS t1 JOIN t AS t2
+ON t1.x = t2.x
+GROUP BY t2.x
+HAVING t2.x = '');
+1
+DROP TABLE t;
+#
+# Bug#32980875: WL#14422: ASSERTION `FALSE' FAILED|SQL/BASIC_ROW_ITERATORS.H
+#
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+INSERT INTO t VALUES ('a'), ('b'), ('c');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+PREPARE prep_stmt FROM '
+
+ SELECT DISTINCT
+   MATCH (t1.a) AGAINST(''x''),
+   MIN(t2.a),
+   t1.a
+ FROM t AS t1 JOIN t AS t2 ON t1.a = t2.a
+ GROUP BY MATCH (t1.a) AGAINST(''x''), t1.a
+
+';
+EXECUTE prep_stmt;
+MATCH (t1.a) AGAINST('x')	MIN(t2.a)	a
+0	a	a
+0	b	b
+0	c	c
+EXECUTE prep_stmt;
+MATCH (t1.a) AGAINST('x')	MIN(t2.a)	a
+0	a	a
+0	b	b
+0	c	c
+DEALLOCATE PREPARE prep_stmt;
+DROP TABLE t;
+#
+# Bug#32990422: WL#14422: RESULT MISMATCH WITH FTS FUNCTION
+#
+CREATE TABLE t (i INTEGER, x VARCHAR(10), FULLTEXT (x));
+INSERT INTO t VALUES (0, 'a'), (1, 'b'), (0, 'c');
+SELECT i = 0 AS a, MATCH(x) AGAINST('d') AS b FROM t GROUP BY a, b;
+a	b
+0	0
+1	0
+DROP TABLE t;
+#
+# Bug#32996515: WL#14422: RESULT MISMATCH WITH DISTINCT AND GROUP BY ON FTS FUNCTION
+#
+CREATE TABLE t (a INTEGER, b VARCHAR(10), FULLTEXT(b));
+INSERT INTO t VALUES (1, 'a'), (2, 'b');
+SELECT DISTINCT MATCH (b) AGAINST ('x'), a
+FROM t GROUP BY MATCH (b) AGAINST ('x'), a;
+MATCH (b) AGAINST ('x')	a
+0	1
+0	2
+DROP TABLE t;

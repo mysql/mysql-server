@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,17 +28,18 @@
 
 #include "storage/perfschema/table_replication_applier_global_filters.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -57,7 +58,7 @@ Plugin_table table_replication_applier_global_filters::m_table_def(
     "  FILTER_RULE LONGTEXT not null,\n"
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS',\n"
     "                     'CHANGE_REPLICATION_FILTER') not null,\n"
-    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0\n",
+    "  ACTIVE_SINCE TIMESTAMP(6) not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -66,8 +67,8 @@ Plugin_table table_replication_applier_global_filters::m_table_def(
 PFS_engine_table_share table_replication_applier_global_filters::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_global_filters::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_applier_global_filters::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -91,7 +92,7 @@ table_replication_applier_global_filters::
       m_next_pos(0) {}
 
 table_replication_applier_global_filters::
-    ~table_replication_applier_global_filters() {}
+    ~table_replication_applier_global_filters() = default;
 
 void table_replication_applier_global_filters::reset_position(void) {
   m_pos.m_index = 0;
@@ -108,14 +109,14 @@ ha_rows table_replication_applier_global_filters::get_row_count() {
 
 int table_replication_applier_global_filters::rnd_next(void) {
   int res = HA_ERR_END_OF_FILE;
-  Rpl_pfs_filter *rpl_pfs_filter = NULL;
+  Rpl_pfs_filter *rpl_pfs_filter = nullptr;
 
   rpl_global_filter.rdlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next()) {
     /* Get ith rpl_pfs_filter from global replication filters. */
     rpl_pfs_filter = rpl_global_filter.get_filter_at_pos(m_pos.m_index);
 
-    if (rpl_pfs_filter == NULL) {
+    if (rpl_pfs_filter == nullptr) {
       break;
     } else {
       make_row(rpl_pfs_filter);
@@ -130,7 +131,7 @@ int table_replication_applier_global_filters::rnd_next(void) {
 
 int table_replication_applier_global_filters::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
-  Rpl_pfs_filter *rpl_pfs_filter = NULL;
+  Rpl_pfs_filter *rpl_pfs_filter = nullptr;
   set_position(pos);
 
   rpl_global_filter.rdlock();
@@ -175,12 +176,12 @@ int table_replication_applier_global_filters::read_row_values(
   }
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* filter_name */
           set_field_char_utf8(f, m_row.filter_name, m_row.filter_name_length);
           break;
@@ -196,7 +197,7 @@ int table_replication_applier_global_filters::read_row_values(
           set_field_timestamp(f, m_row.active_since);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

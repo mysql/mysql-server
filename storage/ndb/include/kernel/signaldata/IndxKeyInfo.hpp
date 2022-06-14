@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,9 @@ class IndxKeyInfo {
   friend bool printINDXKEYINFO(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( HeaderLength = 3 );
-  STATIC_CONST( DataLength = 20 );
-  STATIC_CONST( MaxSignalLength = HeaderLength + DataLength );
+  static constexpr Uint32 HeaderLength = 3;
+  static constexpr Uint32 DataLength = 20;
+  static constexpr Uint32 MaxSignalLength = HeaderLength + DataLength;
 
   // Public methods
 public:

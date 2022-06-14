@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ private:
     CONTINUE_CLEANUP = 1
   };
   
-  STATIC_CONST(CONTINUE_CLEANUP_FIXED_WORDS = 5);
+  static constexpr Uint32 CONTINUE_CLEANUP_FIXED_WORDS = 5;
 
   enum {
     RES_FRAGSEND = 0, /* Fragmented send lists */

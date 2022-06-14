@@ -33,3 +33,4 @@ count(*)
 6
 Pattern "\[Warning\] .*MY-\d+.* innodb_checksum_algorithm is set to "strict_crc32" but the page \[page id: space=\d+, page number=\d+\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum." found
 drop table t1;
+# restart:

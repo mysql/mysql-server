@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2021, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,27 +30,14 @@
 #include "TransactionImpl.h"
 #include "async_common.h"
 
-/* V1 NdbWaitGroup must be created with a fixed maximum size.
-   V2 NdbWaitGroup is created with an initial size and will grow as needed.
+/* V2 NdbWaitGroup is created with an initial size and will grow as needed.
 */
-#ifdef USE_OLD_MULTIWAIT_API
-#define WAIT_GROUP_SIZE 1024
-#else
 #define WAIT_GROUP_SIZE 64
-#endif
-
-#ifdef FORCE_UV_LEGACY_COMPAT
-#define PTHREAD_RETURN_TYPE void *
-#define PTHREAD_RETURN_VAL NULL
-#else
-#define PTHREAD_RETURN_TYPE void
-#define PTHREAD_RETURN_VAL
-#endif
 
 extern "C" {
   void ioCompleted(uv_async_t *);
   void ndbTxCompleted(int, NdbTransaction *, void *);
-  PTHREAD_RETURN_TYPE run_ndb_listener_thread(void *);
+  void run_ndb_listener_thread(void *);
 }
 
 
@@ -65,12 +52,12 @@ public:
   /* Methods */
   int executeAsynch(TransactionImpl *, NdbTransaction *,
                     int execType, int abortOption, int forceSend,
-                    v8::Handle<v8::Function> execCompleteCallback);
+                    v8::Local<v8::Function> execCompleteCallback);
 
   void shutdown();
 
   /* Friend functions have C linkage but call the protected methods */
-  friend PTHREAD_RETURN_TYPE ::run_ndb_listener_thread(void *);
+  friend void ::run_ndb_listener_thread(void *);
   friend void ::ioCompleted(uv_async_t *);
   
 protected:
@@ -94,15 +81,6 @@ private:
   */
   NdbWaitGroup * waitgroup;
 
-#ifdef USE_OLD_MULTIWAIT_API
-  /* The sent queue holds Ndbs which have just been sent (executeAsynch). 
-  */
-  SharedList<Ndb> sent_queue;
-  
-  /* The completed queue holds Ndbs which have returned from execution. 
-  */
-  SharedList<Ndb> completed_queue;
-#endif
   /* Shutdown signal (used only with V2 multiwait but always present)
   */
   ConcurrentFlag shutdown_flag;

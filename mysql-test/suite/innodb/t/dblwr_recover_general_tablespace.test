@@ -1,0 +1,97 @@
+--source include/have_debug.inc
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) TABLESPACE=ts1 ENCRYPTION='Y' ENGINE=InnoDB;
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='ts1';
+SHOW CREATE TABLE t1;
+
+# Slow shutdown and restart to make sure ibuf merge is finished
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+SET SESSION innodb_interpreter = 'init';
+
+--echo # Check if the DBLWR files contain encrypted pages.
+SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
+SELECT @@session.innodb_interpreter_output;
+
+SET SESSION innodb_interpreter = 'open_table test/t1';
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+
+SET @cmd = CONCAT('find_ondisk_page_type ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+SELECT @@session.innodb_interpreter_output INTO @page_type;
+SELECT @page_type;
+
+SET SESSION innodb_interpreter = 'find_tablespace_file_name ts1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size ts1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+
+SET SESSION innodb_interpreter = 'destroy';
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let PAGE_NO=`select @page_no`;
+let FILE_NAME=`select @space_file_name`;
+let PAGE_SIZE=`select @space_page_size`;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, repeat('?',12));
+
+SET GLOBAL innodb_log_flush_now = ON;
+
+--source include/kill_mysqld.inc
+
+--echo # Corrupt the root page of table t1 in the user tablespace.
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
+my $nbytes = $ENV{'PAGE_NO'} * $ENV{'PAGE_SIZE'};
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $nbytes, SEEK_SET);
+print FILE chr(0) x 38;
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Double write file has encrypted pages;
+--source include/search_pattern.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= \\[Note\\] \\[MY-\\d+\\] \\[InnoDB\\] Recovered page \\[page id: space=\\d+, page number=\\d+\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+--echo # Test End

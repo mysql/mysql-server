@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <climits>
 #include <cstring>   // std::memcmp
@@ -33,7 +30,7 @@
 #include "mysql_time.h"                // MYSQL_TIME
 #include "sql/field.h"                 // my_charset_numeric
 #include "sql/histograms/value_map.h"  // Value_map
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/my_decimal.h"  // my_decimal
 #include "sql/sql_time.h"    // my_time_compare
 #include "sql_string.h"      // String
@@ -43,7 +40,7 @@ namespace value_map_unittest {
 
 class ValueMapTest : public ::testing::Test {
  public:
-  ValueMapTest() {}
+  ValueMapTest() = default;
 };
 
 TEST_F(ValueMapTest, LongLongValueMap) {
@@ -150,18 +147,17 @@ TEST_F(ValueMapTest, DecimalValueMap) {
 
   // Check that data is sorted
   String res1;
-  my_decimal2string(E_DEC_FATAL_ERROR, &value_map.begin()->first, 0, 0, 0,
-                    &res1);
+  my_decimal2string(E_DEC_FATAL_ERROR, &value_map.begin()->first, &res1);
   EXPECT_EQ(strcmp(res1.ptr(), "-100.1"), 0);
 
   String res2;
   my_decimal2string(E_DEC_FATAL_ERROR, &std::next(value_map.begin(), 1)->first,
-                    0, 0, 0, &res2);
+                    &res2);
   EXPECT_EQ(strcmp(res2.ptr(), "-12"), 0);
 
   String res3;
   my_decimal2string(E_DEC_FATAL_ERROR, &std::next(value_map.begin(), 2)->first,
-                    0, 0, 0, &res3);
+                    &res3);
   EXPECT_EQ(strcmp(res3.ptr(), "99.9"), 0);
 
   // Check that the counts are correct
@@ -388,7 +384,7 @@ static void benchmark_insertion_string(size_t num_iterations,
   str.set_charset(&my_charset_utf8mb4_0900_ai_ci);
   str.reserve(max_string_length);
 
-  for (size_t i = 0; i < num_iterations; ++i) {
+  for (size_t it = 0; it < num_iterations; ++it) {
     histograms::Value_map<String> value_map(&my_charset_utf8mb4_0900_ai_ci,
                                             histograms::Value_map_type::STRING,
                                             1.0);

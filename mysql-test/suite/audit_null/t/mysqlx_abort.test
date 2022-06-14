@@ -1,0 +1,76 @@
+--source include/have_null_audit_plugin.inc
+--source include/xplugin_preamble.inc
+--disable_ps_protocol
+--disable_warnings
+--enable_connect_log
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+CREATE USER audit_user@localhost IDENTIFIED BY 'audit_pw';
+GRANT ALL PRIVILEGES ON *.* TO audit_user@localhost WITH GRANT OPTION;
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-setup.tmp
+-->sql
+
+CREATE USER user1_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
+
+CREATE USER user3_mysqlx@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
+REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+PASSWORD EXPIRE NEVER;
+
+CREATE USER user5_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            REQUIRE SSL;
+
+GRANT ALL ON *.* TO user1_mysqlx@localhost;
+GRANT ALL ON *.* TO user3_mysqlx@localhost;
+GRANT ALL ON *.* TO user5_mysqlx@localhost;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -h localhost -u audit_user --password='audit_pw' --plain-auth --file=$MYSQL_TMP_DIR/mysqlx-connection-setup.tmp 2>&1
+
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+-->sql
+SELECT USER();
+-->endsql
+EOF
+
+SET GLOBAL null_audit_event_order_check_consume_ignore_count = 6;
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
+--error 1
+exec $MYSQLXTEST
+    --ssl-mode=REQUIRED --history-protocol false
+    -u user1_mysqlx --password='auth_string1' --plain-auth
+    --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1;
+
+--error 1
+exec $MYSQLXTEST
+    --tls-version=TLSv1.2 --ssl-mode=REQUIRED --history-protocol false
+    -u user3_mysqlx --password='auth_string3' --plain-auth
+    --ssl-cipher="DHE-RSA-AES256-SHA" --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
+    --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1;
+
+--error 1
+exec $MYSQLXTEST
+    --ssl-mode=REQUIRED --history-protocol false
+    -u user5_mysqlx --password='auth_string' --plain-auth
+    --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1;
+
+UNINSTALL PLUGIN null_audit;
+
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection-setup.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+
+DROP USER user1_mysqlx@localhost,user3_mysqlx@localhost,
+          user5_mysqlx@localhost,audit_user@localhost; 
+
+--echo # END OF TEST
+--enable_warnings

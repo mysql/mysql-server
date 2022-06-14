@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ static const char *handler_error_messages[] = {
     "Someone has changed the row since it was read (while the table was locked "
     "to prevent it)",
     "Wrong index given to function",
-    "Undefined handler error 125",
+    "Transaction has been rolled back",
     "Index file is crashed",
     "Record file is crashed",
     "Out of memory in engine",
@@ -88,7 +88,7 @@ static const char *handler_error_messages[] = {
     "The event was corrupt, leading to illegal data being read",
     "The table is of a new format not supported by this version",
     "The event could not be processed no other hanlder error happened",
-    "Got a fatal error during initialzaction of handler",
+    "Got a fatal error during initialization of handler",
     "File too short; Expected more data in file",
     "Read page with wrong checksum",
     "Too many active concurrent transactions",
@@ -121,7 +121,9 @@ static const char *handler_error_messages[] = {
     "No more room in disk",
     "No session temporary tablespace available",
     "Invalid table name",
-    "Path is too long for the OS"};
+    "Path is too long for the OS",
+    "Histogram sampling initialization failed",
+    "Too many nested sub-expressions in a full-text search"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

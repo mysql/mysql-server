@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,9 @@
 
 #include <stddef.h>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include <string>
+
+#include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
@@ -40,28 +42,6 @@ Callback_command_delegate::Field_value::Field_value(const Field_value &other)
       is_string(other.is_string) {
   if (other.is_string) value.v_string = new std::string(*other.value.v_string);
 }
-
-/*
-NOTE: Commented for coverage. Uncomment when needed.
-
-Callback_command_delegate::Field_value&
-Callback_command_delegate::Field_value::operator = (const Field_value& other)
-{
-  if (&other != this)
-  {
-    this->~Field_value();
-
-    value = other.value;
-    is_unsigned = other.is_unsigned;
-    is_string = other.is_string;
-
-    if (other.is_string)
-      value.v_string = new std::string(*other.value.v_string);
-  }
-
-  return *this;
-}
-*/
 
 Callback_command_delegate::Field_value::Field_value(const longlong &num,
                                                     bool unsign) {
@@ -102,9 +82,7 @@ Callback_command_delegate::Field_value::~Field_value() {
 Callback_command_delegate::Row_data::~Row_data() { clear(); }
 
 void Callback_command_delegate::Row_data::clear() {
-  std::vector<Field_value *>::iterator i = fields.begin();
-
-  for (; i != fields.end(); ++i) ngs::free_object(*i);
+  for (auto f : fields) ngs::free_object(f);
 
   fields.clear();
 }
@@ -113,8 +91,8 @@ Callback_command_delegate::Row_data::Row_data(const Row_data &other) {
   clone_fields(other);
 }
 
-Callback_command_delegate::Row_data &Callback_command_delegate::Row_data::
-operator=(const Row_data &other) {
+Callback_command_delegate::Row_data &
+Callback_command_delegate::Row_data::operator=(const Row_data &other) {
   if (&other != this) {
     clear();
     clone_fields(other);
@@ -125,18 +103,18 @@ operator=(const Row_data &other) {
 
 void Callback_command_delegate::Row_data::clone_fields(const Row_data &other) {
   fields.reserve(other.fields.size());
-  std::vector<Field_value *>::const_iterator i = other.fields.begin();
-  for (; i != other.fields.end(); ++i) {
-    this->fields.push_back((*i) ? ngs::allocate_object<Field_value>(**i)
-                                : NULL);
+
+  for (auto f : other.fields) {
+    this->fields.push_back(f ? ngs::allocate_object<Field_value>(*f) : nullptr);
   }
 }
 
-Callback_command_delegate::Callback_command_delegate() : m_current_row(NULL) {}
+Callback_command_delegate::Callback_command_delegate()
+    : m_current_row(nullptr) {}
 
 Callback_command_delegate::Callback_command_delegate(
     Start_row_callback start_row, End_row_callback end_row)
-    : m_start_row(start_row), m_end_row(end_row), m_current_row(NULL) {}
+    : m_start_row(start_row), m_end_row(end_row), m_current_row(nullptr) {}
 
 void Callback_command_delegate::set_callbacks(Start_row_callback start_row,
                                               End_row_callback end_row) {
@@ -153,8 +131,9 @@ int Callback_command_delegate::start_row() {
   if (m_start_row) {
     m_current_row = m_start_row();
     if (!m_current_row) return true;
-  } else
+  } else {
     m_current_row = nullptr;
+  }
   return false;
 }
 
@@ -172,7 +151,7 @@ ulong Callback_command_delegate::get_client_capabilities() {
 /****** Getting data ******/
 int Callback_command_delegate::get_null() {
   try {
-    if (m_current_row) m_current_row->fields.push_back(NULL);
+    if (m_current_row) m_current_row->fields.push_back(nullptr);
   } catch (std::exception &DEBUG_VAR(e)) {
     log_debug("Error getting result data: %s", e.what());
     return true;
@@ -192,7 +171,7 @@ int Callback_command_delegate::get_integer(longlong value) {
 }
 
 int Callback_command_delegate::get_longlong(longlong value,
-                                            uint unsigned_flag) {
+                                            uint32_t unsigned_flag) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(

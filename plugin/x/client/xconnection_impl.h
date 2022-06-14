@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,10 @@
 #include <memory>
 
 #include "my_io.h"
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "plugin/x/client/xcontext.h"
+#include "plugin/x/client/xcyclic_buffer.h"
 #include "violite.h"
 
 struct sockaddr_un;
@@ -73,6 +74,7 @@ class Connection_impl : public XConnection {
 
  private:
   XError connect(sockaddr *sockaddr, const std::size_t addr_size);
+  XError wait_for_socket_and_read_to_buffer();
 
   static XError get_ssl_init_error(const int init_error_id);
   static XError get_ssl_error(const int error_id);
@@ -88,6 +90,8 @@ class Connection_impl : public XConnection {
   std::unique_ptr<State> m_state;
   std::shared_ptr<Context> m_context;
   std::string m_hostname;
+  int m_write_timeout;
+  std::unique_ptr<Cyclic_buffer> m_buffer;
 };
 
 }  // namespace xcl

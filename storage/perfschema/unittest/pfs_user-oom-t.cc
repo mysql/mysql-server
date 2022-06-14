@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@ static void test_oom() {
   PSI_error_bootstrap *error_boot;
   PSI_data_lock_bootstrap *data_lock_boot;
   PSI_system_bootstrap *system_boot;
+  PSI_tls_channel_bootstrap *tls_channel_boot;
 
   memset(&param, 0xFF, sizeof(param));
   param.m_enabled = true;
@@ -107,16 +108,17 @@ static void test_oom() {
       &param, &thread_boot, &mutex_boot, &rwlock_boot, &cond_boot, &file_boot,
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
-      &data_lock_boot, &system_boot);
+      &data_lock_boot, &system_boot, &tls_channel_boot);
   ok(rc == 0, "init ok");
   thread_service = (PSI_thread_service_t *)thread_boot->get_interface(
       PSI_CURRENT_THREAD_VERSION);
 
   PSI_thread_key thread_key_1;
-  PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", 0, 0, ""}};
+  PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", "T-1", 0, 0, ""}};
   thread_service->register_thread("test", all_thread, 1);
 
-  PSI_thread *thread_1 = thread_service->new_thread(thread_key_1, NULL, 0);
+  PSI_thread *thread_1 =
+      thread_service->new_thread(thread_key_1, 0, nullptr, 0);
   thread_service->set_thread(thread_1);
 
   /* Tests */

@@ -18,7 +18,7 @@ Build-Depends: debhelper (>= 9.0.0),
  cmake,
  fakeroot,
  libnuma-dev,
- libmecab-dev
+ libmecab-dev,
  @DEB_CONTROL_BDEPS@ @DEB_CONTROL_BDEPS_COMMERCIAL@ @DEB_CONTROL_BDEPS_SSL@
 
 
@@ -90,24 +90,17 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.1),
 Conflicts: mysql,
- mysql-server-core-5.0,
- mysql-server-core-5.1,
- mysql-server-core-5.5,
- mysql-server-core-5.6,
  mysql-server-core-5.7,
+ mysql-server-core-8.0,
  mysql-@DEB_NOTPRODUCTNAME@-server-core,
- mariadb-server-core-5.5,
- mariadb-server-core-10.0,
  mariadb-server-core-10.1,
- mariadb-server-core-10.2
+ mariadb-server-core-10.2,
+ mariadb-server-core-10.3
 Replaces: mysql-@DEB_PRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server-core,
- mysql-server-core-5.0,
- mysql-server-core-5.1,
- mysql-server-core-5.5,
- mysql-server-core-5.6,
  mysql-server-core-5.7,
+ mysql-server-core-8.0
 Provides: virtual-mysql-server-core
 Description: MySQL Server Core Binaires
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -132,36 +125,25 @@ Package: mysql-@DEB_PRODUCTNAME@-client
 Architecture: any
 Depends: mysql-common (>= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends},
- mysql-@DEB_PRODUCTNAME@-client-core (= ${binary:Version})
+ mysql-@DEB_PRODUCTNAME@-client-core (= ${binary:Version}),
 Breaks: mysql-common (<< 8.0.1),
  libmysqlclient-dev (<< 5.7.14),
 Conflicts: mysql,
- mysql-client-5.0, mysql-client-core-5.0,
- mysql-client-5.1, mysql-client-core-5.1,
- mysql-client-5.5, mysql-client-core-5.5,
- mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
+ mysql-client-8.0, mysql-client-core-8.0,
  mysql-@DEB_NOTPRODUCTNAME@-client,
  @DEB_CONTROL_CLIENT_CONFLICT_NDB@,
- mariadb-client-5.5, mariadb-client-core-5.5,
- mariadb-client-10.0, mariadb-client-core-10.0,
  mariadb-client-10.1, mariadb-client-core-10.1,
  mariadb-client-10.2, mariadb-client-core-10.2,
- mysql-server-5.0, mysql-server-core-5.0,
- mysql-server-5.1, mysql-server-core-5.1,
- mysql-server-5.5, mysql-server-core-5.5,
- mysql-server-5.6, mysql-server-core-5.6,
+ mariadb-client-10.3, mariadb-client-core-10.3,
  mysql-server-5.7, mysql-server-core-5.7,
- mariadb-server-5.5, mariadb-server-core-5.5,
- mariadb-server-10.0, mariadb-server-core-10.0,
+ mysql-server-8.0, mysql-server-core-8.0,
  mariadb-server-10.1, mariadb-server-core-10.1,
  mariadb-server-10.2, mariadb-server-core-10.2,
+ mariadb-server-10.3, mariadb-server-core-10.3,
 Replaces: mysql,
- mysql-client-5.0, mysql-client-core-5.0,
- mysql-client-5.1, mysql-client-core-5.1,
- mysql-client-5.5, mysql-client-core-5.5,
- mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
+ mysql-client-8.0, mysql-client-core-8.0,
  mysql-@DEB_NOTPRODUCTNAME@-client,
  @DEB_CONTROL_CLIENT_CONFLICT_NDB@,
  mysql-common (<< 8.0.1),
@@ -175,35 +157,58 @@ Description: MySQL Client
  Oracle. This package contains the standard MySQL clients and
  administration tools.
 
-Package: mysql-@DEB_PRODUCTNAME@-client-core
+Package: mysql-@DEB_PRODUCTNAME@-client-plugins
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Breaks: mysql-@DEB_PRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_PRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
+Replaces: mysql-@DEB_PRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_PRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
+Conflicts: mysql-@DEB_NOTPRODUCTNAME@-client-plugins
+Description: MySQL Client plugin
+  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+  and robust SQL (Structured Query Language) database server. MySQL Server
+  is intended for mission-critical, heavy-load production systems as well
+  as for embedding into mass-deployed software. MySQL is a trademark of
+  Oracle. This package contains files used by both the client library and
+  client package.
+
+
+Package: mysql-@DEB_PRODUCTNAME@-client-core
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ mysql-@DEB_PRODUCTNAME@-client-plugins (= ${binary:Version}),
 Breaks: libmysqlclient-dev (<< 5.7.14),
  mysql-@DEB_PRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client (<< 8.0.1),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
 Conflicts: mysql,
- mysql-client-core-5.0,
- mysql-client-core-5.1,
- mysql-client-core-5.5,
- mysql-client-core-5.6,
  mysql-client-core-5.7,
+ mysql-client-core-8.0,
  mysql-@DEB_NOTPRODUCTNAME@-client-core,
- mariadb-client-core-5.5,
- mariadb-client-core-10.0,
  mariadb-client-core-10.1,
- mariadb-client-core-10.2
+ mariadb-client-core-10.2,
+ mariadb-client-core-10.3
 Replaces: mysql,
- mysql-client-core-5.0,
- mysql-client-core-5.1,
- mysql-client-core-5.5,
- mysql-client-core-5.6,
  mysql-client-core-5.7,
+ mysql-client-core-8.0,
  mysql-@DEB_NOTPRODUCTNAME@-client,
  mysql-common (<< 5.7.17),
  mysql-@DEB_PRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client-core,
- libmysqlclient-dev (<< 5.7.14)
+ libmysqlclient-dev (<< 5.7.14),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
 Provides: virtual-mysql-client-core
 Description: MySQL Client Core Binaries
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -212,12 +217,14 @@ Description: MySQL Client Core Binaries
  as for embedding into mass-deployed software. MySQL is a trademark of
  Oracle. This package contains the MySQL client binaries.
 
+
 Package: libmysqlclient21
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Depends: mysql-common (>= ${binary:Version}),
+ mysql-@DEB_PRODUCTNAME@-client-plugins (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Description: MySQL shared client libraries
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -232,15 +239,16 @@ Architecture: any
 Pre-depends: debconf (>= 0.2.17), ${misc:Pre-Depends}
 Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: mysql, mysql-server-5.6, mysql-server-core-5.6,
- mysql-client-5.6, mysql-client-core-5.6,
+Conflicts: mysql,
  mysql-server-5.7, mysql-server-core-5.7,
  mysql-client-5.7, mysql-client-core-5.7,
+ mysql-server-8.0, mysql-server-core-8.0,
+ mysql-client-8.0, mysql-client-core-8.0,
  mariadb-server-5.5, percona-xtradb-cluster-common-5.5,
  mysql-common (<< 5.7.14)
-Replaces: mysql, mysql-server-5.5, mysql-server-core-5.5, libmysqlclient-dev,
- mysql-server-5.6, mysql-server-core-5.6,
+Replaces: mysql, libmysqlclient-dev,
  mysql-server-5.7, mysql-server-core-5.7,
+ mysql-server-8.0, mysql-server-core-8.0,
  mariadb-server-5.5, percona-xtradb-cluster-common-5.5,
  mysql-common (<< 5.7.14)
 Provides: mysql-common
@@ -260,6 +268,7 @@ Depends: libmysqlclient21 (= ${binary:Version}),
 Breaks: libmysqld-dev
 Replaces: mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
+ mysql-client-8.0, mysql-client-core-8.0,
  libmysqld-dev
 Description: MySQL development headers
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -283,14 +292,16 @@ Description: MySQL Testsuite meta package depending on latest version
 Package: mysql-@DEB_PRODUCTNAME@-test
 Architecture: any
 Depends: mysql-@DEB_PRODUCTNAME@-server (= ${binary:Version}),
- mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}), python,
+ mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}),
  libmysqlclient-dev, libjson-perl, mecab-ipadic-utf8,
  ${shlibs:Depends}, ${misc:Depends}, @DEB_NDB_CONTROL_TEST_DEPS@
-Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 5.7.14),
+Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0),
+ mysql-community-server-core ( << 8.0.20 ),
  mysql-@DEB_PRODUCTNAME@-client (<< 5.7.14)
+Replaces: mysql-@DEB_PRODUCTNAME@-server ( << 8.0),
+ mysql-community-server-core ( << 8.0.20 )
 Conflicts: mysql,
- mysql-testsuite-5.0, mysql-testsuite-5.1, mysql-testsuite-5.5,
- mysql-testsuite-5.6, mysql-testsuite-5.7, mysql-@DEB_NOTPRODUCTNAME@-test,
+ mysql-testsuite-8.0, mysql-testsuite-5.7, mysql-@DEB_NOTPRODUCTNAME@-test,
  mariadb-test, mariadb-test-data
 Description: MySQL Test Run MTR - The MySQL testsuite
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,

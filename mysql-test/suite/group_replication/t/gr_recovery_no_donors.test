@@ -15,6 +15,7 @@
 # 6. Clean up.
 ################################################################################
 --source include/big_test.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 
 
@@ -29,15 +30,17 @@
 --source include/rpl_connection.inc
 --let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("This member has more executed transactions *.*");
 call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 --disable_query_log # No need for the result file to specify suppressions.
@@ -80,10 +83,12 @@ delimiter ;//
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
@@ -92,10 +97,12 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
@@ -160,6 +167,7 @@ SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 # Remove all M1 data and force a RESET MASTER to allow server1 to
 # join, despite intentionally has more transactions than the group.
 ALTER EVENT e1 DISABLE;
+--let $wait_timeout= 300
 --let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
 --source include/wait_condition_or_abort.inc
 SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,15 @@
 
 #include <gtest/gtest.h>
 
+#include "mysql_com.h"  // NOLINT(build/include_subdir)
+#include "sha1.h"       // for SHA1_HASH_SIZE NOLINT(build/include_subdir)
+
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/native_plain_verification.h"
 #include "plugin/x/src/native_verification.h"
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/sha256_plain_verification.h"
 #include "plugin/x/src/sha2_plain_verification.h"
-#include "sha1.h"  // for SHA1_HASH_SIZE
 #include "unittest/gunit/xplugin/xpl/mock/sha256_password_cache.h"
 
 namespace xpl {
@@ -40,13 +42,13 @@ using ::testing::ReturnRef;
 
 class User_password_verification : public ::testing::Test {
  public:
-  void SetUp() {
-    m_cache_mock.reset(new xpl::test::Mock_sha256_password_cache());
+  void SetUp() override {
+    m_cache_mock.reset(new mock::Sha256_password_cache());
     m_cached_value = {std::begin(CACHED_VALUE_TABLE),
                       std::end(CACHED_VALUE_TABLE)};
   }
 
-  std::unique_ptr<xpl::test::Mock_sha256_password_cache> m_cache_mock;
+  std::unique_ptr<mock::Sha256_password_cache> m_cache_mock;
 
   const char *const EMPTY = "";
   const char *const EXPECTED_NATIVE_HASH =
@@ -96,7 +98,7 @@ std::string get_hash(const std::string &salt, const std::string &user_string) {
   char scrambled[SCRAMBLE_LENGTH + 1] = {0};
   char hash[2 * SHA1_HASH_SIZE + 2] = {0};
   ::scramble(scrambled, salt.c_str(), user_string.c_str());
-  ::make_password_from_salt(hash, (const uint8 *)scrambled);
+  ::make_password_from_salt(hash, reinterpret_cast<const uint8_t *>(scrambled));
   return hash;
 }
 
@@ -147,7 +149,7 @@ TEST_F(User_password_verification, sha256_memory_verification_get_salt) {
 TEST_F(User_password_verification, sha256_memory_verification_pass) {
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))
       .WillOnce(Return(std::pair<bool, std::string>{true, m_cached_value}));
-  Mock_cache_based_verification verificator{m_cache_mock.get()};
+  mock::Cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).WillRepeatedly(ReturnRef(MADE_UP_SALT));
   ASSERT_TRUE(verificator.verify_authentication_string(
       "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));
@@ -156,7 +158,7 @@ TEST_F(User_password_verification, sha256_memory_verification_pass) {
 TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))
       .WillOnce(Return(std::pair<bool, std::string>{false, ""}));
-  Mock_cache_based_verification verificator{m_cache_mock.get()};
+  mock::Cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).Times(0);
   ASSERT_FALSE(verificator.verify_authentication_string(
       "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));
@@ -166,7 +168,7 @@ TEST_F(User_password_verification, sha256_memory_verification_fail) {
   const std::string bogus_entry(32, 'z');
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))
       .WillOnce(Return(std::pair<bool, std::string>{true, bogus_entry}));
-  Mock_cache_based_verification verificator{m_cache_mock.get()};
+  mock::Cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).WillRepeatedly(ReturnRef(MADE_UP_SALT));
   ASSERT_FALSE(verificator.verify_authentication_string(
       "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));

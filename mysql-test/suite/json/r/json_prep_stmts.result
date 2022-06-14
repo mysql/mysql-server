@@ -1,0 +1,263 @@
+This is used to demonstrate the use of JSON parameter values with
+SQL prepared statements.
+create table t1(j json);
+set @int=123;
+set @dec=3.14;
+set @flt=3.14E1;
+set @intstr='123';
+set @quotint='"123"';
+set @decstr='3.14';
+set @fltstr='3.14E1';
+set @strstr='xyz';
+set @quotstr='"xyz"';
+set @ts='2010-12-01 18:44:25';
+set @null=null;
+set @json='{"int" : 123, "dec" : 3.14, "flt" : 3.14E1, "str" : "xyz", "array" : [1, 2, 4]}';
+Parameters are treated slightly different when they are resolved as being
+of type JSON compared to when they are CAST as type JSON. The following
+two prepared statements are used to demonstrate this:
+prepare ps_insert from 'insert into t1 values (?)';
+prepare ps_insert_cast from 'insert into t1 values (cast(? as json))';
+The ps_insert statement fails with integer, decimal, float and datetime
+values because Field_json::store() is not implemented for such values.
+Integer parameter: With CAST, the integer value is converted to a
+scalar JSON value, without cast the parameter is rejected as invald JSON.
+execute ps_insert_cast using @int;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @int;
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
+Decimal parameter: With CAST, the decimal value is converted to a
+scalar JSON value, without cast the parameter is rejected as invald JSON.
+execute ps_insert_cast using @dec;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @dec;
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
+Float parameter: With CAST, the float value is converted to a
+scalar JSON value, without cast the parameter is rejected as invald JSON.
+execute ps_insert_cast using @flt;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @flt;
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
+String parameter containing an integer: Both statements accept the
+parameter as a scalar JSON value.
+execute ps_insert_cast using @intstr;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @intstr;
+String parameter containing a decimal: Both statements accept the
+parameter as a scalar JSON value.
+execute ps_insert_cast using @decstr;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @decstr;
+String parameter containing a float: Both statements accept the
+parameter as a scalar JSON value.
+execute ps_insert_cast using @fltstr;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @fltstr;
+String parameter containing a non-quoted string: None of the statements
+will recognize this:
+execute ps_insert_cast using @strstr;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @strstr;
+ERROR 22032: Invalid JSON text: "Invalid value." at position 0 in value for column 't1.j'.
+String parameter containing a quoted string: Both statements accept
+the parameter as a scalar JSON value.
+execute ps_insert_cast using @quotstr;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @quotstr;
+String parameter containing a timestamp literal: None of the statements
+will recognize this:
+execute ps_insert_cast using @ts;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @ts;
+ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't1.j'.
+Parameter that is a NULL value: accepted with both statements:
+execute ps_insert_cast using @null;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @null;
+String parameter that is a JSON object: accepted with both statements:
+execute ps_insert_cast using @json;
+prepare ps_insert from 'insert into t1 values (?)';
+execute ps_insert using @json;
+DEALLOCATE PREPARE ps_insert_cast;
+DEALLOCATE PREPARE ps_insert;
+SELECT * FROM t1;
+j
+123
+3.14
+31.4
+123
+123
+3.14
+3.14
+31.4
+31.4
+"xyz"
+"xyz"
+NULL
+NULL
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+Compare JSON expressions with JSON parameters.
+First using regular syntax.
+prepare ps_get_int from "select * from t1 where json_extract(j, '$.int') = ?";
+prepare ps_get_dec from "select * from t1 where json_extract(j, '$.dec') = ?";
+prepare ps_get_flt from "select * from t1 where json_extract(j, '$.flt') = ?";
+prepare ps_get_str from "select * from t1 where json_extract(j, '$.str') = ?";
+execute ps_get_int using @int;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_int using @intstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_dec using @dec;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_dec using @decstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_flt using @flt;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_flt using @fltstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_str using @strstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_str using @quotstr;
+j
+DEALLOCATE PREPARE ps_get_int;
+DEALLOCATE PREPARE ps_get_flt;
+DEALLOCATE PREPARE ps_get_dec;
+DEALLOCATE PREPARE ps_get_str;
+Repeat comparison operations using "->" operator. Results should be same.
+prepare ps_get_int from "select * from t1 where j->'$.int' = ?";
+prepare ps_get_dec from "select * from t1 where j->'$.dec' = ?";
+prepare ps_get_flt from "select * from t1 where j->'$.flt' = ?";
+prepare ps_get_str from "select * from t1 where j->'$.str' = ?";
+execute ps_get_int using @int;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_int using @intstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_dec using @dec;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_dec using @decstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_flt using @flt;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_flt using @fltstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_str using @intstr;
+j
+execute ps_get_str using @strstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_str using @quotstr;
+j
+DEALLOCATE PREPARE ps_get_int;
+DEALLOCATE PREPARE ps_get_flt;
+DEALLOCATE PREPARE ps_get_dec;
+DEALLOCATE PREPARE ps_get_str;
+Repeat comparison operations using "->>" operator, ie return an unquoted
+value from json_extract(). All executions succeed, since the value from
+json_extract() is converted to a character string, which can be compared
+to the parameter value. However, using @quotstr finds no rows.
+prepare ps_get_int from "select * from t1 where j->>'$.int' = ?";
+prepare ps_get_dec from "select * from t1 where j->>'$.dec' = ?";
+prepare ps_get_flt from "select * from t1 where j->>'$.flt' = ?";
+prepare ps_get_str from "select * from t1 where j->>'$.str' = ?";
+execute ps_get_int using @int;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_int using @intstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_dec using @dec;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_dec using @decstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_flt using @flt;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_flt using @fltstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_str using @strstr;
+j
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
+execute ps_get_str using @quotstr;
+j
+DEALLOCATE PREPARE ps_get_int;
+DEALLOCATE PREPARE ps_get_flt;
+DEALLOCATE PREPARE ps_get_dec;
+DEALLOCATE PREPARE ps_get_str;
+DROP TABLE t1;
+# Bug#31433168: Infinite recursion when evaluating parameter
+PREPARE ps FROM 'SELECT CAST(? AS JSON)';
+EXECUTE ps USING @undefined_variable;
+CAST(? AS JSON)
+NULL
+SET @var = '{"a" : 1}';
+EXECUTE ps USING @var;
+CAST(? AS JSON)
+{"a": 1}
+EXECUTE ps USING @undefined_variable;
+CAST(? AS JSON)
+NULL
+DEALLOCATE PREPARE ps;
+# Bug#31406724: Crash in sql_scalar_to_json after many recursive calls
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (0),(1),(2);
+PREPARE s FROM 'SELECT * FROM t WHERE JSON_LENGTH(?, a BETWEEN ? AND ?)';
+EXECUTE s USING @undefined_variable, @undefined_variable, @undefined_variable;
+a
+DEALLOCATE PREPARE s;
+DROP TABLE t;
+# Bug#31667405: Incorrect prepared statement outcome with numeric strings in JSON
+PREPARE ps FROM 'SELECT CAST(''"123"'' AS JSON) = JSON_EXTRACT(?, ''$'')';
+EXECUTE ps USING @intstr;
+CAST('"123"' AS JSON) = JSON_EXTRACT(?, '$')
+0
+EXECUTE ps USING @quotint;
+CAST('"123"' AS JSON) = JSON_EXTRACT(?, '$')
+1
+DEALLOCATE PREPARE ps;
+PREPARE ps FROM 'SELECT CAST(''"123"'' AS JSON) IN (?, ?)';
+EXECUTE ps USING @intstr, @intstr;
+CAST('"123"' AS JSON) IN (?, ?)
+1
+EXECUTE ps USING @quotint, @quotint;
+CAST('"123"' AS JSON) IN (?, ?)
+0
+DEALLOCATE PREPARE ps;

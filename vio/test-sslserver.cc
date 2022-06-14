@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef HAVE_OPENSSL
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>
@@ -34,7 +33,7 @@
 
 const char *VER = "0.2";
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 const char *default_dbug_option = "d:t:O,-";
 #endif
 
@@ -57,7 +56,7 @@ static void do_ssl_stuff(TH_ARGS *args) {
   Vio *server_vio;
   int err;
   unsigned long ssl_error;
-  DBUG_ENTER("do_ssl_stuff");
+  DBUG_TRACE;
 
   server_vio = vio_new(args->sd, VIO_TYPE_TCPIP, TRUE);
 
@@ -67,7 +66,6 @@ static void do_ssl_stuff(TH_ARGS *args) {
   err = write(server_vio->sd, (uchar *)s, strlen(s));
   sslaccept(args->ssl_acceptor, server_vio, 60L, &ssl_error);
   err = server_vio->write(server_vio, (uchar *)s, strlen(s));
-  DBUG_VOID_RETURN;
 }
 
 static void *client_thread(void *arg) {
@@ -76,7 +74,7 @@ static void *client_thread(void *arg) {
   return 0;
 }
 
-int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
+int main(int argc [[maybe_unused]], char **argv) {
   char server_key[] = "../SSL/server-key.pem",
        server_cert[] = "../SSL/server-cert.pem";
   char ca_file[] = "../SSL/cacert.pem", *ca_path = 0, *cipher = 0;
@@ -143,7 +141,3 @@ int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
   my_free(ssl_acceptor);
   return 0;
 }
-#else  /* HAVE_OPENSSL */
-
-int main() { return 0; }
-#endif /* HAVE_OPENSSL */

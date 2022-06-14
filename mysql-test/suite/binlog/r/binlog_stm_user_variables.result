@@ -36,8 +36,8 @@ INSERT IGNORE INTO t1 VALUES (@positive,
 @positive,
 @positive,
 @positive);
-## assertion: checks that User_var_log_event::pack_info 
-## correctly displays the binlog content by taking into 
+## assertion: checks that User_var_log_event::pack_info
+## correctly displays the binlog content by taking into
 ## account the unsigned_flag
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -95,8 +95,8 @@ INSERT IGNORE INTO t1 VALUES (@negative,
 @negative,
 @negative,
 @negative);
-## assertion: checks that User_var_log_event::pack_info 
-## correctly displays the binlog content by taking into 
+## assertion: checks that User_var_log_event::pack_info
+## correctly displays the binlog content by taking into
 ## account the unsigned_flag
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

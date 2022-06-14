@@ -1,0 +1,93 @@
+--source include/big_test.inc
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+
+--echo # Ensure that there is not already lot of data to be purged.
+--echo # If timeout happens here, then check the chain of previously
+--echo # executed test cases.
+let $wait_timeout = 100;
+--source include/wait_innodb_all_purged.inc
+
+SET GLOBAL innodb_compression_level = 0;
+
+CREATE TABLE `t`
+(`id` INT NOT NULL AUTO_INCREMENT,
+ `b` LONGBLOB,
+ PRIMARY KEY(`id`)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+
+DELIMITER $;
+CREATE PROCEDURE p(p_num INT)
+BEGIN
+  DECLARE v_i INT DEFAULT 0;
+  REPEAT
+    UPDATE t SET b:=REPEAT('a',1024*1024*4);
+    UPDATE t SET b:=REPEAT('b',1024*1024*4);
+    SET v_i:=v_i+1;
+  UNTIL v_i>p_num END REPEAT;
+END $
+DELIMITER ;$
+
+SET @b:=repeat('b',4*1024*1024);
+INSERT INTO t(id,b) VALUES(1,@b);
+
+START TRANSACTION;
+CALL p(20);
+COMMIT;
+
+FLUSH TABLES `t` FOR EXPORT;
+UNLOCK TABLES;
+let $wait_timeout = 100;
+--source include/wait_innodb_all_purged.inc
+
+SET @fs1 = (SELECT file_size FROM information_schema.innodb_tablespaces
+                 WHERE name = 'test/t');
+
+START TRANSACTION;
+CALL p(20);
+COMMIT;
+
+FLUSH TABLES `t` FOR EXPORT;
+UNLOCK TABLES;
+let $wait_timeout = 100;
+--source include/wait_innodb_all_purged.inc
+
+SET @fs2 = (SELECT file_size FROM information_schema.innodb_tablespaces
+               WHERE name = 'test/t');
+
+SET @growing = (SELECT (@fs2 - @fs1));
+
+SELECT @growing;
+
+if (`SELECT @growing > 0`) {
+  --echo Error: The ibd file 'test/t.ibd' is growing.
+
+}
+
+START TRANSACTION;
+CALL p(20);
+ROLLBACK;
+
+FLUSH TABLES `t` FOR EXPORT;
+UNLOCK TABLES;
+let $wait_timeout = 100;
+--source include/wait_innodb_all_purged.inc
+
+SET @fs3 = (SELECT file_size FROM information_schema.innodb_tablespaces
+                 WHERE name = 'test/t');
+
+SET @growing = (SELECT (@fs3 - @fs2));
+
+SELECT @growing;
+
+if (`SELECT @growing > 0`) {
+  --echo Error: The ibd file 'test/t.ibd' is growing.
+
+}
+
+DROP PROCEDURE p;
+DROP TABLE t;
+
+SET GLOBAL innodb_compression_level = DEFAULT;
+

@@ -1,4 +1,3 @@
-drop table if exists t1, t2, t3, t4, t5, t6, t7, t8;
 CREATE TABLE t1 (
 a int NOT NULL PRIMARY KEY,
 b int not null,
@@ -22,7 +21,7 @@ select * from t1 where b = 4 order by a;
 a	b	c
 3	4	6
 insert into t1 values(8, 2, 3);
-ERROR 23000: Duplicate entry '2' for key 'ib'
+ERROR 23000: Duplicate entry '2' for key 't1.ib'
 select * from t1 order by a;
 a	b	c
 1	2	3
@@ -93,7 +92,7 @@ a	b	c
 1	1	1
 4	4	NULL
 insert into t1 values(5,1,1);
-ERROR 23000: Duplicate entry '1-1' for key 'bc'
+ERROR 23000: Duplicate entry '1-1' for key 't1.bc'
 drop table t1;
 CREATE TABLE t2 (
 a int unsigned NOT NULL PRIMARY KEY,
@@ -116,7 +115,7 @@ select * from t2 where b = 4 order by a;
 a	b	c
 3	4	6
 insert into t2 values(8, 2, 3);
-ERROR 23000: Duplicate entry '2-3' for key 'b'
+ERROR 23000: Duplicate entry '2-3' for key 't2.b'
 select * from t2 order by a;
 a	b	c
 1	2	3
@@ -139,7 +138,7 @@ a	b	c
 8	2	3
 create unique index bi using hash on t2(b);
 insert into t2 values(9, 3, 1);
-ERROR 23000: Duplicate entry '3' for key 'bi'
+ERROR 23000: Duplicate entry '3' for key 't2.bi'
 alter table t2 drop index bi;
 insert into t2 values(9, 3, 1);
 select * from t2 order by a;
@@ -186,7 +185,7 @@ set @old_os = @@session.optimizer_switch;
 set optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	b	9	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)); Using filesort
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	PRIMARY	4	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
@@ -195,6 +194,41 @@ a	b	c
 5	5	NULL
 8	3	NULL
 set optimizer_switch = @old_os;
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+EXPLAIN
+-> Index scan on t2 using PRIMARY, with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
+
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL;
+EXPLAIN
+-> Table scan on t2, with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
+
+explain format=tree
+select * from t2 where b in (1,2,3) AND c IS NULL;
+EXPLAIN
+-> Table scan on t2, with pushed condition: ((t2.b in (1,2,3)) and (t2.c is null))
+
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+EXPLAIN
+-> Index range scan on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9;
+EXPLAIN
+-> Index range scan on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+
+explain format=tree
+select * from t2 where c IS NULL order by a;
+EXPLAIN
+-> Index scan on t2 using PRIMARY, with pushed condition: (t2.c is null)
+
+explain format=tree
+select * from t2 where b = 3 AND c IS NULL order by a;
+EXPLAIN
+-> Index scan on t2 using PRIMARY, with pushed condition: ((t2.b = 3) and (t2.c is null))
+
 drop table t2;
 CREATE TABLE t3 (
 a int unsigned NOT NULL,
@@ -232,7 +266,7 @@ pk	a
 3	NULL
 4	4
 insert into t1 values (5,0);
-ERROR 23000: Duplicate entry '0' for key 'a'
+ERROR 23000: Duplicate entry '0' for key 't1.a'
 select * from t1 order by pk;
 pk	a
 -1	NULL
@@ -265,7 +299,7 @@ pk	a	b	c
 0	NULL	18	NULL
 1	3	19	abc
 insert into t2 values(2,3,19,'abc');
-ERROR 23000: Duplicate entry '3-abc' for key 'si'
+ERROR 23000: Duplicate entry '3-abc' for key 't2.si'
 select * from t2 order by pk;
 pk	a	b	c
 -1	1	17	NULL
@@ -712,7 +746,7 @@ insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
-ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 'b'
+ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 't1.b'
 select a, sha1(b) from t1;
 a	sha1(b)
 1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
@@ -934,13 +968,30 @@ from
 t2 as t1, t2 as t2, t2 as t3, t2 as t4;
 explain
 SELECT STRAIGHT_JOIN count(*) FROM 
-t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using pushed condition (`test`.`t1`.`a` is not null)
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using pushed condition (`test`.`t2`.`uq` is null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	func,test.t1.a	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`uq` is null))
+Note	1003	Can't push table 't2' as child, column 'uq' does neither 'ref' a column nor a constant
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`uq` <=> (`test`.`t1`.`a` + NULL)))
 SELECT STRAIGHT_JOIN count(*) FROM 
+t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
+count(*)
+0
+explain format=tree
+SELECT STRAIGHT_JOIN count(*) FROM
+t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+EXPLAIN
+-> Aggregate: count(0)
+    -> Inner hash join (t2.a = t1.a)
+        -> Table scan on t2, with pushed condition: (t2.uq is null)
+        -> Hash
+            -> Table scan on t1
+
+Warnings:
+Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+SELECT STRAIGHT_JOIN count(*) FROM
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 count(*)
 0
@@ -1038,8 +1089,8 @@ drop index uk2 on t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `uk1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Make sure dropping multiple indexes together works
@@ -1048,8 +1099,8 @@ alter table t2 drop index uk3, drop index uk4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `uk1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # cleanup
@@ -1072,8 +1123,8 @@ constraint fk1 foreign key (a) references t1(a)
 # desc t1 to show the implicit pk
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
-b	int(11)	NO	UNI	NULL	
+a	int	NO	PRI	NULL	
+b	int	NO	UNI	NULL	
 # Drop index uk1 - it should fail
 drop index uk1 on t1;
 ERROR HY000: Cannot drop index 'uk1': needed in a foreign key constraint
@@ -1081,8 +1132,8 @@ ERROR HY000: Cannot drop index 'uk1': needed in a foreign key constraint
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   UNIQUE KEY `uk1` (`a`),
   UNIQUE KEY `uk2` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1091,13 +1142,13 @@ alter table t1 modify column a int;
 # verify that pk is now on b.
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	UNI	NULL	
-b	int(11)	NO	PRI	NULL	
+a	int	YES	UNI	NULL	
+b	int	NO	PRI	NULL	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int NOT NULL,
   UNIQUE KEY `uk2` (`b`),
   UNIQUE KEY `uk1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1111,13 +1162,13 @@ alter table t1 drop index uk2;
 # Verify that everything is fine.
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	UNI	NULL	
-b	int(11)	NO		NULL	
+a	int	YES	UNI	NULL	
+b	int	NO		NULL	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int NOT NULL,
   UNIQUE KEY `uk1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify that the fk constraint is intact through inserts
@@ -1126,3 +1177,61 @@ insert into t2 values (4);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 #cleanup
 drop table t2, t1;
+#
+# Bug#24444899 MYSQLD CRASHED WHILE DROPPING UNIQUE KEY ...
+#  - test read using unique key where keys are specified in
+#    different order than in the NDB table, thus testing
+#    the NDB_INDEX_DATA::Attrid_map mapping
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b int, c int, d int, e int, f int, g int, h int, i int,
+UNIQUE INDEX unique_hgfedcb (h,f,d,e,g,c,b)
+) engine = ndb;
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b int
+) engine = ndb;
+INSERT INTO t1 VALUES
+(1,2,3,4,5,6,7,8,40),
+(2,2,4,4,5,6,7,9,41),
+(3,2,5,4,5,6,7,10,42);
+INSERT INTO t2 VALUES
+(1,2);
+# Read with pushed join through unique index and use mapping
+SELECT t1.i FROM t1, t2
+WHERE t2.a = t1.a /* join with t2 to trigger pushed join */ AND
+t1.b = 2 AND t1.c = 3 AND t1.d = 4 AND
+t1.e = 5 AND t1.f = 6 AND t1.g = 7 AND
+t1.h = 8 /* use unique index on t1 */;
+i
+40
+DROP TABLE t1, t2;
+#
+# Bug#33317872 Incorrect Index selected leading to slower execution of queries
+#
+#   When choosing between a Multi-range-read on an unique index,
+#   and a range scan on an ordered index, where few rows are expected
+#   to be returned, prefer the unique index.
+#   (An ordered index scan has higher cost, as all fragments are scanned)
+#
+CREATE TABLE t (
+delivery_id bigint unsigned NOT NULL AUTO_INCREMENT,
+msg_id int unsigned NOT NULL,
+auth_login_type char(1) DEFAULT NULL,
+auth_login_id varchar(64),
+PRIMARY KEY (delivery_id),
+UNIQUE KEY msg_id(msg_id,auth_login_type,auth_login_id),
+KEY auth_login_id(auth_login_id)
+) ENGINE=ndbcluster;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4866, '5', '81774133'),
+(4869, '5', '81774133');
+explain format=tree
+select * from t
+where auth_login_type='5' AND auth_login_id = '81774133' AND msg_id IN (4866,4869);
+EXPLAIN
+-> Index range scan on t using msg_id over (msg_id = 4866 AND auth_login_type = '5' AND auth_login_id = '81774133') OR (msg_id = 4869 AND auth_login_type = '5' AND auth_login_id = '81774133'), with pushed condition: ((t.auth_login_id = '81774133') and (t.auth_login_type = '5') and (t.msg_id in (4866,4869)))  (cost=1.91 rows=2)
+
+drop table t;

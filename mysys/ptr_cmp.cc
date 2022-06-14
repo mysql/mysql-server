@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,17 +31,17 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_byteorder.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"  // IWYU pragma: keep
 #include "myisampack.h"
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos) {
   switch (pack_length) {
-#if SIZEOF_OFF_T > 4
     case 8:
       mi_int8store(buff, pos);
       break;
@@ -54,7 +54,6 @@ void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos) {
     case 5:
       mi_int5store(buff, pos);
       break;
-#endif
     case 4:
       mi_int4store(buff, pos);
       break;
@@ -68,7 +67,7 @@ void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos) {
       buff[0] = (uchar)pos;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return;
 }
@@ -76,7 +75,6 @@ void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos) {
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length) {
   my_off_t pos;
   switch (pack_length) {
-#if SIZEOF_OFF_T > 4
     case 8:
       pos = (my_off_t)mi_uint8korr(ptr);
       break;
@@ -89,7 +87,6 @@ my_off_t my_get_ptr(uchar *ptr, size_t pack_length) {
     case 5:
       pos = (my_off_t)mi_uint5korr(ptr);
       break;
-#endif
     case 4:
       pos = (my_off_t)mi_uint4korr(ptr);
       break;
@@ -103,7 +100,7 @@ my_off_t my_get_ptr(uchar *ptr, size_t pack_length) {
       pos = (my_off_t) * (uchar *)ptr;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return 0;
   }
   return pos;

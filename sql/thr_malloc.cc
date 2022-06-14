@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,9 +42,8 @@ using std::min;
 
 extern "C" void sql_alloc_error_handler(void);
 
-void init_sql_alloc(PSI_memory_key key, MEM_ROOT *mem_root, size_t block_size,
-                    size_t pre_alloc) {
-  init_alloc_root(key, mem_root, block_size, pre_alloc);
+void init_sql_alloc(PSI_memory_key key, MEM_ROOT *mem_root, size_t block_size) {
+  ::new ((void *)mem_root) MEM_ROOT(key, block_size);
   mem_root->set_error_handler(sql_alloc_error_handler);
 }
 
@@ -84,7 +83,7 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
   size_t new_length = to_cs->mbmaxlen * arg_length;
   max_res_length--;  // Reserve place for end null
 
-  set_if_smaller(new_length, max_res_length);
+  new_length = std::min(new_length, max_res_length);
   if (!(pos = (char *)(*THR_MALLOC)->Alloc(new_length + 1)))
     return pos;  // Error
 

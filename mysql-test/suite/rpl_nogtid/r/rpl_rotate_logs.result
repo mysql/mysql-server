@@ -9,15 +9,19 @@ start slave;
 Got one of the listed errors
 start slave;
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
-change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
 reset slave;
-change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 reset master;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
@@ -46,7 +50,7 @@ include/sync_slave_sql_with_master.inc
 insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);
-call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .PRIMARY.. on query.* Error_code: MY-001062");
+call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .t2.PRIMARY.. on query.* Error_code: MY-001062");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
 include/sync_slave_sql_with_master.inc
 purge master logs to 'master-bin.000002';

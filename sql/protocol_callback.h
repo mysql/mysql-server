@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,6 @@
 #include "violite.h"
 
 class Item_param;
-class Proto_field;
 class Send_field;
 class String;
 class my_decimal;
@@ -49,7 +48,7 @@ template <class T>
 class List;
 union COM_DATA;
 
-class Protocol_callback : public Protocol {
+class Protocol_callback final : public Protocol {
  public:
   Protocol_callback(const struct st_command_service_cbs *cbs,
                     enum cs_text_or_binary t_or_b, void *cbs_ctx)
@@ -63,79 +62,71 @@ class Protocol_callback : public Protocol {
   /**
     Forces read of packet from the connection
 
-    @return
-      bytes read
-      -1 failure
+    @return bytes read
+    @retval -1 failure
   */
-  virtual int read_packet();
+  int read_packet() override;
 
   /**
     Reads from the line and parses the data into union COM_DATA
 
-    @return
-      bytes read
-      -1 failure
+    @return bytes read
+    @retval -1 failure
   */
-  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd);
+  int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
 
   /**
     Returns the type of the protocol
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual enum enum_protocol_type type() const { return PROTOCOL_PLUGIN; }
+  enum enum_protocol_type type() const override { return PROTOCOL_PLUGIN; }
 
   /**
     Returns the type of the connection
 
-    @return
-      enum enum_vio_type
+    @return enum enum_vio_type
   */
-  virtual enum enum_vio_type connection_type() const;
+  enum enum_vio_type connection_type() const override;
 
   /**
     Sends null value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_null();
+  bool store_null() override;
 
   /**
     Sends TINYINT value
 
     @param from value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_tiny(longlong from);
+  bool store_tiny(longlong from, uint32) override;
 
   /**
     Sends SMALLINT value
 
     @param from value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_short(longlong from);
+  bool store_short(longlong from, uint32) override;
 
   /**
     Sends INT/INTEGER value
 
     @param from value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_long(longlong from);
+  bool store_long(longlong from, uint32) override;
 
   /**
     Sends BIGINT value
@@ -143,140 +134,130 @@ class Protocol_callback : public Protocol {
     @param from         value
     @param is_unsigned  from is unsigned
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_longlong(longlong from, bool is_unsigned);
+  bool store_longlong(longlong from, bool is_unsigned, uint32) override;
 
   /**
     Sends DECIMAL value
 
     @param d    value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_decimal(const my_decimal *d, uint, uint);
+  bool store_decimal(const my_decimal *d, uint, uint) override;
 
   /**
     Sends string (CHAR/VARCHAR/TEXT/BLOB) value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs);
+  bool store_string(const char *from, size_t length,
+                    const CHARSET_INFO *fromcs) override;
 
   /**
     Sends FLOAT value
 
     @param from      value
-    @param decimals
-    @param buffer    auxiliary buffer
+    @param decimals  number of digits to use after decimal point, unless it is
+    DECIMAL_NOT_SPECIFIED
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store(float from, uint32 decimals, String *buffer);
+  bool store_float(float from, uint32 decimals, uint32) override;
 
   /**
     Sends DOUBLE value
 
     @param from      value
-    @param decimals
-    @param buffer    auxiliary buffer
+    @param decimals  number of digits to use after decimal point, unless it is
+    DECIMAL_NOT_SPECIFIED
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store(double from, uint32 decimals, String *buffer);
+  bool store_double(double from, uint32 decimals, uint32) override;
 
   /**
     Sends DATETIME value
 
     @param time      value
-    @param precision
+    @param precision fractional seconds precision. 0 ... DATETIME_MAX_DECIMALS
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store(MYSQL_TIME *time, uint precision);
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
 
   /**
     Sends DATE value
 
     @param time      value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_date(MYSQL_TIME *time);
+  bool store_date(const MYSQL_TIME &time) override;
 
   /**
     Sends TIME value
 
     @param time      value
-    @param precision
+    @param precision fractional seconds precision. 0 ... DATETIME_MAX_DECIMALS
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store_time(MYSQL_TIME *time, uint precision);
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
 
   /**
     Sends Field
 
-    @param field
+    @param field the field to be sent through the protocol
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
-  virtual bool store(Proto_field *field);
+  bool store_field(const Field *field) override;
 
   /**
     Returns the capabilities supported by the protocol
   */
-  virtual ulong get_client_capabilities();
+  ulong get_client_capabilities() override;
 
   /**
     Checks if the protocol supports a capability
 
     @param capability the capability
 
-    @return
-      true   supports
-      false  does not support
+    @retval true   supports
+    @retval false  does not support
   */
-  virtual bool has_client_capability(unsigned long capability);
+  bool has_client_capability(unsigned long capability) override;
 
   /**
     Called BEFORE sending data row or before field_metadata
   */
-  virtual void start_row();
+  void start_row() override;
 
   /**
     Called AFTER sending data row or before field_metadata
   */
-  virtual bool end_row();
+  bool end_row() override;
 
   /**
     Called when a row is aborted
   */
-  virtual void abort_row();
+  void abort_row() override;
 
   /**
     Called in case of error while sending data
   */
-  virtual void end_partial_result_set();
+  void end_partial_result_set() override;
 
   /**
     Called when the server shuts down the connection (THD is being destroyed).
@@ -287,51 +268,63 @@ class Protocol_callback : public Protocol {
     @param server_shutdown  Whether this is a normal connection shutdown (false)
                             or a server shutdown (true).
 
-    @return
-    0   success
-    !0  failure
+    @retval 0   success
+    @retval !0  failure
   */
-  virtual int shutdown(bool server_shutdown = false);
+  int shutdown(bool server_shutdown = false) override;
 
   /**
     This function always returns true as in many places in the server this
     is a prerequisite for continuing operations.
 
-    @return
-      true   alive
+    @retval true   alive
   */
-  virtual bool connection_alive() const;
+  bool connection_alive() const override;
 
   /**
     Should return protocol's reading/writing status. Returns 0 (idle) as it
     this is the best guess that can be made as there is no callback for
     get_rw_status().
   */
-  virtual uint get_rw_status();
+  uint get_rw_status() override;
 
   /**
     Checks if compression is enabled
 
-    @return
-      true  enabled
-      false disabled
+    @retval true  enabled
+    @retval false disabled
   */
-  virtual bool get_compression();
+  bool get_compression() override;
+
+  /**
+    Checks if compression is enabled and return compression method name
+
+    @return algorithm name if compression is supported else null
+  */
+  char *get_compression_algorithm() override;
+
+  /**
+   Checks if compression is enabled and return compression level.
+
+    @return compression level if compression is supported else 0
+  */
+  uint get_compression_level() override;
 
   /**
     Called BEFORE sending metadata
 
     @param num_cols Number of columns in the result set
-    @param flags
+    @param flags    flags to be used to alter the way the messages are sent to
+    the client, see Protocol class for SEND_NUM_ROWS, SEND_DEFAULTS,
+    SEND_EOF
     @param resultcs The character set of the results. Can be different from the
                     one in the field metadata.
 
-    @return
-      true  failure
-     false success
+    @retval true  failure
+    @retval false success
   */
-  virtual bool start_result_metadata(uint num_cols, uint flags,
-                                     const CHARSET_INFO *resultcs);
+  bool start_result_metadata(uint num_cols, uint flags,
+                             const CHARSET_INFO *resultcs) override;
 
   /**
     Sends metadata of one field. Called for every column in the result set.
@@ -339,20 +332,18 @@ class Protocol_callback : public Protocol {
     @param field  Field's metadata
     @param cs     Charset
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
-  virtual bool send_field_metadata(Send_field *field, const CHARSET_INFO *cs);
+  bool send_field_metadata(Send_field *field, const CHARSET_INFO *cs) override;
 
   /**
     Called AFTER sending metadata
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
-  virtual bool end_result_metadata();
+  bool end_result_metadata() override;
 
   /**
     Sends OK
@@ -364,13 +355,11 @@ class Protocol_callback : public Protocol {
                            column
     @param message         Textual message from the execution. May be NULL.
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
-  virtual bool send_ok(uint server_status, uint warn_count,
-                       ulonglong affected_rows, ulonglong last_insert_id,
-                       const char *message);
+  bool send_ok(uint server_status, uint warn_count, ulonglong affected_rows,
+               ulonglong last_insert_id, const char *message) override;
 
   /**
     Sends end of file.
@@ -382,11 +371,10 @@ class Protocol_callback : public Protocol {
     @param warn_count    The warning count generated by the execution of the
                          statement.
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
-  virtual bool send_eof(uint server_status, uint warn_count);
+  bool send_eof(uint server_status, uint warn_count) override;
 
   /**
     Sends error
@@ -395,19 +383,21 @@ class Protocol_callback : public Protocol {
     @param err_msg    The error message
     @param sql_state  The SQL state - 5 char string
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
-  virtual bool send_error(uint sql_errno, const char *err_msg,
-                          const char *sql_state);
+  bool send_error(uint sql_errno, const char *err_msg,
+                  const char *sql_state) override;
 
-  virtual bool store_ps_status(ulong stmt_id, uint column_count,
-                               uint param_count, ulong cond_count);
+  bool store_ps_status(ulong stmt_id, uint column_count, uint param_count,
+                       ulong cond_count) override;
 
-  virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare);
-  virtual bool flush();
+  bool send_parameters(List<Item_param> *parameters,
+                       bool is_sql_prepare) override;
+  bool flush() override;
+
+  using Protocol::store_long;
+  using Protocol::store_short;
 
  private:
   /**
@@ -421,9 +411,8 @@ class Protocol_callback : public Protocol {
 
     @param parameters  List of PS/SP parameters (both input and output).
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool set_variables_from_parameters(List<Item_param> *parameters);
 

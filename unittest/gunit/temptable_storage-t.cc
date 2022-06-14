@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -20,21 +20,21 @@ You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
-//#include <array> /* std::array */
-//#include <new>   /* std::bad_alloc */
+#include <thread>
 
-#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage */
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/block.h"
+#include "storage/temptable/include/temptable/storage.h"
 
 namespace temptable_storage_unittest {
 
 TEST(StorageTest, Iterate) {
-  {
-    temptable::Allocator<uint8_t> allocator;
+  std::thread t([]() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
+    temptable::Block shared_block;
+    temptable::Allocator<uint8_t> allocator(&shared_block,
+                                            table_resource_monitor);
     temptable::Storage storage(&allocator);
 
     storage.element_size(sizeof(uint64_t));
@@ -56,13 +56,17 @@ TEST(StorageTest, Iterate) {
       EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
     }
     EXPECT_EQ(0u, i);
-  }
-  temptable::Allocator<uint8_t>::end_thread();
+  });
+  t.join();
 }
 
 TEST(StorageTest, AllocatorRebind) {
-  {
-    temptable::Allocator<uint8_t> alloc;
+  // Bug in VS2019 error C3409 if we do the same as above.
+  // Turns out it is the rebind which confuses the compiler.
+  auto thread_function = []() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
+    temptable::Block shared_block;
+    temptable::Allocator<uint8_t> alloc(&shared_block, table_resource_monitor);
     uint8_t *shared_eater = alloc.allocate(
         1048576);  // Make sure to consume the initial shared block.
     uint8_t *ptr = alloc.allocate(100);
@@ -75,8 +79,9 @@ TEST(StorageTest, AllocatorRebind) {
     rebound_alloc.deallocate(ptr2, 50);
 
     alloc.deallocate(shared_eater, 1048576);
-  }
-  temptable::Allocator<uint8_t>::end_thread();
+  };
+  std::thread t(thread_function);
+  t.join();
 }
 
 } /* namespace temptable_storage_unittest */

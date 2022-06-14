@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,9 @@
 #include "sql/dd/dd_utility.h"
 
 #include "m_ctype.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysqld_error.h"                            // ER_...
+#include "sql/handler.h"                             // handlerton
 
 namespace dd {
 
@@ -50,6 +53,23 @@ size_t normalize_string(const CHARSET_INFO *cs, const String_type &src,
               reinterpret_cast<const uchar *>(src.c_str()), src.length());
 
   return len;
+}
+
+bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev) {
+  /*
+    We must check if the DDSE is started in a way that makes the DD
+    read only. For now, we only support InnoDB as SE for the DD. The call
+    to retrieve the handlerton for the DDSE should be replaced by a more
+    generic mechanism.
+  */
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
+    LogErr(WARNING_LEVEL, ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE,
+           schema_name_abbrev);
+    return true;
+  }
+
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

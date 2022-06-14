@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,10 +189,10 @@ static std::mutex *LOCK_hostname{nullptr};
 extern "C" bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT) {
     strcpy(message, "Wrong arguments to metaphon;  Use the source");
-    return 1;
+    return true;
   }
   initid->max_length = MAXMETAPH;
-  return 0;
+  return false;
 }
 
 /****************************************************************************
@@ -262,7 +262,7 @@ extern "C" char *metaphon(UDF_INIT *, UDF_ARGS *args, char *result,
     /* The length is expected to be zero when the argument is NULL. */
     assert(args->lengths[0] == 0);
     *is_null = 1;
-    return 0;
+    return nullptr;
   }
 
   w_end = word + args->lengths[0];
@@ -456,17 +456,17 @@ extern "C" bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args,
 
   if (!args->arg_count) {
     strcpy(message, "myfunc_double must have at least one argument");
-    return 1;
+    return true;
   }
   /*
   ** As this function wants to have everything as strings, force all arguments
   ** to strings.
   */
   for (i = 0; i < args->arg_count; i++) args->arg_type[i] = STRING_RESULT;
-  initid->maybe_null = 1; /* The result may be null */
-  initid->decimals = 2;   /* We want 2 decimals in the result */
-  initid->max_length = 6; /* 3 digits + . + 2 decimals */
-  return 0;
+  initid->maybe_null = true; /* The result may be null */
+  initid->decimals = 2;      /* We want 2 decimals in the result */
+  initid->max_length = 6;    /* 3 digits + . + 2 decimals */
+  return false;
 }
 
 extern "C" double myfunc_double(UDF_INIT *, UDF_ARGS *args,
@@ -476,7 +476,7 @@ extern "C" double myfunc_double(UDF_INIT *, UDF_ARGS *args,
   unsigned i, j;
 
   for (i = 0; i < args->arg_count; i++) {
-    if (args->args[i] == NULL) continue;
+    if (args->args[i] == nullptr) continue;
     val += args->lengths[i];
     for (j = args->lengths[i]; j-- > 0;) v += args->args[i][j];
   }
@@ -508,7 +508,7 @@ extern "C" long long myfunc_int(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   unsigned i;
 
   for (i = 0; i < args->arg_count; i++) {
-    if (args->args[i] == NULL) continue;
+    if (args->args[i] == nullptr) continue;
     switch (args->arg_type[i]) {
       case STRING_RESULT: /* Add string lengths */
         val += args->lengths[i];
@@ -530,7 +530,9 @@ extern "C" long long myfunc_int(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   At least one of _init/_deinit is needed unless the server is started
   with --allow_suspicious_udfs.
 */
-extern "C" bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *) { return 0; }
+extern "C" bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *) {
+  return false;
+}
 
 /*
   Simple example of how to get a sequences starting from the first argument
@@ -540,22 +542,22 @@ extern "C" bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *) { return 0; }
 extern "C" bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count > 1) {
     strcpy(message, "This function takes none or 1 argument");
-    return 1;
+    return true;
   }
   if (args->arg_count)
     args->arg_type[0] = INT_RESULT; /* Force argument to int */
 
   if (!(initid->ptr = (char *)malloc(sizeof(long long)))) {
     strcpy(message, "Couldn't allocate memory");
-    return 1;
+    return true;
   }
   memset(initid->ptr, 0, sizeof(long long));
   /*
     sequence() is a non-deterministic function : it has different value
     even if called with the same arguments.
   */
-  initid->const_item = 0;
-  return 0;
+  initid->const_item = false;
+  return false;
 }
 
 extern "C" void sequence_deinit(UDF_INIT *initid) {
@@ -594,12 +596,12 @@ extern "C" long long sequence(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
 extern "C" bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT) {
     strcpy(message, "Wrong arguments to lookup;  Use the source");
-    return 1;
+    return true;
   }
   initid->max_length = 11;
-  initid->maybe_null = 1;
+  initid->maybe_null = true;
   LOCK_hostname = new std::mutex;
-  return 0;
+  return false;
 }
 
 extern "C" void lookup_deinit(UDF_INIT *) {
@@ -617,7 +619,7 @@ extern "C" char *lookup(UDF_INIT *, UDF_ARGS *args, char *result,
 
   if (!args->args[0] || !(length = args->lengths[0])) {
     *null_value = 1;
-    return 0;
+    return nullptr;
   }
   if (length >= sizeof(name_buff)) length = sizeof(name_buff) - 1;
   memcpy(name_buff, args->args[0], length);
@@ -626,7 +628,7 @@ extern "C" char *lookup(UDF_INIT *, UDF_ARGS *args, char *result,
     std::lock_guard<std::mutex> lock(*LOCK_hostname);
     if (!(hostent = gethostbyname((char *)name_buff))) {
       *null_value = 1;
-      return 0;
+      return nullptr;
     }
   }
   memcpy(&in, *hostent->h_addr_list, sizeof(in.s_addr));
@@ -651,12 +653,12 @@ extern "C" bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args,
   else {
     strcpy(message,
            "Wrong number of arguments to reverse_lookup;  Use the source");
-    return 1;
+    return true;
   }
   initid->max_length = 32;
-  initid->maybe_null = 1;
+  initid->maybe_null = true;
   LOCK_hostname = new std::mutex;
-  return 0;
+  return false;
 }
 
 extern "C" void reverse_lookup_deinit(UDF_INIT *) {
@@ -674,7 +676,7 @@ extern "C" char *reverse_lookup(UDF_INIT *, UDF_ARGS *args, char *result,
   if (args->arg_count == 4) {
     if (!args->args[0] || !args->args[1] || !args->args[2] || !args->args[3]) {
       *null_value = 1;
-      return 0;
+      return nullptr;
     }
     sprintf(result, "%d.%d.%d.%d", (int)*((long long *)args->args[0]),
             (int)*((long long *)args->args[1]),
@@ -684,7 +686,7 @@ extern "C" char *reverse_lookup(UDF_INIT *, UDF_ARGS *args, char *result,
     if (!args->args[0]) /* Return NULL for NULL values */
     {
       *null_value = 1;
-      return 0;
+      return nullptr;
     }
     length = args->lengths[0];
     if (length >= (unsigned)*res_length - 1) length = (unsigned)*res_length;
@@ -695,13 +697,13 @@ extern "C" char *reverse_lookup(UDF_INIT *, UDF_ARGS *args, char *result,
   taddr = inet_addr(result);
   if (taddr == (unsigned long)-1L) {
     *null_value = 1;
-    return 0;
+    return nullptr;
   }
   {
     std::lock_guard<std::mutex> lock(*LOCK_hostname);
     if (!(hp = gethostbyaddr((char *)&taddr, sizeof(taddr), AF_INET))) {
       *null_value = 1;
-      return 0;
+      return nullptr;
     }
   }
   strcpy(result, hp->h_name);
@@ -734,13 +736,13 @@ extern "C" bool avgcost_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count != 2) {
     strcpy(message,
            "wrong number of arguments: AVGCOST() requires two arguments");
-    return 1;
+    return true;
   }
 
   if ((args->arg_type[0] != INT_RESULT) || (args->arg_type[1] != REAL_RESULT)) {
     strcpy(message,
            "wrong argument type: AVGCOST() requires an INT and a REAL");
-    return 1;
+    return true;
   }
 
   /*
@@ -749,20 +751,20 @@ extern "C" bool avgcost_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   /*args->arg_type[0]	= REAL_RESULT;
     args->arg_type[1]	= REAL_RESULT;*/
 
-  initid->maybe_null = 0;  /* The result may be null */
-  initid->decimals = 4;    /* We want 4 decimals in the result */
-  initid->max_length = 20; /* 6 digits + . + 10 decimals */
+  initid->maybe_null = false; /* The result may be null */
+  initid->decimals = 4;       /* We want 4 decimals in the result */
+  initid->max_length = 20;    /* 6 digits + . + 10 decimals */
 
   if (!(data = new (std::nothrow) avgcost_data)) {
     strcpy(message, "Couldn't allocate memory");
-    return 1;
+    return true;
   }
   data->totalquantity = 0;
   data->totalprice = 0.0;
 
   initid->ptr = (char *)data;
 
-  return 0;
+  return false;
 }
 
 extern "C" void avgcost_deinit(UDF_INIT *initid) {
@@ -834,12 +836,12 @@ extern "C" bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
                                           char *message) {
   if (args->arg_count != 1) {
     strcpy(message, "myfunc_argument_name_init accepts only one argument");
-    return 1;
+    return true;
   }
   initid->max_length = args->attribute_lengths[0];
-  initid->maybe_null = 1;
-  initid->const_item = 1;
-  return 0;
+  initid->maybe_null = true;
+  initid->const_item = true;
+  return false;
 }
 
 extern "C" char *myfunc_argument_name(UDF_INIT *, UDF_ARGS *args, char *result,
@@ -848,7 +850,7 @@ extern "C" char *myfunc_argument_name(UDF_INIT *, UDF_ARGS *args, char *result,
                                       unsigned char *) {
   if (!args->attributes[0]) {
     *null_value = 1;
-    return 0;
+    return nullptr;
   }
   (*length)--; /* space for ending \0 (for debugging purposes) */
   if (*length > args->attribute_lengths[0])
@@ -861,16 +863,16 @@ extern "C" char *myfunc_argument_name(UDF_INIT *, UDF_ARGS *args, char *result,
 extern "C" bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count != 1) {
     strcpy(message, "IS_CONST accepts only one argument");
-    return 1;
+    return true;
   }
-  initid->ptr = (char *)((args->args[0] != NULL) ? 1UL : 0);
-  return 0;
+  initid->ptr = (char *)((args->args[0] != nullptr) ? 1ULL : 0);
+  return false;
 }
 
 extern "C" char *is_const(UDF_INIT *initid, UDF_ARGS *, char *result,
                           unsigned long *length, unsigned char *is_null,
                           unsigned char *) {
-  if (initid->ptr != 0) {
+  if (initid->ptr != nullptr) {
     sprintf(result, "const");
   } else {
     sprintf(result, "not const");
@@ -884,9 +886,9 @@ extern "C" bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args,
                                      char *message) {
   if (args->arg_count != 1) {
     strcpy(message, "CHECK_CONST_LEN accepts only one argument");
-    return 1;
+    return true;
   }
-  if (args->args[0] == 0) {
+  if (args->args[0] == nullptr) {
     initid->ptr = const_cast<char *>("Not constant");
   } else if (strlen(args->args[0]) == args->lengths[0]) {
     initid->ptr = const_cast<char *>("Correct length");
@@ -894,7 +896,7 @@ extern "C" bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args,
     initid->ptr = const_cast<char *>("Wrong length");
   }
   initid->max_length = 100;
-  return 0;
+  return false;
 }
 
 extern "C" char *check_const_len(UDF_INIT *initid, UDF_ARGS *, char *result,

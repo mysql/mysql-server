@@ -429,6 +429,7 @@ AND a.c7=b.c7 AND a.c8=b.c8;
 SELECT ST_AsText(a.c2),ST_AsText(b.c2) FROM tab a,tab2 b WHERE a.c2=b.c2;
 
 --echo #check DELETE stmt with Where clause and a constant predicate
+--error ER_TRUNCATED_WRONG_VALUE
 DELETE FROM tab
 Where c8=c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 

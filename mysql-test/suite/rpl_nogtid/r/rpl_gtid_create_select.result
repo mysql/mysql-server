@@ -7,12 +7,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/save_binlog_position.inc
 SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
 CREATE TABLE t1 (a INT) SELECT 1;
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(CREATE.*) # Anonymous_Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(CREATE.*) # Table_map # Write_rows # !Commit]
 ---- GTID_NEXT=non-automatic -----
 include/save_binlog_position.inc
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 CREATE TABLE t2 (a INT) SELECT 1;
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(CREATE.*) # Anonymous_Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(CREATE.*) # Table_map # Write_rows # !Commit]
 ---- Clean up ----
 DROP TABLE t1;
 DROP TABLE t2;

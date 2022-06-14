@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,20 +44,17 @@
 
 int my_delete(const char *name, myf MyFlags) {
   int err;
-  DBUG_ENTER("my_delete");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("name %s MyFlags %d", name, MyFlags));
 
   if ((err = unlink(name)) == -1) {
     set_my_errno(errno);
-    if (MyFlags & (MY_FAE + MY_WME)) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_DELETE, MYF(0), name, errno,
-               my_strerror(errbuf, sizeof(errbuf), errno));
+    if (MyFlags & (MY_FAE | MY_WME)) {
+      MyOsError(my_errno(), EE_DELETE, MYF(0), name);
     }
-  } else if ((MyFlags & MY_SYNC_DIR) && my_sync_dir_by_file(name, MyFlags))
-    err = -1;
-  DBUG_RETURN(err);
-} /* my_delete */
+  }
+  return err;
+}
 
 #if defined(_WIN32)
 /**
@@ -94,12 +91,12 @@ int my_delete(const char *name, myf MyFlags) {
 int nt_share_delete(const char *name, myf MyFlags) {
   char buf[MAX_PATH + 20];
   ulong cnt;
-  DBUG_ENTER("nt_share_delete");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("name %s MyFlags %d", name, MyFlags));
 
   for (cnt = GetTickCount(); cnt; cnt--) {
     errno = 0;
-    sprintf(buf, "%s.%08X.deleted", name, cnt);
+    sprintf(buf, "%s.%08lX.deleted", name, cnt);
     if (MoveFile(name, buf)) break;
 
     if ((errno = GetLastError()) == ERROR_ALREADY_EXISTS) continue;
@@ -115,7 +112,7 @@ int nt_share_delete(const char *name, myf MyFlags) {
   if (errno == ERROR_FILE_NOT_FOUND) {
     set_my_errno(ENOENT);  // marking, that `name' doesn't exist
   } else if (errno == 0) {
-    if (DeleteFile(buf)) DBUG_RETURN(0);
+    if (DeleteFile(buf)) return 0;
     /*
       The below is more complicated than necessary. For some reason, the
       assignment to my_errno clears the error number, which is retrieved
@@ -131,10 +128,8 @@ int nt_share_delete(const char *name, myf MyFlags) {
     set_my_errno(errno);
 
   if (MyFlags & (MY_FAE + MY_WME)) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DELETE, MYF(0), name, my_errno(),
-             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    MyOsError(my_errno(), EE_DELETE, MYF(0), name);
   }
-  DBUG_RETURN(-1);
+  return -1;
 }
 #endif

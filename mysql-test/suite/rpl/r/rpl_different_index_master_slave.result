@@ -6,7 +6,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ==== Initialize ====
 [connection slave]
 SET @old_slave_rows_search_algorithms = @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET @@global.slave_rows_search_algorithms = 'INDEX_SCAN,TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 SET @@session.binlog_row_image = 'MINIMAL';
@@ -28,4 +32,6 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @@global.slave_rows_search_algorithms = @old_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

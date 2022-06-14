@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,10 @@
 
 #include "parse_tree_handler.h"
 
-#include <string.h>
+#include <cstring>
 
-#include "my_inttypes.h"
+#include "my_alloc.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -46,8 +47,8 @@ Sql_cmd *PT_handler_open::make_cmd(THD *thd) {
     return nullptr;
   }
 
-  if (!lex->current_select()->add_table_to_list(thd, m_table, m_opt_table_alias,
-                                                0))
+  if (!lex->current_query_block()->add_table_to_list(thd, m_table,
+                                                     m_opt_table_alias, 0))
     return nullptr;
 
   lex->sql_command = SQLCOM_HA_OPEN;
@@ -66,7 +67,7 @@ Sql_cmd *PT_handler_close::make_cmd(THD *thd) {
   auto table =
       new (thd->mem_root) Table_ident(thd->get_protocol(), db, m_table, false);
   if (table == nullptr ||
-      !lex->current_select()->add_table_to_list(thd, table, nullptr, 0))
+      !lex->current_query_block()->add_table_to_list(thd, table, nullptr, 0))
     return nullptr;
 
   lex->sql_command = SQLCOM_HA_CLOSE;
@@ -76,7 +77,7 @@ Sql_cmd *PT_handler_close::make_cmd(THD *thd) {
 bool PT_handler_read_base::contextualize(Parse_context *pc) {
   THD *const thd = pc->thd;
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   if (lex->sphead) {
     my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
@@ -98,10 +99,13 @@ bool PT_handler_read_base::contextualize(Parse_context *pc) {
       !select->add_table_to_list(pc->thd, table, nullptr, 0))
     return true;
 
-  if (itemize_safe(pc, &m_opt_where_clause)) return true;
+  if (m_opt_where_clause != nullptr &&
+      m_opt_where_clause->itemize(pc, &m_opt_where_clause))
+    return true;
   select->set_where_cond(m_opt_where_clause);
 
-  if (contextualize_safe(pc, m_opt_limit_clause)) return true;
+  if (m_opt_limit_clause != nullptr && m_opt_limit_clause->contextualize(pc))
+    return true;
 
   lex->expr_allows_subselect = true;
 
@@ -118,7 +122,7 @@ bool PT_handler_read_base::contextualize(Parse_context *pc) {
 Sql_cmd *PT_handler_table_scan::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_HA_READ;
 
-  Parse_context pc(thd, thd->lex->current_select());
+  Parse_context pc(thd, thd->lex->current_query_block());
   if (super::contextualize(&pc)) return nullptr;
 
   return new (thd->mem_root)
@@ -128,7 +132,7 @@ Sql_cmd *PT_handler_table_scan::make_cmd(THD *thd) {
 Sql_cmd *PT_handler_index_scan::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_HA_READ;
 
-  Parse_context pc(thd, thd->lex->current_select());
+  Parse_context pc(thd, thd->lex->current_query_block());
   if (super::contextualize(&pc)) return nullptr;
 
   return new (thd->mem_root)
@@ -139,7 +143,7 @@ Sql_cmd *PT_handler_index_range_scan::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_HA_READ;
 
   thd->lex->expr_allows_subselect = false;
-  Parse_context pc(thd, thd->lex->current_select());
+  Parse_context pc(thd, thd->lex->current_query_block());
   if (m_keypart_values->contextualize(&pc) || super::contextualize(&pc))
     return nullptr;
   thd->lex->expr_allows_subselect = true;

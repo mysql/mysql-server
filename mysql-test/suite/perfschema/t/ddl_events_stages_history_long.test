@@ -13,6 +13,12 @@ CREATE UNIQUE INDEX test_index ON performance_schema.events_stages_history_long(
 
 --disable_query_log
 # Checking if the column WORK_COMPLETED and WORK_ESTIMATED exists
+--sorted_result
 select * from information_schema.columns where TABLE_NAME ='events_stages_history_long' and column_name in ('WORK_COMPLETED','WORK_ESTIMATED')
 and table_schema='performance_schema';
 --enable_query_log
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.events_stages_history_long;
+
+DROP TABLE test.create_select;

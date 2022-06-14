@@ -1,0 +1,153 @@
+# Test Enable and Disable redo logging
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
+--echo #1. Check Redo logging syntax and status
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+--echo
+
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+--echo
+
+SHOW STATUS LIKE 'Innodb_redo_log_enabled';
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+
+--echo #2. Check privilege
+CREATE USER 'user_redo'@'localhost' IDENTIFIED BY '123';
+--echo
+GRANT SELECT ON performance_schema.* to 'user_redo'@'localhost';
+--echo
+
+--connect (con1,'localhost','user_redo','123',)
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+--echo
+
+--connection default
+GRANT INNODB_REDO_LOG_ENABLE ON *.* TO 'user_redo'@'localhost';
+--echo
+
+--connection con1
+
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+
+--connection default
+--disconnect con1
+DROP USER 'user_redo'@'localhost';
+--echo
+
+--echo #3. Check basic DDL and DML when redo logging is disabled
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+
+--let check_dd = 0
+--let NO_EXT_PATH = 1
+
+--let $check_option = CREATE
+--source suite/innodb/include/partition_upgrade_check.inc
+
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--let $check_option = DML
+--source suite/innodb/include/partition_upgrade_check.inc
+
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+
+--let $check_option = DROP
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--let $check_option = CREATE
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--let $check_option = DML
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--echo #3A. Check shutdown and restart
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+--echo # Restart the server with --log-error
+--replace_result $SEARCH_FILE SEARCH_FILE
+--let $restart_parameters = restart: --log-error=$SEARCH_FILE --no-console
+--source include/restart_mysqld.inc
+
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+
+--let $check_option = DROP
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--let $check_option = CREATE
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--let $check_option = DML
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--let $check_option = DDL
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--echo #3B. Check shutdown and restart with innodb_fast_shutdown = 2
+SET GLOBAL innodb_fast_shutdown = 2;
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--let SEARCH_PATTERN=\\[Warning\\] .*MY-\\d+.* InnoDB cannot do cold shutdown 'innodb_fast_shutdown = 2' and is forcing 'innodb_fast_shutdown = 1' as redo logging is disabled. InnoDB would flush all dirty pages to ensure physical data consistency.
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+
+--echo #3C. Check shutdown and restart with innodb-read-only
+
+--disable_query_log
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode");
+--enable_query_log
+
+--let $restart_parameters = restart: --innodb-read-only
+--source include/restart_mysqld.inc
+
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+# Avoid printing tables names in capital letters for case insensitive platforms
+--let $check_option = CHECK
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--let $check_option = DROP
+--source suite/innodb/include/partition_upgrade_check.inc
+
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';

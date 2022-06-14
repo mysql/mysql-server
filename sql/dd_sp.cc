@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@
 
 void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
                                          st_sp_chistics *sp_chistics) {
-  DBUG_ENTER("prepare_sp_chistics_from_dd_routine");
+  DBUG_TRACE;
 
   sp_chistics->detistic = routine->is_deterministic();
 
@@ -90,8 +90,6 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
                             routine->comment().length()};
   } else
     sp_chistics->comment = EMPTY_CSTR;
-
-  DBUG_VOID_RETURN;
 }
 
 static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
@@ -103,14 +101,14 @@ static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
     numeric_scale = param.numeric_scale();
   else if (param.data_type() == dd::enum_column_types::FLOAT ||
            param.data_type() == dd::enum_column_types::DOUBLE)
-    numeric_scale =
-        param.is_numeric_scale_null() ? NOT_FIXED_DEC : param.numeric_scale();
+    numeric_scale = param.is_numeric_scale_null() ? DECIMAL_NOT_SPECIFIED
+                                                  : param.numeric_scale();
 
   return make_field(*THR_MALLOC, share, nullptr, param.char_length(), nullptr,
                     0, dd_get_old_field_type(param.data_type()),
                     dd_get_mysql_charset(param.collation_id()), geom_type,
                     Field::NONE, interval, "", false, param.is_zerofill(),
-                    param.is_unsigned(), numeric_scale, 0, 0, {}, false);
+                    param.is_unsigned(), numeric_scale, false, 0, {}, false);
 }
 
 /**
@@ -128,10 +126,10 @@ static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
 static void prepare_type_string_from_dd_param(THD *thd,
                                               const dd::Parameter *param,
                                               String *type_str) {
-  DBUG_ENTER("prepare_type_string_from_dd_param");
+  DBUG_TRACE;
 
   // ENUM/SET elements.
-  TYPELIB *interval = NULL;
+  TYPELIB *interval = nullptr;
   if (param->data_type() == dd::enum_column_types::ENUM ||
       param->data_type() == dd::enum_column_types::SET) {
     // Allocate space for interval.
@@ -140,12 +138,12 @@ static void prepare_type_string_from_dd_param(THD *thd,
     interval = static_cast<TYPELIB *>(thd->mem_root->Alloc(sizeof(TYPELIB)));
     interval->type_names = static_cast<const char **>(
         thd->mem_root->Alloc((sizeof(char *) * (interval_parts + 1))));
-    interval->type_names[interval_parts] = 0;
+    interval->type_names[interval_parts] = nullptr;
 
     interval->type_lengths = static_cast<uint *>(
         thd->mem_root->Alloc(sizeof(uint) * interval_parts));
     interval->count = interval_parts;
-    interval->name = NULL;
+    interval->name = nullptr;
 
     for (const dd::Parameter_type_element *pe : param->elements()) {
       // Read the enum/set element name
@@ -162,8 +160,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
   Field::geometry_type geom_type = Field::GEOM_GEOMETRY;
   if (param->data_type() == dd::enum_column_types::GEOMETRY) {
     uint32 sub_type = 0;
-    dd::Properties *options = const_cast<dd::Properties *>(&param->options());
-    options->get("geom_type", &sub_type);
+    param->options().get("geom_type", &sub_type);
     geom_type = static_cast<Field::geometry_type>(sub_type);
   }
 
@@ -184,16 +181,14 @@ static void prepare_type_string_from_dd_param(THD *thd,
     type_str->append(field->charset()->csname);
     if (!(field->charset()->state & MY_CS_PRIMARY)) {
       type_str->append(STRING_WITH_LEN(" COLLATE "));
-      type_str->append(field->charset()->name);
+      type_str->append(field->charset()->m_coll_name);
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void prepare_return_type_string_from_dd_routine(
     THD *thd, const dd::Routine *routine, dd::String_type *return_type_str) {
-  DBUG_ENTER("prepare_return_type_string_from_dd_routine");
+  DBUG_TRACE;
 
   *return_type_str = "";
 
@@ -208,7 +203,7 @@ void prepare_return_type_string_from_dd_routine(
 
     if (!parameters.empty()) {
       const dd::Parameter *param = *parameters.begin();
-      DBUG_ASSERT(param->ordinal_position() == 1);
+      assert(param->ordinal_position() == 1);
 
       String type_str(64);
       type_str.set_charset(system_charset_info);
@@ -217,13 +212,11 @@ void prepare_return_type_string_from_dd_routine(
       *return_type_str = type_str.ptr();
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
                                            dd::String_type *params_str) {
-  DBUG_ENTER("prepare_params_string_from_dd_routine");
+  DBUG_TRACE;
 
   *params_str = "";
 
@@ -275,6 +268,4 @@ void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
   }
 
   if (params_ss.str().length()) *params_str = params_ss.str();
-
-  DBUG_VOID_RETURN;
 }

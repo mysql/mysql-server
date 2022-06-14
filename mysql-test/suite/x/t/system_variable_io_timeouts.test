@@ -72,4 +72,4 @@ DROP USER 'regular_user'@'%';
 DROP USER 'var_admin_user'@'%';
 DROP USER 'super_user'@'%';
 
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

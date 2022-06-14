@@ -1,0 +1,284 @@
+# X Protocol allows multiple changes of compression settings
+# before authentication, where the last successful change
+# is going to be used:
+#
+# client->server: CapSet(compression{algorightm=lz4})
+# client<-server: Ok
+# client->server: CapSet(compression{algorightm=delfate})
+# client<-server: Ok
+# client->server: CapSet(compression{algorightm=unknown})
+# client<-server: Fail (not know algorithm)
+# ... authentication ...
+# ... deflate compression activated ...
+#
+#
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/multi_capset.xpl
+-->import assert_select.macro
+-->import assert_messages.macro
+-->import connection.macro
+-->import wait_until_disconnect.macro
+
+-->macro Assert_session_status_is	%VNAME%	%OP%	%VAL%
+echo # Asserting [ %VNAME%	%OP%	%VAL% ];
+quiet;
+noquery_result;
+callmacro Assert_select0	1	SELECT VARIABLE_VALUE %OP% %VAL% FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE '%VNAME%';
+noquiet;
+query_result;
+-->endmacro
+
+-->macro Set_commpresion_capabilities_2	%KEY1%	%VALUE1%	%KEY2%	%VALUE2%	%RESULT%
+quiet;
+noquery_result;
+-->echo ##########################################################
+-->echo ## Scenario: %KEY1%=%VALUE1%, %KEY2%=%VALUE2%
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "%KEY1%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE1%"
+                }
+              }
+            }
+          }
+          fld {
+            key: "%KEY2%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_SINT
+                v_signed_int: %VALUE2%
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvtype %RESULT%
+noquiet;
+query_result;
+-->endmacro
+
+-->macro Set_commpresion_capabilities_1	%KEY1%	%VALUE1%	%RESULT%
+quiet;
+noquery_result;
+-->echo ##########################################################
+-->echo ## Scenario: %KEY1%=%VALUE1%
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "%KEY1%"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%VALUE1%"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvtype %RESULT%
+noquiet;
+query_result;
+-->endmacro
+
+
+-->echo
+-->echo
+-->echo ## I. Validate multiple compression-configuration changes
+-->echo #
+-->echo # 1. Set first lz4, then deflate, and verify that deflate is the final algorithm that server uses
+-->echo # 2. Set first lz4, then deflate, and verify that deflate is the final algorithm that client uses
+-->echo # 3. Set first server_combine_mixed_msg to true, then set it to false, and verify that server places
+-->echo #    only concrete message types into the compressed message
+-->echo # 4. Set first server_combine_limit to 10, then set it to 3, and verify that server compresses max
+-->echo #    three X messages per compression message
+-->echo # 5. Set first server_combine_limit to 1, then set server_combine_mixed_msg to true, and verify that
+-->echo #    server uses second mixed_msg and sends single compressed message which contains whole resultset
+-->echo
+-->echo ## II. Verify that compression is not used before authentication
+-->echo #
+-->echo # 1. Enable compression, send compressed frame before authentication
+-->echo # 2. Enable compression, check that server didn't send any compressed frames before authentication
+-->echo
+
+
+-->echo
+-->echo #
+-->echo # I.1
+newsession s1.1	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_1	algorithm	lz4_message	Mysqlx.Ok;
+callmacro Set_commpresion_capabilities_1	algorithm	deflate_stream	Mysqlx.Ok;
+enable_compression deflate_stream;
+login x_root;
+# Trigger some traffic on the server, to be able to check its response
+# if it was compressed or not.
+SELECT 1;
+
+callmacro Assert_session_status_is	Mysqlx_bytes_sent_compressed_payload	>	0;
+callmacro Assert_session_status_is	Mysqlx_bytes_received_compressed_payload	=	0;
+
+
+-->echo
+-->echo #
+-->echo # I.2
+newsession s1.2	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_1	algorithm	lz4_message	Mysqlx.Ok;
+callmacro Set_commpresion_capabilities_1	algorithm	deflate_stream	Mysqlx.Ok;
+enable_compression deflate_stream;
+login x_root;
+-->begin_compress
+Mysqlx.Sql.StmtExecute {
+ stmt: "SELECT 1;"
+}
+-->end_compress
+recvresult;
+#callmacro Assert_session_status_is	Mysqlx_bytes_sent_compressed_payload	=	0;
+callmacro Assert_session_status_is	Mysqlx_bytes_received_compressed_payload	>	0;
+
+
+-->echo
+-->echo #
+-->echo # I.3
+newsession s1.3	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_2	algorithm	lz4_message	server_combine_mixed_messages	1	Mysqlx.Ok;
+callmacro Set_commpresion_capabilities_2	algorithm	lz4_message	server_combine_mixed_messages	0	Mysqlx.Ok;
+enable_compression lz4_message;
+login x_root;
+stmtsql SELECT 1,2,3;
+# ColumnMetdata * 3
+callmacro Assert_frame	COMPRESSION;
+# Row * 1
+callmacro Assert_frame	COMPRESSION;
+# Notice * 2
+callmacro Assert_frame	COMPRESSION;
+# FetchDone
+callmacro Assert_frame	COMPRESSION;
+callmacro Assert_message	Mysqlx.Sql.StmtExecuteOk;
+callmacro Assert_session_status_is	Mysqlx_bytes_sent_compressed_payload	>	0;
+callmacro Assert_session_status_is	Mysqlx_bytes_received_compressed_payload	=	0;
+-->begin_compress
+Mysqlx.Sql.StmtExecute {
+ stmt: "SELECT 1;"
+}
+-->end_compress
+recvresult;
+
+
+-->echo
+-->echo #
+-->echo # I.4
+newsession s1.4	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_2	algorithm	lz4_message	server_max_combine_messages	10	Mysqlx.Ok;
+callmacro Set_commpresion_capabilities_2	algorithm	lz4_message	server_max_combine_messages	3	Mysqlx.Ok;
+enable_compression lz4_message;
+login x_root;
+stmtsql SELECT 1,2,3;
+# ColumnMetdata * 3
+callmacro Assert_frame	COMPRESSION;
+# Row * 1, FetchDone * 1, Notice * 1
+callmacro Assert_frame	COMPRESSION;
+callmacro Assert_message	Mysqlx.Sql.StmtExecuteOk;
+
+-->begin_compress
+Mysqlx.Sql.StmtExecute {
+ stmt: "SELECT 1;"
+}
+-->end_compress
+recvresult;
+callmacro Assert_session_status_is	Mysqlx_bytes_received_compressed_payload	>	0;
+#callmacro Assert_session_status_is	Mysqlx_bytes_sent_compressed_payload	=	0;
+
+
+-->echo
+-->echo #
+-->echo # I.5
+newsession s1.5	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_2	algorithm	lz4_message	server_max_combine_messages	1	Mysqlx.Ok;
+callmacro Set_commpresion_capabilities_2	algorithm	lz4_message	server_combine_mixed_messages	1	Mysqlx.Ok;
+enable_compression lz4_message;
+login x_root;
+stmtsql SELECT 1,2,3;
+# ColumnMetdata * 3, Row * 1, Notices * 2, FetchDone *1
+callmacro Assert_frame	COMPRESSION;
+callmacro Assert_message	Mysqlx.Sql.StmtExecuteOk;
+
+-->begin_compress
+Mysqlx.Sql.StmtExecute {
+ stmt: "SELECT 1;"
+}
+-->end_compress
+recvresult;
+callmacro Assert_session_status_is	Mysqlx_bytes_received_compressed_payload	>	0;
+#callmacro Assert_session_status_is	Mysqlx_bytes_sent_compressed_payload	=	0;
+
+
+-->echo
+-->echo #
+-->echo # II.1
+newsession s2.1	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_1	algorithm	lz4_message	Mysqlx.Ok;
+enable_compression lz4_message;
+-->begin_compress
+Mysqlx.Connection.CapabilitiesGet {
+}
+-->end_compress
+recverror ER_X_FRAME_COMPRESSION_DISABLED;
+callmacro Wait_until_disconnect;
+
+
+-->echo
+-->echo #
+-->echo # II.2
+newsession s2.2	-;
+callmacro Verify_its_xprotocol_connection;
+callmacro Set_commpresion_capabilities_1	algorithm	lz4_message	Mysqlx.Ok;
+enable_compression lz4_message;
+login x_root;
+callmacro Assert_session_status_is	Mysqlx_bytes_sent_compressed_payload	=	0;
+callmacro Assert_session_status_is	Mysqlx_bytes_received_compressed_payload	=	0;
+
+EOF
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/multi_capset.xpl 2>&1;
+
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

@@ -23,8 +23,8 @@ index fx (f)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `a` int NOT NULL,
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time NOT NULL DEFAULT '10:11:12',
   `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
@@ -67,8 +67,8 @@ drop table t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `a` int NOT NULL,
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time NOT NULL DEFAULT '10:11:12',
   `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
@@ -120,11 +120,9 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 set time_zone = default;
 select @@session.time_zone;
 @@session.time_zone

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -106,23 +106,24 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
   array->m_full = true;
-  array->m_instr_class_waits_array = NULL;
-  array->m_instr_class_stages_array = NULL;
-  array->m_instr_class_statements_array = NULL;
-  array->m_instr_class_transactions_array = NULL;
-  array->m_instr_class_errors_array = NULL;
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
+  array->m_instr_class_stages_array = nullptr;
+  array->m_instr_class_statements_array = nullptr;
+  array->m_instr_class_transactions_array = nullptr;
+  array->m_instr_class_errors_array = nullptr;
+  array->m_instr_class_memory_array = nullptr;
 
   if (size > 0) {
     array->m_ptr =
         PFS_MALLOC_ARRAY(&builtin_memory_account, size, sizeof(PFS_account),
                          PFS_account, MYF(MY_ZEROFILL));
-    if (array->m_ptr == NULL) {
+    if (array->m_ptr == nullptr) {
       return 1;
     }
   }
@@ -131,7 +132,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
     array->m_instr_class_waits_array = PFS_MALLOC_ARRAY(
         &builtin_memory_account_waits, waits_sizing, sizeof(PFS_single_stat),
         PFS_single_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_waits_array == NULL) {
+    if (array->m_instr_class_waits_array == nullptr) {
       return 1;
     }
 
@@ -144,7 +145,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
     array->m_instr_class_stages_array = PFS_MALLOC_ARRAY(
         &builtin_memory_account_stages, stages_sizing, sizeof(PFS_stage_stat),
         PFS_stage_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_stages_array == NULL) {
+    if (array->m_instr_class_stages_array == nullptr) {
       return 1;
     }
 
@@ -157,7 +158,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
     array->m_instr_class_statements_array = PFS_MALLOC_ARRAY(
         &builtin_memory_account_statements, statements_sizing,
         sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_statements_array == NULL) {
+    if (array->m_instr_class_statements_array == nullptr) {
       return 1;
     }
 
@@ -170,7 +171,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
     array->m_instr_class_transactions_array = PFS_MALLOC_ARRAY(
         &builtin_memory_account_transactions, transactions_sizing,
         sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_transactions_array == NULL) {
+    if (array->m_instr_class_transactions_array == nullptr) {
       return 1;
     }
 
@@ -183,13 +184,13 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
     array->m_instr_class_errors_array = PFS_MALLOC_ARRAY(
         &builtin_memory_account_errors, errors_sizing, sizeof(PFS_error_stat),
         PFS_error_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_errors_array == NULL) {
+    if (array->m_instr_class_errors_array == nullptr) {
       return 1;
     }
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
-          &builtin_memory_account_errors);
+          &builtin_memory_account_errors, max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -197,7 +198,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
         PFS_MALLOC_ARRAY(&builtin_memory_account_memory, memory_sizing,
                          sizeof(PFS_memory_shared_stat), PFS_memory_shared_stat,
                          MYF(MY_ZEROFILL));
-    if (array->m_instr_class_memory_array == NULL) {
+    if (array->m_instr_class_memory_array == nullptr) {
       return 1;
     }
 
@@ -221,7 +222,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
     pfs->set_instr_class_errors_stats(
         (array->m_instr_class_errors_array)
             ? &array->m_instr_class_errors_array[index * error_class_max]
-            : NULL);
+            : nullptr);
     pfs->set_instr_class_memory_stats(
         &array->m_instr_class_memory_array[index * memory_class_max]);
   }
@@ -237,43 +238,44 @@ void PFS_account_allocator::free_array(PFS_account_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_account, size, sizeof(PFS_account),
                  array->m_ptr);
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_account_waits, waits_sizing,
                  sizeof(PFS_single_stat), array->m_instr_class_waits_array);
-  array->m_instr_class_waits_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_account_stages, stages_sizing,
                  sizeof(PFS_stage_stat), array->m_instr_class_stages_array);
-  array->m_instr_class_stages_array = NULL;
+  array->m_instr_class_stages_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_account_statements, statements_sizing,
                  sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
-  array->m_instr_class_statements_array = NULL;
+  array->m_instr_class_statements_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_account_transactions, transactions_sizing,
                  sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
-  array->m_instr_class_transactions_array = NULL;
+  array->m_instr_class_transactions_array = nullptr;
 
-  if (array->m_instr_class_errors_array != NULL)
+  if (array->m_instr_class_errors_array != nullptr)
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].cleanup(
           &builtin_memory_account_errors);
   PFS_FREE_ARRAY(&builtin_memory_account_errors, errors_sizing,
                  sizeof(PFS_error_stat), array->m_instr_class_errors_array);
-  array->m_instr_class_errors_array = NULL;
+  array->m_instr_class_errors_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_account_memory, memory_sizing,
                  sizeof(PFS_memory_shared_stat),
                  array->m_instr_class_memory_array);
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_memory_array = nullptr;
 }
 
 PFS_account_allocator account_allocator;
@@ -287,23 +289,24 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
   array->m_full = true;
-  array->m_instr_class_waits_array = NULL;
-  array->m_instr_class_stages_array = NULL;
-  array->m_instr_class_statements_array = NULL;
-  array->m_instr_class_transactions_array = NULL;
-  array->m_instr_class_errors_array = NULL;
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
+  array->m_instr_class_stages_array = nullptr;
+  array->m_instr_class_statements_array = nullptr;
+  array->m_instr_class_transactions_array = nullptr;
+  array->m_instr_class_errors_array = nullptr;
+  array->m_instr_class_memory_array = nullptr;
 
   if (size > 0) {
     array->m_ptr =
         PFS_MALLOC_ARRAY(&builtin_memory_host, size, sizeof(PFS_host), PFS_host,
                          MYF(MY_ZEROFILL));
-    if (array->m_ptr == NULL) {
+    if (array->m_ptr == nullptr) {
       return 1;
     }
   }
@@ -312,7 +315,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     array->m_instr_class_waits_array = PFS_MALLOC_ARRAY(
         &builtin_memory_host_waits, waits_sizing, sizeof(PFS_single_stat),
         PFS_single_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_waits_array == NULL) {
+    if (array->m_instr_class_waits_array == nullptr) {
       return 1;
     }
 
@@ -325,7 +328,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     array->m_instr_class_stages_array = PFS_MALLOC_ARRAY(
         &builtin_memory_host_stages, stages_sizing, sizeof(PFS_stage_stat),
         PFS_stage_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_stages_array == NULL) {
+    if (array->m_instr_class_stages_array == nullptr) {
       return 1;
     }
 
@@ -338,7 +341,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     array->m_instr_class_statements_array = PFS_MALLOC_ARRAY(
         &builtin_memory_host_statements, statements_sizing,
         sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_statements_array == NULL) {
+    if (array->m_instr_class_statements_array == nullptr) {
       return 1;
     }
 
@@ -351,7 +354,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     array->m_instr_class_transactions_array = PFS_MALLOC_ARRAY(
         &builtin_memory_host_transactions, transactions_sizing,
         sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_transactions_array == NULL) {
+    if (array->m_instr_class_transactions_array == nullptr) {
       return 1;
     }
 
@@ -364,13 +367,13 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     array->m_instr_class_errors_array = PFS_MALLOC_ARRAY(
         &builtin_memory_host_errors, errors_sizing, sizeof(PFS_error_stat),
         PFS_error_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_errors_array == NULL) {
+    if (array->m_instr_class_errors_array == nullptr) {
       return 1;
     }
 
     for (index = 0; index < errors_sizing; index++)
-      array->m_instr_class_errors_array[index].init(
-          &builtin_memory_host_errors);
+      array->m_instr_class_errors_array[index].init(&builtin_memory_host_errors,
+                                                    max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -378,7 +381,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
         PFS_MALLOC_ARRAY(&builtin_memory_host_memory, memory_sizing,
                          sizeof(PFS_memory_shared_stat), PFS_memory_shared_stat,
                          MYF(MY_ZEROFILL));
-    if (array->m_instr_class_memory_array == NULL) {
+    if (array->m_instr_class_memory_array == nullptr) {
       return 1;
     }
 
@@ -402,7 +405,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     pfs->set_instr_class_errors_stats(
         (array->m_instr_class_errors_array)
             ? &array->m_instr_class_errors_array[index * error_class_max]
-            : NULL);
+            : nullptr);
     pfs->set_instr_class_memory_stats(
         &array->m_instr_class_memory_array[index * memory_class_max]);
   }
@@ -418,42 +421,43 @@ void PFS_host_allocator::free_array(PFS_host_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_host, size, sizeof(PFS_host), array->m_ptr);
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_host_waits, waits_sizing,
                  sizeof(PFS_single_stat), array->m_instr_class_waits_array);
-  array->m_instr_class_waits_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_host_stages, stages_sizing,
                  sizeof(PFS_stage_stat), array->m_instr_class_stages_array);
-  array->m_instr_class_stages_array = NULL;
+  array->m_instr_class_stages_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_host_statements, statements_sizing,
                  sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
-  array->m_instr_class_statements_array = NULL;
+  array->m_instr_class_statements_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_host_transactions, transactions_sizing,
                  sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
-  array->m_instr_class_transactions_array = NULL;
+  array->m_instr_class_transactions_array = nullptr;
 
-  if (array->m_instr_class_errors_array != NULL)
+  if (array->m_instr_class_errors_array != nullptr)
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].cleanup(
           &builtin_memory_host_errors);
   PFS_FREE_ARRAY(&builtin_memory_host_errors, errors_sizing,
                  sizeof(PFS_error_stat), array->m_instr_class_errors_array);
-  array->m_instr_class_errors_array = NULL;
+  array->m_instr_class_errors_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_host_memory, memory_sizing,
                  sizeof(PFS_memory_shared_stat),
                  array->m_instr_class_memory_array);
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_memory_array = nullptr;
 }
 
 PFS_host_allocator host_allocator;
@@ -470,7 +474,8 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   size_t waits_history_sizing = size * events_waits_history_per_thread;
@@ -491,32 +496,32 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
   size_t history_digest_tokens_sizing =
       size * pfs_max_digest_length * events_statements_history_per_thread;
 
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
   array->m_full = true;
-  array->m_instr_class_waits_array = NULL;
-  array->m_instr_class_stages_array = NULL;
-  array->m_instr_class_statements_array = NULL;
-  array->m_instr_class_transactions_array = NULL;
-  array->m_instr_class_errors_array = NULL;
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
+  array->m_instr_class_stages_array = nullptr;
+  array->m_instr_class_statements_array = nullptr;
+  array->m_instr_class_transactions_array = nullptr;
+  array->m_instr_class_errors_array = nullptr;
+  array->m_instr_class_memory_array = nullptr;
 
-  array->m_waits_history_array = NULL;
-  array->m_stages_history_array = NULL;
-  array->m_statements_history_array = NULL;
-  array->m_statements_stack_array = NULL;
-  array->m_transactions_history_array = NULL;
-  array->m_session_connect_attrs_array = NULL;
+  array->m_waits_history_array = nullptr;
+  array->m_stages_history_array = nullptr;
+  array->m_statements_history_array = nullptr;
+  array->m_statements_stack_array = nullptr;
+  array->m_transactions_history_array = nullptr;
+  array->m_session_connect_attrs_array = nullptr;
 
-  array->m_current_stmts_text_array = NULL;
-  array->m_current_stmts_digest_token_array = NULL;
-  array->m_history_stmts_text_array = NULL;
-  array->m_history_stmts_digest_token_array = NULL;
+  array->m_current_stmts_text_array = nullptr;
+  array->m_current_stmts_digest_token_array = nullptr;
+  array->m_history_stmts_text_array = nullptr;
+  array->m_history_stmts_digest_token_array = nullptr;
 
   if (size > 0) {
     array->m_ptr =
         PFS_MALLOC_ARRAY(&builtin_memory_thread, size, sizeof(PFS_thread),
                          PFS_thread, MYF(MY_ZEROFILL));
-    if (array->m_ptr == NULL) {
+    if (array->m_ptr == nullptr) {
       return 1;
     }
   }
@@ -525,7 +530,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_instr_class_waits_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_waits, waits_sizing, sizeof(PFS_single_stat),
         PFS_single_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_waits_array == NULL) {
+    if (array->m_instr_class_waits_array == nullptr) {
       return 1;
     }
 
@@ -538,7 +543,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_instr_class_stages_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_stages, stages_sizing, sizeof(PFS_stage_stat),
         PFS_stage_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_stages_array == NULL) {
+    if (array->m_instr_class_stages_array == nullptr) {
       return 1;
     }
 
@@ -551,7 +556,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_instr_class_statements_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_statements, statements_sizing,
         sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_statements_array == NULL) {
+    if (array->m_instr_class_statements_array == nullptr) {
       return 1;
     }
 
@@ -564,7 +569,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_instr_class_transactions_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_transactions, transactions_sizing,
         sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_transactions_array == NULL) {
+    if (array->m_instr_class_transactions_array == nullptr) {
       return 1;
     }
 
@@ -577,20 +582,20 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_instr_class_errors_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_errors, errors_sizing, sizeof(PFS_error_stat),
         PFS_error_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_errors_array == NULL) {
+    if (array->m_instr_class_errors_array == nullptr) {
       return 1;
     }
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
-          &builtin_memory_thread_errors);
+          &builtin_memory_thread_errors, max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
     array->m_instr_class_memory_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_memory, memory_sizing,
         sizeof(PFS_memory_safe_stat), PFS_memory_safe_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_memory_array == NULL) {
+    if (array->m_instr_class_memory_array == nullptr) {
       return 1;
     }
 
@@ -603,7 +608,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_waits_history_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_waits_history, waits_history_sizing,
         sizeof(PFS_events_waits), PFS_events_waits, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_waits_history_array == NULL)) {
+    if (unlikely(array->m_waits_history_array == nullptr)) {
       return 1;
     }
   }
@@ -612,7 +617,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_stages_history_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_stages_history, stages_history_sizing,
         sizeof(PFS_events_stages), PFS_events_stages, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_stages_history_array == NULL)) {
+    if (unlikely(array->m_stages_history_array == nullptr)) {
       return 1;
     }
   }
@@ -621,7 +626,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_statements_history_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_statements_history, statements_history_sizing,
         sizeof(PFS_events_statements), PFS_events_statements, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_statements_history_array == NULL)) {
+    if (unlikely(array->m_statements_history_array == nullptr)) {
       return 1;
     }
   }
@@ -630,7 +635,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_statements_stack_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_statements_stack, statements_stack_sizing,
         sizeof(PFS_events_statements), PFS_events_statements, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_statements_stack_array == NULL)) {
+    if (unlikely(array->m_statements_stack_array == nullptr)) {
       return 1;
     }
   }
@@ -640,7 +645,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
         &builtin_memory_thread_transaction_history, transactions_history_sizing,
         sizeof(PFS_events_transactions), PFS_events_transactions,
         MYF(MY_ZEROFILL));
-    if (unlikely(array->m_transactions_history_array == NULL)) {
+    if (unlikely(array->m_transactions_history_array == nullptr)) {
       return 1;
     }
   }
@@ -649,7 +654,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_session_connect_attrs_array =
         (char *)pfs_malloc(&builtin_memory_thread_session_connect_attrs,
                            session_connect_attrs_sizing, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_session_connect_attrs_array == NULL)) {
+    if (unlikely(array->m_session_connect_attrs_array == nullptr)) {
       return 1;
     }
   }
@@ -658,7 +663,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_current_stmts_text_array =
         (char *)pfs_malloc(&builtin_memory_thread_statements_stack_sqltext,
                            current_sqltext_sizing, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_current_stmts_text_array == NULL)) {
+    if (unlikely(array->m_current_stmts_text_array == nullptr)) {
       return 1;
     }
   }
@@ -667,7 +672,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_history_stmts_text_array =
         (char *)pfs_malloc(&builtin_memory_thread_statements_history_sqltext,
                            history_sqltext_sizing, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_history_stmts_text_array == NULL)) {
+    if (unlikely(array->m_history_stmts_text_array == nullptr)) {
       return 1;
     }
   }
@@ -676,7 +681,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_current_stmts_digest_token_array = (unsigned char *)pfs_malloc(
         &builtin_memory_thread_statements_stack_tokens,
         current_digest_tokens_sizing, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_current_stmts_digest_token_array == NULL)) {
+    if (unlikely(array->m_current_stmts_digest_token_array == nullptr)) {
       return 1;
     }
   }
@@ -685,7 +690,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     array->m_history_stmts_digest_token_array = (unsigned char *)pfs_malloc(
         &builtin_memory_thread_statements_history_tokens,
         history_digest_tokens_sizing, MYF(MY_ZEROFILL));
-    if (unlikely(array->m_history_stmts_digest_token_array == NULL)) {
+    if (unlikely(array->m_history_stmts_digest_token_array == nullptr)) {
       return 1;
     }
   }
@@ -705,7 +710,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
     pfs->set_instr_class_errors_stats(
         (array->m_instr_class_errors_array)
             ? &array->m_instr_class_errors_array[index * error_class_max]
-            : NULL);
+            : nullptr);
     pfs->set_instr_class_memory_stats(
         &array->m_instr_class_memory_array[index * memory_class_max]);
 
@@ -763,7 +768,8 @@ void PFS_thread_allocator::free_array(PFS_thread_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   size_t waits_history_sizing = size * events_waits_history_per_thread;
@@ -786,83 +792,83 @@ void PFS_thread_allocator::free_array(PFS_thread_array *array) {
 
   PFS_FREE_ARRAY(&builtin_memory_thread, size, sizeof(PFS_thread),
                  array->m_ptr);
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_waits, waits_sizing,
                  sizeof(PFS_single_stat), array->m_instr_class_waits_array);
-  array->m_instr_class_waits_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_stages, stages_sizing,
                  sizeof(PFS_stage_stat), array->m_instr_class_stages_array);
-  array->m_instr_class_stages_array = NULL;
+  array->m_instr_class_stages_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_statements, statements_sizing,
                  sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
-  array->m_instr_class_statements_array = NULL;
+  array->m_instr_class_statements_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_transactions, transactions_sizing,
                  sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
-  array->m_instr_class_transactions_array = NULL;
+  array->m_instr_class_transactions_array = nullptr;
 
-  if (array->m_instr_class_errors_array != NULL)
+  if (array->m_instr_class_errors_array != nullptr)
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].cleanup(
           &builtin_memory_thread_errors);
   PFS_FREE_ARRAY(&builtin_memory_thread_errors, errors_sizing,
                  sizeof(PFS_error_stat), array->m_instr_class_errors_array);
-  array->m_instr_class_errors_array = NULL;
+  array->m_instr_class_errors_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_memory, memory_sizing,
                  sizeof(PFS_memory_safe_stat),
                  array->m_instr_class_memory_array);
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_memory_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_waits_history, waits_history_sizing,
                  sizeof(PFS_events_waits), array->m_waits_history_array);
-  array->m_waits_history_array = NULL;
+  array->m_waits_history_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_stages_history, stages_history_sizing,
                  sizeof(PFS_events_stages), array->m_stages_history_array);
-  array->m_stages_history_array = NULL;
+  array->m_stages_history_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_statements_history,
                  statements_history_sizing, sizeof(PFS_events_statements),
                  array->m_statements_history_array);
-  array->m_statements_history_array = NULL;
+  array->m_statements_history_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_statements_stack,
                  statements_stack_sizing, sizeof(PFS_events_statements),
                  array->m_statements_stack_array);
-  array->m_statements_stack_array = NULL;
+  array->m_statements_stack_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_thread_transaction_history,
                  transactions_history_sizing, sizeof(PFS_events_transactions),
                  array->m_transactions_history_array);
-  array->m_transactions_history_array = NULL;
+  array->m_transactions_history_array = nullptr;
 
   pfs_free(&builtin_memory_thread_session_connect_attrs,
            session_connect_attrs_sizing, array->m_session_connect_attrs_array);
-  array->m_session_connect_attrs_array = NULL;
+  array->m_session_connect_attrs_array = nullptr;
 
   pfs_free(&builtin_memory_thread_statements_stack_sqltext,
            current_sqltext_sizing, array->m_current_stmts_text_array);
-  array->m_current_stmts_text_array = NULL;
+  array->m_current_stmts_text_array = nullptr;
 
   pfs_free(&builtin_memory_thread_statements_history_sqltext,
            history_sqltext_sizing, array->m_history_stmts_text_array);
-  array->m_history_stmts_text_array = NULL;
+  array->m_history_stmts_text_array = nullptr;
 
   pfs_free(&builtin_memory_thread_statements_stack_tokens,
            current_digest_tokens_sizing,
            array->m_current_stmts_digest_token_array);
-  array->m_current_stmts_digest_token_array = NULL;
+  array->m_current_stmts_digest_token_array = nullptr;
 
   pfs_free(&builtin_memory_thread_statements_history_tokens,
            history_digest_tokens_sizing,
            array->m_history_stmts_digest_token_array);
-  array->m_history_stmts_digest_token_array = NULL;
+  array->m_history_stmts_digest_token_array = nullptr;
 }
 
 PFS_thread_allocator thread_allocator;
@@ -876,23 +882,24 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
   array->m_full = true;
-  array->m_instr_class_waits_array = NULL;
-  array->m_instr_class_stages_array = NULL;
-  array->m_instr_class_statements_array = NULL;
-  array->m_instr_class_transactions_array = NULL;
-  array->m_instr_class_errors_array = NULL;
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
+  array->m_instr_class_stages_array = nullptr;
+  array->m_instr_class_statements_array = nullptr;
+  array->m_instr_class_transactions_array = nullptr;
+  array->m_instr_class_errors_array = nullptr;
+  array->m_instr_class_memory_array = nullptr;
 
   if (size > 0) {
     array->m_ptr =
         PFS_MALLOC_ARRAY(&builtin_memory_user, size, sizeof(PFS_user), PFS_user,
                          MYF(MY_ZEROFILL));
-    if (array->m_ptr == NULL) {
+    if (array->m_ptr == nullptr) {
       return 1;
     }
   }
@@ -901,7 +908,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     array->m_instr_class_waits_array = PFS_MALLOC_ARRAY(
         &builtin_memory_user_waits, waits_sizing, sizeof(PFS_single_stat),
         PFS_single_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_waits_array == NULL) {
+    if (array->m_instr_class_waits_array == nullptr) {
       return 1;
     }
 
@@ -914,7 +921,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     array->m_instr_class_stages_array = PFS_MALLOC_ARRAY(
         &builtin_memory_user_stages, stages_sizing, sizeof(PFS_stage_stat),
         PFS_stage_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_stages_array == NULL) {
+    if (array->m_instr_class_stages_array == nullptr) {
       return 1;
     }
 
@@ -927,7 +934,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     array->m_instr_class_statements_array = PFS_MALLOC_ARRAY(
         &builtin_memory_user_statements, statements_sizing,
         sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_statements_array == NULL) {
+    if (array->m_instr_class_statements_array == nullptr) {
       return 1;
     }
 
@@ -940,7 +947,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     array->m_instr_class_transactions_array = PFS_MALLOC_ARRAY(
         &builtin_memory_user_transactions, transactions_sizing,
         sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_transactions_array == NULL) {
+    if (array->m_instr_class_transactions_array == nullptr) {
       return 1;
     }
 
@@ -953,13 +960,13 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     array->m_instr_class_errors_array = PFS_MALLOC_ARRAY(
         &builtin_memory_user_errors, errors_sizing, sizeof(PFS_error_stat),
         PFS_error_stat, MYF(MY_ZEROFILL));
-    if (array->m_instr_class_errors_array == NULL) {
+    if (array->m_instr_class_errors_array == nullptr) {
       return 1;
     }
 
     for (index = 0; index < errors_sizing; index++)
-      array->m_instr_class_errors_array[index].init(
-          &builtin_memory_user_errors);
+      array->m_instr_class_errors_array[index].init(&builtin_memory_user_errors,
+                                                    max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -967,7 +974,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
         PFS_MALLOC_ARRAY(&builtin_memory_user_memory, memory_sizing,
                          sizeof(PFS_memory_shared_stat), PFS_memory_shared_stat,
                          MYF(MY_ZEROFILL));
-    if (array->m_instr_class_memory_array == NULL) {
+    if (array->m_instr_class_memory_array == nullptr) {
       return 1;
     }
 
@@ -991,7 +998,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     pfs->set_instr_class_errors_stats(
         (array->m_instr_class_errors_array)
             ? &array->m_instr_class_errors_array[index * error_class_max]
-            : NULL);
+            : nullptr);
     pfs->set_instr_class_memory_stats(
         &array->m_instr_class_memory_array[index * memory_class_max]);
   }
@@ -1007,42 +1014,43 @@ void PFS_user_allocator::free_array(PFS_user_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_user, size, sizeof(PFS_user), array->m_ptr);
-  array->m_ptr = NULL;
+  array->m_ptr = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_user_waits, waits_sizing,
                  sizeof(PFS_single_stat), array->m_instr_class_waits_array);
-  array->m_instr_class_waits_array = NULL;
+  array->m_instr_class_waits_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_user_stages, stages_sizing,
                  sizeof(PFS_stage_stat), array->m_instr_class_stages_array);
-  array->m_instr_class_stages_array = NULL;
+  array->m_instr_class_stages_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_user_statements, statements_sizing,
                  sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
-  array->m_instr_class_statements_array = NULL;
+  array->m_instr_class_statements_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_user_transactions, transactions_sizing,
                  sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
-  array->m_instr_class_transactions_array = NULL;
+  array->m_instr_class_transactions_array = nullptr;
 
-  if (array->m_instr_class_errors_array != NULL)
+  if (array->m_instr_class_errors_array != nullptr)
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].cleanup(
           &builtin_memory_user_errors);
   PFS_FREE_ARRAY(&builtin_memory_user_errors, errors_sizing,
                  sizeof(PFS_error_stat), array->m_instr_class_errors_array);
-  array->m_instr_class_errors_array = NULL;
+  array->m_instr_class_errors_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_user_memory, memory_sizing,
                  sizeof(PFS_memory_shared_stat),
                  array->m_instr_class_memory_array);
-  array->m_instr_class_memory_array = NULL;
+  array->m_instr_class_memory_array = nullptr;
 }
 
 PFS_user_allocator user_allocator;

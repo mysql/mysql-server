@@ -1,14 +1,14 @@
 select @@global.named_pipe_full_access_group;
 @@global.named_pipe_full_access_group
-*everyone*
+
 select @@session.named_pipe_full_access_group;
 ERROR HY000: Variable 'named_pipe_full_access_group' is a GLOBAL variable
 show global variables like 'named_pipe_full_access_group';
 Variable_name	Value
-named_pipe_full_access_group	*everyone*
+named_pipe_full_access_group	
 show session variables like 'named_pipe_full_access_group';
 Variable_name	Value
-named_pipe_full_access_group	*everyone*
+named_pipe_full_access_group	
 set global named_pipe_full_access_group = NULL;
 show session variables like 'named_pipe_full_access_group';
 Variable_name	Value
@@ -22,3 +22,4 @@ named_pipe_full_access_group	*everyone*
 select * from performance_schema.session_variables where variable_name='named_pipe_full_access_group';
 VARIABLE_NAME	VARIABLE_VALUE
 named_pipe_full_access_group	*everyone*
+set global named_pipe_full_access_group = default;

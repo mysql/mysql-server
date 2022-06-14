@@ -1,0 +1,44 @@
+# ==== Purpose ====
+#
+# This test ensures that binary log events are properly written to the
+# binary log when compression is enabled and the size of the compressed
+# event is higher than it's uncompressed counter-part.
+#
+# ==== Requirements ====
+#
+# R1. The compressed version of the event must be properly written to the
+#     binary log.
+#
+# ==== Implementation ====
+#
+# 1. Ensure server is freshly initialized.
+# 2. Create a table with a blob column.
+# 3. Prepare an insert statement and populate the blob columns with
+#    uncompressable data.
+# 4. Ensure that the compressed event is in the binary log.
+#
+# ==== References ====
+#
+# BUG#32174715 STUCK "COMPRESSING TRANSACTION CHANGES." WHEN
+#              BINLOG_TRANSACTION_COMPRESSION
+#
+
+# 1. Ensure server is freshly initialized.
+RESET MASTER;
+
+# 2. Create a table with a blob column.
+CREATE TABLE t1 (id bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                 x mediumblob NOT NULL) ENGINE=InnoDB;
+
+# 3. Prepare an insert statement and populate the blob columns with
+#    uncompressable data.
+PREPARE s FROM "INSERT INTO t1 (x) VALUES (?)";
+SET @a = LOAD_FILE('../../std_data/binlog_compression.gz');
+EXECUTE s USING @a;
+
+# 4. Ensure that the compressed event is in the binary log.
+--let $event_sequence = !Gtid_or_anon # !DDL # !Gtid_or_anon # Transaction_payload # !Begin # Table_map # Write_rows # Xid
+--let $include_trx_payload_events = 1
+--source include/assert_binlog_events.inc
+
+DROP TABLE t1;

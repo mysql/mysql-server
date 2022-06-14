@@ -53,19 +53,6 @@ SELECT count(*) FROM t2;
 SELECT fid, ST_AsText(g) FROM t2 WHERE MBRWithin(g,
   ST_GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))')) ORDER BY fid;
 
-let $1=10;
-while ($1)
-{
-  let $2=10;
-  while ($2)
-  {
-    eval DELETE FROM t2 WHERE MBRWithin(g, ST_Envelope(ST_GeometryFromWKB(St_AsWKB(Point($1 * 10 - 9, $2 * 10 - 9)), St_AsWKB(Point($1 * 10, $2 * 10)))));
-    SELECT count(*) FROM t2;
-    dec $2;
-  }
-  dec $1;
-}
-
 DROP TABLE t2;
 
 drop table if exists t1;

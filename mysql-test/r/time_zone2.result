@@ -1,0 +1,380 @@
+drop table if exists t1, t2;
+drop function if exists f1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (ts timestamp);
+set time_zone='+00:00';
+select unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp());
+unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp())
+0
+insert into t1 (ts) values ('2003-03-30 02:30:00');
+set time_zone='+10:30';
+select unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp());
+unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp())
+-37800
+insert into t1 (ts) values ('2003-03-30 02:30:00');
+set time_zone='-10:00';
+select unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp());
+unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp())
+36000
+insert into t1 (ts) values ('2003-03-30 02:30:00');
+select * from t1;
+ts
+2003-03-29 16:30:00
+2003-03-29 06:00:00
+2003-03-30 02:30:00
+drop table t1;
+select Name from mysql.time_zone_name where Name in
+('UTC','Universal','MET','Europe/Moscow','leap/Europe/Moscow','Japan','CET','US/Pacific');
+Name
+CET
+Europe/Moscow
+Japan
+leap/Europe/Moscow
+MET
+Universal
+US/Pacific
+UTC
+create table t1 (i int, ts timestamp);
+set time_zone='MET';
+insert into t1 (i, ts) values
+(unix_timestamp('2003-03-01 00:00:00'),'2003-03-01 00:00:00');
+insert into t1 (i, ts) values
+(unix_timestamp('2003-03-30 01:59:59'),'2003-03-30 01:59:59'),
+(unix_timestamp('2003-03-30 02:30:00'),'2003-03-30 02:30:00'),
+(unix_timestamp('2003-03-30 03:00:00'),'2003-03-30 03:00:00');
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
+insert into t1 (i, ts) values
+(unix_timestamp(20030330015959),20030330015959),
+(unix_timestamp(20030330023000),20030330023000),
+(unix_timestamp(20030330030000),20030330030000);
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
+insert into t1 (i, ts) values
+(unix_timestamp('2003-05-01 00:00:00'),'2003-05-01 00:00:00');
+insert into t1 (i, ts) values
+(unix_timestamp('2003-10-26 01:00:00'),'2003-10-26 01:00:00'),
+(unix_timestamp('2003-10-26 02:00:00'),'2003-10-26 02:00:00'),
+(unix_timestamp('2003-10-26 02:59:59'),'2003-10-26 02:59:59'),
+(unix_timestamp('2003-10-26 04:00:00'),'2003-10-26 04:00:00'),
+(unix_timestamp('2003-10-26 02:59:59'),'2003-10-26 02:59:59');
+set time_zone='UTC';
+select * from t1;
+i	ts
+1046473200	2003-02-28 23:00:00
+1048985999	2003-03-30 00:59:59
+1048986000	2003-03-30 01:00:00
+1048986000	2003-03-30 01:00:00
+1048985999	2003-03-30 00:59:59
+1048986000	2003-03-30 01:00:00
+1048986000	2003-03-30 01:00:00
+1051740000	2003-04-30 22:00:00
+1067122800	2003-10-25 23:00:00
+1067126400	2003-10-26 00:00:00
+1067129999	2003-10-26 00:59:59
+1067137200	2003-10-26 03:00:00
+1067129999	2003-10-26 00:59:59
+truncate table t1;
+set time_zone='Europe/Moscow';
+insert into t1 (i, ts) values
+(unix_timestamp('2004-01-01 00:00:00'),'2004-01-01 00:00:00'),
+(unix_timestamp('2004-03-28 02:30:00'),'2004-03-28 02:30:00'),
+(unix_timestamp('2004-08-01 00:00:00'),'2003-08-01 00:00:00'),
+(unix_timestamp('2004-10-31 02:30:00'),'2004-10-31 02:30:00');
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
+select * from t1;
+i	ts
+1072904400	2004-01-01 00:00:00
+1080428400	2004-03-28 03:00:00
+1091304000	2003-08-01 00:00:00
+1099175400	2004-10-31 02:30:00
+truncate table t1;
+set time_zone='leap/Europe/Moscow';
+insert into t1 (i, ts) values
+(unix_timestamp('2004-01-01 00:00:00'),'2004-01-01 00:00:00'),
+(unix_timestamp('2004-03-28 02:30:00'),'2004-03-28 02:30:00'),
+(unix_timestamp('2004-08-01 00:00:00'),'2003-08-01 00:00:00'),
+(unix_timestamp('2004-10-31 02:30:00'),'2004-10-31 02:30:00');
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
+select * from t1;
+i	ts
+1072904422	2004-01-01 00:00:00
+1080428422	2004-03-28 03:00:00
+1091304022	2003-08-01 00:00:00
+1099175422	2004-10-31 02:30:00
+truncate table t1;
+insert into t1 (i, ts) values
+(unix_timestamp('1981-07-01 03:59:59'),'1981-07-01 03:59:59'),
+(unix_timestamp('1981-07-01 04:00:00'),'1981-07-01 04:00:00');
+select * from t1;
+i	ts
+362793608	1981-07-01 03:59:59
+362793610	1981-07-01 04:00:00
+select from_unixtime(362793609);
+from_unixtime(362793609)
+1981-07-01 03:59:59
+drop table t1;
+create table t1 (ts timestamp);
+set time_zone='UTC';
+insert into t1 values ('0000-00-00 00:00:00'),('1969-12-31 23:59:59'),
+('1970-01-01 00:00:00'),('1970-01-01 00:00:01'),
+('2038-01-19 03:14:07'),('2038-01-19 03:14:08');
+Warnings:
+Warning	1264	Out of range value for column 'ts' at row 2
+Warning	1264	Out of range value for column 'ts' at row 3
+Warning	1264	Out of range value for column 'ts' at row 6
+select * from t1;
+ts
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+1970-01-01 00:00:01
+2038-01-19 03:14:07
+0000-00-00 00:00:00
+truncate table t1;
+set time_zone='MET';
+insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 00:30:00'),
+('1970-01-01 01:00:00'),('1970-01-01 01:00:01'),
+('2038-01-19 04:14:07'),('2038-01-19 04:14:08');
+Warnings:
+Warning	1264	Out of range value for column 'ts' at row 2
+Warning	1264	Out of range value for column 'ts' at row 3
+Warning	1264	Out of range value for column 'ts' at row 6
+select * from t1;
+ts
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+1970-01-01 01:00:01
+2038-01-19 04:14:07
+0000-00-00 00:00:00
+truncate table t1;
+set time_zone='+01:30';
+insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 01:00:00'),
+('1970-01-01 01:30:00'),('1970-01-01 01:30:01'),
+('2038-01-19 04:44:07'),('2038-01-19 04:44:08');
+Warnings:
+Warning	1264	Out of range value for column 'ts' at row 2
+Warning	1264	Out of range value for column 'ts' at row 3
+Warning	1264	Out of range value for column 'ts' at row 6
+select * from t1;
+ts
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+1970-01-01 01:30:01
+2038-01-19 04:44:07
+0000-00-00 00:00:00
+drop table t1;
+show variables like 'time_zone';
+Variable_name	Value
+time_zone	+01:30
+set time_zone = default;
+show variables like 'time_zone';
+Variable_name	Value
+time_zone	SYSTEM
+set time_zone= '0';
+ERROR HY000: Unknown or incorrect time zone: '0'
+set time_zone= '0:0';
+ERROR HY000: Unknown or incorrect time zone: '0:0'
+set time_zone= '-20:00';
+ERROR HY000: Unknown or incorrect time zone: '-20:00'
+set time_zone= '+20:00';
+ERROR HY000: Unknown or incorrect time zone: '+20:00'
+set time_zone= 'Some/Unknown/Time/Zone';
+ERROR HY000: Unknown or incorrect time zone: 'Some/Unknown/Time/Zone'
+select convert_tz(now(),'UTC', 'Universal') = now();
+convert_tz(now(),'UTC', 'Universal') = now()
+1
+select convert_tz(now(),'utc', 'UTC') = now();
+convert_tz(now(),'utc', 'UTC') = now()
+1
+select convert_tz('1917-11-07 12:00:00', 'MET', 'UTC');
+convert_tz('1917-11-07 12:00:00', 'MET', 'UTC')
+1917-11-07 12:00:00
+select convert_tz('1970-01-01 01:00:00', 'MET', 'UTC');
+convert_tz('1970-01-01 01:00:00', 'MET', 'UTC')
+1970-01-01 01:00:00
+select convert_tz('1970-01-01 01:00:01', 'MET', 'UTC');
+convert_tz('1970-01-01 01:00:01', 'MET', 'UTC')
+1970-01-01 00:00:01
+select convert_tz('2003-03-01 00:00:00', 'MET', 'UTC');
+convert_tz('2003-03-01 00:00:00', 'MET', 'UTC')
+2003-02-28 23:00:00
+select convert_tz('2003-03-30 01:59:59', 'MET', 'UTC');
+convert_tz('2003-03-30 01:59:59', 'MET', 'UTC')
+2003-03-30 00:59:59
+select convert_tz('2003-03-30 02:30:00', 'MET', 'UTC');
+convert_tz('2003-03-30 02:30:00', 'MET', 'UTC')
+2003-03-30 01:00:00
+select convert_tz('2003-03-30 03:00:00', 'MET', 'UTC');
+convert_tz('2003-03-30 03:00:00', 'MET', 'UTC')
+2003-03-30 01:00:00
+select convert_tz('2003-05-01 00:00:00', 'MET', 'UTC');
+convert_tz('2003-05-01 00:00:00', 'MET', 'UTC')
+2003-04-30 22:00:00
+select convert_tz('2003-10-26 01:00:00', 'MET', 'UTC');
+convert_tz('2003-10-26 01:00:00', 'MET', 'UTC')
+2003-10-25 23:00:00
+select convert_tz('2003-10-26 02:00:00', 'MET', 'UTC');
+convert_tz('2003-10-26 02:00:00', 'MET', 'UTC')
+2003-10-26 00:00:00
+select convert_tz('2003-10-26 02:59:59', 'MET', 'UTC');
+convert_tz('2003-10-26 02:59:59', 'MET', 'UTC')
+2003-10-26 00:59:59
+select convert_tz('2003-10-26 04:00:00', 'MET', 'UTC');
+convert_tz('2003-10-26 04:00:00', 'MET', 'UTC')
+2003-10-26 03:00:00
+select convert_tz('2038-01-19 04:14:07', 'MET', 'UTC');
+convert_tz('2038-01-19 04:14:07', 'MET', 'UTC')
+2038-01-19 03:14:07
+create table t1 (tz varchar(3));
+insert into t1 (tz) values ('MET'), ('UTC');
+select tz, convert_tz('2003-12-31 00:00:00',tz,'UTC'), convert_tz('2003-12-31 00:00:00','UTC',tz) from t1 order by tz;
+tz	convert_tz('2003-12-31 00:00:00',tz,'UTC')	convert_tz('2003-12-31 00:00:00','UTC',tz)
+MET	2003-12-30 23:00:00	2003-12-31 01:00:00
+UTC	2003-12-31 00:00:00	2003-12-31 00:00:00
+drop table t1;
+select convert_tz('2003-12-31 04:00:00', NULL, 'UTC');
+convert_tz('2003-12-31 04:00:00', NULL, 'UTC')
+NULL
+select convert_tz('2003-12-31 04:00:00', 'SomeNotExistingTimeZone', 'UTC');
+convert_tz('2003-12-31 04:00:00', 'SomeNotExistingTimeZone', 'UTC')
+NULL
+select convert_tz('2003-12-31 04:00:00', 'MET', 'SomeNotExistingTimeZone');
+convert_tz('2003-12-31 04:00:00', 'MET', 'SomeNotExistingTimeZone')
+NULL
+select convert_tz('2003-12-31 04:00:00', 'MET', NULL);
+convert_tz('2003-12-31 04:00:00', 'MET', NULL)
+NULL
+select convert_tz( NULL, 'MET', 'UTC');
+convert_tz( NULL, 'MET', 'UTC')
+NULL
+create table t1 (ts timestamp);
+set timestamp=1000000000;
+insert into t1 (ts) values (now());
+select convert_tz(ts, @@time_zone, 'Japan') from t1;
+convert_tz(ts, @@time_zone, 'Japan')
+2001-09-09 10:46:40
+drop table t1;
+select convert_tz('2005-01-14 17:00:00', 'UTC', custTimeZone) from (select 'UTC' as custTimeZone) as tmp;
+convert_tz('2005-01-14 17:00:00', 'UTC', custTimeZone)
+2005-01-14 17:00:00
+create table t1 select convert_tz(NULL, NULL, NULL);
+select * from t1;
+convert_tz(NULL, NULL, NULL)
+NULL
+drop table t1;
+SET @old_log_bin_trust_function_creators = @@global.log_bin_trust_function_creators;
+SET GLOBAL log_bin_trust_function_creators = 1;
+create table t1 (ldt datetime, udt datetime);
+create function f1(i datetime) returns datetime
+return convert_tz(i, 'UTC', 'Europe/Moscow');
+create trigger t1_bi before insert on t1 for each row
+set new.udt:= convert_tz(new.ldt, 'Europe/Moscow', 'UTC');
+insert into t1 (ldt) values ('2006-04-19 16:30:00');
+select * from t1;
+ldt	udt
+2006-04-19 16:30:00	2006-04-19 12:30:00
+select ldt, f1(udt) as ldt2 from t1;
+ldt	ldt2
+2006-04-19 16:30:00	2006-04-19 16:30:00
+drop table t1;
+drop function f1;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (t TIMESTAMP);
+INSERT INTO t1 VALUES (NULL), (NULL);
+LOCK TABLES t1 WRITE;
+SELECT CONVERT_TZ(NOW(), 'UTC', 'Europe/Moscow') IS NULL;
+CONVERT_TZ(NOW(), 'UTC', 'Europe/Moscow') IS NULL
+0
+UPDATE t1 SET t = CONVERT_TZ(t, 'UTC', 'Europe/Moscow');
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Bug #55424: convert_tz crashes when fed invalid data
+#
+CREATE TABLE t1 (a SET('x') NOT NULL);
+INSERT INTO t1 VALUES ('');
+SELECT CONVERT_TZ(1, a, 1) FROM t1;
+CONVERT_TZ(1, a, 1)
+NULL
+SELECT CONVERT_TZ(1, 1, a) FROM t1;
+CONVERT_TZ(1, 1, a)
+NULL
+DROP TABLE t1;
+End of 5.1 tests
+#
+# Start of 5.6 tests
+#
+SET time_zone='Europe/Moscow';
+CREATE TABLE t1 (a TIMESTAMP, b VARCHAR(30));
+INSERT INTO t1 VALUES
+('2003-03-30 01:59:59', 'Before the gap'),
+('2003-03-30 02:30:00', 'Inside the gap'),
+('2003-03-30 03:00:00',  'After the gap');
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'a' at row 2
+SELECT a, UNIX_TIMESTAMP(a), b FROM t1;
+a	UNIX_TIMESTAMP(a)	b
+2003-03-30 01:59:59	1048978799	Before the gap
+2003-03-30 03:00:00	1048978800	Inside the gap
+2003-03-30 03:00:00	1048978800	After the gap
+DROP TABLE t1;
+SELECT UNIX_TIMESTAMP('2003-03-30 01:59:59'), 'Before the gap' AS b;
+UNIX_TIMESTAMP('2003-03-30 01:59:59')	b
+1048978799	Before the gap
+SELECT UNIX_TIMESTAMP('2003-03-30 02:30:00'), 'Inside the gap' AS b;
+UNIX_TIMESTAMP('2003-03-30 02:30:00')	b
+1048978800	Inside the gap
+SELECT UNIX_TIMESTAMP('2003-03-30 03:00:00'), 'After the gap' AS b;
+UNIX_TIMESTAMP('2003-03-30 03:00:00')	b
+1048978800	After the gap
+SET time_zone=DEFAULT;
+SET sql_mode = default;
+#
+# End of 5.6 tests
+#
+#
+# Bug #21459795 "ASSERTION FAILURE WHEN PREVIOUSLY UNUSED TIME
+#                ZONE IS USED IN FUNCTION/TRIGGER".
+#
+CREATE FUNCTION f1() RETURNS DATETIME RETURN CONVERT_TZ('2015-01-01 00:00:00', 'UTC', 'No-such-time-zone');
+# Below statement caused assertion failure.
+SELECT f1();
+f1()
+NULL
+DROP FUNCTION f1;
+#
+# Bug#33840652 Wrong result for UNIX_TIMESTAMP for time zones west of UTC close to
+#           UNIX epoch 1970-01-01
+# Bug#33837691 UNIX_TIMESTAMP() works differently in 8.0.28 than in previous versions
+#
+#
+# Test west of UTC at and around UNIX epoch.
+# We cannot test at max value here since it differs between 32 and 64
+# bits time OSes. Refer to specific tests func_unixtime_{32,64}bits
+#
+SET time_zone = "US/Pacific";
+SELECT FROM_UNIXTIME(0);
+FROM_UNIXTIME(0)
+1969-12-31 16:00:00
+SELECT UNIX_TIMESTAMP("1969-12-31 15:59:59");
+UNIX_TIMESTAMP("1969-12-31 15:59:59")
+0
+SELECT UNIX_TIMESTAMP("1969-12-31 16:00:00");
+UNIX_TIMESTAMP("1969-12-31 16:00:00")
+0
+SELECT UNIX_TIMESTAMP("1969-12-31 16:00:01");
+UNIX_TIMESTAMP("1969-12-31 16:00:01")
+1
+SELECT UNIX_TIMESTAMP("1970-01-01 00:00:01");
+UNIX_TIMESTAMP("1970-01-01 00:00:01")
+28801
+SELECT UNIX_TIMESTAMP("2022-01-01 16:00:01");
+UNIX_TIMESTAMP("2022-01-01 16:00:01")
+1641081601
+SET time_zone = DEFAULT;

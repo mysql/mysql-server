@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include <cstring>
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
@@ -36,6 +38,7 @@
 #include "../../src/ndbapi/NdbQueryBuilder.hpp"
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 #include <pthread.h>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 
 #if 0
@@ -80,7 +83,7 @@ public:
 
   JoinType m_joinType;
 
-  explicit TestParameters(){bzero(this, sizeof *this);}
+  explicit TestParameters() { std::memset(this, 0, sizeof *this); }
 };
 
 /** Entry point for new posix threads.*/
@@ -715,7 +718,7 @@ int main(int argc, char* argv[]){
     for(int i = 0; i<threadCount; i++){
       threads[i] = new TestThread(con, host, port);
     }
-    sleep(1);
+    NdbSleep_SecSleep(1);
 
 
     //testScanLookupDepth(1);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,7 +47,7 @@ struct Pool {
   typedef Type value_type;
 
   // FIXME: Add an assertion to check alignment and offset is
-  // as we expect it. Also, sizeof(void*) can be 8, can we impove on this.
+  // as we expect it. Also, sizeof(void*) can be 8, can we improve on this.
   struct Element {
     Pool *m_pool;
     value_type m_type;
@@ -60,9 +60,10 @@ struct Pool {
 
     m_lock_strategy.create();
 
-    ut_a(m_start == 0);
+    ut_a(m_start == nullptr);
 
-    m_start = reinterpret_cast<Element *>(ut_zalloc_nokey(m_size));
+    m_start = reinterpret_cast<Element *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, m_size));
 
     m_last = m_start;
 
@@ -73,7 +74,7 @@ struct Pool {
     (MTR) results change if we instantiate too many mutexes up
     front. */
 
-    init(ut_min(size_t(16), size_t(m_end - m_start)));
+    init(std::min(size_t(16), size_t(m_end - m_start)));
 
     ut_ad(m_pqueue.size() <= size_t(m_last - m_start));
   }
@@ -87,8 +88,8 @@ struct Pool {
       Factory::destroy(&elem->m_type);
     }
 
-    ut_free(m_start);
-    m_end = m_last = m_start = 0;
+    ut::free(m_start);
+    m_end = m_last = m_start = nullptr;
     m_size = 0;
   }
 
@@ -112,12 +113,12 @@ struct Pool {
       elem = m_pqueue.top();
       m_pqueue.pop();
     } else {
-      elem = NULL;
+      elem = nullptr;
     }
 
     m_lock_strategy.exit();
 
-    return (elem != NULL ? &elem->m_type : 0);
+    return (elem != nullptr ? &elem->m_type : nullptr);
   }
 
   /** Add the object to the pool.
@@ -139,7 +140,7 @@ struct Pool {
  private:
   /* We only need to compare on pointer address. */
   typedef std::priority_queue<Element *,
-                              std::vector<Element *, ut_allocator<Element *>>,
+                              std::vector<Element *, ut::allocator<Element *>>,
                               std::greater<Element *>>
       pqueue_t;
 
@@ -209,7 +210,7 @@ struct PoolManager {
   value_type *get() {
     size_t index = 0;
     size_t delay = 1;
-    value_type *ptr = NULL;
+    value_type *ptr = nullptr;
 
     do {
       m_lock_strategy.enter();
@@ -224,7 +225,7 @@ struct PoolManager {
 
       ptr = pool->get();
 
-      if (ptr == 0 && (index / n_pools) > 2) {
+      if (ptr == nullptr && (index / n_pools) > 2) {
         if (!add_pool(n_pools)) {
           ib::error(ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT, m_size, delay);
 
@@ -232,7 +233,7 @@ struct PoolManager {
           except crash and burn, however lets
           be a little optimistic and wait for
           a resource to be freed. */
-          os_thread_sleep(delay * 1000000);
+          std::this_thread::sleep_for(std::chrono::seconds(delay));
 
           if (delay < 32) {
             delay <<= 1;
@@ -245,7 +246,7 @@ struct PoolManager {
 
       ++index;
 
-    } while (ptr == NULL);
+    } while (ptr == nullptr);
 
     return (ptr);
   }
@@ -270,9 +271,9 @@ struct PoolManager {
 
       ut_ad(n_pools == m_pools.size());
 
-      pool = UT_NEW_NOKEY(PoolType(m_size));
+      pool = ut::new_withkey<PoolType>(UT_NEW_THIS_FILE_PSI_KEY, m_size);
 
-      if (pool != NULL) {
+      if (pool != nullptr) {
         ut_ad(n_pools <= m_pools.size());
 
         m_pools.push_back(pool);
@@ -306,7 +307,7 @@ struct PoolManager {
     for (it = m_pools.begin(); it != end; ++it) {
       PoolType *pool = *it;
 
-      UT_DELETE(pool);
+      ut::delete_(pool);
     }
 
     m_pools.clear();
@@ -319,7 +320,7 @@ struct PoolManager {
   PoolManager(const PoolManager &);
   PoolManager &operator=(const PoolManager &);
 
-  typedef std::vector<PoolType *, ut_allocator<PoolType *>> Pools;
+  typedef std::vector<PoolType *, ut::allocator<PoolType *>> Pools;
 
   /** Size of each block */
   size_t m_size;

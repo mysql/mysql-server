@@ -10,7 +10,7 @@ set GLOBAL debug="+d,ndb_schema_op_start_crash";
 # Run schema operation to trigger participant failure
 ALTER TABLE t1 ALGORITHM=copy, ADD COLUMN b int;
 Warnings:
-Warning	1296	Node <nodeid> '9001 Node unsubscribed'
+Warning	1296	Node <nodeid> 'Node unsubscribed'
 # Check that schema operation suceeded on another MySQL Server
 SELECT * FROM t1;
 a	b

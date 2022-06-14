@@ -49,6 +49,6 @@ COUNT(@@SESSION.warning_count)
 SELECT COUNT(@@GLOBAL.warning_count);
 ERROR HY000: Variable 'warning_count' is a SESSION variable
 Expected error 'Variable is a SESSION variable'
-SELECT COUNT(warning_count = @@GLOBAL.warning_count);
+SELECT COUNT(warning_count);
 ERROR 42S22: Unknown column 'warning_count' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

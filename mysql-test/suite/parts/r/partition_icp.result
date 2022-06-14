@@ -7,7 +7,7 @@ PARTITION BY HASH (a) PARTITIONS 3;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` blob,
   `c` varchar(16) DEFAULT 'Filler...',
   PRIMARY KEY (`a`),

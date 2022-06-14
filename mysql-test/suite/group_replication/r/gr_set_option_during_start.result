@@ -22,25 +22,25 @@ include/rpl_reconnect.inc
 include/assert.inc [The super_read_only mode must be 1]
 include/assert.inc [The delayed initialization thread is running after boot]
 SET GLOBAL group_replication_recovery_get_public_key= ON;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_use_ssl= ON;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert= ON;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_group_name= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_retry_count= 1;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_unreachable_majority_timeout= 1;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_components_stop_timeout= 2;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_member_weight= 1;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing, or another GROUP REPLICATION option is being set.
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 
 ############################################################
 # 3. Unblock the start procedure, the server will change to

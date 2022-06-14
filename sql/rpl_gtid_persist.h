@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Gtid_table_access_context : public System_table_access {
   static const LEX_CSTRING TABLE_NAME;
 
   Gtid_table_access_context() : m_drop_thd_object(nullptr) {}
-  virtual ~Gtid_table_access_context() {}
+  ~Gtid_table_access_context() override = default;
 
   /**
     Initialize the gtid_executed table access context as following:
@@ -60,9 +60,8 @@ class Gtid_table_access_context : public System_table_access {
     @param[out]    table     We will store the open table here
     @param[in]     is_write  If true, the access will be for modifying the table
 
-    @return
-      @retval true  failed
-      @retval false success
+    @retval true  failed
+    @retval false success
   */
   bool init(THD **thd, TABLE **table, bool is_write);
   /**
@@ -76,9 +75,8 @@ class Gtid_table_access_context : public System_table_access {
     @param error       If there was an error while updating the table
     @param need_commit Need to commit current transaction if it is true
 
-    @return
-      @retval true  failed
-      @retval false success
+    @retval true  failed
+    @retval false success
   */
   bool deinit(THD *thd, TABLE *table, bool error, bool need_commit);
   /**
@@ -87,14 +85,13 @@ class Gtid_table_access_context : public System_table_access {
 
     @param[in]  thd  Thread requesting to open the table
   */
-  void before_open(THD *thd);
+  void before_open(THD *thd) override;
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,
     a thread is created in order to be able to access a table. And reset a
     new "statement".
 
-    @return
-      @retval THD* Pointer to thread structure
+    @returns THD* Pointer to thread structure
   */
   THD *create_thd();
   void drop_thd(THD *thd);
@@ -122,8 +119,8 @@ class Gtid_table_persistor {
  public:
   static const uint number_fields = 3;
 
-  Gtid_table_persistor() {}
-  virtual ~Gtid_table_persistor() {}
+  Gtid_table_persistor() = default;
+  virtual ~Gtid_table_persistor() = default;
 
   /**
     Insert the gtid into table.
@@ -208,7 +205,7 @@ class Gtid_table_persistor {
     @retval 2 Push an error to client.
   */
   int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table) {
-    DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
+    DBUG_TRACE;
 
     if (!thd->is_operating_gtid_table_implicitly &&
         table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
@@ -221,7 +218,7 @@ class Gtid_table_persistor {
         */
         thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                 table->table_name);
-        DBUG_RETURN(2);
+        return 2;
       } else {
         /*
           Push a warning to client if user is modifying the gtid_executed
@@ -229,11 +226,11 @@ class Gtid_table_persistor {
         */
         thd->raise_warning_printf(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                   table->table_name);
-        DBUG_RETURN(1);
+        return 1;
       }
     }
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
  private:
@@ -276,9 +273,8 @@ class Gtid_table_persistor {
     @param[out] is_complete  True if the gtid_executed table
                              is compressd completely.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int compress_first_consecutive_range(TABLE *table, bool &is_complete);
   /**
@@ -289,9 +285,8 @@ class Gtid_table_persistor {
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int fill_fields(Field **fields, const char *sid, rpl_gno gno_start,
                   rpl_gno gno_end);
@@ -303,9 +298,8 @@ class Gtid_table_persistor {
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int write_row(TABLE *table, const char *sid, rpl_gno gno_start,
                 rpl_gno gno_end);
@@ -319,9 +313,8 @@ class Gtid_table_persistor {
     @param  gno_start    The first GNO of the gtid interval.
     @param  new_gno_end  The new last GNO of the gtid interval.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int update_row(TABLE *table, const char *sid, rpl_gno gno_start,
                  rpl_gno new_gno_end);
@@ -330,9 +323,8 @@ class Gtid_table_persistor {
 
     @param  table Reference to a table object.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int delete_all(TABLE *table);
   /**

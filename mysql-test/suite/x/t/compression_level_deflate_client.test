@@ -1,0 +1,32 @@
+## Test to verifies compression level functionality from the client side
+#
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--source ../include/compression_level_client_common.inc
+
+# DEFLATE_STREAM algorithm
+SET GLOBAL mysqlx_deflate_max_client_compression_level=9;
+let $level=1;
+while ($level <= 9)
+{
+  exec $MYSQLXTEST
+    -ux_root --password=''
+    --schema=xtest
+    --compression-mode=required
+    --compression-algorithm=DEFLATE_STREAM
+    --compression-level=$level
+    --compression-combine-mixed-messages=1
+    --compression-max-combine-messages=0
+    -v%EXPECT_SERVER_LEVEL%=$level
+    --file=$MYSQL_TMP_DIR/compression_level_client.xpl 2>&1;
+  inc $level;
+}
+
+
+## Cleanup
+SET GLOBAL mysqlx_deflate_max_client_compression_level=DEFAULT;
+SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
+
+--source ../include/xplugin_cleanup.inc

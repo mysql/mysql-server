@@ -1,0 +1,75 @@
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT NOT NULL,
+c INT NOT NULL,
+UNIQUE ib(b),
+INDEX ic(c)
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1,2,3),(2,3,5),(3,4,6),(4,5,8),(5,6,2),(6,7,2);
+CREATE TABLE parent (
+c1 INT PRIMARY KEY
+) ENGINE NDB;
+INSERT INTO parent VALUES (1),(2);
+CREATE TABLE child (
+c1 INT PRIMARY KEY,
+c2 INT,
+INDEX xc2(c2),
+FOREIGN KEY(c2)
+REFERENCES parent(c1)
+ON DELETE CASCADE
+) ENGINE NDB;
+INSERT INTO child VALUES (1,1),(2,2);
+DROP TABLE t1,child,parent;
+Restore with --disable-indexes
+include/assert.inc [Synced count has remained unchanged]
+SHOW TABLES;
+Tables_in_test
+Rebuild indexes in NDB
+Wait until the objects are synced
+SHOW TABLES;
+Tables_in_test
+child
+parent
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `ib` (`b`),
+  KEY `ic` (`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `c1` int NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM parent;
+c1
+1
+2
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `xc2` (`c2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM child;
+c1	c2
+1	1
+2	2
+DROP TABLE t1,child,parent;

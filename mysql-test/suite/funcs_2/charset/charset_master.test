@@ -40,10 +40,10 @@ if (`SELECT COUNT(*) <> 37 FROM information_schema.character_sets
     'hp8'     , 'keybcs2', 'koi8r'  , 'koi8u'  , 'latin1',
     'latin2'  , 'latin5' , 'latin7' , 'macce'  , 'macroman',
     'sjis'    , 'swe7'   , 'tis620' , 'ucs2'   , 'ujis',
-    'utf8'    , 'gb18030'
+    'utf8mb3' , 'gb18030'
     )`)
 {
-   --skip Not all character sets required for this test are present
+   --die Not all character sets required for this test are present
 }
 # Check that all collations needed are available
 # Hint: 4 collation_names per source line if possible
@@ -83,7 +83,7 @@ WHERE collation_name IN (
 'gb18030_chinese_ci'
 )`)
 {
-   --skip Not all collations required for this test are present
+   --die Not all collations required for this test are present
 }
 
 ################################

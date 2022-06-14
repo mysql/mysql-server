@@ -1,3 +1,18 @@
+--source connect.inc
+
+# Configure the first mysqld to not wait for lock so long during
+# schema distribution.
+connection mysqld1;
+let $save_lock_wait_timeout = `select @@ndb_schema_dist_lock_wait_timeout`;
+set @@global.ndb_schema_dist_lock_wait_timeout = 1;
+
+# Supress warnings provoked by test
+--disable_query_log
+call mtr.add_suppression("Failed to acquire exclusive metadata lock");
+call mtr.add_suppression("Failed to update table definition in DD");
+call mtr.add_suppression("NDB: Distribution of ALTER TABLE");
+--enable_query_log
+
 # Trying to perform an alter on one mysqld
 # while having open transaction on first mysqld
 
@@ -7,11 +22,15 @@ insert into t1 values (1,1), (2,2);
 set autocommit=0;
 begin;
 select count(*) from t1;
-connection server2;
+connection mysqld2;
+# Distribution of this alter should fail on mysqld1
+# due to the ongoing transaction
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
-connection server1;
+connection mysqld1;
+--error ER_TABLE_DEF_CHANGED
 select a from t1 where b = 2;
-commit;
+show warnings;
 show tables;
 drop table t1;
 
@@ -29,13 +48,23 @@ create table t1 (
   col28 int, col29 int, col30 int, col31 int,
   primary key(col0)) engine = ndb;
 
-connection server1;
+connection mysqld1;
 begin;
 insert into t1 (col0) values (1);
 
-connection server2;
+connection mysqld2;
+# Distribution of this alter should fail on mysqld1
+# due to the ongoing transaction
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 alter table t1 algorithm=inplace, add column col32 int COLUMN_FORMAT DYNAMIC;
 
-connection server1;
-commit;
+connection mysqld1;
+--error ER_TABLE_DEF_CHANGED
+select * from t1;
+show warnings;
+select * from t1;
 drop table t1;
+
+# Restore intial ndb_schema_dist_lock_wait_timeout value
+--disable_query_log ONCE
+eval set @@global.ndb_schema_dist_lock_wait_timeout = $save_lock_wait_timeout;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,14 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN "logger"
 #include "mysql/harness/logging/logger_plugin.h"
-#include "mysql/harness/string_utils.h"
 
 #include <sstream>
 
 #include "consolelog_plugin.h"
 #include "dim.h"
 #include "filelog_plugin.h"
+#include "mysql/harness/string_utils.h"
+#include "mysql/harness/utility/string.h"  // join
 
 #ifdef _WIN32
 #include "mysql/harness/logging/eventlog_plugin.h"
@@ -38,38 +39,100 @@
 #include "syslog_plugin.h"
 #endif
 
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::DIM;
 using mysql_harness::LoaderConfig;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::Handler;
 using mysql_harness::logging::log_level_from_string;
+using mysql_harness::logging::log_timestamp_precision_from_string;
 using mysql_harness::logging::LogLevel;
-
+using mysql_harness::logging::LogTimestampPrecision;
 IMPORT_LOG_FUNCTIONS()
 
 using HandlerPtr = std::shared_ptr<mysql_harness::logging::Handler>;
 using LoggerHandlersList = std::vector<std::pair<std::string, HandlerPtr>>;
 
-static HandlerPtr create_logging_sink(
+#ifdef WIN32
+#define NULL_DEVICE_NAME "NUL"
+#define STDOUT_DEVICE_NAME "CON"
+// no equivalent for STDERR_DEVICE_NAME
+#define LEGAL_DESTINATION_DEVICE_NAMES NULL_DEVICE_NAME ", " STDOUT_DEVICE_NAME
+#else
+#define NULL_DEVICE_NAME "/dev/null"
+#define STDOUT_DEVICE_NAME "/dev/stdout"
+#define STDERR_DEVICE_NAME "/dev/stderr"
+#define LEGAL_DESTINATION_DEVICE_NAMES \
+  NULL_DEVICE_NAME ", " STDOUT_DEVICE_NAME ", " STDERR_DEVICE_NAME
+#endif
+
+static inline bool legal_consolelog_destination(
+    const std::string &destination) {
+  if ((destination != NULL_DEVICE_NAME) &&
+#ifndef WIN32
+      (destination != STDERR_DEVICE_NAME) &&
+#endif
+      (destination != STDOUT_DEVICE_NAME))
+    return false;
+
+  return true;
+}
+
+const std::array<const char *, 4> sink_supported_options = {
+    {mysql_harness::logging::kConfigOptionLogFilename,
+     mysql_harness::logging::kConfigOptionLogDestination,
+     mysql_harness::logging::kConfigOptionLogLevel,
+     mysql_harness::logging::kConfigOptionLogTimestampPrecision}};
+
+namespace {
+
+static const std::array<const char *, 5> logger_supported_options = {
+    {"sinks", mysql_harness::logging::kConfigOptionLogFilename,
+     mysql_harness::logging::kConfigOptionLogDestination,
+     mysql_harness::logging::kConfigOptionLogLevel,
+     mysql_harness::logging::kConfigOptionLogTimestampPrecision}};
+
+HandlerPtr create_logging_sink(
     const std::string &sink_name, const mysql_harness::LoaderConfig &config,
-    const mysql_harness::logging::LogLevel default_log_level) {
+    const std::string &default_log_filename,
+    const mysql_harness::logging::LogLevel default_log_level,
+    const mysql_harness::logging::LogTimestampPrecision
+        default_log_timestamp_precision) {
   using mysql_harness::Path;
   using mysql_harness::logging::FileHandler;
   using mysql_harness::logging::get_default_log_level;
   using mysql_harness::logging::get_default_logger_stream;
+  using mysql_harness::logging::NullHandler;
   using mysql_harness::logging::StreamHandler;
 
-  constexpr const char *kLogLevel = "level";
+  constexpr const char *kLogLevel =
+      mysql_harness::logging::kConfigOptionLogLevel;
+  constexpr const char *kLogTimestampPrecision =
+      mysql_harness::logging::kConfigOptionLogTimestampPrecision;
+  constexpr const char *kLogFilename =
+      mysql_harness::logging::kConfigOptionLogFilename;
+  constexpr const char *kDestination =
+      mysql_harness::logging::kConfigOptionLogDestination;
+#ifdef _WIN32
+  // application defined event logger source name
+  constexpr const char *kConfigEventSourceName = "event_source_name";
+#endif
 
   HandlerPtr result;
 
+#ifdef _WIN32
+  const std::string kSystemLogPluginName = kEventlogPluginName;
+#else
+  const std::string kSystemLogPluginName = kSyslogPluginName;
+#endif
+
   // check if the sink has a dedicated section in the configuration and if so if
-  // it contain the log level. If it does use it, otherwise we go with the
-  // default one.
+  // it contain the log level. If it does then use it, otherwise we go with the
+  // default one. Similar check is applied for timestamp precision.
   auto log_level = default_log_level;
+  auto log_filename = default_log_filename;
+  auto log_timestamp_precision = default_log_timestamp_precision;
+  bool to_nullhandler = false;
+  std::string destination;
+
   if (config.has(sink_name)) {
     const auto &section = config.get(sink_name, "");
     if (section.has(kLogLevel)) {
@@ -77,16 +140,67 @@ static HandlerPtr create_logging_sink(
 
       log_level = log_level_from_string(level_name);
     }
+    if (section.has(kLogTimestampPrecision)) {
+      const auto precision_name = section.get(kLogTimestampPrecision);
+
+      // reject timestamp_precision set for syslog/eventlog sinks
+      if (sink_name.compare(kSystemLogPluginName) == 0) {
+        throw std::runtime_error("timestamp_precision not valid for '" +
+                                 kSystemLogPluginName + "'");
+      }
+
+      log_timestamp_precision =
+          log_timestamp_precision_from_string(precision_name);
+    }
+    if (sink_name == kConsolelogPluginName) {
+      // consolelog shall log to specified destination when specified
+      // Limit to the null device depending on platform
+      if (section.has(kDestination) && !section.get(kDestination).empty()) {
+        destination = section.get(kDestination);
+        if (!destination.empty() &&
+            !legal_consolelog_destination(destination)) {
+          throw std::runtime_error(
+              "Illegal destination '" + destination + "' for '" +
+              kConsolelogPluginName +
+              "'. Legal values are " LEGAL_DESTINATION_DEVICE_NAMES
+              ", or empty");
+        }
+        if (destination == NULL_DEVICE_NAME) {
+          to_nullhandler = true;
+        }
+      }
+    } else {
+      // illegal default filename shall throw error, even if overridden
+      if (!default_log_filename.empty()) {
+        // tmp_path = /path/to/file.log ?
+        std::string tmp_path(default_log_filename);
+        size_t pos = tmp_path.find_last_of('/');
+        if (pos != std::string::npos) {
+          tmp_path.erase(pos);  // tmp_path = /path/to
+          // absolute filename /file.log will not be empty, but still illegal
+          if (!tmp_path.empty() || Path(default_log_filename).is_absolute()) {
+            throw std::runtime_error("logger filename '" +
+                                     default_log_filename +
+                                     "' must be a filename, not a path");
+          }
+        }
+      }
+      if (section.has(kLogFilename) && !section.get(kLogFilename).empty()) {
+        log_filename = section.get(kLogFilename);
+      }
+    }
   }
-#ifdef _WIN32
-  const std::string kSystemLogPluginName = kEventlogPluginName;
-#else
-  const std::string kSystemLogPluginName = kSyslogPluginName;
-#endif
 
   if (sink_name == kConsolelogPluginName) {
-    result.reset(
-        new StreamHandler(*get_default_logger_stream(), true, log_level));
+    if (to_nullhandler) {
+      result.reset(new NullHandler(true, log_level, log_timestamp_precision));
+    } else {
+      std::ostream *os = (destination == STDOUT_DEVICE_NAME)
+                             ? &std::cout
+                             : get_default_logger_stream();
+      result.reset(
+          new StreamHandler(*os, true, log_level, log_timestamp_precision));
+    }
   } else if (sink_name == kFilelogPluginName) {
     const std::string logging_folder = config.get_default("logging_folder");
 
@@ -94,13 +208,34 @@ static HandlerPtr create_logging_sink(
       throw std::runtime_error(
           "filelog sink configured but the logging_folder is empty");
     }
+    if (log_filename.empty()) {
+      throw std::runtime_error(
+          "filelog sink configured but the filename is empty");
+    }
 
-    Path log_file = Path::make_path(logging_folder, "mysqlrouter", "log");
+    std::string tmp_path(log_filename);  // tmp_path = /path/to/file.log ?
+    size_t pos = tmp_path.find_last_of('/');
+    if (pos != std::string::npos) {
+      tmp_path.erase(pos);  // tmp_path = /path/to
+      if (!tmp_path.empty()) {
+        throw std::runtime_error("filelog sink configured but the filename '" +
+                                 log_filename +
+                                 "' must be a filename, not a path");
+      }
+    }
 
-    result.reset(new FileHandler(log_file, true, log_level));
+    Path log_file(log_filename);
+    if (!log_file.is_absolute()) {
+      log_file = Path(logging_folder).join(log_filename);
+    }
+
+    result.reset(
+        new FileHandler(log_file, true, log_level, log_timestamp_precision));
   } else if (sink_name == kSystemLogPluginName) {
 #ifdef _WIN32
-    result.reset(new EventlogHandler(true, log_level));
+    std::string ev_src_name = config.get_default(kConfigEventSourceName);
+    if (ev_src_name.empty()) ev_src_name = std::string(kDefaultEventSourceName);
+    result.reset(new EventlogHandler(true, log_level, true, ev_src_name));
 #else
     result.reset(new SyslogHandler(true, log_level));
 #endif
@@ -111,6 +246,8 @@ static HandlerPtr create_logging_sink(
 
   return result;
 }
+
+}  // namespace
 
 void create_plugin_loggers(const mysql_harness::LoaderConfig &config,
                            mysql_harness::logging::Registry &registry,
@@ -140,13 +277,34 @@ void create_plugin_loggers(const mysql_harness::LoaderConfig &config,
 static bool init_handlers(mysql_harness::PluginFuncEnv *env,
                           const mysql_harness::LoaderConfig &config,
                           LoggerHandlersList &logger_handlers) {
+  using mysql_harness::logging::get_default_log_filename;
   using mysql_harness::logging::get_default_log_level;
+  using mysql_harness::logging::get_default_timestamp_precision;
   logger_handlers.clear();
 
-  // we don't expect any keys for our secion
+  // we don't expect any keys for our section
   const auto &section = config.get(kLoggerPluginName, "");
 
   const auto default_log_level = get_default_log_level(config);
+  // an illegal loglevel in the handler configuration has already been
+  // caught earlier during startup. Need to catch an illegal timestamp
+  // precision and filename here
+  std::string default_log_filename;
+  try {
+    default_log_filename = get_default_log_filename(config);
+  } catch (const std::exception &exc) {
+    log_error("%s", exc.what());
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+    return false;
+  }
+  LogTimestampPrecision default_log_timestamp_precision;
+  try {
+    default_log_timestamp_precision = get_default_timestamp_precision(config);
+  } catch (const std::exception &exc) {
+    log_error("%s", exc.what());
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+    return false;
+  }
 
   constexpr const char *kSinksOption = "sinks";
   auto sinks_str = section.has(kSinksOption) ? section.get(kSinksOption) : "";
@@ -174,7 +332,9 @@ static bool init_handlers(mysql_harness::PluginFuncEnv *env,
   for (const auto &sink : sinks) {
     try {
       logger_handlers.push_back(std::make_pair(
-          sink, create_logging_sink(sink, config, default_log_level)));
+          sink, create_logging_sink(sink, config, default_log_filename,
+                                    default_log_level,
+                                    default_log_timestamp_precision)));
     } catch (const std::exception &exc) {
       log_error("%s", exc.what());
       set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -196,8 +356,7 @@ static void switch_to_loggers_in_config(
   //           new one at the very end.
 
   // our new logger registry, it will replace the current one if all goes well
-  std::unique_ptr<mysql_harness::logging::Registry> registry(
-      new mysql_harness::logging::Registry());
+  auto registry = std::make_unique<mysql_harness::logging::Registry>();
 
   // register loggers for all modules + main exec (throws std::logic_error,
   // std::invalid_argument)
@@ -213,9 +372,37 @@ static void switch_to_loggers_in_config(
   mysql_harness::logging::create_logger(*registry, min_log_level, "sql");
 
   // attach all loggers to the handlers (throws std::runtime_error)
+  bool new_config_has_consolelog{false};
   for (const auto &handler : logger_handlers) {
     registry->add_handler(handler.first, handler.second);
     attach_handler_to_all_loggers(*registry, handler.first);
+
+    if (handler.first == kConsolelogPluginName) {
+      new_config_has_consolelog = true;
+    }
+  }
+
+  // in case we switched away from the default consolelog and something was
+  // already logged to the console, log that we are now switching away
+  if (!new_config_has_consolelog) {
+    auto &reg = DIM::instance().get_LoggingRegistry();
+    try {
+      // there may be no main_console_handler.
+      auto handler =
+          reg.get_handler(mysql_harness::logging::kMainConsoleHandler);
+
+      if (handler->has_logged()) {
+        std::vector<std::string> handler_names;
+        for (const auto &handler : logger_handlers) {
+          handler_names.push_back(handler.first);
+        }
+
+        log_info("stopping to log to the console. Continuing to log to %s",
+                 mysql_harness::join(handler_names, ", ").c_str());
+      }
+    } catch (const std::exception &) {
+      // not found.
+    }
   }
 
   // nothing threw - we're good. Now let's replace the new registry with the
@@ -225,31 +412,33 @@ static void switch_to_loggers_in_config(
       std::default_delete<mysql_harness::logging::Registry>());
   DIM::instance().reset_LoggingRegistry();
 
+  // set timestamp precision
+  auto precision =
+      mysql_harness::logging::get_default_timestamp_precision(config);
+  mysql_harness::logging::set_timestamp_precision_for_all_loggers(
+      DIM::instance().get_LoggingRegistry(), precision);
+
   // flag that the new loggers are ready for use
   DIM::instance().get_LoggingRegistry().set_ready();
 }
 
 static void init(mysql_harness::PluginFuncEnv *env) {
-  using mysql_harness::logging::get_default_log_level;
   LoggerHandlersList logger_handlers;
 
   auto &config = DIM::instance().get_Config();
 
   bool res = init_handlers(env, config, logger_handlers);
-  // something went wrong; the init_handlers called set_error() so we just stop
-  // progress further and let Loader deal with it
+  // something went wrong; the init_handlers called set_error() so we just
+  // stop progress further and let Loader deal with it
   if (!res) return;
 
-  log_info(
-      "logging facility initialized, switching logging to loggers specified in "
-      "configuration");
   switch_to_loggers_in_config(config, logger_handlers);
 }
 
-Plugin harness_plugin_logger = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Logging using eventlog",
+mysql_harness::Plugin harness_plugin_logger = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "Logger",
     VERSION_NUMBER(0, 0, 1),
     0,
     nullptr,  // Requires
@@ -259,4 +448,7 @@ Plugin harness_plugin_logger = {
     nullptr,  // deinit
     nullptr,  // start
     nullptr,  // stop
+    false,    // declares_readiness
+    logger_supported_options.size(),
+    logger_supported_options.data(),
 };

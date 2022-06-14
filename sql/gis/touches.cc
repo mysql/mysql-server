@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -62,11 +62,11 @@ static bool geometry_collection_apply_touches(const Touches &f,
                                               const Geometry *g1,
                                               const Geometry *g2) {
   boost::geometry::strategy::within::geographic_winding<Geographic_point>
-  geographic_pl_pa_strategy(
-      bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
+      geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
   boost::geometry::strategy::intersection::geographic_segments<>
-  geographic_ll_la_aa_strategy(
-      bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
+      geographic_ll_la_aa_strategy(
+          bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
 
   if (g1->type() == Geometry_type::kGeometrycollection) {
     if (g2->type() == Geometry_type::kGeometrycollection) {
@@ -146,13 +146,13 @@ static bool geometry_collection_apply_touches(const Touches &f,
                        mask))
           return false;
       } else {
-        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
         for (std::size_t i = 0;
              i < down_cast<Geographic_multipoint *>(g1_mpt.get())->size();
              i++) {
           auto &pt = (*down_cast<Geographic_multipoint *>(g1_mpt.get()))[i];
           if (bg::relate(pt, *down_cast<Geographic_multipoint *>(g2_mpt.get()),
-                         mask, geographic_pl_pa_strategy) ||
+                         mask) ||
               bg::relate(pt,
                          *down_cast<Geographic_multilinestring *>(g2_mls.get()),
                          mask, geographic_pl_pa_strategy) ||
@@ -320,16 +320,16 @@ static bool geometry_collection_apply_touches(const Touches &f,
               return false;
             break;
           default:
-            DBUG_ASSERT(false); /* purecov: inspected */
+            assert(false); /* purecov: inspected */
             return false;
         }
       } else {
-        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
+        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
         switch (g1->type()) {
           case Geometry_type::kPoint:
             if (bg::relate(*down_cast<const Geographic_point *>(g1),
                            *down_cast<Geographic_multipoint *>(g2_mpt.get()),
-                           mask, geographic_pl_pa_strategy) ||
+                           mask) ||
                 bg::relate(
                     *down_cast<const Geographic_point *>(g1),
                     *down_cast<Geographic_multilinestring *>(g2_mls.get()),
@@ -434,7 +434,7 @@ static bool geometry_collection_apply_touches(const Touches &f,
               return false;
             break;
           default:
-            DBUG_ASSERT(false); /* purecov: inspected */
+            assert(false); /* purecov: inspected */
             return false;
         }
       }
@@ -459,7 +459,7 @@ bool Touches::operator()(const Geometry *g1, const Geometry *g2) const {
 }
 
 bool Touches::operator()(const Box *b1, const Box *b2) const {
-  DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
+  assert(b1->coordinate_system() == b2->coordinate_system());
   switch (b1->coordinate_system()) {
     case Coordinate_system::kCartesian:
       return eval(down_cast<const Cartesian_box *>(b1),
@@ -469,13 +469,13 @@ bool Touches::operator()(const Box *b1, const Box *b2) const {
                   down_cast<const Geographic_box *>(b2));
   }
 
-  DBUG_ASSERT(false);
+  assert(false);
   return false;
 }
 
 bool Touches::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
-  DBUG_ASSERT(false);
+  assert(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
@@ -1229,12 +1229,12 @@ bool touches(const dd::Spatial_reference_system *srs, const Geometry *g1,
              const Geometry *g2, const char *func_name, bool *touches,
              bool *null) noexcept {
   try {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(g1->coordinate_system() == g2->coordinate_system());
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g1->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 
@@ -1256,12 +1256,12 @@ bool mbr_touches(const dd::Spatial_reference_system *srs, const Geometry *g1,
                  const Geometry *g2, const char *func_name, bool *touches,
                  bool *null) noexcept {
   try {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(g1->coordinate_system() == g2->coordinate_system());
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g1->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 

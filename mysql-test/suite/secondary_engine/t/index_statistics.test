@@ -21,72 +21,103 @@ INSERT INTO t1 VALUES
 ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 
-# Uses the primary index to determine 10% filtering effect (one row).
-EXPLAIN SELECT * FROM t1 WHERE id = 1;
-# Uses the secondary index to determine 70% filtering effect (matches
-# rows 1 to 7).
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-# Uses the secondary index to determine 20% filtering effect (matches
-# rows 8 and 9).
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-# Uses the secondary index to determine 10% filtering effect (matches
-# row 10).
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
-# No index on y, so a heuristic is used for the filtering effect.
-EXPLAIN SELECT * FROM t1 WHERE y = 1;
+--echo # Uses the primary index to determine 10% filtering effect (one row).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 1;
+--echo # Uses the secondary index to determine 70% filtering effect (matches
+--echo # rows 1 to 7).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+--echo # Uses the secondary index to determine 20% filtering effect (matches
+--echo # rows 8 and 9).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+--echo # Uses the secondary index to determine 10% filtering effect (matches
+--echo # row 10).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
+--echo # No index on y, so a heuristic is used for the filtering effect.
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE y = 1;
 
-# Ignoring indexes cause heuristics to be used.
-EXPLAIN SELECT * FROM t1 USE INDEX () WHERE id = 1;
-EXPLAIN SELECT * FROM t1 USE INDEX () WHERE x = 1;
-EXPLAIN SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
-EXPLAIN SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
+--echo # Ignoring indexes cause heuristics to be used.
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE id = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE x = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
 
-# No matching rows. Rounds up estimates to one matching row (10%).
-EXPLAIN SELECT * FROM t1 WHERE id = 100;
-EXPLAIN SELECT * FROM t1 WHERE x = 100;
+--echo # No matching rows. Rounds up estimates to one matching row (10%).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 100;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 100;
 
-# Matches two rows in the primary index (20%).
-EXPLAIN SELECT * FROM t1 WHERE id = 3 OR id = 7;
+--echo # Matches two rows in the primary index (20%).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 3 OR id = 7;
 
-# Matches three rows in the secondary index (30%).
-EXPLAIN SELECT * FROM t1 WHERE x = 2 OR x = 3;
+--echo # Matches three rows in the secondary index (30%).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2 OR x = 3;
 
-# Matches all rows in the secondary index (100%).
-EXPLAIN SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
+--echo # Matches all rows in the secondary index (100%).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
 
-# Ranges in the primary index.
-EXPLAIN SELECT * FROM t1 WHERE id > 0;
-EXPLAIN SELECT * FROM t1 WHERE id > 1;
-EXPLAIN SELECT * FROM t1 WHERE id > 3;
-EXPLAIN SELECT * FROM t1 WHERE id > 9;
-EXPLAIN SELECT * FROM t1 WHERE id > 10;
-EXPLAIN SELECT * FROM t1 WHERE id < 1;
-EXPLAIN SELECT * FROM t1 WHERE id < 3;
-EXPLAIN SELECT * FROM t1 WHERE id < 10;
-EXPLAIN SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
+--echo # Ranges in the primary index.
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 0;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 9;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 10;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 10;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
 
-# Ranges in the secondary index.
-EXPLAIN SELECT * FROM t1 WHERE x < 1;
-EXPLAIN SELECT * FROM t1 WHERE x < 2;
-EXPLAIN SELECT * FROM t1 WHERE x < 3;
-EXPLAIN SELECT * FROM t1 WHERE x < 4;
-EXPLAIN SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
+--echo # Ranges in the secondary index.
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 2;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 4;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
 
-# Indexes should only be used during optimization. Verify that the
-# execution plan for this query does not use DYNAMIC RANGE access. (No
-# occurrence of "Range checked for each record" in the plan.)
-EXPLAIN SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
+--echo # Indexes should only be used during optimization. Verify that the
+--echo # execution plan for this query does not use DYNAMIC RANGE access.
+--echo # (No occurrence of "Range checked for each record" in the plan.)
+--skip_if_hypergraph  # Different query plan (still does not use any indexes).
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
 
 DROP TABLE t1;
 
-# Getting range statistics from spatial indexes is not supported,
-# since spatial indexes are not ordered.
+--echo # Getting range statistics from spatial indexes is not supported,
+--echo # since spatial indexes are not ordered.
 CREATE TABLE geom(g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g))
        SECONDARY_ENGINE MOCK;
 INSERT INTO geom VALUES (POINT(1, 1)), (POINT(2, 2)), (POINT(3, 3));
 ALTER TABLE geom SECONDARY_LOAD;
 ANALYZE TABLE geom;
-EXPLAIN SELECT ST_AsText(g) FROM geom
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT ST_AsText(g) FROM geom
   WHERE MBRContains(POLYGON(LINESTRING(POINT(0,0), POINT(3,0),
                                        POINT(3,3), POINT(0,0))),
                     g);

@@ -9,10 +9,6 @@
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
 --echo #
 --echo # create a table with some data with and without binlogging
 --echo #
@@ -29,7 +25,7 @@ insert into t1 values (1,1);
 drop table t1;
 reset master;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
-show tables;
+select * from t1 where 1=0 /* force discover table */;
 
 --echo #
 --echo # restore and _no_ binlog
@@ -52,7 +48,7 @@ drop table binlogmarker;
 drop table t1;
 reset master;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
-show tables;
+select * from t1 where 1=0 /* force discover table */;
 
 --echo #
 --echo # restore and  binlog should now happen as well as the marker

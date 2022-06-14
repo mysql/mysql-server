@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include <chrono>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -42,7 +40,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes
@@ -178,7 +176,7 @@ bool wait_for_rest_endpoint_ready(
     const std::string &username = "", const std::string &password = "",
     const std::string &http_host = "127.0.0.1",
     std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000),
-    const std::chrono::milliseconds step_time =
+    std::chrono::milliseconds step_time =
         std::chrono::milliseconds(50)) noexcept;
 
 // YYY-MM-DDThh:mm:ss.milisecZ
@@ -237,14 +235,16 @@ class RestApiComponentTest : public RouterComponentTest {
                       const std::string &value_json_pointer,
                       const RestApiTestParams::value_check_func value_check);
 
-  static const std::vector<
-      std::pair<std::string, RestApiTestParams::value_check_func>>
-      kProblemJsonMethodNotAllowed;
+  using json_verifiers_t =
+      std::vector<std::pair<std::string, RestApiTestParams::value_check_func>>;
+
+  static json_verifiers_t get_json_method_not_allowed_verifiers();
 
  protected:
-  TcpPortPool port_pool_;
   const uint16_t http_port_{port_pool_.get_next_available()};
   TempDirectory conf_dir_;
 };
 
+bool wait_endpoint_404(RestClient &rest_client, const std::string &uri,
+                       std::chrono::milliseconds max_wait_time) noexcept;
 #endif

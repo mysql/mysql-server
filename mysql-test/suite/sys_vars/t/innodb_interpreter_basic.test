@@ -1,0 +1,100 @@
+--source include/have_debug.inc
+
+SET @start_global_value = @@global.innodb_interpreter;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.innodb_interpreter;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_compression_level;
+show global variables like 'innodb_interpreter';
+show session variables like 'innodb_interpreter';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_interpreter';
+select * from performance_schema.session_variables where variable_name='innodb_interpreter';
+--enable_warnings
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY);
+SHOW CREATE TABLE t1;
+
+START TRANSACTION;
+INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5);
+SELECT * FROM t1;
+COMMIT;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'open_table test/t1';
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+SET SESSION innodb_interpreter = CONCAT('find_fil_page_lsn ', @space_id, ' 0');
+SELECT @@session.innodb_interpreter_output INTO @fil_page_lsn;
+SET SESSION innodb_interpreter = 'make_ondisk_root_page_zeroes test/t1';
+SET SESSION innodb_interpreter = 'destroy';
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY);
+SHOW CREATE TABLE t1;
+
+START TRANSACTION;
+INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5);
+SELECT * FROM t1;
+COMMIT;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'open_table test/t1';
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+SET @cmd = CONCAT('find_fil_page_lsn ', @space_id, ' 0');
+SET SESSION innodb_interpreter = @cmd;
+SELECT @@session.innodb_interpreter_output INTO @fil_page_lsn;
+SET SESSION innodb_interpreter = 'corrupt_ondisk_root_page test/t1';
+SET SESSION innodb_interpreter = 'destroy';
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY);
+SHOW CREATE TABLE t1;
+
+START TRANSACTION;
+INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5);
+SELECT * FROM t1;
+COMMIT;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'open_table test/t1';
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SET SESSION innodb_interpreter = 'find_flush_sync_lsn';
+SELECT @@session.innodb_interpreter_output INTO @lsn;
+SET SESSION innodb_interpreter = 'corrupt_ondisk_page0 test/t1';
+SET SESSION innodb_interpreter = 'destroy';
+DROP TABLE t1;
+
+SET @@global.innodb_interpreter = @start_global_value;
+SELECT @@global.innodb_interpreter;
+
+--echo #
+--echo # Bug #33316661: setting innodb_interpreter=null terminate called after
+--echo # throwing an instance of 'std::logic_error'
+--echo #
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION innodb_interpreter = null;
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION innodb_interpreter = 0;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_interpreter = null;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_interpreter = 0;

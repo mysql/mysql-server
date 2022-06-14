@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,9 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -45,7 +42,7 @@ void check_name_resolution_tables(std::initializer_list<const char *> aliases,
                                   SQL_I_List<TABLE_LIST> tables) {
   TABLE_LIST *table_list = tables.first;
   for (auto alias : aliases) {
-    ASSERT_FALSE(table_list == NULL);
+    ASSERT_FALSE(table_list == nullptr);
     EXPECT_STREQ(alias, table_list->alias)
         << "Wrong table alias " << table_list->alias << ", expected " << alias
         << ".";
@@ -54,12 +51,12 @@ void check_name_resolution_tables(std::initializer_list<const char *> aliases,
 }
 
 TEST_F(JoinSyntaxTest, CrossJoin) {
-  SELECT_LEX *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3");
+  Query_block *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3");
   check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
 }
 
 TEST_F(JoinSyntaxTest, CrossJoinOn) {
-  SELECT_LEX *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
+  Query_block *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
   check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,28 +20,29 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stdexcept>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include "my_config.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/sql_user_require.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/client.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
+#include "unittest/gunit/xplugin/xpl/mock/vio.h"
 
 namespace xpl {
 
 namespace test {
 
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 template <typename Auth_type>
 class AuthenticationTestSuite : public Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     sut = Auth_type::create(&mock_session, nullptr);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _))
@@ -56,10 +57,10 @@ class AuthenticationTestSuite : public Test {
   }
 
   void assert_responce(
-      const ngs::Authentication_interface::Response &result,
+      const iface::Authentication::Response &result,
       const std::string &data = "",
-      const ngs::Authentication_interface::Status status =
-          ngs::Authentication_interface::Error,
+      const iface::Authentication::Status status =
+          iface::Authentication::Status::k_error,
       const int error_code = ER_NET_PACKETS_OUT_OF_ORDER) const {
     ASSERT_EQ(data, result.data);
     ASSERT_EQ(status, result.status);
@@ -68,19 +69,19 @@ class AuthenticationTestSuite : public Test {
 
   ngs::Error_code default_error;
 
-  StrictMock<ngs::test::Mock_sql_data_context> mock_data_context;
-  StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<ngs::test::Mock_vio> mock_connection;
-  StrictMock<ngs::test::Mock_session> mock_session;
-  ngs::Authentication_interface_ptr sut;
+  StrictMock<mock::Sql_session> mock_data_context;
+  StrictMock<mock::Client> mock_client;
+  StrictMock<mock::Vio> mock_connection;
+  StrictMock<mock::Session> mock_session;
+  std::unique_ptr<iface::Authentication> sut;
 };
 
 typedef AuthenticationTestSuite<Sasl_plain_auth> SaslAuthenticationTestSuite;
 
 TEST_F(SaslAuthenticationTestSuite, handleContinue_fails_always) {
-  ngs::Authentication_interface::Response result = sut->handle_continue("");
+  iface::Authentication::Response result = sut->handle_continue("");
 
-  assert_responce(result, "", ngs::Authentication_interface::Error,
+  assert_responce(result, "", iface::Authentication::Status::k_error,
                   ER_NET_PACKETS_OUT_OF_ORDER);
 }
 
@@ -125,11 +126,11 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
        handleStart_autenticateAndReturnsError_whenIllformedStringNoSeparator) {
   std::string sasl_login_string = expected_login;
 
-  ngs::Authentication_interface::Response result =
+  iface::Authentication::Response result =
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed,
+                  iface::Authentication::Status::k_failed,
                   ER_ACCESS_DENIED_ERROR);
 }
 
@@ -137,26 +138,26 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
        handleStart_autenticateAndReturnsError_whenIllformedStringOneSeparator) {
   std::string sasl_login_string = "some data" + sasl_separator + "some data";
 
-  ngs::Authentication_interface::Response result =
+  iface::Authentication::Response result =
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed,
+                  iface::Authentication::Status::k_failed,
                   ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(
     ExpectedValuesSaslAuthenticationTestSuite,
-    handleStart_autenticateAndReturnsError_whenIllformedStringThusUserNameEmpty) {
+    handleStart_autenticateAndReturnsError_whenIllformedStringThusUserNameEmpty) {  // NOLINT(whitespace/line_length)
   const std::string empty_user = "";
   std::string sasl_login_string =
       get_sasl_message(empty_user, expected_password, "autorize_as");
 
-  ngs::Authentication_interface::Response result =
+  iface::Authentication::Response result =
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed,
+                  iface::Authentication::Status::k_failed,
                   ER_ACCESS_DENIED_ERROR);
 }
 
@@ -170,16 +171,17 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
       .WillOnce(Return(false));
   EXPECT_CALL(mock_client, client_hostname())
       .WillOnce(Return(expected_hostname.c_str()));
+  EXPECT_CALL(mock_data_context, password_expired()).WillOnce(Return(false));
   EXPECT_CALL(
       mock_data_context,
       authenticate(StrEq(expected_login), StrEq(expected_hostname.c_str()),
                    StrEq(expected_host), StrEq(""), _, _, false))
       .WillOnce(Return(ec_success));
 
-  ngs::Authentication_interface::Response result =
+  iface::Authentication::Response result =
       sut->handle_start("", sasl_login_string, "");
 
-  assert_responce(result, "", ngs::Authentication_interface::Succeeded, 0);
+  assert_responce(result, "", iface::Authentication::Status::k_succeeded, 0);
 }
 
 TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
@@ -197,11 +199,12 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
       authenticate(StrEq(expected_login), StrEq(expected_hostname),
                    StrEq(expected_host), StrEq(expected_database), _, _, false))
       .WillOnce(Return(ec_success));
+  EXPECT_CALL(mock_data_context, password_expired()).WillOnce(Return(false));
 
-  ngs::Authentication_interface::Response result =
+  iface::Authentication::Response result =
       sut->handle_start("", sasl_login_string, "");
 
-  assert_responce(result, "", ngs::Authentication_interface::Succeeded, 0);
+  assert_responce(result, "", iface::Authentication::Status::k_succeeded, 0);
 }
 
 TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
@@ -220,10 +223,10 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
                    StrEq(expected_host), StrEq(expected_database), _, _, false))
       .WillOnce(Return(ec_failur));
 
-  ngs::Authentication_interface::Response result =
+  iface::Authentication::Response result =
       sut->handle_start("", sasl_login_string, "");
 
-  assert_responce(result, "", ngs::Authentication_interface::Failed, 1);
+  assert_responce(result, "", iface::Authentication::Status::k_failed, 1);
 }
 
 }  // namespace test

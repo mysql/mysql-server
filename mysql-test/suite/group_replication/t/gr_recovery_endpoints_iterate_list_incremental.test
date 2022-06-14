@@ -1,0 +1,177 @@
+###############################################################################
+# This test verifies that if the recovery endpoints list contains an endpoint to
+# which the recovery user cannot connect then incremental recovery should
+# continue to iterate over the remaining advertised endpoints.
+#
+# Test:
+#   0. The test requires two servers
+#   1. Create a replication user without SERVICE_CONNECTION_ADMIN which
+#      cannot connect to the donor admin port
+#   2. Set the first advertised endpoint to the donor admin port and the
+#      second to the port used by client connections
+#   3. Start server 1, bootstrap group and add some data
+#   4. Change the user of recovery channel for the joiner
+#   5. Change settings on recovery to speed up failure
+#   6. Start group replication for the joiner
+#   7. Check that incremental recovery of joiner fails to connect to the first
+#      endpoint of the donor
+#   8. Check that incremental recovery of joiner connects to the second endpoint
+#      of the donor
+#   9. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Suppress the expected errors
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+set session sql_log_bin=1;
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Suppress the expected errors
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+set session sql_log_bin=1;
+
+--echo #
+--echo # 1. Create a replication user without SERVICE_CONNECTION_ADMIN which
+--echo #    cannot connect to the donor admin port
+
+SET sql_log_bin = 0;
+--eval CREATE USER 'rpl_user'@'%'
+--eval GRANT REPLICATION SLAVE ON *.* TO 'rpl_user'@'%'
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';
+SET sql_log_bin = 1;
+
+--echo #
+--echo # 2. Set the first advertised endpoint to the donor admin port and the
+--echo #    second to the port used by client connections
+
+--let $server1_admin_port= `SELECT @@GLOBAL.ADMIN_PORT`
+--let $server1_port= `SELECT @@GLOBAL.PORT`
+
+--replace_result $server1_admin_port SERVER1_ADMIN_PORT $server1_port SERVER1_PORT
+--eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "127.0.0.1:$server1_admin_port,127.0.0.1:$server1_port"
+
+--echo
+--echo # 3. Start server 1, bootstrap group and add some data
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+INSERT INTO test.t1 (b) VALUES (1);
+INSERT INTO test.t1 (b) VALUES (2);
+
+--echo
+--echo # 4. Change the user of recovery channel for the joiner
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--eval CREATE USER 'rpl_user'@'%'
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';
+SET sql_log_bin = 1;
+
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
+
+--echo
+--echo # 5. Change settings on recovery to speed up failure
+
+--let $_group_replication_recovery_reconnect_interval_save= `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval`
+--let $_group_replication_recovery_retry_count_save= `SELECT @@GLOBAL.group_replication_recovery_retry_count`
+
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+
+--echo
+--echo # 6. Start group replication for the joiner
+
+--let $group_replication_start_member_state= ONLINE
+--source include/start_group_replication.inc
+
+
+--echo
+--echo # 7. Check that incremental recovery of the joiner fails to connect to
+--echo #    the first endpoint of the donor
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_incremental
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_iterate_list_incremental.2.err
+--let $assert_count = 1
+--let $assert_select = 'Establishing connection to a group replication recovery donor .* at 127.0.0.1 port: $server1_admin_port.'
+--let $assert_text = incremental recovery tried to connect to the first advertised endpoint
+--source include/assert_grep.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_incremental
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_iterate_list_incremental.2.err
+--let $assert_count = 1
+--let $assert_select = .*error connecting to master 'rpl_user@127.0.0.1:$server1_admin_port'.*
+--let $assert_text = incremental recovery failed to connect to the first advertised endpoint
+--source include/assert_grep.inc
+
+--echo
+--echo # 8. Check that incremental recovery of the joiner connects to the second
+--echo #    endpoint of the donor
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_incremental
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_iterate_list_incremental.2.err
+--let $assert_count = 1
+--let $assert_select = 'Establishing connection to a group replication recovery donor .* at 127.0.0.1 port: $server1_port.'
+--let $assert_text = incremental recovery tried to connect to the second advertised endpoint
+--source include/assert_grep.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_incremental
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_iterate_list_incremental.2.err
+--let $assert_count = 1
+--let $assert_select = .*connected to master 'rpl_user@127.0.0.1:$server1_port',replication started.*
+--let $assert_text = incremental recovery used the second advertised enpoint
+--source include/assert_grep.inc
+
+
+# See if the data has been properly replicated to server2
+--let $diff_tables=server1:test.t1 ,server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 9. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE test.t1;
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = DEFAULT;
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
+
+--eval SET GLOBAL group_replication_recovery_reconnect_interval= $_group_replication_recovery_reconnect_interval_save
+--eval SET GLOBAL group_replication_recovery_retry_count= $_group_replication_recovery_retry_count_save
+
+--eval DROP USER 'rpl_user'@'%'
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--eval DROP USER 'rpl_user'@'%'
+
+--source include/group_replication_end.inc

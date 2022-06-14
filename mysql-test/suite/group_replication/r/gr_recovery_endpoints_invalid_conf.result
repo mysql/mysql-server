@@ -1,0 +1,73 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Persist only group_replication_advertise_recovery_endpoints, it
+#    will be updated on configuration and read after restart
+SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:0";
+
+# 2. Restart server and start Group Replication on boot, it will fail
+#    due invalid configuration
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+include/rpl_reconnect.inc
+
+# 3. Assert server log message on wrong option on recovery endpoints
+include/assert_grep.inc [invalid configuration used on recovery endpoints]
+
+# 4. Persist only group_replication_advertise_recovery_endpoints, it
+#    will be updated on configuration and read after restart
+SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:3600a";
+
+# 5. Restart server and start Group Replication on boot, it will fail
+#    due configuration bad format
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+include/rpl_reconnect.inc
+
+# 6. Assert server log message on wrong option on recovery endpoints
+include/assert_grep.inc [invalid configuration used on recovery endpoints]
+
+# 7. START GROUP_REPLICATION , it will fail due invalid format.
+START GROUP_REPLICATION;
+ERROR HY000: Invalid input value for recovery socket endpoints '127.0.0.1:3600a'. Please, provide a valid, comma separated, list of endpoints (IP:port)
+
+# 8. Restart server and start Group Replication with command START
+#    GROUP_REPLICATION , it will fail due invalid endpoint
+SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "128.0.0.1:3600";
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=0
+include/rpl_reconnect.inc
+START GROUP_REPLICATION;
+ERROR HY000: The server is not listening on endpoint '128.0.0.1:3600'. Only endpoints that the server is listening on are valid recovery endpoints.
+
+# 9. Try invalid configurations and confirm all return error
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "127.0.0.1:0";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '127.0.0.1:0'. Invalid value on recovery endpoint '127.0.0.1:0'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "127.0.0.500:1234";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '127.0.0.500:1234'. Invalid value on recovery endpoint '127.0.0.500:1234'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "[::1:1234";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '[::1:1234'. Invalid value on recovery endpoint '[::1:1234'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "[::1]:1234";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '[::1]:1234'. Invalid value on recovery endpoint '[::1]:1234'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "[0:0:0:0:0:0:0:2]:SERVER1_PORT";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '[0:0:0:0:0:0:0:2]:SERVER1_PORT'. Invalid value on recovery endpoint '[0:0:0:0:0:0:0:2]:SERVER1_PORT'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "127.0.0.1/namespace:1234";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '127.0.0.1/namespace:1234'. Invalid value on recovery endpoint '127.0.0.1/namespace:1234'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "unusedhostname:1234";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of 'unusedhostname:1234'. Invalid value on recovery endpoint 'unusedhostname:1234'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "localhost:123";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of 'localhost:123'. Invalid value on recovery endpoint 'localhost:123'.
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of ''. Please, provide a valid, comma separated, list of endpoints (IP:port).
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "127.0.0.1";
+ERROR HY000: Variable 'group_replication_advertise_recovery_endpoints' cannot be set to the value of '127.0.0.1'. Please, provide a valid, comma separated, list of endpoints (IP:port).
+
+# 10. Clean up
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "DEFAULT";
+RESET PERSIST group_replication_advertise_recovery_endpoints;
+set session sql_log_bin=0;
+call mtr.add_suppression("Invalid input value for recovery socket endpoints '127.0.0.1:3600a'.*");
+call mtr.add_suppression("The server is not listening on endpoint '127.0.0.1:0'.*");
+call mtr.add_suppression("Unable to start Group Replication on boot");
+set session sql_log_bin=1;
+include/group_replication_end.inc

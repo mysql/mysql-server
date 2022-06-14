@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,12 @@
   @file include/priority_queue.h
 */
 
+#include <assert.h>
 #include <functional>
 #include <new>
 #include <utility>
 #include <vector>
 
-#include "my_compiler.h"
-#include "my_dbug.h"
 #include "template_utils.h"
 
 #if defined(EXTRA_CODE_FOR_UNIT_TESTING)
@@ -44,6 +43,12 @@
 namespace priority_queue_unittest {
 class PriorityQueueTest;
 }  // namespace priority_queue_unittest
+
+template <typename T>
+class NoopMarker {
+ public:
+  void operator()(size_t, T *) const {}
+};
 
 /**
   Implements a priority queue using a vector-based max-heap.
@@ -86,9 +91,15 @@ class PriorityQueueTest;
                     in the container, shall return true if a is considered
                     to go before b in the strict weak ordering the
                     function defines.
+  @tparam Marker    A functor, with signature void operator()(size_t, T *),
+                    that gets called whenever an element gets a new position
+                    in the queue (including initial insert, but excluding
+                    removals). The marker can then store the element's
+                    position somewhere, for later calls to update() as needed.
  */
 template <typename T, typename Container = std::vector<T>,
-          typename Less = std::less<typename Container::value_type>>
+          typename Less = std::less<typename Container::value_type>,
+          typename Marker = NoopMarker<T>>
 class Priority_queue : public Less {
  public:
   typedef Container container_type;
@@ -107,7 +118,7 @@ class Priority_queue : public Less {
 
   // Returns the index of the parent node of node i.
   static size_type parent(size_type i) {
-    DBUG_ASSERT(i != 0);
+    assert(i != 0);
     return (--i) >> 1;  // (i - 1) / 2
   }
 
@@ -122,7 +133,7 @@ class Priority_queue : public Less {
   }
 
   void heapify(size_type i, size_type last) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     size_type largest = i;
 
     do {
@@ -140,6 +151,8 @@ class Priority_queue : public Less {
 
       if (largest != i) {
         std::swap(m_container[i], m_container[largest]);
+        m_marker(i, &m_container[i]);
+        m_marker(largest, &m_container[largest]);
       }
     } while (largest != i);
   }
@@ -147,9 +160,12 @@ class Priority_queue : public Less {
   void heapify(size_type i) { heapify(i, m_container.size()); }
 
   void reverse_heapify(size_type i) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     while (i > 0 && !Base::operator()(m_container[i], m_container[parent(i)])) {
-      std::swap(m_container[parent(i)], m_container[i]);
+      size_t parent_idx = parent(i);
+      std::swap(m_container[parent_idx], m_container[i]);
+      m_marker(parent_idx, &m_container[parent_idx]);
+      m_marker(i, &m_container[i]);
       i = parent(i);
     }
   }
@@ -169,15 +185,17 @@ class Priority_queue : public Less {
  public:
   /// Constructs an empty priority queue.
   Priority_queue(Less const &less = Less(),
-                 const allocator_type &alloc = allocator_type())
-      : Base(less), m_container(alloc) {}
+                 const allocator_type &alloc = allocator_type(),
+                 const Marker &marker = Marker())
+      : Base(less), m_container(alloc), m_marker(marker) {}
 
   /// Constructs a heap of the objects between first and beyond.
   template <typename Input_iterator>
   Priority_queue(Input_iterator first, Input_iterator beyond,
                  Less const &less = Less(),
-                 const allocator_type &alloc = allocator_type())
-      : Base(less), m_container(first, beyond, alloc) {
+                 const allocator_type &alloc = allocator_type(),
+                 const Marker &marker = Marker())
+      : Base(less), m_container(first, beyond, alloc), m_marker(marker) {
     build_heap();
   }
 
@@ -202,13 +220,13 @@ class Priority_queue : public Less {
 
   /// Returns a const reference to the top element of the priority queue.
   value_type const &top() const {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     return m_container[0];
   }
 
   /// Returns a reference to the top element of the priority queue.
   value_type &top() {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     return m_container[0];
   }
 
@@ -225,6 +243,7 @@ class Priority_queue : public Less {
       return true;
     }
 
+    m_marker(m_container.size() - 1, &m_container.back());
     reverse_heapify(m_container.size() - 1);
     return false;
   }
@@ -234,7 +253,7 @@ class Priority_queue : public Less {
 
   /// Removes the element at position i from the priority queue.
   void remove(size_type i) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
 
     if (i == m_container.size() - 1) {
       m_container.pop_back();
@@ -242,8 +261,9 @@ class Priority_queue : public Less {
     }
 
     m_container[i] = m_container[m_container.size() - 1];
+    m_marker(i, &m_container[i]);
     m_container.pop_back();
-    heapify(i);
+    update(i);
   }
 
   /**
@@ -251,8 +271,8 @@ class Priority_queue : public Less {
     new priority is x.
   */
   void decrease(size_type i, value_type const &x) {
-    DBUG_ASSERT(i < size());
-    DBUG_ASSERT(!Base::operator()(m_container[i], x));
+    assert(i < size());
+    assert(!Base::operator()(m_container[i], x));
     decrease_key(i, x);
   }
 
@@ -261,8 +281,8 @@ class Priority_queue : public Less {
     new priority is x.
   */
   void increase(size_type i, value_type const &x) {
-    DBUG_ASSERT(i < size());
-    DBUG_ASSERT(!Base::operator()(x, m_container[i]));
+    assert(i < size());
+    assert(!Base::operator()(x, m_container[i]));
     increase_key(i, x);
   }
 
@@ -271,7 +291,7 @@ class Priority_queue : public Less {
     new priority is x.
   */
   void update(size_type i, value_type const &x) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     if (Base::operator()(x, m_container[i])) {
       decrease_key(i, x);
     } else {
@@ -296,7 +316,7 @@ class Priority_queue : public Less {
     and rebuilds the priority queue.
   */
   void update(size_type i) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     if (i == 0 || Base::operator()(m_container[i], m_container[parent(i)])) {
       heapify(i);
     } else {
@@ -309,7 +329,7 @@ class Priority_queue : public Less {
     and rebuilds the priority queue.
   */
   void update_top() {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     heapify(0);
   }
 
@@ -321,13 +341,13 @@ class Priority_queue : public Less {
 
   /// Returns a const reference to the i-th element in the underlying container.
   value_type const &operator[](size_type i) const {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     return m_container[i];
   }
 
   /// Returns a reference to the i-th element in the underlying container.
   value_type &operator[](size_type i) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     return m_container[i];
   }
 
@@ -371,6 +391,8 @@ class Priority_queue : public Less {
     if (!m_container.empty()) {
       for (size_type i = m_container.size() - 1; i > 0; --i) {
         std::swap(m_container[i], m_container[0]);
+        m_marker(i, &m_container[i]);
+        m_marker(0, &m_container[0]);
         heapify(0, i);
       }
     }
@@ -391,9 +413,8 @@ class Priority_queue : public Less {
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
   */
-  MY_ATTRIBUTE((warn_unused_result))
-  bool reserve(size_type n) {
-    DBUG_ASSERT(n <= m_container.max_size());
+  [[nodiscard]] bool reserve(size_type n) {
+    assert(n <= m_container.max_size());
     try {
       m_container.reserve(n);
     } catch (std::bad_alloc const &) {
@@ -404,13 +425,15 @@ class Priority_queue : public Less {
 
  private:
   container_type m_container;
+  Marker m_marker;
 };
 
 #if defined(EXTRA_CODE_FOR_UNIT_TESTING)
-template <class T, class Container, class Less>
-inline std::ostream &operator<<(std::ostream &os,
-                                Priority_queue<T, Container, Less> const &pq) {
-  typedef typename Priority_queue<T, Container, Less>::size_type size_type;
+template <class T, class Container, class Less, class Marker>
+inline std::ostream &operator<<(
+    std::ostream &os, Priority_queue<T, Container, Less, Marker> const &pq) {
+  typedef
+      typename Priority_queue<T, Container, Less, Marker>::size_type size_type;
 
   for (size_type i = 0; i < pq.size(); i++) {
     os << pq[i] << " " << std::flush;
@@ -419,14 +442,15 @@ inline std::ostream &operator<<(std::ostream &os,
   return os;
 }
 
-template <class T, class Container, class Less>
+template <class T, class Container, class Less, class Marker>
 inline std::stringstream &operator<<(
-    std::stringstream &ss, Priority_queue<T, Container, Less> const &pq) {
-  typedef typename Priority_queue<T, Container, Less>::size_type size_type;
+    std::stringstream &ss,
+    Priority_queue<T, Container, Less, Marker> const &pq) {
+  typedef
+      typename Priority_queue<T, Container, Less, Marker>::size_type size_type;
 
   for (size_type i = 0; i < pq.size(); i++) {
     ss << pq[i] << " ";
-    ;
   }
 
   return ss;

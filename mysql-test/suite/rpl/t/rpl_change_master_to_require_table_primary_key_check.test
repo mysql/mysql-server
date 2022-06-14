@@ -1,0 +1,121 @@
+# ==== Purpose ====
+#
+# This script tests how setting `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option on `CHANGE
+# MASTER TO ...` is accepted or rejected and how it impacts PFS tables.
+#
+# ==== Requirements ====
+#
+# R1. After `CHANGE MASTER TO ... REQUIRE_TABLE_PRIMARY_KEY_CHECK=...` with valid value,
+#     column `require_row_format` from table
+#     `performance_schema.replication_applier_configuration` should have an
+#     updated value equal to the value passed on to the `REQUIRE_TABLE_PRIMARY_KEY_CHECK`
+#     option.
+#
+# ==== Implementation ====
+#
+# 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to invalid values in `CHANGE MASTER TO ...`
+#    Check that an error is thrown.
+# 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE MASTER TO ...`
+#    Check that the replication_applier_configuration table is changed.
+# 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for a replication setup
+#    Check the values are the ones expected
+# 4. Check you can't set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` when the slave is running.
+#    If you stop the applier thread, it possible to set it
+#
+# ==== References ====
+#
+# WL#13239: Enable/disable primary key checks on slaves
+#
+
+--echo #
+--echo # 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to invalid values in `CHANGE MASTER TO ...`
+--echo #    Check that an error is thrown.
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON';
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 0;
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
+
+--echo #
+--echo # 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE MASTER TO ...`
+--echo #    Check that the replication_applier_configuration table is changed.
+
+# Initialize the channel with a fake host just to test the values
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='fake-host';
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'STREAM'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to STREAM
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'ON'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+RESET SLAVE ALL;
+
+--echo #
+--echo # 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for a replication setup
+--echo #    Check the values are the ones expected
+
+--let $rpl_topology = 1->2, 1->3
+--let $rpl_require_table_primary_key_check = 2:ON,3:OFF
+--source include/rpl_init.inc
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'ON'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $rpl_connection_name = server_3
+--source include/rpl_connection.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo #
+--echo # 4. Check you can't set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` when the slave is running.
+--echo #    If you stop the applier thread, it possible to set it
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+
+STOP SLAVE SQL_THREAD;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+
+START SLAVE SQL_THREAD;
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--source include/rpl_end.inc

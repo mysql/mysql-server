@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef DD__DICTIONARY_INCLUDED
 #define DD__DICTIONARY_INCLUDED
 
-#include "my_compiler.h"
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/dd/types/tablespace.h"
 
@@ -164,7 +163,7 @@ class Dictionary {
 
  public:
   // Destructor to cleanup data dictionary instance upon server shutdown.
-  virtual ~Dictionary() {}
+  virtual ~Dictionary() = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -188,10 +187,10 @@ class Dictionary {
                           upon successful lock attempt.
 
 */
-bool acquire_shared_table_mdl(THD *thd, const char *schema_name,
-                              const char *table_name, bool no_wait,
-                              MDL_ticket **out_mdl_ticket)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_shared_table_mdl(THD *thd, const char *schema_name,
+                                            const char *table_name,
+                                            bool no_wait,
+                                            MDL_ticket **out_mdl_ticket);
 
 /**
   Predicate to check if we have a shared meta data lock on the
@@ -240,11 +239,9 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
   @retval      false          Successful lock acquisition.
 */
 
-bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
-                                      bool no_wait,
-                                      MDL_ticket **ticket = nullptr,
-                                      bool for_trx = true)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_exclusive_tablespace_mdl(
+    THD *thd, const char *tablespace_name, bool no_wait,
+    MDL_ticket **ticket = nullptr, bool for_trx = true);
 
 /**
   Acquire a shared metadata lock on the given tablespace name with
@@ -262,10 +259,11 @@ bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
   @retval      true           Failure, e.g. a lock wait timeout.
   @retval      false          Successful lock acquisition.
 */
-bool acquire_shared_tablespace_mdl(THD *thd, const char *tablespace_name,
-                                   bool no_wait, MDL_ticket **ticket = nullptr,
-                                   bool for_trx = true)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_shared_tablespace_mdl(THD *thd,
+                                                 const char *tablespace_name,
+                                                 bool no_wait,
+                                                 MDL_ticket **ticket = nullptr,
+                                                 bool for_trx = true);
 
 /**
   Predicate to check if we have a shared meta data lock on the
@@ -307,10 +305,11 @@ bool has_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name);
                                attempt.
 */
 
-bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
-                                 const char *table_name, bool no_wait,
-                                 MDL_ticket **out_mdl_ticket)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_exclusive_table_mdl(THD *thd,
+                                               const char *schema_name,
+                                               const char *table_name,
+                                               bool no_wait,
+                                               MDL_ticket **out_mdl_ticket);
 
 /**
   Acquire exclusive metadata lock on the given table name with
@@ -324,11 +323,9 @@ bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
                                 attempt.
 */
 
-bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
-                                 const char *table_name,
-                                 unsigned long int lock_wait_timeout,
-                                 MDL_ticket **out_mdl_ticket)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_exclusive_table_mdl(
+    THD *thd, const char *schema_name, const char *table_name,
+    unsigned long int lock_wait_timeout, MDL_ticket **out_mdl_ticket);
 
 /**
   Acquire exclusive metadata lock on the given schema name with
@@ -343,9 +340,10 @@ bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
                                attempt.
 */
 
-bool acquire_exclusive_schema_mdl(THD *thd, const char *schema_name,
-                                  bool no_wait, MDL_ticket **out_mdl_ticket)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_exclusive_schema_mdl(THD *thd,
+                                                const char *schema_name,
+                                                bool no_wait,
+                                                MDL_ticket **out_mdl_ticket);
 
 /**
   @brief
@@ -439,6 +437,25 @@ const Object_table &get_dd_table();
   @param dst ticket for new name
 */
 void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst);
+
+/**
+  Execute an ALTER TABLESPACE ... ENCRYPTION statement.
+
+  During recovery of a storage engine, an ALTER TABLESPACE ... ENCRYPTION
+  statement may be resumed. This is initiated from the SE, which will first
+  set the state as appropriate in the SE, then invoke this method to start
+  executing the statement. When the SE is involved during execution of the
+  statement, the internal state in the SE will indicate that this is a
+  statement that has been initiated and partially executed already.
+
+  @param    thd              Thread context.
+  @param    tablespace_name  Name of tablespace to encrypt/decrypt.
+  @param    encryption       True to turn on encryption, false to turn off.
+
+  @retval   false if no errors, otherwise true.
+*/
+bool alter_tablespace_encryption(THD *thd, const char *tablespace_name,
+                                 bool encryption);
 
 }  // namespace dd
 

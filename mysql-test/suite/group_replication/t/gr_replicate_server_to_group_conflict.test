@@ -83,7 +83,7 @@ SET SESSION sql_log_bin= 1;
 --echo #     into group (server 1)
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1 FOR CHANNEL ""
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1 FOR CHANNEL ""
 --source include/start_slave.inc
 
 
@@ -298,7 +298,7 @@ DROP TABLE t1;
 --echo #     into group (server 1)
 --connection server1
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 
 --echo
 --echo ############################################################

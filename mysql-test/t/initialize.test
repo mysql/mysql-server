@@ -264,6 +264,51 @@ remove_file $MYSQLD_LOG;
 --remove_file $MYSQLD_LOG
 --force-rmdir $DDIR
 
+--echo #
+--echo # Bug#31496943: INITIALIZE WITH INNODB_PAGE_SIZE=4096 GETS
+--echo # "SPECIFIED KEY WAS TOO LONG" ERRORS
+--echo #
+
+let DDIR=$MYSQL_TMP_DIR/initialize_4k;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/initialize_4k.err;
+
+--echo # Create bootstrap file which creates test schema (needed for
+--echo # wait_until_connected
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--echo # Run the server with --initialize-insecure and 4K pages.
+--exec $MYSQLD --no-defaults --initialize-insecure --innodb_page_size=4K --datadir=$DDIR --init-file=$BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
+
+--echo # Look for error messages from my_message_stderr (there should be none)
+--perl
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} || die "Failed to read MYSQLD_LOG from env: $!";
+  open(FILE, "$log") || die "Failed to open error log: $!";
+  while (<FILE>) {
+     /mysqld: Specified key was too long/ && print;
+  }
+  close(FILE);
+EOF
+
+--echo # Restart the server against the 4k DDIR to make sure it can be started
+--exec echo "restart:--innodb_page_size=4k --datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT * FROM information_schema.schemata;
+
+--echo # Shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # Remove 4k data dir, log, and bootstrap file.
+--remove_file $MYSQLD_LOG
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $DDIR
 
 --echo #
 --echo # Cleanup
@@ -272,3 +317,4 @@ remove_file $MYSQLD_LOG;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+

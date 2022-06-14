@@ -1,0 +1,84 @@
+#
+# Bug #30258536 DEADLOCK BETWEEN LOB::ALLOC_LOB_PAGE AND ROW_UNDO_MOD_CLUST_LOW
+#
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+--source include/count_sessions.inc
+
+# We want the pages released during ROLLBACK
+# to be reused by transaction doing INSERT.
+# It is easier if they operate on two different
+# tables (t1 and t2) as then we don't have to
+# worry them being serialized because of accessing
+# the index lock.
+# On the other hand, pages are reused within a TABLESPACE,
+# so we make sure both tables reside in the same one.
+CREATE TABLESPACE ts1;
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  make_big CHAR(200),
+  val LONGBLOB
+) TABLESPACE ts1;
+CREATE TABLE t2 (
+  id INT PRIMARY KEY,
+  make_big CHAR(200),
+  val LONGBLOB
+) TABLESPACE ts1;
+
+INSERT INTO t1 (id,val) VALUES (1,REPEAT('a',1000000));
+INSERT INTO t2 (id,val) VALUES (1,REPEAT('a',1000000));
+INSERT INTO t1 (id,val) VALUES (2,REPEAT('a',1000000));
+INSERT INTO t2 (id,val) VALUES (2,REPEAT('a',1000000));
+INSERT INTO t1 (id,val) VALUES (3,REPEAT('a',1000000));
+# Length of the following blob is chosen in such a way, that the
+# first page of the LOB which we will allocate by the following UPDATE t2
+# will be first page of an extent, and therefore, the rollback of the
+# UPDATE will free the extent and make it available for the following
+# INSERT INTO t1.
+INSERT INTO t2 (id,val) VALUES (3,REPEAT('a',523809));
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+  BEGIN;
+  UPDATE t2 SET val = REPEAT('b',10000) WHERE id=3;
+  SET DEBUG_SYNC=
+    'ib_blob_update_rollback_will_reserve
+    SIGNAL con1_will_reserve
+    WAIT_FOR con1_can_reserve';
+  --send ROLLBACK
+
+--connection default
+  SET DEBUG_SYNC='now WAIT_FOR con1_will_reserve';
+
+--connection con2
+  BEGIN;
+  --send INSERT INTO t1 (id,val) VALUES (4000,REPEAT('b',1000000))
+
+--connection default
+# I am sorry about this sleep. What we really wait for is a
+# call to buf_page_get_gen with page_no equal to the page
+# which was previously freed by the ROLLBACK of UPDATE.
+# It's not easy to hard code this, and there are multiple
+# calls to buf_page_get_gen() before it happens.
+  --sleep 1
+  SET DEBUG_SYNC='now SIGNAL con1_can_reserve';
+
+--connection con1
+  --reap
+
+--connection con2
+  --reap
+  ROLLBACK;
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts1;
+
+--source include/wait_until_count_sessions.inc

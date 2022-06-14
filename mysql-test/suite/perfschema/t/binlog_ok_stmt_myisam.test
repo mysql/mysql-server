@@ -1,0 +1,9 @@
+# Tests for PERFORMANCE_SCHEMA
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
+--source include/have_log_bin.inc
+
+set binlog_format=statement;
+
+--source ../include/binlog_ok_common_myisam.inc
+

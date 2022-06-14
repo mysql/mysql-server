@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_print_schema_file\fR
+.\"     Title: ndb_print_schema_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_PRINT_SCHEMA_FILE\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_SCHEMA_FILE" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ ndb_print_schema_file \fIfile_name\fR
 .PP
 \fIfile_name\fR
 is the name of a cluster schema file\&. For more information about cluster schema files, see
-\m[blue]\fBNDB Cluster Data Node File System Directory Files\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBNDB Cluster Data Node File System Directory\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 Like
 \fBndb_print_backup_file\fR
@@ -61,12 +61,13 @@ NDB
 utilities that are intended to be run on a management server host or to connect to a management server)
 \fBndb_print_schema_file\fR
 must be run on a cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
-Additional Options.PP
+Additional Options
+.PP
 None\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -76,7 +77,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-NDB Cluster Data Node File System Directory Files
+NDB Cluster Data Node File System Directory
 .RS 4
 \%https://dev.mysql.com/doc/ndb-internals/en/ndb-internals-ndbd-filesystemdir-files.html
 .RE

@@ -5,7 +5,7 @@
 #
 
 if (!$VALGRIND_TEST) {
-  --skip Need "--valgrind" 
+  --skip Need '--valgrind'
 }
 
 

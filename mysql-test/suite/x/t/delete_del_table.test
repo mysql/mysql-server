@@ -7,7 +7,7 @@
 create schema xtest;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/delete_del_table.tmp
+--write_file $MYSQL_TMP_DIR/delete_del_table.xpl
 ## Test data
 -->sql
 use xtest;
@@ -50,9 +50,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_table.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_table.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/delete_del_table.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

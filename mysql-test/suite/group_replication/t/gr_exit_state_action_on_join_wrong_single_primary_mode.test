@@ -84,7 +84,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 # Verify that the expected error occurred
 --let $assert_file = $error_file
 --let $assert_text = GR reported that it has an incompatible option with the group (as expected)
---let $assert_select = The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks must have the same value
+--let $assert_select = The member configuration is not compatible with the group configuration. Variables such as group_replication_single_primary_mode or group_replication_enforce_update_everywhere_checks must have the same value
 --let $assert_count = 1
 --source include/assert_grep.inc
 # Verify that member 2 didn't join the group
@@ -130,7 +130,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 
 --let $assert_file = $error_file
 --let $assert_text = GR reported that it has an incompatible option with the group (as expected)
---let $assert_select = The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks must have the same value
+--let $assert_select = The member configuration is not compatible with the group configuration. Variables such as group_replication_single_primary_mode or group_replication_enforce_update_everywhere_checks must have the same value
 --let $assert_count = 2
 --source include/assert_grep.inc
 

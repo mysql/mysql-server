@@ -1,0 +1,2 @@
+--disable-log-bin
+--disable-log-replica-updates

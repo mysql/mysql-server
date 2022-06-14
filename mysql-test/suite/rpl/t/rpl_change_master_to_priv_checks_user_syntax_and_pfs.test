@@ -1,0 +1,143 @@
+# ==== Purpose ====
+#
+# This script tests that setting `PRIVILEGE_CHECKS_USER` option on `CHANGE
+# MASTER TO ...` is accepted and how it impacts PFS tables.
+#
+# ==== Requirements ====
+#
+# R1. After `CHANGE MASTER TO ... PRIVILEGE_CHECKS_USER=...` with well formed
+#     user, column `privilege_checks_user` from table
+#     `performance_schema.replication_applier_configuration` should have an
+#     updated value equal to the value passed on to the `PRIVILEGE_CHECKS_USER`
+#     option.
+#
+# R2. After `RESET MASTER`, column `privilege_checks_user` from table
+#     `performance_schema.replication_applier_configuration` should have an
+#     updated value equal to `NULL`.
+#
+# ==== Implementation ====
+#
+# 1. Set `PRIVILEGE_CHECKS_USER` to `CURRENT_USER()` in the `CHANGE MASTER TO
+#    ...` and check that an error is thrown.
+# 2. Set `PRIVILEGE_CHECKS_USER` to a valid user in the first call to `CHANGE
+#    MASTER TO ...` and check that PFS table has the updated value.
+# 3. Use `CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL` to set the value to
+#    NULL and check that the PFS table has the updated value.
+# 4. Use `CHANGE MASTER TO PRIVILEGE_CHECKS_USER = ...` to set the value to
+#    a valid user and check that the PFS table has the updated value.
+# 5. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+#    `PRIVILEGE_CHECKS_USER`.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+
+--source include/have_binlog_format_row.inc
+
+# Procedure that checks if the PFS data regarding `PRIVILEGE_CHECKS_USER` is
+# updated in a given server.
+--write_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc PROCEDURE
+  if ($expected_user == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_user
+  }
+  --let $_expected_user = = "$expected_user"
+  if ($expected_user == NULL)
+  {
+    --let $_expected_user = is NULL
+  }
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User $_expected_user`
+  --let $assert_text = Privilege_checks_user column in performance_schema.replication_applier_configuration is set to $expected_user for server '$rpl_slave'
+  --let $assert_cond = 0 != $count
+  --source include/assert.inc
+  --echo check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to $expected_user for server '$rpl_slave']
+#END OF
+PROCEDURE
+
+# Procedure that sets the value of `PRIVILEGE_CHECKS_USER` to a value in the
+# given server and checks if the PFS data regarding `PRIVILEGE_CHECKS_USER` is
+# updated in the given server.
+--write_file $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc PROCEDURE
+  if ($expected_user == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_user
+  }
+  --source include/stop_slave.inc
+  --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $expected_user
+  --source include/start_slave.inc
+  --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+#END OF
+PROCEDURE
+
+# Procedure that resets the slave in the given server and checks if the PFS data
+# regarding `PRIVILEGE_CHECKS_USER` is updated in the given server.
+--write_file $MYSQLTEST_VARDIR/tmp/reset_and_check_pfs.inc PROCEDURE
+  if ($expected_user == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_user
+  }
+  --source include/stop_slave.inc
+  RESET SLAVE;
+  --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+  --source include/start_slave.inc
+#END OF
+PROCEDURE
+
+--let $applier_user = 'u1'@'localhost'
+
+#
+# 1. Set `PRIVILEGE_CHECKS_USER` to `CURRENT_USER()` in the `CHANGE MASTER TO
+#    ...` and check that an error is thrown.
+#
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = CURRENT_USER();
+
+#
+# 2. Set `PRIVILEGE_CHECKS_USER` to a valid user in the the first call to
+#    `CHANGE MASTER TO ...` and check that PFS table has the updated value.
+#
+--let $rpl_topology = 1->2, 1->3, 1->4
+--let $rpl_privilege_checks_user = *:$applier_user
+--source include/rpl_init.inc
+
+--let $expected_user = $applier_user
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+#
+# 3. Use `CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL` to set the value to
+#    NULL and check that the PFS table has the updated value.
+#
+--let $expected_user = NULL
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+#
+# 4. Use `CHANGE MASTER TO PRIVILEGE_CHECKS_USER = ...` to set the value to
+#    a valid user and check that the PFS table has the updated value.
+#
+--let $expected_user = $applier_user
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+#
+# 5. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+#    `PRIVILEGE_CHECKS_USER`.
+#
+--let $expected_user = $applier_user
+--let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/reset_and_check_pfs.inc
+--let $include_silent = 1
+--source include/rpl_for_each_connection.inc
+--let $include_silent = 0
+
+--remove_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/change_master_and_check_pfs.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/reset_and_check_pfs.inc
+--source include/rpl_end.inc

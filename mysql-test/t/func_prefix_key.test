@@ -50,8 +50,10 @@ EXPLAIN SELECT COUNT(*) FROM t1 WHERE b like 'abc%';
 SELECT COUNT(*) FROM t1 WHERE b like 'abc%';
 
 --echo # k4 index used since it's  covering.
-EXPLAIN SELECT COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
-SELECT COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
+ANALYZE TABLE t1;
+#Adding hint to stabilize the test
+EXPLAIN SELECT /*+ INDEX(t1 k4) */ COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
+SELECT /*+ INDEX(t1 k4) */ COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
 
 --echo # k3 index is used since it's shorters key.
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE b like 'ab%';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class THD;
 /**
   Merges buffers to make < MERGEBUFF2 buffers.
 
-  @param thd
+  @param thd          thread context
   @param param        Sort parameters.
   @param sort_buffer  The main memory buffer.
   @param chunk_array  Array of chunk descriptors to merge.
@@ -51,24 +51,24 @@ bool merge_many_buff(THD *thd, Merge_param *param, Sort_buffer sort_buffer,
                      Merge_chunk_array chunk_array, size_t *p_num_chunks,
                      IO_CACHE *t_file) {
   IO_CACHE t_file2;
-  DBUG_ENTER("merge_many_buff");
+  DBUG_TRACE;
 
   size_t num_chunks = chunk_array.size();
   *p_num_chunks = num_chunks;
 
-  if (num_chunks <= MERGEBUFF2) DBUG_RETURN(false); /* purecov: inspected */
+  if (num_chunks <= MERGEBUFF2) return false; /* purecov: inspected */
 
   if (flush_io_cache(t_file) ||
       open_cached_file(&t_file2, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   IO_CACHE *from_file = t_file;
   IO_CACHE *to_file = &t_file2;
 
   while (num_chunks > MERGEBUFF2) {
-    if (reinit_io_cache(from_file, READ_CACHE, 0L, 0, 0)) goto cleanup;
-    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, 0, 0)) goto cleanup;
+    if (reinit_io_cache(from_file, READ_CACHE, 0L, false, false)) goto cleanup;
+    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false)) goto cleanup;
     Merge_chunk *last_chunk = chunk_array.begin();
     uint i;
     for (i = 0; i < num_chunks - MERGEBUFF * 3U / 2U; i += MERGEBUFF) {
@@ -97,7 +97,7 @@ cleanup:
   }
 
   *p_num_chunks = num_chunks;
-  DBUG_RETURN(num_chunks > MERGEBUFF2); /* Return true if interrupted */
+  return num_chunks > MERGEBUFF2; /* Return true if interrupted */
 } /* merge_many_buff */
 
 #endif  // MERGE_MANY_BUFF_INCLUDED

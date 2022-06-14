@@ -30,7 +30,6 @@ let $mysqld_name=mysqld.2.1;
 --source include/restart_mysqld.inc
 
 connection server1;
-
 SHOW CREATE TABLE t1;
 --sorted_result
 SELECT * FROM t1;
@@ -59,5 +58,49 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-let NDB_RESTORE=;
+# Test upgrade of the metadata during automatic sync
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT
+
+--disable_query_log
+# Set low interval so changes are detected quickly
+SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = true;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_check_interval = 0;
+--enable_query_log
+
+# Wait until the following 1 object change is detected:
+# Table 'test.t1'
+--let $expected_changes = 1
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+--disable_query_log
+# Changes have been detected, reset values
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+--enable_query_log
+
+# Wait until the changes detected have been synced
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+--sorted_result
+SELECT * FROM t1;
+
+ALTER TABLE t1 DROP COLUMN b;
+
+INSERT INTO t1 values (4),(5);
+--sorted_result
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
 --remove_file $NDB_TOOLS_OUTPUT

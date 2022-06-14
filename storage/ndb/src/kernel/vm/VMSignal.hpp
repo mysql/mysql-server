@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ struct SectionHandle
   Uint32 m_cnt;
   SegmentedSectionPtr m_ptr[3];
 
-  bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
+  [[nodiscard]] bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
   void clear() { m_cnt = 0;}
 
   SimulatedBlock* m_block;
@@ -81,8 +81,14 @@ template <unsigned T> struct SignalT
     Uint32 theData[T];
     Uint64 dummyAlign;
   };
-  Uint32 m_extra_signals;
+
+  Uint32 getLength() const { return header.theLength; }
+  Uint32 getTrace() const { return header.theTrace; }
+  Uint32* getDataPtrSend() { return &theData[0]; }
+  Uint32 getNoOfSections() const { return header.m_noOfSections; }
 };
+
+typedef SignalT<25> Signal25;
 
 /**
  * class used for passing argumentes to blocks
@@ -92,7 +98,6 @@ class Signal {
   friend class APZJobBuffer;
   friend class FastScheduler;
 public:
-  Signal(int); // for placement new
   Signal();
   
   Uint32 getLength() const;
@@ -116,12 +121,6 @@ public:
   void setLength(Uint32);
   
 public:
-#define VMS_DATA_SIZE \
-  (MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS + MAX_KEY_SIZE_IN_WORDS)
-
-#if VMS_DATA_SIZE > 8192
-#error "VMSignal buffer is too small"
-#endif
 
   Uint32 m_sectionPtrI[3];
   SignalHeader header; // 28 bytes

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,17 @@
 
 struct LocalRouteOrd
 {
-  STATIC_CONST( StaticLen = 3 );
+  static constexpr Uint32 StaticLen = 3;
+  /**
+   * Paths (2 words each) and destinations (1 word each) must
+   * fit in the signal body.  Assuming min of 1 path, can
+   * have absolute max of 20 destinations.
+   * Assuming min of 1 dst, can have absolute max path len
+   * of 10.
+   * Actual maxima depend on mix.
+   */
+  static constexpr Uint32 MaxDstCount = (25 - (StaticLen + 2));
+  static constexpr Uint32 MaxPathLen = ((25 - (StaticLen + 1)) / 2);
 
   Uint32 cnt; // 16-bit path, 16-bit destination
   Uint32 gsn; // Final gsn

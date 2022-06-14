@@ -1,0 +1,131 @@
+# ==== Purpose ====
+#
+# Test that a unsafe DML or DDL statements reading ACL tables
+# are correctly logged with BINLOG_FORMAT=MIXED
+#
+# ==== Requirements ====
+#
+# R1. If a statement reads ACL table in a DML or a DDL in 
+#     BINLOG_FORMAT=MIXED, the statements are marked unsafe and
+#     the statement is logged using ROW format in all isolation levels.
+#
+# R2. Test R1 with all the ACL tables.
+#
+# ==== Implementation ====
+#
+# Test executing DML and DLL which reads ACL tables
+# and verify that they are logged in the row format.
+#
+# ==== References ====
+#
+# WL#14087: Avoid locking reads from ACL tables
+#
+
+--source include/have_binlog_format_mixed.inc
+
+RESET MASTER;
+
+--echo # Populate ACL tbales that has no rows.
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (33);
+DELIMITER //;
+CREATE PROCEDURE proc1() BEGIN SELECT * FROM t1; END //
+CREATE FUNCTION func1 () RETURNS INTEGER
+BEGIN
+  DECLARE HostVar VARCHAR(400);
+  SELECT Host INTO HostVar FROM mysql.user WHERE User='u2';
+  RETURN 1;
+END //
+DELIMITER ;//
+
+# mysql.password_history
+CREATE USER u1 PASSWORD HISTORY 3;
+CREATE USER u2 PASSWORD HISTORY 3;
+
+# mysql.role_edges
+GRANT u2 TO u1;
+
+# mysql.default_roles
+SET DEFAULT ROLE u2 TO u1;
+
+# mysql.column_priv
+GRANT SELECT (f1) ON test.t1 TO u1;
+
+# mysql.procs_priv
+GRANT EXECUTE ON PROCEDURE test.proc1 TO u1;
+
+# save current setting of sql_mode
+SET @old_sql_mode := @@sql_mode ;
+
+# Derive a new value by removing NO_ZERO_DATE and NO_ZERO_IN_DATE.
+# This is required to test INSERT ... SELECT after CREATE ... SELECT.
+SET @new_sql_mode := @old_sql_mode ;
+SET @new_sql_mode := TRIM(BOTH ',' FROM
+                          REPLACE(CONCAT(',',@new_sql_mode,','),',NO_ZERO_DATE,'
+                                  ,','));
+SET @new_sql_mode := TRIM(BOTH ',' FROM
+                          REPLACE(CONCAT(',',@new_sql_mode,','),',NO_ZERO_IN_DATE,',','));
+SET @@sql_mode := @new_sql_mode ;
+
+
+# Repeat test for all isolation level.
+--let $isolation_levels='SERIALIZABLE,REPEATABLE READ,READ COMMITTED,READ UNCOMMITTED'
+--let $i=1
+while($i <= 4)
+{
+  let isolation_level = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($isolation_levels,',',$i),',',-1)`;
+  echo "Case 1.$i: Using $isolation_level";
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+
+  # Repeat the test for each ACL table.
+  --let $acl_tables='mysql.user, mysql.db, mysql.tables_priv, mysql.columns_priv, mysql.procs_priv, mysql.proxies_priv, mysql.role_edges, mysql.default_roles, mysql.global_grants, mysql.password_history'
+
+  --let $t=1
+  while($t <= 9)
+  {
+    let acl_table = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($acl_tables,',',$t),',',-1)`;
+    --echo "Test using $acl_table"
+    let tmp_table_name= `SELECT REPLACE('$acl_table','.','_')`;
+
+    --source include/save_binlog_position.inc
+    eval CREATE TABLE $tmp_table_name AS SELECT * FROM $acl_table;
+    --let $event_sequence = !Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid
+    --source include/assert_binlog_events.inc
+    eval DELETE FROM $tmp_table_name;
+
+    --source include/save_binlog_position.inc
+    eval INSERT INTO $tmp_table_name SELECT * FROM $acl_table;
+    --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
+    --source include/assert_binlog_events.inc
+    eval DROP TABLE $tmp_table_name;
+
+    eval CREATE TABLE tmp (f1 INT);
+    eval INSERT INTO tmp VALUES (10);
+
+    --source include/save_binlog_position.inc
+    eval UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM $acl_table);
+    --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Update_rows # Xid
+    --source include/assert_binlog_events.inc
+
+    --source include/save_binlog_position.inc
+    eval UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+    --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Update_rows # Xid
+    --source include/assert_binlog_events.inc
+
+    --source include/save_binlog_position.inc
+    eval DELETE FROM tmp WHERE EXISTS (SELECT * FROM $acl_table);
+    --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid
+    --source include/assert_binlog_events.inc
+    DROP TABLE tmp;
+
+    --inc $t
+  }
+  --inc $i
+}
+
+DROP PROCEDURE proc1;
+DROP FUNCTION func1;
+DROP USER u1;
+DROP USER u2;
+DROP TABLE t1;
+SET @@sql_mode := @old_sql_mode ;

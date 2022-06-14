@@ -1,20 +1,20 @@
 SET @start_global_value = @@global.gtid_executed_compression_period;
 SELECT @start_global_value;
 @start_global_value
-1000
+0
 #
 # It exists as a global variable
 #
 SELECT @@GLOBAL.gtid_executed_compression_period;
 @@GLOBAL.gtid_executed_compression_period
-1000
+0
 SHOW GLOBAL VARIABLES LIKE 'gtid_executed_compression_period';
 Variable_name	Value
-gtid_executed_compression_period	1000
+gtid_executed_compression_period	0
 SELECT * FROM performance_schema.global_variables WHERE
 VARIABLE_NAME = 'gtid_executed_compression_period';
 VARIABLE_NAME	VARIABLE_VALUE
-gtid_executed_compression_period	1000
+gtid_executed_compression_period	0
 #
 # It is not a session variable
 #
@@ -24,14 +24,14 @@ SET SESSION gtid_executed_compression_period= 2;
 ERROR HY000: Variable 'gtid_executed_compression_period' is a GLOBAL variable and should be set with SET GLOBAL
 SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
 Variable_name	Value
-gtid_executed_compression_period	1000
+gtid_executed_compression_period	0
 SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
 Variable_name	Value
-gtid_executed_compression_period	1000
+gtid_executed_compression_period	0
 SELECT * FROM performance_schema.session_variables WHERE
 VARIABLE_NAME ='gtid_executed_compression_period';
 VARIABLE_NAME	VARIABLE_VALUE
-gtid_executed_compression_period	1000
+gtid_executed_compression_period	0
 #
 # Verify that it's writable
 #
@@ -71,4 +71,4 @@ ERROR 42000: Incorrect argument type to variable 'gtid_executed_compression_peri
 SET @@global.gtid_executed_compression_period= @start_global_value;
 SELECT @@global.gtid_executed_compression_period;
 @@global.gtid_executed_compression_period
-1000
+0

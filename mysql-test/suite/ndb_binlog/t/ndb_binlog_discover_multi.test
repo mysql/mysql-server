@@ -32,9 +32,8 @@ call mtr.add_suppression("mysqld startup An incident event has been written");
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
 wait
 EOF
-# Send shutdown to the connected server and give
-# it 30 seconds to die before zapping it.
-shutdown_server 30;
+# Send shutdown to the connected server
+--shutdown_server
 # Wait until server is down.
 --source include/wait_until_disconnected.inc
 

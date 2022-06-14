@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 */
 
 #ifndef _RPC_H
-#define _RPC_H	1
+#define _RPC_H 1
 
 /* definitions needed for i18n */
 #if defined(_WIN32)
@@ -36,4 +36,3 @@
 #include <rpc/xdr.h>
 
 #endif
-

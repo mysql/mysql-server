@@ -1,0 +1,21 @@
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.error_log
+  ADD COLUMN foo INTEGER;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.error_log;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.error_log ADD INDEX test_index(KEY_ID);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.error_log(KEY_ID);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.error_log;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.error_log;
+
+DROP TABLE test.create_select;

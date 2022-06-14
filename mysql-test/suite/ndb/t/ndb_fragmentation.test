@@ -39,7 +39,7 @@ CREATE TABLE t02 (x int primary key, y int, unique key (y)) engine=ndb
 let $ndb_desc_opts= -i -d test t02;
 source suite/ndb/include/ndb_desc_print.inc;
 
---error 1846
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t02 ALGORITHM=INPLACE, ADD PARTITION (partition p4 values in (4));
 show warnings;
 
@@ -54,11 +54,11 @@ CREATE TABLE t03 (x int primary key) engine=ndb;
 let $ndb_desc_opts= -d test t03;
 source suite/ndb/include/ndb_desc_print.inc;
 
---error 1845
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t03 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
 show warnings;
 
---error 1846
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t03 ALGORITHM=INPLACE, COALESCE PARTITION 2;
 show warnings;
 
@@ -74,11 +74,11 @@ CREATE TABLE t05 (x int primary key, y blob) engine=ndb;
 let $ndb_desc_opts= -b -d test t05;
 source suite/ndb/include/ndb_desc_print.inc;
 
---error 1845
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t05 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
 show warnings;
 
---error 1846
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t05 ALGORITHM=INPLACE, COALESCE PARTITION 2;
 show warnings;
 
@@ -91,11 +91,11 @@ CREATE TABLE t07 (x int primary key, y int, unique key (y)) engine=ndb;
 let $ndb_desc_opts= -i -d test t07;
 source suite/ndb/include/ndb_desc_print.inc;
 
---error 1845
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t07 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
 show warnings;
 
---error 1846
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t07 ALGORITHM=INPLACE, COALESCE PARTITION 2;
 show warnings;
 
@@ -113,7 +113,7 @@ CREATE TABLE t11 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
 let $ndb_desc_opts= -b -i -d test t11;
 source suite/ndb/include/ndb_desc_print.inc;
 
-exec $NDB_MGM --verbose=0 -e"create nodegroup 5,6";
+exec $NDB_MGM -e"create nodegroup 5,6";
 
 set global ndb_fully_replicated=0; # FR fails user defined partitioning
 

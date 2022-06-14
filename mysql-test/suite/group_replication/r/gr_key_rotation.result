@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 set sql_log_bin=0;
 set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SET @@global.keyring_file_data='MYSQL_TMP_DIR/keyring_server1/keyring_server1';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
@@ -26,7 +26,7 @@ INSERT INTO t2 VALUEs(2,2);
 set sql_log_bin=0;
 set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SET @@global.keyring_file_data='MYSQL_TMP_DIR/keyring_server2/keyring_server2';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
@@ -46,9 +46,9 @@ UNINSTALL PLUGIN keyring_file;
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 INSERT INTO t1 VALUES(7,'seventh');
 CREATE TABLE t3(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 [connection server1]
 CREATE TABLE t3(c1 INT PRIMARY KEY) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t3 VALUES(1);

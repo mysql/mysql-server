@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   TuxMaintReq* const sig = (TuxMaintReq*)signal->getDataPtrSend();
   // ignore requests from redo log
   IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, sig->indexId);
+  ndbrequire(c_indexPool.getPtr(indexPtr, sig->indexId));
 
   if (unlikely(! (indexPtr.p->m_state == Index::Online ||
                   indexPtr.p->m_state == Index::Building)))
@@ -48,15 +48,15 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       TupLoc tupLoc(sig->pageId, sig->pageIndex);
-      debugOut << "opInfo=" << hex << sig->opInfo;
-      debugOut << " tableId=" << dec << sig->tableId;
-      debugOut << " indexId=" << dec << sig->indexId;
-      debugOut << " fragId=" << dec << sig->fragId;
-      debugOut << " tupLoc=" << tupLoc;
-      debugOut << " tupVersion=" << dec << sig->tupVersion;
-      debugOut << " -- ignored at ISP=" << dec << c_internalStartPhase;
-      debugOut << " TOS=" << dec << c_typeOfStart;
-      debugOut << endl;
+      tuxDebugOut << "opInfo=" << hex << sig->opInfo;
+      tuxDebugOut << " tableId=" << dec << sig->tableId;
+      tuxDebugOut << " indexId=" << dec << sig->indexId;
+      tuxDebugOut << " fragId=" << dec << sig->fragId;
+      tuxDebugOut << " tupLoc=" << tupLoc;
+      tuxDebugOut << " tupVersion=" << dec << sig->tupVersion;
+      tuxDebugOut << " -- ignored at ISP=" << dec << c_internalStartPhase;
+      tuxDebugOut << " TOS=" << dec << c_typeOfStart;
+      tuxDebugOut << endl;
     }
 #endif
     sig->errorCode = 0;
@@ -103,13 +103,13 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     const Uint32 opFlag = req->opInfo >> 8;
-    debugOut << "opCode=" << dec << opCode;
-    debugOut << " opFlag=" << dec << opFlag;
-    debugOut << " tableId=" << dec << req->tableId;
-    debugOut << " indexId=" << dec << req->indexId;
-    debugOut << " fragId=" << dec << req->fragId;
-    debugOut << " entry=" << ent;
-    debugOut << endl;
+    tuxDebugOut << "opCode=" << dec << opCode;
+    tuxDebugOut << " opFlag=" << dec << opFlag;
+    tuxDebugOut << " tableId=" << dec << req->tableId;
+    tuxDebugOut << " indexId=" << dec << req->indexId;
+    tuxDebugOut << " fragId=" << dec << req->fragId;
+    tuxDebugOut << " entry=" << ent;
+    tuxDebugOut << endl;
   }
 #endif
   // do the operation
@@ -127,10 +127,10 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint)
     {
-      debugOut << treePos << (! ok ? " - error" : "") << endl;
+      tuxDebugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
-    if (! ok)
+    if (unlikely(! ok))
     {
       jam();
       // there is no "Building" state so this will have to do
@@ -173,10 +173,10 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint)
     {
-      debugOut << treePos << (! ok ? " - error" : "") << endl;
+      tuxDebugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
-    if (! ok)
+    if (unlikely(! ok))
     {
       jam();
       // there is no "Building" state so this will have to do
@@ -199,7 +199,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
   if (debugFlags & DebugTree)
   {
-    printTree(signal, frag, debugOut);
+    printTree(signal, frag, tuxDebugOut);
   }
 #endif
   // copy back

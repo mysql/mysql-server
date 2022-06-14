@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,15 +59,15 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( StaticLength = 11 );
-  STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
+  static constexpr Uint32 StaticLength = 11;
+  static constexpr Uint32 MaxTotalAttrInfo = 0xFFFF;
 
   /**
    * Long section nums
    */
-  STATIC_CONST( ReceiverIdSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );    /* Long SCANTABREQ only */
-  STATIC_CONST( KeyInfoSectionNum = 2 );     /* Long SCANTABREQ only */
+  static constexpr Uint32 ReceiverIdSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;    /* Long SCANTABREQ only */
+  static constexpr Uint32 KeyInfoSectionNum = 2;     /* Long SCANTABREQ only */
 
 private:
 
@@ -116,7 +116,7 @@ private:
   static UintR getNoDiskFlag(const UintR & requestInfo);
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
-  static Uint32 get4WordConf(const Uint32&);
+  static Uint32 getExtendedConf(const Uint32&);
   static Uint8 getReadCommittedBaseFlag(const UintR & requestInfo);
   static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
 
@@ -137,7 +137,7 @@ private:
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
-  static void set4WordConf(Uint32 & requestInfo, Uint32 val);
+  static void setExtendedConf(Uint32 & requestInfo, Uint32 val);
   static void setReadCommittedBaseFlag(Uint32 & requestInfo, Uint32 val);
   static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
 };
@@ -149,10 +149,6 @@ private:
                                         Note: these bits are ignored since
                                         7.0.34, 7.1.23, 7.2.7 and should be
                                         zero-filled until future reuse.
-                                        For signal sent to old nodes they
-                                        should be filled in.
-                                        Check version with
-                                        ndbd_scan_tabreq_implicit_parallelism().
  l = Lock mode             - 1  Bit 8
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
@@ -212,7 +208,7 @@ private:
 
 #define SCAN_SPJ_SHIFT (27)
 #define SCAN_PASS_CONF_SHIFT (28)
-#define SCAN_4WORD_CONF_SHIFT (29)
+#define SCAN_EXTENDED_CONF_SHIFT (29)
 #define SCAN_READ_COMMITTED_BASE_SHIFT (30)
 #define SCAN_MULTI_FRAG_SHIFT (31)
 
@@ -418,15 +414,15 @@ ScanTabReq::setPassAllConfsFlag(UintR & requestInfo, Uint32 flag){
 
 inline
 UintR
-ScanTabReq::get4WordConf(const UintR & requestInfo){
-  return (requestInfo >> SCAN_4WORD_CONF_SHIFT) & 1;
+ScanTabReq::getExtendedConf(const UintR & requestInfo){
+  return (requestInfo >> SCAN_EXTENDED_CONF_SHIFT) & 1;
 }
 
 inline
 void
-ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
-  requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+ScanTabReq::setExtendedConf(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setExtendedConf");
+  requestInfo |= (flag << SCAN_EXTENDED_CONF_SHIFT);
 }
 
 /**
@@ -472,8 +468,8 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( EndOfData = (1 << 31) );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 EndOfData = (1 << 31);
   
 private:
 
@@ -548,7 +544,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
 
@@ -606,12 +602,12 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   /**
    * Section carrying receiverIds if num receivers > 21
    */
-  STATIC_CONST( ReceiverIdsSectionNum = 0);
+  static constexpr Uint32 ReceiverIdsSectionNum = 0;
 
 private:
 

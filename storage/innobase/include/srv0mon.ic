@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -27,14 +27,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file include/srv0mon.ic
  Server monitoring system
 
- Created 1/20/2010	Jimmy Yang
+ Created 1/20/2010      Jimmy Yang
  ************************************************************************/
 
 /** This function is used to calculate the maximum counter value
  since the start of monitor counter
  @return max counter value since start. */
-UNIV_INLINE
-mon_type_t srv_mon_calc_max_since_start(
+static inline mon_type_t srv_mon_calc_max_since_start(
     monitor_id_t monitor) /*!< in: monitor id */
 {
   if (MONITOR_MAX_VALUE_START(monitor) == MAX_RESERVED) {
@@ -60,8 +59,7 @@ mon_type_t srv_mon_calc_max_since_start(
 /** This function is used to calculate the minimum counter value
  since the start of monitor counter
  @return min counter value since start. */
-UNIV_INLINE
-mon_type_t srv_mon_calc_min_since_start(
+static inline mon_type_t srv_mon_calc_min_since_start(
     monitor_id_t monitor) /*!< in: monitor id */
 {
   if (MONITOR_MIN_VALUE_START(monitor) == MIN_RESERVED) {
@@ -85,8 +83,8 @@ mon_type_t srv_mon_calc_min_since_start(
 }
 
 /** This function resets all values of a monitor counter */
-UNIV_INLINE
-void srv_mon_reset_all(monitor_id_t monitor) /*!< in: monitor id */
+static inline void srv_mon_reset_all(
+    monitor_id_t monitor) /*!< in: monitor id */
 {
   /* Do not reset all counter values if monitor is still on. */
   if (MONITOR_IS_ON(monitor)) {

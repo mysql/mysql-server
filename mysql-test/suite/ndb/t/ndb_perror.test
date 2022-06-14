@@ -5,8 +5,6 @@
 # lookup the textual description for various error
 # codes returned from NDB and the mgmapi
 #
-# Find ndb_perror
---source suite/ndb/include/ndb_find_ndb_perror.inc
 
 --echo #
 --echo # 1) Should print error number and error description

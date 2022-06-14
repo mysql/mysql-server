@@ -48,7 +48,7 @@ where name like "wait/synch/mutex/sql/LOCK_crypt";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_slave_list";
+where name like "wait/synch/mutex/sql/LOCK_replica_list";
 count(name)
 1
 select count(name) from mutex_instances
@@ -104,7 +104,7 @@ where name like "wait/synch/rwlock/sql/LOCK_sys_init_connect";
 count(name)
 1
 select count(name) from rwlock_instances
-where name like "wait/synch/rwlock/sql/LOCK_sys_init_slave";
+where name like "wait/synch/rwlock/sql/LOCK_sys_init_replica";
 count(name)
 1
 select count(name) from rwlock_instances

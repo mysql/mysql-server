@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,15 @@
 
 #include "sql/sql_thd_internal_api.h"
 
+#include <algorithm>
+
 #include "my_config.h"
 
 #include <fcntl.h>
 #include <string.h>
 
 #include "m_string.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "pfs_thread_provider.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -41,6 +43,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/thread_type.h"
@@ -61,9 +64,55 @@
 struct mysql_cond_t;
 struct mysql_mutex_t;
 
-void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
-              PSI_thread_key psi_key MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("thd_init");
+THD *create_internal_thd() {
+  /* For internal threads, use enabled_plugins = false. */
+  THD *thd = new THD(false);
+  thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  // Skip grants and set the system_user flag in THD.
+  thd->security_context()->skip_grants();
+  thd->thread_stack = reinterpret_cast<char *>(&thd);
+  thd->store_globals();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(get_thread)();
+  if (psi != nullptr) {
+    /*
+      Associate this THD to the background thread instrumentation,
+      so that system variables and status variables
+      are visible for the background thread.
+    */
+    PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+    thd->set_psi(psi);
+  }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  return thd;
+}
+
+void destroy_internal_thd(THD *thd) {
+  assert(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(get_thread)();
+  if (psi != nullptr) {
+    /*
+      Dissociate this THD from the background thread instrumentation.
+    */
+    PSI_THREAD_CALL(set_thread_THD)(psi, nullptr);
+    thd->set_psi(nullptr);
+  }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  thd->release_resources();
+  delete thd;
+}
+
+void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
+              PSI_thread_key psi_key [[maybe_unused]],
+              unsigned int psi_seqnum [[maybe_unused]]) {
+  DBUG_TRACE;
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as
   // foreground threads. And THDs need thread_id != 0 to be added
@@ -75,7 +124,7 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
   }
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_thread *psi;
-  psi = PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
+  psi = PSI_THREAD_CALL(new_thread)(psi_key, psi_seqnum, thd, thd->thread_id());
   if (bound) {
     PSI_THREAD_CALL(set_thread_os_id)(psi);
   }
@@ -92,23 +141,28 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
   thd_set_thread_stack(thd, stack_start);
 
   thd->store_globals();
-  DBUG_VOID_RETURN;
 }
 
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
-                PSI_thread_key psi_key) {
+                PSI_thread_key psi_key, unsigned int psi_seqnum) {
   THD *thd = new THD(enable_plugins);
   if (background_thread) {
     thd->system_thread = SYSTEM_THREAD_BACKGROUND;
     // Skip grants and set the system_user flag in THD.
     thd->security_context()->skip_grants();
   }
-  (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key);
+  (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key,
+                 psi_seqnum);
   return thd;
 }
 
 void destroy_thd(THD *thd) {
   thd->release_resources();
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+  thd->set_psi(nullptr);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
   // TODO: Purge threads currently terminate too late for them to be added.
   if (thd->system_thread != SYSTEM_THREAD_BACKGROUND) {
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
@@ -164,15 +218,15 @@ extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
 
 void thd_increment_bytes_sent(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) { /* current_thd==NULL when close_connection() calls
-                                net_send_error() */
+  if (likely(thd != nullptr)) { /* current_thd==NULL when close_connection()
+                                calls net_send_error() */
     thd->status_var.bytes_sent += length;
   }
 }
 
 void thd_increment_bytes_received(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) thd->status_var.bytes_received += length;
+  if (likely(thd != nullptr)) thd->status_var.bytes_received += length;
 }
 
 partition_info *thd_get_work_part_info(THD *thd) { return thd->work_part_info; }
@@ -184,14 +238,14 @@ enum_tx_isolation thd_get_trx_isolation(const THD *thd) {
 const CHARSET_INFO *thd_charset(THD *thd) { return (thd->charset()); }
 
 LEX_CSTRING thd_query_unsafe(THD *thd) {
-  DBUG_ASSERT(current_thd == thd);
+  assert(current_thd == thd);
   return thd->query();
 }
 
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen) {
   mysql_mutex_lock(&thd->LOCK_thd_query);
   LEX_CSTRING query_string = thd->query();
-  size_t len = MY_MIN(buflen - 1, query_string.length);
+  size_t len = std::min(buflen - 1, query_string.length);
   if (len > 0) strncpy(buf, query_string.str, len);
   buf[len] = '\0';
   mysql_mutex_unlock(&thd->LOCK_thd_query);
@@ -223,7 +277,7 @@ bool thd_sqlcom_can_generate_row_events(const THD *thd) {
 enum durability_properties thd_get_durability_property(const THD *thd) {
   enum durability_properties ret = HA_REGULAR_DURABILITY;
 
-  if (thd != NULL) ret = thd->durability_property;
+  if (thd != nullptr) ret = thd->durability_property;
 
   return ret;
 }
@@ -233,12 +287,30 @@ void thd_get_autoinc(const THD *thd, ulong *off, ulong *inc) {
   *inc = thd->variables.auto_increment_increment;
 }
 
+size_t thd_get_tmp_table_size(const THD *thd) {
+  // We are intentionally narrowing the unsigned long long int (type of
+  // thd->variables.tmp_table_size) to size_t here. Issue with the former is
+  // that it represents more memory than one can address, in particular this is
+  // the case with 32-bit builds because unsigned long long int is guaranteed
+  // to be _at least_ 64 bits wide. That is much larger than the available
+  // address space.
+  //
+  // Given that tmp_table_size sysvar is about limiting the consumed (virtual)
+  // memory, size_t is the type which actually only makes sense to use here as
+  // it represents exactly the theoretical maximum sized object
+  if (thd->variables.tmp_table_size < std::numeric_limits<size_t>::max()) {
+    return thd->variables.tmp_table_size;
+  } else {
+    return std::numeric_limits<size_t>::max();
+  }
+}
+
 bool thd_is_strict_mode(const THD *thd) { return thd->is_strict_mode(); }
 
 bool thd_is_error(const THD *thd) { return thd->is_error(); }
 
 bool is_mysql_datadir_path(const char *path) {
-  if (path == NULL || strlen(path) >= FN_REFLEN) return false;
+  if (path == nullptr || strlen(path) >= FN_REFLEN) return false;
 
   char mysql_data_dir[FN_REFLEN], path_dir[FN_REFLEN];
   convert_dirname(path_dir, path, NullS);
@@ -257,26 +329,27 @@ bool is_mysql_datadir_path(const char *path) {
 }
 
 int mysql_tmpfile_path(const char *path, const char *prefix) {
-  DBUG_ASSERT(path != NULL);
-  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+  assert(path != nullptr);
+  assert((strlen(path) + strlen(prefix)) <= FN_REFLEN);
 
   char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, path, prefix,
+  int mode = O_CREAT | O_EXCL | O_RDWR;
 #ifdef _WIN32
-                             O_TRUNC | O_SEQUENTIAL |
-#endif /* _WIN32 */
-                                 O_CREAT | O_EXCL | O_RDWR,
-                             UNLINK_FILE, MYF(MY_WME));
+  mode |= O_TRUNC | O_SEQUENTIAL;
+#endif
+  File fd = mysql_file_create_temp(PSI_NOT_INSTRUMENTED, filename, path, prefix,
+                                   mode, UNLINK_FILE, MYF(MY_WME));
   return fd;
 }
 
 bool thd_is_bootstrap_thread(THD *thd) {
-  DBUG_ASSERT(thd);
-  return thd->is_bootstrap_system_thread();
+  assert(thd);
+  return (thd->is_bootstrap_system_thread() &&
+          !thd->is_init_file_system_thread());
 }
 
 bool thd_is_dd_update_stmt(const THD *thd) {
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   /*
     OPTION_DD_UPDATE_CONTEXT flag is set when thread switches context to

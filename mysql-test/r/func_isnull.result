@@ -101,7 +101,7 @@ pk	pk	col_int_key	col_date_key
 EXPLAIN select * from t3, t1 where t1.col_date_key is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where true
 select * from t3, t1 where t1.col_date_key is not null;
@@ -113,7 +113,7 @@ pk	pk	col_int_key	col_date_key
 EXPLAIN select * from t3, t1 where not (t1.col_date_key is null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where true
 select * from t3, t1 where not (t1.col_date_key is null);
@@ -130,3 +130,17 @@ Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk
 select * from t3, t1 where (t1.col_date_key is null) is true;
 pk	pk	col_int_key	col_date_key
 DROP TABLE t1,t2,t3;
+#
+# Bug #32171239: HYPERGRAPH: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED.
+#
+CREATE TABLE t1 (a INTEGER NOT NULL);
+SELECT 1 FROM t1 WHERE (a IS NULL) XOR (RAND() > 2.0);
+1
+DROP TABLE t1;
+#
+# Bug#32231698: SETUP_FIELDS: ASSERTION `!THD->IS_ERROR()' FAILED
+#
+DO AVG((SELECT POINT(@x, POINT(115, 219)) IS NULL));
+ERROR HY000: Incorrect arguments to point
+DO AVG((SELECT POINT(@x, POINT(115, 219)) IS NULL)) OVER ();
+ERROR HY000: Incorrect arguments to point

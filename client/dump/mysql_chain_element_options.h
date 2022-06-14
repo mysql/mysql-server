@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,10 @@ namespace Dump {
 class Mysql_chain_element_options
     : public Mysql::Tools::Base::Options::Abstract_options_provider {
  public:
-  Mysql_chain_element_options(
+  explicit Mysql_chain_element_options(
       Mysql::Tools::Base::Abstract_connection_program *program);
 
-  void create_options();
+  void create_options() override;
 
   Mysql::Tools::Base::Abstract_connection_program *get_program() const;
 

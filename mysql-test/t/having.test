@@ -131,7 +131,9 @@ drop table t1,t2,t3;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (3), (4), (1), (3), (1);
 
+--sorted_result
 SELECT SUM(a) FROM t1 GROUP BY a HAVING SUM(a)>0;
+--sorted_result
 SELECT SUM(a) FROM t1 GROUP BY a HAVING SUM(a);
 
 DROP TABLE t1;
@@ -211,20 +213,30 @@ select count(*) as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
 select count(*) from t1 group by col2 having col2 = 'hello';
 --error 1054
 select count(*) from t1 group by col2 having col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by col1 having count_col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by count_col1 having col1 = 10;
+--sorted_result
 # ANSI: should return SQLSTATE 42000 Syntax error or access violation 
 # MySQL: returns 10 - because of GROUP BY name resolution
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by count_col1 having count_col1 = 10;
 # ANSI: should return SQLSTATE 42000 Syntax error or access violation 
 # MySQL: returns 10 - because of GROUP BY name resolution
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
+--sorted_result
 select col1 as count_col1,col2 as group_col2 from t1 as tmp1 group by col1,col2 having group_col2 = 'hello';
 --error 1064
 select sum(col1) as co12 from t1 group by col2 having col2 10; 
+--sorted_result
 select sum(col1) as co2, count(col2) as cc from t1 group by col1 having col1 =10; 
 --error 1054
 select t2.col2 from t2 group by t2.col1, t2.col2 having t1.col1 <= 10;
@@ -739,18 +751,23 @@ ANALYZE TABLE t1;
 # Print starting point, for debugging
 SELECT * FROM series, seq_calls;
 
+# NOTE: This currently gives the wrong result, because HAVING
+# and send() both evaluate next_seq_value() instead
+# of sharing the result between them. See the comment in
+# JOIN::create_access_path_for_join() for more details.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
        GROUP BY t HAVING r = 1  ORDER BY t1.u;
 
 # Statement with select distinct so reference to functions in having will
 # result in re-execution of functions.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 
-# NOTE: This currently gives the wrong result, because HAVING
-# and the materialization both evaluate next_seq_value() instead
-# of sharing the result between them. See the comment in
-# JOIN::create_iterators() for more details.
+# NOTE: This currently gives the wrong result, for the same
+# reason as above.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
        WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 
@@ -758,13 +775,17 @@ SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 EXECUTE stmt;
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=1;
 
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -773,6 +794,7 @@ DEALLOCATE PREPARE stmt;
 INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
@@ -906,3 +928,50 @@ FROM o;
 
 DROP TABLE t, o;
 
+--echo # Bug#31429865: Assertion `table_share->tmp_table != NO_TMP_TABLE ||
+--echo #                m_lock_type == 1' failed.
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2);
+CREATE VIEW v AS SELECT a FROM t HAVING 0<>1;
+--error ER_NON_UPDATABLE_TABLE
+DELETE FROM v LIMIT 1;
+DROP VIEW v;
+DROP TABLE t;
+
+--echo # Bug#32239484: Item_sum_json::val_json: assertion `!m_wrapper->empty()'
+
+SELECT 1 HAVING COUNT(*) = 1;
+SELECT 1 WHERE TRUE HAVING COUNT(*) = 1;
+SELECT 1 WHERE FALSE HAVING COUNT(*) = 0;
+SELECT 1 HAVING json_objectagg(utc_date(), 1416) <> 0;
+
+--echo #
+--echo # Bug #33152269: No result set returned when using HAVING COUNT(DISTINCT ...)
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT DISTINCT
+  COUNT(DISTINCT t1.a) AS da
+FROM
+  t1
+  JOIN t1 AS t2 ON t1.a = t2.a
+GROUP BY t1.a
+HAVING COUNT(DISTINCT t1.a) = 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #30617496: BAD ITEM REF FROM CORRELATED SUBQUERY TO OUTER DISTINCT TABLE
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 TEXT, f3 INT, PRIMARY KEY(f1));
+CREATE TABLE t2 LIKE t1;
+
+--error ER_BAD_FIELD_ERROR
+SELECT DISTINCT f3 FROM t1 HAVING (SELECT 1 FROM t2 HAVING f2 LIMIT 1) ORDER BY f3;
+
+DROP TABLE t1;
+DROP TABLE t2;

@@ -156,7 +156,7 @@ if (`SELECT CURTIME() > SEC_TO_TIME(24 * 3600 - 5)`)
 {
    # We are here when CURTIME() is between '23:59:56' and '23:59:59'.
    # So a sleep time of 5 seconds brings us between '00:00:01' and '00:00:04'.
-   --real_sleep 5
+   --sleep 5
 }
 create table t1 (f1 date, f2 datetime, f3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1(f1) values(curdate());
@@ -198,17 +198,25 @@ drop table t1;
 #
 create table t1 (f1 date);
 insert into t1 values('01-01-01'),('01-01-02'),('01-01-03');
+--sorted_result
 select * from t1 where f1 in ('01-01-01','2001-01-02','2001-01-03 00:00:00');
 create table t2(f2 datetime);
 insert into t2 values('01-01-01 00:00:00'),('01-02-03 12:34:56'),('02-04-06 11:22:33');
+--sorted_result
 select * from t2 where f2 in ('01-01-01','01-02-03 12:34:56','01-02-03');
+--sorted_result
 select * from t1,t2 where '01-01-02' in (f1, cast(f2 as date));
+--sorted_result
 select * from t1,t2 where '01-01-01' in (f1, '01-02-03');
+--sorted_result
 select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
 create table t3(f3 varchar(20));
 insert into t3 select * from t2;
+--sorted_result
 select * from t2,t3 where f2 in (f3,'03-04-05');
+--sorted_result
 select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1')) order by f1,f2,f3;
+--sorted_result
 select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
 drop table t1,t2,t3;
 
@@ -257,8 +265,11 @@ create table t1(f1 date);
 insert into t1 values('01-01-01'),('02-02-02'),('01-01-01'),('02-02-02');
 --disable_ps_protocol  # See bug #27245598.
 set @bug28261='';
+--skip_if_hypergraph  # Different warnings.
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+--skip_if_hypergraph  # Different warnings.
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+--skip_if_hypergraph  # Different warnings.
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
 --enable_ps_protocol
 drop table t1;
@@ -679,5 +690,114 @@ SELECT * FROM t1 order by col_datetime_1_not_null;
 SELECT LEAST( '2005-06-05',
               LEAST( col_datetime_1_not_null , col_datetime_2_not_null ) )
 AS c1 FROM t1 ORDER BY c1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Tests of date/time literals with time zone displacement.
+--echo #
+
+SET time_zone = '+00:00';
+
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME);
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(1));
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(2));
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(3));
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(4));
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(5));
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(6));
+
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME);
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(1));
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(2));
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(3));
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(4));
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(5));
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(6));
+
+SELECT TIMESTAMP'2019-09-20 10:00:00.999999+02:00 ';
+
+SET time_zone = DEFAULT;
+
+--echo # Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
+
+# Check prepared statements with various DATETIME comparisons
+
+set @d_str = '2020-01-01';
+set @t_str = '01:01:01';
+set @dt_str = '2020-01-01 01:01:01';
+set @dt_tz = '2020-01-01 01:01:01+03:00';
+set @d_int = 20200101;
+set @t_int = 010101;
+set @dt_int = 20200101010101;
+set @d_dec = 20200101.0;
+set @t_dec = 010101.0;
+set @dt_dec = 20200101010101.0;
+set @d_flt = 20200101E0;
+set @t_flt = 010101E0;
+set @dt_flt = 20200101010101E0;
+
+# Executions that supply a date literal will convert the literal to a
+# DATETIME value, and the comparison should fail.
+# Executions that supply a time literal will convert the literal to a
+# DATE value, and the comparison will fail.
+# Executions that supply a datetime literal will need no conversions and
+# the comparison should succeed.
+
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_str;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_str;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_str;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_tz;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_int;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_int;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_int;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_dec;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_dec;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_dec;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_flt;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_flt;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_flt;
+deallocate prepare stmt;
+
+--echo # Bug#33788832: wrong result with COALESCE function
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  t0 TIME NOT NULL,
+  t1 TIME NOT NULL,
+  dt DATETIME
+);
+
+INSERT INTO t1 VALUES
+(1, TIME'08:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(2, TIME'12:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(3, TIME'16:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00');
+
+SELECT pk, t0, t1, dt,
+       t0 BETWEEN NULL AND t1 AS b1,
+       t0 NOT BETWEEN NULL AND t1 AS b2,
+       t0 BETWEEN NULL AND COALESCE(t1, dt) AS b3,
+       t0 NOT BETWEEN NULL AND COALESCE(t1, dt) AS b4
+FROM t1;
+
+SELECT pk, t0, t1, dt,
+       t1 BETWEEN t0 AND NULL AS b1,
+       t1 NOT BETWEEN t0 AND NULL AS b2,
+       t1 BETWEEN COALESCE(t0, dt) AND NULL AS b3,
+       t1 NOT BETWEEN COALESCE(t0, dt) AND NULL AS b4
+FROM t1;
 
 DROP TABLE t1;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,13 @@
 #include <array>
 #include <string>
 
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // ::join()
-
-#include "mysqlrouter/plugin_config.h"
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
@@ -42,18 +43,22 @@
 #include "rest_router_status.h"
 IMPORT_LOG_FUNCTIONS()
 
+using namespace std::string_literals;
+
 static const char kSectionName[]{"rest_router"};
 
 // one shared setting
 std::string require_realm_router;
 
-class RestRouterPluginConfig : public mysqlrouter::BasePluginConfig {
+using StringOption = mysql_harness::StringOption;
+
+class RestRouterPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestRouterPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        require_realm(get_option_string(section, "require_realm")) {}
+      : mysql_harness::BasePluginConfig(section),
+        require_realm(get_option(section, "require_realm", StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -80,6 +85,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         known_realms.emplace(section->key);
       }
     }
+
     for (const mysql_harness::ConfigSection *section :
          info->config->sections()) {
       if (section->name != kSectionName) {
@@ -99,10 +105,21 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
       if (!config.require_realm.empty() &&
           (known_realms.find(config.require_realm) == known_realms.end())) {
+        std::string section_name = section->name;
+        if (!section->key.empty()) section_name += ":" + section->key;
+
+        const std::string realm_msg =
+            (known_realms.empty())
+                ? "No [http_auth_realm:" + config.require_realm +
+                      "] section defined."
+                : "Known [http_auth_realm:<...>] section" +
+                      (known_realms.size() > 1 ? "s"s : ""s) + ": " +
+                      mysql_harness::join(known_realms, ", ");
+
         throw std::invalid_argument(
-            "unknown authentication realm for [" + std::string(kSectionName) +
-            "] '" + section->key + "': " + config.require_realm +
-            ", known realm(s): " + mysql_harness::join(known_realms, ","));
+            "The option 'require_realm=" + config.require_realm + "' in [" +
+            section_name + "] does not match any http_auth_realm. " +
+            realm_msg);
       }
 
       require_realm_router = config.require_realm;
@@ -241,17 +258,18 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  rest_api_srv.add_path(
-      RestRouterStatus::path_regex,
-      std::make_unique<RestRouterStatus>(require_realm_router));
+  std::array<RestApiComponentPath, 1> paths{{
+      {rest_api_srv, RestRouterStatus::path_regex,
+       std::make_unique<RestRouterStatus>(require_realm_router)},
+  }};
+
+  mysql_harness::on_service_ready(env);
 
   wait_for_stop(env, 0);
 
   // in case rest_api never initialized, ensure the rest_api_component doesn't
   // have a callback to use
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
-
-  rest_api_srv.remove_path(RestRouterStatus::path_regex);
 }
 
 #if defined(_MSC_VER) && defined(rest_router_EXPORTS)
@@ -261,24 +279,31 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-const char *rest_router_plugin_requires[] = {
+static const std::array<const char *, 2> rest_router_plugin_requires = {
+    "logger",
     "rest_api",
 };
 
+static const std::array<const char *, 2> supported_options{"require_realm"};
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_router = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_ROUTER",
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "REST_ROUTER",                           // name
     VERSION_NUMBER(0, 0, 1),
-    sizeof(rest_router_plugin_requires) /
-        sizeof(rest_router_plugin_requires[0]),
-    rest_router_plugin_requires,  // requires
+    // requires
+    rest_router_plugin_requires.size(),
+    rest_router_plugin_requires.data(),
+    // conflicts
     0,
-    nullptr,  // conflicts
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
+    true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

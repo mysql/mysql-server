@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,9 @@ class Gcs_xcom_input_queue_impl {
      * lifetime of *this. */
     std::promise<std::unique_ptr<Reply>> m_promise;
   };
+  // NOLINTNEXTLINE(modernize-use-equals-default)
   Gcs_xcom_input_queue_impl() noexcept {}
+  // NOLINTNEXTLINE(modernize-use-equals-default)
   ~Gcs_xcom_input_queue_impl() {}
   Gcs_xcom_input_queue_impl(Gcs_xcom_input_queue_impl const &) = delete;
   Gcs_xcom_input_queue_impl(Gcs_xcom_input_queue_impl &&) = delete;
@@ -218,7 +220,7 @@ class Gcs_xcom_input_queue_impl {
     if (xcom_reply == nullptr) {
       /* purecov: begin inspected */
       // Because the app_data_ptr is allocated on the heap and not on the stack.
-      my_xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&msg);
+      xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&msg);
       goto end;
       /* purecov: end */
     }
@@ -227,7 +229,7 @@ class Gcs_xcom_input_queue_impl {
     if (xcom_request == nullptr) {
       /* purecov: begin inspected */
       // Because the app_data_ptr is allocated on the heap and not on the stack.
-      my_xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&msg);
+      xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&msg);
       delete xcom_reply;
       xcom_reply = nullptr;
       goto end;

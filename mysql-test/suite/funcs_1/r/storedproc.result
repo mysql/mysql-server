@@ -1841,14 +1841,14 @@ SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE
 CREATE FUNCTION fn10() returns int return 100;
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-fn10	def	db_storedproc	fn10	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 100	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+fn10	def	db_storedproc	fn10	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int	SQL	return 100	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION fn10;
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 CREATE FUNCTION fn10() returns int return 100;
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-fn10	def	db_storedproc	fn10	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 100	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+fn10	def	db_storedproc	fn10	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int	SQL	return 100	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn10;
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2320,7 +2320,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE if()
 SELECT * from t1 where f2=f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'if()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE ignore()
 SELECT * from t1 where f2=f1;
@@ -3184,6 +3184,9 @@ Warnings:
 Note	1305	FUNCTION db_storedproc.fn1 does not exist
 CREATE FUNCTION fn1(f1 char ascii ) returns char ascii
 return f1;
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 char not null ) returns char not null
 return f1;
@@ -3793,7 +3796,7 @@ sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
 set @x= 3	latin1	<modified>	<created>
 show CREATE FUNCTION sp1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int
     COMMENT 'this is a function'
 return 4	latin1	<modified>	<created>
 USE db_storedproc;
@@ -5605,7 +5608,7 @@ CREATE PROCEDURE sp1()
 table:BEGIN
 SELECT @x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'table:BEGIN
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':BEGIN
 SELECT @x;
 END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
@@ -5779,7 +5782,7 @@ CREATE PROCEDURE sp1()
 values:BEGIN
 SELECT @x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'values:BEGIN
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':BEGIN
 SELECT @x;
 END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
@@ -7227,6 +7230,8 @@ BEGIN
 declare x, y, z char ascii default null;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 CALL sp1();
 x	y	z
 NULL	NULL	NULL
@@ -7796,7 +7801,7 @@ x	y	z
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
-declare x, y, z year(4) default 2005;
+declare x, y, z year default 2005;
 SELECT x, y, z;
 END//
 CALL sp1();
@@ -14338,6 +14343,8 @@ BEGIN
 declare x char ascii;
 SELECT f1 into x from t2 limit 1;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 CALL sp1();
 Warnings:
 Warning	1265	Data truncated for column 'x' at row 1
@@ -16820,7 +16827,7 @@ USE d2;
 alter function d1.fn2 sql security DEFINER comment 'updated';
 SELECT * from information_schema.routines where specific_name = 'fn2' and routine_schema = 'd1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-fn2	def	d1	fn2	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	BEGIN
+fn2	def	d1	fn2	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int	SQL	BEGIN
 declare a int;
 set a = 0.9 * n;
 return a;
@@ -17974,6 +17981,9 @@ BEGIN
 set f1 = concat('a', f1);
 return f1;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT fn95('h');
 fn95('h')
 a
@@ -18032,7 +18042,7 @@ SELECT fn101(51);
 fn101(51)
 2061
 DROP FUNCTION IF EXISTS fn102;
-CREATE FUNCTION fn102( f1 year(4)) returns year(4)
+CREATE FUNCTION fn102( f1 year) returns year
 BEGIN
 set f1 = f1 + 51;
 return f1;
@@ -19148,6 +19158,8 @@ BEGIN
 set f1 = concat('a', f1);
 SELECT f1;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 CALL sp95( 'h');
 f1
 a
@@ -19208,7 +19220,7 @@ CALL sp101(51);
 f1
 2061
 DROP PROCEDURE IF EXISTS sp102;
-CREATE PROCEDURE sp102( f1 year(4))
+CREATE PROCEDURE sp102( f1 year)
 BEGIN
 set f1 = f1 + 51;
 SELECT f1;
@@ -22962,7 +22974,7 @@ END//
 alter function fn1 sql security invoker;
 show  create  function  fn1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int(11)
+fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int
     SQL SECURITY INVOKER
 BEGIN
 return x;

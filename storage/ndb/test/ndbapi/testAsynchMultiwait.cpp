@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "UtilTransactions.hpp"
 #include "random.h"
 #include "../../src/ndbapi/NdbWaitGroup.hpp"
+#include "NdbSleep.h"
 
 
 class NdbPool : private NdbLockable {
@@ -479,7 +480,7 @@ int runMiscUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int sleepAndStop(NDBT_Context* ctx, NDBT_Step* step){
-  sleep(20);
+  NdbSleep_SecSleep(20);
   ctx->stopTest();
   return NDBT_OK;
 }  

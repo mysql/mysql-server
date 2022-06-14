@@ -1,5 +1,5 @@
 #
-# WL#9451 -- Backup Log
+# WL#9451 -- Backup Lock
 #
 CREATE TABLE t1 (a INT);
 connect  con1, localhost, root,,;
@@ -32,7 +32,7 @@ connection con1;
 # Check that the table t3 was created
 DESCRIBE t3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 # Test case 4: Check that several statements LOCK INSTANCE FOR BACKUP
 # can be issued from different connections.
 LOCK INSTANCE FOR BACKUP;
@@ -65,7 +65,7 @@ connection default;
 # Check that the table t2 was created after Backup Lock had been released
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 # Test case 5: Check that Backup Lock independent from
 # FLUSH TABLES <table list> WITH READ LOCK
 # Case 5.1: Check that FLUSH TABLES <table list> WITH READ LOCK following with
@@ -105,3 +105,27 @@ FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
 DROP TABLE t1;
 UNLOCK INSTANCE;
+#
+# Bug#30226264 - flush tables with read lock fails with deadlock found
+#
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE t1 (a INT);
+connect  con1, localhost, root,,;
+use db1;
+connection default;
+LOCK INSTANCE FOR BACKUP;
+connection con1;
+ALTER DATABASE db1 CHARACTER SET=latin1;
+connection default;
+# Without the patch the following statement would failed with
+# ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+connection con1;
+# Reap result of ALTER DATABASE db1
+clean up
+DROP DATABASE db1;
+disconnect con1;
+connection default;

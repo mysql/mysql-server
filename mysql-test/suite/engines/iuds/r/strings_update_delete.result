@@ -70406,22 +70406,16 @@ LENGTH(c1)	LENGTH(c2)	LENGTH(c3)	LENGTH(c4)
 22	14	24	12
 SELECT LEFT(c1,5),LEFT(c2,5),LEFT(c3,5),LEFT(c4,5) FROM t12;
 LEFT(c1,5)	LEFT(c2,5)	LEFT(c3,5)	LEFT(c4,5)
- 
- f	funct	   		
-This 	
+This 	# # f	funct	   ##
 SELECT RTRIM(c1),RTRIM(c2),RTRIM(c3),RTRIM(c4) FROM t12;
 RTRIM(c1)	RTRIM(c2)	RTRIM(c3)	RTRIM(c4)
- 
- for STRING	functions available 	 in	   		 MySQL
-This is a update test!	
+This is a update test!	# # for STRING	functions available # in	   ## MySQL
 SELECT HEX(c1),HEX(c2),HEX(c3),HEX(c4) FROM t12;
 HEX(c1)	HEX(c2)	HEX(c3)	HEX(c4)
 54686973206973206120757064617465207465737421	00200020666F7220535452494E47	66756E6374696F6E7320617661696C61626C65200920696E	2020200909204D7953514C20
 SELECT REVERSE(c1),REVERSE(c2),REVERSE(c3),REVERSE(c4) FROM t12;
 REVERSE(c1)	REVERSE(c2)	REVERSE(c3)	REVERSE(c4)
-	ni 	 elbaliava snoitcnuf	 LQSyM 		   
- 
-!tset etadpu a si sihT	GNIRTS rof 
+!tset etadpu a si sihT	GNIRTS rof # #	ni # elbaliava snoitcnuf	 LQSyM ##   
 DELETE FROM t12 WHERE C1 LIKE "%update%";
 SELECT HEX(c1),HEX(c2),HEX(c3),HEX(c4) FROM t12;
 HEX(c1)	HEX(c2)	HEX(c3)	HEX(c4)

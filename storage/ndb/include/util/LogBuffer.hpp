@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define LOG_BUFFER_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <NdbMutex.h>
 
@@ -51,12 +52,12 @@ public:
   {
   }
   /* Return size in bytes which must be appended to describe the lost messages */
-  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs);
+  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
 
   /* Write lost message summary into the buffer for the lost message summary */
-  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs);
+  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) override;
 
-  ~ByteStreamLostMsgHandler() {}
+  ~ByteStreamLostMsgHandler() override {}
 };
 
 /**

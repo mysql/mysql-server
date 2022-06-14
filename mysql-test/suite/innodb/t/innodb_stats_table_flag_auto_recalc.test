@@ -3,6 +3,10 @@
 #
 
 -- source include/no_valgrind_without_big.inc
+# Suppress a warning from Valgrind
+--disable_query_log
+call mtr.add_suppression("Warning: set address range perms");
+--enable_query_log
 
 -- vertical_results
 
@@ -79,3 +83,5 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 
 DROP TABLE test_ps_auto_recalc;
+
+call mtr.add_suppression("ignoring ib_[0-9]+_[0-9]+.dblwr - page size doesn't match");

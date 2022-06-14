@@ -5487,3 +5487,12 @@ SELECT * FROM t1;
 ERROR HY000: Table 't1' is marked as crashed and should be repaired
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Bug#32597017: CSV ENGINE (TINA) DOES NOT HANDLE JSON TYPE
+#
+CREATE TABLE t(j JSON NOT NULL) ENGINE = CSV;
+INSERT INTO t VALUES ('{"a": 1, "b": 2}');
+SELECT * FROM t;
+j
+{"a": 1, "b": 2}
+DROP TABLE t;

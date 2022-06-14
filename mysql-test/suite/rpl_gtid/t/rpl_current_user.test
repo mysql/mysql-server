@@ -12,6 +12,7 @@
 ##############################################################################
 
 source include/have_binlog_format_statement.inc;
+--source include/not_have_privilege_checks_user.inc
 
 --let $rpl_topology= 1->2->3
 --source include/rpl_init.inc

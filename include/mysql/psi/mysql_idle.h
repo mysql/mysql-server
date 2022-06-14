@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,15 @@
   Instrumentation helpers for idle waits.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_idle.h"
 
-#include "pfs_idle_provider.h"
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_IDLE_CALL() as direct call. */
+#include "pfs_idle_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_IDLE_CALL
 #define PSI_IDLE_CALL(M) psi_idle_service->M
@@ -91,7 +97,7 @@ static inline struct PSI_idle_locker *inline_mysql_start_idle_wait(
   @sa MYSQL_START_IDLE_WAIT.
 */
 static inline void inline_mysql_end_idle_wait(struct PSI_idle_locker *locker) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_IDLE_CALL(end_idle_wait)(locker);
   }
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ enum Message_type {
 class Message_data {
  public:
   Message_data(uint64 code, std::string message, Message_type message_type);
-  virtual ~Message_data() {}
+  virtual ~Message_data() = default;
   uint64 get_code() const;
   std::string get_message() const;
   Message_type get_message_type() const;
@@ -72,7 +72,7 @@ class Warning_data : public Message_data {
  public:
   Warning_data(uint64 code, std::string message, Message_type message_type)
       : Message_data(code, message, message_type) {}
-  void print_error(std::string program_name) const;
+  void print_error(std::string program_name) const override;
 };
 
 }  // namespace Base

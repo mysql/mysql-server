@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <vector>
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_provider.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #define XCOM_PREFIX "[XCOM] "
@@ -111,10 +112,12 @@ inline bool is_number(const std::string &s) {
 }
 
 /**
- Parses the string "host:port" and checks if it is correct.
-
- @param server_and_port the server hostname and port in the form hostname:port.
- @return true if it is a valid URL, false otherwise.
+ * @brief Parses the string "host:port" and checks if it is correct.
+ *
+ * @param server_and_port the server hostname and port in the form
+ * hostname:port.
+ *
+ * @return true if it is a valid URL, false otherwise.
  */
 bool is_valid_hostname(const std::string &server_and_port);
 
@@ -134,8 +137,13 @@ void fix_parameters_syntax(Gcs_interface_parameters &params);
 /**
  Checks that parameters are syntactically valid.
 
- @param params The parameters to validate syntactically.
+ @param params        The parameters to validate syntactically.
+ @param netns_manager A reference to a Network Namespace Manager.
+                      This is needed because of the allowlist configuration and
+                      local address validation.
+
  @returns false if there is a syntax error, true otherwise.
  */
-bool is_parameters_syntax_correct(const Gcs_interface_parameters &params);
+bool is_parameters_syntax_correct(const Gcs_interface_parameters &params,
+                                  Network_namespace_manager *netns_manager);
 #endif /* GCS_XCOM_UTILS_INCLUDED */

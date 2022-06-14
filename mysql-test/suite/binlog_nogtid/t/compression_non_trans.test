@@ -1,0 +1,159 @@
+#
+# WL#3549: Test non-transactional engines and binlog compression
+#
+# This test validates that whenever there are non-trans changes
+# compression does not take place. In addition to that it also makes
+# sure that no compression stats appear in performance schema.
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_myisam.inc
+
+--let $show_rpl_debug_info = 0
+--let $keep_gtid_events= 1
+
+--let $saved_binlog_transaction_compression_session = `SELECT @@SESSION.binlog_transaction_compression`
+--let $compression_type = LZ4
+--let $pfs_table = performance_schema.binary_log_transaction_compression_stats
+
+--let $i = 1
+while ($i < 4)
+{
+  --let $test2_or_test3 = `SELECT $i > 1`
+
+  SET SESSION binlog_transaction_compression = ON;
+  CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
+  CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
+  INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+  INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
+
+  RESET MASTER;
+  --eval TRUNCATE $pfs_table
+
+  if ($i == 1)
+  {
+    --echo #
+    --echo # Test 1: single non-trans statement
+    --echo #
+
+    INSERT INTO t1 VALUES (2, REPEAT ('c', 1000));
+    --let $evt1=Query
+    --let $evt2=Table_map
+    --let $evt3=Write_rows
+    --let $evt3_expected=Write_rows
+    --let $evt4=Query
+  }
+
+  if ($i == 2)
+  {
+    --echo #
+    --echo # Test 2: single non-trans + trans statement
+    --echo #
+
+    UPDATE t1, t2 SET t1.c1 = 2, t2.c1=2;
+    --let $evt1=Query
+    --let $evt2=Table_map
+    --let $evt3=Update_rows
+    --let $evt3_expected=Update_rows
+    --let $evt4=Query
+
+    --let $evt5=Query
+    --let $evt6=Table_map
+    --let $evt7=Update_rows
+    --let $evt8=Xid
+
+    --source include/show_binlog_events.inc
+  }
+
+  if ($i == 3)
+  {
+    --echo #
+    --echo # Test 3: transaction with non-trans and trans statement
+    --echo #
+
+    BEGIN;
+    UPDATE t2 SET c1=2;
+    UPDATE t1 SET c1=2;
+    COMMIT;
+
+    --let $evt1=Query
+    --let $evt2=Table_map
+    --let $evt3=Update_rows
+    --let $evt3_expected=Update_rows
+    --let $evt4=Query
+
+    --let $evt5=Query
+    --let $evt6=Table_map
+    --let $evt7=Update_rows
+    --let $evt8=Xid
+  }
+
+  # 1 - Format_desc event, 2 - Previous_gtids event, 3 - Gtid event
+
+  --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 4)
+  --let $assert_text = Expected event type Query (begin)
+  --let $assert_cond = "$evt" = "$evt1"
+  --source include/assert.inc
+
+  --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 5)
+  --let $assert_text = Expected event type Table_map
+  --let $assert_cond = "$evt" = "$evt2"
+  --source include/assert.inc
+
+  --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 6)
+  --let $assert_text = Expected event type $evt3_expected
+  --let $assert_cond = "$evt" = "$evt3"
+  --source include/assert.inc
+
+  --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 7)
+  --let $assert_text = Expected event type Query (commit)
+  --let $assert_cond = "$evt" = "$evt4"
+  --source include/assert.inc
+
+  if ($test2_or_test3 > 0)
+  {
+    # 8 - Gtid event
+
+    --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 9)
+    --let $assert_text = Expected event type Query (begin)
+    --let $assert_cond = "$evt" = "$evt5"
+    --source include/assert.inc
+
+    --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 10)
+    --let $assert_text = Expected event type Table_map
+    --let $assert_cond = "$evt" = "$evt6"
+    --source include/assert.inc
+
+    --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 11)
+    --let $assert_text = Expected event type Update_rows
+    --let $assert_cond = "$evt" = "$evt7"
+    --source include/assert.inc
+
+    --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 12)
+    --let $assert_text = Expected event type Xid
+    --let $assert_cond = "$evt" = "$evt8"
+    --source include/assert.inc
+  }
+
+  # assert that we have no stats on the performance_schema table for compression
+  --let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type ='BINARY' AND compression_type='$compression_type'`
+  --let $assert_cond = $nrows = 0
+  --let $assert_text = Number of rows in $pfs_table = 0 for compression_type != NONE
+  --source include/assert.inc
+
+  # assert that we have the stats on the table
+  --let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type ='BINARY' AND compression_type='NONE'`
+  --let $assert_cond = $nrows = 1
+  --let $assert_text = Number of rows in $pfs_table = 1 for compression_type = NONE
+  --source include/assert.inc
+
+  # clean up
+  DROP TABLE IF EXISTS t1, t2;
+  --replace_result $saved_binlog_transaction_compression_session SAVED
+  --eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session
+  RESET MASTER;
+  --eval TRUNCATE $pfs_table
+
+  --inc $i
+}
+

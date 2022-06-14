@@ -1,0 +1,84 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Setup Group Replication on server 1 and 2.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+#  2. Disable GTIDs on server 3
+[connection server3]
+include/rpl_set_gtid_mode.inc [OFF on servers 3]
+
+############################################################
+#  3. Setup a asynchronous replication connection from server 3
+#     into the group (server 1)
+#     Calculate the source_uuid
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+###################################################################
+#  4. Execute some transactions on server 3 and sync with server 1
+[connection server3]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+include/sync_slave_sql_with_master.inc
+
+############################################################
+#  5. Execute a transaction on the group and sync
+[connection server1]
+INSERT INTO t1 VALUES (6);
+include/rpl_sync.inc
+
+############################################################
+#  6. GTID_EXECUTED on server 1 must contain the transactions
+#     from server 3.
+#     Validate data on server 1.
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain server 4 GTID_EXECUTED from server 3 with server 1 UUID]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is a value 6 in table t1']
+
+############################################################
+#  7. GTID_EXECUTED on server 2 must contain the transactions
+#     from server 3.
+#     Validate data on server 2.
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain server 4 GTID_EXECUTED from server 3 with server 1 UUID]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is a value 6 in table t1']
+
+############################################################
+#  8. Cleanup
+[connection server3]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection server1]
+include/stop_slave.inc
+[connection server3]
+include/rpl_set_gtid_mode.inc [ON on servers 3]
+[connection server1]
+include/stop_group_replication.inc
+SET session sql_log_bin=0;
+CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology");
+SET session sql_log_bin=1;
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=OFF
+include/rpl_reconnect.inc
+[connection server2]
+include/stop_group_replication.inc
+include/group_replication_end.inc

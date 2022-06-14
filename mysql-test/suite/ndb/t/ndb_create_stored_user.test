@@ -1,0 +1,32 @@
+--source include/have_ndb.inc
+
+#
+# Bug#32424653 PARALLEL 'CREATE USER' HANGS ON BOTH MYSQLDS
+#
+--disable_result_log
+--connect(s1,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--connect(s2,127.0.0.1,root,,test,$MASTER_MYPORT1,)
+
+--connection s2
+call mtr.add_suppression("did not acquire snapshot lock");
+
+--connection s1
+call mtr.add_suppression("did not acquire snapshot lock");
+
+--connection s1
+CREATE USER IF NOT EXISTS "tx"@"localhost";
+send GRANT NDB_STORED_USER ON *.* TO "tx"@"localhost";
+
+--connection s2
+CREATE USER IF NOT EXISTS "tx"@"localhost";
+GRANT NDB_STORED_USER ON *.* TO "tx"@"localhost";
+
+--connection s1
+--reap
+
+SLEEP 1;
+DROP USER "tx"@"localhost";
+
+--disconnect s1
+--disconnect s2
+--enable_result_log

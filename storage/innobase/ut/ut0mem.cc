@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,7 +46,7 @@ ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
   ulint src_size = strlen(src);
 
   if (size != 0) {
-    ulint n = ut_min(src_size, size - 1);
+    ulint n = std::min(src_size, size - 1);
 
     memcpy(dst, src, n);
     dst[n] = '\0';
@@ -59,7 +59,7 @@ ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
 Concatenate 3 strings.*/
 char *ut_str3cat(
     /* out, own: concatenated string, must be
-    freed with ut_free() */
+    freed with ut::free() */
     const char *s1, /* in: string 1 */
     const char *s2, /* in: string 2 */
     const char *s3) /* in: string 3 */
@@ -69,7 +69,8 @@ char *ut_str3cat(
   ulint s2_len = strlen(s2);
   ulint s3_len = strlen(s3);
 
-  s = static_cast<char *>(ut_malloc_nokey(s1_len + s2_len + s3_len + 1));
+  s = static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             s1_len + s2_len + s3_len + 1));
 
   memcpy(s, s1, s1_len);
   memcpy(s + s1_len, s2, s2_len);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,7 @@
 #include <string>     // strlen
 
 #include "my_dbug.h"
-#include "nullable.h"
 #include "sql/regexp/errors.h"
-#include "sql/regexp/regexp_facade.h"
 #include "sql/sql_class.h"
 #include "template_utils.h"
 
@@ -43,6 +41,7 @@ UBool QueryNotKilled(const void *thd, int32_t) {
 const char *icu_version_string() { return U_ICU_VERSION; }
 
 void Regexp_engine::Reset(const std::u16string &subject) {
+  m_error_code = U_ZERO_ERROR;
   auto usubject = subject.data();
   int length = subject.size();
   uregex_setText(m_re, pointer_cast<const UChar *>(usubject), length,
@@ -84,7 +83,7 @@ const std::u16string &Regexp_engine::Replace(const std::u16string &replacement,
     call to uregex_appendReplacement() leads to ICU trying to free the buffer
     that we own, thus causing a double-delete.
   */
-  if (!found && m_error_code == U_ZERO_ERROR) return m_current_subject;
+  if (!found && U_SUCCESS(m_error_code)) return m_current_subject;
 
   m_replace_buffer.resize(std::min(m_current_subject.size(), HardLimit()));
 
@@ -116,26 +115,24 @@ std::pair<int, int> Regexp_engine::MatchedSubstring() {
 }
 
 void Regexp_engine::AppendHead(size_t size) {
-  DBUG_ENTER("Regexp_engine::AppendHead");
+  DBUG_TRACE;
 
-  if (size == 0) DBUG_VOID_RETURN;
+  if (size == 0) return;
 
   // This won't be written to in case of errors.
   int32_t text_length32 = 0;
   auto text = uregex_getText(m_re, &text_length32, &m_error_code);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   size_t text_length = text_length32;
 #endif
 
   // We make sure we are not in an error state before we start copying.
-  if (m_error_code != U_ZERO_ERROR) DBUG_VOID_RETURN;
+  if (m_error_code != U_ZERO_ERROR) return;
 
-  DBUG_ASSERT(size <= text_length);
+  assert(size <= text_length);
   if (m_replace_buffer.size() < size) m_replace_buffer.resize(size);
   std::copy(text, text + size, &m_replace_buffer.at(0));
   m_replace_buffer_pos = size;
-
-  DBUG_VOID_RETURN;
 }
 
 int Regexp_engine::TryToAppendReplacement(const std::u16string &replacement) {
@@ -150,13 +147,13 @@ int Regexp_engine::TryToAppendReplacement(const std::u16string &replacement) {
 }
 
 void Regexp_engine::AppendReplacement(const std::u16string &replacement) {
-  DBUG_ENTER("Regexp_engine::AppendReplacement");
+  DBUG_TRACE;
 
   int replacement_size = TryToAppendReplacement(replacement);
 
   if (m_error_code == U_BUFFER_OVERFLOW_ERROR) {
     size_t required_buffer_size = m_replace_buffer_pos + replacement_size;
-    if (required_buffer_size >= HardLimit()) DBUG_VOID_RETURN;
+    if (required_buffer_size >= HardLimit()) return;
     /*
       The buffer size was inadequate to write the replacement, but there is
       still room to try and grow the buffer before we hit the hard limit. ICU
@@ -170,7 +167,6 @@ void Regexp_engine::AppendReplacement(const std::u16string &replacement) {
     TryToAppendReplacement(replacement);
   }
   m_replace_buffer_pos += replacement_size;
-  DBUG_VOID_RETURN;
 }
 
 int Regexp_engine::TryToAppendTail() {
@@ -182,13 +178,13 @@ int Regexp_engine::TryToAppendTail() {
 }
 
 void Regexp_engine::AppendTail() {
-  DBUG_ENTER("Regexp_engine::AppendTail");
+  DBUG_TRACE;
 
   int tail_size = TryToAppendTail();
 
   if (m_error_code == U_BUFFER_OVERFLOW_ERROR) {
     size_t required_buffer_size = m_replace_buffer_pos + tail_size;
-    if (required_buffer_size >= HardLimit()) DBUG_VOID_RETURN;
+    if (required_buffer_size >= HardLimit()) return;
 
     /*
       The buffer size was inadequate to write the tail, but there is still
@@ -203,7 +199,6 @@ void Regexp_engine::AppendTail() {
     TryToAppendTail();
   }
   m_replace_buffer_pos += tail_size;
-  DBUG_VOID_RETURN;
 }
 
 }  // namespace regexp

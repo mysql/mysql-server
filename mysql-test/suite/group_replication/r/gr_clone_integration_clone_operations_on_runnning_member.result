@@ -1,0 +1,81 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+#######################################################################
+# 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+[connection server2]
+include/spawn_monitoring_process.inc
+
+############################################################
+# 4. Setup the server so group replication starts on boot
+#    Install the Clone plugin
+#    Start group replication on the server
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+include/start_group_replication.inc
+
+############################################################
+# 5. Clone operations that replace data are not allowed
+#    on user sessions on active group members.
+SET GLOBAL clone_valid_donor_list='localhost:SERVER1_PORT';
+CLONE INSTANCE FROM 'root'@localhost:SERVER1_PORT IDENTIFIED BY '';;
+ERROR HY000: The clone operation cannot be executed when Group Replication is running.
+
+############################################################
+# 6. Local clone operations that use data dirs are allowed
+#    on user sessions on active group members.
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+include/assert.inc [Clone must be completed]
+
+############################################################
+# 7. Remote clone operations that use data dirs are allowed
+#    on user sessions on active group members.
+CLONE INSTANCE FROM 'root'@localhost:SERVER1_PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+include/assert.inc [Clone must be completed]
+
+############################################################
+# 8. If group replication is not running, clone operations that replace
+#  data are allowed on user sessions on previous group members.
+include/stop_group_replication.inc
+[connection server1]
+INSERT INTO t1 VALUES (2);
+[connection server2]
+CLONE INSTANCE FROM 'root'@localhost:SERVER1_PORT IDENTIFIED BY '';;
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/assert.inc [Clone must be completed]
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+
+############################################################
+# 9. Cleanup
+[connection server1]
+UNINSTALL PLUGIN clone;
+DROP TABLE test.t1;
+include/rpl_sync.inc
+[connection server2]
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
+UNINSTALL PLUGIN clone;
+set session sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+set session sql_log_bin=1;
+include/clean_monitoring_process.inc
+include/group_replication_end.inc

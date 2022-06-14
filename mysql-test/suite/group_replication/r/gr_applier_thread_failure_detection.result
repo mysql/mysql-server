@@ -17,9 +17,9 @@ include/rpl_sync.inc
 # 2. Restart the applier SQL thread in server 1.
 #
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 #
 # 3. Insert a value on server 2 that will clash with data on server1
 #

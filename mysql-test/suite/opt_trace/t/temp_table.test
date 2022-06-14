@@ -4,11 +4,11 @@
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET optimizer_trace="enabled=on,one_line=off";
 SET end_markers_in_json="on";
-SET max_length_for_sort_data=1024;
 
 CREATE TABLE tmp (
   pk INT PRIMARY KEY AUTO_INCREMENT,
@@ -98,4 +98,58 @@ DROP TABLE t1;
 
 # Clean up.
 SET SESSION internal_tmp_mem_storage_engine=default;
-SET max_length_for_sort_data=DEFAULT;
+
+--echo #
+--echo # Bug #30773218 ASSERTION IN SQL_TMP_TABLE.CC::TRACE_TMP_TABLE
+--echo #
+
+CREATE TABLE t1(name VARCHAR(64), type TEXT);
+INSERT INTO t1(name, type) VALUES
+  ('t1', 'table'),
+  ('t2', 'table'),
+  ('t3', 'table'),
+  ('t4', 'table'),
+  ('t5', 'table'),
+  ('t6', 'table'),
+  ('t7', 'table'),
+  ('t8', 'table'),
+  ('t9', 'table'),
+  ('t10', 'table'),
+  ('t11', 'table');
+
+CREATE TABLE t2(name VARCHAR(64), data TEXT);
+INSERT INTO t2(name, data) VALUES
+  ('t1', 'data'),
+  ('t2', 'data'),
+  ('t3', 'data'),
+  ('t4', 'data'),
+  ('t5', 'data'),
+  ('t6', 'data'),
+  ('t7', 'data'),
+  ('t8', 'data');
+
+# We need this combination of settings in order to force a second execution
+# of the function trace_tmp_table. During join execution, we get
+#   "join_execution":
+#     "subselect_execution":
+#       "materialize":
+#         "converting_tmp_table_to_ondisk":
+#           "cause": "memory_table_size_exceeded",
+#           "tmp_table_info":
+# At this point we do have a QEP_TAB, but no corresponding JOIN_TAB.
+# If we use semijoin, no temporary table is instantiated.
+
+SET SESSION internal_tmp_mem_storage_engine=MEMORY;
+SET @@session.optimizer_trace='enabled=on';
+SET @@session.tmp_table_size = 1024;
+SET @@optimizer_switch='semijoin=off';
+
+SELECT name, data FROM t2 WHERE name IN
+( SELECT name FROM t1 WHERE type='table');
+
+DROP TABLE t1, t2;
+
+SET SESSION internal_tmp_mem_storage_engine=default;
+SET @@session.optimizer_trace='enabled=default';
+SET @@session.tmp_table_size = default;
+SET @@optimizer_switch='semijoin=default';

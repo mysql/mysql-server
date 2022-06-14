@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -51,14 +51,12 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_audit_api_message);
   @param null_value Unused.
   @param error      Unused.
 
-  @return
   @retval 0 This function always returns 0.
 */
-static long long message_internal(UDF_INIT *init MY_ATTRIBUTE((unused)),
-                                  UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                                  unsigned char *null_value
-                                      MY_ATTRIBUTE((unused)),
-                                  unsigned char *error MY_ATTRIBUTE((unused))) {
+static long long message_internal(UDF_INIT *init [[maybe_unused]],
+                                  UDF_ARGS *args [[maybe_unused]],
+                                  unsigned char *null_value [[maybe_unused]],
+                                  unsigned char *error [[maybe_unused]]) {
   mysql_event_message_key_value_t val;
 
   lex_cstring_set(&val.key, "my_numeric_key");
@@ -82,13 +80,12 @@ static long long message_internal(UDF_INIT *init MY_ATTRIBUTE((unused)),
   @param null_value Unused.
   @param error      Unused.
 
-  @return
   @retval 0 This function always returns 0.
 */
-static long long message_user(UDF_INIT *init MY_ATTRIBUTE((unused)),
-                              UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                              unsigned char *null_value MY_ATTRIBUTE((unused)),
-                              unsigned char *error MY_ATTRIBUTE((unused))) {
+static long long message_user(UDF_INIT *init [[maybe_unused]],
+                              UDF_ARGS *args [[maybe_unused]],
+                              unsigned char *null_value [[maybe_unused]],
+                              unsigned char *error [[maybe_unused]]) {
   mysql_event_message_key_value_t val;
 
   lex_cstring_set(&val.key, "my_string_key");
@@ -106,12 +103,12 @@ static long long message_user(UDF_INIT *init MY_ATTRIBUTE((unused)),
 static mysql_service_status_t init() {
   if (mysql_service_udf_registration->udf_register(
           "test_audit_api_message_internal", INT_RESULT,
-          (Udf_func_any)message_internal, NULL, NULL))
+          (Udf_func_any)message_internal, nullptr, nullptr))
     return true;
 
   if (mysql_service_udf_registration->udf_register(
           "test_audit_api_message_user", INT_RESULT, (Udf_func_any)message_user,
-          NULL, NULL)) {
+          nullptr, nullptr)) {
     int was_present = 0;
 
     mysql_service_udf_registration->udf_unregister(

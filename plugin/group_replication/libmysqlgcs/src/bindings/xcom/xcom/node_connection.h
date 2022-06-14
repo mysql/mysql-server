@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,44 +25,41 @@
 
 #include <stdlib.h>
 
-#ifdef XCOM_HAVE_OPENSSL
-#ifdef WIN32
-// In OpenSSL before 1.1.0, we need this first.
+#ifndef XCOM_WITHOUT_OPENSSL
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
 #include <winsock2.h>
-#endif  // WIN32
-#include <wolfssl_fix_namespace_pollution_pre.h>
+#endif
 
 #include <openssl/ssl.h>
 
-#include <wolfssl_fix_namespace_pollution.h>
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_proto.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/network/include/network_provider.h"
+#include "xcom/xcom_memory.h"
+#include "xcom/xcom_proto.h"
+#include "xdr_gen/xcom_vp.h"
 
 enum con_state { CON_NULL, CON_FD, CON_PROTO };
 typedef enum con_state con_state;
 
 struct connection_descriptor {
   int fd;
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   SSL *ssl_fd;
 #endif
   con_state connected_;
   unsigned int snd_tag;
   xcom_proto x_proto;
+  enum_transport_protocol protocol_stack;
 };
 
 typedef struct connection_descriptor connection_descriptor;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
-  connection_descriptor *c =
-      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
+  connection_descriptor *c = (connection_descriptor *)xcom_calloc(
+      (size_t)1, sizeof(connection_descriptor));
   c->fd = fd;
   c->ssl_fd = ssl_fd;
   c->connected_ = CON_NULL;
@@ -70,8 +67,8 @@ static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
 }
 #else
 static inline connection_descriptor *new_connection(int fd) {
-  connection_descriptor *c =
-      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
+  connection_descriptor *c = (connection_descriptor *)xcom_calloc(
+      (size_t)1, sizeof(connection_descriptor));
   c->fd = fd;
   c->connected_ = CON_NULL;
   return c;
@@ -89,8 +86,9 @@ static inline void set_connected(connection_descriptor *con, con_state val) {
   con->connected_ = val;
 }
 
-#ifdef __cplusplus
+static inline void set_protocol_stack(connection_descriptor *con,
+                                      enum_transport_protocol val) {
+  con->protocol_stack = val;
 }
-#endif
 
 #endif /* NODE_CONNECTION_H */

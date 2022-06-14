@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 void Dbdih::initData() 
 {
+  m_set_up_multi_trp_in_node_restart = false;
   cpageFileSize = ZPAGEREC;
 
   // Records with constant sizes
@@ -50,8 +51,13 @@ void Dbdih::initData()
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
 
   Uint32 i;
-  for(i = 0; i<MAX_NDB_NODES; i++){
+  for(i = 0; i<MAX_NDB_NODES; i++)
+  {
     new (&nodeRecord[i]) NodeRecord();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = i;
+    ptrAss(nodePtr, nodeRecord);
+    initNodeRecord(nodePtr);
   }
   Uint32 max_takeover_threads = MAX(MAX_NDB_NODES,
                                     ZMAX_TAKE_OVER_THREADS);
@@ -81,7 +87,7 @@ void Dbdih::initData()
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
-  c_set_initial_start_flag = FALSE;
+  c_set_initial_start_flag = false;
   c_sr_wait_to = false;
   c_2pass_inr = false;
   c_handled_master_take_over_copy_gci = 0;
@@ -94,6 +100,8 @@ void Dbdih::initData()
   }
   m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
   m_master_lcp_req_lcp_already_completed = false;
+  
+  c_shutdownReqNodes.clear();
 }//Dbdih::initData()
 
 void Dbdih::initRecords()
@@ -123,22 +131,16 @@ void Dbdih::initRecords()
                                               ctabFileSize);
 
   // Initialize BAT for interface to file system
-  NewVARIABLE* bat = allocateBat(22);
-  bat[1].WA = &pageRecord->word[0];
-  bat[1].nrr = cpageFileSize;
-  bat[1].ClusterSize = sizeof(PageRecord);
-  bat[1].bits.q = 11;
-  bat[1].bits.v = 5;
-  bat[20].WA = &sysfileData[0];
-  bat[20].nrr = 1;
-  bat[20].ClusterSize = sizeof(sysfileData);
-  bat[20].bits.q = 7;
-  bat[20].bits.v = 5;
-  bat[21].WA = &sysfileDataToFile[0];
-  bat[21].nrr = 1;
-  bat[21].ClusterSize = sizeof(sysfileDataToFile);
-  bat[21].bits.q = 7;
-  bat[21].bits.v = 5;
+  NewVARIABLE* bat = allocateBat(3);
+  bat[0].WA = &pageRecord->word[0];
+  bat[0].nrr = cpageFileSize;
+  bat[0].ClusterSize = sizeof(PageRecord);
+  bat[0].bits.q = 11;
+  bat[0].bits.v = 5;
+  bat[1].WA = &cdata[0];
+  bat[1].nrr = 1;
+  bat[2].WA = &sysfileDataToFile[0];
+  bat[2].nrr = 1;
 }//Dbdih::initRecords()
 
 Dbdih::Dbdih(Block_context& ctx):
@@ -160,6 +162,7 @@ Dbdih::Dbdih(Block_context& ctx):
   c_mainTakeOverPtr.p = 0;
   c_activeThreadTakeOverPtr.i = RNIL;
   c_activeThreadTakeOverPtr.p = 0;
+  m_max_node_id = 0;
 
   /* Node Recovery Status Module signals */
   addRecSignal(GSN_ALLOC_NODEID_REP, &Dbdih::execALLOC_NODEID_REP);
@@ -190,8 +193,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_MASTER_GCPREQ, &Dbdih::execMASTER_GCPREQ);
   addRecSignal(GSN_MASTER_GCPREF, &Dbdih::execMASTER_GCPREF);
   addRecSignal(GSN_MASTER_GCPCONF, &Dbdih::execMASTER_GCPCONF);
-  addRecSignal(GSN_EMPTY_LCP_CONF, &Dbdih::execEMPTY_LCP_CONF);
-  addRecSignal(GSN_EMPTY_LCP_REP, &Dbdih::execEMPTY_LCP_REP);
 
   addRecSignal(GSN_MASTER_LCPREQ, &Dbdih::execMASTER_LCPREQ);
   addRecSignal(GSN_MASTER_LCPREF, &Dbdih::execMASTER_LCPREF);
@@ -225,7 +226,6 @@ Dbdih::Dbdih(Block_context& ctx):
                  &Dbdih::execUPDATE_FRAG_STATEREQ);
   addRecSignal(GSN_UPDATE_FRAG_STATECONF,
                  &Dbdih::execUPDATE_FRAG_STATECONF);
-  addRecSignal(GSN_DIVERIFYREQ, &Dbdih::execDIVERIFYREQ);
   addRecSignal(GSN_GCP_SAVEREQ, &Dbdih::execGCP_SAVEREQ);
   addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
   addRecSignal(GSN_GCP_SAVECONF, &Dbdih::execGCP_SAVECONF);
@@ -356,10 +356,10 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
                &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
-
-
   addRecSignal(GSN_DIH_GET_TABINFO_REQ,
                &Dbdih::execDIH_GET_TABINFO_REQ);
+  addRecSignal(GSN_SET_UP_MULTI_TRP_CONF,
+               &Dbdih::execSET_UP_MULTI_TRP_CONF);
 #if 0
   addRecSignal(GSN_DIH_GET_TABINFO_REF,
                &Dbdih::execDIH_GET_TABINFO_REF);
@@ -379,13 +379,13 @@ Dbdih::Dbdih(Block_context& ctx):
   memset(c_next_replica_node, 0, sizeof(c_next_replica_node));
   c_fragments_per_node_ = 0;
   memset(c_node_groups, 0, sizeof(c_node_groups));
-  if (globalData.ndbMtTcThreads == 0)
+  if (globalData.ndbMtTcWorkers == 0)
   {
     c_diverify_queue_cnt = 1;
   }
   else
   {
-    c_diverify_queue_cnt = globalData.ndbMtTcThreads;
+    c_diverify_queue_cnt = globalData.ndbMtTcWorkers;
   }
 }//Dbdih::Dbdih()
 

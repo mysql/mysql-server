@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,18 +30,15 @@
   Temporary table handling functions.
 */
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "sql/item.h"  // Item
-#include "sql/mem_root_array.h"
 #include "sql/temp_table_param.h"
 
 class Create_field;
 class Field;
-class KEY;
 class SJ_TMP_TABLE;
 class THD;
 struct ORDER;
@@ -54,28 +51,35 @@ enum enum_internal_tmp_mem_storage_engine {
   TMP_TABLE_TEMPTABLE
 };
 
-TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
-                        ORDER *group, bool distinct, bool save_sum_fields,
+TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
+                        const mem_root_deque<Item *> &fields, ORDER *group,
+                        bool distinct, bool save_sum_fields,
                         ulonglong select_options, ha_rows rows_limit,
                         const char *table_alias);
 bool open_tmp_table(TABLE *table);
 TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                                     bool is_virtual = true,
                                     ulonglong select_options = 0,
-                                    const char *alias = NULL);
+                                    const char *alias = nullptr);
 bool create_ondisk_from_heap(THD *thd, TABLE *table, int error,
-                             bool ignore_last_dup, bool *is_duplicate);
-void free_tmp_table(THD *thd, TABLE *entry);
+                             bool insert_last_record, bool ignore_last_dup,
+                             bool *is_duplicate);
+void close_tmp_table(TABLE *table);
+void free_tmp_table(TABLE *table);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
+bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
+                             bool force_disk_table = false,
+                             bool schema_table = false);
 bool instantiate_tmp_table(THD *thd, TABLE *table);
 Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field, bool group, bool modify_item,
-                        bool table_cant_handle_bit_fields, bool make_copy_field,
-                        bool copy_result_field = false);
-Field *create_tmp_field_from_field(THD *thd, Field *org_field, const char *name,
-                                   TABLE *table, Item_field *item);
+                        bool table_cant_handle_bit_fields,
+                        bool make_copy_field);
+Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
+                                   const char *name, TABLE *table,
+                                   Item_field *item);
 
 /**
   Get the minimum of max_key_length and max_key_part_length between

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,12 +73,12 @@ PFS_prepared_stmt *create_prepared_stmt(
     void *identity, PFS_thread *thread, PFS_program *pfs_program,
     PFS_events_statements *pfs_stmt, uint stmt_id, const char *stmt_name,
     uint stmt_name_length, const char *sqltext, uint sqltext_length) {
-  PFS_prepared_stmt *pfs = NULL;
+  PFS_prepared_stmt *pfs = nullptr;
   pfs_dirty_state dirty_state;
 
   /* Create a new record in prepared stmt stat array. */
   pfs = global_prepared_stmt_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     /* Reset the stats. */
     pfs->reset_data();
     /* Do the assignments. */
@@ -90,7 +90,7 @@ PFS_prepared_stmt *create_prepared_stmt(
 
     pfs->m_sqltext_length = sqltext_length;
 
-    if (stmt_name != NULL) {
+    if (stmt_name != nullptr) {
       pfs->m_stmt_name_length = stmt_name_length;
       if (pfs->m_stmt_name_length > PS_NAME_LENGTH) {
         pfs->m_stmt_name_length = PS_NAME_LENGTH;
@@ -105,17 +105,13 @@ PFS_prepared_stmt *create_prepared_stmt(
 
     /* If this statement prepare is called from a SP. */
     if (pfs_program) {
-      pfs->m_owner_object_type = pfs_program->m_type;
-      strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name,
-              pfs_program->m_schema_name_length);
-      pfs->m_owner_object_schema_length = pfs_program->m_schema_name_length;
-      strncpy(pfs->m_owner_object_name, pfs_program->m_object_name,
-              pfs_program->m_object_name_length);
-      pfs->m_owner_object_name_length = pfs_program->m_object_name_length;
+      pfs->m_owner_object_type = pfs_program->m_key.m_type;
+      pfs->m_owner_object_schema = pfs_program->m_key.m_schema_name;
+      pfs->m_owner_object_name = pfs_program->m_key.m_object_name;
     } else {
       pfs->m_owner_object_type = NO_OBJECT_TYPE;
-      pfs->m_owner_object_schema_length = 0;
-      pfs->m_owner_object_name_length = 0;
+      pfs->m_owner_object_schema.reset();
+      pfs->m_owner_object_name.reset();
     }
 
     if (pfs_stmt) {
@@ -125,6 +121,8 @@ PFS_prepared_stmt *create_prepared_stmt(
         pfs->m_owner_event_id = pfs_stmt->m_event_id;
       }
     }
+
+    pfs->m_secondary = false;
 
     /* Insert this record. */
     pfs->m_lock.dirty_to_allocated(&dirty_state);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,15 +242,14 @@ static const uchar sort_order_cp932[] = {
   ((0x40 <= (c) && (c) <= 0x7e) || (0x80 <= (c) && (c) <= 0xfc))
 
 extern "C" {
-static uint ismbchar_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_cp932(const CHARSET_INFO *cs [[maybe_unused]],
                            const char *p, const char *e) {
   return (iscp932head((uchar)*p) && (e - p) > 1 && iscp932tail((uchar)p[1])
               ? 2
               : 0);
 }
 
-static uint mbcharlen_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                            uint c) {
+static uint mbcharlen_cp932(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (iscp932head((uchar)c) ? 2 : 1);
 }
 }  // extern "C"
@@ -2099,38 +2098,55 @@ static const MY_UNICASE_CHARACTER cFA[256] = {
     {0, 0, 0}};
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_cp932[256] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, c81,  c82,  c83,  c84,  NULL, NULL, c87, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* A */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, cEE,  NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, cFA,  NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, c81,     c82,     c83,
+    c84,     nullptr, nullptr, c87, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* A */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    cEE,     nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, cFA,     nullptr, nullptr, nullptr,
+    nullptr, nullptr};
 
 MY_UNICASE_INFO my_caseinfo_cp932 = {0xFFFF, my_caseinfo_pages_cp932};
 
@@ -18618,8 +18634,8 @@ static const uint16 unicode_to_cp932[65536] = {
 */
 
 extern "C" {
-static int my_mb_wc_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_cp932(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                          const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -18658,8 +18674,8 @@ static int my_mb_wc_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in CP932
 */
-static int my_wc_mb_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_cp932(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                          uchar *s, uchar *e) {
   int code;
 
   if ((int)wc < 0x80) /* ASCII: [U+0000..U+007F] -> [00-7F] */
@@ -18690,7 +18706,7 @@ static int my_wc_mb_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static size_t my_numcells_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_numcells_cp932(const CHARSET_INFO *cs [[maybe_unused]],
                                 const char *str, const char *str_end) {
   size_t clen = 0;
   const uchar *b = (const uchar *)str;
@@ -18716,9 +18732,9 @@ static size_t my_numcells_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   cp932 additional characters are also accepted.
 */
 
-static size_t my_well_formed_len_cp932(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_cp932(const CHARSET_INFO *cs [[maybe_unused]],
+                                       const char *b, const char *e, size_t pos,
+                                       int *error) {
   const char *b0 = b;
   *error = 0;
   while (pos-- && b < e) {
@@ -18761,7 +18777,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {
     my_hash_sort_simple,
     my_propagate_simple};
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_cp932,
                                                 mbcharlen_cp932,
                                                 my_numchars_mb,
@@ -18795,20 +18811,20 @@ CHARSET_INFO my_charset_cp932_japanese_ci = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "cp932",                                         /* cs name    */
-    "cp932_japanese_ci",                             /* name */
-    "",                                              /* comment    */
-    NULL,                                            /* tailoring */
-    NULL,                                            /* coll_param */
+    "cp932_japanese_ci",                             /* m_coll_name */
+    "SJIS for Windows Japanese",                     /* comment    */
+    nullptr,                                         /* tailoring */
+    nullptr,                                         /* coll_param */
     ctype_cp932,
     to_lower_cp932,
     to_upper_cp932,
     sort_order_cp932,
-    NULL,               /* uca          */
-    NULL,               /* tab_to_uni   */
-    NULL,               /* tab_from_uni */
+    nullptr,            /* uca          */
+    nullptr,            /* tab_to_uni   */
+    nullptr,            /* tab_from_uni */
     &my_caseinfo_cp932, /* caseinfo     */
-    NULL,               /* state_map    */
-    NULL,               /* ident_map    */
+    nullptr,            /* state_map    */
+    nullptr,            /* ident_map    */
     1,                  /* strxfrm_multiply */
     1,                  /* caseup_multiply  */
     1,                  /* casedn_multiply  */
@@ -18818,42 +18834,43 @@ CHARSET_INFO my_charset_cp932_japanese_ci = {
     0,                  /* min_sort_char */
     0xFCFC,             /* max_sort_char */
     ' ',                /* pad char      */
-    1,                  /* escape_with_backslash_is_dangerous */
+    true,               /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_cp932_bin = {96,
-                                     0,
-                                     0, /* number */
-                                     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
-                                     "cp932",     /* cs name    */
-                                     "cp932_bin", /* name */
-                                     "",          /* comment    */
-                                     NULL,        /* tailoring */
-                                     NULL,        /* coll_param */
-                                     ctype_cp932,
-                                     to_lower_cp932,
-                                     to_upper_cp932,
-                                     NULL,               /* sort_order   */
-                                     NULL,               /* uca          */
-                                     NULL,               /* tab_to_uni   */
-                                     NULL,               /* tab_from_uni */
-                                     &my_caseinfo_cp932, /* caseinfo     */
-                                     NULL,               /* state_map    */
-                                     NULL,               /* ident_map    */
-                                     1,                  /* strxfrm_multiply */
-                                     1,                  /* caseup_multiply  */
-                                     1,                  /* casedn_multiply  */
-                                     1,                  /* mbminlen   */
-                                     2,                  /* mbmaxlen   */
-                                     1,                  /* mbmaxlenlen */
-                                     0,                  /* min_sort_char */
-                                     0xFCFC,             /* max_sort_char */
-                                     ' ',                /* pad char      */
-                                     1, /* escape_with_backslash_is_dangerous */
-                                     1, /* levels_for_compare */
-                                     &my_charset_handler,
-                                     &my_collation_mb_bin_handler,
-                                     PAD_SPACE};
+CHARSET_INFO my_charset_cp932_bin = {
+    96,
+    0,
+    0,                              /* number */
+    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
+    "cp932",                        /* cs name    */
+    "cp932_bin",                    /* m_coll_name */
+    "SJIS for Windows Japanese",    /* comment    */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
+    ctype_cp932,
+    to_lower_cp932,
+    to_upper_cp932,
+    nullptr,            /* sort_order   */
+    nullptr,            /* uca          */
+    nullptr,            /* tab_to_uni   */
+    nullptr,            /* tab_from_uni */
+    &my_caseinfo_cp932, /* caseinfo     */
+    nullptr,            /* state_map    */
+    nullptr,            /* ident_map    */
+    1,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen   */
+    2,                  /* mbmaxlen   */
+    1,                  /* mbmaxlenlen */
+    0,                  /* min_sort_char */
+    0xFCFC,             /* max_sort_char */
+    ' ',                /* pad char      */
+    true,               /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    &my_charset_handler,
+    &my_collation_mb_bin_handler,
+    PAD_SPACE};

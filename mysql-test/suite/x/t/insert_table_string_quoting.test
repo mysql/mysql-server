@@ -7,7 +7,7 @@
 create schema xtest default charset='utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/insert_table_string_quoting.tmp
+--write_file $MYSQL_TMP_DIR/insert_table_string_quoting.xpl
 ## Test data
 -->sql
 use xtest;
@@ -50,9 +50,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_string_quoting.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_string_quoting.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/insert_table_string_quoting.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

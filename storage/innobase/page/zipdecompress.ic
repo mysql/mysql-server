@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -44,7 +44,7 @@ external tools. */
 
 #include "page/page.ic"
 /** Size of an compressed page directory entry */
-#define PAGE_ZIP_DIR_SLOT_SIZE 2
+constexpr uint32_t PAGE_ZIP_DIR_SLOT_SIZE = 2;
 
 /** Gets a pointer to the compressed page trailer (the dense page directory),
  including deleted records (the free list).
@@ -62,8 +62,7 @@ external tools. */
 
 /** Determine the size of a compressed page in bytes.
  @return size in bytes */
-UNIV_INLINE
-ulint page_zip_get_size(
+static inline ulint page_zip_get_size(
     const page_zip_des_t *page_zip) /*!< in: compressed page */
 {
   ulint size;
@@ -83,8 +82,7 @@ ulint page_zip_get_size(
 #ifdef UNIV_DEBUG
 /** Validate a compressed page descriptor.
  @return true if ok */
-UNIV_INLINE
-ibool page_zip_simple_validate(
+static inline bool page_zip_simple_validate(
     const page_zip_des_t *page_zip) /*!< in: compressed page descriptor */
 {
   ut_ad(page_zip);
@@ -95,15 +93,14 @@ ibool page_zip_simple_validate(
   ut_ad(page_zip->m_end < page_zip_get_size(page_zip));
   ut_ad(page_zip->n_blobs <
         page_zip_get_size(page_zip) / BTR_EXTERN_FIELD_REF_SIZE);
-  return (TRUE);
+  return true;
 }
 #endif /* UNIV_DEBUG */
 
 /** Gets the number of elements in the dense page directory,
  including deleted records (the free list).
  @return number of elements in the dense page directory */
-UNIV_INLINE
-ulint page_zip_dir_elems(
+static inline ulint page_zip_dir_elems(
     const page_zip_des_t *page_zip) /*!< in: compressed page */
 {
   /* Exclude the page infimum and supremum from the record count. */
@@ -113,8 +110,7 @@ ulint page_zip_dir_elems(
 /** Gets the size of the compressed page trailer (the dense page directory),
  including deleted records (the free list).
  @return length of dense page directory, in bytes */
-UNIV_INLINE
-ulint page_zip_dir_size(
+static inline ulint page_zip_dir_size(
     const page_zip_des_t *page_zip) /*!< in: compressed page */
 {
   return (PAGE_ZIP_DIR_SLOT_SIZE * page_zip_dir_elems(page_zip));
@@ -123,8 +119,7 @@ ulint page_zip_dir_size(
 /** Read a given slot in the dense page directory.
  @return record offset on the uncompressed page, possibly ORed with
  PAGE_ZIP_DIR_SLOT_DEL or PAGE_ZIP_DIR_SLOT_OWNED */
-UNIV_INLINE
-ulint page_zip_dir_get(
+static inline ulint page_zip_dir_get(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     ulint slot)                     /*!< in: slot
                                     (0=first user record) */

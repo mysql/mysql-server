@@ -2479,7 +2479,7 @@ ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "In
 SELECT ST_GEOMFROMGEOJSON("{ \"test ");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a closing quotation mark in string." at position 8.
 SELECT ST_GEOMFROMGEOJSON("{ \"\nabel\": 123 ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid escape character in string." at position 3.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid encoding in string." at position 3.
 SELECT ST_GEOMFROMGEOJSON("[ -2147483651, 4294967395 ] ");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("[ -9223372036854775900, 184467440737095516700] ");
@@ -2516,7 +2516,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18
 ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }", 1, 0))
 POINT(1.8446744073709552e19 9.223372036854776e18)
 SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Terminate parsing due to Handler error." at position 31.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 31.
 # Checking that Point with wrong coordinate array depth are invalidated.
 SELECT ST_GEOMFROMGEOJSON(
 "{                      "
@@ -4260,3 +4260,10 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "    ]                                                  "
 "  }")) AS srid;
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Member 'crs' must be specified in the top level object.
+#
+# Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+#
+SELECT JSON_ARRAY(ST_ASGEOJSON(ST_GEOMFROMTEXT('')), 1);
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT JSON_ARRAY(ST_ASGEOJSON(0x00), 1);
+ERROR 22023: Invalid GIS data provided to function st_asgeojson.

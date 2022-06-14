@@ -25,7 +25,7 @@ create user crudfinduser@localhost identified by 'crudfinduser';
 grant all on *.* to crudfinduser@localhost;
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/find_function_tables_setup.tmp
+--write_file $MYSQL_TMP_DIR/find_function_tables_setup.xpl
 -->sql
 DROP SCHEMA if EXISTS minisakila;
 CREATE SCHEMA minisakila;
@@ -295,12 +295,12 @@ Mysqlx.Crud.Find {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_function_tables_setup.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/find_function_tables_setup.tmp
+--exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_function_tables_setup.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/find_function_tables_setup.xpl
 
 
 
---write_file $MYSQL_TMP_DIR/find_functions_test.tmp
+--write_file $MYSQL_TMP_DIR/find_functions_test.xpl
 
 # Checking for the COUNT function on all datatypes Tables
 #=========================================================
@@ -930,8 +930,8 @@ DROP SCHEMA IF EXISTS minisakila;
 DROP USER crudfinduser@localhost;
 -->endsql
 EOF
---exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_functions_test.tmp 2>&1
+--exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_functions_test.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/find_functions_test.tmp
+--source ../include/xplugin_cleanup.inc
 

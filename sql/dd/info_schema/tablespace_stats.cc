@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,11 +80,11 @@ void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
     case enum_tablespace_stats_type::TS_ROW_FORMAT:
     case enum_tablespace_stats_type::TS_STATUS:
     case enum_tablespace_stats_type::TS_EXTRA:
-      DBUG_ASSERT(!"Should not hit here");
+      assert(!"Should not hit here");
       return;
   }
 
-  DBUG_ASSERT(!"Should not hit here");
+  assert(!"Should not hit here");
   return;
 }
 
@@ -123,36 +123,35 @@ void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
     case enum_tablespace_stats_type::TS_VERSION:
     case enum_tablespace_stats_type::TS_DATA_FREE:
     default:
-      DBUG_ASSERT(!"Should not hit here");
+      assert(!"Should not hit here");
 
       return;
   }
-  DBUG_ASSERT(!"Should not hit here");
+  assert(!"Should not hit here");
 
   return;
 }
 
 /*
   Read dynamic table statistics from SE OR by reading cached statistics
-  from SELECT_LEX.
+  from Query_block.
 */
 bool Tablespace_statistics::read_stat(THD *thd,
                                       const String &tablespace_name_ptr,
                                       const String &file_name_ptr,
                                       const String &engine_name_ptr,
                                       const char *ts_se_private_data) {
-  DBUG_ENTER("Tablespace_statistics::read_stat");
+  DBUG_TRACE;
   bool error = false;
 
   // Stop we have see and error already for this table.
-  if (check_error_for_key(tablespace_name_ptr, file_name_ptr))
-    DBUG_RETURN(true);
+  if (check_error_for_key(tablespace_name_ptr, file_name_ptr)) return true;
 
   //
   // Get statistics from cache, if available
   //
 
-  if (is_stat_cached(tablespace_name_ptr, file_name_ptr)) DBUG_RETURN(false);
+  if (is_stat_cached(tablespace_name_ptr, file_name_ptr)) return false;
 
   // NOTE: read_stat() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -186,7 +185,7 @@ bool Tablespace_statistics::read_stat(THD *thd,
   // correspond to the errors which were filtered out in fill_table().
   da->copy_non_errors_from_da(thd, &tmp_da);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 // Fetch stats from SE
@@ -195,7 +194,7 @@ bool Tablespace_statistics::read_stat_from_SE(THD *thd,
                                               const String &file_name_ptr,
                                               const String &engine_name_ptr,
                                               const char *ts_se_private_data) {
-  DBUG_ENTER("Tablespace_statistics::read_stat_from_SE");
+  DBUG_TRACE;
 
   //
   // Get statistics from the SE
@@ -222,7 +221,7 @@ bool Tablespace_statistics::read_stat_from_SE(THD *thd,
     error = true;
   } else if (!(hton = plugin_data<handlerton *>(tmp_plugin)) ||
              !hton->get_tablespace_statistics) {
-    DBUG_ASSERT(!hton->get_tablespace_statistics);
+    assert(!hton->get_tablespace_statistics);
     my_error(ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS, MYF(0),
              engine_name_ptr.ptr());
     error = true;
@@ -238,7 +237,7 @@ bool Tablespace_statistics::read_stat_from_SE(THD *thd,
         dd::Properties::parse_properties(ts_se_private_data ? ts_se_private_data
                                                             : ""));
 
-    DBUG_ASSERT(ts_se_private_data_obj.get());
+    assert(ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
@@ -265,7 +264,7 @@ bool Tablespace_statistics::read_stat_from_SE(THD *thd,
     mark_as_error_found(tablespace_name_ptr, file_name_ptr);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 }  // namespace info_schema

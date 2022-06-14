@@ -1,0 +1,28 @@
+################################################################################
+#                                                                              #
+# WL#12370 Extend the UDF API to handle properly character sets of the         #
+#          arguments and the return value                                      #
+#                                                                              #
+# This test file verifies the read and change in the character set of          #
+# arguments and return values of udfs. It verifies the functionality via       #
+# a test component.                                                            #
+#                                                                              #
+################################################################################
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+INSTALL COMPONENT "file://component_test_udf_services";
+
+--source ../include/test_udf_extension_services.inc
+
+--echo #
+--echo # Verify Bug#31701219. Must not crash.
+--echo #
+SELECT test_args_without_init_deinit_methods("Meow");
+
+
+UNINSTALL COMPONENT "file://component_test_udf_services";
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

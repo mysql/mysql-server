@@ -5,7 +5,7 @@ Set TC Transaction Inactive Timeout to 5s
 begin;
 insert ignore into test.t1 values (5,5), (3,6), (7,7);
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 Waiting for a while so that TC rolls back
 the transaction
 Committing the transaction, expect already rolled back error

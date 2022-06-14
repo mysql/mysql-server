@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,12 +41,13 @@ class CopyActiveReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   enum Flags
   {
     CAR_NO_WAIT = 0x1
     ,CAR_NO_LOGGING = 0x2
+    ,CAR_LOCAL_SEND = 0x4
   };
 
 private:
@@ -69,7 +70,7 @@ class CopyActiveConf {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
   Uint32 userPtr;
@@ -89,7 +90,7 @@ class CopyActiveRef {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
   Uint32 userPtr;

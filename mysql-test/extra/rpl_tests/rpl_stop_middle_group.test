@@ -5,9 +5,8 @@
 # The matter of testing correlates to some of `rpl_start_stop_slave' that does
 # not require `have_debug'.
 
-# Test group sematics and thereby failing in such group is bound to 
-# the Single-Threaded Slave. 
--- source include/not_mts_slave_parallel_workers.inc
+# Test group sematics and thereby failing in such group is bound to
+# the Single-Threaded Slave.
 -- source include/have_myisam.inc
 
 connection master;
@@ -18,18 +17,19 @@ create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;
 
 sync_slave_with_master;
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,stop_replica_middle_group";
 
 connection master;
 
 begin;
 insert into ti set a=null;
-insert into tm set a=null; # to simulate killed status on the slave 
+insert into tm set a=null; # to simulate killed status on the slave
 commit;
 
 connection slave;
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("Slave SQL.*Slave SQL Thread stopped with incomplete event group having non-transactional changes");
+call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
 
 # slave will catch the killed status but won't shut down immediately
 # only after the whole group has done (commit)
@@ -53,7 +53,7 @@ source include/wait_for_slave_sql_to_stop.inc;
 --source include/assert.inc
 
 --source include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
 
 #
 # bug#45940 issues around rli->last_event_start_time
@@ -77,7 +77,7 @@ truncate table ti;
 #connection slave;
 sync_slave_with_master;
 
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,stop_replica_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 
 connection master;
@@ -92,8 +92,8 @@ connection slave;
 # slave will catch the killed status, won't shut down immediately
 # but does it eventually having the whole group unfinished (not committed)
 
-let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
---let $show_slave_sql_error= 1
+let $slave_sql_errno= 13117,1756; # ER_SLAVE_FATAL_ERROR, ER_MTS_INCONSISTENT_DATA
+--let $show_slave_sql_error= 0
 --source include/wait_for_slave_sql_error.inc
 
 # checking: the error and group unfinished
@@ -111,7 +111,8 @@ let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --source include/assert.inc
 
 --source include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 
 #
 # The mixed multi-table update
@@ -126,7 +127,7 @@ connection master;
 
 #connection slave;
 sync_slave_with_master;
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,stop_replica_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 
 connection master;
@@ -136,11 +137,11 @@ connection slave;
 
 # slave will catch the killed status, won't shut down immediately
 # but does it eventually having the whole group unfinished (not committed)
-# 
+#
 
-# checking: the error and group unfinished 
-let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
---let $show_slave_sql_error= 1
+# checking: the error and group unfinished
+let $slave_sql_errno= 13117,1756; # ER_SLAVE_FATAL_ERROR, ER_MTS_INCONSISTENT_DATA
+--let $show_slave_sql_error= 0
 --source include/wait_for_slave_sql_error.inc
 
 --let $assert_text= Not everything that was read, was executed
@@ -156,7 +157,8 @@ let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --source include/assert.inc
 
 --source include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 
 #
 # clean-up

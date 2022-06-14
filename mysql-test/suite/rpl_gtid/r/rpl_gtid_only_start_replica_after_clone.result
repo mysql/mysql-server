@@ -1,0 +1,69 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
+include/start_slave.inc
+[connection master]
+#
+# 1. Create connections to server3
+#
+# 2. Create a table for testing
+[connection server_1]
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+#
+# 3. Install clone on server 2
+#    Configure server 3 to invoke clone
+[connection server_2]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+[connection server_3]
+include/spawn_monitoring_process.inc
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL clone_valid_donor_list = 'localhost:SERVER2_PORT';
+CLONE INSTANCE FROM root@localhost:SERVER2_PORT IDENTIFIED BY '';
+include/rpl_reconnect.inc
+#
+# 4. Execute a transaction on server 1, check 3 received it
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/assert.inc [All info from server 1 is present]
+#
+# 4.1 Check that the replica only retrieves the missing transaction
+USE test;
+include/gtid_utils.inc
+include/assert.inc [Exactly 1 GTIDs should have been retrieved since last invocation]
+include/gtid_utils_end.inc
+#
+# 5. Cleanup
+[connection server_1]
+DROP TABLE test.t1;
+include/rpl_sync.inc
+[connection server_2]
+UNINSTALL PLUGIN clone;
+[connection server_3]
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+UNINSTALL PLUGIN clone;
+include/rpl_clear_priv_checks_user_configuration.inc
+include/clean_monitoring_process.inc
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+call mtr.add_suppression("Relay log information for channel '' was found after a clone operation. Relay log recovery");
+SET SESSION sql_log_bin=1;
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
+include/start_slave.inc
+include/rpl_end.inc

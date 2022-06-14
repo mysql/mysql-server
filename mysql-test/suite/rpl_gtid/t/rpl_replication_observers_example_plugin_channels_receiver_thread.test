@@ -18,7 +18,7 @@
 --connection server_2
 RESET SLAVE ALL;
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_1, MASTER_AUTO_POSITION=1 FOR CHANNEL "example_channel"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_AUTO_POSITION=1 FOR CHANNEL "example_channel"
 --source include/start_slave.inc
 
 --let $assert_text= 'The example_channel is ON'
@@ -34,11 +34,11 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
---let wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME="thread/sql/slave_sql" AND PROCESSLIST_STATE="Slave has read all relay log; waiting for more updates";
+--let wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME="thread/sql/replica_sql" AND PROCESSLIST_STATE="Replica has read all relay log; waiting for more updates";
 --source include/wait_condition_or_abort.inc
 
---let $slave_parallel_workers_configured= `SELECT @@GLOBAL.slave_parallel_workers`
---let wait_condition=SELECT COUNT(*)=$slave_parallel_workers_configured FROM performance_schema.threads WHERE NAME="thread/sql/slave_worker" AND PROCESSLIST_STATE="Waiting for an event from Coordinator";
+--let $replica_parallel_workers_configured= `SELECT @@GLOBAL.replica_parallel_workers`
+--let wait_condition=SELECT COUNT(*)=$replica_parallel_workers_configured FROM performance_schema.threads WHERE NAME="thread/sql/replica_worker" AND PROCESSLIST_STATE="Waiting for an event from Coordinator";
 --source include/wait_condition_or_abort.inc
 
 # Install the replication observers example plugin on the slave

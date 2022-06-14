@@ -1,0 +1,65 @@
+## Test of general functionality of session resource group
+
+## Preamble
+--source ../include/have_performance_schema_threads.inc
+--source include/not_mac_os.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+
+--write_file $MYSQL_TMP_DIR/session_resource_group.xpl
+
+-->macro Assert_resource_group	%EXPECT_GROUP%
+-->stmtsql SELECT RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
+-->recvtovar %GROUP% RESOURCE_GROUP
+-->echo Verify [Resource group needs to be '%EXPECT_GROUP%']
+-->assert_eq %GROUP%	%EXPECT_GROUP%
+-->endmacro
+
+
+-->macro Select_with_optimizer_hint	%GROUP%
+-->stmtsql SELECT /*+ RESOURCE_GROUP(%GROUP%) */ 1 AS value
+-->recvresult
+-->endmacro
+
+-->title =%WORKER_RESOURCE_GROUP%
+
+-->stmtsql SET RESOURCE GROUP %WORKER_RESOURCE_GROUP%
+-->recvresult
+
+-->callmacro Assert_resource_group	%WORKER_RESOURCE_GROUP%
+
+-->callmacro Select_with_optimizer_hint	SYS_default
+-->callmacro Assert_resource_group	%WORKER_RESOURCE_GROUP%
+
+-->callmacro Select_with_optimizer_hint	my_group
+-->callmacro Assert_resource_group	%WORKER_RESOURCE_GROUP%
+
+-->callmacro Select_with_optimizer_hint	USR_default
+-->callmacro Assert_resource_group	%WORKER_RESOURCE_GROUP%
+
+EOF
+
+CREATE RESOURCE GROUP my_group TYPE=USER;
+
+# SET RESOURCE GROUP... statements are currently not supported in the X protocol
+# Need removal '--fatal-errors=0' and record result file after fixing BUG#30900411
+
+--replace_regex /thread id \([0-9]+\)/thread id (ID)/
+exec $MYSQLXTEST
+  --fatal-errors=0
+  -ux_root --password=''
+  -v%WORKER_RESOURCE_GROUP%=USR_default
+  --file=$MYSQL_TMP_DIR/session_resource_group.xpl 2>&1;
+
+--replace_regex /thread id \([0-9]+\)/thread id (ID)/
+exec $MYSQLXTEST
+  --fatal-errors=0
+  -ux_root --password=''
+  -v%WORKER_RESOURCE_GROUP%=my_group
+  --file=$MYSQL_TMP_DIR/session_resource_group.xpl 2>&1;
+
+## Cleanup
+DROP RESOURCE GROUP my_group FORCE;
+--source ../include/xplugin_cleanup.inc

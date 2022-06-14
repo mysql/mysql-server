@@ -3,6 +3,7 @@ echo "Comparator <";
 echo "";
 echo "Testcase for Tinyint";
 #====================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._tin as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._tin as side1,
@@ -28,6 +29,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Boolean";
 #=====================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._boo as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._boo as side1,
@@ -52,6 +54,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for small Int Signed";
 #==============================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._sms as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._sms as side1,
@@ -78,6 +81,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Signed Medium Int";
 #===============================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._mes as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._mes as side1,
@@ -103,6 +107,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for unsigned Medium Int";
 #==================================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._meu as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._meu as side1,
@@ -127,6 +132,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for signed Int";
 #========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._ins as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._ins as side1,
@@ -149,6 +155,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Unsigned Int";
 #========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._inu as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._inu as side1,
@@ -174,6 +181,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Big Int";
 #========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._bis as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._bis as side1,
@@ -198,6 +206,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Big Int Unsigned";
 #==============================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._biu as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._biu as side1,
@@ -222,6 +231,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Decimal";
 #=====================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._dec as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._dec as side1,
@@ -246,6 +256,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Double";
 #=====================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._dou as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._dou as side1,
@@ -270,6 +281,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for CHAR";
 #===================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._chr as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._chr as side1,
@@ -295,6 +307,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 echo "Testcase for VARCHAR";
 #=====================
 
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._vch as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._vch as side1,
@@ -320,6 +333,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 echo "Testcase for Binary(255)";
 #==========================
 
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._bin as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._bin as side1,
@@ -345,6 +359,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Variable Binary";
 #=============================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._vbn as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._vbn as side1,
@@ -369,6 +384,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for TinyBlob";
 #======================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._tbl as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._tbl as side1,
@@ -393,6 +409,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for TinyText";
 #======================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._ttx as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._ttx as side1,
@@ -417,6 +434,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Blob";
 #======================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._blb as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._blb as side1,
@@ -442,6 +460,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Text";
 #======================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._txt as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._txt as side1,
@@ -466,6 +485,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Medium Blob";
 #=========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._mbb as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._mbb as side1,
@@ -490,6 +510,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Medium Text";
 #=========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._mtx as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._mtx as side1,
@@ -514,6 +535,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Long Blob";
 #=========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._lbb as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._lbb as side1,
@@ -538,6 +560,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Long Text";
 #=========================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._ltx as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._ltx as side1,
@@ -562,6 +585,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Enum";
 #==================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._enu as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._enu as side1,
@@ -586,6 +610,7 @@ GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON)))
 
 echo "Testcase for Set";
 #==================
+--sorted_result
 select
 IF(GET_JSON_WEIGHT(JSON_TYPE(CAST(a._set as JSON)))=GET_JSON_WEIGHT(JSON_TYPE(CAST(b.col as JSON))),'2nd Level','1st Level') validation_stage,
 a._set as side1,

@@ -20,7 +20,7 @@ drop table t1;
 create table t1(a int primary key);
 load data local infile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2' for key 't1.PRIMARY'
 SELECT * FROM t1 ORDER BY a;
 a
 1

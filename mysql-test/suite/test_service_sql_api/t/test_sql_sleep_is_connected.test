@@ -1,0 +1,12 @@
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SQL_SLEEP_IS_CONNECTED TEST_SQL_SLEEP_IS_CONNECTED
+eval INSTALL PLUGIN test_sql_sleep_is_connected SONAME '$TEST_SQL_SLEEP_IS_CONNECTED';
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_sql_sleep_is_connected;
+
+--echo ------ plugin log ------------------------------------------------
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_is_connected.log;
+remove_file $MYSQLD_DATADIR/test_sql_is_connected.log;
+
+--echo ------ cleanup ---------------------------------------------------

@@ -25,6 +25,13 @@ ndb-autoincrement-prefetch-sz=256
 ndb-wait-connected=600
 ndb-wait-setup=300
 
+[cluster_config.mysqld.1.1]
+NodeId=49
+Dedicated=1
+
+[mysqld.1.1]
+ndb-cluster-connection-pool=49
+
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
 MASTER_MYPORT=                 @mysqld.1.1.port

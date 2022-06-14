@@ -1,0 +1,19 @@
+#
+# Bug #30197056 INNODB: ASSERTION FAILURE: PAGE_TYPE ==
+# FIL_PAGE_TYPE_ZLOB_FIRST AT ZLOB0READ.CC
+#
+SET GLOBAL innodb_compression_level = 0;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=COMPRESSED;
+INSERT INTO t1 VALUES (1, REPEAT('+', 40000));
+SET DEBUG = '+d,lob_insert_single_zstream';
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, REPEAT('~', 40000));
+SET DEBUG = '+d,ib_zlob_deleter_middle_crash';
+ROLLBACK;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT f1, LENGTH(f2) FROM t1 FOR UPDATE;
+f1	LENGTH(f2)
+1	40000
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = DEFAULT;

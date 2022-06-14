@@ -590,3 +590,208 @@ insert into indexmerge values(9, 0, REPEAT("I",512));
 insert into indexmerge values(0, 9, REPEAT("J",512));
 delete quick from indexmerge where id = 2 or similar_id = 2;
 drop table indexmerge;
+CREATE TABLE t1(
+col1 int unsigned not null primary key AUTO_INCREMENT, col2 int unsigned,
+col3 varchar(27), col4 varchar(27), col5 varchar(27), col6 varchar(27),
+col7 char(27), col8 int unsigned, col9 varchar(27), col10 varchar(27),
+col11 varchar(27), col12 varchar(27), col13 varchar(27),
+col14 varchar(27), col15 smallint unsigned, col16 char(27),
+col17 varchar(27), col18 varchar(27), col19 varchar(27),
+col20 varchar(27), col21 char(27), col22 varchar(27),
+col23 mediumint unsigned, col24 varchar(27), col25 varchar(27),
+col26 char(27), col27 varchar(27), col28 varchar(27), col29 varchar(27),
+col30 varchar(27), col31 varchar(27), col32 bigint, col33 varchar(27),
+col34 varchar(27), col35 smallint unsigned, col36 char(27),
+col37 bigint unsigned, col38 varchar(27), col39 varchar(27),
+col40 varchar(27), col41 varchar(27), col42 bigint, col43 varchar(27),
+col44 varchar(27), col45 smallint unsigned, col46 char(27),
+col47 varchar(27), col48 varchar(27), col49 varchar(27),
+col50 varchar(27), col51 varchar(27), col52 bigint unsigned,
+col53 varchar(27), col54 varchar(27), col55 varchar(27),
+col56 tinyint unsigned, col57 varchar(27), col58 varchar(27),
+col59 varchar(27), col60 tinyint unsigned, col61 int unsigned,
+col62 varchar(27), col63 bigint unsigned, col64 int unsigned,
+col65 varchar(27), col66 char(27), col67 varchar(27), col68 varchar(27),
+col69 varchar(27), col70 varchar(27), col71 varchar(27),
+col72 smallint unsigned, col73 varchar(27), col74 varchar(27),
+col75 varchar(27), col76 char(27), col77 bigint unsigned, col78 varchar(27),
+col79 varchar(27), col80 varchar(27), col81 varchar(27), col82 varchar(27),
+col83 varchar(27), col84 varchar(27), col85 varchar(27), col86 char(27),
+col87 varchar(27), col88 int unsigned, col89 varchar(27), col90 int unsigned,
+col91 varchar(27), col92 tinyint unsigned, col93 varchar(27),
+col94 varchar(27), col95 varchar(27), col96 varchar(27), col97 char(27),
+col98 varchar(27), col99 varchar(27)
+) engine=ndbcluster;
+ALTER TABLE t1 ADD UNIQUE KEY col1 (col1);
+ALTER TABLE t1 ADD UNIQUE KEY col2 (col2);
+ALTER TABLE t1 ADD UNIQUE KEY col3 (col3);
+ALTER TABLE t1 ADD UNIQUE KEY col4 (col4);
+ALTER TABLE t1 ADD UNIQUE KEY col5 (col5);
+ALTER TABLE t1 ADD UNIQUE KEY col6 (col6);
+ALTER TABLE t1 ADD UNIQUE KEY col7 (col7);
+ALTER TABLE t1 ADD UNIQUE KEY col8 (col8);
+ALTER TABLE t1 ADD UNIQUE KEY col9 (col9);
+ALTER TABLE t1 ADD UNIQUE KEY col10 (col10);
+ALTER TABLE t1 ADD UNIQUE KEY col11 (col11);
+ALTER TABLE t1 ADD UNIQUE KEY col12 (col12);
+ALTER TABLE t1 ADD UNIQUE KEY col13 (col13);
+ALTER TABLE t1 ADD UNIQUE KEY col14 (col14);
+ALTER TABLE t1 ADD UNIQUE KEY col15 (col15);
+ALTER TABLE t1 ADD UNIQUE KEY col16 (col16);
+ALTER TABLE t1 ADD UNIQUE KEY col17 (col17);
+ALTER TABLE t1 ADD UNIQUE KEY col18 (col18);
+ALTER TABLE t1 ADD UNIQUE KEY col19 (col19);
+ALTER TABLE t1 ADD UNIQUE KEY col20 (col20);
+ALTER TABLE t1 ADD UNIQUE KEY col21 (col21);
+ALTER TABLE t1 ADD UNIQUE KEY col22 (col22);
+ALTER TABLE t1 ADD UNIQUE KEY col23 (col23);
+ALTER TABLE t1 ADD UNIQUE KEY col24 (col24);
+ALTER TABLE t1 ADD UNIQUE KEY col25 (col25);
+ALTER TABLE t1 ADD UNIQUE KEY col26 (col26);
+ALTER TABLE t1 ADD UNIQUE KEY col27 (col27);
+ALTER TABLE t1 ADD UNIQUE KEY col28 (col28);
+ALTER TABLE t1 ADD UNIQUE KEY col29 (col29);
+ALTER TABLE t1 ADD UNIQUE KEY col30 (col30);
+ALTER TABLE t1 ADD UNIQUE KEY col31 (col31);
+ALTER TABLE t1 ADD UNIQUE KEY col32 (col32);
+ALTER TABLE t1 ADD UNIQUE KEY col33 (col33);
+ALTER TABLE t1 ADD UNIQUE KEY col34 (col34);
+ALTER TABLE t1 ADD UNIQUE KEY col35 (col35);
+ALTER TABLE t1 ADD UNIQUE KEY col36 (col36);
+ALTER TABLE t1 ADD UNIQUE KEY col37 (col37);
+ALTER TABLE t1 ADD UNIQUE KEY col38 (col38);
+ALTER TABLE t1 ADD UNIQUE KEY col39 (col39);
+ALTER TABLE t1 ADD UNIQUE KEY col40 (col40);
+ALTER TABLE t1 ADD UNIQUE KEY col41 (col41);
+ALTER TABLE t1 ADD UNIQUE KEY col42 (col42);
+ALTER TABLE t1 ADD UNIQUE KEY col43 (col43);
+ALTER TABLE t1 ADD UNIQUE KEY col44 (col44);
+ALTER TABLE t1 ADD UNIQUE KEY col45 (col45);
+ALTER TABLE t1 ADD UNIQUE KEY col46 (col46);
+ALTER TABLE t1 ADD UNIQUE KEY col47 (col47);
+ALTER TABLE t1 ADD UNIQUE KEY col48 (col48);
+ALTER TABLE t1 ADD UNIQUE KEY col49 (col49);
+ALTER TABLE t1 ADD UNIQUE KEY col50 (col50);
+ALTER TABLE t1 ADD UNIQUE KEY col51 (col51);
+ALTER TABLE t1 ADD UNIQUE KEY col52 (col52);
+ALTER TABLE t1 ADD UNIQUE KEY col53 (col53);
+ALTER TABLE t1 ADD UNIQUE KEY col54 (col54);
+ALTER TABLE t1 ADD UNIQUE KEY col55 (col55);
+ALTER TABLE t1 ADD UNIQUE KEY col56 (col56);
+ALTER TABLE t1 ADD UNIQUE KEY col57 (col57);
+ALTER TABLE t1 ADD UNIQUE KEY col58 (col58);
+ALTER TABLE t1 ADD UNIQUE KEY col59 (col59);
+ALTER TABLE t1 ADD UNIQUE KEY col60 (col60);
+ALTER TABLE t1 ADD UNIQUE KEY col61 (col61);
+ALTER TABLE t1 ADD UNIQUE KEY col62 (col62);
+ALTER TABLE t1 ADD UNIQUE KEY col63 (col63);
+ALTER TABLE t1 ADD UNIQUE KEY col64 (col64);
+ALTER TABLE t1 DROP INDEX col1;
+ALTER TABLE t1 DROP INDEX col2;
+ALTER TABLE t1 DROP INDEX col3;
+ALTER TABLE t1 DROP INDEX col4;
+ALTER TABLE t1 DROP INDEX col5;
+ALTER TABLE t1 DROP INDEX col6;
+ALTER TABLE t1 DROP INDEX col7;
+ALTER TABLE t1 DROP INDEX col8;
+ALTER TABLE t1 DROP INDEX col9;
+ALTER TABLE t1 DROP INDEX col10;
+ALTER TABLE t1 DROP INDEX col11;
+ALTER TABLE t1 DROP INDEX col12;
+ALTER TABLE t1 DROP INDEX col13;
+ALTER TABLE t1 DROP INDEX col14;
+ALTER TABLE t1 DROP INDEX col15;
+ALTER TABLE t1 DROP INDEX col16;
+ALTER TABLE t1 DROP INDEX col17;
+ALTER TABLE t1 DROP INDEX col18;
+ALTER TABLE t1 DROP INDEX col19;
+ALTER TABLE t1 DROP INDEX col20;
+ALTER TABLE t1 DROP INDEX col21;
+ALTER TABLE t1 DROP INDEX col22;
+ALTER TABLE t1 DROP INDEX col23;
+ALTER TABLE t1 DROP INDEX col24;
+ALTER TABLE t1 DROP INDEX col25;
+ALTER TABLE t1 DROP INDEX col26;
+ALTER TABLE t1 DROP INDEX col27;
+ALTER TABLE t1 DROP INDEX col28;
+ALTER TABLE t1 DROP INDEX col29;
+ALTER TABLE t1 DROP INDEX col30;
+ALTER TABLE t1 DROP INDEX col31;
+ALTER TABLE t1 DROP INDEX col32;
+ALTER TABLE t1 DROP INDEX col33;
+ALTER TABLE t1 DROP INDEX col34;
+ALTER TABLE t1 DROP INDEX col35;
+ALTER TABLE t1 DROP INDEX col36;
+ALTER TABLE t1 DROP INDEX col37;
+ALTER TABLE t1 DROP INDEX col38;
+ALTER TABLE t1 DROP INDEX col39;
+ALTER TABLE t1 DROP INDEX col40;
+ALTER TABLE t1 DROP INDEX col41;
+ALTER TABLE t1 DROP INDEX col42;
+ALTER TABLE t1 DROP INDEX col43;
+ALTER TABLE t1 DROP INDEX col44;
+ALTER TABLE t1 DROP INDEX col45;
+ALTER TABLE t1 DROP INDEX col46;
+ALTER TABLE t1 DROP INDEX col47;
+ALTER TABLE t1 DROP INDEX col48;
+ALTER TABLE t1 DROP INDEX col49;
+ALTER TABLE t1 DROP INDEX col50;
+ALTER TABLE t1 DROP INDEX col51;
+ALTER TABLE t1 DROP INDEX col52;
+ALTER TABLE t1 DROP INDEX col53;
+ALTER TABLE t1 DROP INDEX col54;
+ALTER TABLE t1 DROP INDEX col55;
+ALTER TABLE t1 DROP INDEX col56;
+ALTER TABLE t1 DROP INDEX col57;
+ALTER TABLE t1 DROP INDEX col58;
+ALTER TABLE t1 DROP INDEX col59;
+ALTER TABLE t1 DROP INDEX col60;
+ALTER TABLE t1 DROP INDEX col61;
+ALTER TABLE t1 DROP INDEX col62;
+ALTER TABLE t1 DROP INDEX col63;
+ALTER TABLE t1 DROP INDEX col64;
+ALTER TABLE t1 ADD UNIQUE KEY (col24);
+ALTER TABLE t1 ADD UNIQUE KEY (col25);
+ALTER TABLE t1 DROP INDEX col24;
+ALTER TABLE t1 DROP INDEX col25;
+DROP TABLE t1;
+#
+# Bug#31452597 BUILD ATTRID MAP FOR PRIMARY KEY
+#  - test read using primary key where keys are specified in
+#    different order than in the NDB table, thus testing
+#    the NDB_INDEX_DATA::Attrid_map mapping
+CREATE TABLE t1 (
+a int, b int, c int, d int, e int, f int, g int, h int,
+PRIMARY KEY(d,b,c),
+UNIQUE KEY(a)
+) engine = ndb;
+CREATE TABLE t1hash (
+a int, b int, c int, d int, e int, f int, g int, h int,
+PRIMARY KEY(b,d,c) USING HASH,
+UNIQUE KEY(a)
+) engine = ndb;
+CREATE TABLE t2 (
+a int, b int,
+PRIMARY KEY(a)
+) engine = ndb;
+INSERT INTO t1 VALUES
+(1,2,3,4,5,6,7,8),
+(2,2,4,4,5,6,7,9),
+(3,2,5,4,5,6,7,10);
+INSERT INTO t1hash VALUES
+(1,2,3,4,5,6,7,8),
+(2,2,4,4,5,6,7,9),
+(3,2,5,4,5,6,7,10);
+INSERT INTO t2 VALUES
+(1,2);
+SELECT t1.a, t1.h FROM t1, t2
+WHERE t2.a = t1.a /* join with t2 to trigger pushed join */ AND
+t1.b = 2 AND t1.c = 3 AND t1.d = 4 /* use primary key on t1 */;
+a	h
+1	8
+SELECT t1hash.a, t1hash.h FROM t1hash, t2
+WHERE t2.a = t1hash.a /* join with t2 to trigger pushed join */ AND
+t1hash.b = 2 AND t1hash.c = 3 AND t1hash.d = 4 /* use primary key on t1 */;
+a	h
+1	8
+DROP TABLE t1,t1hash,t2;

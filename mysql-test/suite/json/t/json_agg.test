@@ -270,11 +270,13 @@ DROP TABLE CC;
 CREATE TABLE BB (pk INT AUTO_INCREMENT PRIMARY KEY, col_varchar_key VARCHAR(1));
 INSERT INTO BB VALUES(1,'a');
 
+--skip_if_hypergraph  # Different warnings.
 SELECT (SELECT JSON_ARRAYAGG(`pk`) FROM BB as t1
         WHERE t1.`col_varchar_key` <> t2.`col_varchar_key`) AS field2
 FROM BB as t2
 GROUP BY field2;
 
+--skip_if_hypergraph  # Different warnings.
 SELECT (SELECT JSON_ARRAYAGG(`pk`) FROM BB as t1
         WHERE t1.`col_varchar_key` = t2.`col_varchar_key`) AS field2
 FROM BB as t2
@@ -440,6 +442,7 @@ SHOW SESSION STATUS LIKE 'Handler_update%';
 
 # Subquery in ORDER BY with outer reference
 SELECT (SELECT 1 AS foo ORDER BY JSON_ARRAYAGG(t2)) AS x FROM t;
+--skip_if_hypergraph  # Different warnings.
 SELECT t1 FROM t ORDER BY (SELECT JSON_ARRAYAGG(t1) FROM t AS t2);
 SELECT JSON_ARRAYAGG(t1) FROM t
 ORDER BY (SELECT JSON_ARRAYAGG(t1) FROM t AS t2);

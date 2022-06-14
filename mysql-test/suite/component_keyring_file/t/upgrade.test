@@ -1,0 +1,21 @@
+--source include/big_test.inc
+--source include/have_component_keyring_file.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/have_case_sensitive_file_system.inc
+--source include/mysql_upgrade_preparation.inc
+
+--source ../inc/setup_component_customized.inc
+
+# Following variables were set by setup_component
+# $COMPONENT_DIR
+# $COMPONENT_NAME
+# $SOURCE_KEYRING_PLUGIN and $SOURCE_KEYRING_OPTIONS
+# shall be set by upgrade.inc
+--let DESTINATION_KEYRING_COMPONENT = $COMPONENT_LIBRARY
+--let DESTINATION_KEYRING_CONFIG_CONTENT = $KEYRING_CONFIG_CONTENT
+
+--source include/keyring_tests/encryption/upgrade.inc
+--source ../inc/teardown_component_customized.inc

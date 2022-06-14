@@ -283,7 +283,8 @@ COMMIT;
 #
 # Verify that we can succeed to commit a transaction with a specified gtid,
 # even if an error is caused by executing the statement 'CREATE..SELECT'
-# in the middle.
+# in the middle. The CREATE..SELECT using non-transactional engine are
+# expected to fail with ER_GTID_UNSAFE_CREATE_SELECT.
 #
 # ==== References ====
 #
@@ -291,7 +292,7 @@ COMMIT;
 
 --eval SET @@SESSION.GTID_NEXT= '$ida:16'
 --error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t2 AS SELECT * FROM t1;
+CREATE TABLE t2 ENGINE=MyISAM AS SELECT * FROM t1;
 COMMIT;
 
 eval SET @@SESSION.GTID_NEXT = '$ida:17';

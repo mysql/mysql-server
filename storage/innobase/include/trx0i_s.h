@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0i_s_h
 #define trx0i_s_h
 
+#include <optional>
+
 #include "dict0types.h"
 #include "trx0types.h"
 #include "univ.i"
@@ -43,27 +45,27 @@ class PSI_server_data_lock_container;
 
 /** The maximum amount of memory that can be consumed by innodb_trx,
 innodb_locks and innodb_lock_waits information schema tables. */
-#define TRX_I_S_MEM_LIMIT 16777216 /* 16 MiB */
+constexpr uint32_t TRX_I_S_MEM_LIMIT = 16777216; /* 16 MiB */
 
 /** The maximum length of a string that can be stored in
 i_s_locks_row_t::lock_data */
-#define TRX_I_S_LOCK_DATA_MAX_LEN 8192
+constexpr uint32_t TRX_I_S_LOCK_DATA_MAX_LEN = 8192;
 
 /** The maximum length of a string that can be stored in
 i_s_trx_row_t::trx_query */
-#define TRX_I_S_TRX_QUERY_MAX_LEN 1024
+constexpr uint32_t TRX_I_S_TRX_QUERY_MAX_LEN = 1024;
 
 /** The maximum length of a string that can be stored in
 i_s_trx_row_t::trx_operation_state */
-#define TRX_I_S_TRX_OP_STATE_MAX_LEN 64
+constexpr uint32_t TRX_I_S_TRX_OP_STATE_MAX_LEN = 64;
 
 /** The maximum length of a string that can be stored in
 i_s_trx_row_t::trx_foreign_key_error */
-#define TRX_I_S_TRX_FK_ERROR_MAX_LEN 256
+constexpr uint32_t TRX_I_S_TRX_FK_ERROR_MAX_LEN = 256;
 
 /** The maximum length of a string that can be stored in
 i_s_trx_row_t::trx_isolation_level */
-#define TRX_I_S_TRX_ISOLATION_LEVEL_MAX_LEN 16
+constexpr uint32_t TRX_I_S_TRX_ISOLATION_LEVEL_MAX_LEN = 16;
 
 /** Safely copy strings in to the INNODB_TRX table's
 string based columns */
@@ -110,19 +112,19 @@ struct i_s_locks_row_t {
 
   /** Information for record locks.  All these are
   ULINT_UNDEFINED for table locks. */
-  /* @{ */
+  /** @{ */
   space_id_t lock_space; /*!< tablespace identifier */
   page_no_t lock_page;   /*!< page number within the_space */
   ulint lock_rec;        /*!< heap number of the record
                          on the page */
-  /* @} */
+  /** @} */
 
   /** The following are auxiliary and not included in the table */
-  /* @{ */
+  /** @{ */
   table_id_t lock_table_id;
   /*!< table identifier from
   lock_get_table_id */
-  /* @} */
+  /** @} */
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_trx row */
@@ -130,13 +132,21 @@ struct i_s_trx_row_t {
   trx_id_t trx_id;       /*!< transaction identifier */
   const char *trx_state; /*!< transaction state from
                          trx_get_que_state_str() */
-  ib_time_t trx_started; /*!< trx_t::start_time */
+  std::chrono::system_clock::time_point trx_started; /*!< trx_t::start_time */
   const i_s_locks_row_t *requested_lock_row;
   /*!< pointer to a row
   in innodb_locks if trx
   is waiting, or NULL */
-  ib_time_t trx_wait_started;       /*!< trx_t::wait_started */
-  uintmax_t trx_weight;             /*!< TRX_WEIGHT() */
+
+  /** The value of trx->lock.wait_started */
+  std::chrono::system_clock::time_point trx_wait_started;
+  /** The value of TRX_WEIGHT(trx) */
+  uintmax_t trx_weight;
+  /** If `first` is `true` then `second` is the value of the
+  trx->lock.schedule_weight, otherwise the `second` should be ignored and
+  displayed as NULL to the end user.
+  (This could be std::optional once we move to C++17) */
+  std::pair<bool, trx_schedule_weight_t> trx_schedule_weight;
   ulint trx_mysql_thread_id;        /*!< thd_get_thread_id() */
   const char *trx_query;            /*!< MySQL statement being
                                     executed in the transaction */
@@ -159,13 +169,13 @@ struct i_s_trx_row_t {
   trx_t */
   const char *trx_isolation_level;
   /*!< isolation_level in trx_t */
-  ibool trx_unique_checks;
+  bool trx_unique_checks;
   /*!< check_unique_secondary in trx_t*/
-  ibool trx_foreign_key_checks;
+  bool trx_foreign_key_checks;
   /*!< check_foreigns in trx_t */
   const char *trx_foreign_key_error;
   /*!< detailed_error in trx_t */
-  ibool trx_has_search_latch;
+  bool trx_has_search_latch;
   /*!< has_search_latch in trx_t */
   ulint trx_is_read_only;
   /*!< trx_t::read_only */
@@ -223,14 +233,16 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 int trx_i_s_possibly_fetch_data_into_cache(
     trx_i_s_cache_t *cache); /*!< in/out: cache */
 
-/** Returns TRUE if the data in the cache is truncated due to the memory
+/** Returns true if the data in the cache is truncated due to the memory
  limit posed by TRX_I_S_MEM_LIMIT.
+ @param[in]   cache   The cache
  @return true if truncated */
-ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache); /*!< in: cache */
+bool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache);
+
 /** The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating NUL.
 "%lu:%lu:%lu:%lu:%lu" -> 20*5+4 chars */
-#define TRX_I_S_LOCK_ID_MAX_LEN (20 * 5 + 4)
+constexpr uint32_t TRX_I_S_LOCK_ID_MAX_LEN = 20 * 5 + 4;
 
 /** Crafts a lock id string from a i_s_locks_row_t object. Returns its
  second argument. This function aborts if there is not enough space in
@@ -246,10 +258,10 @@ char *trx_i_s_create_lock_id(
 /** Fill performance schema lock data.
 Create a string that represents the LOCK_DATA
 column, for a given lock record.
-@param[out]	lock_data	Lock data string
-@param[in]	lock		Lock to inspect
-@param[in]	heap_no		Lock heap number
-@param[in]	container	Data container to fill
+@param[out]     lock_data       Lock data string
+@param[in]      lock            Lock to inspect
+@param[in]      heap_no         Lock heap number
+@param[in]      container       Data container to fill
 */
 void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
                         ulint heap_no,

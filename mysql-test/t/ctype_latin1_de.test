@@ -26,12 +26,17 @@ insert into t1 (a) values ('eä'),('uü'),('öo'),('ää'),('ääa'),('aeae');
 insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É'),('a');
 select a,b from t1 order by a,b;
 select a,b from t1 order by upper(a),b;
-select a from t1 order by a desc;
+select a from t1 order by a desc,b;
 check table t1;
+--sorted_result
 select * from t1 where a like "ö%";
+--sorted_result
 select * from t1 where a like binary "%É%";
+--sorted_result
 select * from t1 where a like "%Á%";
+--sorted_result
 select * from t1 where a like "%U%";
+--sorted_result
 select * from t1 where a like "%ss%";
 drop table t1;
 

@@ -1,0 +1,8 @@
+--source include/have_component_keyring_file.inc
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_case_sensitive_file_system.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/encryption/mysqldump.inc
+--source ../inc/teardown_component.inc

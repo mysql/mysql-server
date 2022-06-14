@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,23 +23,44 @@
 #ifndef PARSE_TREE_COL_ATTRS_INCLUDED
 #define PARSE_TREE_COL_ATTRS_INCLUDED
 
-#include <type_traits>
+#include <assert.h>
+#include <sys/types.h>  // ulong, uint. TODO: replace with cstdint
 
-#include "my_dbug.h"
-#include "mysql/mysql_lex_string.h"
+#include <optional>
+#include <type_traits>
+#include <vector>
+
+#include "field_types.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_compiler.h"
+
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql_com.h"
-#include "nullable.h"
+#include "mysqld_error.h"
+#include "sql/derror.h"
+#include "sql/field.h"
 #include "sql/gis/srid.h"
+#include "sql/item.h"
 #include "sql/item_timefunc.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h"  // move_cf_appliers
 #include "sql/parse_tree_node_base.h"
+#include "sql/parser_yystype.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_parse.h"
+#include "sql/system_variables.h"
 
-using Mysql::Nullable;
+class String;
 
 /**
   Parse context for column type attribyte specific parse tree nodes.
@@ -50,8 +71,8 @@ using Mysql::Nullable;
 */
 struct Column_parse_context : public Parse_context {
   const bool is_generated;  ///< Owner column is a generated one.
-
-  Column_parse_context(THD *thd_arg, SELECT_LEX *select_arg, bool is_generated)
+  std::vector<CreateFieldApplier> cf_appliers;
+  Column_parse_context(THD *thd_arg, Query_block *select_arg, bool is_generated)
       : Parse_context(thd_arg, select_arg), is_generated(is_generated) {}
 };
 
@@ -62,7 +83,7 @@ struct Column_parse_context : public Parse_context {
 */
 class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
  protected:
-  PT_column_attr_base() {}
+  PT_column_attr_base() = default;
 
  public:
   typedef decltype(Alter_info::flags) alter_info_flags_t;
@@ -73,14 +94,15 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   virtual void apply_default_value(Item **) const {}
   virtual void apply_gen_default_value(Value_generator **) {}
   virtual void apply_on_update_value(Item **) const {}
-  virtual void apply_srid_modifier(Nullable<gis::srid_t> *) const {}
-  virtual bool apply_collation(
-      Column_parse_context *, const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
-      bool *has_explicit_collation MY_ATTRIBUTE((unused))) const {
+  virtual void apply_srid_modifier(std::optional<gis::srid_t> *) const {}
+  virtual bool apply_collation(Column_parse_context *,
+                               const CHARSET_INFO **to [[maybe_unused]],
+                               bool *has_explicit_collation
+                               [[maybe_unused]]) const {
     return false;
   }
   virtual bool add_check_constraints(
-      Sql_check_constraint_spec_list *check_const_list MY_ATTRIBUTE((unused))) {
+      Sql_check_constraint_spec_list *check_const_list [[maybe_unused]]) {
     return false;
   }
 
@@ -110,8 +132,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
     @returns false if success, true if error (e.g. if [NOT] ENFORCED follows
              something other than the CHECK clause.)
   */
-  virtual bool set_constraint_enforcement(
-      bool enforced MY_ATTRIBUTE((unused))) {
+  virtual bool set_constraint_enforcement(bool enforced [[maybe_unused]]) {
     return true;  // error
   }
 };
@@ -123,7 +144,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
 */
 class PT_null_column_attr : public PT_column_attr_base {
  public:
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~NOT_NULL_FLAG;
     *type_flags |= EXPLICIT_NULL_FLAG;
   }
@@ -135,7 +156,7 @@ class PT_null_column_attr : public PT_column_attr_base {
   @ingroup ptn_column_attrs
 */
 class PT_not_null_column_attr : public PT_column_attr_base {
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= NOT_NULL_FLAG;
   }
 };
@@ -159,11 +180,11 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 */
 class PT_unique_key_column_attr : public PT_column_attr_base {
  public:
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= UNIQUE_FLAG;
   }
 
-  virtual void apply_alter_info_flags(ulonglong *flags) const {
+  void apply_alter_info_flags(ulonglong *flags) const override {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
 };
@@ -175,11 +196,11 @@ class PT_unique_key_column_attr : public PT_column_attr_base {
 */
 class PT_primary_key_column_attr : public PT_column_attr_base {
  public:
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= PRI_KEY_FLAG | NOT_NULL_FLAG;
   }
 
-  virtual void apply_alter_info_flags(ulonglong *flags) const {
+  void apply_alter_info_flags(ulonglong *flags) const override {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
 };
@@ -210,7 +231,7 @@ class PT_check_constraint_column_attr : public PT_column_attr_base {
 
   bool add_check_constraints(
       Sql_check_constraint_spec_list *check_const_list) override {
-    DBUG_ASSERT(check_const_list != nullptr);
+    assert(check_const_list != nullptr);
     return (check_const_list->push_back(&col_cc_spec));
   }
 
@@ -250,7 +271,7 @@ class PT_comment_column_attr : public PT_column_attr_base {
   explicit PT_comment_column_attr(const LEX_CSTRING &comment)
       : comment(comment) {}
 
-  virtual void apply_comment(LEX_CSTRING *to) const { *to = comment; }
+  void apply_comment(LEX_CSTRING *to) const override { *to = comment; }
 };
 
 /**
@@ -262,7 +283,7 @@ class PT_collate_column_attr : public PT_column_attr_base {
  public:
   explicit PT_collate_column_attr(const POS &pos, const CHARSET_INFO *collation)
       : m_pos(pos), m_collation(collation) {
-    DBUG_ASSERT(m_collation != nullptr);
+    assert(m_collation != nullptr);
   }
 
   bool apply_collation(Column_parse_context *pc, const CHARSET_INFO **to,
@@ -294,16 +315,16 @@ class PT_default_column_attr : public PT_column_attr_base {
 
  public:
   explicit PT_default_column_attr(Item *item) : item(item) {}
-  virtual void apply_default_value(Item **value) const { *value = item; }
+  void apply_default_value(Item **value) const override { *value = item; }
 
-  virtual bool contextualize(Column_parse_context *pc) {
+  bool contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "DEFAULT", "generated column");
       return true;
     }
     return super::contextualize(pc) || item->itemize(pc, &item);
   }
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     if (item->type() == Item::NULL_ITEM) *type_flags |= EXPLICIT_NULL_FLAG;
   }
 };
@@ -321,9 +342,9 @@ class PT_on_update_column_attr : public PT_column_attr_base {
 
  public:
   explicit PT_on_update_column_attr(uint8 precision) : precision(precision) {}
-  virtual void apply_on_update_value(Item **value) const { *value = item; }
+  void apply_on_update_value(Item **value) const override { *value = item; }
 
-  virtual bool contextualize(Column_parse_context *pc) {
+  bool contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "ON UPDATE", "generated column");
       return true;
@@ -331,7 +352,7 @@ class PT_on_update_column_attr : public PT_column_attr_base {
     if (super::contextualize(pc)) return true;
 
     item = new (pc->thd->mem_root) Item_func_now_local(precision);
-    return item == NULL;
+    return item == nullptr;
   }
 };
 
@@ -344,10 +365,10 @@ class PT_auto_increment_column_attr : public PT_column_attr_base {
   typedef PT_column_attr_base super;
 
  public:
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG;
   }
-  virtual bool contextualize(Column_parse_context *pc) {
+  bool contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "AUTO_INCREMENT", "generated column");
       return true;
@@ -365,13 +386,13 @@ class PT_serial_default_value_column_attr : public PT_column_attr_base {
   typedef PT_column_attr_base super;
 
  public:
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG;
   }
-  virtual void apply_alter_info_flags(ulonglong *flags) const {
+  void apply_alter_info_flags(ulonglong *flags) const override {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
-  virtual bool contextualize(Column_parse_context *pc) {
+  bool contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "SERIAL DEFAULT VALUE",
                "generated column");
@@ -395,11 +416,11 @@ class PT_column_format_column_attr : public PT_column_attr_base {
   explicit PT_column_format_column_attr(column_format_type format)
       : format(format) {}
 
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     *type_flags |= format << FIELD_FLAGS_COLUMN_FORMAT;
   }
-  virtual bool contextualize(Column_parse_context *pc) {
+  bool contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
       return true;
@@ -422,11 +443,11 @@ class PT_storage_media_column_attr : public PT_column_attr_base {
   explicit PT_storage_media_column_attr(ha_storage_media media)
       : media(media) {}
 
-  virtual void apply_type_flags(ulong *type_flags) const {
+  void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
     *type_flags |= media << FIELD_FLAGS_STORAGE_MEDIA;
   }
-  virtual bool contextualize(Column_parse_context *pc) {
+  bool contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "STORAGE", "generated column");
       return true;
@@ -444,7 +465,7 @@ class PT_srid_column_attr : public PT_column_attr_base {
  public:
   explicit PT_srid_column_attr(gis::srid_t srid) : m_srid(srid) {}
 
-  void apply_srid_modifier(Nullable<gis::srid_t> *srid) const override {
+  void apply_srid_modifier(std::optional<gis::srid_t> *srid) const override {
     *srid = m_srid;
   }
 };
@@ -481,6 +502,24 @@ class PT_generated_default_val_column_attr : public PT_column_attr_base {
   Value_generator m_default_value_expression;
 };
 
+/**
+  Node for the @SQL{VISIBLE|INVISIBLE} column attribute
+
+  @ingroup ptn_column_attrs
+*/
+class PT_column_visibility_attr : public PT_column_attr_base {
+ public:
+  explicit PT_column_visibility_attr(bool is_visible)
+      : m_is_visible(is_visible) {}
+  void apply_type_flags(unsigned long *type_flags) const override {
+    *type_flags &= ~FIELD_IS_INVISIBLE;
+    if (!m_is_visible) *type_flags |= FIELD_IS_INVISIBLE;
+  }
+
+ private:
+  const bool m_is_visible;
+};
+
 // Type nodes:
 
 /**
@@ -497,11 +536,12 @@ class PT_type : public Parse_tree_node {
 
  public:
   virtual ulong get_type_flags() const { return 0; }
-  virtual const char *get_length() const { return NULL; }
-  virtual const char *get_dec() const { return NULL; }
-  virtual const CHARSET_INFO *get_charset() const { return NULL; }
+  virtual const char *get_length() const { return nullptr; }
+  virtual const char *get_dec() const { return nullptr; }
+  virtual const CHARSET_INFO *get_charset() const { return nullptr; }
   virtual uint get_uint_geom_type() const { return 0; }
-  virtual List<String> *get_interval_list() const { return NULL; }
+  virtual List<String> *get_interval_list() const { return nullptr; }
+  virtual bool is_serial_type() const { return false; }
 };
 
 /**
@@ -528,7 +568,7 @@ class PT_numeric_type : public PT_type {
         length(length),
         dec(dec),
         options(options) {
-    DBUG_ASSERT((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
+    assert((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
 
     if (type_arg != Numeric_type::DECIMAL && dec != nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING,
@@ -545,9 +585,9 @@ class PT_numeric_type : public PT_type {
                   ulong options)
       : PT_type(static_cast<enum_field_types>(type_arg)),
         length(length),
-        dec(0),
+        dec(nullptr),
         options(options) {
-    DBUG_ASSERT((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
+    assert((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
 
     if (length != nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING,
@@ -556,11 +596,11 @@ class PT_numeric_type : public PT_type {
     }
   }
 
-  virtual ulong get_type_flags() const {
+  ulong get_type_flags() const override {
     return (options & ZEROFILL_FLAG) ? (options | UNSIGNED_FLAG) : options;
   }
-  virtual const char *get_length() const { return length; }
-  virtual const char *get_dec() const { return dec; }
+  const char *get_length() const override { return length; }
+  const char *get_dec() const override { return dec; }
 };
 
 /**
@@ -576,7 +616,7 @@ class PT_bit_type : public PT_type {
   explicit PT_bit_type(const char *length)
       : PT_type(MYSQL_TYPE_BIT), length(length) {}
 
-  virtual const char *get_length() const { return length; }
+  const char *get_length() const override { return length; }
 };
 
 /**
@@ -587,7 +627,7 @@ class PT_bit_type : public PT_type {
 class PT_boolean_type : public PT_type {
  public:
   PT_boolean_type() : PT_type(MYSQL_TYPE_TINY) {}
-  virtual const char *get_length() const { return "1"; }
+  const char *get_length() const override { return "1"; }
 };
 
 enum class Char_type : ulong {
@@ -610,16 +650,16 @@ class PT_char_type : public PT_type {
         length(length),
         charset(charset),
         force_binary(force_binary) {
-    DBUG_ASSERT(charset == NULL || !force_binary);
+    assert(charset == nullptr || !force_binary);
   }
   PT_char_type(Char_type char_type, const CHARSET_INFO *charset,
                bool force_binary = false)
       : PT_char_type(char_type, "1", charset, force_binary) {}
-  virtual ulong get_type_flags() const {
+  ulong get_type_flags() const override {
     return force_binary ? BINCMP_FLAG : 0;
   }
-  virtual const char *get_length() const { return length; }
-  virtual const CHARSET_INFO *get_charset() const { return charset; }
+  const char *get_length() const override { return length; }
+  const CHARSET_INFO *get_charset() const override { return charset; }
 };
 
 enum class Blob_type {
@@ -647,10 +687,10 @@ class PT_blob_type : public PT_type {
   PT_blob_type(Blob_type blob_type, const CHARSET_INFO *charset,
                bool force_binary = false)
       : PT_type(static_cast<Parent_type>(blob_type)),
-        length(NULL),
+        length(nullptr),
         charset(charset),
         force_binary(force_binary) {
-    DBUG_ASSERT(charset == NULL || !force_binary);
+    assert(charset == nullptr || !force_binary);
   }
   explicit PT_blob_type(const char *length)
       : PT_type(MYSQL_TYPE_BLOB),
@@ -658,11 +698,11 @@ class PT_blob_type : public PT_type {
         charset(&my_charset_bin),
         force_binary(false) {}
 
-  virtual ulong get_type_flags() const {
+  ulong get_type_flags() const override {
     return force_binary ? BINCMP_FLAG : 0;
   }
-  virtual const CHARSET_INFO *get_charset() const { return charset; }
-  virtual const char *get_length() const { return length; }
+  const CHARSET_INFO *get_charset() const override { return charset; }
+  const char *get_length() const override { return length; }
 };
 
 /**
@@ -704,7 +744,7 @@ class PT_time_type : public PT_type {
   PT_time_type(Time_type time_type, const char *dec)
       : PT_type(static_cast<Parent_type>(time_type)), dec(dec) {}
 
-  virtual const char *get_dec() const { return dec; }
+  const char *get_dec() const override { return dec; }
 };
 
 /**
@@ -722,10 +762,10 @@ class PT_timestamp_type : public PT_type {
   explicit PT_timestamp_type(const char *dec)
       : super(MYSQL_TYPE_TIMESTAMP2), dec(dec), type_flags(0) {}
 
-  virtual const char *get_dec() const { return dec; }
-  virtual ulong get_type_flags() const { return type_flags; }
+  const char *get_dec() const override { return dec; }
+  ulong get_type_flags() const override { return type_flags; }
 
-  virtual bool contextualize(Parse_context *pc) {
+  bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
     /*
       TIMESTAMP fields are NOT NULL by default, unless the variable
@@ -760,9 +800,9 @@ class PT_spacial_type : public PT_type {
   explicit PT_spacial_type(Field::geometry_type geo_type)
       : PT_type(MYSQL_TYPE_GEOMETRY), geo_type(geo_type) {}
 
-  virtual const CHARSET_INFO *get_charset() const { return &my_charset_bin; }
-  virtual uint get_uint_geom_type() const { return geo_type; }
-  virtual const char *get_length() const { return NULL; }
+  const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
+  uint get_uint_geom_type() const override { return geo_type; }
+  const char *get_length() const override { return nullptr; }
 };
 
 enum class Enum_type { ENUM = MYSQL_TYPE_ENUM, SET = MYSQL_TYPE_SET };
@@ -782,14 +822,14 @@ class PT_enum_type_tmpl : public PT_type {
         interval_list(interval_list),
         charset(charset),
         force_binary(force_binary) {
-    DBUG_ASSERT(charset == NULL || !force_binary);
+    assert(charset == nullptr || !force_binary);
   }
 
-  virtual const CHARSET_INFO *get_charset() const { return charset; }
-  virtual ulong get_type_flags() const {
+  const CHARSET_INFO *get_charset() const override { return charset; }
+  ulong get_type_flags() const override {
     return force_binary ? BINCMP_FLAG : 0;
   }
-  virtual List<String> *get_interval_list() const { return interval_list; }
+  List<String> *get_interval_list() const override { return interval_list; }
 };
 
 /**
@@ -810,9 +850,10 @@ class PT_serial_type : public PT_type {
  public:
   PT_serial_type() : PT_type(MYSQL_TYPE_LONGLONG) {}
 
-  virtual ulong get_type_flags() const {
+  ulong get_type_flags() const override {
     return AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG | UNIQUE_FLAG;
   }
+  bool is_serial_type() const override { return true; }
 };
 
 /**
@@ -823,7 +864,7 @@ class PT_serial_type : public PT_type {
 class PT_json_type : public PT_type {
  public:
   PT_json_type() : PT_type(MYSQL_TYPE_JSON) {}
-  virtual const CHARSET_INFO *get_charset() const { return &my_charset_bin; }
+  const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
 };
 
 /**
@@ -851,7 +892,7 @@ class PT_field_def_base : public Parse_tree_node {
   Value_generator *gcol_info;
   /// Holds the expression to generate default values
   Value_generator *default_val_info;
-  Nullable<gis::srid_t> m_srid;
+  std::optional<gis::srid_t> m_srid;
   // List of column check constraint's specification.
   Sql_check_constraint_spec_list *check_const_spec_list{nullptr};
 
@@ -862,14 +903,14 @@ class PT_field_def_base : public Parse_tree_node {
       : has_explicit_collation(false),
         alter_info_flags(0),
         comment(EMPTY_CSTR),
-        default_value(NULL),
-        on_update_value(NULL),
-        gcol_info(NULL),
+        default_value(nullptr),
+        on_update_value(nullptr),
+        gcol_info(nullptr),
         default_val_info(nullptr),
         type_node(type_node) {}
 
  public:
-  virtual bool contextualize(Parse_context *pc) {
+  bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc) || type_node->contextualize(pc)) return true;
 
     type = type_node->type;
@@ -889,7 +930,7 @@ class PT_field_def_base : public Parse_tree_node {
   template <class T>
   bool contextualize_attrs(Column_parse_context *pc,
                            Mem_root_array<T *> *attrs) {
-    if (attrs != NULL) {
+    if (attrs != nullptr) {
       for (auto attr : *attrs) {
         if (attr->contextualize(pc)) return true;
         attr->apply_type_flags(&type_flags);
@@ -923,9 +964,13 @@ class PT_field_def : public PT_field_def_base {
                Mem_root_array<PT_column_attr_base *> *opt_attrs)
       : super(type_node_arg), opt_attrs(opt_attrs) {}
 
-  virtual bool contextualize(Parse_context *pc_arg) {
+  bool contextualize(Parse_context *pc_arg) override {
     Column_parse_context pc(pc_arg->thd, pc_arg->select, false);
-    return super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs);
+    if (super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs))
+      return true;
+
+    move_cf_appliers(pc_arg, &pc);
+    return false;
   }
 };
 
@@ -950,14 +995,20 @@ class PT_generated_field_def : public PT_field_def_base {
         expr(expr),
         opt_attrs(opt_attrs) {}
 
-  virtual bool contextualize(Parse_context *pc_arg) {
+  bool contextualize(Parse_context *pc_arg) override {
     Column_parse_context pc(pc_arg->thd, pc_arg->select, true);
     if (super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs) ||
         expr->itemize(&pc, &expr))
       return true;
 
+    // column of type serial cannot be generated
+    if (type_node->is_serial_type()) {
+      my_error(ER_WRONG_USAGE, MYF(0), "SERIAL", "generated column");
+      return true;
+    }
+
     gcol_info = new (pc.mem_root) Value_generator;
-    if (gcol_info == NULL) return true;  // OOM
+    if (gcol_info == nullptr) return true;  // OOM
     gcol_info->expr_item = expr;
     if (virtual_or_stored == Virtual_or_stored::STORED)
       gcol_info->set_field_stored(true);
@@ -966,5 +1017,7 @@ class PT_generated_field_def : public PT_field_def_base {
     return false;
   }
 };
+
+void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc);
 
 #endif /* PARSE_TREE_COL_ATTRS_INCLUDED */

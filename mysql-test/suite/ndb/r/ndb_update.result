@@ -1,6 +1,3 @@
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
-DROP TABLE IF EXISTS t3;
 CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 b INT NOT NULL,
@@ -20,10 +17,10 @@ pk1	b	c
 2	2	2
 4	1	1
 UPDATE t1 set pk1 = 4 where pk1 = 2;
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
 Warnings:
-Warning	1062	Duplicate entry '4' for key 'PRIMARY'
+Warning	1062	Duplicate entry '4' for key 't1.PRIMARY'
 select * from t1 order by pk1;
 pk1	b	c
 0	0	0
@@ -33,16 +30,16 @@ UPDATE t1 set pk1 = 2 where pk1 = 2;
 affected rows: 0
 info: Rows matched: 1  Changed: 0  Warnings: 0
 UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
-ERROR 23000: Duplicate entry '1' for key 'c'
+ERROR 23000: Duplicate entry '1' for key 't1.c'
 UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'c'
-Warning	1062	Duplicate entry '1' for key 'c'
+Warning	1062	Duplicate entry '1' for key 't1.c'
+Warning	1062	Duplicate entry '1' for key 't1.c'
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
-ERROR 23000: Duplicate entry '2' for key 'c'
+ERROR 23000: Duplicate entry '2' for key 't1.c'
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'c'
+Warning	1062	Duplicate entry '2' for key 't1.c'
 select * from t1 order by pk1;
 pk1	b	c
 0	0	0
@@ -75,13 +72,13 @@ INSERT INTO t3 VALUES (2, 2);
 UPDATE t1 SET a = 1;
 UPDATE t1 SET a = 1 ORDER BY a;
 UPDATE t2 SET a = 1;
-ERROR 23000: Duplicate entry '1-2' for key 'a'
+ERROR 23000: Duplicate entry '1-2' for key 't2.a'
 UPDATE t2 SET a = 1 ORDER BY a;
-ERROR 23000: Duplicate entry '1-2' for key 'a'
+ERROR 23000: Duplicate entry '1-2' for key 't2.a'
 UPDATE t3 SET a = 1;
-ERROR 23000: Duplicate entry '1-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-2' for key 't3.PRIMARY'
 UPDATE t3 SET a = 1 ORDER BY a;
-ERROR 23000: Duplicate entry '1-2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-2' for key 't3.PRIMARY'
 SELECT count(*) FROM t1;
 count(*)
 2
@@ -125,3 +122,22 @@ id	mytext
 4	goodbye
 DROP TABLE IF EXISTS t1;
 End of 5.1 tests
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+UNIQUE (b)
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 SELECT a+1, b+1 FROM t1;
+INSERT INTO t1 SELECT a+2, b+2 FROM t1;
+INSERT INTO t1 SELECT a+4, b+4 FROM t1;
+INSERT INTO t1 SELECT a+8, b+8 FROM t1;
+INSERT INTO t1 SELECT a+16, b+16 FROM t1;
+INSERT INTO t1 SELECT a+32, b+32 FROM t1;
+BEGIN;
+UPDATE t1 SET b=b+10;
+ERROR 23000: Duplicate entry '<duplicate entry>' for key 't1.b'
+BEGIN;
+UPDATE t1 SET b=b+10 LIMIT 20;
+ERROR 23000: Duplicate entry '<duplicate entry>' for key 't1.b'
+DROP TABLE t1;

@@ -80,7 +80,7 @@ return 2;
 end|
 flush status;
 select f1(), f2();
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
 show status like 'Com_insert';
 Variable_name	Value
 Com_insert	2
@@ -130,12 +130,12 @@ CREATE TABLE t1(c1 BINARY(10), c2 BINARY(10), c3 BINARY(10),
 PRIMARY KEY(c1,c2,c3));
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
-ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 't1.PRIMARY'
 DROP TABLE t1;
 CREATE TABLE t1 (f1 VARBINARY(19) PRIMARY KEY);
 INSERT INTO t1 VALUES ('abc\0\0');
 INSERT INTO t1 VALUES ('abc\0\0');
-ERROR 23000: Duplicate entry 'abc\x00\x00' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'abc\x00\x00' for key 't1.PRIMARY'
 DROP TABLE t1;
 #
 # Bug#57882: Item_func_conv_charset::val_str(String*): 
@@ -165,6 +165,8 @@ b=(SELECT '' AS b FROM t1 GROUP BY VALUES(b));
 ERROR 42S22: Unknown column '' in 'VALUES() function'
 INSERT INTO t2(a,b) VALUES (1,0) ON DUPLICATE KEY UPDATE
 b=(SELECT VALUES(a)+2 FROM t1);
+Warnings:
+Warning	1287	The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause.
 DROP TABLE t1, t2;
 #
 # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
@@ -195,3 +197,27 @@ DROP USER nopriv_user@localhost;
 #
 # End Bug#54812
 #
+#
+# Bug #32162954: REGRESSION: ASSERTION `!THD()->IS_ERROR()' FAILED. IN AGGREGATEITERATOR::READ()
+#
+do count(rand(st_latfromgeohash(st_geohash(point(5920138304254667057,24370),41))));
+ERROR 22003: longitude value is out of range in 'st_geohash'
+do ((1)between(cot(_hebrew  ' $[  d'))and(var_pop((1))over()));
+ERROR 22003: DOUBLE value is out of range in 'cot(_hebrew' $[  d')'
+do ((st_isvalid(1))=(std(format(-29867 ,54,'es_DO')) over()));
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
+#
+# Bug #32206756: ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED IN SQL/ITEM_CMPFUNC.CC
+#
+CREATE TABLE t1 (a varchar(1), b varchar(1));
+CREATE TABLE t2 (pk integer, a varchar(1), b varchar(1), c date, primary key(pk));
+CREATE INDEX idx1 ON t2 (b);
+INSERT INTO t1 VALUES ('d','7');
+INSERT INTO t2 VALUES (1,'q','7','1970-01-01');
+INSERT INTO t2 VALUES (2,'l','7','1970-01-01');
+CREATE TABLE insert_select AS
+SELECT t2.c AS field3
+FROM t1, t2
+WHERE t1.b = t2.b AND t1.a <> t2.pk;
+ERROR 22007: Truncated incorrect DOUBLE value: 'd'
+DROP TABLE t1, t2;

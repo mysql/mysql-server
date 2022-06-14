@@ -50,8 +50,6 @@ SELECT @@session.default_storage_engine;
 # Change the value of default_storage_engine to a valid value for GLOBAL Scope #
 ########################################################################
 
-SET @@global.default_storage_engine = MYISAM;
-SELECT @@global.default_storage_engine;
 SET @@global.default_storage_engine = MERGE;
 SELECT @@global.default_storage_engine;
 SET @@global.default_storage_engine = MEMORY;
@@ -65,8 +63,6 @@ SELECT @@global.default_storage_engine;
 # Change the value of default_storage_engine to a valid value for SESSION Scope #
 #########################################################################
  
-SET @@session.default_storage_engine = MYISAM;
-SELECT @@session.default_storage_engine;
 SET @@session.default_storage_engine = MERGE;
 SELECT @@session.default_storage_engine;
 SET @@session.default_storage_engine = MEMORY;
@@ -146,7 +142,7 @@ SET @@global.default_storage_engine = FALSE;
 #  SCOPE points to same session variable                      #
 ###############################################################
 
-SET @@default_storage_engine = MYISAM;
+SET @@default_storage_engine = INNODB;
 SELECT @@default_storage_engine = @@local.default_storage_engine;
 SELECT @@local.default_storage_engine = @@session.default_storage_engine;
 

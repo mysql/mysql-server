@@ -146,13 +146,17 @@ SELECT * FROM (SELECT a,2,2 FROM t1) AS dt (x,y,z);
 WITH cte (x,y,z)AS (SELECT a,1,1 FROM t1) SELECT 1, cte.* FROM cte;
 WITH cte (x,y,z)AS (SELECT a,2,2 FROM t1) SELECT 2, cte.* FROM cte;
 
+--sorted_result
 WITH cte (x,y,z)AS (SELECT a,1,1 FROM t1) SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
+--sorted_result
 WITH cte (x,y,z)AS (SELECT a,2,2 FROM t1) SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;
 
+--sorted_result
 WITH RECURSIVE cte (x,y,z) AS
 (SELECT a,1,1 FROM t1 UNION ALL SELECT a+1,a*1,11 FROM t1 WHERE 0)
 SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
 
+--sorted_result
 WITH RECURSIVE cte (x,y,z) AS
 (SELECT a,2,2 FROM t1 UNION ALL SELECT a+2,a*2,22 FROM t1 WHERE 0)
 SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;

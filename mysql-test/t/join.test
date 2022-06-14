@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #
 # Initialization
 --disable_warnings
@@ -51,14 +45,18 @@ insert into t1 values (107);
 
 insert into t2 values (107),(75),(1000);
 
+--sorted_result
 select t1.id, t2.id from t1, t2 where t2.id = t1.id;
+--sorted_result
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
 # We see the functional dependency implied by WHERE!
+--sorted_result
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 
 #
 # Test problems with impossible ON or WHERE
 #
+--sorted_result
 select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
 explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
 explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
@@ -106,6 +104,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (3,2,11,12,5400,7800);
 INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
 INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
+--sorted_result
 select a.id, b.category as catid, b.state as stateid, b.county as countyid from t1 a, t2 b ignore index (primary) where (a.token ='a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
 select a.id, b.category as catid, b.state as stateid, b.county as
 countyid from t1 a, t2 b where (a.token =
@@ -154,7 +153,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (d DATE NOT NULL);
 CREATE TABLE t2 (d DATE NOT NULL);
-INSERT INTO t1 (d) VALUES ('2001-08-01'),('0000-00-00');
+INSERT INTO t1 (d) VALUES ('2001-08-01'),('1000-01-01');
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE t2.d IS NULL;
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE d IS NULL;
 SELECT * from t1 WHERE t1.d IS NULL;
@@ -255,6 +254,7 @@ CREATE TABLE t2 (
   PRIMARY KEY  (id)
 ) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
+--skip_if_hypergraph  # No ORDER BY, so depends on the query plan.
 select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
 drop table t1,t2;
 
@@ -360,7 +360,7 @@ CREATE TABLE t2 (a int, d int, e int default 0);
 INSERT INTO t2 (a, d) VALUES (1,1),(2,2),(3,3),(4,4);
 INSERT INTO t2 (a, d) SELECT a+4, a+4 FROM t2;
 INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
-
+ANALYZE TABLE t1, t2;
 # should use join cache
 EXPLAIN
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
@@ -431,6 +431,7 @@ create algorithm=merge view v4 as
 select * from v2a natural join v3a;
 
 # Nested natural/using joins.
+--sorted_result
 select * from (t1 natural join t2) natural join (t3 natural join t4);
 --sorted_result
 select * from (t1 natural join t2) natural left join (t3 natural join t4);
@@ -440,21 +441,32 @@ select * from (t3 natural join t4) natural right join (t1 natural join t2);
 select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
 --sorted_result
 select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
+--sorted_result
 select * from t1 natural join t2 natural join t3 natural join t4;
+--sorted_result
 select * from ((t1 natural join t2) natural join t3) natural join t4;
+--sorted_result
 select * from t1 natural join (t2 natural join (t3 natural join t4));
 # BUG#15355: this query fails in 'prepared statements' mode
 # select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
 # select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
+--sorted_result
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
+--sorted_result
 select * from (t1 natural join t2), (t3 natural join t4);
 # MySQL extension - nested comma ',' operator instead of cross join.
+--sorted_result
 select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
+--sorted_result
 select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
+--sorted_result
 select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
+--sorted_result
 select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
 
+--sorted_result
 select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
+--sorted_result
 select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
 
 
@@ -469,29 +481,44 @@ where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a
 # Qualified column references to NJ columns.
 select * from t1 natural join t2 where t1.c > t2.a;
 select * from t1 natural join t2 where t1.b > t2.b;
+--sorted_result
 select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
 
 # Nested 'join ... on' - name resolution of ON conditions
+--sorted_result
 select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+--sorted_result
 select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
+--sorted_result
 select * from t1 natural join (t2 join t4 on b + 1 = y);
+--sorted_result
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 
 # MySQL extension - 'join ... on' over nested comma operator
+--sorted_result
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
+--sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
+--sorted_result
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 
 # MySQL extension - refererence qualified coalesced columns
+--sorted_result
 select * from t1 natural join t2 where t1.b > 0;
+--sorted_result
 select * from t1 natural join (t4 natural join t5) where t4.y > 7;
+--sorted_result
 select * from (t4 natural join t5) natural join t1 where t4.y > 7;
+--sorted_result
 select * from t1 natural left join (t4 natural join t5) where t4.y > 7;
+--sorted_result
 select * from (t4 natural join t5) natural right join t1 where t4.y > 7;
+--sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on t1.b = t3.b;
 
 # MySQL extension - select qualified columns of NJ columns
 select t1.*, t2.* from t1 natural join t2;
+--sorted_result
 select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
 
 # Queries over subselects in the FROM clause
@@ -509,20 +536,34 @@ select * from (select * from t3 natural join t4) as t34
               (select * from t1 natural join t2) as t12;
 
 # Queries over views
+--sorted_result
 select * from v1a;
+--sorted_result
 select * from v1b;
+--sorted_result
 select * from v1c;
+--sorted_result
 select * from v1d;
+--sorted_result
 select * from v2a;
+--sorted_result
 select * from v2b;
+--sorted_result
 select * from v3a;
+--sorted_result
 select * from v3b;
+--sorted_result
 select * from v4;
+--sorted_result
 select * from v1a natural join v2a;
 select v2a.* from v1a natural join v2a;
+--sorted_result
 select * from v1b join v2a on v1b.b = v2a.c;
+--sorted_result
 select * from v1c join v2a on v1c.b = v2a.c;
+--sorted_result
 select * from v1d join v2a on v1d.a = v2a.c;
+--sorted_result
 select * from v1a join (t3 natural join t4) on a = y;
 
 # TODO: add tests with correlated subqueries for natural join/join on.
@@ -568,6 +609,7 @@ select * from v1a join v1b on t1.b = t2.b;
 #
 # Omit columns.ORDINAL_POSITION and statistics.CARDINALITY as it may vary with hostname='localhost'.
 ANALYZE TABLE mysql.user;
+--sorted_result
 select 
  statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
  columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT
@@ -672,11 +714,12 @@ insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t3 (a int not null, primary key(a));
 insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-
+ANALYZE TABLE t1, t2, t3;
 flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 --echo We expect rnd_next=5, and read_key must be 0 because of short-cutting:
+--skip_if_hypergraph  # Does not support this access method yet.
 show status like 'Handler_read%'; 
 drop table t1, t2, t3;
 
@@ -692,7 +735,7 @@ create table t3 (a int, b int, filler char(100), key(a), key(b));
 insert into t2 
   select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
 insert into t3 select * from t2 where a < 800;
-
+ANALYZE TABLE t1, t2, t3;
 # The order of tables must be t2,t3:
 explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 
@@ -705,14 +748,17 @@ insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
-
+ANALYZE TABLE t1, t2;
+--replace_column 10 #
 explain select * from t1;
+--skip_if_hypergraph  # Different cost model.
 show status like '%cost%';
 select 'The cost of accessing t1 (dont care if it changes' '^';
 
 select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 
 explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
+--skip_if_hypergraph  # Different cost model.
 show status like '%cost%';
 select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 
@@ -735,7 +781,7 @@ INSERT INTO t1 SELECT a + 16, b FROM t1;
 INSERT INTO t1 SELECT a + 32, b FROM t1;
 INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
-
+ANALYZE TABLE t1, t2;
 #expect indexed ORDER BY
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
@@ -768,7 +814,7 @@ INSERT INTO t2 VALUES
 
 INSERT INTO t3 VALUES
 (3), (3), (3), (3), (3), (3), (3), (3), (3), (3);
-
+ANALYZE TABLE t1, t2, t3, t4, t5, t6;
 EXPLAIN
 SELECT * 
 FROM 
@@ -868,6 +914,7 @@ INSERT INTO t1 VALUES ('1',null),(null,null);
 INSERT INTO t2 VALUES ('1',null),(null,null);
 CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
 ENGINE=MERGE  UNION=(t1,t2);
+--sorted_result
 SELECT t1.a FROM mm1,t1;
 DROP TABLE t1, t2, mm1;
 
@@ -961,12 +1008,13 @@ CREATE TABLE t2 (
 );
 
 INSERT INTO t2 VALUES (1,4),(3,5),(2,6);
-
+ANALYZE  TABLE t1, t2;
 let $query=
 SELECT t2.pk, t2.c1 FROM t2, t1 
 WHERE t2.pk = t1.c1 AND t2.pk >= 2;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # Create a view on one of the tables. The same query plan should
@@ -978,6 +1026,7 @@ SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1
 WHERE v_t2.pk = t1.c1 AND v_t2.pk >= 2;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP VIEW v_t2;
@@ -1195,3 +1244,871 @@ explain format=json select straight_join count(*) from parent
 ;
 
 drop table parent, eq_child;
+
+--echo #
+--echo # Bug #29954680: BACKWARDS REF SCAN DOES NOT PERFORM LATE NULLS FILTERING
+--echo #
+
+CREATE TABLE t (i INTEGER PRIMARY KEY AUTO_INCREMENT, j INTEGER, KEY(j)) ENGINE=InnoDB;
+INSERT INTO t VALUES (NULL, NULL);
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+ANALYZE TABLE t;
+
+# Verify that we indeed get a backwards index scan.
+--skip_if_hypergraph  # Does not support this access method yet.
+EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+
+FLUSH STATUS;
+--disable_result_log
+SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+--enable_result_log
+
+# Check that we skipped nearly all of the key lookups.
+--skip_if_hypergraph  # Does not support this access method yet.
+SHOW STATUS LIKE 'Handler_read_key';
+
+DROP TABLE t;
+
+# New tests needn't use MyISAM
+set global default_storage_engine=innodb;
+set session default_storage_engine=innodb;
+
+--echo #
+--echo # Bug#30350696 REFERENCE FROM DERIVED TABLE JOIN CONDITION TO PRECEDING TABLE COLUMN FAILS
+--echo # Bug#11748138 ERROR 1054 (42S22): UNKNOWN COLUMN 'T2.I2' IN 'ON CLAUSE'
+--echo #
+
+# Test for outer references placed in ON conditions of JOIN operators.
+
+create table t(a int, b int);
+insert into t values(1,10),(2,20);
+# to test the iterator executor:
+set optimizer_switch="block_nested_loop=off";
+
+# Show that the subquery is re-calculated as needed.
+
+let query=
+ select t1.*, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-t1.a)
+ from t t1;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+# let the reference be in GROUP BY, to test "odd" Items_ref:
+let query=
+ select t1.a, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-t1.a)
+ from t t1
+ group by t1.a;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+# let it belong to a merged view (other odd Item_ref):
+create view v1 as select * from t;
+let query=
+ select v1.*, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-v1.a)
+ from v1;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+drop view v1;
+
+# Push the reference very deep:
+
+let query=
+ select t1.*, (select * from
+                (select count(*)
+                 from t t2
+                 left join t t3 on t3.a>t2.a-t1.a) as dt)
+ from t t1;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+# Put the reference in a derived table
+
+let query=
+ select t1.*, dt.c
+ from t t1,
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+--error ER_BAD_FIELD_ERROR
+eval explain format=tree $query;
+
+# Put the reference in a lateral derived table
+
+let query=
+ select t1.*, dt.c
+ from t t1,
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+# Above had "comma" syntax; also try "JOIN" and "CROSS JOIN"
+
+let query=
+ select t1.*, dt.c
+ from t t1 cross join
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+let query=
+ select t1.*, dt.c
+ from t t1 join
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt
+ on true;
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+# Verify that an outer reference in a subquery doesn't have
+# more scope that if it was at the place of the subquery.
+# In first query, t0.a is wrong as ON cannot see tables
+# of the FROM clause except the operands of the JOIN.
+# In second query, it must be wrong too.
+
+--error ER_BAD_FIELD_ERROR
+select t1.* from t t0 cross join (t t1 join t t2 on 100=t0.a);
+--error ER_BAD_FIELD_ERROR
+select t1.* from t t0 cross join (t t1 join t t2
+                                       on 100=(select count(*)
+                                               from t t3
+                                                    left join t t4
+                                                    on t4.a>t3.a-t0.a));
+# If we remove the parenthesis, it becomes correct, as the subquery
+# is now the condition of the _outermost_ join.
+
+select t1.* from t t0 cross join t t1 join t t2
+                                      on 100=(select count(*)
+                                              from t t3
+                                                   left join t t4
+                                                   on t4.a>t3.a-t0.a);
+
+set optimizer_switch=default;
+drop table t;
+
+# This was a bug in 8.0: the outer reference t1.a
+# was located in a derived table, which got merged,
+# so the reference ended up in an ON clause (merging moves
+# derived table's WHERE to ON in the parent query),
+# and as sj_corr_tables didn't look at ON clauses,
+# it was thought the inner part of the semijoin wasn't correlated
+# and thus materialization was wrongly chosen, and result was wrong.
+
+create table t(a int);
+insert into t values(1),(2);
+# Try to use materialization:
+set optimizer_switch="firstmatch=off,block_nested_loop=off";
+let query=
+ select * from t t1
+ where t1.a in (select dt.a
+                from t t2
+                left join (select * from t t3 where t3.a>t1.a) dt
+                on true);
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+drop table t;
+set optimizer_switch=default;
+
+set global default_storage_engine=innodb;
+
+--echo #
+--echo # WL#14071: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER
+);
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  a INTEGER
+);
+
+# t2.pk IS NULL can never be true, so the condition touches no tables.
+# We need to take this into account when estimating its selectivity.
+SELECT * FROM
+  (
+    t2 LEFT JOIN t2 AS t3 ON t2.pk IS NULL
+  ) LEFT JOIN t1 ON t1.a = t3.a;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #31924828: WL#14071: HYPERGAPH RETURNS DIFFERENT RESULTS WITH ONLY_FULL_GROUP_BY DISABLED
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 ( pk INTEGER );
+
+# Demonstrates that WHERE conditions should not be pushed into the inner side
+# of LEFT JOIN, even when the join condition is degenerate. (The <=> instead of
+# <> is to make sure the join is not simplified to an inner join.)
+SELECT * FROM t1 LEFT JOIN t2 ON TRUE WHERE t2.pk <=> 3;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #31947917: WL#14071: ASAN LEAKS SEEN DURING SHUTDOWN
+--echo #
+
+CREATE TABLE A ( pk INTEGER );
+SELECT t1.pk FROM A t1, A t2, A t3, A t4, A t5 GROUP BY t1.pk;
+DROP TABLE A;
+
+--echo #
+--echo # Bug #32234666: HASHJOINITERATOR::READROWFROMPROBEITERATOR(): ASSERTION `!THD()->IS_ERROR()' FAILED.
+--echo #
+
+CREATE TABLE t (
+  a BIT(50),
+  b VARCHAR(22772) character set ucs2,
+  c INTEGER,
+  d TINYBLOB,
+  PRIMARY KEY (a),
+  KEY i0001 (c,d(163))
+);
+
+INSERT INTO t VALUES (1,'',1,'1');
+INSERT INTO t VALUES (0x03ffffffffffff,'2',0,'2');
+
+# These gymnastics are needed to get an error from evaluating a pushed index condition.
+--error ER_DATA_OUT_OF_RANGE
+SELECT t2.b FROM t AS t1
+LEFT JOIN t AS t2 ON t2.c < 70
+WHERE t2.a - from_unixtime(0) > 0;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32424884: MRR OR BATCHED KEY ACCESS WITH JOINS AND TIMESTAMPS PRODUCE WRONG RESULTS
+--echo #
+
+CREATE TABLE t1 (
+ ts datetime,
+ x integer,
+ y integer
+);
+INSERT INTO t1 VALUES ('2020-11-20 10:38:31',1,2);
+
+CREATE TABLE t2 (
+ x integer,
+ ts datetime,
+ KEY i1 (x)
+);
+INSERT INTO t2 VALUES (1,'2020-11-16 14:18:55');
+
+CREATE TABLE t3 (
+ ts datetime,
+ y integer,
+ z INTEGER,
+ KEY i2 (y,ts)
+);
+INSERT INTO t3 VALUES ('2020-12-29 18:23:02',2,100);
+
+CREATE TABLE t4 (
+  z INTEGER
+);
+
+SET optimizer_switch='mrr=on,batched_key_access=on,mrr_cost_based=off';
+
+SELECT COUNT(*)
+FROM
+    t1
+    LEFT JOIN t2 ON t1.x = t2.x AND t2.ts <= t1.ts
+    JOIN t3 ON t1.y = t3.y AND t3.ts <= t1.ts
+    LEFT JOIN t4 ON t3.z = t4.z;
+
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #32623894: RESULT MISMATCH SEEN WITH HYPERGRAPH OPTIMIZER
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (0), (0), (0), (1), (1), (0), (1), (0);
+ANALYZE TABLE t1;
+
+--sorted_result
+SELECT * FROM
+  t1, t1 AS t2, t1 AS t3
+  WHERE ((t1.a = 5 AND t3.a < t1.a) OR t1.a > 0) AND t3.a <= t2.a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32637680: RESULT MISMATCH SEEN WITH HYPERGRAPH OPTIMIZER IN QUERIES WITH LEFT JOIN
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(10) );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t1 VALUES ('x');
+ANALYZE TABLE t1, t2;
+
+SELECT *
+  FROM t1
+  LEFT JOIN t2 ON TRUE
+  LEFT JOIN ( t1 AS t1i JOIN t2 AS t2i ON t1i.a = t2i.a ) ON t2.a = t2i.a
+  WHERE t1i.a = '' OR t2i.a = '';
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32599784: WL#14325: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL_D
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER NOT NULL,
+  KEY (a)
+);
+
+# Stick in some values so that the ref access is not immediately
+# thrown away.
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+
+# Due to a pass ordering issue, the t1.a IS NULL is removed,
+# but the join is left as an outer join, and t1.a = t2.a
+# is kept as a sargable WHERE condition.Verify that we don't crash
+# nevertheless.
+SELECT *
+FROM t1 LEFT JOIN t1 AS t2 ON TRUE
+WHERE t1.a IS NULL OR t1.a = t2.a
+ORDER BY t2.a;
+
+SELECT t1.a
+FROM t1 LEFT JOIN t1 AS t2 ON t1.a = t2.a
+WHERE t1.a IS NULL OR t1.a = t2.a
+GROUP BY t1.a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32663072: WL#14418: ASSERTION `PATH->TYPE == ACCESSPATH::FILTER' FAILED|JOIN_OPTIMIZER.CC
+--echo #
+
+# The number of columns is carefully balanced so that the join predicates
+# arising from the NATURAL JOIN and other predicates below come to
+# exactly 64 in all.
+CREATE TABLE t1 (c1 INTEGER, c2 INTEGER, c3 INTEGER, c4 INTEGER, c5 INTEGER, c6 INTEGER, c7 INTEGER, c8 INTEGER, c9 INTEGER, c10 INTEGER, c11 INTEGER, c12 INTEGER, c13 INTEGER, c14 INTEGER, c15 INTEGER, c16 INTEGER, c17 INTEGER, c18 INTEGER, c19 INTEGER, c20 INTEGER, c21 INTEGER, c22 INTEGER, c23 INTEGER, c24 INTEGER, c25 INTEGER, c26 INTEGER, c27 INTEGER, c28 INTEGER, c29 INTEGER, c30 INTEGER, c31 INTEGER, c32 INTEGER, c33 INTEGER, c34 INTEGER, c35 INTEGER, c36 INTEGER, c37 INTEGER, c38 INTEGER, c39 INTEGER, c40 INTEGER, c41 INTEGER, c42 INTEGER, c43 INTEGER, c44 INTEGER, c45 INTEGER, c46 INTEGER, c47 INTEGER, c48 INTEGER, c49 INTEGER, c50 INTEGER, c51 INTEGER, c52 INTEGER, c53 INTEGER, c54 INTEGER, c55 INTEGER, c56 INTEGER, c57 INTEGER, c58 INTEGER, c59 INTEGER, c60 INTEGER, c61 INTEGER);
+
+SELECT *
+FROM t1
+NATURAL JOIN (
+  SELECT t2.*
+  FROM t1 AS t2 JOIN t1 AS t3 ON t3.c1 = t2.c1
+  WHERE t2.c3 <> ANY (SELECT c3 FROM t1)
+) AS d1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32672275: WL#14418: ASSERTION `ISSINGLEBITSET(PRED.TOTAL_ELIGIBILITY_SET)' FAILED.
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT *
+FROM t1 AS outer_t1
+WHERE EXISTS (
+  SELECT t2.a
+  FROM t1
+  LEFT JOIN t1 AS t2 ON t2.a = outer_t1.a
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32643386: WL#14418: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL_D
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+# t1 and t2 cannot be part of the same companion set, or we'd add mesh
+# around non-simple edges.
+SELECT *
+FROM (t1 STRAIGHT_JOIN t1 AS t2) JOIN t1 AS t3 ON t1.a = t3.a
+WHERE t2.a = t3.a
+ORDER BY t1.a;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+
+# Similar; the t1/t3 edge must not be allowed to create a cycle.
+SELECT *
+FROM (t1 STRAIGHT_JOIN t1 AS t2 ON t1.b = t2.b) JOIN t1 AS t3 ON t1.a = t3.b
+WHERE t1.a < t2.b AND t2.a < t3.b
+ORDER BY t1.b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32642893: WL#14418: ASSERTION `!ISMULTIPLEEQUALS(ITEM)' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+# Sets up a case where a multiple equality is left in the WHERE condition
+# (because it is unpushable). The t2.a <> t2.a is to avoid the LEFT JOIN
+# being converted into an inner join, but gets removed later.
+SELECT *
+FROM t1
+LEFT JOIN t1 AS t2 ON t1.a = t2.a
+LEFT JOIN t1 AS t3 ON t2.a = t3.a
+WHERE t2.a = t3.a OR t2.a <> t2.a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32707348: WL#14418: RESULT MISMATCHES SEEN WITH HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,2);
+ANALYZE TABLE t1;
+
+# A multiple equality that refers to two fields from t3. We must make sure
+# to not forget the t3.a = t3.b equality.
+SELECT * FROM t1, t1 AS t2, t1 AS t3 WHERE t1.a = t2.a AND t1.a = t3.b AND t1.a = t3.a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32751315: WL#14418: ASSERTION `RIGHT != NULLPTR' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+SELECT * FROM
+  t1
+  JOIN t1 AS t2 ON t1.pk = t2.pk
+  JOIN t1 AS t3
+  LEFT JOIN t1 AS t4 ON t2.pk = t3.pk AND t4.pk = 135;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32757178: WL#14418: ASSERTION `!EQ_ITEMS.IS_EMPTY()' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+
+SELECT *
+  FROM
+    t1
+    JOIN t1 AS t2 ON t1.a = t2.b
+    LEFT JOIN t1 AS t3 ON t2.b = t3.b
+    LEFT JOIN (
+      t1 AS t4
+      JOIN t1 AS t5 ON t4.b = t5.b
+    ) ON t2.b = t4.a
+  WHERE t1.b >= 6 OR t3.b <> t4.b;
+
+DROP TABLE t1;
+
+--echo # Bug#32508878 - MYSQL SERVER CRASH - ASSERTION FAILURE IN
+--echo # DEPS_OF_REMAINING_LATERAL_DERIVED_TABLES::RECALCULATE
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY(a));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 AS x3 WHERE EXISTS
+  (SELECT * FROM t1 AS x1 JOIN t1 AS x2 ON x1.b=x2.b
+    JOIN LATERAL (SELECT COUNT(a) AS c FROM t1
+    WHERE t1.b=x1.b) AS d3 ON x1.b=c);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32917482: SIG11 IN FLATTENINNERJOINS|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 (
+  a VARCHAR(1),
+  b INTEGER
+);
+
+SELECT *
+FROM
+  t1
+  JOIN t1 AS t2 ON t1.b = t2.b
+  JOIN t1 AS t3
+  JOIN (
+    t1 AS t4 STRAIGHT_JOIN t1 AS t5 ON t4.a = t5.b
+  ) ON t1.b = t4.b
+WHERE t1.a = t5.b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32939191: HYPERGRAPH: DIFFERENT RESULTS WHEN HYPERGRAPH_OPTIMIZER IS ON/OFF
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT *
+  FROM
+    t1
+    LEFT JOIN (
+      t1 AS t2
+      LEFT JOIN t1 AS t3 ON FALSE
+    ) ON t1.a <=> t3.a
+  WHERE t1.a <=> t3.a;
+DROP TABLE t1;
+
+--echo # Bug#32915307- RECENT REGRESSION: ASSERTION
+--echo # `JOIN->DEPS_OF_REMAINING_LATERAL_DERIVED_TABLES
+--echo # == CALCULATE_LATERAL_DEPS_OF_FINAL_PLAN(FIRST_TAB_NO)' FAILED.
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(x INT);
+INSERT INTO t2 VALUES(2),(3);
+
+EXPLAIN SELECT 6 FROM t1 WHERE EXISTS
+  (SELECT 7 FROM (SELECT a) d1 WHERE EXISTS (SELECT 8 FROM t2));
+
+DROP TABLE t1,t2;
+
+--echo # Bug#32065606: Inconsistent results when running the same query
+
+CREATE TABLE t1(
+ k INTEGER PRIMARY KEY,
+ t2ref INTEGER
+);
+
+INSERT INTO t1 VALUES(1,1), (2,NULL), (3,3);
+
+CREATE TABLE t2(
+ k INTEGER PRIMARY KEY,
+ d INTEGER,
+ t3ref INTEGER NOT NULL
+);
+
+INSERT INTO t2 VALUES(1,11,1), (3,33,3);
+
+CREATE TABLE t3(
+ k INTEGER UNIQUE,
+ e INTEGER
+);
+
+INSERT INTO t3 VALUES(1,111), (3,333);
+
+SET optimizer_switch='block_nested_loop=off';
+
+let $query =
+SELECT t1.k, dt.d, t3.e
+FROM t1
+     LEFT JOIN (SELECT t2.*
+                FROM t2
+               ) AS dt
+     ON t1.t2ref = dt.k
+     LEFT JOIN t3
+     ON dt.t3ref = t3.k
+;
+
+eval $query;
+eval explain $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #32976194: HYPERGRAPH: ASSERTION `!OVERLAPS(EXPR->LEFT->TABLES_IN_SUBTREE, EXPR->RIGHT->TAB
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT *
+FROM t1, t1 AS t2, t1 AS t3
+WHERE rand() > 0.5 OR (t1.a = 1 AND t2.a = 1);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33003335: HYPERGRAPH: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+
+SELECT * FROM
+  t1
+  STRAIGHT_JOIN t1 AS t2 ON t1.b = t2.b
+  JOIN (t1 AS t3 JOIN t1 AS t4 ON t3.a = t4.a AND t3.b = t4.b) ON t2.b = t3.b AND t2.a < t3.a
+ORDER BY t2.b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33003581: HYPERGRAPH: ASSERTION `FALSE' FAILED|SQL/ITEM_CMPFUNC.CC
+--echo #
+
+CREATE TABLE t1 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2);
+
+--sorted_result
+SELECT * FROM
+  t1 LEFT JOIN (SELECT i FROM t1 WHERE FALSE) AS d1 ON t1.i = d1.i
+WHERE NOT EXISTS (SELECT 1 FROM t1 AS inner_t1 WHERE i = d1.i);
+
+DROP TABLE t1;
+
+# Test that more than 64 predicates work well together with
+# sargable predicates _and_ materialized subqueries.
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, f INTEGER, g INTEGER, h INTEGER, i INTEGER, j INTEGER, k INTEGER, l INTEGER, m INTEGER, n INTEGER, o INTEGER, p INTEGER, q INTEGER, r INTEGER, s INTEGER, t INTEGER, u INTEGER, v INTEGER, w INTEGER, KEY (a) );
+
+SELECT 1
+FROM t1 NATURAL JOIN t1 AS t2 NATURAL JOIN t1 AS t3
+WHERE
+  t1.a <> ( SELECT SUM(a) FROM t1 );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32366946: USE-AFTER-FREE WITH HYPERGRAPH OPTIMIZER + SORT + REMATERIALIZATION
+--echo #
+
+CREATE TABLE t1 (
+  f1 INTEGER
+);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE TABLE t2 (
+  pk INTEGER,
+  blobfield LONGTEXT
+);
+INSERT INTO t2 VALUES (4, '');
+
+--partially_sorted_result 2
+SELECT *
+FROM t1, t2, LATERAL (
+  SELECT pk, blobfield
+  GROUP BY pk, blobfield WITH ROLLUP
+) AS d1
+ORDER BY t1.f1, t2.pk;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #33148480: HG-OPTIMIZER: HIT ASSERT IN GETNODEMAPFROMTABLEMAP() WHILE MAKEJOINHYPERGRAPH
+--echo #
+
+CREATE TABLE t ( a INTEGER, b INTEGER );
+
+SELECT *
+FROM
+  t AS t1
+  JOIN (
+    t AS t2
+    LEFT JOIN t AS t3 ON t2.a = t3.a AND t2.b = t3.b
+    JOIN t AS t4 ON t2.b = t4.a AND t2.b = t4.b
+  ) ON t1.b = t2.b;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #33264928: Multi-equality is not fully applied by hypergraph optimizer with cycles
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (3, 2);
+
+CREATE TABLE t2 ( a INTEGER, b INTEGER, KEY (a) );
+INSERT INTO t2 VALUES (3, 0);
+
+# Make it attractive to use the index on t2.a, by adding some irrelevant rows.
+INSERT INTO t2 VALUES (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0);
+
+CREATE TABLE t3 ( a INTEGER, b INTEGER, c INTEGER );
+INSERT INTO t3 VALUES (1, 0, 2);
+
+ANALYZE TABLE t1,t2,t3;
+
+# Sets up a multiple equality (t2.b, t3.a, t3.b) and demonstrates
+# that it is not correctly applied (rows are returned where not
+# all three values are equal). This is because we converted it
+# into t2.b = t3.a AND t2.b = t3.b, which meant that a single
+# join edge in a hypergraph cycle was the only thing responsible
+# for enforcing t3.a = t3.b, and that join edge was not chosen
+# in the final query plan.
+SELECT
+  t2.b, t3.a, t3.b
+FROM t1
+  JOIN t2 ON t1.a = t2.a
+  JOIN t3 ON t1.b = t3.c AND t2.b = t3.a
+WHERE t2.b = t3.b;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #33330728: HYPERGRAPH: ASSERTION `RIGHT_PATH->TYPE == ACCESSPATH::ZERO_ROWS' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT
+  1
+  FROM
+    t1
+    JOIN t1 AS t2
+    LEFT JOIN (
+      t1 AS t3
+      JOIN ( SELECT * FROM t1 WHERE FALSE ) AS empty_subq
+    ) ON empty_subq.a = t3.a
+  WHERE NOT EXISTS (SELECT 9) OR empty_subq.a = t2.a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33383388: ASSERT: `!IsBitSet(it->second, left_path->applied_sargable_join_predicates())'
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, KEY (b) );
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
+
+SELECT 1
+FROM
+  t1
+  JOIN (t1 AS t2 LEFT JOIN t1 AS t3 ON t2.b = t3.b) ON (t2.b = t3.b OR t1.a = 125)
+WHERE
+  t1.a = 143;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32950670: Potentially wrong results
+--echo #
+
+CREATE TABLE t1 (i SMALLINT, INDEX a (i));
+CREATE TABLE t2 (i SMALLINT UNSIGNED);
+
+INSERT INTO t1 VALUES (-32768), (32767);
+INSERT INTO t2 VALUES (65535);
+SELECT * FROM t1 JOIN t2 ON t2.i > t1.i;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #33506809: Duplicate edges in the hypergraph
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER, b INTEGER, c INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+CREATE TABLE t4 ( a INTEGER, b INTEGER, c INTEGER );
+
+SELECT
+  1
+FROM
+  t1
+  JOIN t2 ON t1.a = t2.a
+  JOIN t3 ON t2.a = t3.a
+  JOIN t4 ON t3.a = t4.a AND t2.b = t4.b AND t2.c = t4.c;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #33544652: WL#14806 fd_set == it_and_inserted.first->second.active_functional_dependencies
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  a INTEGER,
+  INDEX (pk)
+);
+
+SELECT
+  1
+FROM
+  t1
+  LEFT JOIN t1 AS t2 ON t1.a = t2.a
+  JOIN t1 AS t3 ON t2.a = t3.a
+WHERE
+  t2.a < t2.a OR t2.pk IS NULL
+GROUP BY t2.a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33603493: Multiple equalities get lost in hypergraph join optimizer pushdown
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (5);
+
+CREATE TABLE t2 ( a INTEGER, b INTEGER );
+INSERT INTO t2 VALUES (6, 1);
+
+CREATE TABLE t3 ( a INTEGER, b INTEGER );
+INSERT INTO t3 VALUES (2, 1);
+
+# We get two multiple equalities (one on the a fields, another one on the b fields).
+# Before the bugfix, they would get deduplicated against each other in pushdown,
+# and one of them would get lost.
+SELECT t1.a AS field1, t2.a AS field2
+FROM
+  t1
+  JOIN t2 ON t1.a = t2.a
+  WHERE t2.b IN (
+    SELECT inner_a1.b
+    FROM t3 AS inner_a1 JOIN t3 AS inner_a2 ON inner_a1.b = inner_a2.b
+    WHERE inner_a1.a = t2.a
+  );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#33611740: Hypergraph optimizer loses conditions in pushdown
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (a INTEGER);
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (a INTEGER);
+INSERT INTO t4 VALUES (2);
+
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 JOIN t4 ON t3.a = t4.a)
+ON t4.a = t2.a) ON t1.a = t2.a;
+
+DROP TABLE t1, t2, t3, t4;

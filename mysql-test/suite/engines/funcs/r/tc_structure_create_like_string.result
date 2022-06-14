@@ -8,7 +8,7 @@ src
 SHOW CREATE TABLE dst;
 Table	Create Table
 dst	CREATE TABLE `dst` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -26,7 +26,7 @@ src
 SHOW CREATE TABLE dst;
 Table	Create Table
 dst	CREATE TABLE `dst` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -44,7 +44,7 @@ src
 SHOW CREATE TABLE dst;
 Table	Create Table
 dst	CREATE TABLE `dst` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -62,7 +62,7 @@ src
 SHOW CREATE TABLE dst;
 Table	Create Table
 dst	CREATE TABLE `dst` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

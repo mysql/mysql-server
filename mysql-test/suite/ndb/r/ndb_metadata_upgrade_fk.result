@@ -3,74 +3,318 @@ Restart server 1 to trigger schema distribution synchronization
 # restart
 Restart server 2 to trigger schema distribution synchronization
 # restart
+# Check schema and then perform DML and DDL on the tables
+# Verify that parent has been installed in DD
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `c1` int(11) NOT NULL,
-  PRIMARY KEY (`c1`)
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `p_ukc2` (`c2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM parent;
-c1
-1
-2
-INSERT INTO parent VALUES (3);
+c1	c2
+1	10
+2	20
+# Check foreign key constraints
+INSERT INTO parent VALUES (3, 30);
+DELETE FROM parent WHERE c1 = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM parent;
-c1
-1
-2
-3
+c1	c2
+1	10
+2	20
+3	30
+# Verify that child has been installed in DD
+SELECT * FROM information_schema.referential_constraints
+WHERE constraint_schema='test'
+    AND table_name='child'
+  ORDER BY constraint_name ASC;
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	c_fk1
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	PRIMARY
+MATCH_OPTION	NONE
+UPDATE_RULE	NO ACTION
+DELETE_RULE	NO ACTION
+TABLE_NAME	child
+REFERENCED_TABLE_NAME	parent
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	c_fk2
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	p_ukc2
+MATCH_OPTION	NONE
+UPDATE_RULE	NO ACTION
+DELETE_RULE	NO ACTION
+TABLE_NAME	child
+REFERENCED_TABLE_NAME	parent
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  PRIMARY KEY (`c1`),
-  KEY `xc2` (`c2`),
-  CONSTRAINT `FK_10_14` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  KEY `c_xc1` (`c1`),
+  KEY `c_xc2` (`c2`),
+  CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`),
+  CONSTRAINT `c_fk2` FOREIGN KEY (`c2`) REFERENCES `parent` (`c2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-INSERT INTO child VALUES (3,3);
-INSERT INTO child VALUES (4,4);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `FK_10_14` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION)
 SELECT * FROM child;
 c1	c2
+1	10
+1	20
+2	10
+2	20
+# Check foreign key constraints
+INSERT INTO child VALUES (3, 30);
+INSERT INTO child VALUES (4, 40);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+SELECT * FROM child;
+c1	c2
+1	10
+1	20
+2	10
+2	20
+3	30
+# Verify that self_ref has been installed in DD
+SELECT * FROM information_schema.referential_constraints
+WHERE constraint_schema='test'
+    AND table_name='self_ref'
+  ORDER BY constraint_name ASC;
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	sr_fk1
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	PRIMARY
+MATCH_OPTION	NONE
+UPDATE_RULE	SET DEFAULT
+DELETE_RULE	CASCADE
+TABLE_NAME	self_ref
+REFERENCED_TABLE_NAME	self_ref
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  UNIQUE KEY `sr_ukc1` (`c1`),
+  KEY `sr_fk1` (`c2`),
+  CONSTRAINT `sr_fk1` FOREIGN KEY (`c2`) REFERENCES `self_ref` (`c1`) ON DELETE CASCADE ON UPDATE SET DEFAULT
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM self_ref;
+c1	c2
 1	1
-2	2
-3	3
+2	1
+# Check foreign key constraints
+INSERT INTO self_ref VALUES (3, 2);
+INSERT INTO self_ref VALUES (4, 5);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `sr_fk1` FOREIGN KEY (`c2`) REFERENCES `self_ref` (`c1`) ON DELETE CASCADE ON UPDATE SET DEFAULT)
+DELETE FROM self_ref WHERE c1 = 1;
+SELECT * FROM self_ref;
+c1	c2
+# Cleanup
 DROP TABLE child;
 DROP TABLE parent;
+DROP TABLE self_ref;
 Backup from 7.5 restored
+# Test upgrade of the metadata during discovery from NDB
+# Discover and verify table parent
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `c1` int(11) NOT NULL,
-  PRIMARY KEY (`c1`)
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `p_ukc2` (`c2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM parent;
-c1
-1
-2
-INSERT INTO parent VALUES (3);
+c1	c2
+1	10
+2	20
+# Check foreign key constraints
+INSERT INTO parent VALUES (3, 30);
+DELETE FROM parent WHERE c1 = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 SELECT * FROM parent;
-c1
-1
-2
-3
+c1	c2
+1	10
+2	20
+3	30
+# Discover and verify table child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  PRIMARY KEY (`c1`),
-  KEY `xc2` (`c2`),
-  CONSTRAINT `FK_10_14` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  KEY `c_xc1` (`c1`),
+  KEY `c_xc2` (`c2`),
+  CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`),
+  CONSTRAINT `c_fk2` FOREIGN KEY (`c2`) REFERENCES `parent` (`c2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-INSERT INTO child VALUES (3,3);
-INSERT INTO child VALUES (4,4);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `FK_10_14` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION)
+SELECT * FROM information_schema.referential_constraints
+WHERE constraint_schema='test'
+    AND table_name='child'
+  ORDER BY constraint_name ASC;
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	c_fk1
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	PRIMARY
+MATCH_OPTION	NONE
+UPDATE_RULE	NO ACTION
+DELETE_RULE	NO ACTION
+TABLE_NAME	child
+REFERENCED_TABLE_NAME	parent
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	c_fk2
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	p_ukc2
+MATCH_OPTION	NONE
+UPDATE_RULE	NO ACTION
+DELETE_RULE	NO ACTION
+TABLE_NAME	child
+REFERENCED_TABLE_NAME	parent
 SELECT * FROM child;
 c1	c2
+1	10
+1	20
+2	10
+2	20
+# Check foreign key constraints
+INSERT INTO child VALUES (3, 30);
+INSERT INTO child VALUES (4, 40);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+SELECT * FROM child;
+c1	c2
+1	10
+1	20
+2	10
+2	20
+3	30
+# Discover and verify table self_ref
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  UNIQUE KEY `sr_ukc1` (`c1`),
+  KEY `sr_fk1` (`c2`),
+  CONSTRAINT `sr_fk1` FOREIGN KEY (`c2`) REFERENCES `self_ref` (`c1`) ON DELETE CASCADE ON UPDATE SET DEFAULT
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM information_schema.referential_constraints
+WHERE constraint_schema='test'
+    AND table_name='self_ref'
+  ORDER BY constraint_name ASC;
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	sr_fk1
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	PRIMARY
+MATCH_OPTION	NONE
+UPDATE_RULE	SET DEFAULT
+DELETE_RULE	CASCADE
+TABLE_NAME	self_ref
+REFERENCED_TABLE_NAME	self_ref
+SELECT * FROM self_ref;
+c1	c2
 1	1
-2	2
-3	3
+2	1
+# Check foreign key constraints
+INSERT INTO self_ref VALUES (3, 2);
+INSERT INTO self_ref VALUES (4, 5);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `sr_fk1` FOREIGN KEY (`c2`) REFERENCES `self_ref` (`c1`) ON DELETE CASCADE ON UPDATE SET DEFAULT)
+DELETE FROM self_ref WHERE c1 = 1;
+SELECT * FROM self_ref;
+c1	c2
 DROP TABLE child;
 DROP TABLE parent;
+DROP TABLE self_ref;
+Backup from 7.5 restored
+# During upgrades, the tables might get upgraded in
+# any order. Test this by discovering parent and
+# child in the reverse order and verifying the FKs.
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  KEY `c_xc1` (`c1`),
+  KEY `c_xc2` (`c2`),
+  CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`),
+  CONSTRAINT `c_fk2` FOREIGN KEY (`c2`) REFERENCES `parent` (`c2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `p_ukc2` (`c2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM parent;
+c1	c2
+1	10
+2	20
+SELECT * FROM child;
+c1	c2
+1	10
+1	20
+2	10
+2	20
+# Check foreign key constraints
+SELECT * FROM information_schema.referential_constraints
+WHERE constraint_schema='test'
+    AND table_name='child'
+  ORDER BY constraint_name ASC;
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	c_fk1
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	PRIMARY
+MATCH_OPTION	NONE
+UPDATE_RULE	NO ACTION
+DELETE_RULE	NO ACTION
+TABLE_NAME	child
+REFERENCED_TABLE_NAME	parent
+CONSTRAINT_CATALOG	def
+CONSTRAINT_SCHEMA	test
+CONSTRAINT_NAME	c_fk2
+UNIQUE_CONSTRAINT_CATALOG	def
+UNIQUE_CONSTRAINT_SCHEMA	test
+UNIQUE_CONSTRAINT_NAME	p_ukc2
+MATCH_OPTION	NONE
+UPDATE_RULE	NO ACTION
+DELETE_RULE	NO ACTION
+TABLE_NAME	child
+REFERENCED_TABLE_NAME	parent
+INSERT INTO parent VALUES (3, 30);
+DELETE FROM parent WHERE c1 = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+INSERT INTO child VALUES (3, 30);
+INSERT INTO child VALUES (4, 40);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+SELECT * FROM parent;
+c1	c2
+1	10
+2	20
+3	30
+SELECT * FROM child;
+c1	c2
+1	10
+1	20
+2	10
+2	20
+3	30
+# Cleanup
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE self_ref;

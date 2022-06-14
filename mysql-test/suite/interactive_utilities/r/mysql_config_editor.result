@@ -1,0 +1,112 @@
+#############################
+#      Creating 3 users     #
+#############################
+CREATE USER 'user_1'@'localhost' identified by 'pass_1';
+CREATE USER 'user_2'@'localhost' identified by 'pass_2';
+CREATE USER 'user_3'@'localhost' identified by 'pass_3';
+
+Invoking mysql_config_editor for user1 with correct password
+Enter password: 
+
+USER()	CURRENT_USER()
+user_1@localhost	user_1@localhost
+
+Invoking mysql_config_editor for user2 with correct password
+Enter password: 
+
+USER()	CURRENT_USER()
+user_2@localhost	user_2@localhost
+
+Invoking mysql_config_editor for user3 with correct password
+Enter password: 
+
+USER()	CURRENT_USER()
+user_3@localhost	user_3@localhost
+
+Invoking mysql_config_editor for user3 with wrong password
+Enter password: 
+WARNING : 'login_path_3' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+USER()	CURRENT_USER()
+user_3@localhost	user_3@localhost
+
+Invoking mysql_config_editor for user2 and not changing the password
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+USER()	CURRENT_USER()
+user_2@localhost	user_2@localhost
+
+invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to wrong value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+
+Invoking mysql_config_editor for user2 and changing the password to correct value
+Enter password: 
+WARNING : 'login_path_2' path already exists and will be overwritten. 
+ Continue? (Press y|Y for Yes, any other key for No) : 
+USER()	CURRENT_USER()
+user_2@localhost	user_2@localhost
+
+############################################
+#    .mylogin.cnf file before cleanup      #
+############################################
+[login_path_1]
+user = "user_1"
+password = *****
+host = "localhost"
+[login_path_3]
+user = "user_3"
+password = *****
+host = "localhost"
+[login_path_2]
+user = "user_2"
+password = *****
+host = "localhost"
+
+#################################################
+#     empty .mylogin.cnf file after cleanup     #
+#################################################
+
+################################################
+#     Dropping users user1, user2 and user3    #
+################################################
+DROP USER 'user_1'@'localhost';
+DROP USER 'user_2'@'localhost';
+DROP USER 'user_3'@'localhost';

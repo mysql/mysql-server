@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,19 +53,21 @@ Country_record country_array[] =
 
 #define MAX_BUFFER_LENGTH 80
 
-#define WRITE_LOG(lit_log_text)                                         \
-  if (outfile) {                                                        \
-    strcpy(log_text, lit_log_text);                                     \
-    fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile); \
+#define WRITE_LOG(lit_log_text)                                               \
+  if (outfile) {                                                              \
+    strcpy(log_text, lit_log_text);                                           \
+    if (fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile) != \
+        strlen(log_text))                                                     \
+      return true;                                                            \
   }
 
 /* Log file */
-FILE *outfile = NULL;
+FILE *outfile = nullptr;
 const char *filename = "pfs_example_component_population.log";
 char log_text[MAX_BUFFER_LENGTH] = {'\0'};
 
 /* Collection of table shares to be added to performance schema */
-PFS_engine_table_share_proxy *share_list[2] = {NULL, NULL};
+PFS_engine_table_share_proxy *share_list[2] = {nullptr, nullptr};
 unsigned int share_list_count = 2;
 
 /* Prepare and insert rows in pfs_example_continent table */
@@ -139,8 +141,8 @@ mysql_service_status_t pfs_example_component_population_init() {
   WRITE_LOG("pfs_example_component_population init:\n");
 
   /* Initialize mutex */
-  native_mutex_init(&LOCK_continent_records_array, NULL);
-  native_mutex_init(&LOCK_country_records_array, NULL);
+  native_mutex_init(&LOCK_continent_records_array, nullptr);
+  native_mutex_init(&LOCK_country_records_array, nullptr);
 
   /* Instantiate and initialize PFS_engine_table_share_proxy */
   init_continent_share(&continent_st_share);

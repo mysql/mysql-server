@@ -68,3 +68,6 @@ let SEARCH_PATTERN=\\[Warning\\] .*MY-\\d+.* innodb_checksum_algorithm is set to
 
 drop table t1;
 --remove_file $SEARCH_FILE
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

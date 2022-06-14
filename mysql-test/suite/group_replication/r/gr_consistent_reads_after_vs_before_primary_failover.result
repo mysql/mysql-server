@@ -10,11 +10,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 [connection server2]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Error on session '.*' while waiting for its dependencies to complete commit.");
-call mtr.add_suppression("Error releasing transaction '.*' for execution on session '.*' after its dependencies did complete commit.");
-call mtr.add_suppression("Error waiting for group executed transactions commit on session '.*'.");
-SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc
@@ -36,7 +31,6 @@ INSERT INTO t1 VALUES(11);
 # 04. Try to query table t1 (Transaction T2) on server2, it
 #     will be blocked since T1 is prepared but not committed.
 [connection server2]
-SET @@SESSION.wait_timeout = 30;
 SET @@SESSION.group_replication_consistency= 'BEFORE';
 SELECT * FROM test.t1;
 [connection server_2]
@@ -60,18 +54,14 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier
 include/assert.inc ['Table t1 must have 1 entry.']
 
 #############################################################
-# 07. Check that server2 has not applied T1.
-[connection server_2]
-
-############################################################
-# 08. Wait for T2 to timeout, only then T1 will be committed
-#     and externalized on server2.
+# 07. Check that transaction T2 will read transaction T1 data.
 [connection server2]
-ERROR HY000: Error while waiting for group transactions commit on group_replication_consistency= 'BEFORE'.
+c1
+11
 include/assert.inc ['Table t1 must have 1 entry.']
 
 ############################################################
-# 9. Clean up.
+# 8. Clean up.
 [connection server1]
 include/rpl_reconnect.inc
 include/assert.inc ['Table t1 must not have 1 entry.']

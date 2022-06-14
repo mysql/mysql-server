@@ -1,0 +1,344 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+USE ndb_ddl_test;
+CREATE TABLE t10 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB
+TABLESPACE ts1
+STORAGE DISK;
+INSERT INTO t10 VALUES(1, 'Beggars can\'t be choosers');
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a,b)
+) ENGINE NDB;
+CREATE TABLE t2(
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE ndb_ddl_test4;
+USE ndb_ddl_test4;
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a,b)
+) ENGINE NDB;
+CREATE TABLE t2(
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE ndb_ddl_test5;
+USE ndb_ddl_test5;
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a,b)
+) ENGINE NDB;
+USE ndb_ddl_test;
+DROP TABLE t6;
+DROP TABLE t7;
+DROP TABLE t8;
+DROP TABLE t9;
+DROP TABLE t10;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+USE ndb_ddl_test3;
+DROP TABLE t1;
+DROP TABLE t2;
+SET GLOBAL ndb_metadata_sync = true;
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+ndb_ddl_test
+ndb_ddl_test2
+ndb_ddl_test3
+ndb_ddl_test4
+ndb_ddl_test5
+ndbinfo
+performance_schema
+sys
+test
+USE ndb_ddl_test;
+SHOW TABLES;
+Tables_in_ndb_ddl_test
+t1
+t10
+t2
+t3
+t4
+t5
+t6
+t7
+t8
+t9
+USE ndb_ddl_test3;
+SHOW TABLES;
+Tables_in_ndb_ddl_test3
+t1
+t2
+USE ndb_ddl_test4;
+SHOW TABLES;
+Tables_in_ndb_ddl_test4
+t2
+USE ndb_ddl_test5;
+SHOW TABLES;
+Tables_in_ndb_ddl_test5
+SELECT * FROM ndb_ddl_test.t6;
+a
+value1
+value2
+value3
+value4
+value5
+SELECT * FROM ndb_ddl_test.t8;
+a	b	c	d	e
+1	1-t8	2017-10-20 09:13:01	NULL	1
+2	2-t8	2017-10-20 09:13:02	NULL	2
+3	3-t8	2017-10-20 09:13:03	NULL	3
+4	4-t8	2017-10-20 09:13:04	NULL	4
+5	5-t8	2017-10-20 09:13:05	NULL	5
+SELECT * FROM ndb_ddl_test.t10;
+a	b
+1	Beggars can't be choosers
+ALTER TABLE ndb_ddl_test3.t1
+ADD COLUMN c VARCHAR(255);
+Warnings:
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+INSERT INTO ndb_ddl_test3.t1 VALUES(1, 1, 'Donkey\'s praise');
+SELECT * FROM ndb_ddl_test3.t1;
+a	b	c
+1	1	Donkey's praise
+SHOW CREATE TABLE ndb_ddl_test4.t1;
+ERROR 42S02: Table 'ndb_ddl_test4.t1' doesn't exist
+SHOW CREATE TABLE ndb_ddl_test5.t1;
+ERROR 42S02: Table 'ndb_ddl_test5.t1' doesn't exist
+CREATE TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+CREATE TABLE ndb_ddl_test4.t1 (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+INSERT INTO ndb_ddl_test4.t1 VALUES(1,1);
+SELECT * FROM ndb_ddl_test4.t1;
+a	b
+1	1
+DROP DATABASE ndb_ddl_test3;
+DROP DATABASE ndb_ddl_test4;
+DROP DATABASE ndb_ddl_test5;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1_ndb (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1_ndb (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE db3;
+USE db3;
+CREATE TABLE t1_innodb (
+a INT PRIMARY KEY,
+b INT
+);
+CREATE TABLE t2_innodb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+);
+CREATE DATABASE db4;
+USE db4;
+CREATE TABLE t1_ndb (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE TABLE t1_innodb (
+a INT PRIMARY KEY,
+b INT
+);
+CREATE TABLE t2_innodb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+);
+DROP DATABASE db1;
+DROP DATABASE db4;
+SET GLOBAL ndb_metadata_sync = true;
+SHOW DATABASES LIKE 'db%';
+Database (db%)
+db1
+db2
+db3
+db4
+USE db1;
+SHOW TABLES;
+Tables_in_db1
+t1_ndb
+t2_ndb
+SHOW CREATE TABLE t1_ndb;
+Table	Create Table
+t1_ndb	CREATE TABLE `t1_ndb` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2_ndb;
+Table	Create Table
+t2_ndb	CREATE TABLE `t2_ndb` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+USE db2;
+SHOW TABLES;
+Tables_in_db2
+t1_ndb
+t2_ndb
+USE db3;
+SHOW TABLES;
+Tables_in_db3
+t1_innodb
+t2_innodb
+USE db4;
+SHOW TABLES;
+Tables_in_db4
+t1_ndb
+t2_ndb
+SHOW CREATE TABLE t1_ndb;
+Table	Create Table
+t1_ndb	CREATE TABLE `t1_ndb` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2_ndb;
+Table	Create Table
+t2_ndb	CREATE TABLE `t2_ndb` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+USE test;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT NOT NULL,
+c INT NOT NULL,
+UNIQUE ib(b),
+INDEX ic(c)
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1,2,3),(2,3,5),(3,4,6),(4,5,8),(5,6,2),(6,7,2);
+CREATE TABLE parent (
+c1 INT PRIMARY KEY
+) ENGINE NDB;
+INSERT INTO parent VALUES (1),(2);
+CREATE TABLE child (
+c1 INT PRIMARY KEY,
+c2 INT,
+INDEX xc2(c2),
+FOREIGN KEY(c2)
+REFERENCES parent(c1)
+ON DELETE CASCADE
+) ENGINE NDB;
+INSERT INTO child VALUES (1,1),(2,2);
+Backup
+DROP TABLE t1,child,parent;
+Restore with --disable-indexes
+SET GLOBAL ndb_metadata_sync = true;
+SELECT schema_name, name, type FROM performance_schema.ndb_sync_excluded_objects;
+schema_name	name	type
+test	child	TABLE
+test	parent	TABLE
+test	t1	TABLE
+Rebuild indexes in NDB
+Retry sync now that the indexes have been created
+SET GLOBAL ndb_metadata_sync = true;
+SHOW TABLES;
+Tables_in_test
+child
+parent
+t1
+SELECT * FROM t1;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+SELECT * FROM parent;
+c1
+1
+2
+SELECT * FROM child;
+c1	c2
+1	1
+2	2
+SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
+COUNT(*)
+0
+DROP TABLE t1,child,parent;
+SET @old_foreign_key_checks = @@foreign_key_checks;
+SET foreign_key_checks=0;
+CREATE TABLE child (
+c1 INT PRIMARY KEY,
+c2 INT,
+INDEX xc2(c2),
+FOREIGN KEY(c2)
+REFERENCES parent(c1)
+ON DELETE CASCADE
+) ENGINE NDB;
+INSERT INTO child VALUES (1,1),(2,2);
+SET GLOBAL ndb_metadata_sync = true;
+SELECT CASE COUNT(*) WHEN 0 THEN 'YES' ELSE 'NO' END AS mock_tables_sync_skipped
+FROM performance_schema.ndb_sync_excluded_objects;
+mock_tables_sync_skipped
+YES
+DROP TABLE child;
+SET foreign_key_checks = @old_foreign_key_checks;

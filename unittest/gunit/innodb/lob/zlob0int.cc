@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -104,7 +104,7 @@ fil_addr_t z_index_entry_t::make_old_version_current(trx_id_t trxid,
 /** Purge the current index entry. An index entry points to either a FIRST
 page or DATA page.  That LOB page will be freed if it is DATA page.  A FIRST
 page should not be freed. */
-void z_index_entry_t::purge(z_first_page_t &first) {
+void z_index_entry_t::purge(z_first_page_t &first_arg) {
   set_data_len(0);
 
   while (true) {
@@ -131,7 +131,7 @@ void z_index_entry_t::purge(z_first_page_t &first) {
         frag_id_t fid = get_z_frag_id();
         frag_page.dealloc_fragment(fid);
         if (frag_page.get_n_frags() == 0) {
-          frag_page.dealloc(first);
+          frag_page.dealloc(first_arg);
         }
       } break;
       default:
@@ -497,7 +497,7 @@ dberr_t z_insert_chunk(z_first_page_t &first, trx_id_t trxid, ref_t ref,
   const ulint max_buf = deflateBound(&strm, len);
 
   /** @todo We should use mem_heap here. */
-  std::unique_ptr<byte> tmpbuf(new byte[max_buf]);
+  std::unique_ptr<byte[]> tmpbuf(new byte[max_buf]);
   strm.avail_out = max_buf;
   strm.next_out = tmpbuf.get();
 
@@ -611,7 +611,7 @@ ulint z_read_chunk(trx_id_t trxid, z_index_entry_t &entry, ulint offset,
   ulint zbuf_size = entry.get_zdata_len();
 
   /** @todo This might need to be converted to a mem_heap call. */
-  std::unique_ptr<byte> zbuf(new byte[zbuf_size]);
+  std::unique_ptr<byte[]> zbuf(new byte[zbuf_size]);
 
   ulint zbytes = z_read_strm(entry, zbuf.get(), zbuf_size);
   ut_a(zbytes == zbuf_size);
@@ -871,14 +871,14 @@ ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
 
   byte *ptr = chunk;
   ulint replace_len = len; /* bytes remaining to be replaced. */
-  ulint read_len = cur_entry.get_data_len();
-  ulint len1 = z_read_chunk(trxid, cur_entry, 0, read_len, ptr);
-  ut_ad(len1 == cur_entry.get_data_len());
-  ut_ad(yet_to_skip <= len1);
+  ulint read_length = cur_entry.get_data_len();
+  ulint length_1 = z_read_chunk(trxid, cur_entry, 0, read_length, ptr);
+  ut_ad(length_1 == cur_entry.get_data_len());
+  ut_ad(yet_to_skip <= length_1);
 
   byte *to_ptr = chunk + yet_to_skip;
   byte *from_ptr = buf;
-  ulint remain = len1 - yet_to_skip;
+  ulint remain = length_1 - yet_to_skip;
   ulint can_be_replaced = remain > replace_len ? replace_len : remain;
   memcpy(to_ptr, from_ptr, can_be_replaced);
   from_ptr += can_be_replaced;
@@ -886,7 +886,7 @@ ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
 
   /* chunk now has the new data to be inserted. */
   z_index_entry_t new_entry;
-  z_insert_chunk(first, trxid, ref, chunk, len1, &new_entry);
+  z_insert_chunk(first, trxid, ref, chunk, length_1, &new_entry);
   cur_entry.insert_after(flst, new_entry);
   cur_entry.remove(flst);
   new_entry.set_old_version(cur_entry);

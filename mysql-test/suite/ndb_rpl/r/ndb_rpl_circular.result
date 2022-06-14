@@ -19,16 +19,16 @@ a	b
 2	3
 include/check_slave_no_error.inc
 include/check_slave_is_running.inc
-Slave Binlog contains all ops as log_slave_updates is on
+Slave Binlog contains all ops as log_replica_updates is on
 show variables like 'server_id';
 Variable_name	Value
 server_id	2
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	ON
+log_replica_updates	ON
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int key, b int) ENGINE=ndb
@@ -50,16 +50,16 @@ a	b
 1	2
 2	3
 include/check_slave_is_running.inc
-Master Binlog contains only Master ops as log_slave_updates is off
+Master Binlog contains only Master ops as log_replica_updates is off
 show variables like 'server_id';
 Variable_name	Value
 server_id	1
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -69,8 +69,12 @@ master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DROP TABLE t1;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 create table t1 (a int primary key, b int) engine=ndb;
 show variables like '%log_orig%';
 Variable_name	Value
@@ -97,6 +101,8 @@ show variables like 'ndb_log_apply_status';
 Variable_name	Value
 ndb_log_apply_status	ON
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 insert into t1 values (1,1);
 'Slave' still has only Master's serverid entry
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
@@ -114,6 +120,8 @@ select server_id, log_name from mysql.ndb_apply_status order by server_id;
 server_id	log_name
 2	slave-bin.000001
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 'Master' now has own serverid entry as well.
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 server_id	log_name
@@ -131,9 +139,13 @@ server_id	log_name
 1	master-bin.000001
 2	slave-bin.000001
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_log_apply_status=off;
 set global ndb_log_apply_status=off;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 drop table t1;
 drop table t1;
 include/rpl_end.inc

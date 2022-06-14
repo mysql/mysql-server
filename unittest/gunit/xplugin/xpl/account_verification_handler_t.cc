@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,12 @@
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/sql_user_require.h"
 #include "plugin/x/src/xpl_resultset.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/account_verification.h"
+#include "unittest/gunit/xplugin/xpl/mock/authentication.h"
+#include "unittest/gunit/xplugin/xpl/mock/client.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
+#include "unittest/gunit/xplugin/xpl/mock/vio.h"
 #include "unittest/gunit/xplugin/xpl/one_row_resultset.h"
 
 namespace xpl {
@@ -37,7 +41,7 @@ namespace xpl {
 #define NOT !
 
 namespace test {
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 namespace {
 const char *const EMPTY = "";
@@ -57,22 +61,22 @@ const char *const WRONG_AUTH_PLUGIN_NAME = "wrong_password";
 
 class User_verification_test : public Test {
  public:
-  StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<ngs::test::Mock_session> mock_session;
-  StrictMock<ngs::test::Mock_vio> mock_connection;
-  StrictMock<ngs::test::Mock_sql_data_context> mock_sql_data_context;
-  ngs::test::Mock_account_verification *mock_account_verification{
-      ngs::allocate_object<StrictMock<ngs::test::Mock_account_verification>>()};
+  StrictMock<mock::Client> mock_client;
+  StrictMock<mock::Session> mock_session;
+  StrictMock<mock::Vio> mock_connection;
+  StrictMock<mock::Sql_session> mock_sql_session;
+  mock::Account_verification *mock_account_verification{
+      new StrictMock<mock::Account_verification>()};
 
-  ngs::Authentication_info m_auth_info;
+  iface::Authentication_info m_auth_info;
 
   Account_verification_handler handler{
-      &mock_session, ngs::Account_verification_interface::Account_native,
+      &mock_session, iface::Account_verification::Account_type::k_native,
       mock_account_verification};
 
-  void SetUp() {
+  void SetUp() override {
     EXPECT_CALL(mock_session, data_context())
-        .WillRepeatedly(ReturnRef(mock_sql_data_context));
+        .WillRepeatedly(ReturnRef(mock_sql_session));
     EXPECT_CALL(mock_session, client()).WillRepeatedly(ReturnRef(mock_client));
   }
 };
@@ -90,7 +94,7 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
                          EMPTY,
                          EMPTY};
 
-  EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
+  EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   EXPECT_CALL(mock_client, connection())
@@ -109,7 +113,7 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
 TEST_F(User_verification_test, forwards_error_from_query_execution) {
   const ngs::Error_code expected_error(ER_DATA_OUT_OF_RANGE, "");
 
-  EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
+  EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(Return(expected_error));
 
   EXPECT_EQ(
@@ -131,7 +135,7 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
                          EMPTY,
                          EMPTY};
 
-  EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
+  EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   EXPECT_CALL(*mock_account_verification,
@@ -140,6 +144,41 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
 
   EXPECT_EQ(
       ER_ACCESS_DENIED_ERROR,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
+}
+
+TEST_F(User_verification_test,
+       everything_matches_and_hash_is_right_and_autocommit_off) {
+  One_row_resultset data{NOT REQUIRE_SECURE_TRANSPORT,
+                         EXPECTED_HASH,
+                         AUTH_PLUGIN_NAME,
+                         NOT ACCOUNT_LOCKED,
+                         NOT PASSWORD_EXPIRED,
+                         NOT DISCONNECT_ON_EXPIRED_PASSWORD,
+                         NOT OFFLINE_MODE,
+                         EMPTY,
+                         EMPTY,
+                         EMPTY,
+                         EMPTY};
+  data.set_server_status(SERVER_STATUS_IN_TRANS);
+
+  EXPECT_CALL(mock_sql_session, execute(_, _, _))
+      .WillRepeatedly(DoAll(SetUpResultset(data), Return(ngs::Success())));
+
+  const std::string k_commit = "commit";
+  EXPECT_CALL(mock_sql_session, execute(k_commit.data(), k_commit.length(), _))
+      .WillRepeatedly(Return(ngs::Success()));
+
+  EXPECT_CALL(mock_client, connection())
+      .WillRepeatedly(ReturnRef(mock_connection));
+
+  EXPECT_CALL(*mock_account_verification,
+              verify_authentication_string(_, _, _, _))
+      .WillOnce(Return(true));
+
+  EXPECT_EQ(
+      ER_SUCCESS,
       handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
           .error);
 }
@@ -173,7 +212,7 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
   EXPECT_CALL(mock_client, client_hostname_or_address())
       .WillRepeatedly(Return(""));
 
-  EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
+  EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   if (param.plugin_name == AUTH_PLUGIN_NAME)
@@ -197,8 +236,8 @@ Test_param combinations[] = {
     {NOT ACCOUNT_LOCKED, NOT OFFLINE_MODE, NOT PASSWORD_EXPIRED,
      WRONG_AUTH_PLUGIN_NAME, ER_ACCESS_DENIED_ERROR}};
 
-INSTANTIATE_TEST_CASE_P(User_verification, User_verification_param_test,
-                        ValuesIn(combinations));
+INSTANTIATE_TEST_SUITE_P(User_verification, User_verification_param_test,
+                         ValuesIn(combinations));
 
 struct Test_param_connection_type {
   bool requires_secure;
@@ -236,7 +275,7 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
                          EMPTY,
                          EMPTY};
 
-  EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
+  EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   EXPECT_EQ(
@@ -256,7 +295,7 @@ Test_param_connection_type connection_combinations[] = {
     {REQUIRE_SECURE_TRANSPORT, Connection_namedpipe,
      ER_SECURE_TRANSPORT_REQUIRED}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     User_verification,
     User_verification_param_test_with_connection_type_combinations,
     ValuesIn(connection_combinations));
@@ -275,7 +314,7 @@ class Split_sasl_message_test
     : public User_verification_test,
       public WithParamInterface<Test_param_sasl_message> {
  public:
-  StrictMock<ngs::test::Mock_authentication_interface> mock_authentication;
+  StrictMock<mock::Authentication> mock_authentication;
 };
 
 TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {
@@ -285,10 +324,11 @@ TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {
     EXPECT_CALL(mock_client, client_address());
     EXPECT_CALL(mock_client, client_hostname());
     EXPECT_CALL(mock_client, supports_expired_passwords());
+    EXPECT_CALL(mock_sql_session, password_expired()).WillOnce(Return(false));
     EXPECT_CALL(mock_session, data_context())
-        .WillOnce(ReturnRef(mock_sql_data_context));
+        .WillOnce(ReturnRef(mock_sql_session));
     EXPECT_CALL(
-        mock_sql_data_context,
+        mock_sql_session,
         authenticate(StrEq(param.user), _, _, StrEq(param.schema),
                      StrEq(param.password), Ref(mock_authentication), _))
         .WillOnce(Return(ngs::Success()));
@@ -311,7 +351,7 @@ Test_param_sasl_message sasl_message[] = {
     {USER_DB, EMPTY, EXPECTED_HASH, ER_ACCESS_DENIED_ERROR},
     {USER_DB, USER_NAME, EXPECTED_HASH, ER_SUCCESS}};
 
-INSTANTIATE_TEST_CASE_P(User_verification, Split_sasl_message_test,
-                        ValuesIn(sasl_message));
+INSTANTIATE_TEST_SUITE_P(User_verification, Split_sasl_message_test,
+                         ValuesIn(sasl_message));
 }  // namespace test
 }  // namespace xpl

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,81 +22,26 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wconversion"
-#endif
-
-#include "gmock/gmock.h"
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
 #include <fstream>
 #include <stdexcept>
 #include <vector>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest-param-test.h>
+#include <gtest/gtest.h>
+
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"  // hexdump
 
-const std::string kIPv6AddrRange = "fd84:8829:117d:63d5";
-
-using mysql_harness::split_string;
-using mysqlrouter::get_tcp_port;
-using mysqlrouter::hexdump;
-using mysqlrouter::split_addr_port;
-using std::string;
 using ::testing::ContainerEq;
 using ::testing::Pair;
 
-class SplitAddrPortTest : public ::testing::Test {
- protected:
-  virtual void SetUp() {}
-};
-
-TEST_F(SplitAddrPortTest, SplitAddrPort) {
-  std::string addr6 = kIPv6AddrRange + ":0001:0002:0003:0004";
-
-  EXPECT_THAT(split_addr_port(addr6),
-              ::testing::Pair(addr6, static_cast<uint16_t>(0)));
-  EXPECT_THAT(split_addr_port("[" + addr6 + "]"),
-              ::testing::Pair(addr6, static_cast<uint16_t>(0)));
-  EXPECT_THAT(split_addr_port("[" + addr6 + "]:3306"),
-              ::testing::Pair(addr6, static_cast<uint16_t>(3306)));
-
-  EXPECT_THAT(split_addr_port("192.168.14.77"),
-              ::testing::Pair("192.168.14.77", static_cast<uint16_t>(0)));
-  EXPECT_THAT(split_addr_port("192.168.14.77:3306"),
-              ::testing::Pair("192.168.14.77", static_cast<uint16_t>(3306)));
-
-  EXPECT_THAT(split_addr_port("mysql.example.com"),
-              ::testing::Pair("mysql.example.com", static_cast<uint16_t>(0)));
-  EXPECT_THAT(
-      split_addr_port("mysql.example.com:3306"),
-      ::testing::Pair("mysql.example.com", static_cast<uint16_t>(3306)));
-}
-
-TEST_F(SplitAddrPortTest, SplitAddrPortFail) {
-  std::string addr6 = kIPv6AddrRange + ":0001:0002:0003:0004";
-  ASSERT_THROW(split_addr_port("[" + addr6), std::runtime_error);
-  ASSERT_THROW(split_addr_port(addr6 + "]"), std::runtime_error);
-  ASSERT_THROW(split_addr_port(kIPv6AddrRange + ":xyz00:0002:0003:0004"),
-               std::runtime_error);
-
-  // Invalid TCP port
-  ASSERT_THROW(split_addr_port("192.168.14.77:999999"), std::runtime_error);
-  ASSERT_THROW(split_addr_port("192.168.14.77:66000"), std::runtime_error);
-  ASSERT_THROW(split_addr_port("[" + addr6 + "]:999999"), std::runtime_error);
-}
-
-class GetTCPPortTest : public ::testing::Test {
- protected:
-  virtual void SetUp() {}
-};
+class GetTCPPortTest : public ::testing::Test {};
 
 TEST_F(GetTCPPortTest, GetTCPPort) {
+  using mysqlrouter::get_tcp_port;
+
   ASSERT_EQ(get_tcp_port("3306"), static_cast<uint16_t>(3306));
   ASSERT_EQ(get_tcp_port("0"), static_cast<uint16_t>(0));
   ASSERT_EQ(get_tcp_port(""), static_cast<uint16_t>(0));
@@ -104,6 +49,8 @@ TEST_F(GetTCPPortTest, GetTCPPort) {
 }
 
 TEST_F(GetTCPPortTest, GetTCPPortFail) {
+  using mysqlrouter::get_tcp_port;
+
   ASSERT_THROW(get_tcp_port("65536"), std::runtime_error);
   ASSERT_THROW(get_tcp_port("33 06"), std::runtime_error);
   ASSERT_THROW(get_tcp_port(":3306"), std::runtime_error);
@@ -111,48 +58,38 @@ TEST_F(GetTCPPortTest, GetTCPPortFail) {
   ASSERT_THROW(get_tcp_port("abcdef"), std::runtime_error);
 }
 
-class HexDumpTest : public ::testing::Test {};
+struct HexDumpParam {
+  std::string test_name;
 
-TEST_F(HexDumpTest, UsingCharArray) {
-  const unsigned char buffer[4] = "abc";
-  EXPECT_EQ("61 62 63 \n", hexdump(buffer, 3, 0));
-}
-
-TEST_F(HexDumpTest, UsingVector) {
-  std::vector<uint8_t> buffer = {'a', 'b', 'c'};
-  EXPECT_EQ("61 62 63 \n", hexdump(&buffer[0], 3, 0));
-}
-
-TEST_F(HexDumpTest, Literals) {
-  const unsigned char buffer[4] = "abc";
-  EXPECT_EQ(" a  b  c \n", hexdump(buffer, 3, 0, true));
-  EXPECT_EQ("61 62 63 \n", hexdump(buffer, 3, 0, false));
-}
-
-TEST_F(HexDumpTest, Count) {
-  const unsigned char buffer[7] = "abcdef";
-  EXPECT_EQ(" a  b  c  d  e  f \n", hexdump(buffer, 6, 0, true));
-  EXPECT_EQ(" a  b  c \n", hexdump(buffer, 3, 0, true));
-}
-
-TEST_F(HexDumpTest, Start) {
-  const unsigned char buffer[7] = "abcdef";
-  EXPECT_EQ(" a  b  c  d  e  f \n", hexdump(buffer, 6, 0, true));
-  EXPECT_EQ(" d  e  f \n", hexdump(buffer, 3, 3, true));
-}
-
-TEST_F(HexDumpTest, MultiLine) {
-  const unsigned char buffer[33] = "abcdefgh12345678ABCDEFGH12345678";
-  EXPECT_EQ(
-      " a  b  c  d  e  f  g  h 31 32 33 34 35 36 37 38\n A  B  C  D  E  F  G  "
-      "H 31 32 33 34 35 36 37 38\n",
-      hexdump(buffer, 32, 0, true));
-}
-
-class UtilsTests : public ::testing::Test {
- protected:
-  virtual void SetUp() {}
+  std::string input;
+  std::string expected_output;
 };
+
+class HexDumpTest : public ::testing::Test,
+                    public ::testing::WithParamInterface<HexDumpParam> {};
+
+TEST_P(HexDumpTest, check) {
+  const auto *data = GetParam().input.c_str();
+  size_t data_len = GetParam().input.size();
+
+  EXPECT_EQ(GetParam().expected_output,
+            mysqlrouter::hexdump(reinterpret_cast<const unsigned char *>(data),
+                                 data_len));
+}
+
+static const HexDumpParam hexdump_data[] = {
+    {"abc", "abc", "61 62 63 \n"},
+
+    {"multiline", "abcdefgh12345678ABCDEFGH12345678",
+     "61 62 63 64 65 66 67 68 31 32 33 34 35 36 37 38\n"
+     "41 42 43 44 45 46 47 48 31 32 33 34 35 36 37 38\n"}};
+
+INSTANTIATE_TEST_SUITE_P(Hex, HexDumpTest, ::testing::ValuesIn(hexdump_data),
+                         [](auto const &pinfo) {
+                           return pinfo.param.test_name;
+                         });
+
+class UtilsTests : public ::testing::Test {};
 
 static bool files_equal(const std::string &f1, const std::string &f2) {
   std::ifstream if1(f1);
@@ -301,4 +238,25 @@ TEST_F(UtilsTests, uint_conversion) {
   // extra + sign
   EXPECT_EQ(12u, strtoui_checked("+12", 66));
   EXPECT_EQ(0u, strtoui_checked("+0", 66));
+}
+
+TEST_F(UtilsTests, uint64_conversion) {
+  using mysqlrouter::strtoull_checked;
+  const uint64_t kDefault{66};
+
+  EXPECT_EQ(kDefault, strtoull_checked(nullptr, kDefault));
+  EXPECT_EQ(kDefault, strtoull_checked(nullptr, kDefault));
+  EXPECT_EQ(kDefault, strtoull_checked("18446744073709551617", kDefault));
+
+  EXPECT_EQ(static_cast<uint64_t>(0), strtoull_checked("0", kDefault));
+  EXPECT_EQ(static_cast<uint64_t>(4294967298),
+            strtoull_checked("4294967298", kDefault));
+  EXPECT_EQ(static_cast<uint64_t>(0x7fffffffffffffff),
+            strtoull_checked("9223372036854775807", kDefault));
+  EXPECT_EQ(static_cast<uint64_t>(66), strtoull_checked("66", kDefault));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

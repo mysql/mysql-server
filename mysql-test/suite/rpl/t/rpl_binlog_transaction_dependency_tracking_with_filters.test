@@ -22,16 +22,14 @@
 
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/have_transaction_write_set_extraction.inc
+--source include/not_mts_replica_parallel_workers.inc
 
 --source include/rpl_connection_master.inc
 # Take backup of variables.
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 # Set variables.
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction = XXHASH64;
-SET LOCAL transaction_write_set_extraction = XXHASH64;
 
 --source include/rpl_connection_slave.inc
 # Set filter rule.
@@ -41,11 +39,10 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 --source include/start_slave.inc
 # Take backup of variables.
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 # Set variables.
+SET GLOBAL replica_parallel_workers = 0;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction = XXHASH64;
-SET LOCAL transaction_write_set_extraction = XXHASH64;
 
 --source include/rpl_connection_master.inc
 --echo #
@@ -95,7 +92,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
   --enable_query_log
 }
 
-SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+SELECT @@binlog_transaction_dependency_tracking;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;12 14;12 15;12 16;16 17;17 18;18 19;19 20;20 21;21 22
@@ -111,7 +108,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
 --echo ######## 2.1. COMMIT_ORDER with SLAVE ########
-SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+SELECT @@binlog_transaction_dependency_tracking;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14;14 15
@@ -132,7 +129,7 @@ SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
-SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+SELECT @@binlog_transaction_dependency_tracking;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;4 6;4 7;4 8;4 9;4 10;4 11;4 12;12 13;13 14;14 15
@@ -153,7 +150,7 @@ SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
-SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+SELECT @@binlog_transaction_dependency_tracking;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14;14 15
@@ -166,15 +163,14 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 --echo
 --echo # 3. Clean up.
 --source include/rpl_connection_master.inc
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
 --let $dont_print_logical_timestamps=
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
 
 --source include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();

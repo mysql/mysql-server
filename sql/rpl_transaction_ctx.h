@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define RPL_TRANSACTION_CTX_H
 
 #include "mysql/service_rpl_transaction_ctx.h"  // Transaction_termination_ctx
+#include "sql/rpl_gtid.h"                       // rpl_gno
 
 /**
   Server side support to provide a service to plugins to report if
@@ -34,7 +35,7 @@
 class Rpl_transaction_ctx {
  public:
   Rpl_transaction_ctx();
-  virtual ~Rpl_transaction_ctx() {}
+  virtual ~Rpl_transaction_ctx() = default;
 
   /**
     Set transaction context, that is, notify the server that for
@@ -43,9 +44,8 @@ class Rpl_transaction_ctx {
     See @file include/mysql/service_rpl_transaction_ctx.h
 
     @param transaction_termination_ctx  Transaction termination context
-    @return
-         @retval 0      success
-         @retval !=0    error
+    @retval 0      success
+    @retval !=0    error
   */
   int set_rpl_transaction_ctx(
       Transaction_termination_ctx transaction_termination_ctx);
@@ -56,18 +56,16 @@ class Rpl_transaction_ctx {
     transaction should continue.
     By default sidno and gno are 0, transaction will continue.
 
-    @return
-         @retval true      Transaction should abort
-         @retval false     Transaction should continue
+    @retval true      Transaction should abort
+    @retval false     Transaction should continue
   */
   bool is_transaction_rollback();
 
   /**
     Was GTID generated externally?
 
-    @return
-         @retval true      GTID was generated.
-         @retval false     GTID was not generated.
+    @retval true      GTID was generated.
+    @retval false     GTID was not generated.
   */
   bool is_generated_gtid();
 
@@ -83,7 +81,7 @@ class Rpl_transaction_ctx {
 
     @return gno   gno value.
   */
-  long long int get_gno();
+  rpl_gno get_gno();
 
   /**
    Reset transaction context to default values.

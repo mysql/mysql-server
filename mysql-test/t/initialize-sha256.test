@@ -1,6 +1,4 @@
 --source include/big_test.inc
---source include/have_ssl.inc
---source include/have_openssl.inc
 
 
 let BASEDIR= `select @@basedir`;

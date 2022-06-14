@@ -1,0 +1,80 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+set session sql_log_bin=1;
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+set session sql_log_bin=1;
+#
+# 1. Create a replication user without SERVICE_CONNECTION_ADMIN which
+#    cannot connect to the donor admin port
+SET sql_log_bin = 0;
+CREATE USER 'rpl_user'@'%';
+GRANT REPLICATION SLAVE ON *.* TO 'rpl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';;
+SET sql_log_bin = 1;
+#
+# 2. Set the first advertised endpoint to the donor admin port and the
+#    second to the port used by client connections
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "127.0.0.1:SERVER1_ADMIN_PORT,127.0.0.1:SERVER1_PORT";
+
+# 3. Start server 1, bootstrap group and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+INSERT INTO test.t1 (b) VALUES (1);
+INSERT INTO test.t1 (b) VALUES (2);
+
+# 4. Change the user of recovery channel for the joiner
+[connection server2]
+SET sql_log_bin = 0;
+CREATE USER 'rpl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';;
+SET sql_log_bin = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+# 5. Change settings on recovery to speed up failure
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+
+# 6. Start group replication for the joiner
+include/start_group_replication.inc
+
+# 7. Check that incremental recovery of the joiner fails to connect to
+#    the first endpoint of the donor
+include/assert_grep.inc [incremental recovery tried to connect to the first advertised endpoint]
+include/assert_grep.inc [incremental recovery failed to connect to the first advertised endpoint]
+
+# 8. Check that incremental recovery of the joiner connects to the second
+#    endpoint of the donor
+include/assert_grep.inc [incremental recovery tried to connect to the second advertised endpoint]
+include/assert_grep.inc [incremental recovery used the second advertised enpoint]
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+
+# 9. Cleanup
+[connection server1]
+DROP TABLE test.t1;
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = DEFAULT;
+include/rpl_sync.inc
+[connection server2]
+include/stop_group_replication.inc
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET GLOBAL group_replication_recovery_reconnect_interval= 60;
+SET GLOBAL group_replication_recovery_retry_count= 10;
+DROP USER 'rpl_user'@'%';
+[connection server1]
+DROP USER 'rpl_user'@'%';
+include/group_replication_end.inc

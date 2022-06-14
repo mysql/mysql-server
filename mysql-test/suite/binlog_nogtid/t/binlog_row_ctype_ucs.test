@@ -2,5 +2,10 @@
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/have_binlog_format_row.inc
+
+# this test records the output of mysqlbinlog, which has
+# additional things in it when compression is enabled
+-- source include/not_binlog_transaction_compression_on.inc
+
 -- source extra/binlog_tests/ctype_ucs_binlog.test
 

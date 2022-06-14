@@ -36,8 +36,8 @@ include/assert.inc [The value of auto_increment_offset is set to 2]
 #    the auto_increment_increment value, an error is logged.
 ############################################################
 Matching lines are:
-DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'Group contains 4 members which is greater than auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.'
-Occurrences of 'Group contains 4 members which is greater than auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.' in the input file: 1
+DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to a higher transactional abort rate.'
+Occurrences of 'Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to a higher transactional abort rate.' in the input file: 1
 ############################################################
 # 5. When auto_increment_increment and auto_increment_offset
 #    not set to default value
@@ -109,7 +109,7 @@ include/assert.inc [The value of auto_increment_offset for server2 should be 2]
 #     when group_replication plugin is running.
 ############################################################
 SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 9;
-ERROR HY000: The group auto_increment_increment cannot be changed when Group Replication is running
+ERROR HY000: The group group_replication_auto_increment_increment cannot be changed when Group Replication is running
 ############################################################
 # 11. Validate that when user tries to set invalid values a
 #     error is thrown.

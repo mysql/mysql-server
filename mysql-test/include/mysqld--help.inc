@@ -22,12 +22,12 @@ perl;
   @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
                pid-file slow-query-log-file
                language lc-messages-dir
-               datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
-               tls-version secure-file-priv/;
+               datadir replica-load-tmpdir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
+               tls-version admin-tls-version secure-file-priv/;
 
   # Variables which we don't want to display in result file since
   # they depend on type of build
-  @build_specific=qw/auto-generate-certs lock-order/;
+  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version/;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file
@@ -61,6 +61,7 @@ perl;
     # s/\b196608\b/262144/;
     # s/\b524288\b/262144/;
     # s/\b393216\b/262144/;
+    s/\b1146880\b/262144/;
     s/\b860160\b/262144/;
     s/\b573440\b/262144/;
     s/\b286720\b/262144/;

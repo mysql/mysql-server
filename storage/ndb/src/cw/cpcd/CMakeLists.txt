@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ FOREACH(warning
     "unused-but-set-variable"
     "strict-aliasing"
     "unused-parameter"
+    "error=maybe-uninitialized"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
@@ -34,22 +35,24 @@ FOREACH(warning
   ENDIF()
 ENDFOREACH()
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient)
-
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
+  )
 
 ADD_EXECUTABLE(ndb_cpcd
-        APIService.cpp
-        CPCD.cpp
-        Monitor.cpp
-        Process.cpp
-        common.cpp
-        main.cpp)
+  APIService.cpp
+  CPCD.cpp
+  Monitor.cpp
+  Process.cpp
+  common.cpp
+  main.cpp
+  )
+SET_TARGET_PROPERTIES(ndb_cpcd PROPERTIES ENABLE_EXPORTS TRUE)
 
-TARGET_LINK_LIBRARIES(ndb_cpcd
-               ndbclient_static)
+TARGET_LINK_LIBRARIES(ndb_cpcd ndbclient_static)
 
 INSTALL(TARGETS ndb_cpcd DESTINATION bin)

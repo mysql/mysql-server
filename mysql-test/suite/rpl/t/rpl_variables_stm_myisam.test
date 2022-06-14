@@ -1,4 +1,5 @@
 --source include/not_group_replication_plugin.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 # Separated testcases for MyISAM and InnoDB because

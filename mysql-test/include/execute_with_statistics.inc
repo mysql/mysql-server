@@ -22,6 +22,7 @@ eval EXPLAIN $query;
 SHOW STATUS LIKE 'Last_query_cost';
 
 FLUSH STATUS;
+--sorted_result
 eval $query;
 --disable_warnings
 SELECT SUM(variable_value) AS Total_handler_reads

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,29 +20,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <math.h>
+#include <float.h>
+#include <string.h>
 #include <sys/types.h>
+#include <cmath>
 
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "myisam.h"
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisam/rt_index.h"
-#include "storage/myisam/rt_key.h"
 #include "storage/myisam/rt_mbr.h"
-
-/* Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we:
- */
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-
-#if defined _WIN32
-#define my_isfinite(X) _finite(X)
-#elif defined HAVE_LLVM_LIBCPP
-#define my_isfinite(X) isfinite(X)
-#else
-#define my_isfinite(X) finite(X)
-#endif
 
 typedef struct {
   double square;
@@ -83,7 +73,7 @@ static double mbr_join_square(const double *a, const double *b, int n_dim) {
   } while (a != end);
 
   /* Check for infinity or NaN */
-  if (!my_isfinite(square)) square = DBL_MAX;
+  if (!std::isfinite(square)) square = DBL_MAX;
 
   return square;
 }
@@ -152,7 +142,7 @@ static void pick_next(SplitStruct *node, int n_entries, double *g1, double *g2,
     diff = mbr_join_square(g1, cur->coords, n_dim) -
            mbr_join_square(g2, cur->coords, n_dim);
 
-    abs_diff = fabs(diff);
+    abs_diff = std::fabs(diff);
     if (abs_diff > max_diff) {
       max_diff = abs_diff;
       *n_group = 1 + (diff > 0);
@@ -181,10 +171,10 @@ static int split_rtree_node(SplitStruct *node, int n_entries,
                             int size1, int size2 /* initial group sizes */,
                             double **d_buffer, int n_dim) {
   SplitStruct *cur;
-  SplitStruct *a = NULL, *b = NULL;
+  SplitStruct *a = nullptr, *b = nullptr;
   double *g1 = reserve_coords(d_buffer, n_dim);
   double *g2 = reserve_coords(d_buffer, n_dim);
-  SplitStruct *next = NULL;
+  SplitStruct *next = nullptr;
   int next_node = 0;
   int i;
   SplitStruct *end = node + n_entries;
@@ -252,7 +242,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   uint full_length =
       key_length + (nod_flag ? nod_flag : info->s->base.rec_reflength);
   int max_keys = (mi_getint(page) - 2) / (full_length);
-  DBUG_ENTER("rtree_split_page");
+  DBUG_TRACE;
   DBUG_PRINT("rtree", ("splitting block"));
 
   n_dim = keyinfo->keysegs / 2;
@@ -260,7 +250,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   if (!(coord_buf = (double *)my_alloca(n_dim * 2 * sizeof(double) *
                                             (max_keys + 1 + 4) +
                                         sizeof(SplitStruct) * (max_keys + 1))))
-    DBUG_RETURN(-1); /* purecov: inspected */
+    return -1; /* purecov: inspected */
 
   task = (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
 
@@ -287,7 +277,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
     goto split_err;
   }
 
-  info->buff_used = 1;
+  info->buff_used = true;
   stop = task + (max_keys + 1);
   cur1 = rt_PAGE_FIRST_KEY(page, nod_flag);
   cur2 = rt_PAGE_FIRST_KEY(new_page, nod_flag);
@@ -319,5 +309,5 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong)*new_page_offs));
 
 split_err:
-  DBUG_RETURN(err_code);
+  return err_code;
 }

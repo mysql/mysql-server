@@ -87,7 +87,7 @@ SELECT COUNT(@@GLOBAL.bind_address);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT bind_address = @@SESSION.bind_address;
---echo Expected error 'Readonly variable'
+SELECT bind_address;
+--echo Expected error 'Unknown column'
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <string.h>
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "storage/perfschema/pfs_global.h"
 
@@ -37,32 +37,32 @@ void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf) {
   /*
     Catch non initialized sizing parameter in the unit tests.
   */
-  DBUG_ASSERT(size <= 100 * 1024 * 1024);
+  assert(size <= 100 * 1024 * 1024);
 
-  if (stub_alloc_always_fails) return NULL;
+  if (stub_alloc_always_fails) return nullptr;
 
-  if (--stub_alloc_fails_after_count <= 0) return NULL;
+  if (--stub_alloc_fails_after_count <= 0) return nullptr;
 
   void *ptr = malloc(size);
-  if (ptr != NULL) memset(ptr, 0, size);
+  if (ptr != nullptr) memset(ptr, 0, size);
   return ptr;
 }
 
 void pfs_free(PFS_builtin_memory_class *, size_t, void *ptr) {
-  if (ptr != NULL) free(ptr);
+  if (ptr != nullptr) free(ptr);
 }
 
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                        myf flags) {
   size_t array_size = n * size;
   /* Check for overflow before allocating. */
-  if (is_overflow(array_size, n, size)) return NULL;
+  if (is_overflow(array_size, n, size)) return nullptr;
   return pfs_malloc(klass, array_size, flags);
 }
 
 void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                     void *ptr) {
-  if (ptr == NULL) return;
+  if (ptr == nullptr) return;
   size_t array_size = n * size;
   return pfs_free(klass, array_size, ptr);
 }

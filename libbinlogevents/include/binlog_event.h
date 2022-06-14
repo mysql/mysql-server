@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 
 #include "debug_vars.h"
 #include "event_reader.h"
+#include "my_checksum.h"
 #include "my_io.h"
 
 #if defined(_WIN32)
@@ -345,11 +346,24 @@ enum Log_event_type {
   */
   PARTIAL_UPDATE_ROWS_EVENT = 39,
 
+  TRANSACTION_PAYLOAD_EVENT = 40,
+
+  HEARTBEAT_LOG_EVENT_V2 = 41,
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
   ENUM_END_EVENT /* end marker */
+};
+
+/**
+  Struct to pass basic information about a event: type, query, is it ignorable
+*/
+struct Log_event_basic_info {
+  Log_event_type event_type{UNKNOWN_EVENT};
+  const char *query{nullptr};
+  size_t query_length{0};
+  bool ignorable_event{false};
 };
 
 /**
@@ -433,8 +447,7 @@ enum enum_binlog_checksum_alg {
 inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos,
                                size_t length) {
   BAPI_ASSERT(length <= UINT_MAX);
-  return static_cast<uint32_t>(crc32(static_cast<unsigned int>(crc), pos,
-                                     static_cast<unsigned int>(length)));
+  return my_checksum(crc, pos, length);
 }
 
 /*
@@ -823,7 +836,8 @@ class Binary_log_event {
     ROWS_HEADER_LEN_V2 = 10,
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
-    XA_PREPARE_HEADER_LEN = 0
+    XA_PREPARE_HEADER_LEN = 0,
+    TRANSACTION_PAYLOAD_HEADER_LEN = 0,
   };  // end enum_post_header_length
  protected:
   /**
@@ -929,8 +943,8 @@ class Unknown_event : public Binary_log_event {
 
   Unknown_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 }  // end namespace binary_log

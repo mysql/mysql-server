@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,13 @@
 
 #include <stddef.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define copy_app_data(target, source)                                       \
-  {                                                                         \
-    MAY_DBG(FN; STRLIT(" copy_app_data "); PTREXP(target); PTREXP(*target); \
-            PTREXP(source));                                                \
-    _replace_app_data_list(target, source);                                 \
+#define copy_app_data(target, source)                            \
+  {                                                              \
+    IFDBG(D_NONE, FN; STRLIT(" copy_app_data "); PTREXP(target); \
+          PTREXP(*target); PTREXP(source));                      \
+    _replace_app_data_list(target, source);                      \
   }
 
 #define steal_app_data(target, source) \
@@ -58,12 +53,8 @@ app_data_ptr new_reset(cargo_type type);
 void _replace_app_data_list(app_data_list target, app_data_ptr source);
 char *dbg_app_data(app_data_ptr a);
 void follow(app_data_list l, app_data_ptr p);
-void sort_app_data(app_data_ptr x[], int n);
 size_t app_data_size(app_data const *a);
 size_t app_data_list_size(app_data const *a);
-
-#ifdef __cplusplus
-}
-#endif
+unsigned long msg_count(app_data_ptr a);
 
 #endif

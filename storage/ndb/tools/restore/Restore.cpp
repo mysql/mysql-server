@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <algorithm>
+
 #include "Restore.hpp"
 #include <NdbTCP.h>
 #include <OutputStream.hpp>
@@ -36,16 +39,24 @@
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
-#include "sql/ha_ndbcluster_tables.h"
-#include "../../../../sql/ha_ndbcluster_tables.h"
+#include "restore_tables.h"
 #include <NdbThread.h>
 #include "../src/kernel/vm/Emulator.hpp"
+#include "kernel/signaldata/FsOpenReq.hpp"
+#include "portlib/ndb_file.h"
+#include "portlib/NdbMem.h"
+#include "util/ndb_opts.h"
+
+using byte = unsigned char;
 
 extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
 
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
+extern bool opt_include_stored_grants;
+
+extern ndb_password_state g_backup_password_state;
 
 #define LOG_MSGLEN 1024
 
@@ -104,6 +115,7 @@ public:
         break;
       }
       // Fall through - for blob/text with ArrayTypeVar
+      [[fallthrough]];
     default:
       // Default twiddling parameters
       m_twiddle_size = attr_desc->size;
@@ -387,7 +399,9 @@ RestoreMetaData::readMetaTableList() {
   
   Uint32 sectionInfo[2];
   
-  if (buffer_read(&sectionInfo, sizeof(sectionInfo), 1) != 1){
+  int r = buffer_read(&sectionInfo, sizeof(sectionInfo), 1);
+  if (r != 1)
+  {
     restoreLogger.log_error("readMetaTableList read header error");
     return 0;
   }
@@ -400,6 +414,18 @@ RestoreMetaData::readMetaTableList() {
   Uint32 tabsRead = 0;
   while (tabsRead < tabCount){
     int count = buffer_get_ptr(&tmp, 4, tabCount - tabsRead);
+    if (count < 0)
+    {
+      if (!m_xfile.is_encrypted())
+      {
+        restoreLogger.log_error("readMetaTableList read tabCount error, corrupt file?");
+      }
+      else
+      {
+        restoreLogger.log_error("readMetaTableList read tabCount error, wrong password or corrupt file?");
+      }
+      return 0;
+    }
     if(count == 0)
       break;
     tabsRead += count;
@@ -433,7 +459,9 @@ RestoreMetaData::readMetaTableDesc() {
     sz = 2;
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
   }
-  if (buffer_read(&sectionInfo, 4*sz, 1) != 1){
+  int r = buffer_read(&sectionInfo, 4*sz, 1);
+  if (r != 1)
+  {
     restoreLogger.log_error("readMetaTableDesc read header error");
     return false;
   } // if
@@ -446,7 +474,9 @@ RestoreMetaData::readMetaTableDesc() {
   // Read dictTabInfo buffer
   const Uint32 len = (sectionInfo[1] - sz);
   void *ptr;
-  if (buffer_get_ptr(&ptr, 4, len) != len){
+  r = buffer_get_ptr(&ptr, 4, len);
+  if (r < 0 || Uint32(r) != len)
+  {
     restoreLogger.log_error("readMetaTableDesc read error");
     return false;
   } // if
@@ -526,7 +556,7 @@ RestoreMetaData::readMetaTableDesc() {
       Vector<Uint32> values;
       Uint32 len = dst->getMapLen();
       Uint32 zero = 0;
-      values.fill(len - 1, zero);
+      values.fill(len, zero);
       dst->getMapValues(values.getBase(), values.size());
       for (Uint32 i = 0; i<len; i++)
       {
@@ -636,7 +666,10 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_SCHEMA_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 ||
-        strcmp(tableName, "mysql/def/ndb_schema_result") == 0)
+        strcmp(tableName, "mysql/def/ndb_schema_result") == 0 ||
+        (strcmp(tableName, "mysql/def/ndb_sql_metadata") == 0
+         && !opt_include_stored_grants)
+       )
     {
       table->m_isSysTable = true;
       if (strcmp(tableName, "SYSTAB_0") == 0 ||
@@ -645,27 +678,24 @@ RestoreMetaData::markSysTables()
     }
   }
   for (i = 0; i < getNoOfTables(); i++) {
-    TableS* blobTable = allTables[i];
-    const char* blobTableName = blobTable->getTableName();
-    // yet another match blob
-    int cnt, id1, id2;
+    TableS* auxTable = allTables[i];
+    const char* auxTableName = auxTable->getTableName();
+    // Use pattern matching to find blob tables or ordered indexes and
+    // associate them with their main tables
+    static constexpr const char * indxPattern = "sys/def/%d/";
+    static constexpr const char * blobPattern = "%[^/]/%[^/]/NDB$BLOB_%d_%d";
+     int id1, id2 = ~(Uint32)0;
     char buf[256];
-    cnt = sscanf(blobTableName, "%[^/]/%[^/]/NDB$BLOB_%d_%d",
-                 buf, buf, &id1, &id2);
-    if (cnt == 4) {
-      Uint32 j;
-      for (j = 0; j < getNoOfTables(); j++) {
-        TableS* table = allTables[j];
-        if (table->getTableId() == (Uint32) id1) {
-          if (table->m_isSysTable)
-            blobTable->m_isSysTable = true;
-          blobTable->m_main_table = table;
-          blobTable->m_main_column_id = id2;
-          break;
-        }
-      }
-      if (j == getNoOfTables()) {
-        restoreLogger.log_error("Restore: Bad primary table id in %s", blobTableName);
+
+    if((sscanf(auxTableName, indxPattern, &id1) == 1) ||
+       (sscanf(auxTableName, blobPattern, buf, buf, &id1, &id2) == 4)) {
+      TableS *mainTable = getTable(id1);
+      if(mainTable) {
+        auxTable->m_isSysTable = mainTable->m_isSysTable;
+        auxTable->m_main_table = mainTable;
+        auxTable->m_main_column_id = id2;
+      } else {
+        restoreLogger.log_error("Restore: Bad primary table id in %s", auxTableName);
         return false;
       }
     }
@@ -722,12 +752,15 @@ RestoreMetaData::fixBlobs()
         }
       }
       assert(blobTable->m_dictTable != NULL);
+      assert(blobTable->m_blobTables.size() == 0);
       NdbTableImpl& bt = NdbTableImpl::getImpl(*blobTable->m_dictTable);
       const char* colName = c->m_blobVersion == 1 ? "DATA" : "NDB$DATA";
       const NdbColumnImpl* bc = bt.getColumn(colName);
       assert(bc != NULL);
       assert(c->m_storageType == NDB_STORAGETYPE_MEMORY);
       c->m_storageType = bc->m_storageType;
+
+      table->m_blobTables.push_back(blobTable);
     }
   }
   return true;
@@ -738,7 +771,9 @@ RestoreMetaData::readGCPEntry() {
 
   BackupFormat::CtlFile::GCPEntry dst;
   
-  if(buffer_read(&dst, 1, sizeof(dst)) != sizeof(dst)){
+  int r = buffer_read(&dst, 1, sizeof(dst));
+  if(r < 0 || size_t(r) != sizeof(dst))
+  {
     restoreLogger.log_error("readGCPEntry read error");
     return false;
   }
@@ -771,7 +806,8 @@ RestoreMetaData::readFragmentInfo()
   TableS * table = 0;
   Uint32 tableId = RNIL;
 
-  while (buffer_read(&fragInfo, 4, 2) == 2)
+  int r;
+  while ((r = buffer_read(&fragInfo, 4, 2)) == 2)
   {
     fragInfo.SectionType = ntohl(fragInfo.SectionType);
     fragInfo.SectionLength = ntohl(fragInfo.SectionLength);
@@ -783,7 +819,8 @@ RestoreMetaData::readFragmentInfo()
       return false;
     }
 
-    if (buffer_read(&fragInfo.TableId, (fragInfo.SectionLength-2)*4, 1) != 1)
+    int r = buffer_read(&fragInfo.TableId, (fragInfo.SectionLength-2)*4, 1);
+    if (r != 1)
     {
       restoreLogger.log_error("readFragmentInfo invalid section length: %u",
         fragInfo.SectionLength);
@@ -803,9 +840,15 @@ RestoreMetaData::readFragmentInfo()
       (((Uint64)ntohl(fragInfo.NoOfRecordsHigh)) << 32);
     tmp->filePosLow = ntohl(fragInfo.FilePosLow);
     tmp->filePosHigh = ntohl(fragInfo.FilePosHigh);
+    tmp->sliceSkip = false; /* Init, set later */
 
     table->m_fragmentInfo.push_back(tmp);
     table->m_noOfRecords += tmp->noOfRecords;
+  }
+  if (r < 0)
+  {
+    restoreLogger.log_error("readFragmentInfo invalid read");
+    return false;
   }
   return true;
 }
@@ -823,6 +866,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_broken = false;
   m_main_table = NULL;
   m_main_column_id = ~(Uint32)0;
+  m_has_blobs = false;
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -830,6 +874,9 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_staging = false;
   m_stagingTable = NULL;
   m_stagingFlags = 0;
+
+  m_pk_extended = false;
+  m_pk_index = NULL;
 }
 
 TableS::~TableS()
@@ -856,7 +903,14 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
      m_fileHeader.NdbVersion);
   
   if (ret != 0) {
-    restoreLogger.log_error("parseTableInfo failed");
+    ndberror_struct err_struct;
+    err_struct.code = ret;
+    ndberror_update(&err_struct);
+
+    restoreLogger.log_error("parseTableInfo failed with error %u \"%s\"",
+        err_struct.code, err_struct.message);
+
+    restoreLogger.log_error("Check version of backup and schema contained in backup.");
     return false;
   }
   if(tableImpl == 0)
@@ -883,24 +937,23 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
 // Constructor
 RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)(void*), void *ctx)
-  : BackupFile(_free_data_callback, ctx), m_metaData(md)
+  : BackupFile(_free_data_callback, ctx), m_metaData(md),
+    m_current_table_has_transforms(false)
 {
   restoreLogger.log_debug("RestoreDataIterator constructor");
   setDataFile(md, 0);
 
-  m_bitfield_storage_len = 8192;
-  m_bitfield_storage_ptr = (Uint32*)malloc(4*m_bitfield_storage_len);
-  m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
-  m_row_bitfield_len = 0;
+  alloc_extra_storage(8192);
+  m_row_max_extra_wordlen = 0;
 }
 
 
 bool
 RestoreDataIterator::validateRestoreDataIterator()
 {
-    if (!m_bitfield_storage_ptr)
+    if (!m_extra_storage_ptr)
     {
-        restoreLogger.log_error("m_bitfield_storage_ptr is NULL");
+        restoreLogger.log_error("m_extra_storage_ptr is NULL");
         return false;
     }
     return true;
@@ -909,58 +962,107 @@ RestoreDataIterator::validateRestoreDataIterator()
 
 RestoreDataIterator::~RestoreDataIterator()
 {
-  free_bitfield_storage();
+  free_extra_storage();
 }
 
 void
-RestoreDataIterator::init_bitfield_storage(const NdbDictionary::Table* tab)
+RestoreDataIterator::calc_row_extra_storage_words(const TableS* tableSpec)
 {
-  Uint32 len = 0;
+  const NdbDictionary::Table* tab = tableSpec->m_dictTable;
+  Uint32 bitmap_words = 0;
+  Uint32 transform_words = 0;
   for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
+    /* Space for bitmap-copy out from PACKED format */
     if (tab->getColumn(i)->getType() == NdbDictionary::Column::Bit)
     {
-      len += (tab->getColumn(i)->getLength() + 31) >> 5;
+      bitmap_words += (tab->getColumn(i)->getLength() + 31) >> 5;
+    }
+    /* Space for output from this column transform */
+    const AttributeDesc* attr_desc = tableSpec->getAttributeDesc(i);
+    if (attr_desc->transform != NULL)
+    {
+      transform_words += attr_desc->getSizeInWords();
     }
   }
 
-  m_row_bitfield_len = len;
+  m_current_table_has_transforms = (transform_words > 0);
+
+  m_row_max_extra_wordlen = bitmap_words + transform_words;
 }
 
 void
-RestoreDataIterator::reset_bitfield_storage()
+RestoreDataIterator::reset_extra_storage()
 {
-  m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
+  m_extra_storage_curr_ptr = m_extra_storage_ptr;
 }
 
 void
-RestoreDataIterator::free_bitfield_storage()
+RestoreDataIterator::alloc_extra_storage(Uint32 words)
 {
-  if (m_bitfield_storage_ptr)
-    free(m_bitfield_storage_ptr);
-  m_bitfield_storage_ptr = 0;
-  m_bitfield_storage_curr_ptr = 0;
-  m_bitfield_storage_len = 0;
+  m_extra_storage_wordlen = words;
+  m_extra_storage_ptr = (Uint32*)malloc(4 * words);
+  m_extra_storage_curr_ptr = m_extra_storage_ptr;
+}
+
+void
+RestoreDataIterator::free_extra_storage()
+{
+  if (m_extra_storage_ptr)
+    free(m_extra_storage_ptr);
+  m_extra_storage_ptr = 0;
+  m_extra_storage_curr_ptr = 0;
 }
 
 Uint32
-RestoreDataIterator::get_free_bitfield_storage() const
+RestoreDataIterator::get_free_extra_storage() const
 {
-  
-  return Uint32((m_bitfield_storage_ptr + m_bitfield_storage_len) - 
-    m_bitfield_storage_curr_ptr);
+
+  return Uint32((m_extra_storage_ptr + m_extra_storage_wordlen) -
+    m_extra_storage_curr_ptr);
 }
 
-Uint32*
-RestoreDataIterator::get_bitfield_storage(Uint32 len)
+void
+RestoreDataIterator::check_extra_storage()
 {
-  Uint32 * currptr = m_bitfield_storage_curr_ptr;
+  assert(m_row_max_extra_wordlen <= m_extra_storage_wordlen);
+  if (m_row_max_extra_wordlen >= get_free_extra_storage())
+  {
+    /**
+     * No more space available to buffer rows, flush
+     * what is outstanding, then reset buffers and
+     * continue.
+     */
+    flush_and_reset_buffers();
+    assert(get_free_extra_storage() > m_row_max_extra_wordlen);
+    assert(m_extra_storage_ptr == m_extra_storage_curr_ptr);
+
+    /**
+     * We do not want to break up batching due to a lack of
+     * extra buffer storage, but that is what has happened
+     * here.
+     * So to avoid this in future we will take this chance
+     * to double the extra storage size, so that batching
+     * boundaries are eventually controlled by the file
+     * buffering only.
+     */
+    const Uint32 newWords = m_extra_storage_wordlen * 2;
+    free_extra_storage();
+    alloc_extra_storage(newWords);
+  }
+}
+
+
+Uint32*
+RestoreDataIterator::get_extra_storage(Uint32 len)
+{
+  Uint32 * currptr = m_extra_storage_curr_ptr;
   Uint32 * nextptr = currptr + len;
-  Uint32 * endptr = m_bitfield_storage_ptr + m_bitfield_storage_len;
+  Uint32 * endptr = m_extra_storage_ptr + m_extra_storage_wordlen;
 
   if (nextptr <= endptr)
   {
-    m_bitfield_storage_curr_ptr = nextptr;
+    m_extra_storage_curr_ptr = nextptr;
     return currptr;
   }
   
@@ -1040,70 +1142,153 @@ charpad:
   }
 }
 
-const TupleS *
-RestoreDataIterator::getNextTuple(int  & res)
+bool
+applyColumnTransform(const NdbDictionary::Column* col,
+                     const AttributeDesc* attr_desc,
+                     AttributeData* attr_data,
+                     void* dst_buf)
 {
-  if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
-  {
-    if (m_row_bitfield_len >= get_free_bitfield_storage())
-    {
-      /**
-       * Informing buffer reader that it does not need to cache
-       * "old" data here would be clever...
-       * But I can't find a good/easy way to do this
-       */
-      if (free_data_callback)
-        (*free_data_callback)(m_ctx);
-      reset_bitfield_storage();
-    }
-  }
-  
-  Uint32  dataLength = 0;
-  // Read record length
-  if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
-    restoreLogger.log_error("getNextTuple:Error reading length of data part");
-    res = -1;
-    return NULL;
-  } // if
-  
-  // Convert length from network byte order
-  dataLength = ntohl(dataLength);
-  const Uint32 dataLenBytes = 4 * dataLength;
-  
-  if (dataLength == 0) {
-    // Zero length for last tuple
-    // End of this data fragment
-    restoreLogger.log_debug("End of fragment");
-    res = 0;
-    return NULL;
-  } // if
+  assert(attr_desc->transform != NULL);
 
-  // Read tuple data
-  void *_buf_ptr;
-  if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
-    restoreLogger.log_error("getNextTuple:Read error: ");
-    res = -1;
-    return NULL;
+  void* src_ptr = (attr_data->null? NULL : attr_data->void_value);
+  void* dst_ptr = dst_buf;
+
+  if (!attr_desc->transform->apply(col,
+                                   src_ptr,
+                                   &dst_ptr))
+  {
+    return false;
   }
 
-  Uint32 *buf_ptr = (Uint32*)_buf_ptr;
-  if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
+  if (dst_ptr == NULL)
   {
-    res = readTupleData_packed(buf_ptr, dataLength);
+    assert(col->getNullable());
+    attr_data->null = true;
+    attr_data->size = 0;
+    attr_data->void_value = NULL;
   }
   else
   {
-    res = readTupleData_old(buf_ptr, dataLength);
-  }
-  
-  if (res)
-  {
-    return NULL;
+    const uchar* dst_char = (const uchar*) dst_ptr;
+    attr_data->null = false;
+    attr_data->void_value = dst_ptr;
+    switch(col->getArrayType())
+    {
+    case NDB_ARRAYTYPE_SHORT_VAR:
+      attr_data->size = 1 + size_t(dst_char[0]);
+      break;
+    case NDB_ARRAYTYPE_MEDIUM_VAR:
+      attr_data->size = 2 + size_t(dst_char[0])
+        + (256 * size_t(dst_char[1]));
+      break;
+    default:
+      /* No change */
+      break;
+    }
   }
 
-  m_count ++;  
-  res = 0;
-  return &m_tuple;
+  /* Check size is within 'word length' of column type */
+  assert(attr_data->size <=
+         4 * ((((Uint32)col->getSizeInBytes()) +3)/4));
+
+  return true;
+}
+
+
+const TupleS *
+RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
+{
+  /* Check that we have space to return another tuple */
+  check_extra_storage();
+
+  while (true)
+  {
+    Uint32  dataLength = 0;
+    // Read record length
+    int r = buffer_read(&dataLength, sizeof(dataLength), 1);
+    if (r != 1)
+    {
+      restoreLogger.log_error("getNextTuple:Error reading length of data part");
+      res = -1;
+      return NULL;
+    } // if
+  
+    // Convert length from network byte order
+    dataLength = ntohl(dataLength);
+    const Uint32 dataLenBytes = 4 * dataLength;
+  
+    if (dataLength == 0) {
+      // Zero length for last tuple
+      // End of this data fragment
+      restoreLogger.log_debug("End of fragment");
+      res = 0;
+      return NULL;
+    } // if
+
+    // Read tuple data
+    void *_buf_ptr;
+    r = buffer_get_ptr(&_buf_ptr, 1, dataLenBytes);
+    if (r < 0 || Uint32(r) != dataLenBytes)
+    {
+      restoreLogger.log_error("getNextTuple:Read error: ");
+      res = -1;
+      return NULL;
+    }
+
+    m_count++;
+
+    if (skipFragment)
+    {
+      /**
+       * Skip unpacking work, we just want to read all the tuples up
+       * to the end of this fragment
+       */
+      continue;
+    }
+
+    Uint32 *buf_ptr = (Uint32*)_buf_ptr;
+    if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
+    {
+      res = readTupleData_packed(buf_ptr, dataLength);
+    }
+    else
+    {
+      res = readTupleData_old(buf_ptr, dataLength);
+    }
+
+    if (res)
+    {
+      return NULL;
+    }
+
+    /* Apply column transforms if the table has any defined */
+    if (m_current_table_has_transforms)
+    {
+      for (int i=0; i < m_currentTable->getNoOfAttributes(); i++)
+      {
+        const AttributeDesc* attr_desc = m_currentTable->getAttributeDesc(i);
+        if (attr_desc->transform == NULL)
+        {
+          continue;
+        }
+        const NdbDictionary::Column* col = m_currentTable->m_dictTable->getColumn(i);
+        void* dst_buf = get_extra_storage(attr_desc->getSizeInWords());
+        assert(dst_buf != NULL);
+
+        if (!applyColumnTransform(col,
+                                  attr_desc,
+                                  m_tuple.getData(i),
+                                  dst_buf))
+        {
+          res = -1;
+          return NULL;
+        }
+      }
+    }
+
+    res = 0;
+    return &m_tuple;
+  }
 } // RestoreDataIterator::getNextTuple
 
 TableS *
@@ -1189,7 +1374,7 @@ RestoreDataIterator::readTupleData_packed(Uint32 *buf_ptr,
       Uint32* src32 = (Uint32*)src;
       
       Uint32 len32 = (len + 31) >> 5;
-      Uint32* tmp = get_bitfield_storage(len32);
+      Uint32* tmp = get_extra_storage(len32);
       attr_data->null = false;
       attr_data->void_value = tmp;
       attr_data->size = 4*len32;
@@ -1421,7 +1606,6 @@ RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
 BackupFile::BackupFile(void (* _free_data_callback)(void*), void *ctx)
   : free_data_callback(_free_data_callback), m_ctx(ctx)
 {
-  memset(&m_file,0,sizeof(m_file));
   m_path[0] = 0;
   m_fileName[0] = 0;
 
@@ -1453,27 +1637,44 @@ BackupFile::validateBackupFile()
 
 BackupFile::~BackupFile()
 {
-  (void)ndbzclose(&m_file);
+  int r = 0;
+  if (m_xfile.is_open())
+  {
+    r = m_xfile.close(false);
+  }
+
+  if (m_file.close() == -1)
+  {
+    r = -1;
+  }
+
+  if (r == -1)
+  {
+    restoreLogger.log_error("Warning: File did not close correctly.");
+  }
 
   if(m_buffer != 0)
+  {
     free(m_buffer);
+  }
 }
 
 bool
 BackupFile::openFile(){
-  (void)ndbzclose(&m_file);
+  int r;
   m_file_size = 0;
   m_file_pos = 0;
 
   info.setLevel(254);
   restoreLogger.log_info("Opening file '%s'", m_fileName);
-  int r= ndbzopen(&m_file, m_fileName, O_RDONLY);
+  r = m_file.open(m_fileName, FsOpenReq::OM_READONLY);
 
-  if(r != 1)
+  if(r == -1) {
     return false;
+  }
 
-  size_t size;
-  if (ndbz_file_size(&m_file, &size) == 0)
+  long long size = m_file.get_size();
+  if (size != -1)
   {
     m_file_size = (Uint64)size;
     restoreLogger.log_info("File size %llu bytes", m_file_size);
@@ -1485,25 +1686,63 @@ BackupFile::openFile(){
     m_file_size = 0;
   }
 
-  return true;
+  r = m_xfile.open(m_file,
+                   reinterpret_cast<const byte*>(
+                       g_backup_password_state.get_password()),
+                   g_backup_password_state.get_password_length());
+  bool fail = (r == -1);
+  if (g_backup_password_state.get_password() != nullptr)
+  {
+    if (!m_xfile.is_encrypted())
+    {
+      restoreLogger.log_error("Decryption requested but file not "
+                              "encrypted.");
+      fail = true;
+    }
+    else if (r == -1)
+    {
+      restoreLogger.log_error("Can not read decrypted file. Might be wrong password.");
+    }
+  }
+  else
+  {
+    if (m_xfile.is_encrypted())
+    {
+      restoreLogger.log_error("File is encrypted but no decryption "
+                              "requested.");
+      fail = true;
+    }
+    else if (r == -1)
+    {
+      restoreLogger.log_error("Can not read file. Might be corrupt.");
+    }
+  }
+
+  if (!fail)
+  {
+    return true;
+  }
+
+  if (r != -1)
+  {
+    m_xfile.close(false);
+  }
+  m_file.close();
+  return false;
 }
 
-Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
+int BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
 {
   Uint32 sz = size*nmemb;
   if (sz > m_buffer_data_left) {
 
-    if (free_data_callback)
-      (*free_data_callback)(m_ctx);
-
-    reset_buffers();
+    flush_and_reset_buffers();
 
     if (m_is_undolog)
     {
       /* move the left data to the end of buffer
        */
-      size_t r = 0;
-      int error;
+      int r = 0;
       /* move the left data to the end of buffer
        * m_buffer_ptr point the end of the left data. buffer_data_start point the start of left data
        * m_buffer_data_left is the length of left data.
@@ -1548,24 +1787,24 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
 	file_left_entry_data = m_file_pos - sizeof(m_fileHeader);
         if (file_left_entry_data <= buffer_free_space)
         {
-          /* All remaining data fits in space available in buffer. 
-	   * Read data into buffer before existing data.
-	   */
-          // Move to the start of data to be read
-          ndbzseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
-          r = ndbzread(&m_file,
-                       (char *)buffer_data_start - file_left_entry_data,
-                       Uint32(file_left_entry_data),
-                       &error);
-          //move back
-          ndbzseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
+          ndbxfrm_output_reverse_iterator out((unsigned char*)buffer_data_start, (unsigned char*)buffer_data_start - file_left_entry_data, false);
+          byte* out_beg = out.begin();
+          r = m_xfile.read_backward(&out);
+          if (r == -1)
+            abort(); // TODO
+          r = out_beg - out.begin();
+          require(size_t(r) == file_left_entry_data);
         }
         else
         {
 	  // Fill remaing space at start of buffer with data from file.
-          ndbzseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
-          r = ndbzread(&m_file, ((char *)m_buffer), buffer_free_space, &error);
-          ndbzseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
+          ndbxfrm_output_reverse_iterator out((unsigned char*)m_buffer + buffer_free_space, (unsigned char*)m_buffer, false);
+          byte* out_beg = out.begin();
+          r = m_xfile.read_backward(&out);
+          if (r == -1)
+            abort(); // TODO
+          r = out_beg - out.begin();
+          require(size_t(r) == buffer_free_space);
         }
       }
       m_file_pos -= r;
@@ -1576,10 +1815,15 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     else
     {
       memmove(m_buffer, m_buffer_ptr, m_buffer_data_left);
-      int error;
-      Uint32 r = ndbzread(&m_file,
-                          ((char *)m_buffer) + m_buffer_data_left,
-                          m_buffer_sz - m_buffer_data_left, &error);
+      ndbxfrm_output_iterator it = { static_cast<byte*>(m_buffer) + m_buffer_data_left,
+                                     static_cast<byte*>(m_buffer) + m_buffer_sz,
+                                     false };
+      int r = m_xfile.read_forward(&it);
+      if (r < 0)
+      {
+        return r;
+      }
+      r = it.begin() - (static_cast<byte*>(m_buffer) + m_buffer_data_left);
       m_file_pos += r;
       m_buffer_data_left += r;
       m_buffer_ptr = m_buffer;
@@ -1595,15 +1839,24 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
    *   So we should move m_buffer_ptr to the right place.
    */
   if(m_is_undolog)
+  {
     *p_buf_ptr = (char *)m_buffer_ptr - sz;
+  }
   else
+  {
     *p_buf_ptr = m_buffer_ptr;
+  }
 
+  require(sz % size == 0);
   return sz/size;
 }
-Uint32 BackupFile::buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
+int BackupFile::buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
 {
-  Uint32 r = buffer_get_ptr_ahead(p_buf_ptr, size, nmemb);
+  int r = buffer_get_ptr_ahead(p_buf_ptr, size, nmemb);
+  if (r < 0)
+  {
+    return r;
+  }
 
   if(m_is_undolog)
   {
@@ -1622,21 +1875,28 @@ Uint32 BackupFile::buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
   return r;
 }
 
-Uint32 BackupFile::buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb)
+int BackupFile::buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb)
 {
   void *buf_ptr;
-  Uint32 r = buffer_get_ptr_ahead(&buf_ptr, size, nmemb);
+  int r = buffer_get_ptr_ahead(&buf_ptr, size, nmemb);
+  if (r < 0)
+  {
+    return r;
+  }
   memcpy(ptr, buf_ptr, r*size);
 
   return r;
 }
 
-Uint32 BackupFile::buffer_read(void *ptr, Uint32 size, Uint32 nmemb)
+int BackupFile::buffer_read(void *ptr, Uint32 size, Uint32 nmemb)
 {
   void *buf_ptr;
-  Uint32 r = buffer_get_ptr(&buf_ptr, size, nmemb);
+  int r = buffer_get_ptr(&buf_ptr, size, nmemb);
+  if (r < 0)
+  {
+    return r;
+  }
   memcpy(ptr, buf_ptr, r*size);
-
   return r;
 }
 
@@ -1728,8 +1988,18 @@ BackupFile::readHeader(){
   }
   
   Uint32 oldsz = sizeof(BackupFormat::FileHeader_pre_backup_version);
-  if(buffer_read(&m_fileHeader, oldsz, 1) != 1){
-    restoreLogger.log_error("readDataFileHeader: Error reading header");
+  int r = buffer_read(&m_fileHeader, oldsz, 1);
+  if(r != 1)
+  {
+    if (!m_xfile.is_encrypted())
+    {
+      restoreLogger.log_error("readDataFileHeader: Error reading header");
+    }
+    else
+    {
+      restoreLogger.log_error("readDataFileHeader: Error reading header. "
+                              "Wrong password?");
+    }
     return false;
   }
   
@@ -1751,10 +2021,19 @@ BackupFile::readHeader(){
 
   if (backup_version >= NDBD_RAW_LCP)
   {
-    if (buffer_read(&m_fileHeader.NdbVersion, 
-                    sizeof(m_fileHeader) - oldsz, 1) != 1)
+    int r = buffer_read(&m_fileHeader.NdbVersion,
+                        sizeof(m_fileHeader) - oldsz, 1);
+    if (r != 1)
     {
-      restoreLogger.log_error("readDataFileHeader: Error reading header");
+      if (!m_xfile.is_encrypted())
+      {
+        restoreLogger.log_error("readDataFileHeader: Error reading header");
+      }
+      else
+      {
+        restoreLogger.log_error("readDataFileHeader: Error reading header. "
+                                "Wrong password?");
+      }
       return false;
     }
     
@@ -1789,20 +2068,47 @@ BackupFile::readHeader(){
     abort();
   }
   
-  if(m_fileHeader.FileType == BackupFormat::UNDO_FILE){
-      m_is_undolog = true;
-      /* move pointer to end of data part. 
-         move 4 bytes from the end of file 
-         because footer contain 4 bytes 0 at the end of file.
-         we discard the remain data stored in m_buffer.
-      */
-      size_t size;
-      if (ndbz_file_size(&m_file, &size) == 0)
-        m_file_size = (Uint64)size;
-      ndbzseek(&m_file, 4, SEEK_END);
-      m_file_pos = m_file_size - 4;
-      m_buffer_data_left = 0;
-      m_buffer_ptr = m_buffer;
+  if(m_fileHeader.FileType == BackupFormat::UNDO_FILE)
+  {
+    m_is_undolog = true;
+    /* move pointer to end of data part. 
+       move 4 bytes from the end of file 
+       because footer contain 4 bytes 0 at the end of file.
+       we discard the remain data stored in m_buffer.
+    */
+    m_file_size = m_xfile.move_to_end();
+    m_file_pos = m_file_size; // TODO??
+    require((int)m_file_size != -1);
+
+    size_t sz = m_buffer_sz;
+    if (m_file_size - sizeof(m_fileHeader) < sz)
+    {
+      sz = m_file_size - sizeof(m_fileHeader);
+    }
+    ndbxfrm_output_reverse_iterator out((unsigned char*)m_buffer + m_buffer_sz, (unsigned char*)m_buffer + m_buffer_sz - sz, false);
+    byte* out_beg = out.begin();
+    int r = m_xfile.read_backward(&out);
+    if (r == -1)
+    {
+      abort(); // TODO
+    }
+    int n = out_beg - out.begin();
+    require(n >= 4);
+    uint32_t last_word;
+    memcpy(&last_word, (char*)m_buffer + m_buffer_sz - 4, 4);
+    require(last_word == 0);
+
+    m_file_size = m_xfile.get_size();
+    require(n <= m_xfile.get_size());
+    m_file_pos = m_file_size - n;
+    if (m_file_pos < sizeof(m_fileHeader))
+    {
+      int d = sizeof(m_fileHeader) - m_file_pos;
+      m_file_pos += d;
+      n -= d;
+    }
+    m_buffer_data_left = n - 4;
+    m_buffer_ptr = (char*)m_buffer + m_buffer_sz - 4;
   }
 
   // Check for BackupFormat::FileHeader::ByteOrder if swapping is needed
@@ -1825,13 +2131,13 @@ BackupFile::validateFooter(){
 #ifdef ERROR_INSERT
 void BackupFile::error_insert(unsigned int code)
 {
+  m_error_insert = code;
   if(code == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
   {
     // Reduce size of buffer to test buffer overflow
     // handling. The buffer must still be large enough to
     // accommodate the file header.
     m_buffer_sz = 256;
-    m_error_insert = NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER;
   }
 }
 #endif
@@ -1845,7 +2151,22 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
   while (1)
   {
     /* read first part of header */
-    if (buffer_read(&Header, 8, 1) != 1)
+    int r = buffer_read(&Header, 8, 1);
+    if (r < 0)
+    {
+      if (!m_xfile.is_encrypted())
+      {
+        restoreLogger.log_error("readFragmentHeader: Error reading header");
+      }
+      else
+      {
+        restoreLogger.log_error("readFragmentHeader: Error reading header. "
+                                "Wrong password?");
+      }
+      ret = -2;
+      return false;
+    }
+    if (r != 1)
     {
       ret = 0;
       return false;
@@ -1863,13 +2184,22 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
         return false;
       }
       if (Header.SectionLength > 2)
-        buffer_get_ptr(&tmp, Header.SectionLength*4-8, 1);
+      {
+        int r = buffer_get_ptr(&tmp, Header.SectionLength * 4 - 8, 1);
+        if (r < 0)
+        {
+          ret = -2;
+          return false;
+        }
+      }
       continue;
     }
     break;
   }
   /* read rest of header */
-  if (buffer_read(((char*)&Header)+8, Header.SectionLength*4-8, 1) != 1)
+  require(Header.SectionLength >= 2);
+  int r = buffer_read(((char*)&Header) + 8, Header.SectionLength * 4 - 8, 1);
+  if (r != 1)
   {
     ret = 0;
     return false;
@@ -1897,7 +2227,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
     return false;
   }
 
-  init_bitfield_storage(m_currentTable->m_dictTable);
+  calc_row_extra_storage_words(m_currentTable);
   info.setLevel(254);
   restoreLogger.log_info("_____________________________________________________"
                          "\nProcessing data in table: %s(%u) fragment %u",
@@ -1915,7 +2245,9 @@ bool
 RestoreDataIterator::validateFragmentFooter() {
   BackupFormat::DataFile::FragmentFooter footer;
   
-  if (buffer_read(&footer, sizeof(footer), 1) != 1){
+  int r = buffer_read(&footer, sizeof(footer), 1);
+  if (r != 1)
+  {
     restoreLogger.log_error("getFragmentFooter:Error reading fragment footer");
     return false;
   } 
@@ -1934,12 +2266,18 @@ RestoreDataIterator::validateFragmentFooter() {
 } // RestoreDataIterator::getFragmentFooter
 
 AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
-  : m_column(c), truncation_detected(false)
+  : m_column(c), transform(NULL), truncation_detected(false)
 {
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
   staging = false;
   parameterSz = 0;
+}
+
+AttributeDesc::~AttributeDesc()
+{
+  delete transform;
+  transform = NULL;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)
@@ -1977,6 +2315,14 @@ void TableS::createAttr(NdbDictionary::Column *column)
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
     m_nullBitmaskSize = (m_noOfNullable + 31) / 32;
+  }
+  if ((d->m_column->getType() == NdbDictionary::Column::Blob) ||
+      (d->m_column->getType() == NdbDictionary::Column::Text))
+  {
+    if (d->m_column->getPartSize() > 0)
+    {
+      m_has_blobs = true;
+    }
   }
   m_variableAttribs.push_back(d);
 } // TableS::createAttr
@@ -2057,6 +2403,7 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
 
   m_count = 0;
   m_last_gci = 0;
+  m_rowBuffIndex = 0;
 }
 
 const LogEntry *
@@ -2081,7 +2428,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
         res = 0;
         return 0;
       }
-      if (read_result != 1) {
+      if (read_result < 0 || read_result != 1)
+      {
         res= -1;
         return 0;
       }
@@ -2095,7 +2443,9 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     len= ntohl(len);
 
     Uint32 data_len = sizeof(Uint32) + len*4;
-    if (buffer_get_ptr((void **)(&logEntryPtr), 1, data_len) != data_len) {
+    int r = buffer_get_ptr((void **)(&logEntryPtr), 1, data_len);
+    if (r < 0 || Uint32(r) != data_len)
+    {
       res= -2;
       return 0;
     }
@@ -2189,6 +2539,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
 
   const TableS * tab = m_logEntry.m_table;
   m_logEntry.clear();
+  m_rowBuffIndex = 0;
 
   AttributeHeader * ah = (AttributeHeader *)attr_data;
   AttributeHeader *end = (AttributeHeader *)(attr_data + attr_data_len);
@@ -2219,7 +2570,24 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       attr->Data.size = sz;
       Twiddle(attr->Desc, &(attr->Data));
     }
-    
+
+    if (attr->Desc->transform)
+    {
+      const int col_idx = ah->getAttributeId();
+      const NdbDictionary::Column* col = tab->m_dictTable->getColumn(col_idx);
+      void* dst_buf = m_rowBuff + m_rowBuffIndex;
+      m_rowBuffIndex+= attr->Desc->getSizeInWords();
+      assert(m_rowBuffIndex <= RowBuffWords);
+
+      if (!applyColumnTransform(col,
+                                attr->Desc,
+                                &attr->Data,
+                                dst_buf))
+      {
+        res = -1;
+        return 0;
+      }
+    }
     
     ah = ah->getNext();
   }

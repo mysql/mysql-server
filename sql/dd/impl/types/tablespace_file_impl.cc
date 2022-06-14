@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,9 +81,9 @@ class Tablespace_filename_error_handler : public Internal_error_handler {
  public:
   Tablespace_filename_error_handler(const char *name_arg) : name(name_arg) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_DUP_ENTRY) {
       my_error(ER_TABLESPACE_DUP_FILENAME, MYF(0), name);
       return true;
@@ -144,9 +144,9 @@ bool Tablespace_file_impl::store_attributes(Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(
-    Tablespace_files::FIELD_SE_PRIVATE_DATA == 3,
-    "Tablespace_files definition has changed, review (de)ser memfuns");
+static_assert(Tablespace_files::NUMBER_OF_FIELDS == 4,
+              "Tablespace_files definition has changed, check if serialize() "
+              "and deserialize() need to be updated!");
 void Tablespace_file_impl::serialize(Sdi_wcontext *, Sdi_writer *w) const {
   w->StartObject();
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_security_context.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
@@ -36,7 +36,7 @@
 #include "sql/current_thd.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
-#include "sql/sql_thd_internal_api.h"  // create_thd
+#include "sql/sql_thd_internal_api.h"  // create_internal_thd
 
 #define MY_SVC_TRUE 1
 #define MY_SVC_FALSE 0
@@ -82,6 +82,7 @@ my_svc_bool thd_set_security_context(MYSQL_THD _thd,
   try {
     if (in_ctx) {
       thd->set_security_context(in_ctx);
+      in_ctx->set_thd(thd);
       // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
       set_system_user_flag(thd);
     }
@@ -172,20 +173,26 @@ my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
 my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *user, const char *host,
                                     const char *ip, const char *db) {
-  THD *tmp_thd = NULL;
+  THD *tmp_thd = nullptr;
   bool retval;
-  if (current_thd == NULL) {
-    tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
+  if (current_thd == nullptr) {
+    tmp_thd = create_internal_thd();
     if (!tmp_thd) return true;
   }
 
   retval = acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, user, host, ip, db)
                ? true
                : false;
+  /*
+    If it is not a new security context then update the
+    system_user flag in its referenced THD.
+  */
+  THD *sctx_thd = ctx->get_thd();
+  if (sctx_thd) set_system_user_flag(sctx_thd);
 
   if (tmp_thd) {
-    destroy_thd(tmp_thd);
-    tmp_thd = NULL;
+    destroy_internal_thd(tmp_thd);
+    tmp_thd = nullptr;
   }
   return retval;
 }

@@ -1,0 +1,92 @@
+###############################################################################
+# Validate that member action `mysql_disable_super_read_only_if_primary` is
+# triggered on group bootstrap when enabled.
+#
+# Test:
+#   0. This test requires two servers.
+#   1. Configure server2 to be a asynchronous replica of server1,
+#      configuring a failover channel to server1.
+#   2. Bootstrap a group on server2.
+#      Since `mysql_start_failover_channels_if_primary` member
+#      action is enabled, channel 'ch1' will be started.
+#   3. Clean up.
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+
+--echo ############################################################
+--echo # 1. Configure server2 to be a asynchronous replica of server1,
+--echo #    configuring a failover channel to server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
+--eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_1, '', 50);
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+
+--echo
+--echo ############################################################
+--echo # 2. Bootstrap a group on server2.
+--echo #    Since `mysql_start_failover_channels_if_primary` member
+--echo #    action is enabled, channel 'ch1' will be started.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= The action mysql_start_failover_channels_if_primary must be enabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 1
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_channel_name= 'ch1'
+--source include/wait_for_slave_to_start.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_start_failover_channels_on_bootstrap
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= The member action "mysql_start_failover_channels_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "10" will be run.
+--let $assert_count= 1
+--let $assert_text= The member action "mysql_start_failover_channels_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "10" will be run.
+--source include/assert_grep.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1 IO_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1 SQL_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name=\'ch1\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify replica_monitor thread is running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 1;
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_channel_name= 'ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--source include/group_replication_end.inc

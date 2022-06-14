@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class TableCacheBasicTest : public ::testing::Test {
  protected:
   static const uint MAX_THREADS = 3;
 
-  virtual void SetUp() {
+  void SetUp() override {
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->set_unit_test();
     // Reset thread ID counter for each test.
@@ -68,7 +68,7 @@ class TableCacheBasicTest : public ::testing::Test {
 
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
-  virtual void TearDown() {
+  void TearDown() override {
     for (uint i = 0; i < MAX_THREADS; ++i) initializer[i].TearDown();
   }
 
@@ -85,7 +85,7 @@ class TableCacheBasicTest : public ::testing::Test {
 class TableCacheSingleCacheTest : public TableCacheBasicTest {
  protected:
   virtual uint CachesNumber() { return 1; }
-  virtual void SetUp() {
+  void SetUp() override {
     TableCacheBasicTest::SetUp();
 
     /*
@@ -98,7 +98,7 @@ class TableCacheSingleCacheTest : public TableCacheBasicTest {
     table_cache_size_per_instance = 100;
     ASSERT_FALSE(table_def_init());
   }
-  virtual void TearDown() {
+  void TearDown() override {
     table_def_free();
     TableCacheBasicTest::TearDown();
   }
@@ -111,7 +111,7 @@ class TableCacheSingleCacheTest : public TableCacheBasicTest {
 
 class TableCacheDoubleCacheTest : public TableCacheSingleCacheTest {
  protected:
-  virtual uint CachesNumber() { return 2; }
+  uint CachesNumber() override { return 2; }
 };
 
 /**
@@ -127,22 +127,22 @@ class Mock_share : public TABLE_SHARE {
   Mock_share(const char *key)
       :  // Assertion in some of Table_cache methods check that the
          // version of the share is up-to-date, so make sure it's set.
-        TABLE_SHARE(refresh_version, false) {
+        TABLE_SHARE(refresh_version, false),
+        // MEM_ROOT is used for constructing ha_example() instances.
+        m_mem_root(PSI_NOT_INSTRUMENTED, 1024) {
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
     */
-    table_cache_key.str = (char *)key;
+    table_cache_key.str = key;
     table_cache_key.length = strlen(key);
     memset(cache_element_arr, 0, sizeof(cache_element_arr));
     cache_element = cache_element_arr;
-    // MEM_ROOT is used for constructing ha_example() instances.
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     // Ensure that share is never destroyed.
     increment_ref_count();
   }
 
-  ~Mock_share() { free_root(&m_mem_root, MYF(0)); }
+  ~Mock_share() { m_mem_root.Clear(); }
 
   TABLE *create_table(THD *thd) {
     TABLE *result =
@@ -287,14 +287,14 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
   TABLE_SHARE *share_2;
   table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_2 == NULL);
+  EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
   // Table_cache_iterator should be able to find only one TABLE instance
   // in all caches. And this instance should be table_1.
   Table_cache_iterator it(&share_1);
   EXPECT_TRUE(it++ == table_1);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
 
   // We must be able to release TABLE into table cache and reuse it after
   // this.
@@ -311,11 +311,11 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
 
   table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_2 == NULL);
-  EXPECT_TRUE(share_2 == NULL);
+  EXPECT_TRUE(table_2 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
 
   it.rewind();
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
 
   // Also it should be possible to remove unused TABLE from the cache
   // Add TABLE instance and mark it as unused
@@ -329,8 +329,8 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
 
   table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_2 == NULL);
-  EXPECT_TRUE(share_2 == NULL);
+  EXPECT_TRUE(table_2 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
 
   table_cache->unlock();
 
@@ -421,8 +421,8 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   // There should be no TABLE in cache, nor information about share.
   table_1 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_1 == NULL);
-  EXPECT_TRUE(share_2 == NULL);
+  EXPECT_TRUE(table_1 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
 
   table_1 = share_1.create_table(thd);
   add_used_table(table_cache, thd, table_1);
@@ -431,15 +431,15 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   // information about the share.
   table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_2 == NULL);
+  EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
   // There should be even no information about the share for which
   // TABLE was not added to cache.
   table_2 = table_cache->get_table(thd, share_0.table_cache_key.str,
                                    share_0.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_2 == NULL);
-  EXPECT_TRUE(share_2 == NULL);
+  EXPECT_TRUE(table_2 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
 
   table_2 = share_1.create_table(thd);
   add_used_table(table_cache, thd, table_2);
@@ -448,7 +448,7 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   // be information about the share.
   table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_3 == NULL);
+  EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
   table_cache->release_table(thd, table_1);
@@ -463,7 +463,7 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   // But only once!
   table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_3 == NULL);
+  EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
   // After releasing of both TABLE objects it should be possible to
@@ -474,20 +474,20 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
 
   table_3 = table_cache->get_table(thd, share_0.table_cache_key.str,
                                    share_0.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_3 == NULL);
-  EXPECT_TRUE(share_2 == NULL);
+  EXPECT_TRUE(table_3 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
 
   table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_3 != NULL);
+  EXPECT_TRUE(table_3 != nullptr);
   EXPECT_TRUE(share_2 == &share_1);
   table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_3 != NULL);
+  EXPECT_TRUE(table_3 != nullptr);
   EXPECT_TRUE(share_2 == &share_1);
   table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
                                    share_1.table_cache_key.length, &share_2);
-  EXPECT_TRUE(table_3 == NULL);
+  EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
   // Clean-up
@@ -749,7 +749,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
   // are in use.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_ALL, &share_1),
       ".*Assertion.*is_empty.*");
@@ -787,7 +787,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_NOT_OWN, &share_1),
       ".*Assertion.*0.*");
@@ -856,9 +856,9 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   // There is no TABLE objects for share_1 so the below iterator
   // should not find anything.
   Table_cache_iterator it(&share_1);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
   // Attempt to iterate behind the end should not give anything.
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
 
   Table_cache *table_cache_1 = table_cache_manager.get_cache(thd_1);
   Table_cache *table_cache_2 = table_cache_manager.get_cache(thd_2);
@@ -875,47 +875,47 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   TABLE *table_r1 = it++;
   EXPECT_TRUE(table_r1 == table_4);
   // But only it.
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   add_used_table(table_cache_1, thd_1, table_1);
 
   // Now we should see two tables:
   it.rewind();
   table_r1 = it++;
-  EXPECT_TRUE(table_r1 != NULL);
+  EXPECT_TRUE(table_r1 != nullptr);
   TABLE *table_r2 = it++;
-  EXPECT_TRUE(table_r2 != NULL);
+  EXPECT_TRUE(table_r2 != nullptr);
   EXPECT_TRUE(table_r1 != table_r2);
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   add_used_table(table_cache_1, thd_1, table_2);
 
   // And now three !
   it.rewind();
   table_r1 = it++;
-  EXPECT_TRUE(table_r1 != NULL);
+  EXPECT_TRUE(table_r1 != nullptr);
   table_r2 = it++;
-  EXPECT_TRUE(table_r2 != NULL);
+  EXPECT_TRUE(table_r2 != nullptr);
   TABLE *table_r3 = it++;
-  EXPECT_TRUE(table_r3 != NULL);
+  EXPECT_TRUE(table_r3 != nullptr);
   EXPECT_TRUE(table_r1 != table_r2 && table_r1 != table_r3 &&
               table_r2 != table_r3);
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   table_cache_1->release_table(thd_1, table_1);
 
   // We should be seeing only used TABLE objects, so two tables now
   it.rewind();
   table_r1 = it++;
-  EXPECT_TRUE(table_r1 != NULL);
+  EXPECT_TRUE(table_r1 != nullptr);
   table_r2 = it++;
-  EXPECT_TRUE(table_r2 != NULL);
+  EXPECT_TRUE(table_r2 != nullptr);
   EXPECT_TRUE(table_r1 != table_r2);
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   add_used_table(table_cache_1, thd_1, table_3);
   add_used_table(table_cache_2, thd_2, table_5);
@@ -923,12 +923,12 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   // We also should not be seeing TABLE objects for share_2
   it.rewind();
   table_r1 = it++;
-  EXPECT_TRUE(table_r1 != NULL);
+  EXPECT_TRUE(table_r1 != nullptr);
   table_r2 = it++;
-  EXPECT_TRUE(table_r2 != NULL);
+  EXPECT_TRUE(table_r2 != nullptr);
   EXPECT_TRUE(table_r1 != table_r2);
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   table_cache_1->remove_table(table_2);
 
@@ -936,30 +936,30 @@ TEST_F(TableCacheDoubleCacheTest, Iterator) {
   it.rewind();
   table_r1 = it++;
   EXPECT_TRUE(table_r1 == table_4);
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   table_cache_1->remove_table(table_4);
 
   // And now no used TABLE objects for share_1 at all
   it.rewind();
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   table_cache_1->remove_table(table_1);
 
   // Still the same
   it.rewind();
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   table_cache_1->remove_table(table_3);
   table_cache_2->remove_table(table_5);
 
   // Cache is empty so iterator should not show any TABLE objects.
   it.rewind();
-  EXPECT_TRUE(it++ == NULL);
-  EXPECT_TRUE(it++ == NULL);
+  EXPECT_TRUE(it++ == nullptr);
+  EXPECT_TRUE(it++ == nullptr);
 
   table_cache_manager.unlock_all_and_tdc();
 

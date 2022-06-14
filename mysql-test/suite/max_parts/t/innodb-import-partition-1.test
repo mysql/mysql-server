@@ -44,7 +44,7 @@ FLUSH TABLES t1 FOR EXPORT;
 perl;
 require 'include/innodb-util.inc';
 for($i=0;$i<=8191;$i++){
-   ib_backup_tablespaces("test", "t1#P#p$i");
+   ib_backup_tablespaces("test", "t1#p#p$i");
 }
 EOF
 --enable_result_log
@@ -65,8 +65,8 @@ ALTER TABLE t1 DISCARD PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2","t1#P#p3","t1#P#p4","t1#P#p5","t1#P#p6","t1#P#p7","t1#P#p8");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2","t1#P#p3","t1#P#p4","t1#P#p5","t1#P#p6","t1#P#p7","t1#P#p8");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2","t1#p#p3","t1#p#p4","t1#p#p5","t1#p#p6","t1#p#p7","t1#p#p8");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2","t1#p#p3","t1#p#p4","t1#p#p5","t1#p#p6","t1#p#p7","t1#p#p8");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
@@ -80,8 +80,8 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 for($i=0;$i<=8191;$i++){
-   ib_discard_tablespaces("test", "t1#P#p$i");
-   ib_restore_tablespaces("test", "t1#P#p$i");
+   ib_discard_tablespaces("test", "t1#p#p$i");
+   ib_restore_tablespaces("test", "t1#p#p$i");
 }
 EOF
 --enable_result_log

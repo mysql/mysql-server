@@ -1,0 +1,2 @@
+--let $skip_configuration_privilege_checks_user = 'skip'
+--let $rpl_privilege_checks_user_additional_grants = SYSTEM_USER

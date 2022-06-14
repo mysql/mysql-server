@@ -27,6 +27,10 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select hex(_utf16 0x44);
 hex(_utf16 0x44)
 0044
@@ -270,6 +274,8 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE '%фЫв%' ORDER BY BINARY a;
 a
 ФЫВА
@@ -290,6 +296,8 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' ORDER BY BINARY a;
 a
 ФЫВА
@@ -310,10 +318,14 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE utf16_bin ORDER BY BINARY a;
 a
 фЫва
 фЫвапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
 CHARACTER SET utf16;
@@ -657,7 +669,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `status` enum('active','passive') CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL DEFAULT 'passive',
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 End of 4.1 tests
@@ -724,10 +736,14 @@ select * from t1 where a='a' order by binary a;
 a
 A
 a
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select hex(min(binary a)),count(*) from t1 group by a;
 hex(min(binary a))	count(*)
 0041	2
 0042	2
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 select char_length('abcd'), octet_length('abcd');
 char_length('abcd')	octet_length('abcd')
@@ -771,6 +787,8 @@ DBFFDCFF
 drop table t1;
 SET sql_mode = '';
 create table t1 (s1 varchar(50) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (0xdf84);
 alter table t1 modify column s1 varchar(50) character set utf16;
 Warnings:
@@ -781,6 +799,8 @@ hex(s1)
 drop table t1;
 SET sql_mode = default;
 create table t1 (s1 varchar(5) character set ucs2, s2 varchar(5) character set utf16);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (s1) values (0xdf84);
 update ignore t1 set s2 = s1;
 Warnings:
@@ -881,16 +901,16 @@ insert into t1 values (0xD800DC00),(0xD800DCFF),(0xDB7FDC00),(0xDB7FDCFF);
 insert into t1 values (0x00C0), (0x00FF),(0xE000), (0xFFFF);
 select hex(a), hex(@a:=convert(a using utf8mb4)), hex(convert(@a using utf16)) from t1;
 hex(a)	hex(@a:=convert(a using utf8mb4))	hex(convert(@a using utf16))
+00C0	C380	00C0
+00FF	C3BF	00FF
 D800DC00	F0908080	D800DC00
 D800DCFF	F09083BF	D800DCFF
 DB7FDC00	F3AFB080	DB7FDC00
 DB7FDCFF	F3AFB3BF	DB7FDCFF
-00C0	C380	00C0
-00FF	C3BF	00FF
 E000	EE8080	E000
 FFFF	EFBFBF	FFFF
-Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warnings:
 drop table t1;
 set collation_connection=utf16_general_ci;
 drop table if exists t1;

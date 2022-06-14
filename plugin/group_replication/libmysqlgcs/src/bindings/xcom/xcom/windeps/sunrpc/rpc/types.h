@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,9 @@
 #ifndef _RPC_TYPES_H
 #define _RPC_TYPES_H 1
 
-#if defined(_WIN32) 
+#if defined(_WIN32)
 #include "sys/sunrpc_sys_types.h"
 #endif
-
 
 typedef int bool_t;
 typedef int enum_t;
@@ -41,27 +40,27 @@ typedef unsigned long rpcproc_t;
 typedef unsigned long rpcprot_t;
 typedef unsigned long rpcport_t;
 
-#define        __dontcare__    -1
+#define __dontcare__ -1
 
 #ifndef FALSE
-#      define  FALSE   (0)
+#define FALSE (0)
 #endif
 
 #ifndef TRUE
-#      define  TRUE    (1)
+#define TRUE (1)
 #endif
 
 #ifndef NULL
-#      define  NULL 0
+#define NULL 0
 #endif
 
-#include <stdlib.h>		/* For malloc decl.  */
-#define mem_alloc(bsize)	malloc(bsize)
+#include <stdlib.h> /* For malloc decl.  */
+#define mem_alloc(bsize) malloc(bsize)
 /*
  * XXX: This must not use the second argument, or code in xdr_array.c needs
  * to be modified.
  */
-#define mem_free(ptr, bsize)	free(ptr)
+#define mem_free(ptr, bsize) free(ptr)
 
 #ifndef makedev /* ie, we haven't already included it */
 #include <sys/types.h>
@@ -75,12 +74,12 @@ typedef __u_long u_long;
 typedef __quad_t quad_t;
 typedef __u_quad_t u_quad_t;
 typedef __fsid_t fsid_t;
-# define __u_char_defined
+#define __u_char_defined
 #endif
 #ifndef __daddr_t_defined
 typedef __daddr_t daddr_t;
 typedef __caddr_t caddr_t;
-# define __daddr_t_defined
+#define __daddr_t_defined
 #endif
 
 #include <sys/time.h>
@@ -91,10 +90,10 @@ typedef __caddr_t caddr_t;
 #endif
 
 #ifndef INADDR_LOOPBACK
-#define       INADDR_LOOPBACK         (u_long)0x7F000001
+#define INADDR_LOOPBACK (u_long)0x7F000001
 #endif
 #ifndef MAXHOSTNAMELEN
-#define        MAXHOSTNAMELEN  64
+#define MAXHOSTNAMELEN 64
 #endif
 
 #endif /* rpc/types.h */

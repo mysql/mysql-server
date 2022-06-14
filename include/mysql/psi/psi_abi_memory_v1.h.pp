@@ -1,7 +1,16 @@
 #include "mysql/psi/psi_memory.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1 {
@@ -22,6 +31,9 @@ typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
                                               struct PSI_thread **owner);
 typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key, size_t size,
                                             struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_claim_v2_t)(PSI_memory_key key, size_t size,
+                                            struct PSI_thread **owner,
+                                            bool claim);
 typedef void (*memory_free_v1_t)(PSI_memory_key key, size_t size,
                                  struct PSI_thread *owner);
 typedef struct PSI_memory_info_v1 PSI_memory_info;
@@ -31,12 +43,12 @@ struct PSI_memory_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
-struct PSI_memory_service_v1 {
+struct PSI_memory_service_v2 {
   register_memory_v1_t register_memory;
   memory_alloc_v1_t memory_alloc;
   memory_realloc_v1_t memory_realloc;
-  memory_claim_v1_t memory_claim;
+  memory_claim_v2_t memory_claim;
   memory_free_v1_t memory_free;
 };
-typedef struct PSI_memory_service_v1 PSI_memory_service_t;
+typedef struct PSI_memory_service_v2 PSI_memory_service_t;
 extern PSI_memory_service_t *psi_memory_service;

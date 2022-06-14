@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ namespace dd {
 template <typename T>
 T &Collection<T>::Collection_iterator::operator*() {
   // Dereferencing an invalid iterator is prohibited.
-  DBUG_ASSERT(m_current != m_array->end());
+  assert(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
   m_current_obj = *m_current;
@@ -66,10 +66,10 @@ T &Collection<T>::Collection_iterator::operator*() {
 }
 
 template <typename T>
-const typename Collection<T>::abstract_type *
-    &Collection<T>::Collection_const_iterator::operator*() {
+const typename Collection<T>::abstract_type *&
+Collection<T>::Collection_const_iterator::operator*() {
   // Dereferencing an invalid iterator is prohibited.
-  DBUG_ASSERT(m_current != m_array->end());
+  assert(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
   m_current_obj = *m_current;
@@ -109,10 +109,7 @@ void Collection<T>::remove(typename Collection<T>::impl_type *item) {
 template <typename T>
 typename Collection<T>::iterator Collection<T>::find(const impl_type *item) {
   // Find the element and prepare iterator pointing to found element.
-  typename Collection<T>::iterator iterator(
-      &m_items, std::find(m_items.begin(), m_items.end(), item));
-
-  return iterator;
+  return iterator(&m_items, std::find(m_items.begin(), m_items.end(), item));
 }
 
 /**
@@ -125,18 +122,18 @@ bool Collection<T>::restore_items(Parent_item *parent,
                                   Open_dictionary_tables_ctx *otx,
                                   Raw_table *table, Object_key *key,
                                   Compare comp) {
-  DBUG_ENTER("Collection::restore_items");
+  DBUG_TRACE;
 
   // NOTE: if this assert is firing, that means the table was not registered
   // for that transaction. Use Open_dictionary_tables_ctx::register_tables().
-  DBUG_ASSERT(table);
+  assert(table);
 
-  DBUG_ASSERT(empty());
+  assert(empty());
 
   std::unique_ptr<Object_key> key_holder(key);
 
   std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(key, rs)) DBUG_RETURN(true);
+  if (table->open_record_set(key, rs)) return true;
 
   // Process records.
 
@@ -149,7 +146,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
     if (item->restore_attributes(*r) || rs->next(r)) {
       clear_all_items();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -175,7 +172,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   for (auto item : m_items) {
     if (item->restore_children(otx) || item->validate()) {
       clear_all_items();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -184,7 +181,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   // So we need to sort the elements in m_item based on ordinal position.
   std::sort(m_items.begin(), m_items.end(), comp);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
@@ -203,14 +200,14 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
 template <typename T>
 bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx) {
-  DBUG_ENTER("Collection::store_items");
+  DBUG_TRACE;
 
-  if (empty()) DBUG_RETURN(false);
+  if (empty()) return false;
 
   // Drop items from m_removed_items.
 
   for (auto *removed : m_removed_items) {
-    if (removed->validate() || removed->drop(otx)) DBUG_RETURN(true);
+    if (removed->validate() || removed->drop(otx)) return true;
   }
 
   delete_container_pointers(m_removed_items);
@@ -218,47 +215,47 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx) {
   // Add new items and update existing if needed.
 
   for (Collection<T>::impl_type *item : m_items) {
-    if (item->validate() || item->store(otx)) DBUG_RETURN(true);
+    if (item->validate() || item->store(otx)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
 bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
                                Raw_table *table, Object_key *key) const {
-  DBUG_ENTER("Collection::drop_items");
+  DBUG_TRACE;
 
   // Make sure key gets deleted
   std::unique_ptr<Object_key> key_holder(key);
 
-  if (empty()) DBUG_RETURN(false);
+  if (empty()) return false;
 
   // Drop items
 
   for (const Collection<T>::impl_type *item : m_items) {
-    if (item->drop_children(otx)) DBUG_RETURN(true);
+    if (item->drop_children(otx)) return true;
   }
 
   std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(key, rs)) DBUG_RETURN(true);
+  if (table->open_record_set(key, rs)) return true;
 
   // Process records.
 
   Raw_record *r = rs->current_record();
   while (r) {
     // Drop the item record from DD table
-    if (r->drop()) DBUG_RETURN(true);
+    if (r->drop()) return true;
 
-    if (rs->next(r)) DBUG_RETURN(true);
+    if (rs->next(r)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
 const typename Collection<T>::abstract_type *Collection<T>::at(size_t n) const {
-  DBUG_ASSERT(n < size());
+  assert(n < size());
   return m_items[n];
 }
 
@@ -283,58 +280,58 @@ void Collection<T>::deep_copy(const Collection<T> &src, Parent_item *parent) {
 */
 
 template Column *&Collection<Column *>::Collection_iterator::operator*();
-template Column_type_element *
-    &Collection<Column_type_element *>::Collection_iterator::operator*();
-template Foreign_key *&Collection<Foreign_key *>::Collection_iterator::operator
-    *();
-template Foreign_key_element *
-    &Collection<Foreign_key_element *>::Collection_iterator::operator*();
+template Column_type_element *&
+Collection<Column_type_element *>::Collection_iterator::operator*();
+template Foreign_key *&
+Collection<Foreign_key *>::Collection_iterator::operator*();
+template Foreign_key_element *&
+Collection<Foreign_key_element *>::Collection_iterator::operator*();
 template Index *&Collection<Index *>::Collection_iterator::operator*();
-template Index_element *
-    &Collection<Index_element *>::Collection_iterator::operator*();
-template Parameter_type_element *
-    &Collection<Parameter_type_element *>::Collection_iterator::operator*();
+template Index_element *&
+Collection<Index_element *>::Collection_iterator::operator*();
+template Parameter_type_element *&
+Collection<Parameter_type_element *>::Collection_iterator::operator*();
 template Partition *&Collection<Partition *>::Collection_iterator::operator*();
-template dd::Partition_index *
-    &Collection<dd::Partition_index *>::Collection_iterator::operator*();
-template Tablespace_file *
-    &Collection<Tablespace_file *>::Collection_iterator::operator*();
+template dd::Partition_index *&
+Collection<dd::Partition_index *>::Collection_iterator::operator*();
+template Tablespace_file *&
+Collection<Tablespace_file *>::Collection_iterator::operator*();
 template Trigger *&Collection<Trigger *>::Collection_iterator::operator*();
-template Check_constraint *
-    &Collection<Check_constraint *>::Collection_iterator::operator*();
+template Check_constraint *&
+Collection<Check_constraint *>::Collection_iterator::operator*();
 
-template const Column *
-    &Collection<Column *>::Collection_const_iterator::operator*();
-template const Column_type_element *
-    &Collection<Column_type_element *>::Collection_const_iterator::operator*();
-template const Foreign_key *
-    &Collection<Foreign_key *>::Collection_const_iterator::operator*();
-template const Foreign_key_element *
-    &Collection<Foreign_key_element *>::Collection_const_iterator::operator*();
-template const Index *&Collection<Index *>::Collection_const_iterator::operator
-    *();
-template const Index_element *
-    &Collection<Index_element *>::Collection_const_iterator::operator*();
-template const Parameter *
-    &Collection<Parameter *>::Collection_const_iterator::operator*();
-template const Parameter_type_element *&Collection<
-    Parameter_type_element *>::Collection_const_iterator::operator*();
-template const Partition *
-    &Collection<Partition *>::Collection_const_iterator::operator*();
-template const Partition_index *
-    &Collection<Partition_index *>::Collection_const_iterator::operator*();
-template const Partition_value *
-    &Collection<Partition_value *>::Collection_const_iterator::operator*();
-template const Tablespace_file *
-    &Collection<Tablespace_file *>::Collection_const_iterator::operator*();
-template const View_routine *
-    &Collection<View_routine *>::Collection_const_iterator::operator*();
-template const View_table *
-    &Collection<View_table *>::Collection_const_iterator::operator*();
-template const Trigger *
-    &Collection<Trigger *>::Collection_const_iterator::operator*();
-template const Check_constraint *
-    &Collection<Check_constraint *>::Collection_const_iterator::operator*();
+template const Column *&
+Collection<Column *>::Collection_const_iterator::operator*();
+template const Column_type_element *&
+Collection<Column_type_element *>::Collection_const_iterator::operator*();
+template const Foreign_key *&
+Collection<Foreign_key *>::Collection_const_iterator::operator*();
+template const Foreign_key_element *&
+Collection<Foreign_key_element *>::Collection_const_iterator::operator*();
+template const Index *&
+Collection<Index *>::Collection_const_iterator::operator*();
+template const Index_element *&
+Collection<Index_element *>::Collection_const_iterator::operator*();
+template const Parameter *&
+Collection<Parameter *>::Collection_const_iterator::operator*();
+template const Parameter_type_element *&
+Collection<Parameter_type_element *>::Collection_const_iterator::operator*();
+template const Partition *&
+Collection<Partition *>::Collection_const_iterator::operator*();
+template const Partition_index *&
+Collection<Partition_index *>::Collection_const_iterator::operator*();
+template const Partition_value *&
+Collection<Partition_value *>::Collection_const_iterator::operator*();
+template const Tablespace_file *&
+Collection<Tablespace_file *>::Collection_const_iterator::operator*();
+template const View_routine *&
+Collection<View_routine *>::Collection_const_iterator::operator*();
+template const View_table *&
+Collection<View_table *>::Collection_const_iterator::operator*();
+template const Trigger *&
+Collection<Trigger *>::Collection_const_iterator::operator*();
+template const Check_constraint *&
+Collection<Check_constraint *>::Collection_const_iterator::operator*();
 
 template bool Collection<Column *>::restore_items<Abstract_table_impl>(
     Abstract_table_impl *, Open_dictionary_tables_ctx *, Raw_table *,

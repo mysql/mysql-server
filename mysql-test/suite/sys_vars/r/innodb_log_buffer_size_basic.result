@@ -66,7 +66,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
 COUNT(@@GLOBAL.innodb_log_buffer_size)
 1
 1 Expected
-SELECT innodb_log_buffer_size = @@SESSION.innodb_log_buffer_size;
+SELECT innodb_log_buffer_size;
 ERROR 42S22: Unknown column 'innodb_log_buffer_size' in 'field list'
 SELECT @@innodb_log_buffer_size;
 @@innodb_log_buffer_size

@@ -30,14 +30,14 @@
 # using '>=' since $remaining_delay is obtained before $sql_remaining_delay.
 
 --let $assert_text= Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.
---let $assert_cond= "$remaining_delay" >= "$sql_remaining_delay"
+--let $assert_cond= $remaining_delay >= $sql_remaining_delay
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 
---let $assert_text= Status should not be 'Waiting until MASTER_DELAY seconds after master executed event'
---let $assert_cond= NOT("[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until % seconds after master executed event")
+--let $assert_text= Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event'
+--let $assert_cond= NOT("[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until % seconds after source executed event")
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc

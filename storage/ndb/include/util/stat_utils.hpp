@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,12 +87,11 @@ public:
       if (m_noOfSamples == m_maxSamples)
       {
         /**
-         * An 'exponentially weighted moving average' effectively 
-         * expires an average sample from the moving average window.
-         * Then the most recent 'sample' can later be added in the
-         * same way as calculating a 'simple moving average'.
+         * An 'exponentially weighted moving average' need to expire
+         * an average 'sumSquare' sample from the moving average window.
+         * Then the most recent 'sumSquare' sample can later be added in
+         * the same way as calculating it in a 'simple moving average'.
          */
-        m_mean      -= (m_mean      / m_noOfSamples);
         m_sumSquare -= (m_sumSquare / m_noOfSamples);
         m_noOfSamples--;
       }
@@ -100,7 +99,7 @@ public:
       /* Add 'sample' as 'simple moving average' */
       m_noOfSamples++;
       m_mean      += (delta / m_noOfSamples);
-      m_sumSquare += (delta * (sample - m_mean));
+      m_sumSquare += fabs(delta * (sample - m_mean));
     }
   }
 
@@ -120,7 +119,7 @@ private:
   // Size of 'window' we calculate over
   const Uint32 m_maxSamples;
 
-  // Current number of samples taken
+  // Current number of samples used, <= m_maxSamples
   Uint32 m_noOfSamples;
 
   // Moving average of all current samples

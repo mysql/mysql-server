@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ class Tablespace : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  virtual ~Tablespace() {}
+  ~Tablespace() override = default;
 
   /**
     Check if the tablespace is empty, i.e., whether it has any tables.
@@ -123,6 +123,13 @@ class Tablespace : virtual public Entity_object {
   virtual void set_engine(const String_type &engine) = 0;
 
   /////////////////////////////////////////////////////////////////////////
+  // SE-specific json attributes
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual LEX_CSTRING engine_attribute() const = 0;
+  virtual void set_engine_attribute(LEX_CSTRING a) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
   // Tablespace file collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -139,6 +146,14 @@ class Tablespace : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Tablespace *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  virtual Tablespace *clone_dropped_object_placeholder() const = 0;
 
   /**
     Converts *this into json.

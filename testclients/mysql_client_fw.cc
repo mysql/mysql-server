@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 #include <mysql/client_plugin.h>
 #include <mysqld_error.h>
 
+#include <algorithm>
+
 #include "errmsg.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -41,26 +43,26 @@
 
 /* set default options */
 static int opt_testcase = 0;
-static char *opt_db = 0;
-static char *opt_user = 0;
-static char *opt_password = 0;
-static char *opt_host = 0;
-static char *opt_unix_socket = 0;
+static char *opt_db = nullptr;
+static char *opt_user = nullptr;
+static char *opt_password = nullptr;
+static char *opt_host = nullptr;
+static char *opt_unix_socket = nullptr;
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
 #endif
 static unsigned int opt_port;
-static bool tty_password = 0;
+static bool tty_password = false;
 static int opt_silent = 0;
 
-static MYSQL *mysql = 0;
+static MYSQL *mysql = nullptr;
 static char current_db[] = "client_test_db";
 static unsigned int test_count = 0;
 static unsigned int opt_count = 0;
 static unsigned int opt_count_read = 0;
 static unsigned int iter_count = 0;
 static bool have_innodb = false;
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static unsigned int opt_drop_db = 1;
 
 static const char *opt_basedir = "./";
@@ -79,7 +81,7 @@ const char *default_dbug_option = "d:t:o,/tmp/mysql_client_test.trace";
 /*
 Read and parse arguments and MySQL options from my.cnf
 */
-static const char *client_test_load_default_groups[] = {"client", 0};
+static const char *client_test_load_default_groups[] = {"client", nullptr};
 
 struct my_tests_st {
   const char *name;
@@ -193,24 +195,22 @@ static void die(const char *file, int line, const char *expr) {
   }
 
 /* Silence unused function warnings for some of the static functions. */
-static int cmp_double(double *a, double *b) MY_ATTRIBUTE((unused));
-static void verify_col_data(const char *table, const char *col,
-                            const char *exp_data) MY_ATTRIBUTE((unused));
-static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
-                                    const char *name, const char *org_name,
-                                    enum enum_field_types type,
-                                    const char *table, const char *org_table,
-                                    const char *db, unsigned long length,
-                                    const char *def, const char *file, int line)
-    MY_ATTRIBUTE((unused));
-static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
-    MY_ATTRIBUTE((unused));
-static void verify_affected_rows(ulonglong exp_count) MY_ATTRIBUTE((unused));
-static void verify_field_count(MYSQL_RES *result, uint exp_count)
-    MY_ATTRIBUTE((unused));
-static void execute_prepare_query(const char *query, ulonglong exp_count)
-    MY_ATTRIBUTE((unused));
-static bool thread_query(const char *query) MY_ATTRIBUTE((unused));
+[[maybe_unused]] static int cmp_double(double *a, double *b);
+[[maybe_unused]] static void verify_col_data(const char *table, const char *col,
+                                             const char *exp_data);
+[[maybe_unused]] static void do_verify_prepare_field(
+    MYSQL_RES *result, unsigned int no, const char *name, const char *org_name,
+    enum enum_field_types type, const char *table, const char *org_table,
+    const char *db, unsigned long length, const char *def, const char *file,
+    int line);
+[[maybe_unused]] static void verify_st_affected_rows(MYSQL_STMT *stmt,
+                                                     ulonglong exp_count);
+[[maybe_unused]] static void verify_affected_rows(ulonglong exp_count);
+[[maybe_unused]] static void verify_field_count(MYSQL_RES *result,
+                                                uint exp_count);
+[[maybe_unused]] static void execute_prepare_query(const char *query,
+                                                   ulonglong exp_count);
+[[maybe_unused]] static bool thread_query(const char *query);
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
 
@@ -306,7 +306,7 @@ static MYSQL_STMT *STDCALL mysql_simple_prepare(MYSQL *mysql_arg,
   MYSQL_STMT *stmt = mysql_stmt_init(mysql_arg);
   if (stmt && mysql_stmt_prepare(stmt, query, (ulong)strlen(query))) {
     mysql_stmt_close(stmt);
-    return 0;
+    return nullptr;
   }
   return stmt;
 }
@@ -332,13 +332,13 @@ static MYSQL *client_connect(ulong flag, uint protocol, bool auto_reconnect) {
     fprintf(stdout, "\n Establishing a connection to '%s' ...",
             opt_host ? opt_host : "");
 
-  if (!(mysql = mysql_client_init(NULL))) {
+  if (!(mysql = mysql_client_init(nullptr))) {
     opt_silent = 0;
     myerror("mysql_client_init() failed");
     exit(1);
   }
   /* enable local infile, in non-binary builds often disabled by default */
-  mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, nullptr);
   mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -476,7 +476,7 @@ static int my_process_result_set(MYSQL_RES *result) {
 
   my_print_result_metadata(result);
 
-  while ((row = mysql_fetch_row(result)) != NULL) {
+  while ((row = mysql_fetch_row(result)) != nullptr) {
     mysql_field_seek(result, 0);
     if (!opt_silent) {
       fputc('\t', stdout);
@@ -486,7 +486,7 @@ static int my_process_result_set(MYSQL_RES *result) {
     for (i = 0; i < mysql_num_fields(result); i++) {
       field = mysql_fetch_field(result);
       if (!opt_silent) {
-        if (row[i] == NULL)
+        if (row[i] == nullptr)
           fprintf(stdout, " %-*s |", (int)field->max_length, "NULL");
         else if (IS_NUM(field->type))
           fprintf(stdout, " %*s |", (int)field->max_length, row[i]);
@@ -546,7 +546,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt) {
     return row_count;
   }
 
-  field_count = MY_MIN(mysql_num_fields(result), MAX_RES_FIELDS);
+  field_count = std::min(mysql_num_fields(result), unsigned{MAX_RES_FIELDS});
 
   memset(buffer, 0, sizeof(buffer));
   memset(length, 0, sizeof(length));
@@ -833,12 +833,11 @@ Used to fill tables for each test.
 void fill_tables(const char **query_list, unsigned query_count) {
   int rc;
   const char **query;
-  DBUG_ENTER("fill_tables");
+  DBUG_TRACE;
   for (query = query_list; query < query_list + query_count; ++query) {
     rc = mysql_query(mysql, *query);
     myquery(rc);
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -872,7 +871,7 @@ static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
   int rc;
   unsigned i;
   MYSQL_RES *metadata;
-  DBUG_ENTER("stmt_fetch_init");
+  DBUG_TRACE;
 
   /* Save query and statement number for error messages */
   fetch->stmt_no = stmt_no_arg;
@@ -924,7 +923,6 @@ static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
   fetch->is_open = true;
 
   /* Ready for reading rows */
-  DBUG_VOID_RETURN;
 }
 
 /* Fetch and print one row from cursor */
@@ -932,7 +930,7 @@ static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
 static int stmt_fetch_fetch_row(Stmt_fetch *fetch) {
   int rc;
   unsigned i;
-  DBUG_ENTER("stmt_fetch_fetch_row");
+  DBUG_TRACE;
 
   if ((rc = mysql_stmt_fetch(fetch->handle)) == 0) {
     ++fetch->row_count;
@@ -944,19 +942,18 @@ static int stmt_fetch_fetch_row(Stmt_fetch *fetch) {
     }
   } else
     fetch->is_open = false;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 static void stmt_fetch_close(Stmt_fetch *fetch) {
   unsigned i;
-  DBUG_ENTER("stmt_fetch_close");
+  DBUG_TRACE;
 
   for (i = 0; i < fetch->column_count; ++i) free(fetch->out_data[i]);
   free(fetch->out_data);
   free(fetch->out_data_length);
   free(fetch->bind_array);
   mysql_stmt_close(fetch->handle);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -975,7 +972,7 @@ bool fetch_n(const char **query_list, unsigned query_count,
   Stmt_fetch *fetch_array =
       (Stmt_fetch *)calloc(1, sizeof(Stmt_fetch) * query_count);
   Stmt_fetch *fetch;
-  DBUG_ENTER("fetch_n");
+  DBUG_TRACE;
 
   for (fetch = fetch_array; fetch < fetch_array + query_count; ++fetch) {
     /* Init will exit(1) in case of error */
@@ -1022,7 +1019,7 @@ bool fetch_n(const char **query_list, unsigned query_count,
   for (fetch = fetch_array; fetch < fetch_array + query_count; ++fetch)
     stmt_fetch_close(fetch);
   free(fetch_array);
-  DBUG_RETURN(error_count != 0);
+  return error_count != 0;
 }
 
 /* Separate thread query to test some cases */
@@ -1031,22 +1028,22 @@ static bool thread_query(const char *query) {
   MYSQL *l_mysql;
   bool error;
 
-  error = 0;
+  error = false;
   if (!opt_silent) fprintf(stdout, "\n in thread_query(%s)", query);
-  if (!(l_mysql = mysql_client_init(NULL))) {
+  if (!(l_mysql = mysql_client_init(nullptr))) {
     myerror("mysql_client_init() failed");
-    return 1;
+    return true;
   }
   if (!(mysql_real_connect(l_mysql, opt_host, opt_user, opt_password,
                            current_db, opt_port, opt_unix_socket, 0))) {
     myerror("connection failed");
-    error = 1;
+    error = true;
     goto end;
   }
-  l_mysql->reconnect = 1;
+  l_mysql->reconnect = true;
   if (mysql_query(l_mysql, query)) {
     fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
-    error = 1;
+    error = true;
     goto end;
   }
   mysql_commit(l_mysql);
@@ -1056,24 +1053,27 @@ end:
 }
 
 static struct my_option client_test_long_options[] = {
-    {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"count", 't', "Number of times test to be executed", &opt_count_read,
-     &opt_count_read, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-    {"database", 'D', "Database to use", &opt_db, &opt_db, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"do-not-drop-database", 'd', "Do not drop database while disconnecting", 0,
-     0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_count_read, nullptr, GET_UINT, REQUIRED_ARG, 1, 0, 0, nullptr, 0,
+     nullptr},
+    {"database", 'D', "Database to use", &opt_db, &opt_db, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"do-not-drop-database", 'd', "Do not drop database while disconnecting",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug", '#', "Output debug log", &default_dbug_option,
-     &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host", &opt_host, &opt_host, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"help", '?', "Display this help and exit", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host", &opt_host, &opt_host, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given it's "
      "asked from the tty.",
-     0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -1081,34 +1081,38 @@ static struct my_option client_test_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
-     0, 0},
+     &opt_port, &opt_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"show-tests", 'T', "Show all tests' names", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"silent", 's', "Be more silent", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", 'm', "Base name of shared memory.",
      &shared_memory_base_name, (uchar **)&shared_memory_base_name, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"socket", 'S', "Socket file to use for connection", &opt_unix_socket,
-     &opt_unix_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_unix_socket, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"testcase", 'c',
-     "May disable some code when runs as mysql-test-run testcase.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"user", 'u', "User for login if not current user", &opt_user, &opt_user, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"vardir", 'v', "Data dir for tests.", &opt_vardir, &opt_vardir, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "May disable some code when runs as mysql-test-run testcase.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"user", 'u', "User for login if not current user", &opt_user, &opt_user,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"vardir", 'v', "Data dir for tests.", &opt_vardir, &opt_vardir, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
-     &opt_getopt_ll_test, &opt_getopt_ll_test, 0, GET_LL, REQUIRED_ARG, 0, 0,
-     LLONG_MAX, 0, 0, 0},
+     &opt_getopt_ll_test, &opt_getopt_ll_test, nullptr, GET_LL, REQUIRED_ARG, 0,
+     0, LLONG_MAX, nullptr, 0, nullptr},
     {"plugin_dir", 0, "Directory for client-side plugins.", &opt_plugin_dir,
-     &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"default_auth", 0, "Default authentication client-side plugin to use.",
-     &opt_default_auth, &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_default_auth, &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   /* show the usage string when the user asks for this */
@@ -1122,10 +1126,10 @@ static void usage(void) {
 
 static struct my_tests_st *get_my_tests(); /* To be defined in main .c file */
 
-static struct my_tests_st *my_testlist = 0;
+static struct my_tests_st *my_testlist = nullptr;
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt MY_ATTRIBUTE((unused)),
+                           const struct my_option *opt [[maybe_unused]],
                            char *argument) {
   switch (optid) {
     case '#':
@@ -1142,7 +1146,7 @@ static bool get_one_option(int optid,
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 's':
       if (argument == disabled_my_option)
@@ -1167,7 +1171,7 @@ static bool get_one_option(int optid,
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 
 static void get_options(int *argc, char ***argv) {
@@ -1209,7 +1213,7 @@ main routine
 
 int main(int argc, char **argv) {
   int i;
-  char **tests_to_run = NULL, **curr_test;
+  char **tests_to_run = nullptr, **curr_test;
   struct my_tests_st *fptr;
   my_testlist = get_my_tests();
 
@@ -1236,19 +1240,20 @@ int main(int argc, char **argv) {
     tests_to_run = (char **)malloc((argc + 1) * sizeof(char *));
     if (!tests_to_run) exit(1);
     for (i = 0; i < argc; i++) tests_to_run[i] = strdup(argv[i]);
-    tests_to_run[i] = NULL;
+    tests_to_run[i] = nullptr;
   }
 
-  if (mysql_server_init(0, NULL, NULL)) DIE("Can't initialize MySQL server");
+  if (mysql_server_init(0, nullptr, nullptr))
+    DIE("Can't initialize MySQL server");
 
   /* connect to server with no flags, default protocol, auto reconnect true */
-  mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
+  mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT, true);
 
   total_time = 0;
   for (iter_count = 1; iter_count <= opt_count; iter_count++) {
     /* Start of tests */
     test_count = 1;
-    start_time = time((time_t *)0);
+    start_time = time((time_t *)nullptr);
     if (!tests_to_run) {
       for (fptr = my_testlist; fptr->name; fptr++) (*fptr->function)();
     } else {
@@ -1270,7 +1275,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    end_time = time((time_t *)0);
+    end_time = time((time_t *)nullptr);
     total_time += difftime(end_time, start_time);
 
     /* End of tests */

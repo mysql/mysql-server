@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -32,7 +33,7 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql/sql_list.h"
@@ -42,6 +43,9 @@
 class THD;
 class my_decimal;
 struct MYSQL_TIME;
+struct MYSQL_TIME_STATUS;
+
+constexpr const size_t WARN_ALLOC_BLOCK_SIZE{2048};
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -134,7 +138,7 @@ class Sql_condition {
                 const char *message_text);
 
   /** Destructor. */
-  ~Sql_condition() {}
+  ~Sql_condition() = default;
 
   /**
     Copy optional condition items attributes.
@@ -225,10 +229,6 @@ class ErrConvString {
   explicit ErrConvString(const String *str) {
     buf_length = err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
                           str->length(), str->charset());
-  }
-
-  ErrConvString(const char *str, const CHARSET_INFO *cs) {
-    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
   }
 
   ErrConvString(const char *str, size_t length) {
@@ -349,7 +349,7 @@ class Diagnostics_area {
     in a custom format. One example is COM_STMT_PREPARE.
   */
   void disable_status() {
-    DBUG_ASSERT(m_status == DA_EMPTY);
+    assert(m_status == DA_EMPTY);
     m_status = DA_DISABLED;
   }
 
@@ -373,32 +373,32 @@ class Diagnostics_area {
   enum_diagnostics_status status() const { return m_status; }
 
   const char *message_text() const {
-    DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK);
+    assert(m_status == DA_ERROR || m_status == DA_OK);
     return m_message_text;
   }
 
   uint mysql_errno() const {
-    DBUG_ASSERT(m_status == DA_ERROR);
+    assert(m_status == DA_ERROR);
     return m_mysql_errno;
   }
 
   const char *returned_sqlstate() const {
-    DBUG_ASSERT(m_status == DA_ERROR);
+    assert(m_status == DA_ERROR);
     return m_returned_sqlstate;
   }
 
   ulonglong affected_rows() const {
-    DBUG_ASSERT(m_status == DA_OK);
+    assert(m_status == DA_OK);
     return m_affected_rows;
   }
 
   ulonglong last_insert_id() const {
-    DBUG_ASSERT(m_status == DA_OK);
+    assert(m_status == DA_OK);
     return m_last_insert_id;
   }
 
   uint last_statement_cond_count() const {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+    assert(m_status == DA_OK || m_status == DA_EOF);
     return m_last_statement_cond_count;
   }
 
@@ -590,7 +590,7 @@ class Diagnostics_area {
   Diagnostics_area *m_stacked_da;
 
   /** A memory root to allocate conditions */
-  MEM_ROOT m_condition_root;
+  MEM_ROOT m_condition_root{PSI_INSTRUMENT_ME, WARN_ALLOC_BLOCK_SIZE};
 
   /** List of conditions of all severities. */
   Sql_condition_list m_conditions_list;
@@ -673,7 +673,7 @@ class Diagnostics_area {
   uint m_current_statement_cond_count;
 
   /** A break down of the number of conditions per severity (level). */
-  uint m_current_statement_cond_count_by_sl[(uint)Sql_condition::SEVERITY_END];
+  uint m_current_statement_cond_count_by_qb[(uint)Sql_condition::SEVERITY_END];
 
   /**
     Row counter, to print in errors and warnings. Not increased in
@@ -825,4 +825,6 @@ void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
 void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
                                   const char *option = nullptr);
 
+void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
+                                      MYSQL_TIME_STATUS &status);
 #endif  // SQL_ERROR_H

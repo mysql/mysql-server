@@ -1,0 +1,260 @@
+# ==== Purpose ====
+#
+# This script tests error handling regarding setting session and/or global
+# variables while applying events in the replication stream.
+#
+# ==== Requirements ====
+#
+# R1. Variables `auto_increment_increment`, `auto_increment_offset`,
+#     `collation_database`, `explicit_defaults_for_timestamp`,
+#     `default_collation_for_utf8mb4` and `rbr_exec_mode` are allowed to be set
+#     without privileges.
+# R2. Variables `gtid_next`, `original_commit_timestamp`,
+#     `original_server_version`, `immediate_server_version` and
+#     `pseudo_replica_mode` are allowed to be set when having `SUPER`,
+#     `SYSTEM_VARIABLES_ADMIN`, `SESSION_VARIABLES_ADMIN` or
+#     `REPLICATION_APPLIER` privileges.
+# R3. Variables `pseudo_thread_id` and `sql_require_primary_key` are allowed to
+#     be set when having `SUPER`, `SYSTEM_VARIABLES_ADMIN`,
+#     `SESSION_VARIABLES_ADMIN` privileges.
+# R4. Variable `default_table_encryption` is allowed to be set when having
+#     `SUPER` or both `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN`
+#     privileges.
+#
+# ==== Implementation ====
+#
+# TC1. Verify that replication only succeeds with `SYSTEM_VARIABLES_ADMIN` due
+#      to the set of `pseudo_thread_id`
+# -----------------------------------------------------------------------------
+# 1) Create a table on the master and insert a record.
+# 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
+#    `PRIVILEGE_CHECKS_USER` user.
+# 3) Start slave and wait for applier to error out.
+# 4) Stop the slave.
+# 5) Grant `SYSTEM_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
+# 6) Start the slave and sync it with master.
+# 7) Ensure that database contents are the same in master and slave.
+#
+# TC2. Verify that replication only succeeds with `SUPER` due
+#      to the set of `pseudo_thread_id`
+# -----------------------------------------------------------------------------
+# 1) Create a table on the master and insert a record.
+# 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
+#    `PRIVILEGE_CHECKS_USER` user.
+# 3) Start slave and wait for applier to error out.
+# 4) Stop the slave.
+# 5) Grant `SUPER` to the `PRIVILEGE_CHECKS_USER` user.
+# 6) Start the slave and sync it with master.
+# 7) Ensure that database contents are the same in master and slave.
+#
+# TC3. Verify that replication only succeeds with `SESSION_VARIABLES_ADMIN` due
+#      to the set of `pseudo_thread_id`
+# -----------------------------------------------------------------------------
+# 1) Create a table on the master and insert a record.
+# 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
+#    `PRIVILEGE_CHECKS_USER` user.
+# 3) Start slave and wait for applier to error out.
+# 4) Stop the slave.
+# 5) Grant `SESSION_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
+# 6) Start the slave and sync it with master.
+# 7) Ensure that database contents are the same in master and slave.
+#
+# TC4. Verify that setting `default_table_encryption` only succeeds on the slave
+#      when having `SUPER` or `SYSTEM_VARIABLES_ADMIN` and
+#      `TABLE_ENCRYPTION_ADMIN`
+# ------------------------------------------------------------------------------
+# 1) Change value for `default_table_encryption` on master and create a new
+#    database.
+# 2) Ensure that `PRIVILEGE_CHECKS_USER` doesn't have the necessary privileges
+#    to set `default_table_encryption`.
+# 3) Start slave and wait for applier to error out.
+# 4) Grant `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN` to
+#    `PRIVILEGE_CHECKS_USER` user.
+# 5) Start the slave and sync it with master.
+# 6) Ensure that we can use the database on the slave.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+
+--let $rpl_privilege_checks_user= *:'u1'@'localhost'
+--let $rpl_skip_grant_privilege_checks_user_roles = 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo #
+--echo # TC1. Verify that replication only succeeds with
+--echo #      `SYSTEM_VARIABLES_ADMIN` due to the set of `pseudo_thread_id`
+--echo # ------------------------------------------------------------------
+--echo #
+
+# 1) Create a table on the master and insert a record.
+CREATE TABLE t_system (c1 INT);
+INSERT INTO t_system VALUES (1), (2);
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+
+# 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
+#    `PRIVILEGE_CHECKS_USER` user.
+GRANT REPLICATION_APPLIER, CREATE, INSERT, DROP ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 3) Start slave and wait for applier to error out.
+START SLAVE;
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# 4) Stop the slave.
+STOP SLAVE;
+
+# 5) Grant `SYSTEM_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 6) Start the slave and sync it with master.
+START SLAVE;
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# 7) Ensure that database contents are the same in master and slave.
+--let $diff_tables= master:t_system, slave:t_system
+--source include/diff_tables.inc
+
+STOP SLAVE;
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'u1'@'localhost';
+
+--echo #
+--echo # TC2. Verify that replication only succeeds with
+--echo #      `SUPER` due to the set of `pseudo_thread_id`
+--echo # -------------------------------------------------
+--echo #
+
+# 1) Create a table on the master and insert a record.
+--source include/rpl_connection_master.inc
+CREATE TABLE t_super (c1 INT);
+INSERT INTO t_super VALUES (1), (2);
+
+--source include/rpl_connection_slave.inc
+
+# 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
+#    `PRIVILEGE_CHECKS_USER` user.
+# -> Already done in previous test-case
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 3) Start slave and wait for applier to error out.
+START SLAVE;
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# 4) Stop the slave.
+STOP SLAVE;
+
+# 5) Grant `SUPER` to the `PRIVILEGE_CHECKS_USER` user.
+GRANT SUPER ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 6) Start the slave and sync it with master.
+START SLAVE;
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# 7) Ensure that database contents are the same in master and slave.
+--let $diff_tables= master:t_super, slave:t_super
+--source include/diff_tables.inc
+
+STOP SLAVE;
+REVOKE SUPER ON *.* FROM 'u1'@'localhost';
+
+--echo #
+--echo # TC3. Verify that replication only succeeds with
+--echo #      `SESSION_VARIABLES_ADMIN` due to the set of `pseudo_thread_id`
+--echo # -------------------------------------------------------------------
+--echo #
+
+# 1) Create a table on the master and insert a record.
+--source include/rpl_connection_master.inc
+CREATE TABLE t_session (c1 INT);
+INSERT INTO t_session VALUES (1), (2);
+
+--source include/rpl_connection_slave.inc
+# 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
+#    `PRIVILEGE_CHECKS_USER` user.
+# -> Already done in previous test-case
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 3) Start slave and wait for applier to error out.
+START SLAVE;
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# 4) Stop the slave.
+STOP SLAVE;
+
+# 5) Grant `SESSION_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 6) Start the slave and sync it with master.
+START SLAVE;
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# 7) Ensure that database contents are the same in master and slave.
+--let $diff_tables= master:t_session, slave:t_session
+--source include/diff_tables.inc
+
+STOP SLAVE;
+
+--echo #
+--echo # TC4. Verify that setting `default_table_encryption` only succeeds on
+--echo #      the slave when having `SUPER` or `SYSTEM_VARIABLES_ADMIN` and
+--echo #      `TABLE_ENCRYPTION_ADMIN`
+--echo # --------------------------------------------------------------------
+--echo #
+--source include/rpl_connection_master.inc
+
+# 1) Change value for `default_table_encryption` on master and create a new
+#    database.
+--let $opt_default_table_encryption = `SELECT @@default_table_encryption`
+SET default_table_encryption = 1;
+CREATE DATABASE new_db;
+
+--source include/rpl_connection_slave.inc
+# 2) Ensure that `PRIVILEGE_CHECKS_USER` doesn't have the necessary privileges
+#    to set `default_table_encryption`.
+REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'localhost';
+
+# 3) Start slave and wait for applier to error out.
+START SLAVE;
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# 4) Grant `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN` to
+#    `PRIVILEGE_CHECKS_USER` user.
+STOP SLAVE;
+GRANT SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* TO 'u1'@'localhost';
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 5) Start the slave and sync it with master.
+START SLAVE;
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# 6) Ensure that we can use the database on the slave.
+--let $databases_list = `SHOW DATABASES LIKE 'new_db'`
+--let $assert_text= Database new_db exists on slave
+--let $assert_cond= "$databases_list" = "new_db"
+--source include/assert.inc
+
+# Clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t_system;
+DROP TABLE t_super;
+DROP TABLE t_session;
+DROP DATABASE new_db;
+--replace_result $opt_default_table_encryption OPT_DEFAULT_TABLE_ENCRYPTION
+--eval SET default_table_encryption = $opt_default_table_encryption
+--source include/rpl_end.inc

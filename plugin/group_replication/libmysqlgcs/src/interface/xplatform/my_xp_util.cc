@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <errno.h>
 
+#include "my_systime.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
 void My_xp_util::sleep_seconds(unsigned int seconds) {
@@ -34,68 +35,33 @@ void My_xp_util::sleep_seconds(unsigned int seconds) {
 #endif
 }
 
-void My_xp_util::init_time() {
-#ifdef _WIN32
-  win_init_time();
-#endif
-}
-
-#ifdef _WIN32
-uint64_t My_xp_util::query_performance_frequency = 0;
-uint64_t My_xp_util::query_performance_offset = 0;
-
-void My_xp_util::win_init_time() {
-  /* The following is used by time functions */
-  FILETIME ft;
-  LARGE_INTEGER li, t_cnt;
-
-  if (QueryPerformanceFrequency(
-          (LARGE_INTEGER *)&query_performance_frequency) == 0)
-    query_performance_frequency = 0;
-  else {
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart = ft.dwLowDateTime;
-    li.HighPart = ft.dwHighDateTime;
-    query_performance_offset = li.QuadPart - OFFSET_TO_EPOC;
-    QueryPerformanceCounter(&t_cnt);
-    query_performance_offset -=
-        (t_cnt.QuadPart / query_performance_frequency * MS +
-         t_cnt.QuadPart % query_performance_frequency * MS /
-             query_performance_frequency);
-  }
-}
-
-#endif
-
-uint64_t My_xp_util::getsystime() {
-#ifdef _WIN32
-  LARGE_INTEGER t_cnt;
-  if (query_performance_frequency) {
-    QueryPerformanceCounter(&t_cnt);
-    return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
-            ((t_cnt.QuadPart % query_performance_frequency) * 10000000 /
-             query_performance_frequency) +
-            query_performance_offset);
-  }
-  return 0;
-#else
-  /* TODO: check for other possibilities for hi-res timestamping */
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (uint64_t)tv.tv_sec * 10000000 + (uint64_t)tv.tv_usec * 10;
-#endif
-}
+uint64_t My_xp_util::getsystime() { return my_getsystime(); }
 
 int My_xp_socket_util_impl::disable_nagle_in_socket(int fd) {
   int ret = -1;
   if (fd != -1) {
-    int optval = 1;
-    /* Casting optval to char * so Windows does not complain. */
-    ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval,
-                     static_cast<socklen_t>(sizeof(int)));
+    int optval;
+    socklen_t optval_size = static_cast<socklen_t>(sizeof(int));
+    ret =
+        getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval, &optval_size);
+
+    if (ret < 0) goto err;
+
+    if (optval == 0) {
+      optval = 1;
+      ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval,
+                       static_cast<socklen_t>(sizeof(int)));
+    } else {
+      MYSQL_GCS_LOG_INFO("TCP_NODELAY already set");
+      ret = 0;
+    }
   }
-  if (ret < 0)
-    MYSQL_GCS_LOG_ERROR(
-        "Error manipulating a connection's socket. Error: " << errno)
+
+err:
+  if (ret < 0) {
+    MYSQL_GCS_LOG_ERROR("Error manipulating a connection's socket. FD= "
+                        << fd << " Ret = " << ret << " Error: " << errno)
+    assert(0);
+  }
   return ret;
 }

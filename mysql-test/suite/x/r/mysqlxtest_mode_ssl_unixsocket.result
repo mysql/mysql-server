@@ -1,3 +1,4 @@
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression(".*Failed to set up SSL.*");
 
 ############################################################
@@ -95,7 +96,7 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
 ok
-# restart: 
+# restart:
 
 ############################################################
 ## Test starts MySQL Server without configured SSL
@@ -192,3 +193,4 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
 ok
+# restart:

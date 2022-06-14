@@ -1,0 +1,50 @@
+## Test to verifies compression level functionality from the server side
+#
+
+--source ../include/have_zstd_proper_ver.inc
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--source ../include/compression_level_server_common.inc
+
+
+# ZSTD_STREAM algorithm < 1.4.0
+SET GLOBAL mysqlx_zstd_max_client_compression_level=22;
+let $level=1;
+while ($level <= 22)
+{
+  exec $MYSQLXTEST
+    -ux_root --password=''
+    --schema=xtest
+    --compression-mode=required
+    --compression-algorithm=ZSTD_STREAM
+    --compression-level=$level
+    --compression-combine-mixed-messages=1
+    --compression-max-combine-messages=0
+    --file=$MYSQL_TMP_DIR/compression_level_server.xpl 2>&1;
+  inc $level;
+}
+
+# ZSTD_STREAM algorithm negative levels
+let $level=-1;
+while ($level >= -22)
+{
+  exec $MYSQLXTEST
+    -ux_root --password=''
+    --schema=xtest
+    --compression-mode=required
+    --compression-algorithm=ZSTD_STREAM
+    --compression-level=$level
+    --compression-combine-mixed-messages=1
+    --compression-max-combine-messages=0
+    --file=$MYSQL_TMP_DIR/compression_level_server.xpl 2>&1;
+  dec $level;
+}
+
+
+## Cleanup
+SET GLOBAL mysqlx_zstd_max_client_compression_level=DEFAULT;
+SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
+
+--source ../include/xplugin_cleanup.inc

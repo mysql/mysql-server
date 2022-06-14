@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class ApiRegReq {
   friend class Qmgr;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
 private:
   Uint32 ref;
@@ -65,7 +65,7 @@ class ApiRegRef {
   friend class ClusterMgr;
 
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   enum ErrorCode {
     WrongType = 1,
@@ -93,7 +93,7 @@ class ApiRegConf {
   friend class ClusterMgr;
 
 public:
-  STATIC_CONST( SignalLength = 5 + NodeState::DataLength );
+  static constexpr Uint32 SignalLength = 6 + NodeState::DataLength;
 private:
   
   Uint32 qmgrRef;
@@ -102,6 +102,7 @@ private:
   Uint32 mysql_version;
   Uint32 minDbVersion;
   NodeStatePOD nodeState;
+  Uint32 minApiVersion;
 };
 
 

@@ -6,10 +6,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Preparing the relaylog
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 include/start_slave_io.inc
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 # Create a transaction on the master
 # that will have it's GTID and other events in separated relay log files
 [connection master]

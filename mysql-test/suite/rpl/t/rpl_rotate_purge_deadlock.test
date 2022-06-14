@@ -18,6 +18,12 @@ source include/master-slave.inc;
 # any issue.
 # 
 
+# this test case requires a deterministic binary log size
+# so that automatic purging is exercized. Therefore, cannot
+# run with compression on.
+--source include/not_binlog_transaction_compression_on.inc
+
+
 connection master;
 source include/show_binary_logs.inc;
 create table t1 (f text) engine=innodb;
@@ -80,7 +86,7 @@ eval kill query $_tid;
 #
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE command like 'Binlog Dump%' and STATE like "Master has sent all binlog to slave%";
+    WHERE command like 'Binlog Dump%' and STATE like "Source has sent all binlog to replica%";
 --source include/wait_condition_or_abort.inc
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';

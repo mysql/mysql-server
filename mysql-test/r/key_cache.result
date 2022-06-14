@@ -216,9 +216,9 @@ select * from t2;
 p	i	a
 1001	2	qqqq
 2	2	pppp
+2000	3	yyyy
 3	2	yyyy
 3000	3	zzzz
-2000	3	yyyy
 explain select p from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	5	100.00	Using index
@@ -226,10 +226,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p` from `test`.`t2`
 select p from t2;
 p
-2
-3
 1001
+2
 2000
+3
 3000
 explain select i from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -301,15 +301,15 @@ select * from t2;
 p	i	a
 1001	2	qqqq
 2	2	pppp
+2000	3	yyyy
 3	2	yyyy
 4000	3	zzzz
-2000	3	yyyy
 select p from t2;
 p
-2
-3
 1001
+2
 2000
+3
 4000
 explain select i from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -337,12 +337,12 @@ yyyy
 zzzz
 select * from t1;
 p	a
-3	qqqq
 12	yyyy
+3	qqqq
 select p from t1;
 p
-3
 12
+3
 create table t3 (like t1);
 cache index t3 in small;
 Table	Op	Msg_type	Msg_text

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,10 @@
 #include "sql/stream_cipher.h"
 #include <algorithm>
 #include "my_byteorder.h"
+#include "my_dbug.h"
 
 #define HAVE_BYTESTOKEY_SHA512_HANDLING
 #define HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
-
-#ifdef HAVE_WOLFSSL
-#undef HAVE_BYTESTOKEY_SHA512_HANDLING
-#undef HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
-#endif
 
 int Stream_cipher::get_header_size() { return m_header_size; }
 
@@ -105,13 +101,13 @@ bool Aes_ctr_cipher<TYPE>::set_stream_offset(uint64_t offset) {
 
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::init_cipher(uint64_t offset) {
-  DBUG_ENTER(" Aes_ctr_cipher::init_cipher");
+  DBUG_TRACE;
 
   uint64_t counter = offset / AES_BLOCK_SIZE;
 
-  DBUG_ASSERT(m_ctx == nullptr);
+  assert(m_ctx == nullptr);
   m_ctx = EVP_CIPHER_CTX_new();
-  if (m_ctx == nullptr) DBUG_RETURN(true);
+  if (m_ctx == nullptr) return true;
 
   /*
     AES's IV is 16 bytes.
@@ -132,7 +128,7 @@ bool Aes_ctr_cipher<TYPE>::init_cipher(uint64_t offset) {
   res = EVP_CipherInit(m_ctx, cipher_type, m_file_key, m_iv,
                        static_cast<int>(TYPE));
 
-  DBUG_RETURN(res == 0);
+  return res == 0;
 }
 
 template <Cipher_type TYPE>
@@ -144,39 +140,40 @@ void Aes_ctr_cipher<TYPE>::deinit_cipher() {
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
-  DBUG_ENTER("Aes_ctr_cipher::encrypt");
+  DBUG_TRACE;
 
   if (TYPE == Cipher_type::DECRYPT) {
     /* It should never be called by a decrypt cipher */
-    DBUG_ASSERT(0);
-    DBUG_RETURN(true);
+    assert(0);
+    return true;
   }
 
   /* length == 0 : nothing to encrypt */
-  if (length == 0) DBUG_RETURN(false);
+  if (length == 0) return false;
 
   if (EVP_Cipher(m_ctx, dest, const_cast<unsigned char *>(src), length) == 0)
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
-  DBUG_ENTER("Aes_ctr_cipher::decrypt");
+  DBUG_TRACE;
 
   if (TYPE == Cipher_type::ENCRYPT) {
     /* It should never be called by an encrypt cipher */
-    DBUG_ASSERT(0);
-    DBUG_RETURN(true);
+    assert(0);
+    return true;
   }
 
   /* length == 0 : nothing to decrypt */
-  if (length == 0) DBUG_RETURN(false);
+  if (length == 0) return false;
 
 #ifdef HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
-  if (EVP_Cipher(m_ctx, dest, src, length) == 0) DBUG_RETURN(true);
+  if (EVP_Cipher(m_ctx, dest, const_cast<unsigned char *>(src), length) == 0)
+    return true;
 #else
   const int DECRYPTED_BUFFER_SIZE = AES_BLOCK_SIZE * 2048;
   unsigned char buffer[DECRYPTED_BUFFER_SIZE];
@@ -184,8 +181,9 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
   /* Decrypt in up to DECRYPTED_BUFFER_SIZE chunks */
   while (length != 0) {
     int chunk_len = std::min(length, DECRYPTED_BUFFER_SIZE);
-    if (EVP_Cipher(m_ctx, buffer, (unsigned char *)src, chunk_len) == 0)
-      DBUG_RETURN(true);
+    if (EVP_Cipher(m_ctx, buffer, const_cast<unsigned char *>(src),
+                   chunk_len) == 0)
+      return true;
     memcpy(dest, buffer, chunk_len);
     src += chunk_len;
     dest += chunk_len;
@@ -193,7 +191,7 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
   }
 #endif
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template class Aes_ctr_cipher<Cipher_type::ENCRYPT>;

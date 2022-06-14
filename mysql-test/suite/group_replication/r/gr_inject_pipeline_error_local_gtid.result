@@ -14,6 +14,7 @@ call mtr.add_suppression("Error. Leaving a group without being on one.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
+call mtr.add_suppression("Error when trying to unblock non certified or consistent transactions. Check for consistency errors when restarting the service");
 call mtr.add_suppression("Error while waiting for conflict detection procedure to finish on session.*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 call mtr.add_suppression("Error when trying to unblock non certified transactions.*");

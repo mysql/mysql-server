@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_ST_UNITS_OF_MEASURE_H_INCLUDED
 #define SQL_GIS_ST_UNITS_OF_MEASURE_H_INCLUDED
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ struct Unit {
   double conversion_factor;
   std::string description;
 
-  Unit() {}
+  Unit() = default;
 
   Unit(const Unit_Type unit_type, const double conversion_factor)
       : unit_type(unit_type), conversion_factor(conversion_factor) {}

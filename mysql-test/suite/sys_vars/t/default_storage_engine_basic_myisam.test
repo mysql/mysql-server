@@ -1,0 +1,95 @@
+
+#                                                                      # 
+# Creation Date: 2008-02-14                                            #
+# Author:  Salman Rawala                                               #
+#                                                                      #
+# Description: Test Cases of Dynamic System Variable                   #
+#              default_storage_engine that check behavior of this              #
+#              variable with valid values, invalid values, accessing   #
+#              variable with scope that is allowed and with scope that #
+#              is now allowed.                                         #
+#                                                                      #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                   #
+#         server-system-variables.html#option_mysqld_storage_engine    #
+#                                                                      #
+########################################################################
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+--source include/load_sysvars.inc
+
+######################################################################
+#           START OF default_storage_engine TESTS                            #
+######################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.default_storage_engine;
+SELECT @start_global_value;
+SET @start_session_value = @@session.default_storage_engine;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+######################################################################
+#     Display the DEFAULT value of default_storage_engine                    #
+######################################################################
+
+SET @@global.default_storage_engine = INNODB;
+SET @@global.default_storage_engine = DEFAULT;
+SELECT @@global.default_storage_engine;
+
+SET @@session.default_storage_engine = INNODB;
+SET @@session.default_storage_engine = DEFAULT;
+SELECT @@session.default_storage_engine;
+
+
+--echo '#--------------------FN_DYNVARS_005_02-------------------------#'
+########################################################################
+# Change the value of default_storage_engine to a valid value for GLOBAL Scope #
+########################################################################
+
+SET @@global.default_storage_engine = MYISAM;
+SELECT @@global.default_storage_engine;
+
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+#########################################################################
+# Change the value of default_storage_engine to a valid value for SESSION Scope #
+#########################################################################
+ 
+SET @@session.default_storage_engine = MYISAM;
+SELECT @@session.default_storage_engine;
+
+
+--echo '#---------------------FN_DYNVARS_001_8----------------------#'
+###############################################################
+#  Check if accessing variable with SESSION,LOCAL and without #
+#  SCOPE points to same session variable                      #
+###############################################################
+
+SET @@default_storage_engine = MYISAM;
+SELECT @@default_storage_engine = @@local.default_storage_engine;
+SELECT @@local.default_storage_engine = @@session.default_storage_engine;
+
+
+# check the old obsolete name
+SET @@default_storage_engine = @start_global_value;
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.default_storage_engine = @start_global_value;
+SELECT @@global.default_storage_engine;
+SET @@session.default_storage_engine = @start_session_value;
+SELECT @@session.default_storage_engine;
+
+
+#############################################################
+#                 END OF default_storage_engine TESTS               #
+#############################################################
+

@@ -1,0 +1,90 @@
+################################################################################
+# Test case to verify that concurrent transactions with intersecting
+# write set, the same primary key invisible column, do conflict.
+#
+# T1: WS={t1.c1= 1}
+# T2: WS={t1.c2= 1}
+#
+# Outcome: T1 must abort, T2 must commit.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Create a table on M1.
+# 2. Checking the negative case in which there is a conflict.
+# 3. Checking the positive case in which there is no conflict:
+# 4. Assert servers consistency.
+# 5. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+
+--echo
+--echo # 1. With both members ONLINE. Create a table on M1.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY INVISIBLE, c2 INT);
+
+SELECT * FROM t1;
+
+SELECT c1, c2 FROM t1;
+
+--source include/rpl_sync.inc
+
+
+--echo
+--echo # 2. Checking the negative case in which there is a conflict.
+--echo
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction= INSERT INTO t1 (c1, c2) VALUES (1, 10)
+--let $remote_transaction= INSERT INTO t1 (c1, c2) VALUES (1, 20)
+--let $conflict_test=1
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+
+--echo
+--echo # 3. Checking the positive case in which there is no conflict.
+--echo
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction= INSERT INTO t1 (c1, c2) VALUES (2, 10)
+--let $remote_transaction= INSERT INTO t1 (c1, c2) VALUES (3, 20)
+--let $conflict_test=0
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+
+--echo
+--echo # 4. Assert servers consistency.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain 3 rows after the above execution
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+
+
+--echo
+--echo # 5. Clean up.
+--echo
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

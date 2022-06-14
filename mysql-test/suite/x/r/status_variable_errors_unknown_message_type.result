@@ -86,4 +86,3 @@ Mysqlx.Error {
 
 ok
 Global status
-DROP SCHEMA IF EXISTS xtest;

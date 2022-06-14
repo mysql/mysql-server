@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ void set_log_level(unsigned int);
   to fprintf() (see error_log_vprint() function).
 */
 
-#if defined(DEBUG_ERROR_LOG) && defined(DBUG_OFF)
+#if defined(DEBUG_ERROR_LOG) && defined(NDEBUG)
 #define ERROR_LOG(Level, Msg) \
   do {                        \
   } while (0)
@@ -96,7 +96,7 @@ const char *get_last_error_message(Error_message_buf);
   unless the dbug library implementation is used or debug messages are disabled.
 */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 #define DBUG_PRINT_DO(Keyword, Msg)            \
   do {                                         \
@@ -138,15 +138,6 @@ inline void debug_msg(const char *fmt, ...) {
 #undef DBUG_RETURN
 #define DBUG_RETURN(X) return (X)
 
-#undef DBUG_ASSERT
-#ifndef DBUG_OFF
-#define DBUG_ASSERT(X) assert(X)
-#else
-#define DBUG_ASSERT(X) \
-  do {                 \
-  } while (0)
-#endif
-
 #undef DBUG_DUMP
 #define DBUG_DUMP(A, B, C) \
   do {                     \
@@ -175,7 +166,10 @@ class Blob {
   Blob(const byte *ptr, const size_t len)
       : m_ptr(const_cast<byte *>(ptr)), m_len(len) {}
 
-  Blob(const char *str) : m_ptr((byte *)str) { m_len = strlen(str); }
+  explicit Blob(const char *str)
+      : m_ptr(const_cast<byte *>(reinterpret_cast<const byte *>(str))) {
+    m_len = strlen(str);
+  }
 
   byte *ptr() const { return m_ptr; }
 
@@ -208,7 +202,7 @@ class Connection {
   int m_error;
 
  public:
-  Connection(MYSQL_PLUGIN_VIO *vio);
+  explicit Connection(MYSQL_PLUGIN_VIO *vio);
   int write(const Blob &);
   Blob read();
 
@@ -226,8 +220,8 @@ class Sid {
   SID_NAME_USE m_type;  ///< Type of identified entity.
 
  public:
-  Sid(const wchar_t *);
-  Sid(HANDLE sec_token);
+  explicit Sid(const wchar_t *);
+  explicit Sid(HANDLE sec_token);
   ~Sid();
 
   bool is_valid(void) const;
@@ -243,7 +237,7 @@ class Sid {
 
   operator PSID() const { return (PSID)m_data->User.Sid; }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
  private:
   char *m_as_string;  ///< Cached string representation of the SID.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,38 +27,37 @@ package testsuite.clusterj;
 import java.util.Arrays;
 import java.util.Properties;
 
+import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.SessionFactory.State;
 
 public class RecvThreadCPUTest extends AbstractClusterJTest {
 
     Properties testProperties = new Properties();
-    boolean bindCPUsupported = true;
+    enum BindCpuSupport {UNDEFINED, SUPPORTED, NOT_SUPPORTED};
+    static BindCpuSupport bindCPUsupport = BindCpuSupport.UNDEFINED;
 
-    public RecvThreadCPUTest() {
+    @Override
+    protected void localSetUp() {
+        // close any existing session factory
+        closeAllExistingSessionFactories();
         // checking if CPU set is supported in the system
+        if (bindCPUsupport != BindCpuSupport.UNDEFINED) {
+            // Already checked
+            return;
+        }
         try {
-            createSessionFactoryAndVerify();
+            createSessionFactory();
             sessionFactory.setRecvThreadCPUids(new short[] {0});
+            bindCPUsupport = BindCpuSupport.SUPPORTED;
         } catch (Exception ex) {
             if (ex.getMessage().matches("Binding the receiver thread to CPU is not supported in this environment.")) {
-                bindCPUsupported = false;
+                bindCPUsupport = BindCpuSupport.NOT_SUPPORTED;
+            } else {
+                throw ex;
             }
         }
         destroySessionFactory();
-    }
-
-    @Override
-    protected void localTearDown() {
-        destroySessionFactory();
-    }
-
-    @Override
-    protected Properties modifyProperties() {
-        Properties modifiedProperties = new Properties();
-        modifiedProperties.putAll(props);
-        modifiedProperties.putAll(testProperties);
-        return modifiedProperties;
     }
 
     /**
@@ -66,7 +65,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
      * to change those values.
      */
     public void testRecvThreadCpuLockingApis() {
-        if (!bindCPUsupported) {
+        if (bindCPUsupport == BindCpuSupport.NOT_SUPPORTED) {
             // no need to run test if CPU bind is not supported
             return;
         }
@@ -91,6 +90,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         setRecvThreadActivationThresholdAndVerify(15);
         setRecvThreadActivationThresholdAndVerify(16);
         setRecvThreadActivationThresholdAndFail(-1);
+        destroySessionFactory();
         failOnError();
     }
 
@@ -98,7 +98,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
      * A test to check the receive thread cpu properties.
      */
     public void testRecvThreadCpuProperties() {
-        if (!bindCPUsupported) {
+        if (bindCPUsupport == BindCpuSupport.NOT_SUPPORTED) {
             // no need to run test if CPU bind is not supported
             return;
         }
@@ -133,11 +133,28 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         }
         destroySessionFactory();
 
+        // disable connection pooling and test the cpu locking properties
+        testProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
+        // create session factory with modified cpu locking properties
+        testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "0");
+        testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, 4);
+        createSessionFactoryAndVerify();
+        if (sessionFactory != null) {
+            // check if the session factory was created with proper settings
+            errorIfNotEqual("Sessionfactory created with wrong properties.", new short[]{0},
+                sessionFactory.getRecvThreadCPUids());
+            errorIfNotEqual("Sessionfactory created with wrong properties.", 4,
+                sessionFactory.getRecvThreadActivationThreshold());
+            setRecvThreadActivationThresholdAndVerify(3);
+            setRecvThreadCPUidsAndVerify(new short[] {-1});
+        }
+        destroySessionFactory();
+
         // use a custom dummy database to force creation of new session factory
         testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb4");
         // negative tests with invalid property settings
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "999");
-        createSessionFactoryAndFail("(?s).*The cpuid .* is not valid.*");
+        createSessionFactoryAndFail(".*The cpuid .* is not valid.*");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "0,0");
         createSessionFactoryAndFail(".*The number of cpu ids must match the connection pool size.");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "cpu1");
@@ -147,9 +164,19 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         // use a custom dummy database to force creation of new session factory
         testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb5");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, -1);
-        createSessionFactoryAndFail("(?s).*The activation threshold .* is not valid.*");
+        createSessionFactoryAndFail(".*The activation threshold .* is not valid.*");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, "8,8");
         createSessionFactoryAndFail("Property .* must be numeric.");
+        destroySessionFactory();
+
+        // disable connection pooling and verify properties are validated
+        testProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
+        testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "cpu1");
+        createSessionFactoryAndFail("The cpuids property .* is invalid.*");
+        testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "0,0");
+        createSessionFactoryAndFail("The cpuids property specifies multiple cpu ids .*");
+        destroySessionFactory();
+
         failOnError();
     }
 
@@ -165,6 +192,21 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         if (sessionFactory != null) {
             errorIfNotEqual(errorMessage, sessionFactory.currentState(), State.Open);
         }
+    }
+
+    @Override
+    protected void createSessionFactory() {
+        // Verify that the session factory from previous run was cleaned up
+        if (sessionFactory != null) {
+            throw new RuntimeException("Sessionfactory from previous run not cleaned up");
+        }
+        // Use all the properties and create a session factory
+        Properties modifiedProperties = new Properties();
+        loadProperties();
+        modifiedProperties.putAll(props);
+        modifiedProperties.putAll(testProperties);
+        if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
+        sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
     }
 
     private void destroySessionFactory() {

@@ -90,3 +90,26 @@ ERROR 42S02: Table 'test.t2' doesn't exist
 DROP TABLE t1;
 DROP PREPARE stmt;
 SET DEBUG_SYNC=RESET;
+#
+# WL#13369: Read only schema
+#
+# Test parsing of corrupted property string.
+#
+CREATE SCHEMA s;
+SELECT SCHEMA_NAME, OPTIONS FROM INFORMATION_SCHEMA.SCHEMATA_EXTENSIONS
+WHERE SCHEMA_NAME = 's';
+SCHEMA_NAME	OPTIONS
+s	
+SET debug = '+d,skip_dd_table_access_check';
+UPDATE mysql.schemata SET options = 'abc' WHERE name = 's';
+SELECT options FROM mysql.schemata WHERE name = 's';
+options
+abc
+SET debug = '+d,continue_on_property_string_parse_failure';
+SELECT SCHEMA_NAME, OPTIONS FROM INFORMATION_SCHEMA.SCHEMATA_EXTENSIONS
+WHERE SCHEMA_NAME = 's';
+SCHEMA_NAME	OPTIONS
+s	
+SET debug = DEFAULT;
+DROP SCHEMA s;
+Pattern "Could not parse key-value pairs in property string 'abc'" found

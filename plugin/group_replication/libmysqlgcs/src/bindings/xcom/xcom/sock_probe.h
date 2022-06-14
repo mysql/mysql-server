@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,9 @@
 #ifndef SOCK_PROBE_H
 #define SOCK_PROBE_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "xcom/xcom_common.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
+#include "xcom/xcom_os_layer.h"
 
 struct sock_probe;
 typedef struct sock_probe sock_probe;
@@ -38,16 +34,11 @@ typedef struct sock_probe sock_probe;
 #define INVALID_SOCKET -1
 #endif
 
-void get_host_name(char *a, char *name);
 node_no xcom_find_node_index(node_list *nodes);
 node_no xcom_mynode_match(char *name, xcom_port port);
 
 typedef int (*port_matcher)(xcom_port if_port);
 void set_port_matcher(port_matcher x);
 port_matcher get_port_matcher();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

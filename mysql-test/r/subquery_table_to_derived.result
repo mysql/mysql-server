@@ -1,0 +1,425 @@
+# WL#13425 Transform IN and EXISTS predicates for RAPID
+SET OPTIMIZER_SWITCH="subquery_to_derived=on";
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES(1,10),(2,20),(3,30);
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES(1,10),(2,20),(3,30),(1,110),(2,120),(3,130);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`test`.`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_2` on((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_1`)) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+a	b
+2	20
+3	30
+SET OPTIMIZER_SWITCH="subquery_to_derived=off";
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` where ((`test`.`ot`.`b` < 0) or <in_optimizer>(`test`.`ot`.`a`,<exists>(/* select#2 */ select (`test`.`it`.`a` + 1) from `test`.`t2` `it` where (<cache>(`test`.`ot`.`a`) = (`test`.`it`.`a` + 1)))))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+a	b
+2	20
+3	30
+SET OPTIMIZER_SWITCH="subquery_to_derived=on";
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR (ot.a,ot.a+1,ot.a+2)
+IN (SELECT it.a+1 AS myname,it.a+2 AS myname,it.a+3 FROM t2 it
+WHERE it.a+3=ot.a+2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	36	test.ot.a,func,func,func	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`test`.`it`.`a` + 1) AS `Name_exp_1`,(`test`.`it`.`a` + 2) AS `Name_exp_2`,(`test`.`it`.`a` + 3) AS `Name_exp_3`,(`test`.`it`.`a` + 3) AS `Name_exp_4` from `test`.`t2` `it`) `derived_1_2` on(((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_1`) and ((`test`.`ot`.`a` + 1) = `derived_1_2`.`Name_exp_2`) and ((`test`.`ot`.`a` + 2) = `derived_1_2`.`Name_exp_3`) and ((`test`.`ot`.`a` + 2) = `derived_1_2`.`Name_exp_4`))) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR (ot.a,ot.a+1,ot.a+2)
+IN (SELECT it.a+1 AS myname,it.a+2 AS myname,it.a+3 FROM t2 it
+WHERE it.a+3=ot.a+2);
+a	b
+2	20
+3	30
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT * FROM t2 it WHERE ot.a=it.a+1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	9	test.ot.a	2	100.00	Using where
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,(`test`.`it`.`a` + 1) AS `Name_exp_2` from `test`.`t2` `it`) `derived_1_2` on((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_2`)) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT * FROM t2 it WHERE ot.a=it.a+1);
+a	b
+2	20
+3	30
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT it.b FROM t2 it WHERE ot.a=it.a+1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	9	test.ot.a	2	100.00	Using where
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,(`test`.`it`.`a` + 1) AS `Name_exp_2` from `test`.`t2` `it`) `derived_1_2` on((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_2`)) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT it.b FROM t2 it WHERE ot.a=it.a+1);
+a	b
+2	20
+3	30
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT it.b,ot.b FROM t2 it WHERE ot.a=it.a+1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	9	test.ot.a	2	100.00	Using where
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.ot.b' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,1 AS `Name_exp_2`,(`test`.`it`.`a` + 1) AS `Name_exp_3` from `test`.`t2` `it`) `derived_1_2` on((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_3`)) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT it.b,ot.b FROM t2 it WHERE ot.a=it.a+1);
+a	b
+2	20
+3	30
+CREATE view v2 AS SELECT * FROM t2;
+PREPARE s FROM
+"SELECT * FROM t1 ot
+WHERE ot.b<0 OR EXISTS(SELECT it.b FROM v2 it WHERE ot.a=it.a+1)";
+EXECUTE s;
+a	b
+2	20
+3	30
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR (ot.b<0 AND (ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it)));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`test`.`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_2` on((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_1`)) where ((`test`.`ot`.`b` < 0) or ((`test`.`ot`.`b` < 0) and ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))))
+SELECT * FROM t1 ot
+WHERE ot.b<0 OR (ot.b<0 AND (ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it)));
+a	b
+EXPLAIN SELECT * FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM (SELECT * FROM t2 LIMIT 1) it
+WHERE it.a+3=ot.a+1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	18	test.ot.a,func	2	100.00	Using where; Using index
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` from `test`.`t1` `ot` left join (/* select#2 */ select distinct (`it`.`a` + 1) AS `Name_exp_1`,(`it`.`a` + 3) AS `Name_exp_2` from (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` limit 1) `it`) `derived_1_2` on(((`test`.`ot`.`a` = `derived_1_2`.`Name_exp_1`) and ((`test`.`ot`.`a` + 1) = `derived_1_2`.`Name_exp_2`))) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+BEGIN;
+EXPLAIN UPDATE t1 ot SET a=a*100
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` `ot` set `test`.`ot`.`a` = (`test`.`ot`.`a` * 100) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+UPDATE t1 ot SET a=a*100
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+SELECT * FROM t1;
+a	b
+1	10
+200	20
+300	30
+ROLLBACK;
+BEGIN;
+EXPLAIN UPDATE t1 ot, (SELECT 1) AS dummy
+SET a=a*100
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+3	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	update `test`.`t1` `ot` join (/* select#2 */ select 1 AS `1`) `dummy` left join (/* select#3 */ select distinct (`test`.`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_3` on((`test`.`ot`.`a` = `derived_1_3`.`Name_exp_1`)) set `test`.`ot`.`a` = (`test`.`ot`.`a` * 100) where ((`test`.`ot`.`b` < 0) or (`derived_1_3`.`Name_exp_1` is not null))
+UPDATE t1 ot, (SELECT 1) AS dummy
+SET a=a*100
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+SELECT * FROM t1;
+a	b
+1	10
+200	20
+300	30
+ROLLBACK;
+BEGIN;
+EXPLAIN DELETE FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1003	delete from `test`.`t1` `ot` where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+DELETE FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+SELECT * FROM t1;
+a	b
+1	10
+ROLLBACK;
+BEGIN;
+EXPLAIN DELETE ot.* FROM t1 ot, (SELECT 1) AS dummy
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	ot	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+3	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` `ot` join (/* select#2 */ select 1 AS `1`) `dummy` left join (/* select#3 */ select distinct (`test`.`it`.`a` + 1) AS `Name_exp_1` from `test`.`t2` `it`) `derived_1_3` on((`test`.`ot`.`a` = `derived_1_3`.`Name_exp_1`)) where ((`test`.`ot`.`b` < 0) or (`derived_1_3`.`Name_exp_1` is not null))
+DELETE ot.* FROM t1 ot, (SELECT 1) AS dummy
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+SELECT * FROM t1;
+a	b
+1	10
+ROLLBACK;
+CREATE PROCEDURE del()
+DELETE ot.* FROM t1 ot, (SELECT 1) AS dummy
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
+SELECT * FROM t1;
+a	b
+1	10
+2	20
+3	30
+BEGIN;
+CALL del();
+SELECT * FROM t1;
+a	b
+1	10
+ROLLBACK;
+BEGIN;
+CALL del();
+SELECT * FROM t1;
+a	b
+1	10
+ROLLBACK;
+SELECT * FROM t1;
+a	b
+1	10
+2	20
+3	30
+DROP PROCEDURE del;
+# Testing WL#12885 together with WL#13425
+# WL#12885 with semijoin:
+EXPLAIN SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1) IN (SELECT b FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(<derived2>); Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_1_2` semi join (`test`.`t1`) where (`derived_1_2`.`SUM(a)` = `test`.`t1`.`b`)
+# WL#12885 with WL#13425:
+# Scalar subquery as left expr
+EXPLAIN SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1) IN (SELECT b FROM t1) OR a>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	derived_1_2.SUM(a)	2	100.00	Using where; Using index
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_1_2` on(true) left join (/* select#3 */ select distinct `test`.`t1`.`b` AS `Name_exp_1` from `test`.`t1`) `derived_1_3` on((`derived_1_2`.`SUM(a)` = `derived_1_3`.`Name_exp_1`)) where ((`derived_1_3`.`Name_exp_1` is not null) or (`test`.`t1`.`a` > 3))
+# Scalar subquery as right expr
+EXPLAIN SELECT * FROM t1 WHERE 36 IN (SELECT (SELECT SUM(a) FROM t1)+b FROM t1) OR a>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	16	const	1	100.00	Using where; Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Distinct; Using join buffer (hash join)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct (`derived_2_3`.`SUM(a)` + `test`.`t1`.`b`) AS `Name_exp_1` from `test`.`t1` left join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` on(true) where true) `derived_1_2` on((36 = `derived_1_2`.`Name_exp_1`)) where ((`derived_1_2`.`Name_exp_1` is not null) or (`test`.`t1`.`a` > 3))
+# Scalar subquery in EXISTS
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1)=b) OR a>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1` from `test`.`t1` join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` where (`derived_2_3`.`SUM(a)` = `test`.`t1`.`b`)) `derived_1_2` on(true) where ((`derived_1_2`.`Name_exp_1` is not null) or (`test`.`t1`.`a` > 3))
+# Scalar subquery in NOT EXISTS
+EXPLAIN SELECT * FROM t1 WHERE NOT EXISTS (SELECT * FROM t1 WHERE (SELECT SUM(a) FROM t1)>b) OR a>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1` from `test`.`t1` join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` where (`derived_2_3`.`SUM(a)` > `test`.`t1`.`b`)) `derived_1_2` on(true) where ((`derived_1_2`.`Name_exp_1` is null) or (`test`.`t1`.`a` > 3))
+# Scalar subquery in NOT IN and non-nullables (antijoin)
+EXPLAIN SELECT * FROM t1 WHERE 36 NOT IN (SELECT COALESCE((SELECT SUM(a) FROM t1),b,55) FROM t1) OR a>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	15	const	1	100.00	Using where; Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Distinct; Using join buffer (hash join)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select distinct coalesce(`derived_2_3`.`SUM(a)`,`test`.`t1`.`b`,55) AS `Name_exp_1` from `test`.`t1` left join (/* select#3 */ select sum(`test`.`t1`.`a`) AS `SUM(a)` from `test`.`t1`) `derived_2_3` on(true) where true) `derived_1_2` on((36 = `derived_1_2`.`Name_exp_1`)) where ((`derived_1_2`.`Name_exp_1` is null) or (`test`.`t1`.`a` > 3))
+DROP TABLE t1,t2;
+DROP view v2;
+# Bug#30697743 WL#13425: ASSERT: !THD->IS_ERROR()' IN SELECT_LEX::PREPARE() AT SQL/SQL_RESOLVE
+CREATE TABLE C (col_varchar_key VARCHAR(1));
+CREATE TABLE insert_select_140
+SELECT 1 FROM C WHERE
+col_varchar_key IN ( SELECT  1 FROM C
+WHERE ( 'f' , 'f' ) IN ( SELECT 1 , COUNT(  1 ) FROM C ));
+ERROR 22007: Truncated incorrect DOUBLE value: 'f'
+DROP TABLE C;
+# Bug#30709889 ASSERT: &SUBS_SELECT->FIELDS_LIST == &SUBS_SELECT->ITEM_LIST && SUBS_SELECT->IT
+CREATE TABLE t1 (
+field2 VARCHAR(2),
+field3 BIGINT
+);
+CREATE TABLE t2 (
+col_int INT,
+pk INT
+);
+SELECT 1 FROM t1
+WHERE (field2 ,field3) IN
+(
+SELECT STRAIGHT_JOIN
+1 AS field2 ,
+( SELECT 1 AS SQ1_field1 FROM t2 AS SQ1_alias1
+WHERE SQ1_alias1.col_int != alias1.pk) AS field3
+FROM t2 AS alias1 GROUP BY field2,field3
+);
+1
+DROP TABLE t2,t1;
+# Bug#31018642 RESULT MISMATCHES BETWEEN TRUNK & WORKLOG
+# Verify that <> is decorrelated inside an AND-ed negated predicate
+SET OPTIMIZER_SWITCH="semijoin=off";
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(b INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2),(3);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` <> `derived_1_2`.`Name_exp_2`)) where (`derived_1_2`.`Name_exp_1` is null)
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b);
+a
+EXPLAIN SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) OR t1.a>0;
+ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+EXPLAIN SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) AND t1.a>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` <> `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) AND t1.a>0;
+a
+EXPLAIN
+SELECT * FROM t1
+WHERE EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) AND t1.a>0;
+ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+# Verify that >=, <=, >, < are also decorrelated.
+EXPLAIN
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a>=t2.b) AND t1.a>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` >= `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
+EXPLAIN
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a>t2.b) AND t1.a>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` > `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
+EXPLAIN
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<=t2.b) AND t1.a>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` <= `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
+EXPLAIN
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<t2.b) AND t1.a>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` < `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
+# Reverse the order of arguments:
+EXPLAIN
+SELECT * FROM t1
+WHERE NOT EXISTS(SELECT * FROM t2 WHERE t2.b<t1.a) AND t1.a>0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` > `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
+DROP TABLE t1,t2;
+SET OPTIMIZER_SWITCH="semijoin=on";
+#
+# Bug #31941934: WL#14071: ASSERTION `JOIN == NULLPTR' FAILED|SQL/SQL_SELECT.CC
+#
+CREATE TABLE t1 ( pk INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( b INTEGER );
+SELECT *
+FROM t1 LEFT JOIN t2 ON 2 IN (
+SELECT COUNT(*) FROM t1
+WHERE NOT EXISTS ( SELECT b FROM t3 )
+GROUP BY pk
+);
+pk	a
+DROP TABLE t1, t2, t3;

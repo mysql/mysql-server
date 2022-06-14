@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,9 +67,9 @@ ContentTypeParam content_type_values[] = {
     {"unknown", MimeType::ApplicationOctetStream},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, ContentTypeTest,
-                        ::testing::ValuesIn(content_type_values),
-                        [](const auto &tp) { return tp.param.extension; });
+INSTANTIATE_TEST_SUITE_P(Spec, ContentTypeTest,
+                         ::testing::ValuesIn(content_type_values),
+                         [](const auto &tp) { return tp.param.extension; });
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

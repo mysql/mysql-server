@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,12 +46,24 @@ TempTable Table implementation. */
 
 namespace temptable {
 
-Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
-    : m_rows(&m_allocator),
+Table::Table(TABLE *mysql_table, Block *shared_block,
+             bool all_columns_are_fixed_size, size_t tmp_table_size_limit)
+    : m_resource_monitor(tmp_table_size_limit),
+      m_allocator(shared_block, m_resource_monitor),
+      m_rows(&m_allocator),
       m_all_columns_are_fixed_size(all_columns_are_fixed_size),
       m_indexes_are_enabled(true),
       m_mysql_row_length(mysql_table->s->rec_buff_length),
-      m_index_entries(m_allocator),
+      /* We use `explicit vector(size_type count, const Allocator& alloc)`
+       * constructor as the one we would like to use, the
+       * `explicit vector(const Allocator& alloc) noexcept` is noexcept, while
+       * the MS VC++ with non-zero ITERATOR_DEBUG_LEVEL macro value will perform
+       * an allocation using the supplied allocator and cause std::terminate to
+       * be called in case the exception is thrown, as it is not allowed with
+       * `noexcept`. There is a related bug reported to VC++:
+       * https://developercommunity.visualstudio.com/t/debug-version-of-stl-is-not-excepion-safe-and-caus/77779
+       */
+      m_index_entries(0, m_allocator),
       m_insert_undo(m_allocator),
       m_columns(m_allocator),
       m_mysql_table_share(mysql_table->s) {
@@ -60,7 +72,7 @@ Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
   const unsigned char *mysql_row = nullptr;
 
   if (number_of_columns > 0) {
-    auto const field_ptr = mysql_table->field[0]->ptr;
+    auto const field_ptr = mysql_table->field[0]->field_ptr();
     auto const mysql_row_length = mysql_table->s->rec_buff_length;
 
     mysql_row = mysql_table->record[0];
@@ -74,7 +86,7 @@ Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
         /* field_ptr is inside record[1]. */
       } else {
         /* ptr does not point inside neither record[0] nor record[1]. */
-        abort();
+        my_abort();
       }
     }
   }
@@ -118,12 +130,12 @@ Result Table::insert(const unsigned char *mysql_row) {
   Result ret;
 
   if (m_all_columns_are_fixed_size) {
-    DBUG_ASSERT(m_rows.element_size() == m_mysql_table_share->rec_buff_length);
-    DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
+    assert(m_rows.element_size() == m_mysql_table_share->rec_buff_length);
+    assert(m_rows.element_size() == m_mysql_row_length);
 
     memcpy(row, mysql_row, m_mysql_row_length);
   } else {
-    DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
+    assert(m_rows.element_size() == sizeof(Row));
 
     new (row) Row(mysql_row, &m_allocator);
 
@@ -156,17 +168,17 @@ Result Table::insert(const unsigned char *mysql_row) {
 Result Table::update(const unsigned char *mysql_row_old,
                      const unsigned char *mysql_row_new,
                      Storage::Element *target_row) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (m_all_columns_are_fixed_size) {
-    DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
+    assert(m_rows.element_size() == m_mysql_row_length);
   } else {
-    DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
+    assert(m_rows.element_size() == sizeof(Row));
     Row *row_in_m_rows = reinterpret_cast<Row *>(target_row);
     const Row row_old(mysql_row_old, nullptr);
-    DBUG_ASSERT(Row::compare(*row_in_m_rows, row_old, m_columns,
-                             m_mysql_table_share->field) == 0);
+    assert(Row::compare(*row_in_m_rows, row_old, m_columns,
+                        m_mysql_table_share->field) == 0);
   }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   /* Index update is unsupported.
   See bug #27978968: TEMPTABLE::TABLE::UPDATE MAY CORRUPT THE TABLE
@@ -175,7 +187,7 @@ Result Table::update(const unsigned char *mysql_row_old,
   if (indexed()) {
     if (is_index_update_needed(mysql_row_old, mysql_row_new)) {
       /* Assert to make it easier to catch potential problem during tests */
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "update of indexes");
       return Result::UNSUPPORTED;
     }
@@ -212,7 +224,7 @@ Result Table::remove(const unsigned char *mysql_row_must_be,
                      const Storage::Iterator &victim_position) {
   Row row(mysql_row_must_be, &m_allocator);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* Check that `mysql_row_must_be` equals the row pointed to by
    * `victim_position`. */
   if (m_all_columns_are_fixed_size) {
@@ -220,10 +232,10 @@ Result Table::remove(const unsigned char *mysql_row_must_be,
   } else {
     /* *victim_position is a pointer to an `temptable::Row` object. */
     Row *row_our = reinterpret_cast<Row *>(*victim_position);
-    DBUG_ASSERT(Row::compare(*row_our, row, m_columns,
-                             m_mysql_table_share->field) == 0);
+    assert(Row::compare(*row_our, row, m_columns, m_mysql_table_share->field) ==
+           0);
   }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   if (indexed()) {
     Result ret = indexes_remove(*victim_position);
@@ -243,7 +255,7 @@ Result Table::remove(const unsigned char *mysql_row_must_be,
 }
 
 void Table::indexes_create() {
-  DBUG_ASSERT(m_index_entries.empty());
+  assert(m_index_entries.empty());
 
   const size_t number_of_indexes = m_mysql_table_share->keys;
 
@@ -302,7 +314,7 @@ bool Table::is_index_update_needed(const unsigned char *mysql_row_old,
 Result Table::indexes_insert(Storage::Element *row) {
   Result ret = Result::OK;
 
-  DBUG_ASSERT(m_insert_undo.empty());
+  assert(m_insert_undo.empty());
 
   for (auto &entry : m_index_entries) {
     Index *index = entry.m_index;

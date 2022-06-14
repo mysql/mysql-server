@@ -6,7 +6,7 @@
 # Partitions: crash if varchar length > 65530
 # BUG#48164 limited size to 3072 bytes
 #
-
+--source include/not_valgrind.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -398,6 +398,8 @@ SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT * FROM t2 ORDER BY a, tz LIMIT 3;
 SELECT * FROM t2 ORDER BY a DESC, tz LIMIT 3;
+
+START TRANSACTION;
 UPDATE t2 SET a = TIMESTAMPADD(SECOND, 1, a);
 SELECT MIN(a), MAX(a) FROM t2;
 SELECT COUNT(*) FROM t2;
@@ -405,6 +407,15 @@ SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
+ROLLBACK;
+
+--echo Repeat with multi-table UPDATE syntax (Bug#30787444)
+
+START TRANSACTION;
+UPDATE t2 STRAIGHT_JOIN (SELECT 1) AS dt SET a = TIMESTAMPADD(SECOND, 1, a);
+SELECT COUNT(*) FROM t2 WHERE a = 0;
+SELECT * FROM t2 ORDER BY a, tz;
+COMMIT;
 
 --echo # Test start range changes
 # Different number of warnings with/without ps-protocol

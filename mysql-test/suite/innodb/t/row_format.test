@@ -1,0 +1,313 @@
+# TEST
+--echo #
+--echo # Bug#31479542 : MYSQL 8 ORPHANED TABLE DUE TO UNCHECKED NON-EXISTENT ROW FORMAT CHECK.
+--echo #
+
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+
+--echo # SETUP
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo
+--echo # Test 1 : Upgrade from 5.7 having table with no row_format specified
+--echo
+
+SHOW VARIABLES LIKE "%innodb_default_row_format%";
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/data_57.zip $MYSQL_TMP_DIR/data_57.zip
+--file_exists $MYSQL_TMP_DIR/data_57.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_57.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+SHOW VARIABLES LIKE "%innodb_default_row_format%";
+
+--echo # Verify tables after upgrade
+SHOW CREATE TABLE test.t1;
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME="t1";
+
+SELECT * FROM test.t1;
+
+# Try to add an index on table. This will be incompatible with the
+# ROW_FORAMT of table (REDUNDANT). So if table is rebuilt, ADD INDEX
+# should succeed. Should fail otherwise.
+
+--echo # Use default algorithm (INPLACE). Table not rebuilt. Expect error.
+--error ER_INDEX_COLUMN_TOO_LONG
+ALTER TABLE test.t1 ADD INDEX idx(C2);
+
+--echo # Use algorithm INPLACE. Table not rebuilt. Expect error.
+--error ER_INDEX_COLUMN_TOO_LONG
+ALTER TABLE test.t1 ADD INDEX idx(C2), ALGORITHM=INPLACE;
+
+--echo # Use algorithm COPY. Table rebuilt. Expect success.
+ALTER TABLE test.t1 ADD INDEX idx(C2), ALGORITHM=COPY;
+
+SELECT * FROM test.t1;
+
+--echo # Restart server
+--replace_result $DATADIR DATADIR
+--source include/restart_mysqld.inc
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME="t1";
+
+SELECT * FROM test.t1;
+
+--echo # Cleanup
+DROP TABLE t1;
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data_57.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/data_57.zip
+
+--echo # Restarting server to restore server state
+--let $restart_parameters = "restart:"
+--source include/start_mysqld.inc
+
+--echo
+--echo # Test 2 : Test behavior of ALTER with different algorithm and create
+--echo #          table options.
+--echo
+SET @innodb_default_row_format_saved = @@global.innodb_default_row_format;
+
+--echo # --------------- DEFAULT ALGORITHM -----------------
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_default_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=DEFAULT;
+CREATE TABLE t_implicit_row_format (C1 INT KEY, C2 INT);
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+SET @@global.innodb_default_row_format=DYNAMIC;
+
+--echo # Add index. Table won't be rebuit. So no format change.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_DEFAULT(C2);
+ALTER TABLE t_default_row_format ADD INDEX IDX_DEFAULT(C2);
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_DEFAULT(C2);
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+
+ALTER TABLE t_explicit_row_format DROP INDEX IDX_DEFAULT;
+ALTER TABLE t_default_row_format DROP INDEX IDX_DEFAULT;
+ALTER TABLE t_implicit_row_format DROP INDEX IDX_DEFAULT;
+
+--echo # Add index with ROW_FORMAT. Table will be rebuilt. So format change for all.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_DEFAULT(C2), ROW_FORMAT=DYNAMIC;
+ALTER TABLE t_default_row_format ADD INDEX IDX_DEFAULT(C2), ROW_FORMAT=DYNAMIC;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_DEFAULT(C2), ROW_FORMAT=DYNAMIC;
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+
+DROP TABLE t_explicit_row_format, t_default_row_format, t_implicit_row_format;
+
+--echo # --------------- INPLACE ALTER ---------------------
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_default_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=DEFAULT;
+CREATE TABLE t_implicit_row_format (C1 INT KEY, C2 INT);
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+SET @@global.innodb_default_row_format=DYNAMIC;
+
+--echo # Add index. Table won't be rebuilt. So no format change.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_INPLACE(C2), ALGORITHM=INPLACE;
+ALTER TABLE t_default_row_format ADD INDEX IDX_INPLACE(C2), ALGORITHM=INPLACE;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_INPLACE(C2), ALGORITHM=INPLACE;
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+
+ALTER TABLE t_explicit_row_format DROP INDEX IDX_INPLACE;
+ALTER TABLE t_default_row_format DROP INDEX IDX_INPLACE;
+ALTER TABLE t_implicit_row_format DROP INDEX IDX_INPLACE;
+
+--echo # Add index with FORCE. Table will be rebuilt. So format change for implicit and default.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_INPLACE(C2), FORCE, ALGORITHM=INPLACE;
+ALTER TABLE t_default_row_format ADD INDEX IDX_INPLACE(C2), FORCE, ALGORITHM=INPLACE;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_INPLACE(C2), FORCE, ALGORITHM=INPLACE;
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+
+DROP TABLE t_explicit_row_format, t_default_row_format, t_implicit_row_format;
+
+--echo # --------------- COPY ALTER ------------------------
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_default_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=DEFAULT;
+CREATE TABLE t_implicit_row_format (C1 INT KEY, C2 INT);
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+SET @@global.innodb_default_row_format=DYNAMIC;
+
+--echo # Add index. Table will be rebuilt. So format change for implicit and default.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_COPY(C2), ALGORITHM=COPY;
+ALTER TABLE t_default_row_format ADD INDEX IDX_COPY(C2), ALGORITHM=COPY;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_COPY(C2), ALGORITHM=COPY;
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+
+-- echo # CLEANUP
+DROP TABLE t_explicit_row_format;
+DROP TABLE t_default_row_format;
+DROP TABLE t_implicit_row_format;
+
+--echo
+--echo # Test 3 : Test behavior of ALTER with different algorithm and create
+--echo #          table options while try to add an index on tables which
+--echo #          voilates length restriction.
+--echo
+
+SET @@global.innodb_default_row_format=REDUNDANT;
+
+CREATE TABLE t_explicit_redundant (
+  C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+  C2 VARCHAR(767) NOT NULL DEFAULT ''
+) ROW_FORMAT=REDUNDANT;
+
+CREATE TABLE t_implicit_redundant (
+  C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+  C2 VARCHAR(767) NOT NULL DEFAULT ''
+);
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+
+SET @@global.innodb_default_row_format=DYNAMIC;
+
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode= '';
+
+--echo # --------------- DEFAULT ALGORITHM (INPLACE) -----------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2);
+SHOW CREATE TABLE t_explicit_redundant;
+--error ER_INDEX_COLUMN_TOO_LONG
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+ALTER TABLE t_explicit_redundant DROP INDEX IDX;
+
+--echo # --------------- INPLACE ALTER ---------------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t_explicit_redundant;
+--error ER_INDEX_COLUMN_TOO_LONG
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2), ALGORITHM=INPLACE;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+ALTER TABLE t_explicit_redundant DROP INDEX IDX;
+
+--echo # --------------- DEFAULT ALGORITHM (COPY) -----------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2), MODIFY COLUMN C1 INT;
+SHOW CREATE TABLE t_explicit_redundant;
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2), MODIFY COLUMN C1 INT;
+SHOW CREATE TABLE t_implicit_redundant;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+# Cleanup
+DROP TABLE t_explicit_redundant, t_implicit_redundant;
+SET @@global.innodb_default_row_format=REDUNDANT;
+
+CREATE TABLE t_explicit_redundant (
+  C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+  C2 VARCHAR(767) NOT NULL DEFAULT ''
+) ROW_FORMAT=REDUNDANT;
+
+CREATE TABLE t_implicit_redundant (
+  C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+  C2 VARCHAR(767) NOT NULL DEFAULT ''
+);
+
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+
+SET @@global.innodb_default_row_format=DYNAMIC;
+
+--echo # --------------- COPY ALTER ------------------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2), ALGORITHM=COPY;
+SHOW CREATE TABLE t_explicit_redundant;
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2), ALGORITHM=COPY;
+SHOW CREATE TABLE t_implicit_redundant;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+ALTER TABLE t_explicit_redundant DROP INDEX IDX;
+ALTER TABLE t_implicit_redundant DROP INDEX IDX;
+
+--echo # CLEANUP
+DROP TABLE t_explicit_redundant, t_implicit_redundant;
+SET sql_mode=@sql_mode_saved;
+SET @@global.innodb_default_row_format=@innodb_default_row_format_saved;
+
+--echo #
+--echo # Bug#31912685 : ASSERTION FAILURE:HANDLER0ALTER.CC:
+--echo #                5194:OLD_TABLE->S->ROW_TYPE == ROW_TYPE_DEFA
+--echo #
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+
+DROP TABLE IF EXISTS t_compressed;
+CREATE TABLE t_compressed (a INT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+SHOW CREATE TABLE t_compressed;
+
+SELECT TABLE_ID INTO @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+
+SET GLOBAL innodb_file_per_table = 0;
+
+ALTER TABLE t_compressed add index idx(a), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t_compressed;
+
+# Make sure table isn't rebuilt.
+SELECT TABLE_ID = @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+
+--echo # CLEANUP
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+DROP TABLE t_compressed;

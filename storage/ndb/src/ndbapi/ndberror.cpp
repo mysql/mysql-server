@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -266,43 +266,51 @@ ErrorBundle ErrorCodes[] = {
   { 217,  DMEC, TR, "217" },
   { 218,  DMEC, TR, "Out of LongMessageBuffer" },
   { 219,  DMEC, TR, "219" },
-  { 221,  DMEC, TR, "Too many concurrently fired triggers (increase "
-    "MaxNoOfFiredTriggers)" },
+  { 221,  DMEC, TR, "Too many concurrently fired triggers, increase "
+    "SharedGlobalMemory" },
   { 233,  DMEC, TR,
+    "Out of operation records in transaction coordinator (increase SharedGlobalMemory)" },
+  { 234,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
-  { 275,  DMEC, TR, "Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)" },
-  { 279,  DMEC, TR, "Out of transaction markers in transaction coordinator" },
-  { 273,  DMEC, TR, "Out of transaction markers databuffer in transaction coordinator" },
+  { 251,  DMEC, TR, "Out of frag location records in TC (increase SharedGlobalMemory)" },
+  { 275,  DMEC, TR, "Out of transaction records for complete phase (increase SharedGlobalMemory)" },
+  { 273,  DMEC, TR, "Out of transaction markers databuffer in TC, "
+    "increase SharedGlobalMemory" },
+  { 279,  DMEC, TR, "Out of transaction markers in TC, increase SharedGlobalMemory" },
+  { 293,  DMEC, TR, "Out of attribute buffers in TC block, increase SharedGlobalMemory" },
   { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
-  { 418,  DMEC, TR, "Out of transaction buffers in LQH" },
-  { 419,  DMEC, TR, "419" },
-  { 245,  DMEC, TR, "Too many active scans" },
+  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongMessageBuffer" },
+  { 419,  DMEC, TR, "Out of signal memory, increase LongMessageBuffer" },
+  { 245,  DMEC, TR, "Too many active scans, increase MaxNoOfConcurrentScans" },
   { 488,  DMEC, TR, "Too many active scans" },
-  { 489,  DMEC, TR, "Too many active scans" },
+  { 489,  DMEC, TR, "Out of scan records in LQH, increase SharedGlobalMemory" },
   { 490,  DMEC, TR, "Too many active scans" },
-  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager" },
+  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongMessageBuffer" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
-  { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
+  { 873,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 899,  DMEC, TR, "Rowid already allocated" },
+  { 909,  DMEC, TR, "Out of transaction memory in local data manager, ordered scan operation (increase SharedGlobalMemory)" },
   { 921,  DMEC, TR, "Out of transaction memory in local data manager, copy tuples (increase SharedGlobalMemory)" },
-  { 922,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 923,  DMEC, TR, "Out of UNDO buffer memory (increase UNDO_BUFFER_SIZE)" },
-  { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
+  { 924,  DMEC, TR, "Out of transaction memory in local data manager, stored procedure record (increase SharedGlobalMemory)" },
+  { 925,  DMEC, TR, "Out of transaction memory in local data manager, tup scan operation (increase SharedGlobalMemory)" },
+  { 926,  DMEC, TR, "Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)" },
+  { 1217, DMEC, TR, "Out of operation records in local data manager (increase SharedGlobalMemory)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
   { 1234, DMEC, TR, "REDO log files overloaded (increase disk hardware)" },
-  { 1222, DMEC, TR, "Out of transaction markers in LQH" },
+  { 1222, DMEC, TR, "Out of transaction markers in LQH, increase SharedGlobalMemory" },
   { 4021, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4022, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4032, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 1501, DMEC, TR, "Out of undo space" },
-  {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
-  {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
+  {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase SharedGlobalMemory)" },
+  {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase SharedGlobalMemory)" },
   {  780, DMEC, TR, "Too many schema transactions" },
   {  783, DMEC, TR, "Too many schema operations" },
   {  785, DMEC, TR, "Schema object is busy with another schema transaction" },
-  {  291, DMEC, TR, "Out of scanfrag records in TC (increase MaxNoOfLocalScans)" },
+  {  291, DMEC, TR, "Out of scanfrag records in TC (increase SharedGlobalMemory)" },
 
   /**
    * InsufficientSpace
@@ -339,6 +347,7 @@ ErrorBundle ErrorCodes[] = {
   { 237,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Transaction had timed out when trying to commit it" },
   { 5024, DMEC, TO, "Time-out due to node shutdown not starting in time" },
   { 5025, DMEC, TO, "Time-out due to node shutdown not completing in time" },
+  { 635,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Lock already taken, not waiting" }, // HA_ERR_NO_WAIT_LOCK
   
   /**
    * OverloadError
@@ -380,7 +389,6 @@ ErrorBundle ErrorCodes[] = {
   { 278,  DMEC, IE, "278" },
   { 287,  DMEC, IE, "Index corrupted" },
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
-  { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
   { 292,  DMEC, IE, "Inconsistent index state in TC block" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
@@ -421,6 +429,7 @@ ErrorBundle ErrorCodes[] = {
   { 295,  DMEC, IE, "Unlocked operation has invalid state" },
   { 298,  DMEC, IE, "Invalid distribution key" },
   { 416,  DMEC, IE, "Bad state handling unlock request" },
+  { 1237, DMEC, IE, "LQHKEYREQ Protocol error" },
 
   /**
    * Application error
@@ -428,7 +437,7 @@ ErrorBundle ErrorCodes[] = {
   { 281,  HA_ERR_NO_CONNECTION, AE, "Operation not allowed due to cluster shutdown in progress" },
   { 299,  DMEC, AE, "Operation not allowed or aborted due to single user mode" },
   { 261,  DMEC, AE,
-    "DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction" },
+    "DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction/MaxNoOfConcurrentOperations" },
   { 763,  DMEC, AE, "DDL is not supported with mixed data-node versions" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 829,  DMEC, AE, "Corrupt data received for insert/update" },
@@ -455,6 +464,7 @@ ErrorBundle ErrorCodes[] = {
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
   { 325,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node ID invalid or undefined" },
+  { 326,  DMEC, AE, "Same node(s) specified for new nodegroup" },
   { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
@@ -563,7 +573,6 @@ ErrorBundle ErrorCodes[] = {
   { 906,  DMEC, SE, "Unsupported attribute type in index" },
   { 907,  DMEC, SE, "Unsupported character set in table or index" },
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
-  { 909,  DMEC, IE, "No free index scan op" },
   { 910, HA_ERR_NO_SUCH_TABLE, SE, "Index is being dropped" },
   { 911,  DMEC, SE, "Index stat scan requested on index with unsupported key size" },
   { 912,  DMEC, AE, "Index stat scan requested with wrong lock mode" },
@@ -599,6 +608,7 @@ ErrorBundle ErrorCodes[] = {
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   { 1516, DMEC, SE, "File too small" },
   { 1517, DMEC, SE, "Insufficient disk page buffer memory. Increase DiskPageBufferMemory or reduce data file size." },
+  { 1518, DMEC, OL, "IO overload error" },
 
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
@@ -611,6 +621,7 @@ ErrorBundle ErrorCodes[] = {
   { 796,  DMEC, SE, "Out of schema transaction memory" },
   { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
   { 799,  HA_WRONG_CREATE_OPTION, SE, "Non default partitioning without partitions" },
+  { 4377, DMEC, AE, "Database and schema name must be set on Ndb object"},
 
   /**
    * FunctionNotImplemented
@@ -629,6 +640,11 @@ ErrorBundle ErrorCodes[] = {
   { 1304, DMEC, IE, "Sequence failure" },
   { 1305, DMEC, IE, "Backup definition not implemented" },
   { 1306, DMEC, AE, "Backup not supported in diskless mode (change Diskless)" },
+  { 1307, DMEC, IE, "Encrypted backup is not supported by the data node/s" },
+  { 1308, DMEC, CE, "Data node/s configured to have encryption but password not provided" },
+  { 1309, DMEC, CE, "Encryption password has bad character/s (see 'HELP START BACKUP')" },
+  { 1310, DMEC, CE, "Encryption password is too long (see 'HELP START BACKUP')" },
+  { 1311, DMEC, CE, "Encryption password is of zero length" },
 
   { 1321, DMEC, UD, "Backup aborted by user request" },
   { 1322, DMEC, IE, "Backup already completed" },
@@ -659,11 +675,12 @@ ErrorBundle ErrorCodes[] = {
   { 1702, DMEC, AE, "Node already connected" },
   { 1703, DMEC, IT, "Node failure handling not completed" },
   { 1704, DMEC, AE, "Node type mismatch" },
+  { 1705, DMEC, IT, "Not ready for connection allocation yet" },
 
   /*
    * Index stats error codes
    */
-  { 4714, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " do not exist" },
+  { 4714, DMEC, AE, "Index stats system tables do not exist" },
   { 4715, DMEC, AE, "Index stats for specified index do not exist" },
   { 4716, DMEC, AE, "Index stats methods usage error" },
   { 4717, DMEC, AE, "Index stats cannot allocate memory" },
@@ -805,6 +822,8 @@ ErrorBundle ErrorCodes[] = {
   { 4554, DMEC, AE, "NdbBlob can only be closed from Active state" },
   { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
   { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
+  { 4557, DMEC, AE, "Column types must be identical when comparing two columns" },
+  { 4558, DMEC, AE, "Pending Blob operations must be executed before this call" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
@@ -960,6 +979,12 @@ ErrorBundle ErrorCodes[] = {
     "Batch size for sub scan cannot be smaller than number of fragments." },
   { QRY_EMPTY_PROJECTION, DMEC, AE,
     "Query has operation with empty projection." },
+  { QRY_OJ_NOT_SUPPORTED, DMEC, AE,
+    "Outer joined scans not supported by data nodes." },
+  //{ QRY_NEST_NOT_SPECIFIED, DMEC, AE,      <<== DEPRECATED error
+  //  "Outer joined scans need FirstInner/Upper to be specified" },
+  { QRY_NEST_NOT_SUPPORTED, DMEC, AE,
+    "FirstInner/Upper has to be an ancestor or a sibling" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

@@ -374,6 +374,8 @@ PRIMARY KEY (pk)
 
 insert into h2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 
+ANALYZE TABLE h2;
+
 CREATE TABLE aa3 (
   col_int_key int(11) DEFAULT NULL,
   KEY col_int_key (col_int_key)

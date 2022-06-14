@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 
 #include "sql/field.h"
@@ -38,8 +35,8 @@ using my_testing::Server_initializer;
 
 class FieldNewDecimalTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -49,32 +46,21 @@ class FieldNewDecimalTest : public ::testing::Test {
 };
 
 class Mock_field_new_decimal : public Field_new_decimal {
-  uchar buffer[MAX_FIELD_WIDTH];
-  uchar null_byte;
-  void initialize() {
-    ptr = buffer;
-    memset(buffer, 0, MAX_FIELD_WIDTH);
-    null_byte = '\0';
-    set_null_ptr(&null_byte, 1);
-  }
-
  public:
   Mock_field_new_decimal(int decimals)
-      : Field_new_decimal(0,             // ptr_arg
-                          8,             // len_arg
-                          NULL,          // null_ptr_arg
-                          1,             // null_bit_arg
-                          Field::NONE,   // auto_flags_arg
-                          "field_name",  // field_name_arg
-                          decimals,      // dec_arg
-                          false,         // zero_arg
-                          false)         // unsigned_arg
-  {
-    initialize();
-  }
+      : Field_new_decimal(nullptr,                    // ptr_arg
+                          8,                          // len_arg
+                          &Field::dummy_null_buffer,  // null_ptr_arg
+                          1,                          // null_bit_arg
+                          Field::NONE,                // auto_flags_arg
+                          "field_name",               // field_name_arg
+                          decimals,                   // dec_arg
+                          false,                      // zero_arg
+                          false)                      // unsigned_arg
+  {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
   void test_store_string(const char *store_value, const int length,
                          const char *expected_string_result,

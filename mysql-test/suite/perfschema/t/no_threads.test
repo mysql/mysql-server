@@ -1,5 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
-
+--source include/have_myisam.inc
 --source include/not_threadpool.inc
 
 

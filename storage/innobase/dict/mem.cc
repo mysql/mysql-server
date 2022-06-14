@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -39,7 +39,9 @@ external tools. */
 
 #include "dict0dict.h"
 #ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 #include "lock0lock.h"
+#endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
@@ -90,7 +92,7 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 {
   ut_ad(table);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-  ut_d(table->cached = FALSE);
+  ut_d(table->cached = false);
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
@@ -115,8 +117,8 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  ut_free(table->name.m_name);
-  table->name.m_name = NULL;
+  ut::free(table->name.m_name);
+  table->name.m_name = nullptr;
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
@@ -125,38 +127,61 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
   for (ulint i = 0; i < table->n_v_def; i++) {
     dict_v_col_t *vcol = dict_table_get_nth_v_col(table, i);
 
-    UT_DELETE(vcol->v_indexes);
+    ut::delete_(vcol->v_indexes);
   }
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  if (table->s_cols != NULL) {
-    UT_DELETE(table->s_cols);
+  if (table->s_cols != nullptr) {
+    ut::delete_(table->s_cols);
   }
 
 #ifndef UNIV_HOTBACKUP
-  if (table->temp_prebuilt != NULL) {
+  if (table->temp_prebuilt != nullptr) {
     ut_ad(table->is_intrinsic());
-    UT_DELETE(table->temp_prebuilt);
+    ut::delete_(table->temp_prebuilt);
   }
 #endif /* !UNIV_HOTBACKUP */
 
   mem_heap_free(table->heap);
 }
 
-/** Creates a table memory object.
- @return own: table object */
-dict_table_t *dict_mem_table_create(
-    const char *name, /*!< in: table name */
-    space_id_t space, /*!< in: space where the clustered index of
-                      the table is placed */
-    ulint n_cols,     /*!< in: total number of columns including
-                      virtual and non-virtual columns */
-    ulint n_v_cols,   /*!< in: number of virtual columns */
-    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
-    uint32_t flags,   /*!< in: table flags */
-    uint32_t flags2)  /*!< in: table flags2 */
-{
+/** System databases */
+static std::string innobase_system_databases[] = {
+    "mysql/", "information_schema/", "performance_schema/", ""};
+
+/** Determines if a table is a system table
+@param[in]  name  table_name
+@return true if table is system table */
+static bool dict_mem_table_is_system(const std::string name) {
+  /* Table has the following format: database/table and some system table are
+  of the form SYS_* */
+  if (name.find('/') != std::string::npos) {
+    size_t table_len = name.length();
+
+    std::string system_db = std::string(innobase_system_databases[0]);
+    int i = 0;
+
+    while (system_db.compare("") != 0) {
+      size_t len = system_db.length();
+
+      if (table_len > len && name.compare(0, len, system_db) == 0) {
+        return true;
+      }
+
+      system_db = std::string(innobase_system_databases[++i]);
+    }
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
+dict_table_t *dict_mem_table_create(const char *name, space_id_t space,
+                                    ulint n_cols, ulint n_v_cols,
+                                    ulint n_m_v_cols, uint32_t flags,
+                                    uint32_t flags2, uint32_t n_drop_cols) {
   dict_table_t *table;
   mem_heap_t *heap;
 
@@ -166,17 +191,17 @@ dict_table_t *dict_mem_table_create(
   ut_a(!(flags2 & DICT_TF2_UNUSED_BIT_MASK));
 #endif /* !UNIV_HOTBACKUP */
 
-  heap = mem_heap_create(DICT_HEAP_SIZE);
+  heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   table = static_cast<dict_table_t *>(mem_heap_zalloc(heap, sizeof(*table)));
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
-  lock_table_lock_list_init(&table->locks);
+  UT_LIST_INIT(table->locks);
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
+  UT_LIST_INIT(table->indexes);
 
   table->heap = heap;
 
@@ -185,6 +210,7 @@ dict_table_t *dict_mem_table_create(
   table->flags = (unsigned int)flags;
   table->flags2 = (unsigned int)flags2;
   table->name.m_name = mem_strdup(name);
+  table->is_system_table = dict_mem_table_is_system(table->name.m_name);
   table->space = (unsigned int)space;
   table->dd_space_id = dd::INVALID_OBJECT_ID;
   table->n_t_cols = (unsigned int)(n_cols + table->get_n_sys_cols());
@@ -194,7 +220,7 @@ dict_table_t *dict_mem_table_create(
   table->n_instant_cols = table->n_cols;
 
   table->cols = static_cast<dict_col_t *>(
-      mem_heap_alloc(heap, table->n_cols * sizeof(dict_col_t)));
+      mem_heap_alloc(heap, (table->n_cols + n_drop_cols) * sizeof(dict_col_t)));
   table->v_cols = static_cast<dict_v_col_t *>(
       mem_heap_alloc(heap, n_v_cols * sizeof(*table->v_cols)));
 
@@ -227,11 +253,11 @@ dict_table_t *dict_mem_table_create(
     table->fts = fts_create(table);
     table->fts->cache = fts_cache_create(table);
   } else {
-    table->fts = NULL;
+    table->fts = nullptr;
   }
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-    dict_get_and_save_space_name(table, true);
+    dict_get_and_save_space_name(table);
   }
 
   new (&table->foreign_set) dict_foreign_set();
@@ -262,7 +288,7 @@ dict_index_t *dict_mem_index_create(
 
   ut_ad(table_name && index_name);
 
-  heap = mem_heap_create(DICT_HEAP_SIZE);
+  heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   index = static_cast<dict_index_t *>(mem_heap_zalloc(heap, sizeof(*index)));
 
@@ -279,7 +305,8 @@ dict_index_t *dict_mem_index_create(
         mem_heap_alloc(heap, sizeof(*index->rtr_track)));
     mutex_create(LATCH_ID_RTR_ACTIVE_MUTEX,
                  &index->rtr_track->rtr_active_mutex);
-    index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
+    index->rtr_track->rtr_active =
+        ut::new_withkey<rtr_info_active>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
@@ -288,14 +315,10 @@ dict_index_t *dict_mem_index_create(
 }
 
 /** Adds a column definition to a table. */
-void dict_mem_table_add_col(
-    dict_table_t *table, /*!< in: table */
-    mem_heap_t *heap,    /*!< in: temporary memory heap, or NULL */
-    const char *name,    /*!< in: column name, or NULL */
-    ulint mtype,         /*!< in: main datatype */
-    ulint prtype,        /*!< in: precise type */
-    ulint len)           /*!< in: precision */
-{
+void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
+                            const char *name, ulint mtype, ulint prtype,
+                            ulint len, bool is_visible, uint32_t phy_pos,
+                            uint8_t v_added, uint8_t v_dropped) {
   dict_col_t *col;
   ulint i;
 
@@ -310,7 +333,7 @@ void dict_mem_table_add_col(
   table->n_t_def++;
 
   if (name) {
-    if (table->n_def == table->n_cols) {
+    if (table->n_def == (table->n_cols + table->get_n_instant_drop_cols())) {
       heap = table->heap;
     }
     if (i && !table->col_names) {
@@ -325,18 +348,14 @@ void dict_mem_table_add_col(
 
   col = table->get_col(i);
 
-  dict_mem_fill_column_struct(col, i, mtype, prtype, len);
+  dict_mem_fill_column_struct(col, i, mtype, prtype, len, is_visible, phy_pos,
+                              v_added, v_dropped);
 }
 
-/** This function populates a dict_col_t memory structure with
- supplied information. */
-void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
-                                                     be filled */
-                                 ulint col_pos,      /*!< in: column position */
-                                 ulint mtype,        /*!< in: main data type */
-                                 ulint prtype,       /*!< in: precise type */
-                                 ulint col_len)      /*!< in: column length */
-{
+void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
+                                 ulint prtype, ulint col_len, bool is_visible,
+                                 uint32_t phy_pos, uint8_t v_added,
+                                 uint8_t v_dropped) {
   column->ind = (unsigned int)col_pos;
   column->ord_part = 0;
   column->max_prefix = 0;
@@ -344,6 +363,10 @@ void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
   column->prtype = (unsigned int)prtype;
   column->len = (unsigned int)col_len;
   column->instant_default = nullptr;
+  column->is_visible = is_visible;
+  column->set_phy_pos(phy_pos);
+  column->set_version_added(v_added);
+  column->set_version_dropped(v_dropped);
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
   ulint mbminlen;

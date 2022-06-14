@@ -131,6 +131,7 @@ SELECT * FROM tsp_rvar PARTITION (sp23);
 
 SELECT count(a) FROM tsp_rvar;
 
+--sorted_result
 SELECT partition_name, subpartition_name FROM information_schema.partitions 
        WHERE table_name LIKE 'tsp_rvar1';
 --sorted_result
@@ -172,6 +173,7 @@ SELECT * FROM tsp_rvar1 PARTITION (p2sp4);
 
 SELECT count(a) FROM tsp_rvar1;
 
+--sorted_result
 SELECT partition_name, subpartition_name FROM information_schema.partitions 
       WHERE table_name LIKE 'tp_l';
 
@@ -183,6 +185,7 @@ SELECT * FROM tp_l PARTITION (p2);
 
 SELECT count(a) FROM tp_l;
 
+--sorted_result
 SELECT partition_name, subpartition_name FROM information_schema.partitions 
       WHERE table_name LIKE 'tsp_l';
 

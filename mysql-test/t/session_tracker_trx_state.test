@@ -3,6 +3,11 @@
 # (@@session_track_transaction_info) marks it unsafe only when logbin is on
 --source include/not_log_bin.inc
 
+# Skip unless --xa_detach_on_prepare as this affects session tracking output
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
 --echo #
 --echo # WL#6631: Detect transaction boundaries
 --echo #
@@ -428,11 +433,11 @@ SELECT 1 FROM DUAL;
 SELECT " -> ", argument FROM mysql.general_log WHERE argument LIKE '% DUAL' AND (command_type!='Prepare');
 ROLLBACK;
 
-TRUNCATE TABLE mysql.general_log;
-
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+
+TRUNCATE TABLE mysql.general_log;
 
 
 --echo ########################################################################
@@ -457,6 +462,28 @@ XA END 'test2', 'yy';
 XA PREPARE 'test2', 'yy';
 XA COMMIT 'test2', 'yy';
 
+
+--echo # Run XA PREPARE test cases also with xa_detach_on_prepare=OFF.
+--let $CURSESS_xa_detach_on_prepare = `SELECT @@SESSION.xa_detach_on_prepare`
+SET SESSION xa_detach_on_prepare = false;
+
+--echo # XA ROLLBACK
+XA START 'test1_';
+INSERT t1 VALUES (1);
+XA END 'test1_';
+XA PREPARE 'test1_';
+XA ROLLBACK 'test1_';
+
+--echo # XA COMMIT
+XA START 'test2_', 'yy';
+INSERT t1 VALUES (2);
+XA END 'test2_', 'yy';
+XA PREPARE 'test2_', 'yy';
+XA COMMIT 'test2_', 'yy';
+
+--replace_result $CURSESS_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare
+--eval SET SESSION xa_detach_on_prepare = $CURSESS_xa_detach_on_prepare
+
 --echo # XA COMMIT ONE PHASE
 XA START 'test3','xx',5;
 INSERT t1 VALUES (3);
@@ -465,7 +492,6 @@ XA COMMIT 'test3','xx',5 ONE PHASE;
 
 SET SESSION session_track_transaction_info="OFF";
 DROP TABLE t1;
-
 
 
 --echo ########################################################################

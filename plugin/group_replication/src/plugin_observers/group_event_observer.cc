@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-Group_event_observer::~Group_event_observer() {}
+Group_event_observer::~Group_event_observer() = default;
 
 Group_events_observation_manager::Group_events_observation_manager() {
   observer_list_lock = new Checkable_rwlock(
@@ -50,21 +51,18 @@ Group_events_observation_manager::~Group_events_observation_manager() {
 
 void Group_events_observation_manager::register_group_event_observer(
     Group_event_observer *observer) {
-  DBUG_ENTER("Group_events_observation_manager::register_group_event_observer");
+  DBUG_TRACE;
   write_lock_observer_list();
   group_events_observers.push_back(observer);
   unlock_observer_list();
-  DBUG_VOID_RETURN;
 }
 
 void Group_events_observation_manager::unregister_group_event_observer(
     Group_event_observer *observer) {
-  DBUG_ENTER(
-      "Group_events_observation_manager::unregister_group_event_observer");
+  DBUG_TRACE;
   write_lock_observer_list();
   group_events_observers.remove(observer);
   unlock_observer_list();
-  DBUG_VOID_RETURN;
 }
 
 void Group_events_observation_manager::read_lock_observer_list() {
@@ -101,14 +99,27 @@ int Group_events_observation_manager::after_view_change(
 }
 
 int Group_events_observation_manager::after_primary_election(
-    std::string primary_uuid, bool primary_changed,
+    std::string primary_uuid,
+    enum_primary_election_primary_change_status primary_change_status,
     enum_primary_election_mode election_mode, int error_on_election) {
   int error = 0;
-
+  assert(primary_change_status !=
+             enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE ||
+         (primary_change_status ==
+              enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE &&
+          group_member_mgr->is_member_info_present(primary_uuid)));
+#ifndef NDEBUG
+  if (primary_change_status == enum_primary_election_primary_change_status::
+                                   PRIMARY_DID_CHANGE_WITH_ERROR ||
+      primary_change_status == enum_primary_election_primary_change_status::
+                                   PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE) {
+    assert(error_on_election != 0);
+  }
+#endif
   read_lock_observer_list();
   for (Group_event_observer *observer : group_events_observers) {
-    error += observer->after_primary_election(primary_uuid, primary_changed,
-                                              election_mode, error_on_election);
+    error += observer->after_primary_election(
+        primary_uuid, primary_change_status, election_mode, error_on_election);
   }
   unlock_observer_list();
 

@@ -1,0 +1,40 @@
+CALL mtr.add_suppression("Error initializing session for connection: Too many connections");
+
+
+## I. Verify that X Plugin can start when `max_connections` limit
+##    was reached
+#
+# 1. Restart server with `max_connections` set to 1 and block
+#    initialization of X Plugin
+#
+#    a. Make X Protocol connection, which should fails,
+#       that is going to show that X Plugin is not running
+#    b. Make two classic protocol connection with root to
+#       reach the limit (first connection is `default`
+#       which is done be mysqltest at restart)
+#    was compressed is replied with error without executing it
+#    c. Unblock X Plugin and show that the initialization was
+#       successful
+
+#
+# I.1
+# restart: --debug=+d,xplugin_init_wait --loose-mysqlx_cache_cleaner=0
+
+#
+# I.1.a
+
+#
+# I.1.b
+
+#
+# I.1.c
+# Removing debug point 'xplugin_init_wait' from @@GLOBAL.debug
+RUN SELECT "Some expected string" as result
+result
+Some expected string
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# restart:

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,6 @@
 #include <util/BaseString.hpp>
 #include <util/SparseBitmask.hpp>
 #include <ctype.h>
-#ifndef _WIN32
-#include <strings.h>
-#endif
 
 #define PARSE_END_ENTRIES 8192
 #define MAX_STRING_SIZE 32
@@ -123,7 +120,7 @@ parse_mask(const char *str, T& mask)
     {
       return -3;
     }
-    char * delim = (char*)strchr(list[i].c_str(), '-');
+    char * delim = const_cast<char*>(strchr(list[i].c_str(), '-'));
     unsigned first = 0;
     unsigned last = 0;
     if (delim == 0)

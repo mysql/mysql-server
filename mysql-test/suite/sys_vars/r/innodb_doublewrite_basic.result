@@ -1,17 +1,15 @@
-'#---------------------BS_STVARS_026_01----------------------#'
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 COUNT(@@GLOBAL.innodb_doublewrite)
 1
 1 Expected
-'#---------------------BS_STVARS_026_02----------------------#'
-SET @@GLOBAL.innodb_doublewrite=1;
+SET @@GLOBAL.innodb_doublewrite=off;
 ERROR HY000: Variable 'innodb_doublewrite' is a read only variable
-Expected error 'Read only variable'
+SET @@GLOBAL.innodb_doublewrite=on;
+ERROR HY000: Variable 'innodb_doublewrite' is a read only variable
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 COUNT(@@GLOBAL.innodb_doublewrite)
 1
 1 Expected
-'#---------------------BS_STVARS_026_03----------------------#'
 SELECT IF(@@GLOBAL.innodb_doublewrite, "ON", "OFF") = VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_doublewrite';
@@ -28,12 +26,10 @@ WHERE VARIABLE_NAME='innodb_doublewrite';
 COUNT(VARIABLE_VALUE)
 1
 1 Expected
-'#---------------------BS_STVARS_026_04----------------------#'
 SELECT @@innodb_doublewrite = @@GLOBAL.innodb_doublewrite;
 @@innodb_doublewrite = @@GLOBAL.innodb_doublewrite
 1
 1 Expected
-'#---------------------BS_STVARS_026_05----------------------#'
 SELECT COUNT(@@innodb_doublewrite);
 COUNT(@@innodb_doublewrite)
 1
@@ -48,6 +44,3 @@ SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 COUNT(@@GLOBAL.innodb_doublewrite)
 1
 1 Expected
-SELECT innodb_doublewrite = @@SESSION.innodb_doublewrite;
-ERROR 42S22: Unknown column 'innodb_doublewrite' in 'field list'
-Expected error 'Readonly variable'

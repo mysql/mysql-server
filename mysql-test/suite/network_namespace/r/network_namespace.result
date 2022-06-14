@@ -22,6 +22,7 @@ root@10.0.2.1
 # Check that client can establish connection to the address 10.0.1.1 from the network namespace 'blue'
 USER()
 root@10.0.1.1
+# Use network namespaces with admin port
 # restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=ADMIN_PORT
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@10.0.2.1;
 USER()

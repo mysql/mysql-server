@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,23 @@
 
 #include "sql/rpl_info_handler.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/rpl_info_values.h"  // Rpl_info_values
 
-Rpl_info_handler::Rpl_info_handler(const int nparam)
-    : field_values(0),
+bool operator!(Rpl_info_handler::enum_field_get_status status) {
+  return status ==
+         Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+}
+#include <iostream>
+Rpl_info_handler::Rpl_info_handler(const int nparam,
+                                   MY_BITMAP const *nullable_bitmap)
+    : field_values(nullptr),
       ninfo(nparam),
       cursor((my_off_t)0),
-      prv_error(0),
+      prv_error(false),
+      prv_get_error(
+          Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL),
       sync_counter(0),
       sync_period(0) {
   field_values = new Rpl_info_values(ninfo);
@@ -39,11 +48,18 @@ Rpl_info_handler::Rpl_info_handler(const int nparam)
   */
   if (field_values && field_values->init()) {
     delete field_values;
-    field_values = 0;
+    field_values = nullptr;
   }
+  bitmap_init(&nullable_fields, nullptr, nparam);
+  bitmap_clear_all(&nullable_fields);
+  if (nullable_bitmap != nullptr)
+    bitmap_copy(&nullable_fields, nullable_bitmap);
 }
 
-Rpl_info_handler::~Rpl_info_handler() { delete field_values; }
+Rpl_info_handler::~Rpl_info_handler() {
+  bitmap_free(&nullable_fields);
+  delete field_values;
+}
 
 void Rpl_info_handler::set_sync_period(uint period) { sync_period = period; }
 
@@ -57,6 +73,10 @@ const char *Rpl_info_handler::get_rpl_info_type_str() {
       return "TABLE";
   }
 
-  DBUG_ASSERT(0);
+  assert(0);
   return "";
+}
+
+bool Rpl_info_handler::is_field_nullable(int pos) {
+  return bitmap_is_set(&nullable_fields, pos);
 }

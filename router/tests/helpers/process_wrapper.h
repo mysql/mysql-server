@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,18 +28,23 @@
 #include "process_launcher.h"
 #include "router_test_helpers.h"
 
+#include <atomic>
 #include <cstring>
+#include <mutex>
+#include <thread>
 
 using mysql_harness::Path;
 
 // test performance tweaks
 // shorter timeout -> faster test execution, longer timeout -> increased test
 // stability
-constexpr unsigned kDefaultExpectOutputTimeout = 1000;
+static constexpr auto kDefaultExpectOutputTimeout =
+    std::chrono::milliseconds(1000);
 
 // wait-timeout should be less than infinite, and long enough that even with
 // valgrind we properly pass the tests
-static constexpr unsigned kDefaultWaitForExitTimeout = 10 * 1000;
+static constexpr auto kDefaultWaitForExitTimeout =
+    std::chrono::milliseconds(10000);
 
 static constexpr size_t kReadBufSize = 1024;
 
@@ -52,6 +57,15 @@ static constexpr size_t kReadBufSize = 1024;
  **/
 class ProcessWrapper {
  public:
+  ~ProcessWrapper() { stop_output_reader_thread(); }
+
+  void stop_output_reader_thread() {
+    output_reader_stop_ = true;
+    if (output_reader_.joinable()) {
+      output_reader_.join();
+    }
+  }
+
   /** @brief Checks if the process wrote the specified string to its output.
    *
    * This function loops read()ing child process output, until either the
@@ -59,23 +73,21 @@ class ProcessWrapper {
    * also calls autoresponder to react to any prompts issued by the child
    * process.
    *
-   * @param str         Expected output string
-   * @param regex       True if str is a regex pattern
-   * @param timeout_ms  Timeout in milliseconds, to wait for the output
+   * @param str      Expected output string
+   * @param regex    True if str is a regex pattern
+   * @param timeout  timeout in milliseconds, to wait for the output
    * @return Returns bool flag indicating if the specified string appeared
    *                 in the process' output.
    */
-  bool expect_output(const std::string &str, bool regex = false,
-                     unsigned timeout_ms = kDefaultExpectOutputTimeout);
+  bool expect_output(
+      const std::string &str, bool regex = false,
+      std::chrono::milliseconds timeout = kDefaultExpectOutputTimeout);
 
   /** @brief Returns the full output that was produced the process till moment
    *         of calling this method.
-   *  TODO: this description does not match what the code does, this needs to
-   * be fixed.
    */
   std::string get_full_output() {
-    while (read_and_autorespond_to_output(0)) {
-    }
+    std::lock_guard<std::mutex> output_lock(output_mtx_);
     return execute_output_raw_;
   }
 
@@ -101,18 +113,9 @@ class ProcessWrapper {
    *
    * doesn't check if there is new content.
    */
-  std::string get_current_output() const { return execute_output_raw_; }
-
-  /** @brief Register the response that should be written to the process'
-   * input descriptor when the given string appears on it output while
-   * executing expect_output().
-   *
-   * @param query     string that should trigger writing the response
-   * @param response  string that should get written
-   */
-  void register_response(const std::string &query,
-                         const std::string &response) {
-    output_responses_[query] = response;
+  std::string get_current_output() const {
+    std::lock_guard<std::mutex> output_lock(output_mtx_);
+    return execute_output_raw_;
   }
 
   /** @brief Returns the exit code of the process.
@@ -138,12 +141,13 @@ class ProcessWrapper {
    * milliseconds. If the timeout expired, it throws runtime_error. In case of
    * failure, it throws system_error.
    *
-   * @param timeout_ms maximum amount of time to wait for the process to
+   * @param timeout maximum amount of time to wait for the process to
    * finish
    * @throws std::runtime_error on timeout, std::system_error on failure
    * @returns exit code of the process
    */
-  int wait_for_exit(unsigned timeout_ms = kDefaultWaitForExitTimeout);
+  int wait_for_exit(
+      std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
 
   /** @brief Returns process PID
    *
@@ -169,58 +173,79 @@ class ProcessWrapper {
     return launcher_.send_shutdown_event();
   }
 
- private:
-  ProcessWrapper(const std::string &app_cmd, const char **args,
-                 bool include_stderr)
-      : launcher_(app_cmd.c_str(), args, include_stderr) {
-    launcher_.start();
+  std::string get_logfile_path() const {
+    return logging_dir_ + "/" + logging_file_;
   }
 
- protected:
+  void set_logging_path(const std::string &logging_dir,
+                        const std::string &logging_file) {
+    logging_dir_ = logging_dir;
+    logging_file_ = logging_file;
+  }
+
   bool output_contains(const std::string &str, bool regex = false) const;
 
+  using OutputResponder = std::function<std::string(const std::string &)>;
+
+  void wait_for_sync_point_result(stdx::expected<void, std::error_code> v) {
+    wait_for_sync_point_result_ = std::move(v);
+  }
+
+  [[nodiscard]] stdx::expected<void, std::error_code>
+  wait_for_sync_point_result() const {
+    return wait_for_sync_point_result_;
+  }
+
+ private:
+  ProcessWrapper(
+      const std::string &app_cmd, const std::vector<std::string> &args,
+      const std::vector<std::pair<std::string, std::string>> &env_vars,
+      bool include_stderr, OutputResponder &output_responder);
+
+ protected:
   /** @brief read() output from child until timeout expires, optionally
    * autoresponding to prompts
    *
-   * @param timeout_ms timeout in milliseconds
+   * @param timeout timeout in milliseconds
    * @param autoresponder_enabled autoresponder is enabled if true (default)
-   * @returns true if at least one byte was read
+   * @retval true if at least one byte was read
    */
-  bool read_and_autorespond_to_output(unsigned timeout_ms,
+  bool read_and_autorespond_to_output(std::chrono::milliseconds timeout,
                                       bool autoresponder_enabled = true);
 
   /** @brief write() predefined responses on found predefined patterns
    *
-   * @param bytes_read buffer length
-   * @param cmd_output buffer containig output to be scanned for triggers and
+   * @param cmd_output buffer containing output to be scanned for triggers and
    * possibly autoresponded to
    */
-  void autorespond_to_matching_lines(int bytes_read, char *cmd_output);
+  void autorespond_to_matching_lines(const std::string_view &cmd_output);
 
   /** @brief write() a predefined response if a predefined pattern is matched
    *
    * @param line line of output that will trigger a response, if matched
-   * @returns true if an autoresponse was sent
+   * @retval true if an autoresponse was sent
    */
   bool autorespond_on_matching_pattern(const std::string &line);
-
-  /** @brief see wait_for_exit() */
-  int wait_for_exit_while_reading_and_autoresponding_to_output(
-      unsigned timeout_ms);
 
   mysql_harness::ProcessLauncher
       launcher_;  // <- this guy's destructor takes care of
                   // killing the spawned process
   std::string execute_output_raw_;
   std::string last_line_read_;
-  std::map<std::string, std::string> output_responses_;
+  OutputResponder output_responder_;
   int exit_code_;
   bool exit_code_set_{false};
 
   std::string logging_dir_;
   std::string logging_file_;
 
+  std::atomic<bool> output_reader_stop_{false};
+  std::thread output_reader_;
+  mutable std::mutex output_mtx_;
+
   friend class ProcessManager;
+
+  stdx::expected<void, std::error_code> wait_for_sync_point_result_{};
 };  // class ProcessWrapper
 
 #endif  // _PROCESS_WRAPPER_H_

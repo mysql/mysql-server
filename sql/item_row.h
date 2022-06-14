@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,13 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h"  // Item
-#include "sql/parse_tree_node_base.h"
+#include "sql/item.h"            // Item
+#include "sql/parse_location.h"  // POS
+#include "sql/sql_const.h"       // Item_processor
 
-class SELECT_LEX;
+struct Parse_context;
+
+class Query_block;
 class Send_field;
 class String;
 class THD;
@@ -77,16 +80,23 @@ class Item_row : public Item {
     @todo
       think placing 2-3 component items in item (as it done for function
   */
-  Item_row(const POS &pos, Item *head, List<Item> &tail);
-  Item_row(Item *head, List<Item> &tail);
+  Item_row(const POS &pos, Item *head, const mem_root_deque<Item *> &tail);
+  Item_row(Item *head, const mem_root_deque<Item *> &tail);
   Item_row(Item_row *item)
       : Item(),
         items(item->items),
         used_tables_cache(item->used_tables_cache),
         not_null_tables_cache(0),
         arg_count(item->arg_count),
-        with_null(0) {}
-
+        with_null(false) {
+    /*
+      The convention for data_type() of this class is that it starts as
+      MYSQL_TYPE_INVALID and ends as MYSQL_TYPE_NULL when resolving is complete.
+      This is just used as an indicator of resolver progress. A row object does
+      not have a data type by itself.
+    */
+    set_data_type(MYSQL_TYPE_INVALID);
+  }
   bool itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return ROW_ITEM; }
@@ -103,11 +113,11 @@ class Item_row : public Item {
   }
   String *val_str(String *) override {
     illegal_method_call("val_str");
-    return 0;
+    return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
     illegal_method_call("val_decimal");
-    return 0;
+    return nullptr;
   }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     illegal_method_call("get_date");
@@ -119,11 +129,12 @@ class Item_row : public Item {
   }
 
   bool fix_fields(THD *thd, Item **ref) override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
+  bool propagate_type(THD *thd, const Type_properties &type) override;
   void cleanup() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   table_map used_tables() const override { return used_tables_cache; }
   enum Item_result result_type() const override { return ROW_RESULT; }
   void update_used_tables() override;

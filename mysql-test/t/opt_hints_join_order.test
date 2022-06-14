@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Join order hints are not supported.
+
 CREATE TABLE t1 (f1 INT NOT NULL);
 INSERT INTO t1 VALUES (9),(0), (7);
 

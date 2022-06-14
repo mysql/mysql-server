@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_import_tool.inc
 --source have_ndb_error_insert.inc
 
 --echo # large ndb_import tests
@@ -72,10 +71,10 @@ into table t2ver
 lines terminated by '\n';
 --enable_query_log
 
-# crash node 2 in 5-25 seconds, may hit t1 or t2
+# crash node 2 in 5-15 seconds, may hit t1 or t2
 
-exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
-     -e "2 dump 9999 5000 25000" >> $NDB_TOOLS_OUTPUT 2>&1;
+exec $NDB_MGM
+     -e "2 dump 9999 5000 15000" >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # import t1, t2
 
@@ -85,10 +84,14 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      $MYSQLTEST_VARDIR/tmp/t1.csv
      $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
---echo # verify t1, t2
+# Before moving to the next stage we need to ensure that the restart has
+# started and that we wait for it to complete. Otherwise we can get
+# random errors in all parts of this test including tests after this one.
 
-# node failure may hit these too
---disable_warnings
+--source ndb_wait_started.inc
+--source include/ndb_not_readonly.inc
+
+--echo # verify t1, t2
 
 select count(*) from t1;
 select count(*) from t1ver;
@@ -101,8 +104,6 @@ select count(*) from t2 x, t2ver y
 where x.b = y.b;
 
 drop table t1, t1ver, t2, t2ver;
-
---enable_warnings
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map

@@ -1,0 +1,35 @@
+################################################################################
+#
+# This test checks isn't possible to SET PERSIST on
+# group_replication_force_members variable.
+#
+# Test:
+#  0. This test require one server
+#  1. SET PERSIST group_replication_force_members shall fail,
+#     variable non persistable
+#  2. SET PERSIST_ONLY group_replication_force_members shall fail,
+#     variable non persistable
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ####################################################################
+--echo # 1. SET PERSIST group_replication_force_members shall fail,
+--echo #    variable non persistable
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST group_replication_force_members = "";
+
+--echo
+--echo ####################################################################
+--echo # 2. SET PERSIST_ONLY group_replication_force_members shall fail,
+--echo #    variable non persistable
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY group_replication_force_members = "";
+
+--source include/group_replication_end.inc

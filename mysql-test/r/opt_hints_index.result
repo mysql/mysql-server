@@ -1,0 +1,208 @@
+CREATE TABLE t1 (a INT, b INT, c INT, d INT,
+KEY i_a(a), KEY i_b(b),
+KEY i_ab(a,b), KEY i_c(c), KEY i_d(d));
+INSERT INTO t1 VALUES
+(1,1,1,1),(2,2,2,1),(3,3,3,1),(4,4,4,1),
+(5,5,5,1),(6,6,6,1),(7,7,7,1),(8,8,8,1);
+INSERT INTO t1 SELECT a,b, c + 10, d FROM t1;
+INSERT INTO t1 SELECT a,b, c + 20, d FROM t1;
+INSERT INTO t1 SELECT a,b, c + 40, d FROM t1;
+INSERT INTO t1 SELECT a,b, c + 80, d FROM t1;
+INSERT INTO t1 SELECT a,b, c + 160, d FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT /*+ INDEX(t1) JOIN_INDEX(t1) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint JOIN_INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b, i_c) INDEX(t1 i_d) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint INDEX(`t1`  `i_d`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_b`, `i_c`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a) JOIN_INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_b) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint JOIN_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) JOIN_INDEX(`t1`@`select#1` `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint GROUP_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) GROUP_INDEX(`t1`@`select#1` `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint GROUP_INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint ORDER_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) ORDER_INDEX(`t1`@`select#1` `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1) */ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint ORDER_INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) INDEX(t1 i_c)*/ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint ORDER_INDEX(`t1`  `i_b`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_c`) ORDER_INDEX(`t1`@`select#1` `i_a`, `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) INDEX(t1)*/ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t1`@`select#1` `i_b`) ORDER_INDEX(`t1`@`select#1` `i_a`, `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+  ORDER_INDEX(t1) GROUP_INDEX(t1) INDEX(t1)*/ a FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t1`@`select#1`) ORDER_INDEX(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i_a,i_b	i_a,i_b	5,5	NULL	4	1.25	Using intersect(i_a,i_b); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_b`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+EXPLAIN SELECT /*+ INDEX(t1 i_a, i_ab) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i_a,i_ab	i_ab	10	const,const	1	5.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_ab`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_c) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i_a,i_b,i_c	i_c	5	const	1	5.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`, `i_b`) JOIN_INDEX(`t1`@`select#1` `i_c`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+EXPLAIN SELECT /*+ NO_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i_a,i_b	i_b	5	const	32	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (`test`.`t1`.`b` = 2) group by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ NO_JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i_a,i_b,i_ab	i_b	5	const	32	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_JOIN_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (`test`.`t1`.`b` = 2) group by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	i_ab	i_ab	10	NULL	256	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i_ab	i_ab	5	NULL	9	100.00	Using index for group-by; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_ab) */ a FROM t1
+ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ORDER_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_a) */ a FROM t1
+ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_ab) */ a FROM t1
+ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_ab	10	NULL	256	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_ab`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1
+ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ * FROM t1
+ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	i_a	5	NULL	256	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` order by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ NO_INDEX(t1) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	256	0.39	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 IGNORE INDEX (i_a)
+WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i_b,i_ab,i_c	i_ab,i_c	10,5	NULL	1	100.00	Using intersect(i_ab,i_c); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` IGNORE INDEX (`i_a`) where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+EXPLAIN UPDATE /*+ INDEX(t1 i_a) */ t1 SET d = 1 WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	i_a	i_a	5	const	32	100.00	Using where
+Warnings:
+Note	1003	update /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1` set `test`.`t1`.`d` = 1 where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+EXPLAIN DELETE /*+ INDEX(t1 i_a) */ FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	i_a	i_a	5	const	32	100.00	Using where
+Warnings:
+Note	1003	delete /*+ INDEX(`t1`@`select#1` `i_a`) */ from `test`.`t1` where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+CREATE VIEW v1 AS SELECT /*+ NO_INDEX(t1 i_a,i_b) */ a FROM t1 WHERE
+b IN (SELECT /*+ NO_INDEX(t1 i_ab,i_b) */ a FROM t1 WHERE a > 3)
+ORDER BY a;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ `t1`.`a` AS `a` from `t1` where `t1`.`b` in (select `t1`.`a` from `t1` where (`t1`.`a` > 3)) order by `t1`.`a`	utf8mb4	utf8mb4_0900_ai_ci
+EXPLAIN SELECT a FROM v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i_a	i_a	5	NULL	160	5.00	Using where; Using index; Using temporary; Using filesort; LooseScan
+1	SIMPLE	t1	NULL	index	NULL	i_ab	10	NULL	256	12.50	Using where; Using index; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 3)) order by `test`.`t1`.`a`
+EXPLAIN SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i_a	i_a	5	NULL	160	5.00	Using where; Using index; LooseScan
+1	SIMPLE	t1	NULL	index	NULL	i_ab	10	NULL	256	12.50	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	ta	NULL	range	i_a	i_a	5	NULL	160	100.00	Using where; Using index; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`ta`@`select#1` `i_a`) */ `test`.`ta`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) join `test`.`t1` `ta` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`ta`.`a` > 3) and (`test`.`t1`.`a` > 3))
+CREATE VIEW v2 AS SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select /*+ INDEX(`ta`@`select#1` `i_a`) */ `ta`.`a` AS `a` from (`v1` join `t1` `ta`) where (`ta`.`a` > 3)	utf8mb4	utf8mb4_0900_ai_ci
+EXPLAIN SELECT a FROM v2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i_a	i_a	5	NULL	160	5.00	Using where; Using index; LooseScan
+1	SIMPLE	t1	NULL	index	NULL	i_ab	10	NULL	256	12.50	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	ta	NULL	range	i_a	i_a	5	NULL	160	100.00	Using where; Using index; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) join `test`.`t1` `ta` /*+ INDEX(`ta`@`select#1` `i_a`) */  where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`ta`.`a` > 3) and (`test`.`t1`.`a` > 3))
+EXPLAIN SELECT /*+ INDEX(tb i_a) */ tb.a FROM v2, t1 tb WHERE tb.a > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i_a	i_a	5	NULL	160	5.00	Using where; Using index; LooseScan
+1	SIMPLE	t1	NULL	index	NULL	i_ab	10	NULL	256	12.50	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	ta	NULL	range	i_a	i_a	5	NULL	160	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	tb	NULL	range	i_a	i_a	5	NULL	160	100.00	Using where; Using index; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`tb`@`select#1` `i_a`) */ `test`.`tb`.`a` AS `a` from `test`.`t1` /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) */  semi join (`test`.`t1` /*+ NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ ) join `test`.`t1` `ta` /*+ INDEX(`ta`@`select#1` `i_a`) */  join `test`.`t1` `tb` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`tb`.`a` > 3) and (`test`.`ta`.`a` > 3) and (`test`.`t1`.`a` > 3))
+EXPLAIN SELECT /*+ INDEX(t1 i_a) */ * FROM t1 IGNORE INDEX(i_a)
+WHERE a = 1 AND b = 2 AND c = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i_a	i_a	5	const	32	0.39	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t1`@`select#1` `i_a`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` IGNORE INDEX (`i_a`) where ((`test`.`t1`.`c` = 3) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1))
+CREATE VIEW v3 AS SELECT /*+ INDEX_MERGE(t1) */a FROM t1
+WHERE a = 1 AND b = 2 AND c = 3;
+DROP VIEW v1, v2, v3;
+DROP TABLE t1;

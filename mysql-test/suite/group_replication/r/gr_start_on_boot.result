@@ -1,5 +1,5 @@
 SET SESSION sql_log_bin= 0;
-CALL mtr.add_suppression("The group name option is mandatory");
+CALL mtr.add_suppression("The group_replication_group_name option is mandatory");
 CALL mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION sql_log_bin= 1;
 

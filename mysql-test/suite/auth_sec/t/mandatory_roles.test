@@ -143,7 +143,9 @@ DROP ROLE r1,r2,r3,r4,r5,rr1;
 
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 CREATE ROLE r1, r2, r3;
-SET GLOBAL mandatory_roles="aa ; bb : r3, r1, (r2), *r2,";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mandatory_roles="foo,";
+SET GLOBAL mandatory_roles="aa ; bb : r3, r1, (r2), *r2";
 connect(con1,localhost,u1,foo,test,,,);
 SHOW GRANTS;
 connection default;

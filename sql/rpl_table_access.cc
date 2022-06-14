@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,9 +46,18 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
                                      enum thr_lock_type lock_type,
                                      TABLE **table,
                                      Open_tables_backup *backup) {
+  return open_table(thd, to_string(dbstr), to_string(tbstr), max_num_field,
+                    lock_type, table, backup);
+}
+
+bool System_table_access::open_table(THD *thd, std::string dbstr,
+                                     std::string tbstr, uint max_num_field,
+                                     enum thr_lock_type lock_type,
+                                     TABLE **table,
+                                     Open_tables_backup *backup) {
   Query_tables_list query_tables_list_backup;
 
-  DBUG_ENTER("System_table_access::open_table");
+  DBUG_TRACE;
   before_open(thd);
 
   /*
@@ -63,8 +72,8 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
   thd->reset_n_backup_open_tables_state(backup,
                                         Open_tables_state::SYSTEM_TABLES);
 
-  TABLE_LIST tables(dbstr.str, dbstr.length, tbstr.str, tbstr.length, tbstr.str,
-                    lock_type);
+  TABLE_LIST tables(dbstr.c_str(), dbstr.length(), tbstr.c_str(),
+                    tbstr.length(), tbstr.c_str(), lock_type);
 
   tables.open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
 
@@ -74,11 +83,11 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
     thd->restore_backup_open_tables_state(backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     if (thd->is_operating_gtid_table_implicitly)
-      LogErr(WARNING_LEVEL, ER_RPL_GTID_TABLE_CANNOT_OPEN, dbstr.str,
-             tbstr.str);
+      LogErr(WARNING_LEVEL, ER_RPL_GTID_TABLE_CANNOT_OPEN, dbstr.c_str(),
+             tbstr.c_str());
     else
-      my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.str, tbstr.str);
-    DBUG_RETURN(true);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.c_str(), tbstr.c_str());
+    return true;
   }
 
   if (tables.table->s->fields < max_num_field) {
@@ -93,14 +102,14 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
     my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
              tables.table->s->db.str, tables.table->s->table_name.str,
              max_num_field, tables.table->s->fields);
-    DBUG_RETURN(true);
+    return true;
   }
 
   thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
   *table = tables.table;
   tables.table->use_all_columns();
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool System_table_access::close_table(THD *thd, TABLE *table,
@@ -109,7 +118,7 @@ bool System_table_access::close_table(THD *thd, TABLE *table,
   Query_tables_list query_tables_list_backup;
   bool res = false;
 
-  DBUG_ENTER("System_table_access::close_table");
+  DBUG_TRACE;
 
   if (table) {
     if (error)
@@ -143,8 +152,15 @@ bool System_table_access::close_table(THD *thd, TABLE *table,
     thd->restore_backup_open_tables_state(backup);
   }
 
-  DBUG_EXECUTE_IF("simulate_flush_commit_error", { res = true; });
-  DBUG_RETURN(res);
+  DBUG_EXECUTE_IF("simulate_flush_commit_error", {
+    my_printf_error(ER_ERROR_DURING_FLUSH_LOGS,
+                    ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS), MYF(ME_FATALERROR),
+                    true);
+    LogErr(ERROR_LEVEL, ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE, true);
+    return true;
+  });
+
+  return res;
 }
 
 THD *System_table_access::create_thd() {
@@ -158,10 +174,8 @@ THD *System_table_access::create_thd() {
 }
 
 void System_table_access::drop_thd(THD *thd) {
-  DBUG_ENTER("System_table_access::drop_thd");
+  DBUG_TRACE;
 
   delete thd;
   current_thd = nullptr;
-
-  DBUG_VOID_RETURN;
 }

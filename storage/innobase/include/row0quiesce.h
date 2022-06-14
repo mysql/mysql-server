@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,29 +40,38 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct trx_t;
 
 /** The version number of the export meta-data text file. */
-#define IB_EXPORT_CFG_VERSION_V1 0x1UL
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V1 = 1;
 /** The v2 .cfg has space flags written */
-#define IB_EXPORT_CFG_VERSION_V2 0x2UL
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V2 = 2;
 /** The v3 .cfg writes instant column default values in metadata section. */
-#define IB_EXPORT_CFG_VERSION_V3 0x3UL
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V3 = 3;
+/** The v4 .cfg has the is_ascending boolean written for each index column. */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V4 = 4;
+/** The v5 .cfg writes number of nullable column in table before first instant
+ column. */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V5 = 5;
+/** The v6 .cfg writes the Compression::Type of the table. */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V6 = 6;
+/** The v7 .cfg has metadata of INSTANT DROP/ADD columns. */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V7 = 7;
+/** Future version used to test that the correct error message is returned. */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V99 = 99;
 
-/** Quiesce the tablespace that the table resides in. */
-void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
-                             trx_t *trx); /*!< in/out: transaction/session */
+/** Quiesce the tablespace that the table resides in.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_start(dict_table_t *table, trx_t *trx);
 
 /** Set a table's quiesce state.
  @return DB_SUCCESS or errro code. */
-dberr_t row_quiesce_set_state(
+[[nodiscard]] dberr_t row_quiesce_set_state(
     dict_table_t *table, /*!< in: quiesce this table */
     ib_quiesce_t state,  /*!< in: quiesce state to set */
-    trx_t *trx)          /*!< in/out: transaction */
-    MY_ATTRIBUTE((warn_unused_result));
+    trx_t *trx);         /*!< in/out: transaction */
 
-/** Cleanup after table quiesce. */
-void row_quiesce_table_complete(
-    dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx);         /*!< in/out: transaction/session */
-
-#include "row0quiesce.ic"
+/** Cleanup after table quiesce.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_complete(dict_table_t *table, trx_t *trx);
 
 #endif /* row0quiesce_h */

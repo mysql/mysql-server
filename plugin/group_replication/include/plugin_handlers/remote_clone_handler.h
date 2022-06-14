@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class Remote_clone_handler : public Group_event_observer {
   /**
     The destructor
   */
-  ~Remote_clone_handler();
+  ~Remote_clone_handler() override;
 
   /**
     Set the class threshold for clone activation
@@ -71,13 +71,13 @@ class Remote_clone_handler : public Group_event_observer {
                        number of valid clone donors
                        number of valid recovery donors
                        number of valid recovering donors
-                       number of gtids missing
+                       whether clone activation threshold was breached or not
 
     @return whether or not we managed to get the info
       @retval 0    the info was retrieved
       @retval != 0 some error occurred
   */
-  int extract_donor_info(std::tuple<uint, uint, uint, ulonglong> *donor_info);
+  int extract_donor_info(std::tuple<uint, uint, uint, bool> *donor_info);
 
   /**
     Check if clone or distributed recovery shall be used for provisioning
@@ -93,7 +93,7 @@ class Remote_clone_handler : public Group_event_observer {
     Launch the clone process with some preliminary checks.
 
     @param group_name  The group name
-    @param group_name  The view id when clone started
+    @param view_id     The view id when clone started
 
     @note: the given parameters are used when falling back to
            distributed recovery in case of a clone issue.
@@ -147,26 +147,28 @@ class Remote_clone_handler : public Group_event_observer {
 
   // The listeners for group events
 
-  virtual int after_view_change(
-      const std::vector<Gcs_member_identifier> &joining,
-      const std::vector<Gcs_member_identifier> &leaving,
-      const std::vector<Gcs_member_identifier> &group, bool is_leaving,
-      bool *skip_election, enum_primary_election_mode *election_mode,
-      std::string &suggested_primary);
-  virtual int after_primary_election(std::string primary_uuid,
-                                     bool primary_changed,
-                                     enum_primary_election_mode election_mode,
-                                     int error);
-  virtual int before_message_handling(const Plugin_gcs_message &message,
-                                      const std::string &message_origin,
-                                      bool *skip_message);
+  int after_view_change(const std::vector<Gcs_member_identifier> &joining,
+                        const std::vector<Gcs_member_identifier> &leaving,
+                        const std::vector<Gcs_member_identifier> &group,
+                        bool is_leaving, bool *skip_election,
+                        enum_primary_election_mode *election_mode,
+                        std::string &suggested_primary) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
+  int before_message_handling(const Plugin_gcs_message &message,
+                              const std::string &message_origin,
+                              bool *skip_message) override;
 
   /**
     The thread callback passed onto mysql_thread_create.
 
     @param[in] arg a pointer to a Remote_clone_handler instance.
+
+    @return Does not return.
   */
-  [[noreturn]] static void *launch_thread(void *arg);
+  static void *launch_thread(void *arg);
 
   /**
     The clone thread process.
@@ -262,13 +264,24 @@ class Remote_clone_handler : public Group_event_observer {
   */
   int kill_clone_query();
 
-#ifndef DBUG_OFF
+  /**
+    Given a error code it evaluates if the error is critical or not.
+    Basically it tells us if there is still data in the server.
+
+    @param[in] error_code the clone returned error
+
+    @retval true  error is critical
+    @retval false error is not critical
+  */
+  bool evaluate_error_code(int error_code);
+
+#ifndef NDEBUG
   /**
     Function for debug points
     @note this function can have a parameter for different debug points
   */
   void gr_clone_debug_point();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   // Settings to fall back to recovery
   /** The group to which the recovering member belongs */

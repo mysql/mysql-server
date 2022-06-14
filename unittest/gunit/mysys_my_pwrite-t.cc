@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,26 +50,26 @@ using ::testing::SetErrnoAndReturn;
 
 class MockWrite {
  public:
-  virtual ~MockWrite() {}
+  virtual ~MockWrite() = default;
   MOCK_METHOD4(mockwrite, ssize_t(int, const void *, size_t, off_t));
 };
 
-MockWrite *mockfs = NULL;
+MockWrite *mockfs = nullptr;
 
 ssize_t mockfs_pwrite(int fd, const void *buf, size_t count, off_t offset) {
   return mockfs->mockwrite(fd, buf, count, offset);
 }
 
 class MysysMyPWriteTest : public ::testing::Test {
-  virtual void SetUp() {
+  void SetUp() override {
     mock_pwrite = mockfs_pwrite;
     mockfs = new MockWrite;
     m_offset = 0;
   }
-  virtual void TearDown() {
+  void TearDown() override {
     mock_pwrite = nullptr;
     delete mockfs;
-    mockfs = NULL;
+    mockfs = nullptr;
   }
 
  public:

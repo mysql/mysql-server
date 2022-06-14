@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,10 +42,6 @@
 //
 // PUBLIC
 //
-EventLoggerBase::~EventLoggerBase()
-{
-  
-}
 
 #define QQQQ char *m_text, size_t m_text_len, const Uint32* theData, Uint32 len
 
@@ -57,8 +53,6 @@ void getTextConnected(QQQQ) {
 void getTextConnectedApiVersion(QQQQ) {
   char tmp[100];
   Uint32 mysql_version = theData[3];
-  if (theData[2] < NDBD_SPLIT_VERSION)
-  mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u: API %s",
 		       theData[1],
@@ -94,8 +88,6 @@ void getTextNDBStartStarted(QQQQ) {
 
   char tmp[100];
   Uint32 mysql_version = theData[2];
-  if (theData[1] < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Start initiated (%s)", 
 		       ndbGetVersionString(theData[1], mysql_version, 0,
@@ -169,8 +161,6 @@ void getTextNDBStartCompleted(QQQQ) {
 
   char tmp[100];
   Uint32 mysql_version = theData[2];
-  if (theData[1] < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Started (%s)", 
 		       ndbGetVersionString(theData[1], mysql_version, 0,
@@ -291,6 +281,8 @@ void getTextNodeFailCompleted(QQQQ) {
       line = "DBDIH";
     }else if (theData[1] == DBLQH){
       line = "DBLQH";
+    }else if (theData[1] == DBQLQH){
+      line = "DBQLQH";
     }
     BaseString::snprintf(m_text, m_text_len, 
 			 "Node failure of %u %s completed", 
@@ -408,7 +400,7 @@ void getTextArbitResult(QQQQ) {
 			   "Network partitioning - no arbitrator configured");
       break;
     case ArbitCode::WinWaitExternal:{
-      char buf[8*4*2+1];
+      char buf[NodeBitmask::TextLength + 1];
       sd->mask.getText(buf);
       BaseString::snprintf(m_text, m_text_len,
 			   "Continuing after wait for external arbitration, "
@@ -804,6 +796,7 @@ void getTextInfoEvent(QQQQ) {
 const char bytes_unit[]= "B";
 const char kbytes_unit[]= "KB";
 const char mbytes_unit[]= "MB";
+const char gbytes_unit[]= "GB";
 static void convert_unit(unsigned &data, const char *&unit)
 {
   if (data < 16*1024)
@@ -821,22 +814,68 @@ static void convert_unit(unsigned &data, const char *&unit)
   unit= mbytes_unit;  
 }
 
+static void convert_unit64(Uint64 &data, const char *&unit)
+{
+  if((data >> 32) == 0)
+  {
+    Uint32 data_lo = (Uint32) data;
+    convert_unit(data_lo, unit);
+    data = data_lo;
+    return;
+  }
+  if ((data%(1024*1024*1024)) == 0)
+  {
+    data = data/(1024*1024*1024);
+    unit = gbytes_unit;
+  }
+  else
+  {
+    data = (data+1024*1024-1)/(1024*1024);
+    unit = mbytes_unit;
+  }
+}
+
 void getTextEventBufferStatus(QQQQ) {
-  unsigned used= theData[1], alloc= theData[2], max_= theData[3];
-  const char *used_unit, *alloc_unit, *max_unit;
-  convert_unit(used, used_unit);
-  convert_unit(alloc, alloc_unit);
-  convert_unit(max_, max_unit);
-  BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status: used=%d%s(%d%%) alloc=%d%s(%d%%) "
-		       "max=%d%s apply_epoch=%u/%u latest_epoch=%u/%u",
-		       used, used_unit,
-		       theData[2] ? (Uint32)((((Uint64)theData[1])*100)/theData[2]) : 0,
-		       alloc, alloc_unit,
-		       theData[3] ? (Uint32)((((Uint64)theData[2])*100)/theData[3]) : 0,
-		       max_, max_unit,
-		       theData[5], theData[4],
-		       theData[7], theData[6]);
+  unsigned used = theData[1], max_ = theData[3];
+
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    unsigned used_pct = max_ ? (Uint32)(((Uint64)used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit(used, used_unit);
+    used_str.appfmt("%u%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
+  }
+
+  unsigned alloc = theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit(alloc, alloc_unit);
+    alloc_str.appfmt("%u%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit(max_, max_unit);
+    max_str.appfmt("%u%s", max_, max_unit);
+  }
+
+  BaseString::snprintf(
+      m_text, m_text_len,
+      "Event buffer status: %s %s %s "
+      "apply_epoch=%u/%u latest_epoch=%u/%u",
+      max_str.c_str(), used_str.c_str(), alloc_str.c_str(),
+      theData[5], theData[4], theData[7], theData[6]);
 }
 
 
@@ -852,6 +891,7 @@ const char *ndb_logevent_eventBuff_status_reasons[] = {
   "BUFFERED_EPOCHS_OVER_THRESHOLD",
   "ENOUGH_FREE_EVENTBUFFER",
   "LOW_FREE_EVENTBUFFER",
+  "EVENTBUFFER_USAGE_HIGH"
 };
 
 const char* getReason(Uint32 reason)
@@ -862,39 +902,95 @@ const char* getReason(Uint32 reason)
 }
 
 void getTextEventBufferStatus2(QQQQ) {
-  unsigned used= theData[1], alloc= theData[2], max_= theData[3];
-  const char *used_unit, *alloc_unit, *max_unit;
-  convert_unit(used, used_unit);
-  convert_unit(alloc, alloc_unit);
-  convert_unit(max_, max_unit);
+  unsigned used = theData[1], max_ = theData[3];
 
-  BaseString used_pct_txt;
-  if (alloc != 0)
-  {
-    used_pct_txt.assfmt("(%d%% of alloc)",
-             (Uint32)((((Uint64)theData[1])*100)/theData[2]));
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    unsigned used_pct = max_ ? (Uint32)(((Uint64)used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit(used, used_unit);
+    used_str.appfmt("%u%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
   }
 
-  BaseString allocd_pct_txt;
-  if (max_ != 0)
-  {
-    allocd_pct_txt.assfmt("(%d%% of max)",
-             (Uint32)((((Uint64)theData[2])*100)/theData[3]));
+  unsigned alloc = theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit(alloc, alloc_unit);
+    alloc_str.appfmt("%u%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit(max_, max_unit);
+    max_str.appfmt("%u%s", max_, max_unit);
   }
 
   BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status (0x%x): used=%d%s%s alloc=%d%s%s "
-		       "max=%d%s%s latest_consumed_epoch=%u/%u "
+                       "Event buffer status (0x%x): %s %s %s"
+                       "latest_consumed_epoch=%u/%u "
                        "latest_buffered_epoch=%u/%u "
                        "report_reason=%s",
-		       theData[8], used, used_unit, used_pct_txt.c_str(),
-		       alloc, alloc_unit, allocd_pct_txt.c_str(),
-		       max_, max_unit, (max_ == 0) ? "(unlimited)" : "",
-		       theData[5], theData[4],
-		       theData[7], theData[6],
-                       getReason(theData[9]));
+                       theData[8], max_str.c_str(), used_str.c_str(),
+                       alloc_str.c_str(), theData[5], theData[4], theData[7],
+                       theData[6], getReason(theData[9]));
 }
 
+void getTextEventBufferStatus3(QQQQ) {
+  Uint64 used = ((Uint64)theData[10] << 32) | theData[1];
+  Uint64 max_ = ((Uint64)theData[12] << 32) | theData[3];
+
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    Uint32 used_pct = max_ ? (Uint32)((used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit64(used, used_unit);
+    used_str.appfmt("%llu%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
+  }
+
+  Uint64 alloc = ((Uint64)theData[11] << 32) | theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit64(alloc, alloc_unit);
+    alloc_str.appfmt("%llu%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit64(max_, max_unit);
+    max_str.appfmt("%llu%s", max_, max_unit);
+  }
+
+  BaseString::snprintf(m_text, m_text_len,
+                       "Event buffer status (0x%x): %s %s %s "
+                       "latest_consumed_epoch=%u/%u "
+                       "latest_buffered_epoch=%u/%u "
+                       "report_reason=%s",
+                       theData[8], max_str.c_str(), used_str.c_str(),
+                       alloc_str.c_str(), theData[5], theData[4], theData[7],
+                       theData[6], getReason(theData[9]));
+}
 void getTextWarningEvent(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
@@ -940,14 +1036,27 @@ void getTextBackupFailedToStart(QQQQ) {
 		       refToNode(theData[1]), theData[2]);
 }
 void getTextBackupCompleted(QQQQ) {
+  // Build 64-bit data bytes and records by assembling 32-bit signal parts
+  const Uint64 bytes_hi = theData[11];
+  const Uint64 records_hi = theData[12];
+  const Uint64 data_bytes = (bytes_hi << 32) | theData[5];
+  const Uint64 data_records = (records_hi << 32) | theData[6];
+
+  // Build 64-bit log bytes and records by assembling 32-bit signal parts
+  const Uint64 bytes_hi_log = theData[13];
+  const Uint64 records_hi_log = theData[14];
+  const Uint64 log_bytes = theData[7] | (bytes_hi_log << 32);
+  const Uint64 log_records = theData[8] | (records_hi_log << 32);
+
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup %u started from node %u completed." 
 		       " StartGCP: %u StopGCP: %u"
-		       " #Records: %u #LogRecords: %u"
-		       " Data: %u bytes Log: %u bytes",
-		       theData[2], refToNode(theData[1]),
-		       theData[3], theData[4], theData[6], theData[8],
-		       theData[5], theData[7]);
+		       " #Records: %llu #LogRecords: %llu"
+		       " Data: %llu bytes Log: %llu bytes",
+                       theData[2], refToNode(theData[1]),
+                       theData[3], theData[4],
+                       data_records, log_records,
+                       data_bytes, log_bytes);
 }
 void getTextBackupStatus(QQQQ) {
   if (theData[1])
@@ -1014,9 +1123,9 @@ void getTextRestoreCompleted(QQQQ)
 void getTextLogFileInitStatus(QQQQ) {
   if (theData[2])
     BaseString::snprintf(m_text, m_text_len,
-                         "Local redo log file initialization status:\n"
-                         "#Total files: %u, Completed: %u\n"
-                         "#Total MBytes: %u, Completed: %u",
+                         "Local redo log file initialization status:"
+                         " #Total files: %u, Completed: %u"
+                         " #Total MBytes: %u, Completed: %u",
 //                         refToNode(theData[1]),
                          theData[2], theData[3],
                          theData[4], theData[5]);
@@ -1027,9 +1136,9 @@ void getTextLogFileInitStatus(QQQQ) {
 }
 void getTextLogFileInitCompStatus(QQQQ) {
     BaseString::snprintf(m_text, m_text_len,
-                         "Local redo log file initialization completed:\n"
-                         "#Total files: %u, Completed: %u\n"
-                         "#Total MBytes: %u, Completed: %u",
+                         "Local redo log file initialization completed:"
+                         " #Total files: %u, Completed: %u"
+                         " #Total MBytes: %u, Completed: %u",
 //                         refToNode(theData[1]),
                          theData[2], theData[3],
                          theData[4], theData[5]);
@@ -1321,8 +1430,8 @@ void getTextConnectCheckStarted(QQQQ)
   Uint32 reason = theData[2];
   Uint32 causing_node = theData[3];
   Uint32 bitmaskSz = theData[4];
-  char otherNodeMask[100];
-  char suspectNodeMask[100];
+  char otherNodeMask[NodeBitmask::TextLength + 1];
+  char suspectNodeMask[NodeBitmask::TextLength + 1];
   BitmaskImpl::getText(bitmaskSz, theData + 5 + (0 * bitmaskSz), otherNodeMask);
   BitmaskImpl::getText(bitmaskSz, theData + 5 + (1 * bitmaskSz), suspectNodeMask);
   Uint32 suspectCount = BitmaskImpl::count(bitmaskSz, theData + 5 + (1 * bitmaskSz));
@@ -1550,6 +1659,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(InfoEvent,               LogLevel::llInfo,   2, Logger::LL_INFO ),
   ROW(EventBufferStatus,       LogLevel::llInfo,   7, Logger::LL_INFO ),
   ROW(EventBufferStatus2,       LogLevel::llInfo,   7, Logger::LL_INFO ),
+  ROW(EventBufferStatus3,       LogLevel::llInfo,   7, Logger::LL_INFO ),
 
   //Single User
   ROW(SingleUser,              LogLevel::llInfo,   7, Logger::LL_INFO ),

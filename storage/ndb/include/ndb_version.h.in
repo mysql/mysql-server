@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,693 +112,14 @@ Uint32 ndbGetOwnVersion();
  * From which version do we support rowid
  */ 
 #define NDBD_ROWID_VERSION (NDB_MAKE_VERSION(5,1,6))
-#define NDBD_INCL_NODECONF_VERSION_4 NDB_MAKE_VERSION(4,1,17)
-#define NDBD_INCL_NODECONF_VERSION_5 NDB_MAKE_VERSION(5,0,18)
 #define NDBD_FRAGID_VERSION (NDB_MAKE_VERSION(5,1,6))
-#define NDBD_DICT_LOCK_VERSION_5 NDB_MAKE_VERSION(5,0,23)
-#define NDBD_DICT_LOCK_VERSION_5_1 NDB_MAKE_VERSION(5,1,12)
-
-#define NDBD_UPDATE_FRAG_DIST_KEY_50 NDB_MAKE_VERSION(5,0,26)
-#define NDBD_UPDATE_FRAG_DIST_KEY_51 NDB_MAKE_VERSION(5,1,12)
-
-#define NDBD_QMGR_SINGLEUSER_VERSION_5 NDB_MAKE_VERSION(5,0,25)
-
-#define NDBD_SPLIT_VERSION NDB_MAKE_VERSION(6,1,0)
-#define NDBD_NODE_VERSION_REP NDB_MAKE_VERSION(6,1,1)
-
-#define NDBD_255_NODES_VERSION NDB_MAKE_VERSION(5,1,4)
 
 #define NDBD_MICRO_GCP_62 NDB_MAKE_VERSION(6,2,5)
 #define NDBD_MICRO_GCP_63 NDB_MAKE_VERSION(6,3,2)
 #define NDBD_RAW_LCP MAKE_VERSION(6,3,11)
-#define NDBD_LONG_TCKEYREQ NDB_MAKE_VERSION(6,4,0)
-#define NDBD_LONG_LQHKEYREQ MAKE_VERSION(6,4,0)
 #define NDBD_MAX_RECVBYTESIZE_32K MAKE_VERSION(6,3,18)
-#define NDBD_LONG_SCANTABREQ NDB_MAKE_VERSION(6,4,0)
-#define NDBD_LONG_SCANFRAGREQ MAKE_VERSION(6,4,0)
-#define NDBD_MT_LQH_VERSION MAKE_VERSION(6,4,0)
 
-#define NDBD_SCHEMA_TRANS_VERSION NDB_MAKE_VERSION(6,4,0)
 #define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
-
-static
-inline
-int
-ndb_check_micro_gcp(Uint32 version)
-{	
-  if (version == NDB_VERSION_D)
-    return 1;
-  {
-    const Uint32 major = (version >> 16) & 0xFF;
-    const Uint32 minor = (version >>  8) & 0xFF;
-    if (major >= 6)
-    {
-      if (minor == 2)
-        return version >= NDBD_MICRO_GCP_62;
-      return version >= NDBD_MICRO_GCP_63;
-    }
-  }
-  return 0;
-}
-
-#define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
-#define NDBD_PREPARE_COPY_FRAG_V2_51 NDB_MAKE_VERSION(5,1,23)
-#define NDBD_PREPARE_COPY_FRAG_V2_62 NDB_MAKE_VERSION(6,2,8)
-#define NDBD_PREPARE_COPY_FRAG_V2_63 NDB_MAKE_VERSION(6,3,6)
-
-/**
- * 0 = NO PREP COPY FRAG SUPPORT
- * 1 = NO MAX PAGE SUPPORT
- * 2 = LATEST VERSION
- */
-static
-inline
-int
-ndb_check_prep_copy_frag_version(Uint32 version)
-{	
-  const Uint32 major = (version >> 16) & 0xFF;
-  const Uint32 minor = (version >>  8) & 0xFF;
-
-  if (version == NDB_VERSION_D)
-    return 2;
-
-  if (major >= 6)
-  {
-    if (minor == 2)
-    {
-      if (version >= NDBD_PREPARE_COPY_FRAG_V2_62)
-        return 2;
-      if (version >= NDBD_PREPARE_COPY_FRAG_VERSION)
-        return 1;
-      return 0;
-    }
-    else if (minor == 3)
-    {
-      if (version >= NDBD_PREPARE_COPY_FRAG_V2_63)
-        return 2;
-      return 1;
-    }
-    return 2;
-  }
-  else if (major == 5 && minor == 1)
-  {
-    if (version >= NDBD_PREPARE_COPY_FRAG_V2_51)
-      return 2;
-  }
-    
-  return 0;
-}
-
-#define NDBD_PNR NDB_MAKE_VERSION(6,3,8)
-
-static 
-inline
-int
-ndb_pnr(Uint32 version)
-{
-  return 
-    version == NDB_VERSION_D || version >= NDBD_PNR;
-}
-
-#define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,14)
-#define NDBD_SUMA_DICT_LOCK_63 NDB_MAKE_VERSION(6,3,11)
-
-static
-inline
-int
-ndbd_suma_dictlock_startme(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-  
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-    
-    if (major >= 6)
-    {
-      if (minor == 2)
-      return x >= NDBD_SUMA_DICT_LOCK_62;
-    }
-    
-    return x >= NDBD_SUMA_DICT_LOCK_63;
-  }
-}
-
-#define NDBD_LONG_LIST_TABLES_CONF_62 NDB_MAKE_VERSION(6,2,16)
-#define NDBD_LONG_LIST_TABLES_CONF_63 NDB_MAKE_VERSION(6,3,15)
-
-static
-inline
-int
-ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-    
-    if (major >= 6)
-    {
-      if (minor == 2)
-        return x >= NDBD_LONG_LIST_TABLES_CONF_62;
-    }
-    
-    return x >= NDBD_LONG_LIST_TABLES_CONF_63;
-  }
-}
-
-#ifdef NOT_YET
-#define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
-#define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
-#endif
-
-static
-inline
-int
-ndb_fire_trig_ord_transid(Uint32 version)
-{
-  if (version >= NDB_VERSION_D)
-    return 1;
-
-#ifdef NOT_YET
-  const Uint32 major = (version >> 16) & 0xFF;
-  const Uint32 minor = (version >>  8) & 0xFF;
-  if (major >= 6)
-  {
-    if (minor == 2)
-    {
-      return version >= NDBD_FIRE_TRIG_ORD_TRANSID_62;
-    }
-
-    return version >= NDBD_FIRE_TRIG_ORD_TRANSID_63;
-  }
-#endif
-
-  return 0;
-}
-
-#define NDBD_SCAN_DISTKEY NDB_MAKE_VERSION(6,4,0)
-
-static
-inline
-int
-ndb_scan_distributionkey(Uint32 version)
-{
-  return version >= NDBD_SCAN_DISTKEY;
-}
-
-#define NDBD_FILTER_INSTANCE_63 NDB_MAKE_VERSION(6,3,16)
-#define NDBD_COPY_GCI_RESTART_NR NDB_MAKE_VERSION(6,3,18)
-
-#define NDBD_SUMA_DICTLOCK_HANDOVER NDB_MAKE_VERSION(6,4,0)
-
-static
-inline
-int
-ndbd_suma_dictlock_handover(Uint32 x)
-{
-  return (x >= NDBD_SUMA_DICTLOCK_HANDOVER);
-}
-
-#define NDBD_API_TAKE_OVERTCCONF_60 NDB_MAKE_VERSION(5,2,4)
-#define NDBD_API_TAKE_OVERTCCONF_62 NDB_MAKE_VERSION(6,2,17)
-#define NDBD_API_TAKE_OVERTCCONF_63 NDB_MAKE_VERSION(6,3,19)
-
-#define NDBD_DELAYED_COPY_ACTIVEREQ_63 NDB_MAKE_VERSION(6,3,29)
-#define NDBD_DELAYED_COPY_ACTIVEREQ_70 NDB_MAKE_VERSION(7,0,10)
-
-static
-inline
-int
-ndb_takeovertc(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-    
-    if (major >= 6)
-    {
-      if (minor == 2)
-        return x >= NDBD_API_TAKE_OVERTCCONF_62;
-    }
-    
-    return x >= NDBD_API_TAKE_OVERTCCONF_63;
-  }
-}
-
-static
-inline
-int
-ndb_delayed_copy_active_req(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-
-    if (major == 6)
-    {
-      return x >= NDBD_DELAYED_COPY_ACTIVEREQ_63;
-    }
-    else
-    {
-      return x >= NDBD_DELAYED_COPY_ACTIVEREQ_70;
-    }
-  }
-}
-
-#define NDBD_SUMA_NOTSTARTED_REF_63 NDB_MAKE_VERSION(6,3,29)
-#define NDBD_SUMA_NOTSTARTED_REF_70 NDB_MAKE_VERSION(7,0,10)
-
-static
-inline
-int
-ndb_suma_not_started_ref(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-
-    if (major == 6)
-    {
-      return x >= NDBD_SUMA_NOTSTARTED_REF_63;
-    }
-    else
-    {
-      return x >= NDBD_SUMA_NOTSTARTED_REF_70;
-    }
-  }
-}
-
-#define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,12)
-
-#define NDBD_ROUTE_EXEC_FRAG NDB_MAKE_VERSION(7,0,13)
-
-static
-inline
-int
-ndb_route_exec_frag(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-
-  return x >= NDBD_ROUTE_EXEC_FRAG;
-}
-
-#define NDBD_NATIVE_DEFAULT_SUPPORT_70 NDB_MAKE_VERSION(7,0,15)
-#define NDBD_NATIVE_DEFAULT_SUPPORT_71 NDB_MAKE_VERSION(7,1,4)
-
-static
-inline
-int
-ndb_native_default_support(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_NATIVE_DEFAULT_SUPPORT_70;
-  
-  return x >= NDBD_NATIVE_DEFAULT_SUPPORT_71;
-}
-
-#define NDBD_HB_ORDER_VERSION_63 NDB_MAKE_VERSION(6,3,35)
-#define NDBD_HB_ORDER_VERSION_70 NDB_MAKE_VERSION(7,0,16)
-#define NDBD_HB_ORDER_VERSION_71 NDB_MAKE_VERSION(7,1,5)
-
-static
-inline
-int
-ndb_check_hb_order_version(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 6 && minor == 3)
-    {
-      return x >= NDBD_HB_ORDER_VERSION_63;
-    }
-    if (major == 7 && minor == 0)
-    {
-      return x >= NDBD_HB_ORDER_VERSION_70;
-    }
-    return x >= NDBD_HB_ORDER_VERSION_71;
-  }
-}
-
-#define NDBD_SYNCH_SP_70 NDB_MAKE_VERSION(7,0,17)
-#define NDBD_SYNCH_SP_71 NDB_MAKE_VERSION(7,1,6)
-
-static
-inline
-int
-ndb_wait_sp(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 7 && minor == 0)
-    {
-      return x >= NDBD_SYNCH_SP_70;
-    }
-    return x >= NDBD_SYNCH_SP_71;
-  }
-}
-
-#define NDBD_DIH_GET_TABINFO_70 NDB_MAKE_VERSION(7,0,17)
-#define NDBD_DIH_GET_TABINFO_71 NDB_MAKE_VERSION(7,1,6)
-
-static
-inline
-int
-ndb_dih_get_tabinfo(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 7 && minor == 0)
-    {
-      return x >= NDBD_DIH_GET_TABINFO_70;
-    }
-    return x >= NDBD_DIH_GET_TABINFO_71;
-  }
-}
-
-#define NDBD_SUMA_STOP_ME_63 NDB_MAKE_VERSION(6,3,37)
-#define NDBD_SUMA_STOP_ME_70 NDB_MAKE_VERSION(7,0,18)
-#define NDBD_SUMA_STOP_ME_71 NDB_MAKE_VERSION(7,1,7)
-
-static
-inline
-int
-ndbd_suma_stop_me(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 6)
-    {
-      return x >= NDBD_SUMA_STOP_ME_63;
-    }
-    if (major == 7 && minor == 0)
-    {
-      return x >= NDBD_SUMA_STOP_ME_70;
-    }
-    return x >= NDBD_SUMA_STOP_ME_71;
-  }
-}
-
-#define NDBD_DIH_SUB_GCP_COMPLETE_ACK_63 NDB_MAKE_VERSION(6,3,39)
-#define NDBD_DIH_SUB_GCP_COMPLETE_ACK_70 NDB_MAKE_VERSION(7,0,20)
-#define NDBD_DIH_SUB_GCP_COMPLETE_ACK_71 NDB_MAKE_VERSION(7,1,9)
-
-static
-inline
-int
-ndbd_dih_sub_gcp_complete_ack(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 6)
-    {
-      return x >= NDBD_DIH_SUB_GCP_COMPLETE_ACK_63;
-    }
-    if (major == 7 && minor == 0)
-    {
-      return x >= NDBD_DIH_SUB_GCP_COMPLETE_ACK_70;
-    }
-    return x >= NDBD_DIH_SUB_GCP_COMPLETE_ACK_71;
-  }
-}
-
-/**
- * After this version, TC/BACKUP/SUMA does not use ScanFragReq::setAttrLen
- *   when sending long SCAN_FRAGREQ
- */
-#define NDBD_LONG_SCAN_FRAGREQ_70 NDB_MAKE_VERSION(7,0,20)
-#define NDBD_LONG_SCAN_FRAGREQ_71 NDB_MAKE_VERSION(7,1,9)
-
-#define NDBD_FAIL_REP_SOURCE_NODE_63 NDB_MAKE_VERSION(6,3,40)
-#define NDBD_FAIL_REP_SOURCE_NODE_70 NDB_MAKE_VERSION(7,0,21)
-#define NDBD_FAIL_REP_SOURCE_NODE_71 NDB_MAKE_VERSION(7,1,10)
-
-static 
-inline
-int
-ndbd_fail_rep_source_node(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 6)
-    {
-      return x >= NDBD_FAIL_REP_SOURCE_NODE_63;
-    }
-    if (major == 7 && minor == 0)
-    {
-      return x >= NDBD_FAIL_REP_SOURCE_NODE_70;
-    }
-    return x >= NDBD_FAIL_REP_SOURCE_NODE_71;
-  }
-}
-
-
-#define NDBD_SYNC_REQ_SUPPORT_70 NDB_MAKE_VERSION(7,0,20)
-#define NDBD_SYNC_REQ_SUPPORT_71 NDB_MAKE_VERSION(7,1,9)
-
-static
-inline
-int
-ndbd_sync_req_support(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_SYNC_REQ_SUPPORT_70;
-
-  return x >= NDBD_SYNC_REQ_SUPPORT_71;
-}
-
-/**
- * Does not support CopyFragReq::CFR_NON_TRANSACTIONAL
- */
-#define NDBD_NON_TRANS_COPY_FRAG_REQ_70 NDB_MAKE_VERSION(7,0,22)
-#define NDBD_NON_TRANS_COPY_FRAG_REQ_71 NDB_MAKE_VERSION(7,1,11)
-
-static
-inline
-int
-ndbd_non_trans_copy_frag_req(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_70;
-
-  return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_71;
-}
-
-#define NDBD_PING_REQ_70 NDB_MAKE_VERSION(7,0,24)
-#define NDBD_PING_REQ_71 NDB_MAKE_VERSION(7,1,13)
-
-static
-inline
-int
-ndbd_connectivity_check(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_PING_REQ_70;
-
-  return x >= NDBD_PING_REQ_71;
-}
-
-#define NDBD_DEFERRED_UNIQUE_CONSTRAINTS_70 NDB_MAKE_VERSION(7,0,25)
-#define NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71 NDB_MAKE_VERSION(7,1,14)
-
-static
-inline
-int
-ndbd_deferred_unique_constraints(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_70;
-
-  return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71;
-}
-
-#define NDBD_TUP_EXTRABITS_70 NDB_MAKE_VERSION(7,0,25)
-#define NDBD_TUP_EXTRABITS_71 NDB_MAKE_VERSION(7,1,14)
-#define NDBD_TUP_EXTRABITS_72 NDB_MAKE_VERSION(7,2,1)
-
-static
-inline
-int
-ndb_tup_extrabits(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 7 && minor < 2)
-    {
-      if (minor == 0)
-        return x >= NDBD_TUP_EXTRABITS_70;
-      else if (minor == 1)
-        return x >= NDBD_TUP_EXTRABITS_71;
-    }
-    return x >= NDBD_TUP_EXTRABITS_72;
-  }
-}
-
-#define NDBD_REFRESH_TUPLE_70 NDB_MAKE_VERSION(7,0,26)
-#define NDBD_REFRESH_TUPLE_71 NDB_MAKE_VERSION(7,1,15)
-#define NDBD_REFRESH_TUPLE_72 NDB_MAKE_VERSION(7,2,1)
-
-static
-inline
-int
-ndb_refresh_tuple(Uint32 x)
-{
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-
-    if (major == 7 && minor < 2)
-    {
-      if (minor == 0)
-        return x >= NDBD_REFRESH_TUPLE_70;
-      else if (minor == 1)
-        return x >= NDBD_REFRESH_TUPLE_71;
-    }
-    return x >= NDBD_REFRESH_TUPLE_72;
-  }
-}
-
-#define NDBD_GET_CONFIG_SUPPORT_70 NDB_MAKE_VERSION(7,0,27)
-#define NDBD_GET_CONFIG_SUPPORT_71 NDB_MAKE_VERSION(7,1,16)
-
-static
-inline
-int
-ndbd_get_config_supported(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_GET_CONFIG_SUPPORT_70;
-
-  return x >= NDBD_GET_CONFIG_SUPPORT_71;
-}
-
-#define NDBD_CONFIGURABLE_LOG_PARTS_70 NDB_MAKE_VERSION(7,0,29)
-#define NDBD_CONFIGURABLE_LOG_PARTS_71 NDB_MAKE_VERSION(7,1,18)
-#define NDBD_CONFIGURABLE_LOG_PARTS_72 NDB_MAKE_VERSION(7,2,3)
-
-static
-inline
-int
-ndb_configurable_log_parts(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor < 2)
-  {
-    if (minor == 0)
-      return x >= NDBD_CONFIGURABLE_LOG_PARTS_70;
-    else if (minor == 1)
-      return x >= NDBD_CONFIGURABLE_LOG_PARTS_71;
-  }
-  return x >= NDBD_CONFIGURABLE_LOG_PARTS_72;
-}
-
-#define NDBD_128_INSTANCES_ADDRESS_70 NDB_MAKE_VERSION(7,0,31)
-#define NDBD_128_INSTANCES_ADDRESS_71 NDB_MAKE_VERSION(7,1,20)
-#define NDBD_128_INSTANCES_ADDRESS_72 NDB_MAKE_VERSION(7,2,5)
-
-static
-inline
-int
-ndbd_128_instances_address(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor < 2)
-  {
-    if (minor == 0)
-      return x >= NDBD_128_INSTANCES_ADDRESS_70;
-    else if (minor == 1)
-      return x >= NDBD_128_INSTANCES_ADDRESS_71;
-  }
-  return x >= NDBD_128_INSTANCES_ADDRESS_72;
-}
-
-#define NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_70 NDB_MAKE_VERSION(7,0,34)
-#define NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_71 NDB_MAKE_VERSION(7,1,23)
-#define NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_72 NDB_MAKE_VERSION(7,2,7)
-
-static
-inline
-int
-ndbd_scan_tabreq_implicit_parallelism(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor < 2)
-  {
-    if (minor == 0)
-      return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_70;
-    else if (minor == 1)
-      return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_71;
-  }
-  return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_72;
-}
-
-#define NDBD_FIXED_LOOKUP_QUERY_ABORT_72 NDB_MAKE_VERSION(7,2,5)
-
-static
-inline
-int
-ndbd_fixed_lookup_query_abort(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor < 2)
-  {
-    // Only experimental support of SPJ pre 7.2.0.
-    // Assume we support 'fixed-abort' as we want it tested.
-    return 1;
-  }
-  return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
-}
 
 /**
  * Including vers. 'NDBD_SPJ_API_ONLY_LONG_TRANSID_AI',
@@ -819,21 +140,17 @@ ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
 }
 
 /**
- * NOTE1:
- *   Even though pushed join support wasn't GA intil 7.2.4
- *   we claim support for it in all 7.2.x versions.
- * NOTE2:
- *   By a mistake this online upgrade check was not
- *   added until version 7.2.6
+ * Does the SPJ-block (contrary to SPJ_API above) support
+ * short TRANSID_AI signals to be received.
  */
-#define NDBD_JOIN_PUSHDOWN NDB_MAKE_VERSION(7,2,0)
+#define NDBD_SPJ_SHORT_TRANSID_AI NDB_MAKE_VERSION(8,0,22)
 
 static
 inline
 int
-ndbd_join_pushdown(Uint32 x)
+ndbd_spj_support_short_TRANSID_AI(Uint32 x)
 {
-  return x >= NDBD_JOIN_PUSHDOWN;
+  return x >= NDBD_SPJ_SHORT_TRANSID_AI;
 }
 
 /**
@@ -859,92 +176,6 @@ ndbd_spj_multifrag_scan(Uint32 x)
 }
 
 /**
- * DICT did not have a function for receiving GET_TABINFOREF signals
- * (see Bug#14647210).
- */
-#define NDBD_DICT_GET_TABINFOREF_IMPLEMENTED NDB_MAKE_VERSION(7, 2, 9)
-
-inline
-int
-ndbd_dict_get_tabinforef_implemented(Uint32 x)
-{
-  return x >= NDBD_DICT_GET_TABINFOREF_IMPLEMENTED;
-}
-
-/**
- * Dbtc::execFIRE_TRIG_ORD can receive long signals.
- */
-#define NDBD_LONG_FIRE_TRIG_ORD NDB_MAKE_VERSION(7,3,2)
-
-#define NDBD_MULTI_TC_INSTANCE_TAKEOVER_72 NDB_MAKE_VERSION(7,2,17)
-#define NDBD_MULTI_TC_INSTANCE_TAKEOVER_73 NDB_MAKE_VERSION(7,3,6)
-
-static
-inline
-int
-ndbd_long_fire_trig_ord(Uint32 x)
-{
-  return x >= NDBD_LONG_FIRE_TRIG_ORD;
-}
-
-static
-inline
-int
-ndbd_multi_tc_instance_takeover(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major < 7)
-  {
-    return 0;
-  }
-  else if (major == 7)
-  {
-    if (minor < 2)
-    {
-      return 0;
-    }
-    else if (minor == 2)
-    {
-      return x >= NDBD_MULTI_TC_INSTANCE_TAKEOVER_72;
-    }
-    else if (minor == 3)
-    {
-      return x >= NDBD_MULTI_TC_INSTANCE_TAKEOVER_73;
-    }
-  }
-  return 1;
-}
-
-/**
- * Support for more parallel fragment LCPs
- */
-#define NDBD_EXTRA_PARALLEL_FRAG_LCP NDB_MAKE_VERSION(7,4,1)
-
-/**
- * Support for PAUSE LCPs
- */
-#define NDBD_SUPPORT_PAUSE_LCP NDB_MAKE_VERSION(7,4,3)
-
-/**
- * Support for Node Recovery Status module, including sending
- * END_TOREP.
- */
-#define NDBD_NODE_RECOVERY_STATUS_VERSION NDB_MAKE_VERSION(7,4,3)
-
-/**
- * Support for removing EMPTY_LCP_REQ protocol in master takeover
- */
-#define NDBD_EMPTY_LCP_NOT_NEEDED NDB_MAKE_VERSION(7,4,3)
-
-/**
- * Support for multiple take over threads per node group in parallel
- * in master node.
- */
-#define NDBD_SUPPORT_PARALLEL_SYNCH NDB_MAKE_VERSION(7,4,3)
-
-/**
  * Support for wl#9819 ndbinfo.processes
  */
 #define NDBD_PROCESSINFO_VERSION_75 NDB_MAKE_VERSION(7,5,7)
@@ -959,46 +190,6 @@ ndbd_supports_processinfo(Uint32 x)
     (x >= RELEASE_7_6_0 && x < NDBD_PROCESSINFO_VERSION_76))
   {
     return 0;
-  }
-  return 1;
-}
-
-
-#define NDBD_ISOLATE_ORD_72 NDB_MAKE_VERSION(7,2,19)
-#define NDBD_ISOLATE_ORD_73 NDB_MAKE_VERSION(7,3,8)
-#define NDBD_ISOLATE_ORD_74 NDB_MAKE_VERSION(7,4,3)
-
-
-static
-inline
-int
-ndbd_isolate_ord(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major < 7)
-  {
-    return 0;
-  }
-  else if (major == 7)
-  {
-    if (minor < 2)
-    {
-      return 0;
-    }
-    else if (minor == 2)
-    {
-      return x >= NDBD_ISOLATE_ORD_72;
-    }
-    else if (minor == 3)
-    {
-      return x >= NDBD_ISOLATE_ORD_73;
-    }
-    else if (minor == 4)
-    {
-      return x >= NDBD_ISOLATE_ORD_74;
-    }
   }
   return 1;
 }
@@ -1144,11 +335,7 @@ int
 ndbd_enable_redo_control(Uint32 x)
 {
   const Uint32 major = (x >> 16) & 0xFF;
-  if (major < 7)
-  {
-    return 0;
-  }
-  else if (major == 7)
+  if (major < 8)
   {
     return x >= NDBD_ENABLE_REDO_CONTROL_76;
   }
@@ -1175,6 +362,359 @@ int
 ndbd_backup_file_fragid(Uint32 x)
 {
   return (x >= NDBD_FRAGID_VERSION) && !ndbd_drop6(x);
+}
+
+/**
+ * Fragmented SUB_TABLE_DATA signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_SUB_TABLE_DATA NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_sub_table_data(Uint32 x)
+{
+  return x >= NDBD_FRAG_SUB_TABLE_DATA;
+}
+
+/**
+ * Fragmented FIRE_TRIG_ORD signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_FIRE_TRIG_ORD NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_fire_trig_ord(Uint32 x)
+{
+  return x >= NDBD_FRAG_FIRE_TRIG_ORD;
+}
+
+/**
+ * Fragmented LQHKEYREQ signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_LQHKEYREQ NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_lqhkeyreq(Uint32 x)
+{
+  return x >= NDBD_FRAG_LQHKEYREQ;
+}
+
+/**
+ * Fragmented TCKEYREQ and TCINDXREQ signals.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_TCKEYREQ NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_tckeyreq(Uint32 x)
+{
+  return x >= NDBD_FRAG_TCKEYREQ;
+}
+
+#define NDBD_NOWAIT_KEYREQ NDB_MAKE_VERSION(8,0,18)
+
+/**
+ * wl#13120 extended NdbScanFilter and NdbInterpretedCode to allow
+ * two columns to be compared.
+ */
+
+#define NDBD_SUPPORT_CMP_COLUMNS NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+bool
+ndbd_support_column_cmp(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_CMP_COLUMNS;
+}
+
+/**
+ * Send the node bitmask in a long signal section:
+ */
+#define NDBD_NODE_BITMASK_IN_SECTION_80 NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_send_node_bitmask_in_section(Uint32 x)
+{
+  return x >= NDBD_NODE_BITMASK_IN_SECTION_80;
+}
+
+#define NDBD_UPGRADE_OK_74 NDB_MAKE_VERSION(7,4,6)
+#define NDBD_UPGRADE_OK_75 NDB_MAKE_VERSION(7,5,4)
+#define NDBD_UPGRADE_OK_76 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_upgrade_ok(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 4)
+    {
+      return 0;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_UPGRADE_OK_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_UPGRADE_OK_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_UPGRADE_OK_76;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    return 1;
+  }
+}
+
+#define NDB_USE_CONFIG_VERSION_V2_80 NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndb_config_version_v2(Uint32 x)
+{
+  return x >= NDB_USE_CONFIG_VERSION_V2_80;
+}
+
+/**
+ * Formerly defined as
+ * #define MAX_FRM_DATA_SIZE 6000
+ */
+#define NDB_SHORT_OPAQUE_METADATA_MAX_BYTES 6000
+
+/**
+ * Multiple transporters per node in same node group is available.
+ */
+#define NDBD_MULTI_NODE_GROUP_TRANSPORTERS_v8 NDB_MAKE_VERSION(8,0,20)
+static
+inline
+int
+ndbd_use_multi_ng_trps(Uint32 x)
+{
+  return x >= NDBD_MULTI_NODE_GROUP_TRANSPORTERS_v8;
+}
+
+/*
+ * Send both cntr_started and started bitmasks in CNTR_START_CONF
+ */
+#define NDBD_SEND_STARTED_BITMASK NDB_MAKE_VERSION(8,0,19)
+static
+inline
+int
+ndbd_send_started_bitmask(Uint32 x)
+{
+  return x >= NDBD_SEND_STARTED_BITMASK;
+}
+
+// New limitations from WL#12757
+
+#define NDBD_80_PROTOCOL_ACCEPT_74 NDB_MAKE_VERSION(7,4,6)
+#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,4)
+#define NDBD_80_PROTOCOL_ACCEPT_76 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_protocol_accepted_by_8_0(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 4)
+    {
+      return 0;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_76;
+    }
+  }
+  return 1;
+}
+
+/*
+ * Send/expect the extra 'still active' word as part of ScanTabConf and
+ * ScanFragConf signals.
+ */
+#define NDBD_SEND_ACTIVE_BITMASK NDB_MAKE_VERSION(8,0,20)
+static
+inline
+int
+ndbd_send_active_bitmask(Uint32 x)
+{
+  return x >= NDBD_SEND_ACTIVE_BITMASK;
+}
+
+
+
+#define NDBD_WAITGCP_SHUTDOWNSYNC_73 NDB_MAKE_VERSION(7,3,30)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_74 NDB_MAKE_VERSION(7,4,29)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_75 NDB_MAKE_VERSION(7,5,19)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_76 NDB_MAKE_VERSION(7,6,15)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_80 NDB_MAKE_VERSION(8,0,21)
+
+static
+inline
+int
+ndbd_support_waitgcp_shutdownsync(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 3)
+    {
+      return 0;
+    }
+    else if (minor == 3)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_73;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_76;
+    }
+  }
+  else if (major == 8)
+  {
+    return x >= NDBD_WAITGCP_SHUTDOWNSYNC_80;
+  }
+  return 1;
+}
+
+/*
+ * Data Node sends minimum API version connected to cluster
+ * as a part of ApiRegConf reply since 8.0.21
+ */
+#define NDBD_SEND_MIN_API_VERSION NDB_MAKE_VERSION(8,0,21)
+static
+inline
+int
+ndbd_send_min_api_version(Uint32 x)
+{
+  return x >= NDBD_SEND_MIN_API_VERSION;
+}
+
+
+// Backup file encryption
+
+#define NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION NDB_MAKE_VERSION(8,0,22)
+
+static
+inline
+bool
+ndbd_support_backup_file_encryption(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
+}
+
+/*
+ * NdbInterpreter may compare NULL values according to the semantic
+ * specified by the SQL standard, which is what MySQL expect. (WL#14476)
+ */
+#define NDBD_SUPPORT_SQL_COMPARE_SEMANTICS NDB_MAKE_VERSION(8,0,26)
+static
+inline
+int
+ndbd_support_sql_compare_semantics(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_SQL_COMPARE_SEMANTICS;
+}
+
+/*
+ * Only send GSN_TRP_KEEP_ALIVE to data nodes from 8.0.27 and newer.
+ */
+#define NDBD_SUPPORT_TRP_KEEP_ALIVE NDB_MAKE_VERSION(8,0,27)
+static
+inline
+bool
+ndbd_support_trp_keep_alive(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_TRP_KEEP_ALIVE;
+}
+
+/*
+ * SPJ implemented support for creating parameters to be sent in attrInfo
+ * section to LDMs, together with the Interpreter code. (WL#14388)
+ */
+#define NDBD_SUPPORT_PARAM_CMP NDB_MAKE_VERSION(8,0,27)
+static
+inline
+int
+ndbd_support_param_cmp(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_PARAM_CMP;
+}
+
+/*
+ * Replace EncryptionPasswordData with EncryptionKeyMaterial. Mostly compatible
+ * but old code had some redundant checks. New ndb_mgmd need to maintain the
+ * conditions when sending to old data nodes.
+ */
+#define NDBD_SUPPORT_ENCRYPTION_KEY_MATERIAL NDB_MAKE_VERSION(8,0,29)
+static
+inline
+bool
+ndbd_support_encryption_key_material(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_ENCRYPTION_KEY_MATERIAL;
 }
 
 #endif

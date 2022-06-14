@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ namespace Base {
  */
 class Abstract_program : public Options::Composite_options_provider {
  public:
-  virtual ~Abstract_program();
+  ~Abstract_program() override;
 
   /**
     Returns null-terminated string with name of current program.
@@ -86,7 +86,7 @@ class Abstract_program : public Options::Composite_options_provider {
   /**
     Runs main program code.
    */
-  virtual int execute(std::vector<std::string> positional_options) = 0;
+  virtual int execute(const std::vector<std::string> &positional_options) = 0;
 
   /**
    Prints program invocation message.
@@ -120,9 +120,10 @@ class Abstract_program : public Options::Composite_options_provider {
     Redirects call to option_parsed of main Abstract_program instance.
     If we have anonymous functions or binding this should be removed.
   */
-  static bool callback_option_parsed(
-      int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-      char *argument);
+  static bool callback_option_parsed(int optid,
+                                     const struct my_option *opt
+                                     [[maybe_unused]],
+                                     char *argument);
 
   Options::Debug_options m_debug_options;
   Options::Help_options m_help_options;

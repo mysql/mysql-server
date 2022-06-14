@@ -1,15 +1,20 @@
 --source include/have_ndb.inc
 
---echo # Init for ndb_show_tables result
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
+# Create view which displays all user tables (thus including mock tables).
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test - for example names
+# have surrounding quotes.
+--disable_query_log ONCE
+CREATE VIEW ndb_show_tables_results AS
+  SELECT
+    id,
+    /* Hardcoded since only user tables are selected */
+    'UserTable' AS type,
+    /* Database is first part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", 1), "'")) AS _database,
+    /* Table name is last part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", -1), "'")) AS name
+  FROM ndbinfo.dict_obj_info WHERE type = 2 /* User table */;
 
 --echo #
 --echo # Create child tables before parents
@@ -34,8 +39,6 @@ create table t3 (
   foreign key (g, h, i, j) references t6(oi1, oi2, oi3, oi4)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be 4 mock tables created
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -52,8 +55,6 @@ eval select type, name from ndb_show_tables_results
   where name like "'NDB\$FKM_$id_t3%'" order by name;
 
 drop table t3;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be 1 mock table
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -83,8 +84,6 @@ create table t2 (
   pk1 int not null primary key,
   c int
 ) engine=ndb;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be 0 mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -129,8 +128,12 @@ show warnings;
 
 
 --echo #
---echo # show create of table with mock table references
+--echo # SHOW CREATE TABLE for table with mock table references
 --echo #
+--echo # In the past SHOW CREATE TABLE has shown mock table names
+--echo # in @@ndb_show_foreign_key_mock_tables=1 mode. However,
+--echo # after move of related code to SQL-layer, this is no
+--echo # longer supported.
 create table t1 (
   a int not null,
   b int not null,
@@ -164,7 +167,6 @@ show create table t1;
 
 --disable_warnings
 set @@ndb_show_foreign_key_mock_tables= 1;
---replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 show create table t1;
 --enable_warnings
 set @@ndb_show_foreign_key_mock_tables= 0;
@@ -187,17 +189,16 @@ create table t1 (
   foreign key (b) references t2(pk1)
 ) engine=ndb;
 
+--error ER_FK_NO_COLUMN_PARENT
 create table t2 (
   pk2 int not null primary key,
   c int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
-drop table t1, t2;
+drop table t1;
 
 --echo #
 --echo # Create child table and then the parent
@@ -214,17 +215,16 @@ create table t1 (
   foreign key (b) references t2(c)
 ) engine=ndb;
 
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   pk1 int not null primary key,
   c int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
-drop table t1, t2;
+drop table t1;
 
 # Turn on ndb_show_foreign_key_mock_tables to get more info about
 # when creating and dropping mock tables
@@ -267,8 +267,6 @@ create table t4 (
   m varchar(55)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -287,7 +285,7 @@ create table t1 (
   d int, e int,
   foreign key (d, e) references t3(f, g),
   h varchar(55), i int, j datetime,
-  foreign key (h, i, j) references t4(k, l, m)
+  foreign key (h, i, j) references t4(m, l, k)
 ) engine=ndb;
 
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
@@ -316,8 +314,6 @@ create table t4 (
   unique(k, l, m)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -336,7 +332,7 @@ create table t1 (
   d int, e int,
   foreign key (d, e) references t2(f, g),
   h varchar(55), i int, j datetime,
-  foreign key (h, i, j) references t2(k, l, m)
+  foreign key (h, i, j) references t2(m, l, k)
 ) engine=ndb;
 
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
@@ -350,8 +346,6 @@ create table t2 (
   m varchar(55), l int, k datetime,
   unique(k, l, m)
 ) engine=ndb;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -376,15 +370,11 @@ create table t2 (
   b datetime
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table t2;
-
---source ndb_show_tables_result.inc
 
 let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
 --echo # There should be 1 mock table created for t1
@@ -395,7 +385,6 @@ eval select type, name from ndb_show_tables_results
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -420,7 +409,6 @@ create table mydb1.t1 (
   constraint fk1 foreign key(a) references mydb0.t2(a)
 ) engine = ndb;
 
---source ndb_show_tables_result.inc
 let $id_t1 = `select id from ndb_show_tables_results
   where _database = "'mydb1'" and name = "'t1'"`;
 --echo # There should be 1 mock table created for t1
@@ -432,7 +420,6 @@ eval select type, _database, name from ndb_show_tables_results
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table mydb1.t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -449,7 +436,6 @@ create table mydb0.t2 (
   a int primary key
 ) engine = ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -470,7 +456,6 @@ create table mydb0.t2 (
   a int primary key
 ) engine = ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -480,7 +465,6 @@ drop table mydb0.t2;
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table mydb1.t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -564,28 +548,24 @@ create table mydb1.t1 (
 
 set @@ndb_show_foreign_key_mock_tables= 0;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Drop the database mydb0 with all tables still there
 drop database mydb0;
 
---source ndb_show_tables_result.inc
 --echo # There should be 4 mock tables created by dropping mydb0
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Drop also database mydb1
 drop database mydb1;
 
---source ndb_show_tables_result.inc
 --echo # There should be 5 mock tables all referenced by test.t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Drop t1 and the 5 remaining mocks
 drop table t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -600,28 +580,24 @@ create table t1 (
   foreign key (b) references t2(pk1)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table in place of t2
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 alter table t1 add column c int;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table still
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 alter table t1 algorithm = copy, add column d int not null;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table still
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -647,14 +623,12 @@ alter table child algorithm=inplace,
   add constraint fk5 foreign key (c) references parent(col4),
   add constraint fk6 foreign key (c) references parent(col5);
 
---source ndb_show_tables_result.inc
 --echo # There should be 6 mock tables
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 alter table child algorithm=inplace, drop foreign key fk1;
 
---source ndb_show_tables_result.inc
 --echo # There should be 5 mock tables
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -664,14 +638,12 @@ alter table child algorithm=inplace,
   drop foreign key fk4,
   drop foreign key fk6;
 
---source ndb_show_tables_result.inc
 --echo # There should be 2 mock tables left
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table child;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -691,7 +663,6 @@ create table t3 (
   b int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table for t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -703,7 +674,6 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 # Rename table referenced by foreign key -> t1 references t3
 alter table t2 rename t3;
 --disable_warnings
---replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 show create table t1;
 --enable_warnings
 
@@ -713,7 +683,6 @@ create table t2 (
   b int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table for t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -722,7 +691,6 @@ set @@ndb_show_foreign_key_mock_tables= 1;
 alter table t2 algorithm=inplace, rename t3;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -754,7 +722,7 @@ drop table t1;
 
 
 --echo #
---echo # Truncating referenced table -> not allowed
+--echo # Truncating referenced table
 --echo #
 create table t2 (
   pk2 int not null primary key,
@@ -771,16 +739,18 @@ set foreign_key_checks=1;
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;
 set foreign_key_checks=0;
-
---error ER_TRUNCATE_ILLEGAL_FK
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
 truncate table t2;
+--echo Verify all the foreign key are re-created after truncate
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
 
 drop table t1, t2;
 
-
 --echo #
 --echo # Truncating referenced table which references
---echo # another table -> not allowed
+--echo # another table
 --echo #
 create table t3 (
   pk3 int not null primary key,
@@ -801,10 +771,15 @@ set foreign_key_checks=1;
 --replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;
-set foreign_key_checks=0;
 
---error ER_TRUNCATE_ILLEGAL_FK
+set foreign_key_checks=0;
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
+
 truncate table t2;
+--echo Verify all the foreign key are re-created after truncate
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
 
 drop table t1, t2, t3;
 
@@ -874,11 +849,11 @@ drop table t1, t2;
 --echo # then create the real parent (like mysqldump does it)
 --echo #
 CREATE TABLE `address` (
-  `no` int(11) NOT NULL AUTO_INCREMENT,
-  `type` int(11) NOT NULL DEFAULT '37',
-  `customer_id` int(11) NOT NULL,
+  `no` int NOT NULL AUTO_INCREMENT,
+  `type` int NOT NULL DEFAULT '37',
+  `customer_id` int NOT NULL,
   `street` varchar(255) DEFAULT NULL,
-  `country` int(11) DEFAULT NULL,
+  `country` int DEFAULT NULL,
   PRIMARY KEY (`no`),
   KEY `ca_fk1` (`customer_id`),
   CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
@@ -888,7 +863,7 @@ CREATE TABLE `address` (
 INSERT INTO `address` VALUES (1,37,1,'Main st. 1215',48);
 
 CREATE TABLE `customer` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
@@ -922,18 +897,18 @@ drop table address, customer;
 --echo # and then create fk(like mysqldump does not do it)
 --echo #
 CREATE TABLE `customer` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
 INSERT INTO `customer` VALUES (1);
 
 CREATE TABLE `address` (
-  `no` int(11) NOT NULL AUTO_INCREMENT,
-  `type` int(11) NOT NULL DEFAULT '37',
-  `customer_id` int(11) NOT NULL,
+  `no` int NOT NULL AUTO_INCREMENT,
+  `type` int NOT NULL DEFAULT '37',
+  `customer_id` int NOT NULL,
   `street` varchar(255) DEFAULT NULL,
-  `country` int(11) DEFAULT NULL,
+  `country` int DEFAULT NULL,
   PRIMARY KEY (`no`),
   KEY `ca_fk1` (`customer_id`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
@@ -984,6 +959,7 @@ ALTER TABLE address ALGORITHM=copy,
 set foreign_key_checks=1;
 
 # Try to point first address to another customer which does not exists
+--replace_regex /ca_fk[1-2]/<constraint_name>/
 --error ER_NO_REFERENCED_ROW_2
 update address set customer_id = 3 where no = 1;
 
@@ -998,3 +974,4 @@ set foreign_key_checks=0;
 
 drop table address, customer;
 
+DROP VIEW ndb_show_tables_results;

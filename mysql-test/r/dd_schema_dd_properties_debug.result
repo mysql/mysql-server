@@ -503,6 +503,8 @@ check_constraints=
   col3=table_id=12
   col30=table_id=12
   col31=table_id=12
+  col32=table_id=12
+  col33=table_id=12
   col4=table_id=12
   col5=table_id=12
   col6=table_id=12
@@ -519,64 +521,73 @@ check_constraints=
       elem1=def=collation_id BIGINT UNSIGNED
             lbl=FIELD_COLLATION_ID
             pos=12
-      elem10=def=generation_expression_utf8 LONGTEXT
+      elem10=def=generation_expression LONGBLOB
+            lbl=FIELD_GENERATION_EXPRESSION
+            pos=20
+      elem11=def=generation_expression_utf8 LONGTEXT
             lbl=FIELD_GENERATION_EXPRESSION_UTF8
             pos=21
-      elem11=def=has_no_default BOOL
+      elem12=def=has_no_default BOOL
             lbl=FIELD_HAS_NO_DEFAULT
             pos=13
-      elem12=def=hidden ENUM('Visible', 'SE', 'SQL') NOT NULL
+      elem13=def=hidden ENUM('Visible', 'SE', 'SQL', 'User') NOT NULL
             lbl=FIELD_HIDDEN
             pos=23
-      elem13=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+      elem14=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem14=def=is_auto_increment BOOL
+      elem15=def=is_auto_increment BOOL
             lbl=FIELD_IS_AUTO_INCREMENT
             pos=18
-      elem15=def=is_explicit_collation BOOL
+      elem16=def=is_explicit_collation BOOL
             lbl=FIELD_IS_EXPLICIT_COLLATION
             pos=29
-      elem16=def=is_nullable BOOL NOT NULL
+      elem17=def=is_nullable BOOL NOT NULL
             lbl=FIELD_IS_NULLABLE
             pos=5
-      elem17=def=is_unsigned BOOL
+      elem18=def=is_unsigned BOOL
             lbl=FIELD_IS_UNSIGNED
             pos=7
-      elem18=def=is_virtual BOOL
+      elem19=def=is_virtual BOOL
             lbl=FIELD_IS_VIRTUAL
             pos=19
-      elem19=def=is_zerofill BOOL
-            lbl=FIELD_IS_ZEROFILL
-            pos=6
       elem2=def=column_key ENUM('','PRI','UNI','MUL') NOT NULL
             lbl=FIELD_COLUMN_KEY
             pos=26
-      elem20=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem20=def=is_zerofill BOOL
+            lbl=FIELD_IS_ZEROFILL
+            pos=6
+      elem21=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
             lbl=FIELD_NAME
             pos=2
-      elem21=def=numeric_precision INT UNSIGNED
+      elem22=def=numeric_precision INT UNSIGNED
             lbl=FIELD_NUMERIC_PRECISION
             pos=9
-      elem22=def=numeric_scale INT UNSIGNED
+      elem23=def=numeric_scale INT UNSIGNED
             lbl=FIELD_NUMERIC_SCALE
             pos=10
-      elem23=def=options MEDIUMTEXT
+      elem24=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=24
-      elem24=def=ordinal_position INT UNSIGNED NOT NULL
+      elem25=def=ordinal_position INT UNSIGNED NOT NULL
             lbl=FIELD_ORDINAL_POSITION
             pos=3
-      elem25=def=se_private_data MEDIUMTEXT
+      elem26=def=secondary_engine_attribute JSON
+            lbl=FIELD_SECONDARY_ENGINE_ATTRIBUTE
+            pos=31
+      elem27=def=se_private_data MEDIUMTEXT
             lbl=FIELD_SE_PRIVATE_DATA
             pos=25
-      elem26=def=srs_id INT UNSIGNED DEFAULT NULL
+      elem28=def=srs_id INT UNSIGNED DEFAULT NULL
             lbl=FIELD_SRS_ID
             pos=28
-      elem27=def=table_id BIGINT UNSIGNED NOT NULL
+      elem29=def=table_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_TABLE_ID
             pos=1
-      elem28=def=type ENUM(
+      elem3=def=column_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_COLUMN_TYPE_UTF8
+            pos=27
+      elem30=def=type ENUM(
     'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',
     'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
     'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',
@@ -596,12 +607,9 @@ check_constraints=
   ) NOT NULL
             lbl=FIELD_TYPE
             pos=4
-      elem29=def=update_option VARCHAR(32)
+      elem31=def=update_option VARCHAR(32)
             lbl=FIELD_UPDATE_OPTION
             pos=17
-      elem3=def=column_type_utf8 MEDIUMTEXT NOT NULL
-            lbl=FIELD_COLUMN_TYPE_UTF8
-            pos=27
       elem4=def=comment VARCHAR(2048) NOT NULL
             lbl=FIELD_COMMENT
             pos=22
@@ -617,9 +625,9 @@ check_constraints=
       elem8=def=default_value_utf8 TEXT
             lbl=FIELD_DEFAULT_VALUE_UTF8
             pos=15
-      elem9=def=generation_expression LONGBLOB
-            lbl=FIELD_GENERATION_EXPRESSION
-            pos=20
+      elem9=def=engine_attribute JSON
+            lbl=FIELD_ENGINE_ATTRIBUTE
+            pos=30
     foreign_keys=
       elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
             lbl=FK_COLLATIONS_ID
@@ -816,13 +824,16 @@ events=
       elem1=def=KEY(connection_collation_id)
             lbl=INDEX_K_CONNECTION_COLLATION_ID
             pos=3
-      elem2=def=KEY(schema_collation_id)
+      elem2=def=KEY(definer)
+            lbl=INDEX_K_DEFINER
+            pos=5
+      elem3=def=KEY(schema_collation_id)
             lbl=INDEX_K_SCHEMA_COLLATION_ID
             pos=4
-      elem3=def=PRIMARY KEY(id)
+      elem4=def=PRIMARY KEY(id)
             lbl=INDEX_PK_ID
             pos=0
-      elem4=def=UNIQUE KEY(schema_id, name)
+      elem5=def=UNIQUE KEY(schema_id, name)
             lbl=INDEX_UK_SCHEMA_ID_NAME
             pos=1
     name=events
@@ -868,6 +879,11 @@ events=
        trx_id=0
   idx4=id=31
        root=34
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx5=id=32
+       root=35
        space_id=4294967294
        table_id=13
        trx_id=0
@@ -932,18 +948,18 @@ foreign_key_column_usage=
             lbl=TABLESPACE
             pos=5
   id=14
-  idx0=id=32
-       root=35
-       space_id=4294967294
-       table_id=14
-       trx_id=0
-  idx1=id=33
+  idx0=id=33
        root=36
        space_id=4294967294
        table_id=14
        trx_id=0
-  idx2=id=34
+  idx1=id=34
        root=37
+       space_id=4294967294
+       table_id=14
+       trx_id=0
+  idx2=id=35
+       root=38
        space_id=4294967294
        table_id=14
        trx_id=0
@@ -1049,23 +1065,23 @@ foreign_key_column_usage=
             lbl=TABLESPACE
             pos=5
   id=15
-  idx0=id=35
-       root=38
-       space_id=4294967294
-       table_id=15
-       trx_id=0
-  idx1=id=36
+  idx0=id=36
        root=39
        space_id=4294967294
        table_id=15
        trx_id=0
-  idx2=id=37
+  idx1=id=37
        root=40
        space_id=4294967294
        table_id=15
        trx_id=0
-  idx3=id=38
+  idx2=id=38
        root=41
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx3=id=39
+       root=42
        space_id=4294967294
        table_id=15
        trx_id=0
@@ -1138,18 +1154,18 @@ index_column_usage=
             lbl=TABLESPACE
             pos=5
   id=16
-  idx0=id=39
-       root=42
-       space_id=4294967294
-       table_id=16
-       trx_id=0
-  idx1=id=40
+  idx0=id=40
        root=43
        space_id=4294967294
        table_id=16
        trx_id=0
-  idx2=id=41
+  idx1=id=41
        root=44
+       space_id=4294967294
+       table_id=16
+       trx_id=0
+  idx2=id=42
+       root=45
        space_id=4294967294
        table_id=16
        trx_id=0
@@ -1221,18 +1237,18 @@ index_partitions=
             lbl=TABLESPACE
             pos=5
   id=17
-  idx0=id=42
-       root=45
-       space_id=4294967294
-       table_id=17
-       trx_id=0
-  idx1=id=43
+  idx0=id=43
        root=47
        space_id=4294967294
        table_id=17
        trx_id=0
-  idx2=id=44
+  idx1=id=44
        root=48
+       space_id=4294967294
+       table_id=17
+       trx_id=0
+  idx2=id=45
+       root=49
        space_id=4294967294
        table_id=17
        trx_id=0
@@ -1293,8 +1309,8 @@ index_stats=
             lbl=TABLESPACE
             pos=5
   id=18
-  idx0=id=45
-       root=49
+  idx0=id=46
+       root=50
        space_id=4294967294
        table_id=18
        trx_id=0
@@ -1309,6 +1325,8 @@ index_stats=
   col14=table_id=19
   col15=table_id=19
   col16=table_id=19
+  col17=table_id=19
+  col18=table_id=19
   col2=table_id=19
   col3=table_id=19
   col4=table_id=19
@@ -1333,19 +1351,25 @@ index_stats=
       elem1=def=comment VARCHAR(2048) NOT NULL
             lbl=FIELD_COMMENT
             pos=10
-      elem10=def=ordinal_position INT UNSIGNED NOT NULL
+      elem10=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=11
+      elem11=def=ordinal_position INT UNSIGNED NOT NULL
             lbl=FIELD_ORDINAL_POSITION
             pos=9
-      elem11=def=se_private_data MEDIUMTEXT
+      elem12=def=secondary_engine_attribute JSON
+            lbl=FIELD_SECONDARY_ENGINE_ATTRIBUTE
+            pos=16
+      elem13=def=se_private_data MEDIUMTEXT
             lbl=FIELD_SE_PRIVATE_DATA
             pos=12
-      elem12=def=tablespace_id BIGINT UNSIGNED
+      elem14=def=tablespace_id BIGINT UNSIGNED
             lbl=FIELD_TABLESPACE_ID
             pos=13
-      elem13=def=table_id BIGINT UNSIGNED NOT NULL
+      elem15=def=table_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_TABLE_ID
             pos=1
-      elem14=def=type ENUM(
+      elem16=def=type ENUM(
   'PRIMARY',
   'UNIQUE',
   'MULTIPLE',
@@ -1357,27 +1381,27 @@ index_stats=
       elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
             lbl=FIELD_ENGINE
             pos=14
-      elem3=def=hidden BOOL NOT NULL
+      elem3=def=engine_attribute JSON
+            lbl=FIELD_ENGINE_ATTRIBUTE
+            pos=15
+      elem4=def=hidden BOOL NOT NULL
             lbl=FIELD_HIDDEN
             pos=8
-      elem4=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+      elem5=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem5=def=is_algorithm_explicit BOOL NOT NULL
+      elem6=def=is_algorithm_explicit BOOL NOT NULL
             lbl=FIELD_IS_ALGORITHM_EXPLICIT
             pos=5
-      elem6=def=is_generated BOOL NOT NULL
+      elem7=def=is_generated BOOL NOT NULL
             lbl=FIELD_IS_GENERATED
             pos=7
-      elem7=def=is_visible BOOL NOT NULL
+      elem8=def=is_visible BOOL NOT NULL
             lbl=FIELD_IS_VISIBLE
             pos=6
-      elem8=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem9=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
             lbl=FIELD_NAME
             pos=2
-      elem9=def=options MEDIUMTEXT
-            lbl=FIELD_OPTIONS
-            pos=11
     foreign_keys=
       elem0=def=FOREIGN KEY (tablespace_id) REFERENCES tablespaces(id)
             lbl=FK_TABLESPACE_ID
@@ -1416,18 +1440,18 @@ index_stats=
             lbl=TABLESPACE
             pos=5
   id=19
-  idx0=id=46
-       root=50
-       space_id=4294967294
-       table_id=19
-       trx_id=0
-  idx1=id=47
+  idx0=id=47
        root=51
        space_id=4294967294
        table_id=19
        trx_id=0
-  idx2=id=48
+  idx1=id=48
        root=52
+       space_id=4294967294
+       table_id=19
+       trx_id=0
+  idx2=id=49
+       root=53
        space_id=4294967294
        table_id=19
        trx_id=0
@@ -1746,8 +1770,8 @@ parameter_type_elements=
             lbl=TABLESPACE
             pos=5
   id=20
-  idx0=id=49
-       root=53
+  idx0=id=50
+       root=54
        space_id=4294967294
        table_id=20
        trx_id=0
@@ -1874,18 +1898,18 @@ parameters=
             lbl=TABLESPACE
             pos=5
   id=21
-  idx0=id=50
-       root=54
-       space_id=4294967294
-       table_id=21
-       trx_id=0
-  idx1=id=51
+  idx0=id=51
        root=55
        space_id=4294967294
        table_id=21
        trx_id=0
-  idx2=id=52
+  idx1=id=52
        root=56
+       space_id=4294967294
+       table_id=21
+       trx_id=0
+  idx2=id=53
+       root=57
        space_id=4294967294
        table_id=21
        trx_id=0
@@ -1954,13 +1978,13 @@ resource_groups=
             lbl=TABLESPACE
             pos=5
   id=22
-  idx0=id=53
-       root=57
+  idx0=id=54
+       root=58
        space_id=4294967294
        table_id=22
        trx_id=0
-  idx1=id=54
-       root=58
+  idx1=id=55
+       root=59
        space_id=4294967294
        table_id=22
        trx_id=0
@@ -2130,16 +2154,19 @@ routines=
       elem1=def=KEY(connection_collation_id)
             lbl=INDEX_K_CONNECTION_COLLATION_ID
             pos=4
-      elem2=def=KEY(result_collation_id)
+      elem2=def=KEY(definer)
+            lbl=INDEX_K_DEFINER
+            pos=6
+      elem3=def=KEY(result_collation_id)
             lbl=INDEX_K_RESULT_COLLATION_ID
             pos=2
-      elem3=def=KEY(schema_collation_id)
+      elem4=def=KEY(schema_collation_id)
             lbl=INDEX_K_SCHEMA_COLLATION_ID
             pos=5
-      elem4=def=PRIMARY KEY(id)
+      elem5=def=PRIMARY KEY(id)
             lbl=INDEX_PK_ID
             pos=0
-      elem5=def=UNIQUE KEY(schema_id, type, name)
+      elem6=def=UNIQUE KEY(schema_id, type, name)
             lbl=INDEX_UK_SCHEMA_ID_TYPE_NAME
             pos=1
     name=routines
@@ -2163,33 +2190,38 @@ routines=
             lbl=TABLESPACE
             pos=5
   id=23
-  idx0=id=55
-       root=59
-       space_id=4294967294
-       table_id=23
-       trx_id=0
-  idx1=id=56
+  idx0=id=56
        root=60
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx2=id=57
+  idx1=id=57
        root=61
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx3=id=58
+  idx2=id=58
        root=62
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx4=id=59
+  idx3=id=59
        root=63
        space_id=4294967294
        table_id=23
        trx_id=0
-  idx5=id=60
+  idx4=id=60
        root=64
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx5=id=61
+       root=65
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx6=id=62
+       root=66
        space_id=4294967294
        table_id=23
        trx_id=0
@@ -2275,18 +2307,18 @@ schemata=
             lbl=TABLESPACE
             pos=5
   id=24
-  idx0=id=61
-       root=65
-       space_id=4294967294
-       table_id=24
-       trx_id=0
-  idx1=id=62
-       root=66
-       space_id=4294967294
-       table_id=24
-       trx_id=0
-  idx2=id=63
+  idx0=id=63
        root=67
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+  idx1=id=64
+       root=68
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+  idx2=id=65
+       root=69
        space_id=4294967294
        table_id=24
        trx_id=0
@@ -2378,18 +2410,18 @@ COLLATE utf8_general_ci
             lbl=TABLESPACE
             pos=5
   id=25
-  idx0=id=64
-       root=68
-       space_id=4294967294
-       table_id=25
-       trx_id=0
-  idx1=id=65
-       root=69
-       space_id=4294967294
-       table_id=25
-       trx_id=0
-  idx2=id=66
+  idx0=id=66
        root=70
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+  idx1=id=67
+       root=71
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+  idx2=id=68
+       root=72
        space_id=4294967294
        table_id=25
        trx_id=0
@@ -2408,7 +2440,7 @@ table_partition_values=
       elem0=def=column_num TINYINT UNSIGNED NOT NULL
             lbl=FIELD_COLUMN_NUM
             pos=2
-      elem1=def=list_num TINYINT UNSIGNED NOT NULL
+      elem1=def=list_num SMALLINT UNSIGNED NOT NULL
             lbl=FIELD_LIST_NUM
             pos=1
       elem2=def=max_value BOOL NOT NULL
@@ -2449,8 +2481,8 @@ table_partition_values=
             lbl=TABLESPACE
             pos=5
   id=26
-  idx0=id=67
-       root=71
+  idx0=id=69
+       root=73
        space_id=4294967294
        table_id=26
        trx_id=0
@@ -2563,38 +2595,38 @@ table_partitions=
             lbl=TABLESPACE
             pos=5
   id=27
-  idx0=id=68
-       root=72
-       space_id=4294967294
-       table_id=27
-       trx_id=0
-  idx1=id=69
-       root=73
-       space_id=4294967294
-       table_id=27
-       trx_id=0
-  idx2=id=70
+  idx0=id=70
        root=74
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx3=id=71
+  idx1=id=71
        root=75
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx4=id=72
+  idx2=id=72
        root=76
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx5=id=73
+  idx3=id=73
        root=77
        space_id=4294967294
        table_id=27
        trx_id=0
-  idx6=id=74
+  idx4=id=74
        root=78
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx5=id=75
+       root=79
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx6=id=76
+       root=80
        space_id=4294967294
        table_id=27
        trx_id=0
@@ -2683,8 +2715,8 @@ table_stats=
             lbl=TABLESPACE
             pos=5
   id=28
-  idx0=id=75
-       root=79
+  idx0=id=77
+       root=81
        space_id=4294967294
        table_id=28
        trx_id=0
@@ -2721,6 +2753,8 @@ tables=
   col34=table_id=29
   col35=table_id=29
   col36=table_id=29
+  col37=table_id=29
+  col38=table_id=29
   col4=table_id=29
   col5=table_id=29
   col6=table_id=29
@@ -2737,22 +2771,25 @@ tables=
       elem1=def=comment VARCHAR(2048) NOT NULL
             lbl=FIELD_COMMENT
             pos=8
-      elem10=def=mysql_version_id INT UNSIGNED NOT NULL
+      elem10=def=last_checked_for_upgrade_version_id INT UNSIGNED NOT NULL
+            lbl=FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID
+            pos=34
+      elem11=def=mysql_version_id INT UNSIGNED NOT NULL
             lbl=FIELD_MYSQL_VERSION_ID
             pos=5
-      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem12=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
             lbl=FIELD_NAME
             pos=2
-      elem12=def=options MEDIUMTEXT
+      elem13=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=10
-      elem13=def=partition_expression VARCHAR(2048)
+      elem14=def=partition_expression VARCHAR(2048)
             lbl=FIELD_PARTITION_EXPRESSION
             pos=15
-      elem14=def=partition_expression_utf8 VARCHAR(2048)
+      elem15=def=partition_expression_utf8 VARCHAR(2048)
             lbl=FIELD_PARTITION_EXPRESSION_UTF8
             pos=16
-      elem15=def=partition_type ENUM(
+      elem16=def=partition_type ENUM(
   'HASH','KEY_51','KEY_55',
   'LINEAR_HASH','LINEAR_KEY_51',
   'LINEAR_KEY_55','RANGE','LIST',
@@ -2760,28 +2797,31 @@ tables=
   'AUTO', 'AUTO_LINEAR')
             lbl=FIELD_PARTITION_TYPE
             pos=14
-      elem16=def=row_format ENUM('Fixed', 'Dynamic', 'Compressed',                'Redundant','Compact','Paged')
+      elem17=def=row_format ENUM('Fixed', 'Dynamic', 'Compressed',                'Redundant','Compact','Paged')
             lbl=FIELD_ROW_FORMAT
             pos=6
-      elem17=def=schema_id BIGINT UNSIGNED NOT NULL
+      elem18=def=schema_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_SCHEMA_ID
             pos=1
-      elem18=def=se_private_data MEDIUMTEXT
-            lbl=FIELD_SE_PRIVATE_DATA
-            pos=11
-      elem19=def=se_private_id BIGINT UNSIGNED
-            lbl=FIELD_SE_PRIVATE_ID
-            pos=12
+      elem19=def=secondary_engine_attribute JSON
+            lbl=FIELD_SECONDARY_ENGINE_ATTRIBUTE
+            pos=36
       elem2=def=created TIMESTAMP NOT NULL
             lbl=FIELD_CREATED
             pos=22
-      elem20=def=subpartition_expression VARCHAR(2048)
+      elem20=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=11
+      elem21=def=se_private_id BIGINT UNSIGNED
+            lbl=FIELD_SE_PRIVATE_ID
+            pos=12
+      elem22=def=subpartition_expression VARCHAR(2048)
             lbl=FIELD_SUBPARTITION_EXPRESSION
             pos=19
-      elem21=def=subpartition_expression_utf8 VARCHAR(2048)
+      elem23=def=subpartition_expression_utf8 VARCHAR(2048)
             lbl=FIELD_SUBPARTITION_EXPRESSION_UTF8
             pos=20
-      elem22=def=subpartition_type ENUM(
+      elem24=def=subpartition_type ENUM(
   'HASH','KEY_51','KEY_55',
   'LINEAR_HASH',
   'LINEAR_KEY_51',
@@ -2789,43 +2829,43 @@ tables=
 )
             lbl=FIELD_SUBPARTITION_TYPE
             pos=18
-      elem23=def=tablespace_id BIGINT UNSIGNED
+      elem25=def=tablespace_id BIGINT UNSIGNED
             lbl=FIELD_TABLESPACE_ID
             pos=13
-      elem24=def=type ENUM('BASE TABLE', 'VIEW', 'SYSTEM VIEW')NOT NULL
+      elem26=def=type ENUM('BASE TABLE', 'VIEW', 'SYSTEM VIEW')NOT NULL
             lbl=FIELD_TYPE
             pos=3
-      elem25=def=view_algorithm ENUM('UNDEFINED', 'TEMPTABLE', 'MERGE')
+      elem27=def=view_algorithm ENUM('UNDEFINED', 'TEMPTABLE', 'MERGE')
             lbl=FIELD_VIEW_ALGORITHM
             pos=28
-      elem26=def=view_check_option ENUM('NONE', 'LOCAL', 'CASCADED')
+      elem28=def=view_check_option ENUM('NONE', 'LOCAL', 'CASCADED')
             lbl=FIELD_VIEW_CHECK_OPTION
             pos=26
-      elem27=def=view_client_collation_id BIGINT UNSIGNED
+      elem29=def=view_client_collation_id BIGINT UNSIGNED
             lbl=FIELD_VIEW_CLIENT_COLLATION_ID
             pos=31
-      elem28=def=view_column_names LONGTEXT
-            lbl=FIELD_VIEW_COLUMN_NAMES
-            pos=33
-      elem29=def=view_connection_collation_id BIGINT UNSIGNED
-            lbl=FIELD_VIEW_CONNECTION_COLLATION_ID
-            pos=32
       elem3=def=default_partitioning ENUM('NO', 'YES', 'NUMBER')
             lbl=FIELD_DEFAULT_PARTITIONING
             pos=17
-      elem30=def=view_definer VARCHAR(288)
+      elem30=def=view_column_names LONGTEXT
+            lbl=FIELD_VIEW_COLUMN_NAMES
+            pos=33
+      elem31=def=view_connection_collation_id BIGINT UNSIGNED
+            lbl=FIELD_VIEW_CONNECTION_COLLATION_ID
+            pos=32
+      elem32=def=view_definer VARCHAR(288)
             lbl=FIELD_VIEW_DEFINER
             pos=30
-      elem31=def=view_definition LONGBLOB
+      elem33=def=view_definition LONGBLOB
             lbl=FIELD_VIEW_DEFINITION
             pos=24
-      elem32=def=view_definition_utf8 LONGTEXT
+      elem34=def=view_definition_utf8 LONGTEXT
             lbl=FIELD_VIEW_DEFINITION_UTF8
             pos=25
-      elem33=def=view_is_updatable ENUM('NO', 'YES')
+      elem35=def=view_is_updatable ENUM('NO', 'YES')
             lbl=FIELD_VIEW_IS_UPDATABLE
             pos=27
-      elem34=def=view_security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER')
+      elem36=def=view_security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER')
             lbl=FIELD_VIEW_SECURITY_TYPE
             pos=29
       elem4=def=default_subpartitioning ENUM('NO', 'YES', 'NUMBER')
@@ -2834,18 +2874,18 @@ tables=
       elem5=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
             lbl=FIELD_ENGINE
             pos=4
-      elem6=def=hidden ENUM('Visible', 'System', 'SE', 'DDL') NOT NULL
+      elem6=def=engine_attribute JSON
+            lbl=FIELD_ENGINE_ATTRIBUTE
+            pos=35
+      elem7=def=hidden ENUM('Visible', 'System', 'SE', 'DDL') NOT NULL
             lbl=FIELD_HIDDEN
             pos=9
-      elem7=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+      elem8=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem8=def=last_altered TIMESTAMP NOT NULL
+      elem9=def=last_altered TIMESTAMP NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=23
-      elem9=def=last_checked_for_upgrade_version_id INT UNSIGNED NOT NULL
-            lbl=FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID
-            pos=34
     foreign_keys=
       elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
             lbl=FK_COLLATION_ID
@@ -2875,19 +2915,22 @@ tables=
       elem3=def=KEY(type)
             lbl=INDEX_K_TYPE
             pos=6
-      elem4=def=KEY(view_client_collation_id)
+      elem4=def=KEY(type, view_definer)
+            lbl=INDEX_K_TYPE_VIEW_DEFINER
+            pos=9
+      elem5=def=KEY(view_client_collation_id)
             lbl=INDEX_K_VIEW_CLIENT_COLLATION_ID
             pos=7
-      elem5=def=KEY(view_connection_collation_id)
+      elem6=def=KEY(view_connection_collation_id)
             lbl=INDEX_K_VIEW_CONNECTION_COLLATION_ID
             pos=8
-      elem6=def=PRIMARY KEY (id)
+      elem7=def=PRIMARY KEY (id)
             lbl=INDEX_PK_ID
             pos=0
-      elem7=def=UNIQUE KEY (engine, se_private_id)
+      elem8=def=UNIQUE KEY (engine, se_private_id)
             lbl=INDEX_UK_ENGINE_SE_PRIVATE_ID
             pos=2
-      elem8=def=UNIQUE KEY (schema_id, name)
+      elem9=def=UNIQUE KEY (schema_id, name)
             lbl=INDEX_UK_SCHEMA_ID_NAME
             pos=1
     name=tables
@@ -2911,48 +2954,53 @@ tables=
             lbl=TABLESPACE
             pos=5
   id=29
-  idx0=id=76
-       root=80
-       space_id=4294967294
-       table_id=29
-       trx_id=0
-  idx1=id=77
-       root=81
-       space_id=4294967294
-       table_id=29
-       trx_id=0
-  idx2=id=78
+  idx0=id=78
        root=82
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx3=id=79
+  idx1=id=79
        root=83
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx4=id=80
+  idx2=id=80
        root=84
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx5=id=81
+  idx3=id=81
        root=85
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx6=id=82
+  idx4=id=82
        root=86
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx7=id=83
+  idx5=id=83
        root=87
        space_id=4294967294
        table_id=29
        trx_id=0
-  idx8=id=84
+  idx6=id=84
        root=88
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx7=id=85
+       root=90
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx8=id=86
+       root=91
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx9=id=87
+       root=92
        space_id=4294967294
        table_id=29
        trx_id=0
@@ -3011,13 +3059,13 @@ tablespace_files=
             lbl=TABLESPACE
             pos=5
   id=30
-  idx0=id=85
-       root=90
+  idx0=id=88
+       root=93
        space_id=4294967294
        table_id=30
        trx_id=0
-  idx1=id=86
-       root=91
+  idx1=id=89
+       root=94
        space_id=4294967294
        table_id=30
        trx_id=0
@@ -3031,6 +3079,7 @@ tablespaces=
   col5=table_id=31
   col6=table_id=31
   col7=table_id=31
+  col8=table_id=31
   data=autoinc=0
   version=0
   def=
@@ -3041,16 +3090,19 @@ tablespaces=
       elem1=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
             lbl=FIELD_ENGINE
             pos=5
-      elem2=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+      elem2=def=engine_attribute JSON
+            lbl=FIELD_ENGINE_ATTRIBUTE
+            pos=6
+      elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem3=def=name VARCHAR(268) NOT NULL COLLATE utf8_bin
+      elem4=def=name VARCHAR(268) NOT NULL COLLATE utf8_bin
             lbl=FIELD_NAME
             pos=1
-      elem4=def=options MEDIUMTEXT
+      elem5=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=2
-      elem5=def=se_private_data MEDIUMTEXT
+      elem6=def=se_private_data MEDIUMTEXT
             lbl=FIELD_SE_PRIVATE_DATA
             pos=3
     foreign_keys=
@@ -3082,13 +3134,13 @@ tablespaces=
             lbl=TABLESPACE
             pos=5
   id=31
-  idx0=id=87
-       root=92
+  idx0=id=90
+       root=95
        space_id=4294967294
        table_id=31
        trx_id=0
-  idx1=id=88
-       root=93
+  idx1=id=91
+       root=96
        space_id=4294967294
        table_id=31
        trx_id=0
@@ -3191,16 +3243,19 @@ triggers=
       elem1=def=KEY(connection_collation_id)
             lbl=INDEX_K_CONNECTION_COLLATION_ID
             pos=4
-      elem2=def=KEY(schema_collation_id)
+      elem2=def=KEY(definer)
+            lbl=INDEX_K_DEFINER
+            pos=6
+      elem3=def=KEY(schema_collation_id)
             lbl=INDEX_K_SCHEMA_COLLATION_ID
             pos=5
-      elem3=def=PRIMARY KEY(id)
+      elem4=def=PRIMARY KEY(id)
             lbl=INDEX_PK_ID
             pos=0
-      elem4=def=UNIQUE KEY (schema_id, name)
+      elem5=def=UNIQUE KEY (schema_id, name)
             lbl=INDEX_UK_SCHEMA_ID_NAME
             pos=1
-      elem5=def=UNIQUE KEY (table_id, event_type, action_timing, action_order)
+      elem6=def=UNIQUE KEY (table_id, event_type, action_timing, action_order)
             lbl=INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER
             pos=2
     name=triggers
@@ -3224,33 +3279,38 @@ triggers=
             lbl=TABLESPACE
             pos=5
   id=32
-  idx0=id=89
-       root=94
-       space_id=4294967294
-       table_id=32
-       trx_id=0
-  idx1=id=90
-       root=95
-       space_id=4294967294
-       table_id=32
-       trx_id=0
-  idx2=id=91
-       root=96
-       space_id=4294967294
-       table_id=32
-       trx_id=0
-  idx3=id=92
+  idx0=id=92
        root=97
        space_id=4294967294
        table_id=32
        trx_id=0
-  idx4=id=93
+  idx1=id=93
        root=98
        space_id=4294967294
        table_id=32
        trx_id=0
-  idx5=id=94
+  idx2=id=94
        root=99
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx3=id=95
+       root=100
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx4=id=96
+       root=101
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx5=id=97
+       root=102
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx6=id=98
+       root=103
        space_id=4294967294
        table_id=32
        trx_id=0
@@ -3309,13 +3369,13 @@ view_routine_usage=
             lbl=TABLESPACE
             pos=5
   id=33
-  idx0=id=95
-       root=100
+  idx0=id=99
+       root=104
        space_id=4294967294
        table_id=33
        trx_id=0
-  idx1=id=96
-       root=101
+  idx1=id=100
+       root=105
        space_id=4294967294
        table_id=33
        trx_id=0
@@ -3374,13 +3434,13 @@ view_table_usage=
             lbl=TABLESPACE
             pos=5
   id=34
-  idx0=id=97
-       root=102
+  idx0=id=101
+       root=106
        space_id=4294967294
        table_id=34
        trx_id=0
-  idx1=id=98
-       root=103
+  idx1=id=102
+       root=107
        space_id=4294967294
        table_id=34
        trx_id=0

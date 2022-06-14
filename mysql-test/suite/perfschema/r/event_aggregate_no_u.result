@@ -78,12 +78,13 @@ execute dump_transactions_history;
 event_name	count(event_name)
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	1
+localhost	2	2
 "================== con1 connected =================="
 "================== Step 2 =================="
 call dump_thread();
@@ -182,13 +183,14 @@ execute dump_transactions_history;
 event_name	count(event_name)
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	2	2
+localhost	3	3
 select uuid_short() <> 1;
 uuid_short() <> 1
 1
@@ -309,13 +311,14 @@ event_name	count(event_name)
 transaction	1
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	2	2
+localhost	3	3
 "================== con2 connected =================="
 "================== Step 4 =================="
 call dump_thread();
@@ -440,6 +443,7 @@ event_name	count(event_name)
 transaction	1
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -447,7 +451,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	3
+localhost	4	4
 select uuid_short() <> 1;
 uuid_short() <> 1
 1
@@ -584,6 +588,7 @@ event_name	count(event_name)
 transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -591,7 +596,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	3
+localhost	4	4
 "================== con3 connected =================="
 "================== Step 6 =================="
 call dump_thread();
@@ -732,6 +737,7 @@ event_name	count(event_name)
 transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -740,7 +746,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	4	4
+localhost	5	5
 select uuid_short() <> 1;
 uuid_short() <> 1
 1
@@ -893,6 +899,7 @@ event_name	count(event_name)
 transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -901,7 +908,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	4	4
+localhost	5	5
 "================== con4 connected =================="
 "================== Step 8 =================="
 call dump_thread();
@@ -1058,6 +1065,7 @@ event_name	count(event_name)
 transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -1067,7 +1075,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	5	5
+localhost	6	6
 select uuid_short() <> 1;
 uuid_short() <> 1
 1
@@ -1236,6 +1244,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -1245,7 +1254,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	5	5
+localhost	6	6
 "================== con1 disconnected =================="
 "================== Step 10 =================="
 call dump_thread();
@@ -1402,6 +1411,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	1	1
@@ -1411,7 +1421,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	4	5
+localhost	5	6
 "================== con2 disconnected =================="
 "================== Step 11 =================="
 call dump_thread();
@@ -1566,6 +1576,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1575,7 +1586,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	3	5
+localhost	4	6
 "================== con3 disconnected =================="
 "================== Step 12 =================="
 call dump_thread();
@@ -1728,6 +1739,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1737,7 +1749,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	2	5
+localhost	3	6
 "================== con4 disconnected =================="
 "================== Step 13 =================="
 call dump_thread();
@@ -1888,6 +1900,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1897,7 +1910,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 "================== WAITS_BY_THREAD truncated =================="
 "================== Step 14 =================="
@@ -2049,6 +2062,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2058,7 +2072,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
 "================== WAITS_BY_ACCOUNT truncated =================="
 "================== Step 15 =================="
@@ -2210,6 +2224,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2219,7 +2234,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_waits_summary_by_user_by_event_name;
 "================== WAITS_BY_USER truncated =================="
 "================== Step 16 =================="
@@ -2371,6 +2386,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2380,7 +2396,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_waits_summary_by_host_by_event_name;
 "================== WAITS_BY_HOST truncated =================="
 "================== Step 17 =================="
@@ -2532,6 +2548,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2541,7 +2558,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_waits_summary_global_by_event_name;
 "================== WAITS_GLOBAL truncated =================="
 "================== Step 18 =================="
@@ -2693,6 +2710,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2702,7 +2720,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_stages_summary_by_thread_by_event_name;
 "================== STAGES_BY_THREAD truncated =================="
 "================== Step 19 =================="
@@ -2854,6 +2872,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2863,7 +2882,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_stages_summary_by_account_by_event_name;
 "================== STAGES_BY_ACCOUNT truncated =================="
 "================== Step 20 =================="
@@ -3015,6 +3034,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3024,7 +3044,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_stages_summary_by_user_by_event_name;
 "================== STAGES_BY_USER truncated =================="
 "================== Step 21 =================="
@@ -3176,6 +3196,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3185,7 +3206,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_stages_summary_by_host_by_event_name;
 "================== STAGES_BY_HOST truncated =================="
 "================== Step 22 =================="
@@ -3337,6 +3358,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3346,7 +3368,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_stages_summary_global_by_event_name;
 "================== STAGES_GLOBAL truncated =================="
 "================== Step 23 =================="
@@ -3498,6 +3520,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3507,7 +3530,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_statements_summary_by_thread_by_event_name;
 "================== STATEMENTS_BY_THREAD truncated =================="
 "================== Step 24 =================="
@@ -3659,6 +3682,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3668,7 +3692,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_statements_summary_by_account_by_event_name;
 "================== STATEMENTS_BY_ACCOUNT truncated =================="
 "================== Step 25 =================="
@@ -3820,6 +3844,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3829,7 +3854,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_statements_summary_by_user_by_event_name;
 "================== STATEMENTS_BY_USER truncated =================="
 "================== Step 26 =================="
@@ -3981,6 +4006,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3990,7 +4016,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_statements_summary_by_host_by_event_name;
 "================== STATEMENTS_BY_HOST truncated =================="
 "================== Step 27 =================="
@@ -4142,6 +4168,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4151,7 +4178,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_statements_summary_global_by_event_name;
 "================== STATEMENTS_GLOBAL truncated =================="
 "================== Step 28 =================="
@@ -4303,6 +4330,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4312,7 +4340,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_transactions_summary_by_thread_by_event_name;
 "================== TRANSACTIONS_BY_THREAD truncated =================="
 "================== Step 29 =================="
@@ -4464,6 +4492,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4473,7 +4502,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_transactions_summary_by_account_by_event_name;
 "================== TRANSACTIONS_BY_ACCOUNT truncated =================="
 "================== Step 30 =================="
@@ -4625,6 +4654,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4634,7 +4664,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_transactions_summary_by_user_by_event_name;
 "================== TRANSACTIONS_BY_USER truncated =================="
 "================== Step 31 =================="
@@ -4786,6 +4816,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4795,7 +4826,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_transactions_summary_by_host_by_event_name;
 "================== TRANSACTIONS_BY_HOST truncated =================="
 "================== Step 32 =================="
@@ -4947,6 +4978,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4956,7 +4988,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.events_transactions_summary_global_by_event_name;
 "================== TRANSACTIONS_GLOBAL truncated =================="
 "================== Step 33 =================="
@@ -5108,6 +5140,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -5117,7 +5150,7 @@ execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.accounts;
 "================== ACCOUNTS truncated =================="
 "================== Step 34 =================="
@@ -5213,12 +5246,13 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.users;
 "================== USERS truncated =================="
 "================== Step 35 =================="
@@ -5314,12 +5348,13 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	5
+localhost	2	6
 truncate performance_schema.hosts;
 "================== HOSTS truncated =================="
 "================== Step 36 =================="
@@ -5415,9 +5450,10 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
-localhost	1	1
+localhost	2	2

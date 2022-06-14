@@ -183,7 +183,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -34,2 +34,3 @@
            "filtered": "10.00",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -45,4 +46,3 @@
              "c1"
 -          ],
@@ -193,7 +193,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -56,2 +56,3 @@
            "filtered": "33.33",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -67,4 +68,3 @@
              "c2"
 -          ],
@@ -499,89 +499,26 @@ Diff: EXPLAIN NORMAL vs OTHER
            }
 QUERY: DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) 
 STATUS:NOT_EQUAL
-SYNC_POINT:planned_single_delete
+SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -10,76 +10,10 @@
+@@ -14,2 +14,3 @@
        "filtered": "100.00",
--      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select 1 from `test`.`t2` anti join (`test`.`t3`) on((`test`.`t3`.`numeropost` = `test`.`t2`.`topic`)) where (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))",
 +      "using_where": true,
+       "cost_info": {
+@@ -23,3 +24,2 @@
+       ],
+-      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select `test`.`t2`.`topic` from `test`.`t2` anti join (`test`.`t3`) on((`test`.`t3`.`numeropost` = `test`.`t2`.`topic`)) where (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))",
        "attached_subqueries": [
-         {
--          "dependent": true,
--          "cacheable": false,
-+          "dependent": false,
-+          "cacheable": true,
-           "query_block": {
-             "select_id": 2,
--            "cost_info": {
--              "query_cost": "1.15"
--            },
--            "nested_loop": [
--              {
--                "table": {
--                  "table_name": "t2",
--                  "access_type": "ref",
--                  "possible_keys": [
--                    "topic"
--                  ],
--                  "key": "topic",
--                  "used_key_parts": [
--                    "topic"
--                  ],
--                  "key_length": "3",
--                  "ref": [
--                    "func"
--                  ],
--                  "rows_examined_per_scan": 2,
--                  "rows_produced_per_join": 2,
--                  "filtered": "100.00",
--                  "using_index": true,
--                  "cost_info": {
--                    "read_cost": "0.25",
--                    "eval_cost": "0.20",
--                    "prefix_cost": "0.45",
--                    "data_read_per_join": "160"
--                  },
--                  "used_columns": [
--                    "topic"
--                  ]
--                }
--              },
--              {
--                "table": {
--                  "table_name": "t3",
--                  "access_type": "eq_ref",
--                  "possible_keys": [
--                    "PRIMARY"
--                  ],
--                  "key": "PRIMARY",
--                  "used_key_parts": [
--                    "numeropost"
--                  ],
--                  "key_length": "3",
--                  "ref": [
--                    "test.t2.topic"
--                  ],
--                  "rows_examined_per_scan": 1,
--                  "rows_produced_per_join": 2,
--                  "filtered": "100.00",
--                  "not_exists": true,
--                  "using_index": true,
--                  "cost_info": {
--                    "read_cost": "0.50",
--                    "eval_cost": "0.20",
--                    "prefix_cost": "1.15",
--                    "data_read_per_join": "32"
--                  },
--                  "used_columns": [
--                    "numeropost"
+@@ -82,2 +82,3 @@
+                   "filtered": "100.00",
++                  "using_where": true,
+                   "not_exists": true,
+@@ -92,4 +93,3 @@
+                     "numeropost"
 -                  ],
 -                  "attached_condition": "<if>(is_not_null_compl(t3), <if>(found_match(t3), false, true), true)"
--                }
--              }
--            ]
-+            "message": "Plan isn't ready yet"
-           }
++                  ]
+                 }
 QUERY: SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns 
 STATUS: EQUAL
 QUERY: SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2 
@@ -643,7 +580,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -43,2 +43,3 @@
              "filtered": "20.00",
 +            "using_where": true,
-             "using_join_buffer": "Block Nested Loop",
+             "using_join_buffer": "hash join",
 @@ -53,4 +54,3 @@
                "col_varchar_nokey"
 -            ],
@@ -672,7 +609,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -43,2 +43,3 @@
              "filtered": "20.00",
 +            "using_where": true,
-             "using_join_buffer": "Block Nested Loop",
+             "using_join_buffer": "hash join",
 @@ -53,4 +54,3 @@
                "col_varchar_nokey"
 -            ],
@@ -691,7 +628,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -107,4 +108,3 @@
                "col_int_key"
 -            ],
--            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
+-            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
 +            ]
            }
 QUERY: SELECT d FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a WHERE d LIKE '_' ORDER BY d 
@@ -770,7 +707,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "rows_produced_per_join": 2,
 +          "filtered": "100.00",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -49,5 +50,5 @@
              "read_cost": "0.25",
 -            "eval_cost": "0.10",
@@ -786,16 +723,4 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          ]
          }
 QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -27,2 +27,3 @@
-               "filtered": "100.00",
-+              "using_where": true,
-               "cost_info": {
-@@ -37,4 +38,3 @@
-                 "col_varchar_key"
--              ],
--              "attached_condition": "((`test`.`alias1`.`col_int` > `test`.`alias1`.`col_int`) and (`test`.`alias1`.`col_varchar_key` is not null))"
-+              ]
-             }
+STATUS: EQUAL

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,13 @@ struct Semijoin_mat_optimize {
   they can be processed as inner joins instead of outer joins.
 */
 struct NESTED_JOIN {
-  List<TABLE_LIST> join_list;   /* list of elements in the nested join */
+  NESTED_JOIN()
+      : join_list(*THR_MALLOC),
+        sj_outer_exprs(*THR_MALLOC),
+        sj_inner_exprs(*THR_MALLOC) {}
+
+  mem_root_deque<TABLE_LIST *>
+      join_list;                /* list of elements in the nested join */
   table_map used_tables{0};     /* bitmap of tables in the nested join */
   table_map not_null_tables{0}; /* tables that rejects nulls           */
   /**
@@ -99,7 +105,7 @@ struct NESTED_JOIN {
     1. In make_outerjoin_info().
     2. check_interleaving_with_nj/backout_nj_state (these are called
        by the join optimizer.
-    Before each use the counters are zeroed by SELECT_LEX::reset_nj_counters.
+    Before each use the counters are zeroed by Query_block::reset_nj_counters.
   */
   uint nj_counter{0};
   /**
@@ -132,7 +138,7 @@ struct NESTED_JOIN {
     Lists of trivially-correlated expressions from the outer and inner tables
     of the semi-join, respectively.
   */
-  List<Item> sj_outer_exprs, sj_inner_exprs;
+  mem_root_deque<Item *> sj_outer_exprs, sj_inner_exprs;
   Semijoin_mat_optimize sjm;
 };
 

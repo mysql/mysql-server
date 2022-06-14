@@ -28,7 +28,7 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 INSERT INTO t1 (c1, data) VALUES (2, 'b');
 #
 # Verify that we can skip the incident event by setting
-# --slave-skip-errors=1590 on slave.
+# --replica-skip-errors=1590 on slave.
 #
 include/sync_slave_sql_with_master.inc
 [connection master]

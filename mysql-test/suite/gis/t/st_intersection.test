@@ -1,0 +1,117 @@
+###############################################################################
+#                                                                             #
+# This test tests the ST_Intersection function.                               #
+# ST_Intersection returns the intersection geometry between two geometries.   #
+# The function is defined by OGC standard documents.                          #
+#                                                                             #
+###############################################################################
+
+--echo #####################################################################################
+--echo # Creating a spatial Geometry object
+--echo #####################################################################################
+USE test;
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+# Geometric elements constructing a star
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 5,25 0,22 10,30 15,19 15,5 0)),((19 15,15 25,11 15,19 15)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0),(10 6,10 10,7 12,13 13,15 18,17 13,21 13,18 10,20 6,15 8,10 6)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+--echo # INSERT star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES (103,ST_GEOMFROMTEXT(@star_of_elems));
+--enable_warnings
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+--echo # Checking the integrity of the above create/insert statements
+--echo # 1 row.
+SELECT count(g IS NULL) FROM gis_geometrycollection;
+--echo # 1 row.
+SELECT count(g2 IS NULL) FROM gis_geometrycollection_2;
+
+--echo #####################################################################################
+--echo # Testing ST_Intersection() with different ways to pass input geometries
+--echo #####################################################################################
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
+SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('POINT(0 0)'))) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+
+--echo #####################################################################################
+--echo # Verify ST_Intersection() returns NULL if at least one of its arguments are NULL.
+--echo #####################################################################################
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),NULL));
+SELECT ST_ASTEXT(ST_INTERSECTION(NULL,ST_GEOMFROMTEXT(@star_of_elems)));
+SELECT ST_ASTEXT(ST_INTERSECTION(NULL,ST_GEOMFROMTEXT('POINT(0 0)')));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),NULL));
+SELECT ST_ASTEXT(ST_INTERSECTION(g,NULL)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_ASTEXT(ST_INTERSECTION(NULL,NULL));
+SELECT ST_ASTEXT(ST_INTERSECTION(fid,NULL)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #####################################################################################
+--echo # WL#8579 Spatial Reference Systems
+--echo #####################################################################################
+--echo # SRID 0 (should pass)
+SELECT ST_ASTEXT(ST_INTERSECTION(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+));
+--echo # Projected SRS (should pass)
+SELECT ST_ASTEXT(ST_INTERSECTION(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+));
+echo # Geographic SRS (should pass)
+SELECT ST_ASTEXT(ST_INTERSECTION(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+));
+
+--echo #####################################################################################
+--echo # Invalid function calls
+--echo #####################################################################################
+--echo # Undefined SRS' in the input geometries should return ER_SRS_NOT_FOUND.
+# Assume SRID 1000000000 is undefined.
+--error ER_SRS_NOT_FOUND
+DO ST_ASTEXT(ST_INTERSECTION(x'40420f00010100000000000000000000000000000000000000',x'40420f00010100000000000000000000000000000000000000'));
+
+--echo # Different SRIDs in the input geometries should return ER_GIS_DIFFERENT_SRIDS.
+--error ER_GIS_DIFFERENT_SRIDS
+DO ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 1)',4326)));
+--error ER_GIS_DIFFERENT_SRIDS
+DO ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)',4145),ST_GEOMFROMTEXT('POINT(0 1)',4326)));
+
+--echo # Not syntactically well-formed geometry input should result in ER_GIS_INVALID_DATA.
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_INTERSECTION(fid,ST_GEOMFROMTEXT('POINT(0 0)'))) FROM gis_geometrycollection WHERE fid=103;
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),fid)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo # Return ER_GEOMETRY_PARAM_(LONGITUDE/LATITUDE)_OUT_OF_RANGE if longitude and latitude values are not
+--echo # within their respective ranges (-180,180] and [-90,90]).
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+
+# SRID=4326, long=0, lat=-91.
+SET @pt_lat_minus_91 = x'E6100000010100000000000000000000000000000000C056C0';
+
+# SRID=4326, long=0, lat=91.
+SET @pt_lat_plus_91 = x'E6100000010100000000000000000000000000000000C05640';
+
+# SRID=4326, long=-181, lat=0.
+SET @pt_long_minus_181 = x'E610000001010000000000000000A066C00000000000000000';
+
+# SRID=4326, long=181, lat=0.
+SET @pt_long_plus_181 = x'E610000001010000000000000000A066400000000000000000';
+
+--error ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE
+DO ST_INTERSECTION(@pt_lat_minus_91, @pt);
+--error ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE
+DO ST_INTERSECTION(@pt_lat_plus_91, @pt);
+--error ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE
+DO ST_INTERSECTION(@pt_long_minus_181, @pt);
+--error ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE
+DO ST_INTERSECTION(@pt_long_plus_181, @pt);
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))'),ST_GEOMFROMTEXT('POLYGON((0 1,1.5 1,1 2,0 2,0 1))')));
+
+--echo #clean up
+DROP TABLE gis_geometrycollection;
+DROP TABLE gis_geometrycollection_2;

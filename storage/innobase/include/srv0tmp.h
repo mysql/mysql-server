@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,11 +41,11 @@ enum tbsp_purpose {
                   in a replication setup */
 };
 /** Create the session temporary tablespaces on startup
-@param[in] create_new_db	true if bootstrapping
+@param[in] create_new_db        true if bootstrapping
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t open_or_create(bool create_new_db);
 
-/** Sesssion Temporary tablespace */
+/** Session Temporary tablespace */
 class Tablespace {
  public:
   Tablespace();
@@ -135,10 +135,10 @@ Once a session disconnects, the tablespaces are truncated and released
 to the pool. */
 class Tablespace_pool {
  public:
-  using Pool = std::list<Tablespace *, ut_allocator<Tablespace *>>;
+  using Pool = std::list<Tablespace *, ut::allocator<Tablespace *>>;
 
   /** Tablespace_pool constructor
-  @param[in]    init_size    Initial size of the tablespace pool */
+  @param[in] init_size    Initial size of the tablespace pool */
   Tablespace_pool(size_t init_size);
 
   /** Destructor */
@@ -176,6 +176,15 @@ class Tablespace_pool {
     release();
   }
 
+  /** Gets current pool size.
+  @return Number of tablespaces in the pool, both active and free ones. */
+  size_t get_size() {
+    acquire();
+    size_t current_size = m_active->size() + m_free->size();
+    release();
+    return current_size;
+  }
+
  private:
   /** Acquire the mutex. It is used for all
   operations on the pool */
@@ -185,14 +194,14 @@ class Tablespace_pool {
   void release() { mutex_exit(&m_mutex); }
 
   /** Expand the pool to the requested size
-  @param[in] size	Number of tablespaces to be created
+  @param[in] size       Number of tablespaces to be created
   @return DB_SUCCESS on success, else DB_ERROR on error */
   dberr_t expand(size_t size);
 
   /** Delete old session temporary tablespaces found
   on startup. This can happen if server is killed and
   started again
-  @param[in]	create_new_db	true if we are bootstrapping */
+  @param[in]    create_new_db   true if we are bootstrapping */
   void delete_old_pool(bool create_new_db);
 
  private:

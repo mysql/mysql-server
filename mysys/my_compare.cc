@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ int ha_compare_text(const CHARSET_INFO *charset_info, const uchar *a,
 
 static int compare_bin(const uchar *a, uint a_length, const uchar *b,
                        uint b_length, bool part_key, bool skip_end_space) {
-  uint length = MY_MIN(a_length, b_length);
+  uint length = std::min(a_length, b_length);
   const uchar *end = a + length;
   int flag;
 
@@ -169,7 +169,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
         continue; /* To next key part */
       }
     }
-    end = a + MY_MIN(keyseg->length, key_length);
+    end = a + std::min<uint>(keyseg->length, key_length);
     next_key_length = key_length - keyseg->length;
 
     switch ((enum ha_base_keytype)keyseg->type) {
@@ -210,7 +210,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
           if (piks && (flag = compare_bin(a, a_length, b, b_length,
                                           (bool)((nextflag & SEARCH_PREFIX) &&
                                                  next_key_length <= 0),
-                                          1)))
+                                          true)))
             return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
           a += a_length;
           b += b_length;
@@ -220,7 +220,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
           if (piks && (flag = compare_bin(a, length, b, length,
                                           (bool)((nextflag & SEARCH_PREFIX) &&
                                                  next_key_length <= 0),
-                                          0)))
+                                          false)))
             return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
           a += length;
           b += length;
@@ -252,7 +252,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
         if (piks && (flag = compare_bin(a, a_length, b, b_length,
                                         (bool)((nextflag & SEARCH_PREFIX) &&
                                                next_key_length <= 0),
-                                        0)))
+                                        false)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a += a_length;
         b += b_length;

@@ -2,8 +2,10 @@
 # Bug#12982188 MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA WITH TRIGGER MYISAM TO INNODB
 #
 
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 let $max_workers= 4;
@@ -23,8 +25,8 @@ EOF
 
 --connection slave
 --source include/stop_slave.inc
-SET @save_slave_parallel_workers= @@slave_parallel_workers;
-eval SET @@global.slave_parallel_workers=$max_workers;
+SET @save_replica_parallel_workers= @@replica_parallel_workers;
+eval SET @@global.replica_parallel_workers=$max_workers;
 --source include/start_slave.inc
 
 --connection master
@@ -50,6 +52,6 @@ DROP DATABASE db2;
 --remove_file $MYSQLTEST_VARDIR/load_bug12982188.txt
 
 --sync_slave_with_master
-SET @@global.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@global.replica_parallel_workers= @save_replica_parallel_workers;
 
 --source include/rpl_end.inc

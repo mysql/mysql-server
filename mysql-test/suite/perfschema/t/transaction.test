@@ -7,6 +7,8 @@
 #                                                                    #
 ######################################################################
 
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source include/have_log_bin.inc

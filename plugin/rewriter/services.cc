@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ Session::Session(MYSQL_THD current_session)
     : m_previous_session(current_session),
       m_current_session(mysql_parser_open_session()) {}
 
-Condition_handler::~Condition_handler() {}
+Condition_handler::~Condition_handler() = default;
 
 /**
   Bridge function between the C++ API offered by this module and the C API of
@@ -86,7 +86,7 @@ bool parse(MYSQL_THD thd, const string &query, bool is_prepared,
 
 bool parse(MYSQL_THD thd, const string &query, bool is_prepared) {
   MYSQL_LEX_STRING query_str = make_lex_string(query);
-  return mysql_parser_parse(thd, query_str, is_prepared, NULL, NULL);
+  return mysql_parser_parse(thd, query_str, is_prepared, nullptr, nullptr);
 }
 
 bool is_supported_statement(MYSQL_THD thd) {

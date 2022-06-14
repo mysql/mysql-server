@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -298,6 +298,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             List<Integer> actualList = new ArrayList<Integer>();
             resultList = (List<IdBase>) query.getResultList();
             for (IdBase result: resultList) {
+                consistencyCheck(result);
                 printResultInstance(result);
                 actualSet.add(result.getId());
                 actualList.add(result.getId());

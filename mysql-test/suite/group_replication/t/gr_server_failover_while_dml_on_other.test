@@ -21,6 +21,7 @@
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --source include/group_replication.inc
@@ -81,6 +82,7 @@ set sql_log_bin=1;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 # Wait until group has only 2 members, that is, server2's death is detected by
 # the group.
 --echo # check that there are 2 members in the group

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,15 @@
 #define RPL_LOG_ENCRYPTION_INCLUDED
 
 #include <openssl/evp.h>
-#include <sql/basic_istream.h>
-#include <sql/basic_ostream.h>
-#include <sql/sql_class.h>
 #include <sql/stream_cipher.h>
+#include <stdint.h>
 #include <map>
 #include <string>
+#include "my_inttypes.h"
+
+class Basic_istream;
+class Basic_ostream;
+class THD;
 
 /**
   @file rpl_log_encryption.h
@@ -286,7 +289,7 @@ class Rpl_encryption {
     binlog_rotate_encryption_master_key_at_startup.
   */
   bool m_rotate_at_startup = false;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     This variable is only used to assert that enable(), disable() and
     get_master_key() functions are called only after initialize() was called.

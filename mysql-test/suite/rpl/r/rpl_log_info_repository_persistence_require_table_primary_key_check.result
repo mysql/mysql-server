@@ -1,0 +1,151 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 0. Check if a privilege checks user exists and adapt the test if so.
+#    Create a test auxiliary include file to avoid step repetition.
+[connection slave]
+
+# 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+#      Check the performance_schema table and file repository are correct
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is ON]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 2]
+DROP TABLE relay_log_info_content;
+
+# 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
+#      Check the performance_schema table and file repository are correct
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is OFF]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 3]
+DROP TABLE relay_log_info_content;
+
+# 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
+#      Check the performance_schema table and file repository are correct
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 1]
+DROP TABLE relay_log_info_content;
+
+# 2.1 Upgrade the server while using File repositories
+#     Start the server using a file repository that has no REQUIRE_TABLE_PRIMARY_KEY_CHECK
+#     The starting value should be 1 in the file / STREAM
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
+include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 1]
+DROP TABLE relay_log_info_content;
+
+# 2.2 Check FILE repository corruptions
+#     Start the server using a file repository that has an invalid Require_table_primary_key_check value
+#     Check we cannot start the slave process
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
+START SLAVE;
+ERROR HY000: Slave failed to initialize relay log info structure from the repository
+
+# 3.1 Upgrade the server to Table repositories from File repositories
+#     Start the server using a file repository that has no Require_table_primary_key_check
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
+UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+
+# 4.1 Upgrade the server while using Table repositories
+#     Have 3 channels:
+#       1. A channel with no privileged user (ch1)
+#       2. A group_replication channel (group_replication_recovery)
+#       3. A channel with a privileged user (default channel)
+#     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
+include/rpl_set_gtid_mode.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
+UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/assert.inc [Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
+include/assert.inc [Check that mysql.slave_relay_log_info entries all have REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
+RESET SLAVE ALL FOR CHANNEL "ch1";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/rpl_set_gtid_mode.inc
+
+# 5.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+#      Execute a RESET SLAVE command.
+#      The option should not be affected
+#      It also survives a server restart
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE]
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+
+# 5.2. Execute a RESET SLAVE ALL command.
+#      The table line was removed.
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+
+# 5.3. Make RESET SLAVE fail due to persistence issues
+#      Check that errors on slave info persistence are gracefully handled
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
+include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+SET @@GLOBAL.DEBUG = '+d,rpl_rli_clear_info_error';
+RESET SLAVE;
+ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+include/assert.inc [Check entry for default channel "" is unchanged in performance_schema.replication_applier_configuration]
+
+# 6. Cleanup
+SET @@GLOBAL.DEBUG = '-d,rpl_rli_clear_info_error';
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+CALL mtr.add_suppression("Error reading relay log configuration.");
+CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
+CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
+CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 // End of stuff to be moved
 
 
@@ -77,12 +76,12 @@ Loopback_Transporter::disconnectImpl()
 {
   NDB_SOCKET_TYPE pair[] = { theSocket, m_send_socket };
 
-  get_callback_obj()->lock_transporter(remoteNodeId);
+  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
   ndb_socket_invalidate(&theSocket);
   ndb_socket_invalidate(&m_send_socket);
 
-  get_callback_obj()->unlock_transporter(remoteNodeId);
+  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 
   if (ndb_socket_valid(pair[0]))
     ndb_socket_close(pair[0]);
@@ -96,9 +95,6 @@ Loopback_Transporter::send_is_possible(int timeout_millisec) const
 {
   return TCP_Transporter::send_is_possible(m_send_socket, timeout_millisec);
 }
-
-#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
 
 bool
 Loopback_Transporter::doSend(bool need_wakeup)
@@ -173,7 +169,7 @@ Loopback_Transporter::doSend(bool need_wakeup)
       const int err = ndb_socket_errno();
       if ((DISCONNECT_ERRNO(err, nBytesSent)))
       {
-        do_disconnect(err); //Initiate pending disconnect
+        do_disconnect(err, true); //Initiate pending disconnect
         remain = 0;
       }
       break;

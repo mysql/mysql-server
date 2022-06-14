@@ -1,4 +1,6 @@
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+# WL#14481: deprecated --ssl
+include/assert_grep.inc [Found a --ssl deprecation message in the log]
 ################## FR8: --ssl only applies to startups
 # Check if ssl is off: must be off.
 # reset and enable SSL

@@ -7,6 +7,7 @@
 
 
 --echo # Global Setup
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression(".*SSL_CTX_set_default_verify_paths failed");
 let DATADIR_LOCATION=$MYSQLTEST_VARDIR/mysqld.1/data;
@@ -142,3 +143,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 --source include/wait_until_count_sessions.inc
 
 #------------------------------------------------------------------------------
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

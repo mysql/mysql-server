@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,17 +29,18 @@
 
 #include "storage/perfschema/table_replication_applier_status.h"
 
+#include <assert.h>
 #include <time.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /*Multi source replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -66,8 +67,8 @@ Plugin_table table_replication_applier_status::m_table_def(
 PFS_engine_table_share table_replication_applier_status::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_status::create,
-    NULL,                                            /* write_row */
-    NULL,                                            /* delete_all_rows */
+    nullptr,                                         /* write_row */
+    nullptr,                                         /* delete_all_rows */
     table_replication_applier_status::get_row_count, /* records */
     sizeof(pos_t),                                   /* ref length */
     &m_table_lock,
@@ -103,7 +104,7 @@ PFS_engine_table *table_replication_applier_status::create(
 table_replication_applier_status::table_replication_applier_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_replication_applier_status::~table_replication_applier_status() {}
+table_replication_applier_status::~table_replication_applier_status() = default;
 
 void table_replication_applier_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -136,7 +137,7 @@ int table_replication_applier_status::rnd_next(void) {
 int table_replication_applier_status::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
 
   set_position(pos);
 
@@ -151,10 +152,10 @@ int table_replication_applier_status::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_replication_applier_status::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_rpl_applier_status *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_replication_applier_status::index_init(uint idx [[maybe_unused]],
+                                                 bool) {
+  PFS_index_rpl_applier_status *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_status);
   m_opened_index = result;
   m_index = result;
@@ -187,10 +188,10 @@ int table_replication_applier_status::index_next(void) {
 }
 
 int table_replication_applier_status::make_row(Master_info *mi) {
-  char *slave_sql_running_state = NULL;
+  char *slave_sql_running_state = nullptr;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  assert(mi != nullptr);
+  assert(mi->rli != nullptr);
 
   m_row.channel_name_length =
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
@@ -199,7 +200,7 @@ int table_replication_applier_status::make_row(Master_info *mi) {
   mysql_mutex_lock(&mi->rli->info_thd_lock);
 
   slave_sql_running_state = const_cast<char *>(
-      mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
+      mi->rli->info_thd ? mi->rli->info_thd->proc_info() : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
   mysql_mutex_lock(&mi->data_lock);
@@ -213,7 +214,7 @@ int table_replication_applier_status::make_row(Master_info *mi) {
 
   m_row.remaining_delay = 0;
   if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name) {
-    time_t t = my_time(0), sql_delay_end = mi->rli->get_sql_delay_end();
+    time_t t = time(nullptr), sql_delay_end = mi->rli->get_sql_delay_end();
     m_row.remaining_delay = (uint)(t < sql_delay_end ? sql_delay_end - t : 0);
     m_row.remaining_delay_is_set = true;
   } else {
@@ -234,12 +235,12 @@ int table_replication_applier_status::read_row_values(TABLE *table,
                                                       bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /**channel_name*/
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
@@ -257,7 +258,7 @@ int table_replication_applier_status::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.count_transactions_retries);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

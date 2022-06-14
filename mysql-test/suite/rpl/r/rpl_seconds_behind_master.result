@@ -32,7 +32,7 @@ UNLOCK TABLES;
 # Removing debug point 'dec_event_time_by_1_hour' from @@GLOBAL.debug
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY= 10;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10;
 [connection master]
 INSERT INTO t1 VALUES (47);
 [connection slave]
@@ -43,7 +43,7 @@ UNLOCK TABLES;
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1;

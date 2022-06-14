@@ -29,7 +29,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `blob_column` longblob,
   `vchar_column` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)

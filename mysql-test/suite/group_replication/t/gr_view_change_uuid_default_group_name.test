@@ -1,0 +1,49 @@
+################################################################################
+#
+# This test verifies that by default group_view_change_uuid shall not have an
+# uuid and Group Replication will use group name to write View_change_log_event
+# to binary log
+#
+# Test:
+#   0. The test requires two servers
+#   1. If group_replication_view_change_uuid is configured as
+#      "AUTOMATIC" it will use group_replication_group_name to
+#      log view change. Check on server 1
+#   2. If group_replication_view_change_uuid is configured as
+#      "AUTOMATIC" it will use group_replication_group_name to
+#      log view change. Check on server 2
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo ############################################################
+--echo # 1. If group_replication_view_change_uuid is configured as
+--echo #    "AUTOMATIC" it will use group_replication_group_name to
+--echo #    log view change. Check on server 1
+
+--let $assert_text= group_replication_group_replication_view_change_uuid is AUTOMATIC
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"
+--source include/assert.inc
+
+--let $assert_text= group_replication_group_name used when group_replication_view_change_uuid is AUTOMATIC
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" =  "$group_replication_group_name:1-2"
+--source include/assert.inc
+
+--echo ############################################################
+--echo # 2. If group_replication_view_change_uuid is configured as
+--echo #    "AUTOMATIC" it will use group_replication_group_name to
+--echo #    log view change. Check on server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= group_replication_group_replication_view_change_uuid is AUTOMATIC
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"
+--source include/assert.inc
+
+--let $assert_text= group_replication_group_name used when group_replication_view_change_uuid is AUTOMATIC
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" =  "$group_replication_group_name:1-2"
+--source include/assert.inc
+
+--source include/group_replication_end.inc

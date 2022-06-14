@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@ class MDL_context_backup_manager::MDL_context_backup
   MDL_context_backup() { m_context.init(this); }
 
   ~MDL_context_backup() override {
-    DBUG_ASSERT(!m_context.has_locks(MDL_EXPLICIT));
-    DBUG_ASSERT(!m_context.has_locks(MDL_STATEMENT));
+    assert(!m_context.has_locks(MDL_EXPLICIT));
+    assert(!m_context.has_locks(MDL_STATEMENT));
 
     m_context.release_transactional_locks();
     m_context.destroy();
@@ -52,17 +52,18 @@ class MDL_context_backup_manager::MDL_context_backup
   // Begin implementation of MDL_context_owner interface.
   void enter_cond(mysql_cond_t *, mysql_mutex_t *, const PSI_stage_info *,
                   PSI_stage_info *, const char *, const char *, int) override {
-    DBUG_ENTER("MDL_context_backup::enter_cond");
-    DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    return;
   }
 
   void exit_cond(const PSI_stage_info *, const char *, const char *,
                  int) override {
-    DBUG_ENTER("MDL_context_backup::exit_cond");
-    DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    return;
   }
 
   int is_killed() const override { return false; }
+  bool might_have_commit_order_waiters() const final { return false; }
 
   /**
     @warning Since there is no THD associated with This method returns nullptr
@@ -96,10 +97,10 @@ static PSI_mutex_info mdl_context_backup_manager_mutexes[] = {
     {&key_LOCK_mdl_context_backup_manager, "LOCK_mdl_context_backup_manager",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
-static PSI_memory_key key_memory_mdl_context_backup_manager;
+static PSI_memory_key key_memory_MDL_context_backup_manager;
 static PSI_memory_info mdl_context_backup_manager_memory[] = {
-    {&key_memory_mdl_context_backup_manager, "MDL_context_backup_manager", 0, 0,
-     PSI_DOCUMENT_ME}};
+    {&key_memory_MDL_context_backup_manager, "MDL_context::backup_manager", 0,
+     0, "MDL for prepared XA trans with disconnected client."}};
 
 void MDL_context_backup_manager::init_psi_keys(void) {
   const char *category = "sql";
@@ -125,22 +126,21 @@ MDL_context_backup_manager::MDL_context_backup_manager(PSI_memory_key key)
 }
 
 bool MDL_context_backup_manager::init() {
-  DBUG_ENTER("MDL_context_backup_manager::init");
+  DBUG_TRACE;
   m_single = new (std::nothrow)
-      MDL_context_backup_manager(key_memory_mdl_context_backup_manager);
-  DBUG_RETURN(m_single == nullptr);
+      MDL_context_backup_manager(key_memory_MDL_context_backup_manager);
+  return m_single == nullptr;
 }
 
 MDL_context_backup_manager &MDL_context_backup_manager::instance() {
-  DBUG_ASSERT(m_single != nullptr);
+  assert(m_single != nullptr);
   return *m_single;
 }
 
 void MDL_context_backup_manager::destroy() {
-  DBUG_ENTER("MDL_context_backup_manager::destroy");
+  DBUG_TRACE;
   delete m_single;
   m_single = nullptr;
-  DBUG_VOID_RETURN;
 }
 
 MDL_context_backup_manager::~MDL_context_backup_manager() {
@@ -156,9 +156,8 @@ bool MDL_context_backup_manager::check_key_exist(
 bool MDL_context_backup_manager::create_backup(const MDL_context *context,
                                                const uchar *key,
                                                const size_t keylen) {
-  DBUG_ENTER("MDL_context_backup_manager::create_backup");
+  DBUG_TRACE;
 
-  bool result = false;
   try {
     MDL_context_backup_key key_obj(key, keylen);
 
@@ -168,31 +167,28 @@ bool MDL_context_backup_manager::create_backup(const MDL_context *context,
       In other words, it mustn't be present any element for specified xid
       when this method called. Check that this invariant is satisfied.
     */
-    DBUG_ASSERT(!check_key_exist(key_obj));
+    assert(!check_key_exist(key_obj));
 
-    std::unique_ptr<MDL_context_backup> element(new (std::nothrow)
-                                                    MDL_context_backup());
-
-    if (element == nullptr) {
-      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(element));
-      DBUG_RETURN(true);
-    }
-
+    auto element = std::make_unique<MDL_context_backup>();
     if (element->get_context()->clone_tickets(context, MDL_TRANSACTION))
-      DBUG_RETURN(true);
+      return true;
 
     MUTEX_LOCK(guard, &m_LOCK_mdl_context_backup);
-    m_backup_map.emplace(key_obj, std::move(element));
-  } catch (std::bad_alloc &ex) {
-    result = true;
+    // Do this before inserting into the map, to avoid having to remove
+    DBUG_EXECUTE_IF("xaprep_create_mdl_backup_fail",
+                    { throw std::bad_alloc(); });
+    m_backup_map.emplace(std::move(key_obj), std::move(element));
+  } catch (std::bad_alloc &) {
+    my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+    return true;
   }
-  DBUG_RETURN(result);
+  return false;
 }
 
 bool MDL_context_backup_manager::create_backup(MDL_request_list *mdl_requests,
                                                const uchar *key,
                                                const size_t keylen) {
-  DBUG_ENTER("MDL_context_backup_manager::create_backup");
+  DBUG_TRACE;
 
   bool result = false;
   try {
@@ -210,27 +206,27 @@ bool MDL_context_backup_manager::create_backup(MDL_request_list *mdl_requests,
       cache at the moment when the method create_backup() is called second time
       shouldn't be considered as error.
     */
-    if (check_key_exist(key_obj)) DBUG_RETURN(false);
+    if (check_key_exist(key_obj)) return false;
 
     std::unique_ptr<MDL_context_backup> element(new (std::nothrow)
                                                     MDL_context_backup());
 
     if (element == nullptr) {
       my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(element));
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (element->get_context()->acquire_locks(mdl_requests, LONG_TIMEOUT))
-      DBUG_RETURN(true);
+      return true;
 
     MUTEX_LOCK(guard, &m_LOCK_mdl_context_backup);
     m_backup_map.emplace(key_obj, std::move(element));
 
-  } catch (std::bad_alloc &ex) {
+  } catch (std::bad_alloc &) {
     result = true;
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool MDL_context_backup_manager::restore_backup(MDL_context *mdl_context,
@@ -238,7 +234,7 @@ bool MDL_context_backup_manager::restore_backup(MDL_context *mdl_context,
                                                 const size_t keylen) {
   bool res = false;
   MDL_context_backup *element;
-  DBUG_ENTER("MDL_context_backup_manager::restore_backup");
+  DBUG_TRACE;
 
   MUTEX_LOCK(guard, &m_LOCK_mdl_context_backup);
 
@@ -248,14 +244,12 @@ bool MDL_context_backup_manager::restore_backup(MDL_context *mdl_context,
     res = mdl_context->clone_tickets(element->get_context(), MDL_TRANSACTION);
   }
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 void MDL_context_backup_manager::delete_backup(const uchar *key,
                                                const size_t keylen) {
-  DBUG_ENTER("MDL_context_backup_manager::delete_backup");
+  DBUG_TRACE;
   MUTEX_LOCK(guard, &m_LOCK_mdl_context_backup);
   m_backup_map.erase(MDL_context_backup_key(key, keylen));
-
-  DBUG_VOID_RETURN;
 }

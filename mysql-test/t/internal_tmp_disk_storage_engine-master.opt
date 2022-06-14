@@ -1,4 +1,4 @@
 --initialize --innodb_page_size=16k
 --skip-log-bin
---skip-log-slave-updates
---skip-slave-preserve-commit-order
+--skip-log-replica-updates
+--skip-replica-preserve-commit-order

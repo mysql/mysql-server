@@ -145,13 +145,13 @@ ROLLBACK;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `a` int unsigned NOT NULL,
+  `b` int unsigned DEFAULT NULL,
   `c` char(19) DEFAULT NULL,
   `d` varchar(255) DEFAULT NULL,
   `e` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e
 1	1	NULL	NULL	NULL
@@ -162,13 +162,13 @@ a	b	c	d	e
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `a` int unsigned NOT NULL,
+  `b` int unsigned DEFAULT NULL,
   `c` char(19) DEFAULT NULL,
   `d` varchar(255) DEFAULT NULL,
   `e` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e
 1	1	NULL	NULL	NULL

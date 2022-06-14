@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ Table_wrapper::Table_wrapper() {
   m_field_short.reset(new Field_short(
       get_data_ptr(FIELD_SHORT_OFFSET), FIELD_SHORT_LENGTH,
       get_null_ptr(FIELD_SHORT_NULL_BIT), get_null_bit(FIELD_SHORT_NULL_BIT), 0,
-      FIELD_SHORT_NAME, 0, 0));
+      FIELD_SHORT_NAME, false, false));
   m_field_short->table = &m_table;
 
   m_field_string_pad.reset(new Field_string(

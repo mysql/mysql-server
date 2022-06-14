@@ -65,6 +65,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -140,6 +141,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -228,6 +230,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 1)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -344,7 +347,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.30",
@@ -361,6 +364,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = 1)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -477,7 +481,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.30",
@@ -494,6 +498,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` = 1)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -628,6 +633,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where true
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -654,7 +660,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -669,7 +675,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
       "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -704,7 +710,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -731,7 +737,7 @@ EXPLAIN
       "used_columns": [
         "a"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -766,7 +772,8 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -793,7 +800,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -823,7 +830,7 @@ EXPLAIN
           "used_columns": [
             "a"
           ] /* used_columns */,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -874,7 +881,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -903,7 +910,7 @@ EXPLAIN
           "used_columns": [
             "a"
           ] /* used_columns */,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -942,7 +949,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.90",
@@ -958,7 +965,8 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1073,7 +1081,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.90",
@@ -1090,6 +1098,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1116,7 +1125,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select straight_join 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
+Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1179,7 +1188,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select straight_join 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
+Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1242,15 +1251,14 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`t1` `t11`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd	3
 Handler_read_rnd_next	9
@@ -1363,7 +1371,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.30",
@@ -1380,6 +1388,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` > 1)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1455,6 +1464,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1) limit 1
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -1504,6 +1514,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -1550,6 +1561,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -1644,6 +1656,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select '3' AS `a`,'3' AS `b` from `test`.`t1` where true
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1737,6 +1750,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 3)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1803,9 +1817,9 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 0) order by NULL
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
@@ -1900,6 +1914,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2000,6 +2015,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (0 <> (@a:=`test`.`t1`.`a`)) order by `test`.`t1`.`a` limit 1
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2084,6 +2100,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -2319,6 +2336,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`a3` AS `a3`,`test`.`t3`.`b3` AS `b3` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b3` = `test`.`t1`.`b1`) and (`test`.`t3`.`a3` = `test`.`t2`.`b2`) and (`test`.`t2`.`a2` = `test`.`t1`.`a1`))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	12
@@ -2347,7 +2365,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2362,7 +2380,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
       "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2396,7 +2414,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2423,7 +2441,7 @@ EXPLAIN
       "used_columns": [
         "a"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2457,7 +2475,8 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2484,7 +2503,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2499,7 +2518,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 5,
       "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2533,7 +2552,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2560,7 +2579,7 @@ EXPLAIN
       "used_columns": [
         "a1"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2594,7 +2613,8 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2617,7 +2637,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2632,7 +2652,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 5,
       "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2666,7 +2686,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2693,7 +2713,7 @@ EXPLAIN
       "used_columns": [
         "a1"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2727,7 +2747,8 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2802,6 +2823,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2877,6 +2899,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2978,6 +3001,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -3074,6 +3098,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -3092,7 +3117,7 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
 FLUSH STATUS;
@@ -3138,7 +3163,7 @@ EXPLAIN
             "rows_examined_per_scan": 3,
             "rows_produced_per_join": 3,
             "filtered": "33.33",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.50",
               "eval_cost": "0.30",
@@ -3194,7 +3219,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "33.33",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.30",
@@ -3212,6 +3237,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -3306,6 +3332,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -3477,6 +3504,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -3571,6 +3599,7 @@ Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -3671,6 +3700,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -3778,6 +3808,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -3874,6 +3905,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -3974,10 +4006,10 @@ EXPLAIN
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
-Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -4083,21 +4115,22 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	8
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #36
@@ -4196,6 +4229,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -4279,6 +4313,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -4383,6 +4418,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -4491,6 +4527,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -4588,6 +4625,7 @@ Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -4688,6 +4726,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4796,6 +4835,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4893,6 +4933,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -4992,10 +5033,10 @@ EXPLAIN
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
-Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -5100,21 +5141,22 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #46
@@ -5214,6 +5256,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -5298,6 +5341,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -5403,6 +5447,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -5517,6 +5562,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -5529,8 +5575,8 @@ Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
 Handler_update	2
-Sort_range	1
 Sort_rows	2
+Sort_scan	1
 
 #
 # query:  DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2
@@ -5623,6 +5669,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -5635,8 +5682,8 @@ Handler_delete	2
 Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
-Sort_range	1
 Sort_rows	2
+Sort_scan	1
 
 DROP TABLE t1;
 #50
@@ -5724,6 +5771,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 34)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -5863,14 +5911,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where true
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -6000,14 +6047,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where (`test`.`t1`.`c3` = 10)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -6161,6 +6207,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`f4`) from `test`.`t2` where (`test`.`t2`.`f3` = `test`.`t1`.`f1`)) AS `(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1)` from `test`.`t1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	6
@@ -6210,7 +6257,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t12	NULL	index	NULL	a	5	NULL	2	100.00	Using index
 Warnings:
-Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1
+Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1
 UPDATE IGNORE v1 SET a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SET SESSION sql_safe_updates = DEFAULT;
@@ -6229,7 +6276,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1 where (`t11`.`a` > 0)
+Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1 where (`test`.`t11`.`a` > 0)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -6320,7 +6367,7 @@ EXPLAIN
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 2,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.20",
@@ -6337,6 +6384,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -6466,7 +6514,7 @@ EXPLAIN
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 2,
           "filtered": "50.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.20",
@@ -6486,7 +6534,7 @@ EXPLAIN
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 4,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.40",
@@ -6503,6 +6551,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -6602,6 +6651,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 4)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -6765,6 +6815,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	7
@@ -6927,6 +6978,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	7
@@ -6951,7 +7003,7 @@ EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (10)
+Note	1003	insert into `test`.`t1` values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -6968,7 +7020,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (10)
+Note	1003	insert into `test`.`t1` values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -6982,6 +7034,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `NULL`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 # Status of testing query execution:
@@ -7004,7 +7057,7 @@ EXPLAIN INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7017,7 +7070,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7031,14 +7084,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
 
@@ -7258,6 +7310,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -7522,7 +7575,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.90",
@@ -7539,6 +7592,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -7802,7 +7856,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.90",
@@ -7819,6 +7873,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	5
@@ -7964,6 +8019,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -8062,14 +8118,15 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10) order by (`test`.`t1`.`a` + 20)
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 
 DROP TABLE t1;
 #

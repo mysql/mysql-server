@@ -1,0 +1,44 @@
+#
+# Bug #29820184 REDO LOGS MAY SILENTLY BE IGNORED WHEN ENCRYPTED TABLE
+# CANNOT BE DECRYPTED.
+#
+CREATE TABLE t1(
+a INT NOT NULL PRIMARY KEY,
+c CHAR(200),
+b BLOB,
+INDEX(b(10))) ENGINE=innodb ROW_FORMAT=compressed ENCRYPTION='Y';
+CREATE TABLE t2(
+a INT NOT NULL PRIMARY KEY,
+c CHAR(200),
+b BLOB,
+INDEX(b(10))) ENGINE=innodb ROW_FORMAT=compressed ENCRYPTION='Y';
+CREATE TABLE t3(
+a INT NOT NULL PRIMARY KEY,
+c CHAR(200),
+b BLOB,
+INDEX(b(10))) ENGINE=innodb ENCRYPTION='Y';
+CREATE TABLE t4(
+a INT NOT NULL PRIMARY KEY,
+c CHAR(200),
+b BLOB,
+INDEX(b(10))) ENGINE=innodb ENCRYPTION='Y';
+# restart
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t4 SELECT * FROM t1;
+COMMIT;
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+BEGIN;
+UPDATE t1 SET c = REPEAT('secret3', 20);
+UPDATE t2 SET c = REPEAT('secret4', 20);
+UPDATE t3 set c = REPEAT('secret4', 20);
+UPDATE t4 set c = REPEAT('secret4', 20);
+INSERT INTO t1 (a,c,b) VALUES (21, REPEAT('secret5',20), REPEAT('secret6',6000));
+INSERT INTO t2 (a,c,b) VALUES (21, REPEAT('secret7',20), REPEAT('secret8',6000));
+INSERT into t3 (a,c,b) VALUES (21, REPEAT('secret9',20), REPEAT('secre10',6000));
+INSERT into t4 (a,c,b) VALUES (21, REPEAT('secre11',20), REPEAT('secre12',6000));
+COMMIT;
+# Kill the server
+# Restart mysqld without keyring plugin
+# Restart mysqld with keyring plugin
+drop TABLE t1,t2,t3,t4;

@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_use_native_aio);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_use_native_aio = @@SESSION.innodb_use_native_aio;
---echo Expected error 'Readonly variable'
+SELECT innodb_use_native_aio;
+--echo Expected error 'Unknown column'
 
 

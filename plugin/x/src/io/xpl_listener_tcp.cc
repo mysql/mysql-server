@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,16 +31,15 @@
 
 #include <memory>
 
-#include "my_io.h"
+#include "my_io.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#ifdef HAVE_SETNS
-#include "sql/net_ns.h"
-#endif
+#include "sql-common/net_ns.h"
 
 namespace xpl {
 
@@ -50,7 +49,7 @@ const char *BIND_IPv6_ADDRESS = "::";
 
 class Tcp_creator {
  public:
-  Tcp_creator(ngs::Operations_factory_interface &factory)
+  explicit Tcp_creator(iface::Operations_factory &factory)
       : m_factory(factory),
         m_system_interface(m_factory.create_system_interface()) {}
 
@@ -88,26 +87,25 @@ class Tcp_creator {
     }
 
     return std::shared_ptr<addrinfo>(
-        result, std::bind(&ngs::System_interface::freeaddrinfo,
-                          m_system_interface, std::placeholders::_1));
+        result, std::bind(&iface::System::freeaddrinfo, m_system_interface,
+                          std::placeholders::_1));
   }
 
-  ngs::Socket_interface::Shared_ptr create_and_bind_socket(
-      std::shared_ptr<addrinfo> ai, const uint32 backlog, int &error_code,
+  std::shared_ptr<iface::Socket> create_and_bind_socket(
+      std::shared_ptr<addrinfo> ai, const uint32_t backlog, int &error_code,
       std::string &error_message) {
     addrinfo *used_ai = nullptr;
     std::string errstr;
 
-    ngs::Socket_interface::Shared_ptr result_socket =
-        create_socket_from_addrinfo(ai.get(), KEY_socket_x_tcpip, AF_INET,
-                                    &used_ai);
+    std::shared_ptr<iface::Socket> result_socket = create_socket_from_addrinfo(
+        ai.get(), KEY_socket_x_tcpip, AF_INET, &used_ai);
 
     if (nullptr == result_socket.get())
       result_socket = create_socket_from_addrinfo(ai.get(), KEY_socket_x_tcpip,
                                                   AF_INET6, &used_ai);
 
     if (nullptr == result_socket.get()) {
-      m_system_interface->get_socket_error_and_message(error_code, errstr);
+      m_system_interface->get_socket_error_and_message(&error_code, &errstr);
 
       error_message = String_formatter()
                           .append("`socket()` failed with error: ")
@@ -117,7 +115,7 @@ class Tcp_creator {
                           .append(")")
                           .get_result();
 
-      return ngs::Socket_interface::Shared_ptr();
+      return std::shared_ptr<iface::Socket>();
     }
 
 #ifdef IPV6_V6ONLY
@@ -134,10 +132,10 @@ class Tcp_creator {
       int option_flag = 0;
 
       if (result_socket->set_socket_opt(IPPROTO_IPV6, IPV6_V6ONLY,
-                                        (char *)&option_flag,
+                                        reinterpret_cast<char *>(&option_flag),
                                         sizeof(option_flag))) {
         log_error(ER_XPLUGIN_FAILED_TO_RESET_IPV6_V6ONLY_FLAG,
-                  (int)socket_errno);
+                  static_cast<int>(socket_errno));
       }
     }
 #endif
@@ -149,7 +147,7 @@ class Tcp_creator {
       if (result_socket->set_socket_opt(SOL_SOCKET, SO_REUSEADDR,
                                         (const char *)&one, sizeof(one))) {
         log_error(ER_XPLUGIN_FAILED_TO_SET_SO_REUSEADDR_FLAG,
-                  (int)m_system_interface->get_socket_errno());
+                  static_cast<int>(m_system_interface->get_socket_errno()));
       }
     }
 
@@ -158,7 +156,7 @@ class Tcp_creator {
     if (result_socket->bind((const struct sockaddr *)used_ai->ai_addr,
                             static_cast<socklen_t>(used_ai->ai_addrlen)) < 0) {
       // lets decide later if its an error or not
-      m_system_interface->get_socket_error_and_message(error_code, errstr);
+      m_system_interface->get_socket_error_and_message(&error_code, &errstr);
 
       error_message = String_formatter()
                           .append("`bind()` failed with error: ")
@@ -170,12 +168,12 @@ class Tcp_creator {
                               "running with Mysqlx ?")
                           .get_result();
 
-      return ngs::Socket_interface::Shared_ptr();
+      return std::shared_ptr<iface::Socket>();
     }
 
     if (result_socket->listen(backlog) < 0) {
       // lets decide later if its an error or not
-      m_system_interface->get_socket_error_and_message(error_code, errstr);
+      m_system_interface->get_socket_error_and_message(&error_code, &errstr);
 
       error_message = String_formatter()
                           .append("`listen()` failed with error: ")
@@ -185,7 +183,7 @@ class Tcp_creator {
                           .append(")")
                           .get_result();
 
-      return ngs::Socket_interface::Shared_ptr();
+      return std::shared_ptr<iface::Socket>();
     }
 
     m_used_address.resize(200, '\0');
@@ -203,13 +201,13 @@ class Tcp_creator {
   std::string get_used_address() { return m_used_address; }
 
  private:
-  ngs::Socket_interface::Shared_ptr create_socket_from_addrinfo(
+  std::shared_ptr<iface::Socket> create_socket_from_addrinfo(
       addrinfo *ai, PSI_socket_key psi_key, const int family,
       addrinfo **used_ai) {
     for (addrinfo *cur_ai = ai; nullptr != cur_ai; cur_ai = cur_ai->ai_next) {
       if (family != cur_ai->ai_family) continue;
 
-      ngs::Socket_interface::Shared_ptr result =
+      std::shared_ptr<iface::Socket> result =
           m_factory.create_socket(psi_key, family, SOCK_STREAM, 0);
 
       if (INVALID_SOCKET != result->get_socket_fd()) {
@@ -218,11 +216,11 @@ class Tcp_creator {
       }
     }
 
-    return ngs::Socket_interface::Shared_ptr();
+    return std::shared_ptr<iface::Socket>();
   }
 
   bool is_ipv6_avaiable() {
-    ngs::Socket_interface::Shared_ptr socket(m_factory.create_socket(
+    std::shared_ptr<iface::Socket> socket(m_factory.create_socket(
         KEY_socket_x_diagnostics, AF_INET6, SOCK_STREAM, 0));
     const bool has_ipv6 = INVALID_SOCKET != socket->get_socket_fd();
 
@@ -247,19 +245,19 @@ class Tcp_creator {
   }
 
   std::string m_used_address;
-  ngs::Operations_factory_interface &m_factory;
-  ngs::System_interface::Shared_ptr m_system_interface;
+  iface::Operations_factory &m_factory;
+  std::shared_ptr<iface::System> m_system_interface;
 };
 
 Listener_tcp::Listener_tcp(Factory_ptr operations_factory,
-                           std::string &bind_address,
+                           const std::string &bind_address,
                            const std::string &network_namespace,
-                           const uint16 port, const uint32 port_open_timeout,
-                           ngs::Socket_events_interface &event,
-                           const uint32 backlog)
+                           const uint16_t port,
+                           const uint32_t port_open_timeout,
+                           iface::Socket_events &event, const uint32_t backlog)
     : m_operations_factory(operations_factory),
-      m_state(ngs::State_listener_initializing, KEY_mutex_x_listener_tcp_sync,
-              KEY_cond_x_listener_tcp_sync),
+      m_state(iface::Listener::State::k_initializing,
+              KEY_mutex_x_listener_tcp_sync, KEY_cond_x_listener_tcp_sync),
       m_bind_address(bind_address),
       m_network_namespace(network_namespace),
       m_port(port),
@@ -272,31 +270,17 @@ Listener_tcp::~Listener_tcp() {
   close_listener();
 }
 
-Listener_tcp::Sync_variable_state &Listener_tcp::get_state() { return m_state; }
-
-std::string Listener_tcp::get_last_error() { return m_last_error; }
-
-std::string Listener_tcp::get_name_and_configuration() const {
-  return String_formatter()
-      .append("bind-address: '")
-      .append(m_bind_address)
-      .append("' ")
-      .append("port: ")
-      .append(m_port)
-      .get_result();
+const Listener_tcp::Sync_variable_state &Listener_tcp::get_state() const {
+  return m_state;
 }
 
-std::vector<std::string> Listener_tcp::get_configuration_variables() const {
-  std::vector<std::string> result;
-
-  result.push_back(MYSQLX_SYSTEM_VARIABLE_PREFIX("port"));
-  result.push_back(MYSQLX_SYSTEM_VARIABLE_PREFIX("bind_address"));
-
-  return result;
+std::string Listener_tcp::get_configuration_variable() const {
+  return std::string(MYSQLX_SYSTEM_VARIABLE_PREFIX("port")) + "," +
+         MYSQLX_SYSTEM_VARIABLE_PREFIX("bind_address");
 }
 
 bool Listener_tcp::setup_listener(On_connection on_connection) {
-  if (!m_state.is(ngs::State_listener_initializing)) return false;
+  if (!m_state.is(iface::Listener::State::k_initializing)) return false;
 
   m_tcp_socket = create_socket();
 
@@ -308,7 +292,7 @@ bool Listener_tcp::setup_listener(On_connection on_connection) {
   }
 
   if (m_event.listen(m_tcp_socket, on_connection)) {
-    m_state.set(ngs::State_listener_prepared);
+    m_state.set(iface::Listener::State::k_prepared);
     return true;
   }
 
@@ -320,28 +304,33 @@ bool Listener_tcp::setup_listener(On_connection on_connection) {
 }
 
 void Listener_tcp::close_listener() {
-  // ngs::Socket_interface::close can be called multiple times
+  // iface::Socket::close can be called multiple times
   // it invalidates the content of m_mysql_socket thus at next call
   // it does nothing
   //
   // Same applies to close_listener()
-  m_state.set(ngs::State_listener_stopped);
+  m_state.set(iface::Listener::State::k_stopped);
 
   if (m_tcp_socket) m_tcp_socket->close();
 }
 
+void Listener_tcp::pre_loop() {
+  if (m_tcp_socket) m_tcp_socket->set_socket_thread_owner();
+  m_state.set(xpl::iface::Listener::State::k_running);
+}
+
 void Listener_tcp::loop() {}
 
-ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
+std::shared_ptr<iface::Socket> Listener_tcp::create_socket() {
   Tcp_creator creator(*m_operations_factory);
   int error_code;
 
-  ngs::Socket_interface::Shared_ptr result_socket;
-  ngs::System_interface::Shared_ptr system_interface(
+  std::shared_ptr<iface::Socket> result_socket;
+  std::shared_ptr<iface::System> system_interface(
       m_operations_factory->create_system_interface());
 
   log_debug("TCP Sockets address is '%s' and port is %i",
-            m_bind_address.c_str(), (int)m_port);
+            m_bind_address.c_str(), static_cast<int>(m_port));
   if (!m_network_namespace.empty()) {
 #ifdef HAVE_SETNS
     if (set_network_namespace(m_network_namespace)) return nullptr;
@@ -353,9 +342,9 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
   std::shared_ptr<addrinfo> ai =
       creator.resolve_bind_address(m_bind_address, m_port, m_last_error);
 
-  if (nullptr == ai.get()) return ngs::Socket_interface::Shared_ptr();
+  if (nullptr == ai.get()) return std::shared_ptr<iface::Socket>();
 
-  for (uint32 waited = 0, retry = 1; waited <= m_port_open_timeout; ++retry) {
+  for (uint32_t waited = 0, retry = 1; waited <= m_port_open_timeout; ++retry) {
     result_socket =
         creator.create_and_bind_socket(ai, m_backlog, error_code, m_last_error);
 
@@ -370,7 +359,7 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
     // Critical failure, lets break the loop
     if (SOCKET_EADDRINUSE != system_interface->get_socket_errno()) break;
 
-    log_info(ER_XPLUGIN_RETRYING_BIND_ON_PORT, (int)m_port);
+    log_info(ER_XPLUGIN_RETRYING_BIND_ON_PORT, static_cast<int>(m_port));
 
     const int time_to_wait = retry * retry / 3 + 1;
     system_interface->sleep(time_to_wait);
@@ -388,13 +377,13 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
 std::string Listener_tcp::choose_property_value(
     const std::string &value) const {
   switch (m_state.get()) {
-    case ngs::State_listener_prepared:
+    case State::k_prepared:
       return value;
 
-    case ngs::State_listener_running:
+    case State::k_running:
       return value;
 
-    case ngs::State_listener_stopped:
+    case State::k_stopped:
       return ngs::PROPERTY_NOT_CONFIGURED;
 
     default:
@@ -408,6 +397,25 @@ void Listener_tcp::report_properties(On_report_properties on_prop) {
 
   on_prop(ngs::Server_property_ids::k_tcp_port,
           choose_property_value(std::to_string(m_port)));
+}
+
+bool Listener_tcp::report_status() const {
+  const std::string name = m_network_namespace.empty()
+                               ? m_bind_address
+                               : m_bind_address + '/' + m_network_namespace;
+
+  const std::string msg =
+      "bind-address: '" + name + "' port: " + std::to_string(m_port);
+
+  if (m_state.is(State::k_prepared)) {
+    log_info(ER_XPLUGIN_LISTENER_STATUS_MSG, msg.c_str());
+    return true;
+  }
+
+  log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED, msg.c_str(),
+            m_last_error.c_str());
+  log_error(ER_XPLUGIN_FAILED_TO_BIND_INTERFACE_ADDRESS, name.c_str());
+  return false;
 }
 
 }  // namespace xpl

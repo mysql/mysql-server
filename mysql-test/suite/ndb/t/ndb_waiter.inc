@@ -1,3 +1,3 @@
-let $_waiter_cmd=$NDB_WAITER --no-defaults;
-let $_waiter_cmd=$_waiter_cmd --ndb-connectstring="$NDB_CONNECTSTRING";
+let $_waiter_cmd=$NDB_WAITER;
+let $_waiter_cmd=$_waiter_cmd;
 #echo waiter_cmd: $_waiter_cmd;

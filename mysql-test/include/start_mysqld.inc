@@ -17,6 +17,8 @@ if (!$restart_parameters)
 --enable_reconnect
 
 # Call script that will poll the server waiting for it to be back online again
+# Allow for slow machines like Sparc
+--let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
 ## Script xplugin_wait_for_interfaces.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,10 @@
 
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/utility/string.h"  // mysql_harness::join
-#include "mysqlrouter/utils.h"
-#include "print_version.h"             // build_version
-#include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "mysqlrouter/utils.h"             // set_prompt_password
+#include "print_version.h"                 // build_version
+#include "router_config.h"                 // MYSQL_ROUTER_NAME
+#include "welcome_copyright_notice.h"      // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 constexpr const char kAppExeFileName[]{"mysqlrouter_passwd"};
 
@@ -285,7 +286,7 @@ TEST_P(PasswdFrontendTest, ensure) {
   // do what passwd_cli.cc's main does
   int exit_code = 0;
   try {
-    exit_code = PasswdFrontend(kAppExeFileName, args, cin, cout, cerr).run();
+    exit_code = PasswdFrontend(kAppExeFileName, args, cout, cerr).run();
   } catch (const FrontendError &e) {
     cerr << e.what() << std::endl;
     exit_code = EXIT_FAILURE;
@@ -316,7 +317,7 @@ TEST_P(PasswdFrontendTest, ensure) {
 
     EXPECT_NO_THROW(
         exit_code =
-            PasswdFrontend(kAppExeFileName, args, v_cin, v_cout, v_cerr).run());
+            PasswdFrontend(kAppExeFileName, args, v_cout, v_cerr).run());
 
     EXPECT_EQ(exit_code, 0);
     EXPECT_EQ(v_cout.str(), "");
@@ -503,6 +504,14 @@ const PasswdFrontendTestParam password_frontend_param[]{
      "",
      "--work-factor is negative",
      kPasswdEmpty},
+    {"set: work-factor, hex",
+     "",
+     {"set", kPasswdPlaceholder, "karl", "--work-factor=0xff"},
+     EXIT_FAILURE,
+     "",
+     "",
+     "--work-factor is not a positive integer",
+     kPasswdEmpty},
 
     // delete
 
@@ -633,7 +642,7 @@ const PasswdFrontendTestParam password_frontend_param[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, PasswdFrontendTest, ::testing::ValuesIn(password_frontend_param),
     [](testing::TestParamInfo<PasswdFrontendTestParam> param_info) {
       return sanitise(param_info.param.test_name +

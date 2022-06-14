@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
   Common \#defines and includes for file and socket I/O.
 */
 
-#include <mysql/components/services/my_io_bits.h>
+#include <mysql/components/services/bits/my_io_bits.h>
 
 #ifdef _WIN32
 
@@ -155,7 +155,12 @@ static inline int is_directory_separator(char c) {
   smaller what the disk page size. This influences the speed of the
   isam btree library. eg to big to slow.
 */
-#define IO_SIZE 4096
+constexpr const size_t IO_SIZE{4096};
+
+/* Pointer_buffer_size */
+constexpr const unsigned int READ_RECORD_BUFFER{IO_SIZE * 8};
+/* Size of diskbuffer */
+constexpr const unsigned int DISK_BUFFER_SIZE{IO_SIZE * 16};
 
 #if defined(_WIN32)
 #define socket_errno WSAGetLastError()

@@ -211,19 +211,19 @@ drop table t17583;
 
 --echo Test connect with dbname + _invalid_ hostname
 # Mask the errno of the error message
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r test invalid_hostname" 2>&1
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "connect test invalid_hostname" 2>&1
 
 --echo The commands reported in the bug report
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
 
-#--replace_regex /\([0-9]*\)/(errno)/
+#--replace_regex /\([-0-9]*\)/(errno)/
 #--error 1
 #--exec echo '\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' | $MYSQL 2>&1
 
@@ -232,7 +232,7 @@ drop table t17583;
 --exec $MYSQL test -e "\r test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx localhost" 2>&1
 
 --echo Too long hostname
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r  test cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
 
@@ -348,7 +348,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 #
 # Bug#37268 'binary' character set makes CLI-internal commands case sensitive
 #
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL --default-character-set=binary test -e "CONNECT test invalid_hostname" 2>&1
 --exec $MYSQL --default-character-set=binary test -e "DELIMITER //" 2>&1
@@ -640,6 +640,52 @@ CREATE USER bug21464621 IDENTIFIED BY 'password' PASSWORD EXPIRE;
 
 #cleanup
 DROP USER bug21464621;
+
+
+--echo #
+--echo # WL#13038: Make mysql command line tool's --binary-as-hex be on by
+--echo #   default for interactive terminals
+--echo #
+
+--let $file = $MYSQLTEST_VARDIR/tmp/wl13038.out
+--exec $MYSQL --binary-as-hex -e "\s" 2>&1 > $file
+--let $assert_text=check the output of mysql for the binary-as-hex mark in mysql status
+--let $assert_file=$file
+--let $assert_select="Binary data as.*Hexadecimal"
+--let $assert_count=0
+--source include/assert_grep.inc
+--remove_file $file
+
+--echo #
+--echo # Bug #31549724: MYSQL --BINARY-AS-HEX PRINTS NULL AS EMPTY STRING
+--echo # Bug #31638968: SELECT ON AN UNDEFINED VARIABLE RETURNS 0X NOT NULL
+--echo #
+--exec $MYSQL --binary-as-hex -e "SELECT SUBSTR(NULL, 0, 0), @novar" 2>&1
+
+--echo #
+--echo # Bug #32092739: MYSQL HELP OUTPUT INCORRECT FOR QUERY_ATTRIBUTES
+--echo #
+
+--let $file = $MYSQLTEST_VARDIR/tmp/b32092739.out
+--exec $MYSQL -e "help" 2>&1 > $file
+--let $assert_text= look for query_attributes in help
+--let $assert_file= $file
+--let $assert_select= query_attributes[\t ]*Sets string parameters
+--let $assert_count= 1
+--source include/assert_grep.inc
+--remove_file $file
+
+--echo #
+--echo # Bug #30787660: CONTRIBUTION: INCLUDE PORT NUMBER IN CLIENT ERROR
+--echo #   MESSAGE
+--echo #
+
+--echo # Success criteria: port number present in the error text
+# Some OSes return "Unknown host" in this case. Skipping these.
+# Windows returns a different error code. Adjusting for this
+--replace_regex /ERROR 2005 .HY000.: Unknown MySQL server host '127.0.0.1' \([0-9]*\)/ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (XXX)/ /\([0-9]+\)/(XXX)/
+--error 1
+--exec $MYSQL -h 127.0.0.1 -P 99999 2>&1
 
 --echo
 --echo End of tests

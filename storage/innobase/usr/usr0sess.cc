@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,7 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 sess_t *sess_open(void) {
   sess_t *sess;
 
-  sess = static_cast<sess_t *>(ut_zalloc_nokey(sizeof(*sess)));
+  sess = static_cast<sess_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*sess)));
 
   sess->state = SESS_ACTIVE;
 
@@ -52,5 +53,5 @@ sess_t *sess_open(void) {
 void sess_close(sess_t *sess) /*!< in, own: session object */
 {
   trx_free_for_background(sess->trx);
-  ut_free(sess);
+  ut::free(sess);
 }

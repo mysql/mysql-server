@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +20,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <random>
 #include <sstream>
 #include <vector>
-#include "my_config.h"
 
 #include "priority_queue.h"
 
@@ -78,7 +77,7 @@ struct handle_less {
 // dummy stream that "eats" all input
 struct null_stream : public std::ostream {
   // Visual Studio needs a default constructor.
-  null_stream() : std::ostream(NULL) {}
+  null_stream() : std::ostream(nullptr) {}
 };
 
 template <typename T>
@@ -530,7 +529,7 @@ inline void test_heap_of_handles(RandomAccessIterator first,
 
 class PriorityQueueTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     int xkeys[10] = {10, 4, 7, 8, 21, -5, 6, 10, 7, 9};
     memcpy(keys, xkeys, sizeof(xkeys));
     pq = Priority_queue<int>(xkeys, xkeys + 10);
@@ -613,7 +612,9 @@ TEST_F(PriorityQueueTest, DifferentCtors) {
 }
 
 TEST_F(PriorityQueueTest, Swap) {
-  std::random_shuffle(keys, keys + 10);
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(keys, keys + 10, urng);
   Priority_queue<int> pq(keys, keys + 10);
   std::stringstream ss1, ss2;
   ss1 << pq;
@@ -847,6 +848,88 @@ TEST_F(PriorityQueueTest, RandomIntegerGenerator) {
 
   SCOPED_TRACE("");
   test_min_k_elements(many_keys.begin(), many_keys.end(), 20);
+}
+
+/**
+  Bug#30301356 - SOME EVENTS ARE DELAYED AFTER DROPPING EVENT
+
+  Test that ensures heap property is not violated if we remove an
+  element from an interior node. In the below test, we remove the
+  element 90 at index 6 in the array. After 90 is removed, the
+  parent node's of the deleted node violates the heap property.
+  In order to restore the heap property, we need to move up the
+  heap until we reach a node which satisfies the heap property or
+  the root. Without the fix, we adjust the heap downwards.
+*/
+
+TEST_F(PriorityQueueTest, TestElementRemove) {
+  Priority_queue<int, std::vector<int>, My_greater> pq;
+
+  int keys[11] = {60, 65, 84, 75, 80, 85, 90, 95, 100, 105, 82};
+  pq = Priority_queue<int, std::vector<int>, My_greater>(keys, keys + 11);
+  pq.remove(6);
+  EXPECT_TRUE(pq.is_valid());
+}
+
+struct IntWithMark {
+  int value;
+  int index;
+};
+std::stringstream &operator<<(std::stringstream &stream, const IntWithMark *a) {
+  stream << a->value;
+  return stream;
+}
+struct Pointer_less {
+  bool operator()(const IntWithMark *a, const IntWithMark *b) const {
+    return a->value < b->value;
+  }
+};
+struct IntMarker {
+  void operator()(size_t index, IntWithMark **value) {
+    (*value)->index = index;
+  }
+};
+
+TEST_F(PriorityQueueTest, Mark) {
+  Priority_queue<IntWithMark *, std::vector<IntWithMark *>, Pointer_less,
+                 IntMarker>
+      pq;
+
+  IntWithMark a, b, c, d;
+  a.value = 10;
+  b.value = 5;
+  c.value = 15;
+  d.value = 25;
+
+  pq.push(&a);
+  pq.push(&b);
+  pq.push(&c);
+  pq.push(&d);
+
+  std::stringstream ss1;
+  ss1 << pq;
+  EXPECT_STREQ("25 15 10 5 ", ss1.str().c_str());
+  EXPECT_EQ(2, a.index);
+  EXPECT_EQ(3, b.index);
+  EXPECT_EQ(1, c.index);
+  EXPECT_EQ(0, d.index);
+
+  c.value = 1;
+  pq.update(c.index);
+  EXPECT_EQ(3, c.index);
+
+  d.value = 100;
+  pq.update(d.index);
+  EXPECT_EQ(0, d.index);
+  EXPECT_EQ(100, pq.top()->value);
+
+  pq.pop();
+  std::stringstream ss2;
+  ss2 << pq;
+  EXPECT_STREQ("10 5 1 ", ss2.str().c_str());
+  EXPECT_EQ(0, a.index);
+  EXPECT_EQ(1, b.index);
+  EXPECT_EQ(2, c.index);
 }
 
 }  // namespace priority_queue_unittest

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,23 +34,34 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
 
 /**
   @def PSI_MDL_VERSION_1
   Performance Schema Metadata Lock Interface number for version 1.
-  This version is supported.
+  Deprecated in MySQL 8.0.24
 */
 #define PSI_MDL_VERSION_1 1
 
 /**
+  @def PSI_MDL_VERSION_2
+  Performance Schema Metadata Lock Interface number for version 2.
+  Introduced in MySQL 8.0.24
+  This version is supported.
+*/
+#define PSI_MDL_VERSION_2 2
+
+/**
   @def PSI_CURRENT_MDL_VERSION
   Performance Schema Metadata Lock Interface number for the most recent version.
-  The most current version is @c PSI_MDL_VERSION_1
+  The most current version is @c PSI_MDL_VERSION_2
 */
-#define PSI_CURRENT_MDL_VERSION 1
+#define PSI_CURRENT_MDL_VERSION 2
 
 /** Entry point for the performance schema interface. */
 struct PSI_mdl_bootstrap {
@@ -70,7 +81,7 @@ typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
 
 /**
   Performance Schema Metadata Lock Interface, version 1.
-  @since PSI_TRANSACTION_VERSION_1
+  @since PSI_MDL_VERSION_1
 */
 struct PSI_mdl_service_v1 {
   create_metadata_lock_v1_t create_metadata_lock;
@@ -80,7 +91,21 @@ struct PSI_mdl_service_v1 {
   end_metadata_wait_v1_t end_metadata_wait;
 };
 
-typedef struct PSI_mdl_service_v1 PSI_mdl_service_t;
+/**
+  Performance Schema Metadata Lock Interface, version 2.
+  @since PSI_MDL_VERSION_2
+*/
+struct PSI_mdl_service_v2 {
+  create_metadata_lock_v1_t create_metadata_lock;
+  set_metadata_lock_status_v1_t set_metadata_lock_status;
+  /* Added in version 2. */
+  set_metadata_lock_duration_v2_t set_metadata_lock_duration;
+  destroy_metadata_lock_v1_t destroy_metadata_lock;
+  start_metadata_wait_v1_t start_metadata_wait;
+  end_metadata_wait_v1_t end_metadata_wait;
+};
+
+typedef struct PSI_mdl_service_v2 PSI_mdl_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_mdl_service_t *psi_mdl_service;
 

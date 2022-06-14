@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,8 +78,8 @@ struct TREE {
 };
 
 /* Functions on whole tree */
-void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
-               int size, qsort2_cmp compare, bool with_delete,
+void init_tree(TREE *tree, ulong memory_limit, int element_size,
+               qsort2_cmp compare, bool with_delete,
                tree_element_free free_element, const void *custom_arg);
 void delete_tree(TREE *);
 void reset_tree(TREE *);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include <string>
 #include <unordered_set>  // std::unordered_set
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_provider.h"
+
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
@@ -48,12 +50,12 @@
 */
 class Gcs_xcom_proxy {
  public:
-  explicit Gcs_xcom_proxy() {}
+  explicit Gcs_xcom_proxy() = default;
 
   /**
     The destructor.
   */
-  virtual ~Gcs_xcom_proxy() {}
+  virtual ~Gcs_xcom_proxy() = default;
 
   /**
     This is an utility member function that is used to call into XCom for
@@ -68,7 +70,8 @@ class Gcs_xcom_proxy {
     @c delete_node_address
   */
 
-  virtual node_address *new_node_address_uuid(unsigned int n, char *names[],
+  virtual node_address *new_node_address_uuid(unsigned int n,
+                                              char const *names[],
                                               blob uuids[]) = 0;
 
   /**
@@ -77,9 +80,6 @@ class Gcs_xcom_proxy {
 
     @param n the length of the list
     @param na the list to delete
-
-    @return false on success, true otherwise. In case of an error, memory may
-    not have been completely freed.
   */
 
   virtual void delete_node_address(unsigned int n, node_address *na) = 0;
@@ -198,6 +198,42 @@ class Gcs_xcom_proxy {
       uint32_t group_id, xcom_event_horizon event_horizon) = 0;
 
   /**
+    This member function is responsible for triggering the reconfiguration of
+    the leaders of the XCom configuration. This function is asynchronous, so you
+    need to poll @c xcom_get_leaders to actually validate that the
+    reconfiguration was successful.
+
+    @param group_id The identifier of the group
+    @param nr_preferred_leaders Number of preferred leaders, i.e. elements in
+                                @c preferred_leaders
+    @param preferred_leaders The "host:port" of the preferred leaders
+    @param max_nr_leaders Maximum number of active leaders
+    @returns true (false) on success (failure). Success means that XCom will
+             process our request, failure means it wont. There could be errors
+             later in the process of setting the leaders. Since this is
+             basically an asynchronous function, one needs to busy-wait on
+             @c xcom_client_get_leaders to validate that the leaders were
+             modified.
+  */
+  virtual bool xcom_client_set_leaders(uint32_t group_id,
+                                       u_int nr_preferred_leaders,
+                                       char const *preferred_leaders[],
+                                       node_no max_nr_leaders) = 0;
+
+  /**
+    This member function is responsible for retrieving the leaders of the
+    XCom configuration.
+
+    @param[in] group_id The identifier of the group
+    @param[out] leaders A reference to where the group's leaders will be written
+                        to
+    @retval true if successful and @c leaders was written to
+    @retval false otherwise
+ */
+  virtual bool xcom_client_get_leaders(uint32_t group_id,
+                                       leader_info_data &leaders) = 0;
+
+  /**
    This member function is responsible for retrieving the application payloads
    decided in the synodes in @c synodes, from the XCom instance connected to
    via @c fd.
@@ -274,16 +310,12 @@ class Gcs_xcom_proxy {
     called when the XCOM thread was started but the node has not joined
     a group.
 
-    @param xcom_input_open indicates whether the input channel to the XCom
-                           thread has already been opened.
-    @returns true (false) on success (failure). Success means that XCom will
-             process our request, failure means it wont. There could be errors
-             later in the process of exiting XCom. Since this is basically an
-             asynchronous function, one needs to wait for the XCom thread to
-             to ensure that XCom terminated.
+    There could be errors later in the process of exiting XCom. Since this is
+    basically an asynchronous function, one needs to wait for the XCom thread to
+    to ensure that XCom terminated.
   */
 
-  virtual bool xcom_exit(bool xcom_input_open) = 0;
+  virtual void xcom_exit() = 0;
 
   /*
     Return the operation mode as an integer from an operation mode provided
@@ -348,7 +380,7 @@ class Gcs_xcom_proxy {
   /**
     Initialize the SSL.
 
-    @returns true (false) on success (failure)
+    @returns true on error. False otherwise.
   */
 
   virtual bool xcom_init_ssl() = 0;
@@ -367,35 +399,8 @@ class Gcs_xcom_proxy {
 
   virtual bool xcom_use_ssl() = 0;
 
-  /*
-    Set the necessary SSL parameters before initialization.
-
-    server_key_file  - Path of file that contains the server's X509 key in PEM
-                       format.
-    server_cert_file - Path of file that contains the server's X509 certificate
-    in PEM format. client_key_file  - Path of file that contains the client's
-    X509 key in PEM format. client_cert_file - Path of file that contains the
-    client's X509 certificate in PEM format. ca_file          - Path of file
-    that contains list of trusted SSL CAs. ca_path          - Path of directory
-    that contains trusted SSL CA certificates in PEM format. crl_file         -
-    Path of file that contains certificate revocation lists. crl_path         -
-    Path of directory that contains certificate revocation list files. cipher
-    - List of permitted ciphers to use for connection encryption. tls_version
-    - Protocols permitted for secure connections.
-
-    Note that only the server_key_file/server_cert_file and the client_key_file/
-    client_cert_file are required and the rest of the pointers can be NULL.
-    If the key is provided along with the certificate, either the key file or
-    the other can be ommited.
-
-    The caller can free the parameters after the SSL is started
-    if this is necessary.
-  */
-  virtual void xcom_set_ssl_parameters(
-      const char *server_key_file, const char *server_cert_file,
-      const char *client_key_file, const char *client_cert_file,
-      const char *ca_file, const char *ca_path, const char *crl_file,
-      const char *crl_path, const char *cipher, const char *tls_version) = 0;
+  virtual void xcom_set_ssl_parameters(ssl_parameters ssl,
+                                       tls_parameters tls) = 0;
 
   virtual site_def const *find_site_def(synode_no synode) = 0;
 
@@ -662,7 +667,7 @@ class Gcs_xcom_proxy {
   /**
    Function to retrieve the application payloads decided on a set of synodes.
 
-   @param[in] xcom_instace The XCom instance to connect to
+   @param[in] xcom_instance The XCom instance to connect to
    @param[in] group_id_hash Hash of group identifier.
    @param[in] synode_set The desired synodes
    @param[out] reply Where the requested payloads will be written to
@@ -684,6 +689,14 @@ class Gcs_xcom_proxy {
   */
   virtual bool xcom_set_event_horizon(uint32_t group_id_hash,
                                       xcom_event_horizon event_horizon) = 0;
+
+  virtual bool xcom_set_leaders(uint32_t group_id_hash,
+                                u_int nr_preferred_leaders,
+                                char const *preferred_leaders[],
+                                node_no max_nr_leaders) = 0;
+  virtual bool xcom_get_leaders(uint32_t group_id_hash,
+                                leader_info_data &leaders) = 0;
+
   /**
     Function to reconfigure the maximum size of the XCom cache.
 
@@ -725,10 +738,18 @@ class Gcs_xcom_proxy {
   /**
    * Opens the input channel to XCom.
    *
+   * @param address address to connect to
+   * @param port port to connect to
    * @retval true if successful
    * @retval false otherwise
    */
-  virtual bool xcom_input_connect() = 0;
+  virtual bool xcom_input_connect(std::string const &address,
+                                  xcom_port port) = 0;
+
+  /**
+   * Closes the input channel to XCom.
+   */
+  virtual void xcom_input_disconnect() = 0;
 
   /**
    * Attempts to send the command @c data to XCom. (Called by GCS.)
@@ -774,6 +795,32 @@ class Gcs_xcom_proxy {
    * @returns true if we were able to successfully connect, false otherwise.
    */
   virtual bool test_xcom_tcp_connection(std::string &host, xcom_port port) = 0;
+
+  /**
+   * @brief Initializes XCom's Network Manager. This must be called to ensure
+   *        that we have client connection abilities since the start of GCS.
+   *
+   * @return true in case of error, false otherwise.
+   */
+  virtual bool initialize_network_manager() = 0;
+
+  /**
+   * @brief Finalizes XCom's Network Manager. This cleans up everythins
+   *        regarding network.
+   *
+   * @return true in case of error, false otherwise.
+   */
+  virtual bool finalize_network_manager() = 0;
+
+  /**
+   * @brief Set XCom's network manager active provider
+   *
+   * @param new_value the value of the Communication Stack to use.
+   *
+   * @return true in case of error, false otherwise.
+   */
+  virtual bool set_network_manager_active_provider(
+      enum_transport_protocol new_value) = 0;
 };
 
 /*
@@ -784,32 +831,44 @@ class Gcs_xcom_proxy {
 */
 class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
  public:
-  explicit Gcs_xcom_proxy_base() {}
-  virtual ~Gcs_xcom_proxy_base() {}
+  explicit Gcs_xcom_proxy_base() = default;
+  ~Gcs_xcom_proxy_base() override = default;
 
-  bool xcom_boot_node(Gcs_xcom_node_information &node, uint32_t group_id_hash);
-  bool xcom_remove_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
+  bool xcom_boot_node(Gcs_xcom_node_information &node,
+                      uint32_t group_id_hash) override;
+  bool xcom_remove_nodes(Gcs_xcom_nodes &nodes,
+                         uint32_t group_id_hash) override;
   bool xcom_remove_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
-                         uint32_t group_id_hash);
+                         uint32_t group_id_hash) override;
   bool xcom_remove_node(const Gcs_xcom_node_information &node,
-                        uint32_t group_id_hash);
+                        uint32_t group_id_hash) override;
   bool xcom_add_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
-                      uint32_t group_id_hash);
+                      uint32_t group_id_hash) override;
   bool xcom_add_node(connection_descriptor &con,
                      const Gcs_xcom_node_information &node,
-                     uint32_t group_id_hash);
-  xcom_event_horizon xcom_get_minimum_event_horizon();
-  xcom_event_horizon xcom_get_maximum_event_horizon();
+                     uint32_t group_id_hash) override;
+  xcom_event_horizon xcom_get_minimum_event_horizon() override;
+  xcom_event_horizon xcom_get_maximum_event_horizon() override;
   bool xcom_get_event_horizon(uint32_t group_id_hash,
-                              xcom_event_horizon &event_horizon);
+                              xcom_event_horizon &event_horizon) override;
   bool xcom_set_event_horizon(uint32_t group_id_hash,
-                              xcom_event_horizon event_horizon);
+                              xcom_event_horizon event_horizon) override;
+  bool xcom_set_leaders(uint32_t group_id_hash, u_int nr_preferred_leaders,
+                        char const *preferred_leaders[],
+                        node_no max_nr_leaders) override;
+  bool xcom_get_leaders(uint32_t group_id_hash,
+                        leader_info_data &leaders) override;
   bool xcom_get_synode_app_data(
       Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
       const std::unordered_set<Gcs_xcom_synode> &synode_set,
-      synode_app_data_array &reply);
-  bool xcom_set_cache_size(uint64_t size);
-  bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
+      synode_app_data_array &reply) override;
+  bool xcom_set_cache_size(uint64_t size) override;
+  bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash) override;
+
+  bool initialize_network_manager() override;
+  bool finalize_network_manager() override;
+  bool set_network_manager_active_provider(
+      enum_transport_protocol new_value) override;
 
  private:
   /* Serialize information on nodes to be sent to XCOM */
@@ -817,7 +876,7 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
 
   /* Free information on nodes sent to XCOM */
   void free_nodes_information(node_list &nl);
-  bool test_xcom_tcp_connection(std::string &host, xcom_port port);
+  bool test_xcom_tcp_connection(std::string &host, xcom_port port) override;
 };
 
 /**
@@ -831,75 +890,76 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
  public:
   explicit Gcs_xcom_proxy_impl();
   Gcs_xcom_proxy_impl(unsigned int wt);
-  virtual ~Gcs_xcom_proxy_impl();
+  ~Gcs_xcom_proxy_impl() override;
 
-  node_address *new_node_address_uuid(unsigned int n, char *names[],
-                                      blob uuids[]);
-  void delete_node_address(unsigned int n, node_address *na);
+  node_address *new_node_address_uuid(unsigned int n, char const *names[],
+                                      blob uuids[]) override;
+  void delete_node_address(unsigned int n, node_address *na) override;
   bool xcom_client_add_node(connection_descriptor *fd, node_list *nl,
-                            uint32_t group_id);
-  bool xcom_client_remove_node(node_list *nl, uint32_t group_id);
+                            uint32_t group_id) override;
+  bool xcom_client_remove_node(node_list *nl, uint32_t group_id) override;
   bool xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
-                               uint32_t group_id);
-  bool xcom_client_get_event_horizon(uint32_t group_id,
-                                     xcom_event_horizon &event_horizon);
+                               uint32_t group_id) override;
+  bool xcom_client_get_event_horizon(
+      uint32_t group_id, xcom_event_horizon &event_horizon) override;
   bool xcom_client_set_event_horizon(uint32_t group_id,
-                                     xcom_event_horizon event_horizon);
+                                     xcom_event_horizon event_horizon) override;
+  bool xcom_client_set_leaders(uint32_t gid, u_int nr_preferred_leaders,
+                               char const *preferred_leaders[],
+                               node_no max_nr_leaders) override;
+  bool xcom_client_get_leaders(uint32_t gid,
+                               leader_info_data &leaders) override;
+
   bool xcom_client_get_synode_app_data(connection_descriptor *con,
                                        uint32_t group_id_hash,
                                        synode_no_array &synodes,
-                                       synode_app_data_array &reply);
+                                       synode_app_data_array &reply) override;
 
-  bool xcom_client_set_cache_size(uint64_t size);
-  bool xcom_client_boot(node_list *nl, uint32_t group_id);
+  bool xcom_client_set_cache_size(uint64_t size) override;
+  bool xcom_client_boot(node_list *nl, uint32_t group_id) override;
   connection_descriptor *xcom_client_open_connection(std::string,
-                                                     xcom_port port);
-  bool xcom_client_close_connection(connection_descriptor *fd);
-  bool xcom_client_send_data(unsigned long long size, char *data);
-  void xcom_init(xcom_port listen_port);
-  bool xcom_exit(bool xcom_input_open);
-  int xcom_get_ssl_mode(const char *mode);
-  int xcom_get_ssl_fips_mode(const char *mode);
-  int xcom_set_ssl_fips_mode(int mode);
-  int xcom_set_ssl_mode(int mode);
-  bool xcom_init_ssl();
-  void xcom_destroy_ssl();
-  bool xcom_use_ssl();
-  void xcom_set_ssl_parameters(const char *server_key_file,
-                               const char *server_cert_file,
-                               const char *client_key_file,
-                               const char *client_cert_file,
-                               const char *ca_file, const char *ca_path,
-                               const char *crl_file, const char *crl_path,
-                               const char *cipher, const char *tls_version);
-  site_def const *find_site_def(synode_no synode);
+                                                     xcom_port port) override;
+  bool xcom_client_close_connection(connection_descriptor *fd) override;
+  bool xcom_client_send_data(unsigned long long size, char *data) override;
+  void xcom_init(xcom_port listen_port) override;
+  void xcom_exit() override;
+  int xcom_get_ssl_mode(const char *mode) override;
+  int xcom_get_ssl_fips_mode(const char *mode) override;
+  int xcom_set_ssl_fips_mode(int mode) override;
+  int xcom_set_ssl_mode(int mode) override;
+  bool xcom_init_ssl() override;
+  void xcom_destroy_ssl() override;
+  bool xcom_use_ssl() override;
+  void xcom_set_ssl_parameters(ssl_parameters ssl, tls_parameters tls) override;
+  site_def const *find_site_def(synode_no synode) override;
 
-  enum_gcs_error xcom_wait_ready();
-  bool xcom_is_ready();
-  void xcom_set_ready(bool value);
-  void xcom_signal_ready();
+  enum_gcs_error xcom_wait_ready() override;
+  bool xcom_is_ready() override;
+  void xcom_set_ready(bool value) override;
+  void xcom_signal_ready() override;
 
-  void xcom_wait_for_xcom_comms_status_change(int &status);
-  bool xcom_has_comms_status_changed();
-  void xcom_set_comms_status(int status);
-  void xcom_signal_comms_status_changed(int status);
+  void xcom_wait_for_xcom_comms_status_change(int &status) override;
+  bool xcom_has_comms_status_changed() override;
+  void xcom_set_comms_status(int status) override;
+  void xcom_signal_comms_status_changed(int status) override;
 
-  enum_gcs_error xcom_wait_exit();
-  bool xcom_is_exit();
-  void xcom_set_exit(bool value);
-  void xcom_signal_exit();
+  enum_gcs_error xcom_wait_exit() override;
+  bool xcom_is_exit() override;
+  void xcom_set_exit(bool value) override;
+  void xcom_signal_exit() override;
 
-  void xcom_set_cleanup();
+  void xcom_set_cleanup() override;
 
-  bool xcom_client_force_config(node_list *nl, uint32_t group_id);
-  bool get_should_exit();
-  void set_should_exit(bool should_exit);
+  bool xcom_client_force_config(node_list *nl, uint32_t group_id) override;
+  bool get_should_exit() override;
+  void set_should_exit(bool should_exit) override;
 
-  bool xcom_input_connect();
-  bool xcom_input_try_push(app_data_ptr data);
+  bool xcom_input_connect(std::string const &address, xcom_port port) override;
+  void xcom_input_disconnect() override;
+  bool xcom_input_try_push(app_data_ptr data) override;
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
-      app_data_ptr data);
-  xcom_input_request_ptr xcom_input_try_pop();
+      app_data_ptr data) override;
+  xcom_input_request_ptr xcom_input_try_pop() override;
 
  private:
   /*
@@ -924,6 +984,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   My_xp_socket_util *m_socket_util;
 
   // Stores SSL parameters
+  int m_ssl_mode;
   const char *m_server_key_file;
   const char *m_server_cert_file;
   const char *m_client_key_file;
@@ -934,6 +995,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   const char *m_crl_path;
   const char *m_cipher;
   const char *m_tls_version;
+  const char *m_tls_ciphersuites;
 
   std::atomic_bool m_should_exit;
 
@@ -981,9 +1043,9 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
  */
 class Gcs_xcom_app_cfg {
  public:
-  explicit Gcs_xcom_app_cfg() {}
+  explicit Gcs_xcom_app_cfg() = default;
 
-  virtual ~Gcs_xcom_app_cfg() {}
+  virtual ~Gcs_xcom_app_cfg() = default;
 
   /**
     Initializes the data structures to communicate with
@@ -1015,6 +1077,13 @@ class Gcs_xcom_app_cfg {
    @retval false if configuration was successful
    */
   bool set_identity(node_address *identity);
+
+  /**
+   * @brief Sets the network namespace manager
+   *
+   * @param ns_mgr a reference to a Network_namespace_manager implementation
+   */
+  void set_network_namespace_manager(Network_namespace_manager *ns_mgr);
 
   /**
     Must be called when XCom is not engaged anymore.

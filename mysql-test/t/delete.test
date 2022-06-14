@@ -113,6 +113,7 @@ create table t2 (a int NOT NULL, b int, primary key (a));
 insert into t11 values (0, 10),(1, 11),(2, 12);
 insert into t12 values (33, 10),(0, 11),(2, 12);
 insert into t2 values (1, 21),(2, 12),(3, 23);
+analyze table t11,t12,t2;
 select * from t11;
 select * from t12;
 select * from t2;
@@ -120,16 +121,53 @@ select * from t2;
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 select * from t12;
+# Hypergraph optimizer has different number of warnings.
+--disable_warnings
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
+--enable_warnings
+analyze table t11,t12,t2;
 select * from t11;
 select * from t12;
 insert into t11 values (2, 12);
+analyze table t11,t12,t2;
 -- error 1242
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
+analyze table t11,t12,t2;
 select * from t11;
 drop table t11, t12, t2;
+
+--echo # sql_safe_updates mode with single-table DELETE.
+
+CREATE TABLE t (a INTEGER);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
+
+SET sql_safe_updates = ON;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t ORDER BY a;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t WHERE a = 6;
+# OK because of LIMIT.
+DELETE FROM t ORDER BY a LIMIT 1;
+
+ALTER TABLE t ADD KEY k (a);
+
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t ORDER BY a;
+# OK because the WHERE clause uses a key.
+DELETE FROM t WHERE a = 6;
+# OK because of LIMIT.
+DELETE FROM t ORDER BY a LIMIT 1;
+
+SELECT * FROM t ORDER BY a;
+
+SET sql_safe_updates = DEFAULT;
+DROP TABLE t;
 
 --echo # sql_safe_updates mode with multi-table DELETE
 
@@ -812,10 +850,6 @@ SELECT a,b FROM t1;
 DELETE IGNORE t1.*, t2.* FROM t1, t2
   WHERE c < b OR
         a != ( SELECT 1 UNION SELECT 2 );
---sorted_result
-SELECT a,b FROM t1;
---sorted_result
-SELECT c,d FROM t2;
 
 DROP TABLE t1, t2;
 
@@ -866,3 +900,83 @@ DELETE FROM t2 a2 WHERE NOT EXISTS (SELECT * FROM t1 WHERE t1.c1 = a2.c2);
 SELECT * FROM t2;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
+
+CREATE TABLE t1(pk INTEGER PRIMARY KEY, a INTEGER);
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+PREPARE s FROM 'DELETE t1 FROM t1, (SELECT 1 FROM DUAL) AS dt';
+EXECUTE s;
+SELECT ROW_COUNT();
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+EXECUTE s;
+SELECT ROW_COUNT();
+DEALLOCATE PREPARE s;
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#14673: Enable the hypergraph optimizer for DELETE
+--echo #
+
+# The hypergraph optimizer can use hash joins in DELETE statements,
+# whereas the old optimizer always uses nested loop joins. When using
+# hash joins, some extra care must be taken to make sure the row IDs
+# are propagated up from the join. (This is not an issue with nested
+# loop joins, since the underlying scans are always positioned on the
+# row returned from the join.) This test case verifies that the row
+# IDs are propagated correctly when we have hash joins inside other
+# hash joins. The hypergraph optimizer chooses this plan:
+#   (t1 HJ t2) HJ (t3 HJ t4)
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (a INTEGER, b INTEGER);
+CREATE TABLE t3 (a INTEGER);
+CREATE TABLE t4 (a INTEGER, b INTEGER);
+
+INSERT INTO t1 VALUES (-1), (0), (1), (2), (2), (3), (100), (1000);
+INSERT INTO t2 VALUES (-2, 0), (2, 1), (3, 1), (3, 0), (101, 2), (1001, 0);
+
+INSERT INTO t3 VALUES (-1), (0), (1), (2), (2), (3), (100), (1000);
+INSERT INTO t4 VALUES (-2, -1), (2, 1), (3, 1), (3, -1), (101, 2), (1001, -1);
+
+DELETE t1, t2, t3, t4
+FROM (t1 INNER JOIN t2 USING (a)) LEFT JOIN (t3 INNER JOIN t4 USING (a)) ON t2.b = t4.b;
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+--sorted_result
+SELECT * FROM t3;
+--sorted_result
+SELECT * FROM t4;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug#33722819: recent regression: crash/corruption with gcols
+--echo #               and multitable delete...
+--echo #
+
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c TIMESTAMP GENERATED ALWAYS AS (65),
+  UNIQUE KEY (a, b),
+  UNIQUE KEY (c, a)
+);
+
+INSERT IGNORE INTO t(a, b) VALUES (1, 1), (2, 2);
+
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+--sorted_result
+SELECT * FROM t;
+# Different number of warnings with the hypergraph optimizer.
+--disable_warnings
+DELETE IGNORE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+--enable_warnings
+SELECT * FROM t;
+DROP TABLE t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,17 +35,17 @@ class ILogger {
  public:
   virtual void log(longlong level, const char *message) = 0;
   virtual void log(longlong level, longlong errcode, ...) = 0;
-  virtual ~ILogger() {}
+  virtual ~ILogger() = default;
 };
 
 class Logger : public ILogger {
  public:
-  ~Logger() {}
-  void log(longlong level, const char *message) {
+  ~Logger() override = default;
+  void log(longlong level, const char *message) override {
     LogPluginErr(level, ER_KEYRING_LOGGER_ERROR_MSG, message);
   }
 
-  void log(longlong level, longlong errcode, ...) {
+  void log(longlong level, longlong errcode, ...) override {
     va_list vl;
     va_start(vl, errcode);
     LogPluginErrV(level, errcode, vl);

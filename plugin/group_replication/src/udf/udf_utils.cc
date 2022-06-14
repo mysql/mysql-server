@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/udf/udf_utils.h"
-#include "mysql/components/my_service.h"
-#include "mysql/components/services/dynamic_privilege.h"
-#include "mysql/components/services/mysql_runtime_error_service.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/auth/auth_acls.h"
 
@@ -104,6 +104,33 @@ void log_privilege_status_result(privilege_result const &privilege,
   }
 }
 
+std::pair<bool, std::string> check_super_read_only_is_disabled() {
+  bool read_only_mode = false, super_read_only_mode = false;
+
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
+  bool error = sql_command_interface->establish_session_connection(
+                   PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer()) ||
+               get_read_mode_state(sql_command_interface, &read_only_mode,
+                                   &super_read_only_mode);
+  delete sql_command_interface;
+
+  if (error) {
+    /* purecov: begin inspected */
+    return std::make_pair<bool, std::string>(
+        true, "Unable to check if super_read_only is disabled.");
+    /* purecov: end */
+  }
+
+  if (super_read_only_mode) {
+    return std::make_pair<bool, std::string>(
+        true, "Server must have super_read_only=0.");
+  }
+
+  return std::make_pair<bool, std::string>(false,
+                                           "super_read_only is disabled.");
+}
+
 bool member_online_with_majority() {
   if (!plugin_is_group_replication_running()) return false;
 
@@ -162,7 +189,7 @@ bool validate_uuid_parameter(std::string &uuid, size_t length,
 
 bool throw_udf_error(const char *action_name, const char *error_message,
                      bool log_error) {
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if ((registry = get_plugin_registry())) {
     my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error(
         "mysql_runtime_error", registry);
@@ -252,4 +279,52 @@ bool group_contains_member_older_than(
   delete members;
 
   return result;
+}
+
+const char *Charset_service::arg_type("charset");
+const char *Charset_service::service_name("mysql_udf_metadata");
+SERVICE_TYPE(mysql_udf_metadata) *Charset_service::udf_metadata_service =
+    nullptr;
+
+bool Charset_service::init(SERVICE_TYPE(registry) * reg_srv) {
+  my_h_service h_udf_metadata_service;
+  if (!reg_srv || reg_srv->acquire(service_name, &h_udf_metadata_service))
+    return true;
+  udf_metadata_service = reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
+      h_udf_metadata_service);
+  return false;
+}
+
+bool Charset_service::deinit(SERVICE_TYPE(registry) * reg_srv) {
+  if (!reg_srv) return true;
+  using udf_metadata_t = SERVICE_TYPE_NO_CONST(mysql_udf_metadata);
+  if (udf_metadata_service)
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<udf_metadata_t *>(udf_metadata_service)));
+  return false;
+}
+
+/* Set the return value character set as latin1 */
+bool Charset_service::set_return_value_charset(
+    UDF_INIT *initid, const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  if (udf_metadata_service->result_set(initid, Charset_service::arg_type,
+                                       static_cast<void *>(charset))) {
+    return true;
+  }
+  return false;
+}
+
+bool Charset_service::set_args_charset(UDF_ARGS *args,
+                                       const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  for (uint index = 0; index < args->arg_count; ++index) {
+    if (args->arg_type[index] == STRING_RESULT &&
+        udf_metadata_service->argument_set(args, Charset_service::arg_type,
+                                           index,
+                                           static_cast<void *>(charset))) {
+      return true;
+    }
+  }
+  return false;
 }

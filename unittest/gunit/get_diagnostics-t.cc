@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ using my_testing::Server_initializer;
 
 class GetDiagnosticsTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -53,8 +53,8 @@ class FailHelper {
   void fail(const char *message) { FAIL() << message; }
 };
 
-LEX_STRING var_name1 = {C_STRING_WITH_LEN("var1")};
-LEX_STRING var_name2 = {C_STRING_WITH_LEN("var2")};
+LEX_CSTRING var_name1 = {STRING_WITH_LEN("var1")};
+LEX_CSTRING var_name2 = {STRING_WITH_LEN("var2")};
 
 class MockDiagInfoItem : public Diagnostics_information_item {
  public:
@@ -74,7 +74,7 @@ class MockDiagInfo : public Diagnostics_information, private FailHelper {
   MockDiagInfo(List<MockDiagInfoItem> *items) : m_items(items) {}
 
  protected:
-  bool aggregate(THD *thd, const Diagnostics_area *da) {
+  bool aggregate(THD *thd, const Diagnostics_area *da) override {
     bool rv = false;
     MockDiagInfoItem *diag_info_item;
     List_iterator<MockDiagInfoItem> it(*m_items);
@@ -86,7 +86,7 @@ class MockDiagInfo : public Diagnostics_information, private FailHelper {
     return rv;
   }
 
-  ~MockDiagInfo() { fail("MockDiagInfo destructor invoked."); }
+  ~MockDiagInfo() override { fail("MockDiagInfo destructor invoked."); }
 
  private:
   List<MockDiagInfoItem> *m_items;
@@ -130,11 +130,11 @@ TEST_F(GetDiagnosticsTest, Cmd) {
   EXPECT_EQ(2, var->val_int());
 }
 
-// Verifies death with a DBUG_ASSERT if target item is not settable.
+// Verifies death with a assert if target item is not settable.
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef GetDiagnosticsTest GetDiagnosticsTestDeathTest;
 
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem) {
   Item *var;
   Sql_cmd *cmd;
@@ -157,14 +157,14 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem) {
 
   EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 class MockDiagInfoError : public Diagnostics_information {
  public:
   MockDiagInfoError(bool fatal_error) : m_fatal_error(fatal_error) {}
 
  protected:
-  bool aggregate(THD *thd, const Diagnostics_area *) {
+  bool aggregate(THD *thd, const Diagnostics_area *) override {
     myf flag = m_fatal_error ? MYF(ME_FATALERROR) : MYF(0);
     my_message_sql(ER_UNKNOWN_ERROR, "Unknown error", flag);
     return thd->is_error();
@@ -346,7 +346,7 @@ static Item *get_cond_info_item(THD *thd, uint number,
   Condition_information_item *diag_info_item;
   List<Condition_information_item> items;
   MEM_ROOT *mem_root = thd->mem_root;
-  LEX_STRING var_name = {C_STRING_WITH_LEN("get_cond_info_item")};
+  LEX_CSTRING var_name = {STRING_WITH_LEN("get_cond_info_item")};
 
   // Simulate GET DIAGNOSTICS as a new command
   thd->reset_for_next_command();
@@ -431,17 +431,17 @@ TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea) {
 
   thd()->pop_diagnostics_area();
   EXPECT_EQ(org_da, thd()->get_stmt_da());
-  EXPECT_TRUE(thd()->get_stacked_da() == NULL);
+  EXPECT_TRUE(thd()->get_stacked_da() == nullptr);
 }
 
 // Pop when there is just one diagnostics area = assert
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(GetDiagnosticsTestDeathTest, DiePopDiagnosticsArea) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
   EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 // Pushed diagnostics area should initially contain copy of conditions
 TEST_F(GetDiagnosticsTest, PushDiagnosticsArea) {
@@ -489,7 +489,7 @@ TEST_F(GetDiagnosticsTest, PushDiagnosticsArea) {
   EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
 
   thd()->pop_diagnostics_area();
-  EXPECT_TRUE(thd()->get_stacked_da() == NULL);
+  EXPECT_TRUE(thd()->get_stacked_da() == nullptr);
   EXPECT_TRUE(thd()->get_stmt_da()->cond_count() == 0);
 }
 

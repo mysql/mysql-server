@@ -8,12 +8,12 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 # Waiting time when (re)starting the server
---let $explicit_default_wait_counter=10000;
+--let $explicit_default_wait_counter=10000
 
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
 --echo #########################################################################
@@ -106,7 +106,7 @@ let $wait_condition = SELECT WORK_COMPLETED > 0
 --source include/wait_condition.inc
 
 # Verify the expected progress seen in PFS table
-select WORK_ESTIMATED, WORK_COMPLETED
+select WORK_ESTIMATED > WORK_COMPLETED, WORK_COMPLETED
 	FROM performance_schema.events_stages_current
 	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
 
@@ -191,3 +191,6 @@ SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

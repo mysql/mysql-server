@@ -1,0 +1,115 @@
+# This file tests INFORMATION_SCHEMA.ENABLED_ROLES.
+
+--echo # SETUP SCHEMA
+--source suite/information_schema/include/roles_schema.inc
+
+--let $TEST_TABLE=ENABLED_ROLES
+
+--echo # USER WITH ROLES.
+
+--echo #
+--echo # Case 1: Login as user1
+--echo #
+--let USER_NAME=user1
+--let ROLE_LIST=hr_rules
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 2: Login as user2
+--echo #
+--let USER_NAME=user2
+--let ROLE_LIST=hr_rules
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 3: Login as lead_user1 with mandatory roles.
+--echo #
+SET GLOBAL mandatory_roles = 'hr_access';
+--let USER_NAME=lead_user1
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+
+SET GLOBAL activate_all_roles_on_login=on;
+--let USER_NAME=lead_user1
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+SET GLOBAL activate_all_roles_on_login=off;
+
+--echo # Set 'task2' as mandatory which is not directly granted to lead_user1
+--echo # and then use SET ROLE ALL
+SET GLOBAL mandatory_roles = 'task2';
+--let ROLE_LIST=task2
+--let ROLE_LIST=ALL
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo # Set 'task2' as mandatory which is not directly granted to lead_user1
+--echo # and then use SET ROLE ALL EXCEPT 'task2'
+SET GLOBAL mandatory_roles = 'task2';
+--let ROLE_LIST=task2
+--let ROLE_LIST=ALL EXCEPT task2
+--source suite/information_schema/include/roles_i_s_test.inc
+
+SET GLOBAL mandatory_roles = default;
+
+--echo #
+--echo # Case 4: Login as lead_user2 with default roles.
+--echo #
+SET DEFAULT ROLE hr_access TO lead_user2;
+--let USER_NAME=lead_user2
+--let ROLE_LIST=task2_lead
+--source suite/information_schema/include/roles_i_s_test.inc
+SET DEFAULT ROLE NONE TO lead_user1;
+
+--echo # Set 'task2' as mandatory while CREATEing and ALTERing the user.
+CREATE USER lead_user3 IDENTIFIED BY 'foo' DEFAULT ROLE task2;
+GRANT SELECT ON test.* TO lead_user3;
+GRANT task2 TO lead_user3;
+
+--let USER_NAME=lead_user3
+--let ROLE_LIST=NONE
+--source suite/information_schema/include/roles_i_s_test.inc
+ALTER USER lead_user3 DEFAULT ROLE NONE;
+--source suite/information_schema/include/roles_i_s_test.inc
+ALTER USER lead_user3 DEFAULT ROLE task2;
+--source suite/information_schema/include/roles_i_s_test.inc
+DROP USER lead_user3;
+
+--echo #
+--echo # Case 5: Login as project_lead_user with role graph.
+--echo #
+--let USER_NAME=project_lead_user
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+
+--echo #
+--echo # Case 6: Login as project_lead_user with cyclic role graph.
+--echo #
+--echo # Form a role graph loop.
+--echo #
+--echo #              reader
+--echo #                |
+--echo #                V
+--echo #             updater<------------\
+--echo #                |                |
+--echo #        |``````````````|         |
+--echo #        V              V         |
+--echo #   task1_lead     task2_lead     |
+--echo #        |              |         |
+--echo #        ````````|```````         |
+--echo #                V                |
+--echo #          project_lead-----------/
+--echo #
+connection default;
+# GRANT project_lead to updater;
+INSERT INTO mysql.role_edges (FROM_USER,FROM_HOST,TO_USER,TO_HOST)
+  VALUES('project_lead','%','updater','%');
+FLUSH PRIVILEGES;
+
+--let USER_NAME=project_lead_user
+--let ROLE_LIST=hr_access
+--source suite/information_schema/include/roles_i_s_test.inc
+
+REVOKE project_lead FROM updater;
+
+--echo # Cleanup
+--source suite/information_schema/include/roles_schema_clean.inc

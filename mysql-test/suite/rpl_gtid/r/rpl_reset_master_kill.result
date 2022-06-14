@@ -1,0 +1,7 @@
+# Adding debug point 'wait_for_kill_gtid_state_clear' to @@GLOBAL.debug
+CALL mtr.add_suppression('The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client.');
+CREATE TABLE t1(c1 int);
+RESET MASTER;
+ERROR HY000: Lost connection to MySQL server during query
+DROP TABLE t1;
+# Removing debug point 'wait_for_kill_gtid_state_clear' from @@GLOBAL.debug

@@ -26,6 +26,8 @@
 #
 # WL#9452: Log Position Lock
 #
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
@@ -46,7 +48,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 
 --source include/sync_slave_sql_with_master.inc
 # Create a new channel, so we can test a non-empty channel name on results
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 
 # Save current master binary log coordinates and gtid_executed
 --let $_saved_gtids=
@@ -55,6 +57,9 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
   --let $use_gtids= 1
 }
 --source include/save_master_pos.inc
+
+# Sleep before collecting positions
+--sleep 5
 
 # Save current slave relay log coordinates
 --let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)

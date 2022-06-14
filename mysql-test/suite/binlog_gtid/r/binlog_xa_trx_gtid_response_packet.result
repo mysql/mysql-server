@@ -1,13 +1,20 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
 RESET MASTER;
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 
 SET SESSION session_track_gtids='all_gtids';
 XA START '1-trx';
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_______
+
 INSERT INTO t1 VALUES(1);
 XA END '1-trx';
 XA PREPARE '1-trx';
 -- Tracker : SESSION_TRACK_GTIDS
 -- 00000000-1111-0000-1111-000000000000:1-2
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- ________
 
 XA COMMIT '1-trx';
 -- Tracker : SESSION_TRACK_GTIDS
@@ -16,11 +23,17 @@ XA COMMIT '1-trx';
 
 SET SESSION session_track_gtids='own_gtid';
 XA START '2-trx';
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_______
+
 INSERT INTO t1 VALUES(1);
 XA END '2-trx';
 XA PREPARE '2-trx';
 -- Tracker : SESSION_TRACK_GTIDS
 -- 00000000-1111-0000-1111-000000000000:4
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- ________
 
 XA COMMIT '2-trx';
 -- Tracker : SESSION_TRACK_GTIDS

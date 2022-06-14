@@ -8,11 +8,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
-ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
-ERROR 23000: Duplicate entry 'abc-abc-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
-ERROR 23000: Duplicate entry 'abc-def-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc	abc	abc
@@ -32,11 +32,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
-ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
-ERROR 23000: Duplicate entry 'abc-abc-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
-ERROR 23000: Duplicate entry 'abc-def-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc	abc	abc
@@ -56,14 +56,20 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
-ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
-ERROR 23000: Duplicate entry 'abc-abc-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
-ERROR 23000: Duplicate entry 'abc-def-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
-abc
+abc#######	abc#######	abc#######
+abc#######	abc#######	def#######
+abc#######	def#######	abc#######
+abc#######	def#######	def#######
+def#######	abc#######	abc#######
+def#######	abc#######	def#######
+def#######	def#######	abc#######
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARBINARY(10) NULL, c2 VARBINARY(10) NULL, c3 VARBINARY(10) NULL, UNIQUE(c1,c2,c3));
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
@@ -74,11 +80,11 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
-ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
-ERROR 23000: Duplicate entry 'abc-abc-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-abc-def' for key 't1.c1'
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
-ERROR 23000: Duplicate entry 'abc-def-def' for key 'c1'
+ERROR 23000: Duplicate entry 'abc-def-def' for key 't1.c1'
 SELECT * FROM t1;
 c1	c2	c3
 abc	abc	abc

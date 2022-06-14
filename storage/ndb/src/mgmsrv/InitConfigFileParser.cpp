@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_version.h>
 
@@ -34,8 +35,8 @@
 #include "my_alloc.h"
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
+#include <cstdlib>
 
-extern EventLogger *g_eventLogger;
 
 const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);
@@ -56,8 +57,8 @@ InitConfigFileParser::~InitConfigFileParser() {
 //  Read Config File
 //****************************************************************************
 InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  :  m_userProperties(true), m_configValues(1000, 20) {
-
+  :  m_userProperties(true), m_configValues()
+{
   m_config = new Properties(true);
   m_defaults = new Properties(true);
 }
@@ -306,6 +307,52 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 					 const char* value)
 {
 
+  /**
+   * The parameters MaxNoOfConcurrentIndexOperations, MaxNoOfLocalOperations
+   * MaxNoOfFiredTriggers and MaxNoOfLocalScans cannot be used concurrently with
+   * TransactionMemory.
+   * Explicitly setting any of these parameters when TransactionMemory has also been
+   * set keeps the management node from starting.
+   *
+   * The parameter MaxNoOfConcurrentOperations can be used concurrently with
+   * TransactionMemory since it also sets the size of Dbtc record pools for takeover
+   * and puts an upper limit on MaxDMLOperationsPerTransaction.
+   *
+   * The parameter MaxNoOfConcurrentScans can be used concurrently with
+   * TransactionMemory  it is also determines max size of pool Dbtc::scanRecordPool
+   * and will limit the number of concurrent scans in one Dbtc instance.
+   */
+  if(native_strcasecmp(fname, "MaxNoOfConcurrentIndexOperations") == 0 ||
+     native_strcasecmp(fname, "MaxNoOfFiredTriggers") == 0 ||
+     native_strcasecmp(fname, "MaxNoOfLocalScans") == 0 ||
+     native_strcasecmp(fname, "MaxNoOfLocalOperations") == 0)
+  {
+    if (ctx.m_currentSection->contains("TransactionMemory"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with TransactionMemory",
+          ctx.fname, fname);
+      return false;
+    }
+  }
+
+  if (native_strcasecmp(fname, "TransactionMemory") == 0)
+  {
+    if (ctx.m_currentSection->contains("MaxNoOfConcurrentIndexOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfFiredTriggers") ||
+        ctx.m_currentSection->contains("MaxNoOfLocalScans") ||
+        ctx.m_currentSection->contains("MaxNoOfLocalOperations"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with any of the below "
+          "deprecated parameter(s) MaxNoOfConcurrentIndexOperations, "
+          "MaxNoOfFiredTriggers, MaxNoOfLocalScans "
+          "and MaxNoOfLocalOperations.",
+          ctx.fname, fname);
+      return false;
+    }
+  }
+
   if (ctx.m_currentSection->contains(fname))
   {
     ctx.reportError("[%s] Parameter %s specified twice", ctx.fname, fname);
@@ -325,9 +372,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   if (status == ConfigInfo::CI_DEPRECATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc && desc[0]){
-      ctx.reportWarning("[%s] %s is deprecated, use %s instead",
+      ctx.reportWarning("[%s] %s is deprecated, will use %s instead",
 			ctx.fname, fname, desc);
-    } else if (desc == 0){
+    } else {
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
   }
@@ -450,42 +497,78 @@ bool InitConfigFileParser::isEmptyLine(const char* line) const {
 //  Convert String to Int
 //****************************************************************************
 bool InitConfigFileParser::convertStringToUint64(const char* s, 
-						 Uint64& val,
-						 Uint32 log10base) {
-  if (s == NULL)
-    return false;
-  if (strlen(s) == 0) 
+                                                 Uint64& val)
+{
+  if (s == nullptr)
     return false;
 
-  errno = 0;
+  while (*s != '\0' && isspace(*s)) s++;
+  const bool negative = (*s == '-');
+
+  union {
+    signed long long vs;
+    unsigned long long vu;
+  };
   char* p;
-  Int64 v = my_strtoll(s, &p, log10base);
-  if (errno != 0)
-    return false;
-  
-  long mul = 0;
-  if (p != &s[strlen(s)]){
-    char * tmp = strdup(p);
-    trim(tmp);
-    switch(tmp[0]){
-    case 'k':
-    case 'K':
-      mul = 10;
-      break;
-    case 'M':
-      mul = 20;
-      break;
-    case 'G':
-      mul = 30;
-      break;
-    default:
-      free(tmp);
+  constexpr int log10base = 0;
+  errno = 0;
+  if (negative)
+  {
+    vs = std::strtoll(s, &p, log10base);
+    if ((vs == LLONG_MIN || vs == LLONG_MAX) && errno == ERANGE)
+    {
       return false;
     }
-    free(tmp);
   }
-  
-  val = (v << mul);
+  else
+  {
+    vu = std::strtoull(s, &p, log10base);
+    if (vu == ULLONG_MAX && errno == ERANGE)
+    {
+      return false;
+    }
+  }
+  if (p == s)
+    return false;
+
+  int mul = 0;
+
+  switch(*p)
+  {
+  case '\0':
+    break;
+  case 'k':
+  case 'K':
+    mul = 10;
+    p++;
+    break;
+  case 'M':
+    mul = 20;
+    p++;
+    break;
+  case 'G':
+    mul = 30;
+    p++;
+    break;
+  default:
+    return false;
+  }
+  if (*p != '\0')
+    return false;
+  if (negative)
+  {
+    Int64 v = (vs << mul);
+    if ((v >> mul) != vs)
+      return false;
+    val = v;
+  }
+  else
+  {
+    Uint64 v = (vu << mul);
+    if ((v >> mul) != vu)
+      return false;
+    val = v;
+  }
   return true;
 }
 
@@ -726,6 +809,11 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
       const char* value = NULL;
       char buf[32];
       switch(options[i].var_type){
+      case GET_BOOL:
+        BaseString::snprintf(buf, sizeof(buf), "%s",
+                             *(bool*)options[i].value ? "true" : "false");
+        value = buf;
+	break;
       case GET_INT:
       case GET_UINT:
         BaseString::snprintf(buf, sizeof(buf), "%u",
@@ -857,7 +945,7 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
   release the memory allocated by my_strdup() from handle_options().
 */
 Config *
-InitConfigFileParser::parse_mycnf() 
+InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 {
   Config * res = 0;
   bool release_current_section = true;
@@ -870,8 +958,8 @@ InitConfigFileParser::parse_mycnf()
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (uchar **)malloc(sizeof(int));
-	opt.var_type = GET_INT;
+	opt.value = (uchar **)malloc(sizeof(bool));
+	opt.var_type = GET_BOOL;
 	break;
       case ConfigInfo::CI_INT: 
 	opt.value = (uchar**)malloc(sizeof(uint));
@@ -952,6 +1040,11 @@ InitConfigFileParser::parse_mycnf()
   
   Context ctx(m_info);
   const char *groups[]= { "cluster_config", 0 };
+  const char *save_group_suffix = my_defaults_group_suffix;
+  if (cluster_config_suffix != nullptr)
+  {
+    my_defaults_group_suffix = cluster_config_suffix;
+  }
   if (load_defaults(options, groups))
     goto end;
 
@@ -1069,6 +1162,8 @@ InitConfigFileParser::parse_mycnf()
   release_current_section = false;
 
 end:
+  my_defaults_group_suffix = save_group_suffix;
+
   for (int i = 0; options[i].name; i++)
   {
     if (options[i].var_type == GET_STR_ALLOC)
@@ -1093,3 +1188,58 @@ template class Vector<struct my_option>;
 /*
   See include/my_getopt.h for the declaration of struct my_option
 */
+
+
+#ifdef TEST_INITCONFIGFILEPARSER
+
+#include "unittest/mytap/tap.h"
+
+int main()
+{
+  plan(29);
+
+  // Check the string to int parsing function convertStringToUint64()
+  Uint64 value;
+  ok1(InitConfigFileParser::convertStringToUint64("37", value));
+  ok1(value == 37);
+  ok1(InitConfigFileParser::convertStringToUint64("0", value));
+  ok1(value == 0);
+  ok1(InitConfigFileParser::convertStringToUint64("-0", value)); // ??
+  ok1(static_cast<Int64>(value) == -0);
+  ok1(InitConfigFileParser::convertStringToUint64("-1", value));
+  ok1(static_cast<Int64>(value) == -1);
+  ok1(InitConfigFileParser::convertStringToUint64("-37", value));
+  ok1(static_cast<Int64>(value) == -37);
+
+  // Valid multipliers
+  ok1(InitConfigFileParser::convertStringToUint64("37k", value));
+  ok1(value == 37ull * 1024);
+  ok1(InitConfigFileParser::convertStringToUint64("37K", value));
+  ok1(value == 37ull * 1024);
+  ok1(InitConfigFileParser::convertStringToUint64("37M", value));
+  ok1(value == 37ull * 1024 * 1024);
+  ok1(InitConfigFileParser::convertStringToUint64("37G", value));
+  ok1(value == 37ull * 1024 * 1024 * 1024);
+#ifdef NOT_YET
+  ok1(InitConfigFileParser::convertStringToUint64("37T", value));
+  ok1(value == 37ull * 1024 * 1024 * 1024 * 1024);
+#endif
+
+  // Invalid multipliers
+  ok1(InitConfigFileParser::convertStringToUint64("10kB", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10 M", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10 \"M12L\"", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10 'M12L'", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10M12L", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10T'", value) == false);
+
+  ok1(InitConfigFileParser::convertStringToUint64("M", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("MAX_UINT", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("Magnus'", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("trettisju", value) == false);
+
+  return exit_status();
+}
+
+#endif

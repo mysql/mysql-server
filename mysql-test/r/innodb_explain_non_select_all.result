@@ -20,6 +20,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -51,6 +52,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -82,6 +84,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -116,6 +119,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -150,6 +154,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -174,16 +179,17 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t2`.`b` < 3)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -192,9 +198,11 @@ Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
-Handler_read_rnd_next	5
+Handler_read_key	7
+Handler_read_rnd	3
+Handler_read_rnd_next	9
 Handler_update	3
+Handler_write	3
 
 DROP TABLE t1, t2;
 #7
@@ -208,17 +216,18 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -226,9 +235,9 @@ Handler_read_key	4
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	4
-Handler_read_key	6
-Handler_read_rnd_next	11
+Handler_read_first	3
+Handler_read_key	5
+Handler_read_rnd_next	7
 Handler_update	2
 
 DROP TABLE t1, t2;
@@ -254,6 +263,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
@@ -288,6 +298,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -316,22 +327,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select straight_join 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
+Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	2
+Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	2
+Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd	3
 Handler_read_rnd_next	9
@@ -360,6 +372,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -391,6 +404,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -422,6 +436,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -448,6 +463,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -474,6 +490,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -501,6 +518,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -526,6 +544,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -550,6 +569,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -585,6 +605,7 @@ FLUSH TABLES;
 Variable_name	Value
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -617,6 +638,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -659,6 +681,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -686,16 +709,17 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -724,13 +748,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	6
@@ -752,16 +777,17 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 #
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where ((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -793,6 +819,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -824,6 +851,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -860,6 +888,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -893,6 +922,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -913,7 +943,7 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
 FLUSH STATUS;
@@ -922,6 +952,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -955,6 +986,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1028,6 +1060,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1059,6 +1092,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1099,6 +1133,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1138,6 +1173,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1175,6 +1211,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1217,10 +1254,10 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
-Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -1257,21 +1294,22 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #36
@@ -1296,6 +1334,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1327,6 +1366,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1368,6 +1408,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1403,6 +1444,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1437,6 +1479,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1477,6 +1520,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1516,6 +1560,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1554,6 +1599,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1595,10 +1641,10 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
-Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -1634,21 +1680,22 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #46
@@ -1673,6 +1720,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1705,6 +1753,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1746,6 +1795,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1784,6 +1834,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1810,6 +1861,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -1839,6 +1891,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1871,6 +1924,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -1898,6 +1952,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -1933,6 +1988,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1984,7 +2040,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t12	NULL	index	NULL	a	5	NULL	2	100.00	Using index
 Warnings:
-Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1
+Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1
 UPDATE IGNORE v1 SET a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SET SESSION sql_safe_updates = DEFAULT;
@@ -2003,13 +2059,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1 where (`t11`.`a` > 0)
+Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1 where (`test`.`t11`.`a` > 0)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -2040,6 +2097,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
@@ -2075,6 +2133,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2111,6 +2170,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2148,6 +2208,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2174,13 +2235,14 @@ EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (10)
+Note	1003	insert into `test`.`t1` values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 # Status of testing query execution:
@@ -2204,13 +2266,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2236,16 +2299,17 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -2282,6 +2346,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -2317,6 +2382,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -2351,7 +2417,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	a11	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
-3	DERIVED	a21	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+3	DERIVED	a21	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 3	DERIVED	a12	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a11.c1	1	100.00	Using index
 Warnings:
 Note	1003	update `test`.`t3` set `test`.`t3`.`c3` = (/* select#2 */ select count(`d1`.`c1`) from (/* select#3 */ select `test`.`a11`.`c1` AS `c1` from `test`.`t1` `a11` straight_join `test`.`t2` `a21` join `test`.`t1` `a12` where ((`test`.`a21`.`c2` = `test`.`a11`.`c1`) and (`test`.`a12`.`c1` = `test`.`a11`.`c1`))) `d1`)
@@ -2376,7 +2442,7 @@ INSERT INTO t1 VALUES (1), (2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USING(id) GROUP BY t1.id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where true group by `test`.`t1`.`id`
 DROP TABLE t1,t2;
@@ -2399,6 +2465,7 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2422,14 +2489,15 @@ Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
+#
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 
 DROP TABLE t1;
 #

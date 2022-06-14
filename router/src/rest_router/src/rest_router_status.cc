@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,23 +28,17 @@
 
 #include "rest_router_status.h"
 
+#include <array>
 #include <ctime>
 
-#ifdef _WIN32
-#include <process.h>  // getpid()
-#else
-#include <unistd.h>  // getpid(), gethostname()
-#endif
-
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
+#include "mysql/harness/stdx/process.h"
 #include "mysqlrouter/rest_api_utils.h"
 #include "mysqlrouter/utils.h"  // string_format
 
@@ -67,7 +61,8 @@ bool RestRouterStatus::on_handle_request(HttpRequest &req,
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     json_doc.SetObject()
-        .AddMember("processId", rapidjson::Value(getpid()), allocator)
+        .AddMember("processId", rapidjson::Value(stdx::this_process::get_id()),
+                   allocator)
         .AddMember("productEdition",
                    rapidjson::Value(MYSQL_ROUTER_VERSION_EDITION), allocator)
         .AddMember("timeStarted",
@@ -77,9 +72,9 @@ bool RestRouterStatus::on_handle_request(HttpRequest &req,
         .AddMember("version", rapidjson::Value(MYSQL_ROUTER_VERSION),
                    allocator);
 
-    char hname[256];  // enough for windows and unix
-    if (0 == gethostname(hname, sizeof(hname))) {
-      json_doc.AddMember("hostname", rapidjson::Value(hname, allocator),
+    std::array<char, 256> hname;  // enough for windows and unix
+    if (0 == gethostname(hname.data(), hname.size())) {
+      json_doc.AddMember("hostname", rapidjson::Value(hname.data(), allocator),
                          allocator);
     }
   }

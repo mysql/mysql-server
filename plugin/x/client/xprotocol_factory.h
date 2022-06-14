@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,16 +30,16 @@
 
 #include <memory>
 
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
-#include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xquery_instances.h"
 
 namespace xcl {
 
 class Protocol_factory {
  public:
-  virtual ~Protocol_factory() {}
+  virtual ~Protocol_factory() = default;
 
   virtual std::shared_ptr<XProtocol> create_protocol(
       std::shared_ptr<Context> context) = 0;

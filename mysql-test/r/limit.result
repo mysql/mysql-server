@@ -1,5 +1,8 @@
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(11),(12),(13),(14),(15),(16),(17),(18),(19);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 CREATE TABLE t2(a INTEGER);
 INSERT INTO t2 VALUES(21),(22),(23),(24),(25),(26),(27);
 SELECT * FROM t1 LIMIT 6;
@@ -19,8 +22,8 @@ a
 16
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LIMIT 5 OFFSET 1;
 EXPLAIN
--> Limit/Offset: 5/1 row(s)
-    -> Table scan on t1
+-> Limit/Offset: 5/1 row(s)  (cost=1.15 rows=5)
+    -> Table scan on t1  (cost=1.15 rows=9)
 
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
 a
@@ -573,16 +576,16 @@ drop table t1;
 prepare s from "select 1 limit ?";
 set @a='qwe';
 execute s using @a;
-1
+ERROR HY000: Incorrect arguments to EXECUTE
 set @a=-1;
 execute s using @a;
-ERROR HY000: Incorrect arguments to EXECUTE
+ERROR 22003: unsigned integer value is out of range in 'EXECUTE'
 prepare s from "select 1 limit 1, ?";
 execute s using @a;
-ERROR HY000: Incorrect arguments to EXECUTE
+ERROR 22003: unsigned integer value is out of range in 'EXECUTE'
 prepare s from "select 1 limit ?, ?";
 execute s using @a, @a;
-ERROR HY000: Incorrect arguments to EXECUTE
+ERROR 22003: unsigned integer value is out of range in 'EXECUTE'
 set @a=14632475938453979136;
 execute s using @a, @a;
 1
@@ -616,12 +619,12 @@ CREATE TABLE t1 ( pk INTEGER );
 INSERT INTO t1 VALUES (1), (2);
 EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
 EXPLAIN
--> Limit/Offset: 2/5 row(s)
-    -> Group aggregate: json_objectagg(NULL,'')
-        -> Nested loop inner join
-            -> Sort: t1.pk
-                -> Table scan on t1
-            -> Table scan on t2
+-> Limit/Offset: 2/5 row(s)  (cost=1.75 rows=0)
+    -> Group aggregate: json_objectagg(NULL,'')  (cost=1.75 rows=4)
+        -> Nested loop inner join  (cost=1.35 rows=4)
+            -> Sort: t1.pk  (cost=0.45 rows=2)
+                -> Table scan on t1  (cost=0.45 rows=2)
+            -> Table scan on t2  (cost=0.35 rows=2)
 
 SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
 ERROR 22032: JSON documents may not contain NULL member names.
@@ -652,4 +655,121 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	idx_CC_col_int_key,idx_CC_col_varchar_key	idx_CC_col_varchar_key	7	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `f1` from `test`.`t1` where (((`test`.`t1`.`col_int_key` not between 10 and 15) or (`test`.`t1`.`col_varchar_key` < '2')) and (`test`.`t1`.`col_int_key` is null)) group by `f1` limit 100
+DROP TABLE t1;
+#
+# Bug#30521803: LIMIT CLAUSE OUTSIDE PARENTHESES CAN SUPPRESS ORDERING
+#               CLAUSES INSIDE
+#
+CREATE TEMPORARY TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+# All 3 queries below should return the same result:
+SELECT * FROM (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) AS alias LIMIT 2;
+i
+5
+4
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+i
+5
+4
+WITH cte AS (SELECT 1) (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+i
+5
+4
+DROP TABLE t1;
+#
+# Bug#30204811 ASSERTION `SELECT_LIMIT > 0' FAILED AT
+#              TEST_IF_SKIP_SORT_ORDER
+#
+CREATE TABLE a (
+col_int int,
+col_varchar_255 varchar(255),
+pk integer auto_increment  primary key
+) ENGINE=myisam;
+CREATE TABLE b (
+col_varchar_10 varchar(10),
+pk integer primary key
+) ENGINE=myisam;
+INSERT INTO a(col_int,col_varchar_255) VALUES (0,""),(1,"");
+explain format=tree SELECT STRAIGHT_JOIN a.pk
+FROM a
+JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (cost=1.21 rows=0)
+    -> Nested loop inner join  (cost=1.21 rows=0)
+        -> Sort: a.pk  (cost=0.70 rows=2)
+            -> Table scan on a  (cost=0.70 rows=2)
+        -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=0.50 rows=0)
+            -> Index range scan on b (re-planned for each iteration)  (cost=0.50 rows=0)
+
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+explain format=tree SELECT STRAIGHT_JOIN a.pk
+FROM a
+JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (cost=423.65 rows=0)
+    -> Nested loop inner join  (cost=423.65 rows=0)
+        -> Sort: a.pk  (cost=415.10 rows=4096)
+            -> Table scan on a  (cost=415.10 rows=4096)
+        -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=8.55 rows=0)
+            -> Index range scan on b (re-planned for each iteration)  (cost=8.55 rows=0)
+
+DROP TABLE a;
+DROP TABLE b;
+# Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+#               with prepared statements
+CREATE TABLE t1(id INTEGER);
+INSERT INTO t1 (id) VALUES (1), (2), (3);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SELECT * FROM t1 WHERE id > ?";
+SET @a = 0;
+EXECUTE stmt using @a;
+id
+1
+set @@sql_select_limit=2;
+EXECUTE stmt using @a;
+id
+1
+2
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt USING @a;
+id
+1
+2
+3
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+CREATE TABLE t1(id INTEGER, c1 INTEGER, c2 INTEGER, c3 INTEGER);
+INSERT INTO t1 VALUES(1,1,1,1),(2,2,2,2),(3,9,9,9),(4,10,10,10),(6,1,2,888);
+PREPARE stmt FROM
+"(SELECT * FROM t1 LIMIT 2) UNION ALL (SELECT * FROM t1 ORDER BY 1)";
+SET @@sql_select_limit=2;
+EXECUTE stmt;
+id	c1	c2	c3
+1	1	1	1
+2	2	2	2
+SET @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+id	c1	c2	c3
+1	1	1	1
+2	2	2	2
+1	1	1	1
+2	2	2	2
+3	9	9	9
+4	10	10	10
+6	1	2	888
+DEALLOCATE PREPARE stmt;
 DROP TABLE t1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,15 +37,15 @@
 #include "violite.h"
 
 THD *Channel_info::create_thd() {
-  DBUG_EXECUTE_IF("simulate_resource_failure", return NULL;);
+  DBUG_EXECUTE_IF("simulate_resource_failure", return nullptr;);
 
   Vio *vio_tmp = create_and_init_vio();
-  if (vio_tmp == NULL) return NULL;
+  if (vio_tmp == nullptr) return nullptr;
 
   THD *thd = new (std::nothrow) THD;
-  if (thd == NULL) {
+  if (thd == nullptr) {
     vio_delete(vio_tmp);
-    return NULL;
+    return nullptr;
   }
 
   thd->get_protocol_classic()->init_net(vio_tmp);
@@ -55,7 +55,7 @@ THD *Channel_info::create_thd() {
 
 void Channel_info::send_error_and_close_channel(uint errorcode, int error,
                                                 bool senderror) {
-  DBUG_ASSERT(errorcode != 0);
+  assert(errorcode != 0);
   if (!errorcode) return;
 
   char error_message_buff[MYSQL_ERRMSG_SIZE];
@@ -67,12 +67,13 @@ void Channel_info::send_error_and_close_channel(uint errorcode, int error,
     if (vio_tmp && !my_net_init(&net_tmp, vio_tmp)) {
       if (error)
         snprintf(error_message_buff, sizeof(error_message_buff),
-                 ER_DEFAULT(errorcode), error);
-      net_send_error(&net_tmp, errorcode,
-                     error ? error_message_buff : ER_DEFAULT(errorcode));
+                 ER_DEFAULT_NONCONST(errorcode), error);
+      net_send_error(
+          &net_tmp, errorcode,
+          error ? error_message_buff : ER_DEFAULT_NONCONST(errorcode));
       net_end(&net_tmp);
     }
-    if (vio_tmp != NULL) {
+    if (vio_tmp != nullptr) {
       vio_tmp->inactive = true;  // channel is already closed.
       vio_delete(vio_tmp);
     }
@@ -80,8 +81,9 @@ void Channel_info::send_error_and_close_channel(uint errorcode, int error,
   {
     if (error)
       my_safe_snprintf(error_message_buff, sizeof(error_message_buff),
-                       ER_DEFAULT(errorcode), error);
-    my_safe_printf_stderr("[Warning] %s\n",
-                          error ? error_message_buff : ER_DEFAULT(errorcode));
+                       ER_DEFAULT_NONCONST(errorcode), error);
+    my_safe_printf_stderr(
+        "[Warning] %s\n",
+        error ? error_message_buff : ER_DEFAULT_NONCONST(errorcode));
   }
 }

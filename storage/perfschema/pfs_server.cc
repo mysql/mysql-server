@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysys_err.h"
+#include "sql/mysqld.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
@@ -53,6 +54,7 @@
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_tls_channel.h"
 #include "storage/perfschema/pfs_user.h"
 #include "template_utils.h"
 
@@ -64,6 +66,8 @@ static void cleanup_performance_schema(void);
 void cleanup_instrument_config(void);
 
 void pre_initialize_performance_schema() {
+  record_main_thread_id();
+
   pfs_initialized = false;
 
   init_all_builtin_memory_class();
@@ -82,9 +86,6 @@ void pre_initialize_performance_schema() {
     in the instrumented code, to explicitly cleanup the instrumentation.
   */
   THR_PFS = nullptr;
-  for (int i = 0; i < THR_PFS_NUM_KEYS; ++i) {
-    THR_PFS_contexts[i] = nullptr;
-  }
 }
 
 int initialize_performance_schema(
@@ -100,25 +101,27 @@ int initialize_performance_schema(
     PSI_memory_bootstrap **memory_bootstrap,
     PSI_error_bootstrap **error_bootstrap,
     PSI_data_lock_bootstrap **data_lock_bootstrap,
-    PSI_system_bootstrap **system_bootstrap) {
+    PSI_system_bootstrap **system_bootstrap,
+    PSI_tls_channel_bootstrap **tls_channel_bootstrap) {
   bool init_failed = false;
 
-  *thread_bootstrap = NULL;
-  *mutex_bootstrap = NULL;
-  *rwlock_bootstrap = NULL;
-  *cond_bootstrap = NULL;
-  *file_bootstrap = NULL;
-  *socket_bootstrap = NULL;
-  *table_bootstrap = NULL;
-  *mdl_bootstrap = NULL;
-  *idle_bootstrap = NULL;
-  *stage_bootstrap = NULL;
-  *statement_bootstrap = NULL;
-  *transaction_bootstrap = NULL;
-  *memory_bootstrap = NULL;
-  *error_bootstrap = NULL;
-  *data_lock_bootstrap = NULL;
-  *system_bootstrap = NULL;
+  *thread_bootstrap = nullptr;
+  *mutex_bootstrap = nullptr;
+  *rwlock_bootstrap = nullptr;
+  *cond_bootstrap = nullptr;
+  *file_bootstrap = nullptr;
+  *socket_bootstrap = nullptr;
+  *table_bootstrap = nullptr;
+  *mdl_bootstrap = nullptr;
+  *idle_bootstrap = nullptr;
+  *stage_bootstrap = nullptr;
+  *statement_bootstrap = nullptr;
+  *transaction_bootstrap = nullptr;
+  *memory_bootstrap = nullptr;
+  *error_bootstrap = nullptr;
+  *data_lock_bootstrap = nullptr;
+  *system_bootstrap = nullptr;
+  *tls_channel_bootstrap = nullptr;
 
   pfs_enabled = param->m_enabled;
 
@@ -172,6 +175,8 @@ int initialize_performance_schema(
         param->m_consumer_events_stages_history_enabled;
     flag_events_stages_history_long =
         param->m_consumer_events_stages_history_long_enabled;
+    flag_events_statements_cpu =
+        param->m_consumer_events_statements_cpu_enabled;
     flag_events_statements_current =
         param->m_consumer_events_statements_current_enabled;
     flag_events_statements_history =
@@ -197,6 +202,7 @@ int initialize_performance_schema(
     flag_events_stages_current = false;
     flag_events_stages_history = false;
     flag_events_stages_history_long = false;
+    flag_events_statements_cpu = false;
     flag_events_statements_current = false;
     flag_events_statements_history = false;
     flag_events_statements_history_long = false;
@@ -232,6 +238,7 @@ int initialize_performance_schema(
       *error_bootstrap = &pfs_error_bootstrap;
       *data_lock_bootstrap = &pfs_data_lock_bootstrap;
       *system_bootstrap = &pfs_system_bootstrap;
+      *tls_channel_bootstrap = &pfs_tls_channel_bootstrap;
     }
   }
 
@@ -246,6 +253,17 @@ int initialize_performance_schema(
       the main performance schema instrumentation.
   */
   init_pfs_plugin_table();
+
+  /*
+     Initialize TLS channel instrumentation data structures
+    This must be done:
+    - after the memory allocation for rwlock instrumentation,
+      so that rwlock LOCK_pfs_tls_channel gets instrumented
+      (if the instrumentation is enabled),
+    - Even if the RWLOCK LOCK_pfs_tls_channels ends up not instrumented,
+       it still needs to be initialized.
+  */
+  init_pfs_tls_channels_instrumentation();
 
   if (init_failed) {
     return 1;
@@ -306,6 +324,7 @@ static void cleanup_performance_schema(void) {
     find_XXX_class(key)
     will return PSI_NOT_INSTRUMENTED
   */
+  cleanup_pfs_tls_channels_instrumentation();
   cleanup_pfs_plugin_table();
   cleanup_error();
   cleanup_program();
@@ -331,6 +350,7 @@ void shutdown_performance_schema(void) {
   flag_events_stages_current = false;
   flag_events_stages_history = false;
   flag_events_stages_history_long = false;
+  flag_events_statements_cpu = false;
   flag_events_statements_current = false;
   flag_events_statements_history = false;
   flag_events_statements_history_long = false;
@@ -366,11 +386,11 @@ void init_pfs_instrument_array() {
   Deallocate the PFS_INSTRUMENT array.
 */
 void cleanup_instrument_config() {
-  if (pfs_instr_config_array != NULL) {
+  if (pfs_instr_config_array != nullptr) {
     my_free_container_pointers(*pfs_instr_config_array);
   }
   delete pfs_instr_config_array;
-  pfs_instr_config_array = NULL;
+  pfs_instr_config_array = nullptr;
 }
 
 /**

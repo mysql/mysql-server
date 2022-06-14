@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +39,17 @@ public class QueryTimestampAsUtilDateTypesTest extends AbstractQueryTest {
     @Override
     void createInstances(int number) {
         createAllTimestampAsUtilDateTypesInstances(number);
+    }
+
+    @Override
+    protected void consistencyCheck(IdBase instance) {
+        TimestampAsUtilDateTypes dateType = (TimestampAsUtilDateTypes) instance;
+        Date date = getUtilDateFor(dateType.getId());
+        String errorMessage = "Wrong values retrieved from ";
+        errorIfNotEqual(errorMessage + "timestamp_not_null_both", date, dateType.getTimestamp_not_null_both());
+        errorIfNotEqual(errorMessage + "timestamp_not_null_btree", date, dateType.getTimestamp_not_null_btree());
+        errorIfNotEqual(errorMessage + "timestamp_not_null_hash", date, dateType.getTimestamp_not_null_hash());
+        errorIfNotEqual(errorMessage + "timestamp_not_null_none", date, dateType.getTimestamp_not_null_none());
     }
 
     /** Test all single- and double-predicate queries using TimestampTypes.

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -343,12 +343,8 @@ ScanInterpretTest::scanReadVerify(Ndb* pNdb,
     
     
     pOp = pTrans->getNdbScanOperation(tab.getName());	
-    if (pOp == NULL) {  if (pOp->getValue("KOL2") == 0){
-    NDB_ERR(pNdb->getNdbError());
-    return NDBT_FAILED;
-  }
-  
-
+    if (pOp == NULL || pOp->getValue("KOL2") == NULL)
+    {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;

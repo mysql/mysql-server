@@ -1,0 +1,77 @@
+###############################################################################
+# Validate that UDFs
+#   asynchronous_connection_failover_reset
+#   asynchronous_connection_failover_add_source
+#   asynchronous_connection_failover_delete_source
+#   asynchronous_connection_failover_add_managed
+#   asynchronous_connection_failover_delete_managed
+# cannot be changed on a Group Replication secondary member.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Try to enable and disable a replication failover configuration
+#      on a secondary.
+#      It will not be allowed.
+#   2. Check that configuration was not changed.
+#   3. Clean up
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo ############################################################
+--echo # 1. Try to enable and disable a replication failover configuration
+--echo #    on a secondary.
+--echo #    It will not be allowed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--source include/gr_assert_secondary_member.inc
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_reset();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3306, '', 50);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3306, '');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','127.0.0.1', 3306, '', 80, 60);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+--error ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Check that configuration was not changed.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= There must be no failover sources
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_asynchronous_connection_failover] = 0
+--source include/assert.inc
+
+--let $assert_text= There must be no failover managed sources
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_asynchronous_connection_failover_managed] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no replication channel ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1", count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--source include/group_replication_end.inc

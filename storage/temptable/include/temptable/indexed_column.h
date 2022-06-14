@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,7 +49,9 @@ class Indexed_column {
   const Cell_calculator &cell_calculator() const;
 
  private:
-  uint8_t m_mysql_field_index;
+  /** The position of the indexed column. It can range from 1 to MAX_FIELDS.
+  Use an appropriate datatype that can hold these values. */
+  uint16_t m_mysql_field_index;
   uint32_t m_prefix_length;
   Cell_calculator m_cell_calculator;
 };
@@ -58,11 +60,11 @@ class Indexed_column {
 
 inline Indexed_column::Indexed_column(const KEY_PART_INFO &mysql_key_part)
     : m_mysql_field_index(static_cast<decltype(m_mysql_field_index)>(
-          mysql_key_part.field->field_index)),
+          mysql_key_part.field->field_index())),
       m_prefix_length(mysql_key_part.length),
       m_cell_calculator(mysql_key_part) {
-  DBUG_ASSERT(mysql_key_part.field->field_index <=
-              std::numeric_limits<decltype(m_mysql_field_index)>::max());
+  assert(mysql_key_part.field->field_index() <=
+         std::numeric_limits<decltype(m_mysql_field_index)>::max());
 }
 
 inline size_t Indexed_column::field_index() const {

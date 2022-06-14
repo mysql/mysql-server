@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_flush_method);
 COUNT(@@GLOBAL.innodb_flush_method)
 1
 1 Expected
-SELECT innodb_flush_method = @@SESSION.innodb_flush_method;
+SELECT innodb_flush_method;
 ERROR 42S22: Unknown column 'innodb_flush_method' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

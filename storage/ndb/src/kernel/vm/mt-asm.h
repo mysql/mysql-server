@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
  */
 #ifndef NDB_MT_ASM_H
 #define NDB_MT_ASM_H
+
+#include <config.h>
 
 /**
  * Remove comment on NDB_USE_SPINLOCK if it is desired to use spinlocks
@@ -65,6 +67,15 @@ xcng(volatile unsigned * addr, int val)
   return val;
 }
 
+#if defined(HAVE_PAUSE_INSTRUCTION)
+static
+inline
+void
+cpu_pause()
+{
+  __asm__ __volatile__ ("pause");
+}
+#else
 static
 inline
 void
@@ -72,6 +83,7 @@ cpu_pause()
 {
   asm volatile ("rep;nop");
 }
+#endif
 
 #elif defined(__sparc__)
 
@@ -101,7 +113,6 @@ xcng(volatile unsigned * addr, int val)
 }
 #define cpu_pause()
 #define NDB_HAVE_XCNG
-#define NDB_HAVE_CPU_PAUSE
 #else
 #define cpu_pause()
 /* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
@@ -138,6 +149,21 @@ xcng(volatile unsigned * addr, int val)
 
   return prev;
 }
+
+#elif defined(__aarch64__)
+#include <atomic>
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+//#define NDB_HAVE_XCNG
+
+#define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
+#define rmb() std::atomic_thread_fence(std::memory_order_seq_cst)
+#define wmb() std::atomic_thread_fence(std::memory_order_seq_cst)
+#define read_barrier_depends() do {} while(0)
+
+#define cpu_pause()  __asm__ __volatile__ ("yield")
 
 #else
 #define NDB_NO_ASM "Unsupported architecture (gcc)"
@@ -191,7 +217,6 @@ xcng(volatile unsigned * addr, int val)
 
 #ifdef HAVE_ATOMIC_SWAP_32
 #define NDB_HAVE_XCNG
-#define NDB_HAVE_CPU_PAUSE
 #if defined(__sparc)
 static inline
 int
@@ -204,6 +229,7 @@ xcng(volatile unsigned * addr, int val)
 }
 #define cpu_pause()
 #elif defined(__x86_64) || defined (__i386)
+#define NDB_HAVE_CPU_PAUSE
 static inline
 int
 xcng(volatile unsigned * addr, int val)

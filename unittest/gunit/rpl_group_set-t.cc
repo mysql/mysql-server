@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class GroupTest : public ::testing::Test {
   rpl_sid sids[16];
   unsigned int seed;
 
-  void SetUp() {
+  void SetUp() override {
     seed = (unsigned int)time(nullptr);
     printf("# seed = %u\n", seed);
     srand(seed);
@@ -448,9 +448,9 @@ TEST_F(GroupTest, Group_containers) {
        method_i++) {                                                        \
     for (int sid_map_i = 0; sid_map_i < MAX_SID_MAP;                        \
          sid_map_i++, combination_i++) {                                    \
-      Gtid_set &gtid_set MY_ATTRIBUTE((unused)) =                           \
+      Gtid_set &gtid_set [[maybe_unused]] =                                 \
           containers[combination_i]->gtid_set;                              \
-      Sid_map *&sid_map MY_ATTRIBUTE((unused)) = sid_maps[sid_map_i];       \
+      Sid_map *&sid_map [[maybe_unused]] = sid_maps[sid_map_i];             \
       append_errtext(__LINE__, "sid_map_i=%d method_i=%d combination_i=%d", \
                      sid_map_i, method_i, combination_i);
 
@@ -466,13 +466,13 @@ TEST_F(GroupTest, Group_containers) {
     for (int end_i = 0; end_i < MAX_END; end_i++) {                            \
       for (int empty_i = 0; empty_i < MAX_EMPTY; empty_i++) {                  \
         for (int anon_i = 0; anon_i < MAX_ANON; anon_i++, combination_i++) {   \
-          Gtid_set &gtid_set MY_ATTRIBUTE((unused)) =                          \
+          Gtid_set &gtid_set [[maybe_unused]] =                                \
               containers[combination_i]->gtid_set;                             \
-          Group_cache &stmt_cache MY_ATTRIBUTE((unused)) =                     \
+          Group_cache &stmt_cache [[maybe_unused]] =                           \
               containers[combination_i]->stmt_cache;                           \
-          Group_cache &trx_cache MY_ATTRIBUTE((unused)) =                      \
+          Group_cache &trx_cache [[maybe_unused]] =                            \
               containers[combination_i]->trx_cache;                            \
-          Group_log_state &group_log_state MY_ATTRIBUTE((unused)) =            \
+          Group_log_state &group_log_state [[maybe_unused]] =                  \
               containers[combination_i]->group_log_state;                      \
           append_errtext(__LINE__,                                             \
                          "type_i=%d end_i=%d empty_i=%d "                      \
@@ -633,14 +633,14 @@ TEST_F(GroupTest, Group_containers) {
       if (verbose) {
         printf("======== stage=%d combination=%d ========\n", stage_i,
                combination_i);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         printf("group log state:\n");
         group_log_state.print();
         printf("trx cache:\n");
         trx_cache.print(sid_maps[0]);
         printf("stmt cache:\n");
         stmt_cache.print(sid_maps[0]);
-#endif  // ifdef DBUG_OFF
+#endif  // ifdef NDEBUG
       }
 
       Gtid_set ended_groups(sid_maps[0]);
@@ -765,12 +765,12 @@ TEST_F(GroupTest, Group_containers) {
           }
         }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         if (verbose) {
           printf("stmt_cache:\n");
           stmt_cache.print(sid_maps[0]);
         }
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
         if (!stmt_cache.is_empty())
           gtid_flush_group_cache(
               thd, &lock, &group_log_state, nullptr /*group log*/, &stmt_cache,
@@ -784,7 +784,7 @@ TEST_F(GroupTest, Group_containers) {
           // execute a COMMIT statement
           thd->variables.gtid_has_ongoing_super_group = 0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           if (verbose) {
             printf("trx_cache:\n");
             trx_cache.print(sid_maps[0]);
@@ -794,7 +794,7 @@ TEST_F(GroupTest, Group_containers) {
                 trx_cache.is_empty(), trx_cache.get_n_subgroups(),
                 trx_contains_logged_subgroup);
           }
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
 
           if (!trx_cache.is_empty())
             gtid_flush_group_cache(

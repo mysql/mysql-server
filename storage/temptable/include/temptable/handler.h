@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -128,17 +128,15 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 #ifndef TEMPTABLE_HANDLER_H
 #define TEMPTABLE_HANDLER_H
 
-#ifndef DBUG_OFF
-#include <thread>
-#endif /* DBUG_OFF */
-
 #include "sql/handler.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/storage.h"
 #include "storage/temptable/include/temptable/table.h"
-#include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
+
+/** Forward declarations. */
+class Block;
 
 /** Temptable engine handler. */
 class Handler : public ::handler {
@@ -152,7 +150,7 @@ class Handler : public ::handler {
       TABLE_SHARE *table_share);
 
   /** Destructor. */
-  ~Handler() override;
+  ~Handler() override = default;
 
   /** Create an in-memory table.
    * @return 0 on success or HA_ERR_* error code */
@@ -444,13 +442,6 @@ class Handler : public ::handler {
   /* Not implemented methods. */
 
   /** Not implemented.
-  @return nullptr */
-  char *get_foreign_key_create_info() override;
-
-  /** Not implemented. */
-  void free_foreign_key_create_info(char *) override;
-
-  /** Not implemented.
   @return 0 */
   int external_lock(THD *, int) override;
 
@@ -460,13 +451,6 @@ class Handler : public ::handler {
   /** Not implemented.
   @return nullptr */
   handler *clone(const char *, MEM_ROOT *) override;
-
-  /** Not implemented.
-  @return false */
-  bool was_semi_consistent_read() override;
-
-  /** Not implemented. */
-  void try_semi_consistent_read(bool) override;
 
   /** Not implemented.
   @return 0 */
@@ -500,8 +484,7 @@ class Handler : public ::handler {
   @return 0 */
   int records(ha_rows *) override;
 
-  /** Not implemented.
-  @return 0 */
+  /** Not implemented. */
   void update_create_info(HA_CREATE_INFO *) override;
 
   /** Not implemented.
@@ -528,10 +511,6 @@ class Handler : public ::handler {
   @return false */
   bool check_if_incompatible_data(HA_CREATE_INFO *, uint) override;
 
-  /** Not implemented.
-  @return 0 */
-  ha_rows records_in_range(uint, key_range *, key_range *) override;
-
  private:
   void opened_table_validate();
 
@@ -543,6 +522,10 @@ class Handler : public ::handler {
 
   /** Currently opened table, or `nullptr` if none is opened. */
   Table *m_opened_table;
+
+  /** Pointer to the non-owned shared-block of memory to be re-used by all
+   * `Allocator` instances or copies made by `Table`. */
+  Block *m_shared_block;
 
   /** Iterator used by `rnd_init()`, `rnd_next()` and `rnd_end()` methods.
    * It points to the row that was retrieved by the last read call (e.g.
@@ -574,27 +557,12 @@ class Handler : public ::handler {
 
   /** Number of deleted rows by this handler object. */
   size_t m_deleted_rows;
-
-#ifdef TEMPTABLE_CPP_HOOKED_TESTS
-  void test(TABLE *mysql_table);
-#endif /* TEMPTABLE_CPP_HOOKED_TESTS */
-
-#ifndef DBUG_OFF
-  /** Check if the current OS thread is the one that created this handler
-   * object.
-   * @return true if current thread == creator thread */
-  bool current_thread_is_creator() const;
-
-  /** The OS thread that created this handler object. The only thread that is
-   * supposed to use it and the tables created via it. */
-  std::thread::id m_owner;
-#endif /* DBUG_OFF */
 };
 
 inline void Handler::opened_table_validate() {
-  DBUG_ASSERT(m_opened_table != nullptr);
-  DBUG_ASSERT(handler::table != nullptr);
-  DBUG_ASSERT(m_opened_table->mysql_table_share() == handler::table->s);
+  assert(m_opened_table != nullptr);
+  assert(handler::table != nullptr);
+  assert(m_opened_table->mysql_table_share() == handler::table->s);
 }
 
 inline bool Handler::is_field_type_fixed_size(const Field &mysql_field) const {
@@ -611,6 +579,9 @@ inline bool Handler::is_field_type_fixed_size(const Field &mysql_field) const {
       return true;
   }
 }
+
+void kv_store_shards_debug_dump();
+void shared_block_pool_release(THD *thd);
 
 } /* namespace temptable */
 

@@ -1,0 +1,27 @@
+SHOW TABLES IN performance_schema LIKE 'ndb%';
+Tables_in_performance_schema (ndb%)
+ndb_sync_excluded_objects
+ndb_sync_pending_objects
+SHOW CREATE TABLE performance_schema.ndb_sync_pending_objects;
+Table	Create Table
+ndb_sync_pending_objects	CREATE TABLE `ndb_sync_pending_objects` (
+  `SCHEMA_NAME` varchar(64) DEFAULT NULL,
+  `NAME` varchar(64) DEFAULT NULL,
+  `TYPE` enum('LOGFILE GROUP','TABLESPACE','SCHEMA','TABLE') NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE performance_schema.ndb_sync_excluded_objects;
+Table	Create Table
+ndb_sync_excluded_objects	CREATE TABLE `ndb_sync_excluded_objects` (
+  `SCHEMA_NAME` varchar(64) DEFAULT NULL,
+  `NAME` varchar(64) DEFAULT NULL,
+  `TYPE` enum('LOGFILE GROUP','TABLESPACE','SCHEMA','TABLE') NOT NULL,
+  `REASON` varchar(256) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM performance_schema.ndb_sync_pending_objects;
+SCHEMA_NAME	NAME	TYPE
+SELECT * FROM performance_schema.ndb_sync_excluded_objects;
+SCHEMA_NAME	NAME	TYPE	REASON
+INSERT INTO performance_schema.ndb_sync_pending_objects VALUES('test','t1','TABLE');
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'ndb_sync_pending_objects'
+INSERT INTO performance_schema.ndb_sync_excluded_objects VALUES('test','t1','TABLE','Excluded');
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'ndb_sync_excluded_objects'

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,20 +32,20 @@ void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf flags) {
 }
 
 void pfs_free(PFS_builtin_memory_class *, size_t, void *ptr) {
-  if (ptr != NULL) free(ptr);
+  if (ptr != nullptr) free(ptr);
 }
 
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                        myf flags) {
   size_t array_size = n * size;
   /* Check for overflow before allocating. */
-  if (is_overflow(array_size, n, size)) return NULL;
+  if (is_overflow(array_size, n, size)) return nullptr;
   return pfs_malloc(klass, array_size, flags);
 }
 
 void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                     void *ptr) {
-  if (ptr == NULL) return;
+  if (ptr == nullptr) return;
   size_t array_size = n * size;
   return pfs_free(klass, array_size, ptr);
 }

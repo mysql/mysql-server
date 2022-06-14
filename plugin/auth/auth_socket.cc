@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
   char buf[1024];
 
   /* no user name yet ? read the client handshake packet with the user name */
-  if (info->user_name == 0) {
+  if (info->user_name == nullptr) {
     if (vio->read_packet(vio, &pkt) < 0) return CR_ERROR;
   }
 
@@ -67,7 +67,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
 
   /* and find the socket user name for this uid */
   getpwuid_r(cred.uid, &pwd_buf, buf, sizeof(buf), &pwd);
-  if (pwd == NULL) return CR_ERROR;
+  if (pwd == nullptr) return CR_ERROR;
 
   /* fill in the external user name used */
   strncpy(info->external_user, pwd->pw_name, sizeof(info->external_user) - 1);
@@ -80,23 +80,22 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
     return CR_ERROR;
 }
 
-static int generate_auth_string_hash(
-    char *outbuf MY_ATTRIBUTE((unused)), unsigned int *buflen,
-    const char *inbuf MY_ATTRIBUTE((unused)),
-    unsigned int inbuflen MY_ATTRIBUTE((unused))) {
+static int generate_auth_string_hash(char *outbuf [[maybe_unused]],
+                                     unsigned int *buflen,
+                                     const char *inbuf [[maybe_unused]],
+                                     unsigned int inbuflen [[maybe_unused]]) {
   *buflen = 0;
   return 0;
 }
 
-static int validate_auth_string_hash(char *const inbuf MY_ATTRIBUTE((unused)),
-                                     unsigned int buflen
-                                         MY_ATTRIBUTE((unused))) {
+static int validate_auth_string_hash(char *const inbuf [[maybe_unused]],
+                                     unsigned int buflen [[maybe_unused]]) {
   return 0;
 }
 
-static int set_salt(const char *password MY_ATTRIBUTE((unused)),
-                    unsigned int password_len MY_ATTRIBUTE((unused)),
-                    unsigned char *salt MY_ATTRIBUTE((unused)),
+static int set_salt(const char *password [[maybe_unused]],
+                    unsigned int password_len [[maybe_unused]],
+                    unsigned char *salt [[maybe_unused]],
                     unsigned char *salt_len) {
   *salt_len = 0;
   return 0;
@@ -104,27 +103,27 @@ static int set_salt(const char *password MY_ATTRIBUTE((unused)),
 
 static struct st_mysql_auth socket_auth_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-    0,
+    nullptr,
     socket_auth,
     generate_auth_string_hash,
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 mysql_declare_plugin(socket_auth){
     MYSQL_AUTHENTICATION_PLUGIN,
     &socket_auth_handler,
     "auth_socket",
-    "Sergei Golubchik",
+    PLUGIN_AUTHOR_ORACLE,
     "Unix Socket based authentication",
     PLUGIN_LICENSE_GPL,
-    NULL, /* Init */
-    NULL, /* Check uninstall */
-    NULL, /* Deinit */
+    nullptr, /* Init */
+    nullptr, /* Check uninstall */
+    nullptr, /* Deinit */
     0x0101,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

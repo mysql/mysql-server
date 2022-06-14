@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "ndb_cluster_connection_impl.hpp"
@@ -46,7 +47,6 @@ NdbMutex *ndb_print_state_mutex= NULL;
 #endif
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 static int g_ndb_connection_count = 0;
 
@@ -107,6 +107,11 @@ const char *Ndb_cluster_connection::get_connected_host() const
   if (m_impl.m_config_retriever)
     return m_impl.m_config_retriever->get_mgmd_host();
   return 0;
+}
+
+Uint32 Ndb_cluster_connection::get_config_generation() const
+{
+  return m_impl.m_config_generation;
 }
 
 int
@@ -188,8 +193,9 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
 		       NDB_THREAD_PRIO_LOW);
     if (m_impl.m_connect_thread == NULL)
     {
-      ndbout_c("Ndb_cluster_connection::start_connect_thread: "
-               "Failed to create thread for cluster connection.");
+      g_eventLogger->info(
+          "Ndb_cluster_connection::start_connect_thread: "
+          "Failed to create thread for cluster connection.");
       assert(m_impl.m_connect_thread != NULL);
       DBUG_RETURN(-1);
     }
@@ -303,6 +309,12 @@ Ndb_cluster_connection::no_db_nodes()
   assert(m_impl.m_db_nodes.count() ==
            m_impl.m_nodes_proximity.size());
   return m_impl.m_nodes_proximity.size();
+}
+
+Uint32
+Ndb_cluster_connection::max_api_nodeid() const
+{
+  return m_impl.m_max_api_nodeid;
 }
 
 unsigned
@@ -425,6 +437,11 @@ unsigned Ndb_cluster_connection::get_min_db_version() const
   return m_impl.get_min_db_version();
 }
 
+unsigned Ndb_cluster_connection::get_min_api_version() const
+{
+  return m_impl.get_min_api_version();
+}
+
 int Ndb_cluster_connection::get_latest_error() const
 {
   return m_impl.m_latest_error;
@@ -459,7 +476,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_uri_port(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
-  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
+  DBUG_PRINT("enter",("Ndb_cluster_connection this=%p", this));
 
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(g_ndb_connection_count++ == 0)
@@ -502,7 +519,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_latest_error_msg.assfmt
       ("Could not initialize handle to management server: %s",
        m_config_retriever->getErrorString());
-    printf("%s\n", get_latest_error_msg());
+    g_eventLogger->info("%s", get_latest_error_msg());
   }
   if (!m_main_connection)
   {
@@ -961,7 +978,7 @@ Ndb_cluster_connection_impl::set_service_uri(const char * scheme,
 
 int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
-                               const ndb_mgm_configuration &config)
+                               const ndb_mgm_configuration *config)
 {
   DBUG_ENTER("Ndb_cluster_connection_impl::init_nodes_vector");
   Uint32 my_location_domain_id = m_location_domain_id[nodeid];
@@ -1186,7 +1203,7 @@ Ndb_cluster_connection_impl::get_unconnected_nodes() const
 
 int
 Ndb_cluster_connection_impl::configure(Uint32 nodeId,
-                                       const ndb_mgm_configuration &config)
+                                       const ndb_mgm_configuration* config)
 {
   DBUG_ENTER("Ndb_cluster_connection_impl::configure");
   {
@@ -1197,34 +1214,34 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
     // Configure scan settings
     Uint32 scan_batch_size= 0;
     if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
-      m_config.m_scan_batch_size= scan_batch_size;
+      m_ndbapiconfig.m_scan_batch_size= scan_batch_size;
     }
     Uint32 batch_byte_size= 0;
     if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
-      m_config.m_batch_byte_size= batch_byte_size;
+      m_ndbapiconfig.m_batch_byte_size= batch_byte_size;
     }
     Uint32 batch_size= 0;
     if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
-      m_config.m_batch_size= batch_size;
+      m_ndbapiconfig.m_batch_size= batch_size;
     }
 
     Uint32 queue = 0;
     if (!iter.get(CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &queue))
     {
-      m_config.m_default_queue_option = queue;
+      m_ndbapiconfig.m_default_queue_option = queue;
     }
 
     Uint32 default_hashmap_size = 0;
     if (!iter.get(CFG_DEFAULT_HASHMAP_SIZE, &default_hashmap_size) &&
         default_hashmap_size != 0)
     {
-      m_config.m_default_hashmap_size = default_hashmap_size;
+      m_ndbapiconfig.m_default_hashmap_size = default_hashmap_size;
     }
 
     Uint32 verbose= 0;
     if (!iter.get(CFG_API_VERBOSE, &verbose))
     {
-      m_config.m_verbose = verbose;
+      m_ndbapiconfig.m_verbose = verbose;
     }
 
     // If DefaultHashmapSize is not set or zero, use the minimum
@@ -1248,13 +1265,14 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       if (default_hashmap_size == 0)
         default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
 
-      m_config.m_default_hashmap_size = default_hashmap_size;
+      m_ndbapiconfig.m_default_hashmap_size = default_hashmap_size;
     }
 
     memset(&m_location_domain_id[0], 0, sizeof(m_location_domain_id));
     // Configure timeouts
     {
       Uint32 timeout = 120000;
+      Uint32 max_node_id = 0;
       // Use new iterator to leave iter valid.
       ndb_mgm_configuration_iterator iterall(config, CFG_SECTION_NODE);
       for (; iterall.valid(); iterall.next())
@@ -1262,8 +1280,17 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
         Uint32 tmp1 = 0, tmp2 = 0;
         Uint32 nodeId = 0;
         Uint32 location_domain_id = 0;
-        char *host_str;
+        Uint32 node_type;
+        char *host_str = nullptr;
         iterall.get(CFG_NODE_ID, &nodeId);
+        iterall.get(CFG_TYPE_OF_SECTION, &node_type);
+        if (node_type == NODE_TYPE_API)
+        {
+          if (max_node_id < nodeId)
+          {
+            max_node_id = nodeId;
+          }
+        }
         iterall.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
         iterall.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
         iterall.get(CFG_LOCATION_DOMAIN_ID, &location_domain_id);
@@ -1277,7 +1304,8 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
         if (tmp1 > timeout)
           timeout = tmp1;
       }
-      m_config.m_waitfor_timeout = timeout;
+      m_ndbapiconfig.m_waitfor_timeout = timeout;
+      m_max_api_nodeid = max_node_id;
     }
   }
 
@@ -1290,6 +1318,9 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
   s_iter.get(CFG_SYS_NAME, & tmp_system_name);
   m_system_name.assign(tmp_system_name);
 
+  // Save generation of the used config
+  (void)s_iter.get(CFG_SYS_CONFIG_GENERATION, &m_config_generation);
+
   DBUG_RETURN(init_nodes_vector(nodeId, config));
 }
 
@@ -1297,52 +1328,49 @@ void
 Ndb_cluster_connection_impl::do_test()
 {
   Ndb_cluster_connection_node_iter iter;
-  int n= no_db_nodes()+5;
-  Uint32 *nodes= new Uint32[n+1];
+  int n = no_db_nodes() + 5;
+  Uint32 *nodes = new Uint32[n + 1];
 
-  for (int g= 0; g < n; g++)
+  for (int g = 0; g < n; g++)
   {
-    for (int h= 0; h < n; h++)
+    for (int h = 0; h < n; h++)
     {
       Uint32 id;
       Ndb_cluster_connection_node_iter iter2;
       {
-	for (int j= 0; j < g; j++)
-	{
-	  nodes[j]= get_next_node(iter2);
-	}
+        for (int j = 0; j < g; j++)
+        {
+          nodes[j] = get_next_node(iter2);
+        }
       }
 
-      for (int i= 0; i < n; i++)
+      for (int i = 0; i < n; i++)
       {
-	init_get_next_node(iter);
-	fprintf(stderr, "%d dead:(", g);
-	id= 0;
-	while (id == 0)
-	{
-	  if ((id= get_next_node(iter)) == 0)
-	    break;
-	  for (int j= 0; j < g; j++)
-	  {
-	    if (nodes[j] == id)
-	    {
-	      fprintf(stderr, " %d", id);
-	      id= 0;
-	      break;
-	    }
-	  }
-	}
-	fprintf(stderr, ")");
-	if (id == 0)
-	{
-	  break;
-	}
-	fprintf(stderr, " %d\n", id);
+        char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
+        init_get_next_node(iter);
+        id = 0;
+        while (id == 0)
+        {
+          if ((id = get_next_node(iter)) == 0) break;
+          for (int j = 0; j < g; j++)
+          {
+            if (nodes[j] == id)
+            {
+              BaseString::snappend(logbuf, sizeof(logbuf), "%d ", id);
+              id = 0;
+              break;
+            }
+          }
+        }
+        g_eventLogger->info("%d dead: ( %s) %d", g, logbuf, id);
+        if (id == 0)
+        {
+          break;
+        }
       }
-      fprintf(stderr, "\n");
     }
   }
-  delete [] nodes;
+  delete[] nodes;
 }
 
 void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)
@@ -1416,27 +1444,26 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       break;
     }
 
-    ndb_mgm_configuration * props = m_config_retriever->getConfig(nodeId);
-    if(props == 0)
+    const ndb_mgm::config_ptr config = m_config_retriever->getConfig(nodeId);
+    if (!config)
       break;
 
-    if (configure(nodeId, *props))
+    if (configure(nodeId, config.get()))
     {
-      ndb_mgm_destroy_configuration(props);
       DBUG_PRINT("exit", ("malloc failure, ret: -1"));
       DBUG_RETURN(-1);
     }
 
-    if (m_transporter_facade->start_instance(nodeId, props) < 0)
+    if (m_transporter_facade->start_instance(nodeId, config.get()) < 0)
     {
-      ndb_mgm_destroy_configuration(props);
       DBUG_RETURN(-1);
     }
+    // NOTE! The config generation used by this API node could also be sent to
+    // the cluster in same way as other properties with setProcessInfoUri()
     m_transporter_facade->theClusterMgr->setProcessInfoUri(m_uri_scheme.c_str(),
                                                            m_uri_host.c_str(),
                                                            m_uri_port,
                                                            m_uri_path.c_str());
-    ndb_mgm_destroy_configuration(props);
     m_transporter_facade->connected();
     m_latest_error = 0;
     m_latest_error_msg.assign("");
@@ -1450,7 +1477,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
   }
   m_latest_error = 1;
   m_latest_error_msg.assfmt("Configuration error: %s", erString);
-  ndbout << get_latest_error_msg() << endl;
+  g_eventLogger->info("%s", get_latest_error_msg());
   DBUG_PRINT("exit", ("connect failed, '%s' ret: -1", erString));
   DBUG_RETURN(-1);
 }
@@ -1476,8 +1503,8 @@ void Ndb_cluster_connection_impl::connect_thread()
     if ((r = connect(0,0,0)) == 0)
       break;
     if (r == -1) {
-      printf("Ndb_cluster_connection::connect_thread error\n");
-      DBUG_ASSERT(false);
+      g_eventLogger->info("Ndb_cluster_connection::connect_thread error");
+      assert(false);
       m_run_connect_thread= 0;
     }
   } while (m_run_connect_thread);
@@ -1703,8 +1730,8 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
   const Uint32 nodes_arr_cnt = m_nodes_proximity.size();
 
   Uint32 best_node = nodes[0];
-  Uint32 best_idx;
-  Uint32 best_usage;
+  Uint32 best_idx = Uint32(~0);
+  Uint32 best_usage = 0;
   Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
 
   if (!m_impl.m_optimized_node_selection)
@@ -1720,6 +1747,11 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
         continue;
 
       checked.set(candidate_node);
+
+      if (!impl_ndb->get_node_available(candidate_node))
+      {
+        continue;
+      }
 
       for (Uint32 i = 0; i < nodes_arr_cnt; i++)
       {
@@ -1796,8 +1828,11 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
       }
     }
   }
-  nodes_arr[best_idx].hint_count =
-    (nodes_arr[best_idx].hint_count + 1) & HINT_COUNT_MASK;
+  if (best_idx != Uint32(~0))
+  {
+    nodes_arr[best_idx].hint_count =
+      (nodes_arr[best_idx].hint_count + 1) & HINT_COUNT_MASK;
+  }
   return best_node;
 }
 

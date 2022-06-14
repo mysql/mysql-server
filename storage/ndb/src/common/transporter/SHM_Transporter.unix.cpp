@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "SHM_Transporter.hpp"
@@ -35,7 +36,6 @@
 #include <sys/shm.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -54,7 +54,8 @@ SHM_Transporter::ndb_shm_create()
 {
   if (!isServer)
   {
-    ndbout_c("Trying to create shared memory segment on the client side");
+    g_eventLogger->info(
+        "Trying to create shared memory segment on the client side");
     return false;
   }
   shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
@@ -68,6 +69,10 @@ SHM_Transporter::ndb_shm_create()
                    shmId,
                    errno,
                    strerror(errno)));
+    g_eventLogger->info(
+        "ERROR: Failed to create SHM segment of size %u with errno: %d(%s)",
+        shmSize, errno, strerror(errno));
+    require(false);
     return false;
   }
   return true;
@@ -87,6 +92,13 @@ SHM_Transporter::ndb_shm_get()
                    shmId,
                    errno,
                    strerror(errno)));
+    if (errno != ENOENT)
+    {
+      g_eventLogger->info(
+          "ERROR: Failed to get SHM segment of size %u with errno: %d(%s)",
+          shmSize, errno, strerror(errno));
+      require(false);
+    }
     return false;
   }
   return true;
@@ -97,16 +109,17 @@ SHM_Transporter::ndb_shm_attach()
 {
   assert(shmBuf == 0);
   shmBuf = (char *)shmat(shmId, 0, 0);
-  if (shmBuf == 0)
+  if (shmBuf == (char*)-1)
   {
-    DEBUG_FPRINTF((stderr, "(%u)shmat(%u) failed LINE:%d, shmId:%d,"
-                           " errno %d(%s)\n",
-                   localNodeId,
-                   remoteNodeId,
-                   __LINE__,
-                   shmId,
-                   errno,
-                   strerror(errno)));
+    DEBUG_FPRINTF((stderr,
+            "(%u)shmat(%u) failed LINE:%d, shmId:%d,"
+            " errno %d(%s)\n",
+            localNodeId,
+            remoteNodeId,
+            __LINE__,
+            shmId,
+            errno,
+            strerror(errno)));
     if (isServer)
       shmctl(shmId, IPC_RMID, 0);
     _shmSegCreated = false;

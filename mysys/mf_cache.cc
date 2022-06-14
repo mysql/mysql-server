@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,22 +51,22 @@
 
 bool open_cached_file(IO_CACHE *cache, const char *dir, const char *prefix,
                       size_t cache_size, myf cache_myflags) {
-  DBUG_ENTER("open_cached_file");
+  DBUG_TRACE;
   cache->dir =
       dir ? my_strdup(key_memory_IO_CACHE, dir, MYF(cache_myflags & MY_WME))
-          : (char *)0;
+          : (char *)nullptr;
   cache->prefix = (prefix ? my_strdup(key_memory_IO_CACHE, prefix,
                                       MYF(cache_myflags & MY_WME))
-                          : (char *)0);
-  cache->file_name = 0;
-  cache->buffer = 0; /* Mark that not open */
-  if (!init_io_cache(cache, -1, cache_size, WRITE_CACHE, 0L, 0,
+                          : (char *)nullptr);
+  cache->file_name = nullptr;
+  cache->buffer = nullptr; /* Mark that not open */
+  if (!init_io_cache(cache, -1, cache_size, WRITE_CACHE, 0L, false,
                      MYF(cache_myflags | MY_NABP))) {
-    DBUG_RETURN(0);
+    return false;
   }
   my_free(cache->dir);
   my_free(cache->prefix);
-  DBUG_RETURN(1);
+  return true;
 }
 
 /* Create the temporary file */
@@ -74,17 +74,17 @@ bool open_cached_file(IO_CACHE *cache, const char *dir, const char *prefix,
 bool real_open_cached_file(IO_CACHE *cache) {
   char name_buff[FN_REFLEN];
   int error = 1;
-  DBUG_ENTER("real_open_cached_file");
+  DBUG_TRACE;
   if ((cache->file = mysql_file_create_temp(
            cache->file_key, name_buff, cache->dir, cache->prefix,
            (O_RDWR | O_TRUNC), UNLINK_FILE, MYF(MY_WME))) >= 0) {
     error = 0;
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 void close_cached_file(IO_CACHE *cache) {
-  DBUG_ENTER("close_cached_file");
+  DBUG_TRACE;
   if (my_b_inited(cache)) {
     File file = cache->file;
     cache->file = -1; /* Don't flush data */
@@ -95,5 +95,4 @@ void close_cached_file(IO_CACHE *cache) {
     my_free(cache->dir);
     my_free(cache->prefix);
   }
-  DBUG_VOID_RETURN;
 }

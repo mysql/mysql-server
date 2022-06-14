@@ -1,6 +1,8 @@
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
+--source include/mysql_upgrade_preparation.inc
+--source include/big_test.inc
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --echo # Set different paths for --datadir
@@ -284,5 +286,78 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 --force-rmdir $MYSQLD_DATADIR1
 --remove_file $MYSQL_TMP_DIR/data57.zip
 
+--echo ###########################################################################
+--echo # Bug#29996434: 8.0.16 AUTO- UPGRADE CAPTURES WRONG AUTO_INCREMENT VALUES FOR TABLE METADATA
+--echo ###########################################################################
+
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/bug29996434_upgrade_57022.zip $MYSQL_TMP_DIR/data57.zip
+--file_exists $MYSQL_TMP_DIR/data57.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1
+--let $wait_counter= 10000
+--source include/start_mysqld_no_echo.inc
+
+SELECT table_name, Auto_increment FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
+
+SHOW CREATE TABLE test.t1;
+SHOW CREATE TABLE test.t2;
+SHOW CREATE TABLE test.t3;
+
+SELECT * FROM test.t1;
+INSERT INTO test.t1 VALUES(NULL);
+SELECT * FROM test.t1;
+
+SELECT * FROM test.t2;
+INSERT INTO test.t2 VALUES(NULL, 1);
+SELECT * FROM test.t2;
+
+SELECT * FROM test.t3;
+INSERT INTO test.t3 VALUES(1, 1);
+SELECT * FROM test.t3;
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/data57.zip
+
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/bug29996434_upgrade_57022.zip $MYSQL_TMP_DIR/data57.zip
+--file_exists $MYSQL_TMP_DIR/data57.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --auto-increment-increment=10 --auto-increment-offset=5
+--let $wait_counter= 10000
+--source include/start_mysqld_no_echo.inc
+
+SELECT table_name, Auto_increment FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
+
+SHOW CREATE TABLE test.t1;
+SHOW CREATE TABLE test.t2;
+SHOW CREATE TABLE test.t3;
+
+SELECT * FROM test.t1;
+INSERT INTO test.t1 VALUES(NULL);
+SELECT * FROM test.t1;
+
+SELECT * FROM test.t2;
+INSERT INTO test.t2 VALUES(NULL, 1);
+SELECT * FROM test.t2;
+
+SELECT * FROM test.t3;
+INSERT INTO test.t3 VALUES(1, 1);
+SELECT * FROM test.t3;
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/data57.zip
+
 --let $restart_parameters = restart:
 --source include/start_mysqld.inc
+--source include/mysql_upgrade_cleanup.inc

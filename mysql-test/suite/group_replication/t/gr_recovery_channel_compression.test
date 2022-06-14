@@ -1,0 +1,147 @@
+################################################################################
+# Validate that recovery channel compression configuration is properly
+# exported by performance schema.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Create a table on the group.
+# 2. Test invalid algorithm and level values.
+# 3. Test invalid algorithm and level combinations.
+# 4. Test valid algorithm and level combinations.
+# 5. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Create a table on the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+--let $saved_gr_recovery_compression_algorithm = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithms;`
+--let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
+--enable_query_log
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Invalid compression level found while reading master info repository. Resetting level to default.");
+call mtr.add_suppression("Plugin group_replication reported: 'Error while creating the group replication recovery channel with donor .*");
+call mtr.add_suppression("Plugin group_replication reported: 'Error when configuring the asynchronous recovery channel connection to the donor.");
+call mtr.add_suppression("Plugin group_replication reported: 'Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Plugin group_replication reported: 'Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Test invalid algorithm and level values.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1.0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "foo";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "ZLIB";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "ZSTD";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= "bar";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1.0;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Test invalid algorithm and level combinations.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "uncompressed";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
+
+--echo
+--echo ############################################################
+--echo # 4. Test valid algorithm and level combinations.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
+--source ../include/gr_recovery_channel_block.inc
+--let $assert_text= 'Algorithm must be zlib'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="group_replication_recovery" AND COMPRESSION_ALGORITHM="zlib", count, 1] = 1
+--source include/assert.inc
+--source ../include/gr_recovery_channel_resume.inc
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+--source ../include/gr_recovery_channel_block.inc
+--let $assert_text= 'Algorithm must be zstd and level must be 3 (the default)'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="group_replication_recovery" AND COMPRESSION_ALGORITHM="zstd" AND ZSTD_COMPRESSION_LEVEL=3, count, 1] = 1
+--source include/assert.inc
+--source ../include/gr_recovery_channel_resume.inc
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1;
+--source ../include/gr_recovery_channel_block.inc
+--let $assert_text= 'Algorithm must be zstd and level must be 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="group_replication_recovery" AND COMPRESSION_ALGORITHM="zstd" AND ZSTD_COMPRESSION_LEVEL=1, count, 1] = 1
+--source include/assert.inc
+--source ../include/gr_recovery_channel_resume.inc
+
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 22;
+--source ../include/gr_recovery_channel_block.inc
+--let $assert_text= 'Algorithm must be zstd and level must be 22'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="group_replication_recovery" AND COMPRESSION_ALGORITHM="zstd" AND ZSTD_COMPRESSION_LEVEL=22, count, 1] = 1
+--source include/assert.inc
+--source ../include/gr_recovery_channel_resume.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--disable_query_log
+--eval SET @@GLOBAL.group_replication_recovery_compression_algorithms= "$saved_gr_recovery_compression_algorithm"
+--eval SET @@GLOBAL.group_replication_recovery_zstd_compression_level= $saved_gr_recovery_compression_level
+--enable_query_log
+
+--source include/group_replication_end.inc

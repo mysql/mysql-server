@@ -116,10 +116,10 @@ select
 #let $cluster_b_master_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", Position, 1);
 #--echo Now change new Slave servers to new Master file + pos
 #--connection master
-#--echo Changing master to $cluster_b_master_log_file, $cluster_b_master_log_pos
+#--echo Changing replication source to $cluster_b_master_log_file, $cluster_b_master_log_pos
 #eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
 #--connection slave1
-#--echo Changing master to $cluster_a_master_log_file, $cluster_a_master_log_pos
+#--echo Changing replication source to $cluster_a_master_log_file, $cluster_a_master_log_pos
 #eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
 
 --echo Get current master status on Cluster A new master (next pos in Binlog)
@@ -134,7 +134,7 @@ let $cluster_a_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position"
 --connection slave1
 --echo Slave1 (4)
 --disable_query_log
-eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_master_log_file", SOURCE_LOG_POS=$cluster_a_master_log_pos;
 --enable_query_log
 
 --echo Get current master status on Cluster B new master (next pos in Binlog)
@@ -149,7 +149,7 @@ let $cluster_b_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position"
 --connection master
 --echo Master (1)
 --disable_query_log
-eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_b_master_log_file", SOURCE_LOG_POS=$cluster_b_master_log_pos;
 --enable_query_log
 
 --connection master
@@ -193,7 +193,7 @@ insert into test.t1 values (3, "From the Sea");
 --echo New Slave server on Cluster A has loaded old Max-Replicated-Epoch
 select server_id from mysql.ndb_apply_status order by server_id;
 select
-    @result:=count(1)
+    count(1)
   from
     performance_schema.global_status,
     mysql.ndb_apply_status
@@ -202,7 +202,8 @@ select
     and
     variable_name='Ndb_slave_max_replicated_epoch'
     and
-    variable_value = epoch;
+    variable_value = epoch into @result;
+select @result;
 
 # BEGIN TRANSIENT FAILURE DEBUGGING
 --disable_query_log

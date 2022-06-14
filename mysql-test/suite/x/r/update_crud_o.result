@@ -955,13 +955,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}
 0 rows affected
 Update a valid collection with string value and > operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -1017,13 +1017,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<\"", "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": "\"xtest_<\"", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "\"xtest_<\"", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "\"xtest_<\"", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}
 0 rows affected
 Update a valid collection with string value and <= operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -1079,13 +1079,13 @@ send Mysqlx.Crud.Update {
 
 3 rows affected
 Rows matched: 3  Changed: 3  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}
 0 rows affected
 Update a valid collection with string value and >= operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -1141,13 +1141,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "Test"}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "Test"}
 0 rows affected
 Update a valid collection with string value and != operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -1203,13 +1203,13 @@ send Mysqlx.Crud.Update {
 
 4 rows affected
 Rows matched: 4  Changed: 4  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"xtest_!=\""}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
-{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}	4
-{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"xtest_!=\""}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"xtest_!=\""}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"xtest_!=\""}
 0 rows affected
 Update order clause update last _id in desc order (_id = 5)
 send Mysqlx.Crud.Update {
@@ -1277,13 +1277,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"xtest_!=\""}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
-{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}	4
-{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"Limit1OrderDesc\""}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"xtest_!=\""}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"Limit1OrderDesc\""}
 0 rows affected
 Update with order clause update first two _id in asc order (_id = 1,2)
 send Mysqlx.Crud.Update {
@@ -1351,13 +1351,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
-{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}	4
-{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"Limit1OrderDesc\""}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"Limit1OrderDesc\""}
 0 rows affected
 Invalid type of update for Document
 send Mysqlx.Crud.Update {
@@ -1486,10 +1486,10 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM mysqlxcoll.maincoll where _id > 3
-doc	_id
-{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
-{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+RUN select doc FROM mysqlxcoll.maincoll where _id > 3
+doc
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}
 0 rows affected
 RUN SAVEPOINT A
 
@@ -1565,10 +1565,10 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM mysqlxcoll.maincoll where _id > 3
-doc	_id
-{"_id": "4", "name": "name_mul_update_save_b", "amount": 387.14, "last_name": "last_name_mul_update_save_b"}	4
-{"_id": "5", "name": "name_mul_update_save_b", "amount": 125.45, "last_name": "last_name_mul_update_save_b"}	5
+RUN select doc FROM mysqlxcoll.maincoll where _id > 3
+doc
+{"_id": "4", "name": "name_mul_update_save_b", "amount": 387.14, "last_name": "last_name_mul_update_save_b"}
+{"_id": "5", "name": "name_mul_update_save_b", "amount": 125.45, "last_name": "last_name_mul_update_save_b"}
 0 rows affected
 RUN ROLLBACK TO SAVEPOINT A
 
@@ -1576,10 +1576,10 @@ RUN ROLLBACK TO SAVEPOINT A
 RUN COMMIT
 
 0 rows affected
-RUN SELECT * FROM mysqlxcoll.maincoll where _id > 3
-doc	_id
-{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
-{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+RUN select doc FROM mysqlxcoll.maincoll where _id > 3
+doc
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}
 0 rows affected
 document member _id is immutable
 send Mysqlx.Crud.Update {
@@ -1633,13 +1633,13 @@ send Mysqlx.Crud.Update {
 }
 
 Got expected error: Forbidden update operation on '$._id' member (code 5053)
-RUN SELECT * FROM mysqlxcoll.maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
-{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
-{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+RUN select doc FROM mysqlxcoll.maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}
 0 rows affected
 document member _id is immutable but _id column can't be updated also
 send Mysqlx.Crud.Update {
@@ -1767,13 +1767,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM mysqlxcoll.maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
-{"_id": "4", "name": "name_mul_update_save_a", "amount": "444", "last_name": "last_name_mul_update_save_a"}	4
-{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+RUN SELECT doc FROM mysqlxcoll.maincoll
+doc
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}
+{"_id": "4", "name": "name_mul_update_save_a", "amount": "444", "last_name": "last_name_mul_update_save_a"}
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}
 0 rows affected
 ================================================================================
 CLEAN UP

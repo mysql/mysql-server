@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,45 +44,32 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0trx.h"
 
-/** Calculates the fold value of a page file address: used in inserting or
- searching for a lock in the hash table.
- @return folded value */
-UNIV_INLINE
-ulint lock_rec_fold(space_id_t space,  /*!< in: space */
-                    page_no_t page_no) /*!< in: page number */
-{
-  return (ut_fold_ulint_pair(space, page_no));
+static inline ulint lock_rec_fold(const page_id_t page_id) {
+  return (ut_fold_ulint_pair(page_id.space(), page_id.page_no()));
 }
 
-/** Calculates the hash value of a page file address: used in inserting or
- searching for a lock in the hash table.
- @return hashed value */
-UNIV_INLINE
-ulint lock_rec_hash(space_id_t space,  /*!< in: space */
-                    page_no_t page_no) /*!< in: page number */
-{
-  return (hash_calc_hash(lock_rec_fold(space, page_no), lock_sys->rec_hash));
+static inline ulint lock_rec_hash(const page_id_t &page_id) {
+  return (hash_calc_hash(lock_rec_fold(page_id), lock_sys->rec_hash));
 }
 
 /** Gets the heap_no of the smallest user record on a page.
  @return heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
-UNIV_INLINE
-ulint lock_get_min_heap_no(const buf_block_t *block) /*!< in: buffer block */
+static inline ulint lock_get_min_heap_no(
+    const buf_block_t *block) /*!< in: buffer block */
 {
   const page_t *page = block->frame;
 
   if (page_is_comp(page)) {
     return (rec_get_heap_no_new(
-        page + rec_get_next_offs(page + PAGE_NEW_INFIMUM, TRUE)));
+        page + rec_get_next_offs(page + PAGE_NEW_INFIMUM, true)));
   } else {
     return (rec_get_heap_no_old(
-        page + rec_get_next_offs(page + PAGE_OLD_INFIMUM, FALSE)));
+        page + rec_get_next_offs(page + PAGE_OLD_INFIMUM, false)));
   }
 }
 
 /** Get the lock hash table */
-UNIV_INLINE
-hash_table_t *lock_hash_get(ulint mode) /*!< in: lock mode */
+static inline hash_table_t *lock_hash_get(ulint mode) /*!< in: lock mode */
 {
   if (mode & LOCK_PREDICATE) {
     return (lock_sys->prdt_hash);

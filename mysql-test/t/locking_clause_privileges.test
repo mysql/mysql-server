@@ -20,46 +20,57 @@ CREATE TABLE db1.t1( a INT );
 CREATE TABLE db1.t2( a INT );
 
 --let $locking_clause_privileges=SELECT
---let $locking_clause_privileges_expected_error=ER_TABLEACCESS_DENIED_ERROR
 --let $locking_clause_privileges_expected_error_no_clause=0
+--let $locking_clause_privileges_expected_error_for_update=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_share=0
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=INSERT
---let $locking_clause_privileges_expected_error=ER_TABLEACCESS_DENIED_ERROR
 --let $locking_clause_privileges_expected_error_no_clause=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_share=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_update=ER_TABLEACCESS_DENIED_ERROR
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=UPDATE
---let $locking_clause_privileges_expected_error=ER_TABLEACCESS_DENIED_ERROR
 --let $locking_clause_privileges_expected_error_no_clause=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_share=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_update=ER_TABLEACCESS_DENIED_ERROR
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=DELETE
---let $locking_clause_privileges_expected_error=ER_TABLEACCESS_DENIED_ERROR
 --let $locking_clause_privileges_expected_error_no_clause=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_update=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_share=ER_TABLEACCESS_DENIED_ERROR
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=LOCK TABLES
---let $locking_clause_privileges_expected_error=ER_TABLEACCESS_DENIED_ERROR
 --let $locking_clause_privileges_expected_error_no_clause=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_update=ER_TABLEACCESS_DENIED_ERROR
+--let $locking_clause_privileges_expected_error_for_share=ER_TABLEACCESS_DENIED_ERROR
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=SELECT, UPDATE
---let $locking_clause_privileges_expected_error=0
 --let $locking_clause_privileges_expected_error_no_clause=0
+--let $locking_clause_privileges_expected_error_for_update=0
+--let $locking_clause_privileges_expected_error_for_share=0
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=SELECT, UPDATE, DELETE
---let $locking_clause_privileges_expected_error=0
 --let $locking_clause_privileges_expected_error_no_clause=0
+--let $locking_clause_privileges_expected_error_for_update=0
+--let $locking_clause_privileges_expected_error_for_share=0
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=SELECT, DELETE
---let $locking_clause_privileges_expected_error=0
+--let $locking_clause_privileges_expected_error_no_clause=0
+--let $locking_clause_privileges_expected_error_for_update=0
+--let $locking_clause_privileges_expected_error_for_share=0
 --source include/locking_clause_privileges.inc
 
 --let $locking_clause_privileges=SELECT, LOCK TABLES
---let $locking_clause_privileges_expected_error=0
+--let $locking_clause_privileges_expected_error_no_clause=0
+--let $locking_clause_privileges_expected_error_for_update=0
+--let $locking_clause_privileges_expected_error_for_share=0
 --source include/locking_clause_privileges.inc
 
 DROP DATABASE db1;

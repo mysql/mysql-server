@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 #define SIZE_DEBUG_OPTIONS \
   sizeof(gcs_xcom_debug_strings) / sizeof(*gcs_xcom_debug_strings)
 
-Logger_interface *Gcs_log_manager::m_logger = NULL;
+Logger_interface *Gcs_log_manager::m_logger = nullptr;
 
 // Logging infrastructure interface
 Logger_interface *Gcs_log_manager::get_logger() { return m_logger; }
@@ -43,9 +43,9 @@ enum_gcs_error Gcs_log_manager::initialize(Logger_interface *logger) {
 enum_gcs_error Gcs_log_manager::finalize() {
   enum_gcs_error ret = GCS_NOK;
 
-  if (m_logger != NULL) {
+  if (m_logger != nullptr) {
     ret = m_logger->finalize();
-    m_logger = NULL;
+    m_logger = nullptr;
   }
 
   return ret;
@@ -65,7 +65,7 @@ int64_t Gcs_debug_options::get_valid_debug_options() {
 
   unsigned int i = 0;
   for (i = 0; i < num_options; i++) {
-    ret = ret | (1 << i);
+    ret = ret | (static_cast<int64_t>(1) << i);
   }
 
   return ret;
@@ -119,7 +119,7 @@ bool Gcs_debug_options::get_debug_options(const int64_t debug_options,
   }
 
   for (i = 0; i < num_options; i++) {
-    if ((debug_options & (1 << i))) {
+    if ((debug_options & (static_cast<int64_t>(1) << i))) {
       res_debug_options += gcs_xcom_debug_strings[i];
       res_debug_options += ",";
     }
@@ -162,7 +162,7 @@ bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
     found = false;
     for (i = 0; i < num_options; i++) {
       if (!option.compare(gcs_xcom_debug_strings[i])) {
-        res_debug_options = res_debug_options | (1 << i);
+        res_debug_options = res_debug_options | (static_cast<int64_t>(1) << i);
         found = true;
         break;
       }

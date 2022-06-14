@@ -5,21 +5,13 @@
 # used or not in a set of configurations for binlog_format = STATEMENT.
 #
 # Set set of configurations vary:
-# - Table engine: MyISAM and InnoDB
+# - Table engine: InnoDB
 #
 # ==== Related Bugs and Worklogs ====
 #
 # WL#8313: Set ROW based binary log format by default
 #
---source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
-
---let $storage_engine=MyISAM
---echo #
---echo # MyISAM, binlog_format= STATEMENT
---echo #
---source include/delete_all_rows.inc
---echo
 
 --let $storage_engine=InnoDB
 --echo #

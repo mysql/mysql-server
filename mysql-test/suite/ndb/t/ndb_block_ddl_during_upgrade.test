@@ -1,0 +1,99 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+# Test that the DDLs are properly disallowed and return proper errors
+# when they are blocked during upgrade
+
+--echo # Setup
+create table t1 (a int) engine ndb;
+create logfile group lg_1
+  add undofile 'undo_1.log'
+  initial_size 1M
+  undo_buffer_size 2M
+  engine ndbcluster;
+create tablespace ts_1
+  add datafile 'data_1.dat'
+  use logfile group lg_1
+  initial_size 2M
+  engine ndbcluster;
+
+--echo # Restart the MySQL Server to simulate upgrade from a non DD version
+--echo # by enabling the debug flag ndb_simulate_upgrade_from_non_dd_version
+let $restart_parameters = restart: --debug=+d,ndb_simulate_upgrade_from_non_dd_version;
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+--echo # Try various DDLs and verify that they are blocked
+--echo # Create table
+--error ER_DISALLOWED_OPERATION
+create table t2 (a int) engine ndb;
+
+--echo # Inplace alter
+--error ER_DISALLOWED_OPERATION
+alter table t1 add index idx(a), algorithm = inplace;
+
+--echo # Copy alter
+--error ER_DISALLOWED_OPERATION
+alter table t1 add index idx(a), algorithm = copy;
+
+--echo # Rename table
+--error ER_DISALLOWED_OPERATION
+rename table t1 to t2;
+
+--echo # Drop table
+--error ER_DISALLOWED_OPERATION
+drop table t1;
+
+--echo # Create logfile group
+--error ER_DISALLOWED_OPERATION
+create logfile group lg_2
+  add undofile 'undo_2.log'
+  initial_size 1M
+  undo_buffer_size 2M
+  engine ndbcluster;
+
+--echo # Alter logfile group
+--error ER_DISALLOWED_OPERATION
+alter logfile group lg_1
+  add undofile 'undo_2.log'
+  initial_size 1M
+  engine ndbcluster;
+
+--echo # Create tablespace
+--error ER_DISALLOWED_OPERATION
+create tablespace ts_2
+  add datafile 'data_2.dat'
+  use logfile group lg_1
+  initial_size 2M
+  engine ndbcluster;
+
+--echo # Alter tablespace
+--error ER_DISALLOWED_OPERATION
+alter tablespace ts_1
+  add datafile 'data_2.dat'
+  initial_size 2M
+  engine ndbcluster;
+
+--echo # Verify that database DDLs are still allowed
+create database test1;
+alter database test1 default charset latin1;
+drop database test1;
+
+--echo # Drop database will still fail if it has tables in it
+--error ER_DISALLOWED_OPERATION
+drop database test;
+
+--echo # Any Non-NDB DDLs are allowed
+create table t1_innodb(a int) engine innodb;
+drop table t1_innodb;
+
+--echo # Verify that DDLs are allowed after upgrade
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t2 (a int) engine ndb;
+show create table t2;
+
+--echo # Cleanup
+drop table t1, t2;
+alter tablespace ts_1 drop datafile 'data_1.dat';
+drop tablespace ts_1;
+drop logfile group lg_1 engine ndb;

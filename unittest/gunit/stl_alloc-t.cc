@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 
 #include "my_inttypes.h"
 #include "sql/malloc_allocator.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/psi_memory_key.h"
 #include "sql/stateless_allocator.h"
 #include "sql/thr_malloc.h"
@@ -43,14 +43,12 @@ using std::vector;
   Tests of custom STL memory allocators.
 */
 
-#if defined(GTEST_HAS_TYPED_TEST)
-
 namespace stlalloc_unittest {
 
 /*
   Wrappers to overcome the issue that we need allocators with
-  default constructors for TYPED_TEST_CASE, which neither
-  Malloc_allocator nor Memroot_allocator have.
+  default constructors for TYPED_TEST_SUITE, which neither
+  Malloc_allocator nor Mem_root_allocator have.
 
   These wrappers need to inherit so that they are allocators themselves.
   Otherwise TypeParam in the tests below will be wrong.
@@ -62,12 +60,11 @@ class Malloc_allocator_wrapper : public Malloc_allocator<T> {
 };
 
 template <typename T>
-class Memroot_allocator_wrapper : public Memroot_allocator<T> {
-  MEM_ROOT m_mem_root;
+class Mem_root_allocator_wrapper : public Mem_root_allocator<T> {
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, 1024};
 
  public:
-  Memroot_allocator_wrapper() : Memroot_allocator<T>(&m_mem_root) {
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
+  Mem_root_allocator_wrapper() : Mem_root_allocator<T>(&m_mem_root) {
     // memory allocation error is expected, don't abort unit test.
     m_mem_root.set_error_handler(nullptr);
   }
@@ -77,14 +74,14 @@ class Memroot_allocator_wrapper : public Memroot_allocator<T> {
     this (libstdc++ is fine with them being move-only). As a hack, we implement
     copying the MEM_ROOT here; this type is never used outside of unit tests.
 
-    Note that this will stop working if MEM_ROOT grows a destructor.
+    Without this copy CTOR, clang on macOS will complain about
+    "call to implicitly-deleted copy constructor of ..."
+    even with -std=c++17
   */
-  Memroot_allocator_wrapper(const Memroot_allocator_wrapper &other)
-      : Memroot_allocator<T>(&m_mem_root) {
+  Mem_root_allocator_wrapper(const Mem_root_allocator_wrapper &other)
+      : Mem_root_allocator<T>(&m_mem_root) {
     memcpy(&m_mem_root, &other.m_mem_root, sizeof(m_mem_root));
   }
-
-  ~Memroot_allocator_wrapper() { free_root(&m_mem_root, MYF(0)); }
 };
 
 /*
@@ -191,11 +188,11 @@ class STLAllocTestInt : public ::testing::Test {
 };
 
 typedef ::testing::Types<
-    Malloc_allocator_wrapper<int>, Memroot_allocator_wrapper<int>,
+    Malloc_allocator_wrapper<int>, Mem_root_allocator_wrapper<int>,
     Not_instr_allocator<int>, PSI_42_allocator<int>, Init_aa_allocator<int>>
     AllocatorTypesInt;
 
-TYPED_TEST_CASE(STLAllocTestInt, AllocatorTypesInt);
+TYPED_TEST_SUITE(STLAllocTestInt, AllocatorTypesInt);
 
 TYPED_TEST(STLAllocTestInt, SimpleVector) {
   vector<int, TypeParam> v1(this->allocator);
@@ -243,7 +240,7 @@ TYPED_TEST(STLAllocTestInt, SimpleList) {
   EXPECT_EQ(0U, l2.size());
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 TYPED_TEST(STLAllocTestInt, OutOfMemory) {
   vector<int, TypeParam> v1(this->allocator);
   v1.reserve(10);
@@ -265,13 +262,13 @@ template <typename T>
 class STLAllocTestObject : public STLAllocTestInt<T> {};
 
 typedef ::testing::Types<Malloc_allocator_wrapper<Container_object>,
-                         Memroot_allocator_wrapper<Container_object>,
+                         Mem_root_allocator_wrapper<Container_object>,
                          Not_instr_allocator<Container_object>,
                          PSI_42_allocator<Container_object>,
                          Init_aa_allocator<Container_object>>
     AllocatorTypesObject;
 
-TYPED_TEST_CASE(STLAllocTestObject, AllocatorTypesObject);
+TYPED_TEST_SUITE(STLAllocTestObject, AllocatorTypesObject);
 
 class Container_object {
   char *buffer;
@@ -303,13 +300,13 @@ template <typename T>
 class STLAllocTestNested : public STLAllocTestInt<T> {};
 
 typedef ::testing::Types<Malloc_allocator_wrapper<Container_container>,
-                         Memroot_allocator_wrapper<Container_container>,
+                         Mem_root_allocator_wrapper<Container_container>,
                          Not_instr_allocator<Container_container>,
                          PSI_42_allocator<Container_container>,
                          Init_aa_allocator<Container_container>>
     AllocatorTypesNested;
 
-TYPED_TEST_CASE(STLAllocTestNested, AllocatorTypesNested);
+TYPED_TEST_SUITE(STLAllocTestNested, AllocatorTypesNested);
 
 class Container_container {
   deque<Container_object> d;
@@ -357,8 +354,8 @@ typedef ::testing::Types<Not_instr_allocator<char>, PSI_42_allocator<char>,
                          Init_aa_allocator<char>>
     AllocatorTypesBasicStringTemplate;
 
-TYPED_TEST_CASE(STLAllocTestBasicStringTemplate,
-                AllocatorTypesBasicStringTemplate);
+TYPED_TEST_SUITE(STLAllocTestBasicStringTemplate,
+                 AllocatorTypesBasicStringTemplate);
 
 //
 // Verify that a default_string can be created and extended with the
@@ -397,13 +394,13 @@ template <typename T>
 class STLAllocTestMoveOnly : public STLAllocTestInt<T> {};
 
 typedef ::testing::Types<Malloc_allocator_wrapper<std::unique_ptr<int>>,
-                         Memroot_allocator_wrapper<std::unique_ptr<int>>,
+                         Mem_root_allocator_wrapper<std::unique_ptr<int>>,
                          Not_instr_allocator<std::unique_ptr<int>>,
                          PSI_42_allocator<std::unique_ptr<int>>,
                          Init_aa_allocator<std::unique_ptr<int>>>
     AllocatorTypesMoveOnly;
 
-TYPED_TEST_CASE(STLAllocTestMoveOnly, AllocatorTypesMoveOnly);
+TYPED_TEST_SUITE(STLAllocTestMoveOnly, AllocatorTypesMoveOnly);
 
 TYPED_TEST(STLAllocTestMoveOnly, MoveOnly) {
   vector<std::unique_ptr<int>, TypeParam> v(this->allocator);
@@ -414,5 +411,3 @@ TYPED_TEST(STLAllocTestMoveOnly, MoveOnly) {
 }
 
 }  // namespace stlalloc_unittest
-
-#endif  // GTEST_HAS_TYPED_TEST)

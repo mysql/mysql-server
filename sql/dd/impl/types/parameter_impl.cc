@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,12 @@
 
 #include "sql/dd/impl/types/parameter_impl.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <set>
 #include <sstream>
 #include <string>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -71,7 +71,7 @@ Parameter_impl::Parameter_impl()
       m_datetime_precision_null(true),
       m_elements(),
       m_options(default_valid_option_keys),
-      m_routine(NULL),
+      m_routine(nullptr),
       m_collation_id(INVALID_OBJECT_ID) {}
 
 Parameter_impl::Parameter_impl(Routine_impl *routine)
@@ -264,8 +264,8 @@ void Parameter_impl::debug_print(String_type &outb) const {
 ///////////////////////////////////////////////////////////////////////////
 
 Parameter_type_element *Parameter_impl::add_element() {
-  DBUG_ASSERT(data_type() == enum_column_types::ENUM ||
-              data_type() == enum_column_types::SET);
+  assert(data_type() == enum_column_types::ENUM ||
+         data_type() == enum_column_types::SET);
 
   Parameter_type_element_impl *e =
       new (std::nothrow) Parameter_type_element_impl(this);

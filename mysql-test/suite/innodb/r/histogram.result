@@ -1,0 +1,40 @@
+CREATE PROCEDURE prepare_data(IN val INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE i < val DO
+INSERT INTO t1 (b) VALUES (i);
+SET i = i + 1;
+END WHILE;
+END|
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT);
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='sampled_pages_read';
+NAME	COUNT
+sampled_pages_read	0
+CALL prepare_data(30000);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME FROM information_schema.column_statistics WHERE COLUMN_NAME = 'b';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	b
+DROP TABLE t1;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	XX
+sampled_pages_skipped	XX
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Cleanup
+#
+SET GLOBAL innodb_monitor_enable = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+SET GLOBAL innodb_monitor_disable = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+SET GLOBAL innodb_monitor_reset_all = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+DROP PROCEDURE prepare_data;

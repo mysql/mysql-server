@@ -587,7 +587,7 @@ ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_w
 ****************************************************
 Insert of existing row
 insert into test.t1 values (1,1,1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 Expect : Nothing
 ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
 0	0	0	0	0	0	0	0	User table	1
@@ -763,9 +763,6 @@ Ok wait case
 Expect > 0 ok_millis, 0 fail_millis
 ok_millis	fail_millis
 1	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table test.t1;
 delete from current;
 delete from baseline;

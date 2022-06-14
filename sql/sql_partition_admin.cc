@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,9 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"            // check_access
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/properties.h"               // dd::Properties
+#include "sql/dd/sdi_api.h"                  // dd::sdi:drop_all
+#include "sql/dd/types/table.h"              // dd::Table
 #include "sql/dd_table_share.h"              // open_table_def
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/handler.h"
@@ -71,10 +74,10 @@ class Table;
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   /* Moved from mysql_execute_command */
   LEX *lex = thd->lex;
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex = lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table = select_lex->table_list.first;
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *query_block = lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *first_table = query_block->table_list.first;
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -86,30 +89,30 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   Alter_info alter_info(*m_alter_info, thd->mem_root);
   ulong priv_needed = ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
 
-  DBUG_ENTER("Sql_cmd_alter_table_exchange_partition::execute");
+  DBUG_TRACE;
 
   if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
-    DBUG_RETURN(true);
+    return true;
 
   /* also check the table to be exchanged with the partition */
-  DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
+  assert(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
-                   &first_table->grant.m_internal, 0, 0) ||
+                   &first_table->grant.m_internal, false, false) ||
       check_access(thd, priv_needed, first_table->next_local->db,
                    &first_table->next_local->grant.privilege,
-                   &first_table->next_local->grant.m_internal, 0, 0))
-    DBUG_RETURN(true);
+                   &first_table->next_local->grant.m_internal, false, false))
+    return true;
 
   if (check_grant(thd, priv_needed, first_table, false, UINT_MAX, false))
-    DBUG_RETURN(true);
+    return true;
 
   /* Not allowed with EXCHANGE PARTITION */
-  DBUG_ASSERT(!create_info.data_file_name && !create_info.index_file_name);
+  assert(!create_info.data_file_name && !create_info.index_file_name);
 
   thd->enable_slow_log = opt_log_slow_admin_statements;
-  DBUG_RETURN(exchange_partition(thd, first_table, &alter_info));
+  return exchange_partition(thd, first_table, &alter_info);
 }
 
 /**
@@ -120,50 +123,50 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   @retval false if OK, otherwise error is reported and true is returned.
 */
 static bool check_exchange_partition(TABLE *table, TABLE *part_table) {
-  DBUG_ENTER("check_exchange_partition");
+  DBUG_TRACE;
 
   /* Both tables must exist */
   if (!part_table || !table) {
     my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* The first table must be partitioned, and the second must not */
   if (!part_table->part_info) {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   if (table->part_info) {
     my_error(ER_PARTITION_EXCHANGE_PART_TABLE, MYF(0),
              table->s->table_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (!part_table->file->ht->partition_flags ||
       !(part_table->file->ht->partition_flags() & HA_CAN_EXCHANGE_PARTITION)) {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (table->file->ht != part_table->part_info->default_engine_type) {
     my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Verify that table is not tmp table, partitioned tables cannot be tmp. */
   if (table->s->tmp_table != NO_TMP_TABLE) {
     my_error(ER_PARTITION_EXCHANGE_TEMP_TABLE, MYF(0),
              table->s->table_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* The table cannot have foreign keys constraints or be referenced */
   if (table->s->foreign_keys || table->s->foreign_key_parents) {
     my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
              table->s->table_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -183,7 +186,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   HA_CREATE_INFO table_create_info, part_create_info;
   Alter_info part_alter_info(thd->mem_root);
   Alter_table_ctx part_alter_ctx;  // Not used
-  DBUG_ENTER("compare_table_with_partition");
+  DBUG_TRACE;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *part_table_def = nullptr;
@@ -191,10 +194,10 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     if (thd->dd_client()->acquire(part_table->s->db.str,
                                   part_table->s->table_name.str,
                                   &part_table_def)) {
-      DBUG_RETURN(true);
+      return true;
     }
     // Should not happen, we know the table exists and can be opened.
-    DBUG_ASSERT(part_table_def != nullptr);
+    assert(part_table_def != nullptr);
   }
 
   bool metadata_equal = false;
@@ -213,7 +216,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
                                 &part_create_info, &part_alter_info,
                                 &part_alter_ctx)) {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -231,7 +234,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
 
   if (part_row_type != table->s->real_row_type) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "ROW_FORMAT");
-    DBUG_RETURN(true);
+    return true;
   }
   part_create_info.row_type = table->s->row_type;
 
@@ -241,33 +244,33 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     ha_myisam compares pointers to verify that DATA/INDEX DIRECTORY is
     the same, so any table using data/index_file_name will fail.
   */
-  if (mysql_compare_tables(table, &part_alter_info, &part_create_info,
+  if (mysql_compare_tables(thd, table, &part_alter_info, &part_create_info,
                            &metadata_equal)) {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   DEBUG_SYNC(thd, "swap_partition_after_compare_tables");
   if (!metadata_equal) {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_ASSERT(table->s->db_create_options == part_table->s->db_create_options);
-  DBUG_ASSERT(table->s->db_options_in_use == part_table->s->db_options_in_use);
+  assert(table->s->db_create_options == part_table->s->db_create_options);
+  assert(table->s->db_options_in_use == part_table->s->db_options_in_use);
 
   if (table_create_info.avg_row_length != part_create_info.avg_row_length) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "AVG_ROW_LENGTH");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (table_create_info.table_options != part_create_info.table_options) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "TABLE OPTION");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (table->s->table_charset != part_table->s->table_charset) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "CHARACTER SET");
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -276,10 +279,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     The workaround is to use REORGANIZE PARTITION to rewrite
     the frm file and then use EXCHANGE PARTITION when they are the same.
   */
-  if (compare_partition_options(&table_create_info, part_elem))
-    DBUG_RETURN(true);
+  if (compare_partition_options(&table_create_info, part_elem)) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -310,22 +312,17 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   TABLE_LIST *swap_table_list;
   partition_element *part_elem;
   String *partition_name;
-  char temp_name[FN_REFLEN + 1];
-  char part_file_name[FN_REFLEN + 1];
-  char swap_file_name[FN_REFLEN + 1];
-  char temp_file_name[FN_REFLEN + 1];
   uint swap_part_id;
-  size_t part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   uint table_counter;
-  DBUG_ENTER("mysql_exchange_partition");
-  DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
+  DBUG_TRACE;
+  assert(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   /* Don't allow to exchange with log table */
   swap_table_list = table_list->next_local;
   if (query_logger.check_if_log_table(swap_table_list, false)) {
     my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -347,53 +344,39 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
   if (open_tables(thd, &table_list, &table_counter, 0,
                   &alter_prelocking_strategy))
-    DBUG_RETURN(true);
+    return true;
 
   part_table = table_list->table;
   swap_table = swap_table_list->table;
 
-  if (check_exchange_partition(swap_table, part_table)) DBUG_RETURN(true);
+  if (check_exchange_partition(swap_table, part_table)) return true;
 
   /* set lock pruning on first table */
   partition_name = alter_info->partition_names.head();
   if (table_list->table->part_info->set_named_partition_bitmap(
           partition_name->c_ptr(), partition_name->length()))
-    DBUG_RETURN(true);
+    return true;
 
-  if (lock_tables(thd, table_list, table_counter, 0)) DBUG_RETURN(true);
+  if (lock_tables(thd, table_list, table_counter, 0)) return true;
 
   THD_STAGE_INFO(thd, stage_verifying_table);
 
-  /* Will append the partition name later in part_info->get_part_elem() */
-  part_file_name_len =
-      build_table_filename(part_file_name, sizeof(part_file_name),
-                           table_list->db, table_list->table_name, "", 0);
-  build_table_filename(swap_file_name, sizeof(swap_file_name),
-                       swap_table_list->db, swap_table_list->table_name, "", 0);
-  /* create a unique temp name #sqlx-nnnn_nnnn, x for eXchange */
-  snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%x", tmp_file_prefix,
-           current_pid, thd->thread_id());
-  if (lower_case_table_names) my_casedn_str(files_charset_info, temp_name);
-  build_table_filename(temp_file_name, sizeof(temp_file_name),
-                       table_list->next_local->db, temp_name, "", FN_IS_TMP);
-
   if (!(part_elem = part_table->part_info->get_part_elem(
-            partition_name->c_ptr(), part_file_name + part_file_name_len,
-            &swap_part_id))) {
+            partition_name->c_ptr(), &swap_part_id))) {
     my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name->c_ptr(),
              part_table->alias);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (swap_part_id == NOT_A_PARTITION_ID) {
-    DBUG_ASSERT(part_table->part_info->is_sub_partitioned());
+    assert(part_table->part_info->is_sub_partitioned());
     my_error(ER_PARTITION_INSTEAD_OF_SUBPARTITION, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (compare_table_with_partition(thd, swap_table, part_table, part_elem,
                                    swap_part_id))
-    DBUG_RETURN(true);
+    return true;
 
   /* Table and partition has same structure/options */
 
@@ -401,7 +384,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     thd_proc_info(thd, "verifying data with partition");
 
     if (verify_data_with_partition(swap_table, part_table, swap_part_id)) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -430,7 +413,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   */
   if (wait_while_table_is_used(thd, swap_table, HA_EXTRA_PREPARE_FOR_RENAME) ||
       wait_while_table_is_used(thd, part_table, HA_EXTRA_PREPARE_FOR_RENAME))
-    DBUG_RETURN(true);
+    return true;
 
   DEBUG_SYNC(thd, "swap_partition_after_wait");
 
@@ -438,7 +421,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
 
   if (!(part_handler = part_table->file->get_partition_handler())) {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -449,23 +432,35 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
           table_list->db, table_list->table_name, &part_table_def) ||
       thd->dd_client()->acquire_for_modification<dd::Table>(
           swap_table_list->db, swap_table_list->table_name, &swap_table_def))
-    DBUG_RETURN(true);
+    return true;
 
   /* Tables were successfully opened above. */
-  DBUG_ASSERT(part_table_def != nullptr && swap_table_def != nullptr);
+  assert(part_table_def != nullptr && swap_table_def != nullptr);
+
+  if (part_table_def->options().exists("secondary_engine") ||
+      swap_table_def->options().exists("secondary_engine")) {
+    /* Exchange operation is not allowed for tables with secondary engine
+     * since it's not currently supported by change propagation
+     */
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    return true;
+  }
 
   DEBUG_SYNC(thd, "swap_partition_before_exchange");
 
-  int ha_error = part_handler->exchange_partition(
-      part_file_name, swap_file_name, swap_part_id, part_table_def,
-      swap_table_def);
+  if (dd::sdi::drop_all_for_table(thd, swap_table_def) ||
+      dd::sdi::drop_all_for_table(thd, part_table_def)) {
+    return true;
+  }
+  int ha_error = part_handler->exchange_partition(swap_part_id, part_table_def,
+                                                  swap_table_def);
 
   if (ha_error) {
     handlerton *hton = part_table->file->ht;
     part_table->file->print_error(ha_error, MYF(0));
     // Close TABLE instances which marked as old earlier.
-    close_all_tables_for_name(thd, swap_table->s, false, NULL);
-    close_all_tables_for_name(thd, part_table->s, false, NULL);
+    close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+    close_all_tables_for_name(thd, part_table->s, false, nullptr);
     /*
       Rollback all possible changes to data-dictionary and SE which
       Partition_handler::exchange_partitions() might have done before
@@ -482,37 +477,37 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
       hton->post_ddl(thd);
     (void)thd->locked_tables_list.reopen_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   } else {
     if (part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) {
       handlerton *hton = part_table->file->ht;
 
       // Close TABLE instances which marked as old earlier.
-      close_all_tables_for_name(thd, swap_table->s, false, NULL);
-      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+      close_all_tables_for_name(thd, part_table->s, false, nullptr);
 
       /*
         Ensure that we call post-DDL hook and re-open tables even
         in case of error.
       */
-      auto rollback_post_ddl_reopen_lambda = [hton](THD *thd) {
+      auto rollback_post_ddl_reopen_lambda = [hton](THD *thd_arg) {
         /*
           Rollback all possible changes to data-dictionary and SE which
           Partition_handler::exchange_partitions() might have done before
           reporting an error. Do this before we downgrade metadata locks.
         */
-        (void)trans_rollback_stmt(thd);
+        (void)trans_rollback_stmt(thd_arg);
         /*
           Full rollback in case we have THD::transaction_rollback_request
           and to synchronize DD state in cache and on disk (as statement
           rollback doesn't clear DD cache of modified uncommitted objects).
         */
-        (void)trans_rollback(thd);
+        (void)trans_rollback(thd_arg);
         /*
           Call SE post DDL hook. This handles both rollback and commit cases.
         */
-        if (hton->post_ddl) hton->post_ddl(thd);
-        (void)thd->locked_tables_list.reopen_tables(thd);
+        if (hton->post_ddl) hton->post_ddl(thd_arg);
+        (void)thd_arg->locked_tables_list.reopen_tables(thd_arg);
       };
 
       std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
@@ -522,83 +517,82 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
           thd->dd_client()->update(swap_table_def) ||
           write_bin_log(thd, true, thd->query().str, thd->query().length,
                         true)) {
-        DBUG_RETURN(true);
+        return true;
       }
 
-      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
-        DBUG_RETURN(true);
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) return true;
     } else {
       /*
         Close TABLE instances which were marked as old earlier and reopen
         tables. Ignore the fact that the statement might fail due to binlog
         write failure.
       */
-      close_all_tables_for_name(thd, swap_table->s, false, NULL);
-      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+      close_all_tables_for_name(thd, part_table->s, false, nullptr);
       (void)thd->locked_tables_list.reopen_tables(thd);
 
       if (write_bin_log(thd, true, thd->query().str, thd->query().length))
-        DBUG_RETURN(true);
+        return true;
     }
   }
 
   my_ok(thd);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd) {
   bool res;
-  DBUG_ENTER("Sql_cmd_alter_table_analyze_partition::execute");
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  DBUG_TRACE;
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_analyze_table::execute(thd);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_alter_table_check_partition::execute(THD *thd) {
   bool res;
-  DBUG_ENTER("Sql_cmd_alter_table_check_partition::execute");
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  DBUG_TRACE;
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_check_table::execute(thd);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_alter_table_optimize_partition::execute(THD *thd) {
   bool res;
-  DBUG_ENTER("Alter_table_optimize_partition_statement::execute");
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  DBUG_TRACE;
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_optimize_table::execute(thd);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_alter_table_repair_partition::execute(THD *thd) {
   bool res;
-  DBUG_ENTER("Sql_cmd_alter_table_repair_partition::execute");
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  DBUG_TRACE;
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_repair_table::execute(thd);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   int error;
   ulong timeout = thd->variables.lock_wait_timeout;
-  TABLE_LIST *first_table = thd->lex->select_lex->table_list.first;
+  TABLE_LIST *first_table = thd->lex->query_block->table_list.first;
   uint table_counter;
   Partition_handler *part_handler = nullptr;
   handlerton *hton;
-  DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
-  DBUG_ASSERT((m_alter_info->flags & (Alter_info::ALTER_ADMIN_PARTITION |
-                                      Alter_info::ALTER_TRUNCATE_PARTITION)) ==
-              (Alter_info::ALTER_ADMIN_PARTITION |
-               Alter_info::ALTER_TRUNCATE_PARTITION));
+  DBUG_TRACE;
+  assert((m_alter_info->flags & (Alter_info::ALTER_ADMIN_PARTITION |
+                                 Alter_info::ALTER_TRUNCATE_PARTITION)) ==
+         (Alter_info::ALTER_ADMIN_PARTITION |
+          Alter_info::ALTER_TRUNCATE_PARTITION));
 
   /* Fix the lock types (not the same as ordinary ALTER TABLE). */
   first_table->set_lock({TL_WRITE, THR_DEFAULT});
@@ -611,15 +605,15 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     write the statement to the binary log if necessary.
   */
 
-  if (check_one_table_access(thd, DROP_ACL, first_table)) DBUG_RETURN(true);
+  if (check_one_table_access(thd, DROP_ACL, first_table)) return true;
 
-  if (open_tables(thd, &first_table, &table_counter, 0)) DBUG_RETURN(true);
+  if (open_tables(thd, &first_table, &table_counter, 0)) return true;
 
   if (!first_table->table || first_table->is_view() ||
       !first_table->table->file->ht->partition_flags ||
       !(part_handler = first_table->table->file->get_partition_handler())) {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   hton = first_table->table->file->ht;
@@ -631,7 +625,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   */
   first_table->partition_names = &m_alter_info->partition_names;
   if (first_table->table->part_info->set_partition_bitmaps(first_table))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     Under locked table modes we still don't have an exclusive lock.
@@ -648,7 +642,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   if (thd->locked_tables_mode) {
     MDL_ticket *ticket = first_table->table->mdl_ticket;
     if (thd->mdl_context.upgrade_shared_lock(ticket, MDL_EXCLUSIVE, timeout))
-      DBUG_RETURN(true);
+      return true;
     downgrade_mdl_guard.reset(ticket);
   }
 
@@ -657,10 +651,18 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
 
   if (thd->dd_client()->acquire_for_modification<dd::Table>(
           first_table->db, first_table->table_name, &table_def))
-    DBUG_RETURN(true);
+    return true;
 
   /* Table was successfully opened above. */
-  DBUG_ASSERT(table_def != nullptr);
+  assert(table_def != nullptr);
+
+  if (table_def->options().exists("secondary_engine")) {
+    /* Truncate operation is not allowed for tables with secondary engine
+     * since it's not currently supported by change propagation
+     */
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    return true;
+  }
 
   if (hton->partition_flags() & HA_TRUNCATE_PARTITION_PRECLOSE) {
     /*
@@ -679,7 +681,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     MY_BITMAP saved_parts_map;
     if (first_table->table->part_info->init_partition_bitmap(&saved_parts_map,
                                                              thd->mem_root))
-      DBUG_RETURN(true);
+      return true;
     bitmap_copy(&saved_parts_map,
                 &first_table->table->part_info->read_partitions);
 
@@ -695,8 +697,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     init_tmp_table_share(thd, &share, first_table->db, 0,
                          first_table->table_name, path, nullptr);
 
-    auto free_share_lambda = [](TABLE_SHARE *share) {
-      free_table_share(share);
+    auto free_share_lambda = [](TABLE_SHARE *share_arg) {
+      free_table_share(share_arg);
     };
     std::unique_ptr<TABLE_SHARE, decltype(free_share_lambda)> free_share_guard(
         &share, free_share_lambda);
@@ -713,7 +715,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
                                     &table, true, nullptr);
 
       if (!error) {
-        auto closefrm_lambda = [](TABLE *table) { (void)closefrm(table, 0); };
+        auto closefrm_lambda = [](TABLE *t) { (void)closefrm(t, false); };
         std::unique_ptr<TABLE, decltype(closefrm_lambda)> closefrm_guard(
             &table, closefrm_lambda);
 
@@ -721,7 +723,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
 
         part_handler = table.file->get_partition_handler();
         // We succeeded obtaining Partition_hanlder earlier.
-        DBUG_ASSERT(part_handler != nullptr);
+        assert(part_handler != nullptr);
 
         if (!error && (error = part_handler->truncate_partition(table_def))) {
           table.file->print_error(error, MYF(0));
@@ -729,7 +731,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
       }
     }
   } else {
-    if (lock_tables(thd, first_table, table_counter, 0)) DBUG_RETURN(true);
+    if (lock_tables(thd, first_table, table_counter, 0)) return true;
 
     tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
                      first_table->table_name, false);
@@ -743,7 +745,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
       Since we about to update table definition in the data-dictionary below
       we need to remove its TABLE/TABLE_SHARE from TDC now.
     */
-    close_all_tables_for_name(thd, first_table->table->s, false, NULL);
+    close_all_tables_for_name(thd, first_table->table->s, false, nullptr);
   }
 
   if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) {
@@ -796,5 +798,5 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
 
   if (!error) my_ok(thd);
 
-  DBUG_RETURN(error);
+  return error;
 }

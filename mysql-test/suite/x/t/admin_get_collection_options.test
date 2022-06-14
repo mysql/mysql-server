@@ -1,0 +1,187 @@
+## Test get_collection_options command
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Tests start here
+
+CREATE SCHEMA xtest;
+CREATE USER test_user@localhost;
+
+--let $xtest_file= $MYSQL_TMP_DIR/admin_get_collection_options.xpl
+--write_file $xtest_file
+-->import validation_schema.macro
+-->import assert_status_variable.macro
+
+-->macro Get_collection_options %COLLECTION%
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "%COLLECTION%", "options": ["validation"]};
+-->recvresult
+-->endmacro
+
+
+-->echo
+-->echo
+-->echo ## I. Check invalid option setting for get_collection_options command.
+-->echo #
+-->echo # 1. Check just an invalid option.
+-->echo # 2. Check both valid and invalid options.
+-->echo
+-->echo ## II. Check get_collection_options when used for not existing schema.
+-->echo
+-->echo ## III. Check get_collection_options that returns a validation.
+-->echo #
+-->echo # 1. Get default validation schema.
+-->echo # 2. Get custom validation schema.
+-->echo # 3. Get custom validation schema and non-default validation level.
+-->echo # 4. Check command that returns string with special characters.
+-->echo
+-->echo ## IV. Get option for a collection user has no access to.
+-->echo #
+-->echo # 1. Collection does not exist.
+-->echo # 2. Collection exists.
+-->echo
+-->echo ## V. Check Mysqlx_stmt_get_collection_options variable.
+
+-->echo
+-->echo #
+-->echo # I.1
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": ["foo"]};
+-->expecterror ER_X_COLLECTION_OPTION_DOESNT_EXISTS
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.2
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": ["validation", "foo"]};
+-->expecterror ER_X_COLLECTION_OPTION_DOESNT_EXISTS
+-->recvresult
+
+
+-->echo # I.3
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": []};
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->echo # I.4
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": [[]]};
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->echo # I.5
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": [[ "validation" ]]};
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo # II
+-->expecterror ER_NO_SUCH_TABLE
+-->callmacro Get_collection_options	test_coll
+
+-->echo
+-->echo #
+-->echo # III.1
+-->stmtadmin create_collection	{"schema": "xtest", "name": "test_coll"}
+-->recvresult
+-->callmacro Get_collection_options	test_coll
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # III.2
+stmtadmin create_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description": "test"}
+  }
+}};
+-->recvresult
+-->callmacro Get_collection_options	test_coll
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # III.3
+stmtadmin create_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description": "test"}, "level": "off"
+  }
+}};
+-->recvresult
+-->callmacro Get_collection_options	test_coll
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # III.4
+stmtadmin create_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description": "t`y\\p\"e o`b`\\\\c\"\"t"}
+  }
+}};
+-->recvresult
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": ["validation"]};
+-->recvresult
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # IV.1
+-->newsession temp	test_user
+-->expecterror ER_TABLEACCESS_DENIED_ERROR
+-->callmacro Get_collection_options	test_coll
+-->closesession
+
+-->echo
+-->echo #
+-->echo # IV.2
+-->stmtadmin create_collection	{"schema": "xtest", "name": "test_coll"}
+-->recvresult
+-->newsession temp	test_user
+-->expecterror ER_TABLEACCESS_DENIED_ERROR
+-->callmacro Get_collection_options	test_coll
+-->closesession
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # V
+-->newsession temp
+-->quiet
+-->stmtadmin create_collection	{"schema": "xtest", "name": "test_coll"}
+-->recvresult
+# Initial value.
+-->callmacro Assert_status_variable Mysqlx_stmt_get_collection_options	0
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": ["validation"]};
+-->recvresult
+# After successful get_collection_options operation.
+-->callmacro Assert_status_variable Mysqlx_stmt_get_collection_options	1
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": ["foo"]};
+-->recverror ER_X_COLLECTION_OPTION_DOESNT_EXISTS
+# After unsuccessful get_collection_options operation.
+-->callmacro Assert_status_variable Mysqlx_stmt_get_collection_options	2
+stmtadmin get_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": ["validation"]};
+-->recvresult
+# After next successful get_collection_options operation.
+-->callmacro Assert_status_variable Mysqlx_stmt_get_collection_options	3
+-->callmacro Drop_collection	test_coll
+-->closesession
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc
+DROP USER test_user@localhost;

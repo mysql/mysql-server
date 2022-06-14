@@ -109,10 +109,10 @@ connection master;
 connection server_3;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
-eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
-     MASTER_PORT= $MASTER_MYPORT,
-     MASTER_USER= 'root',
-     MASTER_LOG_FILE='master-bin.000001';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
+     SOURCE_PORT= $MASTER_MYPORT,
+     SOURCE_USER= 'root',
+     SOURCE_LOG_FILE='master-bin.000001';
 --source include/start_slave.inc
 --source include/check_slave_no_error.inc
 
@@ -147,7 +147,7 @@ connection slave;
 let $old_master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 let $old_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 
-CHANGE MASTER TO MASTER_PORT= 1111;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 --let $slave_param= Master_UUID
 --let $slave_param_value= 
 --source include/check_slave_param.inc
@@ -156,8 +156,8 @@ CHANGE MASTER TO MASTER_PORT= 1111;
 --source include/check_slave_param.inc
 
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
-eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT,
-       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT,
+       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
@@ -170,7 +170,7 @@ STOP SLAVE IO_THREAD;
 let $old_master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 let $old_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 
-CHANGE MASTER TO MASTER_HOST= 'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 --let $slave_param= Master_UUID
 --let $slave_param_value=
 --source include/check_slave_param.inc
@@ -179,8 +179,8 @@ CHANGE MASTER TO MASTER_HOST= 'localhost';
 --source include/check_slave_param.inc
 
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
-eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
-       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
+       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
@@ -191,7 +191,7 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
 STOP SLAVE IO_THREAD;
 
 --source include/wait_for_slave_io_to_stop.inc
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 --let $slave_param= Master_UUID
 --let $slave_param_value=
 --source include/check_slave_param.inc
@@ -200,8 +200,8 @@ CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
 --source include/check_slave_param.inc
 
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
-eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT,
-       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT,
+       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
@@ -213,12 +213,12 @@ STOP SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT;
 --source include/check_slave_param.inc
 
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
-eval CHANGE MASTER TO 
-       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO 
+       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/check_slave_param.inc
 
 --echo
@@ -231,8 +231,8 @@ RESET SLAVE;
 --source include/check_slave_param.inc
 
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
-eval CHANGE MASTER TO 
-       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO 
+       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave.inc
 
 --echo

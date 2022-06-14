@@ -25,6 +25,10 @@ select grp,group_concat(c) from t1 group by grp;
 explain select grp,group_concat(c) from t1 group by grp;
 select grp,group_concat(a,c) from t1 group by grp;
 select grp,group_concat("(",a,":",c,")") from t1 group by grp;
+select grp,group_concat(null) from t1 group by grp;
+select grp,group_concat(a,null) from t1 group by grp;
+select group_concat(null) from t1;
+select group_concat(a,c,null) from t1;
 
 # Test of MySQL with options
 select grp,group_concat(c separator ",") from t1 group by grp;
@@ -237,6 +241,8 @@ CREATE TABLE t1 (A_ID INT NOT NULL,A_DESC CHAR(3) NOT NULL,PRIMARY KEY (A_ID));
 INSERT INTO t1 VALUES (1,'ABC'), (2,'EFG'), (3,'HIJ');
 CREATE TABLE t2 (A_ID INT NOT NULL,B_DESC CHAR(3) NOT NULL,PRIMARY KEY (A_ID,B_DESC));
 INSERT INTO t2 VALUES (1,'A'),(1,'B'),(3,'F');
+# Order is undefined.
+--replace_result B,A A,B
 SELECT t1.A_ID, GROUP_CONCAT(t2.B_DESC) AS B_DESC FROM t1 LEFT JOIN t2 ON t1.A_ID=t2.A_ID GROUP BY t1.A_ID ORDER BY t1.A_DESC;
 DROP TABLE t1;
 DROP TABLE t2;
@@ -416,7 +422,7 @@ SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY id;
 DROP TABLE t1;
 
 #
-# Bug #15560: GROUP_CONCAT wasn't ready for WITH ROLLUP queries
+# Bug #15560: GROUP_CONCAT wasnt ready for WITH ROLLUP queries
 #
 create table t1(f1 int);
 insert into t1 values(1),(2),(3);
@@ -625,7 +631,7 @@ select group_concat(f1) from t1;
 drop table t1;
 # Bug#32798: DISTINCT in GROUP_CONCAT clause fails when ordering by a column
 # with null values
-#'
+#
 CREATE TABLE t1 (a INT, b INT);
 
 INSERT INTO t1 VALUES (1, 1), (2, 2), (2, 3);
@@ -921,3 +927,93 @@ SELECT '' as c;
 
 SET group_concat_max_len= DEFAULT;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #32118201 GET RID OF MY_ATOF
+--echo #
+
+CREATE TABLE t2 (grp INT, a CHAR(2));
+INSERT INTO t2 VALUES (1,"a"), (2,"2"), (2,"4"), (3,"c");
+SELECT grp, GROUP_concat(a SEPARATOR "") + 1.0  FROM t2 GROUP BY grp;
+DROP TABLE t2;
+
+--echo # Bug#32053547: Assertion `item->hidden == hidden' failed.
+--echo #               group_concat with ORDER BY clause
+
+prepare s from 'DO GROUP_CONCAT((SELECT COUNT(1)) ORDER BY 1)';
+execute s;
+execute s;
+deallocate prepare s;
+
+--echo # Bug#31947466: Assertion failure with GROUP_CONCAT(... ORDER BY)
+--echo #               and prepared statements
+
+CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);
+
+INSERT INTO t1 VALUES
+  ("center", ST_GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))')),
+  ("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))')),
+  ("big",    ST_GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))')),
+  ("up",     ST_GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))')),
+  ("up2",    ST_GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))')),
+  ("up3",    ST_GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))')),
+  ("down",   ST_GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))')),
+  ("down2",  ST_GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))')),
+  ("down3",  ST_GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))')),
+  ("right",  ST_GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))')),
+  ("right2", ST_GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))')),
+  ("right3", ST_GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))')),
+  ("left",   ST_GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))')),
+  ("left2",  ST_GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))')),
+  ("left3",  ST_GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
+
+CREATE VIEW v AS SELECT * FROM t1;
+prepare s from '
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrcontains
+FROM v a1 JOIN v a2 ON MBRContains(a1.square, a2.square)
+WHERE a1.name = "center"
+GROUP BY a1.name';
+execute s;
+execute s;
+deallocate prepare s;
+DROP VIEW v;
+DROP TABLE t1;
+
+--echo # Bug#32413530: Prepared statements with GROUP_CONCAT fail with a high
+--echo #               group_concat_max_len
+
+CREATE TABLE t1 (
+  o_id int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Primary Key',
+  PRIMARY KEY (o_id)
+);
+# 32-bit executable may issue warnings with max_length greater than 2^32
+--disable_warnings
+set group_concat_max_len = 1024;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+set group_concat_max_len = 10000000000;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+set group_concat_max_len = 9223372036854775807;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+set group_concat_max_len = 18446744073709551615;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+--enable_warnings
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33521497 result of GROUP_CONCAT is inconsistent
+--echo #               when group_concat_max_len becomes larger
+--echo #
+
+SELECT LENGTH(t.value) FROM (SELECT
+GROUP_CONCAT('32689,34068,34370,34930,37034,37638,38478,38643,38925,39889,40497,41729,43085,43115,43500,44781,46344,46411,47173,47228,47623,48576,50293,50653,51794,54177,55347,55398,59492,59598,59804,59969,60612,62024,62754,62796,64647,68679,68974,69482,69625,70162,71100000') AS value ) t;
+
+SET SESSION group_concat_max_len=1073741832;
+
+SELECT LENGTH(t.value) FROM (SELECT
+GROUP_CONCAT('32689,34068,34370,34930,37034,37638,38478,38643,38925,39889,40497,41729,43085,43115,43500,44781,46344,46411,47173,47228,47623,48576,50293,50653,51794,54177,55347,55398,59492,59598,59804,59969,60612,62024,62754,62796,64647,68679,68974,69482,69625,70162,71100000') AS value ) t;
+
+SET SESSION group_concat_max_len=default;

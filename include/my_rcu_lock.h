@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include <atomic>
 #include <functional>
+
+#include "my_compiler.h"
 
 /**
   A class that implements a limited version of the Read-Copy-Update lock pattern
@@ -153,13 +155,18 @@ class MyRcuLock {
 
     The high level API for writers is @ref MyRcuLock::write_wait_and_delete()
 
-    @note: you need to safely dispose of the returned old global.
+    @note you need to safely dispose of the returned old global.
     @param newT a pointer to a fully prepared new global that starts getting
     used immediately after being set.
     @return the old value of the global
-
-    @sa @ref MyRcuLock::wait_for_no_readers()
   */
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+  /**
+    @sa @ref MyRcuLock::wait_for_no_readers()
+   */
+  MY_COMPILER_DIAGNOSTIC_POP()
+
   const T *rcu_write(const T *newT) {
     return rcu_global_.exchange(newT, std::memory_order_release);
   }
@@ -196,6 +203,7 @@ class MyRcuLock {
     */
   bool write_wait_and_delete(const T *newT) {
     const T *oldT = this->rcu_write(newT);
+    if (!oldT) return false;
     if (!wait_for_no_readers()) {
       delete oldT;
       return false;

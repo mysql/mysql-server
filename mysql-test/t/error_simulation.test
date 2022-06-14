@@ -26,6 +26,7 @@ set tmp_table_size=1024;
 # tmp table in query is converted from heap to myisam
 set session debug="d,raise_error";
 
+--skip_if_hypergraph   # Does not use temporary tables for GROUP BY.
 --replace_regex /in table '[^']+'/in table 'tmp_table'/
 --error ER_DUP_KEY
 SELECT MAX(a) FROM t1 GROUP BY a,b;
@@ -55,6 +56,7 @@ SET SESSION debug='+d,alter_table_only_index_change';
 ALTER TABLE t1 ADD INDEX a(a);
 SET SESSION debug=DEFAULT;
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 

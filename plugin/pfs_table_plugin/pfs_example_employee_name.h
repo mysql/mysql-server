@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,9 @@ extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
 /* Global share pointer for pfs_example_employee_name table */
 extern PFS_engine_table_share_proxy ename_st_share;
 
+/* Number of characters * max multibyte length */
+#define EMPLOYEE_NAME_LEN 20 * 4
+
 /* Maximum number of rows in the table */
 #define EMPLOYEEE_NAME_MAX_ROWS 100
 
@@ -44,17 +47,17 @@ extern PFS_engine_table_share_proxy ename_st_share;
 extern mysql_mutex_t LOCK_ename_records_array;
 
 /* A structure to denote a single row of the table. */
-struct {
+struct Ename_Record {
  public:
   PSI_int e_number;
-  char f_name[20];
+  char f_name[EMPLOYEE_NAME_LEN];
   unsigned int f_name_length;
-  char l_name[20];
+  char l_name[EMPLOYEE_NAME_LEN];
   unsigned int l_name_length;
 
   /* If there is a value in this row */
   bool m_exist;
-} typedef Ename_Record;
+};
 
 /**
  * An array to keep rows of the tables.
@@ -69,7 +72,7 @@ class Ename_POS {
   unsigned int m_index;
 
  public:
-  ~Ename_POS() {}
+  ~Ename_POS() = default;
   Ename_POS() { m_index = 0; }
 
   bool has_more() {
@@ -91,7 +94,7 @@ class Ename_POS {
 
 class Ename_index {
  public:
-  virtual ~Ename_index() {}
+  virtual ~Ename_index() = default;
   virtual bool match(Ename_Record *record) = 0;
 };
 
@@ -100,7 +103,7 @@ class Ename_index_by_emp_num : public Ename_index {
  public:
   PSI_plugin_key_integer m_emp_num;
 
-  bool match(Ename_Record *record) {
+  bool match(Ename_Record *record) override {
     return table_svc->match_key_integer(false, record->e_number.val,
                                         &m_emp_num);
   }
@@ -110,16 +113,16 @@ class Ename_index_by_emp_num : public Ename_index {
 class Ename_index_by_emp_fname : public Ename_index {
  public:
   PSI_plugin_key_string m_emp_fname;
-  char m_emp_fname_buffer[20];
+  char m_emp_fname_buffer[EMPLOYEE_NAME_LEN];
 
-  bool match(Ename_Record *record) {
+  bool match(Ename_Record *record) override {
     return table_svc->match_key_string(false, record->f_name,
                                        record->f_name_length, &m_emp_fname);
   }
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct {
+struct Ename_Table_Handle {
   /* Current position instance */
   Ename_POS m_pos;
   /* Next position instance */
@@ -134,7 +137,7 @@ typedef struct {
 
   /* Index indicator */
   unsigned int index_num;
-} Ename_Table_Handle;
+};
 
 PSI_table_handle *ename_open_table(PSI_pos **pos);
 void ename_close_table(PSI_table_handle *handle);

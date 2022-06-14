@@ -1,17 +1,11 @@
 --echo #
 --echo # WL#6965: Truncate UNDO logs during recovery.
+--echo # Crash after truncate, before header page
 --echo #
 
-# Setup this test
---source suite/innodb_undo/include/truncate_recover_setup.inc
+let CRASH_ON_SHUTDOWN = 1;
+let CRASH_POINT = ib_undo_trunc_empty_file;
+let SHOULD_TRUNCATE_AT_RECOVERY=1;
+let USE_EXPLICIT = 0;
 
---echo #
---echo # 4. Crash after truncate, before header page
---echo #
-let $debug_point="+d,ib_undo_trunc_empty_file";
-let SEARCH_PATTERN = ib_undo_trunc_empty_file;
---source suite/innodb_undo/include/truncate_recover_run.inc
-
-# Cleanup this test
---source suite/innodb_undo/include/truncate_recover_cleanup.inc
-
+--source suite/innodb_undo/include/truncate_at_shutdown.inc

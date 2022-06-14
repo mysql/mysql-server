@@ -42,6 +42,7 @@
 --source include/not_group_replication_plugin.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -54,7 +55,7 @@ RESET MASTER;
 --source include/stop_slave.inc
 --source include/wait_for_slave_to_stop.inc
 --replace_result $SLAVE_MYPORT SLAVE_PORT
-eval CHANGE MASTER TO MASTER_PORT=$SLAVE_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$SLAVE_MYPORT;
 START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 
@@ -63,7 +64,7 @@ START SLAVE IO_THREAD;
 --source include/rpl_stop_server.inc
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
+--let $rpl_server_parameters=--skip_replica_start=FALSE --relay-log-recovery=1
 --source include/rpl_start_server.inc
 
 --let $assert_text= One error should match 'Error during --relay-log-recovery'
@@ -79,7 +80,7 @@ START SLAVE IO_THREAD;
 
 DROP TABLE t1;
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval change master to master_port=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$MASTER_MYPORT;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

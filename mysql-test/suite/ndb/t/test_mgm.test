@@ -14,9 +14,6 @@ call mtr.add_suppression("cluster disconnect An incident event has been written"
 
 connection default;
 
-# Avoid check for result file
---source include/ndb_no_result_file.inc
-
 let NDBAPITEST_NAME=testMgm;
 let NDBAPITEST_ARGS=--stop-on-error;
 --source suite/ndb/include/run_ndbapitest.inc

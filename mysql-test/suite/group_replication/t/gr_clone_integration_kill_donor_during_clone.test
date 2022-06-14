@@ -18,8 +18,6 @@
 # 10. Cleanup
 #
 
-# Due to mysqld_safe/restart limitation this test only works on windows for now
---source include/windows.inc
 --source include/big_test.inc
 --source include/have_debug_sync.inc
 --source include/have_clone_plugin.inc
@@ -60,6 +58,7 @@ INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 --let $server3_port = `SELECT @@port`
 --let $server3_ip_port= 127.0.0.1:$server3_port
 
@@ -77,6 +76,7 @@ INSERT INTO t1 VALUES (2);
 
 --let $_group_replication_local_address2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds2= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 --let $plugin_list= $GROUP_REPLICATION
 --source include/spawn_monitoring_process.inc
@@ -89,6 +89,7 @@ INSERT INTO t1 VALUES (2);
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address2"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds2"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
@@ -137,7 +138,6 @@ if ($donor_ip_port == $server3_ip_port) {
 --source include/rpl_connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
-SET DEBUG_SYNC = 'RESET';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 
 --let $disconnect_timeout= 600
@@ -183,16 +183,19 @@ if ($donor_ip_port == $server3_ip_port) {
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET DEBUG_SYNC = 'RESET';
+
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
 
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST group_replication_communication_stack;
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will use cloning as its recovery strategy.");
-call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \"root\"@\"127.0.0.1\":[0-9]+ IDENTIFIED BY \"\\*\\*\\*\\*\\*\" REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: Connect failed: 2003 : Can't connect to MySQL server on.*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");

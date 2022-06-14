@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "page0types.h"
 #include "sql/gis/rtree_support.h"
 
-#define SPTYPE HA_KEYTYPE_DOUBLE
-#define SPLEN 8
+constexpr uint32_t SPLEN = 8;
 
 namespace dd {
 class Spatial_reference_system;
@@ -71,22 +70,21 @@ int split_rtree_node(
     uchar *first_rec,                         /*!< in: the first rec. */
     const dd::Spatial_reference_system *srs); /*!< in: SRS of R-tree */
 
-/** Compares two keys a and b depending on nextflag
- nextflag can contain these flags:
-    MBR_INTERSECT(a,b)  a overlaps b
-    MBR_CONTAIN(a,b)    a contains b
-    MBR_DISJOINT(a,b)   a disjoint b
-    MBR_WITHIN(a,b)     a within   b
-    MBR_EQUAL(a,b)      All coordinates of MBRs are equal
-    MBR_DATA(a,b)       Data reference is the same
- @param[in]	mode	compare method
- @param[in]	a	first key
- @param[in]	a_len	first key len
- @param[in]	b	second key
- @param[in]	b_len	second_key_len
- @param[in]	srs	Spatial reference system of R-tree
- @retval 0 on success, otherwise 1. */
-int rtree_key_cmp(page_cur_mode_t mode, const uchar *a, int a_len,
-                  const uchar *b, int b_len,
-                  const dd::Spatial_reference_system *srs);
+/** Compares two keys a and b depending on mode
+ mode can contain these flags:
+    PAGE_CUR_INTERSECT   a intersects b
+    PAGE_CUR_CONTAIN     a contains   b
+    PAGE_CUR_DISJOINT    a disjoint   b
+    PAGE_CUR_WITHIN      a within     b
+    PAGE_CUR_MBR_EQUAL   All coordinates of MBRs are equal
+ @param[in]     mode    compare method
+ @param[in]     a       first key
+ @param[in]     a_len   first key len
+ @param[in]     b       second key
+ @param[in]     b_len   second_key_len
+ @param[in]     srs     Spatial reference system of R-tree
+ @retval true if the predicate is true, otherwise false. */
+bool rtree_key_cmp(page_cur_mode_t mode, const uchar *a, int a_len,
+                   const uchar *b, int b_len,
+                   const dd::Spatial_reference_system *srs);
 #endif

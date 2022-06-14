@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,9 +50,9 @@ using ::testing::WithArgs;
 */
 class GcsBaseTest : public ::testing::Test {
  public:
-  GcsBaseTest() {}
+  GcsBaseTest() = default;
 
-  virtual ~GcsBaseTest() {}
+  virtual ~GcsBaseTest() = default;
 
   /**
     Simple logging object that can be used in the test case.
@@ -67,9 +67,11 @@ class GcsBaseTest : public ::testing::Test {
 */
 class GcsBaseTestNoLogging : public ::testing::Test {
  public:
-  GcsBaseTestNoLogging() {}
+  GcsBaseTestNoLogging() = default;
 
-  virtual ~GcsBaseTestNoLogging() {}
+  virtual ~GcsBaseTestNoLogging() = default;
 };
+
+enum class XComLeaderConfiguration { ONE, ALL };
 
 #endif  // GCS_BASE_TEST_INCLUDED

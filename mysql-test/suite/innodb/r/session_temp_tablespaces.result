@@ -101,7 +101,7 @@ WHERE a.ID=b.ID ORDER BY SPACE;
 USER	STATE	INFO	SIZE	STATE	PURPOSE
 root	ACTIVE	SELECT USER, b.STATE, INFO, SIZE, a.STATE, PURPOSE FROM
 INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
-WHERE a.ID=b.ID ORDER BY SPACE	114688	executing	INTRINSIC
+WHERE a.ID=b.ID ORDER BY SPACE	131072	executing	INTRINSIC
 root	ACTIVE	SELECT USER, b.STATE, INFO, SIZE, a.STATE, PURPOSE FROM
 INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
 WHERE a.ID=b.ID ORDER BY SPACE	950272	executing	USER
@@ -150,7 +150,12 @@ PATH	SIZE	STATE	PURPOSE
 ./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
 ./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
 # Create a new connection.
+# This CREATE will cause 10 more session temporary tablespaces to be
+# created.  Use a debug flag to simulate a failure in fallocate on Linux
+# so the code will fall back to setting the file size by writing zeros.
+SET SESSION DEBUG = "+d,fil_create_temp_tablespace_fail_fallocate";
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SET SESSION DEBUG = "-d,fil_create_temp_tablespace_fail_fallocate";
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 PATH	SIZE	STATE	PURPOSE
 ./#innodb_temp/temp_1.ibt	98304	ACTIVE	INTRINSIC
@@ -248,8 +253,8 @@ explain format = json select sql_big_result distinct * from t1, t2;
 select sql_big_result distinct * from t1, t2;
 explain format = json select sql_big_result t1.b from t1, t2 group by t1.b;
 select sql_big_result t1.b from t1, t2 group by t1.b;
-explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.b;
-select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
+select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
 explain format = json select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
 select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
 explain format = json select t1.* from t1, t2 where t1.a = t2.a order by t1.a;

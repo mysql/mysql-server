@@ -23,8 +23,8 @@
 # we execute this script only on linux to avoid test failures.
 --source include/linux.inc
 
-CALL mtr.add_suppression("World-writable config file './auto.cnf' is ignored");
-CALL mtr.add_suppression("World-writable config file './auto.cnf' has been removed.");
+CALL mtr.add_suppression("World-writable config file .* is ignored");
+CALL mtr.add_suppression("World-writable config file .* has been removed.");
 
 # Change file permissions to world writable
 --let $MYSQL_DATA_DIR=`select @@datadir`

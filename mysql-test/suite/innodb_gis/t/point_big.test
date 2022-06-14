@@ -96,13 +96,18 @@ INSERT INTO gis_point SELECT * FROM gis_point;
 
 CHECK TABLE gis_point;
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ORDER BY p1;
+--sorted_result
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly) GROUP BY p1, p2;
 
@@ -131,10 +136,13 @@ INSERT INTO gis_point SELECT * FROM p;
 
 CHECK TABLE gis_point;
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE MBRWithin(p2, @poly2) GROUP BY p2;
 
 DROP TABLE p;
@@ -179,6 +187,7 @@ DROP TABLE p;
 -- echo Delete those rows selected from another table
 -- echo =============================================
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 UPDATE gis_point SET p2 = ST_PointFromText('POINT(2000 2000)') WHERE ST_Contains(ST_GeomFromText('POLYGON((-100 100, -400 100, -400 400, -100 400, -100 100))'), p2) OR ST_Contains(ST_GeomFromText('POLYGON((-0.0001 -0.0002, -0.0001 0.00002, 0.00000005 0.000001, 0.0000025 -0.001, -0.0001 -0.0002))'), p2);
@@ -196,17 +205,22 @@ INSERT INTO gis_point VALUES
 -- echo Following results should be almost the same with those at the beginning
 -- echo ======================================================================
 
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2)
 FROM gis_point
 WHERE ST_Contains(ST_GeomFromText('POLYGON((-1000 -1000, -1000 1000, 1000 1000, 1001 -1001, -1000 -1000))'), p1)
 GROUP BY p1, p2;
 
+--sorted_result
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ORDER BY p1;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2 ORDER BY p2;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
+--sorted_result
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2 ORDER BY p1, p2;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly) GROUP BY p1, p2;

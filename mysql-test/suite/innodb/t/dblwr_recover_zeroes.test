@@ -1,0 +1,101 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # WL#13775 - InnoDB: Encrypt DBLWR files
+--echo #
+
+--echo #
+--echo # Test Begin: Test if recovery works if root page of user
+--echo # table is full of zeroes.  Valid copy of that page is there
+--echo # in DBLWR file.
+--echo #
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENCRYPTION='Y';
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, repeat('.',12));
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'open_table test/t1';
+
+--echo # Identify the space_id of the given table.
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+
+--echo # Find the root page number of the given table.
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+
+--echo # Find the on-disk page type of the given page.
+SET @cmd = CONCAT('find_ondisk_page_type ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+SELECT @@session.innodb_interpreter_output INTO @page_type;
+SELECT @page_type;
+
+SET SESSION innodb_interpreter = 'find_tablespace_file_name test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+
+SET SESSION innodb_interpreter = 'destroy';
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let PAGE_NO=`select @page_no`;
+let FILE_NAME=`select @space_file_name`;
+let PAGE_SIZE=`select @space_page_size`;
+
+--source include/kill_mysqld.inc
+
+--echo # Corrupt the root page of table t1 in the user tablespace.
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
+my $page_size = $ENV{'PAGE_SIZE'};
+my $nbytes = $ENV{'PAGE_NO'} * $ENV{'PAGE_SIZE'};
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $nbytes, SEEK_SET);
+print FILE chr(0) x $page_size;
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
+SET SESSION innodb_interpreter = 'destroy';
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Double write file has encrypted pages;
+--source include/search_pattern.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= \\[Note\\] \\[MY-\\d+\\] \\[InnoDB\\] Recovered page \\[page id: space=\\d+, page number=\\d+\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;
+--echo # Test End

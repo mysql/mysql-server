@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,21 +23,24 @@
 #ifndef XDR_UTILS_H
 #define XDR_UTILS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <assert.h>
+#include "xcom/xcom_memory.h"
+
+#ifdef __APPLE__
+/* OSX missing xdr_sizeof() */
+extern "C" u_long xdr_sizeof(xdrproc_t, void *);
+#endif
 
 /**
     Initialize an array
  */
 #define def_init_xdr_array(name) \
   static inline void init_##name##_array(name##_array *x)
-#define init_xdr_array(name)                                                 \
-  def_init_xdr_array(name) {                                                 \
-    x->name##_array_len = 2;                                                 \
-    x->name##_array_val = calloc((size_t)x->name##_array_len, sizeof(name)); \
+#define init_xdr_array(name)                                            \
+  def_init_xdr_array(name) {                                            \
+    x->name##_array_len = 2;                                            \
+    x->name##_array_val =                                               \
+        (name *)xcom_calloc((size_t)x->name##_array_len, sizeof(name)); \
   }
 
 /**
@@ -52,22 +55,23 @@ extern "C" {
     x->name##_array_len = 0;   \
   }
 
-#define in_range(x, name, n) ((n) >= 0 && (n) < ((x).name##_array_len))
+#define in_range(x, name, n) \
+  (((int)n) >= 0 && ((int)n) < ((int)(x).name##_array_len))
 
 /**
     Resize an array
  */
-#define expand_xdr_array(name)                                            \
-  u_int old_length = x->name##_array_len;                                 \
-  if (n + 1 > (x->name##_array_len)) {                                    \
-    if (x->name##_array_len == 0) x->name##_array_len = 1;                \
-    do {                                                                  \
-      x->name##_array_len *= 2;                                           \
-    } while (n + 1 > (x->name##_array_len));                              \
-    x->name##_array_val =                                                 \
-        realloc(x->name##_array_val, x->name##_array_len * sizeof(name)); \
-    memset(&x->name##_array_val[old_length], 0,                           \
-           (x->name##_array_len - old_length) * sizeof(name));            \
+#define expand_xdr_array(name)                                                 \
+  u_int old_length = x->name##_array_len;                                      \
+  if (n + 1 > (x->name##_array_len)) {                                         \
+    if (x->name##_array_len == 0) x->name##_array_len = 1;                     \
+    do {                                                                       \
+      x->name##_array_len *= 2;                                                \
+    } while (n + 1 > (x->name##_array_len));                                   \
+    x->name##_array_val = (name *)realloc(x->name##_array_val,                 \
+                                          x->name##_array_len * sizeof(name)); \
+    memset(&x->name##_array_val[old_length], 0,                                \
+           (x->name##_array_len - old_length) * sizeof(name));                 \
   }
 
 /**
@@ -99,23 +103,23 @@ extern "C" {
  */
 #define def_clone_xdr_array(name) \
   static inline name##_array clone_##name##_array(name##_array x)
-#define clone_xdr_array(name)                                                \
-  def_clone_xdr_array(name) {                                                \
-    name##_array retval = x;                                                 \
-    u_int i;                                                                 \
-    retval.name##_array_len = x.name##_array_len;                            \
-    DBGOUT(FN; STRLIT("clone_xdr_array"); NDBG(retval.name##_array_len, u)); \
-    if (retval.name##_array_len > 0) {                                       \
-      retval.name##_array_val =                                              \
-          calloc((size_t)x.name##_array_len, sizeof(name));                  \
-      for (i = 0; i < retval.name##_array_len; i++) {                        \
-        retval.name##_array_val[i] = x.name##_array_val[i];                  \
-        DBGOUT(FN; STRLIT("clone_xdr_array"); NDBG(i, u));                   \
-      }                                                                      \
-    } else {                                                                 \
-      retval.name##_array_val = 0;                                           \
-    }                                                                        \
-    return retval;                                                           \
+#define clone_xdr_array(name)                                            \
+  def_clone_xdr_array(name) {                                            \
+    name##_array retval = x;                                             \
+    u_int i;                                                             \
+    retval.name##_array_len = x.name##_array_len;                        \
+    IFDBG(D_XDR, FN; NDBG(retval.name##_array_len, u));                  \
+    if (retval.name##_array_len > 0) {                                   \
+      retval.name##_array_val =                                          \
+          (name *)xcom_calloc((size_t)x.name##_array_len, sizeof(name)); \
+      for (i = 0; i < retval.name##_array_len; i++) {                    \
+        retval.name##_array_val[i] = x.name##_array_val[i];              \
+        IFDBG(D_XDR, FN; STRLIT("clone_xdr_array"); NDBG(i, u));         \
+      }                                                                  \
+    } else {                                                             \
+      retval.name##_array_val = 0;                                       \
+    }                                                                    \
+    return retval;                                                       \
   }
 
 /**
@@ -266,7 +270,7 @@ extern "C" {
     return retval;                                                          \
   }
 
-/* {{{ Reverse elements n1..n2 */
+/* Reverse elements n1..n2 */
 
 #define x_reverse(type, x, in_n1, in_n2) \
   {                                      \
@@ -281,9 +285,7 @@ extern "C" {
     }                                    \
   }
 
-/* }}} */
-
-/* {{{ Move elements n1..n2 to after n3 */
+/* Move elements n1..n2 to after n3 */
 
 #define x_blkmove(type, x, n1, n2, n3)        \
   {                                           \
@@ -297,11 +299,5 @@ extern "C" {
       x_reverse(type, (x), (n1), (n3));       \
     }                                         \
   }
-
-/* }}} */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

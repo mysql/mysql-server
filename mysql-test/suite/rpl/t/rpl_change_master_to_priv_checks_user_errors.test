@@ -1,0 +1,234 @@
+# ==== Purpose ====
+#
+# This script tests error handling regarding `PRIVILEGE_CHECKS_USER` option of
+# `CHANGE MASTER TO ...`.
+#
+# ==== Requirements ====
+#
+# R1. Replication must fail SQL thread start if user given to
+#     `PRIVILEGE_CHECKS_USER` option of `CHANGE MASTER TO ...` is set to a user
+#     that doesn't have `REPLICATION_APPLIER` privilege.
+#
+# R2. Replication must fail on first `CREATE TABLE` if user given to
+#     `PRIVILEGE_CHECKS_USER` option of `CHANGE MASTER TO ...` is set to a user
+#     that doesn't have privileges to create the given table.
+#
+# ==== Implementation ====
+#
+# TC1. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user doesn't
+#      have REPLICATION_APPLIER privilege.
+# --------------------------------------------------------------------------
+# 1) Set `PRIVILEGE_CHECKS_USER` to a user without `REPLICATION_APPLIER`
+#    privilege.
+# 2) Start the slave.
+# 3) Wait for slave to error out.
+#
+# TC2. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user doesn't
+#      have CREATE privilege on the active database.
+# --------------------------------------------------------------------------
+# 1) Set `PRIVILEGE_CHECKS_USER` to a user without `CREATE` privileges.
+# 2) Create a table on the master.
+# 3) Wait for slave to error out.
+#
+# TC3. Slave thread should fail to start if `PRIVILEGE_CHECKS_USER` user gets
+#      dropped.
+# ----------------------------------------------------------------------------
+# 1) Set `PRIVILEGE_CHECKS_USER` to a valid user with the necessary privileges.
+# 2) Stop the slave and drop the user.
+# 3) Start the slave and expect an error.
+#
+# TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
+#      to grant privileges.
+# ----------------------------------------------------------------------------
+# 1) Setup PRIVILEGE_CHECKS_USER without WITH GRANT OPTION, that is,
+#    u1 will not be able to GRANT privileges.
+# 2) GRANT a privilege to u1 on master.
+# 3) Slave will stop since u1 cannot GRANT privileges.
+# 4) Clean up test case.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+# BUG#30017166 INCREASE TEST COVERAGE OF CODE MODIFIED BY PRIVILEGE_CHECKS_USER
+#              FEATURE
+#
+
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--echo #
+--echo # TC1. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
+--echo #      doesn't have REPLICATION_APPLIER privilege.
+--echo # -------------------------------------------------------------------
+#
+# 1) Set `PRIVILEGE_CHECKS_USER` to a user without `REPLICATION_APPLIER`
+#    privilege.
+#
+--source include/rpl_connection_slave.inc
+
+CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+
+CREATE USER 'u1'@'localhost';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL '';
+
+#
+# 2) Start the slave.
+#
+START SLAVE;
+
+#
+# 3) Wait for slave to error out.
+#
+--let $slave_sql_errno = convert_error(ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV)
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave.inc
+
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+
+--echo #
+--echo # TC2. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
+--echo #      doesn't have CREATE privilege on the active database.
+--echo # -------------------------------------------------------------------
+
+#
+# 1) Set `PRIVILEGE_CHECKS_USER` to a user without `CREATE` privileges.
+#
+CALL mtr.add_suppression(".CREATE command denied to user.");
+
+RESET SLAVE ALL;
+
+# Set REQUIRE_ROW_FORMAT to 1 in order to be able to freely set
+# PRIVILEGE_CHECKS_USER
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
+
+--replace_result $MASTER_MYPORT MY_MASTER_PORT $master_log_pos MY_MASTER_LOG_POS
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
+START SLAVE;
+
+#
+# 2) Create a table on the master.
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+
+#
+# 3) Wait for slave to error out.
+#
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno = convert_error(ER_TABLEACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave.inc
+
+# Grant the necessary privileges in order to clear the error and continue
+GRANT CREATE ON *.* TO 'u1'@'localhost';
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # TC3. Slave thread should fail to start if `PRIVILEGE_CHECKS_USER`
+--echo #      user gets dropped.
+--echo # ----------------------------------------------------------------------
+
+#
+# 1) Set `PRIVILEGE_CHECKS_USER` to a valid user with the necessary privileges.
+# -> done already
+
+#
+# 2) Stop the slave and drop the user.
+#
+--source include/stop_slave.inc
+DROP USER 'u1'@'localhost';
+
+#
+# 3) Start the slave and expect an error.
+#
+START SLAVE;
+--let $slave_sql_errno = convert_error(ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST);
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave.inc
+
+--echo #
+--echo # TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
+--echo #      to grant privileges.
+--echo # ---------------------------------------------------------------------
+
+#
+# 1) Setup PRIVILEGE_CHECKS_USER without WITH GRANT OPTION, that is,
+#    u1 will not be able to GRANT privileges.
+#
+--source include/rpl_connection_master.inc
+--let $master_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+--let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+SET sql_log_bin= 0;
+CREATE USER 'u1'@'localhost';
+SET sql_log_bin= 1;
+
+--source include/rpl_connection_slave.inc
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+
+--replace_result $MASTER_MYPORT MY_MASTER_PORT $master_log_pos MY_MASTER_LOG_POS
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
+--source include/start_slave.inc
+
+#
+# 2) GRANT a privilege to u1 on master.
+#
+--source include/rpl_connection_master.inc
+GRANT REPLICATION_APPLIER on *.* TO 'u1'@'localhost';
+
+#
+# 3) Slave will stop since u1 cannot GRANT privileges.
+#
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression(".*Access denied. you need .at least one of. the GRANT OPTION privilege.*");
+--let $slave_sql_errno= convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# Allow slave to skip the transaction by commiting a empty
+# transaction with the same GTID.
+if (`SELECT @@GLOBAL.GTID_MODE = "ON"`)
+{
+  --disable_query_log
+  --eval SET GTID_NEXT= '$master_uuid:2'
+  BEGIN;
+  COMMIT;
+  SET GTID_NEXT= 'AUTOMATIC';
+  --enable_query_log
+}
+
+#
+# 4) Clean up test case.
+#
+--source include/rpl_connection_master.inc
+SET sql_log_bin= 0;
+DROP USER 'u1'@'localhost';
+SET sql_log_bin= 1;
+
+--source include/rpl_connection_slave.inc
+DROP USER 'u1'@'localhost';
+
+# Clean up
+--source include/rpl_connection_master.inc
+--let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+--source include/rpl_connection_slave.inc
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+GRANT DROP ON *.* TO 'u1'@'localhost';
+--source include/stop_slave.inc
+--replace_result $master_log_pos MY_MASTER_LOG_POS
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
+START SLAVE;
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
+START SLAVE;
+DROP USER 'u1'@'localhost';
+--source include/rpl_end.inc

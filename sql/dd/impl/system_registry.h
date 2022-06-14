@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef DD__SYSTEM_REGISTRY_INCLUDED
 #define DD__SYSTEM_REGISTRY_INCLUDED
 
+#include <assert.h>
 #include <stdio.h>
 #include <map>
 #include <new>
@@ -30,7 +31,6 @@
 #include <utility>
 #include <vector>
 
-#include "my_dbug.h"
 #include "mysqld_error.h"        // ER_NO_SYSTEM_TABLE_...
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/dd/types/object_table.h"
@@ -62,9 +62,9 @@ class Object_table;
 template <typename K, typename T, typename P, const char *F(P), bool D>
 class Entity_element {
  private:
-  const K m_key;       //< The key associated with the entity object.
-  const T *m_entity;   //< Entity object pointer, e.g. an Object_table instance.
-  const P m_property;  //< Property of some kind, e.g. an enumeration.
+  const K m_key;      //!< The key associated with the entity object.
+  const T *m_entity;  //!< Entity object pointer, like an Object_table instance.
+  const P m_property;  //!< Property of some kind, like an enumeration.
 
  public:
   Entity_element(const K &key, const T *entity, const P property)
@@ -83,7 +83,7 @@ class Entity_element {
 
   const P *property_ptr() const { return &m_property; }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const {
     fprintf(stderr, "Key= '%s.%s', property= '%s'\n", m_key.first.c_str(),
             m_key.second.c_str(), F(m_property));
@@ -122,8 +122,8 @@ class Entity_registry {
   typedef std::vector<Entity_element_type *> Entity_list_type;
   typedef std::map<K, Entity_element_type *> Entity_map_type;
 
-  Entity_list_type m_entity_list;  //< List for ordered access.
-  Entity_map_type m_entity_map;    //< Map for direct key based lookup.
+  Entity_list_type m_entity_list;  //!< List for ordered access.
+  Entity_map_type m_entity_map;    //!< Map for direct key based lookup.
 
  public:
   // Externally available iteration is based on the order of inserts.
@@ -163,7 +163,7 @@ class Entity_registry {
            P property, T *entity) {
     // Create a new key and make sure it does not already exist.
     K key(schema_name, entity_name);
-    DBUG_ASSERT(m_entity_map.find(key) == m_entity_map.end());
+    assert(m_entity_map.find(key) == m_entity_map.end());
 
     // Create a new entity wrapper element. The wrapper will be owned by the
     // entity map and deleted along with it.
@@ -308,7 +308,7 @@ class Entity_registry {
     return current;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const {
     // List the entities in the order they were inserted.
     for (Const_iterator it = begin(); it != end(); ++it) (*it)->dump();
@@ -385,7 +385,7 @@ class System_tables {
         type == Types::PFS || type == Types::SYSTEM)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
-    DBUG_ASSERT(false);
+    assert(false);
     return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
   }
 
@@ -435,7 +435,7 @@ class System_tables {
     return m_registry.next(current, type);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const { m_registry.dump(); }
 #endif
 };
@@ -455,16 +455,26 @@ class System_tables {
 
 class System_views {
  public:
-  // Classification of system views.
-  enum class Types {
-    INFORMATION_SCHEMA,
-  };
+  /*
+    Classification of system views.
+
+    Both of these types represent server INFORMATION_SCHEMA tables. The
+    difference is that NON_DD_BASED_INFORMATION_SCHEMA indicates that the
+    system view is based on ACL tables like role_edges, default_roles etc.
+    NON_DD_BASED_INFORMATION_SCHEMA are created after creation of ACL
+    tables defined in mysql_system_tables.sql and not with regular
+    INFORMATION_SCHEMA tables that are created during bootstrap.
+
+  */
+  enum class Types { INFORMATION_SCHEMA, NON_DD_BASED_INFORMATION_SCHEMA };
 
   // Map from system view type to string description, e.g. for debugging.
   static const char *type_name(Types type) {
     switch (type) {
       case Types::INFORMATION_SCHEMA:
         return "INFORMATION_SCHEMA";
+      case Types::NON_DD_BASED_INFORMATION_SCHEMA:
+        return "NON_DD_BASED_INFORMATION_SCHEMA";
       default:
         return "";
     }
@@ -510,7 +520,7 @@ class System_views {
     return m_registry.next(current, type);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const { m_registry.dump(); }
 #endif
 };
@@ -581,7 +591,7 @@ class System_tablespaces {
     return m_registry.next(current, type);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const { m_registry.dump(); }
 #endif
 };

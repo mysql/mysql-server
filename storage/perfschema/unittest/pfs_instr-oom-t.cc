@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 #include "unittest/mytap/tap.h"
 
 PSI_thread_key thread_key_1;
-PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", 0, 0, ""}};
+PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", "T-1", 0, 0, ""}};
 
 /** Simulate initialize_performance_schema(). */
 
@@ -179,117 +179,133 @@ static void test_oom() {
   dummy_mutex_class.m_event_name_index = 0;
   dummy_mutex_class.m_flags = 0;
   dummy_mutex_class.m_enabled = true;
+  dummy_mutex_class.m_timed = true;
   dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
   dummy_rwlock_class.m_event_name_index = 1;
   dummy_rwlock_class.m_flags = 0;
   dummy_rwlock_class.m_enabled = true;
+  dummy_rwlock_class.m_timed = true;
   dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
+  dummy_thread_class.m_enabled = 0;
+  dummy_thread_class.m_flags = 0;
+  dummy_thread_class.m_singleton = nullptr;
+  dummy_thread_class.m_history = 0;
+  snprintf(dummy_thread_class.m_os_name, PFS_MAX_OS_NAME_LENGTH, "OS_NAME");
+
   dummy_cond_class.m_event_name_index = 2;
   dummy_cond_class.m_flags = 0;
   dummy_cond_class.m_enabled = true;
+  dummy_cond_class.m_timed = true;
   dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
   dummy_file_class.m_event_name_index = 3;
   dummy_file_class.m_flags = 0;
   dummy_file_class.m_enabled = true;
+  dummy_file_class.m_timed = true;
   dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
   dummy_socket_class.m_event_name_index = 4;
   dummy_socket_class.m_flags = 0;
   dummy_socket_class.m_enabled = true;
+  dummy_socket_class.m_timed = true;
   dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
   dummy_table_share.m_enabled = true;
   dummy_table_share.m_timed = true;
 
   /* Create mutex. */
   stub_alloc_always_fails = false;
-  mutex_1 = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex_1 != NULL, "create mutex");
+  mutex_1 = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex_1 != nullptr, "create mutex");
   destroy_mutex(mutex_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  mutex_2 = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex_2 == NULL, "oom (create mutex)");
+  mutex_2 = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex_2 == nullptr, "oom (create mutex)");
 
   /* Create rwlock. */
   stub_alloc_always_fails = false;
   rc = init_instruments(&param);
   ok(rc == 0, "instances init");
-  rwlock_1 = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock_1 != NULL, "create rwlock");
+  rwlock_1 = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock_1 != nullptr, "create rwlock");
   destroy_rwlock(rwlock_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  rwlock_2 = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock_2 == NULL, "oom (create rwlock)");
+  rwlock_2 = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock_2 == nullptr, "oom (create rwlock)");
 
   /* Create cond. */
   stub_alloc_always_fails = false;
   rc = init_instruments(&param);
   ok(rc == 0, "instances init");
-  cond_1 = create_cond(&dummy_cond_class, NULL);
-  ok(cond_1 != NULL, "create cond");
+  cond_1 = create_cond(&dummy_cond_class, nullptr);
+  ok(cond_1 != nullptr, "create cond");
   destroy_cond(cond_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  cond_2 = create_cond(&dummy_cond_class, NULL);
-  ok(cond_2 == NULL, "oom (create cond)");
+  cond_2 = create_cond(&dummy_cond_class, nullptr);
+  ok(cond_2 == nullptr, "oom (create cond)");
 
   /* Create file. */
+  stub_alloc_always_fails = false;
   PFS_thread fake_thread;
   rc = init_instruments(&param);
-  fake_thread.m_filename_hash_pins = NULL;
+  ok(rc == 0, "instances init");
+  fake_thread.m_filename_hash_pins = nullptr;
   init_file_hash(&param);
+  file_1 =
+      find_or_create_file(&fake_thread, &dummy_file_class, "dummy1", 6, true);
+  ok(file_1 != nullptr, "create file");
+  release_file(file_1);
 
   stub_alloc_always_fails = true;
   file_2 =
-      find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_2 == NULL, "oom (create file)");
-
-  stub_alloc_always_fails = false;
-  file_1 =
-      find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_1 != NULL, "create file");
-  release_file(file_1);
+      find_or_create_file(&fake_thread, &dummy_file_class, "dummy2", 6, true);
+  ok(file_2 == nullptr, "oom (create file)");
   cleanup_instruments();
 
   /* Create socket. */
   stub_alloc_always_fails = false;
   rc = init_instruments(&param);
   ok(rc == 0, "instances init");
-  socket_1 = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket_1 != NULL, "create socket");
+  socket_1 = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket_1 != nullptr, "create socket");
   destroy_socket(socket_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  socket_2 = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket_2 == NULL, "oom (create socket)");
+  socket_2 = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket_2 == nullptr, "oom (create socket)");
 
   /* Create table. */
   stub_alloc_always_fails = false;
   rc = init_instruments(&param);
-  table_1 = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table_1 != NULL, "create table");
+  table_1 = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table_1 != nullptr, "create table");
   destroy_table(table_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  table_2 = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table_2 == NULL, "oom (create table)");
+  table_2 = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table_2 == nullptr, "oom (create table)");
 
   /* Create thread. */
   stub_alloc_always_fails = false;
   rc = init_instruments(&param);
-  thread_1 = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread_1 != NULL, "create thread");
+  thread_1 = create_thread(&dummy_thread_class, 12, nullptr, 0);
+  ok(thread_1 != nullptr, "create thread");
   destroy_thread(thread_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  thread_2 = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread_2 == NULL, "oom (create thread)");
+  thread_2 = create_thread(&dummy_thread_class, 12, nullptr, 0);
+  ok(thread_2 == nullptr, "oom (create thread)");
 
   PSI_thread *thread;
 
@@ -301,8 +317,8 @@ static void test_oom() {
   param.m_file_class_sizing = 50;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 2;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (per thread wait)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (per thread wait)");
 
   cleanup_sync_class();
   cleanup_thread_class();
@@ -315,8 +331,8 @@ static void test_oom() {
   param.m_events_waits_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (thread waits history sizing)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (thread waits history sizing)");
 
   cleanup_thread_class();
   cleanup_instruments();
@@ -326,8 +342,8 @@ static void test_oom() {
   param.m_stage_class_sizing = 50;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (per thread stages)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (per thread stages)");
 
   cleanup_stage_class();
   cleanup_thread_class();
@@ -338,8 +354,8 @@ static void test_oom() {
   param.m_events_stages_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (thread stages history sizing)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (thread stages history sizing)");
 
   cleanup_instruments();
   cleanup_thread_class();
@@ -350,8 +366,8 @@ static void test_oom() {
   thread_service = initialize_performance_schema_helper(&param);
   init_statement_class(param.m_statement_class_sizing);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (per thread statements)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (per thread statements)");
 
   cleanup_stage_class();
   cleanup_statement_class();
@@ -363,8 +379,8 @@ static void test_oom() {
   param.m_events_statements_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (thread statements history sizing)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (thread statements history sizing)");
 
   cleanup_thread_class();
   cleanup_instruments();
@@ -374,8 +390,8 @@ static void test_oom() {
   thread_service = initialize_performance_schema_helper(&param);
   transaction_class_max = 1;  // set by register_global_classes();
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (per thread transactions)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (per thread transactions)");
   transaction_class_max = 0;
 
   cleanup_thread_class();
@@ -386,8 +402,8 @@ static void test_oom() {
   param.m_events_transactions_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, NULL, 0);
-  ok(thread == NULL, "oom (thread transactions history sizing)");
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
+  ok(thread == nullptr, "oom (thread transactions history sizing)");
 
   cleanup_thread_class();
   cleanup_instruments();
@@ -444,7 +460,7 @@ static void test_oom() {
 static void do_all_tests() { test_oom(); }
 
 int main(int, char **) {
-  plan(32);
+  plan(33);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
   my_end(0);

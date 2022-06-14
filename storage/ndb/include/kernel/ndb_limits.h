@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,17 +33,24 @@
  * Note that actual value = MAX_NODES - 1,
  *  since NodeId = 0 can not be used
  */
-#define MAX_NDB_NODES 49
-#define MAX_NDB_NODE_GROUPS 48
+#define MAX_NDB_NODES 145
+#define MAX_NDB_NODES_v1 49
+#define MAX_NDB_NODE_GROUPS 72
 #define MAX_NODES     256
 #define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
+#define MAX_INSTANCE_KEYS 1024
+#define MAX_NUM_CPUS 2500
+#define MAX_USED_NUM_CPUS 1024
+#define MAX_QUERY_THREAD_PER_LDM 3
+#define MIN_RR_GROUP_SIZE 4
+#define MAX_RR_GROUP_SIZE 8
 
 /**************************************************************************
  * IT SHOULD BE (MAX_NDB_NODES - 1).
  * WHEN MAX_NDB_NODE IS CHANGED, IT SHOULD BE CHANGED ALSO
  **************************************************************************/
-#define MAX_DATA_NODE_ID 48
+#define MAX_DATA_NODE_ID 144
 /**************************************************************************
  * IT SHOULD BE (MAX_NODES - 1).
  * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
@@ -58,6 +65,15 @@
  * The maximum number of replicas in the system
  */
 #define MAX_REPLICAS 4
+
+/**
+ * The maximum number of transporters allowed
+ * A maximum is needed to be able to allocate the array of transporters
+ * We need one 
+ */
+#define MAX_NODE_GROUP_TRANSPORTERS 32
+#define MAX_NTRANSPORTERS (MAX_NODES + \
+                           ((MAX_REPLICAS - 1) * MAX_NODE_GROUP_TRANSPORTERS))
 
 /**
  * The maximum number of local checkpoints stored at a time
@@ -86,21 +102,7 @@
 #define MAX_ATTR_DEFAULT_VALUE_SIZE ((MAX_TUPLE_SIZE_IN_WORDS + 1) * 4)  //Add 1 word for AttributeHeader
 #define MAX_ATTRIBUTES_IN_TABLE 512
 #define MAX_ATTRIBUTES_IN_INDEX 32
-#define MAX_TUPLE_SIZE_IN_WORDS 3500
-
-/**
- * When sending a SUB_TABLE_DATA from SUMA to API
- *
- */
-#define MAX_SUMA_MESSAGE_IN_WORDS 8028
-
-/**
- * When sending a SUB_TABLE_DATA
- *  this is is the maximum size that it can become
- */
-#define CHECK_SUMA_MESSAGE_SIZE(NO_KEYS,KEY_SIZE_IN_WORDS,NO_COLUMNS,TUPLE_SIZE_IN_WORDS) \
-  ((NO_KEYS + KEY_SIZE_IN_WORDS + 2 * (NO_COLUMNS + TUPLE_SIZE_IN_WORDS)) <= MAX_SUMA_MESSAGE_IN_WORDS)
-
+#define MAX_TUPLE_SIZE_IN_WORDS 7500
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_NULL_BITS 4096
 
@@ -145,8 +147,10 @@
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define MAX_NDB_PARTITIONS 240
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(7,6,8)
 #define MAX_NDB_PARTITIONS 2048
+#else
+#define MAX_NDB_PARTITIONS 8160
 #endif
 
 #define NDB_PARTITION_BITS 16
@@ -166,11 +170,7 @@
 /*
 * The default batch size. Configurable parameter.
 */
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEF_BATCH_SIZE 64
-#else
 #define DEF_BATCH_SIZE 256
-#endif
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -240,6 +240,12 @@
 #define NDB_SECTION_SEGMENT_SZ 60
 
 /*
+ * The maximum size of signal before we split it into a bunch of
+ * smaller signals. In words.
+ */
+#define MAX_SIZE_SINGLE_SIGNAL 7400
+
+/*
  * Restore Buffer in pages
  *   4M
  */
@@ -271,6 +277,7 @@
  */
 
 #define NDB_MAX_HASHMAP_BUCKETS (3840 * 2 * 3)
+#define NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS 1536
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
@@ -284,26 +291,47 @@
 #define NDBMT_BLOCK_BITS 9
 #define NDBMT_BLOCK_MASK ((1 << NDBMT_BLOCK_BITS) - 1)
 #define NDBMT_BLOCK_INSTANCE_BITS 7
-#define NDBMT_MAX_BLOCK_INSTANCES (1 << NDBMT_BLOCK_INSTANCE_BITS)
-/* Proxy block 0 is not a worker */
-#define NDBMT_MAX_WORKER_INSTANCES (NDBMT_MAX_BLOCK_INSTANCES - 1)
+#define NDBMT_MAX_INSTANCES 1024
 
 #define NDB_DEFAULT_LOG_PARTS 4
+
+#define NDBMT_MAIN_THREADS         2 /* Without receiver threads */
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_MAX_LOG_PARTS          4
 #define MAX_NDBMT_TC_THREADS       2
 #define MAX_NDBMT_RECEIVE_THREADS  1
 #define MAX_NDBMT_SEND_THREADS     0
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(8,0,23)
 #define NDB_MAX_LOG_PARTS         32
 #define MAX_NDBMT_TC_THREADS      32
 #define MAX_NDBMT_RECEIVE_THREADS 16 
-#define MAX_NDBMT_SEND_THREADS    16 
+#define MAX_NDBMT_SEND_THREADS    16
+#else
+#define NDB_MAX_LOG_PARTS         32
+#define MAX_NDBMT_TC_THREADS      160
+#define MAX_NDBMT_RECEIVE_THREADS 80
+#define MAX_NDBMT_SEND_THREADS    80
 #endif
 
-#define MAX_NDBMT_LQH_WORKERS NDB_MAX_LOG_PARTS
-#define MAX_NDBMT_LQH_THREADS NDB_MAX_LOG_PARTS
+#define MAX_NDBMT_LQH_WORKERS 332 
+#define MAX_NDBMT_LQH_THREADS 332
+#define MAX_NDBMT_QUERY_THREADS 332
+
+#define NDBMT_MAX_BLOCK_INSTANCES (MAX_NDBMT_LQH_THREADS + \
+                                   MAX_NDBMT_QUERY_THREADS + \
+                                   MAX_NDBMT_TC_THREADS + \
+                                   MAX_NDBMT_RECEIVE_THREADS + \
+                                   NDBMT_MAIN_THREADS)
+/* Proxy block 0 is not a worker */
+#define NDBMT_MAX_WORKER_INSTANCES (NDBMT_MAX_BLOCK_INSTANCES - 1)
+
+#define MAX_THREADS_TO_WATCH (MAX_NDBMT_LQH_THREADS + \
+                              MAX_NDBMT_QUERY_THREADS + \
+                              MAX_NDBMT_TC_THREADS + \
+                              MAX_NDBMT_SEND_THREADS + \
+                              MAX_NDBMT_RECEIVE_THREADS + \
+                              NDBMT_MAIN_THREADS)
 
 #define NDB_FILE_BUFFER_SIZE (256*1024)
 
@@ -314,7 +342,7 @@
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_FS_RW_PAGES 32
 #else
-#define NDB_FS_RW_PAGES 268
+#define NDB_FS_RW_PAGES 268 * 4
 #endif
 
 /**
@@ -363,6 +391,12 @@
  */
 #define MAX_NORMAL_ROW_SIZE 2048
 
+/**
+ * Maximum size that an EVENT_REP signal can carry in its
+ * long signal section.
+ */
+#define MAX_EVENT_REP_SIZE_WORDS 1024
+
 #define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
 // Max. number of pending undo records allowed per LDM
 #define MAX_PENDING_UNDO_RECORDS 100
@@ -386,27 +420,21 @@
  * and stop subscriptions if they both are competing. */
 #define NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL 3 * 3
 
-#ifdef NDB_STATIC_ASSERT
+// Max. 256 bytes for encryption password given via mgmapi
+#define MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH 256
 
-static inline void ndb_limits_constraints()
-{
-  NDB_STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
+static_assert(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
+static_assert(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
+static_assert(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
 
-  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
+// MAX_NDB_NODES should be 48, but code assumes it is 49
+static constexpr Uint32 MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID;
+static_assert(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 
-  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
+// Default partitioning is 1 partition per LDM
+static_assert(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= MAX_NDB_PARTITIONS);
 
-  // MAX_NDB_NODES should be 48, but code assumes it is 49
-  STATIC_CONST(MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID);
-  NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
-
-  // Default partitioning is 1 partition per LDM
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
-
-  // The default hashmap should atleast support the maximum default partitioning
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_DEFAULT_HASHMAP_BUCKETS);
-}
-
-#endif
+// The default hashmap should atleast support the maximum default partitioning
+static_assert(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= NDB_MAX_HASHMAP_BUCKETS);
 
 #endif

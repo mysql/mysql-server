@@ -7,6 +7,7 @@ primary key (`a`)
 ) engine = 'NDB'  ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1063	Max value for column a in table test.t1 is less than autoincrement prefetch size. Please decrease ndb_autoincrement_prefetch_sz
 set @@sql_mode='strict_all_tables';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.

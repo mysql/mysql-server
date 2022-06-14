@@ -13,11 +13,15 @@
 
 # Make sure to run only on Linux
 --source include/linux.inc
-
 # Make sure this test is not run on PB2 machines
 --source include/is_local_machine.inc
 # Make sure that there are no other tests running in parallel
 --source include/not_parallel.inc
+# Make sure UNIV_DEBUG_DEDICATED is defined and debug_sys_mem_size is available
+let $have_debug_dedicated = `SELECT * FROM performance_schema.global_variables where VARIABLE_NAME LIKE "%debug_sys_mem_size%"`;
+if (!$have_debug_dedicated) {
+  --skip Test requires 'debug_dedicated'
+}
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Resizing redo log");

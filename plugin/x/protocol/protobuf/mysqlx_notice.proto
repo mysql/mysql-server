@@ -1,0 +1,223 @@
+/*
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ */
+
+// tell protobuf 3.0 to use protobuf 2.x rules
+syntax = "proto2";
+
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
+
+// ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
+
+/**
+@namespace Mysqlx::Notice
+@brief A notice
+- is sent from the server to the client
+- may be global or relate to the current message sequence
+
+The server may send notices @ref Mysqlx::Notice::Frame
+to the client at any time.
+
+A notice can be:
+-  global (``.scope == GLOBAL``) or
+-  belong to the currently executed @ref messages_Message_Sequence
+   (``.scope == LOCAL + message sequence is active``):
+
+@note
+    If the Server sends a ``LOCAL`` notice while no message sequence is
+    active, the Notice should be ignored.
+
+@par Tip
+    For more information, see @ref mysqlx_protocol_notices "Notices".
+*/
+
+package Mysqlx.Notice;
+option java_package = "com.mysql.cj.x.protobuf";
+
+import "mysqlx_datatypes.proto";
+
+/**
+Common frame for all notices
+
+| ``.type``                                         | Value |
+|---------------------------------------------------|------ |
+| @ref Mysqlx::Notice::Warning                      | 1     |
+| @ref Mysqlx::Notice::SessionVariableChanged       | 2     |
+| @ref Mysqlx::Notice::SessionStateChanged          | 3     |
+| @ref Mysqlx::Notice::GroupReplicationStateChanged | 4     |
+| @ref Mysqlx::Notice::ServerHello                  | 5     |
+*/
+message Frame {
+  /** scope of notice */
+  enum Scope {
+    GLOBAL = 1;
+    LOCAL = 2;
+  }
+
+  /** type of notice payload*/
+  enum Type {
+    WARNING = 1;
+    SESSION_VARIABLE_CHANGED = 2;
+    SESSION_STATE_CHANGED = 3;
+    GROUP_REPLICATION_STATE_CHANGED = 4;
+    SERVER_HELLO = 5;
+  }
+
+  /** the type of the payload */
+  required uint32 type = 1;
+
+  /** global or local notification */
+  optional Scope  scope = 2 [ default = GLOBAL ];
+
+  /** the payload of the notification */
+  optional bytes payload = 3;
+
+  option (server_message_id) = NOTICE; // comment_out_if PROTOBUF_LITE
+}
+
+/**
+Server-side warnings and notes
+
+@par ``.scope`` == ``local``
+     ``.level``, ``.code`` and ``.msg`` map the content of:
+@code{sql}
+        SHOW WARNINGS
+@endcode
+
+@par ``.scope`` == ``global``
+    (undefined) Will be used for global, unstructured messages like:
+    -  server is shutting down
+    -  a node disconnected from group
+    -  schema or table dropped
+
+| @ref Mysqlx::Notice::Frame Field  | Value                   |
+|-----------------------------------|-------------------------|
+| ``.type``                         | 1                       |
+| ``.scope``                        | ``local`` or ``global`` |
+*/
+message Warning {
+  enum Level {
+    NOTE = 1;
+    WARNING = 2;
+    ERROR = 3;
+  }
+
+  /** Note or Warning */
+  optional Level level = 1 [ default = WARNING ];
+
+  /** warning code */
+  required uint32 code = 2;
+
+  /** warning message */
+  required string msg = 3;
+}
+
+/**
+Notify clients about changes to the current session variables.
+
+Every change to a variable that is accessible through:
+
+@code{sql}
+    SHOW SESSION VARIABLES
+@endcode
+
+| @ref Mysqlx::Notice::Frame  Field | Value    |
+|-----------------------------------|----------|
+| ``.type``                         | 2        |
+| ``.scope``                        | ``local``|
+*/
+message SessionVariableChanged {
+  /** name of the variable */
+  required string param = 1;
+
+  /** the changed value of param */
+  optional Mysqlx.Datatypes.Scalar value = 2;
+}
+
+
+/**
+Notify clients about changes to the internal session state.
+
+| @ref Mysqlx::Notice::Frame Field  | Value    |
+|-----------------------------------|----------|
+| ``.type``                         | 3        |
+| ``.scope``                        | ``local``|
+
+*/
+
+message SessionStateChanged {
+  enum Parameter {
+     CURRENT_SCHEMA = 1;
+     ACCOUNT_EXPIRED = 2;
+     GENERATED_INSERT_ID = 3;
+     ROWS_AFFECTED = 4;
+     ROWS_FOUND = 5;
+     ROWS_MATCHED = 6;
+     TRX_COMMITTED = 7;
+     TRX_ROLLEDBACK = 9;
+     PRODUCED_MESSAGE = 10;
+     CLIENT_ID_ASSIGNED = 11;
+     GENERATED_DOCUMENT_IDS = 12;
+     // .. more to be added
+  }
+
+  /** parameter key */
+  required Parameter param = 1;
+
+  /** updated value */
+  repeated Mysqlx.Datatypes.Scalar value = 2;
+}
+
+/**
+Notify clients about group replication state changes
+
+| @ref Mysqlx::Notice::Frame Field  | Value      |
+|-----------------------------------|------------|
+|``.type``                          | 4          |
+|``.scope``                         | ``global`` |
+*/
+message GroupReplicationStateChanged {
+  enum Type {
+    MEMBERSHIP_QUORUM_LOSS = 1;
+    MEMBERSHIP_VIEW_CHANGE = 2;
+    MEMBER_ROLE_CHANGE = 3;
+    MEMBER_STATE_CHANGE = 4;
+  }
+  /** type of group replication event */
+  required uint32 type = 1;
+
+  /** view identifier */
+  optional string view_id = 2;
+}
+
+/**
+Notify clients about connection to X Protocol server
+
+| @ref Mysqlx::Notice::Frame Field  | Value      |
+|-----------------------------------|------------|
+|``.type``                          | 5          |
+|``.scope``                         | ``global`` |
+*/
+message ServerHello {
+}
+

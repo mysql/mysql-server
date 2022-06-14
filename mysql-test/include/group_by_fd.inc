@@ -306,22 +306,27 @@ let $source_no_alias=($source_query);
 eval select sin(a) as z from $source group by b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select sin(a) as z from $source group by d,b;
+--replace_numeric_round 15
 eval select sin(a) as z from $source group by c,b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select (select sin(a)) as z from $source group by d,b;
+--replace_numeric_round 15
 eval select (select sin(a)) as z from $source group by c,b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select sin(a) as z from t1 group by c*2,b*2;
+--replace_numeric_round 15
 eval select sin(a+b*c) as z from $source group by c,b;
 eval $show_trace;
 
 eval select sin(a) as z from $source where b=2 group by c;
 
 --echo # {v1.b,v1.c}->v1.a->t2.a
+--replace_numeric_round 15
 eval select sin(t2.a) as z from $source, $source_no_alias as t2
  where t2.a=v1.a group by v1.b,v1.c;
 eval $show_trace;
 
+--replace_numeric_round 15
 eval select sin(t2.a) as z from $source, $source_no_alias as t2
  where t2.b=v1.b and t2.c=v1.c group by v1.b,v1.c;
 
@@ -609,6 +614,7 @@ let $query=
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0;
+--sorted_result
 eval $query;
 --echo # Now group it by d.a:
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -619,6 +625,7 @@ let $query=
 select d.a,d.c
 from t1 left join (select a, count(a) as c from t1 group by a) as d
 on t1.b+d.c>0;
+--sorted_result
 eval $query;
 --echo # Now group it by d.a:
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -629,12 +636,14 @@ let $query=
 select d.m,d.c
 from t1 left join (select max(a) as m, count(a) as c from t1) as d
 on t1.b+d.c>0;
+--sorted_result
 eval $query;
 --echo # Now group it by d.m:
 --error ER_WRONG_FIELD_WITH_GROUP
 eval $query group by d.m;
 eval $show_trace;
 --echo # Now group it by d.c which is non-nullable:
+--sorted_result
 eval $query group by d.c;
 eval $show_trace;
 
@@ -680,6 +689,7 @@ insert into t2 values(2,3);
 let $query=
 select t4.d
  from t1 left join (t2 as t3 join t2 as t4 on t4.d=3) on t1.a=10;
+--sorted_result
 eval $query;
 --echo # Equivalent to T1 LJ (T2, T3) ON T4.D=3 AND T1.A=10
 --echo # (this is what simplify_joins() does).
@@ -690,6 +700,7 @@ eval $query group by "";
 let $query=
 select t4.d
  from t1 left join (t2 as t3 left join t2 as t4 on t4.d=3) on t1.a=10;
+--sorted_result
 eval $query;
 --echo # For T4.D=3, DJS={}, not NULL-friendly, and embedding is on weak side
 --echo # so FD cannot propagate.
@@ -710,12 +721,15 @@ create view v1 as select a as a, 2*a as b, coalesce(a,3) as c from t1;
 
 let $query=
 select v1.b from t1 left join v1 on 1;
+--sorted_result
 eval $query;
 --echo # If v1.a is NULL then v1.b is NULL: a->b is NULL-friendly
+--sorted_result
 eval $query group by v1.a;
 
 let $query=
 select v1.c from t1 left join v1 on 1;
+--sorted_result
 eval $query;
 --echo # If v1.a is NULL then v1.c may not be NULL: a->c is not NULL-friendly
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -730,6 +744,7 @@ select t1.a, v1.b from t1 left join v1 on t1.a is not null;
 --echo # Because of BUG#17023060, the result is wrong, should be
 --echo # [10,2 ; 10,2 ; NULL,NULL], which would show that {}->{v1.b} does not
 --echo # hold in the result, even though v1.b is constant (=2) in v1.
+--sorted_result
 eval $query;
 --echo # We correctly reject this:
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -1033,6 +1048,7 @@ CREATE TABLE u ( a INT );
 INSERT INTO u VALUES(0),(1);
 --echo # Even though {a}->{c} holds in 't', it doesn't propagate to the left
 --echo # join's result
+--sorted_result
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0;
 --error ER_WRONG_FIELD_WITH_GROUP
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0 GROUP BY t.a;
@@ -1184,7 +1200,10 @@ SELECT * FROM t1, t2, t3
 WHERE t2.b = t1.b AND t2.b = t3.b
 AND t3.d = 1 AND t3.e = 1 AND t1.a = 2
 GROUP BY t1.b;
+# Hypergraph optimizer has different warnings here.
+--disable_warnings
 eval $show_trace;
+--enable_warnings
 
 # Remove t3.d = 1, IS NOT NULL is not enough of course.
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -1234,4 +1253,36 @@ SELECT ABS(i) AS a FROM t GROUP BY abs(i)             ORDER BY a + 1;
 SELECT ABS(i) AS a FROM t GROUP BY abs(i) WITH ROLLUP ORDER BY a + 1;
 SELECT ABS(i) AS a FROM t GROUP BY a                  ORDER BY a + 1;
 SELECT ABS(i) AS a FROM t GROUP BY a      WITH ROLLUP ORDER BY a + 1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30753524 DBUG_ASSERT((MAP_OF_NEW_FDS & PSEUDO_TABLE_BITS) == 0)
+--echo #
+
+CREATE TABLE t (a INT,b INT);
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+ (
+   SELECT it2.a
+   FROM
+   (
+     SELECT ot.b FROM t AS it1
+   ) AS dt
+   JOIN t AS it2 ON dt.b=it2.b
+   GROUP BY it2.b
+ )
+;
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+ (
+   SELECT dt.b
+   FROM
+   (
+     SELECT ot.b FROM t AS it1
+   ) AS dt
+   JOIN t AS it2 ON dt.b=it2.b
+   GROUP BY it2.b
+ )
+;
 DROP TABLE t;

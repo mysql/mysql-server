@@ -94,9 +94,9 @@ ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 # 11. Default resource groups can't be altered.
 ALTER RESOURCE GROUP SYS_default VCPU=0;
-ERROR HY000: Alter operation is disallowed on default resource groups. 
+ERROR HY000: Alter operation is disallowed on default resource groups.
 ALTER RESOURCE GROUP USR_default VCPU=1;
-ERROR HY000: Alter operation is disallowed on default resource groups. 
+ERROR HY000: Alter operation is disallowed on default resource groups.
 # 11. Alter VCPU IDS and/or thread priority
 SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME='user_resource';
 RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
@@ -141,9 +141,9 @@ DROP RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 # 11. Default resource groups can't be dropped.
 DROP RESOURCE GROUP USR_default;
-ERROR HY000: Drop operation  operation is disallowed on default resource groups. 
+ERROR HY000: Drop operation  operation is disallowed on default resource groups.
 DROP RESOURCE GROUP SYS_default;
-ERROR HY000: Drop operation  operation is disallowed on default resource groups. 
+ERROR HY000: Drop operation  operation is disallowed on default resource groups.
 # SET resource group tests.
 SET RESOURCE GROUP user_resource;
 ERROR HY000: Resource Group 'user_resource' does not exist.

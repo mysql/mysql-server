@@ -1,0 +1,26 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+# Allowed cipher regex
+--source include/allowed_ciphers.inc
+
+--echo # Setup
+
+--echo # Create test user
+CREATE USER admin_user IDENTIFIED BY 'abcd';
+--echo # Grant required privilege so that test user
+--echo # can connect to server using admin interface
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
+
+
+--echo # Verify that TLS is configured for admin channel
+--query_vertical SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled'
+
+--echo # Try to connect using TLS
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_user -pabcd --ssl-mode=REQUIRED -e "SELECT 1"
+
+--echo # Cleanup
+DROP USER admin_user;
+
+# Wait until all sessions are disconnected
+--source include/wait_until_count_sessions.inc

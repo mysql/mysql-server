@@ -1,5 +1,5 @@
 # Tests for various combinations of ROW_FORMAT and KEY_BLOCK_SIZE
-# Related bugs; 
+# Related bugs;
 # Bug#54679: ALTER TABLE causes compressed row_format to revert to compact
 # Bug#56628: ALTER TABLE .. KEY_BLOCK_SIZE=0 produces untrue warning or unnecessary error
 # Bug#56632: ALTER TABLE implicitly changes ROW_FORMAT to COMPRESSED

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ extern "C"
 extern
 #endif
 builtin_plugin 
-  @mysql_mandatory_plugins@ @mysql_optional_plugins@ builtin_binlog_plugin, builtin_mysql_password_plugin, builtin_caching_sha2_password_plugin;
+  @mysql_mandatory_plugins@ @mysql_optional_plugins@ builtin_binlog_plugin, builtin_mysql_password_plugin, builtin_caching_sha2_password_plugin, builtin_daemon_keyring_proxy_plugin;
 
 struct st_mysql_plugin *mysql_optional_plugins[]=
 {
@@ -39,5 +39,5 @@ struct st_mysql_plugin *mysql_optional_plugins[]=
 
 struct st_mysql_plugin *mysql_mandatory_plugins[]=
 {
-  builtin_binlog_plugin, builtin_mysql_password_plugin, builtin_caching_sha2_password_plugin, @mysql_mandatory_plugins@ 0
+  builtin_binlog_plugin, builtin_mysql_password_plugin, builtin_caching_sha2_password_plugin, builtin_daemon_keyring_proxy_plugin, @mysql_mandatory_plugins@ 0
 };

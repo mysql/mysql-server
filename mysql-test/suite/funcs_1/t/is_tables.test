@@ -23,6 +23,7 @@ if (!$require_case_insensitive_file_system)
 # - results are MyISAM specific
 # - is not focused on checking MyISAM properties though it exploits
 #   some MyISAM functionality for some checks.
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 let $engine_type       = MyISAM;
 let $other_engine_type = MyISAM;

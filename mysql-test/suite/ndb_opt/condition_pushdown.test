@@ -1,0 +1,4041 @@
+-- source include/have_ndb.inc
+
+#
+# Test of condition pushdown to storage engine
+#
+CREATE TABLE t1 (
+  auto int(5) unsigned NOT NULL auto_increment,
+  string char(10),
+  vstring varchar(10),
+  bin binary(2),
+  vbin varbinary(7),	
+  tiny tinyint(4) DEFAULT '0' NOT NULL ,
+  short smallint(6) DEFAULT '1' NOT NULL ,
+  medium mediumint(8) DEFAULT '0' NOT NULL,
+  long_int int(11) DEFAULT '0' NOT NULL,
+  longlong bigint(13) DEFAULT '0' NOT NULL,
+  real_float float(13,1) DEFAULT 0.0 NOT NULL,
+  real_double double(16,4),
+  real_decimal decimal(16,4),
+  utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+  ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+  umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  ulong int(11) unsigned DEFAULT '0' NOT NULL,
+  ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+  bits bit(3),
+  options enum('zero','one','two','three','four') not null,
+  flags set('zero','one','two','three','four') not null,
+  date_field date,
+  year_field year,
+  time_field time,      
+  date_time datetime,
+  time_stamp timestamp,
+  PRIMARY KEY (auto)
+) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into t1 values 
+(NULL,"aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
+ b'001','one','one',
+ '1901-01-01','1901', 
+'01:01:01','1901-01-01 01:01:01',NULL),
+(NULL,"bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902', 
+'02:02:02','1902-02-02 02:02:02',NULL),
+(NULL,"cccc","cccc",0xCCCC,0xCCCC,-3,-3,-3,-3,-3,3.3,3.3,3.3,3,3,3,3,3,
+ b'011','three','one,two,three',
+ '1903-03-03','1903', 
+'03:03:03','1903-03-03 03:03:03',NULL),
+(NULL,"dddd","dddd",0xDDDD,0xDDDD,-4,-4,-4,-4,-4,4.4,4.4,4.4,4,4,4,4,4,
+ b'100','four','one,two,three,four',
+ '1904-04-04','1904', 
+'04:04:04','1904-04-04 04:04:04',NULL);
+
+CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) )
+ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
+
+CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) )
+ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into t3 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
+
+CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into t4 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
+
+set @old_ecpd = @@session.optimizer_switch;
+set @@optimizer_switch = 'engine_condition_pushdown=off';
+
+# Test all types and compare operators
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and 
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+bits = b'001' and
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and 
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+bits != b'001' and
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and 
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+bits > b'001' and
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and 
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+bits >= b'001' and
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and 
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+bits < b'100' and
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and 
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 and 
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+bits <= b'100' and
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+
+# Test LIKE/NOT LIKE
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" and
+bin like concat(0xBB, '%') and
+vbin like concat(0xBB, '%')
+order by auto;
+
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%" and
+bin not like concat(0xBB, '%') and
+vbin not like concat(0xBB, '%')
+order by auto;
+
+# BETWEEN
+select auto from t1 where
+(string between "aaaa" and "cccc") and 
+(vstring between "aaaa" and "cccc") and 
+(bin between 0xAAAA and 0xCCCC) and 
+(vbin between 0xAAAA and 0xCCCC) and 
+(tiny between -3 and -1) and 
+(short between -3 and -1) and 
+(medium between -3 and -1) and 
+(long_int between -3 and -1) and 
+(longlong between -3 and -1) and 
+(utiny between 1 and 3) and 
+(ushort between 1 and 3) and 
+(umedium between 1 and 3) and 
+(ulong between 1 and 3) and 
+(ulonglong between 1 and 3) and 
+(bits between b'001' and b'011') and
+(options between 'one' and 'three') and 
+(flags between 'one' and 'one,two,three') and 
+(date_field between '1901-01-01' and '1903-03-03') and
+(year_field between '1901' and '1903') and
+(time_field between '01:01:01' and '03:03:03') and 
+(date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+("aaaa" between string and string) and 
+("aaaa" between vstring and vstring) and 
+(0xAAAA between bin and bin) and 
+(0xAAAA between vbin and vbin) and 
+(-1 between tiny and tiny) and 
+(-1 between short and short) and 
+(-1 between medium and medium) and 
+(-1 between long_int and long_int) and 
+(-1 between longlong and longlong) and 
+(1 between utiny and utiny) and 
+(1 between ushort and ushort) and 
+(1 between umedium and umedium) and 
+(1 between ulong and ulong) and 
+(1 between ulonglong and ulonglong) and 
+(b'001' between bits and bits) and
+('one' between options and options) and 
+('one' between flags and flags) and 
+('1901-01-01' between date_field and date_field) and
+('1901' between year_field and year_field) and
+('01:01:01' between time_field and time_field) and 
+('1901-01-01 01:01:01' between date_time and date_time) 
+order by auto;
+
+# NOT BETWEEN
+select auto from t1 where
+(string not between "aaaa" and "cccc") and 
+(vstring not between "aaaa" and "cccc") and 
+(bin not between 0xAAAA and 0xCCCC) and 
+(vbin not between 0xAAAA and 0xCCCC) and 
+(tiny not between -3 and -1) and 
+(short not between -3 and -1) and 
+(medium not between -3 and -1) and 
+(long_int not between -3 and -1) and 
+(longlong not between -3 and -1) and 
+(utiny not between 1 and 3) and 
+(ushort not between 1 and 3) and 
+(umedium not between 1 and 3) and 
+(ulong not between 1 and 3) and 
+(ulonglong not between 1 and 3) and 
+(bits not between b'001' and b'011') and
+(options not between 'one' and 'three') and 
+(flags not between 'one' and 'one,two,three') and 
+(date_field not between '1901-01-01' and '1903-03-03') and
+(year_field not between '1901' and '1903') and
+(time_field not between '01:01:01' and '03:03:03') and 
+(date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+("aaaa" not between string and string) and 
+("aaaa" not between vstring and vstring) and 
+(0xAAAA not between bin and bin) and 
+(0xAAAA not between vbin and vbin) and 
+(-1 not between tiny and tiny) and 
+(-1 not between short and short) and 
+(-1 not between medium and medium) and 
+(-1 not between long_int and long_int) and 
+(-1 not between longlong and longlong) and 
+(1 not between utiny and utiny) and 
+(1 not between ushort and ushort) and 
+(1 not between umedium and umedium) and 
+(1 not between ulong and ulong) and 
+(1 not between ulonglong and ulonglong) and 
+(b'001' not between bits and bits) and
+('one' not between options and options) and 
+('one' not between flags and flags) and 
+('1901-01-01' not between date_field and date_field) and
+('1901' not between year_field and year_field) and
+('01:01:01' not between time_field and time_field) and 
+('1901-01-01 01:01:01' not between date_time and date_time) 
+order by auto;
+
+# IN
+select auto from t1 where
+string in("aaaa","cccc") and 
+vstring in("aaaa","cccc") and 
+bin in(0xAAAA,0xCCCC) and 
+vbin in(0xAAAA,0xCCCC) and 
+tiny in(-1,-3) and 
+short in(-1,-3) and 
+medium in(-1,-3) and 
+long_int in(-1,-3) and 
+longlong in(-1,-3) and 
+utiny in(1,3) and 
+ushort in(1,3) and 
+umedium in(1,3) and 
+ulong in(1,3) and 
+ulonglong in(1,3) and 
+bits in(b'001',b'011') and
+options in('one','three') and 
+flags in('one','one,two,three') and 
+date_field in('1901-01-01','1903-03-03') and
+year_field in('1901','1903') and
+time_field in('01:01:01','03:03:03') and 
+date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+"aaaa" in(string) and
+"aaaa" in(vstring) and
+0xAAAA in(bin) and 
+0xAAAA in(vbin) and 
+(-1 in(tiny)) and
+(-1 in(short)) and
+(-1 in(medium)) and
+(-1 in(long_int)) and
+(-1 in(longlong)) and
+1 in(utiny) and 
+1 in(ushort) and 
+1 in(umedium) and 
+1 in(ulong) and 
+1 in(ulonglong) and 
+b'001' in(bits) and
+'one' in(options) and 
+'one' in(flags) and 
+'1901-01-01' in(date_field) and
+'1901' in(year_field) and
+'01:01:01' in(time_field) and 
+'1901-01-01 01:01:01' in(date_time) 
+order by auto;
+
+# NOT IN
+select auto from t1 where
+string not in("aaaa","cccc") and 
+vstring not in("aaaa","cccc") and 
+bin not in(0xAAAA,0xCCCC) and 
+vbin not in(0xAAAA,0xCCCC) and 
+tiny not in(-1,-3) and 
+short not in(-1,-3) and 
+medium not in(-1,-3) and 
+long_int not in(-1,-3) and 
+longlong not in(-1,-3) and 
+utiny not in(1,3) and 
+ushort not in(1,3) and 
+umedium not in(1,3) and 
+ulong not in(1,3) and 
+ulonglong not in(1,3) and 
+bits not in(b'001',b'011') and
+options not in('one','three') and 
+flags not in('one','one,two,three') and 
+date_field not in('1901-01-01','1903-03-03') and
+year_field not in('1901','1903') and
+time_field not in('01:01:01','03:03:03') and 
+date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+"aaaa" not in(string) and
+"aaaa" not in(vstring) and
+0xAAAA not in(bin) and 
+0xAAAA not in(vbin) and 
+(-1 not in(tiny)) and
+(-1 not in(short)) and
+(-1 not in(medium)) and
+(-1 not in(long_int)) and
+(-1 not in(longlong)) and
+1 not in(utiny) and 
+1 not in(ushort) and 
+1 not in(umedium) and 
+1 not in(ulong) and 
+1 not in(ulonglong) and 
+b'001' not in(bits) and
+'one' not in(options) and 
+'one' not in(flags) and 
+'1901-01-01' not in(date_field) and
+'1901' not in(year_field) and
+'01:01:01' not in(time_field) and 
+'1901-01-01 01:01:01' not in(date_time) 
+order by auto;
+
+# Various tests 
+select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
+
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+# Test all types and compare operators
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+
+# Test index scan with filter
+create index medium_index on t1(medium);
+
+# Test all types and compare operators
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+
+# Test LIKE/NOT LIKE
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" and
+bin like concat(0xBB, '%') and
+vbin like concat(0xBB, '%')
+order by auto;
+
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" and
+bin like concat(0xBB, '%') and
+vbin like concat(0xBB, '%')
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%" and
+bin not like concat(0xBB, '%') and
+vbin not like concat(0xBB, '%')
+order by auto;
+
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%" and
+bin not like concat(0xBB, '%') and
+vbin not like concat(0xBB, '%')
+order by auto;
+
+# BETWEEN
+--replace_column 10 # 11 #
+explain 
+select auto from t1 where
+(string between "aaaa" and "cccc") and 
+(vstring between "aaaa" and "cccc") and 
+(bin between 0xAAAA and 0xCCCC) and 
+(vbin between 0xAAAA and 0xCCCC) and 
+(tiny between -3 and -1) and 
+(short between -3 and -1) and 
+(medium between -3 and -1) and 
+(long_int between -3 and -1) and 
+(longlong between -3 and -1) and 
+(utiny between 1 and 3) and 
+(ushort between 1 and 3) and 
+(umedium between 1 and 3) and 
+(ulong between 1 and 3) and 
+(ulonglong between 1 and 3) and 
+/* (bits between b'001' and b'011') and */
+(options between 'one' and 'three') and 
+(flags between 'one' and 'one,two,three') and 
+(date_field between '1901-01-01' and '1903-03-03') and
+(year_field between '1901' and '1903') and
+(time_field between '01:01:01' and '03:03:03') and 
+(date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+(string between "aaaa" and "cccc") and 
+(vstring between "aaaa" and "cccc") and 
+(bin between 0xAAAA and 0xCCCC) and 
+(vbin between 0xAAAA and 0xCCCC) and 
+(tiny between -3 and -1) and 
+(short between -3 and -1) and 
+(medium between -3 and -1) and 
+(long_int between -3 and -1) and 
+(longlong between -3 and -1) and 
+(utiny between 1 and 3) and 
+(ushort between 1 and 3) and 
+(umedium between 1 and 3) and 
+(ulong between 1 and 3) and 
+(ulonglong between 1 and 3) and 
+/* (bits between b'001' and b'011') and */
+(options between 'one' and 'three') and 
+(flags between 'one' and 'one,two,three') and 
+(date_field between '1901-01-01' and '1903-03-03') and
+(year_field between '1901' and '1903') and
+(time_field between '01:01:01' and '03:03:03') and 
+(date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where
+("aaaa" between string and string) and 
+("aaaa" between vstring and vstring) and 
+(0xAAAA between bin and bin) and 
+(0xAAAA between vbin and vbin) and 
+(-1 between tiny and tiny) and 
+(-1 between short and short) and 
+(-1 between medium and medium) and 
+(-1 between long_int and long_int) and 
+(-1 between longlong and longlong) and 
+(1 between utiny and utiny) and 
+(1 between ushort and ushort) and 
+(1 between umedium and umedium) and 
+(1 between ulong and ulong) and 
+(1 between ulonglong and ulonglong) and 
+/* (b'001' between bits and bits) and */
+('one' between options and options) and 
+('one' between flags and flags) and 
+('1901-01-01' between date_field and date_field) and
+('1901' between year_field and year_field) and
+('01:01:01' between time_field and time_field) and 
+('1901-01-01 01:01:01' between date_time and date_time) 
+order by auto;
+
+select auto from t1 where
+("aaaa" between string and string) and 
+("aaaa" between vstring and vstring) and 
+(0xAAAA between bin and bin) and 
+(0xAAAA between vbin and vbin) and 
+(-1 between tiny and tiny) and 
+(-1 between short and short) and 
+(-1 between medium and medium) and 
+(-1 between long_int and long_int) and 
+(-1 between longlong and longlong) and 
+(1 between utiny and utiny) and 
+(1 between ushort and ushort) and 
+(1 between umedium and umedium) and 
+(1 between ulong and ulong) and 
+(1 between ulonglong and ulonglong) and 
+/* (b'001' between bits and bits) and */
+('one' between options and options) and 
+('one' between flags and flags) and 
+('1901-01-01' between date_field and date_field) and
+('1901' between year_field and year_field) and
+('01:01:01' between time_field and time_field) and 
+('1901-01-01 01:01:01' between date_time and date_time) 
+order by auto;
+
+# NOT BETWEEN
+--replace_column 10 # 11 #
+explain 
+select auto from t1 where
+(string not between "aaaa" and "cccc") and 
+(vstring not between "aaaa" and "cccc") and 
+(bin not between 0xAAAA and 0xCCCC) and 
+(vbin not between 0xAAAA and 0xCCCC) and 
+(tiny not between -3 and -1) and 
+(short not between -3 and -1) and 
+(medium not between -3 and -1) and 
+(long_int not between -3 and -1) and 
+(longlong not between -3 and -1) and 
+(utiny not between 1 and 3) and 
+(ushort not between 1 and 3) and 
+(umedium not between 1 and 3) and 
+(ulong not between 1 and 3) and 
+(ulonglong not between 1 and 3) and 
+/* (bits not between b'001' and b'011') and */
+(options not between 'one' and 'three') and 
+(flags not between 'one' and 'one,two,three') and 
+(date_field not between '1901-01-01' and '1903-03-03') and
+(year_field not between '1901' and '1903') and
+(time_field not between '01:01:01' and '03:03:03') and 
+(date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+(string not between "aaaa" and "cccc") and 
+(vstring not between "aaaa" and "cccc") and 
+(bin not between 0xAAAA and 0xCCCC) and 
+(vbin not between 0xAAAA and 0xCCCC) and 
+(tiny not between -3 and -1) and 
+(short not between -3 and -1) and 
+(medium not between -3 and -1) and 
+(long_int not between -3 and -1) and 
+(longlong not between -3 and -1) and 
+(utiny not between 1 and 3) and 
+(ushort not between 1 and 3) and 
+(umedium not between 1 and 3) and 
+(ulong not between 1 and 3) and 
+(ulonglong not between 1 and 3) and 
+/* (bits not between b'001' and b'011') and */
+(options not between 'one' and 'three') and 
+(flags not between 'one' and 'one,two,three') and 
+(date_field not between '1901-01-01' and '1903-03-03') and
+(year_field not between '1901' and '1903') and
+(time_field not between '01:01:01' and '03:03:03') and 
+(date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where
+("aaaa" not between string and string) and 
+("aaaa" not between vstring and vstring) and 
+(0xAAAA not between bin and bin) and 
+(0xAAAA not between vbin and vbin) and 
+(-1 not between tiny and tiny) and 
+(-1 not between short and short) and 
+(-1 not between medium and medium) and 
+(-1 not between long_int and long_int) and 
+(-1 not between longlong and longlong) and 
+(1 not between utiny and utiny) and 
+(1 not between ushort and ushort) and 
+(1 not between umedium and umedium) and 
+(1 not between ulong and ulong) and 
+(1 not between ulonglong and ulonglong) and 
+/* (b'001' not between bits and bits) and */
+('one' not between options and options) and 
+('one' not between flags and flags) and 
+('1901-01-01' not between date_field and date_field) and
+('1901' not between year_field and year_field) and
+('01:01:01' not between time_field and time_field) and 
+('1901-01-01 01:01:01' not between date_time and date_time) 
+order by auto;
+
+select auto from t1 where
+("aaaa" not between string and string) and 
+("aaaa" not between vstring and vstring) and 
+(0xAAAA not between bin and bin) and 
+(0xAAAA not between vbin and vbin) and 
+(-1 not between tiny and tiny) and 
+(-1 not between short and short) and 
+(-1 not between medium and medium) and 
+(-1 not between long_int and long_int) and 
+(-1 not between longlong and longlong) and 
+(1 not between utiny and utiny) and 
+(1 not between ushort and ushort) and 
+(1 not between umedium and umedium) and 
+(1 not between ulong and ulong) and 
+(1 not between ulonglong and ulonglong) and 
+/* (b'001' not between bits and bits) and */
+('one' not between options and options) and 
+('one' not between flags and flags) and 
+('1901-01-01' not between date_field and date_field) and
+('1901' not between year_field and year_field) and
+('01:01:01' not between time_field and time_field) and 
+('1901-01-01 01:01:01' not between date_time and date_time) 
+order by auto;
+
+# IN
+--replace_column 10 # 11 #
+explain
+select auto from t1 where
+string in("aaaa","cccc") and 
+vstring in("aaaa","cccc") and 
+bin in(0xAAAA,0xCCCC) and 
+vbin in(0xAAAA,0xCCCC) and 
+tiny in(-1,-3) and 
+short in(-1,-3) and 
+medium in(-1,-3) and 
+long_int in(-1,-3) and 
+longlong in(-1,-3) and 
+utiny in(1,3) and 
+ushort in(1,3) and 
+umedium in(1,3) and 
+ulong in(1,3) and 
+ulonglong in(1,3) and 
+/* bits in(b'001',b'011') and */
+options in('one','three') and 
+flags in('one','one,two,three') and 
+date_field in('1901-01-01','1903-03-03') and
+year_field in('1901','1903') and
+time_field in('01:01:01','03:03:03') and 
+date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+string in("aaaa","cccc") and 
+vstring in("aaaa","cccc") and 
+bin in(0xAAAA,0xCCCC) and 
+vbin in(0xAAAA,0xCCCC) and 
+tiny in(-1,-3) and 
+short in(-1,-3) and 
+medium in(-1,-3) and 
+long_int in(-1,-3) and 
+longlong in(-1,-3) and 
+utiny in(1,3) and 
+ushort in(1,3) and 
+umedium in(1,3) and 
+ulong in(1,3) and 
+ulonglong in(1,3) and 
+/* bits in(b'001',b'011') and */
+options in('one','three') and 
+flags in('one','one,two,three') and 
+date_field in('1901-01-01','1903-03-03') and
+year_field in('1901','1903') and
+time_field in('01:01:01','03:03:03') and 
+date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where
+"aaaa" in(string) and 
+"aaaa" in(vstring) and 
+0xAAAA in(bin) and 
+0xAAAA in(vbin) and 
+(-1 in(tiny)) and
+(-1 in (short)) and
+(-1 in(medium)) and
+(-1 in(long_int)) and
+(-1 in(longlong)) and
+1 in(utiny) and 
+1 in(ushort) and 
+1 in(umedium) and 
+1 in(ulong) and 
+1 in(ulonglong) and 
+/* b'001' in(bits) and */
+'one' in(options) and 
+'one' in(flags) and 
+'1901-01-01' in(date_field) and
+'1901' in(year_field) and
+'01:01:01' in(time_field) and 
+'1901-01-01 01:01:01' in(date_time) 
+order by auto;
+
+select auto from t1 where
+"aaaa" in(string) and 
+"aaaa" in(vstring) and 
+0xAAAA in(bin) and 
+0xAAAA in(vbin) and 
+(-1 in(tiny)) and
+(-1 in (short)) and
+(-1 in(medium)) and
+(-1 in(long_int)) and
+(-1 in(longlong)) and
+1 in(utiny) and 
+1 in(ushort) and 
+1 in(umedium) and 
+1 in(ulong) and 
+1 in(ulonglong) and 
+/* b'001' in(bits) and */
+'one' in(options) and 
+'one' in(flags) and 
+'1901-01-01' in(date_field) and
+'1901' in(year_field) and
+'01:01:01' in(time_field) and 
+'1901-01-01 01:01:01' in(date_time) 
+order by auto;
+
+# NOT IN
+--replace_column 10 # 11 #
+explain
+select auto from t1 where
+string not in("aaaa","cccc") and 
+vstring not in("aaaa","cccc") and 
+bin not in(0xAAAA,0xCCCC) and 
+vbin not in(0xAAAA,0xCCCC) and 
+tiny not in(-1,-3) and 
+short not in(-1,-3) and 
+medium not in(-1,-3) and 
+long_int not in(-1,-3) and 
+longlong not in(-1,-3) and 
+utiny not in(1,3) and 
+ushort not in(1,3) and 
+umedium not in(1,3) and 
+ulong not in(1,3) and 
+ulonglong not in(1,3) and 
+/* bits not in(b'001',b'011') and */
+options not in('one','three') and 
+flags not in('one','one,two,three') and 
+date_field not in('1901-01-01','1903-03-03') and
+year_field not in('1901','1903') and
+time_field not in('01:01:01','03:03:03') and 
+date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+string not in("aaaa","cccc") and 
+vstring not in("aaaa","cccc") and 
+bin not in(0xAAAA,0xCCCC) and 
+vbin not in(0xAAAA,0xCCCC) and 
+tiny not in(-1,-3) and 
+short not in(-1,-3) and 
+medium not in(-1,-3) and 
+long_int not in(-1,-3) and 
+longlong not in(-1,-3) and 
+utiny not in(1,3) and 
+ushort not in(1,3) and 
+umedium not in(1,3) and 
+ulong not in(1,3) and 
+ulonglong not in(1,3) and 
+/* bits not in(b'001',b'011') and */
+options not in('one','three') and 
+flags not in('one','one,two,three') and 
+date_field not in('1901-01-01','1903-03-03') and
+year_field not in('1901','1903') and
+time_field not in('01:01:01','03:03:03') and 
+date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+--replace_column 10 # 11 #
+explain
+select auto from t1 where
+"aaaa" not in(string) and 
+"aaaa" not in(vstring) and 
+0xAAAA not in(bin) and 
+0xAAAA not in(vbin) and 
+(-1 not in(tiny)) and
+(-1 not in(short)) and
+(-1 not in(medium)) and
+(-1 not in(long_int)) and
+(-1 not in(longlong)) and
+1 not in(utiny) and 
+1 not in(ushort) and 
+1 not in(umedium) and 
+1 not in(ulong) and 
+1 not in(ulonglong) and 
+/* b'001' not in(bits) and */
+'one' not in(options) and 
+'one' not in(flags) and 
+'1901-01-01' not in(date_field) and
+'1901' not in(year_field) and
+'01:01:01' not in(time_field) and 
+'1901-01-01 01:01:01' not in(date_time) 
+order by auto;
+
+select auto from t1 where
+"aaaa" not in(string) and 
+"aaaa" not in(vstring) and 
+0xAAAA not in(bin) and 
+0xAAAA not in(vbin) and 
+(-1 not in(tiny)) and
+(-1 not in(short)) and
+(-1 not in(medium)) and
+(-1 not in(long_int)) and
+(-1 not in(longlong)) and
+1 not in(utiny) and 
+1 not in(ushort) and 
+1 not in(umedium) and 
+1 not in(ulong) and 
+1 not in(ulonglong) and 
+/* b'001' not in(bits) and */
+'one' not in(options) and 
+'one' not in(flags) and 
+'1901-01-01' not in(date_field) and
+'1901' not in(year_field) and
+'01:01:01' not in(time_field) and 
+'1901-01-01 01:01:01' not in(date_time) 
+order by auto;
+
+# Update test
+update t1
+set medium = 17
+where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01';
+
+# Delete test
+delete from t1 
+where
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = 17 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01';
+
+select count(*) from t1;
+
+# Various tests 
+--replace_column 10 # 11 #
+explain 
+select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+
+--replace_column 10 # 11 #
+explain
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+
+--replace_column 10 # 11 #
+explain
+select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+
+--replace_column 10 # 11 #
+explain
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+
+--replace_column 10 # 11 #
+explain
+select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+
+--replace_column 10 # 11 #
+explain
+select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
+select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
+
+# Some tests that are currently not supported and should not push condition
+--replace_column 10 # 11 #
+explain
+select auto from t1 where string = "aaaa" collate utf8mb4_general_ci order by auto;
+--replace_column 10 # 11 #
+explain
+select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
+--replace_column 10 # 11 #
+explain
+select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
+
+# bug#15722
+create table t5 (a int primary key auto_increment, b tinytext not null) 
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
+set @@optimizer_switch='engine_condition_pushdown=off';
+select * from t5 where b like '%jo%' order by a;
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
+explain select * from t5 where b like '%jo%';
+select * from t5 where b like '%jo%' order by a;
+
+# bug#21056  	ndb pushdown equal/setValue error on datetime
+set @@optimizer_switch='engine_condition_pushdown=off';
+select auto from t1 where date_time like '1902-02-02 %' order by auto;
+select auto from t1 where date_time not like '1902-02-02 %' order by auto;
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
+explain select auto from t1 where date_time like '1902-02-02 %';
+select auto from t1 where date_time like '1902-02-02 %' order by auto;
+--replace_column 10 # 11 #
+explain select auto from t1 where date_time not like '1902-02-02 %';
+select auto from t1 where date_time not like '1902-02-02 %' order by auto;
+
+# bug#17421 -1
+drop table t1;
+create table t1 (a int, b varchar(3), primary key using hash(a))
+engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
+# in TUP the constants 'ab' 'abc' were expected in varchar format
+# "like" returned error which became "false"
+# scan filter negates "or" which exposes the bug
+set @@optimizer_switch='engine_condition_pushdown=off';
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+
+# bug#17421 -2
+drop table t1;
+create table t1 (a int, b char(3), primary key using hash(a))
+engine=ndb;
+insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
+# test that incorrect MySQL behaviour is preserved
+# 'ab ' LIKE 'ab' is true in MySQL
+set @@optimizer_switch='engine_condition_pushdown=off';
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+
+# bug#20406 (maybe same as bug#17421 -1, not seen on 32-bit x86)
+drop table t1;
+create table  t1 ( fname varchar(255), lname varchar(255) )
+engine=ndbcluster;
+insert into t1 values ("Young","Foo");
+
+set @@optimizer_switch = 'engine_condition_pushdown=off';
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+
+# make sure optimizer does not do some crazy shortcut
+insert into t1 values ("aaa", "aaa");
+insert into t1 values ("bbb", "bbb");
+insert into t1 values ("ccc", "ccc");
+insert into t1 values ("ddd", "ddd");
+
+set @@optimizer_switch = 'engine_condition_pushdown=off';
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+
+# bug#29390 (scan filter is too large, discarded)
+# bug#34107 (previous limit was too large for TUP)
+
+drop table t1;
+
+# bug#35185  SELECT LIKE gives wrong results when ndbcluster engine is used
+ 
+CREATE TABLE NodeAlias (
+id int(10) unsigned NOT NULL AUTO_INCREMENT,
+nodeId int(10) unsigned NOT NULL,
+displayName varchar(45) DEFAULT NULL,
+aliasKey varchar(45) DEFAULT NULL,
+objectVersion int(10) unsigned NOT NULL DEFAULT '0',
+changed timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY (id),
+KEY NodeAlias_identifies_1_Node (nodeId),
+KEY NodeAlias_KeyIndex (aliasKey)
+) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into NodeAlias VALUES(null, 2 , '49', '49',  0,'2008-03-07 14:54:59');
+insert into NodeAlias VALUES(null, 3 , '49' , '49' , 0 , '2008-03-07 14:55:24');
+insert into NodeAlias VALUES(null, 4 , '49' , '49' , 0 , '2008-03-07 14:55:51');
+insert into NodeAlias VALUES(null, 5 , '150' , '150' , 0 , '2008-03-10 10:48:30');
+insert into NodeAlias VALUES(null, 6 , '154' , '154' , 0 , '2008-03-10 10:48:43');
+insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57');
+insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
+12:22:26');
+
+# Replace mixedcase tablename to lowercase for portability
+--replace_result NodeAlias nodealias
+--replace_column 10 # 11 #
+explain select * from NodeAlias where (aliasKey LIKE '491803%'); 
+select * from NodeAlias where (aliasKey LIKE '491803%') order by id; 
+
+# Replace mixedcase tablename to lowercase for portability
+--replace_result NodeAlias nodealias
+--replace_column 10 # 11 #
+explain select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220'); 
+select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id; 
+
+drop table NodeAlias;
+
+create table t1 (a int, b int, c int, d int, primary key using hash(a))
+    engine=ndbcluster;
+
+insert into t1 values (10,1,100,0+0x1111);
+insert into t1 values (20,2,200,0+0x2222);
+insert into t1 values (30,3,300,0+0x3333);
+insert into t1 values (40,4,400,0+0x4444);
+insert into t1 values (50,5,500,0+0x5555);
+
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+select a,b,d from t1
+    where b in (0,1,2,5)
+    order by b;
+
+--echo -- big filter just below limit
+--disable_query_log
+select a,b,d from t1
+    where b in (
+0,1,2,5,0,1,2,5,0,1,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1)
+    order by b;
+--enable_query_log
+
+--echo -- big filter just above limit
+--disable_query_log
+select a,b,d from t1
+    where b in (
+0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2)
+    order by b;
+--enable_query_log
+
+
+# Bug 35413, NdbInterpretedCode buffer extension problem
+drop table t1;
+
+create table t1 (a int primary key, b varchar(5000) character set latin1)
+engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t1 values (0, 'I just cant beg you, any-more');
+select * from t1 where b="value";
+
+# Bug 35393, Sending irrelevant data for var length comparison
+drop table t1;
+
+create table t1 (a int primary key, b varchar(5000) character set latin1) engine=ndb;
+insert into t1 values(0, 'Edinburgh'),(1, 'Glasgow'),(2,'Aberdeen');
+select * from t1 where b in ('0', '1', '2','3','4','5','6','7','8','9',
+'10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', 'Aberdeen');
+
+show warnings;
+
+# Test large SCANTABREQ
+create table balerno (
+  a int primary key,
+  b varchar(2000),
+  c varchar(2000)
+) engine=ndb character set latin1;
+
+alter table balerno add index (b);
+
+show warnings;
+
+insert into balerno values (1, repeat('BA', 1000), repeat('CA', 1000));
+insert into balerno values (2, repeat('BB', 1000), repeat('CB', 1000));
+insert into balerno values (3, repeat('BC', 1000), repeat('CC', 1000));
+insert into balerno values (4, repeat('BD', 1000), repeat('CD', 1000));
+insert into balerno values (5, repeat('BE', 1000), repeat('CE', 1000));
+
+# Large query with potential to generate large ATTRINFO from 
+# ScanFilter and large KEYINFO from index bounds with matching
+# condition at end of candidates.
+#
+# Use bounds + ScanFilter to select
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+select a from balerno where b in (
+  repeat('10', 1000),
+  repeat('11', 1000),
+  repeat('12', 1000),
+  repeat('13', 1000),
+  repeat('14', 1000),
+  repeat('15', 1000),
+  repeat('16', 1000),
+  repeat('17', 1000),
+  repeat('18', 1000),
+  repeat('19', 1000),
+  repeat('20', 1000),
+  repeat('21', 1000),
+  repeat('22', 1000),
+  repeat('23', 1000),
+  repeat('24', 1000),
+  repeat('25', 1000),
+  repeat('26', 1000),
+  repeat('27', 1000),
+  repeat('28', 1000),
+  repeat('29', 1000),
+  repeat('30', 1000),
+  repeat('31', 1000),
+  repeat('32', 1000),
+  repeat('33', 1000),
+  repeat('34', 1000),
+  repeat('35', 1000),
+  repeat('36', 1000),
+  repeat('37', 1000),
+  repeat('38', 1000),
+  repeat('BA', 1000));
+
+show warnings;
+
+# Just use ScanFilter to select
+
+select a from balerno ignore index(b) where b in (
+  repeat('10', 1000),
+  repeat('11', 1000),
+  repeat('12', 1000),
+  repeat('13', 1000),
+  repeat('14', 1000),
+  repeat('15', 1000),
+  repeat('16', 1000),
+  repeat('17', 1000),
+  repeat('18', 1000),
+  repeat('19', 1000),
+  repeat('20', 1000),
+  repeat('21', 1000),
+  repeat('22', 1000),
+  repeat('23', 1000),
+  repeat('24', 1000),
+  repeat('25', 1000),
+  repeat('26', 1000),
+  repeat('27', 1000),
+  repeat('28', 1000),
+  repeat('29', 1000),
+  repeat('30', 1000),
+  repeat('31', 1000),
+  repeat('32', 1000),
+  repeat('33', 1000),
+  repeat('34', 1000),
+  repeat('35', 1000),
+  repeat('36', 1000),
+  repeat('37', 1000),
+  repeat('38', 1000),
+  repeat('BA', 1000));
+
+show warnings;
+
+set @@optimizer_switch='engine_condition_pushdown=off';
+
+# Just use Index bounds to select
+select a from balerno where b in (
+  repeat('10', 1000),
+  repeat('11', 1000),
+  repeat('12', 1000),
+  repeat('13', 1000),
+  repeat('14', 1000),
+  repeat('15', 1000),
+  repeat('16', 1000),
+  repeat('17', 1000),
+  repeat('18', 1000),
+  repeat('19', 1000),
+  repeat('20', 1000),
+  repeat('21', 1000),
+  repeat('22', 1000),
+  repeat('23', 1000),
+  repeat('24', 1000),
+  repeat('25', 1000),
+  repeat('26', 1000),
+  repeat('27', 1000),
+  repeat('28', 1000),
+  repeat('29', 1000),
+  repeat('30', 1000),
+  repeat('31', 1000),
+  repeat('32', 1000),
+  repeat('33', 1000),
+  repeat('34', 1000),
+  repeat('35', 1000),
+  repeat('36', 1000),
+  repeat('37', 1000),
+  repeat('38', 1000),
+  repeat('BA', 1000));
+
+show warnings;
+
+drop table balerno;
+
+# bug#49459 Incorrect handling of too long string in condition pushdown
+create table t (pk int primary key, x varchar(1)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t values (0,"a");
+set @@optimizer_switch='engine_condition_pushdown=off';
+select * from t where x <> "aa";
+select * from t where "aa" <> x;
+select * from t where x between "" and "bb";
+select * from t where x not between "" and "bb";
+select * from t where x in ("","aa","b");
+select * from t where x not in ("","aa","b");
+select * from t where x like "aa?";
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
+explain select * from t where x <> "aa";
+select * from t where x <> "aa";
+--replace_column 10 # 11 #
+explain select * from t where "aa" <> x;
+select * from t where "aa" <> x;
+--replace_column 10 # 11 #
+explain select * from t where x between "" and "bb";
+select * from t where x between "" and "bb";
+--replace_column 10 # 11 #
+explain select * from t where x not between "" and "bb";
+select * from t where x not between "" and "bb";
+--replace_column 10 # 11 #
+explain select * from t where x in ("","aa","b");
+select * from t where x in ("","aa","b");
+--replace_column 10 # 11 #
+explain select * from t where x not in ("","aa","b");
+select * from t where x not in ("","aa","b");
+--replace_column 10 # 11 #
+explain select * from t where x like "aa?";
+select * from t where x like "aa?";
+--replace_column 10 # 11 #
+explain select * from t where x not like "aa?";
+select * from t where x not like "aa?";
+select * from t where x like "%a%";
+select * from t where x not like "%b%";
+select * from t where x like replace(concat("%", "b%"),"b","a");
+select * from t where x not like replace(concat("%", "a%"),"a","b");
+select * from t where x like concat("%", replace("b%","b","a"));
+select * from t where x not like concat("%", replace("a%","a","b"));
+drop table t;
+
+# Bug#57735 BETWEEN in pushed condition cause garbage to be read in ::unpack_record() 
+create table t (pk int primary key, x int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
+explain select * from t where 3 between 1+1 and x order by pk; 
+select * from t where 3 between 1+1 and x order by pk; 
+--replace_column 10 # 11 #
+explain select * from t where 3 between -1 and x order by pk; 
+select * from t where 3 between -1 and x order by pk; 
+drop table t;
+
+# Bug#53360 No result for requests using LIKE condition on ENUM fields
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+create table t (x enum ('yes','yep','no')) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t values ('yes'),('yep'),('no');
+--replace_column 10 # 11 #
+explain select * from t where x like 'yes' order by x;
+select * from t where x like 'yes' order by x;
+--replace_column 10 # 11 #
+explain select * from t where x like 'ye%' order by x;
+select * from t where x like 'ye%' order by x;
+--replace_column 10 # 11 #
+explain select * from t where x not like 'ye%' order by x;
+select * from t where x not like 'ye%' order by x;
+drop table t;
+
+# Bug#58553 Queries with pushed conditions causes 'explain' to crash mysqld
+create table tx (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+--replace_column 10 # 11 #
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+
+--replace_column 10 # 11 #
+explain
+select straight_join *
+from tx
+ join tx as t2 on t2.a = tx.a and t2.b = tx.b
+ join tx as t3 on t3.a = tx.c and t3.b = tx.d
+ join tx as t4 on t4.a = t3.b and t4.b = t2.c;
+
+--replace_column 10 # 11 #
+explain
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+
+--replace_column 10 # 11 #
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+
+--replace_column 10 # 11 #
+explain
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+
+drop table tx;
+
+# Bug#58134: Incorrectly condition pushdown inside subquery to NDB engine
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+create table t (pk int, i int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t values (1,3), (3,6), (6,9), (9,1);
+create table subq (pk int, i int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into subq values (1,3), (3,6), (6,9), (9,1);
+
+# 'Explain extended' to verify that only 'subq.i=3' is pushed
+--replace_column 10 # 11 #
+explain 
+select * from t where exists
+  (select * from t as subq where subq.i=3 and t.i=3);
+--replace_column 10 # 11 #
+explain 
+  select * from t where exists
+    (select * from subq where subq.i=3 and t.i=3);
+
+--sorted_result
+select * from t where exists
+  (select * from t as subq where subq.i=3 and t.i=3);
+--sorted_result
+select * from t where exists
+  (select * from subq where subq.i=3 and t.i=3);
+
+drop table t,subq;
+
+
+
+# Bug#58791 Incorrect result as Cluster may fail to reject an unpushable condition
+
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+insert into t values (1,0), (2,0), (3,0), (4,0);
+
+set @@optimizer_switch='engine_condition_pushdown=on';
+
+# Multiple instances of same table (t as table<n>, ) confused 
+# ha_ndbcluster::cond_push() which accepted
+# '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
+# for 'table2'
+#
+
+--sorted_result
+select table1.pk1, table2.pk1, table1.pk2, table2.pk2
+ from t as table1, t as table2
+ where table2.pk1 in (0,3) and
+   (table1.pk1 = 7 or table2.pk1 = 3);
+
+drop table t;
+
+# Bug#11765142 58073: CONCAT AND OR GIVE INCORRECT QUERY RESULTS
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+
+
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+
+ select * from mytable where s like replace(concat("%Xext","%"),"X", "T") order by i;
+ select * from mytable where s not like replace(concat("%Text","%"),"T", "X") order by i;
+ select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
+ select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
+
+
+drop table mytable;
+
+# Bug #13400970   CRASH WITH ICP AND NULL FIELDS
+create table mytab(a char(20),b char(20),
+key a (a)) engine=ndbcluster default charset=latin1;
+insert into mytab values (null,null),(-1,1);
+select b from mytab where a like -1 having `b` like 1;
+
+drop table mytab;
+
+# Bug #13579318 LIKE SEARCH DOESN'T MATCH ANY ROWS ON A MULTI BYTE CHARSET COLUMN
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+
+insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
+--sorted_result
+select * from t where b like 'a%';
+--sorted_result
+select * from t where b not like 'a%';
+drop table t;
+
+# Bug #13604447 61064: SELECT QUERIES USING ESCAPE SYNTAX FAIL
+create table escapetest ( emailaddress varchar(255) default null, id int not
+null default '0') engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into escapetest values('test_data@test.org', 1);
+--replace_column 10 # 11 #
+explain select * from escapetest where emailaddress like "test_%";
+select * from escapetest where emailaddress like "test_%";
+--replace_column 10 # 11 #
+explain select * from escapetest where emailaddress like "test|_%" escape '|';
+select * from escapetest where emailaddress like "test|_%" escape '|';
+drop table escapetest;
+
+# Bug#15923467 LIKE FUNCTION NOT WORK.
+
+create table a(a varchar(7)) engine=ndb charset=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into a values ('abcdefg');
+
+select * from a;                        
+
+--replace_column 10 # 11 #
+explain select * from a where a like 'abcdefg%'; 
+
+select * from a where a like 'abcdefg%'; 
+
+drop table a;
+
+set @@session.optimizer_switch = @old_ecpd;
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # Bug#14106592  DEBUG BUILD CRASH IN NDB_SERIALIZE_COND()
+--echo #
+create table t1(a time) engine=ndbcluster;
+insert into t1 values ('00:00:00'),('01:01:01');
+select 1 from t1 where a >= NULL;
+drop table t1;
+
+--echo #
+--echo # BUG#14798022 "CHAR (0)" DATATYPE CAUSING ERROR 1296
+--echo # Verify there is no push down support for char(0)
+--echo # 
+create table t1(a int, b char(0)) engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+insert into t1 values(1,''), (2, NULL);
+--replace_column 10 # 11 #
+explain select * from t1 where b = '';
+select * from t1 where b = '';
+drop table t1;
+
+
+--echo #
+--echo # Bug#28610217 RESULT ROWS ARE MISSING WHEN ENUM COMPARISON PREDICATES ARE PUSHED
+--echo #
+--echo # Enum values should be compared by their textual values,
+--echo # not by their internal 'index' value.
+--echo # As the storage engine only know the index value of the
+--echo # enum values, we cant compare them by '>' and '<' in the SE.
+--echo #
+
+create table t1 (
+  options enum('one','two','three','four','five') not null
+) engine=ndb;
+insert into t1(options) values ('one'),('two'),('three'),('four'),('five');
+
+--echo Enum comparison by '<' / '>' should not be pushed
+--replace_column 10 # 11 # 
+explain select * from t1 where options between 'one' and 'three' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options >= 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options <= 'three' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options > 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options < 'three' order by options;
+
+select * from t1 where options between 'one' and 'three' order by options;
+select * from t1 where options >= 'one' order by options;
+select * from t1 where options <= 'three' order by options;
+select * from t1 where options > 'one' order by options;
+select * from t1 where options < 'three' order by options;
+
+
+--echo Equalities and IN-lists should be pushed
+--replace_column 10 # 11 # 
+explain select * from t1 where options = 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options <> 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options IN ('one','four','two','zero') order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options NOT IN ('one','four','two','zero') order by options;
+
+select * from t1 where options = 'one' order by options;
+select * from t1 where options <> 'one' order by options;
+select * from t1 where options IN ('one','four','two','zero') order by options;
+select * from t1 where options NOT IN ('one','four','two','zero') order by options;
+
+drop table t1;
+
+
+--echo #
+--echo # Bug#28643463 NULL VALUES NOT FILTERED OUT BY PUSHED CONDITIONS
+--echo #
+
+--disable_query_log
+
+create table t1
+(
+  b varchar(30)
+) engine = ndb ;
+
+insert into t1 values ('one');
+insert into t1 values ('two');
+insert into t1 values ('three');
+insert into t1 values ('four');
+insert into t1 values ('five');
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+
+let $prepare =
+  select @read_cnt:=variable_value
+  from performance_schema.global_status
+    where variable_name = 'Ndb_api_read_row_count';
+
+# Verify that number of rows in result is same as
+# number of rows returned by the ScanFilter.
+let $verify_row_count =
+  select
+    @count as result_rows,
+    (variable_value-@read_cnt) as filtered_rows
+  from performance_schema.global_status
+    where variable_name = 'Ndb_api_read_row_count';
+
+
+################################
+# The pass criteria for the queries below is that
+# only the count'ed rows are returned through the
+# NdbScanFilter.
+# Thus, the 'result_rows' and 'filtered_rows' should be
+# the same.
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '= 'five''
+select @count:=count(*) from t1 where b = 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<> 'five''
+select @count:=count(*) from t1 where b <> 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '< 'five''
+select @count:=count(*) from t1 where b < 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '> 'five''
+select @count:=count(*) from t1 where b > 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<= 'five''
+select @count:=count(*) from t1 where b <= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '>= 'five''
+select @count:=count(*) from t1 where b >= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'like 'five''
+select @count:=count(*) from t1 where b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not like 'five''
+select @count:=count(*) from t1 where b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> like 'five''
+select @count:=count(*) from t1 where not b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> not like 'five''
+select @count:=count(*) from t1 where not b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--echo #
+--echo # WL#14476 Introduce NdbScanFilter option for NULL-compare according to SQL semantics
+--echo #
+--echo # Test case for checking the pre-WL behaviour. Disable NULL semantics added
+--echo # by WL -> force old behaviour of still needing explicit NULL check.
+--echo #
+--echo # Test cases are the same as added for Bug#28643463 above.
+--echo #
+
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+if ($have_debug)
+{
+  SET DEBUG='+d,disable_sql_null_cmp';
+}
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '= 'five''
+select @count:=count(*) from t1 where b = 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<> 'five''
+select @count:=count(*) from t1 where b <> 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '< 'five''
+select @count:=count(*) from t1 where b < 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '> 'five''
+select @count:=count(*) from t1 where b > 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<= 'five''
+select @count:=count(*) from t1 where b <= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '>= 'five''
+select @count:=count(*) from t1 where b >= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'like 'five''
+select @count:=count(*) from t1 where b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not like 'five''
+select @count:=count(*) from t1 where b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> like 'five''
+select @count:=count(*) from t1 where not b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> not like 'five''
+select @count:=count(*) from t1 where not b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+if ($have_debug)
+{
+  SET DEBUG='-d,disable_sql_null_cmp';
+}
+
+--echo #
+--echo # Bug#29231709 NULL VALUES (still) NOT FILTERED OUT BY PUSHED CONDITIONS
+--echo #
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' ='
+select @count:=count(*) from t1 where 'five' = b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' <>'
+select @count:=count(*) from t1 where 'five' <> b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' >'
+select @count:=count(*) from t1 where 'five' > b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' <'
+select @count:=count(*) from t1 where 'five' < b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' >='
+select @count:=count(*) from t1 where 'five' >= b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' <='
+select @count:=count(*) from t1 where 'five' <= b;
+--enable_result_log
+eval $verify_row_count;
+
+--echo #
+--echo # Bug#29232744 NULL VALUES NOT FILTERED OUT BY PUSHED
+--echo #              'NOT IN/BETWEEN' PREDICATES
+--echo #
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> between'
+select @count:=count(*) from t1 where b between 'g' and 'x';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> not between'
+select @count:=count(*) from t1 where b not between 'g' and 'x';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <field> between'
+select @count:=count(*) from t1 where not b between 'g' and 'x';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> in (...)'
+select @count:=count(*) from t1 where b in ('one', 'three', 'five');
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> not in (...)'
+select @count:=count(*) from t1 where b not in ('one', 'three', 'five');
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <field> in (...)'
+select @count:=count(*) from t1 where not b in ('one', 'three', 'five');
+--enable_result_log
+eval $verify_row_count;
+
+drop table t1;
+--enable_query_log
+
+--echo #
+--echo # Bug#29699347 ITEM_FLOAT C'TOR DOES NOT SET MAX_LENGTH MEMBER
+--echo #
+
+# A later, similar bug, materialized as a side effect of
+# 'type normalization' introduced by WL#11935.
+# Test case use same infrastructure as provided by test cases above.
+
+--disable_query_log
+
+create table t1
+(
+  real_float float NOT NULL,
+  real_double double NOT NULL
+) engine = ndb ;
+
+insert into t1 values
+ (1.11, 1.111),
+ (2.22, 2.222),
+ (3.33, 3.333),
+ (4.44, 4.444),
+ (5.55, 5.555),
+ (6.66, 6.666),
+ (7.77, 7.777),
+ (8.88, 8.888);
+
+--disable_result_log
+eval $prepare;
+--echo Creating baseline, returning all 8 rows
+select @count:=count(*) from t1 where real_float > 1;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing filtering of data type 'real', returning 6 rows.
+select @count:=count(*) from t1 where real_float > 3.14;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing filtering of data type 'double', returning 6 rows.
+select @count:=count(*) from t1 where real_double > 3.14;
+--enable_result_log
+eval $verify_row_count;
+
+drop table t1;
+
+--enable_query_log
+
+--echo #
+--echo # Bug#29054626 TRUNCATION OF OUT OF RANGE VALUES IN PUSHED CONDITION -> INCORRECT RESULT
+--echo #
+
+CREATE TABLE t1 (
+  ushort smallint unsigned NOT NULL,
+  date_field date
+) engine=ndb;
+
+insert into t1 values
+(1, '1901-01-01'),
+(2, '1902-02-02'),
+(3, '1903-03-03'),
+(4, '1904-04-04');
+
+# Set MAX_UINT for 'ushort'
+update t1 set ushort=65535;
+
+--echo # save_in_field() will truncate 999999 to MAX_UINT(65535)
+--echo # The truncated warning is ignored, and we effectively compared
+--echo # against 65535 below.
+
+# '<= 65535', should return all rows
+explain
+select * from t1 where ushort <= 999999;
+--sorted_result
+select * from t1 where ushort <= 999999;
+
+# '< 65535', should return all rows
+explain
+select * from t1 where ushort < 999999;
+--sorted_result
+select * from t1 where ushort < 999999;
+
+# '>= 65535', no rows should be returned
+explain
+select * from t1 where ushort >= 999999;
+--sorted_result
+select * from t1 where ushort >= 999999;
+
+# '= 65535', no rows should be returned
+explain
+select * from t1 where ushort = 999999;
+--sorted_result
+select * from t1 where ushort = 999999;
+
+
+--echo # Similar for other data types. Range for Date is '1000-01-01' to '9999-12-31'.
+--echo # Seems to be unpredictable which value is actually stored for an
+--echo # out of range value. Anyway the result was not as expected.
+--echo # This was made obsolete when we started rejecting invalid dates
+
+set @@optimizer_switch = 'engine_condition_pushdown=off';
+
+--error ER_WRONG_VALUE
+explain
+select * from t1 where date_field < '9999-99-99';
+
+--error ER_WRONG_VALUE
+select * from t1 where date_field < '9999-99-99';
+
+--error ER_WRONG_VALUE
+explain
+select * from t1 where date_field > '9999-99-99';
+--error ER_WRONG_VALUE
+select * from t1 where date_field > '9999-99-99';
+
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+--error ER_WRONG_VALUE
+explain
+select * from t1 where date_field < '9999-99-99';
+--error ER_WRONG_VALUE
+select * from t1 where date_field < '9999-99-99';
+
+--error ER_WRONG_VALUE
+explain
+select * from t1 where date_field > '9999-99-99';
+--error ER_WRONG_VALUE
+select * from t1 where date_field > '9999-99-99';
+
+
+--echo #
+--echo # Bug#29058732 CONDITION PUSHDOWN INCORRECTLY REJECTED FOR TEMPORAL DATA TYPES
+--echo # Condition pushdown incorrectly depended on whether the date_field was
+--echo # specified before or after the string constant.
+--echo #
+explain
+select * from t1 where
+ '1999-01-01' >= date_field ;
+
+explain
+select * from t1 where
+ date_field <= '1999-01-01';
+
+explain
+select * from t1 where
+ date '1999-01-01' >= date_field ;
+
+explain
+select * from t1 where
+ date_field <= date '1999-01-01';
+
+drop table t1;
+
+
+--echo #########################################################
+--echo # WL#12686: Enable condition pushdown of field references
+--echo #   to previous tables in the query plan.
+--echo #########################################################
+
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+
+# Turn of BNL, as it would prevent condition pushdown
+# referring 'other' tables.
+set optimizer_switch='block_nested_loop=off';
+
+# We dont want to see the warning info explaining why
+# each query below is not join-pushed (No keys in t1)
+--disable_warnings
+
+##############
+# Comparing against column values from previous tables(t1)
+# should now be supported.
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.d = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c and t2.d = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c or t2.d = t1.d;
+
+############
+# Multiple 'other' tables may be referred.
+# (Only one 'other' table from each 'term' though)
+explain
+select * from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.c and t3.d = t1.c;
+
+explain
+select * from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.c or t3.d = t1.c;
+
+#######
+# It is still a requirement that each predicate term has to refer
+# a column from the table being pushed to:
+
+# Pushed as 't2' is referred in both or'ed terms:
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.d = t2.d);
+
+# Not used to be pushed as 't2' was not referred from 't1.d = 1'
+# WL#12956: Will now identify 't1.d = 1' as something we can pre-evaluate
+#           to true/false when generating scan filter for t2 -> push it
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.d = 1);
+
+# Permutations of above in order to test different parsing order
+# of 'value' vs 'field' (Dont push)
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or 1 = t1.d);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t1.d = 1 or 1 = t2.d);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (1 = t1.d or t2.d = 1);
+
+########
+# 't1.c = t1.b' not used to be pushed as t2 not referenced in term
+# WL#12956: Will now identify 't1.c = t1.b' as something we can pre-evaluate
+#           to true/false when generating scan filter for t2 -> push it
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.c = t1.b);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = t1.d or t1.c = t1.b);
+
+#######
+# There should be only a *single* reference to the table being pushed
+# to(t2) from each predicate term:
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = t2.c);
+
+#####
+# Testing between.
+
+## Both below pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on (t1.a between t2.a and t2.b);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.a between t1.a and t1.b);
+
+# Not pushed, as the rewritten term 't2.a <= t2.b' is rejected.
+# Note, that we could have pushed the first rewritten term 't2.a >= t1.a'.
+# However, entire between predicate is handled as a single unit.
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.a between t1.a and t2.b);
+
+# Check correct handling of field having a NULL-value in
+# comparison operations with another field:
+# These should all result in an UNKNOWN boolean value, which
+# is a 'not TRUE' result for the predicate.
+delete from t1;
+insert into t1 values (1,1,1,1), (2, 2, NULL, NULL);
+
+explain
+ select *
+ from t1 straight_join t1 as t2
+ on t2.d = t1.d;
+
+--sorted_result
+select *
+ from t1 straight_join t1 as t2
+ on t2.d = t1.d;
+
+--sorted_result
+select *
+ from t1 straight_join t1 as t2
+ on t2.d = t1.d or t2.a = t1.a;
+
+--sorted_result
+select *
+ from t1 straight_join t1 as t2
+ on t2.a = t1.a or t2.d = t1.d;
+
+--sorted_result
+select *
+  from t1 straight_join t1 as t2
+  on t2.d <> t1.d;
+
+--sorted_result
+select *
+  from t1 straight_join t1 as t2
+  on t2.d < t1.d;
+
+drop table t1;
+
+
+create table t1(a int, b char(10), c char(20))
+  engine=ndbcluster;
+
+insert into t1 values
+ (1,'1','1'),  (2,'2','2'),
+ (3,'1%','0123456789abcdef'), (4,null,null), (null,'5','555555555555555'),
+ (6,'x','x'),  (7,'y','y'),
+ (8, '0123456789', '01234567890123456789');
+
+# Comparing identical types -> pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.b;
+
+#Types below does not match on type or length -> dont push
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.c;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.b;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c;
+
+###########
+# Test: Length of Item value (t1) has to be <= length of Field. (t2)
+# Length of 'b' is less than 'c', so below will not be pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.c;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.c = t2.b;
+
+# Length of 'c' is greater than 'b' -> pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.b;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.b = t2.c;
+
+
+###########
+# Test a varchar Field compared against char Field.
+alter table t1 add column d varchar(20);
+update t1 set d = c;
+
+# Test: Used to require excact type match, couldn't compare char - varchar.
+# WL#12956: Compatible types from previous tables (t1) are converted when their
+#           Values are extracted when generating the scan filters
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
+
+# WL#12956: Added test:
+#           Length of the 'to be converted' char has to be <= length of Field. (t2)
+#           Will not be pushed as 'varchar(30) is too large.
+alter table t1 add column d varchar(30);
+update t1 set d = c;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
+
+# Shorter varchar is compatible, and will be pushed
+alter table t1 add column d varchar(10);
+update t1 set d = substring(c,1,10);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
+
+###########
+# Test: There used to be a requirement that when comparing with Fields from 'other' tables,
+#       their collations had to match
+#       (Other char columns created with the default utf8mb4 collation)
+# WL#12956 Lifted this requirement as t1 Field values are now converted to
+#          the 'to be compared' collations when values are extracted when filters
+#          are generated.
+alter table t1 add column d char(20) character set latin1 collate latin1_swedish_ci;
+
+update t1 set d = c;
+
+#Different collations -> 'convert' and push
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+drop table t1;
+
+--enable_warnings
+set optimizer_switch='block_nested_loop=default';
+
+
+#########################################
+## Test condition pushdown with nested AND/OR conditions, where part
+## of the condition can be pushed, and other not.
+## Inspired by Query 19, as specified in the DBT3 / TPC-H test suite.
+
+--echo #
+--echo # Bug#29296615 FAILS TO DO PARTIAL PUSH OF PREDICATES INSIDE
+--echo #              AN OR'ED CONDITION
+--echo #
+
+create table t1 (
+  a3 int,
+  b3 int,
+  c3 int,
+  d3 int)
+engine = ndb;
+
+insert into t1 values (0x1f, 0x2f, 1,    0x1f);
+insert into t1 values (0x2f, 0x3f, 2,    0x2f);
+insert into t1 values (0x3f, 0x1f, 3,    0x3f);
+insert into t1 values (0x40, 0,    null, null);
+insert into t1 values (0x41, 0,    null, null);
+insert into t1 values (0x42, 0,    4,    null);
+insert into t1 values (0x43, 0,    null, 0x43);
+
+explain select * from t1 where c3 > 1;
+explain select * from t1 where c3+1 > 1;
+
+explain select * from t1 where c3 > 1   or c3 < 10;
+explain select * from t1 where c3+1 > 1 or c3 < 10;
+explain select * from t1 where c3 > 1   or c3+1 < 10;
+explain select * from t1 where c3+1 > 1 or c3+1 < 10;
+
+explain select * from t1 where (c3 > 1   or c3 < 10) and d3 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3 < 10) and d3 >= 0;
+explain select * from t1 where (c3 > 1   or c3+1 < 10) and d3 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3+1 < 10) and d3 >= 0;
+
+explain select * from t1 where (c3 > 1   or c3 < 10) and d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3 < 10) and d3+1 >= 0;
+explain select * from t1 where (c3 > 1   or c3+1 < 10) and d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3+1 < 10) and d3+1 >= 0;
+
+explain select * from t1 where d3 >= 0 and (c3 > 1   or c3 < 10);
+explain select * from t1 where d3 >= 0 and (c3+1 > 1 or c3 < 10);
+explain select * from t1 where d3 >= 0 and (c3 > 1   or c3+1 < 10);
+explain select * from t1 where d3 >= 0 and (c3+1 > 1 or c3+1 < 10);
+
+explain select * from t1 where d3+1 >= 0 and (c3 > 1   or c3 < 10);
+explain select * from t1 where d3+1 >= 0 and (c3+1 > 1 or c3 < 10);
+explain select * from t1 where d3+1 >= 0 and (c3 > 1   or c3+1 < 10);
+explain select * from t1 where d3+1 >= 0 and (c3+1 > 1 or c3+1 < 10);
+
+################
+
+explain select * from t1 where c3 > 1   and c3 < 10;
+explain select * from t1 where c3+1 > 1 and c3 < 10;
+explain select * from t1 where c3 > 1   and c3+1 < 10;
+explain select * from t1 where c3+1 > 1 and c3+1 < 10;
+
+explain select * from t1 where (c3 > 1   and c3 < 10) or d3 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3 < 10) or d3 >= 0;
+explain select * from t1 where (c3 > 1   and c3+1 < 10) or d3 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3+1 < 10) or d3 >= 0;
+
+explain select * from t1 where (c3 > 1   and c3 < 10) or d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3 < 10) or d3+1 >= 0;
+explain select * from t1 where (c3 > 1   and c3+1 < 10) or d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3+1 < 10) or d3+1 >= 0;
+
+explain select * from t1 where d3 >= 0 or (c3 > 1   and c3 < 10);
+explain select * from t1 where d3 >= 0 or (c3+1 > 1 and c3 < 10);
+explain select * from t1 where d3 >= 0 or (c3 > 1   and c3+1 < 10);
+explain select * from t1 where d3 >= 0 or (c3+1 > 1 and c3+1 < 10);
+
+explain select * from t1 where d3+1 >= 0 or (c3 > 1   and c3 < 10);
+explain select * from t1 where d3+1 >= 0 or (c3+1 > 1 and c3 < 10);
+explain select * from t1 where d3+1 >= 0 or (c3 > 1   and c3+1 < 10);
+explain select * from t1 where d3+1 >= 0 or (c3+1 > 1 and c3+1 < 10);
+
+##############################################
+## Query similar to TPC-H, Query 19:
+##
+## The expectations here is that predicate terms from the
+## inner AND conditions should be extracted and new pushable
+## OR-AND conditions created for both t1 and t2, such that:
+##
+## 1) The common join condition '2.a3 = t1.a3' is extracted,
+##    and eliminated, as it is redundant due to the REF access
+##    using index ix1.
+##
+## 2) The predicate terms on 't1.b3 = ... and t1.c3 in ..'
+##    are extracted and OR'ed as a pushed condition for t1.
+##
+## 3) The predicate terms on 't2.b3 between.. and t2.c3 > ...'
+##    are extracted and OR'ed as a pushed condition for t2.
+##
+## 4) As only parts of the full OR condition was pushed,
+##    it should remain as a condition which the server side has
+##    to evaluate. ('Explain query' still shows 'Using where')
+
+create index ix1 on t1(a3);
+
+explain select * from t1 straight_join t1 as t2
+where
+  (
+    t2.a3 = t1.a3
+    and t1.b3 = 1
+    and t1.c3 in (1,2,3)
+    and t2.b3 between 1 and 5
+    and t2.c3 > 1
+  )
+  or
+  (
+    t2.a3 = t1.a3
+    and t1.b3 = 2
+    and t1.c3 in (10,20,30)
+    and t2.b3 between 1 and 10
+    and t2.c3 > 2
+  )
+  or
+  (
+    t2.a3 = t1.a3
+    and t1.b3 = 3
+    and t1.c3 in (100,200,300)
+    and t2.b3 between 1 and 15
+    and t2.c3 > 3
+  )
+;
+
+drop table t1;
+
+
+--echo #
+--echo # Bug#29460314 NDB: INCORRECT JOIN RESULT WHEN EQ_REF IS
+--echo # COMBINED WITH PUSHED CONDITION
+--echo #
+
+create table t1(a int not null, b int not null) engine=ndb;
+insert into t1 values (1,0), (1,1), (1,2);
+
+create table t2(pk int primary key, x int not null, y int not null) engine=ndb;
+insert into t2 values (0,0,0), (1,1,1), (2,2,2);
+
+create table t3(d int primary key) engine=ndb;
+insert into t3 values (0), (1), (2);
+
+# Note, we use an arithmetic expression in the join condition
+# 't2.pk = t1.a+0' as a convenient way of preventing t2 being
+# join-pushed as a child of t1. If t2 becomes a pushed child,
+# it would prevent the condition 't2.x = t1.b' to be pushed
+#
+--echo Explain should verify that the condition 't2.x = t1.b' is pushed
+explain
+select straight_join * from t1
+  join t2 on t2.pk = t1.a+0 and t2.x = t1.b
+  join t3 on t3.d = t2.y;
+
+select straight_join * from t1
+  join t2 on t2.pk = t1.a+0 and t2.x = t1.b
+  join t3 on t3.d = t2.y;
+
+drop table t1,t2,t3;
+
+
+--echo #
+--echo # Bug#29590017 ADD EXPLAIN OF PUSHED JOINS AND PUSHED CONDITIONS TO 'FORMAT=TREE'
+--echo #
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  primary key(a,b)
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+#test of TableScanIterator
+explain format=tree
+select * from t1 where b > 2;
+
+#test of DynamicRangeIterator
+explain format=tree
+select * from t1 where a > 2;
+
+#test of DynamicRangeIterator + Sort
+explain format=tree
+select * from t1 where a > 2 order by b;
+
+#test of RefIterator
+explain format=tree
+select * from t1 where a = 2 and c > 0;
+
+#test of RefIterator + Sort
+explain format=tree
+select * from t1 where a = 2 and c > 0 order by d;
+
+#test of IndexScanIterator<reverse=false>
+explain format=tree
+select * from t1 where b > 0 order by a;
+
+#test of IndexScanIterator<reverse=true>
+explain format=tree
+select * from t1 where b > 0 order by a desc;
+
+#test of PushedJoinRefIterator
+explain format=tree
+select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
+
+drop table t1;
+
+--echo #
+--echo # Bug#29595346 INCORRECT RESULT FROM SPECIFYING ORDER BY ON
+--echo #              A QUERY WITH PUSHED CONDITIONS
+--echo #
+
+CREATE TABLE t1 (
+  col_int_unique INT DEFAULT NULL,
+  col_varchar_256 VARCHAR(256) DEFAULT NULL,
+  UNIQUE KEY ix1 (col_int_unique)
+) ENGINE=ndbcluster;
+
+INSERT INTO t1
+  VALUES (8,'wrong'), (27, 'got'), (12,'it'), (6,'right');
+
+SELECT t1.col_varchar_256 AS field1
+  FROM t1 WHERE t1.col_int_unique <> 8
+  ORDER BY field1;
+
+# Check that there should be no 'Filter' Iterator as the condition was pushed.
+EXPLAIN FORMAT=tree
+SELECT t1.col_varchar_256 AS field1
+  FROM t1 WHERE t1.col_int_unique <> 8
+  ORDER BY field1;
+
+DROP TABLE t1;
+
+
+
+--echo #
+--echo # WL#13120 & WL#13121
+--echo #
+
+--disable_query_log
+
+# Create table with:
+# - Two columns of each datatype, used to test that compare
+#   of column with identical definitions are pushed, else not.
+# - Some additional columns for data types where length, spec
+#   and precision may be specified. These should not be
+#   pushed when compared against the other similar columns.
+
+CREATE TABLE t1 (
+  k int unsigned NOT NULL,
+
+  string1 char(10),
+  vstring1 varchar(10),
+  bin1 binary(2),
+  vbin1 varbinary(7),	
+  tiny1 tinyint,
+  short1 smallint,
+  medium1 mediumint,
+  long_int1 int,
+  longlong1 bigint,
+  real_float1 float,
+  real_double1 double,
+  real_decimal1 decimal(16,4),
+  utiny1 tinyint unsigned,
+  ushort1 smallint unsigned,
+  umedium1 mediumint unsigned,
+  ulong1 int unsigned,
+  ulonglong1 bigint unsigned,
+  bits1 bit(3),
+  options1 enum('zero','one','two','three','four'),
+  flags1 set('zero','one','two','three','four'),
+  date_field1 date,
+  year_field1 year,
+  time_field1 time,
+  date_time1 datetime,
+  time_stamp1 timestamp,
+
+  # Set of column with data types identical to the those above
+  string2 char(10),
+  vstring2 varchar(10),
+  bin2 binary(2),
+  vbin2 varbinary(7),	
+  tiny2 tinyint,
+  short2 smallint,
+  medium2 mediumint,
+  long_int2 int,
+  longlong2 bigint,
+  real_float2 float,
+  real_double2 double,
+  real_decimal2 decimal(16,4),
+  utiny2 tinyint unsigned,
+  ushort2 smallint unsigned,
+  umedium2 mediumint unsigned,
+  ulong2 int unsigned,
+  ulonglong2 bigint unsigned,
+  bits2 bit(6),
+  options2 enum('zero','one','two','three','four'),
+  flags2 set('zero','one','two','three','four'),
+  date_field2 date,
+  year_field2 year,
+  time_field2 time,
+  date_time2 datetime,
+  time_stamp2 timestamp,
+
+  #Also add some special variants:
+
+  string3 char(12),
+  string4 char(10) collate latin1_swedish_ci,
+  vstring3 varchar(12),
+  bin3 binary(4),
+  vbin3 varbinary(10),
+
+  real_decimal3 decimal(8,2),
+  bits3 bit(22),
+  options3 enum('zero','one','foo','two','three','four'),
+  flags3 set('zero','one','foo','two','three','four'),
+  time_field3 time(2),
+  date_time3 datetime(2),
+  time_stamp3 timestamp(2)
+
+) ENGINE=ndb;
+
+
+# Test values selected such that when comparing columns there is
+# one column being equal to the col2 variant, and one '>' and one '<'
+INSERT INTO t1 VALUES
+(1,
+ "aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1,
+ b'001','one','one',
+ '1901-01-01','1901',
+ '01:01:01','1901-01-01 01:01:01','2001-01-01 01:01:01',
+
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02'),
+
+(2,
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+  "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02'),
+
+(3,
+ "cccc","cccc",0xCCCC,0xCCCC,-3,-3,-3,-3,-3,3.3,3.3,3.3,3,3,3,3,3,
+ b'011','three','one,two,three',
+ '1903-03-03','1903',
+ '03:03:03','1903-03-03 03:03:03','2003-03-03 03:03:03',
+
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02')
+;
+
+# Insert NULL valued columns in order to check correct comparison
+# of NULL values.
+INSERT INTO t1 VALUES
+(4,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ "bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+ b'010','two','one,two',
+ '1902-02-02','1902',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02',
+
+ "bbbb","bbbb","bbbb",0xBBBB,0xBBBB, 2.2, b'010','two','one,two',
+ '02:02:02','1902-02-02 02:02:02','2002-02-02 02:02:02');
+
+INSERT INTO t1 VALUES
+(5,
+ "dddd","dddd",0xDDDD,0xDDDD,-4,-4,-4,-4,-4,4.4,4.4,4.4,4,4,4,4,4,
+ b'100','four','one,two,three,four',
+ '1904-04-04','1904',
+'04:04:04','1904-04-04 04:04:04','2004-04-04 04:04:04',
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL);
+
+INSERT INTO t1 VALUES
+(6,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL, NULL, NULL, NULL,
+
+ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+ NULL, NULL);
+
+
+# Get the column name of one of the 25 different 'base' columns
+DELIMITER //;
+CREATE FUNCTION get_column(col int) RETURNS TEXT DETERMINISTIC
+BEGIN
+  RETURN ELT(col, 'string', 'vstring', 'bin', 'vbin', 'tiny', 'short', 'medium',
+                  'long_int', 'longlong', 'real_float', 'real_double', 'real_decimal',
+		  'utiny', 'ushort', 'umedium', 'ulong', 'ulonglong', 'bits', 'options',
+		  'flags', 'date_field', 'year_field', 'time_field', 'date_time', 'time_stamp');
+END //
+DELIMITER ;//
+
+
+# Construct a test query fetching the count(*) of rows qualifying the condition
+DELIMITER //;
+CREATE FUNCTION get_count_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
+BEGIN
+  SET @column1 = CONCAT(get_column(col1),"1");
+  SET @column2 = CONCAT(get_column(col2),"2");
+  RETURN CONCAT("SELECT count(*) INTO @res FROM t1 WHERE ", @column1, op, @column2);
+END //
+DELIMITER ;//
+
+
+# Execute the specified query, both with 'engine_condition_pushdown'
+# enabled and disabled, verify that both return the same result.
+# Fetch 'Ndb_api_read_row_count' from performance statistics
+# and use that to verify whether condition was pushed as expected.
+DELIMITER //;
+CREATE PROCEDURE test_query(IN query varchar(256), IN expect_filtered bool)
+BEGIN
+
+  SET @query = query;
+  #SELECT @query;
+
+  # Execute query with and without condition push down enabled.
+  # Count number of rows read from the NDB handler
+  SELECT variable_value into @read_cnt0
+  FROM performance_schema.global_status
+    WHERE variable_name = 'Ndb_api_read_row_count';
+
+  SET optimizer_switch = 'engine_condition_pushdown=off';
+  SET @res = 0;
+  PREPARE stmt FROM @query;
+  EXECUTE stmt;
+  SET @expected_res = @res;
+  DEALLOCATE PREPARE stmt;
+
+  SELECT variable_value into @read_cnt1
+  FROM performance_schema.global_status
+    WHERE variable_name = 'Ndb_api_read_row_count';
+  SET @read_cnt_no_filter = @read_cnt1-@read_cnt0;
+
+  SET optimizer_switch = 'engine_condition_pushdown=on';
+  SET @res = 0;
+  PREPARE stmt FROM @query;
+  EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
+  ##SELECT @res;
+
+  SELECT variable_value into @read_cnt2
+  FROM performance_schema.global_status
+    WHERE variable_name = 'Ndb_api_read_row_count';
+  SET @read_cnt_filtered = @read_cnt2-@read_cnt1;
+
+  ##SELECT @read_cnt_filtered, read_cnt_no_filter;
+
+  # Verify expected result:
+  IF (@res <> @expected_res) THEN
+    SELECT "Unexpected result:" AS Reason, @query, @res, @expected_res;
+  END IF;
+
+  # Verify expected filtering effect on number of rows read:
+  IF (expect_filtered=true AND @read_cnt_filtered >= @read_cnt_no_filter) THEN
+    SELECT "Failed to apply filters", @query, @read_cnt_filtered, @read_cnt_no_filter ;
+  END IF;
+
+  IF (expect_filtered=false AND @read_cnt_filtered <> @read_cnt_no_filter) THEN
+    SELECT "Unexpected filtering", @query, @read_cnt_filtered, @read_cnt_no_filter ;
+  END IF;
+END //
+DELIMITER ;//
+
+# Create and test a query combining the specified (compare) op
+# with  the different combinations of <col1>  op> <col2>
+# Set up the expectations whether the condition should be
+# pushed or not and call test_query() to verify outcome.
+DELIMITER //;
+CREATE PROCEDURE test_all(IN op varchar(4))
+BEGIN
+  SET @col1 = 1;
+  #Loop over all combinations of col1, col2
+  WHILE @col1 <= 25 DO
+    SET @col2 = 1;
+    WHILE @col2 <= 25 DO
+      SET @query = get_count_query(@col1,op,@col2);
+      #SELECT @query;
+
+      SET @expect_filtered = false;
+      IF (@col1 = @col2) THEN
+        # Expect filters when comparing identical columns
+	# ... with some exceptions though:
+        IF (@col1 = 18) THEN
+          # Column#18 is a bit columns, which is not not supported as a
+          # pushable type (yet)
+          SET @expect_filtered = false;
+        ELSEIF (@col1 = 19 AND OP IN ('>','>=','<','<=')) THEN
+	  # Column#19 is an enum column, which does not support '>' / '<' compare
+          SET @expect_filtered = false;
+	ELSE
+          SET @expect_filtered = true;
+	END IF;
+      END IF;
+
+      CALL test_query(@query,@expect_filtered);
+      SET @col2 = @col2+1;
+    END WHILE;
+    SET @col1 = @col1+1;
+  END WHILE;
+END //
+DELIMITER ;//
+
+--enable_query_log
+
+
+--echo Testing all combinations of pushing '<col1> <compare op> <col2>' conditions
+CALL test_all("=");
+CALL test_all("<>");
+CALL test_all("<");
+CALL test_all("<=");
+CALL test_all(">");
+CALL test_all(">=");
+
+--echo Test combinations using the 'variant' columns.
+--echo Even if the base type is the same for these conditions,
+--echo different precision, length, scale etc. should prevent pushing:
+
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+
+CALL test_query("SELECT k INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE flags1 = flags3",false);
+
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+
+
+--echo Test that <col1> like <col2> is not pushed, - even if types are comparable
+
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string1",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string1",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string2",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string2",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string3",false);
+CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string3",false);
+
+
+--disable_query_log
+DROP PROCEDURE test_all;
+DROP PROCEDURE test_query;
+DROP FUNCTION get_count_query;
+DROP FUNCTION get_column;
+
+DROP TABLE t1;
+
+--enable_query_log
+
+
+--echo #
+--echo # Bug#32924533 Conditions not pushed down to tables inside views and table-subqueries
+--echo #
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+create view v1(a,b,c,d) as
+  select a,b,c,d from t1;
+
+# The condition refering the view should be pushed down to t1
+# referred by the view as a pushed condition - NOT end up as
+# a server side FILTER on the full t1 table scan.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from v1
+  where v1.d < 5;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from v1
+  where v1.d < v1.c;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t1,v1
+  where v1.d < 5;
+
+# Similar query where the view is replaced with its equivalent table subquery:
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < 5;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < v1.c;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t1,
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < 5;
+
+drop view v1;
+drop table t1;
+
+
+--echo #########################################################
+--echo # WL#14388 Push condition referring fields from an
+--echo            SPJ ancestor table
+--echo #########################################################
+
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  primary key(a,b)
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+# Turn of BNL, as it would prevent condition pushdown
+# referring 'other' tables.
+set optimizer_switch='block_nested_loop=off';
+
+# Below query can not push t1 join t2 as there are no index on column 'd'.
+# t2 join t3 will be pushed. Thus, t1 is a 'const_expr_table' with regard to
+# the pushed join of 't2 join t3'
+# 1) Thus the predicate 't3.c >= t1.c' should be pushed as t1 is a 'const'
+# 2) In predicate 't3.c <= t2.c, t2 may be a param when WL#14388 is complete.
+#
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.a
+where t3.c >= t1.c and t3.c <= t2.c;
+
+drop table t1;

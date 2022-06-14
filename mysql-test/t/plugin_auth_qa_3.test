@@ -5,7 +5,6 @@
 # by this application and the application checks the values set the the plugin.
 --source include/have_plugin_server.inc
 
---source include/have_ssl.inc
 
 # Official builds include separate debug enabled plugins to be used by
 # the debug enabled server. But the non-debug *client* should not use them.

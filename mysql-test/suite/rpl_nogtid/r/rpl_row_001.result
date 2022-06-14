@@ -19,8 +19,12 @@ Aaron
 Ababa
 Ababa
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET PASSWORD FOR root@"localhost" = 'foo';
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SET PASSWORD FOR root@"localhost" = '';
 CREATE TABLE t3(n INT);
 INSERT INTO t3 VALUES(1),(2);
@@ -36,6 +40,8 @@ CREATE TABLE t1 (n INT) ENGINE=MYISAM;
 RESET MASTER;
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5000

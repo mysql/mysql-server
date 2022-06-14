@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,7 @@
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <stdlib.h>
 
 #define X_FREE(x) \
   {               \
@@ -41,11 +38,24 @@ extern "C" {
     (ptr) = 0;                                     \
   }
 
-void my_xdr_free(xdrproc_t proc, char *objp);
 void xcom_xdr_free(xdrproc_t f, char *p);
 
-#ifdef __cplusplus
+extern int oom_abort;
+
+static inline void *xcom_malloc(size_t size) {
+  void *retval = malloc(size);
+  if (retval == NULL) {
+    oom_abort = 1;
+  }
+  return retval;
 }
-#endif
+
+static inline void *xcom_calloc(size_t nmemb, size_t size) {
+  void *retval = calloc(nmemb, size);
+  if (retval == NULL) {
+    oom_abort = 1;
+  }
+  return retval;
+}
 
 #endif

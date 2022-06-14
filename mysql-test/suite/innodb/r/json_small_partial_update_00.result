@@ -2,7 +2,7 @@ CREATE TABLE t1(pkey int not null auto_increment, j json, primary key (pkey)) en
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `pkey` int NOT NULL AUTO_INCREMENT,
   `j` json DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC

@@ -1,0 +1,45 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#
+# bug#30209760 : ASSERTION FAILURE: SRV0START.CC:969:SUCCESS THREAD
+#
+#########
+# SETUP #
+#########
+# Create path for ibdata* & undo* files
+# create bootstrap file
+# Stop the MTR default DB server
+#########################################################################
+# INITIALIZE NEW SERVER
+#########################################################################
+# Taking backup of global manifest file for MySQL server
+# Server should be initialized successfully.
+#########################################################################
+# RESTART 2 : WITH KEYRING.
+innodb_undo_log_encrypt=ON.
+Crash server before purge thread could start.
+#########################################################################
+# Restore global manifest file for MySQL server from backup
+#########################################################################
+# RESTART 3 : WITH KEYRING.
+innodb_undo_log_encrypt=ON.
+Skip rotating default master key in master thread
+#########################################################################
+#########################################################################
+# RESTART 4 : WITH KEYRING.
+innodb_undo_log_encrypt=OFF.
+#########################################################################
+###########
+# CLEANUP #
+###########
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

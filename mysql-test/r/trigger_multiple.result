@@ -1,0 +1,503 @@
+#
+# WL#3253: multiple triggers per table
+#
+SET @binlog_format_saved = @@binlog_format;
+SET binlog_format='ROW';
+#
+# Test 1.
+# Check that the sequence of triggers for the same combination 
+# of event type/action type can be created for a table
+# and is fired consequently in the order of its creation
+# during statement execution.
+# In this test we check BEFORE triggers.
+# 
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+a	b
+1	1
+101	2
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Test 2.
+# Check that the sequence of triggers for the same combination 
+# of event type/action type can be created for a table
+# and is fired consequently in the order of its creation
+# during statement execution.
+# In this test we check AFTER triggers.
+# 
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TRIGGER tr1_bi AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bi AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+a	b
+1	1
+101	2
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Test 3.
+# Check that the sequences of triggers for the different event types
+# can be created for a table and are fired consequently
+# in the order of its creation during statement execution.
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+a	b
+1	1
+101	2
+UPDATE t1 SET a = 5;
+SELECT * FROM t2 ORDER BY b;
+a	b
+1	1
+101	2
+5	3
+305	4
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Test 4.
+# Check that every new created trigger has unique action_order value
+# started from 1 and NOT NULL value for creation timestamp.
+#
+CREATE TABLE t1 (a INT);
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	CREATED	ACTION_ORDER
+tr1_bi	2013-01-31 09:00:00.00	1
+tr2_bi	2013-01-31 09:00:01.00	2
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+#
+# Test 5.
+# Check that action_order attribute isn't shown 
+# in the output of SHOW TRIGGERS and SHOW CREATE TRIGGER
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE TRIGGER tr1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+tr1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+DROP TABLE t1;
+#
+# Test 6.
+# Check that action_order attribute is reused when trigger 
+# are recreated.
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+DROP TRIGGER tr1_bi;
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+DROP TABLE t1;
+#
+# Test 7.
+# Check that it is possible to create several triggers with
+# the same value for creation timestamp.
+#
+CREATE TABLE t1 (a INT);
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	CREATED	ACTION_ORDER
+tr1_bi	2013-01-31 09:00:01.00	1
+tr2_bi	2013-01-31 09:00:01.00	2
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+#
+# Test 8.
+# Check that SHOW CREATE TRIGGER outputs the CREATED attribute
+# and it is not NULL
+#
+CREATE TABLE t1 (a INT);
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SHOW CREATE TRIGGER tr1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+tr1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	2013-01-31 09:00:01.00
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+#
+# Test 9.
+# Check that SHOW TRIGGERS outputs the CREATED attribute
+# and it is not NULL.
+#
+CREATE TABLE t1 (a INT);
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:01.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	2013-01-31 09:00:01.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+#
+# Test 10.
+# Check that FOLLOWS clause is supported and works correctly.
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+tr2_bi	2
+tr3_bi	3
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+a	b
+101	1
+201	2
+301	3
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Test 11.
+# Check that PRECEDES clause is supported and works correctly.
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr3_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+tr2_bi	2
+tr3_bi	3
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+a	b
+101	1
+201	2
+301	3
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Test 12.
+# Check that the PRECEDES works properly for the 1st trigger in the chain.
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi INSERT INTO t2 (a) VALUES (NEW.a);
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr0_bi	1
+tr1_bi	2
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+a	b
+1	1
+101	2
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Test 13.
+# Check that error is reported if the FOLLOWS clause references to
+# non-existing trigger
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr0_bi SET @a:=2;
+ERROR HY000: Referenced trigger 'tr0_bi' for the given action time and event type does not exist.
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+tr3_bi	2
+DROP TABLE t1;
+#
+# Test 14.
+# Check that error is reported if the PRECEDES clause references to
+# non-existing trigger
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr0_bi SET @a:=2;
+ERROR HY000: Referenced trigger 'tr0_bi' for the given action time and event type does not exist.
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+tr3_bi	2
+DROP TABLE t1;
+#
+# Test 15.
+# Check that action_order value is independent for each type of event
+# (INSERT/UPDATE/DELETE)
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+tr1_bu	1
+tr2_bi	2
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr2_bi SET @a:=3;
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
+SELECT trigger_name, action_order FROM information_schema.triggers
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_NAME	ACTION_ORDER
+tr1_bi	1
+tr1_bu	1
+tr2_bi	2
+tr2_bu	2
+tr3_bi	3
+DROP TABLE t1;
+#
+# Test 16.
+# Check that the trigger in the clause FOLLOWS/PRECEDES can refences
+# only to the trigger for the same ACTION/TIMINMG
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
+ERROR HY000: Referenced trigger 'tr1_bi' for the given action time and event type does not exist.
+CREATE TRIGGER tr2_au AFTER UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
+ERROR HY000: Referenced trigger 'tr1_bi' for the given action time and event type does not exist.
+CREATE TRIGGER tr1_au AFTER UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
+ERROR HY000: Referenced trigger 'tr1_bu' for the given action time and event type does not exist.
+CREATE TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
+ERROR HY000: Referenced trigger 'tr1_bi' for the given action time and event type does not exist.
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+tr1_bu	UPDATE	t1	SET @a:=3	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+def	test	tr1_bu	UPDATE	def	test	t1	1	NULL	SET @a:=3	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Test 17. Check that table's triggers are dumped correctly.
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=1 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr2_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=2 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr1_bu` BEFORE UPDATE ON `t1` FOR EACH ROW SET @a:=3 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+DROP TABLE t1;
+#
+# Test 18. Check that table's triggers are dumped in right order
+#          taking into account the PRECEDES/FOLLOWS clauses.
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi SET @a:=0;
+CREATE TRIGGER tr1_1_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=0;
+# Expected order of triggers in the dump is: tr0_bi, tr1_bi, tr1_1_bi, tr2_i.
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr0_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=0 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=1 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr1_1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=0 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr2_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=2 */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+DROP TABLE t1;
+#
+# Test 19. Check that table's triggers are dumped correctly in xml.
+#
+CREATE TABLE t1 (a INT);
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+SET TIMESTAMP=DEFAULT;
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_data name="t1">
+	</table_data>
+	<triggers name="t1">
+		<trigger Trigger="tr1_bi" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci" Created="2013-01-31 09:00:00.00">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=1
+]]>
+		</trigger>
+		<trigger Trigger="tr2_bi" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci" Created="2013-01-31 09:00:00.00">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER `tr2_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=2
+]]>
+		</trigger>
+		<trigger Trigger="tr1_bu" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci" Created="2013-01-31 09:00:00.00">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bu` BEFORE UPDATE ON `t1` FOR EACH ROW SET @a:=3
+]]>
+		</trigger>
+	</triggers>
+</database>
+</mysqldump>
+DROP TABLE t1;
+SET binlog_format=@binlog_format_saved;
+# End of tests.
+#

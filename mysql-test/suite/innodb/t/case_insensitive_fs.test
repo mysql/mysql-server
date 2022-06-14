@@ -1,0 +1,92 @@
+--echo #
+--echo # Show that two locations in --innodb-directories that differ by only by case
+--echo # are recognized as the same on case insensitive file systems.
+--echo #
+
+--source include/have_case_insensitive_file_system.inc
+
+--disable_query_log
+LET $MYSQLD_DATADIR=`select @@datadir`;
+LET $MYSQLD_DATADIR_UC=../DATA;
+LET $KNOWN_DIR_LC=$MYSQL_TMP_DIR/known_dir;
+LET $KNOWN_DIR_UC=$MYSQL_TMP_DIR/KNOWN_DIR;
+LET $KNOWN_DIR_MC=$MYSQL_TMP_DIR/Known_Dir;
+LET $INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+--source include/shutdown_mysqld.inc
+
+--mkdir $KNOWN_DIR_MC
+--enable_query_log
+
+--echo ##########
+--echo # Restart with the data_home_dir the same as the datadir except for case.
+--echo # On case insensitive file systems they should be recognized as the same location.
+--echo ##########
+LET $restart_parameters = restart: --innodb-directories='$KNOWN_DIR_MC'  --innodb-data-home-dir=$MYSQLD_DATADIR_UC;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
+
+SET default_storage_engine=InnoDB;
+SHOW VARIABLES LIKE 'lower_case_file_system';
+
+--echo # Create a table in a known directory.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1(c1 INT) DATA DIRECTORY='$KNOWN_DIR_MC';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+--echo # Create a general tablespace in a known directory.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts1 ADD DATAFILE '$KNOWN_DIR_MC/ts1.ibd';
+
+--echo ##########
+--echo # Restart with two identical known directories except for Case.
+--echo # On case insensitive file systems they should be recognized as the same location.
+--echo ##########
+
+LET $restart_parameters = restart: --innodb-directories='$KNOWN_DIR_LC;$KNOWN_DIR_MC;$KNOWN_DIR_UC';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--echo # Show these tablespaces in information_schema.
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo # Create an inplicit tablespace using UPPER case for a MIXED case folder.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t2(c1 INT) DATA DIRECTORY='$KNOWN_DIR_UC';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+
+--echo # Create an inplicit tablespace using LOWER case for a MIXED case folder.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t3(c1 INT) DATA DIRECTORY='$KNOWN_DIR_LC';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t3;
+
+--echo # Create a general tablespace using UPPER case for a MIXED case folder.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts2 ADD DATAFILE '$KNOWN_DIR_UC/ts2.ibd';
+
+--echo # Create a general tablespace using LOWER case for a MIXED case folder.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts3 ADD DATAFILE '$KNOWN_DIR_LC/ts3.ibd';
+
+--echo # Show these tablespaces in information_schema.
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
+--rmdir $KNOWN_DIR_LC/test
+--rmdir $KNOWN_DIR_LC
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 
 #include "sql/trigger_creation_ctx.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <atomic>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
@@ -47,7 +47,7 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     const LEX_CSTRING &db_cl_name) {
   const CHARSET_INFO *client_cs;
   const CHARSET_INFO *connection_cl;
-  const CHARSET_INFO *db_cl = NULL;
+  const CHARSET_INFO *db_cl = nullptr;
 
   bool invalid_creation_ctx = false;
 
@@ -69,7 +69,7 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     invalid_creation_ctx = true;
   }
 
-  if (resolve_collation(db_cl_name.str, NULL, &db_cl)) {
+  if (resolve_collation(db_cl_name.str, nullptr, &db_cl)) {
     LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE, (const char *)db_name.str,
            (const char *)table_name.str, "database_collation",
            (const char *)db_cl_name.str);
@@ -89,9 +89,9 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     from the disk.
   */
 
-  if (db_cl == NULL && get_default_db_collation(thd, db_name.str, &db_cl)) {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
-    return NULL;
+  if (db_cl == nullptr && get_default_db_collation(thd, db_name.str, &db_cl)) {
+    assert(thd->is_error() || thd->killed);
+    return nullptr;
   }
 
   db_cl = db_cl ? db_cl : thd->collation();
@@ -99,3 +99,14 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
   return new (thd->mem_root)
       Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }
+
+Stored_program_creation_ctx *Trigger_creation_ctx::clone(MEM_ROOT *mem_root) {
+  return new (mem_root)
+      Trigger_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+}
+
+Object_creation_ctx *Trigger_creation_ctx::create_backup_ctx(THD *thd) const {
+  return new (thd->mem_root) Trigger_creation_ctx(thd);
+}
+
+void Trigger_creation_ctx::delete_backup_ctx() { destroy(this); }

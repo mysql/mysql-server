@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #define DBTUP_C
 #define DBTUP_INDEX_CPP
+#include <cstring>
 #include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
@@ -37,6 +38,17 @@
 
 #define JAM_FILE_ID 418
 
+#include <EventLogger.hpp>
+
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_INDEX_BUILD 1
+#endif
+
+#ifdef DEBUG_INDEX_BUILD
+#define DEB_INDEX_BUILD(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_INDEX_BUILD(arglist) do { } while (0)
+#endif
 
 // methods used by ordered index
 
@@ -49,7 +61,7 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
 {
   jamEntryDebug();
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pageId);
+  ndbrequire(c_page_pool.getPtr(pagePtr, pageId));
   lkey1 = pagePtr.p->frag_page_id;
   lkey2 = pageIndex;
 }
@@ -83,6 +95,7 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
     thrjam(jamBuf);
     return err;
   }
+  release_frag_mutex(fragPtrP, frag_page_id);
   c_allow_alloc_spare_page=false;
   pageId= key.m_page_no;
   pageOffset= key.m_page_idx;
@@ -197,18 +210,29 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
                           bool xfrmFlag,
                           Uint32 tupVersion)
 {
+  /**
+   * This function can be called from both LDM threads and from Query
+   * threads. However the list of operations can only be operations
+   * created in the LDM thread.
+   *
+   * To handle this we call getOperationPtrP on the TUP block in the
+   * LDM thread.
+   */
   Tuple_header *tuple_ptr = req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
   {
     thrjamDebug(req_struct.jamBuffer);
     OperationrecPtr opPtr;
-    opPtr.i= tuple_ptr->m_operation_ptr_i;
+    opPtr.i = tuple_ptr->m_operation_ptr_i;
     Uint32 loopGuard= 0;
-    while (opPtr.i != RNIL) {
-      c_operation_pool.getPtr(opPtr);
-      if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
+    while (opPtr.i != RNIL)
+    {
+      opPtr.p = m_ldm_instance_used->getOperationPtrP(opPtr.i);
+      if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion)
+      {
         thrjamDebug(req_struct.jamBuffer);
-	if (!opPtr.p->m_copy_tuple_location.isNull()) {
+	if (!opPtr.p->m_copy_tuple_location.isNull())
+        {
 	  req_struct.m_tuple_ptr=
             get_copy_tuple(&opPtr.p->m_copy_tuple_location);
         }
@@ -260,65 +284,122 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   
   int ret = 0;
-  if (likely(! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE)))
+  /**
+   * Coming here from ACC means that we hold the page map mutex, and it
+   * also means that the entry is in DBACC and the local key have been
+   * set. In this state only a commit of a delete can change the state to
+   * be FREE or an abort of an INSERT. This state change is in both cases
+   * performed using exclusive fragment access. Thus we can rely on this
+   * bit even without using the TUP fragment mutex.
+   *
+   * When accessing from TUX we know that the entry has been inserted
+   * into the ordered index and not yet removed. Thus the FREE cannot
+   * be set, this also requires no mutex protection since adding and
+   * removing index entries cannot happen in parallel with index scans.
+   *
+   * Coming from DBTUP in a TUP scan we did check that the state wasn't
+   * FREE before we arrived here and that read was done with mutex
+   * protection. Thus only an exclusive access can set it back to FREE
+   * again and this cannot happen while we are performing a TUP scan.
+   */
+  if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE))
   {
-    req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
-    req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
+    /**
+     * The tuple has been deleted and committed to be deleted already.
+     * If we come here from DBTUX and DBTUP we will crash. If we come here
+     * from DBACC we have to do a deeper analysis before we decide on what
+     * to do.
+     */
+    jam();
+    return -ZTUPLE_DELETED_ERROR; /* Leads to crash in DBTUX and DBTUP */
+  }
+  req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
+  req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
     
-    Uint32 num_attr= tablePtrP->m_no_of_attributes;
-    Uint32 descr_start= tablePtrP->tabDescriptor;
-    TableDescriptor *tab_descr= &tableDescriptor[descr_start];
-    ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
-    req_struct.attr_descr= tab_descr; 
+  Uint32 num_attr= tablePtrP->m_no_of_attributes;
+  Uint32 descr_start= tablePtrP->tabDescriptor;
+  TableDescriptor *tab_descr= &tableDescriptor[descr_start];
+  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
+  req_struct.attr_descr= tab_descr; 
 
-    if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
+  /**
+   * Resetting the ALLOC bit can only happen in exclusive access from
+   * abort or commit.
+   *
+   * The ALLOC bit is set during INSERT when the row didn't previously
+   * exist. This happens before the row is inserted into any ordered index
+   * and thus it is safe to read this bit without mutex when coming from
+   * TUX to read the row.
+   *
+   * When coming from ACC the ALLOC bit is set before the local key is
+   * updated and we can only arrive here if the local key has been updated.
+   * Thus it is safe to read this also when coming from ACC without mutex.
+   *
+   * When arriving here from a TUP scan we read the header bits with mutex
+   * protection and found a row where the FREE bit wasn't set. During the
+   * initial INSERT of a row we hold the mutex during the time that we
+   * update the ALLOC bit and set the operation pointer in the record.
+   * Thus when we arrive here from a TUP scan the row cannot change the
+   * ALLOC bit. Either the bit was set when reading the header bits in the
+   * TUP scan, if so they will remain set until we get exclusive access to
+   * the fragment. Otherwise the ALLOC bit wasn't set, but also the FREE
+   * bit wasn't set and thus the row contained a proper row that can be
+   * read and thus the ALLOC bit cannot change after reading it in the
+   * TUP scan and we can trust it to be the same here without using a
+   * mutex to protect the read.
+   */
+  if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
+  {
+    jam();
+    OperationrecPtr opPtr;
+    opPtr.i = req_struct.m_tuple_ptr->m_operation_ptr_i;
+    /**
+     * The operation pointer is in the LDM thread, we need to get the memory
+     * address of it from the owning LDM thread, we cannot access it from this
+     * query thread directly.
+     */
+    opPtr.p = m_ldm_instance_used->getOperationPtrP(opPtr.i);
+    ndbrequire(!opPtr.p->m_copy_tuple_location.isNull());
+    req_struct.m_tuple_ptr=
+      get_copy_tuple(&opPtr.p->m_copy_tuple_location);
+  }
+  prepare_read(&req_struct, tablePtrP, false);
+    
+  const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
+  const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
+  // read pk attributes from original tuple
+    
+  // do it
+  ret = readAttributes(&req_struct,
+                       attrIds,
+                       numAttrs,
+                       dataOut,
+                       ZNIL,
+                       xfrmFlag);
+  // done
+  if (ret >= 0) {
+    // remove headers
+    Uint32 n= 0;
+    Uint32 i= 0;
+    while (n < numAttrs)
     {
-      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
-      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
-      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
-      req_struct.m_tuple_ptr=
-	get_copy_tuple(&opPtrP->m_copy_tuple_location);
-    }
-    prepare_read(&req_struct, tablePtrP, false);
-    
-    const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
-    const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
-    // read pk attributes from original tuple
-    
-    // do it
-    ret = readAttributes(&req_struct,
-			 attrIds,
-			 numAttrs,
-			 dataOut,
-			 ZNIL,
-			 xfrmFlag);
-    // done
-    if (ret >= 0) {
-      // remove headers
-      Uint32 n= 0;
-      Uint32 i= 0;
-      while (n < numAttrs) {
-	const AttributeHeader ah(dataOut[i]);
-	Uint32 size= ah.getDataSize();
-	ndbrequire(size != 0);
-	for (Uint32 j= 0; j < size; j++) {
-	  dataOut[i + j - n]= dataOut[i + j + 1];
-	}
-	n+= 1;
-	i+= 1 + size;
+      const AttributeHeader ah(dataOut[i]);
+      Uint32 size= ah.getDataSize();
+      ndbrequire(size != 0);
+      for (Uint32 j= 0; j < size; j++)
+      {
+        dataOut[i + j - n]= dataOut[i + j + 1];
       }
-      ndbrequire((int)i == ret);
-      ret -= numAttrs;
+      n+= 1;
+      i+= 1 + size;
     }
-    else
-    {
-      jam();
-      return ret;
-    }
+    ndbrequire((int)i == ret);
+    ret -= numAttrs;
   }
   else
   {
     jam();
+    return ret;
   }
   if (likely(tablePtrP->m_bits & Tablerec::TR_RowGCI))
   {
@@ -332,22 +413,17 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
 }
 
 int
-Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
+Dbtup::accReadPk(Uint32 fragPageId,
+                 Uint32 pageIndex,
+                 Uint32* dataOut,
+                 bool xfrmFlag)
 {
   jamEntryDebug();
-  // get table
-  TablerecPtr tablePtr;
-  tablePtr.i = tableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  // get fragment
-  FragrecordPtr fragPtr;
-  getFragmentrec(fragPtr, fragId, tablePtr.p);
   // get real page id and tuple offset
-
-  Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
+  Uint32 pageId = getRealpid(prepare_fragptr.p, fragPageId);
   // use TUX routine - optimize later
-  int ret = tuxReadPk((Uint32*)fragPtr.p,
-                      (Uint32*)tablePtr.p,
+  int ret = tuxReadPk((Uint32*)prepare_fragptr.p,
+                      (Uint32*)prepare_tabptr.p,
                       pageId,
                       pageIndex,
                       dataOut,
@@ -364,6 +440,13 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
  * In TUP getPage() is run after ACC locking, but TUX comes here
  * before ACC access.  Instead of modifying getPage() it is more
  * clear to do the full check here.
+ *
+ * This method can be called from a query thread, thus all accesses
+ * to fetch operation records must refer to the blocks in the LDM
+ * owning the fragment since only the LDM thread is allowed to
+ * insert operation records into the linked list of operations
+ * found in the row header.
+ *
  */
 bool
 Dbtup::tuxQueryTh(Uint32 opPtrI,
@@ -377,10 +460,12 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
 
   OperationrecPtr currOpPtr;
   currOpPtr.i = opPtrI;
-  c_operation_pool.getPtr(currOpPtr);
+  currOpPtr.p = m_ldm_instance_used->getOperationPtrP(currOpPtr.i);
 
   const bool sameTrans =
-    c_lqh->is_same_trans(currOpPtr.p->userpointer, transId1, transId2);
+    c_lqh->m_ldm_instance_used->is_same_trans(currOpPtr.p->userpointer,
+                                              transId1,
+                                              transId2);
 
   bool res = false;
   OperationrecPtr loopOpPtr = currOpPtr;
@@ -401,7 +486,9 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
     else
     {
       // loop to first op (returns false)
-      find_savepoint(loopOpPtr, 0);
+      m_ldm_instance_used->find_savepoint(loopOpPtr,
+                                          0,
+                                          jamBuffer());
       const Uint32 op_type = loopOpPtr.p->op_type;
 
       if (op_type != ZINSERT)
@@ -423,7 +510,9 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
     jamDebug();
     // for own trans, ignore dirty flag
 
-    if (find_savepoint(loopOpPtr, savepointId))
+    if (m_ldm_instance_used->find_savepoint(loopOpPtr,
+                                            savepointId,
+                                            jamBuffer()))
     {
       jamDebug();
       const Uint32 op_type = loopOpPtr.p->op_type;
@@ -499,6 +588,7 @@ void
 Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
+  ndbassert(!m_is_query_block);
 #ifdef TIME_MEASUREMENT
   time_events= 0;
   tot_time_passed= 0;
@@ -667,7 +757,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       goto next_tuple;
     }
 
-    c_page_pool.getPtr(pagePtr, realPageId);
+    ndbrequire(c_page_pool.getPtr(pagePtr, realPageId));
 
 next_tuple:
     // get tuple
@@ -749,12 +839,12 @@ next_tuple:
        * Start from first operation.  This is only to make things more
        * clear.  It is not required by ordered index implementation.
        */
-      c_operation_pool.getPtr(pageOperPtr);
+      ndbrequire(c_operation_pool.getValidPtr(pageOperPtr));
       while (pageOperPtr.p->prevActiveOp != RNIL)
       {
         jam();
         pageOperPtr.i = pageOperPtr.p->prevActiveOp;
-        c_operation_pool.getPtr(pageOperPtr);
+        ndbrequire(c_operation_pool.getValidPtr(pageOperPtr));
       }
       /*
        * Do not use req->errorCode as global control.
@@ -795,7 +885,7 @@ next_tuple:
       while (pageOperPtr.i != RNIL && ok)
       {
         jam();
-        c_operation_pool.getPtr(pageOperPtr);
+        ndbrequire(c_operation_pool.getValidPtr(pageOperPtr));
         req->errorCode = RNIL;
         req->tupVersion = pageOperPtr.p->op_struct.bit_field.tupVersion;
         EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
@@ -852,6 +942,7 @@ void
 Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
 {
   jam();
+  ndbassert(!m_is_query_block);
   /**
    * We need to make table read-only...as mtoib does not work otherwise
    */
@@ -866,7 +957,7 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
    * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
    * up was undefined.
    */
-  bzero(req, sizeof(*req));
+  std::memset(req, 0, sizeof(*req));
   req->senderRef = reference();
   req->senderData = buildPtrI;
   req->tableId = buildReq->tableId;
@@ -908,6 +999,7 @@ void
 Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
 {
   // get build record
+  ndbassert(!m_is_query_block);
   BuildIndexPtr buildPtr;
   buildPtr.i= buildPtrI;
   c_buildIndexList.getPtr(buildPtr);
@@ -918,6 +1010,11 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
   tablePtr.i= buildReq->tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
+  DEB_INDEX_BUILD(("(%u) Starting index build of primary table %u"
+                   ", ordered index table %u",
+                   instance(),
+                   tablePtr.i,
+                   buildPtr.p->m_indexId));
   for (;buildPtr.p->m_fragNo < NDB_ARRAY_SIZE(tablePtr.p->fragrec);
        buildPtr.p->m_fragNo++)
   {
@@ -931,7 +1028,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
     }
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
     mt_BuildIndxReq req;
-    bzero(&req, sizeof(req));
+    std::memset(&req, 0, sizeof(req));
     req.senderRef = reference();
     req.senderData = buildPtr.i;
     req.tableId = buildReq->tableId;
@@ -971,7 +1068,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
      * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
      * up was undefined.
      */
-    bzero(req, sizeof(*req));
+    std::memset(req, 0, sizeof(*req));
     req->senderRef = reference();
     req->senderData = buildPtrI;
     req->tableId = buildReq->tableId;
@@ -1015,6 +1112,28 @@ Dbtup::mt_scan_init(Uint32 tableId, Uint32 fragId,
   Uint32 fragPageId = 0;
   while (fragPageId < fragPtr.p->m_max_page_cnt)
   {
+    /**
+     * This code is executed in NDBFS threads at two occasions, during
+     * restart with parallel index builds and as an offline index build
+     * process.
+     *
+     * In the restart case there is no other activity ongoing so there
+     * is no risk of concurrent access to the fragment map in DBTUP.
+     * We don't need to initialise page map entries that are missing
+     * since we are only interested if the page exists and if so its
+     * page id.
+     *
+     * The second case happens only when the node has been started and
+     * the table is in read only. The node being restarted means that
+     * a local checkpoint has the scanned table. The table scan performed
+     * by LCPs use TUP scans and this scan will ensure that no holes
+     * are left in the fragment page map. Thus after a restart we have
+     * no holes in the fragment page map.
+     *
+     * In addition for offline index builds the table is in read only,
+     * thus no new pages will be added to the fragment page map while
+     * we are scanning.
+     */
     Uint32 realPageId= getRealpidCheck(fragPtr.p, fragPageId);
     if (realPageId != RNIL)
     {
@@ -1049,7 +1168,7 @@ Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
   }
 
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pos->m_page_no);
+  ndbrequire(c_page_pool.getPtr(pagePtr, pos->m_page_no));
 
   while (1)
   {
@@ -1084,7 +1203,7 @@ Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
       break;
 
     pos->m_page_idx = 0;
-    c_page_pool.getPtr(pagePtr, pos->m_page_no);
+    ndbrequire(c_page_pool.getPtr(pagePtr, pos->m_page_no));
   }
 
   return 1;

@@ -1,0 +1,156 @@
+## Test of general functionality of create_collection admin command.
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/resultset.xpl
+-->import assert_messages.macro
+-->import assert_notices.macro
+-->import validation_schema.macro
+
+varlet %SIMPLE_SCHEMA% type:SCALAR scalar{
+ type:V_STRING v_string{value: "{\"type\":\"object\"}"}};
+
+varlet %SCHEMA% type:SCALAR scalar{
+ type:V_STRING v_string{value:
+  "{\"type\": \"object\", \"properties\":
+  {\"latitude\": {\"type\": \"number\", \"minimum\": -90, \"maximum\": 90}},
+  \"required\": [\"latitude\"]}"}};
+
+-->echo
+-->echo
+-->echo ## Check command flow when using a create_collection or
+-->echo ## ensure_collection admin commands.
+-->echo #
+-->echo # 1. Create valid collection.
+-->echo # 2. Create collection and insert valid value.
+-->echo # 3. Create collection and insert invalid value.
+-->echo # 4. Create collection, insert valid value and update to valid value.
+-->echo # 5. Create collection, insert valid value and update to invalid value.
+-->echo # 6. Create collection which is already created in the system.
+-->echo #    a) use create_collection command
+-->echo #    b) use ensure_collection command
+
+-->echo
+-->echo #
+-->echo # -.1
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%SIMPLE_SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # -.2
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "latitude": 82}'
+-->callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:1
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # -.3
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "latitude": 97}'
+-->callmacro Assert_message Mysqlx.Error
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # -.4
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "latitude": 82}'
+-->callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:1
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 82}
+	{type: V_SINT v_signed_int: 80};
+-->callmacro Assert_notice_session_state	PRODUCED_MESSAGE	type: V_STRING
+-->callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:1
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # -.5
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "latitude": 82}'
+-->callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:1
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 82}
+	{type: V_SINT v_signed_int: 123};
+-->callmacro Assert_message Mysqlx.Error
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # -.6.a
+callmacro Execute_admin_cmd_with_validation create_collection
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+callmacro Execute_admin_cmd_with_validation create_collection
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Error
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # -.6.b
+callmacro Execute_admin_cmd_with_validation create_collection
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+callmacro Execute_admin_cmd_with_validation ensure_collection
+	test_coll
+	%SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Drop_collection	test_coll
+
+EOF
+
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=xtest
+  --file=$MYSQL_TMP_DIR/resultset.xpl -v%COMMAND%=create_collection 2>&1;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=xtest
+  --file=$MYSQL_TMP_DIR/resultset.xpl -v%COMMAND%=ensure_collection 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

@@ -17,17 +17,17 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
 id	title	body
@@ -39,21 +39,21 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 DROP TABLE articles;
 # Test Case 2: Test Chinese with GBK Charset.
@@ -74,17 +74,17 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
 id	title	body
@@ -96,21 +96,21 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 DROP TABLE articles;
 # Test Case 3: Test Chinese with UTF8 Charset.
@@ -131,17 +131,17 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
 id	title	body
@@ -153,21 +153,21 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 DROP TABLE articles;
 # Test Case 4: Test Chinese with gb18030 Charset.
@@ -188,17 +188,17 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
 id	title	body
@@ -210,29 +210,29 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库');
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 1	数据库是数据的结构化集合	它可以是任何东西
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库' WITH QUERY EXPANSION);
 id	title	body
-3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
-2	从简单的购物清单到画展	或企业网络中的海量数据
-4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 1	数据库是数据的结构化集合	它可以是任何东西
+2	从简单的购物清单到画展	或企业网络中的海量数据
+3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
+4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 ALTER TABLE articles DROP INDEX `idx1`;
 SELECT * FROM articles;
 id	title	body
@@ -259,17 +259,17 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('データ');
 id	title	body
-3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
-4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
 1	データベースは、構造化されたコレクションです	それは何もすることができます
 2	シンプルな買い物リストから画像ギャラリーへ	または企業ネットワーク内のデータの膨大な量
+3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
+4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('デ*' IN BOOLEAN MODE);
 id	title	body
-3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
-4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
 1	データベースは、構造化されたコレクションです	それは何もすることができます
 2	シンプルな買い物リストから画像ギャラリーへ	または企業ネットワーク内のデータの膨大な量
+3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
+4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+データベース -コンピュータ' IN BOOLEAN MODE);
 id	title	body
@@ -281,22 +281,22 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('データベース');
 id	title	body
-3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
-4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
 1	データベースは、構造化されたコレクションです	それは何もすることができます
 2	シンプルな買い物リストから画像ギャラリーへ	または企業ネットワーク内のデータの膨大な量
+3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
+4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('データベース' IN BOOLEAN MODE);
 id	title	body
+1	データベースは、構造化されたコレクションです	それは何もすることができます
 3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
 4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
-1	データベースは、構造化されたコレクションです	それは何もすることができます
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"データベース"' IN BOOLEAN MODE);
 id	title	body
+1	データベースは、構造化されたコレクションです	それは何もすることができます
 3	データベースにデータを追加するには	コンピュータのデータベースに格納されているアクセス、およびプロセスデータ
 4	データベース管理システムを使用する必要が	コンピュータは、大量のデータを処理するための理想的なツールである
-1	データベースは、構造化されたコレクションです	それは何もすることができます
 DROP TABLE articles;
 # Test Case 6: Test Korean with EUCKR Charset.
 CREATE TABLE articles (
@@ -316,17 +316,17 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('데이터');
 id	title	body
-3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
-4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
 1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 2	간단한 쇼핑 목록에서 사진 갤러리	또는 기업 네트워크에서 데이터의 엄청난 양의
+3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
+4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('데*' IN BOOLEAN MODE);
 id	title	body
-3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
-4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
 1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 2	간단한 쇼핑 목록에서 사진 갤러리	또는 기업 네트워크에서 데이터의 엄청난 양의
+3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
+4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+데이터베이스 -컴퓨터' IN BOOLEAN MODE);
 id	title	body
@@ -338,22 +338,22 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('데이터베이스');
 id	title	body
-3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
-4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
 1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 2	간단한 쇼핑 목록에서 사진 갤러리	또는 기업 네트워크에서 데이터의 엄청난 양의
+3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
+4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('데이터베이스' IN BOOLEAN MODE);
 id	title	body
+1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
 4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
-1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"데이터베이스"' IN BOOLEAN MODE);
 id	title	body
+1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 3	데이터베이스에 데이터를 추가하려면	액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장
 4	데이터베이스 관리 시스템을 사용해야합니다	컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다
-1	데이터베이스의 구조 모음입니다	그것은 무엇이든 될 수 있습니다
 DROP TABLE articles;
 # Test Case 7: Test different ngram token size.
 CREATE TABLE articles (
@@ -779,6 +779,8 @@ id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
 body TEXT
 ) ENGINE=InnoDB DEFAULT CHARACTER SET ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
 CREATE FULLTEXT INDEX ft_idx ON articles(title) WITH PARSER ngram;
 ERROR HY000: Column 'title' cannot be part of FULLTEXT index

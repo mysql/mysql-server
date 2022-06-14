@@ -21,7 +21,7 @@ ALTER TABLE t1 RENAME TO t2, ENGINE = INNODB;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(10) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -44,7 +44,7 @@ INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(20) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -91,11 +91,11 @@ ALTER TABLE t1 ADD COLUMN e INT, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(20) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';

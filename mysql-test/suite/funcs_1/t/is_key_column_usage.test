@@ -21,7 +21,7 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
---source include/have_myisam.inc
+#--source include/have_myisam.inc
 let $engine_type= InnoDB;
 
 let $is_table = KEY_COLUMN_USAGE;
@@ -80,7 +80,7 @@ SELECT constraint_catalog, constraint_schema, constraint_name, table_catalog,
 FROM information_schema.key_column_usage
 WHERE (constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL) AND
       table_name != 'ndb_binlog_index'
-ORDER BY constraint_name, table_name, column_name;
+ORDER BY constraint_schema, constraint_name, table_schema, table_name, column_name;
 
 
 --echo ########################################################################################

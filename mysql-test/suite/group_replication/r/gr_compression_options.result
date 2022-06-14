@@ -11,9 +11,9 @@ SET GLOBAL group_replication_compression_threshold= 0;
 SET GLOBAL group_replication_compression_threshold="AAAA";
 ERROR 42000: Incorrect argument type to variable 'group_replication_compression_threshold'
 SET GLOBAL group_replication_compression_threshold=4294967297;
-ERROR 42000: The value 4294967297 is not within the range of accepted values for the option compression_threshold!
+ERROR 42000: The value 4294967297 is not within the range of accepted values for the option group_replication_compression_threshold!
 SET GLOBAL group_replication_compression_threshold=-1;
-ERROR 42000: The value -1 is not within the range of accepted values for the option compression_threshold!
+ERROR 42000: The value -1 is not within the range of accepted values for the option group_replication_compression_threshold!
 SET GLOBAL group_replication_compression_threshold=512;
 include/assert.inc [Assert that the compression_threshold is set to the default]
 SET GLOBAL group_replication_compression_threshold=DEFAULT;
@@ -24,7 +24,7 @@ include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
 [connection server1]
 SET GLOBAL group_replication_compression_threshold=1024;
-ERROR HY000: The compression threshold cannot be set while Group Replication is running
+ERROR HY000: The group_replication_compression_threshold cannot be set while Group Replication is running
 include/assert.inc [Assert that the compression_threshold remains unchanged]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1, REPEAT('A', 1024));

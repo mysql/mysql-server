@@ -17,6 +17,22 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/rpl_default_connections.inc
 include/rpl_stop_slaves.inc
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=TABLE_SCAN,HASH_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_start_slaves.inc
 ######## INITIALIZE ########
 include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
@@ -762,5 +778,21 @@ SET SESSION SQL_LOG_BIN = 0; DROP TABLE test.t; SET SESSION SQL_LOG_BIN = 1;
 ]
 include/rpl_stop_slaves.inc
 include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=TABLE_SCAN,HASH_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_start_slaves.inc
 include/rpl_end.inc

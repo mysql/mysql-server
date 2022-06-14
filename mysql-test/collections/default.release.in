@@ -9,11 +9,22 @@
 
 # include default.daily
 # include default.weekly
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server --skip-ndb
+# Run all ndb tests with debug server separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-debug   --vardir=var-ndb-debug --skip-rpl --report-features --debug-server --with-ndb-only
 
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-# Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ps         --vardir=var-ps --ps-protocol
+# Non-Windows platforms:
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report --exclude-platform=windows --skip-ndb
+# Windows platforms, separate run of RPL with fewer threads
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal --vardir=var-normal --skip-rpl --report-features --unit-tests-report --platform=windows --skip-ndb
+perl mysql-test-run.pl --timer --testcase-timeout=60 --suite-timeout=600 --force --parallel=8 --comment=normal-rpl --vardir=var-normal-rpl --suite=rpl,rpl_gtid,rpl_nogtid --platform=windows --skip-ndb
+# Run all ndb tests with normal server separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-normal   --vardir=var-ndb-normal --report-features --with-ndb-only
+
+
+#
 perl mysql-test-run.pl --force --timer  --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer  --comment=partitions --vardir=var-parts      --suite=parts
 perl mysql-test-run.pl --force --timer  --comment=stress     --vardir=var-stress     --suite=stress
@@ -21,7 +32,6 @@ perl mysql-test-run.pl --force --timer  --comment=jp         --vardir=var-jp    
 perl mysql-test-run.pl --force --timer  --comment=nist       --vardir=var-nist       --suite=nist
 perl mysql-test-run.pl --force --timer  --comment=nist+ps    --vardir=var-nist_ps    --suite=nist     --ps-protocol
 perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached  --suite=memcached
-perl mysql-test-run.pl --force --timer  --testcase-timeout=60  --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication

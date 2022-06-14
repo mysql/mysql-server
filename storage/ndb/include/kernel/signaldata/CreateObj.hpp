@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,8 @@ struct CreateObjReq {
   friend bool printCREATE_OBJ_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
 public:
-  STATIC_CONST( SignalLength = 10 );
-  STATIC_CONST( GSN = GSN_CREATE_OBJ_REQ );
+  static constexpr Uint32 SignalLength = 10;
+  static constexpr Uint32 GSN = GSN_CREATE_OBJ_REQ;
   
 private:
   Uint32 op_key;
@@ -80,8 +80,8 @@ struct CreateObjRef {
    */
   friend bool printCREATE_OBJ_REF(FILE *, const Uint32 *, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 6 );
-  STATIC_CONST( GSN = GSN_CREATE_OBJ_REF );
+  static constexpr Uint32 SignalLength = 6;
+  static constexpr Uint32 GSN = GSN_CREATE_OBJ_REF;
 
   enum ErrorCode {
     NF_FakeErrorREF = 255
@@ -108,7 +108,7 @@ struct CreateObjConf {
   friend bool printCREATE_OBJ_CONF(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 senderRef;

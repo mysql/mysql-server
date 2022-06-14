@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <cstring>
 #include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
 #include <HugoTransactions.hpp>
@@ -34,6 +36,8 @@
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
 #include <NdbHost.h>
+#include <NdbMgmd.hpp>
+#include <NdbSleep.h>
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -49,6 +53,11 @@
     result = NDBT_FAILED; \
     break; \
   }
+
+#define CHECK3(b) if (!(b)) { \
+  ndbout << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  return NDBT_FAILED; }
 
 /**
  * TODO 
@@ -68,7 +77,12 @@ int runLoadTable2(NDBT_Context* ctx, NDBT_Step* step)
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
 {
+  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
@@ -126,9 +140,14 @@ int runInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
+  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
-  
+
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.pkDelRecords(GETNDB(step),  records, batchSize) != 0){
     return NDBT_FAILED;
@@ -180,6 +199,40 @@ int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runTimer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbSleep_SecSleep(120);
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runPkDirtyReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_records = ctx->getProperty("Records", Uint32(0));
+  int records = ctx->getNumRecords();
+  int batchSize = ctx->getProperty("BatchSize", 2);
+  int lm = ctx->getProperty("LockMode", NdbOperation::LM_CommittedRead);
+  int i = 0;
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    if (hugoTrans.pkReadRecords(GETNDB(step),
+                                records,
+                                batchSize,
+                                (NdbOperation::LockMode)lm) != 0){
+      g_info << endl;
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
 int runPkReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -215,10 +268,16 @@ int runPkUpdate(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int i = 0;
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped()) {
     g_info << i << ": ";
@@ -1215,9 +1274,17 @@ compare(unsigned block,
       if (time1->events[j].source_nodeid != node)
         continue;
 
-      diff +=
-        time0->events[i].MemoryUsage.pages_used -
-        time1->events[j].MemoryUsage.pages_used;
+      int difference =
+        time1->events[j].MemoryUsage.pages_used -
+        time0->events[i].MemoryUsage.pages_used;
+      if (difference > 0 || difference < 0)
+      {
+        diff = 1;
+        ndbout_c("i: %u, j: %u, before: %u, after: %u",
+          i, j,
+          time0->events[i].MemoryUsage.pages_used,
+          time1->events[j].MemoryUsage.pages_used);
+      }
     }
   }
   return diff;
@@ -1227,9 +1294,8 @@ int
 runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
-  HugoTransactions hugoTrans(*ctx->getTab());
-  HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
   
   const NdbDictionary::Table * tab = ctx->getTab();
   int i;
@@ -1274,6 +1340,14 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
             << " bits: " << hex << bits << endl;
       continue;
     }
+    NdbDictionary::Table copy = *tab;
+    BaseString name;
+    name.assfmt("%s_COPY", copy.getName());
+    copy.setName(name.c_str());
+    pDict->createTable(copy);
+    const NdbDictionary::Table * copyTab = pDict->getTable(copy.getName());
+    HugoTransactions hugoTrans(*copyTab);
+    HugoOperations hugoOps(*copyTab);
     
     g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
     restarter.insertErrorInAllNodes(f_tup_errors[i].error);
@@ -1299,7 +1373,8 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     {
       return NDBT_FAILED;
     }      
-
+    pDict->dropTable(copy.getName());
+    NdbSleep_SecSleep(2);
     struct ndb_mgm_events * after =
       ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
     if (after == 0)
@@ -1323,58 +1398,69 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   /**
    * update
    */
-  struct ndb_mgm_events * before =
-    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
-  hugoTrans.loadTable(pNdb, 5);
-  for(i = 0; f_tup_errors[i].op != -1; i++)
   {
-    if (f_tup_errors[i].op != NdbOperation::UpdateRequest)
+    NdbDictionary::Table copy = *tab;
+    BaseString name;
+    name.assfmt("%s_COPY", copy.getName());
+    copy.setName(name.c_str());
+    pDict->createTable(copy);
+    const NdbDictionary::Table * copyTab = pDict->getTable(copy.getName());
+    HugoTransactions hugoTrans(*copyTab);
+    HugoOperations hugoOps(*copyTab);
+    
+    struct ndb_mgm_events * before =
+      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+    hugoTrans.loadTable(pNdb, 5);
+    for(i = 0; f_tup_errors[i].op != -1; i++)
     {
-      continue;
-    }
+      if (f_tup_errors[i].op != NdbOperation::UpdateRequest)
+      {
+        continue;
+      }
 
-    if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
-    {
-      g_err << "Skipping " << f_tup_errors[i].error
-            << " - req bits: " << hex << f_tup_errors[i].bits
-            << " bits: " << hex << bits << endl;
-      continue;
-    }
+      if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
+      {
+        g_err << "Skipping " << f_tup_errors[i].error
+              << " - req bits: " << hex << f_tup_errors[i].bits
+              << " bits: " << hex << bits << endl;
+        continue;
+      }
 
-    g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
-    restarter.insertErrorInAllNodes(f_tup_errors[i].error);
-    if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
-    {
+      g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
+      restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+      if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
+      {
 
+      }
+      else
+      {
+        hugoTrans.scanUpdateRecords(pNdb, 5);
+      }
+      restarter.insertErrorInAllNodes(0);
+      if (hugoTrans.scanUpdateRecords(pNdb, 5) != 0)
+      {
+        return NDBT_FAILED;
+      }
     }
-    else
-    {
-      hugoTrans.scanUpdateRecords(pNdb, 5);
-    }
-    restarter.insertErrorInAllNodes(0);
-    if (hugoTrans.scanUpdateRecords(pNdb, 5) != 0)
+    if (hugoTrans.clearTable(pNdb) != 0)
     {
       return NDBT_FAILED;
     }
+    pDict->dropTable(copy.getName());
+    NdbSleep_SecSleep(2);
+    struct ndb_mgm_events * after =
+      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+
+    int diff = compare(DBTUP, before, after);
+    free(before);
+    free(after);
+
+    if (diff != 0)
+    {
+      ndbout_c("2:memleak detected!!");
+      return NDBT_FAILED;;
+    }
   }
-  if (hugoTrans.clearTable(pNdb) != 0)
-  {
-    return NDBT_FAILED;
-  }
-
-  struct ndb_mgm_events * after =
-    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
-
-  int diff = compare(DBTUP, before, after);
-  free(before);
-  free(after);
-
-  if (diff != 0)
-  {
-    ndbout_c("memleak detected!!");
-    return NDBT_FAILED;;
-  }
-
   return NDBT_OK;
 }
 
@@ -1450,7 +1536,7 @@ runBug25090(NDBT_Context* ctx, NDBT_Step* step){
     ops.startTransaction(pNdb);
     ops.pkReadRecord(pNdb, 1, 1);
     ops.execute_Commit(pNdb, AO_IgnoreError);
-    sleep(10);
+    NdbSleep_SecSleep(10);
     ops.closeTransaction(pNdb);
   }
   
@@ -2477,12 +2563,12 @@ runTest899(NDBT_Context* ctx, NDBT_Step* step)
 
       for (int b = 0; rowNo < rows && b < batch; rowNo++, b++)
       {
-        bzero(pRow, len);
+        std::memset(pRow, 0, len);
 
         HugoCalculator calc(* pTab);
 
         NdbOperation::OperationOptions opts;
-        bzero(&opts, sizeof(opts));
+        std::memset(&opts, 0, sizeof(opts));
 
         const NdbOperation* pOp = 0;
         switch(i % 2){
@@ -2956,7 +3042,8 @@ int verifyEvents(const Vector<EventInfo>& receivedEvents,
 }
 
 int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
-  int records = ctx->getNumRecords();
+  int records = ctx->getNumRecords()/2;
+  g_err << "runRefreshTuple : #recs " << records << endl;
   Ndb* ndb = GETNDB(step);
 
   /* Now attempt to create EventOperation */
@@ -3121,6 +3208,7 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
         expectedEvents.push_back(Delete);
       }
       // Fall through - done with last optype
+      [[fallthrough]];
       default:
         done = true;
         break;
@@ -3351,7 +3439,7 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
 
       if (scenario.preRefreshOps == PR_INSERT)
         break;
-      // Fall through
+      [[fallthrough]];
     case PR_DELETE:
       if (hugoTrans.pkDeleteRecord(ndb, 0) != 0)
       {
@@ -4017,6 +4105,105 @@ int testAbortRace(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/**
+ * This test case passes if the # records checkpointed
+ * is equal to #records in the table given in the test context
+ * times number of replicas in the cluster.
+ * It
+ * - performs a local checkpoint.
+ * - fills the table with #records given in the test context.
+ * - performs another local checkpoint. With the pLCP, only the
+ *    the records inserted into the context's table is expected to
+ *    appear in the LCP-statistics calculated by the test.
+ * - Checks the LCP'd records.
+ */
+int
+runCheckLCPStats(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 master = restarter.getMasterNodeId();
+
+  // Perform an LCP and wait it to start and finish
+  int dump_req[] = { DumpStateOrd::DihStartLcpImmediately};
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointStarted);
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointCompleted);
+
+  // Insert ctx->getNumRecords()
+  CHECK3(runLoadTable(ctx,step) == 0);
+
+  // Perform an LCP and wait until it is started
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointStarted);
+
+  NdbMgmd mgmd;
+  CHECK3(mgmd.connect());
+  CHECK3(mgmd.subscribe_to_events());
+  Uint32 no_of_replicas = mgmd.get_config32(CFG_SECTION_NODE,
+                                            CFG_DB_NO_REPLICAS);
+  g_err << "Number of replicas in cluster " << no_of_replicas << endl;
+  CHECK3(no_of_replicas > 0);
+  Uint64 expected_records = no_of_replicas * ctx->getNumRecords();
+  Uint64 checkpointed_records = 0;
+
+  Uint64 max_wait_seconds = 120;
+  Uint64 end_time = NdbTick_CurrentMillisecond() +
+    (max_wait_seconds * 1000);
+
+  // Read 'Completed LCP' events and sum up the checkpointed records
+  while (NdbTick_CurrentMillisecond() < end_time)
+  {
+    char buff[512];
+    if (!mgmd.get_next_event_line(buff,
+                                  sizeof(buff),
+                                  10 * 1000) == 0)
+    {
+      if  (strstr(buff, "Local checkpoint"))
+      {
+        /**
+         * Since we have already seen "Local checkpoint %u started" event
+         * earlier, this must be "Local checkpoint %u completed" event.
+         */
+        if (checkpointed_records == expected_records)
+        {
+          return NDBT_OK;
+        }
+        // Probably "Local checkpoint %u completed" came before all
+        // "Completed LCP" events came. Continue until end_time.
+      }
+
+      if (strstr(buff, "Completed LCP"))
+      {
+        unsigned int node = 0;
+        unsigned int ldm = 0;
+        unsigned int nfrags = 0;
+        unsigned int nRecords = 0;
+        unsigned int nBytes = 0;
+
+        sscanf(buff, "Node %u: LDM(%u): Completed LCP, #frags = %u #records = %u, #bytes = %u", &node, &ldm, &nfrags, &nRecords, &nBytes);
+
+        g_info << "Node " << node << " ldm " << ldm
+              << " Records " << nRecords << endl;
+        checkpointed_records += nRecords;
+      }
+    }
+  }
+
+  // Total checkpointed records includes both primary and the backup replicas
+  g_err << "Number of records checkpointed " << checkpointed_records << endl;
+
+  CHECK3(checkpointed_records == expected_records);
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -4440,6 +4627,26 @@ TESTCASE("AbortRace",
 {
   INITIALIZER(runLoadTable);
   STEP(testAbortRace);
+  FINALIZER(runClearTable);
+}
+TESTCASE("CheckCompletedLCPStats",
+        "Check if the LCP'd #records is equal to "
+         "nReplicas * #records inserted" )
+{
+  STEP(runCheckLCPStats);
+}
+TESTCASE("ParallelReadUpdate",
+         "Test interaction of read and updates for Query Thread")
+{
+  TC_PROPERTY("Records", Uint32(10));
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runTimer);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testBasic)

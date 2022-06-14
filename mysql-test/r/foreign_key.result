@@ -1,3 +1,4 @@
+SET @saved_binlog_format= @@SESSION.binlog_format;
 drop table if exists t_34455;
 create table t_34455 (
 a int not null,
@@ -60,8 +61,8 @@ CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
@@ -85,8 +86,8 @@ name567890123456789012345678901234567890123456789012345678901234
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `name567890123456789012345678901234567890123456789012345678901234` (`b`),
   CONSTRAINT `name567890123456789012345678901234567890123456789012345678901234` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
@@ -149,7 +150,7 @@ ALTER TABLE t2 RENAME TO t3;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -159,7 +160,7 @@ ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -169,7 +170,7 @@ ALTER TABLE t4 RENAME TO t5;
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -179,7 +180,7 @@ RENAME TABLE t5 to t6;
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -196,7 +197,7 @@ CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 # Add FK
 ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
@@ -207,7 +208,7 @@ t2_ibfk_1
 t2_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t2_ibfk_2
 # Remove first FK and add a new FK.
@@ -220,7 +221,7 @@ t2_ibfk_2
 t2_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_2
 t2_ibfk_3
 # Rename table in different ways.
@@ -232,7 +233,7 @@ t3_ibfk_2
 t3_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_2
 t3_ibfk_3
 ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
@@ -243,7 +244,7 @@ t4_ibfk_2
 t4_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_2
 t4_ibfk_3
 ALTER TABLE t4 RENAME TO t5;
@@ -254,7 +255,7 @@ t5_ibfk_2
 t5_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't5' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t5_ibfk_2
 t5_ibfk_3
 RENAME TABLE t5 TO t6;
@@ -265,7 +266,7 @@ t6_ibfk_2
 t6_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t6_ibfk_2
 t6_ibfk_3
 # Simulate dump+restore and test rename
@@ -288,7 +289,7 @@ t6_ibfk_2
 t6_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t6_ibfk_2
 t6_ibfk_3
 RENAME TABLE t6 TO t2;
@@ -299,7 +300,7 @@ t2_ibfk_2
 t2_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_2
 t2_ibfk_3
 # Remove all FKs and add one back
@@ -311,7 +312,7 @@ CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 # Add a foreign key with close to generated name
 ALTER TABLE t2 ADD CONSTRAINT t3_ibfk_2 FOREIGN KEY(b) REFERENCES t1(a);
@@ -322,7 +323,7 @@ t2_ibfk_1
 t3_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t3_ibfk_2
 # Then rename so that the given name now matches a generated name
@@ -334,7 +335,7 @@ t3_ibfk_1
 t3_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_1
 t3_ibfk_2
 # Finally rename it again. The given name is now seen as generated and renamed.
@@ -346,7 +347,7 @@ t4_ibfk_1
 t4_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_1
 t4_ibfk_2
 DROP TABLE t4;
@@ -361,7 +362,7 @@ t2_ibfk_1
 t2_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t2_ibfk_2
 DROP TABLE t2;
@@ -374,7 +375,7 @@ CONSTRAINT_NAME
 FK
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 FK
 ALTER TABLE t2 ADD CONSTRAINT fk FOREIGN KEY(b) REFERENCES t1(a);
 ERROR 42000: Duplicate key name 'fk'
@@ -398,7 +399,7 @@ t12345678901234567890123456789012345678901234567890123456_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
   ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t12345678901234567890123456789012345678901234567890123456_ibfk_1
 DROP TABLE t12345678901234567890123456789012345678901234567890123456;
 CREATE TABLE t123456789012345678901234567890123456789012345678901234567(
@@ -534,7 +535,7 @@ CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), fname VAR
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -542,7 +543,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   `fname` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -557,7 +558,7 @@ SET foreign_key_checks= ON;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -565,7 +566,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   `fname` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -819,6 +820,8 @@ SELECT * FROM source FOR UPDATE;
 fk
 NULL
 connection default;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;;
 connection con1;
 # Wait until CREATE TABLE is blocked by con1 because of row locks.
@@ -835,6 +838,7 @@ connection con1;
 COMMIT;
 connection default;
 # Reap CREATE TABLE
+SET SESSION binlog_format= @saved_binlog_format;
 DROP TABLES child, source;
 # 3.2) CREATE TABLE ... SELECT should upgrade SU lock on parent to X
 #      before commit (i.e eventually X lock should be acquired).
@@ -844,21 +848,25 @@ SELECT * FROM parent;
 pk
 1
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;;
 connection con1;
 # Wait until CREATE TABLE is blocked by con1 and then resume it.
 COMMIT;
 connection default;
 # Reap CREATE TABLE
+SET SESSION binlog_format= @saved_binlog_format;
 # 3.3) CREATE TABLE ... SELECT for existing table should not acquire
 #      any locks on parent table.
 connection con1;
 CREATE TABLE parent2 (pk INT PRIMARY KEY);
 LOCK TABLE parent2 WRITE;
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
 Warnings:
 Note	1050	Table 'child' already exists
+SET SESSION binlog_format= @saved_binlog_format;
 connection con1;
 UNLOCK TABLES;
 connection default;
@@ -870,8 +878,10 @@ connection con1;
 LOCK TABLE parent WRITE;
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 connection con1;
 UNLOCK TABLES;
@@ -883,8 +893,10 @@ pk
 1
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 connection con1;
 COMMIT;
@@ -893,7 +905,9 @@ DROP TABLE parent;
 # 3.6) CREATE TABLE ... SELECT which adds parent to orphan child must
 #      acquire X on child table.
 SET FOREIGN_KEY_CHECKS=0;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET SESSION binlog_format= @saved_binlog_format;
 SET FOREIGN_KEY_CHECKS=1;
 connection con1;
 BEGIN;
@@ -943,7 +957,10 @@ CREATE TABLE parent (pk INT PRIMARY KEY);
 SELECT * FROM parent;
 pk
 connection con1;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 connection default;
 LOCK TABLE parent WRITE;
 connection con1;
@@ -1916,15 +1933,17 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
 FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
@@ -1932,22 +1951,25 @@ ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
@@ -1955,15 +1977,17 @@ ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 DROP TABLE t1;
@@ -1971,48 +1995,55 @@ CREATE TABLE t1 (pk INT PRIMARY KEY);
 CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 DROP TABLES t2, t1;
 # Coverage for cases with multiple foreign keys.
@@ -2022,33 +2053,36 @@ FOREIGN KEY (fk1) REFERENCES t1 (u1),
 FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
-u1	t1	u1	NULL
-u2	t1	u2	NULL
 t1_ibfk_1	t1	fk1	u1
 t1_ibfk_2	t1	fk2	u2
+u1	t1	u1	NULL
+u2	t1	u2	NULL
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
-u1	t1	u3	NULL
-u2	t1	u2	NULL
 t1_ibfk_1	t1	fk1	u3
 t1_ibfk_2	t1	fk2	u2
+u1	t1	u3	NULL
+u2	t1	u2	NULL
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
-u1	t1	u4	NULL
-u2	t1	u5	NULL
 t1_ibfk_1	t1	fk1	u4
 t1_ibfk_2	t1	fk2	u5
+u1	t1	u4	NULL
+u2	t1	u5	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
 CREATE TABLE t2 (fk1 INT, fk2 INT,
@@ -2056,22 +2090,25 @@ FOREIGN KEY (fk1) REFERENCES t1 (u1),
 FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u1
 t2_ibfk_2	t2	fk2	u2
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u3
 t2_ibfk_2	t2	fk2	u2
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u4
 t2_ibfk_2	t2	fk2	u5
 DROP TABLES t2, t1;
@@ -2181,9 +2218,9 @@ CREATE SCHEMA mysqltest;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2201,9 +2238,9 @@ RENAME TABLE t2 TO t3;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2221,9 +2258,9 @@ RENAME TABLE t3 TO mysqltest.t3;
 SHOW CREATE TABLE mysqltest.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2240,9 +2277,9 @@ RENAME TABLE mysqltest.t3 TO t4;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2260,9 +2297,9 @@ ALTER TABLE t4 RENAME TO t5;
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2279,9 +2316,9 @@ ALTER TABLE t5 RENAME TO mysqltest.t5;
 SHOW CREATE TABLE mysqltest.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2298,9 +2335,9 @@ ALTER TABLE mysqltest.t5 RENAME TO t6;
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2318,10 +2355,10 @@ ALTER TABLE t6 ADD COLUMN i INT, RENAME TO t7, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2338,11 +2375,11 @@ ALTER TABLE t7 ADD COLUMN j INT, RENAME TO mysqltest.t7, ALGORITHM=INPLACE;
 SHOW CREATE TABLE mysqltest.t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2359,12 +2396,12 @@ ALTER TABLE mysqltest.t7 ADD COLUMN k INT, RENAME TO t8, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t8;
 Table	Create Table
 t8	CREATE TABLE `t8` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2382,13 +2419,13 @@ ALTER TABLE t8 ADD COLUMN l INT, RENAME TO t9, ALGORITHM=COPY;
 SHOW CREATE TABLE t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2405,14 +2442,14 @@ ALTER TABLE t9 ADD COLUMN m INT, RENAME TO mysqltest.t9, ALGORITHM=COPY;
 SHOW CREATE TABLE mysqltest.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2429,15 +2466,15 @@ ALTER TABLE mysqltest.t9 ADD COLUMN n INT, RENAME TO t10, ALGORITHM=COPY;
 SHOW CREATE TABLE t10;
 Table	Create Table
 t10	CREATE TABLE `t10` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2458,15 +2495,15 @@ RENAME TO t11, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t11;
 Table	Create Table
 t11	CREATE TABLE `t11` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2491,15 +2528,15 @@ RENAME TO mysqltest.t11, ALGORITHM=INPLACE;
 SHOW CREATE TABLE mysqltest.t11;
 Table	Create Table
 t11	CREATE TABLE `t11` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2530,15 +2567,15 @@ RENAME TO t12, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t12;
 Table	Create Table
 t12	CREATE TABLE `t12` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2578,17 +2615,17 @@ RENAME TO t13, ALGORITHM=COPY;
 SHOW CREATE TABLE t13;
 Table	Create Table
 t13	CREATE TABLE `t13` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
-  `o` int(11) DEFAULT NULL,
-  `p` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  `o` int DEFAULT NULL,
+  `p` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2632,19 +2669,19 @@ RENAME TO mysqltest.t13, ALGORITHM=COPY;
 SHOW CREATE TABLE mysqltest.t13;
 Table	Create Table
 t13	CREATE TABLE `t13` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
-  `o` int(11) DEFAULT NULL,
-  `p` int(11) DEFAULT NULL,
-  `q` int(11) DEFAULT NULL,
-  `r` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  `o` int DEFAULT NULL,
+  `p` int DEFAULT NULL,
+  `q` int DEFAULT NULL,
+  `r` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2694,21 +2731,21 @@ RENAME TO t14, ALGORITHM=COPY;
 SHOW CREATE TABLE t14;
 Table	Create Table
 t14	CREATE TABLE `t14` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
-  `o` int(11) DEFAULT NULL,
-  `p` int(11) DEFAULT NULL,
-  `q` int(11) DEFAULT NULL,
-  `r` int(11) DEFAULT NULL,
-  `s` int(11) DEFAULT NULL,
-  `t` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  `o` int DEFAULT NULL,
+  `p` int DEFAULT NULL,
+  `q` int DEFAULT NULL,
+  `r` int DEFAULT NULL,
+  `s` int DEFAULT NULL,
+  `t` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2833,7 +2870,7 @@ SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
 ALGORITHM=COPY;
-ERROR 23000: Duplicate entry '1' for key 'u'
+ERROR 23000: Duplicate entry '1' for key 't3.u'
 SET FOREIGN_KEY_CHECKS=1;
 # Updating of generated names still happens at the end of ALTER,
 # so there should not be conflicting foreign keys for generated
@@ -3086,7 +3123,7 @@ CREATE TABLE parent (pkfk INT, FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk` int(11) DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   KEY `pkfk` (`pkfk`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3099,7 +3136,7 @@ ALTER TABLE parent ADD UNIQUE KEY u (pkfk);
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk` int(11) DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   UNIQUE KEY `u` (`pkfk`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3114,8 +3151,8 @@ FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   KEY `fk` (`fk`),
   KEY `pkfk` (`pkfk`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
@@ -3131,8 +3168,8 @@ ALTER TABLE self ADD UNIQUE KEY u (pkfk);
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   UNIQUE KEY `u` (`pkfk`),
   KEY `fk` (`fk`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
@@ -3151,8 +3188,8 @@ CREATE TABLE parent (pkfk1 INT, pkfk2 INT, FOREIGN KEY (pkfk1) REFERENCES grandp
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `pkfk1` (`pkfk1`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3165,8 +3202,8 @@ ALTER TABLE parent ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, p
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `pkfk1` (`pkfk1`,`pkfk2`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`),
   CONSTRAINT `parent_ibfk_2` FOREIGN KEY (`pkfk1`, `pkfk2`) REFERENCES `grandparent2` (`pk1`, `pk2`)
@@ -3182,9 +3219,9 @@ FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `fk` (`fk`),
   KEY `pkfk1` (`pkfk1`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
@@ -3200,9 +3237,9 @@ ALTER TABLE self ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `fk` (`fk`),
   KEY `pkfk1` (`pkfk1`,`pkfk2`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
@@ -3409,7 +3446,7 @@ ALTER TABLE child ADD KEY fk_s(fk);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk_s` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3417,8 +3454,8 @@ ALTER TABLE self ADD KEY fk_s(fk);
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `pk` int(11) NOT NULL,
-  `fk` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `fk` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `fk_s` (`fk`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pk`)
@@ -3494,10 +3531,10 @@ CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
 CONSTRAINT c FOREIGN KEY (fk) REFERENCES self(pk));
 # Dropping foreign key and adding partitioning is OK.
 ALTER TABLE self DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
-# Adding foreign key and removing partitioning should be OK.
-# However, the below statement fails due to bug#28486106 in InnoDB code.
+# Adding foreign key and removing partitioning is OK.
+# The below statement provides coverage gor bug#28486106 "ALTER TABLE
+# ADD FOREIGN KEY ... REMOVE PARTITIONING FAILS IF SELF-REFENCE".
 ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
-ERROR HY000: Cannot add foreign key constraint
 DROP TABLES self;
 #
 # 6) Check that we prohibit foreign keys with SET NULL action with
@@ -4195,27 +4232,27 @@ REFERENCES t1(id) ON DELETE RESTRICT ON UPDATE RESTRICT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t2_fk` (`t1_id`),
   CONSTRAINT `t2_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t3_fk` (`t1_id`),
   CONSTRAINT `t3_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t4_fk` (`t1_id`),
   CONSTRAINT `t4_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4231,27 +4268,27 @@ DROP TABLE t1, t2, t3, t4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t2_fk` (`t1_id`),
   CONSTRAINT `t2_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t3_fk` (`t1_id`),
   CONSTRAINT `t3_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t4_fk` (`t1_id`),
   CONSTRAINT `t4_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4286,7 +4323,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 DROP TABLE child;
 CREATE TABLE child (Fk VARCHAR(10));
@@ -4300,7 +4337,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 # Ditto for self-referencing tables.
 CREATE TABLE self (Pk VARCHAR(10) PRIMARY KEY, Fk VARCHAR(10),
@@ -4316,7 +4353,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 DROP TABLE self;
 CREATE TABLE self (Pk VARCHAR(10) PRIMARY KEY, Fk VARCHAR(10));
@@ -4332,7 +4369,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 #
 # If column name is changed (even to equivalent one) then the name shown
@@ -4347,7 +4384,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	PK
 ALTER TABLE child CHANGE COLUMN Fk FK VARCHAR(20);
 SHOW CREATE TABLE child;
@@ -4359,7 +4396,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 # Ditto for self-referencing tables.
 ALTER TABLE self CHANGE COLUMN Pk PK VARCHAR(20);
@@ -4374,7 +4411,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	PK
 ALTER TABLE self CHANGE COLUMN Fk FK VARCHAR(20);
 SHOW CREATE TABLE self;
@@ -4388,7 +4425,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 DROP TABLE self;
 #
@@ -4405,7 +4442,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 #
 # Addition of parent doesn't change the referenced column names.
@@ -4419,7 +4456,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 DROP TABLES child, parent;
 #
@@ -4442,7 +4479,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	pK
 DROP TABLE child;
 CREATE TABLE child (Fk VARCHAR(10));
@@ -4456,7 +4493,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	pK
 #
 # Addition of parent doesn't change the referenced column names.
@@ -4470,7 +4507,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	pK
 SET FOREIGN_KEY_CHECKS=1;
 DROP TABLES child, parent;
@@ -4485,14 +4522,14 @@ CREATE TABLE t3 (t1id INT, FOREIGN KEY fk_index (t1id) REFERENCES t1 (id));
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1id` int(11) DEFAULT NULL,
+  `t1id` int DEFAULT NULL,
   KEY `fk_index` (`t1id`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `t1id` int(11) DEFAULT NULL,
+  `t1id` int DEFAULT NULL,
   KEY `fk_index` (`t1id`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`t1id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4512,10 +4549,10 @@ CONSTRAINT e FOREIGN KEY f (fk4) REFERENCES t1 (id));
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
   KEY `fk1` (`fk1`),
   KEY `c` (`fk2`),
   KEY `d` (`fk3`),
@@ -4545,8 +4582,8 @@ INSERT INTO child VALUES (1, 1);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4558,8 +4595,8 @@ ALTER TABLE child MODIFY COLUMN b BIGINT, RENAME TO child_renamed, ALGORITHM=COP
 SHOW CREATE TABLE child_renamed;
 Table	Create Table
 child_renamed	CREATE TABLE `child_renamed` (
-  `fk` int(11) DEFAULT NULL,
-  `b` bigint(20) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `b` bigint DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_renamed_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4590,8 +4627,8 @@ SET FOREIGN_KEY_CHECKS=1;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `parent_id` int(11) DEFAULT NULL,
-  `uncle_id` int(11) DEFAULT NULL,
+  `parent_id` int DEFAULT NULL,
+  `uncle_id` int DEFAULT NULL,
   KEY `parent_id` (`parent_id`),
   KEY `uncle_id` (`uncle_id`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `parent` (`id`),
@@ -4718,11 +4755,408 @@ ERROR HY000: Cannot drop index 'k1': needed in a foreign key constraint
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   KEY `k1` (`fk1`),
   KEY `b` (`fk2`),
   CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
   CONSTRAINT `b` FOREIGN KEY (`fk2`) REFERENCES `t2` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES t3, t2, t1;
+#
+# Bug#30214965 "GENERATION OF FK NAMES IS NOT RE-EXECUTION SAFE".
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, a INT);
+PREPARE stmt1 FROM 'ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent (pk)';
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE child RENAME COLUMN fk TO fkold, RENAME COLUMN a TO fk;
+# Re-execution of ALTER TABLE ADD FOREIGN KEY should succeed.
+# New foreign key should get new foreign key name.
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fkold` int DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  KEY `fk` (`fkold`),
+  KEY `fk_2` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fkold`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_ibfk_2` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DEALLOCATE PREPARE stmt1;
+DROP TABLES child, parent;
+#
+# Bug#30267236 "REPLACE DICT_FOREIGN_PARSE_DROP_CONSTRAINTS() WITH
+#               SQL-LAYER CHECK."
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk));
+CREATE TABLE unrelated (a INT);
+#
+# Dropping non-existing foreign key should fail with consistent error.
+ALTER TABLE child DROP FOREIGN KEY no_such_fk;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+#
+# Dropping existing foreign key using wrong table name should fail
+# with consistent error as well.
+ALTER TABLE unrelated DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+#
+# The same should happen if one tries to drop foreign key using
+# parent table.
+ALTER TABLE parent DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+DROP TABLES unrelated, child, parent;
+#
+# Bug#16904122 "MULTIPLE FK WITH SAME NAME ALLOWED IN ALTER".
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, fk2 INT, a INT, KEY(fk1), KEY(fk2));
+INSERT INTO child VALUES (NULL, NULL, 1), (NULL, NULL, 1);
+# Usage of duplicate foreign key name should be detected before
+# proceeding to COPYing of rows (and thus duplicate key error)
+# and checking if INPLACE algorithm is supported.
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a);
+ERROR HY000: Duplicate foreign key constraint name 'f'
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 'f'
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'f'
+# Also check case when we created duplicate to already pre-existing
+# foreign key name. Also check that foreign key name comparison is
+# case-insensitive in this case.
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk);
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a);
+ERROR HY000: Duplicate foreign key constraint name 'F'
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 'F'
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'F'
+DROP TABLES child, parent;
+#
+# Bug#22364336 "ANOMALY IN ALTER TABLE ADD FOREIGN KEY".
+#
+# Spaces surrounding dot in qualified parent table name should
+# be allowed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES test . parent (pk));
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES test . parent (pk);
+DROP TABLES child, parent;
+#
+# Bug#28703793 "CANNOT ADD FOREIGN KEY CONSTRAINT TO TABLES INSIDE A
+#               DATABASE NAMED `AUX`"
+#
+CREATE DATABASE aux;
+CREATE TABLE aux.parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES aux.parent (pk));
+DROP TABLE child;
+DROP DATABASE aux;
+#
+# Bug#11754659 "CONDITIONAL COMMENTS NOT WORKING IN FOREIGN KEY DEFINITION".
+#
+CREATE TABLE parent (id INT PRIMARY KEY);
+# Test if versioned conditional comments work in CREATE TABLE
+# (issue that was reported originally).
+CREATE TABLE child (fk INT, CONSTRAINT c1 FOREIGN KEY (fk) REFERENCES parent (id) /*!40008 ON DELETE CASCADE ON UPDATE CASCADE */);
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int DEFAULT NULL,
+  KEY `c1` (`fk`),
+  CONSTRAINT `c1` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE child DROP FOREIGN KEY c1;
+# Also check if they work in ALTER TABLE and that MySQL-specific
+# conditional comments also work.
+ALTER TABLE child ADD CONSTRAINT c2 FOREIGN KEY (fk) REFERENCES parent /*! (id) */ /*!40008 ON DELETE SET NULL */;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int DEFAULT NULL,
+  KEY `c2` (`fk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLES child, parent;
+#
+# Bug#21919887 "STATEMENTS IN "EXECUTABLE COMMENTS" ARE IGNORING
+#               CONSTRAINTS".
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+/*!50101 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) */;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+/*! ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) */;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLES child, parent;
+#
+# Bug#33114045 - TRANSFER_PREEXISTING_FOREIGN_KEYS: ASSERTION `!FIND->IS_VIRTUAL_GCOL()'
+#                FAILED.
+# Assertion to make sure foreign key is referencing non-virtual column failed.
+#
+CREATE TABLE t (a INT KEY, b INT NOT NULL UNIQUE KEY,
+CONSTRAINT FOREIGN KEY (a) REFERENCES t(b));
+# Without fix, assertion fails for the following ALTER TABLE statements in
+# the debug build. Statements executes successfully in the non-debug build.
+ALTER TABLE t ADD COLUMN a INT GENERATED ALWAYS AS (1) FIRST;
+ERROR 42S21: Duplicate column name 'a'
+ALTER TABLE t ADD COLUMN b INT GENERATED ALWAYS AS (1) FIRST;
+ERROR 42S21: Duplicate column name 'b'
+DROP TABLE t;
+#
+# As a result of table rename operation, orphan non-self-referencing
+# foreign keys become non-orphan/adopted self-referencing foreign keys.
+# Test cases to verify such transformation of foreign keys.
+#
+SET SESSION FOREIGN_KEY_CHECKS=0;
+# 1. Test case to verify transformation of a foreign key with ALTER TABLE
+#    RENAME operation using INPLACE algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 2. Test case to verify transformation of a foreign key with ALTER TABLE
+#    RENAME operation using INSTANT algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 3. Test case to verify transformation of a foreign key with ALTER TABLE
+#    RENAME operation using COPY algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 4. Test case to verify transformation of a foreign key with RENAME TABLE
+#    statement.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+RENAME TABLE t1 TO t2;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 5. Test case to check if orphan non-self-referencing foreign key is
+#    transformed when table schema and table name are changed.
+#    Foreign key is not transformed in this case.
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f3));
+CREATE DATABASE db2;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=COPY;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE db2.t2 TO db1.t1;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=INPLACE;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE db2.t2 TO db1.t1;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=INSTANT;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE db2.t2 TO db1.t1;
+RENAME TABLE db1.t1 TO db2.t2;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+DROP DATABASE db2;
+# 6. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    does not exist in the table.
+#    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+RENAME TABLE t1 TO t2;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+# 7. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    is dropped in the same ALTER TABLE statement.
+#    Table rename operation fails in this case.
+ALTER TABLE t1 ADD f3 INT UNIQUE;
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+# 8. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    is renamed in the same ALTER TABLE statement.
+#    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT, KEY (f3),
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+# 9. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    is a virtual column.
+#    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, F3 INT AS (f1+1) VIRTUAL,
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+RENAME TABLE t1 TO t2;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+DROP TABLE t1;
+# 10. Test case to verify table rename operation on the table containing
+#     orphan non-self-referencing foreign key. Parent index does not
+#     exist in the table.
+#     Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT,
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+RENAME TABLE t1 TO t2;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+# 11. Test case to verify table rename operation on the table containing
+#     orphan non-self-referencing foreign key. Table's column is not
+#     compatible with the foreign key's referenced column.
+#     Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 CHAR(10), KEY(f3),
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+RENAME TABLE t1 TO t2;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS = DEFAULT;

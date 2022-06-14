@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,17 +55,11 @@ struct row_threads {
   /** Length in bytes of @c m_name. */
   uint m_name_length;
   /** Column PROCESSLIST_USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
+  PFS_user_name m_user_name;
   /** Column PROCESSLIST_HOST. */
-  char m_hostname[HOSTNAME_LENGTH];
-  /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
   /** Column PROCESSLIST_DB. */
-  char m_dbname[NAME_LEN];
-  /** Length in bytes of @c m_dbname. */
-  uint m_dbname_length;
+  PFS_schema_name m_db_name;
   /** Column PROCESSLIST_COMMAND. */
   int m_command;
   /** Column PROCESSLIST_TIME. */
@@ -94,6 +88,8 @@ struct row_threads {
   char m_groupname[NAME_LEN];
   /** Length in bytes of @c m_groupname. */
   uint m_groupname_length;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads {
@@ -101,9 +97,9 @@ class PFS_index_threads_by_thread_id : public PFS_index_threads {
   PFS_index_threads_by_thread_id()
       : PFS_index_threads(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_threads_by_thread_id() {}
+  ~PFS_index_threads_by_thread_id() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_thread_id m_key;
@@ -114,9 +110,9 @@ class PFS_index_threads_by_processlist_id : public PFS_index_threads {
   PFS_index_threads_by_processlist_id()
       : PFS_index_threads(&m_key), m_key("PROCESSLIST_ID") {}
 
-  ~PFS_index_threads_by_processlist_id() {}
+  ~PFS_index_threads_by_processlist_id() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_processlist_id m_key;
@@ -126,9 +122,9 @@ class PFS_index_threads_by_name : public PFS_index_threads {
  public:
   PFS_index_threads_by_name() : PFS_index_threads(&m_key), m_key("NAME") {}
 
-  ~PFS_index_threads_by_name() {}
+  ~PFS_index_threads_by_name() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_thread_name m_key;
@@ -141,9 +137,9 @@ class PFS_index_threads_by_user_host : public PFS_index_threads {
         m_key_1("PROCESSLIST_USER"),
         m_key_2("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_user_host() {}
+  ~PFS_index_threads_by_user_host() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_user m_key_1;
@@ -155,9 +151,9 @@ class PFS_index_threads_by_host : public PFS_index_threads {
   PFS_index_threads_by_host()
       : PFS_index_threads(&m_key), m_key("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_host() {}
+  ~PFS_index_threads_by_host() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_host m_key;
@@ -168,9 +164,9 @@ class PFS_index_threads_by_thread_os_id : public PFS_index_threads {
   PFS_index_threads_by_thread_os_id()
       : PFS_index_threads(&m_key), m_key("THREAD_OS_ID") {}
 
-  ~PFS_index_threads_by_thread_os_id() {}
+  ~PFS_index_threads_by_thread_os_id() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_thread_os_id m_key;
@@ -181,9 +177,9 @@ class PFS_index_threads_by_resource_group : public PFS_index_threads {
   PFS_index_threads_by_resource_group()
       : PFS_index_threads(&m_key), m_key("RESOURCE_GROUP") {}
 
-  ~PFS_index_threads_by_resource_group() {}
+  ~PFS_index_threads_by_resource_group() override = default;
 
-  virtual bool match(PFS_thread *pfs);
+  bool match(PFS_thread *pfs) override;
 
  private:
   PFS_key_group_name m_key;
@@ -198,21 +194,21 @@ class table_threads : public cursor_by_thread {
   static PFS_engine_table *create(PFS_engine_table_share *);
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
-  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields);
+  int update_row_values(TABLE *table, const unsigned char *old_buf,
+                        unsigned char *new_buf, Field **fields) override;
 
  protected:
   table_threads();
-  virtual int index_init(uint idx, bool sorted);
+  int index_init(uint idx, bool sorted) override;
 
  public:
-  ~table_threads() {}
+  ~table_threads() override = default;
 
  private:
-  virtual int make_row(PFS_thread *pfs);
+  int make_row(PFS_thread *pfs) override;
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

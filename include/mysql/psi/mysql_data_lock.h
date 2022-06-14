@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,15 @@
   Instrumentation helpers for data locks.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_data_lock.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_DATA_LOCK_CALL() as direct call. */
+#include "pfs_data_lock_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_DATA_LOCK_CALL
 #define PSI_DATA_LOCK_CALL(M) psi_data_lock_service->M
@@ -46,7 +54,7 @@ void inline_mysql_data_lock_register(
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
     PSI_engine_data_lock_inspector *i
 #else
-    PSI_engine_data_lock_inspector *i MY_ATTRIBUTE((unused))
+    PSI_engine_data_lock_inspector *i [[maybe_unused]]
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 ) {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
@@ -60,7 +68,7 @@ void inline_mysql_data_lock_unregister(
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
     PSI_engine_data_lock_inspector *i
 #else
-    PSI_engine_data_lock_inspector *i MY_ATTRIBUTE((unused))
+    PSI_engine_data_lock_inspector *i [[maybe_unused]]
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 ) {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE

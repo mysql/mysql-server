@@ -274,7 +274,16 @@ INSERT INTO v1 VALUES (1), (3);
 INSERT IGNORE INTO v1 VALUES (1), (3);
 --error ER_VIEW_CHECK_FAILED
 UPDATE v1 SET a=5 WHERE a=1;
+SELECT * FROM t1;
+--echo # Verify multi-table UPDATE too (Bug#30922503)
+--error ER_VIEW_CHECK_FAILED
+UPDATE v1 STRAIGHT_JOIN (SELECT 1) AS dt SET a=5 WHERE a=1;
+SELECT * FROM t1;
 UPDATE IGNORE v1 SET a=5 WHERE a=1;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (1);
+UPDATE IGNORE v1 STRAIGHT_JOIN (SELECT 1) AS dt SET a=5 WHERE a=1;
+SELECT * FROM t1;
 DROP VIEW v1;
 DROP TABLE t1;
 
@@ -583,7 +592,10 @@ INSERT INTO t2 VALUES(7);
 --echo #
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 DELETE FROM t1 where a <=> ln(0);
+--disable_warnings
 DELETE IGNORE FROM t1 where a <=> ln(0);
+--enable_warnings
+--skip_if_hypergraph  # Different number of warnings.
 SHOW WARNINGS;
 
 --echo #

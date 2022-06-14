@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,14 +41,14 @@
 
 #include "common.hpp"
 
-#define CPCD_VERSION_NUMBER 1
+#define CPCD_VERSION_NUMBER 2
 
 static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
 static int unsigned port;
 static int unsigned show_version = 0;
 static int use_syslog;
-static const char *logfile = NULL;
-static const char *user = 0;
+static char *logfile = NULL;
+static char *user = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -77,7 +77,7 @@ static struct my_option my_long_options[] =
 };
 
 static bool
-get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
 	       char *argument)
 {
   return 0;
@@ -173,7 +173,7 @@ int main(int argc, char** argv){
   unsigned short real_port= port; // correct type
   if(!ss->setup(serv, &real_port)){
     logger.critical("Cannot setup server: %s", strerror(errno));
-    sleep(1);
+    NdbSleep_SecSleep(1);
     delete ss;
     delete serv;
     return 1;

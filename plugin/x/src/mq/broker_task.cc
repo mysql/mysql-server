@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/mq/broker_task.h"
 
+#include <assert.h>
 #include <algorithm>
 #include <map>
+#include <memory>
+#include <string>
 
-#include "my_dbug.h"
-
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
+#include "plugin/x/src/ngs/protocol/message.h"
+#include "plugin/x/src/variables/xpl_global_status_variables.h"
 
 namespace xpl {
 
@@ -36,7 +38,7 @@ using Notice = ::Mysqlx::Notice::Frame;
 
 Broker_task::Broker_task(std::shared_ptr<Broker_context> context)
     : m_broker_context(context) {
-  DBUG_ASSERT(nullptr != m_broker_context.get());
+  assert(nullptr != m_broker_context.get());
 }
 
 bool Broker_task::prepare(Task_context *context) {
@@ -97,7 +99,10 @@ void Broker_task::loop() {
   while (!workers_queue.empty()) {
     const auto &notice_description = workers_queue.front();
 
+    XSYNC_POINT_CHECK(XSYNC_WAIT("gr_notice_bug_broker_dispatch"));
     distribute(notice_description);
+    XSYNC_POINT_CHECK(XSYNC_WAIT_NONE,
+                      XSYNC_WAKE("gr_notice_bug_client_accept"));
 
     workers_queue.pop();
   }
@@ -124,22 +129,24 @@ void Broker_task::distribute(const Notice_descriptor &notice_descriptor) {
   auto binary_notice = create_notice_message(notice_descriptor);
 
   m_task_context.m_client_list->enumerate(
-      [&notice_descriptor,
-       &binary_notice](std::shared_ptr<ngs::Client_interface> &client) -> bool {
-        auto &session_out_queue = client->session()->get_notice_output_queue();
+      [&binary_notice](std::shared_ptr<iface::Client> &client) -> bool {
+        auto session = client->session();
+        if (!session) return false;
 
-        session_out_queue.emplace(notice_descriptor.m_notice_type,
-                                  binary_notice);
+        auto &session_out_queue = session->get_notice_output_queue();
+
+        session_out_queue.emplace(binary_notice);
         return false;
       });
 }
 
-std::shared_ptr<std::string> Broker_task::create_notice_message(
+std::shared_ptr<Broker_task::Notice_descriptor>
+Broker_task::create_notice_message(
     const Notice_descriptor &notice_description) {
   using Protocol_type = Mysqlx::Notice::GroupReplicationStateChanged_Type;
   using Notice_type_map = std::map<Notice_type, Protocol_type>;
 
-  const static Notice_type_map map_types{
+  static const Notice_type_map k_map_types{
       {Notice_type::k_group_replication_quorum_loss,
        Protocol_type::GroupReplicationStateChanged_Type_MEMBERSHIP_QUORUM_LOSS},
       {Notice_type::k_group_replication_view_changed,
@@ -149,25 +156,22 @@ std::shared_ptr<std::string> Broker_task::create_notice_message(
       {Notice_type::k_group_replication_member_state_changed,
        Protocol_type::GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE}};
 
-  DBUG_ASSERT(map_types.count(notice_description.m_notice_type) == 1 &&
-              std::any_of(Notice_descriptor::dispatchables.begin(),
-                          Notice_descriptor::dispatchables.end(),
-                          [&notice_description](Notice_type nt) {
-                            return nt == notice_description.m_notice_type;
-                          }));
+  assert(k_map_types.count(notice_description.m_notice_type) == 1 &&
+         Notice_descriptor::is_dispatchable(notice_description.m_notice_type));
+
+  auto binary_notice =
+      std::make_shared<Notice_descriptor>(notice_description.m_notice_type);
 
   ::Mysqlx::Notice::GroupReplicationStateChanged group_replication_state_change;
-  std::shared_ptr<std::string> binary_notice{new std::string};
-
   group_replication_state_change.set_type(
-      map_types.at(notice_description.m_notice_type));
+      k_map_types.at(notice_description.m_notice_type));
 
   if (!notice_description.m_payload.empty())
     group_replication_state_change.set_view_id(notice_description.m_payload);
 
-  group_replication_state_change.SerializeToString(binary_notice.get());
+  group_replication_state_change.SerializeToString(&binary_notice->m_payload);
 
   return binary_notice;
-}  // namespace xpl
+}
 
 }  // namespace xpl

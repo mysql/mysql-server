@@ -16,6 +16,14 @@ grp	a	c	id	a	c	d
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
+EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
+EXPLAIN
+-> Sort: t1.grp, t1.a, t2.c
+    -> Stream results  (cost=3.67 rows=7)
+        -> Nested loop left join  (cost=3.67 rows=7)
+            -> Table scan on t1  (cost=1.22 rows=7)
+            -> Single-row index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.26 rows=1)
+
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 grp	a	c	id	a	c	d
 NULL	NULL		NULL	NULL	NULL	NULL
@@ -176,7 +184,7 @@ usr_id	uniq_id	increment	usr2_id	c_amount	max
 3	4	84676	NULL	NULL	NULL
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
-ERROR 23000: Duplicate entry '2-3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-3' for key 't2.PRIMARY'
 INSERT INTO t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
 SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 LEFT JOIN t2 ON t2.id = t1.uniq_id WHERE t1.uniq_id = 4 ORDER BY t2.c_amount;
 usr_id	uniq_id	increment	usr2_id	c_amount	max
@@ -346,13 +354,13 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`name` is null)
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
@@ -370,13 +378,13 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`name` is null)
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
@@ -394,6 +402,15 @@ Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
 NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3
+explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
+EXPLAIN
+-> Nested loop left join  (cost=2.20 rows=9)
+    -> Index scan on t3 using PRIMARY  (cost=0.55 rows=3)
+    -> Nested loop inner join  (cost=0.83 rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (id=t3.id)  (cost=0.28 rows=1)
+        -> Filter: (t2.`owner` = t3.id)  (cost=0.18 rows=3)
+            -> Table scan on t2  (cost=0.18 rows=3)
+
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
@@ -413,12 +430,12 @@ id	str
 2	NULL
 explain select * from t1 where str is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
+1	SIMPLE	t1	NULL	ref	str	str	41	const	2	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 explain format=tree select * from t1 where str is null;
 EXPLAIN
--> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)
+-> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)  (cost=0.70 rows=2)
 
 drop table t1;
 CREATE TABLE t1 (
@@ -525,19 +542,19 @@ count	color
 7	green
 select * from t2 natural join t1;
 color	count	name
+black	5	grape
 green	10	lime
 green	7	lime
-black	5	grape
 select t2.count, t1.name from t2 natural join t1;
 count	name
 10	lime
-7	lime
 5	grape
+7	lime
 select t2.count, t1.name from t2 inner join t1 using (color);
 count	name
 10	lime
-7	lime
 5	grape
+7	lime
 drop table t1;
 drop table t2;
 CREATE TABLE t1 (
@@ -552,6 +569,21 @@ INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
+kld2000	1
+klw1000	0
+klw1020	0
+klw1500	0
+klw2000	0
+klw2001	0
+klw2002	0
+klw2500	0
+kmw1000	0
+kmw1500	0
+kmw2000	0
+kmw2001	0
+kmw2100	0
+kmw3000	0
+kmw3200	0
 kvw2000	26
 kvw2001	0
 kvw3000	36
@@ -578,21 +610,6 @@ kvw5510	0
 kvw5600	0
 kvw5601	0
 kvw6000	2
-klw1000	0
-klw1020	0
-klw1500	0
-klw2000	0
-klw2001	0
-klw2002	0
-kld2000	1
-klw2500	0
-kmw1000	0
-kmw1500	0
-kmw2000	0
-kmw2001	0
-kmw2100	0
-kmw3000	0
-kmw3200	0
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
 kld2000	1
@@ -702,6 +719,10 @@ create table t1 (fooID smallint unsigned auto_increment, primary key (fooID));
 create table t2 (fooID smallint unsigned not null, barID smallint unsigned not null, primary key (fooID,barID));
 insert into t1 (fooID) values (10),(20),(30);
 insert into t2 values (10,1),(20,2),(30,3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
@@ -757,16 +778,21 @@ create table t3 (c1 int, c2 int);
 insert into t1 values (1,2), (2,2), (3,2);
 insert into t2 values (1,3), (2,3);
 insert into t3 values (2,4),        (3,4);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 a1	a2	b1	b2	c1	c2
-3	2	NULL	NULL	3	4
 1	2	1	3	NULL	NULL
 2	2	2	3	NULL	NULL
+3	2	NULL	NULL	3	4
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b1` = `test`.`t1`.`a1`)) left join `test`.`t3` on(((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` is null))) where true
 drop table t1, t2, t3;
@@ -820,6 +846,10 @@ insert into t2 values("7", "4");
 insert into t2 values("8", "12");
 insert into t2 values("9", "11");
 insert into t2 values("10", "10");
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by m.match_id desc;
@@ -962,31 +992,31 @@ a1	a2
 1	NULL
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON a1=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a1`,`test`.`t2`.`a2` AS `a2` from <constant table> left join `test`.`t2` on(false) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a1` = 0)) where true
 SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
 a1	a2	a3
 1	NULL	NULL
 EXPLAIN SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from <constant table> left join (`test`.`t2` join `test`.`t3`) on(false) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on((`test`.`t1`.`a1` = 0)) where true
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
 a0	a1	a2	a3
 1	1	NULL	NULL
 EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t0	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.a0	1	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a0`,'1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from <constant table> left join (`test`.`t2` join `test`.`t3`) on(false) where true
+Note	1003	/* select#1 */ select `test`.`t0`.`a0` AS `a0`,`test`.`t1`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t0`.`a0` = 0) and (`test`.`t1`.`a1` = 0))) where (`test`.`t1`.`a1` = `test`.`t0`.`a0`)
 INSERT INTO t0 VALUES (0);
 INSERT INTO t1 VALUES (0);
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
@@ -1286,14 +1316,14 @@ SELECT v1.a, v2. b
 FROM v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3)
 GROUP BY v1.a;
 a	b
-3	3
 2	NULL
+3	3
 SELECT v1.a, v2. b 
 FROM { OJ v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3) }
 GROUP BY v1.a;
 a	b
-3	3
 2	NULL
+3	3
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int);
@@ -1357,11 +1387,15 @@ INSERT INTO t1 VALUES
 (1,'aaaaaaa'), (5,'eeeeeee'), (4,'ddddddd'), (2,'bbbbbbb'), (3,'ccccccc');
 INSERT INTO t2 VALUES
 (3,10), (2,20), (5,30), (3,20), (5,10), (3,40), (3,30), (2,10), (2,40);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	9	11.11	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	9	11.11	Using where; Not exists; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (`test`.`t2`.`b` is null)
 flush status;
@@ -1371,8 +1405,8 @@ id	a
 4	ddddddd
 show status like 'Handler_read%';
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	2
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -1383,6 +1417,10 @@ CREATE TABLE t1 (c int  PRIMARY KEY, e int NOT NULL);
 INSERT INTO t1 VALUES (1,0), (2,1);
 CREATE TABLE t2 (d int PRIMARY KEY);
 INSERT INTO t2 VALUES (1), (2), (3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
@@ -1404,15 +1442,19 @@ CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 ( a INT, b INT );
 INSERT INTO t2 VALUES (1, 1),(1, 2),(1, 3),(2, 4),(2, 5);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 LEFT JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from <constant table> left join `test`.`t2` on((`test`.`t2`.`a` = '1')) where true group by rollup_const('1') with rollup
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,rollup_sum_switcher(count(`test`.`t2`.`b`)) AS `COUNT( t2.b )`,rollup_sum_switcher(sum(`test`.`t2`.`b`)) AS `SUM( t2.b )`,rollup_sum_switcher(max(`test`.`t2`.`b`)) AS `MAX( t2.b )` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true group by `test`.`t1`.`a` with rollup
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 LEFT JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
@@ -1424,10 +1466,10 @@ SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from `test`.`t2` where (`test`.`t2`.`a` = '1') group by rollup_const('1') with rollup
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,rollup_sum_switcher(count(`test`.`t2`.`b`)) AS `COUNT( t2.b )`,rollup_sum_switcher(sum(`test`.`t2`.`b`)) AS `SUM( t2.b )`,rollup_sum_switcher(max(`test`.`t2`.`b`)) AS `MAX( t2.b )` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`) group by `test`.`t1`.`a` with rollup
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
@@ -1445,10 +1487,10 @@ INSERT INTO t2 VALUES (2, 1);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from <constant table> left join `test`.`t2` on(multiple equal(NULL, NULL)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f2` = `test`.`t1`.`f2`)) where ((coalesce(`test`.`t1`.`f1`,`test`.`t2`.`f1`),`test`.`t1`.`f3`) in ((1,3),(2,2)))
 SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 f1	f2	f3	f1	f2
@@ -1474,14 +1516,14 @@ RIGHT OUTER JOIN t1 tt1 ON 1
 STRAIGHT_JOIN    t1 tt9 ON 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt5	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt6	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt7	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt9	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt5	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt6	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt7	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt9	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `tt1` left join (`test`.`t1` `tt2` left join (`test`.`t1` `tt3` left join `test`.`t1` `tt4` on(true) left join `test`.`t1` `tt5` on(true) left join `test`.`t1` `tt6` on(true) left join `test`.`t1` `tt7` on(true) left join `test`.`t1` `tt8` on(true)) on(true)) on(true) straight_join `test`.`t1` `tt9` where true
 SET optimizer_search_depth = DEFAULT;
@@ -1494,6 +1536,10 @@ INSERT INTO t1 VALUES (9),(0);
 CREATE TABLE t2 (f1 INT NOT NULL);
 INSERT INTO t2 VALUES
 (5),(3),(0),(3),(1),(0),(1),(7),(1),(0),(0),(8),(4),(9),(0),(2),(0),(8),(5),(1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT STRAIGHT_JOIN COUNT(*) FROM t1 ta1
 RIGHT JOIN t2 ta2 JOIN t2 ta3 ON ta2.f1 ON ta3.f1;
 COUNT(*)
@@ -1502,8 +1548,8 @@ EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t1 ta1
 RIGHT JOIN t2 ta2 JOIN t2 ta3 ON ta2.f1 ON ta3.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ta2	NULL	ALL	NULL	NULL	NULL	NULL	20	90.00	Using where
-1	SIMPLE	ta3	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	ta1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	ta3	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
+1	SIMPLE	ta1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` `ta2` join `test`.`t2` `ta3` left join `test`.`t1` `ta1` on((0 <> `test`.`ta3`.`f1`)) where (0 <> `test`.`ta2`.`f1`)
 DROP TABLE t1, t2;
@@ -1522,11 +1568,11 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt6	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt6	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (hash join)
+1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(true) left join `test`.`t1` `jt2` on(true)) on(((0 <> `test`.`jt6`.`f1`)))) on(true) where true
 EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
@@ -1539,11 +1585,11 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt6	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (hash join)
+1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(true) left join `test`.`t1` `jt2` on(true)) on(((0 <> `test`.`jt6`.`f1`))) left join `test`.`t1` `jt1` on(true) where true
 DROP TABLE t1;
@@ -1559,10 +1605,10 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4
 GROUP BY t2.f1, t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using temporary
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index; Using temporary
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from <constant table> left join `test`.`t2` on((`test`.`t2`.`f1` = 4)) where true group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
+Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = 4)) where true group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
 SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4
 GROUP BY t2.f1, t2.f2;
@@ -1572,10 +1618,10 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
 GROUP BY t2.f1, t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	50.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where ((`test`.`t2`.`f1` = 4) and (`test`.`t2`.`f2` is not null)) group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
+Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = 4) and (`test`.`t2`.`f2` is not null)) group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
 SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
 GROUP BY t2.f1, t2.f2;
@@ -1832,8 +1878,8 @@ explain SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((0 <> `test`.`t2`.`a`))) on(false) where ((0 <> `test`.`t1`.`a`) or (0 <> `test`.`t3`.`a`))
 SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
@@ -1844,9 +1890,9 @@ explain SELECT t1.a FROM t1 LEFT JOIN
 ON 0 WHERE t1.a OR t4.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` left join `test`.`t4` on(true)) on((0 <> `test`.`t2`.`a`))) on(false) where ((0 <> `test`.`t1`.`a`) or (0 <> `test`.`t4`.`a`))
 SELECT t1.a FROM t1 LEFT JOIN
@@ -1901,16 +1947,16 @@ ON t2.col_varchar_10 = t3.col_varchar_10
 ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 EXPLAIN
--> Filter: <if>(found_match(t3..t4), (<cache>(('-448724992' is null)) or (t4.pk < t3.col_int)), true)
-    -> Nested loop left join
-        -> Rows fetched before execution
-        -> Nested loop left join
-            -> Filter: (t2.col_int = '6')
-                -> Table scan on t2
-            -> Nested loop inner join
-                -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)
-                    -> Table scan on t3
-                -> Single-row index lookup on t4 using PRIMARY (pk=t3.col_int)
+-> Filter: <if>(found_match(t3..t4), ((t1.col_int_key is null) or (t4.pk < t3.col_int)), true)  (cost=0.70 rows=1)
+    -> Nested loop left join  (cost=0.70 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+        -> Nested loop left join  (cost=0.70 rows=1)
+            -> Filter: (t2.col_int = t1.pk)  (cost=0.35 rows=1)
+                -> Table scan on t2  (cost=0.35 rows=1)
+            -> Nested loop inner join  (cost=0.70 rows=1)
+                -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)  (cost=0.35 rows=1)
+                    -> Table scan on t3  (cost=0.35 rows=1)
+                -> Single-row covering index lookup on t4 using PRIMARY (pk=t3.col_int)  (cost=0.35 rows=1)
 
 DROP TABLE t1,t2,t3,t4;
 
@@ -2131,14 +2177,14 @@ WHERE t6b.col_int_key IS TRUE
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and (0 <> `test`.`t4`.`col_int`))) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and ((0 <> `test`.`t6b`.`col_int_key`) is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = convert(`test`.`t6b`.`col_varchar_10_latin1_key` using utf8)) and ((0 <> `test`.`t6a`.`pk`) is true))
+Note	1003	/* select#1 */ select straight_join `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and (0 <> `test`.`t4`.`col_int`))) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and ((0 <> `test`.`t6b`.`col_int_key`) is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = `test`.`t6b`.`col_varchar_10_latin1_key`) and ((0 <> `test`.`t6a`.`pk`) is true))
 SELECT t6a.pk, t2.pk
 FROM
 t6 AS t6a
@@ -2211,26 +2257,26 @@ WHERE t6b.col_int_key IS TRUE
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and (0 <> `test`.`t4`.`col_int`))) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and ((0 <> `test`.`t6b`.`col_int_key`) is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = convert(`test`.`t6b`.`col_varchar_10_latin1_key` using utf8)) and ((0 <> `test`.`t6a`.`pk`) is true))
+Note	1003	/* select#1 */ select `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and (0 <> `test`.`t4`.`col_int`))) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and ((0 <> `test`.`t6b`.`col_int_key`) is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = `test`.`t6b`.`col_varchar_10_latin1_key`) and ((0 <> `test`.`t6a`.`pk`) is true))
 EXPLAIN SELECT * FROM t5 LEFT JOIN t6 ON t5.col_int=1000
 WHERE t6.col_int_key IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`col_int` AS `col_int`,`test`.`t5`.`col_varchar_10_utf8_key` AS `col_varchar_10_utf8_key`,`test`.`t6`.`col_int_key` AS `col_int_key`,`test`.`t6`.`col_varchar_10_latin1_key` AS `col_varchar_10_latin1_key`,`test`.`t6`.`pk` AS `pk` from `test`.`t5` join `test`.`t6` where ((`test`.`t5`.`col_int` = 1000) and ((0 <> `test`.`t6`.`col_int_key`) is true))
 EXPLAIN SELECT * FROM t5 LEFT JOIN t6 ON t5.col_int=1000
 WHERE t6.col_int_key IS NOT TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`col_int` AS `col_int`,`test`.`t5`.`col_varchar_10_utf8_key` AS `col_varchar_10_utf8_key`,`test`.`t6`.`col_int_key` AS `col_int_key`,`test`.`t6`.`col_varchar_10_latin1_key` AS `col_varchar_10_latin1_key`,`test`.`t6`.`pk` AS `pk` from `test`.`t5` left join `test`.`t6` on((`test`.`t5`.`col_int` = 1000)) where ((0 <> `test`.`t6`.`col_int_key`) is not true)
 drop table t1,t2,t3,t4,t5,t6;
@@ -2244,7 +2290,7 @@ INSERT INTO t2 VALUES(1),(2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where (`test`.`t2`.`a` is null)
 FLUSH STATUS;
@@ -2252,8 +2298,8 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
 a	a
 SHOW STATUS LIKE 'HANDLER_READ%';
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	2
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -2316,7 +2362,7 @@ EXPLAIN
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 1,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.10",
@@ -2336,7 +2382,7 @@ EXPLAIN
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 1,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.10",
@@ -3017,8 +3063,8 @@ ON alias1.col_int = alias4.col_int
 ;
 col_datetime_key
 1970-01-01 00:00:00
-NULL
 1970-01-01 00:00:00
+NULL
 DROP TABLE t1, t2, t3, t4;
 # Bug#22833364: Left join returns incorrect results on the outer side
 CREATE TABLE ta (
@@ -3112,6 +3158,10 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (a INT);
 INSERT t1 values (1),(2),(15),(24),(5);
 CREATE TABLE t2 (t1_a INT, b VARCHAR(10));
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t1.a, subq.st_value
 FROM t1
 LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
@@ -3119,7 +3169,7 @@ FROM t2) AS subq
 ON subq.t1_a = t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where true
 EXPLAIN SELECT t1.a, subq.st_value
@@ -3130,7 +3180,7 @@ ON subq.t1_a = t1.a
 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where true order by `test`.`t1`.`a`
 EXPLAIN SELECT t1.a, subq.st_value
@@ -3140,9 +3190,10 @@ LEFT JOIN t1
 ON subq.t1_a = t1.a
 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t2` left join `test`.`t1` on(multiple equal(NULL, `test`.`t1`.`a`)) order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`a` = `test`.`t2`.`t1_a`)) where true order by `test`.`t1`.`a`
 SELECT t1.a, subq.st_value
 FROM t1
 LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
@@ -3185,6 +3236,12 @@ CREATE TABLE t3 (i INT NOT NULL);
 INSERT INTO t3 VALUES (0),(1),(2),(4);
 CREATE TABLE t4 (i INT NOT NULL);
 INSERT INTO t4 VALUES (0),(1),(2),(3);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 EXPLAIN SELECT *
 FROM t1 LEFT JOIN
 (
@@ -3193,11 +3250,11 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t1`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t2`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where true
 EXPLAIN SELECT *
 FROM t1 LEFT JOIN
 (
@@ -3206,20 +3263,20 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` join `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t1`.`i`))) on(((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` join `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t2`.`i`))) on(((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))) where true
 EXPLAIN SELECT *
 FROM t1 LEFT JOIN t2 ON t2.i= t1.i
 LEFT JOIN t3 ON t3.i= t2.i
 LEFT JOIN t4 ON t3.i= t4.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t1`.`i`)) left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t2`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`)) where true
 flush status;
@@ -3231,19 +3288,19 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
-3	3	NULL	NULL
 2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
-Handler_commit	0
+Handler_commit	1
 Handler_delete	0
 Handler_discover	0
 Handler_external_lock	8
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	4
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -3263,19 +3320,19 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
 2	NULL	NULL	NULL
 3	NULL	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
-Handler_commit	0
+Handler_commit	1
 Handler_delete	0
 Handler_discover	0
 Handler_external_lock	8
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	4
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -3293,19 +3350,19 @@ LEFT JOIN t3 ON t3.i= t2.i
 LEFT JOIN t4 ON t3.i= t4.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
-3	3	NULL	NULL
 2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
-Handler_commit	0
+Handler_commit	1
 Handler_delete	0
 Handler_discover	0
 Handler_external_lock	8
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	4
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -3334,7 +3391,7 @@ ON a.id = b.id
 WHERE b.tall IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id`,2 AS `tall` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (2 is not null)
 SELECT *
@@ -3548,3 +3605,161 @@ t4.col_int_unique = t1.col_int_unique
 col_int	col_int	t3.col_int = t4.col_int or t4.col_int IS NULL
 NULL	NULL	1
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug #30659532: WL#13476: DIFFERENT NUMBER OF ROWS WITH NESTED LOOP JOINS
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL
+);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+CREATE TABLE t3 (
+f1 INTEGER,
+f2 INTEGER,
+KEY k2 (f2)
+);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,295010100);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,-1762438755);
+INSERT INTO t3 VALUES (NULL,4);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
+EXPLAIN
+-> Nested loop left join  (cost=2.02 rows=2)
+    -> Nested loop inner join  (cost=1.15 rows=2)
+        -> Filter: (t1.pk < 5)  (cost=0.45 rows=2)
+            -> Table scan on t1  (cost=0.45 rows=2)
+        -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
+    -> Index lookup on t3 using k2 (f2=t1.pk)  (cost=0.38 rows=1)
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
+pk	pk	f1	f2
+1	1	NULL	NULL
+2	2	NULL	NULL
+DROP TABLE t1, t2, t3;
+#
+# Bug #30654713: WL#13476: DIFFERENT ROWS WITH BATCHED KEY ACCESS LEFT JOIN
+#
+CREATE TABLE t1 (
+col_int INTEGER,
+a INTEGER,
+b varchar(10),
+KEY key_a (a)
+);
+INSERT INTO t1 VALUES (5,NULL,'p');
+INSERT INTO t1 VALUES (6,NULL,'');
+INSERT INTO t1 VALUES (7,NULL,'');
+INSERT INTO t1 VALUES (8,NULL,'Z');
+INSERT INTO t1 VALUES (9,4,'g');
+INSERT INTO t1 VALUES (10,NULL,'if');
+INSERT INTO t1 VALUES (11,NULL,'j');
+INSERT INTO t1 VALUES (12,9,'');
+CREATE TABLE t2 (
+a INTEGER,
+b varchar(10),
+KEY key_b (b)
+);
+INSERT INTO t2 VALUES (1,'j');
+INSERT INTO t2 VALUES (2,'o');
+INSERT INTO t2 VALUES (3,'z');
+INSERT INTO t2 VALUES (4,'really');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN format=tree SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+FROM t1
+LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+ON t1.b = t2.b;
+EXPLAIN
+-> Left hash join (t2.b = t1.b)  (cost=23.25 rows=144)
+    -> Table scan on t1  (cost=1.05 rows=8)
+    -> Hash
+        -> Left hash join (t3.a = t2.a)  (cost=3.70 rows=24)
+            -> Table scan on t2  (cost=0.08 rows=4)
+            -> Hash
+                -> Table scan on t3  (cost=0.04 rows=8)
+
+SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+FROM t1
+LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+ON t1.b = t2.b;
+t1_ci	t1_a	t1_b	t2_a	t2_b	t3_ci	t3_a	t3_b
+10	NULL	if	NULL	NULL	NULL	NULL	NULL
+11	NULL	j	1	j	NULL	NULL	NULL
+12	9		NULL	NULL	NULL	NULL	NULL
+5	NULL	p	NULL	NULL	NULL	NULL	NULL
+6	NULL		NULL	NULL	NULL	NULL	NULL
+7	NULL		NULL	NULL	NULL	NULL	NULL
+8	NULL	Z	3	z	NULL	NULL	NULL
+9	4	g	NULL	NULL	NULL	NULL	NULL
+DROP TABLE t1, t2;
+#
+# Bug#30520749 - REGRESSION: LEFT JOIN WITH IMPOSSIBLE ON CONDITION PERFORMS SLOWLY
+#
+set optimizer_switch='block_nested_loop=off';
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
+EXPLAIN
+-> Nested loop left join  (cost=4.50 rows=25)
+    -> Table scan on t1  (cost=0.75 rows=5)
+    -> Zero rows (Impossible filter)  (cost=0.07..0.35 rows=5)
+
+DROP TABLE t1, t2;
+set optimizer_switch='block_nested_loop=on';
+#
+# Bug #31252625: DATA IN WRONG ROW ON LEFT JOIN
+#
+CREATE TABLE t1 (
+id INTEGER NOT NULL,
+b INTEGER,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 VALUES (17,NULL);
+INSERT INTO t1 VALUES (136,564);
+INSERT INTO t1 VALUES (137,NULL);
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+PRIMARY KEY (id)
+);
+INSERT INTO t2 VALUES (564);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t1 LEFT JOIN t2 ON t1.b = t2.id GROUP BY t1.id;
+id	b	id
+17	NULL	NULL
+136	564	564
+137	NULL	NULL
+DROP TABLE t1, t2;
+#
+# Bug#33639644: sig11 in CreateIteratorFromAccessPath
+#
+CREATE TABLE t1 (x INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (x INTEGER);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+WITH subq(x) AS (SELECT 1 AS x FROM t1 AS t1a, t1 AS t1b, t2 WHERE FALSE)
+SELECT 1 FROM t1 LEFT JOIN subq ON t1.x = subq.x ORDER BY subq.x;
+1
+1
+DROP TABLE t1, t2;

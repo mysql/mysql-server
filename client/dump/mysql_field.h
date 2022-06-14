@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ namespace Dump {
 
 class Mysql_field {
  public:
-  Mysql_field(MYSQL_FIELD *field);
+  explicit Mysql_field(MYSQL_FIELD *field);
 
   std::string get_name() const;
 

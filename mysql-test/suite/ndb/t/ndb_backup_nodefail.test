@@ -1,0 +1,53 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--echo Setup error insert to interleave DEFINE_BACKUP_REQ replies with NODE_FAILREP
+--exec $NDB_MGM -e "ALL ERROR 10051"
+
+--echo Start backup, that will fail due to node failure
+--error 255,0
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Wait for cluster to come up again
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo Setup error insert to interleave START_BACKUP_REQ replies with NODE_FAILREP
+--exec $NDB_MGM -e "ALL ERROR 10052"
+
+--echo Start backup, that will fail due to node failure
+--error 255,0
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Wait for cluster to come up again
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo Setup error insert to interleave STOP_BACKUP_REQ replies with NODE_FAILREP
+--exec $NDB_MGM -e "ALL ERROR 10053"
+
+--echo Start backup, that will fail due to node failure
+--error 255,0
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Wait for cluster to come up again
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo Setup error insert so that backup fails in a controlled way
+--exec $NDB_MGM -e "ALL ERROR 10010"
+
+--echo Start backup, that will fail due to node failure
+--error 255
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Check that node failure was controlled (e.g. node recovers)
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo Node recovered, ok
+--echo Clear error
+--exec $NDB_MGM -e "ALL ERROR 0"
+
+--echo Check backup ok
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

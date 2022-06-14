@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,18 @@
 #define MYSQL_SERVER 1
 #include "storage/blackhole/ha_blackhole.h"
 
+#include "ft_global.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/sql_class.h"  // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
+
+class String;
 
 using std::string;
 using std::unique_ptr;
@@ -75,88 +80,87 @@ ha_blackhole::ha_blackhole(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg) {}
 
 int ha_blackhole::open(const char *name, int, uint, const dd::Table *) {
-  DBUG_ENTER("ha_blackhole::open");
+  DBUG_TRACE;
 
-  if (!(share = get_share(name))) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  if (!(share = get_share(name))) return HA_ERR_OUT_OF_MEM;
 
-  thr_lock_data_init(&share->lock, &lock, NULL);
-  DBUG_RETURN(0);
+  thr_lock_data_init(&share->lock, &lock, nullptr);
+  return 0;
 }
 
 int ha_blackhole::close(void) {
-  DBUG_ENTER("ha_blackhole::close");
+  DBUG_TRACE;
   free_share(share);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_blackhole::create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) {
-  DBUG_ENTER("ha_blackhole::create");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int ha_blackhole::write_row(uchar *) {
-  DBUG_ENTER("ha_blackhole::write_row");
-  DBUG_RETURN(table->next_number_field ? update_auto_increment() : 0);
+  DBUG_TRACE;
+  return table->next_number_field ? update_auto_increment() : 0;
 }
 
 int ha_blackhole::update_row(const uchar *, uchar *) {
-  DBUG_ENTER("ha_blackhole::update_row");
+  DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL) DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_blackhole::delete_row(const uchar *) {
-  DBUG_ENTER("ha_blackhole::delete_row");
+  DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL) DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_blackhole::rnd_init(bool) {
-  DBUG_ENTER("ha_blackhole::rnd_init");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int ha_blackhole::rnd_next(uchar *) {
   int rc;
-  DBUG_ENTER("ha_blackhole::rnd_next");
+  DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::rnd_pos(uchar *, uchar *) {
-  DBUG_ENTER("ha_blackhole::rnd_pos");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  assert(0);
+  return 0;
 }
 
 void ha_blackhole::position(const uchar *) {
-  DBUG_ENTER("ha_blackhole::position");
-  DBUG_ASSERT(0);
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
+  assert(0);
 }
 
 int ha_blackhole::info(uint flag) {
-  DBUG_ENTER("ha_blackhole::info");
+  DBUG_TRACE;
 
   stats = ha_statistics();
   if (flag & HA_STATUS_AUTO) stats.auto_increment_value = 1;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_blackhole::external_lock(THD *, int) {
-  DBUG_ENTER("ha_blackhole::external_lock");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd, THR_LOCK_DATA **to,
                                          enum thr_lock_type lock_type) {
-  DBUG_ENTER("ha_blackhole::store_lock");
+  DBUG_TRACE;
   if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
     /*
       Here is where we get into the guts of a row level lock.
@@ -183,71 +187,91 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd, THR_LOCK_DATA **to,
     lock.type = lock_type;
   }
   *to++ = &lock;
-  DBUG_RETURN(to);
+  return to;
 }
 
 int ha_blackhole::index_read_map(uchar *, const uchar *, key_part_map,
                                  enum ha_rkey_function) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_read");
+  DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::index_read_idx_map(uchar *, uint, const uchar *, key_part_map,
                                      enum ha_rkey_function) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_read_idx");
+  DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::index_read_last_map(uchar *, const uchar *, key_part_map) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_read_last");
+  DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::index_next(uchar *) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_next");
+  DBUG_TRACE;
   rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::index_prev(uchar *) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_prev");
+  DBUG_TRACE;
   rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::index_first(uchar *) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_first");
+  DBUG_TRACE;
   rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 int ha_blackhole::index_last(uchar *) {
   int rc;
-  DBUG_ENTER("ha_blackhole::index_last");
+  DBUG_TRACE;
   rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
+
+FT_INFO *ha_blackhole::ft_init_ext(uint, uint, String *) {
+  MEM_ROOT *mem_root = ha_thd()->mem_root;
+
+  _ft_vft *vft = new (mem_root) _ft_vft{
+      /*read_next=*/nullptr,
+      /*find_relevance=*/nullptr,
+      /*close_search=*/[](FT_INFO *) { /*no-op*/ },
+      /*get_relevance=*/nullptr,
+      /*reinit_search=*/nullptr,
+  };
+
+  if (vft == nullptr) return nullptr;  // OOM
+
+  return new (mem_root) FT_INFO{vft};
+}
+
+int ha_blackhole::ft_init() { return 0; }
+
+int ha_blackhole::ft_read(uchar *) { return HA_ERR_END_OF_FILE; }
 
 static st_blackhole_share *get_share(const char *table_name) {
   st_blackhole_share *share;
@@ -343,15 +367,15 @@ mysql_declare_plugin(blackhole){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &blackhole_storage_engine,
     "BLACKHOLE",
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "/dev/null storage engine (anything you write to it disappears)",
     PLUGIN_LICENSE_GPL,
     blackhole_init, /* Plugin Init */
-    NULL,           /* Plugin check uninstall */
+    nullptr,        /* Plugin check uninstall */
     blackhole_fini, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

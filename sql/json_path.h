@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
   attached to WL#7909.
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <algorithm>
 #include <new>
@@ -38,7 +39,7 @@
 #include <utility>
 
 #include "my_alloc.h"  // MEM_ROOT
-#include "my_dbug.h"   // DBUG_ASSERT
+                       // assert
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -66,6 +67,8 @@ enum enum_json_path_leg_type {
   jpl_array_range,
 
   /**
+    @brief A path leg that represents the member wildcard.
+
     A path leg that represents the member wildcard (`.*`), which
     matches all the members of a JSON object.
   */
@@ -146,13 +149,13 @@ class Json_path_leg final {
   enum_json_path_leg_type m_leg_type;
 
   /// The index of an array cell, or the start of an array range.
-  size_t m_first_array_index;
+  size_t m_first_array_index = 0;
 
   /// Is #m_first_array_index relative to the end of the array?
   bool m_first_array_index_from_end = false;
 
   /// The end (inclusive) of an array range.
-  size_t m_last_array_index;
+  size_t m_last_array_index = 0;
 
   /// Is #m_last_array_index relative to the end of the array?
   bool m_last_array_index_from_end = false;
@@ -169,8 +172,8 @@ class Json_path_leg final {
   */
   explicit Json_path_leg(enum_json_path_leg_type leg_type)
       : m_leg_type(leg_type) {
-    DBUG_ASSERT(leg_type == jpl_ellipsis || leg_type == jpl_member_wildcard ||
-                leg_type == jpl_array_cell_wildcard);
+    assert(leg_type == jpl_ellipsis || leg_type == jpl_member_wildcard ||
+           leg_type == jpl_array_cell_wildcard);
   }
 
   /**
@@ -253,7 +256,7 @@ class Json_path_leg final {
     @param array_length the length of the array
   */
   Json_array_index first_array_index(size_t array_length) const {
-    DBUG_ASSERT(m_leg_type == jpl_array_cell || m_leg_type == jpl_array_range);
+    assert(m_leg_type == jpl_array_cell || m_leg_type == jpl_array_range);
     return Json_array_index(m_first_array_index, m_first_array_index_from_end,
                             array_length);
   }
@@ -265,7 +268,7 @@ class Json_path_leg final {
     @param array_length the length of the array
   */
   Json_array_index last_array_index(size_t array_length) const {
-    DBUG_ASSERT(m_leg_type == jpl_array_range);
+    assert(m_leg_type == jpl_array_range);
     return Json_array_index(m_last_array_index, m_last_array_index_from_end,
                             array_length);
   }
@@ -412,7 +415,7 @@ class Json_path final : public Json_seekable_path {
     for (const auto ptr : m_path_legs) ptr->~Json_path_leg();
     m_path_legs.clear();
     // Mark the memory as ready for reuse.
-    free_root(&m_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+    m_mem_root.ClearForReuse();
   }
 
   /**
@@ -482,6 +485,6 @@ bool parse_path(size_t path_length, const char *path_expression,
 
   @returns false on success (valid path or NULL), true on error
 */
-bool parse_path(String *path_value, bool forbid_wildcards,
+bool parse_path(const String &path_value, bool forbid_wildcards,
                 Json_path *json_path);
 #endif /* SQL_JSON_PATH_INCLUDED */

@@ -1,0 +1,2033 @@
+#########
+# SETUP #
+#########
+# Stop the running the server
+# Copy and unzip the datadir.
+# Restart the server against the unzipped datadir
+# restart: --datadir=DATADIR --innodb-page-size=16k
+##############################################
+# Test instant ADD/DROP COLUMN for REDUNDANT format
+##############################################
+# ------------------------------------------------------------
+# Start server with old datadir with table t1_redundant having
+#     c1, c2, normal columns
+#     c3 INSTANT ADD column with default def_c3.
+#     c4 INSTANT ADD column with default def_c4.
+#     with 4 partitions (p0, p1, p2, p3)
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `c1` int DEFAULT NULL,
+  `c2` char(10) DEFAULT NULL,
+  `c3` char(10) DEFAULT 'c3_def',
+  `c4` char(10) DEFAULT 'c4_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`c1`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = InnoDB) */
+# ------------------------------------------------------------
+# Read rows from upgraded table t1_redundant
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;table_id=TABLE_ID;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p1	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p2	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p3	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# REORGANIZE PARTITION (p0 into p0_a p0_b)
+# ------------------------------------------------------------
+SELECT * FROM t1_redundant PARTITION (p0);
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+ALTER TABLE t1_redundant ALGORITHM=INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (50), PARTITION p0_b VALUES LESS THAN (100));
+SELECT * FROM t1_redundant PARTITION (p0_a);
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+SELECT * FROM t1_redundant PARTITION (p0_b);
+c1	c2	c3	c4
+60	r6c2	r6c3	r6c4
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# Insert a row in upgraded table t1_redundant
+# ------------------------------------------------------------
+INSERT INTO t1_redundant values (60, "r7c2", "r7c3", "r7c4");
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : IN PLACE for row with no version
+# ------------------------------------------------------------
+UPDATE t1_redundant SET c2="temp" where c1=10;
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	temp	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : IN PLACE for row with V1
+# ------------------------------------------------------------
+UPDATE t1_redundant SET c2="temp" where c1=40;
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	temp	c3_def	c4_def
+40	temp	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : NOT IN PLACE for row with no version
+# ------------------------------------------------------------
+UPDATE t1_redundant SET c3="r1c3" where c1=10;
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	temp	r1c3	c4_def
+40	temp	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : NOT IN PLACE for row with V1
+# ------------------------------------------------------------
+UPDATE t1_redundant SET c4="r2c4" where c1=40;
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c2	c3	c4
+10	temp	r1c3	c4_def
+40	temp	r5c3	r2c4
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# INSTANT DROP c2
+# ------------------------------------------------------------
+ALTER TABLE t1_redundant DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0_a	6	0	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0_b	6	0	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p1	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p2	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p3	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c3	c4
+10	r1c3	c4_def
+40	r5c3	r2c4
+60	r6c3	r6c4
+60	r7c3	r7c4
+110	c3_def	c4_def
+210	c3_def	c4_def
+310	c3_def	c4_def
+INSERT INTO t1_redundant values (50, "r8c3", "r8c4");
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c3	c4
+10	r1c3	c4_def
+40	r5c3	r2c4
+50	r8c3	r8c4
+60	r6c3	r6c4
+60	r7c3	r7c4
+110	c3_def	c4_def
+210	c3_def	c4_def
+310	c3_def	c4_def
+# ------------------------------------------------------------
+# INSTANT ADD c5 at the end
+# ------------------------------------------------------------
+ALTER TABLE t1_redundant ADD COLUMN c5 char(10) default "c5_def", ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+c5	4	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0_a	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0_b	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p1	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p2	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p3	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c3	c4	c5
+10	r1c3	c4_def	c5_def
+40	r5c3	r2c4	c5_def
+50	r8c3	r8c4	c5_def
+60	r6c3	r6c4	c5_def
+60	r7c3	r7c4	c5_def
+110	c3_def	c4_def	c5_def
+210	c3_def	c4_def	c5_def
+310	c3_def	c4_def	c5_def
+INSERT INTO t1_redundant values (150, "r9c3", "r9c4", "r9c5");
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c3	c4	c5
+10	r1c3	c4_def	c5_def
+40	r5c3	r2c4	c5_def
+50	r8c3	r8c4	c5_def
+60	r6c3	r6c4	c5_def
+60	r7c3	r7c4	c5_def
+110	c3_def	c4_def	c5_def
+150	r9c3	r9c4	r9c5
+210	c3_def	c4_def	c5_def
+310	c3_def	c4_def	c5_def
+# ------------------------------------------------------------
+# INSTANT ADD c6 somewhere in between
+# ------------------------------------------------------------
+ALTER TABLE t1_redundant ADD COLUMN c6 char(10) default "c6_def" after c1, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default=63365f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=3;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	9	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0_a	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p0_b	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p1	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p2	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_redundant#p#p3	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c6	c3	c4	c5
+10	c6_def	r1c3	c4_def	c5_def
+40	c6_def	r5c3	r2c4	c5_def
+50	c6_def	r8c3	r8c4	c5_def
+60	c6_def	r6c3	r6c4	c5_def
+60	c6_def	r7c3	r7c4	c5_def
+110	c6_def	c3_def	c4_def	c5_def
+150	c6_def	r9c3	r9c4	r9c5
+210	c6_def	c3_def	c4_def	c5_def
+310	c6_def	c3_def	c4_def	c5_def
+INSERT INTO t1_redundant values (250, "r0c6", "r0c3", "r0c4", "r0c5");
+SELECT * FROM t1_redundant ORDER BY c1;
+c1	c6	c3	c4	c5
+10	c6_def	r1c3	c4_def	c5_def
+40	c6_def	r5c3	r2c4	c5_def
+50	c6_def	r8c3	r8c4	c5_def
+60	c6_def	r6c3	r6c4	c5_def
+60	c6_def	r7c3	r7c4	c5_def
+110	c6_def	c3_def	c4_def	c5_def
+150	c6_def	r9c3	r9c4	r9c5
+210	c6_def	c3_def	c4_def	c5_def
+250	r0c6	r0c3	r0c4	r0c5
+310	c6_def	c3_def	c4_def	c5_def
+DROP TABLE t1_redundant;
+# ------------------------------------------------------------
+# TRUNCATE Partition test for Upgraded table
+# ------------------------------------------------------------
+# table t2_redundant having
+#     c1, c2, c3, c4 normal columns
+#     c5 INSTANT ADD column with default NULL.
+#     with 4 partitions (p0, p1, p2, p3)
+#
+#     Partition p0, p1, p2 are truncated.
+# ------------------------------------------------------------
+SELECT * FROM t2_redundant ORDER BY c1;
+c1	c2	c3	c4	c5
+390	1	1	3	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	instant_col=4;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p0	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p1	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p2	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p3	8	4	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	1	0	0
+INSERT INTO t2_redundant values (101, 102, 103, "104", 105);
+SELECT * FROM t2_redundant ORDER BY c1;
+c1	c2	c3	c4	c5
+101	102	103	104	105
+390	1	1	3	NULL
+Alter table t2_redundant add column c6 INT DEFAULT 666 FIRST, algorithm=INSTANT;
+SELECT * FROM t2_redundant ORDER BY c1;
+c6	c1	c2	c3	c4	c5
+666	101	102	103	104	105
+666	390	1	1	3	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c6	1	MYSQL_TYPE_LONG	0	Visible	default=8000029a;physical_pos=8;table_id=TABLE_ID;version_added=1;
+c1	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=7;table_id=TABLE_ID;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	instant_col=4;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p0	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p1	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p2	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p3	9	4	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	1	0	0
+INSERT INTO t2_redundant values (206, 201, 202, 203, "204", 205);
+SELECT * FROM t2_redundant ORDER BY c1;
+c6	c1	c2	c3	c4	c5
+666	101	102	103	104	105
+206	201	202	203	204	205
+666	390	1	1	3	NULL
+ALTER TABLE t2_redundant DROP COLUMN c2, algorithm=INSTANT;
+SELECT * FROM t2_redundant ORDER BY c1;
+c6	c1	c3	c4	c5
+666	101	103	104	105
+206	201	203	204	205
+666	390	1	3	NULL
+ALTER TABLE t2_redundant TRUNCATE partition p3;
+SELECT * FROM t2_redundant ORDER BY c1;
+c6	c1	c3	c4	c5
+666	101	103	104	105
+206	201	203	204	205
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c6	1	MYSQL_TYPE_LONG	0	Visible	default=8000029a;physical_pos=8;table_id=TABLE_ID;version_added=1;
+c1	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_LONG	0	Visible	physical_pos=7;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=2;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p0	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p1	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p2	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_redundant#p#p3	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+DROP TABLE t2_redundant;
+############################################
+# Test instant ADD/DROP COLUMN for DYNAMIC format
+############################################
+# ------------------------------------------------------------
+# Start server with old datadir with table t1_dynamic having
+#     c1, c2, normal columns
+#     c3 INSTANT ADD column with default def_c3.
+#     c4 INSTANT ADD column with default def_c4.
+#     with 4 partitions (p0, p1, p2, p3)
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `c1` int DEFAULT NULL,
+  `c2` char(10) DEFAULT NULL,
+  `c3` char(10) DEFAULT 'c3_def',
+  `c4` char(10) DEFAULT 'c4_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`c1`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = InnoDB) */
+# ------------------------------------------------------------
+# Read rows from upgraded table t1_dynamic
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;table_id=TABLE_ID;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p1	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p2	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p3	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# REORGANIZE PARTITION (p0 into p0_a p0_b)
+# ------------------------------------------------------------
+SELECT * FROM t1_dynamic PARTITION (p0);
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+ALTER TABLE t1_dynamic ALGORITHM=INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (50), PARTITION p0_b VALUES LESS THAN (100));
+SELECT * FROM t1_dynamic PARTITION (p0_a);
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+SELECT * FROM t1_dynamic PARTITION (p0_b);
+c1	c2	c3	c4
+60	r6c2	r6c3	r6c4
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# Insert a row in upgraded table t1_dynamic
+# ------------------------------------------------------------
+INSERT INTO t1_dynamic values (60, "r7c2", "r7c3", "r7c4");
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : IN PLACE for row with no version
+# ------------------------------------------------------------
+UPDATE t1_dynamic SET c2="temp" where c1=10;
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	temp	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : IN PLACE for row with V1
+# ------------------------------------------------------------
+UPDATE t1_dynamic SET c2="temp" where c1=40;
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	temp	c3_def	c4_def
+40	temp	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : NOT IN PLACE for row with no version
+# ------------------------------------------------------------
+UPDATE t1_dynamic SET c3="r1c3" where c1=10;
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	temp	r1c3	c4_def
+40	temp	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : NOT IN PLACE for row with V1
+# ------------------------------------------------------------
+UPDATE t1_dynamic SET c4="r2c4" where c1=40;
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c2	c3	c4
+10	temp	r1c3	c4_def
+40	temp	r5c3	r2c4
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# INSTANT DROP c2
+# ------------------------------------------------------------
+ALTER TABLE t1_dynamic DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0_a	6	0	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0_b	6	0	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p1	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p2	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p3	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c3	c4
+10	r1c3	c4_def
+40	r5c3	r2c4
+60	r6c3	r6c4
+60	r7c3	r7c4
+110	c3_def	c4_def
+210	c3_def	c4_def
+310	c3_def	c4_def
+INSERT INTO t1_dynamic values (50, "r8c3", "r8c4");
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c3	c4
+10	r1c3	c4_def
+40	r5c3	r2c4
+50	r8c3	r8c4
+60	r6c3	r6c4
+60	r7c3	r7c4
+110	c3_def	c4_def
+210	c3_def	c4_def
+310	c3_def	c4_def
+# ------------------------------------------------------------
+# INSTANT ADD c5 at the end
+# ------------------------------------------------------------
+ALTER TABLE t1_dynamic ADD COLUMN c5 char(10) default "c5_def", ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+c5	4	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0_a	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0_b	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p1	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p2	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p3	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c3	c4	c5
+10	r1c3	c4_def	c5_def
+40	r5c3	r2c4	c5_def
+50	r8c3	r8c4	c5_def
+60	r6c3	r6c4	c5_def
+60	r7c3	r7c4	c5_def
+110	c3_def	c4_def	c5_def
+210	c3_def	c4_def	c5_def
+310	c3_def	c4_def	c5_def
+INSERT INTO t1_dynamic values (150, "r9c3", "r9c4", "r9c5");
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c3	c4	c5
+10	r1c3	c4_def	c5_def
+40	r5c3	r2c4	c5_def
+50	r8c3	r8c4	c5_def
+60	r6c3	r6c4	c5_def
+60	r7c3	r7c4	c5_def
+110	c3_def	c4_def	c5_def
+150	r9c3	r9c4	r9c5
+210	c3_def	c4_def	c5_def
+310	c3_def	c4_def	c5_def
+# ------------------------------------------------------------
+# INSTANT ADD c6 somewhere in between
+# ------------------------------------------------------------
+ALTER TABLE t1_dynamic ADD COLUMN c6 char(10) default "c6_def" after c1, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default=63365f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=3;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	9	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0_a	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p0_b	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p1	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p2	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_dynamic#p#p3	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c6	c3	c4	c5
+10	c6_def	r1c3	c4_def	c5_def
+40	c6_def	r5c3	r2c4	c5_def
+50	c6_def	r8c3	r8c4	c5_def
+60	c6_def	r6c3	r6c4	c5_def
+60	c6_def	r7c3	r7c4	c5_def
+110	c6_def	c3_def	c4_def	c5_def
+150	c6_def	r9c3	r9c4	r9c5
+210	c6_def	c3_def	c4_def	c5_def
+310	c6_def	c3_def	c4_def	c5_def
+INSERT INTO t1_dynamic values (250, "r0c6", "r0c3", "r0c4", "r0c5");
+SELECT * FROM t1_dynamic ORDER BY c1;
+c1	c6	c3	c4	c5
+10	c6_def	r1c3	c4_def	c5_def
+40	c6_def	r5c3	r2c4	c5_def
+50	c6_def	r8c3	r8c4	c5_def
+60	c6_def	r6c3	r6c4	c5_def
+60	c6_def	r7c3	r7c4	c5_def
+110	c6_def	c3_def	c4_def	c5_def
+150	c6_def	r9c3	r9c4	r9c5
+210	c6_def	c3_def	c4_def	c5_def
+250	r0c6	r0c3	r0c4	r0c5
+310	c6_def	c3_def	c4_def	c5_def
+DROP TABLE t1_dynamic;
+# ------------------------------------------------------------
+# TRUNCATE Partition test for Upgraded table
+# ------------------------------------------------------------
+# table t2_dynamic having
+#     c1, c2, c3, c4 normal columns
+#     c5 INSTANT ADD column with default NULL.
+#     with 4 partitions (p0, p1, p2, p3)
+#
+#     Partition p0, p1, p2 are truncated.
+# ------------------------------------------------------------
+SELECT * FROM t2_dynamic ORDER BY c1;
+c1	c2	c3	c4	c5
+390	1	1	3	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	instant_col=4;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p0	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p1	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p2	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p3	8	4	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	1	0	0
+INSERT INTO t2_dynamic values (101, 102, 103, "104", 105);
+SELECT * FROM t2_dynamic ORDER BY c1;
+c1	c2	c3	c4	c5
+101	102	103	104	105
+390	1	1	3	NULL
+Alter table t2_dynamic add column c6 INT DEFAULT 666 FIRST, algorithm=INSTANT;
+SELECT * FROM t2_dynamic ORDER BY c1;
+c6	c1	c2	c3	c4	c5
+666	101	102	103	104	105
+666	390	1	1	3	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c6	1	MYSQL_TYPE_LONG	0	Visible	default=8000029a;physical_pos=8;table_id=TABLE_ID;version_added=1;
+c1	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=7;table_id=TABLE_ID;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	instant_col=4;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p0	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p1	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p2	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p3	9	4	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	1	0	0
+INSERT INTO t2_dynamic values (206, 201, 202, 203, "204", 205);
+SELECT * FROM t2_dynamic ORDER BY c1;
+c6	c1	c2	c3	c4	c5
+666	101	102	103	104	105
+206	201	202	203	204	205
+666	390	1	1	3	NULL
+ALTER TABLE t2_dynamic DROP COLUMN c2, algorithm=INSTANT;
+SELECT * FROM t2_dynamic ORDER BY c1;
+c6	c1	c3	c4	c5
+666	101	103	104	105
+206	201	203	204	205
+666	390	1	3	NULL
+ALTER TABLE t2_dynamic TRUNCATE partition p3;
+SELECT * FROM t2_dynamic ORDER BY c1;
+c6	c1	c3	c4	c5
+666	101	103	104	105
+206	201	203	204	205
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c6	1	MYSQL_TYPE_LONG	0	Visible	default=8000029a;physical_pos=8;table_id=TABLE_ID;version_added=1;
+c1	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_LONG	0	Visible	physical_pos=7;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=2;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p0	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p1	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p2	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_dynamic#p#p3	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+DROP TABLE t2_dynamic;
+############################################
+# Test instant ADD/DROP COLUMN for COMPACT format
+############################################
+# ------------------------------------------------------------
+# Start server with old datadir with table t1_compact having
+#     c1, c2, normal columns
+#     c3 INSTANT ADD column with default def_c3.
+#     c4 INSTANT ADD column with default def_c4.
+#     with 4 partitions (p0, p1, p2, p3)
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `c1` int DEFAULT NULL,
+  `c2` char(10) DEFAULT NULL,
+  `c3` char(10) DEFAULT 'c3_def',
+  `c4` char(10) DEFAULT 'c4_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`c1`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = InnoDB) */
+# ------------------------------------------------------------
+# Read rows from upgraded table t1_compact
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;table_id=TABLE_ID;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p1	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p2	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p3	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# REORGANIZE PARTITION (p0 into p0_a p0_b)
+# ------------------------------------------------------------
+SELECT * FROM t1_compact PARTITION (p0);
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+ALTER TABLE t1_compact ALGORITHM=INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (50), PARTITION p0_b VALUES LESS THAN (100));
+SELECT * FROM t1_compact PARTITION (p0_a);
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+SELECT * FROM t1_compact PARTITION (p0_b);
+c1	c2	c3	c4
+60	r6c2	r6c3	r6c4
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# Insert a row in upgraded table t1_compact
+# ------------------------------------------------------------
+INSERT INTO t1_compact values (60, "r7c2", "r7c3", "r7c4");
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	r1c2	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : IN PLACE for row with no version
+# ------------------------------------------------------------
+UPDATE t1_compact SET c2="temp" where c1=10;
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	temp	c3_def	c4_def
+40	r5c2	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : IN PLACE for row with V1
+# ------------------------------------------------------------
+UPDATE t1_compact SET c2="temp" where c1=40;
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	temp	c3_def	c4_def
+40	temp	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : NOT IN PLACE for row with no version
+# ------------------------------------------------------------
+UPDATE t1_compact SET c3="r1c3" where c1=10;
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	temp	r1c3	c4_def
+40	temp	r5c3	c4_def
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# UPDATE : NOT IN PLACE for row with V1
+# ------------------------------------------------------------
+UPDATE t1_compact SET c4="r2c4" where c1=40;
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c2	c3	c4
+10	temp	r1c3	c4_def
+40	temp	r5c3	r2c4
+60	r6c2	r6c3	r6c4
+60	r7c2	r7c3	r7c4
+110	r2c2	c3_def	c4_def
+210	r3c2	c3_def	c4_def
+310	r4c2	c3_def	c4_def
+# ------------------------------------------------------------
+# INSTANT DROP c2
+# ------------------------------------------------------------
+ALTER TABLE t1_compact DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0_a	6	0	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0_b	6	0	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p1	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p2	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p3	6	2	1	4	3	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c2_dropped_v1	6	13	16711934	0	0	1
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c3	c4
+10	r1c3	c4_def
+40	r5c3	r2c4
+60	r6c3	r6c4
+60	r7c3	r7c4
+110	c3_def	c4_def
+210	c3_def	c4_def
+310	c3_def	c4_def
+INSERT INTO t1_compact values (50, "r8c3", "r8c4");
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c3	c4
+10	r1c3	c4_def
+40	r5c3	r2c4
+50	r8c3	r8c4
+60	r6c3	r6c4
+60	r7c3	r7c4
+110	c3_def	c4_def
+210	c3_def	c4_def
+310	c3_def	c4_def
+# ------------------------------------------------------------
+# INSTANT ADD c5 at the end
+# ------------------------------------------------------------
+ALTER TABLE t1_compact ADD COLUMN c5 char(10) default "c5_def", ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+c5	4	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0_a	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0_b	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p1	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p2	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p3	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	2	0
+c2_dropped_v1	7	13	16711934	0	0	1
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c3	c4	c5
+10	r1c3	c4_def	c5_def
+40	r5c3	r2c4	c5_def
+50	r8c3	r8c4	c5_def
+60	r6c3	r6c4	c5_def
+60	r7c3	r7c4	c5_def
+110	c3_def	c4_def	c5_def
+210	c3_def	c4_def	c5_def
+310	c3_def	c4_def	c5_def
+INSERT INTO t1_compact values (150, "r9c3", "r9c4", "r9c5");
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c3	c4	c5
+10	r1c3	c4_def	c5_def
+40	r5c3	r2c4	c5_def
+50	r8c3	r8c4	c5_def
+60	r6c3	r6c4	c5_def
+60	r7c3	r7c4	c5_def
+110	c3_def	c4_def	c5_def
+150	r9c3	r9c4	r9c5
+210	c3_def	c4_def	c5_def
+310	c3_def	c4_def	c5_def
+# ------------------------------------------------------------
+# INSTANT ADD c6 somewhere in between
+# ------------------------------------------------------------
+ALTER TABLE t1_compact ADD COLUMN c6 char(10) default "c6_def" after c1, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default=63365f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=3;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	9	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0_a	50	NULL
+p0_b	100	NULL
+p1	200	instant_col=2;
+p2	300	instant_col=2;
+p3	400	instant_col=2;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0_a	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p0_b	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p1	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p2	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_compact#p#p3	8	2	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	3	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	2	0
+c2_dropped_v1	8	13	16711934	0	0	1
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c6	c3	c4	c5
+10	c6_def	r1c3	c4_def	c5_def
+40	c6_def	r5c3	r2c4	c5_def
+50	c6_def	r8c3	r8c4	c5_def
+60	c6_def	r6c3	r6c4	c5_def
+60	c6_def	r7c3	r7c4	c5_def
+110	c6_def	c3_def	c4_def	c5_def
+150	c6_def	r9c3	r9c4	r9c5
+210	c6_def	c3_def	c4_def	c5_def
+310	c6_def	c3_def	c4_def	c5_def
+INSERT INTO t1_compact values (250, "r0c6", "r0c3", "r0c4", "r0c5");
+SELECT * FROM t1_compact ORDER BY c1;
+c1	c6	c3	c4	c5
+10	c6_def	r1c3	c4_def	c5_def
+40	c6_def	r5c3	r2c4	c5_def
+50	c6_def	r8c3	r8c4	c5_def
+60	c6_def	r6c3	r6c4	c5_def
+60	c6_def	r7c3	r7c4	c5_def
+110	c6_def	c3_def	c4_def	c5_def
+150	c6_def	r9c3	r9c4	r9c5
+210	c6_def	c3_def	c4_def	c5_def
+250	r0c6	r0c3	r0c4	r0c5
+310	c6_def	c3_def	c4_def	c5_def
+DROP TABLE t1_compact;
+# ------------------------------------------------------------
+# TRUNCATE Partition test for Upgraded table
+# ------------------------------------------------------------
+# table t2_compact having
+#     c1, c2, c3, c4 normal columns
+#     c5 INSTANT ADD column with default NULL.
+#     with 4 partitions (p0, p1, p2, p3)
+#
+#     Partition p0, p1, p2 are truncated.
+# ------------------------------------------------------------
+SELECT * FROM t2_compact ORDER BY c1;
+c1	c2	c3	c4	c5
+390	1	1	3	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	instant_col=4;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p0	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p1	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p2	8	0	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p3	8	4	0	5	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	1	0	0
+INSERT INTO t2_compact values (101, 102, 103, "104", 105);
+SELECT * FROM t2_compact ORDER BY c1;
+c1	c2	c3	c4	c5
+101	102	103	104	105
+390	1	1	3	NULL
+Alter table t2_compact add column c6 INT DEFAULT 666 FIRST, algorithm=INSTANT;
+SELECT * FROM t2_compact ORDER BY c1;
+c6	c1	c2	c3	c4	c5
+666	101	102	103	104	105
+666	390	1	1	3	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c6	1	MYSQL_TYPE_LONG	0	Visible	default=8000029a;physical_pos=8;table_id=TABLE_ID;version_added=1;
+c1	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=7;table_id=TABLE_ID;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	instant_col=4;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p0	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p1	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p2	9	0	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p3	9	4	1	5	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	6	1027	1	0	0
+INSERT INTO t2_compact values (206, 201, 202, 203, "204", 205);
+SELECT * FROM t2_compact ORDER BY c1;
+c6	c1	c2	c3	c4	c5
+666	101	102	103	104	105
+206	201	202	203	204	205
+666	390	1	1	3	NULL
+ALTER TABLE t2_compact DROP COLUMN c2, algorithm=INSTANT;
+SELECT * FROM t2_compact ORDER BY c1;
+c6	c1	c3	c4	c5
+666	101	103	104	105
+206	201	203	204	205
+666	390	1	3	NULL
+ALTER TABLE t2_compact TRUNCATE partition p3;
+SELECT * FROM t2_compact ORDER BY c1;
+c6	c1	c3	c4	c5
+666	101	103	104	105
+206	201	203	204	205
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c6	1	MYSQL_TYPE_LONG	0	Visible	default=8000029a;physical_pos=8;table_id=TABLE_ID;version_added=1;
+c1	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_LONG	0	Visible	physical_pos=7;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=2;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+p3	MAXVALUE	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p0	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p1	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p2	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_compact#p#p3	8	0	2	5	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c6	0	6	1027	1	1	0
+c1	1	6	1027	0	0	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	6	1027	0	0	0
+c2_dropped_v2	8	6	1027	0	0	2
+DROP TABLE t2_compact;
+###########
+# CLEANUP #
+###########
+# Shutdown server
+# Remove copied files
+# Restarting server to restore server state
+# restart

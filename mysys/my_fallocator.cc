@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #endif
 #include <string.h>
 #include <sys/types.h>
+#include <limits>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -52,7 +53,7 @@
 #endif
 
 /** Change size of the specified file. Forces the OS to reserve disk space for
-the file, even when called to fill with zeros. he function also changes the
+the file, even when called to fill with zeros. The function also changes the
 file position. Usually it points to the end of the file after execution.
 
 @note Implementation based on, and mostly copied from, my_chsize. But instead
@@ -69,15 +70,11 @@ implementation.
 int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
   my_off_t oldsize;
   uchar buff[IO_SIZE];
-  DBUG_ENTER("my_fallocator");
-  DBUG_PRINT("my", ("fd: %d  length: %lu  MyFlags: %d", fd, (ulong)newlength,
-                    MyFlags));
+  DBUG_TRACE;
 
   if ((oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE))) ==
       newlength)
-    DBUG_RETURN(0);
-
-  DBUG_PRINT("info", ("old_size: %ld", (ulong)oldsize));
+    return 0;
 
   if (oldsize > newlength) {
 #ifdef _WIN32
@@ -85,13 +82,13 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
       set_my_errno(errno);
       goto err;
     }
-    DBUG_RETURN(0);
+    return 0;
 #elif defined(HAVE_POSIX_FALLOCATE)
-    if (posix_fallocate(fd, 0, (off_t)newlength) != 0) {
+    if (posix_fallocate(fd, 0, newlength) != 0) {
       set_my_errno(errno);
       goto err;
     }
-    DBUG_RETURN(0);
+    return 0;
 #else
     /*
     Fill space between requested length and true length with 'filler'
@@ -102,7 +99,7 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
       goto err;
     }
     std::swap(newlength, oldsize);
-#endif  // WIN32
+#endif  // _WIN32
   }
 
   /* Full file with 'filler' until it's as big as requested */
@@ -111,15 +108,15 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
     if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP))) goto err;
     oldsize += IO_SIZE;
   }
-  if (my_write(fd, buff, (size_t)(newlength - oldsize), MYF(MY_NABP))) goto err;
-  DBUG_RETURN(0);
+
+  if (my_write(fd, buff, static_cast<size_t>(newlength - oldsize),
+               MYF(MY_NABP)))
+    goto err;
+  return 0;
 
 err:
-  DBUG_PRINT("error", ("errno: %d", errno));
   if (MyFlags & MY_WME) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_CANT_CHSIZE, MYF(0), my_errno(),
-             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    MyOsError(my_errno(), EE_CANT_CHSIZE, MYF(0));
   }
-  DBUG_RETURN(1);
-} /* my_fallocator */
+  return 1;
+}

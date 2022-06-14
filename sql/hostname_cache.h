@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,6 +157,7 @@ class Host_entry {
 
 #define RC_OK 0
 #define RC_BLOCKED_HOST 1
+#define RC_LONG_HOSTNAME 2
 int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
                    char **hostname, uint *connect_errors);
 

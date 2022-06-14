@@ -46,7 +46,7 @@ perl;
 EOF
  
 # Wait for master threads to start
---let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE PROCESSLIST_COMMAND LIKE 'Binlog Dump' AND PROCESSLIST_STATE LIKE '%Master has sent%';
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE PROCESSLIST_COMMAND LIKE 'Binlog Dump' AND PROCESSLIST_STATE LIKE '%Source has sent%';
 --source include/wait_condition.inc
  
 # Get thread id of dump thread.

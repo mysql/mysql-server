@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -32,7 +34,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
-
+#include "portlib/NdbSleep.h"
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
@@ -224,13 +226,13 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
         }
         lastrow = rowId;
 
-        bzero(pRow, len);
+        std::memset(pRow, 0, len);
 
         HugoCalculator calc(* pTab);
         calc.setValues(pRow, pRowRecord, rowId, rand());
 
         NdbOperation::OperationOptions opts;
-        bzero(&opts, sizeof(opts));
+        std::memset(&opts, 0, sizeof(opts));
         if (deferred)
         {
           opts.optionsPresent =
@@ -922,6 +924,7 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   g_info << "check all resource usage" << endl;
+  NdbSleep_SecSleep(2);
   int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
   restarter.dumpStateAllNodes(dump1, 1);
   return NDBT_OK;
@@ -979,7 +982,6 @@ runTransSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   Ndb *pNdb = GETNDB(step);
-
   g_info << "save all resource usage" << endl;
   int dump1[] = { DumpStateOrd::TcResourceSnapshot };
   restarter.dumpStateAllNodes(dump1, 1);
@@ -1192,13 +1194,13 @@ runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
         }
         lastrow = rowId;
 
-        bzero(pRow, len);
+        std::memset(pRow, 0, len);
 
         HugoCalculator calc(* pTab);
         calc.setValues(pRow, pRowRecord, rowId, rand());
 
         NdbOperation::OperationOptions opts;
-        bzero(&opts, sizeof(opts));
+        std::memset(&opts, 0, sizeof(opts));
         if (deferred)
         {
           opts.optionsPresent =
@@ -1275,7 +1277,6 @@ runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
   ndbout_c("count_ok: %d count_failed: %d",
            count_ok, count_failed);
   delete [] pRow;
-
   return NDBT_OK;
 }
 
@@ -1321,7 +1322,7 @@ int
 runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
-  CHK2(restarter.waitClusterStarted(1) == 0,
+  CHK2(restarter.waitClusterStarted() == 0,
        "All nodes were not started");
   return NDBT_OK;
 }
@@ -1356,8 +1357,8 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
     }
 #endif
     printf("testing errcode: %d\n", terrorCodes[i]);
-    runLongSignalMemorySnapshotStart(ctx, step);
     runTransSnapshot(ctx, step);
+    runLongSignalMemorySnapshotStart(ctx, step);
     runRSSsnapshot(ctx, step);
 
     res.insertErrorInAllNodes(terrorCodes[i]);
@@ -1369,9 +1370,13 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
       runMixedCascade(ctx, step);
       break;
     }
-
-    runTransSnapshotCheck(ctx, step);
+    /**
+     * If we are not using Read Backup we can arrive here while the
+     * commit is in progress, give the commit a chance to complete
+     * before checking the memory allocation snapshots.
+     */
     runRSSsnapshotCheck(ctx, step);
+    runTransSnapshotCheck(ctx, step);
     runLongSignalMemorySnapshotCheck(ctx, step);
   }
 

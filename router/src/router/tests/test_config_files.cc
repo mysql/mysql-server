@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "config_files.h"
-#include "gmock/gmock.h"
+#include "mysqlrouter/config_files.h"
+
+#include <gmock/gmock.h>
 
 TEST(ConfigFilesTest, IsLegacyConfigurationNameCorrect) {
   ASSERT_THAT(use_ini_extension("my.conf.conf"), testing::Eq("my.conf.ini"));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

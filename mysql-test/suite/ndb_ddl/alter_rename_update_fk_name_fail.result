@@ -1,0 +1,86 @@
+# Setup
+create table parent (
+pk int primary key,
+id1 int unique,
+id2 int unique
+) engine ndb;
+create table child (
+pk int primary key,
+ref1 int,
+ref2 int,
+foreign key ref1_idx(ref1) references parent (id1),
+foreign key ref2_idx(ref2) references parent (id2)
+) engine ndb;
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `ref1_idx` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+set debug='+d,ndb_simulate_failure_after_table_rename';
+# Simple rename child should fail
+# and the foreign key names should remain the same
+rename table child to child1;
+ERROR HY000: Internal error: Simulated : Failed after renaming the table.
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `ref1_idx` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+set debug='+d,ndb_simulate_failure_after_table_rename';
+# Rename using inplace alter should fail
+# and the foreign key names should remain the same
+alter table child rename to child1, algorithm = inplace;
+ERROR HY000: Internal error: Simulated : Failed after renaming the table.
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `ref1_idx` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+set debug='+d,ndb_simulate_failure_after_table_rename';
+# Rename using copy alter should fail
+# and the foreign key names should remain the same
+alter table child rename to child1, algorithm = copy;
+ERROR HY000: Internal error: Simulated : Failed after renaming the table.
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `ref1_idx` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Cleanup
+drop table child, parent;

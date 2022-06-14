@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "Suma.hpp"
 
 #include <ndb_version.h>
@@ -35,7 +36,6 @@
 
 #include <signaldata/ListTables.hpp>
 #include <signaldata/GetTabInfo.hpp>
-#include <signaldata/GetTableId.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
@@ -77,7 +77,6 @@
 
 #define JAM_FILE_ID 467
 
-extern EventLogger * g_eventLogger;
 
 //#define HANDOVER_DEBUG
 //#define NODEFAIL_DEBUG
@@ -93,10 +92,23 @@ extern EventLogger * g_eventLogger;
 #undef DBUG_VOID_RETURN
 
 #if 0
-#define DBUG_ENTER(a) {ndbout_c("%s:%d >%s", __FILE__, __LINE__, a);}
-#define DBUG_PRINT(a,b) {ndbout << __FILE__ << ":" << __LINE__ << " " << a << ": "; ndbout_c b ;}
-#define DBUG_RETURN(a) { ndbout_c("%s:%d <", __FILE__, __LINE__); return(a); }
-#define DBUG_VOID_RETURN { ndbout_c("%s:%d <", __FILE__, __LINE__); return; }
+#define DBUG_ENTER(a) \
+  { g_eventLogger->info("%s:%d >%s", __FILE__, __LINE__, a); }
+#define DBUG_PRINT(a, b)                                      \
+  {                                                           \
+    g_eventLogger->info("%s:%d %s: ", __FILE__, __LINE__, a); \
+    g_eventLogger->info b;                                    \
+  }
+#define DBUG_RETURN(a)                                  \
+  {                                                     \
+    g_eventLogger->info("%s:%d <", __FILE__, __LINE__); \
+    return (a);                                         \
+  }
+#define DBUG_VOID_RETURN                                \
+  {                                                     \
+    g_eventLogger->info("%s:%d <", __FILE__, __LINE__); \
+    return;                                             \
+  }
 #else
 #define DBUG_ENTER(a)
 #define DBUG_PRINT(a,b)
@@ -157,7 +169,6 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_subscriptions.setSize(noTables);
 
   Uint32 cnt = 0;
-  cnt = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_SUBSCRIPTIONS, &cnt);
   if (cnt == 0)
   {
@@ -174,6 +185,20 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
     {
       jam();
       cnt =  val;
+    } else {
+      // Autosize: Add two subscribers for each API node (since each
+      // MySQL Server uses two for detecting schema changes)
+      Uint32 num_api_nodes = 0;
+      ndb_mgm_configuration_iterator * iter = m_ctx.m_config.getClusterConfigIterator();
+      for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
+        Uint32 node_type;
+        ndbrequire(!ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION,
+                                              &node_type));
+        if (node_type == NODE_TYPE_API) {
+          num_api_nodes++;
+        }
+      }
+      cnt += 2 * num_api_nodes;
     }
   }
   c_subscriberPool.setSize(cnt);
@@ -262,6 +287,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   {
     Bucket* bucket= c_buckets+i;
     bucket->m_buffer_tail = RNIL;
+    bucket->m_max_acked_gci = 0;
     bucket->m_buffer_head.m_page_id = RNIL;
     bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS;
   }
@@ -364,13 +390,22 @@ Suma::execSTTOR(Signal* signal) {
     
     if (ERROR_INSERTED(13030))
     {
-      ndbout_c("Dont start handover");
+      g_eventLogger->info("Dont start handover");
       DBUG_VOID_RETURN;
     }
   }//if
   
   if (m_startphase == 101)
   {
+    if (ERROR_INSERTED(13053))
+    {
+      jam();
+      g_eventLogger->info("SUMA : ERROR 13053 : Stalling phase 101");
+      sendSignalWithDelay(SUMA_REF, GSN_STTOR, signal,
+                          1000, signal->getLength());
+      return;
+    }
+
     if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
 	m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
     {
@@ -415,34 +450,13 @@ Suma::execSTTOR(Signal* signal) {
 void
 Suma::send_dict_lock_req(Signal* signal, Uint32 state)
 {
-  if (state == DictLockReq::SumaStartMe &&
-      !ndbd_suma_dictlock_startme(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    goto notsupported;
-  }
-  else if (state == DictLockReq::SumaHandOver &&
-           !ndbd_suma_dictlock_handover(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    goto notsupported;
-  }
-
-  {
-    jam();
-    DictLockReq* req = (DictLockReq*)signal->getDataPtrSend();
-    req->lockType = state;
-    req->userPtr = state;
-    req->userRef = reference();
-    sendSignal(calcDictBlockRef(c_masterNodeId),
+  jam();
+  DictLockReq* req = (DictLockReq*)signal->getDataPtrSend();
+  req->lockType = state;
+  req->userPtr = state;
+  req->userRef = reference();
+  sendSignal(calcDictBlockRef(c_masterNodeId),
                GSN_DICT_LOCK_REQ, signal, DictLockReq::SignalLength, JBB);
-  }
-  return;
-
-notsupported:
-  DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
-  conf->userPtr = state;
-  execDICT_LOCK_CONF(signal);
 }
 
 void
@@ -456,6 +470,7 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
   switch(state){
   case DictLockReq::SumaStartMe:
     jam();
+    ndbrequire(c_startup.m_restart_server_node_id == RNIL);
     c_startup.m_restart_server_node_id = 0;
     CRASH_INSERTION(13039);
     send_start_me_req(signal);
@@ -488,19 +503,6 @@ Suma::execDICT_LOCK_REF(Signal* signal)
 void
 Suma::send_dict_unlock_ord(Signal* signal, Uint32 state)
 {
-  if (state == DictLockReq::SumaStartMe &&
-      !ndbd_suma_dictlock_startme(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    return;
-  }
-  else if (state == DictLockReq::SumaHandOver &&
-           !ndbd_suma_dictlock_handover(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    return;
-  }
-
   jam();
   DictUnlockOrd* ord = (DictUnlockOrd*)signal->getDataPtrSend();
   ord->lockPtr = 0;
@@ -618,22 +620,32 @@ Suma::createSequenceReply(Signal* signal,
 }
 
 void
-Suma::execREAD_NODESCONF(Signal* signal){
+Suma::execREAD_NODESCONF(Signal* signal)
+{
   jamEntry();
   ReadNodesConf * const conf = (ReadNodesConf *)signal->getDataPtr();
- 
+
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&conf->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   if(getNodeState().getNodeRestartInProgress())
   {
     NdbNodeBitmask started_nodes;
-    started_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    started_nodes.assign(conf->startedNodes);
     c_alive_nodes.bitOR(started_nodes);
     c_alive_nodes.set(getOwnNodeId()); 
   }
   else
   {
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startingNodes);
-    NdbNodeBitmask tmp;
-    tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes = conf->startingNodes;
+    NdbNodeBitmask tmp = conf->startedNodes;
     ndbrequire(tmp.isclear()); // No nodes can be started during SR
   }
 
@@ -642,7 +654,7 @@ Suma::execREAD_NODESCONF(Signal* signal){
     for (Uint32 i = 0; i<MAX_NDB_NODES; i++)
     {
       if (c_alive_nodes.get(i))
-        ndbout_c("%u c_alive_nodes.set(%u)", __LINE__, i);
+        g_eventLogger->info("%u c_alive_nodes.set(%u)", __LINE__, i);
     }
   }
   
@@ -664,8 +676,20 @@ Suma::getNodeGroupMembers(Signal* signal)
   sd->requestType = CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = getOwnNodeId();
   sd->senderData = RNIL;
-  sendSignal(DBDIH_REF, GSN_CHECKNODEGROUPSREQ, signal,
-             CheckNodeGroups::SignalLength, JBB);
+  {
+    /* Prepare a node bitmask sent in section, ignored in this case. */
+    sd->mask.clear();
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = sd->mask.rep.data;
+    lsptr[0].sz = sd->mask.getPackedLengthInWords();
+    sendSignal(DBDIH_REF,
+               GSN_CHECKNODEGROUPSREQ,
+               signal,
+               CheckNodeGroups::SignalLengthNoBitmask,
+               JBB,
+               lsptr,
+               1);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -785,9 +809,30 @@ Suma::fix_nodegroup()
 void
 Suma::execCHECKNODEGROUPSCONF(Signal *signal)
 {
-  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
   DBUG_ENTER("Suma::execCHECKNODEGROUPSCONF");
   jamEntry();
+
+  {
+    CheckNodeGroups *sd = (CheckNodeGroups *)signal->getDataPtrSend();
+    /**
+     * Handle NDB node bitmask now arriving in section to handle
+     * very many data nodes.
+     */
+    Uint32 *node_bitmask =
+      (Uint32*)&signal->theData[CheckNodeGroups::SignalLength];
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    memset(node_bitmask,
+           0,
+           NdbNodeBitmask::Size * sizeof(Uint32));
+    copy(node_bitmask, ptr);
+    sd->mask.assign(NdbNodeBitmask::Size, node_bitmask);
+    releaseSections(handle);
+  }
+  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
 
   c_nodeGroup = sd->output;
   c_nodes_in_nodegroup_mask.assign(sd->mask);
@@ -795,7 +840,7 @@ Suma::execCHECKNODEGROUPSCONF(Signal *signal)
 
   fix_nodegroup();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
     DBUG_PRINT("exit",("Suma: NodeGroup %u, me %u, "
 		       "member[%u] %u",
@@ -804,7 +849,6 @@ Suma::execCHECKNODEGROUPSCONF(Signal *signal)
   }
 #endif
 
-  c_startup.m_restart_server_node_id = 0;    
   if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
       m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
   {
@@ -1025,7 +1069,7 @@ Suma::send_handover_req(Signal* signal, Uint32 type)
   Uint32 gci= Uint32(m_last_complete_gci >> 32) + 3;
   
   SumaHandoverReq* req= (SumaHandoverReq*)signal->getDataPtrSend();
-  char buf[255];
+  char buf[NdbNodeBitmask::TextLength + 1];
   c_startup.m_handover_nodes.getText(buf);
   infoEvent("Suma: initiate handover for %s with nodes %s GCI: %u",
             (type == SumaHandoverReq::RT_START_NODE ? "startup" : "shutdown"),
@@ -1150,6 +1194,7 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   jamEntry();
   DBUG_ENTER("Suma::execAPI_FAILREQ");
   Uint32 failedApiNode = signal->theData[0];
+  ndbrequire(failedApiNode < MAX_NODES);
   ndbrequire(signal->theData[1] == QMGR_REF); // As callback hard-codes QMGR
 
   c_connected_nodes.clear(failedApiNode);
@@ -1237,6 +1282,8 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
 {
   jam();
 
+  ndbrequire(nodeId < MAX_NODES);
+
   Ptr<Gcp_record> gcp;
   if (c_gcp_list.first(gcp))
   {
@@ -1298,6 +1345,8 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 {
   jam();
   Ptr<SubOpRecord> subOpPtr;
+
+  ndbrequire(nodeId < MAX_NODES);
 
   if (c_outstanding_drop_trig_req > NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL)
   {
@@ -1400,12 +1449,12 @@ Suma::api_fail_subscription(Signal* signal)
 {
   jam();
   Ptr<SubOpRecord> subOpPtr;
-  c_subOpPool.getPtr(subOpPtr, signal->theData[1]);
+  ndbrequire(c_subOpPool.getPtr(subOpPtr, signal->theData[1]));
 
   Uint32 nodeId = subOpPtr.p->m_senderRef;
 
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, subOpPtr.p->m_subPtrI);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, subOpPtr.p->m_subPtrI));
 
   Ptr<Subscriber> ptr;
   {
@@ -1494,9 +1543,25 @@ void
 Suma::execNODE_FAILREP(Signal* signal){
   jamEntry();
   DBUG_ENTER("Suma::execNODE_FAILREP");
-  ndbassert(signal->getNoOfSections() == 0);
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
 
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.getSection(ptr, 0));
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed; failed.assign(NdbNodeBitmask::Size, rep->theNodes);
   
   if(c_restart.m_ref && failed.get(refToNode(c_restart.m_ref)))
@@ -1512,7 +1577,7 @@ Suma::execNODE_FAILREP(Signal* signal){
     {
       jam();
       Ptr<Subscription> subPtr;
-      c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI);
+      ndbrequire(c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI));
       abort_start_me(signal, subPtr, false);
     }
   }
@@ -1522,7 +1587,7 @@ Suma::execNODE_FAILREP(Signal* signal){
     Uint32 node = c_subscriber_nodes.find(0);
     if (node != NodeBitmask::NotFound)
     {
-      ndbout_c("Inserting API_FAILREQ node: %u", node);
+      g_eventLogger->info("Inserting API_FAILREQ node: %u", node);
       signal->theData[0] = node;
       sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     }
@@ -1548,19 +1613,19 @@ Suma::execNODE_FAILREP(Signal* signal){
 	{
 	  m_active_buckets.set(i);
 	  m_switchover_buckets.clear(i);
-	  ndbout_c("aborting handover");
-	} 
-	else if(state & Bucket::BUCKET_STARTING)
-	{
-	  progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
-		    "Nodefailure during SUMA takeover");
-	}
-        else if (state & Bucket::BUCKET_SHUTDOWN_TO)
-        {
+          g_eventLogger->info("aborting handover");
+        } else if (state & Bucket::BUCKET_STARTING) {
+          progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR,
+                    "Nodefailure during SUMA takeover");
+        } else if (state & Bucket::BUCKET_SHUTDOWN_TO) {
           jam();
+          // I am taking over from a shutdown node, but another node from
+          // the same nodegroup failed before takeover could complete
           c_buckets[i].m_state &= ~Uint32(Bucket::BUCKET_SHUTDOWN_TO);
           m_switchover_buckets.clear(i);
-          ndbrequire(get_responsible_node(i, tmp) == getOwnNodeId());
+          int rsp_node = get_responsible_node(i, tmp);
+          ndbrequire(rsp_node == getOwnNodeId() ||
+                     rsp_node == c_buckets[i].m_switchover_node);
           start_resend(signal, i);
         }
       }
@@ -1714,7 +1779,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     c_subscriptions.getPtr(subPtr, g_subPtrI);
     
     Ptr<SyncRecord> syncPtr;
-    c_syncPool.getPtr(syncPtr, subPtr.p->m_syncPtrI);
+    ndbrequire(c_syncPool.getPtr(syncPtr, subPtr.p->m_syncPtrI));
 
     if(tCase == 8000){
       syncPtr.p->startMeta(signal);
@@ -1807,7 +1872,8 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
   if (tCase == 8010)
   {
-    char buf1[255], buf2[255];
+    char buf1[NodeBitmask::TextLength + 1];
+    char buf2[NodeBitmask::TextLength + 1];
     c_subscriber_nodes.getText(buf1);
     c_connected_nodes.getText(buf2);
     infoEvent("c_subscriber_nodes: %s", buf1);
@@ -1957,7 +2023,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
 
       Ptr<Subscription> subPtr = it.curr;
       Ptr<Table> tabPtr;
-      c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+      ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
       infoEvent("Subcription %u id: 0x%.8x key: 0x%.8x state: %s",
                 subPtr.i,
                 subPtr.p->m_subscriptionId,
@@ -2165,7 +2231,9 @@ void Suma::execDBINFO_SCANREQ(Signal *signal)
 
     const size_t num_config_params =
       sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    const Uint32 numPools = NDB_ARRAY_SIZE(pools);
     Uint32 pool = cursor->data[0];
+    ndbrequire(pool < numPools);
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
     {
@@ -2258,7 +2326,7 @@ Suma::execUTIL_SEQUENCE_CONF(Signal* signal)
   Uint64 subId;
   memcpy(&subId,conf->sequenceValue,8);
   SubscriberPtr subbPtr;
-  c_subscriberPool.getPtr(subbPtr,conf->senderData);
+  ndbrequire(c_subscriberPool.getPtr(subbPtr, conf->senderData));
 
   CreateSubscriptionIdConf * subconf = (CreateSubscriptionIdConf*)conf;
   subconf->senderRef      = reference();
@@ -2294,7 +2362,7 @@ Suma::execUTIL_SEQUENCE_REF(Signal* signal)
   Uint32 subData = ref->senderData;
 
   SubscriberPtr subbPtr;
-  c_subscriberPool.getPtr(subbPtr,subData);
+  ndbrequire(c_subscriberPool.getPtr(subbPtr, subData));
   if (err == UtilSequenceRef::TCError)
   {
     jam();
@@ -2467,7 +2535,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   if (found)
   {
     jam();
-    c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+    ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
   }
   else if (c_tables.find(tabPtr, tableId))
   {
@@ -2664,7 +2732,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     if(handle.m_cnt > 0)
     {
       SegmentedSectionPtr ptr;
-      handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
+      ndbrequire(handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST));
       LocalSyncRecordBuffer attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
     }
@@ -2673,7 +2741,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
       jam();
       ndbrequire(handle.m_cnt > 1)
       SegmentedSectionPtr ptr;
-      handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO);
+      ndbrequire(handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO));
       LocalSyncRecordBuffer boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
       append(boundBuf, ptr, getSectionSegmentPool());
     }
@@ -2793,7 +2861,7 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
   const Uint32 scanCookie = conf->scanCookie;
 
   Ptr<SyncRecord> ptr;
-  c_syncPool.getPtr(ptr, conf->senderData);
+  ndbrequire(c_syncPool.getPtr(ptr, conf->senderData));
 
   {
     LocalSyncRecordBuffer fragBuf(c_dataBufferPool, ptr.p->m_fragments);
@@ -2818,7 +2886,7 @@ Suma::sendDIGETNODESREQ(Signal *signal,
                         Uint32 fragNo)
 {
   Ptr<SyncRecord> ptr;
-  c_syncPool.getPtr(ptr, synPtrI);
+  ndbrequire(c_syncPool.getPtr(ptr, synPtrI));
 
   Uint32 loopCount = 0;
   for ( ; fragNo < ptr.p->m_frag_cnt; fragNo++)
@@ -2838,7 +2906,8 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     jamEntry();
     DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
     Uint32 errCode = conf->zero;
-    Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+    Uint32 instanceKey = conf->instanceKey;
+    ndbrequire(instanceKey > 0);
     Uint32 nodeId = conf->nodes[0];
     Uint32 nodeCount = (conf->reqinfo & 0xFF) + 1;
     ndbrequire(errCode == 0);
@@ -2855,8 +2924,9 @@ Suma::sendDIGETNODESREQ(Signal *signal,
       fd.m_fragDesc.m_lqhInstanceKey = instanceKey;
       if (ptr.p->m_frag_id == ZNIL)
       {
-        signal->theData[2] = fd.m_dummy;
-        fragBuf.append(&signal->theData[2], 1);
+        signal->theData[2] = fd.m_dummy[0];
+        signal->theData[3] = fd.m_dummy[1];
+        fragBuf.append(&signal->theData[2], 2);
       }
       else if (ptr.p->m_frag_id == fragNo)
       {
@@ -2874,8 +2944,9 @@ Suma::sendDIGETNODESREQ(Signal *signal,
           return;
         }
         fd.m_fragDesc.m_nodeId = ownNodeId;
-        signal->theData[2] = fd.m_dummy;
-        fragBuf.append(&signal->theData[2], 1);
+        signal->theData[2] = fd.m_dummy[0];
+        signal->theData[3] = fd.m_dummy[1];
+        fragBuf.append(&signal->theData[2], 2);
       }
     }
     if (loopCount >= DiGetNodesReq::MAX_DIGETNODESREQS ||
@@ -2931,7 +3002,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     (GetTabInfoRef::ErrorCode) ref->errorCode;
   int do_resend_request = 0;
   TablePtr tabPtr;
-  c_tablePool.getPtr(tabPtr, senderData);
+  ndbrequire(c_tablePool.getPtr(tabPtr, senderData));
   switch (errorCode)
   {
   case GetTabInfoRef::TableNotDefined:
@@ -3020,9 +3091,9 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   SectionHandle handle(this, signal);
   GetTabInfoConf* conf = (GetTabInfoConf*)signal->getDataPtr();
   TablePtr tabPtr;
-  c_tablePool.getPtr(tabPtr, conf->senderData);
+  ndbrequire(c_tablePool.getPtr(tabPtr, conf->senderData));
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
+  ndbrequire(handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO));
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
   releaseSections(handle);
 
@@ -3119,15 +3190,20 @@ Suma::SyncRecord::getNextFragment(TablePtr * tab,
   SyncRecordBuffer::DataBufferIterator fragIt;
   
   TablePtr tabPtr;
-  suma.c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  ndbrequire(suma.c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
   LocalSyncRecordBuffer fragBuf(suma.c_dataBufferPool,  m_fragments);
     
   fragBuf.position(fragIt, m_currentFragment);
-  for(; !fragIt.curr.isNull(); fragBuf.next(fragIt), m_currentFragment++)
+  for ( ;
+       !fragIt.curr.isNull();
+       fragBuf.next(fragIt), m_currentFragment += 2)
   {
     FragmentDescriptor tmp;
-    tmp.m_dummy = * fragIt.data;
-    if(tmp.m_fragDesc.m_nodeId == suma.getOwnNodeId()){
+    tmp.m_dummy[0] = * fragIt.data;
+    fragBuf.next(fragIt);
+    tmp.m_dummy[1] = * fragIt.data;
+    if(tmp.m_fragDesc.m_nodeId == suma.getOwnNodeId())
+    {
       * fd = tmp;
       * tab = tabPtr;
       return true;
@@ -3157,7 +3233,8 @@ Suma::SyncRecord::nextScan(Signal* signal)
   LocalSyncRecordBuffer attrBuf(suma.c_dataBufferPool, head);
 
   Uint32 instanceKey = fd.m_fragDesc.m_lqhInstanceKey;
-  BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
+  Uint32 instanceNo = suma.getInstanceNo(suma.getOwnNodeId(), instanceKey);
+  BlockReference lqhRef = numberToRef(DBLQH, instanceNo, suma.getOwnNodeId());
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
   //const Uint32 attrLen = 5 + attrBuf.getSize();
@@ -3269,7 +3346,7 @@ Suma::execSCAN_FRAGREF(Signal* signal){
   DBUG_ENTER("Suma::execSCAN_FRAGREF");
   ScanFragRef * const ref = (ScanFragRef*)signal->getDataPtr();
   Ptr<SyncRecord> syncPtr;
-  c_syncPool.getPtr(syncPtr, ref->senderData);
+  ndbrequire(c_syncPool.getPtr(syncPtr, ref->senderData));
   syncPtr.p->completeScan(signal, ref->errorCode);
   DBUG_VOID_RETURN;
 }
@@ -3288,7 +3365,7 @@ Suma::execSCAN_FRAGCONF(Signal* signal){
   const Uint32 completedOps = conf->completedOps;
 
   Ptr<SyncRecord> syncPtr;
-  c_syncPool.getPtr(syncPtr, senderData);
+  ndbrequire(c_syncPool.getPtr(syncPtr, senderData));
   
   if(completed != 2){ // 2==ZSCAN_FRAG_CLOSED
     jam();
@@ -3312,7 +3389,7 @@ Suma::execSCAN_FRAGCONF(Signal* signal){
 
   ndbrequire(completedOps == 0);
   
-  syncPtr.p->m_currentFragment++;
+  syncPtr.p->m_currentFragment+= 2;
   syncPtr.p->nextScan(signal);
   DBUG_VOID_RETURN;
 }
@@ -3337,19 +3414,23 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
 
   Uint32 batchSize;
   Uint32 instanceKey;
+  Uint32 instanceNo;
   {
     Ptr<SyncRecord> syncPtr;
-    c_syncPool.getPtr(syncPtr, syncPtrI);
+    ndbrequire(c_syncPool.getPtr(syncPtr, syncPtrI));
     batchSize = syncPtr.p->m_scan_batchsize;
     LocalSyncRecordBuffer fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
     SyncRecordBuffer::DataBufferIterator fragIt;
     bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
     ndbrequire(ok);
     FragmentDescriptor tmp;
-    tmp.m_dummy = * fragIt.data;
+    tmp.m_dummy[0] = * fragIt.data;
+    fragBuf.next(fragIt);
+    tmp.m_dummy[1] = * fragIt.data;
     instanceKey = tmp.m_fragDesc.m_lqhInstanceKey;
+    instanceNo = getInstanceNo(getOwnNodeId(), instanceKey);
   }
-  BlockReference lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
+  BlockReference lqhRef = numberToRef(DBLQH, instanceNo, getOwnNodeId());
 
   ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
   req->senderData = syncPtrI;
@@ -3369,7 +3450,7 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
   DBUG_ENTER("Suma::SyncRecord::completeScan");
 
   SubscriptionPtr subPtr;
-  suma.c_subscriptionPool.getPtr(subPtr, m_subscriptionPtrI);
+  ndbrequire(suma.c_subscriptionPool.getPtr(subPtr, m_subscriptionPtrI));
 
   DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
   rep->tableId = subPtr.p->m_tableId;
@@ -3379,7 +3460,7 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
                          DihScanTabCompleteRep::SignalLength, 0);
 
 #if PRINT_ONLY
-  ndbout_c("GSN_SUB_SYNC_CONF (data)");
+  g_eventLogger->info("GSN_SUB_SYNC_CONF (data)");
 #else
   if (error == 0)
   {
@@ -3532,6 +3613,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     if (!ERROR_INSERTED_CLEAR(13047))
       break;
     // Fall through - if error inserted
+    [[fallthrough]];
   default:
     /**
      * This can happen if we start...with a new config
@@ -3647,7 +3729,7 @@ Suma::create_triggers(Signal* signal, SubscriptionPtr subPtr)
   subPtr.p->m_trigger_state = Subscription::T_CREATING;
 
   TablePtr tabPtr;
-  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
 
   AttributeMask attrMask;
   tabPtr.p->createAttributeMask(attrMask, *this);
@@ -3807,7 +3889,7 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
 
       Uint32 senderRef = subOpPtr.p->m_senderRef;
       Uint32 senderData = subOpPtr.p->m_senderData;
-      c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
+      ndbrequire(c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef));
 
       if (check_sub_start(ptr.p->m_senderRef))
       {
@@ -3871,7 +3953,7 @@ Suma::report_sub_start_ref(Signal* signal,
 
     Uint32 senderRef = subOpPtr.p->m_senderRef;
     Uint32 senderData = subOpPtr.p->m_senderData;
-    c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
+    ndbrequire(c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef));
 
     SubStartRef* ref = (SubStartRef*)signal->getDataPtrSend();
     ref->senderRef  = reference();
@@ -3897,7 +3979,7 @@ Suma::drop_triggers(Signal* signal, SubscriptionPtr subPtr)
   subPtr.p->m_outstanding_trigger = 0;
 
   Ptr<Table> tabPtr;
-  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
   if (tabPtr.p->m_state == Table::DROPPED)
   {
     jam();
@@ -3973,7 +4055,7 @@ Suma::execDROP_TRIG_IMPL_REF(Signal* signal)
   const Uint32 triggerId = ref->triggerId;
   const Uint32 type = (triggerId >> 16) & 0x3;
 
-  c_subscriptionPool.getPtr(subPtr, ref->senderData);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, ref->senderData));
   c_tables.getPtr(tabPtr, subPtr.p->m_table_ptrI);
   ndbrequire(tabPtr.p->m_tableId == ref->tableId);
 
@@ -4011,7 +4093,7 @@ Suma::execDROP_TRIG_IMPL_CONF(Signal* signal)
   const Uint32 triggerId = conf->triggerId;
   const Uint32 type = (triggerId >> 16) & 0x3;
 
-  c_subscriptionPool.getPtr(subPtr, conf->senderData);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, conf->senderData));
   c_tables.getPtr(tabPtr, subPtr.p->m_table_ptrI);
   ndbrequire(tabPtr.p->m_tableId == conf->tableId);
 
@@ -4184,10 +4266,10 @@ Suma::sub_stop_req(Signal* signal)
   }
 
   Ptr<SubOpRecord> subOpPtr;
-  c_subOpPool.getPtr(subOpPtr, signal->theData[1]);
+  ndbrequire(c_subOpPool.getPtr(subOpPtr, signal->theData[1]));
 
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, subOpPtr.p->m_subPtrI);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, subOpPtr.p->m_subPtrI));
 
   Ptr<Subscriber> ptr;
   {
@@ -4469,8 +4551,7 @@ void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
  *
  */
 
-#define SUMA_BUF_SZ1 MAX_KEY_SIZE_IN_WORDS + MAX_TUPLE_SIZE_IN_WORDS
-#define SUMA_BUF_SZ MAX_ATTRIBUTES_IN_TABLE + SUMA_BUF_SZ1
+#define SUMA_BUF_SZ (MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS)
 
 #define NO_LOCK_VAL        0xffffffff
 #define TRIGGER_LOCK_BASE  0x00000000
@@ -4526,14 +4607,15 @@ Suma::execTRANSID_AI(Signal* signal)
     /* Copy long data into linear signal buffer */
     SectionHandle handle(this, signal);
     SegmentedSectionPtr dataPtr;
-    handle.getSection(dataPtr, 0);
+    ndbrequire(handle.getSection(dataPtr, 0));
     length = dataPtr.sz;
+    ndbrequire(length <= (NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength));
     copy(data->attrData, dataPtr);
     releaseSections(handle);
   }
 
   Ptr<SyncRecord> syncPtr;
-  c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
+  ndbrequire(c_syncPool.getPtr(syncPtr, (opPtrI >> 16)));
   
   Uint32 headersSection = RNIL;
   Uint32 dataSection = RNIL;
@@ -4542,8 +4624,10 @@ Suma::execTRANSID_AI(Signal* signal)
   
   const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
   for(Uint32 i = 0; i<attribs; i++){
+    ndbrequire(src < end);
     Uint32 tmp = * src++;
     Uint32 len = AttributeHeader::getDataSize(tmp);
+    ndbrequire((src + len) <= end);
     
     /**
      * Separate AttributeHeaders and data in separate
@@ -4591,7 +4675,7 @@ Suma::execKEYINFO20(Signal* signal)
   const Uint32 takeOver = data->scanInfo_Node;
 
   Ptr<SyncRecord> syncPtr;
-  c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
+  ndbrequire(c_syncPool.getPtr(syncPtr, (opPtrI >> 16)));
 
   ndbrequire(syncPtr.p->m_sourceInstance ==
              refToInstance(signal->getSendersBlockRef()));
@@ -4654,9 +4738,9 @@ Suma::sendScanSubTableData(Signal* signal,
   sdata->gci_lo = 0;
   sdata->takeOver = takeOver;
 #if PRINT_ONLY
-  ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", 
-           getSectionSz(syncPtr.p->m_headersSection),
-           getSectionSz(syncPtr.p->m_dataSection));
+  g_eventLogger->info("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d",
+                      getSectionSz(syncPtr.p->m_headersSection),
+                      getSectionSz(syncPtr.p->m_dataSection));
 #else
   sendSignal(ref,
 	     GSN_SUB_TABLE_DATA,
@@ -4694,6 +4778,7 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
 
     ndbrequire( checkTriggerBufferLock(trigId) );
 
+    ndbrequire(b_trigBufferSize + dataLen <= SUMA_BUF_SZ);
     memcpy(b_buffer + b_trigBufferSize, trg->getData(), 4 * dataLen);
     b_trigBufferSize += dataLen;
 
@@ -4713,6 +4798,7 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
       ndbrequire( checkTriggerBufferLock(trigId) );
     }
 
+    ndbrequire(f_trigBufferSize + dataLen <= SUMA_BUF_SZ);
     memcpy(f_buffer + f_trigBufferSize, trg->getData(), 4 * dataLen);
     f_trigBufferSize += dataLen;
   }
@@ -4733,7 +4819,8 @@ Suma::get_responsible_node(Uint32 bucket) const
 
   jam();
   Uint32 node;
-  const Bucket* ptr= c_buckets + bucket;
+  ndbrequire(bucket < NO_OF_BUCKETS);
+  const Bucket* ptr = c_buckets + bucket;
   for(Uint32 i = 0; i<MAX_REPLICAS; i++)
   {
     node= ptr->m_nodes[i];
@@ -4741,8 +4828,8 @@ Suma::get_responsible_node(Uint32 bucket) const
     {
 #ifdef NODEFAIL_DEBUG2
       theCounts[node]++;
-      ndbout_c("Suma:responsible n=%u, D=%u, id = %u, count=%u",
-               n,D, id, theCounts[node]);
+      g_eventLogger->info("Suma:responsible n=%u, D=%u, id = %u, count=%u", n,
+                          D, id, theCounts[node]);
 #endif
       return node;
     }
@@ -4756,7 +4843,8 @@ Suma::get_responsible_node(Uint32 bucket, const NdbNodeBitmask& mask) const
 {
   jam();
   Uint32 node;
-  const Bucket* ptr= c_buckets + bucket;
+  ndbrequire(bucket < NO_OF_BUCKETS);
+  const Bucket* ptr = c_buckets + bucket;
   for(Uint32 i = 0; i<MAX_REPLICAS; i++)
   {
     node= ptr->m_nodes[i];
@@ -4786,40 +4874,50 @@ Suma::check_switchover(Uint32 bucket, Uint64 gci)
   return !send;
 }
 
-static 
 Uint32 
-reformat(Signal* signal, LinearSectionPtr ptr[3],
-	 Uint32 * src_1, Uint32 sz_1,
-	 Uint32 * src_2, Uint32 sz_2)
+Suma::reformat(Signal* signal,
+               LinearSectionPtr ptr[3],
+               const LinearSectionPtr lsptr[3])
 {
+  jam();
   Uint32 noOfAttrs = 0, dataLen = 0;
   Uint32 * headers = signal->theData + 25;
   Uint32 * dst     = signal->theData + 25 + MAX_ATTRIBUTES_IN_TABLE;
-  
+
+  require(lsptr[0].sz + lsptr[2].sz <= SUMA_BUF_SZ);
+
   ptr[0].p  = headers;
   ptr[1].p  = dst;
   
-  while(sz_1 > 0){
-    Uint32 tmp = * src_1 ++;
-    * headers ++ = tmp;
-    Uint32 len = AttributeHeader::getDataSize(tmp);
-    memcpy(dst, src_1, 4 * len);
-    dst += len;
-    src_1 += len;
+  for (Uint32 i = 0; i < 2; i++)
+  {
+    jam();
+    const Uint32 secnum = (i == 0 ? 0 : 2);
+    Uint32* p = lsptr[secnum].p;
+    Uint32 sz = lsptr[secnum].sz;
+    while (sz > 0)
+    {
+      jamDebug();
+      Uint32 tmp = * p++;
+      * headers ++ = tmp;
+      Uint32 len = AttributeHeader::getDataSize(tmp);
+      memcpy(dst, p, 4 * len);
+      dst += len;
+      p += len;
       
-    noOfAttrs++;
-    dataLen += len;
-    sz_1 -= (1 + len);
+      noOfAttrs++;
+      dataLen += len;
+      require(sz >= (1+len));
+      sz -= (1 + len);
+    }
   }
-  assert(sz_1 == 0);
   
   ptr[0].sz = noOfAttrs;
   ptr[1].sz = dataLen;
   
-  ptr[2].p = src_2;
-  ptr[2].sz = sz_2;
+  ptr[2] = lsptr[1];
   
-  return sz_2 > 0 ? 3 : 2;
+  return ptr[2].sz > 0 ? 3 : 2;
 }
 
 /**
@@ -4834,6 +4932,8 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
   ndbassert(signal->getNoOfSections() == 0);
   Uint32 pageId = signal->theData[0];
   Uint32 len = signal->theData[1];
+  const Uint32 page_count =
+      (len + GLOBAL_PAGE_SIZE_WORDS - 1) / GLOBAL_PAGE_SIZE_WORDS;
 
   if (pageId == RNIL && len == 0)
   {
@@ -4860,27 +4960,84 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
      */
     Uint32 trigId = ((FireTrigOrd*)ptr)->getTriggerId();
     ndbrequire( setTriggerBufferLock(trigId) );
-    
+
+    LinearSectionPtr lsptr[3];
     memcpy(signal->theData, ptr, 4 * siglen); // signal
     ptr += siglen;
+
     memcpy(f_buffer, ptr, 4*sec0len);
+    lsptr[0].sz = sec0len;
+    lsptr[0].p = f_buffer;
     ptr += sec0len;
+
     memcpy(b_buffer, ptr, 4*sec1len);
+    lsptr[1].sz = sec1len;
+    lsptr[1].p = b_buffer;
     ptr += sec1len;
+
     memcpy(f_buffer + sec0len, ptr, 4*sec2len);
+    lsptr[2].sz = sec2len;
+    lsptr[2].p = f_buffer + sec0len;
     ptr += sec2len;
 
     f_trigBufferSize = sec0len + sec2len;
     b_trigBufferSize = sec1len;
 
-    execFIRE_TRIG_ORD(signal);
+    doFIRE_TRIG_ORD(signal, lsptr);
+
+    /* Reset bufferlock
+     * We will use the buffers until the end of
+     * signal processing, but not after
+     */
+    ndbrequire( clearBufferLock() );
 
     ndbrequire(ptr == save + msglen);
     ndbrequire(len >= msglen);
     len -= msglen;
   }
 
-  m_ctx.m_mm.release_page(RT_SUMA_TRIGGER_BUFFER, pageId);
+  // Pages allocated in Dbtup::ndbmtd_buffer_suma_trigger().
+  m_ctx.m_mm.release_pages(RT_SUMA_TRIGGER_BUFFER, pageId, page_count);
+}
+
+void
+Suma::sendBatchedSUB_TABLE_DATA(Signal* signal,
+                                const Subscriber_list::Head subscribers,
+                                LinearSectionPtr lsptr[],
+                                Uint32 nptr)
+{
+  jam();
+  SubTableData * data = (SubTableData*)signal->getDataPtrSend();
+  ConstLocal_Subscriber_list list(c_subscriberPool, subscribers);
+  SubscriberPtr subbPtr;
+  for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
+  {
+    jam();
+    data->senderData = subbPtr.p->m_senderData;
+    const Uint32 version = getNodeInfo(refToNode(subbPtr.p->m_senderRef)).m_version;
+    if (ndbd_frag_sub_table_data(version))
+    {
+      jam();
+      sendBatchedFragmentedSignal(subbPtr.p->m_senderRef,
+                                  GSN_SUB_TABLE_DATA,
+                                  signal,
+                                  SubTableData::SignalLengthWithTransId,
+                                  JBB,
+                                  lsptr,
+                                  nptr);
+    }
+    else
+    {
+      jam();
+      sendSignal(subbPtr.p->m_senderRef,
+                 GSN_SUB_TABLE_DATA,
+                 signal,
+                 SubTableData::SignalLengthWithTransId,
+                 JBB,
+                 lsptr,
+                 nptr);
+    }
+  }
 }
 
 void
@@ -4890,6 +5047,84 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   DBUG_ENTER("Suma::execFIRE_TRIG_ORD");
   
   CRASH_INSERTION(13016);
+
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
+  FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
+  const Uint32 trigId    = trg->getTriggerId();
+
+  LinearSectionPtr lsptr[3];
+  if (signal->getNoOfSections() > 0)
+  {
+    jam();
+    ndbassert(isNdbMtLqh());
+    SectionHandle handle(this, signal);
+
+    ndbrequire( setTriggerBufferLock(trigId) );
+
+    SegmentedSectionPtr ptr;
+    ndbrequire(handle.getSection(ptr, 0)); // Keys
+    const Uint32 sz = ptr.sz;
+    ndbrequire(sz <= SUMA_BUF_SZ);
+    copy(f_buffer, ptr);
+    lsptr[0].sz = ptr.sz;
+    lsptr[0].p = f_buffer;
+
+    ndbrequire(handle.getSection(ptr, 2)); // After values
+    ndbrequire(ptr.sz <= (SUMA_BUF_SZ - sz));
+    copy(f_buffer + sz, ptr);
+    f_trigBufferSize = sz + ptr.sz;
+    lsptr[2].sz = ptr.sz;
+    lsptr[2].p = f_buffer + sz;
+
+    ndbrequire(handle.getSection(ptr, 1)); // Before values
+    ndbrequire(ptr.sz <= SUMA_BUF_SZ);
+    copy(b_buffer, ptr);
+    b_trigBufferSize = ptr.sz;
+    lsptr[1].sz = ptr.sz;
+    lsptr[1].p = b_buffer;
+
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    /*
+     * If no sections, assume f_buffer and b_buffer already have been filled
+     * and trigger buffer is locked by preeding sequence of TRIG_ATTRINFO.
+     */
+    ndbrequire(f_trigBufferSize ==
+      trg->getNoOfPrimaryKeyWords() + trg->getNoOfAfterValueWords());
+    ndbrequire(b_trigBufferSize == trg->getNoOfBeforeValueWords());
+    lsptr[0].p = f_buffer;
+    lsptr[0].sz = trg->getNoOfPrimaryKeyWords();
+    lsptr[1].p = b_buffer;
+    lsptr[1].sz = trg->getNoOfBeforeValueWords();
+    lsptr[2].p = f_buffer + trg->getNoOfPrimaryKeyWords();
+    lsptr[2].sz = trg->getNoOfAfterValueWords();
+  }
+
+  ndbrequire( checkTriggerBufferLock(trigId) );
+
+  doFIRE_TRIG_ORD(signal, lsptr);
+
+  /* Reset bufferlock
+   * We will use the buffers until the end of
+   * signal processing, but not after
+   */
+  ndbrequire( clearBufferLock() );
+}
+
+void
+Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
+{
+  jamEntry();
+  DBUG_ENTER("Suma::doFIRE_TRIG_ORD");
+  
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
   const Uint32 trigId    = trg->getTriggerId();
   const Uint32 hashValue = trg->getHashValue();
@@ -4902,42 +5137,10 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   const Uint32 transId2  = trg->m_transId2;
 
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF));
 
   ndbrequire(gci > m_last_complete_gci);
 
-  if (signal->getNoOfSections())
-  {
-    jam();
-    ndbassert(isNdbMtLqh());
-    SectionHandle handle(this, signal);
-
-    ndbrequire( setTriggerBufferLock(trigId) );
-
-    SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0); // Keys
-    Uint32 sz = ptr.sz;
-    copy(f_buffer, ptr);
-
-    handle.getSection(ptr, 2); // After values
-    copy(f_buffer + sz, ptr);
-    f_trigBufferSize = sz + ptr.sz;
-
-    handle.getSection(ptr, 1); // Before values
-    copy(b_buffer, ptr);
-    b_trigBufferSize = ptr.sz;
-    releaseSections(handle);
-  }
-
-  jam();
-  ndbrequire( checkTriggerBufferLock(trigId) );
-  /**
-   * Reset bufferlock 
-   * We will use the buffers until the end of 
-   * signal processing, but not after
-   */
-  ndbrequire( clearBufferLock() );
-  
   Uint32 tableId = subPtr.p->m_tableId;
   Uint32 schemaVersion =
     c_tablePool.getPtr(subPtr.p->m_table_ptrI)->m_schemaVersion;
@@ -4947,14 +5150,14 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   if(m_active_buckets.get(bucket) || 
      (m_switchover_buckets.get(bucket) && (check_switchover(bucket, gci))))
   {
+    jam();
     m_max_sent_gci = (gci > m_max_sent_gci ? gci : m_max_sent_gci);
-    Uint32 sz = trg->getNoOfPrimaryKeyWords()+trg->getNoOfAfterValueWords();
-    ndbrequire(sz == f_trigBufferSize);
-    
+    ndbrequire(lsptr[0].sz == trg->getNoOfPrimaryKeyWords());
+    ndbrequire(lsptr[1].sz == trg->getNoOfBeforeValueWords());
+    ndbrequire(lsptr[2].sz == trg->getNoOfAfterValueWords());
+
     LinearSectionPtr ptr[3];
-    const Uint32 nptr= reformat(signal, ptr, 
-				f_buffer, f_trigBufferSize,
-                                b_buffer, b_trigBufferSize);
+    const Uint32 nptr= reformat(signal, ptr, lsptr);
     Uint32 ptrLen= 0;
     for(Uint32 i =0; i < nptr; i++)
       ptrLen+= ptr[i].sz;    
@@ -4973,33 +5176,67 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->transId1       = transId1;
     data->transId2       = transId2;
     
-    {
-      Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
-      SubscriberPtr subbPtr;
-      for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
-      {
-	data->senderData = subbPtr.p->m_senderData;
-	sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-		   SubTableData::SignalLengthWithTransId, JBB, ptr, nptr);
-      }
-    }
+    sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr);
   }
   else 
   {
-    const uint buffer_header_sz = 6;
-    Uint32* dst;
-    Uint32 sz = f_trigBufferSize + b_trigBufferSize + buffer_header_sz;
-    if((dst = get_buffer_ptr(signal, bucket, gci, sz)))
+    jam();
+    constexpr uint buffer_header_sz = 6;
+    Uint32* dst1 = nullptr;
+    Uint32* dst2 = nullptr;
+    Uint32 sz1 = f_trigBufferSize + buffer_header_sz;
+    Uint32 sz2 = b_trigBufferSize;
+    Page_pos save_pos= c_buckets[bucket].m_buffer_head;
+
+    static_assert(1 + Buffer_page::GCI_SZ32 + buffer_header_sz + SUMA_BUF_SZ
+                    <= Buffer_page::DATA_WORDS);
+    if (likely((dst1 = get_buffer_ptr(signal, bucket, gci, sz1, 1)) &&
+               (dst2 = get_buffer_ptr(signal, bucket, gci, sz2, 2))))
     {
-      * dst++ = subPtr.i;
-      * dst++ = schemaVersion;
-      * dst++ = (event << 16) | f_trigBufferSize;
-      * dst++ = any_value;
-      * dst++ = transId1;
-      * dst++ = transId2;
-      memcpy(dst, f_buffer, f_trigBufferSize << 2);
-      dst += f_trigBufferSize;
-      memcpy(dst, b_buffer, b_trigBufferSize << 2);
+      jam();
+      dst1[0] = subPtr.i;
+      dst1[1] = schemaVersion;
+      dst1[2] = (event << 16) | lsptr[0].sz;
+      dst1[3] = any_value;
+      dst1[4] = transId1;
+      dst1[5] = transId2;
+      dst1 += buffer_header_sz;
+      memcpy(dst1, lsptr[0].p, lsptr[0].sz << 2);
+      dst1 += lsptr[0].sz;
+      memcpy(dst1, lsptr[2].p, lsptr[2].sz << 2);
+      ndbrequire(f_trigBufferSize == lsptr[0].sz + lsptr[2].sz);
+      memcpy(dst2, lsptr[1].p, lsptr[1].sz << 2);
+      ndbrequire(b_trigBufferSize == lsptr[1].sz);
+    }
+    else if (dst1 != nullptr)
+    {
+      jam();
+      // Revert first buffer allocation
+      Uint32 first_page_id = save_pos.m_page_id;
+
+      Uint32 page_id;
+      if (first_page_id == RNIL)
+      {
+        jam();
+        page_id = c_buckets[bucket].m_buffer_tail;
+        c_buckets[bucket].m_buffer_tail = RNIL;
+      }
+      else
+      {
+        jam();
+        Buffer_page* first_page = c_page_pool.getPtr(first_page_id);
+        page_id = first_page->m_next_page;
+        first_page->m_next_page = RNIL;
+      }
+      while (page_id != RNIL)
+      {
+        jam();
+        Buffer_page* page = c_page_pool.getPtr(page_id);
+        Uint32 next = page->m_next_page;
+        free_page(page_id, page);
+        page_id = next;
+      }
+      c_buckets[bucket].m_buffer_head = save_pos;
     }
   }
   
@@ -5047,9 +5284,9 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Simulating exceeding the MaxBufferedEpochs %u(%llu,%llu,%llu)",
-            c_maxBufferedEpochs, m_max_seen_gci,
-            m_last_complete_gci, gcp.p->m_gci);
+    g_eventLogger->info(
+        "Simulating exceeding the MaxBufferedEpochs %u(%llu,%llu,%llu)",
+        c_maxBufferedEpochs, m_max_seen_gci, m_last_complete_gci, gcp.p->m_gci);
   }
   else if (c_gcp_list.getCount() < c_maxBufferedEpochs)
   {
@@ -5059,7 +5296,7 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
   jam();
   if (!subs.isclear())
   {
-   char buf[100];
+   char buf[NodeBitmask::TextLength + 1];
    subs.getText(buf);
    infoEvent("Disconnecting lagging nodes '%s', epoch %llu", buf, gcp.p->m_gci);
   }
@@ -5221,7 +5458,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Simulating out of event buffer at node failure");
+    g_eventLogger->info("Simulating out of event buffer at node failure");
     flags |= SubGcpCompleteRep::MISSING_DATA;
   }
 
@@ -5247,7 +5484,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
   Bucket_mask dropped_buckets;
   if(!m_switchover_buckets.isclear())
   {
-    bool unlock = false;
+    bool starting_unlock = false;
     Uint32 i = m_switchover_buckets.find(0);
     for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
     {
@@ -5255,14 +5492,13 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
       {
 	Uint32 state = c_buckets[i].m_state;
 	m_switchover_buckets.clear(i);
-	printf("%u/%u (%u/%u) switchover complete bucket %d state: %x\n", 
-	       Uint32(gci >> 32),
-	       Uint32(gci),
-	       Uint32(c_buckets[i].m_switchover_gci >> 32),
-	       Uint32(c_buckets[i].m_switchover_gci),
-	       i, state);
+        g_eventLogger->info(
+            "%u/%u (%u/%u) switchover complete bucket %d state: %x",
+            Uint32(gci >> 32), Uint32(gci),
+            Uint32(c_buckets[i].m_switchover_gci >> 32),
+            Uint32(c_buckets[i].m_switchover_gci), i, state);
 
-	if(state & Bucket::BUCKET_STARTING)
+        if(state & Bucket::BUCKET_STARTING)
 	{
 	  /**
 	   * NR case
@@ -5270,9 +5506,9 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
           jam();
 	  m_active_buckets.set(i);
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_STARTING;
-	  ndbout_c("starting");
-	  m_gcp_complete_rep_count++;
-          unlock = true;
+          g_eventLogger->info("starting");
+          m_gcp_complete_rep_count++;
+          starting_unlock = true;
 	}
 	else if(state & Bucket::BUCKET_TAKEOVER)
 	{
@@ -5285,8 +5521,8 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
 	  ndbrequire(pos.m_max_gci < gci);
 
 	  Buffer_page* page= c_page_pool.getPtr(pos.m_page_id);
-	  ndbout_c("takeover %d", pos.m_page_id);
-	  page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
+          g_eventLogger->info("takeover %d", pos.m_page_id);
+          page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
           page->m_max_gci_lo = (Uint32)(pos.m_max_gci & 0xFFFFFFFF);
           ndbassert(pos.m_max_gci != 0);
 	  page->m_words_used = pos.m_page_pos;
@@ -5307,18 +5543,17 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
           jam();
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_HANDOVER;
           m_gcp_complete_rep_count--;
-	  ndbout_c("handover");
-	}
-        else if (state & Bucket::BUCKET_CREATED_MASK)
-        {
+          g_eventLogger->info("handover");
+        } else if (state & Bucket::BUCKET_CREATED_MASK) {
           jam();
           Uint32 cnt = state >> 8;
           Uint32 mask = Uint32(Bucket::BUCKET_CREATED_MASK) | (cnt << 8);
 	  c_buckets[i].m_state &= ~mask;
           flags |= SubGcpCompleteRep::ADD_CNT;
           flags |= (cnt << 16);
-          ndbout_c("add %u %s", cnt, 
-                   state & Bucket::BUCKET_CREATED_SELF ? "self" : "other");
+          g_eventLogger->info(
+              "add %u %s", cnt,
+              state & Bucket::BUCKET_CREATED_SELF ? "self" : "other");
           if (state & Bucket::BUCKET_CREATED_SELF &&
               get_responsible_node(i) == getOwnNodeId())
           {
@@ -5326,17 +5561,16 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
             m_active_buckets.set(i);
             m_gcp_complete_rep_count++;
           }
-        }
-        else if (state & Bucket::BUCKET_DROPPED_MASK)
-        {
+        } else if (state & Bucket::BUCKET_DROPPED_MASK) {
           jam();
           Uint32 cnt = state >> 8;
           Uint32 mask = Uint32(Bucket::BUCKET_DROPPED_MASK) | (cnt << 8);
 	  c_buckets[i].m_state &= ~mask;
           flags |= SubGcpCompleteRep::SUB_CNT;
           flags |= (cnt << 16);
-          ndbout_c("sub %u %s", cnt, 
-                   state & Bucket::BUCKET_DROPPED_SELF ? "self" : "other");
+          g_eventLogger->info(
+              "sub %u %s", cnt,
+              state & Bucket::BUCKET_DROPPED_SELF ? "self" : "other");
           if (state & Bucket::BUCKET_DROPPED_SELF)
           {
             if (m_active_buckets.get(i))
@@ -5348,19 +5582,15 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
             }
             drop = true;
           }
-        }
-        else if (state & Bucket::BUCKET_SHUTDOWN)
-        {
+        } else if (state & Bucket::BUCKET_SHUTDOWN) {
           jam();
           Uint32 nodeId = c_buckets[i].m_switchover_node;
           ndbrequire(nodeId == getOwnNodeId());
           m_active_buckets.clear(i);
           m_gcp_complete_rep_count--;
-          ndbout_c("shutdown handover");
+          g_eventLogger->info("shutdown handover");
           c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_SHUTDOWN;
-        }
-        else if (state & Bucket::BUCKET_SHUTDOWN_TO)
-        {
+        } else if (state & Bucket::BUCKET_SHUTDOWN_TO) {
           jam();
           Uint32 nodeId = c_buckets[i].m_switchover_node;
           NdbNodeBitmask nodegroup = c_nodes_in_nodegroup_mask;
@@ -5370,10 +5600,10 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
           m_active_buckets.set(i);
           m_gcp_complete_rep_count++;
           c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_SHUTDOWN_TO;
-          ndbout_c("shutdown handover takeover");
+          g_eventLogger->info("shutdown handover takeover");
         }
       }
-    }
+    } // for (m_switchover_buckets...)
 
     if (m_switchover_buckets.isclear())
     {
@@ -5407,17 +5637,43 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
       }
     }
 
-    if (unlock)
+    /**
+     * Check whether we have now completed handover of all starting
+     * buckets, and should send a DICT_UNLOCK_ORD
+     */
+    if (starting_unlock)
     {
       jam();
-      send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+      /* All pending SUMA_HANDOVER_CONF received ?*/
+      if (c_startup.m_handover_nodes.isclear())
+      {
+        jam();
+        /* All bucket handovers completed? */
+        Uint32 i = m_switchover_buckets.find(0);
+        for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
+        {
+          if (c_buckets[i].m_state & Bucket::BUCKET_STARTING)
+          {
+            jam();
+            /* Some other bucket still to handover, don't unlock yet */
+            starting_unlock = false;
+            break;
+          }
+        }
+
+        if (starting_unlock)
+        {
+          jam();
+          send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+        }
+      }
     }
   }
 
   if(ERROR_INSERTED(13010))
   {
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Don't send GCP_COMPLETE_REP(%llu)", gci);
+    g_eventLogger->info("Don't send GCP_COMPLETE_REP(%llu)", gci);
     return;
   }
 
@@ -5495,7 +5751,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
     }
     else
     {
-      char buf[100];
+      char buf[NodeBitmask::TextLength + 1];
       c_subscriber_nodes.getText(buf);
       g_eventLogger->error("c_gcp_list.seize() failed: gci: %llu nodes: %s",
                            gci, buf);
@@ -5514,7 +5770,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
     if (subscribers || (c_buckets[i].m_state & Bucket::BUCKET_RESEND))
     {
       //Uint32* dst;
-      get_buffer_ptr(signal, i, gci, 0);
+      get_buffer_ptr(signal, i, gci, 0, 0);
     }
   }
 
@@ -5747,7 +6003,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   // Copy DICT_TAB_INFO to local linear buffer
   SectionHandle handle(this, signal);
   SegmentedSectionPtr tabInfoPtr;
-  handle.getSection(tabInfoPtr, 0);
+  ndbrequire(handle.getSection(tabInfoPtr, 0));
 
   if (!c_tables.find(tabPtr, tableId))
   {
@@ -5764,11 +6020,12 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   }
   // dict coordinator sends info to API
   
-#ifndef DBUG_OFF
-  ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
+#ifndef NDEBUG
+  g_eventLogger->info("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d",
+                      tabInfoPtr.sz);
   SimplePropertiesSectionReader reader(handle.m_ptr[0],
 				       getSectionSegmentPool());
-  reader.printAll(ndbout);
+  reader.printAll(g_eventLogger);
 #endif
   ndbrequire(b_dti_buf_ref_count == 0);
   copy(b_dti_buf, tabInfoPtr);
@@ -5838,12 +6095,7 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   Uint32 gci_hi = ack->rep.gci_hi;
   Uint32 gci_lo = ack->rep.gci_lo;
   Uint32 senderRef  = ack->rep.senderRef;
-  if (unlikely(signal->getLength() < SubGcpCompleteAck::SignalLength))
-  {
-    jam();
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(refToNode(senderRef)).m_version));
-    gci_lo = 0;
-  }
+  ndbrequire(signal->getLength() >= SubGcpCompleteAck::SignalLength);
 
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
@@ -5852,7 +6104,8 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
       ERROR_INSERTED(13052))
   {
     jam();
-    ndbout_c("Simulating exceeding the MaxBufferedEpochs, ignoring ack");
+    g_eventLogger->info(
+        "Simulating exceeding the MaxBufferedEpochs, ignoring ack");
     return;
   }
 
@@ -5879,8 +6132,8 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   Uint32 nodeId = refToNode(senderRef);
   if (ERROR_INSERTED(13023))
   {
-    ndbout_c("Throwing SUB_GCP_COMPLETE_ACK gci: %u/%u from %u",
-             Uint32(gci>>32), Uint32(gci), nodeId);
+    g_eventLogger->info("Throwing SUB_GCP_COMPLETE_ACK gci: %u/%u from %u",
+                        Uint32(gci >> 32), Uint32(gci), nodeId);
     return;
   }
 
@@ -5917,7 +6170,7 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   if(ERROR_INSERTED(13012))
   {
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Don't redistribute SUB_GCP_COMPLETE_ACK");
+    g_eventLogger->info("Don't redistribute SUB_GCP_COMPLETE_ACK");
     return;
   }
   
@@ -6086,7 +6339,7 @@ do_release:
     case Table::DEFINED:
       jam();
       c_tables.remove(tabPtr);
-      // Fall through
+      [[fallthrough]];
     case Table::DROPPED:
       jam();
       tabPtr.p->release(* this);
@@ -6217,7 +6470,7 @@ Suma::copySubscription(Signal* signal, Subscription_hash::Iterator it)
   jam();
 
   Ptr<SubOpRecord> subOpPtr;
-  c_subOpPool.getPtr(subOpPtr, c_restart.m_subOpPtrI);
+  ndbrequire(c_subOpPool.getPtr(subOpPtr, c_restart.m_subOpPtrI));
 
   Ptr<Subscription> subPtr = it.curr;
   if (!subPtr.isNull())
@@ -6296,27 +6549,15 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
   if (subPtr.p->m_options & Subscription::MARKED_DROPPED)
   {
     req->subscriptionType |= SubCreateReq::NR_Sub_Dropped;
-    ndbout_c("copying dropped sub: %u", subPtr.i);
+    g_eventLogger->info("copying dropped sub: %u", subPtr.i);
   }
 
   Ptr<Table> tabPtr;
-  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
   if (tabPtr.p->m_state != Table::DROPPED)
   {
     jam();
     c_restart.m_waiting_on_self = 0;
-    if (!ndbd_suma_dictlock_startme(getNodeInfo(refToNode(c_restart.m_ref)).m_version))
-    {
-      jam();
-      /**
-       * Downgrade
-       *
-       * In pre suma v2, SUB_CREATE_REQ::SignalLength is one greater
-       *   but code checks length and set a default value...
-       *   so we dont need to do anything...
-       *   Thank you Ms. Fortuna
-       */
-    }
 
     sendSignal(c_restart.m_ref, GSN_SUB_CREATE_REQ, signal,
                SubCreateReq::SignalLength, JBB);
@@ -6324,9 +6565,8 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
   else
   {
     jam();
-    ndbout_c("not copying sub %u with dropped table: %u/%u",
-             subPtr.i,
-             tabPtr.p->m_tableId, tabPtr.i);
+    g_eventLogger->info("not copying sub %u with dropped table: %u/%u",
+                        subPtr.i, tabPtr.p->m_tableId, tabPtr.i);
 
     c_restart.m_waiting_on_self = 1;
     SubCreateConf * conf = (SubCreateConf *)signal->getDataPtrSend();
@@ -6353,7 +6593,7 @@ Suma::execSUB_CREATE_REF(Signal* signal)
   }
 
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI));
   abort_start_me(signal, subPtr, true);
 }
 
@@ -6366,7 +6606,7 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
    * We have lock...start all subscriber(s)
    */
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI));
 
   c_restart.m_waiting_on_self = 0;
 
@@ -6382,7 +6622,7 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
   }
   
   Ptr<Table> tabPtr;
-  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
 
   Ptr<Subscriber> ptr;
   if (tabPtr.p->m_state != Table::DROPPED)
@@ -6395,8 +6635,9 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
   {
     jam();
     ptr.setNull();
-    ndbout_c("not copying subscribers on sub: %u with dropped table %u/%u",
-             subPtr.i, tabPtr.p->m_tableId, tabPtr.i);
+    g_eventLogger->info(
+        "not copying subscribers on sub: %u with dropped table %u/%u", subPtr.i,
+        tabPtr.p->m_tableId, tabPtr.i);
   }
 
   copySubscriber(signal, subPtr, ptr);
@@ -6428,7 +6669,7 @@ Suma::copySubscriber(Signal* signal,
   {
     // remove lock from this subscription
     Ptr<SubOpRecord> subOpPtr;
-    c_subOpPool.getPtr(subOpPtr, c_restart.m_subOpPtrI);
+    ndbrequire(c_subOpPool.getPtr(subOpPtr, c_restart.m_subOpPtrI));
     check_remove_queue(signal, subPtr, subOpPtr, true, false);
     check_release_subscription(signal, subPtr);
 
@@ -6448,10 +6689,10 @@ Suma::execSUB_START_CONF(Signal* signal)
   SubStartConf * const conf = (SubStartConf*)signal->getDataPtr();
 
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI));
 
   Ptr<Subscriber> ptr;
-  c_subscriberPool.getPtr(ptr, conf->senderData);
+  ndbrequire(c_subscriberPool.getPtr(ptr, conf->senderData));
 
   Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
   list.next(ptr);
@@ -6474,7 +6715,7 @@ Suma::execSUB_START_REF(Signal* signal)
   }
 
   Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI);
+  ndbrequire(c_subscriptionPool.getPtr(subPtr, c_restart.m_subPtrI));
 
   abort_start_me(signal, subPtr, true);
 }
@@ -6484,7 +6725,7 @@ Suma::abort_start_me(Signal* signal, Ptr<Subscription> subPtr,
                      bool lockowner)
 {
   Ptr<SubOpRecord> subOpPtr;
-  c_subOpPool.getPtr(subOpPtr, c_restart.m_subOpPtrI);
+  ndbrequire(c_subOpPool.getPtr(subOpPtr, c_restart.m_subOpPtrI));
   check_remove_queue(signal, subPtr, subOpPtr, lockowner, true);
   check_release_subscription(signal, subPtr);
 
@@ -6500,15 +6741,21 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   const SumaHandoverReq * req = CAST_CONSTPTR(SumaHandoverReq,
                                               signal->getDataPtr());
 
+  if (ERROR_INSERTED(13054))
+  {
+    SET_ERROR_INSERT_VALUE(13055);
+    sendSignalWithDelay(reference(), GSN_SUMA_HANDOVER_REQ, signal,
+                        5000, signal->length());
+    return;
+  }
+  if (ERROR_INSERTED(13055))
+  {
+    SET_ERROR_INSERT_VALUE(13054);
+  }
   Uint32 gci = req->gci;
   Uint32 nodeId = req->nodeId;
   Uint32 new_gci = Uint32(m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
   Uint32 requestType = req->requestType;
-  if (!ndbd_suma_stop_me(getNodeInfo(nodeId).m_version))
-  {
-    jam();
-    requestType = SumaHandoverReq::RT_START_NODE;
-  }
   
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
@@ -6519,7 +6766,7 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
     jam();
     c_alive_nodes.set(nodeId);
     if (DBG_3R)
-      ndbout_c("%u c_alive_nodes.set(%u)", __LINE__, nodeId);
+      g_eventLogger->info("%u c_alive_nodes.set(%u)", __LINE__, nodeId);
 
     for( Uint32 i = 0; i < c_no_of_buckets; i++)
     {
@@ -6534,11 +6781,11 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
           c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
           c_buckets[i].m_state |= Bucket::BUCKET_HANDOVER;
           c_buckets[i].m_switchover_node = nodeId;
-          ndbout_c("prepare to handover bucket: %d", i);
+          g_eventLogger->info("prepare to handover bucket: %d", i);
         }
         else if(m_switchover_buckets.get(i))
         {
-          ndbout_c("dont handover bucket: %d %d", i, nodeId);
+          g_eventLogger->info("dont handover bucket: %d %d", i, nodeId);
         }
       }
     }
@@ -6561,7 +6808,19 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
         c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
         c_buckets[i].m_state |= Bucket::BUCKET_SHUTDOWN_TO;
         c_buckets[i].m_switchover_node = nodeId;
-        ndbout_c("prepare to takeover bucket: %d", i);
+        g_eventLogger->info("prepare to takeover bucket: %d", i);
+        if (ERROR_INSERTED(13056))
+        {
+          CLEAR_ERROR_INSERT_VALUE;
+          signal->theData[0] = 9999;
+          NdbNodeBitmask resp_nodes_minus_self;
+          resp_nodes_minus_self.assign(nodegroup);
+          resp_nodes_minus_self.clear(getOwnNodeId());
+          resp_nodes_minus_self.clear(nodeId);
+          int nf_node = get_responsible_node(i, resp_nodes_minus_self);
+          sendSignal(numberToRef(CMVMI, refToNode(nf_node)),
+                     GSN_NDB_TAMPER, signal, 1, JBA);
+        }
       }
     }
   }
@@ -6614,14 +6873,8 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
   Bucket_mask tmp;
   tmp.assign(BUCKET_MASK_SIZE, conf->theBucketMask);
 #ifdef HANDOVER_DEBUG
-  ndbout_c("Suma::execSUMA_HANDOVER_CONF, gci = %u", gci);
+  g_eventLogger->info("Suma::execSUMA_HANDOVER_CONF, gci = %u", gci);
 #endif
-
-  if (!ndbd_suma_stop_me(getNodeInfo(nodeId).m_version))
-  {
-    jam();
-    requestType = SumaHandoverReq::RT_START_NODE;
-  }
 
   if (requestType == SumaHandoverReq::RT_START_NODE)
   {
@@ -6631,7 +6884,8 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
       if (tmp.get(i))
       {
         if (DBG_3R)
-          ndbout_c("%u : %u %u", i, get_responsible_node(i), getOwnNodeId());
+          g_eventLogger->info("%u : %u %u", i, get_responsible_node(i),
+                              getOwnNodeId());
         ndbrequire(get_responsible_node(i) == getOwnNodeId());
         // We should run this bucket, but _nodeId_ is
         c_buckets[i].m_switchover_gci = (Uint64(gci) << 32) - 1;
@@ -6646,6 +6900,7 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
     g_eventLogger->info("Suma: handover from node %u gci: %u buckets: %s (%u)",
                         nodeId, gci, buf, c_no_of_buckets);
     m_switchover_buckets.bitOR(tmp);
+    ndbrequire(c_startup.m_handover_nodes.get(nodeId));
     c_startup.m_handover_nodes.clear(nodeId);
     DBUG_VOID_RETURN;
   }
@@ -6688,34 +6943,6 @@ Suma::execSTOP_ME_REQ(Signal* signal)
   NdbTick_Invalidate(&c_startup.m_wait_handover_expire);
   c_shutdown.m_senderRef = req.senderRef;
   c_shutdown.m_senderData = req.senderData;
-
-  for (Uint32 i = c_nodes_in_nodegroup_mask.find(0);
-       i != c_nodes_in_nodegroup_mask.NotFound ;
-       i = c_nodes_in_nodegroup_mask.find(i + 1))
-  {
-    jam();
-    jamLine(i);
-    /**
-     * Check that all SUMA nodes support graceful shutdown...
-     *   and it's too late to stop it...
-     * Shutdown instead...
-     *
-     * Only check live nodes, if version is 0 then the node is
-     * already dead.
-     */
-    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version) &&
-        getNodeInfo(i).m_version != 0)
-    {
-      jam();
-      char buf[255];
-      BaseString::snprintf(buf, sizeof(buf),
-			   "Not all versions support graceful shutdown (suma)."
-			   " Shutdown directly instead");
-      progError(__LINE__,
-		NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR,
-		buf);
-    }
-  }
   send_handover_req(signal, SumaHandoverReq::RT_STOP_NODE);
 }
 
@@ -6734,10 +6961,12 @@ operator<<(NdbOut & out, const Suma::Page_pos & pos)
 #endif
 
 Uint32*
-Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
+Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz, Uint32 part)
 {
+  jam();
   sz += 1; // len
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Page_pos pos= bucket->m_buffer_head;
 
   Buffer_page* page = 0;
@@ -6745,6 +6974,7 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
   
   if (likely(pos.m_page_id != RNIL))
   {
+    jam();
     page= c_page_pool.getPtr(pos.m_page_id);
     ptr= page->m_data + pos.m_page_pos;
   }
@@ -6757,32 +6987,41 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
   
   if(likely(same_gci && pos.m_page_pos <= Buffer_page::DATA_WORDS))
   {
+    jam();
     pos.m_max_gci = max;
     bucket->m_buffer_head = pos;
-    * ptr++ = (0x8000 << 16) | sz; // Same gci
+    *ptr = Buffer_page::SAME_GCI_FLAG |
+           (part << Buffer_page::PART_NUM_SHIFT) |
+           sz;
+    ptr++;
     return ptr;
   }
   else if(pos.m_page_pos + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS)
   {
 loop:
+    jam();
     pos.m_max_gci = max;
     pos.m_page_pos += Buffer_page::GCI_SZ32;
     bucket->m_buffer_head = pos;
-    * ptr++ = (sz + Buffer_page::GCI_SZ32);
+    * ptr++ = (part << Buffer_page::PART_NUM_SHIFT) |
+              (sz + Buffer_page::GCI_SZ32);
     * ptr++ = (Uint32)(gci >> 32);
     * ptr++ = (Uint32)(gci & 0xFFFFFFFF);
     return ptr;
   }
   else
   {
+    jam();
     /**
      * new page
      * 1) save header on last page
      * 2) seize new page
      */
+    static_assert(1 + 6 + SUMA_BUF_SZ + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS);
     Uint32 next;
     if(unlikely((next= seize_page()) == RNIL))
     {
+      jam();
       /**
        * Out of buffer
        */
@@ -6792,6 +7031,7 @@ loop:
 
     if(likely(pos.m_page_id != RNIL))
     {
+      jam();
       page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
       page->m_max_gci_lo = (Uint32)(pos.m_max_gci & 0xFFFFFFFF);
       page->m_words_used = pos.m_page_pos - sz;
@@ -6800,6 +7040,7 @@ loop:
     }
     else
     {
+      jam();
       bucket->m_buffer_tail = next;
     }
     
@@ -6834,7 +7075,7 @@ Suma::out_of_buffer(Signal* signal)
     NodeBitmask subs = gcp.p->m_subscribers;
     if (!subs.isclear())
     {
-      char buf[100];
+      char buf[NodeBitmask::TextLength + 1];
       subs.getText(buf);
       infoEvent("Pending nodes '%s', epoch %llu", buf, gcp.p->m_gci);
     }
@@ -6846,7 +7087,8 @@ Suma::out_of_buffer(Signal* signal)
 void
 Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
 {
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
   
   if(tail != RNIL)
@@ -6891,7 +7133,7 @@ Suma::seize_page()
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Simulating out of event buffer");
+    g_eventLogger->info("Simulating out of event buffer");
     m_out_of_buffer_gci = m_max_seen_gci;
   }
   if(unlikely(m_out_of_buffer_gci))
@@ -6905,7 +7147,7 @@ loop:
   {
     m_first_free_page = (c_page_pool.getPtr(ref))->m_next_page;
     Uint32 chunk = (c_page_pool.getPtr(ref))->m_page_chunk_ptr_i;
-    c_page_chunk_pool.getPtr(ptr, chunk);
+    ndbrequire(c_page_chunk_pool.getPtr(ptr, chunk));
     ndbassert(ptr.p->m_free);
     ptr.p->m_free--;
     return ref;
@@ -6948,7 +7190,7 @@ Suma::free_page(Uint32 page_id, Buffer_page* page)
 
   Uint32 chunk= page->m_page_chunk_ptr_i;
 
-  c_page_chunk_pool.getPtr(ptr, chunk);  
+  ndbrequire(c_page_chunk_pool.getPtr(ptr, chunk));
   
   ptr.p->m_free ++;
   page->m_next_page = m_first_free_page;
@@ -6960,7 +7202,8 @@ Suma::free_page(Uint32 page_id, Buffer_page* page)
 void
 Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
 {
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
   Page_pos head= bucket->m_buffer_head;
   Uint64 max_acked = bucket->m_max_acked_gci;
@@ -6969,8 +7212,8 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
   if(unlikely(bucket->m_state & mask))
   {
     jam();
-    ndbout_c("release_gci(%d, %u/%u) 0x%x-> node failure -> abort", 
-             buck, Uint32(gci >> 32), Uint32(gci), bucket->m_state);
+    g_eventLogger->info("release_gci(%d, %u/%u) 0x%x-> node failure -> abort",
+                        buck, Uint32(gci >> 32), Uint32(gci), bucket->m_state);
     return;
   }
   
@@ -7031,7 +7274,7 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
     }
     else
     {
-      //ndbout_c("do nothing...");
+      // g_eventLogger->info("do nothing...");
     }
   }
 }
@@ -7041,23 +7284,28 @@ static Uint32 g_cnt = 0;
 void
 Suma::start_resend(Signal* signal, Uint32 buck)
 {
-  printf("start_resend(%d, ", buck);
+  g_eventLogger->info("start_resend(%d, ", buck);
 
   /**
-   * Resend from m_max_acked_gci + 1 until max_gci + 1
+   * Resend from m_max_acked_gci + 1 until m_max_seen_gci
    */
-  Bucket* bucket= c_buckets + buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Page_pos pos= bucket->m_buffer_head;
 
+  // Start resending from the epoch that is not yet ack'd
+  const Uint64 min= bucket->m_max_acked_gci + 1;
+
+  // Out of buffer release is ongoing. So don't start resending in order
+  // to avoid sending epochs where part of them are already released.
+  // Inform about the first in-doubt epoch that resending will start from.
   if(m_out_of_buffer_gci)
   {
-    Ptr<Gcp_record> gcp;
-    c_gcp_list.last(gcp);
     signal->theData[0] = NDB_LE_SubscriptionStatus;
     signal->theData[1] = 2; // INCONSISTENT;
     signal->theData[2] = 0; // Not used
-    signal->theData[3] = (Uint32) pos.m_max_gci;
-    signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
+    signal->theData[3] = (Uint32) min;
+    signal->theData[4] = (Uint32) (min >> 32);
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
     m_missing_data = true;
     return;
@@ -7068,27 +7316,22 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     jam();
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;
-    ndbout_c("empty bucket(RNIL) -> active max_acked: %u/%u max_gci: %u/%u",
-	     Uint32(bucket->m_max_acked_gci >> 32),
-	     Uint32(bucket->m_max_acked_gci),
-	     Uint32(pos.m_max_gci >> 32),
-	     Uint32(pos.m_max_gci));
+    g_eventLogger->info(
+        "empty bucket(RNIL) -> active max_acked: %u/%u max_gci: %u/%u",
+        Uint32(bucket->m_max_acked_gci >> 32), Uint32(bucket->m_max_acked_gci),
+        Uint32(pos.m_max_gci >> 32), Uint32(pos.m_max_gci));
     return;
   }
 
-  Uint64 min= bucket->m_max_acked_gci + 1;
   Uint64 max = m_max_seen_gci;
-
-  ndbrequire(max <= m_max_seen_gci);
-
   if(min > max)
   {
     ndbrequire(pos.m_page_id == bucket->m_buffer_tail);
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;
-    ndbout_c("empty bucket (%u/%u %u/%u) -> active", 
-             Uint32(min >> 32), Uint32(min),
-             Uint32(max >> 32), Uint32(max));
+    g_eventLogger->info("empty bucket (%u/%u %u/%u) -> active",
+                        Uint32(min >> 32), Uint32(min), Uint32(max >> 32),
+                        Uint32(max));
     return;
   }
 
@@ -7107,10 +7350,10 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   signal->theData[5] = (Uint32)(min & 0xFFFFFFFF);
   signal->theData[6] = 0;
   sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
-  
-  ndbout_c("min: %u/%u - max: %u/%u) page: %d", 
-	   Uint32(min >> 32), Uint32(min), Uint32(max >> 32), Uint32(max), 
-	   bucket->m_buffer_tail);
+
+  g_eventLogger->info("min: %u/%u - max: %u/%u) page: %d", Uint32(min >> 32),
+                      Uint32(min), Uint32(max >> 32), Uint32(max),
+                      bucket->m_buffer_tail);
   ndbrequire(max >= min);
 }
 
@@ -7118,7 +7361,8 @@ void
 Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
 		    Uint32 pos, Uint64 last_gci)
 {
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
 
   Buffer_page* page= c_page_pool.getPtr(tail);
@@ -7127,6 +7371,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   Uint32 *ptr = page->m_data + pos;
   Uint32 *end = page->m_data + page->m_words_used;
   bool delay = false;
+  Uint32 next_pos = 0; // Part read of next page
 
   ndbrequire(tail != RNIL);
 
@@ -7159,37 +7404,65 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   printf("\n");
 #endif
 
-  while(ptr < end)
+  /* Due to use of goto an extra scope is needed to keep declaration of
+   * variables near their use.
+   */
   {
-    Uint32 *src = ptr;
-    Uint32 tmp = * src++;
-    Uint32 sz = tmp & 0xFFFF;
-
-    ptr += sz;
-
-    if(! (tmp & (0x8000 << 16)))
+    Uint32 *src = nullptr;
+    Uint32 sz = 0;
+    Uint32 part = 0;
+    while (ptr < end)
     {
-      ndbrequire(sz >= Buffer_page::GCI_SZ32);
-      sz -= Buffer_page::GCI_SZ32;
-      Uint32 last_gci_hi = * src++;
-      Uint32 last_gci_lo = * src++;
-      last_gci = last_gci_lo | (Uint64(last_gci_hi) << 32);
+      jam();
+      src = ptr;
+      Uint32 tmp = *src;
+      src++;
+
+      sz = tmp & Buffer_page::SIZE_MASK;
+      ptr += sz;
+
+      ndbrequire(sz > 0);
+      sz--; // remove *len* part of sz
+
+      part = (tmp >> Buffer_page::PART_NUM_SHIFT) & Buffer_page::PART_NUM_MASK;
+      if ((tmp & Buffer_page::SAME_GCI_FLAG) == 0)
+      {
+        jam();
+        ndbrequire(sz >= Buffer_page::GCI_SZ32);
+        sz -= Buffer_page::GCI_SZ32;
+        Uint32 last_gci_hi = *src;
+        src++;
+        Uint32 last_gci_lo = *src;
+        src++;
+        last_gci = last_gci_lo | (Uint64(last_gci_hi) << 32);
+      }
+      else
+      {
+        jam();
+        ndbrequire(ptr - sz > page->m_data);
+      }
+
+      if (last_gci >= min_gci)
+      {
+        jam();
+        // Found data with good gci
+        break;
+      }
+      // Ignore data with old gci
+      src = nullptr;
     }
-    else
-    {
-      ndbrequire(ptr - sz > page->m_data);
-    }
 
-    if(last_gci < min_gci)
+    if (unlikely(src == nullptr))
     {
-      continue;
+      jam();
+      // no valid data found on tail page
+      ndbrequire(ptr == end);
     }
-
-    ndbrequire(sz);
-    sz --; // remove *len* part of sz
-    
-    if(sz == 0)
+    else if(sz == 0)
     {
+      jam();
+      ndbrequire(part == 0);
+
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
       Uint32 siglen = SubGcpCompleteRep::SignalLength;
 
@@ -7210,16 +7483,18 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Simulating out of event buffer at node failure");
+        g_eventLogger->info("Simulating out of event buffer at node failure");
         rep->flags |= SubGcpCompleteRep::MISSING_DATA;
       }
   
-      char buf[255];
+      char buf[NodeBitmask::TextLength + 1];
       c_subscriber_nodes.getText(buf);
       if (g_cnt)
       {      
-        ndbout_c("resending GCI: %u/%u rows: %d -> %s", 
-                 Uint32(last_gci >> 32), Uint32(last_gci), g_cnt, buf);
+        jam();
+        g_eventLogger->info("resending GCI: %u/%u rows: %d -> %s",
+                            Uint32(last_gci >> 32), Uint32(last_gci), g_cnt,
+                            buf);
       }
       g_cnt = 0;
       
@@ -7228,37 +7503,103 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     } 
     else
     {
+      jam();
+      ndbrequire(part == 1);
+
       const uint buffer_header_sz = 6;
       g_cnt++;
-      Uint32 subPtrI = * src++ ;
-      Uint32 schemaVersion = * src++;
-      Uint32 event = * src >> 16;
-      Uint32 sz_1 = (* src ++) & 0xFFFF;
-      Uint32 any_value = * src++;
-      Uint32 transId1 = * src++;
-      Uint32 transId2 = * src++;
+      Uint32 subPtrI = src[0];
+      Uint32 schemaVersion = src[1];
+      Uint32 event = src[2] >> 16;
+      Uint32 sz_1 = (src[2]) & 0xFFFF;
+      Uint32 any_value = src[3];
+      Uint32 transId1 = src[4];
+      Uint32 transId2 = src[5];
+      src += buffer_header_sz;
 
       ndbassert(sz - buffer_header_sz >= sz_1);
+      Uint32* src2;
+      Uint32 sz2;
+      {
+        Uint32* ptr2;
+        if (ptr != end)
+        {
+          jam();
+          ptr2 = ptr;
+        }
+        else
+        {
+          jam();
+          // Second half of data on next page.
+          Buffer_page* page= c_page_pool.getPtr(next_page);
+          ndbrequire(page->m_words_used > 0);
+          ptr2 = page->m_data;
+        }
+        src2 = ptr2;
+        Uint32 tmp2 = *src2;
+        src2++;
+        sz2 = tmp2 & Buffer_page::SIZE_MASK;
+        ndbrequire(sz2 > 0);
+        sz2--;
+        if (ptr2 != ptr)
+        {
+          jam();
+          // First block on a page always must have gci.
+          ndbrequire((tmp2 & Buffer_page::SAME_GCI_FLAG) == 0);
+          next_pos = sz2 + 1;
+        }
+        else
+        {
+          jam();
+          ptr = src2 + sz2;
+        }
+
+        part = (tmp2 >> Buffer_page::PART_NUM_SHIFT) & Buffer_page::PART_NUM_MASK;
+        ndbrequire(part == 2);
+
+        if ((tmp2 & Buffer_page::SAME_GCI_FLAG) == 0)
+        {
+          jam();
+          ndbrequire(sz2 >= Buffer_page::GCI_SZ32);
+          sz2 -= Buffer_page::GCI_SZ32;
+          Uint32 last_gci_hi = *src2;
+          src2++;
+          Uint32 last_gci_lo = *src2;
+          src2++;
+          // Second block must have same gci as previous.
+          ndbrequire(last_gci == (last_gci_lo | (Uint64(last_gci_hi) << 32)));
+        }
+      }
       
       LinearSectionPtr ptr[3];
-      const Uint32 nptr= reformat(signal, ptr, 
-				  src, sz_1, 
-				  src + sz_1, sz - buffer_header_sz - sz_1);
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = src;
+      lsptr[0].sz = sz_1;
+      lsptr[1].p = src2;
+      lsptr[1].sz = sz2;
+      lsptr[2].p = src + sz_1;
+      lsptr[2].sz = sz - buffer_header_sz - sz_1;
+      const Uint32 nptr = reformat(signal, ptr, lsptr);
+
       Uint32 ptrLen= 0;
       for(Uint32 i =0; i < nptr; i++)
+      {
+        jam();
         ptrLen+= ptr[i].sz;
+      }
 
       /**
        * Signal to subscriber(s)
        */
       Ptr<Subscription> subPtr;
-      c_subscriptionPool.getPtr(subPtr, subPtrI);
+      ndbrequire(c_subscriptionPool.getPtr(subPtr, subPtrI));
       Ptr<Table> tabPtr;
-      c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+      ndbrequire(c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI));
       Uint32 table = subPtr.p->m_tableId;
       if (table_version_major(tabPtr.p->m_schemaVersion) ==
           table_version_major(schemaVersion))
       {
+        jam();
 	SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
 	data->gci_hi         = (Uint32)(last_gci >> 32);
 	data->gci_lo         = (Uint32)(last_gci & 0xFFFFFFFF);
@@ -7271,44 +7612,40 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
         data->transId1       = transId1;
         data->transId2       = transId2;
 	
-	{
-          Local_Subscriber_list list(c_subscriberPool,
-                                       subPtr.p->m_subscribers);
-          SubscriberPtr subbPtr;
-          for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
-          {
-            data->senderData = subbPtr.p->m_senderData;
-            sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-                       SubTableData::SignalLengthWithTransId, JBB, ptr, nptr);
-          }
-        }
+        sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr);
       }
     }
-    
-    break;
   }
-  
-  if(ptr == end && (tail != bucket->m_buffer_head.m_page_id))
+
+  if (next_pos > 0 || (ptr == end && tail != bucket->m_buffer_head.m_page_id))
   {
+    jam();
     /**
      * release...
      */
+    ndbassert(tail != bucket->m_buffer_head.m_page_id);
     free_page(tail, page);
     tail = bucket->m_buffer_tail = next_page;
-    pos = 0;
-    last_gci = 0;
+    pos = next_pos;
+    if (pos == 0)
+    {
+      jam();
+      last_gci = 0;
+    }
   }
   else
   {
+    jam();
     pos = Uint32(ptr - page->m_data);
   }
   
 next:
   if(tail == RNIL)
   {
+    jam();
     bucket->m_state &= ~(Uint32)Bucket::BUCKET_RESEND;
     ndbassert(! (bucket->m_state & Bucket::BUCKET_TAKEOVER));
-    ndbout_c("resend done...");
+    g_eventLogger->info("resend done...");
     return;
   }
   
@@ -7320,9 +7657,15 @@ next:
   signal->theData[5] = (Uint32)(min_gci & 0xFFFFFFFF);
   signal->theData[6] = (Uint32)(last_gci & 0xFFFFFFFF);
   if(!delay)
+  {
+    jam();
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 7, JBB);
+  }
   else
+  {
+    jam();
     sendSignalWithDelay(SUMA_REF, GSN_CONTINUEB, signal, 10, 7);
+  }
 }
 
 void
@@ -7352,6 +7695,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
   NdbNodeBitmask tmp;
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && req->nodes[i]; i++)
   {
+    ndbrequire(req->nodes[i] <= MAX_NDB_NODES);
     tmp.set(req->nodes[i]);
   }
   Uint32 cnt = tmp.count();
@@ -7480,7 +7824,8 @@ Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
       if (c_buckets[i].m_state != 0)
       {
         jamLine(c_buckets[i].m_state);
-        ndbout_c("c_buckets[%u].m_state: %u", i, c_buckets[i].m_state);
+        g_eventLogger->info("c_buckets[%u].m_state: %u", i,
+                            c_buckets[i].m_state);
       }
       ndbrequire(c_buckets[i].m_state == 0); // XXX todo
       c_buckets[i].m_switchover_gci = gci - 1; // start from gci

@@ -4,6 +4,3 @@ innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
 main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl
 binlog.binlog_check_flush_log_assertion      : Bug#22732184 2017-03-10 edahl
 innodb.virtual_basic                         : Bug#25431979 2017-03-27 edahl
-ndb.ndb_connection_pool_nodeids              : Bug#27737803 2018-03-23 arnray
-ndb.ndb_startup                              : Bug#27737803 2018-03-23 arnray
-ndb.ndb_import1                              : Bug#29820879 2019-05-23 msabarat

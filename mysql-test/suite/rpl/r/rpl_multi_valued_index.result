@@ -10,6 +10,8 @@ include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 [connection master]
 #
@@ -42,9 +44,9 @@ pl	f1
 18	[8, 4, 3, 5]
 explain select * from t1 where 5 member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	5	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array))
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array))
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
 pl	f1
 3	[3, 3, 4, 4, 7]
@@ -57,7 +59,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	15	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3]')
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[4, 3]')
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
 pl	f1
 4	[5, 7]
@@ -66,7 +68,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	14	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[5, 7]')
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[5, 7]')
 [connection master]
 select * from t1 force index(i1) where 99 member of  (f1->"$[*]");
 pl	f1
@@ -79,7 +81,7 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
@@ -90,169 +92,11 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]"
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
 [connection master]
 DROP TABLE t1;
-# Test correctness of metadata replication
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as char(10)))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as char(10) array))));
-[connection master]
-insert into t1 values ('"asd"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as char(10) array))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as char(10)))));
-[connection master]
-insert into t1 values ('"asd"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as decimal(64,1)))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as decimal(64,1) array))));
-[connection master]
-insert into t1 values ('123');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as decimal array))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as decimal))));
-[connection master]
-insert into t1 values ('123');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as unsigned))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as unsigned array))));
-[connection master]
-insert into t1 values ('123');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as signed array))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as signed))));
-[connection master]
-insert into t1 values ('123');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as datetime(6)))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as datetime(6) array))));
-[connection master]
-insert into t1 values ('"01-01-01 01:01:01.0"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as datetime(6) array))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as datetime(6)))));
-[connection master]
-insert into t1 values ('"01-01-01 01:01:01.0"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as date))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as date array))));
-[connection master]
-insert into t1 values ('"01-01-01"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as date array))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as date))));
-[connection master]
-insert into t1 values ('"01-01-01"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as time(6)))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as time(6) array))));
-[connection master]
-insert into t1 values ('"01:01:01.0"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
-[connection master]
-set @@session.sql_log_bin = 0;
-create table t1(j json, key mvi((cast(j as time(6) array))));
-set @@session.sql_log_bin = 1;
-[connection slave]
-create table t1(j json, key mvi((cast(j as time(6)))));
-[connection master]
-insert into t1 values ('"01:01:01.0"');
-[connection slave]
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
-[connection master]
-drop table t1;
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
-SET @@global.transaction_write_set_extraction = 'XXHASH64';
 SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
 SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
 FLUSH LOGS;
@@ -411,7 +255,11 @@ include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
 SET @@global.binlog_transaction_dependency_tracking = @save_btdt;
 SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 include/sync_slave_sql_with_master.inc
 SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

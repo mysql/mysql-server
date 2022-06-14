@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "sql/dd/string_type.h"  // dd::String_type
 
 struct CHARSET_INFO;
+class THD;
 
 namespace dd {
 
@@ -49,6 +50,18 @@ namespace dd {
 size_t normalize_string(const CHARSET_INFO *cs, const String_type &src,
                         char *normalized_str_buf,
                         size_t normalized_str_buf_length);
+
+/**
+  Check if DDSE (Data Dictionary Storage Engine) is in
+  readonly mode.
+
+  @param thd                 Thread
+  @param schema_name         Abbreviation or name of schema (I_S, P_S, ndbinfo)
+                             for use in warning message output
+
+  @returns false on success, otherwise true.
+*/
+bool check_if_server_ddse_readonly(THD *thd, const char *schema_name);
 
 ///////////////////////////////////////////////////////////////////////////
 

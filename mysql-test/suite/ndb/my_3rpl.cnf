@@ -1,0 +1,80 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+[cluster_config.1]
+ndbd=,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+DefaultOperationRedoProblemAction=queue
+NoOfReplicas=3
+
+[cluster_config.mysqld.1.1]
+NodeId=49
+
+[cluster_config.mysqld.2.1]
+NodeId=16
+
+[cluster_config.ndbapi.1.1]
+NodeId=32
+
+[cluster_config.ndbapi.2.1]
+NodeId=48
+
+[cluster_config.ndbapi.3.1]
+NodeId=63
+
+[cluster_config.ndbapi.4.1]
+NodeId=127
+
+[cluster_config.ndbapi.5.1]
+NodeId=192
+
+[cluster_config.ndbapi.6.1]
+NodeId=228
+
+[cluster_config.ndbapi.12.1]
+NodeId=255
+
+[mysqld]
+# Make all mysqlds use cluster
+ndbcluster
+ndb-wait-connected=30
+ndb-wait-setup=120
+ndb-cluster-connection-pool=3
+ndb-extra-logging=99
+# Set error log verbosity to max, otherwise info messages
+# are filtered away
+log-error-verbosity=3
+ndb-join-pushdown=1
+# Enable load data local functionality
+local-infile=true
+
+[mysqld.1.1]
+# Specify which nodeids the connection pool on first mysqld should use
+ndb-cluster-connection-pool-nodeids=49,63,127
+# This suite(--suite=ndb) is designed to be run without binogging,
+# turn off binlogging(and thus also slave updates) for this mysqld
+skip-log-bin
+skip-log-replica-updates
+
+[mysqld.2.1]
+# Specify which nodeids the connection pool on second mysqld should use
+ndb-cluster-connection-pool-nodeids=16,32,48
+# This suite(--suite=ndb) is designed to be run without binogging,
+# turn off binlogging(and thus also slave updates) for this mysqld
+skip-log-bin
+skip-log-replica-updates
+
+[ndb_restore]
+exclude-databases=mysql
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYSOCK=                 @mysqld.1.1.socket
+MASTER_MYPORT=                 @mysqld.1.1.port
+MASTER_MYPORT1=                @mysqld.2.1.port
+MASTER_MYSOCK=                 @mysqld.1.1.socket
+
+NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir
+

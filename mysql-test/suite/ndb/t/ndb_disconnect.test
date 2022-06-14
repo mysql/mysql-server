@@ -32,6 +32,9 @@ show create table test.t1;
 
 --echo # Wait until mysqld has connected properly to cluster
 source include/ndb_not_readonly.inc;
+connection mysqld2;
+source include/ndb_not_readonly.inc;
+connection default;
 
 --echo # mysqld connected to cluster. Now running show create table again.
 --disable_warnings

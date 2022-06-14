@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,20 @@
 #
 
 SET(SHARED_LIB_MAJOR_VERSION "21")
-SET(SHARED_LIB_MINOR_VERSION "1")
+SET(SHARED_LIB_MINOR_VERSION "2")
 SET(PROTOCOL_VERSION "10")
 
-# Generate "something" to trigger cmake rerun when VERSION changes
+# Generate "something" to trigger cmake rerun when MYSQL_VERSION changes
 CONFIGURE_FILE(
-  ${CMAKE_SOURCE_DIR}/VERSION
+  ${CMAKE_SOURCE_DIR}/MYSQL_VERSION
   ${CMAKE_BINARY_DIR}/VERSION.dep
 )
 
-# Read value for a variable from VERSION.
+# Read value for a variable from MYSQL_VERSION.
 
 MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
  IF(NOT ${var})
-   FILE (STRINGS ${CMAKE_SOURCE_DIR}/VERSION str REGEX "^[ ]*${keyword}=")
+   FILE (STRINGS ${CMAKE_SOURCE_DIR}/MYSQL_VERSION str REGEX "^[ ]*${keyword}=")
    IF(str)
      STRING(REPLACE "${keyword}=" "" str ${str})
      STRING(REGEX REPLACE  "[ ].*" ""  str "${str}")
@@ -59,7 +59,7 @@ MACRO(GET_MYSQL_VERSION)
   IF(NOT DEFINED MAJOR_VERSION OR
      NOT DEFINED MINOR_VERSION OR
      NOT DEFINED PATCH_VERSION)
-    MESSAGE(FATAL_ERROR "VERSION file cannot be parsed.")
+    MESSAGE(FATAL_ERROR "MYSQL_VERSION file cannot be parsed.")
   ENDIF()
 
   SET(VERSION
@@ -80,7 +80,7 @@ MACRO(GET_MYSQL_VERSION)
   SET(CPACK_PACKAGE_VERSION_PATCH ${PATCH_VERSION})
 
   IF(WITH_NDBCLUSTER)
-    # Read MySQL Cluster version values from VERSION, these are optional
+    # Read MySQL Cluster version values from MYSQL_VERSION, these are optional
     # as by default MySQL Cluster is using the MySQL Server version
     MYSQL_GET_CONFIG_VALUE("MYSQL_CLUSTER_VERSION_MAJOR" CLUSTER_MAJOR_VERSION)
     MYSQL_GET_CONFIG_VALUE("MYSQL_CLUSTER_VERSION_MINOR" CLUSTER_MINOR_VERSION)
@@ -89,12 +89,12 @@ MACRO(GET_MYSQL_VERSION)
 
     # Set MySQL Cluster version same as the MySQL Server version
     # unless a specific MySQL Cluster version has been specified
-    # in the VERSION file. This is the version used when creating
+    # in the MYSQL_VERSION file. This is the version used when creating
     # the cluster package names as well as by all the NDB binaries.
     IF(DEFINED CLUSTER_MAJOR_VERSION AND
        DEFINED CLUSTER_MINOR_VERSION AND
        DEFINED CLUSTER_PATCH_VERSION)
-      # Set MySQL Cluster version to the specific version defined in VERSION
+      # Set MySQL Cluster version to the specific version defined in MYSQL_VERSION
       SET(MYSQL_CLUSTER_VERSION "${CLUSTER_MAJOR_VERSION}")
       SET(MYSQL_CLUSTER_VERSION
         "${MYSQL_CLUSTER_VERSION}.${CLUSTER_MINOR_VERSION}")
@@ -106,7 +106,7 @@ MACRO(GET_MYSQL_VERSION)
       ENDIF()
     ELSE()
       # Set MySQL Cluster version to the same as MySQL Server, possibly
-      # overriding the extra version with value specified in VERSION
+      # overriding the extra version with value specified in MYSQL_VERSION
       # This might be used when MySQL Cluster is still released as DMR
       # while MySQL Server is already GA.
       SET(MYSQL_CLUSTER_VERSION
@@ -159,15 +159,3 @@ ENDIF()
 IF(NOT COMPILATION_COMMENT_SERVER)
   SET(COMPILATION_COMMENT_SERVER ${COMPILATION_COMMENT})
 ENDIF()
-
-# Get the sys schema version from the mysql_sys_schema.sql file
-# however if compiling without performance schema, always use version 1.0.0
-MACRO(GET_SYS_SCHEMA_VERSION)
-  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS sys_version")
-  IF(str)
-    STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
-  ENDIF()
-ENDMACRO()
-
-GET_SYS_SCHEMA_VERSION()
-

@@ -1,0 +1,146 @@
+#
+# Test AUTOEXTEND_SIZE clause
+# This test validates that the changes to AUTOEXTEND_SIZE
+# option are replicated to the secondary nodes successfully
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+drop database if exists test1;
+create database test1;
+use test;
+# Scenario-1: Create a table with autoextend_size set to valid value
+# and validate that the changes are propagated properly to the secondary nodes
+CREATE TABLE t1(c1 INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	4194304
+include/sync_slave_sql_with_master.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	4194304
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL
+) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario-2: Alter an existing table and set autoextend_size option
+# and validate that the option is propagated to the slave nodes
+ALTER TABLE t1 AUTOEXTEND_SIZE 0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	0
+include/sync_slave_sql_with_master.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	0
+DROP TABLE t1;
+# Scenario-3: Test that autoextend_size value for implicit tablespaces
+# is visible on slave nodes
+CREATE TABLESPACE myspace AUTOEXTEND_SIZE 4M;
+include/sync_slave_sql_with_master.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%myspace%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+myspace	4194304	4194304
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 0;
+include/sync_slave_sql_with_master.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%myspace%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+myspace	4194304	0
+DROP TABLESPACE myspace;
+#Scenario-4: Test replication of autoextend_size on partitioned and
+# sub-partitioned tables
+CREATE TABLE tpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (20),
+PARTITION p1 VALUES LESS THAN maxvalue);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%tpart%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
+CREATE TABLE tsubpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+PARTITION BY RANGE (c1)
+SUBPARTITION BY HASH (c1)
+SUBPARTITIONS 3 (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN maxvalue);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%tsubpart%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p0#sp#p0sp0	4194304	4194304
+test/tsubpart#p#p0#sp#p0sp1	4194304	4194304
+test/tsubpart#p#p0#sp#p0sp2	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
+include/sync_slave_sql_with_master.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%tpart%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%tsubpart%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p0#sp#p0sp0	4194304	4194304
+test/tsubpart#p#p0#sp#p0sp1	4194304	4194304
+test/tsubpart#p#p0#sp#p0sp2	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
+DROP TABLE tpart;
+DROP TABLE tsubpart;
+# Scenario-5: Test replication of autoextend_size value when it is
+# changed by ALTER TABLE statement for partitioned and sub-partitioned tables
+CREATE TABLE tpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+ALTER TABLE tpart PARTITION BY RANGE (c1) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN maxvalue);
+CREATE TABLE tsubpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+ALTER TABLE tsubpart
+PARTITION BY RANGE (c1)
+SUBPARTITION BY HASH (c1)
+SUBPARTITIONS 3 (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN maxvalue);
+include/sync_slave_sql_with_master.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%tpart%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tpart#p#p0	4194304	4194304
+test/tpart#p#p1	4194304	4194304
+test/tpart#p#p2	4194304	4194304
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME like '%tsubpart%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/tsubpart#p#p0#sp#p0sp0	4194304	4194304
+test/tsubpart#p#p0#sp#p0sp1	4194304	4194304
+test/tsubpart#p#p0#sp#p0sp2	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp0	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp1	4194304	4194304
+test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
+test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
+DROP TABLE tpart;
+DROP TABLE tsubpart;
+DROP DATABASE test1;
+include/rpl_end.inc

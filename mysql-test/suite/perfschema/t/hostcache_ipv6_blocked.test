@@ -74,7 +74,7 @@ connect (con2e,"::1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 # Now that the host is blocked, check that flush works
-flush hosts;
+TRUNCATE TABLE performance_schema.host_cache;
 
 --disable_query_log
 --error ER_HANDSHAKE_ERROR

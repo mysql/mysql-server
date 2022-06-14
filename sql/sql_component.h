@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,9 @@
 #ifndef _sql_component_h
 #define _sql_component_h
 
+#include <string>
+#include <vector>
+
 #include "lex_string.h"
 #include "my_sqlcommand.h"
 #include "sql/mem_root_array.h"
@@ -39,7 +42,7 @@ class Sql_cmd_install_component : public Sql_cmd {
   Sql_cmd_install_component(const Mem_root_array_YY<LEX_STRING> &urns)
       : m_urns(urns) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_INSTALL_COMPONENT;
   }
 
@@ -50,7 +53,7 @@ class Sql_cmd_install_component : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   const Mem_root_array_YY<LEX_STRING> m_urns;
@@ -65,7 +68,7 @@ class Sql_cmd_uninstall_component : public Sql_cmd {
   Sql_cmd_uninstall_component(const Mem_root_array_YY<LEX_STRING> &urns)
       : m_urns(urns) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_UNINSTALL_COMPONENT;
   }
 
@@ -76,10 +79,36 @@ class Sql_cmd_uninstall_component : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   const Mem_root_array_YY<LEX_STRING> m_urns;
 };
 
+/**
+  This class implements component loading through manifest file
+*/
+class Deployed_components final {
+ public:
+  explicit Deployed_components(const std::string program_name,
+                               const std::string instance_path);
+  ~Deployed_components();
+  bool valid() const { return valid_; }
+  bool components_loaded() const { return loaded_; }
+
+ private:
+  void get_next_component(std::string &components_list,
+                          std::string &one_component);
+  bool load();
+  bool unload();
+  bool make_urns(std::vector<const char *> &urns);
+
+ private:
+  std::string program_name_;
+  std::string instance_path_;
+  std::string components_;
+  std::string last_error_;
+  bool valid_;
+  bool loaded_;
+};
 #endif

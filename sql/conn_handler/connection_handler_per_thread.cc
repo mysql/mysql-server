@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,17 +34,17 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "pfs_thread_provider.h"
@@ -68,7 +68,7 @@ ulong Per_thread_connection_handler::slow_launch_threads = 0;
 ulong Per_thread_connection_handler::max_blocked_pthreads = 0;
 bool Per_thread_connection_handler::shrink_cache = false;
 std::list<Channel_info *>
-    *Per_thread_connection_handler ::waiting_channel_info_list = NULL;
+    *Per_thread_connection_handler ::waiting_channel_info_list = nullptr;
 mysql_mutex_t Per_thread_connection_handler::LOCK_thread_cache;
 mysql_cond_t Per_thread_connection_handler::COND_thread_cache;
 mysql_cond_t Per_thread_connection_handler::COND_flush_thread_cache;
@@ -119,13 +119,13 @@ void Per_thread_connection_handler::init() {
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
   waiting_channel_info_list = new (std::nothrow) std::list<Channel_info *>;
-  DBUG_ASSERT(waiting_channel_info_list != NULL);
+  assert(waiting_channel_info_list != nullptr);
 }
 
 void Per_thread_connection_handler::destroy() {
-  if (waiting_channel_info_list != NULL) {
+  if (waiting_channel_info_list != nullptr) {
     delete waiting_channel_info_list;
-    waiting_channel_info_list = NULL;
+    waiting_channel_info_list = nullptr;
     mysql_mutex_destroy(&LOCK_thread_cache);
     mysql_cond_destroy(&COND_thread_cache);
     mysql_cond_destroy(&COND_flush_thread_cache);
@@ -141,7 +141,7 @@ void Per_thread_connection_handler::destroy() {
 */
 
 Channel_info *Per_thread_connection_handler::block_until_new_connection() {
-  Channel_info *new_conn = NULL;
+  Channel_info *new_conn = nullptr;
   mysql_mutex_lock(&LOCK_thread_cache);
   if (blocked_pthread_count < max_blocked_pthreads && !shrink_cache) {
     /* Don't kill the pthread, just block it for reuse */
@@ -153,7 +153,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       before picking another session in the thread cache.
     */
     DBUG_POP();
-    DBUG_ASSERT(!_db_is_pushed_());
+    assert(!_db_is_pushed_());
 
     // Block pthread
     blocked_pthread_count++;
@@ -172,7 +172,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
         waiting_channel_info_list->pop_front();
         DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
       } else {
-        DBUG_ASSERT(0);  // We should not get here.
+        assert(0);  // We should not get here.
       }
     }
   }
@@ -192,10 +192,10 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
 
 static THD *init_new_thd(Channel_info *channel_info) {
   THD *thd = channel_info->create_thd();
-  if (thd == NULL) {
+  if (thd == nullptr) {
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     delete channel_info;
-    return NULL;
+    return nullptr;
   }
 
   thd->set_new_thread_id();
@@ -247,7 +247,7 @@ static void *handle_connection(void *arg) {
   Connection_handler_manager *handler_manager =
       Connection_handler_manager::get_instance();
   Channel_info *channel_info = static_cast<Channel_info *>(arg);
-  bool pthread_reused MY_ATTRIBUTE((unused)) = false;
+  bool pthread_reused [[maybe_unused]] = false;
 
   if (my_thread_init()) {
     connection_errors_internal++;
@@ -255,13 +255,13 @@ static void *handle_connection(void *arg) {
     handler_manager->inc_aborted_connects();
     Connection_handler_manager::dec_connection_count();
     delete channel_info;
-    my_thread_exit(0);
-    return NULL;
+    my_thread_exit(nullptr);
+    return nullptr;
   }
 
   for (;;) {
     THD *thd = init_new_thd(channel_info);
-    if (thd == NULL) {
+    if (thd == nullptr) {
       connection_errors_internal++;
       handler_manager->inc_aborted_connects();
       Connection_handler_manager::dec_connection_count();
@@ -276,6 +276,7 @@ static void *handle_connection(void *arg) {
         and attach it to this running pthread.
       */
       PSI_thread *psi = PSI_THREAD_CALL(new_thread)(key_thread_one_connection,
+                                                    0 /* no sequence number */,
                                                     thd, thd->thread_id());
       PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);
@@ -290,9 +291,8 @@ static void *handle_connection(void *arg) {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
     mysql_thread_set_psi_id(thd->thread_id());
     mysql_thread_set_psi_THD(thd);
-    mysql_socket_set_thread_owner(
-        thd->get_protocol_classic()->get_vio()->mysql_socket);
-
+    MYSQL_SOCKET socket = thd->get_protocol_classic()->get_vio()->mysql_socket;
+    mysql_socket_set_thread_owner(socket);
     thd_manager->add_thd(thd);
 
     if (thd_prepare_connection(thd))
@@ -309,11 +309,9 @@ static void *handle_connection(void *arg) {
     thd->release_resources();
 
     // Clean up errors now, before possibly waiting for a new connection.
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count();
 
@@ -321,7 +319,7 @@ static void *handle_connection(void *arg) {
     /*
       Delete the instrumentation for the job that just completed.
     */
-    thd->set_psi(NULL);
+    thd->set_psi(nullptr);
     PSI_THREAD_CALL(delete_current_thread)();
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
@@ -331,7 +329,7 @@ static void *handle_connection(void *arg) {
     if (connection_events_loop_aborted()) break;
 
     channel_info = Per_thread_connection_handler::block_until_new_connection();
-    if (channel_info == NULL) break;
+    if (channel_info == nullptr) break;
     pthread_reused = true;
     if (connection_events_loop_aborted()) {
       // Close the channel and exit as server is undergoing shutdown.
@@ -344,8 +342,8 @@ static void *handle_connection(void *arg) {
   }
 
   my_thread_end();
-  my_thread_exit(0);
-  return NULL;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 }  // extern "C"
 
@@ -397,13 +395,12 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   int error = 0;
   my_thread_handle id;
 
-  DBUG_ENTER("Per_thread_connection_handler::add_connection");
+  DBUG_TRACE;
 
   // Simulate thread creation for test case before we check thread cache
   DBUG_EXECUTE_IF("fail_thread_create", error = 1; goto handle_error;);
 
-  if (!check_idle_thread_and_enqueue_connection(channel_info))
-    DBUG_RETURN(false);
+  if (!check_idle_thread_and_enqueue_connection(channel_info)) return false;
 
   /*
     There are no idle threads avaliable to take up the new
@@ -413,9 +410,9 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   error =
       mysql_thread_create(key_thread_one_connection, &id, &connection_attrib,
                           handle_connection, (void *)channel_info);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 handle_error:
-#endif  // !DBUG_OFF
+#endif  // !NDEBUG
 
   if (error) {
     connection_errors_internal++;
@@ -424,12 +421,12 @@ handle_error:
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD, error,
                                                true);
     Connection_handler_manager::dec_connection_count();
-    DBUG_RETURN(true);
+    return true;
   }
 
   Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_PRINT("info", ("Thread created"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint Per_thread_connection_handler::get_max_threads() const {

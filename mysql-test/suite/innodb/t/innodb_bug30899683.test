@@ -1,0 +1,56 @@
+--source include/have_debug.inc
+
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+connection con1;
+set global table_definition_cache=400;
+set global table_open_cache= 1024;
+
+use test;
+SET SESSION innodb_strict_mode = OFF;
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="zlibX";
+SHOW WARNINGS;
+SHOW CREATE TABLE t1;
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+INSERT INTO t1 VALUES(1);
+commit;
+
+connection con2;
+use test;
+SELECT * FROM t1;
+
+connection con1;
+select sleep(10);
+
+--echo # Flush tables, so that the table can be evicted by master thread.
+flush tables;
+
+--echo # Create 1000 tables, try the best to evict the table.
+--disable_query_log
+let $loop=1000;
+while ($loop > 1) {
+  eval CREATE TABLE t_$loop (id int) ENGINE=innodb;
+  dec $loop;
+}
+
+select sleep(20);
+
+DROP TABLE t1;
+SHOW WARNINGS;
+
+let $loop=1000;
+while($loop > 1)
+{
+  eval DROP TABLE t_$loop;
+  dec $loop;
+}
+
+--enable_query_log
+set global table_definition_cache=default;
+set global table_open_cache= default;
+
+disconnect con1;
+disconnect con2;
+

@@ -11,7 +11,7 @@
 
 CREATE TABLE x(id INT);
 ## Test starts here
---write_file $MYSQL_TMP_DIR/bug_23057045.tmp
+--write_file $MYSQL_TMP_DIR/bug_23057045.xpl
 ## Test data
 -->newsession con1	x_root
 -->newsession con2	x_root
@@ -43,10 +43,10 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --schema=test --file=$MYSQL_TMP_DIR/bug_23057045.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --schema=test --file=$MYSQL_TMP_DIR/bug_23057045.xpl 2>&1
 
 #make sure only one process is shown in the list even in slower builds(valgrind)
---sleep 0.5
+--source ../include/xplugin_wait_for_connection_closure.inc
 
 --replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
@@ -55,5 +55,4 @@ SHOW PROCESSLIST;
 
 ## Cleanup
 DROP TABLE x;
---remove_file $MYSQL_TMP_DIR/bug_23057045.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

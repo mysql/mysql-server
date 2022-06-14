@@ -1,0 +1,48 @@
+# ==== Requirements ====
+#
+# R1. replica-preserve-commit-order shall make filtered-out transactions wait
+#     for previous transaction.
+#
+# R2. replica-preserve-commit-order shall make transactions wait for previous
+#     transaction, even when previous transaction is filtered out.
+#
+# ==== Implementation ====
+#
+# 1. On slave, use --replicate-ignore-db=ignored_db
+# 2. On master, create table test.t1 and database ignored_db on master.
+# 3. On slave, take a row lock on table t1, row 1.
+# 4. On master, execute transaction T1, by inserting
+#    into table t1, row 1 (which will be blocked on slave by step 3)
+# 5. On master, execute transaction T2, by creating a table in ignored_db.
+# 6. On slave, wait until the blocked status, and verify that:
+#     6.1. On slave, T2's GTID is not in gtid_executed.
+#     6.2. On slave, T1 is not committed.
+# 7. Cleanup.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo #### R1. First filtered-in transaction, then filtered-out transaction ####
+
+--let $mts_replica_parallel_workers = 8
+--let $mts_num_preceding_trans = 1
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY); CREATE DATABASE ignored_db;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 =  BEGIN; INSERT INTO t1 VALUES (1); COMMIT;
+--let $mts_spco_parallel_statement2 = SET gtid_next='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2'; USE ignored_db; CREATE TABLE t2 (c INT); SET gtid_next = 'AUTOMATIC'; USE test;
+
+--let $mts_spco_assert_text1 = Table t1 must be empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = gtid_executed must not contain the empty transaction
+--let $mts_spco_assert_cond2 = "[SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2", @@global.gtid_executed)]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = DROP TABLE test.t1; USE ignored_db; DROP TABLE t2; DROP DATABASE ignored_db; USE test
+--let $mts_spco_cleanup_statement = 1
+
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc

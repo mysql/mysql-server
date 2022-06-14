@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 
 #include "sql/sql_lex.h"
@@ -37,30 +34,30 @@ using my_testing::Server_initializer;
 
 class InsertDelayed : public ParserTest {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 };
 
 TEST_F(InsertDelayed, InsertDelayed) {
-  SELECT_LEX *sl1 = parse("INSERT INTO t1 VALUES (1)", 0);
+  Query_block *sl1 = parse("INSERT INTO t1 VALUES (1)", 0);
 
   thr_lock_type expected_lock_type =
       sl1->table_list.first->lock_descriptor().type;
 
-  SELECT_LEX *sl2 = parse("INSERT DELAYED INTO t1 VALUES (1)",
-                          ER_WARN_LEGACY_SYNTAX_CONVERTED);
+  Query_block *sl2 = parse("INSERT DELAYED INTO t1 VALUES (1)",
+                           ER_WARN_LEGACY_SYNTAX_CONVERTED);
 
   EXPECT_EQ(expected_lock_type, sl2->table_list.first->lock_descriptor().type);
 }
 
 TEST_F(InsertDelayed, ReplaceDelayed) {
-  SELECT_LEX *sl1 = parse("REPLACE INTO t1 VALUES (1)", 0);
+  Query_block *sl1 = parse("REPLACE INTO t1 VALUES (1)", 0);
 
   thr_lock_type expected_lock_type =
       sl1->table_list.first->lock_descriptor().type;
 
-  SELECT_LEX *sl2 = parse("REPLACE DELAYED INTO t1 VALUES (1)",
-                          ER_WARN_LEGACY_SYNTAX_CONVERTED);
+  Query_block *sl2 = parse("REPLACE DELAYED INTO t1 VALUES (1)",
+                           ER_WARN_LEGACY_SYNTAX_CONVERTED);
 
   EXPECT_EQ(expected_lock_type, sl2->table_list.first->lock_descriptor().type);
 }

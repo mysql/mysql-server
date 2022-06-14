@@ -1,0 +1,221 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+SET GLOBAL innodb_file_per_table = 0;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+0
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
+CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
+CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
+ERROR HY000: Invalid encryption option.
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+# Kill the server
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+ALTER TABLE t1 TABLESPACE=`innodb_system`;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+DROP TABLE t1;
+CREATE TABLE t1 (c1 int) ENCRYPTION='N';
+ALTER TABLE t1 ENCRYPTION='P',algorithm=copy;
+ERROR HY000: Invalid encryption option.
+ALTER TABLE t1 ADD KEY k1 (c1) ,algorithm=inplace;
+ALTER TABLE t1 ENCRYPTION='Y',algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+drop table t1;
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "ZLIB" ENCRYPTION = "Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB' ENCRYPTION='Y'
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+SELECT * FROM t1 ORDER BY c1;
+c1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;
+CREATE TABLE t1(c1 int null)  ENCRYPTION='Y' ROW_FORMAT=compressed;
+INSERT INTO t1 VALUES(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+SELECT * FROM t1 ORDER BY c1;
+c1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT PRIMARY KEY, g geometry not null, spatial index(g)) ENCRYPTION = "Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, POINT(0, 0));
+INSERT INTO t1 VALUES(1, POINT(1, 1));
+INSERT INTO t1 VALUES(2, POINT(2, 2));
+INSERT INTO t1 VALUES(3, POINT(3, 3));
+INSERT INTO t1 VALUES(4, POINT(4, 4));
+INSERT INTO t1 VALUES(5, POINT(5, 5));
+INSERT INTO t1 VALUES(6, POINT(6, 6));
+INSERT INTO t1 VALUES(7, POINT(7, 7));
+INSERT INTO t1 VALUES(8, POINT(8, 8));
+INSERT INTO t1 VALUES(9, POINT(9, 9));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `g` geometry NOT NULL,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
+c1	ST_AsText(g)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+5	POINT(5 5)
+6	POINT(6 6)
+7	POINT(7 7)
+8	POINT(8 8)
+9	POINT(9 9)
+SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
+c1	ST_AsText(g)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+5	POINT(5 5)
+6	POINT(6 6)
+7	POINT(7 7)
+8	POINT(8 8)
+9	POINT(9 9)
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1 (c1 int);
+ALTER TABLE t1 COMPRESSION='zlib';
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL innodb_file_per_table=1;
+DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

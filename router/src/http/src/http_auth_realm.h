@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #ifndef ROUTER_HTTP_AUTH_REALM_INCLUDED
 #define ROUTER_HTTP_AUTH_REALM_INCLUDED
 
-#include "mysqlrouter/http_auth_realm_export.h"
+#include "mysqlrouter/http_auth_realm_lib_export.h"
 
 #include <string>
 #include <system_error>
@@ -43,7 +43,7 @@
  * - a backend
  * - a required authentication method
  */
-class HTTP_AUTH_REALM_EXPORT HttpAuthRealm {
+class HTTP_AUTH_REALM_LIB_EXPORT HttpAuthRealm {
  public:
   HttpAuthRealm(const std::string &name, const std::string &require,
                 const std::string &method, const std::string &backend)

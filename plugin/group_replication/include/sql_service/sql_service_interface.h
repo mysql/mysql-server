@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,16 @@ class Sql_service_interface {
       @retval  -1   session server shutdown in progress
   */
   int wait_for_session_server(ulong total_timeout);
+
+  /**
+    Configures the session's session variables.
+
+    @return the sql error number
+      @retval  0    OK
+      @retval >0    SQL Error Number returned from MySQL Service API
+      @retval <0    local errors
+  */
+  long configure_session();
 
  public:
   /**
@@ -199,9 +209,8 @@ class Sql_service_interface {
   /**
     Returns whether the session was killed
 
-    @return
-      @retval  0   not killed
-      @retval  1   killed
+    @retval  0   not killed
+    @retval  1   killed
   */
   int is_session_killed(MYSQL_SESSION session) {
     return srv_session_info_killed(session);
@@ -228,20 +237,21 @@ class Sql_service_interface {
 
     @param user the user to change to
 
-    @return
-      @retval  0   all ok
-      @retval  1   error
+    @retval  0   all ok
+    @retval  1   error
   */
   int set_session_user(const char *user);
 
   /**
    Check if the server is running without user privileges
 
-   @return
-     @retval  true   the server is skipping the grant table
-     @retval  false  user privileges are working normally
+   @retval  true   the server is skipping the grant table
+   @retval  false  user privileges are working normally
   */
   bool is_acl_disabled();
 };
+
+extern bool sql_service_interface_init();
+extern bool sql_service_interface_deinit();
 
 #endif  // SQL_SERVICE_INTERFACE_INCLUDE

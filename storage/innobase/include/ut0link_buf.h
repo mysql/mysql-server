@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class Link_buf {
   /** Constructs the link buffer. Allocated memory for the links.
   Initializes the tail pointer with 0.
 
-  @param[in]	capacity	number of slots in the ring buffer */
+  @param[in]    capacity        number of slots in the ring buffer */
   explicit Link_buf(size_t capacity);
 
   Link_buf();
@@ -104,22 +104,33 @@ class Link_buf {
   responsibility to ensure that there is space for the link. This is
   because it can be useful to ensure much earlier that there is space.
 
-  @param[in]	from	position where the link starts
-  @param[in]	to	position where the link ends (from -> to) */
+  @param[in]    from    position where the link starts
+  @param[in]    to      position where the link ends (from -> to) */
   void add_link(Position from, Position to);
+
+  /** Add a directed link between two given positions. It is user's
+  responsibility to ensure that there is space for the link. This is
+  because it can be useful to ensure much earlier that there is space.
+  In addition, advances the tail pointer in the buffer if possible.
+
+  @param[in]    from    position where the link starts
+  @param[in]    to      position where the link ends (from -> to) */
+  void add_link_advance_tail(Position from, Position to);
 
   /** Advances the tail pointer in the buffer by following connected
   path created by links. Starts at current position of the pointer.
   Stops when the provided function returns true.
 
-  @param[in]	stop_condition	function used as a stop condition;
+  @param[in]    stop_condition  function used as a stop condition;
                                   (lsn_t prev, lsn_t next) -> bool;
                                   returns false if we should follow
                                   the link prev->next, true to stop
+  @param[in]    max_retry       max fails to retry
 
   @return true if and only if the pointer has been advanced */
   template <typename Stop_condition>
-  bool advance_tail_until(Stop_condition stop_condition);
+  bool advance_tail_until(Stop_condition stop_condition,
+                          uint32_t max_retry = 1);
 
   /** Advances the tail pointer in the buffer without additional
   condition for stop. Stops at missing outgoing link.
@@ -139,10 +150,10 @@ class Link_buf {
   User has to use this function before adding the link, and
   should wait until the free space exists.
 
-  @param[in]	position	position to check
+  @param[in]    position        position to check
 
   @return true if and only if the space is free */
-  bool has_space(Position position) const;
+  bool has_space(Position position);
 
   /** Validates (using assertions) that there are no links set
   in the range [begin, end). */
@@ -155,7 +166,7 @@ class Link_buf {
   /** Translates position expressed in original unit to position
   in the m_links (which is a ring buffer).
 
-  @param[in]	position	position in original unit
+  @param[in]    position        position in original unit
 
   @return position in the m_links */
   size_t slot_index(Position position) const;
@@ -163,17 +174,11 @@ class Link_buf {
   /** Computes next position by looking into slots array and
   following single link which starts in provided position.
 
-  @param[in]	position	position to start
-  @param[out]	next		computed next position
+  @param[in]    position        position to start
+  @param[out]   next            computed next position
 
   @return false if there was no link, true otherwise */
   bool next_position(Position position, Position &next);
-
-  /** Claims a link starting in provided position that has been
-  traversed and is no longer required (reclaims the slot).
-
-  @param[in]	position	position where link starts */
-  void claim_position(Position position);
 
   /** Deallocated memory, if it was allocated. */
   void free();
@@ -185,7 +190,7 @@ class Link_buf {
   std::atomic<Distance> *m_links;
 
   /** Tail pointer in the buffer (expressed in original unit). */
-  alignas(INNOBASE_CACHE_LINE_SIZE) std::atomic<Position> m_tail;
+  alignas(ut::INNODB_CACHE_LINE_SIZE) std::atomic<Position> m_tail;
 };
 
 template <typename Position>
@@ -198,7 +203,8 @@ Link_buf<Position>::Link_buf(size_t capacity)
 
   ut_a((capacity & (capacity - 1)) == 0);
 
-  m_links = UT_NEW_ARRAY_NOKEY(std::atomic<Distance>, capacity);
+  m_links = ut::new_arr_withkey<std::atomic<Distance>>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                       ut::Count{capacity});
 
   for (size_t i = 0; i < capacity; ++i) {
     m_links[i].store(0);
@@ -237,7 +243,7 @@ Link_buf<Position>::~Link_buf() {
 template <typename Position>
 void Link_buf<Position>::free() {
   if (m_links != nullptr) {
-    UT_DELETE_ARRAY(m_links);
+    ut::delete_arr(m_links);
     m_links = nullptr;
   }
 }
@@ -251,39 +257,109 @@ inline void Link_buf<Position>::add_link(Position from, Position to) {
 
   auto &slot = m_links[index];
 
-  ut_ad(slot.load() == 0);
-
-  slot.store(to - from);
+  slot.store(to);
 }
 
 template <typename Position>
-bool Link_buf<Position>::next_position(Position position, Position &next) {
+inline bool Link_buf<Position>::next_position(Position position,
+                                              Position &next) {
   const auto index = slot_index(position);
 
   auto &slot = m_links[index];
 
-  const auto distance = slot.load();
+  next = slot.load(std::memory_order_relaxed);
 
-  ut_ad(position < std::numeric_limits<Position>::max() - distance);
-
-  next = position + distance;
-
-  return distance == 0;
+  return next <= position;
 }
 
 template <typename Position>
-void Link_buf<Position>::claim_position(Position position) {
-  const auto index = slot_index(position);
+inline void Link_buf<Position>::add_link_advance_tail(Position from,
+                                                      Position to) {
+  ut_ad(to > from);
+  ut_ad(to - from <= std::numeric_limits<Distance>::max());
 
-  auto &slot = m_links[index];
+  auto position = m_tail.load(std::memory_order_acquire);
 
-  slot.store(0);
+  ut_ad(position <= from);
+
+  if (position == from) {
+    /* can advance m_tail directly and exclusively, and it is unlock */
+    m_tail.store(to, std::memory_order_release);
+  } else {
+    auto index = slot_index(from);
+    auto &slot = m_links[index];
+
+    /* add link */
+    slot.store(to, std::memory_order_release);
+
+    auto stop_condition = [&](Position prev_pos, Position) {
+      return (prev_pos > from);
+    };
+
+    advance_tail_until(stop_condition);
+  }
 }
 
 template <typename Position>
 template <typename Stop_condition>
-bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition) {
-  auto position = m_tail.load();
+bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition,
+                                            uint32_t max_retry) {
+  /* multi threaded aware */
+  auto position = m_tail.load(std::memory_order_acquire);
+  auto from = position;
+
+  uint32_t retry = 0;
+  while (true) {
+    auto index = slot_index(position);
+    auto &slot = m_links[index];
+
+    auto next_load = slot.load(std::memory_order_acquire);
+
+    if (next_load >= position + m_capacity) {
+      /* either we wrapped and tail was advanced mean while,
+      or there is link start_lsn -> end_lsn of length >= m_capacity */
+      position = m_tail.load(std::memory_order_acquire);
+      if (position != from) {
+        from = position;
+        continue;
+      }
+    }
+
+    if (next_load <= position || stop_condition(position, next_load)) {
+      /* nothing to advance for now */
+      return false;
+    }
+
+    /* try to lock as storing the end */
+    if (slot.compare_exchange_strong(next_load, position,
+                                     std::memory_order_acq_rel)) {
+      /* it could happen, that after thread read position = m_tail.load(),
+      it got scheduled out for longer; when it comes back it might still
+      see the link going forward in that slot but m_tail could have been
+      already advanced forward (as we do not reset slots when traversing
+      them); thread needs to re-check if m_tail is still behind the slot. */
+      position = m_tail.load(std::memory_order_acquire);
+      if (position == from) {
+        /* confirmed. can advance m_tail exclusively */
+        position = next_load;
+        break;
+      }
+    }
+
+    retry++;
+    if (retry > max_retry) {
+      /* give up */
+      return false;
+    }
+
+    UT_RELAX_CPU();
+    position = m_tail.load(std::memory_order_acquire);
+    if (position == from) {
+      /* no progress? */
+      return false;
+    }
+    from = position;
+  }
 
   while (true) {
     Position next;
@@ -294,25 +370,24 @@ bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition) {
       break;
     }
 
-    /* Reclaim the slot. */
-    claim_position(position);
-
     position = next;
   }
 
-  if (position > m_tail.load()) {
-    m_tail.store(position);
+  ut_a(from == m_tail.load(std::memory_order_acquire));
 
-    return true;
+  /* unlock */
+  m_tail.store(position, std::memory_order_release);
 
-  } else {
+  if (position == from) {
     return false;
   }
+
+  return true;
 }
 
 template <typename Position>
 inline bool Link_buf<Position>::advance_tail() {
-  auto stop_condition = [](Position from, Position to) { return (to == from); };
+  auto stop_condition = [](Position, Position) { return false; };
 
   return advance_tail_until(stop_condition);
 }
@@ -324,12 +399,21 @@ inline size_t Link_buf<Position>::capacity() const {
 
 template <typename Position>
 inline Position Link_buf<Position>::tail() const {
-  return m_tail.load();
+  return m_tail.load(std::memory_order_acquire);
 }
 
 template <typename Position>
-inline bool Link_buf<Position>::has_space(Position position) const {
-  return tail() + m_capacity > position;
+inline bool Link_buf<Position>::has_space(Position position) {
+  auto tail = m_tail.load(std::memory_order_acquire);
+  if (tail + m_capacity > position) {
+    return true;
+  }
+
+  auto stop_condition = [](Position, Position) { return false; };
+  advance_tail_until(stop_condition, 0);
+
+  tail = m_tail.load(std::memory_order_acquire);
+  return tail + m_capacity > position;
 }
 
 template <typename Position>
@@ -339,6 +423,8 @@ inline size_t Link_buf<Position>::slot_index(Position position) const {
 
 template <typename Position>
 void Link_buf<Position>::validate_no_links(Position begin, Position end) {
+  const auto tail = m_tail.load();
+
   /* After m_capacity iterations we would have all slots tested. */
 
   end = std::min(end, begin + m_capacity);
@@ -348,7 +434,7 @@ void Link_buf<Position>::validate_no_links(Position begin, Position end) {
 
     const auto &slot = m_links[index];
 
-    ut_a(slot.load() == 0);
+    ut_a(slot.load() <= tail);
   }
 }
 

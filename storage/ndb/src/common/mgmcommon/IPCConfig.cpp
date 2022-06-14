@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,25 +22,29 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+
+#include <cstring>
+
 #include <IPCConfig.hpp>
 
 #include <TransporterRegistry.hpp>
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
+#include <NdbSpin.h>
 
+#include <EventLogger.hpp>
 
 /* Return true if node with "nodeId" is a MGM node */
-static bool is_mgmd(Uint32 nodeId,
-                    const struct ndb_mgm_configuration & config)
+static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)
 {
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
-  if (iter.find(CFG_NODE_ID, nodeId))
-    abort();
+  require(iter.find(CFG_NODE_ID, nodeId) == 0);
+
   Uint32 type;
-  if(iter.get(CFG_TYPE_OF_SECTION, &type))
-    abort();
+  require(iter.get(CFG_TYPE_OF_SECTION, &type) == 0);
 
   return (type == NODE_TYPE_MGM);
 }
@@ -48,7 +52,7 @@ static bool is_mgmd(Uint32 nodeId,
 
 bool
 IPCConfig::configureTransporters(Uint32 nodeId,
-                                 const struct ndb_mgm_configuration & config,
+                                 const ndb_mgm_configuration* config,
                                  class TransporterRegistry & tr,
                                  bool transporter_to_self)
 {
@@ -78,7 +82,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_NODE_HOST, &hostname)) continue;
       if( strlen(hostname) == 0 ) continue;
       if(iter.get(CFG_MGM_PORT, &port)) continue;
-      connect_string.appfmt("%s%s:%u",separator,hostname,port);
+      connect_string.appfmt("%s%s %u",separator,hostname,port);
       separator= ",";
     }
     NdbMgmHandle h= ndb_mgm_create_handle();
@@ -94,12 +98,12 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   for (int i= 1; i < MAX_NODES; i++)
   {
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
-    if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
+    if (tr.get_node_transporter(i) && iter.find(CFG_NODE_ID, i))
     {
       // Transporter exist in TransporterRegistry but not
       // in configuration
-      ndbout_c("The connection to node %d could not "
-               "be removed at this time", i);
+      g_eventLogger->info(
+          "The connection to node %d could not be removed at this time", i);
       result= false; // Need restart
     }
   }
@@ -109,7 +113,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
     
-    bzero(&conf, sizeof(conf));
+    std::memset(&conf, 0, sizeof(conf));
     Uint32 nodeId1, nodeId2, remoteNodeId;
     const char * remoteHostName= 0, * localHostName= 0;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
@@ -206,22 +210,19 @@ IPCConfig::configureTransporters(Uint32 nodeId,
         DBUG_PRINT("error", ("Failed to configure SHM Transporter "
                              "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-	ndbout_c("Failed to configure SHM Transporter to node %d",
-                conf.remoteNodeId);
+        g_eventLogger->info("Failed to configure SHM Transporter to node %d",
+                            conf.remoteNodeId);
         result = false;
       }
-#ifdef NDB_WIN32
-      ndbout_c("Shared memory transporters not supported on Windows");
-      result = false;
-#else
       DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
 			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
-#endif
       break;
 
     case CONNECTION_TYPE_TCP:
       if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.tcp.sendBufferSize)) break;
       if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.tcp.maxReceiveSize)) break;
+      iter.get(CFG_TCP_SPINTIME, &spintime);
+      conf.tcp.tcpSpintime= spintime;
       
       const char * proxy;
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {
@@ -239,8 +240,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       conf.type = tt_TCP_TRANSPORTER;
       
       if(!tr.configureTransporter(&conf)){
-	ndbout_c("Failed to configure TCP Transporter to node %d",
-                 conf.remoteNodeId);
+        g_eventLogger->info("Failed to configure TCP Transporter to node %d",
+                            conf.remoteNodeId);
         result= false;
       }
       DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
@@ -249,8 +250,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       loopback_conf = conf; // reuse it...
       break;
     default:
-      ndbout << "Unknown transporter type from: " << nodeId << 
-	" to: " << remoteNodeId << endl;
+      g_eventLogger->info("Unknown transporter type from: %u to: %u", nodeId,
+                          remoteNodeId);
       break;
     } // switch
   } // for
@@ -274,7 +275,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.tcp.tcpOverloadLimit = 768*1024;
     if (!tr.configureTransporter(&loopback_conf))
     {
-      ndbout_c("Failed to configure Loopback Transporter");
+      g_eventLogger->info("Failed to configure Loopback Transporter");
       result= false;
     }
   }

@@ -1,0 +1,228 @@
+--source include/have_case_sensitive_file_system.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+###############################################################################
+#
+# Bug#31989290 : SYSTEM TABLES UPGRADED FROM 5.7 DIFFER FROM SYSTEM TABLES
+#                CREATED IN 8.0
+#
+# Part 1 : Dump the system table information from the newly initialized
+#          data directory
+###############################################################################
+
+--echo # Create and initialize new data directory
+--mkdir $MYSQLTEST_VARDIR/tmp/data_80_clean
+--let $MYSQLD_DATADIR    = $MYSQLTEST_VARDIR/tmp/data_80_clean/db
+--let $MYSQLD_ERROR_LOG  = $MYSQLTEST_VARDIR/tmp/data_80_clean/error.log
+--let $MYSQLD_EXTRA_ARGS =
+--source include/initialize_datadir.inc
+
+--echo # Restart server on the newly initialized data directory.
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_ERROR_LOG MYSQLD_ERROR_LOG
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG
+--source include/restart_mysqld.inc
+
+--let $select_system_tables  = SELECT t.* FROM mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" ORDER BY t.name
+# Ignore columns: id(1), schema_id(2), mysql_version_id(6), se_private_data(12), se_private_id(13), created(23), last_altered(24), last_checked_for_upgrade_version_id(35)
+--let $mask_system_tables    = 1,2,6,12,13,23,24,35
+
+# Note: The below query excludes ndb_binlog_index columns which are no longer created by default in 8.0
+--let $select_system_columns = SELECT t.name, c.* FROM mysql.columns c JOIN mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE c.table_id = t.id AND t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" AND t.name != "ndb_binlog_index" ORDER BY t.name, c.name
+# Ignore columns: id(2), table_id(3), collation_id(8), se_private_data(27)
+--let $mask_system_columns   = 2,3,14,27
+# Ignore _utf8mb3/4 prefixes on constant strings in generation_expression_utf8
+--let $regex_system_columns  = s/_utf8mb(3|4)//g;
+
+--echo
+--echo # Dump system table information for the newly initialized data directory
+--let $tables_fresh_datadir  = $MYSQLTEST_VARDIR/tmp/tables.txt
+--let $columns_fresh_datadir = $MYSQLTEST_VARDIR/tmp/columns.txt
+
+--let $debug_point = skip_dd_table_access_check
+--source include/add_debug_point.inc
+
+--echo
+--echo # Dump all tables in newly initialized mysql schema
+--let $output_file  = $tables_fresh_datadir
+--let $statement    = $select_system_tables
+--source include/write_result_to_file.inc
+--let $input_file   = $tables_fresh_datadir
+--let $mask_columns = $mask_system_tables
+--source include/filter_file.inc
+
+--echo
+--echo # Dump all columns in newly initialized mysql schema
+--let $output_file  = $columns_fresh_datadir
+--let $statement    = $select_system_columns
+--source include/write_result_to_file.inc
+--let $input_file   = $columns_fresh_datadir
+--let $mask_columns = $mask_system_columns
+--let $script       = $regex_system_columns
+--source include/filter_file.inc
+
+--let $debug_point = skip_dd_table_access_check
+--source include/remove_debug_point.inc
+
+###############################################################################
+# Part 2 : Dump the system table information from an upgraded data DIRECTORY
+#          and compare with the dump from Part 1
+#
+#   To create the file std_data/upgrade/data_57_clean.zip
+#
+#   - In 5.7, execute:
+#       CREATE SCHEMA test;
+#       DROP TABLE mysql.ndb_binlog_index; # (To ignore changes in NDB related
+#        table that is no longer created by default in 8.0)
+#
+#   - then zip the data folder
+#
+#       zip -r data_57_help_tables.zip db/
+###############################################################################
+
+--echo
+--echo # Upgrade a data directory from 5.7
+
+--echo
+--echo # Copy the 5.7 data zip file to working directory and check it exists.
+--copy_file   $MYSQLTEST_VARDIR/std_data/upgrade/data_57_clean.zip $MYSQLTEST_VARDIR/tmp/data_57_clean.zip
+--file_exists $MYSQLTEST_VARDIR/tmp/data_57_clean.zip
+
+--echo # Unzip 5.7 data directory.
+--exec unzip -qo $MYSQLTEST_VARDIR/tmp/data_57_clean.zip -d $MYSQLTEST_VARDIR/tmp/data_57_clean
+
+--echo # Set data directory and log file
+--let $MYSQLD_DATADIR1 = $MYSQLTEST_VARDIR/tmp/data_57_clean/db
+--let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/tmp/data_57_clean/error.log
+
+--echo # Restart server to trigger upgrade.
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--let $wait_counter       = 10000
+--source include/restart_mysqld.inc
+
+--echo
+--echo # Dump system table information for the upgraded data directory
+--let $tables_upgraded_datadir  = $MYSQLTEST_VARDIR/tmp/tables_upgraded.txt
+--let $columns_upgraded_datadir = $MYSQLTEST_VARDIR/tmp/columns_upgraded.txt
+
+--let $debug_point = skip_dd_table_access_check
+--source include/add_debug_point.inc
+
+--echo
+--echo # Dump all tables in upgraded mysql schema
+--let $output_file  = $tables_upgraded_datadir
+--let $statement    = $select_system_tables
+--source include/write_result_to_file.inc
+--let $input_file   = $tables_upgraded_datadir
+--let $mask_columns = $mask_system_tables
+--source include/filter_file.inc
+
+--echo
+--echo # Dump all columns in upgraded mysql schema
+--let $output_file  = $columns_upgraded_datadir
+--let $statement    = $select_system_columns
+--source include/write_result_to_file.inc
+--let $input_file   = $columns_upgraded_datadir
+--let $mask_columns = $mask_system_columns
+--let $script       = $regex_system_columns
+--source include/filter_file.inc
+
+--let $debug_point = skip_dd_table_access_check
+--source include/remove_debug_point.inc
+
+--echo
+--echo ########################################################################
+--echo # NOTE: If this test fails, there is a possible inconsistency introduced
+--echo #       in the system table/column definition of an upgraded mysql
+--echo #       tablespace as compared to that of a newly initialized one.
+--echo #
+--echo # There are 2 possibilities:
+--echo #
+--echo # a) If the failure shows a new inconsistency in the table/column
+--echo #    properties, add the appropriate ALTER TABLE statements to
+--echo #    scripts/mysql_system_tables_fix.sql
+--echo #    to ensure that the metadata of the upgraded table/column is the
+--echo #    same as that of the newly created one.
+--echo #
+--echo # b) If the inconsistency is unavoidable, modify the regular expressions
+--echo #    above, re-record and update documentation if required.
+--echo #
+--echo ########################################################################
+
+--echo
+--echo # Compare fresh and upgraded tables
+--diff_files $tables_fresh_datadir $tables_upgraded_datadir
+
+--echo
+--echo # Compare fresh and upgraded columns
+--diff_files $columns_fresh_datadir $columns_upgraded_datadir
+
+--echo
+--echo # Stop server and cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $tables_fresh_datadir
+--remove_file $tables_upgraded_datadir
+--remove_file $columns_fresh_datadir
+--remove_file $columns_upgraded_datadir
+--remove_file $MYSQLTEST_VARDIR/tmp/data_57_clean.zip
+--force-rmdir $MYSQLTEST_VARDIR/tmp/data_57_clean
+--force-rmdir $MYSQLTEST_VARDIR/tmp/data_80_clean
+
+###############################################################################
+#
+# Bug#31789964	: HELP TABLES UPGRADE FAILS ENTIRE SERVER UPGRADE - WITHOUT
+#                PRINTING ERROR...
+#
+###############################################################################
+#   To create the file std_data/upgrade/data_57_help_tables.zip
+#
+#   - In 5.7, execute:
+#
+#       CREATE SCHEMA test;
+#       ALTER TABLE mysql.help_topic    CONVERT TO CHARACTER SET latin1;
+#       ALTER TABLE mysql.help_category CONVERT TO CHARACTER SET latin1;
+#       ALTER TABLE mysql.help_relation CONVERT TO CHARACTER SET latin1;
+#       ALTER TABLE mysql.help_keyword  CONVERT TO CHARACTER SET latin1;
+#
+#   - then zip the data folder
+#
+#       zip -r data_57_help_tables.zip db/
+#
+###############################################################################
+
+--echo # Copy the 5.7 data zip file to working directory and check it exists.
+--copy_file   $MYSQLTEST_VARDIR/std_data/upgrade/data_57_help_tables.zip $MYSQLTEST_VARDIR/tmp/data_57_help_tables.zip
+--file_exists $MYSQLTEST_VARDIR/tmp/data_57_help_tables.zip
+
+--echo # Unzip 5.7 data directory.
+--exec unzip -qo $MYSQLTEST_VARDIR/tmp/data_57_help_tables.zip -d $MYSQLTEST_VARDIR/tmp/data_57_help_tables
+
+--echo # Set data directory and log file
+--let $MYSQLD_DATADIR1 = $MYSQLTEST_VARDIR/tmp/data_57_help_tables/db
+--let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/tmp/data_57_help_tables/error.log
+
+--echo # Restart server to trigger upgrade.
+--echo # Upgrade of help tables should succeed.
+
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--let $wait_counter       = 10000
+--source include/start_mysqld.inc
+
+--echo # Check for errors in the error log.
+--let SEARCH_FILE    = $MYSQLD_LOG
+--let SEARCH_PATTERN = \[ERROR\]
+--source include/search_pattern.inc
+
+--echo # Check for mysql_upgrade_info file in data directory.
+--file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
+
+--echo # Stop server and cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/data_57_help_tables.zip
+--force-rmdir $MYSQLTEST_VARDIR/tmp/data_57_help_tables
+
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/start_mysqld.inc

@@ -28,16 +28,16 @@ update t set a=0 where a = 11;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT c FROM t;
 c
-NULL
-3
 19
 29
+3
+NULL
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
   KEY `idx` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -56,10 +56,10 @@ ROLLBACK;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT c FROM t;
 c
-NULL
-3
 19
 29
+3
+NULL
 SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
 ALTER TABLE t ADD COLUMN x2 INT;;
 SET DEBUG_SYNC = 'now WAIT_FOR start_create';
@@ -70,9 +70,9 @@ DELETE FROM t WHERE a = 0;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT c FROM t;
 c
-NULL
 19
 29
+NULL
 DROP TABLE t;
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
@@ -89,18 +89,18 @@ affected rows: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
   KEY `idx_1` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT c FROM t;
 c
-NULL
 14
 19
 29
+NULL
 DROP TABLE t;
 #
 # Bug#22018532 ASSERTION WHEN ONLINE REAPPLY REBUILD LOG ON
@@ -120,24 +120,24 @@ optimize table t;
 SET DEBUG_SYNC = 'now WAIT_FOR start_create';
 insert ignore into t values();
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'c'
+Warning	1062	Duplicate entry '1' for key 't.c'
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 /* connection default */ optimize table t;
 Table	Op	Msg_type	Msg_text
 test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t	optimize	error	Duplicate entry 'NULL' for key 'c'
+test.t	optimize	error	Duplicate entry 'NULL' for key 't.c'
 test.t	optimize	status	Operation failed
 Warnings:
-Error	1062	Duplicate entry 'NULL' for key 'c'
+Error	1062	Duplicate entry 'NULL' for key 't.c'
 SELECT c FROM t;
 c
 1
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+  `a` int GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS (1) VIRTUAL,
   UNIQUE KEY `b` (`b`),
   UNIQUE KEY `c` (`c`),
   KEY `a` (`a`)
@@ -164,12 +164,12 @@ test.t	optimize	note	Table does not support optimize, doing recreate + analyze i
 test.t	optimize	status	OK
 SELECT c FROM t;
 c
-NULL
 14
 19
 29
 50
 71
+NULL
 DROP TABLE t;
 #
 #  Bug#22140944    WL#8149: ADD TEST FOR THE ROW0LOG.CC FIX THAT
@@ -178,7 +178,7 @@ DROP TABLE t;
 CREATE TABLE t1 ( id INT ,a VARCHAR(20), b VARCHAR(20) ,c VARCHAR(40)
 GENERATED ALWAYS AS (CONCAT(a,b)),key(c));
 INSERT INTO t1 (id,a,b) VALUES (10,'aditya','hello');
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR go_ddl';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR go_ddl';
 ALTER TABLE t1 ADD CONSTRAINT  pk1 PRIMARY KEY (id);
 SET DEBUG_SYNC= 'now WAIT_FOR opened';
 UPDATE t1 SET a = 'fg', id = 20 WHERE id = 10;
@@ -339,8 +339,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `d` int NOT NULL,
   `b` varchar(198) NOT NULL,
   `c` char(84) DEFAULT NULL,
   `vbcol` char(2) GENERATED ALWAYS AS (substr(`b`,2,2)) VIRTUAL
@@ -493,9 +493,137 @@ SET DEBUG_SYNC='now SIGNAL continue_scan';
 a
 1
 1
-set session debug = '-d, row_merge_drop_indexes_force_table_count';
+set session debug = '-d, force_virtual_col_build_fail';
 INSERT INTO t1 VALUES(1);
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+#
+# Bug 31279528 - CRASH IN MYSQL SERVER, ASSERTION FAILURE: DICT0DICT.CC
+#
+CREATE TABLE t1 (c1 INT);
+CREATE INDEX idx ON t1 ( ( c1 = 127 ) , ( c1 + c1 ) , c1 , ( c1 + - -1 ) , (c1 > 26 ) ) ;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  KEY `idx` (((`c1` = 127)),((`c1` + `c1`)),`c1`,((`c1` + -(-(1)))),((`c1` > 26)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT ID INTO @tid FROM mysql.tables WHERE NAME='t1';
+SELECT NAME, ORDINAL_POSITION, TYPE, HIDDEN, GENERATION_EXPRESSION_UTF8 FROM mysql.columns WHERE TABLE_ID=@tid ORDER BY ORDINAL_POSITION;
+NAME	ORDINAL_POSITION	TYPE	HIDDEN	GENERATION_EXPRESSION_UTF8
+c1	1	MYSQL_TYPE_LONG	Visible	NULL
+!hidden!idx!0!0	2	MYSQL_TYPE_LONG	SQL	(`c1` = 127)
+!hidden!idx!1!0	3	MYSQL_TYPE_LONGLONG	SQL	(`c1` + `c1`)
+!hidden!idx!3!0	4	MYSQL_TYPE_NEWDECIMAL	SQL	(`c1` + -(-(1)))
+!hidden!idx!4!0	5	MYSQL_TYPE_LONG	SQL	(`c1` > 26)
+DB_ROW_ID	6	MYSQL_TYPE_INT24	SE	NULL
+DB_TRX_ID	7	MYSQL_TYPE_INT24	SE	NULL
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	SE	NULL
+DROP TABLE t1;
+#
+# Bug #30556595  FAILING ASSERTION: !CURSOR->INDEX->IS_COMMITTED()
+# ON TABLE WITH GCOLS
+#
+# Set binlog_row_image = MINIMAL.
+SET @old_binlog_row_image = @@binlog_row_image;
+SET @@session.binlog_row_image = 'MINIMAL';
+# Testcase-1
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Insert a record to generate an insert row log for the new index.
+# LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+pid	uid	vid
+2	10	10
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Insert a record to re-use the delete marked record in idx_vid [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+SELECT * FROM t;
+pid	uid	vid
+1	10	10
+2	10	10
+DROP TABLE t;
+# Testcase-2
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Start transaction
+BEGIN;
+# Insert a record to generate an insert row log for the new index.
+# LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+pid	uid	vid
+2	10	10
+# Rollback transaction
+# LOG-4 idx_vid : DELETE [10, 2]
+# LOG-5 idx_vid : INSERT [10, 1]
+# LOG-6 idx_vid : DELETE [10, 1]
+ROLLBACK;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Insert a record to check valid entry in idx_vid [NULL, 1]
+INSERT INTO t(pid) VALUES (1);
+SELECT * FROM t;
+pid	uid	vid
+1	NULL	NULL
+DROP TABLE t;
+# Testcase-3
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Read [2, 10, 10] row using idx_vid index key.
+select * from t where VID=10;
+pid	uid	vid
+2	10	10
+DROP TABLE t;
+# Testcase-4
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Delete a record.
+delete from t limit 1;
+DROP TABLE t;
+SET @@session.binlog_row_image = @old_binlog_row_image;

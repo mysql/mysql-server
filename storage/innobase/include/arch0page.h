@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ constexpr uint ARCH_PAGE_FILE_HDR_SIZE =
     ARCH_PAGE_FILE_NUM_RESET_PAGE * ARCH_PAGE_BLK_SIZE;
 
 /** @name Page Archive doublewrite buffer file name prefix and constant length
-parameters. //@{ */
+parameters. @{ */
 
 /** Archive doublewrite buffer directory prefix */
 constexpr char ARCH_DBLWR_DIR[] = "ib_dblwr";
@@ -61,9 +61,10 @@ constexpr uint ARCH_DBLWR_NUM_FILES = 1;
 /** Archive doublewrite buffer file capacity in no. of blocks */
 constexpr uint ARCH_DBLWR_FILE_CAPACITY = 3;
 
-/** //@} */
+/** @} */
 
-/** @name Archive block header elements //@{ */
+/** @name Archive block header elements
+@{ */
 
 /** Block Header: Version is in first 1 byte. */
 constexpr uint ARCH_PAGE_BLK_HEADER_VERSION_OFFSET = 0;
@@ -90,9 +91,10 @@ constexpr uint ARCH_PAGE_BLK_HEADER_NUMBER_OFFSET = 24;
 Keep header length in multiple of #ARCH_BLK_PAGE_ID_SIZE */
 constexpr uint ARCH_PAGE_BLK_HEADER_LENGTH = 32;
 
-/** //@} */
+/** @} */
 
-/** @name Page Archive reset block elements size. //@{ */
+/** @name Page Archive reset block elements size.
+@{ */
 
 /** Serialized Reset ID: Reset LSN total size */
 constexpr uint ARCH_PAGE_FILE_HEADER_RESET_LSN_SIZE = 8;
@@ -108,9 +110,10 @@ constexpr uint ARCH_PAGE_FILE_HEADER_RESET_POS_SIZE =
     ARCH_PAGE_FILE_HEADER_RESET_BLOCK_NUM_SIZE +
     ARCH_PAGE_FILE_HEADER_RESET_BLOCK_OFFSET_SIZE;
 
-/** //@} */
+/** @} */
 
-/** @name Page Archive data block elements //@{ */
+/** @name Page Archive data block elements
+@{ */
 
 /** Serialized page ID: tablespace ID in First 4 bytes */
 constexpr uint ARCH_BLK_SPCE_ID_OFFSET = 0;
@@ -121,7 +124,7 @@ constexpr uint ARCH_BLK_PAGE_NO_OFFSET = 4;
 /** Serialized page ID: Total length */
 constexpr uint ARCH_BLK_PAGE_ID_SIZE = 8;
 
-/** //@} */
+/** @} */
 
 /** Number of memory blocks */
 constexpr uint ARCH_PAGE_NUM_BLKS = 32;
@@ -152,9 +155,9 @@ constexpr uint ARCH_PAGE_RESET_THRESHOLD =
     (ARCH_PAGE_BLK_SIZE - ARCH_PAGE_BLK_HEADER_LENGTH) / ARCH_BLK_PAGE_ID_SIZE;
 
 /** Callback for retrieving archived page IDs
-@param[in]	ctx		context passed by caller
-@param[in]	buff		buffer with page IDs
-@param[in]	num_pages	number of page IDs in buffer
+@param[in]      ctx             context passed by caller
+@param[in]      buff            buffer with page IDs
+@param[in]      num_pages       number of page IDs in buffer
 @return error code */
 using Page_Arch_Cbk = int(void *ctx, byte *buff, uint num_pages);
 
@@ -166,7 +169,7 @@ using Page_Wait_Flush_Archiver_Cbk = std::function<bool(void)>;
 class Page_Arch_Client_Ctx {
  public:
   /** Constructor: Initialize elements
-  @param[in]	is_durable	true if the client requires durability, else
+  @param[in]    is_durable      true if the client requires durability, else
   false */
   Page_Arch_Client_Ctx(bool is_durable) : m_is_durable(is_durable) {
     m_start_pos.init();
@@ -178,14 +181,14 @@ class Page_Arch_Client_Ctx {
   ~Page_Arch_Client_Ctx() { mutex_free(&m_mutex); }
 
   /** Start dirty page tracking and archiving
-  @param[in]	recovery	true if the tracking is being started as part of
+  @param[in]    recovery        true if the tracking is being started as part of
   recovery process
   @param[out]   start_id    fill the start lsn
   @return error code. */
   int start(bool recovery, uint64_t *start_id);
 
   /** Stop dirty page tracking and archiving
-  @param[out]	stop_id	fill the stop lsn
+  @param[out]   stop_id fill the stop lsn
   @return error code. */
   int stop(uint64_t *stop_id);
 
@@ -193,8 +196,8 @@ class Page_Arch_Client_Ctx {
   void release();
 
   /** Initialize context during recovery.
-  @param[in]	group		Group which needs to be attached to the client
-  @param[in]	last_lsn	last reset lsn
+  @param[in]    group           Group which needs to be attached to the client
+  @param[in]    last_lsn        last reset lsn
   @return error code. */
   int init_during_recovery(Arch_Group *group, lsn_t last_lsn);
 
@@ -205,10 +208,10 @@ class Page_Arch_Client_Ctx {
   /** Get archived page Ids.
   Attempt to read blocks directly from in memory buffer. If overwritten,
   copy from archived files.
-  @param[in]	cbk_func	called repeatedly with page ID buffer
-  @param[in]	cbk_ctx		callback function context
-  @param[in,out]	buff		buffer to fill page IDs
-  @param[in]	buf_len		buffer length in bytes
+  @param[in]    cbk_func        called repeatedly with page ID buffer
+  @param[in]    cbk_ctx         callback function context
+  @param[in,out]        buff            buffer to fill page IDs
+  @param[in]    buf_len         buffer length in bytes
   @return error code */
   int get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx, byte *buff,
                 uint buf_len);

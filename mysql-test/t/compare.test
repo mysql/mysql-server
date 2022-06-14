@@ -114,3 +114,42 @@ SELECT ROW('1', '1') > ROW(a, '1') FROM t1;
 SELECT ROW(a, '1') > ROW('1', '1') FROM t1;
 DROP TABLE t1;
 SET NAMES default;
+
+--echo #
+--echo # Bug#30961924 AND OF TWO PREDICATES WITH DIFFERENT COLLATION ON SAME COLUMN GIVES WRONG RESULT
+--echo #
+
+CREATE TABLE t1(
+  firstname CHAR(20),
+  lastname CHAR(20)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+INSERT INTO t1 VALUES("john","doe"), ("John","Doe");
+
+# Case-insensitive comparison, john is John
+SELECT * FROM t1 WHERE firstname = 'john';
+SELECT * FROM t1 WHERE firstname = 'john' COLLATE utf8mb4_0900_ai_ci;
+# Case-insensitive comparison, john is not John
+SELECT * FROM t1 WHERE firstname = 'john' COLLATE utf8mb4_0900_as_cs;
+SELECT * FROM t1
+WHERE firstname = 'john' COLLATE utf8mb4_0900_ai_ci AND
+      firstname = 'john' COLLATE utf8mb4_0900_as_cs;
+SELECT * FROM t1
+WHERE firstname = 'john' COLLATE utf8mb4_0900_as_cs AND
+      firstname = 'john' COLLATE utf8mb4_0900_ai_ci;
+DROP TABLE t1;
+
+--echo Comparisons with parameters and extreme values
+
+CREATE TABLE t(a DECIMAL(30,0));
+INSERT INTO t VALUES(0);
+SELECT * FROM t;
+set @maxint=18446744073709551615;
+SELECT @maxint;
+
+# was wrong empty
+SELECT * FROM t WHERE a < @maxint;
+SELECT * FROM t WHERE a < 18446744073709551615;
+SELECT * FROM t WHERE 0 < 18446744073709551615;
+SELECT * FROM t WHERE 0 < @maxint;
+DROP TABLE t;

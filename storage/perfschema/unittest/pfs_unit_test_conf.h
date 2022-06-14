@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,10 @@
 
 #ifdef DISABLE_PSI_DATA_LOCK
 #undef DISABLE_PSI_DATA_LOCK
+#endif
+
+#ifdef DISABLE_PSI_TLS_CHANNEL
+#undef DISABLE_PSI_TLS_CHANNEL
 #endif
 
 #endif /* PFS_UNIT_TEST_CONFIG_INCLUDED */

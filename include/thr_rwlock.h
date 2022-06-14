@@ -1,7 +1,7 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,17 +41,17 @@
   are mysql_prlock_*() - see include/mysql/psi/mysql_thread.h
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysql/components/services/thr_rwlock_bits.h"
+#include "mysql/components/services/bits/thr_rwlock_bits.h"
 #include "thr_cond.h"
 #include "thr_mutex.h"
 
@@ -62,12 +62,11 @@ static inline int native_rw_init(native_rw_lock_t *rwp) {
   return 0;
 #else
   /* pthread_rwlockattr_t is not used in MySQL */
-  return pthread_rwlock_init(rwp, NULL);
+  return pthread_rwlock_init(rwp, nullptr);
 #endif
 }
 
-static inline int native_rw_destroy(
-    native_rw_lock_t *rwp MY_ATTRIBUTE((unused))) {
+static inline int native_rw_destroy(native_rw_lock_t *rwp [[maybe_unused]]) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else
@@ -134,14 +133,14 @@ extern int rw_pr_destroy(rw_pr_lock_t *);
 
 #ifdef SAFE_MUTEX
 static inline void rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock) {
-  DBUG_ASSERT(rwlock->active_writer &&
-              my_thread_equal(my_thread_self(), rwlock->writer_thread));
+  assert(rwlock->active_writer &&
+         my_thread_equal(my_thread_self(), rwlock->writer_thread));
 }
 
 static inline void rw_pr_lock_assert_not_write_owner(
     const rw_pr_lock_t *rwlock) {
-  DBUG_ASSERT(!rwlock->active_writer ||
-              !my_thread_equal(my_thread_self(), rwlock->writer_thread));
+  assert(!rwlock->active_writer ||
+         !my_thread_equal(my_thread_self(), rwlock->writer_thread));
 }
 #endif
 

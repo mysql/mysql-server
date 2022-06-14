@@ -404,3 +404,26 @@ CREATE TABLE t1 (c1 INT UNSIGNED, c2 INT UNSIGNED);
 INSERT INTO t1 VALUES (202, 1);
 SELECT * FROM t1 WHERE (GREATEST(c1, c2) = 42) AND (c2 = 1);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30326848 ASSERTION FAILED: (SLEN % 4) == 0 IN MY_STRNNCOLLSP_UTF32
+--echo #
+
+DO NULLIF((GREATEST(FROM_UNIXTIME(1537024679) , _utf32 "*b!" )),
+          (FROM_UNIXTIME(1537013301) )
+	 );
+
+--echo #
+--echo # Bug #33624777 sum(least(a, NULL)) result error
+--echo #
+
+CREATE TABLE t1 (a DOUBLE, b DOUBLE);
+CREATE TABLE t2 (a INTEGER, b INTEGER);
+
+INSERT INTO t1 values(1, NULL), (1, 1);
+INSERT INTO t2 values(1, NULL), (1, 1);
+
+SELECT SUM(LEAST(a, b)) FROM t1;
+SELECT SUM(LEAST(a, b)) FROM t2;
+
+DROP TABLE t1, t2;

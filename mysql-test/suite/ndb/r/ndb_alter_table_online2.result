@@ -1,14 +1,4 @@
-DROP TABLE IF EXISTS t1;
-CREATE DATABASE IF NOT EXISTS mysqlslap;
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-id INT,
-type VARCHAR(20),
-state VARCHAR(20),
-logging VARCHAR(20),
-_database VARCHAR(255),
-_schema VARCHAR(20),
-name VARCHAR(255)
-);
+CREATE DATABASE mysqlslap;
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ basic online alter test during load
@@ -16,9 +6,6 @@ name VARCHAR(255)
 
 create table t1 (pk int key, a int) engine ndb;
 insert into t1 values (1,0);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,9 +24,6 @@ Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-ndb_show_tables completed.....
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
@@ -63,9 +47,6 @@ Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 ~ Check table t1 ID has not changed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -85,9 +66,6 @@ BUG#17400320 algorithm= is not supported for ALTER TABLE with <partition_options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-ndb_show_tables completed.....
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
@@ -112,9 +90,6 @@ SELECT * FROM t1;
 pk	a	b	c
 1	2000	2000	2000
 COMMIT;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -123,5 +98,5 @@ name
 ~ cleanup section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-drop table t1, ndb_show_tables_results;
+drop table t1;
 drop database mysqlslap;

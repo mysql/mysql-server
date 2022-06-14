@@ -36,6 +36,12 @@
 --disable_query_log
 SET SESSION sql_log_bin = 0;
 
+# The below functions depend on clean stats, as such we truncate the
+# used performance_schema tables.
+TRUNCATE TABLE performance_schema.events_stages_current;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_stages_summary_global_by_event_name;
+
 DELIMITER //;
 CREATE FUNCTION IS_AUTOREJOIN_RUNNING() RETURNS BOOLEAN
 BEGIN

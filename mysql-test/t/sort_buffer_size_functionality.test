@@ -42,6 +42,10 @@ SELECT @@SESSION.sort_buffer_size;
 
 
 -- let $restart_parameters= "restart:--sort_buffer_size=9999999"
+if ($VALGRIND_TEST)
+{
+-- let $shutdown_server_timeout = 600
+}
 -- source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.sort_buffer_size;

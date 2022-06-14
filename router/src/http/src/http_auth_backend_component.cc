@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,23 +32,32 @@
 #include "http_auth_backend.h"
 #include "http_auth_error.h"
 
-void HttpAuthBackendComponent::init(std::shared_ptr<value_type> auth_backends) {
-  auth_backends_ = auth_backends;
-}
-
 std::error_code HttpAuthBackendComponent::authenticate(
     const std::string &inst, const std::string &username,
     const std::string &authdata) {
-  if (auto backends = auth_backends_.lock()) {
-    auto it = backends->find(inst);
-    if (it == backends->end()) {
-      return std::make_error_code(HttpAuthErrc::kBackendNotFound);
-    }
+  std::lock_guard<std::mutex> lk(backends_m_);
 
-    return it->second->authenticate(username, authdata);
-  } else {
-    // backends couldn't get locked
-    return std::make_error_code(std::errc::invalid_argument);
+  auto it = auth_backends_.find(inst);
+  if (it == auth_backends_.end()) {
+    return make_error_code(HttpAuthErrc::kBackendNotFound);
+  }
+
+  return it->second->authenticate(username, authdata);
+}
+
+void HttpAuthBackendComponent::add_backend(
+    const std::string &name, std::shared_ptr<HttpAuthBackend> backend) {
+  std::lock_guard<std::mutex> lk(backends_m_);
+
+  auth_backends_[name] = std::move(backend);
+}
+
+void HttpAuthBackendComponent::remove_backend(const std::string &name) {
+  std::lock_guard<std::mutex> lk(backends_m_);
+
+  const auto it = auth_backends_.find(name);
+  if (it != auth_backends_.end()) {
+    auth_backends_.erase(it);
   }
 }
 

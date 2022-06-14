@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,14 @@ class CmRegReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask::Size );
+  /**
+   * The additional two words in signal length are for backward compatibility.
+   * Older versions(< 7.6.9) also send the node bitmask(of size 2 words) while
+   * sending GSN_CM_REGREQ. Now, we can do away with sending the node bitmask
+   * since it's not used at the receiving end (execCM_REGREQ).
+   * The additional two words are cleared before sending GSN_CM_REGREQ.
+   */
+  static constexpr Uint32 SignalLength = 6 + NdbNodeBitmask48::Size;
 private:
   
   Uint32 blockRef;
@@ -51,8 +58,7 @@ private:
 
   Uint32 start_type; // As specified by cmd-line or mgm, NodeState::StartType
   Uint32 latest_gci; // 0 means no fs
-  Uint32 skip_nodes[NdbNodeBitmask::Size]; // Nodes that does not _need_ 
-                                           // to be part of restart
+  Uint32 unused_words[NdbNodeBitmask48::Size];
 };
 
 /**
@@ -65,7 +71,16 @@ class CmRegConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
+  /**
+   * For NDB version < 7.6.9 where the node bitmask is sent
+   * in a simple signal, NdbNodeBitmask::Size is 2.
+   */
+  static constexpr Uint32 SignalLength_v1 = 5 + NdbNodeBitmask48::Size;
+  /**
+   * For NDB version >= 7.6.9 where the node bitmask is sent
+   * in a long signal.
+   */
+  static constexpr Uint32 SignalLength = 5;
 private:
   
   Uint32 presidentBlockRef;
@@ -77,7 +92,7 @@ private:
    * The dynamic id that the node reciving this signal has
    */
   Uint32 dynamicId;
-  Uint32 allNdbNodes[NdbNodeBitmask::Size];  
+  Uint32 allNdbNodes_v1[NdbNodeBitmask48::Size];
 };
 
 /**
@@ -90,7 +105,16 @@ class CmRegRef {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 7 + NdbNodeBitmask::Size );
+  /**
+   * For NDB version < 7.6.9 where the node bitmask is sent
+   * in a simple signal, NdbNodeBitmask::Size is 2.
+   */
+  static constexpr Uint32 SignalLength_v1 = 7 + NdbNodeBitmask48::Size;
+  /**
+   * For NDB version >= 7.6.9 where the node bitmask is sent
+   * in a long signal.
+   */
+  static constexpr Uint32 SignalLength = 7;
   
   enum ErrorCode {
     ZBUSY = 0,          /* Only the president can send this */
@@ -125,8 +149,8 @@ private:
    */
   Uint32 latest_gci; 
   Uint32 start_type; 
-  Uint32 skip_nodes[NdbNodeBitmask::Size]; // Nodes that does not _need_ 
-                                           // to be part of restart
+  Uint32 skip_nodes_v1[NdbNodeBitmask48::Size]; // Nodes that do not _need_
+                        // to be part of restart
 };
 
 class CmAdd {
@@ -136,7 +160,7 @@ class CmAdd {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
 private:
   enum RequestType {
@@ -158,7 +182,7 @@ class CmAckAdd {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
 private:
   Uint32 senderNodeId;
@@ -173,7 +197,8 @@ class CmNodeInfoReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 OldSignalLength = 5;
+  static constexpr Uint32 SignalLength = 7;
   
 private:
   /**
@@ -184,6 +209,8 @@ private:
   Uint32 version;
   Uint32 mysql_version;
   Uint32 lqh_workers;   // added in telco-6.4
+  Uint32 query_threads; // added in 8.0.23
+  Uint32 log_parts;     // added in 8.0.23
 };
 
 class CmNodeInfoRef {
@@ -193,7 +220,7 @@ class CmNodeInfoRef {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum ErrorCode {
     NotRunning = 1
@@ -211,7 +238,8 @@ class CmNodeInfoConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 OldSignalLength = 5;
+  static constexpr Uint32 SignalLength = 7;
   
 private:
   Uint32 nodeId;
@@ -219,6 +247,8 @@ private:
   Uint32 version;
   Uint32 mysql_version;
   Uint32 lqh_workers;   // added in telco-6.4
+  Uint32 query_threads; // added in 8.0.23
+  Uint32 log_parts;     // added in 8.0.23
 };
 
 

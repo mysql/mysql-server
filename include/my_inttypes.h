@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,16 +39,20 @@
 #include <sys/types.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 #include <BaseTsd.h>
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
-#if !defined(HAVE_ULONG)
+#if !defined(HAVE_ULONG) && !defined(MYSQL_ABI_CHECK)
 typedef unsigned long ulong; /* Short for unsigned long */
 #endif
 
 typedef unsigned char uchar; /* Short for unsigned char */
+
+// Don't use these in new code; use [u]int64_t.
+typedef long long int longlong;
+typedef unsigned long long int ulonglong;
 
 // Legacy typedefs. Prefer the standard intXX_t (or std::intXX_t) to these.
 // Note that the Google C++ style guide says you should generally not use
@@ -60,44 +64,12 @@ typedef int16_t int16;
 typedef uint16_t uint16;
 typedef int32_t int32;
 typedef uint32_t uint32;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef intptr_t intptr;
 
-// These are not defined as [u]int64_t, since we have code that assumes that
-// [u]int64 == [unsigned] long long. This is also legacy behavior; use
-// [u]int64_t when possible.
-typedef long long int64;
-typedef unsigned long long uint64;
-
-// We have both ulonglong and my_ulonglong, which can be different. Don't use
-// any of them in new code; use [u]int64_t.
-typedef long long int longlong;
-typedef unsigned long long int ulonglong;
-#if defined(_WIN32)
-typedef unsigned __int64 my_ulonglong;
-#else
-typedef unsigned long long my_ulonglong;
-#endif
-
-#if defined(_WIN32)
-typedef unsigned long long my_off_t;
-#else
-#if SIZEOF_OFF_T > 4
 typedef ulonglong my_off_t;
-#else
-typedef unsigned long my_off_t;
-#endif
-#endif /*_WIN32*/
 #define MY_FILEPOS_ERROR (~(my_off_t)0)
-
-#if defined(_WIN32)
-/*
- off_t is 32 bit long. We do not use C runtime functions
- with off_t but native Win32 file IO APIs, that work with
- 64 bit offsets.
-*/
-#undef SIZEOF_OFF_T
-#define SIZEOF_OFF_T 8
-#endif
 
 #define INT_MIN64 (~0x7FFFFFFFFFFFFFFFLL)
 #define INT_MAX64 0x7FFFFFFFFFFFFFFFLL
@@ -129,7 +101,7 @@ typedef int myf; /* Type of MyFlags in my_funcs */
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 typedef SSIZE_T ssize_t;
 #endif
 
@@ -137,7 +109,7 @@ typedef SSIZE_T ssize_t;
   This doesn't really belong here, but it was the only reasonable place
   at the time.
 */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 typedef int sigset_t;
 #endif
 

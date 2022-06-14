@@ -1,0 +1,119 @@
+# On windows, the socket instrumentation calls are different
+--source include/not_windows.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (mon_con,localhost,root,,,,,SSL);
+
+update performance_schema.threads
+  set INSTRUMENTED = "NO" where THREAD_ID = PS_CURRENT_THREAD_ID();
+
+update performance_schema.setup_instruments
+  set enabled = "NO" where NAME like "wait/%";
+
+update performance_schema.setup_instruments
+  set enabled = "YES" where NAME LIKE "wait/io/socket/%";
+
+truncate performance_schema.events_waits_history_long;
+
+connect (ssl_con,localhost,root,,,,,SSL);
+
+--echo "========== SSL CONNECTED =========="
+
+connection mon_con;
+# Wait a bit to make sure the SSL session is blocked before statement 1
+select sleep(1);
+connection ssl_con;
+
+let ssl_con_tid= `SELECT PS_CURRENT_THREAD_ID()`;
+
+connection mon_con;
+# Wait a bit to make sure the SSL session is blocked before statement 2
+select sleep(1);
+connection ssl_con;
+
+--echo "========== SSL STATEMENT =========="
+
+select "SSL statement";
+
+connect (clear_con,localhost,root,,,,,);
+
+--echo "========== CLEAR CONNECTED =========="
+
+connection mon_con;
+# Wait a bit to make sure the CLEAR session is blocked before statement 1
+select sleep(1);
+connection clear_con;
+
+let clear_con_tid= `SELECT PS_CURRENT_THREAD_ID()`;
+
+connection mon_con;
+# Wait a bit to make sure the CLEAR session is blocked before statement 2
+select sleep(1);
+connection clear_con;
+
+--echo "========== CLEAR STATEMENT =========="
+
+select "CLEAR statement";
+
+connection mon_con;
+
+# Move script level variables ($) to server user variables (@),
+# so that queries printed in the result log have a stable output.
+
+--disable_query_log
+eval set @clear_con_tid = $clear_con_tid;
+eval set @ssl_con_tid = $ssl_con_tid;
+--enable_query_log
+
+--echo "========== CLEAR =========="
+
+--replace_column 1 #
+select THREAD_ID, NAME, CONNECTION_TYPE
+  from performance_schema.threads
+  where THREAD_ID = @clear_con_tid;
+
+# This will print traffic from viosocket.cc only.
+
+select EVENT_NAME,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE,
+  OBJECT_NAME, OPERATION,
+  (NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
+  from performance_schema.events_waits_history_long
+  where (THREAD_ID = @clear_con_tid)
+  group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
+  order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
+
+--echo "========== SSL =========="
+
+--replace_column 1 #
+select THREAD_ID, NAME, CONNECTION_TYPE
+  from performance_schema.threads
+  where THREAD_ID = @ssl_con_tid;
+
+# This will print traffic from viosocket.cc (connection handshake)
+# and open_ssl (SSL).
+
+select EVENT_NAME,
+  left(SOURCE, locate(":", SOURCE)) as PRINT_SOURCE,
+  OBJECT_NAME, OPERATION,
+  (NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
+  from performance_schema.events_waits_history_long
+  where (THREAD_ID = @ssl_con_tid)
+  group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
+  order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
+
+connection default;
+disconnect ssl_con;
+disconnect clear_con;
+disconnect mon_con;
+
+update performance_schema.setup_instruments
+  set ENABLED = "yes" where NAME like "wait/%";
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+##  This test file is for testing encrypted communication only, not other
+##  encryption routines that the SSL library happens to provide!

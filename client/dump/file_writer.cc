@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 using namespace Mysql::Tools::Dump;
 
 void File_writer::append(const std::string &data_to_append) {
-  fwrite(data_to_append.c_str(), 1, data_to_append.size(), m_file);
   // Check for I/O errors.
-  if (ferror(m_file) != 0) {
+  if (fwrite(data_to_append.c_str(), 1, data_to_append.size(), m_file) !=
+      data_to_append.size()) {
     this->pass_message(Mysql::Tools::Base::Message_data(
         ferror(m_file), "Error occurred while writing to output.",
         Mysql::Tools::Base::Message_type_error));

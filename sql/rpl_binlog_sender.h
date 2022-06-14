@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <time.h>
+#include <chrono>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg, Log_event_type
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql_com.h"
@@ -44,7 +44,7 @@ class THD;
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
-class Binlog_sender : Gtid_mode_copy {
+class Binlog_sender {
   class Event_allocator;
   typedef Basic_binlog_file_reader<Binlog_ifile, Binlog_event_data_istream,
                                    Binlog_event_object_istream, Event_allocator>
@@ -54,13 +54,22 @@ class Binlog_sender : Gtid_mode_copy {
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
                 Gtid_set *exclude_gtids, uint32 flag);
 
-  ~Binlog_sender() {}
+  ~Binlog_sender() = default;
 
   /**
     It checks the dump reqest and sends events to the client until it finish
     all events(for mysqlbinlog) or encounters an error.
   */
   void run();
+
+  /**
+    Sets the value of the previously processed event.
+
+    @param type The last processed event type.
+  */
+  inline void set_prev_event_type(binary_log::Log_event_type type) {
+    m_prev_event_type = type;
+  }
 
  private:
   THD *m_thd;
@@ -84,8 +93,8 @@ class Binlog_sender : Gtid_mode_copy {
 
   binary_log::enum_binlog_checksum_alg m_event_checksum_alg;
   binary_log::enum_binlog_checksum_alg m_slave_checksum_alg;
-  ulonglong m_heartbeat_period;
-  time_t m_last_event_sent_ts;
+  std::chrono::nanoseconds m_heartbeat_period;
+  std::chrono::nanoseconds m_last_event_sent_ts;
   /*
     For mysqlbinlog(server_id is 0), it will stop immediately without waiting
     if it already reads all events.
@@ -174,6 +183,10 @@ class Binlog_sender : Gtid_mode_copy {
    * it will be false.
    */
   bool m_transmit_started;
+  /**
+    Type of the previously processed event.
+  */
+  binary_log::Log_event_type m_prev_event_type;
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.
@@ -280,8 +293,24 @@ class Binlog_sender : Gtid_mode_copy {
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_heartbeat_event(my_off_t log_pos);
+  int send_heartbeat_event_v1(my_off_t log_pos);
+  /**
+     It sends a heartbeat to the client, for the cases when the
+     flag USE_HEARTBEAT_EVENT_V2 is set.
+     @param[in] log_pos  The log position that events before it are sent.
 
+     @return It returns 0 if succeeds, otherwise 1 is returned.
+  */
+  int send_heartbeat_event_v2(my_off_t log_pos);
+  /**
+     Checks if the heartbeat_version flag is set or not, and call the correct
+     send_heartbeat_method accordingly.
+
+     @param[in] log_pos  The log position that events before it are sent.
+
+     @return It returns 0 if succeeds, otherwise 1 is returned.
+   */
+  int send_heartbeat_event(my_off_t log_pos);
   /**
      It reads an event from binlog file. this function can set event_ptr either
      a valid buffer pointer or nullptr. nullptr means it arrives at the end of
@@ -294,8 +323,7 @@ class Binlog_sender : Gtid_mode_copy {
      @retval 0 Succeed
      @retval 1 Fail
   */
-  inline int read_event(File_reader *reader, uchar **event_ptr,
-                        uint32 *event_len);
+  int read_event(File_reader *reader, uchar **event_ptr, uint32 *event_len);
   /**
     Check if it is allowed to send this event type.
 
@@ -333,14 +361,14 @@ class Binlog_sender : Gtid_mode_copy {
 
     @return It returns true if it should be skipped, otherwise false is turned.
   */
-  inline bool skip_event(const uchar *event_ptr, bool in_exclude_group);
+  bool skip_event(const uchar *event_ptr, bool in_exclude_group);
 
-  inline void calc_event_checksum(uchar *event_ptr, size_t event_len);
-  inline int flush_net();
-  inline int send_packet();
-  inline int send_packet_and_flush();
-  inline int before_send_hook(const char *log_file, my_off_t log_pos);
-  inline int after_send_hook(const char *log_file, my_off_t log_pos);
+  void calc_event_checksum(uchar *event_ptr, size_t event_len);
+  int flush_net();
+  int send_packet();
+  int send_packet_and_flush();
+  int before_send_hook(const char *log_file, my_off_t log_pos);
+  int after_send_hook(const char *log_file, my_off_t log_pos);
   /*
     Reset the thread transmit packet buffer for event sending.
 
@@ -354,7 +382,7 @@ class Binlog_sender : Gtid_mode_copy {
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
-  inline int reset_transmit_packet(ushort flags, size_t event_len = 0);
+  int reset_transmit_packet(ushort flags, size_t event_len = 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -365,51 +393,51 @@ class Binlog_sender : Gtid_mode_copy {
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  inline int wait_new_events(my_off_t log_pos);
-  inline int wait_with_heartbeat(my_off_t log_pos);
-  inline int wait_without_heartbeat();
+  int wait_new_events(my_off_t log_pos);
+  int wait_with_heartbeat(my_off_t log_pos);
+  int wait_without_heartbeat();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* It is used to count the events that have been sent. */
   int m_event_count;
   /*
     It aborts dump thread with an error if m_event_count exceeds
     max_binlog_dump_events.
   */
-  inline int check_event_count();
+  int check_event_count();
 #endif
 
-  bool has_error() { return m_errno != 0; }
-  void set_error(int errorno, const char *errmsg) {
+  inline bool has_error() { return m_errno != 0; }
+  inline void set_error(int errorno, const char *errmsg) {
     snprintf(m_errmsg_buf, sizeof(m_errmsg_buf), "%.*s", MYSQL_ERRMSG_SIZE - 1,
              errmsg);
     m_errmsg = m_errmsg_buf;
     m_errno = errorno;
   }
 
-  void set_unknown_error(const char *errmsg) {
+  inline void set_unknown_error(const char *errmsg) {
     set_error(ER_UNKNOWN_ERROR, errmsg);
   }
 
-  void set_fatal_error(const char *errmsg) {
+  inline void set_fatal_error(const char *errmsg) {
     set_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, errmsg);
   }
 
-  bool is_fatal_error() {
+  inline bool is_fatal_error() {
     return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
   }
 
-  bool event_checksum_on() {
+  inline bool event_checksum_on() {
     return m_event_checksum_alg > binary_log::BINLOG_CHECKSUM_ALG_OFF &&
            m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
   }
 
-  void set_last_pos(my_off_t log_pos) {
+  inline void set_last_pos(my_off_t log_pos) {
     m_last_file = m_linfo.log_file_name;
     m_last_pos = log_pos;
   }
 
-  void set_last_file(const char *log_file) {
+  inline void set_last_file(const char *log_file) {
     strcpy(m_last_file_buf, log_file);
     m_last_file = m_last_file_buf;
   }
@@ -428,7 +456,7 @@ class Binlog_sender : Gtid_mode_copy {
    * buffer.
    * @return true if an error occurred, false otherwise.
    */
-  inline bool grow_packet(size_t extra_size);
+  bool grow_packet(size_t extra_size);
 
   /**
    * This function SHALL shrink the size of the buffer used.
@@ -440,7 +468,7 @@ class Binlog_sender : Gtid_mode_copy {
    *
    * The buffer is never shrunk less than a minimum size (@c PACKET_MIN_SIZE).
    */
-  inline bool shrink_packet();
+  bool shrink_packet();
 
   /**
    Helper function to recalculate a new size for the growing buffer.
@@ -450,7 +478,7 @@ class Binlog_sender : Gtid_mode_copy {
                    as this parameter states.
    @return The new buffer size, or 0 in the case of an error.
   */
-  inline size_t calc_grow_buffer_size(size_t current_size, size_t min_size);
+  size_t calc_grow_buffer_size(size_t current_size, size_t min_size);
 
   /**
    Helper function to recalculate the new size for the m_new_shrink_size.

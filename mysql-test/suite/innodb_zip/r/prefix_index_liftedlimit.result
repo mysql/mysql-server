@@ -1099,7 +1099,7 @@ col_1_varchar = REPEAT("c", 4000)
 ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_varchar(3072));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'worklog5743.PRIMARY'
 DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
 SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
 col_1_varchar = REPEAT("c", 4000)
@@ -1130,7 +1130,7 @@ ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_varchar(3072));
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'worklog5743.PRIMARY'
 DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
 SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
 col_1_varchar = REPEAT("c", 4000)
@@ -1385,7 +1385,7 @@ REPEAT("o", 4000));
 INSERT INTO worklog5743
 VALUES(concat(REPEAT("a", 2000),REPEAT("b", 2000)), REPEAT("o", 4000));
 ALTER TABLE worklog5743 ADD PRIMARY KEY `pk_idx` (col_1_varchar(3000));
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'worklog5743.PRIMARY'
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
 col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,

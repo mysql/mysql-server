@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ using Time_Point = std::chrono::time_point<Clock>;
 
 using Time_Msec = std::chrono::milliseconds;
 using Time_Sec = std::chrono::seconds;
+using Time_Min = std::chrono::minutes;
 
 struct Thread_Info {
   /** Default constructor */
@@ -304,7 +305,7 @@ struct Client_Share {
         m_protocol_version(CLONE_PROTOCOL_VERSION) {
     m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
     m_threads.resize(m_max_concurrency);
-    DBUG_ASSERT(m_max_concurrency > 0);
+    assert(m_max_concurrency > 0);
     m_stat.init_target();
   }
 
@@ -369,7 +370,7 @@ struct Client_Aux {
 };
 
 struct Remote_Parameters {
-  /** Remote character sets with collation */
+  /** Remote plugins */
   String_Keys m_plugins;
 
   /** Remote character sets with collation */
@@ -377,6 +378,12 @@ struct Remote_Parameters {
 
   /** Remote configurations to validate */
   Key_Values m_configs;
+
+  /** Remote configurations to use */
+  Key_Values m_other_configs;
+
+  /** Remote plugins with shared object name */
+  Key_Values m_plugins_with_so;
 };
 
 /** For Remote Clone, "Clone Client" is created at recipient. It receives data
@@ -399,7 +406,7 @@ class Client {
 
   /** @return maximum concurrency for current clone operation. */
   uint32_t get_max_concurrency() const {
-    DBUG_ASSERT(m_share->m_max_concurrency > 0);
+    assert(m_share->m_max_concurrency > 0);
     return (m_share->m_max_concurrency);
   }
 
@@ -410,7 +417,7 @@ class Client {
 
   /** Check if network error
   @param[in]	err		error code
-  @param[in]	prtocol_error	include protocol error
+  @param[in]	protocol_error	include protocol error
   @return true if network error */
   static bool is_network_error(int err, bool protocol_error);
 
@@ -461,7 +468,7 @@ class Client {
   @param[out]	loc_len	locator length in bytes
   @return storage locator */
   const uchar *get_locator(uint index, uint &loc_len) const {
-    DBUG_ASSERT(index < m_share->m_storage_vec.size());
+    assert(index < m_share->m_storage_vec.size());
 
     loc_len = m_share->m_storage_vec[index].m_loc_len;
     return (m_share->m_storage_vec[index].m_loc);
@@ -497,7 +504,7 @@ class Client {
 
     /* Maximum number of workers are fixed. */
     if (num_workers + 1 > get_max_concurrency()) {
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       return;
     }
 
@@ -618,9 +625,10 @@ class Client {
                       bool skip_loc, bool &is_last);
 
   /** Handle error and check if needs to exit
-  @param[in]	current_error	error number
-  @param[in,out]	first_err	first error that has occurred
-  @param[in,out]	first_err_time	time for first error in milliseconds
+  @param[in]	current_err			error number
+  @param[in,out]	first_error		first error that has occurred
+  @param[in,out]	first_error_time	time for first error in
+  milliseconds
   @return true if the caller needs to exit */
   bool handle_error(int current_err, int &first_error,
                     ulonglong &first_error_time);
@@ -629,88 +637,58 @@ class Client {
   @return error code */
   int validate_remote_params();
 
+  /** Check if plugin is installed.
+  @param[in]	plugin_name	plugin name
+  @return true iff installed. */
+  bool plugin_is_installed(std::string &plugin_name);
+
+  /**  Check if plugin shared object can be loaded.
+  @param[in]	so_name	shared object name
+  @return true iff able to load. */
+  bool plugin_is_loadable(std::string &so_name);
+
   /** Extract string from network buffer.
   @param[in,out]	packet	network packet
   @param[in,out]	length	packet length
   @param[out]		str	extracted string
   @return error code */
-  int extract_string(const uchar *&packet, size_t &length, String_Key &str) {
-    /* Check length. */
-    if (length >= 4) {
-      auto name_length = uint4korr(packet);
-      length -= 4;
-      packet += 4;
+  int extract_string(const uchar *&packet, size_t &length, String_Key &str);
 
-      /* Check length. */
-      if (length >= name_length) {
-        str.clear();
-        if (name_length > 0) {
-          auto char_str = reinterpret_cast<const char *>(packet);
-          auto str_len = static_cast<size_t>(name_length);
-          str.assign(char_str, str_len);
-
-          length -= name_length;
-          packet += name_length;
-        }
-        return (0);
-      }
-    }
-    /* purecov: begin deadcode */
-    int err = ER_CLONE_PROTOCOL;
-    my_error(err, MYF(0), "Wrong Clone RPC response length for parameters");
-    return (err);
-    /* purecov: end */
-  }
+  /** Extract string from network buffer.
+  @param[in,out]	packet	network packet
+  @param[in,out]	length	packet length
+  @param[out]		keyval	extracted key value pair
+  @return error code */
+  int extract_key_value(const uchar *&packet, size_t &length,
+                        Key_Value &keyval);
 
   /** Extract and add plugin name from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
   @return error code */
-  int add_plugin(const uchar *packet, size_t length) {
-    /* Get plugin name. */
-    String_Key plugin_name;
-    auto err = extract_string(packet, length, plugin_name);
-    if (err == 0) {
-      m_parameters.m_plugins.push_back(plugin_name);
-    }
-    return (err);
-  }
+  int add_plugin(const uchar *packet, size_t length);
+
+  /** Extract and add plugin and shared object name from network packet.
+  @param[in]	packet	network packet
+  @param[in]	length	packet length
+  @return error code */
+  int add_plugin_with_so(const uchar *packet, size_t length);
 
   /** Extract and add charset name from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
   @return error code */
-  int add_charset(const uchar *packet, size_t length) {
-    /* Get character set collation name. */
-    String_Key charset_name;
-    auto err = extract_string(packet, length, charset_name);
-    if (err == 0) {
-      m_parameters.m_charsets.push_back(charset_name);
-    }
-    return (err);
-  }
+  int add_charset(const uchar *packet, size_t length);
 
   /** Extract and add remote configuration from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
+  @param[in]	other	true if additional configuration
   @return error code */
-  int add_config(const uchar *packet, size_t length) {
-    /* Get configuration parameter name. */
-    String_Key config_name;
-    auto err = extract_string(packet, length, config_name);
-    if (err != 0) {
-      return (err); /* purecov: inspected */
-    }
+  int add_config(const uchar *packet, size_t length, bool other);
 
-    /* Get configuration parameter value */
-    String_Key config_value;
-    err = extract_string(packet, length, config_value);
-    if (err == 0) {
-      auto key_val = std::make_pair(config_name, config_value);
-      m_parameters.m_configs.push_back(key_val);
-    }
-    return (err);
-  }
+  /** Use additional configurations if sent by donor. */
+  void use_other_configs();
 
   /** Set locators returned by remote server
   @param[in]	buffer	serialized locator information
@@ -730,6 +708,15 @@ class Client {
   @return error code */
   int set_error(const uchar *buffer, size_t length);
 
+  /** Suspends client thread for the specified time
+  @param[in]	Time_Sec Time in seconds
+  @return error code */
+  int wait(Time_Sec wait_time);
+
+  /** Check if delay is requested from the user
+  @return error code */
+  int delay_if_needed();
+
   /** If PFS table and mutex is initialized. */
   static bool s_pfs_initialized;
 
@@ -746,6 +733,12 @@ class Client {
   /** Number of concurrent clone clients. */
   static uint32_t s_num_clones;
 
+  /** Time out for connecting back to donor server after network failure. */
+  static Time_Sec s_reconnect_timeout;
+
+  /** Interval for attempting re-connect after failure. */
+  static Time_Sec s_reconnect_interval;
+
  private:
   /** Server thread object */
   THD *m_server_thd;
@@ -755,6 +748,7 @@ class Client {
 
   /** Clone remote client connection */
   MYSQL *m_conn;
+  NET_SERVER m_conn_server_extn;
 
   /** Intermediate buffer for data copy when zero copy is not used. */
   Buffer m_copy_buff;

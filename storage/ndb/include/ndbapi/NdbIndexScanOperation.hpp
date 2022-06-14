@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,10 +51,10 @@ public:
    * @param scan_flags see @ref ScanFlag
    * @param parallel No of fragments to scan in parallel (0=max)
    */ 
-  virtual int readTuples(LockMode lock_mode = LM_Read, 
+  int readTuples(LockMode lock_mode = LM_Read, 
                          Uint32 scan_flags = 0, 
 			 Uint32 parallel = 0,
-			 Uint32 batch = 0);
+			 Uint32 batch = 0) override;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -217,29 +216,30 @@ public:
    * Where multiple numbered ranges are defined with multiple calls to 
    * setBound, and the scan is ordered, the range number for each range 
    * must be larger than the range number for the previously defined range.
-   * 
+   *
    * When the application knows that rows in-range will only be found in
    * a particular partition, a PartitionSpecification can be supplied.
    * This may be used to limit the scan to a single partition, improving
    * system efficiency
-   * The sizeOfPartInfo parameter should be set to the 
+   * The sizeOfPartInfo parameter should be set to the
    * sizeof(PartitionSpec) to enable backwards compatibility.
-   * 
-   * @param key_record NdbRecord structure for the key the index is 
+   *
+   * @param key_record NdbRecord structure for the key the index is
    *        defined on
    * @param bound The bound to add
    * @param partInfo Extra information to enable a reduced set of
    *        partitions to be scanned.
-   * @param sizeOfPartInfo
+   * @param sizeOfPartInfo  should be set to the
+   *        sizeof(PartitionSpec) to enable backwards compatibility.
    *
    * @return 0 for Success, other for Failure.
    */
   int setBound(const NdbRecord *key_record,
-               const IndexBound& bound);
-  int setBound(const NdbRecord *key_record,
                const IndexBound& bound,
                const Ndb::PartitionSpec* partInfo,
                Uint32 sizeOfPartInfo= 0);
+  int setBound(const NdbRecord *key_record,
+               const IndexBound& bound);
 
   /**
    * Return size of data, in 32-bit words, that will be send to data nodes for
@@ -261,7 +261,7 @@ public:
 
 private:
   NdbIndexScanOperation(Ndb* aNdb);
-  virtual ~NdbIndexScanOperation();
+  ~NdbIndexScanOperation() override;
   
   int processIndexScanDefs(LockMode lm,
                            Uint32 scan_flags,
@@ -332,8 +332,8 @@ private:
   int insert_open_bound(const NdbRecord* key_record,
                         Uint32*& firstWordOfBound);
 
-  virtual int equal_impl(const NdbColumnImpl*, const char*);
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
+  int equal_impl(const NdbColumnImpl*, const char*) override;
+  NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*) override;
 
   int getDistKeyFromRange(const NdbRecord* key_record,
                           const NdbRecord* result_record,
@@ -391,20 +391,4 @@ NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, const void* value,
   return setBound(anAttrId, type, value);
 }
 
-/**
- *   Compare keys of  the current records of two NdbReceiver objects.
- * @param r1 holds the first record to compare.
- * @param r2 holds the second record to compare.
- * @param key_record specifies the keys to compare.
- * @param result_record specifies the format of full records.
- * @param descending if true, descending sort order is to be used.
- * @param read_range_no if true, range numbers will first be compared, and then keys if range numbers are the same for both records.
- * @return -1 if r1<r2, 0 if r1=r2, 1 if r1> r2 (reversed when using 'descending').
- **/
-int compare_ndbrecord(const NdbReceiver *r1,
-                      const NdbReceiver *r2,
-                      const NdbRecord *key_record,
-                      const NdbRecord *result_record,
-                      bool descending,
-                      bool read_range_no);
 #endif

@@ -47,8 +47,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -83,8 +85,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 4,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -119,8 +123,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 4,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -155,8 +161,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 4,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -191,8 +199,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 4,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -227,8 +237,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -263,6 +275,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -299,6 +313,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -312,6 +328,8 @@
         "last_checked_for_upgrade_version_id": X,
         "comment": "",
         "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
         "row_format": 2,
         "partition_type": 0,
         "partition_expression": "",
@@ -335,6 +353,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -408,6 +428,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -439,6 +461,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -470,6 +494,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -501,6 +527,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -576,8 +604,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 255,
                 "is_explicit_collation": false
@@ -612,6 +642,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -648,6 +680,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -661,6 +695,8 @@
         "last_checked_for_upgrade_version_id": X,
         "comment": "",
         "se_private_data": "autoinc=0;version=0;",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
         "row_format": 2,
         "partition_type": 0,
         "partition_expression": "",
@@ -684,6 +720,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,

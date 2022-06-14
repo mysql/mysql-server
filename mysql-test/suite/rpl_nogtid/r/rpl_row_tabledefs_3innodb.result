@@ -4,7 +4,11 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 CREATE TABLE t1_int (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';
 CREATE TABLE t1_bit (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';
 CREATE TABLE t1_char (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';
@@ -34,7 +38,7 @@ ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
 ADD e3 INT NOT NULL DEFAULT 0, ADD e4 INT NOT NULL DEFAULT 0,
 ADD e5 INT NOT NULL DEFAULT 0, ADD e6 INT NOT NULL DEFAULT 0,
 ADD e7 INT NOT NULL DEFAULT 0, ADD e8 INT NOT NULL DEFAULT 0;
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 INSERT INTO t1_int  VALUES (2, 4, 4711);
 INSERT INTO t1_char VALUES (2, 4, 'Foo is a bar');
 INSERT INTO t1_bit  VALUES (2, 4, b'101', b'11100', b'01');
@@ -58,7 +62,7 @@ a	b
 1	2
 2	5
 **** On Slave ****
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 SELECT a,b,x FROM t1_int ORDER BY a;
 a	b	x
 1	2	42

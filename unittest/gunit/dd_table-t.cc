@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,11 +39,11 @@ class ColumnsTest : public ::testing::Test {
   Column_collection m_columns;
   dd::Table_impl *m_table;
 
-  void SetUp() {
+  void SetUp() override {
     m_table = dynamic_cast<dd::Table_impl *>(dd::create_object<dd::Table>());
   }
 
-  void TearDown() { delete m_table; }
+  void TearDown() override { delete m_table; }
 
   dd::Column *add_column() { return m_table->add_column(); }
 
@@ -53,7 +53,7 @@ class ColumnsTest : public ::testing::Test {
 
   const Column_collection &columns() { return *m_table->columns(); }
 
-  ColumnsTest() {}
+  ColumnsTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(ColumnsTest);

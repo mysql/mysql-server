@@ -1,0 +1,335 @@
+--source include/have_debug.inc
+
+SET GLOBAL DEBUG="+d, parallel_read_buffering_print";
+
+--echo #
+--echo # Sampling on an empty table
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='sampled_pages_read';
+
+CREATE TABLE t1 (a INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+DROP TABLE t1;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Case where only root node is present
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50), (60), (70), (80), (90), (100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+DROP TABLE t1;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = "module_sampling";
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+SET DEBUG='-d,histogram_force_sampling';
+
+
+--echo #
+--echo # Case where only two levels is present with sampling_percentage = 50
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+DROP TABLE t1;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+set global innodb_limit_optimistic_insert_debug = 0;
+SET DEBUG='-d,histogram_force_sampling';
+
+
+--echo #
+--echo # Case where only two levels is present with sampling_percentage = 100
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+DROP TABLE t1;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+set global innodb_limit_optimistic_insert_debug = 0;
+
+
+--echo #
+--echo # Normal case with small dataset
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+
+CREATE TABLE t1 (a INT);
+
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+set global innodb_limit_optimistic_insert_debug = 0;
+DROP TABLE t1;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Check that histogram with sampling works as expected with large dataset
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (col1 DOUBLE);
+INSERT INTO t1 SELECT RAND(1);
+INSERT INTO t1 SELECT RAND(2) FROM t1;
+INSERT INTO t1 SELECT RAND(3) FROM t1;
+INSERT INTO t1 SELECT RAND(4) FROM t1;
+INSERT INTO t1 SELECT RAND(5) FROM t1;
+INSERT INTO t1 SELECT RAND(6) FROM t1;
+INSERT INTO t1 SELECT RAND(7) FROM t1;
+INSERT INTO t1 SELECT RAND(8) FROM t1;
+INSERT INTO t1 SELECT RAND(9) FROM t1;
+INSERT INTO t1 SELECT RAND(10) FROM t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 5 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col1';
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Check that histogram with sampling works as expected with large dataset and different sampling percentage
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 50 BUCKETS;
+
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col1';
+DROP TABLE t1;
+
+set global innodb_limit_optimistic_insert_debug = 0;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+SET DEBUG='-d,histogram_force_sampling';
+
+
+--echo #
+--echo # Normal case with small dataset with different sampling_percentage
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+SET DEBUG='+d,histogram_force_sampling';
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50), (60), (70), (80), (90), (100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Case to check if same rows are returned  for the same seed
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+
+DROP TABLE t1;
+
+set global innodb_limit_optimistic_insert_debug = 0;
+SET DEBUG='-d,histogram_force_sampling';
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Case were there is an error while buffering
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+SET DEBUG='+d,histogram_force_sampling';
+SET GLOBAL DEBUG='+d,parallel_reader_histogram_induce_error';
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50), (60), (70), (80), (90), (100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+DROP TABLE t1;
+set global innodb_limit_optimistic_insert_debug = 0;
+SET GLOBAL DEBUG='-d,parallel_reader_histogram_induce_error';
+SET DEBUG='-d,histogram_force_sampling';
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Case were partitions are involved
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+CREATE TABLE p (col1 INT PRIMARY KEY, col2 INT, col3 INT)
+               PARTITION BY KEY (col1) PARTITIONS 4;
+INSERT INTO p VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2 WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col2';
+DROP TABLE p;
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # Case were there is an error while buffering when partitions are involved
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_sampling;
+
+SET DEBUG='+d,histogram_force_sampling';
+SET GLOBAL DEBUG='+d,parallel_reader_histogram_induce_error';
+
+# Restrict the number of records in a page to 2
+set global innodb_limit_optimistic_insert_debug = 2;
+
+CREATE TABLE p (col1 INT PRIMARY KEY, col2 INT, col3 INT)
+               PARTITION BY KEY (col1) PARTITIONS 4;
+INSERT INTO p VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2 WITH 50 BUCKETS;
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col2';
+
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+
+DROP TABLE p;
+set global innodb_limit_optimistic_insert_debug = 0;
+SET GLOBAL DEBUG='-d,parallel_reader_histogram_induce_error';
+SET DEBUG='-d,histogram_force_sampling';
+
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+
+
+--echo #
+--echo # RAPID use case : Break from sampling after sampling half the records
+--echo #
+
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+SET DEBUG = "+d,sample_read_sample_half";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
+
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'id';
+
+SET DEBUG = "-d, sample_read_sample_half";
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Error case where the table is discared
+--echo #
+
+CREATE TABLE t1 (id int);
+
+# Discard tablespace to force histogram failure.
+ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Simulated error case where parallel read thread returns error
+--echo #
+
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+SET GLOBAL DEBUG = "+d,simulate_sample_read_error";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
+
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'id';
+
+SET GLOBAL DEBUG = "-d,simulate_sample_read_error";
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Cleanup
+--echo #
+
+SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_disable = default;
+SET GLOBAL innodb_monitor_reset_all = default;
+
+SET GLOBAL DEBUG="-d, parallel_read_buffering_print";

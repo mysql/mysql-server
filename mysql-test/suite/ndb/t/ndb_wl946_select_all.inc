@@ -9,7 +9,7 @@
 --let $dump_file1 = $MYSQLTEST_VARDIR/tmp/wl946_select_all1.txt
 --let $dump_file2 = $MYSQLTEST_VARDIR/tmp/wl946_select_all2.txt
 
---exec $NDB_SELECT_ALL --no-defaults -d test --delimiter=, t1 > $dump_file1
+--exec $NDB_SELECT_ALL -d test --delimiter=, t1 > $dump_file1
 
 create temporary table t1tmp1 (
   x char(255)

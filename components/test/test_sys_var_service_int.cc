@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/plugin.h>
 
-#include "../../components/mysql_server/component_sys_var_service.h"
 #include "my_macros.h"
 #include "typelib.h"
 
@@ -37,9 +36,11 @@ char log_text[MAX_BUFFER_LENGTH];
 FILE *outfile;
 const char *filename = "test_component_sys_var_service_int.log";
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                                 \
+  log_text_len = sprintf(log_text, format, lit_log_text);               \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
@@ -66,7 +67,7 @@ static mysql_service_status_t test_component_sys_var_service_int_init() {
   int_arg.blk_sz = 0;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component_int", "int_sys_var", PLUGIN_VAR_INT,
-          "Registering int sys_variable", NULL, NULL, (void *)&int_arg,
+          "Registering int sys_variable", nullptr, nullptr, (void *)&int_arg,
           (void *)&int_variable_value)) {
     WRITE_LOG("%s\n", "int register_variable failed.");
   }
@@ -77,7 +78,7 @@ static mysql_service_status_t test_component_sys_var_service_int_init() {
   int_arg_2.blk_sz = 0;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component_int", "int_sys_var_2", PLUGIN_VAR_INT,
-          "Registering int sys_variable", NULL, NULL, (void *)&int_arg_2,
+          "Registering int sys_variable", nullptr, nullptr, (void *)&int_arg_2,
           (void *)&int_var_2_value)) {
     WRITE_LOG("%s\n", "uint register_variable failed.");
   }
@@ -90,7 +91,7 @@ static mysql_service_status_t test_component_sys_var_service_int_init() {
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component_int", "uint_sys_var",
           PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED, "Registering uint sys_variable",
-          NULL, NULL, (void *)&uint_arg, (void *)&uint_variable_value)) {
+          nullptr, nullptr, (void *)&uint_arg, (void *)&uint_variable_value)) {
     WRITE_LOG("%s\n", "uint register_variable failed.");
   }
 

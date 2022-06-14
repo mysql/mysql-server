@@ -1,0 +1,11 @@
+!include ../my.cnf
+
+[mysqld.1]
+gtid-mode=on
+enforce-gtid-consistency
+log-replica-updates
+
+[mysqld.2]
+gtid-mode=on
+enforce-gtid-consistency
+log-replica-updates

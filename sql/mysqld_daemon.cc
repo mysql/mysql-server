@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,16 +52,6 @@ bool is_daemon_proc = false;
  */
 bool mysqld::runtime::is_daemon() { return is_daemon_proc; }
 
-/**
-  Daemonize mysqld.
-
-  This function does sysv style of daemonization of mysqld.
-
-  @return
-    @retval In daemon; file descriptor for the write end of the status pipe.
-    @retval In parent; -1 if successful.
-    @retval In parent; -2 in case of errors.
-*/
 int mysqld::runtime::mysqld_daemonize() {
   int pipe_fd[2];
   if (pipe(pipe_fd) < 0) return -2;

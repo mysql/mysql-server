@@ -1,5 +1,5 @@
 flush status;
-flush hosts;
+TRUNCATE TABLE performance_schema.host_cache;
 flush user_resources;
 flush privileges;
 select @@global.debug;
@@ -180,7 +180,7 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-flush hosts;
+TRUNCATE TABLE performance_schema.host_cache;
 ERROR 08S01: Bad handshake
 "Dumping performance_schema.host_cache"
 IP	192.0.2.4

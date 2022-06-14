@@ -1,0 +1,71 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+--echo ********************************************************
+--echo ndb_restore threads exit cleanly on tuple restore error
+--echo ********************************************************
+
+create table t1(id int primary key, val int) engine=ndb;
+--disable_query_log
+let $i = 0;
+while($i < 1000)
+{
+  eval insert into t1 values ($i, $i);
+  inc $i;
+}
+--enable_query_log
+
+--echo Cause backup stall
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+update t1 set val=12345 where id between 125 and 850;
+
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+--disable_query_log
+--echo Test restore failure handling for log-replay failure
+--let dump_file = $MYSQLTEST_VARDIR/tmp/restore.out
+--error 1
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 -r --error-insert=3 $NDB_BACKUPS-$the_backup_id >> $dump_file 2>&1
+
+# Load the file into a temporary table
+CREATE TEMPORARY TABLE ndb_restore_output (a varchar(512));
+
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output
+  FIELDS TERMINATED BY '\n';
+--remove_file $dump_file
+
+# Remove Windows line feeds
+UPDATE ndb_restore_output SET a = TRIM(TRAILING "\r" FROM a);
+--enable_query_log
+
+select count(*) > 0 from ndb_restore_output where a like "Thread % failed, exiting" order by a;
+
+truncate table t1;
+
+--disable_query_log
+--echo Test restore failure handling for tuple-restore failure
+--error 1
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 -r --error-insert=4 $NDB_BACKUPS-$the_backup_id >> $dump_file 2>&1
+
+# Load the file into a temporary table
+truncate table ndb_restore_output;
+
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output
+  FIELDS TERMINATED BY '\n';
+--remove_file $dump_file
+
+# Remove Windows line feeds
+UPDATE ndb_restore_output SET a = TRIM(TRAILING "\r" FROM a);
+
+--enable_query_log
+select count(*) > 0 from ndb_restore_output where a like "Thread % failed, exiting" order by a;
+
+drop table t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

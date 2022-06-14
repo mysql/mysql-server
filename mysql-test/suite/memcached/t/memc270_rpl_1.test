@@ -244,5 +244,6 @@ DROP DATABASE innodb_memcache;
 
 SET @@global.transaction_isolation= @transaction_isolation;
 sync_slave_with_master;
+--disable_connect_log
 source include/rpl_end.inc;
 

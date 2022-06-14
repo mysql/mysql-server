@@ -1,0 +1,15 @@
+#
+# WL#3549
+#
+# Sanity test case: Replicate a large transaction with and without compression
+#
+
+--let $$use_gtids=1
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+# plain async replication
+--source extra/rpl_tests/binlog_transaction_compression.inc
+
+# end the test case
+--source include/rpl_end.inc

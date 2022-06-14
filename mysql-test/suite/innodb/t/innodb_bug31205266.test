@@ -1,0 +1,58 @@
+# Test for Bug#31205266 : CONCURRENT UPDATE CAUSE CRASH IN ROW_SEARCH_MVCC
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--disable_query_log
+SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+--enable_query_log
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--connect(con1,localhost,root,'',)
+
+set debug_sync='reset';
+
+connection default;
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  ggid varchar(32) binary DEFAULT '' NOT NULL,
+  email varchar(64) DEFAULT '' NOT NULL,
+  passwd varchar(32) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE ggid (ggid)
+) ENGINE=innodb;
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
+
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+
+set debug_sync='row_search_before_mtr_restart_for_extra_clust SIGNAL reached WAIT_FOR continue';
+--send
+select * from t1 where ggid='test2';
+
+connection con1;
+set debug_sync='now WAIT_FOR reached';
+
+#moves the record to the another place and causes split at the page
+update t1 set ggid='test0' where id=2;
+insert into t1 (ggid,passwd) values ('test2','www');
+
+set debug_sync='now SIGNAL continue';
+
+connection default;
+reap;
+
+disconnect con1;
+
+set debug_sync='reset';
+drop table t1;
+
+--disable_query_log
+SET GLOBAL innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+--enable_query_log
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc

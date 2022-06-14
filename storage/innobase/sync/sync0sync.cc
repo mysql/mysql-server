@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -61,7 +61,7 @@ mysql_pfs_key_t buf_pool_free_list_mutex_key;
 mysql_pfs_key_t buf_pool_zip_free_mutex_key;
 mysql_pfs_key_t buf_pool_zip_hash_mutex_key;
 mysql_pfs_key_t buf_pool_zip_mutex_key;
-mysql_pfs_key_t cache_last_read_mutex_key;
+mysql_pfs_key_t ddl_autoinc_mutex_key;
 mysql_pfs_key_t dict_foreign_err_mutex_key;
 mysql_pfs_key_t dict_persist_dirty_tables_mutex_key;
 mysql_pfs_key_t dict_sys_mutex_key;
@@ -85,8 +85,10 @@ mysql_pfs_key_t log_writer_mutex_key;
 mysql_pfs_key_t log_flusher_mutex_key;
 mysql_pfs_key_t log_write_notifier_mutex_key;
 mysql_pfs_key_t log_flush_notifier_mutex_key;
+mysql_pfs_key_t log_limits_mutex_key;
 mysql_pfs_key_t log_cmdq_mutex_key;
 mysql_pfs_key_t log_sn_lock_key;
+mysql_pfs_key_t log_sn_mutex_key;
 mysql_pfs_key_t log_sys_arch_mutex_key;
 mysql_pfs_key_t page_sys_arch_mutex_key;
 mysql_pfs_key_t page_sys_arch_oper_mutex_key;
@@ -110,22 +112,23 @@ mysql_pfs_key_t rtr_path_mutex_key;
 mysql_pfs_key_t rtr_ssn_mutex_key;
 mysql_pfs_key_t rw_lock_list_mutex_key;
 mysql_pfs_key_t rw_lock_mutex_key;
-mysql_pfs_key_t srv_dict_tmpfile_mutex_key;
 mysql_pfs_key_t srv_innodb_monitor_mutex_key;
 mysql_pfs_key_t srv_misc_tmpfile_mutex_key;
 mysql_pfs_key_t srv_monitor_file_mutex_key;
 #ifdef UNIV_DEBUG
 mysql_pfs_key_t sync_thread_mutex_key;
 #endif /* UNIV_DEBUG */
-mysql_pfs_key_t buf_dblwr_mutex_key;
 mysql_pfs_key_t trx_undo_mutex_key;
 mysql_pfs_key_t trx_mutex_key;
 mysql_pfs_key_t trx_pool_mutex_key;
 mysql_pfs_key_t trx_pool_manager_mutex_key;
 mysql_pfs_key_t temp_pool_manager_mutex_key;
-mysql_pfs_key_t lock_mutex_key;
+mysql_pfs_key_t lock_sys_table_mutex_key;
+mysql_pfs_key_t lock_sys_page_mutex_key;
 mysql_pfs_key_t lock_wait_mutex_key;
 mysql_pfs_key_t trx_sys_mutex_key;
+mysql_pfs_key_t trx_sys_shard_mutex_key;
+mysql_pfs_key_t trx_sys_serialisation_mutex_key;
 mysql_pfs_key_t srv_sys_mutex_key;
 mysql_pfs_key_t srv_threads_mutex_key;
 #ifndef PFS_SKIP_EVENT_MUTEX
@@ -141,6 +144,7 @@ mysql_pfs_key_t clone_sys_mutex_key;
 mysql_pfs_key_t clone_task_mutex_key;
 mysql_pfs_key_t clone_snapshot_mutex_key;
 mysql_pfs_key_t parallel_read_mutex_key;
+mysql_pfs_key_t dblwr_mutex_key;
 
 #endif /* UNIV_PFS_MUTEX */
 
@@ -154,6 +158,7 @@ mysql_pfs_key_t buf_block_debug_latch_key;
 #endif /* UNIV_DEBUG */
 mysql_pfs_key_t undo_spaces_lock_key;
 mysql_pfs_key_t rsegs_lock_key;
+mysql_pfs_key_t lock_sys_global_rw_lock_key;
 mysql_pfs_key_t dict_operation_lock_key;
 mysql_pfs_key_t dict_table_stats_key;
 mysql_pfs_key_t hash_table_locks_key;
@@ -177,45 +182,22 @@ MutexMonitor *mutex_monitor;
 
 /**
 Prints wait info of the sync system.
+Note: The instrumental counters are deprecated
+      and prints all 0 for compatibility.
 @param file - where to print */
 static void sync_print_wait_info(FILE *file) {
   fprintf(file,
-          "RW-shared spins " UINT64PF ", rounds " UINT64PF
-          ","
-          " OS waits " UINT64PF
-          "\n"
-          "RW-excl spins " UINT64PF ", rounds " UINT64PF
-          ","
-          " OS waits " UINT64PF
-          "\n"
-          "RW-sx spins " UINT64PF ", rounds " UINT64PF
-          ","
-          " OS waits " UINT64PF "\n",
-          (uint64_t)rw_lock_stats.rw_s_spin_wait_count,
-          (uint64_t)rw_lock_stats.rw_s_spin_round_count,
-          (uint64_t)rw_lock_stats.rw_s_os_wait_count,
-          (uint64_t)rw_lock_stats.rw_x_spin_wait_count,
-          (uint64_t)rw_lock_stats.rw_x_spin_round_count,
-          (uint64_t)rw_lock_stats.rw_x_os_wait_count,
-          (uint64_t)rw_lock_stats.rw_sx_spin_wait_count,
-          (uint64_t)rw_lock_stats.rw_sx_spin_round_count,
-          (uint64_t)rw_lock_stats.rw_sx_os_wait_count);
+          "RW-shared spins 0, rounds 0, OS waits 0\n"
+          "RW-excl spins 0, rounds 0, OS waits 0\n"
+          "RW-sx spins 0, rounds 0, OS waits 0\n");
 
-  fprintf(
-      file,
-      "Spin rounds per wait: %.2f RW-shared,"
-      " %.2f RW-excl, %.2f RW-sx\n",
-      (double)rw_lock_stats.rw_s_spin_round_count /
-          std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_s_spin_wait_count),
-      (double)rw_lock_stats.rw_x_spin_round_count /
-          std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_x_spin_wait_count),
-      (double)rw_lock_stats.rw_sx_spin_round_count /
-          std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_sx_spin_wait_count));
+  fprintf(file,
+          "Spin rounds per wait: 0.00 RW-shared,"
+          " 0.00 RW-excl, 0.00 RW-sx\n");
 }
 
-/**
-Prints info of the sync system.
-@param file - where to print */
+/** Prints info of the sync system.
+@param[in]      file    where to print */
 void sync_print(FILE *file) {
 #ifdef UNIV_DEBUG
   rw_lock_list_print_info(file);
@@ -227,7 +209,7 @@ void sync_print(FILE *file) {
 }
 
 /** Print the filename "basename" e.g., p = "/a/b/c/d/e.cc" -> p = "e.cc"
-@param[in]	filename	Name from where to extract the basename
+@param[in]      filename        Name from where to extract the basename
 @return the basename */
 const char *sync_basename(const char *filename) {
   const char *ptr = filename + strlen(filename) - 1;
@@ -243,8 +225,8 @@ const char *sync_basename(const char *filename) {
 
 /** String representation of the filename and line number where the
 latch was created
-@param[in]	id		Latch ID
-@param[in]	created		Filename and line number where it was crated
+@param[in]      id              Latch ID
+@param[in]      created         Filename and line number where it was crated
 @return the string representation */
 std::string sync_mutex_to_string(latch_id_t id, const std::string &created) {
   std::ostringstream msg;
@@ -298,8 +280,7 @@ void MutexMonitor::reset() {
 
   mutex_enter(&rw_lock_list_mutex);
 
-  for (rw_lock_t *rw_lock = UT_LIST_GET_FIRST(rw_lock_list); rw_lock != NULL;
-       rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
+  for (auto rw_lock : rw_lock_list) {
     rw_lock->count_os_wait = 0;
   }
 

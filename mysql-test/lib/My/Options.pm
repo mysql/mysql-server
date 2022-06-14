@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,12 @@ sub split_option {
     # $VAR
     return ($1, undef);
   } elsif ($option =~ /^(.*?)=(.*)$/) {
+    return ($1, $2);
+  } elsif ($option =~ /^-(.)$/) {
+    # Short options, rarely used, mainly for edge case tests.
+    return ($1, undef);
+  } elsif ($option =~ /^-(.)(.*)$/) {
+    # Short options with value, rarely used, mainly for edge case tests.
     return ($1, $2);
   }
 
@@ -196,6 +202,23 @@ sub option_equals {
   $string1 =~ s/_/-/g;
   $string2 =~ s/_/-/g;
   return ($string1 eq $string2);
+}
+
+sub find_option_value {
+  my ($opts_list, $opt_to_find) = @_;
+  my $result_found = 0;
+  my $result = undef;
+  foreach my $opt (@$opts_list) {
+    if (length $opt == 0) {
+      next;
+    }
+    my ($opt_name, $opt_value) = split_option($opt);
+    if (option_equals($opt_name, $opt_to_find)) {
+      $result_found = 1;
+      $result = $opt_value;
+    }
+  }
+  return ($result_found, $result);
 }
 
 1;

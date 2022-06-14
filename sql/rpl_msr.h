@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,8 @@
 #include "sql/rpl_channel_service_interface.h"  // enum_channel_type
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
+#include "sql/rpl_io_monitor.h"
+#include "sql/rpl_mi.h"
 
 class Master_info;
 
@@ -63,8 +65,8 @@ typedef std::map<std::string, Rpl_filter *> filter_map;
   to a slave.
 
   The important objects for a slave are the following:
-  i) Master_info and Relay_log_info (slave_parallel_workers == 0)
-  ii) Master_info, Relay_log_info and Slave_worker(slave_parallel_workers >0 )
+  i) Master_info and Relay_log_info (replica_parallel_workers == 0)
+  ii) Master_info, Relay_log_info and Slave_worker(replica_parallel_workers >0 )
 
   Master_info is always assosiated with a Relay_log_info per channel.
   So, it is enough to store Master_infos and call the corresponding
@@ -154,10 +156,10 @@ class Multisource_info {
       This class should be a singleton.
       The assert below is to prevent it to be instantiated more than once.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     static int instance_count = 0;
     instance_count++;
-    DBUG_ASSERT(instance_count == 1);
+    assert(instance_count == 1);
 #endif
     current_mi_count = 0;
     default_channel_mi = nullptr;
@@ -181,9 +183,8 @@ class Multisource_info {
     @param[in]  channel_name      channel name
     @param[in]  mi                pointer to master info corresponding
                                   to this channel
-    @return
-      @retval      false       succesfully added
-      @retval      true        couldn't add channel
+    @retval      false       succesfully added
+    @retval      true        couldn't add channel
   */
   bool add_mi(const char *channel_name, Master_info *mi);
 
@@ -194,8 +195,7 @@ class Multisource_info {
 
     @param[in]  channel_name  channel name for the master info object.
 
-    @return
-      @retval                 pointer to the master info object if exists
+    @returns                  pointer to the master info object if exists
                               in the map. Otherwise, NULL;
   */
   Master_info *get_mi(const char *channel_name);
@@ -215,10 +215,17 @@ class Multisource_info {
     replication_channel_map and sets index in the  multisource_mi to 0;
     And also delete the {mi, rli} pair corresponding to this channel
 
+    @note this requires the caller to hold the mi->channel_wrlock.
+    If the method succeeds the master info object is deleted and the lock
+    is released. If the an error occurs and the method return true, the {mi}
+    object wont be deleted and the caller should release the channel_wrlock.
+
     @param[in]    channel_name     Name of the channel for a Master_info
                                    object which must exist.
+
+    @return true if an error occurred, false otherwise
   */
-  void delete_mi(const char *channel_name);
+  bool delete_mi(const char *channel_name);
 
   /**
     Get the default channel for this multisourced_slave;
@@ -234,7 +241,7 @@ class Multisource_info {
     @return The number of channels or 0 if empty.
   */
   inline size_t get_num_instances(bool all = false) {
-    DBUG_ENTER("Multisource_info::get_num_instances");
+    DBUG_TRACE;
 
     m_channel_map_lock->assert_some_lock();
 
@@ -247,16 +254,53 @@ class Multisource_info {
            map_it++) {
         count += map_it->second.size();
       }
-      DBUG_RETURN(count);
+      return count;
     } else  // Return only the slave channels
     {
       map_it = rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
 
       if (map_it == rep_channel_map.end())
-        DBUG_RETURN(0);
+        return 0;
       else
-        DBUG_RETURN(map_it->second.size());
+        return map_it->second.size();
     }
+  }
+
+  /**
+    Get the number of running channels which have asynchronous replication
+    failover feature, i.e. CHANGE MASTER TO option
+    SOURCE_CONNECTION_AUTO_FAILOVER, enabled.
+
+    @return The number of channels.
+  */
+  size_t get_number_of_connection_auto_failover_channels_running() {
+    DBUG_TRACE;
+    m_channel_map_lock->assert_some_lock();
+    size_t count = 0;
+
+    replication_channel_map::iterator map_it =
+        rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+
+    for (mi_map::iterator it = map_it->second.begin();
+         it != map_it->second.end(); it++) {
+      Master_info *mi = it->second;
+      if (Master_info::is_configured(mi) &&
+          mi->is_source_connection_auto_failover()) {
+        mysql_mutex_lock(&mi->err_lock);
+        if (mi->slave_running || mi->is_error()) {
+          count++;
+        }
+        mysql_mutex_unlock(&mi->err_lock);
+      }
+    }
+
+#ifndef NDEBUG
+    if (Source_IO_monitor::get_instance()->is_monitoring_process_running()) {
+      assert(count > 0);
+    }
+#endif
+
+    return count;
   }
 
   /**
@@ -281,9 +325,8 @@ class Multisource_info {
     @param channel    the channel name to test
     @param is_applier compare only with applier name
 
-    @return
-      @retval      true   the name is a reserved name
-      @retval      false  non reserved name
+    @retval      true   the name is a reserved name
+    @retval      false  non reserved name
   */
   bool is_group_replication_channel_name(const char *channel,
                                          bool is_applier = false);
@@ -324,7 +367,7 @@ class Multisource_info {
 
   /* Initialize the rpl_pfs_mi array to NULLs */
   inline void init_rpl_pfs_mi() {
-    for (uint i = 0; i < MAX_CHANNELS; i++) rpl_pfs_mi[i] = 0;
+    for (uint i = 0; i < MAX_CHANNELS; i++) rpl_pfs_mi[i] = nullptr;
   }
 
   /**
@@ -364,9 +407,25 @@ class Multisource_info {
   inline void rdlock() { m_channel_map_lock->rdlock(); }
 
   /**
+    Try to acquire a read lock, return 0 if the read lock is held,
+    otherwise an error will be returned.
+
+    @return 0 in case of success, or 1 otherwise.
+  */
+  inline int tryrdlock() { return m_channel_map_lock->tryrdlock(); }
+
+  /**
     Acquire the write lock.
   */
   inline void wrlock() { m_channel_map_lock->wrlock(); }
+
+  /**
+    Try to acquire a write lock, return 0 if the write lock is held,
+    otherwise an error will be returned.
+
+    @return 0 in case of success, or 1 otherwise.
+  */
+  inline int trywrlock() { return m_channel_map_lock->trywrlock(); }
 
   /**
     Release the lock (whether it is a write or read lock).

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/document_id_aggregator_interface.h"
+#include "plugin/x/src/interface/document_id_aggregator.h"
 #include "plugin/x/src/statement_builder.h"
 
 namespace xpl {
@@ -37,12 +37,11 @@ namespace xpl {
 class Insert_statement_builder : public Crud_statement_builder {
  public:
   using Insert = ::Mysqlx::Crud::Insert;
-  using Document_id_list =
-      ngs::Document_id_aggregator_interface::Document_id_list;
+  using Document_id_list = iface::Document_id_aggregator::Document_id_list;
 
   explicit Insert_statement_builder(
       const Expression_generator &gen,
-      ngs::Document_id_aggregator_interface *id_aggregator = nullptr)
+      iface::Document_id_aggregator *id_aggregator = nullptr)
       : Crud_statement_builder(gen), m_document_id_aggregator(id_aggregator) {}
   void build(const Insert &msg) const;
 
@@ -64,7 +63,7 @@ class Insert_statement_builder : public Crud_statement_builder {
   void add_document_object(const Mysqlx::Expr::Object &arg) const;
 
  private:
-  ngs::Document_id_aggregator_interface *m_document_id_aggregator;
+  iface::Document_id_aggregator *m_document_id_aggregator;
 };
 
 }  // namespace xpl

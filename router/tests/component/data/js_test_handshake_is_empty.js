@@ -4,6 +4,6 @@
   // valid
   handshake: {},
   stmts: function() {
-    return { ok: {} };
+    return {ok: {}};
   }
 })

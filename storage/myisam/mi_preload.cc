@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -54,19 +56,19 @@
 int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves) {
   uint i;
   ulong length, block_length = 0;
-  uchar *buff = NULL;
+  uchar *buff = nullptr;
   MYISAM_SHARE *share = info->s;
   uint keys = share->state.header.keys;
   MI_KEYDEF *keyinfo = share->keyinfo;
   my_off_t key_file_length = share->state.state.key_file_length;
   my_off_t pos = share->base.keystart;
-  DBUG_ENTER("mi_preload");
+  DBUG_TRACE;
 
   if (!keys || !mi_is_any_key_active(key_map) || key_file_length == pos)
-    DBUG_RETURN(0);
+    return 0;
 
   /* Preload into a non initialized key cache should never happen. */
-  DBUG_ASSERT(share->key_cache->key_cache_inited);
+  assert(share->key_cache->key_cache_inited);
 
   block_length = keyinfo[0].block_length;
 
@@ -75,19 +77,19 @@ int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves) {
     for (i = 1; i < keys; i++) {
       if (keyinfo[i].block_length != block_length) {
         set_my_errno(HA_ERR_NON_UNIQUE_BLOCK_SIZE);
-        DBUG_RETURN(HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+        return HA_ERR_NON_UNIQUE_BLOCK_SIZE;
       }
     }
   } else
     block_length = share->key_cache->key_cache_block_size;
 
   length = info->preload_buff_size / block_length * block_length;
-  set_if_bigger(length, block_length);
+  length = std::max(length, block_length);
 
   if (!(buff = (uchar *)my_malloc(mi_key_memory_preload_buffer, length,
                                   MYF(MY_WME)))) {
     set_my_errno(HA_ERR_OUT_OF_MEM);
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    return HA_ERR_OUT_OF_MEM;
   }
 
   if (flush_key_blocks(share->key_cache, keycache_thread_var(), share->kfile,
@@ -124,10 +126,10 @@ int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves) {
   } while (pos != key_file_length);
 
   my_free(buff);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   my_free(buff);
   set_my_errno(errno);
-  DBUG_RETURN(errno);
+  return errno;
 }

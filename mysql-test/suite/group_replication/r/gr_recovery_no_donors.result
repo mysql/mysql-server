@@ -9,15 +9,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("This member has more executed transactions *.*");
 call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 SET SESSION sql_log_bin= 1;
@@ -48,20 +50,24 @@ END//
 # 2. Add error suppressions.
 [connection server2]
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin= 1;
 [connection server3]
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
@@ -74,6 +80,8 @@ SET SESSION sql_log_bin= 1;
 #    them joined.
 [connection server1]
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 # 4. Stop and start members 2 and 3 without waiting for

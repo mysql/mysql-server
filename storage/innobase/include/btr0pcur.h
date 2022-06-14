@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0types.h"
+#include "buf0block_hint.h"
 #include "data0data.h"
 #include "dict0dict.h"
 #include "mtr0mtr.h"
@@ -51,93 +52,13 @@ enum btr_pcur_pos_t {
   BTR_PCUR_ON = 1,
   BTR_PCUR_BEFORE = 2,
   BTR_PCUR_AFTER = 3,
-  /* Note that if the tree is not empty, btr_pcur_store_position does
+  /* Note that if the tree is not empty, btr_pcur::store_position does
   not use the following, but only uses the above three alternatives,
   where the position is stored relative to a specific record: this makes
   implementation of a scroll cursor easier */
   BTR_PCUR_BEFORE_FIRST_IN_TREE = 4, /* in an empty tree */
   BTR_PCUR_AFTER_LAST_IN_TREE = 5    /* in an empty tree */
 };
-
-#define btr_pcur_create_for_mysql() btr_pcur_t::create_for_mysql()
-#define btr_pcur_free_for_mysql(p) btr_pcur_t::free_for_mysql(p)
-
-#define btr_pcur_reset(p) (p)->reset();
-
-#define btr_pcur_copy_stored_position(d, s) \
-  btr_pcur_t::copy_stored_position(d, s)
-
-#define btr_pcur_free(p) (p)->free_rec_buf()
-
-#define btr_pcur_open(i, t, md, l, p, m) \
-  (p)->open((i), 0, (t), (md), (l), m, __FILE__, __LINE__)
-
-#define btr_pcur_init(p) (p)->init()
-#define btr_pcur_close(p) (p)->close()
-
-#define btr_pcur_open_at_rnd_pos(i, l, p, m) \
-  (p)->set_random_position((i), (l), (m), __FILE__, __LINE__)
-
-#define btr_pcur_open_low(i, lv, md, lm, p, f, ln, mr) \
-  (p)->open((i), (lv), (t), (md), (lm), (mr), (f), (l))
-
-#define btr_pcur_open_at_index_side(e, i, lm, p, ip, lv, m) \
-  (p)->open_at_side((e), (i), (lm), (ip), (lv), (m))
-
-#define btr_pcur_open_on_user_rec(i, t, md, l, p, m) \
-  (p)->open_on_user_rec((i), (t), (md), (l), (m), __FILE__, __LINE__)
-
-#define btr_pcur_open_with_no_init(i, t, md, l, p, has, m) \
-  (p)->open_no_init((i), (t), (md), (l), (has), (m), __FILE__, __LINE__)
-
-#define btr_pcur_restore_position(l, p, mtr) \
-  (p)->restore_position(l, mtr, __FILE__, __LINE__)
-
-#define btr_pcur_store_position(p, m) (p)->store_position(m)
-
-#define btr_pcur_get_rel_pos(p) (p)->get_rel_pos()
-
-#define btr_pcur_commit_specify_mtr(p, m) (p)->commit_specify_mtr(m)
-
-#define btr_pcur_move_to_next(p, m) (p)->move_to_next(m)
-#define btr_pcur_move_to_prev(p, m) (p)->move_to_prev(m)
-
-#define btr_pcur_move_to_last_on_page(p, m) (p)->move_to_last_on_page(m)
-
-#define btr_pcur_move_to_next_user_rec(p, m) \
-  ((p)->move_to_next_user_rec(m) == DB_SUCCESS)
-
-#define btr_pcur_move_to_next_page(p, m) (p)->move_to_next_page(m)
-
-#define btr_pcur_get_btr_cur(p) (p)->get_btr_cur()
-
-#define btr_pcur_get_page_cur(p) (p)->get_page_cur()
-
-#define btr_pcur_get_page(p) (p)->get_page()
-
-#define btr_pcur_get_block(p) (p)->get_block()
-
-#define btr_pcur_get_rec(p) (p)->get_rec()
-
-#define btr_pcur_is_on_user_rec(p) (p)->is_on_user_rec()
-
-#define btr_pcur_is_after_last_on_page(p) (p)->is_after_last_on_page()
-
-#define btr_pcur_is_before_first_on_page(p) (p)->is_before_first_on_page()
-
-#define btr_pcur_is_before_first_in_tree(p, m) (p)->is_before_first_in_tree(m)
-
-#define btr_pcur_is_after_last_in_tree(p, m) (p)->is_after_last_in_tree(m)
-
-#define btr_pcur_move_to_next_on_page(p) (p)->move_to_next_on_page()
-
-#define btr_pcur_move_to_prev_on_page(p) (p)->move_to_prev_on_page()
-
-#define btr_pcur_move_before_first_on_page(p) (p)->move_before_first_on_page()
-
-#define btr_pcur_get_low_match(p) (p)->get_low_match()
-
-#define btr_pcur_get_up_match(p) (p)->get_up_match()
 
 /** Position state of persistent B-tree cursor. */
 enum pcur_pos_t {
@@ -165,71 +86,76 @@ enum pcur_pos_t {
   BTR_PCUR_IS_POSITIONED
 };
 
+/* Import tablespace context for persistent B-tree cursor. */
+struct import_ctx_t {
+  /* true if cursor fails to move to the next page during import. */
+  bool is_error{false};
+};
+
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
 
 struct btr_pcur_t {
-  /** Sets the old_rec_buf field to nullptr. */
-  void init();
+  /** Sets the old_rec_buf field to nullptr.
+  @param[in]  read_level  read level where the cursor would be positioned or
+  re-positioned. */
+  void init(size_t read_level = 0);
 
   /** @return the index of this persistent cursor */
   dict_index_t *index() { return (m_btr_cur.index); }
 
   /** Positions a cursor at a randomly chosen position within a B-tree.
-  @param[in]	    index		    Index to position on.
-  @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...
-  @param[in,out]	mtr		      Mini transaction.
-  @param[in]	    file	  File name from where called.
-  @param[in]	    line		    Line number within filename
+  @param[in]        index                   Index to position on.
+  @param[in]        latch_mode  BTR_SEARCH_LEAF, ...
+  @param[in,out]        mtr                   Mini-transaction.
+  @param[in]        location      Location from where called.
   @return true if the index is available and we have put the cursor, false
           if the index is unavailable */
   bool set_random_position(dict_index_t *index, ulint latch_mode, mtr_t *mtr,
-                           const char *file, ulint line);
+                           ut::Location location);
 
   /** Opens a persistent cursor at either end of an index.
-  @param[in]	    from_left   true if open to the low end, false
+  @param[in]        from_left   True if open to the low end, false
                               if to the high end.
-  @param[in]	    index		    index
-  @param[in]	    latch_mode	latch mode
-  @param[in]	    init_pcur	  whether to initialize pcur.
-  @param[in]	    level		    level to search for (0=leaf).
-  @param[in,out]	mtr		      mini-transaction */
+  @param[in]        index                   Index
+  @param[in]        latch_mode  Latch mode
+  @param[in]        init_pcur     Whether to initialize pcur.
+  @param[in]        level                   Level to search for (0=leaf).
+  @param[in,out]        mtr                   Mini-transaction */
   void open_at_side(bool from_left, dict_index_t *index, ulint latch_mode,
                     bool init_pcur, ulint level, mtr_t *mtr);
 
   /** Opens a persistent cursor at first leaf page (low end). It will not call
   init().
-  @param[in]	    index		    index
-  @param[in]	    latch_mode	latch mode
-  @param[in,out]	mtr		      mini-transaction */
+  @param[in]        index                   Index
+  @param[in]        latch_mode  Latch mode
+  @param[in,out]        mtr                   Mini-transaction */
   void begin_leaf(dict_index_t *index, ulint latch_mode, mtr_t *mtr) {
     open_at_side(true, index, latch_mode, false, 0, mtr);
   }
 
   /** Opens an persistent cursor to an index tree without initializing
   the cursor.
-  @param[in]	    index	      Index.
-  @param[in]	    tuple	      Tuple on which search done.
-  @param[in]	    mode	      PAGE_CUR_L, ...;
+  @param[in]        index             Index.
+  @param[in]        tuple             Tuple on which search done.
+  @param[in]        mode              PAGE_CUR_L, ...;
                               NOTE that if the search is made using a unique
                               prefix of a record, mode should be
                               PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
                               may end up on the previous page of the
                               record!
-  @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...;
+  @param[in]        latch_mode  BTR_SEARCH_LEAF, ...;
                               NOTE that if has_search_latch != 0 then
                               we maybe do not acquire a latch on the cursor
                               page, but assume that the caller uses his
                               btr search latch to protect the record!
-  @param[in]	    has_search_latch	latch mode the caller
+  @param[in]        has_search_latch    latch mode the caller
                               currently has on search system: RW_S_LATCH, or 0
-  @param[in]	    mtr	        Mtr
-  @param[in]	    file	      File name.
-  @param[in]	    line	      Line where called */
+  @param[in]        mtr         Mini-transaction
+  @param[in]        location      Location where called */
   void open_no_init(dict_index_t *index, const dtuple_t *tuple,
                     page_cur_mode_t mode, ulint latch_mode,
-                    ulint has_search_latch, mtr_t *mtr, const char *file,
-                    ulint line);
+                    ulint has_search_latch, mtr_t *mtr, ut::Location location);
 
   /** If mode is PAGE_CUR_G or PAGE_CUR_GE, opens a persistent cursor
   on the first user record satisfying the search condition, in the case
@@ -237,43 +163,37 @@ struct btr_pcur_t {
   record exists, then in the first case sets the cursor after last in
   tree, and in the latter case before first in tree. The latching mode
   must be BTR_SEARCH_LEAF or BTR_MODIFY_LEAF.
-  @param[in]	    index		    Index
-  @param[in]	    tuple		  Tuple on which search done.
-  @param[in]	    mode		    PAGE_CUR_L, ...
-  @param[in]	    latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
-  @param[in]	    mtr		      Mini transaction.
-  @param[in]	    file		    File name from where called.
-  @param[in]	    line		    Line number in file from where
-                              called.*/
+  @param[in]        index                   Index
+  @param[in]        tuple                 Tuple on which search done.
+  @param[in]        mode                    PAGE_CUR_L, ...
+  @param[in]        latch_mode  BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
+  @param[in]        mtr               Mini-transaction.
+  @param[in]        location            Location in file from where called.*/
   void open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
                         page_cur_mode_t mode, ulint latch_mode, mtr_t *mtr,
-                        const char *file, ulint line);
+                        ut::Location location);
 
   /** Allows setting the persistent cursor manually.
   @param[in]      cursor      Page cursor where positioned.
-  @param[in]	    mode		    PAGE_CUR_L, ...
-  @param[in]	    latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
+  @param[in]        mode                    PAGE_CUR_L, ...
+  @param[in]        latch_mode  BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
   void open_on_user_rec(const page_cur_t &cursor, page_cur_mode_t mode,
                         ulint latch_mode);
 
   /** Initializes and opens a persistent cursor to an index tree
-  It should be closed with close().
-  @param[in]	    index		    Index.
-  @param[in]	    level		    Level in the btree.
-  @param[in]	    tuple		    Tuple on which search done.
-  @param[in]	    mode		    PAGE_CUR_L, ...;
-                              NOTE that if the search is made using
-                              a unique prefix of a record, mode
-                              should be PAGE_CUR_LE, not PAGE_CUR_GE,
-                              as the latter may end up on the
-                              previous page from the record!
-  @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...
-  @param[in]	    mtr		      Mini-transaction.
-  @param[in]	    file		    File name
-  @param[in]	    line		    Line in file, from where called. */
+   It should be closed with btr_pcur::close.
+   @param[in]     index                 Index.
+   @param[in]     level                 Level in the btree.
+   @param[in]     tuple                 Tuple on which search done.
+   @param[in]     mode                  PAGE_CUR_L, ...; NOTE that if the search
+   is made using a unique prefix of a record, mode should be PAGE_CUR_LE, not
+   PAGE_CUR_GE, as the latter may end up on the previous page from the record!
+   @param[in]     latch_mode        BTR_SEARCH_LEAF, ...
+   @param[in]     mtr                     Mini-transaction.
+   @param[in]     location                  Location where called. */
   void open(dict_index_t *index, ulint level, const dtuple_t *tuple,
             page_cur_mode_t mode, ulint latch_mode, mtr_t *mtr,
-            const char *file, ulint line);
+            ut::Location location);
 
   /** Restores the stored position of a persistent cursor bufferfixing
   the page and obtaining the specified latches. If the cursor position
@@ -288,15 +208,13 @@ struct btr_pcur_t {
   supremum.
   (4) cursor was positioned before the first or after the last in an
   empty tree: restores to before first or after the last in the tree.
-  @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...
-  @param[in,out]  mtr		      Mini transaction
-  @param[in]	    file		    File name.
-  @param[in]	    line		    Line where called.
+  @param[in]        latch_mode  BTR_SEARCH_LEAF, ...
+  @param[in,out]  mtr                 Mini-transaction
+  @param[in]        location            Location where called.
   @return true if the cursor position was stored when it was on a user
           record and it can be restored on a user record whose ordering
           fields are identical to the ones of the original user record */
-  bool restore_position(ulint latch_mode, mtr_t *mtr, const char *file,
-                        ulint line);
+  bool restore_position(ulint latch_mode, mtr_t *mtr, ut::Location location);
 
   /** Frees the possible memory heap of a persistent cursor and
   sets the latch mode of the persistent cursor to BTR_NO_LATCHES.
@@ -305,15 +223,15 @@ struct btr_pcur_t {
   "move to next/previous" family of functions. Since recursive shared
   locks are not allowed, you must take care (if using the cursor in
   S-mode) to manually release the latch by either calling
-  btr_leaf_page_release(btr_pcur_get_block(&pcur), pcur.latch_mode, mtr)
-  or by committing the mini-transaction right after btr_pcur_close().
+  btr_leaf_page_release(pcur.get_block(), pcur.latch_mode, mtr)
+  or by committing the mini-transaction right after btr_pcur::close().
   A subsequent attempt to crawl the same page in the same mtr would
   cause an assertion failure. */
   void close();
 
   /** Free old_rec_buf. */
   void free_rec_buf() {
-    ut_free(m_old_rec_buf);
+    ut::free(m_old_rec_buf);
     m_old_rec_buf = nullptr;
   }
 
@@ -388,13 +306,13 @@ struct btr_pcur_t {
 
   /** Checks if the persistent cursor is before the first user record
   in the index tree.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]        mtr                   Mini-transaction.
   @return true if is before first in tree. */
   bool is_before_first_in_tree(mtr_t *mtr) const;
 
   /** Checks if the persistent cursor is after the last user record in
   the index tree.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]        mtr                   Mini-transaction.
   @return is after last in tree. */
   bool is_after_last_in_tree(mtr_t *mtr) const;
 
@@ -405,26 +323,26 @@ struct btr_pcur_t {
   void move_to_prev_on_page();
 
   /** Moves the persistent cursor to the last record on the same page.
-  @param[in,out]	mtr		      Mini transaction. */
+  @param[in,out]        mtr                   Mini-transaction. */
   void move_to_last_on_page(mtr_t *mtr);
 
   /** Moves the persistent cursor to the next user record in the tree.
   If no user records are left, the cursor ends up 'after last in tree'.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]        mtr                   Mini-transaction.
   @return DB_SUCCESS or DB_END_OF_INDEX. */
   dberr_t move_to_next_user_rec(mtr_t *mtr);
 
   /** Moves the persistent cursor to the next record in the tree. If no
   records are left, the cursor stays 'after last in tree'.
   Note: Function may release the page latch.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]        mtr                   Mini-transaction.
   @return true if the cursor was not after last in tree */
   bool move_to_next(mtr_t *mtr);
 
   /** Moves the persistent cursor to the previous record in the tree.
   If no records are left, the cursor stays 'before first in tree'.
   Note: Function may release the page latch.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]        mtr                   Mini-transaction.
   @return true if the cursor was not before first in tree */
   bool move_to_prev(mtr_t *mtr);
 
@@ -432,14 +350,14 @@ struct btr_pcur_t {
   Releases the latch on the current page, and bufferunfixes it.
   Note that there must not be modifications on the current page, as
   then the x-latch can be released only in mtr_commit.
-  @param[in,out] mtr          Mini transaction. */
+  @param[in,out] mtr          Mini-transaction. */
   void move_to_next_page(mtr_t *mtr);
 
   /** Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
   that is, the cursor becomes detached.
-  Function btr_pcur_store_position should be used before calling this,
+  Function btr_pcur::store_position should be used before calling this,
   if restoration of cursor is wanted later.
-  @param[in,out]	mtr		      Mini transaction. */
+  @param[in,out]        mtr                   Mini-transaction. */
   void commit_specify_mtr(mtr_t *mtr);
 
   /** Moves the persistent cursor to the infimum record on the same page. */
@@ -452,7 +370,7 @@ struct btr_pcur_t {
   the cursor id before the first in an EMPTY tree, or after the last
   in an EMPTY tree. NOTE that the page where the cursor is positioned
   must not be empty if the index tree is not totally empty!
-  @param[in,out]	mtr		      Mini-transaction. */
+  @param[in,out]        mtr                   Mini-transaction. */
   void store_position(mtr_t *mtr);
 
   /** @return true if the cursor is positioned. */
@@ -469,16 +387,16 @@ struct btr_pcur_t {
   void reset();
 
   /** Copies the stored position of a pcur to another pcur.
-  @param[in,out]	dst		      Which will receive the position
+  @param[in,out]        dst                   Which will receive the position
   info.
-  @param[in]	    src		      From which the info is copied */
+  @param[in]        src               From which the info is copied */
   static void copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src);
 
   /** Allocates memory for a persistent cursor object and initializes
   the cursor.
   @return own: persistent cursor */
   static btr_pcur_t *create_for_mysql() {
-    auto pcur = UT_NEW_NOKEY(btr_pcur_t());
+    auto pcur = ut::new_withkey<btr_pcur_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
     pcur->m_btr_cur.index = nullptr;
 
@@ -492,7 +410,7 @@ struct btr_pcur_t {
   static void free_for_mysql(btr_pcur_t *&pcur) {
     pcur->free_rec_buf();
 
-    UT_DELETE(pcur);
+    ut::delete_(pcur);
 
     pcur = nullptr;
   }
@@ -520,7 +438,7 @@ struct btr_pcur_t {
   positioned on the last record of any page, because the structure
   of the tree may have changed during the time when the cursor had
   no latches.
-  @param[in,out]	mtr		      Mini-tranaction. */
+  @param[in,out]        mtr                   Mini-tranaction. */
   void move_backward_from_page(mtr_t *mtr);
 
  public:
@@ -551,15 +469,11 @@ struct btr_pcur_t {
   btr_pcur_pos_t m_rel_pos{BTR_PCUR_UNSET};
 
   /** buffer block when the position was stored */
-  buf_block_t *m_block_when_stored{nullptr};
+  buf::Block_hint m_block_when_stored;
 
   /** the modify clock value of the buffer block when the cursor position
   was stored */
   uint64_t m_modify_clock{0};
-
-  /** the withdraw clock value of the buffer pool when the cursor
-  position was stored */
-  ulint m_withdraw_clock{0};
 
   /** position() and restore_position() state. */
   pcur_pos_t m_pos_state{BTR_PCUR_NOT_POSITIONED};
@@ -579,34 +493,31 @@ struct btr_pcur_t {
 
   /** old_rec_buf size if old_rec_buf is not nullptr */
   size_t m_buf_size{0};
+
+  /** Read level where the cursor would be positioned or re-positioned. */
+  ulint m_read_level{0};
+
+  /* NOTE that the following field is initialized only during import
+  tablespace, otherwise undefined */
+  import_ctx_t *import_ctx{nullptr};
 };
 
-inline void btr_pcur_t::init() {
+inline void btr_pcur_t::init(size_t read_level) {
   set_fetch_type(Page_fetch::NORMAL);
 
   m_old_stored = false;
   m_old_rec_buf = nullptr;
   m_old_rec = nullptr;
   m_btr_cur.rtr_info = nullptr;
+  m_read_level = read_level;
+  import_ctx = nullptr;
+  m_block_when_stored.clear();
 }
 
-/** Initializes and opens a persistent cursor to an index tree
-It should be closed with btr_pcur_close.
-@param[in]	  index		        Index.
-@param[in]	  level		        Level in the btree.
-@param[in]	  tuple		        Tuple on which search done.
-@param[in]	  mode		        PAGE_CUR_L, ...; NOTE that if
-the search is made using a unique prefix of a record, mode should be
-PAGE_CUR_LE, not PAGE_CUR_GE, as the latter may end up on the previous page from
-the record!
-@param[in]	  latch_mode	    BTR_SEARCH_LEAF, ...
-@param[in]	  mtr		          Mini-transaction.
-@param[in]	  file		        File name
-@param[in]	  line		        Line in file, from where called. */
 inline void btr_pcur_t::open(dict_index_t *index, ulint level,
                              const dtuple_t *tuple, page_cur_mode_t mode,
-                             ulint latch_mode, mtr_t *mtr, const char *file,
-                             ulint line) {
+                             ulint latch_mode, mtr_t *mtr,
+                             ut::Location location) {
   init();
 
   m_search_mode = mode;
@@ -623,13 +534,13 @@ inline void btr_pcur_t::open(dict_index_t *index, ulint level,
           (latch_mode & BTR_MODIFY_TREE));
 
     btr_cur_search_to_nth_level_with_no_latch(
-        index, level, tuple, mode, cur, file, line, mtr,
+        index, level, tuple, mode, cur, location.filename, location.line, mtr,
         (((latch_mode & BTR_MODIFY_LEAF) || (latch_mode & BTR_MODIFY_TREE))
              ? true
              : false));
   } else {
     btr_cur_search_to_nth_level(index, level, tuple, mode, latch_mode, cur, 0,
-                                file, line, mtr);
+                                location.filename, location.line, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;
@@ -650,10 +561,10 @@ inline void btr_pcur_t::open_at_side(bool from_left, dict_index_t *index,
 
   if (index->table->is_intrinsic()) {
     btr_cur_open_at_index_side_with_no_latch(from_left, index, get_btr_cur(),
-                                             level, mtr);
+                                             level, UT_LOCATION_HERE, mtr);
   } else {
     btr_cur_open_at_index_side(from_left, index, latch_mode, get_btr_cur(),
-                               level, mtr);
+                               level, UT_LOCATION_HERE, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;
@@ -665,14 +576,14 @@ inline void btr_pcur_t::open_at_side(bool from_left, dict_index_t *index,
 
 inline bool btr_pcur_t::set_random_position(dict_index_t *index,
                                             ulint latch_mode, mtr_t *mtr,
-                                            const char *file, ulint line) {
+                                            ut::Location location) {
   m_latch_mode = latch_mode;
   m_search_mode = PAGE_CUR_G;
 
   init();
 
-  auto positioned = btr_cur_open_at_rnd_pos_func(
-      index, latch_mode, get_btr_cur(), file, line, mtr);
+  auto positioned = btr_cur_open_at_rnd_pos(
+      index, latch_mode, get_btr_cur(), location.filename, location.line, mtr);
 
   m_old_stored = false;
 
@@ -686,7 +597,7 @@ inline bool btr_pcur_t::set_random_position(dict_index_t *index,
 inline void btr_pcur_t::open_no_init(dict_index_t *index, const dtuple_t *tuple,
                                      page_cur_mode_t mode, ulint latch_mode,
                                      ulint has_search_latch, mtr_t *mtr,
-                                     const char *file, ulint line) {
+                                     ut::Location location) {
   m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
   m_search_mode = mode;
@@ -699,11 +610,12 @@ inline void btr_pcur_t::open_no_init(dict_index_t *index, const dtuple_t *tuple,
     ut_ad((latch_mode & BTR_MODIFY_LEAF) || (latch_mode & BTR_SEARCH_LEAF));
 
     btr_cur_search_to_nth_level_with_no_latch(
-        index, 0, tuple, mode, cur, file, line, mtr,
-        ((latch_mode & BTR_MODIFY_LEAF) ? true : false));
+        index, m_read_level, tuple, mode, cur, location.filename, location.line,
+        mtr, ((latch_mode & BTR_MODIFY_LEAF) ? true : false));
   } else {
-    btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode, cur,
-                                has_search_latch, file, line, mtr);
+    btr_cur_search_to_nth_level(index, m_read_level, tuple, mode, latch_mode,
+                                cur, has_search_latch, location.filename,
+                                location.line, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;

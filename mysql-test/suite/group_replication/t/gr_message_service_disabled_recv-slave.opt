@@ -1,0 +1,1 @@
+$RPL_OBS_EXAMPLE_OPT  --log_error=$MYSQLTEST_VARDIR/tmp/gr_message_service_disabled_recv.2.err

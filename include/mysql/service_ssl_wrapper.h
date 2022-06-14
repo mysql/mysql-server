@@ -1,7 +1,7 @@
 #ifndef SSL_WRAPPER_INCLUDED
 #define SSL_WRAPPER_INCLUDED
 
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,22 +26,22 @@
 #include "my_compiler.h"
 #include "violite.h"
 
-namespace ssl_wrappe_service {
+namespace ssl_wrapper_service {
 
 int MY_ATTRIBUTE((visibility("default")))
     dummy_function_to_ensure_we_are_linked_into_the_server();
 
-}  // namespace ssl_wrappe_service
+}  // namespace ssl_wrapper_service
 
 /**
-  Return version of SSL used in currect connection
+  Return version of SSL used in current connection.
 
   @param vio              VIO connection descriptor
   @param buffer           Character buffer in which the version is going to be
   placed
   @param buffer_size      Size of the character buffer
 */
-void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size);
+void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size);
 
 /**
   Return cipher used in current connection
@@ -51,7 +51,7 @@ void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size);
   be placed
   @param buffer_size      Size of the character buffer
 */
-void ssl_wrapper_cipher(Vio *vio, char *cipher, const size_t cipher_size);
+void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size);
 
 /**
   Return cipher list that can be used for SSL

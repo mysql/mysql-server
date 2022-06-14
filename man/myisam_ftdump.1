@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmyisam_ftdump\fR
+.\"     Title: myisam_ftdump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAM_FTDUMP\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYISAM_FTDUMP" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -57,7 +57,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \fR\fB\fIindex_num\fR\fR
+myisam_ftdump [\fIoptions\fR] \fItbl_name\fR \fIindex_num\fR
 .fi
 .if n \{\
 .RE
@@ -111,7 +111,7 @@ as follows:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump mytexttable 1\fR
+myisam_ftdump mytexttable 1
 .fi
 .if n \{\
 .RE
@@ -128,7 +128,7 @@ in the database directory:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump /usr/local/mysql/data/test/mytexttable 1\fR
+myisam_ftdump /usr/local/mysql/data/test/mytexttable 1
 .fi
 .if n \{\
 .RE
@@ -142,7 +142,7 @@ to generate a list of index entries in order of frequency of occurrence like thi
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump \-c mytexttable 1 | sort \-r\fR
+myisam_ftdump \-c mytexttable 1 | sort \-r
 .fi
 .if n \{\
 .RE
@@ -154,7 +154,7 @@ On Windows, use:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump \-c mytexttable 1 | sort /R\fR
+myisam_ftdump \-c mytexttable 1 | sort /R
 .fi
 .if n \{\
 .RE
@@ -174,7 +174,6 @@ supports the following options:
 \fB\-\-help\fR,
 \fB\-h\fR
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -188,7 +187,6 @@ Display a help message and exit\&.
 .\}
 \fB\-\-count\fR,
 \fB\-c\fR
-.sp
 Calculate per\-word statistics (counts and global weights)\&.
 .RE
 .sp
@@ -202,7 +200,6 @@ Calculate per\-word statistics (counts and global weights)\&.
 .\}
 \fB\-\-dump\fR,
 \fB\-d\fR
-.sp
 Dump the index, including data offsets and word weights\&.
 .RE
 .sp
@@ -216,7 +213,6 @@ Dump the index, including data offsets and word weights\&.
 .\}
 \fB\-\-length\fR,
 \fB\-l\fR
-.sp
 Report the length distribution\&.
 .RE
 .sp
@@ -230,7 +226,6 @@ Report the length distribution\&.
 .\}
 \fB\-\-stats\fR,
 \fB\-s\fR
-.sp
 Report global index statistics\&. This is the default operation if no other operation is specified\&.
 .RE
 .sp
@@ -244,13 +239,12 @@ Report global index statistics\&. This is the default operation if no other oper
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more output about what the program does\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

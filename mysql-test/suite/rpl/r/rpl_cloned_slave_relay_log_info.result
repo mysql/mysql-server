@@ -1,0 +1,102 @@
+#
+# 1. Set up masters server_1 and server_3 with server_2 being a slave.
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#
+# 2. Create some tables for testing
+[connection server_1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+#
+# 3. On the slave
+# Make channel_1 have PRIVILEGE_CHECKS_USER and REQUIRE_ROW_FORMAT
+# Make channel_3 have REQUIRE_ROW_FORMAT
+[connection server_2]
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+GRANT CREATE,INSERT,DROP ON *.* TO 'u1'@'localhost';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
+include/start_slave.inc [FOR CHANNEL 'channel_3']
+#
+# 4. Install clone on server 2
+#    Configure server 4 to invoke clone
+[connection server_2]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+[connection server_4]
+include/spawn_monitoring_process.inc
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL clone_valid_donor_list = 'localhost:SERVER2_PORT';
+CLONE INSTANCE FROM root@localhost:SERVER2_PORT IDENTIFIED BY '';
+include/rpl_reconnect.inc
+#
+# 5. Verify replication info was cloned. Check:
+#    - PRIVILEGE_CHECKS_USER
+#    - REQUIRE_ROW_FORMAT
+include/assert.inc [channel 1 was properly cloned]
+include/assert.inc [channel 3 was properly cloned]
+include/assert.inc [Performance schema values are correct for channel 1]
+include/assert.inc [Performance schema values are correct for channel 3]
+#
+# 6. Verify other replication info was cleaned
+include/assert.inc [channel 1 was properly cleaned]
+include/assert.inc [channel 3 was properly cleaned]
+include/assert.inc [If present, info on MTS workers is clean]
+#
+# 7. Verify channels work when started
+include/start_slave.inc
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+INSERT INTO t3 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_4]
+include/assert.inc [All info from server 1 is present]
+include/assert.inc [All info from server 3 is present]
+#
+# 8. Cleanup
+[connection server_1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+DROP TABLE t3;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_3]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+DROP USER 'u1'@'localhost';
+UNINSTALL PLUGIN clone;
+[connection server_4]
+UNINSTALL PLUGIN clone;
+include/clean_monitoring_process.inc
+include/stop_slave.inc
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+DROP USER 'u1'@'localhost';
+set session sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_1'*");
+call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_3'*");
+call mtr.add_suppression("Relay log information for channel 'channel_1' was found after a clone operation. Relay log recovery*");
+call mtr.add_suppression("Relay log information for channel 'channel_3' was found after a clone operation. Relay log recovery*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+set session sql_log_bin=1;
+include/rpl_end.inc
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

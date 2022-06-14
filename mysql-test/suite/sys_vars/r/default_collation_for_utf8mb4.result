@@ -432,7 +432,7 @@ CREATE TABLE st1 (c1 INT ,c3 varchar(10) UNIQUE KEY);
 SHOW CREATE TABLE st1;
 Table	Create Table
 st1	CREATE TABLE `st1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   UNIQUE KEY `c3` (`c3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

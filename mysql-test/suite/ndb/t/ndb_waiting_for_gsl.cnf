@@ -1,0 +1,5 @@
+!include ../my.cnf
+
+[mysqld]
+
+ndb-wait-setup=60

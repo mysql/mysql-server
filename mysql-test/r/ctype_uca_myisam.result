@@ -15,6 +15,9 @@ DROP TABLE t;
 CREATE TABLE t1 (
 c1 text character set ucs2 collate ucs2_polish_ci NOT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values (''),('a');
 SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
 COUNT(*)	c1

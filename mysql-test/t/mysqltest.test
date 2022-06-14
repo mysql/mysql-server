@@ -1145,13 +1145,12 @@ source $x/tmp/sourced.inc;
 
 sleep 0.5;
 sleep 1;
-real_sleep 1;
 
 # Parameter from variable, legal and illegal
 let $sleep_var= 0.1;
 sleep $sleep_var;
 let $sleep_var= 1;
---real_sleep $sleep_var
+--sleep $sleep_var
 
 --write_file $MYSQL_TMP_DIR/sleep.inc
 let $sleep_var= xyz;
@@ -1161,25 +1160,13 @@ EOF
 --exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
 --remove_file $MYSQL_TMP_DIR/sleep.inc
 
---write_file $MYSQL_TMP_DIR/sleep.inc
-let $sleep_var= xyz;
-real_sleep $sleep_var;
-EOF
---error 1
---exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
---remove_file $MYSQL_TMP_DIR/sleep.inc
-
 # Missing parameter
 --error 1
 --exec echo "sleep ;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "real_sleep ;" | $MYSQL_TEST 2>&1
 
 # Illegal parameter
 --error 1
 --exec echo "sleep abc;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "real_sleep abc;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test inc
@@ -2012,9 +1999,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/query.sql;
 #
 
 echo Failing multi statement query;
-# PS does not support multi statement
---exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
---exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                          > $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "select 'select-me';"                     >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
@@ -2035,9 +2020,7 @@ drop table t1;
 
 
 echo Multi statement using expected error;
-# PS does not support multi statement
---exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
---exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                          > $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "--error 1064"                            >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
@@ -2689,6 +2672,69 @@ INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#29224561: USE "SORTED_RESULT" OF MYSQL-TEST , CAUSE ERROR RESULT
+--echo #               ( FOR TYPE OF BINARY )
+--echo #
+
+CREATE TABLE t1(a BINARY(32), b BINARY(32));
+INSERT INTO t1 VALUES
+('1abc', 'abc2'), ('\0', '\0'), ('1a', 'ba');
+--replace_regex /[^[:print:]]/#/
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR(32), b CHAR(32));
+INSERT INTO t1 VALUES
+('\0', 'abc2'), ('abcd', '\0'), ('1a', 'ba');
+--replace_regex /[^[:print:]]/#/
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Tests for partially_sorted_result
+#
+
+CREATE TABLE t1(a CHAR(32), b CHAR(32), c CHAR(32));
+INSERT INTO t1 VALUES
+('abc', '1a', '2a'), ('abc', 'west', 'east'), ('\0', '1a', 'north'),
+('\0', 'west', 'south'), ('abc', 'sun', 'moon');
+
+# Order on columns b,c also for deterministic results
+--replace_regex /[^[:print:]]/#/
+--partially_sorted_result 1
+SELECT a, b, c FROM t1 ORDER by a;
+
+# Order on column c also for deterministic results
+--replace_regex /[^[:print:]]/#/
+--partially_sorted_result 2
+SELECT a, b, c FROM t1 ORDER by a, b;
+
+DROP TABLE t1;
+
+
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES
+(1, 2, 1),
+(1, 2, 4),
+(1, 2, 3),
+(2, 3, 1),
+(3, 4, 1),
+(2, 5, 0),
+(1, 6, 0),
+(1, 7, 1);
+
+# Sort on columns j,k also for deterministic results
+--partially_sorted_result 1
+SELECT i, j, k FROM t1 ORDER by i;
+
+# Sort on column k also for deterministic results
+--partially_sorted_result 2
+SELECT i, j, k FROM t1 ORDER by i, j;
+
+DROP TABLE t1;
 # ----------------------------------------------------------------------------
 # test for lowercase_result
 # ----------------------------------------------------------------------------
@@ -3241,7 +3287,7 @@ SELECT 1 AS res;
 disconnect con1;
 --source include/wait_until_disconnected.inc
 
---error CR_SERVER_GONE_ERROR
+--error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 SELECT 1 AS res;
 
 connection default;
@@ -3951,6 +3997,7 @@ DROP TABLE t1;
 EOF
 
 # Run the test
+--error 63
 --exec $MYSQL_TEST --no-skip -x $MYSQLTEST_VARDIR/tmp/bug26090322.test 2>&1
 
 # Cleanup
@@ -4242,7 +4289,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (c1)
 );
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 1, -500, "aaa");
 DELETE FROM t1;
 
 # disable_warnings should disable all the warnings
@@ -4252,101 +4299,101 @@ DELETE FROM t1;
 
 # enable_warning should enable all the disable warnings
 --enable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 3, -500, "aaa");
 DELETE FROM t1;
 
 # disable_warnings with warning list argument, should suppress only
 # the specified warnings.
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 4, -500, "aaa");
 DELETE FROM t1;
 
 # If there exist disabled warnings, new disabled warnings specified
 # will get appended to the existing list of disabled_warnings.
 # All three warnings should be disabled now.
 --disable_warnings ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 5, -500, "aaa");
 DELETE FROM t1;
 
 # enable_warnings with warning list argument, should enable only
 # the specified warnings.
 --enable_warnings ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 6, -500, "aaa");
 DELETE FROM t1;
 
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 7, -500, "aaa");
 DELETE FROM t1;
 
 # Enable all the warnings
 --enable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 8, -500, "aaa");
 DELETE FROM t1;
 
 # Disable all the warnings
 --disable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 9, -500, "aaa");
 DELETE FROM t1;
 
 # enable_warnings with warning list argument
 --enable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 10, -500, "aaa");
 DELETE FROM t1;
 
 # If there exist enabled warnings, new enabled warnings specified
 # will get appended to the existing list of enabled_warnings.
 # All three warnings should be enabled now.
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 11, -500, "aaa");
 DELETE FROM t1;
 --enable_warnings
 
 # disable_warnings with "ONCE" argument
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 12, -500, "aaa");
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 13, -500, "aaa");
 DELETE FROM t1;
 
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 14, -500, "aaa");
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 15, -500, "aaa");
 DELETE FROM t1;
 
 # enable_warnings with "ONCE" argument
 --disable_warnings
 --enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 16, -500, "aaa");
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 17, -500, "aaa");
 DELETE FROM t1;
 
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 18, -500, "aaa");
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 19, -500, "aaa");
 DELETE FROM t1;
 --enable_warnings
 
 # Disabling a warning more than once WILL NOT have any effect, attempts
 # to disable it after the first one WILL be ignored.
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 20, -500, "aaa");
 DELETE FROM t1;
 
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 21, -500, "aaa");
 DELETE FROM t1;
 
 # ER_WARN_DATA_OUT_OF_RANGE is disaled twice, enabling it ONLY ONCE is
 # enough since disabling of the same warning again will be ignored.
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 22, -500, "aaa");
 DELETE FROM t1;
 
 # $DISABLED_WARNINGS_LIST contains list of currently disabled warnings.
@@ -4355,7 +4402,7 @@ DELETE FROM t1;
 
 # Disable ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE warnings
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 23, -500, "aaa");
 DELETE FROM t1;
 
 # $DISABLED_WARNINGS_LIST should contains 2 warnings
@@ -4363,7 +4410,7 @@ DELETE FROM t1;
 
 # Disable ER_TRUNCATED_WRONG_VALUE_FOR_FIELD warning
 --disable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 24, -500, "aaa");
 DELETE FROM t1;
 
 # $DISABLED_WARNINGS_LIST should contains 3 warnings now
@@ -4385,12 +4432,12 @@ DELETE FROM t1;
 # updated after the execution of the next statement.
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
 --echo $DISABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 25, -500, "aaa");
 DELETE FROM t1;
 
 # $DISABLED_WARNINGS_LIST should be empty now
 --echo $DISABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 26, -500, "aaa");
 DELETE FROM t1;
 
 # $ENABLED_WARNINGS_LIST contains list of currently enabled warnings.
@@ -4398,12 +4445,12 @@ DELETE FROM t1;
 --echo $ENABLED_WARNINGS_LIST
 
 --disable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 27, -500, "aaa");
 DELETE FROM t1;
 
 # Enable ER_WARN_DATA_OUT_OF_RANGE warning
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 28, -500, "aaa");
 DELETE FROM t1;
 
 # $ENABLED_WARNINGS_LIST should contain ER_WARN_DATA_OUT_OF_RANGE
@@ -4411,7 +4458,7 @@ DELETE FROM t1;
 
 # Enable ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 --enable_warnings ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 29, -500, "aaa");
 DELETE FROM t1;
 
 # $ENABLED_WARNINGS_LIST should contain 3 warnings
@@ -4429,12 +4476,12 @@ DELETE FROM t1;
 --disable_warnings
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
 --echo $ENABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 30, -500, "aaa");
 DELETE FROM t1;
 
 # $ENABLED_WARNINGS_LIST should be empty now
 --echo $ENABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 31, -500, "aaa");
 DELETE FROM t1;
 --enable_warnings
 
@@ -4443,15 +4490,15 @@ DELETE FROM t1;
 --let $warning_1 = ER_WARN_DATA_OUT_OF_RANGE
 --let $warning_2 = ER_TRUNCATED_WRONG_VALUE
 --disable_warnings $warning_1,$warning_2
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 32, -500, "aaa");
 DELETE FROM t1;
 
 --enable_warnings $warning_1
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 33, -500, "aaa");
 DELETE FROM t1;
 
 --enable_warnings $warning_2
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 34, -500, "aaa");
 
 # Cleanup
 SET @@sql_mode = @old_sql_mode;
@@ -4618,21 +4665,21 @@ CREATE TABLE t1 (
 # Only ER_TRUNCATED_WRONG_VALUE should be disabled ONCE.
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE ONCE
 --disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 35, -500, "aaa");
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 36, -500, "aaa");
 DELETE FROM t1;
 
 # ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE should be
 # disabled for the first INSERT statement.
 --disable_warnings ER_WARN_DATA_OUT_OF_RANGE
 --disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 37, -500, "aaa");
 DELETE FROM t1;
 
 # Only ER_WARN_DATA_OUT_OF_RANGE should be disabled.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 38, -500, "aaa");
 DELETE FROM t1;
 --enable_warnings
 
@@ -4640,21 +4687,21 @@ DELETE FROM t1;
 --disable_warnings
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE ONCE
 --enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 39, -500, "aaa");
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 40, -500, "aaa");
 DELETE FROM t1;
 
 # ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE should be
 # enabled for the first INSERT statement.
 --enable_warnings ER_WARN_DATA_OUT_OF_RANGE
 --enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 41, -500, "aaa");
 DELETE FROM t1;
 
 # Only ER_WARN_DATA_OUT_OF_RANGE should be enabled.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 42, -500, "aaa");
 DELETE FROM t1;
 
 --enable_warnings
@@ -4805,3 +4852,212 @@ SELECT $val AS res;
 --let $val = 200
 SELECT $val AS res;
 --reap
+
+--echo #
+--echo # Bug#29901754: ADD SUPORT FOR COLUMN MASKING TO DIFF_TABLES.INC
+--echo #
+
+CREATE TABLE t1(col1 INT, col2 INT, col3 INT);
+INSERT INTO t1 VALUES(1, RAND(), 4);
+INSERT INTO t1 VALUES(2, RAND(), 5);
+INSERT INTO t1 VALUES(3, RAND(), 6);
+
+CREATE TABLE t2(col1 INT, col2 INT, col3 INT);
+INSERT INTO t2 VALUES(1, RAND(), 4);
+INSERT INTO t2 VALUES(2, RAND(), 5);
+INSERT INTO t2 VALUES(3, RAND(), 6);
+
+# Check if the two tables are identical, while
+# masking col2, which could vary.
+--let $mask_column_list=col2
+--let $diff_tables=default:t1, default:t2
+--source include/diff_tables.inc
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo #Bug#29769715 MTR: --REPLACE_* COMMANDS DON'T WORK WITH CAT_FILE COMMAND
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+abc 456.27
+EOF
+
+--replace_result abc def
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+# Check that replacement doesn't affect next query or command
+SELECT "abc 456.27" as c1;
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+--replace_regex /abc/def/
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+# Should not get replaced
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+--replace_numeric_round 1
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+# Should not get replaced
+SELECT "abc 456.27" as c1;
+
+# Check whether long strings get replaced when used with
+# the 'cat_file' mysqltest command
+--perl
+  my $vardir= $ENV{'MYSQLTEST_VARDIR'};
+  open(FILE, ">", "$vardir/tmp/600chars.txt");
+  print FILE "a"x600 . "\n";
+  close(FILE)
+EOF
+
+--let $replace_string= `SELECT REPEAT('a', 600)`
+--replace_result $replace_string long_string
+--cat_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+--replace_regex /a+/long_string/
+--cat_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+##
+## Test assert()
+##
+assert(1);
+
+let $x= 1;
+assert($x);
+
+let $y= 0;
+assert(! $y);
+
+CREATE TABLE t1 (i int primary key not null);
+INSERT INTO t1 values(3);
+assert(`select count(*) from t1`);
+assert(! `select count(*) from t1 where i = 4`);
+DROP TABLE t1;
+
+if(1)
+{
+--assert(2)
+}
+
+if(1)
+{
+  assert(3);
+}
+
+--assert(4)
+
+
+--echo #
+--echo # Bug#33068833 MISSING END OF BLOCK ERROR WITH `--ASSERT` MYSQLTEST COMMAND
+--echo #
+
+while(0)
+{
+  --assert(0)
+}
+
+if ($myvar)
+{
+  assert(0);
+}
+
+while ($myvar)
+{
+  assert(0);
+}
+
+--let $myvar=0
+if ($myvar)
+{
+  assert(0);
+}
+
+while ($myvar)
+{
+  assert(0);
+}
+
+--let $myvar=1
+if ($myvar)
+{
+  --assert(1)
+}
+
+while ($myvar)
+{
+  --assert(1)
+  --dec $myvar
+}
+
+--error 1
+--exec echo "--assert(abcd)" | $MYSQL_TEST 2>&1
+
+--let $true_var=1
+--assert(`SELECT $true_var`)
+
+--error 1
+--exec echo "--assert(0)" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--assert(\$undef_var)" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "let \$false_var=0; assert(\$false_var);" | $MYSQL_TEST 2>&1
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert1.test
+--let $false_var=0
+--assert(`SELECT $false_var`)
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/myt_assert1.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert1.test
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert2.test
+--let $myvar=1
+if($myvar)
+{
+  --assert(`SELECT 0`)
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/myt_assert2.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert2.test
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert3.test
+--let $myvar=1
+while($myvar)
+{
+  --assert($myvar)
+  --dec $myvar
+  --assert($myvar)
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/myt_assert3.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert3.test
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert4.test
+--let $counter= 2
+while ($counter)
+{
+  --assert($counter)
+  --dec $counter
+  if ($counter)
+  {
+    # Should not assert
+    --assert($counter)
+  }
+  if (!$counter)
+  {
+    # Asserts here
+    --assert($counter)
+  }
+}
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/myt_assert4.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert4.test

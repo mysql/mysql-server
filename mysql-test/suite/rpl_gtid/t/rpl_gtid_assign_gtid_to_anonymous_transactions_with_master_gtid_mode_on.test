@@ -1,0 +1,174 @@
+# ==== Purpose ====
+#
+# This test evaluates that replication works when source has GTID_MODE = ON
+# and replica has ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF.
+#
+# ==== Implementation ====
+#
+# TC1. Test with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL
+#
+#      1) Verify that replication works fine.
+#      2) Verify that the UUID used in GTIDs is of source.
+#
+# TC2. Test with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID>
+#
+#      1) Verify that replication works fine.
+#      2) Verify that the UUID used in GTIDs is of source.
+#
+# TC3. Test with slave_sql_skip_counter
+#
+#      1) Verify that the value of sql_replica_skip_counter is ignored
+#         when GTID_MODE = ON and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF
+#      2) Verify that the value of sql_replica_skip_counter is considered
+#         when GTID_MODE = ON and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF
+# ==== References ====
+# WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
+#
+
+--let $rpl_gtid_utils= 1
+--let $rpl_skip_start_slave = 1
+--source include/not_rpl_gtid_only.inc
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+# sql_replica_skip_counter is not supported with compression
+--source include/not_binlog_transaction_compression_on.inc
+
+CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology");
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(10);
+
+--echo # TC1. Test with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL
+--source include/rpl_connection_slave.inc
+
+# 1) Verify that replication works fine.
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 0;
+--source include/start_slave.inc
+
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
+--source include/wait_for_slave_param.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t;
+--let $use_gtids = 0
+--source include/sync_slave_sql_with_master.inc
+
+# 2) Verify that the UUID used in GTIDs is of source.
+--replace_result $master_uuid MASTER_UUID
+--let $gtid_step_count= 4
+--let $gtid_step_uuid = $master_uuid
+--source include/gtid_step_assert.inc
+
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(10);
+
+--echo # TC2. Test with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID>
+--source include/rpl_connection_slave.inc
+
+# 1) Verify that replication works fine.
+#
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_AUTO_POSITION = 0;
+--source include/start_slave.inc
+
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
+--source include/wait_for_slave_param.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t;
+--let $use_gtids = 0
+--source include/sync_slave_sql_with_master.inc
+
+# 2) Verify that the UUID used in GTIDs is of source.
+--replace_result $master_uuid MASTER_UUID
+--let $gtid_step_count= 3
+--let $gtid_step_uuid = $master_uuid
+--source include/gtid_step_assert.inc
+
+--echo # TC3. Test with slave_sql_skip_counter
+
+# 1) Verify that the value of sql_replica_skip_counter is ignored
+#    when GTID_MODE = ON and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(10);
+--source include/save_binlog_position.inc
+INSERT INTO t VALUES(20);
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+
+--let $use_gtids = 0
+--source include/sync_slave_io_with_master.inc
+
+--replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
+--eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position
+--source include/stop_slave.inc
+
+SET GLOBAL sql_replica_skip_counter = 1;
+
+--source include/start_slave.inc
+
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
+--source include/wait_for_slave_param.inc
+
+--let diff_tables=master:t, slave:t
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+
+--source include/sync_slave_sql_with_master.inc
+
+# 2) Verify that the value of sql_replica_skip_counter is considered
+#    when GTID_MODE = ON and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT);
+
+--let $use_gtids = 0
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET GLOBAL sql_replica_skip_counter=1;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (20);
+INSERT INTO t1 VALUES (30);
+
+--let $use_gtids = 0
+--source include/sync_slave_sql_with_master.inc
+--let $assert_cond = [SELECT COUNT(*) FROM t1] = 1
+--let $assert_text = There should only be one row in t1
+--source include/assert.inc
+
+--let $assert_cond = [SELECT * FROM t1] = 30
+--let $assert_text = Table t1 should contain the value 30
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_skip_sync = 1
+--source include/rpl_end.inc

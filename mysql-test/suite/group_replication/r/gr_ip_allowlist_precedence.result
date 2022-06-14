@@ -1,0 +1,62 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# 1. Bootstrap M1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+# 2. Set group_replication_ip_whitelist as AUTOMATIC and
+#    group_replication_ip_allowlist as AUTOMATIC.
+#    M2 join the group.
+[connection server2]
+SET GLOBAL group_replication_group_name="8a94f357-aabb-ccdc-8899-cccaaff29573";
+SET @saved_gr_ip_whitelist = @@GLOBAL.group_replication_ip_whitelist;
+SET @saved_gr_ip_allowlist = @@GLOBAL.group_replication_ip_allowlist;
+SET GLOBAL group_replication_ip_whitelist="AUTOMATIC";
+Warnings:
+Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+SET GLOBAL group_replication_ip_allowlist="AUTOMATIC";
+include/start_group_replication.inc
+include/stop_group_replication.inc
+# 3. Set group_replication_ip_whitelist as incorrect_ip and
+#    group_replication_ip_allowlist as AUTOMATIC.
+#    M2 does not join the group, changed value of whitelist is used.
+SET GLOBAL group_replication_ip_whitelist="192.256.1.20";
+Warnings:
+Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+# 4. Set group_replication_ip_whitelist as AUTOMATIC and
+#    group_replication_ip_allowlist as incorrect_ip.
+#    M2 does not join the group, changed value of allowlist is used.
+SET GLOBAL group_replication_ip_whitelist="AUTOMATIC";
+Warnings:
+Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+SET GLOBAL group_replication_ip_allowlist="192.256.1.20";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+# 5. Set group_replication_ip_whitelist as incorrect_ip and
+#    group_replication_ip_allowlist as correct_ip.
+#    M2 joins the group, allowlist take precedence over whitelist.
+SET GLOBAL group_replication_ip_whitelist="192.256.1.20";
+Warnings:
+Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+SET GLOBAL group_replication_ip_allowlist="127.0.0.1/8";
+include/start_group_replication.inc
+Warnings:
+Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+include/stop_group_replication.inc
+# 6. Cleanup.
+SET @@GLOBAL.group_replication_ip_whitelist = @saved_gr_ip_whitelist;
+Warnings:
+Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+SET @@GLOBAL.group_replication_ip_allowlist = @saved_gr_ip_allowlist;
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unable to initialize the group communication engine");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("\\[GCS\\] Invalid IP or subnet mask in the allowlist:*");
+call mtr.add_suppression("\\[GCS\\] Automatically adding IPv. localhost address to the allowlist. It is mandatory that it is added.");
+call mtr.add_suppression("\\[GCS\\] Connection attempt from IP address*");
+SET SESSION sql_log_bin = 1;
+include/group_replication_end.inc

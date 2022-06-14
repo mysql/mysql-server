@@ -22,7 +22,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -102,16 +102,16 @@ READS	3
 drop table counters_at_startup;
 alter table t1 algorithm=inplace, reorganize partition;
 alter table t1 algorithm=inplace, add partition partitions 1;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy, add partition partitions 1;
-ERROR HY000: Can't create destination table for copying alter table
+ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 alter table t1 algorithm=inplace, add column c int column_format dynamic;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -159,8 +159,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -206,12 +206,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -289,12 +289,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1 comment text'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1 comment text'
 drop table t1;
 create table t1 (
 x int primary key,
@@ -308,7 +308,7 @@ alter table t1 algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATED=1";
 alter table t1 algorithm=inplace, comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Changing PARTITION_BALANCE with FULLY_REPLICATED on. Try ALGORITHM=COPY.
 alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: READ_BACKUP off with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+ERROR 0A000: Alter table is not supported. Reason: cannot change READ_BACKUP to 0 for fully replicated tables. Try fully_replicated=0 if that is the intention.
 drop table t1;
 CREATE TABLE t2 (
 a char(10) NOT NULL primary key,
@@ -318,11 +318,11 @@ key(b, a)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1'
   ENGINE=ndbcluster
 partition by key() partitions 2;
-ERROR HY000: Can't create table 't2'
+ERROR HY000: Can't create table 't2' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 797 'Wrong fragment count for fully replicated table' from NDB
-Error	1005	Can't create table 't2'
+Error	1005	Can't create table 't2' (use SHOW WARNINGS for more info).
 CREATE TABLE t2 (
 a char(10) NOT NULL primary key,
 b int not null,
@@ -340,7 +340,7 @@ key(b, a)
 ENGINE=ndbcluster
 comment='NDB_TABLE=FULLY_REPLICATED=1'
 PARTITION BY HASH(b);
-ERROR HY000: Can't create table 't2'
+ERROR HY000: Can't create table 't2' (use SHOW WARNINGS for more info).
 create table t1 (
 a char(10) NOT NULL primary key,
 b int not null)

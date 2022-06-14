@@ -68,6 +68,9 @@
 # This file sets $slave_param_statement to the SQL statement used to
 # get the slave status: either SHOW SLAVE STATUS or SHOW SLAVE STATUS
 # FOR CHANNEL  '<channel>'.
+#
+# Variable $_show_slave_status_value is set to the value of SHOW SLAVE STATUS's
+# column identified by $slave_param .
 
 
 --let $include_filename= wait_for_slave_param.inc [$slave_param]
@@ -168,7 +171,7 @@ while ($_slave_continue)
 
     if ($_show_slave_status_error_value)
     {
-      --echo **** ERROR: $slave_error_param = '$_show_slave_status_error_value' while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
+      --echo **** ERROR: $slave_error_param = '$_show_slave_status_error_value' while waiting for replica parameter $slave_param $_slave_param_comparison $slave_param_value ****
       --source include/show_rpl_debug_info.inc
       --die Error condition reached in include/wait_for_slave_param.inc
     }
@@ -185,7 +188,7 @@ while ($_slave_continue)
     {
       --let $end_to_wait=`select current_timestamp()`
 
-      --echo **** ERROR: timeout after $_slave_timeout ($end_to_wait - $start_to_wait) seconds while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
+      --echo **** ERROR: timeout after $_slave_timeout ($end_to_wait - $start_to_wait) seconds while waiting for replica parameter $slave_param $_slave_param_comparison $slave_param_value ****
       --source include/show_rpl_debug_info.inc
       --die Timeout in include/wait_for_slave_param.inc
     }

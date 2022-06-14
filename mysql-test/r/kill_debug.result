@@ -42,6 +42,7 @@ DROP TABLE g1,g2;
 #
 # Bug#28079850: Requires handling THD::KILL_QUERY in records* functions.
 #
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
 CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
 c2 INT NOT NULL,
 c3 char(20),
@@ -58,3 +59,13 @@ ERROR 70100: Query execution was interrupted
 SET debug= '-d,bug28079850';
 DROP TABLE t_innodb;
 SET debug= @old_debug;
+Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+SELECT 1;;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+KILL QUERY ID;
+SET DEBUG_SYNC='now SIGNAL continue';
+1
+1
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;

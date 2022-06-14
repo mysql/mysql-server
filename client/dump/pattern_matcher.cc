@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 using namespace Mysql::Tools::Dump::Detail;
 
-Pattern_matcher::Pattern_matcher() {}
+Pattern_matcher::Pattern_matcher() = default;
 
 bool Pattern_matcher::is_pattern_matched(const std::string &to_match,
                                          const std::string &pattern,

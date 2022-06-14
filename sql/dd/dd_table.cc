@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/dd_table.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <memory>  // unique_ptr
@@ -76,6 +77,7 @@
 #include "sql/default_values.h"                // max_pack_length
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
+#include "sql/handler.h"  // FK_NAME_DEFAULT_SUFFIX
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
@@ -134,6 +136,8 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
       return dd::enum_column_types::DOUBLE;
 
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
+    case MYSQL_TYPE_BOOL:
       return dd::enum_column_types::TYPE_NULL;
 
     case MYSQL_TYPE_TIMESTAMP:
@@ -214,7 +218,7 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "field type.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return dd::enum_column_types::LONG;
   /* purecov: end */
@@ -226,10 +230,10 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
 */
 
 dd::String_type get_sql_type_by_create_field(TABLE *table,
-                                             Create_field *field) {
-  DBUG_ENTER("get_sql_type_by_create_field");
+                                             const Create_field &field) {
+  DBUG_TRACE;
 
-  unique_ptr_destroy_only<Field> fld(make_field(*field, table->s));
+  unique_ptr_destroy_only<Field> fld(make_field(field, table->s));
   fld->init(table);
 
   // Read column display type.
@@ -239,7 +243,7 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
 
   dd::String_type col_display_str(type.ptr(), type.length());
 
-  DBUG_RETURN(col_display_str);
+  return col_display_str;
 }
 
 /**
@@ -270,10 +274,12 @@ static void prepare_default_value_string(uchar *buf, TABLE *table,
       make_field(field, table->s, buf + 1, buf, 0));
   f->init(table);
 
-  if (col_obj->has_no_default()) f->flags |= NO_DEFAULT_VALUE_FLAG;
+  if (col_obj->has_no_default()) f->set_flag(NO_DEFAULT_VALUE_FLAG);
 
   const bool has_default =
-      (f->type() != FIELD_TYPE_BLOB && !(f->flags & NO_DEFAULT_VALUE_FLAG) &&
+      ((f->type() != FIELD_TYPE_BLOB ||
+        f->has_insert_default_general_value_expression()) &&
+       !f->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
        !(f->auto_flags & Field::NEXT_NUMBER));
 
   if (f->gcol_info || !has_default) return;
@@ -303,7 +309,7 @@ static void prepare_default_value_string(uchar *buf, TABLE *table,
     String type(tmp, sizeof(tmp), f->charset());
     const bool is_binary_type =
         ((f->type() == MYSQL_TYPE_VARCHAR || f->type() == MYSQL_TYPE_STRING) &&
-         (f->flags & BINARY_FLAG) && f->charset() == &my_charset_bin);
+         f->is_flag_set(BINARY_FLAG) && f->charset() == &my_charset_bin);
 
     if (f->type() == MYSQL_TYPE_BIT) {
       longlong dec = f->val_int();
@@ -360,13 +366,13 @@ static void prepare_default_value_string(uchar *buf, TABLE *table,
   Create_field type object.
 */
 bool get_field_numeric_scale(const Create_field *field, uint *scale) {
-  DBUG_ASSERT(*scale == 0);
+  assert(*scale == 0);
 
   switch (field->sql_type) {
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
       /* For these types we show NULL in I_S if scale was not given. */
-      if (field->decimals != NOT_FIXED_DEC) {
+      if (field->decimals != DECIMAL_NOT_SPECIFIED) {
         *scale = field->decimals;
         return false;
       }
@@ -380,7 +386,7 @@ bool get_field_numeric_scale(const Create_field *field, uint *scale) {
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONGLONG:
-      DBUG_ASSERT(field->decimals == 0);
+      assert(field->decimals == 0);
     default:
       return true;
   }
@@ -539,72 +545,69 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
   //
   // Iterate through all the table columns
   //
-  Create_field *field;
-  List_iterator<Create_field> it(
-      const_cast<List<Create_field> &>(create_fields));
-  while ((field = it++)) {
+  for (const Create_field &field : create_fields) {
     //
     // Add new DD column
     //
 
     dd::Column *col_obj = tab_obj->add_column();
 
-    col_obj->set_name(field->field_name);
+    col_obj->set_name(field.field_name);
 
-    col_obj->set_type(dd::get_new_field_type(field->sql_type));
+    col_obj->set_type(dd::get_new_field_type(field.sql_type));
 
-    col_obj->set_char_length(field->max_display_width_in_bytes());
+    col_obj->set_char_length(field.max_display_width_in_bytes());
 
     // Set result numeric scale.
     uint value = 0;
-    if (get_field_numeric_scale(field, &value) == false)
+    if (get_field_numeric_scale(&field, &value) == false)
       col_obj->set_numeric_scale(value);
 
     // Set result numeric precision.
-    if (get_field_numeric_precision(field, &value) == false)
+    if (get_field_numeric_precision(&field, &value) == false)
       col_obj->set_numeric_precision(value);
 
     // Set result datetime precision.
-    if (get_field_datetime_precision(field, &value) == false)
+    if (get_field_datetime_precision(&field, &value) == false)
       col_obj->set_datetime_precision(value);
 
-    col_obj->set_nullable(field->maybe_null);
+    col_obj->set_nullable(field.is_nullable);
 
-    col_obj->set_unsigned(field->is_unsigned);
+    col_obj->set_unsigned(field.is_unsigned);
 
-    col_obj->set_zerofill(field->is_zerofill);
+    col_obj->set_zerofill(field.is_zerofill);
 
-    col_obj->set_srs_id(field->m_srid);
+    col_obj->set_srs_id(field.m_srid);
 
     // Check that the hidden type isn't the type that is used internally by
     // storage engines.
-    DBUG_ASSERT(field->hidden != dd::Column::enum_hidden_type::HT_HIDDEN_SE);
-    col_obj->set_hidden(field->hidden);
+    assert(field.hidden != dd::Column::enum_hidden_type::HT_HIDDEN_SE);
+    col_obj->set_hidden(field.hidden);
 
     /*
       AUTO_INCREMENT, DEFAULT/ON UPDATE CURRENT_TIMESTAMP properties are
       stored in Create_field::auto_flags.
     */
-    if (field->auto_flags & Field::DEFAULT_NOW)
-      col_obj->set_default_option(now_with_opt_decimals(field->decimals));
+    if (field.auto_flags & Field::DEFAULT_NOW)
+      col_obj->set_default_option(now_with_opt_decimals(field.decimals));
 
-    if (field->auto_flags & Field::ON_UPDATE_NOW)
-      col_obj->set_update_option(now_with_opt_decimals(field->decimals));
+    if (field.auto_flags & Field::ON_UPDATE_NOW)
+      col_obj->set_update_option(now_with_opt_decimals(field.decimals));
 
-    col_obj->set_auto_increment((field->auto_flags & Field::NEXT_NUMBER) != 0);
+    col_obj->set_auto_increment((field.auto_flags & Field::NEXT_NUMBER) != 0);
 
     // Handle generated default
-    if (field->m_default_val_expr) {
+    if (field.m_default_val_expr) {
       char buffer[128];
       String default_val_expr(buffer, sizeof(buffer), &my_charset_bin);
       // Convert the expression from Item* to text
-      field->m_default_val_expr->print_expr(thd, &default_val_expr);
+      field.m_default_val_expr->print_expr(thd, &default_val_expr);
       col_obj->set_default_option(
           dd::String_type(default_val_expr.ptr(), default_val_expr.length()));
     }
 
     // Handle generated columns
-    if (field->gcol_info) {
+    if (field.gcol_info) {
       /*
         It is important to normalize the expression's text into the DD, to
         make it independent from sql_mode. For example, 'a||b' means 'a OR b'
@@ -614,8 +617,8 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
        */
       char buffer[128];
       String gc_expr(buffer, sizeof(buffer), &my_charset_bin);
-      col_obj->set_virtual(!field->stored_in_db);
-      field->gcol_info->print_expr(thd, &gc_expr);
+      col_obj->set_virtual(!field.stored_in_db);
+      field.gcol_info->print_expr(thd, &gc_expr);
       col_obj->set_generation_expression(
           dd::String_type(gc_expr.ptr(), gc_expr.length()));
 
@@ -627,45 +630,45 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
           dd::String_type(gc_expr_for_IS.ptr(), gc_expr_for_IS.length()));
     }
 
-    if (field->comment.str && field->comment.length)
+    if (field.comment.str && field.comment.length)
       col_obj->set_comment(
-          dd::String_type(field->comment.str, field->comment.length));
+          dd::String_type(field.comment.str, field.comment.length));
 
     // Collation ID
-    col_obj->set_collation_id(field->charset->number);
+    col_obj->set_collation_id(field.charset->number);
 
     // Was collation supplied explicitly ?
-    col_obj->set_is_explicit_collation(field->is_explicit_collation);
+    col_obj->set_is_explicit_collation(field.is_explicit_collation);
 
     /*
       Store numeric scale for types relying on this info (old and new decimal
       and floating point types). Also store 0 for integer types to simplify I_S
       implementation.
     */
-    switch (field->sql_type) {
+    switch (field.sql_type) {
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_DOUBLE:
         /* For these types we show NULL in I_S if scale was not given. */
-        if (field->decimals != NOT_FIXED_DEC)
-          col_obj->set_numeric_scale(field->decimals);
+        if (field.decimals != DECIMAL_NOT_SPECIFIED)
+          col_obj->set_numeric_scale(field.decimals);
         else {
-          DBUG_ASSERT(col_obj->is_numeric_scale_null());
+          assert(col_obj->is_numeric_scale_null());
         }
         break;
       case MYSQL_TYPE_NEWDECIMAL:
       case MYSQL_TYPE_DECIMAL:
-        col_obj->set_numeric_scale(field->decimals);
+        col_obj->set_numeric_scale(field.decimals);
         break;
       case MYSQL_TYPE_TINY:
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_INT24:
       case MYSQL_TYPE_LONGLONG:
-        DBUG_ASSERT(field->decimals == 0);
+        assert(field.decimals == 0);
         col_obj->set_numeric_scale(0);
         break;
       default:
-        DBUG_ASSERT(col_obj->is_numeric_scale_null());
+        assert(col_obj->is_numeric_scale_null());
         break;
     }
 
@@ -681,28 +684,28 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       when SE starts supporting optimized BIT storage but still needs
       to handle correctly columns which were created before this change.
     */
-    if (field->sql_type == MYSQL_TYPE_BIT)
-      col_options->set("treat_bit_as_char", field->treat_bit_as_char);
+    if (field.sql_type == MYSQL_TYPE_BIT)
+      col_options->set("treat_bit_as_char", field.treat_bit_as_char);
 
     // Store geometry sub type
-    if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
-      col_options->set("geom_type", field->geom_type);
+    if (field.sql_type == MYSQL_TYPE_GEOMETRY) {
+      col_options->set("geom_type", field.geom_type);
     }
 
     // Field storage media and column format options
-    if (field->field_storage_type() != HA_SM_DEFAULT)
+    if (field.field_storage_type() != HA_SM_DEFAULT)
       col_options->set("storage",
-                       static_cast<uint32>(field->field_storage_type()));
+                       static_cast<uint32>(field.field_storage_type()));
 
-    if (field->column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
+    if (field.column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
       col_options->set("column_format",
-                       static_cast<uint32>(field->column_format()));
+                       static_cast<uint32>(field.column_format()));
 
     // NOT SECONDARY column option.
-    if (field->flags & NOT_SECONDARY_FLAG)
+    if (field.flags & NOT_SECONDARY_FLAG)
       col_options->set("not_secondary", true);
 
-    if (field->is_array) {
+    if (field.is_array) {
       col_options->set("is_array", true);
     }
 
@@ -710,23 +713,23 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     // Write intervals
     //
     uint i = 0;
-    if (field->interval) {
+    if (field.interval) {
       uchar buff[MAX_FIELD_WIDTH];
       String tmp((char *)buff, sizeof(buff), &my_charset_bin);
       tmp.length(0);
 
-      for (const char **pos = field->interval->type_names; *pos; pos++) {
+      for (const char **pos = field.interval->type_names; *pos; pos++) {
         //
         // Create enum/set object
         //
-        DBUG_ASSERT(col_obj->type() == dd::enum_column_types::SET ||
-                    col_obj->type() == dd::enum_column_types::ENUM);
+        assert(col_obj->type() == dd::enum_column_types::SET ||
+               col_obj->type() == dd::enum_column_types::ENUM);
 
         dd::Column_type_element *elem_obj = col_obj->add_element();
 
         //  Copy type_lengths[i] bytes including '\0'
         //  This helps store typelib names that are of different charsets.
-        dd::String_type interval_name(*pos, field->interval->type_lengths[i]);
+        dd::String_type interval_name(*pos, field.interval->type_lengths[i]);
         elem_obj->set_name(interval_name);
 
         i++;
@@ -740,13 +743,13 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     col_options->set("interval_count", i);
 
     // Store geometry sub type
-    if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
-      col_options->set("geom_type", field->geom_type);
+    if (field.sql_type == MYSQL_TYPE_GEOMETRY) {
+      col_options->set("geom_type", field.geom_type);
     }
 
     // Reset the buffer and assign the column's default value.
     memset(buf, 0, bufsize);
-    if (prepare_default_value(thd, buf, table, *field, col_obj)) return true;
+    if (prepare_default_value(thd, buf, &table, field, col_obj)) return true;
 
     /**
       Storing default value specified for column in
@@ -763,10 +766,12 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       prepared in prepare_default_value() is used.
     */
     String def_val;
-    prepare_default_value_string(buf, &table, *field, col_obj, &def_val);
+    prepare_default_value_string(buf, &table, field, col_obj, &def_val);
     if (def_val.ptr() != nullptr)
       col_obj->set_default_value_utf8(
           dd::String_type(def_val.ptr(), def_val.length()));
+    col_obj->set_engine_attribute(field.m_engine_attribute);
+    col_obj->set_secondary_engine_attribute(field.m_secondary_engine_attribute);
   }
 
   return false;
@@ -793,7 +798,7 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "index algorithm.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return dd::Index::IA_SE_SPECIFIC;
   /* purecov: end */
@@ -855,7 +860,7 @@ static void fill_dd_index_elements_from_key_parts(
         i++;
       }
     }
-    DBUG_ASSERT(key_col_obj);
+    assert(key_col_obj);
 
     //
     // Create new index element object
@@ -889,7 +894,7 @@ static void fill_dd_index_elements_from_key_parts(
                 ->set_column_key(dd::Column::CK_MULTIPLE);
           break;
         default:
-          DBUG_ASSERT(!"Invalid index type");
+          assert(!"Invalid index type");
           break;
       }
     }
@@ -906,7 +911,7 @@ static void fill_dd_index_elements_from_key_parts(
     // Set index order
     //
 
-    if (file->index_flags(idx_obj->ordinal_position() - 1, key_part_no, 0) &
+    if (file->index_flags(idx_obj->ordinal_position() - 1, key_part_no, false) &
         HA_READ_ORDER)
       idx_elem->set_order(key_part->key_part_flag & HA_REVERSE_SORT
                               ? dd::Index_element::ORDER_DESC
@@ -917,7 +922,7 @@ static void fill_dd_index_elements_from_key_parts(
 }
 
 //  Check if a given key is candidate to be promoted to primary key.
-static bool is_candidate_primary_key(THD *thd, KEY *key,
+static bool is_candidate_primary_key(THD *thd, const KEY *key,
                                      const List<Create_field> &create_fields) {
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *key_part_end = key->key_part + key->user_defined_key_parts;
@@ -1061,6 +1066,8 @@ static void fill_dd_indexes_from_keyinfo(
     idx_obj->set_engine(tab_obj->engine());
     idx_obj->set_visible(key->is_visible);
 
+    idx_obj->set_engine_attribute(key->engine_attribute);
+    idx_obj->set_secondary_engine_attribute(key->secondary_engine_attribute);
     //
     // Set options
     //
@@ -1095,7 +1102,7 @@ static void fill_dd_indexes_from_keyinfo(
       fill_dd_index_elements_from_key_parts() about the same.
     */
     if (primary_key_info == nullptr &&
-        is_candidate_primary_key(thd, const_cast<KEY *>(key), create_fields)) {
+        is_candidate_primary_key(thd, key, create_fields)) {
       primary_key_info = key;
     }
 
@@ -1145,12 +1152,12 @@ static dd::Foreign_key::enum_rule get_fk_rule(fk_option opt) {
   @param key_count    number of foreign keys
   @param keyinfo      array containing foreign key info
 
-  @retval true if error (error reported), false otherwise.
+  @returns true if error (error reported), false otherwise.
 */
 
 static bool fill_dd_foreign_keys_from_create_fields(
     dd::Table *tab_obj, uint key_count, const FOREIGN_KEY *keyinfo) {
-  DBUG_ENTER("dd::fill_dd_foreign_keys_from_create_fields");
+  DBUG_TRACE;
   for (const FOREIGN_KEY *key = keyinfo; key != keyinfo + key_count; ++key) {
     dd::Foreign_key *fk_obj = tab_obj->add_foreign_key();
 
@@ -1193,7 +1200,7 @@ static bool fill_dd_foreign_keys_from_create_fields(
       const dd::Column *column = tab_obj->get_column(
           dd::String_type(key->key_part[i].str, key->key_part[i].length));
 
-      DBUG_ASSERT(column);
+      assert(column);
       fk_col_obj->set_column(column);
 
       fk_col_obj->referenced_column_name(
@@ -1201,7 +1208,7 @@ static bool fill_dd_foreign_keys_from_create_fields(
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1223,9 +1230,9 @@ template <typename T>
 static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
                                           const char *tablespace_name,
                                           bool is_temporary_table) {
-  DBUG_ENTER("fill_dd_tablespace_id_or_name");
+  DBUG_TRACE;
 
-  if (!(tablespace_name && strlen(tablespace_name))) DBUG_RETURN(false);
+  if (!(tablespace_name && strlen(tablespace_name))) return false;
 
   /*
     Tablespace metadata can be stored in new DD for following cases.
@@ -1254,20 +1261,20 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
       tablespace name is not IX locked. When setting tablespace id
       for dd::Partition, we acquire IX lock here.
     */
-    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+    assert(thd->mdl_context.owns_equal_or_stronger_lock(
         MDL_key::TABLESPACE, "", tablespace_name, MDL_INTENTION_EXCLUSIVE));
 
     // Acquire tablespace.
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Tablespace *ts_obj = NULL;
+    const dd::Tablespace *ts_obj = nullptr;
     if (thd->dd_client()->acquire(tablespace_name, &ts_obj)) {
       // acquire() always fails with a error being reported.
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (!ts_obj) {
       my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), tablespace_name);
-      DBUG_RETURN(true);
+      return true;
     }
 
     // We found valid tablespace so store the ID with dd::Table now.
@@ -1292,7 +1299,7 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
   */
   options->set("explicit_tablespace", true);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1314,7 +1321,7 @@ static bool get_field_list_str(dd::String_type &str, List<char> *name_list) {
     dd::escape(&str, name);
     if (++i < elements) str.push_back(FIELD_NAME_SEPARATOR_CHAR);
   }
-  DBUG_ASSERT(i == name_list->elements);
+  assert(i == name_list->elements);
   return false;
 }
 
@@ -1369,9 +1376,9 @@ static bool add_part_col_vals(partition_info *part_info,
     } else {
       //  Store in value in utf8 string format.
       String val_str;
-      DBUG_ASSERT(!col_val->item_expression->null_value);
-      if (expr_to_string(&val_str, col_val->item_expression, NULL, field_name,
-                         create_info,
+      assert(!col_val->item_expression->null_value);
+      if (expr_to_string(&val_str, col_val->item_expression, nullptr,
+                         field_name, create_info,
                          const_cast<List<Create_field> *>(&create_fields))) {
         return true;
       }
@@ -1456,7 +1463,7 @@ static bool fill_dd_partition_from_create_info(
         }
         break;
       default:
-        DBUG_ASSERT(0); /* purecov: deadcode */
+        assert(0); /* purecov: deadcode */
     }
 
     if (part_info->is_auto_partitioned) {
@@ -1469,7 +1476,7 @@ static bool fill_dd_partition_from_create_info(
           Currently only [LINEAR] KEY partitioning is used for auto
           partitioning.
         */
-        DBUG_ASSERT(0); /* purecov: deadcode */
+        assert(0); /* purecov: deadcode */
       }
     }
 
@@ -1486,18 +1493,32 @@ static bool fill_dd_partition_from_create_info(
       expr_utf8.assign(tmp.ptr(), tmp.length());
     } else {
       /* column_list also has list_of_part_fields set! */
-      DBUG_ASSERT(!part_info->column_list);
+      assert(!part_info->column_list);
 
       // Turn off ANSI_QUOTES and other SQL modes which affect printing of
       // expressions.
       Sql_mode_parse_guard parse_guard(thd);
 
+      /*
+        Because there are lifetime issues with CREATE TABLE and ALTER TABLE
+        when used with prepared statements, the field pointer within an
+        Item_field object may be invalid. However, it is not needed by
+        part_expr->print(), so set it to NULL temporarily.
+        This should be fixed by handling the lifetime issues for DDL operations.
+      */
+      Field *saved = nullptr;
+      if (part_info->part_expr->type() == Item::FIELD_ITEM) {
+        saved = down_cast<Item_field *>(part_info->part_expr)->field;
+        down_cast<Item_field *>(part_info->part_expr)->field = nullptr;
+      }
       // No point in including schema and table name for identifiers
       // since any columns must be in this table.
       part_info->part_expr->print(
           thd, &tmp,
           enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
 
+      if (saved != nullptr)
+        down_cast<Item_field *>(part_info->part_expr)->field = saved;
       if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN) {
         my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
         return true;
@@ -1627,7 +1648,7 @@ static bool fill_dd_partition_from_create_info(
             part_obj->set_description_utf8(
                 String_type(part_desc_str.ptr(), part_desc_str.length()));
 
-            DBUG_ASSERT(list_it++ == NULL);
+            assert(list_it++ == nullptr);
           } else {
             dd::Partition_value *val_obj = part_obj->add_value();
             if (part_elem->max_value) {
@@ -1660,7 +1681,7 @@ static bool fill_dd_partition_from_create_info(
           part_desc_str.length(0);
           part_desc_res.length(0);
           if (part_elem->has_null_value) {
-            DBUG_ASSERT(!part_info->column_list);
+            assert(!part_info->column_list);
             dd::Partition_value *val_obj = part_obj->add_value();
             val_obj->set_value_null(true);
             val_obj->set_list_num(list_index++);
@@ -1704,7 +1725,7 @@ static bool fill_dd_partition_from_create_info(
               String_type(part_desc_str.ptr(), part_desc_str.length()));
         } else {
           // HASH/KEY partition, nothing to fill in?
-          DBUG_ASSERT(part_info->part_type == partition_type::HASH);
+          assert(part_info->part_type == partition_type::HASH);
         }
 
         if (!part_info->is_sub_partitioned()) {
@@ -1718,7 +1739,7 @@ static bool fill_dd_partition_from_create_info(
           partition_element *sub_elem;
           uint sub_part_num = 0;
           while ((sub_elem = sub_it++)) {
-            dd::Partition *sub_obj = part_obj->add_sub_partition();
+            dd::Partition *sub_obj = part_obj->add_subpartition();
 
             sub_obj->set_engine(tab_obj->engine());
             if (sub_elem->part_comment)
@@ -1824,7 +1845,7 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format) {
     case ROW_TYPE_NOT_USED:
     case ROW_TYPE_DEFAULT:
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return Table::RF_FIXED;
@@ -1839,9 +1860,9 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format) {
   @param table The table definition
   @param handler Handler to the storage engine
 
-  @retval true if the engine does not supports the provided SRS id. In that case
-          my_error is called
-  @retval false on success
+  @returns true if the engine does not supports the provided SRS id. In that
+  case my_error is called
+  @returns false on success
 */
 static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
                                             const handler *handler) {
@@ -1858,7 +1879,7 @@ static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
         }
 
         // Non-existing spatial reference systems should already been stopped
-        DBUG_ASSERT(srs != nullptr);
+        assert(srs != nullptr);
         if (srs->is_geographic()) {
           my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0),
                    "geographic spatial reference systems");
@@ -1874,7 +1895,7 @@ static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
 bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
                               const dd::String_type &table_name,
                               const HA_CREATE_INFO *create_info) {
-  DBUG_ASSERT(create_info);
+  assert(create_info);
 
   // Checking if partitions contain a reserved tablespace.
   bool rsrvd_tablespace = false;
@@ -1964,7 +1985,7 @@ static bool fill_dd_table_from_create_info(
   handlerton *hton = thd->work_part_info
                          ? thd->work_part_info->default_engine_type
                          : create_info->db_type;
-  DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
+  assert(hton && ha_storage_engine_is_enabled(hton));
   tab_obj->set_engine(ha_resolve_storage_engine_name(hton));
 
   // Comments
@@ -1988,7 +2009,7 @@ static bool fill_dd_table_from_create_info(
   //
 
   /* We should not get any unexpected flags which are not handled below. */
-  DBUG_ASSERT(
+  assert(
       !(create_info->table_options &
         ~(HA_OPTION_PACK_RECORD | HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS |
           HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM |
@@ -2012,9 +2033,9 @@ static bool fill_dd_table_from_create_info(
   */
   if (create_info->table_options &
       (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) {
-    DBUG_ASSERT((create_info->table_options &
-                 (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) !=
-                (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS));
+    assert((create_info->table_options &
+            (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) !=
+           (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS));
 
     table_options->set("pack_keys",
                        create_info->table_options & HA_OPTION_PACK_KEYS);
@@ -2024,15 +2045,15 @@ static bool fill_dd_table_from_create_info(
     CHECKSUM=# clause. CHECKSUM=DEFAULT doesn't have special meaning and
     is equivalent to CHECKSUM=0.
   */
-  DBUG_ASSERT(!((create_info->table_options & HA_OPTION_CHECKSUM) &&
-                (create_info->table_options & HA_OPTION_NO_CHECKSUM)));
+  assert(!((create_info->table_options & HA_OPTION_CHECKSUM) &&
+           (create_info->table_options & HA_OPTION_NO_CHECKSUM)));
   if (create_info->table_options & (HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM))
     table_options->set("checksum",
                        create_info->table_options & HA_OPTION_CHECKSUM);
 
   /* DELAY_KEY_WRITE=# clause. Same situation as for CHECKSUM option. */
-  DBUG_ASSERT(!((create_info->table_options & HA_OPTION_DELAY_KEY_WRITE) &&
-                (create_info->table_options & HA_OPTION_NO_DELAY_KEY_WRITE)));
+  assert(!((create_info->table_options & HA_OPTION_DELAY_KEY_WRITE) &&
+           (create_info->table_options & HA_OPTION_NO_DELAY_KEY_WRITE)));
   if (create_info->table_options &
       (HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_NO_DELAY_KEY_WRITE))
     table_options->set("delay_key_write",
@@ -2045,10 +2066,9 @@ static bool fill_dd_table_from_create_info(
   */
   if (create_info->table_options &
       (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) {
-    DBUG_ASSERT(
-        (create_info->table_options &
-         (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) !=
-        (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT));
+    assert((create_info->table_options &
+            (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) !=
+           (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT));
 
     table_options->set("stats_persistent", (create_info->table_options &
                                             HA_OPTION_STATS_PERSISTENT));
@@ -2059,9 +2079,6 @@ static bool fill_dd_table_from_create_info(
   //
 
   table_options->set("avg_row_length", create_info->avg_row_length);
-
-  if (create_info->row_type != ROW_TYPE_DEFAULT)
-    table_options->set("row_type", create_info->row_type);
 
   // ROW_FORMAT which was explicitly specified by user (if any).
   if (create_info->row_type != ROW_TYPE_DEFAULT)
@@ -2115,13 +2132,17 @@ static bool fill_dd_table_from_create_info(
                      (keys_onoff == Alter_info::DISABLE ? 1 : 0));
 
   // Collation ID
-  DBUG_ASSERT(create_info->default_table_charset);
+  assert(create_info->default_table_charset);
   tab_obj->set_collation_id(create_info->default_table_charset->number);
 
   // Secondary engine.
   if (create_info->secondary_engine.str != nullptr)
     table_options->set("secondary_engine",
                        make_string_type(create_info->secondary_engine));
+
+  tab_obj->set_engine_attribute(create_info->engine_attribute);
+  tab_obj->set_secondary_engine_attribute(
+      create_info->secondary_engine_attribute);
 
   // TODO-MYSQL_VERSION: We decided not to store MYSQL_VERSION_ID ?
   //
@@ -2323,8 +2344,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(
     const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
     const Sql_check_constraint_spec_list *check_cons_spec, handler *file) {
   // Verify that this is not a dd table.
-  DBUG_ASSERT(
-      !dd::get_dictionary()->is_dd_table_name(sch_obj.name(), table_name));
+  assert(!dd::get_dictionary()->is_dd_table_name(sch_obj.name(), table_name));
 
   // Create dd::Table object.
   std::unique_ptr<dd::Table> tab_obj(sch_obj.create_table(thd));
@@ -2378,7 +2398,7 @@ std::unique_ptr<dd::Table> create_tmp_table(
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      sch_obj.name(), create_info, create_fields,
-                                     keyinfo, keys, keys_onoff, NULL, 0,
+                                     keyinfo, keys, keys_onoff, nullptr, 0,
                                      check_cons_spec, file))
     return nullptr;
 
@@ -2393,36 +2413,39 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 
 bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
                   const char *name, bool *exists) {
-  DBUG_ENTER("dd::table_exists");
-  DBUG_ASSERT(exists);
+  DBUG_TRACE;
+  assert(exists);
 
   // Tables exist if they can be acquired.
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Abstract_table *tab_obj = NULL;
+  const dd::Abstract_table *tab_obj = nullptr;
   if (client->acquire(schema_name, name, &tab_obj)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
+    return true;
   }
-  *exists = (tab_obj != NULL);
+  *exists = (tab_obj != nullptr);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool is_generated_foreign_key_name(const char *table_name,
-                                   size_t table_name_length,
+                                   size_t table_name_length, handlerton *hton,
                                    const dd::Foreign_key &fk) {
   /*
-    We assume that the name is generated if it starts with <table_name>_ibfk_
+    We assume that the name is generated if it starts with
+    <table_name><SE-specific or default foreign key name suffix>
+    (e.g. "_ibfk_" for InnoDB or "_fk_" for NDB).
   */
-  return ((fk.name().length() >
-           table_name_length + sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1) &&
+  const LEX_CSTRING &fk_name_suffix =
+      hton->fk_name_suffix.str ? hton->fk_name_suffix : FK_NAME_DEFAULT_SUFFIX;
+
+  return ((fk.name().length() > table_name_length + fk_name_suffix.length) &&
           (memcmp(fk.name().c_str(), table_name, table_name_length) == 0) &&
-          (memcmp(fk.name().c_str() + table_name_length,
-                  dd::FOREIGN_KEY_NAME_SUBSTR,
-                  sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1) == 0));
+          (memcmp(fk.name().c_str() + table_name_length, fk_name_suffix.str,
+                  fk_name_suffix.length) == 0));
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool is_foreign_key_name_locked(THD *thd, const char *db,
                                        const char *fk_name) {
   char db_name_buff[NAME_LEN + 1], fk_name_buff[NAME_LEN + 1];
@@ -2436,10 +2459,10 @@ static bool is_foreign_key_name_locked(THD *thd, const char *db,
 }
 #endif
 
-bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
-                         const char *old_db MY_ATTRIBUTE((unused)),
-                         const char *old_table_name,
-                         const char *new_db MY_ATTRIBUTE((unused)),
+bool rename_foreign_keys(THD *thd [[maybe_unused]],
+                         const char *old_db [[maybe_unused]],
+                         const char *old_table_name, handlerton *hton,
+                         const char *new_db [[maybe_unused]],
                          dd::Table *new_tab) {
   // With LCTN = 2, we are using lower-case tablename for FK name.
   char old_table_name_norm[NAME_LEN + 1];
@@ -2448,7 +2471,7 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
     my_casedn_str(system_charset_info, old_table_name_norm);
   size_t old_table_name_norm_len = strlen(old_table_name_norm);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool is_db_changed =
       (my_strcasecmp(table_alias_charset, old_db, new_db) != 0);
 #endif
@@ -2461,35 +2484,35 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
       if foreign key name is not generated and we are not moving
       table between databases) however it holds.
     */
-    DBUG_ASSERT(is_foreign_key_name_locked(thd, old_db, fk->name().c_str()));
+    assert(is_foreign_key_name_locked(thd, old_db, fk->name().c_str()));
 
     if (is_generated_foreign_key_name(old_table_name_norm,
-                                      old_table_name_norm_len, *fk)) {
+                                      old_table_name_norm_len, hton, *fk)) {
       char table_name[NAME_LEN + 1];
-      my_stpncpy(table_name, new_tab->name().c_str(), sizeof(table_name));
+      snprintf(table_name, sizeof(table_name), "%s", new_tab->name().c_str());
       if (lower_case_table_names == 2)
         my_casedn_str(system_charset_info, table_name);
       dd::String_type new_name(table_name);
-      // Copy _ibfk_nnnn from the old name.
+      // Copy <fk_name_suffix><number> (e.g. "_ibfk_nnnn") from the old name.
       new_name.append(fk->name().substr(old_table_name_norm_len));
       if (check_string_char_length(to_lex_cstring(new_name.c_str()), "",
-                                   NAME_CHAR_LEN, system_charset_info, 1)) {
+                                   NAME_CHAR_LEN, system_charset_info, true)) {
         my_error(ER_TOO_LONG_IDENT, MYF(0), new_name.c_str());
         return true;
       }
 
       // We should have lock on the new name as well.
-      DBUG_ASSERT(is_foreign_key_name_locked(thd, new_db, new_name.c_str()));
+      assert(is_foreign_key_name_locked(thd, new_db, new_name.c_str()));
 
       fk->set_name(new_name);
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else if (is_db_changed) {
       /*
         If we are moving table between databases we should have lock on
         the foreign key name in new database.
       */
-      DBUG_ASSERT(is_foreign_key_name_locked(thd, new_db, fk->name().c_str()));
+      assert(is_foreign_key_name_locked(thd, new_db, fk->name().c_str()));
     }
 #endif
   }
@@ -2501,7 +2524,7 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
 bool table_legacy_db_type(THD *thd, const char *schema_name,
                           const char *table_name,
                           enum legacy_db_type *db_type) {
-  DBUG_ENTER("dd::table_legacy_db_type");
+  DBUG_TRACE;
 
   // TODO-NOW: Getting DD objects without getting MDL lock on them
   //       is likely to cause problems. We need to revisit
@@ -2521,15 +2544,15 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   // Get hold of the dd::Table object.
-  const dd::Table *table = NULL;
+  const dd::Table *table = nullptr;
   if (thd->dd_client()->acquire(schema_name, table_name, &table)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (table == NULL) {
+  if (table == nullptr) {
     my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Get engine by name
@@ -2540,28 +2563,28 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   *db_type =
       ha_legacy_type(tmp_plugin ? plugin_data<handlerton *>(tmp_plugin) : NULL);
 
-  DBUG_RETURN(false);
+  return false;
 }
 /* purecov: end */
 
 template <typename T>
 bool table_storage_engine(THD *thd, const T *obj, handlerton **hton) {
-  DBUG_ENTER("dd::table_storage_engine");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(hton);
+  assert(hton);
 
   // Get engine by name
   plugin_ref tmp_plugin =
       ha_resolve_by_name_raw(thd, lex_cstring_handle(obj->engine()));
   if (!tmp_plugin) {
     my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), obj->engine().c_str());
-    DBUG_RETURN(true);
+    return true;
   }
 
   *hton = plugin_data<handlerton *>(tmp_plugin);
-  DBUG_ASSERT(*hton && ha_storage_engine_is_enabled(*hton));
+  assert(*hton && ha_storage_engine_is_enabled(*hton));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template bool table_storage_engine<dd::Table>(THD *, const dd::Table *,
@@ -2572,7 +2595,7 @@ template bool table_storage_engine<dd::Tablespace>(THD *,
 
 bool recreate_table(THD *thd, const char *schema_name, const char *table_name) {
   // There should be an exclusive metadata lock on the table
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE));
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -2583,7 +2606,7 @@ bool recreate_table(THD *thd, const char *schema_name, const char *table_name) {
     return true;
 
   // Table must exist.
-  DBUG_ASSERT(table_def);
+  assert(table_def);
 
   HA_CREATE_INFO create_info;
 
@@ -2617,7 +2640,7 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
                                            uint32 field_length, uint32 decimals,
                                            bool maybe_null, bool is_unsigned,
                                            const CHARSET_INFO *field_charset) {
-  DBUG_ENTER("get_sql_type_by_field_info");
+  DBUG_TRACE;
 
   TABLE_SHARE share;
   TABLE table;
@@ -2630,11 +2653,11 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
                            is_unsigned, 0);
   field.charset = field_charset;
 
-  DBUG_RETURN(get_sql_type_by_create_field(&table, &field));
+  return get_sql_type_by_create_field(&table, field);
 }
 
 bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type) {
-  DBUG_ASSERT(table_def != nullptr);
+  assert(table_def != nullptr);
 
   table_def->set_row_format(dd_get_new_row_format(correct_row_type));
 
@@ -2682,7 +2705,7 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
   }
 
   // Acquire the tablespace engine hton.
-  handlerton *hton = NULL;
+  handlerton *hton = nullptr;
   Tablespace_type space_type = Tablespace_type::SPACE_TYPE_IMPLICIT;
   // If the engine is not found, my_error() has already been called
   if (dd::table_storage_engine(thd, tsp, &hton)) return true;
@@ -2699,7 +2722,7 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
       tsp->options().exists("encryption")) {
     String_type e;
     (void)tsp->options().get("encryption", &e);
-    DBUG_ASSERT(e.empty() == false);
+    assert(e.empty() == false);
     *is_general_tablespace = true;
     *is_encrypted_tablespace = is_encrypted(e);
   }
@@ -2713,13 +2736,13 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
    the table itself (implicit tablespace), then proceeds to acquire
    and check the "ecryption" option in table's tablespaces.
 
-   @param[in] thd
+   @param[in] thd thread context
    @param[in] t table to check
    @param[out] is_general_tablespace Denotes if we found general tablespace.
 
-   @retval {true, *} in case of errors
-   @retval {false, true} if at least one tablespace is encrypted
-   @retval {false, false} if no tablespace is encrypted
+   @returns {true, *} in case of errors
+   @returns {false, true} if at least one tablespace is encrypted
+   @returns {false, false} if no tablespace is encrypted
  */
 Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t,
                                        bool *is_general_tablespace) {
@@ -2845,9 +2868,9 @@ static void copy_tablespace_names(const HA_CREATE_INFO *ci, partition_info *pi,
    @param[out] is_general_tablespace Marked as true on success if its
                                 general tablespace.
 
-   @retval {true, *} in case of errors
-   @retval {false, true} if at least one tablespace is encrypted
-   @retval {false, false} if no tablespace is encrypted
+   @returns {true, *} in case of errors
+   @returns {false, true} if at least one tablespace is encrypted
+   @returns {false, false} if no tablespace is encrypted
  */
 Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
                                        bool *is_general_tablespace) {
@@ -2911,4 +2934,184 @@ bool uses_general_tablespace(const Table &t) {
   return false;
 }
 
+void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
+                                             const char *orig_table_name,
+                                             const Table *table,
+                                             const bool is_upgrade) {
+  DBUG_TRACE;
+  assert(table);
+
+  // Check if table is partitioned.
+  const Table::enum_partition_type pt_type = table->partition_type();
+  if (pt_type == Table::enum_partition_type::PT_NONE) return;
+
+  // Check if table is partitioned by [LINEAR] KEY.
+  if (pt_type != Table::PT_KEY_51 && pt_type != Table::PT_KEY_55 &&
+      pt_type != Table::PT_LINEAR_KEY_51 && pt_type != Table::PT_LINEAR_KEY_55)
+    return;
+
+  // Parse the partition expression to get the list of columns used.
+  // NOTE : This is similar to working of set_field_list().
+  std::vector<String_type> part_columns;
+  String_type part_expr = table->partition_expression();
+  String_type::const_iterator it(part_expr.begin());
+  String_type::const_iterator end(part_expr.end());
+  String_type part_column_name;
+  while (it != end) {
+    if (eat_str(part_column_name, it, end, dd::FIELD_NAME_SEPARATOR_CHAR))
+      break; /* purecov: inspected */
+    part_columns.push_back(part_column_name);
+  }
+
+  // We check the list of columns only if columns are explicitly specified in
+  // PARTITION BY KEY (column_list).
+  const bool check_part_columns = !part_columns.empty();
+
+  const Table::Partition_collection *partitions = &table->partitions();
+  assert(!partitions->empty());
+
+  // Since the indexes referred by every partition would be the same, we only
+  // need the first partition.
+  const Partition *partition = *partitions->begin();
+
+  // Check each index element of each partition index, and throw a warning if
+  // prefix key index is used in the PARTITION BY KEY() clause.
+  for (const auto *part_index : partition->indexes()) {
+    if (part_index->index().is_hidden()) continue;
+
+    for (const auto *index_element : part_index->index().elements()) {
+      if (index_element->is_hidden()) continue;
+
+      // Index length should not be unset, if the index is visible.
+      assert(!index_element->is_length_null());
+
+      // In case PARTITION BY KEY(...) columns are explicitly specified, check
+      // if this column is one of them.
+      const Column *column = &index_element->column();
+      String_type column_name = column->name();
+      if (check_part_columns) {
+        bool found = false;
+        for (auto part_column : part_columns) {
+          if (!my_strcasecmp(system_charset_info, column_name.c_str(),
+                             part_column.c_str())) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) continue;
+      }
+
+      // Check if column is one of the types for which prefixes can be
+      // specified.
+      const enum enum_column_types column_type = column->type();
+      if (column_type !=
+              enum_column_types::VARCHAR &&  // For CHAR/VARCHAR/VARBINARY
+          column_type != enum_column_types::STRING)  // For BINARY
+        continue;
+
+      assert(index_element->length() <= column->char_length());
+
+      // Check if the partition index element length differs from the column
+      // length, which indicates that it uses a prefix key.
+      if (index_element->length() == column->char_length()) continue;
+
+      // Calculate prefix key length to be displayed, based on charset.
+      const CHARSET_INFO *cs = dd_get_mysql_charset(column->collation_id());
+      const uint prefix_key_length = index_element->length() / cs->mbmaxlen;
+
+      // In case of UPGRADE from 5.7 or lower 8.0.x version, send warning to the
+      // error log. In case of CREATE|ALTER TABLE, send warning to client.
+      if (is_upgrade)
+        LogErr(WARNING_LEVEL, ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY,
+               schema_name, orig_table_name, column_name.c_str(),
+               column_name.c_str(), prefix_key_length);
+      else
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING,
+            ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+            ER_THD(thd, ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY),
+            schema_name, orig_table_name, column_name.c_str(),
+            column_name.c_str(), prefix_key_length);
+    }
+  }
+}
+
+bool get_implicit_tablespace_options(THD *thd, const Table *table,
+                                     ulonglong *autoextend_size) {
+  assert(table->engine() == "InnoDB");
+
+  /* Find out if the user has specified the tablespace name as
+  'innodb_file_per_table' */
+  String_type name;
+  bool is_file_per_table = table->options().exists("tablespace") &&
+                           !table->options().get("tablespace", &name) &&
+                           name.compare("innodb_file_per_table") == 0;
+
+  /* Find out the tablespace option only for implicit tablespaces or
+  'innodb_file_per_table' tablespace. */
+  if (table->is_explicit_tablespace() && !is_file_per_table) {
+    return false;
+  }
+
+  // AUTOEXTEND_SIZE is a tablespace attribute. In order to find it,
+  // first find the tablespace associated with the table
+  Object_id space_id{};
+  Tablespace *tbsp{};
+
+  if (table->partition_type() == Table::PT_NONE) {
+    // If this is a non-partitioned tables, find out the space id from the first
+    // index
+    const Index *index = *table->indexes().begin();
+
+    if (index) {
+      space_id = index->tablespace_id();
+    }
+  } else {
+    // Find out the space_id from the first index on the first partition in case
+    // of partitioned tables or from the first index on the first sub-partition
+    // if the table has sub-partitions. The implicit tablespace for each
+    // partition or sub-partition will have the same AUTOEXTEND_SIZE value.
+    const Partition *part = *table->partitions().begin();
+
+    if (part) {
+      const Partition_index *index{};
+      if (table->subpartition_type() == Table::ST_NONE) {
+        // First index from the partition
+        index = *part->indexes().begin();
+      } else {
+        // This is a sub-partitioned table. Get the first indexes from the first
+        // sub-partition
+        const Partition *subpart = *part->subpartitions().begin();
+
+        if (subpart) {
+          index = *subpart->indexes().begin();
+        }
+      }
+
+      space_id = index->tablespace_id();
+    }
+  }
+
+  assert(space_id != INVALID_OBJECT_ID);
+
+  // Find the tablespace with the given space_id
+  if (space_id != INVALID_OBJECT_ID &&
+      !thd->dd_client()->acquire_uncached<Tablespace>(space_id, &tbsp) &&
+      tbsp != nullptr) {
+    const Properties &p = tbsp->options();
+
+    if (p.exists("autoextend_size")) {
+      p.get("autoextend_size", autoextend_size);
+    }
+  } else {
+    /* purecov: begin deadcode */
+    // Could not find the implicit tablespace for this table
+    assert(false);
+
+    return true;
+    /* purecov: end */
+  }
+
+  return false;
+}
 }  // namespace dd

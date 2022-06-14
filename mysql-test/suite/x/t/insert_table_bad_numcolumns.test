@@ -7,7 +7,7 @@
 create schema xtest default charset='utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/insert_table_bad_numcolumns.tmp
+--write_file $MYSQL_TMP_DIR/insert_table_bad_numcolumns.xpl
 ## Test data
 -->sql
 use xtest;
@@ -327,9 +327,7 @@ Mysqlx.Sql.StmtExecute {
 -->recv
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_bad_numcolumns.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_bad_numcolumns.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/insert_table_bad_numcolumns.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

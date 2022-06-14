@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/schema_impl.h"
 
+#include <assert.h>
 #include <memory>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
@@ -31,7 +32,7 @@
 
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql_com.h"
@@ -70,15 +71,15 @@ using dd::tables::Tables;
 
 namespace dd {
 
+static const std::set<String_type> default_valid_option_keys = {"read_only"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Schema_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Schema_impl::Schema_impl()
-    : m_created(0),
-      m_last_altered(0),
-      m_default_encryption(enum_encryption_type::ET_NO),
-      m_se_private_data(),
+    : m_se_private_data(),
+      m_options(default_valid_option_keys),
       m_default_collation_id(INVALID_OBJECT_ID) {}
 
 bool Schema_impl::validate() const {
@@ -89,6 +90,22 @@ bool Schema_impl::validate() const {
   }
 
   return false;
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+bool Schema_impl::read_only() const {
+  bool state = false;
+  if (options().exists("read_only") && options().get("read_only", &state)) {
+    return false;
+  }
+  return state;
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+void Schema_impl::set_read_only(bool state) {
+  options().set("read_only", state);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -119,6 +136,7 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
     set_se_private_data(r.read_str(Schemata::FIELD_SE_PRIVATE_DATA, ""));
   }
 
+  set_options(r.read_str(Schemata::FIELD_OPTIONS, ""));
   return false;
 }
 
@@ -149,7 +167,8 @@ bool Schema_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(Schemata::FIELD_DEFAULT_COLLATION_ID,
                          m_default_collation_id) ||
          r->store(Schemata::FIELD_CREATED, m_created) ||
-         r->store(Schemata::FIELD_LAST_ALTERED, m_last_altered);
+         r->store(Schemata::FIELD_LAST_ALTERED, m_last_altered) ||
+         r->store(Schemata::FIELD_OPTIONS, m_options);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -218,9 +237,9 @@ Procedure *Schema_impl::create_procedure(THD *thd) const {
 
 Table *Schema_impl::create_table(THD *thd) const {
 // Creating tables requires an IX meta data lock on the schema name.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char name_buf[NAME_LEN + 1];
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA,
       dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
       MDL_INTENTION_EXCLUSIVE));
@@ -245,9 +264,9 @@ Table *Schema_impl::create_table(THD *thd) const {
 
 View *Schema_impl::create_view(THD *thd) const {
 // Creating views requires an IX meta data lock on the schema name.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char name_buf[NAME_LEN + 1];
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA,
       dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
       MDL_INTENTION_EXCLUSIVE));
@@ -268,11 +287,11 @@ View *Schema_impl::create_view(THD *thd) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const {
+View *Schema_impl::create_system_view(THD *thd [[maybe_unused]]) const {
 // Creating system views requires an IX meta data lock on the schema name.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char name_buf[NAME_LEN + 1];
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA,
       dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
       MDL_INTENTION_EXCLUSIVE));

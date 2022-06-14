@@ -1,0 +1,631 @@
+# -----------------------------------------------------------------------
+# Setup
+# Saving initial values
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+@global_start_value
+REPEATABLE-READ
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+@session_start_value
+REPEATABLE-READ
+# Setting transaction isolation to 'READ-UNCOMMITTED'
+SET GLOBAL transaction_isolation = 'READ-UNCOMMITTED';
+# -----------------------------------------------------------------------
+# ACL DDLs + Blocking READs
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.user WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+1
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.db WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.default_roles WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.role_edges WHERE from_user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.global_grants WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.global_grants WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.password_history WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.tables_priv WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.columns_priv WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.procs_priv WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+CREATE USER u1 IDENTIFIED BY 'abcd';
+GRANT SELECT, UPDATE ON *.* TO u1;
+connect conn_u1, localhost, u1, abcd,,,;
+SET @@autocommit=0;
+connect conn_root_1, localhost, root,,,,;
+SET @@lock_wait_timeout=1;
+connection conn_u1;
+SELECT COUNT(*) FROM mysql.proxies_priv WHERE user LIKE 'u1' FOR UPDATE;;
+COUNT(*)
+0
+connection conn_root_1;
+CREATE USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT SELECT ON *.* TO r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+GRANT r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEFAULT ROLE r1 TO u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER USER u2 IDENTIFIED BY 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+RENAME USER u2 TO u3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET PASSWORD FOR u2 = 'abcd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE r1 FROM u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+REVOKE SELECT ON *.* FROM r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP ROLE r1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP USER u2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection conn_u1;
+ROLLBACK;
+connection conn_root_1;
+CREATE USER u2;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 TO u2;
+SET DEFAULT ROLE r1 TO u2;
+ALTER USER u2 IDENTIFIED BY 'abcd';
+RENAME USER u2 TO u3;
+RENAME USER u3 TO u2;
+SET PASSWORD FOR u2 = 'abcd';
+REVOKE r1 FROM u2;
+REVOKE SELECT ON *.* FROM r1;
+DROP ROLE r1;
+DROP USER u2;
+connection default;
+disconnect conn_root_1;
+disconnect conn_u1;
+DROP USER u1;
+# -----------------------------------------------------------------------
+# Cleanup
+# Restore initial values
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ

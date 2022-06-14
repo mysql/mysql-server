@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,8 +51,8 @@ Rpl_info::Rpl_info(const char *type,
       key_info_sleep_cond(param_key_info_sleep_cond),
 #endif
       info_thd(nullptr),
-      inited(0),
-      abort_slave(0),
+      inited(false),
+      abort_slave(false),
       slave_running(0),
       slave_run_id(0),
       handler(nullptr),

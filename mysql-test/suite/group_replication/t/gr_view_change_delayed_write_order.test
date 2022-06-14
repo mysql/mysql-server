@@ -37,6 +37,7 @@
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -53,6 +54,12 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 --source include/start_group_replication.inc
 
@@ -73,8 +80,14 @@ SET @@GLOBAL.DEBUG='+d,group_replication_after_before_commit_hook';
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER= '$recovery_user', MASTER_PASSWORD= '$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER= '$recovery_user', SOURCE_PASSWORD= '$recovery_password' FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
 
 --let $group_replication_start_member_state= RECOVERING
@@ -171,8 +184,21 @@ SET SESSION sql_log_bin= 1;
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed.*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master.*");
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

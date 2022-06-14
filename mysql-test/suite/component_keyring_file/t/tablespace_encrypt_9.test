@@ -1,0 +1,10 @@
+--source include/have_component_keyring_file.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/no_valgrind_without_big.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/tablespace_encrypt_9.inc
+--source ../inc/teardown_component.inc

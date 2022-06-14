@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ public:
    *
    * @param connectstring The connectstring for where to find the
    *                      management server
-   * @param force_api_node The nodeid to use for this API node, will
+   * @param force_api_nodeid The nodeid to use for this API node, will
    *                       override any nodeid=<nodeid> specified in
    *                       connectstring
    */
@@ -105,9 +105,6 @@ public:
    * Set a name on the connection, which will be reported in cluster log
    * and in ndbinfo.processes.
    * For the name to be visible, this must be called prior to connect().
-   *
-   * @param name
-   *
    */
   void set_name(const char *name);
 
@@ -242,9 +239,9 @@ public:
    *
    * See Ndb::ClientStatistics for suggested array size and offset
    * meanings
-   * 
+   *
    * @param statsArr   Pointer to array of Uint64 values for stats
-   * @param szz        Size of array
+   * @param sz         Size of array
    * @return Number of stats array values written
    */
   Uint32 collect_client_stats(Uint64* statsArr, Uint32 sz);
@@ -304,13 +301,18 @@ public:
   int get_connected_port() const;
   const char *get_connected_host() const;
 
+  // Get generation of the configuration used to configure the NdbApi
+  Uint32 get_config_generation() const;
+
   void set_optimized_node_selection(int val);
 
   unsigned no_db_nodes();
+  unsigned max_api_nodeid() const;
   unsigned max_nodegroup();
   unsigned node_id();
   unsigned get_connect_count() const;
   unsigned get_min_db_version() const;
+  unsigned get_min_api_version() const;
 
   void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
   unsigned int get_next_node(Ndb_cluster_connection_node_iter &iter);

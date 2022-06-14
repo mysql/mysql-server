@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,8 @@
 static const int NUM_SECTIONS =
     sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
 
-extern uint max_server_errors;
+extern uint max_global_server_errors;
+extern uint max_session_server_errors;
 extern uint pfs_to_server_error_map[];
 
 struct PFS_thread;

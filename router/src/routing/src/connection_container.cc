@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,38 +28,41 @@
 IMPORT_LOG_FUNCTIONS()
 
 void ConnectionContainer::add_connection(
-    std::unique_ptr<MySQLRoutingConnection> connection) {
+    std::unique_ptr<MySQLRoutingConnectionBase> connection) {
   connections_.put(connection.get(), std::move(connection));
 }
 
-void ConnectionContainer::disconnect(const AllowedNodes &nodes) {
+unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
   unsigned number_of_disconnected_connections = 0;
 
   auto mark_to_diconnect_if_not_allowed =
       [&nodes, &number_of_disconnected_connections](
-          std::pair<MySQLRoutingConnection *const,
-                    std::unique_ptr<MySQLRoutingConnection>> &connection) {
-        const auto &server_address = connection.first->get_server_address();
-        const std::string &client_address =
-            connection.first->get_client_address();
-        if (std::find(nodes.begin(), nodes.end(), server_address) ==
-            nodes.end()) {
+          std::pair<MySQLRoutingConnectionBase *const,
+                    std::unique_ptr<MySQLRoutingConnectionBase>> &connection) {
+        if (std::find_if(nodes.begin(), nodes.end(),
+                         [&connection](const auto &node) {
+                           return node.address.str() ==
+                                  connection.first->get_destination_id();
+                         }) == nodes.end()) {
+          const auto server_address = connection.first->get_server_address();
+          const auto client_address = connection.first->get_client_address();
+
           log_info("Disconnecting client %s from server %s",
-                   client_address.c_str(), server_address.str().c_str());
+                   client_address.c_str(), server_address.c_str());
           connection.first->disconnect();
           ++number_of_disconnected_connections;
         }
       };
 
   connections_.for_each(mark_to_diconnect_if_not_allowed);
-  if (number_of_disconnected_connections > 0)
-    log_info("Disconnected %u connections", number_of_disconnected_connections);
+
+  return number_of_disconnected_connections;
 }
 
 void ConnectionContainer::disconnect_all() {
   auto mark_to_disconnect =
-      [](std::pair<MySQLRoutingConnection *const,
-                   std::unique_ptr<MySQLRoutingConnection>> &connection) {
+      [](std::pair<MySQLRoutingConnectionBase *const,
+                   std::unique_ptr<MySQLRoutingConnectionBase>> &connection) {
         connection.first->disconnect();
       };
 
@@ -67,7 +70,9 @@ void ConnectionContainer::disconnect_all() {
 }
 
 void ConnectionContainer::remove_connection(
-    MySQLRoutingConnection *connection) {
+    MySQLRoutingConnectionBase *connection) {
+  std::unique_lock<std::mutex> lk(connection_removed_cond_m_);
+
   connections_.erase(connection);
 
   connection_removed_cond_.notify_all();

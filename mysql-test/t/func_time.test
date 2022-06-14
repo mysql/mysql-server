@@ -266,44 +266,10 @@ select unix_timestamp('1969-12-01 19:00:01');
 #
 select from_unixtime(-1);
 SELECT FROM_UNIXTIME(-0.000001);
-# check for from_unixtime(2^31-1) and from_unixtime(2^31)
-select from_unixtime(2147483647);
-select from_unixtime(2147483648);
+# check for from_unixtime(2^31-1) and from_unixtime(2^31), and similarly for
+# test of unix_timestamp, moved to unixtime.inc
 select from_unixtime(0);
 
-#
-# Some more tests for bug #9191 "TIMESTAMP/from_unixtime() no
-# longer accepts 2^31-1". Here we test that from_unixtime and
-# unix_timestamp are consistent, when working with boundary dates.
-#
-select unix_timestamp(from_unixtime(2147483647));
-select unix_timestamp(from_unixtime(2147483648));
-
-# check for invalid dates
-
-# bad year
-select unix_timestamp('2039-01-20 01:00:00');
-select unix_timestamp('1968-01-20 01:00:00');
-# bad month
-select unix_timestamp('2038-02-10 01:00:00');
-select unix_timestamp('1969-11-20 01:00:00');
-# bad day
-select unix_timestamp('2038-01-20 01:00:00');
-select unix_timestamp('1969-12-30 01:00:00');
-
-#
-# Check negative shift (we subtract several days for boundary dates during
-# conversion).
-select unix_timestamp('2038-01-17 12:00:00');
-
-#
-# Check positive shift. (it happens only on
-# platfroms with unsigned time_t, such as QNX)
-#
-select unix_timestamp('1970-01-01 03:00:01');
-
-# check bad date, close to the boundary (we cut them off in the very end)
-select unix_timestamp('2038-01-19 07:14:07');
 
 #
 # Bug #28759: DAYNAME() and MONTHNAME() return binary string
@@ -477,6 +443,7 @@ select f3 from t1 where f3 between cast("2006-1-1 12:1:1" as datetime) and cast(
 select f3 from t1 where timestamp(f3) between cast("2006-1-1 12:1:1" as datetime) and cast("2006-1-1 12:1:2" as datetime);
 select f1 from t1 where cast("2006-1-1" as date) between f1 and f3;
 select f1 from t1 where cast("2006-1-1" as date) between date(f1) and date(f3);
+--skip_if_hypergraph  # Warnings depend on query plan.
 select f1 from t1 where cast("2006-1-1" as date) between f1 and cast('zzz' as date);
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 select f1 from t1 where makedate(2006,2) between date(f1) and date(f3);
@@ -746,6 +713,7 @@ DROP TABLE t1;
 #
 # Check if using GROUP BY with TIME_FORMAT() produces correct results
 
+--sorted_result
 SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 
 #
@@ -866,6 +834,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a CHAR(10) NOT NULL);
 INSERT INTO t1 VALUES (''),('');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
 DROP TABLE t1;
 
@@ -1078,18 +1047,24 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT a FROM t1
 WHERE CONVERT_TZ(TIMESTAMPADD(YEAR , a, TIMESTAMP('0000-00-00')),
                  '+00:00','+00:00');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT a FROM t1
 WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
                  '+00:00','+00:00');
 DROP TABLE t1;
 CREATE TABLE t1 (a TIME) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('00:00:00');
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') IS NULL;
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE('0000-00-01')) IS NULL;
+--skip_if_hypergraph  # Warnings depend on query plan.
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE'0000-00-01') IS NULL;
 DROP TABLE t1;
 SET sql_mode = default;
@@ -1099,6 +1074,7 @@ SET sql_mode = default;
 CREATE TABLE t1 (a VARCHAR(32) NOT NULL);
 INSERT INTO t1 VALUES ('a');
 --disable_ps_protocol  # See bug #27245598.
+--skip_if_hypergraph  # Different warnings.
 SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
 --enable_ps_protocol
 SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;
@@ -1314,3 +1290,47 @@ SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
 
 DROP TABLE t0022;
+
+--echo #
+--echo # Bug#32239578: WRONG METADATA FOR THE TO_DAYS FUNCTION
+--echo #
+
+# Used to fail with "out of range value". The values were one digit
+# too wide for column x, and two digits too wide for column y.
+CREATE TABLE t AS
+  SELECT CAST(TO_DAYS('9999-12-31') AS CHAR) AS x,
+         TO_DAYS('9999-12-31') * -4.0 AS y;
+SELECT * FROM t;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+
+--echo #
+--echo # Bug #32384355 INSERT,SELECT FROM SAME TABLE WITH AGGREGATE
+--echo # AND NOW() COLUMNS PRODUCES ERROR
+--echo #
+
+CREATE TABLE t1 (
+  i1 INT,
+  d1 DATETIME
+);
+
+ANALYZE TABLE t1;
+
+let $query = INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+SELECT i1, EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#33438883: Assertion `!thd->lex->is_view_context_analysis()
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE VIEW v1 AS SELECT (SELECT 'v' FROM DUAL) AS field1 FROM t1 GROUP BY field1
+HAVING TIME(field1) != 0 AND  TIMESTAMP(field1) != 0;
+DROP VIEW v1;
+DROP TABLE t1;

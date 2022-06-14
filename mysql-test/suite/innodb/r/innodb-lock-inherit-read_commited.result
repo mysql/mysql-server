@@ -182,18 +182,18 @@ SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
 index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 con	index_name	lock_type	lock_mode	lock_status	lock_data
 con1	NULL	TABLE	IX	GRANTED	NULL
-con1	a	RECORD	X	GRANTED	supremum pseudo-record
 con1	a	RECORD	X	GRANTED	1, 1
 con1	a	RECORD	X	GRANTED	2, 2
-con1	a	RECORD	X	GRANTED	7, 7
+con1	a	RECORD	X	GRANTED	supremum pseudo-record
 con1	a	RECORD	X,GAP	GRANTED	2, 2
 con1	a	RECORD	X,GAP	GRANTED	7, 6
+con1	a	RECORD	X,GAP	GRANTED	7, 7
 con1	a	RECORD	X,REC_NOT_GAP	GRANTED	7, 7
-con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X	GRANTED	7, 7
+con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X,GAP	GRANTED	7, 6
 con1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	7
 SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
@@ -205,18 +205,18 @@ SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
 index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 con	index_name	lock_type	lock_mode	lock_status	lock_data
 con1	NULL	TABLE	IX	GRANTED	NULL
-con1	a	RECORD	X	GRANTED	supremum pseudo-record
 con1	a	RECORD	X	GRANTED	1, 1
 con1	a	RECORD	X	GRANTED	2, 2
-con1	a	RECORD	X	GRANTED	7, 7
+con1	a	RECORD	X	GRANTED	supremum pseudo-record
 con1	a	RECORD	X,GAP	GRANTED	2, 2
 con1	a	RECORD	X,GAP	GRANTED	7, 6
+con1	a	RECORD	X,GAP	GRANTED	7, 7
 con1	a	RECORD	X,REC_NOT_GAP	GRANTED	7, 7
-con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X	GRANTED	7, 7
+con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X,GAP	GRANTED	7, 6
 con1	PRIMARY	RECORD	S,REC_NOT_GAP	GRANTED	2
 con1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	7
@@ -234,16 +234,16 @@ SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
 index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 con	index_name	lock_type	lock_mode	lock_status	lock_data
 con1	NULL	TABLE	IX	GRANTED	NULL
 con1	a	RECORD	X	GRANTED	supremum pseudo-record
-con1	a	RECORD	X	GRANTED	7, 7
 con1	a	RECORD	X,GAP	GRANTED	5, 5
 con1	a	RECORD	X,GAP	GRANTED	7, 6
+con1	a	RECORD	X,GAP	GRANTED	7, 7
 con1	a	RECORD	X,REC_NOT_GAP	GRANTED	7, 7
-con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X	GRANTED	7, 7
+con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X,GAP	GRANTED	7, 6
 con1	PRIMARY	RECORD	S,REC_NOT_GAP	GRANTED	2
 con1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	7
@@ -253,16 +253,16 @@ SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
 index_name,lock_type,lock_mode,lock_status,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema='test' AND object_name = 't1'
-  ORDER BY 1,2,3,4,5;
+  ORDER BY 1,2,3,4,5,6;
 con	index_name	lock_type	lock_mode	lock_status	lock_data
 con1	NULL	TABLE	IX	GRANTED	NULL
 con1	a	RECORD	X	GRANTED	supremum pseudo-record
-con1	a	RECORD	X	GRANTED	7, 7
 con1	a	RECORD	X,GAP	GRANTED	5, 5
 con1	a	RECORD	X,GAP	GRANTED	7, 6
+con1	a	RECORD	X,GAP	GRANTED	7, 7
 con1	a	RECORD	X,REC_NOT_GAP	GRANTED	7, 7
-con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X	GRANTED	7, 7
+con1	c	RECORD	X	GRANTED	supremum pseudo-record
 con1	c	RECORD	X,GAP	GRANTED	7, 6
 con1	PRIMARY	RECORD	S,REC_NOT_GAP	GRANTED	2
 con1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	7

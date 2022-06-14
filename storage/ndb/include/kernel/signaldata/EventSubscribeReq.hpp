@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ struct EventSubscribeReq {
    */
   friend class MgmtSrvr;
 
-  STATIC_CONST( SignalLength = 2 + LogLevel::LOGLEVEL_CATEGORIES );
+  static constexpr Uint32 SignalLength = 2 + LogLevel::LOGLEVEL_CATEGORIES;
   
   /**
    * Note: If you use the same blockRef as you have used earlier, 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,31 +23,16 @@
 */
 
 #include "destination.h"
-#include "common.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/routing.h"
-#include "mysqlrouter/utils.h"
-#include "tcp_address.h"
-#include "utils.h"
 
-#include <algorithm>
-#include <cassert>
-#include <iostream>
-#include <stdexcept>
-#ifndef _WIN32
-#include <netdb.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
+#include <algorithm>  // remove_if
+#include <mutex>      // lock_guard
+#include <stdexcept>  // out_of_range
+#include <system_error>
+
+#include "mysqlrouter/routing.h"
+#include "tcp_address.h"
 
 using mysql_harness::TCPAddress;
-using mysqlrouter::to_string;
-using std::out_of_range;
-IMPORT_LOG_FUNCTIONS()
 
 // class DestinationNodesStateNotifier
 
@@ -63,6 +48,53 @@ void DestinationNodesStateNotifier::unregister_allowed_nodes_change_callback(
     const AllowedNodesChangeCallbacksListIterator &it) {
   std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
   allowed_nodes_change_callbacks_.erase(it);
+}
+
+void DestinationNodesStateNotifier::register_start_router_socket_acceptor(
+    const StartSocketAcceptorCallback &callback) {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  start_router_socket_acceptor_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_start_router_socket_acceptor() {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  start_router_socket_acceptor_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_stop_router_socket_acceptor(
+    const StopSocketAcceptorCallback &callback) {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  stop_router_socket_acceptor_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_stop_router_socket_acceptor() {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  stop_router_socket_acceptor_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_md_refresh_callback(
+    const MetadataRefreshCallback &callback) {
+  std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);
+  md_refresh_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_md_refresh_callback() {
+  std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);
+  md_refresh_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_query_quarantined_destinations(
+    const QueryQuarantinedDestinationsCallback &callback) {
+  std::lock_guard<std::mutex> lock(
+      query_quarantined_destinations_callback_mtx_);
+  query_quarantined_destinations_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::
+    unregister_query_quarantined_destinations() {
+  std::lock_guard<std::mutex> lock(
+      query_quarantined_destinations_callback_mtx_);
+  query_quarantined_destinations_callback_ = nullptr;
 }
 
 // class RouteDestination
@@ -87,7 +119,7 @@ void RouteDestination::remove(const std::string &address, uint16_t port) {
   std::lock_guard<std::mutex> lock(mutex_update_);
 
   auto func_same = [&to_remove](TCPAddress a) {
-    return (a.addr == to_remove.addr && a.port == to_remove.port);
+    return (a.address() == to_remove.address() && a.port() == to_remove.port());
   };
   destinations_.erase(
       std::remove_if(destinations_.begin(), destinations_.end(), func_same),
@@ -101,7 +133,7 @@ TCPAddress RouteDestination::get(const std::string &address, uint16_t port) {
       return it;
     }
   }
-  throw out_of_range("Destination " + needle.str() + " not found");
+  throw std::out_of_range("Destination " + needle.str() + " not found");
 }
 
 size_t RouteDestination::size() noexcept { return destinations_.size(); }
@@ -114,27 +146,14 @@ void RouteDestination::clear() {
   destinations_.clear();
 }
 
-size_t RouteDestination::get_next_server() {
-  std::lock_guard<std::mutex> lock(mutex_update_);
-
-  if (destinations_.empty()) {
-    throw std::runtime_error("Destination servers list is empty");
-  }
-
-  auto result = current_pos_.load();
-  current_pos_++;
-  if (current_pos_ >= destinations_.size()) current_pos_ = 0;
-
-  return result;
-}
-
-int RouteDestination::get_mysql_socket(
-    const TCPAddress &addr, std::chrono::milliseconds connect_timeout,
-    const bool log_errors) {
-  return routing_sock_ops_->get_mysql_socket(addr, connect_timeout, log_errors);
-}
-
 std::vector<mysql_harness::TCPAddress> RouteDestination::get_destinations()
     const {
   return destinations_;
+}
+
+void RouteDestination::start(const mysql_harness::PluginFuncEnv *) {}
+
+std::optional<Destinations> RouteDestination::refresh_destinations(
+    const Destinations &) {
+  return std::nullopt;
 }

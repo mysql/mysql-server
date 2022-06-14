@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@
    Memcheck:Leak
    fun:memalign
    ...
-   fun:tls_get_addr_tail
+   fun:tls_get_addr_tail*
 }
 
 {
@@ -120,6 +120,16 @@
    fun:allocate_dtv
    fun:_dl_allocate_tls
    fun:pthread_create*
+}
+
+{
+   pthread allocate_dtv memory loss third
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:allocate_dtv_entry
+   ...
+   fun:exit
 }
 
 {
@@ -757,24 +767,96 @@
 # The '...' wildcards are for 'fun:inline_mysql_file_write' which *may*
 # be inlined.
 {
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / one
+   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX
    Memcheck:Param
    write(buf)
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
-   fun:_Z11_my_b_writeP8IO_CACHEPKhm
-   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP8IO_CACHES4_
    ...
    fun:_Z8filesortP3THDP8Filesort*
 }
 
+# http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
+# Memory leak in ldap_initialize/ldap_unbind
+# Version: 2.4.48
+# Fixed in RE24 (2.4.49)
 {
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
-   Memcheck:Param
-   write(buf)
+   OpenLDAP bug 9081
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:ber_memcalloc_x
+   fun:ber_memcalloc
+   fun:ber_sockbuf_alloc
+   fun:ldap_create
+   fun:ldap_initialize
+}
+
+# sasl_client_init will load all available plugins with _sasl_load_plugins().
+# It seems some of the SASL plugin have leaks.
+# Both LSAN and Valgrind report leaks.
+{
+   Loading SASL plugins 1
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
    ...
-   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
-   fun:_Z8filesortP3THDP8Filesort*
+   fun:sasl_client_add_plugin
+}
+
+{
+   Loading SASL plugins 2
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   ...
+   fun:sasl_client_add_plugin
+}
+
+{
+   Unloading SASL plugins
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlclose
+   fun:_sasl_done_with_plugins
+}
+
+{
+   cyrus libsasl2 still reachable one
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable two
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_set_path
+}
+
+{
+   cyrus libsasl2 still reachable four
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:_sasl_build_mechlist
 }
 
 {
@@ -897,6 +979,13 @@
 }
 
 {
+   OpenSSL conditional jump in RAND_DRBG_generate
+   Memcheck:Cond
+   ...
+   fun:RAND_DRBG_generate
+}
+
+{
    OpenSSL uninitialised value of size 8 in new_VioSSLFd
    Memcheck:Value8
    fun:BN_num_bits_word
@@ -989,12 +1078,18 @@
 
 # supress uninitialized because some SSL libraries do random like that
 {
-   OpenSSL conditional jump in generate_user_salt due to randomness
+   OpenSSL conditional jump in generate_user_salt due to randomness 1
    Memcheck:Cond
    fun:generate_user_salt
    fun:native_password_authenticate
 }
 
+{
+   OpenSSL conditional jump in generate_user_salt due to randomness 2
+   Memcheck:Cond
+   fun:_Z18generate_user_saltPci
+   fun:_ZL34caching_sha2_password_authenticateP16MYSQL_PLUGIN_VIOP22MYSQL_SERVER_AUTH_INFO
+}
 
 # Remove the NUMA ones below when https://github.com/numactl/numactl/issues/3
 # is resolved.
@@ -1021,31 +1116,25 @@
    fun:numa_node_*_cpu*
 }
 
+# _Znwm is operator new(unsigned long)
+# google::protobuf::internal::LazyString::Init() const
 {
    General protobuf globals
    Memcheck:Leak
    fun:_Znwm
    ...
-   fun:_GLOBAL__sub_I_mysqlx*.pb.cc
+   fun:_ZNK6google8protobuf8internal10LazyString4InitEv
    ...
 }
 
+# _Znwm is operator new(unsigned long)
 {
    General protobuf globals
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:_Znwm
    ...
-   fun:_Z41__static_initialization_and_destruction_0ii
-}
-
-{
-   General protobuf globals
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:_Znwm
-   ...
-   fun:_ZN6Mysqlx23protobuf_mysqlx_2eproto27StaticDescriptorInitializerC1Ev
+   fun:_dl_init
 }
 
 {
@@ -1833,15 +1922,9 @@
 {
    LDAP_TLS_workaround3
    Memcheck:Leak
-   fun:calloc
+   match-leak-kinds: reachable
+   ...
    fun:PR_LoadLibraryWithFlags
-   ...
-   ...
-   ...
-   fun:PR_CallOnce
-   ...
-   ...
-   fun:_dl_init
 }
 {
    LDAP_TLS_workaround4
@@ -1886,6 +1969,7 @@
 {
    LDAP_TLS_workaround6
    Memcheck:Leak
+   match-leak-kinds: reachable
    fun:malloc
    fun:ber_memalloc_x
    fun:ber_strdup_x
@@ -1893,7 +1977,6 @@
    fun:ldap_int_initialize
    fun:ldap_create
    fun:ldap_initialize
-   fun:*create*
 }
 {
    LDAP_TLS_workaround7
@@ -1901,16 +1984,11 @@
    fun:malloc
    fun:*dl_close_worker*
    fun:*dl_close*
-   fun:*dl_catch_error*
    ...
    fun:*free_mem*
    fun:*libc_freeres*
    fun:*vgnU_freeres*
    fun:*run_exit_handlers*
-   fun:exit*
-   fun:*mysqld_exit*
-   fun:*mysqld_main*
-   fun:*main*
 }
 {
    LDAP_TLS_workaround8
@@ -1921,25 +1999,21 @@
    ...
    fun:ldap_int_initialize
    fun:ldap_set_option
-   fun:*configure_tls*
 }
 {
    LDAP_TLS_workaround9
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
-   fun:PR_ErrorInstallTable
    ...
-   ...
-   ...
-   ...
-   ...
-   ...  
-   ...
-   ...
-   ...
-   ...
-   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+}
+{
+   LDAP_TLS_workaround10
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
    ...
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
@@ -1978,12 +2052,10 @@
    match-leak-kinds: reachable
    fun:malloc
    fun:PORT_Alloc_Util
-   obj:/usr/lib64/libnss3.so
-   obj:/usr/lib64/libnss3.so
+   ...
    fun:SECMOD_LoadModule
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
    ...
 }
 
@@ -2040,13 +2112,7 @@
    fun:calloc
    fun:PR_LoadLibraryWithFlags
    ...
-   obj:/usr/lib64/libnss3.so
-   ...
    fun:tlsmc_open_nssdb
-   fun:tlsmc_convert
-   fun:tlsmc_intercept_initialization
-   obj:/usr/lib64/libldap-2.4.so.2.10.7
-   ...
 }
 
 {
@@ -2099,16 +2165,10 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:calloc
-   fun:NSSRWLock_New_Util
-   fun:SECOID_Init
    ...
    fun:dl_open_worker
-   fun:_dl_catch_error
+   ...
    fun:_dl_open
-   ...
-   fun:PR_LoadLibraryWithFlags
-   obj:/usr/lib64/libnssutil3.so
-   ...
 }
 
 {
@@ -2133,12 +2193,6 @@
    match-leak-kinds: reachable
    fun:calloc
    fun:PORT_ZAlloc_Util
-   obj:/usr/lib64/libfreeblpriv3.so
-   ...
-   fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
-   fun:PR_LoadLibraryWithFlags
-   ...
 }
 
 {
@@ -2192,8 +2246,6 @@
    fun:PORT_ArenaAlloc_Util
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
-   ...
 }
 
 {
@@ -2221,11 +2273,8 @@
    fun:PR_NewLock
    ...
    fun:SECMOD_LoadModule
-   obj:/usr/lib64/libnss3.so
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
-   ...
 }
 
 {
@@ -2272,8 +2321,6 @@
    fun:SECMOD_LoadModule
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
-   ...
 }
 
 {
@@ -2331,8 +2378,6 @@
    ...
    fun:tlsmc_convert
    fun:tlsmc_intercept_initialization
-   obj:/usr/lib64/libldap-2.4.so.2.10.7
-   ...
 }
 
 {
@@ -2340,8 +2385,9 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
-   fun:_dl_close_worker
+   ...
    fun:_dl_close
+   ...
    fun:_dl_catch_error
    fun:_dlerror_run
    fun:dlclose
@@ -2367,6 +2413,25 @@
    obj:/usr/lib64/libnssutil3.so
    fun:PORT_LoadLibraryFromOrigin
    ...
+}
+
+{
+   LDAP_27
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlopen@@GLIBC_2.2.5
+}
+
+{
+   LDAP_28
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:tls_init
+   fun:ldap_int_tls_start
 }
 
 # Suppress all issues related to libcrypto library
@@ -2456,6 +2521,7 @@
    Syscall param socketcall.sendto(msg) points to uninitialised byte(s)
    Memcheck:Param
    socketcall.sendto(msg)
+   ...
    fun:send
    fun:*
    ...
@@ -2478,4 +2544,61 @@
    fun:__netlink_request
    fun:getifaddrs_internal
    fun:getifaddrs
+}
+
+# We might end up writing uninitialised NULL flags out to chunk files during
+# hash join. These flags are never used, so suppress the warnings.
+
+{
+   Syscall param write(buf) points to uninitialised byte(s)
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
+   fun:_ZN13HashJoinChunk6RewindEv
+}
+
+{
+   Syscall param write(buf) points to uninitialised byte(s)
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
+   ...
+   fun:_ZN16HashJoinIterator4InitEv
+}
+
+# Libevent initialization
+
+{
+   MySQL Server needs global init/deinit of libevent, in case when multiple components use it
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:evthread_use_pthreads
+}
+
+# Note that libtcmalloc.so reports lots of Mismatched free()/delete/delete[]
+# So for valgrind builds, link with libtcmalloc_debug.so
+
+{
+   tcmalloc_debug
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:/usr/lib64/libtcmalloc*
+   fun:_dl_init
+}
+
+#  The ... is for malloc or realloc
+{
+   mysql_dynamic_loader_scheme_file_imp_load
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:vasprintf
+   fun:asprintf
+   fun:dlerror
+   fun:_ZN36mysql_dynamic_loader_scheme_file_imp4loadEPKcPP17mysql_component_t
 }

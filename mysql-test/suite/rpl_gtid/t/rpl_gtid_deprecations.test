@@ -1,3 +1,4 @@
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 # Test has more than one channel, so cannot run with
@@ -16,19 +17,19 @@
 
 # assert that a warning is emited when setting ignore_server_ids
 # and GTID_MODE=ON
-CHANGE MASTER TO IGNORE_SERVER_IDS=(1,2,3);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(1,2,3);
 
 # create a second channel
-CHANGE MASTER TO MASTER_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
 
 # assert that warning is not emitted when gtid_mode != ON
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL '';
 SET @@global.gtid_mode=ON_PERMISSIVE;
 SET @@global.gtid_mode=OFF_PERMISSIVE;
 SET @@global.gtid_mode=OFF;
 SET @@global.gtid_mode=OFF_PERMISSIVE;
 SET @@global.gtid_mode=ON_PERMISSIVE;
-CHANGE MASTER TO MASTER_AUTO_POSITION=1 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1 FOR CHANNEL '';
 
 # assert that a warning is emited when setting gtid_mode=on and
 # IGNORE_SERVER_IDS is also set (and that we only get one warning
@@ -42,7 +43,7 @@ SET @@global.gtid_mode=ON;
 
 # assert that no warning is emited when unsetting ignore_server_ids
 # and GTID_MODE=ON
-CHANGE MASTER TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
 
 # clean up
 RESET SLAVE ALL FOR CHANNEL 'ch1';
@@ -53,5 +54,36 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 --source include/rpl_reset.inc
 
 # End of WL#10963
+
+#############################################################
+# WL#13178 Deprecate WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS      #
+#############################################################
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+DROP TABLE t1;
+--let $gtids = `SELECT @@global.gtid_executed`
+
+--source include/rpl_connection_slave.inc
+
+# multiply the result of WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS as its
+# return value is non-deterministic, otherwise, this could trigger
+# random test failures
+
+--replace_result $gtids GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$gtids") * 0
+
+--replace_result $gtids GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$gtids", 10) * 0
+
+--replace_result $gtids GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$gtids", 10, "") * 0
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# End of WL#13178
 
 --source include/rpl_end.inc

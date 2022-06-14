@@ -1,4 +1,8 @@
-# Test rename table with fulltext index crash/recovery rollback. The table should be renamed from one database to another so that all tablepsace of aux tables would be renamed too..
+#
+# Test rename table with fulltext index crash/recovery rollback.
+# The table should be renamed from one database to another so
+# that all tablespaces of aux tables would be renamed too.
+#
 CREATE DATABASE db_a;
 CREATE DATABASE db_b;
 CREATE TABLE db_a.t1

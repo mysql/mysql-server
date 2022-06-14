@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,24 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
-#include "dim.h"
-#include "gtest/gtest.h"
 #include "keyring/keyring_manager.h"
-#include "keyring/keyring_memory.h"
-#include "random_generator.h"
-#include "test/helpers.h"
 
 #include <fstream>
 #include <set>
 #include <stdexcept>
+#include <system_error>
 
-#ifndef _WIN32
-#include <sys/stat.h>
-#include <unistd.h>
-#else
-#include <windows.h>
-#endif
+#include <gtest/gtest.h>
+
+#include "dim.h"
+#include "keyring/keyring_memory.h"
+#include "mysql/harness/filesystem.h"
+#include "random_generator.h"
+#include "test/helpers.h"
+#include "test/temp_directory.h"
 
 using namespace testing;
 
@@ -66,207 +63,44 @@ class TemporaryFileCleaner {
   std::set<std::string> tmp_files_;
 };
 
-#ifdef _WIN32
-// Copied from keyring_file.cc
+static stdx::expected<void, std::error_code> check_file_private(
+    const std::string &filename) {
+  const auto rights_res = mysql_harness::access_rights_get(filename);
+  if (!rights_res) return rights_res.get_unexpected();
 
-// Smart pointers for WinAPI structures that use C-style memory management.
-using SecurityDescriptorPtr =
-    std::unique_ptr<SECURITY_DESCRIPTOR,
-                    mysql_harness::StdFreeDeleter<SECURITY_DESCRIPTOR>>;
-using SidPtr = std::unique_ptr<SID, mysql_harness::StdFreeDeleter<SID>>;
+  const auto verify_res = mysql_harness::access_rights_verify(
+      rights_res.value(), mysql_harness::AllowUserReadWritableVerifier());
 
-/**
- * Retrieves file's DACL security descriptor.
- *
- * @param[in] file_name File name.
- *
- * @return File's DACL security descriptor.
- *
- * @throw std::exception Failed to retrieve security descriptor.
- */
-static SecurityDescriptorPtr get_security_descriptor(
-    const std::string &file_name) {
-  static constexpr SECURITY_INFORMATION kReqInfo = DACL_SECURITY_INFORMATION;
-
-  // Get the size of the descriptor.
-  DWORD sec_desc_size;
-
-  if (GetFileSecurityA(file_name.c_str(), kReqInfo, nullptr, 0,
-                       &sec_desc_size) == FALSE) {
-    auto error = GetLastError();
-
-    // We expect to receive `ERROR_INSUFFICIENT_BUFFER`.
-    if (error != ERROR_INSUFFICIENT_BUFFER) {
-      throw std::runtime_error("GetFileSecurity() failed (" + file_name +
-                               "): " + std::to_string(error));
-    }
-  }
-
-  SecurityDescriptorPtr sec_desc(
-      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)));
-
-  if (GetFileSecurityA(file_name.c_str(), kReqInfo, sec_desc.get(),
-                       sec_desc_size, &sec_desc_size) == FALSE) {
-    throw std::runtime_error("GetFileSecurity() failed (" + file_name +
-                             "): " + std::to_string(GetLastError()));
-  }
-
-  return sec_desc;
+  return verify_res;
 }
 
-/**
- * Verifies permissions of an access ACE entry.
- *
- * @param[in] access_ace Access ACE entry.
- *
- * @throw std::exception Everyone has access to the ACE access entry or
- *                        an error occurred.
- */
-static void check_ace_access_rights(ACCESS_ALLOWED_ACE *access_ace) {
-  SID *sid = reinterpret_cast<SID *>(&access_ace->SidStart);
-  DWORD sid_size = SECURITY_MAX_SID_SIZE;
-  SidPtr everyone_sid(static_cast<SID *>(std::malloc(sid_size)));
-
-  if (CreateWellKnownSid(WinWorldSid, nullptr, everyone_sid.get(), &sid_size) ==
-      FALSE) {
-    throw std::runtime_error("CreateWellKnownSid() failed: " +
-                             std::to_string(GetLastError()));
+static std::string file_content(const std::string &file) {
+  std::stringstream ss;
+  std::ifstream f;
+  f.open(file, std::ifstream::binary);
+  if (f.fail()) {
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec, file);
   }
+  ss << f.rdbuf();
 
-  if (EqualSid(sid, everyone_sid.get())) {
-    if (access_ace->Mask & (FILE_EXECUTE)) {
-      throw std::runtime_error(
-          "Invalid keyring file access rights "
-          "(Execute privilege granted to Everyone).");
-    }
-    if (access_ace->Mask &
-        (FILE_WRITE_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES)) {
-      throw std::runtime_error(
-          "Invalid keyring file access rights "
-          "(Write privilege granted to Everyone).");
-    }
-    if (access_ace->Mask &
-        (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)) {
-      throw std::runtime_error(
-          "Invalid keyring file access rights "
-          "(Read privilege granted to Everyone).");
-    }
-  }
-}
-
-/**
- * Verifies access permissions in a DACL.
- *
- * @param[in] dacl DACL to be verified.
- *
- * @throw std::exception DACL contains an ACL entry that grants full access to
- *                        Everyone or an error occurred.
- */
-static void check_acl_access_rights(ACL *dacl) {
-  ACL_SIZE_INFORMATION dacl_size_info;
-
-  if (GetAclInformation(dacl, &dacl_size_info, sizeof(dacl_size_info),
-                        AclSizeInformation) == FALSE) {
-    throw std::runtime_error("GetAclInformation() failed: " +
-                             std::to_string(GetLastError()));
-  }
-
-  for (DWORD ace_idx = 0; ace_idx < dacl_size_info.AceCount; ++ace_idx) {
-    LPVOID ace = nullptr;
-
-    if (GetAce(dacl, ace_idx, &ace) == FALSE) {
-      throw std::runtime_error("GetAce() failed: " +
-                               std::to_string(GetLastError()));
-      continue;
-    }
-
-    if (static_cast<ACE_HEADER *>(ace)->AceType == ACCESS_ALLOWED_ACE_TYPE)
-      check_ace_access_rights(static_cast<ACCESS_ALLOWED_ACE *>(ace));
-  }
-}
-
-/**
- * Verifies access permissions in a security descriptor.
- *
- * @param[in] sec_desc Security descriptor to be verified.
- *
- * @throw std::exception Security descriptor grants full access to
- *                        Everyone or an error occurred.
- */
-static void check_security_descriptor_access_rights(
-    SecurityDescriptorPtr sec_desc) {
-  BOOL dacl_present;
-  ACL *dacl;
-  BOOL dacl_defaulted;
-
-  if (GetSecurityDescriptorDacl(sec_desc.get(), &dacl_present, &dacl,
-                                &dacl_defaulted) == FALSE) {
-    throw std::runtime_error("GetSecurityDescriptorDacl() failed: " +
-                             std::to_string(GetLastError()));
-  }
-
-  if (!dacl_present) {
-    // No DACL means: no access allowed. Which is fine.
-    return;
-  }
-
-  if (!dacl) {
-    // Empty DACL means: all access allowed.
-    throw std::runtime_error(
-        "Invalid keyring file access rights "
-        "(Everyone has full access rights).");
-  }
-
-  check_acl_access_rights(dacl);
-}
-#endif  // _WIN32
-
-static bool check_file_private(const std::string &file) {
-#ifdef _WIN32
-  try {
-    check_security_descriptor_access_rights(get_security_descriptor(file));
-    return true;
-  } catch (...) {
-    return false;
-  }
-#else
-  struct stat st;
-  if (stat(file.c_str(), &st) < 0) {
-    throw std::runtime_error(file + ": " + strerror(errno));
-  }
-  if ((st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO)) == (S_IRUSR | S_IWUSR))
-    return true;
-  return false;
-#endif
+  return ss.str();
 }
 
 class FileChangeChecker {
  public:
-  FileChangeChecker(const std::string &file) : path_(file) {
-    std::ifstream f;
-    std::stringstream ss;
-    f.open(file, std::ifstream::binary);
-    if (f.fail())
-      throw std::runtime_error(file + " " + mysql_harness::get_strerror(errno));
-    ss << f.rdbuf();
-    contents_ = ss.str();
-    f.close();
-  }
+  FileChangeChecker(std::string path)
+      : path_(std::move(path)), contents_{current_file_content()} {}
 
-  bool check_unchanged() {
-    std::ifstream f;
-    std::stringstream ss;
-    f.open(path_, std::ifstream::binary);
-    if (f.fail())
-      throw std::runtime_error(path_ + " " +
-                               mysql_harness::get_strerror(errno));
-    ss << f.rdbuf();
-    f.close();
-    return ss.str() == contents_;
+  std::string initial_file_content() const { return contents_; }
+  std::string current_file_content() const { return file_content(path_); }
+
+  [[nodiscard]] bool check_unchanged() const {
+    return initial_file_content() == current_file_content();
   }
 
  private:
-  std::string path_;
+  const std::string path_;
   std::string contents_;
 };
 
@@ -274,7 +108,7 @@ static bool file_exists(const std::string &file) {
   return mysql_harness::Path(file).exists();
 }
 
-TmpDir tmp_dir;
+TempDirectory tmp_dir;
 
 TEST(KeyringManager, init_tests) {
   mysql_harness::DIM::instance().set_RandomGenerator(
@@ -556,4 +390,9 @@ TEST(KeyringManager, regression) {
   EXPECT_TRUE(check_kr.check_unchanged());
 
   mysql_harness::reset_keyring();
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

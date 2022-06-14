@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,24 @@ TEST_F(Xcl_session_impl_tests, get_client_id) {
 
   /* Verify that the session object reports the new ID */
   ASSERT_EQ(expected_client_id, m_sut->client_id());
+}
+
+TEST_F(Xcl_session_impl_tests, close_not_connected_session) {
+  m_sut->close();
+  ASSERT_TRUE(m_sut->is_protocol());
+}
+
+TEST_F(Xcl_session_impl_tests, close_connected_session) {
+  EXPECT_CALL(m_mock_connection_state, is_connected()).WillOnce(Return(true));
+  EXPECT_CALL(*m_mock_protocol, execute_close());
+  m_sut->close();
+  ASSERT_FALSE(m_sut->is_protocol());
+}
+
+TEST_F(Xcl_session_impl_tests, close_connected_session_in_dtor) {
+  EXPECT_CALL(m_mock_connection_state, is_connected()).WillOnce(Return(true));
+  EXPECT_CALL(m_mock_connection, close());
+  m_sut.reset();
 }
 
 }  // namespace test

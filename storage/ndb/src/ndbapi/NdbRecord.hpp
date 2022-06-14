@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,7 @@ public:
     }
 
     /* 255 bytes of data and 1 byte of length */
-    STATIC_CONST( SHRINK_VARCHAR_BUFFSIZE= 256 );
+    static constexpr Uint32 SHRINK_VARCHAR_BUFFSIZE = 256;
     /*
       Mysqld uses a slightly different format for storing varchar in
       index keys; the length is always two bytes little endian, even

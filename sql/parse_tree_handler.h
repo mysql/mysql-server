@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,10 @@
 #ifndef PARSE_TREE_HANDLER_INCLUDED
 #define PARSE_TREE_HANDLER_INCLUDED
 
+#include <assert.h>
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "parse_tree_nodes.h"
 #include "sql/sql_handler.h"  // Sql_cmd_handler_open
 
@@ -64,7 +65,7 @@ class PT_handler_close final : public Parse_tree_root {
 
 class PT_handler_read_base : public Parse_tree_root {
  public:
-  virtual ~PT_handler_read_base() = 0;  // force abstract class
+  ~PT_handler_read_base() override = 0;  // force abstract class
 
   PT_handler_read_base(const LEX_CSTRING &table, Item *opt_where_clause,
                        PT_limit_clause *opt_limit_clause)
@@ -81,7 +82,7 @@ class PT_handler_read_base : public Parse_tree_root {
   PT_limit_clause *const m_opt_limit_clause;
 };
 
-inline PT_handler_read_base::~PT_handler_read_base() {}
+inline PT_handler_read_base::~PT_handler_read_base() = default;
 
 class PT_handler_table_scan final : public PT_handler_read_base {
   typedef PT_handler_read_base super;
@@ -109,7 +110,7 @@ class PT_handler_index_scan final : public PT_handler_read_base {
       : super(table, opt_where_clause, opt_limit_clause),
         m_index(index.str),
         m_direction(direction) {
-    DBUG_ASSERT(direction != enum_ha_read_modes::RKEY);
+    assert(direction != enum_ha_read_modes::RKEY);
   }
 
   Sql_cmd *make_cmd(THD *thd) override;

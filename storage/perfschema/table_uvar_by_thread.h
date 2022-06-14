@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,14 @@
   Table USER_VARIABLES_BY_THREAD (declarations).
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -53,12 +54,11 @@ struct THR_LOCK;
 
 struct User_variable {
  public:
-  User_variable() {}
+  User_variable() = default;
 
-  User_variable(const User_variable &uv)
-      : m_name(uv.m_name), m_value(uv.m_value) {}
+  User_variable(const User_variable &uv) = default;
 
-  ~User_variable() {}
+  ~User_variable() = default;
 
   PFS_variable_name_row m_name;
   PFS_user_variable_value_row m_value;
@@ -69,10 +69,10 @@ class User_variables {
 
  public:
   User_variables()
-      : m_pfs(NULL), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME) {}
+      : m_pfs(nullptr), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME) {}
 
   void reset() {
-    m_pfs = NULL;
+    m_pfs = nullptr;
     m_thread_internal_id = 0;
     m_array.clear();
   }
@@ -80,7 +80,7 @@ class User_variables {
   void materialize(PFS_thread *pfs, THD *thd);
 
   bool is_materialized(PFS_thread *pfs) {
-    DBUG_ASSERT(pfs != NULL);
+    assert(pfs != nullptr);
     if (m_pfs != pfs) {
       return false;
     }
@@ -92,7 +92,7 @@ class User_variables {
 
   const User_variable *get(uint index) const {
     if (index >= m_array.size()) {
-      return NULL;
+      return nullptr;
     }
 
     const User_variable *p = &m_array.at(index);
@@ -145,7 +145,7 @@ class PFS_index_uvar_by_thread : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_uvar_by_thread() {}
+  ~PFS_index_uvar_by_thread() override = default;
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const User_variable *pfs);
@@ -165,22 +165,22 @@ class table_uvar_by_thread : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_uvar_by_thread();
 
  public:
-  ~table_uvar_by_thread() { m_THD_cache.reset(); }
+  ~table_uvar_by_thread() override { m_THD_cache.reset(); }
 
  protected:
   int materialize(PFS_thread *thread);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "storage/perfschema/table_esms_by_program.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -83,6 +84,8 @@ Plugin_table table_esms_by_program::m_table_def(
     "  SUM_SORT_SCAN bigint(20) unsigned NOT NULL,\n"
     "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
     "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_CPU_TIME BIGINT unsigned not null,\n"
+    "  COUNT_SECONDARY bigint(20) unsigned NOT NULL,\n"
     "  PRIMARY KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -92,7 +95,7 @@ Plugin_table table_esms_by_program::m_table_def(
 PFS_engine_table_share table_esms_by_program::m_share = {
     &pfs_truncatable_acl,
     table_esms_by_program::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_by_program::delete_all_rows,
     table_esms_by_program::get_row_count,
     sizeof(PFS_simple_index),
@@ -106,7 +109,7 @@ PFS_engine_table_share table_esms_by_program::m_share = {
 
 bool PFS_index_esms_by_program::match(PFS_program *pfs) {
   if (m_fields >= 1) {
-    if (!m_key_1.match(pfs->m_type)) {
+    if (!m_key_1.match(pfs->m_key.m_type)) {
       return false;
     }
   }
@@ -155,7 +158,7 @@ int table_esms_by_program::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_program_iterator it = global_program_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -169,16 +172,16 @@ int table_esms_by_program::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_program_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_by_program::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esms_by_program *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_esms_by_program::index_init(uint idx [[maybe_unused]], bool) {
+  PFS_index_esms_by_program *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_program);
   m_opened_index = result;
   m_index = result;
@@ -192,7 +195,7 @@ int table_esms_by_program::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_program; m_pos.next()) {
     pfs = global_program_container.get(m_pos.m_index, &has_more_program);
 
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -210,17 +213,9 @@ int table_esms_by_program::make_row(PFS_program *program) {
 
   program->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type = program->m_type;
-
-  m_row.m_object_name_length = program->m_object_name_length;
-  if (m_row.m_object_name_length > 0)
-    memcpy(m_row.m_object_name, program->m_object_name,
-           m_row.m_object_name_length);
-
-  m_row.m_schema_name_length = program->m_schema_name_length;
-  if (m_row.m_schema_name_length > 0)
-    memcpy(m_row.m_schema_name, program->m_schema_name,
-           m_row.m_schema_name_length);
+  m_row.m_object_type = program->m_key.m_type;
+  m_row.m_schema_name = program->m_key.m_schema_name;
+  m_row.m_object_name = program->m_key.m_object_name;
 
   /* Get stored program's over all stats. */
   m_row.m_sp_stat.set(m_normalizer, &program->m_sp_stat);
@@ -242,12 +237,12 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
     Set the null bits. It indicates how many fields could be null
     in the table.
   */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
           if (m_row.m_object_type != 0) {
             set_field_enum(f, m_row.m_object_type);
@@ -256,30 +251,20 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 1: /* OBJECT_SCHEMA */
-          if (m_row.m_schema_name_length > 0)
-            set_field_varchar_utf8(f, m_row.m_schema_name,
-                                   m_row.m_schema_name_length);
-          else {
-            f->set_null();
-          }
+          set_field_schema_name(f, &m_row.m_schema_name);
           break;
         case 2: /* OBJECT_NAME */
-          if (m_row.m_object_name_length > 0)
-            set_field_varchar_utf8(f, m_row.m_object_name,
-                                   m_row.m_object_name_length);
-          else {
-            f->set_null();
-          }
+          set_field_routine_name(f, &m_row.m_object_name);
           break;
         case 3: /* COUNT_STAR */
         case 4: /* SUM_TIMER_WAIT */
         case 5: /* MIN_TIMER_WAIT */
         case 6: /* AVG_TIMER_WAIT */
         case 7: /* MAX_TIMER_WAIT */
-          m_row.m_sp_stat.set_field(f->field_index - 3, f);
+          m_row.m_sp_stat.set_field(f->field_index() - 3, f);
           break;
         default: /* 8, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stmt_stat.set_field(f->field_index - 8, f);
+          m_row.m_stmt_stat.set_field(f->field_index() - 8, f);
           break;
       }
     }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@
 
 void Ndbcntr::initData() 
 {
+  c_cntr_startedNodeSet.clear();
+  c_startedNodeSet.clear();
   c_start.reset();
   cmasterNodeId = 0;
   cnoStartNodes = 0;
@@ -113,16 +115,10 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
   addRecSignal(GSN_READ_CONFIG_REQ, &Ndbcntr::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Ndbcntr::execSTTOR);
-  addRecSignal(GSN_TCSEIZECONF, &Ndbcntr::execTCSEIZECONF);
-  addRecSignal(GSN_TCSEIZEREF, &Ndbcntr::execTCSEIZEREF);
-  addRecSignal(GSN_TCRELEASECONF, &Ndbcntr::execTCRELEASECONF);
-  addRecSignal(GSN_TCRELEASEREF, &Ndbcntr::execTCRELEASEREF);
-  addRecSignal(GSN_TCKEYCONF, &Ndbcntr::execTCKEYCONF);
-  addRecSignal(GSN_TCKEYREF, &Ndbcntr::execTCKEYREF);
-  addRecSignal(GSN_TCROLLBACKREP, &Ndbcntr::execTCROLLBACKREP);
   addRecSignal(GSN_GETGCICONF, &Ndbcntr::execGETGCICONF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Ndbcntr::execDIH_RESTARTCONF);
   addRecSignal(GSN_DIH_RESTARTREF, &Ndbcntr::execDIH_RESTARTREF);
+  addRecSignal(GSN_SET_UP_MULTI_TRP_CONF, &Ndbcntr::execSET_UP_MULTI_TRP_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_CONF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_REF);
   addRecSignal(GSN_SCHEMA_TRANS_END_CONF, &Ndbcntr::execSCHEMA_TRANS_END_CONF);

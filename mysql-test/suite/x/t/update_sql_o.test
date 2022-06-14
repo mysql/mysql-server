@@ -26,7 +26,7 @@ grant all on *.* to user2@localhost;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-update_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
  CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
@@ -90,8 +90,8 @@ grant all on *.* to user2@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u user2 --password='user2' --file=$MYSQL_TMP_DIR/mysqlx-update_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-update_sql.tmp
+--exec $MYSQLXTEST -u user2 --password='user2' --file=$MYSQL_TMP_DIR/mysqlx-update_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-update_sql.xpl
 
 --echo .
 --echo #---------- START NEGATIVE TEST ----------#
@@ -102,7 +102,7 @@ EOF
 ##                                           |
 ## ******************************************
 
---write_file $MYSQL_TMP_DIR/mysqlx-update_sql_negative.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_sql_negative.xpl
 -->sql
 
 USE mysqlxplugin;
@@ -166,7 +166,7 @@ UPDATE categories_no_exist set CategoryIMEI = 'TinyInt' WHERE CategoryID = 2;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u user2 --password='user2' --file=$MYSQL_TMP_DIR/mysqlx-update_sql_negative.tmp 2>&1
+--exec $MYSQLXTEST -u user2 --password='user2' --file=$MYSQL_TMP_DIR/mysqlx-update_sql_negative.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-update_sql_negative.tmp
+--source ../include/xplugin_cleanup.inc

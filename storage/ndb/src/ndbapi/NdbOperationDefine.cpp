@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -481,9 +481,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 			const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::setValue");
-  DBUG_PRINT("enter", ("col: %s  op:%d  val: 0x%lx",
+  DBUG_PRINT("enter", ("col: %s  op:%d  val: %p",
                        tAttrInfo ? tAttrInfo->m_name.c_str() : "NULL",
-                       theOperationType, (long) aValuePassed));
+                       theOperationType, aValuePassed));
 
   int tReturnCode;
   Uint32 tAttrId;
@@ -663,6 +663,7 @@ NdbOperation::setAnyValue(Uint32 any_value)
     }
   }
   // Fall through - let setValue call set error
+  [[fallthrough]];
   default:
     return setValue(impl, (const char *)&any_value);
   }
@@ -740,6 +741,7 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
     tLastBlob->theNext = tBlob;
   tBlob->theNext = NULL;
   theNdbCon->theBlobFlag = true;
+  theNdbCon->m_userDefinedBlobOps = true;
   return tBlob;
 }
 
@@ -817,6 +819,7 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
   lastPtr= bh;
   bh->theNext= NULL;
   theNdbCon->theBlobFlag= true;
+  theNdbCon->m_userDefinedBlobOps = true;
 
   return bh;
 }
@@ -1001,8 +1004,8 @@ insertATTRINFO_error1:
  *                ATTRINFO signal.
  *****************************************************************************/
 int
-NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr, 
-				 register Uint32 aLength)
+NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr, 
+				 Uint32 aLength)
 {
   NdbApiSignal* tSignal;
   Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
@@ -1114,6 +1117,33 @@ NdbOperation::prepareGetLockHandleNdbRecord()
   }
 
   theLockHandle->m_state = NdbLockHandle::PREPARED;
+
+  return 0;
+}
+
+int
+NdbOperation::setNoWait()
+{
+  if (theStatus == UseNdbRecord)
+  {
+    /**
+     * Method not allowed for NdbRecord, use OperationOptions or
+     * ScanOptions structure instead
+     */
+    setErrorCodeAbort(4515);
+    return -1;
+  }
+
+  if ((! ((theOperationType == ReadRequest) ||
+          (theOperationType == ReadExclusive))) ||
+      theDirtyIndicator)
+  {
+    /* Only allowed for locking reads */
+    setErrorCodeAbort(4108); /* Faulty operation type */
+    return -1;
+  }
+
+  m_flags |= OF_NOWAIT;
 
   return 0;
 }
@@ -1374,13 +1404,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
 
   if (opts->optionsPresent & OperationOptions::OO_LOCKHANDLE)
   {
-    if (unlikely(op->theNdb->getMinDbNodeVersion() <
-                 NDBD_UNLOCK_OP_SUPPORTED))
-    {
-      /* Function not implemented yet */
-      return 4003;
-    }
-
     /* Check that this is a pk read with a lock 
      * No need to worry about Blob lock upgrade issues as
      * Blobs have not been handled at this stage
@@ -1420,6 +1443,19 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if (opts->optionsPresent & OperationOptions::OO_DISABLE_FK)
   {
     op->m_flags |= OF_DISABLE_FK;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_NOWAIT)
+  {
+    if ((! ((type == ReadRequest) ||
+            (type == ReadExclusive))) ||
+        (op->theLockMode == LM_CommittedRead))
+    {
+      /* Only allowed for locking reads */
+      return 4108; /* Faulty operation type */
+    }
+
+    op->m_flags |= OF_NOWAIT;
   }
 
   return 0;

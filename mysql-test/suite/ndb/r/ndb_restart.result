@@ -1,35 +1,82 @@
-create table t1(a int primary key, b int) engine = ndb;
-insert into t1 values (1, 2);
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 16M
+ENGINE NDB;
+CREATE TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 16M
+ENGINE NDB;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1, 2);
+CREATE TABLE t2 (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB
+TABLESPACE ts1
+STORAGE DISK;
+INSERT INTO t2 VALUES (1, 1);
 Node 1 is being restarted
 
 Database node 1 is being started.
 
-select * from t1 order by a;
-a	b
-1	2
-insert into t1 values (2, 3);
-Node 1 is being restarted
-
-Database node 1 is being started.
-
-select * from t1 order by a;
+SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
+FROM INFORMATION_SCHEMA.FILES
+WHERE ENGINE = "NDBCLUSTER";
+TABLESPACE_NAME	LOGFILE_GROUP_NAME
+lg1	lg1
+ts1	lg1
+ts2	lg1
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+INSERT INTO t1 VALUES (2, 3);
+SELECT * FROM t1;
 a	b
 1	2
 2	3
-insert into t1 values (3, 4);
-Executing RESTART on all nodes.
-Starting shutdown. This may take a while. Please wait...
-All DB nodes are being restarted.
+INSERT INTO t2 VALUES (2, 3);
+SELECT * FROM t2;
+a	b
+1	1
+2	3
+Node 1 is being restarted
 
-NDB Cluster is being started.
-NDB Cluster is being started.
+Database node 1 is being started.
 
-select * from t1 order by a;
+SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
+FROM INFORMATION_SCHEMA.FILES
+WHERE ENGINE = "NDBCLUSTER";
+TABLESPACE_NAME	LOGFILE_GROUP_NAME
+lg1	lg1
+ts1	lg1
+ts2	lg1
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+INSERT INTO t1 VALUES (3, 4);
+SELECT * FROM t1;
 a	b
 1	2
 2	3
 3	4
-insert into t1 values (4, 5);
+INSERT INTO t2 VALUES (5, 8);
+SELECT * FROM t2;
+a	b
+1	1
+2	3
+5	8
 Executing RESTART on all nodes.
 Starting shutdown. This may take a while. Please wait...
 All DB nodes are being restarted.
@@ -37,5 +84,47 @@ All DB nodes are being restarted.
 NDB Cluster is being started.
 NDB Cluster is being started.
 
-select * from t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+# verify that the mysqld detected the restart
+include/assert_grep.inc [Detect normal restart in MySQL Server 1]
+include/assert_grep.inc [Detect normal restart in MySQL Server 2]
+SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
+FROM INFORMATION_SCHEMA.FILES
+WHERE ENGINE = "NDBCLUSTER";
+TABLESPACE_NAME	LOGFILE_GROUP_NAME
+lg1	lg1
+ts1	lg1
+ts2	lg1
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+INSERT INTO t1 VALUES (4, 5);
+SELECT * FROM t1;
+a	b
+1	2
+2	3
+3	4
+4	5
+INSERT INTO t2 VALUES (13, 21);
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	1
+2	3
+5	8
+13	21
+Executing RESTART on all nodes.
+Starting shutdown. This may take a while. Please wait...
+All DB nodes are being restarted.
+
+NDB Cluster is being started.
+NDB Cluster is being started.
+
+# verify that the mysqld detected the initial restart
+include/assert_grep.inc [Detect initial restart in MySQL Server 1]
+include/assert_grep.inc [Detect initial restart in MySQL Server 2]
+SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
+FROM INFORMATION_SCHEMA.FILES
+WHERE ENGINE = "NDBCLUSTER";
+TABLESPACE_NAME	LOGFILE_GROUP_NAME
+SHOW TABLES;
+Tables_in_test

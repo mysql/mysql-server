@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@ public:
     Refused = 3,
     NoFreeOp = 4
   };
-  STATIC_CONST( LockSignalLength = 13 );
-  STATIC_CONST( UndoSignalLength = 3 );
+  static constexpr Uint32 LockSignalLength = 14;
+  static constexpr Uint32 UndoSignalLength = 3;
 private:
   Uint32 returnCode;
   Uint32 requestInfo;
@@ -73,6 +73,7 @@ private:
   Uint32 page_idx;
   Uint32 transId1;
   Uint32 transId2;
+  Uint32 isCopyFragScan;
 };
 
 

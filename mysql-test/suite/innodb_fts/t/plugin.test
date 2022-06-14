@@ -102,9 +102,11 @@ SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full text');
 
 # Test query expansion
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
 

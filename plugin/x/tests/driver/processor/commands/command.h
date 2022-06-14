@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,8 @@ class Command {
   Result cmd_recv_all_until_disc(std::istream &input,
                                  Execution_context *context,
                                  const std::string &args);
+  Result cmd_enable_compression(std::istream &input, Execution_context *context,
+                                const std::string &args);
   Result cmd_peerdisc(std::istream &input, Execution_context *context,
                       const std::string &args);
   Result cmd_recv(std::istream &input, Execution_context *context,
@@ -120,6 +122,9 @@ class Command {
                   const std::string &args);
   Result cmd_abort(std::istream &input, Execution_context *context,
                    const std::string &args);
+  Result cmd_shutdown_on_classic(std::istream &input,
+                                 Execution_context *context,
+                                 const std::string &args);
   Result cmd_shutdown_server(std::istream &input, Execution_context *context,
                              const std::string &args);
   Result cmd_reconnect(std::istream &input, Execution_context *context,
@@ -183,6 +188,8 @@ class Command {
   Result cmd_macro_delimiter_compress(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args);
+  Result cmd_assert(std::istream &input, Execution_context *context,
+                    const std::string &args);
   Result cmd_assert_eq(std::istream &input, Execution_context *context,
                        const std::string &args);
   Result cmd_assert_ne(std::istream &input, Execution_context *context,
@@ -191,10 +198,16 @@ class Command {
                        const std::string &args);
   Result cmd_assert_ge(std::istream &input, Execution_context *context,
                        const std::string &args);
+  Result cmd_assert_le(std::istream &input, Execution_context *context,
+                       const std::string &args);
+  Result cmd_assert_lt(std::istream &input, Execution_context *context,
+                       const std::string &args);
   Result cmd_query(std::istream &input, Execution_context *context,
                    const std::string &args);
   Result cmd_noquery(std::istream &input, Execution_context *context,
                      const std::string &args);
+  Result cmd_compress(std::istream &input, Execution_context *context,
+                      const std::string &args);
   Result cmd_wait_for(std::istream &input, Execution_context *context,
                       const std::string &args);
   Result cmd_import(std::istream &input, Execution_context *context,
@@ -212,6 +225,8 @@ class Command {
   Result cmd_clear_stored_metadata(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args);
+  Result cmd_env(std::istream &input, Execution_context *context,
+                 const std::string &args);
 
   Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
@@ -223,7 +238,45 @@ class Command {
                        Value_callback value_callback, const bool quiet,
                        const bool print_column_info);
 
+  Result get_sql_variable(Execution_context *context, const std::string &name,
+                          std::string *out_var);
   static void try_result(Result result);
+
+  template <typename Equal_operator>
+  Result cmd_assert_generic(std::istream &input, Execution_context *context,
+                            const std::string &args) {
+    std::vector<std::string> vargs;
+
+    try {
+      aux::split(vargs, args, "\t", true);
+
+      if (2 != vargs.size()) {
+        context->print_error(context->m_script_stack,
+                             "Specified invalid number of arguments for ",
+                             context->m_command_name,
+                             " command: ", vargs.size(), " expecting 2.\n",
+                             "Executed with following argument: \"", args,
+                             "\"");
+        return Result::Stop_with_failure;
+      }
+
+      context->m_variables->replace(&vargs[0]);
+      context->m_variables->replace(&vargs[1]);
+
+      Equal_operator op;
+      if (op(vargs[0], vargs[1])) return Result::Continue;
+    } catch (const std::exception &) {
+    }
+
+    context->print_error(
+        context->m_script_stack, "Execution of '", context->m_command_name, " ",
+        context->m_command_arguments, "', resulted in an error.\n");
+    context->print_error("Where argument0='", vargs[0], "', argument1='",
+                         vargs[1], "'\n");
+
+    return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                             : Result::Continue;
+  }
 };
 
 void print_help_commands();

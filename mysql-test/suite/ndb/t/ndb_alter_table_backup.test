@@ -4,7 +4,7 @@
 # Purpose: mix backup/restore test for basic online alter table
 ##############################################################
 
---source include/have_ndb.inc
+--source include/have_multi_ndb.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
 ##############################
@@ -21,12 +21,21 @@
 
 --disable_query_log
 call mtr.add_suppression("NDB: Table upgrade required");
+call mtr.add_suppression("NDB: Table definition contains obsolete data types");
+call mtr.add_suppression("NDB: Failed to create entry in DD");
+call mtr.add_suppression("NDB: Failed to install table");
+--connection server2
+call mtr.add_suppression("NDB: Table upgrade required");
+call mtr.add_suppression("NDB: Table definition contains obsolete data types");
+call mtr.add_suppression("NDB: Failed to create entry in DD");
+call mtr.add_suppression("NDB: Failed to install table");
 --enable_query_log
+--connection server1
 
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
 #
 # Restore backup files (from big endian)
@@ -40,5 +49,6 @@ SHOW WARNINGS;
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 --remove_file $NDB_TOOLS_OUTPUT

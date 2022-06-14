@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include "plugin/x/ngs/include/ngs/log.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/src/ngs/log.h"
+#include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
 
@@ -36,11 +36,6 @@ using ::Mysqlx::Connection::Capabilities;
 
 typedef std::vector<Capability_handler_ptr>::const_iterator
     Handler_ptrs_iterator;
-
-bool operator==(const Capability_handler_ptr &handler,
-                const std::string &name) {
-  return handler->name() == name;
-}
 
 Capabilities_configurator::Capabilities_configurator(
     const std::vector<Capability_handler_ptr> &capabilities)
@@ -62,7 +57,7 @@ Capabilities *Capabilities_configurator::get() {
 
       c->set_name(handler->name());
 
-      handler->get(*c->mutable_value());
+      handler->get(c->mutable_value());
     }
 
     ++i;
@@ -112,7 +107,10 @@ ngs::Error_code Capabilities_configurator::prepare_set(
 Capability_handler_ptr Capabilities_configurator::get_capabilitie_by_name(
     const std::string &name) {
   Handler_ptrs_iterator result =
-      std::find(m_capabilities.begin(), m_capabilities.end(), name);
+      std::find_if(m_capabilities.begin(), m_capabilities.end(),
+                   [&name](const Capability_handler_ptr &handler) {
+                     return handler->name() == name;
+                   });
 
   if (m_capabilities.end() == result) {
     return Capability_handler_ptr();

@@ -1,0 +1,3460 @@
+#@todo WL#6570:
+# Some functions I cannot test:
+#https://dev.mysql.com/doc/refman/8.0/en/enterprise-encryption-functions.html#function_create-digest
+# and CREATE_ASYMMETRIC_PRIV_KEY and following.
+# test the other way to send a PS - as in mysql_client_test.
+
+--source include/have_optimizer_trace.inc
+set optimizer_trace_max_mem_size=10000000,@@session.optimizer_trace="enabled=on";
+let $show_trace=
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+
+create table t1(a int);
+insert into t1 values(1),(2);
+create table t2(a int);
+
+############ A few specific tests
+
+# + (plus) : if one determined-type arg, ? is same.
+
+prepare s from "select ?+11.1";
+eval $show_trace;
+
+prepare s from "select ?+11";
+eval $show_trace;
+
+# + : if no determined-type arg, ? is DOUBLE
+
+prepare s from "select ?+?";
+eval $show_trace;
+
+execute s using @a,@a;
+eval $show_trace;
+
+# Give DOUBLE arg, like was guessed, => no repreparation
+set @a=1e0;
+flush status;
+execute s using @a,@a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+prepare s from "select ?+?";
+eval $show_trace;
+
+# INT arg, INT-to-DOUBLE may cause loss of precision, => reprepare
+set @a=11;
+flush status;
+execute s using @a,@a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+prepare s from "select ?+?";
+eval $show_trace;
+
+set @a=11.1;
+execute s using @a,@a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+prepare s from "select ?+?";
+eval $show_trace;
+
+set @a=11e0;
+execute s using @a,@a;
+eval $show_trace;
+
+prepare s from "select ?+?";
+eval $show_trace;
+
+set @a='11.1';
+execute s using @a,@a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+set @a=11;
+execute s using @a,@a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+# STRING-to-INT: no repreparation, but a truncation warning for decimals
+set @a='11.1';
+execute s using @a,@a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+# STRING-to-DECIMAL/DOUBLE/DATE: no repreparation, but a truncation
+# warning if bad value
+set @a='11.1garbage';
+prepare s from "select 1.0+?";
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+prepare s from "select 1e0+?";
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+prepare s from "select date(?)";
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+# Roy says that due to outer context, this + should be decimal, as in
+# 11.1*(? + ?). Now it's not.
+
+prepare s from "select 11.1*(?+?)";
+eval $show_trace;
+
+# Unary minus (-):
+prepare s from 'select -(?)';
+eval $show_trace;
+# Test for a crash with string variable.
+set @a='1.1';
+execute s using @a;
+eval $show_trace;
+set @a=2.2;
+execute s using @a;
+eval $show_trace;
+
+# Crash with re-preparation + opt trace + TIME
+prepare s from 'select cast(? as time), ?+1';
+set @a="14:15:16",@b=3;
+execute s using @a,@b;
+set @a="14:15:16",@b=3.1;
+# We re-prepare: during new preparation, TIME parameter used to have
+# pointers to previous TIME value.
+execute s using @a,@b;
+
+# ABS:
+prepare s from 'select ABS(?)';
+eval $show_trace;
+set @a='-5.2';
+execute s using @a;
+eval $show_trace;
+
+
+# Test "isolated parameter"
+
+prepare s from 'select ?';
+eval $show_trace;
+
+prepare s from 'select sum(1) over (order by ?)';
+eval $show_trace;
+
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+prepare s from 'select sum(1) over (order by ? range 2 preceding)';
+
+# ? is DECIMAL due to 1.1
+prepare s from 'select sum(1) over (order by 1.1 range ? preceding)';
+eval $show_trace;
+
+prepare s from 'select 1 where ? group by ? having ? order by ?';
+eval $show_trace;
+
+prepare s from 'select 1 from t1 left join t2 on ?';
+eval $show_trace;
+
+# Generally we reprepare if param's actual type differs from original
+# type; but not if the actual type is a string which can be cast to
+# original type. So, below, when type changes from string to integer
+# we reprepare, but not when we change from int to string.
+
+prepare s from 'select ?';
+eval $show_trace;
+set @a="ab";
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+set @a=1;
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+set @a="ab";
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+# In WHERE:
+prepare s from 'select 1 where ?';
+eval $show_trace;
+set @a="ab";
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+set @s='abc';
+set @d='2000-01-01';
+set @t='23:59:59.999999';
+set @dt='2000-01-01 23:59:59.999999';
+set @y='2000';
+set @j='{"pi":3.14159}';
+
+# CAST(? AS T): ? gets type of T
+prepare s from 'select cast(? as unsigned)';
+eval $show_trace;
+execute s using @y;
+# Assumed type is unsigned int;
+# because type is inherited (a specificity of CAST),
+# another type doesn't cause any repreparation, and type
+# remains unsigned int, not decimal:
+set @a=3.5;
+execute s using @a;
+show status like 'com_stmt_reprepare';
+eval $show_trace;
+
+prepare s from 'select cast(? as char(10))';
+eval $show_trace;
+execute s using @s;
+prepare s from 'select cast(? as binary(3))';
+eval $show_trace;
+execute s using @s;
+prepare s from 'select cast(? as date)';
+eval $show_trace;
+execute s using @d;
+prepare s from 'select cast(? as time(6))';
+eval $show_trace;
+execute s using @t;
+prepare s from 'select cast(? as datetime(6))';
+eval $show_trace;
+execute s using @dt;
+prepare s from 'select cast(? as year)';
+eval $show_trace;
+execute s using @y;
+prepare s from 'select cast(? as float)';
+eval $show_trace;
+execute s using @y;
+prepare s from 'select cast(? as double)';
+eval $show_trace;
+execute s using @y;
+prepare s from 'select cast(? as decimal(10))';
+eval $show_trace;
+execute s using @y;
+prepare s from 'select cast(? as json)';
+eval $show_trace;
+execute s using @j;
+
+# CONVERT == CAST
+prepare s from 'select convert(?, decimal(10))';
+eval $show_trace;
+
+# Predicates: AND, OR...
+prepare s from 'select 1 where ? and ?';
+eval $show_trace;
+set @a="ab";
+execute s using @a,@a;
+eval $show_trace;
+
+# Equality, BETWEEN, >=
+
+prepare s from 'select ?=12, ?=?,
+  1 BETWEEN ? AND 4.3, ? BETWEEN 1 AND 4.3, ? BETWEEN ? AND ?,
+  ? >= 3, ? >= ?';
+eval $show_trace;
+
+# IFNULL
+
+prepare s from 'select ifnull(?,?),ifnull(?,cast("2000" as date))';
+eval $show_trace;
+
+# IF
+
+prepare s from 'select if(?,?,?),if(?,cast("2000" as date),?)';
+eval $show_trace;
+
+# COALESCE
+
+prepare s from 'select coalesce(?,?,?),coalesce(?,cast("2000" as date),?)';
+eval $show_trace;
+
+# IN
+
+prepare s from 'select ? in (?,?), ? in (2,?)';
+eval $show_trace;
+
+# NOT IN
+
+prepare s from 'select ? not in (?,?), ? not in (2,?)';
+eval $show_trace;
+
+# CASE
+
+# As ? is compared with 3, it gets longlong.
+# When ? is compared with ?: varchar.
+prepare s from '
+select case ? when 3 then 1e0 else 2e0 end,
+case 3 when ? then 6 else 12 end,
+case ? when ? then 6 else 12 end';
+eval $show_trace;
+
+# As ? is in THEN, we use ELSE as model: double. And vice-versa.
+
+prepare s from '
+select case 3 when 3 then ? else 2e0 end,
+case 3 when 3 then 1e0 else ? end,
+case 3 when 3 then ? else ? end,
+case ? when ? then ? else ? end';
+eval $show_trace;
+
+# All varchar.
+prepare s from '
+select case ? when ? then ? else ? end';
+eval $show_trace;
+
+# Other form of CASE: CASE <condition>
+prepare s from '
+select case when 3=2 then ? else 2e0 end,
+case when ? then 6 else 12 end,
+case when ? then ? else ? end';
+eval $show_trace;
+
+# Quantified subquery OP(subq)
+
+prepare s from '
+select ? in (select a from t1),
+       3 in (select ? from t1)';
+eval $show_trace;
+
+prepare s from '
+select ? >= ALL(select a from t1),
+       ? = ALL (select a from t1),
+       ? >= ANY (select a from t1),
+       ? NOT IN (select a from t1)';
+eval $show_trace;
+
+# Test that how, when inferred type for parameter is VARCHAR, a BLOB
+# value is handled.
+
+create table t3 (a mediumblob);
+set @a=repeat("x",1000000);
+set @b=repeat("y",1000000);
+select length(@a),md5(@a);
+flush status;
+prepare s from 'select length(?), md5(?)';
+eval $show_trace;
+execute s using @a,@a;
+prepare s from 'insert into t3 values(?)';
+eval $show_trace;
+execute s using @a;
+select length(a), a=@a from t3;
+prepare s from 'update t3 set a=?';
+eval $show_trace;
+execute s using @b;
+select length(a), a=@b from t3;
+prepare s from 'delete from t3 where a=?';
+eval $show_trace;
+execute s using @b;
+select length(a), a from t3;
+# INSERT one-SELECT is ok:
+prepare s from 'insert into t3 select ?';
+eval $show_trace;
+execute s using @a;
+select length(a), a=@a from t3;
+# Problem with UNION and UNION ALL:
+prepare s from 'insert into t3 select ? union select ?';
+eval $show_trace;
+execute s using @a, @b;
+select length(a), a=@a, a=@b from t3;
+prepare s from 'insert into t3 select ? union all select ?';
+eval $show_trace;
+execute s using @a, @b;
+select length(a), a=@a, a=@b from t3;
+prepare s from 'create table t4 as select ? as a from t3 limit 1';
+# Problem with CREATE SELECT:
+--error ER_DATA_TOO_LONG
+execute s using @b;
+# a CAST is needed:
+prepare s from
+ 'create table t4 as select cast(? as binary(1000000)) as a from t3
+  limit 1';
+execute s using @b;
+desc t4;
+select length(a), a=@b from t4;
+drop table t3,t4;
+show status like "Com_stmt_reprepare";
+
+############ Mostly script-generated tests, with some manuel additions
+#            marked with the "custom" word.
+
+############ OPERATORS (e.g. a+b)
+
+# ~
+
+prepare s from 'select ~ ?';
+eval $show_trace;
+
+# IS TRUE
+
+prepare s from 'select ? IS TRUE';
+eval $show_trace;
+
+# IS FALSE
+
+prepare s from 'select ? IS FALSE';
+eval $show_trace;
+
+# IS NOT TRUE
+
+prepare s from 'select ? IS NOT TRUE';
+eval $show_trace;
+
+# IS NOT FALSE
+
+prepare s from 'select ? IS NOT FALSE';
+eval $show_trace;
+
+# IS NULL
+
+prepare s from 'select ? IS NULL';
+eval $show_trace;
+
+# IS NOT NULL
+
+prepare s from 'select ? IS NOT NULL';
+eval $show_trace;
+
+# -
+
+prepare s from 'select - ?';
+eval $show_trace;
+prepare s from 'select ? - ?';
+eval $show_trace;
+
+# !
+
+prepare s from 'select ! ?';
+eval $show_trace;
+
+# NOT
+
+prepare s from 'select NOT ?';
+eval $show_trace;
+prepare s from 'select NOT(?)';
+eval $show_trace;
+
+# DIV
+
+prepare s from 'select ? DIV ?';
+eval $show_trace;
+
+# AND
+
+prepare s from 'select ? AND ?';
+eval $show_trace;
+
+# OR
+
+prepare s from 'select ? OR ?';
+eval $show_trace;
+
+# XOR
+
+prepare s from 'select ? XOR ?';
+eval $show_trace;
+
+# %
+
+prepare s from 'select ? % ?';
+eval $show_trace;
+
+# MOD
+
+prepare s from 'select ? MOD ?';
+eval $show_trace;
+
+# +
+
+prepare s from 'select + ?';
+eval $show_trace;
+prepare s from 'select ? + ?';
+eval $show_trace;
+
+# -
+
+prepare s from 'select - ?';
+eval $show_trace;
+prepare s from 'select ? - ?';
+eval $show_trace;
+
+# *
+
+prepare s from 'select ? * ?';
+eval $show_trace;
+
+# /
+
+prepare s from 'select ? / ?';
+eval $show_trace;
+
+# =
+
+prepare s from 'select ? = ?';
+eval $show_trace;
+
+# :=
+
+
+# &
+
+prepare s from 'select hex(? & ?)';
+eval $show_trace;
+# custom
+set @a=0x1234;
+flush status;
+execute s using @a,@a;
+show status like "Com_stmt_reprepare";
+prepare s from 'select ? & 2';
+eval $show_trace;
+set @a='6';
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# |
+
+prepare s from 'select ? | ?';
+eval $show_trace;
+#custom
+# Verify that no warning in bit ops with varchar (non-binary) argument
+select '18446744073709551615' | 0;
+
+# ^
+
+prepare s from 'select ? ^ ?';
+eval $show_trace;
+
+# /
+
+prepare s from 'select ? / ?';
+eval $show_trace;
+
+# =
+
+prepare s from 'select ? = ?';
+eval $show_trace;
+
+# <=>
+
+prepare s from 'select ? <=> ?';
+eval $show_trace;
+
+# >
+
+prepare s from 'select ? > ?';
+eval $show_trace;
+
+# >=
+
+prepare s from 'select ? >= ?';
+eval $show_trace;
+
+# <
+
+prepare s from 'select ? < ?';
+eval $show_trace;
+
+# <=
+
+prepare s from 'select ? <= ?';
+eval $show_trace;
+
+# <>
+
+prepare s from 'select ? <> ?';
+eval $show_trace;
+
+# !=
+
+prepare s from 'select ? != ?';
+eval $show_trace;
+
+# <<
+
+prepare s from 'select ? << ?';
+eval $show_trace;
+
+# >>
+
+prepare s from 'select ? >> ?';
+eval $show_trace;
+
+# LIKE
+
+prepare s from 'select ? LIKE ?';
+eval $show_trace;
+
+# NOT LIKE
+
+prepare s from 'select ? NOT LIKE ?';
+eval $show_trace;
+
+# REGEXP
+
+prepare s from 'select ? REGEXP ?';
+eval $show_trace;
+
+# RLIKE
+
+prepare s from 'select ? RLIKE ?';
+eval $show_trace;
+
+# NOT REGEXP
+
+prepare s from 'select ? NOT REGEXP ?';
+eval $show_trace;
+
+# MATCH
+
+# custom
+CREATE TABLE articles (
+          title VARCHAR(200),
+          body TEXT,
+          FULLTEXT (title,body)
+        );
+prepare s from 'select 1 from articles where MATCH (title,body) AGAINST (?)';
+eval $show_trace;
+DROP TABLE articles;
+
+# SOUNDS LIKE
+
+prepare s from 'select ? SOUNDS LIKE ?';
+eval $show_trace;
+
+
+############ FUNCTIONS f([args])
+
+# ABS
+
+prepare s from 'select ABS(?)';
+eval $show_trace;
+
+# ACOS
+
+prepare s from 'select ACOS(?)';
+eval $show_trace;
+
+# ADDDATE
+
+prepare s from 'select ADDDATE(?,?)';
+eval $show_trace;
+
+# custom
+prepare s from 'select ADDDATE(?, INTERVAL ? MONTH)';
+eval $show_trace;
+prepare s from 'select ADDDATE(?, INTERVAL ? SECOND)';
+eval $show_trace;
+#custom
+prepare s from "SELECT ADDDATE('2008-01-02', interval ? second)";
+set @a=1.1;
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+prepare s from 'select ADDDATE(?, INTERVAL ? DAY_SECOND)';
+eval $show_trace;
+
+# explicit type of date/datetime argument:
+prepare s from 'select ADDDATE(?, INTERVAL 1 MONTH)';
+eval $show_trace;
+
+prepare s from 'select ADDDATE(CAST(? AS DATE), INTERVAL 1 MONTH)';
+eval $show_trace;
+
+prepare s from 'select ADDDATE(CAST(? AS DATETIME), INTERVAL 1 SECOND)';
+eval $show_trace;
+
+# ADDTIME
+
+prepare s from 'select ADDTIME(?,?)';
+eval $show_trace;
+prepare s from "select ADDTIME(?, time'01:01:01')";
+eval $show_trace;
+
+# AES_DECRYPT
+
+prepare s from 'select AES_DECRYPT(?,?)';
+eval $show_trace;
+prepare s from 'select AES_DECRYPT(?,?,?)';
+eval $show_trace;
+
+# AES_ENCRYPT
+
+prepare s from 'select AES_ENCRYPT(?,?)';
+eval $show_trace;
+prepare s from 'select AES_ENCRYPT(?,?,?)';
+eval $show_trace;
+
+# ANY_VALUE
+
+prepare s from 'select ANY_VALUE(?)';
+eval $show_trace;
+
+# ASCII
+
+prepare s from 'select ASCII(?)';
+eval $show_trace;
+
+# ASIN
+
+prepare s from 'select ASIN(?)';
+eval $show_trace;
+
+# ASYMMETRIC_DECRYPT
+
+
+# ASYMMETRIC_DERIVE
+
+
+# ASYMMETRIC_ENCRYPT
+
+
+# ASYMMETRIC_SIGN
+
+
+# ASYMMETRIC_VERIFY
+
+
+# ATAN
+
+prepare s from 'select ATAN(?)';
+eval $show_trace;
+prepare s from 'select ATAN(?,?)';
+eval $show_trace;
+
+# ATAN2
+
+prepare s from 'select ATAN2(?)';
+eval $show_trace;
+prepare s from 'select ATAN2(?,?)';
+eval $show_trace;
+
+# AVG
+
+prepare s from 'select AVG(?)';
+eval $show_trace;
+
+# BENCHMARK
+
+prepare s from 'select BENCHMARK(?,?)';
+eval $show_trace;
+
+# BIN
+
+prepare s from 'select BIN(?)';
+eval $show_trace;
+
+# BIN_TO_UUID
+
+prepare s from 'select BIN_TO_UUID(?)';
+eval $show_trace;
+prepare s from 'select BIN_TO_UUID(?,?)';
+eval $show_trace;
+
+# BINARY
+
+prepare s from 'select BINARY(?)';
+eval $show_trace;
+
+# BIT_AND
+
+prepare s from 'select BIT_AND(?)';
+eval $show_trace;
+
+# BIT_COUNT
+
+prepare s from 'select BIT_COUNT(?)';
+eval $show_trace;
+#custom
+prepare s from 'select bit_count(?),bit_count(?)';
+eval $show_trace;
+# Because bit_count()'s behaviour depends on if input is binary string
+# or integer, we test several combinations:
+set
+@a=0b1111111111111111111111111111111111111111111111111111111111111111111111,
+@b=0b1111111111111111111111111111111111111111111111111111111111111111111111;
+execute s using @a,@b;
+set
+@a=0b1111111111111111111111111111111111111111111111111111111111111111111111,
+@b=31;
+execute s using @a,@b;
+set
+@a=31,
+@b=31;
+execute s using @a,@b;
+# INT->STRING, as usual: no repreparation; so: truncation warnings
+set
+@a=0b1111111111111111111111111111111111111111111111111111111111111111111111,
+@b=0b1111111111111111111111111111111111111111111111111111111111111111111111;
+execute s using @a,@b;
+
+# BIT_LENGTH
+
+prepare s from 'select BIT_LENGTH(?)';
+eval $show_trace;
+
+# BIT_OR
+
+prepare s from 'select BIT_OR(?)';
+eval $show_trace;
+
+# BIT_XOR
+
+prepare s from 'select BIT_XOR(?)';
+eval $show_trace;
+
+# CAN_ACCESS_COLUMN # internal, cannot be called
+
+
+# CAN_ACCESS_DATABASE
+
+
+# CAN_ACCESS_TABLE
+
+
+# CAN_ACCESS_VIEW
+
+
+# CASE
+# done earlier above
+
+
+# CAST
+# done earlier above
+
+
+# CEIL
+
+prepare s from 'select CEIL(?)';
+eval $show_trace;
+
+# CEILING
+
+prepare s from 'select CEILING(?)';
+eval $show_trace;
+
+# CHAR
+
+prepare s from 'select CHAR(?)';
+eval $show_trace;
+prepare s from 'select CHAR(?,?)';
+eval $show_trace;
+prepare s from 'select CHAR(?,?,?)';
+eval $show_trace;
+prepare s from 'select CHAR(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select CHAR(?,?,?,?,?)';
+eval $show_trace;
+
+# CHAR_LENGTH
+
+prepare s from 'select CHAR_LENGTH(?)';
+eval $show_trace;
+
+# CHARACTER_LENGTH
+
+prepare s from 'select CHARACTER_LENGTH(?)';
+eval $show_trace;
+
+# CHARSET
+
+prepare s from 'select CHARSET(?)';
+eval $show_trace;
+
+# COALESCE
+
+prepare s from 'select COALESCE(?)';
+eval $show_trace;
+prepare s from 'select COALESCE(?,?)';
+eval $show_trace;
+prepare s from 'select COALESCE(?,?,?)';
+eval $show_trace;
+prepare s from 'select COALESCE(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select COALESCE(?,?,?,?,?)';
+eval $show_trace;
+
+# COERCIBILITY
+
+prepare s from 'select COERCIBILITY(?)';
+eval $show_trace;
+
+# COLLATION
+
+prepare s from 'select COLLATION(?)';
+eval $show_trace;
+
+# COMPRESS
+
+prepare s from 'select COMPRESS(?)';
+eval $show_trace;
+
+# CONCAT
+
+prepare s from 'select CONCAT(?)';
+eval $show_trace;
+prepare s from 'select CONCAT(?,?)';
+eval $show_trace;
+prepare s from 'select CONCAT(?,?,?)';
+eval $show_trace;
+prepare s from 'select CONCAT(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select CONCAT(?,?,?,?,?)';
+eval $show_trace;
+
+# CONCAT_WS
+
+prepare s from 'select CONCAT_WS(?,?)';
+eval $show_trace;
+prepare s from 'select CONCAT_WS(?,?,?)';
+eval $show_trace;
+prepare s from 'select CONCAT_WS(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select CONCAT_WS(?,?,?,?,?)';
+eval $show_trace;
+
+# CONNECTION_ID
+
+prepare s from 'select CONNECTION_ID()';
+eval $show_trace;
+
+# CONV
+
+prepare s from 'select CONV(?,?,?)';
+eval $show_trace;
+
+# CONVERT
+# cf CAST
+
+# CONVERT_TZ
+
+prepare s from 'select CONVERT_TZ(?,?,?)';
+eval $show_trace;
+
+# COS
+
+prepare s from 'select COS(?)';
+eval $show_trace;
+
+# COT
+
+prepare s from 'select COT(?)';
+eval $show_trace;
+
+# COUNT
+
+prepare s from 'select COUNT(?)';
+eval $show_trace;
+
+# COUNT(DISTINCT)
+
+prepare s from 'select COUNT(DISTINCT ?,?,?,?,?)';
+eval $show_trace;
+
+# CRC32
+
+prepare s from 'select CRC32(?)';
+eval $show_trace;
+
+# CREATE_ASYMMETRIC_PRIV_KEY
+
+
+# CREATE_ASYMMETRIC_PUB_KEY
+
+
+# CREATE_DH_PARAMETERS
+
+
+# CREATE_DIGEST
+
+
+# CUME_DIST # has no args
+
+
+# CURDATE
+
+prepare s from 'select CURDATE()';
+eval $show_trace;
+
+# CURRENT_DATE
+
+prepare s from 'select CURRENT_DATE()';
+eval $show_trace;
+
+# CURRENT_ROLE
+
+prepare s from 'select CURRENT_ROLE()';
+eval $show_trace;
+
+# CURRENT_TIME
+
+prepare s from 'select CURRENT_TIME()';
+eval $show_trace;
+
+# CURRENT_TIMESTAMP
+
+prepare s from 'select CURRENT_TIMESTAMP()';
+eval $show_trace;
+
+# CURRENT_USER
+
+prepare s from 'select CURRENT_USER()';
+eval $show_trace;
+
+# CURTIME
+
+prepare s from 'select CURTIME()';
+eval $show_trace;
+
+# DATABASE
+
+prepare s from 'select DATABASE()';
+eval $show_trace;
+
+# DATE
+
+prepare s from 'select DATE(?)';
+eval $show_trace;
+#custom
+# show that even though we assume DATE, DATETIME doesn't cause re-preparation.
+set @a= timestamp "2001-01-02 10:11:12.345";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+set @a=date "2001-01-02";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# DATE_ADD # cf ADDDATE
+
+
+# DATE_FORMAT
+
+prepare s from 'select DATE_FORMAT(?,?)';
+eval $show_trace;
+
+# DATE_SUB # cf SUBDATE
+
+
+# DATEDIFF
+
+prepare s from 'select DATEDIFF(?,?)';
+eval $show_trace;
+
+# DAY
+
+prepare s from 'select DAY(?)';
+eval $show_trace;
+
+# DAYNAME
+
+prepare s from 'select DAYNAME(?)';
+eval $show_trace;
+
+# DAYOFMONTH
+
+prepare s from 'select DAYOFMONTH(?)';
+eval $show_trace;
+
+# DAYOFWEEK
+
+prepare s from 'select DAYOFWEEK(?)';
+eval $show_trace;
+
+# DAYOFYEAR
+
+prepare s from 'select DAYOFYEAR(?)';
+eval $show_trace;
+
+# DECODE # removed from 8.0
+
+
+# DEFAULT # arg is column, doesn't accept '?'
+
+
+# DEGREES
+
+prepare s from 'select DEGREES(?)';
+eval $show_trace;
+
+# DENSE_RANK
+
+
+# DES_DECRYPT # removed from 8.0
+
+
+# DES_ENCRYPT
+
+
+# ELT
+
+prepare s from 'select ELT(?,?)';
+eval $show_trace;
+prepare s from 'select ELT(?,?,?)';
+eval $show_trace;
+prepare s from 'select ELT(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select ELT(?,?,?,?,?)';
+eval $show_trace;
+
+# ENCODE
+
+
+# ENCRYPT
+
+
+# EXP
+
+prepare s from 'select EXP(?)';
+eval $show_trace;
+
+# EXPORT_SET
+
+prepare s from 'select EXPORT_SET(?,?,?)';
+eval $show_trace;
+prepare s from 'select EXPORT_SET(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select EXPORT_SET(?,?,?,?,?)';
+eval $show_trace;
+
+# EXTRACT
+
+prepare s from 'select EXTRACT(YEAR FROM ?)';
+eval $show_trace;
+
+# ExtractValue
+
+prepare s from 'select ExtractValue(?,?)';
+eval $show_trace;
+
+# FIELD
+
+prepare s from 'select FIELD(?,?)';
+eval $show_trace;
+prepare s from 'select FIELD(?,?,?)';
+eval $show_trace;
+prepare s from 'select FIELD(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select FIELD(?,?,?,?,?)';
+eval $show_trace;
+
+# FIND_IN_SET
+
+prepare s from 'select FIND_IN_SET(?,?)';
+eval $show_trace;
+
+# FIRST_VALUE
+# custom
+
+prepare s from 'select FIRST_VALUE(?) over () from t1';
+eval $show_trace;
+
+# FLOOR
+
+prepare s from 'select FLOOR(?)';
+eval $show_trace;
+
+# FORMAT
+
+prepare s from 'select FORMAT(?,?)';
+eval $show_trace;
+prepare s from 'select FORMAT(?,?,?)';
+eval $show_trace;
+
+# FOUND_ROWS
+
+prepare s from 'select FOUND_ROWS()';
+eval $show_trace;
+
+# FROM_BASE64
+
+prepare s from 'select FROM_BASE64(?)';
+eval $show_trace;
+
+# FROM_DAYS
+
+prepare s from 'select FROM_DAYS(?)';
+eval $show_trace;
+
+# FROM_UNIXTIME
+
+prepare s from 'select FROM_UNIXTIME(?)';
+eval $show_trace;
+prepare s from 'select FROM_UNIXTIME(?,?)';
+eval $show_trace;
+
+# GeomCollection
+# a.k.a. GeometryCollection
+
+prepare s from 'select GeomCollection(?, ?, ?, ?, ?)';
+eval $show_trace;
+
+# GET_DD_COLUMN_PRIVILEGES # internal-only
+
+
+# GET_DD_CREATE_OPTIONS
+
+
+# GET_DD_INDEX_SUB_PART_LENGTH
+
+
+# GET_FORMAT
+
+
+# GET_LOCK
+
+prepare s from 'select GET_LOCK(?,?)';
+eval $show_trace;
+
+# GREATEST
+
+prepare s from 'select GREATEST(?,?,?,?,?)';
+eval $show_trace;
+
+# GROUPING
+# the argument must be a GROUP BY expression so doesn't support '?'
+
+# GROUP_CONCAT
+
+prepare s from 'select GROUP_CONCAT(?)';
+eval $show_trace;
+prepare s from 'select GROUP_CONCAT(?,?)';
+eval $show_trace;
+prepare s from 'select GROUP_CONCAT(?,?,?)';
+eval $show_trace;
+prepare s from 'select GROUP_CONCAT(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select GROUP_CONCAT(?,?,?,?,?)';
+eval $show_trace;
+#custom
+--error ER_PARSE_ERROR # SEPARATOR ?: not supported
+prepare s from 'select GROUP_CONCAT(DISTINCT ?,? ORDER BY ? SEPARATOR ?)';
+eval $show_trace;
+prepare s from 'select GROUP_CONCAT(DISTINCT ?,? ORDER BY ? SEPARATOR ",")';
+eval $show_trace;
+
+# GTID_SUBSET
+
+prepare s from 'select GTID_SUBSET(?,?)';
+eval $show_trace;
+
+# GTID_SUBTRACT
+
+prepare s from 'select GTID_SUBTRACT(?,?)';
+eval $show_trace;
+
+# HEX
+
+prepare s from 'select HEX(?)';
+eval $show_trace;
+
+# HOUR
+
+prepare s from 'select HOUR(?)';
+eval $show_trace;
+# custom
+# show that even though we assume DATETIME, TIME doesn't cause re-preparation
+set @a= time "10:11:12.345";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+set @a= timestamp "2001-01-02 10:11:12.345";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# ICU_VERSION
+
+prepare s from 'select ICU_VERSION()';
+eval $show_trace;
+
+# IF
+
+prepare s from 'select IF(?,?,?)';
+eval $show_trace;
+
+# IFNULL
+
+prepare s from 'select IFNULL(?,?)';
+eval $show_trace;
+
+# INET_ATON
+
+prepare s from 'select INET_ATON(?)';
+eval $show_trace;
+
+# INET_NTOA
+
+prepare s from 'select INET_NTOA(?)';
+eval $show_trace;
+
+# INET6_ATON
+
+prepare s from 'select INET6_ATON(?)';
+eval $show_trace;
+
+# INET6_NTOA
+
+prepare s from 'select INET6_NTOA(?)';
+eval $show_trace;
+# custom
+# show that even though we assume VARCHAR, binary string doesn't cause re-preparation
+set @a= _binary 0xFDFE0000000000005A55CAFFFEFA9089;
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+set @a= 0xFDFE0000000000005A55CAFFFEFA9089;
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# INSERT
+
+prepare s from 'select INSERT(?,?,?,?)';
+eval $show_trace;
+
+# INSTR
+
+prepare s from 'select INSTR(?,?)';
+eval $show_trace;
+
+# INTERNAL_AUTO_INCREMENT
+
+
+# INTERNAL_AVG_ROW_LENGTH
+
+
+# INTERNAL_CHECK_TIME
+
+
+# INTERNAL_CHECKSUM
+
+
+# INTERNAL_DATA_FREE
+
+
+# INTERNAL_DATA_LENGTH
+
+
+# INTERNAL_DD_CHAR_LENGTH
+
+
+# INTERNAL_GET_COMMENT_OR_ERROR
+
+
+# INTERNAL_GET_VIEW_WARNING_OR_ERROR
+
+
+# INTERNAL_INDEX_COLUMN_CARDINALITY
+
+
+# INTERNAL_INDEX_LENGTH
+
+
+# INTERNAL_KEYS_DISABLED
+
+
+# INTERNAL_MAX_DATA_LENGTH
+
+
+# INTERNAL_TABLE_ROWS
+
+
+# INTERNAL_UPDATE_TIME
+
+
+# INTERVAL
+
+prepare s from 'select INTERVAL(?,?)';
+eval $show_trace;
+prepare s from 'select INTERVAL(?,?,?)';
+eval $show_trace;
+prepare s from 'select INTERVAL(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select INTERVAL(?,?,?,?,?)';
+eval $show_trace;
+
+# IS_FREE_LOCK
+
+prepare s from 'select IS_FREE_LOCK(?)';
+eval $show_trace;
+
+# IS_IPV4
+
+prepare s from 'select IS_IPV4(?)';
+eval $show_trace;
+
+# IS_IPV4_COMPAT
+
+prepare s from 'select IS_IPV4_COMPAT(?)';
+eval $show_trace;
+
+# IS_IPV4_MAPPED
+
+prepare s from 'select IS_IPV4_MAPPED(?)';
+eval $show_trace;
+
+# IS_IPV6
+
+prepare s from 'select IS_IPV6(?)';
+eval $show_trace;
+
+# IS_USED_LOCK
+
+prepare s from 'select IS_USED_LOCK(?)';
+eval $show_trace;
+
+# IS_UUID
+
+prepare s from 'select IS_UUID(?)';
+eval $show_trace;
+
+# ISNULL
+
+prepare s from 'select ISNULL(?)';
+eval $show_trace;
+
+# JSON_ARRAY
+
+prepare s from 'select JSON_ARRAY()';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY(?)';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_ARRAY_APPEND
+
+prepare s from 'select JSON_ARRAY_APPEND(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY_APPEND(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_ARRAY_INSERT
+
+prepare s from 'select JSON_ARRAY_INSERT(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_ARRAY_INSERT(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_ARRAYAGG
+
+prepare s from 'select JSON_ARRAYAGG(?)';
+eval $show_trace;
+
+# JSON_CONTAINS
+
+prepare s from 'select JSON_CONTAINS(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_CONTAINS(?,?,?)';
+eval $show_trace;
+
+# JSON_CONTAINS_PATH
+
+prepare s from 'select JSON_CONTAINS_PATH(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_CONTAINS_PATH(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_CONTAINS_PATH(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_DEPTH
+
+prepare s from 'select JSON_DEPTH(?)';
+eval $show_trace;
+
+# JSON_EXTRACT
+
+prepare s from 'select JSON_EXTRACT(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_EXTRACT(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_EXTRACT(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_EXTRACT(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_INSERT
+
+prepare s from 'select JSON_INSERT(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_INSERT(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_KEYS
+
+prepare s from 'select JSON_KEYS(?)';
+eval $show_trace;
+prepare s from 'select JSON_KEYS(?,?)';
+eval $show_trace;
+
+# JSON_LENGTH
+
+prepare s from 'select JSON_LENGTH(?)';
+eval $show_trace;
+prepare s from 'select JSON_LENGTH(?,?)';
+eval $show_trace;
+
+# JSON_MERGE (deprecated 8.0.3)
+
+
+# JSON_MERGE_PATCH
+
+prepare s from 'select JSON_MERGE_PATCH(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_MERGE_PATCH(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_MERGE_PATCH(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_MERGE_PATCH(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_MERGE_PRESERVE
+
+prepare s from 'select JSON_MERGE_PRESERVE(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_MERGE_PRESERVE(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_MERGE_PRESERVE(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_MERGE_PRESERVE(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_OBJECT
+
+prepare s from 'select JSON_OBJECT()';
+eval $show_trace;
+prepare s from 'select JSON_OBJECT(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_OBJECT(?,?,?,?)';
+eval $show_trace;
+
+# JSON_OBJECTAGG
+
+prepare s from 'select JSON_OBJECTAGG(?,?)';
+eval $show_trace;
+
+# JSON_PRETTY
+
+prepare s from 'select JSON_PRETTY(?)';
+eval $show_trace;
+
+# JSON_QUOTE
+
+prepare s from 'select JSON_QUOTE(?)';
+eval $show_trace;
+
+# JSON_REMOVE
+
+prepare s from 'select JSON_REMOVE(?,?)';
+eval $show_trace;
+prepare s from 'select JSON_REMOVE(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_REMOVE(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_REMOVE(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_REPLACE
+
+prepare s from 'select JSON_REPLACE(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_REPLACE(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_SEARCH
+
+prepare s from 'select JSON_SEARCH(?,?,?)';
+eval $show_trace;
+# custom
+# The "escape" argument cannot be a parameter, as it's used during preparation
+--error ER_WRONG_ARGUMENTS
+prepare s from 'select JSON_SEARCH(?,?,?,?)';
+prepare s from 'select JSON_SEARCH(?,?,?,"x",?)';
+eval $show_trace;
+
+# JSON_SET
+
+prepare s from 'select JSON_SET(?,?,?)';
+eval $show_trace;
+prepare s from 'select JSON_SET(?,?,?,?,?)';
+eval $show_trace;
+
+# JSON_STORAGE_FREE
+
+prepare s from 'select JSON_STORAGE_FREE(?)';
+eval $show_trace;
+
+# JSON_STORAGE_SIZE
+
+prepare s from 'select JSON_STORAGE_SIZE(?)';
+eval $show_trace;
+
+# JSON_TABLE
+#custom
+
+prepare s from
+'SELECT *
+     FROM
+       JSON_TABLE(
+         ?,
+         "$[*]"
+         COLUMNS(
+           rowid FOR ORDINALITY,
+           ac VARCHAR(100) PATH "$.a" DEFAULT ''111'' ON EMPTY DEFAULT ''999'' ON ERROR,
+           aj JSON PATH "$.a" DEFAULT ''{"x": 333}'' ON EMPTY,
+           bx INT EXISTS PATH "$.b"
+         )
+       ) AS tt';
+eval $show_trace;
+
+set @a=
+'[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]';
+
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+set @a=
+cast('[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]' as json);
+
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# Other members of clauses refuse '?':
+--error ER_PARSE_ERROR
+prepare s from
+'SELECT *
+     FROM
+       JSON_TABLE(
+         ?,
+         ?
+         COLUMNS(
+           rowid FOR ORDINALITY,
+           ac VARCHAR(100) PATH "$.a" DEFAULT ''999'' ON ERROR DEFAULT ''111'' ON EMPTY,
+           aj JSON PATH "$.a" DEFAULT ''{"x": 333}'' ON EMPTY,
+           bx INT EXISTS PATH "$.b"
+         )
+       ) AS tt';
+
+# JSON_TYPE
+
+prepare s from 'select JSON_TYPE(?)';
+eval $show_trace;
+
+# JSON_UNQUOTE
+
+prepare s from 'select JSON_UNQUOTE(?)';
+eval $show_trace;
+
+# JSON_VALID
+
+prepare s from 'select JSON_VALID(?)';
+eval $show_trace;
+
+# LAG
+
+# custom
+prepare s from 'select LAG(?,?,?) over () from t1';
+eval $show_trace;
+prepare s from 'select LAG(?,?,2.1) over () from t1';
+eval $show_trace;
+
+# LAST_DAY
+
+prepare s from 'select LAST_DAY(?)';
+eval $show_trace;
+
+# LAST_INSERT_ID
+
+prepare s from 'select LAST_INSERT_ID()';
+eval $show_trace;
+prepare s from 'select LAST_INSERT_ID(?)';
+eval $show_trace;
+
+# LAST_VALUE
+
+# custom
+prepare s from 'select LAST_VALUE(?) over () from t1';
+eval $show_trace;
+
+# LCASE
+
+prepare s from 'select LCASE(?)';
+eval $show_trace;
+
+# LEAD
+
+# custom
+prepare s from 'select LEAD(?,?,?) over () from t1';
+eval $show_trace;
+prepare s from 'select LEAD(?,?,2.1) over () from t1';
+eval $show_trace;
+
+# LEAST
+
+prepare s from 'select LEAST(?,?,?,?,?)';
+eval $show_trace;
+
+# LEFT
+
+prepare s from 'select LEFT(?,?)';
+eval $show_trace;
+
+# LENGTH
+
+prepare s from 'select LENGTH(?)';
+eval $show_trace;
+
+# LineString
+
+prepare s from 'select LineString(?, ?, ?, ?, ?)';
+eval $show_trace;
+
+# LN
+
+prepare s from 'select LN(?)';
+eval $show_trace;
+
+# LOAD_FILE
+
+prepare s from 'select LOAD_FILE(?)';
+eval $show_trace;
+
+# LOCALTIME
+
+prepare s from 'select LOCALTIME()';
+eval $show_trace;
+
+# LOCALTIMESTAMP
+
+prepare s from 'select LOCALTIMESTAMP()';
+eval $show_trace;
+
+# LOCATE
+
+prepare s from 'select LOCATE(?,?)';
+eval $show_trace;
+prepare s from 'select LOCATE(?,?,?)';
+eval $show_trace;
+
+# LOG
+
+prepare s from 'select LOG(?)';
+eval $show_trace;
+prepare s from 'select LOG(?,?)';
+eval $show_trace;
+
+# LOG10
+
+prepare s from 'select LOG10(?)';
+eval $show_trace;
+
+# LOG2
+
+prepare s from 'select LOG2(?)';
+eval $show_trace;
+
+# LOWER
+
+prepare s from 'select LOWER(?)';
+eval $show_trace;
+
+# LPAD
+
+prepare s from 'select LPAD(?,?,?)';
+eval $show_trace;
+
+# LTRIM
+
+prepare s from 'select LTRIM(?)';
+eval $show_trace;
+
+# MAKE_SET
+
+prepare s from 'select MAKE_SET(?,?)';
+eval $show_trace;
+prepare s from 'select MAKE_SET(?,?,?)';
+eval $show_trace;
+prepare s from 'select MAKE_SET(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select MAKE_SET(?,?,?,?,?)';
+eval $show_trace;
+
+# MAKEDATE
+
+prepare s from 'select MAKEDATE(?,?)';
+eval $show_trace;
+
+# MAKETIME
+
+prepare s from 'select MAKETIME(?,?,?)';
+eval $show_trace;
+
+# SOURCE_POS_WAIT
+
+prepare s from 'select SOURCE_POS_WAIT(?,?)';
+eval $show_trace;
+prepare s from 'select SOURCE_POS_WAIT(?,?,?)';
+eval $show_trace;
+prepare s from 'select SOURCE_POS_WAIT(?,?,?,?)';
+eval $show_trace;
+
+# MAX
+
+prepare s from 'select MAX(?)';
+eval $show_trace;
+
+# MBRContains
+
+prepare s from 'select MBRContains(?,?)';
+eval $show_trace;
+
+# MBRCoveredBy
+
+prepare s from 'select MBRCoveredBy(?,?)';
+eval $show_trace;
+
+# MBRCovers
+
+prepare s from 'select MBRCovers(?,?)';
+eval $show_trace;
+
+# MBRDisjoint
+
+prepare s from 'select MBRDisjoint(?,?)';
+eval $show_trace;
+
+# MBREquals
+
+prepare s from 'select MBREquals(?,?)';
+eval $show_trace;
+
+# MBRIntersects
+
+prepare s from 'select MBRIntersects(?,?)';
+eval $show_trace;
+
+# MBROverlaps
+
+prepare s from 'select MBROverlaps(?,?)';
+eval $show_trace;
+
+# MBRTouches
+
+prepare s from 'select MBRTouches(?,?)';
+eval $show_trace;
+
+# MBRWithin
+
+prepare s from 'select MBRWithin(?,?)';
+eval $show_trace;
+
+# MD5
+
+prepare s from 'select MD5(?)';
+eval $show_trace;
+
+# MICROSECOND
+
+prepare s from 'select MICROSECOND(?)';
+eval $show_trace;
+
+# MID
+
+prepare s from 'select MID(?,?)';
+eval $show_trace;
+prepare s from 'select MID(?,?,?)';
+eval $show_trace;
+
+# MIN
+
+prepare s from 'select MIN(?)';
+eval $show_trace;
+
+# MINUTE
+
+prepare s from 'select MINUTE(?)';
+eval $show_trace;
+
+# MOD
+
+prepare s from 'select MOD(?,?)';
+eval $show_trace;
+
+# MONTH
+
+prepare s from 'select MONTH(?)';
+eval $show_trace;
+
+# MONTHNAME
+
+prepare s from 'select MONTHNAME(?)';
+eval $show_trace;
+
+# MultiLineString
+
+prepare s from 'select MultiLineString(?, ?, ?, ?, ?)';
+eval $show_trace;
+
+# MultiPoint
+
+prepare s from 'select MultiPoint(?, ?, ?, ?, ?)';
+eval $show_trace;
+
+# MultiPolygon
+
+prepare s from 'select MultiPolygon(?, ?, ?, ?, ?)';
+eval $show_trace;
+
+# NAME_CONST # doesn't accept '?'
+
+# NOW
+
+prepare s from 'select NOW()';
+eval $show_trace;
+
+# NTH_VALUE
+
+# custom
+prepare s from 'select NTH_VALUE(?,?) over () from t1';
+eval $show_trace;
+
+# NTILE
+
+# custom
+prepare s from 'select NTILE(?) over () from t1';
+eval $show_trace;
+
+# NULLIF
+
+prepare s from 'select NULLIF(?,?)';
+eval $show_trace;
+
+prepare s from 'select NULLIF(100,?)';
+eval $show_trace;
+
+prepare s from 'select NULLIF(?,100)';
+eval $show_trace;
+
+prepare s from 'select 200 + NULLIF(?,?)';
+eval $show_trace;
+
+prepare s from 'select 200 + NULLIF("100",?)';
+eval $show_trace;
+
+prepare s from 'select 200 + NULLIF(?,"100")';
+eval $show_trace;
+
+# OCT
+
+prepare s from 'select OCT(?)';
+eval $show_trace;
+
+# OCTET_LENGTH
+
+prepare s from 'select OCTET_LENGTH(?)';
+eval $show_trace;
+
+# ORD
+
+prepare s from 'select ORD(?)';
+eval $show_trace;
+
+# PASSWORD # removed in 8.0.11
+
+
+# PERCENT_RANK
+
+
+# PERIOD_ADD
+
+prepare s from 'select PERIOD_ADD(?,?)';
+eval $show_trace;
+
+# PERIOD_DIFF
+
+prepare s from 'select PERIOD_DIFF(?,?)';
+eval $show_trace;
+
+# PI
+
+prepare s from 'select PI()';
+eval $show_trace;
+
+# Point
+
+prepare s from 'select Point(?,?)';
+eval $show_trace;
+
+# Polygon
+
+prepare s from 'select Polygon(?, ?, ?, ?, ?)';
+eval $show_trace;
+
+# POSITION cf LOCATE
+
+
+# POW
+
+prepare s from 'select POW(?,?)';
+eval $show_trace;
+
+# POWER
+
+prepare s from 'select POWER(?,?)';
+eval $show_trace;
+
+# QUARTER
+
+prepare s from 'select QUARTER(?)';
+eval $show_trace;
+
+# QUOTE
+
+prepare s from 'select QUOTE(?)';
+eval $show_trace;
+
+# RADIANS
+
+prepare s from 'select RADIANS(?)';
+eval $show_trace;
+
+# RAND
+
+prepare s from 'select RAND()';
+eval $show_trace;
+prepare s from 'select RAND(?)';
+eval $show_trace;
+
+# RANDOM_BYTES
+
+prepare s from 'select RANDOM_BYTES(?)';
+eval $show_trace;
+
+# RANK
+
+
+# REGEXP_INSTR
+
+prepare s from 'select REGEXP_INSTR(?,?)';
+eval $show_trace;
+prepare s from 'select REGEXP_INSTR(?,?,?)';
+eval $show_trace;
+prepare s from 'select REGEXP_INSTR(?,?,?,?)';
+eval $show_trace;
+# custom
+# The "match_type" argument cannot be a parameter, as it's used during preparation
+--error ER_INVALID_PARAMETER_USE
+prepare s from 'select REGEXP_INSTR(?,?,?,?,?)';
+
+# REGEXP_LIKE
+
+prepare s from 'select REGEXP_LIKE(?,?)';
+eval $show_trace;
+--error ER_INVALID_PARAMETER_USE
+prepare s from 'select REGEXP_LIKE(?,?,?)';
+
+# REGEXP_REPLACE
+
+prepare s from 'select REGEXP_REPLACE(?,?,?)';
+eval $show_trace;
+prepare s from 'select REGEXP_REPLACE(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select REGEXP_REPLACE(?,?,?,?,?)';
+eval $show_trace;
+
+# REGEXP_SUBSTR
+
+prepare s from 'select REGEXP_SUBSTR(?,?)';
+eval $show_trace;
+prepare s from 'select REGEXP_SUBSTR(?,?,?)';
+eval $show_trace;
+prepare s from 'select REGEXP_SUBSTR(?,?,?,?)';
+eval $show_trace;
+--error ER_INVALID_PARAMETER_USE
+prepare s from 'select REGEXP_SUBSTR(?,?,?,?,?)';
+
+# RELEASE_ALL_LOCKS
+
+prepare s from 'select RELEASE_ALL_LOCKS()';
+eval $show_trace;
+
+# RELEASE_LOCK
+
+prepare s from 'select RELEASE_LOCK(?)';
+eval $show_trace;
+
+# REPEAT
+
+prepare s from 'select REPEAT(?,?)';
+eval $show_trace;
+
+# REPLACE
+
+prepare s from 'select REPLACE(?,?,?)';
+eval $show_trace;
+
+# REVERSE
+
+prepare s from 'select REVERSE(?)';
+eval $show_trace;
+
+# RIGHT
+
+prepare s from 'select RIGHT(?,?)';
+eval $show_trace;
+
+# ROLES_GRAPHML
+
+prepare s from 'select ROLES_GRAPHML()';
+eval $show_trace;
+
+# ROUND
+
+prepare s from 'select ROUND(?)';
+eval $show_trace;
+prepare s from 'select ROUND(?,?)';
+eval $show_trace;
+
+# ROW_COUNT
+
+prepare s from 'select ROW_COUNT()';
+eval $show_trace;
+
+# ROW_NUMBER
+
+
+# RPAD
+
+prepare s from 'select RPAD(?,?,?)';
+eval $show_trace;
+
+# RTRIM
+
+prepare s from 'select RTRIM(?)';
+eval $show_trace;
+
+# SCHEMA
+
+prepare s from 'select SCHEMA()';
+eval $show_trace;
+
+# SEC_TO_TIME
+
+prepare s from 'select SEC_TO_TIME(?)';
+eval $show_trace;
+
+# SECOND
+
+prepare s from 'select SECOND(?)';
+eval $show_trace;
+
+# SESSION_USER
+
+prepare s from 'select SESSION_USER()';
+eval $show_trace;
+
+# SHA1
+
+prepare s from 'select SHA1(?)';
+eval $show_trace;
+
+# SHA2
+
+prepare s from 'select SHA2(?,?)';
+eval $show_trace;
+
+# SIGN
+
+prepare s from 'select SIGN(?)';
+eval $show_trace;
+
+# SIN
+
+prepare s from 'select SIN(?)';
+eval $show_trace;
+
+# SLEEP
+
+prepare s from 'select SLEEP(?)';
+eval $show_trace;
+
+# SOUNDEX
+
+prepare s from 'select SOUNDEX(?)';
+eval $show_trace;
+
+# SPACE
+
+prepare s from 'select SPACE(?)';
+eval $show_trace;
+
+# SQRT
+
+prepare s from 'select SQRT(?)';
+eval $show_trace;
+
+# ST_Area
+
+prepare s from 'select ST_Area(?)';
+eval $show_trace;
+
+# ST_AsBinary
+
+prepare s from 'select ST_AsBinary(?)';
+eval $show_trace;
+prepare s from 'select ST_AsBinary(?,?)';
+eval $show_trace;
+
+# ST_AsGeoJSON
+
+prepare s from 'select ST_AsGeoJSON(?)';
+eval $show_trace;
+prepare s from 'select ST_AsGeoJSON(?,?)';
+eval $show_trace;
+prepare s from 'select ST_AsGeoJSON(?,?,?)';
+eval $show_trace;
+
+# ST_AsText
+
+prepare s from 'select ST_AsText(?)';
+eval $show_trace;
+prepare s from 'select ST_AsText(?,?)';
+eval $show_trace;
+
+# ST_Buffer
+
+prepare s from 'select ST_Buffer(?,?)';
+eval $show_trace;
+prepare s from 'select ST_Buffer(?,?,?)';
+eval $show_trace;
+prepare s from 'select ST_Buffer(?,?,?,?)';
+eval $show_trace;
+prepare s from 'select ST_Buffer(?,?,?,?,?)';
+eval $show_trace;
+
+# ST_Buffer_Strategy
+
+prepare s from 'select ST_Buffer_Strategy(?)';
+eval $show_trace;
+prepare s from 'select ST_Buffer_Strategy(?,?)';
+eval $show_trace;
+
+# ST_Centroid
+
+prepare s from 'select ST_Centroid(?)';
+eval $show_trace;
+
+# ST_Contains
+
+prepare s from 'select ST_Contains(?,?)';
+eval $show_trace;
+
+# ST_ConvexHull
+
+prepare s from 'select ST_ConvexHull(?)';
+eval $show_trace;
+
+# ST_Crosses
+
+prepare s from 'select ST_Crosses(?,?)';
+eval $show_trace;
+
+# ST_Difference
+
+prepare s from 'select ST_Difference(?,?)';
+eval $show_trace;
+
+# ST_Dimension
+
+prepare s from 'select ST_Dimension(?)';
+eval $show_trace;
+
+# ST_Disjoint
+
+prepare s from 'select ST_Disjoint(?,?)';
+eval $show_trace;
+
+# ST_Distance
+
+prepare s from 'select ST_Distance(?,?)';
+eval $show_trace;
+
+# ST_Distance_Sphere
+
+prepare s from 'select ST_Distance_Sphere(?,?)';
+eval $show_trace;
+prepare s from 'select ST_Distance_Sphere(?,?,?)';
+eval $show_trace;
+
+# ST_EndPoint
+
+prepare s from 'select ST_EndPoint(?)';
+eval $show_trace;
+
+# ST_Envelope
+
+prepare s from 'select ST_Envelope(?)';
+eval $show_trace;
+
+# ST_Equals
+
+prepare s from 'select ST_Equals(?,?)';
+eval $show_trace;
+
+# ST_ExteriorRing
+
+prepare s from 'select ST_ExteriorRing(?)';
+eval $show_trace;
+
+# ST_GeoHash
+
+prepare s from 'select ST_GeoHash(?,?)';
+eval $show_trace;
+prepare s from 'select ST_GeoHash(?,?,?)';
+eval $show_trace;
+
+# ST_GeomCollFromText
+
+prepare s from 'select ST_GeomCollFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_GeomCollFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_GeomCollFromText(?,?,?)';
+eval $show_trace;
+
+# ST_GeomCollFromWKB
+
+prepare s from 'select ST_GeomCollFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_GeomCollFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_GeomCollFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_GeometryN
+
+prepare s from 'select ST_GeometryN(?,?)';
+eval $show_trace;
+
+# ST_GeometryType
+
+prepare s from 'select ST_GeometryType(?)';
+eval $show_trace;
+
+# ST_GeomFromGeoJSON
+
+prepare s from 'select ST_GeomFromGeoJSON(?)';
+eval $show_trace;
+prepare s from 'select ST_GeomFromGeoJSON(?,?)';
+eval $show_trace;
+prepare s from 'select ST_GeomFromGeoJSON(?,?,?)';
+eval $show_trace;
+
+# ST_GeomFromText
+
+prepare s from 'select ST_GeomFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_GeomFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_GeomFromText(?,?,?)';
+eval $show_trace;
+
+# ST_GeomFromWKB
+
+prepare s from 'select ST_GeomFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_GeomFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_GeomFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_InteriorRingN
+
+prepare s from 'select ST_InteriorRingN(?,?)';
+eval $show_trace;
+
+# ST_Intersection
+
+prepare s from 'select ST_Intersection(?,?)';
+eval $show_trace;
+
+# ST_Intersects
+
+prepare s from 'select ST_Intersects(?,?)';
+eval $show_trace;
+
+# ST_IsClosed
+
+prepare s from 'select ST_IsClosed(?)';
+eval $show_trace;
+
+# ST_IsEmpty
+
+prepare s from 'select ST_IsEmpty(?)';
+eval $show_trace;
+
+# ST_IsSimple
+
+prepare s from 'select ST_IsSimple(?)';
+eval $show_trace;
+
+# ST_IsValid
+
+prepare s from 'select ST_IsValid(?)';
+eval $show_trace;
+
+# ST_LatFromGeoHash
+
+prepare s from 'select ST_LatFromGeoHash(?)';
+eval $show_trace;
+
+# ST_Latitude
+
+prepare s from 'select ST_Latitude(?)';
+eval $show_trace;
+prepare s from 'select ST_Latitude(?,?)';
+eval $show_trace;
+
+# ST_Length
+
+prepare s from 'select ST_Length(?)';
+eval $show_trace;
+
+# ST_LineFromText
+
+prepare s from 'select ST_LineFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_LineFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_LineFromText(?,?,?)';
+eval $show_trace;
+
+# ST_LineFromWKB
+
+prepare s from 'select ST_LineFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_LineFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_LineFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_LongFromGeoHash
+
+prepare s from 'select ST_LongFromGeoHash(?)';
+eval $show_trace;
+
+# ST_Longitude
+
+prepare s from 'select ST_Longitude(?)';
+eval $show_trace;
+prepare s from 'select ST_Longitude(?,?)';
+eval $show_trace;
+
+# ST_MakeEnvelope
+
+prepare s from 'select ST_MakeEnvelope(?,?)';
+eval $show_trace;
+
+# ST_MLineFromText
+
+prepare s from 'select ST_MLineFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_MLineFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_MLineFromText(?,?,?)';
+eval $show_trace;
+
+# ST_MLineFromWKB
+
+prepare s from 'select ST_MLineFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_MLineFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_MLineFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_MPointFromText
+
+prepare s from 'select ST_MPointFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_MPointFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_MPointFromText(?,?,?)';
+eval $show_trace;
+
+# ST_MPointFromWKB
+
+prepare s from 'select ST_MPointFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_MPointFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_MPointFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_MPolyFromText
+
+prepare s from 'select ST_MPolyFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_MPolyFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_MPolyFromText(?,?,?)';
+eval $show_trace;
+
+# ST_MPolyFromWKB
+
+prepare s from 'select ST_MPolyFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_MPolyFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_MPolyFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_NumGeometries
+
+prepare s from 'select ST_NumGeometries(?)';
+eval $show_trace;
+
+# ST_NumInteriorRing
+
+prepare s from 'select ST_NumInteriorRing(?)';
+eval $show_trace;
+
+# ST_NumPoints
+
+prepare s from 'select ST_NumPoints(?)';
+eval $show_trace;
+
+# ST_Overlaps
+
+prepare s from 'select ST_Overlaps(?,?)';
+eval $show_trace;
+
+# ST_PointFromGeoHash
+
+prepare s from 'select ST_PointFromGeoHash(?,?)';
+eval $show_trace;
+
+# ST_PointFromText
+
+prepare s from 'select ST_PointFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_PointFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_PointFromText(?,?,?)';
+eval $show_trace;
+
+# ST_PointFromWKB
+
+prepare s from 'select ST_PointFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_PointFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_PointFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_PointN
+
+prepare s from 'select ST_PointN(?,?)';
+eval $show_trace;
+
+# ST_PolyFromText
+
+prepare s from 'select ST_PolyFromText(?)';
+eval $show_trace;
+prepare s from 'select ST_PolyFromText(?,?)';
+eval $show_trace;
+prepare s from 'select ST_PolyFromText(?,?,?)';
+eval $show_trace;
+
+# ST_PolyFromWKB
+
+prepare s from 'select ST_PolyFromWKB(?)';
+eval $show_trace;
+prepare s from 'select ST_PolyFromWKB(?,?)';
+eval $show_trace;
+prepare s from 'select ST_PolyFromWKB(?,?,?)';
+eval $show_trace;
+
+# ST_Simplify
+
+prepare s from 'select ST_Simplify(?,?)';
+eval $show_trace;
+
+# ST_SRID
+
+prepare s from 'select ST_SRID(?)';
+eval $show_trace;
+prepare s from 'select ST_SRID(?,?)';
+eval $show_trace;
+
+# ST_StartPoint
+
+prepare s from 'select ST_StartPoint(?)';
+eval $show_trace;
+
+# ST_SwapXY
+
+prepare s from 'select ST_SwapXY(?)';
+eval $show_trace;
+
+# ST_SymDifference
+
+prepare s from 'select ST_SymDifference(?,?)';
+eval $show_trace;
+
+# ST_Touches
+
+prepare s from 'select ST_Touches(?,?)';
+eval $show_trace;
+
+# ST_Union
+
+prepare s from 'select ST_Union(?,?)';
+eval $show_trace;
+
+# ST_Validate
+
+prepare s from 'select ST_Validate(?)';
+eval $show_trace;
+
+# ST_Within
+
+prepare s from 'select ST_Within(?,?)';
+eval $show_trace;
+
+# ST_X
+
+prepare s from 'select ST_X(?)';
+eval $show_trace;
+prepare s from 'select ST_X(?,?)';
+eval $show_trace;
+
+# ST_Y
+
+prepare s from 'select ST_Y(?)';
+eval $show_trace;
+prepare s from 'select ST_Y(?,?)';
+eval $show_trace;
+
+# STATEMENT_DIGEST
+
+prepare s from 'select STATEMENT_DIGEST(?)';
+eval $show_trace;
+
+# STATEMENT_DIGEST_TEXT
+
+prepare s from 'select STATEMENT_DIGEST_TEXT(?)';
+eval $show_trace;
+
+# STD
+
+prepare s from 'select STD(?)';
+eval $show_trace;
+
+# STDDEV
+
+prepare s from 'select STDDEV(?)';
+eval $show_trace;
+
+# STDDEV_POP
+
+prepare s from 'select STDDEV_POP(?)';
+eval $show_trace;
+
+# STDDEV_SAMP
+
+prepare s from 'select STDDEV_SAMP(?)';
+eval $show_trace;
+
+# STR_TO_DATE
+
+prepare s from 'select STR_TO_DATE(?,?)';
+eval $show_trace;
+
+# STRCMP
+
+prepare s from 'select STRCMP(?,?)';
+eval $show_trace;
+
+# SUBDATE
+
+prepare s from 'select SUBDATE(?,?)';
+eval $show_trace;
+
+# explicit type of date/datetime argument:
+prepare s from 'select SUBDATE(?, INTERVAL 1 MONTH)';
+eval $show_trace;
+
+prepare s from 'select SUBDATE(CAST(? AS DATE), INTERVAL 1 MONTH)';
+eval $show_trace;
+
+prepare s from 'select SUBDATE(CAST(? AS DATETIME), INTERVAL 1 SECOND)';
+eval $show_trace;
+
+# SUBSTR
+
+prepare s from 'select SUBSTR(?,?)';
+eval $show_trace;
+prepare s from 'select SUBSTR(?,?,?)';
+eval $show_trace;
+
+# SUBSTRING
+
+prepare s from 'select SUBSTRING(?,?)';
+eval $show_trace;
+prepare s from 'select SUBSTRING(?,?,?)';
+eval $show_trace;
+
+# SUBSTRING_INDEX
+
+prepare s from 'select SUBSTRING_INDEX(?,?,?)';
+eval $show_trace;
+
+# SUBTIME
+
+prepare s from 'select SUBTIME(?,?)';
+eval $show_trace;
+
+# SUM
+
+prepare s from 'select SUM(?)';
+eval $show_trace;
+
+# SYSDATE
+
+prepare s from 'select SYSDATE()';
+eval $show_trace;
+
+# SYSTEM_USER
+
+prepare s from 'select SYSTEM_USER()';
+eval $show_trace;
+
+# TAN
+
+prepare s from 'select TAN(?)';
+eval $show_trace;
+
+# TIME
+
+prepare s from 'select TIME(?)';
+eval $show_trace;
+
+# TIME_FORMAT
+
+prepare s from 'select TIME_FORMAT(?,?)';
+eval $show_trace;
+
+# TIME_TO_SEC
+
+prepare s from 'select TIME_TO_SEC(?)';
+eval $show_trace;
+
+# TIMEDIFF
+
+prepare s from 'select TIMEDIFF(?,?)';
+eval $show_trace;
+# custom
+# verify that it works for TIME and for DATETIME
+prepare s from 'select TIMEDIFF(?,"01:02:03")';
+eval $show_trace;
+set @a= time "01:02:00";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+prepare s from 'select TIMEDIFF(?,"2001-01-01 01:02:03")';
+eval $show_trace;
+set @a= timestamp "2001-01-02 01:02:00";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# TIMESTAMP
+
+prepare s from 'select TIMESTAMP(?)';
+eval $show_trace;
+prepare s from 'select TIMESTAMP(?,?)';
+eval $show_trace;
+
+# TIMESTAMPADD
+# custom
+
+prepare s from 'select TIMESTAMPADD(HOUR,?,?)';
+eval $show_trace;
+
+# TIMESTAMPDIFF
+# custom
+
+prepare s from 'select TIMESTAMPDIFF(HOUR,?,?)';
+eval $show_trace;
+
+# TO_BASE64
+
+prepare s from 'select TO_BASE64(?)';
+eval $show_trace;
+
+# TO_DAYS
+
+prepare s from 'select TO_DAYS(?)';
+eval $show_trace;
+# custom
+# show that even though we assume DATETIME, DATE doesn't cause re-preparation
+set @a= date "2001-01-02";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+set @a= timestamp "2001-01-02 10:11:12.345";
+flush status;
+execute s using @a;
+show status like "Com_stmt_reprepare";
+
+# TO_SECONDS
+
+prepare s from 'select TO_SECONDS(?)';
+eval $show_trace;
+
+# TRIM
+
+prepare s from 'select TRIM(?)';
+eval $show_trace;
+
+# TRUNCATE
+
+prepare s from 'select TRUNCATE(?,?)';
+eval $show_trace;
+
+# UCASE
+
+prepare s from 'select UCASE(?)';
+eval $show_trace;
+
+# UNCOMPRESS
+
+prepare s from 'select UNCOMPRESS(?)';
+eval $show_trace;
+
+# UNCOMPRESSED_LENGTH
+
+prepare s from 'select UNCOMPRESSED_LENGTH(?)';
+eval $show_trace;
+
+# UNHEX
+
+prepare s from 'select UNHEX(?)';
+eval $show_trace;
+
+# UNIX_TIMESTAMP
+
+prepare s from 'select UNIX_TIMESTAMP()';
+eval $show_trace;
+prepare s from 'select UNIX_TIMESTAMP(?)';
+eval $show_trace;
+
+# UpdateXML
+
+prepare s from 'select UpdateXML(?,?,?)';
+eval $show_trace;
+
+# UPPER
+
+prepare s from 'select UPPER(?)';
+eval $show_trace;
+
+# USER
+
+prepare s from 'select USER()';
+eval $show_trace;
+
+# UTC_DATE
+
+prepare s from 'select UTC_DATE()';
+eval $show_trace;
+
+# UTC_TIME
+
+prepare s from 'select UTC_TIME()';
+eval $show_trace;
+
+# UTC_TIMESTAMP
+
+prepare s from 'select UTC_TIMESTAMP()';
+eval $show_trace;
+
+# UUID
+
+prepare s from 'select UUID()';
+eval $show_trace;
+
+# UUID_SHORT
+
+prepare s from 'select UUID_SHORT()';
+eval $show_trace;
+
+# UUID_TO_BIN
+
+prepare s from 'select UUID_TO_BIN(?)';
+eval $show_trace;
+prepare s from 'select UUID_TO_BIN(?,?)';
+eval $show_trace;
+
+# VALIDATE_PASSWORD_STRENGTH
+
+prepare s from 'select VALIDATE_PASSWORD_STRENGTH(?)';
+eval $show_trace;
+
+# VALUES
+# custom
+CREATE TABLE t3(a INT, b INT);
+prepare s from 'INSERT INTO t3 VALUES(?,2.0+?)';
+eval $show_trace;
+DROP TABLE t3;
+
+# VAR_POP
+
+prepare s from 'select VAR_POP(?)';
+eval $show_trace;
+
+# VAR_SAMP
+
+prepare s from 'select VAR_SAMP(?)';
+eval $show_trace;
+
+# VARIANCE
+
+prepare s from 'select VARIANCE(?)';
+eval $show_trace;
+
+# VERSION
+
+prepare s from 'select VERSION()';
+eval $show_trace;
+
+# WAIT_FOR_EXECUTED_GTID_SET
+
+prepare s from 'select WAIT_FOR_EXECUTED_GTID_SET(?)';
+eval $show_trace;
+prepare s from 'select WAIT_FOR_EXECUTED_GTID_SET(?,?)';
+eval $show_trace;
+
+# WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
+
+prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?)';
+eval $show_trace;
+prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?)';
+eval $show_trace;
+prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?,?)';
+eval $show_trace;
+
+# WEEK
+
+prepare s from 'select WEEK(?)';
+eval $show_trace;
+prepare s from 'select WEEK(?,?)';
+eval $show_trace;
+
+# WEEKDAY
+
+prepare s from 'select WEEKDAY(?)';
+eval $show_trace;
+
+# WEEKOFYEAR
+
+prepare s from 'select WEEKOFYEAR(?)';
+eval $show_trace;
+
+# WEIGHT_STRING
+
+prepare s from 'select WEIGHT_STRING(?)';
+eval $show_trace;
+
+# YEAR
+
+prepare s from 'select YEAR(?)';
+eval $show_trace;
+
+# YEARWEEK
+
+prepare s from 'select YEARWEEK(?)';
+eval $show_trace;
+prepare s from 'select YEARWEEK(?,?)';
+eval $show_trace;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1
+(i1 TINYINT,
+ i2 SMALLINT,
+ i3 MEDIUMINT,
+ i4 INTEGER,
+ i8 BIGINT,
+ dc1 DECIMAL(6,0),
+ dc2 DECIMAL(16,10)
+);
+
+INSERT INTO t1 VALUES(1, 1, 1, 1, 1, 1, 1.1111111111);
+
+PREPARE s1 FROM "SELECT i1+? FROM t1";
+PREPARE s2 FROM "SELECT i2+? FROM t1";
+PREPARE s3 FROM "SELECT i3+? FROM t1";
+PREPARE s4 FROM "SELECT i4+? FROM t1";
+PREPARE s5 FROM "SELECT i8+? FROM t1";
+PREPARE s6 FROM "SELECT dc1+? FROM t1";
+PREPARE s7 FROM "SELECT dc2+? FROM t1";
+
+SET @i1_max=127;
+SET @i2_max=32767;
+SET @i3_max=8388607;
+SET @i4_max=2147483647;
+SET @i8_max=9223372036854775807;
+SET @dc1_max=999999;
+SET @dc2_max=999999.9999999999;
+SET @dc1_ext=1.1234;
+SET @dc2_ext=1.12345678901234;
+
+EXECUTE s1 USING @i1_max;
+EXECUTE s2 USING @i2_max;
+EXECUTE s3 USING @i3_max;
+EXECUTE s4 USING @i4_max;
+--error ER_DATA_OUT_OF_RANGE
+EXECUTE s5 USING @i8_max;
+EXECUTE s6 USING @dc1_max;
+EXECUTE s7 USING @dc2_max;
+EXECUTE s6 USING @dc1_ext;
+EXECUTE s7 USING @dc2_ext;
+
+DEALLOCATE PREPARE s1;
+DEALLOCATE PREPARE s2;
+DEALLOCATE PREPARE s3;
+DEALLOCATE PREPARE s4;
+DEALLOCATE PREPARE s5;
+DEALLOCATE PREPARE s6;
+DEALLOCATE PREPARE s7;
+
+DROP TABLE t1;
+
+# Check reprepare count for INSERT and UPDATE operations
+
+CREATE TABLE t1
+(pk INTEGER,
+ i1 TINYINT,
+ i2 SMALLINT,
+ i3 MEDIUMINT,
+ i4 INTEGER,
+ i8 BIGINT,
+ i1u TINYINT UNSIGNED,
+ i2u SMALLINT UNSIGNED,
+ i3u MEDIUMINT UNSIGNED,
+ i4u INTEGER UNSIGNED,
+ i8u BIGINT UNSIGNED,
+ dc DECIMAL(16,10),
+ f4 FLOAT,
+ f8 DOUBLE,
+ vc VARCHAR(10),
+ fc CHAR(10),
+ vb VARBINARY(10),
+ fb BINARY(10),
+ d DATE,
+ t TIME(6),
+ dt DATETIME(6),
+ ts TIMESTAMP(6)
+);
+
+PREPARE si FROM
+"INSERT INTO t1 VALUES(1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+
+PREPARE su FROM
+"UPDATE t1
+ SET i1=?, i2=?, i3=?, i4=?, i8=?, i1u=?, i2u=?, i3u=?, i4u=?, i8u=?,
+     dc=?, f4=?, f8=?, vc=?, fc=?, vb=?, fb=?, d=?, t=?, dt=?, ts=?
+ WHERE pk=1";
+
+PREPARE siu FROM
+"INSERT INTO t1 VALUES(1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ ON DUPLICATE KEY
+ UPDATE i1=?, i2=?, i3=?, i4=?, i8=?, i1u=?, i2u=?, i3u=?, i4u=?, i8u=?,
+     dc=?, f4=?, f8=?, vc=?, fc=?, vb=?, fb=?, d=?, t=?, dt=?, ts=?";
+
+SET @i8=1;
+SET @i8u=CAST(1 AS UNSIGNED);
+SET @dc=3.14159;
+SET @f8=3.14159E2;
+SET @vc='abcxyz';
+SET @vb=CONVERT(@vc USING BINARY);
+SET @d='2018-01-01';
+SET @t='01:01:01.999999';
+SET @dt='2018-01-01 01:01:01.999999';
+
+FLUSH STATUS;
+
+EXECUTE si USING @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+                 @dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt;
+
+EXECUTE su USING @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+                 @dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt;
+
+EXECUTE siu USING @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+                  @dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt,
+                  @i8, @i8, @i8, @i8, @i8, @i8u, @i8u, @i8u, @i8u, @i8u,
+                  @dc, @f8, @f8, @vc, @vc, @vb, @vb, @d, @t, @dt, @dt;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+DEALLOCATE PREPARE si;
+DEALLOCATE PREPARE su;
+DEALLOCATE PREPARE siu;
+
+DROP TABLE t1;
+
+SET @i8=555;
+SET @dc=3.14159;
+SET @r8=2.71828e0;
+SET @vc1='abc';
+SET @vc2='xyz';
+
+# Check type propagation for some context-aware operators
+
+FLUSH STATUS;
+
+# No context, so assume type is DOUBLE
+
+PREPARE s1 FROM "SELECT ? + ?";
+
+EXECUTE s1 USING @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+DEALLOCATE PREPARE s1;
+
+FLUSH STATUS;
+
+# Context is integer, so assume parameters are integer
+
+PREPARE s1 FROM "SELECT 666 + (? + ?)";
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+EXECUTE s1 USING @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+DEALLOCATE PREPARE s1;
+
+FLUSH STATUS;
+
+# Same, but with a unary operator:
+
+PREPARE s1 FROM "SELECT -(?)";
+
+EXECUTE s1 USING @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+EXECUTE s1 USING @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+DEALLOCATE PREPARE s1;
+
+FLUSH STATUS;
+
+PREPARE s1 FROM "SELECT 666 + -(?)";
+
+EXECUTE s1 USING @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+EXECUTE s1 USING @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+DEALLOCATE PREPARE s1;
+
+FLUSH STATUS;
+
+# GREATEST and LEAST
+
+# No context, so assume type is VARCHAR
+
+PREPARE s1 FROM "SELECT GREATEST(?, ?), LEAST(?, ?)";
+
+EXECUTE s1 USING @vc1, @vc2, @vc1, @vc2;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @i8, @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# Context is INTEGER and DOUBLE
+
+PREPARE s1 FROM "SELECT 666 + GREATEST(?, ?), 3.14e0 + LEAST(?, ?)";
+
+EXECUTE s1 USING @i8, @i8, @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @r8, @r8, @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# COALESCE
+
+# No context, so assume type is VARCHAR
+
+PREPARE s1 FROM "SELECT COALESCE(?, ?)";
+
+EXECUTE s1 USING @vc1, @vc2;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# Context is INTEGER
+
+PREPARE s1 FROM "SELECT 666 + COALESCE(?, ?)";
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# CASE
+
+# No context, so assume type is VARCHAR
+
+PREPARE s1 FROM "SELECT CASE ? WHEN 1 THEN ? ELSE ? END";
+
+EXECUTE s1 USING @i8, @vc1, @vc2;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# Context is INTEGER
+
+PREPARE s1 FROM "SELECT 666 + CASE ? WHEN 1 THEN ? ELSE ? END";
+
+EXECUTE s1 USING @i8, @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# IFNULL
+
+# No context, so assume type is VARCHAR
+
+PREPARE s1 FROM "SELECT IFNULL(?, ?)";
+
+EXECUTE s1 USING @vc1, @vc2;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# Context is INTEGER
+
+PREPARE s1 FROM "SELECT 666 + IFNULL(?, ?)";
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# NULLIF
+
+# No context, so assume type is VARCHAR
+
+PREPARE s1 FROM "SELECT NULLIF(?, ?)";
+
+EXECUTE s1 USING @vc1, @vc2;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# Context is INTEGER
+
+PREPARE s1 FROM "SELECT 666 + NULLIF(?, ?)";
+
+EXECUTE s1 USING @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# IF
+
+# No context, so assume type is VARCHAR
+
+PREPARE s1 FROM "SELECT IF(?, ?, ?)";
+
+EXECUTE s1 USING @i8, @vc1, @vc2;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+# Context is INTEGER
+
+PREPARE s1 FROM "SELECT 666 + IF(?, ?, ?)";
+
+EXECUTE s1 USING @i8, @i8, @i8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+EXECUTE s1 USING @i8, @r8, @r8;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+FLUSH STATUS;
+
+DEALLOCATE PREPARE s1;
+
+--echo # Bug#28915257: Assertion 'data_type() != MYSQL_TYPE_INVALID'
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+SET @var1 = 'a';
+SET @var2 = 'b';
+PREPARE s FROM "DELETE FROM t1 WHERE (?, ?) NOT IN (SELECT 'a', 'b' FROM t2)";
+EXECUTE s USING @var1, @var2;
+DEALLOCATE PREPARE s;
+
+PREPARE s FROM "SELECT * FROM t1 WHERE (?, ?) NOT IN (SELECT 'a', 'b' FROM t2)";
+EXECUTE s USING @var1, @var2;
+DEALLOCATE PREPARE s;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#28934127: Assertion 'false' at Item_param::propagate_type()
+
+PREPARE s FROM "SELECT NULL";
+EXECUTE s;
+
+PREPARE s FROM "SELECT NULL + ? ";
+set @iv=5;
+EXECUTE s USING @iv;
+set @ic='55';
+EXECUTE s USING @ic;
+
+DEALLOCATE PREPARE s;
+
+--echo # Bug#31360283: Assertion `data_type() != MYSQL_TYPE_INVALID' failed.
+--echo #               in item_func::propagate_type
+
+--error ER_WRONG_ARGUMENTS
+PREPARE s FROM 'DO ST_ENVELOPE(CEILING(?))';
+
+--echo # Bug#32145078: "Illegal mix of collations" against a string
+
+CREATE TABLE t1 (
+  col1 VARCHAR(100) NOT NULL COLLATE latin1_swedish_ci,
+  col2 VARCHAR(200) NOT NULL COLLATE utf8mb4_general_ci
+);
+PREPARE stmt1 FROM 'SELECT * FROM t1 WHERE col1 LIKE ? OR col2 LIKE ?';
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;

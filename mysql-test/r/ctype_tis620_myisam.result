@@ -9,7 +9,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `recid` int(11) NOT NULL AUTO_INCREMENT,
+  `recid` int NOT NULL AUTO_INCREMENT,
   `dyninfo` text,
   PRIMARY KEY (`recid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=tis620

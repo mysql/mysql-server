@@ -14,19 +14,22 @@ show binlog events;
 
 --source include/get_ndb_epochs.inc
 
-select @binlog_max_epoch:= max(epoch) 
-from mysql.ndb_binlog_index;
+select max(epoch)
+from mysql.ndb_binlog_index into @binlog_max_epoch;
+
+select @binlog_max_epoch;
+
+set @a:= (@init_server_epoch + 0) >= (@init_session_epoch + 0);
+set @b:= (@curr_server_epoch + 0) >= (@curr_session_epoch + 0);
+set @c:= (@curr_server_epoch + 0) >= (@init_server_epoch + 0);
+set @d:= (@curr_session_epoch + 0) >= (@init_session_epoch + 0);
 
 --enable_result_log
 
-select @a:= (@init_server_epoch + 0) >= (@init_session_epoch + 0) 
-  as init_server_epoch_includes_session_epoch,
-  @b:= (@curr_server_epoch + 0) >= (@curr_session_epoch + 0) 
-  as curr_server_epoch_includes_session_epoch,
-  @c:= (@curr_server_epoch + 0) >= (@init_server_epoch + 0) 
-  as server_epoch_does_not_regress,
-  @d:= (@curr_session_epoch + 0) >= (@init_session_epoch + 0) 
-  as session_epoch_does_not_regress;
+select @a as init_server_epoch_includes_session_epoch,
+  @b as curr_server_epoch_includes_session_epoch,
+  @c as server_epoch_does_not_regress,
+  @d as session_epoch_does_not_regress;
 
 select (@binlog_max_epoch+0) = (@curr_session_epoch+0) as
   binlog_contains_last_session_epoch;

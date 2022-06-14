@@ -1,0 +1,11 @@
+--echo #
+--echo # WL#6965: Truncate UNDO logs during recovery.
+--echo # Crash just before updating the state, with encryption on.
+--echo #
+
+let CRASH_ON_SHUTDOWN = 1;
+let CRASH_POINT = ib_undo_trunc_before_state_update;
+let SHOULD_TRUNCATE_AT_RECOVERY=1;
+let USE_EXPLICIT = 0;
+
+--source suite/innodb_undo/include/truncate_at_shutdown.inc

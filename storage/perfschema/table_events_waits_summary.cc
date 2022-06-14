@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include "storage/perfschema/table_events_waits_summary.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -65,7 +66,7 @@ Plugin_table table_events_waits_summary_by_instance::m_table_def(
 PFS_engine_table_share table_events_waits_summary_by_instance::m_share = {
     &pfs_truncatable_acl,
     table_events_waits_summary_by_instance::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_waits_summary_by_instance::delete_all_rows,
     table_all_instr::get_row_count,
     sizeof(pos_all_instr),
@@ -126,7 +127,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs) {
   if (m_fields >= 1) {
     PFS_mutex_class *safe_class;
     safe_class = sanitize_mutex_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -138,7 +139,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs) {
   if (m_fields >= 1) {
     PFS_rwlock_class *safe_class;
     safe_class = sanitize_rwlock_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -150,7 +151,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs) {
   if (m_fields >= 1) {
     PFS_cond_class *safe_class;
     safe_class = sanitize_cond_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -162,7 +163,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs) {
   if (m_fields >= 1) {
     PFS_file_class *safe_class;
     safe_class = sanitize_file_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -174,7 +175,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs) {
   if (m_fields >= 1) {
     PFS_socket_class *safe_class;
     safe_class = sanitize_socket_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -205,7 +206,7 @@ table_events_waits_summary_by_instance::table_events_waits_summary_by_instance()
 }
 
 int table_events_waits_summary_by_instance::index_init(uint idx, bool) {
-  PFS_index_all_instr *result = NULL;
+  PFS_index_all_instr *result = nullptr;
   switch (idx) {
     case 0:
       result = PFS_NEW(PFS_index_events_waits_summary_by_instance);
@@ -214,7 +215,7 @@ int table_events_waits_summary_by_instance::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_events_waits_summary_by_event_name);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   m_opened_index = result;
@@ -223,23 +224,23 @@ int table_events_waits_summary_by_instance::index_init(uint idx, bool) {
 }
 
 int table_events_waits_summary_by_instance::make_instr_row(
-    PFS_instr *pfs, PFS_instr_class *klass, const void *object_instance_begin,
-    PFS_single_stat *pfs_stat) {
+    pfs_lock *object_lock, PFS_instr_class *klass,
+    const void *object_instance_begin, PFS_single_stat *pfs_stat) {
   pfs_optimistic_state lock;
 
   /*
     Protect this reader against a mutex/rwlock/cond destroy,
     file delete, table drop.
   */
-  pfs->m_lock.begin_optimistic_lock(&lock);
+  object_lock->begin_optimistic_lock(&lock);
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
   m_row.m_object_instance_addr = (intptr)object_instance_begin;
 
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
-  if (!pfs->m_lock.end_optimistic_lock(&lock)) {
+  if (!object_lock->end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -253,11 +254,11 @@ int table_events_waits_summary_by_instance::make_instr_row(
 int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs) {
   PFS_mutex_class *safe_class;
   safe_class = sanitize_mutex_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity,
                         &pfs->m_mutex_stat.m_wait_stat);
 }
 
@@ -268,11 +269,11 @@ int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs) {
 int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs) {
   PFS_rwlock_class *safe_class;
   safe_class = sanitize_rwlock_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity,
                         &pfs->m_rwlock_stat.m_wait_stat);
 }
 
@@ -283,11 +284,11 @@ int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs) {
 int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs) {
   PFS_cond_class *safe_class;
   safe_class = sanitize_cond_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity,
                         &pfs->m_cond_stat.m_wait_stat);
 }
 
@@ -298,7 +299,7 @@ int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs) {
 int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
   PFS_file_class *safe_class;
   safe_class = sanitize_file_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -308,7 +309,7 @@ int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
     Files don't have a in memory structure associated to it,
     so we use the address of the PFS_file buffer as object_instance_begin
   */
-  return make_instr_row(pfs, safe_class, pfs, &sum);
+  return make_instr_row(&pfs->m_lock, safe_class, pfs, &sum);
 }
 
 /**
@@ -318,7 +319,7 @@ int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
 int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs) {
   PFS_socket_class *safe_class;
   safe_class = sanitize_socket_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -333,7 +334,7 @@ int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs) {
     Sockets don't have an associated in-memory structure, so use the address of
     the PFS_socket buffer as object_instance_begin.
   */
-  return make_instr_row(pfs, safe_class, pfs, &pfs_stat);
+  return make_instr_row(&pfs->m_lock, safe_class, pfs, &pfs_stat);
 }
 
 int table_events_waits_summary_by_instance::read_row_values(TABLE *table,
@@ -343,11 +344,11 @@ int table_events_waits_summary_by_instance::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* NAME */
           set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
           break;
@@ -370,7 +371,7 @@ int table_events_waits_summary_by_instance::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.m_stat.m_max);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

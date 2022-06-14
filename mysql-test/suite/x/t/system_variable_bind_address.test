@@ -62,3 +62,6 @@ SELECT COUNT(@@SESSION.Mysqlx_bind_address);
 --let $assert_cond= [SELECT @@GLOBAL.Mysqlx_bind_address = "::" as Result;, Result, 1] =1
 --source include/assert.inc
 
+## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

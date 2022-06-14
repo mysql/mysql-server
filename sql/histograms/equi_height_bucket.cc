@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include "sql/histograms/equi_height_bucket.h"  // equi_height::Bucket
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -37,7 +38,7 @@
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "my_base.h"  // ha_rows
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"
@@ -56,10 +57,10 @@ Bucket<T>::Bucket(T lower, T upper, double freq, ha_rows num_distinct)
       m_upper_inclusive(upper),
       m_cumulative_frequency(freq),
       m_num_distinct(num_distinct) {
-  DBUG_ASSERT(m_cumulative_frequency >= 0.0);
-  DBUG_ASSERT(m_cumulative_frequency <= 1.0);
-  DBUG_ASSERT(m_num_distinct >= 1);
-  DBUG_ASSERT(!histograms::Histogram_comparator()(upper, lower));
+  assert(m_cumulative_frequency >= 0.0);
+  assert(m_cumulative_frequency <= 1.0);
+  assert(m_num_distinct >= 1);
+  assert(!histograms::Histogram_comparator()(upper, lower));
 }
 
 template <typename T>
@@ -143,7 +144,7 @@ template <>
 bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
                                                 const MYSQL_TIME &upper_value,
                                                 Json_array *json_array) {
-  DBUG_ASSERT(lower_value.time_type == upper_value.time_type);
+  assert(lower_value.time_type == upper_value.time_type);
 
   enum_field_types field_type;
   switch (lower_value.time_type) {
@@ -158,7 +159,7 @@ bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
       break;
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
       /* purecov: end */
   }
@@ -193,26 +194,19 @@ static bool values_are_equal(const T &val1, const T &val2) {
           !Histogram_comparator()(val2, val1));
 }
 
+/*
+  The primary template version of get_distance_from_lower handles
+  longlong and ulonglong.
+*/
 template <class T>
 double Bucket<T>::get_distance_from_lower(const T &value) const {
-  if (Histogram_comparator()(value, get_lower_inclusive()))
-    return 0.0;
-  else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
-    return 1.0;
-
-  // Make sure that double arithmeric is used in case of very large values.
   const double lower_inclusive = static_cast<double>(get_lower_inclusive());
-  return (value - lower_inclusive + 1.0) /
+  return (value - lower_inclusive) /
          (get_upper_inclusive() - lower_inclusive + 1.0);
 }
 
 template <>
 double Bucket<double>::get_distance_from_lower(const double &value) const {
-  if (Histogram_comparator()(value, get_lower_inclusive()))
-    return 0.0;
-  else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
-    return 1.0;
-
   return (value - get_lower_inclusive()) /
          (get_upper_inclusive() - get_lower_inclusive());
 }
@@ -290,8 +284,7 @@ static std::uint64_t uchar_array_to_64bit_unsigned(const uchar *ptr,
 */
 template <>
 double Bucket<String>::get_distance_from_lower(const String &value) const {
-  DBUG_ASSERT(value.charset()->number ==
-              get_lower_inclusive().charset()->number);
+  assert(value.charset()->number == get_lower_inclusive().charset()->number);
 
   if (Histogram_comparator()(value, get_lower_inclusive()))
     return 0.0;
@@ -344,8 +337,8 @@ double Bucket<String>::get_distance_from_lower(const String &value) const {
   std::uint64_t value_converted = uchar_array_to_64bit_unsigned(
       value_buf.get() + start_index, value_len - start_index);
 
-  DBUG_ASSERT(lower_converted <= value_converted);
-  DBUG_ASSERT(value_converted <= upper_converted);
+  assert(lower_converted <= value_converted);
+  assert(value_converted <= upper_converted);
 
   return (value_converted - lower_converted) /
          static_cast<double>(upper_converted - lower_converted);
@@ -426,27 +419,35 @@ double Bucket<my_decimal>::get_distance_from_lower(
          (upper_inclusive_double - lower_inclusive_double);
 }
 
+/*
+  The primary template version of get_distance_from_lower handles everything
+  except longlong and ulonglong. For longlong and ulonglong types we compute the
+  fraction of the bucket that is strictly greater than the provided value,
+  whereas for the remaining non-integral types we rely on the estimates provided
+  by get_distance_from_lower.
+  Since the remaining types will typically have a large number of possible
+  values inside a bucket, and get_distance_from_lower is already a heuristic in
+  some cases, we do not attempt to distinguish between < and <= when estimating
+  the distance as we do with integers.
+*/
 template <class T>
-double Bucket<T>::value_probability() const {
-  /*
-    As default, assume that the number of possible values between the lower and
-    upper value of the bucket is VERY high.
-  */
-  if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
-    return 1.0;
-  return get_num_distinct() / std::numeric_limits<double>::max();
+double Bucket<T>::get_distance_from_upper(const T &value) const {
+  return 1.0 - get_distance_from_lower(value);
 }
 
 template <>
-double Bucket<longlong>::value_probability() const {
-  return get_num_distinct() / (static_cast<double>(get_upper_inclusive()) -
-                               get_lower_inclusive() + 1);
+double Bucket<longlong>::get_distance_from_upper(const longlong &value) const {
+  const double upper_inclusive = static_cast<double>(get_upper_inclusive());
+  return (upper_inclusive - value) /
+         (upper_inclusive - get_lower_inclusive() + 1.0);
 }
 
 template <>
-double Bucket<ulonglong>::value_probability() const {
-  return get_num_distinct() / (static_cast<double>(get_upper_inclusive()) -
-                               get_lower_inclusive() + 1);
+double Bucket<ulonglong>::get_distance_from_upper(
+    const ulonglong &value) const {
+  const double upper_inclusive = static_cast<double>(get_upper_inclusive());
+  return (upper_inclusive - value) /
+         (upper_inclusive - get_lower_inclusive() + 1.0);
 }
 
 // Explicit template instantiations.

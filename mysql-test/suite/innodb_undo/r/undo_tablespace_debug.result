@@ -4,6 +4,8 @@
 #
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart
+SET @old_truncate_frequency = @@innodb_purge_rseg_truncate_frequency;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=5;
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
@@ -162,3 +164,4 @@ ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
 DROP UNDO TABLESPACE undo_005;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=@old_truncate_frequency;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,6 +303,72 @@ BaseString::split(Vector<BaseString> &v,
     return num;
 }
 
+bool
+BaseString::splitKeyValue(BaseString& key, BaseString& value) const
+{
+  for (Uint32 i = 0; i < length(); i++)
+  {
+    if (m_chr[i] == '=')
+    {
+      if (i == 0)
+        key = BaseString();
+      else
+        key = BaseString(m_chr, i);
+
+      value = BaseString(m_chr + i + 1);
+      return true;
+    }
+  }
+  return false;
+}
+
+int
+BaseString::splitWithQuotedStrings(Vector<BaseString> &v,
+      const BaseString &separator,
+      int maxSize) const
+{
+  char *str = strdup(m_chr);
+  int i, start, len, num = 0;
+  len = (int)strlen(str);
+  const char* opening_quote = nullptr;
+
+  for(start = i = 0;
+      (i <= len) && ((maxSize < 0) || ((int)v.size() <= maxSize - 1));
+      i++)
+  {
+    if (str[i] != '\0')
+    {
+      const char* curr_quote = strchr("'\"", str[i]);
+      if (curr_quote != nullptr)
+      {
+        if (opening_quote == nullptr)
+        {
+          // Opening quote found, ignore separator till closing quote is found
+          opening_quote = curr_quote;
+        }
+        else if (*opening_quote ==  *curr_quote)
+        {
+          // Closing quote found, check for separator from now
+          opening_quote = nullptr;
+        }
+        continue;
+      }
+    }
+    if ((strchr(separator.c_str(), str[i]) && (opening_quote == nullptr)) ||
+        (i == len))
+    {
+      if ((maxSize < 0) || ((int)v.size() < (maxSize - 1)))
+        str[i] = '\0';
+      v.push_back(BaseString(str+start));
+      num++;
+      start = i+1;
+    }
+  }
+  free(str);
+
+  return num;
+}
+
 ssize_t
 BaseString::indexOf(char c, size_t pos) const
 {
@@ -340,6 +406,7 @@ BaseString::lastIndexOf(char c) const
 bool
 BaseString::starts_with(const BaseString& str) const
 {
+  if (str.m_len > m_len) return false;
   return std::strncmp(m_chr, str.m_chr, str.m_len) == 0;
 }
 
@@ -542,6 +609,18 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
   int ret= std::vsnprintf(str, size, format, ap);
   va_end(ap);
   return(ret);
+}
+
+int
+BaseString::snappend(char *str, size_t size, const char *format, ...)
+{
+  size_t n = strlen(str);
+  if (n >= size - 1) return -1;
+  va_list ap;
+  va_start(ap, format);
+  int ret = std::vsnprintf(str + n, size - n, format, ap);
+  va_end(ap);
+  return (ret);
 }
 
 BaseString
@@ -766,6 +845,45 @@ TAPTEST(BaseString)
       BIG_ASSFMT_OK(20*1024*1024);
     }
 
+    {
+      printf("Testing splitWithQuotedStrings\n");
+      Vector<BaseString> v;
+
+      BaseString("key=value").splitWithQuotedStrings(v, "=");
+      OK(v[0] == "key");
+      v.clear();
+
+      BaseString("abcdef=\"ghi\"").splitWithQuotedStrings(v, "=");
+      OK(v[0] == "abcdef");
+      v.clear();
+
+      BaseString("abc=\"de=f\"").splitWithQuotedStrings(v, "=");
+      OK(v[1] == "\"de=f\"");
+      v.clear();
+
+      BaseString("abc=\"\"de=f\"\"").splitWithQuotedStrings(v, "=");
+      OK(v[1] == "\"\"de");
+      v.clear();
+
+      BaseString("abc=\"\'de=f\'\"").splitWithQuotedStrings(v, "=");
+      OK(v[1] == "\"\'de=f\'\"");
+      v.clear();
+    }
+
+    {
+      printf("Testing snappend\n");
+      char strnbuf[10];
+      strnbuf[0] = '\0';
+
+      BaseString::snappend(strnbuf, 10, "123");
+      OK(!strncmp(strnbuf, "123", 10));
+      BaseString::snappend(strnbuf, 10, "4567");
+      OK(!strncmp(strnbuf, "1234567", 10));
+      BaseString::snappend(strnbuf, 10, "89");
+      OK(!strncmp(strnbuf, "123456789", 10));
+      BaseString::snappend(strnbuf, 10, "extra");
+      OK(!strncmp(strnbuf, "123456789", 10));
+    }
     return 1; // OK
 }
 

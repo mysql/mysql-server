@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,11 @@ namespace gcs_xcom_mpsc_queue_unittest {
 
 class GcsMpscQueueTest : public GcsBaseTest {
  protected:
-  GcsMpscQueueTest() {}
+  GcsMpscQueueTest() = default;
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 static void producer_function(Gcs_mpsc_queue<int> &queue,
@@ -88,11 +88,11 @@ static void validate(int const &nr_producers, std::vector<int> &sequence,
     cursor = sequence.begin();
   }
   for (int const &value : consumed) {
-    auto cursor =
-        std::find_if(cursors.begin(), cursors.end(),
-                     [&sequence, &value](std::vector<int>::iterator cursor) {
-                       return (cursor != sequence.end() && *cursor == value);
-                     });
+    auto cursor = std::find_if(
+        cursors.begin(), cursors.end(),
+        [&sequence, &value](std::vector<int>::iterator cursor_arg) {
+          return (cursor_arg != sequence.end() && *cursor_arg == value);
+        });
     ASSERT_NE(cursor, cursors.end());
     (*cursor)++;
   }

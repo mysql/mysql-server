@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,13 +40,8 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }
 
+#include <array>
 #include <thread>
-
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 
 // debug printer, keep it disabled unless developing this code
 #if 0
@@ -69,12 +64,12 @@ void trace(const char *, ...) {}
 // At CMake level we don't specify this requirement, because truly, this plugin
 // doesn't depend on lifecycle. However, to ensure that it is always initialized
 // after lifecycle in unit tests, we set this dependency here to enforce this.
-static const char *requires[] = {
+static const std::array<const char *, 1> required = {
     "routertestplugin_lifecycle",
 };
 
-static void init(PluginFuncEnv *env) {
-  const AppInfo *info = get_app_info(env);
+static void init(mysql_harness::PluginFuncEnv *env) {
+  const auto *info = get_app_info(env);
 
   // nullptr is special - it's a hack to tell the plugin to reset state
   if (info != nullptr) {
@@ -82,7 +77,7 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
-static void start(PluginFuncEnv *env) {
+static void start(mysql_harness::PluginFuncEnv *env) {
   trace("lifecycle2 start():sleeping");
 
   while (is_running(env)) {
@@ -92,23 +87,31 @@ static void start(PluginFuncEnv *env) {
   trace("lifecycle2 start():done");
 }
 
-static void stop(PluginFuncEnv *) { trace("lifecycle2 stop()"); }
+static void stop(mysql_harness::PluginFuncEnv *) { trace("lifecycle2 stop()"); }
 
-static void deinit(PluginFuncEnv *) { trace("lifecycle2 deinit()"); }
+static void deinit(mysql_harness::PluginFuncEnv *) {
+  trace("lifecycle2 deinit()");
+}
 
 extern "C" {
-Plugin LIFECYCLE2_API harness_plugin_routertestplugin_lifecycle2 = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Lifecycle2 test plugin",
-    VERSION_NUMBER(1, 0, 0),
-    sizeof(requires) / sizeof(*requires),
-    requires,
-    0,        // \_ conflicts
-    nullptr,  // /
-    init,     // init
-    deinit,   // deinit
-    start,    // start
-    stop,     // stop
+mysql_harness::Plugin LIFECYCLE2_API
+    harness_plugin_routertestplugin_lifecycle2 = {
+        mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+        "Lifecycle2 test plugin",                // name
+        VERSION_NUMBER(1, 0, 0),
+        // requires
+        required.size(),
+        required.data(),
+        // conflicts
+        0,
+        nullptr,
+        init,    // init
+        deinit,  // deinit
+        start,   // start
+        stop,    // stop
+        false,   // declares_readiness
+        0,
+        nullptr,
 };
 }

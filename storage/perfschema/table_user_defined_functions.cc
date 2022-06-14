@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@ Plugin_table table_user_defined_functions::m_table_def(
 PFS_engine_table_share table_user_defined_functions::m_share = {
     &pfs_readonly_acl,
     table_user_defined_functions::create,
-    NULL, /* write_row */
-    NULL, /* delete all rows */
+    nullptr, /* write_row */
+    nullptr, /* delete all rows */
     table_user_defined_functions::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
@@ -81,9 +81,9 @@ bool PFS_index_user_defined_functions_by_name::match(
 PFS_engine_table *table_user_defined_functions::create(
     PFS_engine_table_share *) {
   table_user_defined_functions *t = new table_user_defined_functions();
-  if (t != NULL) {
+  if (t != nullptr) {
     THD *thd = current_thd;
-    DBUG_ASSERT(thd != NULL);
+    assert(thd != nullptr);
     t->materialize(thd);
   }
   return t;
@@ -99,9 +99,9 @@ ha_rows table_user_defined_functions::get_row_count(void) {
 
 table_user_defined_functions::table_user_defined_functions()
     : PFS_engine_table(&m_share, &m_pos),
-      m_all_rows(NULL),
+      m_all_rows(nullptr),
       m_row_count(0),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(0),
       m_next_pos(0) {}
 
@@ -122,8 +122,8 @@ void table_user_defined_functions::materialize(THD *thd) {
   uint size;
   struct udf_materialize_state_s state;
 
-  DBUG_ASSERT(m_all_rows == NULL);
-  DBUG_ASSERT(m_row_count == 0);
+  assert(m_all_rows == nullptr);
+  assert(m_row_count == 0);
 
   udf_hash_rlock();
 
@@ -134,7 +134,7 @@ void table_user_defined_functions::materialize(THD *thd) {
 
   state.rows = (row_user_defined_functions *)thd->alloc(
       size * sizeof(row_user_defined_functions));
-  if (state.rows == NULL) {
+  if (state.rows == nullptr) {
     /* Out of memory, this thread will error out. */
     goto end;
   }
@@ -162,7 +162,7 @@ int table_user_defined_functions::make_row(const udf_func *entry,
                                        sizeof("decimal") - 1};
 
   /* keep in sync with Item_udftype */
-  static const char *udf_types[] = {NULL,  // invalid value
+  static const char *udf_types[] = {nullptr,  // invalid value
                                     "function", "aggregate"};
   static uint udf_type_lengths[] = {
       0,  // invalid value
@@ -174,13 +174,13 @@ int table_user_defined_functions::make_row(const udf_func *entry,
       (uint)std::min(sizeof(row->m_name) - 1, entry->name.length);
   memcpy(row->m_name, entry->name.str, row->m_name_length);
 
-  DBUG_ASSERT(entry->returns >= 0);
-  DBUG_ASSERT(entry->returns < 5);
+  assert(entry->returns >= 0);
+  assert(entry->returns < 5);
   row->m_return_type = return_types[entry->returns];
   row->m_return_type_length = return_type_lengths[entry->returns];
 
-  DBUG_ASSERT(entry->type > 0);
-  DBUG_ASSERT(entry->type < 3);
+  assert(entry->type > 0);
+  assert(entry->type < 3);
   row->m_type = udf_types[entry->type];
   row->m_type_length = udf_type_lengths[entry->type];
 
@@ -212,7 +212,7 @@ int table_user_defined_functions::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 
@@ -221,20 +221,20 @@ int table_user_defined_functions::rnd_next(void) {
 
 int table_user_defined_functions::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_row_count);
+  assert(m_pos.m_index < m_row_count);
   m_row = &m_all_rows[m_pos.m_index];
   return 0;
 }
 
 int table_user_defined_functions::index_init(uint idx, bool) {
-  PFS_index_user_defined_functions *result = NULL;
+  PFS_index_user_defined_functions *result = nullptr;
 
   switch (idx) {
     case 0:
       result = PFS_NEW(PFS_index_user_defined_functions_by_name);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -253,7 +253,7 @@ int table_user_defined_functions::index_next(void) {
     }
   }
 
-  m_row = NULL;
+  m_row = nullptr;
 
   return HA_ERR_END_OF_FILE;
 }
@@ -264,15 +264,15 @@ int table_user_defined_functions::read_row_values(TABLE *table,
                                                   bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* UDF_NAME */
           set_field_varchar_utf8(f, m_row->m_name, m_row->m_name_length);
           break;
@@ -284,13 +284,17 @@ int table_user_defined_functions::read_row_values(TABLE *table,
           set_field_varchar_utf8(f, m_row->m_type, m_row->m_type_length);
           break;
         case 3: /* UDF_LIBRARY */
-          set_field_varchar_utf8(f, m_row->m_library, m_row->m_library_length);
+          if (m_row->m_library_length)
+            set_field_varchar_utf8(f, m_row->m_library,
+                                   m_row->m_library_length);
+          else
+            f->set_null();
           break;
         case 4: /* UDF_USAGE_COUNT */
           set_field_ulonglong(f, m_row->m_usage_count);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

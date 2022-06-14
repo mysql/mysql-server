@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ struct FsRef {
   /**
    * Enum type for errorCode
    */
-  STATIC_CONST( FS_ERR_BIT = 0x8000 );
+  static constexpr Uint32 FS_ERR_BIT = 0x8000;
 
   enum NdbfsErrorCodeType {
     fsErrNone=0,
@@ -66,12 +66,13 @@ struct FsRef {
     fsErrFileExists = FS_ERR_BIT |  12,
     fsErrInvalidFileSize = FS_ERR_BIT |  13,
     fsErrOutOfMemory = FS_ERR_BIT |  14,
+    fsErrSync = FS_ERR_BIT | 15,
     fsErrMax
   };
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   /**
    * DATA VARIABLES

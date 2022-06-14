@@ -112,7 +112,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
   where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 
-# Do not expect lost counter in TABLE_LOCK_STAT 
+# Do not expect lost counter in TABLE_LOCK_STAT
 --disable_warnings
 select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
@@ -125,3 +125,7 @@ drop database db1;
 
 update performance_schema.setup_objects set ENABLED='YES'
   where OBJECT_TYPE='TABLE' and OBJECT_SCHEMA="%";
+
+# The state is not reverting back to original, restart is needed if this
+# case is to be tested again.
+--source include/force_restart.inc

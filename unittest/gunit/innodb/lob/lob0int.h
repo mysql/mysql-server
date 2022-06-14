@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -224,7 +224,7 @@ struct page_t {
 };
 
 struct data_page_t : public page_t {
-  data_page_t() {}
+  data_page_t() = default;
   data_page_t(buf_block_t *block) : page_t(block) {}
 
   buf_block_t *alloc() {
@@ -285,7 +285,7 @@ struct data_page_t : public page_t {
 };
 
 struct base_node_page_t : public page_t {
-  base_node_page_t() {}
+  base_node_page_t() = default;
   base_node_page_t(buf_block_t *block) : page_t(block) {}
 
   buf_block_t *alloc();
@@ -392,7 +392,7 @@ struct base_node_page_t : public page_t {
 };
 
 struct node_page_t : public page_t {
-  node_page_t() {}
+  node_page_t() = default;
   node_page_t(buf_block_t *block) : page_t(block) {}
 
   buf_block_t *alloc(base_node_page_t &first_page);

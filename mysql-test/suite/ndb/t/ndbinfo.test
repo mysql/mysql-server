@@ -32,10 +32,10 @@ SELECT node_id, block_number, block_instance, pool_name,
 
 SHOW CREATE TABLE ndb$tables;
 
-SELECT * FROM ndb$tables;
+SELECT table_id, table_name, comment FROM ndb$tables;
 SELECT COUNT(*) FROM ndb$tables;
 SELECT * FROM ndb$tables WHERE table_id = 2;
-SELECT * FROM ndb$tables WHERE table_id > 5;
+SELECT table_id, table_name, comment FROM ndb$tables WHERE table_id > 5;
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 # Show a simple join is working
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -179,9 +179,11 @@ SHOW WARNINGS;
 DROP TABLE ndb$test;
 
 
-## 4) Table with primary key/indexes not supported
+## 4) Primary key is supported after the fix for bug#28658625,
+##    but tables are still limited to a single index.
 --error ER_TOO_MANY_KEYS
-CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
+                       index(node_id)) ENGINE = ndbinfo;
 
 ## 5) Table with blobs not supported
 --error ER_TABLE_CANT_HANDLE_BLOB
@@ -763,11 +765,14 @@ delete from t1 where a%30=0;
 # This is needed for error-inserts etc.
 source include/check_ndb_debug.inc;
 
+# Disable part of test due to bug:
+# Bug#30754643 NDB.NDBINFO LOCK WAIT TIMEOUT EXCEEDED
+if (0) {
 # This error insert causes the next index scan from SPJ to be queued on node 2.
 # This command may fail if error inserts is not available on this build,
 # therefore we permit return code 255.
 --error 0,255
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 5084" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "2 error 5084" >> $NDB_TOOLS_OUTPUT
 
 # Do a pushed query that starts multiple index scans on each t1 fragment.
 # That way the first scan (on node 2) will be queued until the next finishes.
@@ -789,6 +794,7 @@ eval select
 
 # Check how these operations changed the counters. 
 --query_vertical select * from frag_ops;
+}
 
 # This query should give PK read operations with an interpreted program.
 # (Multi-range read mapped to PK reads.)
@@ -857,7 +863,7 @@ drop table t2;
 #   for those tabes which was changed to prefix ndb$
 
 ## Check that the new tables return data and exists.
-select count(*) > 10 from ndb$blocks;
+select count(*) > 10 from blocks;
 select param_number, param_name, param_description, param_default,
        param_min, param_max from ndb$config_params
   where param_name = "DataMemory";
@@ -929,7 +935,8 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$processes;
 set @@ndbinfo_show_hidden=default;
-show create table processes;
+SELECT view_definition from information_schema.views
+  WHERE table_schema = 'ndbinfo' and table_name = 'processes';
 
 # (B) Tests of table content.
 # These results will change if the cluster config used when running
@@ -1022,4 +1029,72 @@ select *
 # use a hard limit as it will grow when someone add a new error message
 select count(*) > 700
   from ndbinfo.error_messages;
---remove_file $NDB_TOOLS_OUTPUT
+
+desc hwinfo;
+desc cpuinfo;
+desc cpudata;
+desc cpudata_50ms;
+desc cpudata_1sec;
+desc cpudata_20sec;
+
+--disable_result_log
+select * from hwinfo;
+select * from cpuinfo;
+select * from cpudata;
+select * from cpudata_50ms;
+select * from cpudata_1sec;
+select * from cpudata_20sec;
+--enable_result_log
+
+--echo #
+--echo # BUG#32073640 Add ndbinfo.backup_id
+--echo #  - the table have one column and one row
+--echo #
+
+# Check that one column and one row is returned
+--replace_column 1 <backup_id>
+select * from backup_id;
+
+--echo #
+--echo # Bug#32198754 EXTEND MTR CHECK TESTCASES TO CHECK NDB DICTIONARY ...
+--echo #  - adds a new ndbinfo.dict_obj_tree view which can show
+--echo #    the object tree of objects in NDB dictionary
+--echo #
+# Create some objects and show the NDB dictionary object tree
+CREATE LOGFILE GROUP first_lg
+  ADD UNDOFILE 'lg1_undofile.dat' INITIAL_SIZE 1M UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+CREATE TABLESPACE first_ts
+  ADD DATAFILE 'ts1_datafile.dat'
+    USE LOGFILE GROUP first_lg INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE test.t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB TABLESPACE first_ts STORAGE DISK;
+
+CREATE TABLE test.t2 (
+  a int PRIMARY KEY,
+  b int,
+  UNIQUE(b)
+) engine = NDB;
+
+# Show report for objects created above
+# - mask internal ids in the object names
+--replace_regex /def\/[0-9]+/def\/<id>/ /INDEX_[0-9]+/INDEX_<id>/
+SELECT name, parent_name, root_name, level, indented_name, path
+  FROM ndbinfo.dict_obj_tree
+  WHERE root_name IN ('first_lg', 'first_ts', 'test/def/t1', 'test/def/t2');
+
+# Show report for table t2
+# - mask internal ids in the object names
+--replace_regex /def\/[0-9]+/def\/<id>/ /INDEX_[0-9]+/INDEX_<id>/
+SELECT indented_name, root_name FROM ndbinfo.dict_obj_tree
+  WHERE root_name = 'test/def/t2';
+
+DROP TABLE test.t2;
+DROP TABLE test.t1;
+ALTER TABLESPACE first_ts DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE first_ts;
+DROP LOGFILE GROUP first_lg ENGINE=NDB;

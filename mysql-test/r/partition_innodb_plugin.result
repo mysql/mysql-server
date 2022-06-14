@@ -18,18 +18,18 @@ INSERT INTO t1 (time,id2) VALUES ('2011-07-24',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
 CREATE UNIQUE INDEX uk_time_id2 on t1(time,id2);
-ERROR 23000: Duplicate entry '2011-07-25-1' for key 'uk_time_id2'
+ERROR 23000: Duplicate entry '2011-07-25-1' for key 't1.uk_time_id2'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `time` date NOT NULL,
-  `id2` bigint(20) NOT NULL,
+  `id2` bigint NOT NULL,
   PRIMARY KEY (`id`,`time`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3
 /*!50100 PARTITION BY RANGE (to_days(`time`))
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
  PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
@@ -49,7 +49,7 @@ t1#P#p0.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
@@ -82,7 +82,7 @@ UNLOCK TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4

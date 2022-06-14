@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,11 @@ mt = 0
 
 [ndb_mgmd]
 
-[mysqld]
-innodb
-skip-grant-tables
-socket=mysql.sock
-default-storage-engine=myisam
+#[mysqld]
+#innodb
+#skip-grant-tables
+#socket=mysql.sock
+#default-storage-engine=myisam
 
 [client]
 protocol=tcp
@@ -42,10 +42,9 @@ protocol=tcp
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
 ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
-mysqld = CHOOSE_host1,CHOOSE_host4
+#mysqld = CHOOSE_host1,CHOOSE_host4
 
 NoOfReplicas = 2
-IndexMemory = 100M 
 DataMemory = 1000M
 BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
@@ -55,8 +54,9 @@ FragmentLogFileSize = 64M
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+NumCPUs=16
 
-SharedGlobalMemory=256M
+SharedGlobalMemory=350M
 DiskPageBufferMemory=128M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:128M;undofile02.dat:128M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M

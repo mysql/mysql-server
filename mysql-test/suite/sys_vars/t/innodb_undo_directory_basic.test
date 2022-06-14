@@ -84,5 +84,5 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_undo_directory = @@SESSION.innodb_undo_directory;
---echo Expected error 'Readonly variable'
+SELECT innodb_undo_directory;
+--echo Expected error 'Unknown column'

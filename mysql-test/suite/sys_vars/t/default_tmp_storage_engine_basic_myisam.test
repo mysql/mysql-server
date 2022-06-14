@@ -1,0 +1,95 @@
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+--source include/load_sysvars.inc
+
+######################################################################
+#           START OF default_tmp_storage_engine TESTS               #
+######################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.default_tmp_storage_engine;
+SELECT @start_global_value;
+SET @start_session_value = @@session.default_tmp_storage_engine;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+######################################################################
+#     Display the DEFAULT value of default_tmp_storage_engine       #
+######################################################################
+
+SET @@global.default_tmp_storage_engine = INNODB;
+SET @@global.default_tmp_storage_engine = DEFAULT;
+SELECT @@global.default_tmp_storage_engine;
+
+SET @@session.default_tmp_storage_engine = INNODB;
+SET @@session.default_tmp_storage_engine = DEFAULT;
+SELECT @@session.default_tmp_storage_engine;
+
+
+--echo '#--------------------FN_DYNVARS_005_02-------------------------#'
+########################################################################
+# Change the value of default_tmp_storage_engine to a valid value for GLOBAL Scope #
+########################################################################
+
+SET @@global.default_tmp_storage_engine = MYISAM;
+SELECT @@global.default_tmp_storage_engine;
+
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+#########################################################################
+# Change the value of default_tmp_storage_engine to a valid value for SESSION Scope #
+#########################################################################
+ 
+SET @@session.default_tmp_storage_engine = MYISAM;
+SELECT @@session.default_tmp_storage_engine;
+
+
+--echo '#---------------------FN_DYNVARS_001_8----------------------#'
+###############################################################
+#  Check if accessing variable with SESSION,LOCAL and without #
+#  SCOPE points to same session variable                      #
+###############################################################
+
+SET @@default_tmp_storage_engine = MYISAM;
+SELECT @@default_tmp_storage_engine = @@local.default_tmp_storage_engine;
+SELECT @@local.default_tmp_storage_engine = @@session.default_tmp_storage_engine;
+
+
+# check the old obsolete name
+SET @@default_tmp_storage_engine = @start_global_value;
+
+SET default_tmp_storage_engine = MyISAM;
+SET default_storage_engine = MyISAM;
+CREATE TABLE t1 (a INT);
+CREATE TEMPORARY TABLE t2 (b INT);
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+SET default_tmp_storage_engine = DEFAULT;
+SET default_storage_engine = DEFAULT;
+CREATE TABLE t1 (a INT);
+CREATE TEMPORARY TABLE t2 (b INT);
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.default_tmp_storage_engine = @start_global_value;
+SELECT @@global.default_tmp_storage_engine;
+SET @@session.default_tmp_storage_engine = @start_session_value;
+SELECT @@session.default_tmp_storage_engine;
+
+
+#############################################################
+#       END OF default_tmp_storage_engine TESTS            #
+#############################################################
+

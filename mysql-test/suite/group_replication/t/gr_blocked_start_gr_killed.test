@@ -31,6 +31,12 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+# We RESET the channel here due to Bug#31541607. By executing this command
+# here, we avoid a internal failure on START GROUP_REPLICATION that would
+# fail while reseting this channel leading to a unclean channel state.
+  --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+RESET REPLICA FOR CHANNEL "group_replication_applier";
+
 # Suppression of error messages
 SET sql_log_bin=0;
 CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
@@ -41,6 +47,9 @@ CALL mtr.add_suppression("Unable to initialize the Group Replication applier mod
 CALL mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 CALL mtr.add_suppression("Failed in open_log.*called from Relay_log_info::rli_init_info");
 CALL mtr.add_suppression("Failed to setup the group replication applier thread.");
+CALL mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+CALL mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+CALL mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET sql_log_bin=1;
 
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME

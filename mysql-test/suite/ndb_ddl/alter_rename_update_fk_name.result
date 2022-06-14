@@ -1,0 +1,197 @@
+# Setup
+create table parent (
+pk int primary key,
+id1 int unique,
+id2 int unique,
+ref1 int,
+ref2 int,
+constraint fk_p1 foreign key ref1_idx(ref1) references parent (id1),
+foreign key ref2_idx(ref2) references parent (id2)
+) engine ndb;
+create table child (
+pk int primary key,
+ref1 int,
+ref2 int,
+constraint fk_c1 foreign key ref1_idx(ref1) references parent (id1),
+foreign key ref2_idx(ref2) references parent (id2)
+) engine ndb;
+# Verify the foreign keys on parent and child
+SHOW CREATE TABLE test.parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  KEY `fk_p1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `parent_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Simple rename parent
+rename table parent to parent1;
+# Verify the foreign keys on parent and child
+SHOW CREATE TABLE test.parent1;
+Table	Create Table
+parent1	CREATE TABLE `parent1` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  KEY `fk_p1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent1` (`id1`),
+  CONSTRAINT `parent1_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent1` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent1` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent1` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Rename parent using copy algorithm
+alter table parent1 rename to parent2, algorithm = copy;
+# Verify the foreign keys on parent and child
+SHOW CREATE TABLE test.parent2;
+Table	Create Table
+parent2	CREATE TABLE `parent2` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  KEY `fk_p1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent2` (`id1`),
+  CONSTRAINT `parent2_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent2` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent2` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent2` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Rename parent using inplace algorithm
+alter table parent2 rename to parent3, algorithm = inplace;
+# Verify the foreign keys on parent and child
+SHOW CREATE TABLE test.parent3;
+Table	Create Table
+parent3	CREATE TABLE `parent3` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  KEY `fk_p1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent3` (`id1`),
+  CONSTRAINT `parent3_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent3` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent3` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent3` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Simple rename child
+rename table child to child1;
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child1;
+Table	Create Table
+child1	CREATE TABLE `child1` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child1_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent3` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent3` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Rename child using copy algorithm
+alter table child1 rename to child2, algorithm = copy;
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child2;
+Table	Create Table
+child2	CREATE TABLE `child2` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child2_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent3` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent3` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Rename child using inplace algorithm
+alter table child2 rename to child3, algorithm = inplace;
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child3;
+Table	Create Table
+child3	CREATE TABLE `child3` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child3_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent3` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent3` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Cleanup
+drop table child3, parent3;

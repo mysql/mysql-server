@@ -1,0 +1,192 @@
+-- source include/have_ndb.inc
+
+## The comment item values of an existing table should not be ##
+## affected by changing the related global/session variables. ##
+## Show create table will show specified items  by the user   ##
+## at create or alter table.                                  ##
+## After an alter, previous history of the comment item       ##
+## changes should be preserved and will be shown.             ##
+## Create table uses current defaults for non-specified items.##
+## If the user changes the default after create for           ##
+## non-specified items, the following alter will fail.        ##
+
+set @global_fully_replicated=@@global.ndb_fully_replicated;
+set @global_read_backup=@@global.ndb_read_backup;
+
+--echo # Create table with fully_replicated=1        #
+--echo # will change read_backup to 1 implicitly,    #
+--echo # but will not be shown in the comment.       #
+--echo # This should not affect the following alters #
+
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=0;
+CREATE TABLE t (x int primary key)
+  ENGINE=ndbcluster;
+SHOW CREATE TABLE t;
+ALTER TABLE t ALGORITHM=copy, ADD COLUMN y int;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+--echo
+--echo # Change the default of read_backup and alter another comment item. #
+--echo # Will fail due to the new default of the non-specified RB          #
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=1;
+CREATE TABLE t (x int primary key)
+  ENGINE=ndbcluster comment="A comment";
+set global ndb_read_backup=0;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t algorithm=copy, comment="NDB_TABLE=NOLOGGING=1";
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t algorithm=inplace, comment="NDB_TABLE=NOLOGGING=1";
+SHOW CREATE TABLE t;
+
+--echo
+--echo # Change the default of FR and alter another comment item  #
+--echo # Will fail due to the new default of the non-specified FR #
+set global ndb_fully_replicated=0;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ALGORITHM=copy, comment="NDB_TABLE=NOLOGGING=0";
+DROP TABLE t;
+
+--echo
+--echo # Change the default to NL=1 and alter another comment item #
+--echo # Will fail due to the new default of the non-specified NL  #
+CREATE TABLE t (x int primary key)
+  ENGINE=ndbcluster comment="A comment";
+set session ndb_table_no_logging=1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t algorithm=copy, comment="NDB_TABLE=READ_BACKUP=1";
+set session ndb_table_no_logging=0;
+ALTER TABLE t algorithm=copy, comment="NDB_TABLE=READ_BACKUP=1";
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+--echo
+--echo # Check if alters preserve the values of the other comment items #
+CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int)
+  ENGINE=ndb COMMENT="NDB_TABLE=NOLOGGING=1,READ_BACKUP=0";
+ALTER TABLE t30 ALGORITHM=inplace,
+  COMMENT="NDB_TABLE=FULLY_REPLICATED=0";
+ALTER TABLE t30 ALGORITHM=COPY,
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+SHOW CREATE TABLE t30;
+#--exec $NDB_DESC -dtest t30;
+
+--echo
+--echo # Cannot alter fully replicated tables when read backup=0 #
+--echo # is specified by the user                                #
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
+drop table t30;
+
+--echo
+--echo # Even though a table is created with default              #
+--echo # ndb_read backup=0,  changing FR to 1                     #
+--echo # will change it implicitly to 1, but will not be shown    #
+set global ndb_read_backup=0;
+CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int) ENGINE=ndb
+COMMENT="NDB_TABLE=NOLOGGING=1";
+#--exec $NDB_DESC -dtest t30;
+ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
+#--exec $NDB_DESC -dtest t30;
+SHOW CREATE TABLE t30;
+
+--echo # Cannot change read_backup to 0 when FR is on  #
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t30 algorithm=copy, comment="NDB_TABLE=READ_BACKUP=0";
+
+drop table t30;
+#--exec $NDB_DESC -dtest t30;
+
+set global ndb_read_backup=1;
+
+--echo
+--echo # Cannot change logging with inplace #
+CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int)
+  ENGINE=ndb;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=1";
+ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=NOLOGGING=1";
+SHOW CREATE TABLE t30;
+#--exec $NDB_DESC -dtest t30;
+
+--echo
+--echo # Execute some more alters #
+ALTER TABLE t30 ALGORITHM=COPY,
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+#--exec $NDB_DESC -dtest t30;
+ALTER TABLE t30 ALGORITHM=COPY, COMMENT="NDB_TABLE=FULLY_REPLICATED=0";
+SHOW CREATE TABLE t30;
+#--exec $NDB_DESC -dtest t30;
+
+drop table t30;
+
+--echo
+--echo # Check if changing the comment gives assertion error on fullyreplicated table#
+
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=1;
+
+CREATE TABLE t (x int primary key)
+  ENGINE=ndbcluster;
+SHOW CREATE TABLE t;
+ALTER TABLE t ALGORITHM=inplace, comment="A comment";
+
+SHOW CREATE TABLE t;
+
+--echo
+--echo # Perform an alter of an already existing NDB table option
+ALTER TABLE t ALGORITHM=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+--echo
+--echo # Change PB to the existing value
+CREATE TABLE t (a int primary key)
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM" engine=ndb;
+ALTER TABLE t ALGORITHM=inplace,
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+SHOW CREATE TABLE t;
+
+--echo
+--echo # Changing PB to a new value should fail for inplace alter#
+--echo # and pass for copy alter#
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ALGORITHM=inplace,
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+ALTER TABLE t ALGORITHM=copy,
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+DROP TABLE t;
+
+set global ndb_fully_replicated=@global_fully_replicated;
+set global ndb_read_backup=@global_read_backup;
+
+--echo #
+--echo # BUG#31776392 ALTER TABLE COMMENT HITS ASSERT IN DEBUG BUILD
+--echo # Turning off NOLOGGING is not supported inplace, check that
+--echo # a message with reason why it's not supported is returned
+--echo #
+
+CREATE TABLE t1 (a int PRIMARY KEY) engine=ndbcluster
+  COMMENT="NDB_TABLE=NOLOGGING=1,READ_BACKUP=0";
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=0";
+ALTER TABLE t1 COMMENT="NDB_TABLE=NOLOGGING=0";
+# Other unsupported inplace alter cases are tested earlier in this file
+DROP TABLE t1;
+
+--echo #
+--echo # Test CREATE and ALTER TABLE with unknown PARTITION_BALANCE value
+--echo #  - will push warning an silently ignore the modifier
+--echo #
+CREATE TABLE t1 (a int PRIMARY KEY) engine=ndbcluster
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+--echo # NOTE! Double warnings from the double parse of comment
+ALTER TABLE t1 ALGORITHM=inplace,
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+ALTER TABLE t1 ALGORITHM=copy,
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+DROP TABLE t1;

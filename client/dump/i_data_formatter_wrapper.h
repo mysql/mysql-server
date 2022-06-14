@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ namespace Dump {
  */
 class I_data_formatter_wrapper {
  public:
-  virtual ~I_data_formatter_wrapper() {}
+  virtual ~I_data_formatter_wrapper() = default;
   /**
   Add new Data Formatter to supply acquired data of objects to.
   */

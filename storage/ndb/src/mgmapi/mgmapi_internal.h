@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,10 @@ extern "C" {
 					   int value,
 					   struct ndb_mgm_reply* reply);
 
+  struct ndb_mgm_dynamic_port {
+   int nodeid; /* The node which should use below port */
+   int port; /* The port to use */
+  };
   /**
    * Send list of dynamic ports to use when setting up connections
    * between nodes in the cluster.
@@ -61,10 +65,6 @@ extern "C" {
    * @param num_ports the number of ndb_mgm_dynamic_ports passed
    * @return 0 on success. < 0 on error.
    */
-  struct ndb_mgm_dynamic_port {
-   int nodeid; /* The node which should use below port */
-   int port; /* The port to use */
-  };
   int ndb_mgm_set_dynamic_ports(NdbMgmHandle handle,
                                 int nodeid,
                                 struct ndb_mgm_dynamic_port* ports,

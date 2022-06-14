@@ -22,8 +22,12 @@ abandonment
 abandons
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set password for root@"localhost" = 'foo';
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 set password for root@"localhost" = '';
 create table t3(n int);
 insert into t3 values(1),(2);
@@ -41,10 +45,16 @@ create table t1 (n int) engine=myisam;
 include/sync_slave_sql_with_master.inc
 reset master;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [We should have generated greater than 16 KB relay log]
 lock tables t1 read;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_io_with_master.inc
 unlock tables;
 create table t2(id int);
@@ -62,7 +72,7 @@ drop table t2;
 drop temporary table if exists t3;
 Got one of the listed errors
 include/wait_for_slave_sql_error.inc [errno=3001]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
 include/start_slave.inc
 select count(*) from t1;
 count(*)

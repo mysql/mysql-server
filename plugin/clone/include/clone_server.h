@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class Server {
   @param[out]	loc_len	locator length in bytes
   @return storage locator */
   const uchar *get_locator(uint index, uint &loc_len) const {
-    DBUG_ASSERT(index < m_storage_vec.size());
+    assert(index < m_storage_vec.size());
     loc_len = m_storage_vec[index].m_loc_len;
     return (m_storage_vec[index].m_loc);
   }
@@ -84,7 +84,7 @@ class Server {
       return (nullptr);
 
     } else {
-      DBUG_ASSERT(m_copy_buff.m_length >= len);
+      assert(m_copy_buff.m_length >= len);
       return (m_copy_buff.m_buffer);
     }
   }
@@ -108,13 +108,35 @@ class Server {
   @param[in]	key_str	string key
   @param[in]	val_str	string value
   @return error code */
-  int send_key_value(Command_Response rcmd, String_Key &kay_str,
+  int send_key_value(Command_Response rcmd, String_Key &key_str,
                      String_Key &val_str);
 
-  /** Configuration parameters to be validated by remote. */
-  static Key_Values s_configs;
+  /** Send configurations.
+  @param[in]	rcmd	response command
+  @return error code */
+  int send_configs(Command_Response rcmd);
+
+  /** @return true iff need to send only plugin name for old clone version. */
+  bool send_only_plugin_name() const {
+    return m_protocol_version < CLONE_PROTOCOL_VERSION_V2;
+  }
+
+  /** @return true iff skip sending additional configurations. */
+  bool skip_other_configs() const {
+    return m_protocol_version < CLONE_PROTOCOL_VERSION_V3;
+  }
 
  private:
+  /** Extract client ddl timeout and backup lock flag.
+  @param[in]	client_timeout	timeout value received from client */
+  void set_client_timeout(uint32_t client_timeout) {
+    m_backup_lock = ((client_timeout & NO_BACKUP_LOCK_FLAG) == 0);
+    m_client_ddl_timeout = client_timeout & ~NO_BACKUP_LOCK_FLAG;
+  }
+
+  /** @return true if clone needs to block concurrent DDL. */
+  bool block_ddl() const { return (m_is_master && m_backup_lock); }
+
   /** Check if network error
   @param[in]	err	error code
   @return true if network error */
@@ -216,6 +238,9 @@ class Server {
 
   /** DDL timeout from client */
   uint32_t m_client_ddl_timeout;
+
+  /** If backup lock should be acquired */
+  bool m_backup_lock;
 };
 
 /** Clone server interface to handle callback from Storage Engine */

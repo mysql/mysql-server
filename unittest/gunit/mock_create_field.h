@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,15 @@
 #ifndef MOCK_CREATE_FIELD_H
 #define MOCK_CREATE_FIELD_H
 
-#include "my_dbug.h"
+#include <assert.h>
+
+#include <optional>
+
 #include "sql/create_field.h"
 #include "sql/dd/types/column.h"
 
 class Mock_create_field : public Create_field {
-  LEX_CSTRING m_lex_string;
+  LEX_CSTRING m_lex_string{nullptr, 0};
 
  public:
   Mock_create_field(enum_field_types field_type, Item *insert_default,
@@ -37,13 +40,13 @@ class Mock_create_field : public Create_field {
       Only TIMESTAMP is implemented for now.
       Other types would need different parameters (fld_length, etc).
     */
-    DBUG_ASSERT(field_type == MYSQL_TYPE_TIMESTAMP ||
-                field_type == MYSQL_TYPE_TIMESTAMP2);
-    init(NULL,  // THD *thd
-         NULL,  // char *fld_name
+    assert(field_type == MYSQL_TYPE_TIMESTAMP ||
+           field_type == MYSQL_TYPE_TIMESTAMP2);
+    init(nullptr,  // THD *thd
+         nullptr,  // char *fld_name
          field_type,
-         NULL,            // char *fld_length
-         NULL,            // char *fld_decimals,
+         nullptr,         // char *fld_length
+         nullptr,         // char *fld_decimals,
          0,               // uint fld_type_modifier
          insert_default,  // Item *fld_default_value,
          update_default,  // Item *fld_on_update_value,
@@ -53,14 +56,14 @@ class Mock_create_field : public Create_field {
             course. </sarcasm>
          */
          &m_lex_string,  // LEX_CSTRING *fld_comment,
-         NULL,           // char *fld_change,
-         NULL,           // List<String> *fld_interval_list,
-         NULL,           // const CHARSET_INFO *fld_charset,
+         nullptr,        // char *fld_change,
+         nullptr,        // List<String> *fld_interval_list,
+         nullptr,        // const CHARSET_INFO *fld_charset,
          false,          // bool has_explicit_collation,
          0,              // uint fld_geom_type
          nullptr,        // gcol info
          nullptr,        // gen default val
-         {},             // Nullable<gis::srid_t> srid
+         {},             // std::optional<gis::srid_t> srid
          dd::Column::enum_hidden_type::HT_VISIBLE);  // Visible
   }
 };

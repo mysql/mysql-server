@@ -1,0 +1,87 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Setup:
+#     Configure the replica channel with GTID_ONLY=1
+#     Restart the replica so it uses FILE repositories
+[connection slave]
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_info_repository=FILE --master_info_repository=FILE --skip_slave_start=0]
+SET @@GLOBAL.replica_checkpoint_period= 1;
+#
+# 2. Add some data to the source
+#    Logs are flushed to cause rotations in the replica making the applier repository point to a deleted file
+#    Collect the info about the binlog file and position at the end
+[connection master]
+CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
+INSERT INTO t1 VALUES(1);
+FLUSH LOGS;
+INSERT INTO t1 VALUES(2);
+FLUSH LOGS;
+INSERT INTO t1 VALUES(3);
+FLUSH LOGS;
+include/sync_slave_sql_with_master.inc
+#
+# 3. Change the relay_log_info_repository type
+#    Check the lasted information is set in the new repository
+include/stop_slave.inc
+SET @@global.relay_log_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/assert.inc [The source log file name is up to date in the applier repo]
+include/assert.inc [The source log position is up to date in the applier repo]
+include/assert.inc [The source log file name is up to date in the applier repo]
+#
+# 4. Change the master_info_repository type
+#    Check the lasted information is set in the new repository
+SET @@global.master_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+include/assert.inc [The source log file name is up to date in the connection repo]
+include/assert.inc [The source log position is up to date in the connection repo]
+#
+# 5. Start the replica, check that replication is working
+[connection slave]
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES(4);
+include/sync_slave_sql_with_master.inc
+#
+# 6. Restart the replica again so it uses FILE repositories.
+#    Check that position related info is marked as invalid
+include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_info_repository=FILE --master_info_repository=FILE --skip_slave_start=1]
+include/assert.inc [The source log file name is invalid]
+include/assert.inc [The source log file position is 0]
+include/assert.inc [The source log file name in the applier is invalid]
+include/assert.inc [The source log file position in the applier is 0]
+#
+# 7. Convert the repositories
+#    Check that position related info is still marked as invalid
+SET @@global.relay_log_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+SET @@global.master_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+include/assert.inc [The source log file name is invalid]
+include/assert.inc [The source log file position is 0]
+include/assert.inc [The source log file name in the applier is invalid]
+include/assert.inc [The source log file position in the applier is 0]
+#
+# 8. Start the replica, check that replication is working
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES(5);
+include/sync_slave_sql_with_master.inc
+#
+# 9. Cleanup
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
+SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ Spatial_reference_systems::Spatial_reference_systems() {
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name CHARACTER VARYING(80)\n"
                          "NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   // Note that DEFAULT and ON UPDATE clauses are used since this table is
   // populated by means of DML statements unlike the other DD tables.
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",

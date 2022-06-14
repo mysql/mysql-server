@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include "mysqlrouter/routing_component.h"
 #include "tcp_address.h"
 
-class MySQLRoutingConnection;
+class MySQLRoutingConnectionBase;
 
 /**
  * @brief Basic Concurrent Map
@@ -164,8 +164,8 @@ class concurrent_map {
  * should call remove_connection to remove itself from connection container.
  */
 class ConnectionContainer {
-  concurrent_map<MySQLRoutingConnection *,
-                 std::unique_ptr<MySQLRoutingConnection>>
+  concurrent_map<MySQLRoutingConnectionBase *,
+                 std::unique_ptr<MySQLRoutingConnectionBase>>
       connections_;
 
  public:
@@ -176,15 +176,17 @@ class ConnectionContainer {
 
     auto l =
         [&connection_datas](const decltype(connections_)::value_type &conn) {
+          const auto stats = conn.second->get_stats();
+
           connection_datas.push_back({
               conn.second->get_client_address(),
-              conn.second->get_server_address().str(),
-              conn.second->get_bytes_up(),
-              conn.second->get_bytes_down(),
-              conn.second->get_started(),
-              conn.second->get_connected_to_server(),
-              conn.second->get_last_sent_to_server(),
-              conn.second->get_last_received_from_server(),
+              conn.second->get_server_address(),
+              stats.bytes_up,
+              stats.bytes_down,
+              stats.started,
+              stats.connected_to_server,
+              stats.last_sent_to_server,
+              stats.last_received_from_server,
           });
         };
     connections_.for_each(l);
@@ -195,7 +197,7 @@ class ConnectionContainer {
    *
    * @param connection The connection to MySQL server
    */
-  void add_connection(std::unique_ptr<MySQLRoutingConnection> connection);
+  void add_connection(std::unique_ptr<MySQLRoutingConnectionBase> connection);
 
   /**
    * @brief Disconnects all connections to servers that are not allowed any
@@ -203,8 +205,9 @@ class ConnectionContainer {
    *
    * @param nodes Allowed servers. Connections to servers that are not in nodes
    *        are closed.
+   * @returns number of connections marked to be disconnected
    */
-  void disconnect(const AllowedNodes &nodes);
+  unsigned disconnect(const AllowedNodes &nodes);
 
   /**
    * @brief Disconnects all connection in the ConnectionContainer.
@@ -220,7 +223,7 @@ class ConnectionContainer {
    *
    * @param connection The connection to remove from container
    */
-  void remove_connection(MySQLRoutingConnection *connection);
+  void remove_connection(MySQLRoutingConnectionBase *connection);
 
   /** number of active client threads. */
   std::condition_variable connection_removed_cond_;

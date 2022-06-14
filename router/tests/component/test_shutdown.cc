@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,18 +34,18 @@
 #include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 #include <rapidjson/document.h>
 
+#include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
-#include "tcp_port_pool.h"
 
 using ::testing::Eq;
+using namespace std::chrono_literals;
 
 class ShutdownTest : public RouterComponentTest {
  protected:
@@ -55,87 +55,42 @@ class ShutdownTest : public RouterComponentTest {
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
       wait_for_cache_ready_timeout_ = 5000;
-      wait_for_process_exit_timeout_ = 20000;
     }
   }
 
-  auto &launch_router(unsigned router_port, const std::string &temp_test_dir,
+  auto &launch_router(const std::string &temp_test_dir,
                       const std::string &other_sections) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
     // create tmp conf dir (note that it will be RAII-deleted before router
     // shuts down, but that's ok)
-    TempDirectory conf_dir("conf");
     const std::string conf_file =
-        create_config_file(conf_dir.name(), other_sections, &default_section);
+        create_config_file(temp_test_dir, other_sections, &default_section);
 
     // launch the router
-    auto &router = ProcessManager::launch_router({"-c", conf_file});
-    bool ready = wait_for_port_ready(router_port);
-    EXPECT_TRUE(ready) << router.get_full_output() << router.get_full_logfile();
+    auto &router = ProcessManager::launch_router(
+        {"-c", conf_file}, EXIT_SUCCESS, true, false, -1s);
 
     return router;
   }
 
-  std::string create_JSON_tracefile(
-      const std::string &temp_test_dir,
-      const std::vector<uint16_t> cluster_node_ports) {
-    std::map<std::string, std::string> primary_json_env_vars = {
-        {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(cluster_node_ports[0])},
-        {"SECONDARY_1_HOST",
-         "127.0.0.1:" + std::to_string(cluster_node_ports[1])},
-        {"SECONDARY_2_HOST",
-         "127.0.0.1:" + std::to_string(cluster_node_ports[2])},
-        {"SECONDARY_3_HOST",
-         "127.0.0.1:" + std::to_string(cluster_node_ports[3])},
-
-        {"PRIMARY_PORT", std::to_string(cluster_node_ports[0])},
-        {"SECONDARY_1_PORT", std::to_string(cluster_node_ports[1])},
-        {"SECONDARY_2_PORT", std::to_string(cluster_node_ports[2])},
-        {"SECONDARY_3_PORT", std::to_string(cluster_node_ports[3])},
-    };
-
-    const std::string json_primary_node_template =
-        get_data_dir().join("test_shutdown.js").str();
-    const std::string json_primary_node =
-        Path(temp_test_dir).join("test_shutdown.js").str();
-    rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
-                            primary_json_env_vars);
-
-    return json_primary_node;
-  }
-
   void delay_sending_handshake(
+      const JsonValue &existing_globals,
       const std::vector<uint16_t> cluster_node_http_ports) {
     const std::string kRestGlobalsUri = "/api/v1/mock_server/globals/";
     const std::string kHostname = "127.0.0.1";
-    const std::string kHandshakeSendDelayKey = "connect_exec_time";
-    const std::string kHandshakeSendDelayMs = "10000";
+    const int kHandshakeSendDelayMs = 10000;
+
+    JsonValue globals;
+    JsonAllocator allocator;
+    globals.CopyFrom(existing_globals, allocator);
+    globals.AddMember("connect_exec_time", kHandshakeSendDelayMs, allocator);
+    const auto json_str = json_to_string(globals);
 
     // tell all the server mocks to delay sending handshake by 10 seconds
     for (auto http_port : cluster_node_http_ports) {
-      IOContext io_ctx;
-      RestClient rest_client(io_ctx, kHostname, http_port);
-
-      ASSERT_TRUE(wait_for_rest_endpoint_ready(kRestGlobalsUri, http_port))
-          << "wait_for_rest_endpoint_ready() timed out";
-
-      HttpRequest req =
-          rest_client.request_sync(HttpMethod::Put, kRestGlobalsUri,
-                                   "{\"" + kHandshakeSendDelayKey +
-                                       "\" : " + kHandshakeSendDelayMs + "}");
-
-      ASSERT_TRUE(req) << "HTTP Request to " << kHostname << ":"
-                       << std::to_string(http_port)
-                       << " failed (early): " << req.error_msg() << std::endl;
-      ASSERT_GT(req.get_response_code(), 0u)
-          << "HTTP Request to " << kHostname << ":" << std::to_string(http_port)
-          << " failed: " << req.error_msg() << std::endl;
-      ASSERT_EQ(req.get_response_code(), 204u);
-
-      auto resp_body = req.get_input_buffer();
-      ASSERT_EQ(resp_body.length(), 0u);
+      EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
     }
   }
 
@@ -188,9 +143,7 @@ class ShutdownTest : public RouterComponentTest {
     }
   }
 
-  TcpPortPool port_pool_;
   unsigned wait_for_cache_ready_timeout_ = 1000;
-  unsigned wait_for_process_exit_timeout_ = 10000;
 };
 
 /** @test
@@ -215,7 +168,7 @@ class ShutdownTest : public RouterComponentTest {
 TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   // MdC's refresh thread can block up to this many seconds on
   // mysql_real_connect(<metadata server>)
-  constexpr int kConnectTimeout = 2;
+  constexpr std::chrono::milliseconds kConnectTimeout = 2000ms;
 
   // This is our expectation - the test will pass if Router shuts down within
   // these many seconds. The value should should allow for up do
@@ -223,8 +176,9 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   // additional CPU cycles needed. But it should not be at 2 * kConnectTimeout
   // or higher, because we want to make sure no more than one metadata server
   // is blocking the shutdown.
-  constexpr int kAcceptableShutdownWait =
-      kConnectTimeout * 1.5;  // should be between 1 and 2 * kConnectTimeout
+  constexpr std::chrono::milliseconds kAcceptableShutdownWait =
+      kConnectTimeout +
+      kConnectTimeout / 2;  // should be between 1 and 2 * kConnectTimeout
 
   TempDirectory temp_test_dir;
 
@@ -243,7 +197,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   const uint16_t router_port = port_pool_.get_next_available();
 
   const std::string json_primary_node =
-      create_JSON_tracefile(temp_test_dir.name(), cluster_node_ports);
+      get_data_dir().join("test_shutdown.js").str();
 
   // launch cluster
   // NOTE: We reuse the primary's JSON file for all the secondaries just for
@@ -251,16 +205,13 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   //       therefore any arbitrary JSON will do for the secondaries.
   std::vector<ProcessWrapper *> cluster_nodes;
   for (size_t i = 0; i < cluster_node_ports.size(); i++) {
-    auto &node = launch_mysql_server_mock(
-        json_primary_node, cluster_node_ports[i], EXIT_SUCCESS,
-        false /*debug_mode*/, cluster_node_http_ports[i]);
+    const auto http_port = cluster_node_http_ports[i];
+    auto &node =
+        launch_mysql_server_mock(json_primary_node, cluster_node_ports[i],
+                                 EXIT_SUCCESS, false /*debug_mode*/, http_port);
     cluster_nodes.emplace_back(&node);
+    set_mock_metadata(http_port, "gr-id", cluster_node_ports);
   }
-
-  // wait for the whole cluster to be up
-  for (size_t i = 0; i < cluster_nodes.size(); i++)
-    EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i]), Eq(true))
-        << cluster_nodes[i]->get_full_output();
 
   // write Router config
   std::string servers;
@@ -269,7 +220,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   servers.resize(servers.size() - 1);  // trim last ","
   const std::string config =
       /*[DEFAULT]*/
-      "connect_timeout = " + std::to_string(kConnectTimeout) +
+      "connect_timeout = " + std::to_string(kConnectTimeout.count() / 1000) +
       "\n"
       "\n"
       "[metadata_cache:test]\n"
@@ -288,13 +239,11 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
       "destinations=metadata-cache://test/default?role=PRIMARY\n"
       "protocol=classic\n"
       "routing_strategy=round-robin\n"
-      "\n"
-      "[logger]\n"
-      "level = DEBUG\n"
       "\n";
 
   // launch the Router
-  auto &router = launch_router(router_port, temp_test_dir.name(), config);
+  auto &router = launch_router(temp_test_dir.name(), config);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // give the Router a chance to initialise metadata-cache module
   // there is currently no easy way to check that
@@ -303,8 +252,9 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
 
   // now let's tell server nodes to delay sending MySQL Protocol handshake on
   // new connections (to simulate them being unreachable)
+  auto current_globals = mock_GR_metadata_as_json("gr-id", cluster_node_ports);
   ASSERT_NO_FATAL_FAILURE(
-      { delay_sending_handshake(cluster_node_http_ports); });
+      { delay_sending_handshake(current_globals, cluster_node_http_ports); });
 
   // wait for a new (slow) Refresh cycle to commence
   auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -314,13 +264,9 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   }
 
   // and tell Router to shutdown and expect it to finish it within
-  // kAcceptableShutdownWait seconds (wait_for_exit() will throw if timeout is
-  // exceeded)
+  // kAcceptableShutdownWait seconds
   EXPECT_FALSE(router.send_clean_shutdown_event());
-  EXPECT_NO_THROW(router.wait_for_exit(kAcceptableShutdownWait * 1000))
-      << "full output:\n"
-      << router.get_full_output() << "\nrouter log:\n"
-      << router.get_full_logfile() << std::endl;
+  check_exit_code(router, EXIT_SUCCESS, kAcceptableShutdownWait);
 }
 
 int main(int argc, char *argv[]) {

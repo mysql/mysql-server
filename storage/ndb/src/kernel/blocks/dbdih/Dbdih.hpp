@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,16 +45,6 @@
 
 #ifdef DBDIH_C
 
-/*###################*/
-/* FILE SYSTEM FLAGS */
-/*###################*/
-#define ZLIST_OF_PAIRS 0
-#define ZLIST_OF_PAIRS_SYNCH 16
-#define ZOPEN_READ_WRITE 2
-#define ZCREATE_READ_WRITE 0x302
-#define ZCLOSE_NO_DELETE 0
-#define ZCLOSE_DELETE 1
-
 /*###############*/
 /* NODE STATES   */
 /*###############*/
@@ -64,9 +54,9 @@
 /*#########*/
 /* GENERAL */
 /*#########*/
-#define ZVAR_NO_WORD 1
-#define ZVAR_NO_CRESTART_INFO 20
-#define ZVAR_NO_CRESTART_INFO_TO_FILE 21
+#define ZVAR_NO_WORD 0
+#define ZVAR_NO_CRESTART_INFO 1
+#define ZVAR_NO_CRESTART_INFO_TO_FILE 2
 #define ZVALID 1
 #define ZINVALID 2
 
@@ -288,6 +278,7 @@ public:
     Uint32 partition_id;
     Uint32 nextCopyFragment;
     
+    Uint8 m_inc_used_log_parts;
     Uint8 distributionKey;
     Uint8 fragReplicas;
     Uint8 noOldStoredReplicas;  /* NUMBER OF "DEAD" STORED REPLICAS */
@@ -307,8 +298,10 @@ public:
     Uint32 activeTakeOver; // Which node...
     Uint32 activeTakeOverCount;
     Uint32 m_next_log_part;
+    Uint32 m_new_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
+    Uint32 m_used_log_parts[MAX_INSTANCE_KEYS];
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
   /**
@@ -483,6 +476,7 @@ public:
     
     Uint8 dbtcFailCompleted;
     Uint8 dblqhFailCompleted;
+    Uint8 dbqlqhFailCompleted;
     Uint8 dbdihFailCompleted;
     Uint8 dbdictFailCompleted;
     Uint8 recNODE_FAILREP;
@@ -720,10 +714,10 @@ public:
     };
     Uint32 m_scan_reorg_flag;
     Uint32 m_flags;
+    Uint32 primaryTableId;
 
     Uint8 noOfBackups;
     Uint8 kvalue;
-    Uint16 primaryTableId;
 
     Uint16 noPages;
     Uint16 tableType;
@@ -752,7 +746,7 @@ public:
     Uint32 noOfWords;
     Uint32 tabRemoveNode;
     Uint32 noOfFragChunks;
-    Uint32 tabErrorCode;
+    Uint32 tabActiveLcpFragments;
 
     struct {
       Uint32 tabUserRef;
@@ -910,7 +904,7 @@ public:
   typedef SLFifoList<TakeOverRecord_pool> TakeOverRecord_fifo;
 
 
-  virtual bool getParam(const char * param, Uint32 * retVal) { 
+  bool getParam(const char * param, Uint32 * retVal) override { 
     if (param && strcmp(param, "ActiveMutexes") == 0)
     {
       if (retVal)
@@ -924,7 +918,7 @@ public:
   
 public:
   Dbdih(Block_context& ctx);
-  virtual ~Dbdih();
+  ~Dbdih() override;
 
   struct RWFragment {
     Uint32 pageIndex;
@@ -996,8 +990,6 @@ private:
   void execDUMP_STATE_ORD(Signal *);
   void execNDB_TAMPER(Signal *);
   void execDEBUG_SIG(Signal *);
-  void execEMPTY_LCP_CONF(Signal *);
-  void execEMPTY_LCP_REP(Signal*);
   void execMASTER_GCPREF(Signal *);
   void execMASTER_GCPREQ(Signal *);
   void execMASTER_GCPCONF(Signal *);
@@ -1031,7 +1023,6 @@ private:
   void execSTART_COPYREF(Signal *);
   void execUPDATE_FRAG_STATEREQ(Signal *);
   void execUPDATE_FRAG_STATECONF(Signal *);
-  void execDIVERIFYREQ(Signal *);
   void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
   void execGCP_PREPARECONF(Signal *);
@@ -1051,6 +1042,7 @@ private:
   void execCHECK_LCP_IDLE_ORD(Signal *);
 
   void execDIH_GET_TABINFO_REQ(Signal*);
+  void execSET_UP_MULTI_TRP_CONF(Signal*);
 
   /**
    * A number of functions used to find out if any node is currently is
@@ -1099,7 +1091,6 @@ private:
   void dequeue_lcp_rep(Signal*);
   void start_copy_meta_data(Signal*);
   void start_lcp(Signal*);
-  bool check_if_pause_lcp_possible(void);
   void start_lcp_before_mutex(Signal*);
   void queue_lcp_frag_rep(Signal *signal, LcpFragRep *lcpReport);
   void queue_lcp_complete_rep(Signal *signal, Uint32 lcpId);
@@ -1115,7 +1106,6 @@ private:
    * lcp protocol with all nodes.
    */
   bool c_lcp_runs_with_pause_support; /* Master state */
-  bool c_old_node_waiting_for_lcp_end; /* Master state */
 
   /**
    * This is the state in the master that keeps track of where the master is 
@@ -1262,9 +1252,12 @@ private:
   void execPREPARE_COPY_FRAG_REF(Signal*);
   void execPREPARE_COPY_FRAG_CONF(Signal*);
   void execDIADDTABREQ(Signal *);
+public:
   void execDIGETNODESREQ(Signal *);
-  void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_REQ(Signal *);
+  void execDIVERIFYREQ(Signal *);
+private:
+  void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);
@@ -1335,7 +1328,6 @@ private:
   void nullRoutine(Signal *, Uint32 nodeId, Uint32);
   void sendCOPY_GCIREQ(Signal *, Uint32 nodeId, Uint32);
   void sendDIH_SWITCH_REPLICA_REQ(Signal *, Uint32 nodeId, Uint32);
-  void sendEMPTY_LCP_REQ(Signal *, Uint32 nodeId, Uint32);
   void sendEND_TOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_COMMIT(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_PREPARE(Signal *, Uint32 nodeId, Uint32);
@@ -1391,6 +1383,7 @@ private:
   void start_add_fragments_in_new_table(TabRecordPtr,
                                         ConnectRecordPtr,
                                         const Uint16 buf[],
+                                        const Uint32 bufLen,
                                         Signal *signal);
   void make_new_table_writeable(TabRecordPtr, ConnectRecordPtr, bool);
   void make_new_table_read_and_writeable(TabRecordPtr,
@@ -1414,7 +1407,7 @@ private:
 //------------------------------------
   void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
   void checkLcpStart(Signal *, Uint32 lineNo, Uint32 delay);
-  void checkStartMoreLcp(Signal *, Uint32 nodeId);
+  bool checkStartMoreLcp(Signal *, Uint32 nodeId, bool startNext);
   bool reportLcpCompletion(const struct LcpFragRep *);
   void sendLCP_COMPLETE_REP(Signal *);
 
@@ -1457,7 +1450,7 @@ private:
   void closingTableSrLab(Signal *, FileRecordPtr regFilePtr);
   void tableCloseLab(Signal *, FileRecordPtr regFilePtr);
   void tableCloseErrorLab(FileRecordPtr regFilePtr);
-  void readingGcpLab(Signal *, FileRecordPtr regFilePtr);
+  void readingGcpLab(Signal *, FileRecordPtr regFilePtr, Uint32 bytes_read);
   void readingTableLab(Signal *, FileRecordPtr regFilePtr);
   void readingGcpErrorLab(Signal *, FileRecordPtr regFilePtr);
   void readingTableErrorLab(Signal *, FileRecordPtr regFilePtr);
@@ -1489,6 +1482,10 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
+  void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
+  void send_COPY_GCIREQ_data_v2(Signal*, Uint32, Uint32);
+  void send_START_MECONF_data_v1(Signal*, Uint32);
+  void send_START_MECONF_data_v2(Signal*, Uint32, Uint32);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
@@ -1560,7 +1557,7 @@ private:
   void checkTcCounterLab(Signal *);
   void calculateKeepGciLab(Signal *, Uint32 tableId, Uint32 fragId);
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
-  void checkLcpCompletedLab(Signal *);
+  void checkLcpCompletedLab(Signal *, Uint32);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
   void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
@@ -1615,7 +1612,9 @@ private:
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
   Uint32 compute_max_failure_time();
-  void setGCPStopTimeouts(Signal*);
+  void setGCPStopTimeouts(Signal*,
+                          bool set_gcp_save_max_lag = true,
+                          bool set_micro_gcp_max_lag = true);
   void sendINFO_GCP_STOP_TIMER(Signal*);
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
@@ -1667,7 +1666,8 @@ private:
                           Uint32 tableId);
   Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
                          const Fragmentstore * fragPtr,
-                         Uint32 nodes[]);
+                         Uint32 nodes[],
+                         bool crash_on_error = true);
   Uint32 findLocalFragment(const TabRecord *,
                            Ptr<Fragmentstore> & fragPtr,
                            EmulatedJamBuffer *jambuf);
@@ -1724,7 +1724,9 @@ private:
   void initialiseFragstore();
 
   void wait_old_scan(Signal*);
-  Uint32 add_fragments_to_table(Ptr<TabRecord>, const Uint16 buf[]);
+  Uint32 add_fragments_to_table(Ptr<TabRecord>,
+                                const Uint16 buf[],
+                                const Uint32 bufLen);
   Uint32 add_fragment_to_table(Ptr<TabRecord>, Uint32, Ptr<Fragmentstore>&);
 
   void drop_fragments(Signal*, ConnectRecordPtr, Uint32 last);
@@ -2198,6 +2200,10 @@ private:
       Uint32 m_gci;
       Uint32 m_elapsed_ms; //MilliSec since last GCP_SAVEed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
+      bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
+#ifdef ERROR_INSERT
+      bool test_set_max_lag; // Testing
+#endif
     } m_gcp_save;
 
     struct
@@ -2205,9 +2211,17 @@ private:
       Uint64 m_gci;
       Uint32 m_elapsed_ms; //MilliSec since last GCP_COMMITed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
+      bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
+#ifdef ERROR_INSERT
+      bool test_set_max_lag; // Testing
+#endif
     } m_micro_gcp;
 
     NDB_TICKS m_last_check; //Time GCP monitor last checked
+
+#ifdef ERROR_INSERT
+    Uint32 m_savedMaxCommitLag;  // Testing
+#endif
   } m_gcp_monitor;
 
   /*------------------------------------------------------------------------*/
@@ -2242,7 +2256,7 @@ private:
     /*       GLOBAL CHECKPOINTS. WE CAN HOWEVER ONLY HANDLE TWO SUCH COPY AT  */
     /*       THE TIME. THUS WE HAVE TO KEEP WAIT INFORMATION IN THIS VARIABLE.*/
     /*------------------------------------------------------------------------*/
-    STATIC_CONST( WAIT_CNT = 2 );
+    static constexpr Uint32 WAIT_CNT = 2;
     CopyGCIReq::CopyReason m_waiting[WAIT_CNT];
   } c_copyGCIMaster;
   
@@ -2388,6 +2402,7 @@ private:
   Uint32 cMinTcFailNo;            /* Minimum TC handled failNo allowed to close GCP */
 
   BlockReference clocallqhblockref;
+  BlockReference clocalqlqhblockref;
   BlockReference clocaltcblockref;
   BlockReference cmasterdihref;
   Uint16 cownNodeId;
@@ -2410,7 +2425,6 @@ private:
 public:
   enum LcpMasterTakeOverState {
     LMTOS_IDLE = 0,
-    LMTOS_WAIT_EMPTY_LCP = 1,   // Currently doing empty LCP
     LMTOS_WAIT_LCP_FRAG_REP = 2,// Currently waiting for outst. LCP_FRAG_REP
     LMTOS_INITIAL = 3,
     LMTOS_ALL_IDLE = 4,
@@ -2432,9 +2446,7 @@ private:
     Uint32 minTableId;
     Uint32 minFragId;
     Uint32 failedNodeId;
-    bool use_empty_lcp;
   } c_lcpMasterTakeOverState;
-  bool check_if_empty_lcp_needed(void);
   
   Uint16 cmasterNodeId;
 
@@ -2487,7 +2499,6 @@ private:
   SignalCounter c_COPY_TABREQ_Counter;
   SignalCounter c_UPDATE_FRAG_STATEREQ_Counter;
   SignalCounter c_DIH_SWITCH_REPLICA_REQ_Counter;
-  SignalCounter c_EMPTY_LCP_REQ_Counter;
   SignalCounter c_GCP_COMMIT_Counter;
   SignalCounter c_GCP_PREPARE_Counter;
   SignalCounter c_GCP_SAVEREQ_Counter;
@@ -2582,6 +2593,11 @@ private:
      */
     Uint32 waitGCI;
 
+    /**
+     * Special value indicating a request for shutdown sync
+     */
+    static const Uint32 ShutdownSyncGci = 0xffffffff;
+
     union { Uint32 nextPool; Uint32 nextList; };
     Uint32 prevList;
   };
@@ -2604,8 +2620,13 @@ private:
 
   void checkWaitGCPProxy(Signal*, NodeId failedNodeId);
   void checkWaitGCPMaster(Signal*, NodeId failedNodeId);
+  void checkShutdownSync();
   void emptyWaitGCPMasterQueue(Signal*, Uint64, WaitGCPList&);
-  
+
+  void getNodeBitmap(NdbNodeBitmask& map,
+                     Uint32 listHead,
+                     int (*versionFunction) (Uint32));
+
   /**
    * Stop me
    */
@@ -2619,16 +2640,16 @@ private:
 
   void checkStopMe(Signal *, NodeRecordPtr failedNodePtr);
   
-#define DIH_CDATA_SIZE 128
+#define DIH_CDATA_SIZE _SYSFILE_FILE_SIZE
   /**
-   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32
+   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
    */
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 
   /**
    * Sys file data
    */
-  Uint32 sysfileData[DIH_CDATA_SIZE];
+  Sysfile sysfile;
   Uint32 sysfileDataToFile[DIH_CDATA_SIZE];
 
   /**
@@ -2707,7 +2728,8 @@ private:
     enum State {
       LS_INITIAL = 0,
       LS_RUNNING = 1,
-      LS_COMPLETE = 2
+      LS_COMPLETE = 2,
+      LS_RUNNING_MTO_TAB_SAVED = 3
     } m_state;
     
     StartLcpReq m_start_lcp_req;
@@ -2718,6 +2740,7 @@ private:
     
     void reset();
     void init(const StartLcpReq*);
+    void init_master_take_over_idle_to_tab_saved();
     void lcp_frag_rep(const LcpFragRep*);
     void lcp_complete_rep(Uint32 gci);
     
@@ -2744,15 +2767,17 @@ private:
    * NDBMT_MAX_WORKER_INSTANCES inclusive.
    * 0 is the proxy block instance.
    */
-  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
+  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr)
+  {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
+    ndbrequire(log_part_id < MAX_INSTANCE_KEYS);
     return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
   Uint32 dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
 
+  void log_setNoSend();
   /**
    * Get minimum version of nodes in alive-list
    */
@@ -2777,9 +2802,39 @@ private:
   RedoStateRep::RedoAlertState get_global_redo_alert_state();
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
   bool m_master_lcp_req_lcp_already_completed;
+
+  void complete_restart_nr(Signal*);
+
+  /* The highest data node id in the cluster. */
+  Uint32 m_max_node_id;
+  bool m_set_up_multi_trp_in_node_restart;
+  bool m_use_classic_fragmentation;
+
+  void find_min_used_log_part();
+  bool select_ng(Uint32 fragNo,
+                 Uint32 default_node_group,
+                 NodeGroupRecordPtr & NGPtr,
+                 Uint32 & err);
+  void inc_ng(Uint32 fragNo,
+              Uint32 noOfFragments,
+              Uint32 partitionCount,
+              Uint32 & default_node_group,
+              Uint32 numNodeGroups);
+  void add_nodes_to_fragment(Uint16 *fragments,
+                             Uint32 & node_index,
+                             Uint32 & count,
+                             NodeGroupRecordPtr NGPtr,
+                             Uint32 noOfReplicas);
+  bool find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part);
+  void getNodeGroupPtr(Uint32 nodeId, NodeGroupRecordPtr & NGPtr);
+public:
+  bool is_master() { return isMaster(); }
+  
+  NdbNodeBitmask c_shutdownReqNodes;
+  void print_lcp_state();
 };
 
-#if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
+#if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)
 #error "cdata is to small compared to Sysfile size"
 #endif
 

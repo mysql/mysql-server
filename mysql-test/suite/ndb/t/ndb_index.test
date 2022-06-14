@@ -299,3 +299,116 @@ insert into indexmerge values(0, 9, REPEAT("J",512));
 
 delete quick from indexmerge where id = 2 or similar_id = 2;
 drop table indexmerge; 
+
+#
+# Bug#31408095 WRONG INDEX ENTRY RELEASED WHEN DROPPING INDEX
+# - the wrong index entry was released, causing crash when dropping
+#   index on table with 64 indexes.
+#
+
+# Create table with enough columns to create 64 indexes
+CREATE TABLE t1(
+  col1 int unsigned not null primary key AUTO_INCREMENT, col2 int unsigned,
+  col3 varchar(27), col4 varchar(27), col5 varchar(27), col6 varchar(27),
+  col7 char(27), col8 int unsigned, col9 varchar(27), col10 varchar(27),
+  col11 varchar(27), col12 varchar(27), col13 varchar(27),
+  col14 varchar(27), col15 smallint unsigned, col16 char(27),
+  col17 varchar(27), col18 varchar(27), col19 varchar(27),
+  col20 varchar(27), col21 char(27), col22 varchar(27),
+  col23 mediumint unsigned, col24 varchar(27), col25 varchar(27),
+  col26 char(27), col27 varchar(27), col28 varchar(27), col29 varchar(27),
+  col30 varchar(27), col31 varchar(27), col32 bigint, col33 varchar(27),
+  col34 varchar(27), col35 smallint unsigned, col36 char(27),
+  col37 bigint unsigned, col38 varchar(27), col39 varchar(27),
+  col40 varchar(27), col41 varchar(27), col42 bigint, col43 varchar(27),
+  col44 varchar(27), col45 smallint unsigned, col46 char(27),
+  col47 varchar(27), col48 varchar(27), col49 varchar(27),
+  col50 varchar(27), col51 varchar(27), col52 bigint unsigned,
+  col53 varchar(27), col54 varchar(27), col55 varchar(27),
+  col56 tinyint unsigned, col57 varchar(27), col58 varchar(27),
+  col59 varchar(27), col60 tinyint unsigned, col61 int unsigned,
+  col62 varchar(27), col63 bigint unsigned, col64 int unsigned,
+  col65 varchar(27), col66 char(27), col67 varchar(27), col68 varchar(27),
+  col69 varchar(27), col70 varchar(27), col71 varchar(27),
+  col72 smallint unsigned, col73 varchar(27), col74 varchar(27),
+  col75 varchar(27), col76 char(27), col77 bigint unsigned, col78 varchar(27),
+  col79 varchar(27), col80 varchar(27), col81 varchar(27), col82 varchar(27),
+  col83 varchar(27), col84 varchar(27), col85 varchar(27), col86 char(27),
+  col87 varchar(27), col88 int unsigned, col89 varchar(27), col90 int unsigned,
+  col91 varchar(27), col92 tinyint unsigned, col93 varchar(27),
+  col94 varchar(27), col95 varchar(27), col96 varchar(27), col97 char(27),
+  col98 varchar(27), col99 varchar(27)
+) engine=ndbcluster;
+
+# Create unique indexes until the max limit of 64 indexes is reached (the
+# primary key also counts)
+let $indexes = 64;
+let $i = 1;
+while ($i <= $indexes) {
+  let $index_name = col$i;
+  # Allow failure to create index when max limit is reached
+  --error 0,ER_TOO_MANY_KEYS
+  eval ALTER TABLE t1 ADD UNIQUE KEY $index_name ($index_name);
+  inc $i;
+}
+
+# Drop the unique indexes again
+let $i = 1;
+while ($i <= $indexes) {
+  let $index_name = col$i;
+  # Allow failure to drop those who couldn't be created
+  --error 0,ER_CANT_DROP_FIELD_OR_KEY
+  eval ALTER TABLE t1 DROP INDEX $index_name;
+  inc $i;
+}
+
+# Check that adding and dropping indexes still work
+ALTER TABLE t1 ADD UNIQUE KEY (col24);
+ALTER TABLE t1 ADD UNIQUE KEY (col25);
+ALTER TABLE t1 DROP INDEX col24;
+ALTER TABLE t1 DROP INDEX col25;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31452597 BUILD ATTRID MAP FOR PRIMARY KEY
+--echo #  - test read using primary key where keys are specified in
+--echo #    different order than in the NDB table, thus testing
+--echo #    the NDB_INDEX_DATA::Attrid_map mapping
+CREATE TABLE t1 (
+  a int, b int, c int, d int, e int, f int, g int, h int,
+  PRIMARY KEY(d,b,c),
+  UNIQUE KEY(a)
+) engine = ndb;
+CREATE TABLE t1hash (
+  a int, b int, c int, d int, e int, f int, g int, h int,
+  PRIMARY KEY(b,d,c) USING HASH,
+  UNIQUE KEY(a)
+) engine = ndb;
+CREATE TABLE t2 (
+  a int, b int,
+  PRIMARY KEY(a)
+) engine = ndb;
+
+INSERT INTO t1 VALUES
+  (1,2,3,4,5,6,7,8),
+  (2,2,4,4,5,6,7,9),
+  (3,2,5,4,5,6,7,10);
+INSERT INTO t1hash VALUES
+  (1,2,3,4,5,6,7,8),
+  (2,2,4,4,5,6,7,9),
+  (3,2,5,4,5,6,7,10);
+INSERT INTO t2 VALUES
+  (1,2);
+
+# Read with pushed join primary key index, should use mapping
+SELECT t1.a, t1.h FROM t1, t2
+  WHERE t2.a = t1.a /* join with t2 to trigger pushed join */ AND
+    t1.b = 2 AND t1.c = 3 AND t1.d = 4 /* use primary key on t1 */;
+
+# Read with pushed join primary key index using hash, should use mapping
+SELECT t1hash.a, t1hash.h FROM t1hash, t2
+  WHERE t2.a = t1hash.a /* join with t2 to trigger pushed join */ AND
+    t1hash.b = 2 AND t1hash.c = 3 AND t1hash.d = 4 /* use primary key on t1 */;
+
+DROP TABLE t1,t1hash,t2;

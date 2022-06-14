@@ -396,8 +396,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where ((`test`.`t3`.`c1` >= 'c-1004=w') and (`test`.`t3`.`c1` <= 'c-1006=w') and (`test`.`t3`.`i1` > 2))
 EXPLAIN FORMAT=tree SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 EXPLAIN
--> Filter: ((t3.c1 >= 'c-1004=w') and (t3.c1 <= 'c-1006=w') and (t3.i1 > 2))
-    -> Index range scan on t3 using c1
+-> Filter: ((t3.c1 >= 'c-1004=w') and (t3.c1 <= 'c-1006=w') and (t3.i1 > 2))  (cost=0.71 rows=0.3)
+    -> Index range scan on t3 using c1 over (unprintable_blob_value <= c1 <= unprintable_blob_value AND 2 < i1)  (cost=0.71 rows=1)
 
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 c1
@@ -530,11 +530,11 @@ ON table3.col_int_nokey = table1.col_int_key
 WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	ALL	col_int_key	NULL	NULL	NULL	19	100.00	NULL
-1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	10.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	10.00	Using where; Using join buffer (hash join)
 1	PRIMARY	table2	NULL	ref	col_varchar_key	col_varchar_key	7	test.table3.col_varchar_key	2	100.00	Using index
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table1`.`col_int_nokey` AS `col_int_nokey` from `test`.`t1` `table1` join `test`.`t1` `table2` join `test`.`t1` `table3` where ((`test`.`table2`.`col_varchar_key` = `test`.`table3`.`col_varchar_key`) and (`test`.`table3`.`col_int_nokey` = `test`.`table1`.`col_int_key`) and <nop>(<in_optimizer>(`test`.`table3`.`col_int_key`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, (<cache>(`test`.`table3`.`col_int_key`) <> NULL), true)))))
+Note	1003	/* select#1 */ select `test`.`table1`.`col_int_nokey` AS `col_int_nokey` from `test`.`t1` `table1` join `test`.`t1` `table2` join `test`.`t1` `table3` where ((`test`.`table2`.`col_varchar_key` = `test`.`table3`.`col_varchar_key`) and (`test`.`table3`.`col_int_nokey` = `test`.`table1`.`col_int_key`) and <nop>(<in_optimizer>(`test`.`table3`.`col_int_key`,<exists>(/* select#2 */ select NULL from `test`.`t2` where <if>(outer_field_is_not_null, (<cache>(`test`.`table3`.`col_int_key`) <> NULL), true)))))
 SELECT table1.col_int_nokey
 FROM t1 AS table1 STRAIGHT_JOIN (
 t1 AS table2 INNER JOIN t1 AS table3
@@ -744,7 +744,7 @@ WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c1` = `test`.`t1`.`c1`) and (((`test`.`t2`.`pk` <= 4) and (`test`.`t1`.`pk` in (2,1))) or ((`test`.`t1`.`pk` > 1) and (`test`.`t2`.`pk` between 6 and 6))))
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
@@ -844,9 +844,9 @@ OR subquery_t2.c1 = 'a'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	subquery_t1	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	subquery_t2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	subquery_t2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i1`,<exists>(/* select#2 */ select straight_join 1 from `test`.`t1` `subquery_t1` join `test`.`t2` `subquery_t2` where ((`test`.`subquery_t2`.`i1` = `test`.`subquery_t1`.`pk`) and ((`test`.`subquery_t1`.`i1` > 0) or (`test`.`subquery_t2`.`c1` = 'a')) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`i1`) = `test`.`subquery_t1`.`pk`), true))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i1`,<exists>(/* select#2 */ select straight_join `test`.`subquery_t1`.`pk` from `test`.`t1` `subquery_t1` join `test`.`t2` `subquery_t2` where ((`test`.`subquery_t2`.`i1` = `test`.`subquery_t1`.`pk`) and ((`test`.`subquery_t1`.`i1` > 0) or (`test`.`subquery_t2`.`c1` = 'a')) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`i1`) = `test`.`subquery_t1`.`pk`), true))) is false)
 SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN
@@ -899,7 +899,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`i1` AS `i1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`c1` > NULL) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c1`) or (`test`.`t1`.`c1` is null)), true) and ('8' >= `test`.`t1`.`i1`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`c1`), true))) xor (0 <> `test`.`t3`.`i1`))
+Note	1003	/* select#1 */ select `test`.`t3`.`i1` AS `i1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select `test`.`t1`.`c1` from `test`.`t1` where ((`test`.`t1`.`c1` > NULL) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c1`) or (`test`.`t1`.`c1` is null)), true) and ('8' >= `test`.`t1`.`i1`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`c1`), true))) xor (0 <> `test`.`t3`.`i1`))
 SELECT i1
 FROM t3
 WHERE c1 IN
@@ -977,7 +977,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	alias2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias2`.`i1` AS `i1` from `test`.`t1` `alias1` straight_join `test`.`t1` `alias2` where ((`test`.`alias2`.`pk` = 1) and (`test`.`alias2`.`pk` <= `test`.`alias1`.`c1`))
+Note	1003	/* select#1 */ select `test`.`alias2`.`i1` AS `i1` from `test`.`t1` `alias1` straight_join `test`.`t1` `alias2` where ((`test`.`alias2`.`pk` = 1) and (cast(`test`.`alias2`.`pk` as double) <= cast(`test`.`alias1`.`c1` as double)))
 SELECT alias2.i1
 FROM t1 AS alias1 STRAIGHT_JOIN t1 AS alias2
 ON alias2.pk AND alias2.pk <= alias1.c1

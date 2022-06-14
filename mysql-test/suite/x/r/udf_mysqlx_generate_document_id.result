@@ -181,6 +181,5 @@ doc
 SELECT JSON_INSERT(@doc, '$.b', CONVERT(mysqlx_generate_document_id(1,1,JSON_CONTAINS_PATH(@doc, 'one', '$.b')) USING utf8mb4)) as doc;
 doc
 {"a": 1, "b": "0000XXXXXXXX0000000000000111"}
-DROP SCHEMA xtest;
 set auto_increment_increment = DEFAULT;
 set auto_increment_offset = DEFAULT;

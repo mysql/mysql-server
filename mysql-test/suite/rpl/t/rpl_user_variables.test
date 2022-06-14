@@ -4,6 +4,7 @@
 #
 ###################################
 -- source include/not_group_replication_plugin.inc
+-- source include/set_privilege_checks_user_as_system_user.inc
 -- source include/master-slave.inc
 
 disable_query_log;
@@ -15,7 +16,7 @@ enable_query_log;
 
 
 # Clean up old slave's binlogs.
-# The slave is started with --log-slave-updates
+# The slave is started with --log-replica-updates
 # and this test does SHOW BINLOG EVENTS on the slave's
 # binlog. But previous tests can influence the current test's
 # binlog (e.g. a temporary table in the previous test has not
@@ -337,7 +338,13 @@ connection master;
 create table t1(a int);
 insert into t1 values (1),(2);
 prepare s1 from 'insert into t1 select a from t1 limit ?';
-set @x='1.1';
+--echo First, execute query using a signed integer
+set @x=CAST(1 AS SIGNED);
+--disable_warnings
+execute s1 using @x;
+--enable_warnings
+--echo Next, execute query using an unsigned integer
+set @x=CAST(1 AS UNSIGNED);
 --disable_warnings
 execute s1 using @x;
 --enable_warnings

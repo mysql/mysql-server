@@ -1,0 +1,199 @@
+# ==== Purpose ====
+#
+# Verify that replication connection happens on the configured network
+# namespace, even in case of reconnection.
+#
+# ==== Requirements ====
+#
+# R1. Replica should be able to connect to source through network namespaces.
+# R2. Replica should be able to automatically reconnect to source through
+#     network namespaces.
+#
+# ==== Implementation ====
+#
+# Setup replication connection using network namespaces.
+# Disconnect source, by shutting it down.
+# Verify that replica's automatic reconnection happens on the same network
+# namespace.
+#
+# ==== References ====
+#
+# BUG 31954087 - CHANNEL IN A NETWORK NAMESPACE DOES NOT RECONNECT TO MASTER
+
+# Network namespaces is a feature of Linux.
+# So, ignore this test on any platform except Linux.
+--source include/linux.inc
+# Test involves shutdown and restart of servers, so disable valgrind.
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source ../include/have_network_namespaces.inc
+--source include/not_group_replication_plugin.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo ==== Configure ====
+
+call mtr.add_suppression("Hostname .* does not resolve to");
+call mtr.add_suppression("IP address .* could not be resolved");
+
+--echo # Add a bind address in the 'red' network namespace to master
+--let $rpl_server_number = 1
+--let $rpl_server_parameters = --bind-address=127.0.0.1,10.0.2.1/red
+--source include/rpl_restart_server.inc
+
+--echo # Add a bind address in the 'blue' network namespace to the slave
+--let $rpl_server_parameters = --bind-address=127.0.0.1,10.0.1.1/blue
+--let $rpl_server_number = 2
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("Slave I/O for channel '': Master command COM_REGISTER_SLAVE failed: .*");
+--source include/start_slave.inc
+
+# ==== Procedure verify_namespace_configuration ====
+#
+# Usage:
+# --let $namespace = NAME
+# --source $verify_namespace_configuration
+#
+# This asserts that the configured network namespace for replication
+# is equal to NAME, both according to performance_schema, SHOW REPLICA STATUS,
+# and the replication repository.
+--let $verify_namespace_configuration = $MYSQL_TMP_DIR/verify_namespace_configuration.inc
+--write_file $verify_namespace_configuration END_OF_PROCEDURE
+  --let $assert_text = Performance_schema should show that the network namespace for the replication connection is configured to '$namespace'.
+  --let $assert_cond = "[SELECT network_namespace FROM performance_schema.replication_connection_configuration]" = "$namespace"
+  --source include/assert.inc
+
+  --let $assert_text = The replication repository should show that the network namespace for the replication connection is configured to '$namespace'.
+  --let $assert_cond = "[SELECT Network_namespace FROM mysql.slave_master_info]" = "$namespace"
+  --source include/assert.inc
+
+  --let $assert_text = SHOW REPLICA STATUS should show that the network namespace for the replication connection is configured to '$namespace'.
+  --let $assert_cond = "[SHOW REPLICA STATUS, Network_Namespace, 1]" = "$namespace"
+  --source include/assert.inc
+END_OF_PROCEDURE
+
+--echo ==== Scenario 1: without namespaces ====
+
+--source include/rpl_connection_master.inc
+
+--echo # Create  users.
+CREATE USER root@10.0.2.1;
+GRANT ALL ON *.* TO root@10.0.2.1;
+CREATE USER root@10.0.1.1;
+GRANT ALL ON *.* TO root@10.0.1.1;
+
+--echo [connection slave]
+--source include/sync_slave_sql_with_master.inc
+
+--let $namespace =
+--source $verify_namespace_configuration
+
+--echo ==== Scenario 2: source uses a namespace ====
+
+--echo # Stop slave and run CHANGE MASTER to listen to the source on socket
+--echo # created in the 'red' namespace
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+--let $MASTER_LOG_POS = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--source include/rpl_connection_slave.inc
+--echo # Change master to listen to the source on IP '10.0.2.1' in the 'red' namespace
+--replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $chm = CHANGE MASTER TO MASTER_HOST='10.0.2.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
+if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
+{
+ --let $chm = $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+}
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--let $namespace = red
+--source $verify_namespace_configuration
+
+--echo ==== Scenario 3: reconnection while using a namespace ====
+
+# Simulate network disconnection by shutting down source, and verify
+# we reconnect in the same namespace.
+
+--source include/rpl_connection_master.inc
+--let $MASTER_LOG_POS = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+# Make receiver thread pause after it has connected
+--let $debug_point = dbug.before_get_SOURCE_UUID
+--source include/add_debug_point.inc
+
+--source include/start_slave.inc
+
+--let $rpl_server_number = 1
+--source include/rpl_stop_server.inc
+
+--echo # Unblock receiver thread
+eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
+
+--echo # Check network error happened here
+# '2013' CR_SERVER_LOST
+# '2003' CR_CONN_HOST_ERROR
+# '2002' CR_CONNECTION_ERROR
+# '2006' CR_SERVER_GONE_ERROR
+# '1040' ER_CON_COUNT_ERROR
+# '1053' ER_SERVER_SHUTDOWN
+--let $slave_io_errno = 1040, 1053, 2002, 2003, 2006, 2013
+--let $slave_io_error_is_nonfatal = 1
+--source include/wait_for_slave_io_error.inc
+
+# clean up sync points
+--let $debug_point = dbug.before_get_SOURCE_UUID
+--source include/remove_debug_point.inc
+
+--let $rpl_server_number = 1
+--let $rpl_server_parameters = --bind-address=127.0.0.1,10.0.2.1/red
+--source include/rpl_start_server.inc
+--source include/wait_for_slave_io_to_start.inc
+
+--let $namespace = red
+--source $verify_namespace_configuration
+
+--echo ==== Scenario 4: restore to connection without namespace ====
+
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+--let $MASTER_LOG_POS = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--source include/rpl_connection_slave.inc
+--echo # Change master to original connection
+--replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $chm = CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
+if (`SELECT @@GLOBAL.GTID_MODE = "OFF"`)
+{
+ --let $chm = $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+}
+# Connect via the 'blue' namespace and execute the command.
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--let $namespace =
+--source $verify_namespace_configuration
+
+--echo ==== Cleanup ====
+
+--remove_file $verify_namespace_configuration
+--source include/rpl_connection_master.inc
+DROP USER root@10.0.2.1;
+DROP USER root@10.0.1.1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

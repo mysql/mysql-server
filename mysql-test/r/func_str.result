@@ -29,10 +29,49 @@ locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
 1	0	4
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE');
 instr('hello','HE')	instr('hello',binary 'HE')	instr(binary 'hello','HE')
-1	0	0
+1	1	0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
 position(binary 'll' in 'hello')	position('a' in binary 'hello')
 3	0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+SELECT LOCATE('d', _utf8mb4'abcdef');
+LOCATE('d', _utf8mb4'abcdef')
+4
+SELECT LOCATE(x'44', _utf8mb4'abcdef');
+LOCATE(x'44', _utf8mb4'abcdef')
+4
+SELECT POSITION('d' IN _utf8mb4'abcdef');
+POSITION('d' IN _utf8mb4'abcdef')
+4
+SELECT POSITION(x'44' IN _utf8mb4'abcdef');
+POSITION(x'44' IN _utf8mb4'abcdef')
+4
+SELECT INSTR(_utf8mb4'abcdef', 'd');
+INSTR(_utf8mb4'abcdef', 'd')
+4
+SELECT INSTR(_utf8mb4'abcdef', x'44');
+INSTR(_utf8mb4'abcdef', x'44')
+4
+SELECT LOCATE(x'64', _utf8mb4'abcdef');
+LOCATE(x'64', _utf8mb4'abcdef')
+4
+SELECT POSITION(x'64' IN _utf8mb4'abcdef');
+POSITION(x'64' IN _utf8mb4'abcdef')
+4
+SELECT INSTR(_utf8mb4'abcdef', x'64');
+INSTR(_utf8mb4'abcdef', x'64')
+4
+SELECT LOCATE(x'ff', _utf8mb4'abcdef');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT POSITION(x'ff' IN _utf8mb4'abcdef');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT INSTR(_utf8mb4'abcdef', x'ff');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
 select left('hello',null), right('hello',null);
 left('hello',null)	right('hello',null)
 NULL	NULL
@@ -457,14 +496,18 @@ FIELD('b' COLLATE latin1_bin,'A','B')
 0
 select FIELD('b','A' COLLATE latin1_bin,'B');
 FIELD('b','A' COLLATE latin1_bin,'B')
-0
+2
 select FIELD(_latin2'b','A','B');
-ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
+FIELD(_latin2'b','A','B')
+2
 select FIELD('b',_latin2'A','B');
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
+FIELD('b',_latin2'A','B')
+2
 select FIELD('1',_latin2'3','2',1);
 FIELD('1',_latin2'3','2',1)
 3
+SELECT FIELD(_utf8mb4'abc', x'ff');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
 select POSITION(_latin1'B' IN _latin1'abcd');
 POSITION(_latin1'B' IN _latin1'abcd')
 2
@@ -473,11 +516,13 @@ POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin)
 0
 select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
 POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd')
-0
+2
 select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
-ERROR HY000: Illegal mix of collations (latin1_bin,EXPLICIT) and (latin1_general_ci,EXPLICIT) for operation 'locate'
+POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin)
+0
 select POSITION(_latin1'B' IN _latin2'abcd');
-ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'locate'
+POSITION(_latin1'B' IN _latin2'abcd')
+2
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
 FIND_IN_SET(_latin1'B',_latin1'a,b,c,d')
 2
@@ -488,10 +533,20 @@ ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
 SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2)
 abcdabc
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
+SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2)
+abcdabc
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
+SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2)
+abcdabc
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'substring_index'
+SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2)
+abcdabc
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2 0xa3, 2);
+ERROR HY000: Cannot convert string '\xA3' from latin2 to latin1
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
-ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'substring_index'
+SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2)
+abcdabc
 select _latin1'B' between _latin1'a' and _latin1'c';
 _latin1'B' between _latin1'a' and _latin1'c'
 1
@@ -660,10 +715,10 @@ replace(_latin2'abcd',_latin2'b',_latin2'B')
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `bin(130)` varchar(64) DEFAULT NULL,
-  `oct(130)` varchar(64) DEFAULT NULL,
-  `conv(130,16,10)` varchar(64) DEFAULT NULL,
-  `hex(130)` varchar(6) DEFAULT NULL,
+  `bin(130)` varchar(65) DEFAULT NULL,
+  `oct(130)` varchar(65) DEFAULT NULL,
+  `conv(130,16,10)` varchar(65) DEFAULT NULL,
+  `hex(130)` varchar(16) DEFAULT NULL,
   `char(130)` varbinary(4) DEFAULT NULL,
   `format(130,10)` varchar(37) DEFAULT NULL,
   `left(_latin2'a',1)` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
@@ -848,6 +903,7 @@ explain select binary 'HE';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Note	1003	/* select#1 */ select cast('HE' as char charset binary) AS `binary 'HE'`
 explain select export_set(255,_latin2'y', _latin2'n', _latin2' ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1077,6 +1133,8 @@ Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 str	num
 notnumber	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'notnum'
 DROP TABLE t1,t2;
 CREATE TABLE t1(
 id int(11) NOT NULL auto_increment,
@@ -1170,7 +1228,7 @@ Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
 select hex(-29223372036854775809) as hex_signed,
 hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
 hex_signed	hex_unsigned
-8000000000000000	0
+8000000000000000	8000000000000000
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
 Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
@@ -2136,13 +2194,13 @@ CHAR(0xff,0x8f USING utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
 CHAR(0xff,0x8f USING utf8) IS NULL
 1
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 SET SQL_MODE=@orig_sql_mode;
 select substring('abc', cast(2 as unsigned int));
 substring('abc', cast(2 as unsigned int))
@@ -2242,16 +2300,16 @@ CREATE VIEW v1 AS SELECT CRC32(a) AS C FROM t1;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1;
 CRC32(a)	COUNT(*)
-2212294583	1
-450215437	1
-1842515611	1
-4088798008	1
-2226203566	1
-498629140	1
 1790921346	1
-4194326291	1
+1842515611	1
+2212294583	1
+2226203566	1
 2366072709	1
 2707236321	1
+4088798008	1
+4194326291	1
+450215437	1
+498629140	1
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1 ORDER BY 1;
 CRC32(a)	COUNT(*)
 450215437	1
@@ -2266,44 +2324,44 @@ CRC32(a)	COUNT(*)
 4194326291	1
 SELECT * FROM (SELECT CRC32(a) FROM t1) t2;
 CRC32(a)
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
 1790921346
-4194326291
+1842515611
+2212294583
+2226203566
 2366072709
 2707236321
+4088798008
+4194326291
+450215437
+498629140
 CREATE TABLE t2 SELECT CRC32(a) FROM t1;
 desc t2;
 Field	Type	Null	Key	Default	Extra
-CRC32(a)	int(10) unsigned	YES		NULL	
+CRC32(a)	int unsigned	YES		NULL	
 SELECT * FROM v1;
 C
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
 1790921346
-4194326291
+1842515611
+2212294583
+2226203566
 2366072709
 2707236321
+4088798008
+4194326291
+450215437
+498629140
 SELECT * FROM (SELECT * FROM v1) x;
 C
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
 1790921346
-4194326291
+1842515611
+2212294583
+2226203566
 2366072709
 2707236321
+4088798008
+4194326291
+450215437
+498629140
 DROP TABLE t1, t2;
 DROP VIEW v1;
 SELECT LOCATE('foo', NULL) FROM DUAL;
@@ -2412,7 +2470,7 @@ create table t1(a float);
 insert into t1 values (1.33);
 select format(a, 2) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					format(a, 2)	253	49	4	Y	0	31	8
+def					format(a, 2)	253	48	4	Y	0	31	8
 format(a, 2)
 1.33
 drop table t1;
@@ -4330,7 +4388,7 @@ latin1_swedish_ci
 SET NAMES latin2;
 EXECUTE stmt;
 COLLATION(space(2))
-latin2_general_ci
+latin1_swedish_ci
 #
 # Bug#11829861: SUBSTRING_INDEX() RESULTS IN MISSING CHARACTERS WHEN USED
 # INSIDE LOWER()
@@ -4378,29 +4436,29 @@ create table t2(a int);
 insert into t2 values(0),(0),(1),(0),(10),(-2),(30),(NULL);
 select t1.a as str, length(t1.a) as str_length, t2.a as pos, t2.a + 10 as length, insert(t1.a, t2.a, t2.a + 10, '1234567') as 'insert' from t1, t2;
 str	str_length	pos	length	insert
-	0	0	10	
- 	1	0	10	 
-xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
-	0	0	10	
- 	1	0	10	 
-xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
-	0	1	11	
- 	1	1	11	1234567
-xxxxxxxxxxxxxxx	15	1	11	1234567xxxx
-	0	0	10	
- 	1	0	10	 
-xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
-	0	10	20	
- 	1	10	20	 
-xxxxxxxxxxxxxxx	15	10	20	xxxxxxxxx1234567
 	0	-2	8	
- 	1	-2	8	 
-xxxxxxxxxxxxxxx	15	-2	8	xxxxxxxxxxxxxxx
+	0	0	10	
+	0	0	10	
+	0	0	10	
+	0	1	11	
+	0	10	20	
 	0	30	40	
- 	1	30	40	 
-xxxxxxxxxxxxxxx	15	30	40	xxxxxxxxxxxxxxx
 	0	NULL	NULL	NULL
+ 	1	-2	8	 
+ 	1	0	10	 
+ 	1	0	10	 
+ 	1	0	10	 
+ 	1	1	11	1234567
+ 	1	10	20	 
+ 	1	30	40	 
  	1	NULL	NULL	NULL
+xxxxxxxxxxxxxxx	15	-2	8	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	1	11	1234567xxxx
+xxxxxxxxxxxxxxx	15	10	20	xxxxxxxxx1234567
+xxxxxxxxxxxxxxx	15	30	40	xxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxx	15	NULL	NULL	NULL
 drop table t1,t2;
 #
@@ -4464,6 +4522,9 @@ INSERT INTO t1 VALUES ();
 SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY 1;
 d5
 NULL
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1292	Incorrect time value: 'a' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
@@ -4593,9 +4654,13 @@ hex(cast(0x20000000000000 as decimal(30,0)) + 2)
 SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
 xxx
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT REPLACE( 'a', binary '', NULL ) as xxx;
 xxx
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT REPLACE( 'a', 'b', NULL ) as xxx;
 xxx
 NULL
@@ -4614,6 +4679,8 @@ NULL
 SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
 xxx
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 #
 # Bug#22565155 DATA ROWS LOST AFTER ADDING DISTINCT WITH
 # SUBSTR() IN SELECT LIST
@@ -4755,7 +4822,6 @@ from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
 rand(to_days('2028-12-04 15:50:01.284969'))));
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'5d44f4d736397d92c8267c12''
-Warning	1264	Out of range value for column '(null)' at row 1
 do from_base64(cast(right(11,1)as binary(24)));
 do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
 Warnings:
@@ -4843,7 +4909,6 @@ t1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dd_table	NULL	index	NULL	name	195	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select `test`.`dd_table`.`name` AS `table_name` from `test`.`dd_table` where ((`test`.`dd_table`.`name` collate utf8_tolower_ci) = <cache>(id@0))
 DROP PROCEDURE sub1;
 DROP VIEW view1;
@@ -4953,7 +5018,7 @@ CREATE TABLE t2 AS SELECT quote('a');
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `quote('a')` varchar(4) CHARACTER SET utf8 DEFAULT NULL
+  `quote('a')` varchar(4) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8mb4;
 CREATE TABLE t3 AS SELECT quote('a');
@@ -5100,5 +5165,512 @@ Warning	1292	Truncated incorrect INTEGER value: '{ }'
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
 Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+Warning	1292	Truncated incorrect DOUBLE value: 'm[]'
 set sql_mode=default;
+#
+# Bug #30114420 ASSERTION `CURRENT_THD->IS_ERROR()'
+#               FAILED|SQL/ITEM_STRFUNC.CC
+#
+CREATE TABLE t1(c1 VARCHAR(10));
+INSERT INTO t1 VALUES ('Alaska');
+SELECT HEX(LPAD('', 42, REPLACE(COMPRESS(42),c1,''))) FROM t1;
+ERROR HY000: Cannot convert string '\x02\x00\x00\x00x\x9C...' from binary to utf8mb4
+SELECT HEX(LPAD('', 42, SUBSTRING_INDEX(COMPRESS(42),c1,1))) FROM t1;
+ERROR HY000: Cannot convert string '\x02\x00\x00\x00x\x9C...' from binary to utf8mb4
+SELECT LPAD('', 42, REPLACE(AES_ENCRYPT(c1, 'key'),c1,'')) FROM t1;
+ERROR HY000: Cannot convert string 'F[\xC6F>B...' from binary to utf8mb4
+SELECT LPAD('', 42, REPLACE(MD5(c1),c1,'')) FROM t1;
+LPAD('', 42, REPLACE(MD5(c1),c1,''))
+e15997c74a71c5d9263df6f7a21bc191e15997c74a
+SELECT HEX(LPAD('', 42, TRIM(BOTH c1 FROM x'ff'))) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT HEX(LPAD('', 42, REPLACE(x'ffff',c1,''))) FROM t1;
+ERROR HY000: Cannot convert string '\xFF\xFF' from binary to utf8mb4
+SELECT HEX(LPAD('', 42, TRIM(x'ffff' FROM c1))) FROM t1;
+ERROR HY000: Cannot convert string '\xFF\xFF' from binary to utf8mb4
+SELECT LPAD('', 42, REPLACE(c1, 'las', x'ff')) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT LPAD('', 42, REPLACE(c1, x'ff', 'las')) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT HEX(SUBSTRING_INDEX(_utf8mb4 x'41F09F8DA3F09F8DA3' , x'f0', 2)) FROM t1;
+ERROR HY000: Cannot convert string '\xF0' from binary to utf8mb4
+DROP TABLE t1;
+SELECT TRIM(BOTH x'f0' FROM _utf8mb4 x'F09F8DA3F09F8DA3');
+ERROR HY000: Cannot convert string '\xF0' from binary to utf8mb4
+SELECT TRIM(BOTH x'F09F8DA3' FROM _utf8mb4 x'F09F8DA3F09F8DA3');
+TRIM(BOTH x'F09F8DA3' FROM _utf8mb4 x'F09F8DA3F09F8DA3')
+
+SELECT TRIM(_latin2 x'a3' from _latin1 "hello");
+ERROR HY000: Cannot convert string '\xA3' from latin2 to latin1
+SELECT REPLACE(_latin1 "hello", _latin2 x'a3', "hei");
+ERROR HY000: Cannot convert string '\xA3' from latin2 to latin1
+SELECT REPLACE(_latin1 "hello", "hei", _latin2 x'a3');
+ERROR HY000: Cannot convert string '\xA3' from latin2 to latin1
+SELECT SUBSTRING_INDEX(_latin1 "hello", _latin2 x'a3', 42);
+ERROR HY000: Cannot convert string '\xA3' from latin2 to latin1
+SELECT TRIM(leading _utf8mb4 x'F09F8DA3' from _gb18030 x'9439B9376181308B33');
+TRIM(leading _utf8mb4 x'F09F8DA3' from _gb18030 x'9439B9376181308B33')
+aø
+SELECT SUBSTRING_INDEX(_utf8mb4 x'C3A6C3B8F09F8DA361C3A6C3B8F09F8DA362',
+_gb18030 x'81308B339439B937', 2);
+SUBSTRING_INDEX(_utf8mb4 x'C3A6C3B8F09F8DA361C3A6C3B8F09F8DA362',
+_gb18030 x'81308B339439B937', 2)
+æø🍣aæ
+SELECT REPLACE('æøåæøå',_utf16 x'00e5', _gb18030 x'9439B937');
+REPLACE('æøåæøå',_utf16 x'00e5', _gb18030 x'9439B937')
+æø🍣æø🍣
+SELECT REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061');
+REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061')
+æøaæøa
+# Bug#31358389: Crash in Item::add_accum_properties()
+DO INSERT(1, 1, 1, CAST(1 AS DECIMAL(1,3)));
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
+#
+# Bug #31798093 RECENT REGRESSION:
+#               ARG_COMPARATOR::COMPARE JUMPING TO INVALID CODE IN MEMORY
+DO CONVERT( NULLIF( @a , 'c' ) USING BINARY);
+#
+# Bug #31887870
+# QUERY WITH RPAD FUNCTION USING CHINESE STRING LEADS TO MESSY CODE
+#
+CREATE TABLE t1 (
+id INT NOT NULL,
+c1 VARCHAR(10)
+);
+INSERT INTO t1 VALUES (111,'111');
+SELECT
+RPAD(id, 11, _utf8mb4 x'E4B8ADE69687') as rpad_id,
+LPAD(id, 11, _utf8mb4 x'E4B8ADE69687') as lpad_id,
+RPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as rpad_c1,
+LPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as lpad_c1
+FROM t1;
+rpad_id	lpad_id	rpad_c1	lpad_c1
+111中文中文中文中文	中文中文中文中文111	111中文中文中文中文	中文中文中文中文111
+DROP TABLE t1;
+#
+# Bug #22523946 GET MESS CODE FOR FUNC INSERT()
+#               WITH STR AS INT CONST AND NEWSTR AS MULTI-BYTE
+#
+SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
+INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687')
+中文
+#
+# Bug #21943299 FAILED CAST OF STRING-RETURNING FUNCTION TO DOUBLE
+#               EMITS NO WARNING
+SELECT 'a' + 0;
+'a' + 0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT CAST('a' as DOUBLE);
+CAST('a' as DOUBLE)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT CAST(CONCAT('a') as DOUBLE);
+CAST(CONCAT('a') as DOUBLE)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+# Bug #22538859 "CONCAT( '2005' , '-01-01') - 100"
+#               DOESN'T THROW ANY WARNING
+#
+SELECT '2005-01-01' - 100;
+'2005-01-01' - 100
+1905
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'
+SELECT CONCAT('2005' , '-01-01') - 100;
+CONCAT('2005' , '-01-01') - 100
+1905
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'
+# Bug#32096341: ISNULL continuously returns the same value for LOAD_FILE
+CREATE TABLE t1(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES(0);
+CALL p1();
+is null
+1
+CALL p1();
+is null
+0
+DROP PROCEDURE p1;
+DROP TABLE t1;
+#
+# Bug #32163391 ASSERTION `CRC32_Z(CRC, POS, LENGTH)
+#               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
+do crc32(char(1.134475e+308));
+#
+# Bug#32192454: WL14340: RPDSERVER SIG11 AT
+# RPDMPR_BVFLT_RPDMPR_DTYPE_SB8_RPDOQC_OPT_TYPE_GT_TRUE
+#
+CREATE TABLE t(x LONGTEXT);
+SELECT UNHEX(x) FROM t;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					UNHEX(x)	251	2147483648	0	Y	128	31	63
+UNHEX(x)
+DROP TABLE t;
+Bug#32501472: Concatenation may create invalid UTF8 strings
+CREATE TABLE t1(a CHAR(1) CHARACTER SET utf8mb4);
+INSERT INTO t1 VALUES('a');
+SELECT CONCAT(a, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT CONCAT_WS(',', a, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT CONCAT_WS(x'ff', a, a) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT INSERT(a, 1, 1, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+DROP TABLE t1;
+CREATE TABLE t1(a VARCHAR(3), b VARCHAR(3));
+INSERT INTO t1 VALUES('on','off');
+SELECT EXPORT_SET(7, a, b, x'ff', 4) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT EXPORT_SET(7, a, x'ff', b, 4) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT MAKE_SET(7, a, b, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+DROP TABLE t1;
+Bug#30746908: Assertion `(tlen % 4) == 0' in my_strnncollsp_utf32
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1),(2);
+SELECT (SELECT 1
+FROM t
+WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+);
+(SELECT 1
+FROM t
+WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+)
+NULL
+SELECT (SELECT 1
+FROM t
+WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
+);
+ERROR HY000: Cannot convert string '\xA3' from binary to gb18030
+DROP TABLE t;
+# Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+SELECT INSERT('a', 1, 1, YEAR(UNHEX('w')));
+INSERT('a', 1, 1, YEAR(UNHEX('w')))
+NULL
+Warnings:
+Warning	1411	Incorrect string value: ''w'' for function unhex
+# Bug#32746552: my_strnncollsp_utf32: assertion `(slen % 4) == 0' failed
+DO USER() in
+(COERCIBILITY(@c),
+CONVERT(LAST_VALUE(FROM_UNIXTIME(1536999169)) OVER() USING utf32));
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'root@localhost'
+#
+# Bug #32746536 MULTIPLE FUNCTIONS: ASSERTION `IS_NULLABLE()' FAILED.
+#
+DO ST_ISVALID(INSTR(9223372036854775806 ,0x46bc299f));
+ERROR HY000: Cannot convert string 'F\xBC)\x9F' from binary to utf8mb4
+DO ST_SRID(LOCATE(0x58ed0b8e,8,135));
+ERROR HY000: Cannot convert string 'X\xED\x0B\x8E' from binary to utf8mb4
+#
+# Bug #32864958 ITEM_STR_FUNC::PUSH_PACKET_OVERFLOW_WARNING:
+#               ASSERTION `IS_NULLABLE()' FAILED.
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+DO NOT CAST(UTC_TIME AS CHAR(2877246026) CHARACTER SET ujis);
+ERROR 22003: char(n) value is out of range in 'cast_as_char'
+DO REPEAT(LAST_INSERT_ID(''), 4294967295);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+DO REPEAT(LAST_INSERT_ID(''), 0x96e4ed7e70a7fec7f11572c8980a);
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
+Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
+Warning	1292	Truncated incorrect INTEGER value: ''
+# Bug#33142010: Failure on complex const argument to string functions
+CREATE VIEW v AS SELECT LPAD('x', 1 NOT IN (0), 1) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select lpad('x',(1 <> 0),1) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT RPAD('x', 1 NOT IN (0), 1) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select rpad('x',(1 <> 0),1) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT SHA2('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select sha2('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
+DROP VIEW v;
+CREATE VIEW v AS SELECT SUBSTR('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select substr('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT SUBSTR('x', 1, 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select substr('x',1,(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT REPEAT('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select repeat('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT SPACE(1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select space((1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+ 
+DROP VIEW v;
+CREATE VIEW v AS SELECT LEFT('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select left('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT RIGHT('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select right('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE TABLE t(s SET('0', '1'));
+CREATE VIEW v AS SELECT FIND_IN_SET(1 NOT IN (0), s) AS c FROM t;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select find_in_set((1 <> 0),`t`.`s`) AS `c` from `t`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+DROP VIEW v;
+DROP TABLE t;
+CREATE VIEW v AS SELECT STR_TO_DATE('2020', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select str_to_date('2020',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2020' for function str_to_date
+DROP VIEW v;
+#
+# Bug #33180446 SPACE(): Item_str_func::push_packet_overflow_warning:
+#               Assertion `is_nullable()' failed.
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT space(9223372036854775808);
+space(9223372036854775808)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+SELECT length(space(9223372036854775809));
+length(space(9223372036854775809))
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+CREATE TABLE t(i BIGINT UNSIGNED);
+INSERT INTO t values(9223372036854775808);
+SELECT space(i) FROM t;
+space(i)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+DROP TABLE t;
+SET @@collation_connection = 'utf32_bin';
+SELECT space(1073741824);
+space(1073741824)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+SET @@collation_connection = default;
+#
+# Bug#31374305 - FORMAT() NOT DISPLAYING WHOLE NUMBER SIDE CORRECTLY
+#                FOR ES_MX AND ES_ES LOCALES
+#
+CREATE PROCEDURE load_locale_format_table()
+BEGIN
+DECLARE locale_list VARCHAR(1000) DEFAULT '
+  es_AR,es_BO,es_CL,es_CO,es_CR,es_DO,es_EC,es_ES,es_GT,es_HN,
+  es_MX,es_NI,es_PA,es_PE,es_PR,es_PY,es_SV,es_US,es_UY,es_VE';
+SET @fmt_stmt = 'INSERT INTO locale_format VALUES
+                   (?, FORMAT(12131254123412541,2,?));';
+PREPARE stmt FROM @fmt_stmt;
+WHILE locale_list != '' DO
+/* get the first locale from the list */
+SET @locale =
+TRIM(REPLACE((SUBSTRING_INDEX(locale_list, ',', 1)), '\n',''));
+EXECUTE stmt USING @locale, @locale;
+/* remove the first locale from the list */
+IF LOCATE(',', locale_list) > 0 THEN
+SET locale_list =
+SUBSTRING(locale_list, LOCATE(',', locale_list) + 1);
+ELSE
+SET locale_list = '';
+END IF;
+END WHILE;
+DEALLOCATE PREPARE stmt;
+END|
+CREATE TABLE locale_format(locale VARCHAR(10), formatted_string VARCHAR(100));
+CALL load_locale_format_table();
+SELECT * FROM locale_format;
+locale	formatted_string
+es_AR	12.131.254.123.412.541,00
+es_BO	12.131.254.123.412.541,00
+es_CL	12.131.254.123.412.541,00
+es_CO	12.131.254.123.412.541,00
+es_CR	12 131 254 123 412 541,00
+es_DO	12,131,254,123,412,541.00
+es_EC	12.131.254.123.412.541,00
+es_ES	12.131.254.123.412.541,00
+es_GT	12,131,254,123,412,541.00
+es_HN	12,131,254,123,412,541.00
+es_MX	12,131,254,123,412,541.00
+es_NI	12,131,254,123,412,541.00
+es_PA	12,131,254,123,412,541.00
+es_PE	12,131,254,123,412,541.00
+es_PR	12,131,254,123,412,541.00
+es_PY	12.131.254.123.412.541,00
+es_SV	12,131,254,123,412,541.00
+es_US	12,131,254,123,412,541.00
+es_UY	12.131.254.123.412.541,00
+es_VE	12.131.254.123.412.541,00
+DROP PROCEDURE load_locale_format_table;
+DROP TABLE locale_format;
+# Bug#33661337: more gcols corruption
+SET sql_mode = '';
+CREATE TABLE t (
+a INT,
+b BLOB,
+c INT GENERATED ALWAYS AS (1) VIRTUAL,
+d INT,
+e INT GENERATED ALWAYS AS (LPAD('111', b, '1')) VIRTUAL,
+UNIQUE KEY (e),
+KEY(b(1),a,e),
+KEY(e,b(1))
+);
+INSERT INTO t(b) VALUES('32');
+Warnings:
+Warning	1264	Out of range value for column 'e' at row 1
+INSERT INTO t(d, b) VALUES(2, '222222') ON DUPLICATE KEY UPDATE a=644, b=3;
+Warnings:
+Warning	1264	Out of range value for column 'e' at row 1
+Warning	1264	Out of range value for column 'e' at row 1
+Warning	1264	Out of range value for column 'e' at row 1
+INSERT IGNORE INTO t(a,b,d) VALUES (1, '1536999167', 1);
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DELETE FROM t;
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+SET sql_mode = DEFAULT;
+CREATE TABLE t1(c VARCHAR(10));
+INSERT INTO t1 VALUES(NULL), ('pad');
+SELECT RPAD(c, 4, 'x') FROM t1;
+RPAD(c, 4, 'x')
+NULL
+padx
+SELECT RPAD(c, 3, 'x') FROM t1;
+RPAD(c, 3, 'x')
+NULL
+pad
+SELECT LPAD(c, 4, 'x') FROM t1;
+LPAD(c, 4, 'x')
+NULL
+xpad
+SELECT LPAD(c, 3, 'x') FROM t1;
+LPAD(c, 3, 'x')
+NULL
+pad
+DROP TABLE t1;
+#
+# Bug #33830073 Assertion 'num_codepoints >= scanner.get_char_index()'
+#               strings/ctype-uca.cc
+#
+CREATE TABLE t1 (
+col_varchar_key VARCHAR(1),
+pk INT,
+col_datetime_key DATETIME
+);
+INSERT INTO t1 VALUES
+('A',NULL,'2007-02-13 18:06:37'),
+('A',620107048,'1970-03-31 03:32:33'),
+('o',1818429552,'2012-10-20 12:37:31'),
+('1',-400273832,'1983-12-21 12:07:34'),
+('0',-1712505984,'2012-06-18 11:56:20'),
+('A',374506608,'2033-03-09 05:26:16'),
+('O',-1889503289,NULL),
+('w',1560969033,'1972-09-08 05:19:31'),
+(NULL,1521527768,'2010-02-04 14:20:22');
+SELECT
+CONCAT_WS(
+REPEAT(CONCAT(col_varchar_key COLLATE utf8mb4_roman_ci), -1330441018),
+CONCAT_WS('',
+CONCAT(HEX(STRCMP('9', col_varchar_key))),
+(col_datetime_key - INTERVAL -1941528800 DAY_MINUTE))
+)
+AS field1
+FROM t1
+GROUP BY field1 WITH ROLLUP
+;
+field1
+NULL
+15675-06-12 09:27:34
+15703-12-10 09:16:20
+FFFFFFFFFFFFFFFF
+FFFFFFFFFFFFFFFF5661-09-20 00:52:33
+FFFFFFFFFFFFFFFF5664-02-29 02:39:31
+FFFFFFFFFFFFFFFF5698-08-05 15:26:37
+FFFFFFFFFFFFFFFF5704-04-12 09:57:31
+FFFFFFFFFFFFFFFF5724-08-30 02:46:16
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT HEX(-1) AS f;
+DROP TABLE t1;
+#
+# Bug #33881339 Default collation causes inconsistent results
+#
+CREATE TABLE t0(c0 DECIMAL);
+INSERT INTO t0 VALUES(NULL);
+UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('');
+ERROR 22007: Truncated incorrect INTEGER value: ''
+DROP TABLE t0;
+CREATE TABLE t0(c0 DECIMAL);
+INSERT INTO t0 VALUES(NULL);
+UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('' COLLATE 'utf8mb4_0900_ai_ci');
+ERROR 22007: Truncated incorrect INTEGER value: ''
+DROP TABLE t0;

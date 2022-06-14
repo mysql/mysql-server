@@ -20,19 +20,39 @@ ndb-cluster-connection-pool=1
 ndb-log-bin=1
 binlog-format=row
 
+[cluster_config.mysqld.1.1]
+NodeId=49
+Dedicated=1
+
+[cluster_config.mysqld.2.1]
+NodeId=16
+Dedicated=1
+
+[cluster_config.mysqld.3.1]
+NodeId=32
+Dedicated=1
+
+[cluster_config.mysqld.4.1]
+NodeId=48
+Dedicated=1
+
 [mysqld.1.1]
+ndb-nodeid=49
 ndb-log-update-as-write=1
 ndb-log-updated-only=1
 
 [mysqld.2.1]
+ndb-nodeid=16
 ndb-log-update-as-write=1
 ndb-log-updated-only=0
 
 [mysqld.3.1]
+ndb-nodeid=32
 ndb-log-update-as-write=0
 ndb-log-updated-only=1
 
 [mysqld.4.1]
+ndb-nodeid=48
 ndb-log-update-as-write=0
 ndb-log-updated-only=0
 

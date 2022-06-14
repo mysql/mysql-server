@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Index_element : virtual public Weak_object {
   enum enum_index_element_order { ORDER_UNDEF = 1, ORDER_ASC, ORDER_DESC };
 
  public:
-  virtual ~Index_element() {}
+  ~Index_element() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // index.
@@ -81,6 +81,7 @@ class Index_element : virtual public Weak_object {
   virtual uint length() const = 0;
   virtual void set_length(uint length) = 0;
   virtual void set_length_null(bool is_null) = 0;
+  virtual bool is_length_null() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // order.

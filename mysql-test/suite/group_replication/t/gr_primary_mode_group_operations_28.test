@@ -103,10 +103,8 @@ LOCK TABLE t1 READ;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: waiting for members to enable super_read_only%"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Switch%";`
---let $assert_text= stage/group_rpl/Primary Switch: executing Primary election
---let $assert_cond= "$stage_name" = "stage/group_rpl/Primary Switch: executing Primary election"
---source include/assert.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Switch: executing Primary election"
+--source include/wait_condition.inc
 
 --let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Election%";`
 --let $assert_text= stage/group_rpl/Primary Election: waiting for members to enable super_read_only
@@ -172,10 +170,24 @@ UNLOCK TABLES;
 --let $group_replication_expected_uuid=$server1_uuid
 --source include/gr_wait_primary_member_uuid.inc
 
+# A member is first reported as primary and only then super_read_only
+# and read_only are unset, so we need to also wait until the primary
+# is writable.
+--let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+--source include/wait_condition_or_abort.inc
+
 --echo
 --echo # 13. Clean up
 
 DROP TABLE t1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The appointed primary for election left the group, this operation will be aborted.*");

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -201,7 +201,8 @@ create_mycnf(const char* first, ...)
   my_defaults_file = mycnf_file.c_str();
 
   InitConfigFileParser parser;
-  Config* conf = parser.parse_mycnf();
+  const char* const cluster_config_suffix = nullptr;
+  Config* conf = parser.parse_mycnf(cluster_config_suffix);
 
   // Restore the global variable
   my_defaults_file = save_defaults_file;
@@ -365,6 +366,44 @@ checksum_config(void)
   delete c2;
 }
 
+
+static void
+test_config_v1_with_dyn_ports(void)
+{
+  Config* c1=
+    create_config("[ndbd]", "[ndbd]",
+                  "[ndb_mgmd]", "HostName=localhost",
+                  "[mysqld]", NULL);
+  CHECK(c1);
+
+  ndbout_c("== check config v1 ==");
+
+  // Set all dynamic ports
+  ConfigIter iter(c1, CFG_SECTION_CONNECTION);
+  for(;iter.valid();iter.next()) {
+    Uint32 port = 0;
+    if (iter.get(CFG_CONNECTION_SERVER_PORT, &port) != 0 ||
+        port != 0)
+      continue; // Not configured as dynamic port
+    ConfigValues::Iterator i2(c1->m_configuration->m_config_values,
+                              iter.m_config);
+    const Uint32 dummy_port = 37;
+    CHECK(i2.set(CFG_CONNECTION_SERVER_PORT, dummy_port));
+  }
+
+  // c1->print();
+
+  UtilBuffer buf;
+  c1->pack(buf, false /* v2 */);
+
+  ConfigValuesFactory cvf;
+  CHECK(cvf.unpack_v1_buf(buf));
+
+  delete c1;
+
+  ndbout_c("==================");
+}
+
 static void
 test_param_values(void)
 {
@@ -439,6 +478,7 @@ test_param_values(void)
 static void
 test_hostname_mycnf(void)
 {
+  ndbout_c("test_hostname_mycnf");
   // Check the special rule for my.cnf that says
   // the two hostname specs must match
   {
@@ -471,65 +511,9 @@ test_hostname_mycnf(void)
   }
 }
 
-static void
-test_config_values_index_iter(void)
-{
-
-  /*
-    Create a small config and iterate over the ConfigValues
-    by index, printing each value found.
-   */
-  const Config* c =
-    create_config("[ndbd]", "NoOfReplicas=1",
-                  "[ndb_mgmd]", "HostName=localhost",
-                  "[mysqld]", NULL);
-  CHECK(c);
-
-  class ConfigValues& values = c->values()->m_config;
-
-  Uint32 i = 0;
-  while(true)
-  {
-    ConfigValues::Entry entry;
-    i = values.getNextEntryByIndex(i, &entry);
-    if (i == 0)
-    {
-      // No more values, break loop
-      break;
-    }
-
-    switch (entry.m_type)
-    {
-    case ConfigValues::InvalidType:
-      fprintf(stderr, "INTERNAL ERROR, found entry with InvalidType\n");
-      abort();
-    break;
-
-    case ConfigValues::IntType:
-      fprintf(stderr, "[%u]: %u\n", entry.m_key, entry.m_int);
-      break;
-
-    case ConfigValues::Int64Type:
-      fprintf(stderr, "[%u]: %llu\n", entry.m_key, entry.m_int64);
-      break;
-
-    case ConfigValues::StringType:
-      fprintf(stderr, "[%u]: %s\n", entry.m_key, entry.m_string);
-      break;
-
-    case ConfigValues::SectionType:
-      fprintf(stderr, "[%u]: section\n", entry.m_key);
-      break;
-    }
-  };
-
-  delete c;
-}
-
 #include <NdbTap.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger* g_eventLogger;
 
 TAPTEST(MgmConfig)
 {
@@ -540,11 +524,10 @@ TAPTEST(MgmConfig)
   checksum_config();
   test_param_values();
   test_hostname_mycnf();
-  test_config_values_index_iter();
   if (false)
     print_restart_info();
+  test_config_v1_with_dyn_ports();
   ndb_end(0);
   return 1; // OK
 }
-
 #endif

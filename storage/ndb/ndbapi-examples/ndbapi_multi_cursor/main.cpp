@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Sun Microsystems Inc.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,7 @@
 /**************************************************************
  *
  * NOTE THAT THIS TOOL CAN ONLY BE RUN AGAINST THE EMPLOYEES DATABASE 
- * TABLES WHICH IS A SEPERATE DOWNLOAD AVAILABLE AT WWW.MYSQL.COM.
+ * TABLES WHICH IS A SEPARATE DOWNLOAD AVAILABLE AT WWW.MYSQL.COM.
  **************************************************************/
 
 

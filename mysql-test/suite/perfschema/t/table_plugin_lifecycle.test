@@ -55,15 +55,15 @@ show create table performance_schema.pfs_example_employee_name;
 --error ER_NO_SUCH_TABLE
 select * from performance_schema.pfs_example_employee_name;
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_NO_SUCH_TABLE
 insert into performance_schema.pfs_example_employee_name
   values (1, "First", "Last");
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_NO_SUCH_TABLE
 update performance_schema.pfs_example_employee_name
   set employee_number = 2 where employee_number = 1;
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_NO_SUCH_TABLE
 delete from performance_schema.pfs_example_employee_name;
 
 --echo ##########################################

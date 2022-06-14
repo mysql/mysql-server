@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #ifndef NDB_IMPORT_UTIL_HPP
 #define NDB_IMPORT_UTIL_HPP
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <stdint.h>
 #include <ndb_limits.h>
 #include <mgmapi.h>
@@ -126,6 +128,7 @@ public:
   struct Lockable {
     Lockable();
     ~Lockable();
+    Lockable(const Lockable&) = default;
     void lock();
     void unlock();
     void wait(uint timeout);
@@ -164,6 +167,7 @@ public:
   struct ListEnt {
     ListEnt();
     virtual ~ListEnt();
+    ListEnt(const ListEnt&) = default;
     ListEnt* m_next;
     ListEnt* m_prev;
   };
@@ -171,6 +175,7 @@ public:
   struct List {
     List();
     virtual ~List();
+    List(const List&) = default;
     void set_stats(Stats& stats, const char* name);
     void push_back(ListEnt* ent);
     void push_front(ListEnt* ent);
@@ -178,6 +183,7 @@ public:
     void push_before(ListEnt* ent1, ListEnt* ent2);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
+    ListEnt* pop_back();
     void push_back_from(List& src);
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
     void validate() const;
@@ -206,6 +212,7 @@ public:
     const uchar* get_value(const Row* row) const;
     void get_value(const Row* row, uint32& value) const;
     void get_value(const Row* row, uint64& value) const;
+    bool ai_value_not_provided(const Row* row) const;
     void get_value(const Row* row, char* buf, uint bufsz) const;
     bool get_null(const Row* row) const;
     uint get_blob_parts(uint len) const;
@@ -254,6 +261,7 @@ public:
     const NdbRecord* m_keyrec;
     uint m_recsize;     // size of main record
     bool m_has_hidden_pk;
+    uint m_autoIncAttrId;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
     // map fragid to nodeid
@@ -297,7 +305,7 @@ public:
 
   struct Row : ListEnt {
     Row();
-    virtual ~Row();
+    ~Row() override;
     void init(const Table& table);
     uint m_tabid;
     uint m_recsize;     // fixed
@@ -313,7 +321,7 @@ public:
 
   struct RowList : private List, Lockable {
     RowList();
-    virtual ~RowList();
+    ~RowList() override;
     void set_stats(Stats& stats, const char* name);
     bool push_back(Row* row);
     void push_back_force(Row* row);
@@ -366,6 +374,7 @@ public:
 
   Row* alloc_row(const Table& Table, bool dolock = true);
   void alloc_rows(const Table& table, uint cnt, RowList& dst);
+  void free_blobs_from_row(Row *row);
   void free_row(Row* row);
   void free_rows(RowList& src);
 
@@ -375,7 +384,7 @@ public:
 
   struct Blob : ListEnt {
     Blob();
-    virtual ~Blob();
+    ~Blob() override;
     void resize(uint size);
     uint m_blobsize;
     uint m_allocsize;
@@ -384,7 +393,7 @@ public:
 
   struct BlobList : private List, Lockable {
     BlobList();
-    virtual ~BlobList();
+    ~BlobList() override;
     void push_back(Blob* blob) {
       List::push_back(blob);
     }
@@ -416,8 +425,9 @@ public:
 
   struct Range : ListEnt {
     Range();
-    virtual ~Range();
+    ~Range() override;
     void copy(const Range& range2);
+    Range(const Range&) = default;
     bool equal(const Range& range2) const {
       return
         m_start == range2.m_start &&
@@ -909,6 +919,7 @@ public:
 
   // convert milliseconds to hours,minutes,seconds string
   static void fmt_msec_to_hhmmss(char* str, uint64 msec);
+  int int_val_ok(NdbDictionary::Column::Type type, Uint64 val, Error& error);
 };
 
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil& util);

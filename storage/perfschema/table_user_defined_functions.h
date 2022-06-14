@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,10 +68,10 @@ struct row_user_defined_functions {
 
 class PFS_index_user_defined_functions : public PFS_engine_index {
  public:
-  PFS_index_user_defined_functions(PFS_engine_key *key_1)
+  explicit PFS_index_user_defined_functions(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
-  ~PFS_index_user_defined_functions() {}
+  ~PFS_index_user_defined_functions() override = default;
 
   virtual bool match(const row_user_defined_functions *row) = 0;
 };
@@ -82,9 +82,9 @@ class PFS_index_user_defined_functions_by_name
   PFS_index_user_defined_functions_by_name()
       : PFS_index_user_defined_functions(&m_key), m_key("UDF_NAME") {}
 
-  ~PFS_index_user_defined_functions_by_name() {}
+  ~PFS_index_user_defined_functions_by_name() override = default;
 
-  bool match(const row_user_defined_functions *row);
+  bool match(const row_user_defined_functions *row) override;
 
  private:
   PFS_key_name m_key;
@@ -98,21 +98,21 @@ class table_user_defined_functions : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
   table_user_defined_functions();
 
  public:
-  ~table_user_defined_functions() {}
+  ~table_user_defined_functions() override = default;
 
  private:
   void materialize(THD *thd);

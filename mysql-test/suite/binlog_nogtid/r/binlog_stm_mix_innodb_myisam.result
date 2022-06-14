@@ -312,13 +312,13 @@ CREATE TABLE t1 (a int, b int) engine=myisam;
 reset master;
 INSERT INTO t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 DROP TABLE if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 INSERT INTO t1 values (3,3);
 CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -335,7 +335,7 @@ a	b
 TRUNCATE table t2;
 INSERT INTO t1 VALUES (5,5);
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * FROM t2;
 a	b
 DROP TABLE t2;
@@ -365,7 +365,7 @@ a	b
 TRUNCATE table t2;
 INSERT INTO t1 values (10,10);
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t1;
 a	b
 1	1
@@ -499,7 +499,7 @@ begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
-ERROR 23000: Duplicate entry '2' for key 'a'
+ERROR 23000: Duplicate entry '2' for key 'tt.a'
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -540,7 +540,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 reset master;
 insert into t2 values (bug27417(2));
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -587,7 +587,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 insert into t2 values (1);
 reset master;
 insert into t2 values (bug27417(1));
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -603,7 +603,7 @@ delete from t2;
 insert into t2 values (2);
 reset master;
 insert into t2 select bug27417(1) union select bug27417(2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -618,7 +618,7 @@ delete from t1;
 insert into t3 values (1,1),(2,3),(3,4);
 reset master;
 update t3 set b=b+bug27417(1);
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 't3.b'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -635,7 +635,7 @@ insert into t3 values (1,1);
 insert into t4 values (1,1),(2,2);
 reset master;
 UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't4.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -653,7 +653,7 @@ insert into t3 values (1,1),(2,2);
 insert into t4 values (1,1),(2,2);
 reset master;
 UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't3.PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -667,7 +667,7 @@ create trigger trg_del before delete on t2 for each row
 insert into t3 values (bug27417(1), 2);
 reset master;
 delete from t2;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't3.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -688,7 +688,7 @@ insert into t2 values (2),(3);
 insert into t5 values (1),(2);
 reset master;
 delete t2.* from t2,t5 where t2.a=t5.a + 1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -703,7 +703,7 @@ create table t4 (a int default 0, b int primary key) engine=innodb;
 insert into t4 values (0, 17);
 reset master;
 load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
-ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '17' for key 't4.PRIMARY'
 select * from t4;
 a	b
 0	17
@@ -759,7 +759,7 @@ begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
-ERROR 23000: Duplicate entry '2' for key 'a'
+ERROR 23000: Duplicate entry '2' for key 'tt.a'
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -800,7 +800,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 reset master;
 insert into t2 values (bug27417(2));
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -845,7 +845,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 insert into t2 values (1);
 reset master;
 insert into t2 values (bug27417(1));
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -860,7 +860,7 @@ delete from t2;
 insert into t2 values (2);
 reset master;
 insert into t2 select bug27417(1) union select bug27417(2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -874,7 +874,7 @@ delete from t1;
 insert into t3 values (1,1),(2,3),(3,4);
 reset master;
 update t3 set b=b+bug27417(1);
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 't3.b'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -890,7 +890,7 @@ insert into t3 values (1,1);
 insert into t4 values (1,1),(2,2);
 reset master;
 UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't4.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -907,7 +907,7 @@ insert into t3 values (1,1),(2,2);
 insert into t4 values (1,1),(2,2);
 reset master;
 UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't3.PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -921,7 +921,7 @@ create trigger trg_del before delete on t2 for each row
 insert into t3 values (bug27417(1), 2);
 reset master;
 delete from t2;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't3.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -941,7 +941,7 @@ insert into t2 values (2),(3);
 insert into t5 values (1),(2);
 reset master;
 delete t2.* from t2,t5 where t2.a=t5.a + 1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -955,7 +955,7 @@ create table t4 (a int default 0, b int primary key) engine=innodb;
 insert into t4 values (0, 17);
 reset master;
 load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
-ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '17' for key 't4.PRIMARY'
 select * from t4;
 a	b
 0	17
@@ -966,10 +966,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Intvar	#	#	INSERT_ID=10
-binlog.000001	#	User var	#	#	@`b`=_utf8mb4 0x3135 COLLATE utf8mb4_0900_ai_ci
 binlog.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 binlog.000001	#	Intvar	#	#	INSERT_ID=10
-binlog.000001	#	User var	#	#	@`b`=_utf8mb4 0x3135 COLLATE utf8mb4_0900_ai_ci
 binlog.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, @`b`) SET `b`= @b + bug27417(2) ;file_id=#
 binlog.000001	#	Query	#	#	ROLLBACK
 drop trigger trg_del_t2;

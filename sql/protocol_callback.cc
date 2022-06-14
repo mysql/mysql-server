@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql_string.h"
 
 class String;
 union COM_DATA;
@@ -88,22 +89,23 @@ bool Protocol_callback::store_null() {
   return false;
 }
 
-bool Protocol_callback::store_tiny(longlong from) {
+bool Protocol_callback::store_tiny(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;
 }
 
-bool Protocol_callback::store_short(longlong from) {
+bool Protocol_callback::store_short(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;
 }
 
-bool Protocol_callback::store_long(longlong from) {
+bool Protocol_callback::store_long(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;
 }
 
-bool Protocol_callback::store_longlong(longlong from, bool is_unsigned) {
+bool Protocol_callback::store_longlong(longlong from, bool is_unsigned,
+                                       uint32) {
   if (callbacks.get_integer)
     return callbacks.get_longlong(callbacks_ctx, from, is_unsigned);
   return false;
@@ -123,48 +125,51 @@ bool Protocol_callback::store_decimal(const my_decimal *d, uint, uint) {
   return false;
 }
 
-bool Protocol_callback::store(const char *from, size_t length,
-                              const CHARSET_INFO *fromcs) {
+bool Protocol_callback::store_string(const char *from, size_t length,
+                                     const CHARSET_INFO *fromcs) {
   if (callbacks.get_string)
     return callbacks.get_string(callbacks_ctx, from, length, fromcs);
   return false;
 }
 
-bool Protocol_callback::store(float from, uint32 decimals, String *) {
+bool Protocol_callback::store_float(float from, uint32 decimals, uint32) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store(double from, uint32 decimals, String *) {
+bool Protocol_callback::store_double(double from, uint32 decimals, uint32) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store(MYSQL_TIME *time, uint precision) {
+bool Protocol_callback::store_datetime(const MYSQL_TIME &time, uint precision) {
   if (callbacks.get_datetime)
-    return callbacks.get_datetime(callbacks_ctx, time, precision);
+    return callbacks.get_datetime(callbacks_ctx, &time, precision);
   return false;
 }
 
-bool Protocol_callback::store_date(MYSQL_TIME *time) {
-  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, time);
+bool Protocol_callback::store_date(const MYSQL_TIME &time) {
+  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, &time);
   return false;
 }
 
-bool Protocol_callback::store_time(MYSQL_TIME *time, uint precision) {
+bool Protocol_callback::store_time(const MYSQL_TIME &time, uint precision) {
   if (callbacks.get_time)
-    return callbacks.get_time(callbacks_ctx, time, precision);
+    return callbacks.get_time(callbacks_ctx, &time, precision);
   return false;
 }
 
-bool Protocol_callback::store(Proto_field *field) {
+bool Protocol_callback::store_field(const Field *field) {
   switch (text_or_binary) {
-    case CS_TEXT_REPRESENTATION:
-      return field->send_text(this);
+    case CS_TEXT_REPRESENTATION: {
+      if (field->is_null()) return store_null();
+      StringBuffer<MAX_FIELD_WIDTH> buffer;
+      return store(field->val_str(&buffer));
+    }
     case CS_BINARY_REPRESENTATION:
-      return field->send_binary(this);
+      return field->send_to_protocol(this);
   }
   return true;
 }
@@ -260,13 +265,22 @@ int Protocol_callback::shutdown(bool server_shutdown) {
 /**
   Returns if the connection is alive or dead.
 
-  @note This function always returns true as in many places in the server this
-  is a prerequisite for continuing operations.
+  @note If there's no callback provided, this function always returns true
+  because, in many places in the server, this is a prerequisite for continuing
+  operations. If the user is connection bound, a callback function should be
+  provided, to have a possibility to stop execution of operations when the user
+  disconnected.
 
   @return
-    true  alive
+    true   connected
+    false  disconnected
 */
-bool Protocol_callback::connection_alive() const { return true; }
+bool Protocol_callback::connection_alive() const {
+  if (callbacks.connection_alive)
+    return callbacks.connection_alive(callbacks_ctx);
+
+  return true;
+}
 
 /**
   Should return protocol's reading/writing status. Returns 0 (idle) as it this
@@ -285,6 +299,22 @@ uint Protocol_callback::get_rw_status() { return 0; }
     false disabled
 */
 bool Protocol_callback::get_compression() { return false; }
+
+/**
+  Always returns null.
+
+  @return
+     null compression not supported
+*/
+char *Protocol_callback::get_compression_algorithm() { return nullptr; }
+
+/**
+  Always returns 0.
+
+  @return
+   compression not supported
+*/
+uint Protocol_callback::get_compression_level() { return 0; }
 
 /**
   Called BEFORE sending metadata
@@ -377,7 +407,8 @@ bool Protocol_callback::flush() { return false; }
 */
 bool Protocol_callback::send_eof(uint server_status, uint warn_count) {
   if (callbacks.handle_ok)
-    callbacks.handle_ok(callbacks_ctx, server_status, warn_count, 0, 0, NULL);
+    callbacks.handle_ok(callbacks_ctx, server_status, warn_count, 0, 0,
+                        nullptr);
   return false;
 }
 
@@ -397,14 +428,14 @@ bool Protocol_callback::send_error(uint sql_errno, const char *err_msg,
 
 bool Protocol_callback::store_ps_status(ulong stmt_id, uint column_count,
                                         uint param_count, ulong cond_count) {
-  List<Item> field_list;
+  THD *thd = current_thd;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("stmt_id", MY_CS_NAME_SIZE));
   field_list.push_back(new Item_empty_string("column_no", MY_CS_NAME_SIZE));
   field_list.push_back(new Item_empty_string("param_no", MY_CS_NAME_SIZE));
   field_list.push_back(new Item_empty_string("warning_no", MY_CS_NAME_SIZE));
 
-  THD *thd = current_thd;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -427,18 +458,17 @@ bool Protocol_callback::send_parameters(List<Item_param> *parameters,
 
   List_iterator_fast<Item_param> item_param_it(*parameters);
 
-  List<Item> out_param_lst;
+  mem_root_deque<Item *> out_param_lst(current_thd->mem_root);
   Item_param *item_param;
   while ((item_param = item_param_it++)) {
     // Skip it as it's just an IN-parameter.
     if (!item_param->get_out_param_info()) continue;
 
-    if (out_param_lst.push_back(item_param))
-      return true; /* purecov: inspected */
+    out_param_lst.push_back(item_param);
   }
 
   // Empty list
-  if (!out_param_lst.elements) return false;
+  if (out_param_lst.empty()) return false;
 
   THD *thd = current_thd;
   /*
@@ -448,13 +478,13 @@ bool Protocol_callback::send_parameters(List<Item_param> *parameters,
   thd->server_status |= SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
 
   // Send meta-data.
-  if (thd->send_result_metadata(&out_param_lst,
+  if (thd->send_result_metadata(out_param_lst,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true; /* purecov: inspected */
 
   // Send data.
   start_row();
-  if (thd->send_result_set_row(&out_param_lst) || end_row())
+  if (thd->send_result_set_row(out_param_lst) || end_row())
     return true; /* purecov: inspected */
 
   // Restore THD::server_status.
@@ -485,7 +515,7 @@ bool Protocol_callback::set_variables_from_parameters(
       to THDs free_list.
     */
     Item_func_set_user_var *suv =
-        new Item_func_set_user_var(*user_var_name, item_param, false);
+        new Item_func_set_user_var(*user_var_name, item_param);
     /*
       Item_func_set_user_var is not fixed after construction,
       call fix_fields().

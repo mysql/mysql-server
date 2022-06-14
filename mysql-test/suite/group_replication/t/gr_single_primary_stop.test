@@ -34,10 +34,12 @@
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 
 --echo #

@@ -1,0 +1,202 @@
+###############################################################################
+# If donor endpoints fail it won't fallback to normal host and port.
+#
+# Test:
+#   0. The test requires two servers
+#   1. Install clone plugin on server1.
+#   2. Configure a recovery endpoint with a port that do not have
+#      mysql server listening
+#   3. Start server 1 and bootstrap group
+#   4. Create some transactions to send to joiner
+#   5. Change settings on recovery to speed up failure
+#   6. Setup the server so group replication starts on boot
+#      Install the Clone plugin
+#   7. Ensure clone is used on recovery
+#   8. Recovery will fail and server state change to ERROR
+#   9. Clone will fail connecting to donor
+#  10. Distributed recovery will fail connecting to donor
+#  11. Set recovery endpoints to DEFAULT and server 2 will be able to join
+#  12. Stop server 2 and start it again, now it will receive donor default
+#      configuration for recovery
+#  13. Cleanup
+#
+###############################################################################
+
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Install clone plugin on server1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo # 2. Configure a recovery endpoint with a port that do not have
+--echo #    mysql server listening
+
+# Setting admin_port has no effect if admin_address is not specified because in
+# that case the server maintains no administrative network interface.
+
+--let $server1_admin_port= `SELECT @@GLOBAL.ADMIN_PORT`
+
+--replace_result $server1_admin_port SERVER1_ADMIN_PORT
+--eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "127.0.0.1:$server1_admin_port"
+
+--echo
+--echo # 3. Start server 1 and bootstrap group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 4. Create some transactions to send to joiner
+
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+
+INSERT INTO test.t1 (b) VALUES (1);
+INSERT INTO test.t1 (b) VALUES (2);
+
+--echo
+--echo # 5. Change settings on recovery to speed up failure
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_on_boot= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
+
+--let $plugin_list= $GROUP_REPLICATION
+--let $mysqld_extra_settings= --log_error=$MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_no_fallback.2.err
+--source include/spawn_monitoring_process.inc
+
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+
+--echo
+--echo # 6. Setup the server so group replication starts on boot
+--echo #    Install the Clone plugin
+
+--disable_query_log
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
+
+SET PERSIST group_replication_start_on_boot= ON;
+--enable_query_log
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo # 7. Ensure clone is used on recovery
+
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+SET GLOBAL group_replication_clone_threshold= 1;
+
+--echo
+--echo # 8. Recovery will fail and server state change to ERROR
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--echo
+--echo # 9. Clone will fail connecting to donor
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_no_fallback
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_no_fallback.2.err
+--let $assert_count = 2
+--let $assert_select = .*Clone Donor Error: Connect failed:.*
+--let $assert_text = recovery channel used recovery endpoints configuration
+--source include/assert_grep.inc
+
+--echo
+--echo # 10. Distributed recovery will fail connecting to donor
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_no_fallback
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_no_fallback.2.err
+--let $assert_count = 2
+--let $assert_select = .*error connecting to master 'root@127.0.0.1:$server1_admin_port'.*
+--let $assert_text = recovery channel used recovery endpoints configuration
+--source include/assert_grep.inc
+
+--echo
+--echo # 11. Set recovery endpoints to DEFAULT and server 2 will be able to join
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "DEFAULT";
+
+--echo
+--echo # 12. Stop server 2 and start it again, now it will receive donor default
+--echo #     configuration for recovery
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+START GROUP_REPLICATION;
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state=ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 13. Cleanup
+
+DROP TABLE test.t1;
+
+--source include/rpl_sync.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM 'root'@'127.0.0.1':.*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862*");
+call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery.");
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+set session sql_log_bin=1;
+
+--eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
+
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+
+--replace_result $_group_replication_start_on_boot START_ON_BOOT_VALUE
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_on_boot
+
+--source include/clean_monitoring_process.inc
+
+UNINSTALL PLUGIN clone;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+UNINSTALL PLUGIN clone;
+
+--source include/group_replication_end.inc

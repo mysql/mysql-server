@@ -122,11 +122,11 @@ Master byrange	500
 show create table t3;
 Table	t3
 Create Table	CREATE TABLE `t3` (
-  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `id` mediumint NOT NULL AUTO_INCREMENT,
   `dt` timestamp NULL DEFAULT NULL,
   `user` char(255) DEFAULT NULL,
   `uuidf` longblob,
-  `fkid` mediumint(9) DEFAULT NULL,
+  `fkid` mediumint DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=latin1

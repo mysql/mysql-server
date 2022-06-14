@@ -1,4 +1,5 @@
-
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
 # Make some data that we can work on:
 
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
@@ -54,6 +55,7 @@ LIMIT 1;
 
 # JOIN
 
+--skip_if_hypergraph  # Does not call THD::LOCK_query_plan(), so no event.
 --replace_column 1 [EVENT_ID]
 SELECT DISTINCT EVENT_ID
 FROM performance_schema.events_waits_current

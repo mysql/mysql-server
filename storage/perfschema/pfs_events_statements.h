@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_digest.h"
 #include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_name.h"
 
 struct PFS_thread;
 struct PFS_account;
@@ -53,15 +54,11 @@ struct PFS_events_statements : public PFS_events {
   ulonglong m_statement_id;
 
   enum_object_type m_sp_type;
-  char m_schema_name[NAME_LEN];
-  uint m_schema_name_length;
-  char m_object_name[NAME_LEN];
-  uint m_object_name_length;
+  PFS_schema_name m_schema_name;
+  PFS_object_name m_object_name;
 
   /** Database name. */
-  char m_current_schema_name[NAME_LEN];
-  /** Length of @c m_current_schema_name. */
-  uint m_current_schema_name_length;
+  PFS_schema_name m_current_schema_name;
 
   /** Locked time. */
   ulonglong m_lock_time;
@@ -110,10 +107,25 @@ struct PFS_events_statements : public PFS_events {
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
 
+  /**
+    CPU time.
+    Expressed in STORAGE units (nanoseconds).
+  */
+  ulonglong m_cpu_time;
+
   /** True if @c SQL_TEXT was truncated. */
   bool m_sqltext_truncated;
   /** Statement character set number. */
   uint m_sqltext_cs_number;
+
+  /** Executed on the secondary engine. */
+  bool m_secondary;
+
+  /*
+   MAINTAINER:
+   See pointer arithmetic in copy_events_statements(),
+   attribute here are copied when needed.
+  */
 
   /**
     SQL_TEXT.
@@ -137,6 +149,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement);
 
 extern ulong nested_statement_lost;
 
+extern bool flag_events_statements_cpu;
 extern bool flag_events_statements_current;
 extern bool flag_events_statements_history;
 extern bool flag_events_statements_history_long;

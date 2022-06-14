@@ -1,0 +1,73 @@
+--echo #
+--echo # Bug #30933728 INNODB FTS PHRASE SEARCH CRASH
+--echo #
+
+--echo # Case 1 : test phrase search with ngram.
+
+let $restart_parameters = restart: --ngram_token_size=1;
+--source include/restart_mysqld.inc
+
+select @@ngram_token_size;
+select @@innodb_ft_enable_stopword;
+
+create table t1(
+        FTS_DOC_ID bigint unsigned auto_increment not null primary key,
+        content varchar(100) COLLATE utf8mb4_danish_ci
+)DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_danish_ci;
+
+create fulltext index fts_index on t1(content) with parser ngram;
+
+insert into t1(content) values('María'), ('Maríb'), ('Maria'), ('Marib');
+
+select * from t1 where match(content) against('+María' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Maríb' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Maria' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Marib' IN BOOLEAN MODE);
+
+drop table t1;
+
+--echo # Case 2: test with ngram without stopword
+
+let $restart_parameters = restart: --ngram_token_size=1 --innodb_ft_enable_stopword=off;
+--source include/restart_mysqld.inc
+
+select @@ngram_token_size;
+select @@innodb_ft_enable_stopword;
+
+
+create table t1(
+        FTS_DOC_ID bigint unsigned auto_increment not null primary key,
+        content varchar(100) COLLATE utf8mb4_danish_ci
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_danish_ci;
+
+create fulltext index fts_index on t1(content) with parser ngram;
+
+insert into t1(content) values('María'), ('Maríb'), ('Maria'), ('Marib');
+
+select * from t1 where match(content) against('+María' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Maríb' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Maria' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Marib' IN BOOLEAN MODE);
+
+drop table t1;
+
+--echo # Case 3: test phrase search without ngram.
+create table t1(
+        FTS_DOC_ID bigint unsigned auto_increment not null primary key,
+        content varchar(100) COLLATE utf8mb4_danish_ci
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_danish_ci;
+
+create fulltext index fts_index on t1(content);
+
+insert into t1(content) values('María'), ('Maríb'), ('Maria'), ('Marib');
+
+select * from t1 where match(content) against('+María' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Maríb' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Maria' IN BOOLEAN MODE);
+select * from t1 where match(content) against('+Marib' IN BOOLEAN MODE);
+
+drop table t1;
+
+# Clean up
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

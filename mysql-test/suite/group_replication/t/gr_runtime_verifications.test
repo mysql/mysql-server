@@ -48,7 +48,7 @@
 # 3. Test global variables that might change in runtime and which values are
 #    not allowed in GR. Following settings are tested with DML operation on
 #    auxiliary table:
-#    binlog_checksum=CRC32,  binlog_format=STATEMENT,
+#    binlog_format=STATEMENT,
 #    transaction_write_set_extraction=OFF
 #
 # 4. Stop GR on member. Now, check following must succeed or fail with other
@@ -195,16 +195,6 @@ while ($wrong_tables_count)
 --echo # runtime and which values are not allowed.
 --echo #
 
-#Test the value of binlog checksum.
-
---let $binlog_checksum_backup= `SELECT @@GLOBAL.binlog_checksum;`
-SET GLOBAL binlog_checksum= CRC32;
-
---error ER_BEFORE_DML_VALIDATION_ERROR
-INSERT INTO tn VALUES ('a');
-
---eval SET GLOBAL binlog_checksum= $binlog_checksum_backup
-
 #Test the value of binlog format.
 
 --let $binlog_format_backup= `SELECT @@GLOBAL.binlog_format`
@@ -270,8 +260,7 @@ DROP TABLE t1, tn;
 
 call mtr.add_suppression("Table.*is not transactional. This is not compatible with Group Replication");
 call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication.");
-call mtr.add_suppression("Table.*has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication.");
-call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
+call mtr.add_suppression("Table.*has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication.");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 

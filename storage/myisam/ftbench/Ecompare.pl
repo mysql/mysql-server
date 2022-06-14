@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2003, 2005 MySQL AB
+# Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 # Use is subject to license terms
 # 
 # This program is free software; you can redistribute it and/or modify

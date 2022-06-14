@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include "storage/perfschema/table_socket_instances.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -68,8 +69,8 @@ Plugin_table table_socket_instances::m_table_def(
 PFS_engine_table_share table_socket_instances::m_share = {
     &pfs_readonly_acl,
     table_socket_instances::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_socket_instances::get_row_count,
     sizeof(PFS_simple_index),
     &m_table_lock,
@@ -144,7 +145,7 @@ int table_socket_instances::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_socket_iterator it = global_socket_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -158,7 +159,7 @@ int table_socket_instances::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_socket_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -166,7 +167,7 @@ int table_socket_instances::rnd_pos(const void *pos) {
 }
 
 int table_socket_instances::index_init(uint idx, bool) {
-  PFS_index_socket_instances *result = NULL;
+  PFS_index_socket_instances *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -182,7 +183,7 @@ int table_socket_instances::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_socket_instances_by_ip_port);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -199,7 +200,7 @@ int table_socket_instances::index_next(void) {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -207,7 +208,7 @@ int table_socket_instances::index_next(void) {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -220,7 +221,7 @@ int table_socket_instances::make_row(PFS_socket *pfs) {
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class = sanitize_socket_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -228,15 +229,15 @@ int table_socket_instances::make_row(PFS_socket *pfs) {
   m_row.m_ip_length =
       pfs_get_socket_address(m_row.m_ip, sizeof(m_row.m_ip), &m_row.m_port,
                              &pfs->m_sock_addr, pfs->m_addr_len);
-  m_row.m_event_name = safe_class->m_name;
-  m_row.m_event_name_length = safe_class->m_name_length;
+  m_row.m_event_name = safe_class->m_name.str();
+  m_row.m_event_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
   m_row.m_fd = pfs->m_fd;
   m_row.m_state =
       (pfs->m_idle ? PSI_SOCKET_STATE_IDLE : PSI_SOCKET_STATE_ACTIVE);
   PFS_thread *safe_thread = sanitize_thread(pfs->m_thread_owner);
 
-  if (safe_thread != NULL) {
+  if (safe_thread != nullptr) {
     m_row.m_thread_id = safe_thread->m_thread_internal_id;
     m_row.m_thread_id_set = true;
   } else {
@@ -255,12 +256,12 @@ int table_socket_instances::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* EVENT_NAME */
           set_field_varchar_utf8(f, m_row.m_event_name,
                                  m_row.m_event_name_length);
@@ -288,7 +289,7 @@ int table_socket_instances::read_row_values(TABLE *table, unsigned char *buf,
           set_field_enum(f, m_row.m_state);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

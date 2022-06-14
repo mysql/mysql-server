@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,13 @@
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
 #include <util/NdbOut.hpp>
+#include <NdbTCP.h>
+#include "util/cstrbuf.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_PORT_NO 65535
 
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
@@ -119,150 +126,177 @@ LocalConfig::init(const char *connectString,
 LocalConfig::~LocalConfig(){
 }
   
-void LocalConfig::setError(int lineNumber, const char * _msg) {
-  error_line = lineNumber;
-  strncpy(error_msg, _msg, sizeof(error_msg));
-}
-
-const char *nodeIdTokens[] = {
-  "OwnProcessId %i",
-  "nodeid=%i",
-  0
-};
-
-const char *hostNameTokens[] = {
-  "host://%[^:]:%i",
-  "host=%[^:]:%i",
-  "mgmd=%[^:]:%i",
-  "%[^:^=^ ]:%i",
-  "%s %i",
-  0
-};
-
-const char *bindAddressTokens[] = {
-  "bind-address=%[^:]:%i",
-  0
-};
-
-const char *fileNameTokens[] = {
-  "file://%s",
-  "file=%s",
-  0
-};
-
-bool
-LocalConfig::parseNodeId(const char * buf){
-  for(int i = 0; nodeIdTokens[i] != 0; i++)
-    if (sscanf(buf, nodeIdTokens[i], &_ownNodeId) == 1)
-      return true;
-  return false;
-}
-
-bool
-LocalConfig::parseHostName(const char * buf){
-  char tempString[1024];
-  char tempString2[1024];
-  int port;
-  do {
-    for(int i = 0; hostNameTokens[i] != 0; i++) {
-      if (sscanf(buf, hostNameTokens[i], tempString, &port) == 2) {
-	MgmtSrvrId mgmtSrvrId;
-	mgmtSrvrId.type = MgmId_TCP;
-	mgmtSrvrId.name.assign(tempString);
-	mgmtSrvrId.port = port;
-        /* assign default bind_address if available */
-        if (bind_address.length())
-          mgmtSrvrId.bind_address.assign(bind_address);
-	mgmtSrvrId.bind_address_port = bind_address_port;
-	ids.push_back(mgmtSrvrId);
-	return true;
-      }
-    }
-    if (buf == tempString2)
-      break;
-    // try to add default port to see if it works
-    BaseString::snprintf(tempString2, sizeof(tempString2),
-                         "%s:%d", buf, NDB_PORT);
-    buf= tempString2;
-  } while(1);
-  return false;
-}
-
-bool
-LocalConfig::parseBindAddress(const char * buf)
+void LocalConfig::setError(int lineNumber, const char * _msg)
 {
-  char tempString[1024];
-  char tempString2[1024];
-  int port;
-  do
+  error_line = lineNumber;
+  if (cstrbuf_copy(error_msg, _msg) == 1)
   {
-    for(int i = 0; bindAddressTokens[i] != 0; i++)
-    {
-      if (sscanf(buf, bindAddressTokens[i], tempString, &port) == 2)
-      {
-        if (ids.size() == 0)
-        {
-          /* assign default bind_address */
-          bind_address.assign(tempString);
-          bind_address_port = port;
-          return true;
-        }
-        /* override bind_address on latest mgmd */
-        MgmtSrvrId &mgmtSrvrId= ids[ids.size()-1];
-	mgmtSrvrId.bind_address.assign(tempString);
-	mgmtSrvrId.bind_address_port = port;
-	return true;
-      }
-    }
-    if (buf == tempString2)
-      break;
-    // try to add port 0 to see if it works
-    BaseString::snprintf(tempString2, sizeof(tempString2),"%s:0", buf);
-    buf= tempString2;
-  } while(1);
-  return false;
-}
-
-bool
-LocalConfig::parseFileName(const char * buf){
-  char tempString[1024];
-  for(int i = 0; fileNameTokens[i] != 0; i++) {
-    if (sscanf(buf, fileNameTokens[i], tempString) == 1) {
-      MgmtSrvrId mgmtSrvrId;
-      mgmtSrvrId.type = MgmId_File;
-      mgmtSrvrId.name.assign(tempString);
-      ids.push_back(mgmtSrvrId);
-      return true;
-    }
+    // ignore truncated error message
   }
-  return false;
 }
 
 bool
-LocalConfig::parseString(const char * connectString, BaseString &err){
+LocalConfig::parseNodeId(const char * buf [[maybe_unused]], const char * value)
+{
+  if (_ownNodeId != 0)
+    return false; // already set
+
+  char* endp = nullptr;
+  long v = strtol(value, &endp, 0);
+  if (endp == nullptr || *endp != 0 || v < 0 || MAX_PORT_NO < v)
+    return false; // bad value
+
+  _ownNodeId = v;
+  return true;
+}
+
+bool
+LocalConfig::parseHostName(const char * buf,
+                           const char * value)
+{
+  char host[NDB_DNS_HOST_NAME_LENGTH + 1];
+  char serv[NDB_IANA_SERVICE_NAME_LENGTH + 1];
+
+  int r = Ndb_split_string_address_port(value, host, sizeof(host), serv,
+                                        sizeof(serv));
+  if (r != 0)
+  {
+    return false;
+  }
+
+  int port = 1186;
+  if (serv[0] != 0)
+  {
+    char * endp = nullptr;
+    long v = strtol(serv, &endp, 0);
+    if (endp == nullptr || *endp != 0 || v < 0 || v > MAX_PORT_NO)
+    {
+      return false; // bad port
+    }
+    port = v;
+  }
+
+  MgmtSrvrId mgmtSrvrId;
+  mgmtSrvrId.type = MgmId_TCP;
+  mgmtSrvrId.name.assign(host);
+  mgmtSrvrId.port = port;
+
+  /* assign default bind_address if available */
+  if (bind_address.length())
+    mgmtSrvrId.bind_address.assign(bind_address);
+  mgmtSrvrId.bind_address_port = bind_address_port;
+  ids.push_back(mgmtSrvrId);
+
+  return true;
+}
+
+bool
+LocalConfig::parseBindAddress(const char * buf [[maybe_unused]],
+                              const char * value)
+{
+  char host[NDB_DNS_HOST_NAME_LENGTH + 1];
+  char serv[NDB_IANA_SERVICE_NAME_LENGTH + 1];
+
+  int r = Ndb_split_string_address_port(value, host, sizeof(host), serv,
+                                        sizeof(serv));
+  if (r != 0)
+    return false;
+
+  int port = 0;
+  if (serv[0] != 0)
+  {
+    char * endp = nullptr;
+    long v = strtol(serv, &endp, 0);
+    if (endp == nullptr || *endp != 0 || v < 0 || v > MAX_PORT_NO)
+      return false; // bad port
+    port = v;
+  }
+
+  if (ids.size() == 0)
+  {
+    /* assign default bind_address */
+    bind_address.assign(host);
+    bind_address_port = port;
+  }
+  else
+  {
+    /* override bind_address on latest mgmd */
+    MgmtSrvrId &mgmtSrvrId= ids[ids.size()-1];
+    mgmtSrvrId.bind_address.assign(host);
+    mgmtSrvrId.bind_address_port = port;
+  }
+  return true;
+}
+
+bool
+LocalConfig::parseFileName(const char * buf [[maybe_unused]],
+                           const char * value)
+{
+  MgmtSrvrId mgmtSrvrId;
+  mgmtSrvrId.type = MgmId_File;
+  mgmtSrvrId.name.assign(value);
+  ids.push_back(mgmtSrvrId);
+  return true;
+}
+
+bool
+LocalConfig::parseComment(const char * buf [[maybe_unused]],
+                          const char * value [[maybe_unused]])
+{
+  /* ignore */
+  return true;
+}
+
+const LocalConfig::param_prefix LocalConfig::param_prefixes[] =
+{
+  // Documented prefix
+  {"nodeid=", &LocalConfig::parseNodeId},
+  {"bind-address=", &LocalConfig::parseBindAddress},
+  // Prefix generated and occuring in some public examples
+  {"host=", &LocalConfig::parseHostName},
+  // Undocumented prefix
+  {"OwnProcessId ", &LocalConfig::parseNodeId},
+  {"file://", &LocalConfig::parseFileName},
+  {"file=", &LocalConfig::parseFileName},
+  {"host://", &LocalConfig::parseHostName},
+  {"mgmd=", &LocalConfig::parseHostName},
+  {"#", &LocalConfig::parseComment},
+  // Must be last since it will always match
+  {"", &LocalConfig::parseHostName}
+};
+
+bool
+LocalConfig::parseString(const char * connectString, BaseString &err)
+{
   char * for_strtok;
   char * copy = strdup(connectString);
   NdbAutoPtr<char> tmp_aptr(copy);
 
-  for (char *tok = my_strtok_r(copy,";,",&for_strtok); tok != 0;
-       tok = my_strtok_r(NULL, ";,", &for_strtok)) {
-    if (tok[0] == '#') continue;
+  _ownNodeId = 0;
+  bind_address_port = 0;
+  bind_address.assign("");
 
-    if (!_ownNodeId) // only one nodeid definition allowed
-      if (parseNodeId(tok))
-	continue;
-    if (parseHostName(tok))
-      continue;
-    if (parseBindAddress(tok))
-      continue;
-    if (parseFileName(tok))
-      continue;
-    
+  for (char *tok = my_strtok_r(copy,";,",&for_strtok); tok != 0;
+       tok = my_strtok_r(NULL, ";,", &for_strtok))
+  {
+    bool ok = false;
+    for (size_t i = 0; i < std::size(param_prefixes); i++)
+    {
+      ok = false;
+      if (strncmp(tok,
+                  param_prefixes[i].prefix,
+                  param_prefixes[i].prefix_len) == 0)
+      {
+        const char * value = tok + param_prefixes[i].prefix_len;
+        ok = (this->*param_prefixes[i].param_func)(tok, value);
+        break;
+      }
+    }
+    if (ok) continue;
+
     err.assfmt("Unexpected entry: \"%s\"", tok);
     return false;
   }
-  bind_address_port= 0;
-  bind_address.assign("");
   return true;
 }
 
@@ -330,10 +364,17 @@ char *
 LocalConfig::makeConnectString(char *buf, int sz)
 {
   int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
+  char addrbuf[512];
+
   if (p < sz && bind_address.length())
   {
-    int new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
-                                      bind_address.c_str(), bind_address_port);
+    int new_p = 0;
+    char *sockaddr_string = Ndb_combine_address_port(addrbuf, sizeof(addrbuf),
+                                                     bind_address.c_str(),
+                                                     bind_address_port);
+    new_p = p + BaseString::snprintf(buf + p, sz - p, ",bind-address=%s",
+                                     sockaddr_string);
+
     if (new_p < sz)
       p= new_p;
     else 
@@ -344,8 +385,14 @@ LocalConfig::makeConnectString(char *buf, int sz)
     {
       if (ids[i].type != MgmId_TCP)
 	continue;
-      int new_p= p+BaseString::snprintf(buf+p,sz-p,",%s:%d",
-					ids[i].name.c_str(), ids[i].port);
+      int new_p = 0;
+      char *sockaddr_string = Ndb_combine_address_port(addrbuf,
+                                                       sizeof(addrbuf),
+                                                       ids[i].name.c_str(),
+                                                       ids[i].port);
+
+      new_p = p + BaseString::snprintf(buf + p, sz - p, ",%s",
+                                       sockaddr_string);
       if (new_p < sz)
 	p= new_p;
       else 
@@ -355,8 +402,14 @@ LocalConfig::makeConnectString(char *buf, int sz)
       }
       if (!bind_address.length() && ids[i].bind_address.length())
       {
-        new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
-                                      ids[i].bind_address.c_str(), ids[i].bind_address_port);
+        char *sockaddr_string =
+            Ndb_combine_address_port(addrbuf, sizeof(addrbuf),
+                                     ids[i].bind_address.c_str(),
+                                     ids[i].bind_address_port);
+
+        new_p = p + BaseString::snprintf(buf + p, sz - p, ";bind-address=%s",
+                                         sockaddr_string);
+
         if (new_p < sz)
           p= new_p;
         else 

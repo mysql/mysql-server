@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,93 +20,98 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
-FIND_PROGRAM(BISON_EXECUTABLE bison DOC "path to the bison executable")
-MARK_AS_ADVANCED(BISON_EXECUTABLE "")
+# This should be REQUIRED, but we have to support source tarball build.
+# https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
 
-IF(NOT BISON_EXECUTABLE)
-  MESSAGE(WARNING "Bison executable not found in PATH")
-ELSEIF(BISON_EXECUTABLE AND NOT BISON_USABLE)
-  # Check version as well
-  EXEC_PROGRAM(${BISON_EXECUTABLE} ARGS --version OUTPUT_VARIABLE BISON_OUTPUT)
-  # get version information
-  STRING(REGEX REPLACE
-    "^bison \\(GNU Bison\\) ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1"
-    BISON_VERSION "${BISON_OUTPUT}")
-  MESSAGE(STATUS
-    "Found Bison: ${BISON_EXECUTABLE} (found version is ${BISON_VERSION})")
-  IF (BISON_VERSION VERSION_LESS "2.1")
-    MESSAGE(WARNING "Bison version ${BISON_VERSION} is old. \
-      Please update to version 2.1 or higher")
-  ELSE()
-    SET(BISON_USABLE 1 CACHE INTERNAL "Bison version 2 or higher")
-    IF(BISON_VERSION VERSION_LESS "2.4")
-      # Don't use --warnings since unsupported
-      SET(BISON_FLAGS_WARNINGS "" CACHE INTERNAL "BISON 2.x flags")
-    ELSEIF(BISON_VERSION VERSION_LESS "3.0")
-      # Enable all warnings
-      SET(BISON_FLAGS_WARNINGS
-        "--warnings=all"
-	CACHE INTERNAL "BISON 2.x flags")
-    ELSE()
-      # TODO: replace with "--warnings=all"
-      # For the backward compatibility with 2.x, suppress warnings:
-      # * no-yacc: for --yacc
-      # * no-empty-rule: for empty rules without %empty
-      # * no-precedence: for useless precedence or/and associativity rules
-      SET(BISON_FLAGS_WARNINGS
-        "--warnings=all,no-yacc,no-empty-rule,no-precedence"
-	CACHE INTERNAL "BISON 3.x flags")
+# Bison seems to be stuck at version 2.3 in macOS.
+# Look for alternative custom installations.
+IF(APPLE AND NOT DEFINED BISON_EXECUTABLE)
+  SET(OPT_BISON_DIR "/opt")
+  IF(IS_DIRECTORY "${OPT_BISON_DIR}")
+    SET(PREFERRED_BISON_VERSION "3.8.2")
+    FILE(GLOB FOUND_BISON_BIN_DIRS
+      LIST_DIRECTORIES true
+      "${OPT_BISON_DIR}/bison-*/bin"
+      )
+    IF(FOUND_BISON_BIN_DIRS)
+      # FILE GLOB seems to sort entries, but we need to REVERSE the list:
+      # NATURAL uses strverscmp(3)
+      LIST(SORT FOUND_BISON_BIN_DIRS COMPARE NATURAL ORDER DESCENDING)
+      IF(IS_DIRECTORY "${OPT_BISON_DIR}/bison-${PREFERRED_BISON_VERSION}/bin")
+        SET(BISON_PATHS "${OPT_BISON_DIR}/bison-${PREFERRED_BISON_VERSION}/bin")
+        LIST(REMOVE_ITEM FOUND_BISON_BIN_DIRS "${BISON_PATHS}")
+      ENDIF()
+      FOREACH(path ${FOUND_BISON_BIN_DIRS})
+        LIST(APPEND BISON_PATHS ${path})
+      ENDFOREACH()
+      MESSAGE(STATUS "Looking for bison in ${BISON_PATHS}")
+      FIND_PROGRAM(BISON_EXECUTABLE bison
+        NO_DEFAULT_PATH
+        PATHS ${BISON_PATHS})
     ENDIF()
   ENDIF()
 ENDIF()
 
+# Look for HOMEBREW bison before the standard OS version.
+# Note that it is *not* symlinked like most other executables.
+IF(APPLE)
+  FIND_PROGRAM(BISON_EXECUTABLE bison
+    NO_DEFAULT_PATH
+    PATHS "${HOMEBREW_HOME}/bison/bin")
+ENDIF()
 
-# Handle out-of-source build from source package with possibly broken 
-# bison. Copy bison output to from source to build directory, if not already 
-# there
-MACRO(COPY_BISON_OUTPUT input_cc input_h output_cc output_h)
-  IF(EXISTS ${input_cc} AND NOT EXISTS ${output_cc})
-    CONFIGURE_FILE(${input_cc} ${output_cc} COPYONLY)
-    CONFIGURE_FILE(${input_h}  ${output_h}  COPYONLY)
-  ENDIF()
-ENDMACRO()
+# Look for winflexbison3, see e.g.
+# https://github.com/lexxmark/winflexbison/releases
+# or
+# https://chocolatey.org/install
+# choco install winflexbison3
+IF(WIN32 AND NOT DEFINED BISON_EXECUTABLE)
+  SET(MY_BISON_PATHS
+    c:/bin/bin
+    c:/bin/lib/winflexbison3/tools
+    c:/ProgramData/chocolatey/bin
+    )
+  FOREACH(_path ${MY_BISON_PATHS})
+    FILE(TO_NATIVE_PATH ${_path} NATIVE_PATH)
+    LIST(APPEND NATIVE_BISON_PATHS "${NATIVE_PATH}")
+  ENDFOREACH()
+  MESSAGE(STATUS "Looking for win_bison in ${NATIVE_BISON_PATHS}")
+  FIND_PROGRAM(BISON_EXECUTABLE
+    NAMES win_bison win-bison
+    NO_DEFAULT_PATH
+    PATHS ${NATIVE_BISON_PATHS}
+    )
+ENDIF()
 
+FIND_PACKAGE(BISON)
 
-# Use bison to generate C++ and header file
-MACRO (RUN_BISON input_yy output_cc output_h name_prefix)
-  IF(BISON_USABLE)
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${output_cc}
-             ${output_h}
-      COMMAND ${BISON_EXECUTABLE}
-       --name-prefix=${name_prefix}
-       --yacc
-       ${BISON_FLAGS_WARNINGS}
-       --output=${output_cc}
-       --defines=${output_h}
-        ${input_yy}
-        DEPENDS ${input_yy}
-	)
+IF(NOT BISON_FOUND)
+  MESSAGE(WARNING "No bison found!!")
+  RETURN()
+ENDIF()
+
+IF(BISON_VERSION VERSION_LESS "2.1")
+  MESSAGE(FATAL_ERROR
+    "Bison version ${BISON_VERSION} is old. Please update to version 2.1 or higher"
+    )
+ELSE()
+  IF(BISON_VERSION VERSION_LESS "2.4")
+    # Don't use --warnings since unsupported
+    SET(BISON_FLAGS_WARNINGS "" CACHE INTERNAL "BISON 2.x flags")
+  ELSEIF(BISON_VERSION VERSION_LESS "3.0")
+    # Enable all warnings
+    SET(BISON_FLAGS_WARNINGS
+      "--warnings=all"
+      CACHE INTERNAL "BISON 2.x flags")
   ELSE()
-    # Bison is missing or not usable, e.g too old
-    IF(EXISTS  ${output_cc} AND EXISTS ${output_h})
-      IF(${input_yy} IS_NEWER_THAN ${output_cc}  OR  ${input_yy} IS_NEWER_THAN ${output_h})
-        # Possibly timestamps are messed up in source distribution.
-        MESSAGE(WARNING "No usable bison found, ${input_yy} will not be rebuilt.")
-      ENDIF()
-    ELSE()
-      # Output files are missing, bail out.
-      SET(ERRMSG 
-         "Bison (GNU parser generator) is required to build MySQL." 
-         "Please install bison."
-      )
-      IF(WIN32)
-       SET(ERRMSG ${ERRMSG} 
-       "You can download bison from http://gnuwin32.sourceforge.net/packages/bison.htm "
-       "Choose 'Complete package, except sources' installation. We recommend to "
-       "install bison into a directory without spaces, e.g C:\\GnuWin32.")
-      ENDIF()
-      MESSAGE(FATAL_ERROR ${ERRMSG})
-    ENDIF()
+    # TODO: replace with "--warnings=all"
+    # For the backward compatibility with 2.x, suppress warnings:
+    # * no-yacc: for --yacc
+    # * no-empty-rule: for empty rules without %empty
+    # * no-precedence: for useless precedence or/and associativity rules
+    # * no-deprecated: %pure-parser is deprecated
+    SET(BISON_FLAGS_WARNINGS
+      "--warnings=all,no-yacc,no-empty-rule,no-precedence,no-deprecated"
+      CACHE INTERNAL "BISON 3.x flags")
   ENDIF()
-ENDMACRO()
+ENDIF()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@
 
 enum_return_status Gtid_specification::parse(Sid_map *sid_map,
                                              const char *text) {
-  DBUG_ENTER("Gtid_specification::parse");
-  DBUG_ASSERT(text != nullptr);
+  DBUG_TRACE;
+  assert(text != nullptr);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0) {
     type = AUTOMATIC_GTID;
     gtid.sidno = 0;
@@ -50,24 +50,24 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map,
 }
 
 bool Gtid_specification::is_valid(const char *text) {
-  DBUG_ENTER("Gtid_specification::is_valid");
-  DBUG_ASSERT(text != nullptr);
+  DBUG_TRACE;
+  assert(text != nullptr);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
-    DBUG_RETURN(true);
+    return true;
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
-    DBUG_RETURN(true);
+    return true;
   else
-    DBUG_RETURN(Gtid::is_valid(text));
+    return Gtid::is_valid(text);
 }
 
 #endif  // ifdef MYSQL_SERVER
 
 int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
-  DBUG_ENTER("Gtid_specification::to_string(char*)");
+  DBUG_TRACE;
   switch (type) {
     case AUTOMATIC_GTID:
       strcpy(buf, "AUTOMATIC");
-      DBUG_RETURN(9);
+      return 9;
     case NOT_YET_DETERMINED_GTID:
       /*
         This can happen if user issues SELECT @@SESSION.GTID_NEXT
@@ -75,20 +75,23 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
         Format_description_log_event.
       */
       strcpy(buf, "NOT_YET_DETERMINED");
-      DBUG_RETURN(18);
+      return 18;
     case ANONYMOUS_GTID:
       strcpy(buf, "ANONYMOUS");
-      DBUG_RETURN(9);
+      return 9;
     /*
       UNDEFINED_GTID must be printed like ASSIGNED_GTID because of
       SELECT @@SESSION.GTID_NEXT.
     */
     case UNDEFINED_GTID:
     case ASSIGNED_GTID:
-      DBUG_RETURN(gtid.to_string(*sid, buf));
+      return gtid.to_string(*sid, buf);
+    case PRE_GENERATE_GTID:
+      strcpy(buf, "PRE_GENERATE_GTID");
+      return 17;
   }
-  DBUG_ASSERT(0);
-  DBUG_RETURN(0);
+  assert(0);
+  return 0;
 }
 
 int Gtid_specification::to_string(const Sid_map *sid_map, char *buf,

@@ -1,0 +1,1043 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#########################################################################
+# START : WITHOUT KEYRING
+#########################################################################
+# Taking backup of local manifest file for MySQL server instance
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='Y';
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB;
+ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+DROP TABLESPACE encrypt_ts;
+#########################################################################
+# RESTART 1 : WITH KEYRING
+#########################################################################
+# Restore local manifest file for MySQL server instance from backup
+DROP TABLE IF EXISTS t1;
+---------------------------
+SYSTEM TABLESPACE
+---------------------------
+CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system ENGINE = InnoDB;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL innodb_file_per_table = 0;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+0
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="N" ENGINE = InnoDB;
+SHOW WARNINGS;
+Level	Code	Message
+DROP TABLE t1;
+CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system ENGINE = InnoDB;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system ENGINE = InnoDB;
+SHOW WARNINGS;
+Level	Code	Message
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+ALTER TABLESPACE innodb_system ENCRYPTION='Y';
+ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
+---------------------------
+TEMPORARY TABLESPACE
+---------------------------
+CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
+CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
+------------------------------------------------
+CREATE TABLESPACE WITH INVALID ENCRYPTION OPTION
+------------------------------------------------
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='R';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'y' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=Y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'Y' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=n;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'n' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=N;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'N' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=null;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='TRUE';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRUE' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=True;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'True' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='True';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='true';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=true;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'true' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=FALSE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FALSE' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='FALSE';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=False;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'False' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='False';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=false;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'false' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='false';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption="";
+ERROR HY000: Invalid encryption option.
+----------------------------------------------------
+CREATE ENCRYPTED TABLESPACE IN MyISAM STORAGE ENGINE
+----------------------------------------------------
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=MyISAM encryption='Y';
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=MyISAM encryption='y';
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=MyISAM encryption='N';
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=MyISAM encryption='n';
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+----------------------------------------------------
+CREATE ENCRYPTED TABLESPACE IN MEMORY STORAGE ENGINE
+----------------------------------------------------
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=Memory encryption='Y';
+ERROR HY000: Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=Memory encryption='y';
+ERROR HY000: Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=Memory encryption='N';
+ERROR HY000: Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=Memory encryption='n';
+ERROR HY000: Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Table storage engine 'MEMORY' does not support the create option 'CREATE TABLESPACE'
+----------------------------------------------
+CREATE TABLESPACE WITH VALID ENCRYPTION OPTION
+----------------------------------------------
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='n';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption="y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption="n";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+-----------------------------------------------
+ALTER TABLESPACE WITH INVALID ENCRYPTION OPTION
+-----------------------------------------------
+ALTER TABLESPACE encrypt_ts ENCRYPTION='R';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRUE' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='TRUE';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=True;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'True' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='True';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=true;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'true' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='true';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=FALSE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FALSE' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='FALSE';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=False;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'False' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='False';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=false;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'false' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='false';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION=null;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=n;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'n' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=N;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'N' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'y' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=N;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'N' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION='';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE encrypt_ts ENCRYPTION="";
+ERROR HY000: Invalid encryption option.
+---------------------------------------------
+ALTER TABLESPACE WITH VALID ENCRYPTION OPTION
+---------------------------------------------
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='n';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="n";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='n';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="n";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='n';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="n";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='n';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="n";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+ALTER TABLESPACE encrypt_ts ENCRYPTION="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+-----------------------------------------
+CREATE/ALTER TABLE in FILE-PER-TABLE TABLESPACE
+-----------------------------------------
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	Y
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+ALTER TABLE t1 encryption="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	N
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="N" ENGINE = InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	N
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 encryption="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	Y
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=innodb_file_per_table ENCRYPTION="Y" ENGINE = InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	Y
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+ALTER TABLE t1 encryption="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	N
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=innodb_file_per_table ENCRYPTION="N" ENGINE = InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	N
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 encryption="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+test/t1	Y
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+DROP TABLE t1;
+--------------------------
+CREATE/ALTER TABLE IN GENERAL TABLESPACE
+--------------------------
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="Y" ENGINE = InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="N" ENGINE = InnoDB;
+ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="R" ENGINE = InnoDB;
+ERROR HY000: Invalid encryption option.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3184	Invalid encryption option.
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
+ALTER TABLE t1 encryption='Y';
+ALTER TABLE t1 encryption='N';
+ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ALTER TABLE t1 encryption='R';
+ERROR HY000: Invalid encryption option.
+DROP TABLE t1;
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="N" ENGINE = InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="R" ENGINE = InnoDB;
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENGINE = InnoDB;
+ALTER TABLE t1 encryption='Y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE t1 encryption='N';
+ALTER TABLE t1 encryption='R';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+DROP TABLE t1;
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+#########################################################################
+# RESTART 2 : WITHOUT KEYRING
+#########################################################################
+# Taking backup of local manifest file for MySQL server instance
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+#########################################################################
+# RESTART 3 : WITH KEYRING
+#########################################################################
+# Restore local manifest file for MySQL server instance from backup
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+SET GLOBAL innodb_file_per_table=1;
+DROP TABLE t1;
+CREATE TABLE t1(c2 char(100) , FULLTEXT INDEX `idx1` (c2)) ENGINE=InnoDB
+tablespace=encrypt_ts ENCRYPTION='Y';
+ALTER TABLE t1 DROP INDEX idx1;
+ALTER TABLE t1 ADD COLUMN c4 CHAR(20);
+DROP TABLE t1;
+----------------------
+ALGORITHM=COPY/INPLACE
+----------------------
+ALTER TABLESPACE encrypt_ts ENCRYPTION="N", algorithm=copy;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'algorithm=copy' at line 1
+ALTER TABLESPACE encrypt_ts ENCRYPTION="N", algorithm=inplace;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'algorithm=inplace' at line 1
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENCRYPTION="N", algorithm=copy;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'algorithm=copy' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENCRYPTION="N", algorithm=inplace;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'algorithm=inplace' at line 1
+-----------
+COMPRESSION
+-----------
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' COMPRESSION = "ZLIB" ENCRYPTION = "Y" ENGINE = InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COMPRESSION = "ZLIB" ENCRYPTION = "Y" ENGINE = InnoDB' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENCRYPTION = "Y" ENGINE = InnoDB;
+ALTER TABLESPACE encrypt_ts COMPRESSION = "ZLIB";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COMPRESSION = "ZLIB"' at line 1
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encryt_ts_1k ADD DATAFILE 'encrypt_ts_1k.ibd' FILE_BLOCK_SIZE=1k ENCRYPTION='Y';
+CREATE TABLESPACE encryt_ts_2k ADD DATAFILE 'encrypt_ts_2k.ibd' FILE_BLOCK_SIZE=2k ENCRYPTION='Y';
+CREATE TABLESPACE encryt_ts_4k ADD DATAFILE 'encrypt_ts_4k.ibd' FILE_BLOCK_SIZE=4k ENCRYPTION='Y';
+CREATE TABLESPACE encryt_ts_8k ADD DATAFILE 'encrypt_ts_8k.ibd' FILE_BLOCK_SIZE=8k ENCRYPTION='Y';
+CREATE TABLESPACE encryt_ts_16k ADD DATAFILE 'encrypt_ts_16k.ibd' FILE_BLOCK_SIZE=16k ENCRYPTION='Y';
+CREATE TABLESPACE encryt_ts_32k ADD DATAFILE 'encrypt_ts_32k.ibd' FILE_BLOCK_SIZE=32k ENCRYPTION='Y';
+ERROR HY000: InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=32768 because INNODB_PAGE_SIZE=16384.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=32768 because INNODB_PAGE_SIZE=16384.
+Error	1528	Failed to create TABLESPACE encryt_ts_32k
+Error	1031	Table storage engine for 'encryt_ts_32k' doesn't have this option
+DROP tablespace encryt_ts_1k;
+DROP tablespace encryt_ts_2k;
+DROP tablespace encryt_ts_4k;
+DROP tablespace encryt_ts_8k;
+DROP tablespace encryt_ts_16k;
+CREATE TABLESPACE encrypt_ts  ENCRYPTION='Y' ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 10M
+MAX_SIZE = 100M NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 10M
+MAX_SIZE = 1' at line 1
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENCRYPTION='Y' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M
+MAX_SIZE = 100M NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y' AUTOEXTEND_SIZE = 12M
+MAX_SIZE = 100M NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M ENCRYPTION='Y'
+MAX_SIZE = 100M NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M  MAX_SIZE = 100M
+ENCRYPTION='Y' NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M  MAX_SIZE = 100M
+NODEGROUP = 5 ENCRYPTION='Y' WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M  MAX_SIZE = 100M
+NODEGROUP = 5 WAIT ENCRYPTION='Y' COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M  MAX_SIZE = 100M
+NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' ENCRYPTION='Y' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M  MAX_SIZE = 100M
+NODEGROUP = 5 WAIT COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M ENCRYPTION='Y'EXTENT_SIZE = 100M;
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 12M  MAX_SIZE = 100M
+NODEGROUP = 5 WAIT COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M ENCRYPTION='Y';
+DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y';
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+ALTER TABLESPACE encrypt_ts RENAME TO encrypt_ts_renamed;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts_renamed';
+NAME	ENCRYPTION
+encrypt_ts_renamed	Y
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
+NAME	ENCRYPTION
+SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
+test	t1	InnoDB	ENCRYPTION='Y'
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) /*!50100 TABLESPACE `encrypt_ts_renamed` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts_renamed;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y';
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES (i,CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=COMPRESSED;
+ERROR HY000: InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=FIXED;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=REDUNDANT;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=COMPACT;
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' KEY_BLOCK_SIZE=1;
+ERROR HY000: InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
+Error	1031	Table storage engine for 't1' doesn't have this option
+DROP TABLESPACE encrypt_ts;
+SET block_encryption_mode = 'aes-256-cbc';
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y';
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
+INSERT INTO tde_db.t1 VALUES(0, 'abc');
+INSERT INTO tde_db.t1 VALUES(1, 'xyz');
+INSERT INTO tde_db.t1 VALUES(2, null);
+INSERT INTO tde_db.t1 VALUES(3, null);
+SELECT * FROM tde_db.t1 LIMIT 10;
+c1	c2
+0	abc
+1	xyz
+2	NULL
+3	NULL
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT * FROM tde_db.t1 LIMIT 10;
+c1	c2
+0	abc
+1	xyz
+2	NULL
+3	NULL
+DROP DATABASE tde_db;
+DROP TABLESPACE encrypt_ts;
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENCRYPTION ='Y' ENGINE=InnoDB;
+CREATE TABLE tde_db.t_encrypt(c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
+SHOW CREATE TABLE tde_db.t_encrypt;
+Table	Create Table
+t_encrypt	CREATE TABLE `t_encrypt` (
+  `c4` json DEFAULT NULL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c7` point NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx2` (`c7`)
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+INSERT INTO tde_db.t_encrypt(c4,c7) VALUES('{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_encrypt(c4,c7) select c4,c7 from tde_db.t_encrypt;
+SELECT c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+c4	c5	ST_AsText(c7)
+{"key_a": 1, "key_b": 2, "key_c": 3}	1	POINT(383293632 1754448)
+{"key_a": 1, "key_b": 2, "key_c": 3}	1	POINT(383293632 1754448)
+SELECT c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+c4	c5	c6	ST_AsText(c7)
+{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SHOW CREATE TABLE tde_db.t_encrypt;
+Table	Create Table
+t_encrypt	CREATE TABLE `t_encrypt` (
+  `c4` json DEFAULT NULL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c7` point NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx2` (`c7`)
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+DROP TABLE IF EXISTS tde_db.t_encrypt;
+CREATE TABLE tde_db.t_encrypt(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 char(100), c3 BLOB , FULLTEXT INDEX `idx1` (c2)) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
+CREATE TABLE tde_db.t_encrypt1(c11 INT , c22 char(100), c33 BLOB , FULLTEXT INDEX `idx1` (c22)) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
+SHOW CREATE TABLE tde_db.t_encrypt;
+Table	Create Table
+t_encrypt	CREATE TABLE `t_encrypt` (
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` char(100) DEFAULT NULL,
+  `c3` blob,
+  PRIMARY KEY (`c1`),
+  FULLTEXT KEY `idx1` (`c2`)
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+SHOW CREATE TABLE tde_db.t_encrypt1;
+Table	Create Table
+t_encrypt1	CREATE TABLE `t_encrypt1` (
+  `c11` int DEFAULT NULL,
+  `c22` char(100) DEFAULT NULL,
+  `c33` blob,
+  FULLTEXT KEY `idx1` (`c22`)
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+CREATE TABLE tde_db.t_encrypt2 (f1 INT PRIMARY KEY, f2 CHAR(100),
+FOREIGN KEY (f1) REFERENCES tde_db.t_encrypt(c1) ON UPDATE CASCADE) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
+CREATE TRIGGER tde_db.trigger_encrypt_table AFTER INSERT ON tde_db.t_encrypt
+FOR EACH ROW
+begin
+INSERT INTO tde_db.t_encrypt1 SET c11 = NEW.c1*-1,  c22 = NEW.c2 , c33 = NEW.c3;
+end|
+INSERT INTO tde_db.t_encrypt(c2,c3) VALUES("transparent tablespace encryption",repeat('A', 200));
+INSERT INTO tde_db.t_encrypt(c2,c3) VALUES("general tablespace option",repeat('A', 200));
+INSERT INTO tde_db.t_encrypt(c2,c3) VALUES("page level encryption",repeat('A', 200));
+INSERT INTO tde_db.t_encrypt2(f1,f2) VALUES(1,"transparent tablespace encryption");
+INSERT INTO tde_db.t_encrypt2(f1,f2) VALUES(2,"general tablespace option");
+SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
+c1	c2	right(c3, 20)
+1	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA
+2	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+3	page level encryption	AAAAAAAAAAAAAAAAAAAA
+SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt WHERE MATCH c2 AGAINST ('tablespace');
+c1	c2	right(c3, 20)
+1	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA
+2	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt WHERE MATCH c2 AGAINST ('tablespace' IN BOOLEAN MODE);
+c1	c2	right(c3, 20)
+1	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA
+2	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt WHERE MATCH c2 AGAINST ('+tablespace -encryption' IN BOOLEAN MODE);
+c1	c2	right(c3, 20)
+2	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+ALTER TABLE tde_db.t_encrypt DROP INDEX idx1;
+SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
+c1	c2	right(c3, 20)
+1	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA
+2	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+3	page level encryption	AAAAAAAAAAAAAAAAAAAA
+ALTER TABLE tde_db.t_encrypt ADD COLUMN c4 CHAR(20) DEFAULT 'text';
+SELECT c1,c2,right(c3, 20),c4 FROM tde_db.t_encrypt LIMIT 10;
+c1	c2	right(c3, 20)	c4
+1	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA	text
+2	general tablespace option	AAAAAAAAAAAAAAAAAAAA	text
+3	page level encryption	AAAAAAAAAAAAAAAAAAAA	text
+CREATE VIEW tde_db.t_encrypt_view AS SELECT c1,c2 FROM tde_db.t_encrypt;
+SELECT c2 FROM tde_db.t_encrypt_view LIMIT 10;
+c2
+transparent tablespace encryption
+general tablespace option
+page level encryption
+SELECT A.c2,B.c2,right(B.c3,20) FROM tde_db.t_encrypt_view A , tde_db.t_encrypt B WHERE A.c2 = B.c2;
+c2	c2	right(B.c3,20)
+transparent tablespace encryption	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA
+general tablespace option	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+page level encryption	page level encryption	AAAAAAAAAAAAAAAAAAAA
+DROP VIEW tde_db.t_encrypt_view;
+SELECT c11,c22,right(c33, 20) FROM tde_db.t_encrypt1 LIMIT 10;
+c11	c22	right(c33, 20)
+-1	transparent tablespace encryption	AAAAAAAAAAAAAAAAAAAA
+-2	general tablespace option	AAAAAAAAAAAAAAAAAAAA
+-3	page level encryption	AAAAAAAAAAAAAAAAAAAA
+INSERT INTO tde_db.t_encrypt2(f1,f2) VALUES(2,"general tablespace option");
+ERROR 23000: Duplicate entry '2' for key 't_encrypt2.PRIMARY'
+INSERT INTO tde_db.t_encrypt2(f1,f2) VALUES(8,"general tablespace option");
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`tde_db`.`t_encrypt2`, CONSTRAINT `t_encrypt2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t_encrypt` (`c1`) ON UPDATE CASCADE)
+SELECT f1,f2 FROM tde_db.t_encrypt2;
+f1	f2
+1	transparent tablespace encryption
+2	general tablespace option
+UPDATE tde_db.t_encrypt SET c1=10 WHERE c1=1;
+SELECT f1,f2 FROM tde_db.t_encrypt2;
+f1	f2
+2	general tablespace option
+10	transparent tablespace encryption
+DROP DATABASE tde_db;
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+USE tde_db;
+DROP TABLE IF EXISTS tde_db.t_encrypt;
+CREATE TABLE tde_db.t_encrypt  (c2 INT NOT NULL AUTO_INCREMENT ,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL SRID 0,spatial INDEX idx2 (c7) , PRIMARY KEY (c2,c3(100))) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
+CREATE PROCEDURE tde_db.txn_t_encrypt()
+BEGIN
+declare i int default 0;
+declare rowcnt int default 0;
+START TRANSACTION;
+WHILE (i <= 2000) DO
+SET i = i + 1;
+SET rowcnt = rowcnt + 1;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES (CONCAT(REPEAT('a',10),REPEAT(i,10)),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+IF (rowcnt = 3) THEN
+UPDATE tde_db.t_encrypt SET c4 = '{ "key_a": 21, "key_b": 22, "key_c": 23 }' WHERE c2 = i-1 ;
+DELETE FROM tde_db.t_encrypt WHERE c2 = i;
+SAVEPOINT A;
+END IF;
+IF (rowcnt = 5) THEN
+UPDATE tde_db.t_encrypt SET c4 = '{ "key_a": 41, "key_b": 42, "key_c": 43 }' WHERE c2 = i-1 ;
+DELETE FROM tde_db.t_encrypt WHERE c2 = i;
+SAVEPOINT B;
+END IF;
+IF (rowcnt = 10) THEN
+ROLLBACK TO SAVEPOINT A;
+COMMIT;
+SET rowcnt = 0;
+START TRANSACTION;
+END IF;
+END WHILE;
+COMMIT;
+end|
+call tde_db.txn_t_encrypt();
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+COUNT(*)
+401
+SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt LIMIT 10;
+c2	RIGHT(c3,20)	c4
+1	aaaaaaaaaa1111111111	{"key_a": 1, "key_b": 2, "key_c": 3}
+2	aaaaaaaaaa2222222222	{"key_a": 21, "key_b": 22, "key_c": 23}
+11	11111111111111111111	{"key_a": 1, "key_b": 2, "key_c": 3}
+12	12121212121212121212	{"key_a": 21, "key_b": 22, "key_c": 23}
+21	21212121212121212121	{"key_a": 1, "key_b": 2, "key_c": 3}
+22	22222222222222222222	{"key_a": 21, "key_b": 22, "key_c": 23}
+31	31313131313131313131	{"key_a": 1, "key_b": 2, "key_c": 3}
+32	32323232323232323232	{"key_a": 21, "key_b": 22, "key_c": 23}
+41	41414141414141414141	{"key_a": 1, "key_b": 2, "key_c": 3}
+42	42424242424242424242	{"key_a": 21, "key_b": 22, "key_c": 23}
+SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt WHERE c2 > 500 AND c2 < 600;
+c2	RIGHT(c3,20)	c4
+501	01501501501501501501	{"key_a": 1, "key_b": 2, "key_c": 3}
+502	02502502502502502502	{"key_a": 21, "key_b": 22, "key_c": 23}
+511	11511511511511511511	{"key_a": 1, "key_b": 2, "key_c": 3}
+512	12512512512512512512	{"key_a": 21, "key_b": 22, "key_c": 23}
+521	21521521521521521521	{"key_a": 1, "key_b": 2, "key_c": 3}
+522	22522522522522522522	{"key_a": 21, "key_b": 22, "key_c": 23}
+531	31531531531531531531	{"key_a": 1, "key_b": 2, "key_c": 3}
+532	32532532532532532532	{"key_a": 21, "key_b": 22, "key_c": 23}
+541	41541541541541541541	{"key_a": 1, "key_b": 2, "key_c": 3}
+542	42542542542542542542	{"key_a": 21, "key_b": 22, "key_c": 23}
+551	51551551551551551551	{"key_a": 1, "key_b": 2, "key_c": 3}
+552	52552552552552552552	{"key_a": 21, "key_b": 22, "key_c": 23}
+561	61561561561561561561	{"key_a": 1, "key_b": 2, "key_c": 3}
+562	62562562562562562562	{"key_a": 21, "key_b": 22, "key_c": 23}
+571	71571571571571571571	{"key_a": 1, "key_b": 2, "key_c": 3}
+572	72572572572572572572	{"key_a": 21, "key_b": 22, "key_c": 23}
+581	81581581581581581581	{"key_a": 1, "key_b": 2, "key_c": 3}
+582	82582582582582582582	{"key_a": 21, "key_b": 22, "key_c": 23}
+591	91591591591591591591	{"key_a": 1, "key_b": 2, "key_c": 3}
+592	92592592592592592592	{"key_a": 21, "key_b": 22, "key_c": 23}
+SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt ORDER BY c2 DESC LIMIT 10;
+c2	RIGHT(c3,20)	c4
+2001	20012001200120012001	{"key_a": 1, "key_b": 2, "key_c": 3}
+1992	19921992199219921992	{"key_a": 21, "key_b": 22, "key_c": 23}
+1991	19911991199119911991	{"key_a": 1, "key_b": 2, "key_c": 3}
+1982	19821982198219821982	{"key_a": 21, "key_b": 22, "key_c": 23}
+1981	19811981198119811981	{"key_a": 1, "key_b": 2, "key_c": 3}
+1972	19721972197219721972	{"key_a": 21, "key_b": 22, "key_c": 23}
+1971	19711971197119711971	{"key_a": 1, "key_b": 2, "key_c": 3}
+1962	19621962196219621962	{"key_a": 21, "key_b": 22, "key_c": 23}
+1961	19611961196119611961	{"key_a": 1, "key_b": 2, "key_c": 3}
+1952	19521952195219521952	{"key_a": 21, "key_b": 22, "key_c": 23}
+DROP DATABASE tde_db;
+DROP TABLESPACE encrypt_ts;
+#########################################################################
+# RESTART 4 : WITH KEYRING AND --INNODB_DIRECTORIES
+#########################################################################
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'MYSQL_TMP_DIR/encrypt_ts.ibd' ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+CREATE DATABASE tde_db;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
+INSERT INTO tde_db.t1 VALUES(0, 'abc');
+INSERT INTO tde_db.t1 VALUES(1, 'xyz');
+SELECT * FROM tde_db.t1;
+c1	c2
+0	abc
+1	xyz
+# Remote tablespace listing
+encrypt_ts.ibd
+DROP TABLE tde_db.t1;
+DROP DATABASE tde_db;
+#########################################################################
+# Cleanup
+#########################################################################
+DROP TABLESPACE encrypt_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

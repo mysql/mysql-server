@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,18 +42,21 @@ extern mysql_mutex_t LOCK_machine_records_array;
 
 enum machine_type_enum { LAPTOP = 1, DESKTOP = 2, MOBILE = 3, TYPE_END = 4 };
 
+/* Number of characters * max multibyte length */
+#define MACHINE_MADE_LEN 20 * 4
+
 /* A structure to denote a single row of the table. */
-struct {
+struct Machine_Record {
  public:
   PSI_int machine_number;
   PSI_enum machine_type;
-  char machine_made[20];
+  char machine_made[MACHINE_MADE_LEN];
   unsigned int machine_made_length;
   PSI_int employee_number;
 
   /* If there is a value in this row */
   bool m_exist;
-} typedef Machine_Record;
+};
 
 /**
  * An array to keep rows of the tables.
@@ -68,7 +71,7 @@ class Machine_POS {
   unsigned int m_index;
 
  public:
-  ~Machine_POS() {}
+  ~Machine_POS() = default;
   Machine_POS() { m_index = 0; }
 
   bool has_more() {
@@ -89,7 +92,7 @@ class Machine_POS {
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct {
+struct Machine_Table_Handle {
   /* Current position instance */
   Machine_POS m_pos;
   /* Next position instance */
@@ -97,7 +100,7 @@ typedef struct {
 
   /* Current row for the table */
   Machine_Record current_row;
-} Machine_Table_Handle;
+};
 
 PSI_table_handle *machine_open_table(PSI_pos **pos);
 void machine_close_table(PSI_table_handle *handle);

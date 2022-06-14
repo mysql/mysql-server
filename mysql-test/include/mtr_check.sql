@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,11 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-delimiter ||;
+delimiter ;
 
-use mtr||
+use mtr;
+
+DELIMITER $$
 
 CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
 BEGIN
@@ -61,16 +63,50 @@ BEGIN
       ORDER BY UDF_NAME;
   END;
   END IF;
-END||
+END$$
 
---
+CREATE DEFINER=root@localhost PROCEDURE check_testcase_ndb()
+BEGIN
+  -- Check NDB only if the ndbcluster plugin is enabled
+  IF ((SELECT count(*) FROM information_schema.engines
+       WHERE engine='ndbcluster' AND support IN ('YES', 'DEFAULT')) = 1) THEN
+
+    -- Check only if connection information is available
+    IF (SELECT LENGTH(VARIABLE_VALUE) > 0
+          FROM performance_schema.global_variables
+             WHERE VARIABLE_NAME='ndb_connectstring') THEN
+
+      -- Check ndbinfo engine is enabled, else ndbinfo schema will not exists
+      IF ((SELECT count(*) FROM information_schema.engines
+           WHERE engine='ndbinfo' AND support IN ('YES', 'DEFAULT')) = 1) THEN
+
+        -- List dict objects in NDB, skip objects created by ndbcluster plugin
+        -- and HashMap's since those can't be dropped after having been
+        -- created by test
+        SELECT id, indented_name FROM ndbinfo.dict_obj_tree
+          WHERE root_type != 24 AND  -- HashMap
+                root_name NOT IN ( 'mysql/def/ndb_schema',
+                                   'mysql/def/ndb_schema_result',
+                                   'mysql/def/ndb_index_stat_head',
+                                   'mysql/def/ndb_index_stat_sample',
+                                   'mysql/def/ndb_apply_status',
+                                   'mysql/def/ndb_sql_metadata')
+          ORDER BY path;
+
+      END IF;
+    END IF;
+  END IF;
+END$$
+
 -- Procedure used to check if server has been properly
 -- restored after testcase has been run
---
+
 CREATE DEFINER=root@localhost PROCEDURE check_testcase()
 BEGIN
 
   CALL check_testcase_perfschema();
+
+  CALL check_testcase_ndb();
 
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.
@@ -78,7 +114,8 @@ BEGIN
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name',
-                                'keyring_file_data')
+                                'keyring_file_data',
+                                'innodb_thread_sleep_delay')
   ORDER BY VARIABLE_NAME;
 
   -- Dump all persisted variables, those that may change.
@@ -114,6 +151,7 @@ BEGIN
 
   -- Dump all events, there should be none
   SELECT * FROM INFORMATION_SCHEMA.EVENTS;
+
   -- Dump all triggers except mtr internals, only those in the sys schema should exist
   -- do not select the CREATED column however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_MANIPULATION,
@@ -122,7 +160,9 @@ BEGIN
          ACTION_REFERENCE_OLD_ROW, ACTION_REFERENCE_NEW_ROW, SQL_MODE, DEFINER CHARACTER_SET_CLIENT,
          COLLATION_CONNECTION, DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.TRIGGERS
-      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');
+      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert')
+      ORDER BY TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME;
+
   -- Dump all created procedures, only those in the sys schema should exist
   -- do not select the CREATED or LAST_ALTERED columns however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
@@ -131,14 +171,20 @@ BEGIN
          IS_DETERMINISTIC,SQL_DATA_ACCESS,SQL_PATH,SECURITY_TYPE,SQL_MODE,ROUTINE_COMMENT,DEFINER,
          CHARACTER_SET_CLIENT,COLLATION_CONNECTION,DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.ROUTINES ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE;
+
   -- Dump all views, only those in the sys schema should exist
   SELECT * FROM INFORMATION_SCHEMA.VIEWS
     ORDER BY TABLE_SCHEMA, TABLE_NAME;
+
   -- Dump all plugins, loaded with plugin-loading options or through
   -- INSTALL/UNINSTALL command
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
-  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
+  -- Leave InnoDB metrics in the same state
+  SELECT name, status FROM INFORMATION_SCHEMA.INNODB_METRICS
+    ORDER BY name;
+
+  SHOW GLOBAL STATUS LIKE 'replica_open_temp_tables';
 
   -- Check for number of active connections before & after the test run.
 
@@ -146,9 +192,12 @@ BEGIN
   -- not find consistent result in information_schema.processlist, hence
   -- excluding it from check-testcase. Similar reasoning applies to the event
   -- scheduler.
+  --
+  -- For "unauthenticated user", see Bug#30035699 "UNAUTHENTICATED USER" SHOWS UP IN CHECK-TESTCASE
+  --
   SELECT USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE COMMAND NOT IN ('Sleep')
-      AND USER NOT IN ('mysql.session', 'event_scheduler')
+      AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
   -- Checksum system tables to make sure they have been properly
@@ -165,6 +214,7 @@ BEGIN
     mysql.default_roles,
     mysql.db,
     mysql.func,
+    mysql.general_log,
     mysql.global_grants,
     mysql.help_category,
     mysql.help_keyword,
@@ -172,7 +222,12 @@ BEGIN
     mysql.help_topic,
     mysql.procs_priv,
     mysql.proxies_priv,
+    mysql.replication_asynchronous_connection_failover,
+    mysql.replication_asynchronous_connection_failover_managed,
+    mysql.replication_group_configuration_version,
+    mysql.replication_group_member_actions,
     mysql.role_edges,
+    mysql.slow_log,
     mysql.tables_priv,
     mysql.time_zone,
     mysql.time_zone_leap_second,
@@ -181,14 +236,19 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
-END||
+  -- Check that Replica IO Monitor thread state is the same before
+  -- and after the test run, which is not running.
+  SELECT * FROM performance_schema.threads WHERE NAME="thread/sql/replica_monitor";
 
---
+END$$
+
 -- Procedure used by test case used to force all
 -- servers to restart after testcase and thus skipping
 -- check test case after test
---
 CREATE DEFINER=root@localhost PROCEDURE force_restart()
 BEGIN
   SELECT 1 INTO OUTFILE 'force_restart';
-END||
+END$$
+
+DELIMITER ;
+

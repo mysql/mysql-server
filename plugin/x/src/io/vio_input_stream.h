@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include <my_inttypes.h>
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/src/interface/vio.h"
 
 namespace xpl {
 
@@ -38,9 +38,10 @@ class Vio_input_stream : public google::protobuf::io::ZeroCopyInputStream {
   using gint64 = google::protobuf::int64;
 
  public:
-  Vio_input_stream(const std::shared_ptr<ngs::Vio_interface> &connection);
+  explicit Vio_input_stream(const std::shared_ptr<iface::Vio> &connection);
   ~Vio_input_stream() override;
 
+  bool was_io_error() const;
   bool was_io_error(int *error_code) const;
   void reset_byte_count();
 
@@ -61,7 +62,7 @@ class Vio_input_stream : public google::protobuf::io::ZeroCopyInputStream {
  private:
   bool read_more_data();
 
-  std::shared_ptr<ngs::Vio_interface> m_connection;
+  std::shared_ptr<iface::Vio> m_connection;
 
   // Internal buffer
   char *m_buffer;
@@ -70,7 +71,7 @@ class Vio_input_stream : public google::protobuf::io::ZeroCopyInputStream {
 
   int m_bytes_count{0};
 
-  int m_locked_data_count{0};
+  int m_locked_data_count{-1};
   int m_locked_data_pos{0};
 
   // IO error/handling

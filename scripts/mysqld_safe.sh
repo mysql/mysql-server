@@ -354,8 +354,6 @@ mysqld_ld_preload_text() {
 
 # set_malloc_lib LIB
 # - If LIB is empty, do nothing and return
-# - If LIB is 'tcmalloc', look for tcmalloc shared library in $malloc_dirs.
-#   tcmalloc is part of the Google perftools project.
 # - If LIB is an absolute path, assume it is a malloc shared library
 #
 # Put LIB in mysqld_ld_preload, which will be added to LD_PRELOAD when
@@ -364,24 +362,6 @@ set_malloc_lib() {
   # This list is kept intentionally simple.
   malloc_dirs="/usr/lib /usr/lib64 /usr/lib/i386-linux-gnu /usr/lib/x86_64-linux-gnu"
   malloc_lib="$1"
-
-  if [ "$malloc_lib" = tcmalloc ]; then
-    malloc_lib=
-    for libdir in `echo $malloc_dirs`; do
-      for flavor in _minimal '' _and_profiler _debug; do
-        tmp="$libdir/libtcmalloc$flavor.so"
-        #log_notice "DEBUG: Checking for malloc lib '$tmp'"
-        [ -r "$tmp" ] || continue
-        malloc_lib="$tmp"
-        break 2
-      done
-    done
-
-    if [ -z "$malloc_lib" ]; then
-      log_error "no shared library for --malloc-lib=tcmalloc found in $malloc_dirs"
-      exit 1
-    fi
-  fi
 
   # Allow --malloc-lib='' to override other settings
   [ -z  "$malloc_lib" ] && return
@@ -406,8 +386,7 @@ set_malloc_lib() {
       esac
       ;;
     *)
-      log_error "--malloc-lib must be an absolute path or 'tcmalloc'; " \
-        "ignoring value '$malloc_lib'"
+      log_error "--malloc-lib must be an absolute path ignoring value '$malloc_lib'"
       exit 1
       ;;
   esac
@@ -898,7 +877,7 @@ log_notice "Starting $MYSQLD daemon with databases from $DATADIR"
 
 # variable to track the current number of "fast" (a.k.a. subsecond) restarts
 fast_restart=0
-# maximum number of restarts before trottling kicks in
+# maximum number of restarts before throttling kicks in
 max_fast_restarts=5
 # flag whether a usable sleep command exists
 have_sleep=1
@@ -976,7 +955,7 @@ do
         sleep_state=$?
         if test $sleep_state -gt 0
         then
-          log_notice "The server is respawning too fast and no working sleep command. Turning off trottling."
+          log_notice "The server is respawning too fast and in addition no working 'sleep' command was found. Turning off throttling."
           have_sleep=0
         fi
 

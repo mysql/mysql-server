@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,16 @@ class MockGcsMpscQueue : public Gcs_mpsc_queue<xcom_input_request,
   MOCK_METHOD1(push, bool(xcom_input_request *payload));
 
   MockGcsMpscQueue() { ON_CALL(*this, push(_)).WillByDefault(Return(false)); }
-  ~MockGcsMpscQueue() {}
+  ~MockGcsMpscQueue() = default;
 };
 
 class GcsXcomInputQueueTest : public GcsBaseTest {
  protected:
-  GcsXcomInputQueueTest() {}
+  GcsXcomInputQueueTest() = default;
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 /* The XCom queue fails to push into the backend MPSC queue. This tests covers
@@ -122,8 +122,8 @@ static void validate(int const &nr_producers,
   for (app_data_ptr const value : consumed) {
     auto cursor = std::find_if(
         cursors.begin(), cursors.end(),
-        [&sequence, &value](std::vector<app_data_ptr>::iterator cursor) {
-          return (cursor != sequence.end() && *cursor == value);
+        [&sequence, &value](std::vector<app_data_ptr>::iterator cursor_arg) {
+          return (cursor_arg != sequence.end() && *cursor_arg == value);
         });
     ASSERT_NE(cursor, cursors.end());
     (*cursor)++;

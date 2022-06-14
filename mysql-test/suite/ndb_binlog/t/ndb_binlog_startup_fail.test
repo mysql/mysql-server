@@ -1,0 +1,158 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+# Test is using some debug-only features
+--source include/have_debug.inc
+# Test terminates mysqld which causes valgrind warnings
+--source include/not_valgrind.inc
+# Ignore any mysqld failure reporting
+--source include/not_crashrep.inc
+
+--connection server1
+--disable_query_log
+call mtr.add_suppression("cluster disconnect An incident event");
+--enable_query_log
+
+--connection server2
+# Ignore server shutdown/startup errors in log
+--disable_query_log
+call mtr.add_suppression("Failed to setup binlog");
+call mtr.add_suppression("Distribution of CREATE TABLE");
+call mtr.add_suppression("Server shutdown in progress");
+call mtr.add_suppression("cluster disconnect An incident event");
+call mtr.add_suppression("mysqld startup an incident event");
+# Reported when the --ndb-log-fail-terminate logic kicks in
+call mtr.add_suppression("Requesting server shutdown");
+--enable_query_log
+
+--echo # First test, check behaviour with --ndb-log-fail-terminate=1
+--echo # during metadata synchronization
+--echo # - Create table
+--echo # - Setup mysqld2 with DBUG error to force "binlog setup" failure
+--echo # - Setup mtr.pl to expect mysqld2 to shutdown
+--echo # - Use DUMP 900 to disconnect both mysqld's (node 16 and 49)
+--echo # - The mysqld2 will disconnect and then shut itself down when
+--echo #   hitting the DBUG error during metadata sync
+--echo # - Start mysqld2 again and check things work
+
+--connection server1
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+--connection server2
+--echo # Setup mysqld2 DBUG
+--echo # NOTE! since the process will restart there is no need to save value
+set global debug='+d,ndb_binlog_fail_setup';
+
+--echo # Write file to make mtr.pl expect mysqld2 shutdown, but don't start
+--echo # until it's told to
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+wait
+EOF
+
+--echo # Disconnect both mysqld's with DUMP 900
+let $out_file = $MYSQLTEST_VARDIR/tmp/mgm_dump.out;
+--exec $NDB_MGM -e "ALL DUMP 900 16" > $out_file 2>&1
+--exec $NDB_MGM -e "ALL DUMP 900 49" >> $out_file 2>&1
+--remove_file $out_file
+
+--echo # Wait for mysqld2 binlog rotate to indicate disconnect
+--let $wait_binlog_event= binlog.000002
+--source include/wait_for_binlog_event.inc
+
+--connection server1
+--echo # Wait for mysqld1 to reconnect and insert data to check it's alive
+--source include/ndb_not_readonly.inc
+insert into t1 values (11);
+
+--connection server2
+--echo # Wait for mysqld2 to disconnect
+--source include/wait_until_disconnected.inc
+--echo # mysqld2 disconnected
+
+--echo # Write file to make mtr.pl start up mysqld2 again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+restart
+EOF
+
+--echo # Wait for mysqld2 to reconnect and insert data to check it's alive
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+insert into t1 values (10);
+drop table t1;
+
+--echo # Second test, check behaviour with --ndb-log-fail-terminate=1
+--echo # during CREATE TABLE
+--echo # - Setup mysqld2 with DBUG error to force "binlog setup" failure
+--echo # - Setup mtr.pl to expect mysqld2 to shutdown
+--echo # - Create table on mysqld1
+--echo # - mysqld2 will fail during schema distribution and shut itself down
+--echo # - Start mysqld2 again and check things work
+
+--connection server2
+--echo # Setup mysqld2 DBUG
+--echo # NOTE! since the process will restart there is no need to save value
+set global debug='+d,ndb_binlog_fail_setup';
+
+--echo # Write file to make mtr.pl expect mysqld2 shutdown, but don't start
+--echo # until it's told to
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+wait
+EOF
+
+--connection server1
+--echo # Create table from mysqld1
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+--connection server2
+--echo # Wait for mysqld2 diconnect
+--source include/wait_until_disconnected.inc
+--echo # mysqld2 disconnected
+
+--echo # Write file to make mtr.pl start up mysqld2 again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+restart
+EOF
+
+--echo # Wait for mysqld2 to reconnect and insert data to check it's alive
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--source include/ndb_not_readonly.inc
+insert into t1 values (10);
+
+--connection server1
+--source include/ndb_not_readonly.inc
+insert into t1 values (11);
+drop table t1;
+
+#
+# Check if binlog prints error message to mysql log
+# When it losses connection to NDB during binlog setup
+#
+
+set GLOBAL debug="+d,ndb_binlog_fail_setup_util_table";
+
+# Restart cluster nodes
+let $out_file = $MYSQLTEST_VARDIR/tmp/mgm_dump.out;
+--exec $NDB_MGM -e "all restart" >> $out_file
+# Wait for all nodes to enter "started"
+--exec $NDB_WAITER >> $out_file
+--remove_file $out_file
+
+#
+# Wait until the connection to the
+# cluster has been restored
+#
+--source include/ndb_not_readonly.inc
+
+#check if there are any error message in the server log
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_text=No error log printed when binlog setup fails
+--let $assert_select=Failed to setup binlogging for table
+--let $assert_count=0
+--source include/assert_grep.inc
+set GLOBAL debug="-d,ndb_binlog_fail_setup_util_table";

@@ -17,6 +17,30 @@ SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
 SHOW GLOBAL VARIABLES LIKE 'group_replication_consistency';
 Variable_name	Value
 group_replication_consistency	EVENTUAL
+SHOW PROCESSLIST;
+SHOW STATUS;
+SHOW ENGINE INNODB LOGS;
+SHOW ENGINE INNODB STATUS;
+SHOW ENGINE INNODB MUTEX;
+SHOW MASTER STATUS;
+SHOW REPLICA STATUS;
+SHOW CHARACTER SET;
+SHOW COLLATION;
+SHOW BINARY LOGS;
+SHOW OPEN TABLES;
+SHOW REPLICAS;
+SHOW BINLOG EVENTS;
+SHOW WARNINGS;
+SHOW ERRORS;
+SHOW ENGINES;
+SHOW PRIVILEGES;
+SHOW PROCEDURE STATUS;
+SHOW FUNCTION STATUS;
+SHOW PLUGINS;
+SHOW EVENTS;
+SHOW PROFILE;
+SHOW PROFILES;
+SHOW RELAYLOG EVENTS;
 
 # 3. Validate SQL command SET will not block
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
@@ -75,3 +99,5 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;;
 SET GLOBAL group_replication_single_primary_mode= TRUE;;
 SET @@SESSION.group_replication_consistency= DEFAULT;
 include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

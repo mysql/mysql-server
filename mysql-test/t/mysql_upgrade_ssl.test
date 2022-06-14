@@ -1,8 +1,8 @@
 
 # mysql_upgrade tests requiring SSL support
 
--- source include/no_valgrind_without_big.inc
--- source include/have_ssl.inc
+--source include/not_valgrind.inc
+--source include/mysql_upgrade_preparation.inc
 
 call mtr.add_suppression("Column count of mysql.* is wrong. "
                          "Expected .*, found .*. "

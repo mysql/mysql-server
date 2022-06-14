@@ -1,0 +1,178 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+
+--echo ******************************
+--echo Tests for unsupported features
+--echo ******************************
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(a,b)) engine=ndb;
+
+insert into test.t1 values 
+        ("1a","1b","1c","1d","1e"), 
+        ("2a","2b","2c","2d","2e"), 
+        ("3a","3b","3c","3d","3e"), 
+        ("4a","4b","4c","4d","4e"), 
+        ("5a","5b","5c","5d","5e"), 
+        ("6a","6b","6c","6d","6e");
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039"  >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.t1 values 
+        ("7a","7b","7c","7d","7e"), 
+        ("8a","8b","8c","8d","8e"), 
+        ("9a","9b","9c","9d","9e");
+
+# update column d
+update test.t1 set d=concat(d, "-modified");
+
+# update column c
+update test.t1 set c=concat(c, "-modified") where a in ("1a", "2a", "3a");
+
+# update all 3 data columns
+# Giving 
+#  - multiple updates to the same rows
+#  - updates with multiple columns affected
+#
+update test.t1 set c=concat(c, "2"), d=concat(d, "2"), e=concat(e,"-modified") where a in ("4a", "5a", "6a");
+
+# Some deletes
+delete from test.t1 where a in ("5a","8a");
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Show that we cannot change pk without --allow-pk-changes
+--echo Extend PK (a,b) -> (a,b,c)
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(a,b,c)) engine=ndb;
+
+--echo Run restore
+--echo Expect error
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $NDB_TOOLS_OUTPUT 2>&1
+
+--let $check_file=$NDB_TOOLS_OUTPUT
+--let $check_pattern=without allow-pk-changes
+--source suite/ndb/include/ndb_check_file_contains.inc
+
+drop table test.t1;
+
+--echo Show that we cannot change pk if the new column has updates
+--echo with --ignore-extended-pk-updates
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(a,b,c)) engine=ndb;
+
+--echo Run restore
+--echo Expect error
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id --allow-pk-changes > $NDB_TOOLS_OUTPUT 2>&1
+
+--let $check_file=$NDB_TOOLS_OUTPUT
+--let $check_pattern=ignore-extended-pk-updates switch is missing
+--source suite/ndb/include/ndb_check_file_contains.inc
+
+drop table test.t1;
+
+--echo Show that we cannot add a pk column from nowhere
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20),
+                      x varchar(20) not null, 
+  primary key(a,b,x)) engine=ndb;
+
+--echo Run restore
+--echo Expect error
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes $NDB_BACKUPS-$the_backup_id  > $NDB_TOOLS_OUTPUT 2>&1 
+--let $check_file=$NDB_TOOLS_OUTPUT
+--let $check_pattern=structure incompatible
+--source suite/ndb/include/ndb_check_file_contains.inc
+
+drop table test.t1;
+
+--echo Show that we cannot add an autoincrement pk from nowhere
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20),
+                      x int auto_increment not null, 
+  primary key(a,b,x)) engine=ndb;
+
+--echo Run restore
+--echo Expect error
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes $NDB_BACKUPS-$the_backup_id 2>&1  > $NDB_TOOLS_OUTPUT 2>&1 
+--let $check_file=$NDB_TOOLS_OUTPUT
+--let $check_pattern=structure incompatible
+--source suite/ndb/include/ndb_check_file_contains.inc
+
+drop table test.t1;
+
+# This fails as cannot create mapping index
+# Really 3 types of x-form
+#  1.  Safe (guaranteed unique)
+#  2.  Unsafe1 (some unique element, may not be totally unique)
+#  3.  Unsafe2 (no unique element, may not be totally unique)
+# 2 + 3 not much different
+# Could be done with staging table...
+#   If transform is not guaranteed unique, use staging
+#   Consider log angle
+
+--echo Complete key change with nothing of old key remaining
+--echo Will fail as the log apply lookup for update/delete
+--echo needs an index which has nothing to index
+--echo 
+create table test.t1 (c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20),
+  primary key(c,d)) engine=ndb;
+
+--echo Run restore
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes --lossy-conversions  $NDB_BACKUPS-$the_backup_id 2>&1  > $NDB_TOOLS_OUTPUT 2>&1 
+--let $check_file=$NDB_TOOLS_OUTPUT
+--let $check_pattern=no columns
+--source suite/ndb/include/ndb_check_file_contains.inc
+
+drop table test.t1;
+
+# Add autoincrement key
+# Add autoincrement key from non-pks
+# Remove all existing keys + add one?
+# Multiple tables
+# Rewrite DB
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

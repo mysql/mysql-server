@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_TRANSACTION_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_transaction_bits.h>
+#include <mysql/components/services/bits/psi_transaction_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_transaction_v1)
 /** @sa get_thread_transaction_locker_v1_t. */
@@ -49,7 +49,5 @@ inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
 /** @sa end_transaction_v1_t. */
 end_transaction_v1_t end_transaction;
 END_SERVICE_DEFINITION(psi_transaction_v1)
-
-#define REQUIRES_PSI_TRANSACTION_SERVICE REQUIRES_SERVICE(psi_transaction_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_TRANSACTION_SERVICE_H */

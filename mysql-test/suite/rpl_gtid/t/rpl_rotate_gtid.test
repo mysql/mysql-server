@@ -4,7 +4,7 @@
 # track of the starting position of the current transaction. This position
 # is used to rewind the position in case the SQL thread is stopped in the
 # middle of a transaction, or in case the transaction is re-executed due to
-# slave_transaction_retries > 0.
+# replica_transaction_retries > 0.
 #
 # This test verifies that the start of the transaction is correctly updated
 # even if the transaction spans multiple relay logs, such that a Gtid_log_event
@@ -36,14 +36,14 @@ source include/have_debug_sync.inc;
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 # Disabling auto positioning
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 # Make sync includes to rely on position instead of GTIDs
 --let $use_gtids= 0
 --source include/start_slave_io.inc
 
 # Setting the debug point to stop IO thread after queuing Gtid_log_event
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 
 --echo # Create a transaction on the master
 --echo # that will have it's GTID and other events in separated relay log files

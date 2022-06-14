@@ -38,13 +38,13 @@ CREATE INDEX g_index ON t1( f(4) ) COMMENT 'ABC';
 CREATE INDEX r_index USING rtree ON t1( a ) USING btree;
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)	NULL	NO	MUL	1	NULL	select,insert,update,references	
-b	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
-c	int(11)	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
-d	int(11)	NULL	YES		NULL	STORED GENERATED	select,insert,update,references	
+a	int	NULL	NO	MUL	1	NULL	select,insert,update,references	
+b	int	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+c	int	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
+d	int	NULL	YES		NULL	STORED GENERATED	select,insert,update,references	
 e	point	NULL	NO	MUL	NULL	NULL	select,insert,update,references	
 f	char(30)	utf8mb4_0900_ai_ci	YES	MUL	NULL	NULL	select,insert,update,references	
-g	int(11)	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
+g	int	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
 h	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	select,insert,update,references	
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -58,8 +58,8 @@ t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES	NULL
 t1	1	f	1	f	NULL	NULL	NULL	NULL	YES	FULLTEXT			YES	NULL
 SHOW FULL COLUMNS FROM t1 WHERE FIELD = 'a' OR FIELD = 'b';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)	NULL	NO	MUL	1	NULL	select,insert,update,references	
-b	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+a	int	NULL	NO	MUL	1	NULL	select,insert,update,references	
+b	int	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
 SHOW KEYS FROM t1 WHERE KEY_NAME = 'r_index' OR KEY_NAME = 'h_index';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES	NULL

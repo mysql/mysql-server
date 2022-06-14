@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,11 @@
 
 #include <stdexcept>
 #include <string>
+
 #include "keyring.h"
+#include "keyring/master_key_file.h"  // invalid_master_keyfile
 
 namespace mysql_harness {
-
-class invalid_master_keyfile : public std::runtime_error {
- public:
-  invalid_master_keyfile(const std::string &w) : std::runtime_error(w) {}
-};
 
 static const int kMaxKeyringKeyLength = 255;
 
@@ -74,12 +71,12 @@ HARNESS_EXPORT void flush_keyring();
 /**
  * Gets a previously initialized singleton instance of the keyring
  */
-HARNESS_EXPORT Keyring *get_keyring();
+HARNESS_EXPORT Keyring *get_keyring() noexcept;
 
 /**
  * Clears the keyring singleton.
  */
-HARNESS_EXPORT void reset_keyring();
+HARNESS_EXPORT void reset_keyring() noexcept;
 }  // namespace mysql_harness
 
 #endif

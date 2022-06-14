@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,16 @@ void mysql_audit_finalize();
 void mysql_audit_init_thd(THD *thd);
 void mysql_audit_free_thd(THD *thd);
 int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
-                                unsigned long event_subclass);
+                                unsigned long event_subclass,
+                                bool check_audited = true);
 void mysql_audit_release(THD *thd);
+
+/**
+  Enable auditing of the specified THD.
+
+  @param[in] thd THD whose auditing capability is turned on.
+*/
+void mysql_audit_enable_auditing(THD *thd);
 
 /**
   Call audit plugins of GENERAL audit class.

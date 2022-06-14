@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -304,7 +304,7 @@ static struct wordvalue doubles[] = {
 */
 
 extern "C" {
-static int my_strnncoll_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_czech(const CHARSET_INFO *cs [[maybe_unused]],
                               const uchar *s1, size_t len1, const uchar *s2,
                               size_t len2, bool s2_is_prefix) {
   int v1, v2;
@@ -337,14 +337,14 @@ static int my_strnncollsp_czech(const CHARSET_INFO *cs, const uchar *s,
     ;
   for (; tlen && t[tlen - 1] == ' '; tlen--)
     ;
-  return my_strnncoll_czech(cs, s, slen, t, tlen, 0);
+  return my_strnncoll_czech(cs, s, slen, t, tlen, false);
 }
 
 /*
   Returns the number of bytes required for strnxfrm().
 */
-static size_t my_strnxfrmlen_czech(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), size_t len) {
+static size_t my_strnxfrmlen_czech(const CHARSET_INFO *cs [[maybe_unused]],
+                                   size_t len) {
   return len * 4 + 4;
 }
 
@@ -353,9 +353,9 @@ static size_t my_strnxfrmlen_czech(
   the length of the strings being specified
 */
 
-static size_t my_strnxfrm_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_strnxfrm_czech(const CHARSET_INFO *cs [[maybe_unused]],
                                 uchar *dest, size_t len,
-                                uint nweights_arg MY_ATTRIBUTE((unused)),
+                                uint nweights_arg [[maybe_unused]],
                                 const uchar *src, size_t srclen, uint flags) {
   int value;
   const uchar *p, *store;
@@ -479,7 +479,7 @@ static bool my_like_range_czech(const CHARSET_INFO *cs, const char *ptr,
     *min_str++ = min_sort_char; /* Because of key compression */
     *max_str++ = max_sort_char;
   }
-  return 0;
+  return false;
 }
 }  // extern "C"
 
@@ -651,7 +651,7 @@ static const uchar tab_uni_8859_2_plane02[] = {
 static MY_UNI_IDX idx_uni_8859_2[] = {{0x0000, 0x00FD, tab_uni_8859_2_plane00},
                                       {0x0102, 0x017E, tab_uni_8859_2_plane01},
                                       {0x02C7, 0x02DD, tab_uni_8859_2_plane02},
-                                      {0, 0, NULL}};
+                                      {0, 0, nullptr}};
 
 static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler = {
     nullptr, /* init */
@@ -673,20 +673,20 @@ CHARSET_INFO my_charset_latin2_czech_ci = {
     0,                                              /* number    */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_CSSORT, /* state     */
     "latin2",                                       /* cs name   */
-    "latin2_czech_cs",                              /* name      */
-    "",                                             /* comment   */
-    NULL,                                           /* tailoring */
-    NULL,                                           /* coll_param */
+    "latin2_czech_cs",                              /* m_coll_name */
+    "ISO 8859-2 Central European",                  /* comment   */
+    nullptr,                                        /* tailoring */
+    nullptr,                                        /* coll_param */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
-    NULL,                /* uca          */
+    nullptr,             /* uca          */
     tab_8859_2_uni,      /* tab_to_uni   */
     idx_uni_8859_2,      /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     4,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -696,7 +696,7 @@ CHARSET_INFO my_charset_latin2_czech_ci = {
     0,                   /* min_sort_char */
     0,                   /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     4,                   /* levels_for_compare */
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler,

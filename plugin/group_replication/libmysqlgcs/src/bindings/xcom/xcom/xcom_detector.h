@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,25 +23,20 @@
 #ifndef XCOM_DETECTOR_H
 #define XCOM_DETECTOR_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_limits.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/xcom_limits.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define DETECTOR_LIVE_TIMEOUT 5.0
 
 typedef double detector_state[NSERVERS];
 struct site_def;
 
-void note_detected(struct site_def const *site, node_no node);
+int note_detected(struct site_def const *site, node_no node);
+int is_server_connected(struct site_def const *site, node_no node);
 int may_be_dead(detector_state const ds, node_no i, double seconds);
 void init_detector(detector_state ds);
 void invalidate_detector_sites(struct site_def *site);
 void update_detected(struct site_def *site);
-
-#ifdef __cplusplus
-}
-#endif
+void send_global_view();
 
 #endif

@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBibd2sdi\fR
+.\"     Title: ibd2sdi
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBIBD2SDI\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "IBD2SDI" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,7 +39,7 @@ is a utility for extracting
 serialized dictionary information
 (SDI) from
 InnoDB
-tablespace files\&. SDI data is present all persistent
+tablespace files\&. SDI data is present in all persistent
 InnoDB
 tablespace files\&.
 .PP
@@ -75,7 +75,7 @@ utility like this:
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name1\fR\fR\fB [\fR\fB\fIfile_name2 file_name3 \&.\&.\&.\fR\fR\fB]\fR
+ibd2sdi [\fIoptions\fR] \fIfile_name1\fR [\fIfile_name2 file_name3 \&.\&.\&.\fR]
 .fi
 .if n \{\
 .RE
@@ -90,7 +90,7 @@ system tablespace, but it cannot be run on more than one tablespace at a time\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi ibdata1 ibdata2\fR
+ibd2sdi ibdata1 ibdata2
 .fi
 .if n \{\
 .RE
@@ -102,7 +102,8 @@ The files of a multi\-file tablespace must be specified in order of the ascendin
 outputs SDI (containing id, type, and data fields) in
 JSON
 format\&.
-ibd2sdi Options.PP
+ibd2sdi Options
+.PP
 \fBibd2sdi\fR
 supports the following options:
 .sp
@@ -116,21 +117,19 @@ supports the following options:
 .\}
 \fB\-\-help\fR,
 \fB\-h\fR
-.sp
-Displays command\-line help\&.
+Display a help message and exit\&. For example:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-help\fR
 Usage: \&./ibd2sdi [\-v] [\-c <strict\-check>] [\-d <dump file name>] [\-n] filename1 [filenames]
 See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\&.
   \-h, \-\-help          Display this help and exit\&.
   \-v, \-\-version       Display version information and exit\&.
   \-#, \-\-debug[=name]  Output debug log\&. See
                       http://dev\&.mysql\&.com/doc/refman/8\&.0/en/dbug\-package\&.html
-  \-d, \-\-dump\-file=name 
+  \-d, \-\-dump\-file=name
                       Dump the tablespace SDI into the file passed by user\&.
                       Without the filename, it will default to stdout
   \-s, \-\-skip\-data     Skip retrieving data from SDI records\&. Retrieve only id
@@ -138,7 +137,7 @@ See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\
   \-i, \-\-id=#          Retrieve the SDI record matching the id passed by user\&.
   \-t, \-\-type=#        Retrieve the SDI records matching the type passed by
                       user\&.
-  \-c, \-\-strict\-check=name 
+  \-c, \-\-strict\-check=name
                       Specify the strict checksum algorithm by the user\&.
                       Allowed values are innodb, crc32, none\&.
   \-n, \-\-no\-check      Ignore the checksum verification\&.
@@ -172,14 +171,12 @@ pretty                            TRUE
 .\}
 \fB\-\-version\fR,
 \fB\-v\fR
-.sp
-Displays MySQL version information\&.
+Display version information and exit\&. For example:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-version\fR
 ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
 .fi
 .if n \{\
@@ -197,19 +194,23 @@ ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
-.sp
 Prints a debug log\&. For debug options, refer to
-Section\ \&29.5.4, \(lqThe DBUG Package\(rq\&.
+Section\ \&5.9.4, \(lqThe DBUG Package\(rq\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-debug=d:t /tmp/ibd2sdi\&.trace\fR
+ibd2sdi \-\-debug=d:t /tmp/ibd2sdi\&.trace
 .fi
 .if n \{\
 .RE
 .\}
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -222,7 +223,6 @@ shell> \fBibd2sdi \-\-debug=d:t /tmp/ibd2sdi\&.trace\fR
 .\}
 \fB\-\-dump\-file=\fR,
 \fB\-d\fR
-.sp
 Dumps serialized dictionary information (SDI) into the specified dump file\&. If a dump file is not specified, the tablespace SDI is dumped to
 stdout\&.
 .sp
@@ -230,7 +230,7 @@ stdout\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-dump\-file=\fR\fB\fIfile_name\fR\fR\fB \&.\&./data/test/t1\&.ibd\fR
+ibd2sdi \-\-dump\-file=\fIfile_name\fR \&.\&./data/test/t1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -247,7 +247,6 @@ shell> \fBibd2sdi \-\-dump\-file=\fR\fB\fIfile_name\fR\fR\fB \&.\&./data/test/t1
 .\}
 \fB\-\-skip\-data\fR,
 \fB\-s\fR
-.sp
 Skips retrieval of
 data
 field values from the serialized dictionary information (SDI) and only retrieves the
@@ -260,7 +259,7 @@ field values, which are primary keys for SDI records\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -289,7 +288,6 @@ shell> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-id=\fR\fB\fI#\fR\fR,
 \fB\-i \fR\fB\fI#\fR\fR
-.sp
 Retrieves serialized dictionary information (SDI) matching the specified table or tablespace object id\&. An object id is unique to the object type\&. Table and tablespace object IDs are also found in the
 id
 column of the
@@ -303,7 +301,7 @@ Section\ \&14.1, \(lqData Dictionary Schema\(rq\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -348,14 +346,13 @@ shell> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-type=\fR\fB\fI#\fR\fR,
 \fB\-t \fR\fB\fI#\fR\fR
-.sp
 Retrieves serialized dictionary information (SDI) matching the specified object type\&. SDI is provided for table (type=1) and tablespace (type=2) objects\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -400,7 +397,6 @@ shell> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-strict\-check\fR,
 \fB\-c\fR
-.sp
 Specifies a strict checksum algorithm for validating the checksum of pages that are read\&. Options include
 innodb,
 crc32, and
@@ -414,7 +410,7 @@ checksum algorithm is specified:
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-strict\-check=innodb \&.\&./data/test/t1\&.ibd\fR
+ibd2sdi \-\-strict\-check=innodb \&.\&./data/test/t1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -428,7 +424,7 @@ checksum algorithm is specified:
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-c crc32 \&.\&./data/test/t1\&.ibd\fR
+ibd2sdi \-c crc32 \&.\&./data/test/t1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -454,14 +450,13 @@ checksums\&.
 .\}
 \fB\-\-no\-check\fR,
 \fB\-n\fR
-.sp
 Skips checksum validation for pages that are read\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd\fR
+ibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -478,7 +473,6 @@ shell> \fBibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-pretty\fR,
 \fB\-p\fR
-.sp
 Outputs SDI data in JSON pretty print format\&. Enabled by default\&. If disabled, SDI is not human readable but is smaller in size\&. Use
 \-\-skip\-pretty
 to disable\&.
@@ -487,7 +481,7 @@ to disable\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd\fR
+ibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -496,7 +490,7 @@ shell> \fBibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

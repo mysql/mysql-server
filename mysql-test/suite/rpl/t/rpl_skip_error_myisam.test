@@ -1,0 +1,79 @@
+# ==== Purpose ====
+#
+# Verify that --replica-skip-errors works correctly.  The error messages
+# specified by --replica-skip-errors on slave should be ignored.  If
+# such errors occur, they should not be reported and not cause the
+# slave to stop.
+#
+# ==== Method ====
+#
+# We run the slave with --replica-skip-errors=1062 (the code for
+# duplicate key).  Then we have two set of tests. In the first 
+# set, we insert value 1 in a table on the slave, and then, on 
+# master, we insert value 1 in the table. In the second set, we 
+# insert several values on the master, disable the binlog and
+# delete one of the values and re-enable the binlog. Right after,
+# we perform an update on the set of values in order to generate
+# a duplicate key on the slave. The errors should be ignored on
+# the slave.
+# 
+# ==== Related bugs ====
+#
+# BUG#28839: Errors in strict mode silently stop SQL thread if --replica-skip-errors exists
+# bug in this test: BUG#30594: rpl.rpl_skip_error is nondeterministic:
+# BUG#39393: replica-skip-errors does not work when using ROW based replication
+
+--source include/not_group_replication_plugin.inc
+source include/force_myisam_default.inc;
+source include/have_myisam.inc;
+source include/master-slave.inc;
+
+--source include/sync_slave_sql_with_master.inc
+# End of 5.0 tests
+
+#
+# BUG#39393: replica-skip-errors does not work when using ROW based replication
+#
+
+--echo ==== Using MyIsam ====
+
+connection master;
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
+SHOW CREATE TABLE t2;
+SET SQL_LOG_BIN=1;
+
+connection slave;
+
+CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
+SHOW CREATE TABLE t2;
+
+connection master;
+
+INSERT INTO t2 VALUES(1, 1);
+INSERT INTO t2 VALUES(2, 1);
+INSERT INTO t2 VALUES(3, 1);
+INSERT INTO t2 VALUES(5, 1);
+
+SET SQL_LOG_BIN=0;
+DELETE FROM t2 WHERE id = 5;
+SET SQL_LOG_BIN=1;
+UPDATE t2 SET id= id + 3, data = 2;
+
+--source include/sync_slave_sql_with_master.inc
+
+let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+echo $error;
+
+--echo **** We cannot execute a select as there are differences in the 
+--echo **** behavior between STMT and RBR.
+
+--echo ==== Clean Up ====
+
+connection master;
+
+DROP TABLE t2;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

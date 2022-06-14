@@ -1,0 +1,102 @@
+## Test that verifies if X Plugin creates admin-srv-session
+## at initialization.
+#
+
+--source include/have_debug.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+# Following error might be visible in error log, because when connection timeouts on
+# client-side then on server queues the connection in acceptance backlog.
+#
+# Thus server processes all connections stored in the backlog
+# after reseting "xplugin_init_wait", which causes the error message.
+#
+CALL mtr.add_suppression("Error initializing session for connection: Too many connections");
+
+## Test starts here
+
+--echo
+--echo
+--echo ## I. Verify that X Plugin can start when `max_connections` limit
+--echo ##    was reached
+--echo #
+--echo # 1. Restart server with `max_connections` set to 1 and block
+--echo #    initialization of X Plugin
+--echo #
+--echo #    a. Make X Protocol connection, which should fails,
+--echo #       that is going to show that X Plugin is not running
+--echo #    b. Make two classic protocol connection with root to
+--echo #       reach the limit (first connection is `default`
+--echo #       which is done be mysqltest at restart)
+--echo #    was compressed is replied with error without executing it
+--echo #    c. Unblock X Plugin and show that the initialization was
+--echo #       successful
+
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.xpl
+--write_file $xtest_file
+SELECT "Some expected string" as result;
+EOF
+
+
+--echo
+--echo #
+--echo # I.1
+
+let $restart_parameters = restart: --debug="+d,xplugin_init_wait" --loose-mysqlx_cache_cleaner=0;
+--let $wait_for_tcpsocket_status=no_wait
+--let $wait_for_unixsocket_status=no_wait
+--source include/restart_mysqld.inc
+
+
+--echo
+--echo #
+--echo # I.1.a
+
+#
+# This wait is not needed,
+# anyway it is better to keep it here for future source-code changes
+sleep 1;
+
+--error 1
+exec $MYSQLXTEST
+   -ux_root --password='' --timeout=20000
+   --file=$xtest_file >/dev/null 2>&1;
+
+--echo
+--echo #
+--echo # I.1.b
+
+# Once connection was already done in "I.1"
+# when restart_mysqld.inc was called
+# We need to do only one connection here
+#
+# Root account is not strictly limited by
+# max_connections thus we were able to do
+# two connections
+connect(g2_conn,localhost,root,,test);
+
+disconnect g2_conn;
+connection default;
+
+--echo
+--echo #
+--echo # I.1.c
+
+--let $debug_point= xplugin_init_wait
+--source include/remove_debug_point.inc
+
+--source ../include/xplugin_wait_for_connection_closure.inc
+
+--let $wait_for_tcpsocket_status=valid_value
+--let $wait_for_unixsocket_status=valid_value
+--source include/xplugin_wait_for_interfaces.inc
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+
+## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--source ../include/xplugin_cleanup.inc

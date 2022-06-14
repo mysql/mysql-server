@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -28,17 +28,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0types.h"
 
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line);
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line);
 
-#define ut_a(EXPR)                                               \
-  do {                                                           \
-    if (!(ulint)(EXPR)) {                                        \
-      ut_dbg_assertion_failed(#EXPR, __FILE__, (ulint)__LINE__); \
-    }                                                            \
+#define ut_a(EXPR)                                        \
+  do {                                                    \
+    if (!(bool)(EXPR)) {                                  \
+      ut_dbg_assertion_failed(#EXPR, __FILE__, __LINE__); \
+    }                                                     \
   } while (0)
 
 /** Abort execution. */
-#define ut_error ut_dbg_assertion_failed(0, __FILE__, (ulint)__LINE__)
+#define ut_error ut_dbg_assertion_failed(0, __FILE__, __LINE__)
 
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR) ut_a(EXPR)

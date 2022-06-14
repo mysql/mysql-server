@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,20 +60,30 @@ private:
   const char *get_error_text(int err_no)
   { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 
+  /* Client version info, m_vMajor != 0 if known */
+  unsigned int m_vMajor;
+  unsigned int m_vMinor;
+  unsigned int m_vBuild;
+
 public:
   MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id);
-  virtual ~MgmApiSession();
-  void runSession();
+  ~MgmApiSession() override;
+  void runSession() override;
 
   static const unsigned SOCKET_TIMEOUT = 30000;
 
-  void getConfig(Parser_t::Context &ctx, const class Properties &args);
-  void setConfig(Parser_t::Context &ctx, const class Properties &args);
+  void getConfig(Parser_t::Context &ctx, const class Properties &args, bool v2);
+  void getConfig_v1(Parser_t::Context &ctx, const class Properties &args);
+  void getConfig_v2(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig_v1(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig_v2(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig(Parser_t::Context &ctx, const class Properties &args, bool v2);
   void showConfig(Parser_t::Context &ctx, const class Properties &args);
   void reloadConfig(Parser_t::Context &ctx, const class Properties &args);
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
+  void setClientVersion(Parser_t::Context &ctx, const class Properties &args);
   void getStatus(Parser_t::Context &ctx, const class Properties &args);
   void getInfoClusterLog(Parser_t::Context &ctx, const class Properties &args);
   void restart(const class Properties &args, int version);
@@ -120,6 +130,8 @@ public:
 
   void get_mgmd_nodeid(Parser_t::Context &ctx, Properties const &args);
 
+  static const unsigned MAX_EVENT_LENGTH = 25;
+
   void report_event(Parser_t::Context &ctx, Properties const &args);
 
   void listSessions(Parser_t::Context &ctx, Properties const &args);
@@ -145,7 +157,7 @@ public:
     m_mgmsrv(mgm),
     m_next_session_id(1) {}
 
-  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
+  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket) override{
     return new MgmApiSession(m_mgmsrv, socket, m_next_session_id++);
   }
 };

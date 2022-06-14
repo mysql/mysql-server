@@ -40,8 +40,10 @@ VALUES ( 'SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?',
        ( 'SELECT * FROM test.t1 WHERE a = ? OR b = ?',
          'SELECT * FROM test.t1 WHERE b = ? OR a = ?' );
 
+--sorted_result
 SELECT * FROM query_rewrite.rewrite_rules;
 CALL query_rewrite.flush_rewrite_rules();
+--sorted_result
 SELECT * FROM query_rewrite.rewrite_rules;
 
 --echo # Check a query that doesn't have a rewrite rule doesn't get rewritten.
@@ -96,8 +98,10 @@ VALUES ( 'SELECT 1, ?', 'SELECT "rewritten w/rule 1"' ),
        ( 'SELECT 2, ?', 'SELECT "rewritten w/rule 2"' ),
        ( 'SELECT "The_original_query"', 'SELECT "The_rewritten_query"');
 
+--sorted_result
 SELECT * FROM query_rewrite.rewrite_rules;
 CALL query_rewrite.flush_rewrite_rules();
+--sorted_result
 SELECT * FROM query_rewrite.rewrite_rules;
 
 SELECT 1, 1;

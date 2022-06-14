@@ -1,0 +1,227 @@
+--source include/have_ndb.inc
+
+--vertical_results
+--result_format 2
+
+use ndbinfo;
+## Look for "Extra: Select tables optimized away" in the following
+## ``EXPLAIN SELECT COUNT(*)'' from compiled-in ndbinfo tables
+##
+
+## ndb$tables
+select count(*) from ndb$tables;
+explain select count(*) from ndb$tables;
+
+## dict_obj_types
+select count(*) from dict_obj_types;
+let $extra= query_get_value(explain select count(*) from dict_obj_types, Extra, 1);
+echo $extra;
+
+## error_messages
+let $extra= query_get_value(explain select count(*) from error_messages, Extra, 1);
+echo $extra;
+
+## config_params
+let $extra= query_get_value(explain select count(*) from config_params, Extra, 1);
+echo $extra;
+
+## blocks
+let $extra= query_get_value(explain select count(*) from blocks, Extra, 1);
+echo $extra;
+
+## backup_id
+let $extra= query_get_value(explain select count(*) from backup_id, Extra, 1);
+echo $extra;
+
+## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
+let $extra= query_get_value(explain select count(*) from counters, Extra, 1);
+echo $extra;
+
+## Information schema reveals row counts as seen by optimizer
+## (but filter out cpu-related tables where results are not predictable)
+set ndbinfo_show_hidden=1;
+--horizontal_results
+SELECT table_name, table_rows, avg_row_length
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%'
+  ORDER BY table_name;
+
+--disable_query_log
+CREATE TEMPORARY TABLE rowcounts
+  SELECT table_name, table_rows as est_rows, 0 as actual_rows
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+
+##
+## Compare estimated sizes of ndbinfo tables to actual size.
+--delimiter |;
+CREATE PROCEDURE populate_sizes()
+  BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE name varchar(64);
+    DECLARE cur CURSOR FOR SELECT table_name from rowcounts;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    PREPARE stmt1 FROM "UPDATE rowcounts SET actual_rows=? where table_name=?";
+    open cur;
+    read_loop: LOOP
+      IF done then
+        LEAVE read_loop;
+      END IF;
+      FETCH cur into name;
+      SET @name = name;
+      SET @sql = concat("select count(*) FROM ", name, " INTO @actual");
+      PREPARE stmt2 FROM @sql;
+      EXECUTE stmt2;
+      DEALLOCATE PREPARE stmt2;
+      EXECUTE stmt1 USING @actual, @name;
+    END LOOP;
+    DEALLOCATE PREPARE stmt1;
+    CLOSE cur;
+END|;
+--delimiter ;
+--enable_query_log
+
+## List the tables where estimated size equals actual size.
+CALL populate_sizes();
+SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
+SELECT table_name from rowcounts WHERE est_rows = actual_rows
+  ORDER BY table_name;
+
+## Check that no tables have zero estimates
+SELECT table_name from rowcounts WHERE est_rows = 0;
+
+DROP TEMPORARY TABLE rowcounts;
+DROP PROCEDURE populate_sizes;
+
+## Show the indexes on virtual tables
+SELECT table_name, constraint_name, column_name, ordinal_position
+  FROM information_schema.key_column_usage
+  WHERE table_schema = 'ndbinfo'
+  ORDER BY table_name;
+
+SELECT * FROM blocks ORDER BY block_number DESC;
+
+--vertical_results
+
+## Query results validate that index seek operations are correct,
+## and plans show use of the index
+select * from blocks where block_number=245;
+let $key= query_get_value(explain select * from blocks where block_number=245,key,1);
+echo $key;
+assert($key == "PRIMARY");
+
+select * from blocks where block_number in (250,251);
+
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from blocks where block_number in (250,251);
+
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from blocks order by block_number;
+
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from blocks where block_number < 250;
+
+## Can scan backwards:
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from blocks where block_number > 250
+  order by block_number desc;
+
+select * from dict_obj_types where type_id = 6;
+
+## No row at 7:
+select * from dict_obj_types where type_id = 7;
+
+select * from dict_obj_types where type_id in (1,2,6);
+
+let $key= query_get_value(explain select * from dict_obj_types where type_id = 6,key,1);
+echo $key;
+assert($key == "PRIMARY");
+
+select state_int_value, state_name from ndb$dblqh_tcconnect_state where state_int_value = 9;
+
+select param_number, param_name from ndb$config_params where param_number = 161;
+let $key= query_get_value(explain select param_name from config_params where param_number = 161, key, 1);
+echo $key;
+assert($key == "PRIMARY");
+
+## No row:
+select param_name from ndb$config_params where param_number = 1;
+select param_name from ndb$config_params where param_number = 40000;
+
+## The plan for counters
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from counters;
+
+## The plan for memory_per_fragment
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from memory_per_fragment;
+
+## WL#11968 tables and views
+##
+--horizontal_results
+SELECT event_id, e.name, table_name
+  FROM events e JOIN dictionary_tables t using(table_id)
+  WHERE event_id < 6 ORDER BY event_id;
+
+## Query uses primary keys on both tables:
+EXPLAIN SELECT event_id, e.name, table_name FROM events e
+  JOIN dictionary_tables t using(table_id) WHERE event_id < 6 ORDER BY event_id;
+
+SELECT * from events where event_id = -1;
+SELECT table_event from events where event_id = 1;
+SELECT table_name from dictionary_tables where table_id = -1;
+SELECT table_name from dictionary_tables where table_id = 9990;
+SELECT table_name from dictionary_tables where table_id = 5;
+SELECT table_name from dictionary_tables where table_id = 6;
+
+select * from blobs;
+select * from index_columns order by index_object_id;
+select * from hash_maps order by id limit 1;
+
+--vertical_results
+## Create an all-MyISAM version of memory_per_fragment for comparison
+## (now with a primary key in the MyISAM version as well)
+## and explain the same query
+--disable_query_log
+--disable_result_log
+use test;
+CREATE TABLE ndb$frag_mem_use engine=myisam
+  as select * from ndbinfo.ndb$frag_mem_use;
+CREATE TABLE ndb$dict_obj_info engine=myisam
+  as select * from ndbinfo.ndb$dict_obj_info limit 14;
+CREATE TABLE ndb$dict_obj_types engine=myisam
+  as select * from ndbinfo.ndb$dict_obj_types;
+ALTER TABLE ndb$dict_obj_types ADD PRIMARY KEY (type_id);
+
+CREATE VIEW memory_per_fragment AS
+   SELECT name.fq_name, parent_name.fq_name AS parent_fq_name,
+   types.type_name AS type, table_id, node_id, block_instance,
+   fragment_num, fixed_elem_alloc_bytes, fixed_elem_free_bytes,
+   fixed_elem_size_bytes, fixed_elem_count,
+   FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS
+   fixed_elem_free_count, var_elem_alloc_bytes, var_elem_free_bytes,
+   var_elem_count, hash_index_alloc_bytes
+   FROM ndb$frag_mem_use AS space
+   JOIN ndb$dict_obj_info AS name
+   ON name.id=space.table_id AND name.type<=6
+   JOIN ndb$dict_obj_types AS types
+   ON name.type=types.type_id
+   LEFT JOIN ndb$dict_obj_info AS parent_name
+   ON name.parent_obj_id=parent_name.id AND
+   name.parent_obj_type=parent_name.type;
+--enable_query_log
+--enable_result_log
+
+--replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+explain format=tree select * from memory_per_fragment;
+
+
+## CLEANUP
+--disable_query_log
+--disable_result_log
+DROP VIEW memory_per_fragment;
+DROP TABLE ndb$frag_mem_use , ndb$dict_obj_info , ndb$dict_obj_types;
+

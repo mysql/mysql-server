@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,12 @@
 */
 
 #include "my_rnd.h"
+#include <mysql_com.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#if !defined(HAVE_OPENSSL)
-#error not using an SSL library not supported
-#endif
 
 /*
-  A wrapper to use OpenSSL/wolfSSL PRNGs.
+  A wrapper to use OpenSSL PRNGs.
 */
 
 /**
@@ -76,21 +74,21 @@ int my_rand_buffer(unsigned char *buffer, size_t buffer_size) {
 }
 
 /**
-  Generate a random number using the OpenSSL/wolfSSL supplied
+  Generate a random number using the OpenSSL supplied
   random number generator if available.
 
-  @param [in,out] rand_st Structure used for number generation
-                         only if none of the SSL libraries are
-                         available.
+  @param [out] failed set to TRUE if the method failed. FALSE if OK.
 
-  @retval                Generated random number.
+  @retval                Generated random number or 0 if failed is set.
 */
 
-double my_rnd_ssl(struct rand_struct *rand_st) {
+double my_rnd_ssl(bool *failed) {
   unsigned int res;
 
-  if (my_rand_buffer((unsigned char *)&res, sizeof(res)))
-    return my_rnd(rand_st);
-
+  if (my_rand_buffer((unsigned char *)&res, sizeof(res))) {
+    *failed = true;
+    return 0;
+  } else
+    *failed = false;
   return (double)res / (double)UINT_MAX;
 }

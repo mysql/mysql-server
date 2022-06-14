@@ -2,10 +2,12 @@
 
 select connection_id() into @conid;
 
+--echo
 select thread_id from performance_schema.threads
   where PROCESSLIST_ID = @conid
   into @tid;
 
+--echo
 select thread_os_id from performance_schema.threads
   where PROCESSLIST_ID = @conid
   into @osid;
@@ -15,15 +17,20 @@ select thread_os_id from performance_schema.threads
 
 # Test index on THREAD_ID
 
+--echo
 explain select THREAD_ID, NAME from performance_schema.threads
   where thread_id = 1;
 
+--echo
 explain select * from performance_schema.threads
   where thread_id > 1;
 
+--echo
 explain select * from performance_schema.threads
   where thread_id < 1;
 
+--echo
+--replace_column 3 <info>
 select processlist_id = @conid, name, processlist_info
   from performance_schema.threads
   where thread_id = @tid;
@@ -31,17 +38,22 @@ select processlist_id = @conid, name, processlist_info
 # Test index on PROCESSLIST_ID
 
 # The explain output depends on the value of @osid
+--echo
 --disable_warnings
 explain select THREAD_ID, NAME from performance_schema.threads
   where processlist_id = @conid;
 --enable_warnings
 
+--echo
 explain select * from performance_schema.threads
   where processlist_id > 99999;
 
+--echo
 explain select * from performance_schema.threads
   where processlist_id < 99999;
 
+--echo
+--replace_column 3 <info>
 select thread_id = @tid, name, processlist_info
   from performance_schema.threads
   where processlist_id = @conid;
@@ -49,99 +61,132 @@ select thread_id = @tid, name, processlist_info
 # Test index on THREAD_OS_ID
 
 # The explain output depends on the value of @osid
+--echo
 --disable_warnings
 explain select THREAD_ID, NAME from performance_schema.threads
   where thread_os_id = @osid;
 --enable_warnings
 
+--echo
 explain select * from performance_schema.threads
   where thread_os_id > 99999;
 
+--echo
 explain select * from performance_schema.threads
   where thread_os_id < 99999;
 
+--echo
+--replace_column 3 <info>
 select thread_id - @tid, name, processlist_info
   from performance_schema.threads
   where thread_os_id = @osid;
 
 # Test index on NAME
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where NAME = "impossible";
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where NAME = "thread/sql/main";
 
+--echo
 explain select * from performance_schema.threads
   where NAME > "foo";
 
+--echo
 explain select * from performance_schema.threads
   where NAME < "bar";
 
+--echo
 explain select * from performance_schema.threads
   where NAME like "thread/sql/%";
 
+--echo
+--replace_column 1 <thread_id> 3 <state> 4 <info>
 select thread_id, name, processlist_state, processlist_info
   from performance_schema.threads
-  where NAME = "thread/sql/main";
+  where NAME = "thread/sql/main" order by thread_id;
 
 # Test index on PROCESSLIST_USER, PROCESSLIST_HOST
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where PROCESSLIST_USER = "impossible";
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where PROCESSLIST_USER = "root";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_USER > "foo";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_USER < "bar";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_USER like "ro%";
 
-select thread_id = @tid, name, processlist_state, processlist_info
+--echo
+--replace_column 1 <thread_id> 4 <state> 5 <info>
+select thread_id, thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
-  where PROCESSLIST_USER = "root";
+  where PROCESSLIST_USER = "root" order by thread_id;
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where PROCESSLIST_USER = "impossible" and PROCESSLIST_HOST = "impossible";
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST < "foo";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST > "bar";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST like "bar%";
 
-select thread_id = @tid, name, processlist_state, processlist_info
+--echo
+--replace_column 1 <thread_id> 4 <state> 5 <info>
+select thread_id, thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
-  where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
+  where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost" order by thread_id;
 
 # Test index on PROCESSLIST_HOST
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where PROCESSLIST_HOST = "impossible";
 
+--echo
 explain select THREAD_ID from performance_schema.threads
   where PROCESSLIST_HOST = "localhost";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_HOST > "foo";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_HOST < "bar";
 
+--echo
 explain select * from performance_schema.threads
   where PROCESSLIST_HOST like "local%";
 
-select thread_id = @tid, name, processlist_state, processlist_info
+--echo
+--replace_column 1 <thread_id> 4 <state> 5 <info>
+select thread_id, thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
-  where PROCESSLIST_HOST = "localhost";
+  where PROCESSLIST_HOST = "localhost" order by (thread_id = @tid), thread_id;

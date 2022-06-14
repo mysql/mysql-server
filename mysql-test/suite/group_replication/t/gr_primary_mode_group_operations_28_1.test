@@ -104,10 +104,8 @@ LOCK TABLE t1 READ;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: waiting for members to enable super_read_only%"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Switch%";`
---let $assert_text= stage/group_rpl/Primary Switch: executing Primary election
---let $assert_cond= "$stage_name" = "stage/group_rpl/Primary Switch: executing Primary election"
---source include/assert.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Switch: executing Primary election"
+--source include/wait_condition.inc
 
 --let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Election%";`
 --let $assert_text= stage/group_rpl/Primary Election: waiting for members to enable super_read_only

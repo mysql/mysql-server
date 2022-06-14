@@ -1,4 +1,3 @@
---source include/have_openssl.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -7,6 +6,7 @@
 
 
 --echo # Global Setup
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression(".*SSL_CTX_set_default_verify_paths failed");
 let DATADIR_LOCATION=$MYSQLTEST_VARDIR/mysqld.1/data;
@@ -69,3 +69,7 @@ let SEARCH_PATTERN= CA certificate .*ca2.pem is self signed.;
 
 
 #------------------------------------------------------------------------------
+
+# Restore default settings in opt file
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <SqlClient.hpp>
+#include <cstring>
 #include <NDBT_Output.hpp>
 #include <NdbSleep.h>
 
@@ -179,7 +181,7 @@ SqlClient::runQuery(const char* sql,
 
   uint params= mysql_stmt_param_count(stmt);
   MYSQL_BIND bind_param[params];
-  bzero(bind_param, sizeof(bind_param));
+  std::memset(bind_param, 0, sizeof(bind_param));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
   {
@@ -249,7 +251,7 @@ SqlClient::runQuery(const char* sql,
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
     uint num_fields= mysql_num_fields(res);
     MYSQL_BIND bind_result[num_fields];
-    bzero(bind_result, sizeof(bind_result));
+    std::memset(bind_result, 0, sizeof(bind_result));
 
     for (uint i= 0; i < num_fields; i++)
     {

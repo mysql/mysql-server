@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/insert_statement_builder.h"
-#include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/document_id_generator.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
@@ -45,7 +46,7 @@ class Insert_statement_builder_stub : public Insert_statement_builder {
   using Insert_statement_builder::add_row;
   using Insert_statement_builder::add_upsert;
   using Insert_statement_builder::add_values;
-  StrictMock<ngs::test::Mock_id_generator> mock_id_generator;
+  StrictMock<mock::Document_id_generator> mock_id_generator;
   Document_id_aggregator m_id_agg{&mock_id_generator};
 };
 
@@ -177,10 +178,11 @@ TEST_F(Insert_statement_builder_test, add_projection_document_one_item) {
 TEST_F(Insert_statement_builder_test, add_upsert) {
   ASSERT_NO_THROW(builder().add_upsert(k_dm_document));
   EXPECT_STREQ(
+      " AS _UPSERT_NEW_VALUES_(_NEW_DOC_)"
       " ON DUPLICATE KEY UPDATE"
       " doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))"
-      " = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')),"
-      " VALUES(doc), MYSQLX_ERROR(5018))",
+      " = JSON_UNQUOTE(JSON_EXTRACT(_UPSERT_NEW_VALUES_._NEW_DOC_, '$._id')),"
+      " _UPSERT_NEW_VALUES_._NEW_DOC_, MYSQLX_ERROR(5018))",
       query.get().c_str());
   ASSERT_THROW(builder().add_upsert(k_dm_table), ngs::Error_code);
 }
@@ -213,10 +215,11 @@ TEST_F(Insert_statement_builder_test, build_document_upsert) {
   EXPECT_STREQ(
       "INSERT INTO `xtest`.`xcoll` (doc) VALUES "
       "('" EXPECT_DOC_EXAMPLE1 "'),('" EXPECT_DOC_EXAMPLE2
-      "') ON DUPLICATE KEY UPDATE"
+      "') AS _UPSERT_NEW_VALUES_(_NEW_DOC_)"
+      " ON DUPLICATE KEY UPDATE"
       " doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))"
-      " = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')),"
-      " VALUES(doc), MYSQLX_ERROR(5018))",
+      " = JSON_UNQUOTE(JSON_EXTRACT(_UPSERT_NEW_VALUES_._NEW_DOC_, '$._id')),"
+      " _UPSERT_NEW_VALUES_._NEW_DOC_, MYSQLX_ERROR(5018))",
       query.get().c_str());
 }
 
@@ -329,9 +332,9 @@ Param_add_document add_document_param[] = {
      Scalar::String(std::string(R"({"extra":)") + k_doc_example2 +
                     R"(, "_id":"abc3"})")}};
 
-INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_document,
-                        Add_document_param_test,
-                        testing::ValuesIn(add_document_param));
+INSTANTIATE_TEST_SUITE_P(Insert_statement_builder_add_document,
+                         Add_document_param_test,
+                         testing::ValuesIn(add_document_param));
 
 struct Param_add_prep_stmt_document {
   std::string expect_query;
@@ -400,9 +403,9 @@ Param_add_prep_stmt_document add_prep_stmt_document_param[] = {
      Object{{"tree", Placeholder(0)}}},
 };
 
-INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_prep_stmt_document,
-                        Add_prep_stmt_document_param_test,
-                        testing::ValuesIn(add_prep_stmt_document_param));
+INSTANTIATE_TEST_SUITE_P(Insert_statement_builder_add_prep_stmt_document,
+                         Add_prep_stmt_document_param_test,
+                         testing::ValuesIn(add_prep_stmt_document_param));
 
 }  // namespace test
 }  // namespace xpl

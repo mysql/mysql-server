@@ -1,0 +1,116 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+[connection slave]
+include/stop_slave.inc
+SET @@global.binlog_transaction_compression=FALSE;
+include/start_slave.inc
+[connection master]
+include/rpl_reset.inc
+[connection master]
+include/rpl_reset.inc
+[connection slave]
+include/stop_slave.inc
+# compression DISABLED
+[connection master]
+SET @@session.binlog_transaction_compression=FALSE;
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+[connection master]
+include/sync_slave_io_with_master.inc
+include/include/rpl_get_end_of_relay_log.inc
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (9, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (8, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (7, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (6, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (5, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (3, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (2, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000000));
+COMMIT;
+BINLOG EVENTS on master ['NONE']
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid]
+[connection master]
+include/sync_slave_io_with_master.inc
+RELAY LOG EVENTS for 'NONE'
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid]
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that master and slave tables have the same content]
+BINLOG EVENTS on slave ['NONE'] (no compression, since slave applier has binlog_transaction_compression = NONE)
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+[connection slave]
+include/stop_slave.inc
+# ZSTD compression ENABLED
+[connection master]
+SET @@session.binlog_transaction_compression=TRUE;
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+[connection master]
+include/sync_slave_io_with_master.inc
+include/include/rpl_get_end_of_relay_log.inc
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (9, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (8, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (7, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (6, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (5, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (3, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (2, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000000));
+COMMIT;
+BINLOG EVENTS on master ['ZSTD']
+include/assert_binlog_events.inc [!Gtid_or_anon # Transaction_payload # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid]
+[connection master]
+include/sync_slave_io_with_master.inc
+RELAY LOG EVENTS for 'ZSTD'
+include/assert_binlog_events.inc [!Gtid_or_anon # Transaction_payload # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid]
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that master and slave tables have the same content]
+BINLOG EVENTS on slave ['ZSTD'] (no compression, since slave applier has binlog_transaction_compression = NONE)
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection master]
+include/assert.inc [Compressed transaction is a lot smaller than uncompressed]
+[connection master]
+SET @@global.binlog_transaction_compression=SAVED;
+[connection slave]
+SET @@global.binlog_transaction_compression=SAVED;
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+include/rpl_reset.inc
+include/rpl_end.inc

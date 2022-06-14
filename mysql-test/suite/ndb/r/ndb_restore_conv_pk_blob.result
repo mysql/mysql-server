@@ -1,0 +1,284 @@
+************************************
+*Blob table handing with pk changes*
+************************************
+No changes to Blobs
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d text(3000),
+primary key(a,b)) engine=ndb;
+insert into test.t1 values 
+("1a","1b","1c",repeat("1d", 1000)), 
+("2a","2b","2c",repeat("2d", 1000)), 
+("3a","3b","3c",repeat("3d", 1000)), 
+("4a","4b","4c",repeat("4d", 1000)), 
+("5a","5b","5c",repeat("5d", 1000)), 
+("6a","6b","6c",repeat("6d", 1000));
+create table test.t2 (a varchar(20) not null,
+b varchar(20) not null,
+c text not null,
+d text not null,
+primary key (a,b)) engine=ndb;
+insert into test.t2 values
+("Ein", "Ein", repeat("Ein", 1000), repeat("Ein", 1000)),
+("Zwei", "Zwei", repeat("Zwei", 1000), repeat("Zwei", 1000)),
+("Drei", "Drei", repeat("Drei", 1000), repeat("Drei", 1000)),
+("Vier", "Vier", repeat("Vier", 1000), repeat("Vier", 1000)),
+("Funf", "Funf", repeat("Funf", 1000), repeat("Funf", 1000)),
+("Sechs", "Sechs", repeat("Sechs", 1000), repeat("Sechs", 1000)),
+("Sieben", "Sieben", repeat("Sieben", 1000), repeat("Sieben", 1000));
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.t1 values 
+("7a","7b","7c",repeat("7d",1000)), 
+("8a","8b","8c",repeat("8d",1000)), 
+("9a","9b","9c",repeat("9d",1000));
+update test.t1 set c=c, d=concat(d, "-modified");
+delete from test.t1 where a in ("5a","8a");
+insert into test.t2 values
+("Acht", "Acht", repeat("Acht", 10), repeat("Acht", 2000)),
+("Neun", "Neun", repeat("Neun", 200), repeat("Neun", 5));
+update test.t2 set b=concat(b, "-jah") where a like "%ei";
+delete from test.t2 where a like "S%";
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+select a,b,length(c), md5(c), right(c, 20), length(d), md5(d), right(d,20) from test.t2 order by a;
+a	b	length(c)	md5(c)	right(c, 20)	length(d)	md5(d)	right(d,20)
+Acht	Acht	40	4e5fab56696355c99c3bcffd5fe39d5e	AchtAchtAchtAchtAcht	8000	50bd6e30f3801a968d8e4044751a98ad	AchtAchtAchtAchtAcht
+Drei	Drei-jah	4000	0b5298c37fbb5cfc7137b89f9711974b	DreiDreiDreiDreiDrei	4000	0b5298c37fbb5cfc7137b89f9711974b	DreiDreiDreiDreiDrei
+Ein	Ein	3000	109abc9b5499d3de3cce205cd4e25da9	inEinEinEinEinEinEin	3000	109abc9b5499d3de3cce205cd4e25da9	inEinEinEinEinEinEin
+Funf	Funf	4000	32d2ad309dccb89aab90f178934c3933	FunfFunfFunfFunfFunf	4000	32d2ad309dccb89aab90f178934c3933	FunfFunfFunfFunfFunf
+Neun	Neun	800	9712e7c5fc2470f11185907bcde8293d	NeunNeunNeunNeunNeun	20	c6e516d71a611ae0941d9581e8522b6d	NeunNeunNeunNeunNeun
+Vier	Vier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier
+Zwei	Zwei-jah	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei
+drop table test.t1;
+truncate table test.t2;
+********************************************
+* Tests with column change from pk <-> !pk *
+********************************************
+Extend pk (a,b) -> (a,b,c)
+**************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d text(3000),
+primary key(a,b,c)) engine=ndb;
+Restore will require use of a staging table due to the blobs
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Extend pk (a,b) -> (a,b,c) with pk type promotion
+*************************************************
+create table test.t1 (a varchar(40) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d text(3000),
+primary key(a,b,c)) engine=ndb;
+Restore will require use of a staging table due to the blobs
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Extend pk (a,b) -> (a,b,c) with pk type demotion
+************************************************
+create table test.t1 (a varchar(15) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d text(3000),
+primary key(a,b,c)) engine=ndb;
+Restore will require use of a staging table due to the blobs
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Extend pk (a,b) -> (a,b,c) with pk and blob type changes
+********************************************************
+create table test.t1 (a varchar(40) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(2500),
+primary key(a,b,c)) engine=ndb;
+Restore will require use of a staging table due to the blobs
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Contract pk (a,b) -> (b)
+**************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d text(3000),
+primary key(b)) engine=ndb;
+Run restore
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Contract pk (a,b) -> (b), dropping a
+************************************
+create table test.t1 (b varchar(20) not null, 
+c varchar(20) not null, 
+d text(3000),
+primary key(b)) engine=ndb;
+Run restore
+select b,c,length(d), md5(d), right(d,20) from test.t1 order by b;
+b	c	length(d)	md5(d)	right(d,20)
+1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Contract pk (a,b) -> (b)
+Also add type changes
+**************************
+create table test.t1 (a varchar(200) not null, 
+b varchar(15) not null, 
+c varchar(200) not null, 
+d text(3000),
+primary key(b)) engine=ndb;
+Run restore
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Contract pk (a,b) -> (b)
+Also blob changes requiring staging
+**************************
+create table test.t1 (a varchar(200) not null, 
+b varchar(15) not null, 
+c varchar(200) not null, 
+d varchar(2500),
+primary key(b)) engine=ndb;
+Run restore
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Contract pk (a,b) -> (b)
+Also blob changes requiring staging
+Also drop column
+**************************
+create table test.t1 (b varchar(15) not null, 
+c varchar(200) not null, 
+d varchar(2500),
+primary key(b)) engine=ndb;
+Run restore
+select b,c,length(d), md5(d), right(d,20) from test.t1 order by b;
+b	c	length(d)	md5(d)	right(d,20)
+1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+drop table test.t1;
+truncate table test.t2;
+Test with multiple table requiring changes
+------------------------------------------
+drop table test.t2;
+Contract pk (a,b) -> (b)
+Also blob changes requiring staging
+**************************
+create table test.t1 (a varchar(200) not null, 
+b varchar(15) not null, 
+c varchar(200) not null, 
+d varchar(2500),
+primary key(b)) engine=ndb;
+Contract pk (a,b) -> (a)
+Also blob changes requiring staging
+**************************
+create table test.t2 (a varchar(20) not null,
+b varchar(20) not null,
+c varchar(4000) not null,
+d text(2000) not null,
+primary key (a)) engine=ndb;
+Run restore
+select a,b,c,length(d), md5(d), right(d,20) from test.t1 order by a;
+a	b	c	length(d)	md5(d)	right(d,20)
+1a	1b	1c	2009	68d455348c0d3bb17f4615a5691e632a	d1d1d1d1d1d-modified
+2a	2b	2c	2009	ff0d862d596a331af498dafbe633c9a7	d2d2d2d2d2d-modified
+3a	3b	3c	2009	79abe7b2f32f098a49866b27026af10c	d3d3d3d3d3d-modified
+4a	4b	4c	2009	ccdb41368e16028cb059182a2fd1ca97	d4d4d4d4d4d-modified
+6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
+7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
+9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+select a,b,length(c), md5(c), right(c, 20), length(d), md5(d), right(d,20) from test.t2 order by a;
+a	b	length(c)	md5(c)	right(c, 20)	length(d)	md5(d)	right(d,20)
+Acht	Acht	40	4e5fab56696355c99c3bcffd5fe39d5e	AchtAchtAchtAchtAcht	8000	50bd6e30f3801a968d8e4044751a98ad	AchtAchtAchtAchtAcht
+Drei	Drei-jah	4000	0b5298c37fbb5cfc7137b89f9711974b	DreiDreiDreiDreiDrei	4000	0b5298c37fbb5cfc7137b89f9711974b	DreiDreiDreiDreiDrei
+Ein	Ein	3000	109abc9b5499d3de3cce205cd4e25da9	inEinEinEinEinEinEin	3000	109abc9b5499d3de3cce205cd4e25da9	inEinEinEinEinEinEin
+Funf	Funf	4000	32d2ad309dccb89aab90f178934c3933	FunfFunfFunfFunfFunf	4000	32d2ad309dccb89aab90f178934c3933	FunfFunfFunfFunfFunf
+Neun	Neun	800	9712e7c5fc2470f11185907bcde8293d	NeunNeunNeunNeunNeun	20	c6e516d71a611ae0941d9581e8522b6d	NeunNeunNeunNeunNeun
+Vier	Vier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier
+Zwei	Zwei-jah	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei
+drop table test.t1;
+drop table test.t2;

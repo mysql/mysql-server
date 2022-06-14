@@ -77,8 +77,9 @@ set session innodb_strict_mode=2;
 set global innodb_strict_mode='AUTO';
 --error ER_WRONG_VALUE_FOR_VAR
 set session innodb_strict_mode='AUTO';
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_strict_mode=-3;
+--error ER_WRONG_VALUE_FOR_VAR
 set session innodb_strict_mode=-7;
 select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;
@@ -86,6 +87,35 @@ select @@session.innodb_strict_mode;
 select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 --enable_warnings
+
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.innodb_strict_mode;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.innodb_strict_mode = 'OFF';
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.innodb_strict_mode;
+SET @@session.innodb_strict_mode = 'OFF';
+SET @@session.innodb_strict_mode = 1;
+SET @@session.innodb_strict_mode = FALSE;
+SELECT @@session.innodb_strict_mode;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.innodb_strict_mode = FALSE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = 'STR';
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
 
 #
 # Cleanup

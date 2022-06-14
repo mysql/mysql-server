@@ -1,0 +1,604 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers= 8;
+SET GLOBAL replica_preserve_commit_order= ON;
+include/start_slave.inc
+[connection master1]
+CALL mtr.add_suppression(".*Following users were specified in CREATE USER IF NOT EXISTS but they already exist.*");
+CALL mtr.add_suppression(".*Following users were specified in ALTER USER IF EXISTS but they do not exist.*");
+SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE commands (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100));
+LOAD DATA INFILE '../../std_data/acl.csv' INTO TABLE commands(b);
+include/sync_slave_sql_with_master.inc
+
+# Check for CREATE USER u1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE USER u1;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for CREATE USER IF NOT EXISTS u1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE USER IF NOT EXISTS u1;;
+Warnings:
+Note	3163	Authorization ID 'u1'@'%' already exists.
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for CREATE USER IF NOT EXISTS u2;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE USER IF NOT EXISTS u2;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for CREATE ROLE r1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE ROLE r1;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for GRANT SELECT ON *.* TO r1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; GRANT SELECT ON *.* TO r1;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for DROP ROLE r1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP ROLE r1;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for GRANT SELECT ON db1.* TO u1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; GRANT SELECT ON db1.* TO u1;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for REVOKE ALL PRIVILEGES ON *.* FROM u1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; REVOKE ALL PRIVILEGES ON *.* FROM u1;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for RENAME USER u1 to u3;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; RENAME USER u1 to u3;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER USER IF EXISTS u1 IDENTIFIED BY "pass";
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER USER IF EXISTS u1 IDENTIFIED BY "pass";;
+Warnings:
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER USER IF EXISTS u3 IDENTIFIED BY "pass";
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER USER IF EXISTS u3 IDENTIFIED BY "pass";;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER USER u3 IDENTIFIED BY "pass3";
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER USER u3 IDENTIFIED BY "pass3";;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for DROP USER u3;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP USER u3;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for DROP USER IF EXISTS u1;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP USER IF EXISTS u1;;
+Warnings:
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for DROP USER IF EXISTS u2;
+
+# Setup
+
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP USER IF EXISTS u2;;
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
+include/sync_slave_sql_with_master.inc
+
+# Cleanup
+
+[connection master1]
+SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+DROP TABLE t1,t2,commands;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
+include/start_slave.inc
+include/rpl_end.inc

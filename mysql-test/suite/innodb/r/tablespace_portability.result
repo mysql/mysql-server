@@ -60,36 +60,36 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath does not have a proper filename.
 Error	3121	The ADD DATAFILE filepath must end with '.ibd'.
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../spaces/'.
 CREATE TABLESPACE bad ADD DATAFILE 'test/bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name 'test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE './test/bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name './test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE './test//bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name './test//bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../data/test/bad.ibd';
-ERROR HY000: CREATE TABLESPACE data file cannot be under the datadir.
+ERROR HY000: The DATAFILE location cannot be under the datadir.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../data/test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../data/../data/test/bad.ibd';
@@ -97,7 +97,7 @@ ERROR HY000: The ADD DATAFILE filepath cannot contain circular directory referen
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath cannot contain circular directory references.
-Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	3121	The DATAFILE location cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../data/../data/test/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../data/../data/bad.ibd';
@@ -108,11 +108,11 @@ Error	3121	The ADD DATAFILE filepath cannot contain circular directory reference
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../data/../data/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE '../does_not_exist/bad.ibd';
-ERROR HY000: The directory does not exist.
+ERROR HY000: The directory does not exist or is incorrect.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE bad
 Error	3121	Incorrect File Name '../does_not_exist/bad.ibd'.
 CREATE TABLESPACE bad ADD DATAFILE 'test/../bad.ibd';
@@ -195,3 +195,15 @@ DROP TABLESPACE ibport_s02;
 DROP TABLESPACE ibport_s03;
 DROP TABLESPACE ibport_s04;
 DROP TABLESPACE ibport_s05;
+# restart:
+#
+# Bug#32721533 CAN'T ALTER TABLE AFTER MOVING THE DATA FILE USING INNODB_DIRECTORIES OPTION
+#
+CREATE TABLE t1(a INT);
+include/save_error_log_position.inc
+# restart:
+include/assert_error_log.inc [server: 1, pattern: .*\[Warning\].*Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing]
+# restart: --innodb_directories=INNODB_DIR
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+# restart: 

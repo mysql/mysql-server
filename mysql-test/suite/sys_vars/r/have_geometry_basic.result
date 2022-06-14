@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.have_geometry);
 COUNT(@@GLOBAL.have_geometry)
 1
 1 Expected
-SELECT have_geometry = @@SESSION.have_geometry;
+SELECT have_geometry;
 ERROR 42S22: Unknown column 'have_geometry' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

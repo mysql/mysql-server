@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class Sql_cmd_import_table : public Sql_cmd {
   /**
     Called by sql_yacc.yy.
 
-    @param patterns - Memroot_array_YY of all the sdi file patterns
+    @param patterns - Mem_root_array_YY of all the sdi file patterns
     provided as arguments.
    */
   Sql_cmd_import_table(const Sdi_patterns_type &patterns);
@@ -57,12 +57,12 @@ class Sql_cmd_import_table : public Sql_cmd {
     @retval true on error
     @retval false otherwise
  */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   /**
     Provide access to the command code enum value.
     @return command code enum value
    */
-  virtual enum_sql_command sql_command_code() const;
+  enum_sql_command sql_command_code() const override;
 };
 #endif /* !SQL_IMPORT_INCLUDED */

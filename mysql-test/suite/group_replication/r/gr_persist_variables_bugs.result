@@ -5,9 +5,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 ############################################################
-# 0. Set binlog_checksum to NONE.
+# 0. Persist binlog_checksum.
 [connection server1]
-SET PERSIST binlog_checksum=NONE;
+SET PERSIST binlog_checksum= @@global.binlog_checksum;
 
 ############################################################
 # 1. SET PERSIST GR specific variables.
@@ -28,3 +28,5 @@ SET GLOBAL group_replication_start_on_boot= OFF;
 SET GLOBAL group_replication_bootstrap_group= OFF;
 RESET PERSIST;
 include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

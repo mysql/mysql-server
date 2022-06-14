@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_MYSQL_COND_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/mysql_cond_bits.h>
-#include <mysql/components/services/mysql_mutex_bits.h>
-#include <mysql/components/services/psi_cond_bits.h>
+#include <mysql/components/services/bits/mysql_cond_bits.h>
+#include <mysql/components/services/bits/mysql_mutex_bits.h>
+#include <mysql/components/services/bits/psi_cond_bits.h>
 
 typedef void (*mysql_cond_register_t)(const char *category, PSI_cond_info *info,
                                       int count);

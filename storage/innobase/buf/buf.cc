@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -41,8 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Checks if a page contains only zeroes.
-@param[in]	read_buf	database page
-@param[in]	page_size	page size
+@param[in]      read_buf        database page
+@param[in]      page_size       page size
 @return true if page is filled with zeroes */
 bool buf_page_is_zeroes(const byte *read_buf, const page_size_t &page_size) {
   for (ulint i = 0; i < page_size.logical(); i++) {

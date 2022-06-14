@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@ using namespace sha2_password;
 using my_testing::Server_initializer;
 
 class SHA256_digestTest : public ::testing::Test {
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -68,7 +68,7 @@ TEST_F(SHA256_digestTest, InitDigestContext) {
 TEST_F(SHA256_digestTest, DigestSingleStage) {
   SHA256_digest sha256_digest;
   const char *plaintext1 = "quick brown fox jumped over the lazy dog";
-  size_t plaintext1_length = strlen((char *)plaintext1);
+  size_t plaintext1_length = strlen(plaintext1);
   unsigned char expected_digest1[] = {
       0x5c, 0xa1, 0xa2, 0x08, 0xc4, 0x61, 0x95, 0x3f, 0x7c, 0x12, 0xd2,
       0x79, 0xc7, 0xa8, 0x62, 0x0f, 0x3f, 0x83, 0x87, 0xf4, 0x09, 0x8c,
@@ -86,7 +86,7 @@ TEST_F(SHA256_digestTest, DigestSingleStage) {
   sha256_digest.scrub();
 
   const char *plaintext2 = "ABCD1234%^&*";
-  size_t plaintext2_length = strlen((char *)plaintext2);
+  size_t plaintext2_length = strlen(plaintext2);
 
   unsigned char expected_digest2[] = {
       0xdd, 0xaf, 0x2b, 0xa0, 0x31, 0x73, 0x45, 0x3d, 0x72, 0x34, 0x51,
@@ -106,11 +106,11 @@ TEST_F(SHA256_digestTest, DigestSingleStage) {
 TEST_F(SHA256_digestTest, DigestMultiStage) {
   SHA256_digest sha256_digest;
   const char *plaintext_input1 = "quick brown fox jumped over the lazy dog";
-  size_t plaintext_input1_length = strlen((char *)plaintext_input1);
+  size_t plaintext_input1_length = strlen(plaintext_input1);
   const char *plaintext_input2 = "ABCD1234%^&*";
-  size_t plaintext_input2_length = strlen((char *)plaintext_input2);
+  size_t plaintext_input2_length = strlen(plaintext_input2);
   const char *plaintext_input3 = "Hello World";
-  size_t plaintext_input3_length = strlen((char *)plaintext_input3);
+  size_t plaintext_input3_length = strlen(plaintext_input3);
 
   unsigned char digest_output[CACHING_SHA2_DIGEST_LENGTH];
 
@@ -177,7 +177,7 @@ TEST_F(SHA256_digestTest, ValidateScramble) {
       0x3b, 0x02, 0x69, 0x4c, 0x85, 0x02, 0xf5, 0x5b, 0xc8, 0xdc};
 
   const char *source = "Ab12#$Cd56&*";
-  size_t source_length = strlen((char *)source);
+  size_t source_length = strlen(source);
   std::string rnd = "eF!@34gH%^78";
 
   unsigned char digest_stage2[CACHING_SHA2_DIGEST_LENGTH];
@@ -228,9 +228,9 @@ TEST_F(SHA256_digestTest, validate_sha256_scramble) {
       0x3b, 0x02, 0x69, 0x4c, 0x85, 0x02, 0xf5, 0x5b, 0xc8, 0xdc};
 
   const char *source = "Ab12#$Cd56&*";
-  size_t source_length = strlen((char *)source);
+  size_t source_length = strlen(source);
   const unsigned char *rnd = (const unsigned char *)"eF!@34gH%^78";
-  size_t rnd_length = strlen((char *)rnd);
+  size_t rnd_length = strlen(pointer_cast<const char *>(rnd));
 
   unsigned char digest_stage2[CACHING_SHA2_DIGEST_LENGTH];
 
@@ -352,7 +352,8 @@ TEST_F(SHA256_digestTest, SHA2_password_cache) {
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr,
+                                              DEFAULT_STORED_DIGEST_ROUNDS);
 
   Digest_info digest_type;
 
@@ -382,9 +383,30 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(sha256_valid_auth_string1 ==
               sha256_valid_auth_string1_serialized);
 
+  /* Valid string with largest iterations count */
+  std::string sha256_valid_auth_string_biggest(
+      "$A$FFF$ABCDEFGHIJKLMNOPQRSTabcdefgh01234567ijklmnop89012345ABCDEFGH678");
+  std::string sha256_valid_auth_string_biggest_serialized;
+
+  ASSERT_TRUE(caching_sha2_password.deserialize(
+                  sha256_valid_auth_string_biggest, digest_type, salt,
+                  sha256_digest, iterations) == false);
+  ASSERT_TRUE(digest_type == Digest_info::SHA256_DIGEST);
+  ASSERT_TRUE(memcmp(salt.c_str(), "ABCDEFGHIJKLMNOPQRST", SALT_LENGTH) == 0);
+  ASSERT_TRUE(memcmp(sha256_digest.c_str(),
+                     "abcdefgh01234567ijklmnop89012345ABCDEFGH678",
+                     STORED_SHA256_DIGEST_LENGTH) == 0);
+  ASSERT_TRUE(iterations == MAX_ITERATIONS);
+
+  ASSERT_TRUE(caching_sha2_password.serialize(
+                  sha256_valid_auth_string_biggest_serialized, digest_type,
+                  salt, sha256_digest, iterations) == false);
+  ASSERT_TRUE(sha256_valid_auth_string_biggest ==
+              sha256_valid_auth_string_biggest_serialized);
+
   /* Valid string with special characters */
   std::string sha256_valid_auth_string2(
-      "$A$005$01234567ABCDEFGH!@#$abcdefgh01234567ijklm890!@#$%^&*;[-=,+]']+*");
+      "$A$20A$01234567ABCDEFGH!@#$abcdefgh01234567ijklm890!@#$%^&*;[-=,+]']+*");
   std::string sha256_valid_auth_string2_serialized;
 
   ASSERT_TRUE(caching_sha2_password.deserialize(
@@ -395,7 +417,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
   ASSERT_TRUE(memcmp(sha256_digest.c_str(),
                      "abcdefgh01234567ijklm890!@#$%^&*;[-=,+]']+*",
                      STORED_SHA256_DIGEST_LENGTH) == 0);
-  ASSERT_TRUE(iterations == 5000);
+  ASSERT_TRUE(iterations == 0x20A * 1000);
 
   ASSERT_TRUE(caching_sha2_password.serialize(
                   sha256_valid_auth_string2_serialized, digest_type, salt,
@@ -475,9 +497,10 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_generate_fast_digest) {
-  Caching_sha2_password caching_sha2_password(0);
-  Caching_sha2_password caching_sha2_password_4(0, DEFAULT_STORED_DIGEST_ROUNDS,
-                                                4);
+  Caching_sha2_password caching_sha2_password(nullptr,
+                                              DEFAULT_STORED_DIGEST_ROUNDS);
+  Caching_sha2_password caching_sha2_password_4(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS, 4);
 
   std::string plaintext("HahaH0hO1234#$@#%");
   sha2_cache_entry digest;
@@ -533,13 +556,14 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
   memset(stage2, 0, CRYPT_MAX_PASSWORD_SIZE + 1);
   my_crypt_genhash(
       stage2, CRYPT_MAX_PASSWORD_SIZE, plaintext_buffer_arthur.c_str(),
-      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), 0);
+      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), nullptr);
 
   std::string digest_string1(stage2);
   digest_string1 = digest_string1.substr(
       digest_string1.find('$', 3 + CRYPT_SALT_LENGTH) + 1, std::string::npos);
 
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr,
+                                              DEFAULT_STORED_DIGEST_ROUNDS);
   std::string digest;
   ASSERT_TRUE(caching_sha2_password.generate_sha2_multi_hash(
                   plaintext_buffer_arthur, salt_buffer_arthur, &digest, 5000) ==
@@ -554,7 +578,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
   memset(stage2, 0, CRYPT_MAX_PASSWORD_SIZE + 1);
   my_crypt_genhash(
       stage2, CRYPT_MAX_PASSWORD_SIZE, plaintext_buffer_arthur.c_str(),
-      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), 0);
+      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), nullptr);
   digest_string1.assign(stage2);
   digest_string1 = digest_string1.substr(
       digest_string1.find('$', 3 + CRYPT_SALT_LENGTH) + 1, std::string::npos);
@@ -567,7 +591,8 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
 
 TEST_F(SHA256_digestTest,
        Caching_sha2_password_authenticate_fast_authenticate) {
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr,
+                                              DEFAULT_STORED_DIGEST_ROUNDS);
   std::string serialized_string[MAX_PASSWORDS];
   Digest_info digest_type = Digest_info::SHA256_DIGEST;
   std::string digest;
@@ -713,7 +738,8 @@ TEST_F(SHA256_digestTest,
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_authenticate_sanity) {
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr,
+                                              DEFAULT_STORED_DIGEST_ROUNDS);
   std::string serialized_string[MAX_PASSWORDS];
   std::string plaintext;
 

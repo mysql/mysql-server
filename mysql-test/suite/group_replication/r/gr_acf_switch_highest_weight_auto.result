@@ -1,0 +1,123 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server5]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+call mtr.add_suppression("The source.*for channel.*has joined the group.*and so added its entry into replication_asynchronous_connection_failover table");
+call mtr.add_suppression("The source.*for channel.*has left the group.*and so removed its entry from replication_asynchronous_connection_failover table");
+call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
+call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The Monitor IO thread failed to detect if the source belongs to the group majority on the source .* for channel 'ch1_5'.");
+SET SESSION sql_log_bin = 1;
+
+# 1. Configure first group members: server1 and 2.
+
+[connection server1]
+SET GLOBAL group_replication_group_seeds= "GROUP_REPLICATION_GROUP_SEEDS";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET GLOBAL group_replication_group_seeds= "GROUP_REPLICATION_GROUP_SEEDS";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+
+# 2. Start GR on first group members: server1 and 2.
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 3. Configure second group members: server3 and 4.
+
+SET GLOBAL group_replication_group_seeds= "GROUP_REPLICATION_GROUP_SEEDS";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET GLOBAL group_replication_group_seeds= "GROUP_REPLICATION_GROUP_SEEDS";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+
+# 4. Start GR on second group members: server3 and 4.
+
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+[connection server4]
+include/start_group_replication.inc
+#
+# 5. Add two asynchronous connection failover servers from two different
+#    groups and verify that they are inserted successfully in
+#    performance_schema.replication_asynchronous_connection_failover.
+#
+[connection server2]
+[connection server4]
+[connection server5]
+SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_2, '', 70, 60);;
+asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_2, '', 70, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_4, '', 80, 60);;
+asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_4, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There are two rows in performance_schema.replication_asynchronous_connection_failover']
+
+# 6. Create and start new channel ch1_5: server5(slave), server1(master)
+#    and verify channel ch1_5 IO and SQL THREADS are ON.
+
+[connection server5]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1_5']
+include/assert.inc [Verify channel ch1_5 IO_THREAD is ON]
+include/assert.inc [Verify channel ch1_5 SQL_THREAD is ON]
+
+# 7. Verify four senders are added automatically to
+#    replication_asynchronous_connection_failover table.
+
+[connection server5]
+
+# 8. Verify it gets reconnected to source with highest
+#    weight which will be server3.
+
+[connection server5]
+
+# 9. Clean Up.
+
+[connection server3]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=SERVER_1_PORT FOR CHANNEL 'ch1_3';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1_3']
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=SERVER_3_PORT FOR CHANNEL 'ch3_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch3_1']
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+[connection server5]
+include/stop_slave.inc [FOR CHANNEL 'ch1_5']
+include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME1');
+asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME1')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+SELECT asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME2');
+asynchronous_connection_failover_delete_managed('ch1_5', 'GROUP_NAME2')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+[connection server3]
+include/stop_slave.inc [FOR CHANNEL 'ch1_3']
+Warnings:
+Note	3084	Replication thread(s) for channel 'ch1_3' are already stopped.
+include/rpl_reset_slave.inc
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch3_1']
+Warnings:
+Note	3084	Replication thread(s) for channel 'ch3_1' are already stopped.
+include/rpl_reset_slave.inc
+include/group_replication_end.inc

@@ -1,0 +1,551 @@
+###############################################################################
+# This test aims at verifying the correctness of the P_S counters implemented
+# for the data dictinoary. Various SQL statements ar executed, and we check
+# whether the resulting changes in the counters make sense.
+
+###############################################################################
+# Prepare for test run
+
+--source include/dd_pfs_init.inc
+
+###############################################################################
+# Make sure we have the DD objects representing the DD tables in the DD cache
+# to avoid complications due to having a cache miss while accessing the DD
+# tables. We do this by creating and dropping a dummy table and schema.
+
+create schema s;
+create table s.t1(i int);
+create table s.t2(i int) tablespace innodb_system;
+drop schema s;
+source include/dd_pfs_save_state.inc;
+
+###############################################################################
+# Create schema.
+#
+# One schema object is allocated in dd::create_schema() and deleted on function
+# exit. The object is cloned in dd_client::store(), and the clone is deleted
+# upon commit. So we get 2 allocations and 2 frees, net object count 0.
+
+let $object_alloc= 2;
+let $object_free= 2;
+let $object_count= 0;
+let $operation= CREATE SCHEMA s;
+source include/dd_pfs_report_state.inc;
+
+###############################################################################
+# Create a simple MyISAM table.
+#
+# We will allocate a schema (+1), a table and a column (+2), clone the latter
+# while storing (+2), delete clones during intermediate commit (-2), acquire
+# (+2) and clone for modification (+2), delete unique ptr (-2) and finally auto
+# delete the objects that were acquired for modification (-2). The schema,
+# table and column will be left in the DD cache. So we get 9 allocations, 6
+# frees, and 3 objects left.
+
+let $object_alloc= 9;
+let $object_free= 6;
+let $object_count= 3;
+let $operation= CREATE TABLE s.t_myisam(i int) engine myisam;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Create a simple InnoDB table.
+#
+# The dd::Table itself will contain 10 objects, including hidden indexes and 
+# columns added by InnoDB. We will allocate the table and add columns and indexes
+# (+10), then store the object, where SDI creation will allocate tablespace
+# and file objects (+4). In store(), we will then clone the table (+10). Then,
+# rea_create_base_table() will call acquire_for_mod...(), where we will clone (+10).
+# In ha_create, when opening the table, the tablespace will be acquired uncached (+2),
+# then after updating, store() is called again, now allocating tablespaces and files
+# (+6) while serializing, then deleting the previously updated object (-10).
+# When returning from rea_create...(), the unique_ptr is deleted (-10), and finally,
+# reload_fk...() will acquire the table for modification (+10).
+#
+# Implicit commit will erase the leftover uncommitted objects (-10). Auto releasers
+# going out of scope will auto delete the uncached objects (-22).
+#
+# Note that unlike MyISAM, the table object will not be left in the DD cache
+# because there is no intermediate commit that clears the list of uncommited
+# objects.
+#
+# So the end result is that we allocate 52 objects, free 52 objects, and leave
+# 0 objects.
+
+let $object_alloc= 52;
+let $object_free= 52;
+let $object_count= 0;
+let $operation= CREATE TABLE s.t_innodb_1(i int) TABLESPACE innodb_system;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Create another simple table in same schema.
+#
+# We get the same scenario as above.
+
+let $object_alloc= 52;
+let $object_free= 52;
+let $object_count= 0;
+let $operation= CREATE TABLE s.t_innodb_2(i int) TABLESPACE innodb_system;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# First select from a cached table.
+#
+# A select from a table that is already in the DD cache will not cause a cache
+# miss, and the object count will stay the same.
+
+let $object_alloc= 0;
+let $object_free= 0;
+let $object_count= 0;
+let $operation= SELECT * FROM s.t_myisam;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# First select from an uncached table.
+#
+# A select from a table that is not in the TDC or DD cache will cause a cache
+# miss. Thus, a set of new DD objects will be allocated and left in the DD cache.
+# The 10 objects that are part of the table meta data will be allocated and left
+# in the DD cache. Additionally, when the table share is filled in, the
+# tablespace and tablespace file objects will be allocated in order to get the
+# tablespace name. These uncached objects are freed when the auto releaser goes
+# out of scope. Hence, we get 12 allocations, 2 frees, and 10 objects left.
+
+let $object_alloc= 12;
+let $object_free= 2;
+let $object_count= 10;
+let $operation= SELECT * FROM s.t_innodb_1;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# First select from another uncached table.
+#
+# We get the same scenario and object counts as above.
+
+let $object_alloc= 12;
+let $object_free= 2;
+let $object_count= 10;
+let $operation= SELECT * FROM s.t_innodb_2;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Repeated select from a table.
+#
+# Another select from the same table will reuse the table share, hence no DD
+# cache miss. So there are no allocations, frees or leftover objects.
+
+let $object_alloc= 0;
+let $object_free= 0;
+let $object_count= 0;
+let $operation= SELECT * FROM s.t_innodb_1;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Drop a table.
+#
+# We first fill in tablespace names referred by the table and index, allocating
+# tablespace and file objects uncached twice (+4). These are then freed (-4).
+# While updating the SDI, the tablespace and file objects are allocated uncached
+# again (+2). Then, the placeholder object is cloned from the table object (+1)
+# and kept as uncommitted object, and the cached table object and its subobjects
+# are freed (-10). Finally, the uncommitted object is freed (-1), and the
+# remaining uncached ones are deleted (-2). So this results in 7 allocations and
+# 17 frees, and a net change of -10.
+
+let $object_alloc= 7;
+let $object_free= 17;
+let $object_count= -10;
+let $operation= DROP TABLE s.t_innodb_1;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Drop another table.
+#
+# We get the same scenario as above.
+
+let $object_alloc= 7;
+let $object_free= 17;
+let $object_count= -10;
+let $operation= DROP TABLE s.t_innodb_2;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Drop the schema.
+#
+# We will create placeholders for the table object (+1) and the schema object (+1)
+# and store them as uncommitted objects. Then, the objects will be freed from the DD
+# cache (-3). Finally, the uncommitted objects are freed (-2). This gives us 2
+# allocations, 5 frees and a net change of -3 objects.
+
+let $object_alloc= 2;
+let $object_free= 5;
+let $object_count= -3;
+let $operation= DROP SCHEMA s;
+--source include/dd_pfs_report_state.inc
+
+###############################################################################
+# Create a more complex table.
+#
+# We create a table similar to the DD table mysql.tables, then we select from
+# the table to bring its meta data into the DD cache. This will allow us to
+# see its object count and size.
+
+--disable_query_log
+--disable_result_log
+SET foreign_key_checks= 0;
+CREATE TABLE test.tables (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `schema_id` bigint unsigned NOT NULL,
+  `name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `type` enum('BASE TABLE','VIEW','SYSTEM VIEW') COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `mysql_version_id` int unsigned NOT NULL,
+  `row_format` enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged') COLLATE utf8_bin DEFAULT NULL,
+  `collation_id` bigint unsigned DEFAULT NULL,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `hidden` enum('Visible','System','SE','DDL') COLLATE utf8_bin NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `se_private_id` bigint unsigned DEFAULT NULL,
+  `tablespace_id` bigint unsigned DEFAULT NULL,
+  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO','AUTO_LINEAR') COLLATE utf8_bin DEFAULT NULL,
+  `partition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `partition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `default_partitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
+  `subpartition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55') COLLATE utf8_bin DEFAULT NULL,
+  `subpartition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `subpartition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `default_subpartitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
+  `view_definition` longblob,
+  `view_definition_utf8` longtext COLLATE utf8_bin,
+  `view_check_option` enum('NONE','LOCAL','CASCADED') COLLATE utf8_bin DEFAULT NULL,
+  `view_is_updatable` enum('NO','YES') COLLATE utf8_bin DEFAULT NULL,
+  `view_algorithm` enum('UNDEFINED','TEMPTABLE','MERGE') COLLATE utf8_bin DEFAULT NULL,
+  `view_security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin DEFAULT NULL,
+  `view_definer` varchar(192) COLLATE utf8_bin DEFAULT NULL,
+  `view_client_collation_id` bigint unsigned DEFAULT NULL,
+  `view_connection_collation_id` bigint unsigned DEFAULT NULL,
+  `view_column_names` longtext COLLATE utf8_bin,
+  `last_checked_for_upgrade_version_id` int unsigned NOT NULL,
+  `engine_attribute` json DEFAULT NULL,
+  `secondary_engine_attribute` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `schema_id` (`schema_id`,`name`),
+  UNIQUE KEY `engine` (`engine`,`se_private_id`),
+  KEY `engine_2` (`engine`),
+  KEY `collation_id` (`collation_id`),
+  KEY `tablespace_id` (`tablespace_id`),
+  KEY `type` (`type`),
+  KEY `view_client_collation_id` (`view_client_collation_id`),
+  KEY `view_connection_collation_id` (`view_connection_collation_id`),
+  KEY `type_2` (`type`,`view_definer`),
+  CONSTRAINT `tables_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES test.dummy (`id`),
+  CONSTRAINT `tables_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES test.dummy (`id`),
+  CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES test.dummy (`id`),
+  CONSTRAINT `tables_ibfk_4` FOREIGN KEY (`view_client_collation_id`) REFERENCES test.dummy (`id`),
+  CONSTRAINT `tables_ibfk_5` FOREIGN KEY (`view_connection_collation_id`) REFERENCES test.dummy (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC;
+SET foreign_key_checks= DEFAULT;
+--enable_result_log
+--enable_query_log
+
+let $object_alloc= 168;
+let $object_free= 0;
+let $object_count= 168;
+--source include/dd_pfs_save_state.inc
+let $operation= SELECT * FROM test.tables;
+--source include/dd_pfs_report_state.inc
+
+--echo We will see that the total size allocated is about 40K.
+
+--disable_query_log
+--disable_result_log
+DROP TABLE test.tables;
+--enable_result_log
+--enable_query_log
+
+###############################################################################
+# Cacche size.
+#
+# The DD cache capacity for tables is set to max_connections. When the
+# capacity is reached, objects will be evicted. So max_connections objects
+# can be kept. Below, we assume that the table definition cache size is greater
+# than the size of the DD cache table partiiton. We will fill the DD cache with
+# user tables and see that we can use up to the max capacity without getting
+# additional cache misses.
+
+let $max_tab= `SELECT @@max_connections`;
+
+# First, we create the tables, bring them into the DD cache, and remove them
+# from the table definition cache.
+
+--disable_query_log
+--disable_result_log
+let $i= $max_tab;
+while ($i > 0)
+{
+  dec $i;
+  eval CREATE TABLE test.t_$i (i int) TABLESPACE innodb_system;
+  eval SELECT * FROM  test.t_$i;
+  eval FLUSH TABLES test.t_$i;
+}
+--enable_result_log
+--enable_query_log
+
+# Now, the DD cache should be filled with the user tables, and we should have
+# the shares for the DD tables available in the TDC, if needed. Selecting from
+# the user tables should be possible without DD cache misses.
+
+--source include/dd_pfs_save_state.inc
+--disable_query_log
+--disable_result_log
+let $i= $max_tab;
+while ($i > 0)
+{
+  dec $i;
+  eval SELECT * FROM  test.t_$i;
+}
+--enable_result_log
+--enable_query_log
+
+# Above, when opening the tables, the DD objects are cached, but we will
+# acquire the tablespace and tablespace file objects while preparing the
+# table share. These are also freed. This is done only once when the share
+# is filled, so on next query accessing the table, the existing table share
+# is used without any further DD object usage.
+
+let $object_alloc= $max_tab + $max_tab;
+let $object_free= $max_tab + $max_tab;
+let $object_left= 0;
+--source include/dd_pfs_report_state.inc
+
+# Remove the tables.
+
+--disable_query_log
+--disable_result_log
+let $i= $max_tab;
+while ($i > 0)
+{
+  dec $i;
+  eval DROP TABLE  test.t_$i;
+}
+--enable_result_log
+--enable_query_log
+
+###############################################################################
+# Mem usage by drop schema / test for partial fix for bug#29634540
+# "DROP DATABASE OF 1 MILLION TABLES RESULTED CRASH OF MYSQLD".
+#
+# Dropping a schema was hogging memory because the dictionary client was
+# storingfull DD objects for all tables in the schema in memory while the
+# schema was deleted. After partial fix for the problem we now store slimmed
+# down placeholders instead of full-blown DD objects for all tables instead.
+
+--disable_query_log
+--disable_result_log
+CREATE SCHEMA s;
+let $i= 100;
+while ($i > 0)
+{
+  dec $i;
+  eval CREATE TABLE s.t_$i (i int, j int, k int, l int);
+  # Pull in DD objects for tables in cache.
+  eval SELECT * FROM s.t_$i;
+}
+--enable_result_log
+--enable_query_log
+
+# For each table:
+#
+#   We first get tablespace name referred by the index in order to acquire
+#   MDL on it, allocating tablespace and file objects uncached (+2) and
+#   then freeing them immediately (-2).
+#
+#   Then during call to drop table in SE, InnoDB will drop file-per-table
+#   tablespace. To do this it will get get uncached tablespace and file
+#   objects once again (+2). The placeholder for tablespace object will
+#   be created and added to uncommited registry (+1), Original uncached
+#   tablespace and file objects will be deleted (-2).
+#
+#   After that we will delete table from DD, and in the process we will
+#   create placeholder for table object (+1) and keep it as uncommitted,
+#   free cached table object and its subobjects (-16).
+#
+# Then once for the statement, we will create placeholder for schema
+# object to keep as uncommited (+1) and free cached schema object (-1).
+#
+# Finally, we will free uncommitted placeholders for each table, tablespace
+# (-2 per table) and for schema (-1).
+#
+# So in total this results in (2 + 2 + 1 + 1) * 100 + 1 = 601 allocations,
+# (2 + 2 + 16) * 100 + 1 + 2 * 100 + 1 = 2202 frees, and a net change of -1601.
+--source include/dd_pfs_save_state.inc
+let $object_alloc= 601;
+let $object_free= 2202;
+let $object_count= -1601;
+let $operation= DROP SCHEMA s;
+--source include/dd_pfs_report_state.inc
+
+#
+# Coverage for optimization of marking referencing views as invalid during
+# DROP DATABASE which was implemented as part of fixing bug#29634540 "DROP
+# DATABASE OF 1 MILLION TABLES RESULTED CRASH OF MYSQLD".
+#
+
+# I) View in the database being dropped dependent on MyISAM table in it.
+#    Optimization doesn't apply.
+CREATE SCHEMA s1;
+CREATE TABLE s1.t_myisam(i INT) ENGINE=MYISAM;
+CREATE VIEW s1.v1 AS SELECT * FROM s1.t_myisam;
+SELECT * FROM s1.v1;
+--source include/dd_pfs_save_state.inc
+#
+# 1) We allocate placeholder object for table being dropped (+1) and
+# remove table object and its sub-objects from cache (-2). Table is
+# removed from DD. Intermediate commit happens, so placeholder is
+# removed (-1).
+# 2) We mark view as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Acquire MDL on db and name combo and retrieve them once again
+#      in the same way to prevent possible races (+4, -4).
+#   c) Create copy of cached view object with subobject to mark it
+#      invalid (+3), store it in DD, delete new (-3) and cached object
+#      (-3).
+# 3) We delete view, in the process we load view object into cache (+3),
+#    create placeholder for it (+1), delete cached object (-3), remove
+#    view from DD.
+# 4) We remove TABLE_SHARE entry for view from TDC. It has DD view
+#    object bound to it which gets deleted (-3).
+# 5) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 6) Delete placeholder objects for view (-1) and schema (-1) during
+#    commit.
+# So in total we do 17 allocations and 26 deletions of objects.
+let $object_alloc= 17;
+let $object_free= 26;
+let $object_count= -9;
+let $operation= DROP SCHEMA s1;
+--source include/dd_pfs_report_state.inc
+
+# II) View on InnoDB table in other database than one being dropped.
+#     Optimization doesn't apply either.
+CREATE SCHEMA s2;
+CREATE TABLE s2.t_innodb(i INT) TABLESPACE=innodb_system;
+CREATE VIEW v2 AS SELECT * FROM s2.t_innodb;
+SELECT * FROM v2;
+--source include/dd_pfs_save_state.inc
+#
+# 1) We lock tablespaces referred by the table and index to do this
+#    we get their names, allocating tablespace and file objects uncached
+#    twice (+4). These are then freed (-4).
+# 2) When updating the SDI, the tablespace and file objects are allocated
+#    uncached again (+2) and then freed eventually (-2).
+# 3) We allocate placeholder object for table being dropped (+1) and
+#    remove table object and its sub-objects from cache (-10).
+#    Table is removed from DD.
+# 4) Then we mark view as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Acquire MDL on db and name combo and retrieve them once again
+#      in the same way to prevent possible races (+4, -4).
+#   c) Create copy of cached view object with subobject to mark it
+#      invalid (+3), store it in DD, delete cached object (-3).
+# 5) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 6) Delete placeholder objects for table (-1) and schema (-1) and new
+#    version of view object (-3) during commit.
+#
+# So in total we do 19 allocations and 33 deletions of objects.
+let $object_alloc= 19;
+let $object_free= 33;
+let $object_count= -14;
+let $operation= DROP SCHEMA s2;
+--source include/dd_pfs_report_state.inc
+DROP VIEW v2;
+
+# III) View on InnoDB table in the same database as one being dropped.
+#      Optimization should apply.
+CREATE SCHEMA s3;
+CREATE TABLE s3.t_innodb(i INT) TABLESPACE=innodb_system;
+CREATE VIEW s3.v3 AS SELECT * FROM s3.t_innodb;
+SELECT * FROM s3.v3;
+--source include/dd_pfs_save_state.inc
+#
+# 1) We lock tablespaces referred by the table and index to do this
+#    we get their names, allocating tablespace and file objects uncached
+#    twice (+4). These are then freed (-4).
+# 2) When updating the SDI, the tablespace and file objects are allocated
+#    uncached again (+2) and then freed eventually (-2).
+# 3) We allocate placeholder object for table being dropped (+1) and
+#    remove table object and its sub-objects from cache (-10).
+#    Table is removed from DD.
+# 4) Then we consider whether we need to mark view as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Since view belongs to the database being dropped we ignore it.
+# 5) Create placeholder object for view (+1), delete cached objects
+#    for it from the cache (-3), remove it from DD.
+# 6) We remove TABLE_SHARE entry for view from TDC. It has DD view
+#    object bound to it which gets deleted (-3).
+# 7) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 8) Delete placeholder objects for table (-1), view (-1) and schema (-1)
+#    during commit.
+#
+# So in total we do 13 allocations and 27 deletions of objects.
+let $object_alloc= 13;
+let $object_free= 30;
+let $object_count= -17;
+let $operation= DROP SCHEMA s3;
+--source include/dd_pfs_report_state.inc
+
+# IV) View on view in the same database as one being dropped.
+#     Optimization should apply as well.
+CREATE SCHEMA s4;
+CREATE VIEW s4.v4 AS SELECT 1 AS i;
+CREATE VIEW s4.v5 AS SELECT * FROM s4.v4;
+SELECT * FROM s4.v5;
+--source include/dd_pfs_save_state.inc
+# 1) We allocate placeholder object for the first view dropped (+1)
+#    and remove view object and its sub-objects from cache (-2).
+#    View is removed from DD.
+# 2) We remove TABLE_SHARE entry for view from TDC. Associated DD
+#    object is deleted (-2).
+# 3) Then we consider whether we need to mark the dependent view
+#    as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Since view belongs to the database being dropped we ignore it.
+# 4) Create placeholder object for second view (+1), delete cached
+#    object for it from the cache (-3), remove it from DD.
+# 5) We remove TABLE_SHARE entry for view from TDC. It has DD view
+#    object bound to it which gets deleted (-3).
+# 6) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 7) Delete placeholder objects for the first (-1) and the second (-1)
+#    views and schema (-1) during commit.
+#
+# So in total we do 7 allocations and 18 deletions of objects.
+let $object_alloc= 7;
+let $object_free= 18;
+let $object_count= -11;
+let $operation= DROP SCHEMA s4;
+--source include/dd_pfs_report_state.inc
+
+
+###############################################################################
+# Cleanup.
+
+--source include/dd_pfs_cleanup.inc

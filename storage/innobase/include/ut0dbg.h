@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,43 +33,49 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
+#include "my_compiler.h"
+
 /* Do not include univ.i because univ.i includes this. */
 
 #include <functional>
-#include "os0thread.h"
 
 /** Set a callback function to be called before exiting.
-@param[in]	callback	user callback function */
+@param[in]      callback        user callback function */
 void ut_set_assert_callback(std::function<void()> &callback);
 
-/** Report a failed assertion. */
-[[noreturn]] void ut_dbg_assertion_failed(
-    const char *expr, /*!< in: the failed assertion */
-    const char *file, /*!< in: source file containing the assertion */
-    ulint line);      /*!< in: line number of the assertion */
+/** Report a failed assertion.
+@param[in] expr The failed assertion
+@param[in] file Source file containing the assertion
+@param[in] line Line number of the assertion */
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line);
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
-#define ut_a(EXPR)                                               \
-  do {                                                           \
-    if (UNIV_UNLIKELY(!(ulint)(EXPR))) {                         \
-      ut_dbg_assertion_failed(#EXPR, __FILE__, (ulint)__LINE__); \
-    }                                                            \
+#define ut_a(EXPR)                                        \
+  do {                                                    \
+    if (unlikely(false == (bool)(EXPR))) {                \
+      ut_dbg_assertion_failed(#EXPR, __FILE__, __LINE__); \
+    }                                                     \
   } while (0)
 
 /** Abort execution. */
-#define ut_error ut_dbg_assertion_failed(0, __FILE__, (ulint)__LINE__)
+#define ut_error ut_dbg_assertion_failed(0, __FILE__, __LINE__)
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR) ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR) EXPR
+/** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
+#define ut_o(EXPR)
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)
+/** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
+#define ut_o(EXPR) EXPR
 #endif
 
 /** Debug crash point */
@@ -94,7 +100,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
 
 /** Silence warnings about an unused variable by doing a null assignment.
 @param A the unused variable */
-#define UT_NOT_USED(A) A = A
+#define UT_NOT_USED(A) std::ignore = A
 
 #if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 
@@ -106,21 +112,21 @@ void ut_set_assert_callback(std::function<void()> &callback);
 
 /** A "chronometer" used to clock snippets of code.
 Example usage:
-        ut_chrono_t	ch("this loop");
+        ut_chrono_t     ch("this loop");
         for (;;) { ... }
         ch.show();
 would print the timings of the for() loop, prefixed with "this loop:" */
 class ut_chrono_t {
  public:
   /** Constructor.
-  @param[in]	name	chrono's name, used when showing the values */
+  @param[in]    name    chrono's name, used when showing the values */
   ut_chrono_t(const char *name) : m_name(name), m_show_from_destructor(true) {
     reset();
   }
 
   /** Resets the chrono (records the current time in it). */
   void reset() {
-    gettimeofday(&m_tv, NULL);
+    gettimeofday(&m_tv, nullptr);
 
     getrusage(RUSAGE_SELF, &m_ru);
   }
@@ -133,7 +139,7 @@ class ut_chrono_t {
 
     getrusage(RUSAGE_SELF, &ru_now);
 
-    gettimeofday(&tv_now, NULL);
+    gettimeofday(&tv_now, nullptr);
 
 #ifndef timersub
 #define timersub(a, b, r)                       \

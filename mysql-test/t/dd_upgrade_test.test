@@ -2,7 +2,7 @@
 --echo # events, stored routines and triggers from 5.7 to 8.0.
 
 --source include/big_test.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_myisam.inc
 
 --disable_query_log
@@ -208,7 +208,7 @@ let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 
 # Add '--read-only' option in the scope of fix of Bug#26636238, to avoid creation of another bulky test.
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --read-only --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
@@ -385,7 +385,7 @@ SELECT * FROM view_with_column_names.v2;
 SHOW CREATE VIEW view_with_column_names.v3;
 SELECT * FROM view_with_column_names.v3;
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
-TABLE_SCHEMA='view_with_column_names';
+TABLE_SCHEMA='view_with_column_names' ORDER BY TABLE_NAME,ORDINAL_POSITION;
 
 --echo # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
 --echo # MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part
@@ -400,7 +400,7 @@ SHOW CREATE TABLE foreign_keys.tf;
 
 --echo # Restart on the upgraded data dir
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
-let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1";
+let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1";
 --source include/restart_mysqld.inc
 let $restart_parameters =;
 
@@ -712,7 +712,7 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_2.log;
 # Copy .frm file with blackhole engine and duplicate values in SET
 --copy_file $MYSQLTEST_VARDIR/std_data/t_set.frm $MYSQL_TMP_DIR/data57/test/t_set.frm
 # Test with --explicit-defaults-for-timestamp=0
---exec echo "restart: --loose-skip-log-bin --explicit-defaults-for-timestamp=0 --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --explicit-defaults-for-timestamp=0 --skip-log-replica-updates --skip-replica-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc

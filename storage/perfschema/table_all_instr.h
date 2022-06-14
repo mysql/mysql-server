@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,10 @@ struct pos_all_instr : public PFS_double_index,
 
 class PFS_index_all_instr : public PFS_engine_index {
  public:
-  PFS_index_all_instr(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_all_instr(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
-  ~PFS_index_all_instr() {}
+  ~PFS_index_all_instr() override = default;
 
   virtual bool match(PFS_mutex *) { return false; }
   virtual bool match(PFS_rwlock *) { return false; }
@@ -71,7 +72,7 @@ class PFS_index_all_instr : public PFS_engine_index {
   virtual bool match(PFS_file *) { return false; }
   virtual bool match(PFS_socket *) { return false; }
   /* All views match by default. */
-  virtual bool match_view(uint view MY_ATTRIBUTE((unused))) { return true; }
+  virtual bool match_view(uint view [[maybe_unused]]) { return true; }
 };
 
 /**
@@ -87,17 +88,17 @@ class table_all_instr : public PFS_engine_table {
  public:
   static ha_rows get_row_count();
 
-  virtual int index_init(uint, bool) { return 0; }
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
-  virtual int index_next(void);
+  int index_init(uint, bool) override { return 0; }
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
+  int index_next(void) override;
 
  protected:
-  table_all_instr(const PFS_engine_table_share *share);
+  explicit table_all_instr(const PFS_engine_table_share *share);
 
  public:
-  ~table_all_instr() {}
+  ~table_all_instr() override = default;
 
  protected:
   /**

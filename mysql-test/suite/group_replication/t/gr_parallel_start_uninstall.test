@@ -1,0 +1,163 @@
+################################################################################
+# This test proves parallel execution of START GR and UNINSTALL is safe.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap M1.
+# 2. Set parameters for server 2 for start gr.
+# 3. Check parallel UNINSTALL with START GR.
+# 4. START GR without credentials it should fail.
+#    Credentials deleted by UNINSTALL.
+# 5. Check parallel START GR with UNINSTALL.
+# 6. Cleanup.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_xcom_communication_stack.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap M1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Set parameters for server 2 for start gr.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+
+SET @saved_group_replication_group_seeds = @@GLOBAL.group_replication_group_seeds;
+SET @saved_group_replication_local_address = @@GLOBAL.group_replication_local_address;
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+SET @debug_save= @@GLOBAL.DEBUG;
+
+--echo
+--echo # 3. Check parallel UNINSTALL with START GR.
+
+SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_start';
+SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
+
+--send START GROUP_REPLICATION USER='root' , PASSWORD='';
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC='now wait_for signal.start_waiting';
+
+--send UNINSTALL PLUGIN group_replication;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC='now signal signal.start_continue';
+
+# START GR will get stuck in plugin_lock.
+# So we need to unlock UNINSTALL thread also.
+SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--reap
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+--reap
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= group_replication plugin is uninstalled
+--let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.plugins WHERE PLUGIN_NAME="group_replication" AND PLUGIN_STATUS="ACTIVE", count, 1] = 0
+--source include/assert.inc
+
+--echo # 4. START GR without credentials it should fail.
+--echo #    Credentials deleted by UNINSTALL.
+
+SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC = "reset";
+SET GLOBAL super_read_only= FALSE;
+--source include/install_group_replication_plugin.inc
+
+SET @saved_group_replication_recovery_reconnect_interval = @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET @saved_gr_recovery_retry_count = @@GLOBAL.group_replication_recovery_retry_count;
+SET @@GLOBAL.group_replication_group_seeds = @saved_group_replication_group_seeds;
+SET @@GLOBAL.group_replication_local_address = @saved_group_replication_local_address;
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+START GROUP_REPLICATION;
+
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+--source include/stop_group_replication.inc
+
+SET @@GLOBAL.group_replication_recovery_reconnect_interval = @saved_group_replication_recovery_reconnect_interval;
+SET @@GLOBAL.group_replication_recovery_retry_count = @saved_gr_recovery_retry_count;
+
+--echo
+--echo # 5. Check parallel START GR with UNINSTALL.
+
+SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
+
+--send UNINSTALL PLUGIN group_replication;
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+--disable_result_log
+--error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_COMMAND_FAILURE
+START GROUP_REPLICATION USER='root' , PASSWORD='';
+--enable_result_log
+
+SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Uninstall may emit warning plugin is busy
+--disable_result_log
+--reap
+--enable_result_log
+
+--let $assert_text= group_replication plugin is uninstalled
+--let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.plugins WHERE PLUGIN_NAME="group_replication" AND PLUGIN_STATUS="ACTIVE", count, 1] = 0
+--source include/assert.inc
+
+--echo
+--echo # 6. Cleanup.
+
+SET DEBUG_SYNC = "reset";
+SET @@GLOBAL.DEBUG= @debug_save;
+SET GLOBAL super_read_only= FALSE;
+--source include/install_group_replication_plugin.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Group Replication plugin is not installed.");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Fatal error: Invalid .* username when attempting to connect to the master server.*");
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Plugin 'group_replication' has ref_count=1 after deinitialization.");
+SET SESSION sql_log_bin = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
+
+--source include/group_replication_end.inc

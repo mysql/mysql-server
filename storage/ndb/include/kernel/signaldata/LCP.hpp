@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,12 +49,12 @@ struct StartLcpReq {
   friend bool printSTART_LCP_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
 
-  STATIC_CONST( SignalLength = 2 + 2 * NdbNodeBitmask::Size + 1 );
+  static constexpr Uint32 SignalLength = 2 + 2 * NdbNodeBitmask48::Size + 1;
   Uint32 senderRef;
   Uint32 lcpId;
-  
-  NdbNodeBitmask participatingDIH;
-  NdbNodeBitmask participatingLQH;
+
+  NdbNodeBitmask48 participatingDIH_v1;
+  NdbNodeBitmask48 participatingLQH_v1;
 
   enum PauseStart
   {
@@ -73,6 +73,8 @@ public:
    *                immediately after it.
    */
   PauseStart pauseStart;
+  NdbNodeBitmask participatingDIH; // Not part of signal, but first section
+  NdbNodeBitmask participatingLQH; // Not part of signal, but second section
 };
 
 class StartLcpConf {
@@ -93,7 +95,7 @@ class StartLcpConf {
   friend bool printSTART_LCP_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
   
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:
   Uint32 senderRef;
   Uint32 lcpId;
@@ -127,7 +129,7 @@ class LcpFragOrd {
 
   friend bool printLCP_FRAG_ORD(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 private:
   
   Uint32 tableId;
@@ -153,9 +155,9 @@ struct LcpFragRep {
 
   friend bool printLCP_FRAG_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 
-  STATIC_CONST( SignalLength = 7 );
-  STATIC_CONST( SignalLengthTQ = 8 );
-  STATIC_CONST( BROADCAST_REQ = 0 );
+  static constexpr Uint32 SignalLength = 7;
+  static constexpr Uint32 SignalLengthTQ = 8;
+  static constexpr Uint32 BROADCAST_REQ = 0;
 
   Uint32 nodeId;
   Uint32 lcpId;
@@ -181,8 +183,8 @@ class LcpCompleteRep {
 
   friend bool printLCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 3 );
-  STATIC_CONST( SignalLengthTQ = 4 );
+  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 SignalLengthTQ = 4;
   
 private:
   Uint32 nodeId;
@@ -204,7 +206,7 @@ struct LcpPrepareReq
   Uint32 createGci;
   Uint32 localLcpId;
 
-  STATIC_CONST( SignalLength = 10 );
+  static constexpr Uint32 SignalLength = 10;
 };
 
 struct LcpPrepareRef
@@ -215,7 +217,7 @@ struct LcpPrepareRef
   Uint32 fragmentId;
   Uint32 errorCode;
   
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 };
 
 struct LcpPrepareConf 
@@ -225,7 +227,7 @@ struct LcpPrepareConf
   Uint32 tableId;
   Uint32 fragmentId;
   
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 };
 
 struct SyncPageCacheReq
@@ -235,7 +237,7 @@ struct SyncPageCacheReq
   Uint32 tableId;
   Uint32 fragmentId;
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 };
 
 struct SyncPageCacheConf
@@ -246,7 +248,7 @@ struct SyncPageCacheConf
   Uint32 fragmentId;
   Uint32 diskDataExistFlag;
 
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 };
 
 struct SyncExtentPagesReq
@@ -254,14 +256,15 @@ struct SyncExtentPagesReq
   enum LcpOrder
   {
     FIRST_LCP = 0,
-    INTERMEDIATE_LCP = 1,
-    END_LCP = 2
+    END_LCP = 1,
+    RESTART_SYNC = 2,
+    FIRST_AND_END_LCP = 3
   };
   Uint32 senderData;
   Uint32 senderRef;
   LcpOrder lcpOrder;
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 };
 
 struct SyncExtentPagesConf
@@ -269,7 +272,7 @@ struct SyncExtentPagesConf
   Uint32 senderData;
   Uint32 senderRef;
 
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 };
 
 struct EndLcpReq 
@@ -281,7 +284,7 @@ struct EndLcpReq
   // extra word for LQH worker to proxy
   Uint32 proxyBlockNo;
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 };
 
 struct EndLcpConf
@@ -289,7 +292,7 @@ struct EndLcpConf
   Uint32 senderData;
   Uint32 senderRef;
   
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 };
 
 struct LcpStatusReq
@@ -311,7 +314,7 @@ struct LcpStatusReq
   friend bool printLCP_STATUS_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
   
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 senderRef;
@@ -336,7 +339,7 @@ struct LcpStatusConf
 
   friend bool printLCP_STATUS_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 
   enum LcpState
   {
@@ -407,7 +410,7 @@ struct LcpStatusRef
 
   friend bool printLCP_STATUS_REF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   enum StatusFailCodes
   {
@@ -425,7 +428,7 @@ private:
 class PauseLcpReq
 {
 public:
-  STATIC_CONST (SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum PauseAction
   {
@@ -442,7 +445,7 @@ public:
 class PauseLcpConf
 {
 public:
-  STATIC_CONST (SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderRef;
   Uint32 startNodeId;
@@ -451,7 +454,7 @@ public:
 class FlushLcpRepReq
 {
 public:
-  STATIC_CONST (SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderRef;
   Uint32 startNodeId;
@@ -460,7 +463,7 @@ public:
 class FlushLcpRepConf
 {
 public:
-  STATIC_CONST (SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderRef;
   Uint32 startNodeId;
@@ -469,7 +472,7 @@ public:
 class WaitCompleteLcpConf
 {
 public:
-  STATIC_CONST (SignalLength = 5);
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
   Uint32 lcpId;
@@ -480,7 +483,7 @@ public:
 class LcpAllCompleteReq
 {
 public:
-  STATIC_CONST (SignalLength = 4);
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
   Uint32 lcpId;
@@ -491,7 +494,7 @@ public:
 class GetLocalLcpIdConf
 {
 public:
-  STATIC_CONST (SignalLength = 2);
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 lcpId;
   Uint32 localLcpId;

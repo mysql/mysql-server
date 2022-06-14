@@ -1,0 +1,7 @@
+!include suite/ndb_opt/my.cnf
+
+[mysqld.1.1]
+log-bin=mysqld-bin
+
+[mysqld.2.1]
+log-bin=mysqld-bin

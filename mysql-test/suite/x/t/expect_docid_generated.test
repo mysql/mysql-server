@@ -106,5 +106,4 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expect_docid.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/expect_docid.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,8 +1,5 @@
 # Test to check the proper nesting of events
 
-# On windows, the socket instrumentation collects an extra "opt"
-# event, which changes the test output.
---source include/not_windows.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
@@ -35,7 +32,6 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('idle',
                  'wait/io/table/sql/handler',
                  'wait/lock/table/sql/handler',
-                 'wait/io/socket/sql/client_connection',
                  'wait/synch/rwlock/sql/LOCK_grant',
                  'wait/synch/mutex/sql/THD::LOCK_thd_data',
                  'wait/synch/mutex/sql/THD::LOCK_thd_query',

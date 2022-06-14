@@ -390,6 +390,7 @@ ANALYZE TABLE t1;
 --sorted_result
 SELECT * FROM t1 WHERE f1 + 1 > 7;
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 SELECT * FROM t1 WHERE f1 + 1 = 7;
@@ -409,6 +410,7 @@ EXPLAIN SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND
 --echo # Check that ORDER BY could be optimized
 SELECT * FROM t1 ORDER BY f1 + 1;
 EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 EXPLAIN SELECT * FROM t1 IGNORE KEY FOR ORDER BY(PRIMARY) ORDER BY f1 + 1;
 
@@ -416,6 +418,7 @@ EXPLAIN SELECT * FROM t1 IGNORE KEY FOR ORDER BY(PRIMARY) ORDER BY f1 + 1;
 --sorted_result
 SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 EXPLAIN SELECT f1 + 1, MAX(GC)
   FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;

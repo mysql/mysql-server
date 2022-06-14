@@ -47,7 +47,6 @@ Pattern "Hex dump starting 0 bytes before and ending 22 bytes after the corrupte
 Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus " found
 Pattern "Set innodb_force_recovery to ignore this error" found
 # Test a corrupted record with creator field very long.
-Pattern "The log file was created by mysqlbackup --apply-log at MEB4567890123456789012345678901\. The following crash recovery is part of a normal restore\." found
 # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
 # redo log
 Pattern "Upgrading redo log: 2\*.* bytes, LSN=1319985" found

@@ -1,0 +1,89 @@
+#
+# Validate that a node does not join a replication group when it has incompatible
+# certificates with the group
+#
+#    server1: --ssl-*=<Group_1_certificates>
+#             --admin-ssl-*=<Group_2_certificates>
+#             --loose-group_replication_tls_source=MYSQL_MAIN
+#    server2: --ssl-*=<Group_1_certificates>
+#             --admin-ssl-*=<Group_2_certificates>
+#             --loose-group_replication_tls_source=MYSQL_ADMIN
+#
+#
+# Steps:
+#   1. Start one member with GCS SSL enabled.
+#   2. Start the second member with GCS SSL enabled. Since it uses
+#      incompatible certificates it should not be able to join the group.
+#   3. Clean up.
+#
+--source include/big_test.inc
+--source include/have_group_replication_xcom_communication_stack.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start one member with GCS SSL enabled.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_ssl_mode_tls_source_incompatible_certificates.1.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start the second member with GCS SSL enabled.
+--echo #    Since it uses incompatible certificates it should not
+--echo #    be able to join the group.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
+--enable_query_log
+
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
+
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_ssl_mode_tls_source_incompatible_certificates.2.err
+--let $assert_only_after=  .*XCom initialized and ready to accept incoming connections.*
+--let $assert_select =.*Error connecting using SSL.*
+--let $assert_match =.*Error connecting using SSL.*
+--let $assert_text = Check that group replication errors while connecting using SSL.
+--source include/assert_grep.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_ssl_mode_tls_source_incompatible_certificates.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--source include/group_replication_end.inc

@@ -1,0 +1,20 @@
+##########################################################################
+# Test script to test ALTER TABLE ADD/DROP COLUMN ... ALGORITHM=INSTANT
+# when INSTANT ADD causes max row size to go beyond permissible limit
+##########################################################################
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_ddl_max_row_size.inc
+
+--echo ############################################
+--echo # No need to run for DYNAMIC
+--echo ############################################
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_ddl_max_row_size.inc

@@ -35,11 +35,11 @@ let $clusterB_port=$SLAVE_MYPORT;
 --echo First we have Cluster A as Primary, Cluster B as Secondary
 --connection clusterA
 #SHOW VARIABLES LIKE '%server%';
-SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+SET GLOBAL ndb_applier_conflict_role="PRIMARY";
 
 --connection clusterB
 #SHOW VARIABLES LIKE '%server%';
-SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+SET GLOBAL ndb_applier_conflict_role="SECONDARY";
 
 --connection clusterA
 
@@ -50,12 +50,12 @@ let $SECONDARY_CONFLICT_ALG=\"NDB\$EPOCH2()\";
 
 --echo Next we have Cluster A as Secondary, Cluster B as Primary
 --connection clusterA
-SET GLOBAL ndb_slave_conflict_role="NONE";
-SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+SET GLOBAL ndb_applier_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="SECONDARY";
 
 --connection clusterB
-SET GLOBAL ndb_slave_conflict_role="NONE";
-SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+SET GLOBAL ndb_applier_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="PRIMARY";
 
 --echo We set a special control var to allow the generic scripts
 --echo to handle this topology
@@ -72,8 +72,8 @@ let $SWITCH_CLUSTER_ROLES=1;
 # TODO : Switch back to A Primary, B Secondary?
 
 --connection clusterA
-SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="NONE";
 
 --connection clusterB
-SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_applier_conflict_role="NONE";
 

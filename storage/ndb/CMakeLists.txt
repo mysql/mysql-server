@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,59 +36,80 @@ INCLUDE(ndb_add_executable)
 # Add the ndbcluster plugin
 #
 SET(NDBCLUSTER_SOURCES
-  ../../sql/ha_ndbcluster.cc
-  ../../sql/ha_ndbcluster_cond.cc
-  ../../sql/ha_ndbcluster_push.cc
-  ../../sql/ha_ndbcluster_connection.cc
-  ../../sql/ha_ndbcluster_binlog.cc
-  ../../sql/ha_ndb_index_stat.cc
-  ../../sql/ha_ndb_ddl_fk.cc
-  ../../sql/ha_ndbinfo.cc
-  ../../sql/ndb_local_connection.cc
-  ../../sql/ndb_share.cc
-  ../../sql/ndb_thd.cc
-  ../../sql/ndb_thd_ndb.cc
-  ../../sql/ndb_global_schema_lock.cc
-  ../../sql/ndb_mi.cc
-  ../../sql/ndb_conflict_trans.cc
-  ../../sql/ndb_anyvalue.cc
-  ../../sql/ndb_ndbapi_util.cc
-  ../../sql/ndb_binlog_extra_row_info.cc
-  ../../sql/ndb_event_data.cc
-  ../../sql/ndb_schema_object.cc
-  ../../sql/ndb_schema_dist.cc
-  ../../sql/ndb_component.cc
-  ../../sql/ndb_local_schema.cc
-  ../../sql/ndb_repl_tab.cc
-  ../../sql/ndb_conflict.cc
-  ../../sql/ndb_tdc.cc
-  ../../sql/ndb_log.cc
-  ../../sql/ndb_binlog_thread.cc
-  ../../sql/ndb_name_util.cc
-  ../../sql/ndb_bitmap.cc
-  ../../sql/ndb_table_map.cc
-  ../../sql/ndb_dd.cc
-  ../../sql/ndb_modifiers.cc
-  ../../sql/ndb_dd_client.cc
-  ../../sql/ndb_dd_schema.cc
-  ../../sql/ndb_dd_table.cc
-  ../../sql/ndb_dd_sdi.cc
-  ../../sql/ndb_plugin_reference.cc
-  ../../sql/ndb_server_hooks.cc
-  ../../sql/ndb_binlog_client.cc
-  ../../sql/ndb_metadata.cc
-  ../../sql/ndb_dd_disk_data.cc
-  ../../sql/ndb_dd_upgrade_table.cc
-  ../../sql/ndb_binlog_hooks.cc
-  ../../sql/ndb_util_table.cc
-  ../../sql/ndb_schema_dist_table.cc
-  ../../sql/ndb_fk_util.cpp
-  ../../sql/ndb_schema_trans_guard.cc
-  ../../sql/ndb_create_helper.cc
-  ../../sql/ndb_apply_status_table.cc
-  ../../sql/ndb_metadata_change_monitor.cc
-  ../../sql/ndb_schema_result_table.cc
+  ../../sql/abstract_query_plan.cc
+  plugin/ha_ndbcluster.cc
+  plugin/ha_ndbcluster_cond.cc
+  plugin/ha_ndbcluster_push.cc
+  plugin/ha_ndbcluster_connection.cc
+  plugin/ha_ndbcluster_binlog.cc
+  plugin/ha_ndb_index_stat.cc
+  plugin/ha_ndb_ddl_fk.cc
+  plugin/ha_ndbinfo.cc
+  plugin/ha_ndbinfo_sql.cc
+  plugin/ndb_local_connection.cc
+  plugin/ndb_share.cc
+  plugin/ndb_thd.cc
+  plugin/ndb_thd_ndb.cc
+  plugin/ndb_global_schema_lock.cc
+  plugin/ndb_mi.cc
+  plugin/ndb_conflict_trans.cc
+  plugin/ndb_anyvalue.cc
+  plugin/ndb_ndbapi_util.cc
+  plugin/ndb_binlog_extra_row_info.cc
+  plugin/ndb_event_data.cc
+  plugin/ndb_schema_object.cc
+  plugin/ndb_schema_dist.cc
+  plugin/ndb_component.cc
+  plugin/ndb_repl_tab.cc
+  plugin/ndb_conflict.cc
+  plugin/ndb_tdc.cc
+  plugin/ndb_log.cc
+  plugin/ndb_binlog_thread.cc
+  plugin/ndb_name_util.cc
+  plugin/ndb_bitmap.cc
+  plugin/ndb_table_map.cc
+  plugin/ndb_dd.cc
+  plugin/ndb_modifiers.cc
+  plugin/ndb_dd_client.cc
+  plugin/ndb_dd_schema.cc
+  plugin/ndb_dd_table.cc
+  plugin/ndb_dd_sdi.cc
+  plugin/ndb_plugin_reference.cc
+  plugin/ndb_server_hooks.cc
+  plugin/ndb_binlog_client.cc
+  plugin/ndb_metadata.cc
+  plugin/ndb_dd_disk_data.cc
+  plugin/ndb_dd_upgrade_table.cc
+  plugin/ndb_binlog_hooks.cc
+  plugin/ndb_util_table.cc
+  plugin/ndb_schema_dist_table.cc
+  plugin/ndb_fk_util.cpp
+  plugin/ndb_schema_trans_guard.cc
+  plugin/ndb_create_helper.cc
+  plugin/ndb_apply_status_table.cc
+  plugin/ndb_metadata_change_monitor.cc
+  plugin/ndb_schema_result_table.cc
+  plugin/ndb_metadata_sync.cc
+  plugin/ndb_ddl_transaction_ctx.cc
+  plugin/ndb_record_layout.cc
+  plugin/ndb_sql_metadata_table.cc
+  plugin/ndb_stored_grants.cc
+  plugin/ndb_dd_fk.cc
+  plugin/ndb_pfs_init.cc
+  plugin/ndb_pfs_table.cc
+  plugin/ndb_sync_pending_objects_table.cc
+  plugin/ndb_sync_excluded_objects_table.cc
+  plugin/ndb_dd_sync.cc
+  plugin/ndb_upgrade_util.cc
+  plugin/ndb_mysql_services.cc
+  plugin/ndb_blobs_buffer.cc
+  plugin/ndb_table_stats.cc
+  plugin/ndb_index_stat_head_table.cc
+  plugin/ndb_index_stat_sample_table.cc
 )
+
+NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
+NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
@@ -114,15 +135,25 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 
 # Disable strict-aliasing for storage/ndb
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS   " -fno-strict-aliasing")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -fno-strict-aliasing")
 ENDIF()
 
-IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
-  MESSAGE(STATUS "Building NDB 32-bit")
-ELSE()
-  MESSAGE(STATUS "Building NDB 64-bit")
+# Disable specific types of warnings for current directory, and subdirectories,
+# if the compiler supports the flag
+FOREACH(warning
+    "cast-qual"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
+
+IF(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+  MESSAGE(FATAL_ERROR "Only 64-bit build of NDB is supported")
 ENDIF()
 
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
@@ -142,9 +173,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
-# The root of storage/ndb/
-SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
+SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
 IF(WITH_NDB_TEST)
@@ -155,60 +184,68 @@ ELSE()
     MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for improved gcov coverage")
-    SET(WITH_NDBAPI_EXAMPLES ON)
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
   ENDIF()
   # Turn on NDB tests automatically for valgrind builds
   IF(WITH_VALGRIND)
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
-    SET(WITH_NDBAPI_EXAMPLES ON)
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
   ENDIF()
   # Turn on NDB tests automatically for "-devbld" debug builds
   # to increase test coverage
   IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
-     CMAKE_BUILD_TYPE MATCHES "Debug")
+     CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
-    SET(WITH_NDBAPI_EXAMPLES ON)
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
   ENDIF()
   # Turn on build of NDB tests automatically for "-werror" builds
   IF(PACKAGE_SUFFIX STREQUAL "-werror")
     MESSAGE(STATUS "Building NDB test programs for \"-werror\" build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-werror\" build")
-    SET(WITH_NDBAPI_EXAMPLES ON)
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
   ENDIF()
 ENDIF()
 
+SET(DEBUG_FLAGS
+  -DACC_SAFE_QUEUE
+  -DAPI_TRACE
+  -DARRAY_GUARD
+  -DERROR_INSERT
+  -DNDB_DEBUG
+  -DVM_TRACE
+  )
+SET(DEBUG_FLAGS_STRING "")
+FOREACH(flag ${DEBUG_FLAGS})
+  STRING_APPEND(DEBUG_FLAGS_STRING " ${flag}")
+ENDFOREACH()
+
+STRING_APPEND(CMAKE_C_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
+STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
+
 OPTION(WITH_ERROR_INSERT
   "Enable error injection in NDB" OFF)
+IF(WITH_ERROR_INSERT)
+  ADD_DEFINITIONS(-DERROR_INSERT)
+ENDIF()
 
 OPTION(WITH_NDB_DEBUG
   "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
-
-IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
-  MESSAGE(STATUS "Turning on special NDB debug features")
-  ADD_DEFINITIONS(-DVM_TRACE)
-  ADD_DEFINITIONS(-DNDB_DEBUG)
-  ADD_DEFINITIONS(-DERROR_INSERT)
-  ADD_DEFINITIONS(-DARRAY_GUARD)
-  ADD_DEFINITIONS(-DACC_SAFE_QUEUE)
-  ADD_DEFINITIONS(-DAPI_TRACE)
-ELSE()
-  IF(WITH_ERROR_INSERT)
-    ADD_DEFINITIONS(-DERROR_INSERT)
-  ENDIF()
-  ADD_DEFINITIONS(-DNDEBUG)
+IF(WITH_NDB_DEBUG)
+  ADD_DEFINITIONS(${DEBUG_FLAGS})
 ENDIF()
 
 # Set extra compiler switches from WITH_NDB_CCFLAGS
 SET(WITH_NDB_CCFLAGS "" CACHE STRING "Extra compiler flags for NDB")
 IF(WITH_NDB_CCFLAGS)
-  MESSAGE(STATUS "Appending extra compiler flags for NDB: \"${WITH_NDB_CCFLAGS}\"")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WITH_NDB_CCFLAGS}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WITH_NDB_CCFLAGS}")
+  MESSAGE(STATUS
+    "Appending extra compiler flags for NDB: \"${WITH_NDB_CCFLAGS}\"")
+  STRING_APPEND(CMAKE_C_FLAGS   " ${WITH_NDB_CCFLAGS}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${WITH_NDB_CCFLAGS}")
 ENDIF()
 
 # Set extra compiler switches from environment variable NDB_EXTRA_FLAGS
@@ -216,18 +253,29 @@ SET(ndb_flags_env $ENV{NDB_EXTRA_FLAGS})
 IF(ndb_flags_env)
   MESSAGE(STATUS "Appending extra compiler flags for NDB from "
                  "environment: \"${ndb_flags_env}\"")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ndb_flags_env}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ndb_flags_env}")
+  STRING_APPEND(CMAKE_C_FLAGS   " ${ndb_flags_env}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${ndb_flags_env}")
 ENDIF()
+
+# Moved here from configure.cmake
+CHECK_FUNCTION_EXISTS (getrlimit HAVE_GETRLIMIT)
 
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
-SET(WITH_NDB_JAVA_DEFAULT ON)
+
+IF(APPLE_ARM)
+  SET(WITH_NDB_JAVA_DEFAULT OFF)
+  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to OFF")
+ELSE()
+  SET(WITH_NDB_JAVA_DEFAULT ON)
+ENDIF()
+
 # Check if the default for WITH_NDB_JAVA should be overriden
 # by environment variable
 IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
   SET(WITH_NDB_JAVA_DEFAULT $ENV{WITH_NDB_JAVA_DEFAULT})
-  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to ${WITH_NDB_JAVA_DEFAULT}")
+  MESSAGE(STATUS
+    "Default value for WITH_NDB_JAVA set to ${WITH_NDB_JAVA_DEFAULT}")
 ELSE()
   # Check if the default for WITH_NDB_JAVA should be
   # magically overriden
@@ -340,7 +388,7 @@ ELSEIF(WITH_NDB_JAVA)
   MESSAGE(STATUS "JNI_LIBRARIES: ${JNI_LIBRARIES}")
   NDB_REQUIRE_VARIABLE(JNI_INCLUDE_DIRS)
 
-  INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
+  INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/config/type_JAVA.cmake")
   SET(HAVE_JAVA TRUE)
   SET(HAVE_JDK TRUE)
   SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
@@ -359,8 +407,6 @@ ENDIF()
 IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
-ADD_SUBDIRECTORY(memcache)
-ADD_SUBDIRECTORY(mcc)
 
 SET(WITH_NDB_NODEJS_DEFAULT ON)
 
@@ -368,22 +414,21 @@ SET(WITH_NDB_NODEJS_DEFAULT ON)
 # by environment variable
 IF(DEFINED ENV{WITH_NDB_NODEJS_DEFAULT})
   SET(WITH_NDB_NODEJS_DEFAULT $ENV{WITH_NDB_NODEJS_DEFAULT})
-  MESSAGE(STATUS "Default value for WITH_NDB_NODEJS set to ${WITH_NDB_NODEJS_DEFAULT}")
+  MESSAGE(STATUS
+    "Default value for WITH_NDB_NODEJS set to ${WITH_NDB_NODEJS_DEFAULT}")
 ENDIF(DEFINED ENV{WITH_NDB_NODEJS_DEFAULT})
+
 OPTION(WITH_NDB_NODEJS
   "Include NDB Cluster node.js components" ${WITH_NDB_NODEJS_DEFAULT})
 IF(WITH_NDB_NODEJS)
   ADD_SUBDIRECTORY(nodejs)
 ENDIF(WITH_NDB_NODEJS)
 
-OPTION(WITH_NDBAPI_EXAMPLES "Build the NdbApi example programs" OFF)
+OPTION(WITH_NDBAPI_EXAMPLES
+  "Build the NdbApi example programs" ${WITH_NDBAPI_EXAMPLES_DEFAULT})
 IF(WITH_NDBAPI_EXAMPLES)
   MESSAGE(STATUS "Building the NdbApi example programs")
   ADD_SUBDIRECTORY(ndbapi-examples)
 ENDIF()
 
 ADD_SUBDIRECTORY(wix)
-
-IF(WITH_UNIT_TESTS)
-  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
-ENDIF()

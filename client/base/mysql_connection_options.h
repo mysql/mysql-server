@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,15 @@
 #ifndef MYSQL_CONNECTION_OPTIONS_INCLUDED
 #define MYSQL_CONNECTION_OPTIONS_INCLUDED
 
+#include <optional>
 #include <vector>
 
 #include "client/base/abstract_program.h"
 #include "client/base/composite_options_provider.h"
 #include "client/base/i_connection_factory.h"
-#include "client/base/mutex.h"
 #include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -57,16 +56,21 @@ class Mysql_connection_options : public Composite_options_provider,
       Creates all options that will be provided.
       Implementation of Abstract_options_provider virtual method.
      */
-    void create_options();
+    void create_options() override;
 
     /**
       Applies option values to MYSQL connection structure.
      */
     bool apply_for_connection(MYSQL *connection);
 
+    /**
+      Checks the connection for SSL validity
+    */
+    bool check_connection(MYSQL *connection);
+
    private:
-    Nullable<std::string> m_ssl_mode_string;
-    Nullable<std::string> m_ssl_fips_mode_string;
+    std::optional<std::string> m_ssl_mode_string;
+    std::optional<std::string> m_ssl_fips_mode_string;
 
     void ca_option_callback(char *argument);
     void mode_option_callback(char *argument);
@@ -79,19 +83,19 @@ class Mysql_connection_options : public Composite_options_provider,
     function from multiple threads simultaneously is not thread safe.
     @param program Pointer to main program class.
    */
-  Mysql_connection_options(Abstract_program *program);
+  explicit Mysql_connection_options(Abstract_program *program);
 
   /**
     Creates all options that will be provided.
     Implementation of Abstract_options_provider virtual method.
    */
-  void create_options();
+  void create_options() override;
 
   /**
     Provides new connection to MySQL database server based on option values.
     Implementation of I_connection_factory interface.
    */
-  MYSQL *create_connection();
+  MYSQL *create_connection() override;
 
   /**
     Retrieves charset that will be used in new MySQL connections.. Can be NULL
@@ -109,40 +113,42 @@ class Mysql_connection_options : public Composite_options_provider,
     Returns pointer to constant array containing specified string or NULL
     value if string has length 0.
    */
-  const char *get_null_or_string(Nullable<std::string> &maybeString);
+  const char *get_null_or_string(std::optional<std::string> &maybeString);
 
   /**
     Prints database connection error and exits program.
    */
   void db_error(MYSQL *connection, const char *when);
 #ifdef _WIN32
-  void pipe_protocol_callback(char *not_used MY_ATTRIBUTE((unused)));
+  void pipe_protocol_callback(char *not_used [[maybe_unused]]);
 #endif
-  void protocol_callback(char *not_used MY_ATTRIBUTE((unused)));
+  void protocol_callback(char *not_used [[maybe_unused]]);
 
   static bool mysql_inited;
 
   Ssl_options m_ssl_options_provider;
   Abstract_program *m_program;
-  Nullable<std::string> m_protocol_string;
+  std::optional<std::string> m_protocol_string;
   uint32 m_protocol;
-  Nullable<std::string> m_bind_addr;
-  Nullable<std::string> m_host;
+  std::optional<std::string> m_bind_addr;
+  std::optional<std::string> m_host;
   uint32 m_mysql_port;
-  Nullable<std::string> m_mysql_unix_port;
+  std::optional<std::string> m_mysql_unix_port;
 #if defined(_WIN32)
-  Nullable<std::string> m_shared_memory_base_name;
+  std::optional<std::string> m_shared_memory_base_name;
 #endif
-  Nullable<std::string> m_default_auth;
-  Nullable<std::string> m_plugin_dir;
+  std::optional<std::string> m_default_auth;
+  std::optional<std::string> m_plugin_dir;
   uint32 m_net_buffer_length;
   uint32 m_max_allowed_packet;
   bool m_compress;
-  Nullable<std::string> m_user;
-  Nullable<std::string> m_password;
-  Nullable<std::string> m_default_charset;
-  Nullable<std::string> m_server_public_key;
+  std::optional<std::string> m_user;
+  std::optional<std::string> m_password[3];
+  std::optional<std::string> m_default_charset;
+  std::optional<std::string> m_server_public_key;
   bool m_get_server_public_key;
+  uint m_zstd_compress_level;
+  std::optional<std::string> m_compress_algorithm;
 };
 
 }  // namespace Options

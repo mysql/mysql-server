@@ -30,7 +30,7 @@ grant all on *.* to insertcruduser@localhost;
 --echo TEST START
 --echo ================================================================================
 
---write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.xpl
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
  CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
@@ -642,14 +642,14 @@ SHOW STATUS like 'Mysqlx_crud_insert';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp
+--exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.xpl
 
 --echo .
 --echo #---------- START NEGATIVE TABLE TESTING----------#
 --echo .
 
---write_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.xpl
 -->sql
  USE mysqlxplugin;
 -->endsql
@@ -1342,8 +1342,8 @@ select * from categories order by CategoryID asc;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp
+--exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.xpl
 
 ## ******************************************
 ## 3. Collection test based starts here      |
@@ -1354,7 +1354,7 @@ EOF
 --echo #---------- START COLLECTION TESTING----------#
 --echo .
 
---write_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.xpl
 -->sql
 CREATE SCHEMA mysqlxplugin_coll;
 USE mysqlxplugin_coll;
@@ -1386,7 +1386,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from main_collection;
+select doc from main_collection;
 -->endsql
 
 -->echo Insert multiple rows into a Document column
@@ -1423,7 +1423,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from main_collection;
+select doc from main_collection;
 -->endsql
 
 -->echo Insert malformed JSON into Document column
@@ -1453,16 +1453,14 @@ Mysqlx.Crud.Insert {
 -->echo CLEAN UP
 -->echo ================================================================================
 -->sql
- SELECT * FROM main_collection;
+ SELECT doc FROM main_collection;
  DROP SCHEMA if EXISTS mysqlxplugin;
  DROP SCHEMA if EXISTS mysqlxplugin_coll;
  DROP USER insertcruduser@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp 2>&1
+--exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp
-
-
+--source ../include/xplugin_cleanup.inc

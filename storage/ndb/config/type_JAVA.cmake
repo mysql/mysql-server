@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(libutils)
-INCLUDE(cmake_parse_arguments)
-
-SET(JAVAC_TARGET "1.7")
 
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
@@ -33,33 +30,38 @@ MACRO(SET_JAVA_NDB_VERSION)
     MESSAGE(FATAL_ERROR "NDB_VERSION_MAJOR variable not set!")
   ENDIF()
 
-  SET(JAVA_NDB_VERSION "${NDB_VERSION_MAJOR}.${NDB_VERSION_MINOR}.${NDB_VERSION_BUILD}")
+  SET(JAVA_NDB_VERSION
+    "${NDB_VERSION_MAJOR}.${NDB_VERSION_MINOR}.${NDB_VERSION_BUILD}")
   IF(NDB_VERSION_STATUS)
-    SET(JAVA_NDB_VERSION "${JAVA_NDB_VERSION}.${NDB_VERSION_STATUS}")
+    SET(JAVA_NDB_VERSION "${JAVA_NDB_VERSION}${NDB_VERSION_STATUS}")
   ENDIF()
 
   # MESSAGE(STATUS "JAVA_NDB_VERSION: ${JAVA_NDB_VERSION}")
 
 ENDMACRO(SET_JAVA_NDB_VERSION)
 
-MACRO(CREATE_MANIFEST filename EXPORTS NAME)
+MACRO(CREATE_MANIFEST filename EXPORTS_LIST NAME)
+  # Convert cmake list to comma-separated string
+  STRING(REPLACE ";" "," EXPORTS_STRING "${EXPORTS_LIST}")
   FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${filename}" "Manifest-Version: 1.0
-Export-Package: ${EXPORTS}
+Export-Package: ${EXPORTS_STRING}
 Bundle-Name: ${NAME}
 Bundle-Description: ClusterJ")
 ENDMACRO(CREATE_MANIFEST)
 
-MACRO(CREATE_JAR)
+# CREATE_JAR(TARGET sources... options/keywords...)
 
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "CLASSPATH;MERGE_JARS;DEPENDENCIES;MANIFEST;ENHANCE;EXTRA_FILES;BROKEN_JAVAC"
+MACRO(CREATE_JAR TARGET_ARG)
+
+  CMAKE_PARSE_ARGUMENTS(ARG
     ""
+    "MANIFEST"
+    "BROKEN_JAVAC;CLASSPATH;MERGE_JARS;DEPENDENCIES;EXTRA_FILES"
     ${ARGN}
-  )
+    )
 
-  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
-  SET(JAVA_FILES ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT JAVA_FILES 0)
+  SET(TARGET ${TARGET_ARG})
+  SET(JAVA_FILES ${ARG_UNPARSED_ARGUMENTS})
 
   SET (BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/target")
   SET (CLASS_DIR "${BUILD_DIR}/classes")
@@ -91,7 +93,27 @@ MACRO(CREATE_JAR)
   SET(MARKER "${MARKER_BASE}.${COUNTER}")
 
   # Add target
-  ADD_CUSTOM_TARGET(${TARGET}.jar ALL DEPENDS ${JAR})
+  MY_ADD_CUSTOM_TARGET(${TARGET}.jar ALL DEPENDS ${JAR})
+
+  # Limit memory of javac, otherwise build might fail for parallel builds.
+  # (out-of-memory/timeout if garbage collector kicks in too late)
+  IF(SIZEOF_VOIDP EQUAL 8)
+    SET(JAVA_ARGS "-J-Xmx3G")
+  ELSE()
+    SET(JAVA_ARGS "-J-Xmx1G")
+  ENDIF()
+
+  # Treat all deprecation warnings as errors
+  SET(JAVA_ARGS ${JAVA_ARGS} -Xlint:deprecation -Xlint:-options -Werror)
+
+  # Set Java 1.8 as the target version
+  SET(_JAVAC_TARGET "8")
+  IF(${Java_VERSION} VERSION_LESS 9)
+    SET(JAVA_ARGS ${JAVA_ARGS} -target ${_JAVAC_TARGET} -source ${_JAVAC_TARGET})
+  ELSE()
+    # Use the newer 'release' argument if compiling with Java version 9 or above
+    SET(JAVA_ARGS ${JAVA_ARGS} --release ${_JAVAC_TARGET})
+  ENDIF()
 
   # Compile
   IF (JAVA_FILES)
@@ -100,22 +122,22 @@ MACRO(CREATE_JAR)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
-        COMMAND ${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
+        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
+        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
-        COMMENT "Building objects for ${TARGET}.jar"
+        COMMENT "Building objects for ${TARGET}.jar OUTPUT ${MARKER}"
       )
     ELSE()
       ADD_CUSTOM_COMMAND(
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-        COMMAND ${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
+        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
-        COMMENT "Building objects for ${TARGET}.jar"
+        COMMENT "Building objects for ${TARGET}.jar OUTPUT ${MARKER}"
       )
     ENDIF()
   ELSE()
@@ -142,8 +164,8 @@ MACRO(CREATE_JAR)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${F} ${CLASS_DIR}/${N}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
-        DEPENDS ${F} ${OLD_MARKER}
-        COMMENT "Adding directory ${N} to ${TARGET}.jar"
+        DEPENDS ${OLD_MARKER}
+        COMMENT "Adding directory ${N} to ${TARGET}.jar DEPENDS ${OLD_MARKER} OUTPUT ${MARKER}"
       )
     ELSE()
       ADD_CUSTOM_COMMAND(
@@ -151,7 +173,7 @@ MACRO(CREATE_JAR)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${F} ${CLASS_DIR}/${N}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${F} ${OLD_MARKER}
-        COMMENT "Adding file ${N} to ${TARGET}.jar"
+        COMMENT "Adding file ${N} to ${TARGET}.jar DEPENDS ${F} ${OLD_MARKER} OUTPUT ${MARKER}"
       )
     ENDIF()
   ENDFOREACH()

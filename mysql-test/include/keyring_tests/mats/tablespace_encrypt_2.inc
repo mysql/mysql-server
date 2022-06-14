@@ -1,0 +1,490 @@
+################################################################################
+# InnoDB transparent tablespace data encryption for general shared tablespace.
+# This test case will test
+#    - Crash during altering an encrypted tablespace
+#        - encryption='y' to encryption='n'
+#        - encryption='n' to encryption='y'
+#    - Crash during altering an encrypted tablespace (Compressed)
+#        - encryption='y' to encryption='n'
+#        - encryption='n' to encryption='y'
+#    - Crash
+#        - just before encryption processing starts
+#        - just after encryption processing finishes
+#    - Crash during master key rotation
+#    - Crash during creating an encrypted tablespace
+#    - During alter tablespace encryption, DMLs are allowed and DDLs are blocked
+################################################################################
+
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000
+
+--disable_query_log
+call mtr.add_suppression("'Error generating data for Data ID:");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption information in datafile: encrypt_ts.ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption information in datafile: compress_ts.ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Decrypting a page in doublewrite file failed:*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Encryption key missing: space_id=*");
+--enable_query_log
+
+--echo #########################################################################
+--echo # START : WITHOUT KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+--echo #########
+--echo # SETUP #
+--echo #########
+
+# Create an Unencrypted tablespace
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE=InnoDB ENCRYPTION="N";
+# Create an unencrypted table in tablespace
+CREATE TABLE t1(c1 char(100)) ENGINE=InnoDB TABLESPACE encrypt_ts;
+# Insert few rows in table
+--disable_query_log
+INSERT INTO t1 VALUES ("SOME VALUES");
+let $counter=12;
+while ($counter>0)
+{
+  INSERT INTO test.t1 SELECT * FROM test.t1;
+  dec $counter;
+}
+--enable_query_log
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+# Try to alter tablespace to be encrypted. Should fail as keyring is not laoded.
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo #############################################################
+--echo # TEST 1 : CRASH DURING ALTER ENCRYPT A TABLESPACE.
+--echo #############################################################
+--echo
+--echo #########################################################################
+--echo # RESTART 1 : WITH KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+--echo # Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+
+--echo # Encrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Encryption processing to finish in background thread
+let $wait_condition = SELECT ENCRYPTION = 'Y'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='encrypt_ts';
+--source include/wait_condition.inc
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+--echo # After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 2 : WITHOUT KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+# We shouldn't be able to read t1 records as it is encrypted now and keyring
+# is not loaded.
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+SELECT * FROM t1 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 3 : WITH KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 2 :    Encrypted => Unencrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+--echo # Set Unencryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+
+--echo # Unencrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Unencryption processing to finish in background thread
+let $wait_condition = SELECT ENCRYPTION = 'N'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='encrypt_ts';
+--source include/wait_condition.inc
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+--echo # After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 4 : WITHOUT KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+# We should be able to read t1 records even without keyring as it should
+# be unencrypted now.
+SELECT * FROM t1 LIMIT 10;
+
+--echo ####################################################################
+--echo # TEST 2 : CRASH DURING ALTER ENCRYPT A TABLESPACE (Compressed).
+--echo ####################################################################
+--echo
+# Create an Unencrypted compressed tablespace
+CREATE TABLESPACE compress_ts ADD DATAFILE 'compress_ts.ibd' ENGINE=InnoDB
+	ENCRYPTION="N" FILE_BLOCK_SIZE=8192;
+# Create an unencrypted table in tablespace
+CREATE TABLE t2(c1 char(100)) ENGINE=InnoDB TABLESPACE compress_ts
+	ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+# Insert few rows in table
+--disable_query_log
+INSERT INTO t2 VALUES ("SOME VALUES");
+let $counter=12;
+while ($counter>0)
+{
+  INSERT INTO test.t2 SELECT * FROM test.t1;
+  dec $counter;
+}
+--enable_query_log
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='compress_ts';
+SELECT * FROM t2 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 5 : WITH KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+--echo # Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+
+--echo # Encrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE compress_ts ENCRYPTION='Y';
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Encryption processing to finish in background thread
+let $wait_condition = SELECT ENCRYPTION = 'Y'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='compress_ts';
+--source include/wait_condition.inc
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+--echo # After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='compress_ts';
+SELECT * FROM t2 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 6 : WITHOUT KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+# We shouldn't be able to read t2 records as it is encrypted now and keyring
+# is not loaded.
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+SELECT * FROM t2 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 7 WITH KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='compress_ts';
+SELECT * FROM t2 LIMIT 10;
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 2 :    Encrypted => Unencrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+--echo # Set Unencryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+
+--echo # Unencrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE compress_ts ENCRYPTION='N';
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Unencryption processing to finish in background thread
+let $wait_condition = SELECT ENCRYPTION = 'N'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='compress_ts';
+--source include/wait_condition.inc
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+--echo # After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='compress_ts';
+SELECT * FROM t2 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 8 : WITHOUT KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+# We should be able to read t1 records even without keyring as it should
+# be unencrypted now.
+SELECT * FROM t2 LIMIT 10;
+
+DROP TABLE t2;
+DROP TABLESPACE compress_ts;
+
+--echo #############################################################
+--echo # TEST 3 : CRASH BEFORE/AFTER ENCRYPTION PROCESSING.
+--echo #############################################################
+--echo
+--echo #########################################################################
+--echo # RESTART 9 : WITH KEYRING
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+# Encrypt tablespace
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Read rows from table
+SELECT * FROM t1 LIMIT 10;
+
+--echo # Set server to crash just before encryption processing starts
+SET SESSION debug="+d,alter_encrypt_tablespace_crash_before_processing";
+
+--echo # Unencrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Unencryption processing to finish in background thread
+let $wait_condition = select count(*) = 0
+        from performance_schema.events_stages_current
+        where EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+--source include/wait_condition.inc
+
+# Encrytion property of tablespace shouldn't have changed i.e. it should still
+# be encrypted.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+
+
+--echo # Set server to crash just after encryption processing finishes
+SET SESSION debug="-d,alter_encrypt_tablespace_crash_before_processing";
+SET SESSION debug="+d,alter_encrypt_tablespace_crash_after_processing";
+
+--echo # Unencrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Unencryption processing to finish in background thread
+let $wait_condition = select count(*) = 0
+        from performance_schema.events_stages_current
+        where EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+--source include/wait_condition.inc
+
+# Encrytion property of tablespace should have changed i.e. it should be
+# unencrypted now.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+
+--echo #############################################################
+--echo # TEST 4 : CRASH DURING KEY ROTATION.
+--echo #############################################################
+--echo
+--echo #########################################################################
+--echo # RESTART 10 : WITH KEYRING
+--echo #########################################################################
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+# Encrypt tablespace
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Read rows from table
+SELECT * FROM t1 LIMIT 10;
+
+--echo # Set server to crash while rotating encryption
+SET SESSION debug="+d,ib_crash_during_rotation_for_encryption";
+
+# Rotate the key. It will cause server to crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+# Read rows from table
+SELECT * FROM t1 LIMIT 10;
+
+# Rotate the key.
+SET SESSION debug="-d,ib_crash_during_rotation_for_encryption";
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+# Read rows from table
+SELECT * FROM t1 LIMIT 10;
+
+--echo ###############################################################
+--echo # TEST 5 : CRASH DURING CREATING AN ENCRYPTED TABLESPACE
+--echo ###############################################################
+--echo
+--echo # Set server to crash while creating an encrypted tablespace
+SET SESSION debug="+d,ib_crash_during_create_tablespace_for_encryption";
+
+--echo # Try to create an encrypted tablespace. It will cause server to crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+CREATE TABLESPACE encrypt_ts_2 ADD DATAFILE 'encrypt_ts_2.ibd' ENGINE=InnoDB ENCRYPTION="Y";
+
+--echo # Restart after crash
+--source include/start_mysqld_no_echo.inc
+SET SESSION debug="-d,ib_crash_during_create_tablespace_for_encryption";
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME LIKE "%encrypt_ts%";
+
+--echo ###############################################################
+--echo # TEST 6 : DMLs ALLOWED AND DDLs BLOCKED TEST
+--echo ###############################################################
+
+# Make sure metadata locks instrumentation is enabled
+SELECT ENABLED FROM performance_schema.setup_instruments
+	WHERE NAME='wait/lock/metadata/sql/mdl';
+
+let $con_default_thread_id= `select THREAD_ID from performance_schema.threads
+				where PROCESSLIST_ID = connection_id()`;
+
+SET DEBUG_SYNC = 'innodb_alter_encrypt_tablespace SIGNAL s1 WAIT_FOR s2';
+--send ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+
+--echo # Session 2
+connect(con2, localhost, root,,);
+--connection con2
+let $con2_thread_id= `select THREAD_ID from performance_schema.threads
+			where PROCESSLIST_ID = connection_id()`;
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+# Make sure MDL on tablespace is GRANTED to 'default connection' thread.
+--disable_query_log
+eval SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+	FROM performance_schema.metadata_locks
+	WHERE OBJECT_NAME='encrypt_ts' AND
+	OWNER_THREAD_ID = $con_default_thread_id;
+--enable_query_log
+# Try to run some DMLs. Should be allowed.
+DESCRIBE t1;
+SHOW CREATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+INSERT INTO t1 VALUES ("SOME VALUES");
+SELECT COUNT(*) from t1;
+# Try to run a DDL. Should be blocked.
+--send ALTER TABLE t1 ADD COLUMN (c2 int);
+
+--echo # Monitoring session
+connect(conmon, localhost, root,,);
+--connection conmon
+# Make sure 'connection default' thread has MDL request GRANTED.
+--disable_query_log
+eval SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+	FROM performance_schema.metadata_locks
+	WHERE OBJECT_NAME='encrypt_ts' AND
+	OWNER_THREAD_ID = $con_default_thread_id;
+--echo # Wait for MDL request by con2 to appear in metadata_locks table.
+let $wait_condition = SELECT LOCK_STATUS = 'PENDING'
+        FROM performance_schema.metadata_locks
+        WHERE OBJECT_NAME='t1' AND
+        OWNER_THREAD_ID = $con2_thread_id;
+--source include/wait_condition.inc
+# Make sure con2 thread has MDL request in PENDING state.
+eval SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+	FROM performance_schema.metadata_locks
+	WHERE OBJECT_NAME='t1' AND
+	OWNER_THREAD_ID = $con2_thread_id;
+--enable_query_log
+
+# Allow 'default connection' thread to proceed
+SET DEBUG_SYNC = 'now SIGNAL s2';
+
+--echo # Connection default
+--connection default
+--reap
+
+--echo # Connection con2
+--connection con2
+--reap
+
+--echo # Connection default
+--connection default
+# Make sure Tablespace 'unencryption' is done.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME LIKE "%encrypt_ts%";
+# Make sure table DDL is done.
+DESCRIBE t1;
+SHOW CREATE TABLE t1;
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+--disconnect con2
+--disconnect conmon
+
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;

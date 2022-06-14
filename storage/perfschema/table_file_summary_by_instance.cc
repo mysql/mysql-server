@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include "storage/perfschema/table_file_summary_by_instance.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "sql/field.h"
@@ -86,7 +87,7 @@ Plugin_table table_file_summary_by_instance::m_table_def(
 PFS_engine_table_share table_file_summary_by_instance::m_share = {
     &pfs_truncatable_acl,
     table_file_summary_by_instance::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_file_summary_by_instance::delete_all_rows,
     table_file_summary_by_instance::get_row_count,
     sizeof(PFS_simple_index),
@@ -158,7 +159,7 @@ int table_file_summary_by_instance::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_file_iterator it = global_file_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -172,7 +173,7 @@ int table_file_summary_by_instance::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_file_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -180,7 +181,7 @@ int table_file_summary_by_instance::rnd_pos(const void *pos) {
 }
 
 int table_file_summary_by_instance::index_init(uint idx, bool) {
-  PFS_index_file_summary_by_instance *result = NULL;
+  PFS_index_file_summary_by_instance *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -193,7 +194,7 @@ int table_file_summary_by_instance::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_file_summary_by_instance_by_event_name);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -210,7 +211,7 @@ int table_file_summary_by_instance::index_next(void) {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -218,7 +219,7 @@ int table_file_summary_by_instance::index_next(void) {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -236,12 +237,11 @@ int table_file_summary_by_instance::make_row(PFS_file *pfs) {
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class = sanitize_file_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_filename = pfs->m_filename;
-  m_row.m_filename_length = pfs->m_filename_length;
+  m_row.m_file_name = pfs->m_file_name;
   m_row.m_event_name.make_row(safe_class);
   m_row.m_identity = pfs->m_identity;
 
@@ -262,13 +262,14 @@ int table_file_summary_by_instance::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* FILE_NAME */
-          set_field_varchar_utf8(f, m_row.m_filename, m_row.m_filename_length);
+          set_field_varchar_utf8(f, m_row.m_file_name.ptr(),
+                                 m_row.m_file_name.length());
           break;
         case 1: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);
@@ -347,7 +348,7 @@ int table_file_summary_by_instance::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_max);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

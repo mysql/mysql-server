@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,6 @@
 
 #include <ndb_global.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /* Error codes for Locking to CPUs and CPU sets */
 #define BIND_CPU_NOT_SUPPORTED_ERROR 31999
 #define CPU_SET_MIX_EXCLUSIVE_ERROR 31998
@@ -49,15 +45,12 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
 
-#ifdef __cplusplus
 
 /* NDB thread pointer. */
 struct NdbThread;
 extern thread_local NdbThread* NDB_THREAD_TLS_NDB_THREAD;
 
-#endif
-
-typedef void* (NDB_THREAD_FUNC)(void*);
+extern "C" typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
 typedef size_t NDB_THREAD_STACKSIZE;
 
@@ -260,8 +253,18 @@ struct NdbThread *NdbThread_GetNdbThread();
  */
 int NdbThread_SetHighPrioProperties(const char * spec);
 
-#ifdef	__cplusplus
-}
-#endif
+/**
+ * Clear Unix signal mask of thread
+ */
+void NdbThread_ClearSigMask();
+
+/**
+ * Check if CPU is available for our use, used to avoid using CPUs in
+ * automatic CPU locking that the process is not supposed to use. If
+ * we use ThreadConfig then the user have decided to use those anyways,
+ * so in that case we don't care.
+ */
+bool
+NdbThread_IsCPUAvailable(Uint32 cpu_id);
 
 #endif

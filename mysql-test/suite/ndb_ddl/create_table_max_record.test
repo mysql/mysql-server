@@ -1,0 +1,40 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # Check creating table with record size at the limits of
+--echo # what is supported by NDB and MySQL
+--echo #
+
+# Record size well below limit
+CREATE TABLE t1(
+  col1 int unsigned not null primary key,
+  col3 varchar(15000),
+  col4 varchar(14000))
+charset=latin1 engine=ndbcluster;
+drop table t1;
+
+# Record size just below limit
+CREATE TABLE t2(
+  col1 int unsigned not null primary key,
+  col3 varchar(15000),
+  col4 varchar(14990))
+charset=latin1 engine=ndbcluster;
+drop table t2;
+
+# Record size above NDB limit
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t3_too_large_for_ndb(
+  col1 int unsigned not null primary key,
+  col3 varchar(15000),
+  col4 varchar(14991))
+charset=latin1 engine=ndbcluster;
+SHOW WARNINGS;
+
+# Record size above MySQL limit
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t4_too_large_for_mysql(
+  col1 int unsigned not null primary key,
+  col3 varchar(35000),
+  col4 varchar(35000))
+charset=latin1 engine=ndbcluster;
+

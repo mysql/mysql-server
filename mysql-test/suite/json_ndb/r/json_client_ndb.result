@@ -1,0 +1,58 @@
+set default_storage_engine=ndb;
+# Verify that the client can show JSON data and metadata.
+CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL) CHARSET utf8mb4;
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `i` int DEFAULT NULL,
+  `j1` json DEFAULT NULL,
+  `j2` json NOT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t VALUES
+(0, NULL, 'null'),
+(1, '1', '1'),
+(2, '[1,2,3]', '[4,5,6]'),
+(3, '{"abc":"def"}', '{"a":"b","c":"d"}');
+--------------
+SELECT j1, j2 FROM t ORDER BY i
+--------------
+
+Field   1:  `j1`
+Catalog:    `def`
+Database:   `test`
+Table:      `t`
+Org_table:  `t`
+Type:       JSON
+Collation:  binary (63)
+Length:     4294967295
+Max_length: 14
+Decimals:   0
+Flags:      BLOB BINARY 
+
+Field   2:  `j2`
+Catalog:    `def`
+Database:   `test`
+Table:      `t`
+Org_table:  `t`
+Type:       JSON
+Collation:  binary (63)
+Length:     4294967295
+Max_length: 20
+Decimals:   0
+Flags:      NOT_NULL BLOB BINARY NO_DEFAULT_VALUE 
+
+
++----------------+----------------------+
+| j1             | j2                   |
++----------------+----------------------+
+| NULL           | null                 |
+| 1              | 1                    |
+| [1, 2, 3]      | [4, 5, 6]            |
+| {"abc": "def"} | {"a": "b", "c": "d"} |
++----------------+----------------------+
+4 rows in set <FILTERED>
+
+Bye
+DROP TABLE t;

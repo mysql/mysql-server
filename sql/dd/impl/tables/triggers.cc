@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ Triggers::Triggers() {
                          "schema_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_EVENT_TYPE, "FIELD_EVENT_TYPE",
                          "event_type ENUM('INSERT', 'UPDATE', 'DELETE') "
                          "NOT NULL");
@@ -104,6 +104,7 @@ Triggers::Triggers() {
   m_target_def.add_index(INDEX_K_SCHEMA_COLLATION_ID,
                          "INDEX_K_SCHEMA_COLLATION_ID",
                          "KEY(schema_collation_id)");
+  m_target_def.add_index(INDEX_K_DEFINER, "INDEX_K_DEFINER", "KEY(definer)");
 
   m_target_def.add_foreign_key(FK_SCHEMA_ID, "FK_SCHEMA_ID",
                                "FOREIGN KEY (schema_id) "
@@ -159,28 +160,35 @@ Object_id Triggers::read_table_id(const Raw_record &r) {
 bool Triggers::get_trigger_table_id(THD *thd, Object_id schema_id,
                                     const String_type &trigger_name,
                                     Object_id *oid) {
-  DBUG_ENTER("Triggers::get_trigger_table_id");
+  DBUG_TRACE;
 
   Transaction_ro trx(thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<dd::Table>();
-  if (trx.otx.open_tables()) DBUG_RETURN(true);
+  if (trx.otx.open_tables()) return true;
 
-  DBUG_ASSERT(oid != nullptr);
+  assert(oid != nullptr);
   *oid = INVALID_OBJECT_ID;
 
   const std::unique_ptr<Object_key> key(
       create_key_by_trigger_name(schema_id, trigger_name.c_str()));
 
   Raw_table *table = trx.otx.get_table(instance().name());
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> record;
-  if (table->find_record(*key, record)) DBUG_RETURN(true);
+  if (table->find_record(*key, record)) return true;
 
   if (record.get()) *oid = read_table_id(*record.get());
 
-  DBUG_RETURN(false);
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Triggers::create_key_by_definer(const String_type &definer) {
+  return new (std::nothrow)
+      Definer_reference_range_key(INDEX_K_DEFINER, FIELD_DEFINER, definer);
 }
 
 ///////////////////////////////////////////////////////////////////////////

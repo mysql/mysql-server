@@ -323,3 +323,4 @@ formatID	gtrid_length	bqual_length	data
 DROP TABLE t2;
 # Cleanup
 UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE name='wait/lock/metadata/sql/mdl';
+# restart:

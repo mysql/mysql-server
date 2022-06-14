@@ -734,38 +734,38 @@ INSERT into t1 values (6, 6);
 INSERT into t1 values (30, 4);
 INSERT into t1 values (35, 2);
 INSERT into t1 values (40, NULL);
-select * from t1 force index (b) where b < 10 OR b IS NULL order by b;
-a	b
-5	NULL
-40	NULL
+select b,a from t1 force index (b) where b < 10 OR b IS NULL order by b;
+b	a
+NULL	40
+NULL	5
 1	1
-7	1
-35	2
+1	7
+2	35
 3	3
-2	4
-30	4
-4	5
+4	2
+4	30
+5	4
 6	6
-select * from t1 force index (b) where b < 10 ORDER BY b;
-a	b
+select b,a from t1 force index (b) where b < 10 ORDER BY b;
+b	a
 1	1
-7	1
-35	2
+1	7
+2	35
 3	3
-2	4
-30	4
-4	5
+4	2
+4	30
+5	4
 6	6
-select * from t1 force index (b) where b < 10 ORDER BY b DESC;
-a	b
+select b,a from t1 force index (b) where b < 10 ORDER BY b DESC;
+b	a
 6	6
-4	5
-30	4
-2	4
+5	4
+4	2
+4	30
 3	3
-35	2
-7	1
+2	35
 1	1
+1	7
 drop table t1;
 create table t1 (a int not null, b int, c varchar(20), key (a,b,c))
 partition by range (b)

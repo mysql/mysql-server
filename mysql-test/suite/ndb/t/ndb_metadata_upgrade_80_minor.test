@@ -1,0 +1,100 @@
+--source include/have_multi_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+#
+# The backup being restored was created using the following commands in 8.0.18:
+#
+# CREATE TABLE t1 (
+#   a INT PRIMARY KEY,
+#   b VARCHAR(255)
+# ) ENGINE NDB;
+# INSERT INTO t1 VALUES
+#  (1, 'a'),
+#  (2, 'bb'),
+#  (3, 'ccc');
+#
+# CREATE TABLE t2 (
+#   c1 INT PRIMARY KEY AUTO_INCREMENT,
+#   c2 INT UNSIGNED NOT NULL,
+#   c3 FLOAT,
+#   c4 VARCHAR(255),
+#   c5 TIME,
+#   c6 DATE,
+#   c7 DATETIME,
+#   c8 BLOB,
+#   c9 CHAR(30),
+#   c10 VARBINARY(255),
+#   UNIQUE KEY xc2(c2)
+# ) ENGINE NDB;
+# INSERT INTO t2 VALUES(1,1,2.5,'a','23:59:59','2018-01-30','2018-01-30 13:46:00','b','c','d');
+#
+# CREATE TABLE t3 (
+#   c1 int PRIMARY KEY,
+#   c2 int GENERATED ALWAYS AS (c1*c1)
+# ) ENGINE NDB;
+# INSERT INTO t3(c1) VALUES(2);
+#
+# CREATE TABLE t4 (
+#   c1 int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+#   c2 varchar(100),
+#   c3 varchar(100)
+# ) ENGINE NDB
+# COMMENT="NDB_TABLE=READ_BACKUP=0,PARTITION_BALANCE=FOR_RP_BY_NODE";
+# INSERT INTO t4 VALUES(1,'a','a');
+#
+# CREATE LOGFILE GROUP lg1
+#   ADD UNDOFILE 'lg1_undofile.dat'
+#   INITIAL_SIZE 1M
+#   UNDO_BUFFER_SIZE = 1M
+#   ENGINE NDB;
+#
+# CREATE TABLESPACE ts1
+#   ADD DATAFILE 'ts1_datafile.dat'
+#   USE LOGFILE GROUP lg1
+#   INITIAL_SIZE 2M
+#   ENGINE NDB;
+#
+# CREATE TABLE t5 (
+#   a INT PRIMARY KEY,
+#   b VARCHAR(255)
+# ) ENGINE NDB
+# TABLESPACE ts1 STORAGE DISK;
+# INSERT INTO t5 VALUES (1,'Lipstick on a pig');
+#
+
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor >> $NDB_TOOLS_OUTPUT
+
+--echo Backup restored
+
+# Test upgrade of the metadata during schema synchronization
+--echo Restart server 1 to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+# Check if the tables have been synced
+SHOW TABLES;
+
+# Check table definitions and data
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SHOW CREATE TABLE t3;
+INSERT INTO t3(c1) VALUES(14);
+--sorted_result
+SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+SELECT * FROM t4;
+SHOW CREATE TABLE t5;
+SELECT * FROM t5;
+
+# Clean-up
+DROP TABLE t1, t2, t3, t4, t5;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+--remove_file $NDB_TOOLS_OUTPUT

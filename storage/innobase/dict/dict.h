@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -38,11 +38,11 @@ external tools. */
 #ifndef dict_dict_h
 #define dict_dict_h
 /** Adds a column to index.
-@param[in,out]	index		index
-@param[in]	table		table
-@param[in]	col		column
-@param[in]	prefix_len	column prefix length
-@param[in]	is_ascending	true=ASC, false=DESC */
+@param[in,out]  index           index
+@param[in]      table           table
+@param[in]      col             column
+@param[in]      prefix_len      column prefix length
+@param[in]      is_ascending    true=ASC, false=DESC */
 void dict_index_add_col(dict_index_t *index, const dict_table_t *table,
                         dict_col_t *col, ulint prefix_len, bool is_ascending);
 

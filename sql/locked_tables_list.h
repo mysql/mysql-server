@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <vector>
 #include "my_alloc.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_const.h"
 
 struct MYSQL_LOCK;
 class MDL_context;
@@ -48,7 +50,7 @@ enum enum_locked_tables_mode {
   LTM_PRELOCKED_UNDER_LOCK_TABLES
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Getter for the enum enum_locked_tables_mode
   @param locked_tables_mode enum for types of locked tables mode
@@ -85,7 +87,8 @@ const char *get_locked_tables_mode_name(
 
 class Locked_tables_list {
  private:
-  MEM_ROOT m_locked_tables_root;
+  MEM_ROOT m_locked_tables_root{key_memory_locked_table_list,
+                                MEM_ROOT_BLOCK_SIZE};
   TABLE_LIST *m_locked_tables;
   TABLE_LIST **m_locked_tables_last;
   /** An auxiliary array used only in reopen_tables(). */
@@ -111,8 +114,8 @@ class Locked_tables_list {
 
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list() {
-    unlock_locked_tables(0);
-    DBUG_ASSERT(m_rename_tablespace_mdls.empty());
+    unlock_locked_tables(nullptr);
+    assert(m_rename_tablespace_mdls.empty());
   }
   bool init_locked_tables(THD *thd);
   TABLE_LIST *locked_tables() const { return m_locked_tables; }

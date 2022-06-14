@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -78,8 +78,7 @@ int main(int argc, char **argv) {
       }
     }
     // cout is a tty?
-    PluginInfoFrontend frontend(argv[0], args, filtered_out_stream,
-                                filtered_err_stream);
+    PluginInfoFrontend frontend(argv[0], args, filtered_out_stream);
     return frontend.run();
   } catch (const UsageError &e) {
     display_error(filtered_err_stream, argv[0], e.what(), true);

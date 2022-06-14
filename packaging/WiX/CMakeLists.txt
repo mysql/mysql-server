@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,10 @@ ENDIF()
 CREATE_WIX_LICENCE_AND_RTF("${CMAKE_SOURCE_DIR}/LICENSE")
 
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
-SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
+SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;
+  ${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs;
+  ${CMAKE_CURRENT_BINARY_DIR}/redist_check.wxs")
 SET(CPACK_MSI_SETUP ${CMAKE_CURRENT_SOURCE_DIR}/cpack_msi_setup.cmake)
-
-#CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
-#  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs)
 
 ADD_CUSTOM_TARGET(
   configure_mysql_server_extra
@@ -48,6 +47,16 @@ ADD_CUSTOM_TARGET(
   -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
   -DMAJOR_VERSION=${MAJOR_VERSION}
   -DMINOR_VERSION=${MINOR_VERSION}
+  -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
+)
+
+ADD_CUSTOM_TARGET(
+  configure_redist_check
+  COMMAND ${CMAKE_COMMAND}
+  -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/redist_check.wxs.in
+  -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/redist_check.wxs
+  -DLINK_STATIC_RUNTIME_LIBRARIES=${LINK_STATIC_RUNTIME_LIBRARIES}
+  -DBUNDLE_RUNTIME_LIBRARIES=${BUNDLE_RUNTIME_LIBRARIES}
   -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
 )
 
@@ -66,4 +75,4 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM} 
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI configure_mysql_server_extra)
+ADD_DEPENDENCIES(MSI configure_mysql_server_extra configure_redist_check)

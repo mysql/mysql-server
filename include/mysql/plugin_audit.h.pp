@@ -55,6 +55,7 @@ struct MYSQL_XID {
   long bqual_length;
   char data[128];
 };
+#include <mysql/components/services/bits/system_variables_bits.h>
 struct SYS_VAR;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void * thd, SYS_VAR *var, void *save,
@@ -128,6 +129,14 @@ void *thd_get_ha_data(const void * thd, const struct handlerton *hton);
 void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
+unsigned int thd_get_num_vcpus();
+#include <mysql/components/services/bits/plugin_audit_connection_types.h>
+typedef enum {
+  MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
+  MYSQL_AUDIT_CONNECTION_DISCONNECT = 1 << 1,
+  MYSQL_AUDIT_CONNECTION_CHANGE_USER = 1 << 2,
+  MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE = 1 << 3
+} mysql_event_connection_subclass_t;
 #include "my_command.h"
 enum enum_server_command {
   COM_SLEEP,
@@ -163,6 +172,7 @@ enum enum_server_command {
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION,
   COM_CLONE,
+  COM_SUBSCRIBE_GROUP_REPLICATION_STREAM,
   COM_END
 };
 #include "my_sqlcommand.h"
@@ -389,12 +399,6 @@ struct mysql_event_general {
   MYSQL_LEX_CSTRING general_external_user;
   MYSQL_LEX_CSTRING general_ip;
 };
-typedef enum {
-  MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
-  MYSQL_AUDIT_CONNECTION_DISCONNECT = 1 << 1,
-  MYSQL_AUDIT_CONNECTION_CHANGE_USER = 1 << 2,
-  MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE = 1 << 3
-} mysql_event_connection_subclass_t;
 struct mysql_event_connection {
   mysql_event_connection_subclass_t event_subclass;
   int status;

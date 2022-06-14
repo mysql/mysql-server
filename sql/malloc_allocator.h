@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,11 @@
 #ifndef MALLOC_ALLOCATOR_INCLUDED
 #define MALLOC_ALLOCATOR_INCLUDED
 
+#include <assert.h>
 #include <limits>
 #include <new>
 #include <utility>  // std::forward
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/psi_memory_key.h"
@@ -80,22 +80,22 @@ class Malloc_allocator {
   explicit Malloc_allocator(PSI_memory_key key) : m_key(key) {}
 
   template <class U>
-  Malloc_allocator(const Malloc_allocator<U> &other MY_ATTRIBUTE((unused)))
+  Malloc_allocator(const Malloc_allocator<U> &other [[maybe_unused]])
       : m_key(other.psi_key()) {}
 
   template <class U>
-  Malloc_allocator &operator=(
-      const Malloc_allocator<U> &other MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(m_key == other.psi_key());  // Don't swap key.
+  Malloc_allocator &operator=(const Malloc_allocator<U> &other
+                              [[maybe_unused]]) {
+    assert(m_key == other.psi_key());  // Don't swap key.
   }
 
-  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
-    if (n == 0) return NULL;
+  pointer allocate(size_type n, const_pointer hint [[maybe_unused]] = nullptr) {
+    if (n == 0) return nullptr;
     if (n > max_size()) throw std::bad_alloc();
 
     pointer p = static_cast<pointer>(
         my_malloc(m_key, n * sizeof(T), MYF(MY_WME | ME_FATALERROR)));
-    if (p == NULL) throw std::bad_alloc();
+    if (p == nullptr) throw std::bad_alloc();
     return p;
   }
 
@@ -103,20 +103,20 @@ class Malloc_allocator {
 
   template <class U, class... Args>
   void construct(U *p, Args &&... args) {
-    DBUG_ASSERT(p != NULL);
+    assert(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);
     } catch (...) {
-      DBUG_ASSERT(false);  // Constructor should not throw an exception.
+      assert(false);  // Constructor should not throw an exception.
     }
   }
 
   void destroy(pointer p) {
-    DBUG_ASSERT(p != NULL);
+    assert(p != nullptr);
     try {
       p->~T();
     } catch (...) {
-      DBUG_ASSERT(false);  // Destructor should not throw an exception
+      assert(false);  // Destructor should not throw an exception
     }
   }
 

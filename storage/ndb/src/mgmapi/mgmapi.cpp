@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <LocalConfig.hpp>
 
@@ -41,8 +42,10 @@
 #include <Parser.hpp>
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
-
+#include <ConfigObject.hpp>
 #include <ndb_base64.h>
+#include <ndb_limits.h>
+#include <EventLogger.hpp>
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -196,6 +199,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
 }
 
 #define SET_ERROR(h, e, s) setError((h), (e), __LINE__, "%s", (s))
+#define SET_ERROR_CMD(h, e, s, cmd, t) setError((h), (e), __LINE__, "cmd: %s, error: %s, timeout: %d", (cmd), (s), (t))
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) {   \
@@ -220,10 +224,10 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
     SET_ERROR(handle, ETIMEDOUT, \
               "Time out talking to management server");
 
-#define CHECK_TIMEDOUT_RET(h, in, out, ret) \
+#define CHECK_TIMEDOUT_RET(h, in, out, ret, cmd) \
   if(in.timedout() || out.timedout()) { \
-    SET_ERROR(h, ETIMEDOUT, \
-              "Time out talking to management server"); \
+    SET_ERROR_CMD(h, ETIMEDOUT, \
+              "Time out talking to management server", cmd, h->timeout); \
     ndb_mgm_disconnect_quiet(h); \
     DBUG_RETURN(ret);            \
   }
@@ -266,7 +270,7 @@ ndb_mgm_create_handle()
   h->mgmd_version_minor= -1;
   h->mgmd_version_build= -1;
 
-  DBUG_PRINT("info", ("handle: 0x%lx", (long) h));
+  DBUG_PRINT("info", ("handle: %p", h));
   DBUG_RETURN(h);
 }
 
@@ -290,7 +294,7 @@ int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
 {
   DBUG_ENTER("ndb_mgm_set_connectstring");
-  DBUG_PRINT("info", ("handle: 0x%lx", (long) handle));
+  DBUG_PRINT("info", ("handle: %p", handle));
   handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(connect_string, 0) ||
@@ -318,15 +322,36 @@ ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
 
   if (arg)
   {
-    handle->m_bindaddress = strdup(arg);
-    char *port = strchr(handle->m_bindaddress, ':');
-    if (port != 0)
+    char hostbuf[NI_MAXHOST];
+    char servbuf[NI_MAXSERV];
+    if (Ndb_split_string_address_port(arg, hostbuf, sizeof(hostbuf),
+                             servbuf, sizeof(servbuf)) == 0)
     {
-      handle->m_bindaddress_port = atoi(port+1);
-      *port = 0;
+      char *endp = nullptr;
+      errno = 0;
+      long val = strtol(servbuf, &endp, 10);
+
+      if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
+          || (errno != 0)
+          || (*endp != '\0')
+          || (val > UINT16_MAX)
+          || (val < 0))
+      {
+        // invalid address
+        SET_ERROR(handle, NDB_MGM_ILLEGAL_BIND_ADDRESS,
+                  "Illegal bind address");
+        DBUG_RETURN(-1);
+      }
+
+      handle->m_bindaddress = strdup(hostbuf);
+      handle->m_bindaddress_port = val;
     }
     else
-      handle->m_bindaddress_port = 0;
+    {
+      // invalid address
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_BIND_ADDRESS, "Illegal bind address");
+      DBUG_RETURN(-1);
+    }
   }
   else
   {
@@ -365,7 +390,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   DBUG_ENTER("ndb_mgm_destroy_handle");
   if(!handle)
     DBUG_VOID_RETURN;
-  DBUG_PRINT("info", ("handle: 0x%lx", (long) (* handle)));
+  DBUG_PRINT("info", ("handle: %p", (* handle)));
   /**
    * important! only disconnect if connected
    * other code relies on this
@@ -488,7 +513,13 @@ ndb_mgm_call(NdbMgmHandle handle,
       Uint64 val_64;
       BaseString val_s;
 
-      cmd_args->getTypeOf(name, &t);
+      if (!cmd_args->getTypeOf(name, &t))
+      {
+        BaseString errStr = "Failed to get type of argument: ";
+        errStr.append(name);
+        SET_ERROR(handle, NDB_MGM_USAGE_ERROR, errStr.c_str());
+        DBUG_RETURN(NULL);
+      }
       switch(t) {
       case PropertiesType_Uint32:
 	cmd_args->get(name, &val_i);
@@ -499,9 +530,36 @@ ndb_mgm_call(NdbMgmHandle handle,
 	out.println("%s: %llu", name, val_64);
 	break;
       case PropertiesType_char:
-	cmd_args->get(name, val_s);
-	out.println("%s: %s", name, val_s.c_str());
-	break;
+      {
+        const char* strfmt = "%s:\"%s\"";
+        // '\n' and '\0' are appended by println
+        const int reserved_bytes_for_format = 5;  // 2 x '"', ':', '\n', '\0'
+
+        cmd_args->get(name, val_s);
+
+        /**
+         *  MaxParseBytes is 512, check if line length is exceeded.
+         *  Todo:
+         *  To support sending of longer strings to mgmd, the append
+         *  capability of LongString must be used, i.e sending the
+         *  string in chunks with a "+" prefix to the argument name
+         *  from the second chunk onwards.
+         *  Another notable problem that needs to be solved related to
+         *  this is that the chunks are sent out of order since iterations
+         *  over Properties object aren't ordered.
+         */
+        if ((reserved_bytes_for_format + strlen(name) + val_s.length()) > 512)
+        {
+          BaseString errStr = "Line length exceeded due to argument: ";
+          errStr.append(name);
+          SET_ERROR(handle, NDB_MGM_USAGE_ERROR, errStr.c_str());
+          DBUG_RETURN(NULL);
+        }
+
+        // send to mgmd
+        out.println(strfmt, name, val_s.c_str());
+        break;
+      }
       case PropertiesType_Properties:
 	DBUG_PRINT("info",("Ignoring PropertiesType_Properties."));
 	/* Ignore */
@@ -525,7 +583,7 @@ ndb_mgm_call(NdbMgmHandle handle,
     out.write("\n", 1);
   }
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 
   Parser_t::Context ctx;
   ParserDummy session(handle->socket);
@@ -534,17 +592,17 @@ ndb_mgm_call(NdbMgmHandle handle,
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
     if(!ndb_mgm_is_connected(handle)) {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
       DBUG_RETURN(NULL);
     }
     else
     {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
       if(ctx.m_status==Parser_t::Eof
 	 || ctx.m_status==Parser_t::NoLine)
       {
 	ndb_mgm_disconnect(handle);
-        CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+        CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 	DBUG_RETURN(NULL);
       }
       /**
@@ -569,7 +627,7 @@ ndb_mgm_call(NdbMgmHandle handle,
 
   if(p && (in.timedout() || out.timedout()))
     delete p;
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
   DBUG_RETURN(p);
 }
 
@@ -623,6 +681,7 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
     {
       handle->connected= 0;
       ndb_socket_close(handle->socket);
+      ndb_socket_invalidate(&handle->socket);
     }
   }
   return handle->connected;
@@ -660,6 +719,40 @@ int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle)
   return count;
 }
 
+static
+int ndb_mgm_set_version(NdbMgmHandle handle)
+{
+  DBUG_ENTER("ndb_mgm_set_version");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+
+  Properties args;
+  args.put("major", Uint32(NDB_VERSION_MAJOR));
+  args.put("minor", Uint32(NDB_VERSION_MINOR));
+  args.put("build", Uint32(NDB_VERSION_BUILD));
+
+  const ParserRow<ParserDummy> set_clientversion_reply[] = {
+    MGM_CMD("set clientversion reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+
+  const Properties* reply =
+    ndb_mgm_call(handle, set_clientversion_reply, "set clientversion", &args);
+
+  CHECK_REPLY(handle, reply, -1);
+
+  BaseString result;
+  reply->get("result", result);
+  delete reply;
+
+  if(result != "Ok") {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, result.c_str());
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
 
 static inline
 bool get_mgmd_version(NdbMgmHandle handle)
@@ -676,6 +769,18 @@ bool get_mgmd_version(NdbMgmHandle handle)
                            &(handle->mgmd_version_build),
                            sizeof(buf), buf))
     return false;
+
+  /* If MGMD supports it, tell it our version */
+  if (NDB_MAKE_VERSION(handle->mgmd_version_major,
+                       handle->mgmd_version_minor,
+                       handle->mgmd_version_build) >=
+      NDB_MAKE_VERSION(8,0,20))
+  {
+    //Inform MGMD of our version
+    //MGMD gained support for set version command in 8.0.20
+    if (ndb_mgm_set_version(handle) != 0)
+      return false;
+  }
   return true;
 }
 
@@ -716,9 +821,10 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd;
   ndb_socket_invalidate(&sockfd);
-  Uint32 i;
+  Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
+    Uint32 invalid_Address = 0;
     // do all the mgmt servers
     for (i = 0; i < cfg.ids.size(); i++)
     {
@@ -762,41 +868,69 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
             // retry with next mgmt server
             continue;
           }
-          fprintf(handle->errstream, 
-                  "Unable to bind local address '%s:%d' errno: %d, "
+
+          char buf[512];
+          char* sockaddr_string = Ndb_combine_address_port(buf,
+                                                           sizeof(buf),
+                                                           bind_address,
+                                                           bind_address_port);
+
+          fprintf(handle->errstream,
+                  "Unable to bind local address '%s' errno: %d, "
                   "while trying to connect with connect string: '%s'\n",
-                  bind_address, (int)bind_address_port, err,
+                  sockaddr_string, err,
                   cfg.makeConnectString(buf,sizeof(buf)));
-      
+
           setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
-                   "Unable to bind local address '%s:%d' errno: %d, "
+                   "Unable to bind local address '%s' errno: %d, "
                    "while trying to connect with connect string: '%s'\n",
-                   bind_address, (int)bind_address_port, err,
+                   sockaddr_string, err,
                    cfg.makeConnectString(buf,sizeof(buf)));
           DBUG_RETURN(-1);
         }
       }
+
+      // return immediately when all the hostnames are invalid.
+      struct in6_addr addr;
+      if (Ndb_getInAddr6(&addr, cfg.ids[i].name.c_str()) != 0) {
+        invalid_Address++;
+        if (cfg.ids.size() - invalid_Address == 0) {
+          fprintf(handle->errstream,
+                  "Unable to resolve any of the address"
+                  " in connect string: %s\n",
+                  cfg.makeConnectString(buf, sizeof(buf)));
+
+          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
+                   "Unable to resolve any of the address"
+                   " in connect string: %s\n",
+                   cfg.makeConnectString(buf, sizeof(buf)));
+          DBUG_RETURN(-1);
+        } else {
+          continue;
+        }
+      }
+
       sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
       if (ndb_socket_valid(sockfd))
 	break;
     }
     if (ndb_socket_valid(sockfd))
       break;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
-      DBUG_PRINT("info",("Unable to connect with connect string: %s",
+      DBUG_PRINT("error",("Unable to connect with connect string: %s",
 			 cfg.makeConnectString(buf,sizeof(buf))));
     }
 #endif
     if (verbose > 0) {
       fprintf(handle->errstream, 
-	      "Unable to connect with connect string: %s\n",
+	      "ERROR: Unable to connect with connect string: %s\n",
 	      cfg.makeConnectString(buf,sizeof(buf)));
       verbose= -1;
     }
     if (no_retries == 0) {
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       "Unable to connect with connect string: %s",
+	       "ERROR: Unable to connect with connect string: %s",
 	       cfg.makeConnectString(buf,sizeof(buf)));
       if (verbose == -2)
 	fprintf(handle->errstream, ", failed.\n");
@@ -1018,17 +1152,51 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->node_group = atoi(value);
   } else if(strcmp("version", field) == 0){
     state->version = atoi(value);
-  } else if(strcmp("mysql_version", field) == 0){
-    state->mysql_version = atoi(value);
   } else if(strcmp("connect_count", field) == 0){
     state->connect_count = atoi(value);    
   } else if(strcmp("address", field) == 0){
     strncpy(state->connect_address, value, sizeof(state->connect_address));
     state->connect_address[sizeof(state->connect_address)-1]= 0;
+  } else if(strcmp("mysql_version", field) == 0){
+    state->mysql_version = atoi(value);
+  } else if(strcmp("is_single_user", field) == 0){
+    // Do nothing
+  } else {
+    g_eventLogger->info("Unknown field: %s", field);
+    return -1;
+  }
+  return 0;
+}
+
+static int
+status_ackumulate2(struct ndb_mgm_node_state2 * state,
+      const char * field,
+      const char * value)
+{
+  if(strcmp("type", field) == 0){
+    state->node_type = ndb_mgm_match_node_type(value);
+  } else if(strcmp("status", field) == 0){
+    state->node_status = ndb_mgm_match_node_status(value);
+  } else if(strcmp("startphase", field) == 0){
+    state->start_phase = atoi(value);
+  } else if(strcmp("dynamic_id", field) == 0){
+    state->dynamic_id = atoi(value);
+  } else if(strcmp("node_group", field) == 0){
+    state->node_group = atoi(value);
+  } else if(strcmp("version", field) == 0){
+    state->version = atoi(value);
+  } else if(strcmp("connect_count", field) == 0){
+    state->connect_count = atoi(value);
+  } else if(strcmp("mysql_version", field) == 0){
+    state->mysql_version = atoi(value);
   } else if(strcmp("is_single_user", field) == 0){
     state->is_single_user = atoi(value);
+  } else if(strcmp("address", field) == 0){
+    strncpy(state->connect_address, value, sizeof(state->connect_address));
+    state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
-    ndbout_c("Unknown field: %s", field);
+    g_eventLogger->info("Unknown field: %s", field);
+    return -1;
   }
   return 0;
 }
@@ -1065,6 +1233,9 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   CHECK_HANDLE(handle, NULL);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_status");
   CHECK_CONNECTED(handle, NULL);
+
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(NULL);
 
   char typestring[1024];
   typestring[0] = 0;
@@ -1110,31 +1281,32 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
-  out.println("get status");
+  const char *get_status_str = "get status";
+  out.println("%s", get_status_str);
   if (types)
   {
     out.println("types: %s", typestring);
   }
   out.println("%s", "");
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
 
   char buf[1024];
   if(!in.gets(buf, sizeof(buf)))
   {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
   if(strcmp("node status\n", buf) != 0) {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     ndbout << in.timedout() << " " << out.timedout() << buf << endl;
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     DBUG_RETURN(NULL);
   }
   if(!in.gets(buf, sizeof(buf)))
   {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
@@ -1143,7 +1315,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   Vector<BaseString> split;
   tmp.split(split, ":");
   if(split.size() != 2){
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     DBUG_RETURN(NULL);
   }
@@ -1167,14 +1339,14 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   }
 
   state->no_of_nodes= noOfNodes;
-  ndb_mgm_node_state * ptr = &state->node_states[0];
-  int nodeId = 0;
-  int i;
-  for (i= 0; i < noOfNodes; i++) {
+  for (int i = 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
   }
-  i = -1; ptr--;
-  for(; i<noOfNodes; ){
+  ndb_mgm_node_state *const base_ptr = &state->node_states[0];
+  ndb_mgm_node_state * curr_ptr = nullptr;
+  int nodeId = 0; // Invalid id
+  int found_nodes = 0;
+  while (found_nodes <= noOfNodes) {
     if(!in.gets(buf, sizeof(buf)))
     {
       free(state);
@@ -1188,39 +1360,305 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
     tmp.assign(buf);
 
-    if(tmp.trim() == ""){
+    if (tmp.trim(" \t\n") == "") {
       break;
     }
-    
+
+    /**
+     * Expected reply format:
+     * "node.<node_id>.<field_name>: <value>\n"
+     * E.g node.1.type: NDB
+     * ...
+     */
     Vector<BaseString> split2;
     tmp.split(split2, ":.", 4);
-    if(split2.size() != 4)
-      break;
+    if (split2.size() != 4) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+      ndbout_c("tmp = %s of length %u", tmp.trim().c_str(), tmp.trim().length());
+      DBUG_RETURN(NULL);
+    }
     
     const int id = atoi(split2[1].c_str());
-    if(id != nodeId){
-      ptr++;
-      i++;
+    if (id == 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node id");
+      DBUG_RETURN(NULL);
+    }
+    if (id != nodeId) {
+      // Next series of values corresponding to a different node id found
       nodeId = id;
-      ptr->node_id = id;
+      found_nodes++;
+      if (curr_ptr == nullptr) {
+        curr_ptr = base_ptr;
+      } else {
+        curr_ptr++;
+      }
+      curr_ptr->node_id = id;
     }
 
     split2[3].trim(" \t\n");
 
-    if(status_ackumulate(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
-      break;
+    assert(curr_ptr != nullptr);
+    if(status_ackumulate(curr_ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Unknown field");
+      DBUG_RETURN(NULL);
     }
   }
 
-  if(i+1 != noOfNodes){
+  if (found_nodes != noOfNodes) {
     free(state);
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
     DBUG_RETURN(NULL);
   }
 
   qsort(state->node_states, state->no_of_nodes, sizeof(state->node_states[0]),
 	cmp_state);
+  DBUG_RETURN(state);
+}
+
+struct ndb_mgm_cluster_state2 {
+  // Number of entries in the node_states array
+  int no_of_nodes;
+  // node states
+  struct ndb_mgm_node_state2 node_states[
+          1
+  ];
+};
+
+struct ndb_mgm_node_state2 *
+ndb_mgm_get_node_status(ndb_mgm_cluster_state2 *cs, int i) {
+  if (i < 0 || i >= cs->no_of_nodes) return nullptr;
+
+  return (struct ndb_mgm_node_state2*)
+    &cs->node_states[i];
+}
+
+extern "C"
+int
+ndb_mgm_get_status_node_count(ndb_mgm_cluster_state2 *cs)
+{
+  return cs->no_of_nodes;
+}
+
+void
+ndb_mgm_node_state2::init()
+{
+  node_id = 0;
+  node_type = NDB_MGM_NODE_TYPE_UNKNOWN;
+  node_status = NDB_MGM_NODE_STATUS_UNKNOWN;
+  start_phase = 0;
+  dynamic_id = 0;
+  node_group = 0;
+  version = 0;
+  connect_count = 0;
+  mysql_version = 0;
+  is_single_user = 0;
+  memset(connect_address, 0, sizeof(connect_address));
+}
+
+extern "C"
+struct ndb_mgm_cluster_state2 *
+ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
+{
+  DBUG_ENTER("ndb_mgm_get_status3");
+  CHECK_HANDLE(handle, NULL);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_status3");
+  CHECK_CONNECTED(handle, NULL);
+
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(NULL);
+
+  char typestring[1024];
+  typestring[0] = 0;
+  if (types != 0)
+  {
+    int pos = 0;
+    for (Uint32 i = 0; types[i] != NDB_MGM_NODE_TYPE_UNKNOWN; i++)
+    {
+      if (int(types[i]) < NDB_MGM_NODE_TYPE_MIN ||
+          int(types[i]) > NDB_MGM_NODE_TYPE_MAX)
+      {
+        SET_ERROR(handle, EINVAL,
+                  "Incorrect node type for ndb_mgm_get_status3");
+        DBUG_RETURN(0);
+      }
+      /**
+       * Check for duplicates
+       */
+      for (Int32 j = i - 1; j >= 0; j--)
+      {
+        if (types[i] == types[j])
+        {
+          SET_ERROR(handle, EINVAL,
+                    "Duplicate types for ndb_mgm_get_status3");
+          DBUG_RETURN(0);
+        }
+      }
+
+      int left = sizeof(typestring) - pos;
+      int len = BaseString::snprintf(typestring+pos, left, "%s ",
+                                     ndb_mgm_get_node_type_string(types[i]));
+
+      if (len >= left)
+      {
+        SET_ERROR(handle, EINVAL,
+                  "Out of memory for type-string for ndb_mgm_get_status3");
+        DBUG_RETURN(0);
+      }
+      pos += len;
+    }
+  }
+
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
+
+  const char *get_status_str = "get status";
+  out.println("%s", get_status_str);
+  if (types)
+  {
+    out.println("types: %s", typestring);
+  }
+  out.println("%s", "");
+
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+  /**
+   * Expected reply format:
+   * "node status\n"
+   * "nodes: <no_of_nodes>\n"
+   *
+   * Then, a series of:
+   * "node.<node_id>.<field_name>: <value>\n"
+   * E.g node.1.type: NDB
+   * ...
+   */
+  char buf[1024];
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    DBUG_RETURN(NULL);
+  }
+  if(strcmp("node status\n", buf) != 0) {
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    ndbout << in.timedout() << " " << out.timedout() << buf << endl;
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+    DBUG_RETURN(NULL);
+  }
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    DBUG_RETURN(NULL);
+  }
+
+  BaseString tmp(buf);
+  Vector<BaseString> split;
+  tmp.split(split, ":");
+  if(split.size() != 2){
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+    DBUG_RETURN(NULL);
+  }
+
+  if(!(split[0].trim() == "nodes")){
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+    DBUG_RETURN(NULL);
+  }
+
+  const int noOfNodes = atoi(split[1].c_str());
+
+  ndb_mgm_cluster_state2 *state = (ndb_mgm_cluster_state2*)
+    malloc(sizeof(ndb_mgm_cluster_state2)+
+     (noOfNodes - 1) * sizeof(ndb_mgm_node_state2));
+
+  if(!state)
+  {
+    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY,
+              "Allocating ndb_mgm_cluster_state2");
+    DBUG_RETURN(NULL);
+  }
+
+  state->no_of_nodes= noOfNodes;
+  for (int i = 0; i < noOfNodes; i++) {
+    state->node_states[i].connect_address[0]= 0;
+    state->node_states[i].is_single_user = 0;
+  }
+  ndb_mgm_node_state2 *const base_ptr = &state->node_states[0];
+  ndb_mgm_node_state2 * curr_ptr = nullptr;
+  int nodeId = 0; // Invalid id
+  int found_nodes = 0;
+  while (found_nodes <= noOfNodes) {
+    if(!in.gets(buf, sizeof(buf)))
+    {
+      free(state);
+      if(in.timedout() || out.timedout())
+        SET_ERROR(handle, ETIMEDOUT,
+                  "Time out talking to management server");
+      else
+        SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+                  "Probably disconnected");
+      DBUG_RETURN(NULL);
+    }
+    tmp.assign(buf);
+
+    if (tmp.trim(" \t\n") == "") {
+      break;
+    }
+
+    /**
+     * Expected reply format:
+     * "node.<node_id>.<field_name>: <value>\n"
+     * E.g node.1.type: NDB
+     * ...
+     */
+    Vector<BaseString> split2;
+    tmp.split(split2, ":.", 4);
+    if (split2.size() != 4) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+      DBUG_RETURN(NULL);
+    }
+
+    const int id = atoi(split2[1].c_str());
+    if (id == 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node id");
+      DBUG_RETURN(NULL);
+    }
+    if (id != nodeId) {
+      // Next series of values corresponding to a different node id found
+      nodeId = id;
+      found_nodes++;
+      if (curr_ptr == nullptr) {
+        curr_ptr = base_ptr;
+      } else {
+        curr_ptr++;
+      }
+      curr_ptr->node_id = id;
+    }
+
+    split2[3].trim(" \t\n");
+
+    assert(curr_ptr != nullptr);
+    if(status_ackumulate2(curr_ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Unknown field");
+      DBUG_RETURN(NULL);
+    }
+  }
+
+  if (found_nodes != noOfNodes) {
+    free(state);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
+    DBUG_RETURN(NULL);
+  }
+
+  qsort(state->node_states, state->no_of_nodes, sizeof(state->node_states[0]),
+  cmp_state);
   DBUG_RETURN(state);
 }
 
@@ -1402,9 +1840,12 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   Properties args;
 
   BaseString node_list_str;
-  node_list_str.assfmt("%d", node_list[0]);
-  for(int node = 1; node < no_of_nodes; node++)
-    node_list_str.appfmt(" %d", node_list[node]);
+  const char* sep = "";
+  for(int node = 0; node < no_of_nodes; node++)
+  {
+    node_list_str.appfmt("%s%d", sep, node_list[node]);
+    sep = " ";
+  }
   
   args.put("node", node_list_str.c_str());
   args.put("abort", abort);
@@ -1548,9 +1989,12 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   }      
 
   BaseString node_list_str;
-  node_list_str.assfmt("%d", node_list[0]);
-  for(int node = 1; node < no_of_nodes; node++)
-    node_list_str.appfmt(" %d", node_list[node]);
+  const char* sep = "";
+  for(int node = 0; node < no_of_nodes; node++)
+  {
+    node_list_str.appfmt("%s%d", sep, node_list[node]);
+    sep = " ";
+  }
 
   Properties args;
   
@@ -2012,8 +2456,11 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     args.put("parsable", parsable);
   {
     BaseString tmp;
-    for(int i = 0; filter[i] != 0; i += 2){
-      tmp.appfmt("%d=%d ", filter[i+1], filter[i]);
+    const char* sep = "";
+    for(int i = 0; filter[i] != 0; i += 2)
+    {
+      tmp.appfmt("%s%d=%d", sep, filter[i+1], filter[i]);
+      sep = " ";
     }
     args.put("filter", tmp.c_str());
   }
@@ -2417,11 +2864,13 @@ ndb_mgm_start(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
  *****************************************************************************/
 extern "C"
 int 
-ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
 		     struct ndb_mgm_reply*, /*reply*/
 		     unsigned int input_backupId,
-		     unsigned int backuppoint) 
+		     unsigned int backuppoint,
+		     const char* encryption_password,
+		     unsigned int password_length)
 {
   DBUG_ENTER("ndb_mgm_start_backup");
 
@@ -2446,7 +2895,35 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
     args.put("backupid", input_backupId);
   if (sendBackupPoint)
     args.put("backuppoint", backuppoint);
-
+  if (encryption_password != nullptr)
+  {
+    if (ndbd_support_backup_file_encryption(handle->mgmd_version()))
+    {
+      for (Uint32 i = 0; i < password_length; i++)
+      {
+        if ((encryption_password[i] < 32) ||
+            (encryption_password[i] > 126))
+        {
+          char out[1024];
+          BaseString::snprintf(out,
+                               sizeof(out),
+                               "Encryption password has invalid character"
+                               " at position %u", i);
+          SET_ERROR(handle, NDB_MGM_USAGE_ERROR, out);
+          DBUG_RETURN(-1);
+        }
+      }
+      args.put("encryption_password", {encryption_password, password_length});
+      args.put("password_length", password_length);
+    }
+    else
+    {
+      SET_ERROR(handle, NDB_MGM_COULD_NOT_START_BACKUP,
+                "MGM server does not support encrypted backup, "
+                "try without ENCRYPT PASSWORD=<password>");
+      DBUG_RETURN(-1);
+    }
+  }
   const Properties *reply;
   { // start backup can take some time, set timeout high
     int old_timeout= handle->timeout;
@@ -2470,6 +2947,18 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 
   delete reply;
   DBUG_RETURN(0);
+}
+
+extern "C"
+int
+ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+                      unsigned int* _backup_id,
+                      struct ndb_mgm_reply* reply,
+                      unsigned int input_backupId,
+                      unsigned int backuppoint)
+{
+  return ndb_mgm_start_backup4(handle, wait_completed, _backup_id, reply, input_backupId,
+                               backuppoint, nullptr, 0);
 }
 
 extern "C"
@@ -2549,6 +3038,7 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     args.put("nodetype", nodetype);
   }
 
+  bool v2 = ndb_config_version_v2(handle->mgmd_version());
   if (from_node != 0)
   {
     if (check_version_new(handle->mgmd_version(),
@@ -2565,6 +3055,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
       DBUG_RETURN(0);
     }
   }
+  else if (v2)
+  {
+    Uint32 node_id = ndb_mgm_get_configuration_nodeid(handle);
+    args.put("node", node_id);
+  }
 
   const ParserRow<ParserDummy> reply[] = {
     MGM_CMD("get config reply", NULL, ""),
@@ -2574,9 +3069,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     MGM_ARG("Content-Transfer-Encoding", String, Optional, "Encoding(base64)"),
     MGM_END()
   };
-  
+
   const Properties *prop;
-  prop = ndb_mgm_call(handle, reply, "get config", &args);
+  prop = v2 ?
+    ndb_mgm_call(handle, reply, "get config_v2", &args) :
+    ndb_mgm_call(handle, reply, "get config", &args);
   CHECK_REPLY(handle, prop, 0);
   
   do {
@@ -2643,7 +3140,9 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     }
 
     ConfigValuesFactory cvf;
-    const int res2 = cvf.unpack(tmp);
+    const int res2 = v2 ?
+      cvf.unpack_v2_buf(tmp) :
+      cvf.unpack_v1_buf(tmp);
     if(!res2){
       fprintf(handle->errstream, "Failed to unpack buffer\n");
       break;
@@ -2669,10 +3168,7 @@ extern "C"
 void
 ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 {
-  if (cfg) {
-    ((ConfigValues *)cfg)->~ConfigValues();
-    free((void *)cfg);
-  }
+  delete cfg;
 }
 
 extern "C"
@@ -2779,9 +3275,13 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
       unsigned port=  ndb_mgm_get_connected_port(handle);
       Uint32 error_code= NDB_MGM_ALLOCID_ERROR;
       prop->get("error_code", &error_code);
+      char sockaddr_buf[512];
+      char* sockaddr_string = Ndb_combine_address_port(sockaddr_buf,
+                                                       sizeof(sockaddr_buf),
+                                                       hostname, port);
       setError(handle, error_code, __LINE__,
-              "Could not alloc node id at %s port %d: %s",
-               hostname, port, buf);
+              "Could not alloc node id at %s: %s",
+               sockaddr_string, buf);
       break;
     }
     Uint32 _nodeid;
@@ -3171,8 +3671,12 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   args.put("length", length);
   BaseString data_string;
 
+  const char* sep = "";
   for (int i = 0; i < (int) length; i++)
-    data_string.appfmt(" %lu", (ulong) data[i]);
+  {
+    data_string.appfmt("%s%lu", sep, (ulong) data[i]);
+    sep = " ";
+  }
 
   args.put("data", data_string.c_str());
 
@@ -3198,13 +3702,14 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   CHECK_CONNECTED(handle, -1);
 
   SocketOutputStream s_output(handle->socket, handle->timeout);
-  s_output.println("end session");
+  const char *end_session_str = "end session";
+  s_output.println("%s", end_session_str);
   s_output.println("%s", "");
 
   SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
-  CHECK_TIMEDOUT_RET(handle, in, s_output, -1);
+  CHECK_TIMEDOUT_RET(handle, in, s_output, -1, end_session_str);
 
   DBUG_RETURN(0);
 }
@@ -3381,7 +3886,10 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   const ConfigValues * cfg = (ConfigValues*)c;
 
   UtilBuffer buf;
-  if (!cfg->pack(buf))
+  bool v2 = ndb_config_version_v2(h->mgmd_version());
+  bool ret = v2 ? cfg->pack_v2(buf) :
+                  cfg->pack_v1(buf);
+  if (!ret)
   {
     SET_ERROR(h, NDB_MGM_OUT_OF_MEMORY, "Packing config");
     DBUG_RETURN(-1);
@@ -3407,7 +3915,8 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   };
 
   const Properties *reply;
-  reply= ndb_mgm_call(h, set_config_reply, "set config", &args,
+  const char *cmd_str = v2 ? "set config_v2" : "set config";
+  reply= ndb_mgm_call(h, set_config_reply, cmd_str, &args,
                       encoded.c_str());
   CHECK_REPLY(h, reply, -1);
 
@@ -3437,8 +3946,12 @@ int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, -1);
 
   BaseString nodestr;
+  const char* sep = "";
   for (int i = 0; nodes[i] != 0; i++)
-    nodestr.appfmt("%u ", nodes[i]);
+  {
+    nodestr.appfmt("%s%u", sep, nodes[i]);
+    sep = " ";
+  }
 
   Properties args;
   args.put("nodes", nodestr.c_str());

@@ -59,15 +59,18 @@ alter table t3 add primary key(b);
 
 ##  PK scan tests
 # 6. Split is between 'unique' PK ranges
+--sorted_result
 select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or 
                               b IN ('c-1019=w', 'c-1020=w', 'c-1021=w', 
                                     'c-1022=w', 'c-1023=w', 'c-1024=w');
 
 # 7. Between non-uniq and uniq range
+--sorted_result
 select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1020=w') or 
                               b IN ('c-1021=w', 'c-1022=w', 'c-1023=w');
 
 # 8. Between uniq and non-uniq range
+--sorted_result
 select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or 
                               b IN ('c-1019=w', 'c-1020=w') or 
                               (b>='c-1021=w' and b<= 'c-1023=w');

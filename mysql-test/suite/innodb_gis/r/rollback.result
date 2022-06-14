@@ -412,7 +412,7 @@ insert into t1 values(3, point(3,3), point(3,3), 3);
 insert into t1 values(4, point(4,4), point(4,4), 4);
 start transaction;
 update t1 set a=point(5,5), b=point(5,5), c=5 where i < 3;
-ERROR 23000: Duplicate entry '5' for key 'c'
+ERROR 23000: Duplicate entry '5' for key 't1.c'
 rollback;
 set session debug="+d,row_mysql_crash_if_error";
 update t1 set a=point(5,5), b=point(5,5), c=5 where i < 3;

@@ -90,6 +90,16 @@ if($remote_clone) {
 
   connection default;
 
+  --echo # Valgrind failures for Bug 29717909 MEMORY LIFETIME OF VARIABLES BETWEEN CHECK AND UPDATE INCORRECTLY MANAGED
+  select @@clone_valid_donor_list;
+  set @blah = '127.0.0.1:8976';
+  SET GLOBAL clone_valid_donor_list = @blah;
+  select @@clone_valid_donor_list;
+  SET GLOBAL clone_valid_donor_list = default;
+  select @@clone_valid_donor_list;
+  SET GLOBAL clone_valid_donor_list = NULL;
+  select @@clone_valid_donor_list;
+
   --echo # Error: space in clone_valid_donor_list
   --replace_result $HOST HOST $PORT PORT
   --error ER_CLONE_SYS_CONFIG
@@ -191,6 +201,25 @@ SELECT @@global.innodb_undo_log_encrypt ;
 
 SET GLOBAL innodb_undo_log_encrypt = OFF;
 --force-rmdir $CLONE_DATADIR
+
+--echo # 3. Enable sql_require_primary_key
+
+UNINSTALL PLUGIN clone;
+
+SELECT @@sql_require_primary_key into @saved_sql_require_primary_key;
+SET sql_require_primary_key = OFF;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+UNINSTALL PLUGIN clone;
+
+SET sql_require_primary_key = ON;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SET global sql_require_primary_key = @saved_sql_require_primary_key;
 
 --echo #Cleanup
 

@@ -1,0 +1,4 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+TimeBetweenGlobalCheckpoints= 20

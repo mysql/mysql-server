@@ -10,11 +10,6 @@ Basic test that an insert affects Server + Session epochs
 insert into test.t1 values (1, repeat("B", 1000), repeat("E", 500));
 init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
 1	1	1	1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 binlog_contains_last_session_epoch
 1
 Basic test that a read with exclusive lock has no effect
@@ -25,11 +20,6 @@ count(1)
 commit;
 init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
 1	1	1	1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 binlog_contains_last_session_epoch
 0
 Basic test that a read with shared lock has no effect
@@ -40,11 +30,6 @@ count(1)
 commit;
 init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
 1	1	1	1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 binlog_contains_last_session_epoch
 0
 Basic test that a committedread has no effect
@@ -55,33 +40,18 @@ count(1)
 commit;
 init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
 1	1	1	1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 binlog_contains_last_session_epoch
 0
 Basic test that an update affects Server + Session epochs
 update test.t1 set b=repeat("E", 1000), c=repeat("A", 5000) where a=1;
 init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
 1	1	1	1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 binlog_contains_last_session_epoch
 1
 Basic test that a delete affects Server + Session epochs
 delete from test.t1 where a=1;
 init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
 1	1	1	1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 binlog_contains_last_session_epoch
 1
 Show that server epoch is preserved across connections

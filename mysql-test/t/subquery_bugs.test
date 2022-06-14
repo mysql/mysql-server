@@ -276,6 +276,7 @@ INSERT INTO p VALUES (1);
 --echo # Test UNIQUE KEY with NULL values
 CREATE TABLE s (Id INT, u INT, UNIQUE KEY o(Id, u) );
 INSERT INTO s VALUES (1, NULL),(1, NULL);
+ANALYZE TABLE s;
 
 let query1= SELECT p.Id FROM (p) WHERE p.Id IN (
             SELECT s.Id FROM s WHERE Id=1 AND u IS NULL)ORDER BY Id DESC;
@@ -291,6 +292,7 @@ eval $query2;
 --echo # UNIQUE KEY without NULL values
 CREATE TABLE s1 (Id INT, u INT, UNIQUE KEY o(Id, u) );
 INSERT INTO s1 VALUES (1, 2),(1, 3);
+ANALYZE TABLE s1;
 
 let query3= SELECT p.Id FROM (p) WHERE p.Id IN (
             SELECT s1.Id FROM s1 WHERE Id=1 AND u IS NOT NULL) ORDER BY Id DESC;
@@ -306,6 +308,7 @@ eval $query4;
 --echo # NON UNIQUE KEY Scenario
 CREATE TABLE s2 (Id INT, u INT, KEY o(Id, u) );
 INSERT INTO s2 VALUES (1, NULL),(1, NULL);
+ANALYZE TABLE s2;
 
 let query5= SELECT p.Id FROM (p) WHERE p.Id IN (
             SELECT s.Id FROM s2 s WHERE Id=1 AND u IS NULL) ORDER BY Id DESC;
@@ -313,6 +316,7 @@ let query5= SELECT p.Id FROM (p) WHERE p.Id IN (
 --echo #UNIQUE KEY with NON NULL FIELDS
 CREATE TABLE s3 (Id INT NOT NULL, u INT NOT NULL, UNIQUE KEY o(Id, u));
 INSERT INTO s3 VALUES (1, 2),(1, 3);
+ANALYZE TABLE s3;
 
 let query6= SELECT p.Id FROM (p) WHERE p.Id IN (
             SELECT s.Id FROM s3 s WHERE Id=1 AND u IS NOT NULL)
@@ -450,6 +454,8 @@ INSERT INTO t1 VALUES (3, 'K');
 INSERT INTO t1 VALUES (4, 'v');
 INSERT INTO t1 VALUES (5, 'E');
 
+ANALYZE TABLE t1, t2;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
 
 DROP TABLE t1, t2;
@@ -478,12 +484,16 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES ('6'),('6');
 
---error ER_SUBQUERY_NO_1_ROW
+# The hypergraph optimizer does not evaluate the subquery during
+# optimization, and does not get an error.
+--disable_result_log
+--error 0, ER_SUBQUERY_NO_1_ROW
 EXPLAIN FORMAT=tree SELECT 1 WHERE (
   SELECT 1
   FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
   WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
+--enable_result_log
 
 DROP TABLE t1;
 
@@ -492,9 +502,8 @@ DROP TABLE t1;
 --echo #
 
 #
-# Another case where the optimizer sets up a partially overlapping semijoin
-# and outer join. (If the plan changes to one without weedout as a result of
-# optimizer changes, most likely this test should just be deleted.)
+# This plan used to set up a partially overlapping semijoin and outer join;
+# verify that it no longer does, and no weedout is created.
 #
 
 CREATE TABLE t1 (
@@ -509,6 +518,9 @@ CREATE TABLE t2 (
   f2 varchar(1)
 );
 
+ANALYZE TABLE t1, t2;
+
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
 WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
 
@@ -607,6 +619,8 @@ CREATE TABLE t4 (
 );
 INSERT INTO t4 VALUES (6,2),(34,3);
 
+ANALYZE TABLE t1, t2, t3, t4;
+
 set optimizer_switch='firstmatch=off';
 
 # Creates a weedout that overlaps with the right side of an outer join.
@@ -618,6 +632,7 @@ let $query = SELECT * FROM t1 WHERE pk IN (
     RIGHT JOIN t2 ON t3.col_int_key <> t2.pk
 );
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -626,12 +641,28 @@ DROP TABLE t1, t2, t3, t4;
 set optimizer_switch=default;
 
 --echo #
+--echo # Bug #29693294: ASSERTION FAILURE M_INDEX_CURSOR.IS_POSITIONED() | SRC/HANDLER.CC
+--echo #
+
+# Sorts inside weedouts need to be by row ID (see JOIN::add_sorting_to_table()).
+# The EXPLAIN demonstrates it, and running the query verifies that it doesn't crash.
+CREATE TABLE t1 ( pk integer, f1 varchar(1) );
+INSERT INTO t1 VALUES (1,'D'), (20,'G');
+ANALYZE TABLE t1;
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=TREE SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+--partially_sorted_result 1
+SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#29664504 REGRESSION: CRASHING FROM ITEM_FUNC_AS_WKT::VAL_STR_ASCII()
 --echo #
 
 CREATE TABLE t1(a TINYBLOB);
 INSERT INTO t1 VALUES('aaa'),('bbb'),(''),('ccc');
 
+--skip_if_hypergraph  # Optimizes away the entire ORDER BY, leaving no error.
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT DISTINCT * FROM t1
 ORDER BY UUID_TO_BIN(
@@ -668,4 +699,1015 @@ INSERT INTO t1 VALUES(1),(2),(3);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT 1 FROM t1 WHERE
 (EXISTS(SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WINDOW w1 AS())))/1;
+DROP TABLE t1;
+
+--echo # Bug#29525304 Sig 6 at Item_in_subselect::val_int()
+
+CREATE TABLE t1 (vc varchar(1) NOT NULL);
+
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE 5 IN (SELECT 1) IS UNKNOWN;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29889223: SIG 6 AT TEMPTABLE::HANDLER::UPDATE_ROW | SRC/HANDLER.CC
+--echo #
+
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
+
+CREATE TABLE t1 (
+  field1 integer
+);
+INSERT INTO t1 VALUES (13);
+
+CREATE TABLE t2 (
+  field2 integer
+);
+INSERT INTO t2 VALUES (18);
+
+CREATE TABLE t3 (
+  field3 integer
+);
+INSERT INTO t3 VALUES (1);
+
+# Set up a query where we have weedout of a streamed materialization,
+# which verifies that we have working row IDs on the temporary table
+# used for streaming.
+#
+# We don't care about the result of the output; it should just not crash.
+UPDATE t3 SET field3 = 9 WHERE field3 IN (
+  SELECT 1
+  FROM ( SELECT * FROM t2 ) AS alias1
+  WHERE EXISTS ( SELECT * FROM t1 WHERE field1 <> alias1.field2 )
+);
+
+DROP TABLE t1, t2, t3;
+set optimizer_switch=default;
+
+--echo #
+--echo # Bug #29836364: WL#13000: SIG 11 AT COST_SKIP_SCAN() | SQL/OPT_RANGE.CC
+--echo #
+
+CREATE TABLE t1 (
+  f1 integer NOT NULL PRIMARY KEY,
+  f2 varchar(1),
+  KEY f2_idx (f2)
+);
+
+INSERT INTO t1 VALUES (20,'2');
+
+ANALYZE TABLE t1;
+
+# Essentially verifies that running the range optimizer on a three-table
+# JOIN during execution ("re-planned for each iteration") doesn't crash.
+# If it does, it's typically because the range optimizer doesn't know which
+# join it is working over.
+let $query = SELECT (
+        SELECT t2.f2 FROM t1 JOIN (
+                t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
+        ) ON t3.f2 = t2.f2
+        WHERE t2.f1 > table1.f2
+) FROM t1 AS table1;
+
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # Bug#28941154: Executing query does not return a result the first time
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int int,
+  col_time_key time,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY idx_CC_col_time_key (col_time_key),
+  KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES
+ (1,1244696008,'15:54:41','u'),
+ (2,893471119,'16:03:34','e'),
+ (3,462275345,'06:57:11','g'),
+ (4,2067212400,'06:56:19','E'),
+ (5,-270339471,'03:38:07','d'),
+ (6,-734590502,'03:18:29','Q'),
+ (7,-1230000720,'15:56:21','C'),
+ (8,-1086526061,'19:08:49','B'),
+ (9,-1620913518,'22:44:04','3'),
+ (10,1210237478,'11:18:51','i'),
+ (11,-886894023,'20:28:00','A'),
+ (12,-1490912666,'17:51:14','H'),
+ (13,149282252,'16:51:14','Z'),
+ (14,1451237940,'09:13:29','L'),
+ (15,1933327447,'11:14:05','2'),
+ (16,-693463421,'05:29:04','V'),
+ (17,333204980,'16:24:13','O'),
+ (18,279626907,'09:45:54','t'),
+ (19,-1372487638,'17:45:04','a'),
+ (20,-150563684,'15:32:40','D');
+
+ANALYZE TABLE t1;
+
+let $query=
+SELECT table2.col_time_key AS field1
+FROM t1 AS table1 LEFT JOIN t1 AS table2
+     ON table1.col_varchar_key = table2.col_varchar_key
+WHERE 1 IN (SELECT 1 FROM t1 AS subq
+            WHERE subq.pk <= (SELECT DISTINCT MIN(subq.col_int)
+                              FROM t1 as alias1
+                             )
+           );
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+
+--echo # Bug#28910365 Segfault at Item_cache::walk() on 2nd execution
+
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int int DEFAULT NULL
+);
+
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int int DEFAULT NULL
+);
+
+INSERT INTO t2 VALUES (1, 2);
+
+PREPARE st FROM
+"DELETE outr1.*
+ FROM t1 AS outr1 RIGHT OUTER JOIN t2 AS outr2
+      ON outr1.col_int = outr2.col_int
+ WHERE (0, 3) NOT IN (SELECT innr1.pk AS x, innr1.col_int AS y
+                      FROM t2 AS innr1
+                      WHERE outr1.col_int = 25)";
+EXECUTE st;
+EXECUTE st;
+
+DEALLOCATE PREPARE st;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #30250091: CONDITIONS WITHIN MATERIALIZED SEMIJOINS ARE FLOATING UP
+--echo #
+
+# This query gets a condition posted on the materialized semijoin that cannot
+# readily be pushed higher up the tree without causing wrong results
+# (it needs to be before the antijoin). Verify that it is kept below the
+# materialization, and thus outputs the correct values.
+
+CREATE TABLE t1 (
+  f1 INTEGER
+);
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE TABLE t2 (
+  f2 VARCHAR(10)
+);
+
+CREATE TABLE t3 (
+  f3 INTEGER UNIQUE NOT NULL
+);
+
+CREATE TABLE t4 (
+  f4 INTEGER
+);
+
+INSERT INTO t4 VALUES (13), (14), (NULL);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query =
+  SELECT * FROM t1
+  WHERE NOT EXISTS (
+     SELECT *
+     FROM t4 LEFT JOIN t3 ON t4.f4 = t3.f3
+     WHERE 'abc' IN (
+        SELECT t2.f2 FROM t2 WHERE t3.f3 = 1 HAVING t2.f2 = 'xyz'
+     )
+   );
+
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #30289052: MYSQL PRODUCES DIFFERENT RESULT FOR MATERIALIZED SUBQUERY IF INDEX EXISTS OR NOT
+--echo #
+
+CREATE TABLE table_city (id int NOT NULL PRIMARY KEY);
+CREATE TABLE table_user (id int NOT NULL PRIMARY KEY);
+CREATE TABLE table_city_user (city int NOT NULL, user int NOT NULL, KEY city (city));
+
+INSERT INTO table_city (id) VALUES (1),(2),(3),(4),(5),(6);
+INSERT INTO table_user (id) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO table_city_user (city, user) VALUES
+  (1,1),(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(2,1),(2,2),(2,3),(2,4),
+  (2,5),(3,2),(3,5),(4,5),(4,2),(4,3),(4,8),(4,1);
+
+ANALYZE TABLE table_city, table_user, table_city_user;
+
+let $query =
+  SELECT id, (
+    SELECT GROUP_CONCAT(id) FROM (
+      SELECT table_user.id FROM table_user WHERE id IN (
+        SELECT user FROM table_city_user WHERE table_city_user.city = table_city.id
+      )
+      GROUP BY table_user.id
+    ) AS d
+  ) AS users FROM table_city;
+
+# Verify that we get a query plan with semijoin materialization.
+# If the optimizer chooses a different strategy, consider deleting this test.
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
+eval EXPLAIN FORMAT=tree $query;
+
+# Order depends on the query plan.
+--replace_result 5,2,3,8,1 1,2,3,5,8
+eval $query;
+
+DROP TABLE table_city, table_user, table_city_user;
+
+--echo #
+--echo # Bug#30267889 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED | TEMPTABLE::HANDLER::POSITION
+--echo #
+
+CREATE TABLE b (c INTEGER, KEY idx_b (c));
+CREATE TABLE c (c INTEGER, KEY idx_c (c));
+CREATE TABLE d (c INTEGER, KEY idx_d (c));
+
+INSERT INTO b VALUES (1), (2);
+INSERT INTO c VALUES (1), (2);
+INSERT INTO d VALUES (1), (2);
+ANALYZE TABLE b, c, d;
+
+let $query =
+SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
+FROM d JOIN c
+WHERE d.c IN (
+  SELECT
+    b.c
+  FROM
+    b LEFT JOIN c AS c_inner ON c_inner.c = b.c
+  WHERE
+    EXISTS ( SELECT c FROM c AS c_inner_inner )
+) ORDER BY d.c;
+
+# Shouldn't use Semijoin LooseScan, as the iterator for this strategy
+# cannot handle when the LooseScan driving table (b) is not
+# inner-joined with the next table in nest (c).
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE b, c, d;
+
+# These tests cover the particular cases of when the jump target of
+# FirstMatch is either NO_PLAN_IDX (before the first table) or a
+# constant table.
+
+CREATE TABLE t1(pk INT PRIMARY KEY, col_int_nokey INT);
+INSERT INTO t1 VALUES(26, 12);
+ANALYZE TABLE t1;
+
+# No outer join: jump target == NO_PLAN_IDX.
+
+let $query=
+  SELECT /*+ JOIN_ORDER(t3,t1) */ *
+  FROM
+  t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
+
+eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=TREE $query;
+
+# Outer join: the jump target could be to constant table t1, but
+# the iterator executor doesn't support it (it would be jumping out of
+# the nest (t2,t3) while in the middle of it), so we choose another
+# plan.
+
+let $query=
+  SELECT /*+ JOIN_ORDER(t1,t3,t2) */ *
+  FROM
+  t1 LEFT JOIN t1 AS t2
+  ON 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3)
+  WHERE t1.pk=26;
+
+eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=TREE $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30273827: SIG6 IN SELECT_LEX_UNIT::EXCLUDE_LEVEL() AT
+--echo #               SQL/SQL_LEX.CC
+--echo #
+
+CREATE TABLE t1(f1 varchar(1)) ;
+
+SELECT 1 FROM t1 AS table2 LEFT JOIN (SELECT 'c') AS table3(f1)
+  ON table3.f1 = table2.f1 WHERE table2.f1
+    IN (SELECT 1 FROM (SELECT 1314830897) AS t1(pk)
+          WHERE t1.pk <= ANY(SELECT 5)) AND FALSE;
+
+DROP TABLE t1;
+
+--echo # Bug#30309982: Sig6 in Item_subselect::exec()
+
+CREATE VIEW v1 AS
+SELECT 1
+FROM (SELECT 1) AS table1(pk) JOIN
+     (SELECT 1) AS table2
+     ON table1.pk = (SELECT 1)
+WHERE table1.pk IN ((SELECT 1), 2);
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#30515233 DISTINCT INSIDE LATERAL DERIVED TABLE BREAKS IN ITERATOR EXECUTOR
+--echo #
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1),(2),(3);
+ANALYZE TABLE t;
+
+SELECT * FROM
+t AS upper JOIN LATERAL
+(SELECT DISTINCT ROW_NUMBER() OVER () AS rn FROM t
+ WHERE (t.a > upper.a)) der ;
+
+DROP TABLE t;
+
+--echo #
+--echo # Verify that decorrelation works for WHERE outer_col=constant
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t1 VALUES(1,10),(2,10),(3,30);
+INSERT INTO t2 VALUES(2),(3),(2),(4);
+ANALYZE TABLE t1,t2;
+
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off,duplicateweedout=off';
+
+let $query=
+SELECT * FROM t1 WHERE (t1.a,t1.b) IN (SELECT t2.a,10 FROM t2);
+
+# SJ-materialization was not chosen as equalities were not
+# decorrelated
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE 10=t1.b);
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE 10=t1.b AND t1.a=t2.a);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+set optimizer_switch=default;
+
+--echo #
+--echo # Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER,
+  pk INTEGER
+);
+
+INSERT INTO t1 VALUES (6,24),(7,0),(8,2),(0,15);
+
+CREATE TABLE t2 (
+  pk INTEGER,
+  UNIQUE ( pk )
+);
+
+INSERT INTO t2 VALUES (6),(27),(41);
+
+CREATE TABLE t3 (
+  pk INTEGER
+);
+
+INSERT INTO t3 VALUES (4),(40),(46);
+
+CREATE TABLE t4 (
+  col_int INTEGER
+);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+# Verify that the IS NOT NULL condition added on t3 refers to t3 and not t1,
+# even though we have substituted t3 with t1 elsewhere when re-resolving
+# multi-equalities for the hash join condition.
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=tree
+  SELECT * FROM
+    t1
+      JOIN t2 ON t1.pk = t2.pk
+      JOIN t3 ON t2.pk = t3.pk
+  WHERE (t1.col_int + t2.pk) IN ( SELECT col_int FROM t4 );
+
+DROP TABLE t1, t2, t3, t4;
+
+CREATE TABLE t1 (
+  col1 CHAR(16),
+  UNIQUE KEY col1_idx (col1)
+);
+
+CREATE TABLE t2 (
+  col1 INTEGER,
+  col2 INTEGER,
+  UNIQUE KEY ix1 (col1)
+);
+
+CREATE TABLE t3 (
+  col1 INTEGER,
+  col2 INTEGER NOT NULL,
+  UNIQUE KEY ix1 (col1)
+);
+
+ANALYZE TABLE t1,t2,t3;
+
+# Very much like the previous test case; verify that the BETWEEN attached to t3
+# refers to t3 and not to t2, even though we have substituted t3 with t2
+# elsewhere when re-resolving multi-equalities for the hash join condition.
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=tree
+  SELECT /*+ JOIN_ORDER(t3,t2,t1) */ * FROM t1
+  WHERE t1.col1 = ANY (
+    SELECT t1.col1 + t2.col2
+    FROM t2 JOIN t3 ON t2.col2 = t3.col2 AND t2.col1 =  t3.col1
+    WHERE t2.col2 BETWEEN 2 AND 9
+  );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30659623 ASSERT IN SQL/ITEM_SUBSELECT.CC:3571: SUBSELECT_HASH_SJ_ENGINE::EXEC()
+--echo #
+
+CREATE TABLE t1 (col_int_key INT);
+
+INSERT INTO t1 VALUES (NULL);
+
+CREATE TABLE t2 (
+  col_int_key INT, col_int_unique INT,
+  UNIQUE KEY (col_int_unique), KEY (col_int_key)
+);
+
+INSERT INTO t2 VALUES (26,14),(3,46),(45,2),(18,30),(11,22),(19,8),(41,3),(1,5),
+(1,9),(38,4),(13,38),(32,12),(11,7),(2,26),(5,10),(16,45);
+
+CREATE TABLE t3 (pk INT NOT NULL PRIMARY KEY);
+
+ANALYZE TABLE t1,t2,t3;
+
+let $query=
+SELECT *
+FROM t1
+  LEFT JOIN t2 ON t1.col_int_key = t2.col_int_key
+  JOIN t3 ON t1.col_int_key =  t3.pk
+WHERE t3.pk+6 NOT IN (
+  SELECT /*+ subquery(materialization) */
+    table1s.col_int_unique AS field4 FROM t2 AS table1s);
+
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format = tree $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
+--echo # Bug#30837240 Assertion 'item->is_bool_func()' failed
+
+CREATE TABLE t1 (
+  col_datetime datetime DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_char char(1) DEFAULT NULL,
+  col_char_key char(1) DEFAULT NULL,
+  col_tinyint tinyint DEFAULT NULL,
+  col_tinyint_key tinyint DEFAULT NULL
+);
+
+CREATE TABLE t2 (
+  col_real_key double DEFAULT NULL,
+  col_mediumint mediumint DEFAULT NULL
+);
+
+CREATE TABLE t3 (
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL
+);
+
+let $query=
+SELECT COUNT(table1.col_datetime) AS field1
+FROM t1 AS table1 RIGHT JOIN t1 AS table2
+     ON table1.col_varchar_key = table2.col_char
+WHERE table1.col_char_key IN
+       (SELECT sq2_t1.col_real_key
+        FROM t2 AS sq2_t1 JOIN
+               t3 AS sq2_t2 JOIN t1 AS sq2_t3
+               ON INSTR(sq2_t3.col_tinyint, 'K') = sq2_t2.col_varchar
+             ON sq2_t3.col_varchar_key = sq2_t2.col_varchar_key
+        WHERE sq2_t1.col_mediumint IN
+               (SELECT sq1_t1.col_varchar_key
+                FROM t1 AS sq1_t1 JOIN t1 AS sq1_t2
+                     ON sq1_t2.col_tinyint_key = table1.col_tinyint_key
+               )
+       ) OR
+      RTRIM(table1.col_tinyint_key) IS NOT NULL;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #30912972 ASSERTION KEYLEN == M_START_KEY.LENGTH FAILED|PARTITION_HANDLER.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key bigint DEFAULT NULL,
+  KEY(col_int_key)
+) PARTITION BY KEY(col_int_key) PARTITIONS 10;
+
+INSERT INTO t1 VALUES
+(NULL);
+
+SELECT 42
+WHERE 11 NOT IN
+(SELECT col_int_key FROM t1);
+
+DROP TABLE t1;
+
+--echo # Bug#30753397 ASSERTION `!TR->DERIVED_WHERE_COND || TR->DERIVED_WHERE_COND->FIXED' FAILED.
+--echo #
+
+CREATE TABLE t(a INT);
+SELECT 1=
+(
+  SELECT 1 FROM
+  (
+    SELECT 1 FROM t
+    LEFT JOIN
+    (
+      SELECT 1 FROM t
+      WHERE NOT EXISTS
+            (
+              SELECT 1 FROM t WINDOW w1 AS (PARTITION BY a)
+            )
+    ) AS x
+    ON 1 > 2
+  ) AS z
+);
+DROP TABLE t;
+
+--echo # Bug#30899681 Mysqld got signal 11 at Item::walk() 
+
+CREATE TABLE t1 (
+ col_varchar varchar(1),
+ col_varchar_key varchar (1),
+ key (col_varchar_key)
+);
+
+CREATE TABLE t2 (
+ col_varchar varchar(1),
+ col_int_key int,
+ key (col_int_key)
+);
+
+INSERT INTO t2 VALUES ('t', 2);
+
+CREATE TABLE t3 (
+ pk integer auto_increment,
+ col_int int,
+ col_varchar_key varchar(1),
+ primary key (pk),
+ key (col_varchar_key)
+);
+
+INSERT INTO t3 (col_int, col_varchar_key) VALUES
+ (2, 'e'), (NULL, 'n'), (2, NULL), (0, 'a'), (NULL, 'd'), (1, 's'),
+ (NULL, 'v'), (7, 'l'), (118, NULL), (NULL, 'l'), (8, 'c'), (4, 'a'),
+ (8, 'r'), (1, 'q'), (3, 'o'), (NULL, 'q'), (2, 'j'), (6, 'f'),
+ (5, 'e'), (7, 'p');
+
+CREATE TABLE t4 (
+ col_int_key int,
+ col_varchar varchar(1),
+ key (col_int_key)
+);
+
+INSERT INTO t4 VALUES
+ (5, 'k'), (5, 'g'), (5, 'k'), (1, 'e'), (9, 'b'), (NULL, 'b'),
+ (141, 'w'), (0, 'i'), (240, 'x'), (1, 'h'), (NULL, 'p'), (201, 'v'),
+ (5, 'e'), (NULL, 'e'), (2, 'a'), (3, 'r'), (NULL, 'f'), (8, 's'),
+ (7, 'k'), (6, 'k');
+
+CREATE TABLE t5 (
+ col_int int,
+ col_varchar_key varchar(1),
+ pk integer auto_increment,
+ primary key(pk)
+);
+
+INSERT INTO t5 (col_int, col_varchar_key) VALUES
+ (9, 'g'), (8, 'c'), (2, 'k'), (3, 'g'), (NULL, 'm'), (2, 'c'),
+ (1, 'o'), (NULL, 'r'), (0, 'u'), (7, 'z'), (4, 'd'), (1, 'q'),
+ (3, 't'), (NULL, 'x'), (1, 'g'), (8, 'e'), (2, 'f'), (9, NULL),
+ (229, 't'), (2, 'i'), (127, 'x'), (75, 'u'), (4, 'r'), (4, 'y'),
+ (NULL, 'y'), (7, 'n'), (8, 'h'), (0, 'e'), (9, 'h'), (4, 'v'),
+ (4, 'o'), (0, 'w'), (9, NULL), (7, NULL), (7, 'd'), (74, 's'),
+ (1, 'j'), (9, 'k'), (5, 'g'), (3, 'o'), (5, 'b'), (1, 'l'),
+ (3, 'u'), (0, 'v'), (7, 'y'), (9, 'g'), (6, 'i'), (9, 'f'),
+ (3, 'u'), (4, 'q'), (NULL, NULL), (0, 'k'), (NULL, 'l'), (2, 'q'),
+ (7, 'r'), (5, 't'), (2, 'h'), (2, NULL), (NULL, 'z'), (7, 'c'),
+ (NULL, 'd'), (242, 'h'), (7, 'e'), (5, 'e'), (7, 's'), (9, 'u'),
+ (250, 'z'), (9, 'n'), (7, 'j'), (3, 's'), (8, 'e'), (6, NULL),
+ (NULL, 'i'),  (1, 'n'), (3, 'k'), (7, 'n'), (1, 'w'), (8, 'x'),
+ (1, 'b'), (9, NULL), (4, 'o'), (3, 'i'), (9, 'n'), (91, 'c'),
+ (5, 'j'), (8, 'g'), (7, 'c'), (9, NULL), (8, 'd'), (NULL, 'h'),
+ (4, 'k'), (1, 'r'), (33, 'k'), (8, 'n'), (4, 'h'), (2, 'q'),
+ (9, 'p'), (1, NULL), (8, 'n'), (0, 'j');
+
+SET @var1 = 'h', @var2 =  66 ;
+
+PREPARE ps FROM '
+SELECT (SELECT SUM(sq1_t1.col_int) AS sq1_field1
+        FROM t3 AS sq1_t1 INNER JOIN t1 AS sq1_t2
+             ON sq1_t2.col_varchar_key = sq1_t1.col_varchar_key
+        WHERE sq1_t2.col_varchar < sq1_t2.col_varchar OR
+              sq1_t2.col_varchar <>  ?
+       ) AS field1
+FROM t5 AS table1 LEFT OUTER JOIN t4 AS table2
+     ON table2.col_int_key = table1.col_int
+WHERE table1.pk > ANY
+       (SELECT sq2_t1.pk AS sq2_field1
+        FROM t3 AS sq2_t1 STRAIGHT_JOIN t2 AS sq2_t2
+             ON sq2_t2.col_int_key = sq2_t1.pk
+        WHERE sq2_t2.col_varchar >= table2.col_varchar AND
+              sq2_t2.col_varchar <= table1.col_varchar_key
+       ) AND
+      table1.pk = ?';
+
+EXECUTE ps USING @var1, @var2;
+EXECUTE ps USING @var1, @var2;
+
+DROP TABLE t1, t2, t3, t4, t5;
+
+--echo Bug#31119132 Semijoin with condition of type column=constant breaks
+--echo              if different character sets
+
+CREATE TABLE t1(
+  pk INTEGER,
+  col_int INTEGER,
+  col_varchar VARCHAR(1),
+  col_int_key INTEGER,
+  col_datetime_key DATETIME,
+  col_varchar_key VARCHAR(1)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE PROCEDURE p1() LANGUAGE SQL
+  SELECT DISTINCT MIN(outr.col_varchar) AS x
+  FROM t1 AS outr2 LEFT JOIN t1 AS outr
+       ON outr2.col_int_key <> outr.pk
+  WHERE outr.col_int IN
+     (SELECT innr.col_int_key AS y
+      FROM t1 AS innr
+      WHERE outr.col_varchar_key = 'z') AND
+        outr.col_datetime_key = '2003-12-04'
+ORDER BY outr.pk, outr.pk;
+CALL p1;
+CALL p1;
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31359965 ASSERTION `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX))' FAILED. IN FIELD_NEW_DECIMAL::VAL_DECIMAL
+--echo #
+
+CREATE TABLE t (a DECIMAL(61,14),KEY(a));
+INSERT INTO t VALUES(0),(-1);
+SELECT
+(
+  SELECT 1 FROM
+  (
+    SELECT a FROM (SELECT 1) u
+  ) z
+)
+FROM t GROUP BY 1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #31530529: SERVER CRASH SEEN - (MY_PRINT_STACKTRACE(UNSIGNED CHAR CONST*, UNSIGNED LONG)
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  a VARCHAR(1),
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (3,'N');
+INSERT INTO t1 VALUES (4,'e');
+INSERT INTO t1 VALUES (5,'7');
+INSERT INTO t1 VALUES (6,'7');
+ANALYZE TABLE t1;
+
+--sorted_result
+SELECT * FROM t1 AS table1, t1 AS table2
+  WHERE table1.pk = 6
+  HAVING table1.a IN (SELECT a FROM t1);
+
+DROP TABLE t1;
+
+--echo # Bug#20794575: Assertion failed: bit < map->n_bits
+
+SET optimizer_switch="semijoin=off";
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(c INTEGER);
+
+SELECT b FROM t1 HAVING 1 IN
+  (SELECT b FROM t2 WHERE c = 1);
+
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#30753397: Assertion `!tr->derived_where_cond || tr->derived_where_cond->fixed' failed
+
+CREATE TABLE t(a INTEGER);
+
+INSERT INTO t VALUES(1),(2),(3);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 = (SELECT 1
+            FROM (SELECT 1
+                  FROM t LEFT JOIN
+                         (SELECT 1
+                          FROM t
+                          WHERE NOT EXISTS (SELECT 1
+                                            FROM t
+                                            WINDOW w1 AS(PARTITION BY a)
+                                           )
+                         ) AS x
+                         ON 1 > 2
+                  ) AS z
+           );
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #31559978: REGRESSION: HEAP BUFFER OVERFLOW & ASSERTION FAILURE: ROW0SEL.CC:5574:PREBUILT->CAN_PREFETCH_RECORDS() || RECORD_BUFFER == NULLPTR
+--echo #
+CREATE TABLE t1 (
+  a INTEGER,
+  d VARCHAR(255) NOT NULL,
+  PRIMARY KEY (d)
+);
+
+INSERT INTO t1 VALUES (1,'1'), (2,'2');
+# Verify that we get weedout (to provoke row IDs); if we don't,
+# consider deleting the test.
+--skip_if_hypergraph
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31096309 - 8.0.16+ DIFFERENT RESULTSET THAN 5.7 AND <=8.0.15
+--echo #
+
+CREATE TABLE t1 (c1 int, c2 char(10));
+INSERT INTO t1 VALUES (1, 'name1');
+INSERT INTO t1 VALUES (2, 'name2');
+SET optimizer_switch='semijoin=on';
+
+# non-zero OFFSET expect a non-semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 1,1);
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format = tree $query;
+eval $query;
+
+# zero OFFSET expect a semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format=tree $query;
+eval $query;
+
+# non-constant OFFSET expect a non-semijoin plan
+SET @offset_value=0;
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT ?,1);
+let $explain_query = PREPARE explain_stmt FROM "EXPLAIN format = tree $query";
+eval $explain_query;
+--skip_if_hypergraph  # Depends on the query plan.
+EXECUTE explain_stmt USING @offset_value;
+
+let $execute_query = PREPARE stmt FROM "$query";
+eval $execute_query;
+EXECUTE stmt USING @offset_value;
+
+# zero LIMIT expect a non-semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,0);
+--skip_if_hypergraph  # Depends on the query plan.
+eval explain format = tree $query;
+eval $query;
+
+DROP TABLE t1;
+SET optimizer_switch=default;
+
+--echo #
+--echo # Bug #31586937: REGRESSION: CRASH IN FILESORT::MAKE_SORTORDER
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+SELECT ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 ) FROM t1 GROUP BY a;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32680367: ASSERTION `PATH->COST >= PATH->INIT_COST' FAILED|JOIN_OPTIMIZER.CC - HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(1));
+INSERT INTO t1 VALUES (NULL), ('r');
+ANALYZE TABLE t1;
+
+# We don't care about the output, just that the access paths are consistent
+# (which is verified by assertion).
+SELECT * FROM t1 WHERE a <= ALL (
+  SELECT 'a' FROM t1 AS t2
+  WHERE t2.a < t1.a AND t2.a NOT IN (SELECT a FROM t1)
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32937950 - HYPERGRAPH: CACHED_ITEM* NEW_CACHED_ITEM: ASSERTION `0' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER,
+  PRIMARY KEY (a)
+) PARTITION BY LINEAR KEY () PARTITIONS 4;
+
+# Sets up a semijoin on ROW(a) = ROW(a) for some reason,
+# and the WHERE happens to make it cheapest to execute
+# by means of deduplication and inverting the join.
+SELECT 1 FROM t1 WHERE
+  ( SELECT a FROM ( SELECT 1 ) AS q )
+   IN ( SELECT a FROM t1 WHERE a > 0 GROUP BY a );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32934187: HYPERGRAPH: CRASHING IN ITEM_IN_SUBSELECT::EXEC
+--echo #
+
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+
+SET @b := _latin1 'a';
+--disable_result_log
+# The hypergraph optimizer errors out, the old optimizer does not.
+--error 0,ER_WRONG_VALUE
+SELECT 1 FROM t1 WHERE (@b IN ( SELECT a FROM t1 )) = a;
+--enable_result_log
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32895824: SIGNAL 6 ASSERTION`!NULL_VALUE || IS_NULLABLE()'
+--echo #               FAILED IN ../SQL/ITEM_FUNC.CC
+--echo #
+CREATE TABLE t(pk INT PRIMARY KEY);
+SELECT 1 FROM t
+WHERE CAST(pk AS UNSIGNED INTEGER) = 1
+      AND pk = (SELECT 1 FROM t);
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32932969: ASSERTION `ITEM->IS_NULLABLE()' FAILED.
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+--error ER_GIS_INVALID_DATA
+SELECT 1 FROM t1 GROUP BY (
+  SELECT COALESCE(18446744073709551614, COUNT(ST_AREA(ST_ASWKT(a))))
+) WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33076462: PB2: FAILURE IN RQG_MULTI_UPDATE_DELETE TEST
+--echo #
+
+CREATE TABLE t1 ( c INTEGER, KEY (c) );
+
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (7);
+
+CREATE TABLE t3 (
+  a INTEGER,
+  b INTEGER,
+  c INTEGER,
+  KEY (a)
+);
+INSERT INTO t3 VALUES (3,4,NULL);
+
+ANALYZE TABLE t1, t2, t3;
+
+UPDATE t1, t2
+  SET t1.c = 0
+  WHERE t1.c <> (
+    SELECT
+      t3.c
+    FROM
+      t3
+      JOIN t3 AS t3_b ON t3_b.a > t3.a
+    WHERE t3.b <= t3.b XOR t2.pk = 3
+  );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #33030793: WL#14419: ASSERTION `NEW_PATH->COST >= NEW_PATH->INIT_COST' FAILED
+--echo #
+
+CREATE TABLE t1 ( a BLOB );
+
+SELECT t1.a
+FROM
+  t1,
+  LATERAL ( SELECT t1.a FROM t1 AS inner_t1 LIMIT 1 ) AS d1
+WHERE 1 IN ( SELECT a FROM t1 )
+ORDER BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33045256: WL#14419: ASSERTION `NULLPTR != DYNAMIC_CAST<TARGET>(ARG)' FAILED
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+
+# Disable the output, since only the hypergraph optimizer can actually run this query.
+--disable_result_log
+--error 0,ER_NOT_SUPPORTED_YET
+SELECT * FROM (
+  SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+) AS d1
+WHERE (a,b) IN (
+  SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+);
+--enable_result_log
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33075707: HYPERGRAPH: ASSERTION `COND->REAL_ITEM()->IS_BOOL_FUNC()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('0');
+
+# NOTE: The regexp_like() contains an error (the empty pattern is
+# not allowed), but it will never be evaluated.
+SELECT 1
+FROM t1
+WHERE a NOT IN (
+  SELECT 1
+  FROM
+    t1 AS t2
+    LEFT JOIN t1 AS t3 ON (t2.a = t3.a OR 0 IN ( SELECT REGEXP_LIKE(a, '') FROM t1 ))
+);
+
 DROP TABLE t1;

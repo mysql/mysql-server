@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1]
+group_replication_unreachable_majority_timeout= 10
+group_replication_autorejoin_tries= 0
+
+[mysqld.2]

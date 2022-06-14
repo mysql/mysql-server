@@ -345,15 +345,15 @@ Grants for userX, userY, userZ should show SELECT on mysql.*
 SHOW GRANTS FOR userX;
 Grants for userX@%
 GRANT USAGE ON *.* TO `userX`@`%`
-GRANT PROXY ON 'proxied'@'%' TO 'userX'@'%'
+GRANT PROXY ON `proxied`@`%` TO `userX`@`%`
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
-GRANT PROXY ON 'proxied'@'%' TO 'userY'@'%'
+GRANT PROXY ON `proxied`@`%` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT PROXY ON 'proxied'@'%' TO 'userZ'@'%'
+GRANT PROXY ON `proxied`@`%` TO `userZ`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc

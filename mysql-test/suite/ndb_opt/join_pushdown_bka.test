@@ -1,0 +1,108 @@
+#
+# Test of pushed joins, aka SPJ, or AQL.
+# (Test with defaults + 'batched_key_access=on')
+#
+# NOTE: BKA will turn of lots of pushed join, we 
+#       are unsure if this is the best strategy, or
+#       if its better/possible to sacrify the BKA
+#
+
+--source include/have_ndb.inc
+if (!`select locate('batched_key_access', @@global.optimizer_switch) > 0`)
+{
+  skip Need batched_key_access;
+}
+
+set @@global.optimizer_switch='batched_key_access=on';
+
+--source join_pushdown.inc
+
+################################
+# BKA specific test cases / bugs
+#
+
+#Bug#32774281  MULTI-RANGE LOOKUP FAILS,
+#              ERROR 4316 'KEY ATTRIBUTES ARE NOT ALLOWED TO BE NULL'
+#
+# The MRR flag HA_MRR_NO_NULL_ENDPOINTS was specified even if
+# such a guarantee could not be made: If the join condition
+# contained a IS NULL predicate, or the '<=>' 'NULL-safe' equal
+# operator was used in the predicate, NULL values keys _are_
+# generated during execution.
+#
+# Note1: The HA_MRR_NO_NULL_ENDPOINTS flag is only used by the
+#         ha_ndcluster handler.
+#
+# Note2: HA_MRR_NO_NULL_ENDPOINTS is only checked for a
+#        'UNIQUE KEY   ... USING HASH'
+
+
+CREATE TABLE f (
+  col_int_key int DEFAULT NULL
+) ENGINE=ndbcluster;
+
+CREATE TABLE p (
+  col_int int DEFAULT NULL,
+  col_int_unique int DEFAULT NULL,
+  UNIQUE KEY ix1 (col_int,col_int_unique) USING HASH
+) ENGINE=ndbcluster;
+
+insert into f values (1),(NULL);
+insert into p values (NULL,1);
+
+# A IS NULL predicate will generate MRR NULL value keys
+# -> A BKA access should not be generated
+let $query=
+SELECT * FROM f AS table2
+  STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
+                           AND table4.col_int_unique = table2.col_int_key;
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+# Using a literal instead will -> BKA access
+let $query=
+SELECT * FROM f AS table2
+  STRAIGHT_JOIN p AS table4 ON table4.col_int = 1
+                           AND table4.col_int_unique = table2.col_int_key;
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+# Similar test cases with '<=>' vs '='
+# Only '=' guarantee HA_MRR_NO_NULL_ENDPOINTS
+let $query=
+SELECT * FROM f AS table2
+  STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
+                           AND table4.col_int_unique = table2.col_int_key;
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+let $query=
+SELECT * FROM f AS table2
+  STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+                           AND table4.col_int_unique <=> table2.col_int_key;
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+let $query=
+SELECT * FROM f AS table2
+  STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+                           AND table4.col_int_unique = table2.col_int_key;
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+DROP TABLE f,p;
+
+set @@global.optimizer_switch=default;

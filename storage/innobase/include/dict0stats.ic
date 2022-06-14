@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,20 +37,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Set the persistent statistics flag for a given table. This is set only
  in the in-memory table object and is not saved on disk. It will be read
  from the .frm file upon first open from MySQL after a server restart. */
-UNIV_INLINE
-void dict_stats_set_persistent(
+static inline void dict_stats_set_persistent(
     dict_table_t *table, /*!< in/out: table */
-    ibool ps_on,         /*!< in: persistent stats explicitly enabled */
-    ibool ps_off)        /*!< in: persistent stats explicitly disabled */
+    bool ps_on,          /*!< in: persistent stats explicitly enabled */
+    bool ps_off)         /*!< in: persistent stats explicitly disabled */
 {
   /* Not allowed to have both flags set, but a CREATE or ALTER
   statement that contains "STATS_PERSISTENT=0 STATS_PERSISTENT=1" would
   end up having both set. In this case we clear the OFF flag. */
   if (ps_on && ps_off) {
-    ps_off = FALSE;
+    ps_off = false;
   }
 
-  ib_uint32_t stat_persistent = 0;
+  uint32_t stat_persistent = 0;
 
   if (ps_on) {
     stat_persistent |= DICT_STATS_PERSISTENT_ON;
@@ -66,14 +65,13 @@ void dict_stats_set_persistent(
 
 /** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
-UNIV_INLINE
-ibool dict_stats_is_persistent_enabled(
+static inline bool dict_stats_is_persistent_enabled(
     const dict_table_t *table) /*!< in: table */
 {
   /* Because of the nature of this check (non-locking) it is possible
   that a table becomes:
-  * PS-disabled immediately after this function has returned TRUE or
-  * PS-enabled immediately after this function has returned FALSE.
+  * PS-disabled immediately after this function has returned true or
+  * PS-enabled immediately after this function has returned false.
   This means that it is possible that we do:
   + dict_stats_update(DICT_STATS_RECALC_PERSISTENT) on a table that has
     just been PS-disabled or
@@ -86,13 +84,13 @@ ibool dict_stats_is_persistent_enabled(
   row_update_statistics_if_needed(). */
 
   /* we rely on this read to be atomic */
-  ib_uint32_t stat_persistent = table->stat_persistent;
+  uint32_t stat_persistent = table->stat_persistent;
 
   if (stat_persistent & DICT_STATS_PERSISTENT_ON) {
     ut_ad(!(stat_persistent & DICT_STATS_PERSISTENT_OFF));
-    return (TRUE);
+    return true;
   } else if (stat_persistent & DICT_STATS_PERSISTENT_OFF) {
-    return (FALSE);
+    return false;
   } else {
     return (srv_stats_persistent);
   }
@@ -102,15 +100,14 @@ ibool dict_stats_is_persistent_enabled(
  stats enabled table). The flag is set only in the in-memory table object
  and is not saved in InnoDB files. It will be read from the .frm file upon
  first open from MySQL after a server restart. */
-UNIV_INLINE
-void dict_stats_auto_recalc_set(
-    dict_table_t *table,   /*!< in/out: table */
-    ibool auto_recalc_on,  /*!< in: explicitly enabled */
-    ibool auto_recalc_off) /*!< in: explicitly disabled */
+static inline void dict_stats_auto_recalc_set(
+    dict_table_t *table,  /*!< in/out: table */
+    bool auto_recalc_on,  /*!< in: explicitly enabled */
+    bool auto_recalc_off) /*!< in: explicitly disabled */
 {
   ut_ad(!auto_recalc_on || !auto_recalc_off);
 
-  ib_uint32_t stats_auto_recalc = 0;
+  uint32_t stats_auto_recalc = 0;
 
   if (auto_recalc_on) {
     stats_auto_recalc |= DICT_STATS_AUTO_RECALC_ON;
@@ -126,28 +123,26 @@ void dict_stats_auto_recalc_set(
 
 /** Check whether auto recalc is enabled for a given table.
  @return true if enabled, false otherwise */
-UNIV_INLINE
-ibool dict_stats_auto_recalc_is_enabled(
+static inline bool dict_stats_auto_recalc_is_enabled(
     const dict_table_t *table) /*!< in: table */
 {
   /* we rely on this read to be atomic */
-  ib_uint32_t stats_auto_recalc = table->stats_auto_recalc;
+  uint32_t stats_auto_recalc = table->stats_auto_recalc;
 
   if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_ON) {
     ut_ad(!(stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF));
-    return (TRUE);
+    return true;
   } else if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF) {
-    return (FALSE);
+    return false;
   } else {
     return (srv_stats_auto_recalc);
   }
 }
 
 /** Initialize table's stats for the first time when opening a table. */
-UNIV_INLINE
-void dict_stats_init(dict_table_t *table) /*!< in/out: table */
+static inline void dict_stats_init(dict_table_t *table) /*!< in/out: table */
 {
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (table->stat_initialized) {
     return;
@@ -166,8 +161,7 @@ void dict_stats_init(dict_table_t *table) /*!< in/out: table */
 
 /** Deinitialize table's stats after the last close of the table. This is
  used to detect "FLUSH TABLE" and refresh the stats upon next open. */
-UNIV_INLINE
-void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
+static inline void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
 {
   /* Don't assert the table->n_ref_count is 0 here, since there could
   be some background threads opening the table concurrently. This is
@@ -181,7 +175,7 @@ void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
     return;
   }
 
-  table->stat_initialized = FALSE;
+  table->stat_initialized = false;
 
 #ifdef UNIV_DEBUG_VALGRIND
   UNIV_MEM_INVALID(&table->stat_n_rows, sizeof(table->stat_n_rows));

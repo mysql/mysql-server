@@ -54,24 +54,24 @@ include/assert.inc [Clone must be completed]
 include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
 
 ############################################################
-# 7. Clone is not allowed on user sessions on group members.
-SET GLOBAL clone_valid_donor_list='localhost:SERVER1_PORT';
-CLONE INSTANCE FROM 'root'@localhost:SERVER1_PORT IDENTIFIED BY '';;
-ERROR HY000: The clone operation cannot be executed when Group Replication is running.
-
-############################################################
-# 8. Cleanup
+# 7. Cleanup
+[connection server1]
+UNINSTALL PLUGIN clone;
+DROP TABLE test.t1;
+include/rpl_sync.inc
+[connection server2]
+UNINSTALL PLUGIN clone;
 SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
-DROP TABLE t1;
-include/rpl_sync.inc
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 set session sql_log_bin=0;
 call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression(".*The member contains transactions not present *.*");
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

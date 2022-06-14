@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/rpl_reset.inc
+CREATE TABLE t (a int, b int, c int, key(b)) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t DISABLE KEYS;
+INSERT INTO t VALUES (1,2,4);
+INSERT INTO t VALUES (4,3,4);
+DELETE FROM t;
+include/sync_slave_sql_with_master.inc
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+CREATE TABLE t2 (col4 CHAR(25) DEFAULT NULL,
+col1 BIGINT,
+col2 TINYINT NOT NULL,
+col5 VARCHAR(25) DEFAULT ''
+                ) ENGINE = myisam;
+ALTER TABLE t2 ADD INDEX idx1 ( col4 ) , ADD UNIQUE INDEX idx2 ( col5 );
+INSERT INTO t2 ( col4 , col2 ) VALUES ( 'Hello', -77 ) ;
+UPDATE t2 SET col1 = 13 WHERE col2 = -77;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

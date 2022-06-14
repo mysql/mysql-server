@@ -1,5 +1,5 @@
-# This test verifies that the CHANGE MASTER FOR recovery channel command
-# is logged in the slow log, query_log and error log, but the password
+# This test verifies that the CHANGE REPLICATION SOURCE FOR recovery channel
+# command is logged in the slow log, query_log and error log, but the password
 # value is either masked with '<secret>' or is not logged.
 #
 
@@ -17,8 +17,15 @@
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'unique_password';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+
+CREATE USER 'internal_usr'@'%' IDENTIFIED BY 'unique_password';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'internal_usr'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='internal_usr', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
 
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE';
@@ -26,9 +33,9 @@ TRUNCATE mysql.general_log;
 
 --source include/start_and_bootstrap_group_replication.inc
 
---echo # CHANGE MASTER with valid options will work fine and the password part will be masked with <secret>
+--echo # CHANGE REPLICATION SOURCE with valid options will work fine and the password part will be masked with <secret>
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --echo # Since MASTER_PASSWORD is not stored in the performance schema table
@@ -37,25 +44,14 @@ CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHA
 SELECT password FROM performance_schema.replication_connection_configuration;
 
 --echo server1
---let $change_count= `SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CHANGE MASTER TO MASTER_USER = \'manish\', MASTER_PASSWORD = <secret> FOR CHANNEL \'group_replication_recovery\''`
+--let $change_count= `SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CHANGE REPLICATION SOURCE TO SOURCE_USER = \'manish\', SOURCE_PASSWORD = <secret> FOR CHANNEL \'group_replication_recovery\''`
 --let $assert_cond= "$change_count" = 1
---let $assert_text= The CHANGE MASTER is logged with the password value replaced with the keyword <secret>.
+--let $assert_text= The CHANGE REPLICATION SOURCE TO is logged with the password value replaced with the keyword <secret>.
 --source include/assert.inc
 
 # Checking the default values for the User_name and User_password field.
 
 --connection server2
-
-SET sql_log_bin=0;
-call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
-call mtr.add_suppression("There was an error when connecting to the donor server");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
-SET sql_log_bin=1;
-
---disable_query_log
---eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
---enable_query_log
-START GROUP_REPLICATION;
 
 --let $expected_value_user=`SELECT User_name FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
 --let $expected_value_password=`SELECT User_password FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
@@ -66,9 +62,11 @@ START GROUP_REPLICATION;
 --connection server1
 
 # Cleanup
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
+DROP USER internal_usr;
 SET sql_log_bin=1;
 SET @@global.log_output= @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 --source include/group_replication_end.inc

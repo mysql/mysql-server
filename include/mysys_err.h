@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,8 @@ extern const char *globerrs[]; /* my_error_messages is here */
 #define EE_RESET_CHAR_OUT_OF_RANGE 89
 #define EE_UNKNOWN_LDML_TAG 90
 #define EE_FAILED_TO_RESET_BEFORE_SECONDARY_IGNORABLE_CHAR 91
-#define EE_ERROR_LAST 91 /* Copy last error nr */
+#define EE_FAILED_PROCESSING_DIRECTIVE 92
+#define EE_ERROR_LAST 92 /* Copy last error nr */
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
 /* Exit codes for option processing. When exiting from server use the

@@ -185,6 +185,22 @@ include/gtid_step_reset.inc
 FLUSH LOGS;
 DROP TABLESPACE ts;
 include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+CREATE TABLE test.t1(a int);
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+CREATE TABLE test.t2 AS SELECT * FROM t1;;
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+DROP TABLE test.t1;
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+DROP TABLE test.t2;
+include/gtid_step_assert.inc [count=1, only_count=0]
 [connection slave]
 include/start_slave_io.inc
 Warnings:
@@ -193,650 +209,714 @@ Note	3083	Replication thread(s) for channel '' are already runnning.
 include/sync_slave_io_with_master.inc
 [connection slave]
 CREATE USER user1;
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1396]
 DROP USER user1;
 SET @@GLOBAL.debug="+d,rli_pre_commit_error";
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1105]
 SET @@GLOBAL.debug="-d,rli_pre_commit_error";
 [connection master]
-Loop: 1 out of 40; current query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'';
+Loop: 1 out of 44; current query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'';
 [connection slave]
 *** Query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=0]
 *** Query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 2 out of 40; current query: 'GRANT SELECT ON *.* TO user1'; pre-binlog check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1'';
+Loop: 2 out of 44; current query: 'GRANT SELECT ON *.* TO user1'; pre-binlog check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1'';
 [connection slave]
 *** Query: 'GRANT SELECT ON *.* TO user1'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'GRANT SELECT ON *.* TO user1'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 3 out of 40; current query: 'REVOKE SELECT ON *.* FROM user1'; pre-binlog check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1'';
+Loop: 3 out of 44; current query: 'REVOKE SELECT ON *.* FROM user1'; pre-binlog check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1'';
 [connection slave]
 *** Query: 'REVOKE SELECT ON *.* FROM user1'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'REVOKE SELECT ON *.* FROM user1'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 4 out of 40; current query: 'ALTER USER user1 IDENTIFIED BY '123456''; pre-binlog check: 'SELECT authentication_string = '' FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT authentication_string != '' FROM mysql.user WHERE user LIKE 'user1'';
+Loop: 4 out of 44; current query: 'ALTER USER user1 IDENTIFIED BY '123456''; pre-binlog check: 'SELECT authentication_string = '' FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT authentication_string != '' FROM mysql.user WHERE user LIKE 'user1'';
 [connection slave]
 *** Query: 'ALTER USER user1 IDENTIFIED BY '123456''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER USER user1 IDENTIFIED BY '123456''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 5 out of 40; current query: 'SET PASSWORD FOR user1='abcdef''; pre-binlog check: 'SELECT authentication_string = '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9' FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT authentication_string != '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9' FROM mysql.user WHERE user LIKE 'user1'';
+Loop: 5 out of 44; current query: 'SET PASSWORD FOR user1='abcdef''; pre-binlog check: 'SELECT authentication_string = '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9' FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT authentication_string != '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9' FROM mysql.user WHERE user LIKE 'user1'';
 [connection slave]
 *** Query: 'SET PASSWORD FOR user1='abcdef''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'SET PASSWORD FOR user1='abcdef''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 6 out of 40; current query: 'RENAME USER user1 TO user2'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1'';
+Loop: 6 out of 44; current query: 'RENAME USER user1 TO user2'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1'';
 [connection slave]
 *** Query: 'RENAME USER user1 TO user2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'RENAME USER user1 TO user2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 7 out of 40; current query: 'CREATE ROLE roleA,roleB'; pre-binlog check: 'SELECT COUNT(*) = 0 FROM mysql.user WHERE user LIKE 'roleB' OR user LIKE 'roleA';'; pre-commit check: 'SELECT COUNT(*) = 2 FROM mysql.user WHERE user LIKE 'roleB' OR user LIKE 'roleA';';
+Loop: 7 out of 44; current query: 'CREATE ROLE roleA,roleB'; pre-binlog check: 'SELECT COUNT(*) = 0 FROM mysql.user WHERE user LIKE 'roleB' OR user LIKE 'roleA';'; pre-commit check: 'SELECT COUNT(*) = 2 FROM mysql.user WHERE user LIKE 'roleB' OR user LIKE 'roleA';';
 [connection slave]
 *** Query: 'CREATE ROLE roleA,roleB'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE ROLE roleA,roleB'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 8 out of 40; current query: 'GRANT roleA TO roleB'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA'';
+Loop: 8 out of 44; current query: 'GRANT roleA TO roleB'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA'';
 [connection slave]
 *** Query: 'GRANT roleA TO roleB'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'GRANT roleA TO roleB'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 9 out of 40; current query: 'REVOKE roleA FROM roleB'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA'';
+Loop: 9 out of 44; current query: 'REVOKE roleA FROM roleB'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA'';
 [connection slave]
 *** Query: 'REVOKE roleA FROM roleB'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'REVOKE roleA FROM roleB'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 10 out of 40; current query: 'GRANT roleA TO user2'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA'';
+Loop: 10 out of 44; current query: 'GRANT roleA TO user2'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA'';
 [connection slave]
 *** Query: 'GRANT roleA TO user2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'GRANT roleA TO user2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 11 out of 40; current query: 'ALTER USER user2 DEFAULT ROLE roleA;'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.default_roles WHERE user = 'user2''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.default_roles WHERE user = 'user2'';
+Loop: 11 out of 44; current query: 'ALTER USER user2 DEFAULT ROLE roleA;'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.default_roles WHERE user = 'user2''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.default_roles WHERE user = 'user2'';
 [connection slave]
 *** Query: 'ALTER USER user2 DEFAULT ROLE roleA;'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER USER user2 DEFAULT ROLE roleA;'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 12 out of 40; current query: 'DROP ROLE roleA,roleB'; pre-binlog check: 'SELECT count(*) = 2 FROM mysql.user WHERE user LIKE 'roleA' OR user LIKE 'roleB''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.user WHERE user LIKE 'roleA' OR user LIKE 'roleB'';
+Loop: 12 out of 44; current query: 'DROP ROLE roleA,roleB'; pre-binlog check: 'SELECT count(*) = 2 FROM mysql.user WHERE user LIKE 'roleA' OR user LIKE 'roleB''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.user WHERE user LIKE 'roleA' OR user LIKE 'roleB'';
 [connection slave]
 *** Query: 'DROP ROLE roleA,roleB'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP ROLE roleA,roleB'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 13 out of 40; current query: 'DROP USER user2'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user2''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user2'';
+Loop: 13 out of 44; current query: 'DROP USER user2'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user2''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user2'';
 [connection slave]
 *** Query: 'DROP USER user2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP USER user2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 14 out of 40; current query: 'CREATE TRIGGER tr_0 BEFORE INSERT ON t_1 FOR EACH ROW SET @a:=1'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0'';
+Loop: 14 out of 44; current query: 'CREATE TRIGGER tr_0 BEFORE INSERT ON t_1 FOR EACH ROW SET @a:=1'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0'';
 [connection slave]
 *** Query: 'CREATE TRIGGER tr_0 BEFORE INSERT ON t_1 FOR EACH ROW SET @a:=1'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE TRIGGER tr_0 BEFORE INSERT ON t_1 FOR EACH ROW SET @a:=1'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 15 out of 40; current query: 'DROP TRIGGER tr_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0'';
+Loop: 15 out of 44; current query: 'DROP TRIGGER tr_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0'';
 [connection slave]
 *** Query: 'DROP TRIGGER tr_0'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP TRIGGER tr_0'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 16 out of 40; current query: 'CREATE FUNCTION f_0() RETURNS INT RETURN 5;'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'';
+Loop: 16 out of 44; current query: 'CREATE FUNCTION f_0() RETURNS INT RETURN 5;'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'';
 [connection slave]
 *** Query: 'CREATE FUNCTION f_0() RETURNS INT RETURN 5;'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE FUNCTION f_0() RETURNS INT RETURN 5;'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 17 out of 40; current query: 'ALTER FUNCTION f_0 COMMENT 'comment''; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'';
+Loop: 17 out of 44; current query: 'ALTER FUNCTION f_0 COMMENT 'comment''; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'';
 [connection slave]
 *** Query: 'ALTER FUNCTION f_0 COMMENT 'comment''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER FUNCTION f_0 COMMENT 'comment''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 18 out of 40; current query: 'DROP FUNCTION f_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'';
+Loop: 18 out of 44; current query: 'DROP FUNCTION f_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'';
 [connection slave]
 *** Query: 'DROP FUNCTION f_0'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP FUNCTION f_0'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 19 out of 40; current query: 'CREATE PROCEDURE p_0() BEGIN END'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'';
+Loop: 19 out of 44; current query: 'CREATE PROCEDURE p_0() BEGIN END'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'';
 [connection slave]
 *** Query: 'CREATE PROCEDURE p_0() BEGIN END'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE PROCEDURE p_0() BEGIN END'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 20 out of 40; current query: 'ALTER PROCEDURE p_0 COMMENT 'comment''; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'';
+Loop: 20 out of 44; current query: 'ALTER PROCEDURE p_0 COMMENT 'comment''; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'';
 [connection slave]
 *** Query: 'ALTER PROCEDURE p_0 COMMENT 'comment''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER PROCEDURE p_0 COMMENT 'comment''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 21 out of 40; current query: 'DROP PROCEDURE p_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'';
+Loop: 21 out of 44; current query: 'DROP PROCEDURE p_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'';
 [connection slave]
 *** Query: 'DROP PROCEDURE p_0'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP PROCEDURE p_0'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 22 out of 40; current query: 'CREATE EVENT e_0 ON SCHEDULE EVERY 2 DAY DO SELECT 2'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.EVENTS where EVENT_NAME = 'e_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'';
+Loop: 22 out of 44; current query: 'CREATE EVENT e_0 ON SCHEDULE EVERY 2 DAY DO SELECT 2'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.EVENTS where EVENT_NAME = 'e_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'';
 [connection slave]
 *** Query: 'CREATE EVENT e_0 ON SCHEDULE EVERY 2 DAY DO SELECT 2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE EVENT e_0 ON SCHEDULE EVERY 2 DAY DO SELECT 2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 23 out of 40; current query: 'ALTER EVENT e_0 ON SCHEDULE EVERY 2 day DO SELECT 1;'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'';
+Loop: 23 out of 44; current query: 'ALTER EVENT e_0 ON SCHEDULE EVERY 2 day DO SELECT 1;'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'';
 [connection slave]
 *** Query: 'ALTER EVENT e_0 ON SCHEDULE EVERY 2 day DO SELECT 1;'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER EVENT e_0 ON SCHEDULE EVERY 2 day DO SELECT 1;'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 24 out of 40; current query: 'DROP EVENT e_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'';
+Loop: 24 out of 44; current query: 'DROP EVENT e_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'';
 [connection slave]
 *** Query: 'DROP EVENT e_0'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP EVENT e_0'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 25 out of 40; current query: 'CREATE VIEW v_0 AS SELECT * FROM t_1'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'';
+Loop: 25 out of 44; current query: 'CREATE VIEW v_0 AS SELECT * FROM t_1'; pre-binlog check: 'SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'';
 [connection slave]
 *** Query: 'CREATE VIEW v_0 AS SELECT * FROM t_1'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE VIEW v_0 AS SELECT * FROM t_1'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 26 out of 40; current query: 'ALTER VIEW v_0 AS SELECT * FROM t_1'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'';
+Loop: 26 out of 44; current query: 'ALTER VIEW v_0 AS SELECT * FROM t_1'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'';
 [connection slave]
 *** Query: 'ALTER VIEW v_0 AS SELECT * FROM t_1'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER VIEW v_0 AS SELECT * FROM t_1'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 27 out of 40; current query: 'DROP VIEW v_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'';
+Loop: 27 out of 44; current query: 'DROP VIEW v_0'; pre-binlog check: 'SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'';
 [connection slave]
 *** Query: 'DROP VIEW v_0'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP VIEW v_0'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 28 out of 40; current query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'';
+Loop: 28 out of 44; current query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'';
 [connection slave]
 *** Query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 29 out of 40; current query: 'DROP FUNCTION metaphon;'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon'';
+Loop: 29 out of 44; current query: 'DROP FUNCTION metaphon;'; pre-binlog check: 'SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon''; pre-commit check: 'SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon'';
 [connection slave]
 *** Query: 'DROP FUNCTION metaphon;'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP FUNCTION metaphon;'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 30 out of 40; current query: 'CREATE TABLE test.t1(a int)'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t1''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t1'';
+Loop: 30 out of 44; current query: 'CREATE TABLE test.t1(a int)'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t1''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t1'';
 [connection slave]
 *** Query: 'CREATE TABLE test.t1(a int)'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE TABLE test.t1(a int)'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 31 out of 40; current query: 'ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.columns where table_name='t1''; pre-commit check: 'SELECT count(*)=2 FROM information_schema.columns where table_name='t1'';
+Loop: 31 out of 44; current query: 'ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.columns where table_name='t1''; pre-commit check: 'SELECT count(*)=2 FROM information_schema.columns where table_name='t1'';
 [connection slave]
 *** Query: 'ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 32 out of 40; current query: 'ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.innodb_indexes where name='new_t1_idx''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.innodb_indexes where name='new_t1_idx'';
+Loop: 32 out of 44; current query: 'ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.innodb_indexes where name='new_t1_idx''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.innodb_indexes where name='new_t1_idx'';
 [connection slave]
 *** Query: 'ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 33 out of 40; current query: 'ALTER TABLE test.t1 RENAME TO test.t2'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2'';
+Loop: 33 out of 44; current query: 'ALTER TABLE test.t1 RENAME TO test.t2'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2'';
 [connection slave]
 *** Query: 'ALTER TABLE test.t1 RENAME TO test.t2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER TABLE test.t1 RENAME TO test.t2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 34 out of 40; current query: 'ALTER TABLE test.t2 DROP COLUMN a;'; pre-binlog check: 'SELECT count(*)=2 FROM information_schema.columns where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.columns where table_name='t2'';
+Loop: 34 out of 44; current query: 'ALTER TABLE test.t2 DROP COLUMN a;'; pre-binlog check: 'SELECT count(*)=2 FROM information_schema.columns where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.columns where table_name='t2'';
 [connection slave]
 *** Query: 'ALTER TABLE test.t2 DROP COLUMN a;'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER TABLE test.t2 DROP COLUMN a;'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 35 out of 40; current query: 'TRUNCATE TABLE test.t2'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2'';
+Loop: 35 out of 44; current query: 'TRUNCATE TABLE test.t2'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2'';
 [connection slave]
 *** Query: 'TRUNCATE TABLE test.t2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'TRUNCATE TABLE test.t2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 36 out of 40; current query: 'ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.innodb_indexes where name='full_t2_idx''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.innodb_indexes where name='full_t2_idx'';
+Loop: 36 out of 44; current query: 'ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.innodb_indexes where name='full_t2_idx''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.innodb_indexes where name='full_t2_idx'';
 [connection slave]
 *** Query: 'ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 37 out of 40; current query: 'ALTER TABLE test.t2 DROP index full_t2_idx;'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.innodb_indexes where name='full_t2_idx''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.innodb_indexes where name='full_t2_idx'';
+Loop: 37 out of 44; current query: 'ALTER TABLE test.t2 DROP index full_t2_idx;'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.innodb_indexes where name='full_t2_idx''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.innodb_indexes where name='full_t2_idx'';
 [connection slave]
 *** Query: 'ALTER TABLE test.t2 DROP index full_t2_idx;'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'ALTER TABLE test.t2 DROP index full_t2_idx;'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 38 out of 40; current query: 'DROP TABLE test.t2'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t2'';
+Loop: 38 out of 44; current query: 'DROP TABLE test.t2'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t2'';
 [connection slave]
 *** Query: 'DROP TABLE test.t2'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP TABLE test.t2'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 39 out of 40; current query: 'CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd''; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'';
+Loop: 39 out of 44; current query: 'CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd''; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'';
 [connection slave]
 *** Query: 'CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 40 out of 40; current query: 'DROP TABLESPACE ts'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'';
+Loop: 40 out of 44; current query: 'DROP TABLESPACE ts'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'';
 [connection slave]
 *** Query: 'DROP TABLESPACE ts'. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
 *** Query: 'DROP TABLESPACE ts'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 41 out of 44; current query: 'CREATE TABLE test.t1(a int)'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t1''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t1'';
+[connection slave]
+*** Query: 'CREATE TABLE test.t1(a int)'. Crash right after the query has been prepared in the engine before being logged. ***
+SET @@GLOBAL.debug="+d,crash_commit_before_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+include/gtid_step_assert.inc [count=0, only_count=1]
+*** Query: 'CREATE TABLE test.t1(a int)'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 42 out of 44; current query: 'CREATE TABLE test.t2 AS SELECT * FROM t1;'; pre-binlog check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2'';
+[connection slave]
+*** Query: 'CREATE TABLE test.t2 AS SELECT * FROM t1;'. Crash right after the query has been prepared in the engine before being logged. ***
+SET @@GLOBAL.debug="+d,crash_commit_before_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+include/gtid_step_assert.inc [count=0, only_count=1]
+*** Query: 'CREATE TABLE test.t2 AS SELECT * FROM t1;'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 43 out of 44; current query: 'DROP TABLE test.t1'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t1''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t1'';
+[connection slave]
+*** Query: 'DROP TABLE test.t1'. Crash right after the query has been prepared in the engine before being logged. ***
+SET @@GLOBAL.debug="+d,crash_commit_before_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+include/gtid_step_assert.inc [count=0, only_count=1]
+*** Query: 'DROP TABLE test.t1'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 44 out of 44; current query: 'DROP TABLE test.t2'; pre-binlog check: 'SELECT count(*)=1 FROM information_schema.tables where table_name='t2''; pre-commit check: 'SELECT count(*)=0 FROM information_schema.tables where table_name='t2'';
+[connection slave]
+*** Query: 'DROP TABLE test.t2'. Crash right after the query has been prepared in the engine before being logged. ***
+SET @@GLOBAL.debug="+d,crash_commit_before_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+include/gtid_step_assert.inc [count=0, only_count=1]
+*** Query: 'DROP TABLE test.t2'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START REPLICA SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]

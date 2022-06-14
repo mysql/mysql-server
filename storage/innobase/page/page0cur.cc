@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -57,21 +57,24 @@ static ulint page_cur_short_succ = 0;
  being used are:
  X[n+1] = (a * X[n] + c) mod m
  where:
- X[0] = ut_time_monotonic_us()
+ X[0] = number based on std::chrono::steady_clock::now()
  a = 1103515245 (3^5 * 5 * 7 * 129749)
  c = 12345 (3 * 5 * 823)
  m = 18446744073709551616 (2^64)
 
  @return number between 0 and 2^64-1 */
-static ib_uint64_t page_cur_lcg_prng(void) {
+static uint64_t page_cur_lcg_prng(void) {
 #define LCG_a 1103515245
 #define LCG_c 12345
-  static ib_uint64_t lcg_current = 0;
-  static ibool initialized = FALSE;
+  static uint64_t lcg_current = 0;
+  static bool initialized = false;
 
   if (!initialized) {
-    lcg_current = (ib_uint64_t)ut_time_monotonic_us();
-    initialized = TRUE;
+    lcg_current = std::chrono::duration_cast<std::chrono::microseconds>(
+                      std::chrono::steady_clock::now() -
+                      std::chrono::steady_clock::time_point{})
+                      .count();
+    initialized = true;
   }
 
   /* no need to "% 2^64" explicitly because lcg_current is
@@ -82,26 +85,25 @@ static ib_uint64_t page_cur_lcg_prng(void) {
 }
 
 /** Try a search shortcut based on the last insert.
-@param[in]	block			index page
-@param[in]	index			index tree
-@param[in]	tuple			search key
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   index page
+@param[in]      index                   index tree
+@param[in]      tuple                   search key
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[out]	cursor			page cursor
+@param[out]     cursor                  page cursor
 @return true on success */
-UNIV_INLINE
-bool page_cur_try_search_shortcut(
+static inline bool page_cur_try_search_shortcut(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     ulint *iup_matched_fields, ulint *ilow_matched_fields, page_cur_t *cursor) {
   const rec_t *rec;
   const rec_t *next_rec;
   ulint low_match;
   ulint up_match;
-  ibool success = FALSE;
+  bool success = false;
   const page_t *page = buf_block_get_frame(block);
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -140,7 +142,7 @@ bool page_cur_try_search_shortcut(
 #ifdef UNIV_SEARCH_PERF_STAT
   page_cur_short_succ++;
 #endif
-  success = TRUE;
+  success = true;
 exit_func:
   if (UNIV_LIKELY_NULL(heap)) {
     mem_heap_free(heap);
@@ -149,21 +151,20 @@ exit_func:
 }
 
 /** Try a search shortcut based on the last insert.
-@param[in]	block			index page
-@param[in]	index			index tree
-@param[in]	tuple			search key
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   index page
+@param[in]      index                   index tree
+@param[in]      tuple                   search key
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	iup_matched_bytes	already matched bytes in the
+@param[in,out]  iup_matched_bytes       already matched bytes in the
 first partially matched field in the upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[in,out]	ilow_matched_bytes	already matched bytes in the
+@param[in,out]  ilow_matched_bytes      already matched bytes in the
 first partially matched field in the lower limit record
-@param[out]	cursor			page cursor
+@param[out]     cursor                  page cursor
 @return true on success */
-UNIV_INLINE
-bool page_cur_try_search_shortcut_bytes(
+static inline bool page_cur_try_search_shortcut_bytes(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     ulint *iup_matched_fields, ulint *iup_matched_bytes,
     ulint *ilow_matched_fields, ulint *ilow_matched_bytes, page_cur_t *cursor) {
@@ -173,9 +174,9 @@ bool page_cur_try_search_shortcut_bytes(
   ulint low_bytes;
   ulint up_match;
   ulint up_bytes;
-  ibool success = FALSE;
+  bool success = false;
   const page_t *page = buf_block_get_frame(block);
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -224,7 +225,7 @@ bool page_cur_try_search_shortcut_bytes(
 #ifdef UNIV_SEARCH_PERF_STAT
   page_cur_short_succ++;
 #endif
-  success = TRUE;
+  success = true;
 exit_func:
   if (UNIV_LIKELY_NULL(heap)) {
     mem_heap_free(heap);
@@ -237,15 +238,15 @@ exit_func:
 /** Checks if the nth field in a record is a character type field which extends
  the nth field in tuple, i.e., the field is longer or equal in length and has
  common first characters.
- @param[in]	tuple	data tuple
- @param[in]	rec	record
- @param[in]	offsets	array returned by rec_get_offsets()
- @param[in]	n	compare nth field
- @param[in]	index	index where the record resides
+ @param[in]     tuple   data tuple
+ @param[in]     rec     record
+ @param[in]     offsets array returned by rec_get_offsets()
+ @param[in]     n       compare nth field
+ @param[in]     index   index where the record resides
  @return true if rec field extends tuple field */
-static ibool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
-                                        const ulint *offsets, ulint n,
-                                        const dict_index_t *index) {
+static bool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
+                                       const ulint *offsets, ulint n,
+                                       const dict_index_t *index) {
   const dtype_t *type;
   const dfield_t *dfield;
   const byte *rec_f;
@@ -271,111 +272,64 @@ static ibool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
         &&
         !cmp_data_data(type->mtype, type->prtype, true, dfield_get_data(dfield),
                        dfield_get_len(dfield), rec_f, dfield_get_len(dfield))) {
-      return (TRUE);
+      return true;
     }
   }
 
-  return (FALSE);
+  return false;
 }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
-
-#ifndef UNIV_HOTBACKUP
-/** If key is fixed length then populate offset directly from
-cached version.
-@param[in]	rec	B-Tree record for which offset needs to be
-                        populated.
-@param[in,out]	index	index handler
-@param[in]	tuple	data tuple
-@param[in,out]	offsets	default offsets array
-@param[in,out]	heap	heap
-@return reference to populate offsets. */
-static ulint *populate_offsets(const rec_t *rec, const dtuple_t *tuple,
-                               dict_index_t *index, ulint *offsets,
-                               mem_heap_t **heap) {
-  ut_ad(index->table->is_intrinsic());
-
-  bool rec_has_null_values = false;
-
-  if (index->rec_cache.key_has_null_cols) {
-    /* Check if record has null value. */
-    const byte *nulls = rec - (1 + REC_N_NEW_EXTRA_BYTES);
-    ulint n_bytes_to_scan = UT_BITS_IN_BYTES(index->n_nullable);
-    byte null_mask = 0xff;
-    ulint bits_examined = 0;
-
-    for (ulint i = 0; i < n_bytes_to_scan - 1; i++) {
-      if (*nulls & null_mask) {
-        rec_has_null_values = true;
-        break;
-      }
-      --nulls;
-      bits_examined += 8;
-    }
-
-    if (!rec_has_null_values) {
-      null_mask >>= (8 - (index->n_nullable - bits_examined));
-      rec_has_null_values = *nulls & null_mask;
-    }
-
-    if (rec_has_null_values) {
-      offsets = rec_get_offsets(rec, index, offsets,
-                                dtuple_get_n_fields_cmp(tuple), heap);
-
-      return (offsets);
-    }
-  }
-
-  /* Check if offsets are cached else cache them first.
-  There are queries that will first verify if key is present using index
-  search and then initiate insert. If offsets are cached during index
-  search it would be based on key part only but during insert that looks
-  out for exact location to insert key + db_row_id both columns would
-  be used and so re-compute offsets in such case. */
-  if (!index->rec_cache.offsets_cached ||
-      (rec_offs_n_fields(index->rec_cache.offsets) <
-       dtuple_get_n_fields_cmp(tuple))) {
-    offsets = rec_get_offsets(rec, index, offsets,
-                              dtuple_get_n_fields_cmp(tuple), heap);
-
-    /* Reallocate if our offset array is not big
-    enough to hold the needed size. */
-    ulint sz1 = index->rec_cache.sz_of_offsets;
-    ulint sz2 = offsets[0];
-    if (sz1 < sz2) {
-      index->rec_cache.offsets = static_cast<ulint *>(
-          mem_heap_alloc(index->heap, sizeof(ulint) * sz2));
-      index->rec_cache.sz_of_offsets = static_cast<uint32_t>(sz2);
-    }
-
-    memcpy(index->rec_cache.offsets, offsets, (sizeof(ulint) * sz2));
-    index->rec_cache.offsets_cached = true;
-  }
-
-  ut_ad(index->rec_cache.offsets[2] = (ulint)rec);
-
-  return (index->rec_cache.offsets);
-}
-#endif /* !UNIV_HOTBACKUP */
 #endif /* PAGE_CUR_ADAPT */
 
 #ifndef UNIV_HOTBACKUP
-/** Searches the right position for a page cursor. */
-void page_cur_search_with_match(
-    const buf_block_t *block,  /*!< in: buffer block */
-    const dict_index_t *index, /*!< in/out: record descriptor */
-    const dtuple_t *tuple,     /*!< in: data tuple */
-    page_cur_mode_t mode,      /*!< in: PAGE_CUR_L,
-                               PAGE_CUR_LE, PAGE_CUR_G, or
-                               PAGE_CUR_GE */
-    ulint *iup_matched_fields,
-    /*!< in/out: already matched
-    fields in upper limit record */
-    ulint *ilow_matched_fields,
-    /*!< in/out: already matched
-    fields in lower limit record */
-    page_cur_t *cursor,   /*!< out: page cursor */
-    rtr_info_t *rtr_info) /*!< in/out: rtree search stack */
-{
+/** Check if rec has at least one NULL value among the columns for which
+rec_cache.offsets was cached, which means rec_cache.offsets should not be used
+for this rec as it has a different layout of fields than the cached version.
+@param[in]      rec     B-Tree record
+@param[in]      index   The index from which the rec was taken
+@return true iff the rec has at least one relevant column with NULL */
+static bool page_cur_has_null(const rec_t *rec, const dict_index_t *index) {
+  ut_ad(index->rec_cache.offsets);
+  const auto nullable_cols = index->rec_cache.nullable_cols;
+  ut_ad(nullable_cols <= index->n_nullable);
+  if (!nullable_cols) {
+    return false;
+  }
+  /* Check if this record has a NULL value. */
+  const byte *nulls = rec - (1 + REC_N_NEW_EXTRA_BYTES);
+  size_t n_bytes_to_scan = UT_BITS_IN_BYTES(nullable_cols);
+  byte null_mask = 0xff;
+  size_t bits_examined = 0;
+
+  for (size_t i = 0; i < n_bytes_to_scan - 1; i++) {
+    if (*nulls & null_mask) {
+      return true;
+    }
+    --nulls;
+    bits_examined += 8;
+  }
+
+  null_mask >>= (8 - (nullable_cols - bits_examined));
+  return (*nulls & null_mask);
+}
+
+/** Searches the right position for a page cursor.
+@param[in] block Buffer block
+@param[in] index Record descriptor
+@param[in] tuple Data tuple
+@param[in] mode PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[in,out] iup_matched_fields Already matched fields in upper limit record
+@param[in,out] ilow_matched_fields Already matched fields in lower limit record
+@param[out] cursor Page cursor
+@param[in,out] rtr_info Rtree search stack */
+void page_cur_search_with_match(const buf_block_t *block,
+                                const dict_index_t *index,
+                                const dtuple_t *tuple, page_cur_mode_t mode,
+                                ulint *iup_matched_fields,
+
+                                ulint *ilow_matched_fields,
+
+                                page_cur_t *cursor, rtr_info_t *rtr_info) {
   ulint up;
   ulint low;
   ulint mid;
@@ -391,9 +345,8 @@ void page_cur_search_with_match(
 #ifdef UNIV_ZIP_DEBUG
   const page_zip_des_t *page_zip = buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets = offsets_;
   rec_offs_init(offsets_);
 
   ut_ad(dtuple_validate(tuple));
@@ -468,6 +421,63 @@ void page_cur_search_with_match(
   low = 0;
   up = page_dir_get_n_slots(page) - 1;
 
+  const ulint *const cached_offsets{index->rec_cache.offsets};
+#ifdef UNIV_DEBUG
+  if (cached_offsets) {
+    ut_ad(dict_table_is_comp(index->table));
+    ut_ad(!dict_index_has_virtual(index));
+    ut_ad(!index->table->has_instant_cols());
+    ut_ad(!index->table->has_row_versions());
+    ut_ad(!dict_index_is_spatial(index));
+    const size_t n = dtuple_get_n_fields_cmp(tuple);
+    const size_t searchable = dict_index_get_n_unique_in_tree(index);
+    // assert there was no change in number of columns since caching
+    ut_ad(searchable == index->rec_cache.offsets[1]);
+    // assert that the number of nullable columns hasn't changed since caching
+    {
+      size_t nullable{0};
+      for (size_t i = 0; i < searchable; i++) {
+        if (!(index->get_field(i)->col->prtype & DATA_NOT_NULL)) {
+          ++nullable;
+        }
+      }
+      ut_ad(index->rec_cache.nullable_cols == nullable);
+    }
+    /* We never do a binary search on columns which are not part of internal
+    nodes, nor on node_ptr field. If we ever start doing this, make sure to
+    not use cached_offset offsets then, as it has only searchable columns. */
+    ut_ad(n <= searchable);
+  }
+#endif
+  auto get_mid_rec_offsets = [&]() -> const auto * {
+    if (cached_offsets && !page_cur_has_null(mid_rec, index)) {
+#ifdef UNIV_DEBUG
+      {
+        const size_t n = dtuple_get_n_fields_cmp(tuple);
+        const auto *const offsets =
+            rec_get_offsets(mid_rec, index, offsets_, n, &heap);
+        ut_a(n <= offsets[0]);
+        ut_a(n <= offsets[1]);
+        ut_a(n <= cached_offsets[0]);
+        ut_a(n <= cached_offsets[1]);
+        for (size_t i = 0; i < n; ++i) {
+          ulint len;
+          ulint len2;
+
+          const auto off = rec_get_nth_field(index, mid_rec, offsets, i, &len);
+          const auto off2 =
+              rec_get_nth_field(index, mid_rec, cached_offsets, i, &len2);
+          ut_a(off == off2);
+          ut_a(len == len2);
+        }
+      }
+#endif
+      return cached_offsets;
+    }
+    return rec_get_offsets(mid_rec, index, offsets_,
+                           dtuple_get_n_fields_cmp(tuple), &heap);
+  };
+
   /* Perform binary search until the lower and upper limit directory
   slots come to the distance 1 of each other */
 
@@ -478,14 +488,7 @@ void page_cur_search_with_match(
 
     cur_matched_fields = std::min(low_matched_fields, up_matched_fields);
 
-    offsets = offsets_;
-    if (index->rec_cache.fixed_len_key) {
-      offsets = populate_offsets(
-          mid_rec, tuple, const_cast<dict_index_t *>(index), offsets, &heap);
-    } else {
-      offsets = rec_get_offsets(mid_rec, index, offsets,
-                                dtuple_get_n_fields_cmp(tuple), &heap);
-    }
+    auto offsets = get_mid_rec_offsets();
 
     cmp = tuple->compare(mid_rec, index, offsets, &cur_matched_fields);
 
@@ -530,14 +533,7 @@ void page_cur_search_with_match(
 
     cur_matched_fields = std::min(low_matched_fields, up_matched_fields);
 
-    offsets = offsets_;
-    if (index->rec_cache.fixed_len_key) {
-      offsets = populate_offsets(
-          mid_rec, tuple, const_cast<dict_index_t *>(index), offsets, &heap);
-    } else {
-      offsets = rec_get_offsets(mid_rec, index, offsets,
-                                dtuple_get_n_fields_cmp(tuple), &heap);
-    }
+    auto offsets = get_mid_rec_offsets();
 
     cmp = tuple->compare(mid_rec, index, offsets, &cur_matched_fields);
 
@@ -598,19 +594,19 @@ void page_cur_search_with_match(
 }
 
 /** Search the right position for a page cursor.
-@param[in]	block			buffer block
-@param[in]	index			index tree
-@param[in]	tuple			key to be searched for
-@param[in]	mode			search mode
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   buffer block
+@param[in]      index                   index tree
+@param[in]      tuple                   key to be searched for
+@param[in]      mode                    search mode
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	iup_matched_bytes	already matched bytes in the
+@param[in,out]  iup_matched_bytes       already matched bytes in the
 first partially matched field in the upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[in,out]	ilow_matched_bytes	already matched bytes in the
+@param[in,out]  ilow_matched_bytes      already matched bytes in the
 first partially matched field in the lower limit record
-@param[out]	cursor			page cursor */
+@param[out]     cursor                  page cursor */
 void page_cur_search_with_match_bytes(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     page_cur_mode_t mode, ulint *iup_matched_fields, ulint *iup_matched_bytes,
@@ -633,7 +629,7 @@ void page_cur_search_with_match_bytes(
 #ifdef UNIV_ZIP_DEBUG
   const page_zip_des_t *page_zip = buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -867,12 +863,12 @@ static void page_cur_insert_rec_write_log(
   /* Avoid REDO logging to save on costly IO because
   temporary tables are not recovered during crash recovery. */
   if (index->table->is_temporary()) {
-    byte *log_ptr = mlog_open(mtr, 0);
-    if (log_ptr == NULL) {
+    byte *log_ptr = nullptr;
+    if (!mlog_open(mtr, 0, log_ptr)) {
       return;
     }
     mlog_close(mtr, log_ptr);
-    log_ptr = NULL;
+    log_ptr = nullptr;
   }
 
   ut_a(rec_size < UNIV_PAGE_SIZE);
@@ -880,7 +876,7 @@ static void page_cur_insert_rec_write_log(
   ut_ad(!page_rec_is_comp(insert_rec) == !dict_table_is_comp(index->table));
 
   {
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     ulint cur_offs_[REC_OFFS_NORMAL_SIZE];
     ulint ins_offs_[REC_OFFS_NORMAL_SIZE];
 
@@ -896,9 +892,10 @@ static void page_cur_insert_rec_write_log(
         rec_get_offsets(insert_rec, index, ins_offs_, ULINT_UNDEFINED, &heap);
 
     extra_size = rec_offs_extra_size(ins_offs);
-    cur_extra_size = rec_offs_extra_size(cur_offs);
     ut_ad(rec_size == rec_offs_size(ins_offs));
+
     cur_rec_size = rec_offs_size(cur_offs);
+    cur_extra_size = rec_offs_extra_size(cur_offs);
 
     if (heap != nullptr) {
       mem_heap_free(heap);
@@ -909,8 +906,31 @@ static void page_cur_insert_rec_write_log(
 
   i = 0;
 
-  if (cur_extra_size == extra_size) {
-    ulint min_rec_size = ut_min(cur_rec_size, rec_size);
+  uint8_t cur_version = 0;
+  uint8_t ins_version = 0;
+  if (index->has_row_versions()) {
+    const bool is_cmp = page_rec_is_comp(insert_rec);
+
+    auto has_version = [is_cmp](rec_t *rec) {
+      return (is_cmp ? rec_new_is_versioned(rec) : rec_old_is_versioned(rec));
+    };
+
+    if (has_version(cursor_rec)) {
+      cur_version = is_cmp ? rec_get_instant_row_version_new(cursor_rec)
+                           : rec_get_instant_row_version_old(cursor_rec);
+    }
+
+    /* New records always have the version except the case when records are
+    being moved from one page to another (pessimistic, reorg) */
+    if (has_version(insert_rec)) {
+      ins_version = is_cmp ? rec_get_instant_row_version_new(insert_rec)
+                           : rec_get_instant_row_version_old(insert_rec);
+    }
+  }
+
+  /* If versions are different, then don't compare the records */
+  if (cur_version != ins_version && cur_extra_size == extra_size) {
+    ulint min_rec_size = std::min(cur_rec_size, rec_size);
 
     const byte *cur_ptr = cursor_rec - cur_extra_size;
 
@@ -933,30 +953,22 @@ static void page_cur_insert_rec_write_log(
     } while (i < min_rec_size);
   }
 
-  byte *log_ptr;
+  /* Length needed on REDO log :
+   11 -> REDO_LOG_INITIAL_INFO_SIZE
+   2  -> cursor rec offset
+   5  -> record end segment length
+   1  -> info bits
+   5  -> record origin offset
+   5  -> mismatch index */
+  byte *log_ptr = nullptr;
 
   if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
-    if (page_rec_is_comp(insert_rec)) {
-      log_ptr = mlog_open_and_write_index(mtr, insert_rec, index,
-                                          MLOG_COMP_REC_INSERT,
-                                          2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
-      if (UNIV_UNLIKELY(!log_ptr)) {
-        /* Logging in mtr is switched off
-        during crash recovery: in that case
-        mlog_open returns NULL */
-        return;
-      }
-    } else {
-      log_ptr = mlog_open(mtr, 11 + 2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
-      if (UNIV_UNLIKELY(!log_ptr)) {
-        /* Logging in mtr is switched off
-        during crash recovery: in that case
-        mlog_open returns NULL */
-        return;
-      }
-
-      log_ptr = mlog_write_initial_log_record_fast(insert_rec, MLOG_REC_INSERT,
-                                                   log_ptr, mtr);
+    if (!mlog_open_and_write_index(mtr, insert_rec, index, MLOG_REC_INSERT,
+                                   2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN,
+                                   log_ptr)) {
+      /* Logging in mtr is switched off during crash recovery: in that case
+      mlog_open returns NULL */
+      return;
     }
 
     log_end = &log_ptr[2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
@@ -964,8 +976,7 @@ static void page_cur_insert_rec_write_log(
     mach_write_to_2(log_ptr, page_offset(cursor_rec));
     log_ptr += 2;
   } else {
-    log_ptr = mlog_open(mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
-    if (!log_ptr) {
+    if (!mlog_open(mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN, log_ptr)) {
       /* Logging in mtr is switched off during crash
       recovery: in that case mlog_open returns NULL */
       return;
@@ -974,18 +985,19 @@ static void page_cur_insert_rec_write_log(
   }
 
   if (page_rec_is_comp(insert_rec)) {
-    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, TRUE) !=
-                      rec_get_info_and_status_bits(cursor_rec, TRUE))) {
+    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, true) !=
+                      rec_get_info_and_status_bits(cursor_rec, true))) {
       goto need_extra_info;
     }
   } else {
-    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, FALSE) !=
-                      rec_get_info_and_status_bits(cursor_rec, FALSE))) {
+    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, false) !=
+                      rec_get_info_and_status_bits(cursor_rec, false))) {
       goto need_extra_info;
     }
   }
 
-  if (extra_size != cur_extra_size || rec_size != cur_rec_size) {
+  if (extra_size != cur_extra_size || rec_size != cur_rec_size ||
+      cur_version != ins_version) {
   need_extra_info:
     /* Write the record end segment length
     and the extra info storage flag */
@@ -1031,7 +1043,7 @@ static void page_cur_insert_rec_write_log(
 /** Parses a log record of a record insert on a page.
  @return end of log record or NULL */
 byte *page_cur_parse_insert_rec(
-    ibool is_short,      /*!< in: TRUE if short inserts */
+    bool is_short,       /*!< in: true if short inserts */
     const byte *ptr,     /*!< in: buffer */
     const byte *end_ptr, /*!< in: buffer end */
     buf_block_t *block,  /*!< in: page or NULL */
@@ -1042,18 +1054,18 @@ byte *page_cur_parse_insert_rec(
   ulint end_seg_len;
   ulint mismatch_index = 0; /* remove warning */
   page_t *page;
-  rec_t *cursor_rec;
+  rec_t *cursor_rec{nullptr};
   byte buf1[1024];
   byte *buf;
   const byte *ptr2 = ptr;
   ulint info_and_status_bits = 0; /* remove warning */
   page_cur_t cursor;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
 
-  page = block ? buf_block_get_frame(block) : NULL;
+  page = block ? buf_block_get_frame(block) : nullptr;
 
   if (is_short) {
     cursor_rec = page_rec_get_prev(page_get_supremum_rec(page));
@@ -1063,38 +1075,38 @@ byte *page_cur_parse_insert_rec(
     /* Read the cursor rec offset as a 2-byte ulint */
 
     if (UNIV_UNLIKELY(end_ptr < ptr + 2)) {
-      return (NULL);
+      return (nullptr);
     }
 
     offset = mach_read_from_2(ptr);
     ptr += 2;
 
-    cursor_rec = page + offset;
+    if (page != nullptr) cursor_rec = page + offset;
 
     if (offset >= UNIV_PAGE_SIZE) {
-      recv_sys->found_corrupt_log = TRUE;
+      recv_sys->found_corrupt_log = true;
 
-      return (NULL);
+      return (nullptr);
     }
   }
 
   end_seg_len = mach_parse_compressed(&ptr, end_ptr);
 
-  if (ptr == NULL) {
-    return (NULL);
+  if (ptr == nullptr) {
+    return (nullptr);
   }
 
   if (end_seg_len >= UNIV_PAGE_SIZE << 1) {
-    recv_sys->found_corrupt_log = TRUE;
+    recv_sys->found_corrupt_log = true;
 
-    return (NULL);
+    return (nullptr);
   }
 
   if (end_seg_len & 0x1UL) {
     /* Read the info bits */
 
     if (end_ptr < ptr + 1) {
-      return (NULL);
+      return (nullptr);
     }
 
     info_and_status_bits = mach_read_from_1(ptr);
@@ -1102,42 +1114,47 @@ byte *page_cur_parse_insert_rec(
 
     origin_offset = mach_parse_compressed(&ptr, end_ptr);
 
-    if (ptr == NULL) {
-      return (NULL);
+    if (ptr == nullptr) {
+      return (nullptr);
     }
 
     ut_a(origin_offset < UNIV_PAGE_SIZE);
 
     mismatch_index = mach_parse_compressed(&ptr, end_ptr);
 
-    if (ptr == NULL) {
-      return (NULL);
+    if (ptr == nullptr) {
+      return (nullptr);
     }
 
     ut_a(mismatch_index < UNIV_PAGE_SIZE);
   }
 
   if (end_ptr < ptr + (end_seg_len >> 1)) {
-    return (NULL);
+    return (nullptr);
   }
 
   if (!block) {
     return (const_cast<byte *>(ptr + (end_seg_len >> 1)));
   }
 
-  ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+  ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
   ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
   /* Read from the log the inserted index record end segment which
   differs from the cursor record */
 
-  offsets = rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED, &heap);
+  if ((end_seg_len & 0x1UL) && mismatch_index == 0) {
+    /* This is a record has nothing common to cursor record. */
+  } else {
+    offsets =
+        rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-  if (!(end_seg_len & 0x1UL)) {
-    info_and_status_bits =
-        rec_get_info_and_status_bits(cursor_rec, page_is_comp(page));
-    origin_offset = rec_offs_extra_size(offsets);
-    mismatch_index = rec_offs_size(offsets) - (end_seg_len >> 1);
+    if (!(end_seg_len & 0x1UL)) {
+      info_and_status_bits =
+          rec_get_info_and_status_bits(cursor_rec, page_is_comp(page));
+      origin_offset = rec_offs_extra_size(offsets);
+      mismatch_index = rec_offs_size(offsets) - (end_seg_len >> 1);
+    }
   }
 
   end_seg_len >>= 1;
@@ -1145,13 +1162,14 @@ byte *page_cur_parse_insert_rec(
   if (mismatch_index + end_seg_len < sizeof buf1) {
     buf = buf1;
   } else {
-    buf = static_cast<byte *>(ut_malloc_nokey(mismatch_index + end_seg_len));
+    buf = static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                                 mismatch_index + end_seg_len));
   }
 
   /* Build the inserted record to buf */
 
   if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
-    ib::fatal(ER_IB_MSG_859)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_859)
         << "is_short " << is_short << ", "
         << "info_and_status_bits " << info_and_status_bits << ", offset "
         << page_offset(cursor_rec)
@@ -1161,7 +1179,9 @@ byte *page_cur_parse_insert_rec(
         << ", end_seg_len " << end_seg_len << " parsed len " << (ptr - ptr2);
   }
 
-  ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
+  if (mismatch_index) {
+    ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
+  }
   ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
 
   if (page_is_comp(page)) {
@@ -1182,7 +1202,7 @@ byte *page_cur_parse_insert_rec(
   }
 
   if (buf != buf1) {
-    ut_free(buf);
+    ut::free(buf);
   }
 
   if (UNIV_LIKELY_NULL(heap)) {
@@ -1218,7 +1238,7 @@ rec_t *page_cur_insert_rec_low(
   ut_ad(rec_offs_validate(rec, index, offsets));
 
   page = page_align(current_rec);
-  ut_ad(dict_table_is_comp(index->table) == (ibool) !!page_is_comp(page));
+  ut_ad(dict_table_is_comp(index->table) == page_is_comp(page));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
         recv_recovery_is_on() ||
@@ -1250,12 +1270,13 @@ rec_t *page_cur_insert_rec_low(
     /* Try to allocate from the head of the free list. */
     ulint foffsets_[REC_OFFS_NORMAL_SIZE];
     ulint *foffsets = foffsets_;
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
 
     rec_offs_init(foffsets_);
 
     foffsets =
         rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+
     if (rec_offs_size(foffsets) < rec_size) {
       if (UNIV_LIKELY_NULL(heap)) {
         mem_heap_free(heap);
@@ -1268,11 +1289,11 @@ rec_t *page_cur_insert_rec_low(
 
     if (page_is_comp(page)) {
       heap_no = rec_get_heap_no_new(free_rec);
-      page_mem_alloc_free(page, NULL, rec_get_next_ptr(free_rec, TRUE),
+      page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, true),
                           rec_size);
     } else {
       heap_no = rec_get_heap_no_old(free_rec);
-      page_mem_alloc_free(page, NULL, rec_get_next_ptr(free_rec, FALSE),
+      page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, false),
                           rec_size);
     }
 
@@ -1281,11 +1302,11 @@ rec_t *page_cur_insert_rec_low(
     }
   } else {
   use_heap:
-    free_rec = NULL;
-    insert_buf = page_mem_alloc_heap(page, NULL, rec_size, &heap_no);
+    free_rec = nullptr;
+    insert_buf = page_mem_alloc_heap(page, nullptr, rec_size, &heap_no);
 
-    if (UNIV_UNLIKELY(insert_buf == NULL)) {
-      return (NULL);
+    if (UNIV_UNLIKELY(insert_buf == nullptr)) {
+      return (nullptr);
     }
   }
 
@@ -1310,12 +1331,12 @@ rec_t *page_cur_insert_rec_low(
     page_rec_set_next(current_rec, insert_rec);
   }
 
-  page_header_set_field(page, NULL, PAGE_N_RECS, 1 + page_get_n_recs(page));
+  page_header_set_field(page, nullptr, PAGE_N_RECS, 1 + page_get_n_recs(page));
 
   /* 5. Set the n_owned field in the inserted record to zero,
   and set the heap_no field */
   if (page_is_comp(page)) {
-    rec_set_n_owned_new(insert_rec, NULL, 0);
+    rec_set_n_owned_new(insert_rec, nullptr, 0);
     rec_set_heap_no_new(insert_rec, heap_no);
   } else {
     rec_set_n_owned_old(insert_rec, 0);
@@ -1332,28 +1353,28 @@ rec_t *page_cur_insert_rec_low(
             rec_get_node_ptr_flag(insert_rec));
 
   if (!dict_index_is_spatial(index)) {
-    if (UNIV_UNLIKELY(last_insert == NULL)) {
-      page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
-      page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+    if (UNIV_UNLIKELY(last_insert == nullptr)) {
+      page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+      page_header_set_field(page, nullptr, PAGE_N_DIRECTION, 0);
 
     } else if ((last_insert == current_rec) &&
                (page_header_get_field(page, PAGE_DIRECTION) != PAGE_LEFT)) {
-      page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
-      page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+      page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_RIGHT);
+      page_header_set_field(page, nullptr, PAGE_N_DIRECTION,
                             page_header_get_field(page, PAGE_N_DIRECTION) + 1);
 
     } else if ((page_rec_get_next(insert_rec) == last_insert) &&
                (page_header_get_field(page, PAGE_DIRECTION) != PAGE_RIGHT)) {
-      page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_LEFT);
-      page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+      page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_LEFT);
+      page_header_set_field(page, nullptr, PAGE_N_DIRECTION,
                             page_header_get_field(page, PAGE_N_DIRECTION) + 1);
     } else {
-      page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
-      page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+      page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+      page_header_set_field(page, nullptr, PAGE_N_DIRECTION, 0);
     }
   }
 
-  page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, insert_rec);
+  page_header_set_ptr(page, nullptr, PAGE_LAST_INSERT, insert_rec);
 
   /* 7. It remains to update the owner record. */
   {
@@ -1361,7 +1382,7 @@ rec_t *page_cur_insert_rec_low(
     ulint n_owned;
     if (page_is_comp(page)) {
       n_owned = rec_get_n_owned_new(owner_rec);
-      rec_set_n_owned_new(owner_rec, NULL, n_owned + 1);
+      rec_set_n_owned_new(owner_rec, nullptr, n_owned + 1);
     } else {
       n_owned = rec_get_n_owned_old(owner_rec);
       rec_set_n_owned_old(owner_rec, n_owned + 1);
@@ -1372,12 +1393,12 @@ rec_t *page_cur_insert_rec_low(
     we have to split the corresponding directory slot in two. */
 
     if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
-      page_dir_split_slot(page, NULL, page_dir_find_owner_slot(owner_rec));
+      page_dir_split_slot(page, nullptr, page_dir_find_owner_slot(owner_rec));
     }
   }
 
   /* 9. Write log record of the insert */
-  if (UNIV_LIKELY(mtr != NULL)) {
+  if (UNIV_LIKELY(mtr != nullptr)) {
     page_cur_insert_rec_write_log(insert_rec, rec_size, current_rec, index,
                                   mtr);
   }
@@ -1385,20 +1406,10 @@ rec_t *page_cur_insert_rec_low(
   return (insert_rec);
 }
 
-/** Inserts a record next to page cursor on an uncompressed page.
-@param[in]	current_rec	pointer to current record after which
-                                the new record is inserted.
-@param[in]	index		record descriptor
-@param[in]	tuple		pointer to a data tuple
-@param[in]	n_ext		number of externally stored columns
-@param[in]	mtr		mini-transaction handle, or NULL
-
-@return pointer to record if succeed, NULL otherwise */
 rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
-                                      const dtuple_t *tuple, ulint n_ext,
-                                      mtr_t *mtr) {
+                                      const dtuple_t *tuple, mtr_t *mtr,
+                                      ulint rec_size) {
   byte *insert_buf;
-  ulint rec_size;
   page_t *page;       /*!< the relevant page */
   rec_t *last_insert; /*!< cursor position at previous
                       insert */
@@ -1410,7 +1421,7 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
 
   page = page_align(current_rec);
 
-  ut_ad(dict_table_is_comp(index->table) == (ibool) !!page_is_comp(page));
+  ut_ad(dict_table_is_comp(index->table) == page_is_comp(page));
 
   ut_ad(fil_page_index_page_check(page));
 
@@ -1418,64 +1429,61 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
 
   ut_ad(!page_rec_is_supremum(current_rec));
 
-  /* 1. Get the size of the physical record in the page */
-  rec_size = index->rec_cache.rec_size;
-
-  /* 2. Try to find suitable space from page memory management */
+  /* Try to find suitable space from page memory management */
   free_rec = page_header_get_ptr(page, PAGE_FREE);
   if (free_rec) {
     /* Try to allocate from the head of the free list. */
     ulint foffsets_[REC_OFFS_NORMAL_SIZE];
     ulint *foffsets = foffsets_;
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
 
     rec_offs_init(foffsets_);
 
     foffsets =
         rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
     if (rec_offs_size(foffsets) < rec_size) {
-      if (heap != NULL) {
+      if (heap != nullptr) {
         mem_heap_free(heap);
-        heap = NULL;
+        heap = nullptr;
       }
 
-      free_rec = NULL;
-      insert_buf = page_mem_alloc_heap(page, NULL, rec_size, &heap_no);
+      free_rec = nullptr;
+      insert_buf = page_mem_alloc_heap(page, nullptr, rec_size, &heap_no);
 
-      if (insert_buf == NULL) {
-        return (NULL);
+      if (insert_buf == nullptr) {
+        return (nullptr);
       }
     } else {
       insert_buf = free_rec - rec_offs_extra_size(foffsets);
 
       if (page_is_comp(page)) {
         heap_no = rec_get_heap_no_new(free_rec);
-        page_mem_alloc_free(page, NULL, rec_get_next_ptr(free_rec, TRUE),
+        page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, true),
                             rec_size);
       } else {
         heap_no = rec_get_heap_no_old(free_rec);
-        page_mem_alloc_free(page, NULL, rec_get_next_ptr(free_rec, FALSE),
+        page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, false),
                             rec_size);
       }
 
-      if (heap != NULL) {
+      if (heap != nullptr) {
         mem_heap_free(heap);
-        heap = NULL;
+        heap = nullptr;
       }
     }
   } else {
-    free_rec = NULL;
-    insert_buf = page_mem_alloc_heap(page, NULL, rec_size, &heap_no);
+    free_rec = nullptr;
+    insert_buf = page_mem_alloc_heap(page, nullptr, rec_size, &heap_no);
 
-    if (insert_buf == NULL) {
-      return (NULL);
+    if (insert_buf == nullptr) {
+      return (nullptr);
     }
   }
 
-  /* 3. Create the record */
-  insert_rec = rec_convert_dtuple_to_rec(insert_buf, index, tuple, n_ext);
+  /* Create the record */
+  insert_rec = rec_convert_dtuple_to_rec(insert_buf, index, tuple);
 
-  /* 4. Insert the record in the linked list of records */
+  /* Insert the record in the linked list of records */
   ut_ad(current_rec != insert_rec);
 
   {
@@ -1492,75 +1500,74 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
     page_rec_set_next(current_rec, insert_rec);
   }
 
-  page_header_set_field(page, NULL, PAGE_N_RECS, 1 + page_get_n_recs(page));
+  page_header_set_field(page, nullptr, PAGE_N_RECS, 1 + page_get_n_recs(page));
 
-  /* 5. Set the n_owned field in the inserted record to zero,
-  and set the heap_no field */
+  /* Set the n_owned field in the inserted record to zero, and set the heap_no
+  field */
   if (page_is_comp(page)) {
-    rec_set_n_owned_new(insert_rec, NULL, 0);
+    rec_set_n_owned_new(insert_rec, nullptr, 0);
     rec_set_heap_no_new(insert_rec, heap_no);
   } else {
     rec_set_n_owned_old(insert_rec, 0);
     rec_set_heap_no_old(insert_rec, heap_no);
   }
 
-  /* 6. Update the last insertion info in page header */
+  /* Update the last insertion info in page header */
 
   last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
   ut_ad(!last_insert || !page_is_comp(page) ||
         rec_get_node_ptr_flag(last_insert) ==
             rec_get_node_ptr_flag(insert_rec));
 
-  if (last_insert == NULL) {
-    page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
-    page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+  if (last_insert == nullptr) {
+    page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+    page_header_set_field(page, nullptr, PAGE_N_DIRECTION, 0);
 
   } else if ((last_insert == current_rec) &&
              (page_header_get_field(page, PAGE_DIRECTION) != PAGE_LEFT)) {
-    page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
-    page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+    page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_RIGHT);
+    page_header_set_field(page, nullptr, PAGE_N_DIRECTION,
                           page_header_get_field(page, PAGE_N_DIRECTION) + 1);
 
   } else if ((page_rec_get_next(insert_rec) == last_insert) &&
              (page_header_get_field(page, PAGE_DIRECTION) != PAGE_RIGHT)) {
-    page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_LEFT);
-    page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+    page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_LEFT);
+    page_header_set_field(page, nullptr, PAGE_N_DIRECTION,
                           page_header_get_field(page, PAGE_N_DIRECTION) + 1);
   } else {
-    page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
-    page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+    page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+    page_header_set_field(page, nullptr, PAGE_N_DIRECTION, 0);
   }
 
-  page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, insert_rec);
+  page_header_set_ptr(page, nullptr, PAGE_LAST_INSERT, insert_rec);
 
-  /* 7. It remains to update the owner record. */
+  /* It remains to update the owner record. */
   {
     rec_t *owner_rec = page_rec_find_owner_rec(insert_rec);
     ulint n_owned;
     if (page_is_comp(page)) {
       n_owned = rec_get_n_owned_new(owner_rec);
-      rec_set_n_owned_new(owner_rec, NULL, n_owned + 1);
+      rec_set_n_owned_new(owner_rec, nullptr, n_owned + 1);
     } else {
       n_owned = rec_get_n_owned_old(owner_rec);
       rec_set_n_owned_old(owner_rec, n_owned + 1);
     }
 
-    /* 8. Now we have incremented the n_owned field of the owner
+    /* Now we have incremented the n_owned field of the owner
     record. If the number exceeds PAGE_DIR_SLOT_MAX_N_OWNED,
     we have to split the corresponding directory slot in two. */
 
     if (n_owned == PAGE_DIR_SLOT_MAX_N_OWNED) {
-      page_dir_split_slot(page, NULL, page_dir_find_owner_slot(owner_rec));
+      page_dir_split_slot(page, nullptr, page_dir_find_owner_slot(owner_rec));
     }
   }
 
-  /* 8. Open the mtr for name sake to set the modification flag
+  /* Open the mtr for name sake to set the modification flag
   to true failing which no flush would be done. */
-  byte *log_ptr = mlog_open(mtr, 0);
-  ut_ad(log_ptr == NULL);
-  if (log_ptr != NULL) {
-    /* To keep complier happy. */
-    mlog_close(mtr, log_ptr);
+  byte *log_ptr = nullptr;
+  if (mlog_open(mtr, 0, log_ptr)) {
+    ut_d(ut_error);
+    ut_o(mlog_close(mtr, log_ptr));
   }
 
   return (insert_rec);
@@ -1668,7 +1675,7 @@ rec_t *page_cur_insert_rec_zip(
       }
 
       /* The cursor should remain on the page infimum. */
-      return (NULL);
+      return (nullptr);
     } else if (!page_zip->m_nonempty && !page_has_garbage(page)) {
       /* The page has been freshly compressed, so
       reorganizing it will not help. */
@@ -1686,12 +1693,12 @@ rec_t *page_cur_insert_rec_zip(
       }
     } else {
       ut_ad(cursor->rec == cursor_rec);
-      return (NULL);
+      return (nullptr);
     }
 
     /* Try compressing the whole page afterwards. */
     insert_rec =
-        page_cur_insert_rec_low(cursor->rec, index, rec, offsets, NULL);
+        page_cur_insert_rec_low(cursor->rec, index, rec, offsets, nullptr);
 
     /* If recovery is on, this implies that the compression
     of the page was successful during runtime. Had that not
@@ -1710,7 +1717,7 @@ rec_t *page_cur_insert_rec_zip(
     we call page_zip_validate only after processing
     all changes to a page under a single mtr during
     recovery. */
-    if (insert_rec == NULL) {
+    if (insert_rec == nullptr) {
       /* Out of space.
       This should never occur during crash recovery,
       because the MLOG_COMP_REC_INSERT should only
@@ -1726,7 +1733,7 @@ rec_t *page_cur_insert_rec_zip(
       ut_ad(pos > 0);
 
       if (!log_compressed) {
-        if (page_zip_compress(page_zip, page, index, level, NULL)) {
+        if (page_zip_compress(page_zip, page, index, level, nullptr)) {
           page_cur_insert_rec_write_log(insert_rec, rec_size, cursor->rec,
                                         index, mtr);
           page_zip_compress_write_log_no_data(level, page, index, mtr);
@@ -1750,7 +1757,7 @@ rec_t *page_cur_insert_rec_zip(
             cursor->rec = page + PAGE_NEW_INFIMUM;
           }
 
-          insert_rec = page + rec_get_next_offs(cursor->rec, TRUE);
+          insert_rec = page + rec_get_next_offs(cursor->rec, true);
           rec_offs_make_valid(insert_rec, index, offsets);
           return (insert_rec);
         }
@@ -1766,11 +1773,11 @@ rec_t *page_cur_insert_rec_zip(
       }
 
       /* Out of space: restore the page */
-      if (!page_zip_decompress(page_zip, page, FALSE)) {
+      if (!page_zip_decompress(page_zip, page, false)) {
         ut_error; /* Memory corrupted? */
       }
       ut_ad(page_validate(page, index));
-      insert_rec = NULL;
+      insert_rec = nullptr;
     }
 
     return (insert_rec);
@@ -1782,7 +1789,7 @@ rec_t *page_cur_insert_rec_zip(
     lint extra_size_diff;
     ulint foffsets_[REC_OFFS_NORMAL_SIZE];
     ulint *foffsets = foffsets_;
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
 
     rec_offs_init(foffsets_);
 
@@ -1818,7 +1825,7 @@ rec_t *page_cur_insert_rec_zip(
     }
 
     heap_no = rec_get_heap_no_new(free_rec);
-    page_mem_alloc_free(page, page_zip, rec_get_next_ptr(free_rec, TRUE),
+    page_mem_alloc_free(page, page_zip, rec_get_next_ptr(free_rec, true),
                         rec_size);
 
     if (!page_is_leaf(page)) {
@@ -1846,7 +1853,7 @@ rec_t *page_cur_insert_rec_zip(
       ut_ad(trx_id_col > 0);
       ut_ad(trx_id_col != ULINT_UNDEFINED);
 
-      trx_id_offs = rec_get_nth_field_offs(foffsets, trx_id_col, &len);
+      trx_id_offs = rec_get_nth_field_offs(index, foffsets, trx_id_col, &len);
       ut_ad(len == DATA_TRX_ID_LEN);
 
       if (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN + trx_id_offs +
@@ -1861,7 +1868,7 @@ rec_t *page_cur_insert_rec_zip(
       }
 
       ut_ad(free_rec + trx_id_offs + DATA_TRX_ID_LEN ==
-            rec_get_nth_field(free_rec, foffsets, trx_id_col + 1, &len));
+            rec_get_nth_field(index, free_rec, foffsets, trx_id_col + 1, &len));
       ut_ad(len == DATA_ROLL_PTR_LEN);
     }
 
@@ -1870,11 +1877,11 @@ rec_t *page_cur_insert_rec_zip(
     }
   } else {
   use_heap:
-    free_rec = NULL;
+    free_rec = nullptr;
     insert_buf = page_mem_alloc_heap(page, page_zip, rec_size, &heap_no);
 
-    if (UNIV_UNLIKELY(insert_buf == NULL)) {
-      return (NULL);
+    if (UNIV_UNLIKELY(insert_buf == nullptr)) {
+      return (nullptr);
     }
 
     page_zip_dir_add_slot(page_zip, index->is_clustered());
@@ -1889,7 +1896,7 @@ rec_t *page_cur_insert_rec_zip(
 
   {
     /* next record after current before the insertion */
-    const rec_t *next_rec = page_rec_get_next_low(cursor->rec, TRUE);
+    const rec_t *next_rec = page_rec_get_next_low(cursor->rec, true);
     ut_ad(rec_get_status(cursor->rec) <= REC_STATUS_INFIMUM);
     ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
     ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
@@ -1902,7 +1909,7 @@ rec_t *page_cur_insert_rec_zip(
 
   /* 5. Set the n_owned field in the inserted record to zero,
   and set the heap_no field */
-  rec_set_n_owned_new(insert_rec, NULL, 0);
+  rec_set_n_owned_new(insert_rec, nullptr, 0);
   rec_set_heap_no_new(insert_rec, heap_no);
 
   UNIV_MEM_ASSERT_RW(rec_get_start(insert_rec, offsets),
@@ -1917,7 +1924,7 @@ rec_t *page_cur_insert_rec_zip(
                             rec_get_node_ptr_flag(insert_rec));
 
   if (!dict_index_is_spatial(index)) {
-    if (UNIV_UNLIKELY(last_insert == NULL)) {
+    if (UNIV_UNLIKELY(last_insert == nullptr)) {
       page_header_set_field(page, page_zip, PAGE_DIRECTION, PAGE_NO_DIRECTION);
       page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
 
@@ -1960,7 +1967,7 @@ rec_t *page_cur_insert_rec_zip(
   page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
 
   /* 9. Write log record of the insert */
-  if (UNIV_LIKELY(mtr != NULL)) {
+  if (UNIV_LIKELY(mtr != nullptr)) {
     page_cur_insert_rec_write_log(insert_rec, rec_size, cursor->rec, index,
                                   mtr);
   }
@@ -1970,28 +1977,24 @@ rec_t *page_cur_insert_rec_zip(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of copying a record list end to a new created page.
- @return 4-byte field where to write the log data length, or NULL if
- logging is disabled */
-UNIV_INLINE
-byte *page_copy_rec_list_to_created_page_write_log(
-    page_t *page,        /*!< in: index page */
-    dict_index_t *index, /*!< in: record descriptor */
-    mtr_t *mtr)          /*!< in: mtr */
-{
-  byte *log_ptr;
+@param[in,out]  page    Index page
+@param[in,out]  index   Record descriptor
+@param[in,out]  mtr     Mini-transaction
+@param[out]     log_ptr 4-byte field where to write the log data length
+@retval true if mtr log is opened successfully.
+@retval false if mtr log is not opened. One case is when redo is disabled. */
+static inline bool page_copy_rec_list_to_created_page_write_log(
+    page_t *page, dict_index_t *index, mtr_t *mtr, byte *&log_ptr) {
+  ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
 
-  ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+  const bool opened = mlog_open_and_write_index(
+      mtr, page, index, MLOG_LIST_END_COPY_CREATED, 4, log_ptr);
 
-  log_ptr = mlog_open_and_write_index(mtr, page, index,
-                                      page_is_comp(page)
-                                          ? MLOG_COMP_LIST_END_COPY_CREATED
-                                          : MLOG_LIST_END_COPY_CREATED,
-                                      4);
-  if (UNIV_LIKELY(log_ptr != NULL)) {
+  if (opened) {
     mlog_close(mtr, log_ptr + 4);
   }
 
-  return (log_ptr);
+  return (opened);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2010,7 +2013,7 @@ byte *page_parse_copy_rec_list_to_created_page(
   page_zip_des_t *page_zip;
 
   if (ptr + 4 > end_ptr) {
-    return (NULL);
+    return (nullptr);
   }
 
   log_data_len = mach_read_from_4(ptr);
@@ -2019,7 +2022,7 @@ byte *page_parse_copy_rec_list_to_created_page(
   rec_end = ptr + log_data_len;
 
   if (rec_end > end_ptr) {
-    return (NULL);
+    return (nullptr);
   }
 
   if (!block) {
@@ -2027,7 +2030,7 @@ byte *page_parse_copy_rec_list_to_created_page(
   }
 
   while (ptr < rec_end) {
-    ptr = page_cur_parse_insert_rec(TRUE, ptr, end_ptr, block, index, mtr);
+    ptr = page_cur_parse_insert_rec(true, ptr, end_ptr, block, index, mtr);
   }
 
   ut_a(ptr == rec_end);
@@ -2035,7 +2038,7 @@ byte *page_parse_copy_rec_list_to_created_page(
   page = buf_block_get_frame(block);
   page_zip = buf_block_get_page_zip(block);
 
-  page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
+  page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, nullptr);
 
   if (!dict_index_is_spatial(index)) {
     page_header_set_field(page, page_zip, PAGE_DIRECTION, PAGE_NO_DIRECTION);
@@ -2059,17 +2062,17 @@ void page_copy_rec_list_end_to_created_page(
     dict_index_t *index, /*!< in: record descriptor */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  page_dir_slot_t *slot = 0; /* remove warning */
+  page_dir_slot_t *slot = nullptr; /* remove warning */
   byte *heap_top;
-  rec_t *insert_rec = 0; /* remove warning */
+  rec_t *insert_rec = nullptr; /* remove warning */
   rec_t *prev_rec;
   ulint count;
   ulint n_recs;
   ulint slot_index;
   ulint rec_size;
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ulint log_data_len;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -2089,12 +2092,13 @@ void page_copy_rec_list_end_to_created_page(
 #ifdef UNIV_DEBUG
   /* To pass the debug tests we have to set these dummy values
   in the debug version */
-  page_dir_set_n_slots(new_page, NULL, UNIV_PAGE_SIZE / 2);
-  page_header_set_ptr(new_page, NULL, PAGE_HEAP_TOP,
+  page_dir_set_n_slots(new_page, nullptr, UNIV_PAGE_SIZE / 2);
+  page_header_set_ptr(new_page, nullptr, PAGE_HEAP_TOP,
                       new_page + UNIV_PAGE_SIZE - 1);
 #endif
 
-  log_ptr = page_copy_rec_list_to_created_page_write_log(new_page, index, mtr);
+  bool opened = page_copy_rec_list_to_created_page_write_log(new_page, index,
+                                                             mtr, log_ptr);
 
   log_data_len = mtr->get_log()->size();
 
@@ -2126,7 +2130,7 @@ void page_copy_rec_list_end_to_created_page(
     if (page_is_comp(new_page)) {
       rec_set_next_offs_new(prev_rec, page_offset(insert_rec));
 
-      rec_set_n_owned_new(insert_rec, NULL, 0);
+      rec_set_n_owned_new(insert_rec, nullptr, 0);
       rec_set_heap_no_new(insert_rec, PAGE_HEAP_NO_USER_LOW + n_recs);
     } else {
       rec_set_next_offs_old(prev_rec, page_offset(insert_rec));
@@ -2144,7 +2148,7 @@ void page_copy_rec_list_end_to_created_page(
       slot = page_dir_get_nth_slot(new_page, slot_index);
 
       page_dir_slot_set_rec(slot, insert_rec);
-      page_dir_slot_set_n_owned(slot, NULL, count);
+      page_dir_slot_set_n_owned(slot, nullptr, count);
 
       count = 0;
     }
@@ -2172,7 +2176,7 @@ void page_copy_rec_list_end_to_created_page(
 
     count += (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2;
 
-    page_dir_slot_set_n_owned(slot, NULL, 0);
+    page_dir_slot_set_n_owned(slot, nullptr, 0);
 
     slot_index--;
   }
@@ -2185,7 +2189,7 @@ void page_copy_rec_list_end_to_created_page(
 
   ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
 
-  if (log_ptr != NULL) {
+  if (opened) {
     mach_write_to_4(log_ptr, log_data_len);
   }
 
@@ -2198,17 +2202,17 @@ void page_copy_rec_list_end_to_created_page(
   slot = page_dir_get_nth_slot(new_page, 1 + slot_index);
 
   page_dir_slot_set_rec(slot, page_get_supremum_rec(new_page));
-  page_dir_slot_set_n_owned(slot, NULL, count + 1);
+  page_dir_slot_set_n_owned(slot, nullptr, count + 1);
 
-  page_dir_set_n_slots(new_page, NULL, 2 + slot_index);
-  page_header_set_ptr(new_page, NULL, PAGE_HEAP_TOP, heap_top);
-  page_dir_set_n_heap(new_page, NULL, PAGE_HEAP_NO_USER_LOW + n_recs);
-  page_header_set_field(new_page, NULL, PAGE_N_RECS, n_recs);
+  page_dir_set_n_slots(new_page, nullptr, 2 + slot_index);
+  page_header_set_ptr(new_page, nullptr, PAGE_HEAP_TOP, heap_top);
+  page_dir_set_n_heap(new_page, nullptr, PAGE_HEAP_NO_USER_LOW + n_recs);
+  page_header_set_field(new_page, nullptr, PAGE_N_RECS, n_recs);
 
-  page_header_set_ptr(new_page, NULL, PAGE_LAST_INSERT, NULL);
+  page_header_set_ptr(new_page, nullptr, PAGE_LAST_INSERT, nullptr);
 
-  page_header_set_field(new_page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
-  page_header_set_field(new_page, NULL, PAGE_N_DIRECTION, 0);
+  page_header_set_field(new_page, nullptr, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+  page_header_set_field(new_page, nullptr, PAGE_N_DIRECTION, 0);
 
   /* Restore the log mode */
 
@@ -2216,21 +2220,16 @@ void page_copy_rec_list_end_to_created_page(
 }
 
 /** Writes log record of a record delete on a page. */
-UNIV_INLINE
-void page_cur_delete_rec_write_log(
+static inline void page_cur_delete_rec_write_log(
     rec_t *rec,                /*!< in: record to be deleted */
     const dict_index_t *index, /*!< in: record descriptor */
     mtr_t *mtr)                /*!< in: mini-transaction handle */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
+  ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
-  ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-
-  log_ptr = mlog_open_and_write_index(
-      mtr, rec, index,
-      page_rec_is_comp(rec) ? MLOG_COMP_REC_DELETE : MLOG_REC_DELETE, 2);
-
-  if (!log_ptr) {
+  if (!mlog_open_and_write_index(mtr, rec, index, MLOG_REC_DELETE, 2,
+                                 log_ptr)) {
     /* Logging in mtr is switched off during crash recovery:
     in that case mlog_open returns NULL */
     return;
@@ -2258,7 +2257,7 @@ byte *page_cur_parse_delete_rec(
   page_cur_t cursor;
 
   if (end_ptr < ptr + 2) {
-    return (NULL);
+    return (nullptr);
   }
 
   /* Read the cursor rec offset as a 2-byte ulint */
@@ -2269,15 +2268,14 @@ byte *page_cur_parse_delete_rec(
 
   if (block) {
     page_t *page = buf_block_get_frame(block);
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     ulint offsets_[REC_OFFS_NORMAL_SIZE];
     rec_t *rec = page + offset;
     rec_offs_init(offsets_);
 
     page_cur_position(rec, block, &cursor);
 #ifdef UNIV_HOTBACKUP
-    ib::trace_1() << "page_cur_parse_delete_rec { page: " << page << ", "
-                  << "offset: " << offset << ", rec: " << rec << "\n";
+    ib::trace_1() << "page_cur_parse_delete_rec: offset " << offset;
 #endif /* UNIV_HOTBACKUP */
     ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
@@ -2307,7 +2305,7 @@ void page_cur_delete_rec(
   page_t *page;
   page_zip_des_t *page_zip;
   rec_t *current_rec;
-  rec_t *prev_rec = NULL;
+  rec_t *prev_rec = nullptr;
   rec_t *next_rec;
   ulint cur_slot_no;
   ulint cur_n_owned;
@@ -2326,7 +2324,7 @@ void page_cur_delete_rec(
 
   current_rec = cursor->rec;
   ut_ad(rec_offs_validate(current_rec, index, offsets));
-  ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+  ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
         (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)) ||
@@ -2360,21 +2358,21 @@ void page_cur_delete_rec(
   cur_n_owned = page_dir_slot_get_n_owned(cur_dir_slot);
 
   /* 0. Write the log record */
-  if (mtr != 0) {
+  if (mtr != nullptr) {
     page_cur_delete_rec_write_log(current_rec, index, mtr);
   }
 
   /* 1. Reset the last insert info in the page header and increment
   the modify clock for the frame */
 
-  page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
+  page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, nullptr);
 
   /* The page gets invalid for optimistic searches: increment the
   frame modify clock only if there is an mini-transaction covering
   the change. During IMPORT we allocate local blocks that are not
   part of the buffer pool. */
 
-  if (mtr != 0) {
+  if (mtr != nullptr) {
     buf_block_modify_clock_inc(page_cur_get_block(cursor));
   }
 
@@ -2406,9 +2404,8 @@ void page_cur_delete_rec(
   prev_rec is owned by the same slot, i.e., PAGE_DIR_SLOT_MIN_N_OWNED
   >= 2. */
 
-#if PAGE_DIR_SLOT_MIN_N_OWNED < 2
-#error "PAGE_DIR_SLOT_MIN_N_OWNED < 2"
-#endif
+  static_assert(PAGE_DIR_SLOT_MIN_N_OWNED >= 2,
+                "PAGE_DIR_SLOT_MIN_N_OWNED < 2");
   ut_ad(cur_n_owned > 1);
 
   if (current_rec == page_dir_slot_get_rec(cur_dir_slot)) {

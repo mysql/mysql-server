@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,8 @@ class CmvmiCfgConf  {
   friend class Ndbcntr;
   
 public:
-  STATIC_CONST( NO_OF_WORDS = 16 );
-  STATIC_CONST( LENGTH      = 17 );
+  static constexpr Uint32 NO_OF_WORDS = 16;
+  static constexpr Uint32 LENGTH = 17;
 private:
   
   Uint32 startPhase;

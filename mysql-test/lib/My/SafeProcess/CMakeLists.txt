@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,12 +44,15 @@ IF(HAVE_ASAN AND TIRPC_FOUND)
 
   ADD_CUSTOM_COMMAND(
     OUTPUT asan_test.c
-    COMMAND ${CMAKE_COMMAND} -E echo "int main() { return 0; }" > asan_test.c
+    COMMAND ${CMAKE_COMMAND} -E echo
+      "extern int xdr_void(); int main() { xdr_void(); return 0; }"
+      > asan_test.c
     VERBATIM
     )
   SET_SOURCE_FILES_PROPERTIES(asan_test.c PROPERTIES GENERATED TRUE)
 
   ADD_EXECUTABLE(asan_test asan_test.c)
+  TARGET_LINK_LIBRARIES(asan_test ${TIRPC_LIBRARIES})
   ADD_CUSTOM_COMMAND(
     OUTPUT ldd_asan_test_result
     DEPENDS asan_test

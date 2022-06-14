@@ -193,3 +193,72 @@ WITH RECURSIVE cte AS
 SELECT * FROM cte;
 
 SET SQL_BUFFER_RESULT = DEFAULT;
+
+--echo #
+--echo # Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
+--echo #
+
+--replace_regex /cost=\d+\.\d+(\.\.\d+\.\d+)? rows=\d+/cost=N.NNN..N.NNN rows=NNN/ /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
+(
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM cte WHERE n < 5
+)
+SELECT * FROM cte;
+
+--echo #
+--echo # Bug#31066001 INCORRECT RESULT FROM CTE SUBQUERY WITH OUTER REFERENCE
+--echo #
+
+# The CTE artificially depends on the outer table 'dt', and
+# it contains two rows, 0 (seed) and 1 (recursively generated).
+# Before the bug was fixed, this happened:
+# - for the first outer row (dt.a=1), we correctly saw a match
+# - for the second outer row, the CTE was re-materialized:
+#    * it was emptied,
+#    * 0 (seed) was written to it,
+#    * but when doing the recursive row generation, the read cursor positioned
+#    on the CTE was still where it was in the previous execution, i.e. after
+#    "row#2", so thought there was nothing in the CTE (while there was the seed
+#    at row#1!). So this cursor didn't read the seed and didn't generate 1.
+#    * So there was no match, wrongly.
+#    * As a result, only one row was returned by the query.
+
+# Semi-join:
+
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+EXISTS(
+  WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+  SELECT * FROM qn WHERE b=a
+  );
+
+# Anti-join:
+
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+NOT EXISTS(
+  WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+  SELECT * FROM qn WHERE b=a
+  );
+
+--echo #
+--echo # Bug #31603195: REGRESSION: CTE CRASHING IN FINDSINGLEITERATOROFTYPE
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+WITH RECURSIVE cte1 AS
+(
+  SELECT 1 FROM t1
+  UNION ALL
+  SELECT 2 FROM cte1 WHERE FALSE
+)
+SELECT * FROM cte1;
+
+DROP TABLE t1;

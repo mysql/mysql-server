@@ -25,12 +25,12 @@ SELECT * FROM t1 ORDER BY col_1_int;
 --echo # Export table and save the data [auto_inc = 6]
 SHOW CREATE TABLE t1;
 FLUSH TABLES t1 FOR EXPORT;
---copy_file $MYSQLD_DATADIR/test/t1#P#p0.ibd $MYSQLD_DATADIR/test/t1#P#p0_backup.ibd
---copy_file $MYSQLD_DATADIR/test/t1#P#p1.ibd $MYSQLD_DATADIR/test/t1#P#p1_backup.ibd
---copy_file $MYSQLD_DATADIR/test/t1#P#p2.ibd $MYSQLD_DATADIR/test/t1#P#p2_backup.ibd
---copy_file $MYSQLD_DATADIR/test/t1#P#p0.cfg $MYSQLD_DATADIR/test/t1#P#p0_backup.cfg
---copy_file $MYSQLD_DATADIR/test/t1#P#p1.cfg $MYSQLD_DATADIR/test/t1#P#p1_backup.cfg
---copy_file $MYSQLD_DATADIR/test/t1#P#p2.cfg $MYSQLD_DATADIR/test/t1#P#p2_backup.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#p#p0.ibd $MYSQLD_DATADIR/test/t1#p#p0_backup.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p1.ibd $MYSQLD_DATADIR/test/t1#p#p1_backup.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p2.ibd $MYSQLD_DATADIR/test/t1#p#p2_backup.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p0.cfg $MYSQLD_DATADIR/test/t1#p#p0_backup.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#p#p1.cfg $MYSQLD_DATADIR/test/t1#p#p1_backup.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#p#p2.cfg $MYSQLD_DATADIR/test/t1#p#p2_backup.cfg
 
 UNLOCK TABLES;
 
@@ -53,12 +53,12 @@ eval CREATE TABLE t1 (
 PARTITIONS 3;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
---move_file $MYSQLD_DATADIR/test/t1#P#p0_backup.ibd $MYSQLD_DATADIR/test/t1#P#p0.ibd
---move_file $MYSQLD_DATADIR/test/t1#P#p1_backup.ibd $MYSQLD_DATADIR/test/t1#P#p1.ibd
---move_file $MYSQLD_DATADIR/test/t1#P#p2_backup.ibd $MYSQLD_DATADIR/test/t1#P#p2.ibd
---move_file $MYSQLD_DATADIR/test/t1#P#p0_backup.cfg $MYSQLD_DATADIR/test/t1#P#p0.cfg
---move_file $MYSQLD_DATADIR/test/t1#P#p1_backup.cfg $MYSQLD_DATADIR/test/t1#P#p1.cfg
---move_file $MYSQLD_DATADIR/test/t1#P#p2_backup.cfg $MYSQLD_DATADIR/test/t1#P#p2.cfg
+--move_file $MYSQLD_DATADIR/test/t1#p#p0_backup.ibd $MYSQLD_DATADIR/test/t1#p#p0.ibd
+--move_file $MYSQLD_DATADIR/test/t1#p#p1_backup.ibd $MYSQLD_DATADIR/test/t1#p#p1.ibd
+--move_file $MYSQLD_DATADIR/test/t1#p#p2_backup.ibd $MYSQLD_DATADIR/test/t1#p#p2.ibd
+--move_file $MYSQLD_DATADIR/test/t1#p#p0_backup.cfg $MYSQLD_DATADIR/test/t1#p#p0.cfg
+--move_file $MYSQLD_DATADIR/test/t1#p#p1_backup.cfg $MYSQLD_DATADIR/test/t1#p#p1.cfg
+--move_file $MYSQLD_DATADIR/test/t1#p#p2_backup.cfg $MYSQLD_DATADIR/test/t1#p#p2.cfg
 
 --echo # Import old table and saved data [auto_inc = 6]
 ALTER TABLE t1 IMPORT TABLESPACE;
@@ -97,9 +97,9 @@ SELECT * FROM t1 ORDER BY col_1_int;
 --echo # Export table and save the .ibd files only [auto_inc = 6]
 SHOW CREATE TABLE t1;
 FLUSH TABLES t1 FOR EXPORT;
---copy_file $MYSQLD_DATADIR/test/t1#P#p0.ibd $MYSQLD_DATADIR/test/t1#P#p0_backup.ibd
---copy_file $MYSQLD_DATADIR/test/t1#P#p1.ibd $MYSQLD_DATADIR/test/t1#P#p1_backup.ibd
---copy_file $MYSQLD_DATADIR/test/t1#P#p2.ibd $MYSQLD_DATADIR/test/t1#P#p2_backup.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p0.ibd $MYSQLD_DATADIR/test/t1#p#p0_backup.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p1.ibd $MYSQLD_DATADIR/test/t1#p#p1_backup.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p2.ibd $MYSQLD_DATADIR/test/t1#p#p2_backup.ibd
 
 UNLOCK TABLES;
 
@@ -122,9 +122,9 @@ eval CREATE TABLE t1 (
 PARTITIONS 3;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
---move_file $MYSQLD_DATADIR/test/t1#P#p0_backup.ibd $MYSQLD_DATADIR/test/t1#P#p0.ibd
---move_file $MYSQLD_DATADIR/test/t1#P#p1_backup.ibd $MYSQLD_DATADIR/test/t1#P#p1.ibd
---move_file $MYSQLD_DATADIR/test/t1#P#p2_backup.ibd $MYSQLD_DATADIR/test/t1#P#p2.ibd
+--move_file $MYSQLD_DATADIR/test/t1#p#p0_backup.ibd $MYSQLD_DATADIR/test/t1#p#p0.ibd
+--move_file $MYSQLD_DATADIR/test/t1#p#p1_backup.ibd $MYSQLD_DATADIR/test/t1#p#p1.ibd
+--move_file $MYSQLD_DATADIR/test/t1#p#p2_backup.ibd $MYSQLD_DATADIR/test/t1#p#p2.ibd
 
 --echo # Import old table and saved data from .ibd files [auto_inc = 6]
 --replace_result #p# #P# #sp# #SP#

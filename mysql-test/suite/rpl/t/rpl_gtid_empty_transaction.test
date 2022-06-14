@@ -28,7 +28,7 @@
 # DDL and DML and (2B) an UPDATE statement that matches no row.  We
 # use a second slave where the effect of the statement would be seen,
 # if it was not logged as an empty statement.  In case (2A) we check
-# that slave_open_temp_tables is still 0 on the second slave. In case
+# that replica_open_temp_tables is still 0 on the second slave. In case
 # (2B) we do an UPDATE on master that matches no rows on master, but
 # that would match a row on the second slave.
 #
@@ -179,7 +179,7 @@ source include/start_slave_sql.inc;
 #
 # - Second slave should also not log any change, since it receives an
 #   empty transaction from the first slave.  Thus
-#   Slave_open_temp_tables should remain 0 on the second slave.
+#   Replica_open_temp_tables should remain 0 on the second slave.
 CREATE TEMPORARY TABLE t2 (a INT);
 ALTER TABLE t2 ADD COLUMN b INT;
 INSERT INTO t2 VALUES (1, 2);
@@ -194,10 +194,10 @@ INSERT INTO t2 VALUES (1, 2);
 
 # Verify temp tables on first slave but not on second slave
 --let $assert_text= First slave should not have created any temp table
---let $assert_cond= [slave:SHOW GLOBAL STATUS LIKE 'Slave_open_temp_tables'] = 1
+--let $assert_cond= [slave:SHOW GLOBAL STATUS LIKE 'Replica_open_temp_tables'] = 1
 
 --let $assert_text= Second slave should not have created any temp table
---let $assert_cond= [server_3:SHOW GLOBAL STATUS LIKE 'Slave_open_temp_tables'] = 0
+--let $assert_cond= [server_3:SHOW GLOBAL STATUS LIKE 'Replica_open_temp_tables'] = 0
 
 --echo ---- Clean up ----
 

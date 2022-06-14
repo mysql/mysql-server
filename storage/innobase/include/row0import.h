@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,28 +43,12 @@ struct row_prebuilt_t;
 
 /** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
-@param[in]	table		table
-@param[in]	table_def	dd table
-@param[in]	prebuilt	prebuilt struct in MySQL
+@param[in]      table           table
+@param[in]      table_def       dd table
+@param[in]      prebuilt        prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
-dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
-                             row_prebuilt_t *prebuilt)
-    MY_ATTRIBUTE((warn_unused_result));
-
-/** Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
- @return DB_SUCCESS or error code. */
-dberr_t row_import_update_discarded_flag(
-    trx_t *trx,          /*!< in/out: transaction that
-                         covers the update */
-    table_id_t table_id, /*!< in: Table for which we want
-                         to set the root table->flags2 */
-    bool discarded,      /*!< in: set MIX_LEN column bit
-                         to discarded, if true */
-    bool dict_locked)    /*!< in: Set to true if the
-                         caller already owns the
-                         dict_sys_t:: mutex. */
-    MY_ATTRIBUTE((warn_unused_result));
-
-#include "row0import.ic"
+[[nodiscard]] dberr_t row_import_for_mysql(dict_table_t *table,
+                                           dd::Table *table_def,
+                                           row_prebuilt_t *prebuilt);
 
 #endif /* row0import_h */

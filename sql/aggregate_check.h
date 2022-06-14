@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -502,103 +502,42 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include <stddef.h>
+#include <assert.h>
 #include <sys/types.h>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;
+class Query_block;
 class THD;
 struct TABLE_LIST;
+
 template <class T>
-class List;
-
-/**
-   Re-usable shortcut, when it does not make sense to do copy objects of a
-   class named "myclass"; add this to a private section of the class. The
-   implementations are intentionally not created, so if someone tries to use
-   them like in "myclass A= B" there will be a linker error.
-*/
-#define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
-  myclass(myclass const &);                     \
-  void operator=(myclass const &)
-
-/**
-   Utility mixin class to be able to walk() only parts of item trees.
-
-   Used with PREFIX+POSTFIX walk: in the prefix call of the Item
-   processor, we process the item X, may decide that its children should not
-   be processed (just like if they didn't exist): processor calls stop_at(X)
-   for that. Then walk() goes to a child Y; the processor tests is_stopped(Y)
-   which returns true, so processor sees that it must not do any processing
-   and returns immediately. Finally, the postfix call to the processor on X
-   tests is_stopped(X) which returns "true" and understands that the
-   not-to-be-processed children have been skipped so calls restart(). Thus,
-   any sibling of X, any part of the Item tree not under X, can then be
-   processed.
-*/
-class Item_tree_walker {
- protected:
-  Item_tree_walker() : stopped_at_item(NULL) {}
-  ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
-
-  /// Stops walking children of this item
-  void stop_at(const Item *i) {
-    DBUG_ASSERT(!stopped_at_item);
-    stopped_at_item = i;
-  }
-
-  /**
-     @returns if we are stopped. If item 'i' is where we stopped, restarts the
-     walk for next items.
-  */
-  bool is_stopped(const Item *i) {
-    if (stopped_at_item) {
-      /*
-        Walking was disabled for a tree part rooted a one ancestor of 'i' or
-        rooted at 'i'.
-      */
-      if (stopped_at_item == i) {
-        /*
-          Walking was disabled for the tree part rooted at 'i'; we have now just
-          returned back to this root (POSTFIX call), left the tree part:
-          enable the walk again, for other tree parts.
-        */
-        stopped_at_item = NULL;
-      }
-      // No further processing to do for this item:
-      return true;
-    }
-    return false;
-  }
-
- private:
-  const Item *stopped_at_item;
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
-};
+class mem_root_deque;
 
 /**
    Checks for queries which have DISTINCT.
 */
 class Distinct_check : public Item_tree_walker {
  public:
-  Distinct_check(SELECT_LEX *select_arg)
-      : select(select_arg), failed_ident(NULL) {}
+  Distinct_check(Query_block *select_arg)
+      : select(select_arg), failed_ident(nullptr) {}
+  Distinct_check(const Distinct_check &) = delete;
+  Distinct_check &operator=(const Distinct_check &) = delete;
 
   bool check_query(THD *thd);
 
  private:
   /// Query block which we are validating
-  SELECT_LEX *const select;
+  Query_block *const select;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -611,8 +550,6 @@ class Distinct_check : public Item_tree_walker {
   friend bool Item_sum::aggregate_check_distinct(uchar *arg);
   friend bool Item_ident::aggregate_check_distinct(uchar *arg);
   friend bool Item_func_any_value::aggregate_check_distinct(uchar *arg);
-
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Distinct_check);
 };
 
 /**
@@ -620,29 +557,31 @@ class Distinct_check : public Item_tree_walker {
 */
 class Group_check : public Item_tree_walker {
  public:
-  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root)
+  Group_check(Query_block *select_arg, MEM_ROOT *root)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
-        table(NULL),
+        table(nullptr),
         group_in_fd(~0ULL),
         m_root(root),
         fd(root),
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root),
-        failed_ident(NULL) {}
+        failed_ident(nullptr) {}
 
   ~Group_check() {
     for (uint j = 0; j < mat_tables.size(); ++j) destroy(mat_tables.at(j));
   }
+  Group_check(const Group_check &) = delete;
+  Group_check &operator=(const Group_check &) = delete;
 
   bool check_query(THD *thd);
   void to_opt_trace(THD *thd);
 
  private:
   /// Query block which we are validating
-  SELECT_LEX *const select;
+  Query_block *const select;
 
   /**
      "Underlying" == expressions which are underlying in an identifier.
@@ -705,10 +644,10 @@ class Group_check : public Item_tree_walker {
   Item_ident *failed_ident;
 
   bool is_fd_on_source(Item *item);
-  bool is_child() const { return table != NULL; }
+  bool is_child() const { return table != nullptr; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
+  Group_check(Query_block *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -719,7 +658,7 @@ class Group_check : public Item_tree_walker {
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root) {
-    DBUG_ASSERT(table);
+    assert(table);
   }
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()
@@ -729,7 +668,7 @@ class Group_check : public Item_tree_walker {
   void add_to_fd(Item *item, bool local_column, bool add_to_mat_table = true);
   void add_to_fd(table_map m) {
     whole_tables_fd |= m;
-    find_group_in_fd(NULL);
+    find_group_in_fd(nullptr);
   }
   void add_to_source_of_mat_table(Item_field *item_field, TABLE_LIST *tl);
   bool is_in_fd(Item *item);
@@ -741,7 +680,7 @@ class Group_check : public Item_tree_walker {
                          table_map weak_tables, bool weak_side_upwards);
   void find_fd_in_cond(Item *cond, table_map weak_tables,
                        bool weak_side_upwards);
-  void find_fd_in_joined_table(List<TABLE_LIST> *join_list);
+  void find_fd_in_joined_table(mem_root_deque<TABLE_LIST *> *join_list);
   void to_opt_trace2(Opt_trace_context *ctx, Opt_trace_object *parent);
   void find_group_in_fd(Item *item);
   Item *select_expression(uint idx);
@@ -762,8 +701,6 @@ class Group_check : public Item_tree_walker {
   friend bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg);
   friend bool Item_ident::is_column_not_in_fd(uchar *arg);
   friend bool Item_func_grouping::aggregate_check_group(uchar *arg);
-
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Group_check);
 };
 
 #endif

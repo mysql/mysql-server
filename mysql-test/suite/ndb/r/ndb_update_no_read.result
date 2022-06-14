@@ -16,11 +16,9 @@ info: Records: 10  Duplicates: 0  Warnings: 0
 update t1 set c = 111, b = 20 where a = 1;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where a = 1 order by a;
 a	b	c
 1	20	111
@@ -34,11 +32,9 @@ affected rows: 1
 
 delete from t1 where a = 1;
 affected rows: 1
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where a = 1 order by a;
 a	b	c
 affected rows: 0
@@ -52,11 +48,9 @@ affected rows: 0
 update t1 set c = 1111 where b = 2;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b = 2 order by a;
 a	b	c
 9	2	1111
@@ -71,11 +65,9 @@ affected rows: 1
 update t1 set c = 12, b = 19 where b = 2;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b = 2 order by a;
 a	b	c
 affected rows: 0
@@ -88,11 +80,9 @@ affected rows: 0
 
 delete from t1 where b = 19;
 affected rows: 1
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b = 19 order by a;
 a	b	c
 affected rows: 0
@@ -106,11 +96,9 @@ affected rows: 0
 update t1 set c = 22 where a = 10 or a >= 10;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 3
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 order by a;
 a	b	c
 2	9	1
@@ -132,11 +120,9 @@ affected rows: 8
 update t1 set c = 23 where a in (8,10);
 affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 order by a;
 a	b	c
 2	9	1
@@ -158,11 +144,9 @@ affected rows: 8
 update t1 set c = 23 where a in (7,8) or a >= 10;
 affected rows: 3
 info: Rows matched: 3  Changed: 3  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 4
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 order by a;
 a	b	c
 2	9	1
@@ -202,11 +186,9 @@ affected rows: 2
 update t1 set a = 13, b = 20 where a = 3;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 4
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where a = 13 order by a;
 a	b	c
 13	20	11
@@ -223,11 +205,9 @@ affected rows: 1
 update t1 set a = 12, b = 19 where b = 7;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 4
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b = 19 order by a;
 a	b	c
 12	19	11
@@ -245,11 +225,9 @@ affected rows: 0
 update t1 set c = 12, b = 29 where a = 5 and b = 6;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b = 19 order by a;
 a	b	c
 12	19	11
@@ -263,11 +241,9 @@ affected rows: 1
 
 delete from t1 where b = 6 and c = 12;
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b = 6 order by a;
 a	b	c
 affected rows: 0
@@ -291,11 +267,9 @@ info: Records: 3  Duplicates: 0  Warnings: 0
 update t1 set b='two' where a=2;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 1 roundtrip
 # 0 - info call
@@ -307,11 +281,9 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 update t1 set b='lots' where a=2000;
 affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 1 roundtrip
 # 0 - info call
@@ -326,11 +298,9 @@ affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 1
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 1 roundtrip
 # 0 - info call
@@ -345,11 +315,9 @@ affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 1
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -365,11 +333,9 @@ affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
 commit;
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -385,11 +351,9 @@ affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
 commit;
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -408,11 +372,9 @@ Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
 commit;
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -431,11 +393,9 @@ Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
 commit;
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;
 create table t1
 (a int not null primary key auto_increment, b int, c varchar(256))
@@ -484,49 +444,37 @@ select count(*) from t1 where a in (...)
 count(*)
 1000
 affected rows: 1
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 9
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set autocommit=on;
 affected rows: 0
 update t1 set c = 'kalle' where a in (...)
 affected rows: 1000
 info: Rows matched: 1000  Changed: 1000  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 9
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from t1 where a in (...)
 affected rows: 1000
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 3
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from t1 where a in (...)
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 3
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 update t1 set c = 'kalle' where a in (...)
 affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 9
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 update t1 set c = 'kalle' where a in (...)
 affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 9
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;

@@ -1,0 +1,139 @@
+--source include/have_debug.inc
+--source include/have_ndb.inc
+
+# * Old and new index name format *
+#
+# Before 5.1.12 an old index name format was used where each index where in
+# same namespace as the table, the internal index name was thus prefixed
+# with "<table_database>/<table_schema>/".
+# This was changed to a new index name format in 5.1.12, with this format
+# all indexes are in system namespace, this is done by prefixing
+# the internal name with "sys/def/". The new format made it easier to perform
+# various kind of  rename and alter table, simply by avoiding the need to
+# rename (the internal name of) the indexes when the table is renamed
+# to another database.
+#
+# There are backwards compatibility code in NdbApi and ndbcluster plugin to
+# handle opening and working with indexes using old index name, this test
+# exercises some of the backwards compatibility code and shows how to
+# convert a table to use the new index name format.
+
+# Create utility procedure for showing the index names of a table in NDB
+delimiter $;
+CREATE PROCEDURE show_index_names(table_name varchar(255))
+BEGIN
+  DECLARE ndb_table_id INT DEFAULT -1;
+  # Load table id
+  SELECT id FROM ndbinfo.dict_obj_info
+    WHERE fq_name = table_name
+      INTO ndb_table_id;
+  # Select all indexes belonging to table id, mask the table id
+  SELECT REPLACE(fq_name, ndb_table_id, '<table_id>') as index_name
+    FROM ndbinfo.dict_obj_info
+      WHERE parent_obj_id = ndb_table_id ORDER BY index_name;
+END$
+delimiter ;$
+
+--echo # Create table with new index name format and show that
+--echo # indexes are in sys/def/ namespace
+CREATE TABLE t1_new(
+  a int PRIMARY KEY,
+  b varchar(255) NOT NULL,
+  c int,
+  index b_index (b),
+  unique index c_unique (c)
+) ENGINE = NDB;
+
+--echo # Indexes are in system namespace, ie. prefixed with sys/def/
+call show_index_names('test/def/t1_new');
+
+DROP TABLE t1_new;
+
+--echo # Create tables with old index format using DBUG keyword
+
+set debug='+d,ndb_index_old_name_format';
+CREATE TABLE t1_old(
+  a int PRIMARY KEY,
+  b varchar(255) NOT NULL,
+  c int,
+  d int DEFAULT NULL,
+  index b_index (b),
+  unique index c_unique (c)
+) ENGINE = NDB;
+CREATE TABLE t2_old(
+  a int PRIMARY KEY,
+  b varchar(255) NOT NULL,
+  c int,
+  d int DEFAULT NULL,
+  index b_index (b),
+  unique index c_unique (c)
+) ENGINE = NDB;
+CREATE TABLE t3_old(
+  a int PRIMARY KEY,
+  b varchar(255) NOT NULL,
+  c int,
+  index b_index (b),
+  unique index c_unique (c)
+) ENGINE = NDB;
+--echo # Remove keyword and let backwards compat code handle it from here on
+set debug = '-d,ndb_index_old_name_format';
+
+--echo # Drop the third table, shows that table with old format can be dropped
+DROP TABLE t3_old;
+
+--echo # Indexes are in tables namespace, ie. prefixed with test/def/
+call show_index_names('test/def/t1_old');
+
+--echo # Check if table can be used for DML
+INSERT INTO t1_old VALUES (1, "MySQL Server with NDB", 2, 89);
+INSERT INTO t1_old (a, b, c) VALUES (11, "Barrier effect", 3);
+INSERT INTO t1_old (a, b, c) VALUES
+  (12, "The third row", 4),
+  (37, "And of course number 37", 7);
+SELECT * FROM t1_old WHERE a = 1;
+UPDATE t1_old SET b = CONCAT(b, " test") WHERE a = 1;
+SELECT * FROM t1_old WHERE a = 1;
+REPLACE t1_old (a, b, c) VALUES (12, "Another layer", 10);
+SELECT * FROM t1_old WHERE a = 12 ORDER BY a;
+DELETE FROM t1_old WHERE a = 11;
+SELECT COUNT(*) FROM t1_old;
+SELECT b FROM t1_old WHERE b LIKE "MySQL%";
+DELETE FROM t1_old ORDER BY b DESC;
+
+--echo # Create another index, table will now use both new and old index names
+CREATE INDEX another_b_index ON t1_old (b,c);
+call show_index_names('test/def/t1_old');
+
+--echo # RENAME TABLE <name> (or ALTER TABLE <name> RENAME) to same database
+--echo # will preserve the old index name ( since indexes are not recreated)
+RENAME TABLE t1_old TO t1_old_renamed;
+--echo # Indexes are still in tables namespace. i.e test/def/
+call show_index_names('test/def/t1_old_renamed');
+# Rename back to previous name
+RENAME TABLE t1_old_renamed TO t1_old;
+
+--echo # RENAME TABLE <name> to _another_ database will recreate the indexes
+--echo # and thus start to use new index name format.
+CREATE DATABASE test2;
+RENAME TABLE t1_old TO test2.t1_old_other_db;
+--echo # Indexes are now in system namespace. i.e sys/def/
+call show_index_names('test2/def/t1_old_other_db');
+# Done with this table
+DROP TABLE test2.t1_old_other_db;
+DROP DATABASE test2;
+
+--echo # Inplace alter table (that adds a colum) will preserve the
+--echo # old index name format
+ALTER TABLE t2_old ALGORITHM=inplace, ADD COLUMN e INT DEFAULT NULL;
+call show_index_names('test/def/t2_old');
+
+--echo # Forcing a copying alter table will create indexes with new format
+--echo # This shows there is a way for the user to remove the old index names!
+ALTER TABLE t2_old FORCE;
+--echo # All indexes are now in system namespace, i.e sys/def/
+call show_index_names('test/def/t2_old');
+
+DROP TABLE t2_old;
+DROP PROCEDURE show_index_names;
+
+

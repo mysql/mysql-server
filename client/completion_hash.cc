@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ int completion_hash_init(HashTable *ht, uint nSize) {
     ht->initialized = 0;
     return FAILURE;
   }
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &ht->mem_root, 8192, 0);
+  ::new ((void *)&ht->mem_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 8192);
   ht->pHashFunction = hashpjw;
   ht->nTableSize = nSize;
   ht->initialized = 1;
@@ -99,7 +99,7 @@ int completion_hash_update(HashTable *ht, const char *arKey, uint nKeyLength,
   if (!(p->pData = (entry *)ht->mem_root.Alloc(sizeof(entry)))) return FAILURE;
 
   p->pData->str = str;
-  p->pData->pNext = 0;
+  p->pData->pNext = nullptr;
   p->count = 1;
 
   p->pNext = ht->arBuckets[nIndex];
@@ -125,7 +125,7 @@ static Bucket *completion_hash_find(HashTable *ht, const char *arKey,
     }
     p = p->pNext;
   }
-  return (Bucket *)0;
+  return (Bucket *)nullptr;
 }
 
 int completion_hash_exists(HashTable *ht, char *arKey, uint nKeyLength) {
@@ -154,7 +154,7 @@ Bucket *find_all_matches(HashTable *ht, const char *str, uint length,
   b = completion_hash_find(ht, str, length);
   if (!b) {
     *res_length = 0;
-    return (Bucket *)0;
+    return (Bucket *)nullptr;
   } else {
     *res_length = length;
     return b;
@@ -171,7 +171,7 @@ Bucket *find_longest_match(HashTable *ht, char *str, uint length,
   b = completion_hash_find(ht, str, length);
   if (!b) {
     *res_length = 0;
-    return (Bucket *)0;
+    return (Bucket *)nullptr;
   }
 
   count = b->count;
@@ -192,7 +192,7 @@ Bucket *find_longest_match(HashTable *ht, char *str, uint length,
 }
 
 void completion_hash_clean(HashTable *ht) {
-  free_root(&ht->mem_root, MYF(0));
+  ht->mem_root.Clear();
   memset(ht->arBuckets, 0, ht->nTableSize * sizeof(Bucket *));
 }
 

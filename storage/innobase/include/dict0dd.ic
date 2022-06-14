@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,9 +39,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_base.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
-@param[in]	partition	partition or subpartition
-@return	the explicit dd::Tablespace::id
-@retval	dd::INVALID_OBJECT_ID	if there is no explicit tablespace */
+@param[in]      partition       partition or subpartition
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
 inline dd::Object_id dd_get_space_id(const dd::Partition &partition) {
   ut_ad(dd_part_is_stored(&partition));
   ut_ad(dd_table_is_partitioned(partition.table()));
@@ -65,101 +65,9 @@ inline dd::Object_id dd_get_space_id(const dd::Partition &partition) {
   return (id);
 }
 
-#ifdef DBUG_OFF
-#define path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l))
-#else
-#define path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l), (f))
-#endif /* DBUG_OFF */
-
-/** Parse a table file name into table name and database name.
-Note the table name may have trailing TMP_POSTFIX for temporary table name.
-@param[in]	tbl_name	table name including database and table name
-@param[in,out]	dd_db_name	database name buffer to be filled
-@param[in,out]	dd_tbl_name	table name buffer to be filled
-@param[in,out]	dd_part_name	partition name to be filled if not nullptr
-@param[in,out]	dd_sub_name	sub-partition name to be filled if not nullptr
-@param[in,out]	is_temp		true if it is a temporary table name which
-                                ends with TMP_POSTFIX.
-@return true if table name is parsed properly, false if the table name
-is invalid */
-inline bool dd_parse_tbl_name(const char *tbl_name, char *dd_db_name,
-                              char *dd_tbl_name, char *dd_part_name,
-                              char *dd_sub_name, bool *is_temp) {
-  char db_buf[MAX_DATABASE_NAME_LEN + 1];
-  char tbl_buf[MAX_TABLE_NAME_LEN + 1];
-  ulint db_len = dict_get_db_name_len(tbl_name);
-
-  if (db_len == 0) {
-    return (false);
-  }
-
-  ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
-  memcpy(db_buf, tbl_name, db_len);
-  db_buf[db_len] = 0;
-
-  size_t tbl_len = strlen(tbl_name) - db_len - 1;
-
-  memcpy(tbl_buf, tbl_name + db_len + 1, tbl_len);
-  tbl_buf[tbl_len] = 0;
-
-  filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1, true);
-
-  auto is_part = strstr(tbl_buf, PART_SEPARATOR);
-
-  if (is_part != nullptr) {
-    *is_part = '\0';
-  } else {
-    if (tbl_len > TMP_POSTFIX_LEN &&
-        strcmp(tbl_buf + tbl_len - TMP_POSTFIX_LEN, TMP_POSTFIX) == 0) {
-      tbl_buf[tbl_len - TMP_POSTFIX_LEN] = '\0';
-      if (is_temp != nullptr) {
-        *is_temp = true;
-      }
-    }
-  }
-
-  path_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1, true);
-
-  if (is_part == nullptr || dd_part_name == nullptr) {
-    return (true);
-  }
-
-  auto is_sub = strstr(is_part + PART_SEPARATOR_LEN, SUB_PART_SEPARATOR);
-
-  char *trailing_sharp;
-
-  if (is_sub == nullptr) {
-    trailing_sharp = strchr(is_part + PART_SEPARATOR_LEN, '#');
-  } else {
-    *is_sub = '\0';
-    trailing_sharp = strchr(is_sub + SUB_PART_SEPARATOR_LEN, '#');
-  }
-
-  if (trailing_sharp != nullptr) {
-    ut_ad(strcmp(trailing_sharp, TMP_POSTFIX) == 0);
-    *trailing_sharp = '\0';
-
-    if (is_temp != nullptr) {
-      *is_temp = true;
-    }
-  }
-
-  if (is_part != nullptr && dd_part_name != nullptr) {
-    filename_to_tablename(is_part + PART_SEPARATOR_LEN, dd_part_name,
-                          MAX_TABLE_NAME_LEN + 1);
-
-    if (is_sub != nullptr && dd_sub_name != nullptr) {
-      filename_to_tablename(is_sub + SUB_PART_SEPARATOR_LEN, dd_sub_name,
-                            MAX_TABLE_NAME_LEN + 1);
-    }
-  }
-
-  return (true);
-}
-
 /** Look up a column in a table using the system_charset_info collation.
-@param[in]	dd_table	data dictionary table
-@param[in]	name		column name
+@param[in]      dd_table        data dictionary table
+@param[in]      name            column name
 @return the column
 @retval nullptr if not found */
 inline const dd::Column *dd_find_column(const dd::Table *dd_table,
@@ -173,10 +81,10 @@ inline const dd::Column *dd_find_column(const dd::Table *dd_table,
 }
 
 /** Add a hidden column when creating a table.
-@param[in,out]	dd_table	table containing user columns and indexes
-@param[in]	name		hidden column name
-@param[in]	length		length of the column, in bytes
-@param[in]	type		column type
+@param[in,out]  dd_table        table containing user columns and indexes
+@param[in]      name            hidden column name
+@param[in]      length          length of the column, in bytes
+@param[in]      type            column type
 @return the added column, or NULL if there already was a column by that name */
 inline dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
                                         uint length,
@@ -198,8 +106,8 @@ inline dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
 }
 
 /** Add a hidden index element at the end.
-@param[in,out]	index	created index metadata
-@param[in]	column	column of the index */
+@param[in,out]  index   created index metadata
+@param[in]      column  column of the index */
 inline void dd_add_hidden_element(dd::Index *index, const dd::Column *column) {
   dd::Index_element *e = index->add_element(const_cast<dd::Column *>(column));
   e->set_hidden(true);
@@ -207,9 +115,9 @@ inline void dd_add_hidden_element(dd::Index *index, const dd::Column *column) {
 }
 
 /** Initialize a hidden unique B-tree index.
-@param[in,out]	index	created index metadata
-@param[in]	name	name of the index
-@param[in]	column	column of the index
+@param[in,out]  index   created index metadata
+@param[in]      name    name of the index
+@param[in]      column  column of the index
 @return the initialized index */
 inline dd::Index *dd_set_hidden_unique_index(dd::Index *index, const char *name,
                                              const dd::Column *column) {
@@ -223,18 +131,18 @@ inline dd::Index *dd_set_hidden_unique_index(dd::Index *index, const char *name,
 }
 
 /** Returns a cached table object based on table id.
-@param[in]	table_id	table id
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]      table_id        table id
+@param[in]      dict_locked     true=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
                                                 bool dict_locked) {
   dict_table_t *table;
 
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   /* Look for the table ID in the hash table */
   ulint fold = ut_fold_ull(table_id);
@@ -253,22 +161,22 @@ inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
   }
 
   if (!dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   return (table);
 }
 
 /** Returns a cached table object based on table name.
-@param[in]	table_id	table id
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]      name            table name
+@param[in]      dict_locked     true=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
-                                                  ibool dict_locked) {
+                                                  bool dict_locked) {
   dict_table_t *table = nullptr;
 
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   table = dict_table_check_if_in_cache_low(name);
@@ -280,11 +188,11 @@ inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
       dict_move_to_mru(table);
     }
 
-    table->acquire();
+    table->acquire_with_lock();
   }
 
   if (!dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   return (table);
@@ -292,10 +200,10 @@ inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
 
 /** Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
-@param[in]	thd		MySQL thread handle
-@param[in]	form		information on table
+@param[in]      thd             MySQL thread handle
+@param[in]      form            information on table
                                 columns and indexes
-@param[out]	doc_id_col	Doc ID column number if
+@param[out]     doc_id_col      Doc ID column number if
                                 there exist a FTS_DOC_ID column,
                                 ULINT_UNDEFINED if column is of the
                                 wrong type/name/size
@@ -318,7 +226,7 @@ inline bool create_table_check_doc_id_col(THD *thd, const TABLE *form,
     if (innobase_strcasecmp(field->field_name, FTS_DOC_ID_COL_NAME) == 0) {
       /* Note the name is case sensitive due to
       our internal query parser */
-      if (col_type == DATA_INT && !field->real_maybe_null() &&
+      if (col_type == DATA_INT && !field->is_nullable() &&
           col_len == sizeof(doc_id_t) &&
           (strcmp(field->field_name, FTS_DOC_ID_COL_NAME) == 0)) {
         *doc_id_col = i;
@@ -365,24 +273,34 @@ inline const char *get_row_format_name(enum row_type row_format) {
 }
 
 /** Acquire a shared metadata lock.
-@param[in,out]	thd	current thread
-@param[out]	mdl	metadata lock
-@param[in]	db	schema name
-@param[in]	table	table name
+@param[in,out]  thd     current thread
+@param[out]     mdl     metadata lock
+@param[in]      db      schema name
+@param[in]      table   table name
 @retval false if acquired
 @retval true if failed (my_error() will have been called) */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
-    THD *thd, MDL_ticket **mdl, const char *db, const char *table) {
+[[nodiscard]] static inline bool dd_mdl_acquire(THD *thd, MDL_ticket **mdl,
+                                                const char *db,
+                                                const char *table) {
   bool ret = false;
   char table_name[MAX_TABLE_NAME_LEN + 1];
-  const char *namep = table;
+  const char *table_p = table;
+
+  char db_name[MAX_DATABASE_NAME_LEN + 1];
+  const char *db_p = db;
 
   if (innobase_get_lower_case_table_names() == 2) {
     ulint len = strlen(table);
     ut_memcpy(table_name, table, len);
     table_name[len] = '\0';
     innobase_casedn_str(table_name);
-    namep = table_name;
+    table_p = table_name;
+
+    len = strlen(db);
+    ut_memcpy(db_name, db, len);
+    db_name[len] = '\0';
+    innobase_casedn_str(db_name);
+    db_p = db_name;
   } else {
 #ifndef _WIN32
     if (innobase_get_lower_case_table_names() == 1) {
@@ -390,18 +308,24 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
       ut_memcpy(table_name, table, len);
       table_name[len] = '\0';
       innobase_casedn_str(table_name);
-      namep = table_name;
+      table_p = table_name;
+
+      len = strlen(db);
+      ut_memcpy(db_name, db, len);
+      db_name[len] = '\0';
+      innobase_casedn_str(db_name);
+      db_p = db_name;
     }
 #endif /* !_WIN32 */
   }
 
-  ret = dd::acquire_shared_table_mdl(thd, db, namep, false, mdl);
+  ret = dd::acquire_shared_table_mdl(thd, db_p, table_p, false, mdl);
 
   return (ret);
 }
 
 /** Get the version attribute.
-@param[in]	dd_table	dd::Table
+@param[in]      dd_table        dd::Table
 @return table dynamic metadata version if exists, otherwise 0 */
 inline uint64_t dd_get_version(const dd::Table *dd_table) {
   uint64_t version = 0;
@@ -409,7 +333,7 @@ inline uint64_t dd_get_version(const dd::Table *dd_table) {
 
   if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION]) ||
       p.get(dd_table_key_strings[DD_TABLE_VERSION],
-            reinterpret_cast<uint64 *>(&version))) {
+            reinterpret_cast<uint64_t *>(&version))) {
     return (0);
   }
 

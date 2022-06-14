@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _my_bitmap_h_
-#define _my_bitmap_h_
+#ifndef MY_BITMAP_INCLUDED
+#define MY_BITMAP_INCLUDED
 
 /**
   @file include/my_bitmap.h
@@ -30,12 +30,12 @@
 
 #define MY_BIT_NONE (~(uint)0)
 
+#include <assert.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/psi/mysql_mutex.h" /* mysql_mutex_t */
 
 typedef uint32 my_bitmap_map;
 
@@ -44,64 +44,55 @@ struct MY_BITMAP {
   uint n_bits{0}; /* number of bits occupied by the above */
   my_bitmap_map last_word_mask{0};
   my_bitmap_map *last_word_ptr{nullptr};
-  /*
-     mutex will be acquired for the duration of each bitmap operation if
-     thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
-     acquiring the mutex
-   */
-  mysql_mutex_t *mutex{nullptr};
 };
 
 extern void create_last_word_mask(MY_BITMAP *map);
-extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-                        bool thread_safe);
+extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits);
 extern bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern bool bitmap_is_set_all(const MY_BITMAP *map);
 extern bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2);
+extern bool bitmap_is_valid(const MY_BITMAP *map);
 extern bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
-extern bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
-extern bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);
 extern uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_bits_set(const MY_BITMAP *map);
 extern void bitmap_free(MY_BITMAP *map);
-extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit);
+extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, bool use_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
-extern void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_invert(MY_BITMAP *map);
 extern void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2);
+extern uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
+                          uint max_bits_to_copy = UINT_MAX);
 
-extern uint bitmap_lock_set_next(MY_BITMAP *map);
-extern void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit);
-/* Fast, not thread safe, bitmap functions */
 #define bitmap_buffer_size(bits) (((bits) + 31) / 32) * 4
 #define no_bytes_in_map(map) (((map)->n_bits + 7) / 8)
 #define no_words_in_map(map) (((map)->n_bits + 31) / 32)
 
 static inline void bitmap_set_bit(MY_BITMAP *map, uint bit) {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   ((uchar *)map->bitmap)[bit / 8] |= (1 << (bit & 7));
 }
 
 static inline void bitmap_flip_bit(MY_BITMAP *map, uint bit) {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   ((uchar *)map->bitmap)[bit / 8] ^= (1 << (bit & 7));
 }
 
 static inline void bitmap_clear_bit(MY_BITMAP *map, uint bit) {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   ((uchar *)map->bitmap)[bit / 8] &= ~(1 << (bit & 7));
 }
 
 static inline bool bitmap_is_set(const MY_BITMAP *map, uint bit) {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   return ((uchar *)map->bitmap)[bit / 8] & (1 << (bit & 7));
 }
 
@@ -114,8 +105,8 @@ static inline bool bitmap_is_set(const MY_BITMAP *map, uint bit) {
    @retval false The bitmaps differ.
  */
 static inline bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2) {
-  DBUG_ASSERT(map1->n_bits > 0);
-  DBUG_ASSERT(map2->n_bits > 0);
+  assert(map1->n_bits > 0);
+  assert(map2->n_bits > 0);
 
   if (memcmp(map1->bitmap, map2->bitmap, 4 * (no_words_in_map(map1) - 1)) != 0)
     return false;
@@ -137,4 +128,4 @@ static inline void bitmap_set_all(MY_BITMAP *map) {
   memset(map->bitmap, 0xFF, 4 * no_words_in_map(map));
 }
 
-#endif /* _my_bitmap_h_ */
+#endif  // MY_BITMAP_INCLUDED

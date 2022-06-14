@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,9 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include "../dblqh/Dblqh.hpp"
+#include "../dbtux/Dbtux.hpp"
 
 #define JAM_FILE_ID 423
-
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -190,7 +190,7 @@ Dbtup::execCREATE_TRIG_IMPL_REQ(Signal* signal)
   else
   {
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, CreateTrigImplReq::ATTRIBUTE_MASK_SECTION);
+    ndbrequire(handle.getSection(ptr, CreateTrigImplReq::ATTRIBUTE_MASK_SECTION));
     ndbrequire(ptr.sz == mask.getSizeInWords());
     ::copy(mask.rep.data, ptr);
   }
@@ -255,6 +255,7 @@ void
 Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
+  ndbassert(!m_is_query_block);
   const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
@@ -520,8 +521,6 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
   TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
-  //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
-
   int cnt;
   struct {
     TriggerEvent::Value event;
@@ -624,7 +623,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
 
   jamEntry();
 
-  c_operation_pool.getPtr(regOperPtr);
+  ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
 
   regFragPtr.i = regOperPtr.p->fragmentPtr;
   Uint32 no_of_fragrec = cnoOfFragrec;
@@ -652,7 +651,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
 
   OperationrecPtr lastOperPtr;
   lastOperPtr.i = tuple_ptr->m_operation_ptr_i;
-  c_operation_pool.getPtr(lastOperPtr);
+  ndbrequire(c_operation_pool.getValidPtr(lastOperPtr));
   ndbassert(regOperPtr.p->op_struct.bit_field.m_reorg ==
             lastOperPtr.p->op_struct.bit_field.m_reorg);
 
@@ -1418,6 +1417,58 @@ Dbtup::getOldTriggerId(const TupTriggerData* trigPtrP,
   return RNIL;
 }
 
+void
+Dbtup::sendBatchedFIRE_TRIG_ORD(Signal* signal, Uint32 ref, Uint32 siglen, SectionHandle* handle)
+{
+  jam();
+  const Uint32 version = getNodeInfo(refToNode(ref)).m_version;
+  if (ndbd_frag_fire_trig_ord(version))
+  {
+    jam();
+    sendBatchedFragmentedSignal(ref,
+                                GSN_FIRE_TRIG_ORD,
+                                signal,
+                                siglen,
+                                JBB,
+                                handle,
+                                false);
+  }
+  else
+  {
+    jam();
+    sendSignal(ref,
+               GSN_FIRE_TRIG_ORD,
+               signal,
+               siglen,
+               JBB,
+               handle);
+  }
+}
+
+void
+Dbtup::sendBatchedFIRE_TRIG_ORD(Signal* signal, Uint32 ref, Uint32 siglen, LinearSectionPtr ptr[], Uint32 nptr)
+{
+  const Uint32 version = getNodeInfo(refToNode(ref)).m_version;
+  if (ndbd_frag_fire_trig_ord(version))
+  {
+    jam();
+    sendBatchedFragmentedSignal(ref,
+                                GSN_FIRE_TRIG_ORD,
+                                signal,
+                                siglen,
+                                JBB,
+                                ptr,
+                                nptr);
+  }
+  else
+  {
+    jam();
+    sendSignal(ref, GSN_FIRE_TRIG_ORD,
+               signal, siglen, JBB, ptr, nptr);
+  }
+}
+
+
 #define ZOUT_OF_LONG_SIGNAL_MEMORY_IN_TRIGGER 312
 
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
@@ -1442,7 +1493,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
   Fragrecord::FragState fragstatus = regFragPtr.p->fragStatus;
 
-  if (refToMain(ref) == BACKUP)
+  if (refToMain(ref) == getBACKUP())
   {
     jam();
     if (isNdbMtLqh())
@@ -1461,7 +1512,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
     */
     signal->theData[0] = trigPtr->triggerId;
     signal->theData[1] = regFragPtr.p->fragmentId;
-    EXECUTE_DIRECT(BACKUP, GSN_BACKUP_TRIG_REQ, signal, 2);
+    EXECUTE_DIRECT(getBACKUP(), GSN_BACKUP_TRIG_REQ, signal, 2);
     jamEntry();
     if (signal->theData[0] == 0) {
       jam();
@@ -1552,7 +1603,7 @@ out:
       trigAttrInfo->setTriggerId(triggerId);
     }
   }
-  // Fall through
+  [[fallthrough]];
   case (TriggerType::REORG_TRIGGER):
   case (TriggerType::FK_PARENT):
   case (TriggerType::FK_CHILD):
@@ -1560,7 +1611,7 @@ out:
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
-    longsignal = ndbd_long_fire_trig_ord(getNodeInfo(refToNode(ref)).m_version);
+    longsignal = true;
     break;
   case (TriggerType::SUBSCRIPTION):
   case (TriggerType::SUBSCRIPTION_BEFORE):
@@ -1685,13 +1736,13 @@ out:
       switch(regOperPtr->m_copy_tuple_location.m_file_no){
       case Operationrec::RF_SINGLE_NOT_EXIST:
         jam();
-        // Fall through
+        [[fallthrough]];
       case Operationrec::RF_MULTI_NOT_EXIST:
         jam();
         goto is_delete;
       case Operationrec::RF_SINGLE_EXIST:
         jam();
-        // Fall through
+        [[fallthrough]];
       case Operationrec::RF_MULTI_EXIST:
         jam();
         goto is_insert;
@@ -1731,14 +1782,14 @@ out:
     switch(regOperPtr->m_copy_tuple_location.m_file_no){
     case Operationrec::RF_SINGLE_NOT_EXIST:
       jam();
-      // Fall through
+      [[fallthrough]];
     case Operationrec::RF_MULTI_NOT_EXIST:
       jam();
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
       break;
     case Operationrec::RF_SINGLE_EXIST:
       jam();
-      // Fall through
+      [[fallthrough]];
     case Operationrec::RF_MULTI_EXIST:
       jam();
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;
@@ -1781,20 +1832,9 @@ out:
     fireTrigOrd->m_triggerType = trigPtr->triggerType;
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
     fireTrigOrd->m_transId2 = req_struct->trans_id2;
-    if (longsignal)
-    {
-      jam();
-      sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalLength, JBB, &handle);
-    }
-    else
-    {
-      jam();
-      sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalLength, JBB);
-    }
+    sendBatchedFIRE_TRIG_ORD(signal, req_struct->TC_ref, FireTrigOrd::SignalLength, &handle);
     break;
-  case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
+  case (TriggerType::SUBSCRIPTION_BEFORE):
     jam();
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
     fireTrigOrd->m_transId2 = req_struct->trans_id2;
@@ -1829,8 +1869,7 @@ out:
       else
       {
         jam();
-        sendSignal(ref, GSN_FIRE_TRIG_ORD,
-                   signal, FireTrigOrd::SignalLengthSuma, JBB, ptr, 3);
+        sendBatchedFIRE_TRIG_ORD(signal, ref, FireTrigOrd::SignalLengthSuma, ptr, 3);
       }
     }
     break;
@@ -1852,7 +1891,7 @@ out:
     else
     {
       jam();
-      // Todo send onlu before/after depending on BACKUP REDO/UNDO
+      // Todo send only before/after depending on BACKUP REDO/UNDO
       ndbassert(longsignal);
       LinearSectionPtr ptr[3];
       ptr[0].p = keyBuffer;
@@ -1861,8 +1900,7 @@ out:
       ptr[1].sz = noBeforeWords;
       ptr[2].p = afterBuffer;
       ptr[2].sz = noAfterWords;
-      sendSignal(ref, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalWithGCILength, JBB, ptr, 3);
+      sendBatchedFIRE_TRIG_ORD(signal, ref, FireTrigOrd::SignalWithGCILength, ptr, 3);
     }
     break;
   default:
@@ -1927,7 +1965,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   if ((regOperPtr->op_struct.bit_field.m_triggers == 
          TupKeyReq::OP_NO_TRIGGERS) &&
       (refToMain(trigPtr->m_receiverRef) == SUMA ||
-       refToMain(trigPtr->m_receiverRef) == BACKUP))
+       refToMain(trigPtr->m_receiverRef) == getBACKUP()))
   {
     /* Operations that have no logical effect need not be backed up
      * or sent as an event. Eg. OPTIMIZE TABLE is performed as a
@@ -2203,10 +2241,10 @@ Dbtup::addTuxEntries(Signal* signal,
       failPtrI = triggerPtr.i;
       goto fail;
     }
-    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
+    c_tux->execTUX_MAINT_REQ(signal);
     jamEntryDebug();
-    if (req->errorCode != 0) {
+    if (unlikely(req->errorCode != 0))
+    {
       jam();
       terrorCode = req->errorCode;
       failPtrI = triggerPtr.i;
@@ -2219,12 +2257,11 @@ fail:
   req->opInfo = TuxMaintReq::OpRemove;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != failPtrI) {
-    jam();
+    jamDebug();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
-    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
-    jamEntry();
+    c_tux->execTUX_MAINT_REQ(signal);
+    jamEntryDebug();
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
   }
@@ -2326,13 +2363,13 @@ Dbtup::removeTuxEntries(Signal* signal,
   const TupTriggerData_list& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
-  while (triggerPtr.i != RNIL) {
-    jam();
+  while (triggerPtr.i != RNIL)
+  {
+    jamDebug();
     req->indexId = triggerPtr.p->indexId;
-    req->errorCode = RNIL,
-    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
-    jamEntry();
+    req->errorCode = RNIL;
+    c_tux->execTUX_MAINT_REQ(signal); 
+    jamEntryDebug();
     // must succeed
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
@@ -2350,6 +2387,7 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     tot += sec[i].sz;
 
   Uint32 * ptr = 0;
+  Uint32 used = m_suma_trigger_buffer.m_usedWords;
   Uint32 free = m_suma_trigger_buffer.m_freeWords;
   Uint32 pageId = m_suma_trigger_buffer.m_pageId;
   Uint32 oom = m_suma_trigger_buffer.m_out_of_memory;
@@ -2358,24 +2396,38 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     jam();
     if (pageId != RNIL)
     {
+      jam();
       flush_ndbmtd_suma_buffer(signal);
+      used = 0;
+      free = 0;
+      pageId = RNIL;
     }
     if (oom == 0)
     {
       jam();
       ndbassert(m_suma_trigger_buffer.m_pageId == RNIL);
-      void * vptr = m_ctx.m_mm.alloc_page(RT_SUMA_TRIGGER_BUFFER,
-                                          &m_suma_trigger_buffer.m_pageId,
-                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
-      ptr = reinterpret_cast<Uint32*>(vptr);
-      free = GLOBAL_PAGE_SIZE_WORDS - tot;
+      Uint32 page_count = (tot - 1) / GLOBAL_PAGE_SIZE_WORDS + 1;
+      Uint32 count = page_count;
+      m_ctx.m_mm.alloc_pages(RT_SUMA_TRIGGER_BUFFER, &m_suma_trigger_buffer.m_pageId, &count, page_count);
+      pageId = m_suma_trigger_buffer.m_pageId;
+      if (count == 0)
+      {
+        jam();
+        ptr = 0;
+      }
+      else
+      {
+        jam();
+        ptr = reinterpret_cast<Uint32*>(c_page_pool.getPtr(pageId));
+        free = count * GLOBAL_PAGE_SIZE_WORDS - tot;
+      }
     }
   }
   else
   {
     jam();
     ptr = reinterpret_cast<Uint32*>(c_page_pool.getPtr(pageId));
-    ptr += (GLOBAL_PAGE_SIZE_WORDS - free);
+    ptr += used;
     free -= tot;
   }
 
@@ -2391,13 +2443,18 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     ptr += len;
     for (Uint32 i = 0; i<3; i++)
     {
+      jam();
       memcpy(ptr, sec[i].p, 4 * sec[i].sz);
       ptr += sec[i].sz;
     }
 
+    used += tot;
+
+    m_suma_trigger_buffer.m_usedWords = used;
     m_suma_trigger_buffer.m_freeWords = free;
     if (free < (len + 5))
     {
+      jam();
       flush_ndbmtd_suma_buffer(signal);
     }
   }
@@ -2414,7 +2471,7 @@ Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
   jam();
 
   Uint32 pageId = m_suma_trigger_buffer.m_pageId;
-  Uint32 free = m_suma_trigger_buffer.m_freeWords;
+  Uint32 used = m_suma_trigger_buffer.m_usedWords;
   Uint32 oom = m_suma_trigger_buffer.m_out_of_memory;
 
   if (pageId != RNIL)
@@ -2424,7 +2481,7 @@ Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
     save[0] = signal->theData[0];
     save[1] = signal->theData[1];
     signal->theData[0] = pageId;
-    signal->theData[1] =  GLOBAL_PAGE_SIZE_WORDS - free;
+    signal->theData[1] =  used;
     sendSignal(SUMA_REF, GSN_FIRE_TRIG_ORD_L, signal, 2, JBB);
 
     signal->theData[0] = save[0];
@@ -2445,6 +2502,7 @@ Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
   }
 
   m_suma_trigger_buffer.m_pageId = RNIL;
+  m_suma_trigger_buffer.m_usedWords = 0;
   m_suma_trigger_buffer.m_freeWords = 0;
   m_suma_trigger_buffer.m_out_of_memory = 0;
 }

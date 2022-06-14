@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,18 +27,18 @@
 #include "my_dbug.h"
 
 enum_gcs_error Gcs_gr_logger_impl::initialize() {
-  DBUG_ENTER("Gcs_gr_logger_impl::initialize");
-  DBUG_RETURN(GCS_OK);
+  DBUG_TRACE;
+  return GCS_OK;
 }
 
 enum_gcs_error Gcs_gr_logger_impl::finalize() {
-  DBUG_ENTER("Gcs_gr_logger_impl::finalize");
-  DBUG_RETURN(GCS_OK);
+  DBUG_TRACE;
+  return GCS_OK;
 }
 
 void Gcs_gr_logger_impl::log_event(const gcs_log_level_t level,
                                    const std::string &message) {
-  DBUG_ENTER("Gcs_gr_logger_impl::log_event");
+  DBUG_TRACE;
 
   switch (level) {
     case GCS_INFO:
@@ -56,8 +56,6 @@ void Gcs_gr_logger_impl::log_event(const gcs_log_level_t level,
       break;
 
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
   }
-
-  DBUG_VOID_RETURN;
 }

@@ -1,0 +1,235 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+Slave_SQL_Running = 'Yes'
+stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+Slave_SQL_Running = 'No'
+Show set-to-same state is ok
+set global ndb_applier_conflict_role = NONE;
+Now transition through all status, including set-to-self
+set global ndb_applier_conflict_role = "PRIMARY";
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = "PRIMARY";
+set global ndb_applier_conflict_role = "SECONDARY";
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+set global ndb_applier_conflict_role = "SECONDARY";
+set global ndb_applier_conflict_role = "NONE";
+set global ndb_applier_conflict_role = "SECONDARY";
+set global ndb_applier_conflict_role = "PRIMARY";
+set global ndb_applier_conflict_role = "NONE";
+set global ndb_applier_conflict_role = "PASS";
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = "PASS";
+set global ndb_applier_conflict_role = "NONE";
+Now test illegal transitions
+set global ndb_applier_conflict_role = "PRIMARY";
+set global ndb_applier_conflict_role = "PASS";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PRIMARY to PASS failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = "SECONDARY";
+set global ndb_applier_conflict_role = "PASS";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from SECONDARY to PASS failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+set global ndb_applier_conflict_role = "NONE";
+set global ndb_applier_conflict_role = "PASS";
+set global ndb_applier_conflict_role = "PRIMARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PASS to PRIMARY failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = "SECONDARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PASS to SECONDARY failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = "NONE";
+Now test transitions not possible due to 
+Slave SQL thread running
+start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+Slave_SQL_Running = 'Yes'
+From NONE
+set global ndb_applier_conflict_role = "NONE";
+set global ndb_applier_conflict_role = "PRIMARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from NONE to PRIMARY failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+set global ndb_applier_conflict_role = "SECONDARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from NONE to SECONDARY failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+set global ndb_applier_conflict_role = "PASS";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from NONE to PASS failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+From PRIMARY
+set global ndb_applier_conflict_role = "PRIMARY";
+start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+set global ndb_applier_conflict_role = "PRIMARY";
+set global ndb_applier_conflict_role = "SECONDARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PRIMARY to SECONDARY failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = "NONE";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PRIMARY to NONE failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = "PASS";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PRIMARY to PASS failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+From SECONDARY
+set global ndb_applier_conflict_role = "SECONDARY";
+start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+set global ndb_applier_conflict_role = "SECONDARY";
+set global ndb_applier_conflict_role = "PRIMARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from SECONDARY to PRIMARY failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+set global ndb_applier_conflict_role = "NONE";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from SECONDARY to NONE failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+set global ndb_applier_conflict_role = "PASS";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from SECONDARY to PASS failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+From PASS
+set global ndb_applier_conflict_role = "NONE";
+set global ndb_applier_conflict_role = "PASS";
+start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+set global ndb_applier_conflict_role = "PASS";
+set global ndb_applier_conflict_role = "PRIMARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PASS to PRIMARY failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = "SECONDARY";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PASS to SECONDARY failed : Invalid role change.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = "NONE";
+ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: Role change from PASS to NONE failed : Cannot change role while Replica SQL thread is running.  Use STOP REPLICA first.
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+set global ndb_applier_conflict_role = "NONE";
+Test some aliases for role names
+set global ndb_applier_conflict_role = PR;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = S;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+set global ndb_applier_conflict_role = N;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+set global ndb_applier_conflict_role = PA;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = 0;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+set global ndb_applier_conflict_role = 2;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = 1;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+set global ndb_applier_conflict_role = 0;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+set global ndb_applier_conflict_role = 3;
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PASS
+set global ndb_applier_conflict_role = NON;
+start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/rpl_end.inc
+
+# Reboot server setting with both ndb_slave_conflict_role & ndb_applier_conflict_role variable.
+call mtr.add_suppression("mysqld startup An incident event has been written to the binary log which will stop the slaves");
+# restart:--ndb_slave_conflict_role=PRIMARY --ndb_applier_conflict_role=SECONDARY
+include/assert_grep.inc [Deprecation warning is logged during startup.]
+
+# when new and deprecated variables are set, only new value should be considered
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	SECONDARY
+show global variables like 'ndb_slave_conflict_role';
+Variable_name	Value
+ndb_slave_conflict_role	SECONDARY
+
+# updating one variables should also update the other variable
+set global ndb_slave_conflict_role = "PRIMARY";
+Warnings:
+Warning	1287	'ndb_slave_conflict_role' is deprecated and will be removed in a future release. Please use ndb_applier_conflict_role instead
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	PRIMARY
+show global variables like 'ndb_slave_conflict_role';
+Variable_name	Value
+ndb_slave_conflict_role	PRIMARY
+set global ndb_applier_conflict_role = "NONE";
+show global variables like 'ndb_applier_conflict_role';
+Variable_name	Value
+ndb_applier_conflict_role	NONE
+show global variables like 'ndb_slave_conflict_role';
+Variable_name	Value
+ndb_slave_conflict_role	NONE

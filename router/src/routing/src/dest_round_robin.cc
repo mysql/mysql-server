@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,185 +21,61 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#include <chrono>
-#include <stdexcept>
-
-#include "common.h"
 #include "dest_round_robin.h"
-#include "mysql/harness/logging/logging.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#endif
-
-IMPORT_LOG_FUNCTIONS()
+#include "mysql/harness/net_ts/internet.h"
+#include "mysqlrouter/destination.h"
 
 using mysql_harness::TCPAddress;
 
-// Timeout for trying to connect with quarantined servers
-static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout(1 * 1000);
-// How long we pause before checking quarantined servers again (seconds)
-static const int kQuarantineCleanupInterval = 3;
-// Make sure Quarantine Manager Thread is run even with nothing in quarantine
-static const int kTimeoutQuarantineConditional = 2;
+Destinations DestRoundRobin::destinations() {
+  Destinations dests;
 
-void *DestRoundRobin::run_thread(void *context) {
-  DestRoundRobin *dest_round_robin = static_cast<DestRoundRobin *>(context);
-  dest_round_robin->quarantine_manager_thread();
-  return nullptr;
-}
+  {
+    std::lock_guard<std::mutex> lk(mutex_update_);
 
-void DestRoundRobin::start(const mysql_harness::PluginFuncEnv * /*env*/) {
-  quarantine_thread_.run(&run_thread, this);
-}
+    const auto end = destinations_.end();
+    const auto begin = destinations_.begin();
+    const auto sz = destinations_.size();
+    auto cur = begin;
 
-int DestRoundRobin::get_server_socket(
-    std::chrono::milliseconds connect_timeout, int *error,
-    mysql_harness::TCPAddress *address) noexcept {
-  size_t server_pos;
+    // move iterator forward and remember the position as 'last'
+    std::advance(cur, start_pos_);
+    auto last = cur;
+    size_t n = start_pos_;
 
-  const size_t num_servers = size();
-  // Try at most num_servers times
-  for (size_t i = 0; i < num_servers; i++) {
-    try {
-      server_pos = get_next_server();
-    } catch (const std::runtime_error &) {
-      log_warning("No destinations currently available for routing");
-      return -1;
+    // for start_pos == 2:
+    //
+    // 0 1 2 3 4 x
+    // ^   ^     ^
+    // |   |     `- end
+    // |   `- last|cur
+    // `- begin
+
+    // from last to end;
+    //
+    // dests = [2 3 4]
+
+    for (; cur != end; ++cur, ++n) {
+      auto const &dest = *cur;
+
+      dests.push_back(std::make_unique<Destination>(dest.str(), dest.address(),
+                                                    dest.port()));
     }
 
-    // If server is quarantined, skip
-    {
-      std::lock_guard<std::mutex> lock(mutex_quarantine_);
-      if (is_quarantined(server_pos)) {
-        continue;
-      }
+    // from begin to before-last
+    //
+    // dests = [2 3 4] + [0 1]
+    //
+    for (cur = begin, n = 0; cur != last; ++cur, ++n) {
+      auto const &dest = *cur;
+
+      dests.push_back(std::make_unique<Destination>(dest.str(), dest.address(),
+                                                    dest.port()));
     }
 
-    // Try server
-    TCPAddress server_addr = destinations_[server_pos];
-    log_debug("Trying server %s (index %lu)", server_addr.str().c_str(),
-              static_cast<long unsigned>(server_pos));
-    auto sock = get_mysql_socket(server_addr, connect_timeout);
-    if (sock >= 0) {
-      // Server is available
-      if (address) *address = server_addr;
-      return sock;
-    } else {
-#ifndef _WIN32
-      *error = errno;
-#else
-      *error = WSAGetLastError();
-#endif
-      if (errno != ENFILE && errno != EMFILE) {
-        // We failed to get a connection to the server; we quarantine.
-        std::lock_guard<std::mutex> lock(mutex_quarantine_);
-        add_to_quarantine(server_pos);
-        if (quarantined_.size() == destinations_.size()) {
-          log_debug("No more destinations: all quarantined");
-          break;
-        }
-        continue;  // try another destination
-      }
-      break;
-    }
+    if (++start_pos_ >= sz) start_pos_ = 0;
   }
 
-  return -1;  // no destination is available
-}
-
-DestRoundRobin::~DestRoundRobin() {
-  stopper_.set_value();
-  condvar_quarantine_.notify_one();
-  quarantine_thread_.join();
-}
-
-void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {
-  assert(index < size());
-  if (index >= size()) {
-    log_debug("Impossible server being quarantined (index %lu)",
-              static_cast<long unsigned>(index));  // 32bit Linux requires cast
-    return;
-  }
-  if (!is_quarantined(index)) {
-    log_debug("Quarantine destination server %s (index %lu)",
-              destinations_.at(index).str().c_str(),
-              static_cast<long unsigned>(index));  // 32bit Linux requires cast
-    quarantined_.push_back(index);
-    condvar_quarantine_.notify_one();
-  }
-}
-
-void DestRoundRobin::cleanup_quarantine() noexcept {
-  mutex_quarantine_.lock();
-  // Nothing to do when nothing quarantined
-  if (quarantined_.empty()) {
-    mutex_quarantine_.unlock();
-    return;
-  }
-  // We work on a copy; updating the original
-  auto cpy_quarantined(quarantined_);
-  mutex_quarantine_.unlock();
-
-  for (auto it = cpy_quarantined.begin(); it != cpy_quarantined.end(); ++it) {
-    if (stopped_.wait_for(std::chrono::seconds(0)) ==
-        std::future_status::ready) {
-      return;
-    }
-
-    auto addr = destinations_.at(*it);
-    auto sock = get_mysql_socket(addr, kQuarantinedConnectTimeout, false);
-
-    if (sock >= 0) {
-#ifndef _WIN32
-      shutdown(sock, SHUT_RDWR);
-      close(sock);
-#else
-      shutdown(sock, SD_BOTH);
-      closesocket(sock);
-#endif
-      log_debug("Unquarantine destination server %s (index %lu)",
-                addr.str().c_str(),
-                static_cast<long unsigned>(*it));  // 32bit Linux requires cast
-      std::lock_guard<std::mutex> lock(mutex_quarantine_);
-      quarantined_.erase(
-          std::remove(quarantined_.begin(), quarantined_.end(), *it));
-    }
-  }
-}
-
-void DestRoundRobin::quarantine_manager_thread() noexcept {
-  mysql_harness::rename_thread(
-      "RtQ:<unknown>");  // TODO change <unknown> to instance name
-
-  std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
-  while (stopped_.wait_for(std::chrono::seconds(0)) !=
-         std::future_status::ready) {
-    // wait until something got added to quarantie or shutdown
-    condvar_quarantine_.wait_for(
-        lock, std::chrono::seconds(kTimeoutQuarantineConditional), [this] {
-          return !quarantined_.empty() ||
-                 (stopped_.wait_for(std::chrono::seconds(0)) ==
-                  std::future_status::ready);
-        });
-
-    // if we aren't shutting down, cleanup and wait
-    if (stopped_.wait_for(std::chrono::seconds(0)) !=
-        std::future_status::ready) {
-      cleanup_quarantine();
-      // Temporize
-      stopped_.wait_for(std::chrono::seconds(kQuarantineCleanupInterval));
-    }
-  }
-}
-
-size_t DestRoundRobin::size_quarantine() {
-  std::lock_guard<std::mutex> lock(mutex_quarantine_);
-  return quarantined_.size();
+  return dests;
 }

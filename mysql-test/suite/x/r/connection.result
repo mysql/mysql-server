@@ -1,7 +1,7 @@
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
+call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Too many connections'");
 call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 #
@@ -9,8 +9,8 @@ call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 #
 RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE from information_schema.plugins where PLUGIN_NAME LIKE '%mysqlx%'
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE
-mysqlx	1.0	ACTIVE	DAEMON
 mysqlx_cache_cleaner	1.0	ACTIVE	AUDIT
+mysqlx	1.0	ACTIVE	DAEMON
 0 rows affected
 RUN create user xplugin@localhost identified by 'xplugin'
 
@@ -64,6 +64,7 @@ Mysqlx.Ok {
 }
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -89,7 +90,7 @@ Application terminated with expected error: Authentication failed, check usernam
 ok
 Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
-# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
@@ -145,7 +146,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
@@ -168,7 +169,7 @@ Mysqlx_sessions_rejected	2
 #
 # try login with invalid host when mysqx plugin is installed
 #
-Application terminated with expected error: No such host is known 'invalid' (code 2005)
+Application terminated with expected error: No such host is known 'mtr_test_invalid_mysql_host' (code 2005)
 ok
 
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
@@ -245,6 +246,7 @@ Mysqlx.Ok {
 }
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	1
@@ -536,6 +538,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 nonblank@localhost	nonblank@localhost	localhost
@@ -908,39 +912,22 @@ RUN grant all on *.* to con2@localhost
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 2	con1	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened (may fail)
 connecting...
 active session is now 'con2'
 closing session con2
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 1	x_root	localhost
 2	con1	localhost
@@ -963,6 +950,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 2 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	2
@@ -988,43 +976,25 @@ RUN grant all on *.* to con2@localhost
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 2	con1	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 1	x_root	localhost
 2	con1	localhost
 3	con2	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	0
@@ -1044,6 +1014,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 3 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -1069,16 +1040,10 @@ RUN set @@global.mysqlx_max_connections=2
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 4	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -1094,16 +1059,10 @@ Mysqlx_connection_accept_errors	0
 create and activate new session con1
 connecting...
 active session is now 'xcon1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 5	xcon1	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -1123,11 +1082,6 @@ active session is now 'xcon2'
 closing session xcon2
 switched to session default
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 4	x_root	localhost
 5	xcon1	localhost
@@ -1149,17 +1103,11 @@ Mysqlx_connection_accept_errors	0
 0 rows affected
 connecting...
 active session is now 'xcon2'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 4	x_root	localhost
 5	xcon1	localhost
 7	xcon2	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN drop user xcon1@localhost
 
 0 rows affected
@@ -1188,6 +1136,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 6 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 6 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 6 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -1211,16 +1160,10 @@ RUN SET GLOBAL mysqlx_connect_timeout = 300
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 8	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -1248,16 +1191,10 @@ RUN show status like 'Mysqlx_connection_accept_errors'
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 9	xcon1	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "select sleep(100);"
 }
@@ -1278,11 +1215,6 @@ Variable_name	Value
 Mysqlx_connection_accept_errors	0
 0 rows affected
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 8	x_root	localhost
 9	xcon1	localhost
@@ -1302,30 +1234,12 @@ Mysqlx_connection_accept_errors	0
 0 rows affected
 connecting...
 active session is now 'xcon3'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 8	x_root	localhost
 9	xcon1	localhost
 10	xcon2	localhost
 11	xcon2	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 9
-    }
-  }
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 
 command ok
@@ -1333,11 +1247,6 @@ switched to session xcon1
 Server disconnected
 closing session xcon1
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 8	x_root	localhost
 10	xcon2	localhost
@@ -1367,6 +1276,7 @@ Mysqlx.Ok {
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 10 ]
 # Syncing with status [ 'Mysqlx_connections_accepted' == 10 ]
+# Syncing with status [ 'Mysqlx_sessions_closed' == 10 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	10
@@ -1387,46 +1297,29 @@ RUN set @@global.max_connections=2
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 12	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 13	mysqlcon1	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
 Mysqlx.Error {
-  severity: ERROR
-  code: 5011
-  msg: "Could not open session"
+  severity: FATAL
+  code: 1040
+  msg: "Too many connections"
   sql_state: "HY000"
 }
 
 closing session con2
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 12	x_root	localhost
 13	mysqlcon1	localhost
@@ -1453,14 +1346,6 @@ ok
 connecting...
 Got expected error: Access denied for user 'abc'@'localhost'. Account is locked. (code 3118)
 ok
-drop user xplugin@localhost;
-drop user nonblank@localhost;
-drop user blank@localhost;
-drop user abc@localhost;
-drop user con1@localhost;
-drop user con2@localhost;
-drop user mysqlcon1@localhost;
-drop user mysqlcon2@localhost;
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	15
@@ -1470,4 +1355,16 @@ Mysqlx_connections_accepted	15
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
+# restart:
+drop user xplugin@localhost;
+drop user nonblank@localhost;
+drop user blank@localhost;
+drop user abc@localhost;
+drop user con1@localhost;
+drop user con2@localhost;
+drop user mysqlcon1@localhost;
+drop user mysqlcon2@localhost;
+drop user ''@localhost;
+drop user special@localhost;
+drop user session@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

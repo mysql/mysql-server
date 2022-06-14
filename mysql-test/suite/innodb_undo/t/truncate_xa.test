@@ -1,0 +1,229 @@
+--echo #
+--echo # Truncate explicitly created UNDO logs before and after recovery.
+--echo #
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+--source include/have_innodb_default_undo_tablespaces.inc
+
+CREATE TABLE t1 (a SERIAL, b INT, c TEXT);
+
+--echo #
+--echo # Test 1: Check affect of transactions on undo truncation online
+--echo #
+INSERT INTO t1(b, c) VALUES (0,"zero");
+
+--echo # Create 2 explicit undo tablespaces.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+
+--echo # Make the 2 implicit undo tablespaces inactive.
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+let $inactive_undo_space = innodb_undo_001;
+source include/wait_until_undo_space_is_empty.inc;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+let $inactive_undo_space = innodb_undo_002;
+source include/wait_until_undo_space_is_empty.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--echo # Switch to connection  #1
+--connect (con1,localhost,root,,)
+XA START 'x1';
+INSERT INTO t1(b, c) VALUES (1,"one");
+SELECT * FROM t1;
+XA END 'x1';
+XA PREPARE 'x1';
+
+--echo # Switch to connection  #2
+--connect (con2,localhost,root,,)
+XA START 'x2';
+INSERT INTO t1(b, c) VALUES (2,"two");
+SELECT * FROM t1;
+XA END 'x2';
+XA PREPARE 'x2';
+
+--echo # Switch to connection  Default
+--connection default
+SELECT * FROM t1;
+
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--echo # Switch to connection #1
+--connection con1
+XA COMMIT 'x1';
+
+--echo # Switch to connection #2
+--connection con2
+XA ROLLBACK 'x2';
+
+--echo # Switch to connection Default
+--connection default
+SELECT * FROM t1;
+
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+DELETE FROM t1;
+
+--echo #
+--echo # Test 2: Check affect of transactions on undo truncation after a restart.
+--echo #
+INSERT INTO t1(b, c) VALUES (0,"zero");
+
+--echo # Make the two explicit undo tablespaces active.
+ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET ACTIVE;
+
+--echo # Make the 2 implicit undo tablespaces inactive.
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+let $inactive_undo_space = innodb_undo_001;
+source include/wait_until_undo_space_is_empty.inc;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+let $inactive_undo_space = innodb_undo_002;
+source include/wait_until_undo_space_is_empty.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--echo # Switch to connection #1
+--connection con1
+XA START 'x1';
+INSERT INTO t1(b, c) VALUES (1,"one");
+SELECT * FROM t1;
+XA END 'x1';
+XA PREPARE 'x1';
+
+--echo # Switch to connection #2
+--connection con2
+XA START 'x2';
+INSERT INTO t1(b, c) VALUES (2,"two");
+SELECT * FROM t1;
+XA END 'x2';
+XA PREPARE 'x2';
+
+--echo # Switch to connection Default
+--connection default
+
+--echo # Try to truncate the two explicit undo tablespaces. They will be stuck inactive.
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+SELECT * FROM t1;
+# Sleep a second to give the purge thread a chance to truncate.  It will not because of the prepared XA transaction
+SELECT SLEEP(1);
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--source include/restart_mysqld.inc
+
+--echo # After a restart, they are still stuck inactive.
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+XA COMMIT 'x1';
+XA ROLLBACK 'x2';
+SELECT * FROM t1;
+
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+DELETE FROM t1;
+
+--echo #
+--echo # Test 3: Check affect of transactions on undo truncation after a crash.
+--echo #
+INSERT INTO t1(b, c) VALUES (0,"zero");
+
+--echo # Make the two explicit undo tablespaces active.
+ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET ACTIVE;
+
+--echo # Make the 2 implicit undo tablespaces inactive.
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+let $inactive_undo_space = innodb_undo_001;
+source include/wait_until_undo_space_is_empty.inc;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+let $inactive_undo_space = innodb_undo_002;
+source include/wait_until_undo_space_is_empty.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--echo # Switch to connection #3
+--connect (con3,localhost,root,,)
+XA START 'x3';
+INSERT INTO t1(b, c) VALUES (1,"one");
+SELECT * FROM t1;
+XA END 'x3';
+XA PREPARE 'x3';
+
+--echo # Switch to connection #4
+--connect (con4,localhost,root,,)
+XA START 'x4';
+INSERT INTO t1(b, c) VALUES (2,"two");
+SELECT * FROM t1;
+XA END 'x4';
+XA PREPARE 'x4';
+
+--echo # Switch to connection Default
+--connection default
+
+--echo # Try to truncate the two explicit undo tablespaces. They will be stuck inactive.
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+SELECT * FROM t1;
+SELECT SLEEP(1);
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo # After a kill and restart, they are still stuck inactive.
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+XA COMMIT 'x3';
+XA ROLLBACK 'x4';
+SELECT * FROM t1;
+
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+DELETE FROM t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+
+--disable_query_log
+call mtr.add_suppression('Found 2 prepared XA transactions');
+--enable_query_log
+

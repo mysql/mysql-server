@@ -136,7 +136,9 @@ t
 delete from t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 Warnings:
+Warning	4096	Delimiter ' ' in position 19 in datetime value '0000-00-00 00:00:00 some trailer' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 't' at row 1
+Warning	4096	Delimiter ' ' in position 19 in datetime value '2003-01-01 00:00:00 some trailer' at row 2 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 't' at row 2
 select * from t1 order by t;
 t
@@ -386,7 +388,7 @@ if(@bug28261 = f1, '', @bug28261:= f1)
 2002-02-02
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1292	Incorrect date value: '' for column 'f1' at row 1
+Warning	1292	Incorrect datetime value: ''
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
 if(@bug28261 = f1, '', @bug28261:= f1)
 2001-01-01
@@ -514,7 +516,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select `test`.`x1`.`id` from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -526,7 +528,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = DATE'0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select `test`.`x1`.`id` from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = DATE'0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
@@ -540,7 +542,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select `test`.`x1`.`id` from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -552,7 +554,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = DATE'0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select `test`.`x1`.`id` from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = DATE'0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
@@ -931,4 +933,153 @@ AS c1 FROM t1 ORDER BY c1;
 c1
 0000-00-00 00:00:00
 2005-06-05 00:00:00
+DROP TABLE t1;
+#
+# Tests of date/time literals with time zone displacement.
+#
+SET time_zone = '+00:00';
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME);
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME)
+2019-09-20 10:00:01
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(1));
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(1))
+2019-09-20 10:00:01.0
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(2));
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(2))
+2019-09-20 10:00:01.00
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(3));
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(3))
+2019-09-20 10:00:01.000
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(4));
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(4))
+2019-09-20 10:00:01.0000
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(5));
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(5))
+2019-09-20 10:00:01.00000
+SELECT CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(6));
+CAST('2019-09-20 10:00:00.999999+00:00' AS DATETIME(6))
+2019-09-20 10:00:00.999999
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME);
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME)
+2019-09-20 08:00:01
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(1));
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(1))
+2019-09-20 08:00:01.0
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(2));
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(2))
+2019-09-20 08:00:01.00
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(3));
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(3))
+2019-09-20 08:00:01.000
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(4));
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(4))
+2019-09-20 08:00:01.0000
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(5));
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(5))
+2019-09-20 08:00:01.00000
+SELECT CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(6));
+CAST('2019-09-20 10:00:00.999999+02:00' AS DATETIME(6))
+2019-09-20 08:00:00.999999
+SELECT TIMESTAMP'2019-09-20 10:00:00.999999+02:00 ';
+TIMESTAMP'2019-09-20 10:00:00.999999+02:00 '
+2019-09-20 08:00:00.999999
+SET time_zone = DEFAULT;
+# Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
+set @d_str = '2020-01-01';
+set @t_str = '01:01:01';
+set @dt_str = '2020-01-01 01:01:01';
+set @dt_tz = '2020-01-01 01:01:01+03:00';
+set @d_int = 20200101;
+set @t_int = 010101;
+set @dt_int = 20200101010101;
+set @d_dec = 20200101.0;
+set @t_dec = 010101.0;
+set @dt_dec = 20200101010101.0;
+set @d_flt = 20200101E0;
+set @t_flt = 010101E0;
+set @dt_flt = 20200101010101E0;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_str;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_str;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_str;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_tz;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_int;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_int;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_int;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_dec;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_dec;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_dec;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_flt;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_flt;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_flt;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+deallocate prepare stmt;
+# Bug#33788832: wrong result with COALESCE function
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+t0 TIME NOT NULL,
+t1 TIME NOT NULL,
+dt DATETIME
+);
+INSERT INTO t1 VALUES
+(1, TIME'08:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(2, TIME'12:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(3, TIME'16:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00');
+SELECT pk, t0, t1, dt,
+t0 BETWEEN NULL AND t1 AS b1,
+t0 NOT BETWEEN NULL AND t1 AS b2,
+t0 BETWEEN NULL AND COALESCE(t1, dt) AS b3,
+t0 NOT BETWEEN NULL AND COALESCE(t1, dt) AS b4
+FROM t1;
+pk	t0	t1	dt	b1	b2	b3	b4
+1	08:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+2	12:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+3	16:00:00	12:00:00	2020-01-01 00:00:00	0	1	0	1
+SELECT pk, t0, t1, dt,
+t1 BETWEEN t0 AND NULL AS b1,
+t1 NOT BETWEEN t0 AND NULL AS b2,
+t1 BETWEEN COALESCE(t0, dt) AND NULL AS b3,
+t1 NOT BETWEEN COALESCE(t0, dt) AND NULL AS b4
+FROM t1;
+pk	t0	t1	dt	b1	b2	b3	b4
+1	08:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+2	12:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+3	16:00:00	12:00:00	2020-01-01 00:00:00	0	1	0	1
 DROP TABLE t1;

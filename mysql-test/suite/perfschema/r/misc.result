@@ -1,24 +1,47 @@
-SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_schema	object_name
+object_type	object_schema	object_name
 CREATE TABLE test.t_before(a INT);
 INSERT INTO test.t_before VALUES (1);
-SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_schema	object_name
-test	t_before
+object_type	object_schema	object_name
+TABLE	test	t_before
 RENAME TABLE test.t_before TO test.t_after;
 SELECT COUNT(*) FROM test.t_after;
 COUNT(*)
 1
-SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_schema	object_name
-test	t_after
+object_type	object_schema	object_name
+TABLE	test	t_after
 DROP TABLE test.t_after;
-SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_schema	object_name
+object_type	object_schema	object_name
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema='test';
+object_type	object_schema	object_name
+CREATE EVENT test.e_before ON SCHEDULE EVERY 1 SECOND DO SELECT 1;
+SELECT sleep(5);
+sleep(5)
+0
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema='test';
+object_type	object_schema	object_name
+EVENT	test	e_before
+ALTER EVENT test.e_before RENAME TO test.e_after;
+SELECT sleep(5);
+sleep(5)
+0
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema='test';
+object_type	object_schema	object_name
+EVENT	test	e_after
+DROP EVENT test.e_after;
+SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema='test';
+object_type	object_schema	object_name
 CREATE TABLE test.t1(a INT);
 INSERT INTO test.t1 VALUES (1);
 CREATE VIEW test.v1 AS SELECT * FROM test.t1;
@@ -72,6 +95,25 @@ where file_name like "%ghost%";
 FILE_NAME	EVENT_NAME	OPEN_COUNT
 select * from performance_schema.no_such_table;
 ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+select * from performance_schema.no_such_table for update;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+insert into performance_schema.no_such_table values(1);
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+update performance_schema.no_such_table set no_such_col = 2;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+delete from performance_schema.no_such_table where no_such_col = 3;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+lock table performance_schema.no_such_table read;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+lock table performance_schema.no_such_table write;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+show create table performance_schema.no_such_table;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+show create view performance_schema.no_such_view;
+ERROR 42S02: Table 'performance_schema.no_such_view' doesn't exist
+drop table if exists performance_schema.no_such_table;
+Warnings:
+Note	1051	Unknown table 'performance_schema.no_such_table'
 DROP TABLE IF EXISTS t_60905;
 CREATE TABLE t_60905 (i INT, j INT, KEY(i)) ENGINE = InnoDB;
 INSERT INTO t_60905 VALUES
@@ -99,7 +141,7 @@ explain select * from performance_schema.threads;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	threads	NULL	ALL	NULL	NULL	NULL	NULL	256	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY`,`performance_schema`.`threads`.`CONNECTION_TYPE` AS `CONNECTION_TYPE`,`performance_schema`.`threads`.`THREAD_OS_ID` AS `THREAD_OS_ID`,`performance_schema`.`threads`.`RESOURCE_GROUP` AS `RESOURCE_GROUP` from `performance_schema`.`threads`
+Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY`,`performance_schema`.`threads`.`CONNECTION_TYPE` AS `CONNECTION_TYPE`,`performance_schema`.`threads`.`THREAD_OS_ID` AS `THREAD_OS_ID`,`performance_schema`.`threads`.`RESOURCE_GROUP` AS `RESOURCE_GROUP`,`performance_schema`.`threads`.`EXECUTION_ENGINE` AS `EXECUTION_ENGINE` from `performance_schema`.`threads`
 use performance_schema;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
@@ -206,3 +248,57 @@ delete from performance_schema.setup_objects
 where (OBJECT_TYPE = 'TABLE')
 and (OBJECT_SCHEMA = 'test')
 and (OBJECT_NAME = 't1');
+
+#
+# Bug#31544023 INCONSISTENCY JOINING PERFSCHEMA TABLES WHEN PK IS > 48 CHARS
+#
+# String key comparisons sometimes failed with fields defined with utf8mb4.
+#
+# Test key comparisons on varying CHANNEL_NAME lengths.
+# Both tables are defined with CHARSET = utf8mb4. The CHANNEL_NAME column is char(64).
+
+# 20 characters
+change replication source to source_host = 'test1' for channel '12345678901234567890';
+
+# 50 characters
+change replication source to source_host = 'test2' for channel '12345678901234567890123456789012345678901234567890';
+
+# 64 characters
+change replication source to source_host = 'test3' for channel '123456789012345678901234567890123456789012345678901234567890123';
+
+# 70 characters (too long)
+change replication source to source_host = 'test3' for channel '1234567890123456789012345678901234567890123456789012345678901234567890';
+ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+
+select channel_name from performance_schema.replication_connection_configuration;
+channel_name
+12345678901234567890
+12345678901234567890123456789012345678901234567890
+123456789012345678901234567890123456789012345678901234567890123
+
+select channel_name from performance_schema.replication_connection_status;
+channel_name
+12345678901234567890
+12345678901234567890123456789012345678901234567890
+123456789012345678901234567890123456789012345678901234567890123
+
+select rpad(rcc.channel_name, 64, ' ') 'CHANNEL_RCC', rpad(rcs.channel_name, 64, ' ') 'CHANNEL_RCS', rcc.channel_name = rcs.channel_name 'EXPECT 1'
+  from performance_schema.replication_connection_configuration rcc
+join performance_schema.replication_connection_status rcs on rcc.channel_name = rcs.channel_name;
+CHANNEL_RCC	CHANNEL_RCS	EXPECT 1
+12345678901234567890                                            	12345678901234567890                                            	1
+12345678901234567890123456789012345678901234567890              	12345678901234567890123456789012345678901234567890              	1
+123456789012345678901234567890123456789012345678901234567890123 	123456789012345678901234567890123456789012345678901234567890123 	1
+
+select rpad(rcc.channel_name, 64, ' ') 'CHANNEL_RCC', rpad(rcs.channel_name, 64, ' ') 'CHANNEL_RCS', rcc.channel_name = rcs.channel_name 'EXPECT 1'
+  from performance_schema.replication_connection_configuration rcc
+left join replication_connection_status rcs on rcc.channel_name = rcs.channel_name;
+CHANNEL_RCC	CHANNEL_RCS	EXPECT 1
+12345678901234567890                                            	12345678901234567890                                            	1
+12345678901234567890123456789012345678901234567890              	12345678901234567890123456789012345678901234567890              	1
+123456789012345678901234567890123456789012345678901234567890123 	123456789012345678901234567890123456789012345678901234567890123 	1
+
+# Clean up
+reset replica all for channel '12345678901234567890';
+reset replica all for channel '12345678901234567890123456789012345678901234567890';
+reset replica all for channel '123456789012345678901234567890123456789012345678901234567890123';

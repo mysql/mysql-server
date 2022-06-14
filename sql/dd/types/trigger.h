@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #endif
 
 #include "my_inttypes.h"
+#include "my_time_t.h"
 #include "sql/dd/sdi_fwd.h"              // dd::Sdi_wcontext
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
@@ -60,7 +61,7 @@ class Trigger : virtual public Entity_object {
   enum class enum_action_timing { AT_BEFORE = 1, AT_AFTER };
 
  public:
-  virtual ~Trigger() {}
+  ~Trigger() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // schema.
@@ -110,15 +111,15 @@ class Trigger : virtual public Entity_object {
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual timeval created() const = 0;
-  virtual void set_created(timeval created) = 0;
+  virtual my_timeval created() const = 0;
+  virtual void set_created(my_timeval created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual timeval last_altered() const = 0;
-  virtual void set_last_altered(timeval last_altered) = 0;
+  virtual my_timeval last_altered() const = 0;
+  virtual void set_last_altered(my_timeval last_altered) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // sql_mode

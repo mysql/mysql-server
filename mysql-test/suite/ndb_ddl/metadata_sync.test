@@ -1,0 +1,399 @@
+--source setup.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+#
+# Case 1: Basic schema detection + synchronization test
+# - Cause mismatch between NDB Dictionary and DD
+# - Check if these mismatches are detected properly by
+#   Ndb_metadata_change_monitor thread
+# - Check if these mismatches detected are synchronized
+#
+
+# Create logfile group, tablespace, and tables in addition to
+# those created in setup.inc
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+USE ndb_ddl_test;
+
+CREATE TABLE t10 (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB
+  TABLESPACE ts1
+  STORAGE DISK;
+
+INSERT INTO t10 VALUES(1, 'Poirot');
+
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+CREATE TABLE t2(
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+# Create a few more databases and tests
+CREATE DATABASE ndb_ddl_test4;
+USE ndb_ddl_test4;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+CREATE TABLE t2(
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+CREATE DATABASE ndb_ddl_test5;
+USE ndb_ddl_test5;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+USE ndb_ddl_test;
+
+# Drop half the tables from ndb_ddl_test database
+--let $counter = 6
+while ($counter <= 10)
+{
+  let $tx=t$counter;
+  --eval DROP TABLE $tx
+  --inc $counter
+}
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+# Drop all tables in ndb_ddl_test3
+USE ndb_ddl_test3;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Restore into NDB, skip tables in ndb_ddl_test database that already exist
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Drop tables from NDB only to cause mismatch
+--exec $NDB_DROP_TABLE -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
+
+SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+
+# Check if both variables are global
+--error ER_GLOBAL_VARIABLE
+SET SESSION ndb_metadata_check = 1;
+--error ER_GLOBAL_VARIABLE
+SET SESSION ndb_metadata_check_interval = 5;
+
+# Enable metadata check with no interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check = 1;
+
+# Wait until the following 11 object changes are detected:
+# Logfile group 'lg1'
+# Tablespace 'ts1'
+# Table 'ndb_ddl_test.t6'
+# Table 'ndb_ddl_test.t7'
+# Table 'ndb_ddl_test.t8'
+# Table 'ndb_ddl_test.t9'
+# Table 'ndb_ddl_test.t10'
+# Table 'ndb_ddl_test3.t1'
+# Table 'ndb_ddl_test3.t2'
+# Table 'ndb_ddl_test4.t1'
+# Table 'ndb_ddl_test5.t1'
+--let $expected_changes = 11
+--let $max_wait = 60
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset values
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $max_wait = 60
+--source wait_metadata_synced.inc
+
+# Run some DDL statements and queries on the tables synced
+--sorted_result
+SELECT * FROM ndb_ddl_test.t6;
+--sorted_result
+SELECT * FROM ndb_ddl_test.t8;
+--sorted_result
+SELECT * FROM ndb_ddl_test.t10;
+ALTER TABLE ndb_ddl_test3.t1
+  ADD COLUMN c VARCHAR(255);
+INSERT INTO ndb_ddl_test3.t1 VALUES(1, 1, 'Use your little grey cells mon ami');
+SELECT * FROM ndb_ddl_test3.t1;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE ndb_ddl_test4.t1;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE ndb_ddl_test5.t1;
+
+# Check if tablespace and logfile group work fine after sync
+CREATE TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+CREATE TABLE ndb_ddl_test4.t1 (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+INSERT INTO ndb_ddl_test4.t1 VALUES(1,1);
+SELECT * FROM ndb_ddl_test4.t1;
+
+# Cleanup
+DROP DATABASE ndb_ddl_test3;
+DROP DATABASE ndb_ddl_test4;
+DROP DATABASE ndb_ddl_test5;
+--source cleanup.inc
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+#
+# Case 2: Automatic synchronization of schemata
+# - Cause mismatch in terms of schema between NDB Dictionary and DD
+# - Check if the schema mismatch is detected
+# - Check if the schema mismatch is synchronized
+#
+
+# db1 - Only NDB tables
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1_ndb (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# db2 - Only NDB tables
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1_ndb (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# db3 - Only InnoDB tables
+CREATE DATABASE db3;
+USE db3;
+CREATE TABLE t1_innodb (
+  a INT PRIMARY KEY,
+  b INT
+);
+CREATE TABLE t2_innodb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+);
+
+# db4 - Both NDB and InnoDB tables
+CREATE DATABASE db4;
+USE db4;
+CREATE TABLE t1_ndb (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+CREATE TABLE t1_innodb (
+  a INT PRIMARY KEY,
+  b INT
+);
+CREATE TABLE t2_innodb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+);
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+# Cause mismatch by dropping db1 and db4 and restoring metadata
+DROP DATABASE db1;
+DROP DATABASE db4;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m --exclude-databases=db2 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+#
+# At this point the state of the schemata is as follows:
+# - db1: Used in NDB Dictionary, non-existent in DD
+# - db2: Used in NDB Dictionary, exists in DD
+# - db3: Not used in NDB Dictionary, exists in DD
+# - db4: Used in NDB Dictionary, non-existent in DD
+#
+# The auto sync mechanism will create db1 and db4 in the DD.
+# It will also synchronize all NDB tables contained in db1 and db4
+#
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+
+--disable_query_log
+# Enable metadata check with no interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check = true;
+--enable_query_log
+
+# Wait until the following 6 object changes are detected:
+# Schema 'db1'
+# Schema 'db4'
+# Table 'db1.t1_ndb'
+# Table 'db1.t2_ndb'
+# Table 'db4.t1_ndb'
+# Table 'db4.t2_ndb'
+--let $expected_changes = 6
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+--disable_query_log
+# Changes have been detected, reset values
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+--enable_query_log
+
+# Wait until the changes detected have been synced
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+# Check if the objects have been synchronized as expected
+SHOW DATABASES LIKE 'db%';
+USE db1;
+SHOW TABLES;
+SHOW CREATE TABLE t1_ndb;
+SHOW CREATE TABLE t2_ndb;
+USE db2;
+SHOW TABLES;
+USE db3;
+SHOW TABLES;
+USE db4;
+SHOW TABLES;
+SHOW CREATE TABLE t1_ndb;
+SHOW CREATE TABLE t2_ndb;
+
+# Clean up
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+
+#
+# Case 3: Automatic synchronization of schema with an upper case name
+# - Cause mismatch in terms of schema between NDB Dictionary and DD
+# - Check if the schema mismatch is detected
+# - Check if the schema mismatch is synchronized
+#
+
+# Create schema and table
+CREATE DATABASE DB1;
+ALTER DATABASE DB1
+  CHARACTER SET latin1;
+USE DB1;
+CREATE TABLE t1(
+  id INT PRIMARY KEY
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+DROP TABLE t1;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+
+--disable_query_log
+# Set low interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check = true;
+SET GLOBAL ndb_metadata_check_interval = 0;
+--enable_query_log
+
+# Wait until the following object change is detected:
+# Table 'DB.t1'
+--let $expected_changes = 1
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+--disable_query_log
+# Changes have been detected, reset values
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+--enable_query_log
+
+# Wait until the changes detected have been synced
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+# Check if auto sync has worked properly
+--replace_result Tables_in_DB1 Tables_in_database Tables_in_db1 Tables_in_database
+SHOW TABLES;
+--sorted_result
+SELECT * FROM t1;
+
+# Clean up
+DROP DATABASE DB1;
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

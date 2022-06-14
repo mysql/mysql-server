@@ -1,0 +1,132 @@
+--echo #
+--echo # Bug #29793800 ASSERT AFTER DISCARD TABLESPACE, RENAME TABLE AND
+--echo # CREATE TABLE USING SAME NAME.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace .*");
+--enable_query_log
+
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
+--echo # Test Case 1:
+CREATE TABLE t1(b INT)ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 RENAME t2;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+CREATE TABLE t1(c INT)ENGINE=myisam;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+alter table t1 engine=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table t1;
+drop table t2;
+
+--echo # Test Case 2:
+CREATE TABLE t1(b INT)ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 RENAME t2;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+CREATE TABLE t1(c INT)ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table t1;
+drop table t2;
+
+--echo # Test Case 3:
+
+CREATE TABLE `t1/t2` (b INT, c text) ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2` DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2` RENAME `t3\t4\t5`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table `t3\t4\t5`;
+
+--echo # Test Case 4:
+
+create database `d1/d2\d3`;
+use `d1/d2\d3`;
+
+CREATE TABLE `t1/t2\t3` (b INT, c text) ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2\t3` DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2\t3` RENAME `t3\t4/t5`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table `t3\t4/t5`;
+drop database `d1/d2\d3`;
+
+--echo # Test Case 5:
+
+create database `d1/d2\d3`;
+create database `d4/d5\d6`;
+
+CREATE TABLE `d1/d2\d3`.`t1/t2\t3` (b INT, c text) ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `d1/d2\d3`.`t1/t2\t3` DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `d1/d2\d3`.`t1/t2\t3` RENAME `d4/d5\d6`.`t3\t4/t5`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table `d4/d5\d6`.`t3\t4/t5`;
+drop database `d1/d2\d3`;
+drop database `d4/d5\d6`;
+
+--echo # Test Case 6:
+create database `d1/d2`;
+create database `d1`;
+
+CREATE TABLE `d1/d2`.`t1/t2` (b INT, c text) ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `d1/d2`.`t1/t2` DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `d1/d2`.`t1/t2` RENAME `d1`.`d2/t1/t2`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table `d1`.`d2/t1/t2`;
+drop database `d1/d2`;
+drop database `d1`;

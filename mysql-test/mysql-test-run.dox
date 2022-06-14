@@ -191,7 +191,6 @@
 
   <h3>Table of Contents</h3>
   - @subpage PAGE_TEST_FRAMEWORK_SYSTEM_REQUIREMENTS
-  - @subpage PAGE_TEST_FRAMEWORK_SSL
   - @subpage PAGE_REPORT_BUGS
 
   The MySQL test framework consists of programs that run tests, and
@@ -436,7 +435,7 @@
         colon you may add a <b>\@<em>platform</em></b> to have the
         test disabled only on a specific platform. Basic OS names as
         reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
-        supported. Alternatively, <b>@!<em>platform</i></b> will
+        supported. Alternatively, <b>@!<em>platform</em></b> will
         disable the test on all except the named platform.
 
         <b>BUG#<em>nnnnn</em></b> or <b>WL#<em>nnnn</em></b> indicates
@@ -702,46 +701,6 @@
 ###############################################################################
 
 
-
-## The Test Framework and SSL
-
-/**
-  @page PAGE_TEST_FRAMEWORK_SSL The Test Framework and SSL
-
-  When @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" starts, it
-  checks whether <b>mysqld</b> supports SSL connections:
-
-  <ul>
-    <li>
-      If <b>mysqld</b> supports SSL, @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" starts it with the proper
-      <b>`--ssl`-<em>xxx</em></b> options that enable it to
-      accept SSL connections for those test cases that require secure
-      connections (those with “ssl” in their name). As @ref
-      PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" runs test cases, a
-      secure connection to <b>mysqld</b> is initiated for those cases
-      that require one. For those test cases that do not require SSL,
-      an unencrypted connection is initiated.
-    </li>
-
-    <li>
-      If <b>mysqld</b> does not support SSL, @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" skips those test cases that require secure
-      connections.
-    </li>
-  </ul>
-
-  If @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" is started with
-  the <b>`--ssl`</b> option, it sets up a secure connection for all
-  test cases. In this case, if <b>mysqld</b> does not support SSL,
-  @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" exits with an error
-  message: <b>Couldn't find support for SSL</b>.
-*/
-
-###############################################################################
-
-
-
 ## How to Report Bugs from Tests in the MySQL Test Suite
 
 /**
@@ -972,8 +931,7 @@
   Test cases which use <b>not_parallel.inc</b> are run at the end with
   a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
   option value. Such test cases will be executed at the end of the test
-  run one at a time. These tests also require
-  <b>`--non-parallel-test`</b> option to be ON.
+  run one at a time.
 */
 
 ###############################################################################
@@ -1279,7 +1237,7 @@
         </li>
       </ul>
 
-      Ignore this guidline if your intent is to test lettercase
+      Ignore this guideline if your intent is to test lettercase
       processing for SQL statements, of course.
 
       Use lowercase for @ref PAGE_MYSQLTEST "mysqltest" commands
@@ -1296,8 +1254,8 @@
     <li>
       Break a long SQL statement into multiple lines to make it more
       readable. This means that you will need to write it using a
-      “<b>;</b>” delimiter at the end of the statement rather than
-      using “<b>`--`</b>” at the beginning because the latter style
+      <b>";"</b> delimiter at the end of the statement rather than
+      using <b>"--"</b> at the beginning because the latter style
       works only for single-line statements.
     </li>
 
@@ -1467,7 +1425,7 @@
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  Warning 1366  Incorrect integer value: 'hej' for column 'a' at row 1
   DROP TABLE t1;
   @endverbatim
 
@@ -2257,13 +2215,7 @@
   @page PAGE_INCLUDE_FILES Using Include Files to Simplify Test Cases
 
   The <b>include</b> directory contains many files intended for
-  inclusion into test case files. For example, if a test case needs to
-  verify that the server supports <b>SSL</b> connections, use this
-  line in the test case file:
-
-  @verbatim
-  --source include/have_ssl.inc
-  @endverbatim
+  inclusion into test case files.
 
   These include files serve many purposes, but in general, they
   encapsulate operations of varying complexity into single files so
@@ -2952,11 +2904,10 @@
       supports fractions of a second. For example, <b>sleep 0.2</b>;
       sleeps 0.2 seconds.
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands
-      more than necessary. The more of them there are, the slower the
-      test suite becomes. In some cases, heavy reliance on sleep
-      operations is an indicator that the logic of a test should be
-      reconsidered.
+      Try not to use the <b>sleep</b> command more than necessary.
+      The more of them there are, the slower the test suite becomes.
+      In some cases, heavy reliance on sleep operations is an indicator
+      that the logic of a test should be reconsidered.
     </li>
 
     <li>
@@ -3410,7 +3361,6 @@
       public key, see [The SHA-256 Authentication Plugin]
       (https://dev.mysql.com/doc/refman/8.0/en/sha256-authentication-plugin.html).
 
-      This option is available only if MySQL was built using OpenSSL.
     </li>
 
     <li>
@@ -3423,17 +3373,6 @@
       <tt>`--skip-safemalloc`</tt>
 
       Do not use memory allocation checking.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>num</b>, -T <b>num</b></tt>
-
-      Cause all <b>sleep</b> commands in the test case file to sleep
-      <b><em>num</em></b> seconds. This option does not affect
-      <b>real_sleep</b> commands.
-
-      An option value of 0 can also be used, which effectively
-      disables <b>sleep</b> commands in the test case.
     </li>
 
     <li>
@@ -3804,6 +3743,12 @@
       <th>Description</th>
     </tr>
     <tr>
+      <td><tt>EXE_MYSQL</tt></td>
+      <td>
+        Path to the mysql client executable
+      </td>
+    </tr>
+    <tr>
       <td><tt>MTR_BUILD_THREAD</tt></td>
       <td>
         If set, defines which port number range is used for the server
@@ -3871,10 +3816,36 @@
         Users have to make sure this variable is set to the same path
         on all environments, and that this common path is mounted on
         all the environments.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL</tt></td>
+      <td>
+        Full path to <b>mysql</b> client executable ,along with options passed to server.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having mysql binaries.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_CLIENT_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having client binaries.
+      </td>
+    </tr>
     <tr>
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
         Path name to <b>mysql_config_editor</b> binary.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_OPTIONS</tt></td>
+      <td>
+        Options passed to server when connecting from mysql client.
       </td>
     </tr>
     <tr>
@@ -3956,6 +3927,10 @@
   actual port number directly (will be rounded down to a multiple of
   10). If you use <b>MTR_BUILD_THREAD</b>, the port number is found
   by multiplying this by 10 and adding 10000.
+
+  The variable <b>$MYSQL_OPTIONS</b> contains only the options used while
+  connecting to server from mysql client . whereas variable <b>$MYSQL</b>
+  contains path to mysql client executable along with options .
 
   Tests sometimes rely on certain environment variables being defined.
   For example, certain tests assume that <b>MYSQL_TEST</b> is
@@ -4675,10 +4650,12 @@
       tests are run. An excluded list (<b>excludenoskip.list</b>) is
       maintained to track which tests should continue to be skipped.
       The <b>`--no-skip`</b> option continues to skip the tests that
-      are named in the excluded list. The default value of
-      <b>--no-skip</b> introduced variable is OFF, which implies users
-      are not forced to run all tests unless the <b>--no-skip</b> is
-      explicitly used.
+      are named in the excluded list. In case the test or file invoking
+      the <b>`--skip`</b> command is not present in the excluded list, the
+      outcome of the test will be identified as <b>[ noskip-pass ]</b> or
+      <b>[ noskip-fail ]</b> .The default value of <b>--no-skip</b>
+      introduced variable is OFF, which implies users are not forced to
+      run all tests unless the <b>--no-skip</b> is explicitly used.
 
       @verbatim
   shell> mysql-test-run.pl --suite=innodb --no-skip
@@ -4904,15 +4881,6 @@
     </li>
 
     <li>
-      <tt>`--non-parallel-test`</tt>
-
-      Allow tests marked as "non-parallel" to run. Tests can be thus
-      marked by including the line
-      <b>`--source` include/not_parallel.inc</b>, and they will only
-      be run if this option is enabled.
-    </li>
-
-    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -4961,12 +4929,6 @@
     </li>
 
     <li>
-      <tt>`--skip-ssl`</tt>
-
-      Do not start <b>mysqld</b> with support for SSL connections.
-    </li>
-
-    <li>
       <tt>`--skip-test`=<b>regex</b></tt>
 
       Specify a regular expression to be applied to test case names.
@@ -5000,28 +4962,10 @@
     </li>
 
     <li>
-      <tt>`--sleep`=<b>N</b></tt>
-
-      Pass <b>`--sleep`=<em>N</em></b> to @ref PAGE_MYSQLTEST
-      "mysqltest".
-    </li>
-
-    <li>
       <tt>`--sp-protocol`</tt>
 
       Pass the <b>`--sp-protocol`</b> option to @ref PAGE_MYSQLTEST
       "mysqltest".
-    </li>
-
-    <li>
-      <tt>`--ssl`</tt>
-
-      If @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" is started
-      with the <b>`--ssl`</b> option, it sets up a secure connection
-      for all test cases. In this case, if <b>mysqld</b> does not
-      support SSL, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
-      exits with an error message: <b>Couldn't find support for
-      SSL</b>
     </li>
 
     <li>
@@ -5373,9 +5317,12 @@
     </li>
 
     <li>
-      <tt>`--with-ndbcluster-only`</tt>
+      <tt>`--with-ndbcluster-only`, `--with-ndb-only`</tt>
 
-      Run only test cases that have <b>ndb</b> in their name.
+      Run only <b>ndb</b> tests. If no suites are explicitly given, this
+      option also skip all non <b>ndb</b> suites without checking
+      individual test names.
+
     </li>
 
     <li>
@@ -5903,6 +5850,22 @@
     </li>
 
     <li>
+      <tt>assert (<b>expr</b>)</tt>
+
+      Assert that <b>expr</b> is true; otherwise terminate the test program
+      with an error message indicating that <b>expr</b> failed.
+      <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
+      as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
+
+      @verbatim
+        assert(1);
+        assert($x);
+        assert(!$x);
+        assert(`select count(*) from t1`);
+      @endverbatim
+    </li>
+
+    <li>
       <tt>cat_file <b>file_name</b></tt>
 
       <b>cat_file</b> writes the contents of the file to the output.
@@ -5956,7 +5919,8 @@
       <tt>connect (<b>name</b>, <b>host_name</b>,
                    <b>user_name</b>, <b>password</b>, <b>db_name</b>
                    [,<b>port_num</b> [,<b>socket</b> [,<b>options</b>
-                   [,<b>default_auth</b>]]]])</tt>
+                   [,<b>default_auth</b> [,<b>compression algorithm</b>,
+                   [,<b>compression level</b>]]]]]])</tt>
 
       Open a connection to the server and make the connection the
       current connection.
@@ -6030,12 +5994,13 @@
             </li>
 
             <li>
-              <tt>TCP</tt>: Use the TCP/IP connection protocol.
+              <tt>SSL</tt>:Use SSL network protocol to have encrypted connection.
             </li>
 
             <li>
-              <tt>SSL</tt>: Use a secure connection.
+              <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
+
           </ul>
 
           Passing <b>PIPE</b> or <b>SHM</b> on non-Windows systems
@@ -6051,6 +6016,27 @@
           "mysqltest" does not find the plugin, use the
           <b>--plugin-dir</b> option to specify the directory where
           the plugin is located.
+        </li>
+
+        <li>
+          <b><em>compression algorithm</em></b> is the name of compression
+          algorithm to be used to compress data transferred between client
+          server. It is passed to the <b>mysql_options()</b> C API function
+          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>zstd compression level</em></b> is the extent of compression
+          to be applied when zstd compression algorithm is used. It is passed to
+          the <b>mysql_options()</b> C API function using the
+          <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>compression level</em></b> is the extent of compression to
+          be applied based on the compression algorithm used. It is passed to
+          the <b>mysql_options()</b> C API function using the
+          <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
       </ul>
 
@@ -6270,6 +6256,23 @@
       @verbatim
   --disable_abort_on_error
   --enable_abort_on_error
+      @endverbatim
+    </li>
+
+    <li>
+      <tt>disable_async_client</tt>, <tt>enable_async_client</tt>
+
+      Disable or enable asynchronous communication between the client and
+      the server. With this setting enabled, @ref PAGE_MYSQLTEST "mysqltest"
+      uses non-blocking C API's to communicate with the server.<br> Please
+      note that <b>disable_async_client</b> disables asynchronous
+      communication if it had been enabled either by the
+      <b>--enable_async_client</b> command or the <b>--async-client</b>
+      command line option.
+
+      @verbatim
+  --disable_async_client
+  --enable_async_client
       @endverbatim
     </li>
 
@@ -6813,7 +6816,6 @@
       issue, the command can be retried for a <b>retry</b> number
       of times. Each retry happens after an interval of one second.
 
-
       @verbatim
   file_exists /etc/passwd;
   file_exists /etc/passwd 5;
@@ -7045,7 +7047,6 @@
       can be retried for a <b>retry</b> number of times. Each retry
       happens after an interval of one second.
 
-
       @verbatim
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out;
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out 5;
@@ -7166,21 +7167,26 @@
     </li>
 
     <li>
-      <tt>real_sleep <b>num</b></tt>
+      <tt>--let <b>$var</b> = escape(<b>characters</b>,<b>string</b>)</tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. Unlike the <b>sleep</b> command,
-      <b>real_sleep</b> is not affected by the
-      <b>`--sleep command-line`</b> option.
+      Insert a backslash character before every character in
+      <b>string</b> that occurs in <b>characters</b>, and assign the
+      result to <b>$var</b>.
+
+      <b>characters</b> must not contain newline. If it contains a
+      comma, it must be the first character.  All whitespace is
+      significant and preserved in both arguments, so you typically
+      want to omit the space after the comma for this command.
+
+      This can be useful when you need to include <b>string</b> in an
+      SQL string in a query, and <b>string</b> may contain quote
+      characters.
 
       @verbatim
-  --real_sleep 10
-  real_sleep 5;
-     @endverbatim
-
-     Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-     than necessary. The more of them there are, the slower the test
-     suite becomes.
+      --let <b>$var</b> = escape(\',The 'path separator' in Windows is \.)
+      --echo $var
+      # Prints: The \'path separator\' in Windows is \\.
+      @endverbatim
     </li>
 
     <li>
@@ -7278,7 +7284,7 @@
       than <em> -1e10 </em></b> are represented using the
       exponential notation after they are rounded off.
 
-     @verbatim
+      @verbatim
   --replace_numeric_round 6
   SELECT 12379.79459775333;
   12379.794598
@@ -7286,7 +7292,7 @@
   replace_numeric_round 0;
   SELECT 876.87302;
   877
-     @endverbatim
+      @endverbatim
     </li>
 
 
@@ -7522,21 +7528,17 @@
     <li>
       <tt>sleep <b>num</b></tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. If the <b>`--sleep`</b> command-line option
-      was given, the option value overrides the value given in the
-      <b>sleep</b> command. For example, if @ref PAGE_MYSQLTEST
-      "mysqltest" is started with <b>`--sleep`=10</b>, the command
-      <b>sleep 15</b> sleeps 10 seconds, not 15.
+      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> need not be
+      a whole number and can have a fractional part as well i.e., the
+      command supports sleeping for intervals shorter than 1 second.
 
       @verbatim
   --sleep 10
   sleep 0.5;
       @endverbatim
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-      than necessary. The more of them there are, the slower the test
-      suite becomes.
+      Try not to use <b>sleep</b> command more than necessary. The
+      more of them there are, the slower the test suite becomes.
     </li>
 
     <li>
@@ -8140,84 +8142,9 @@
   - Google presentation:
     http://docs.google.com/present/view?id=dfsbxvm5_0f5s4pvf9
 
-  @section SECTION_INSTALL_GOOGLE_TEST Installing Google Test and Running Unit Tests
-
-  MySQL sources do not include Google Test. To install it so that you
-  can use it, use one of these approaches:
-
-  <ul>
-    <li>
-      <b><em>Install Google Test in individual source
-      trees</em></b>. Use the <b>-DENABLE_DOWNLOADS=1</b>
-      configuration option. This causes <b>CMake</b> to download
-      Google Test and install it in your source tree for you.
-    </li>
-
-    <li>
-      <b><em>Install a single instance of Google Test</em></b>.
-      MySQL requires Google Test 1.6 or higher.
-
-      <ul>
-        <li>
-          To install from a tarball, download
-          http://googlemock.googlecode.com/files/gmock-1.6.0.zip.
-        </li>
-
-        <li>
-          To download Google Test from the Subversion repository,
-          use <b>svn checkout http://googletest.googlecode.com/svn/trunk/
-          googletest-read-only</b>
-        </li>
-
-        <li>
-          If a Google Test package is available for your operating
-          system, you can install it using the package manager. For
-          example, you might be able to use <b>apt-get</b> for Debian
-          Linux.
-        </li>
-      </ul>
-
-      When Google Test has been installed, set the
-      <b>GTEST_PREFIX</b> environment variable appropriately for
-      your command interpreter. For example, use this command line for
-      <b>bash</b>:
-
-      @verbatim
-  GTEST_PREFIX=/path/to/your/install;
-  export GTEST_PREFIX
-      @endverbatim
-    </li>
-  </ul>
-
-  Installing Google Test in individual source trees is the recommended
-  method. The single-instance installation method can be used only if
-  all MySQL builds on a machine take place in the same environment
-  (same operating system, same compiler), for reasons discussed at
-  https://groups.google.com/group/googletestframework/browse_thread/thread/668eff1cebf5309d?pli=1.
-
-  At configuration time, <b>CMake</b> looks for <b>gtest.h</b>. The
-  build process compiles all Google Test-based unit tests or ignores
-  them, depending on whether <b>gtest.h</b> is found.
-
-  After the build has completed, to run the tests, change location
-  into the <b>unittest/gunit</b> directory and execute the
-  <b>ctest</b> command. It need not be invoked with any options, but
-  you can run it with the <b>`--help`</b> option to see what options
-  are available.
-
-  Another way to run the unit tests is with this command:
-
-  @verbatim
-  make test-unit
-  @endverbatim
-
-  For internal MySQL testing, PushBuild has been extended to install
-  Google Test as a separate “package”. All trees named
-  <b>mysql-trunk.*</b> are set up to depend on this package.
-
   @section SECTION_WRITING_UNIT_TESTS Writing Unit Tests for Google Test
 
-  The Google Test unit test files are located in the
+  Most of The Google Test unit test files are located in the
   <b>unittest/gunit</b> directory. You can look at these files to
   see how tests are written. Here are some examples:
 
@@ -8232,11 +8159,6 @@
   Most MyTAP-based tests are likely easily converted to Google Test.
   However, there might be low-level tests that absolutely must be run
   on every platform, and thus require MyTAP.
-
-  As currently implemented, the Google Test unit-test programs produce
-  TAP output rather than the “plain” alternative. This can be disabled
-  by using the <b>`--disable-tap-output`</b> command-line option
-  when running a test executable.
 
   To see what options are available, run a test executable with the
   <b>`--help`</b> option.

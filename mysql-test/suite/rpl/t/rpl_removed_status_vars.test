@@ -1,0 +1,32 @@
+# ==== Purpose ====
+#
+# Verify that status variables removed in 8.0 are actually removed.
+#
+# ==== Requirements ====
+#
+# R1. The following status variables should not exist:
+#     Slave_running
+#     Slave_retried_transactions
+#     Slave_heartbeat_period
+#     Slave_received_heartbeats
+#     Slave_last_heartbeat
+#
+# ==== Implementation ====
+#
+# Show each of those variables.
+# Verify that the result file is empty.
+#
+# ==== References ====
+#
+# BUG#32709065: REMOVE DEAD CODE FOR REMOVED REPLICATION STATUS VARIABLES
+#
+# Note: the test passes before *and* after the bugfix. The test may be
+# executed without the bugfix to verify the correctness of the
+# assumption of the bugfix: that the code we remove actually was not
+# used.
+
+SHOW STATUS LIKE 'Slave_running';
+SHOW STATUS LIKE 'Slave_retried_transactions';
+SHOW STATUS LIKE 'Slave_heartbeat_period';
+SHOW STATUS LIKE 'Slave_received_heartbeats';
+SHOW STATUS LIKE 'Slave_last_heartbeat';

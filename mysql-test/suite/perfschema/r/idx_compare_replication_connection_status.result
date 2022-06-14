@@ -4,8 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
-SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
-SET GLOBAL slave_parallel_workers= 4;
+SET @old_replica_parallel_workers= @@global.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers= 4;
 include/start_slave.inc
 select THREAD_ID
 into @worker_thread_id
@@ -14,7 +14,7 @@ limit 1;
 select NAME from performance_schema.threads
 where THREAD_ID = @worker_thread_id;
 NAME
-thread/sql/slave_io
+thread/sql/replica_io
 
 ## Create index_test() procedure
 DROP PROCEDURE IF EXISTS index_test;
@@ -130,6 +130,6 @@ DROP PROCEDURE index_test;
 DROP TABLE IF EXISTS test.indexes_off;
 DROP TABLE IF EXISTS test.indexes_on;
 include/stop_slave.inc
-SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
+SET GLOBAL replica_parallel_workers= @old_replica_parallel_workers;
 include/start_slave.inc
 include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@
 
 int my_redel(const char *org_name, const char *tmp_name, myf MyFlags) {
   int error = 1;
-  DBUG_ENTER("my_redel");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("org_name: '%s' tmp_name: '%s'  MyFlags: %d", org_name,
                     tmp_name, MyFlags));
 
@@ -86,7 +86,7 @@ int my_redel(const char *org_name, const char *tmp_name, myf MyFlags) {
 
   error = 0;
 end:
-  DBUG_RETURN(error);
+  return error;
 } /* my_redel */
 
 /* Copy stat from one file to another */
@@ -95,7 +95,7 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags) {
   MY_STAT statbuf;
 
-  if (my_stat(from, &statbuf, MyFlags) == NULL)
+  if (my_stat(from, &statbuf, MyFlags) == nullptr)
     return -1; /* Can't get stat on input file */
 
   if ((statbuf.st_mode & S_IFMT) != S_IFREG) return 1;

@@ -1,0 +1,83 @@
+SET @global_slow_query_log = @@global.slow_query_log;
+SET @global_log_output = @@global.log_output;
+SET @@session.long_query_time=1;
+SET @@global.log_output = 'TABLE';
+Bug53191 Lock_time in slow log is negative when logging stored routines
+TRUNCATE mysql.slow_log;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (c0 INT PRIMARY KEY AUTO_INCREMENT, c1 TIMESTAMP, c2 TIMESTAMP);
+CREATE FUNCTION f_slow_now() RETURNS TIMESTAMP
+BEGIN
+DO SLEEP(2);
+RETURN NOW();
+END//
+CREATE FUNCTION f_slow_current_time() RETURNS TIME
+BEGIN
+DO SLEEP(2);
+RETURN CURRENT_TIME();
+END
+//
+INSERT INTO t1 (c1,c2) VALUES (now(), f_slow_now())//
+CREATE TRIGGER tf_before BEFORE INSERT ON t1
+FOR EACH ROW BEGIN
+SET new.c2 = f_slow_now();
+END//
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (c1,c2) values (now(),now());
+DO SLEEP(2);
+INSERT INTO t1 (c1,c2) values (now(),now());
+end//
+INSERT INTO t1 (c1,c2) VALUES (now(), now());
+CALL p1();
+SELECT c1-c2 FROM t1;
+c1-c2
+0
+0
+0
+0
+*** There shouldn't less than 1 s difference between each row
+SELECT t1.c1-self.c1 > 1 FROM t1, t1 as self WHERE t1.c0=self.c0+1 ORDER BY t1.c0;
+t1.c1-self.c1 > 1
+1
+1
+1
+DROP TRIGGER tf_before;
+DROP FUNCTION f_slow_now;
+DROP FUNCTION f_slow_current_time;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 VALUES (1);
+SELECT COUNT(*) FROM t1 WHERE c1= 1;
+UPDATE t1 SET c1=c1*2;
+END|
+Connection 2
+LOCK TABLE t1 WRITE;
+Back to default connection
+CALL p1();
+Wait three seconds and unlock the table
+UNLOCK TABLES;
+COUNT(*)
+1
+Slow log:
+**** 1 == we have slow log entries
+SELECT count(*) > 0 FROM mysql.slow_log;
+count(*) > 0
+1
+**** 0 == None of the entries have a lock time greater than 10 s
+SELECT count(*) FROM mysql.slow_log WHERE lock_time > 10;
+count(*)
+0
+DROP TABLE t1;
+DROP PROCEDURE p1;
+SET sql_mode = default;
+SET @@global.log_output = @global_log_output;
+SET @global.slow_query_log = @global_slow_query_log;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

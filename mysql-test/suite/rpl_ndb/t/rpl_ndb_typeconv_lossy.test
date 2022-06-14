@@ -1,10 +1,16 @@
+# Binlog compression does merge all events, except the
+# Gtid_log_event, of a transaction into a single one, thence a
+# transaction only has 2 events. This test relies on
+# slave_skip_counter, which expected skipped events count will not
+# match the number of events on a compressed binlog.
+--source include/not_binlog_transaction_compression_on.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
 let $engine_type=NDBCLUSTER;
 
 connection slave;
-set @saved_slave_type_conversions = @@global.slave_type_conversions;
+set @saved_replica_type_conversions = @@global.replica_type_conversions;
 CREATE TABLE type_conversions (
        TestNo INT AUTO_INCREMENT PRIMARY KEY,
        Source TEXT,
@@ -16,22 +22,22 @@ CREATE TABLE type_conversions (
        Compare INT,
        Error TEXT);
 
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
-SELECT @@global.slave_type_conversions;
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='';
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+SELECT @@global.replica_type_conversions;
 --error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
-SELECT @@global.slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
+SELECT @@global.replica_type_conversions;
 
 # Checking lossy integer type conversions
 connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
 source extra/rpl_tests/type_conversions.test;
 
 connection slave;
@@ -41,12 +47,13 @@ DROP TABLE type_conversions;
 
 --disable_query_log
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 --enable_query_log
 
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
 
-set global slave_type_conversions = @saved_slave_type_conversions;
+set global replica_type_conversions = @saved_replica_type_conversions;
 
 --source include/rpl_end.inc

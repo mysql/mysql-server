@@ -8,17 +8,13 @@ ACTIVE
 CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
 INSERT INTO t VALUES (1);
 ALTER TABLE t SECONDARY_LOAD;
-Should have "secondary engine" in the plan.
-ANALYZE TABLE t;
-Table	Op	Msg_type	Msg_text
-test.t	analyze	status	OK
-EXPLAIN SELECT * FROM t;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t`
+# Should use the secondary engine.
+FLUSH STATUS;
 SELECT * FROM t;
 x
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 # The plugin cannot be unloaded because there are still references
 # to it (from the table cache). Will give a warning about that.
 UNINSTALL PLUGIN mock;
@@ -27,15 +23,14 @@ Warning	1620	Plugin is busy and will be uninstalled on shutdown
 SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='MOCK';
 PLUGIN_STATUS
 DELETED
-# Should not have "secondary engine" in the plan.
-EXPLAIN SELECT * FROM t;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t`
+# Should not use the secondary engine.
+FLUSH STATUS;
 SELECT * FROM t;
 x
 1
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 DROP TABLE t;
 SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='MOCK';
 PLUGIN_STATUS

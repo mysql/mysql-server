@@ -15,7 +15,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---write_file $MYSQL_TMP_DIR/expect_field.tmp
+--write_file $MYSQL_TMP_DIR/expect_field.xpl
 -->import expect.macro
 
 #
@@ -141,8 +141,7 @@
 -->callmacro Expect_close	ER_SUCCESS
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expect_field.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expect_field.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/expect_field.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

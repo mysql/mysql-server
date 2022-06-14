@@ -2,6 +2,7 @@
 # Those need DBUG_EXECUTE_IF.
 
 --source include/have_optimizer_trace.inc
+--source include/no_ps_protocol.inc
 --source include/have_debug.inc
 
 --echo # We want to make sure that the common case of

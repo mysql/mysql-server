@@ -1,0 +1,33 @@
+SET @transaction_isolation= @@global.transaction_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
+TEST EMPTY KEYS: 0
+MEMCACHED ADDRESS: 127.0.0.1:11254
+STEPS SUBSET: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
+Spawning 1
+Spawning 2
+Spawning 3
+joining...
+joining...
+joining...
+UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE t1;
+DROP DATABASE innodb_memcache;
+SET @@global.transaction_isolation= @transaction_isolation;

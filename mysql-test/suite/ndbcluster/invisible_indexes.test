@@ -1,0 +1,22 @@
+source include/have_ndb.inc;
+SET SESSION default_storage_engine = ndbcluster;
+let $invisible_indexes_skip_fulltext=1;
+let $invisible_indexes_skip_spatial=1;
+let $invisible_indexes_skip_non_pk_autoincrement=1;
+source include/invisible_indexes.inc;
+
+--echo #
+--echo # Tests Specific to ndbcluster
+--echo #
+
+CREATE TABLE t1 (
+  a INT, KEY (a),
+  b INT, KEY (b) INVISIBLE
+) engine=NDB;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=INPLACE, RENAME INDEX a TO x, ALTER INDEX b VISIBLE;
+
+DROP TABLE t1;

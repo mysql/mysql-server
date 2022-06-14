@@ -97,13 +97,13 @@ EOF
   --source include/assert.inc
 EOF
 
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_RETRY_COUNT = 1;
 
 
 --echo #### Test 1: invalid credentials ####
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_USER = 'foo';
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'foo';
 --let $slave_io_errno = convert_error(ER_ACCESS_DENIED_ERROR)
 --let $expected_message = Access denied for user foo
 --source $script_dir/check_both_messages.inc
@@ -112,7 +112,7 @@ CHANGE MASTER TO MASTER_USER = 'foo';
 --echo #### Test 2: invalid port ####
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_PORT = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = 1;
 --let $slave_io_errno = 2003 # CR_CONN_HOST_ERROR
 --let $expected_message = Cant connect to MySQL server on
 --source $script_dir/check_both_messages.inc
@@ -121,7 +121,7 @@ CHANGE MASTER TO MASTER_PORT = 1;
 --echo #### Test 3: invalid host ####
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_HOST = '999.999.999.999';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '999.999.999.999';
 --let $slave_io_errno = 2005 # CR_UNKNOWN_HOST
 --let $expected_message = Unknown MySQL server host
 --source $script_dir/check_both_messages.inc
@@ -133,7 +133,7 @@ RESET SLAVE;
 --remove_file $script_dir/check_message.inc
 --remove_file $script_dir/check_both_messages.inc
 --replace_result $MASTER_MYPORT PORT
-eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $MASTER_MYPORT, MASTER_USER = 'root';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $MASTER_MYPORT, SOURCE_USER = 'root';
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

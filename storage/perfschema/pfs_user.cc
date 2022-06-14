@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 
 #include "storage/perfschema/pfs_user.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_buffer_container.h"
@@ -68,12 +69,49 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_user *user;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_user *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != nullptr);
   user = *typed_entry;
-  DBUG_ASSERT(user != NULL);
-  *length = user->m_key.m_key_length;
-  result = user->m_key.m_hash_key;
+  assert(user != nullptr);
+  *length = sizeof(user->m_key);
+  result = &user->m_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static uint user_hash_func(const LF_HASH *, const uchar *key,
+                           size_t key_len [[maybe_unused]]) {
+  const PFS_user_key *user_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_user_key));
+  user_key = reinterpret_cast<const PFS_user_key *>(key);
+  assert(user_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  user_key->m_user_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int user_hash_cmp_func(const uchar *key1,
+                              size_t key_len1 [[maybe_unused]],
+                              const uchar *key2,
+                              size_t key_len2 [[maybe_unused]]) {
+  const PFS_user_key *user_key1;
+  const PFS_user_key *user_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_user_key));
+  assert(key_len2 == sizeof(PFS_user_key));
+  user_key1 = reinterpret_cast<const PFS_user_key *>(key1);
+  user_key2 = reinterpret_cast<const PFS_user_key *>(key2);
+  assert(user_key1 != nullptr);
+  assert(user_key2 != nullptr);
+
+  cmp = user_key1->m_user_name.sort(&user_key2->m_user_name);
+  return cmp;
 }
 
 /**
@@ -82,8 +120,9 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
 */
 int init_user_hash(const PFS_global_param *param) {
   if ((!user_hash_inited) && (param->m_user_sizing != 0)) {
-    lf_hash_init(&user_hash, sizeof(PFS_user *), LF_HASH_UNIQUE, 0, 0,
-                 user_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&user_hash, sizeof(PFS_user *), LF_HASH_UNIQUE,
+                  user_hash_get_key, user_hash_func, user_hash_cmp_func,
+                  nullptr /* ctor */, nullptr /* dtor */, nullptr /* init */);
     user_hash_inited = true;
   }
   return 0;
@@ -98,39 +137,28 @@ void cleanup_user_hash(void) {
 }
 
 static LF_PINS *get_user_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_user_hash_pins == NULL)) {
+  if (unlikely(thread->m_user_hash_pins == nullptr)) {
     if (!user_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_user_hash_pins = lf_hash_get_pins(&user_hash);
   }
   return thread->m_user_hash_pins;
 }
 
-static void set_user_key(PFS_user_key *key, const char *user,
-                         uint user_length) {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
-
-  char *ptr = &key->m_hash_key[0];
-  if (user_length > 0) {
-    memcpy(ptr, user, user_length);
-    ptr += user_length;
-  }
-  ptr[0] = 0;
-  ptr++;
-  key->m_key_length = ptr - &key->m_hash_key[0];
+static void set_user_key(PFS_user_key *key, const PFS_user_name *user) {
+  key->m_user_name = *user;
 }
 
-PFS_user *find_or_create_user(PFS_thread *thread, const char *username,
-                              uint username_length) {
+PFS_user *find_or_create_user(PFS_thread *thread, const PFS_user_name *user) {
   LF_PINS *pins = get_user_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_user_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
   PFS_user_key key;
-  set_user_key(&key, username, username_length);
+  set_user_key(&key, user);
 
   PFS_user **entry;
   PFS_user *pfs;
@@ -140,7 +168,7 @@ PFS_user *find_or_create_user(PFS_thread *thread, const char *username,
 
 search:
   entry = reinterpret_cast<PFS_user **>(
-      lf_hash_search(&user_hash, pins, key.m_hash_key, key.m_key_length));
+      lf_hash_search(&user_hash, pins, &key, sizeof(key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     pfs = *entry;
     pfs->inc_refcount();
@@ -151,14 +179,8 @@ search:
   lf_hash_search_unpin(pins);
 
   pfs = global_user_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_key = key;
-    if (username_length > 0) {
-      pfs->m_username = &pfs->m_key.m_hash_key[0];
-    } else {
-      pfs->m_username = NULL;
-    }
-    pfs->m_username_length = username_length;
 
     pfs->init_refcount();
     pfs->reset_stats();
@@ -176,16 +198,16 @@ search:
     if (res > 0) {
       if (++retry_count > retry_max) {
         global_user_container.m_lost++;
-        return NULL;
+        return nullptr;
       }
       goto search;
     }
 
     global_user_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void PFS_user::aggregate(bool alive) {
@@ -249,15 +271,26 @@ void PFS_user::rebase_memory_stats() {
   }
 }
 
-void PFS_user::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
-                                       uint index) {
+void PFS_user::carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                             uint index) {
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_alloc_delta delta_buffer;
 
   event_name_array = write_instr_class_memory_stats();
   stat = &event_name_array[index];
-  (void)stat->apply_delta(delta, &delta_buffer);
+  (void)stat->apply_alloc_delta(delta, &delta_buffer);
+}
+
+void PFS_user::carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                            uint index) {
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+  PFS_memory_stat_free_delta delta_buffer;
+
+  event_name_array = write_instr_class_memory_stats();
+  stat = &event_name_array[index];
+  (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
 PFS_user *sanitize_user(PFS_user *unsafe) {
@@ -266,18 +299,17 @@ PFS_user *sanitize_user(PFS_user *unsafe) {
 
 static void purge_user(PFS_thread *thread, PFS_user *user) {
   LF_PINS *pins = get_user_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return;
   }
 
   PFS_user **entry;
-  entry = reinterpret_cast<PFS_user **>(lf_hash_search(
-      &user_hash, pins, user->m_key.m_hash_key, user->m_key.m_key_length));
+  entry = reinterpret_cast<PFS_user **>(
+      lf_hash_search(&user_hash, pins, &user->m_key, sizeof(user->m_key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    DBUG_ASSERT(*entry == user);
+    assert(*entry == user);
     if (user->get_refcount() == 0) {
-      lf_hash_delete(&user_hash, pins, user->m_key.m_hash_key,
-                     user->m_key.m_key_length);
+      lf_hash_delete(&user_hash, pins, &user->m_key, sizeof(user->m_key));
       user->aggregate(false);
       global_user_container.deallocate(user);
     }
@@ -288,9 +320,9 @@ static void purge_user(PFS_thread *thread, PFS_user *user) {
 
 class Proc_purge_user : public PFS_buffer_processor<PFS_user> {
  public:
-  Proc_purge_user(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_purge_user(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_user *pfs) {
+  void operator()(PFS_user *pfs) override {
     pfs->aggregate(true);
     if (pfs->get_refcount() == 0) {
       purge_user(m_thread, pfs);
@@ -304,7 +336,7 @@ class Proc_purge_user : public PFS_buffer_processor<PFS_user> {
 /** Purge non connected users, reset stats of connected users. */
 void purge_all_user(void) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return;
   }
 

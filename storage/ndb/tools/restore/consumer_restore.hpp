@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,16 +27,10 @@
 
 #include "consumer.hpp"
 
-namespace NdbRestoreStatus
-{
-  enum {Ok = 0, Failed = 1, WrongArgs = 2};
-}
-
-bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
-
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
+  class LogEntry const *le;
   class NdbTransaction *connection;
   int    retries;
   int error_code;
@@ -67,15 +61,15 @@ class BackupRestore : public BackupConsumer
 {
 public:
   BackupRestore(Ndb_cluster_connection *conn,
-                NODE_GROUP_MAP *ng_map,
-                uint ng_map_len,
                 const char *instance_name,
                 Uint32 parallelism) :
     m_ndb(NULL),
-    m_cluster_connection(conn)
+    m_cluster_connection(conn),
+    m_fatal_error(false)
+#ifdef ERROR_INSERT
+    ,m_error_insert(0)
+#endif
   {
-    m_nodegroup_map = ng_map;
-    m_nodegroup_map_len = ng_map_len;
     m_n_tablespace = 0;
     m_n_logfilegroup = 0;
     m_n_datafile = 0;
@@ -89,6 +83,7 @@ public:
     m_no_restore_disk = false;
     m_restore_epoch_requested = false;
     m_restore_epoch = false;
+    m_delete_epoch_tuple = false;
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -97,56 +92,56 @@ public:
     m_tableChangesMask = 0;
     m_preserve_trailing_spaces = false;
     m_transactions = 0;
+    m_pk_update_warning_count = 0;
     m_cache.m_old_table = 0;
     m_disable_indexes = false;
     m_rebuild_indexes = false;
     snprintf(m_instance_name, BackupRestore::INSTANCE_ID_LEN, "%s", instance_name);
   }
   
-  virtual ~BackupRestore();
-  virtual bool init(Uint32 tableChangesMask);
+  ~BackupRestore() override;
+  bool init(Uint32 tableChangesMask) override;
   virtual void release();
-  virtual bool object(Uint32 type, const void* ptr);
-  virtual bool table(const TableS &);
-  virtual bool fk(Uint32 type, const void* ptr);
-  virtual bool endOfTables();
-  virtual bool endOfTablesFK();
-  virtual void tuple(const TupleS &, Uint32 fragId);
-  virtual void tuple_free();
+  bool object(Uint32 type, const void* ptr) override;
+  bool table(const TableS &) override;
+  bool fk(Uint32 type, const void* ptr) override;
+  bool endOfTables() override;
+  bool endOfTablesFK() override;
+  bool tuple(const TupleS &, Uint32 fragId) override;
+  void tuple_free() override;
   virtual void tuple_a(restore_callback_t *cb);
   virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
   virtual void cback(int result, restore_callback_t *cb);
+  virtual void cback_logentry(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
-  virtual void exitHandler();
-  virtual void endOfTuples();
-  virtual void logEntry(const LogEntry &);
-  virtual void endOfLogEntrys();
-  virtual bool prepare_staging(const TableS &);
-  virtual bool finalize_staging(const TableS &);
-  virtual bool finalize_table(const TableS &);
-  virtual bool rebuild_indexes(const TableS&);
-  virtual bool has_temp_error();
-  virtual bool createSystable(const TableS & table);
-  virtual bool table_compatible_check(TableS & tableS);
-  virtual bool check_blobs(TableS & tableS); 
+  void endOfTuples() override;
+  bool logEntry(const LogEntry &) override;
+  void logEntry_a(restore_callback_t *cb);
+  void endOfLogEntrys() override;
+  bool prepare_staging(const TableS &) override;
+  bool finalize_staging(const TableS &) override;
+  bool finalize_table(const TableS &) override;
+  bool rebuild_indexes(const TableS&) override;
+  bool has_temp_error() override;
+  bool createSystable(const TableS & table) override;
+  bool table_compatible_check(TableS & tableS) override;
+  bool check_blobs(TableS & tableS) override; 
   virtual bool column_compatible_check(const char* tableName,
                                        const NDBCOL* backupCol, 
                                        const NDBCOL* dbCol);
-  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
-  virtual bool report_started(unsigned node_id, unsigned backup_id);
-  virtual bool report_meta_data(unsigned node_id, unsigned backup_id);
-  virtual bool report_data(unsigned node_id, unsigned backup_id);
-  virtual bool report_log(unsigned node_id, unsigned backup_id);
-  virtual bool report_completed(unsigned node_id, unsigned backup_id);
-  bool map_in_frm(char *new_data, const char *data,
-                  uint data_len, uint *new_data_len) const;
-  bool search_replace(char *search_str, char **new_data,
-                      const char **data, const char *end_data,
-                      uint *new_data_len) const;
-  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const;
-  Uint32 map_ng(Uint32 ng) const;
-  bool translate_frm(NdbDictionary::Table *table) const;
-  bool isMissingTable(const TableS& table);
+  bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
+  bool delete_epoch_tuple() override;
+  bool report_started(unsigned node_id, unsigned backup_id) override;
+  bool report_meta_data(unsigned node_id, unsigned backup_id) override;
+  bool report_data(unsigned node_id, unsigned backup_id) override;
+  bool report_log(unsigned node_id, unsigned backup_id) override;
+  bool report_completed(unsigned node_id, unsigned backup_id) override;
+  bool isMissingTable(const TableS& table) override;
+  bool getPkMappingIndex(TableS* table);
+  bool tryCreatePkMappingIndex(TableS* table,
+                               const char* table_name);
+  bool dropPkMappingIndex(const TableS* table);
+  bool handle_index_stat_tables() override;
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
@@ -218,7 +213,8 @@ public:
 
   void update_next_auto_val(Uint32 orig_table_id,
                             Uint64 next_val);
-
+  bool get_fatal_error();
+  void set_fatal_error(bool);
 
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
@@ -237,7 +233,9 @@ public:
   bool m_restore_epoch;
   bool m_disable_indexes;
   bool m_rebuild_indexes;
+  bool m_delete_epoch_tuple;
 
+  bool m_with_apply_status;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
   bool m_no_restore_disk;
   Uint32 m_tableChangesMask;
@@ -264,6 +262,8 @@ public:
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
   bool m_temp_error;
+  Uint64 m_pk_update_warning_count;
+  bool m_fatal_error;
 
   /**
    * m_new_table_ids[X] = Y;
@@ -284,7 +284,10 @@ public:
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
   Vector<NdbDictionary::HashMap*> m_hashmaps;
   Vector<const NdbDictionary::ForeignKey*> m_fks;
-
+#ifdef ERROR_INSERT
+  uint m_error_insert;
+  void error_insert(unsigned int code) override { m_error_insert = code; }
+#endif
   static const PromotionRules m_allowed_promotion_attrs[];
 };
 

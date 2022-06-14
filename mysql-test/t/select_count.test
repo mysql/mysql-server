@@ -48,22 +48,27 @@ eval EXPLAIN $query5;
 
 FLUSH STATUS;
 eval $query1;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query2;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query3;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query4;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query5;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 # This WL should affect a table with no primary key only to the extent that
@@ -71,6 +76,7 @@ SHOW STATUS LIKE 'Handler_%';
 
 CREATE TABLE t_nopk(c1 INT NOT NULL , c2 INT NOT NULL)ENGINE=INNODB;
 INSERT INTO t_nopk SELECT c1, c2 FROM t_innodb;
+ANALYZE TABLE t_nopk;
 SHOW CREATE TABLE t_nopk;
 
 let query6= SELECT COUNT(*) FROM t_nopk;
@@ -78,6 +84,7 @@ eval EXPLAIN $query6;
 
 FLUSH STATUS;
 eval $query6;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 # Add a secondary index and notice the difference in the plan. 
@@ -88,6 +95,7 @@ eval EXPLAIN $query6;
 
 FLUSH STATUS;
 eval $query6;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 DROP TABLE t_nopk;
@@ -124,14 +132,17 @@ eval EXPLAIN $query9;
 
 FLUSH STATUS;
 eval $query7;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query8;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query9;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 DROP TABLE t_innodb_pk_nosk, t_innodb_nopk_sk, t_innodb_nopk_nosk;
@@ -157,18 +168,22 @@ eval EXPLAIN $query13;
 
 FLUSH STATUS;
 eval $query10;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query11;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query12;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query13;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 DROP TABLE t_archive, t_heap;
 
@@ -183,10 +198,12 @@ eval EXPLAIN $query15;
 
 FLUSH STATUS;
 eval $query14;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query15;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 #Testcase for specific lines of code. 
@@ -208,11 +225,28 @@ SELECT COUNT(*) c FROM t_innodb HAVING c > 1;
 #empty result.
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 
+# Tests FORMAT=tree printing of COUNT(*).
+--skip_if_hypergraph  # Does not optimize COUNT(*) specially yet.
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+--skip_if_hypergraph  # Does not do const table optimization.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
+
+# Should be empty.
+SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
+
 set sql_mode=default;
 
 # Bug #28056133: Requires a fix in get_exact_record_count to avoid dummy temp
 # tables.
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
+
+# Unqualified COUNT(*) (running in the iterator executor) combined with BNL
+# (running in the pre-iterator executor).
+# TODO(sgunders): Remove when BNL enters the iterator executor.
+--sorted_result
+SELECT /*+ BNL(t2) */ -(t1.c1 + t2.c1) FROM t_innodb t1, t_innodb t2
+UNION ALL SELECT COUNT(*) FROM t_innodb;
 
 DROP TABLE t_innodb, t_myisam;

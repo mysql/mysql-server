@@ -30,15 +30,7 @@
 # 1) Set `read_only` to ON
 # 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
 #    `max_binlog_size` limit was reached.
-# 3) Execute `INSERT` statement and expect success.
-# 4) Assert that binary log rotated.
-#
-# TC4. Variable `super_read_only` is ON & simulate max binlog size reached
-# ------------------------------------------------------------------------
-# 1) Set `super_read_only` to ON
-# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
-#    `max_binlog_size` limit was reached.
-# 3) Execute `INSERT` statement and expect success.
+# 3) Execute DDL statement and expect success.
 # 4) Assert that binary log rotated.
 #
 # ==== References ====
@@ -100,45 +92,34 @@ while ($tc != 3) {
 --replace_result $initial_super_read_only INITIAL_OPTION_VALUE
 --eval SET GLOBAL super_read_only = $initial_super_read_only
 
-while ($tc != 5) {
+--let $option = read_only
+--echo #
+--echo # TC$tc. Variable `$option` is ON & simulate max binlog size reached
+--echo #
 
-  if ($tc == 3) {
-    --let $option = read_only
-  }
-  if ($tc == 4) {
-    --let $option = super_read_only
-  }
+# 1) Set option to ON
+--let $initial_option = `SELECT IF(@@$option, "ON", "OFF")`
+--eval SET GLOBAL $option = ON
 
-  --echo #
-  --echo # TC$tc. Variable `$option` is ON & simulate max binlog size reached
-  --echo #
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_flush = $log_file_max_number
 
-  # 1) Set option to ON
-  --let $initial_option = `SELECT IF(@@$option, "ON", "OFF")`
-  --eval SET GLOBAL $option = ON
+# 2) Execute DDL and expect success.
+SET DEBUG = "d,simulate_max_binlog_size";
+DROP PROCEDURE IF EXISTS p1;
 
-  --source include/rpl_log_file_max_number.inc
-  --let $max_log_file_before_flush = $log_file_max_number
+# 3) Assert that binary log rotated.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_flush = $log_file_max_number
+--let $offset = 1
+--expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset
+--let $assert_text = Having '$option=ON' didnot prevent the binlog of rotating when `max_binlog_size` is reached
+--let $assert_cond = $max_log_file_after_flush = $expected_max_log_file_after_flush
+--source include/assert.inc
 
-  # 2) Execute `FLUSH BINARY LOGS` and expect success.
-  SET DEBUG = "d,simulate_max_binlog_size";
-  DROP PROCEDURE IF EXISTS p1;
-
-  # 3) Assert that binary log rotated.
-  --source include/rpl_log_file_max_number.inc
-  --let $max_log_file_after_flush = $log_file_max_number
-  --let $offset = 1
-  --expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset
-  --let $assert_text = Having '$option=ON' didnot prevent the binlog of rotating when `max_binlog_size` is reached
-  --let $assert_cond = $max_log_file_after_flush = $expected_max_log_file_after_flush
-  --source include/assert.inc
-
-  # Clean up
-  --replace_result $initial_option INITIAL_OPTION_VALUE
-  --eval SET GLOBAL $option = $initial_option
-
-  --inc $tc
-}
+# Clean up
+--replace_result $initial_option INITIAL_OPTION_VALUE
+--eval SET GLOBAL $option = $initial_option
 
 # Clean up
 --replace_result $initial_read_only INITIAL_OPTION_VALUE

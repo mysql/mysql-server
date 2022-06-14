@@ -7,7 +7,7 @@
 --source include/xplugin_create_user.inc
 
 # Tests
---write_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_stmt.xpl
 -->import sql_history.macro
 -->quiet
 
@@ -22,28 +22,7 @@ SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR from performance_schema.events_state
 
 -->callmacro Clear_sql_history
 -->echo ######### create_collection #########
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xtest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection	{"schema":"xtest", "name":"test"}
 -->recvresult
 -->callmacro Show_sql_history
 
@@ -252,9 +231,46 @@ Mysqlx.Crud.Delete {
 -->recvresult
 -->callmacro Show_sql_history
 
+-->echo ######### get validation error when working with collections #########
+stmtadmin create_collection	{"schema": "xtest", "name": "test3", "options": {
+  "validation": {
+    "level": "STRICT",
+    "schema": {
+      "type": "object", "properties": {
+        "value": {"type": "number", "minimum": 0, "maximum": 10}
+      },
+      "required": ["value"]
+    }
+  }
+}};
+-->recvresult
+-->callmacro Clear_sql_history
+Mysqlx.Crud.Insert {
+  collection {
+    name: "test3"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"one\", \"value\": 100}"
+        }
+      }
+    }
+  }
+}
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->callmacro Show_sql_history
+-->stmtadmin drop_collection	{"schema":"xtest", "name":"test3"}
+-->recvresult
+
 -->callmacro Clear_sql_history
 -->echo ######### create_collection_index #########
--->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foo", "unique":true, "constraint":{"member":"$.foo", "type":"TEXT(1)", "required":false}}
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foo", "unique":true, "fields":{"field":"$.foo", "type":"TEXT(1)", "required":false}}
 -->recvresult
 -->callmacro Show_sql_history
 
@@ -270,7 +286,7 @@ Mysqlx.Crud.Delete {
 
 -->callmacro Clear_sql_history
 -->echo ######### create_collection_index (spatial) #########
--->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"bar", "type":"spatial", "unique":false, "constraint":{"member":"$.foo", "type":"GEOJSON", "required":true}}
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"bar", "type":"spatial", "unique":false, "fields":{"field":"$.foo", "type":"GEOJSON", "required":true}}
 -->recvresult
 -->callmacro Show_sql_history
 
@@ -282,7 +298,7 @@ Mysqlx.Crud.Delete {
 
 -->callmacro Clear_sql_history
 -->echo ######### create_collection_index (fulltext) #########
--->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foobar", "type":"fulltext", "unique":false, "with_parser":"ngram", "constraint":{"member":"$.foo", "type":"FULLTEXT", "required":true}}
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foobar", "type":"fulltext", "unique":false, "with_parser":"ngram", "fields":{"field":"$.foo", "type":"FULLTEXT", "required":true}}
 -->recvresult
 -->callmacro Show_sql_history
 
@@ -324,6 +340,9 @@ set password for unpriv@localhost = 'x';
 -->newsession_mysql41 x_root	x_root
 -->stmtadmin kill_client	{"id": %CLIENT_ID%}
 -->recvresult
+-->setsession unpriv
+-->recvuntildisc
+-->setsession x_root
 -->stmtsql drop user unpriv@localhost;
 -->recvresult
 -->callmacro Show_sql_history
@@ -364,9 +383,7 @@ EOF
 
 --let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
 --replace_regex /BINARY // /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

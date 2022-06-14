@@ -556,6 +556,7 @@ DROP TABLE t1, t2, t3, t4, t5, t6;
 #
 create table t1(`c` decimal(9,2));
 insert into t1 values (300),(201.11);
+--sorted_result
 select max(case 1 when 1 then c else null end) from t1 group by c;
 drop table t1;
 
@@ -602,3 +603,8 @@ WHERE CONCAT(t1.col1, CAST(subq.col0 AS DECIMAL));
 
 DROP TABLE t1, t2;
 SET sql_mode = default;
+
+--echo #
+--echo # Bug#32591589: ASSERTION `DIGITS <= DECIMAL_INT_PART()' FAILED|SQL/ITEM_FUNC.CC
+--echo #
+SELECT CAST(9.9 AS SIGNED INTEGER) AS f;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,16 +29,17 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "errmsg.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
-#include "plugin/x/client/xconnection_config.h"
+#include "errmsg.h"       // NOLINT(build/include_subdir)
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
+#include "plugin/x/client/context/xconnection_config.h"
+#include "plugin/x/client/context/xssl_config.h"
 #include "plugin/x/client/xprotocol_impl.h"
-#include "plugin/x/client/xssl_config.h"
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/connection.h"
 #include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
@@ -60,8 +61,8 @@ using ::testing::Test;
 
 class Xcl_protocol_impl_tests : public Test {
  protected:
-  std::array<std::uint8_t, 4> extract_header_from_message(const uchar *data) {
-    std::array<std::uint8_t, 4> header = {{data[0], data[1], data[2], data[3]}};
+  std::array<uint8_t, 4> extract_header_from_message(const uchar *data) {
+    std::array<uint8_t, 4> header = {{data[0], data[1], data[2], data[3]}};
 
 #ifdef WORDS_BIGENDIAN
     std::swap(header[0], header[3]);
@@ -72,7 +73,7 @@ class Xcl_protocol_impl_tests : public Test {
 
  public:
   void SetUp() override {
-    m_mock_connection = new StrictMock<Mock_connection>();
+    m_mock_connection = new StrictMock<mock::XConnection>();
 
     EXPECT_CALL(m_mock_factory, create_connection_raw(_))
         .WillOnce(Return(m_mock_connection));
@@ -81,7 +82,7 @@ class Xcl_protocol_impl_tests : public Test {
   }
 
   XQuery_result *expect_factory_new_result() {
-    Mock_query_result *result = new Mock_query_result();
+    mock::XQuery_result *result = new mock::XQuery_result();
     static XQuery_result::Metadata metadata;
 
     EXPECT_CALL(m_mock_factory, create_result_raw(_, _, _))
@@ -92,26 +93,25 @@ class Xcl_protocol_impl_tests : public Test {
   }
 
   void expect_write_header(const XProtocol::Client_message_type_id id,
-                           const uint32 expected_payload_size,
-                           const int32 error_code = 0) {
+                           const uint32_t expected_payload_size,
+                           const int32_t error_code = 0) {
     EXPECT_CALL(*m_mock_connection, write(_, 5))
-        .WillOnce(Invoke(
-            [this, id, expected_payload_size, error_code](
-                const uchar *data,
-                const std::size_t size MY_ATTRIBUTE((unused))) -> XError {
-              EXPECT_EQ(data[4], id);
-              auto header = this->extract_header_from_message(data);
+        .WillOnce(Invoke([this, id, expected_payload_size, error_code](
+                             const uchar *data, const std::size_t size
+                             [[maybe_unused]]) -> XError {
+          EXPECT_EQ(data[4], id);
+          auto header = this->extract_header_from_message(data);
 
-              EXPECT_EQ(expected_payload_size,
-                        *reinterpret_cast<int32 *>(header.data()) - 1);
-              return XError{error_code, ""};
-            }));
+          EXPECT_EQ(expected_payload_size,
+                    *reinterpret_cast<int32_t *>(header.data()) - 1);
+          return XError{error_code, ""};
+        }));
   }
 
   template <typename Message_type>
   void expect_write_message_without_payload(
       const Message_from_str<Message_type> &message,
-      const int32 error_code = 0) {
+      const int32_t error_code = 0) {
     const Message_type &message_base = message;
 
     expect_write_message_without_payload(message_base, error_code);
@@ -119,7 +119,7 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_write_message_without_payload(
-      const Message_type &message, const int32 expected_error_code = 0) {
+      const Message_type &message, const int32_t expected_error_code = 0) {
     auto message_binary = Message_encoder::encode(message);
     expect_write_header(Client_message<Message_type>::get_id(),
                         static_cast<uint32>(message_binary.size()),
@@ -128,7 +128,7 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_write_message(const Message_from_str<Message_type> &message,
-                            const int32 error_code = 0) {
+                            const int32_t error_code = 0) {
     const Message_type &message_base = message;
 
     expect_write_message(message_base, error_code);
@@ -136,31 +136,36 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_write_message(const Message_type &message,
-                            const int32 error_code = 0) {
+                            const int32_t error_code = 0) {
     auto message_binary = Message_encoder::encode(message);
 
-    const std::uint8_t header_size = 5;
-    const std::uint8_t payload_size = message_binary.size();
+    const uint8_t payload_size = message_binary.size();
     const auto id = Client_message<Message_type>::get_id();
 
-    EXPECT_CALL(*m_mock_connection, write(_, header_size + payload_size))
-        .WillOnce(Invoke(
-            [this, id, payload_size, error_code](
-                const uchar *data,
-                const std::size_t size MY_ATTRIBUTE((unused))) -> XError {
-              EXPECT_EQ(data[4], id);
-              auto header = this->extract_header_from_message(data);
+    expect_write_payload(id, payload_size, error_code);
+  }
 
-              EXPECT_EQ(payload_size,
-                        *reinterpret_cast<int32 *>(header.data()) - 1);
-              return XError{error_code, ""};
-            }));
+  void expect_write_payload(const uint8_t id, const uint32_t payload_size,
+                            const int32 error_code = 0) {
+    const std::uint8_t header_size = 5;
+
+    EXPECT_CALL(*m_mock_connection, write(_, header_size + payload_size))
+        .WillOnce(Invoke([this, id, payload_size, error_code](
+                             const uchar *data, const std::size_t size
+                             [[maybe_unused]]) -> XError {
+          EXPECT_EQ(data[4], id);
+          auto header = this->extract_header_from_message(data);
+
+          EXPECT_EQ(payload_size,
+                    *reinterpret_cast<int32_t *>(header.data()) - 1);
+          return XError{error_code, ""};
+        }));
   }
 
   template <typename Message_type_id>
-  void expect_read_header(const Message_type_id id, const int32 payload_size,
-                          const int32 error_code = 0) {
-    const int32 expected_header_size = 5;
+  void expect_read_header(const Message_type_id id, const int32_t payload_size,
+                          const int32_t error_code = 0) {
+    const int32_t expected_header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, read(_, expected_header_size))
         .WillOnce(
@@ -168,7 +173,7 @@ class Xcl_protocol_impl_tests : public Test {
                        uchar *data, const std::size_t data_length MY_ATTRIBUTE(
                                         (unused))) -> XError {
               // 1byte(type)+ payload_size-bytes(protobuf-msg-payload)
-              *reinterpret_cast<int32 *>(data) = 1 + payload_size;
+              *reinterpret_cast<int32_t *>(data) = 1 + payload_size;
 
 #ifdef WORDS_BIGENDIAN
               std::swap(data[0], data[3]);
@@ -183,8 +188,8 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_read_message_without_payload(const Message_type &message
-                                               MY_ATTRIBUTE((unused)),
-                                           const int32 error_code = 0) {
+                                           [[maybe_unused]],
+                                           const int32_t error_code = 0) {
     expect_read_header(Server_message<Message_type>::get_id(), 0, error_code);
   }
 
@@ -226,9 +231,9 @@ class Xcl_protocol_impl_tests : public Test {
     ASSERT_EQ(Message_compare<Message_type>(message), *result);
   }
 
-  StrictMock<Mock_connection> *m_mock_connection;
-  StrictMock<Mock_factory> m_mock_factory;
-  StrictMock<Mock_handlers> m_mock_handlers;
+  StrictMock<mock::XConnection> *m_mock_connection;
+  StrictMock<mock::Protocol_factory> m_mock_factory;
+  StrictMock<mock::Message_handlers> m_mock_handlers;
 
   std::shared_ptr<Context> m_context{std::make_shared<Context>()};
 
@@ -250,20 +255,20 @@ class Xcl_protocol_impl_tests_with_msg : public Xcl_protocol_impl_tests {
     m_message.reset(new Msg(Msg_descriptor::make_required()));
   }
 
-  XError assert_write_size(const uchar *data, const std::uint32_t size) {
+  XError assert_write_size(const uchar *data, const uint32_t size) {
     EXPECT_EQ(Msg_descriptor::get_id(), data[4]);
     auto header = extract_header_from_message(data);
 
-    const std::uint8_t expected_header_size = 5;
-    const std::uint32_t payload_size =
-        *reinterpret_cast<std::uint32_t *>(header.data()) - 1;
+    const uint8_t expected_header_size = 5;
+    const uint32_t payload_size =
+        *reinterpret_cast<uint32_t *>(header.data()) - 1;
     EXPECT_EQ(size, (payload_size + expected_header_size));
 
     return {};
   }
 
   void assert_multiple_handlers(const Handler_result first_handler_consumed) {
-    StrictMock<Mock_handlers> mock_handlers[2];
+    StrictMock<mock::Message_handlers> mock_handlers[2];
 
     this->setup_required_fields_in_message();
 

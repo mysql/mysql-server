@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #ifdef _WIN32
 #include <process.h>
 #endif
+#include "portlib/ndb_compiler.h"
 #include <BaseString.hpp>
 #include <ndb_daemon.h>
 #include <portlib/NdbHost.h>

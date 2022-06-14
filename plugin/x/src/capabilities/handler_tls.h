@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,13 @@
 #define PLUGIN_X_SRC_CAPABILITIES_HANDLER_TLS_H_
 
 #include "plugin/x/src/capabilities/handler.h"
+#include "plugin/x/src/interface/client.h"
 
 namespace xpl {
 
 class Capability_tls : public Capability_handler {
  public:
-  Capability_tls(ngs::Client_interface &client)
+  explicit Capability_tls(iface::Client *client)
       : m_client(client), tls_should_be_enabled(false) {}
 
   std::string name() const override { return "tls"; }
@@ -41,11 +42,11 @@ class Capability_tls : public Capability_handler {
   void commit() override;
 
  private:
-  void get_impl(::Mysqlx::Datatypes::Any &any) override;
+  void get_impl(::Mysqlx::Datatypes::Any *any) override;
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override;
 
-  ngs::Client_interface &m_client;
+  iface::Client *m_client;
   bool tls_should_be_enabled;
 };
 

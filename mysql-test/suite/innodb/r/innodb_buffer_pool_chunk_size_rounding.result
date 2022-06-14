@@ -1,0 +1,29 @@
+#
+# Bug #29951982 ASSERTION FAILURE:
+#               SYNC0RW.CC.*LOCK->LOCK_WORD == X_LOCK_DECR
+#
+# restart: --innodb-buffer-pool-instances=31 --innodb-buffer-pool-size=2G --innodb-buffer-pool-chunk-size=128M
+SHOW VARIABLES
+WHERE Variable_name IN
+("innodb_buffer_pool_chunk_size","innodb_buffer_pool_instances","innodb_buffer_pool_size");
+Variable_name	Value
+innodb_buffer_pool_chunk_size	70254592
+innodb_buffer_pool_instances	31
+innodb_buffer_pool_size	2177892352
+# restart: --innodb-buffer-pool-instances=64 --innodb-buffer-pool-size=4G --innodb-buffer-pool-chunk-size=128M
+SHOW VARIABLES
+WHERE Variable_name IN
+("innodb_buffer_pool_chunk_size","innodb_buffer_pool_instances","innodb_buffer_pool_size");
+Variable_name	Value
+innodb_buffer_pool_chunk_size	67108864
+innodb_buffer_pool_instances	64
+innodb_buffer_pool_size	4294967296
+# restart: --innodb-buffer-pool-instances=33 --innodb-buffer-pool-size=4G --innodb-buffer-pool-chunk-size=128M
+SHOW VARIABLES
+WHERE Variable_name IN
+("innodb_buffer_pool_chunk_size","innodb_buffer_pool_instances","innodb_buffer_pool_size");
+Variable_name	Value
+innodb_buffer_pool_chunk_size	131072000
+innodb_buffer_pool_instances	33
+innodb_buffer_pool_size	4325376000
+# restart

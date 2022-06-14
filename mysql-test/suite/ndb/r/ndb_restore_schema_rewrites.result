@@ -3,9 +3,19 @@
 * (have blobs and indexes to cover the hidden tables)
 ************************************************************
 CREATE DATABASE db0;
+CREATE DATABASE db0_rewrite;
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 USE db0;
+CREATE TABLE t0 (
+id              INT             PRIMARY KEY,
+cint            INT,
+cvarchar        VARCHAR(5),
+cblob           BLOB(1000004),
+UNIQUE INDEX UNIQUE_t0_0 USING BTREE (cint ASC),
+UNIQUE INDEX UNIQUE_t0_2 USING BTREE (cvarchar ASC)
+) ENGINE=NDB;
+USE db0_rewrite;
 CREATE TABLE t0 (
 id              INT             PRIMARY KEY,
 cint            INT,
@@ -96,6 +106,154 @@ DROP TABLE db2.t0_temp;
 * (expected exit code for usage errors: NDBT_WRONGARGS = 2)
 ************************************************************
 ************************************************************
+* Restoring databases with rewritten source db excluded
+************************************************************
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+DELETE FROM db0.t0;
+DELETE FROM db0_rewrite.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+SELECT COUNT(*) FROM db0.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db1.t0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db2.t0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+COUNT(*)
+3
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+************************************************************
+* Restoring databases with rewritten source db included
+************************************************************
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+DELETE FROM db0.t0;
+DELETE FROM db0_rewrite.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+SELECT COUNT(*) FROM db0.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db1.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db2.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+COUNT(*)
+0
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+************************************************************
+* Restoring databases with rewritten destination db excluded
+************************************************************
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+DELETE FROM db0.t0;
+DELETE FROM db0_rewrite.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+SELECT COUNT(*) FROM db0.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db1.t0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db2.t0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+COUNT(*)
+3
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+COUNT(*)
+3
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+************************************************************
+* Restoring databases with rewritten destination db included
+************************************************************
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+DELETE FROM db0.t0;
+DELETE FROM db0_rewrite.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+SELECT COUNT(*) FROM db0.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db1.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db2.t0;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db0_rewrite.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+COUNT(*)
+0
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+COUNT(*)
+0
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+************************************************************
 * Restoring databases with redundant/self-rewrite options
 ************************************************************
 CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
@@ -116,6 +274,9 @@ COUNT(*)
 SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
 COUNT(*)
 3
+SELECT COUNT(*) FROM db0_rewrite.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
 SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
 COUNT(*)
 3
@@ -146,6 +307,9 @@ COUNT(*)
 SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
 COUNT(*)
 3
+SELECT COUNT(*) FROM db0_rewrite.t0 NATURAL JOIN db0.t0_temp;
+COUNT(*)
+0
 SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
 COUNT(*)
 3
@@ -324,5 +488,6 @@ DROP TABLE db2.t0_temp;
 * Deleting tables and databases
 ************************************************************
 DROP DATABASE db0;
+DROP DATABASE db0_rewrite;
 DROP DATABASE db1;
 DROP DATABASE db2;

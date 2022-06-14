@@ -24,12 +24,12 @@
 #
 --connection slave_1
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 0.1;
 --source include/start_slave.inc
 --connection slave_2
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 1;
 --source include/start_slave.inc
 
 #
@@ -71,7 +71,7 @@ let $table=replication_connection_status;
 # Create topology master->slave_2->slave_1 and check that slave_1
 # receives heartbeat while slave_2 gets data.
 
-# slave_2 was started w/o --log-slave-updates because slave_2 should
+# slave_2 was started w/o --log-replica-updates because slave_2 should
 # not send data from master to slave_1
 
 --source include/rpl_stop_slaves.inc
@@ -81,7 +81,7 @@ let $table=replication_connection_status;
 --connection slave_1
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 
 # Check heartbeat for new replication channel slave_2->slave

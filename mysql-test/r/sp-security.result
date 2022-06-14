@@ -321,6 +321,8 @@ call p_bug14834();
 user()	current_user()
 user3_bug14834@localhost	user1_bug14834@localhost
 drop user user1_bug14834@localhost;
+Warnings:
+Warning	4005	User 'user1_bug14834'@'localhost' is referenced as a definer account in a stored routine.
 drop user user2_bug14834@localhost;
 drop user user3_bug14834@localhost;
 drop database db_bug14834;
@@ -338,7 +340,7 @@ grant execute on procedure db_bug14533.bug14533_1 to user_bug14533@localhost;
 grant execute on procedure db_bug14533.bug14533_2 to user_bug14533@localhost;
 call db_bug14533.bug14533_1();
 Field	Type	Null	Key	Default	Extra
-id	int(11)	YES		NULL	
+id	int	YES		NULL	
 call db_bug14533.bug14533_2();
 id
 desc db_bug14533.t1;
@@ -392,14 +394,16 @@ wl2897_p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ER
 SELECT 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-wl2897_f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int(11)
+wl2897_f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int
 RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int(11)
+wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int
 RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
+Warnings:
+Warning	4005	User 'mysqltest_2'@'localhost' is referenced as a definer account in a stored routine.
 DROP DATABASE mysqltest;
 
 ---> connection: root
@@ -434,6 +438,8 @@ bug13198_f1()
 
 ---> connection: root
 DROP USER mysqltest_1@localhost;
+Warnings:
+Warning	4005	User 'mysqltest_1'@'localhost' is referenced as a definer account in a stored routine.
 
 ---> connection: mysqltest_2_con
 USE mysqltest;
@@ -653,9 +659,9 @@ CREATE USER user@localhost;
 connect  conn1, localhost, user,,;
 # I_S.Routine and I_S.parameters shows empty result set for
 # user@localhost as user does not have any privileges.
-SELECT routine_schema, routine_name, routine_type
+SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
 SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
@@ -665,10 +671,10 @@ GRANT EXECUTE ON PROCEDURE mysqltest_db.p1 TO user@localhost;
 # I_S.Routine and I_S.parameters shows result set
 # for user@localhost as user has routine level privilege.
 connection conn1;
-SELECT routine_schema, routine_name, routine_type
+SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
-mysqltest_db	p1	PROCEDURE
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
+mysqltest_db	p1	PROCEDURE	NULL
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
 SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
@@ -679,9 +685,9 @@ REVOKE EXECUTE ON PROCEDURE mysqltest_db.p1 FROM user@localhost;
 # I_S.Routine and I_S.parameters shows empty result set for
 # user@localhost as user does not have any privileges.
 connection conn1;
-SELECT routine_schema, routine_name, routine_type
+SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
 SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
@@ -691,10 +697,10 @@ GRANT SELECT ON *.* TO user@localhost;
 # I_S.Routine and I_S.parameters shows result set for
 # user@localhost as user has global select privilege.
 connect  conn2, localhost, user,,;
-SELECT routine_schema, routine_name, routine_type
+SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
-ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
-mysqltest_db	p1	PROCEDURE
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
+mysqltest_db	p1	PROCEDURE	SELECT 1
 SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
 SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
@@ -735,6 +741,482 @@ current_user()
 r1@%
 DROP PROCEDURE p1;
 DROP ROLE r1;
+
+#############################################################
+#  WL#9049 Add a dynamic privilege for stored routine backup.
+#
+#    Test Cases to verify that user with SHOW_ROUTINE can
+#    view all the SP/SF code and maintain behaviour of
+#    statements for user with global SELECT privilege
+#    and for user who is the routine DEFINER.
+#
+#############################################################
+
+CREATE SCHEMA testdb;
+
+# Create users.
+
+CREATE USER usr_no_priv@localhost, usr_show_routine@localhost, usr_global_select@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+
+# Create and grant role.
+
+CREATE ROLE role_show_routine;
+GRANT role_show_routine to usr_role@localhost;
+
+# Grant privileges.
+
+GRANT SHOW_ROUTINE ON *.* TO usr_show_routine@localhost, role_show_routine;
+GRANT SELECT ON *.* TO usr_global_select@localhost;
+GRANT EXECUTE ON *.* TO usr_execute@localhost;
+GRANT CREATE ROUTINE ON *.* TO usr_create_routine@localhost;
+GRANT ALTER ROUTINE ON *.* TO usr_alter_routine@localhost;
+
+# Create routines whose definer is root@localhost.
+
+CREATE PROCEDURE testdb.proc_root() SELECT "ProcRoot";
+CREATE FUNCTION testdb.func_root() RETURNS VARCHAR(8) DETERMINISTIC RETURN "FuncRoot";
+
+# Create routines whose definer is usr_definer@localhost.
+
+CREATE DEFINER = `usr_definer`@`localhost` PROCEDURE testdb.proc_definer() SELECT "ProcDefiner";
+CREATE DEFINER = `usr_definer`@`localhost` FUNCTION testdb.func_definer() RETURNS VARCHAR(11) DETERMINISTIC RETURN "FuncDefiner";
+
+# Connect as user with no privileges.
+
+connect  conn1, localhost, usr_no_priv,,;
+
+# Should not return any rows.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+
+# Should pretend that routine does not exist.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+ERROR 42000: PROCEDURE proc_root does not exist
+SHOW CREATE PROCEDURE testdb.proc_definer;
+ERROR 42000: PROCEDURE proc_definer does not exist
+SHOW CREATE FUNCTION testdb.func_root;
+ERROR 42000: FUNCTION func_root does not exist
+SHOW CREATE FUNCTION testdb.func_definer;
+ERROR 42000: FUNCTION func_definer does not exist
+
+# Should not return any rows.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+disconnect conn1;
+
+# Connect as user with SHOW_ROUTINE privilege.
+
+connect  conn1, localhost, usr_show_routine,,;
+
+# Should show the routine_definition of all 4 routines.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+RETURN "FuncDefiner"
+RETURN "FuncRoot"
+SELECT "ProcDefiner"
+SELECT "ProcRoot"
+
+# Should show the Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_root`()
+SELECT "ProcRoot"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` PROCEDURE `proc_definer`()
+SELECT "ProcDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show the Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_root;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `func_root`() RETURNS varchar(8) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncRoot"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` FUNCTION `func_definer`() RETURNS varchar(11) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of proc_root and proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	proc_root	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_root and func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	func_root	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Connect as user with role assigned.
+
+connect  conn1, localhost, usr_role,,;
+
+# Without activating role.
+
+
+# Should not return any rows.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+
+# Should pretend that routine does not exist.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+ERROR 42000: PROCEDURE proc_root does not exist
+SHOW CREATE PROCEDURE testdb.proc_definer;
+ERROR 42000: PROCEDURE proc_definer does not exist
+SHOW CREATE FUNCTION testdb.func_root;
+ERROR 42000: FUNCTION func_root does not exist
+SHOW CREATE FUNCTION testdb.func_definer;
+ERROR 42000: FUNCTION func_definer does not exist
+
+# Should not return any rows.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+
+# Activate role.
+
+SET ROLE role_show_routine;
+
+# Should show the routine_definition of all 4 routines.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+RETURN "FuncDefiner"
+RETURN "FuncRoot"
+SELECT "ProcDefiner"
+SELECT "ProcRoot"
+
+# Should show the Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_root`()
+SELECT "ProcRoot"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` PROCEDURE `proc_definer`()
+SELECT "ProcDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show the Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_root;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `func_root`() RETURNS varchar(8) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncRoot"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` FUNCTION `func_definer`() RETURNS varchar(11) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of proc_root and proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	proc_root	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_root and func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	func_root	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Connect as user with global SELECT privilege.
+
+connect  conn1, localhost, usr_global_select,,;
+
+# Should show the Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_root`()
+SELECT "ProcRoot"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` PROCEDURE `proc_definer`()
+SELECT "ProcDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show the Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_root;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `func_root`() RETURNS varchar(8) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncRoot"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` FUNCTION `func_definer`() RETURNS varchar(11) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of proc_root and proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	proc_root	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_root and func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	func_root	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Connect as user who is DEFINER of routines proc_definer and func_definer.
+
+connect  conn1, localhost, usr_definer,,;
+
+# Should show the routine_definition of only proc_definer and func_definer.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+RETURN "FuncDefiner"
+SELECT "ProcDefiner"
+
+# Should pretend that proc_root and func_root do not exist.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+ERROR 42000: PROCEDURE proc_root does not exist
+SHOW CREATE FUNCTION testdb.func_root;
+ERROR 42000: FUNCTION func_root does not exist
+
+# Should show the Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` PROCEDURE `proc_definer`()
+SELECT "ProcDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show the Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`usr_definer`@`localhost` FUNCTION `func_definer`() RETURNS varchar(11) CHARSET utf8mb4
+    DETERMINISTIC
+RETURN "FuncDefiner"	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+# Should show properties of proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Connect as user who has EXECUTE privilege.
+
+connect  conn1, localhost, usr_execute,,;
+
+# Should show NULL routine_definition for all 4 routines.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+NULL
+NULL
+NULL
+NULL
+
+# Should show NULL Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show NULL Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_root;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of proc_root and proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	proc_root	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_root and func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	func_root	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Connect as user who has CREATE ROUTINE privilege.
+
+connect  conn1, localhost, usr_create_routine,,;
+
+# Should show NULL routine_definition for all 4 routines.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+NULL
+NULL
+NULL
+NULL
+
+# Should show NULL Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show NULL Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_root;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of proc_root and proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	proc_root	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_root and func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	func_root	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Connect as user who has ALTER ROUTINE privilege.
+
+connect  conn1, localhost, usr_alter_routine,,;
+
+# Should show NULL routine_definition for all 4 routines.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+NULL
+NULL
+NULL
+NULL
+
+# Should show NULL Create Procedure string.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE testdb.proc_definer;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show NULL Create Function string.
+
+SHOW CREATE FUNCTION testdb.func_root;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_root	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION testdb.func_definer;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+func_definer	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of proc_root and proc_definer.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	proc_definer	PROCEDURE	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	proc_root	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+
+# Should show properties of func_root and func_definer.
+
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+testdb	func_definer	FUNCTION	usr_definer@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+testdb	func_root	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+disconnect conn1;
+
+# Test showing properties after partial revoke of SELECT privilege.
+
+connection default;
+
+# Set partial revokes to ON and save the current value.
+
+SET @start_partial_revokes = @@global.partial_revokes;
+SET @@global.partial_revokes=ON;
+REVOKE SELECT ON testdb.* FROM usr_global_select@localhost;
+connect  conn1, localhost, usr_global_select,,;
+
+# Should not return any rows.
+
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+ROUTINE_DEFINITION
+
+# Should pretend that routine does not exist.
+
+SHOW CREATE PROCEDURE testdb.proc_root;
+ERROR 42000: PROCEDURE proc_root does not exist
+SHOW CREATE PROCEDURE testdb.proc_definer;
+ERROR 42000: PROCEDURE proc_definer does not exist
+SHOW CREATE FUNCTION testdb.func_root;
+ERROR 42000: FUNCTION func_root does not exist
+SHOW CREATE FUNCTION testdb.func_definer;
+ERROR 42000: FUNCTION func_definer does not exist
+
+# Should not return any rows.
+
+SHOW PROCEDURE STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+SHOW FUNCTION STATUS WHERE db="testdb";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+disconnect conn1;
+
+# Restore partial_revokes to its previous value.
+
+connection default;
+DROP USER usr_global_select@localhost;
+SET @@global.partial_revokes = @start_partial_revokes;
+
+# Cleanup.
+
+DROP USER usr_no_priv@localhost, usr_show_routine@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+Warnings:
+Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a stored routine.
+DROP ROLE role_show_routine;
+DROP SCHEMA testdb;
 delete from mysql.db;
 insert into mysql.db select * from mysql.db_copy;
 flush privileges;

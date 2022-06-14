@@ -1,0 +1,148 @@
+# ==== Purpose ====
+# This test evaluates the restrictions in query execution associated to the
+# variable @@session.require_row_format
+#
+# ==== Requirements ====
+#
+# The following scenarios are tested in this script:
+#
+# + Check INSERT, UPDATE, DELETE, REPLACE or LOAD commands operations
+#   are not allowed when @@session.require_row_format = 1
+# + Check no creation or deletion of temporary tables is allowed when
+#   @@session.require_row_format = 1
+# + Check the above restrictions are not checked when
+#   @@session.require_row_format = 0
+# + Check encoded binary log events can still be executed.
+#
+#  ==== Implementation ====
+#
+#  0. Create some tables for testing
+#  1. Set require_row_format to 1 and check all restrictions are enforced.
+#  1.1 Test binlog updates can still update tables
+#  2. Set require row format to 0 and check all restrictions are gone
+#  3. Cleanup
+#
+#  ==== Related Worklog ====
+#
+#  WL #12968 : Configure replication applier to require row-based replication
+
+--echo #
+--echo # Step 0. Create some tables for testing
+
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (c1 INT) Engine=InnoDB;
+INSERT INTO t2 VALUES (10);
+
+CREATE TABLE t3 (text VARCHAR(20));
+
+CREATE TEMPORARY TABLE temp1 (c1 INT);
+
+--echo #
+--echo # 1. Set require_row_format to 1 and check all restrictions are enforced.
+
+SET SESSION require_row_format= 1;
+
+# INSERT
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+INSERT INTO t1 VALUES (2);
+
+# UPDATE
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+UPDATE t1 SET c1 = 2 WHERE c1 = 1;
+
+# INSERT SELECT
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+INSERT INTO t1 SELECT * FROM t2;
+
+# DELETE
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+DELETE FROM t1 WHERE c1 = 1;
+
+# REPLACE
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+REPLACE INTO t1 (c1) VALUES(2);
+
+# REPLACE SELECT
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+REPLACE t1 SELECT * FROM t2;
+
+# LOAD DATA
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t3;
+
+# DELETE MULTI
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+DELETE t1, t2 FROM t1, t2 WHERE t1.c1 = 1;
+
+# UPDATE MULTI
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+UPDATE t1, t2 SET t1.c1=t2.c1 WHERE t1.c1 = 1;
+
+# CREATE TEMPORARY TABLE
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+CREATE TEMPORARY TABLE temp2 (c1 INT);
+
+# DROP TEMPORARY TABLE
+--error ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+DROP TEMPORARY TABLE temp1;
+
+--let $assert_text = Table t1 was not changed
+--let $assert_cond = [SELECT count(*) FROM t1 where c1=1] = 1
+--source include/assert.inc
+
+--let $assert_text = Table t3 was empty
+--let $assert_cond = [SELECT count(*) FROM t3] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 1.1 Test binlog updates can still update tables
+
+# Format log event
+BINLOG '
+mV5DXQ8BAAAAeAAAAHwAAAABAAQAOC4wLjE5LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACZXkNdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgHG1zdG';
+
+# BINLOG INSERT
+BINLOG '
+mV5DXRMBAAAAMAAAADACAAAAAJoAAAAAAAEABHRlc3QAAnQxAAEDAAEBAQCnZmio
+mV5DXR4BAAAAKAAAAFgCAAAAAJoAAAAAAAEAAgAB/wACAAAAntJyow==';
+
+--let $assert_text = Table t1 was changed
+--let $assert_cond = [SELECT count(*) FROM t1] = 2
+--source include/assert.inc
+
+--echo #
+--echo # 2. Set require_row_format to 0 and check all restrictions are gone
+
+SET SESSION require_row_format= 0;
+
+# INSERT
+INSERT INTO t1 VALUES (11);
+
+# UPDATE
+UPDATE t1 SET c1 = 4 WHERE c1 = 1;
+
+# CREATE TABLE
+CREATE TEMPORARY TABLE temp2 (c1 INT);
+
+# BINLOG EVENT
+BINLOG '
+mV5DXRMBAAAAMAAAAEEDAAAAAJoAAAAAAAEABHRlc3QAAnQxAAEDAAEBAQDNxAV8
+mV5DXR4BAAAAKAAAAGkDAAAAAJoAAAAAAAEAAgAB/wADAAAAO7EClA==';
+
+--let $assert_text = Table t1 has 4 values
+--let $assert_cond = [SELECT count(*) FROM t1] = 4
+--source include/assert.inc
+
+--echo #
+--echo # 3. Cleanup
+
+DROP TEMPORARY TABLE temp1;
+DROP TEMPORARY TABLE temp2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

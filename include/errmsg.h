@@ -1,7 +1,7 @@
 #ifndef ERRMSG_INCLUDED
 #define ERRMSG_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,15 +123,23 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_INSECURE_API_ERR 2062
 #define CR_FILE_NAME_TOO_LONG 2063
 #define CR_SSL_FIPS_MODE_ERR 2064
-#define CR_COMPRESSION_NOT_SUPPORTED 2065
-#define CR_ERROR_LAST /*Copy last error nr:*/ 2065
+#define CR_DEPRECATED_COMPRESSION_NOT_SUPPORTED 2065
+#define CR_COMPRESSION_WRONGLY_CONFIGURED 2066
+#define CR_KERBEROS_USER_NOT_FOUND 2067
+#define CR_LOAD_DATA_LOCAL_INFILE_REJECTED 2068
+#define CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL 2069
+#define CR_DNS_SRV_LOOKUP_FAILED 2070
+#define CR_MANDATORY_TRACKER_NOT_FOUND 2071
+#define CR_INVALID_FACTOR_NO 2072
+#define CR_CANT_GET_SESSION_DATA 2073
+#define CR_ERROR_LAST /*Copy last error nr:*/ 2073
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 /* Visual Studio requires '__inline' for C code */
 static inline const char *ER_CLIENT(int client_errno) {
   if (client_errno >= CR_ERROR_FIRST && client_errno <= CR_ERROR_LAST)
     return client_errors[client_errno - CR_ERROR_FIRST];
-  return client_errors[CR_UNKNOWN_ERROR];
+  return client_errors[CR_UNKNOWN_ERROR - CR_ERROR_FIRST];
 }
 
 #endif /* ERRMSG_INCLUDED */

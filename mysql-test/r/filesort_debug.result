@@ -94,30 +94,14 @@ ERROR HY001: Out of sort memory, consider increasing server sort buffer size
 SHOW WARNINGS;
 Level	Code	Message
 Error	1038	Out of sort memory, consider increasing server sort buffer size
-Error	1028	Sort aborted: Out of sort memory, consider increasing server sort buffer size
 DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
 c19,c21,c8,c1,c27,c28,c3,c9,c22,c24,c6,c2,pk LIMIT 2;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size
 SHOW WARNINGS;
 Level	Code	Message
 Error	1038	Out of sort memory, consider increasing server sort buffer size
-Error	1028	Sort aborted: Out of sort memory, consider increasing server sort buffer size
 SET SESSION sort_buffer_size=DEFAULT;
 DROP TABLE t1;
-#
-# Bug#17372396: PLEASE REMOVE SORT ABORTED ERRORS FROM THE ERROR LOG
-#
-CREATE TABLE t1 (a INT,b INT);
-INSERT INTO t1 VALUES (2,4),(7,8);
-SELECT GROUP_CONCAT(DISTINCT t1.a) a FROM t1 WHERE t1.a =
-(SELECT a FROM t1) GROUP BY b;
-ERROR 21000: Subquery returns more than 1 row
-DROP TABLE t1;
-DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of memory (Needed N bytes), query: SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 1
-DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
-DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Query execution was interrupted, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
-DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
-DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
 #
 # Bug#21611270 ASSERTION IN FILESORT::MAKE_SORTORDER()
 #
@@ -151,8 +135,8 @@ CREATE TABLE t1(a DATE);
 INSERT INTO t1 VALUES('1000-01-01'), ('2017-10-31');
 SELECT HEX(WEIGHT_STRING(a)) FROM t1;
 HEX(WEIGHT_STRING(a))
-07D021
-0FC35F
+8CB2420000000000
+999DFE0000000000
 SELECT HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 3, 3, 0xC0)) FROM t1;
 HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 3, 3, 0xC0))
 1C3E1C
@@ -183,7 +167,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+  `@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT @a:=@b:=@x:=makedate(a,a) FROM t1;
@@ -194,7 +178,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `@a:=@b:=@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+  `@a:=@b:=@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;

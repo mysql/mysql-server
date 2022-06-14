@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <string>
 #include <utility>
 
+#include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/src/json_utils.h"
 #include "plugin/x/src/mysql_function_names.h"
@@ -103,18 +104,29 @@ void Expression_generator::generate(
     const Mysqlx::Expr::ColumnIdentifier &arg) const {
   bool has_schema_name = arg.has_schema_name() && !arg.schema_name().empty();
 
-  if (has_schema_name && arg.has_table_name() == false)
+  if (has_schema_name && !arg.has_table_name())
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Table name is required if schema name is specified in "
                 "ColumnIdentifier.");
 
   const bool has_docpath = arg.document_path_size() > 0;
 
-  if (arg.has_table_name() && arg.has_name() == false &&
+  if (arg.has_table_name() && !arg.has_name() &&
       (m_is_relational || !has_docpath))
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Column name is required if table name is specified in "
                 "ColumnIdentifier.");
+
+  if (!has_docpath && !arg.has_name() && !arg.has_table_name() &&
+      !arg.has_schema_name()) {
+    if (m_is_relational) {
+      throw Error(ER_X_EXPR_MISSING_ARG,
+                  "Column name is required in ColumnIdentifier.");
+    } else {
+      m_qb->put("JSON_EXTRACT(doc,'$')");
+      return;
+    }
+  }
 
   if (has_docpath) m_qb->put("JSON_EXTRACT(");
 
@@ -125,7 +137,7 @@ void Expression_generator::generate(
   if (arg.has_name()) m_qb->quote_identifier(arg.name());
 
   if (has_docpath) {
-    if (arg.has_name() == false) m_qb->put("doc");
+    if (!arg.has_name()) m_qb->put("doc");
 
     m_qb->put(",");
     generate(arg.document_path());
@@ -191,6 +203,15 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Any &arg) const {
     case Mysqlx::Datatypes::Any::SCALAR:
       generate(arg.scalar());
       break;
+
+    case Mysqlx::Datatypes::Any::ARRAY:
+      generate(arg.array());
+      break;
+
+    case Mysqlx::Datatypes::Any::OBJECT:
+      generate(arg.obj());
+      break;
+
     default:
       throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
                   "Invalid value for Mysqlx::Datatypes::Any::Type " +
@@ -223,7 +244,7 @@ void Expression_generator::generate(
         // validate charset for alnum_
         // m_qb->put("_").put(arg.v_string().charset());
       }
-      m_qb->quote_string(arg.v_string().value());
+      handle_string_scalar(arg);
       break;
 
     case Mysqlx::Datatypes::Scalar::V_DOUBLE:
@@ -235,7 +256,7 @@ void Expression_generator::generate(
       break;
 
     case Mysqlx::Datatypes::Scalar::V_BOOL:
-      m_qb->put((arg.v_bool() ? "TRUE" : "FALSE"));
+      handle_bool_scalar(arg);
       break;
 
     default:
@@ -308,19 +329,29 @@ void Expression_generator::generate(const Mysqlx::Expr::Array &arg) const {
   m_qb->put(")");
 }
 
-template <typename T>
-void Expression_generator::generate_for_each(
-    const Repeated_field_list<T> &list,
-    void (Expression_generator::*generate_fun)(const T &) const,
-    const typename Repeated_field_list<T>::size_type offset) const {
-  if (list.size() == 0) return;
-  using It = typename Repeated_field_list<T>::const_iterator;
-  It end = list.end() - 1;
-  for (It i = list.begin() + offset; i != end; ++i) {
-    (this->*generate_fun)(*i);
-    m_qb->put(",");
-  }
-  (this->*generate_fun)(*end);
+void Expression_generator::generate(
+    const Mysqlx::Datatypes::Object &arg) const {
+  m_qb->put("JSON_OBJECT(");
+  generate_for_each(arg.fld(), &Expression_generator::generate);
+  m_qb->put(")");
+}
+
+void Expression_generator::generate(
+    const Mysqlx::Datatypes::Object::ObjectField &arg) const {
+  if (!arg.has_key() || arg.key().empty())
+    throw Error(ER_X_EXPR_BAD_VALUE,
+                "Invalid key for Mysqlx::Datatypes::Object");
+  if (!arg.has_value())
+    throw Error(ER_X_EXPR_BAD_VALUE,
+                "Invalid value for Mysqlx::Datatypes::Object on key '" +
+                    arg.key() + "'");
+  handle_object_field(arg);
+}
+
+void Expression_generator::generate(const Mysqlx::Datatypes::Array &arg) const {
+  m_qb->put("JSON_ARRAY(");
+  generate_for_each(arg.value(), &Expression_generator::generate);
+  m_qb->put(")");
 }
 
 void Expression_generator::generate_unquote_param(
@@ -335,6 +366,35 @@ void Expression_generator::generate_unquote_param(
   }
 }
 
+/**
+ * check if argument is a doc-path refering to '_id'.
+ */
+static bool is_id_docpath(const Mysqlx::Expr::Expr &arg) {
+  if (arg.type() == Mysqlx::Expr::Expr::IDENT &&
+      arg.identifier().document_path_size() == 1) {
+    const auto &p = arg.identifier().document_path(0);
+
+    return (p.has_type() && p.has_value() &&
+            p.type() == Mysqlx::Expr::DocumentPathItem_Type_MEMBER &&
+            p.value() == "_id");
+  }
+  return false;
+}
+
+static bool binary_operator_is_compare(std::string_view op) {
+  const std::array<std::string_view, 6> compare_ops{{
+      "==",
+      "!=",
+      "<",
+      "<=",
+      ">",
+      ">=",
+  }};
+
+  return std::find(compare_ops.begin(), compare_ops.end(), op) !=
+         compare_ops.end();
+}
+
 void Expression_generator::binary_operator(const Mysqlx::Expr::Operator &arg,
                                            const char *str) const {
   if (arg.param_size() != 2) {
@@ -343,10 +403,30 @@ void Expression_generator::binary_operator(const Mysqlx::Expr::Operator &arg,
         "Binary operations require exactly two operands in expression.");
   }
 
+  /* if the argument is a doc-path{"_id"} and the operator is a comparison,
+   * unquote the extracted doc-path to force a string-comparison that's resolved
+   * by the index on the '_id' field.
+   *
+   * index is:
+   *
+   *   _id VARBINARY(32) GENERATED ALWAYS AS
+   *        (json_unquote(json_extract(doc, _utf8mb4'$._id'))) STORED NOT NULL,
+   */
+  auto generate_unquoted_id_path = [this](const Mysqlx::Expr::Expr &param,
+                                          bool operator_is_compare) {
+    if (operator_is_compare && is_id_docpath(param)) {
+      generate_unquote_param(param);
+    } else {
+      generate(param);
+    }
+  };
+
+  const bool operator_is_compare = binary_operator_is_compare(arg.name());
+
   m_qb->put("(");
-  generate(arg.param(0));
+  generate_unquoted_id_path(arg.param(0), operator_is_compare);
   m_qb->put(str);
-  generate(arg.param(1));
+  generate_unquoted_id_path(arg.param(1), operator_is_compare);
   m_qb->put(")");
 }
 
@@ -416,7 +496,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg,
         m_qb->put(")");
         break;
       }
-      // Fall through.
+      [[fallthrough]];
 
     default:
       m_qb->put("(");
@@ -795,6 +875,22 @@ void Expression_generator::overlaps_expression(
   m_qb->put(",");
   generate_json_only_param(arg.param(1), "OVERLAPS");
   m_qb->put(")");
+}
+
+void Expression_generator::handle_object_field(
+    const Mysqlx::Datatypes::Object::ObjectField &arg) const {
+  m_qb->quote_string(arg.key()).put(",");
+  generate(arg.value());
+}
+
+void Expression_generator::handle_string_scalar(
+    const Mysqlx::Datatypes::Scalar &string_scalar) const {
+  m_qb->quote_string(string_scalar.v_string().value());
+}
+
+void Expression_generator::handle_bool_scalar(
+    const Mysqlx::Datatypes::Scalar &bool_scalar) const {
+  m_qb->put((bool_scalar.v_bool() ? "TRUE" : "FALSE"));
 }
 
 }  // namespace xpl

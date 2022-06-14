@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,15 +33,17 @@
  When adding capabilities here, consider if they should be also added to
  the libmysql version.
 */
-#define CLIENT_CAPABILITIES                                        \
-  (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | \
-   CLIENT_PROTOCOL_41 | CLIENT_RESERVED2 | CLIENT_PLUGIN_AUTH |    \
-   CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |  \
-   CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF)
+#define CLIENT_CAPABILITIES                                                \
+  (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS |         \
+   CLIENT_PROTOCOL_41 | CLIENT_RESERVED2 | CLIENT_PLUGIN_AUTH |            \
+   CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |          \
+   CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF | CLIENT_QUERY_ATTRIBUTES | \
+   MULTI_FACTOR_AUTHENTICATION)
 
 #define read_user_name(A) \
   {}
 
+#define read_kerberos_user_name(A) ({ false; })
 #define mysql_server_init(a, b, c) mysql_client_plugin_init()
 #define mysql_server_end() mysql_client_plugin_deinit()
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,16 +37,18 @@ const Keywords &Keywords::instance() {
 }
 
 Keywords::Keywords() {
-  size_t max_word_size = 0;
-  for (auto x : keyword_list)
-    max_word_size = std::max(max_word_size, strlen(x.word));
+  const size_t MAX_WORD_SIZE = 128;
+#ifndef NDEBUG
+  for (auto x : keyword_list) assert(strlen(x.word) < MAX_WORD_SIZE);
+#endif
 
   Stringstream_type ss;
   ss << "JSON_TABLE('[";
   for (auto x : keyword_list)
     ss << "[\"" << x.word << "\"," << x.reserved << "],";
   ss.seekp(ss.tellp() - static_cast<std::streamoff>(1));  // remove last ','
-  ss << "]', '$[*]' COLUMNS(word VARCHAR(" << max_word_size << ") PATH '$[0]',"
+  ss << "]', '$[*]' COLUMNS(word VARCHAR(" << MAX_WORD_SIZE
+     << ") CHARSET utf8mb4 PATH '$[0]',"
      << "reserved INT PATH '$[1]')) AS j";
 
   m_target_def.set_view_name(view_name());

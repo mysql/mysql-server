@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,30 +24,38 @@ MYSQL_ADD_COMPONENT(example_component1
   english_greeting_service_imp.cc
   example_component1.cc
   simple_example_math_imp.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(example_component2
   example_component2.cc
   polish_greeting_service_imp.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(example_component3
   example_component3.cc
   example_math_wrapping_imp.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_string_service
   test_string_service.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_string_service_long
   test_string_service_long.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_string_service_charset
   test_string_service_charset.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_backup_lock_service
   test_backup_lock_service.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )

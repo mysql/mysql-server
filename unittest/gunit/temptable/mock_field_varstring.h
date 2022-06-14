@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,23 +42,22 @@ class Mock_field_varstring : public Field_varstring {
       : Field_varstring(nullptr,                          // ptr_arg
                         calc_len_arg(char_len),           // len_arg
                         calc_length_bytes_arg(char_len),  // length_bytes_arg
-                        is_nullable ? &null_byte : NULL,  // null_ptr_arg
+                        is_nullable ? buffer : nullptr,   // null_ptr_arg
                         is_nullable ? 1 : 0,              // null_bit_arg
                         Field::NONE,                      // auto_flags_arg
                         name,                             // field_name_arg
                         share,                            // share
                         &my_charset_utf8mb4_general_ci)   // cs
   {
-    buffer.assign(pack_length(), 0);
-    ptr = buffer.data();
+    ptr = buffer + 1;
+    std::memset(buffer, 0, MAX_FIELD_VARCHARLENGTH + 1);
 
     static const char *table_name_buf = "table_name";
     table_name = &table_name_buf;
   }
 
  private:
-  std::vector<uchar> buffer;
-  uchar null_byte = '\0';
+  uchar buffer[MAX_FIELD_VARCHARLENGTH + 1];
 
   static uint calc_byte_len(uint char_len) {
     return char_len * my_charset_utf8mb4_general_ci.mbmaxlen;

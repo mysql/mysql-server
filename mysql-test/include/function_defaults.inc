@@ -1036,9 +1036,9 @@ remove_file $MYSQLD_DATADIR/test/file1.dat;
 remove_file $MYSQLD_DATADIR/test/file2.dat;
 
 --echo #
---echo # Test of updatable views with check options. The option can be violated
---echo # using ON UPDATE updates which is very strange as this offers a loophole
---echo # in this integrity check.
+--echo # Test of updatable views with check options.
+--echo # Test case provides coverage for Bug#29834066 "DEFAULT EXPRESSION CAN
+--echo # BREAK VIEW CHECK OPTION".
 --echo #
 SET TIME_ZONE = "+03:00";
 --echo # 1970-01-01 03:16:40
@@ -1060,7 +1060,7 @@ SELECT * FROM v1;
 --echo # 1970-01-01 03:33:20
 SET TIMESTAMP = 2000.000234;
 
---echo Logically, there should be an ER_VIEW_CHECK_FAILED here.
+--error ER_VIEW_CHECK_FAILED
 UPDATE v1 SET a = 2;
 SELECT * FROM t1;
 
@@ -1085,7 +1085,7 @@ SELECT * FROM v1;
 
 SET TIMESTAMP = 1.126789;
 
---echo Logically, there should be an ER_VIEW_CHECK_FAILED here.
+--error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 ( c ) VALUES ( 1 ) ON DUPLICATE KEY UPDATE c = 2;
 
 SELECT * FROM v1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@
 #include <utility>
 
 #include "base64.h"  // base64_needed_decoded_length
-#include "binlog_event.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -126,7 +126,7 @@ static int check_event_type(int type, Relay_log_info *rli) {
 */
 
 void mysql_client_binlog_statement(THD *thd) {
-  DBUG_ENTER("mysql_client_binlog_statement");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("binlog base64: '%*s'",
                       (int)(thd->lex->binlog_stmt_arg.length < 2048
                                 ? thd->lex->binlog_stmt_arg.length
@@ -135,15 +135,17 @@ void mysql_client_binlog_statement(THD *thd) {
 
   Security_context *sctx = thd->security_context();
   if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or BINLOG_ADMIN");
-    DBUG_VOID_RETURN;
+        sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first ||
+        sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_APPLIER")).first)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER, BINLOG_ADMIN or REPLICATION_APPLIER");
+    return;
   }
 
   size_t coded_len = thd->lex->binlog_stmt_arg.length;
   if (!coded_len) {
     my_error(ER_SYNTAX_ERROR, MYF(0));
-    DBUG_VOID_RETURN;
+    return;
   }
   size_t decoded_len = base64_needed_decoded_length(coded_len);
 
@@ -188,7 +190,7 @@ void mysql_client_binlog_statement(THD *thd) {
     goto end;
   }
 
-  DBUG_ASSERT(rli->belongs_to_client());
+  assert(rli->belongs_to_client());
 
   for (char const *strptr = thd->lex->binlog_stmt_arg.str;
        strptr <
@@ -197,8 +199,9 @@ void mysql_client_binlog_statement(THD *thd) {
     int64 bytes_decoded = base64_decode(strptr, coded_len, buf, &endptr,
                                         MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
-    DBUG_PRINT("info", ("bytes_decoded: %lld  strptr: %p  endptr: %p ('%c':%d)",
-                        bytes_decoded, strptr, endptr, *endptr, *endptr));
+    DBUG_PRINT("info",
+               ("bytes_decoded: %" PRId64 "  strptr: %p  endptr: %p ('%c':%d)",
+                bytes_decoded, strptr, endptr, *endptr, *endptr));
 
     if (bytes_decoded < 0) {
       my_error(ER_BASE64_DECODE_ERROR, MYF(0));
@@ -206,8 +209,8 @@ void mysql_client_binlog_statement(THD *thd) {
     } else if (bytes_decoded == 0)
       break;  // If no bytes where read, the string contained only whitespace
 
-    DBUG_ASSERT(bytes_decoded > 0);
-    DBUG_ASSERT(endptr > strptr);
+    assert(bytes_decoded > 0);
+    assert(endptr > strptr);
     coded_len -= endptr - strptr;
     strptr = endptr;
 
@@ -222,8 +225,9 @@ void mysql_client_binlog_statement(THD *thd) {
       order to be able to read exactly what is necessary.
     */
 
-    DBUG_PRINT("info", ("binlog base64 decoded_len: %lu  bytes_decoded: %lld",
-                        (ulong)decoded_len, bytes_decoded));
+    DBUG_PRINT("info",
+               ("binlog base64 decoded_len: %lu  bytes_decoded: %" PRId64,
+                (ulong)decoded_len, bytes_decoded));
 
     /*
       Now we start to read events of the buffer, until there are no
@@ -240,7 +244,7 @@ void mysql_client_binlog_statement(THD *thd) {
         my_error(ER_SYNTAX_ERROR, MYF(0));
         goto end;
       }
-      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%lld", event_len,
+      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%" PRId64, event_len,
                           bytes_decoded));
 
       if (check_event_type(bufptr[EVENT_TYPE_OFFSET], rli)) goto end;
@@ -310,5 +314,4 @@ end:
   }
   thd->variables.option_bits = thd_options;
   my_free(buf);
-  DBUG_VOID_RETURN;
 }

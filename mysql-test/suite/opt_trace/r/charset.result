@@ -11,9 +11,6 @@ Note	1003	/* select#1 */ select 'ÁÂÃÄÅ' AS `ÁÂÃÄÅ`,_latin1'\xC1\xC2\xC3\xC4\xC5'
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select @query, @trace;
 @query	@trace
 explain select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
@@ -225,9 +222,6 @@ col
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set names utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -455,9 +449,6 @@ aaa
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set names utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -538,7 +529,7 @@ select * from t1 where c < 'ÃÃ‚ÃƒÃ„Ã…'	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
-                    "cost": 0.4502,
+                    "cost": 0.450244,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -561,12 +552,13 @@ select * from t1 where c < 'ÃÃ‚ÃƒÃ„Ã…'	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "c <= ÃÃ‚ÃƒÃ„"
+                          "c <= 'ÃÃ‚ÃƒÃ„'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 2,
                         "cost": 0.71,
                         "chosen": false,
@@ -771,7 +763,7 @@ select `col
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "index\n1\ta",
-                    "cost": 0.4503,
+                    "cost": 0.450336,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -800,8 +792,9 @@ select `col
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 2,
-                        "cost": 0.4603,
+                        "cost": 0.460336,
                         "chosen": false,
                         "cause": "cost"
                       }

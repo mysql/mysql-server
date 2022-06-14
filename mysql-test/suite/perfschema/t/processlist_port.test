@@ -1,0 +1,161 @@
+--echo ##
+--echo ## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+--echo ##
+--echo ## Verify the Host field (hostname:port) against the legacy implementation.
+--echo ##
+
+--source include/no_protocol.inc
+
+--echo
+--echo ### Setup ###
+--echo
+select @@global.performance_schema_show_processlist into @save_processlist;
+
+--echo
+--echo # Control user
+create user user0@localhost;
+grant ALL on *.* to user0@localhost;
+
+--echo # Test users
+--echo
+create user user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost;
+--echo
+# Grant no privileges to user1 to ensure only one process
+grant USAGE on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+--echo
+flush privileges;
+--echo
+show grants for user1@localhost;
+
+--echo
+--echo # Connect (con_user0, 127.0.0.1, user0, , , MASTER_MYPORT, )
+connect (con_user0, 127.0.0.1, user0, , , $MASTER_MYPORT, );
+--echo
+select connection_id() into @con_user0_id;
+
+--echo # Connect (con_user1, 127.0.0.1, user1, , , MASTER_MYPORT, )
+connect (con_user1, 127.0.0.1, user1, , , $MASTER_MYPORT, );
+
+--echo # Connect (con_user2, 127.0.0.1, user2, , , MASTER_MYPORT, )
+connect (con_user2, 127.0.0.1, user2, , , $MASTER_MYPORT, );
+
+--echo # Connect (con_user3, 127.0.0.1, user3, , , MASTER_MYPORT, )
+connect (con_user3, 127.0.0.1, user3, , , $MASTER_MYPORT, );
+
+--echo # Connect (con_user4, 127.0.0.1, user4, , , MASTER_MYPORT, )
+connect (con_user4, 127.0.0.1, user4, , , $MASTER_MYPORT, );
+
+--echo # Connection user0
+--connection con_user0
+let $wait_condition = select connection_id() = @con_user0_id;
+--source include/wait_condition.inc
+
+--echo
+--echo ### Compare the SHOW PROCESSLIST Host column between the new and old implementations
+--echo
+--echo ## New SHOW PROCESSLIST
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
+
+--echo
+--echo # Connection user1
+--connection con_user1
+
+--echo # Get Host:Port, new
+let $host_new = query_get_value(SHOW FULL PROCESSLIST, Host, 1);
+
+--echo
+--echo ## Legacy SHOW PROCESSLIST
+--connection con_user0
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
+
+--echo
+--echo # Connection user1
+--connection con_user1
+
+--echo # Get Host:Port, legacy
+let $host_old = query_get_value(SHOW FULL PROCESSLIST, Host, 1);
+
+--echo
+
+## DEBUG ONLY
+##  --echo DEBUG: New: $host_new  Old: $host_old
+
+if ($host_new == $host_old)
+{
+  --echo ***SUCCESS*** The SHOW PROCESSLIST Host fields match
+}
+
+if ($host_new != $host_old)
+{
+  --echo ***ERROR*** SHOW PROCESSLIST Host fields do not match. New: $host_new  Old: $host_old
+}
+
+--echo
+--echo ### Compare the processlist  Host column between Performance Schema and the Information Schema
+--echo
+--echo # Connection con_user0
+--connection con_user0
+let $count_new = `select count(*) from performance_schema.processlist`;
+let $count_old = `select count(*) from information_schema.processlist`;
+let $count_join = `select count(*) from performance_schema.processlist pspl
+                     left join information_schema.processlist ispl on pspl.host = ispl.host and pspl.id = ispl.id`;
+
+--echo
+
+if ($count_old == $count_join)
+{
+  --echo ***SUCCESS*** The processlist Host fields match between the Performance Schema and the Information Schema
+}
+
+if ($count_old != $count_join)
+{
+  --echo ***ERROR*** The processlist Host fields do not match
+  --echo Count new: $count_new   Count old: $count_old  Count join: $count_join
+  --echo
+  select * from performance_schema.processlist order by host, id;
+  --echo
+  select * from information_schema.processlist order by host, id;
+  --echo
+  select * from performance_schema.processlist pspl
+    left join information_schema.processlist ispl on pspl.host = ispl.host and pspl.id = ispl.id;
+}
+
+--echo
+--echo
+--echo ### Clean up ###
+--echo
+
+--echo # Disconnect con_user0
+--connection con_user0
+--disconnect con_user0
+--echo # Disconnect con_user1
+--connection con_user1
+--disconnect con_user1
+--echo # Disconnect con_user2
+--connection con_user2
+--disconnect con_user2
+--echo # Disconnect con_user3
+--connection con_user3
+--disconnect con_user3
+--echo # Disconnect con_user4
+--connection con_user4
+--disconnect con_user4
+
+--echo # Connection default
+--connection default
+--echo
+drop user user0@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+--echo
+set @@global.performance_schema_show_processlist = @save_processlist;

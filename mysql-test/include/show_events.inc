@@ -112,6 +112,18 @@ let $script=
 ||
 --let $pre_script= my DOLLARmysqltest_vardir = DOLLARENV{'MYSQLTEST_VARDIR'};
 
+if (!$keep_transaction_payload_events)
+{
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:Transaction_payload)\t});
+}
+if ($keep_transaction_payload_events)
+{
+  let $pre_script= $pre_script
+    my DOLLARdec_size_regex = '(decompressed_size=[0-9]+ bytes)';
+  ||
+  --let $script= $script s{DOLLARdec_size_regex}{decompressed_size=## bytes};
+}
+
 if (!$keep_view_change_events)
 {
   --let $script= $script DOLLAR_ = '' if (m{\t(?:View_change)\t});

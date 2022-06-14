@@ -8,6 +8,7 @@
 #  will be binlogged as 
 #  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /* 99999 ,(3)*/'.
 ###############################################################################
+--source include/set_privilege_checks_user_as_system_user.inc
 source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;
 

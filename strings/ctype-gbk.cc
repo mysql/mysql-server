@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
+#include <algorithm>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
@@ -1220,38 +1222,55 @@ static const MY_UNICASE_CHARACTER cA7[256] = {
     {0xA7FF, 0xA7FF, 0xA7FF}};
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_gbk[256] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, cA2,  cA3,  NULL, NULL, cA6,  cA7, /* A */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, cA2,     cA3,
+    nullptr, nullptr, cA6,     cA7, /* A */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr};
 
 static MY_UNICASE_INFO my_caseinfo_gbk = {0xFFFF, my_caseinfo_pages_gbk};
 
@@ -3523,18 +3542,18 @@ static int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 }
 
 extern "C" {
-static int my_strnncoll_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_gbk(const CHARSET_INFO *cs [[maybe_unused]],
                             const uchar *a, size_t a_length, const uchar *b,
                             size_t b_length, bool b_is_prefix) {
-  size_t length = MY_MIN(a_length, b_length);
+  size_t length = std::min(a_length, b_length);
   int res = my_strnncoll_gbk_internal(&a, &b, length);
   return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
 
-static int my_strnncollsp_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncollsp_gbk(const CHARSET_INFO *cs [[maybe_unused]],
                               const uchar *a, size_t a_length, const uchar *b,
                               size_t b_length) {
-  size_t length = MY_MIN(a_length, b_length);
+  size_t length = std::min(a_length, b_length);
   int res = my_strnncoll_gbk_internal(&a, &b, length);
 
   if (!res && a_length != b_length) {
@@ -3583,13 +3602,12 @@ static size_t my_strnxfrm_gbk(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
-static uint ismbchar_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *p, const char *e) {
+static uint ismbchar_gbk(const CHARSET_INFO *cs [[maybe_unused]], const char *p,
+                         const char *e) {
   return (isgbkhead(*(p)) && (e) - (p) > 1 && isgbktail(*((p) + 1)) ? 2 : 0);
 }
 
-static uint mbcharlen_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          uint c) {
+static uint mbcharlen_gbk(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (isgbkhead(c) ? 2 : 1);
 }
 }  // extern "C"
@@ -9912,8 +9930,8 @@ static int func_uni_gbk_onechar(int code) {
 }
 
 extern "C" {
-static int my_wc_mb_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_gbk(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                        uchar *s, uchar *e) {
   int code;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -9932,8 +9950,8 @@ static int my_wc_mb_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static int my_mb_wc_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_gbk(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                        const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -9955,9 +9973,9 @@ static int my_mb_wc_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 /*
   Returns well formed length of a GBK string.
 */
-static size_t my_well_formed_len_gbk(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_gbk(const CHARSET_INFO *cs [[maybe_unused]],
+                                     const char *b, const char *e, size_t pos,
+                                     int *error) {
   const char *b0 = b;
   const char *emb = e - 1; /* Last possible end of an MB character */
 
@@ -9992,7 +10010,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {nullptr, /* init */
                                                        my_hash_sort_simple,
                                                        my_propagate_simple};
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_gbk,
                                                 mbcharlen_gbk,
                                                 my_numchars_mb,
@@ -10026,20 +10044,20 @@ CHARSET_INFO my_charset_gbk_chinese_ci = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "gbk",                                           /* cs name    */
-    "gbk_chinese_ci",                                /* name */
-    "",                                              /* comment    */
-    NULL,                                            /* tailoring */
-    NULL,                                            /* coll_param */
+    "gbk_chinese_ci",                                /* m_coll_name */
+    "GBK Simplified Chinese",                        /* comment    */
+    nullptr,                                         /* tailoring */
+    nullptr,                                         /* coll_param */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
-    NULL,             /* uca          */
-    NULL,             /* tab_to_uni   */
-    NULL,             /* tab_from_uni */
+    nullptr,          /* uca          */
+    nullptr,          /* tab_to_uni   */
+    nullptr,          /* tab_from_uni */
     &my_caseinfo_gbk, /* caseinfo     */
-    NULL,             /* state_map    */
-    NULL,             /* ident_map    */
+    nullptr,          /* state_map    */
+    nullptr,          /* ident_map    */
     1,                /* strxfrm_multiply */
     1,                /* caseup_multiply  */
     1,                /* casedn_multiply  */
@@ -10049,42 +10067,43 @@ CHARSET_INFO my_charset_gbk_chinese_ci = {
     0,                /* min_sort_char */
     0xA967,           /* max_sort_char */
     ' ',              /* pad char      */
-    1,                /* escape_with_backslash_is_dangerous */
+    true,             /* escape_with_backslash_is_dangerous */
     1,                /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_gbk_bin = {87,
-                                   0,
-                                   0,                              /* number */
-                                   MY_CS_COMPILED | MY_CS_BINSORT, /* state */
-                                   "gbk",     /* cs name    */
-                                   "gbk_bin", /* name */
-                                   "",        /* comment    */
-                                   NULL,      /* tailoring */
-                                   NULL,      /* coll_param */
-                                   ctype_gbk,
-                                   to_lower_gbk,
-                                   to_upper_gbk,
-                                   NULL,             /* sort_order   */
-                                   NULL,             /* uca          */
-                                   NULL,             /* tab_to_uni   */
-                                   NULL,             /* tab_from_uni */
-                                   &my_caseinfo_gbk, /* caseinfo     */
-                                   NULL,             /* state_map    */
-                                   NULL,             /* ident_map    */
-                                   1,                /* strxfrm_multiply */
-                                   1,                /* caseup_multiply  */
-                                   1,                /* casedn_multiply  */
-                                   1,                /* mbminlen   */
-                                   2,                /* mbmaxlen   */
-                                   1,                /* mbmaxlenlen */
-                                   0,                /* min_sort_char */
-                                   0xFEFE,           /* max_sort_char */
-                                   ' ',              /* pad char      */
-                                   1, /* escape_with_backslash_is_dangerous */
-                                   1, /* levels_for_compare */
-                                   &my_charset_handler,
-                                   &my_collation_mb_bin_handler,
-                                   PAD_SPACE};
+CHARSET_INFO my_charset_gbk_bin = {
+    87,
+    0,
+    0,                              /* number */
+    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
+    "gbk",                          /* cs name    */
+    "gbk_bin",                      /* m_coll_name */
+    "GBK Simplified Chinese",       /* comment    */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
+    ctype_gbk,
+    to_lower_gbk,
+    to_upper_gbk,
+    nullptr,          /* sort_order   */
+    nullptr,          /* uca          */
+    nullptr,          /* tab_to_uni   */
+    nullptr,          /* tab_from_uni */
+    &my_caseinfo_gbk, /* caseinfo     */
+    nullptr,          /* state_map    */
+    nullptr,          /* ident_map    */
+    1,                /* strxfrm_multiply */
+    1,                /* caseup_multiply  */
+    1,                /* casedn_multiply  */
+    1,                /* mbminlen   */
+    2,                /* mbmaxlen   */
+    1,                /* mbmaxlenlen */
+    0,                /* min_sort_char */
+    0xFEFE,           /* max_sort_char */
+    ' ',              /* pad char      */
+    true,             /* escape_with_backslash_is_dangerous */
+    1,                /* levels_for_compare */
+    &my_charset_handler,
+    &my_collation_mb_bin_handler,
+    PAD_SPACE};

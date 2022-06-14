@@ -1,0 +1,8 @@
+# Check DD tables during debug execution
+--source include/have_debug.inc
+--let $check_dd = 1
+
+--let $OLD_VERSION = 8019
+--let $OLD_LCTN = 0
+--let $OLD_PLATFORM = lin
+--source suite/innodb/include/partition_import.inc

@@ -51,7 +51,7 @@ lock tables t1 write;
 insert into t1 values (1);
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-f1	int(11)	YES		NULL	NULL
+f1	int	YES		NULL	NULL
 insert into t1 values(2);
 drop table t1;
 unlock tables;

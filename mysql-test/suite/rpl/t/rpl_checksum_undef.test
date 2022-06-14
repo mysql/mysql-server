@@ -26,15 +26,18 @@ connection slave;
 call mtr.add_suppression('The slave I/O thread was stopped because a fatal error is encountered');
 --source include/stop_slave.inc
 
---let $debug_save= `SELECT @@GLOBAL.debug`
-SET GLOBAL debug='+d,undefined_algorithm_on_slave';
+--let $debug_point= undefined_algorithm_on_replica
+--source include/add_debug_point.inc
 
 START SLAVE;
 --let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc
 
 --source include/stop_slave.inc
---eval SET GLOBAL debug = '$debug_save'
+
+--let $debug_point= undefined_algorithm_on_replica
+--source include/remove_debug_point.inc
+
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_mgmd\fR
+.\"     Title: ndb_mgmd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGMD" "8" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,16 +36,15 @@ ndb_mgmd \- the NDB Cluster management server daemon
 .PP
 The management server is the process that reads the cluster configuration file and distributes this information to all nodes in the cluster that request it\&. It also maintains a log of cluster activities\&. Management clients can connect to the management server and check the cluster\*(Aqs status\&.
 .PP
-The following table includes options that are specific to the NDB Cluster management server program
-\fBndb_mgmd\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_mgmd\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+All options that can be used with
+\fBndb_mgmd\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.336.\ \&Command\-line options for the ndb_mgmd program
+.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgmd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -57,23 +56,43 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--bind-address=host\fR\fB \fR
@@ -81,43 +100,96 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--character-sets-dir=path\fR\fB \fR
+T}:T{
+Directory containing character sets
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--cluster-config-suffix=name\fR\fB \fR
+T}:T{
+Override defaults group suffix when reading cluster_config sections in
+              my.cnf file; used in testing
+T}:T{
+.PP
+ADDED: NDB 8.0.24
 T}
 T{
 .PP
 \fB \fR\fB--config-cache[=TRUE|FALSE]\fR\fB \fR
 T}:T{
-Enable the management server configuration cache; TRUE by default.
+Enable management server configuration cache; true by default
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
-\fB--config-file=file\fR
-(>=),
+\fB--config-file=file\fR,
 .PP
-\fB-f\fR
-(>=)
+\fB \fR\fB-f file\fR\fB \fR
 T}:T{
-Specify the cluster configuration file; in NDB-6.4.0 and later, needs
-              --reload or --initial to override configuration cache if
-              present
+Specify cluster configuration file; also specify --reload or --initial
+              to override configuration cache if present
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB--configdir=directory\fR,
 .PP
-\fB--config-dir=directory\fR
-(>=7.0.8)
+\fB \fR\fB--config-dir=directory\fR\fB \fR
 T}:T{
-Specify the cluster management server's configuration cache directory
+Specify cluster management server configuration cache directory
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retries=#\fR\fB \fR
+T}:T{
+Number of times to retry connection before giving up
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
+T}:T{
+Number of seconds to wait between attempts to contact management server
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--connect-string=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--core-file\fR\fB \fR
+T}:T{
+Write core file on error; used in debugging
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -128,27 +200,65 @@ T}:T{
 Run ndb_mgmd in daemon mode (default)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
+T}:T{
+Read given file after global files are read
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-file=path\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--help\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--initial\fR\fB \fR
 T}:T{
-Causes the management server reload its configuration data from the
-              configuration file, bypassing the configuration cache
+Causes management server to reload configuration data from configuration
+              file, bypassing configuration cache
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
-Used to install the management server process as a Windows service. Does
-              not apply on non-Windows platforms.
+Used to install management server process as Windows service; does not
+              apply on other platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -158,35 +268,96 @@ Run ndb_mgmd in interactive mode (not officially supported in
               production; for testing purposes only)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--log-name=name\fR\fB \fR
 T}:T{
-A name to use when writing messages applying to this node in the cluster
-              log.
+Name to use when writing cluster log messages applying to this node
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--login-path=path\fR\fB \fR
+T}:T{
+Read given path from login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--mycnf\fR\fB \fR
 T}:T{
-Read cluster configuration data from the my.cnf file
+Read cluster configuration data from my.cnf file
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--ndb-connectstring=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Set connect string for connecting to ndb_mgmd. Syntax:
+              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
+              NDB_CONNECTSTRING and my.cnf
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--ndb-mgmd-host=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
+T}:T{
+Set node ID for this node, overriding any ID set by --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
+T}:T{
+Enable optimizations for selection of nodes for transactions. Enabled by
+              default; use --skip-ndb-optimized-node-selection to
+              disable
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--no-defaults\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--no-nodeid-checks\fR\fB \fR
 T}:T{
-Do not provide any node id checks
+Do not perform any node ID checks
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -195,17 +366,26 @@ T}:T{
 Do not run ndb_mgmd as a daemon
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
-Do not wait for these management nodes when starting this management
-              server. Also requires --ndb-nodeid to be used.
+Do not wait for management nodes specified when starting this management
+              server; requires --ndb-nodeid option
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--print-defaults\fR\fB \fR
+T}:T{
+Print program argument list and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -216,29 +396,48 @@ T}:T{
 Print full configuration and exit
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--reload\fR\fB \fR
 T}:T{
-Causes the management server to compare the configuration file with its
+Causes management server to compare configuration file with
               configuration cache
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
-Used to remove a management server process that was previously installed
-              as a Windows service, optionally specifying the name of
-              the service to be removed. Does not apply on non-Windows
-              platforms.
+Used to remove management server process that was previously installed
+              as Windows service, optionally specifying name of service
+              to be removed; does not apply on other platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --help
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--skip-config-file\fR\fB \fR
+T}:T{
+Do not use configuration file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -246,10 +445,21 @@ T{
 .PP
 \fB \fR\fB-v\fR\fB \fR
 T}:T{
-Write additional information to the log.
+Write additional information to log
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Display version information and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -265,28 +475,21 @@ T}
 \fB\-\-bind\-address=\fR\fB\fIhost\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --bind-address=host
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
@@ -303,31 +506,87 @@ Causes the management server to bind to a specific network interface (host name 
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-character\-sets\-dir\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=path
+T}
+.TE
+.sp 1
+Directory containing character sets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcluster\-config\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--cluster-config-suffix=name
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Override defaults group suffix when reading cluster configuration sections in
+my\&.cnf; used in testing\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-config\-cache\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --config-cache[=TRUE|FALSE]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -340,7 +599,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -461,28 +720,27 @@ is used\&. (Bug #13428853)
 \fB\-f \fR\fB\fIfilename\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --config-file=file
 T}
 T{
-\fBType\fR
+Disabled by
+T}:T{
+skip-config-file
+T}
+T{
+Type
 T}:T{
 File name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
@@ -500,11 +758,15 @@ was started with the
 \fB\-\-reload\fR
 or
 \fB\-\-initial\fR
-option, or because the management server could not find any configuration cache\&. This option is also read if
+option, or because the management server could not find any configuration cache\&.
+.sp
+The
+\fB\-\-config\-file\fR
+option is also read if
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
+Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -518,18 +780,11 @@ Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information
 \fB\-\-configdir=\fR\fB\fIdir_name\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 .PP
 --configdir=directory
@@ -537,12 +792,12 @@ T}:T{
 --config-dir=directory
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 File name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 $INSTALLDIR/mysql-cluster
 T}
@@ -551,6 +806,156 @@ T}
 Specifies the cluster management server\*(Aqs configuration cache directory\&.
 \fB\-\-config\-dir\fR
 is an alias for this option\&.
+.sp
+In NDB 8\&.0\&.27 and later, this must be an absolute path\&. Otherwise, the management server refuses to start\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retries\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retries=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+12
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+12
+T}
+.TE
+.sp 1
+Number of times to retry connection before giving up\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+5
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+5
+T}
+.TE
+.sp 1
+Number of seconds to wait between attempts to contact management server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-string\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-string=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as \-\-ndb\-connectstring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-core\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--core-file
+T}
+.TE
+.sp 1
+Write core file on error; used in debugging\&.
 .RE
 .sp
 .RS 4
@@ -565,30 +970,11 @@ is an alias for this option\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --daemon
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -609,38 +995,143 @@ on Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Display help text and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --initial
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
+Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -659,7 +1150,7 @@ is invoked with
 but cannot find a global configuration file, the management server cannot start\&.
 .sp
 When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data\&. This behavior has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 When used together with the
 \fB\-\-config\-file\fR
@@ -677,34 +1168,27 @@ option, the cache is cleared only if the configuration file is actually found\&.
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --install[=name]
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ndb_mgmd
 T}
@@ -746,30 +1230,11 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-interactive\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --interactive
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -791,28 +1256,21 @@ client session is started as soon as the management server is running\&. This op
 \fB\-\-log\-name=\fR\fB\fIname\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --log-name=name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 MgmtSrvr
 T}
@@ -829,33 +1287,48 @@ Provides a name to be used for this node in the cluster log\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --mycnf
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -872,33 +1345,146 @@ file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ndb\-connectstring\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-connectstring=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set connection string\&. Syntax:
+[nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. Overrides entries in
+NDB_CONNECTSTRING
+and
+my\&.cnf\&. Ignored if
+\fB\-\-config\-file\fR
+is specified; beginning with NDB 8\&.0\&.27, a warning is issued when both options are used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgmd\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgmd-host=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as \-\-ndb\-connectstring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-nodeid\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-nodeid=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set node ID for this node, overriding any ID set by \-\-ndb\-connectstring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-optimized\-node\-selection\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-optimized-node-selection
+T}
+.TE
+.sp 1
+Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
+\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
+to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-no\-nodeid\-checks\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-nodeid-checks
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -916,30 +1502,11 @@ Do not perform any checks of node IDs\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nodaemon
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -960,42 +1527,58 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-nowait\-nodes\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nowait-nodes=list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
+[none]
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 1
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 255
 T}
@@ -1052,7 +1635,7 @@ and running on the host having the IP address 198\&.51\&.100\&.150\&. (Suppose, 
 .RS 4
 .\}
 .nf
-shell> \fBndb_mgmd \-\-ndb\-nodeid=10 \-\-nowait\-nodes=11\fR
+$> \fBndb_mgmd \-\-ndb\-nodeid=10 \-\-nowait\-nodes=11\fR
 .fi
 .if n \{\
 .RE
@@ -1071,7 +1654,7 @@ You can then start each of the cluster\*(Aqs data nodes in the usual way\&. If y
 .RS 4
 .\}
 .nf
-shell> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
+$> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 .fi
 .if n \{\
 .RE
@@ -1080,7 +1663,7 @@ shell> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as NDB Cluster SQL nodes connected to this cluster\&. See
-Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
+Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1119,34 +1702,37 @@ management server, its configuration must match that of the management server th
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-print\-full\-config\fR,
 \fB\-P\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-full-config
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1168,35 +1754,16 @@ process prints information about the cluster setup including an extensive list o
 \fB\-\-reload\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --reload
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
 NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -1215,7 +1782,7 @@ When
 is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
 \fB\-\-initial\fR
 instead to force the exsiting cached configuration to be discarded and reloaded from the file\&. See
-Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
+Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
 .RS 4
@@ -1229,34 +1796,27 @@ Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for a
 \fB\-\-remove{=name]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --remove[=name]
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ndb_mgmd
 T}
@@ -1273,45 +1833,96 @@ Remove a management server process that has been installed as a Windows service,
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-skip\-config\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-config-file
+T}
+.TE
+.sp 1
+Do not read cluster configuration file; ignore
+\fB\-\-initial\fR
+and
+\fB\-\-reload\fR
+options if specified\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+.TE
+.sp 1
+Display help text and exit; same as \-\-help\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --verbose
-T}
-T{
-\fBType\fR
-T}:T{
-Boolean
-T}
-T{
-\fBDefault Value\fR
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
 Remove a management server process that has been installed as a Windows service, optionally specifying the name of the service to be removed\&. Applies only to Windows platforms\&.
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
+Display version information and exit\&.
+.RE
 .PP
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
-\fBndb_mgmd\fR(8), describes other options for
+Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
+ndb_mgmd(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
 The following files are created or used by
@@ -1334,7 +1945,7 @@ is the unique node identifier\&.
 .\}
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&22.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
+Section\ \&23.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -1347,7 +1958,7 @@ Section\ \&22.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up t
 .\}
 ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
-Section\ \&22.5, \(lqManagement of NDB Cluster\(rq\&.
+Section\ \&23.6, \(lqManagement of NDB Cluster\(rq\&.
 .sp
 By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where
@@ -1388,7 +1999,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

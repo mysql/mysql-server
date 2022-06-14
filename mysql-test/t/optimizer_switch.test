@@ -7,6 +7,7 @@
 --echo BUG#37120 optimizer_switch allowable values not according to specification
 --echo
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
@@ -314,11 +315,13 @@ WHERE ta.a IN (SELECT c FROM t2 AS tb
                                   WHERE tb.d=tc.e));
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 set @@optimizer_switch='materialization=off,semijoin=on';
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --echo # Reference above the parent query block (should not be affected)
@@ -356,6 +359,7 @@ eval $query;
 set @@optimizer_switch='materialization=off,semijoin=on';
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --echo # Scalar subquery with reference to the parent query block

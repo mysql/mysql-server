@@ -1,0 +1,67 @@
+# Test clone with concurrent enable/disable of REDO and UNDO encryption
+--source include/have_debug_sync.inc
+
+--source include/have_innodb_max_16k.inc
+--source ../include/encrypt_begin.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $ddl_file_copy = 1
+
+--let $ddl_encryption = 1
+--let $ddl_redo_encrypt = 1
+--let $ddl_count = 3
+
+--source ../include/create_ddl_schema.inc
+
+# Re-create first two tables within tablespace
+CREATE TABLESPACE tbs;
+
+DROP TABLE t1;
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+TABLESPACE = tbs;
+
+DROP TABLE t2;
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+TABLESPACE = tbs;
+
+--let $dml_stmt_check = call execute_dml(1, 0, 100, 100, 10, 0)
+
+--echo # 1. Enable REDO and UNDO encryption while clone in progress
+--let $ddl_op1 = SET GLOBAL innodb_redo_log_encrypt = ON
+--let $ddl_op2 = SET GLOBAL innodb_undo_log_encrypt = ON
+--let $ddl_op3 = ALTER TABLESPACE tbs ENCRYPTION = 'Y'
+
+--let $dml_stmt1 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+
+--source ../include/ddl_common.inc
+
+--echo # 2. Disable REDO and UNDO encryption while clone in progress
+--let $ddl_op1 = SET GLOBAL innodb_redo_log_encrypt = OFF
+--let $ddl_op2 = SET GLOBAL innodb_undo_log_encrypt = OFF
+--let $ddl_op3 = ALTER TABLESPACE tbs ENCRYPTION = 'N'
+
+--let $dml_stmt1 = call execute_dml(1, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t11.col2 + 1;
+
+--let $dml_stmt2 = call execute_dml(1, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t21.col2 + 1;
+
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_drop_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+DROP TABLESPACE tbs;
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;
+
+--source ../include/encrypt_end.inc

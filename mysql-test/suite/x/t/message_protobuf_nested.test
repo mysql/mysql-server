@@ -3,7 +3,8 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.xpl
+-->import wait_until_disconnect.macro
 -->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
 -->recvresult
 
@@ -82,17 +83,28 @@ Mysqlx.Crud.Find {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_crud_find_with_repeated_nested_objects	51
--->expecterror ER_X_BAD_MESSAGE
--->recvresult
+## Following commands in this context can't be used
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
 # it is in invalid state
--->closesession abort
+-->callmacro Wait_until_disconnect
 
 EOF
 
 
 --write_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
+-->import wait_until_disconnect.macro
 -->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
 -->recvresult
 
@@ -140,21 +152,38 @@ Mysqlx.Connection.CapabilitiesSet {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_capabilities_set_with_repeated_nested_objects	51
--->expecterror ER_X_BAD_MESSAGE
--->recvresult
+
+## Following commands in this context can't be used
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
+
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
 # it is in invalid state
--->closesession abort
+-->callmacro Wait_until_disconnect
 
 EOF
 
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.xpl 2>&1
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl 2>&1
 
 ## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 DROP TABLE IF EXISTS coll;
---remove_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
---remove_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

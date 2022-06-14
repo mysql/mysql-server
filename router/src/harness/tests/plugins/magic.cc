@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,13 +30,6 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::bad_option;
-using mysql_harness::ConfigSection;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 using mysql_harness::logging::log_info;
 
 #if defined(_MSC_VER) && defined(routertestplugin_magic_EXPORTS)
@@ -46,43 +39,50 @@ using mysql_harness::logging::log_info;
 #define MAGIC_API
 #endif
 
-const AppInfo *g_info;
-const ConfigSection *g_section;
+const mysql_harness::AppInfo *g_info;
+const mysql_harness::ConfigSection *g_section;
 
-static void init(PluginFuncEnv *env) { g_info = get_app_info(env); }
+static void init(mysql_harness::PluginFuncEnv *env) {
+  g_info = get_app_info(env);
+}
 
 extern "C" void MAGIC_API do_magic() {
-  auto &&section = g_info->config->get("routertestplugin_magic", "");
-  auto &&message = section.get("message");
+  auto const &section = g_info->config->get("routertestplugin_magic", "");
+  auto const &message = section.get("message");
   log_info("%s", message.c_str());
 }
 
-static void start(PluginFuncEnv *env) {
-  const ConfigSection *section = get_config_section(env);
+static void start(mysql_harness::PluginFuncEnv *env) {
+  const auto *section = get_config_section(env);
   try {
     if (section->has("suki") && section->get("suki") == "bad") {
       set_error(env, mysql_harness::kRuntimeError,
                 "The suki was bad, please throw away");
     }
-  } catch (bad_option &) {
+  } catch (mysql_harness::bad_option &) {
   }
 
   if (section->has("do_magic")) do_magic();
 }
 
 extern "C" {
-Plugin MAGIC_API harness_plugin_routertestplugin_magic = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "A magic plugin",
+mysql_harness::Plugin MAGIC_API harness_plugin_routertestplugin_magic = {
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "A magic plugin",                        // name
     VERSION_NUMBER(1, 2, 3),
+    // required
     0,
     nullptr,
+    // conflicts
     0,
     nullptr,
-    init,
+    init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
+    false,    // declares_readiness
+    0,
+    nullptr,
 };
 }

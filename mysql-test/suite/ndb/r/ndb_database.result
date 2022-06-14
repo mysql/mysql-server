@@ -1,4 +1,3 @@
-drop database if exists mysqltest;
 create database mysqltest;
 create table mysqltest.t1 (a int primary key, b int) engine=ndb;
 use mysqltest;
@@ -18,8 +17,7 @@ alter table `mysqltest.db`.t1 algorithm=inplace, add column d int column_format 
 drop table `mysqltest.db`.t1;
 drop database `mysqltest.db`;
 create database newdb;
-create table newdb.t1 (a int primary key) engine=myisam;
-drop table if exists newdb.t1;
+create table newdb.t1 (a int primary key) engine=innodb;
 create table newdb.t1 (a int primary key,
 b1  blob,
 b2  blob,
@@ -50,6 +48,8 @@ b26 blob,
 b27 blob,
 b28 blob,
 b29 blob) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 drop database newdb;
 create database newdb;
 use newdb;

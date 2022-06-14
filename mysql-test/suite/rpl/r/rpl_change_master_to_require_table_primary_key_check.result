@@ -1,0 +1,53 @@
+#
+# 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to invalid values in `CHANGE MASTER TO ...`
+#    Check that an error is thrown.
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''ON'' at line 1
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 1
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+#
+# 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE MASTER TO ...`
+#    Check that the replication_applier_configuration table is changed.
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='fake-host';
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to STREAM]
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON]
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+#
+# 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for a replication setup
+#    Check the values are the ones expected
+include/rpl_init.inc [topology=1->2, 1->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON]
+[connection server_3]
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
+#
+# 4. Check you can't set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` when the slave is running.
+#    If you stop the applier thread, it possible to set it
+[connection server_2]
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
+include/rpl_end.inc

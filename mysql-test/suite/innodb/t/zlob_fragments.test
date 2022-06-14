@@ -1,0 +1,44 @@
+--source include/big_test.inc
+--source include/have_debug.inc
+# Actually this test is tailored for 4k,
+# but it should pass for other sizes (8k, 16k) as well.
+--source include/have_innodb_max_16k.inc
+
+SET GLOBAL innodb_compression_level = 0;
+CREATE TABLE t1 (j1 JSON) ENGINE=InnoDB ROW_FORMAT=compressed;
+SHOW CREATE TABLE t1;
+# Must be long enough to force external storage.
+# Also the length must be so that json_doc last "page" of last stream
+# is short enough to fit on fragment page.
+# I've used trial end error with `--manual-debug --initialize=--innodb-page-size=4k`
+# with conditional breakpoint inside z_insert_strm() for condition remain < size
+# to see what is the remaining size in last iteration, and then picking a lob size
+# such that the `remain` is smaller than 1991/4 which is a criterion used to decide
+# if we should use a fragment page.
+# This particular value (when run with --initialize=--innodb-page-size=4k) stores the
+# [1]-th element of JSON array in a fragment page.
+SET @long_str = REPEAT('abcdefghijklmnopqrstuvwxyz1234', 59921);
+# must be long enough to force new version (as opposed to storing diff in the undo log),
+# but must be short enough to not cause complete rewrite of the blob
+SET @medium_str_1 = REPEAT('a', 200);
+SET @medium_str_2 = REPEAT('b', 200);
+SET @json_doc = CONCAT('["', @long_str, '","', @medium_str_1 ,'" ]');
+
+BEGIN;
+INSERT INTO t1 (j1) VALUES (@json_doc);
+
+SELECT JSON_EXTRACT(j1, '$[1]') FROM t1;
+# We need to generate enough fragments so that the index of fragments
+# overflows first page and needs to allocate z_frag_node_page_t page.
+--let i=0
+while($i<50){
+      UPDATE t1 SET j1 = JSON_REPLACE(j1, '$[1]', @medium_str_2);
+      SELECT JSON_EXTRACT(j1, '$[1]') FROM t1;
+      UPDATE t1 SET j1 = JSON_REPLACE(j1, '$[1]', @medium_str_1);
+      SELECT JSON_EXTRACT(j1, '$[1]') FROM t1;
+      --inc $i
+}
+ROLLBACK;
+
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;

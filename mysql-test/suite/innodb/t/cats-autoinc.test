@@ -67,8 +67,6 @@
     SET @@global.innodb_lock_wait_timeout = 100000;
 
 
-  --source suite/innodb/include/force_cats.inc
-
   --connect (C1, localhost, root,,)
   --connect (C2, localhost, root,,)
   --connect (C3, localhost, root,,)
@@ -116,8 +114,6 @@
     --reap
     ROLLBACK;
 
-  --source suite/innodb/include/discourage_cats.inc
-
   # Clean up connections
 
   --connection default
@@ -140,3 +136,97 @@
 --echo # End of Bug #27944920 #
 --echo #                      #
 --echo ########################
+
+# Following scenario is intended to cover the rare case of trx being
+# killed while waiting for a table lock, which excersises the table
+# lock case in lock_cancel_waiting_and_release function.
+#
+# To generate a situation when trx is waiting for a table lock inside
+# InnoDB we use following scenario:
+# C1 locks t2.id = 2
+# C3 locks t2.id = 3
+# C2 obtains t1.AUTO_INC and waits for C1 t2.id=2 row lock
+# C3 tries to insert to t1, and has to wait for C2's autoinc lock
+# C1 rolls back, which unlocks t2.id=2, and C2 proceeds to lock t2.id=3,
+# and now is blocked by C3, but C3 is already blocked by C2, so we have
+# a deadlock cycle.
+# We make C2 heavy to make sure that C3 is chosen as victim, by modyfing
+# many rows in t3.
+
+  CREATE TABLE t1 (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    val INT
+  ) Engine=InnoDB;
+
+  CREATE TABLE t2 (
+    id INT PRIMARY KEY
+  ) Engine=InnoDB;
+
+  CREATE TABLE t3 (
+    id INT PRIMARY KEY,
+    val INT
+  ) Engine=InnoDB;
+
+  INSERT INTO t1 (id, val) VALUES (1,1);
+  INSERT INTO t2 (id) VALUES (1),(2),(3);
+  INSERT INTO t3 (id, val) VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+
+  # Save the original settings, to be restored at the end of test
+    SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+  # Make sure that transactions will not finish prematurely
+    SET @@global.innodb_lock_wait_timeout = 100000;
+
+
+  --connect (C1, localhost, root,,)
+  --connect (C2, localhost, root,,)
+  --connect (C3, localhost, root,,)
+
+  --connection C1
+    BEGIN;
+    SELECT * FROM t2 WHERE id=2 FOR UPDATE;
+
+  --connection C3
+    BEGIN;
+    SELECT * FROM t2 WHERE id=3 FOR UPDATE;
+
+  --connection C2
+    BEGIN;
+    UPDATE t3 SET val = 13;
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C2_will_wait';
+    --send INSERT INTO t1 (val) SELECT id FROM t2
+    # C2 --waits-for[t2.id=2]--> C1
+
+  --connection C3
+    SET DEBUG_SYNC = 'now WAIT_FOR C2_will_wait';
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C3_will_wait';
+    --send INSERT INTO t1 (val) VALUES (13);
+    # C3 --waits-for[t1.autoinc]--> C2 --waits-for[t2.id=2]--> C1
+
+  --connection C1
+    SET DEBUG_SYNC = 'now WAIT_FOR C3_will_wait';
+    ROLLBACK;
+    # C3 --waits-for[t1.autoinc]--> C2 --waits-for[t2.id=3]--> C3
+    # this is a deadlock.
+
+  --connection C3
+    --error ER_LOCK_DEADLOCK
+    --reap
+    ROLLBACK;
+
+  --connection C2
+    --reap
+    ROLLBACK;
+
+  --connection default
+  --disconnect C1
+  --disconnect C2
+  --disconnect C3
+
+
+  DROP TABLES t1,t2,t3;
+
+  # Restore saved state
+
+  SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+

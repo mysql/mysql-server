@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,15 +28,18 @@
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_messages/transaction_message.h"
 
 const std::string Gcs_operations::gcs_engine = "xcom";
 
 Gcs_operations::Gcs_operations()
-    : gcs_interface(NULL),
+    : auth_provider(),
+      native_interface(),
+      gcs_mysql_net_provider(nullptr),
+      gcs_interface(nullptr),
       injected_view_modification(false),
       leave_coordination_leaving(false),
-      leave_coordination_left(false),
-      finalize_ongoing(false) {
+      leave_coordination_left(false) {
   gcs_operations_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_gcs_operations
@@ -47,31 +50,26 @@ Gcs_operations::Gcs_operations()
       key_GR_RWLOCK_gcs_operations_view_change_observers
 #endif
   );
-  finalize_ongoing_lock = new Checkable_rwlock(
-#ifdef HAVE_PSI_INTERFACE
-      key_GR_RWLOCK_gcs_operations_finalize_ongoing
-#endif
-  );
 }
 
 Gcs_operations::~Gcs_operations() {
   delete gcs_operations_lock;
   delete view_observers_lock;
-  delete finalize_ongoing_lock;
 }
 
 int Gcs_operations::initialize() {
-  DBUG_ENTER("Gcs_operations::initialize");
+  DBUG_TRACE;
   int error = 0;
+  Gcs_interface_runtime_requirements reqs;
 
   gcs_operations_lock->wrlock();
 
   leave_coordination_leaving = false;
   leave_coordination_left = false;
 
-  DBUG_ASSERT(gcs_interface == NULL);
+  assert(gcs_interface == nullptr);
   if ((gcs_interface = Gcs_interface_factory::get_interface_implementation(
-           gcs_engine)) == NULL) {
+           gcs_engine)) == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_ENG_INIT_FAILED,
                  gcs_engine.c_str());
@@ -89,51 +87,75 @@ int Gcs_operations::initialize() {
     /* purecov: end */
   }
 
+  // Setup resources and pass them to GCS. In the future, refactor to also pass
+  // the logger.
+  if (gcs_mysql_net_provider ==
+      nullptr) {  // finalize might have not been called.
+    gcs_mysql_net_provider = std::make_shared<Gcs_mysql_network_provider>(
+        &auth_provider, &native_interface);
+  }
+
+  reqs.provider = gcs_mysql_net_provider;
+  reqs.namespace_manager = &native_interface;
+  gcs_interface->setup_runtime_resources(reqs);
 end:
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Gcs_operations::finalize() {
-  DBUG_ENTER("Gcs_operations::finalize");
-  finalize_ongoing_lock->wrlock();
-  finalize_ongoing = true;
+  DBUG_TRACE;
   gcs_operations_lock->wrlock();
-  finalize_ongoing_lock->unlock();
 
-  if (gcs_interface != NULL) gcs_interface->finalize();
+  if (gcs_interface != nullptr) gcs_interface->finalize();
+
+  // Remove the provider since it is owned by the plugin.
+  if (gcs_interface != nullptr) {
+    Gcs_interface_runtime_requirements reqs;
+    reqs.provider = gcs_mysql_net_provider;
+    gcs_interface->cleanup_runtime_resources(reqs);
+  }
+
   Gcs_interface_factory::cleanup(gcs_engine);
-  gcs_interface = NULL;
+  gcs_interface = nullptr;
 
-  finalize_ongoing_lock->wrlock();
-  finalize_ongoing = false;
+  // Will destroy gcs_mysql_net_provider if it is still alive after finalize
+  gcs_mysql_net_provider = nullptr;
+
   gcs_operations_lock->unlock();
-  finalize_ongoing_lock->unlock();
-  DBUG_VOID_RETURN;
 }
 
 enum enum_gcs_error Gcs_operations::configure(
     const Gcs_interface_parameters &parameters) {
-  DBUG_ENTER("Gcs_operations::configure");
+  DBUG_TRACE;
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface != NULL) error = gcs_interface->initialize(parameters);
+  if (gcs_interface != nullptr) {
+    error = gcs_interface->initialize(parameters);
+
+    // This forces GCS to create group interfaces under a RW lock.
+    if (gcs_interface->is_initialized()) {
+      std::string group_name(get_group_name_var());
+      Gcs_group_identifier group_id(group_name);
+      gcs_interface->get_communication_session(group_id);
+    }
+  }
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 enum enum_gcs_error Gcs_operations::reconfigure(
     const Gcs_interface_parameters &parameters) {
-  DBUG_ENTER("Gcs_operations::reconfigure");
+  DBUG_TRACE;
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface != NULL) error = gcs_interface->configure(parameters);
+  if (gcs_interface != nullptr) error = gcs_interface->configure(parameters);
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 enum enum_gcs_error Gcs_operations::do_set_debug_options(
@@ -162,7 +184,7 @@ enum enum_gcs_error Gcs_operations::do_set_debug_options(
 
 enum enum_gcs_error Gcs_operations::set_debug_options(
     std::string &debug_options) const {
-  DBUG_ENTER("Gcs_operations::set_debug_options");
+  DBUG_TRACE;
   enum enum_gcs_error error = GCS_NOK;
 
   gcs_operations_lock->wrlock();
@@ -170,21 +192,21 @@ enum enum_gcs_error Gcs_operations::set_debug_options(
   error = do_set_debug_options(debug_options);
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 enum enum_gcs_error Gcs_operations::join(
     const Gcs_communication_event_listener &communication_event_listener,
     const Gcs_control_event_listener &control_event_listener,
     Plugin_gcs_view_modification_notifier *view_notifier) {
-  DBUG_ENTER("Gcs_operations::join");
+  DBUG_TRACE;
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface == NULL || !gcs_interface->is_initialized()) {
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
     gcs_operations_lock->unlock();
-    DBUG_RETURN(GCS_NOK);
+    return GCS_NOK;
     /* purecov: end */
   }
 
@@ -196,10 +218,10 @@ enum enum_gcs_error Gcs_operations::join(
   Gcs_control_interface *gcs_control =
       gcs_interface->get_control_session(group_id);
 
-  if (gcs_communication == NULL || gcs_control == NULL) {
+  if (gcs_communication == nullptr || gcs_control == nullptr) {
     /* purecov: begin inspected */
     gcs_operations_lock->unlock();
-    DBUG_RETURN(GCS_NOK);
+    return GCS_NOK;
     /* purecov: end */
   }
 
@@ -217,36 +239,36 @@ enum enum_gcs_error Gcs_operations::join(
   */
   DBUG_EXECUTE_IF("group_replication_inject_gcs_join_error", {
     gcs_operations_lock->unlock();
-    DBUG_RETURN(GCS_OK);
+    return GCS_OK;
   };);
 
   error = gcs_control->join();
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Gcs_operations::belongs_to_group() {
-  DBUG_ENTER("Gcs_operations::belongs_to_group");
+  DBUG_TRACE;
   bool res = false;
   gcs_operations_lock->rdlock();
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL && gcs_control->belongs_to_group()) res = true;
+    if (gcs_control != nullptr && gcs_control->belongs_to_group()) res = true;
   }
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(res);
+  return res;
 }
 
 Gcs_operations::enum_leave_state Gcs_operations::leave(
     Plugin_gcs_view_modification_notifier *view_notifier) {
-  DBUG_ENTER("Gcs_operations::leave");
+  DBUG_TRACE;
   enum_leave_state state = ERROR_WHEN_LEAVING;
   gcs_operations_lock->wrlock();
 
@@ -266,13 +288,13 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
     goto end;
   }
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL) {
+    if (gcs_control != nullptr) {
       if (!gcs_control->leave()) {
         state = NOW_LEAVING;
         leave_coordination_leaving = true;
@@ -284,14 +306,17 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
       goto end;
       /* purecov: end */
     }
-  } else {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EXIT_GRP_GCS_ERROR);
-    goto end;
+  } else {  // This is the "something went wrong branch". We will avoid
+            // incoming connections to ensure that we do not end in a deadlock,
+            // thus de-registering the incoming connection callback
+    if (gcs_mysql_net_provider != nullptr) {
+      gcs_mysql_net_provider->stop();
+    }
   }
 
 end:
   gcs_operations_lock->unlock();
-  DBUG_RETURN(state);
+  return state;
 }
 
 void Gcs_operations::notify_of_view_change_end() {
@@ -329,64 +354,43 @@ void Gcs_operations::remove_view_notifer(
 }
 
 void Gcs_operations::leave_coordination_member_left() {
-  DBUG_ENTER("Gcs_operations::leave_coordination_member_left");
-
-  /*
-    If finalize method is ongoing, it means that GCS is waiting that
-    all messages and views are delivered to GR, if we proceed with
-    this method we will enter on the deadlock:
-      1) leave view was not delivered before wait view timeout;
-      2) finalize did start and acquired lock->wrlock();
-      3) leave view was delivered, member_left is waiting to
-         acquire lock->wrlock().
-    So, if leaving, we just do nothing.
-  */
-  finalize_ongoing_lock->rdlock();
-  if (finalize_ongoing) {
-    finalize_ongoing_lock->unlock();
-    DBUG_VOID_RETURN;
-  }
-  gcs_operations_lock->wrlock();
-  finalize_ongoing_lock->unlock();
+  DBUG_TRACE;
 
   leave_coordination_leaving = false;
   leave_coordination_left = true;
-
-  gcs_operations_lock->unlock();
-  DBUG_VOID_RETURN;
 }
 
 Gcs_view *Gcs_operations::get_current_view() {
-  DBUG_ENTER("Gcs_operations::get_current_view");
-  Gcs_view *view = NULL;
+  DBUG_TRACE;
+  Gcs_view *view = nullptr;
   gcs_operations_lock->rdlock();
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL && gcs_control->belongs_to_group())
+    if (gcs_control != nullptr && gcs_control->belongs_to_group())
       view = gcs_control->get_current_view();
   }
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(view);
+  return view;
 }
 
 int Gcs_operations::get_local_member_identifier(std::string &identifier) {
-  DBUG_ENTER("Gcs_operations::get_local_member_identifier");
+  DBUG_TRACE;
   int error = 1;
   gcs_operations_lock->rdlock();
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL) {
+    if (gcs_control != nullptr) {
       identifier.assign(
           gcs_control->get_local_member_identifier().get_member_id());
       error = 0;
@@ -394,12 +398,12 @@ int Gcs_operations::get_local_member_identifier(std::string &identifier) {
   }
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 enum enum_gcs_error Gcs_operations::send_message(
     const Plugin_gcs_message &message, bool skip_if_not_initialized) {
-  DBUG_ENTER("Gcs_operations::send");
+  DBUG_TRACE;
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->rdlock();
 
@@ -408,9 +412,9 @@ enum enum_gcs_error Gcs_operations::send_message(
     and ready to use, since plugin can leave the group on errors
     but continue to be active.
   */
-  if (gcs_interface == NULL || !gcs_interface->is_initialized()) {
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     gcs_operations_lock->unlock();
-    DBUG_RETURN(skip_if_not_initialized ? GCS_OK : GCS_NOK);
+    return skip_if_not_initialized ? GCS_OK : GCS_NOK;
   }
 
   std::string group_name(get_group_name_var());
@@ -421,10 +425,10 @@ enum enum_gcs_error Gcs_operations::send_message(
   Gcs_control_interface *gcs_control =
       gcs_interface->get_control_session(group_id);
 
-  if (gcs_communication == NULL || gcs_control == NULL) {
+  if (gcs_communication == nullptr || gcs_control == nullptr) {
     /* purecov: begin inspected */
     gcs_operations_lock->unlock();
-    DBUG_RETURN(skip_if_not_initialized ? GCS_OK : GCS_NOK);
+    return skip_if_not_initialized ? GCS_OK : GCS_NOK;
     /* purecov: end */
   }
 
@@ -438,15 +442,57 @@ enum enum_gcs_error Gcs_operations::send_message(
   error = gcs_communication->send_message(gcs_message);
 
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
+}
+
+enum enum_gcs_error Gcs_operations::send_transaction_message(
+    Transaction_message_interface &message) {
+  DBUG_TRACE;
+  enum enum_gcs_error error = GCS_NOK;
+  gcs_operations_lock->rdlock();
+
+  /*
+    Ensure that group communication interfaces are initialized
+    and ready to use, since plugin can leave the group on errors
+    but continue to be active.
+  */
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
+    gcs_operations_lock->unlock();
+    return GCS_NOK;
+  }
+
+  std::string group_name(get_group_name_var());
+  Gcs_group_identifier group_id(group_name);
+
+  Gcs_communication_interface *gcs_communication =
+      gcs_interface->get_communication_session(group_id);
+  Gcs_control_interface *gcs_control =
+      gcs_interface->get_control_session(group_id);
+
+  if (gcs_communication == nullptr || gcs_control == nullptr) {
+    gcs_operations_lock->unlock();
+    return GCS_NOK;
+  }
+
+  Gcs_member_identifier origin = gcs_control->get_local_member_identifier();
+  Gcs_message_data *gcs_message_data = message.get_message_data_and_reset();
+  if (nullptr == gcs_message_data) {
+    gcs_operations_lock->unlock();
+    return GCS_NOK;
+  }
+  Gcs_message gcs_message(origin, gcs_message_data);
+  error = gcs_communication->send_message(gcs_message);
+
+  gcs_operations_lock->unlock();
+  return error;
 }
 
 int Gcs_operations::force_members(const char *members) {
-  DBUG_ENTER("Gcs_operations::force_members");
+  DBUG_TRACE;
   int error = 0;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface == NULL || !gcs_interface->is_initialized()) {
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     error = 1;
@@ -471,7 +517,7 @@ int Gcs_operations::force_members(const char *members) {
     Gcs_group_management_interface *gcs_management =
         gcs_interface->get_management_session(group_id);
 
-    if (gcs_management == NULL) {
+    if (gcs_management == nullptr) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
       error = 1;
@@ -501,8 +547,9 @@ int Gcs_operations::force_members(const char *members) {
       goto end;
       /* purecov: end */
     }
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
-    if (view_change_notifier.wait_for_view_modification()) {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
+    if (view_change_notifier.wait_for_view_modification(
+            FORCE_MEMBERS_VIEW_MODIFICATION_TIMEOUT)) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,
                    members);
@@ -518,7 +565,7 @@ int Gcs_operations::force_members(const char *members) {
 
 end:
   gcs_operations_lock->unlock();
-  DBUG_RETURN(error);
+  return error;
 }
 
 Gcs_group_management_interface *Gcs_operations::get_gcs_group_manager() const {
@@ -551,7 +598,7 @@ end:
 
 enum enum_gcs_error Gcs_operations::get_write_concurrency(
     uint32_t &write_concurrency) {
-  DBUG_ENTER("Gcs_operations::get_write_concurrency");
+  DBUG_TRACE;
   enum enum_gcs_error result = GCS_NOK;
   gcs_operations_lock->rdlock();
   Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
@@ -559,12 +606,12 @@ enum enum_gcs_error Gcs_operations::get_write_concurrency(
     result = gcs_group_manager->get_write_concurrency(write_concurrency);
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(result);
+  return result;
 }
 
 enum enum_gcs_error Gcs_operations::set_write_concurrency(
     uint32_t new_write_concurrency) {
-  DBUG_ENTER("Gcs_operations::set_write_concurrency");
+  DBUG_TRACE;
   enum enum_gcs_error result = GCS_NOK;
   gcs_operations_lock->wrlock();
   Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
@@ -572,11 +619,53 @@ enum enum_gcs_error Gcs_operations::set_write_concurrency(
     result = gcs_group_manager->set_write_concurrency(new_write_concurrency);
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(result);
+  return result;
+}
+
+enum enum_gcs_error Gcs_operations::set_leader(
+    Gcs_member_identifier const &leader) {
+  DBUG_TRACE;
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->set_single_leader(leader);
+  }
+
+  gcs_operations_lock->unlock();
+  return result;
+}
+
+enum enum_gcs_error Gcs_operations::set_everyone_leader() {
+  DBUG_TRACE;
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->set_everyone_leader();
+  }
+
+  gcs_operations_lock->unlock();
+  return result;
+}
+
+enum enum_gcs_error Gcs_operations::get_leaders(
+    std::vector<Gcs_member_identifier> &preferred_leaders,
+    std::vector<Gcs_member_identifier> &actual_leaders) {
+  DBUG_TRACE;
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->rdlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->get_leaders(preferred_leaders, actual_leaders);
+  }
+
+  gcs_operations_lock->unlock();
+  return result;
 }
 
 uint32_t Gcs_operations::get_minimum_write_concurrency() const {
-  DBUG_ENTER("Gcs_operations::get_minimum_write_concurrency");
+  DBUG_TRACE;
   uint32_t result = 0;
   gcs_operations_lock->rdlock();
   Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
@@ -584,11 +673,11 @@ uint32_t Gcs_operations::get_minimum_write_concurrency() const {
     result = gcs_group_manager->get_minimum_write_concurrency();
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(result);
+  return result;
 }
 
 uint32_t Gcs_operations::get_maximum_write_concurrency() const {
-  DBUG_ENTER("Gcs_operations::get_maximum_write_concurrency");
+  DBUG_TRACE;
   uint32_t result = 0;
   gcs_operations_lock->rdlock();
   Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
@@ -596,7 +685,7 @@ uint32_t Gcs_operations::get_maximum_write_concurrency() const {
     result = gcs_group_manager->get_maximum_write_concurrency();
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(result);
+  return result;
 }
 
 Gcs_communication_interface *Gcs_operations::get_gcs_communication() const {
@@ -629,7 +718,7 @@ end:
 }
 
 Gcs_protocol_version Gcs_operations::get_protocol_version() {
-  DBUG_ENTER("Gcs_operations::get_protocol_version");
+  DBUG_TRACE;
   Gcs_protocol_version protocol = Gcs_protocol_version::UNKNOWN;
   gcs_operations_lock->rdlock();
   Gcs_communication_interface *gcs_communication = get_gcs_communication();
@@ -637,11 +726,11 @@ Gcs_protocol_version Gcs_operations::get_protocol_version() {
     protocol = gcs_communication->get_protocol_version();
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(protocol);
+  return protocol;
 }
 
 Gcs_protocol_version Gcs_operations::get_maximum_protocol_version() {
-  DBUG_ENTER("Gcs_operations::get_maximum_protocol_version");
+  DBUG_TRACE;
   Gcs_protocol_version protocol = Gcs_protocol_version::UNKNOWN;
   gcs_operations_lock->rdlock();
   Gcs_communication_interface *gcs_communication = get_gcs_communication();
@@ -649,12 +738,12 @@ Gcs_protocol_version Gcs_operations::get_maximum_protocol_version() {
     protocol = gcs_communication->get_maximum_supported_protocol_version();
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(protocol);
+  return protocol;
 }
 
 std::pair<bool, std::future<void>> Gcs_operations::set_protocol_version(
     Gcs_protocol_version gcs_protocol) {
-  DBUG_ENTER("Gcs_operations::set_protocol_version");
+  DBUG_TRACE;
   bool will_change_protocol = false;
   std::future<void> future;
 
@@ -666,11 +755,11 @@ std::pair<bool, std::future<void>> Gcs_operations::set_protocol_version(
   }
   gcs_operations_lock->unlock();
 
-  DBUG_RETURN(std::make_pair(will_change_protocol, std::move(future)));
+  return std::make_pair(will_change_protocol, std::move(future));
 }
 
 enum enum_gcs_error Gcs_operations::set_xcom_cache_size(uint64_t new_size) {
-  DBUG_ENTER("Gcs_operations::set_xcom_cache_size");
+  DBUG_TRACE;
   enum enum_gcs_error result = GCS_NOK;
   gcs_operations_lock->wrlock();
   if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
@@ -683,7 +772,40 @@ enum enum_gcs_error Gcs_operations::set_xcom_cache_size(uint64_t new_size) {
     }
   }
   gcs_operations_lock->unlock();
-  DBUG_RETURN(result);
+  return result;
+}
+
+enum_transport_protocol
+Gcs_operations::get_current_incoming_connections_protocol() {
+  DBUG_TRACE;
+  enum_transport_protocol result = INVALID_PROTOCOL;
+  gcs_operations_lock->rdlock();
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
+    std::string group_name(get_group_name_var());
+    Gcs_group_identifier group_id(group_name);
+    Gcs_communication_interface *gcs_comms =
+        gcs_interface->get_communication_session(group_id);
+
+    if (gcs_comms != nullptr) {
+      result = gcs_comms->get_incoming_connections_protocol();
+    }
+  }
+  gcs_operations_lock->unlock();
+  return result;
+}
+
+Gcs_mysql_network_provider *Gcs_operations::get_mysql_network_provider() {
+  DBUG_TRACE;
+  Gcs_mysql_network_provider *result = nullptr;
+
+  gcs_operations_lock->rdlock();
+  if (gcs_interface != nullptr && gcs_mysql_net_provider != nullptr &&
+      gcs_interface->is_initialized()) {
+    result = gcs_mysql_net_provider.get();
+  }
+  gcs_operations_lock->unlock();
+
+  return result;
 }
 
 const std::string &Gcs_operations::get_gcs_engine() { return gcs_engine; }

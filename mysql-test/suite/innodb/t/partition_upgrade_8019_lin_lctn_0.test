@@ -1,0 +1,6 @@
+--source include/have_nodebug.inc
+
+--let $OLD_VERSION = 8019
+--let $OLD_LCTN = 0
+--let $OLD_PLATFORM = lin
+--source suite/innodb/include/partition_upgrade.inc

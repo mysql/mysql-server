@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <util/Vector.hpp>
 #include "Bitmask.hpp"
 
@@ -132,9 +133,25 @@ public:
    *
    * @returns the number of string added to the vector
    */
-  int split(Vector<BaseString> &vector, 
+  int split(Vector<BaseString> &vector,
 	    const BaseString &separator = BaseString(" "),
-	    int maxSize = -1) const;
+	    int maximum = -1) const;
+
+  /**
+   * Split a string into key and value, with "=" as the separator.
+   * The substring to the left of "=" is the key and the substring
+   * to the right of "=" is the value.
+   * The first "=" is considered the separator.
+   */
+  bool splitKeyValue(BaseString& key, BaseString& value) const;
+
+  /**
+   * Same as split except that splitWithQuotedStrings does not consider
+   * spaces within quotes(double or single) as a separators.
+   */
+  int splitWithQuotedStrings(Vector<BaseString> &vector,
+        const BaseString &separator = BaseString(" "),
+        int maxSize = -1) const;
 
   /**
    * Returns the index of the first occurance of the character c.
@@ -221,6 +238,12 @@ public:
     ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap)
     ATTRIBUTE_FORMAT(printf, 3, 0);
+
+  /**
+   * Append to a character buf
+   */
+  static int snappend(char *str, size_t size, const char *format, ...)
+      ATTRIBUTE_FORMAT(printf, 3, 4);
 
   template<unsigned size>
   static BaseString getText(const Bitmask<size>& mask) {

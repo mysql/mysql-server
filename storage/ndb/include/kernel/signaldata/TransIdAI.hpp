@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,8 @@ class TransIdAI {
   friend bool printTRANSID_AI(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:
-  STATIC_CONST( HeaderLength = 3 );
-  STATIC_CONST( DataLength = 22 );
+  static constexpr Uint32 HeaderLength = 3;
+  static constexpr Uint32 DataLength = 22;
 
   // Public methods
 public:

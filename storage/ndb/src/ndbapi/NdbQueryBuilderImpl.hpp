@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #ifndef NdbQueryBuilderImpl_H
 #define NdbQueryBuilderImpl_H
 
+#include <cstring>
+
 /* Query-related error codes. */
 #define QRY_REQ_ARG_IS_NULL 4800
 #define QRY_TOO_FEW_KEY_VALUES 4801
@@ -51,6 +53,10 @@
 #define QRY_MULTIPLE_SCAN_SORTED 4824
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
+#define QRY_OJ_NOT_SUPPORTED 4827
+//#define QRY_NEST_NOT_SPECIFIED 4828  <<== DEPRECATED
+#define QRY_NEST_NOT_SUPPORTED 4829
+
 
 #include <Vector.hpp>
 #include <Bitmask.hpp>
@@ -100,9 +106,9 @@ public:
 //#define TEST_Uint32Buffer
 
 #if defined(TEST_Uint32Buffer)
-  STATIC_CONST(initSize = 1);  // Small size to force test of buffer expand.
+  static constexpr Uint32 initSize = 1;  // Small size to force test of buffer expand.
 #else
-  STATIC_CONST(initSize = 32); // Initial buffer size, extend on demand but probably sufficent
+  static constexpr Uint32 initSize = 32; // Initial buffer size, extend on demand but probably sufficent
 #endif
 
   explicit Uint32Buffer():
@@ -218,7 +224,7 @@ public:
         memcpy(start, src, len);
         m_bytesLeft = (m_bytesLeft - len) % sizeof(Uint32);
         // Make sure that any trailing bytes in the last word are zero.
-        bzero(start + len, m_bytesLeft);
+        std::memset(start + len, 0, m_bytesLeft);
       }
     }
   }
@@ -275,8 +281,11 @@ public:
   explicit NdbQueryOptionsImpl()
   : m_matchType(NdbQueryOptions::MatchAll),
     m_scanOrder(NdbQueryOptions::ScanOrdering_void),
-    m_parent(NULL),
-    m_interpretedCode(NULL)
+    m_parent(nullptr),
+    m_firstUpper(nullptr),
+    m_firstInner(nullptr),
+    m_interpretedCode(nullptr),
+    m_parameters(0)
   {}
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
@@ -288,7 +297,10 @@ private:
   NdbQueryOptions::MatchType     m_matchType;
   NdbQueryOptions::ScanOrdering  m_scanOrder;
   NdbQueryOperationDefImpl*      m_parent;
+  NdbQueryOperationDefImpl*      m_firstUpper;   //First in upper nest
+  NdbQueryOperationDefImpl*      m_firstInner;   //First in this (inner-)nest
   const NdbInterpretedCode*      m_interpretedCode;
+  Vector<const NdbQueryOperandImpl*> m_parameters;
 
   /**
    * Assign NdbInterpretedCode by taking a deep copy of 'src'
@@ -323,26 +335,53 @@ public:
   Uint32 getNoOfParentOperations() const
   { return (m_parent) ? 1 : 0; }
 
-  NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
+  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
   { assert(i==0 && m_parent!=NULL);
     return *m_parent;
   }
 
-  NdbQueryOperationDefImpl* getParentOperation() const
+  const NdbQueryOperationDefImpl* getParentOperation() const
   { return m_parent;
   }
 
   Uint32 getNoOfChildOperations() const
   { return m_children.size(); }
 
-  NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
+  const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
+
+  const NdbQueryOperationDefImpl* getFirstInner() const
+  { return m_firstInner; }
+
+  const NdbQueryOperationDefImpl* getFirstInEmbeddingNest() const
+  {
+    assert(m_firstInner == nullptr || m_firstUpper == nullptr);
+    if (m_firstInner != nullptr)
+      return m_firstInner;
+    else if (m_firstUpper != nullptr)
+      return m_firstUpper;
+    else
+      return nullptr;
+  }
 
   const NdbTableImpl& getTable() const
   { return m_table; }
 
   const char* getName() const
   { return m_ident; }
+
+  // Does an ancestor specify a MatchType requiring only a 'firstMatch'?
+  // Both 'MatchFirst' and 'MatchNullOnly' are a firstMatch type as it
+  // allows us to conclude as soon as a single qualifying row has been found.
+  bool hasFirstMatchAncestor() const
+  {
+    if (m_parent == nullptr)
+      return false;
+    if (m_parent->getMatchType() &
+	(NdbQueryOptions::MatchFirst | NdbQueryOptions::MatchNullOnly))
+      return true;
+    return m_parent->hasFirstMatchAncestor();
+  }
 
   enum NdbQueryOptions::MatchType getMatchType() const
   { return m_options.m_matchType; }
@@ -352,6 +391,9 @@ public:
 
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
+
+  const Vector<const NdbQueryOperandImpl*>& getInterpretedParams() const
+  { return m_options.m_parameters; }
 
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
@@ -469,6 +511,8 @@ protected:
   // Append list of columns required by SPJ to instantiate child operations.
   Uint32 appendChildProjection(Uint32Buffer& serializedDef) const;
 
+  Uint32 appendParamConstructor(Uint32Buffer& serializedDef) const;
+
 protected:
   /** True if enclosing query has been prepared.*/
   bool m_isPrepared;
@@ -509,6 +553,13 @@ private:
   NdbQueryOperationDefImpl* m_parent;
   Vector<NdbQueryOperationDefImpl*> m_children;
 
+  // The (optional) first table in the upper- or the inner nest of
+  // this table. Only set if the entire inner-nest is not contained
+  // within the tree branch starting with the first inner, or
+  // the first upper op-node.
+  const NdbQueryOperationDefImpl* const m_firstUpper;
+  const NdbQueryOperationDefImpl* const m_firstInner;
+
   // Params required by this operation
   Vector<const NdbParamOperandImpl*> m_params;
 
@@ -529,7 +580,7 @@ public:
                            Uint32      internalOpNo,
                            int& error);
 
-  virtual bool isScanOperation() const
+  bool isScanOperation() const override
   { return true; }
 
 protected:
@@ -552,36 +603,36 @@ class NdbQueryIndexScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbIndexImpl* getIndex() const
+  const NdbIndexImpl* getIndex() const override
   { return &m_index; }
 
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef) override;
 
-  virtual const NdbQueryIndexScanOperationDef& getInterface() const
+  const NdbQueryIndexScanOperationDef& getInterface() const override
   { return m_interface; }
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::OrderedIndexScan; }
 
-  virtual int checkPrunable(const Uint32Buffer& keyInfo,
+  int checkPrunable(const Uint32Buffer& keyInfo,
                             Uint32  shortestBound,
                             bool&   isPruned,
-                            Uint32& hashValue) const;
+                            Uint32& hashValue) const override;
 
-  virtual const IndexBound* getBounds() const
+  const IndexBound* getBounds() const override
   { return &m_bound; } 
 
-  bool hasParamInPruneKey() const
+  bool hasParamInPruneKey() const override
   {
     return m_paramInPruneKey;
   }
 
 protected:
   // Append pattern for creating complete range bounds to serialized code 
-  virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const;
+  Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const override;
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef);
+  Uint32 appendPrunePattern(Uint32Buffer& serializedDef) override;
 
 private:
 
@@ -693,12 +744,13 @@ private:
   /**
    * Take ownership of specified object: From now on it is the
    * responsibility of this NdbQueryBuilderImpl to manage the
-   * lifetime of the object. If takeOwnership() fails, the 
+   * lifetime of the object. If takeOwnership() fails, the
    * specified object is deleted before it returns.
-   * @param[in] operand to take ownership for (may be NULL).
+   *
+   * @param[in] operand operand to take ownership for (may be NULL).
    * @return 0 if ok, else there has been an 'Err_MemoryAlloc'
    */
-  int takeOwnership(NdbQueryOperandImpl*);
+  int takeOwnership(NdbQueryOperandImpl* operand);
   int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);
@@ -794,11 +846,11 @@ public:
   const NdbColumnImpl& getParentColumn() const
   { return *m_parentOperation.getSPJProjection()[m_parentColumnIx]; }
 
-  virtual NdbQueryOperand& getInterface()
+  NdbQueryOperand& getInterface() override
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
+  int bindOperand(const NdbColumnImpl& column,
+                  NdbQueryOperationDefImpl& operation) override;
 
 private:
   NdbLinkedOperandImpl (NdbQueryOperationDefImpl& parent, 
@@ -826,11 +878,11 @@ public:
   Uint32 getParamIx() const
   { return m_paramIx; }
 
-  virtual NdbQueryOperand& getInterface()
+  NdbQueryOperand& getInterface() override
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
+  int bindOperand(const NdbColumnImpl& column,
+                  NdbQueryOperationDefImpl& operation) override;
 
 private:
   NdbParamOperandImpl (const char* name, Uint32 paramIx)
@@ -855,11 +907,11 @@ public:
   const void* getAddr() const
   { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }
 
-  virtual NdbQueryOperand& getInterface()
+  NdbQueryOperand& getInterface() override
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
+  int bindOperand(const NdbColumnImpl& column,
+                  NdbQueryOperationDefImpl& operation) override;
 
 protected:
   NdbConstOperandImpl ()
@@ -923,7 +975,7 @@ protected:
       return dst;
     }
 
-    STATIC_CONST(maxShortChar = 32);
+    static constexpr Uint32 maxShortChar = 32;
 
     union
     {

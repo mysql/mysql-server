@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_SYSTEM_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_system_bits.h>
+#include <mysql/components/services/bits/psi_system_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_system_v1)
 
@@ -32,7 +32,5 @@ BEGIN_SERVICE_DEFINITION(psi_system_v1)
 unload_plugin_v1_t unload_plugin;
 
 END_SERVICE_DEFINITION(psi_system_v1)
-
-#define REQUIRES_PSI_SYSTEM_SERVICE REQUIRES_SERVICE(psi_system_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_SYSTEM_SERVICE_H */

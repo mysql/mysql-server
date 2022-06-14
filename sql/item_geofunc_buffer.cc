@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,15 @@
   ST_Buffer().
 */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <memory>  // std::unique_ptr
+#include <vector>
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/buffer.hpp>
 #include <boost/geometry/strategies/agnostic/buffer_distance_symmetric.hpp>
@@ -45,8 +49,6 @@
 #include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <memory>  // std::unique_ptr
-#include <vector>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -63,7 +65,7 @@
 #include "sql/item_geofunc.h"
 #include "sql/item_geofunc_internal.h"
 #include "sql/item_strfunc.h"
-#include "sql/parse_tree_node_base.h"
+#include "sql/parse_location.h"  // POS
 #include "sql/spatial.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -129,8 +131,7 @@ void Item_func_buffer::set_strategies() {
     }
 
     const enum_buffer_strategies strat = (enum_buffer_strategies)snum;
-    double value;
-    float8get(&value, pstrat + 4);
+    double value = float8get(pstrat + 4);
     enum_buffer_strategy_types strategy_type = invalid_strategy_type;
 
     switch (strat) {
@@ -171,14 +172,14 @@ Item_func_buffer_strategy::Item_func_buffer_strategy(const POS &pos,
     : Item_str_func(pos, ilist) {
   // Here we want to use the String::set(const char*, ..) version.
   const char *pbuf = tmp_buffer;
-  tmp_value.set(pbuf, 0, NULL);
+  tmp_value.set(pbuf, 0, nullptr);
 }
 
-bool Item_func_buffer_strategy::resolve_type(THD *) {
-  collation.set(&my_charset_bin);
-  decimals = 0;
-  max_length = 16;
-  maybe_null = true;
+bool Item_func_buffer_strategy::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+  set_data_type_string(16, &my_charset_bin);
+  set_nullable(true);
   return false;
 }
 
@@ -186,8 +187,8 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   String str;
   String *strat_name = args[0]->val_str_ascii(&str);
   if ((null_value = args[0]->null_value)) {
-    DBUG_ASSERT(maybe_null);
-    return NULL;
+    assert(is_nullable());
+    return nullptr;
   }
 
   // Get the NULL-terminated ascii string.
@@ -198,8 +199,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   tmp_value.set_charset(&my_charset_bin);
   // The tmp_value is supposed to always stores a {uint32,double} pair,
   // and it uses a char tmp_buffer[16] array data member.
-  uchar *result_buf =
-      const_cast<uchar *>(pointer_cast<const uchar *>(tmp_value.ptr()));
+  uchar *result_buf = pointer_cast<uchar *>(tmp_value.ptr());
 
   // Although the result of this item node is never persisted, we still have to
   // use portable endianess access otherwise unaligned access will crash
@@ -229,8 +229,8 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
 
       double val = args[1]->val_real();
       if ((null_value = args[1]->null_value)) {
-        DBUG_ASSERT(maybe_null);
-        return NULL;
+        assert(is_nullable());
+        return nullptr;
       }
       if (val <= 0) {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
@@ -333,7 +333,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
         break;                                                               \
       }                                                                      \
       default:                                                               \
-        DBUG_ASSERT(false);                                                  \
+        assert(false);                                                       \
         break;                                                               \
     }                                                                        \
   } while (0)
@@ -343,336 +343,4 @@ Item_func_buffer::Item_func_buffer(const POS &pos, PT_item_list *ilist)
   num_strats = 0;
   memset(settings, 0, sizeof(settings));
   memset(strategies, 0, sizeof(strategies));
-}
-
-namespace bgst = boost::geometry::strategy::buffer;
-
-String *Item_func_buffer::val_str(String *str_value_arg) {
-  DBUG_ENTER("Item_func_buffer::val_str");
-  DBUG_ASSERT(fixed == 1);
-  String strat_bufs[side_strategy + 1];
-
-  String *obj = args[0]->val_str(&tmp_value);
-  if (!obj || args[0]->null_value) DBUG_RETURN(error_str());
-
-  double dist = args[1]->val_real();
-  if (args[1]->null_value) DBUG_RETURN(error_str());
-
-  Geometry_buffer buffer;
-  Geometry *geom;
-  String *str_result = str_value_arg;
-
-  null_value = false;
-  bg_resbuf_mgr.free_result_buffer();
-
-  // Reset the two arrays, set_strategies() requires the settings array to
-  // be brand new on every ST_Buffer() call.
-  memset(settings, 0, sizeof(settings));
-  memset(strategies, 0, sizeof(strategies));
-
-  // Strategies options start from 3rd argument, the 1st two arguments are
-  // never strategies: the 1st is input geometry, and the 2nd is distance.
-  num_strats = arg_count - 2;
-  for (uint i = 2; i < arg_count; i++) {
-    strategies[i - 2] = args[i]->val_str(&strat_bufs[i]);
-    if (strategies[i - 2] == NULL || args[i]->null_value)
-      DBUG_RETURN(error_str());
-  }
-
-  /*
-    Do this before simplify_multi_geometry() in order to exclude invalid
-    WKB/WKT data.
-   */
-  if (!(geom = Geometry::construct(&buffer, obj))) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_str());
-  }
-
-  if (geom->get_srid() != 0) {
-    THD *thd = current_thd;
-    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
-        new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs = nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
-      DBUG_RETURN(error_str());  // Error has already been flagged.
-
-    if (srs == nullptr) {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
-      DBUG_RETURN(error_str());
-    }
-
-    if (!srs->is_cartesian()) {
-      DBUG_ASSERT(srs->is_geographic());
-      std::string parameters(geom->get_class_info()->m_name.str);
-      parameters.append(", ...");
-      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
-               parameters.c_str());
-      DBUG_RETURN(error_str());
-    }
-  }
-
-  /*
-    If the input geometry is a multi-geometry or geometry collection that has
-    only one component, extract that component as input argument.
-  */
-  Geometry::wkbType geom_type = geom->get_type();
-  if (geom_type == Geometry::wkb_multipoint ||
-      geom_type == Geometry::wkb_multipolygon ||
-      geom_type == Geometry::wkb_multilinestring ||
-      geom_type == Geometry::wkb_geometrycollection) {
-    /*
-      Make a copy of the geometry byte string argument to work on it,
-      don't modify the original one since it is assumed to be stable.
-      Simplifying the argument is worth the effort because buffer computation
-      is less expensive with simplified geometry.
-
-      The copy's buffer may be directly returned as result so it has to be a
-      data member.
-
-      Here we assume that if obj->is_alloced() is false, obj's referring to some
-      geometry data stored somewhere else so here we cache the simplified
-      version into m_tmp_geombuf without modifying obj's original referred copy;
-      otherwise we believe the geometry data
-      is solely owned by obj and that each call of this ST_Buffer() is given
-      a valid GEOMETRY byte string, i.e. it is structually valid and if it was
-      simplified before, the obj->m_length was correctly set to the new length
-      after the simplification operation.
-     */
-    const bool use_buffer = !obj->is_alloced();
-    if (simplify_multi_geometry(obj, (use_buffer ? &m_tmp_geombuf : NULL)) &&
-        use_buffer)
-      obj = &m_tmp_geombuf;
-
-    if (!(geom = Geometry::construct(&buffer, obj))) {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      DBUG_RETURN(error_str());
-    }
-  }
-
-  /*
-    If distance passed to ST_Buffer is too small, then we return the
-    original geometry as its buffer. This is needed to avoid division
-    overflow in buffer calculation, as well as for performance purposes.
-  */
-  if (std::abs(dist) <= GIS_ZERO || is_empty_geocollection(geom)) {
-    null_value = 0;
-    str_result = obj;
-    DBUG_RETURN(str_result);
-  }
-
-  Geometry::wkbType gtype = geom->get_type();
-  if (dist < 0 && gtype != Geometry::wkb_polygon &&
-      gtype != Geometry::wkb_multipolygon &&
-      gtype != Geometry::wkb_geometrycollection) {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_str());
-  }
-
-  set_strategies();
-  if (null_value) DBUG_RETURN(error_str());
-
-  /*
-    str_result will refer to BG object's memory directly if any, here we remove
-    last call's remainings so that if this call doesn't produce any result,
-    this call won't note down last address(already freed above) and
-    next call won't free already free'd memory.
-  */
-  str_result->set(NullS, 0, &my_charset_bin);
-  bool had_except = false;
-
-  try {
-    Strategy_setting ss1 = settings[end_strategy];
-    Strategy_setting ss2 = settings[join_strategy];
-    Strategy_setting ss3 = settings[point_strategy];
-
-    const bool is_pts =
-        (gtype == Geometry::wkb_point || gtype == Geometry::wkb_multipoint);
-
-    const bool is_plygn =
-        (gtype == Geometry::wkb_polygon || gtype == Geometry::wkb_multipolygon);
-    const bool is_ls = (gtype == Geometry::wkb_linestring ||
-                        gtype == Geometry::wkb_multilinestring);
-
-    /*
-      Some strategies can be applied to only part of the geometry types and
-      coordinate systems. For now we only have cartesian coordinate system
-      so no check for them.
-    */
-    if ((is_pts && (ss1.strategy != invalid_strategy ||
-                    ss2.strategy != invalid_strategy)) ||
-        (is_plygn && (ss1.strategy != invalid_strategy ||
-                      ss3.strategy != invalid_strategy)) ||
-        (is_ls && ss3.strategy != invalid_strategy)) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_str());
-    }
-
-    bgst::distance_symmetric<double> dist_strat(dist);
-    bgst::side_straight side_strat;
-    bgst::end_round bgst_end_round(
-        ss1.strategy == invalid_strategy ? 32 : ss1.value);
-    bgst::end_flat bgst_end_flat;
-    bgst::join_round bgst_join_round(
-        ss2.strategy == invalid_strategy ? 32 : ss2.value);
-    bgst::join_miter bgst_join_miter(ss2.value);
-    bgst::point_circle bgst_point_circle(
-        ss3.strategy == invalid_strategy ? 32 : ss3.value);
-    bgst::point_square bgst_point_square;
-
-    /*
-      Default strategies if not specified:
-      end_round(32), join_round(32), point_circle(32)
-      The order of enum items in enum enum_buffer_strategies is crucial for
-      this setting to be correct, don't modify it.
-
-      Although point strategy isn't needed for linear and areal geometries,
-      we have to specify it because of bg::buffer interface, and BG will
-      silently ignore it. Similarly for other strategies.
-    */
-    int strats_combination = 0;
-    if (ss1.strategy == end_flat) strats_combination |= 1;
-    if (ss2.strategy == join_miter) strats_combination |= 2;
-    if (ss3.strategy == point_square) strats_combination |= 4;
-
-    BG_models<bgcs::cartesian>::Multipolygon result;
-    result.set_srid(geom->get_srid());
-
-    if (geom->get_type() != Geometry::wkb_geometrycollection) {
-      bool ret = false;
-      switch (strats_combination) {
-        case 0:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_round, bgst_end_round, bgst_point_circle);
-          break;
-        case 1:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_round, bgst_end_flat, bgst_point_circle);
-          break;
-        case 2:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_miter, bgst_end_round, bgst_point_circle);
-          break;
-        case 3:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_miter, bgst_end_flat, bgst_point_circle);
-          break;
-        case 4:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_round, bgst_end_round, bgst_point_square);
-          break;
-        case 5:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_round, bgst_end_flat, bgst_point_square);
-          break;
-        case 6:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_miter, bgst_end_round, bgst_point_square);
-          break;
-        case 7:
-          CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
-                         bgst_join_miter, bgst_end_flat, bgst_point_square);
-          break;
-        default:
-          DBUG_ASSERT(false);
-          break;
-      }
-
-      if (ret) DBUG_RETURN(error_str());
-
-      if (result.size() == 0) {
-        str_result->reserve(GEOM_HEADER_SIZE + 4);
-        write_geometry_header(str_result, geom->get_srid(),
-                              Geometry::wkb_geometrycollection, 0);
-        DBUG_RETURN(str_result);
-      } else if (post_fix_result(&bg_resbuf_mgr, result, str_result))
-        DBUG_RETURN(error_str());
-      bg_resbuf_mgr.set_result_buffer(str_result->ptr());
-    } else {
-      // Compute buffer for a geometry collection(GC). We first compute buffer
-      // for each component of the GC, and put the buffer polygons into another
-      // collection, finally merge components of the collection.
-      BG_geometry_collection bggc, bggc2;
-      bggc.fill(geom);
-
-      for (BG_geometry_collection::Geometry_list::iterator i =
-               bggc.get_geometries().begin();
-           i != bggc.get_geometries().end(); ++i) {
-        BG_models<bgcs::cartesian>::Multipolygon res;
-        String temp_result;
-
-        res.set_srid((*i)->get_srid());
-        Geometry::wkbType gtype = (*i)->get_type();
-        if (dist < 0 && gtype != Geometry::wkb_multipolygon &&
-            gtype != Geometry::wkb_polygon) {
-          my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-          DBUG_RETURN(error_str());
-        }
-
-        bool ret = false;
-        switch (strats_combination) {
-          case 0:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_round, bgst_end_round, bgst_point_circle);
-            break;
-          case 1:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_round, bgst_end_flat, bgst_point_circle);
-            break;
-          case 2:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_miter, bgst_end_round, bgst_point_circle);
-            break;
-          case 3:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_miter, bgst_end_flat, bgst_point_circle);
-            break;
-          case 4:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_round, bgst_end_round, bgst_point_square);
-            break;
-          case 5:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_round, bgst_end_flat, bgst_point_square);
-            break;
-          case 6:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_miter, bgst_end_round, bgst_point_square);
-            break;
-          case 7:
-            CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
-                           bgst_join_miter, bgst_end_flat, bgst_point_square);
-            break;
-          default:
-            DBUG_ASSERT(false);
-            break;
-        }
-
-        if (ret) DBUG_RETURN(error_str());
-        if (res.size() == 0) continue;
-        if (post_fix_result(&bg_resbuf_mgr, res, &temp_result))
-          DBUG_RETURN(error_str());
-
-        // A single component's buffer is computed above and stored here.
-        bggc2.fill(&res);
-      }
-
-      // Merge the accumulated polygons because they may overlap.
-      bggc2.merge_components<bgcs::cartesian>(&null_value);
-      Gis_geometry_collection *gc = bggc2.as_geometry_collection(str_result);
-      delete gc;
-    }
-
-    /*
-      If the result geometry is a multi-geometry or geometry collection that has
-      only one component, extract that component as result.
-    */
-    simplify_multi_geometry(str_result, NULL);
-  } catch (...) {
-    had_except = true;
-    handle_gis_exception("st_buffer");
-  }
-
-  if (had_except) DBUG_RETURN(error_str());
-  DBUG_RETURN(str_result);
 }

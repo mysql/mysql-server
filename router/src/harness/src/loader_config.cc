@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,25 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "mysql/harness/loader_config.h"
-#include "mysql/harness/filesystem.h"
 
-////////////////////////////////////////
-// Package include files
-#include "utilities.h"
-
-////////////////////////////////////////
-// Standard include files
 #include <algorithm>
+#include <cassert>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-// <cassert> places assert() in global namespace on Ubuntu14.04, but might
-// place it in std:: on other platforms
-#include <assert.h>
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
+#include "utilities.h"  // find_range_first
 
 using mysql_harness::utility::find_range_first;
-using std::ostringstream;
 
 namespace mysql_harness {
 
@@ -82,6 +75,22 @@ void LoaderConfig::fill_and_check() {
       throw bad_section(buffer.str());
     }
   }
+
+  std::string unknown_config_option_str = "warning";
+  if (has_default("unknown_config_option")) {
+    unknown_config_option_str = get_default("unknown_config_option");
+    std::transform(unknown_config_option_str.begin(),
+                   unknown_config_option_str.end(),
+                   unknown_config_option_str.begin(), ::tolower);
+    if (unknown_config_option_str != "warning" &&
+        unknown_config_option_str != "error") {
+      throw bad_option_value(
+          "Invalid value for DEFAULT.unknown_config_option: '" +
+          get_default("unknown_config_option") +
+          "'. Allowed are: 'error' or 'warning'");
+    }
+  }
+  this->error_on_unsupported_option = unknown_config_option_str == "error";
 }
 
 void LoaderConfig::read(const Path &path) {
@@ -100,7 +109,20 @@ bool LoaderConfig::logging_to_file() const {
 }
 
 Path LoaderConfig::get_log_file() const {
-  return Path::make_path(get_default("logging_folder"), "mysqlrouter", "log");
+  constexpr const char *kLogger = logging::kConfigSectionLogger;
+  constexpr const char *kNone = logging::kNone;
+  constexpr const char *kLogFilename = logging::kConfigOptionLogFilename;
+  auto logging_folder = get_default("logging_folder");
+  std::string log_filename;
+
+  if (has(kLogger) && get(kLogger, kNone).has(kLogFilename) &&
+      !get(kLogger, kNone).get(kLogFilename).empty())
+    log_filename = get(kLogger, kNone).get(kLogFilename);
+  // otherwise, set it to default
+  else
+    log_filename = logging::kDefaultLogFilename;
+
+  return Path(logging_folder).join(log_filename);
 }
 
 }  // namespace mysql_harness

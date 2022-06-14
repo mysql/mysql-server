@@ -1,0 +1,45 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
+SET SESSION sql_log_bin= 1;
+#
+# Attempt to create a table in an unknown directory.
+#
+CREATE TABLE t1 (c1 INT) DATA DIRECTORY='MYSQLD_DATADIR/../unknown_dir';
+ERROR HY000: The DATA DIRECTORY location must be in a known directory.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	The DATA DIRECTORY location must be in a known directory.
+Error	1031	Table storage engine for 't1' doesn't have this option
+#
+# Attempt to create a general tablespace in an unknown directory.
+#
+CREATE TABLESPACE t2 ADD DATAFILE 'MYSQLD_DATADIR/../unknown_dir/bad_2.ibd';
+ERROR HY000: The ADD DATAFILE filepath cannot contain circular directory references.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	The ADD DATAFILE filepath cannot contain circular directory references.
+Error	3121	The DATAFILE location must be in a known directory.
+Error	1528	Failed to create TABLESPACE t2
+Error	3121	Incorrect File Name 'MYSQLD_DATADIR/../unknown_dir/bad_2.ibd'.
+#
+# Attempt to create a table with a partition in an unknown directory.
+#
+CREATE TABLE t3(c1 INT)
+PARTITION BY HASH(c1) (
+PARTITION p1  DATA DIRECTORY='MYSQLD_DATADIR/../unknown_dir',
+PARTITION p2  DATA DIRECTORY='MYSQLD_DATADIR/../unknown_dir',
+PARTITION p3  DATA DIRECTORY='MYSQLD_DATADIR/../unknown_dir');
+ERROR HY000: The DATA DIRECTORY location must be in a known directory.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	The DATA DIRECTORY location must be in a known directory.
+Error	1031	Table storage engine for 't3' doesn't have this option
+include/assert.inc ['Assert all servers are ONLINE']
+include/group_replication_end.inc

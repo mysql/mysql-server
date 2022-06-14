@@ -6,15 +6,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #### INITIALIZE ####
 [connection slave]
 include/stop_slave.inc
-SET @save_slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
-SET @@GLOBAL.slave_parallel_workers= 4;
+SET @save_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
+SET @@GLOBAL.replica_parallel_workers= 4;
 include/start_slave.inc
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction = XXHASH64;
-SET SESSION transaction_write_set_extraction = XXHASH64;
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 
 #### 0.0.0.0: WITHOUT PK, NULLABLE, NOT UNIQUE, NO INDEX ####
@@ -818,8 +815,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 #### CLEAN UP ####
 SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 include/sync_slave_sql_with_master.inc
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 include/rpl_end.inc

@@ -977,3 +977,59 @@ SELECT  INNR1 . col_varchar AS y FROM E AS INNR1
 WHERE OUTRcte1 . field1 <> 3 );
 
 DROP TABLE E;
+
+--echo #
+--echo # Bug#30026353 NON-DETERMINISTIC CTE REFERENCED TWO TIMES CAN
+--echo # PRODUCE DIFFERENT CONTENT
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5),(6);
+
+CREATE TABLE t2 (a INT);
+
+# Read the CTE twice; insert results into a table, compare the two
+# results (it is complicated but we cannot display results, for
+# repeatability).
+INSERT INTO t2
+ WITH cte AS (SELECT RAND() AS a FROM t1)
+ SELECT SUM(c.a) FROM cte c UNION ALL
+ SELECT SUM(c2.a) FROM cte c2;
+
+SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
+DELETE FROM t2;
+
+INSERT INTO t2
+ WITH cte AS (SELECT * FROM t1 WHERE a>3*RAND())
+ SELECT SUM(c.a) FROM cte c
+ UNION ALL SELECT SUM(c2.a) FROM cte c2;
+
+SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#30796015 INCONSISTENT BEHAVIOUR FOR DELETE ON CTE
+--echo #
+
+# Verify that in SELECT/DELETE/UPDATE/INSERT, the CTE
+# hides a base table of the same name
+create table t1(a int);
+insert into t1 values(2),(3);
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) delete from t1;
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) delete t1.* from t1, t1 as t2;
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) update t1 set a=2;
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) update t1, t1 as t2 set t1.a=2;
+with t1 as (select 36 as col from t1 where a=3) select * from t1;
+insert into t1 with t1 as (select 36 as col from t1) select * from t1;
+select * from t1;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 with t1 as (select 72 as col from t1) select * from t1;
+create table t2 with t1 as (select 72 as col from t1) select * from t1;
+select * from t1;
+select * from t2;
+drop table t1,t2;

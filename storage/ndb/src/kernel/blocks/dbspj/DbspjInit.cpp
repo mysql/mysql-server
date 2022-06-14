@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,13 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBSPJ, ctx, instanceNumber),
   m_scan_request_hash(m_request_pool),
   m_lookup_request_hash(m_request_pool),
+  m_treenode_hash(m_treenode_pool),
+  m_scanfraghandle_hash(m_scanfraghandle_pool),
   m_tableRecord(NULL),
   c_tabrecFilesize(0),
+  m_allocedPages(0),
+  m_maxUsedPages(0),
+  m_usedPagesStat(5),  // Sample over 5 observations
   m_load_balancer_location(0)
 {
   BLOCK_CONSTRUCTOR(Dbspj);

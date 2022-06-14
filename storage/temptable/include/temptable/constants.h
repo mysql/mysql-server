@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -25,6 +25,8 @@ TempTable constants. */
 
 #ifndef TEMPTABLE_CONSTANTS_H
 #define TEMPTABLE_CONSTANTS_H
+
+#include "my_config.h"
 
 namespace temptable {
 
@@ -67,6 +69,22 @@ constexpr size_t STORAGE_PAGE_SIZE = 64_KiB;
 
 /** Number of buckets to have by default in a hash index. */
 constexpr size_t INDEX_DEFAULT_HASH_TABLE_BUCKETS = 1024;
+
+/** Store build-type information into the constexpr expression. */
+#ifndef NDEBUG
+constexpr bool DEBUG_BUILD = true;
+#else
+constexpr bool DEBUG_BUILD = false;
+#endif /* NDEBUG */
+
+/** Store L1-dcache size information into the constexpr expression. */
+constexpr size_t L1_DCACHE_SIZE = CPU_LEVEL1_DCACHE_LINESIZE;
+
+/** Number of shards in key-value store. */
+constexpr size_t KV_STORE_SHARDS_COUNT = 16 * 1024;
+
+/** Size of a pool containing shared-blocks. */
+constexpr size_t SHARED_BLOCK_POOL_SIZE = 16 * 1024;
 
 } /* namespace temptable */
 

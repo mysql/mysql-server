@@ -1,0 +1,45 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+#
+# BUG#29892252 TEMP TABLE IS NOT CLEANING UP AFTER ALTER TABLE OPS FAILED
+# To reproduce the bug this test:
+#   - simulates table create rollback failure to prevent copy alter table from
+#   dropping the temporary named table
+#   - simulates failure during copy alter table to force attempt to rollback
+# This should lead to situation where:
+#   - temporary named table has not been removed from ndb
+#   - with the next execution of copy alter table mysql may reuse the previously
+#   chosen temporary name
+#   - regarding to the bug description, mysql will fail during statement execution
+# To fix the bug left behind temporary named table will be dropped if mysql tries
+# to reuse the name, the warning will be produced
+#
+
+--echo # create table t1
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b INT UNIQUE KEY
+)ENGINE = NDB;
+
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30), (4,40);
+
+--echo # verify that no temporary named table exists
+SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
+
+SET debug='+d,ndb_simulate_alter_failure_rename1,ndb_simulate_failure_during_rollback';
+--echo # simulated failure during copy alter table
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1 ALGORITHM=COPY;
+
+--echo # verify that the temporary named table has been left behind - required to reproduce the bug
+SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
+
+--replace_regex /sql-.*\./sql-XXXX_X\./
+ALTER TABLE t1 ALGORITHM=COPY;
+
+--echo # verify that original data has not been affected
+SELECT a, b FROM t1 ORDER BY a;
+
+--echo # cleanup
+DROP TABLE t1;

@@ -1,0 +1,72 @@
+# WL14008 InnoDB: Make tablespace filename validation optional via --skip-innodb-validate-tablespace-paths
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+--disable_query_log
+CALL mtr.add_suppression("Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing!");
+--enable_query_log
+
+# Intentionally using a long and unlikely name to avoid collisions with a previous test case.
+# We want to be able to check that the log does not contain an error message that the .ibd
+# file is missing, this is simpler if other test cases do not cause the same error message.
+CREATE TABLE t1 (id INT, PRIMARY KEY (id));
+
+INSERT INTO t1(id) values(1);
+
+--echo # Shut down mysqld and then move the t1.ibd file to a different directory.
+--source include/shutdown_mysqld.inc
+--move_file $MYSQLD_DATADIR/test/t1.ibd $MYSQL_TMP_DIR/t1.ibd
+
+
+# When we skip validation mysqld will not detect any problems during startup even though
+# the t1.ibd file is missing.
+--echo # Restart without validation using --skip-innodb-validate-tablespace-paths
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/skip_tablespace_path_validation.err;
+--replace_result $SEARCH_FILE SEARCH_FILE
+
+let $restart_parameters = restart:--skip-innodb-validate-tablespace-paths --log-error=$SEARCH_FILE;
+--source include/start_mysqld.inc
+
+let SEARCH_PATTERN=\[Note\] \[.*\] Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!;
+
+--echo # Check for the skip validation warning in the log
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=\[Warning\] \[.*\] Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing!;
+--echo # Ensure we didn't receive a warning about the missing t1.ibd file
+--source include/search_pattern.inc
+
+
+# Skip validation using the alternative syntax
+--echo # Restart without validation using --innodb-validate-tablespace-paths=0
+--replace_result $SEARCH_FILE SEARCH_FILE
+
+let $restart_parameters = restart:--innodb-validate-tablespace-paths=0 --log-error=$SEARCH_FILE;
+--source include/restart_mysqld.inc
+
+let SEARCH_PATTERN=\[Note\] \[.*\] Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!;
+
+--echo # Check for the skip validation warning in the log
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=\[Warning\] \[.*\] Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing!;
+--echo # Ensure we didn't receive a warning about the missing t1.ibd file
+--source include/search_pattern.inc
+
+# Now when we restart the server with validation we will get an error that the t1.ibd file is missing.
+--echo # Restart with validation
+--replace_result $SEARCH_FILE SEARCH_FILE
+
+let $restart_parameters = restart:--innodb-validate-tablespace-paths=1 --log-error=$SEARCH_FILE;
+--source include/restart_mysqld.inc
+
+--echo # Ensure the warning is visible now
+--source include/search_pattern.inc
+
+# Cleanup, move the ibd file back and drop table
+--move_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+drop table t1;
+--remove_file $SEARCH_FILE
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

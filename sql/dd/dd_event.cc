@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/impl/utils.h"
 #include "sql/dd/types/schema.h"
 #include "sql/event_parse_data.h"  // Event_parse_data
 #include "sql/log.h"
@@ -59,7 +60,7 @@ int get_old_status(Event::enum_event_status event_status) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event_parse_data::DISABLED;
   /* purecov: end deadcode */
@@ -86,7 +87,7 @@ static Event::enum_event_status get_enum_event_status(int event_status) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event::ES_DISABLED;
   /* purecov: end deadcode */
@@ -102,7 +103,7 @@ int get_old_on_completion(Event::enum_on_completion on_completion) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event_parse_data::ON_COMPLETION_DROP;
   /* purecov: end deadcode */
@@ -128,7 +129,7 @@ static Event::enum_on_completion get_on_completion(int on_completion) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event::OC_DROP;
   /* purecov: end deadcode */
@@ -180,7 +181,7 @@ interval_type get_old_interval_type(Event::enum_interval_field interval_field) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return INTERVAL_YEAR;
   /* purecov: end deadcode */
@@ -239,12 +240,12 @@ static Event::enum_interval_field get_enum_interval_field(
     case INTERVAL_SECOND_MICROSECOND:
       return Event::IF_SECOND_MICROSECOND;
     case INTERVAL_LAST:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event::IF_YEAR;
   /* purecov: end deadcode */
@@ -274,6 +275,10 @@ static void set_event_attributes(THD *thd, const dd::Schema &schema,
   // Set Event name and definer.
   event->set_name(event_name);
   event->set_definer(definer->user.str, definer->host.str);
+
+  // Set last altered time.
+  event->set_last_altered(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 
   // Set Event on completion and status.
   event->set_on_completion(get_on_completion(event_data->on_completion));
@@ -321,7 +326,7 @@ static void set_event_attributes(THD *thd, const dd::Schema &schema,
     event->set_execute_at_null(false);
     event->set_execute_at(event_data->execute_at);
   } else
-    DBUG_ASSERT(is_update);
+    assert(is_update);
 
   if (event_data->comment.str != nullptr)
     event->set_comment(String_type(event_data->comment.str));
@@ -346,7 +351,7 @@ bool create_event(THD *thd, const Schema &schema, const String_type &event_name,
                   const String_type &event_body,
                   const String_type &event_body_utf8, const LEX_USER *definer,
                   Event_parse_data *event_data) {
-  DBUG_ENTER("dd::create_event");
+  DBUG_TRACE;
 
   std::unique_ptr<dd::Event> event(schema.create_event(thd));
 
@@ -354,7 +359,7 @@ bool create_event(THD *thd, const Schema &schema, const String_type &event_name,
   set_event_attributes(thd, schema, event.get(), event_name, event_body,
                        event_body_utf8, definer, event_data, false);
 
-  DBUG_RETURN(thd->dd_client()->store(event.get()));
+  return thd->dd_client()->store(event.get());
 }
 
 bool update_event(THD *thd, Event *event, const dd::Schema &schema,
@@ -363,11 +368,11 @@ bool update_event(THD *thd, Event *event, const dd::Schema &schema,
                   const String_type &new_event_body,
                   const String_type &new_event_body_utf8,
                   const LEX_USER *definer, Event_parse_data *event_data) {
-  DBUG_ENTER("dd::update_event");
+  DBUG_TRACE;
 
   // Check whether alter event was given dates that are in the past.
   if (event_data->check_dates(thd, static_cast<int>(event->on_completion())))
-    DBUG_RETURN(true);
+    return true;
 
   // Update Schema Id if there is a dbname change.
   if (new_schema != nullptr) event->set_schema_id(new_schema->id());
@@ -378,19 +383,19 @@ bool update_event(THD *thd, Event *event, const dd::Schema &schema,
       new_event_name != "" ? new_event_name : event->name(), new_event_body,
       new_event_body_utf8, definer, event_data, true);
 
-  DBUG_RETURN(thd->dd_client()->update(event));
+  return thd->dd_client()->update(event);
 }
 
 bool update_event_time_and_status(THD *thd, Event *event,
                                   my_time_t last_executed, ulonglong status) {
-  DBUG_ENTER("dd::update_event_time_and_status");
+  DBUG_TRACE;
 
   event->set_event_status_null(false);
   event->set_event_status(get_enum_event_status(status));
   event->set_last_executed_null(false);
   event->set_last_executed(last_executed);
 
-  DBUG_RETURN(thd->dd_client()->update(event));
+  return thd->dd_client()->update(event);
 }
 
 }  // namespace dd

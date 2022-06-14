@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,11 @@
 #include <string.h>
 #include <iterator>
 #include <new>
+#include <regex>
 #include <utility>
 
-#include "binary_log_funcs.h"
 #include "lex_string.h"
+#include "libbinlogevents/export/binary_log_funcs.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
@@ -43,7 +44,7 @@ struct TYPELIB;
 
 #include <algorithm>
 
-#include "binlog_event.h"  // checksum_crv32
+#include "libbinlogevents/include/binlog_event.h"  // checksum_crv32
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -59,12 +60,13 @@ struct TYPELIB;
 #include "sql/log.h"
 #include "sql/log_event.h"  // Log_event
 #include "sql/my_decimal.h"
-#include "sql/mysqld.h"  // slave_type_conversions_options
+#include "sql/mysqld.h"  // replica_type_conversions_options
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_rli.h"  // Relay_log_info
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"    // Relay_log_info
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"  // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
@@ -119,7 +121,7 @@ static int compare(size_t a, size_t b) {
  */
 static int compare_lengths(Field *field, enum_field_types source_type,
                            uint16 metadata) {
-  DBUG_ENTER("compare_lengths");
+  DBUG_TRACE;
   size_t const source_length =
       max_display_length_for_field(source_type, metadata);
   size_t const target_length = field->max_display_length();
@@ -129,7 +131,7 @@ static int compare_lengths(Field *field, enum_field_types source_type,
                        (unsigned long)target_length, field->real_type()));
   int result = compare(source_length, target_length);
   DBUG_PRINT("result", ("%d", result));
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -139,13 +141,13 @@ static int compare_lengths(Field *field, enum_field_types source_type,
    @param order  The computed order of the conversion needed.
  */
 static bool is_conversion_ok(int order) {
-  DBUG_ENTER("is_conversion_ok");
+  DBUG_TRACE;
   bool allow_non_lossy, allow_lossy;
 
-  allow_non_lossy = slave_type_conversions_options &
-                    (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
-  allow_lossy = slave_type_conversions_options &
-                (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
+  allow_non_lossy = replica_type_conversions_options &
+                    (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_NON_LOSSY);
+  allow_lossy = replica_type_conversions_options &
+                (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_LOSSY);
 
   DBUG_PRINT("enter", ("order: %d, flags:%s%s", order,
                        allow_non_lossy ? " ALL_NON_LOSSY" : "",
@@ -153,16 +155,16 @@ static bool is_conversion_ok(int order) {
   if (order < 0 && !allow_non_lossy) {
     /* !!! Add error message saying that non-lossy conversions need to be
      * allowed. */
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (order > 0 && !allow_lossy) {
     /* !!! Add error message saying that lossy conversions need to be allowed.
      */
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -230,8 +232,8 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
                                  uint metadata, bool is_array,
                                  Relay_log_info *rli, uint16 mflags,
                                  int *order_var) {
-  DBUG_ENTER("can_convert_field_to");
-#ifndef DBUG_OFF
+  DBUG_TRACE;
+#ifndef NDEBUG
   char field_type_buf[MAX_FIELD_WIDTH];
   String field_type(field_type_buf, sizeof(field_type_buf), &my_charset_latin1);
   field->sql_type(field_type);
@@ -241,7 +243,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
                        metadata));
 #endif
   // Can't convert from scalar to array and vice versa
-  if (is_array != field->is_array()) DBUG_RETURN(false);
+  if (is_array != field->is_array()) return false;
 
   /*
     If the real type is the same, we need to check the metadata to
@@ -259,18 +261,18 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       DBUG_PRINT("debug",
                  ("Base types are identical, but there is no metadata"));
       *order_var = 0;
-      DBUG_RETURN(true);
+      return true;
     }
 
     DBUG_PRINT("debug",
                ("Base types are identical, doing field size comparison"));
     if (field->compatible_field_size(metadata, rli, mflags, order_var))
-      DBUG_RETURN(is_conversion_ok(*order_var));
+      return is_conversion_ok(*order_var);
     else
-      DBUG_RETURN(false);
+      return false;
   } else if (is_array) {
     // Can't covert between typed array of different types
-    DBUG_RETURN(false);
+    return false;
   } else if (metadata == 0 &&
              (timestamp_cross_check(field->real_type(), source_type) ||
               datetime_cross_check(field->real_type(), source_type) ||
@@ -298,9 +300,9 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       to new TIME(0), TIMESTAMP(0), DATETIME(0).
     */
     *order_var = -1;
-    DBUG_RETURN(true);
-  } else if (!slave_type_conversions_options)
-    DBUG_RETURN(false);
+    return true;
+  } else if (!replica_type_conversions_options)
+    return false;
 
   /*
     Here, from and to will always be different. Since the types are
@@ -322,7 +324,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             DECIMAL, so we require lossy conversion.
           */
           *order_var = 1;
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          return is_conversion_ok(*order_var);
 
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_FLOAT:
@@ -332,12 +334,12 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             *order_var = 1;  // Always require lossy conversions
           else
             *order_var = compare_lengths(field, source_type, metadata);
-          DBUG_ASSERT(*order_var != 0);
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          assert(*order_var != 0);
+          return is_conversion_ok(*order_var);
         }
 
         default:
-          DBUG_RETURN(false);
+          return false;
       }
       break;
 
@@ -345,23 +347,25 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       The length comparison check will do the correct job of comparing
       the field lengths (in bytes) of two integer types.
     */
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
       switch (field->real_type()) {
+        case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_SHORT:
         case MYSQL_TYPE_INT24:
         case MYSQL_TYPE_LONG:
         case MYSQL_TYPE_LONGLONG:
           *order_var = compare_lengths(field, source_type, metadata);
-          DBUG_ASSERT(*order_var != 0);
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          assert(*order_var != 0);
+          return is_conversion_ok(*order_var);
 
         default:
-          DBUG_RETURN(false);
+          return false;
       }
       break;
 
@@ -370,7 +374,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       to convert bit types to anything else, this will return false.
      */
     case MYSQL_TYPE_BIT:
-      DBUG_RETURN(false);
+      return false;
 
     /*
       If all conversions are disabled, it is not allowed to convert
@@ -401,10 +405,10 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             between different (string) types of the same length.
            */
           if (*order_var == 0) *order_var = -1;
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          return is_conversion_ok(*order_var);
 
         default:
-          DBUG_RETURN(false);
+          return false;
       }
       break;
 
@@ -416,16 +420,17 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE:
-    case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIME2:
     case MYSQL_TYPE_TYPED_ARRAY:
-      DBUG_RETURN(false);
+    case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
+      return false;
   }
-  DBUG_RETURN(false);  // To keep GCC happy
+  return false;  // To keep GCC happy
 }
 
 /**
@@ -435,7 +440,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
   This function first finds out whether the table belongs to the data
   dictionary. When not, it will compare the master table with an existing
   table on the slave and see if they are compatible with respect to the
-  current settings of @c SLAVE_TYPE_CONVERSIONS.
+  current settings of @c REPLICA_TYPE_CONVERSIONS.
 
   If the tables are compatible and conversions are required, @c
   *tmp_table_var will be set to a virtual temporary table with field
@@ -464,36 +469,40 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     corresponding check for SQL statements), thus 'false' in the call below.
     Also sserting that this is not a DD system thread.
   */
-  DBUG_ASSERT(!thd->is_dd_system_thread());
+  assert(!thd->is_dd_system_thread());
   const dd::Dictionary *dictionary = dd::get_dictionary();
   if (dictionary && !dictionary->is_dd_table_access_allowed(
                         false, false, table->s->db.str, table->s->db.length,
                         table->s->table_name.str)) {
     DBUG_PRINT("debug", ("Access to dictionary table %s.%s is prohibited",
                          table->s->db.str, table->s->table_name.str));
-    rli->report(ERROR_LEVEL, ER_SERVER_NO_SYSTEM_TABLE_ACCESS,
-                ER_THD(thd, ER_SERVER_NO_SYSTEM_TABLE_ACCESS),
-                ER_THD(thd, dictionary->table_type_error_code(
-                                table->s->db.str, table->s->table_name.str)),
-                table->s->db.str, table->s->table_name.str);
+    rli->report(
+        ERROR_LEVEL, ER_SERVER_NO_SYSTEM_TABLE_ACCESS,
+        ER_THD(thd, ER_SERVER_NO_SYSTEM_TABLE_ACCESS),
+        ER_THD_NONCONST(thd, dictionary->table_type_error_code(
+                                 table->s->db.str, table->s->table_name.str)),
+        table->s->db.str, table->s->table_name.str);
     return false;
   }
 
   /*
     We only check the initial columns for the tables.
   */
-  uint const cols_to_check = min<ulong>(table->s->fields, size());
+  Replicated_columns_view fields{table, Replicated_columns_view::INBOUND, thd};
+  uint const cols_to_check = min<ulong>(fields.filtered_size(), size());
   TABLE *tmp_table = nullptr;
 
-  for (uint col = 0; col < cols_to_check; ++col) {
-    Field *const field = table->field[col];
+  for (auto it = fields.begin(); it.filtered_pos() < cols_to_check; ++it) {
+    Field *const field = *it;
+    size_t col = it.filtered_pos();
     int order;
     if (can_convert_field_to(field, type(col), field_metadata(col),
                              is_array(col), rli, m_flags, &order)) {
-      DBUG_PRINT("debug", ("Checking column %d -"
+      DBUG_PRINT("debug", ("Checking column %lu -"
                            " field '%s' can be converted - order: %d",
-                           col, field->field_name, order));
-      DBUG_ASSERT(order >= -1 && order <= 1);
+                           static_cast<long unsigned int>(col),
+                           field->field_name, order));
+      assert(order >= -1 && order <= 1);
 
       /*
         If order is not 0, a conversion is required, so we need to set
@@ -514,11 +523,12 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
 
       if (order == 0 && tmp_table != nullptr) tmp_table->field[col] = nullptr;
     } else {
-      DBUG_PRINT("debug", ("Checking column %d -"
-                           " field '%s' can not be converted",
-                           col, field->field_name));
-      DBUG_ASSERT(col < size() && col < table->s->fields);
-      DBUG_ASSERT(table->s->db.str && table->s->table_name.str);
+      DBUG_PRINT("debug",
+                 ("Checking column %lu -"
+                  " field '%s' can not be converted",
+                  static_cast<long unsigned int>(col), field->field_name));
+      assert(col < size() && col < table->s->fields);
+      assert(table->s->db.str && table->s->table_name.str);
       const char *db_name = table->s->db.str;
       const char *tbl_name = table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
@@ -532,7 +542,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       field->sql_type(target_type);
       if (!ignored_error_code(ER_SERVER_SLAVE_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
-        thd->is_slave_error = 1;
+        thd->is_slave_error = true;
       } else if (log_error_verbosity >= 2)
         report_level = WARNING_LEVEL;
 
@@ -558,7 +568,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (tmp_table) {
     for (unsigned int col = 0; col < tmp_table->s->fields; ++col)
       if (tmp_table->field[col]) {
@@ -593,7 +603,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
 
 TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
                                           TABLE *target_table) const {
-  DBUG_ENTER("table_def::create_conversion_table");
+  DBUG_TRACE;
 
   List<Create_field> field_list;
   TABLE *conv_table = nullptr;
@@ -607,18 +617,18 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
   // Default value : treat all values signed
   bool unsigned_flag = false;
 
-  // Check if slave_type_conversions contains ALL_UNSIGNED
-  unsigned_flag = slave_type_conversions_options &
-                  (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED);
+  // Check if replica_type_conversions contains ALL_UNSIGNED
+  unsigned_flag = replica_type_conversions_options &
+                  (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_UNSIGNED);
 
-  // Check if slave_type_conversions contains ALL_SIGNED
+  // Check if replica_type_conversions contains ALL_SIGNED
   unsigned_flag =
-      unsigned_flag && !(slave_type_conversions_options &
-                         (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_SIGNED));
+      unsigned_flag && !(replica_type_conversions_options &
+                         (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_SIGNED));
 
   for (uint col = 0; col < cols_to_create; ++col) {
     Create_field *field_def = new (thd->mem_root) Create_field();
-    if (field_list.push_back(field_def)) DBUG_RETURN(nullptr);
+    if (field_list.push_back(field_def)) return nullptr;
 
     uint decimals = 0;
     TYPELIB *interval = nullptr;
@@ -696,7 +706,7 @@ err:
     enum loglevel report_level = INFORMATION_LEVEL;
     if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION)) {
       report_level = ERROR_LEVEL;
-      thd->is_slave_error = 1;
+      thd->is_slave_error = true;
     } else if (log_error_verbosity >= 2)
       report_level = WARNING_LEVEL;
 
@@ -705,7 +715,7 @@ err:
                   ER_THD(thd, ER_SLAVE_CANT_CREATE_CONVERSION),
                   target_table->s->db.str, target_table->s->table_name.str);
   }
-  DBUG_RETURN(conv_table);
+  return conv_table;
 }
 
 #endif /* MYSQL_SERVER */
@@ -845,7 +855,7 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
       m_field_metadata[i] = pack.second.first;
       m_is_array[i] = pack.second.second;
       index += pack.first;
-      DBUG_ASSERT(index <= metadata_size);
+      assert(index <= metadata_size);
     }
   }
   if (m_size && null_bitmap) memcpy(m_null_bits, null_bitmap, (m_size + 7) / 8);
@@ -853,8 +863,8 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
 
 table_def::~table_def() {
   my_free(m_memory);
-#ifndef DBUG_OFF
-  m_type = 0;
+#ifndef NDEBUG
+  m_type = nullptr;
   m_size = 0;
 #endif
 }
@@ -868,7 +878,7 @@ table_def::~table_def() {
  */
 
 void hash_slave_rows_free_entry::operator()(HASH_ROW_ENTRY *entry) const {
-  DBUG_ENTER("hash_slave_rows_free_entry::operator()");
+  DBUG_TRACE;
   if (entry) {
     if (entry->preamble) {
       entry->preamble->~HASH_ROW_PREAMBLE();
@@ -877,7 +887,6 @@ void hash_slave_rows_free_entry::operator()(HASH_ROW_ENTRY *entry) const {
     if (entry->positions) my_free(entry->positions);
     my_free(entry);
   }
-  DBUG_VOID_RETURN;
 }
 
 bool Hash_slave_rows::is_empty(void) { return m_hash.empty(); }
@@ -889,9 +898,9 @@ bool Hash_slave_rows::is_empty(void) { return m_hash.empty(); }
 bool Hash_slave_rows::init(void) { return false; }
 
 bool Hash_slave_rows::deinit(void) {
-  DBUG_ENTER("Hash_slave_rows::deinit");
+  DBUG_TRACE;
   m_hash.clear();
-  DBUG_RETURN(0);
+  return false;
 }
 
 int Hash_slave_rows::size() { return m_hash.size(); }
@@ -902,7 +911,7 @@ HASH_ROW_ENTRY *Hash_slave_rows::make_entry() {
 
 HASH_ROW_ENTRY *Hash_slave_rows::make_entry(const uchar *bi_start,
                                             const uchar *bi_ends) {
-  DBUG_ENTER("Hash_slave_rows::make_entry");
+  DBUG_TRACE;
 
   HASH_ROW_ENTRY *entry = (HASH_ROW_ENTRY *)my_malloc(
       key_memory_HASH_ROW_ENTRY, sizeof(HASH_ROW_ENTRY), MYF(0));
@@ -933,7 +942,7 @@ HASH_ROW_ENTRY *Hash_slave_rows::make_entry(const uchar *bi_start,
   entry->preamble = preamble;
   entry->positions = pos;
 
-  DBUG_RETURN(entry);
+  return entry;
 
 err:
   DBUG_PRINT("info", ("Hash_slave_rows::make_entry - malloc error"));
@@ -943,12 +952,12 @@ err:
     my_free(preamble);
   }
   if (pos) my_free(pos);
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 bool Hash_slave_rows::put(TABLE *table, MY_BITMAP *cols,
                           HASH_ROW_ENTRY *entry) {
-  DBUG_ENTER("Hash_slave_rows::put");
+  DBUG_TRACE;
 
   HASH_ROW_PREAMBLE *preamble = entry->preamble;
 
@@ -964,11 +973,11 @@ bool Hash_slave_rows::put(TABLE *table, MY_BITMAP *cols,
                  unique_ptr<HASH_ROW_ENTRY, hash_slave_rows_free_entry>(entry));
   DBUG_PRINT("debug",
              ("Added record to hash with key=%u", preamble->hash_value));
-  DBUG_RETURN(false);
+  return false;
 }
 
 HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
-  DBUG_ENTER("Hash_slave_rows::get");
+  DBUG_TRACE;
   uint key;
   HASH_ROW_ENTRY *entry = nullptr;
 
@@ -989,18 +998,18 @@ HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
     entry->preamble->is_search_state_inited = true;
   }
 
-  DBUG_RETURN(entry);
+  return entry;
 }
 
 bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
-  DBUG_ENTER("Hash_slave_rows::next");
-  DBUG_ASSERT(*entry);
+  DBUG_TRACE;
+  assert(*entry);
 
-  if (*entry == nullptr) DBUG_RETURN(true);
+  if (*entry == nullptr) return true;
 
   HASH_ROW_PREAMBLE *preamble = (*entry)->preamble;
 
-  if (!preamble->is_search_state_inited) DBUG_RETURN(true);
+  if (!preamble->is_search_state_inited) return true;
 
   uint key = preamble->hash_value;
   const auto it = std::next(preamble->search_state);
@@ -1030,19 +1039,19 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
     *entry = nullptr;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Hash_slave_rows::del(HASH_ROW_ENTRY *entry) {
-  DBUG_ENTER("Hash_slave_rows::del");
-  DBUG_ASSERT(entry);
+  DBUG_TRACE;
+  assert(entry);
 
   erase_specific_element(&m_hash, entry->preamble->hash_value, entry);
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
-  DBUG_ENTER("Hash_slave_rows::make_hash_key");
+  DBUG_TRACE;
   ha_checksum crc = 0L;
 
   uchar *record = table->record[0];
@@ -1078,19 +1087,19 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
     @c record_compare, as it also skips null_flags if the read_set
     was not marked completely.
    */
-  if (bitmap_is_set_all(cols)) {
+  if (bitmap_is_set_all(cols) && cols->n_bits == table->s->fields) {
     crc = checksum_crc32(crc, table->null_flags, table->s->null_bytes);
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }
 
-  for (Field **ptr = table->field; *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++) {
+  for (Field **ptr = table->field;
+       *ptr && ((*ptr)->field_index() < cols->n_bits); ptr++) {
     Field *f = (*ptr);
 
     /*
       Field is set in the read_set and is isn't NULL.
      */
-    if (bitmap_is_set(cols, f->field_index) &&
+    if (bitmap_is_set(cols, f->field_index()) &&
         !f->is_virtual_gcol() &&  // Avoid virtual generated columns on hashes
         !f->is_null()) {
       /*
@@ -1111,10 +1120,10 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
           break;
         }
         default:
-          crc = checksum_crc32(crc, f->ptr, f->data_length());
+          crc = checksum_crc32(crc, f->field_ptr(), f->data_length());
           break;
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       String tmp;
       f->val_str(&tmp);
       DBUG_PRINT("debug", ("make_hash_entry: hash after field %s=%s: %u",
@@ -1138,7 +1147,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
   }
 
   DBUG_PRINT("debug", ("Created key=%u", crc));
-  DBUG_RETURN(crc);
+  return crc;
 }
 
 #endif
@@ -1161,7 +1170,7 @@ bool Deferred_log_events::is_empty() { return m_array.empty(); }
 bool Deferred_log_events::execute(Relay_log_info *rli) {
   bool res = false;
 
-  DBUG_ASSERT(rli->deferred_events_collecting);
+  assert(rli->deferred_events_collecting);
 
   rli->deferred_events_collecting = false;
   for (Log_event **it = m_array.begin(); !res && it != m_array.end(); ++it) {
@@ -1181,4 +1190,98 @@ void Deferred_log_events::rewind() {
   m_array.shrink_to_fit();
 }
 
+std::string replace_all_in_str(std::string from, std::string find,
+                               std::string replace) {
+  std::string to{from.data()};
+  if (to.length() == 0) {
+    return to;
+  }
+
+  size_t start{0};
+  while ((start = to.find(find, start)) != std::string::npos) {
+    to.replace(start, find.size(), replace);
+    start += replace.length();
+  }
+
+  return to;
+}
+
 #endif
+
+#ifdef MYSQL_SERVER
+THD_instance_guard::THD_instance_guard(THD *thd)
+    : m_is_locally_initialized{thd == nullptr} {
+  if (this->m_is_locally_initialized) {
+    this->m_target = new THD;
+    this->m_target->thread_stack = (char *)&this->m_target;
+    this->m_target->store_globals();
+    this->m_target->security_context()->skip_grants();
+  } else {
+    this->m_target = thd;
+  }
+}
+
+THD_instance_guard::~THD_instance_guard() {
+  if (this->m_is_locally_initialized) {
+    delete this->m_target;
+  }
+}
+
+THD_instance_guard::operator THD *() { return this->m_target; }
+
+bool evaluate_command_row_only_restrictions(THD *thd) {
+  LEX *const lex = thd->lex;
+
+  switch (lex->sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_INSERT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_DELETE:
+    case SQLCOM_LOAD:
+    case SQLCOM_REPLACE:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_UPDATE_MULTI: {
+      return true;
+    }
+    case SQLCOM_CREATE_TABLE: {
+      return (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
+    }
+    case SQLCOM_DROP_TABLE: {
+      return (lex->drop_temporary);
+    }
+    default:
+      break;
+  }
+
+  return false;
+}
+
+void rename_fields_use_old_replica_source_terms(
+    THD *thd, mem_root_deque<Item *> &field_list) {
+  static const std::regex replica(
+      "(.*)(Replica_)(.*)",
+      std::regex_constants::icase | std::regex_constants::optimize);
+  static const std::regex master(
+      "(.*)(Source)(.*)",
+      std::regex_constants::icase | std::regex_constants::optimize);
+
+  for (auto &item : field_list) {
+    std::string name{item->full_name()};
+    name = std::regex_replace(name, replica, "$1Slave_$3");
+    name = std::regex_replace(name, master, "$1Master$3");
+
+    // fix for the fact that one of the fields had a field starting
+    // with a lower case character :/
+    if (name.compare("Get_Master_public_key") == 0)
+      name = "Get_master_public_key";
+
+    if (name.compare("Master_Id") == 0) name = "Master_id";
+
+    if (name.compare("Server_Id") == 0) name = "Server_id";
+
+    item->rename(thd->mem_strdup(name.c_str()));
+  }
+}
+
+#endif  // MYSQL_SERVER

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stdlib.h>
 
+#include "my_dbug.h"
 #include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
@@ -47,17 +48,17 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   assert_callback = callback;
 }
 
-/** Report a failed assertion. */
-[[noreturn]] void ut_dbg_assertion_failed(
-    const char *expr, /*!< in: the failed assertion (optional) */
-    const char *file, /*!< in: source file containing the assertion */
-    ulint line)       /*!< in: line number of the assertion */
-{
+/** Report a failed assertion.
+@param[in] expr The failed assertion
+@param[in] file Source file containing the assertion
+@param[in] line Line number of the assertion */
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
   ib::error(ER_IB_MSG_1273)
       << "Assertion failure: " << innobase_basename(file) << ":" << line
       << ((expr != nullptr) ? ":" : "") << ((expr != nullptr) ? expr : "")
-      << " thread " << os_thread_handle();
+      << " thread " << to_string(std::this_thread::get_id());
 
   flush_error_log_messages();
 
@@ -69,19 +70,19 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   }
 
   fprintf(stderr,
-          "InnoDB: Assertion failure: %s:" ULINTPF
+          "InnoDB: Assertion failure: %s:" UINT64PF
           "%s%s\n"
-          "InnoDB: thread " UINT64PF,
+          "InnoDB: thread %s",
           filename, line, expr != nullptr ? ":" : "",
-          expr != nullptr ? expr : "", os_thread_handle());
+          expr != nullptr ? expr : "",
+          to_string(std::this_thread::get_id()).c_str());
 #endif /* !UNIV_HOTBACKUP */
 
   fputs(
       "InnoDB: We intentionally generate a memory trap.\n"
       "InnoDB: Submit a detailed bug report"
       " to http://bugs.mysql.com.\n"
-      "InnoDB: If you get repeated assertion failures"
-      " or crashes, even\n"
+      "InnoDB: If you get repeated assertion failures or crashes, even\n"
       "InnoDB: immediately after the mysqld startup, there may be\n"
       "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
       "InnoDB: " REFMAN
@@ -89,15 +90,11 @@ void ut_set_assert_callback(std::function<void()> &callback) {
       "InnoDB: about forcing recovery.\n",
       stderr);
 
-#ifndef DBUG_OFF
-  dump_trace();
-#endif /* DBUG_OFF */
-
   fflush(stderr);
   fflush(stdout);
   /* Call any registered callback function. */
   if (assert_callback) {
     assert_callback();
   }
-  abort();
+  my_abort();
 }

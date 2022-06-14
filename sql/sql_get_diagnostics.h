@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,8 @@
 #ifndef SQL_GET_DIAGNOSTICS_H
 #define SQL_GET_DIAGNOSTICS_H
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_sqlcommand.h"
 #include "sql/sql_cmd.h"  // Sql_cmd
 
@@ -52,11 +53,11 @@ class Sql_cmd_get_diagnostics : public Sql_cmd {
   */
   Sql_cmd_get_diagnostics(Diagnostics_information *info) : m_info(info) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_GET_DIAGNOSTICS;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   /** The information to be obtained. */
@@ -103,7 +104,7 @@ class Diagnostics_information {
     Diagnostics_information objects are allocated in thd->mem_root.
     Do not rely on the destructor for any cleanup.
   */
-  virtual ~Diagnostics_information() { DBUG_ASSERT(false); }
+  virtual ~Diagnostics_information() { assert(false); }
 
   /**
     Evaluate a diagnostics information item in a specific context.
@@ -160,7 +161,7 @@ class Diagnostics_information_item {
     Diagnostics_information_item objects are allocated in thd->mem_root.
     Do not rely on the destructor for any cleanup.
   */
-  virtual ~Diagnostics_information_item() { DBUG_ASSERT(false); }
+  virtual ~Diagnostics_information_item() { assert(false); }
 
  private:
   /** The target variable that will receive the value of this item. */
@@ -209,7 +210,7 @@ class Statement_information : public Diagnostics_information {
       : m_items(items) {}
 
   /** Obtain statement information in the context of a Diagnostics Area. */
-  bool aggregate(THD *thd, const Diagnostics_area *da);
+  bool aggregate(THD *thd, const Diagnostics_area *da) override;
 
  private:
   /* List of statement information items. */
@@ -280,7 +281,7 @@ class Condition_information : public Diagnostics_information {
       : m_cond_number_expr(cond_number_expr), m_items(items) {}
 
   /** Obtain condition information in the context of a Diagnostics Area. */
-  bool aggregate(THD *thd, const Diagnostics_area *da);
+  bool aggregate(THD *thd, const Diagnostics_area *da) override;
 
  private:
   /**

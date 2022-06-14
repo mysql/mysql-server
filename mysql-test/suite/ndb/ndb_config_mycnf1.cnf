@@ -53,3 +53,46 @@ ExtraSendBufferMemory=1M
 ExtraSendBufferMemory=2M
 
 # mysqld.2.bug14555359 will have 0 for ExtraSendBufferMemory
+
+# Config with 2 mgmds on default port
+[cluster_config.bug32175157]
+ndbd = localhost, localhost
+ndb_mgmd = localhost, localhost
+mysqld =
+
+# Config with Invalid Nodegroup, Max Nodegroups = 72
+[cluster_config.bug32210176]
+NoOfReplicas = 2
+ndbd = localhost, localhost
+ndb_mgmd = localhost
+mysqld =
+[cluster_config.ndbd.1.bug32210176]
+NodeId=2
+Nodegroup = 75
+
+# Config with Datanodes > 72 and replicas = 1
+[cluster_config.bug32258207]
+NoOfReplicas = 1
+ndbd = localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost, localhost
+ndb_mgmd = localhost
+mysqld =
+
+[cluster_config.bug32339789]
+ndbd = localhost,localhost,localhost,localhost
+ndb_mgmd = localhost,localhost
+mysqld = ,,,,
+[cluster_config.mysqld.1.bug32339789]
+NodeId=11
+[cluster_config.ndb_mgmd.1.bug32339789]
+NodeId=1
+PortNumber = 6000
+[cluster_config.ndbd.1.bug32339789]
+NodeId=3
+
+[cluster_config.bug32871875]
+NoOfReplicas = 1
+AutomaticThreadConfig = true
+CompressedLCP = false
+ndbd = localhost
+ndb_mgmd = localhost
+mysqld =

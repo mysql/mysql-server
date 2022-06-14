@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 */
 
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "API.hpp"
@@ -41,10 +42,12 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/AllocNodeId.hpp>
 
+#include "AssembleFragments.hpp"
+
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include <NdbSleep.h>
 #endif
 #include <EventLogger.hpp>
@@ -85,7 +88,7 @@ Ndb::init(int aMaxNoOfTransactions)
 
   const Uint32 tRef = theImpl->open(theFacade);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if(DBUG_EVALUATE_IF("sleep_in_ndbinit", true, false))
   {
     fprintf(stderr, "Ndb::init() (%p) taking a break\n", this);
@@ -173,7 +176,7 @@ Ndb::init(int aMaxNoOfTransactions)
   DBUG_RETURN(0);
   
 error_handler:
-  ndbout << "error_handler" << endl;
+  g_eventLogger->info("error_handler");
   releaseTransactionArrays();
   delete theDictionary;
   theImpl->close();
@@ -291,7 +294,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         localCon->theCompletionStatus = NdbTransaction::CompletedSuccess;
       } else {
 #ifdef VM_TRACE
-        printState("abortTransactionsAfterNodeFailure %lx", (long)this);
+        printState("abortTransactionsAfterNodeFailure %p", this);
         abort();
 #endif
       }
@@ -328,6 +331,87 @@ NdbImpl::lookupTransactionFromOperation(const TcKeyConf * conf)
     }
   }
   return 0;
+}
+
+void
+NdbImpl::drop_batched_fragments(AssembleBatchedFragments* batched_fragments)
+{
+  NdbApiSignal signal(BlockReference(0));
+  batched_fragments->extract_signal_only(&signal);
+
+  require(signal.readSignalNumber() == GSN_SUB_TABLE_DATA);
+  const SubTableData * sdata=
+      CAST_CONSTPTR(SubTableData, signal.getDataPtr());
+  const Uint64 gci = (Uint64(sdata->gci_hi) << 32) | sdata->gci_lo;
+  m_ndb.theEventBuffer->create_empty_exceptional_epoch(
+      gci,
+      NdbDictionary::Event::_TE_INCONSISTENT);
+}
+
+/** NdbImpl::assemble_data_event_signal() assembles the fragments of a data
+ * event sent in GSN_SUB_TABLE_DATA into one signal.
+ * returns
+ *   -2 some error occured, batched fragments state is cleaned up
+ *   -1 more fragments is needed
+ *    0 signal was not fragmented, use as is, no cleanup needed.
+ *   >0 signal complete, call cleanup after use
+ */
+Int32
+NdbImpl::assemble_data_event_signal(AssembleBatchedFragments* batched_fragments, NdbApiSignal* signal, LinearSectionPtr ptr[3])
+{
+  AssembleBatchedFragments::Result result;
+
+  result = batched_fragments->assemble(signal, ptr);
+  if (unlikely(result == AssembleBatchedFragments::ERR_BATCH_IN_PROGRESS))
+  {
+    /* Previous signal was a fragmented signal that should be completed by
+     * consecutive signals.  But some other signal come in between.
+     * This should not happen, bug in Suma?
+     */
+    drop_batched_fragments(batched_fragments);
+    result = batched_fragments->assemble(signal, ptr);
+    assert(result != AssembleBatchedFragments::ERR_BATCH_IN_PROGRESS);
+  }
+
+  if (likely(result == AssembleBatchedFragments::MESSAGE_OK))
+  {
+    return 0;
+  }
+
+  if (result == AssembleBatchedFragments::NEED_SETUP)
+  {
+    const SubTableData * sdata=
+      CAST_CONSTPTR(SubTableData, signal->getDataPtr());
+
+    const bool setup_ok = batched_fragments->setup(sdata->totalLen);
+    if (unlikely(!setup_ok))
+    {
+      const Uint64 gci = (Uint64(sdata->gci_hi) << 32) | sdata->gci_lo;
+      m_ndb.theEventBuffer->create_empty_exceptional_epoch(
+          gci,
+          NdbDictionary::Event::_TE_OUT_OF_MEMORY);
+      return -2;
+    }
+    result = batched_fragments->assemble(signal, ptr);
+    assert(result != AssembleBatchedFragments::NEED_SETUP);
+    assert(result != AssembleBatchedFragments::ERR_BATCH_IN_PROGRESS);
+    assert(result != AssembleBatchedFragments::MESSAGE_OK);
+  }
+
+  if (result == AssembleBatchedFragments::NEED_MORE)
+  {
+    return -1;
+  }
+
+  if (unlikely(result != AssembleBatchedFragments::MESSAGE_COMPLETE))
+  {
+    drop_batched_fragments(batched_fragments);
+    return -2;
+  }
+
+  Uint32 num_secs = batched_fragments->extract(signal, ptr);
+  require(num_secs > 0);
+  return num_secs;
 }
 
 /****************************************************************************
@@ -1046,7 +1130,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     else
     {
 #ifdef VM_TRACE
-      ndbout_c("Recevied TCKEY_FAILCONF wo/ operation");
+      g_eventLogger->info("Recevied TCKEY_FAILCONF wo/ operation");
 #endif
     }
     if(tFirstData & 1)
@@ -1089,7 +1173,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       }
     }
 #ifdef VM_TRACE
-    ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
+    g_eventLogger->info("Recevied TCKEY_FAILREF wo/ operation");
 #endif
     return;
   }
@@ -1167,6 +1251,16 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_SUB_GCP_COMPLETE_REP:
   {
+    /* SUB_GCP_COMPLETE_REP signal will not be fragmented but must check if
+     * there is some fragmented data event ongoing to guarantee correct signal
+     * order from Suma.
+     */
+    const Uint32 sender_node = aSignal->get_sender_node();
+    if (unlikely(m_suma_fragmented_signals[sender_node].is_in_progress()))
+    {
+      drop_batched_fragments(&m_suma_fragmented_signals[sender_node]);
+    }
+
     const Uint64 latestGCI = myNdb->getLatestGCI();
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
@@ -1180,11 +1274,24 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_SUB_TABLE_DATA:
   {
-    const SubTableData * const sdata=
+    NdbApiSignal copy_signal(BlockReference(0));
+    LinearSectionPtr copy_ptr[3];
+
+    for (int i = 0; i<aSignal->m_noOfSections; i++)
+    {
+      copy_ptr[i] = ptr[i];
+    }
+    for (int i = aSignal->m_noOfSections; i < 3; i++)
+    {
+      copy_ptr[i].p = NULL;
+      copy_ptr[i].sz = 0;
+    }
+
+    const SubTableData * sdata=
       CAST_CONSTPTR(SubTableData, aSignal->getDataPtr());
+
     const Uint32 oid = sdata->senderData;
     NdbEventOperationImpl *op= (NdbEventOperationImpl*)int2void(oid);
-
     if (unlikely(op == 0 || op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER))
     {
       g_eventLogger->error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
@@ -1193,31 +1300,69 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       return ;
     }
 
-    // Accumulate DIC_TAB_INFO for TE_ALTER events
-    if (SubTableData::getOperation(sdata->requestInfo) == 
-	NdbDictionary::Event::_TE_ALTER &&
-        !op->execSUB_TABLE_DATA(aSignal, ptr))
+    const Uint32 event = SubTableData::getOperation(sdata->requestInfo);
+    const bool is_data_event = event < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
+    bool do_cleanup = false;
+
+    const Uint32 sender_node = aSignal->get_sender_node();
+
+    if (unlikely(!is_data_event))
     {
-      return;
+      if (m_suma_fragmented_signals[sender_node].is_in_progress())
+      {
+        drop_batched_fragments(&m_suma_fragmented_signals[sender_node]);
+      }
+
+      const bool is_alter_event = event == NdbDictionary::Event::_TE_ALTER;
+      if (is_alter_event)
+      {
+        if (!op->execSUB_TABLE_DATA(aSignal, copy_ptr))
+        {
+          return;
+        }
+      }
     }
-    
-    LinearSectionPtr copy[3];
-    for (int i = 0; i<aSignal->m_noOfSections; i++)
+    else
     {
-      copy[i] = ptr[i];
+      copy_signal = *aSignal;
+      Int32 num_secs = assemble_data_event_signal(&m_suma_fragmented_signals[sender_node],
+                                                  &copy_signal,
+                                                  copy_ptr);
+      if (num_secs < 0)
+      {
+        // Need more fragments.
+        return;
+      }
+
+      /* num_secs == 0 is in the case the signal was not fragmented which we
+       * take as the fast path.  Note that in this case the number of sections
+       * for is unchanged by assemble and is still likely more than 0.
+       */
+      if (unlikely(num_secs > 0))
+      {
+        aSignal = &copy_signal;
+        for (int i = num_secs; i < 3; i++)
+        {
+          copy_ptr[i].p = NULL;
+          copy_ptr[i].sz = 0;
+        }
+        do_cleanup = true;
+      }
+      sdata = CAST_CONSTPTR(SubTableData, aSignal->getDataPtr());
+      require(oid == sdata->senderData);
     }
-    for (int i = aSignal->m_noOfSections; i < 3; i++)
-    {
-      copy[i].p = NULL;
-      copy[i].sz = 0;
-    }
+
     DBUG_PRINT("info",("oid=senderData: %d, gci{hi/lo}: %d/%d, operation: %d, "
 		       "tableId: %d",
 		       sdata->senderData, sdata->gci_hi, sdata->gci_lo,
 		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 
-    myNdb->theEventBuffer->insertDataL(op, sdata, tLen, copy);
+    myNdb->theEventBuffer->insertDataL(op, sdata, tLen, copy_ptr);
+    if (do_cleanup)
+    {
+      m_suma_fragmented_signals[sender_node].cleanup();
+    }
     return;
   }
   case GSN_API_REGCONF:
@@ -1230,10 +1375,21 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            aSignal->getDataPtr());
     Uint32 len = NodeFailRep::getNodeMaskLength(aSignal->getLength());
-    assert(len == NodeBitmask::Size); // only full length in ndbapi
-    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+    const Uint32* nbm;
+    if (aSignal->m_noOfSections >= 1)
+    {
+      assert (len == 0);
+      nbm = ptr[0].p;
+      len = ptr[0].sz;
+    }
+    else
+    {
+      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      nbm = rep->theAllNodes;
+    }
+    for (Uint32 i = BitmaskImpl::find_first(len, nbm);
          i != BitmaskImpl::NotFound;
-         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
+         i = BitmaskImpl::find_next(len, nbm, i + 1))
     {
       if (i <= MAX_DATA_NODE_ID)
       {
@@ -1293,14 +1449,13 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
 
 InvalidSignal:
 #ifdef VM_TRACE
-  ndbout_c("Ndbif: Error NdbImpl::trp_deliver_signal "
-	   "(tFirstDataPtr=%p, GSN=%d, theWaiter.m_state=%d)"
-	   " sender = (Block: %d Node: %d)",
-           tFirstDataPtr,
-	   tSignalNumber,
-	   tWaitState,
-	   refToBlock(aSignal->theSendersBlockRef),
-	   refToNode(aSignal->theSendersBlockRef));
+  g_eventLogger->info(
+      "Ndbif: Error NdbImpl::trp_deliver_signal "
+      "(tFirstDataPtr=%p, GSN=%d, theWaiter.m_state=%d)"
+      " sender = (Block: %d Node: %d)",
+      tFirstDataPtr, tSignalNumber, tWaitState,
+      refToBlock(aSignal->theSendersBlockRef),
+      refToNode(aSignal->theSendersBlockRef));
 #endif
 #ifdef NDB_NO_DROPPED_SIGNAL
   abort();
@@ -1358,10 +1513,10 @@ Ndb::completedTransaction(NdbTransaction* aCon)
       theImpl->wakeHandler->notifyTransactionCompleted(this);
     }
   } else {
-    ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
-    ndbout << " theListState = " << (int) aCon->theListState;
-    ndbout << " theTransArrayIndex = " << aCon->theTransArrayIndex;
-    ndbout << endl << flush;
+    g_eventLogger->info(
+        "theNoOfSentTransactions = %d theListState = %d"
+        " theTransArrayIndex = %d",
+        theNoOfSentTransactions, aCon->theListState, aCon->theTransArrayIndex);
 #ifdef VM_TRACE
     printState("completedTransaction abort");
     //abort();
@@ -1409,9 +1564,9 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
     for (i = 0; i < tNoCompletedTransactions; i++) {
       aCopyArray[i] = theCompletedTransactionsArray[i];
       if (aCopyArray[i]->theListState != NdbTransaction::InCompletedList) {
-        ndbout << "pollCompleted error ";
-        ndbout << (int) aCopyArray[i]->theListState << endl;
-	abort();
+        g_eventLogger->info("pollCompleted error %d",
+                            (int)aCopyArray[i]->theListState);
+        abort();
       }//if
       theCompletedTransactionsArray[i] = NULL;
       aCopyArray[i]->theListState = NdbTransaction::NotInList;
@@ -1427,7 +1582,7 @@ Ndb::check_send_timeout()
   const Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   const Uint64 current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
   {
     fprintf(stderr, "Forcing immediate timeout check in Ndb::check_send_timeout()\n");
@@ -1439,7 +1594,7 @@ Ndb::check_send_timeout()
     Uint32 no_of_sent = theNoOfSentTransactions;
     for (Uint32 i = 0; i < no_of_sent; i++) {
       NdbTransaction* a_con = theSentTransactionsArray[i];
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
       {
         fprintf(stderr, "Inducing early timeout in Ndb::check_send_timeout()\n");
@@ -1452,8 +1607,8 @@ Ndb::check_send_timeout()
         a_con->printState();
 	Uint32 t1 = (Uint32) a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
-	ndbout_c("4012 [%.8x %.8x]", t1, t2);
-	//abort();
+        g_eventLogger->info("4012 [%.8x %.8x]", t1, t2);
+        //abort();
 #endif
         a_con->theReleaseOnClose = true;
 	a_con->theError.code = 4012;
@@ -1635,7 +1790,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
     int maxsleep = waitTime;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
       maxsleep = waitTime > 10 ? 10 : waitTime;
@@ -1649,7 +1804,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     waitTime = aMilliSecondsToWait - 
       (int)NdbTick_Elapsed(start,now).milliSec();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
       fprintf(stderr, "Inducing early timeout in Ndb::waitCompletedTransactions()\n");
@@ -1814,10 +1969,8 @@ NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
                                   bool send_immediate)
 {
 #ifdef MARKER_TRACE
-  ndbout_c("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
-	   transId1,
-	   transId2,
-	   refToNode(aTCRef));
+  g_eventLogger->info("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
+                      transId1, transId2, refToNode(aTCRef));
 #endif  
   aSignal->theTrace                = TestOrd::TraceAPI;
   aSignal->theReceiversBlockNumber = refToBlock(aTCRef);

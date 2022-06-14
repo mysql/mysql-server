@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,10 @@
 #ifndef PLUGIN_X_SRC_XPL_DISPATCHER_H_
 #define PLUGIN_X_SRC_XPL_DISPATCHER_H_
 
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/admin_cmd_handler.h"
 #include "plugin/x/src/crud_cmd_handler.h"
 #include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/ngs/protocol/message.h"
 #include "plugin/x/src/prepare_command_handler.h"
 #include "plugin/x/src/stmt_command_handler.h"
 
@@ -38,8 +38,8 @@ class Session;
 
 class Dispatcher {
  public:
-  explicit Dispatcher(ngs::Session_interface *session) : m_session{session} {}
-  bool execute(const ngs::Message_request &command);
+  explicit Dispatcher(iface::Session *session) : m_session{session} {}
+  ngs::Error_code execute(const ngs::Message_request &command);
   void reset();
 
   const Prepare_command_handler::Prepared_stmt_info_list &
@@ -52,7 +52,7 @@ class Dispatcher {
   ngs::Error_code on_expect_open(const Mysqlx::Expect::Open &msg);
   ngs::Error_code on_expect_close();
 
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Crud_command_handler m_crud_handler{m_session};
   Expectation_stack m_expect_stack;
   Stmt_command_handler m_stmt_handler{m_session};

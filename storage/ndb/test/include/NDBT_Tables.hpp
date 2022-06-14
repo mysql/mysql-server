@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -40,30 +40,31 @@ public:
   /* Some constants for the maximum sizes of keys and attributes
    * in various cases
    */
-  STATIC_CONST(MaxRowBytes= NDB_MAX_TUPLE_SIZE_IN_WORDS * 4);
-  STATIC_CONST(MaxKeyBytes= NDB_MAX_KEYSIZE_IN_WORDS * 4);
-  STATIC_CONST(MinKeyBytes= 4); // Single Unsigned key
+  static constexpr Uint32 MaxRowBytes = NDB_MAX_TUPLE_SIZE_IN_WORDS * 4;
+  static constexpr Uint32 MaxKeyBytes = NDB_MAX_KEYSIZE_IN_WORDS * 4;
+  static constexpr Uint32 MinKeyBytes = 4; // Single Unsigned key
 
-  STATIC_CONST(MaxVarTypeKeyBytes= MaxKeyBytes - 2); // 2 length bytes
+  static constexpr Uint32 MaxVarTypeKeyBytes = MaxKeyBytes - 2; // 2 length bytes
 
-  STATIC_CONST(MaxKeyMaxAttrBytes= MaxRowBytes - MaxKeyBytes);
-  STATIC_CONST(MaxKeyMaxVarTypeAttrBytes= MaxKeyMaxAttrBytes - 2);
+  static constexpr Uint32 MaxKeyMaxAttrBytes = MaxRowBytes - MaxKeyBytes;
+  static constexpr Uint32 MaxKeyMaxVarTypeAttrBytes = MaxKeyMaxAttrBytes - 2;
 
-  STATIC_CONST(MinKeyMaxAttrBytes= MaxRowBytes - MinKeyBytes);
-  STATIC_CONST(MinKeyMaxVarTypeAttrBytes= MinKeyMaxAttrBytes - 2);
+  static constexpr Uint32 MinKeyMaxAttrBytes = MaxRowBytes - MinKeyBytes;
+  static constexpr Uint32 MinKeyMaxVarTypeAttrBytes = MinKeyMaxAttrBytes - 2;
 
-  STATIC_CONST(UniqueIndexOverheadBytes= 4); // For FragId
+  static constexpr Uint32 UniqueIndexOverheadBytes = 4; // For FragId
 
   // Note that since we'll put an unique index on this...it can't be bigger
   // than MaxKeyBytes
-  STATIC_CONST(MaxKeyMaxVarTypeAttrBytesIndex =
+  static constexpr Uint32 MaxKeyMaxVarTypeAttrBytesIndex =
                ((MaxKeyMaxVarTypeAttrBytes <= MaxKeyBytes) ?
-                MaxKeyMaxVarTypeAttrBytes : MaxKeyBytes) - UniqueIndexOverheadBytes);
+                MaxKeyMaxVarTypeAttrBytes : MaxKeyBytes) -
+                UniqueIndexOverheadBytes;
 
   /* Hugo requires 2 unsigned int columns somewhere in the table
    * and these also counts towards #attributes relation
    */
-  STATIC_CONST(HugoOverheadBytes= 2 * (4 + 4));
+  static constexpr Uint32 HugoOverheadBytes = 2 * (4 + 4);
 
   static int createTable(Ndb* pNdb, const char* _name, bool _temp = false, 
 			 bool existsOK = false, NDBT_CreateTableHook = 0,

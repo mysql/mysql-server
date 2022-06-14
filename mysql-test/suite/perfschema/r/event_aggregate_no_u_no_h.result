@@ -64,6 +64,7 @@ execute dump_transactions_history;
 event_name	count(event_name)
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
@@ -153,6 +154,7 @@ execute dump_transactions_history;
 event_name	count(event_name)
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 execute dump_users;
@@ -265,6 +267,7 @@ event_name	count(event_name)
 transaction	1
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 execute dump_users;
@@ -381,6 +384,7 @@ event_name	count(event_name)
 transaction	1
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -510,6 +514,7 @@ event_name	count(event_name)
 transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -643,6 +648,7 @@ event_name	count(event_name)
 transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -789,6 +795,7 @@ event_name	count(event_name)
 transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -939,6 +946,7 @@ event_name	count(event_name)
 transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -1102,6 +1110,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	1	1
 user2	localhost	1	1
@@ -1253,6 +1262,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	1	1
@@ -1402,6 +1412,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1549,6 +1560,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1694,6 +1706,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1840,6 +1853,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -1986,6 +2000,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2132,6 +2147,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2278,6 +2294,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2424,6 +2441,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2570,6 +2588,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2716,6 +2735,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -2862,6 +2882,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3008,6 +3029,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3154,6 +3176,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3300,6 +3323,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3446,6 +3470,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3592,6 +3617,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3738,6 +3764,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -3884,6 +3911,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4030,6 +4058,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4176,6 +4205,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4322,6 +4352,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4468,6 +4499,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4614,6 +4646,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 user1	localhost	0	1
 user2	localhost	0	1
@@ -4704,6 +4737,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
@@ -4790,6 +4824,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
@@ -4876,6 +4911,7 @@ event_name	count(event_name)
 transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	localhost	1	1
 root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS

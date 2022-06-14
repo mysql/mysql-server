@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -52,7 +52,11 @@ NDBT_find_binary_from_path(BaseString& name,
       n += strlen(PATH_SEPARATOR);
     }
     BaseString path;
+#ifndef _WIN32
     path.assfmt("%s/%s", s, binary_name);
+#else
+    path.assfmt("%s\\%s", s, binary_name);
+#endif
     if (access(path.c_str(), F_OK) == 0)
     {
       // Sucess, found the binary. Convert path to absolute and return it
@@ -109,8 +113,8 @@ NDBT_find_binary(BaseString& name, const char* binary_name,
 
 extern const char * my_progname;
 
-void
-NDBT_find_ndb_mgmd(BaseString& path)
+static void
+NDBT_find_executable_in_test_env(BaseString& path, const char *program)
 {
   char pathbuf[1024];
 
@@ -132,7 +136,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
      *   => found in $PATH => search for ndb_mgmd in $PATH
      */
     NDBT_find_binary(path,
-                     "ndb_mgmd",
+                     program,
                      NdbEnv_GetEnv("PATH", pathbuf, sizeof(pathbuf)),
                      NULL);
   }
@@ -144,6 +148,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
      *   => search in relative places relative argv[0]
      */
     * basename = 0;
+#ifndef _WIN32
     const char * places[] = {
       "../../../../runtime_output_directory",
       "../../src/mgmsrv",
@@ -153,6 +158,19 @@ NDBT_find_ndb_mgmd(BaseString& path)
       "../bin",
       0
     };
+#else
+    const char* places[] = {
+  "..\\..\\..\\..\\runtime_output_directory",
+  "..\\..\\src\\mgmsrv",
+  "..\\storage\\ndb\\src\\mgmsrv",
+  "..\\libexec",
+  "..\\sbin",
+  "..\\bin",
+  ".",
+  0
+    };
+
+#endif
     BaseString searchpath = "";
     for (int i = 0; places[i] != 0; i++) {
       searchpath.appfmt("%s%s%c%s",
@@ -162,9 +180,29 @@ NDBT_find_ndb_mgmd(BaseString& path)
                         places[i]);
     }
     NDBT_find_binary(path,
-                     "ndb_mgmd",
+                     program,
                      searchpath.c_str(),
                      NULL);
   }
 }
 
+void
+NDBT_find_ndb_mgmd(BaseString& path)
+{
+#ifndef _WIN32
+  return NDBT_find_executable_in_test_env(path, "ndb_mgmd");
+#else
+  return NDBT_find_executable_in_test_env(path, "ndb_mgmd.exe");
+#endif
+}
+
+void
+NDBT_find_ndbd(BaseString& path)
+{
+#ifndef _WIN32
+  return NDBT_find_executable_in_test_env(path, "ndbd");
+#else
+  return NDBT_find_executable_in_test_env(path, "ndbd.exe");
+#endif
+
+}

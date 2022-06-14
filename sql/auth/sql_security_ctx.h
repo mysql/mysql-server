@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 class Acl_map;
 class ACL_USER;
 class THD;
+struct TABLE;
 struct Grant_table_aggregate;
 
 /**
@@ -52,7 +53,6 @@ struct Grant_table_aggregate;
 class Security_context {
  public:
   Security_context(THD *thd = nullptr);
-  Security_context(MEM_ROOT *m_mem_root, THD *thd = nullptr);
   ~Security_context();
 
   Security_context(const Security_context &src_sctx);
@@ -81,7 +81,8 @@ class Security_context {
                                          bool cumulative = false);
   bool can_operate_with(const Auth_id &auth_id, const std::string &privilege,
                         bool cumulative = false,
-                        bool ignore_if_nonextant = true);
+                        bool ignore_if_nonextant = true,
+                        bool throw_error = true);
   int activate_role(LEX_CSTRING user, LEX_CSTRING host,
                     bool validate_access = false);
   void clear_active_roles(void);
@@ -99,6 +100,10 @@ class Security_context {
                           const LEX_CSTRING &role_host);
   bool any_sp_acl(const LEX_CSTRING &db);
   bool any_table_acl(const LEX_CSTRING &db);
+
+  bool is_table_blocked(ulong priv, TABLE const *table);
+  bool has_column_access(ulong priv, TABLE const *table,
+                         std::vector<std::string> column);
 
   /**
     Getter method for member m_host.
@@ -262,7 +267,7 @@ class Security_context {
   void set_password_expired(bool password_expired);
 
   bool change_security_context(THD *thd, const LEX_CSTRING &definer_user,
-                               const LEX_CSTRING &definer_host, LEX_STRING *db,
+                               const LEX_CSTRING &definer_host, const char *db,
                                Security_context **backup, bool force = false);
 
   void restore_security_context(THD *thd, Security_context *backup);
@@ -294,6 +299,13 @@ class Security_context {
 
   void clear_db_restrictions();
 
+  bool is_in_registration_sandbox_mode();
+  void set_registration_sandbox_mode(bool v);
+
+  void set_thd(THD *thd);
+
+  THD *get_thd();
+
  private:
   void init();
   void destroy();
@@ -303,6 +315,7 @@ class Security_context {
   std::pair<bool, bool> fetch_global_grant(const ACL_USER &acl_user,
                                            const std::string &privilege,
                                            bool cumulative = false);
+  bool has_table_access(ulong priv, TABLE_LIST *table);
 
  private:
   /**
@@ -358,7 +371,6 @@ class Security_context {
   bool m_password_expired;
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
-  int m_map_checkout_count;
   /**
     True if this account can't be logged into.
   */
@@ -372,6 +384,18 @@ class Security_context {
   bool m_has_drop_policy;
   std::unique_ptr<std::function<void(Security_context *)>> m_drop_policy;
   Restrictions m_restrictions;
+  /**
+    This flag tracks if server should be in sandbox mode or not.
+    When user account connects to server, with any of its authentication
+    plugin's registration step pending, in that case, the connection is
+    set in sandbox(or registration) mode i.e m_registration_sandbox_mode is set
+    to TRUE.
+    During this time only ALTER USER, SET PASSWORD statements are allowed.
+    Once user finishes the registration steps for the authentication plugin
+    via an ALTER USER statement, m_registration_sandbox_mode is set to FALSE,
+    making a full fledged connection, where user can execute any sql statement.
+  */
+  bool m_registration_sandbox_mode;
 
   /**
     m_thd - Thread handle, set to nullptr if this does not belong to any THD yet
@@ -388,16 +412,16 @@ class Security_context {
 inline LEX_CSTRING Security_context::host_or_ip() const {
   LEX_CSTRING host_or_ip;
 
-  DBUG_ENTER("Security_context::host_or_ip");
+  DBUG_TRACE;
 
   host_or_ip.str = m_host_or_ip.ptr();
   host_or_ip.length = m_host_or_ip.length();
 
-  DBUG_RETURN(host_or_ip);
+  return host_or_ip;
 }
 
 inline void Security_context::set_host_or_ip_ptr() {
-  DBUG_ENTER("Security_context::set_host_or_ip_ptr");
+  DBUG_TRACE;
 
   /*
   Set host_or_ip to either host or ip if they are available else set it to
@@ -407,28 +431,24 @@ inline void Security_context::set_host_or_ip_ptr() {
       m_host.length() ? m_host.ptr() : (m_ip.length() ? m_ip.ptr() : "");
 
   m_host_or_ip.set(host_or_ip, strlen(host_or_ip), system_charset_info);
-
-  DBUG_VOID_RETURN;
 }
 
 inline void Security_context::set_host_or_ip_ptr(
     const char *host_or_ip_arg, const int host_or_ip_arg_length) {
-  DBUG_ENTER("Security_context::set_host_or_ip_ptr");
+  DBUG_TRACE;
 
   m_host_or_ip.set(host_or_ip_arg, host_or_ip_arg_length, system_charset_info);
-
-  DBUG_VOID_RETURN;
 }
 
 inline LEX_CSTRING Security_context::external_user() const {
   LEX_CSTRING ext_user;
 
-  DBUG_ENTER("Security_context::external_user");
+  DBUG_TRACE;
 
   ext_user.str = m_external_user.ptr();
   ext_user.length = m_external_user.length();
 
-  DBUG_RETURN(ext_user);
+  return ext_user;
 }
 
 inline ulong Security_context::master_access() const { return m_master_access; }
@@ -438,10 +458,9 @@ inline const Restrictions Security_context::restrictions() const {
 }
 
 inline void Security_context::set_master_access(ulong master_access) {
-  DBUG_ENTER("set_master_access");
+  DBUG_TRACE;
   m_master_access = master_access;
   DBUG_PRINT("info", ("Cached master access is %lu", m_master_access));
-  DBUG_VOID_RETURN;
 }
 
 inline void Security_context::set_master_access(
@@ -479,5 +498,17 @@ inline bool Security_context::is_skip_grants_user() {
 inline void Security_context::clear_db_restrictions() {
   m_restrictions.clear_db();
 }
+
+inline bool Security_context::is_in_registration_sandbox_mode() {
+  return m_registration_sandbox_mode;
+}
+
+inline void Security_context::set_registration_sandbox_mode(bool v) {
+  m_registration_sandbox_mode = v;
+}
+
+inline void Security_context::set_thd(THD *thd) { m_thd = thd; }
+
+inline THD *Security_context::get_thd() { return m_thd; }
 
 #endif /* SQL_SECURITY_CTX_INCLUDED */

@@ -2,40 +2,43 @@
  * schema got created, but group replication isn't started.
  */
 
+///**
+// * schema got created, but group replication isn't started.
+// */
+var common_stmts = require("common_statements");
+
+var options = {
+  cluster_type: "gr",
+};
+
+var common_responses = common_stmts.prepare_statement_responses(
+    [
+      "router_set_session_options",
+      "router_set_gr_consistency_level",
+      "router_select_schema_version",
+      "router_select_cluster_type_v2",
+      "router_count_clusters_v2",
+    ],
+    options);
+
+var router_check_member_state =
+    common_stmts.get("router_check_member_state", {});
+
 ({
-  "stmts": [
-    {
-      "stmt": "SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "major"
-          },
-          {
-            "type": "LONGLONG",
-            "name": "minor"
-          },
-          {
-            "type": "LONGLONG",
-            "name": "patch"
-          }
-        ],
-        "rows": [
-          [
-            1,
-            0,
-            1
-          ]
-        ]
+  stmts: function(stmt) {
+    if (common_responses.hasOwnProperty(stmt)) {
+      return common_responses[stmt];
+    } else if (stmt === router_check_member_state.stmt) {
+      return {
+        error: {
+          code: 1146,
+          sql_state: "HY001",
+          message:
+              "Table 'performance_schema.replication_group_members' doesn't exist"
+        }
       }
-    },
-    {
-      "stmt": "SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours",
-      error: {
-        code: 1193,
-        message: "Unknown system variable 'group_replication_group_name'"
-      }
+    } else {
+      return common_stmts.unknown_statement_response(stmt);
     }
-  ]
+  }
 })

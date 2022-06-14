@@ -2,7 +2,7 @@
 #define TZTIME_INCLUDED
 
 #include "my_config.h"
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-typedef long my_time_t;
-
-#if !defined(TESTTIME) && !defined(TZINFO2SQL)
-
 #include "my_inttypes.h"
 
 #ifdef HAVE_SYS_TIME_H
@@ -37,6 +33,7 @@ typedef long my_time_t;
 #include <winsock2.h>
 #endif
 
+#include "my_time_t.h"   // my_time_t
 #include "mysql_time.h"  // MYSQL_TIME
 
 class String;
@@ -50,27 +47,36 @@ class THD;
 */
 class Time_zone {
  public:
-  Time_zone() {} /* Remove gcc warning */
   /**
-    Converts local time in broken down MYSQL_TIME representation to
-    my_time_t (UTC seconds since Epoch) represenation.
+    Enum to identify the type of the timezone
+  */
+  enum tz_type { TZ_DB = 1, TZ_OFFSET = 2, TZ_SYSTEM = 3, TZ_UTC = 4 };
+
+  /**
+    Converts local time in MYSQL_TIME representation to
+    my_time_t (UTC seconds since Epoch) representation.
     Returns 0 in case of error. Sets in_dst_time_gap to true if date provided
     falls into spring time-gap (or lefts it untouched otherwise).
   */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const = 0;
   /**
-    Converts time in my_time_t representation to local time in
-    broken down MYSQL_TIME representation.
-  */
+   Converts UTC epoch seconds to time in MYSQL_TIME representation.
+
+   @param[out]   tmp  equivalent time point in MYSQL_TIME representation
+   @param[in]    t    number of seconds in UNIX epoch
+   */
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const = 0;
   /**
-    Comverts "struct timeval" to local time in
-    broken down MYSQL_TIME represendation.
+    Converts UTC epoch seconds and microseconds to time in
+    MYSQL_TIME representation.
+
+    @param[in]    tv   number of seconds and microseconds in UNIX epoch
+    @param[out]   tmp  equivalent time point in MYSQL_TIME representation
   */
-  void gmt_sec_to_TIME(MYSQL_TIME *tmp, struct timeval tv) {
-    gmt_sec_to_TIME(tmp, (my_time_t)tv.tv_sec);
-    tmp->second_part = tv.tv_usec;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_timeval tv) const {
+    gmt_sec_to_TIME(tmp, (my_time_t)tv.m_tv_sec);
+    tmp->second_part = tv.m_tv_usec;
   }
   /**
     Because of constness of String returned by get_name() time zone name
@@ -78,12 +84,20 @@ class Time_zone {
     of c_ptr().
   */
   virtual const String *get_name() const = 0;
-
+  /**
+   *Returns the timezone type set.
+   */
+  virtual tz_type get_timezone_type() const = 0;
+  /**
+    Returns the offset set for a Timezone offset.
+    This function has to be invoked ONLY when TZ_OFFSET is set.
+  */
+  virtual long get_timezone_offset() const = 0;
   /**
     We need this only for surpressing warnings, objects of this type are
     allocated on MEM_ROOT and should not require destruction.
   */
-  virtual ~Time_zone() {}
+  virtual ~Time_zone() = default;
 
  protected:
   static inline void adjust_leap_second(MYSQL_TIME *t);
@@ -98,6 +112,11 @@ extern bool my_tz_init(THD *org_thd, const char *default_tzname,
 extern void my_tz_free();
 extern my_time_t sec_since_epoch_TIME(MYSQL_TIME *t);
 
+bool check_time_zone_convertibility(const MYSQL_TIME &mt);
+bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt);
+my_time_t use_input_time_zone(const MYSQL_TIME *input, bool *in_dst_time_gap);
+void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset);
+
 /**
   Number of elements in table list produced by my_tz_get_table_list()
   (this table list contains tables which are needed for dynamical loading
@@ -107,5 +126,4 @@ extern my_time_t sec_since_epoch_TIME(MYSQL_TIME *t);
 
 static const int MY_TZ_TABLES_COUNT = 4;
 
-#endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */
 #endif /* TZTIME_INCLUDED */

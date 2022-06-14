@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,6 +37,13 @@ static handler *create_handler(handlerton *hton, TABLE_SHARE *table_share, bool,
   return new (mem_root) temptable::Handler(hton, table_share);
 }
 
+static int close_connection(handlerton *hton, THD *thd) {
+  (void)hton;
+  temptable::kv_store_shards_debug_dump();
+  temptable::shared_block_pool_release(thd);
+  return 0;
+}
+
 static st_mysql_storage_engine temptable_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 
@@ -49,6 +56,7 @@ static int init(void *p) {
   h->flags = HTON_ALTER_NOT_SUPPORTED | HTON_CAN_RECREATE | HTON_HIDDEN |
              HTON_NOT_USER_SELECTABLE | HTON_NO_PARTITION |
              HTON_NO_BINLOG_ROW_OPT | HTON_SUPPORTS_EXTENDED_KEYS;
+  h->close_connection = close_connection;
 
   temptable::Allocator<uint8_t>::init();
 
@@ -60,7 +68,7 @@ mysql_declare_plugin(temptable) {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &temptable_storage_engine,
   "TempTable",
-  "Oracle Corporation",
+  PLUGIN_AUTHOR_ORACLE,
   "InnoDB temporary storage engine",
   PLUGIN_LICENSE_GPL,
   init,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,8 +55,8 @@ static const char HEX_DIGITS[] = "0123456789abcdef";
 ///////////////////////////////////////////////////////////////////////////
 
 longlong Item_func_inet_aton::val_int() {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
 
   uint byte_result = 0;
@@ -100,9 +100,10 @@ longlong Item_func_inet_aton::val_int() {
     */
     switch (dot_count) {
       case 1:
-        result <<= 8; /* Fall through */
+        result <<= 8;
+        [[fallthrough]];
       case 2:
-        result <<= 8; /* Fall through */
+        result <<= 8;
     }
     if (dot_count > 3)  // Too many groups
       goto err;
@@ -126,8 +127,8 @@ err:
 ///////////////////////////////////////////////////////////////////////////
 
 String *Item_func_inet_ntoa::val_str(String *str) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
   ulonglong n = (ulonglong)args[0]->val_int();
 
@@ -137,7 +138,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
 
     Also return null if n > 255.255.255.255
   */
-  if (args[0]->null_value) return NULL;
+  if (args[0]->null_value) return nullptr;
   if (n > (ulonglong)4294967295LL) {
     char buf[256];
     String err(buf, sizeof(buf), system_charset_info);
@@ -147,7 +148,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
                         ER_WRONG_VALUE_FOR_TYPE,
                         ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "integer",
                         err.c_ptr_safe(), func_name());
-    return NULL;
+    return nullptr;
   }
   null_value = false;
 
@@ -190,16 +191,20 @@ String *Item_func_inet_ntoa::val_str(String *str) {
 */
 
 longlong Item_func_inet_bool_base::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   if (args[0]->result_type() != STRING_RESULT)  // String argument expected
     return 0;
 
+  null_value = false;
+
   String buffer;
   String *arg_str = args[0]->val_str(&buffer);
 
-  if (!arg_str)  // Out-of memory happened. The error has been reported.
-    return 0;    // Or: the underlying field is NULL
+  if (arg_str == nullptr || args[0]->null_value) {
+    null_value = true;
+    return 0;
+  }
 
   return calc_value(arg_str) ? 1 : 0;
 }
@@ -215,8 +220,8 @@ longlong Item_func_inet_bool_base::val_int() {
 */
 
 String *Item_func_inet_str_base::val_str_ascii(String *buffer) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
   String *arg_str;
 
@@ -229,7 +234,7 @@ String *Item_func_inet_str_base::val_str_ascii(String *buffer) {
       args[0]->result_type() != STRING_RESULT)  // (2)
   {
     // NULL value can be checked only after calling a val_* func
-    if (args[0]->null_value) return NULL;
+    if (args[0]->null_value) return nullptr;
     goto err;
   }
 
@@ -247,7 +252,7 @@ err:
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",
                       err.c_ptr_safe(), func_name());
-  return NULL;
+  return error_str();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -412,7 +417,7 @@ static bool str_to_ipv6(const char *str, int str_length,
   char *ipv6_bytes = (char *)ipv6_address;
   char *ipv6_bytes_end = ipv6_bytes + IN6_ADDR_SIZE;
   char *dst = ipv6_bytes;
-  char *gap_ptr = NULL;
+  char *gap_ptr = nullptr;
   const char *group_start_ptr = p;
   int chars_in_group = 0;
   int group_value = 0;
@@ -495,7 +500,7 @@ static bool str_to_ipv6(const char *str, int str_length,
       group_value <<= 4;
       group_value |= hdp - HEX_DIGITS;
 
-      DBUG_ASSERT(group_value <= 0xffff);
+      assert(group_value <= 0xffff);
 
       ++chars_in_group;
     }

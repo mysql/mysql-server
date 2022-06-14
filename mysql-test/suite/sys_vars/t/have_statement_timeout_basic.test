@@ -55,5 +55,5 @@ SELECT COUNT(@@GLOBAL.have_statement_timeout);
 --echo 1 Expected
 
 --error ER_BAD_FIELD_ERROR
-SELECT have_statement_timeout = @@SESSION.have_statement_timeout;
---echo Expected error 'Readonly variable'
+SELECT have_statement_timeout;
+--echo Expected error 'Unknown column'

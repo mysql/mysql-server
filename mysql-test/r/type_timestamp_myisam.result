@@ -9,7 +9,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show fields from t1;
 Field	Type	Null	Key	Default	Extra
-id	int(11)	NO	PRI	NULL	auto_increment
+id	int	NO	PRI	NULL	auto_increment
 username	varchar(80)	NO			
 posted_on	timestamp	NO		0000-00-00 00:00:00	
 select is_nullable from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='t1' and COLUMN_NAME='posted_on';

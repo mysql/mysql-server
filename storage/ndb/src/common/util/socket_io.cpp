@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,83 +188,6 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   }
   
   return 0;
-}
-
-extern "C"
-int
-print_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
-	     const char * fmt, ...){
-  va_list ap;
-  va_start(ap, fmt);
-  int ret = vprint_socket(socket, timeout_millis, time, fmt, ap);
-  va_end(ap);
-
-  return ret;
-}
-
-extern "C"
-int
-println_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
-	       const char * fmt, ...){
-  va_list ap;
-  va_start(ap, fmt);
-  int ret = vprintln_socket(socket, timeout_millis, time, fmt, ap);
-  va_end(ap);
-  return ret;
-}
-
-extern "C"
-int
-vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
-	      const char * fmt, va_list ap){
-  char buf[1000];
-  char *buf2 = buf;
-  size_t size;
-
-  if (fmt != 0 && fmt[0] != 0) {
-    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
-    /* Check if the output was truncated */
-    if(size > sizeof(buf)) {
-      buf2 = (char *)malloc(size);
-      if(buf2 == NULL)
-	return -1;
-      BaseString::vsnprintf(buf2, size, fmt, ap);
-    }
-  } else
-    return 0;
-
-  int ret = write_socket(socket, timeout_millis, time, buf2, (int)size);
-  if(buf2 != buf)
-    free(buf2);
-  return ret;
-}
-
-extern "C"
-int
-vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
-		const char * fmt, va_list ap){
-  char buf[1000];
-  char *buf2 = buf;
-  size_t size;
-
-  if (fmt != 0 && fmt[0] != 0) {
-    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap)+1;// extra byte for '/n'
-    /* Check if the output was truncated */
-    if(size > sizeof(buf)) {
-      buf2 = (char *)malloc(size);
-      if(buf2 == NULL)
-	return -1;
-      BaseString::vsnprintf(buf2, size, fmt, ap);
-    }
-  } else {
-    size = 1;
-  }
-  buf2[size-1]='\n';
-
-  int ret = write_socket(socket, timeout_millis, time, buf2, (int)size);
-  if(buf2 != buf)
-    free(buf2);
-  return ret;
 }
 
 #ifdef _WIN32

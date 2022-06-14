@@ -20,6 +20,14 @@ LET $index_directory_clause = INDEX DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
 --echo #
+--echo # Restart with innodb-directories set to MYSQL_TMP_DIR.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--echo #
 --echo # CREATE TABLE ... DATA DIRECTORY
 --echo # Innodb does not support INDEX DIRECTORY.
 --echo #
@@ -511,9 +519,16 @@ SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LI
 --echo #
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --let $restart_parameters = "restart: --innodb_directories=$MYSQL_TMP_DIR/my_dir2"
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
 
 --echo #
 --echo # Restart server without --innodb_directories option
@@ -567,3 +582,11 @@ SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LI
 --echo #
 DROP DATABASE `abc/def`;
 --force-rmdir $MYSQL_TMP_DIR/my_dir1
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
+call mtr.add_suppression("\\[Warning\\].* Tablespace .*, name '.*', file '.*' is missing");
+--enable_query_log

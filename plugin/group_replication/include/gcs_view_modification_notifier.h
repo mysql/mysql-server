@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,8 @@ class Plugin_gcs_view_modification_notifier {
   /**
     Checks if there is a view modification ongoing.
 
-    @return
-      @retval true  there is a view modification ongoing
-      @retval false otherwise
+    @retval true  there is a view modification ongoing
+    @retval false otherwise
    */
   bool is_view_modification_ongoing();
 
@@ -69,9 +68,8 @@ class Plugin_gcs_view_modification_notifier {
     Check if view modification was cancelled.
     This method must only be called after view modification is complete.
 
-    @return
-      @retval true   view modification was cancelled
-      @retval false  otherwise
+    @retval true   view modification was cancelled
+    @retval false  otherwise
   */
   bool is_cancelled();
 

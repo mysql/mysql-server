@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2003, 2019, Oracle and/or its affiliates.  All rights reserved
+ Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -507,7 +508,7 @@ runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
 
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
   Uint8 * pRow = new Uint8[len];
-  bzero(pRow, len);
+  std::memset(pRow, 0, len);
 
   HugoCalculator calc(* pTab);
   calc.equalForRow(pRow, pRowRecord, 0);
@@ -520,7 +521,7 @@ runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
   code.finalise();
 
   NdbOperation::OperationOptions opts;
-  bzero(&opts, sizeof(opts));
+  std::memset(&opts, 0, sizeof(opts));
   opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
   opts.interpretedCode = &code;
 

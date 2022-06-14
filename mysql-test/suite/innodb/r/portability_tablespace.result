@@ -1,4 +1,6 @@
-# restart:--innodb-directories=MYSQL_TMP_DIR
+# Define old data locations
+# restart: --innodb-directories=MYSQL_TMP_DIR/old/remote_dir
+# Define and create new datadir folders
 ## create all kinds of tables including absolute paths
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
 CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
@@ -12,20 +14,20 @@ CREATE TABLE tab3(
 empno INT, ename VARCHAR(30),sal NUMERIC(3))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED
 PARTITION by hash(empno) (
-PARTITION P0 DATA DIRECTORY 'MYSQL_TMP_DIR/db_directory1',
-PARTITION P1 DATA DIRECTORY 'MYSQL_TMP_DIR/db_directory1');
+PARTITION P0 DATA DIRECTORY 'MYSQL_TMP_DIR/old/remote_dir',
+PARTITION P1 DATA DIRECTORY 'MYSQL_TMP_DIR/old/remote_dir');
 # Create a tablespace in a known location with absolute path.
-CREATE TABLESPACE ts2 ADD DATAFILE 'MYSQL_TMP_DIR/db_directory1/ts2.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts2 ADD DATAFILE 'MYSQL_TMP_DIR/old/remote_dir/ts2.ibd' Engine=InnoDB;
 DROP TABLESPACE ts2;
 # Create a tablespace in a known location with relative path.
 CREATE TABLESPACE ts2 ADD DATAFILE '../data/ts2.ibd' Engine=InnoDB;
 DROP TABLESPACE ts2;
 # Try to create a tablespace in an unknown location.
 CREATE TABLESPACE ts2 ADD DATAFILE '../ts2.ibd' Engine=InnoDB;
-ERROR HY000: CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+ERROR HY000: The DATAFILE location must be in a known directory.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE ts2
 Error	3121	Incorrect File Name '../ts2.ibd'.
 CREATE INDEX ix1 ON tab3(ename) USING BTREE;
@@ -34,28 +36,28 @@ INSERT INTO tab3 VALUES (300,'VISWANATH',100);
 SHOW CREATE TABLE tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
-(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/db_directory1/' ENGINE = InnoDB,
- PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/db_directory1/' ENGINE = InnoDB) */
+(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/old/remote_dir/' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/old/remote_dir/' ENGINE = InnoDB) */
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
@@ -64,15 +66,15 @@ FILE_NAME	FILE_TYPE	TABLESPACE_NAME
 ./undo_002	UNDO LOG	innodb_undo_002
 ./undo_003.ibu	UNDO LOG	undo_003
 ./undo_004.ibu	UNDO LOG	undo_004
-SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
-SPACE	PATH
-4294967279	./undo_001
-4294967278	./undo_002
-4294967277	undo_003.ibu
-4294967276	undo_004.ibu
+SELECT path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
+PATH
+./undo_001
+./undo_002
+undo_003.ibu
+undo_004.ibu
 ## Stop DB server
 # Copy whole --datadir files into new locations
-# Copy absolute path *.ibd files into new location
+# Copy remote *.ibd files into new remote location
 # Remove the old datadir files and *.ibd files
 # Start with --innodb-directories along with other initDB options
 # Check new datadir
@@ -81,90 +83,90 @@ SELECT @@datadir;
 NEW_DATADIR/
 SELECT @@innodb_undo_directory;
 @@innodb_undo_directory
-MYSQL_TMP_DIR/undo_directory1
+MYSQL_TMP_DIR/new/undo_dir
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
-DATA_HOME_DIR/data_home_dir
+DATA_HOME_DIR/new/data_home_dir
 SELECT @@innodb_log_group_home_dir;
 @@innodb_log_group_home_dir
-DATA_HOME_DIR/data_home_dir
+DATA_HOME_DIR/new/data_home_dir
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
-(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/undo_directory2' ENGINE = InnoDB,
- PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/undo_directory2' ENGINE = InnoDB) */
+(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/new/remote_dir' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/new/remote_dir' ENGINE = InnoDB) */
 SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME
-MYSQL_TMP_DIR/undo_directory1/undo_001	UNDO LOG	innodb_undo_001
-MYSQL_TMP_DIR/undo_directory1/undo_002	UNDO LOG	innodb_undo_002
-MYSQL_TMP_DIR/undo_directory1/undo_003.ibu	UNDO LOG	undo_003
-MYSQL_TMP_DIR/undo_directory2/undo_004.ibu	UNDO LOG	undo_004
-SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
-SPACE	PATH
-4294967279	MYSQL_TMP_DIR/undo_directory1/undo_001
-4294967278	MYSQL_TMP_DIR/undo_directory1/undo_002
-4294967277	MYSQL_TMP_DIR/undo_directory1/undo_003.ibu
-4294967276	MYSQL_TMP_DIR/undo_directory2/undo_004.ibu
+MYSQL_TMP_DIR/new/undo_dir/undo_001	UNDO LOG	innodb_undo_001
+MYSQL_TMP_DIR/new/undo_dir/undo_002	UNDO LOG	innodb_undo_002
+MYSQL_TMP_DIR/new/undo_dir/undo_003.ibu	UNDO LOG	undo_003
+MYSQL_TMP_DIR/new/remote_dir/undo_004.ibu	UNDO LOG	undo_004
+SELECT path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
+PATH
+MYSQL_TMP_DIR/new/remote_dir/undo_004.ibu
+MYSQL_TMP_DIR/new/undo_dir/undo_001
+MYSQL_TMP_DIR/new/undo_dir/undo_002
+MYSQL_TMP_DIR/new/undo_dir/undo_003.ibu
 # Stop DB server
 # Start with new --datadir only
-# restart: --datadir=NEW_DATADIR --innodb_undo_directory=MYSQL_TMP_DIR/undo_directory1 --innodb_data_home_dir=MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=MYSQL_TMP_DIR/data_home_dir --innodb-directories=MYSQL_TMP_DIR
+# restart: --datadir=MYSQL_TMP_DIR/new/data --innodb_undo_directory=MYSQL_TMP_DIR/new/undo_dir --innodb_data_home_dir=MYSQL_TMP_DIR/new/data_home_dir --innodb_log_group_home_dir=MYSQL_TMP_DIR/new/data_home_dir --innodb-directories=MYSQL_TMP_DIR/new/remote_dir
 # Check with new --datadir
 SELECT @@datadir;
 @@datadir
 NEW_DATADIR/
 SELECT @@innodb_undo_directory;
 @@innodb_undo_directory
-MYSQL_TMP_DIR/undo_directory1
+MYSQL_TMP_DIR/new/undo_dir
 SELECT @@innodb_data_home_dir;
 @@innodb_data_home_dir
-DATA_HOME_DIR/data_home_dir
+DATA_HOME_DIR/new/data_home_dir
 SELECT @@innodb_log_group_home_dir;
 @@innodb_log_group_home_dir
-DATA_HOME_DIR/data_home_dir
+DATA_HOME_DIR/new/data_home_dir
 # Check the tables with SHOW
 SHOW CREATE TABLE tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
-(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/undo_directory2' ENGINE = InnoDB,
- PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/undo_directory2' ENGINE = InnoDB) */
+(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/new/remote_dir' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/new/remote_dir' ENGINE = InnoDB) */
 SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME
-MYSQL_TMP_DIR/undo_directory1/undo_001	UNDO LOG	innodb_undo_001
-MYSQL_TMP_DIR/undo_directory1/undo_002	UNDO LOG	innodb_undo_002
-MYSQL_TMP_DIR/undo_directory1/undo_003.ibu	UNDO LOG	undo_003
-MYSQL_TMP_DIR/undo_directory2/undo_004.ibu	UNDO LOG	undo_004
-SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
-SPACE	PATH
-4294967279	MYSQL_TMP_DIR/undo_directory1/undo_001
-4294967278	MYSQL_TMP_DIR/undo_directory1/undo_002
-4294967277	MYSQL_TMP_DIR/undo_directory1/undo_003.ibu
-4294967276	MYSQL_TMP_DIR/undo_directory2/undo_004.ibu
+MYSQL_TMP_DIR/new/undo_dir/undo_001	UNDO LOG	innodb_undo_001
+MYSQL_TMP_DIR/new/undo_dir/undo_002	UNDO LOG	innodb_undo_002
+MYSQL_TMP_DIR/new/undo_dir/undo_003.ibu	UNDO LOG	undo_003
+MYSQL_TMP_DIR/new/remote_dir/undo_004.ibu	UNDO LOG	undo_004
+SELECT path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
+PATH
+MYSQL_TMP_DIR/new/remote_dir/undo_004.ibu
+MYSQL_TMP_DIR/new/undo_dir/undo_001
+MYSQL_TMP_DIR/new/undo_dir/undo_002
+MYSQL_TMP_DIR/new/undo_dir/undo_003.ibu
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
 ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
 # Check with DML & DDL operations
@@ -211,22 +213,22 @@ innodb_undo_002	Undo	active
 undo_003	Undo	active
 undo_004	Undo	active
 # Creating general tablespace in known DIR location
-CREATE TABLESPACE ts2 ADD DATAFILE 'DATA_HOME_DIR/data_home_dir/ts2.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts2 ADD DATAFILE 'DATA_HOME_DIR/new/data_home_dir/ts2.ibd' Engine=InnoDB;
 CREATE TABLE tab4(c1 int, c2 varchar(10)) TABLESPACE=ts2;
 SHOW CREATE TABLE tab4;
 Table	Create Table
 tab4	CREATE TABLE `tab4` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tab4 VALUES(1, 'VISH');
 # Creating general tablespace in known DIR location
-CREATE TABLESPACE ts3 ADD DATAFILE 'MYSQL_TMP_DIR/undo_directory1/ts3.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts3 ADD DATAFILE 'MYSQL_TMP_DIR/new/remote_dir/ts3.ibd' Engine=InnoDB;
 CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
 SHOW CREATE TABLE tab5;
 Table	Create Table
 tab5	CREATE TABLE `tab5` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tab5 VALUES(1, 'VISH');
@@ -239,7 +241,7 @@ DROP TABLESPACE ts1;
 # Cleanup the new DATA DIRECTORY *.ibd files
 # Test by providing the relative path
 # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
-# restart: --datadir=OLD_DATADIR --innodb-directories=MYSQL_TMP_DIR
+# restart: --innodb-directories=MYSQL_TMP_DIR/old/remote_dir
 # Check --datadir started with old
 SELECT @@datadir;
 @@datadir
@@ -250,34 +252,34 @@ FILE_NAME	FILE_TYPE	TABLESPACE_NAME
 ./undo_002	UNDO LOG	innodb_undo_002
 ./undo_003.ibu	UNDO LOG	undo_003
 ./undo_004.ibu	UNDO LOG	undo_004
-SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
-SPACE	PATH
-4294967152	./undo_001
-4294967151	./undo_002
-4294967277	./undo_003.ibu
-4294967276	./undo_004.ibu
+SELECT path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
+PATH
+./undo_001
+./undo_002
+./undo_003.ibu
+./undo_004.ibu
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   `c3` varchar(15) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
-(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/db_directory1' ENGINE = InnoDB,
- PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/db_directory1' ENGINE = InnoDB) */
+(PARTITION P0 DATA DIRECTORY = 'MYSQL_TMP_DIR/old/remote_dir' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'MYSQL_TMP_DIR/old/remote_dir' ENGINE = InnoDB) */
 SHOW CREATE TABLE tab4;
 Table	Create Table
 tab4	CREATE TABLE `tab4` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab5;
 Table	Create Table
 tab5	CREATE TABLE `tab5` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
@@ -290,38 +292,41 @@ undo_003	Undo	empty
 undo_004	Undo	empty
 SHOW VARIABLES LIKE '%directories%';
 Variable_name	Value
-innodb_directories	MYSQL_TMP_DIR
+innodb_directories	MYSQL_TMP_DIR/old/remote_dir
 # Creating general tablespace in known DIR location (DATA DIRECTORY)
-CREATE TABLESPACE ts4 ADD DATAFILE 'MYSQL_TMP_DIR/db_directory1/ts4.ibd' Engine=InnoDB;
+CREATE TABLESPACE ts4 ADD DATAFILE 'MYSQL_TMP_DIR/old/remote_dir/ts4.ibd' Engine=InnoDB;
 CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
 INSERT INTO tab6 VALUES(1, 'VISH');
-# Stop DB server
-# Re-start with old --datadir only
-# restart: --datadir=OLD_DATADIR
 DELETE FROM tab3;
 DELETE FROM tab4;
 DELETE FROM tab5;
 DELETE FROM tab6;
-SELECT TABLESPACE_NAME,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
-TABLESPACE_NAME	TABLE_NAME	ENGINE
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
-#	NULL	InnoDB
+SELECT ENGINE, TABLESPACE_NAME FROM INFORMATION_SCHEMA.FILES ORDER BY TABLESPACE_NAME;
+ENGINE	TABLESPACE_NAME
+InnoDB	innodb_system
+InnoDB	innodb_temporary
+InnoDB	innodb_undo_001
+InnoDB	innodb_undo_002
+InnoDB	mtr/asserted_test_suppressions
+InnoDB	mtr/global_suppressions
+InnoDB	mtr/test_ignored_global_suppressions
+InnoDB	mtr/test_suppressions
+InnoDB	mysql
+InnoDB	sys/sys_config
+InnoDB	test/tab3#p#p0
+InnoDB	test/tab3#p#p1
+InnoDB	ts2
+InnoDB	ts3
+InnoDB	ts4
+InnoDB	undo_003
+InnoDB	undo_004
 DROP TABLE tab3;
 DROP TABLE tab4;
 DROP TABLE tab5;
 DROP TABLE tab6;
+DROP TABLESPACE ts4;
+DROP TABLESPACE ts3;
+DROP TABLESPACE ts2;
 DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
+# restart:

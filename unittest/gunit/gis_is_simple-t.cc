@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
@@ -59,7 +59,7 @@ struct Is_simple : Gis_test<T_typeset> {
   }
 };
 
-TYPED_TEST_CASE(Is_simple, gis_typeset::Test_both);
+TYPED_TEST_SUITE(Is_simple, gis_typeset::Test_both);
 using Is_simple_car = Is_simple<gis_typeset::Cartesian>;
 using Is_simple_geo = Is_simple<gis_typeset::Geographic>;
 

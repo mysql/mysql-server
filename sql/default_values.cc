@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/default_values.h"
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -29,7 +30,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compare.h"
-#include "my_dbug.h"
+
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -73,7 +74,7 @@ static size_t column_pack_length(const dd::Column &col_obj) {
 
   if (col_obj.type() == dd::enum_column_types::BIT) {
     if (col_obj.options().get("treat_bit_as_char", &treat_bit_as_char))
-      DBUG_ASSERT(false); /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
   }
   return calc_pack_length(col_type, col_obj.char_length(),
                           col_obj.elements_count(), treat_bit_as_char,
@@ -102,7 +103,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
   bool pack_record;
   if (table.options().get("pack_record", &pack_record)) return true;
 
-  DBUG_ASSERT(share);
+  assert(share);
   share->fields = 0;
   share->null_fields = 0;
   share->reclength = 0;
@@ -163,7 +164,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
 static void set_pack_record_and_unused_preamble_bits(bool pack_record,
                                                      ulong preamble_bits,
                                                      uchar *default_values) {
-  DBUG_ASSERT(default_values);
+  assert(default_values);
 
   // Set first bit if the HA_OPTION_PACK_RECORD is not set.
   if (!pack_record) *default_values |= 1;
@@ -178,31 +179,28 @@ static void set_pack_record_and_unused_preamble_bits(bool pack_record,
 size_t max_pack_length(const List<Create_field> &create_fields) {
   size_t max_pack_length = 0;
   // Iterate over the create fields and find the largest one.
-  List_iterator<Create_field> field_it(
-      const_cast<List<Create_field> &>(create_fields));
-  Create_field *field;
-  while ((field = field_it++))
-    max_pack_length = std::max<size_t>(field->pack_length(), max_pack_length);
+  for (const Create_field &field : create_fields) {
+    max_pack_length = std::max(field.pack_length(), max_pack_length);
+  }
   return max_pack_length;
 }
 
-bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
+bool prepare_default_value(THD *thd, uchar *buf, TABLE *table,
                            const Create_field &field, dd::Column *col_obj) {
   // Create a fake field with a real data buffer in which to store the value.
-  Field *regfield = make_field(field, table.s, buf + 1, buf, 0 /* null_bit */);
+  Field *regfield = make_field(field, table->s, buf + 1, buf, 0 /* null_bit */);
 
   bool retval = true;
   if (!regfield) goto err;
 
-  // save_in_field() will access regfield->table->in_use.
-  regfield->init(const_cast<TABLE *>(&table));
+  regfield->init(table);
 
   // Set if the field may be NULL.
   if (!(field.flags & NOT_NULL_FLAG)) regfield->set_null();
 
   if (field.constant_default) {
     // Pointless to store the value of a function as it may not be constant.
-    DBUG_ASSERT(field.constant_default->type() != Item::FUNC_ITEM);
+    assert(field.constant_default->type() != Item::FUNC_ITEM);
     type_conversion_status res =
         field.constant_default->save_in_field(regfield, true);
     if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
@@ -213,6 +211,12 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
       my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
       goto err;
     }
+    if (res != TYPE_OK && thd->is_error()) {
+      // Conversion errors may be reported as errors or warnings depending on
+      // user-configurable settings.
+      goto err;
+    }
+    assert(!thd->is_error());
   } else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
              (field.flags & NOT_NULL_FLAG)) {
     regfield->set_notnull();
@@ -258,15 +262,15 @@ err:
 bool prepare_default_value_buffer_and_table_share(THD *thd,
                                                   const dd::Table &table,
                                                   TABLE_SHARE *share) {
-  DBUG_ASSERT(share);
+  assert(share);
 
   // Get the handler temporarily, needed to get minimal record length as
   // well as extra record length.
-  handler *file = NULL;
+  handler *file = nullptr;
   handlerton *engine = share->db_type();
-  if (!(file =
-            get_new_handler(NULL, table.partition_type() != dd::Table::PT_NONE,
-                            thd->mem_root, engine))) {
+  if (!(file = get_new_handler(nullptr,
+                               table.partition_type() != dd::Table::PT_NONE,
+                               thd->mem_root, engine))) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(handler)));
     return true;

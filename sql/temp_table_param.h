@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,21 +23,26 @@
 #ifndef TEMP_TABLE_PARAM_INCLUDED
 #define TEMP_TABLE_PARAM_INCLUDED
 
+#include <sys/types.h>
 #include <vector>
 
 #include "my_base.h"
+#include "my_inttypes.h"
+#include "sql/field.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_list.h"
 #include "sql/thr_malloc.h"
-#include "sql/window.h"
 
 class KEY;
-class Copy_field;
 class Item;
 class Window;
+struct CHARSET_INFO;
+struct MEM_ROOT;
 
 template <typename T>
-using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
+using Mem_root_vector = std::vector<T, Mem_root_allocator<T>>;
+
+enum Copy_func_type : int;
 
 /**
    Helper class for copy_funcs(); represents an Item to copy from table to
@@ -45,17 +50,40 @@ using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
 */
 class Func_ptr {
  public:
-  explicit Func_ptr(Item *f) : m_func(f) {}
+  Func_ptr(Item *item, Field *result_field);
+
   Item *func() const { return m_func; }
-  void set_override_result_field(Field *f) { m_override_result_field = f; }
-  Field *override_result_field() const { return m_override_result_field; }
+  void set_func(Item *func);
+  Field *result_field() const { return m_result_field; }
+  Item_field *result_item() const;
+  bool should_copy(Copy_func_type type) const {
+    return m_func_bits & (1 << type);
+  }
 
  private:
   Item *m_func;
+  Field *m_result_field;
 
-  /// If not nullptr, copy_funcs() will save the result of m_func here instead
-  /// of in m_func's usual designated result field.
-  Field *m_override_result_field = nullptr;
+  // A premade Item_field for m_result_field (may be nullptr if allocation
+  // failed). This has two purposes:
+  //
+  //  - It avoids repeated constructions if the field is used multiple times
+  //    (e.g., first in a SELECT list, then in a sort order).
+  //  - It gives a canonical, unique item, so that we can compare it with ==
+  //    (in FindReplacementItem(), where ->eq would have a metadata issues).
+  //    This is important if we are to replace it with something else again
+  //    later.
+  //
+  // It is created on-demand to avoid getting into the thd->stmt_arena field
+  // list for a temporary table that is freed later anyway.
+  mutable Item_field *m_result_item = nullptr;
+
+  // A bitmap where all CFT_* enums are bit indexes, and we have a 1 if m_func
+  // is of the type given by that enum. E.g., if m_func is an Item_field,
+  // (1 << CFT_FIELDS) will be set here. This is used for quickly finding out
+  // which items to copy in copy_funcs(), without having to look at the actual
+  // items (which involves virtual function calls).
+  int m_func_bits;
 };
 
 /// Used by copy_funcs()
@@ -69,15 +97,7 @@ typedef Mem_root_array<Func_ptr> Func_ptr_array;
 
 class Temp_table_param {
  public:
-  /**
-    Used to store the values of grouped non-column-reference expressions in
-    between groups, so they can be retreived when the group changes.
-
-    @see setup_copy_fields
-    @see copy_fields
-  */
-  Memroot_vector<Item_copy *> grouped_expressions;
-  Memroot_vector<Copy_field> copy_fields;
+  Mem_root_vector<Copy_field> copy_fields;
 
   uchar *group_buff;
   Func_ptr_array *items_to_copy; /* Fields in tmp table */
@@ -88,19 +108,16 @@ class Temp_table_param {
     duplicate elimination, etc. There is at most one such index.
   */
   KEY *keyinfo;
-  ha_rows end_write_records;
-  /**
-    Number of normal fields in the query, including those referred to
-    from aggregate functions. Hence, "SELECT `field1`,
-    SUM(`field2`) from t1" sets this counter to 2.
 
-    @see count_field_types
-  */
-  uint field_count;
   /**
-    Number of fields in the query that have functions. Includes both
-    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND)
-    and windowing functions.
+    LIMIT (maximum number of rows) for this temp table, or HA_POS_ERROR
+    for no limit. Enforced by MaterializeIterator when writing to the table.
+   */
+  ha_rows end_write_records{HA_POS_ERROR};
+
+  /**
+    Number of items in the query. Includes both aggregate functions (e.g., SUM),
+    and non-aggregates (e.g., RAND), window functions and fields.
     Also counts functions referred to from windowing or aggregate functions,
     i.e., "SELECT SUM(RAND())" sets this counter to 2.
 
@@ -170,8 +187,11 @@ class Temp_table_param {
   /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
 
-  /// (Last) window's tmp file step can be skipped
-  bool m_window_short_circuit;
+  /// Whether UNIQUE keys should always be implemented by way of a hidden
+  /// hash field, never a unique index. Needed for materialization of mixed
+  /// UNION ALL / UNION DISTINCT queries (see comments in
+  /// create_result_table()).
+  bool force_hash_field_for_unique{false};
 
   /// This tmp table is used for a window's frame buffer
   bool m_window_frame_buffer{false};
@@ -180,13 +200,10 @@ class Temp_table_param {
   Window *m_window;
 
   Temp_table_param(MEM_ROOT *mem_root = *THR_MALLOC)
-      : grouped_expressions(Memroot_allocator<Item_copy *>(mem_root)),
-        copy_fields(Memroot_allocator<Copy_field>(mem_root)),
+      : copy_fields(Mem_root_allocator<Copy_field>(mem_root)),
         group_buff(nullptr),
         items_to_copy(nullptr),
-        keyinfo(NULL),
-        end_write_records(0),
-        field_count(0),
+        keyinfo(nullptr),
         func_count(0),
         sum_func_count(0),
         hidden_field_count(0),
@@ -195,20 +212,16 @@ class Temp_table_param {
         group_null_parts(0),
         outer_sum_func_count(0),
         using_outer_summary_function(false),
-        table_charset(NULL),
+        table_charset(nullptr),
         schema_table(false),
         precomputed_group_by(false),
         force_copy_fields(false),
         skip_create_table(false),
         bit_fields_as_long(false),
         can_use_pk_for_unique(true),
-        m_window_short_circuit(false),
         m_window(nullptr) {}
 
-  void cleanup() {
-    grouped_expressions.clear();
-    copy_fields.clear();
-  }
+  void cleanup() { copy_fields.clear(); }
 };
 
 #endif  // TEMP_TABLE_PARAM_INCLUDED

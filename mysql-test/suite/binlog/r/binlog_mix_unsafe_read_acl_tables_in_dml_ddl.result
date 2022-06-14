@@ -1,0 +1,887 @@
+RESET MASTER;
+# Populate ACL tbales that has no rows.
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (33);
+CREATE PROCEDURE proc1() BEGIN SELECT * FROM t1; END //
+CREATE FUNCTION func1 () RETURNS INTEGER
+BEGIN
+DECLARE HostVar VARCHAR(400);
+SELECT Host INTO HostVar FROM mysql.user WHERE User='u2';
+RETURN 1;
+END //
+CREATE USER u1 PASSWORD HISTORY 3;
+CREATE USER u2 PASSWORD HISTORY 3;
+GRANT u2 TO u1;
+SET DEFAULT ROLE u2 TO u1;
+GRANT SELECT (f1) ON test.t1 TO u1;
+GRANT EXECUTE ON PROCEDURE test.proc1 TO u1;
+SET @old_sql_mode := @@sql_mode ;
+SET @new_sql_mode := @old_sql_mode ;
+SET @new_sql_mode := TRIM(BOTH ',' FROM
+REPLACE(CONCAT(',',@new_sql_mode,','),',NO_ZERO_DATE,'
+                                  ,','));
+SET @new_sql_mode := TRIM(BOTH ',' FROM
+REPLACE(CONCAT(',',@new_sql_mode,','),',NO_ZERO_IN_DATE,',','));
+SET @@sql_mode := @new_sql_mode ;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+"Case 1.1: Using SERIALIZABLE"
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+"Test using mysql.user"
+include/save_binlog_position.inc
+CREATE TABLE mysql_user AS SELECT * FROM mysql.user;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM mysql_user;
+include/save_binlog_position.inc
+INSERT INTO mysql_user SELECT * FROM mysql.user;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE mysql_user;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM mysql.user);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM mysql.user);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.db"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_db AS SELECT * FROM  mysql.db;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_db;
+include/save_binlog_position.inc
+INSERT INTO  mysql_db SELECT * FROM  mysql.db;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_db;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.db);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.db);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.tables_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_tables_priv AS SELECT * FROM  mysql.tables_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_tables_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_tables_priv SELECT * FROM  mysql.tables_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_tables_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.columns_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_columns_priv AS SELECT * FROM  mysql.columns_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_columns_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_columns_priv SELECT * FROM  mysql.columns_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_columns_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.procs_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_procs_priv AS SELECT * FROM  mysql.procs_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_procs_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_procs_priv SELECT * FROM  mysql.procs_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_procs_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.proxies_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_proxies_priv AS SELECT * FROM  mysql.proxies_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_proxies_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_proxies_priv SELECT * FROM  mysql.proxies_priv;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_proxies_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.role_edges"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_role_edges AS SELECT * FROM  mysql.role_edges;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_role_edges;
+include/save_binlog_position.inc
+INSERT INTO  mysql_role_edges SELECT * FROM  mysql.role_edges;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_role_edges;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.default_roles"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_default_roles AS SELECT * FROM  mysql.default_roles;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_default_roles;
+include/save_binlog_position.inc
+INSERT INTO  mysql_default_roles SELECT * FROM  mysql.default_roles;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_default_roles;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.global_grants"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_global_grants AS SELECT * FROM  mysql.global_grants;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_global_grants;
+include/save_binlog_position.inc
+INSERT INTO  mysql_global_grants SELECT * FROM  mysql.global_grants;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_global_grants;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Case 1.2: Using REPEATABLE READ"
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+"Test using mysql.user"
+include/save_binlog_position.inc
+CREATE TABLE mysql_user AS SELECT * FROM mysql.user;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM mysql_user;
+include/save_binlog_position.inc
+INSERT INTO mysql_user SELECT * FROM mysql.user;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE mysql_user;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM mysql.user);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM mysql.user);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.db"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_db AS SELECT * FROM  mysql.db;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_db;
+include/save_binlog_position.inc
+INSERT INTO  mysql_db SELECT * FROM  mysql.db;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_db;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.db);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.db);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.tables_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_tables_priv AS SELECT * FROM  mysql.tables_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_tables_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_tables_priv SELECT * FROM  mysql.tables_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_tables_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.columns_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_columns_priv AS SELECT * FROM  mysql.columns_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_columns_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_columns_priv SELECT * FROM  mysql.columns_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_columns_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.procs_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_procs_priv AS SELECT * FROM  mysql.procs_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_procs_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_procs_priv SELECT * FROM  mysql.procs_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_procs_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.proxies_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_proxies_priv AS SELECT * FROM  mysql.proxies_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_proxies_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_proxies_priv SELECT * FROM  mysql.proxies_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_proxies_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.role_edges"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_role_edges AS SELECT * FROM  mysql.role_edges;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_role_edges;
+include/save_binlog_position.inc
+INSERT INTO  mysql_role_edges SELECT * FROM  mysql.role_edges;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_role_edges;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.default_roles"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_default_roles AS SELECT * FROM  mysql.default_roles;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_default_roles;
+include/save_binlog_position.inc
+INSERT INTO  mysql_default_roles SELECT * FROM  mysql.default_roles;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_default_roles;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.global_grants"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_global_grants AS SELECT * FROM  mysql.global_grants;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_global_grants;
+include/save_binlog_position.inc
+INSERT INTO  mysql_global_grants SELECT * FROM  mysql.global_grants;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_global_grants;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Case 1.3: Using READ COMMITTED"
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+"Test using mysql.user"
+include/save_binlog_position.inc
+CREATE TABLE mysql_user AS SELECT * FROM mysql.user;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM mysql_user;
+include/save_binlog_position.inc
+INSERT INTO mysql_user SELECT * FROM mysql.user;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE mysql_user;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM mysql.user);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM mysql.user);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.db"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_db AS SELECT * FROM  mysql.db;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_db;
+include/save_binlog_position.inc
+INSERT INTO  mysql_db SELECT * FROM  mysql.db;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_db;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.db);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.db);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.tables_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_tables_priv AS SELECT * FROM  mysql.tables_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_tables_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_tables_priv SELECT * FROM  mysql.tables_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_tables_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.columns_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_columns_priv AS SELECT * FROM  mysql.columns_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_columns_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_columns_priv SELECT * FROM  mysql.columns_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_columns_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.procs_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_procs_priv AS SELECT * FROM  mysql.procs_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_procs_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_procs_priv SELECT * FROM  mysql.procs_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_procs_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.proxies_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_proxies_priv AS SELECT * FROM  mysql.proxies_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_proxies_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_proxies_priv SELECT * FROM  mysql.proxies_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_proxies_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.role_edges"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_role_edges AS SELECT * FROM  mysql.role_edges;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_role_edges;
+include/save_binlog_position.inc
+INSERT INTO  mysql_role_edges SELECT * FROM  mysql.role_edges;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_role_edges;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.default_roles"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_default_roles AS SELECT * FROM  mysql.default_roles;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_default_roles;
+include/save_binlog_position.inc
+INSERT INTO  mysql_default_roles SELECT * FROM  mysql.default_roles;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_default_roles;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.global_grants"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_global_grants AS SELECT * FROM  mysql.global_grants;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_global_grants;
+include/save_binlog_position.inc
+INSERT INTO  mysql_global_grants SELECT * FROM  mysql.global_grants;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_global_grants;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Case 1.4: Using READ UNCOMMITTED"
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+"Test using mysql.user"
+include/save_binlog_position.inc
+CREATE TABLE mysql_user AS SELECT * FROM mysql.user;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM mysql_user;
+include/save_binlog_position.inc
+INSERT INTO mysql_user SELECT * FROM mysql.user;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE mysql_user;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM mysql.user);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM mysql.user);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.db"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_db AS SELECT * FROM  mysql.db;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_db;
+include/save_binlog_position.inc
+INSERT INTO  mysql_db SELECT * FROM  mysql.db;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_db;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.db);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.db);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.tables_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_tables_priv AS SELECT * FROM  mysql.tables_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_tables_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_tables_priv SELECT * FROM  mysql.tables_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_tables_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.tables_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.columns_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_columns_priv AS SELECT * FROM  mysql.columns_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_columns_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_columns_priv SELECT * FROM  mysql.columns_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_columns_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.columns_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.procs_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_procs_priv AS SELECT * FROM  mysql.procs_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_procs_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_procs_priv SELECT * FROM  mysql.procs_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_procs_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.procs_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.proxies_priv"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_proxies_priv AS SELECT * FROM  mysql.proxies_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_proxies_priv;
+include/save_binlog_position.inc
+INSERT INTO  mysql_proxies_priv SELECT * FROM  mysql.proxies_priv;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_proxies_priv;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.proxies_priv);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.role_edges"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_role_edges AS SELECT * FROM  mysql.role_edges;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_role_edges;
+include/save_binlog_position.inc
+INSERT INTO  mysql_role_edges SELECT * FROM  mysql.role_edges;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_role_edges;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.role_edges);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.default_roles"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_default_roles AS SELECT * FROM  mysql.default_roles;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_default_roles;
+include/save_binlog_position.inc
+INSERT INTO  mysql_default_roles SELECT * FROM  mysql.default_roles;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_default_roles;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.default_roles);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+"Test using  mysql.global_grants"
+include/save_binlog_position.inc
+CREATE TABLE  mysql_global_grants AS SELECT * FROM  mysql.global_grants;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid]
+DELETE FROM  mysql_global_grants;
+include/save_binlog_position.inc
+INSERT INTO  mysql_global_grants SELECT * FROM  mysql.global_grants;
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+DROP TABLE  mysql_global_grants;
+CREATE TABLE tmp (f1 INT);
+INSERT INTO tmp VALUES (10);
+include/save_binlog_position.inc
+UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Update_rows # Xid]
+include/save_binlog_position.inc
+DELETE FROM tmp WHERE EXISTS (SELECT * FROM  mysql.global_grants);
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid]
+DROP TABLE tmp;
+DROP PROCEDURE proc1;
+DROP FUNCTION func1;
+DROP USER u1;
+DROP USER u2;
+DROP TABLE t1;
+SET @@sql_mode := @old_sql_mode ;

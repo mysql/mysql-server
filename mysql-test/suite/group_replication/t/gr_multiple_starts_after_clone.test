@@ -1,0 +1,210 @@
+################################################################################
+# Validate that Group Replication does start correctly multiple times after
+# the server being cloned.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Install clone plugin on server1.
+#    Bootstrap server1 and add some data.
+# 2. Restart server2 with a monitoring process (mysqld_safe)
+#    if needed.
+#    Install clone plugin on server2.
+# 3. Start GR on server2, forcing clone.
+# 4. Stop GR applier on server2 so that all remote
+#    transactions are only queued on relay log.
+#    Execute some transactions on server1.
+# 5. Wait until server2 receives and certifies the transaction.
+#    Make both members leave the group.
+# 6. Start Group Replication only on server2.
+#    Assert that server1 and server2 have the same data.
+# 7. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Install clone plugin on server1.
+--echo #    Bootstrap server1 and add some data.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Restart server2 with a monitoring process (mysqld_safe)
+--echo #    if needed.
+--echo #    Install clone plugin on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_boot_save= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+--let $server2_datadir= `SELECT @@DATADIR`
+
+--let $plugin_list= $GROUP_REPLICATION
+--source include/spawn_monitoring_process.inc
+
+--disable_query_log
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
+SET PERSIST group_replication_start_on_boot= ON;
+--enable_query_log
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+
+--echo
+--echo ############################################################
+--echo # 3. Start GR on server2, forcing clone.
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+SET GLOBAL group_replication_clone_threshold= 1;
+
+START GROUP_REPLICATION;
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state=ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $assert_text= Clone must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+# Assert that group_replication_applier channel relay logs were purged after clone.
+--echo # group_replication_applier channel relay log files
+--list_files $server2_datadir server-relay-log-group_replication_applier.*
+
+--let $rpl_channel_name= 'group_replication_applier'
+--let $binlog_file= server-relay-log-group_replication_applier.000001
+--source include/show_relaylog_events.inc
+
+--let $rpl_channel_name= 'group_replication_applier'
+--let $binlog_file= server-relay-log-group_replication_applier.000002
+--source include/show_relaylog_events.inc
+
+
+--echo ############################################################
+--echo # 4. Stop GR applier on server2 so that all remote
+--echo #    transactions are only queued on relay log.
+--echo #    Execute some transactions on server1.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+
+
+--echo
+--echo ################################################################
+--echo # 5. Wait until server2 receives and certifies the transaction.
+--echo #    Make both members leave the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT LAST_QUEUED_TRANSACTION="$group_replication_group_name:6" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
+--source include/wait_condition.inc
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Start Group Replication only on server2.
+--echo #    Assert that server1 and server2 have the same data.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'There are two rows in table t1 on server1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There are two rows in table t1 on server2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+# Assert that group_replication_applier channel relay logs were not purged after clone.
+--echo # group_replication_applier channel relay log files
+--list_files $server2_datadir server-relay-log-group_replication_applier.*
+
+--let $rpl_channel_name= 'group_replication_applier'
+--let $binlog_file= server-relay-log-group_replication_applier.000002
+--source include/show_relaylog_events.inc
+
+--let $rpl_channel_name= 'group_replication_applier'
+--let $binlog_file= server-relay-log-group_replication_applier.000003
+--source include/show_relaylog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+UNINSTALL PLUGIN clone;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+DROP TABLE t1;
+
+RESET PERSIST group_replication_group_name;
+RESET PERSIST group_replication_local_address;
+RESET PERSIST group_replication_group_seeds;
+RESET PERSIST group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+
+--replace_result $_group_replication_threshold_save GROUP_REPLICATION_CLONE_THRESHOLD
+--eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
+
+--replace_result $_group_replication_start_boot_save START_ON_BOOT_VALUE
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_boot_save
+
+UNINSTALL PLUGIN clone;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+SET SESSION sql_log_bin= 1;
+
+--source include/clean_monitoring_process.inc
+
+--source include/group_replication_end.inc

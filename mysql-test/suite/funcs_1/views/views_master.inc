@@ -868,6 +868,7 @@ if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--replace_regex /\x00/#/
 --sorted_result
 SELECT * FROM test.v1;
 --enable_ps_protocol
@@ -2501,6 +2502,7 @@ Create or replace view test.v1 as
 Select t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2 cross join t1;
 Select * from v1 order by t1_f59,t2_f59;
+--sorted_result
 Select t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2 cross join t1;
 
@@ -2509,6 +2511,7 @@ Create or replace view test.v1 as
 Select straight_join t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2,t1;
 Select * from v1 order by t1_f59,t2_f59;
+--sorted_result
 Select straight_join t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2,t1;
 

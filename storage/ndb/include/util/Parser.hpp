@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,8 @@ template<class T> struct ParserRow;
 
 //#define PARSER_DEBUG
 #ifdef PARSER_DEBUG
-#include "NdbOut.hpp"
-#define DEBUG(x) \
-  ndbout_c("%s:%d:%s", __FILE__, __LINE__, x);
+#include <EventLogger.hpp>
+#define DEBUG(x) g_eventLogger->info("%s:%d:%s", __FILE__, __LINE__, x);
 #else 
 #define DEBUG(x)
 #endif
@@ -76,7 +75,7 @@ public:
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    STATIC_CONST(MaxParseBytes = 512);
+    static constexpr Uint32 MaxParseBytes = 512;
     char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 
@@ -155,7 +154,7 @@ private:
 template<class T>
 inline
 Parser<T>::Parser(const ParserRow<T> rows[], class InputStream & in) {
-  impl = new ParserImpl((ParserImpl::DummyRow *)rows, in);
+  impl = new ParserImpl((const ParserImpl::DummyRow *)rows, in);
 }
 
 template<class T>

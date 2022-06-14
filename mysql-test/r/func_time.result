@@ -137,6 +137,8 @@ Saturday	5
 select monthname("1972-03-04"),monthname("1972-03-04")+0;
 monthname("1972-03-04")	monthname("1972-03-04")+0
 March	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'March'
 select time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
 time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
 00|12|0|12|00|AM|12:00:00 AM|00|00:00:00
@@ -568,7 +570,7 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select unix_timestamp(@a);
 unix_timestamp(@a)
-1
+1.000000
 select unix_timestamp('1969-12-01 19:00:01');
 unix_timestamp('1969-12-01 19:00:01')
 0
@@ -578,48 +580,9 @@ NULL
 SELECT FROM_UNIXTIME(-0.000001);
 FROM_UNIXTIME(-0.000001)
 NULL
-select from_unixtime(2147483647);
-from_unixtime(2147483647)
-2038-01-19 06:14:07
-select from_unixtime(2147483648);
-from_unixtime(2147483648)
-NULL
 select from_unixtime(0);
 from_unixtime(0)
 1970-01-01 03:00:00
-select unix_timestamp(from_unixtime(2147483647));
-unix_timestamp(from_unixtime(2147483647))
-2147483647
-select unix_timestamp(from_unixtime(2147483648));
-unix_timestamp(from_unixtime(2147483648))
-NULL
-select unix_timestamp('2039-01-20 01:00:00');
-unix_timestamp('2039-01-20 01:00:00')
-0
-select unix_timestamp('1968-01-20 01:00:00');
-unix_timestamp('1968-01-20 01:00:00')
-0
-select unix_timestamp('2038-02-10 01:00:00');
-unix_timestamp('2038-02-10 01:00:00')
-0
-select unix_timestamp('1969-11-20 01:00:00');
-unix_timestamp('1969-11-20 01:00:00')
-0
-select unix_timestamp('2038-01-20 01:00:00');
-unix_timestamp('2038-01-20 01:00:00')
-0
-select unix_timestamp('1969-12-30 01:00:00');
-unix_timestamp('1969-12-30 01:00:00')
-0
-select unix_timestamp('2038-01-17 12:00:00');
-unix_timestamp('2038-01-17 12:00:00')
-2147331600
-select unix_timestamp('1970-01-01 03:00:01');
-unix_timestamp('1970-01-01 03:00:01')
-1
-select unix_timestamp('2038-01-19 07:14:07');
-unix_timestamp('2038-01-19 07:14:07')
-0
 SELECT CHARSET(DAYNAME(19700101));
 CHARSET(DAYNAME(19700101))
 utf8mb4
@@ -920,9 +883,13 @@ f1
 select f1 from t1 where f1 between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2006.1.1' at row 1 is deprecated. Prefer the standard '-'.
 select f1 from t1 where date(f1) between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2006.1.1' at row 1 is deprecated. Prefer the standard '-'.
 select f2 from t1 where f2 between cast("12:1:2" as time) and cast("12:2:2" as time);
 f2
 12:01:02
@@ -957,10 +924,10 @@ sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `now() - now()` bigint(16) NOT NULL DEFAULT '0',
-  `curtime() - curtime()` int(9) NOT NULL DEFAULT '0',
-  `sec_to_time(1) + 0` int(9) DEFAULT NULL,
-  `from_unixtime(1) + 0` bigint(16) DEFAULT NULL
+  `now() - now()` bigint NOT NULL DEFAULT '0',
+  `curtime() - curtime()` int NOT NULL DEFAULT '0',
+  `sec_to_time(1) + 0` int DEFAULT NULL,
+  `from_unixtime(1) + 0` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
@@ -1039,6 +1006,7 @@ Warning	1292	Truncated incorrect time value: '100000:02:03'
 CREATE TABLE t1(f1 TIME);
 INSERT IGNORE INTO t1 VALUES('916:00:00 a');
 Warnings:
+Warning	4096	Delimiter ' ' in position 9 in datetime value '916:00:00 a' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 SELECT * FROM t1;
@@ -1217,6 +1185,8 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.09.01' at row 1 is deprecated. Prefer the standard '-'.
+Warnings:
 SELECT * FROM t1, t2 
 WHERE CAST(t1.day AS DATE) BETWEEN 
 '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
@@ -1226,13 +1196,13 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.09.01' at row 1 is deprecated. Prefer the standard '-'.
+Warnings:
 DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:10:00
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1266,8 +1236,8 @@ t1	t2	SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) )	QUARTER(d)
 DROP TABLE t1;
 SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s")
-838:59:59
 838:59:58
+838:59:59
 set names latin1;
 create table t1 (a varchar(15) character set ascii not null);
 insert into t1 values ('070514-000000');
@@ -1393,8 +1363,6 @@ Warning	1411	Incorrect datetime value: '  ' for function str_to_date
 #
 SET GLOBAL SQL_MODE='';
 DO  STR_TO_DATE((''), FROM_DAYS(@@GLOBAL.SQL_MODE));
-Warnings:
-Warning	1411	Incorrect datetime value: '' for function str_to_date
 SET GLOBAL SQL_MODE=DEFAULT;
 #
 # Bug#11766087  59125: VALGRIND UNINITIALISED VALUE WARNING IN ULL2DEC, LONGLONG2DECIMAL
@@ -1402,8 +1370,6 @@ SET GLOBAL SQL_MODE=DEFAULT;
 SELECT FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1);
 FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1)
 NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '' for function str_to_date
 #
 # Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
 #
@@ -1842,7 +1808,7 @@ CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `IF(0, coalesce(NULL), now(0)) + 0` bigint(16) DEFAULT NULL
+  `IF(0, coalesce(NULL), now(0)) + 0` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -2020,6 +1986,7 @@ date_add('1995-01-05', INTERVAL '9223372036854775808-02' SECOND) as result;
 result
 NULL
 Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808-02'
 Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808'
 Warning	1441	Datetime function: date_add_interval field overflow
 SELECT
@@ -2079,3 +2046,49 @@ SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
 ERROR HY000: Incorrect DATETIME value: 'f4a4727407f28927f036a0bf46ed03f7'
 DROP TABLE t0022;
+#
+# Bug#32239578: WRONG METADATA FOR THE TO_DAYS FUNCTION
+#
+CREATE TABLE t AS
+SELECT CAST(TO_DAYS('9999-12-31') AS CHAR) AS x,
+TO_DAYS('9999-12-31') * -4.0 AS y;
+SELECT * FROM t;
+x	y
+3652424	-14609696.0
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` varchar(8) CHARACTER SET latin1 DEFAULT NULL,
+  `y` decimal(9,1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+#
+# Bug #32384355 INSERT,SELECT FROM SAME TABLE WITH AGGREGATE
+# AND NOW() COLUMNS PRODUCES ERROR
+#
+CREATE TABLE t1 (
+i1 INT,
+d1 DATETIME
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select sql_buffer_result max(1) AS `MAX(1)`,now() AS `NOW()` from `test`.`t1`
+INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+SELECT i1, EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1)) FROM t1;
+i1	EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1))
+NULL	0
+DROP TABLE t1;
+#
+# BUG#33438883: Assertion `!thd->lex->is_view_context_analysis()
+#
+CREATE TABLE t1 (f1 INTEGER);
+CREATE VIEW v1 AS SELECT (SELECT 'v' FROM DUAL) AS field1 FROM t1 GROUP BY field1
+HAVING TIME(field1) != 0 AND  TIMESTAMP(field1) != 0;
+DROP VIEW v1;
+DROP TABLE t1;

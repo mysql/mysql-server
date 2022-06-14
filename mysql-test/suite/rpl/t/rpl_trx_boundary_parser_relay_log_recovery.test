@@ -14,6 +14,7 @@
 --source include/master-slave.inc
 # Suppress recovery warning messages
 CALL mtr.add_suppression('Recovery from master pos');
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 
 # Insert some content on the master
 CREATE TABLE t1 (c1 INT);
@@ -30,9 +31,9 @@ DROP TABLE t1;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_io_with_master.inc
 
-# Restart the slave enabling relay_log_recovery
+# Restart the slave, relay_log_recovery enabled in the .opt file
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay_log_recovery=ON
+--let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
 
 # File to GREP

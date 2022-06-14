@@ -1,0 +1,84 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # WL#13775 - InnoDB: Encrypt DBLWR files
+--echo #
+
+--echo #
+--echo # Test Begin: Test if recovery works if first page of user
+--echo # tablespace is corrupted.  Valid copy of that page is there
+--echo # in DBLWR file.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("A bad Space ID was found in datafile");
+call mtr.add_suppression("\\[ERROR\\] .* Space ID in fsp header is \\d+, but in the page header it is \\d+");
+call mtr.add_suppression("Header page contains inconsistent data in datafile");
+--disable_query_log
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+
+SET SESSION innodb_interpreter = 'init';
+
+SET SESSION innodb_interpreter = 'find_tablespace_file_name test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+
+SET SESSION innodb_interpreter = 'destroy';
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let FILE_NAME=`select @space_file_name`;
+
+--source include/kill_mysqld.inc
+
+--echo # Corrupt the root page of table t1 in the user tablespace.
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, 0, SEEK_SET);
+print FILE chr(0) x 38;
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
+SET SESSION innodb_interpreter = 'destroy';
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Double write file has encrypted pages;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=\\[Note\\] .* Restoring page \\[page id: space=\\d+, page number=0\\] of datafile .* from the doublewrite buffer. Writing .*;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;
+--echo # Test End

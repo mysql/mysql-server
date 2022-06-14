@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <string.h>
 #include <algorithm>  // std::min
+#include <cassert>
 #include <map>
 #include <memory>
 #include <string>
@@ -31,7 +32,6 @@
 
 #include "m_ctype.h"
 #include "my_byteorder.h"
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #ifdef MYSQL_SERVER
@@ -200,7 +200,7 @@ static bool append_offset_or_size(String *dest, size_t offset_or_size,
 */
 static void insert_offset_or_size(String *dest, size_t pos,
                                   size_t offset_or_size, bool large) {
-  DBUG_ASSERT(pos + offset_size(large) <= dest->alloced_length());
+  assert(pos + offset_size(large) <= dest->alloced_length());
   write_offset_or_size(dest->ptr() + pos, offset_or_size, large);
 }
 
@@ -348,8 +348,8 @@ static bool is_too_big_for_json(size_t offset_or_size, bool large) {
 static enum_serialization_result append_key_entries(const Json_object *object,
                                                     String *dest, size_t offset,
                                                     bool large) {
-#ifndef DBUG_OFF
-  const std::string *prev_key = NULL;
+#ifndef NDEBUG
+  const std::string *prev_key = nullptr;
 #endif
 
   // Add the key entries.
@@ -358,12 +358,12 @@ static enum_serialization_result append_key_entries(const Json_object *object,
     const std::string *key = &it->first;
     size_t len = key->length();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Check that the DOM returns the keys in the correct order.
     if (prev_key) {
-      DBUG_ASSERT(prev_key->length() <= len);
+      assert(prev_key->length() <= len);
       if (len == prev_key->length())
-        DBUG_ASSERT(memcmp(prev_key->data(), key->data(), len) < 0);
+        assert(memcmp(prev_key->data(), key->data(), len) < 0);
     }
     prev_key = key;
 #endif
@@ -642,7 +642,7 @@ static enum_serialization_result serialize_json_object(
 static enum_serialization_result serialize_opaque(const Json_opaque *opaque,
                                                   size_t type_pos,
                                                   String *dest) {
-  DBUG_ASSERT(type_pos < dest->length());
+  assert(type_pos < dest->length());
   if (dest->append(static_cast<char>(opaque->type())) ||
       append_variable_length(dest, opaque->size()) ||
       dest->append(opaque->value(), opaque->size()))
@@ -709,7 +709,7 @@ static enum_serialization_result serialize_json_value(
     const THD *thd, const Json_dom *dom, size_t type_pos, String *dest,
     size_t depth, bool small_parent) {
   const size_t start_pos = dest->length();
-  DBUG_ASSERT(type_pos < start_pos);
+  assert(type_pos < start_pos);
 
   enum_serialization_result result;
 
@@ -846,7 +846,7 @@ static enum_serialization_result serialize_json_value(
       break;
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_INTERNAL_ERROR, MYF(0), "JSON serialization failed");
       return FAILURE;
       /* purecov: end */
@@ -876,7 +876,7 @@ bool Value::is_valid() const {
         Check that all keys and values are valid, and that the keys come
         in the correct order.
       */
-      const char *prev_key = NULL;
+      const char *prev_key = nullptr;
       size_t prev_key_len = 0;
       for (size_t i = 0; i < element_count(); i++) {
         Value k = key(i);
@@ -949,9 +949,7 @@ static Value parse_scalar(uint8 type, const char *data, size_t len) {
       return Value(Value::UINT, uint8korr(data));
     case JSONB_TYPE_DOUBLE: {
       if (len < 8) return err(); /* purecov: inspected */
-      double d;
-      float8get(&d, data);
-      return Value(d);
+      return Value(float8get(data));
     }
     case JSONB_TYPE_STRING: {
       uint32 str_len;
@@ -1011,7 +1009,7 @@ static uint32 read_offset_or_size(const char *data, bool large) {
 */
 static Value parse_array_or_object(Value::enum_type t, const char *data,
                                    size_t len, bool large) {
-  DBUG_ASSERT(t == Value::ARRAY || t == Value::OBJECT);
+  assert(t == Value::ARRAY || t == Value::OBJECT);
 
   /*
     Make sure the document is long enough to contain the two length fields
@@ -1066,7 +1064,7 @@ static Value parse_value(uint8 type, const char *data, size_t len) {
 }
 
 Value parse_binary(const char *data, size_t len) {
-  DBUG_ENTER("json_binary::parse_binary");
+  DBUG_TRACE;
   /*
     Each document should start with a one-byte type specifier, so an
     empty document is invalid according to the format specification.
@@ -1075,10 +1073,10 @@ Value parse_binary(const char *data, size_t len) {
     the value NULL is inserted into a NOT NULL column. We choose to
     interpret empty values as the JSON null literal.
   */
-  if (len == 0) DBUG_RETURN(Value(Value::LITERAL_NULL));
+  if (len == 0) return Value(Value::LITERAL_NULL);
 
   Value ret = parse_value(data[0], data + 1, len - 1);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -1091,7 +1089,7 @@ Value parse_binary(const char *data, size_t len) {
   type() returns ERROR if pos does not point to an element
 */
 Value Value::element(size_t pos) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
 
   if (pos >= m_element_count) return err();
 
@@ -1129,7 +1127,7 @@ Value Value::element(size_t pos) const {
   returns ERROR if pos does not point to a member
 */
 Value Value::key(size_t pos) const {
-  DBUG_ASSERT(m_type == OBJECT);
+  assert(m_type == OBJECT);
 
   if (pos >= m_element_count) return err();
 
@@ -1181,7 +1179,7 @@ Value Value::lookup(const char *key, size_t length) const {
   key is not found
 */
 size_t Value::lookup_index(const char *key, size_t length) const {
-  DBUG_ASSERT(m_type == OBJECT);
+  assert(m_type == OBJECT);
 
   const auto offset_size = json_binary::offset_size(m_large);
   const auto entry_size = key_entry_size(m_large);
@@ -1255,7 +1253,7 @@ bool Value::is_backed_by(const String *str) const {
 #ifdef MYSQL_SERVER
 bool Value::raw_binary(const THD *thd, String *buf) const {
   // It's not safe to overwrite ourselves.
-  DBUG_ASSERT(!is_backed_by(buf));
+  assert(!is_backed_by(buf));
 
   // Reset the buffer.
   buf->length(0);
@@ -1304,7 +1302,7 @@ bool Value::raw_binary(const THD *thd, String *buf) const {
   }
 
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return true;
   /* purecov: end */
 }
@@ -1320,8 +1318,8 @@ bool Value::raw_binary(const THD *thd, String *buf) const {
 */
 bool Value::element_offsets(size_t pos, size_t *start, size_t *end,
                             bool *inlined) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
-  DBUG_ASSERT(pos < m_element_count);
+  assert(m_type == ARRAY || m_type == OBJECT);
+  assert(pos < m_element_count);
 
   const char *entry = m_data + value_entry_offset(pos);
   if (entry + value_entry_size(m_large) > m_data + m_length)
@@ -1376,7 +1374,7 @@ bool Value::element_offsets(size_t pos, size_t *start, size_t *end,
   @return false on success, true on error
 */
 bool Value::first_value_offset(size_t *offset) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
 
   /*
     Find the lowest offset where a value could be stored. Arrays can
@@ -1408,8 +1406,8 @@ bool Value::first_value_offset(size_t *offset) const {
   @return true if there is enough space, false otherwise
 */
 bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
-  DBUG_ASSERT(pos < m_element_count);
+  assert(m_type == ARRAY || m_type == OBJECT);
+  assert(pos < m_element_count);
 
   /*
     Find the lowest offset where a value could be stored. Arrays can
@@ -1509,7 +1507,7 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
   @return the offset of the key entry, relative to the start of the object
 */
 inline size_t Value::key_entry_offset(size_t pos) const {
-  DBUG_ASSERT(m_type == OBJECT);
+  assert(m_type == OBJECT);
   // The first key entry is located right after the two length fields.
   return 2 * offset_size(m_large) + key_entry_size(m_large) * pos;
 }
@@ -1522,7 +1520,7 @@ inline size_t Value::key_entry_offset(size_t pos) const {
   @return the offset of the entry, relative to the start of the array or object
 */
 inline size_t Value::value_entry_offset(size_t pos) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
   /*
     Value entries come after the two length fields if it's an array, or
     after the two length fields and all the key entries if it's an object.
@@ -1546,7 +1544,7 @@ bool space_needed(const THD *thd, const Json_wrapper *value, bool large,
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
   if (value->to_binary(thd, &buf)) return true; /* purecov: inspected */
 
-  DBUG_ASSERT(buf.length() > 1);
+  assert(buf.length() > 1);
 
   // If the value can be inlined in the value entry, it doesn't need any space.
   if (inlined_type(buf[0], large)) {
@@ -1728,7 +1726,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
                              Json_wrapper *new_value, size_t data_offset,
                              size_t data_length, const char *original,
                              char *destination, bool *changed) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
 
   const bool inlined = (data_length == 0);
 
@@ -1743,7 +1741,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
 
   if (inlined) {
     new_entry.length(value_entry_size(m_large));
-    Json_dom *dom = new_value->to_dom(field->table->in_use);
+    Json_dom *dom = new_value->to_dom(current_thd);
     if (dom == nullptr) return true; /* purecov: inspected */
     attempt_inline_value(dom, &new_entry, 0, m_large);
   } else {
@@ -1755,10 +1753,10 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
     char *value_dest = destination + value_offset;
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-    if (new_value->to_binary(field->table->in_use, &buffer))
+    if (new_value->to_binary(current_thd, &buffer))
       return true; /* purecov: inspected */
 
-    DBUG_ASSERT(buffer.length() > 1);
+    assert(buffer.length() > 1);
 
     // The first byte is the type byte, which should be in the value entry.
     new_entry[0] = buffer[0];
@@ -1768,7 +1766,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
       actually different from the old data.
     */
     const size_t length = buffer.length() - 1;
-    DBUG_ASSERT(length == data_length);
+    assert(length == data_length);
     if (memcmp(value_dest, buffer.ptr() + 1, length) != 0) {
       memcpy(value_dest, buffer.ptr() + 1, length);
       if (field->table->add_binary_diff(field, value_offset, length))
@@ -1777,7 +1775,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
     }
   }
 
-  DBUG_ASSERT(new_entry.length() == value_entry_size(m_large));
+  assert(new_entry.length() == value_entry_size(m_large));
 
   /*
     Type and offset will often be unchanged. Don't create a change
@@ -1913,7 +1911,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
 */
 bool Value::remove_in_shadow(const Field_json *field, size_t pos,
                              const char *original, char *destination) const {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
 
   const char *value_entry = m_data + value_entry_offset(pos);
   const char *next_value_entry = value_entry + value_entry_size(m_large);
@@ -2057,7 +2055,7 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
 */
 
 int Value::eq(const Value &val) const {
-  DBUG_ASSERT(is_valid() && val.is_valid());
+  assert(is_valid() && val.is_valid());
 
   if (type() != val.type()) {
     return type() < val.type() ? -1 : 1;
@@ -2065,12 +2063,12 @@ int Value::eq(const Value &val) const {
   switch (m_type) {
     case OBJECT:
     case ARRAY:
-      DBUG_ASSERT(0);
+      assert(false);
       return -1;
     case OPAQUE:
       if (m_field_type != val.m_field_type)
         return m_field_type < val.m_field_type ? -1 : 1;
-      /* Fall through */
+      [[fallthrough]];
     case STRING: {
       uint cmp_length = std::min(get_data_length(), val.get_data_length());
       int res;
@@ -2094,11 +2092,33 @@ int Value::eq(const Value &val) const {
     case LITERAL_FALSE:
       return 0;
     default:
-      DBUG_ASSERT(0);  // Shouldn't happen
+      assert(false);  // Shouldn't happen
       break;
   }
   return -1;
 }
 #endif  // ifdef MYSQL_SERVER
+
+bool Value::to_std_string(std::string *buffer) const {
+  buffer->clear();
+  Json_wrapper wrapper(*this);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
+  bool formatting_failed =
+      wrapper.to_string(&string_buffer, false, "to_std_string");
+  if (!formatting_failed)
+    *buffer = {string_buffer.ptr(), string_buffer.length()};
+  return formatting_failed;
+}
+
+bool Value::to_pretty_std_string(std::string *buffer) const {
+  buffer->clear();
+  Json_wrapper wrapper(*this);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
+  bool formatting_failed =
+      wrapper.to_pretty_string(&string_buffer, "to_pretty_std_string");
+  if (!formatting_failed)
+    *buffer = {string_buffer.ptr(), string_buffer.length()};
+  return formatting_failed;
+}
 
 }  // end namespace json_binary

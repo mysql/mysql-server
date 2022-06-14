@@ -353,4 +353,3 @@ Mysqlx.Ok {
 }
 ok
 set global mysqlx_document_id_unique_prefix = DEFAULT;
-DROP SCHEMA IF EXISTS xtest;

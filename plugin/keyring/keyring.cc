@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,15 +51,15 @@ using keyring::Logger;
 
 mysql_rwlock_t LOCK_keyring;
 
-int check_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            SYS_VAR *var MY_ATTRIBUTE((unused)), void *save,
+int check_keyring_file_data(MYSQL_THD thd [[maybe_unused]],
+                            SYS_VAR *var [[maybe_unused]], void *save,
                             st_mysql_value *value) {
   char buff[FN_REFLEN + 1];
   const char *keyring_filename;
   int len = sizeof(buff);
   std::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
 
-  (*(const char **)save) = NULL;
+  (*(const char **)save) = nullptr;
   keyring_filename = value->val_str(value, buff, &len);
   mysql_rwlock_wrlock(&LOCK_keyring);
   if (create_keyring_dir_if_does_not_exist(keyring_filename)) {
@@ -83,11 +83,11 @@ int check_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   return (0);
 }
 
-static char *keyring_file_data_value = NULL;
+static char *keyring_file_data_value = nullptr;
 static MYSQL_SYSVAR_STR(
     data,                                              /* name       */
     keyring_file_data_value,                           /* value      */
-    PLUGIN_VAR_RQCMDARG,                               /* flags      */
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NODEFAULT,        /* flags      */
     "The path to the keyring file. Must be specified", /* comment    */
     check_keyring_file_data,                           /* check()    */
     update_keyring_file_data,                          /* update()   */
@@ -96,24 +96,22 @@ static MYSQL_SYSVAR_STR(
 
 static MYSQL_SYSVAR_BOOL(open_mode, keyring_open_mode,
                          PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
-                         "Mode in which keyring file should be opened", NULL,
-                         NULL, true);
+                         "Mode in which keyring file should be opened", nullptr,
+                         nullptr, true);
 
 static SYS_VAR *keyring_file_system_variables[] = {
-    MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), NULL};
+    MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), nullptr};
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
-static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int keyring_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return true;
 
   try {
     SSL_library_init();  // always returns 1
-#ifndef HAVE_WOLFSSL
     ERR_load_BIO_strings();
-#endif
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 
@@ -145,27 +143,25 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     is_keys_container_initialized = true;
     return false;
   } catch (...) {
-    if (logger != NULL)
+    if (logger != nullptr)
       logger->log(ERROR_LEVEL, ER_KEYRING_INTERNAL_EXCEPTION_FAILED_FILE_INIT);
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return true;
   }
 }
 
-static int keyring_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int keyring_deinit(void *arg [[maybe_unused]]) {
 // not taking a lock here as the calls to keyring_deinit are serialized by
 // the plugin framework
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   ERR_free_strings();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
   keys.reset();
   logger.reset();
-  keyring_file_data.reset();
+  delete_keyring_file_data();
   mysql_rwlock_destroy(&LOCK_keyring);
 
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
@@ -194,10 +190,10 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
                                const char *user_id, size_t key_len) {
   try {
     std::unique_ptr<IKey> key_candidate(
-        new Key(key_id, key_type, user_id, NULL, 0));
+        new Key(key_id, key_type, user_id, nullptr, 0));
 
     std::unique_ptr<uchar[]> key(new uchar[key_len]);
-    if (key.get() == NULL) return true;
+    if (key.get() == nullptr) return true;
     memset(key.get(), 0, key_len);
     if (is_keys_container_initialized == false ||
         check_key_for_writing(key_candidate.get(), "generating") ||
@@ -207,7 +203,7 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
     return mysql_key_store(key_id, key_type, user_id, key.get(), key_len) ==
            true;
   } catch (...) {
-    if (logger != NULL)
+    if (logger != nullptr)
       logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_GENERATE_KEY);
     return true;
   }
@@ -251,15 +247,15 @@ mysql_declare_plugin(keyring_file){
     MYSQL_KEYRING_PLUGIN, /*   type                            */
     &keyring_descriptor,  /*   descriptor                      */
     "keyring_file",       /*   name                            */
-    "Oracle Corporation", /*   author                          */
+    PLUGIN_AUTHOR_ORACLE, /*   author                          */
     "store/fetch authentication data to/from a flat file", /*   description */
     PLUGIN_LICENSE_GPL,
     keyring_init,                  /*   init function (when loaded)     */
-    NULL,                          /*   check uninstall function        */
+    nullptr,                       /*   check uninstall function        */
     keyring_deinit,                /*   deinit function (when unloaded) */
     0x0100,                        /*   version                         */
-    NULL,                          /*   status variables                */
+    nullptr,                       /*   status variables                */
     keyring_file_system_variables, /*   system variables                */
-    NULL,
+    nullptr,
     PLUGIN_OPT_ALLOW_EARLY,
 } mysql_declare_plugin_end;

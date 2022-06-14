@@ -1,0 +1,170 @@
+# ==== Purpose ====
+#
+# This script tests error handling regarding privilege checks for setting
+# session and global variables related to and needed by the binary log.
+#
+# ==== Requirements ====
+#
+# R1. Variables `auto_increment_increment`, `auto_increment_offset`,
+#     `collation_database`, `explicit_defaults_for_timestamp`,
+#     `default_collation_for_utf8mb4` and `rbr_exec_mode` are allowed to be set
+#     without privileges.
+# R2. Variables `gtid_next`, `original_commit_timestamp`,
+#     `original_server_version`, `immediate_server_version` and
+#     `pseudo_replica_mode` are allowed to be set when having `SUPER`,
+#     `SYSTEM_VARIABLES_ADMIN`, `SESSION_VARIABLES_ADMIN` or
+#     `REPLICATION_APPLIER` privileges.
+# R3. Variables `pseudo_thread_id` and `sql_require_primary_key` are allowed to
+#     be set when having `SUPER`, `SYSTEM_VARIABLES_ADMIN`,
+#     `SESSION_VARIABLES_ADMIN` privileges.
+# R4. Variable `default_table_encryption` is allowed to be set when having
+#     `SUPER` or both `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN`
+#     privileges.
+#
+# ==== Implementation ====
+#
+# TC1. Check unprivileged setting of sub-set of variables
+# -------------------------------------------------------
+# 1) Create a client session using an unprivileged user.
+# 2) Change values for:
+#    a) `auto_increment_increment`
+#    b) `auto_increment_offset`
+#    c) `collation_database`
+#    d) `explicit_defaults_for_timestamp`
+#    e) `default_collation_for_utf8mb4`
+#    f) `rbr_exec_mode`
+#    and expect success.
+#
+# TC2. Check `REPLICATION_APPLIER` privilege sufficient for setting sub-set of
+#      variables
+# ----------------------------------------------------------------------------
+# 1) Create a client session using an unprivileged user.
+# 2) Change values for:
+#    a) `gtid_next`
+#    c) `original_commit_timestamp`
+#    d) `original_server_version`
+#    e) `immediate_server_version`
+#    f) `pseudo_replica_mode`
+#    and expect failure.
+# 3) Disconnect session and grant `REPLICATION_APPLIER` privilege to the user.
+# 4) Create a client session using the privileged user.
+# 5) Change values for:
+#    a) `gtid_next`
+#    c) `original_commit_timestamp`
+#    d) `original_server_version`
+#    e) `immediate_server_version`
+#    f) `pseudo_replica_mode`
+#    and expect success.
+#
+# TC3. Check privileges are kept the same while setting sub-set of variables
+# --------------------------------------------------------------------------
+# 1) Create a client session using the `REPLICATION_APPLIER` privileged user.
+# 2) Change values for:
+#    a) `pseudo_thread_id`
+#    b) `sql_require_primary_key`
+#    c) `default_table_encryption`
+#    and expect failure.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+
+--source include/have_binlog_format_row.inc
+
+CREATE USER 'u1'@'localhost';
+
+--echo #
+--echo # TC1. Check unprivileged setting of sub-set of variables
+--echo # -------------------------------------------------------
+--echo #
+
+# 1) Create a client session using an unprivileged user.
+--connect(conn, localhost, 'u1'@'localhost', '', test, $MYPORT, $MYSOCK)
+--connection conn
+
+# 2) Change values for:
+#    a) `auto_increment_increment`
+#    b) `auto_increment_offset`
+#    c) `collation_database`
+#    d) `explicit_defaults_for_timestamp`
+#    e) `default_collation_for_utf8mb4`
+#    f) `rbr_exec_mode`
+#    and expect success.
+SET auto_increment_increment = 1;
+SET auto_increment_offset = 1;
+SET collation_database = 1;
+SET explicit_defaults_for_timestamp = 1;
+SET default_collation_for_utf8mb4 = utf8mb4_0900_ai_ci;
+SET rbr_exec_mode = IDEMPOTENT;
+
+--echo #
+--echo # TC2. Check `REPLICATION_APPLIER` privilege sufficient for setting
+--echo #      sub-set of variables
+--echo # -----------------------------------------------------------------
+--echo #
+
+# 1) Create a client session using an unprivileged user.
+# 2) Change values for:
+#    a) `gtid_next`
+#    c) `original_commit_timestamp`
+#    d) `original_server_version`
+#    e) `immediate_server_version`
+#    f) `pseudo_replica_mode`
+#    and expect failure.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET gtid_next = AUTOMATIC;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET original_commit_timestamp = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET original_server_version = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET immediate_server_version = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET pseudo_replica_mode = 1;
+
+# 3) Disconnect session and grant `REPLICATION_APPLIER` privilege to the user.
+--disconnect conn
+--connection default
+GRANT REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+
+# 4) Create a client session using the privileged user.
+--connect(conn, localhost, 'u1'@'localhost', '', test, $MYPORT, $MYSOCK)
+--connection conn
+
+# 5) Change values for:
+#    a) `gtid_next`
+#    c) `original_commit_timestamp`
+#    d) `original_server_version`
+#    e) `immediate_server_version`
+#    f) `pseudo_replica_mode`
+#    and expect success.
+SET gtid_next = AUTOMATIC;
+SET original_commit_timestamp = 1;
+SET original_server_version = 1;
+SET immediate_server_version = 1;
+SET pseudo_replica_mode = 1;
+
+--echo #
+--echo # TC3. Check privileges are kept the same while setting sub-set of
+--echo #      variables
+--echo # ----------------------------------------------------------------
+--echo #
+
+# 1) Create a client session using the `REPLICATION_APPLIER` privileged user.
+# 2) Change values for:
+#    a) `pseudo_thread_id`
+#    b) `sql_require_primary_key`
+#    c) `default_table_encryption`
+#    and expect failure.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET pseudo_thread_id = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET sql_require_primary_key = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET default_table_encryption = 1;
+--disconnect conn
+
+# Clean up
+--connection default
+DROP USER 'u1'@'localhost';

@@ -1,0 +1,176 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+# Test is using error insert, check that binaries support it
+--source have_ndb_error_insert.inc
+
+create table t1 (a int primary key,
+                 utf_t text character set utf8mb4,
+                 tb tinyblob, b blob, mb mediumblob, lb longblob,
+                 tt tinytext, t text, mt mediumtext, lt longtext) engine=ndb;
+
+insert into t1 values (1, REPEAT("A",5000),
+    REPEAT("A",255), REPEAT("A",5000), REPEAT("A",65536), REPEAT("A", 30000),
+    REPEAT("A",255), REPEAT("A",5000), REPEAT("A",65536), REPEAT("A", 30000));
+insert into t1 values (2, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL);
+insert into t1 values (3, "",
+    "", "", "", "",
+    "", "", "", "");
+insert into t1 values (4, REPEAT("a%d4 ",51),
+    REPEAT("a%d4 ",51), REPEAT("a%d4 ",1000), REPEAT("a%d4 ",2000), REPEAT("a%d4 ", 6000),
+    REPEAT("a%d4 ",51), REPEAT("a%d4 ",1000), REPEAT("a%d4 ",2000), REPEAT("a%d4 ", 6000));
+insert into t1 values (5, "less_than_inline_len",
+    "less_than_inline_len", "less_than_inline_len", "less_than_inline_len", "less_than_inline_len",
+    "less_than_inline_len", "less_than_inline_len", "less_than_inline_len", "less_than_inline_len");
+insert into t1 values (6, REPEAT("     ",1000),
+    REPEAT("     ",51), REPEAT("     ",1000), REPEAT("     ",2000), REPEAT("     ", 6000),
+    REPEAT("     ",51), REPEAT("     ",1000), REPEAT("     ",2000), REPEAT("     ", 6000));
+insert into t1 values (7, REPEAT(" -,.;",1000),
+    REPEAT(" -,.;",51), REPEAT(" -,.;",1000), REPEAT(" -,.;",2000), REPEAT(" -,.;", 6000),
+    REPEAT(" -,.;",51), REPEAT(" -,.;",1000), REPEAT(" -,.;",2001), REPEAT(" -,.;", 6000));
+insert into t1 values (8, REPEAT("12345",1000),
+    REPEAT("12345",51), REPEAT("12345",1000), REPEAT("12345",2000), REPEAT("12345", 6000),
+    REPEAT("12345",51), REPEAT("12345",1000), REPEAT("12345",2001), REPEAT("12345", 6000));
+insert into t1 values (9, REPEAT("abcde",1000),
+    REPEAT("abcde",51), REPEAT("abcde",1000), REPEAT("abcde",2000), REPEAT("abcde", 6000),
+    REPEAT("abcde",51), REPEAT("abcde",1000), REPEAT("abcde",2001), REPEAT("abcde", 6000));
+insert into t1 values (10, REPEAT("ABCDE",1000),
+    REPEAT("ABCDE",51), REPEAT("ABCDE",1000), REPEAT("ABCDE",2000), REPEAT("ABCDE", 6000),
+    REPEAT("ABCDE",51), REPEAT("ABCDE",1000), REPEAT("ABCDE",2001), REPEAT("ABCDE", 6000));
+
+insert into t1 select a+10, utf_t, tb, b, mb, lb, tt, t, mt, lt from t1;
+insert into t1 select a+20, utf_t, tb, b, mb, lb, tt, t, mt, lt from t1;
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+truncate table t1;
+
+--echo # run broken restore of data
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --print-data -r --error-insert=2 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --print-data -r --error-insert=2 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select count(1) into @count_parent_rows_before from t1;
+
+--echo Observe "blob corruption error" failures on queries
+
+--echo Fully ordered OI scan
+--error 1296
+select * from test.t1 order by a;
+show warnings limit 1;
+
+--echo Fully ordered OI scan, different first tuple
+--error 1296
+select * from test.t1 order by a desc;
+show warnings limit 1;
+
+--echo OI scan
+--error 1296
+select * from test.t1 where a > 0;
+show warnings limit 1;
+
+--echo OI scan, different first tuple
+--error 1296
+select * from test.t1 where a < 6;
+show warnings limit 1;
+
+--echo Table scan
+--error 1296
+select * from test.t1;
+show warnings limit 1;
+
+--echo ndb_blob_tool errors out on finding missing blob parts
+--error 1
+--exec $NDB_BLOB_TOOL --check-missing -dtest t1 >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo Add in missing parts
+--exec $NDB_BLOB_TOOL --add-missing -dtest t1 >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_BLOB_TOOL --delete-orphans -dtest t1 >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo Verify that there are no missing parts or orphan rows
+--exec $NDB_BLOB_TOOL --check-missing -dtest t1 >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_BLOB_TOOL --check-orphans -dtest t1 >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo Show that data read is not an empty set
+select count(1) into @count_parent_rows_after from t1;
+select sum(a) > 0, sum(utf_t) > 0,
+       sum(tb) > 0, sum(b) > 0, sum(mb) > 0, sum(lb) > 0,
+       sum(tt) > 0, sum(t) > 0, sum(mt) > 0, sum(lt) > 0 from t1;
+
+select @count_parent_rows_before >= @count_parent_rows_after;
+select @count_parent_rows_after > 0;
+
+drop table t1;
+
+--echo Verify that blob deletes with scans handle pending blob writes correctly
+create table t1 (pk bigint unsigned auto_increment primary key , blob_col TEXT)engine=ndbcluster;
+create table t2 (pk bigint unsigned auto_increment primary key , varchar_col varchar(100), virtual_blob_col TEXT as (REPEAT(varchar_col,40)) VIRTUAL)engine=ndbcluster;
+
+insert into t1 (pk, blob_col) values(NULL,NULL);
+insert into t1 select NULL, NULL from t1;
+insert into t1 select NULL, NULL from t1;
+insert into t1 select NULL, NULL from t1;
+insert into t1 select NULL, NULL from t1;
+
+insert into t2 (pk, varchar_col) select pk, blob_col from t1;
+
+update t1 set blob_col = repeat('mysql', 2000) limit 8;
+update t2 set varchar_col = repeat('mysql', 20) limit 8;
+
+set ndb_blob_write_batch_bytes=0;
+set ndb_blob_read_batch_bytes=0;
+
+create table ndb_blob_corrupt_temp_table(pk varchar(10) primary key, exec_count_serialised int, exec_count_batched int)engine=ndb;
+let temp_table=ndb_blob_corrupt_temp_table;
+insert into ndb_blob_corrupt_temp_table values
+ ("DELETE", 0, 0), ("UPDATE", 0, 0);
+
+--echo update with blob column in WHERE clause
+## Must serialise for correct execution of blob updates, so exec count high
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+let temp_pk = "UPDATE";
+let temp_col = exec_count_serialised;
+update t1 set blob_col = repeat('mysql', 400) where blob_col like '%mysql%';
+--source suite/ndb/include/ndb_execute_count_load.inc
+
+--echo update with virtual blob column in WHERE clause
+## No need to serialise for blobs since blob is virtual, allow batching for lower exec count
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+let temp_pk = "UPDATE";
+let temp_col = exec_count_batched;
+update t2 set varchar_col = repeat('mysql', 10) where virtual_blob_col like '%mysql%';
+--source suite/ndb/include/ndb_execute_count_load.inc
+
+--echo delete with blob column in WHERE clause
+## Must serialise for correct execution of blob deletes, so exec count high
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+let temp_pk = "DELETE";
+let temp_col = exec_count_serialised;
+delete from t1 where blob_col is NOT NULL;
+--source suite/ndb/include/ndb_execute_count_load.inc
+
+--echo delete with virtual blob column in WHERE clause
+## No need to serialise for blobs since blob is virtual, allow batching for lower exec count
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+let temp_pk = "DELETE";
+let temp_col = exec_count_batched;
+delete from t2 where virtual_blob_col is NOT NULL;
+--source suite/ndb/include/ndb_execute_count_load.inc
+
+## Check that all DELETES/UPDATES which should be serialised for blob exec show
+## effects of serialisation, i.e. higher exec counts than batched equivalents
+select exec_count_serialised > exec_count_batched from ndb_blob_corrupt_temp_table;
+
+drop table ndb_blob_corrupt_temp_table;
+drop table t1;
+drop table t2;
+
+-- source suite/ndb/include/backup_restore_cleanup.inc
+-- remove_file $NDB_TOOLS_OUTPUT

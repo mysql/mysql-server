@@ -26,7 +26,7 @@
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/crud_table_expr_array.tmp
+--write_file $MYSQL_TMP_DIR/crud_table_expr_array.xpl
 ## Test data
 -->sql
 DROP SCHEMA IF EXISTS xtest;
@@ -543,8 +543,7 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_table_expr_array.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_table_expr_array.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/crud_table_expr_array.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

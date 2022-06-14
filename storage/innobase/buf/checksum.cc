@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #include "buf0types.h"
 #include "fil0fil.h"
+#include "fil0types.h"
 #include "mach0data.h"
 #include "my_dbug.h"
 #include "page0size.h"
@@ -61,8 +62,8 @@ when it is written to a file and also checked for a match when reading from
 the file. When reading we allow both normal CRC32 and CRC-legacy-big-endian
 variants. Note that we must be careful to calculate the same value on 32-bit
 and 64-bit architectures.
-@param[in]	page			buffer page (UNIV_PAGE_SIZE bytes)
-@param[in]	use_legacy_big_endian	if true then use big endian
+@param[in]      page                    buffer page (UNIV_PAGE_SIZE bytes)
+@param[in]      use_legacy_big_endian   if true then use big endian
 byteorder when converting byte strings to integers
 @return checksum */
 uint32_t buf_calc_page_crc32(const byte *page,
@@ -156,9 +157,9 @@ const char *buf_checksum_algorithm_name(
 }
 
 /** Do lsn checks on a page during innodb recovery.
-@param[in]	check_lsn	if recv_lsn_checks_on & check_lsn
+@param[in]      check_lsn       if recv_lsn_checks_on & check_lsn
                                 perform lsn check
-@param[in]	read_buf	buffer containing the page. */
+@param[in]      read_buf        buffer containing the page. */
 inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_LIBRARY)
   if (check_lsn && recv_lsn_checks_on) {
@@ -199,9 +200,9 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 }
 
 /** Checks if the page is in innodb checksum format.
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	algo		current checksum algorithm
+@param[in]      checksum_field1 new checksum field
+@param[in]      checksum_field2 old checksum field
+@param[in]      algo            current checksum algorithm
 @return true if the page is in innodb checksum format. */
 bool BlockReporter::is_checksum_valid_innodb(
     ulint checksum_field1, ulint checksum_field2,
@@ -236,9 +237,9 @@ bool BlockReporter::is_checksum_valid_innodb(
 }
 
 /** Checks if the page is in none checksum format.
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	algo		current checksum algorithm
+@param[in]      checksum_field1 new checksum field
+@param[in]      checksum_field2 old checksum field
+@param[in]      algo            current checksum algorithm
 @return true if the page is in none checksum format. */
 bool BlockReporter::is_checksum_valid_none(
     ulint checksum_field1, ulint checksum_field2,
@@ -250,10 +251,10 @@ bool BlockReporter::is_checksum_valid_none(
 }
 
 /** Checks if the page is in crc32 checksum format.
-@param[in]	checksum_field1		new checksum field
-@param[in]	checksum_field2		old checksum field
-@param[in]	algo			current checksum algorithm
-@param[in]	use_legacy_big_endian	big endian algorithm
+@param[in]      checksum_field1         new checksum field
+@param[in]      checksum_field2         old checksum field
+@param[in]      algo                    current checksum algorithm
+@param[in]      use_legacy_big_endian   big endian algorithm
 @return true if the page is in crc32 checksum format. */
 bool BlockReporter::is_checksum_valid_crc32(ulint checksum_field1,
                                             ulint checksum_field2,
@@ -270,12 +271,27 @@ bool BlockReporter::is_checksum_valid_crc32(ulint checksum_field1,
   return (checksum_field1 == crc32);
 }
 
+bool BlockReporter::is_encrypted() const noexcept {
+  ulint page_type = mach_read_from_2(m_read_buf + FIL_PAGE_TYPE);
+
+  return page_type == FIL_PAGE_ENCRYPTED ||
+         page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED ||
+         page_type == FIL_PAGE_ENCRYPTED_RTREE;
+}
+
 /** Checks if a page is corrupt.
-@retval	true	if page is corrupt
-@retval	false	if page is not corrupt */
+@retval true    if page is corrupt
+@retval false   if page is not corrupt */
 bool BlockReporter::is_corrupted() const {
   ulint checksum_field1;
   ulint checksum_field2;
+
+  /* This function should be used for unencrypted pages. During recovery it is
+  possible that this function is called for encrypted pages, when decryption
+  failed. So report it as corrupted. */
+  if (is_encrypted()) {
+    return true;
+  }
 
   if (!m_page_size.is_compressed() &&
       memcmp(
@@ -306,9 +322,7 @@ bool BlockReporter::is_corrupted() const {
   checksum_field2 = mach_read_from_4(m_read_buf + m_page_size.logical() -
                                      FIL_PAGE_END_LSN_OLD_CHKSUM);
 
-#if FIL_PAGE_LSN % 8
-#error "FIL_PAGE_LSN must be 64 bit aligned"
-#endif
+  static_assert(FIL_PAGE_LSN % 8 == 0, "FIL_PAGE_LSN must be 64 bit aligned");
 
   /* declare empty pages non-corrupted */
   if (checksum_field1 == 0 && checksum_field2 == 0 &&
@@ -468,46 +482,24 @@ bool BlockReporter::is_corrupted() const {
       return (true);
 
     case SRV_CHECKSUM_ALGORITHM_NONE:
-      /* should have returned FALSE earlier */
+      /* should have returned false earlier */
       break;
       /* no default so the compiler will emit a warning if new enum
       is added and not handled here */
   }
 
   ut_error;
-  return (false);
 }
 
-/** Calculate the compressed page checksum.
-@param[in]	algo			checksum algorithm to use
-@param[in]	use_legacy_big_endian	only used if algo is
-SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
-if true then use big endian byteorder when converting byte strings to
-integers.
-@return page checksum */
-uint32_t BlockReporter::calc_zip_checksum(
-    srv_checksum_algorithm_t algo,
-    bool use_legacy_big_endian /* = false */) const {
-  return (calc_zip_checksum(m_read_buf, m_page_size.physical(), algo,
-                            use_legacy_big_endian));
+uint32_t BlockReporter::calc_zip_checksum(srv_checksum_algorithm_t algo) const {
+  return (calc_zip_checksum(m_read_buf, m_page_size.physical(), algo));
 }
 
-/** Calculate the compressed page checksum. This variant
-should be used when only the page_size_t is unknown and
-only physical page_size of compressed page is available
-@param[in]	read_buf		buffer holding the page
-@param[in]	phys_page_size		physical page size
-@param[in]	algo			checksum algorithm to use
-@param[in]	use_legacy_big_endian	only used if algo is
-SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
-if true then use big endian byteorder when converting byte strings to
-integers.
-@return page checksum */
-uint32_t BlockReporter::calc_zip_checksum(
-    const byte *read_buf, ulint phys_page_size, srv_checksum_algorithm_t algo,
-    bool use_legacy_big_endian /* = false */) const {
+uint32_t BlockReporter::calc_zip_checksum(const byte *read_buf,
+                                          ulint phys_page_size,
+                                          srv_checksum_algorithm_t algo) const {
   uLong adler;
-  ib_uint32_t crc32;
+  uint32_t crc32;
   const Bytef *s = read_buf;
   const ulint size = phys_page_size;
 
@@ -536,7 +528,7 @@ uint32_t BlockReporter::calc_zip_checksum(
           adler32(adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
                   static_cast<uInt>(size) - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-      return ((ib_uint32_t)adler);
+      return ((uint32_t)adler);
     case SRV_CHECKSUM_ALGORITHM_NONE:
     case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
       return (BUF_NO_CHECKSUM_MAGIC);
@@ -547,18 +539,11 @@ uint32_t BlockReporter::calc_zip_checksum(
   ut_error;
 }
 
-/** Verify a compressed page's checksum.
-@retval		true		if stored checksum is valid according
-to the value of srv_checksum_algorithm
-@retval		false		if stored schecksum is not valid according
-to the value of srv_checksum_algorithm */
 bool BlockReporter::verify_zip_checksum() const {
   const uint32_t stored = static_cast<uint32_t>(
       mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_OR_CHKSUM));
 
-#if FIL_PAGE_LSN % 8
-#error "FIL_PAGE_LSN must be 64 bit aligned"
-#endif
+  static_assert(FIL_PAGE_LSN % 8 == 0, "FIL_PAGE_LSN must be 64 bit aligned");
 
   /* Check if page is empty */
   if (stored == 0 && mach_read_from_8(m_read_buf + FIL_PAGE_LSN) == 0) {
@@ -618,7 +603,7 @@ bool BlockReporter::verify_zip_checksum() const {
       matching legacy big endian checksum, we try to match it first.
       Otherwise we check innodb checksum first. */
       if (legacy_big_endian_checksum) {
-        if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+        if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
           return (true);
         }
         legacy_checksum_checked = true;
@@ -635,7 +620,7 @@ bool BlockReporter::verify_zip_checksum() const {
 
       /* If legacy checksum is not checked, do it now. */
       if (!legacy_checksum_checked &&
-          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
         /* This page's checksum has been created by the
         legacy software CRC32 implementation on big endian
         CPUs which generates a different result than the
@@ -656,8 +641,7 @@ bool BlockReporter::verify_zip_checksum() const {
         return (true);
       }
 
-      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) ||
-          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
         if (curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
           page_warn_strict_checksum(curr_algo, SRV_CHECKSUM_ALGORITHM_CRC32,
                                     page_id);
@@ -668,8 +652,7 @@ bool BlockReporter::verify_zip_checksum() const {
       break;
     case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
 
-      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) ||
-          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
         page_warn_strict_checksum(curr_algo, SRV_CHECKSUM_ALGORITHM_CRC32,
                                   page_id);
         return (true);
@@ -693,9 +676,9 @@ bool BlockReporter::verify_zip_checksum() const {
 
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
-@param[in]	curr_algo	current checksum algorithm
-@param[in]	page_checksum	page valid checksum
-@param[in]	page_id		page identifier */
+@param[in]      curr_algo       current checksum algorithm
+@param[in]      page_checksum   page valid checksum
+@param[in]      page_id         page identifier */
 void BlockReporter::page_warn_strict_checksum(
     srv_checksum_algorithm_t curr_algo, srv_checksum_algorithm_t page_checksum,
     const page_id_t &page_id) const {
@@ -733,11 +716,33 @@ void BlockReporter::page_warn_strict_checksum(
 }
 
 /** Print the given page_id_t object.
-@param[in,out]	out	the output stream
-@param[in]	page_id	the page_id_t object to be printed
+@param[in,out]  out     the output stream
+@param[in]      page_id the page_id_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const page_id_t &page_id) {
   out << "[page id: space=" << page_id.m_space
       << ", page number=" << page_id.m_page_no << "]";
   return (out);
+}
+
+bool BlockReporter::is_lsn_valid(const byte *frame,
+                                 uint32_t page_size) noexcept {
+  const uint32_t lsn1 = mach_read_from_4(frame + FIL_PAGE_LSN + 4);
+  const uint32_t lsn2 = mach_read_from_4(frame + page_size - 4);
+
+#ifdef UNIV_DEBUG
+  if (lsn1 != lsn2) {
+    ut_ad(lsn1 == lsn2);
+  }
+#endif /* UNIV_DEBUG */
+
+  return lsn1 == lsn2;
+}
+
+space_id_t BlockReporter::space_id() const noexcept {
+  return mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_ID);
+}
+
+page_no_t BlockReporter::page_no() const noexcept {
+  return mach_read_from_4(m_read_buf + FIL_PAGE_OFFSET);
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ namespace Dump {
  */
 class I_output_writer_wrapper {
  public:
-  virtual ~I_output_writer_wrapper() {}
+  virtual ~I_output_writer_wrapper() = default;
   /**
     Add new Output Writer to supply formatted strings to.
    */

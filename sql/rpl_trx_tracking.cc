@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/binlog.h"
@@ -48,9 +48,9 @@ Logical_clock::Logical_clock() : state(SEQ_UNINIT), offset(0) {}
  */
 inline int64 Logical_clock::get_timestamp() {
   int64 retval = 0;
-  DBUG_ENTER("Logical_clock::get_timestamp");
+  DBUG_TRACE;
   retval = state.load();
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -80,12 +80,12 @@ inline int64 Logical_clock::step() {
   @return a (new) value of state member regardless whether it's changed or not.
  */
 inline int64 Logical_clock::set_if_greater(int64 new_val) {
-  longlong old_val = new_val - 1;
+  int64 old_val = new_val - 1;
   bool cas_rc;
 
-  DBUG_ENTER("Logical_clock::set_if_greater");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(new_val > 0);
+  assert(new_val > 0);
 
   if (new_val <= offset) {
     /*
@@ -94,21 +94,21 @@ inline int64 Logical_clock::set_if_greater(int64 new_val) {
       transaction does not change the clock, similarly to how
       its timestamps are handled at flushing.
     */
-    DBUG_RETURN(SEQ_UNINIT);
+    return SEQ_UNINIT;
   }
 
-  DBUG_ASSERT(new_val > 0);
+  assert(new_val > 0);
 
   while (
       !(cas_rc = atomic_compare_exchange_strong(&state, &old_val, new_val)) &&
       old_val < new_val) {
   }
 
-  DBUG_ASSERT(state >= new_val);  // setting can't be done to past
+  assert(state >= new_val);  // setting can't be done to past
 
-  DBUG_ASSERT(cas_rc || old_val >= new_val);
+  assert(cas_rc || old_val >= new_val);
 
-  DBUG_RETURN(cas_rc ? new_val : old_val);
+  return cas_rc ? new_val : old_val;
 }
 
 /*
@@ -147,8 +147,7 @@ void Commit_order_trx_dependency_tracker::get_dependency(THD *thd,
                                                          int64 &commit_parent) {
   Transaction_ctx *trn_ctx = thd->get_transaction();
 
-  DBUG_ASSERT(trn_ctx->sequence_number >
-              m_max_committed_transaction.get_offset());
+  assert(trn_ctx->sequence_number > m_max_committed_transaction.get_offset());
   /*
     Prepare sequence_number and commit_parent relative to the current
     binlog.  This is done by subtracting the binlog's clock offset
@@ -187,7 +186,7 @@ void Commit_order_trx_dependency_tracker::rotate() {
 
 void Commit_order_trx_dependency_tracker::update_max_committed(
     int64 sequence_number) {
-  mysql_mutex_assert_owner(&LOCK_slave_trans_dep_tracker);
+  mysql_mutex_assert_owner(&LOCK_replica_trans_dep_tracker);
   m_max_committed_transaction.set_if_greater(sequence_number);
 }
 
@@ -213,10 +212,9 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
       thd->get_transaction()->get_transaction_write_set_ctx();
   std::vector<uint64> *writeset = write_set_ctx->get_write_set();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* The writeset of an empty transaction must be empty. */
-  if (is_empty_transaction_in_binlog_cache(thd))
-    DBUG_ASSERT(writeset->size() == 0);
+  if (is_empty_transaction_in_binlog_cache(thd)) assert(writeset->size() == 0);
 #endif
 
   /*
@@ -239,7 +237,9 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
       (global_system_variables.transaction_write_set_extraction ==
        thd->variables.transaction_write_set_extraction) &&
       // must not use foreign keys
-      !write_set_ctx->get_has_related_foreign_keys();
+      !write_set_ctx->get_has_related_foreign_keys() &&
+      // it did not broke past the capacity already
+      !write_set_ctx->was_write_set_limit_reached();
   bool exceeds_capacity = false;
 
   if (can_use_writesets) {
@@ -342,7 +342,7 @@ void Transaction_dependency_tracker::get_dependency(THD *thd,
       m_writeset_session.get_dependency(thd, sequence_number, commit_parent);
       break;
     default:
-      DBUG_ASSERT(0);  // blow up on debug
+      assert(0);  // blow up on debug
       /*
         Fallback to commit order on production builds.
        */
@@ -378,8 +378,9 @@ void Transaction_dependency_tracker::update_max_committed(THD *thd) {
   */
   trn_ctx->sequence_number = SEQ_UNINIT;
 
-  DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
-              thd->commit_error == THD::CE_FLUSH_ERROR);
+  assert(trn_ctx->last_committed == SEQ_UNINIT ||
+         thd->commit_error == THD::CE_FLUSH_ERROR ||
+         thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR);
 }
 
 int64 Transaction_dependency_tracker::step() { return m_commit_order.step(); }

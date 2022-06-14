@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,12 +148,12 @@ class Gcs_control_interface {
   /**
     Returns the currently installed view.
 
-    @retval - a valid pointer to a Gcs_view object.
+    @retval pointer to a Gcs_view object.
               If one has left a group, this shall be the last
               installed view. That view can be considered a best-effort
               view since, in some GCSs, the one that leaves might not
               have access to the exchanged information.
-    @retval - NULL if one never joined a group.
+    @retval NULL if one never joined a group.
   */
 
   virtual Gcs_view *get_current_view() = 0;
@@ -161,8 +161,8 @@ class Gcs_control_interface {
   /**
     Retrieves the local identifier of this member on a group.
 
-    @retval - a reference to a valid Gcs_member_identifier instance
-    @retval - NULL in case of error
+    @retval reference to a valid Gcs_member_identifier instance
+    @retval NULL in case of error
   */
 
   virtual const Gcs_member_identifier get_local_member_identifier() const = 0;
@@ -206,7 +206,7 @@ class Gcs_control_interface {
   */
   virtual enum_gcs_error set_xcom_cache_size(uint64_t size) = 0;
 
-  virtual ~Gcs_control_interface() {}
+  virtual ~Gcs_control_interface() = default;
 };
 
 #endif  // GCS_CONTROL_INTERFACE_INCLUDED

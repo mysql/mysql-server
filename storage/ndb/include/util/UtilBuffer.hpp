@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@ class UtilBuffer {
 public:
   UtilBuffer() : data(nullptr), len(0), alloc_size(0) { }
   ~UtilBuffer() { free(data); }
+  UtilBuffer(const UtilBuffer &) = delete;
+  UtilBuffer& operator=(const UtilBuffer &) = delete;
 
   /* Grow buffer to specified length.
      On success, returns 0. On failure, returns -1 and sets errno.

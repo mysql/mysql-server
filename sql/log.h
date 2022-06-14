@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,9 +51,9 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_thread_local.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_file_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
@@ -106,7 +106,7 @@ struct TABLE_LIST;
     Values: ON, OFF
     Log statements such as OPTIMIZE TABLE, ALTER TABLE to the slow query log.
 
-  --log-slow-slave-statements
+  --log-slow-replica-statements
     Values: ON, OFF
 
   log_throttle_queries_not_using_indexes
@@ -157,8 +157,8 @@ enum enum_log_table_type {
 */
 class Log_event_handler {
  public:
-  Log_event_handler() {}
-  virtual ~Log_event_handler() {}
+  Log_event_handler() = default;
+  virtual ~Log_event_handler() = default;
 
   /**
      Log a query to the slow log.
@@ -226,19 +226,18 @@ class Log_event_handler {
 class Log_to_csv_event_handler : public Log_event_handler {
  public:
   /** @see Log_event_handler::log_slow(). */
-  virtual bool log_slow(THD *thd, ulonglong current_utime,
-                        ulonglong query_start_arg, const char *user_host,
-                        size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len,
-                        struct System_status_var *query_start_status);
+  bool log_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
+                const char *user_host, size_t user_host_len,
+                ulonglong query_utime, ulonglong lock_utime, bool is_command,
+                const char *sql_text, size_t sql_text_len,
+                struct System_status_var *query_start_status) override;
 
   /** @see Log_event_handler::log_general(). */
-  virtual bool log_general(THD *thd, ulonglong event_utime,
-                           const char *user_host, size_t user_host_len,
-                           my_thread_id thread_id, const char *command_type,
-                           size_t command_type_len, const char *sql_text,
-                           size_t sql_text_len, const CHARSET_INFO *client_cs);
+  bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
+                   size_t user_host_len, my_thread_id thread_id,
+                   const char *command_type, size_t command_type_len,
+                   const char *sql_text, size_t sql_text_len,
+                   const CHARSET_INFO *client_cs) override;
 
  private:
   /**
@@ -335,11 +334,17 @@ class Query_logger {
      @param query_length        The length of the query string.
      @param query_start_status  Pointer to a snapshot of thd->status_var taken
                                 at the start of execution
+     @param aggregate           True if writing log throttle record
+     @param lock_usec           Lock time, in microseconds.
+                                Only used when aggregate is true.
+     @param exec_usec           Execution time, in microseconds.
+                                Only used when aggregate is true.
 
      @return true if error, false otherwise.
   */
   bool slow_log_write(THD *thd, const char *query, size_t query_length,
-                      struct System_status_var *query_start_status);
+                      struct System_status_var *query_start_status,
+                      bool aggregate, ulonglong lock_usec, ulonglong exec_usec);
 
   /**
      Write printf style message to general query log.
@@ -574,6 +579,10 @@ class Log_throttle {
   static const ulong LOG_THROTTLE_WINDOW_SIZE = 60000000;
 };
 
+typedef bool (*log_summary_t)(THD *thd, const char *query, size_t query_length,
+                              struct System_status_var *, bool aggregate,
+                              ulonglong lock_usec, ulonglong exec_usec);
+
 /**
   @class Slow_log_throttle
   @brief Used for rate-limiting the slow query log.
@@ -608,10 +617,9 @@ class Slow_log_throttle : public Log_throttle {
   ulong *rate;
 
   /**
-    The routine we call to actually log a line (i.e. our summary).
-    The signature miraculously coincides with slow_log_print().
+    The routine we call to actually log a line (our summary).
   */
-  bool (*log_summary)(THD *, const char *, size_t, struct System_status_var *);
+  log_summary_t log_summary;
 
   /**
     Slow_log_throttle is shared between THDs.
@@ -638,9 +646,7 @@ class Slow_log_throttle : public Log_throttle {
     @param msg           use this template containing %lu as only non-literal
   */
   Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-                    bool (*logger)(THD *, const char *, size_t,
-                                   struct System_status_var *),
-                    const char *msg);
+                    log_summary_t logger, const char *msg);
 
   /**
     Prepare and print a summary of suppressed lines to log.
@@ -1117,11 +1123,22 @@ log_line *log_line_init();
 
 /**
   Release a log_line allocated with log_line_init.
-
-  @retval nullptr  could not set up buffer (too small?)
-  @retval other    address of the newly initialized log_line
 */
 void log_line_exit(log_line *ll);
+
+/**
+  Get log-line's output buffer.
+  If the logger core provides this buffer, the log-service may use it
+  to assemble its output therein and implicitly return it to the core.
+  Participation is required for services that support populating
+  performance_schema.error_log, and optional for all others.
+
+  @param  ll  the log_line to examine
+
+  @retval  nullptr    success, an output buffer is available
+  @retval  otherwise  failure, no output buffer is available
+*/
+log_item *log_line_get_output_buffer(log_line *ll);
 
 /**
   Release log line item (key/value pair) with the index elem in log line ll.
@@ -1385,6 +1402,19 @@ log_item_data *log_line_item_set(log_line *ll, log_item_type t);
 const char *log_label_from_prio(int prio);
 
 /**
+  Derive the event's priority (SYSTEM_LEVEL, ERROR_LEVEL, ...)
+  from a textual label. If the label can not be identified,
+  default to ERROR_LEVEL as it is better to keep something
+  that needn't be kept than to discard something that shouldn't
+  be.
+
+  @param  label  The prio label as a \0 terminated C-string.
+
+  @retval  the priority (as an enum loglevel)
+*/
+enum loglevel log_prio_from_label(const char *label);
+
+/**
   Complete, filter, and write submitted log items.
 
   This expects a log_line collection of log-related key/value pairs,
@@ -1403,17 +1433,86 @@ const char *log_label_from_prio(int prio);
 int log_line_submit(log_line *ll);
 
 /**
-  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
-  Heeds log_timestamps.
-
-  @param         buf         A buffer of at least 26 bytes to store
-                             the timestamp in (19 + tzinfo tail + \0)
-  @param         utime       Microseconds since the epoch
-  @param         mode        if 0, use UTC; if 1, use local time
-
-  @retval                    length of timestamp (excluding \0)
+  Whether to generate a UTC timestamp, or one following system-time.
+  These values are not arbitrary; they must correspond to the range
+  and meaning of opt_log_timestamps.
 */
-int make_iso8601_timestamp(char *buf, ulonglong utime, int mode);
+enum enum_iso8601_tzmode {
+  iso8601_sysvar_logtimestamps = -1, /**< use value of opt_log_timestamps */
+  iso8601_utc = 0,                   /**< create UTC timestamp */
+  iso8601_system_time = 1            /**< use system time */
+};
+
+/**
+  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
+  Accepts the log_timestamps global variable in its third parameter.
+
+  @param buf       A buffer of at least iso8601_size bytes to store
+                   the timestamp in. The timestamp will be \0 terminated.
+  @param utime     Microseconds since the epoch
+  @param mode      if 0, use UTC; if 1, use local time
+
+  @retval          length of timestamp (excluding \0)
+*/
+int make_iso8601_timestamp(char *buf, ulonglong utime,
+                           enum enum_iso8601_tzmode mode);
+
+/**
+  Parse a ISO8601 timestamp and return the number of microseconds
+  since the epoch. Heeds +/- timezone info if present.
+
+  @see make_iso8601_timestamp()
+
+  @param timestamp  an ASCII string containing an ISO8601 timestamp
+  @param len        Length in bytes of the aforementioned string
+
+  @return microseconds since the epoch
+*/
+ulonglong iso8601_timestamp_to_microseconds(const char *timestamp, size_t len);
+
+/**
+  Well-known values returned by log_error_stack().
+*/
+typedef enum enum_log_error_stack_error {
+  /// success
+  LOG_ERROR_STACK_SUCCESS = 0,
+
+  /// expected delimiter not found
+  LOG_ERROR_STACK_DELIMITER_MISSING = -1,
+
+  /// one or more services not found
+  LOG_ERROR_STACK_SERVICE_MISSING = -2,
+
+  /// couldn't create service cache entry
+  LOG_ERROR_STACK_CACHE_ENTRY_OOM = -3,
+
+  /// tried to multi-open singleton
+  LOG_ERROR_STACK_MULTITON_DENIED = -4,
+
+  /// couldn't create service instance entry
+  LOG_ERROR_STACK_SERVICE_INSTANCE_OOM = -5,
+
+  /// last element in pipeline should be a sink
+  LOG_ERROR_STACK_ENDS_IN_NON_SINK = -6,
+
+  /// service only available during start-up (may not be set by the user)
+  LOG_ERROR_STACK_SERVICE_UNAVAILABLE = -7,
+
+  /// check-only warning: no sink supporting pfs given
+  LOG_ERROR_STACK_NO_PFS_SUPPORT = -50,
+
+  /// check-only warning: no log-parser given
+  LOG_ERROR_STACK_NO_LOG_PARSER = -51,
+
+  /// check-only warning: more than one log-filter given
+  LOG_ERROR_MULTIPLE_FILTERS = -52,
+
+  /// service name may not start with a delimiter
+  LOG_ERROR_UNEXPECTED_DELIMITER_FOUND = -101,
+
+  /// delimiters ',' and ';' may not be mixed
+  LOG_ERROR_MIXED_DELIMITERS = -102
+} log_error_stack_error;
 
 /**
   Set up custom error logging stack.
@@ -1430,25 +1529,53 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode);
                             the error occurred will be written to the
                             pointed-to size_t.
 
-  @retval              0    success
-  @retval             -1    expected delimiter not found
-  @retval             -2    one or more services not found
-  @retval             -3    failed to create service cache entry
-  @retval             -4    tried to open multiple instances of a singleton
-  @retval             -5    failed to create service instance entry
-  @retval             -6    last element in pipeline should be a sink
-  @retval             -101  service name may not start with a delimiter
-  @retval             -102  delimiters ',' and ';' may not be mixed
+  @retval  LOG_ERROR_STACK_SUCCESS               success
+
+  @retval LOG_ERROR_STACK_DELIMITER_MISSING      expected delimiter not found
+
+  @retval LOG_ERROR_STACK_SERVICE_MISSING        one or more services not found
+
+  @retval LOG_ERROR_STACK_CACHE_ENTRY_OOM        couldn't create service cache
+                                                 entry
+
+  @retval LOG_ERROR_STACK_MULTITON_DENIED        tried to multi-open singleton
+
+  @retval LOG_ERROR_STACK_SERVICE_INSTANCE_OOM   couldn't create service
+                                                 instance entry
+
+  @retval LOG_ERROR_STACK_ENDS_IN_NON_SINK       last element should be a sink
+
+  @retval LOG_ERROR_STACK_SERVICE_UNAVAILABLE    service only available during
+                                                 start-up (may not be set by the
+                                                 user)
+
+
+  @retval  LOG_ERROR_STACK_NO_PFS_SUPPORT        (check_only warning)
+                                                 no sink with performance_schema
+                                                 support selected
+
+  @retval  LOG_ERROR_STACK_NO_LOG_PARSER         (check_only warning)
+                                                 no sink providing a log-parser
+                                                 selected
+
+  @retval  LOG_ERROR_MULTIPLE_FILTERS            (check_only warning)
+                                                 more than one filter service
+                                                 selected
+
+  @retval  LOG_ERROR_UNEXPECTED_DELIMITER_FOUND  service starts with a delimiter
+
+  @retval  LOG_ERROR_MIXED_DELIMITERS            use ',' or ';', not both!
 */
-int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos);
+log_error_stack_error log_builtins_error_stack(const char *conf,
+                                               bool check_only, size_t *pos);
 
 /**
   Call flush() on all log_services.
   flush() function must not try to log anything, as we hold an
   exclusive lock on the stack.
 
-  @retval   0   no problems
-  @retval  -1   error
+  @returns 0 if no problems occurred, otherwise the negative count
+             of the components that failed to flush
 */
 int log_builtins_error_stack_flush();
 

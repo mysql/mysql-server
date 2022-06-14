@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,12 @@
 IF(NOT WIN32)
 	# MSI building is not relvant on other platforms
 	RETURN()
+ENDIF()
+
+INCLUDE(${CMAKE_SOURCE_DIR}/packaging/WiX/wix_setup.cmake)
+
+IF(NOT WIX_DIR)
+  RETURN()
 ENDIF()
 
 # This is copied from packaging/Wix. Not sure if it is possible to build the msi with something 
@@ -149,4 +155,4 @@ ELSE(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
 		COMMENT "Run cmake on cache to turn CPACK_MONOLITHIC_INSTALL back on"
 		VERBATIM)
 ENDIF(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
-ADD_DEPENDENCIES(NDB_MSI configure_mysql_server_extra)
+ADD_DEPENDENCIES(NDB_MSI configure_mysql_server_extra configure_redist_check)

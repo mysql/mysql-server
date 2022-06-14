@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ int heap_check_heap(HP_INFO *info, bool print_status) {
   ulong records = 0, deleted = 0, pos, next_block;
   HP_SHARE *share = info->s;
   HP_INFO save_info = *info; /* Needed because scan_init */
-  DBUG_ENTER("heap_check_heap");
+  DBUG_TRACE;
 
   for (error = key = 0; key < share->keys; key++) {
     if (share->keydef[key].algorithm == HA_KEY_ALG_BTREE)
@@ -93,7 +93,7 @@ int heap_check_heap(HP_INFO *info, bool print_status) {
     error = 1;
   }
   *info = save_info;
-  DBUG_RETURN(error);
+  return error;
 }
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
@@ -166,7 +166,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
     do {
       memcpy(&recpos, key + (*keydef->get_key_length)(keydef, key),
              sizeof(uchar *));
-      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, 0);
+      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, nullptr);
       if (ha_key_cmp(keydef->seg, (uchar *)info->recbuf, (uchar *)key,
                      key_length, SEARCH_FIND | SEARCH_SAME, not_used)) {
         error = 1;

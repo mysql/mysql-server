@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,11 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdbool.h>
+#include <stdint.h>
 #endif
 
 #include "my_command.h"
+#include "my_compress.h"
 
 /*
   We need a definition for my_socket. On the client, <mysql.h> already provides
@@ -45,6 +47,7 @@
 */
 #ifndef my_socket_defined
 #include "my_io.h"
+#include "mysql/components/services/bits/my_io_bits.h"
 #endif
 
 #ifndef MYSQL_ABI_CHECK
@@ -70,6 +73,17 @@
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
 
+/*
+  In FIDO terminology, relying party is the server where required services are
+  running. Relying party ID is unique name given to server.
+*/
+#define RELYING_PARTY_ID_LENGTH 255
+
+/* Length of random salt sent during fido registration */
+#define CHALLENGE_LENGTH 32
+
+/* Maximum authentication factors server supports */
+#define MAX_AUTH_FACTORS 3
 /**
   Maximum length of comments
 
@@ -175,12 +189,12 @@
 #define EXPLICIT_NULL_FLAG                        \
   (1 << 27) /**< Field is explicitly specified as \
                NULL by the user */
-#define FIELD_IS_MARKED                   \
-  (1 << 28) /**< Intern: field is marked, \
-                 general purpose */
+/* 1 << 28 is unused. */
 
 /** Field will not be loaded in secondary engine. */
 #define NOT_SECONDARY_FLAG (1 << 29)
+/** Field is explicitly marked as invisible by the user. */
+#define FIELD_IS_INVISIBLE (1 << 30)
 
 /** @}*/
 
@@ -206,9 +220,14 @@
 #define REFRESH_HOSTS 8    /**< Flush host cache, FLUSH HOSTS */
 #define REFRESH_STATUS 16  /**< Flush status variables, FLUSH STATUS */
 #define REFRESH_THREADS 32 /**< Flush thread cache */
-#define REFRESH_SLAVE                         \
-  64 /**< Reset master info and restart slave \
-        thread, RESET SLAVE */
+#define REFRESH_REPLICA                         \
+  64 /**< Reset master info and restart replica \
+        thread, RESET REPLICA */
+#define REFRESH_SLAVE                                        \
+  REFRESH_REPLICA /**< Reset master info and restart replica \
+        thread, RESET REPLICA. This is deprecated,           \
+        use REFRESH_REPLICA instead. */
+
 #define REFRESH_MASTER                                                 \
   128                            /**< Remove all bin logs in the index \
                                     and truncate the index, RESET MASTER */
@@ -668,6 +687,69 @@
 #define CLIENT_DEPRECATE_EOF (1UL << 24)
 
 /**
+  The client can handle optional metadata information in the resultset.
+*/
+#define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
+
+/**
+  Compression protocol extended to support zstd compression method
+
+  This capability flag is used to send zstd compression level between
+  client and server provided both client and server are enabled with
+  this flag.
+
+  Server
+  ------
+  Server sets this flag when global variable protocol-compression-algorithms
+  has zstd in its list of supported values.
+
+  Client
+  ------
+  Client sets this flag when it is configured to use zstd compression method.
+
+*/
+#define CLIENT_ZSTD_COMPRESSION_ALGORITHM (1UL << 26)
+
+/**
+  Support optional extension for query parameters into the @ref
+  page_protocol_com_query and @ref page_protocol_com_stmt_execute packets.
+
+  Server
+  ------
+
+  Expects an optional part containing the query parameter set(s). Executes the
+  query for each set of parameters or returns an error if more than 1 set of
+  parameters is sent and the server can't execute it.
+
+  Client
+  ------
+
+  Can send the optional part containing the query parameter set(s).
+*/
+#define CLIENT_QUERY_ATTRIBUTES (1UL << 27)
+
+/**
+  Support Multi factor authentication.
+
+  Server
+  ------
+  Server sends AuthNextFactor packet after every nth factor authentication
+  method succeeds, except the last factor authentication.
+
+  Client
+  ------
+  Client reads AuthNextFactor packet sent by server and initiates next factor
+  authentication method.
+*/
+#define MULTI_FACTOR_AUTHENTICATION (1UL << 28)
+
+/**
+  This flag will be reserved to extend the 32bit capabilities structure to
+  64bits.
+*/
+#define CLIENT_CAPABILITY_EXTENSION (1UL << 29)
+
+/**
   Verify server certificate.
 
   Client only flag.
@@ -675,11 +757,6 @@
   @deprecated in favor of --ssl-mode.
 */
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
-
-/**
-  The client can handle optional metadata information in the resultset.
-*/
-#define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
 
 /**
   Don't reset the options after an unsuccessful connect
@@ -708,7 +785,9 @@
    CLIENT_PLUGIN_AUTH | CLIENT_CONNECT_ATTRS |                                 \
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
-   CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA)
+   CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES |               \
+   MULTI_FACTOR_AUTHENTICATION)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and
@@ -716,9 +795,10 @@
   If any of the optional flags is supported by the build it will be switched
   on before sending to the client during the connection handshake.
 */
-#define CLIENT_BASIC_FLAGS                                 \
-  (((CLIENT_ALL_FLAGS & ~CLIENT_SSL) & ~CLIENT_COMPRESS) & \
-   ~CLIENT_SSL_VERIFY_SERVER_CERT)
+#define CLIENT_BASIC_FLAGS                                          \
+  (CLIENT_ALL_FLAGS &                                               \
+   ~(CLIENT_SSL | CLIENT_COMPRESS | CLIENT_SSL_VERIFY_SERVER_CERT | \
+     CLIENT_ZSTD_COMPRESSION_ALGORITHM))
 
 /** The status flags are a bit-field */
 enum SERVER_STATUS_flags_enum {
@@ -811,13 +891,21 @@ struct Vio;
 #define MYSQL_VIO struct Vio *
 #endif
 
-#define MAX_TINYINT_WIDTH 3     /**< Max width for a TINY w.o. sign */
-#define MAX_SMALLINT_WIDTH 5    /**< Max width for a SHORT w.o. sign */
-#define MAX_MEDIUMINT_WIDTH 8   /**< Max width for a INT24 w.o. sign */
-#define MAX_INT_WIDTH 10        /**< Max width for a LONG w.o. sign */
-#define MAX_BIGINT_WIDTH 20     /**< Max width for a LONGLONG */
-#define MAX_CHAR_WIDTH 255      /**< Max length for a CHAR colum */
-#define MAX_BLOB_WIDTH 16777216 /**< Default width for blob */
+#define MAX_TINYINT_WIDTH 3   /**< Max width for a TINY w.o. sign */
+#define MAX_SMALLINT_WIDTH 5  /**< Max width for a SHORT w.o. sign */
+#define MAX_MEDIUMINT_WIDTH 8 /**< Max width for a INT24 w.o. sign */
+#define MAX_INT_WIDTH 10      /**< Max width for a LONG w.o. sign */
+#define MAX_BIGINT_WIDTH 20   /**< Max width for a LONGLONG */
+/// Max width for a CHAR column, in number of characters
+#define MAX_CHAR_WIDTH 255
+/// Default width for blob in bytes @todo - align this with sizes from field.h
+#define MAX_BLOB_WIDTH 16777216
+
+#define NET_ERROR_UNSET 0               /**< No error has occurred yet */
+#define NET_ERROR_SOCKET_RECOVERABLE 1  /**< Socket still usable */
+#define NET_ERROR_SOCKET_UNUSABLE 2     /**< Do not use the socket */
+#define NET_ERROR_SOCKET_NOT_READABLE 3 /**< Try write and close socket */
+#define NET_ERROR_SOCKET_NOT_WRITABLE 4 /**< Try read and close socket */
 
 typedef struct NET {
   MYSQL_VIO vio;
@@ -936,11 +1024,29 @@ enum enum_resultset_metadata {
   RESULTSET_METADATA_FULL = 1
 };
 
+#if defined(__clang__)
+// disable -Wdocumentation to workaround
+// https://bugs.llvm.org/show_bug.cgi?id=38905
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
+#endif
+/**
+  The flags used in COM_STMT_EXECUTE.
+  @sa @ref Protocol_classic::parse_packet, @ref mysql_int_serialize_param_data
+*/
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 enum enum_cursor_type {
   CURSOR_TYPE_NO_CURSOR = 0,
   CURSOR_TYPE_READ_ONLY = 1,
   CURSOR_TYPE_FOR_UPDATE = 2,
-  CURSOR_TYPE_SCROLLABLE = 4
+  CURSOR_TYPE_SCROLLABLE = 4,
+  /**
+    On when the client will send the parameter count
+    even for 0 parameters.
+  */
+  PARAMETER_COUNT_AVAILABLE = 8
 };
 
 /** options for ::mysql_options() */
@@ -982,7 +1088,7 @@ bool my_net_init(struct NET *net, MYSQL_VIO vio);
 void my_net_local_init(struct NET *net);
 void net_end(struct NET *net);
 void net_clear(struct NET *net, bool check_buffer);
-void net_claim_memory_ownership(struct NET *net);
+void net_claim_memory_ownership(struct NET *net, bool claim);
 bool net_realloc(struct NET *net, size_t length);
 bool net_flush(struct NET *net);
 bool my_net_write(struct NET *net, const unsigned char *packet, size_t len);
@@ -1002,7 +1108,7 @@ struct rand_struct {
 };
 
 /* Include the types here so existing UDFs can keep compiling */
-#include <mysql/udf_registration_types.h>
+#include "mysql/udf_registration_types.h"
 
 /**
   @addtogroup group_cs_compresson_constants Constants when using compression
@@ -1076,7 +1182,7 @@ unsigned long STDCALL net_field_length(unsigned char **packet);
 unsigned long STDCALL net_field_length_checked(unsigned char **packet,
                                                unsigned long max_length);
 #endif
-unsigned long long net_field_length_ll(unsigned char **packet);
+uint64_t net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
@@ -1084,6 +1190,4 @@ unsigned int net_field_length_size(const unsigned char *pos);
 #define NULL_LENGTH ((unsigned long)~0) /**< For ::net_store_length() */
 #define MYSQL_STMT_HEADER 4
 #define MYSQL_LONG_DATA_HEADER 6
-
-#define NOT_FIXED_DEC 31
 #endif

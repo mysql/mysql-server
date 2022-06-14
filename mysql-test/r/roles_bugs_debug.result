@@ -17,6 +17,8 @@ SET DEBUG_SYNC='now WAIT_FOR s1';
 SET DEBUG_SYNC='after_table_grant_revoke SIGNAL s2';
 REVOKE ALL ON my_db.t1 FROM foo_role;
 # Despite all privileges are revoked current SQL statement will succeed.
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SET DEBUG_SYNC= 'RESET';
 # But the subsequent statement will fail.
 INSERT into my_db.t1 values(9) on duplicate key UPDATE id = values(id) + 90;

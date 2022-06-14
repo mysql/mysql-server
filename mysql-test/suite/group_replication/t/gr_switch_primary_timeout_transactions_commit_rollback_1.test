@@ -1,0 +1,180 @@
+################################################################################
+# This test validates UDF group_replication_set_as_primary and confirms
+# that connection running a transactions with multiple queries that did not
+# reach commit stage is closed when UDF group_replication_set_as_primary is
+# executed.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+# 2. Start a transaction on connection-server1. Do not commit it.
+# 3. Change the group primary to server2 with timeout of 2 seconds.
+# 4. Move to connection-server1 and continue the transaction.
+# 5. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 6. Start a transaction on connection-server2. Do not commit it.
+# 7. Change the group primary to server1 with timeout of 5 seconds.
+# 8. Move to connection-server2 and continue the transaction.
+# 9. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 10. Cleanup.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+
+--echo
+--echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1(c1 int primary key);
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo # 2. Start a transaction on connection-server1. Do not commit it.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+START TRANSACTION;
+INSERT INTO t1 values(1);
+
+--echo
+--echo # 3. Change the group primary to server2 with timeout of 2 seconds.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid SERVER2_UUID
+--eval SELECT group_replication_set_as_primary("$server2_uuid", 2);
+
+--echo
+--echo # 4. Move to connection-server1 and continue the transaction.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error CR_SERVER_LOST
+SELECT * FROM test.t1;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--error ER_OPTION_PREVENTS_STATEMENT, ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+INSERT INTO t1 values(1);
+
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '1'
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo # 6. Start a transaction on connection-server2. Do not commit it.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+START TRANSACTION;
+INSERT INTO t1 values(1);
+
+--echo
+--echo # 7. Change the group primary to server1 with timeout of 5 seconds.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid", 5);
+
+
+--echo
+--echo # 8. Move to connection-server2 and continue the transaction.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error CR_SERVER_LOST
+INSERT INTO t1 values(2);
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--error ER_OPTION_PREVENTS_STATEMENT, ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+INSERT INTO t1 values(1);
+
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '1'
+--source include/wait_condition.inc
+
+--echo
+--echo # 9. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no value 2 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo # 10. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

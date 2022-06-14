@@ -34,17 +34,21 @@ Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because
 Error	1528	Failed to create TABLESPACE s_64k
 Error	1031	Table storage engine for 's_64k' doesn't have this option
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -380,18 +384,22 @@ CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT
 CREATE TABLESPACE s_missing ADD DATAFILE 'delete_me.ibd';
 CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
-s_missing	General	DEFAULT	0	Any	delete_me.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
+s_missing	General	DEFAULT	0	1	1	Any	delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -401,7 +409,9 @@ s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_missing	TABLESPACE	InnoDB	NORMAL	s_missing	MYSQLD_DATADIR/delete_me.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t_com_in_16k	s_16k	129	5	Compact	0	General
 test/t_com_in_16k_as	s_16k	129	5	Compact	0	General
@@ -448,29 +458,33 @@ s_8k.ibd
 # everything else is OK.
 #
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
-s_missing	General	DEFAULT	0	Any	delete_me.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
+s_missing	General	DEFAULT	0	0	0	Any	delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
 s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table s_missing.
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t_com_in_16k	s_16k	129	5	Compact	0	General
 test/t_com_in_16k_as	s_16k	129	5	Compact	0	General
@@ -580,27 +594,31 @@ CREATE TABLE t_zip4k_as_remote (a int, b text) KEY_BLOCK_SIZE=4 TABLESPACE=innod
 CREATE TABLE t_zip8k_as_remote (a int, b text) KEY_BLOCK_SIZE=8 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 CREATE TABLE t_zip16k_as_remote (a int, b text) KEY_BLOCK_SIZE=16 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
-test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
-test/t_zip16k_as_remote	Single	DEFAULT	DEFAULT	Compressed	MYSQL_TMP_DIR/test/t_zip16k_as_remote.ibd
-test/t_zip1k_as_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
-test/t_zip1k_as_remote	Single	DEFAULT	1024	Compressed	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
-test/t_zip2k_as_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
-test/t_zip2k_as_remote	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
-test/t_zip4k_as_file_per_table	Single	DEFAULT	4096	Compressed	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-test/t_zip4k_as_remote	Single	DEFAULT	4096	Compressed	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
-test/t_zip8k_as_file_per_table	Single	DEFAULT	8192	Compressed	MYSQLD_DATADIR/test/t_zip8k_as_file_per_table.ibd
-test/t_zip8k_as_remote	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
+test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	1	1	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+test/t_zip16k_as_remote	Single	DEFAULT	DEFAULT	1	1	Compressed	MYSQL_TMP_DIR/test/t_zip16k_as_remote.ibd
+test/t_zip1k_as_file_per_table	Single	DEFAULT	1024	1	1	Compressed	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
+test/t_zip1k_as_remote	Single	DEFAULT	1024	1	1	Compressed	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
+test/t_zip2k_as_file_per_table	Single	DEFAULT	2048	1	1	Compressed	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
+test/t_zip2k_as_remote	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
+test/t_zip4k_as_file_per_table	Single	DEFAULT	4096	1	1	Compressed	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
+test/t_zip4k_as_remote	Single	DEFAULT	4096	1	1	Compressed	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
+test/t_zip8k_as_file_per_table	Single	DEFAULT	8192	1	1	Compressed	MYSQLD_DATADIR/test/t_zip8k_as_file_per_table.ibd
+test/t_zip8k_as_remote	Single	DEFAULT	8192	1	1	Compressed	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -619,7 +637,9 @@ test/t_zip8k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_as_file_per
 test/t_zip8k_as_remote	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_as_remote	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t_zip16k_as_file_per_table	test/t_zip16k_as_file_per_table	43	5	Compressed	16384	Single
 test/t_zip16k_as_remote	test/t_zip16k_as_remote	107	5	Compressed	16384	Single
@@ -915,18 +935,22 @@ ALTER TABLE `t_zip2k_as_remote` TABLESPACE=`s_2k`, RENAME TO `t_zip2k_remote_in_
 ALTER TABLE `t_zip4k_as_remote` TABLESPACE=`s_4k`, RENAME TO `t_zip4k_remote_in_s_4k`;
 ALTER TABLE `t_zip8k_as_remote` TABLESPACE=`s_8k`, RENAME TO `t_zip8k_remote_in_s_8k`;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
-test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
+test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	1	1	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -936,7 +960,9 @@ s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip16k_as_file_per_table	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t_zip16k_as_file_per_table	test/t_zip16k_as_file_per_table	43	5	Compressed	16384	Single
 test/t_zip1k_in_s_1k	s_1k	163	5	Compressed	1024	General
@@ -1089,22 +1115,26 @@ ALTER TABLE `t_zip2k_in_s_2k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_z
 ALTER TABLE `t_zip4k_in_s_4k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip4k_to_file_per_table`;
 ALTER TABLE `t_zip8k_in_s_8k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip8k_to_file_per_table`;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
-test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
-test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
-test/t_zip4k_to_file_per_table	Single	DEFAULT	4096	Compressed	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
-test/t_zip8k_to_file_per_table	Single	DEFAULT	8192	Compressed	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
+test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	1	1	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	1	1	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	1	1	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+test/t_zip4k_to_file_per_table	Single	DEFAULT	4096	1	1	Compressed	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
+test/t_zip8k_to_file_per_table	Single	DEFAULT	8192	1	1	Compressed	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -1118,7 +1148,9 @@ test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip4k_to_file_per
 test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_to_file_per_table	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t_zip16k_as_file_per_table	test/t_zip16k_as_file_per_table	43	5	Compressed	16384	Single
 test/t_zip1k_remote_in_s_1k	s_1k	163	5	Compressed	1024	General
@@ -1166,21 +1198,25 @@ ALTER TABLE `t_zip8k_remote_in_s_8k` TABLESPACE=`innodb_file_per_table`, DATA DI
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s_16k	General	DEFAULT	0	Any	s_16k.ibd
-s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
-test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
-test/t_zip4k_to_file_per_table	Single	DEFAULT	4096	Compressed	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
-test/t_zip8k_to_file_per_table	Single	DEFAULT	8192	Compressed	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_16k	General	DEFAULT	0	1	1	Any	s_16k.ibd
+s_1k	General	DEFAULT	1024	1	1	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	1	1	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	1	1	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	1	1	Compressed	s_8k.ibd
+test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	1	1	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	1	1	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+test/t_zip4k_to_file_per_table	Single	DEFAULT	4096	1	1	Compressed	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
+test/t_zip8k_to_file_per_table	Single	DEFAULT	8192	1	1	Compressed	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -1193,7 +1229,9 @@ test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip4k_to_file_per
 test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_to_file_per_table	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Compressed	1024	Single
 test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Compressed	2048	Single

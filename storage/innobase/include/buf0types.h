@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0ut.h"
 
 /** Magic value to use instead of checksums when they are disabled */
-#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+constexpr uint32_t BUF_NO_CHECKSUM_MAGIC = 0xDEADBEEFUL;
 
 /** Buffer page (uncompressed or compressed) */
 class buf_page_t;
@@ -56,40 +56,55 @@ struct buf_buddy_stat_t;
 /** Doublewrite memory struct */
 struct buf_dblwr_t;
 /** Flush observer for bulk create index */
-class FlushObserver;
+class Flush_observer;
 
 /** A buffer frame. @see page_t */
 typedef byte buf_frame_t;
 
 /** Flags for flush types */
-enum buf_flush_t {
-  BUF_FLUSH_LRU = 0,     /*!< flush via the LRU list */
-  BUF_FLUSH_LIST,        /*!< flush via the flush list
-                         of dirty blocks */
-  BUF_FLUSH_SINGLE_PAGE, /*!< flush via the LRU list
-                         but only a single page */
-  BUF_FLUSH_N_TYPES      /*!< index of last element + 1  */
+enum buf_flush_t : uint8_t {
+  /** Flush via the LRU list */
+  BUF_FLUSH_LRU = 0,
+
+  /** Flush via the flush list of dirty blocks */
+  BUF_FLUSH_LIST,
+
+  /** Flush via the LRU list but only a single page */
+  BUF_FLUSH_SINGLE_PAGE,
+
+  /** Index of last element + 1  */
+  BUF_FLUSH_N_TYPES
 };
 
 /** Algorithm to remove the pages for a tablespace from the buffer pool.
 See buf_LRU_flush_or_remove_pages(). */
 enum buf_remove_t {
-  BUF_REMOVE_ALL_NO_WRITE,   /*!< Remove all pages from the buffer
-                             pool, don't write or sync to disk */
-  BUF_REMOVE_FLUSH_NO_WRITE, /*!< Remove only, from the flush list,
-                             don't write or sync to disk */
-  BUF_REMOVE_FLUSH_WRITE     /*!< Flush dirty pages to disk only
-                             don't remove from the buffer pool */
+  /** Don't remove any pages. */
+  BUF_REMOVE_NONE,
+
+  /** Remove all pages from the buffer pool, don't write or sync to disk */
+  BUF_REMOVE_ALL_NO_WRITE,
+
+  /** Remove only from the flush list, don't write or sync to disk */
+  BUF_REMOVE_FLUSH_NO_WRITE,
+
+  /** Flush dirty pages to disk only don't remove from the buffer pool */
+  BUF_REMOVE_FLUSH_WRITE
 };
 
 /** Flags for io_fix types */
-enum buf_io_fix {
-  BUF_IO_NONE = 0, /**< no pending I/O */
-  BUF_IO_READ,     /**< read pending */
-  BUF_IO_WRITE,    /**< write pending */
-  BUF_IO_PIN       /**< disallow relocation of
-                   block and its removal of from
-                   the flush_list */
+enum buf_io_fix : uint8_t {
+  /** no pending I/O */
+  BUF_IO_NONE = 0,
+
+  /** read pending */
+  BUF_IO_READ,
+
+  /** write pending */
+  BUF_IO_WRITE,
+
+  /** disallow relocation of block and its removal from the flush_list */
+  BUF_IO_PIN
 };
 
 /** Alternatives for srv_checksum_algorithm, which can be changed by
@@ -122,24 +137,25 @@ inline bool is_checksum_strict(ulint algo) {
 }
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
-/* @{ */
+/** @{ */
 /** Zip shift value for the smallest page size */
-#define BUF_BUDDY_LOW_SHIFT UNIV_ZIP_SIZE_SHIFT_MIN
+constexpr uint32_t BUF_BUDDY_LOW_SHIFT = UNIV_ZIP_SIZE_SHIFT_MIN;
 
 /** Smallest buddy page size */
-#define BUF_BUDDY_LOW (1U << BUF_BUDDY_LOW_SHIFT)
+constexpr uint32_t BUF_BUDDY_LOW = (1U << BUF_BUDDY_LOW_SHIFT);
 
 /** Actual number of buddy sizes based on current page size */
 #define BUF_BUDDY_SIZES (UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 
 /** Maximum number of buddy sizes based on the max page size */
-#define BUF_BUDDY_SIZES_MAX (UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
+constexpr uint32_t BUF_BUDDY_SIZES_MAX =
+    UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT;
 
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:
 this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH (BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
-/* @} */
+/** @} */
 
 typedef ib_bpmutex_t BPageMutex;
 typedef ib_mutex_t BufListMutex;
@@ -152,16 +168,33 @@ typedef rw_lock_t BPageLock;
 /** Page identifier. */
 class page_id_t {
  public:
-  /** Default constructor */
-  page_id_t() : m_space(), m_page_no(), m_fold() {}
+  /**
+  This class does not have a default constructor, because there is no natural
+  choice for default values of m_space and m_page_no.
+
+  If 0,0 were used, then it's not good as it doesn't match UINT32_UNDEFINED
+  used to denote impossible page_no_t in several places, and 0 is a legal
+  value for both space_id_t and page_id_t of a real page!
+
+  If UINT32_UNDEFINED,UINT32_UNDEFINED were used, then it doesn't match the
+  most common usage where use use memset(parent,0,sizeof(parent_t)); on a
+  parent struct where one of the members has page_id_t type - which is ok
+  given that page_id_t is TriviallyCopyable, and that the field is not
+  used until it is assigned some real value. Such constructor would be
+  misleading to people reading the code, as they might expect UINT32_UNDEFINED
+  value, if they didn't notice the memset code burried somewhere in parent's
+  initialization routine.
+
+  Therefore, please either be explicit by using (space,page_no) overload,
+  or continue to use memset at your own risk.
+  */
+  page_id_t() = delete;
 
   /** Constructor from (space, page_no).
-  @param[in]	space	tablespace id
-  @param[in]	page_no	page number */
+  @param[in]    space   tablespace id
+  @param[in]    page_no page number */
   page_id_t(space_id_t space, page_no_t page_no)
-      : m_space(space), m_page_no(page_no), m_fold(ULINT_UNDEFINED) {}
-
-  page_id_t(const page_id_t &) = default;
+      : m_space(space), m_page_no(page_no) {}
 
   /** Retrieve the tablespace id.
   @return tablespace id */
@@ -173,45 +206,38 @@ class page_id_t {
 
   /** Retrieve the fold value.
   @return fold value */
-  inline ulint fold() const {
-    /* Initialize m_fold if it has not been initialized yet. */
-    if (m_fold == ULINT_UNDEFINED) {
-      m_fold = (m_space << 20) + m_space + m_page_no;
-      ut_ad(m_fold != ULINT_UNDEFINED);
-    }
-
-    return (m_fold);
-  }
-
-  /** Copy the values from a given page_id_t object.
-  @param[in]	src	page id object whose values to fetch */
-  inline void copy_from(const page_id_t &src) {
-    m_space = src.space();
-    m_page_no = src.page_no();
-    m_fold = src.fold();
-  }
+  inline uint32_t fold() const { return (m_space << 20) + m_space + m_page_no; }
 
   /** Reset the values from a (space, page_no).
-  @param[in]	space	tablespace id
-  @param[in]	page_no	page number */
+  @param[in]    space   tablespace id
+  @param[in]    page_no page number */
   inline void reset(space_id_t space, page_no_t page_no) {
     m_space = space;
     m_page_no = page_no;
-    m_fold = ULINT_UNDEFINED;
   }
 
   /** Reset the page number only.
-  @param[in]	page_no	page number */
-  inline void set_page_no(page_no_t page_no) {
-    m_page_no = page_no;
-    m_fold = ULINT_UNDEFINED;
-  }
+  @param[in]    page_no page number */
+  inline void set_page_no(page_no_t page_no) { m_page_no = page_no; }
 
   /** Check if a given page_id_t object is equal to the current one.
-  @param[in]	a	page_id_t object to compare
+  @param[in]    a       page_id_t object to compare
   @return true if equal */
-  inline bool equals_to(const page_id_t &a) const {
+  inline bool operator==(const page_id_t &a) const {
     return (a.space() == m_space && a.page_no() == m_page_no);
+  }
+
+  /** Check if a given page_id_t object is not equal to the current one.
+  @param[in]    a       page_id_t object to compare
+  @return true if not equal */
+  inline bool operator!=(const page_id_t &a) const { return !(*this == a); }
+
+  /** Provides a lexicographic ordering on <space_id,page_no> pairs
+  @param[in]    other   page_id_t object to compare
+  @return true if this is strictly smaller than other */
+  inline bool operator<(const page_id_t &other) const {
+    return m_space < other.space() ||
+           (m_space == other.space() && m_page_no < other.page_no());
   }
 
  private:
@@ -221,25 +247,12 @@ class page_id_t {
   /** Page number. */
   page_no_t m_page_no;
 
-  /** A fold value derived from m_space and m_page_no,
-  used in hashing. */
-  mutable ulint m_fold;
-
-  /* Disable implicit copying. */
-  void operator=(const page_id_t &) = delete;
-
-  /** Declare the overloaded global operator<< as a friend of this
-  class. Refer to the global declaration for further details.  Print
-  the given page_id_t object.
-  @param[in,out]	out	the output stream
-  @param[in]	page_id	the page_id_t object to be printed
-  @return the output stream */
   friend std::ostream &operator<<(std::ostream &out, const page_id_t &page_id);
 };
 
 /** Print the given page_id_t object.
-@param[in,out]	out	the output stream
-@param[in]	page_id	the page_id_t object to be printed
+@param[in,out]  out     the output stream
+@param[in]      page_id the page_id_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const page_id_t &page_id);
 

@@ -1,26 +1,36 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "ndb_limits.h"
 #include "ndbd_malloc_impl.hpp"
 #include "Pool.hpp"
 #include "TransientPagePool.hpp"
+#include "debugger/EventLogger.hpp"
 
 #define JAM_FILE_ID 503
+
 
 TransientPagePool::TransientPagePool()
 : m_mem_manager(NULL),
@@ -128,7 +138,22 @@ bool TransientPagePool::getPtr(Ptr<Page>& p) const
   {
     return false;
   }
-  require(p.p != NULL && Magic::match(p.p->m_magic, m_type_id));
+  if (unlikely(!(p.p != NULL && Magic::match(p.p->m_magic, m_type_id))))
+  {
+    g_eventLogger->info("Magic::match failed in %s: "
+                        "type_id %08x rg %u tid %u: "
+                        "slot_size -: ptr.i %u: ptr.p %p: "
+                        "magic %08x expected %08x",
+                        __func__,
+                        m_type_id,
+                        GET_RG(m_type_id),
+                        GET_TID(m_type_id),
+                        p.i,
+                        p.p,
+                        p.p->m_magic,
+                        Magic::make(m_type_id));
+    require(p.p != NULL && Magic::match(p.p->m_magic, m_type_id));
+  }
   return true;
 }
 
@@ -171,33 +196,36 @@ bool TransientPagePool::getValidPtr(Ptr<Page>& p) const
 }
 
 inline
-Uint32 TransientPagePool::get_next_index(Uint32 index) const
+bool TransientPagePool::is_valid_index(Uint32 index)
 {
-  if (index == RNIL)
-  {
-    return 0;
-  }
-  Uint32 low = index & MapPage::VALUE_INDEX_MASK;
-  if (likely(low < MapPage::PAGE_WORDS - 1))
-  {
-    return index + 1;
-  }
-  else
-  {
-    require(low == MapPage::PAGE_WORDS - 1);
-  }
-  low = 0;
-  Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
-  if (likely(high < MapPage::PAGE_WORDS - 1))
-  {
-    return index + (1 << MapPage::VALUE_INDEX_BITS);
-  }
-  else
-  {
-    require(low == MapPage::PAGE_WORDS - 1);
-  }
-  return RNIL;
+  return (index <= MapPage::MAX_PAGE_ID_2L) &&
+         ((index & MapPage::VALUE_INDEX_MASK) <= MapPage::MAX_PAGE_ID_1L);
 }
+
+inline
+Uint32 TransientPagePool::get_next_index(Uint32 index)
+{
+  if (unlikely(index == RNIL)) return 0;
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  require(is_valid_index(index));
+#endif
+  if (likely((index & MapPage::VALUE_INDEX_MASK) != MapPage::MAX_PAGE_ID_1L))
+    return index + 1;
+  if (unlikely(index == MapPage::MAX_PAGE_ID_2L)) return RNIL;
+  return index + 1 + MapPage::PAGE_ID_GAP;
+}
+
+inline
+Uint32 TransientPagePool::get_prev_index(Uint32 index)
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  require(is_valid_index(index));
+#endif
+  if (likely((index & MapPage::VALUE_INDEX_MASK) != 0)) return index - 1;
+  if (unlikely(index == 0)) return RNIL;
+  return index - 1 - MapPage::PAGE_ID_GAP;
+}
+
 /*
 Uint32 TransientPagePool::get_next_indexes(Uint32 index, Uint32 indexes[], Uint32 n) const
 {
@@ -331,6 +359,10 @@ Uint32 TransientPagePool::get_valid(Uint32 index) const
   return leaf_page->get(low);
 }
 
+/*
+ * Return true if a map page was removed and the there are a new top that may
+ * be removed.
+ */
 inline
 bool TransientPagePool::shrink()
 {
@@ -338,37 +370,35 @@ bool TransientPagePool::shrink()
   {
     return false;
   }
+
   Uint32 index = m_top;
+  Uint32 new_top = get_prev_index(index);
+
   Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
   require(high < MapPage::PAGE_WORDS);
   Uint32 leaf_page_id = m_root_page->get(high);
   require(leaf_page_id != MapPage::NO_VALUE);
   void* vpage = m_mem_manager->get_page(leaf_page_id);
   MapPage* leaf_page = static_cast<MapPage*>(vpage);
+
   Uint32 low = index & MapPage::VALUE_INDEX_MASK;
   require(low < MapPage::PAGE_WORDS);
   require(leaf_page->get(low) == MapPage::NO_VALUE);
-  if (low > 0)
-  {
-    m_top--;
-    return false;
-  }
+
+  m_top = new_top;
+
+  if (on_same_map_page(new_top, index)) return false;
+
   m_mem_manager->release_page(m_type_id, leaf_page_id);
   m_root_page->set(high, MapPage::NO_VALUE);
-  if (unlikely(high == 0))
-  {
-    m_top = RNIL;
-    return true;
-  }
-  high--;
-  low = MapPage::PAGE_WORDS - 1;
-  m_top = (high << MapPage::VALUE_INDEX_BITS) | low;
+
+  if (new_top == RNIL) return false;
   return true;
 }
 
 inline TransientPagePool::MapPage::MapPage(Uint32 magic)
 {
-  NDB_STATIC_ASSERT(NO_VALUE == 0);
+  static_assert(NO_VALUE == 0);
   /* zero fill both m_reserved and m_values */
   memset(this, 0, sizeof(*this));
   require(magic != 0);
@@ -386,3 +416,53 @@ inline void TransientPagePool::MapPage::set(Uint32 i, Uint32 v)
   require(i < PAGE_WORDS);
   m_values[i] = v;
 }
+
+#ifdef TEST_TRANSIENTPAGEPOOL
+
+#undef JAM_FILE_ID
+
+#include "ndb_types.h"
+#include "unittest/mytap/tap.h"
+
+/*
+ * Putting actual tests inside Test class to get access to private members of
+ * TransientPagePool.
+ * class Test is friend of TransientPagePool.
+ */
+
+class Test
+{
+public:
+  Test();
+};
+
+Test::Test()
+{
+  // RNIL indicates no pages mapped, first index is 0
+  ok1(TransientPagePool::get_next_index(RNIL) == 0);
+  ok1(TransientPagePool::get_next_index(0) == 1);
+  // 8183 is last valid id on a map page, 8192 is the first id on next page
+  ok1(TransientPagePool::get_next_index(8183) == 8192);
+  ok1(TransientPagePool::get_next_index(8183 + 8192) == 16384);
+  ok1(TransientPagePool::get_next_index(8182 + 8183 * 8192) == (8183 + 8183 * 8192));
+  // Last valid id is 8183 + 8183 * 8192, nothing after that.
+  ok1(TransientPagePool::get_next_index(8183 + 8183 * 8192) == RNIL);
+
+  // 0 is first valid page id, nothing before that.
+  ok1(TransientPagePool::get_prev_index(0) == RNIL);
+  ok1(TransientPagePool::get_prev_index(1) == 0);
+  ok1(TransientPagePool::get_prev_index(8192) == 8183);
+  ok1(TransientPagePool::get_prev_index(16384) == (8183 + 8192));
+  ok1(TransientPagePool::get_prev_index(8183 + 8183 * 8192) == (8182 + 8183 * 8192));
+}
+
+int main(int argc, char*argv[])
+{
+  plan(11);
+
+  Test dummy;
+
+  return exit_status();
+}
+
+#endif

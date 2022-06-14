@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <algorithm>
 
+#include "my_bitmap.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/sql_bitmap.h"
@@ -34,9 +35,9 @@ const int BITMAP_SIZE = 128;
 
 class BitmapTest : public ::testing::Test {
  protected:
-  BitmapTest() {}
+  BitmapTest() = default;
 
-  virtual void SetUp() { bitmap.init(); }
+  void SetUp() override { bitmap.init(); }
 
   Bitmap<BITMAP_SIZE> bitmap;
 };
@@ -66,6 +67,15 @@ TEST_F(BitmapTest, ULLTest) {
   bitmap24.intersect(0x47BULL);
   ulonglong ull24 = bitmap24.to_ulonglong();
   EXPECT_TRUE(ull24 == 0x47BULL);
+}
+
+TEST_F(BitmapTest, GetFirstSet) {
+  const Bitmap<64> const64bitmap(0);
+  uint key = const64bitmap.get_first_set();
+  EXPECT_EQ(MY_BIT_NONE, key);
+  const Bitmap<BITMAP_SIZE> const128bitmap(0);
+  key = const128bitmap.get_first_set();
+  EXPECT_EQ(MY_BIT_NONE, key);
 }
 
 }  // namespace bitmap_unittest

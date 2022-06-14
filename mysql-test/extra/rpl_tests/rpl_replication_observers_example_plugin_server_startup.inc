@@ -55,18 +55,22 @@ DROP TABLE t1;
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_startup.err
 --let $grep_pattern=replication_observers_example_plugin:before_handle_connection
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_startup.err
 --let $grep_pattern=replication_observers_example_plugin:before_recovery
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_startup.err
 --let $grep_pattern=replication_observers_example_plugin:after_engine_recovery
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_startup.err
 --let $grep_pattern=replication_observers_example_plugin:after_recovery
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $include_filename= rpl_replication_observers_example_plugin_server_startup.inc

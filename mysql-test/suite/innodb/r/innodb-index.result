@@ -18,8 +18,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`)
@@ -37,12 +37,12 @@ a	b	c	d
 5	5	oo	oo
 4	4	tr	tr
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 't1.b'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`)
@@ -53,8 +53,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`),
@@ -68,8 +68,8 @@ Warning	1831	Duplicate index 'd' defined on the table 'test.t1'. This is depreca
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   UNIQUE KEY `c` (`c`),
@@ -91,8 +91,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -104,15 +104,15 @@ affected rows: 1
 alter table t1 add primary key (c);
 ERROR 42000: Multiple primary key defined
 alter table t1 drop primary key, add primary key (b);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 create unique index c on t1 (c);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -141,8 +141,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -199,8 +199,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -219,8 +219,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -233,8 +233,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -283,8 +283,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -330,8 +330,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -368,8 +368,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -404,8 +404,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -457,8 +457,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -525,9 +525,9 @@ info: Records: 1  Duplicates: 0  Warnings: 0
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
-  `e` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `d` int NOT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `d` (`d`),
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
@@ -541,9 +541,9 @@ SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -553,11 +553,11 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `alpha` int(11) NOT NULL,
-  `beta` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
+  `alpha` int NOT NULL,
+  `beta` int DEFAULT NULL,
+  `c` int NOT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`alpha`),
   UNIQUE KEY `dc` (`d`,`c`),
   KEY `c` (`c`),
@@ -589,7 +589,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '2' for key 'b'
+ERROR 23000: Duplicate entry '2' for key 't1.b'
 insert into t1 values(8,9,'fff','fff');
 select * from t1;
 a	b	c	d
@@ -601,12 +601,12 @@ a	b	c	d
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 alter table t1 add index (b);
 insert into t1 values(10,10,'kkk','iii');
 select * from t1;
@@ -633,13 +633,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 alter table t1 add unique index (c), add index (d);
 insert into t1 values(11,11,'aaa','mmm');
 select * from t1;
@@ -696,15 +696,15 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
   KEY `b` (`b`),
   KEY `d` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -712,16 +712,16 @@ drop table t1;
 create table t1(a int not null, b int) engine = innodb;
 insert into t1 values (1,1),(1,1),(1,1),(1,1);
 alter table t1 add unique index (a);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '1' for key 'b'
+ERROR 23000: Duplicate entry '1' for key 't1.b'
 alter table t1 add unique index (a), add unique index(b);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, c int not null,b int, primary key(a), unique key(c), key(b)) engine = innodb;
@@ -729,9 +729,9 @@ alter table t1 drop index c, drop index b;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `c` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -740,8 +740,8 @@ alter table t1 add index (b);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -749,14 +749,14 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
 alter table t1 add unique index (b), add unique index (c), add unique index (d);
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 't1.b'
 alter table t1 add unique index (c), add unique index (b), add index (d);
-ERROR 23000: Duplicate entry 'ac' for key 'c'
+ERROR 23000: Duplicate entry 'ac' for key 't1.c'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -771,9 +771,9 @@ insert into t1 values (10,20,20),(11,19,19),(12,18,18),(13,17,17);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`),
   KEY `c` (`c`)
@@ -840,8 +840,8 @@ insert into t1 values (2,2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
@@ -882,7 +882,7 @@ insert into t1 values (2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
@@ -932,9 +932,9 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -943,9 +943,9 @@ CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `i_t2_c3_c2` (`c3`,`c2`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -974,9 +974,9 @@ SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`,`c2`,`c3`),
   KEY `fk_t2_ca` (`c3`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -985,9 +985,9 @@ CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`,`c2`,`c3`),
   KEY `i_t2_c3_c2` (`c3`,`c2`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -1057,17 +1057,17 @@ affected rows: 0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(12) NOT NULL,
-  `c2` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c2`,`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 affected rows: 1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`,`c2`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
@@ -1079,9 +1079,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`,`c2`),
   KEY `i_t2_c2_c1` (`c2`,`c1`),
@@ -1094,9 +1094,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`,`c2`),
   KEY `i_t2_c2_c1` (`c2`,`c1`),
@@ -1110,9 +1110,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `i_t2_c2_c1` (`c2`,`c1`),
   KEY `i_t2_c3_c1_c2` (`c3`,`c1`,`c2`),
@@ -1223,14 +1223,14 @@ alter table t2 drop index t2a, add index t2a(b);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   KEY `t2a` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2i;
 Table	Create Table
 t2i	CREATE TABLE `t2i` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
@@ -1238,7 +1238,7 @@ t2i	CREATE TABLE `t2i` (
 show create table t2c;
 Table	Create Table
 t2c	CREATE TABLE `t2c` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
@@ -1256,7 +1256,7 @@ alter table t1 force;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 drop table t1;
@@ -1269,7 +1269,7 @@ alter table t1 add key(f2);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 drop table t1;
@@ -1299,7 +1299,7 @@ alter table t1 drop primary key, add primary key(f1,f2,f3,f4);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1309,7 +1309,7 @@ add column f6 int not null,add primary key(f1,f2,f5,f6);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1318,7 +1318,7 @@ alter table t1 drop column f6;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1327,7 +1327,7 @@ alter table t1 add column f6 int;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1336,7 +1336,7 @@ alter table t1 drop column f6;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Must sort
@@ -1345,9 +1345,8 @@ alter table t1 drop column f2;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
 # Reusing the same pk
@@ -1356,7 +1355,7 @@ primary key (f1,f5,f2n);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1366,7 +1365,7 @@ add column f8 int not null;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1376,9 +1375,8 @@ add primary key (f1,f5,f7,f2n);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
 # Reusing the same pk
@@ -1386,7 +1384,7 @@ alter table t1 force;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1395,7 +1393,7 @@ alter table t1 row_format=compact;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1404,7 +1402,7 @@ alter table t1 engine=innodb;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1415,7 +1413,7 @@ test.t1	optimize	note	Table does not support optimize, doing recreate + analyze 
 test.t1	optimize	status	OK
 affected rows: 2
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Sort files used for adding secondary index
@@ -1424,16 +1422,15 @@ i(f3);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # No sort files used for dropping secondary index
 alter table t1 drop primary key, add primary key(f1,f5),drop index i;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
@@ -1443,7 +1440,7 @@ drop column f5, add column f12 int not null;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Must sort
@@ -1452,9 +1449,8 @@ alter table t1 drop primary key, add primary key(f1,f3);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort
 # Change PK(f1,f3) to (f1,added_column,f3,added_column)
@@ -1463,7 +1459,7 @@ add column f4n int, add primary key(f1,f3n,f3,f4n);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Adding Secondary index alone.
@@ -1471,9 +1467,8 @@ alter table t1 add key(f1);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Must sort
 # Change PK(f1,f3) to (existing_column,f1)
@@ -1481,9 +1476,8 @@ alter table t1 drop primary key, add primary key(f4,f1);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	3
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort for PK.
 # Change PK(f4,f1) to (added_columns,f4,f1)
@@ -1493,9 +1487,8 @@ add column f6n int, add primary key(f5n,f6n,f4,f1);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort for PK.
 # Change PK(f5n,f6n,f4,f1) to
@@ -1506,9 +1499,8 @@ add column f8n int, add primary key(f7n,f5n,f8n,f6n,f4,f1);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	2
 SET GLOBAL innodb_monitor_reset = module_ddl;
 SET GLOBAL innodb_monitor_disable = module_ddl;
 select count(*) from t1;
@@ -1534,7 +1526,7 @@ count(*)
 # Skip sort
 # Change PK from (f1,f2,f3,f4) to (f1,f2,f3)
 alter table t1 drop primary key, add primary key(f1,f2,f3);
-ERROR 23000: Duplicate entry '106-aaa-bbb' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '106-aaa-bbb' for key 't1.PRIMARY'
 select count(*) from t1;
 count(*)
 481
@@ -1548,7 +1540,7 @@ select count(*) from t1;
 count(*)
 481
 alter table t1 drop primary key, add primary key(f1,f2,f3);
-ERROR 23000: Duplicate entry '108-aaa-bbb' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '108-aaa-bbb' for key 't1.PRIMARY'
 select count(*) from t1;
 count(*)
 481
@@ -1726,8 +1718,8 @@ CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY (a ASC)) ENGINE=INNODB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);

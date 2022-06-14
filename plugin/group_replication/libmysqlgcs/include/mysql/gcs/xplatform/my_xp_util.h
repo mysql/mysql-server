@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,19 +80,6 @@ class My_xp_util {
 
   static void sleep_seconds(unsigned int seconds);
 
-  /* Code ported from MySQL Server to deal with timespec. */
-#ifdef _WIN32
-  static uint64_t query_performance_frequency, query_performance_offset;
-
-  static void win_init_time();
-#endif
-
-  /**
-    Init time.
-  */
-
-  static void init_time();
-
   /**
     Get the system's time.
 
@@ -173,14 +160,14 @@ class My_xp_socket_util {
 
   virtual int disable_nagle_in_socket(int fd) = 0;
 
-  virtual ~My_xp_socket_util() {}
+  virtual ~My_xp_socket_util() = default;
 };
 
 class My_xp_socket_util_impl : public My_xp_socket_util {
  public:
-  int disable_nagle_in_socket(int fd);
-  explicit My_xp_socket_util_impl() {}
-  ~My_xp_socket_util_impl() {}
+  int disable_nagle_in_socket(int fd) override;
+  explicit My_xp_socket_util_impl() = default;
+  ~My_xp_socket_util_impl() override = default;
 };
 
 #endif  // MY_XP_UTIL_INCLUDED

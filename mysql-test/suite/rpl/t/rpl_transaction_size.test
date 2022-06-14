@@ -30,7 +30,11 @@
 #
 # WL#10493: Add transaction length to gtid_log_event
 #
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
+
+# this test uses large transactions, tence cannot use compression
+--source include/not_binlog_transaction_compression_on.inc
 
 --echo ###################################################
 --echo # Step 1                                          #

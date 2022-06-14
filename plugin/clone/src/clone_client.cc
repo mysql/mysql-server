@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,13 @@ Clone Plugin: Client implementation
 /* Namespace for all clone data types */
 namespace myclone {
 
+/** Default timeout is 300 seconds */
+Time_Sec Client::s_reconnect_timeout{300};
+
+/** Minimum interval is 5 seconds. The actual value could be more based on
+MySQL connect_timeout configuration. */
+Time_Sec Client::s_reconnect_interval{5};
+
 /** Start concurrent clone  operation
 @param[in]	share	shared client information
 @param[in]	index	current thread index */
@@ -62,7 +69,7 @@ uint64_t Thread_Info::get_target_time(uint64_t current, uint64_t prev,
   if (target == 0) {
     return (target);
   }
-  DBUG_ASSERT(current >= prev);
+  assert(current >= prev);
   auto bytes = current - prev;
   auto target_time_ms = (bytes * 1000) / target;
   return (target_time_ms);
@@ -153,13 +160,13 @@ void Client_Stat::update(bool reset, const Thread_Vector &threads,
   uint64_t net_speed{};
   if (value_ms == 0) {
     /* We might be too early here during reset. */
-    DBUG_ASSERT(reset);
+    assert(reset);
   } else {
     /* Update PFS in bytes per second. */
-    DBUG_ASSERT(data_bytes >= m_eval_data_bytes);
+    assert(data_bytes >= m_eval_data_bytes);
     auto data_inc = data_bytes - m_eval_data_bytes;
 
-    DBUG_ASSERT(net_bytes >= m_eval_network_bytes);
+    assert(net_bytes >= m_eval_network_bytes);
     auto net_inc = net_bytes - m_eval_network_bytes;
 
     data_speed = (data_inc * 1000) / value_ms;
@@ -210,7 +217,7 @@ void Client_Stat::update(bool reset, const Thread_Vector &threads,
 
 uint64_t Client_Stat::task_target(uint64_t target_speed, uint64_t current_speed,
                                   uint64_t current_target, uint32_t num_tasks) {
-  DBUG_ASSERT(num_tasks > 0);
+  assert(num_tasks > 0);
 
   /* Zero is special value indicating unlimited bandwidth. */
   if (target_speed == 0) {
@@ -318,7 +325,7 @@ bool Client_Stat::tune_has_improved(uint32_t num_threads) {
   auto gap_target = m_tune.m_next_number - m_tune.m_prev_number;
   auto gap_current = m_tune.m_cur_number - m_tune.m_prev_number;
 
-  DBUG_ASSERT(m_current_history_index > 0);
+  assert(m_current_history_index > 0);
   auto last_index = (m_current_history_index - 1) % STAT_HISTORY_SIZE;
   auto data_speed = m_data_speed_history[last_index];
   auto target_speed = m_tune.m_prev_speed;
@@ -356,7 +363,7 @@ bool Client_Stat::tune_has_improved(uint32_t num_threads) {
 
 void Client_Stat::tune_set_target(uint32_t num_threads, uint32_t max_threads) {
   /* Note the current speed of data transfer. */
-  DBUG_ASSERT(m_current_history_index > 0);
+  assert(m_current_history_index > 0);
   auto last_index = (m_current_history_index - 1) % STAT_HISTORY_SIZE;
   auto current_speed = m_data_speed_history[last_index];
   /* Check if we have reached current target. */
@@ -372,7 +379,7 @@ void Client_Stat::tune_set_target(uint32_t num_threads, uint32_t max_threads) {
     }
     m_tune.m_prev_speed = current_speed;
   }
-  DBUG_ASSERT(m_tune.m_cur_number == num_threads);
+  assert(m_tune.m_cur_number == num_threads);
   /* We attempt to improve performance by adding more threads in steps. */
   m_tune.m_cur_number += m_tune.m_step;
   m_tune.m_last_step_speed = current_speed;
@@ -391,7 +398,7 @@ void Client_Stat::tune_set_target(uint32_t num_threads, uint32_t max_threads) {
 uint32_t Client_Stat::get_tuned_thread_number(uint32_t num_threads,
                                               uint32_t max_threads) {
   if (m_current_history_index < m_tune.m_prev_history_index) {
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return (num_threads);
   }
   auto interval = m_current_history_index - m_tune.m_prev_history_index;
@@ -415,7 +422,7 @@ uint32_t Client_Stat::get_tuned_thread_number(uint32_t num_threads,
     m_tune.m_state = Thread_Tune_Auto::State::ACTIVE;
     return (m_tune.m_cur_number);
   }
-  DBUG_ASSERT(m_tune.m_state == Thread_Tune_Auto::State::ACTIVE);
+  assert(m_tune.m_state == Thread_Tune_Auto::State::ACTIVE);
   /* If it failed to improve speed, give up tuning. */
   if (!tune_has_improved(num_threads)) {
     finish_tuning();
@@ -441,7 +448,7 @@ Client::Client(THD *thd, Client_Share *share, uint32_t index, bool is_master)
 
   /* Master must be at index zero */
   if (is_master) {
-    DBUG_ASSERT(index == 0);
+    assert(index == 0);
     m_thread_index = 0;
   }
 
@@ -456,11 +463,16 @@ Client::Client(THD *thd, Client_Share *share, uint32_t index, bool is_master)
 
   m_conn_aux.m_conn = nullptr;
   m_conn_aux.reset();
+
+  m_conn_server_extn.m_user_data = nullptr;
+  m_conn_server_extn.m_before_header = nullptr;
+  m_conn_server_extn.m_after_header = nullptr;
+  m_conn_server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
 }
 
 Client::~Client() {
-  DBUG_ASSERT(!m_storage_initialized);
-  DBUG_ASSERT(!m_storage_active);
+  assert(!m_storage_initialized);
+  assert(!m_storage_active);
   m_copy_buff.free();
   m_cmd_buff.free();
 }
@@ -497,7 +509,7 @@ uint32_t Client::update_stat(bool is_reset) {
   /** Check if we need to spawn more threads. */
   auto num_threads = stat.get_tuned_thread_number(m_num_active_workers + 1,
                                                   get_max_concurrency());
-  DBUG_ASSERT(num_threads >= 1);
+  assert(num_threads >= 1);
   return (num_threads - 1);
 }
 
@@ -527,12 +539,12 @@ uchar *Client::get_aligned_buffer(uint32_t len) {
 
 void Client::wait_for_workers() {
   if (!is_master()) {
-    DBUG_ASSERT(m_num_active_workers == 0);
+    assert(m_num_active_workers == 0);
     return;
   }
   /* Wait for concurrent worker tasks to finish. */
   auto &thread_vector = m_share->m_threads;
-  DBUG_ASSERT(thread_vector.size() > m_num_active_workers);
+  assert(thread_vector.size() > m_num_active_workers);
   auto &stat = m_share->m_stat;
 
   while (m_num_active_workers > 0) {
@@ -562,7 +574,7 @@ int Client::pfs_begin_state() {
   /* Check and exit if concurrent clone in progress. */
   if (s_num_clones != 0) {
     mysql_mutex_unlock(&s_table_mutex);
-    DBUG_ASSERT(s_num_clones == 1);
+    assert(s_num_clones == 1);
     my_error(ER_CLONE_TOO_MANY_CONCURRENT_CLONES, MYF(0), 1);
     return (ER_CLONE_TOO_MANY_CONCURRENT_CLONES);
   }
@@ -572,8 +584,6 @@ int Client::pfs_begin_state() {
   s_progress_data.init_stage(get_data_dir());
   mysql_mutex_unlock(&s_table_mutex);
 
-  /* Move to first stage. */
-  pfs_change_stage(0);
   return (0);
 }
 
@@ -594,7 +604,7 @@ void Client::pfs_end_state(uint32_t err_num, const char *err_mesg) {
     return;
   }
   mysql_mutex_lock(&s_table_mutex);
-  DBUG_ASSERT(s_num_clones == 1);
+  assert(s_num_clones == 1);
 
   bool provisioning = (get_data_dir() == nullptr);
   bool failed = (err_num != 0);
@@ -721,9 +731,9 @@ int Client::clone() {
     }
 
     if (err != 0) {
-      DBUG_ASSERT(is_master());
-      DBUG_ASSERT(m_conn == nullptr);
-      DBUG_ASSERT(m_conn_aux.m_conn == nullptr);
+      assert(is_master());
+      assert(m_conn == nullptr);
+      assert(m_conn_aux.m_conn == nullptr);
 
       if (restart) {
         continue;
@@ -734,13 +744,19 @@ int Client::clone() {
     auto rpc_com = is_master() ? COM_INIT : COM_ATTACH;
 
     if (restart) {
-      DBUG_ASSERT(is_master());
+      assert(is_master());
       rpc_com = COM_REINIT;
     }
 
     /* Negotiate clone protocol and SE versions */
     err = remote_command(rpc_com, false);
 
+    /* Delay clone after dropping database if requested */
+
+    if (err == 0 && rpc_com == COM_INIT) {
+      assert(is_master());
+      err = delay_if_needed();
+    }
     snprintf(
         info_mesg, 128, "Command %s",
         is_master() ? (restart ? "COM_REINIT" : "COM_INIT") : "COM_ATTACH");
@@ -835,8 +851,8 @@ int Client::clone() {
     wait_for_workers();
 
     if (restart && thd_killed(get_thd())) {
-      DBUG_ASSERT(is_master());
-      DBUG_ASSERT(err != 0);
+      assert(is_master());
+      assert(err != 0);
       break;
     }
 
@@ -851,8 +867,8 @@ int Client::clone() {
   }
 
   if (m_acquired_backup_lock) {
-    DBUG_ASSERT(is_master());
-    DBUG_ASSERT(get_data_dir() == nullptr);
+    assert(is_master());
+    assert(get_data_dir() == nullptr);
 
     /* Don't release the backup lock for success case. Server would be
     restarted once the call returns. */
@@ -876,7 +892,9 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
   MYSQL_SOCKET conn_socket;
   mysql_clone_ssl_context ssl_context;
 
-  ssl_context.m_enable_compression = use_aux ? false : clone_enable_compression;
+  ssl_context.m_enable_compression = clone_enable_compression;
+  ssl_context.m_server_extn =
+      ssl_context.m_enable_compression ? &m_conn_server_extn : nullptr;
   ssl_context.m_ssl_mode = m_share->m_ssl_mode;
 
   /* Get Clone SSL configuration parameter value safely. */
@@ -886,7 +904,7 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
                                                                    ssl_configs);
 
   if (err != 0) {
-    return (err);
+    return err;
   }
   ssl_context.m_ssl_key = nullptr;
   ssl_context.m_ssl_cert = nullptr;
@@ -909,7 +927,7 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
   if (use_aux) {
     /* Only master creates the auxiliary connection */
     if (!is_master()) {
-      return (0);
+      return 0;
     }
 
     /* Connect to remote server and load clone protocol. */
@@ -930,15 +948,18 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
       LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
 
       m_conn = nullptr;
-      return (ER_CLONE_DONOR);
+      return ER_CLONE_DONOR;
     }
 
-    return (0);
+    return 0;
   }
 
   uint loop_count = 0;
+  auto start_time = Clock::now();
 
   while (true) {
+    auto connect_time = Clock::now();
+
     /* Connect to remote server and load clone protocol. */
     m_conn = mysql_service_clone_protocol->mysql_clone_connect(
         m_server_thd, m_share->m_host, m_share->m_port, m_share->m_user,
@@ -948,56 +969,236 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
       break;
     }
 
-    ++loop_count;
-
-    if (!is_master() || !is_restart || loop_count > CLONE_MAX_CONN_RETRY) {
-      return (ER_CLONE_DONOR);
+    if (!is_master() || !is_restart ||
+        s_reconnect_timeout == Time_Sec::zero()) {
+      return ER_CLONE_DONOR;
     }
 
+    ++loop_count;
     snprintf(info_mesg, 128, "Master re-connect failed: count: %u", loop_count);
     LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
 
     if (is_master() && thd_killed(get_thd())) {
       my_error(ER_QUERY_INTERRUPTED, MYF(0));
-      return (ER_QUERY_INTERRUPTED);
+      return ER_QUERY_INTERRUPTED;
     }
 
-    my_sleep(CLONE_CONN_REATTEMPT_INTERVAL);
+    /* Check and exit if we have exceeded total reconnect time. */
+    auto cur_time = Clock::now();
+    auto elapsed_time = cur_time - start_time;
+
+    if (elapsed_time > s_reconnect_timeout) {
+      return ER_CLONE_DONOR;
+    }
+
+    /* Check and sleep between multiple connect attempt. */
+    auto next_connect_time = connect_time + s_reconnect_interval;
+
+    if (next_connect_time > cur_time) {
+      std::this_thread::sleep_until(next_connect_time);
+    }
   }
 
   m_ext_link.set_socket(conn_socket);
-
   return (0);
 }
 
-int Client::validate_remote_params() {
-  /* Validate plugins.*/
-  for (auto &plugin_name : m_parameters.m_plugins) {
-    /* Attempt to lock plugin by name. */
-    auto plugin = my_plugin_lock_by_name(
-        get_thd(), to_lex_cstring(plugin_name.c_str()), MYSQL_ANY_PLUGIN);
+bool Client::plugin_is_loadable(std::string &so_name) {
+  Key_Values configs = {{"plugin_dir", ""}};
+  auto err =
+      mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);
 
-    if (plugin) {
-      plugin_unlock(get_thd(), plugin);
+  if (err != 0) {
+    return false;
+  }
+
+  std::string path(configs[0].second);
+  path.append("/");
+  path.append(so_name);
+
+  return clone_os_test_load(path);
+}
+
+bool Client::plugin_is_installed(std::string &plugin_name) {
+  /* Attempt to lock plugin by name. */
+  auto plugin = my_plugin_lock_by_name(
+      get_thd(), to_lex_cstring(plugin_name.c_str()), MYSQL_ANY_PLUGIN);
+
+  if (plugin) {
+    plugin_unlock(get_thd(), plugin);
+    return true;
+  }
+  return false;
+}
+
+int Client::validate_remote_params() {
+  int last_error = 0;
+
+  /* Validate plugins from old version CLONE_PROTOCOL_VERSION_V1.*/
+  for (auto &plugin_name : m_parameters.m_plugins) {
+    assert(m_share->m_protocol_version == CLONE_PROTOCOL_VERSION_V1);
+
+    if (plugin_is_installed(plugin_name)) {
       continue;
     }
     /* Plugin is not installed. */
     my_error(ER_CLONE_PLUGIN_MATCH, MYF(0), plugin_name.c_str());
-    return (ER_CLONE_PLUGIN_MATCH);
+    last_error = ER_CLONE_PLUGIN_MATCH;
+  }
+
+  /* Validate plugins and check if shared objects can be loaded. */
+  for (auto &plugin : m_parameters.m_plugins_with_so) {
+    assert(m_share->m_protocol_version > CLONE_PROTOCOL_VERSION_V1);
+
+    auto &plugin_name = plugin.first;
+    auto &so_name = plugin.second;
+
+    if (plugin_is_installed(plugin_name)) {
+      continue;
+    }
+
+    /* Built-in plugins with no shared object should already be installed. */
+    assert(!so_name.empty());
+
+    if (so_name.empty() || plugin_is_loadable(so_name)) {
+      continue;
+    }
+
+    /* Donor plugin is not there in recipient. */
+    my_error(ER_CLONE_PLUGIN_MATCH, MYF(0), plugin_name.c_str());
+    last_error = ER_CLONE_PLUGIN_MATCH;
   }
 
   /* Validate character sets */
   auto err = mysql_service_clone_protocol->mysql_clone_validate_charsets(
       get_thd(), m_parameters.m_charsets);
   if (err != 0) {
-    return (err);
+    last_error = err;
   }
 
   /* Validate configurations */
   err = mysql_service_clone_protocol->mysql_clone_validate_configs(
       get_thd(), m_parameters.m_configs);
+  if (err != 0) {
+    last_error = err;
+  }
+  return (last_error);
+}
 
+int Client::extract_string(const uchar *&packet, size_t &length,
+                           String_Key &str) {
+  /* Check length. */
+  if (length >= 4) {
+    auto name_length = uint4korr(packet);
+    length -= 4;
+    packet += 4;
+
+    /* Check length. */
+    if (length >= name_length) {
+      str.clear();
+      if (name_length > 0) {
+        auto char_str = reinterpret_cast<const char *>(packet);
+        auto str_len = static_cast<size_t>(name_length);
+        str.assign(char_str, str_len);
+
+        length -= name_length;
+        packet += name_length;
+      }
+      return (0);
+    }
+  }
+  /* purecov: begin deadcode */
+  int err = ER_CLONE_PROTOCOL;
+  my_error(err, MYF(0), "Wrong Clone RPC response length for parameters");
   return (err);
+  /* purecov: end */
+}
+
+int Client::extract_key_value(const uchar *&packet, size_t &length,
+                              Key_Value &keyval) {
+  /* Get configuration parameter name. */
+  String_Key key;
+  auto err = extract_string(packet, length, key);
+  if (err != 0) {
+    return (err); /* purecov: inspected */
+  }
+
+  /* Get configuration parameter value */
+  String_Key value;
+  err = extract_string(packet, length, value);
+  if (err == 0) {
+    keyval = std::make_pair(key, value);
+  }
+  return (err);
+}
+
+int Client::add_plugin(const uchar *packet, size_t length) {
+  /* Get plugin name. */
+  String_Key plugin_name;
+  auto err = extract_string(packet, length, plugin_name);
+  if (err == 0) {
+    m_parameters.m_plugins.push_back(plugin_name);
+  }
+  return (err);
+}
+
+int Client::add_plugin_with_so(const uchar *packet, size_t length) {
+  /* Get plugin name name and shared object name. */
+  Key_Value plugin;
+
+  auto err = extract_key_value(packet, length, plugin);
+
+  if (err == 0) {
+    m_parameters.m_plugins_with_so.push_back(plugin);
+  }
+  return (err);
+}
+
+int Client::add_charset(const uchar *packet, size_t length) {
+  /* Get character set collation name. */
+  String_Key charset_name;
+  auto err = extract_string(packet, length, charset_name);
+  if (err == 0) {
+    m_parameters.m_charsets.push_back(charset_name);
+  }
+  return (err);
+}
+
+void Client::use_other_configs() {
+  /* Keep default as 5 minutes if remote is old version plugin and has not sent
+  the configuration */
+  s_reconnect_timeout = Time_Min(5);
+
+  for (auto &key_val : m_parameters.m_other_configs) {
+    auto &config_name = key_val.first;
+    auto res = config_name.compare("clone_donor_timeout_after_network_failure");
+    if (res == 0) {
+      try {
+        int timeout_minutes = std::stoi(key_val.second);
+        s_reconnect_timeout = Time_Min(timeout_minutes);
+      } catch (...) {
+        assert(false);
+      }
+    }
+  }
+}
+
+int Client::add_config(const uchar *packet, size_t length, bool other) {
+  /* Get configuration parameter name and value. */
+  Key_Value config;
+
+  auto err = extract_key_value(packet, length, config);
+
+  if (err != 0) {
+    return err;
+  }
+
+  if (other) {
+    m_parameters.m_other_configs.push_back(config);
+  } else {
+    m_parameters.m_configs.push_back(config);
+  }
+  return 0;
 }
 
 int Client::remote_command(Command_RPC com, bool use_aux) {
@@ -1010,12 +1211,12 @@ int Client::remote_command(Command_RPC com, bool use_aux) {
     return (err);
   }
 
-  DBUG_ASSERT(cmd_buff_len <= m_cmd_buff.m_length);
+  assert(cmd_buff_len <= m_cmd_buff.m_length);
 
   /* Use auxiliary connection for ACK */
   auto conn = use_aux ? m_conn_aux.m_conn : m_conn;
 
-  DBUG_ASSERT(conn != nullptr);
+  assert(conn != nullptr);
 
   auto command = static_cast<uchar>(com);
   /* Send remote command */
@@ -1028,11 +1229,16 @@ int Client::remote_command(Command_RPC com, bool use_aux) {
   /* Receive response from remote server */
   err = receive_response(com, use_aux);
 
-  /* Check and match remote server parameters. */
+  /* Re-Check and match remote server parameters. Old server 8.0.17-19
+  would send configurations later and this is must to recheck it. */
   if (com == COM_INIT && err == 0) {
     err = validate_remote_params();
-  }
 
+    /* Validate local configurations. */
+    if (err == 0) {
+      err = validate_local_params(get_thd());
+    }
+  }
   return (err);
 }
 
@@ -1053,12 +1259,12 @@ int Client::prepare_command_buffer(Command_RPC com, size_t &buf_len) {
 
   switch (com) {
     case COM_REINIT:
-      DBUG_ASSERT(is_master());
+      assert(is_master());
       err = init_storage(HA_CLONE_MODE_RESTART, buf_len);
       break;
 
     case COM_INIT:
-      DBUG_ASSERT(is_master());
+      assert(is_master());
       err = init_storage(HA_CLONE_MODE_VERSION, buf_len);
       break;
 
@@ -1079,10 +1285,10 @@ int Client::prepare_command_buffer(Command_RPC com, size_t &buf_len) {
       break;
 
     case COM_MAX:
-      /* Fall through */
+      [[fallthrough]];
 
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       err = ER_CLONE_PROTOCOL;
       my_error(err, MYF(0), "Wrong Clone RPC");
   }
@@ -1091,7 +1297,7 @@ int Client::prepare_command_buffer(Command_RPC com, size_t &buf_len) {
 }
 
 int Client::serialize_ack_cmd(size_t &buf_len) {
-  DBUG_ASSERT(is_master());
+  assert(is_master());
 
   /* Add Error number */
   buf_len = 4;
@@ -1155,8 +1361,14 @@ int Client::serialize_init_cmd(size_t &buf_len) {
   int4store(buf_ptr, m_share->m_protocol_version);
   buf_ptr += 4;
 
-  /* Store DDL timeout */
-  int4store(buf_ptr, clone_ddl_timeout);
+  /* Store DDL timeout value. Default is no lock. */
+  uint32_t timeout_value = clone_ddl_timeout;
+
+  if (!clone_block_ddl) {
+    timeout_value |= NO_BACKUP_LOCK_FLAG;
+  }
+
+  int4store(buf_ptr, timeout_value);
   buf_ptr += 4;
 
   /* Store SE information and Locators */
@@ -1182,9 +1394,11 @@ int Client::receive_response(Command_RPC com, bool use_aux) {
   uint32_t timeout_sec = 0;
 
   /* Need to wait a little more than DDL lock timeout during INIT
-  to avoid network timeout */
+  to avoid network timeout. Other than DDL lock, we currently would
+  need to load the tablespaces [clone_init_tablespaces] and check
+  through all tables for compression in donor[clone_init_compression]. */
   if (com == COM_INIT) {
-    timeout_sec = clone_ddl_timeout + 5;
+    timeout_sec = clone_ddl_timeout + 300;
   }
 
   while (!last_packet) {
@@ -1227,7 +1441,7 @@ bool Client::handle_error(int current_err, int &first_err,
   }
 
   if (current_err != 0) {
-    DBUG_ASSERT(first_err == 0);
+    assert(first_err == 0);
     first_err = current_err;
     first_err_time = my_micro_time() / 1000;
 
@@ -1246,12 +1460,12 @@ bool Client::handle_error(int current_err, int &first_err,
     return (false);
   }
 
-  DBUG_ASSERT(first_err != 0);
+  assert(first_err != 0);
 
   auto cur_time = my_micro_time() / 1000;
 
-  DBUG_ASSERT(cur_time >= first_err_time);
-  DBUG_ASSERT(current_err == 0);
+  assert(cur_time >= first_err_time);
+  assert(current_err == 0);
 
   /* If wait for remote is long [30 sec] exit */
   if (cur_time - first_err_time > 30 * 1000) {
@@ -1285,8 +1499,16 @@ int Client::handle_response(const uchar *packet, size_t length, int in_err,
       err = add_plugin(packet, length);
       break;
 
+    case COM_RES_PLUGIN_V2:
+      err = add_plugin_with_so(packet, length);
+      break;
+
     case COM_RES_CONFIG:
-      err = add_config(packet, length);
+      err = add_config(packet, length, false);
+      break;
+
+    case COM_RES_CONFIG_V3:
+      err = add_config(packet, length, true);
       break;
 
     case COM_RES_COLLATION:
@@ -1324,8 +1546,9 @@ int Client::handle_response(const uchar *packet, size_t length, int in_err,
 
       /* COM_RES_DATA must follow COM_RES_DATA_DESC and is handled
       in apply_file_cbk(). Fall through to return error. */
+      [[fallthrough]];
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       err = ER_CLONE_PROTOCOL;
       my_error(err, MYF(0), "Wrong Clone RPC response");
   }
@@ -1349,7 +1572,7 @@ int Client::set_locators(const uchar *buffer, size_t length) {
   buffer += 4;
   length -= 4;
 
-  DBUG_ASSERT(m_share->m_protocol_version <= CLONE_PROTOCOL_VERSION);
+  assert(m_share->m_protocol_version <= CLONE_PROTOCOL_VERSION);
 
   Storage_Vector local_locators;
 
@@ -1382,11 +1605,26 @@ int Client::set_locators(const uchar *buffer, size_t length) {
 
   /* Close the version locators */
   if (is_master()) {
-    DBUG_ASSERT(m_storage_initialized);
-    DBUG_ASSERT(!m_storage_active);
+    assert(m_storage_initialized);
+    assert(!m_storage_active);
 
     hton_clone_apply_end(m_server_thd, m_share->m_storage_vec, m_tasks, 0);
     m_storage_initialized = false;
+
+    /* Check and match remote server parameters. */
+    err = validate_remote_params();
+    if (err != 0) {
+      return (err);
+    }
+
+    /* Validate local configurations. */
+    err = validate_local_params(get_thd());
+    if (err != 0) {
+      return (err);
+    }
+
+    /* Check and use additional configurations from donor. */
+    use_other_configs();
 
     /* If cloning to current data directory, prevent any DDL. */
     if (get_data_dir() == nullptr) {
@@ -1399,6 +1637,9 @@ int Client::set_locators(const uchar *buffer, size_t length) {
       m_acquired_backup_lock = true;
     }
   }
+
+  /* Move to first stage only after validations are over. */
+  pfs_change_stage(0);
 
   /* Re-initialize SE locators based on remote locators */
   err = hton_clone_apply_begin(m_server_thd, m_share->m_data_dir,
@@ -1450,7 +1691,7 @@ int Client::set_descriptor(const uchar *buffer, size_t length) {
   clone_callback->clear_flags();
 
   /* Apply using descriptor */
-  DBUG_ASSERT(loc_index < m_tasks.size());
+  assert(loc_index < m_tasks.size());
   err = hton->clone_interface.clone_apply(loc->m_hton, get_thd(), loc->m_loc,
                                           loc->m_loc_len, m_tasks[loc_index], 0,
                                           clone_callback);
@@ -1463,7 +1704,7 @@ int Client::set_descriptor(const uchar *buffer, size_t length) {
 
   /* Inform the source database about any local error using the
   auxiliary connection. Only master client task should use it. */
-  DBUG_ASSERT(is_master());
+  assert(is_master());
 
   auto aux_conn = get_aux();
 
@@ -1499,14 +1740,85 @@ int Client::set_error(const uchar *buffer, size_t length) {
   return (err);
 }
 
-int Client_Cbk::file_cbk(Ha_clone_file from_file MY_ATTRIBUTE((unused)),
-                         uint len MY_ATTRIBUTE((unused))) {
+int Client::wait(Time_Sec wait_time) {
+  int ret_error = 0;
+  auto start_time = Clock::now();
+  auto print_time = start_time;
+  auto sec = wait_time;
+  auto min = std::chrono::duration_cast<Time_Min>(wait_time);
+  std::ostringstream log_strm;
+
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+               "Begin Delay after data drop");
+
+  sec -= std::chrono::duration_cast<Time_Sec>(min);
+  log_strm << "Wait time remaining is " << min.count() << " minutes and "
+           << sec.count() << " seconds.";
+  std::string log_str(log_strm.str());
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, log_str.c_str());
+  log_strm.str("");
+
+  for (;;) {
+    Time_Msec sleep_time(100);
+    std::this_thread::sleep_for(sleep_time);
+    auto cur_time = Clock::now();
+
+    auto duration_sec =
+        std::chrono::duration_cast<Time_Sec>(cur_time - start_time);
+
+    /* Check for total time elapsed. */
+    if (duration_sec >= wait_time) {
+      break;
+    }
+
+    auto duration_print =
+        std::chrono::duration_cast<Time_Min>(cur_time - print_time);
+
+    if (duration_print.count() >= 1) {
+      print_time = Clock::now();
+      auto remaining_time = wait_time - duration_sec;
+      min = std::chrono::duration_cast<Time_Min>(remaining_time);
+      log_strm << "Wait time remaining is " << min.count() << " minutes.";
+      std::string log_str(log_strm.str());
+      LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, log_str.c_str());
+      log_strm.str("");
+    }
+
+    /* Check for interrupt */
+    if (thd_killed(get_thd())) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      ret_error = ER_QUERY_INTERRUPTED;
+      break;
+    }
+  }
+
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+               "End Delay after data drop");
+  return ret_error;
+}
+
+int Client::delay_if_needed() {
+  /* Delay only if replacing current data directory. */
+  if (get_data_dir() != nullptr) {
+    return 0;
+  }
+
+  if (clone_delay_after_data_drop == 0) {
+    return 0;
+  }
+
+  auto err = wait(Time_Sec(clone_delay_after_data_drop));
+
+  return err;
+}
+
+int Client_Cbk::file_cbk(Ha_clone_file from_file [[maybe_unused]],
+                         uint len [[maybe_unused]]) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Client");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int Client_Cbk::buffer_cbk(uchar *from_buffer MY_ATTRIBUTE((unused)),
-                           uint buf_len) {
+int Client_Cbk::buffer_cbk(uchar *from_buffer [[maybe_unused]], uint buf_len) {
   auto client = get_clone_client();
 
   uint64_t data_estimate = 0;
@@ -1518,7 +1830,7 @@ int Client_Cbk::buffer_cbk(uchar *from_buffer MY_ATTRIBUTE((unused)),
   /* Reset statistics information when state is finished */
   client->update_stat(true);
 
-  DBUG_ASSERT(client->is_master());
+  assert(client->is_master());
 
   if (thd_killed(client->get_thd())) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -1586,7 +1898,7 @@ int Client_Cbk::apply_cbk(Ha_clone_file to_file, bool apply_file,
 
   /* Read response command */
   if (res_com != COM_RES_DATA) {
-    DBUG_ASSERT(false);
+    assert(false);
     err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0),
              "Wrong Clone RPC response, "

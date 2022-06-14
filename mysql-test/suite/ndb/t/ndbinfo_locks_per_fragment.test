@@ -28,6 +28,7 @@ create view frag_locks as
          main_tab, type;     
 
 --echo No locks taken
+--sorted_result
 select * from frag_locks;
 
 create table baseline as select * from frag_locks;
@@ -922,15 +923,16 @@ while (!$success)
   let $elapsed_fail_after = query_get_value(select sum(wait_fail_millis) as m from ndbinfo.locks_per_fragment where fq_name='test/def/t1', m, 1);
 
   # --echo Expect 0 ok_millis, > 0 fail_millis
-  eval select @ok_millis:=($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis,
-              @fail_millis:=($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis;
-
+  eval select ($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis into @ok_millis;
+  eval select ($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis into @fail_millis;
+  eval select @ok_millis as ok_millis, @fail_millis as fail_millis;
   let $success = query_get_value(select (@ok_millis > 0) AND (@fail_millis=0) as ok, ok, 1);
 }
 --enable_result_log
 # Show result
-eval select @ok_millis:=($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis,
-            @fail_millis:=($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis;
+eval select ($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis into @ok_millis;
+eval select ($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis into @fail_millis;
+eval select @ok_millis as ok_millis, @fail_millis as fail_millis;
 --enable_query_log
 
 --source ndb_enable_trans_timeout.inc

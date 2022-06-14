@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
     sprintf((char *)key, "%6d", j);
     memmove(record + 1, key, 6);
     error = heap_write(file, record);
-    if (heap_check_heap(file, 0)) {
+    if (heap_check_heap(file, false)) {
       puts("Heap keys crashed");
       goto err;
     }
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
       flags[j] = 0;
       if (!error) deleted++;
     }
-    if (heap_check_heap(file, 0)) {
+    if (heap_check_heap(file, false)) {
       puts("Heap keys crashed");
       goto err;
     }

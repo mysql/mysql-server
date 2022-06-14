@@ -72,7 +72,7 @@ SELECT COUNT(@@GLOBAL.table_open_cache);
 COUNT(@@GLOBAL.table_open_cache)
 1
 1 Expected
-SELECT table_open_cache = @@SESSION.table_open_cache;
+SELECT table_open_cache;
 ERROR 42S22: Unknown column 'table_open_cache' in 'field list'
 Expected error 'Unknown column table_open_cache in field list'
 '#---------------------WL6372_VAR_5_06----------------------#'
@@ -264,3 +264,4 @@ DROP TABLE IF EXISTS tab1;
 DROP TABLE IF EXISTS tab2;
 DROP TABLE IF EXISTS tab3;
 set @@GLOBAL.table_open_cache=DEFAULT;
+# restart:

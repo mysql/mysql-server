@@ -1,0 +1,36 @@
+## Varius tests related to default charset and collation
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/charset_default.xpl
+-->import assert_status_variable.macro
+-->quiet
+
+-->callmacro Assert_session_variable	character_set_connection	%EXPECT_CHARSET%
+-->callmacro Assert_session_variable	character_set_database	%EXPECT_CHARSET%
+-->callmacro Assert_session_variable	character_set_server	%EXPECT_CHARSET%
+
+
+-->callmacro Assert_session_variable	collation_connection	%EXPECT_COLLATION%
+-->callmacro Assert_session_variable	collation_database	%EXPECT_COLLATION%
+-->callmacro Assert_session_variable	collation_server	%EXPECT_COLLATION%
+
+EOF
+
+let SERVER_CHARSET= `select @@character_set_server`;
+let SERVER_COLLATION= `select @@collation_server`;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  -v%EXPECT_CHARSET%=$SERVER_CHARSET
+  -v%EXPECT_COLLATION%=$SERVER_COLLATION
+  --file=$MYSQL_TMP_DIR/charset_default.xpl 2>&1;
+
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

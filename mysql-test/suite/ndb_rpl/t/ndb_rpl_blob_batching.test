@@ -1,0 +1,479 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--connection slave
+show variables like 'replica_allow_batching';
+# Use large batch sizes on slave
+set @s_batch_size:=@@ndb_batch_size;
+set @s_blob_write_batch:=@@ndb_blob_write_batch_bytes;
+set @s_blob_read_batch:=@@ndb_blob_read_batch_bytes;
+
+set @batch_sz = 8 * 1024 * 1024;
+set global ndb_batch_size = @batch_sz;
+set ndb_batch_size = @batch_sz;
+set global ndb_blob_write_batch_bytes = @batch_sz;
+set ndb_blob_write_batch_bytes = @batch_sz;
+set global ndb_blob_read_batch_bytes = @batch_sz;
+set ndb_blob_read_batch_bytes = @batch_sz;
+
+--connection master
+show variables like 'ndb_log_update_as_write';
+
+--vertical_results
+--disable_query_log
+--disable_result_log
+
+create table tsync (a int primary key) engine=ndb;
+
+create table tv (a int primary key, b varbinary(10000)) engine=ndb;
+create table tb1 (a int primary key, b blob) engine=ndb;
+create table tb2 (a int primary key, b blob, c blob) engine=ndb;
+
+insert into tsync values (1);
+
+--sync_slave_with_master
+--connection slave
+
+let $_count_suffix=_slave;
+--source suite/ndb/include/ndb_init_api_counts.inc
+
+--connection master
+--echo
+--echo Bulk insert (20 x ~3kb)
+--echo -----------------------
+
+--disable_query_log
+begin;
+insert into tv values 
+  (1, repeat('B', 3000)),
+  (2, repeat('B', 3000)),
+  (3, repeat('B', 3000)),
+  (4, repeat('B', 3000)),
+  (5, repeat('B', 3000)),
+  (6, repeat('B', 3000)),
+  (7, repeat('B', 3000)),
+  (8, repeat('B', 3000)),
+  (9, repeat('B', 3000)),
+  (10, repeat('B', 3000)),
+  (11, repeat('B', 3000)),
+  (12, repeat('B', 3000)),
+  (13, repeat('B', 3000)),
+  (14, repeat('B', 3000)),
+  (15, repeat('B', 3000)),
+  (16, repeat('B', 3000)),
+  (17, repeat('B', 3000)),
+  (18, repeat('B', 3000)),
+  (19, repeat('B', 3000)),
+  (20, repeat('B', 3000));
+commit;
+--enable_query_log
+
+--sync_slave_with_master
+--connection slave
+
+--echo Varchar table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo 
+
+--connection master
+--disable_query_log
+begin;
+insert into tb1 values 
+  (1, repeat('B', 3000)),
+  (2, repeat('B', 3000)),
+  (3, repeat('B', 3000)),
+  (4, repeat('B', 3000)),
+  (5, repeat('B', 3000)),
+  (6, repeat('B', 3000)),
+  (7, repeat('B', 3000)),
+  (8, repeat('B', 3000)),
+  (9, repeat('B', 3000)),
+  (10, repeat('B', 3000)),
+  (11, repeat('B', 3000)),
+  (12, repeat('B', 3000)),
+  (13, repeat('B', 3000)),
+  (14, repeat('B', 3000)),
+  (15, repeat('B', 3000)),
+  (16, repeat('B', 3000)),
+  (17, repeat('B', 3000)),
+  (18, repeat('B', 3000)),
+  (19, repeat('B', 3000)),
+  (20, repeat('B', 3000));
+commit;
+--enable_query_log
+
+--sync_slave_with_master
+--connection slave
+
+--echo 1 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+--disable_query_log
+begin;
+insert into tb2 values 
+  (1, repeat('B', 3000), repeat('J', 3000)),
+  (2, repeat('B', 3000), repeat('J', 3000)),
+  (3, repeat('B', 3000), repeat('J', 3000)),
+  (4, repeat('B', 3000), repeat('J', 3000)),
+  (5, repeat('B', 3000), repeat('J', 3000)),
+  (6, repeat('B', 3000), repeat('J', 3000)),
+  (7, repeat('B', 3000), repeat('J', 3000)),
+  (8, repeat('B', 3000), repeat('J', 3000)),
+  (9, repeat('B', 3000), repeat('J', 3000)),
+  (10, repeat('B', 3000), repeat('J', 3000)),
+  (11, repeat('B', 3000), repeat('J', 3000)),
+  (12, repeat('B', 3000), repeat('J', 3000)),
+  (13, repeat('B', 3000), repeat('J', 3000)),
+  (14, repeat('B', 3000), repeat('J', 3000)),
+  (15, repeat('B', 3000), repeat('J', 3000)),
+  (16, repeat('B', 3000), repeat('J', 3000)),
+  (17, repeat('B', 3000), repeat('J', 3000)),
+  (18, repeat('B', 3000), repeat('J', 3000)),
+  (19, repeat('B', 3000), repeat('J', 3000)),
+  (20, repeat('B', 3000), repeat('J', 3000));
+commit;
+--enable_query_log
+
+--sync_slave_with_master
+--connection slave
+
+--echo 2 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+--echo
+--echo Bulk update (20 x ~3kB)
+--echo ---------------------------------
+
+begin;
+update tv set b=repeat('J', 3000) where a in
+ (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo Varchar table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+begin;
+update tb1 set b=repeat('J', 3000) where a in
+ (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 1 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+begin;
+update tb2 set b=repeat('J', 3000), c=repeat('C', 3000) where a in
+ (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 2 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+--echo
+--echo Mixed batch (6 x ~3kB update, 5x ~1kB delete, 5x ~3kB insert all independent)
+--echo -----------------------------------------------------------------------------
+--echo As all are independent, should get maximal batching
+
+begin;
+update tv set b=repeat('C', 3000) where a in (15,16,17,18,19,20);
+delete from tv where a in (1,2,3,4,5);
+insert into tv values (21, repeat('B', 3000));
+insert into tv values (22, repeat('B', 3000));
+insert into tv values (23, repeat('B', 3000));
+insert into tv values (24, repeat('B', 3000));
+insert into tv values (25, repeat('B', 3000));
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo Varchar table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+
+begin;
+update tb1 set b=repeat('C', 3000) where a in (15,16,17,18,19,20);
+delete from tb1 where a in (1,2,3,4,5);
+insert into tb1 values (21, repeat('B', 3000));
+insert into tb1 values (22, repeat('B', 3000));
+insert into tb1 values (23, repeat('B', 3000));
+insert into tb1 values (24, repeat('B', 3000));
+insert into tb1 values (25, repeat('B', 3000));
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 1 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+
+begin;
+update tb2 set b=repeat('C', 3000), c=repeat('T', 4000) where a in (15,16,17,18,19,20);
+delete from tb2 where a in (1,2,3,4,5);
+insert into tb2 values (21, repeat('B', 3000), repeat('S', 4000));
+insert into tb2 values (22, repeat('B', 3000), repeat('G', 3000));
+insert into tb2 values (23, repeat('B', 3000), repeat('S', 4000));
+insert into tb2 values (24, repeat('B', 3000), repeat('G', 3000));
+insert into tb2 values (25, repeat('B', 3000), repeat('!', 4000));
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 2 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+--echo
+--echo Mixed batch multiple tables 
+--echo (6 x ~3kB update, 5x ~1kB delete, 5x ~3kB insert all independent)
+--echo -----------------------------------------------------------------------------
+--echo As all are independent, should get maximal batching
+--echo Same keys used in different tables, should not impact batching
+
+begin;
+update tv set b=repeat('B', 3000) where a in (15,16,17,18,19,20);
+delete from tv where a in (21,22,23,24,25);
+insert into tv values (1, repeat('D', 4000));
+insert into tv values (2, repeat('N', 4000));
+insert into tv values (3, repeat('B', 3000));
+insert into tv values (4, repeat('D', 5000));
+insert into tv values (5, repeat('N', 2999));
+
+update tb1 set b=repeat('B', 3000) where a in (15,16,17,18,19,20);
+delete from tb1 where a in (21,22,23,24,25);
+insert into tb1 values (1, repeat('D', 4000));
+insert into tb1 values (2, repeat('N', 4000));
+insert into tb1 values (3, repeat('B', 3000));
+insert into tb1 values (4, repeat('D', 5000));
+insert into tb1 values (5, repeat('N', 2999));
+
+update tb2 set b=repeat('I', 3000), c=repeat('L', 4000) where a in (15,16,17,18,19,20);
+delete from tb2 where a in (21,22,23,24,25);
+insert into tb2 values (1, repeat('F', 4000), repeat('Y', 3000));
+insert into tb2 values (2, repeat('W', 4000), repeat('S', 3500));
+insert into tb2 values (3, repeat('P', 3000), repeat('A', 2999));
+insert into tb2 values (4, repeat('M', 4500), repeat('L', 4000));
+insert into tb2 values (5, repeat('C', 2999), repeat('!', 3200));
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo Mixed operations
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+
+--connection master
+--echo
+--echo Bulk delete (20 x ~3kB)
+--echo -----------------------
+
+begin;
+delete from tv where a in
+ (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo Varchar table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+
+begin;
+delete from tb1 where a in
+ (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 1 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+
+begin;
+delete from tb2 where a in
+ (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 2 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+
+--connection master
+drop table tv;
+drop table tb1;
+drop table tb2;
+
+--sync_slave_with_master
+--connection master
+
+--echo
+--echo Multiple key dependencies (3 x (I 10kB, D))
+--echo -------------------------------------------
+--echo Dependencies are on PK which is case-insensitive
+--echo and supports trailing spaces
+--disable_result_log
+
+# All VARBINARY columns on Master
+# Using InnoDB on Master as it allows us to 
+# easily create Binlog transactions with a controlled
+# set of operations.
+# Ndb records only the final row transform for a single 
+# transaction, and splits separate transactions into 
+# epoch transactions at arbitrary points, making a 
+# deterministic testcase difficult.
+
+create table tv (a varchar(20) character set utf8 primary key,
+                 b varbinary(5000)) engine=innodb;
+create table tb1(a varchar(20) character set utf8 primary key,
+                 b varbinary(5000)) engine=innodb;
+create table tb2(a varchar(20) character set utf8 primary key,
+                 b varbinary(5000),
+                 c varbinary(5000)) engine=innodb;
+
+--sync_slave_with_master
+--connection slave
+
+drop table tv;
+drop table tb1;
+drop table tb2;
+
+# Blobs in the blob tables on Slave, stored in Ndb
+
+create table tv (a varchar(20) character set utf8 primary key,
+                 b varbinary(5000)) engine=ndb;
+create table tb1(a varchar(20) character set utf8 primary key,
+                 b blob) engine=ndb;
+create table tb2(a varchar(20) character set utf8 primary key,
+                 b blob,
+                 c blob) engine=ndb;
+
+stop slave;
+set global replica_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
+start slave;
+
+--connection master
+# Make sure the slave has e.g. 'discovered' all of the tables
+# before initialising counters
+insert into tsync values (2);
+insert into tv values ("Sync", "Sync");
+insert into tb1 values ("Sync", "Sync");
+insert into tb2 values ("Sync", "Sync", "Sync");
+delete from tv;
+delete from tb1;
+delete from tb2;
+--sync_slave_with_master
+--connection slave
+
+--source suite/ndb/include/ndb_init_api_counts.inc
+
+--connection master
+
+begin;
+insert into tv values ("A", repeat('B', 5000));
+delete from tv where a="a  ";
+insert into tv values ("a", repeat('A', 5000));
+delete from tv where a="A ";
+insert into tv values ("A", repeat('H', 5000));
+delete from tv where a="a  ";
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo Varchar table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+--connection master
+
+begin;
+insert into tb1 values ("a", repeat('B', 5000));
+delete from tb1 where a="A";
+insert into tb1 values ("a  ", repeat('A', 5000));
+delete from tb1 where a="A ";
+insert into tb1 values ("a", repeat('H', 5000));
+delete from tb1 where a="A";
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 1 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+
+--connection master
+
+begin;
+insert into tb2 values ("a  ", repeat('B', 5000), repeat('C', 5000));
+delete from tb2 where a="a";
+insert into tb2 values ("A ", repeat('A', 5000), repeat('M', 5000));
+delete from tb2 where a="A";
+insert into tb2 values ("a", repeat('H', 5000), repeat('F', 5000));
+delete from tb2 where a="A";
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--echo 2 Blob table
+--source suite/ndb/include/ndb_diff_api_counts.inc
+--echo
+
+set global replica_type_conversions="";
+set global ndb_batch_size=@s_batch_size;
+set ndb_batch_size=@s_batch_size;
+set global ndb_blob_write_batch_bytes=@s_blob_write_batch;
+set ndb_blob_write_batch_bytes=@s_blob_write_batch;
+set global ndb_blob_read_batch_bytes=@s_blob_read_batch;
+set ndb_blob_read_batch_bytes=@s_blob_read_batch;
+
+
+--enable_query_log
+
+--connection master
+drop table tv;
+drop table tsync;
+drop table tb1;
+drop table tb2;
+
+--source include/rpl_end.inc

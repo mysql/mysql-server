@@ -1,7 +1,7 @@
 #ifndef ITEM_INETFUNC_INCLUDED
 #define ITEM_INETFUNC_INCLUDED
 
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 #include "my_inttypes.h"
 #include "sql/item_cmpfunc.h"  // Item_bool_func
 #include "sql/item_func.h"
-#include "sql/item_strfunc.h"  // Item_str_func
-#include "sql/parse_tree_node_base.h"
+#include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/parse_location.h"  // POS
 
 class Item;
 class String;
@@ -48,8 +48,9 @@ class Item_func_inet_aton : public Item_int_func {
 
   const char *func_name() const override { return "inet_aton"; }
 
-  bool resolve_type(THD *) override {
-    maybe_null = true;
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    set_nullable(true);
     unsigned_flag = true;
     return false;
   }
@@ -69,9 +70,10 @@ class Item_func_inet_ntoa : public Item_str_func {
 
   const char *func_name() const override { return "inet_ntoa"; }
 
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     set_data_type_string(3 * 8 + 7, default_charset());
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -124,9 +126,10 @@ class Item_func_inet6_aton : public Item_func_inet_str_base {
  public:
   const char *func_name() const override { return "inet6_aton"; }
 
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     set_data_type_string(16, &my_charset_bin);
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -146,13 +149,14 @@ class Item_func_inet6_ntoa : public Item_func_inet_str_base {
  public:
   const char *func_name() const override { return "inet6_ntoa"; }
 
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     // max length: IPv6-address -- 16 bytes
     // 16 bytes / 2 bytes per group == 8 groups => 7 delimiter
     // 4 symbols per group
     set_data_type_string(8 * 4 + 7, default_charset());
 
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 

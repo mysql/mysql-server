@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,24 +39,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** This value is used by default by ha_storage_create(). More memory
 is allocated later when/if it is needed. */
-#define HA_STORAGE_DEFAULT_HEAP_BYTES 1024
+constexpr uint32_t HA_STORAGE_DEFAULT_HEAP_BYTES = 1024;
 
 /** This value is used by default by ha_storage_create(). It is a
 constant per ha_storage's lifetime. */
-#define HA_STORAGE_DEFAULT_HASH_CELLS 4096
+constexpr uint32_t HA_STORAGE_DEFAULT_HASH_CELLS = 4096;
 
 /** Hash storage */
 struct ha_storage_t;
 
 /** Creates a hash storage. If any of the parameters is 0, then a default value
 is used.
-@param[in]	initial_hash_cells	initial number of cells in the hash
+@param[in]      initial_hash_cells      initial number of cells in the hash
                                         table
-@param[in]	initial_heap_bytes	initial heap's size
+@param[in]      initial_heap_bytes      initial heap's size
 @return own: hash storage */
-UNIV_INLINE
-ha_storage_t *ha_storage_create(ulint initial_heap_bytes,
-                                ulint initial_hash_cells);
+static inline ha_storage_t *ha_storage_create(ulint initial_heap_bytes,
+                                              ulint initial_hash_cells);
 
 /** Copies data into the storage and returns a pointer to the copy. If the
  same data chunk is already present, then pointer to it is returned.
@@ -78,8 +77,10 @@ const void *ha_storage_put_memlim(
  @param data in: data to store
  @param data_len in: data length
  @return pointer to the copy of the string */
-#define ha_storage_put(storage, data, data_len) \
-  ha_storage_put_memlim((storage), (data), (data_len), 0)
+static inline const void *ha_storage_put(ha_storage_t *storage,
+                                         const void *data, ulint data_len) {
+  return ha_storage_put_memlim(storage, data, data_len, 0);
+}
 
 /** Copies string into the storage and returns a pointer to the copy. If the
  same string is already present, then pointer to it is returned.
@@ -87,8 +88,10 @@ const void *ha_storage_put_memlim(
  @param storage in/out: hash storage
  @param str in: string to put
  @return pointer to the copy of the string */
-#define ha_storage_put_str(storage, str) \
-  ((const char *)ha_storage_put((storage), (str), strlen(str) + 1))
+static inline const char *ha_storage_put_str(ha_storage_t *storage,
+                                             const char *str) {
+  return (const char *)ha_storage_put(storage, str, strlen(str) + 1);
+}
 
 /** Copies string into the storage and returns a pointer to the copy obeying
  a memory limit.
@@ -98,26 +101,29 @@ const void *ha_storage_put_memlim(
  @param str in: string to put
  @param memlim in: memory limit to obey
  @return pointer to the copy of the string */
-#define ha_storage_put_str_memlim(storage, str, memlim)                   \
-  ((const char *)ha_storage_put_memlim((storage), (str), strlen(str) + 1, \
-                                       (memlim)))
+static inline const char *ha_storage_put_str_memlim(ha_storage_t *storage,
+                                                    const char *str,
+                                                    ulint memlim) {
+  return (const char *)ha_storage_put_memlim(storage, str, strlen(str) + 1,
+                                             memlim);
+}
 
 /** Empties a hash storage, freeing memory occupied by data chunks.
  This invalidates any pointers previously returned by ha_storage_put().
  The hash storage is not invalidated itself and can be used again. */
-UNIV_INLINE
-void ha_storage_empty(ha_storage_t **storage); /*!< in/out: hash storage */
+static inline void ha_storage_empty(
+    ha_storage_t **storage); /*!< in/out: hash storage */
 
 /** Frees a hash storage and everything it contains, it cannot be used after
  this call.
  This invalidates any pointers previously returned by ha_storage_put(). */
-UNIV_INLINE
-void ha_storage_free(ha_storage_t *storage); /*!< in, own: hash storage */
+static inline void ha_storage_free(
+    ha_storage_t *storage); /*!< in, own: hash storage */
 
 /** Gets the size of the memory used by a storage.
  @return bytes used */
-UNIV_INLINE
-ulint ha_storage_get_size(const ha_storage_t *storage); /*!< in: hash storage */
+static inline ulint ha_storage_get_size(
+    const ha_storage_t *storage); /*!< in: hash storage */
 
 #include "ha0storage.ic"
 

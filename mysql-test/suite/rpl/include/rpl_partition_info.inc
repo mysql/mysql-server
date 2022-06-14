@@ -20,7 +20,7 @@
 #     (settable using include/save_binlog_position.inc)
 #   $expected_partition_id
 #     The partition_id where the row changes are done. It will contain
-#     a single value or a semicolon seperated list of partition_id.
+#     a single value or a semicolon-separated list of partition_id.
 #  ==== References ====
 #
 # Bug#28712618:INSERT/UPDATE/DELETE WITH MULTIPLE ROWS IN SAME PARTITION CREATE MULTIPLE EVENT

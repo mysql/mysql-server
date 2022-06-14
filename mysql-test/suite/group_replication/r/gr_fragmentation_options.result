@@ -19,10 +19,10 @@ SET GLOBAL group_replication_communication_max_message_size="AAAA";
 ERROR 42000: Incorrect argument type to variable 'group_replication_communication_max_message_size'
 # 2.b. The variable does not take over the max inputs.
 SET GLOBAL group_replication_communication_max_message_size=4294967297;
-ERROR 42000: The value 4294967297 is not within the range of accepted values for the communication_max_message_size option. Use 0 to disable message fragmentation, or specify a value up to 1073741824.
+ERROR 42000: The value 4294967297 is not within the range of accepted values for the group_replication_communication_max_message_size option. Use 0 to disable message fragmentation, or specify a value up to 1073741824.
 # 2.c. The variable does not take negative inputs.
 SET GLOBAL group_replication_communication_max_message_size=-1;
-ERROR 42000: The value -1 is not within the range of accepted values for the communication_max_message_size option. Use 0 to disable message fragmentation, or specify a value up to 1073741824.
+ERROR 42000: The value -1 is not within the range of accepted values for the group_replication_communication_max_message_size option. Use 0 to disable message fragmentation, or specify a value up to 1073741824.
 # 2.d. The variable can be set to DEFAULT.
 SET GLOBAL group_replication_communication_max_message_size=DEFAULT;
 include/assert.inc [Assert that communication_max_message_size was changed to the default value]
@@ -38,7 +38,7 @@ include/start_group_replication.inc
 #########################################################################
 # 4. Assert that on running member variable cannot be changed.
 SET GLOBAL group_replication_communication_max_message_size=100000;
-ERROR HY000: The communication_max_message_size option cannot be set while Group Replication is running
+ERROR HY000: The group_replication_communication_max_message_size option cannot be set while Group Replication is running
 include/assert.inc [Assert that the communication_max_message_size remains unchanged]
 #########################################################################
 # 5. Check if two servers with and without fragmentation enabled are able to exchange messages and still comunicate with each other.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 int mi_close_share(MI_INFO *info, bool *closed_share) {
   int error = 0, flag;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_close_share");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("base: %p  reopen: %u  locks: %u", info,
                        (uint)share->reopen, (uint)share->tot_locks));
 
@@ -66,7 +66,8 @@ int mi_close_share(MI_INFO *info, bool *closed_share) {
 
   my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
   if (flag) {
-    DBUG_EXECUTE_IF("crash_before_flush_keys", if (share->kfile >= 0) abort(););
+    DBUG_EXECUTE_IF("crash_before_flush_keys",
+                    if (share->kfile >= 0) my_abort(););
     if (share->kfile >= 0 &&
         flush_key_blocks(
             share->key_cache, keycache_thread_var(), share->kfile,
@@ -111,17 +112,17 @@ int mi_close_share(MI_INFO *info, bool *closed_share) {
   if (info->open_list.data) mysql_mutex_unlock(&THR_LOCK_myisam);
   if (info->ftparser_param) {
     my_free(info->ftparser_param);
-    info->ftparser_param = 0;
+    info->ftparser_param = nullptr;
   }
   if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
     error = my_errno();
 
-  myisam_log_command(MI_LOG_CLOSE, info, NULL, 0, error);
+  myisam_log_command(MI_LOG_CLOSE, info, nullptr, 0, error);
   my_free(info);
 
   if (error) {
     set_my_errno(error);
-    DBUG_RETURN(error);
+    return error;
   }
-  DBUG_RETURN(0);
+  return 0;
 } /* mi_close_share */

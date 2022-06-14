@@ -1,5 +1,4 @@
  #Get deafult engine value
---source include/no_ps_protocol.inc
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
@@ -9,6 +8,7 @@
 select CAST(1-2 AS UNSIGNED);
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
 select CAST('10 ' as unsigned integer);
+select CAST('10x' as unsigned integer);
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
@@ -59,10 +59,9 @@ select cast('' as signed);
 #
 # Character set conversion
 #
-set names binary;
-select cast(_latin1'test' as char character set latin2);
-select cast(_koi8r'‘≈”‘' as char character set cp1251);
-create table t1 select cast(_koi8r'‘≈”‘' as char character set cp1251) as t;
+select hex(cast(_latin1'test' as char character set latin2));
+select hex(cast(_koi8r x'D4C5D3D4' as char character set cp1251));
+create table t1 select cast(_koi8r x'D4C5D3D4' as char character set cp1251) as t;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -73,19 +72,19 @@ drop table t1;
 # CAST to CHAR with/without length
 #
 select
-  cast(_latin1'ab'  AS char)    as c1,
-  cast(_latin1'a '  AS char)    as c2,
-  cast(_latin1'abc' AS char(2)) as c3,
-  cast(_latin1'a  ' AS char(2)) as c4,
-  hex(cast(_latin1'a'   AS char(2))) as c5;
-select cast(1000 as CHAR(3));
+  cast(_latin1'ab'  AS char charset binary)    as c1,
+  cast(_latin1'a '  AS char charset binary)    as c2,
+  cast(_latin1'abc' AS char(2) charset binary) as c3,
+  cast(_latin1'a  ' AS char(2) charset binary) as c4,
+  hex(cast(_latin1'a'   AS char(2) charset binary)) as c5;
+select cast(1000 as CHAR(3) charset binary);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 select
-  cast(_latin1'ab'  AS char)    as c1,
-  cast(_latin1'a '  AS char)    as c2,
-  cast(_latin1'abc' AS char(2)) as c3,
-  cast(_latin1'a  ' AS char(2)) as c4,
-  cast(_latin1'a'   AS char(2)) as c5;
+  cast(_latin1'ab'  AS char charset binary)    as c1,
+  cast(_latin1'a '  AS char charset binary)    as c2,
+  cast(_latin1'abc' AS char(2) charset binary) as c3,
+  cast(_latin1'a  ' AS char(2) charset binary) as c4,
+  cast(_latin1'a'   AS char(2) charset binary) as c5;
 select c1,c2,c3,c4,hex(c5) from t1;
 
 #Replace default engine value with static engine string 
@@ -96,19 +95,23 @@ drop table t1;
 #
 # CAST to NCHAR with/without length
 #
+
+# Different number of warnings with ps protocol.
+--disable_ps_protocol
 select
-  cast(_koi8r'∆«'  AS nchar)    as c1,
-  cast(_koi8r'∆ '  AS nchar)    as c2,
-  cast(_koi8r'∆«»' AS nchar(2)) as c3,
-  cast(_koi8r'∆  ' AS nchar(2)) as c4,
-  cast(_koi8r'∆'   AS nchar(2)) as c5;
+  cast(_koi8r x'C6C7'   AS nchar)    as c1,
+  cast(_koi8r x'C620'   AS nchar)    as c2,
+  cast(_koi8r x'C6C7C8' AS nchar(2)) as c3,
+  cast(_koi8r x'C62020' AS nchar(2)) as c4,
+  cast(_koi8r x'C6'     AS nchar(2)) as c5;
+--enable_ps_protocol
 
 create table t1 select
-  cast(_koi8r'∆«'  AS nchar)    as c1,
-  cast(_koi8r'∆ '  AS nchar)    as c2,
-  cast(_koi8r'∆«»' AS nchar(2)) as c3,
-  cast(_koi8r'∆  ' AS nchar(2)) as c4,
-  cast(_koi8r'∆'   AS nchar(2)) as c5;
+  cast(_koi8r x'C6C7'   AS nchar)    as c1,
+  cast(_koi8r x'C620'   AS nchar)    as c2,
+  cast(_koi8r x'C6C7C8' AS nchar(2)) as c3,
+  cast(_koi8r x'C62020' AS nchar(2)) as c4,
+  cast(_koi8r x'C6'     AS nchar(2)) as c5;
 select * from t1;
 
 #Replace default engine value with static engine string 
@@ -119,12 +122,16 @@ drop table t1;
 --echo #
 --echo # Bug #24934161: FAILURE OF SYNONYMY OF NCHAR AND NATIONAL CHAR
 --echo #
+
+# Different number of warnings with ps protocol.
+--disable_ps_protocol
 SELECT
   CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
   CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
   CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
   CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
   CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+--enable_ps_protocol
 
 CREATE TABLE t1 SELECT
   CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
@@ -142,14 +149,9 @@ SET sql_mode = default;
 # CAST from BINARY to non-BINARY and from non-BINARY to BINARY
 #
 create table t1 (a binary(4), b char(4) character set koi8r);
-insert into t1 values (_binary'‘≈”‘',_binary'‘≈”‘');
-select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
-set names koi8r;
-select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
-set names cp1251;
-select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+insert into t1 values (_binary x'D4C5D3D4',_binary x'D4C5D3D4');
+select hex(a),hex(b),hex(cast(a as char character set cp1251)),hex(cast(b as binary)) from t1;
 drop table t1;
-set names binary;
 
 #
 # The following should be fixed in 4.1
@@ -167,11 +169,11 @@ select cast(NULL as BINARY);
 CREATE TABLE t1 (a enum ('aac','aab','aaa') not null);
 INSERT INTO t1 VALUES ('aaa'),('aab'),('aac');
 # these two should be in enum order
-SELECT a, CAST(a AS CHAR) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
-SELECT a, CAST(a AS CHAR(3)) FROM t1 ORDER BY CAST(a AS CHAR(2)), a;
+SELECT a, CAST(a AS CHAR charset binary) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
+SELECT a, CAST(a AS CHAR(3) charset binary) FROM t1 ORDER BY CAST(a AS CHAR(2) charset binary), a;
 # these two should be in alphabetic order
-SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
-SELECT a, CAST(a AS CHAR(2)) FROM t1 ORDER BY CAST(a AS CHAR(3)), a;
+SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR charset binary) ;
+SELECT a, CAST(a AS CHAR(2) charset binary ) FROM t1 ORDER BY CAST(a AS CHAR(3) charset binary), a;
 DROP TABLE t1;
 
 #
@@ -426,6 +428,8 @@ SELECT PERIOD_ADD(200905, CAST(3.14e19 AS DOUBLE));
 SELECT -1.0 *  CAST(3.14e19 AS DOUBLE);
 --error ER_DATA_OUT_OF_RANGE
 SELECT CAST("3.14e100" AS FLOAT);
+--error ER_DATA_OUT_OF_RANGE
+SELECT CAST(-1e308 as FLOAT);
 SELECT CONCAT("value=", CAST("3.4e5" AS FLOAT));
 
 CREATE VIEW v1 AS SELECT CAST(1/3 AS REAL), CAST(1/3 AS FLOAT(2)), CAST(1/3 AS FLOAT(50));
@@ -446,3 +450,685 @@ DROP TABLE t;
 
 SELECT MAKETIME(1, 2, CAST("1.6" AS FLOAT));
 
+--echo #
+--echo # WL#12108: Inject type cast nodes into the item tree to avoid data
+--echo # type mismatches.
+--echo #
+
+CREATE TABLE dt_t (dt DATETIME, d DATE, t TIME);
+CREATE TABLE n_t (i INT, d DECIMAL, f FLOAT, dc DECIMAL);
+
+--echo #
+--echo # DATETIME + NUMERICS
+--echo #
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.i;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.d;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.f;
+
+--echo #
+--echo # DATE + NUMERICS
+--echo #
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.i;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.d;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.f;
+EXPLAIN SELECT * from dt_t JOIN n_t on dt_t.d = n_t.dc;
+
+--echo #
+--echo # TIME + NUMERICS
+--echo #
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.i;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.d;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.f;
+
+--echo #
+--echo # DATETIME + DATE
+--echo #
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.d;
+
+--echo #
+--echo # DATETIME + TIME
+--echo #
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.t;
+
+--echo #
+--echo # DATE + TIME
+--echo #
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.t;
+
+# No CAST is expected when the data type is the same
+EXPLAIN SELECT * FROM dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.d;
+
+# In the SELECT list
+EXPLAIN SELECT dt_t.dt = n_t.i from dt_t, n_t;
+# In HAVING expression
+EXPLAIN SELECT MAX(dt_t.d) AS max_d, MAX(n_t.i) AS max_i
+FROM dt_t, n_t HAVING max_d = max_i;
+# In ORDER BY clause
+EXPLAIN SELECT dt=d from dt_t ORDER BY dt = d;
+EXPLAIN SELECT * from dt_t ORDER BY dt = d;
+# In WINDOW ORDER BY clause
+EXPLAIN SELECT d=t, LEAD(d,1) OVER w FROM dt_t WINDOW w AS (ORDER BY d=t);
+EXPLAIN SELECT LEAD(d,1) OVER w FROM dt_t WINDOW w AS (ORDER BY d=t);
+
+DROP TABLE dt_t, n_t;
+
+# When an argument is a grouped or windowed aggregate function
+CREATE TABLE t1 (spID int, userID int, date date);
+
+INSERT INTO t1 VALUES (1,1,'1998-01-01');
+INSERT INTO t1 VALUES (2,2,'2001-02-03');
+INSERT INTO t1 VALUES (3,1,'1988-12-20');
+INSERT INTO t1 VALUES (4,2,'1972-12-12');
+
+EXPLAIN SELECT MIN(t1.userID) = MIN(date) FROM t1  GROUP BY userid;
+EXPLAIN SELECT FIRST_VALUE(date) OVER (ORDER BY spID = date) FROM t1;
+EXPLAIN SELECT date, spid = FIRST_VALUE(date) OVER (ORDER BY date ) FROM t1;
+
+--echo #
+--echo # No casts when constants or constant functions are involved
+--echo #
+EXPLAIN SELECT * from t1 WHERE userID = DATE'2012-02-20';
+EXPLAIN SELECT * FROM t1 WHERE date = NULL;
+EXPLAIN SELECT * FROM t1 WHERE date = CAST('20:21:22' AS TIME);
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#13456: Inject CAST nodes for comparisons with STRING non-const expressions. 
+--echo # 
+CREATE TABLE t(c CHAR(64), v VARCHAR(256), txt TEXT, b BINARY(64), vb VARBINARY(32),
+               e ENUM ("v1", "v2"), set1 SET('101', '102'), bl  BLOB, i INT,
+               si SMALLINT, ti TINYINT, mi MEDIUMINT, bi BIGINT, bt BIT,
+               d DECIMAL, f FLOAT, dbl DOUBLE, dt DATETIME, dd  DATE, t TIME,
+               y YEAR);
+
+INSERT INTO t
+VALUES ("char", "vchar","text", "binary", "varbinary", "v1", '101,102', "blob", 
+        2001, 2, 3, 4, 200000002, 0x01, 2001.0, 2001.0, 2001.2,
+        "2001-01-02 22:00", "2001-01-02", "20:01", 2010);
+
+--echo # String vs INT
+EXPLAIN SELECT v = i FROM t;
+--echo # String vs SMALLINT
+EXPLAIN SELECT v = si FROM t;
+--echo # String vs TINYINT
+EXPLAIN SELECT v = ti FROM t;
+--echo # String vs MEDIUMINT
+EXPLAIN SELECT v = mi FROM t;
+--echo # String vs BIGINT
+EXPLAIN SELECT v = bi FROM t;
+--echo # String vs BIT
+EXPLAIN SELECT v = bt FROM t;
+--echo # String vs YEAR
+EXPLAIN SELECT v = y FROM t;
+--echo # String vs DECIMAL 
+EXPLAIN SELECT v = d FROM t;
+--echo # String vs FLOAT 
+EXPLAIN SELECT v = f FROM t;
+--echo # String vs DOUBLE
+EXPLAIN SELECT v = dbl FROM t;
+--echo # String vs DATETIME
+EXPLAIN SELECT v = dt FROM t;
+--echo # String vs DATE
+EXPLAIN SELECT v = dd FROM t;
+--echo # String vs TIME
+EXPLAIN SELECT v = t FROM t;
+--echo # String vs another equality 
+EXPLAIN SELECT v = (v = y) FROM t;
+--echo # String vs expression
+EXPLAIN SELECT v = 1 * i FROM t;
+--echo # Other operators
+EXPLAIN SELECT v <=> i FROM t;
+EXPLAIN SELECT v <> i FROM t;
+EXPLAIN SELECT v > i FROM t;
+EXPLAIN SELECT v >= i FROM t;
+EXPLAIN SELECT v <= i FROM t;
+EXPLAIN SELECT v < i FROM t;
+--echo # Test data type combinations
+EXPLAIN SELECT c = i FROM t;
+EXPLAIN SELECT c = si FROM t;
+EXPLAIN SELECT c = ti FROM t;
+EXPLAIN SELECT c = mi FROM t;
+EXPLAIN SELECT c = bi FROM t;
+EXPLAIN SELECT c = bt FROM t;
+EXPLAIN SELECT c = y FROM t;
+EXPLAIN SELECT c = d FROM t;
+EXPLAIN SELECT c = f FROM t;
+EXPLAIN SELECT c = dbl FROM t;
+EXPLAIN SELECT c = dt FROM t;
+EXPLAIN SELECT c = dd FROM t;
+EXPLAIN SELECT c = t FROM t;
+
+EXPLAIN SELECT txt = i FROM t;
+EXPLAIN SELECT txt = si FROM t;
+EXPLAIN SELECT txt = ti FROM t;
+EXPLAIN SELECT txt = mi FROM t;
+EXPLAIN SELECT txt = bi FROM t;
+EXPLAIN SELECT txt = bt FROM t;
+EXPLAIN SELECT txt = y FROM t;
+EXPLAIN SELECT txt = d FROM t;
+EXPLAIN SELECT txt = f FROM t;
+EXPLAIN SELECT txt = dbl FROM t;
+EXPLAIN SELECT txt = dt FROM t;
+EXPLAIN SELECT txt = dd FROM t;
+EXPLAIN SELECT txt = t FROM t;
+
+EXPLAIN SELECT b = i FROM t;
+EXPLAIN SELECT b = si FROM t;
+EXPLAIN SELECT b = ti FROM t;
+EXPLAIN SELECT b = mi FROM t;
+EXPLAIN SELECT b = bi FROM t;
+EXPLAIN SELECT b = bt FROM t;
+EXPLAIN SELECT b = y FROM t;
+EXPLAIN SELECT b = d FROM t;
+EXPLAIN SELECT b = f FROM t;
+EXPLAIN SELECT b = dbl FROM t;
+EXPLAIN SELECT b = dt FROM t;
+EXPLAIN SELECT b = dd FROM t;
+EXPLAIN SELECT b = t FROM t;
+
+EXPLAIN SELECT vb = i FROM t;
+EXPLAIN SELECT vb = si FROM t;
+EXPLAIN SELECT vb = ti FROM t;
+EXPLAIN SELECT vb = mi FROM t;
+EXPLAIN SELECT vb = bi FROM t;
+EXPLAIN SELECT vb = bt FROM t;
+EXPLAIN SELECT vb = y FROM t;
+EXPLAIN SELECT vb = d FROM t;
+EXPLAIN SELECT vb = f FROM t;
+EXPLAIN SELECT vb = dbl FROM t;
+EXPLAIN SELECT vb = dt FROM t;
+EXPLAIN SELECT vb = dd FROM t;
+EXPLAIN SELECT vb = t FROM t;
+
+EXPLAIN SELECT e = i FROM t;
+EXPLAIN SELECT e = si FROM t;
+EXPLAIN SELECT e = ti FROM t;
+EXPLAIN SELECT e = mi FROM t;
+EXPLAIN SELECT e = bi FROM t;
+EXPLAIN SELECT e = bt FROM t;
+EXPLAIN SELECT e = y FROM t;
+EXPLAIN SELECT e = d FROM t;
+EXPLAIN SELECT e = f FROM t;
+EXPLAIN SELECT e = dbl FROM t;
+EXPLAIN SELECT e = dt FROM t;
+EXPLAIN SELECT e = dd FROM t;
+EXPLAIN SELECT e = t FROM t;
+
+EXPLAIN SELECT set1 = i FROM t;
+EXPLAIN SELECT set1 = si FROM t;
+EXPLAIN SELECT set1 = ti FROM t;
+EXPLAIN SELECT set1 = mi FROM t;
+EXPLAIN SELECT set1 = bi FROM t;
+EXPLAIN SELECT set1 = bt FROM t;
+EXPLAIN SELECT set1 = y FROM t;
+EXPLAIN SELECT set1 = d FROM t;
+EXPLAIN SELECT set1 = f FROM t;
+EXPLAIN SELECT set1 = dbl FROM t;
+EXPLAIN SELECT set1 = dt FROM t;
+EXPLAIN SELECT set1 = dd FROM t;
+EXPLAIN SELECT set1 = t FROM t;
+
+EXPLAIN SELECT bl = i FROM t;
+EXPLAIN SELECT bl = si FROM t;
+EXPLAIN SELECT bl = ti FROM t;
+EXPLAIN SELECT bl = mi FROM t;
+EXPLAIN SELECT bl = bi FROM t;
+EXPLAIN SELECT bl = bt FROM t;
+EXPLAIN SELECT bl = y FROM t;
+EXPLAIN SELECT bl = d FROM t;
+EXPLAIN SELECT bl = f FROM t;
+EXPLAIN SELECT bl = dbl FROM t;
+EXPLAIN SELECT bl = dt FROM t;
+EXPLAIN SELECT bl = dd FROM t;
+EXPLAIN SELECT bl = t FROM t;
+
+--echo # YEAR vs data types
+EXPLAIN SELECT y = i FROM t;
+EXPLAIN SELECT y = si FROM t;
+EXPLAIN SELECT y = ti FROM t;
+EXPLAIN SELECT y = mi FROM t;
+EXPLAIN SELECT y = bi FROM t;
+EXPLAIN SELECT y = bt FROM t;
+EXPLAIN SELECT y = y FROM t;
+EXPLAIN SELECT y = d FROM t;
+EXPLAIN SELECT y = f FROM t;
+EXPLAIN SELECT y = dbl FROM t;
+EXPLAIN SELECT y = dt FROM t;
+EXPLAIN SELECT y = dd FROM t;
+EXPLAIN SELECT y = t FROM t;
+
+--echo # cleanup
+DROP TABLE t;
+
+--echo #
+--echo # Bug#31023252: RESULTSET MISMATCH USING STRCMP() WITH DATE AND STRING DATATYPE
+--echo #
+ CREATE TABLE t1(a YEAR, b VARCHAR(10));
+ INSERT INTO t1 VALUES ('1997','random_str');
+ SELECT STRCMP(a, b) FROM t1;
+ DROP TABLE t1;
+
+--echo #
+--echo # Bug#30626100: WL13456 RESULTSET DISTINCT DIFFERENCE
+--echo #
+CREATE TABLE t (col_datetime datetime, col_date date, col_time time, col_char char);
+insert into t values ('2013-03-15 18:35:20', '2013-03-15', '18:35:20','L'),
+                     ('2003-01-10 00:00:23', '2003-01-10', '00:00:23', NULL);
+
+--skip_if_hypergraph  # Different warnings.
+SELECT CAST(col_char AS DATETIME) FROM t;
+--echo
+--skip_if_hypergraph  # Different warnings.
+SELECT col_char /*CAST(col_char as datetime)*/ <> col_datetime FROM t;
+
+--echo
+--skip_if_hypergraph  # Different warnings.
+SELECT CAST(col_char AS DATE) FROM t;
+--echo
+--skip_if_hypergraph  # Different warnings.
+SELECT col_char <> col_date FROM t;
+
+SELECT CAST(col_char as TIME) FROM t;
+SELECT col_char <> col_time FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#31095719 WL13456 RESULT SET COMPARISON DIFFERENCE WITH JOINS
+--echo #
+CREATE TABLE `BB` (`col_char_key` char(1));
+CREATE TABLE `CC` ( `pk` int, `col_datetime_key` datetime,
+KEY `idx_CC_col_datetime_key` (`col_datetime_key`));
+INSERT INTO `BB` VALUES ('X');
+INSERT INTO `CC` VALUES (1,'2027-03-17 00:10:00'), (2,'2004-11-14 12:46:43');
+--skip_if_hypergraph  # Different warnings.
+SELECT COUNT(table1.pk) FROM CC table1 JOIN BB table3 JOIN CC table2
+WHERE (table3.col_char_key < table2.col_datetime_key);
+DROP TABLE `BB`;
+DROP TABLE `CC`;
+
+--echo #
+--echo # CAST AS YEAR
+--echo #
+
+# int values
+SELECT CAST(CAST(-1 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(-99 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(0 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(69 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(70 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(99 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(100 AS SIGNED) AS YEAR);
+SELECT CAST(CAST(2010 AS SIGNED) AS YEAR);
+
+#floating point values
+SELECT CAST(-1.1 AS YEAR);
+SELECT CAST(1.1 AS YEAR);
+SELECT CAST(0.0 AS YEAR);
+SELECT CAST(69.1 AS YEAR);
+SELECT CAST(70.1 AS YEAR);
+SELECT CAST(100.1 AS YEAR);
+SELECT CAST(2010.9 AS YEAR);
+
+#decimal values
+SELECT CAST(CAST(-1.1 AS DECIMAL) AS YEAR);
+SELECT CAST(CAST(1.1 AS DECIMAL) AS YEAR);
+SELECT CAST(CAST(0.0 AS DECIMAL) AS YEAR);
+SELECT CAST(CAST(69.1 AS DECIMAL) AS YEAR);
+SELECT CAST(CAST(70.1 AS DECIMAL) AS YEAR);
+SELECT CAST(CAST(100.1 AS DECIMAL) AS YEAR);
+SELECT CAST(CAST(2010.9 AS DECIMAL) AS YEAR);
+
+#string values
+SELECT CAST("-1" AS YEAR);
+SELECT CAST("-99" AS YEAR);
+SELECT CAST("0" AS YEAR);
+SELECT CAST("69" AS YEAR);
+SELECT CAST("70" AS YEAR);
+SELECT CAST("99" AS YEAR);
+SELECT CAST("100" AS YEAR);
+SELECT CAST("2010" AS YEAR);
+SELECT CAST("extra" AS YEAR);
+SELECT CAST("22extra" AS YEAR);
+SELECT CAST("2020extra" AS YEAR);
+
+SET timestamp = UNIX_TIMESTAMP('2020-12-22 03:30:00');
+#date[time] values
+SELECT CAST(TIMESTAMP'2010-01-01 00:00' AS YEAR);
+SET SQL_MODE = "";
+SELECT CAST(TIMESTAMP'0000-00-00 00:00' AS YEAR);
+SET SQL_MODE = default;
+SELECT CAST(TIMESTAMP'2010-01-01 08:09:10' AS YEAR);
+SELECT CAST(TIME'08:09:10' AS YEAR);
+SELECT CAST(TIME'00:00:00' AS YEAR);
+SET timestamp = DEFAULT;
+
+#geometry values
+--error ER_WRONG_ARGUMENTS
+SELECT CAST(ST_PointFromText('POINT(10 10)') AS YEAR);
+
+#CREATE AS SELECT
+CREATE TABLE t AS SELECT CAST("2010" AS YEAR);
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+#json values
+SELECT CAST(JSON_EXTRACT('{"key_year":1934}', '$.key_year') AS YEAR);
+SELECT CAST(CAST('{"_id":"192312412512"}' AS JSON) AS YEAR);
+
+CREATE TABLE t1 (i INT, j JSON) CHARSET utf8mb4;
+INSERT INTO t1 VALUES (0, NULL);
+INSERT INTO t1 VALUES (1, '"1901"');
+INSERT INTO t1 VALUES (2, 'true');
+INSERT INTO t1 VALUES (3, 'false');
+INSERT INTO t1 VALUES (4, 'null');
+INSERT INTO t1 VALUES (5, '-1');
+INSERT INTO t1 VALUES (6, CAST(CAST(1 AS UNSIGNED) AS JSON));
+INSERT INTO t1 VALUES (7, '1901');
+INSERT INTO t1 VALUES (8, '-1901');
+INSERT INTO t1 VALUES (9, '2147483647');
+INSERT INTO t1 VALUES (10, '2147483648');
+INSERT INTO t1 VALUES (11, '-2147483648');
+INSERT INTO t1 VALUES (12, '-2147483649');
+INSERT INTO t1 VALUES (13, '3.14');
+INSERT INTO t1 VALUES (14, '{}');
+INSERT INTO t1 VALUES (15, '[]');
+INSERT INTO t1 VALUES (16, CAST(CAST('2015-01-15 23:24:25' AS DATETIME) AS JSON));
+INSERT INTO t1 VALUES (17, CAST(CAST('23:24:25' AS TIME) AS JSON));
+INSERT INTO t1 VALUES (18, CAST(CAST('2015-01-15' AS DATE) AS JSON));
+INSERT INTO t1 VALUES (19, CAST(TIMESTAMP'2015-01-15 23:24:25' AS JSON));
+INSERT INTO t1 VALUES (20, CAST(ST_GeomFromText('POINT(1 1)') AS JSON));
+INSERT INTO t1 VALUES (21, CAST('1988' AS CHAR CHARACTER SET 'ascii'));
+INSERT INTO t1 VALUES (22, CAST(x'07C4' AS JSON));
+INSERT INTO t1 VALUES (23, CAST(x'07C407C4' AS JSON));
+SELECT i, CAST(j AS YEAR), CAST(j AS SIGNED) FROM t1 ORDER BY i;
+DROP TABLE t1;
+
+# enum values
+CREATE TABLE t(numbers ENUM('0','1','2020'), colors ENUM('red', 'green', 'blue'));
+INSERT INTO t values('2020', 'blue');
+SELECT CAST(numbers AS YEAR), CAST(colors AS YEAR) FROM t;
+DROP TABLE t;
+
+# with/without strict mode
+CREATE TABLE t(y YEAR);
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t values(CAST("2020extra" AS YEAR));
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t values(CAST(20201 AS YEAR));
+
+SET SQL_MODE = "";
+INSERT INTO t values(CAST("2020extra" AS YEAR));
+INSERT INTO t values(CAST(20201 AS YEAR));
+SELECT * FROM t;
+SET SQL_MODE = default;
+DROP TABLE t;
+
+# cast to year as string
+SELECT CAST(1988 AS YEAR), REPEAT(CAST(1988 AS YEAR), 3) AS c2;
+
+# conversions to string
+SELECT CONCAT('x', CAST(1988 AS YEAR));
+
+# conversions to DOUBLE
+SELECT CAST(1988 AS YEAR) + 1.5e0;
+
+# conversions to DECIMAL
+SELECT CAST(CAST(1988 AS YEAR) AS DECIMAL);
+
+# conversions to DATE
+SELECT DATE_ADD(CAST(1988 AS YEAR), INTERVAL 1 DAY);
+
+# conversions to TIME
+SELECT TIME_TO_SEC(CAST('2030' AS YEAR));
+
+# conversions to DATETIME
+SELECT TIMESTAMPADD(MINUTE, 1, CAST(1988 AS YEAR));
+
+# conversions to SIGNED
+SELECT CAST(CAST(1988 AS YEAR) AS SIGNED);
+
+# conversions to UNSIGNED
+SELECT CAST(CAST(1988 AS YEAR) AS UNSIGNED);
+
+SELECT CAST(TIMESTAMP'579-10-10 10:10:10' AS YEAR);
+SELECT CAST(STR_TO_DATE('nope','%d-%m-%Y') AS YEAR);
+
+--echo # WL#14109: Implement a consistent comparison type rule matrix
+
+# Check CAST into temporal values and mode settings
+
+SET @zero_date = '0000-00-00';
+SET @zero_day = '2000-01-00';
+SET @zero_month = '2000-00-01';
+SET @zero_year = '0000-01-01';
+SET @invalid_date = '2000-02-31';
+SET @bad_date = 'YYYY-MM-DD';
+SET @zero_datetime = '0000-00-00 00:00:00.000000';
+SET @zero_day_dt = '2000-01-00 00:00:00.000000';
+SET @zero_month_dt = '2000-00-01 00:00:00.000000';
+SET @zero_year_dt = '0000-01-01 00:00:00.000000';
+SET @invalid_datetime = '2000-02-31 00:00:00.000000';
+SET @bad_datetime = 'YYYY-MM-DD HH:MM:SS.ffffff';
+
+SET SQL_MODE=DEFAULT;
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE='NO_ZERO_DATE';
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE='NO_ZERO_IN_DATE';
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE='ALLOW_INVALID_DATES';
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug#32371039: ITEM->MAX_LENGTH FIELD IS NOT ACCURATE FOR
+--echo #               FROM_BASE64 FUNCTION
+--echo #
+
+# CREATE TABLE used to fail because the created columns were too small
+# to store the values returned by the SELECT statement. The maximum
+# length of the CAST expressions was wrong because it didn't take the
+# potential overflow into account.
+CREATE TABLE t AS
+  SELECT CONCAT(CAST(-1 AS UNSIGNED)) AS col1,
+         1.0 + CAST(-1 AS UNSIGNED) AS col2,
+         CONCAT(CAST(9223372036854775808 AS SIGNED)) AS col3;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32942327: CAST: ITEM_TYPECAST_UNSIGNED:
+--echo #               ASSERTION `!NULL_VALUE || IS_NULLABLE()' FAILED
+--echo #
+
+CREATE TABLE t (x VARCHAR(10) NOT NULL);
+INSERT INTO t VALUES ('');
+--error ER_CANNOT_CONVERT_STRING
+SELECT CAST(x <= 0x4891f642 AS UNSIGNED) FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT CAST(STRCMP(x, 0x4891f642) AS UNSIGNED) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33199145: CONVERT(.. USING charset) gets wrong max_length
+--echo #
+CREATE TABLE tmp(beer CHAR(1));
+INSERT INTO tmp VALUES (CONVERT(X'F09F8DBA' USING utf8mb4));
+SELECT HEX(beer), beer FROM tmp;
+--echo # Used this round-about way originally to get a utfmb4 character to
+--echo # convert in next DML/DDL query to avoid change encoding of this file
+--echo # and to avoid bug in max_length of CONVERT(X'F09F8DBA' USING UTF8MB4)
+--echo # which (used to) set to 4 instead of one (beer), fixed now, though,
+--echo # see round-trip test below.
+CREATE TABLE t AS
+    SELECT CONVERT((SELECT beer FROM tmp) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t, tmp;
+
+CREATE TABLE t AS
+    SELECT CONVERT(X'F09F8DBA' USING utf8mb4) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+--echo # Check round trip.
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(X'F09F8DBA' USING utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+--echo # Check round trip.
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(X'F09F8DBA', CHAR(1) CHARACTER SET utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+
+--echo # Check round trip: should stay VARCHAR(1).
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(_utf8mb3'a' USING utf8mb4) USING utf8mb3) AS a;
+SHOW CREATE TABLE t;
+SELECT a FROM t;
+DROP TABLE t;
+
+--echo # Character set with different min char size (utf-16: 2):
+CREATE TABLE t AS
+    SELECT CONVERT(X'D83CDF7A' USING utf16) as beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer), CHAR_LENGTH(beer) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #33406728 Item_charset_conversion::compute_max_char_length:
+--echo #     Assertion `from->max_length == from->max_char_length()' failed.
+--echo #
+
+set @a:= st_aswkb(st_astext(@b:=log10(0.0)));
+set @a:= @b;
+do convert(@a using latin1);

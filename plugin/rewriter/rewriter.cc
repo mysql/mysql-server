@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -28,20 +28,19 @@
 #include <mysql/service_rules_table.h>
 #include <stddef.h>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "m_string.h"  // Needed because debug_sync.h is not self-sufficient.
 #include "my_dbug.h"
-#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "plugin/rewriter/messages.h"
 #include "plugin/rewriter/persisted_rule.h"
 #include "plugin/rewriter/rule.h"
 #include "sql/debug_sync.h"
 #include "template_utils.h"
 
-using Mysql::Nullable;
 using rules_table_service::Cursor;
 using std::string;
 namespace messages = rewriter_messages;
@@ -60,9 +59,9 @@ std::string hash_key_from_digest(const uchar *digest) {
   Implementation of the Rewriter class's member functions.
 */
 
-Rewriter::Rewriter() {}
+Rewriter::Rewriter() = default;
 
-Rewriter::~Rewriter() {}
+Rewriter::~Rewriter() = default;
 
 bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
   std::unique_ptr<Rule> memrule_ptr(new Rule);
@@ -73,7 +72,7 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
     case Rule::OK:
       m_digests.emplace(hash_key_from_digest(memrule_ptr->digest_buffer()),
                         std::move(memrule_ptr));
-      diskrule->message = Nullable<string>();
+      diskrule->message = std::optional<string>();
       diskrule->pattern_digest =
           services::print_digest(memrule->digest_buffer());
       diskrule->normalized_pattern = memrule->normalized_pattern();
@@ -105,22 +104,22 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
   return true;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Normal debug sync points will not work in the THD that the plugin creates,
   so we have to call the debug sync functions ourselves.
 */
 static void do_debug_sync(MYSQL_THD thd) {
-  DBUG_ASSERT(opt_debug_sync_timeout > 0);
+  assert(opt_debug_sync_timeout > 0);
   const char act[] = "now signal parked wait_for go";
-  DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+  assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 }
 #endif
 
 void Rewriter::do_refresh(MYSQL_THD session_thd) {
   bool saw_rule_error = false;
 
-  DBUG_ENTER("Rewriter::do_refresh");
+  DBUG_TRACE;
   Cursor c(session_thd);
 
   DBUG_PRINT("info", ("Rewriter::do_refresh cursor opened"));
@@ -128,7 +127,7 @@ void Rewriter::do_refresh(MYSQL_THD session_thd) {
 
   if (c.table_is_malformed()) {
     m_refresh_status = ER_REWRITER_TABLE_MALFORMED_ERROR;
-    DBUG_VOID_RETURN;
+    return;
   }
   m_digests.clear();
 
@@ -152,7 +151,6 @@ void Rewriter::do_refresh(MYSQL_THD session_thd) {
     m_refresh_status = ER_REWRITER_LOAD_FAILED;
   else
     m_refresh_status = 0;
-  DBUG_VOID_RETURN;
 }
 
 namespace {
@@ -165,7 +163,7 @@ struct Refresh_callback_args {
 extern "C" void *refresh_callback(void *p_args) {
   Refresh_callback_args *args = pointer_cast<Refresh_callback_args *>(p_args);
   (args->me->do_refresh)(args->session_thd);
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,8 @@ struct st_row_group_members {
   uint member_role_length;
   char member_version[NAME_LEN];
   uint member_version_length;
+  char member_communication_stack[NAME_LEN];
+  uint member_communication_stack_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_group_members. */
@@ -97,21 +99,21 @@ class table_replication_group_members : public PFS_engine_table {
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_replication_group_members();
 
  public:
-  ~table_replication_group_members();
+  ~table_replication_group_members() override;
 
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 };
 
 /** @} */

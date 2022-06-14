@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ void Default_binlog_event_allocator::deallocate(unsigned char *ptr) {
   my_free(ptr);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
   /*
     Corrupt the event.
@@ -56,7 +56,7 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
         DBUG_PRINT("info", ("Corrupt the event on position %d", cor_pos));
       });
 }
-#endif  // ifdef DBUG_OFF
+#endif  // ifdef NDEBUG
 
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
@@ -77,7 +77,7 @@ bool Binlog_event_data_istream::fill_event_data(
           m_event_length - LOG_EVENT_MINIMAL_HEADER_LEN))
     return true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   debug_corrupt_event(event_data, m_event_length);
 #endif
 
@@ -114,16 +114,16 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   Log_event *ev = nullptr;
   enum_binlog_checksum_alg alg;
 
-  DBUG_ENTER("binlog_event_deserialize");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(fde != 0);
+  assert(fde != nullptr);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));
   DBUG_DUMP("data", buffer, event_len);
 
   /* Check the integrity */
   if (event_len < LOG_EVENT_MINIMAL_HEADER_LEN) {
     DBUG_PRINT("error", ("event_len=%u", event_len));
-    DBUG_RETURN(Binlog_read_error::TRUNC_EVENT);
+    return Binlog_read_error::TRUNC_EVENT;
   }
 
   if (event_len != uint4korr(buf + EVENT_LEN_OFFSET)) {
@@ -133,9 +133,9 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                 "uint4korr(buf+EVENT_LEN_OFFSET)=%d",
                 event_len, EVENT_LEN_OFFSET, buf[EVENT_TYPE_OFFSET],
                 binary_log::ENUM_END_EVENT, uint4korr(buf + EVENT_LEN_OFFSET)));
-    DBUG_RETURN(event_len > uint4korr(buf + EVENT_LEN_OFFSET)
-                    ? Binlog_read_error::BOGUS
-                    : Binlog_read_error::TRUNC_EVENT);
+    return event_len > uint4korr(buf + EVENT_LEN_OFFSET)
+               ? Binlog_read_error::BOGUS
+               : Binlog_read_error::TRUNC_EVENT;
   }
 
   uint event_type = buf[EVENT_TYPE_OFFSET];
@@ -146,12 +146,12 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   */
   if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT) {
     if (event_len <= LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET)
-      DBUG_RETURN(Binlog_read_error::TRUNC_FD_EVENT);
+      return Binlog_read_error::TRUNC_FD_EVENT;
 
     uint tmp_header_len =
         buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET];
     if (event_len < tmp_header_len + ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
-      DBUG_RETURN(Binlog_read_error::TRUNC_FD_EVENT);
+      return Binlog_read_error::TRUNC_FD_EVENT;
   }
 
   /*
@@ -164,7 +164,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
             ? fde->footer()->checksum_alg
             : Log_event_footer::get_checksum_alg(buf, event_len);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   binary_log_debug::debug_checksum_test =
       DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif
@@ -174,7 +174,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                                             event_len, alg) &&
       /* Skip the crc check when simulating an unknown ignorable log event. */
       !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-    DBUG_RETURN(Binlog_read_error::CHECKSUM_FAILURE);
+    return Binlog_read_error::CHECKSUM_FAILURE;
   }
 
   if (event_type > fde->number_of_event_types &&
@@ -190,7 +190,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                          "Format_description_event supports only %d event "
                          "types",
                          event_type, fde->number_of_event_types));
-    DBUG_RETURN(Binlog_read_error::INVALID_EVENT);
+    return Binlog_read_error::INVALID_EVENT;
   }
 
   /* Remove checksum length from event_len */
@@ -201,9 +201,9 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   switch (event_type) {
     case binary_log::QUERY_EVENT:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       binary_log_debug::debug_query_mts_corrupt_db_names =
-          DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
+          DBUG_EVALUATE_IF("query_log_event_mta_corrupt_db_names", true, false);
 #endif
       ev = new Query_log_event(buf, fde, binary_log::QUERY_EVENT);
       break;
@@ -290,6 +290,9 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       ev = new Update_rows_log_event(buf, fde);
       break;
+    case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      ev = new Transaction_payload_log_event(buf, fde);
+      break;
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.
@@ -317,7 +320,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   */
   if (!ev || !ev->is_valid()) {
     delete ev;
-    DBUG_RETURN(Binlog_read_error::INVALID_EVENT);
+    return Binlog_read_error::INVALID_EVENT;
   }
 
   ev->common_footer->checksum_alg = alg;
@@ -329,5 +332,5 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                             ev ? ev->get_type_str() : "<unknown>",
                             buf[EVENT_TYPE_OFFSET], event_len));
   *event = ev;
-  DBUG_RETURN(Binlog_read_error::SUCCESS);
+  return Binlog_read_error::SUCCESS;
 }

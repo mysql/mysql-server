@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
 
+#include "util/require.h"
+#include <time.h>
+
 #include <NDBT_ReturnCodes.h>
 #include <mgmapi.h>
 #include <my_default.h>
@@ -45,12 +48,14 @@
 
 enum ErrorCodes {
   ERR_OK = 0,
+  ERR_CRITICAL = 10,
   ERR_NDB_FAILED = 101,
   ERR_SERVERS_FAILED = 102,
   ERR_MAX_TIME_ELAPSED = 103,
   ERR_COMMAND_FAILED = 104,
   ERR_FAILED_TO_START = 105,
   ERR_NDB_AND_SERVERS_FAILED = 106,
+  ERR_CORRUPT_TESTCASE = 107,
   ERR_TEST_FAILED = NDBT_FAILED << 8,
   ERR_TEST_SKIPPED = NDBT_SKIPPED << 8
 };
@@ -60,6 +65,32 @@ enum AtrtExitCodes {
   TESTSUITE_FAILURES = 1,
   ATRT_FAILURE = 2
 };
+
+struct TestResult {
+  int testruns;
+  time_t elapsed;
+  int result;
+};
+
+enum FailureMode : long {
+  Restart,
+  Abort,
+  Skip,
+  Continue
+};
+
+enum RestartMode : long {
+  None,
+  Before,
+  After,
+  Both,
+};
+
+namespace coverage {
+enum Coverage : long { None, Testcase, Testsuite };
+}
+
+enum CoverageTools : long { Lcov, Fastcov };
 
 struct atrt_host {
   unsigned m_index;
@@ -133,14 +164,22 @@ struct atrt_config {
   Vector<atrt_process*> m_processes;
 };
 
+struct atrt_coverage_config {
+  int m_prefix_strip;
+  coverage::Coverage m_analysis;
+  CoverageTools m_tool;
+};
+
 struct atrt_testcase {
+  int test_no;
   bool m_report;
   bool m_run_all;
   time_t m_max_time;
   BaseString m_name;
   BaseString m_mysqld_options;
   int m_max_retries;
-  bool m_force_cluster_restart;
+  RestartMode m_force_cluster_restart;
+  FailureMode m_behaviour_on_failure;
 
   struct Command {
     atrt_process::Type m_cmd_type;
@@ -152,7 +191,10 @@ struct atrt_testcase {
 extern Logger g_logger;
 
 bool parse_args(int argc, char** argv, MEM_ROOT* alloc);
-bool setup_config(atrt_config&, const char* mysqld);
+bool setup_config(atrt_config&, atrt_coverage_config&, const char* mysqld,
+                  bool);
+void setup_coverage_config(atrt_coverage_config&);
+void get_coverage_parameters(atrt_coverage_config&);
 bool load_deployment_options(atrt_config&);
 bool configure(atrt_config&, int setup);
 bool setup_directories(atrt_config&, int setup);
@@ -160,48 +202,25 @@ bool setup_files(atrt_config&, int setup, int sshx);
 
 bool deploy(int, atrt_config&);
 bool sshx(atrt_config&, unsigned procmask);
-bool start(atrt_config&, unsigned procmask);
 
 bool remove_dir(const char*, bool incl = true);
 bool exists_file(const char* path);
 bool connect_hosts(atrt_config&);
-bool connect_ndb_mgm(atrt_config&);
-bool wait_ndb(atrt_config&, int ndb_mgm_node_status);
-bool start_processes(atrt_config&, int);
-bool stop_processes(atrt_config&, int);
-bool update_status(atrt_config&, int types, bool check_for_missing = true);
-bool wait_for_processes_to_stop(atrt_config& config,
-                                int types = atrt_process::AP_ALL,
-                                int retries = 5,
-                                int wait_between_retries_s = 5);
-bool wait_for_process_to_stop(atrt_config& config, atrt_process& proc,
-                              int retries = 5, int wait_between_retries_s = 5);
+const char* get_test_status(int result);
+int atrt_exit(int return_code);
+void update_atrt_result_code(const TestResult& test_result,
+                             AtrtExitCodes* return_code);
 
-int check_ndb_or_servers_failures(atrt_config& config);
 bool is_client_running(atrt_config&);
 bool gather_result(atrt_config&, int* result);
 
-int read_test_case(FILE*, atrt_testcase&, int& line);
-bool setup_test_case(atrt_config&, const atrt_testcase&);
+int read_test_case(FILE*, int& line, atrt_testcase&);
+bool read_test_cases(FILE*, std::vector<atrt_testcase>*);
 
 bool setup_hosts(atrt_config&);
 
-bool do_command(atrt_config& config);
-
-bool start_process(atrt_process& proc, bool run_setup = true);
-bool stop_process(atrt_process& proc);
-
 bool connect_mysqld(atrt_process& proc);
 bool disconnect_mysqld(atrt_process& proc);
-
-/**
- * check configuration if any changes has been
- *   done for the duration of the latest running test
- *   if so, return true, and reset those changes
- *   (true, indicates that a restart is needed to actually
- *    reset the running processes)
- */
-bool reset_config(atrt_config&);
 
 NdbOut& operator<<(NdbOut& out, const atrt_process& proc);
 

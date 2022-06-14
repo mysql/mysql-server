@@ -1,5 +1,4 @@
 # AES CFB8 block mode is supported by OpenSSL only.
---source include/have_openssl.inc
 
 --echo # Tests of the AES CFB8 block mode
 --disable_query_log

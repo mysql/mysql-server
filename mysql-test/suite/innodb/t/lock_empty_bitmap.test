@@ -1,0 +1,34 @@
+--let $N=16
+--let $i=0
+while($i<$N){
+    eval
+        CREATE TABLE t$i (
+            id INT NOT NULL PRIMARY KEY,
+            a INT NOT NULL,
+            b INT NOT NULL
+        );
+    --let $records=2
+    while($records<56){
+        --eval INSERT INTO t$i VALUES ($records,0,0)
+        --inc $records
+    }
+    --inc $i
+}
+
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+--let $i=0
+while($i<$N){
+    --eval UPDATE t$i SET `a` = 1 WHERE `b`
+    --inc $i
+}
+SELECT LOCK_DATA
+  FROM performance_schema.data_locks
+  WHERE LOCK_TYPE = 'RECORD' AND OBJECT_SCHEMA = 'test';
+COMMIT;
+
+--let $i=0
+while($i<$N){
+    --eval DROP TABLE t$i
+    --inc $i
+}

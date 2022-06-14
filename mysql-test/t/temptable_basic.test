@@ -8,7 +8,7 @@
 # Prepare
 #
 
-SET @@internal_tmp_mem_storage_engine = TempTable;
+SET @@GLOBAL.internal_tmp_mem_storage_engine = TempTable;
 
 CREATE TABLE t_int (c INT);
 CREATE TABLE t_char (c CHAR(20));
@@ -87,6 +87,7 @@ INSERT INTO t_geom VALUES
 	(ST_LineFromText('LINESTRING(0 0,0 10,10 0)')),
 	(NULL);
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 
@@ -119,6 +120,7 @@ SELECT DISTINCT * FROM
     t_blob AS t1,
     t_blob AS t2;
 
+--skip_if_hypergraph  # Different warnings.
 --sorted_result
 SELECT DISTINCT * FROM
     t_json AS t1,
@@ -154,6 +156,7 @@ SELECT c,COUNT(*) FROM t_text GROUP BY c;
 SELECT c,COUNT(*) FROM t_blob GROUP BY c;
 
 --sorted_result
+--skip_if_hypergraph  # Throws a sort warning on JSON.
 SELECT c,COUNT(*) FROM t_json GROUP BY c;
 
 --sorted_result
@@ -162,6 +165,7 @@ SELECT ST_AsText(c),COUNT(*) FROM t_point GROUP BY c;
 --sorted_result
 SELECT ST_AsText(c),COUNT(*) FROM t_geom GROUP BY c;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 
@@ -199,4 +203,99 @@ SELECT COUNT(t_pk.pk) FROM t_pk
 
 DROP TABLE t_pk;
 
-SET @@internal_tmp_mem_storage_engine = default;
+# ---------------------------------------------------------------------
+# Bug #29654465 SEGMENTATION FAULT WITH QUERY USING JSON_TABLE
+#
+
+CREATE TABLE t_json(json_col JSON);
+
+INSERT INTO t_json VALUES (
+    '[
+        { "name":"John Johnson", "nickname": {"stringValue": "Johnny"}},
+        { "name":"John Smith"}
+     ]'),
+     ('[
+        { "name":"John Smith"},
+        { "name":"John Johnson", "nickname": {"stringValue": "Johnny"}}
+     ]');
+SELECT attrs.* FROM t_json, JSON_TABLE(json_col, '$[*]' COLUMNS (nickname JSON PATH '$.nickname')) as attrs;
+
+DROP TABLE t_json;
+
+--echo #
+--echo # Bug #30677984: UNINITIALISED VALUE ERROR WITH VALGRIND IN SQL_TMP_TABLE.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  f1 varchar(255)
+);
+INSERT INTO t1 VALUES (5,'N');
+
+CREATE TABLE t2 (
+  pk int,
+  f2 varchar(10)
+);
+INSERT INTO t2 VALUES (5,'he');
+INSERT INTO t2 VALUES (5,'l');
+
+CREATE TABLE t3 (
+  f2 varchar(10),
+  f3 varchar(255)
+);
+INSERT INTO t3 VALUES ('L','2.0');
+
+set optimizer_switch='block_nested_loop=off';
+
+SELECT SUM(t3.f3)
+FROM t1
+  LEFT JOIN t2 ON t1.pk = t2.pk
+  LEFT JOIN t3 ON t2.f2 = t3.f2
+GROUP BY t1.f1;
+
+set optimizer_switch=default;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #31116036: TEMPTABLE WASTES 1MB FOR EACH CONNECTION IN THREAD CACHE
+--echo #
+
+# Start fresh, make sure that memory is low
+truncate performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+# Trigger some work from a new session
+--echo # conn1
+connect (conn1, localhost, root,,);
+show variables like '%tmp_mem_storage%';
+
+# Check the memory consumption
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+# Switch back to default connection. Check consumption again.
+connection default;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+# Now, disconnect one session
+disconnect conn1;
+let $count_sessions=1;
+--source include/wait_until_count_sessions.inc
+
+# We expect that memory consumption is again low (as from fresh start)
+connection default;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+--echo #
+--echo # Bug #31091089 TEMPTABLE: ASSERTION `P - M_MYSQL_BUF < M_LENGTH' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  f1 CHAR(0) NOT NULL,
+  f2 INT NOT NULL
+);
+INSERT INTO t1(f1, f2) VALUES('', 1);
+SELECT AVG(f1) from t1 GROUP BY f2, f1;
+DROP TABLE t1;
+
+SET @@GLOBAL.internal_tmp_mem_storage_engine = default;

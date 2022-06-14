@@ -6,13 +6,13 @@
 
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_docpath.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_docpath.xpl
 --write_file $xtest_file
 -->quiet
 ## Test data
 -->macro Create_index  %MEMBER%
 -->title =Member: %MEMBER%
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name": "index", "unique": true, "constraint":{"member": "%MEMBER%", "type": "text(20)", "required": false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name": "index", "unique": true, "fields":{"field": "%MEMBER%", "type": "text(20)", "required": false}}
 -->recvresult be-quiet
 -->endmacro
 
@@ -144,6 +144,4 @@ exec $MYSQLXTEST
   --file=$xtest_file 2>&1;
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

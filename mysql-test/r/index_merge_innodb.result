@@ -386,7 +386,7 @@ explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ref	i1	i1	4	const	1	100.00	NULL
-1	SIMPLE	t1	NULL	index_merge	i1,i8	i1,i8	4,4	NULL	2	100.00	Using union(i1,i8); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index_merge	i1,i8	i1,i8	4,4	NULL	2	100.00	Using union(i1,i8); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((`test`.`t0`.`key1` = 5) and ((`test`.`t1`.`key1` = 5) or (`test`.`t1`.`key8` = 5)))
 # Fix for bug#1974
@@ -484,7 +484,7 @@ where (a.key1 < 500000 or a.key2 < 3)
 and   (b.key1 < 500000 or b.key2 < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` < 500000) or (`test`.`a`.`key2` < 3)) and ((`test`.`b`.`key1` < 500000) or (`test`.`b`.`key2` < 3)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
@@ -500,7 +500,7 @@ where (a.key1 = 1 or a.key2 = 1)
 and   (b.key1 = 1 or b.key2 = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	#	Using union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	#	Using union(i1,i2); Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	#	Using union(i1,i2); Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` = 1) or (`test`.`a`.`key2` = 1)) and ((`test`.`b`.`key1` = 1) or (`test`.`b`.`key2` = 1)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
@@ -541,6 +541,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
+explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
+EXPLAIN
+-> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=30)
+    -> Intersect rows sorted by row ID  (rows=30)
+        -> Index range scan on t1 using cola over (cola = 'foo')  (rows=512)
+        -> Index range scan on t1 using colb over (colb = 'bar')  (rows=512)
+
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	#	#	Using intersect(cola,colb); Using where
@@ -784,7 +791,7 @@ count(*)
 # One row results tests for cases where a single row matches all conditions
 explain select key1,key2 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	2	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	#	#	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -845,7 +852,7 @@ insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4
 #  ROR-intersection, not covering
 explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	2	100.00	Using intersect(key1,key2); Using where
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	#	#	Using intersect(key1,key2); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
@@ -855,7 +862,7 @@ key1	key2	filler1
 #  ROR-intersection, covering
 explain select key1,key2 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	2	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	#	#	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -936,7 +943,7 @@ key1	key2	key3	key4	filler1
 # ROR-intersection with empty result
 explain select key1,key2 from t1 where key1=100 and key2=100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	2	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	#	#	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 100) and (`test`.`t1`.`key1` = 100))
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -1176,7 +1183,7 @@ show warnings;
 Level	Code	Message
 explain select pk from t1 where key1 = 1 and key2 = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,4	NULL	1	100.00	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,4	NULL	1	93.75	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where ((`test`.`t1`.`key2` = 1) and (`test`.`t1`.`key1` = 1))
 select pk from t1 where key2 = 1 and key1 = 1;
@@ -1560,35 +1567,36 @@ index(key2)
 );
 select * from t1 where (key1 >= 2 and key1 <= 10) or (pk >= 4 and pk <=8 );
 pk	key1	key2	filler	filler2
+10	10	10	filler-data	filler-data-2
 2	2	2	filler-data	filler-data-2
 3	3	3	filler-data	filler-data-2
-9	9	9	filler-data	filler-data-2
-10	10	10	filler-data	filler-data-2
 4	4	4	filler-data	filler-data-2
 5	5	5	filler-data	filler-data-2
 6	6	6	filler-data	filler-data-2
 7	7	7	filler-data	filler-data-2
 8	8	8	filler-data	filler-data-2
+9	9	9	filler-data	filler-data-2
 set @maxv=1000;
 select * from t1 where
 (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
 or key1=18 or key1=60;
 pk	key1	key2	filler	filler2
-18	18	18	filler-data	filler-data-2
-60	60	60	filler-data	filler-data-2
 1	1	1	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
 11	11	11	filler-data	filler-data-2
 12	12	12	filler-data	filler-data-2
 13	13	13	filler-data	filler-data-2
 14	14	14	filler-data	filler-data-2
+18	18	18	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
 50	50	50	filler-data	filler-data-2
 51	51	51	filler-data	filler-data-2
 52	52	52	filler-data	filler-data-2
 53	53	53	filler-data	filler-data-2
 54	54	54	filler-data	filler-data-2
+60	60	60	filler-data	filler-data-2
 991	991	991	filler-data	filler-data-2
 992	992	992	filler-data	filler-data-2
 993	993	993	filler-data	filler-data-2
@@ -1598,25 +1606,25 @@ pk	key1	key2	filler	filler2
 997	997	997	filler-data	filler-data-2
 998	998	998	filler-data	filler-data-2
 999	999	999	filler-data	filler-data-2
-1000	1000	1000	filler-data	filler-data-2
 select * from t1 where
 (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
 or key1 < 3 or key1 > @maxv-11;
 pk	key1	key2	filler	filler2
-990	990	990	filler-data	filler-data-2
 1	1	1	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
 11	11	11	filler-data	filler-data-2
 12	12	12	filler-data	filler-data-2
 13	13	13	filler-data	filler-data-2
 14	14	14	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
 50	50	50	filler-data	filler-data-2
 51	51	51	filler-data	filler-data-2
 52	52	52	filler-data	filler-data-2
 53	53	53	filler-data	filler-data-2
 54	54	54	filler-data	filler-data-2
+990	990	990	filler-data	filler-data-2
 991	991	991	filler-data	filler-data-2
 992	992	992	filler-data	filler-data-2
 993	993	993	filler-data	filler-data-2
@@ -1626,20 +1634,20 @@ pk	key1	key2	filler	filler2
 997	997	997	filler-data	filler-data-2
 998	998	998	filler-data	filler-data-2
 999	999	999	filler-data	filler-data-2
-1000	1000	1000	filler-data	filler-data-2
 select * from t1 where
 (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
 or
 (key1 < 5) or (key1 > 10 and key1 < 15) or (key1 >= 50 and key1 < 55 ) or (key1 > @maxv-10);
 pk	key1	key2	filler	filler2
 1	1	1	filler-data	filler-data-2
-2	2	2	filler-data	filler-data-2
-3	3	3	filler-data	filler-data-2
-4	4	4	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
 11	11	11	filler-data	filler-data-2
 12	12	12	filler-data	filler-data-2
 13	13	13	filler-data	filler-data-2
 14	14	14	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
 50	50	50	filler-data	filler-data-2
 51	51	51	filler-data	filler-data-2
 52	52	52	filler-data	filler-data-2
@@ -1654,16 +1662,25 @@ pk	key1	key2	filler	filler2
 997	997	997	filler-data	filler-data-2
 998	998	998	filler-data	filler-data-2
 999	999	999	filler-data	filler-data-2
-1000	1000	1000	filler-data	filler-data-2
 select * from t1 where
 (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 )
 or
 (key1 < 5) or (key1 > @maxv-10);
 pk	key1	key2	filler	filler2
 1	1	1	filler-data	filler-data-2
+1000	1000	1000	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
 2	2	2	filler-data	filler-data-2
 3	3	3	filler-data	filler-data-2
 4	4	4	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
 991	991	991	filler-data	filler-data-2
 992	992	992	filler-data	filler-data-2
 993	993	993	filler-data	filler-data-2
@@ -1673,16 +1690,6 @@ pk	key1	key2	filler	filler2
 997	997	997	filler-data	filler-data-2
 998	998	998	filler-data	filler-data-2
 999	999	999	filler-data	filler-data-2
-1000	1000	1000	filler-data	filler-data-2
-11	11	11	filler-data	filler-data-2
-12	12	12	filler-data	filler-data-2
-13	13	13	filler-data	filler-data-2
-14	14	14	filler-data	filler-data-2
-50	50	50	filler-data	filler-data-2
-51	51	51	filler-data	filler-data-2
-52	52	52	filler-data	filler-data-2
-53	53	53	filler-data	filler-data-2
-54	54	54	filler-data	filler-data-2
 drop table t1;
 #---------------- Clustered PK ROR-index_merge tests -----------------------------
 # (Start of test file: index_merge_ror_cpk.inc)
@@ -1786,17 +1793,17 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`pktail2ok` = 1) and (`test`.`t1`.`pk1` < 50000)) or (`test`.`t1`.`key1` = 10))
 explain select * from t1 where pktail3bad=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1,pktail3bad	EITHER_KEY	4	const	ROWS	1.03	Using where
+1	SIMPLE	t1	NULL	ref	key1,pktail3bad	EITHER_KEY	4	const	ROWS	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail3bad` = 1))
 explain select * from t1 where pktail4bad=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1,pktail4bad	key1	4	const	ROWS	1.03	Using where
+1	SIMPLE	t1	NULL	ref	key1,pktail4bad	key1	4	const	ROWS	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail4bad` = 1))
 explain select * from t1 where pktail5bad=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1,pktail5bad	key1	4	const	ROWS	1.03	Using where
+1	SIMPLE	t1	NULL	ref	key1,pktail5bad	key1	4	const	ROWS	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail5bad` = 1))
 # Test for problem with innodb key values prefetch buffer:
@@ -2024,8 +2031,8 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_merge	col_int_key,col_time_key	col_int_key,col_time_key	4,3	NULL	3	100.00	Using intersect(col_int_key,col_time_key); Using where; Using index
+1	UPDATE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	index_merge	col_int_key,col_time_key	col_int_key,col_time_key	4,3	NULL	3	85.71	Using intersect(col_int_key,col_time_key); Using where; Using index; FirstMatch(t1)
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key

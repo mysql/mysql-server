@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,50 @@
 namespace dd {
 /**
    Visitor function which invokes its visitor argument on any subobject
+   which holds a tablespace, that is, the partition itself, its
+   Partition_indexes, its sub-partitions, and Partition_indexes of those.
+   Visitation is terminated when the vistor closure returns true.
+
+   @param p partition to visit.
+
+   @param visitor generic closure which can be applied to all
+   tablespace holding objects.
+
+   @return value of last visitor invocation.
+*/
+template <class VISITOR_TYPE>
+bool visit_tablespace_id_owners(const Partition &p, VISITOR_TYPE &&visitor) {
+  if (visitor(p)) {
+    return true;
+  }
+
+  // Visit indexes for top-level partition
+  for (const Partition_index *pi : p.indexes()) {
+    if (visitor(*pi)) {
+      return true;
+    }
+  }
+
+  // Visit subpartitions, if any
+  for (const Partition *sp : p.subpartitions()) {
+    if (visitor(*sp)) {
+      return true;
+    }
+    // Visit indexes for subpartition
+    for (const Partition_index *spi : sp->indexes()) {
+      if (visitor(*spi)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+   Visitor function which invokes its visitor argument on any subobject
    which holds a tablespace, that is, the table itself, its m_indexes,
    its m_partitions, and m_indexes (Partition_index) of each
-   partition. Visitation is terminated when the vistor closure
+   partition and sub-partition. Visitation is terminated when the vistor closure
    returns true.
 
    @param t table to visit.
@@ -54,27 +95,8 @@ bool visit_tablespace_id_owners(const Table &t, VISITOR_TYPE &&visitor) {
     }
   }
   for (const Partition *p : t.partitions()) {
-    if (visitor(*p)) {
+    if (visit_tablespace_id_owners(*p, std::forward<VISITOR_TYPE>(visitor))) {
       return true;
-    }
-    // Visit indexes for top-level partition
-    for (const Partition_index *pi : p->indexes()) {
-      if (visitor(*pi)) {
-        return true;
-      }
-    }
-
-    // Visit subpartitions, if any
-    for (const Partition *sp : p->sub_partitions()) {
-      if (visitor(*sp)) {
-        return true;
-      }
-      // Visit indexes for subpartition
-      for (const Partition_index *spi : sp->indexes()) {
-        if (visitor(*spi)) {
-          return true;
-        }
-      }
     }
   }
   return false;

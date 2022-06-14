@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,20 +81,20 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( StaticLength = 8 );
-  STATIC_CONST( SignalLength = 25 );
-  STATIC_CONST( MaxKeyInfo = 8 );
-  STATIC_CONST( MaxAttrInfo = 5 );
-  STATIC_CONST( MaxTotalAttrInfo = ((MAX_SEND_MESSAGE_BYTESIZE / 4) - 
-                                    SignalLength ));
+  static constexpr Uint32 StaticLength = 8;
+  static constexpr Uint32 SignalLength = 25;
+  static constexpr Uint32 MaxKeyInfo = 8;
+  static constexpr Uint32 MaxAttrInfo = 5;
+  static constexpr Uint32 MaxTotalAttrInfo =
+      ((MAX_SEND_MESSAGE_BYTESIZE / 4) - SignalLength );
 
   /**
    * Long signal variant of TCKEYREQ
    */
-  STATIC_CONST( KeyInfoSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );
+  static constexpr Uint32 KeyInfoSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;
 
-  STATIC_CONST( UnlockKeyLen = 2 );
+  static constexpr Uint32 UnlockKeyLen = 2;
 
 private:
 
@@ -236,6 +236,12 @@ private:
   static void setTakeOverScanFlag(UintR & scanInfo, Uint8 flag);
   static void setTakeOverScanFragment(UintR & scanInfo, Uint16 fragment);
   static void setTakeOverScanInfo(UintR & scanInfo, Uint32 aScanInfo);
+
+  /**
+   * Nowait option
+   */
+  static void setNoWaitFlag(UintR & requestInfo, UintR val);
+  static UintR getNoWaitFlag(const UintR & requestInfo);
 };
 
 /**
@@ -272,11 +278,12 @@ private:
  * test cases that also don't use Read Committed base.
 
  R = Read Committed base   - 1  Bit 20
+ w = NoWait read           - 1  Bit 21
 
            1111111111222222222233
  01234567890123456789012345678901
  dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
- dnbvcooopqlsyyeixDfrR             (Long TCKEYREQ)
+ dnbvcooopqlsyyeixDfrRw            (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -310,6 +317,7 @@ private:
 
 #define TC_DISABLE_FK_SHIFT (18)
 #define TC_READ_COMMITTED_BASE_SHIFT (20)
+#define TC_NOWAIT_SHIFT (21)
 
 /**
  * Scan Info
@@ -693,7 +701,18 @@ TcKeyReq::getDisableFkConstraints(const UintR & requestInfo){
   return (requestInfo >> TC_DISABLE_FK_SHIFT) & 1;
 }
 
+inline
+void
+TcKeyReq::setNoWaitFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "TcKeyReq::setNoWaitFlag");
+  requestInfo |= (val << TC_NOWAIT_SHIFT);
+}
 
+inline
+UintR
+TcKeyReq::getNoWaitFlag(const UintR & requestInfo){
+  return (requestInfo >> TC_NOWAIT_SHIFT) & 1;
+}
 
 #undef JAM_FILE_ID
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,6 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql_com.h>
 #endif /* !UNIV_HOTBACKUP */
 
+#include "my_compiler.h"
 #include "mysql_com.h"
 #include "os0thread.h"
 #include "ut0ut.h"
@@ -63,53 +64,10 @@ namespace ut {
 ulong spin_wait_pause_multiplier = 50;
 }
 
-/** Returns system time. We do not specify the format of the time returned:
- the only way to manipulate it is to use the function ut_difftime.
- @return system time */
-ib_time_t ut_time(void) { return (time(NULL)); }
-
-/** Returns the number of microseconds since epoch. Uses the monotonic clock.
- @return us since epoch or 0 if failed to retrieve */
-ib_time_monotonic_us_t ut_time_monotonic_us(void) {
-  const auto now = std::chrono::steady_clock::now();
-  return (std::chrono::duration_cast<std::chrono::microseconds>(
-              now.time_since_epoch())
-              .count());
-}
-
-/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
- @return ms since epoch */
-ib_time_monotonic_ms_t ut_time_monotonic_ms(void) {
-  const auto now = std::chrono::steady_clock::now();
-  return (std::chrono::duration_cast<std::chrono::milliseconds>(
-              now.time_since_epoch())
-              .count());
-}
-
-/** Returns the number of seconds since epoch. Uses the monotonic clock.
- @return us since epoch or 0 if failed to retrieve */
-ib_time_monotonic_t ut_time_monotonic(void) {
-  const auto now = std::chrono::steady_clock::now();
-
-  const auto ret =
-      std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch())
-          .count();
-
-  return (ret);
-}
-
-/** Returns the difference of two times in seconds.
- @return time2 - time1 expressed in seconds */
-double ut_difftime(ib_time_t time2, /*!< in: time */
-                   ib_time_t time1) /*!< in: time */
-{
-  return (difftime(time2, time1));
-}
-
 #ifdef UNIV_HOTBACKUP
 /** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'.
-@param[in]	buf	buffer where to sprintf */
+@param[in]      buf     buffer where to sprintf */
 void meb_sprintf_timestamp_without_extra_chars(
     char *buf) /*!< in: buffer where to sprintf */
 {
@@ -181,9 +139,9 @@ ulint ut_2_power_up(ulint n) /*!< in: number != 0 */
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
- @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	name		table name.
- @retval	String quoted as an SQL identifier.
+ @param         [in]    trx             transaction (NULL=no quotes).
+ @param         [in]    name            table name.
+ @retval        String quoted as an SQL identifier.
 */
 std::string ut_get_name(const trx_t *trx, const char *name) {
   /* 2 * NAME_LEN for database and table name,
@@ -192,7 +150,7 @@ std::string ut_get_name(const trx_t *trx, const char *name) {
   const char *bufend;
 
   bufend = innobase_convert_name(buf, sizeof buf, name, strlen(name),
-                                 trx ? trx->mysql_thd : NULL);
+                                 trx ? trx->mysql_thd : nullptr);
   buf[bufend - buf] = '\0';
   return (std::string(buf, 0, bufend - buf));
 }
@@ -211,7 +169,7 @@ void ut_print_name(FILE *f,          /*!< in: output stream */
   const char *bufend;
 
   bufend = innobase_convert_name(buf, sizeof buf, name, strlen(name),
-                                 trx ? trx->mysql_thd : NULL);
+                                 trx ? trx->mysql_thd : nullptr);
 
   if (fwrite(buf, 1, bufend - buf, f) != (size_t)(bufend - buf)) {
     perror("fwrite");
@@ -223,15 +181,15 @@ If the name contains a slash '/', the result will contain two
 identifiers separated by a period (.), as in SQL
 database_name.table_name.
 @see table_name_t
-@param[in]	name		table or index name
-@param[out]	formatted	formatted result, will be NUL-terminated
-@param[in]	formatted_size	size of the buffer in bytes
+@param[in]      name            table or index name
+@param[out]     formatted       formatted result, will be NUL-terminated
+@param[in]      formatted_size  size of the buffer in bytes
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   switch (formatted_size) {
     case 1:
       formatted[0] = '\0';
-      /* FALL-THROUGH */
+      [[fallthrough]];
     case 0:
       return (formatted);
   }
@@ -239,7 +197,7 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   char *end;
 
   end = innobase_convert_name(formatted, formatted_size, name, strlen(name),
-                              NULL);
+                              nullptr);
 
   /* If the space in 'formatted' was completely used, then sacrifice
   the last character in order to write '\0' at the end. */
@@ -254,10 +212,10 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   return (formatted);
 }
 
-/** Catenate files. */
-void ut_copy_file(FILE *dest, /*!< in: output file */
-                  FILE *src)  /*!< in: input file to be appended to output */
-{
+/** Catenate files.
+@param[in] dest Output file
+@param[in] src Input file to be appended to output */
+void ut_copy_file(FILE *dest, FILE *src) {
   long len = ftell(src);
   char buf[4096];
 
@@ -287,8 +245,8 @@ void ut_format_byte_value(uint64_t data_bytes, std::string &data_str) {
   /* 64 BIT number should never go beyond Exabyte. */
   auto max_index = sizeof(unit) - 2;
   if (index > max_index) {
-    ut_ad(false);
-    index = max_index;
+    ut_d(ut_error);
+    ut_o(index = max_index);
   }
 
   std::stringstream data_strm;
@@ -326,12 +284,10 @@ void ut_vsnprintf(char *str,       /*!< out: string */
 
 /** Convert an error number to a human readable text message.
 The returned string is static and should not be freed or modified.
-@param[in]	num	InnoDB internal error number
+@param[in]      num     InnoDB internal error number
 @return string, describing the error */
 const char *ut_strerr(dberr_t num) {
   switch (num) {
-    case DB_CACHE_RECORDS:
-      return ("Request caller to copy tuple");
     case DB_SUCCESS:
       return ("Success");
     case DB_SUCCESS_LOCKED_REC:
@@ -439,6 +395,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Table is being used in foreign key check");
     case DB_DATA_MISMATCH:
       return ("data mismatch");
+    case DB_SCHEMA_MISMATCH:
+      return ("schema mismatch");
     case DB_NOT_FOUND:
       return ("not found");
     case DB_ONLINE_LOG_TOO_BIG:
@@ -483,6 +441,20 @@ const char *ut_strerr(dberr_t num) {
           "of stored column");
     case DB_COMPUTE_VALUE_FAILED:
       return ("Compute generated column failed");
+    case DB_V1_DBLWR_INIT_FAILED:
+      return (
+          "Failed to initialize the doublewrite extents "
+          "in the system tablespace");
+    case DB_V1_DBLWR_CREATE_FAILED:
+      return (
+          "Failed to create the doublewrite extents "
+          "in the system tablespace");
+    case DB_DBLWR_INIT_FAILED:
+      return ("Failed to create a doublewrite instance");
+    case DB_DBLWR_NOT_EXISTS:
+      return (
+          "Failed to find a doublewrite buffer "
+          "in the system tablespace");
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
     case DB_ABORT_INCOMPLETE_CLONE:
@@ -497,7 +469,20 @@ const char *ut_strerr(dberr_t num) {
       return (
           "Cannot create tablespace since the filepath is too long for this "
           "OS");
-
+    case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
+      return ("Btree level limit exceeded");
+    case DB_END_SAMPLE_READ:
+      return ("Sample reader has been requested to stop sampling");
+    case DB_OUT_OF_RESOURCES:
+      return ("System has run out of resources");
+    case DB_FTS_TOO_MANY_NESTED_EXP:
+      return ("Too many nested sub-expressions in a full-text search");
+    case DB_PAGE_IS_STALE:
+      return "Page was discarded, was not written to storage.";
+    case DB_AUTOINC_READ_ERROR:
+      return "Auto-increment read failed";
+    case DB_FILE_READ_BEYOND_SIZE:
+      return "File read failure because of the read being beyond file size.";
     case DB_ERROR_UNSET:;
       /* Fall through. */
 
@@ -515,31 +500,38 @@ namespace ib {
 
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
 
-logger::~logger() {
-  auto s = m_oss.str();
-
+void logger::log_event(std::string msg) {
   LogEvent()
       .type(LOG_TYPE_ERROR)
       .prio(m_level)
       .errcode(m_err)
       .subsys("InnoDB")
-      .verbatim(s.c_str());
+      .verbatim(msg.c_str());
 }
+logger::~logger() { log_event(m_oss.str()); }
+
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
 
 fatal::~fatal() {
-  auto s = m_oss.str();
-
-  LogEvent()
-      .type(LOG_TYPE_ERROR)
-      .prio(m_level)
-      .errcode(m_err)
-      .subsys("InnoDB")
-      .verbatim(s.c_str());
-
-  ut_error;
+  log_event("[FATAL] " + m_oss.str());
+  ut_dbg_assertion_failed("ib::fatal triggered", m_location.filename,
+                          m_location.line);
 }
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+MY_COMPILER_DIAGNOSTIC_POP()
 
-fatal_or_error::~fatal_or_error() { ut_a(!m_fatal); }
+fatal_or_error::~fatal_or_error() {
+  if (m_fatal) {
+    log_event("[FATAL] " + m_oss.str());
+    ut_dbg_assertion_failed("ib::fatal_or_error triggered", m_location.filename,
+                            m_location.line);
+  }
+}
 
 #endif /* !UNIV_NO_ERR_MSGS */
 

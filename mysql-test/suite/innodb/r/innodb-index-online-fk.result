@@ -73,8 +73,8 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL,
+  `a1` int NOT NULL,
+  `a2` int DEFAULT NULL,
   PRIMARY KEY (`a1`),
   KEY `tb` (`a2`),
   KEY `idx1` (`a1`,`a2`),
@@ -121,6 +121,8 @@ SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
 mtr/test_suppressions
+mtr/asserted_test_suppressions
+mtr/test_ignored_global_suppressions
 mtr/global_suppressions
 test/parent
 test/child
@@ -249,8 +251,8 @@ ALGORITHM = INPLACE;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL,
+  `a1` int NOT NULL,
+  `a2` int DEFAULT NULL,
   PRIMARY KEY (`a1`),
   KEY `fk_4` (`a2`),
   CONSTRAINT `fk_4` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -308,6 +310,8 @@ SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
 mtr/test_suppressions
+mtr/asserted_test_suppressions
+mtr/test_ignored_global_suppressions
 mtr/global_suppressions
 test/parent
 test/child
@@ -329,14 +333,16 @@ SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
 mtr/test_suppressions
+mtr/asserted_test_suppressions
+mtr/test_ignored_global_suppressions
 mtr/global_suppressions
 test/parent
 test/child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a3` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL,
+  `a3` int NOT NULL,
+  `a2` int DEFAULT NULL,
   PRIMARY KEY (`a3`),
   KEY `tb` (`a2`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
@@ -361,14 +367,16 @@ SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
 mtr/test_suppressions
+mtr/asserted_test_suppressions
+mtr/test_ignored_global_suppressions
 mtr/global_suppressions
 test/parent
 test/child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL,
+  `a1` int NOT NULL,
+  `a2` int DEFAULT NULL,
   PRIMARY KEY (`a1`),
   KEY `fk_1` (`a2`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
@@ -393,14 +401,16 @@ SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
 mtr/test_suppressions
+mtr/asserted_test_suppressions
+mtr/test_ignored_global_suppressions
 mtr/global_suppressions
 test/parent
 test/child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a3` int(11) DEFAULT NULL,
-  `a2` int(11) DEFAULT NULL,
+  `a3` int DEFAULT NULL,
+  `a2` int DEFAULT NULL,
   KEY `fk_1` (`a3`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a3`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -429,9 +439,9 @@ ALTER TABLE child CHANGE a2 a2_new INT, CHANGE a1 a1_new INT;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1_new` int(11) DEFAULT NULL,
-  `a2_new` int(11) DEFAULT NULL,
-  `a3` int(11) DEFAULT NULL,
+  `a1_new` int DEFAULT NULL,
+  `a2_new` int DEFAULT NULL,
+  `a3` int DEFAULT NULL,
   KEY `tb` (`a2_new`),
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -454,9 +464,9 @@ ERROR HY000: Failed to add the foreign key constraint. Missing index for constra
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1_new` int(11) DEFAULT NULL,
-  `a2_new` int(11) DEFAULT NULL,
-  `a3` int(11) DEFAULT NULL,
+  `a1_new` int DEFAULT NULL,
+  `a2_new` int DEFAULT NULL,
+  `a3` int DEFAULT NULL,
   KEY `tb` (`a2_new`),
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -478,9 +488,9 @@ ALGORITHM = INPLACE;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1_new` int(11) DEFAULT NULL,
-  `a2_new` int(11) DEFAULT NULL,
-  `a3` int(11) DEFAULT NULL,
+  `a1_new` int DEFAULT NULL,
+  `a2_new` int DEFAULT NULL,
+  `a3` int DEFAULT NULL,
   KEY `tb` (`a2_new`),
   KEY `fk_new_1` (`a1_new`),
   KEY `fk_new_3` (`a3`),
@@ -516,9 +526,9 @@ ERROR HY000: Failed to add the foreign key constraint. Missing index for constra
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL,
-  `a3` int(11) DEFAULT NULL,
+  `a1` int NOT NULL,
+  `a2` int DEFAULT NULL,
+  `a3` int DEFAULT NULL,
   KEY `tb` (`a2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
@@ -533,9 +543,9 @@ ALGORITHM = INPLACE;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL,
-  `a3` int(11) DEFAULT NULL,
+  `a1` int NOT NULL,
+  `a2` int DEFAULT NULL,
+  `a3` int DEFAULT NULL,
   PRIMARY KEY (`a1`),
   KEY `tb` (`a2`),
   KEY `fk_new_3` (`a3`),
@@ -603,8 +613,8 @@ ERROR HY000: Cannot drop index 't': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   KEY `t` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -618,8 +628,8 @@ alter table t2 drop key t,algorithm=inplace;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   KEY `t1` (`f2`,`f3`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

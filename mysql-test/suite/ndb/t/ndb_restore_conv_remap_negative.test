@@ -1,0 +1,209 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+
+#
+# Check failure / check behavious wrt remap feature
+# Parsing
+# Range checks
+#
+#     2^64 = 18446744073709551616
+#     2^63 = 9223372036854775808
+#     2^32 = 4294967296
+#     2^31 = 2147483648
+#
+
+create table t1 (ki int primary key,
+                 dis int,
+                 diu int unsigned,
+                 dbs bigint,
+                 dbu bigint unsigned,
+                 dmi mediumint) engine = ndb;
+
+insert into t1 values
+ (0,
+  2147483547,                # Max - 100
+  4294967195,                # Max - 100
+  9223372036854775707,       # Max - 100
+  18446744073709551515,      # Max - 100
+  0),
+ (1, 
+  -2147483548,               # Min + 100
+  100,                       # Min + 100
+  -9223372036854775708,      # Min + 100
+  100,                       # Min + 100
+  0);
+
+
+select ki, dis, diu, dbs, dbu, dmi from test.t1 order by ki;
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+truncate t1;
+
+--echo Malformed spec : db
+--error 2
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Malformed spec : db.
+--error 2
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test. $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Malformed spec : db.table
+--error 2
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Malformed spec : db.table.column
+--error 2
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.ki $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Malformed spec : db.table.column
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.ki: $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Malformed spec : db.table.column:function
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.ki:offset $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Malformed spec : db.table.column:function:badargument
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.ki:offset:DrRay $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Non existent db+table not allowed
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x lucan.t2.ki:offset:10 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Non existent table not allowed
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.lucan.ki:offset:10 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Non existent table not allowed
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.lucan:offset:10 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Bad function name
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.lucan:randomise:10 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Out of range offsets
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.lucan:randomise:10 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Unsupported type (mediumint)
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dmi:offset:10 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Test limits of offset ranges (limited to +/- signed type range)
+
+--echo Too large offsets
+--echo Signed int
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dis:offset:2147483648 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dis:offset:-2147483649 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Unsigned int
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.diu:offset:2147483648 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.diu:offset:-2147483649 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Signed bigint
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbs:offset:9223372036854775808 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbs:offset:-9223372036854775809 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Unsigned bigint
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbu:offset:9223372036854775808 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbu:offset:-9223372036854775809 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Test data over/underflow errors
+--echo Signed int
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dis:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.dis:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 0
+select count(1) from t1 where ki = 0;
+
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dis:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.dis:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 1
+select count(1) from t1 where ki = 1;
+
+--echo Unsigned int
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.diu:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.diu:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 0
+select count(1) from t1 where ki = 0;
+
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.diu:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.diu:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 1
+select count(1) from t1 where ki = 1;
+
+--echo Signed bigint
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbs:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.dbs:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 0
+select count(1) from t1 where ki = 0;
+
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbs:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.dbs:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 1
+select count(1) from t1 where ki = 1;
+
+--echo Unsigned bigint
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbu:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.dbu:offset:101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 0
+select count(1) from t1 where ki = 0;
+
+truncate t1;
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --restore-data -x test.t1.dbu:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-data -x test.t1.dbu:offset:-101 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Expect no row 1
+select count(1) from t1 where ki = 1;
+
+drop table t1;
+
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

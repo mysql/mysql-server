@@ -1,0 +1,15 @@
+SET GLOBAL mysqlx_compression_algorithms='DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM';
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.data(val VARCHAR(256));
+
+Verify ZSTD_STREAM at level 3
+=============================
+Verify [Status variable "Mysqlx_compression_algorithm" needs to have a value of ZSTD_STREAM]
+Verify [Status variable "Mysqlx_compression_level" needs to have a value of 3]
+Verify [Status variable "Mysqlx_bytes_received_compressed_payload" needs to have a value of 0]
+Verify [Status variable "Mysqlx_bytes_sent_compressed_payload" needs to be lower than "Mysqlx_bytes_sent_uncompressed_frame"]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL mysqlx_compression_algorithms=DEFAULT;

@@ -1,0 +1,413 @@
+--echo #
+--echo # WL#3253: multiple triggers per table
+--echo #
+
+SET @binlog_format_saved = @@binlog_format;
+SET binlog_format='ROW';
+
+--echo #
+--echo # Test 1.
+--echo # Check that the sequence of triggers for the same combination 
+--echo # of event type/action type can be created for a table
+--echo # and is fired consequently in the order of its creation
+--echo # during statement execution.
+--echo # In this test we check BEFORE triggers.
+--echo # 
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+
+INSERT INTO t1 VALUES (1);
+
+SELECT * FROM t2 ORDER BY b;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Test 2.
+--echo # Check that the sequence of triggers for the same combination 
+--echo # of event type/action type can be created for a table
+--echo # and is fired consequently in the order of its creation
+--echo # during statement execution.
+--echo # In this test we check AFTER triggers.
+--echo # 
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+
+CREATE TRIGGER tr1_bi AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bi AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+
+INSERT INTO t1 VALUES (1);
+
+SELECT * FROM t2 ORDER BY b;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Test 3.
+--echo # Check that the sequences of triggers for the different event types
+--echo # can be created for a table and are fired consequently
+--echo # in the order of its creation during statement execution.
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a);
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
+
+INSERT INTO t1 VALUES (1);
+
+SELECT * FROM t2 ORDER BY b;
+
+UPDATE t1 SET a = 5;
+
+SELECT * FROM t2 ORDER BY b;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Test 4.
+--echo # Check that every new created trigger has unique action_order value
+--echo # started from 1 and NOT NULL value for creation timestamp.
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+
+--echo #
+--echo # Test 5.
+--echo # Check that action_order attribute isn't shown 
+--echo # in the output of SHOW TRIGGERS and SHOW CREATE TRIGGER
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+
+--replace_column 6 #
+SHOW TRIGGERS;
+
+--replace_column 17 #
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+--replace_column 7 #
+SHOW CREATE TRIGGER tr1_bi;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 6.
+--echo # Check that action_order attribute is reused when trigger 
+--echo # are recreated.
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TRIGGER tr1_bi;
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 7.
+--echo # Check that it is possible to create several triggers with
+--echo # the same value for creation timestamp.
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+
+--echo #
+--echo # Test 8.
+--echo # Check that SHOW CREATE TRIGGER outputs the CREATED attribute
+--echo # and it is not NULL
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SHOW CREATE TRIGGER tr1_bi;
+
+DROP TABLE t1;
+SET TIMESTAMP=DEFAULT;
+
+--echo #
+--echo # Test 9.
+--echo # Check that SHOW TRIGGERS outputs the CREATED attribute
+--echo # and it is not NULL.
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+
+SHOW TRIGGERS;
+
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+
+SET TIMESTAMP=DEFAULT;
+
+--echo #
+--echo # Test 10.
+--echo # Check that FOLLOWS clause is supported and works correctly.
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Test 11.
+--echo # Check that PRECEDES clause is supported and works correctly.
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr3_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Test 12.
+--echo # Check that the PRECEDES works properly for the 1st trigger in the chain.
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
+CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi INSERT INTO t2 (a) VALUES (NEW.a);
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t2 ORDER BY b;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Test 13.
+--echo # Check that error is reported if the FOLLOWS clause references to
+--echo # non-existing trigger
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
+
+--error ER_REFERENCED_TRG_DOES_NOT_EXIST
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr0_bi SET @a:=2;
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 14.
+--echo # Check that error is reported if the PRECEDES clause references to
+--echo # non-existing trigger
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
+
+--error ER_REFERENCED_TRG_DOES_NOT_EXIST
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr0_bi SET @a:=2;
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 15.
+--echo # Check that action_order value is independent for each type of event
+--echo # (INSERT/UPDATE/DELETE)
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+
+--sorted_result
+SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+
+CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr2_bi SET @a:=3;
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
+
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 16.
+--echo # Check that the trigger in the clause FOLLOWS/PRECEDES can refences
+--echo # only to the trigger for the same ACTION/TIMINMG
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+
+--error ER_REFERENCED_TRG_DOES_NOT_EXIST
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
+
+--error ER_REFERENCED_TRG_DOES_NOT_EXIST
+CREATE TRIGGER tr2_au AFTER UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
+
+--error ER_REFERENCED_TRG_DOES_NOT_EXIST
+CREATE TRIGGER tr1_au AFTER UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
+
+--error ER_REFERENCED_TRG_DOES_NOT_EXIST
+CREATE TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
+
+--replace_column 6 #
+SHOW TRIGGERS;
+
+--replace_column 17 #
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
+
+DROP TABLE t1;
+
+# Binlog is required
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Test 17. Check that table's triggers are dumped correctly.
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+
+# dump tables and triggers
+--exec $MYSQL_DUMP --compact test
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 18. Check that table's triggers are dumped in right order
+--echo #          taking into account the PRECEDES/FOLLOWS clauses.
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi SET @a:=0;
+CREATE TRIGGER tr1_1_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=0;
+
+--echo # Expected order of triggers in the dump is: tr0_bi, tr1_bi, tr1_1_bi, tr2_i.
+# dump tables and triggers
+--exec $MYSQL_DUMP --compact test
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test 19. Check that table's triggers are dumped correctly in xml.
+--echo #
+
+CREATE TABLE t1 (a INT);
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
+SET TIMESTAMP=DEFAULT;
+
+# dump tables and triggers
+--exec $MYSQL_DUMP --compact --no-create-info --xml test
+
+DROP TABLE t1;
+
+SET binlog_format=@binlog_format_saved;
+
+--echo # End of tests.
+--echo #

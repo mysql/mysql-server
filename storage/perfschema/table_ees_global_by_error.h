@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class PFS_index_ees_global_by_error : public PFS_engine_index {
   PFS_index_ees_global_by_error()
       : PFS_engine_index(&m_key), m_key("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_global_by_error() {}
+  ~PFS_index_ees_global_by_error() override = default;
 
   virtual bool match_error_index(uint error_index);
 
@@ -79,7 +79,9 @@ struct pos_ees_global_by_error : public PFS_simple_index {
 
   inline void next(void) { m_index++; }
 
-  inline bool has_more_error(void) { return (m_index < max_server_errors); }
+  inline bool has_more_error(void) {
+    return (m_index < max_global_server_errors);
+  }
 
   inline void next_error(void) { m_index++; }
 };
@@ -93,26 +95,26 @@ class table_ees_global_by_error : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_init(bool scan);
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_init(bool scan) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_ees_global_by_error();
 
  public:
-  ~table_ees_global_by_error() {}
+  ~table_ees_global_by_error() override = default;
 
  protected:
-  int make_row(int error_index);
+  int make_row(uint error_index);
 
  private:
   /** Table share lock. */

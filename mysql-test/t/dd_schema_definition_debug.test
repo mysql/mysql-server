@@ -343,7 +343,25 @@ INSERT INTO dd_published_schema
 INSERT INTO dd_published_schema
   VALUES('80017', 1,
     '76c4ef5922cfd8e2a736e538ada4b03b6b122fbd0df2ac5abfbd999e3316b17b');
-
+INSERT INTO dd_published_schema
+  VALUES('80021', 0,
+    '80557e59b7af79e8a43e4b5efb7d5bab6a2db966935f0fe411b05b81cfdd1252');
+INSERT INTO dd_published_schema
+  VALUES('80021', 1,
+    '1e886824945b448e2636e16360fc2078c33cf7980d07d13d62913d8a1d33e7f5');
+INSERT INTO dd_published_schema
+  VALUES('80022', 0,
+    '5329f0032a5ea7cae6adcbfa5519c2aca93f8eacc99db4d9ff463320196e87e5');
+INSERT INTO dd_published_schema
+  VALUES('80022', 1,
+    '90493021c4a9565f9bd050481f046dbf7e0741f647397a1d8b46aaadd8581484');
+INSERT INTO dd_published_schema
+  VALUES('80023', 0,
+    'ba451f47c6774de7dddec4417b8a923e9ada805ec9ca68e9ef56b3ba6bd414f3');
+INSERT INTO dd_published_schema
+  VALUES('80023', 1,
+    '6e3311099b985c198bb3acbc88495825847dac79588dea4f0be2e4219ad7c52b');
+--sorted_result
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),
               CONCAT('No DD version found with schema checksum ',

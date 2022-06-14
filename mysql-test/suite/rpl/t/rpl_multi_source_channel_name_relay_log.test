@@ -20,7 +20,7 @@
 --let $datadir= `SELECT @@GLOBAL.datadir`
 
 # add new channel
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
 
 --echo #
 --echo # Check that the names of relay log files per channel are properly set
@@ -56,7 +56,7 @@ RESET SLAVE ALL;
 --source include/rpl_start_server.inc
 
 # add new channel
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
 
 --echo #
 --echo # Check that the names of relay log files per channel are properly set
@@ -91,7 +91,7 @@ RESET SLAVE ALL;
 --source include/rpl_start_server.inc
 
 # add new channel
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
 
 --echo #
 --echo # Check that the names of relay log files per channel are properly set
@@ -121,8 +121,8 @@ RESET SLAVE ALL;
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MYPORT
-eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$MASTER_MYPORT,
-          MASTER_USER="root";
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_MYPORT,
+          SOURCE_USER="root";
 --enable_warnings
 
 --source include/start_slave.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,16 +66,16 @@ struct ib_sdi_vector {
 };
 
 /* Handles user errors and lock waits detected by the database engine.
-@param[out]	new_err	possible new error encountered in lock wait, or if no
+@param[out]     new_err possible new error encountered in lock wait, or if no
 new error, the value of trx->error_state at the entry of this function
-@param[in]	trx	transaction
-@param[in]	thr	query thread
-@param[in]	savept	savepoint or NULL
-@param[in]	is_sdi	true if table is SDI
-@return TRUE if it was a lock wait and we should continue running
+@param[in]      trx     transaction
+@param[in]      thr     query thread
+@param[in]      savept  savepoint or NULL
+@param[in]      is_sdi  true if table is SDI
+@return true if it was a lock wait and we should continue running
 the query thread. */
-ibool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
-                       trx_savept_t *savept, bool is_sdi);
+bool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
+                      trx_savept_t *savept, bool is_sdi);
 
 /*************************************************************************
 Sets a lock on a table.

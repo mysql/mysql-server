@@ -17,66 +17,65 @@ var gr_memberships = require("gr_memberships");
 var gr_node_host = "127.0.0.1";
 
 var group_replication_membership_online =
-  gr_memberships.single_host(gr_node_host, [
-    [ process.env.PRIMARY_PORT, "ONLINE" ],
-    [ process.env.SECONDARY_1_PORT, "ONLINE" ],
-    [ process.env.SECONDARY_2_PORT, "ONLINE" ],
-    [ process.env.SECONDARY_3_PORT, "ONLINE" ],
-  ]);
+    gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
   group_replication_membership: group_replication_membership_online,
+  metadata_schema_version: [1, 0, 2],
 };
 
 // first node is PRIMARY
-options.group_replication_primary_member = options.group_replication_membership[0][0];
+options.group_replication_primary_member =
+    options.group_replication_membership[0][0];
 
 // prepare the responses for common statements
-var common_responses = common_stmts.prepare_statement_responses([
-  "select_port",
-  "router_select_schema_version",
-], options);
+var common_responses = common_stmts.prepare_statement_responses(
+    [
+      "router_set_session_options",
+      "router_set_gr_consistency_level",
+      "select_port",
+      "router_start_transaction",
+      "router_commit",
+      "router_select_schema_version",
+    ],
+    options);
 
 // track the statements directly to allow the HTTP interface to query
 // if they have been executed ("asked")
 var router_select_metadata =
-  common_stmts.get("router_select_metadata", options);
+    common_stmts.get("router_select_metadata", options);
 var router_select_group_replication_primary_member =
-  common_stmts.get("router_select_group_replication_primary_member", options);
-var router_select_group_membership_with_primary_mode =
-  common_stmts.get("router_select_group_membership_with_primary_mode", options);
+    common_stmts.get("router_select_group_replication_primary_member", options);
+var router_select_group_membership_with_primary_mode = common_stmts.get(
+    "router_select_group_membership_with_primary_mode", options);
 
 
-if (mysqld.global.MD_asked == undefined) {
+if (mysqld.global.MD_asked === undefined) {
   mysqld.global.MD_asked = false;
 }
 
-if (mysqld.global.primary_asked == undefined) {
+if (mysqld.global.primary_asked === undefined) {
   mysqld.global.primary_asked = false;
 }
 
-if (mysqld.global.health_asked == undefined) {
+if (mysqld.global.health_asked === undefined) {
   mysqld.global.health_asked = false;
 }
 
 ({
-  stmts: function (stmt) {
+  stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
-    }
-    else if (stmt === router_select_metadata.stmt) {
+    } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.MD_asked = true;
       return router_select_metadata;
-    }
-    else if (stmt === router_select_group_replication_primary_member.stmt) {
+    } else if (stmt === router_select_group_replication_primary_member.stmt) {
       mysqld.global.primary_asked = true;
       return router_select_group_replication_primary_member;
-    }
-    else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
-        mysqld.global.health_asked = true;
+    } else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
+      mysqld.global.health_asked = true;
       return router_select_group_membership_with_primary_mode;
-    }
-    else {
+    } else {
       return common_stmts.unknown_statement_response(stmt);
     }
   }

@@ -14,7 +14,7 @@ SHOW GRANTS FOR userX;
 Grants for userX@%
 GRANT SUPER ON *.* TO `userX`@`%`
 GRANT SELECT ON `db1`.* TO `userX`@`%`
-GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT PROXY ON `userY`@`%` TO `userX`@`%`
 # Case 1 : Revoke from non-existing user
 REVOKE SUPER ON *.* FROM useX, userZ;
 ERROR 42000: There is no such grant defined for user 'useX' on host '%'
@@ -27,7 +27,7 @@ SHOW GRANTS FOR userX;
 Grants for userX@%
 GRANT SUPER ON *.* TO `userX`@`%`
 GRANT SELECT ON `db1`.* TO `userX`@`%`
-GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT PROXY ON `userY`@`%` TO `userX`@`%`
 # This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SUPER ON.*FROM.*userX.*userZ.*)
 include/assert_binlog_events.inc
 # This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SELCT ON.*db1.*FROM.*userX.*userZ.*)
@@ -44,7 +44,7 @@ SHOW GRANTS FOR userX;
 Grants for userX@%
 GRANT SUPER ON *.* TO `userX`@`%`
 GRANT SELECT ON `db1`.* TO `userX`@`%`
-GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT PROXY ON `userY`@`%` TO `userX`@`%`
 # This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SELECT ON .*db1.*FROM.*userY.*)
 include/assert_binlog_events.inc
 # This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE PROXY ON .*userX.*FROM.*userY.*)
@@ -236,7 +236,7 @@ GRANT SUPER ON *.* TO `userX`@`%`
 GRANT SELECT ON `db1`.* TO `userX`@`%`
 GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
 GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
-GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT PROXY ON `userY`@`%` TO `userX`@`%`
 GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
 # Case 1 : Revoke from non-existing user
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM userX, userZ;
@@ -248,7 +248,7 @@ GRANT SUPER ON *.* TO `userX`@`%`
 GRANT SELECT ON `db1`.* TO `userX`@`%`
 GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
 GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
-GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT PROXY ON `userY`@`%` TO `userX`@`%`
 GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
 # This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE ALL PRIVILEGES, GRANT OPTION FROM.*userX.*,.*userZ.*)
 include/assert_binlog_events.inc
@@ -258,7 +258,7 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM userX, userA;
 SHOW GRANTS FOR userX;
 Grants for userX@%
 GRANT USAGE ON *.* TO `userX`@`%`
-GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT PROXY ON `userY`@`%` TO `userX`@`%`
 GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(REVOKE ALL PRIVILEGES, GRANT OPTION FROM.*userX.*,.*userA.*)
 include/assert_binlog_events.inc

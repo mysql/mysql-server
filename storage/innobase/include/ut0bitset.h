@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,7 +41,7 @@ class Bitset {
   Bitset() : m_bitset(nullptr), m_size(0) {}
 
   /** Destructor */
-  ~Bitset() {}
+  ~Bitset() = default;
 
   /** Initialize the bitset with a byte array and size
   @param[in]    bitset  byte array for this bitset
@@ -99,7 +99,7 @@ class Bitset {
   /** Set current bitset with specified one. Current bitset should have
   called init() to allocate its own bitmap memory which should be big
   enough for the assignment.
-  @param[in]	from	set the bitset from this one
+  @param[in]    from    set the bitset from this one
   @return current bitset object */
   Bitset &operator=(const Bitset &from) {
     ut_ad(m_capacity >= from.m_size);

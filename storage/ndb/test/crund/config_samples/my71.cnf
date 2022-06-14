@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ ignore-builtin-innodb
 plugin-load=innodb=ha_innodb_plugin.so
 
 server-id=0
-skip-slave-start
+skip-replica-start
 
 # maximum size of one packet or any generated/intermediate string
 # should be as big as the largest BLOB you want to use. The protocol limit
@@ -45,7 +45,7 @@ skip-slave-start
 # java.sql.BatchUpdateException: Packet for query is too large (1062229 > 1048576). You can change this value on the server by setting the max_allowed_packet' variable.
 max_allowed_packet=16M
 
-#slave-allow-batching
+#replica-allow-batching
 ndb-batch-size=1000000
 
 ndb-use-exact-count=0

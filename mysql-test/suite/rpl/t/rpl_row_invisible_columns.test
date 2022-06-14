@@ -1,0 +1,45 @@
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+################################################################################
+# WL10905 - Support for INVISIBLE columns.                                     #
+#                                                                              #
+# ==== Purpose ====                                                            #
+#                                                                              #
+# The test checks                                                              #
+#   - if operations on rows with invisible columns are completed without       #
+#     errors when slave_rows_search_algorithms uses hash scan.                 #
+#                                                                              #
+#   - if replica chooses INDEX_SCAN even when the index contains invisible     #
+#     columns.                                                                 #
+#                                                                              #
+################################################################################
+--source include/rpl_connection_slave.inc
+set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY AUTO_INCREMENT INVISIBLE,
+                 f2 INT INVISIBLE DEFAULT 5, f3 INT);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (10), (20);
+--source include/sync_slave_sql_with_master.inc
+
+# Update INVISIBLE column.
+--source include/rpl_connection_master.inc
+UPDATE t1 SET f2 = 10 WHERE f1 = 1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check that t1 exists and has same values in both servers.
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+--echo # check that INDEX_SCAN is used at replica.
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+--source include/rpl_end.inc

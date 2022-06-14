@@ -1,0 +1,305 @@
+###############################################################################
+#
+# When a member has locked tables it should not cause problems on rejoin when
+# using clone as distributed recovery method.
+#
+# Test:
+#   0. The test requires three servers
+#   1. Create table t1 on server1 with binlog disabled and bootstrap the
+#      group with clone plugin installed
+#   2. Create table t1 on server2 with binlog disabled, install clone
+#      plugin and join to the group
+#   3. Setup Server3.
+#      Set the attempts of rejoin to 3 so we validate the process wont
+#      block.
+#      Reduce stop_component timeout so recovery module stops faster.
+#      Install and setup clone.
+#   4. Server3 disable binlog and supreess warnings, create table t1 and
+#      get pid. Pid will be used to expel member from group
+#   5. Enable super read only, to avoid problem set it after FLUSH
+#      TABLES with READ LOCK. Table locked will prevent server from
+#      finishing recovery
+#   6. Insert data on group
+#   7. Join server3 to group, it will stay on recovery has read locks on
+#      flush prevent any kind of transaction from executing
+#   8. Wait until group_replication_applier channel waits on table t1
+#      read lock. Enable clone for next join.
+#   9. Expel server3 from the group
+#   10. Server3 should change is status to ERROR
+#   11. Waiting for two auto-rejoin attempts to happen, they will fail
+#       due to recovery failing to stop
+#   12. Validate that recovery channel is still blocked on table t1.
+#   13. Unlock table t1 and allow clone to continue.
+#       Member will restart and rejoin the group.
+#   14. Clean up.
+#
+###############################################################################
+
+--source include/linux.inc
+--source include/big_test.inc
+--source include/not_have_privilege_checks_user.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--echo
+--echo # 1. Create table t1 on server1 with binlog disabled and bootstrap the
+--echo #    group with clone plugin installed
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SET sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET sql_log_bin=1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Create table t1 on server2 with binlog disabled, install clone
+--echo #    plugin and join to the group
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SET sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Setup Server3.
+--echo #    Set the attempts of rejoin to 3 so we validate the process wont
+--echo #    block.
+--echo #    Reduce stop_component timeout so recovery module stops faster.
+--echo #    Install and setup clone.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_on_boot= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_clone_threshold= `SELECT @@GLOBAL.group_replication_clone_threshold`
+--let $_group_replication_autorejoin_tries= `SELECT @@GLOBAL.group_replication_autorejoin_tries`
+--let $_group_replication_components_stop_timeout= `SELECT @@GLOBAL.group_replication_components_stop_timeout`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
+
+--let $plugin_list= $GROUP_REPLICATION
+--source include/spawn_monitoring_process.inc
+
+--disable_query_log
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
+--enable_query_log
+
+SET PERSIST group_replication_start_on_boot= ON;
+SET PERSIST group_replication_autorejoin_tries = 3;
+SET PERSIST group_replication_components_stop_timeout = 30;
+SET PERSIST local_infile= ON;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo # 4. Server3 disable binlog and supreess warnings, create table t1 and
+--echo #    get pid. Pid will be used to expel member from group
+
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+--let $pid_file=`SELECT @@pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET SESSION sql_log_bin= 1;
+
+--let $member3_uuid = `SELECT @@GLOBAL.server_uuid`
+
+--echo
+--echo # 5. Enable super read only, to avoid problem set it after FLUSH
+--echo #    TABLES with READ LOCK. Table locked will prevent server from
+--echo #    finishing recovery
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+SET GLOBAL super_read_only= 1;
+FLUSH TABLES WITH READ LOCK;
+
+--echo
+--echo # 6. Insert data on group
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO test.t1 VALUES (1, 1);
+INSERT INTO test.t1 VALUES (2, 1);
+
+--echo
+--echo # 7. Join server3 to group, it will stay on recovery has read locks on
+--echo #    flush prevent any kind of transaction from executing
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo # 8. Wait until group_replication_applier channel waits on table t1
+--echo #    read lock. Enable clone for next join.
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for commit lock'
+--source include/wait_condition.inc
+
+SET GLOBAL group_replication_clone_threshold= 1;
+
+--echo
+--echo # 9. Expel server3 from the group
+
+# Send signal SIGSTOP to server 3.
+--exec kill -19 $server_pid
+
+# Wait until the group settles on 2 members
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+# Send signal SIGCONT to server 3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--exec kill -18 $server_pid
+
+--echo
+--echo # 10. Server3 should change is status to ERROR
+
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 11. Waiting for two auto-rejoin attempts to happen, they will fail
+--echo #     due to recovery failing to stop
+
+--let $wait_timeout= 600
+--let $wait_condition= SELECT WORK_COMPLETED = 2 FROM performance_schema.events_stages_current WHERE EVENT_NAME LIKE '%auto-rejoin%'
+--source include/wait_condition.inc
+
+--echo
+--echo # 12. Validate that recovery channel is still blocked on table t1.
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for commit lock'
+--source include/wait_condition.inc
+
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 13. Unlock table t1 and allow clone to continue.
+--echo #     Member will restart and rejoin the group.
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+UNLOCK TABLES;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Due to concurrency between the completeness of second auto-rejoin attempt
+# and the UNLOCK TABLES, member can successfully rejoin on the second or third
+# attempt, thence the big disconnect_timeout.
+--let $disconnect_timeout= 600
+--source include/wait_until_disconnected.inc
+--let $disconnect_timeout=
+
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $assert_text= Clone must be complete
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+--let $group_replication_member_state= ONLINE
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+--let $diff_tables=server1:test.t1, server2:test.t1, server3:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo # 14. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+
+RESET PERSIST group_replication_group_name;
+RESET PERSIST group_replication_local_address;
+RESET PERSIST group_replication_group_seeds;
+RESET PERSIST group_replication_start_on_boot;
+RESET PERSIST group_replication_autorejoin_tries;
+RESET PERSIST group_replication_components_stop_timeout;
+RESET PERSIST local_infile;
+RESET PERSIST group_replication_communication_stack;
+
+--disable_query_log
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_on_boot
+--eval SET GLOBAL group_replication_autorejoin_tries = $_group_replication_autorejoin_tries
+--eval SET GLOBAL group_replication_components_stop_timeout = $_group_replication_components_stop_timeout
+--eval SET GLOBAL group_replication_clone_threshold= $_group_replication_clone_threshold
+--enable_query_log
+
+SET sql_log_bin=0;
+call mtr.add_suppression('Member was expelled from the group due to network failures, changing member status to ERROR.');
+call mtr.add_suppression('The server was automatically set into read only mode after an error was detected.');
+call mtr.add_suppression('On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details');
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+call mtr.add_suppression("Error when stopping the group replication incremental recovery's donor connection");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Relay log information for channel '' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server.*");
+call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the master.");
+call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel ''. Skipping relay log recovery for the channel.");
+SET sql_log_bin=1;
+
+RESET REPLICA ALL FOR CHANNEL "";
+
+--source include/clean_monitoring_process.inc
+
+--source include/group_replication_end.inc

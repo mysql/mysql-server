@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 
 #include "storage/perfschema/table_session_connect.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/field.h"
 #include "sql/table.h"
@@ -61,7 +62,7 @@ table_session_connect::table_session_connect(
     m_copy_session_connect_attrs = (char *)my_malloc(
         PSI_INSTRUMENT_ME, session_connect_attrs_size_per_thread, MYF(0));
   } else {
-    m_copy_session_connect_attrs = NULL;
+    m_copy_session_connect_attrs = nullptr;
   }
   m_copy_session_connect_attrs_length = 0;
 }
@@ -70,8 +71,8 @@ table_session_connect::~table_session_connect() {
   my_free(m_copy_session_connect_attrs);
 }
 
-int table_session_connect::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  DBUG_ASSERT(idx == 0);
+int table_session_connect::index_init(uint idx [[maybe_unused]], bool) {
+  assert(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_session_connect);
   m_index = m_opened_index;
   return 0;
@@ -84,7 +85,7 @@ int table_session_connect::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       if (m_opened_index->match(thread)) {
         do {
           /*
@@ -132,8 +133,8 @@ static bool parse_length_encoded_string(const char **ptr, char *dest,
                                         const CHARSET_INFO *from_cs,
                                         uint nchars_max) {
   ulong copy_length, data_length;
-  const char *well_formed_error_pos = NULL, *cannot_convert_error_pos = NULL,
-             *from_end_pos = NULL;
+  const char *well_formed_error_pos = nullptr,
+             *cannot_convert_error_pos = nullptr, *from_end_pos = nullptr;
 
   data_length =
       net_field_length(const_cast<uchar **>(pointer_cast<const uchar **>(ptr)));
@@ -241,7 +242,7 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal) {
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
   safe_class = sanitize_thread_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -253,7 +254,7 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal) {
 
   /* Make a safe copy of the session attributes */
 
-  if (m_copy_session_connect_attrs == NULL) {
+  if (m_copy_session_connect_attrs == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -268,7 +269,7 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal) {
          m_copy_session_connect_attrs_length);
 
   cs = get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
-  if (cs == NULL) {
+  if (cs == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -310,12 +311,12 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case FO_PROCESS_ID:
           if (m_row.m_process_id != 0) {
             set_field_ulonglong(f, m_row.m_process_id);
@@ -339,7 +340,7 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulong(f, m_row.m_ordinal_position);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -23,6 +23,7 @@ create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
 insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
+ANALYZE TABLE t2;
 --echo # this must use key 'a', not PRIMARY:
 --replace_column 10 #
 explain select a from t2 where a=b;
@@ -449,6 +450,7 @@ CREATE TABLE t2 (
 
 # SHOULD use the pk.
 # if we switch it from a primary key to a regular index, it works correctly as well
+ANALYZE TABLE t2;
 explain SELECT * FROM t2 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
 
 DROP TABLE t1,t2;
@@ -496,6 +498,7 @@ CREATE TABLE t1(
   KEY (c)
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES('TEST', 'TEST', '2009-10-09 00:00:00');
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00';
 SELECT * FROM t1 WHERE a = 'TEST' AND
@@ -641,6 +644,8 @@ INSERT INTO t1 VALUES (106);
 INSERT INTO t1 VALUES (107);
 
 INSERT INTO t2 VALUES (107),(75),(1000);
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
 
 SELECT t1.id,t2.id FROM t2 LEFT JOIN t1 ON t1.id>=74 AND t1.id<=0
   WHERE t2.id=75 AND t1.id IS NULL;
@@ -733,7 +738,7 @@ INSERT INTO t1 VALUES
 (26,1,9921,1), (27,1,9922,1);
 
 FLUSH TABLES;
-
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
@@ -761,18 +766,22 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT , b INT, c INT, d INT,
   KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+ANALYZE TABLE t1;
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b);
+ANALYZE TABLE t1;
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c);
+ANALYZE TABLE t1;
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c,d);
+ANALYZE TABLE t1;
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 
 DROP TABLE t1;
@@ -862,6 +871,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (1,2);
 INSERT INTO t2 VALUES (2,9);
 
+--sorted_result
 SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
 FROM t1 JOIN t2 ON t1.c2 = t2.c1
 WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
@@ -915,6 +925,8 @@ CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
 CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
 
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
@@ -940,6 +952,7 @@ INSERT INTO t1 VALUES (1,'f','no');
 INSERT INTO t1 VALUES (2,'u','yes-u');
 INSERT INTO t1 VALUES (2,'h','yes-h');
 INSERT INTO t1 VALUES (3,'d','no');
+ANALYZE TABLE t1;
 
 --echo
 SELECT v2

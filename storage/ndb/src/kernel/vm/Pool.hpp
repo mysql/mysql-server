@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef NDB_POOL_HPP
 #define NDB_POOL_HPP
+
+#include <climits>
 
 #include <ndb_global.h>
 #include <kernel_types.h>
@@ -72,6 +74,8 @@ struct Record_info
 
 struct Resource_limit
 {
+  static constexpr Uint32 HIGHEST_LIMIT = UINT32_MAX;
+
   /**
     Minimal number of pages dedicated for the resource group from shared global
     page memory.
@@ -109,6 +113,18 @@ struct Resource_limit
     See also m_spare_pct below.
   */
   Uint32 m_spare;
+
+  /**
+    The number of dedicated pages that a resource do not use but made available
+    for other resources to use, using give_up_pages().
+   */
+  Uint32 m_lent;
+
+  /**
+    The number of pages this resource use from pages otherwise dedicated to
+    other resources, using take_pages().
+  */
+  Uint32 m_borrowed;
 
   /**
     A positive number identifying the resource group.
@@ -154,48 +170,46 @@ struct Pool_context
    */
   void* get_memroot() const;
   Ndbd_mem_manager* get_mem_manager() const;
-  
+
   /**
-   * Alloc consekutive pages
+   * Alloc page.
    *
-   *   @param i   : out : i value of first page
-   *   @return    : pointer to first page (NULL if failed)
+   *   @param[out] i  i value of first page
+   *   @return     pointer to first page (NULL if failed)
    *
-   * Will handle resource limit 
+   * Will handle resource limit
    */
   void* alloc_page19(Uint32 type_id, Uint32 *i);
   void* alloc_page27(Uint32 type_id, Uint32 *i);
   void* alloc_page30(Uint32 type_id, Uint32 *i);
   void* alloc_page32(Uint32 type_id, Uint32 *i);
-  
+
   /**
-   * Release pages
-   * 
-   *   @param i   : in : i value of first page
-   *   @param p   : in : pointer to first page
+   * Release page
+   *
+   *   @param[in] i   i value of first page
    */
   void release_page(Uint32 type_id, Uint32 i);
-  
+
   /**
    * Alloc consekutive pages
    *
-   *   @param cnt : in/out : no of requested pages, 
-   *                return no of allocated (undefined return NULL)
-   *                out will never be > in
-   *   @param i   : out : i value of first page
-   *   @param min : in : will never allocate less than min
-   *   @return    : pointer to first page (NULL if failed)
+   *   @param[in,out] cnt  no of requested pages,
+   *                       return no of allocated (undefined return NULL)
+   *                       out will never be > in
+   *   @param[out] i  i value of first page
+   *   @param[in] min will never allocate less than min
+   *   @return        pointer to first page (NULL if failed)
    *
-   * Will handle resource limit 
+   * Will handle resource limit
    */
   void* alloc_pages(Uint32 type_id, Uint32 *i, Uint32 *cnt, Uint32 min =1);
-  
+
   /**
    * Release pages
-   * 
-   *   @param i   : in : i value of first page
-   *   @param p   : in : pointer to first page
-   *   @param cnt : in : no of pages to release
+   *
+   *   @param[in] i    i value of first page
+   *   @param[in] cnt  no of pages to release
    */
   void release_pages(Uint32 type_id, Uint32 i, Uint32 cnt);
 
@@ -312,7 +326,7 @@ public:
   /**
    * Update p & i value for ptr according to <b>i</b> value 
    */
-  void getPtr(Ptr<T> &, Uint32 i) const;
+  [[nodiscard]] bool getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
 
   /**
@@ -426,11 +440,17 @@ RecordPool<P, T>::getPtr(ConstPtr<T> & ptr) const
 
 template <typename P, typename T>
 inline
-void
+bool
 RecordPool<P, T>::getPtr(Ptr<T> & ptr, Uint32 i) const
 {
+  if (unlikely(i >= RNIL))
+  {
+    assert(i == RNIL);
+    return false;
+  }
   ptr.i = i;
   ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));  
+  return true;
 }
 
 template <typename P, typename T>

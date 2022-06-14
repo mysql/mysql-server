@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,25 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_management_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
+
+/**
+ * @brief Runtime external resources that should be provided to an instance of
+ * Gcs_interface
+ *
+ */
+struct Gcs_interface_runtime_requirements {
+  /**
+   * @brief External network provider, if needed.
+   *
+   */
+  std::shared_ptr<Network_provider> provider;
+
+  /**
+   * @brief Provider of Network Namespace services
+   *
+   */
+  Network_namespace_manager *namespace_manager;
+};
 
 /**
   @class Gcs_interface
@@ -189,7 +208,25 @@ class Gcs_interface {
   */
   virtual enum_gcs_error set_logger(Logger_interface *logger) = 0;
 
-  virtual ~Gcs_interface() {}
+  /**
+   * @brief Set the up runtime resources
+   *
+   * @param reqs a Gcs_interface_runtime_requirements filled with all the
+   * requirements
+   */
+  virtual enum_gcs_error setup_runtime_resources(
+      Gcs_interface_runtime_requirements &reqs) = 0;
+
+  /**
+   * @brief Does the necessary cleanup for runtime resources
+   *
+   * @param reqs a Gcs_interface_runtime_requirements filled with all the
+   * requirements and their references
+   */
+  virtual enum_gcs_error cleanup_runtime_resources(
+      Gcs_interface_runtime_requirements &reqs) = 0;
+
+  virtual ~Gcs_interface() = default;
 };
 
 /**

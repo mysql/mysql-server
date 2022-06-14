@@ -10,8 +10,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    Bootstrap a group on server1.
 [connection server1]
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET SESSION sql_log_bin= 0;
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"@'%';;
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
@@ -21,6 +25,11 @@ include/start_and_bootstrap_group_replication.inc
 # 2. Install clone plugin on server2.
 #    Restart server with a monitoring process (mysqld_safe) if needed
 [connection server2]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"@'%';;
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 include/spawn_monitoring_process.inc
 
@@ -28,7 +37,7 @@ include/spawn_monitoring_process.inc
 # 3. Start group replication using the created user credentials
 #    GR will attempt to clone a donor but due to the lack of
 #    privileges, recovery by binary logs will be used subsequently.
-CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET GLOBAL group_replication_clone_threshold= 1;
 include/start_group_replication.inc
 include/assert.inc [Clone status must be Failed]
@@ -42,14 +51,15 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 DROP TABLE t1;
 DROP USER "recovery_user";
 include/rpl_sync.inc
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will use cloning as its recovery strategy.");
-call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \"recovery_user\"@\"127.0.0.1\":[0-9]+ IDENTIFIED BY \"\\*\\*\\*\\*\\*\" REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'recovery_user\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1227 : Access denied; you need \\(at least one of\\) the BACKUP_ADMIN privilege\\(s\\) for this operation.");
-call mtr.add_suppression("Due to some issue the recovery strategy switched to: Distributed Recovery");
+call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 SET SESSION sql_log_bin=1;

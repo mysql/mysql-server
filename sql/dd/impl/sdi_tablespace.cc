@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,16 @@
 
 #include <algorithm>
 
-#include "my_dbug.h"                             // DBUG_PRINT
-#include "my_inttypes.h"                         // uint32
-#include "sql/dd/cache/dictionary_client.h"      // dd::Dictionary_client
-#include "sql/dd/collection.h"                   // dd::Collection
-#include "sql/dd/dd_tablespace.h"                // dd::get_tablespace_name
-#include "sql/dd/impl/sdi.h"                     // dd::serialize
-#include "sql/dd/impl/sdi_utils.h"               // sdi_utils::checked_return
-#include "sql/dd/properties.h"                   // dd::Properties
-#include "sql/dd/string_type.h"                  // dd::String_type
+#include "my_dbug.h"                         // DBUG_PRINT
+#include "my_inttypes.h"                     // uint32
+#include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
+#include "sql/dd/collection.h"               // dd::Collection
+#include "sql/dd/dd_tablespace.h"            // dd::get_tablespace_name
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::SERVER_VERSION_80016
+#include "sql/dd/impl/sdi.h"                      // dd::serialize
+#include "sql/dd/impl/sdi_utils.h"                // sdi_utils::checked_return
+#include "sql/dd/properties.h"                    // dd::Properties
+#include "sql/dd/string_type.h"                   // dd::String_type
 #include "sql/dd/tablespace_id_owner_visitor.h"  // dd::visit_tablespace_id_owner
 #include "sql/dd/types/index.h"                  // dd::Index
 #include "sql/dd/types/partition.h"              // dd::Partition
@@ -56,7 +57,7 @@ namespace {
 
 using DC = dd::cache::Dictionary_client;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 const char *ge_type(const dd::Table &) { return "TABLE"; }
 
 const char *ge_type(const dd::Index &) { return "INDEX"; }
@@ -64,13 +65,14 @@ const char *ge_type(const dd::Index &) { return "INDEX"; }
 const char *ge_type(const dd::Partition &) { return "PARTITION"; }
 
 const char *ge_type(const dd::Partition_index &) { return "PARTITION_INDEX"; }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 /**
    Traverses Table object with sub objects. Returns when the first
    valid (not INVALID_OBJECT_ID) tablespace id is found.
  */
-dd::Object_id fetch_first_tablespace_id(const dd::Table &t) {
+template <typename DDT>
+dd::Object_id fetch_first_tablespace_id(const DDT &t) {
   DBUG_PRINT("ddsdi", ("fetch_first_tablespace_id(%s)", t.name().c_str()));
   dd::Object_id tspid = dd::INVALID_OBJECT_ID;
   visit_tablespace_id_owners(t, [&](auto &ge) {
@@ -91,15 +93,15 @@ dd::Object_id fetch_first_tablespace_id(const dd::Table &t) {
    Tablespace object corresponding to the first valid (not
    INVALID_OBJECT_ID) tablespace id is found.
  */
-ReturnValueOrError<const dd::Tablespace *> fetch_first_tablespace(
-    THD *thd, const dd::Table &t) {
-  dd::Object_id tsid = fetch_first_tablespace_id(t);
+
+ReturnValueOrError<const dd::Tablespace *> fetch_tablespace(
+    THD *thd, dd::Object_id tsid) {
   if (tsid == dd::INVALID_OBJECT_ID) {
     return {nullptr, false};
   }
   // The tablespace object may not have MDL
   // Need to use acquire_uncached_uncommitted to get name for MDL
-  dd::Tablespace *tblspc_ = nullptr;
+  std::unique_ptr<dd::Tablespace> tblspc_;
   if (thd->dd_client()->acquire_uncached_uncommitted(tsid, &tblspc_)) {
     return {nullptr, true};
   }
@@ -131,8 +133,8 @@ namespace dd {
 namespace sdi_tablespace {
 bool store_tbl_sdi(THD *thd, handlerton *hton, const dd::Sdi_type &sdi,
                    const dd::Table &table,
-                   const dd::Schema &schema MY_ATTRIBUTE((unused))) {
-  auto res = fetch_first_tablespace(thd, table);
+                   const dd::Schema &schema [[maybe_unused]]) {
+  auto res = fetch_tablespace(thd, fetch_first_tablespace_id(table));
   if (res.error) {
     return true;
   }
@@ -164,24 +166,93 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
 }
 
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
-                  const Schema &schema MY_ATTRIBUTE((unused))) {
+                  const Schema &schema [[maybe_unused]]) {
   DBUG_PRINT("ddsdi",
-             ("store_tbl_sdi(Schema" ENTITY_FMT ", Table" ENTITY_FMT ")",
+             ("drop_tbl_sdi(Schema" ENTITY_FMT ", Table" ENTITY_FMT ")",
               ENTITY_VAL(schema), ENTITY_VAL(table)));
 
-  auto res = fetch_first_tablespace(thd, table);
+  auto res = fetch_tablespace(thd, fetch_first_tablespace_id(table));
   if (res.error) {
     return true;
   }
   if (res.value == nullptr) {
     return false;
   }
-
   sdi_key_t key = {SDI_TYPE_TABLE, table.id()};
-  if (hton.sdi_delete(*res.value, &table, &key)) {
-    return checked_return(true);
+
+  if (table.subpartition_type() == Table::ST_NONE ||
+      table.last_checked_for_upgrade_version_id() >
+          dd::bootstrap::SERVER_VERSION_80016) {
+    return checked_return(hton.sdi_delete(*res.value, &table, &key));
+  }
+
+  // Sub-partitioned tables from older versions which have not yet
+  // been checked for upgrade may not have an SDI record in the SDI
+  // index in the tablespace, so we need to install an error handler which
+  // catches the resulting error.
+  bool error_suppressed = false;
+  if (sdi_utils::handle_errors(
+          thd,
+          [&](uint errnum, const char *,
+              Sql_condition::enum_severity_level *level, const char *) {
+            if (errnum == ER_SDI_OPERATION_FAILED_MISSING_RECORD) {
+              (*level) = Sql_condition::SL_WARNING;
+              error_suppressed = true;
+            }
+            return false;
+          },
+          [&]() { return hton.sdi_delete(*res.value, &table, &key); })) {
+    return checked_return(!error_suppressed);
   }
   return false;
+}
+
+template <typename DDT>
+bool drop_all_sdi_impl(THD *thd, const handlerton &hton, const DDT &t) {
+  return visit_tablespace_id_owners(t, [&](auto &tsp_id_owner) {
+    dd::Object_id tid = tsp_id_owner.tablespace_id();
+    DBUG_PRINT("ddsdi", ("Checking %s '%s'", ge_type(tsp_id_owner),
+                         tsp_id_owner.name().c_str()));
+    if (tid == dd::INVALID_OBJECT_ID) {
+      return false;
+    }
+
+    DBUG_PRINT("ddsdi", ("Proceeding with id:%llu, source:%s", tid,
+                         ge_type(tsp_id_owner)));
+    auto res = fetch_tablespace(thd, tid);
+    if (res.error) {
+      return true;
+    }
+    if (res.value == nullptr) {
+      return false;
+    }
+    if (res.value->se_private_data().exists("discarded")) {
+      my_error(ER_TABLESPACE_DISCARDED, MYF(0), t.name().c_str());
+      return true;
+    }
+    sdi_vector_t sdi_keys;
+    if (hton.sdi_get_keys(*res.value, sdi_keys)) {
+      return checked_return(true);
+    }
+
+    for (const auto &k : sdi_keys.m_vec) {
+      if (k.type == SDI_TYPE_TABLESPACE && k.id == res.value->id()) {
+        continue;
+      }
+      if (hton.sdi_delete(*res.value, nullptr, &k)) {
+        return checked_return(true);
+      }
+    }
+    return false;
+  });  // visitor lambda
+}
+
+bool drop_all_sdi(THD *thd, const handlerton &hton, const Table &t) {
+  return drop_all_sdi_impl(thd, hton, t);
+}
+
+bool drop_all_sdi(THD *thd, const handlerton &hton, const Partition &p) {
+  return drop_all_sdi_impl(thd, hton, p);
 }
 }  // namespace sdi_tablespace
 }  // namespace dd

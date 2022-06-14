@@ -55,13 +55,25 @@ if (!$localhost_address)
 --let $original_server_2_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $original_server_2_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 
+let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`;
+--let $_rpl_gcs_server_port=
+if ($have_xcom_stack)
+{
+  --let $_rpl_gcs_server_port= $SERVER_GR_PORT_2
+}
+if (!$have_xcom_stack)
+{
+  --let $_rpl_gcs_server_port= $SERVER_MYPORT_2
+}
+
+
 --echo "1. Test local address with raw address and seeds with name"
 
 # Assemble the new values:
 # - local address with raw values
 # - local address first in seeds with name (which is default)
 --let $localhost_address= [::1]:
---let $local_address_with_raw_address= $localhost_address$SERVER_GR_PORT_2
+--let $local_address_with_raw_address= $localhost_address$_rpl_gcs_server_port
 
 # Set values
 --disable_query_log

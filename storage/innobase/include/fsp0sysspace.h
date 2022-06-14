@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,10 +65,10 @@ class SysTablespace : public Tablespace {
     /* No op */
   }
 
-  ~SysTablespace() { shutdown(); }
+  ~SysTablespace() override { shutdown(); }
 
   /** Set tablespace full status
-  @param[in]	is_full		true if full */
+  @param[in]    is_full         true if full */
   void set_tablespace_full_status(bool is_full) {
     m_is_tablespace_full = is_full;
   }
@@ -78,7 +78,7 @@ class SysTablespace : public Tablespace {
   bool get_tablespace_full_status() { return (m_is_tablespace_full); }
 
   /** Set sanity check status
-  @param[in]	status	true if sanity checks are done */
+  @param[in]    status  true if sanity checks are done */
   void set_sanity_check_status(bool status) { m_sanity_checks_done = status; }
 
   /** Get sanity check status
@@ -86,16 +86,14 @@ class SysTablespace : public Tablespace {
   bool get_sanity_check_status() { return (m_sanity_checks_done); }
 
   /** Parse the input params and populate member variables.
-  @param	filepath_spec	path to data files
-  @param	supports_raw	true if it supports raw devices
+  @param[in]    filepath_spec   path to data files
+  @param[in]    supports_raw    true if the tablespace supports raw devices
   @return true on success parse */
   bool parse_params(const char *filepath_spec, bool supports_raw);
 
   /** Check the data file specification.
-  @param[in]	create_new_db		true if a new database
-  is to be created
-  @param[in]	min_expected_size	expected tablespace
-  size in bytes
+  @param[in]  create_new_db     True if a new database is to be created
+  @param[in]  min_expected_size Minimum expected tablespace size in bytes
   @return DB_SUCCESS if all OK else error code */
   dberr_t check_file_spec(bool create_new_db, ulint min_expected_size);
 
@@ -111,7 +109,7 @@ class SysTablespace : public Tablespace {
   ulint can_auto_extend_last_file() const { return (m_auto_extend_last_file); }
 
   /** Set the last file size.
-  @param[in]	size	the size to set */
+  @param[in]    size    the size to set */
   void set_last_file_size(page_no_t size) {
     ut_ad(!m_files.empty());
     m_files.back().m_size = size;
@@ -146,48 +144,48 @@ class SysTablespace : public Tablespace {
   page_no_t get_increment() const;
 
   /** Open or create the data files
-  @param[in]  is_temp		whether this is a temporary tablespace
-  @param[in]  create_new_db	whether we are creating a new database
-  @param[out] sum_new_sizes	sum of sizes of the new files added
-  @param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
+  @param[in]  is_temp           whether this is a temporary tablespace
+  @param[in]  create_new_db     whether we are creating a new database
+  @param[out] sum_new_sizes     sum of sizes of the new files added
+  @param[out] flush_lsn         FIL_PAGE_FILE_FLUSH_LSN of first file
   @return DB_SUCCESS or error code */
-  dberr_t open_or_create(bool is_temp, bool create_new_db,
-                         page_no_t *sum_new_sizes, lsn_t *flush_lsn)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open_or_create(bool is_temp, bool create_new_db,
+                                       page_no_t *sum_new_sizes,
+                                       lsn_t *flush_lsn);
 
  private:
   /** Check the tablespace header for this tablespace.
-  @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
+  @param[out]   flushed_lsn     the value of FIL_PAGE_FILE_FLUSH_LSN
   @return DB_SUCCESS or error code */
   dberr_t read_lsn_and_check_flags(lsn_t *flushed_lsn);
 
   /** Note that the data file was not found.
-  @param[in]	file		data file object
-  @param[in]	create_new_db	true if a new instance to be created
+  @param[in]    file            data file object
+  @param[in]    create_new_db   true if a new instance to be created
   @return DB_SUCCESS or error code */
   dberr_t file_not_found(Datafile &file, bool create_new_db);
 
   /** Note that the data file was found.
-  @param[in,out]	file	data file object */
+  @param[in,out]        file    data file object */
   void file_found(Datafile &file);
 
   /** Create a data file.
-  @param[in,out]	file	data file object
+  @param[in,out]        file    data file object
   @return DB_SUCCESS or error code */
   dberr_t create(Datafile &file);
 
   /** Create a data file.
-  @param[in,out]	file	data file object
+  @param[in,out]        file    data file object
   @return DB_SUCCESS or error code */
   dberr_t create_file(Datafile &file);
 
   /** Open a data file.
-  @param[in,out]	file	data file object
+  @param[in,out]        file    data file object
   @return DB_SUCCESS or error code */
   dberr_t open_file(Datafile &file);
 
   /** Set the size of the file.
-  @param[in,out]	file	data file object
+  @param[in,out]        file    data file object
   @return DB_SUCCESS or error code */
   dberr_t set_size(Datafile &file);
 
@@ -197,14 +195,14 @@ class SysTablespace : public Tablespace {
   A Windows path normally looks like C:\ibdata\ibdata1:1G, but
   a Windows raw partition may have a specification like
   \\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
-  @param[in]	str		system tablespace file path spec
+  @param[in]    str             system tablespace file path spec
   @return next character in string after the file name */
   static char *parse_file_name(char *ptr);
 
   /** Convert a numeric string that optionally ends in upper or lower
   case G, M, or K, rounding off to the nearest number of megabytes.
   Then return the number of pages in the file.
-  @param[in,out]	ptr	Pointer to a numeric string
+  @param[in,out]        ptr     Pointer to a numeric string
   @return the number of pages in the file. */
   page_no_t parse_units(char *&ptr);
 
@@ -216,13 +214,13 @@ class SysTablespace : public Tablespace {
   };
 
   /** Verify the size of the physical file
-  @param[in]	file	data file object
+  @param[in]    file    data file object
   @return DB_SUCCESS if OK else error code. */
   dberr_t check_size(Datafile &file);
 
   /** Check if a file can be opened in the correct mode.
-  @param[in,out]	file	data file object
-  @param[out]	reason	exact reason if file_status check failed.
+  @param[in,out]        file    data file object
+  @param[out]   reason  exact reason if file_status check failed.
   @return DB_SUCCESS or error code. */
   dberr_t check_file_status(const Datafile &file, file_status_t &reason);
 

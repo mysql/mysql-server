@@ -1,0 +1,61 @@
+#
+# ALTER RENAME updates the generated foreign key names in the table.
+# Test that these names are properly rolled back on a failure.
+#
+--source connect.inc
+--source include/have_debug.inc
+
+--echo # Setup
+create table parent (
+  pk int primary key,
+  id1 int unique,
+  id2 int unique
+) engine ndb;
+
+create table child (
+  pk int primary key,
+  ref1 int,
+  ref2 int,
+  foreign key ref1_idx(ref1) references parent (id1),
+  foreign key ref2_idx(ref2) references parent (id2)
+) engine ndb;
+
+--echo # Verify the foreign keys on child
+--let $ndb_table_name=child
+--source verify_foreign_keys.inc
+
+# Set debug to simulate a rollback request
+set debug='+d,ndb_simulate_failure_after_table_rename';
+--echo # Simple rename child should fail
+--echo # and the foreign key names should remain the same
+--error ER_INTERNAL_ERROR
+rename table child to child1;
+
+--echo # Verify the foreign keys on child
+--let $ndb_table_name=child
+--source verify_foreign_keys.inc
+
+# Set debug to simulate a rollback request
+set debug='+d,ndb_simulate_failure_after_table_rename';
+--echo # Rename using inplace alter should fail
+--echo # and the foreign key names should remain the same
+--error ER_INTERNAL_ERROR
+alter table child rename to child1, algorithm = inplace;
+
+--echo # Verify the foreign keys on child
+--let $ndb_table_name=child
+--source verify_foreign_keys.inc
+
+# Set debug to simulate a rollback request
+set debug='+d,ndb_simulate_failure_after_table_rename';
+--echo # Rename using copy alter should fail
+--echo # and the foreign key names should remain the same
+--error ER_INTERNAL_ERROR
+alter table child rename to child1, algorithm = copy;
+
+--echo # Verify the foreign keys on child
+--let $ndb_table_name=child
+--source verify_foreign_keys.inc
+
+--echo # Cleanup
+drop table child, parent;

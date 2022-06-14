@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef FILESORT_UTILS_INCLUDED
 #define FILESORT_UTILS_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <memory>
@@ -31,38 +32,13 @@
 
 #include "map_helpers.h"
 #include "my_base.h"  // ha_rows
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
 #include "sql/sql_array.h"              // Bounds_checked_array
 
 class Cost_model_table;
 class Sort_param;
-
-/*
-  Calculate cost of merge sort
-
-    @param num_rows            Total number of rows.
-    @param num_keys_per_buffer Number of keys per buffer.
-    @param elem_size           Size of each element.
-    @param cost_model          Cost model object that provides cost data.
-
-    Calculates cost of merge sort by simulating call to merge_many_buff().
-
-  @returns
-    Computed cost of merge sort in disk seeks.
-
-  @note
-    Declared here in order to be able to unit test it,
-    since library dependencies have not been sorted out yet.
-
-    See also comments get_merge_many_buffs_cost().
-*/
-
-double get_merge_many_buffs_cost_fast(ha_rows num_rows,
-                                      ha_rows num_keys_per_buffer,
-                                      uint elem_size,
-                                      const Cost_model_table *cost_model);
 
 /**
   Buffer used for storing records to be sorted. The records are stored in
@@ -113,7 +89,8 @@ class Filesort_buffer {
   /** Sort me...
     @return Number of records, after any deduplication
    */
-  unsigned sort_buffer(Sort_param *param, uint count);
+  size_t sort_buffer(Sort_param *param, size_t num_input_rows,
+                     size_t max_output_rows);
 
   /**
     Prepares the buffer for the next batch of records to process.
@@ -136,9 +113,10 @@ class Filesort_buffer {
     not get reused for subsequent records.
   */
   Bounds_checked_array<uchar> get_next_record_pointer(size_t min_size) {
-    DBUG_ASSERT(min_size != 0xFFFFFFFFu);
+    assert(min_size != 0xFFFFFFFFu);
     // See if we need to allocate a new block.
-    if (m_next_rec_ptr + min_size > m_current_block_end) {
+    if (m_next_rec_ptr == nullptr ||
+        m_next_rec_ptr + min_size > m_current_block_end) {
       if (allocate_block(min_size)) return Bounds_checked_array<uchar>();
     }
 
@@ -218,7 +196,10 @@ class Filesort_buffer {
     Gets sorted record number ix. @see get_sort_keys()
     Only valid after buffer has been sorted!
   */
-  uchar *get_sorted_record(size_t ix) { return m_record_pointers[ix]; }
+  uchar *get_sorted_record(size_t ix) {
+    assert(ix < m_record_pointers.size());
+    return m_record_pointers[ix];
+  }
 
   /**
     Clears all rows, then returns a contiguous buffer of maximum size.

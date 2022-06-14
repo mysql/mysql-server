@@ -20,6 +20,8 @@ SET GLOBAL group_replication_bootstrap_group= 0;
 # 2. Stop applier channel in order to delay the view change
 #    log event write to binary log.
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 # 3. Resume recovery, member will be online but view change
@@ -44,6 +46,8 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # 5. Start applier channel and wait until the view change
 #    log event is written into binary log.
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SELECT WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1');
 WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1')
 0

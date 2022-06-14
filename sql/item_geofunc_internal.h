@@ -1,7 +1,7 @@
 #ifndef GEOFUNC_INTERNAL_INCLUDED
 #define GEOFUNC_INTERNAL_INCLUDED
 
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,6 @@
 class String;
 
 #define GIS_ZERO 0.00000000001
-
-extern bool simplify_multi_geometry(String *str, String *result_buffer);
 
 /// A wrapper and interface for all geometry types used here. Make these
 /// types as localized as possible. It's used as a type interface.
@@ -123,7 +121,7 @@ void make_rtree_bggeom(const MultiGeometry &mg, Rtree_index *rtree);
 
 inline Gis_geometry_collection *empty_collection(String *str,
                                                  gis::srid_t srid) {
-  return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type, NULL,
+  return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type, nullptr,
                                      str);
 }
 
@@ -170,36 +168,6 @@ struct bgpt_eq {
   bool operator()(const Point &p1, const Point &p2) const {
     return p1.template get<0>() == p2.template get<0>() &&
            p1.template get<1>() == p2.template get<1>();
-  }
-};
-
-/**
-  Utility class, reset specified variable 'valref' to specified 'oldval' when
-  val_resetter<valtype> instance is destroyed.
-  @tparam Valtype Variable type to reset.
- */
-template <typename Valtype>
-class Var_resetter {
- private:
-  Valtype *valref;
-  Valtype oldval;
-
-  // Forbid use, to eliminate a warning: oldval may be used uninitialized.
-  Var_resetter(const Var_resetter &o);
-  Var_resetter &operator=(const Var_resetter &);
-
- public:
-  Var_resetter() : valref(NULL) {}
-
-  Var_resetter(Valtype *v, const Valtype &oval) : valref(v), oldval(oval) {}
-
-  ~Var_resetter() {
-    if (valref) *valref = oldval;
-  }
-
-  void set(Valtype *v, const Valtype &oldval) {
-    valref = v;
-    this->oldval = oldval;
   }
 };
 

@@ -1,0 +1,59 @@
+## Test to verifies compression level ajustment on the server side
+#
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--source ../include/compression_level_adjustment_common.inc
+
+# LZ4_MESSAGE algorithm
+#default level
+SET GLOBAL mysqlx_lz4_default_compression_level=4;
+SET GLOBAL mysqlx_lz4_max_client_compression_level=16;
+exec $MYSQLXTEST -ux_root --password='' --compression-mode=required
+    --compression-algorithm=LZ4_MESSAGE
+    -v%EXPECT_LEVEL%=4
+    --file=$MYSQL_TMP_DIR/compression_level_adjustment.xpl 2>&1;
+
+#min level
+SET GLOBAL mysqlx_lz4_default_compression_level=4;
+SET GLOBAL mysqlx_lz4_max_client_compression_level=16;
+exec $MYSQLXTEST -ux_root --password='' --compression-mode=required
+    --compression-algorithm=LZ4_MESSAGE
+    --compression-level=-100
+    -v%EXPECT_LEVEL%=0
+    --file=$MYSQL_TMP_DIR/compression_level_adjustment.xpl 2>&1;
+
+#max default level
+SET GLOBAL mysqlx_lz4_default_compression_level=4;
+SET GLOBAL mysqlx_lz4_max_client_compression_level=DEFAULT;
+exec $MYSQLXTEST -ux_root --password='' --compression-mode=required
+    --compression-algorithm=LZ4_MESSAGE
+    --compression-level=100
+     -v%EXPECT_LEVEL%=8
+    --file=$MYSQL_TMP_DIR/compression_level_adjustment.xpl 2>&1;
+
+#max level
+SET GLOBAL mysqlx_lz4_default_compression_level=4;
+SET GLOBAL mysqlx_lz4_max_client_compression_level=16;
+exec $MYSQLXTEST -ux_root --password='' --compression-mode=required
+    --compression-algorithm=LZ4_MESSAGE
+    --compression-level=100
+    -v%EXPECT_LEVEL%=16
+    --file=$MYSQL_TMP_DIR/compression_level_adjustment.xpl 2>&1;
+
+#default level adjusted to max
+SET GLOBAL mysqlx_lz4_default_compression_level=4;
+SET GLOBAL mysqlx_lz4_max_client_compression_level=3;
+exec $MYSQLXTEST -ux_root --password='' --compression-mode=required
+    --compression-algorithm=LZ4_MESSAGE
+    -v%EXPECT_LEVEL%=3
+    --file=$MYSQL_TMP_DIR/compression_level_adjustment.xpl 2>&1;
+
+
+## Cleanup
+SET GLOBAL mysqlx_lz4_max_client_compression_level=DEFAULT;
+SET GLOBAL mysqlx_lz4_default_compression_level=DEFAULT;
+SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
+
+--source ../include/xplugin_cleanup.inc

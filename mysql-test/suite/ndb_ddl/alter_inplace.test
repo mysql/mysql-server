@@ -151,7 +151,7 @@ while ($counter <= $num_tables)
            RENAME COLUMN b TO b_new;
   }
 
-if (!$skip_inplace_rename_column)
+  if (!$skip_inplace_rename_column)
   {
     eval ALTER TABLE $tx ALGORITHM=inplace,
        RENAME COLUMN b TO b_new;

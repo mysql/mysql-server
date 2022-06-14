@@ -1,13 +1,13 @@
 # ==== Purpose ====
 #
-# Issues STOP SLAVE IO_THREAD on the current connection. Then waits
+# Issues STOP REPLICA IO_THREAD on the current connection. Then waits
 # until the IO thread has stopped, or until a timeout is reached.
 #
 # This will fail if the slave IO thread has an error. If you expect an
 # error in the IO thread, use include/wait_for_slave_io_error.inc
 # instead.
 #
-# Please use this instead of 'STOP SLAVE IO_THREAD', to reduce the
+# Please use this instead of 'STOP REPLICA IO_THREAD', to reduce the
 # risk of races in test cases.
 #
 #
@@ -45,7 +45,7 @@ if (!$rpl_debug)
 }
 
 
---eval STOP SLAVE IO_THREAD $_for_channel_clause
+--eval STOP REPLICA IO_THREAD $_for_channel_clause
 
 
 --source include/wait_for_slave_io_to_stop.inc

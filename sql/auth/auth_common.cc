@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,16 @@
 #include "sql/auth/sql_auth_cache.h"
 
 #include <string.h>
-#include <cmath>
+#include "my_alloc.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/mysql_lex_string.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 
 namespace consts {
@@ -35,40 +42,10 @@ const std::string mysql("mysql");
 const std::string system_user("SYSTEM_USER");
 }  // namespace consts
 
-/**
-  Explicit Mem_root_base constructor.
-
-  @param [in] mem_root MEM_ROOT handle
-
-  If mem_root is provided, constructor initializes one
-  and marks it to be freed as a part of destructor.
-*/
-Mem_root_base::Mem_root_base(MEM_ROOT *mem_root) : m_mem_root(mem_root) {
-  m_inited = false;
-  if (m_mem_root == nullptr) {
-    m_mem_root = &m_internal_mem_root;
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
-    m_inited = true;
-  }
-}
-
-/** Meme_root_base constructor */
-Mem_root_base::Mem_root_base() : Mem_root_base(nullptr) {}
-
-/**
-  Destructor.
-
-  Frees MEM_ROOT if it was allocated as a part of constructor.
-*/
-Mem_root_base::~Mem_root_base() {
-  if (m_inited) {
-    free_root(m_mem_root, MYF(0));
-    m_mem_root = nullptr;
-    m_inited = false;
-  }
-}
-
 bool User_table_schema_factory::is_old_user_table_schema(TABLE *table) {
+  if (table->visible_field_count() <
+      User_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56)
+    return false;
   Field *password_field =
       table->field[User_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
   return strncmp(password_field->field_name, "Password", 8) == 0;
@@ -80,7 +57,7 @@ void Auth_id::create_key() {
   m_key.append(m_host.length() ? m_host : "");
 }
 
-Auth_id::Auth_id() {}
+Auth_id::Auth_id() = default;
 
 Auth_id::Auth_id(const char *user, size_t user_len, const char *host,
                  size_t host_len) {
@@ -106,7 +83,7 @@ Auth_id::Auth_id(const LEX_USER *lex_user)
 Auth_id::Auth_id(const ACL_USER *acl_user) {
   if (acl_user) {
     if (acl_user->user != nullptr)  // Not an anonymous user
-      m_user.assign(acl_user->user, strlen(acl_user->user));
+      m_user.assign(acl_user->user, acl_user->get_username_length());
     m_host.assign(acl_user->host.get_host(), acl_user->host.get_host_len());
     create_key();
   }
@@ -116,7 +93,7 @@ Auth_id::Auth_id(const Auth_id &id) : m_user(id.m_user), m_host(id.m_host) {
   create_key();
 }
 
-Auth_id::~Auth_id() {}
+Auth_id::~Auth_id() = default;
 
 bool Auth_id::operator<(const Auth_id &id) const { return m_key < id.m_key; }
 
@@ -185,7 +162,7 @@ std::string get_one_priv(ulong &revoke_privs) {
 */
 void set_system_user_flag(THD *thd,
                           bool check_for_main_security_ctx /*= false*/) {
-  DBUG_ASSERT(thd);
+  assert(thd);
   Security_context *sctx = thd->security_context();
   if (check_for_main_security_ctx == false || sctx == &thd->m_main_security_ctx)
     thd->set_system_user(sctx->has_global_grant(consts::system_user.c_str(),

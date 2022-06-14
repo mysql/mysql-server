@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,34 +26,46 @@
  * Test the metadata cache implementation.
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest_prod.h"  // must be the first header
+#include <chrono>
+#include <memory>
+#include <vector>
+
+#include <gmock/gmock.h>
 
 #include "cluster_metadata.h"
 #include "dim.h"
-#include "metadata_cache.h"
-#include "metadata_factory.h"
+#include "metadata_cache_gr.h"
 #include "mock_metadata.h"
+#include "mock_metadata_factory.h"
 #include "mysql_session_replayer.h"
 #include "tcp_address.h"
 #include "test/helpers.h"
 
 using metadata_cache::ManagedInstance;
 using mysql_harness::TCPAddress;
+using namespace std::chrono_literals;
+
+constexpr unsigned kRouterId = 2;
 
 class MetadataCacheTest : public ::testing::Test {
  public:
   MockNG mf;
-  MetadataCache cache;
+  GRMetadataCache cache;
 
   MetadataCacheTest()
-      : mf("admin", "admin", 1, 1, 1, std::chrono::seconds(10)),
-        cache("0000-0001", {TCPAddress("localhost", 32275)},
-              get_instance("admin", "admin", 1, 1, 1, std::chrono::seconds(10),
-                           mysqlrouter::SSLOptions(), false),
-              std::chrono::seconds(10), mysqlrouter::SSLOptions(),
-              "replicaset-1") {
-    cache.refresh();
+      : mf(metadata_cache::MetadataCacheMySQLSessionConfig{
+            {"admin", "admin"}, 1, 1, 1}),
+        cache(kRouterId, "0000-0001", "", {TCPAddress("localhost", 32275)},
+              mock_metadata_factory_get_instance(
+                  mysqlrouter::ClusterType::GR_V1,
+                  metadata_cache::MetadataCacheMySQLSessionConfig{
+                      {"admin", "admin"}, 1, 1, 1},
+                  mysqlrouter::SSLOptions(), false, 0),
+              metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+              mysqlrouter::SSLOptions(),
+              {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+              metadata_cache::RouterAttributes{}) {
+    cache.refresh(true);
   }
 };
 
@@ -63,22 +75,11 @@ class MetadataCacheTest : public ::testing::Test {
 TEST_F(MetadataCacheTest, ValidReplicasetTest_1) {
   std::vector<ManagedInstance> instance_vector_1;
 
-  instance_vector_1 = cache.replicaset_lookup("replicaset-1");
+  instance_vector_1 = cache.get_cluster_nodes();
   ASSERT_EQ(3U, instance_vector_1.size());
   EXPECT_EQ(instance_vector_1[0], mf.ms1);
   EXPECT_EQ(instance_vector_1[1], mf.ms2);
   EXPECT_EQ(instance_vector_1[2], mf.ms3);
-}
-
-/**
- * Test that looking up an invalid replicaset returns a empty list.
- */
-TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
-  std::vector<ManagedInstance> instance_vector;
-
-  instance_vector = cache.replicaset_lookup("InvalidReplicasetTest");
-
-  EXPECT_TRUE(instance_vector.empty());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,20 +91,34 @@ TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
 class MetadataCacheTest2 : public ::testing::Test {
  public:
   // per-test setup
-  virtual void SetUp() override {
+  void SetUp() override {
     session.reset(new MySQLSessionReplayer(true));
     mysql_harness::DIM::instance().set_MySQLSession(
         [this]() { return session.get(); },  // provide pointer to session
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1,
-                                    std::chrono::seconds(10),
-                                    mysqlrouter::SSLOptions()));
+    cmeta.reset(new GRClusterMetadata(
+        metadata_cache::MetadataCacheMySQLSessionConfig{
+            {"admin", "admin"}, 1, 1, 1},
+        mysqlrouter::SSLOptions()));
   }
 
   // make queries on metadata schema return a 3 members replicaset
   void expect_sql_metadata() {
     MySQLSessionReplayer &m = *session;
+
+    m.expect_execute(
+        "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+        "@@SESSION.character_set_results=utf8, "
+        "@@SESSION.character_set_connection=utf8, "
+        "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+        "@@SESSION.optimizer_switch='derived_merge=on'");
+    m.then_ok();
+    m.expect_execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+    m.then_ok();
+    m.expect_execute("START TRANSACTION");
+    m.then_ok();
 
     m.expect_query_one(
         "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
@@ -113,33 +128,30 @@ class MetadataCacheTest2 : public ::testing::Test {
                      });
 
     m.expect_query(
-        "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, H.location, "
+        "SELECT R.replicaset_name, I.mysql_server_uuid, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
         "F.cluster_id = R.cluster_id "
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
-        "= I.replicaset_id "
-        "JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = "
-        "H.host_id WHERE F.cluster_name = 'cluster-1' "
-        "AND R.attributes->>'$.group_replication_group_name' = '0000-0001';");
+        "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
+        "AND R.attributes->>'$.group_replication_group_name' = '0000-0001'");
     m.then_return(
         8,
-        {// replicaset_name, mysql_server_uuid, role, weight, version_token,
-         // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
+        {// replicaset_name, mysql_server_uuid,
+         // I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server1"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3000"),
+          m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server2"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3001"),
+          m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server3"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3002"),
+          m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
+
+    m.expect_execute("COMMIT");
+    m.then_ok();
   }
 
   // make queries on PFS.replication_group_members return all members ONLINE
@@ -183,7 +195,7 @@ class MetadataCacheTest2 : public ::testing::Test {
 };
 
 void expect_cluster_routable(MetadataCache &mc) {
-  std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
+  std::vector<ManagedInstance> instances = mc.get_cluster_nodes();
   ASSERT_EQ(3U, instances.size());
   EXPECT_EQ("uuid-server1", instances[0].mysql_server_uuid);
   EXPECT_EQ(metadata_cache::ServerMode::ReadWrite, instances[0].mode);
@@ -193,8 +205,8 @@ void expect_cluster_routable(MetadataCache &mc) {
   EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[2].mode);
 }
 
-void expect_cluster_not_routable(MetadataCache &mc) {
-  std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
+void expect_cluster_not_routable(GRMetadataCache &mc) {
+  std::vector<ManagedInstance> instances = mc.get_cluster_nodes();
   ASSERT_EQ(0U, instances.size());
 }
 
@@ -203,9 +215,13 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_metadata();
   expect_sql_members();
 
-  MetadataCache mc(gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
-                   mysqlrouter::SSLOptions(), "cluster-1");
-  mc.refresh();
+  GRMetadataCache mc(
+      kRouterId, gr_id, "", metadata_servers, cmeta,
+      metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+      mysqlrouter::SSLOptions(),
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+      metadata_cache::RouterAttributes{});
+  mc.refresh(true);
 
   // verify that cluster can be seen
   expect_cluster_routable(mc);
@@ -215,7 +231,7 @@ TEST_F(MetadataCacheTest2, basic_test) {
   // refresh MC
   expect_sql_metadata();
   expect_sql_members();
-  mc.refresh();
+  mc.refresh(true);
 
   // verify that cluster can be seen
   expect_cluster_routable(mc);
@@ -233,9 +249,13 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  MetadataCache mc(gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
-                   mysqlrouter::SSLOptions(), "cluster-1");
-  mc.refresh();
+  GRMetadataCache mc(
+      kRouterId, gr_id, "", metadata_servers, cmeta,
+      metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+      mysqlrouter::SSLOptions(),
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+      metadata_cache::RouterAttributes{});
+  mc.refresh(true);
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to first metadata server
@@ -243,7 +263,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
       .then_error("some fake bad connection message", 66);
   expect_sql_metadata();
   expect_sql_members();
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to all 3 metadata servers
@@ -253,7 +273,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
       .then_error("some fake bad connection message", 66);
   m.expect_connect("127.0.0.1", 3002, "admin", "admin", "")
       .then_error("some fake bad connection message", 66);
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_not_routable(mc);  // lookup should return nothing (all route
                                     // paths should have been cleared)
 
@@ -264,7 +284,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
       .then_error("some fake bad connection message", 66);
   expect_sql_metadata();
   expect_sql_members();
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_routable(mc);  // lookup should see the cluster again
 }
 

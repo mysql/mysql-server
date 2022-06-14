@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -82,18 +82,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   @section TROUBLESHOOTING Common problems
 
-  -# If you have problem during linking on GCC with similar message:
-
-        ../../../components/mysql_server/component_mysql_server.a(server_component.cc.o):%server_component.cc:imp_...:
-  error: undefined reference to '..._impl::...'
-
-    In such case you should add a new `%init()` method (it can be dummy/empty)
-  to your source file that contains service methods implementations and a call
-    to that method somewhere in mysqld.cc. This will help GCC not to optimize
-    the required object file out of linkage. Take `mysql_string_services_init()`
-    as an example. This applies only to service implementations added to the
-    server component.
-
   @section TUTORIAL Step by step tutorial for creating new Component
   The creation of component is a mean to get some functionality exported for the
   Components infrastructure. It can be divided into several steps:
@@ -151,6 +139,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
     Atomic variable is_intialized represents the state of the component.
     Please check the details about the variable from validate_password_imp.cc
     file.
+  -# Using registry acquire/release services inside component's init/deint
+    functions is not supported. All the required services for the component
+    has to be specified under BEGIN_COMPONENT_REQUIRES section only.
   .
 
   @file include/mysql/components/component_implementation.h
@@ -199,10 +190,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @param service A Service name for which the Service Implementation will be
     added.
 */
-#define PROVIDES_SERVICE(component, service)                \
-  {                                                         \
-#service "." #component,                                \
-        (void *)&SERVICE_IMPLEMENTATION(component, service) \
+#define PROVIDES_SERVICE(component, service)                            \
+  {                                                                     \
+#service "." #component,                                            \
+        const_cast < void *>                                            \
+            ((const void *)&SERVICE_IMPLEMENTATION(component, service)) \
   }
 
 /**
@@ -212,6 +204,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   { NULL, NULL }                 \
   }
 
+/**
+  A macro to specify requirements of the component. Creates a structure with
+  a list for requirements and pointers to their placeholders.
+
+  @param name Name of component.
+*/
+#define BEGIN_COMPONENT_REQUIRES_WITHOUT_REGISTRY(name) \
+  static struct mysql_service_placeholder_ref_t __##name##_requires[] = {
 /**
   A macro to specify requirements of the component. Creates a placeholder for
   the Registry service and structure with a list for requirements and
@@ -225,15 +225,75 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
       REQUIRES_SERVICE(registry),
 
 /**
-  Creates a definition for placeholder, in which the specified required service
-  will be provided upon component load. The placeholder will be named
-  mysql_service_{service name}. Use the "extern" keyword before macro invocation
-  to define a reference to the one real placeholder defined in component source.
+  Create a service placeholder, based on the service name.
+
+  A service placeholder is a pointer to the service.
+  It is named mysql_service_{service name}.
+
+  This pointer is initialized by the framework upon loading a component,
+  based on the component dependencies declared by @ref REQUIRES_SERVICE.
+
+  When defining a service 'foo', in the header file for the service,
+  a service placeholder is declared as follows:
+
+  @verbatim
+  extern REQUIRES_SERVICE_PLACEHOLDER(foo);
+  @endverbatim
+
+  When implementing a component 'bar', which requires the service 'foo',
+  the definition of the component 'bar' should contain the following:
+
+  @verbatim
+  REQUIRES_SERVICE_PLACEHOLDER(foo);
+
+  BEGIN_COMPONENT_REQUIRES(bar)
+    REQUIRES_SERVICE(foo),
+    ...
+  END_COMPONENT_REQUIRES();
+  @endverbatim
+
+  The code in the implementation of service 'bar' can use
+  the service placeholder pointer to invoke apis in service foo:
+
+  @verbatim
+  mysql_service_foo->some_api();
+  @endverbatim
+
+  Similarly to use a service in another service within the same
+  component. Call the implementation of the service directly in
+  the other service since both services belong to the same component.
+  Suppose mysql_bar_imp and mysql_foo_imp services belongs to the
+  same component. And if foo service is required in bar service then
+  use below method.
+
+  @verbatim
+  mysql_bar_imp::bar_api() {
+    ...
+    mysql_foo_imp::foo_api();
+    ...
+  }
+  @endverbatim
 
   @param service A referenced Service name.
 */
 #define REQUIRES_SERVICE_PLACEHOLDER(service) \
   SERVICE_TYPE(service) * mysql_service_##service
+
+/**
+  Create a service placeholder, with an arbitrary name.
+
+  Identical to @ref REQUIRES_SERVICE_PLACEHOLDER(),
+  except that the service handle name is provided
+  by the caller, instead of being derived from the service type.
+
+  Use with @ref REQUIRES_SERVICE_AS().
+
+  @param service A referenced Service name.
+  @param name Service handle name.
+*/
+
+#define REQUIRES_SERVICE_PLACEHOLDER_AS(service, name) \
+  SERVICE_TYPE(service) * name
 
 /**
   Adds a Service requirement with a pointer to placeholder to the list of
@@ -247,6 +307,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
         static_cast < void **>                                                 \
             (static_cast <void *>(const_cast <mysql_service_##service##_t **>( \
                 &mysql_service_##service)))                                    \
+  }
+
+/**
+  Adds a Service requirement with a pointer to placeholder to the list of
+  components.
+
+  Use with @ref REQUIRES_SERVICE_PLACEHOLDER_AS().
+
+  @param service A referenced Service name.
+  @param name Service handle name.
+*/
+#define REQUIRES_SERVICE_AS(service, name)                                     \
+  {                                                                            \
+#service,                                                                  \
+        static_cast < void **>(static_cast <void *>(                           \
+                          const_cast <mysql_service_##service##_t **>(&name))) \
   }
 
 /**
@@ -286,17 +362,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Also, plug-in needs to be declared as extern "C" because MSVC
   unlike other compilers, uses C++ mangling for variables not only
   for functions. */
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) /* Microsoft */
 #ifdef __cplusplus
 #define DLL_EXPORT extern "C" __declspec(dllexport)
+#define DLL_IMPORT extern "C" __declspec(dllimport)
 #else
 #define DLL_EXPORT __declspec(dllexport)
+#define DLL_IMPORT __declspec(dllimport)
 #endif
-#else /*_MSC_VER */
+#else /* non _MSC_VER */
 #ifdef __cplusplus
-#define DLL_EXPORT extern "C"
+#define DLL_EXPORT extern "C" __attribute__((visibility("default")))
+#define DLL_IMPORT
 #else
-#define DLL_EXPORT
+#define DLL_EXPORT __attribute__((visibility("default")))
+#define DLL_IMPORT
 #endif
 #endif
 
@@ -325,5 +405,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Defines a reference to the specified Component data info structure.
 */
 #define COMPONENT_REF(name) mysql_component_##name
+
+/**
+  This is the component module entry function, used to get the component's
+  structure to register the required services.
+*/
+#define COMPONENT_ENTRY_FUNC "list_components"
 
 #endif /* COMPONENT_IMPLEMENTATION_H */

@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -39,18 +39,44 @@ ELSE()
   SET (PIDOF "pgrep -d' ' -f")
 ENDIF()
 
-FOREACH(script
-    mysql.server
-    mysqld_multi.server
-    mysql-log-rotate
-    )
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh
-    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
-  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${script}
-    DESTINATION ${INSTALL_SUPPORTFILESDIR} COMPONENT Server_Scripts
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql-log-rotate.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql-log-rotate @ONLY)
+
+IF(NOT WITH_SYSTEMD)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql.server.sh
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql.server @ONLY
+  )
+
+  INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysql.server
+    COMPONENT Server_Scripts
+    DESTINATION ${INSTALL_SUPPORTFILESDIR}
+  )
+
+  INSTALL_SCRIPT(${CMAKE_CURRENT_SOURCE_DIR}/mysqld_multi.server
+    COMPONENT Server_Scripts
+    DESTINATION ${INSTALL_SUPPORTFILESDIR}
+  )
+ENDIF()
+
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql-log-rotate
+  COMPONENT Server_Scripts
+  DESTINATION ${INSTALL_SUPPORTFILESDIR}
+  PERMISSIONS
+  OWNER_READ OWNER_WRITE
+  GROUP_READ WORLD_READ
+  )
+
+IF(WITH_ROUTER)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter-log-rotate.in
+    ${CMAKE_CURRENT_BINARY_DIR}/mysqlrouter-log-rotate @ONLY)
+
+  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysqlrouter-log-rotate
+    COMPONENT Router
+    DESTINATION ${ROUTER_INSTALL_LOGROTATEDIR}
+    RENAME ${ROUTER_INSTALL_LOGROTATEFILE}
     PERMISSIONS
-    OWNER_READ OWNER_WRITE OWNER_EXECUTE
-    GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    OWNER_READ OWNER_WRITE
+    GROUP_READ WORLD_READ
     )
-ENDFOREACH()
+ENDIF()

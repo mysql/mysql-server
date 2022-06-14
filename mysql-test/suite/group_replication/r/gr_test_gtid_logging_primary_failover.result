@@ -1,0 +1,86 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap M1(primary) and create some transactions.
+
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 values (1);
+
+# 2. Start GR on M2 with higher member weight and start GR on M3.
+
+[connection server2]
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 3. Create some transactions on M1.
+#    Stop applier on M2 and create more transactions on M1.
+#    Wait for transactions to reach M3.
+
+[connection server1]
+INSERT INTO t1 values (2);
+INSERT INTO t1 values (3);
+include/rpl_sync.inc
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server1]
+INSERT INTO t1 values (4);
+INSERT INTO t1 values (5);
+[connection server3]
+
+# 4. Stop primary server M1.
+#    M2 will become next primary due to member weight.
+
+[connection server1]
+include/stop_group_replication.inc
+
+# 5. Assert messages are present on error log of M2 and M3.
+#    M2 becomes primary and fails since M2 applier is stopped.
+#    M3 becomes primary on M2 failure.
+
+[connection server2]
+include/gr_wait_for_member_state.inc
+include/assert_grep.inc [Server executed GTID set is logged.]
+include/assert_grep.inc [Applier retrieved GTID set is logged.]
+[connection server3]
+include/gr_wait_primary_member_uuid.inc
+include/assert_grep.inc [Server executed GTID set is logged.]
+include/assert_grep.inc [Applier retrieved GTID set is logged.]
+
+# 6. Start GR on M1 and M2.
+#    Switch to single primary mode and assert message is displayed.
+
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+[connection server3]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+DROP table t1;
+include/rpl_sync.inc
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+include/assert_grep.inc [Server executed GTID set is logged.]
+include/assert_grep.inc [Applier retrieved GTID set is logged.]
+
+# 7. Cleanup.
+
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+include/group_replication_end.inc

@@ -5,7 +5,7 @@ create table t1(a int) charset utf8mb4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2(a int);
@@ -280,7 +280,7 @@ drop table t1, t2, t3, t4;
 create table t1 (a int, b int not null,unique key (a,b),index(b));
 insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
 Warnings:
-Warning	1062	Duplicate entry '6-6' for key 'a'
+Warning	1062	Duplicate entry '6-6' for key 't1.a'
 create table t2 like t1;
 insert into t2 select * from t1;
 alter table t1 modify b blob not null, add c int not null, drop key a, add unique key (a,b(20),c), drop key b, add key (b(10));
@@ -677,12 +677,12 @@ RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
 WHERE t1.i1 = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (hash join)
 1	SIMPLE	t4	NULL	ALL	k1	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x2)
 Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c1` AS `c1`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c1_key` AS `c1_key`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`c3` AS `c3`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c1` AS `c1` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t4`.`c3` = `test`.`t2`.`c1`) and (`test`.`t4`.`c2` = `test`.`t1`.`c1`) and (`test`.`t1`.`i1` = 1) and (`test`.`t2`.`c2` <= `test`.`t5`.`c1`) and (convert(`test`.`t3`.`c1` using utf8) <= `test`.`t4`.`c1_key`))
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c1` AS `c1`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c1_key` AS `c1_key`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`c3` AS `c3`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c1` AS `c1` from `test`.`t5` join `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t4`.`c3` = `test`.`t2`.`c1`) and (`test`.`t4`.`c2` = `test`.`t1`.`c1`) and (`test`.`t1`.`i1` = 1) and (`test`.`t2`.`c2` <= `test`.`t5`.`c1`) and (`test`.`t3`.`c1` <= `test`.`t4`.`c1_key`))
 SELECT STRAIGHT_JOIN *
 FROM 
 (t1 LEFT JOIN 
@@ -722,11 +722,11 @@ WHERE d1.c1 IN ( SELECT c1 FROM t2 )
 AND d1.c1 IS NULL
 ORDER BY d1.i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	7	const	1	100.00	Using where; Using filesort
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using filesort
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	7	func	1	100.00	Using index
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `d1`.`i1` AS `i1`,`d1`.`c1` AS `c1` from (/* select#2 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1`) `d1` where (<in_optimizer>(`d1`.`c1`,<exists>(<index_lookup>(<cache>(`d1`.`c1`) in t2 on c1))) and (`d1`.`c1` is null)) order by `d1`.`i1`
+Note	1003	/* select#1 */ select `d1`.`i1` AS `i1`,`d1`.`c1` AS `c1` from (/* select#2 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` is null)) `d1` where <in_optimizer>(`d1`.`c1`,<exists>(<index_lookup>(<cache>(`d1`.`c1`) in t2 on c1))) order by `d1`.`i1`
 SELECT *
 FROM
 ( SELECT * FROM  t1 ) AS d1

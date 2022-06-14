@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,23 +26,9 @@
 
 #include <vector>
 
-#include "cluster_metadata.h"
+#include "cluster_metadata_gr.h"
 
 #include "tcp_address.h"
-
-#ifdef _WIN32
-#ifdef metadata_cache_tests_DEFINE_STATIC
-#define METADATA_TESTS_API
-#else
-#ifdef metadata_cache_tests_EXPORTS
-#define METADATA_TESTS_API __declspec(dllexport)
-#else
-#define METADATA_TESTS_API __declspec(dllimport)
-#endif
-#endif
-#else
-#define METADATA_TESTS_API
-#endif
 
 /** @class MockNG
  *
@@ -50,7 +36,7 @@
  *
  */
 
-class METADATA_TESTS_API MockNG : public ClusterMetadata {
+class MockNG : public GRClusterMetadata {
  public:
   /**
    * Objects representing the servers that are part of the topology.
@@ -58,47 +44,31 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
   metadata_cache::ManagedInstance ms1;
   metadata_cache::ManagedInstance ms2;
   metadata_cache::ManagedInstance ms3;
-  metadata_cache::ManagedInstance ms4;
-  metadata_cache::ManagedInstance ms5;
-  metadata_cache::ManagedInstance ms6;
-  metadata_cache::ManagedInstance ms7;
-  metadata_cache::ManagedInstance ms8;
-  metadata_cache::ManagedInstance ms9;
 
   /**
-   * Server list for each replicaset in the topology. Each server object
-   * represents all relevant information about the server that is
-   * part of the topology.
+   * Server list for the cluster. Each server object
+   * represents all relevant information about the server that is part of the
+   * topology.
    */
-  std::vector<metadata_cache::ManagedInstance> replicaset_1_vector;
-  std::vector<metadata_cache::ManagedInstance> replicaset_2_vector;
-  std::vector<metadata_cache::ManagedInstance> replicaset_3_vector;
+  metadata_cache::cluster_nodes_list_t cluster_instances_vector;
 
   /**
    * The information about the HA topology being managed.
    */
-  ReplicaSetsByName replicaset_map;
+  metadata_cache::ManagedCluster cluster_info;
+
+  metadata_cache::metadata_servers_list_t metadata_servers;
 
   /** @brief Constructor
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout.
-   * @param read_timeout The time after which read from the metadata server
-   *                     should timeout.
-   * @param connection_attempts The number of times a connection to the metadata
-   *                            server must be attempted, when a connection
-   *                            attempt fails.
-   * @param ttl The time to live of the data in the cache.
-   * @param use_gr_notifications Flag indicating if the metadata cache should
-   *                             use GR notifications as an additional trigger
-   *                             for metadata refresh
+   * @param session_config Metadata MySQL session configuration
+   * @param use_cluster_notifications Flag indicating if the metadata cache
+   *                                  should use cluster notifications as an
+   *                                  additional trigger for metadata refresh
+   *                                  (only available for GR cluster type)
    */
-  MockNG(const std::string &user, const std::string &password,
-         int connect_timeout, int read_timeout, int connection_attempts,
-         std::chrono::milliseconds ttl,
+  MockNG(const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
          const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions(),
-         const bool use_gr_notifications = false);
+         const bool use_cluster_notifications = false);
 
   /** @brief Destructor
    *
@@ -112,8 +82,8 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
    *
    * @return a boolean to indicate if the connection was successful.
    */
-  bool connect(
-      const metadata_cache::ManagedInstance &metadata_server) noexcept override;
+  bool connect_and_setup_session(const metadata_cache::metadata_server_t
+                                     &metadata_server) noexcept override;
 
   /** @brief Mock disconnect method.
    *
@@ -124,14 +94,17 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
 
   /**
    *
-   * Returns relation as a std::map between replicaset ID and list of managed
-   * servers.
+   * Returns cluster topology object.
    *
-   * @return Map of replicaset ID, server list pairs.
+   * @return Cluster topology object.
    */
-  ReplicaSetsByName fetch_instances(
-      const std::string &farm_name,
-      const std::string &group_replication_id) override;
+  stdx::expected<metadata_cache::ClusterTopology, std::error_code>
+  fetch_cluster_topology(
+      const std::atomic<bool> & /*terminated*/,
+      mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      bool needs_writable_node, const std::string &group_replication_id,
+      const std::string &clusterset_id, size_t &instance_id) override;
 
 #if 0  // not used so far
   /**

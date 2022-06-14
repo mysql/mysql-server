@@ -1,0 +1,60 @@
+-- source include/have_ndb.inc
+# Test involves flushing binlog by sending SIGHUP signal using kill linux cmd to mysqld
+--source include/not_windows.inc
+
+
+--let MYSQLD_LOG= $MYSQL_TMP_DIR/sighup_test.log
+
+--let $restart_parameters=restart:--log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_LOG MYSQLD_LOG
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+let MYSQLD_PIDFILE= `SELECT @@pid_file;`;
+
+--echo #
+--echo # Trigger problem reported by "Bug#32357856 SIGHUP CAUSES CRASH IN
+--echo # CACHED TABLE DEF CLOSE" by creating and using a NDB table in order
+--echo # to have it be added to open table cache and then closed by SIGHUP
+--echo #
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE = NDB;
+SELECT * FROM t1;
+
+--echo #
+--echo # Flush the log by sending SIGHUP from perl script.
+--echo #
+--perl
+  use strict;
+  use warnings;
+  my $filename = $ENV{"MYSQLD_PIDFILE"} or die("pidfile not set");
+  my $pid;
+  my $wait_cnt=60;
+  open(FILE, "$filename") or die "cannot open file $filename";
+  while(<FILE>) {
+        $pid = $_;
+  }
+  close(FILE);
+  rename $ENV{"MYSQLD_LOG"}, $ENV{"MYSQLD_LOG"}.".1";
+  kill 'HUP', $pid or die "could not kill $pid: $!";
+  while (! -e $ENV{"MYSQLD_LOG"}) {
+        if($wait_cnt==0) { die "timedout waiting for error log to be flushed"; }
+        sleep 1;
+        $wait_cnt--;
+  }
+EOF
+
+--echo # Check that both files still exists
+--file_exists $MYSQLD_LOG
+--file_exists $MYSQLD_LOG.1
+
+DROP TABLE t1;
+
+call mtr.add_suppression("mysqld startup An incident event has been written");
+--echo # CLEAN UP
+--echo # Restore default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--remove_file $MYSQLD_LOG
+--remove_file $MYSQLD_LOG.1
+

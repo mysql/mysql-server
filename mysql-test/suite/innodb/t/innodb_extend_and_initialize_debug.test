@@ -1,0 +1,149 @@
+# The option innodb_extend_and_initialize cannot be changed on windows
+# where the default is TRUE
+--source include/linux.inc
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--let $explicit_default_wait_counter=10000
+
+# The default value for innodb_extend_and_initialize is TRUE which
+# means the tablespaces will be extended and initialized by writing
+# NULLs to it.
+# Run these tests with the value set to FALSE viz. do not initialize
+# the extended space by writing NULLs to it.
+SET PERSIST innodb_extend_and_initialize=FALSE;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+
+--echo # Scenario-1: posix_fallocate returns errors EINTR
+--echo # or EINVAL
+
+DROP TABLE IF EXISTS ttext1;
+CREATE TABLE ttext1(c1 INT, c2 TEXT);
+
+INSERT INTO ttext1 VALUES(1, REPEAT('abcdef', 10000));
+INSERT INTO ttext1 VALUES(2, REPEAT('abcdef', 10000));
+INSERT INTO ttext1 VALUES(3, REPEAT('abcdef', 10000));
+
+# Force server to return EINTR error after posix_fallocate
+SET SESSION debug='+d,ib_posix_fallocate_fail_eintr';
+INSERT INTO ttext1 VALUES(4, REPEAT('abcdef', 10000));
+
+SELECT COUNT(*) FROM ttext1;
+
+DROP TABLE ttext1;
+
+SET SESSION debug='-d,ib_posix_fallocate_fail_eintr';
+
+--echo # Scenario-2: Server crashed while creating a table
+--echo # just after writing the redo log record for space
+--echo # extension
+
+DROP TABLE IF EXISTS t1;
+
+# Crash the server just after adding a redo log entry
+# for space expansion
+SET SESSION debug='+d,ib_crash_after_writing_redo_extend_1';
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+CREATE TABLE t1(a char(1), b char(1), key(a, b)) ENGINE=innodb;
+
+--echo # Restart after the crash
+--source include/start_mysqld_no_echo.inc
+
+--error ER_NO_SUCH_TABLE
+INSERT INTO t1 VALUES('a','b');
+
+--echo # Scenario-3: Server crashed after writing the redo log
+--echo # but before the transaction could commit
+
+CREATE TABLE ttext1(c1 INT, c2 TEXT);
+
+INSERT INTO ttext1 VALUES(1, REPEAT('abcdef',10000));
+INSERT INTO ttext1 VALUES(2, REPEAT('abcdef',10000));
+INSERT INTO ttext1 VALUES(3, REPEAT('abcdef',10000));
+
+# Crash the server just after adding a redo log entry
+# for space expansion
+SET SESSION debug='+d,ib_crash_after_writing_redo_extend_1';
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+INSERT INTO ttext1 VALUES(4, REPEAT('abcdef',10000));
+
+--echo # Restart after the crash
+--source include/start_mysqld_no_echo.inc
+
+SELECT COUNT(*) FROM ttext1;
+
+# Insert few more rows into the table
+INSERT INTO ttext1 VALUES(5, REPEAT('abcdef',10000));
+INSERT INTO ttext1 VALUES(6, REPEAT('abcdef',10000));
+
+SELECT COUNT(*) FROM ttext1;
+
+# Cleanup
+DROP TABLE ttext1;
+
+SET PERSIST innodb_extend_and_initialize=DEFAULT;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+
+--echo # Scenario-4: Server crashes before the checkpoint
+
+# Disable the checkpoint
+SET @@GLOBAL.INNODB_CHECKPOINT_DISABLED='ON';
+
+DROP TABLE IF EXISTS ttext;
+CREATE TABLE ttext(c1 INT, c2 TEXT);
+
+# Insert few rows to create some redo logs for space extension
+INSERT INTO ttext VALUES(1, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(2, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(3, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(4, REPEAT('abcdef',10000));
+SELECT COUNT(*) FROM ttext;
+
+# Kill and restart the server
+--source include/kill_and_restart_mysqld.inc
+
+# Validate that the checkpoints are not disabled
+SELECT @@GLOBAL.INNODB_CHECKPOINT_DISABLED;
+
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+
+SELECT COUNT(*) FROM ttext;
+
+DROP TABLE ttext;
+
+SET PERSIST innodb_extend_and_initialize=DEFAULT;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+
+--echo # Scenario-5: Server crasheѕ before checkpoint
+--echo # and restarted with innodb_extend_and_initialize=off
+
+SET @@GLOBAL.innodb_extend_and_initialize='OFF';
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+
+# Disable the checkpoint
+SET @@GLOBAL.INNODB_CHECKPOINT_DISABLED='ON';
+
+CREATE TABLE ttext(c1 INT, c2 TEXT);
+
+# Insert few rows to create some redo logs for space extension
+INSERT INTO ttext VALUES(1, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(2, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(3, REPEAT('abcdef',10000));
+INSERT INTO ttext VALUES(4, REPEAT('abcdef',10000));
+SELECT COUNT(*) FROM ttext;
+
+# Kill and restart the server
+--source include/kill_and_restart_mysqld.inc
+
+# Validate that the checkpoints are not disabled
+SELECT @@GLOBAL.INNODB_CHECKPOINT_DISABLED;
+SELECT @@GLOBAL.innodb_extend_and_initialize;
+
+SELECT COUNT(*) FROM ttext;
+
+DROP TABLE ttext;
+
+RESET PERSIST;

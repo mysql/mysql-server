@@ -1,0 +1,728 @@
+--echo #
+--echo # This test shows DISCARD/IMPORT of a remote tablespace.
+--echo #
+
+--source include/no_valgrind_without_big.inc
+
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+# Set up some variables
+--disable_query_log
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
+--enable_query_log
+
+SET default_storage_engine=InnoDB;
+
+SET GLOBAL innodb_file_per_table=ON;
+
+--disable_warnings
+DROP TABLE IF EXISTS t5980;
+--enable_warnings
+
+--echo #
+--echo # CREATE TABLE ... DATA DIRECTORY
+--echo # combined with  WL#5522 - Transportable Tablespace
+--echo # Create the tablespace in MYSQL_TMP_DIR/alt_dir
+--echo # InnoDB will create the sub-directories if needed.
+--echo # Test that DISCARD and IMPORT work correctly.
+--echo #
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t5980 (a int KEY, b text) $data_directory_clause;
+INSERT INTO t5980 VALUES (1, "Create the tablespace");
+SELECT * FROM t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Check that DATA DIRECTORY shows up in the SHOW CREATE TABLE  results.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980;
+
+
+--echo #
+--echo # Backup the cfg and ibd files.
+--echo #
+FLUSH TABLES t5980 FOR EXPORT;
+SELECT * FROM t5980;
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak
+UNLOCK TABLES;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Do some DDL and DML.
+--echo #
+INSERT INTO t5980 VALUES (2,'Remote table has been FLUSHed and UNLOCKed');
+START TRANSACTION;
+INSERT INTO t5980 VALUES (12,'Transactional record inserted');
+COMMIT;
+START TRANSACTION;
+INSERT INTO t5980 VALUES (13,'Rollback this transactional record');
+ROLLBACK;
+SELECT COUNT(*) FROM t5980;
+SELECT * FROM t5980;
+ALTER TABLE t5980 DROP PRIMARY KEY;
+ALTER TABLE t5980 ADD COLUMN c VARCHAR(50) DEFAULT NULL;
+INSERT INTO t5980(a,b,c) VALUES (2,'Duplicate value since primary key has been dropped','third column added');
+SELECT * FROM t5980;
+
+--echo #
+--echo # Make a second backup of the cfg and ibd files.
+--echo #
+FLUSH TABLES t5980 FOR EXPORT;
+SELECT * FROM t5980;
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak2
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak2
+UNLOCK TABLES;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # DROP the table and make sure all files except the backups are gone.
+--echo #
+DROP TABLE t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # CREATE the table again.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t5980 (a int KEY, b text) $data_directory_clause;
+INSERT INTO t5980 VALUES (1, "Create the tablespace a second time");
+SELECT * FROM t5980;
+
+--echo #
+--echo # DISCARD existing tablespace so backed-up .ibd which can be imported/restored
+--echo #
+ALTER TABLE t5980 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Restore the second backup of cfg and ibd files.
+--echo #
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak2 $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak2 $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+--echo "### files in MYSQL_TMP_DIR/alt_dir/test"
+--list_files $MYSQL_TMP_DIR/alt_dir/test/
+
+--echo #
+--echo # Try to Import the second backup.  These backups have extra DDL and
+--echo # do not match the current frm file.
+--echo #
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t5980 IMPORT TABLESPACE;
+CHECK TABLE t5980;
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Restore the first backup of cfg and ibd files.
+--echo #
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Import the tablespace and do some DDL and DML.
+--echo #
+ALTER TABLE t5980 IMPORT TABLESPACE;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+CHECK TABLE t5980;
+SELECT COUNT(*) FROM t5980;
+SELECT * FROM t5980;
+INSERT INTO t5980 VALUES (2,'Inserted record after IMPORT');
+SELECT * FROM t5980;
+START TRANSACTION;
+INSERT INTO t5980 VALUES (12,'Transactional record inserted');
+COMMIT;
+START TRANSACTION;
+INSERT INTO t5980 VALUES (13,'Rollback this transactional record');
+ROLLBACK;
+SELECT * FROM t5980;
+ALTER TABLE t5980 DROP PRIMARY KEY;
+ALTER TABLE t5980 ADD COLUMN c VARCHAR(50) DEFAULT NULL;
+INSERT INTO t5980(a,b,c) VALUES (2,'Duplicate value since primary key has been dropped','third column added');
+SELECT * FROM t5980;
+
+--echo #
+--echo # Show that the system tables have this table in them correctly.
+--echo #
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # Drop the imported table and show that the system tables are updated.
+--echo #
+DROP TABLE t5980;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # CREATE the table a third time.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t5980 (a int KEY, b text) $data_directory_clause;
+INSERT INTO t5980 VALUES (1, "Create the tablespace a third time");
+SELECT * FROM t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Restart the server
+--echo # This test makes sure that you can still execute the FLUSH TABLES command
+--echo # after restarting the server and the tablespace can still be found.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+SET GLOBAL innodb_file_per_table=ON;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+SELECT * FROM t5980;
+FLUSH TABLES t5980 FOR EXPORT;
+SELECT * FROM t5980;
+UNLOCK TABLES;
+
+--echo #
+--echo # Restart the server again.  This test makes sure that you can
+--echo # still DISCARD a remote table after restarting the server.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+SET GLOBAL innodb_file_per_table=ON;
+SELECT * FROM t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+ALTER TABLE t5980 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Restore the backup of *.ibd and *.cfg files
+--echo #
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Import the tablespace and check it out.
+--echo #
+ALTER TABLE t5980 IMPORT TABLESPACE;
+SELECT * FROM t5980;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # DISCARD the tablespace again
+--echo #
+ALTER TABLE t5980 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Restart the engine while the tablespace is in the discarded state
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+SET GLOBAL innodb_file_per_table=ON;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980;
+CHECK TABLE t5980;
+
+--echo #
+--echo # Relocate this discarded file to the default directory
+--echo # instead of the remote directory it was discarded from.
+--echo # Put cfg and idb files into the default directory.
+--echo # Restart the engine again.
+--echo # The tablespace is still in the discarded state.
+--echo #
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQLD_DATADIR/test/t5980.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQLD_DATADIR/test/t5980.cfg
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+--echo # Restarting ...
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+SET GLOBAL innodb_file_per_table=ON;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980;
+CHECK TABLE t5980;
+
+--echo #
+--echo # Try to import the tablespace.  It can only be imported from
+--echo # the location it was discarded from.
+--echo # The error message for 1810 (IO_READ_ERROR) refers to a local path
+--echo # so do not display it.
+--echo #
+--disable_result_log
+
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t5980 IMPORT TABLESPACE;
+--enable_result_log
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980;
+CHECK TABLE t5980;
+
+--echo #
+--echo # Restore the ibd and cfg files to the remote directory.
+--echo # Delete the ibd and cfg files from the default directory.
+--echo # Import the tablespace and check it out.
+--echo #
+--copy_file $MYSQLD_DATADIR/test/t5980.ibd  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+--copy_file $MYSQLD_DATADIR/test/t5980.cfg  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
+--remove_file $MYSQLD_DATADIR/test/t5980.ibd
+--remove_file $MYSQLD_DATADIR/test/t5980.cfg
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+ALTER TABLE t5980 IMPORT TABLESPACE;
+INSERT INTO t5980 VALUES (2, "Insert this record after IMPORT");
+SELECT * FROM t5980;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980;
+
+--echo #
+--echo # Show that the system tables have this table in them correctly.
+--echo #
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+DROP TABLE t5980;
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak2
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak2
+
+--echo #
+--echo # Create a local and remote tablespaces, discard two and make
+--echo # the other two missing upon restart, and try some DDL and DML
+--echo # on these discarded and missing tablespaces.
+--echo #
+
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t5980a (a int, b text) engine=InnoDB;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t5980b (a int, b text) engine=InnoDB $data_directory_clause;
+CREATE TABLE t5980c (a int, b text) engine=InnoDB;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t5980d (a int, b text) engine=InnoDB $data_directory_clause;
+
+INSERT INTO t5980a VALUES (1, "Default location, discarded.");
+INSERT INTO t5980b VALUES (1, "Remote location, discarded");
+INSERT INTO t5980c VALUES (1, "Default location, missing");
+INSERT INTO t5980d VALUES (1, "Remote location, missing");
+
+SELECT * FROM t5980a;
+SELECT * FROM t5980b;
+SELECT * FROM t5980c;
+SELECT * FROM t5980d;
+
+SHOW CREATE TABLE t5980a;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980b;
+SHOW CREATE TABLE t5980c;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980d;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Shutdown the server, remove two tablespaces, restart server.
+--echo #
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/test/t5980c.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
+
+FLUSH TABLES t5980a, t5980b FOR EXPORT;
+UNLOCK TABLES;
+
+ALTER TABLE t5980a DISCARD TABLESPACE;
+ALTER TABLE t5980b DISCARD TABLESPACE;
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980b;
+--error ER_TABLESPACE_MISSING
+SELECT * FROM t5980c;
+--error ER_TABLESPACE_MISSING
+SELECT * FROM t5980d;
+
+SHOW CREATE TABLE t5980a;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980b;
+--error ER_TABLESPACE_MISSING
+SHOW CREATE TABLE t5980c;
+--error ER_TABLESPACE_MISSING
+SHOW CREATE TABLE t5980d;
+
+--source suite/innodb/include/show_i_s_tables.inc
+# Mask the table name because the order of these 4 warning
+# messages is not predictable.
+LET $EXTRA_I_S_FILES_REGEX=/t5980[a-d]+/t5980#/;
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Discarded and missing tablespaces cannot be TRUNCATED
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+TRUNCATE TABLE t5980a;
+call mtr.add_suppression("Table .* does not exist .* though MySQL .* rename");
+--error ER_TABLESPACE_DISCARDED
+TRUNCATE TABLE t5980b;
+--error ER_TABLESPACE_MISSING
+TRUNCATE TABLE t5980c;
+--error ER_TABLESPACE_MISSING
+TRUNCATE TABLE t5980d;
+
+--echo #
+--echo # Discarded tablespaces can be RENAMED but they remain discarded
+--echo #
+
+RENAME TABLE t5980a TO t5980aa;
+RENAME TABLE t5980b TO t5980bb;
+
+--echo #
+--echo # Missing tablespaces cannot be RENAMED
+--echo #
+
+--error ER_ERROR_ON_RENAME
+RENAME TABLE t5980c TO t5980cc;
+--error ER_ERROR_ON_RENAME
+RENAME TABLE t5980d TO t5980dd;
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t5980a;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t5980b;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980aa;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980bb;
+--error ER_TABLESPACE_MISSING
+SELECT * FROM t5980c;
+--error ER_TABLESPACE_MISSING
+SELECT * FROM t5980d;
+
+SHOW CREATE TABLE t5980aa;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980bb;
+--error ER_TABLESPACE_MISSING
+SHOW CREATE TABLE t5980c;
+--error ER_TABLESPACE_MISSING
+SHOW CREATE TABLE t5980d;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=COPY;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=COPY;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980aa CHANGE a c INT, ALGORITHM=COPY;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980bb CHANGE a c INT, ALGORITHM=COPY;
+
+--echo #
+--echo # Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE
+--echo # only if a rebuild is not required.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+
+ALTER TABLE t5980aa RENAME t5980aaa, ALGORITHM=INPLACE;
+ALTER TABLE t5980aaa RENAME t5980aa, ALGORITHM=INPLACE;
+ALTER TABLE t5980bb RENAME t5980bbb, ALGORITHM=INPLACE;
+ALTER TABLE t5980bbb RENAME t5980bb, ALGORITHM=INPLACE;
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Missing tablespaces cannot be ALTERED.
+--echo #
+
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t5980c ADD PRIMARY KEY(a);
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t5980d ADD PRIMARY KEY(a);
+
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980aa;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980bb;
+
+SHOW CREATE TABLE t5980aa;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980bb;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Restart the server to check if the discarded flag is persistent
+--echo #
+--source include/shutdown_mysqld.inc
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+INSERT INTO t5980aa VALUES (1, "Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
+INSERT INTO t5980bb VALUES (1, "Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE");
+
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980aa;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980bb;
+
+RENAME TABLE t5980aa TO t5980a;
+RENAME TABLE t5980bb TO t5980b;
+
+SHOW CREATE TABLE t5980a;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t5980b;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+LET $EXTRA_I_S_FILES_REGEX=;
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Discard tablespaces again and try another ALTER TABLE ROW_FORMAT.
+--echo #
+
+ALTER TABLE t5980a DISCARD TABLESPACE;
+ALTER TABLE t5980b DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980b;
+
+--echo #
+--echo # ALTER TABLE ALGORITHM=COPY cannot use a discarded tablespace.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980a ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
+
+--echo #
+--echo # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
+--echo # only if a rebuild is not required.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980a ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+
+--echo #
+--echo # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
+INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980b;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Discard tablespaces again and try ALTER TABLE ADD COLUMN.
+--echo #
+
+ALTER TABLE t5980a DISCARD TABLESPACE;
+ALTER TABLE t5980b DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980b;
+
+--echo #
+--echo # ALTER TABLE ALGORITHM=COPY cannot use a discarded tablespace.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980a ADD COLUMN c CHAR(20), ALGORITHM=COPY;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=COPY;
+
+--echo #
+--echo # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
+--echo # only if a rebuild is not required.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980a ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
+
+--echo #
+--echo # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+DELETE FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+UPDATE t5980a SET b="Tablespace is DISCARDED";
+--error ER_TABLESPACE_DISCARDED
+INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
+INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t5980b;
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+DROP TABLE t5980a;
+DROP TABLE t5980b;
+DROP TABLE t5980c;
+DROP TABLE t5980d;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ### files in MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--rmdir $MYSQL_TMP_DIR/alt_dir/test
+--rmdir $MYSQL_TMP_DIR/alt_dir
+
+-- disable_query_log
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+
+# These warnings are expected in the log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace .+ because it is not found in the tablespace memory cache");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* In file .*, tablespace id and flags are .*, but in the InnoDB data dictionary they are");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table .* does not have an \.ibd file in the database directory.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table .* does not exist in the InnoDB internal data dictionary though MySQL is trying to rename the table");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table .* doesn't have a corresponding tablespace, it was discarded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot delete tablespace .+ in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table .* is set as discarded");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to open tablespace .* \\(flags=.*, filename=");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing!");
+-- enable_query_log

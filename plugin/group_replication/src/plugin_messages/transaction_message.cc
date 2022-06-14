@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,43 +22,66 @@
 
 #include "plugin/group_replication/include/plugin_messages/transaction_message.h"
 #include "my_dbug.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
 
-Transaction_message::Transaction_message()
-    : Transaction_message_interface(CT_TRANSACTION_MESSAGE) {}
+Transaction_message::Transaction_message(uint64_t payload_capacity)
+    : Transaction_message_interface(CT_TRANSACTION_MESSAGE) {
+  DBUG_TRACE;
 
-Transaction_message::~Transaction_message() {}
+  /*
+    Consider the message headers size on the Gcs_message_data capacity.
+  */
+  const uint64_t headers_size =
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
+  const uint64_t message_capacity = headers_size + payload_capacity;
+  m_gcs_message_data = new Gcs_message_data(0, message_capacity);
+
+  std::vector<unsigned char> buffer;
+  encode_header(&buffer);
+  encode_payload_item_type_and_length(&buffer, PIT_TRANSACTION_DATA,
+                                      payload_capacity);
+  assert(buffer.size() == headers_size);
+  m_gcs_message_data->append_to_payload(&buffer.front(), headers_size);
+}
+
+Transaction_message::~Transaction_message() {
+  DBUG_TRACE;
+  delete m_gcs_message_data;
+}
 
 bool Transaction_message::write(const unsigned char *buffer, my_off_t length) {
-  m_data.insert(m_data.end(), buffer, buffer + length);
-  return false;
+  DBUG_TRACE;
+  if (nullptr == m_gcs_message_data) {
+    return true;
+  }
+
+  return m_gcs_message_data->append_to_payload(buffer, length);
 }
 
-my_off_t Transaction_message::length() { return m_data.size(); }
+uint64_t Transaction_message::length() {
+  DBUG_TRACE;
+  if (nullptr == m_gcs_message_data) {
+    return 0;
+  }
 
-void Transaction_message::encode_payload(
-    std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Transaction_message::encode_payload");
-
-  encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
-                                      m_data.size());
-  buffer->insert(buffer->end(), m_data.begin(), m_data.end());
-
-  DBUG_VOID_RETURN;
+  return m_gcs_message_data->get_encode_size();
 }
 
-/* purecov: begin inspected */
-void Transaction_message::decode_payload(const unsigned char *buffer,
+Gcs_message_data *Transaction_message::get_message_data_and_reset() {
+  DBUG_TRACE;
+  Gcs_message_data *result = m_gcs_message_data;
+  m_gcs_message_data = nullptr;
+  return result;
+}
+
+void Transaction_message::encode_payload(std::vector<unsigned char> *) const {
+  DBUG_TRACE;
+  assert(0);
+}
+
+void Transaction_message::decode_payload(const unsigned char *,
                                          const unsigned char *) {
-  DBUG_ENTER("Transaction_message::decode_payload");
-  const unsigned char *slider = buffer;
-  uint16 payload_item_type = 0;
-  unsigned long long payload_item_length = 0;
-
-  decode_payload_item_type_and_length(&slider, &payload_item_type,
-                                      &payload_item_length);
-  m_data.clear();
-  m_data.insert(m_data.end(), slider, slider + payload_item_length);
-
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
+  assert(0);
 }
-/* purecov: end */

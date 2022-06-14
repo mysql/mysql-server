@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,6 +245,11 @@ extern "C" {
      *   report will not be produced.
      */
     ,NDB_LE_EventBufferStatus2 = 85
+    /** NDB_LE_EventBufferStatus3 is an extension of
+      * NDB_LE_EventBufferStatus with new fields added to extend the sizes
+      * of total, max and alloc'ed bytes to 64-bit values
+      */
+    ,NDB_LE_EventBufferStatus3 = 87
   };
 
   /**
@@ -548,6 +553,21 @@ extern "C" {
     unsigned report_reason;
   };
 
+  struct ndb_logevent_EventBufferStatus3 {
+    unsigned usage_l;
+    unsigned alloc_l;
+    unsigned max_l;
+    unsigned latest_consumed_epoch_l;
+    unsigned latest_consumed_epoch_h;
+    unsigned latest_buffered_epoch_l;
+    unsigned latest_buffered_epoch_h;
+    unsigned ndb_reference;
+    unsigned report_reason;
+    unsigned usage_h;
+    unsigned alloc_h;
+    unsigned max_h;
+  };
+
   /* STATISTIC */
   struct ndb_logevent_TransReportCounters {
     unsigned trans_count;
@@ -829,11 +849,18 @@ extern "C" {
     unsigned time;
     unsigned data[1];
   };
-
+#if defined(__clang__)
+// workaround false positive warning about @see @ref with clang and -Wdocumentation
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
+#endif
   /**
    * Structure to store and retrieve log event information.
    * @see @ref secSLogEvents
    */
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   struct ndb_logevent {
     /** NdbLogEventHandle (to be used for comparing only)
      *  set in ndb_logevent_get_next()
@@ -935,6 +962,7 @@ extern "C" {
       struct ndb_logevent_EventBufferStatus EventBufferStatus;
       struct ndb_logevent_SavedEvent SavedEvent;
       struct ndb_logevent_EventBufferStatus2 EventBufferStatus2;
+      struct ndb_logevent_EventBufferStatus3 EventBufferStatus3;
 
       /** Log event data for @ref NDB_LE_BackupStarted */
       struct ndb_logevent_BackupStarted BackupStarted;
@@ -1003,7 +1031,8 @@ enum ndb_logevent_event_buffer_status_report_reason{
   PARTIALLY_BUFFERING,
   BUFFERED_EPOCHS_OVER_THRESHOLD,
   ENOUGH_FREE_EVENTBUFFER,
-  LOW_FREE_EVENTBUFFER
+  LOW_FREE_EVENTBUFFER,
+  EVENTBUFFER_USAGE_HIGH
 };
 
 #ifdef __cplusplus

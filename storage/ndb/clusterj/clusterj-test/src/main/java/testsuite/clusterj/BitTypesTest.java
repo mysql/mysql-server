@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@ import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDomainType;
 import com.mysql.clusterj.query.Predicate;
 
-import java.math.BigInteger;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -346,11 +345,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setBoolean(j, (Boolean)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return (Byte.parseByte(value) == 0x01)?Boolean.TRUE:Boolean.FALSE;
+            return rs.getBoolean(j);
         }
     });
 
@@ -367,11 +362,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setByte(j, (Byte)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return Byte.parseByte(value);
+            return rs.getByte(j);
         }
     });
 
@@ -388,11 +379,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setShort(j, (Short)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return Short.parseShort(value);
+            return rs.getShort(j);
         }
     });
 
@@ -409,11 +396,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setInt(j, (Integer)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return Integer.parseInt(value) & 0xff;
+            return rs.getInt(j);
         }
     });
 
@@ -430,11 +413,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setLong(j, (Long)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return Long.parseLong(value);
+            return rs.getLong(j);
         }
     });
 
@@ -451,11 +430,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setInt(j, (Integer)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return Integer.parseUnsignedInt(value);
+            return rs.getInt(j);
         }
     });
 
@@ -472,11 +447,7 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setLong(j, (Long)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-            String value = rs.getString(j);
-            if (value.length() == 0) {
-                value = "0";
-            }
-            return Long.parseUnsignedLong(value);
+            return rs.getLong(j);
         }
     });
 

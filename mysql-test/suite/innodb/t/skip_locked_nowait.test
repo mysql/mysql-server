@@ -3,6 +3,7 @@
 #
 
 --source include/count_sessions.inc
+--source include/not_hypergraph.inc   # Depends on indexes being used, which the hypergraph optimizer does not support.
 
 connect (con1,localhost,root,,);
 SET SESSION innodb_lock_wait_timeout=1;

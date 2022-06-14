@@ -20,6 +20,7 @@ wait/synch/sxlock/innodb/fts_cache_rw_lock
 wait/synch/sxlock/innodb/hash_table_locks
 wait/synch/sxlock/innodb/index_online_log
 wait/synch/sxlock/innodb/index_tree_rw_lock
+wait/synch/sxlock/innodb/lock_sys_global_rw_lock
 wait/synch/sxlock/innodb/log_sn_lock
 wait/synch/sxlock/innodb/rsegs_lock
 wait/synch/sxlock/innodb/trx_i_s_cache_lock

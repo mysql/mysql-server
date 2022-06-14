@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/*
+  This operates on the error messages that will be included into the
+  client library (libmysql), NOT the messages that the server sends
+  to clients!
+*/
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -36,11 +42,12 @@ static const char *INFILE = "errmsg.h";
 static const char *OUTFILE = "mysqlclient_ername.h";
 
 static struct my_option my_long_options[] = {
-    {"in_file", 'F', "Input file", &INFILE, &INFILE, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+    {"in_file", 'F', "Input file", &INFILE, &INFILE, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"out_file", 'O', "Output filename (mysqlclient_ername.h)", &OUTFILE,
-     &OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &OUTFILE, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   print_version();
@@ -52,7 +59,9 @@ static void usage(void) {
       " -O, --out_file=name Output file name\n");
 }
 
-static bool get_one_option(int, const struct my_option *, char *) { return 0; }
+static bool get_one_option(int, const struct my_option *, char *) {
+  return false;
+}
 
 static int get_options(int *argc, char ***argv) {
   if (*argc == 1 || *argc == 2 || *argc > 3) {
@@ -107,8 +116,8 @@ int main(int argc, char *argv[]) {
 
       uint count = 0;
       char *last_token;
-      for (char *err = my_strtok_r(str, " \n\t", &last_token); err != NULL;
-           err = my_strtok_r(NULL, " \n\t", &last_token)) {
+      for (char *err = my_strtok_r(str, " \n\t", &last_token); err != nullptr;
+           err = my_strtok_r(nullptr, " \n\t", &last_token)) {
         if (count == 0)
           fprintf(outfile, "{ \"%s\", ", err);
         else if (count == 1) {

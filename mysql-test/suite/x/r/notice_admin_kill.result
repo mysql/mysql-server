@@ -1,0 +1,385 @@
+## I. Validate that X Plugin sends kill notice on IDLE connections
+#
+# Connect multiple clients, make the IDLE, and trigger kill, validate the notice
+#
+## II. Validate that X Plugin sends kill notice on connections that process a query
+#
+# 1. A connection is waiting for lock
+# 2. A connection is sleeping "SELECT SLEEP(A);"
+#
+## III. Validate that X Plugin not sends kill notice on not authorized connections
+#
+
+CREATE TABLE test.client(session_id VARCHAR(32), client_id INT);
+
+#
+# I
+
+#
+# Creating sessions
+connecting...
+active session is now 'session_0'
+
+1 rows affected
+connecting...
+active session is now 'session_1'
+
+1 rows affected
+connecting...
+active session is now 'session_2'
+
+1 rows affected
+connecting...
+active session is now 'session_3'
+
+1 rows affected
+connecting...
+active session is now 'session_4'
+
+1 rows affected
+connecting...
+active session is now 'session_5'
+
+1 rows affected
+connecting...
+active session is now 'session_6'
+
+1 rows affected
+connecting...
+active session is now 'session_7'
+
+1 rows affected
+connecting...
+active session is now 'session_8'
+
+1 rows affected
+connecting...
+active session is now 'session_9'
+
+1 rows affected
+
+#
+# Killing sessions
+switched to session default
+kill session_0
+
+command ok
+kill session_1
+
+command ok
+kill session_2
+
+command ok
+kill session_3
+
+command ok
+kill session_4
+
+command ok
+kill session_5
+
+command ok
+kill session_6
+
+command ok
+kill session_7
+
+command ok
+kill session_8
+
+command ok
+kill session_9
+
+command ok
+
+#
+# Reciving close notices
+switched to session session_0
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_0
+switched to session default
+switched to session session_1
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_1
+switched to session default
+switched to session session_2
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_2
+switched to session default
+switched to session session_3
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_3
+switched to session default
+switched to session session_4
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_4
+switched to session default
+switched to session session_5
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_5
+switched to session default
+switched to session session_6
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_6
+switched to session default
+switched to session session_7
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_7
+switched to session default
+switched to session session_8
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_8
+switched to session default
+switched to session session_9
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_9
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#
+# II
+RUN CREATE TABLE test.some_table(some_column INT)
+
+0 rows affected
+RUN CREATE PROCEDURE test.loop_in_sp()
+BEGIN
+  REPEAT
+    SET @A=1;
+  UNTIL FALSE END REPEAT;
+END
+
+
+0 rows affected
+
+#
+# Creating sessions
+connecting...
+active session is now 'session_WRITE_LOCK'
+RUN LOCK TABLE test.some_table WRITE
+
+0 rows affected
+connecting...
+active session is now 'session_READ_LOCK'
+RUN SELECT * FROM test.some_table
+connecting...
+active session is now 'session_SLEEP'
+RUN SELECT SLEEP(10000)
+connecting...
+active session is now 'session_SP'
+RUN CALL test.loop_in_sp()
+switched to session default
+
+#
+# Killing sessions
+switched to session default
+
+command ok
+
+command ok
+
+command ok
+
+command ok
+
+#
+# Reciving close notices
+switched to session session_WRITE_LOCK
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_WRITE_LOCK
+switched to session default
+switched to session session_READ_LOCK
+Mysqlx.Error(code) = 1317
+Server disconnected
+closing session session_READ_LOCK
+switched to session default
+switched to session session_SLEEP
+SLEEP(10000)
+1
+0 rows affected
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session session_SLEEP
+switched to session default
+switched to session session_SP
+Mysqlx.Error(code) = 1317
+Server disconnected
+closing session session_SP
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#
+# III
+
+#
+# Creating sessions
+connecting...
+active session is now 'session_noauth_0'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_1'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_2'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_3'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_4'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_5'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_6'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_7'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_8'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+connecting...
+active session is now 'session_noauth_9'
+Mysqlx.Notice.Frame(type) = 5
+switched to session default
+
+1 rows affected
+
+#
+# Killing sessions
+switched to session default
+kill session_noauth_0
+
+command ok
+kill session_noauth_1
+
+command ok
+kill session_noauth_2
+
+command ok
+kill session_noauth_3
+
+command ok
+kill session_noauth_4
+
+command ok
+kill session_noauth_5
+
+command ok
+kill session_noauth_6
+
+command ok
+kill session_noauth_7
+
+command ok
+kill session_noauth_8
+
+command ok
+kill session_noauth_9
+
+command ok
+
+#
+# Closing connection
+switched to session session_noauth_0
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_0
+switched to session default
+switched to session session_noauth_1
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_1
+switched to session default
+switched to session session_noauth_2
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_2
+switched to session default
+switched to session session_noauth_3
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_3
+switched to session default
+switched to session session_noauth_4
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_4
+switched to session default
+switched to session session_noauth_5
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_5
+switched to session default
+switched to session session_noauth_6
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_6
+switched to session default
+switched to session session_noauth_7
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_7
+switched to session default
+switched to session session_noauth_8
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_8
+switched to session default
+switched to session session_noauth_9
+# `recvunitldisc` command must report disconnection without any other messages
+Server disconnected
+closing session session_noauth_9
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP TABLE test.client;
+DROP TABLE test.some_table;
+DROP PROCEDURE test.loop_in_sp;

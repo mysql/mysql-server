@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
@@ -68,7 +68,8 @@ struct row_metadata_lock {
 
 class PFS_index_metadata_locks : public PFS_engine_index {
  public:
-  PFS_index_metadata_locks(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_metadata_locks(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   PFS_index_metadata_locks(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
@@ -77,7 +78,7 @@ class PFS_index_metadata_locks : public PFS_engine_index {
                            PFS_engine_key *key_3, PFS_engine_key *key_4)
       : PFS_engine_index(key_1, key_2, key_3, key_4) {}
 
-  ~PFS_index_metadata_locks() {}
+  ~PFS_index_metadata_locks() override = default;
 
   virtual bool match(const PFS_metadata_lock *pfs) = 0;
 };
@@ -87,9 +88,9 @@ class PFS_index_metadata_locks_by_instance : public PFS_index_metadata_locks {
   PFS_index_metadata_locks_by_instance()
       : PFS_index_metadata_locks(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_metadata_locks_by_instance() {}
+  ~PFS_index_metadata_locks_by_instance() override = default;
 
-  virtual bool match(const PFS_metadata_lock *pfs);
+  bool match(const PFS_metadata_lock *pfs) override;
 
  private:
   PFS_key_object_instance m_key;
@@ -104,9 +105,9 @@ class PFS_index_metadata_locks_by_object : public PFS_index_metadata_locks {
         m_key_3("OBJECT_NAME"),
         m_key_4("COLUMN_NAME") {}
 
-  ~PFS_index_metadata_locks_by_object() {}
+  ~PFS_index_metadata_locks_by_object() override = default;
 
-  virtual bool match(const PFS_metadata_lock *pfs);
+  bool match(const PFS_metadata_lock *pfs) override;
 
  private:
   PFS_key_object_type m_key_1;
@@ -122,9 +123,9 @@ class PFS_index_metadata_locks_by_owner : public PFS_index_metadata_locks {
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_metadata_locks_by_owner() {}
+  ~PFS_index_metadata_locks_by_owner() override = default;
 
-  virtual bool match(const PFS_metadata_lock *pfs);
+  bool match(const PFS_metadata_lock *pfs) override;
 
  private:
   PFS_key_thread_id m_key_1;
@@ -139,21 +140,21 @@ class table_metadata_locks : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  private:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
   table_metadata_locks();
 
  public:
-  ~table_metadata_locks() {}
+  ~table_metadata_locks() override = default;
 
  private:
   int make_row(PFS_metadata_lock *pfs);

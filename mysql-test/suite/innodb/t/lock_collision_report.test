@@ -1,0 +1,113 @@
+# BUG#32586458 INNODB CLUSTER SLOWNESS SEEING SESSIONS WITH STATUS "WAITING
+#              FOR HANDLER TO COMMIT"
+#
+--source include/have_debug_sync.inc
+
+# This scenario demonstrates that when there are N reasons for a lock wait,
+# (connections rk_1,..,rk_N hold S lock on a row needed by rt_wait)
+# which go away one by one (as rk_$k get rolled back), then InnoDB correctly
+# reports one of the remaining reasons for wait.
+# InnoDB either grants a requested lock or picks one of conflicting transactions
+# as the current reason it has to wait. If there is more than one conflicting
+# transaction, the choice is non-deterministic. Thus, this test uses a trick:
+# it relies on the InnoDB deadlock checker's logic, which rolls back a
+# transaction which is part of a deadlock cycle consisting of edges that are
+# "current reason for wait".
+# Therefore this MTR does not have to know in which order it should rollback the
+# transactions rt_1,...,rt_N to follow the order of picking "current reason for
+# wait". Instead this MTR simply arranges it so that there are N small deadlock
+# cycles, k-th of them involving rt_k and rt_wait only:
+#
+# rt_wait <--x-locked-by----- 100 <---has-requested-s-lock---\
+#   |                                                        |
+#   |                                                      / | \
+#   |                                                  rt_1 ... rt_N
+#   |                                                     ^  ^  ^
+#   |                                                      \ | /
+#   |                                                        |
+#   \--has-requested-x-lock--> 20 --s-locked-----------------/
+#
+# The wait-for graph between transactions inspected by InnoDB's deadlock checker
+# is a sparse subgraph of the above: only one of the paths from rt_wait to one
+# rt_k is picked. It is the same edge which is reported to Server layer.
+# As it is a part of a deadlock cycle, the victim will be chosen, cycle removed,
+# and another edge will be picked and so on.
+# We make sure rt_wait is never chosen as a victim, by making its TRX_WEIGHT
+# high, by INSERTing several records.
+# What remains is to count that the number of reported wait-for edges is N*2.
+
+# Create a table
+CREATE TABLE t (
+  id INT PRIMARY KEY
+) ENGINE=InnoDB;
+INSERT INTO t VALUES (10), (20), (30), (40), (50);
+
+# We want to be informed about any lock waits reported to Server layer
+--let $debug_point = syncpoint_report_lock_collision
+--source include/add_debug_point.inc
+
+--let $n_blockers = 13
+
+# Create N connections to the server.
+# Using connections 1..N, start a transaction, acquire shared lock over a given
+# record using `SELECT ... FOR SHARE`
+--let $k = $n_blockers
+while ($k != 0)
+{
+  --connect (rt_$k,127.0.0.1,root,,test,,)
+    BEGIN;
+    SELECT id FROM t FORCE INDEX (PRIMARY) WHERE id = 20 FOR SHARE;
+    --dec $k
+}
+
+
+# Using connection N + 1, acquire exclusive lock over the same record
+# using `SELECT ... FOR UPDATE`. This will cause the rt_wait to wait on a lock.
+--connect (rt_wait,127.0.0.1,root,,test,,)
+  BEGIN;
+  # make it heavy by inserting a lot of records
+  INSERT INTO t VALUES (60), (70), (80), (90), (100), (110), (120);
+  --send SELECT * FROM t FORCE INDEX (PRIMARY) WHERE id = 20 FOR UPDATE
+
+
+# Verify that the first reason for wait was reported
+--connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR reached_report_lock_collision';
+  SET DEBUG_SYNC = 'now SIGNAL continue_report_lock_collision';
+
+# create N small deadlocks cycles between rt_$k and and rt_wait
+while ($k != $n_blockers)
+{
+  --inc $k
+  --connection rt_$k
+    --send SELECT * FROM t FORCE INDEX (PRIMARY) WHERE id=100 FOR SHARE
+}
+
+--connection default
+
+--let expected_reports = `SELECT $n_blockers * 2 - 1`
+while ($expected_reports != 0)
+{
+  --echo # expect $expected_reports more edges to be reported
+  SET DEBUG_SYNC = 'now WAIT_FOR reached_report_lock_collision';
+  SET DEBUG_SYNC = 'now SIGNAL continue_report_lock_collision';
+  --dec $expected_reports
+}
+while ($k != 0)
+{
+  --echo # excpecting that connection $k was rolled back as a deadlock victim
+  --connection rt_$k
+    --error ER_LOCK_DEADLOCK
+    --reap
+  --disconnect rt_$k
+  --dec $k
+}
+
+# Clean up
+--connection rt_wait
+  --reap
+  ROLLBACK;
+--connection default
+--disconnect rt_wait
+--source include/remove_debug_point.inc
+DROP TABLE t;

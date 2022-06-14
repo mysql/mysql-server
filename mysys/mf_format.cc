@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <cstring>
 
 #include "m_string.h"
@@ -59,7 +60,8 @@
   @param name file name component.
   @param dir directory component.
   @param extension filename extension
-  @param flag
+  @param flag bitset of 'Bits in last argument of fn_format' from
+  @<my_sys.h@> like MY_REPLACE_DIR
 
   @return to (destination buffer), or nullptr if overflow and
   MY_SAFE_PATH is used.
@@ -70,9 +72,9 @@ char *fn_format(char *to, const char *name, const char *dir,
   char dev[FN_REFLEN], buff[FN_REFLEN], *pos;
   const char *ext;
   size_t dev_length;
-  DBUG_ENTER("fn_format");
-  DBUG_ASSERT(name != NULL);
-  DBUG_ASSERT(extension != NULL);
+  DBUG_TRACE;
+  assert(name != nullptr);
+  assert(extension != nullptr);
   DBUG_PRINT("enter", ("name: %s  dir: %s  extension: %s  flag: %d", name, dir,
                        extension, flag));
 
@@ -81,11 +83,11 @@ char *fn_format(char *to, const char *name, const char *dir,
   size_t length = dirname_part(dev, name, &dev_length);
   name += length;
   if (length == 0 || (flag & MY_REPLACE_DIR)) {
-    DBUG_ASSERT(dir != NULL);
+    assert(dir != nullptr);
     /* Use given directory */
     convert_dirname(dev, dir, NullS); /* Fix to this OS */
   } else if ((flag & MY_RELATIVE_PATH) && !test_if_hard_path(dev)) {
-    DBUG_ASSERT(dir != NULL);
+    assert(dir != nullptr);
     /* Put 'dir' before the given path */
     strmake(buff, dev, sizeof(buff) - 1);
     pos = convert_dirname(dev, dir, NullS);
@@ -113,11 +115,11 @@ char *fn_format(char *to, const char *name, const char *dir,
   if (strlen(dev) + length + strlen(ext) >= FN_REFLEN || length >= FN_LEN) {
     /* To long path, return original or NULL */
     size_t tmp_length;
-    if (flag & MY_SAFE_PATH) DBUG_RETURN(NullS);
+    if (flag & MY_SAFE_PATH) return NullS;
     tmp_length = strlength(startpos);
     DBUG_PRINT("error",
                ("dev: '%s'  ext: '%s'  length: %u", dev, ext, (uint)length));
-    (void)strmake(to, startpos, MY_MIN(tmp_length, FN_REFLEN - 1));
+    (void)strmake(to, startpos, std::min(tmp_length, size_t{FN_REFLEN - 1}));
   } else {
     if (to == startpos) {
       memmove(buff, name, length); /* Save name for last copy */
@@ -137,7 +139,7 @@ char *fn_format(char *to, const char *name, const char *dir,
     my_stpcpy(buff, to);
     (void)my_readlink(to, buff, MYF(0));
   }
-  DBUG_RETURN(to);
+  return to;
 } /* fn_format */
 
 /**
@@ -151,7 +153,7 @@ char *fn_format(char *to, const char *name, const char *dir,
 size_t strlength(const char *str) {
   const char *pos;
   const char *found;
-  DBUG_ENTER("strlength");
+  DBUG_TRACE;
 
   pos = found = str;
 
@@ -168,5 +170,5 @@ size_t strlength(const char *str) {
     while (*++pos == ' ') {
     };
   }
-  DBUG_RETURN((size_t)(found - str));
+  return (size_t)(found - str);
 } /* strlength */

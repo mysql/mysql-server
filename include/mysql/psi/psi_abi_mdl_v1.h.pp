@@ -2,24 +2,23 @@
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
+typedef long long int longlong;
+typedef unsigned long long int ulonglong;
 typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int16_t int16;
 typedef uint16_t uint16;
 typedef int32_t int32;
 typedef uint32_t uint32;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef intptr_t intptr;
-typedef long long int64;
-typedef unsigned long long uint64;
-typedef long long int longlong;
-typedef unsigned long long int ulonglong;
-typedef unsigned long long my_ulonglong;
 typedef ulonglong my_off_t;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
 struct MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
@@ -43,6 +42,8 @@ typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
     const char *src_file, unsigned int src_line);
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
+typedef void (*set_metadata_lock_duration_v2_t)(
+    PSI_metadata_lock *lock, opaque_mdl_duration mdl_duration);
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
 typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
     struct PSI_metadata_locker_state_v1 *state, struct PSI_metadata_lock *mdl,
@@ -61,5 +62,13 @@ struct PSI_mdl_service_v1 {
   start_metadata_wait_v1_t start_metadata_wait;
   end_metadata_wait_v1_t end_metadata_wait;
 };
-typedef struct PSI_mdl_service_v1 PSI_mdl_service_t;
+struct PSI_mdl_service_v2 {
+  create_metadata_lock_v1_t create_metadata_lock;
+  set_metadata_lock_status_v1_t set_metadata_lock_status;
+  set_metadata_lock_duration_v2_t set_metadata_lock_duration;
+  destroy_metadata_lock_v1_t destroy_metadata_lock;
+  start_metadata_wait_v1_t start_metadata_wait;
+  end_metadata_wait_v1_t end_metadata_wait;
+};
+typedef struct PSI_mdl_service_v2 PSI_mdl_service_t;
 extern PSI_mdl_service_t *psi_mdl_service;

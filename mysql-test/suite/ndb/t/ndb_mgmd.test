@@ -11,3 +11,100 @@
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/logger.log
 
+# To validate Mgmd when its started on port that is already in use, Mgmd node is
+# started on the Port which is used by ndb_mgmd started by MTR. The validation of
+# the ports is done before creating Daemon.
+--echo Bug32045786
+--replace_regex /MySQL Cluster Management Server.*/MySQL Cluster Management Server/ /.*\[MgmtSrvr\]// /'Only one usage of each socket address.*'/ERROR_MESSAGE/ /'Address already in use'/ERROR_MESSAGE/
+--replace_result $NDB_MGMD_PORT NDB_MGMD_PORT 98 ERROR_CODE 10048 ERROR_CODE 48 ERROR_CODE 125 ERROR_CODE
+--error 1
+--exec $NDB_MGMD_EXE --defaults-group-suffix=.1.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --configdir=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1 --mycnf --ndb-nodeid=3 2>&1
+
+
+--echo Bug32706682
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
+--error 1
+# skip-config-cache is added to prevent starting of mgmd with left over binary configs.
+--exec $NDB_MGMD_EXE --skip-config-cache > $dump_file 2>&1
+--echo # verify that mgmd fails to start when config-file
+--echo # is not specified.
+--let $assert_text= Mgmd fails to start when config-file option is not specified.
+--let $assert_select= ERROR    -- Could not determine which nodeid to use for this node. Specify it with --ndb-nodeid=<nodeid> on command line
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini --skip-config-file --skip-config-cache > $dump_file 2>&1
+--echo # verify that mgmd fails to start when skip-config-file is specified.
+--let $assert_text= Mgmd fails to start when --skip-config-file is specified.
+--let $assert_select= ERROR    -- Could not determine which nodeid to use for this node. Specify it with --ndb-nodeid=<nodeid> on command line
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# To validate Mgmd fails when started with both -f and --mycnf
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini --mycnf > $dump_file 2>&1
+--echo # verify that mgmd fails when started with both -f and --mycnf.
+--let $assert_text= Verify mgmd fails when started with both -f and --mycnf
+--let $assert_select= ERROR: Both --mycnf and -f is not supported
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# To validate Mgmd throws warning when connectstring option is specified
+# when starting mgmd with -f or binary config.
+--echo #
+--echo # Bug32554779 DO NOT ACCEPT -C OPTION WHEN STARTING WITH -F OR
+--echo # BINARY CONFIG
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini -c hostname --initial --nowait-nodes=0 > $dump_file 2>&1
+--echo # verify that mgmd throws warning when -c option is provided along with -f
+--let $assert_text= Do not accept -c option when starting with -f
+--let $assert_select= WARNING: --ndb-connectstring is ignored when mgmd is started with -f or config-file.
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# To validate Mgmd gives error when -f is not specified
+--echo #
+--echo # Bug32554492 NDB_MGMD SHOULD REPORT ERROR WHEN STARTED
+--echo # WITHOUT -F AND BINARY CONFIG
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE config.ini --initial > $dump_file 2>&1
+--echo # verify that mgmd throws error when -f is not specified
+--let $assert_text= Mgmd gives error when -f is not specifed
+--let $assert_select= ERROR: Unknown option - config.ini specified.
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Validates Mgmd gives error when relative path is specified for configdir
+--echo #
+--echo # Bug11755867 NDB_MGMD MISMATCH BETWEEN --CONFIGDIR AND DATADIR
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini --initial --configdir=. > $dump_file 2>&1
+--echo # verify that mgmd throws error when --configdir=. is specified
+--let $assert_text= Mgmd gives error when relative path is specified for configdir
+--let $assert_select= ERROR: Relative path \('.'\) not supported for configdir, specify absolute path.
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Bug#32901321
+--echo #
+--echo # check if NDB_MGMD hangs when the hostname is not proper
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE -c localhst,localggg --ndb-nodeid=3 --configdir=$MYSQLTEST_VARDIR > $dump_file 2>&1
+--let $assert_text= Mgmd gives error when can not resolve address in connectstring
+--let $assert_select= ERROR    -- Illegal connect string : Unable to resolve any of the address in connect string
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $dump_file

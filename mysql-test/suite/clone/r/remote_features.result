@@ -24,10 +24,12 @@ END IF;
 CASE p_dml_type
 WHEN 0 THEN
 SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-INSERT INTO t1 VALUES(v_key, v_key * 10,
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
-INSERT INTO t2 VALUES(v_key, v_key * 10,
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 WHEN 1 THEN
@@ -53,6 +55,7 @@ START TRANSACTION;
 END IF;
 END IF;
 END WHILE;
+COMMIT;
 END|
 DROP TABLE t1;
 DROP TABLE t2;
@@ -65,8 +68,8 @@ call execute_dml(0, 0, 200, 200, 100, 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -101,8 +104,8 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -156,8 +159,8 @@ ID	STAGE	STATE
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -192,8 +195,8 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -265,6 +268,8 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 9	90	Clone Test Row - 9	umn Data Large Column Data Large
 # restart:
 # In connection default - Cloning database
+SET GLOBAL wait_timeout = 1;
+SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 0;
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
 SET GLOBAL clone_autotune_concurrency = OFF;
@@ -273,6 +278,7 @@ SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
 # In connection con1 - Running Update Random [0 - 200 Key Range]
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml1';
+SET GLOBAL wait_timeout = default;
 START TRANSACTION;
 CALL execute_dml(1, 0, 200, 500, 100, 1);
 COMMIT;
@@ -290,8 +296,8 @@ SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -326,8 +332,8 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)

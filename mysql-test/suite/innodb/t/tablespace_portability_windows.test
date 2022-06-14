@@ -22,6 +22,8 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 # --source suite/innodb/include/tablespace_portability.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\].* The directory '.*' does not exist");
+call mtr.add_suppression("\\[ERROR\\].* The directory for tablespace .* does not exist or is incorrect");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location cannot be under the datadir");
 --enable_query_log
 

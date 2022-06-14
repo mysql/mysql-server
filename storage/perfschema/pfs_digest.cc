@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,12 @@
 
 #include "storage/perfschema/pfs_digest.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
+#include "my_murmur3.h"
 #include "my_sys.h"
 #include "sql/sql_get_diagnostics.h"
 #include "sql/sql_lex.h"
@@ -49,9 +51,9 @@ size_t digest_max = 0;
 ulong digest_lost = 0;
 
 /** EVENTS_STATEMENTS_SUMMARY_BY_DIGEST buffer. */
-PFS_statements_digest_stat *statements_digest_stat_array = NULL;
-static unsigned char *statements_digest_token_array = NULL;
-static char *statements_digest_query_sample_text_array = NULL;
+PFS_statements_digest_stat *statements_digest_stat_array = nullptr;
+static unsigned char *statements_digest_token_array = nullptr;
+static char *statements_digest_query_sample_text_array = nullptr;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 bool flag_statements_digest = true;
 /**
@@ -86,7 +88,7 @@ int init_digest(const PFS_global_param *param) {
       &builtin_memory_digest, digest_max, sizeof(PFS_statements_digest_stat),
       PFS_statements_digest_stat, MYF(MY_ZEROFILL));
 
-  if (unlikely(statements_digest_stat_array == NULL)) {
+  if (unlikely(statements_digest_stat_array == nullptr)) {
     cleanup_digest();
     return 1;
   }
@@ -99,7 +101,7 @@ int init_digest(const PFS_global_param *param) {
         PFS_MALLOC_ARRAY(&builtin_memory_digest_tokens, digest_max,
                          digest_memory_size, unsigned char, MYF(MY_ZEROFILL));
 
-    if (unlikely(statements_digest_token_array == NULL)) {
+    if (unlikely(statements_digest_token_array == nullptr)) {
       cleanup_digest();
       return 1;
     }
@@ -113,7 +115,7 @@ int init_digest(const PFS_global_param *param) {
         PFS_MALLOC_ARRAY(&builtin_memory_digest_sample_sqltext, digest_max,
                          sqltext_size, char, MYF(MY_ZEROFILL));
 
-    if (unlikely(statements_digest_query_sample_text_array == NULL)) {
+    if (unlikely(statements_digest_query_sample_text_array == nullptr)) {
       cleanup_digest();
       return 1;
     }
@@ -146,9 +148,9 @@ void cleanup_digest(void) {
                  (pfs_max_sqltext * sizeof(char)),
                  statements_digest_query_sample_text_array);
 
-  statements_digest_stat_array = NULL;
-  statements_digest_token_array = NULL;
-  statements_digest_query_sample_text_array = NULL;
+  statements_digest_stat_array = nullptr;
+  statements_digest_token_array = nullptr;
+  statements_digest_query_sample_text_array = nullptr;
 }
 
 static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
@@ -157,12 +159,54 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
   const void *result;
   typed_entry =
       reinterpret_cast<const PFS_statements_digest_stat *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != nullptr);
   digest = *typed_entry;
-  DBUG_ASSERT(digest != NULL);
+  assert(digest != nullptr);
   *length = sizeof(PFS_digest_key);
   result = &digest->m_digest_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static uint digest_hash_func(const LF_HASH *, const uchar *key,
+                             size_t key_len [[maybe_unused]]) {
+  const PFS_digest_key *digest_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_digest_key));
+  digest_key = reinterpret_cast<const PFS_digest_key *>(key);
+  assert(digest_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  nr1 = murmur3_32(digest_key->m_hash, DIGEST_HASH_SIZE, nr2);
+  digest_key->m_schema_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int digest_hash_cmp_func(const uchar *key1,
+                                size_t key_len1 [[maybe_unused]],
+                                const uchar *key2,
+                                size_t key_len2 [[maybe_unused]]) {
+  const PFS_digest_key *digest_key1;
+  const PFS_digest_key *digest_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_digest_key));
+  assert(key_len2 == sizeof(PFS_digest_key));
+  digest_key1 = reinterpret_cast<const PFS_digest_key *>(key1);
+  digest_key2 = reinterpret_cast<const PFS_digest_key *>(key2);
+  assert(digest_key1 != nullptr);
+  assert(digest_key2 != nullptr);
+
+  cmp = memcmp(digest_key1->m_hash, &digest_key2->m_hash, DIGEST_HASH_SIZE);
+  if (cmp != 0) {
+    return cmp;
+  }
+  cmp = digest_key1->m_schema_name.sort(&digest_key2->m_schema_name);
+  return cmp;
 }
 
 /**
@@ -171,8 +215,10 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
 */
 int init_digest_hash(const PFS_global_param *param) {
   if ((!digest_hash_inited) && (param->m_digest_sizing != 0)) {
-    lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat *),
-                 LF_HASH_UNIQUE, 0, 0, digest_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&digest_hash, sizeof(PFS_statements_digest_stat *),
+                  LF_HASH_UNIQUE, digest_hash_get_key, digest_hash_func,
+                  digest_hash_cmp_func, nullptr /* ctor */, nullptr /* dtor */,
+                  nullptr /* init */);
     digest_hash_inited = true;
   }
   return 0;
@@ -186,9 +232,9 @@ void cleanup_digest_hash(void) {
 }
 
 static LF_PINS *get_digest_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_digest_hash_pins == NULL)) {
+  if (unlikely(thread->m_digest_hash_pins == nullptr)) {
     if (!digest_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_digest_hash_pins = lf_hash_get_pins(&digest_hash);
   }
@@ -198,35 +244,26 @@ static LF_PINS *get_digest_hash_pins(PFS_thread *thread) {
 PFS_statements_digest_stat *find_or_create_digest(
     PFS_thread *thread, const sql_digest_storage *digest_storage,
     const char *schema_name, uint schema_name_length) {
-  DBUG_ASSERT(digest_storage != NULL);
+  assert(digest_storage != nullptr);
 
-  if (statements_digest_stat_array == NULL) {
-    return NULL;
+  if (statements_digest_stat_array == nullptr) {
+    return nullptr;
   }
 
   if (digest_storage->m_byte_count <= 0) {
-    return NULL;
+    return nullptr;
   }
 
   LF_PINS *pins = get_digest_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
-    return NULL;
+  if (unlikely(pins == nullptr)) {
+    return nullptr;
   }
 
-  /*
-    Note: the LF_HASH key is a block of memory,
-    make sure to clean unused bytes,
-    so that memcmp() can compare keys.
-  */
   PFS_digest_key hash_key;
-  memset(&hash_key, 0, sizeof(hash_key));
   /* Copy digest hash of the tokens received. */
   memcpy(&hash_key.m_hash, digest_storage->m_hash, DIGEST_HASH_SIZE);
   /* Add the current schema to the key */
-  hash_key.m_schema_name_length = schema_name_length;
-  if (schema_name_length > 0) {
-    memcpy(hash_key.m_schema_name, schema_name, schema_name_length);
-  }
+  hash_key.m_schema_name.set(schema_name, schema_name_length);
 
   int res;
   uint retry_count = 0;
@@ -234,7 +271,7 @@ PFS_statements_digest_stat *find_or_create_digest(
   size_t safe_index;
   size_t attempts = 0;
   PFS_statements_digest_stat **entry;
-  PFS_statements_digest_stat *pfs = NULL;
+  PFS_statements_digest_stat *pfs = nullptr;
   pfs_dirty_state dirty_state;
 
   ulonglong now = my_micro_time();
@@ -275,13 +312,13 @@ search:
     }
 
     /* Add a new record in digest stat array. */
-    DBUG_ASSERT(safe_index < digest_max);
+    assert(safe_index < digest_max);
     pfs = &statements_digest_stat_array[safe_index];
 
     if (pfs->m_lock.is_free()) {
       if (pfs->m_lock.free_to_dirty(&dirty_state)) {
         /* Copy digest hash/LF Hash search key. */
-        memcpy(&pfs->m_digest_key, &hash_key, sizeof(PFS_digest_key));
+        pfs->m_digest_key = hash_key;
 
         /*
           Copy digest storage to statement_digest_stat_array so that it could be
@@ -309,14 +346,14 @@ search:
           if (++retry_count > retry_max) {
             /* Avoid infinite loops */
             digest_lost++;
-            return NULL;
+            return nullptr;
           }
           goto search;
         }
 
         /* OOM in lf_hash_insert */
         digest_lost++;
-        return NULL;
+        return nullptr;
       }
     }
   }
@@ -334,7 +371,7 @@ search:
 
 static void purge_digest(PFS_thread *thread, PFS_digest_key *hash_key) {
   LF_PINS *pins = get_digest_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return;
   }
 
@@ -379,12 +416,12 @@ void PFS_statements_digest_stat::reset_index(PFS_thread *thread) {
 void reset_esms_by_digest() {
   uint index;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return;
   }
 
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return;
   }
 
@@ -411,7 +448,7 @@ void reset_esms_by_digest() {
 void reset_histogram_by_digest() {
   uint index;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return;
   }
 

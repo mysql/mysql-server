@@ -1,0 +1,1 @@
+--log-replica-updates=false --replica-parallel-workers=2

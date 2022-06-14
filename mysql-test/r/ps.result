@@ -1,4 +1,6 @@
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 drop table if exists t1,t2,t3,t4;
 drop database if exists client_test_db;
 create table t1
@@ -158,8 +160,6 @@ c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
 c32 set('monday', 'tuesday', 'wednesday')
 ) engine = MYISAM ;
 create table t2 like t1;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
 prepare stmt1 from @stmt ;
 Warnings:
@@ -174,9 +174,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or ((`test`.`t2`.`c6` + 0.3e+1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or ((`test`.`t2`.`c9` + 4.0) is null)), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or ((`test`.`t2`.`c10` + 40e-1) is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 execute stmt1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -186,9 +183,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or ((`test`.`t2`.`c6` + 0.3e+1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or ((`test`.`t2`.`c9` + 4.0) is null)), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or ((`test`.`t2`.`c10` + 40e-1) is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -754,6 +748,9 @@ set @b='CHRISTINE';
 execute stmt using @a, @b;
 ?=?
 1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'CHRISTINE           '
+Warning	1292	Truncated incorrect INTEGER value: 'CHRISTINE'
 deallocate prepare stmt;
 create table t1 (a int);
 prepare stmt from "select ??";
@@ -912,7 +909,7 @@ Warnings:
 Warning	1292	Truncated incorrect max_prepared_stmt_count value: '10000000000000000'
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
-1048576
+4194304
 set global max_prepared_stmt_count=default;
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
@@ -1173,14 +1170,14 @@ FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
 EXECUTE st_19182;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-j	int(11)	YES	MUL	NULL	
-i	int(11)	YES	MUL	NULL	
+j	int	YES	MUL	NULL	
+i	int	YES	MUL	NULL	
 DROP TABLE t2;
 EXECUTE st_19182;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-j	int(11)	YES	MUL	NULL	
-i	int(11)	YES	MUL	NULL	
+j	int	YES	MUL	NULL	
+i	int	YES	MUL	NULL	
 DEALLOCATE PREPARE st_19182;
 DROP TABLE t2, t1;
 drop database if exists mysqltest;
@@ -1196,12 +1193,12 @@ show create table mysqltest.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `test` varchar(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table mysqltest.t1;
 drop table mysqltest.t2;
 alter database mysqltest character set latin1;
@@ -1401,15 +1398,15 @@ a	b
 set @a=1;
 execute stmt using @a;
 a	b
-1	9
 2	8
+1	9
 3	7
 set @a=2;
 execute stmt using @a;
 a	b
-3	7
 2	8
 1	9
+3	7
 deallocate prepare stmt;
 select * from t1 order by 1;
 a	b
@@ -1587,12 +1584,12 @@ i
 execute stmt_alter;
 show columns from mysqltest_long_database_name_to_thrash_heap.t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+i	int	YES		NULL	
+b	int	YES		NULL	
 execute stmt_alter1;
 show columns from mysqltest_long_database_name_to_thrash_heap.t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 execute stmt_analyze;
 Table	Op	Msg_type	Msg_text
 mysqltest_long_database_name_to_thrash_heap.t1	analyze	status	OK
@@ -1722,19 +1719,19 @@ prepare s_6895 from "alter table t1 drop column b";
 execute s_6895;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 drop table t1;
 create table t1 (a int, b int);
 execute s_6895;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 drop table t1;
 create table t1 (a int, b int);
 execute s_6895;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 deallocate prepare s_6895;
 drop table t1;
 create table t1 (i int primary key auto_increment) comment='comment for table t1';
@@ -1744,7 +1741,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='comment for table t1'
 flush tables;
@@ -1754,7 +1751,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='comment for table t1'
 deallocate prepare stmt;
@@ -1773,7 +1770,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database
-mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest_1;
 deallocate prepare stmt;
 set @@character_set_server= @old_character_set_server;
@@ -1790,7 +1787,7 @@ execute stmt using @a;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `?` decimal(2,1) DEFAULT NULL
+  `?` decimal(65,30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
@@ -1897,18 +1894,18 @@ prepare stmt from "create view v1 as select 1, 1";
 execute stmt;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`,1 AS `My_exp_1`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`,1 AS `Name_exp_1`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
-1	My_exp_1
+1	Name_exp_1
 1	1
 drop view v1;
 execute stmt;
 deallocate prepare stmt;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`,1 AS `My_exp_1`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`,1 AS `Name_exp_1`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
-1	My_exp_1
+1	Name_exp_1
 1	1
 drop view v1;
 prepare stmt from "create view v1 (x) as select a from t1 where a > 1";
@@ -1944,11 +1941,7 @@ select * from v1;
 a	b
 drop view v1;
 prepare stmt from "create view v1 (a,b,c) as select * from t1";
-execute stmt;
 ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
-execute stmt;
-ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
-deallocate prepare stmt;
 drop table t1;
 create temporary table t1 (a int, b int);
 prepare stmt from "create view v1 as select * from t1";
@@ -2054,6 +2047,8 @@ execute abc;
 execute abc;
 deallocate prepare abc;
 create procedure proc_1() reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 call proc_1();
 call proc_1();
 call proc_1();
@@ -2065,6 +2060,8 @@ ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
 drop procedure proc_1;
 prepare abc from "reset slave";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 execute abc;
 execute abc;
 execute abc;
@@ -2095,9 +2092,17 @@ ERROR HY000: Unknown thread id: 0
 deallocate prepare abc;
 create procedure proc_1() flush hosts;
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 create function func_1() returns int begin flush hosts; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function func_1() returns int begin call proc_1(); return 1; end|
@@ -2107,8 +2112,14 @@ drop function func_1;
 drop procedure proc_1;
 prepare abc from "flush hosts";
 execute abc;
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 execute abc;
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 execute abc;
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 deallocate prepare abc;
 create procedure proc_1() flush privileges;
 call proc_1();
@@ -2321,16 +2332,24 @@ execute abc;
 execute abc;
 deallocate prepare abc;
 create procedure proc_1() start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 drop procedure proc_1;
 create function func_1() returns int begin start slave; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 prepare abc from "start slave";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 deallocate prepare abc;
 create procedure proc_1() stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 drop procedure proc_1;
 create function func_1() returns int begin stop slave; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 prepare abc from "stop slave";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 deallocate prepare abc;
 create procedure proc_1() show binlog events;
 drop procedure proc_1;
@@ -2343,6 +2362,8 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show binlog events";
 deallocate prepare abc;
 create procedure proc_1() show slave status;
+Warnings:
+Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
 drop procedure proc_1;
 create function func_1() returns int begin show slave status; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -2351,6 +2372,8 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 drop function func_1;
 ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show slave status";
+Warnings:
+Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
 deallocate prepare abc;
 create procedure proc_1() show master status;
 drop procedure proc_1;
@@ -2434,15 +2457,15 @@ create function a() returns int return 42+13;
 create procedure proc_1(a char(2)) show create function a;
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create function a; return 1; end|
@@ -2454,15 +2477,15 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create function a";
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop function a;
@@ -2471,21 +2494,21 @@ create procedure proc_1() show create table tab1;
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2500,21 +2523,21 @@ prepare abc from "show create table tab1";
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2531,13 +2554,13 @@ union all
 create procedure proc_1() show create view v1;
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create view v1; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -2548,13 +2571,13 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create view v1";
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop view v1;
 drop table t1;
@@ -2903,7 +2926,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2911,7 +2934,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2938,14 +2961,12 @@ CREATE TABLE t1 (a TIME NOT NULL, b TINYINT);
 INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
 PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
 ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > '1234abc'))";
-EXECUTE stmt;
-1
 Warnings:
 Warning	1292	Incorrect time value: '1234abc' for column 'a' at row 1
 EXECUTE stmt;
 1
-Warnings:
-Warning	1292	Incorrect time value: '1234abc' for column 'a' at row 1
+EXECUTE stmt;
+1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -2957,13 +2978,13 @@ PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(true) where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(true) where true
 DEALLOCATE PREPARE stmt;
@@ -2974,17 +2995,17 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(1);
 PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1))';
+Warnings:
+Note	1249	Select 2 was reduced during optimization
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
@@ -3163,7 +3184,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 127;
 @a	@a = 127
@@ -3181,7 +3202,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 32767;
 @a	@a = 32767
@@ -3199,7 +3220,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 8388607;
 @a	@a = 8388607
@@ -3217,7 +3238,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2147483647;
 @a	@a = 2147483647
@@ -3235,7 +3256,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 9223372036854775807;
 @a	@a = 9223372036854775807
@@ -3253,7 +3274,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = b'10100100101';
 @a	@a = b'10100100101'
@@ -3343,7 +3364,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2010;
 @a	@a = 2010
@@ -3941,5 +3962,124 @@ slave	07:30:30	2015-04-24 13:30:30	2015-04-24 07:30:30	07:30:30.005	2015-04-24 1
 master	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 13:30:30.502	2015-04-24 07:30:30.502
 slave	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 13:30:30.502	2015-04-24 07:30:30.502
 # Cleanup
-DROP DATABASE client_test_db;
 DROP TABLE bug19894382;
+# Test parameter string longer than 65k
+SET @a=repeat('a', 100000);
+prepare s from "select length(?)";
+execute s using @a;
+length(?)
+100000
+DROP DATABASE client_test_db;
+# Bug#28929657: Assertion !is_temporal() at Item::get_time_from_int()
+CREATE TABLE t1 (t time DEFAULT NULL);
+INSERT INTO t1 VALUES ('16:07:44');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE t = ?";
+EXECUTE s USING @var1;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+CREATE TABLE t1 (dt datetime DEFAULT NULL);
+INSERT INTO t1 VALUES ('2018-11-11 16:07:44');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE dt = ?";
+EXECUTE s USING @var1;
+ERROR 22007: Incorrect datetime value: '5'
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+CREATE TABLE t1 (d date DEFAULT NULL);
+INSERT INTO t1 VALUES ('2018-11-11');
+SET @var1 = 5;
+PREPARE s FROM "DELETE FROM t1 WHERE d = ?";
+EXECUTE s USING @var1;
+ERROR 22007: Incorrect datetime value: '5'
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+#
+# Bug#30438038: MAIN.LOCK_MULTI_BUG38499 FAILS ON PB2
+#
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+PREPARE ps FROM
+'UPDATE t, (SELECT 1 FROM t UNION SELECT 2 FROM t) e SET a = 0 WHERE FALSE';
+EXECUTE ps;
+EXECUTE ps;
+DROP PREPARE ps;
+DROP TABLE t;
+# Bug#31437028: SIG11 AT FIELD::HIDDEN() IN SQL/FIELD.H WITH PREPARED SHOW CREATE VIEW
+CREATE TABLE t1(c1 int);
+INSERT INTO t1 VALUES(1),(2);
+CREATE FUNCTION f1() returns INT deterministic return 1;
+CREATE VIEW v1 AS SELECT c1 FROM t1 WHERE c1 = f1();
+DROP FUNCTION f1;
+PREPARE stmt FROM "SHOW CREATE VIEW v1";
+EXECUTE stmt;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1` from `t1` where (`t1`.`c1` = `f1`())	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+EXECUTE stmt;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1` from `t1` where (`t1`.`c1` = `f1`())	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1;
+# Bug#32077842: "Illegal mix of collations" errors when matching ASCII field and UNICODE
+CREATE TABLE t1 (a char (64) character set latin1, b int unsigned);
+PREPARE s FROM 'SELECT a FROM t1 WHERE a=? AND b=?';
+SET @a = 'test';
+SET @b = 2;
+EXECUTE s USING @a, @b;
+a
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+#
+# Bug #32751973: REGRESSION: HEAP-USE-AFTER-FREE IN ITEM_FIELD::BIND_FIELDS
+#
+CREATE TABLE t1 (a INTEGER);
+PREPARE s FROM 'SELECT 1 FROM t1 WHERE TRUE OR ( SELECT 1 FROM (SELECT a) q ) = 1';
+EXECUTE s;
+1
+DROP TABLE t1;
+#
+# Bug #32808790: DON'T ADD CACHES AROUND PREPARED STATEMENT PARAMETERS
+#
+CREATE TABLE t1 ( pk INTEGER NOT NULL, a INTEGER );
+PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
+SET @v = 2;
+EXECUTE q USING @v;
+EXPLAIN
+-> Filter: (t1.pk = 2)
+    -> Table scan on t1
+
+DROP TABLE t1;
+# Bug#32213576: MySQL tries to parse string-bound float as integer
+#               and returns wrong error
+CREATE TABLE t (f INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t (f) VALUES (0);
+PREPARE stmt FROM 'UPDATE t SET f = 100 * ?';
+SET @a = '0.3';
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+SELECT * FROM t;
+f
+30
+DROP TABLE t;
+# Bug#32787037: Passed string type binding for integer column
+#               incorrectly cast to integer
+CREATE TABLE t1 (int_column INT NOT NULL);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT * from t1 where int_column < '1.9';
+int_column
+1
+PREPARE stmt FROM 'SELECT * from t1 where int_column < ?';
+SET @a = '1.9';
+EXECUTE stmt USING @a;
+int_column
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

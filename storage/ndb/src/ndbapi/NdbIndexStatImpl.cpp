@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/require.h"
 #include <algorithm>
 
 #include <ndb_global.h>
@@ -136,16 +137,6 @@ NdbIndexStatImpl::make_headtable(NdbDictionary::Table& tab)
 {
   tab.setName(g_headtable_name);
   tab.setLogging(true);
-  int ret;
-  // Creating a table in NDB using a compiled in frm blob
-  // which is already compressed and has got proper version 1 header
-  ret = tab.setFrm(g_ndb_index_stat_head_frm_data,
-                   g_ndb_index_stat_head_frm_len);
-  if (ret != 0)
-  {
-    setError(ret, __LINE__);
-    return -1;
-  }
   // key must be first
   {
     NdbDictionary::Column col("index_id");
@@ -216,16 +207,6 @@ NdbIndexStatImpl::make_sampletable(NdbDictionary::Table& tab)
 {
   tab.setName(g_sampletable_name);
   tab.setLogging(true);
-  int ret;
-  // Creating a table in NDB using a compiled in frm blob
-  // which is already compressed and has got proper version 1 header
-  ret = tab.setFrm(g_ndb_index_stat_sample_frm_data,
-                   g_ndb_index_stat_sample_frm_len);
-  if (ret != 0)
-  {
-    setError(ret, __LINE__);
-    return -1;
-  }
   // key must be first
   {
     NdbDictionary::Column col("index_id");
@@ -409,27 +390,36 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
   }
 
   if (get_systables(sys) == -1)
+  {
+    dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
     return -1;
+  }
 
   if (sys.m_obj_cnt == Sys::ObjCnt)
   {
     setError(HaveSysTables, __LINE__);
+    dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
     return -1;
   }
 
   if (sys.m_obj_cnt != 0)
   {
     setError(BadSysTables, __LINE__);
+    dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
     return -1;
   }
 
   {
     NdbDictionary::Table tab;
     if (make_headtable(tab) == -1)
+    {
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
+    }
     if (dic->createTable(tab) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
 
@@ -437,6 +427,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     if (sys.m_headtable == 0)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
   }
@@ -444,7 +435,10 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
   {
     NdbDictionary::Table tab;
     if (make_sampletable(tab) == -1)
+    {
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
+    }
 
 #ifdef VM_TRACE
 #ifdef NDB_USE_GET_ENV
@@ -454,6 +448,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
       if (p != 0 && strchr("1Y", p[0]) != 0)
       {
         setError(9999, __LINE__);
+        dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
         return -1;
       }
     }
@@ -463,6 +458,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     if (dic->createTable(tab) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
 
@@ -470,6 +466,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     if (sys.m_sampletable == 0)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
   }
@@ -477,10 +474,14 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
   {
     NdbDictionary::Index ind;
     if (make_sampleindex1(ind) == -1)
+    {
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
+    }
     if (dic->createIndex(ind, *sys.m_sampletable) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
 
@@ -488,6 +489,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     if (sys.m_sampleindex1 == 0)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
   }
@@ -516,13 +518,17 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
 
   if (get_systables(sys) == -1 &&
       m_error.code != BadSysTables)
+  {
+    dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
     return -1;
+  }
 
   if (sys.m_headtable != 0)
   {
     if (dic->dropTableGlobal(*sys.m_headtable) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
   }
@@ -538,6 +544,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
       if (p != 0 && strchr("1Y", p[0]) != 0)
       {
         setError(9999, __LINE__);
+        dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
         return -1;
       }
     }
@@ -547,6 +554,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     if (dic->dropTableGlobal(*sys.m_sampletable) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
+      dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
       return -1;
     }
   }
@@ -1280,13 +1288,13 @@ NdbIndexStatImpl::Cache::get_keyaddr(uint pos) const
   switch (m_addrLen) {
   case 4:
     addr += src[3] << 24;
-    // Fall through
+    [[fallthrough]];
   case 3:
     addr += src[2] << 16;
-    // Fall through
+    [[fallthrough]];
   case 2:
     addr += src[1] << 8;
-    // Fall through
+    [[fallthrough]];
   case 1:
     addr += src[0] << 0;
     break;
@@ -1306,13 +1314,13 @@ NdbIndexStatImpl::Cache::set_keyaddr(uint pos, uint addr)
   switch (m_addrLen) {
   case 4:
     dst[3] = (addr >> 24) & 0xFF;
-    // Fall through
+    [[fallthrough]];
   case 3:
     dst[2] = (addr >> 16) & 0xFF;
-    // Fall through
+    [[fallthrough]];
   case 2:
     dst[1] = (addr >> 8) & 0xFF;
-    // Fall through
+    [[fallthrough]];
   case 1:
     dst[0] = (addr >> 0) & 0xFF;
     break;
@@ -1414,47 +1422,49 @@ NdbIndexStatImpl::Cache::get_unq1(uint pos1, uint pos2, uint k) const
 }
 
 static inline double
-get_unqfactor(uint p, double r, double u)
-{
-  double ONE = (double)1.0;
-  double d = (double)p;
-  double f = ONE + (d - ONE) * ::pow(u / r, d - ONE);
-  return f;
-}
+get_unqfactor(uint fragments, double rows, double uniques_found);
 
 inline double
-NdbIndexStatImpl::Cache::get_unq(uint pos, uint k) const
+NdbIndexStatImpl::Cache::get_unq(uint pos, uint k, double *factor) const
 {
   uint p = m_fragCount;
   double r = get_rir1(pos);
   double u = get_unq1(pos, k);
   double f = get_unqfactor(p, r, u);
+  *factor = f;
   double x = f * u;
   return x;
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_unq(uint pos1, uint pos2, uint k) const
+NdbIndexStatImpl::Cache::get_unq(uint pos1,
+                                 uint pos2,
+                                 uint k,
+                                 double *factor) const
 {
   uint p = m_fragCount;
   double r = get_rir1(pos1, pos2);
   double u = get_unq1(pos1, pos2, k);
   double f = get_unqfactor(p, r, u);
+  *factor = f;
   double x = f * u;
   return x;
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_rpk(uint pos, uint k) const
+NdbIndexStatImpl::Cache::get_rpk(uint pos, uint k, double *factor) const
 {
-  return get_rir(pos) / get_unq(pos, k);
+  return get_rir(pos) / get_unq(pos, k, factor);
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_rpk(uint pos1, uint pos2, uint k) const
+NdbIndexStatImpl::Cache::get_rpk(uint pos1,
+                                 uint pos2,
+                                 uint k,
+                                 double *factor) const
 {
   assert(pos2 > pos1);
-  return get_rir(pos1, pos2) / get_unq(pos1, pos2, k);
+  return get_rir(pos1, pos2) / get_unq(pos1, pos2, k, factor);
 }
 
 // cache
@@ -1481,6 +1491,335 @@ NdbIndexStatImpl::Cache::Cache()
   m_sort_time = 0;
   // in use by query_stat
   m_ref_count = 0;
+}
+
+/**
+  Implementing the get_unqfactor function
+  ---------------------------------------
+  One problem to solve is how to calculate the records per key based on
+  scanning one fragment. The problem to solve here is a complex problem.
+  In the code previously an estimate was attempted that uses the function
+  1 + (num_fragments - 1) * (uniques_found /num_rows)^(num_fragments - 1)
+
+  Where this function comes from is unknown, there is no documentation of
+  this function other than as a quick fix. It is not extremely bad,
+  but also not very accurate.
+
+  Let us consider the problem from the following angle:
+  We have a number of rows. Assume that we have a number of records that
+  have equal keys. Assume that for a key the number of rows with equal key
+  is always the same.
+
+  Now what is the probability that no row with a specific key is not
+  placed in the fragment we are scanning. The probability that one row
+  is placed in another fragment is (1 - 1/num_fragments). Selection of
+  fragment for different rows is assumed to be independent. This is not
+  true in the case of that the key contains all parts of the partition
+  key, but otherwise this assumption should be ok. It would be very hard
+  to create any dependencies here since the selection of fragment is based
+  on a complex hash algorithm that is even better at distributing data
+  than randomness. So to create dependencies that do not take into account
+  the partition key would be extremely hard.
+
+  Thus to place X number keys in other fragments than the one we are scanning
+  is (1 - 1/num_fragments)^X. X is the records per key we are searching for.
+  We will call this RPK (Records Per Key) for now.
+
+  Assume that the number of unique keys is UNQ. Assume that number of rows
+  is ROWS. Now UNQ * RPK = ROWS or RPK = ROWS / UNQ.
+
+  While searching the fragment we derived the number of rows in the fragment
+  and the number of unique keys in the fragment. We assume that placement of
+  rows is independent and thus ROWS = found_rows_in_fragment * num_fragments.
+  The reasoning is the same as above, but here we also assume that the user
+  selected a partition key that is sensible.
+
+  Now the following holds:
+  UNQ * (1 - P(unique key not in the fragment)) = uniques_found_in_fragment.
+  P(unique key not in fragment) we showed above that it is equal to:
+  (1 - 1/num_fragments)^RPK.
+
+  From this we derive the following equation:
+  ROWS/RPK * (1 - (1 - 1/num_fragments)^RPK)) = uniques_found_in_fragment.
+
+  ROWS = rows_found_in_fragment * num_fragments
+
+  Thus we have an equation with one variable, the RPK variable. This equation
+  has no well-known simple solution that can be expressed as a single function.
+
+  But solving it numerically works fine.
+  We can e.g. use the original function as a first estimate of RPK and then
+  iterate until we have found a solution that is sufficiently accurate.
+
+  This iterative solution solves the problem with reasonable accuracy when
+  the number of rows in a fragment exceeds 100. The smaller the number of
+  rows per fragment, the more variance gets into the solution since the
+  different fragments will have high variance among themselves.
+
+  The proposed solution for small tables is to perform a full table scan
+  to derive the result needed. So this solution is only intended for
+  tables that are slightly bigger.
+
+  As an example we tried the solution on a cluster with 16 fragments and
+  a table with 60M rows. This was performed using a simulation program
+  available as test_distinct.c in the source code. It is not built as
+  part of MySQL Cluster, to build it simply do e.g. gcc test_distinct.c
+  and execute the produced binary with 3 parameters rows, fragments and
+  records per key simulated.
+
+  We tested with different values on records per key. We present the results
+  below with old and new results.
+
+  rpk 2: old: 1.6  new: 2.0
+  rpk 3: old: 2.5  new: 3.0
+  rpk 4: old: 3.78 new: 4.0
+  rpk 5: old: 5.5  new: 5.0
+  rpk 6: old: 7.6  new: 6.0
+  rpk 8: old: 12.4 new: 7.99
+  rpk 10:old: 16.8 new: 10.01
+  rpk 15:old: 23.5 new: 14.99
+  rpk 25:old: 31.2 new: 24.99
+  rpk 40:old: 43.28new: 40.02
+  rpk 80:old: 80.5 new: 80.01
+  rpk:200 old: 200 new: 200
+  rpk:1000 old: 1000 new: 1000.02
+
+  What happens here is that when rpk is larger than 10 * num_fragments, the
+  old algorithm predicts correctly that the number of distinct values in
+  the table is equal to the number of distinct values in the searched
+  fragment. The reason is that the factor in this case is simply 1.
+
+  Thus there is no reason to perform the iteration in this case since it
+  will not improve the already existing solution, actually in this situation
+  we can simply set number of unique keys in the table to the value found
+  in the searched fragment.
+
+  Now with a table with 10000 rows and 16 fragments we get the following
+  results:
+
+  rpk 2: old: 1.6+-0.3 new: 2+-0.3
+  rpk 3: old 2.6+-0.4  new: 3.1+-0.3
+
+  We see here that the variance is about the same in the new and old
+  solution, but the mean value of the different runs is closer to the
+  real mean value. With such little data per fragment it will always
+  be difficult to estimate the number of records per key correctly
+  using only one fragment. Thus a table like this is at the limit of
+  where it makes sense to use scans on only one fragment. It is reasonable
+  to use this algorithm down to around 25 rows per fragment. After this
+  the variance is too big and it makes better sense to scan the full
+  table and build a sorted result. A simple solution to handle those
+  tables would be to simply execute the following SQL queries to
+  get the data (assuming we have an index on key1, key2).
+  SELECT count(*) from (SELECT DISTINCT key1 from t);
+  SELECT count(*) from (SELECT DISTINCT key1, key2 from t);
+  This will provide the necessary rpk estimates for smaller tables.
+
+  The old algorithm really breaks down when there are very many
+  fragments and lots of data (that is a large cluster with lots of
+  data). The old algorithm is the function estimator below that is
+  now used as a first estimate to start the iterative loop.
+
+  In this case we get the following:
+  Rows: 100M
+  Fragments: 1000
+
+  Similar numbers to above for rpk < 6.
+  rpk 6: old: 11+-1 new: 6+-0.5
+  rpk:10: old: 70+-20 new: 9.8+-0.4
+  rpk: 20 old: 920+-20 new: 20+-0.5
+  rpk: 25 old: 1000+-50 new: 25+-0.2
+
+  After this the old algorithm delivers results around
+  1000-1200 even going to rpk = 400 whereas the new
+  algorithm continues to be fairly accurate.
+
+  At around rpk = 4000 the accuracy of the old algorithm is
+  ok again. But at its worst it is 40x off the grid. The old
+  algorithm breaks down especially with very high number of
+  fragments whereas the new algorithm delivers good results
+  even with many thousands of fragments.
+
+  We also have a special case as mentioned previously. This
+  case is when we have a partition key on the column a.
+
+  Now an index on b,a will use the same algorithm for records
+  per key on b, but on b,a the estimate from the single
+  fragment will be multiplied by the number of fragments since
+  we assume that the user has ensured that rows are evenly
+  spread among the fragments in the cluster.
+  
+  So this means there are 4 cases.
+
+  1) The partition key(s) is part of the key part. =>
+     Set UNQ = unique_rows_in_fragment * num_fragments
+  2) If number of rows per fragment is smaller than 25, scan
+     all fragments instead.
+  3) Estimate from old function provides rpk > 10 * num_fragments
+     Use old function
+  4) Estimate from old function fed into iterative algorithm that
+     refines the result to be much more accurate.
+
+  1) is resolved in the set_records_per_key function by multiplying
+  the unique values by num_fragments / stored_factor.
+
+  stored_factor is the factor calculated by iterative_solution.
+  Thus we need to store this value in the cache to enable
+  records per key to be set correctly also for indexes that use
+  the partition keys as part of their index columns.
+*/
+#define NDB_DOUBLE long double
+static NDB_DOUBLE ONE = (NDB_DOUBLE)1.0;
+
+static inline double
+estimator(NDB_DOUBLE fragments,
+          NDB_DOUBLE uniques_found,
+          NDB_DOUBLE rows)
+{
+  NDB_DOUBLE f = ONE +
+                 (fragments - ONE) *
+                   ::powl(uniques_found / rows, fragments - ONE);
+  return f;
+}
+
+static inline NDB_DOUBLE
+convert_rpk_to_estimate(NDB_DOUBLE rows,
+                        NDB_DOUBLE rpk,
+                        NDB_DOUBLE uniques_found)
+{
+  return rows / (rpk * uniques_found);
+}
+
+static inline NDB_DOUBLE
+prob_key_in_fragment(NDB_DOUBLE fragments,
+                     NDB_DOUBLE rpk)
+{
+  NDB_DOUBLE p_key_not_in_fragment = ONE - (ONE / fragments);
+  NDB_DOUBLE p_no_key_in_fragment = powl(p_key_not_in_fragment, rpk);
+  NDB_DOUBLE p_key_in_fragment = ONE - p_no_key_in_fragment;
+  return p_key_in_fragment;
+}
+
+
+static NDB_DOUBLE
+iterative_solution(NDB_DOUBLE fragments,
+                   NDB_DOUBLE rows,
+                   NDB_DOUBLE uniques_found)
+{
+  const NDB_DOUBLE estimate = estimator(fragments, uniques_found, rows);
+  DBUG_PRINT("index_stat", ("iterative_solution: rows: %.2Lf, uniques_found:"
+             " %.2Lf, fragments: %.2Lf, estimate: %.2Lf",
+             rows, uniques_found, fragments, estimate));
+  if (uniques_found < (NDB_DOUBLE)0.1)
+  {
+    /**
+     * The number of unique values are so small that all values are found
+     * in all fragments with an extremely high probability.
+     * Note that initial 'estimate' calculated above will converge against
+     * 'ONE' as 'uniques_found -> 0'. Consider 'estimate' good enough.
+     * Note that this early return also avoid a division by zero in
+     * calculating est_rpk if 'uniques_found = 0'.
+     */
+    return estimate;  // Will be close to 1.0
+  }
+  if (rows / fragments < (NDB_DOUBLE)25.0)  // 2) above
+  {
+    /**
+     * The table is so small that the variance from selecting a small subset
+     * of rows is so high that it doesn't really improve the solution to
+     * perform any iteration.
+     */
+    return estimate;
+  }
+
+  NDB_DOUBLE est_rpk = rows / (estimate * uniques_found);
+  if (est_rpk > fragments * (NDB_DOUBLE)10.0)  // 3) above
+  {
+    /**
+     * This is condition 3) above, there are so many 'rows pr keys'
+     * that all values are found in all fragments with an extremely high
+     * probability. It doesn't really improve the solution to perform
+     * any iteration.
+     */
+    return estimate;  // Will be close to 1.0
+  }
+  /**
+   * We decide to use 2) above, the iterative approach.
+   * In this case we calculate the estimated uniques found based on the
+   * estimated RPK.
+   *
+   * The definition of the end of the iterative loop is defined as when this
+   * iteration does estimates the uniques_found within 1.0 of the previous
+   * loop iteration. In this case there is very little to gain from continuing
+   * the search for an optimum.
+   *
+   * It is important to remember here that the optimum is based on a random
+   * observation from one fragment, thus our predicted RPK can never be better
+   * than this observation. Thus all the error in the observation is
+   * transported along in this calculation. So there is no need to overdo the
+   * accuracy of the calculation.
+   *
+   * The initial prediction can be way off. To ensure that we quickly come
+   * close to the optimum we will move with 50% at the time at first. If we
+   * started with a prediction that was too high we will eventually come
+   * to a prediction that is smaller. When this happens we will half the
+   * increments by which we move the new RPK estimate. In the end we will
+   * move in very small steps and eventually the iteration should bring us
+   * to the end condition. As a safeguard we ensure that we will never
+   * iterat more than 100 times.
+   *
+   * When returning we will convert the estimated RPK to a factor instead.
+   */
+  NDB_DOUBLE percent_change = (NDB_DOUBLE)0.5;
+  NDB_DOUBLE prev_est_uniques_found = (NDB_DOUBLE)0.0;
+  bool prev_decreased = true;
+  bool decreased;
+  unsigned i = 0;
+  bool first = true;
+  do
+  {
+    NDB_DOUBLE p_key_in_fragment = prob_key_in_fragment(fragments, est_rpk);
+    NDB_DOUBLE est_uniques_found = p_key_in_fragment * rows / est_rpk;
+    if (!first)
+    {
+      if (est_uniques_found < prev_est_uniques_found)
+      {
+        if (est_uniques_found + ONE > prev_est_uniques_found)
+          break;
+      }
+      else
+      {
+        if (est_uniques_found - ONE < prev_est_uniques_found)
+          break;
+      }
+    }
+    first = false;
+    if (est_uniques_found < uniques_found)
+    {
+      decreased = true;
+      est_rpk *= (ONE - percent_change);
+    }
+    else
+    {
+      decreased = false;
+      est_rpk *= (ONE + percent_change);
+    }
+    if (prev_decreased != decreased)
+    {
+      percent_change /= (NDB_DOUBLE)2;
+    }
+    prev_decreased = decreased;
+    prev_est_uniques_found = est_uniques_found;
+  } while (++i < 100);
+  return convert_rpk_to_estimate(rows, est_rpk, uniques_found);
+}
+
+static inline double
+get_unqfactor(uint fragments, double rows, double uniques_found)
+{
+  return (double)iterative_solution((NDB_DOUBLE)fragments,
+                                    (NDB_DOUBLE)(rows * fragments),
+                                    (NDB_DOUBLE)uniques_found);
 }
 
 int
@@ -2065,7 +2404,10 @@ NdbIndexStatImpl::query_normalize(const Cache& c, StatValue& value)
   {
     value.m_rir = 1.0;
     for (uint k = 0; k < c.m_keyAttrs; k++)
+    {
       value.m_unq[k] = 1.0;
+      value.m_unq_factor[k] = 1.0;
+    }
   }
 }
 
@@ -2124,15 +2466,22 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
   stat.m_rule[0] = "-";
   stat.m_rule[1] = "-";
   stat.m_rule[2] = "-";
+  value.m_num_fragments = c.m_fragCount;
 
   if (c.m_sampleCount == 0)
   {
     stat.m_rule[0] = "r1.1";
+    value.m_num_rows = 0;
     value.m_empty = true;
     return;
   }
   const uint posMIN = 0;
   const uint posMAX = c.m_sampleCount - 1;
+  value.m_num_rows = c.get_rir1(posMAX);
+  DBUG_PRINT("index_stat", ("rows: %u, frags: %u, samples: %u",
+             value.m_num_rows,
+             value.m_num_fragments,
+             c.m_sampleCount));
 
   const Bound& bound1 = range.m_bound1;
   const Bound& bound2 = range.m_bound2;
@@ -2140,8 +2489,17 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
   {
     stat.m_rule[0] = "r1.2";
     value.m_rir = c.get_rir(posMAX);
+    DBUG_PRINT("index_stat", ("m_rir: %.2f", value.m_rir));
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = c.get_unq(posMAX, k);
+    {
+      double factor;
+      value.m_unq[k] = c.get_unq(posMAX, k, &factor);
+      value.m_unq_factor[k] = factor;
+      DBUG_PRINT("index_stat:1.2", ("m_unq[%u]: %.2f, factor: %.2f",
+                 k,
+                 value.m_unq[k],
+                 value.m_unq_factor[k]));
+    }
     return;
   }
 
@@ -2176,7 +2534,10 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     stat.m_rule[0] = "r1.3";
     value.m_rir = value2.m_rir;
     for (uint k = 0; k < keyAttrs; k++)
+    {
       value.m_unq[k] = value2.m_unq[k];
+      value.m_unq_factor[k] = value2.m_unq_factor[k];
+    }
     return;
   }
   if (bound2.m_data.is_empty())
@@ -2184,7 +2545,11 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     stat.m_rule[0] = "r1.4";
     value.m_rir = c.get_rir(posMAX) - value1.m_rir;
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = c.get_unq(posMAX, k) - value1.m_unq[k];
+    {
+      double factor;
+      value.m_unq[k] = c.get_unq(posMAX, k, &factor) - value1.m_unq[k];
+      value.m_unq_factor[k] = factor;
+    }
     return;
   }
   if (posH1 > posH2)
@@ -2205,15 +2570,21 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     stat.m_rule[0] = "r1.7";
     value.m_rir = value2.m_rir - value1.m_rir;
     for (uint k = 0; k < keyAttrs; k++)
+    {
       value.m_unq[k] = value2.m_unq[k] - value1.m_unq[k];
+      value.m_unq_factor[k] = value2.m_unq_factor[k];
+    }
     return;
   }
   if (posH2 == posMAX + 1)
   {
     stat.m_rule[0] = "r1.8";
     value.m_rir = value2.m_rir - value1.m_rir;
-    for (uint k = 0; k <= keyAttrs; k++)
+    for (uint k = 0; k < keyAttrs; k++)
+    {
       value.m_unq[k] = value2.m_unq[k] - value1.m_unq[k];
+      value.m_unq_factor[k] = value2.m_unq_factor[k];
+    }
     return;
   }
   if (posL1 == posL2)
@@ -2226,9 +2597,16 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       assert(bound1.m_bound.get_side() == -1 &&
              bound2.m_bound.get_side() == +1);
       assert(stat1.m_numEqL < keyAttrs && stat2.m_numEqH < keyAttrs);
-      value.m_rir = c.get_rpk(posL1, posH1, keyAttrs - 1);
+      {
+        double factor;
+        value.m_rir = c.get_rpk(posL1, posH1, keyAttrs - 1, &factor);
+      }
       for (uint k = 0; k < keyAttrs; k++)
-        value.m_unq[k] = value.m_rir / c.get_rpk(posL1, posH1, k);
+      {
+        double factor;
+        value.m_unq[k] = value.m_rir / c.get_rpk(posL1, posH1, k, &factor);
+        value.m_unq_factor[k] = factor;
+      }
       return;
     }
     if (numEq != 0)
@@ -2242,7 +2620,11 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       const double w = 0.5;
       value.m_rir = w * c.get_rir(posL1, posH1);
       for (uint k = 0; k < keyAttrs; k++)
-        value.m_unq[k] = w * c.get_unq(posL1, posH1, k);
+      {
+        double factor;
+        value.m_unq[k] = w * c.get_unq(posL1, posH1, k, &factor);
+        value.m_unq_factor[k] = factor;
+      }
       return;
     }
   }
@@ -2257,7 +2639,10 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       assert(stat1.m_numEqH == keyAttrs && stat2.m_numEqL == keyAttrs);
       value.m_rir = value2.m_rir - value1.m_rir;
       for (uint k = 0; k < keyAttrs; k++)
+      {
         value.m_unq[k] = value2.m_unq[k] - value1.m_unq[k];
+        value.m_unq_factor[k] = value2.m_unq_factor[k];
+      }
       return;
     }
     if (numEq != 0)
@@ -2271,7 +2656,11 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       const double w = 0.5;
       value.m_rir = w * c.get_rir(posL1, posH1);
       for (uint k = 0; k < keyAttrs; k++)
-        value.m_unq[k] = w * c.get_unq(posL1, posH1, k);
+      {
+        double factor;
+        value.m_unq[k] = w * c.get_unq(posL1, posH1, k, &factor);
+        value.m_unq_factor[k] = factor;
+      }
       return;
     }
   }
@@ -2280,7 +2669,10 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     stat.m_rule[0] = "r4";
     value.m_rir = value2.m_rir - value1.m_rir;
     for (uint k = 0; k < keyAttrs; k++)
+    {
       value.m_unq[k] = value2.m_unq[k] - value1.m_unq[k];
+      value.m_unq_factor[k] = value2.m_unq_factor[k];
+    }
     return;
   }
 }
@@ -2310,9 +2702,18 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
         cnt == stat.m_numEqH) {
       stat.m_rule = "b1.1";
       assert(side == -1);
-      value.m_rir = c.get_rir(posMIN) - c.get_rpk(posMIN, keyAttrs - 1);
+      {
+        double factor;
+        value.m_rir = c.get_rir(posMIN) - c.get_rpk(posMIN,
+                                                    keyAttrs - 1,
+                                                    &factor);
+      }
       for (uint k = 0; k < keyAttrs; k++)
-        value.m_unq[k] = c.get_unq(posMIN, k) - 1;
+      {
+        double factor;
+        value.m_unq[k] = c.get_unq(posMIN, k, &factor) - 1;
+        value.m_unq_factor[k] = factor;
+      }
       return;
     }
     if (true)
@@ -2327,7 +2728,11 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     stat.m_rule = "b2";
     value.m_rir = c.get_rir(posMAX);
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = c.get_unq(posMAX, k);
+    {
+      double factor;
+      value.m_unq[k] = c.get_unq(posMAX, k, &factor);
+      value.m_unq_factor[k] = factor;
+    }
     return;
   }
   if (cnt == keyAttrs &&
@@ -2336,7 +2741,11 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     assert(side == +1);
     value.m_rir = c.get_rir(posL);
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = c.get_unq(posL, k);
+    {
+      double factor;
+      value.m_unq[k] = c.get_unq(posL, k, &factor);
+      value.m_unq_factor[k] = factor;
+    }
     return;
   }
   if (cnt == keyAttrs &&
@@ -2345,19 +2754,33 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     stat.m_rule = "b3.2";
     value.m_rir = c.get_rir(posH);
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = c.get_unq(posH, k);
+    {
+      double factor;
+      value.m_unq[k] = c.get_unq(posH, k, &factor);
+      value.m_unq_factor[k] = factor;
+    }
     return;
   }
   if (cnt == keyAttrs &&
       cnt == stat.m_numEqH &&
-      side == -1) {
+      side == -1)
+  {
     stat.m_rule = "b3.3";
-    const double u = c.get_unq(posL, posH, keyAttrs - 1);
+    double u;
+    {
+      double factor;
+      u = c.get_unq(posL, posH, keyAttrs - 1, &factor);
+    }
     const double wL = 1.0 / u;
     const double wH = 1.0 - wL;
     value.m_rir = wL * c.get_rir(posL) + wH * c.get_rir(posH);
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = wL * c.get_unq(posL, k) + wH * c.get_unq(posH, k);
+    {
+      double factor;
+      value.m_unq[k] = wL * c.get_unq(posL, k, &factor) +
+                       wH * c.get_unq(posH, k, &factor);
+      value.m_unq_factor[k] = factor;
+    }
     return;
   }
   if (true)
@@ -2367,7 +2790,12 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
     const double wH = 0.5;
     value.m_rir = wL * c.get_rir(posL) + wH * c.get_rir(posH);
     for (uint k = 0; k < keyAttrs; k++)
-      value.m_unq[k] = wL * c.get_unq(posL, k) + wH * c.get_unq(posH, k);
+    {
+      double factor;
+      value.m_unq[k] = wL * c.get_unq(posL, k, &factor) +
+                       wH * c.get_unq(posH, k, &factor);
+      value.m_unq_factor[k] = factor;
+    }
     return;
   }
 }

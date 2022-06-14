@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE MASTER TO IGNORE_SERVER_IDS = (1);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
 include/start_slave_io.inc
 [connection master]
 CREATE TABLE t1 (c1 INT);
@@ -15,7 +15,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
 slave-relay-bin.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 include/stop_slave_io.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS = ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (c1 INT);

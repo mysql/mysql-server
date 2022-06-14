@@ -33,7 +33,13 @@ while ($i)
   dec $i;
 }
 
-INSERT INTO t SELECT a.a, b.a, c.a, d.a, d.a FROM a, b, c, d;
+--echo # Since ANALYZE TABLE only reads a subset of the data, the statistics for
+--echo # table t depends on the row order. And since the INSERT INTO ... SELECT
+--echo # may be executed using different execution plans, we've added ORDER BY
+--echo # to ensure that we rows has the same order every time. If not, the
+--echo # estimated number of rows in EXPLAIN may change on different platforms.
+INSERT INTO t SELECT a.a, b.a, c.a, d.a, d.a FROM a, b, c, d
+  ORDER BY a.a, b.a, c.a, d.a;
 
 DROP TEMPORARY TABLE a, b, c, d;
 

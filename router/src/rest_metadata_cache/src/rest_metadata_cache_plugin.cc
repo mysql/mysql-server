@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,10 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // ::join()
-
-#include "mysqlrouter/plugin_config.h"
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
@@ -46,20 +46,24 @@
 #include "rest_metadata_cache_status.h"
 IMPORT_LOG_FUNCTIONS()
 
+using namespace std::string_literals;
+
 static const char kSectionName[]{"rest_metadata_cache"};
 static const char kRequireRealm[]{"require_realm"};
 
 // one shared setting
 std::string require_realm_metadata_cache;
 
-class RestMetadataCachePluginConfig : public mysqlrouter::BasePluginConfig {
+using StringOption = mysql_harness::StringOption;
+
+class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestMetadataCachePluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        require_realm(get_option_string(section, kRequireRealm)) {}
+      : mysql_harness::BasePluginConfig(section),
+        require_realm(get_option(section, kRequireRealm, StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -105,10 +109,21 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
       if (!config.require_realm.empty() &&
           (known_realms.find(config.require_realm) == known_realms.end())) {
+        std::string section_name = section->name;
+        if (!section->key.empty()) section_name += ":" + section->key;
+
+        const std::string realm_msg =
+            (known_realms.empty())
+                ? "No [http_auth_realm:" + config.require_realm +
+                      "] section defined."
+                : "Known [http_auth_realm:<...>] section" +
+                      (known_realms.size() > 1 ? "s"s : ""s) + ": " +
+                      mysql_harness::join(known_realms, ", ");
+
         throw std::invalid_argument(
-            "unknown authentication realm for [" + std::string(kSectionName) +
-            "] '" + section->key + "': " + config.require_realm +
-            ", known realm(s): " + mysql_harness::join(known_realms, ","));
+            "The option 'require_realm=" + config.require_realm + "' in [" +
+            section_name + "] does not match any http_auth_realm. " +
+            realm_msg);
       }
 
       require_realm_metadata_cache = config.require_realm;
@@ -802,32 +817,28 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  rest_api_srv.add_path(
-      RestMetadataCacheStatus::path_regex,
-      std::make_unique<RestMetadataCacheStatus>(require_realm_metadata_cache));
-  rest_api_srv.add_path(
-      RestMetadataCacheConfig::path_regex,
-      std::make_unique<RestMetadataCacheConfig>(require_realm_metadata_cache));
-  rest_api_srv.add_path(
-      RestMetadataCacheList::path_regex,
-      std::make_unique<RestMetadataCacheList>(require_realm_metadata_cache));
-  // The socpe of WL#12441 was limited and does not include those:
-  //  rest_api_srv.add_path(RestClustersList::path_regex,
-  //                        std::make_unique<RestClustersList>(require_realm_metadata_cache));
-  //  rest_api_srv.add_path(RestClustersNodes::path_regex,
-  //                        std::make_unique<RestClustersNodes>(require_realm_metadata_cache));
+  std::array<RestApiComponentPath, 3> paths{{
+      {rest_api_srv, RestMetadataCacheStatus::path_regex,
+       std::make_unique<RestMetadataCacheStatus>(require_realm_metadata_cache)},
+      {rest_api_srv, RestMetadataCacheConfig::path_regex,
+       std::make_unique<RestMetadataCacheConfig>(require_realm_metadata_cache)},
+      {rest_api_srv, RestMetadataCacheList::path_regex,
+       std::make_unique<RestMetadataCacheList>(require_realm_metadata_cache)},
+
+      // The socpe of WL#12441 was limited and does not include those:
+      //  {rest_api_srv, RestClustersList::path_regex,
+      //                        std::make_unique<RestClustersList>(require_realm_metadata_cache)},
+      //  {rest_api_srv, RestClustersNodes::path_regex,
+      //                        std::make_unique<RestClustersNodes>(require_realm_metadata_cache)},
+  }};
+
+  mysql_harness::on_service_ready(env);
 
   wait_for_stop(env, 0);
 
   // in case rest_api never initialized, ensure the rest_api_component doesn't
   // have a callback to use
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
-
-  rest_api_srv.remove_path(RestMetadataCacheStatus::path_regex);
-  rest_api_srv.remove_path(RestMetadataCacheConfig::path_regex);
-  rest_api_srv.remove_path(RestMetadataCacheList::path_regex);
-  //  rest_api_srv.remove_path(RestClustersList::path_regex);
-  //  rest_api_srv.remove_path(RestClustersNodes::path_regex);
 }
 
 #if defined(_MSC_VER) && defined(rest_metadata_cache_EXPORTS)
@@ -837,10 +848,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-const char *rest_metadata_plugin_requires[] = {
+static const std::array<const char *, 2> required = {{
+    "logger",
     // "metadata_cache",
     "rest_api",
-};
+}};
+
+static const std::array<const char *, 1> supported_options{kRequireRealm};
 
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
@@ -848,14 +862,18 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "REST_METADATA_CACHE",
     VERSION_NUMBER(0, 0, 1),
-    sizeof(rest_metadata_plugin_requires) /
-        sizeof(rest_metadata_plugin_requires[0]),
-    rest_metadata_plugin_requires,  // requires
+    // requires
+    required.size(),
+    required.data(),
+    // conflicts
     0,
-    nullptr,  // conflicts
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
+    true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

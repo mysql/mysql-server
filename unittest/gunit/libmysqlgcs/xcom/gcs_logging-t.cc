@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,22 +31,22 @@ class Mock_Logger : public Logger_interface {
     ON_CALL(*this, finalize()).WillByDefault(Return(GCS_OK));
   }
 
-  ~Mock_Logger() {}
+  ~Mock_Logger() = default;
   MOCK_METHOD0(initialize, enum_gcs_error());
   MOCK_METHOD0(finalize, enum_gcs_error());
-  MOCK_METHOD2(log_event, void(const gcs_log_level_t l, const std::string &m));
+  MOCK_METHOD2(log_event, void(const gcs_log_level_t, const std::string &));
 };
 
 class LoggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
-  LoggingInfrastructureTest() : logger(NULL) {}
+  LoggingInfrastructureTest() : logger(nullptr) {}
 
-  virtual void SetUp() { logger = new Mock_Logger(); }
+  void SetUp() override { logger = new Mock_Logger(); }
 
-  virtual void TearDown() {
+  void TearDown() override {
     Gcs_log_manager::finalize();
     delete logger;
-    logger = NULL;
+    logger = nullptr;
   }
 
   Mock_Logger *logger;
@@ -59,7 +59,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
   Gcs_log_manager::initialize(logger);
 
   // Logger 1 initialized
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() != NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() != nullptr);
   ASSERT_EQ(logger, Gcs_log_manager::get_logger());
 
   // Log some messages on logger
@@ -75,7 +75,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
   Gcs_log_manager::initialize(anotherLogger);
 
   // anotherLogger initialized
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() != NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() != nullptr);
   ASSERT_EQ(anotherLogger, Gcs_log_manager::get_logger());
 
   Gcs_log_manager::finalize();
@@ -85,9 +85,9 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
 class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
   DebuggingInfrastructureTest()
-      : debugger(NULL), sink(NULL), saved_options(GCS_DEBUG_NONE) {}
+      : debugger(nullptr), sink(nullptr), saved_options(GCS_DEBUG_NONE) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     sink = new Gcs_async_buffer(new Gcs_output_sink());
     debugger = new Gcs_default_debugger(sink);
     saved_options = Gcs_debug_manager::get_current_debug_options();
@@ -95,7 +95,7 @@ class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
     ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     Gcs_debug_manager::unset_debug_options(GCS_DEBUG_ALL);
     Gcs_debug_manager::set_debug_options(saved_options);
     ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), saved_options);
@@ -103,7 +103,7 @@ class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
     Gcs_debug_manager::finalize();
     delete debugger;
     delete sink;
-    debugger = NULL;
+    debugger = nullptr;
   }
 
   Gcs_default_debugger *debugger;
@@ -124,7 +124,7 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSetOfOptions) {
   int64_t options = GCS_DEBUG_NONE;
   for (unsigned int i = 0; i < Gcs_debug_manager::get_number_debug_options();
        i++) {
-    option = 1 << i;
+    option = static_cast<int64_t>(1) << i;
     ASSERT_TRUE(Gcs_debug_manager::is_valid_debug_options(option));
     options = options | option;
   }
@@ -154,37 +154,47 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSettingIntegerOptions) {
   std::string res_debug_options;
   Gcs_debug_manager::initialize(debugger);
 
+  /*
+    Check if the initial value is GCS_DEBUG_NONE.
+  */
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
+  /*
+    Check if it is possible to set GCS_DEBUG_BASIC.
+  */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_BASIC);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_BASIC"), 0);
 
+  /*
+    Check if it is possible to set GCS_DEBUG_TRACE.
+  */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_TRACE);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(),
             GCS_DEBUG_BASIC | GCS_DEBUG_TRACE);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_BASIC,GCS_DEBUG_TRACE"), 0);
 
+  /*
+    Check if it is possible to set GCS_DEBUG_ALL.
+  */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_ALL);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_ALL);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_ALL"), 0);
 
+  /*
+     Check if it is possible to set GCS_DEBUG_NONE.
+   */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_NONE);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_ALL);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_ALL"), 0);
 
   Gcs_debug_manager::unset_debug_options(GCS_DEBUG_ALL);
-  ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options(GCS_INVALID_DEBUG));
-  Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC | GCS_INVALID_DEBUG);
-  ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
-  Gcs_debug_manager::get_current_debug_options(res_debug_options);
-  ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC | GCS_DEBUG_TRACE);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(),
@@ -217,6 +227,14 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSettingIntegerOptions) {
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_ALL);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_ALL"), 0);
+
+  Gcs_debug_manager::unset_debug_options(GCS_DEBUG_ALL);
+
+  ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options(GCS_INVALID_DEBUG));
+  Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC | GCS_INVALID_DEBUG);
+  ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
+  Gcs_debug_manager::get_current_debug_options(res_debug_options);
+  ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
   /*
     Restore the environment.

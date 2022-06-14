@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 
 #include "unittest/gunit/parsertest.h"
@@ -36,9 +33,9 @@ using my_testing::Server_initializer;
 class SubquerySyntaxTest : public ParserTest {};
 
 TEST_F(SubquerySyntaxTest, Outer) {
-  SELECT_LEX *term = parse("SET @v = ( SELECT 1 )");
-  SELECT_LEX_UNIT *top_union = term->master_unit();
-  EXPECT_EQ(nullptr, top_union->outer_select());
+  Query_block *term = parse("SET @v = ( SELECT 1 )");
+  Query_expression *top_union = term->master_query_expression();
+  EXPECT_EQ(nullptr, top_union->outer_query_block());
 }
 
 }  // namespace subquery_syntax_unittest

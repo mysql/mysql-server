@@ -157,7 +157,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -175,26 +175,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -233,7 +233,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -272,7 +272,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -345,7 +345,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -363,26 +363,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -421,7 +421,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -496,7 +496,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -514,26 +514,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -572,7 +572,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -692,7 +692,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -710,26 +710,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -768,7 +768,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -807,7 +807,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -873,7 +873,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -891,26 +891,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -949,7 +949,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -988,7 +988,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1059,7 +1059,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1077,26 +1077,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1135,7 +1135,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1174,7 +1174,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1296,7 +1296,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1314,26 +1314,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1372,7 +1372,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1411,7 +1411,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1531,7 +1531,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1549,26 +1549,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1607,7 +1607,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1710,7 +1710,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1782,7 +1782,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1854,7 +1854,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1926,7 +1926,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1998,7 +1998,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2070,7 +2070,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2142,7 +2142,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2214,7 +2214,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2304,7 +2304,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2418,7 +2418,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2676,7 +2676,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2694,26 +2694,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] length: 4294967292
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
+		[meta][field] type: LONG_BLOB (251)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2780,7 +2780,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2798,26 +2798,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] length: 4294967292
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
+		[meta][field] type: LONG_BLOB (251)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2845,7 +2845,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3028,7 +3028,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3046,10 +3046,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -3057,10 +3068,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -3068,92 +3123,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3203,7 +3203,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3297,7 +3297,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3315,10 +3315,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -3326,10 +3337,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -3337,92 +3392,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3472,7 +3472,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3560,7 +3560,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3656,7 +3656,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3674,10 +3674,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -3685,10 +3696,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -3696,92 +3751,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3831,7 +3831,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3919,7 +3919,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4046,7 +4046,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4122,7 +4122,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4140,10 +4140,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -4151,10 +4162,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -4162,92 +4217,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4297,7 +4297,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4385,7 +4385,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4512,7 +4512,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4566,8 +4566,127 @@ EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
 COM_STMT_EXECUTE: stmt_id [7]
-handle_error
-[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
+handle_start_column_metadata
+handle_end_column_metadata
+handle_ok
+<<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: stmt_id
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: column_no
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: param_no
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: warning_no
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+	[meta] current col: 0
+		[data][.stmt_id][  1][7]
+	[meta] current col: 1
+		[data][.column_no][  1][1]
+	[meta] current col: 2
+		[data][.param_no][  1][1]
+	[meta] current col: 3
+		[data][.warning_no][  1][0]
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: CONCAT(9< ?)
+		[meta][field] org col name: 
+		[meta][field] length: 3
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: CONCAT(9< ?)
+		[meta][field] org col name: CONCAT(9< ?)
+		[meta][field] length: 3
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 0
+		[meta][field] decimals: 0
+		[meta][field] type: VARCHAR (15)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+	[end] server status: 66
+	[end] server status: AUTOCOMMIT CURSOR_EXISTS 
+	[end] warning count:  1
+	[end] affected rows:  0
+	[end] last insert id: 0
+	[end] message: 
+<<<<<<<<<<<<>>>>>>>>>>>>>>>
 ------------------------------------------------------------------
 CLOSE PS
 ------------------------------------------------------------------
@@ -4657,7 +4776,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4725,7 +4844,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4894,6 +5013,36 @@ handle_ok
 	[end] last insert id: 0
 	[end] message: 
 <<<<<<<<<<<<>>>>>>>>>>>>>>>
+------------------------------------------------------------------
+##################################################################
+Test COM_STMT_EXECUTE with wrong parameters
+##################################################################
+CREATE PREPARED STATEMENT
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_PREPARE: query[SELECT * from t1 where a = ?]
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_row
+handle_end_row
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_column_metadata
+handle_end_column_metadata
+------------------------------------------------------------------
+EXECUTE THE PS WITH INVALID PARAMETER TYPE
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_EXECUTE: stmt_id [11]
+handle_error
+[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
+------------------------------------------------------------------
+EXECUTE THE PS WITH BOOL PARAMETER TYPE
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_EXECUTE: stmt_id [11]
+handle_error
+[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
@@ -5168,7 +5317,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5186,26 +5335,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5244,7 +5393,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5283,7 +5432,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5356,7 +5505,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5374,26 +5523,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5432,7 +5581,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5507,7 +5656,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5525,26 +5674,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5583,7 +5732,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5703,7 +5852,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5721,26 +5870,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5779,7 +5928,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5818,7 +5967,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5884,7 +6033,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5902,26 +6051,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5960,7 +6109,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5999,7 +6148,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6070,7 +6219,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6088,26 +6237,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6146,7 +6295,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6185,7 +6334,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6307,7 +6456,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6325,26 +6474,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6383,7 +6532,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6422,7 +6571,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6542,7 +6691,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6560,26 +6709,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6618,7 +6767,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6721,7 +6870,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6793,7 +6942,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6865,7 +7014,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6937,7 +7086,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7009,7 +7158,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7081,7 +7230,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7153,7 +7302,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7225,7 +7374,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7315,7 +7464,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7429,7 +7578,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7687,7 +7836,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7705,26 +7854,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] length: 4294967292
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
+		[meta][field] type: LONG_BLOB (251)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7791,7 +7940,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7809,26 +7958,26 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] length: 4294967292
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
+		[meta][field] type: LONG_BLOB (251)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7856,7 +8005,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8039,7 +8188,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8057,10 +8206,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -8068,10 +8228,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -8079,92 +8283,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8214,7 +8363,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8308,7 +8457,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8326,10 +8475,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -8337,10 +8497,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -8348,92 +8552,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8483,7 +8632,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8571,7 +8720,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8667,7 +8816,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8685,10 +8834,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -8696,10 +8856,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -8707,92 +8911,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8842,7 +8991,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8930,7 +9079,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9057,7 +9206,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9133,7 +9282,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9151,10 +9300,21 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -9162,10 +9322,54 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 65532
+		[meta][field] charsetnr: 255
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
 		[meta][field] type: VARCHAR (15)
 
 		[meta][field] db name: 
@@ -9173,92 +9377,37 @@ handle_ok
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 23
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 31
+		[meta][field] type: DOUBLE (5)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 67
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] decimals: 30
+		[meta][field] type: NEWDECIMAL (246)
 
 		[meta][field] db name: 
 		[meta][field] table name: 
 		[meta][field] org table name: 
 		[meta][field] col name: ?
 		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
 		[meta][field] flags: 128 (BINARY )
 		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
-
-		[meta][field] db name: 
-		[meta][field] table name: 
-		[meta][field] org table name: 
-		[meta][field] col name: ?
-		[meta][field] org col name: 
-		[meta][field] length: 0
-		[meta][field] charsetnr: 63
-		[meta][field] flags: 128 (BINARY )
-		[meta][field] decimals: 0
-		[meta][field] type: VARCHAR (15)
+		[meta][field] type: LONGLONG (8)
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9308,7 +9457,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9396,7 +9545,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9523,7 +9672,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9577,8 +9726,127 @@ EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
 COM_STMT_EXECUTE: stmt_id [7]
-handle_error
-[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
+handle_start_column_metadata
+handle_end_column_metadata
+handle_ok
+<<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: stmt_id
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: column_no
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: param_no
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: warning_no
+		[meta][field] org col name: 
+		[meta][field] length: 96
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 1 (NOT_NULL )
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+	[meta] current col: 0
+		[data][.stmt_id][  1][7]
+	[meta] current col: 1
+		[data][.column_no][  1][1]
+	[meta] current col: 2
+		[data][.param_no][  1][1]
+	[meta] current col: 3
+		[data][.warning_no][  1][0]
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: ?
+		[meta][field] org col name: 
+		[meta][field] length: 21
+		[meta][field] charsetnr: 8
+		[meta][field] flags: 128 (BINARY )
+		[meta][field] decimals: 0
+		[meta][field] type: LONGLONG (8)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: CONCAT(9< ?)
+		[meta][field] org col name: 
+		[meta][field] length: 3
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 0
+		[meta][field] decimals: 31
+		[meta][field] type: VARCHAR (15)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+		[meta][field] db name: 
+		[meta][field] table name: 
+		[meta][field] org table name: 
+		[meta][field] col name: CONCAT(9< ?)
+		[meta][field] org col name: CONCAT(9< ?)
+		[meta][field] length: 3
+		[meta][field] charsetnr: 33
+		[meta][field] flags: 0
+		[meta][field] decimals: 0
+		[meta][field] type: VARCHAR (15)
+
+
+	[meta][charset result] number: 33
+	[meta][charset result] name: utf8mb3
+	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] sort order: 
+
+	[end] server status: 66
+	[end] server status: AUTOCOMMIT CURSOR_EXISTS 
+	[end] warning count:  1
+	[end] affected rows:  0
+	[end] last insert id: 0
+	[end] message: 
+<<<<<<<<<<<<>>>>>>>>>>>>>>>
 ------------------------------------------------------------------
 CLOSE PS
 ------------------------------------------------------------------
@@ -9668,7 +9936,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9736,7 +10004,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9905,6 +10173,36 @@ handle_ok
 	[end] last insert id: 0
 	[end] message: 
 <<<<<<<<<<<<>>>>>>>>>>>>>>>
+------------------------------------------------------------------
+##################################################################
+Test COM_STMT_EXECUTE with wrong parameters
+##################################################################
+CREATE PREPARED STATEMENT
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_PREPARE: query[SELECT * from t1 where a = ?]
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_row
+handle_end_row
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_column_metadata
+handle_end_column_metadata
+------------------------------------------------------------------
+EXECUTE THE PS WITH INVALID PARAMETER TYPE
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_EXECUTE: stmt_id [11]
+handle_error
+[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
+------------------------------------------------------------------
+EXECUTE THE PS WITH BOOL PARAMETER TYPE
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_EXECUTE: stmt_id [11]
+handle_error
+[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]

@@ -5,11 +5,12 @@
 --source include/have_innodb_max_16k.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("The error means that another program is using InnoDB's files");
 call mtr.add_suppression("Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -226,11 +227,13 @@ begin
 
         DROP TABLE IF EXISTS tde_db.t_encrypt;
 
+        SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+        SET SESSION innodb_strict_mode=OFF;
         SET @sql_text = CONCAT('CREATE TABLE tde_db.t_encrypt  ('," c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL SRID 0,spatial INDEX idx2 (c7) ) ", ' ENCRYPTION="Y" ',  row_form ,' ENGINE=InnoDB');
         PREPARE stmt FROM @sql_text;
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
-
+        SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 
         SHOW CREATE TABLE tde_db.t_encrypt;
 
@@ -271,7 +274,9 @@ call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPACT ");
 let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
 --source include/restart_mysqld.inc
+--disable_warnings
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+--enable_warnings
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -281,7 +286,9 @@ call tde_db.row_format_t_encrypt(" ROW_FORMAT=REDUNDANT ");
 let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
 --source include/restart_mysqld.inc
+--disable_warnings
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+--enable_warnings
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -437,16 +444,13 @@ send call tde_db.read_t_encrypt();
 --echo # In connection con5 - Running "alter instance"
 connect (con5,localhost,root,,);
 send call tde_db.rotate_master_key();
---echo # In connection con6 - Running "alter instance"
+--enable_query_log
+--echo # In connection con6 - Running "create table"
 connect (con6,localhost,root,,);
-send call tde_db.rotate_master_key();
+send call tde_db.create_encrypt_table("Y");
 --enable_query_log
 --echo # In connection con7 - Running "create table"
 connect (con7,localhost,root,,);
-send call tde_db.create_encrypt_table("Y");
---enable_query_log
---echo # In connection con8 - Running "create table"
-connect (con8,localhost,root,,);
 send call tde_db.create_encrypt_table("N");
 --enable_query_log
 
@@ -492,12 +496,6 @@ connection con7;
 reap;
 --enable_query_log
 disconnect con7;
---echo # In connection con8
-connection con8;
---disable_query_log
-reap;
---enable_query_log
-disconnect con8;
 
 
 connection default;

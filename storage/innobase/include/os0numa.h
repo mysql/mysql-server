@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -156,7 +156,7 @@ inline int os_numa_num_configured_cpus() {
 }
 
 /** Get the NUMA node of a given CPU.
-@param[in]	cpu	CPU whose NUMA node to return, must be obtained
+@param[in]      cpu     CPU whose NUMA node to return, must be obtained
 using os_getcpu().
 @return NUMA node id */
 inline int os_numa_node_of_cpu(int cpu) {
@@ -181,8 +181,8 @@ inline int os_numa_node_of_cpu(int cpu) {
 }
 
 /** Allocate a memory on a given NUMA node.
-@param[in]	size	number of bytes to allocate
-@param[in]	node	NUMA node on which to allocate the memory
+@param[in]      size    number of bytes to allocate
+@param[in]      node    NUMA node on which to allocate the memory
 @return pointer to allocated memory or NULL if allocation failed */
 inline void *os_numa_alloc_onnode(size_t size, int node) {
 #if defined(HAVE_LIBNUMA)
@@ -197,9 +197,9 @@ inline void *os_numa_alloc_onnode(size_t size, int node) {
 }
 
 /** Free a memory allocated by os_numa_alloc_onnode().
-@param[in]	ptr	pointer to memory to free
-@param[in]	size	size of the memory */
-inline void os_numa_free(void *ptr, size_t size) {
+@param[in]      ptr     pointer to memory to free
+@param[in]      size    size of the memory */
+inline void os_numa_free(void *ptr, size_t size [[maybe_unused]]) {
 #if defined(HAVE_LIBNUMA)
   numa_free(ptr, size);
 #elif defined(HAVE_WINNUMA)

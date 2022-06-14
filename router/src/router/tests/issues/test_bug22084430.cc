@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,22 +26,17 @@
  * BUG22084430 IPV6 ADDRESS IN LOGS DOES NOT USE []
  *
  */
+#include <map>
+#include <string>
 
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
 
-#include "router_test_helpers.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "tcp_address.h"
-
-#ifdef _WIN32
-#include <WinSock2.h>
-#endif
 
 using mysql_harness::TCPAddress;
 
-class Bug22084430 : public ::testing::Test {
-  virtual void SetUp() {}
-  virtual void TearDown() {}
-};
+class Bug22084430 : public ::testing::Test {};
 
 TEST_F(Bug22084430, LogCorrectIPv6Address) {
   std::map<std::string, TCPAddress> address{
@@ -68,8 +63,17 @@ TEST_F(Bug22084430, LogCorrectIPv4Address) {
   }
 }
 
+class GlobalTestEnv : public ::testing::Environment {
+ public:
+  void SetUp() override {
+    auto init_res = net::impl::socket::init();
+    ASSERT_TRUE(init_res) << init_res.error();
+  }
+};
+
 int main(int argc, char *argv[]) {
-  init_windows_sockets();
+  ::testing::AddGlobalTestEnvironment(new GlobalTestEnv);
+
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

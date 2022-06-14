@@ -1,5 +1,5 @@
-/* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, tommy@valley.ne.jp
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -279,7 +279,7 @@ static const uchar sort_order_eucjpms[] = {
 #define iseucjpms_ss3(c) (((c)&0xff) == 0x8f)
 
 extern "C" {
-static uint ismbchar_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
                              const char *p, const char *e) {
   return ((static_cast<uchar>(*p) < 0x80)
               ? 0
@@ -294,8 +294,7 @@ static uint ismbchar_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 : 0);
 }
 
-static uint mbcharlen_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                              uint c) {
+static uint mbcharlen_eucjpms(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (iseucjpms(c) ? 2 : iseucjpms_ss2(c) ? 2 : iseucjpms_ss3(c) ? 3 : 1);
 }
 }  // extern "C"
@@ -3414,72 +3413,99 @@ static const MY_UNICASE_CHARACTER c8FF4[256] = {
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_eucjpms[512] = {
     /* JIS-X-0208 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, cA2, cA3, NULL,
-    NULL, cA6, cA7, /* A */
-    NULL, NULL, NULL, NULL, NULL, cAD, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, cA2, cA3, nullptr, nullptr, cA6, cA7, /* A */
+    nullptr, nullptr, nullptr, nullptr, nullptr, cAD, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
 
     /* JIS-X-0212 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, c8FA6, c8FA7, /* A */
-    NULL, c8FA9, c8FAA, c8FAB, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, c8FF3,
-    c8FF4, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, c8FA6, c8FA7, /* A */
+    nullptr, c8FA9, c8FAA, c8FAB, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, c8FF3, c8FF4, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 static MY_UNICASE_INFO my_caseinfo_eucjpms = {0x0FFFF,
                                               my_caseinfo_pages_eucjpms};
@@ -36286,7 +36312,7 @@ static const uint16 unicode_to_jisx0212_eucjpms[65536] = {
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 extern "C" {
-static int my_mb_wc_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
                             my_wc_t *pwc, const uchar *s, const uchar *e) {
   int hi;
 
@@ -36340,8 +36366,8 @@ static int my_mb_wc_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in EUCJPMS
 */
-static int my_wc_mb_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                            my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_eucjpms(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                            uchar *s, uchar *e) {
   int jp;
 
   if ((int)wc < 0x80) /* ASCII [00-7F] */
@@ -36387,9 +36413,10 @@ static int my_wc_mb_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
 
-static size_t my_well_formed_len_eucjpms(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *beg,
-    const char *end, size_t pos, int *error) {
+static size_t my_well_formed_len_eucjpms(const CHARSET_INFO *cs
+                                         [[maybe_unused]],
+                                         const char *beg, const char *end,
+                                         size_t pos, int *error) {
   const uchar *b = pointer_cast<const uchar *>(beg);
   *error = 0;
 
@@ -36429,7 +36456,7 @@ static size_t my_well_formed_len_eucjpms(
   return (size_t)(b - pointer_cast<const uchar *>(beg));
 }
 
-static size_t my_numcells_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_numcells_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
                                   const char *str, const char *str_end) {
   size_t clen;
   const uchar *b = (const uchar *)str;
@@ -36468,7 +36495,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {
     my_hash_sort_simple,
     my_propagate_simple};
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_eucjpms,
                                                 mbcharlen_eucjpms,
                                                 my_numchars_mb,
@@ -36502,20 +36529,20 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci = {
     0,                              /* number       */
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state        */
     "eucjpms",                      /* cs name    */
-    "eucjpms_japanese_ci",          /* name         */
-    "",                             /* comment      */
-    NULL,                           /* tailoring    */
-    NULL,                           /* coll_param   */
+    "eucjpms_japanese_ci",          /* m_coll_name */
+    "UJIS for Windows Japanese",    /* comment      */
+    nullptr,                        /* tailoring    */
+    nullptr,                        /* coll_param   */
     ctype_eucjpms,
     to_lower_eucjpms,
     to_upper_eucjpms,
     sort_order_eucjpms,
-    NULL,                 /* uca          */
-    NULL,                 /* tab_to_uni   */
-    NULL,                 /* tab_from_uni */
+    nullptr,              /* uca          */
+    nullptr,              /* tab_to_uni   */
+    nullptr,              /* tab_from_uni */
     &my_caseinfo_eucjpms, /* caseinfo    */
-    NULL,                 /* state_map    */
-    NULL,                 /* ident_map    */
+    nullptr,              /* state_map    */
+    nullptr,              /* ident_map    */
     1,                    /* strxfrm_multiply */
     1,                    /* caseup_multiply  */
     2,                    /* casedn_multiply  */
@@ -36525,7 +36552,7 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci = {
     0,                    /* min_sort_char */
     0xFEFE,               /* max_sort_char */
     ' ',                  /* pad_char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
@@ -36537,20 +36564,20 @@ CHARSET_INFO my_charset_eucjpms_bin = {
     0,                              /* number       */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state        */
     "eucjpms",                      /* cs name    */
-    "eucjpms_bin",                  /* name         */
-    "",                             /* comment      */
-    NULL,                           /* tailoring    */
-    NULL,                           /* coll_param   */
+    "eucjpms_bin",                  /* m_coll_name */
+    "UJIS for Windows Japanese",    /* comment      */
+    nullptr,                        /* tailoring    */
+    nullptr,                        /* coll_param   */
     ctype_eucjpms,
     to_lower_eucjpms,
     to_upper_eucjpms,
-    NULL,                 /* sort_order   */
-    NULL,                 /* uca          */
-    NULL,                 /* tab_to_uni   */
-    NULL,                 /* tab_from_uni */
+    nullptr,              /* sort_order   */
+    nullptr,              /* uca          */
+    nullptr,              /* tab_to_uni   */
+    nullptr,              /* tab_from_uni */
     &my_caseinfo_eucjpms, /* caseinfo    */
-    NULL,                 /* state_map    */
-    NULL,                 /* ident_map    */
+    nullptr,              /* state_map    */
+    nullptr,              /* ident_map    */
     1,                    /* strxfrm_multiply */
     1,                    /* caseup_multiply  */
     2,                    /* casedn_multiply  */
@@ -36560,7 +36587,7 @@ CHARSET_INFO my_charset_eucjpms_bin = {
     0,                    /* min_sort_char */
     0xFEFE,               /* max_sort_char */
     ' ',                  /* pad_char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_handler,
     &my_collation_mb_bin_handler,

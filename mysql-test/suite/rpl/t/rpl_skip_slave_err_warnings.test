@@ -4,7 +4,7 @@
 #
 # Problem:
 # ========
-# Setting slave-skip-errors=all on the slave will make mysql slave
+# Setting replica-skip-errors=all on the slave will make mysql slave
 # error log to grow continuously with the following warnings.
 #
 # [Warning] Slave SQL: Could not execute Query event.
@@ -12,7 +12,7 @@
 #
 # Test:
 # =====
-# Set up master slave replication. Set "slave-skip-errors=all" on the slve.
+# Set up master slave replication. Set "replica-skip-errors=all" on the slve.
 # Execute simple statments on master which does not cause any error on slave.
 # Check that no warning should be generated on slave.
 ###############################################################################

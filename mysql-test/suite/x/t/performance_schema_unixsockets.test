@@ -8,7 +8,7 @@
 --source include/xplugin_create_user.inc
 
 # Tests
---write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_socket_num.xpl
 -->quiet
 -->macro check_xconnection_count %EXPECTED_NUM_OF_CONNECTIONS%
 -->echo Verify [Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections]
@@ -56,7 +56,7 @@
 -->noquiet
 EOF
 
---write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.xpl
 
 -->macro This_socket_oi_begin
 -->quiet
@@ -213,16 +213,14 @@ if ( $XPlugin_port != $XPlugin_port_expected) {
 }
 
 --echo Check if clinet_socket are reported in proper way in PFS
---exec $MYSQLXTEST -ux_root --password='' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/performance_schema_socket_num.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/performance_schema_socket_num.xpl 2>&1
 
 --echo No socket should be reported by X Plugin
 let $wait_condition=
   SELECT count(*)= 0 as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection';
 --source include/wait_condition_or_abort.inc
 
---exec $MYSQLXTEST -ux_root --password='' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/performance_schema_socket_io_stats.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
---remove_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

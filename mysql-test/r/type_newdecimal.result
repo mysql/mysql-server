@@ -73,8 +73,8 @@ t1	CREATE TABLE `t1` (
   `nullif(1.1, 1.2)` decimal(2,1) DEFAULT NULL,
   `nullif(1.1, 0.11e1)` decimal(2,1) DEFAULT NULL,
   `nullif(1.0, 1)` decimal(2,1) DEFAULT NULL,
-  `nullif(1, 1.0)` int(1) DEFAULT NULL,
-  `nullif(1, 1.1)` int(1) DEFAULT NULL
+  `nullif(1, 1.0)` int DEFAULT NULL,
+  `nullif(1, 1.1)` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a decimal(4,2));
@@ -179,7 +179,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `round(15.4,-1)` decimal(3,0) NOT NULL DEFAULT '0',
   `truncate(-5678.123451,-3)` decimal(4,0) NOT NULL DEFAULT '0',
-  `abs(-1.1)` decimal(3,1) NOT NULL DEFAULT '0.0',
+  `abs(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0',
   `-(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -763,7 +763,7 @@ round(-99999999999999999.999,3)
 -99999999999999999.999
 select truncate(99999999999999999999999999999999999999,31);
 truncate(99999999999999999999999999999999999999,31)
-99999999999999999999999999999999999999.000000000000000000000000000000
+99999999999999999999999999999999999999
 select truncate(99.999999999999999999999999999999999999,31);
 truncate(99.999999999999999999999999999999999999,31)
 99.999999999999999999999999999999
@@ -1435,6 +1435,8 @@ i2	count(distinct j)
 drop table t1;
 create table t1(f1 decimal(20,6));
 insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '10:11:12' at row 1 is deprecated. Prefer the standard '-'.
 insert into t1 values (CAST('10:11:12' AS time));
 select * from t1;
 f1
@@ -1508,9 +1510,9 @@ CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
 SELECT a+CAST(1 AS decimal(65,30)) AS aa, SUM(b) FROM t1 GROUP BY aa;
 aa	SUM(b)
-4.000000000000000000000000000000	30
 2.000000000000000000000000000000	10
 3.000000000000000000000000000000	10
+4.000000000000000000000000000000	30
 SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
 ERROR 42000: Too big scale 31 specified for column '1'. Maximum is 30.
 DROP TABLE t1;
@@ -1868,7 +1870,7 @@ Note	1265	Data truncated for column 'c1' at row 2
 Note	1265	Data truncated for column 'c1' at row 3
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-c1	decimal(34,1)	YES		NULL	
+c1	decimal(63,30)	YES		NULL	
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a DECIMAL(30,30));
 INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
@@ -2241,7 +2243,7 @@ SET sql_mode=DEFAULT;
 #
 SET sql_mode="";
 CREATE TABLE t(
-a YEAR(4) NOT NULL,
+a YEAR NOT NULL,
 b DECIMAL(29,5) UNSIGNED ZEROFILL NOT NULL
 ) ENGINE=INNODB;
 Warnings:
@@ -2299,10 +2301,9 @@ RESULT
 # Bug#25685958 ASSERTION FAILED:
 #              RETVAL == 0 IN ITEM_SUM_HYBRID::VAL_DECIMAL()
 #
-do 1 div nullif(min(from_days(1)),_utf8'1');
+do 1 div nullif(min(from_days(1)),_utf8mb4'2000-01-01');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1365	Division by 0
 #
 # Bug#26497007 ASSERTION(0) IN DIV_BY_POW10 WITH LARGE NUMBER
 #
@@ -2326,3 +2327,112 @@ over()
 -99999999999999999999999999999999999999.999999999999999999999999999
 DROP TABLE t;
 SET sql_mode = default;
+#
+# Bug#30031103 ASSERTION `SCALE >= 0 && PRECISION > 0 &&
+#                         SCALE <= PRECISION' FAILED
+#
+CREATE TABLE t1(a DECIMAL(10,0));
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1 AS alias1 NATURAL JOIN t1 AS alias2;
+a
+0
+DROP TABLE t1;
+# Bug#32785804: Failure in decimal_intg
+CREATE TABLE t(a DECIMAL(10,4));
+INSERT INTO t VALUES(-1),(1),(100);
+SET @d:=' ';
+WITH RECURSIVE cte1 AS (
+SELECT a AS a1 FROM  t
+),
+cte2 AS (
+SELECT (0xfa > @d) AS a2 FROM t
+)
+SELECT cte1.a1
+FROM cte1,cte2
+WHERE cte1.a1 >= cte2.a2;
+ERROR HY000: Cannot convert string '\xFA' from binary to utf8mb4
+DROP TABLE t;
+# Bug#32802251: decimal_bin_size_inline: assertion `scale >= 0 &&
+#               precision > 0 && scale <= precision' failed
+CREATE TABLE t(a DECIMAL(14,14) DEFAULT NULL);
+INSERT INTO t VALUES
+(-0.99999999999999), (-0.99999999999999), (0.15610000000000);
+SELECT WEIGHT_STRING(TRUNCATE((SELECT a FROM t), -17410));
+WEIGHT_STRING(TRUNCATE((SELECT a FROM t), -17410))
+NULL
+DROP TABLE t;
+#
+# Bug#32345941 SELECT RESULT IS MISMATCH WHEN USE COALESCE AND NOT
+#
+SET sql_mode=default;
+SELECT 1.0 div (@a:='xx');
+1.0 div (@a:='xx')
+NULL
+SELECT 1.0 div (@a:='1xx');
+1.0 div (@a:='1xx')
+1
+CREATE TABLE t1 (a DECIMAL(10,0), b DECIMAL(10,0), KEY(a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0,0),(1,1);
+SELECT a FROM t1 FORCE INDEX(a) WHERE a='m';
+a
+0
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
+a
+0
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
+a
+0
+SELECT * FROM t1 WHERE b='m';
+a	b
+0	0
+SELECT * FROM t1 WHERE b=CONCAT('m');
+a	b
+0	0
+SELECT * FROM t1 WHERE b=COALESCE('m');
+a	b
+0	0
+SELECT a FROM t1 FORCE INDEX(a) WHERE a='';
+a
+0
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('');
+a
+0
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('');
+a
+0
+SELECT * FROM t1 WHERE b='';
+a	b
+0	0
+SELECT * FROM t1 WHERE b=CONCAT('');
+a	b
+0	0
+SELECT * FROM t1 WHERE b=COALESCE('');
+a	b
+0	0
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a='m';
+ERROR 22007: Truncated incorrect DECIMAL value: 'm'
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
+ERROR HY000: Incorrect decimal value: 'm' for column 'a' at row 1
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
+ERROR HY000: Incorrect decimal value: 'm' for column 'a' at row 1
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b='m';
+ERROR 22007: Truncated incorrect DECIMAL value: 'm'
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=CONCAT('m');
+ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=COALESCE('m');
+ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+CREATE TABLE t2 (a char(10), b varchar(10));
+INSERT INTO t2 VALUES('x1 y ', 'x1 y ');
+SELECT maketime(1, 2, a) FROM t2;
+maketime(1, 2, a)
+01:02:00.000000
+Warnings:
+Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
+Warning	1292	Truncated incorrect DECIMAL value: 'x1 y'
+SELECT maketime(1, 2, b) FROM t2;
+maketime(1, 2, b)
+01:02:00.000000
+Warnings:
+Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
+Warning	1292	Truncated incorrect DECIMAL value: 'x1 y '
+DROP TABLE t1, t2;

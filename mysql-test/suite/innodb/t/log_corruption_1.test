@@ -18,7 +18,7 @@ let newdir = $MYSQLTEST_VARDIR/tmp/innodb-log-debug-1;
 
 --mkdir $newdir
 let SEARCH_FILE = $newdir/my_restart.err;
---exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption_1.zip -d $newdir > $SEARCH_FILE
+--exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption_1.zip -d $newdir > $SEARCH_FILE
 # In scope of WL#9461,WL#9357, in place upgrade condition
 # requires mysql.plugin.frm file. Create the file manually here
 # to allow initialization of innodb.

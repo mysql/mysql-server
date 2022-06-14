@@ -110,14 +110,14 @@ ON innr1.pk <> innrcte.field1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	innr1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
-3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
+3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (hash join)
 2	DERIVED	alias1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Using filesort
 2	DERIVED	c	NULL	ref	col_blob_key,col_varchar_key	col_blob_key	258	test.alias1.col_varchar_key	1	100.00	Using where
 Warnings:
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
 Warning	1739	Cannot use ref access on index 'col_blob_key' due to type or collation conversion on field 'col_blob_key'
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
-Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`col_time_key` AS `field1` from `test`.`cc` `alias1` join `test`.`c` where ((`test`.`c`.`col_varchar_key` >= 'n') and (`test`.`alias1`.`col_varchar_key` = `test`.`c`.`col_blob_key`)) order by `field1` limit 9,1000) delete `test`.`c`, `test`.`c` from `cte` `outrcte` join `test`.`c` `outr2` join `test`.`c` `outr1` where ((`test`.`outr1`.`col_blob_key` <> (/* select#3 */ select distinct `test`.`innr1`.`col_blob` AS `y` from `test`.`bb` `innr1` left join `cte` `innrcte` on((`test`.`innr1`.`pk` <> `innrcte`.`field1`)) where true)) and (`test`.`outr2`.`col_blob` = `outrcte`.`field1`) and multiple equal(`test`.`outr1`.`col_blob_key`, `test`.`outr2`.`col_blob`))
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`col_time_key` AS `field1` from `test`.`cc` `alias1` join `test`.`c` where ((`test`.`c`.`col_varchar_key` >= 'n') and (`test`.`alias1`.`col_varchar_key` = `test`.`c`.`col_blob_key`)) order by `field1` limit 9,1000) delete `test`.`c`, `test`.`c` from `cte` `outrcte` join `test`.`c` `outr2` join `test`.`c` `outr1` where ((`test`.`outr1`.`col_blob_key` <> (/* select#3 */ select distinct `test`.`innr1`.`col_blob` AS `y` from `test`.`bb` `innr1` left join `cte` `innrcte` on((cast(`test`.`innr1`.`pk` as double) <> cast(`innrcte`.`field1` as double))) where true)) and (`test`.`outr2`.`col_blob` = `outrcte`.`field1`) and multiple equal(`test`.`outr1`.`col_blob_key`, `test`.`outr2`.`col_blob`))
 DROP VIEW view_c;
 DROP TABLE bb,cc,c;
 #
@@ -283,7 +283,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	alias1	NULL	index	col_varchar_key	PRIMARY	4	NULL	1	100.00	NULL
 2	DERIVED	alias2	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	4	test.alias1.col_varchar_key	1	100.00	Using where; Using index
 Warnings:
-Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`col_date` AS `field1`,`test`.`alias1`.`col_blob` AS `field2`,`test`.`alias1`.`pk` AS `field3`,`test`.`alias1`.`pk` AS `field4` from `test`.`dd` `alias1` join `test`.`d` `alias2` where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias1`.`col_varchar_key`) and ((`test`.`alias2`.`pk` <> 0) or (`test`.`alias1`.`col_varchar_key` >= 'v'))) order by `field4`) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ `test`.`d` from `test`.`d` `outr1` join `test`.`d` `outr2` join `cte` `outrcte` where ((`test`.`outr1`.`pk` = `outrcte`.`field1`) and (`test`.`outr1`.`col_datetime_key` = `test`.`outr2`.`col_date`) and multiple equal((/* select#3 */ select `test`.`innr1`.`col_int` AS `y` from `test`.`dd` `innr1` join `cte` `innrcte` where ((`test`.`innr1`.`col_blob_key` = 'h') and (`test`.`innr1`.`col_int_key` = `innrcte`.`field1`))), `test`.`outr1`.`col_int_key`))
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`col_date` AS `field1`,`test`.`alias1`.`col_blob` AS `field2`,`test`.`alias1`.`pk` AS `field3`,`test`.`alias1`.`pk` AS `field4` from `test`.`dd` `alias1` join `test`.`d` `alias2` where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias1`.`col_varchar_key`) and ((`test`.`alias2`.`pk` <> 0) or (`test`.`alias1`.`col_varchar_key` >= 'v'))) order by `field4`) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ `test`.`d` from `test`.`d` `outr1` join `test`.`d` `outr2` join `cte` `outrcte` where ((`test`.`outr1`.`pk` = `outrcte`.`field1`) and (`test`.`outr1`.`col_datetime_key` = `test`.`outr2`.`col_date`) and multiple equal((/* select#3 */ select `test`.`innr1`.`col_int` AS `y` from `test`.`dd` `innr1` join `cte` `innrcte` where ((`test`.`innr1`.`col_blob_key` = 'h') and (cast(`test`.`innr1`.`col_int_key` as double) = cast(`innrcte`.`field1` as double)))), `test`.`outr1`.`col_int_key`))
 EXPLAIN WITH cte AS (
 SELECT
 alias1 . col_date AS field1 ,
@@ -306,11 +306,11 @@ FROM dd AS innr1 RIGHT OUTER JOIN cte AS innrcte
 ON innr1.pk >= innrcte.field1
 WHERE outr1 . col_int_key > 6  );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	outr1	NULL	range	col_int_key	col_int_key	5	NULL	1	100.00	Using where
-1	PRIMARY	innr1	NULL	ref	PRIMARY,col_blob_key	col_blob_key	258	test.outr1.col_blob	1	100.00	Using where; FirstMatch(outr1)
 1	PRIMARY	d	NULL	ALL	col_blob_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using where
 1	DELETE	outr2	NULL	ALL	col_blob_key	NULL	NULL	NULL	1	100.00	Using where
+1	DELETE	outr1	NULL	range	col_int_key	col_int_key	5	NULL	1	100.00	Using where
 1	PRIMARY	dd	NULL	ref	col_blob_key	col_blob_key	258	test.d.col_blob_key	1	100.00	Using where
+1	PRIMARY	innr1	NULL	ref	PRIMARY,col_blob_key	col_blob_key	258	test.outr1.col_blob	1	100.00	Using where
 1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(dd)
 4	DERIVED	d	NULL	ALL	col_blob_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using where
 4	DERIVED	dd	NULL	ref	col_blob_key	col_blob_key	258	test.d.col_blob_key	1	100.00	Using where
@@ -318,7 +318,7 @@ Warnings:
 Note	1276	Field or reference 'test.outr1.col_int_key' of SELECT #3 was resolved in SELECT #1
 Warning	1739	Cannot use ref access on index 'col_blob_key' due to type or collation conversion on field 'col_blob_key'
 Warning	1739	Cannot use range access on index 'col_blob_key' due to type or collation conversion on field 'col_blob_key'
-Note	1003	with `cte` as (/* select#4 */ select `test`.`d`.`col_date` AS `field1`,`test`.`dd`.`col_blob` AS `field2` from `test`.`d` left join (`test`.`dd`) on((`test`.`dd`.`col_blob_key` = `test`.`d`.`col_blob_key`)) where (((`test`.`d`.`col_varchar_key` is null) and (`test`.`dd`.`col_int_key` > 6) and (`test`.`dd`.`col_int_key` <= <cache>((7 + 5)))) or (`test`.`d`.`col_blob_key` >= 'a'))) delete /*+ MERGE(`outrcte`@`select#1`) */ `test`.`d`, `test`.`d` from `test`.`d` `outr1` join `test`.`d` `outr2` join `test`.`d` left join (`test`.`dd`) on((`test`.`dd`.`col_blob_key` = `test`.`d`.`col_blob_key`)) semi join (`cte` `innrcte` join `test`.`dd` `innr1`) where ((`test`.`outr2`.`col_date` = `test`.`outr1`.`col_date`) and (`test`.`innr1`.`col_blob_key` = `test`.`outr1`.`col_blob`) and (`test`.`outr1`.`col_int_key` > 6) and (`test`.`innr1`.`pk` >= `innrcte`.`field1`) and (`test`.`outr2`.`col_blob_key` = `test`.`d`.`col_date`) and (((`test`.`d`.`col_varchar_key` is null) and (`test`.`dd`.`col_int_key` > 6) and (`test`.`dd`.`col_int_key` <= <cache>((7 + 5)))) or (`test`.`d`.`col_blob_key` >= 'a')))
+Note	1003	with `cte` as (/* select#4 */ select `test`.`d`.`col_date` AS `field1`,`test`.`dd`.`col_blob` AS `field2` from `test`.`d` left join (`test`.`dd`) on((`test`.`dd`.`col_blob_key` = `test`.`d`.`col_blob_key`)) where (((`test`.`d`.`col_varchar_key` is null) and (`test`.`dd`.`col_int_key` > 6) and (`test`.`dd`.`col_int_key` <= <cache>((7 + 5)))) or (`test`.`d`.`col_blob_key` >= 'a'))) delete /*+ MERGE(`outrcte`@`select#1`) */ `test`.`d`, `test`.`d` from `test`.`d` `outr1` join `test`.`d` `outr2` join `test`.`d` left join (`test`.`dd`) on((`test`.`dd`.`col_blob_key` = `test`.`d`.`col_blob_key`)) semi join (`cte` `innrcte` join `test`.`dd` `innr1`) where ((`test`.`outr1`.`col_date` = `test`.`outr2`.`col_date`) and (`test`.`innr1`.`col_blob_key` = `test`.`outr1`.`col_blob`) and (`test`.`outr1`.`col_int_key` > 6) and (cast(`test`.`innr1`.`pk` as double) >= cast(`innrcte`.`field1` as double)) and (cast(`test`.`outr2`.`col_blob_key` as date) = `test`.`d`.`col_date`) and (((`test`.`d`.`col_varchar_key` is null) and (`test`.`dd`.`col_int_key` > 6) and (`test`.`dd`.`col_int_key` <= <cache>((7 + 5)))) or (`test`.`d`.`col_blob_key` >= 'a')))
 DROP TABLE d,dd;
 DROP VIEW view_d,view_dd;
 #
@@ -525,7 +525,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
-Note	1003	with `cte` as (/* select#2 */ select `test`.`alias2`.`col_datetime_key` AS `field1`,`test`.`b`.`col_varchar_key` AS `field2`,`test`.`alias2`.`col_int_key` AS `field3` from `test`.`b` left join (`test`.`cc` `alias2` join `test`.`d`) on(((`test`.`d`.`col_blob_key` = `test`.`b`.`col_blob`) and (`test`.`alias2`.`col_varchar_key` = `test`.`d`.`col_blob_key`))) where ((`test`.`d`.`col_varchar_key` like 'w') or (`test`.`alias2`.`pk` <> 4))) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ quick `test`.`d`, `test`.`d` from `test`.`d` `outr1` left join `test`.`d` `outr2` on((`test`.`outr2`.`col_int` = `test`.`outr1`.`col_int`)) join `cte` `outrcte` semi join (`test`.`cc` `innr1` join `cte` `innrcte`) where ((`test`.`innr1`.`col_int` = 7) and (`test`.`innr1`.`col_int_key` = 4) and (7 >= `test`.`innr1`.`pk`) and (`test`.`innr1`.`pk` = `innrcte`.`field1`) and (`test`.`outr1`.`pk` = `outrcte`.`field1`))
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias2`.`col_datetime_key` AS `field1`,`test`.`b`.`col_varchar_key` AS `field2`,`test`.`alias2`.`col_int_key` AS `field3` from `test`.`b` left join (`test`.`cc` `alias2` join `test`.`d`) on(((`test`.`d`.`col_blob_key` = `test`.`b`.`col_blob`) and (`test`.`alias2`.`col_varchar_key` = `test`.`d`.`col_blob_key`))) where ((`test`.`d`.`col_varchar_key` like 'w') or (`test`.`alias2`.`pk` <> 4))) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ quick `test`.`d`, `test`.`d` from `test`.`d` `outr1` left join `test`.`d` `outr2` on((`test`.`outr2`.`col_int` = `test`.`outr1`.`col_int`)) join `cte` `outrcte` semi join (`test`.`cc` `innr1` join `cte` `innrcte`) where ((`test`.`innr1`.`col_int` = 7) and (`test`.`innr1`.`col_int_key` = 4) and (7 >= `test`.`innr1`.`pk`) and (cast(`test`.`innr1`.`pk` as double) = cast(`innrcte`.`field1` as double)) and (cast(`test`.`outr1`.`pk` as double) = cast(`outrcte`.`field1` as double)))
 DROP TABLE b,cc,d;
 DROP VIEW view_d,view_b;
 #
@@ -726,10 +726,42 @@ INSERT INTO bb VALUES ('2000-03-10
 03:25:45','19:12:08',4,'n',10,'00:20:08','rkuz','2003-08-10','2000-03-27
 21:15:52','2002-11-17','ku',7,'m');
 Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-03-10
+07:59:07' at row 1 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 1
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-09-04
+21:14:02' at row 2 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 2
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-04-12
+00:00:00' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-09-07
+01:11:02' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-09-03
+00:00:00' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-07-04
+14:47:00' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-11-20
+00:00:00' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-12-17
+18:34:39' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-11-24
+18:26:08' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-11-16
+15:25:37' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-05-17
+00:00:00' at row 7 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 7
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-03-14
+13:32:30' at row 8 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 8
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-02-17
+18:23:44' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-04-11
+00:00:00' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-03-22
+03:25:45' at row 10 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-03-27
+21:15:52' at row 10 is deprecated. Prefer the standard ' '.
 CREATE TABLE cc (
 col_varchar_key varchar(1) DEFAULT NULL,
 col_date_key date DEFAULT NULL,
@@ -776,6 +808,45 @@ INSERT INTO cc VALUES ('r','2009-06-19',9,'00:20:01','uzymmwnorr','2000-07-03
 00:00:00','10:33:36','f',9,'2008-02-19','uzodhtfjsfcyq','2009-10-17
 08:43:06',3),('j','2000-05-07',9,'07:16:29','zodhtfjs','2009-09-07
 00:00:00','00:20:05','b',10,'2005-11-10','odhtfjs','2009-04-26 00:00:00',0);
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-07-03
+03:10:16' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-10-19
+13:28:47' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-09-05
+06:27:09' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-06-08
+06:10:17' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-05-21
+12:10:52' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-11-21
+10:47:03' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-03-04
+02:36:50' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-12-15
+19:28:52' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-04-23
+09:09:44' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2007-09-03
+17:43:18' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-11-15
+05:02:03' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-01-19
+00:00:00' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-07-18
+00:00:00' at row 7 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2003-07-22
+04:34:51' at row 7 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-07-11
+19:49:03' at row 8 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2003-02-21
+00:00:00' at row 8 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-09-27
+00:00:00' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-10-17
+08:43:06' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-09-07
+00:00:00' at row 10 is deprecated. Prefer the standard ' '.
 CREATE TABLE dd (
 col_int_key int(11) DEFAULT NULL,
 col_int int(11) DEFAULT NULL,
@@ -834,7 +905,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	outr2	NULL	ref	col_int_key	col_int_key	5	test.outr1.col_int	1	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.outr1.col_int	2	100.00	NULL
 3	SUBQUERY	innr1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using temporary
-3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
+3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (hash join)
 2	DERIVED	alias2	NULL	range	PRIMARY,col_varchar_key	PRIMARY	4	NULL	2	100.00	Using where
 2	DERIVED	alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_key	1	100.00	Using index
 Warnings:
@@ -1054,3 +1125,63 @@ SELECT  INNR1 . col_varchar AS y FROM E AS INNR1
 WHERE OUTRcte1 . field1 <> 3 );
 ERROR 42S22: Unknown column 'OUTR1.col_int' in 'on clause'
 DROP TABLE E;
+#
+# Bug#30026353 NON-DETERMINISTIC CTE REFERENCED TWO TIMES CAN
+# PRODUCE DIFFERENT CONTENT
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5),(6);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2
+WITH cte AS (SELECT RAND() AS a FROM t1)
+SELECT SUM(c.a) FROM cte c UNION ALL
+SELECT SUM(c2.a) FROM cte c2;
+SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
+a	a
+DELETE FROM t2;
+INSERT INTO t2
+WITH cte AS (SELECT * FROM t1 WHERE a>3*RAND())
+SELECT SUM(c.a) FROM cte c
+UNION ALL SELECT SUM(c2.a) FROM cte c2;
+SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
+a	a
+DROP TABLE t1,t2;
+#
+# Bug#30796015 INCONSISTENT BEHAVIOUR FOR DELETE ON CTE
+#
+create table t1(a int);
+insert into t1 values(2),(3);
+with t1 as (select * from t1 where a=3) delete from t1;
+ERROR HY000: The target table t1 of the DELETE is not updatable
+with t1 as (select * from t1 where a=3) delete t1.* from t1, t1 as t2;
+ERROR HY000: The target table t1 of the DELETE is not updatable
+with t1 as (select * from t1 where a=3) update t1 set a=2;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+with t1 as (select * from t1 where a=3) update t1, t1 as t2 set t1.a=2;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+with t1 as (select 36 as col from t1 where a=3) select * from t1;
+col
+36
+insert into t1 with t1 as (select 36 as col from t1) select * from t1;
+select * from t1;
+a
+2
+3
+36
+36
+create table t1 with t1 as (select 72 as col from t1) select * from t1;
+ERROR 42S01: Table 't1' already exists
+create table t2 with t1 as (select 72 as col from t1) select * from t1;
+select * from t1;
+a
+2
+3
+36
+36
+select * from t2;
+col
+72
+72
+72
+72
+drop table t1,t2;

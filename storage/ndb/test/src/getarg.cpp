@@ -1,5 +1,5 @@
 /* -*- c-basic-offset: 4; -*- */
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
+
+#include <time.h>
 
 #include "getarg.h"
 
@@ -61,23 +63,6 @@ strlcat (char *dst, const char *src, size_t dst_sz)
 extern char *__progname;
 #endif
 
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-char *
-strupr(char *str)
-{
-  char *s;
-
-  for(s = str; *s; s++)
-    *s = toupper(*s);
-  return str;
-}
 
 static size_t
 print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
@@ -115,6 +100,16 @@ print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
 }
 
 #ifdef GETARGMANDOC
+static char *
+strupr(char *str)
+{
+  char *s;
+
+  for(s = str; *s; s++)
+    *s = toupper(*s);
+  return str;
+}
+
 static void
 mandoc_template(struct getargs *args,
 		size_t num_args,
@@ -456,7 +451,7 @@ arg_match_long(struct getargs *args, size_t num_args,
     case arg_collect:{
 	struct getarg_collect_info *c = (getarg_collect_info *)current->value;
 	int o = (int)(argv - rargv[*optind]);
-	return (*c->func)(FALSE, argc, rargv, optind, &o, c->data);
+        return (*c->func)(false, argc, rargv, optind, &o, c->data);
     }
 
     default:
@@ -493,7 +488,7 @@ arg_match_short (struct getargs *args, size_t num_args,
 		if(args[k].type == arg_collect) {
 		    struct getarg_collect_info *c = (getarg_collect_info *)args[k].value;
 
-		    if((*c->func)(TRUE, argc, rargv, optind, &j, c->data))
+                    if ((*c->func)(true, argc, rargv, optind, &j, c->data))
 			return ARG_ERR_BAD_ARG;
 		    break;
 		}

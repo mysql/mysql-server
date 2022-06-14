@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef METADATA_CACHE_METADATA_INCLUDED
-#define METADATA_CACHE_METADATA_INCLUDED
+#ifndef METADATA_CACHE_CLUSTER_METADATA_INCLUDED
+#define METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 
-#include "gr_notifications_listener.h"
-#include "metadata.h"
+#include "mysqlrouter/metadata_cache_export.h"
+
+#include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "tcp_address.h"
 
-#include <string.h>
 #include <chrono>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <string>
@@ -47,36 +49,26 @@ namespace xcl {
 class XSession;
 }
 
+using ConnectCallback =
+    std::function<bool(mysqlrouter::MySQLSession &connection,
+                       const metadata_cache::ManagedInstance &mi)>;
+
 /** @class ClusterMetadata
  *
  * The `ClusterMetadata` class encapsulates a connection to the Metadata server.
  * It uses the mysqlrouter::MySQLSession to setup, manage and retrieve results.
  *
  */
-class METADATA_API ClusterMetadata : public MetaData {
+class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
  public:
   /** @brief Constructor
    *
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout (in seconds).
-   * @param read_timeout The time after which read from metadata server should
-   *                     timeout (in seconds).
-   * @param connection_attempts The number of times a connection to metadata
-   *                            must be attempted, when a connection attempt
-   *                            fails.  NOTE: not used so far
-   * @param ttl The time to live of the data in the cache (in milliseconds).
-   * @param ssl_options SSL related options to use for MySQL connections
-   * @param use_gr_notifications Flag indicating if the metadata cache should
-   *                             use GR notifications as an additional trigger
-   *                             for metadata refresh
+   * @param session_config Metadata MySQL session configuration
+   * @param ssl_options SSL related options to use for MySQL connections)
    */
-  ClusterMetadata(const std::string &user, const std::string &password,
-                  int connect_timeout, int read_timeout,
-                  int connection_attempts, std::chrono::milliseconds ttl,
-                  const mysqlrouter::SSLOptions &ssl_options,
-                  const bool use_gr_notifications = false);
+  ClusterMetadata(
+      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+      const mysqlrouter::SSLOptions &ssl_options);
 
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
@@ -89,54 +81,18 @@ class METADATA_API ClusterMetadata : public MetaData {
    */
   ~ClusterMetadata() override;
 
-  /** @brief Returns replicasets defined in the metadata server
-   *
-   * Returns relation as a std::map between replicaset name and object
-   * of the replicasets defined in the metadata and GR status tables.
-   *
-   * @param cluster_name            the name of the cluster to query
-   * @param group_replication_id    id of the replication group
-   * @return Map of replicaset ID, server list pairs.
-   * @throws metadata_cache::metadata_error
-   */
-  ReplicaSetsByName fetch_instances(const std::string &cluster_name,
-                                    const std::string &group_replication_id)
-      override;  // throws metadata_cache::metadata_error
-
-  /** @brief Initializes the GR notifications listener thread
-   *
-   * @param instances vector of the current cluster nodes
-   * @param callback  callback function to get called when the GR notification
-   *                  was received
-   */
-  void setup_gr_notifications_listener(
-      const std::vector<metadata_cache::ManagedInstance> &instances,
-      const GRNotificationListener::NotificationClb &callback) override;
-
-  /** @brief Deinitializes the GR notifications listener thread
-   */
-  void shutdown_gr_notifications_listener() override;
-
-#if 0  // not used so far
-  /** @brief Returns the refresh interval provided by the metadata server.
-   *
-   * Returns the refresh interval (also known as TTL) provided by metadata server.
-   *
-   * @return refresh interval of the Metadata cache.
-   */
-  unsigned int fetch_ttl() override;
-#endif
-
-  /** @brief Connects with the Metadata server
+  /** @brief Connects with the Metadata server and sets up the session
+   * parameters
    *
    *
    * @param metadata_server the server instance for which the connection
    *                        should be attempted.
    *
-   * @return a boolean to indicate if the connection was successful.
+   * @return a boolean to indicate if the connection and session parameters
+   * setup was successful.
    */
-  bool connect(
-      const metadata_cache::ManagedInstance &metadata_server) noexcept override;
+  bool connect_and_setup_session(const metadata_cache::metadata_server_t
+                                     &metadata_server) noexcept override;
 
   /** @brief Disconnects from the Metadata server
    *
@@ -145,72 +101,44 @@ class METADATA_API ClusterMetadata : public MetaData {
    */
   void disconnect() noexcept override {}
 
- private:
+  /** @brief Gets the object representing the session to the metadata server
+   */
+  std::shared_ptr<mysqlrouter::MySQLSession> get_connection() override {
+    return metadata_connection_;
+  }
+
+  bool update_router_attributes(
+      const metadata_cache::metadata_server_t &rw_server,
+      const unsigned router_id,
+      const metadata_cache::RouterAttributes &router_attributes) override;
+
+  bool update_router_last_check_in(
+      const metadata_cache::metadata_server_t &rw_server,
+      const unsigned router_id) override;
+
+  auth_credentials_t fetch_auth_credentials(
+      const mysqlrouter::TargetCluster &target_cluster,
+      const std::string &cluster_type_specific_id) override;
+
+  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
+  find_rw_server(const std::vector<metadata_cache::ManagedInstance> &instances);
+
+ protected:
   /** Connects a MYSQL connection to the given instance
    */
   bool do_connect(mysqlrouter::MySQLSession &connection,
-                  const metadata_cache::ManagedInstance &mi);
+                  const metadata_cache::metadata_server_t &mi);
 
-  /** @brief Queries the metadata server for the list of instances and
-   * replicasets that belong to the desired cluster.
-   */
-  ReplicaSetsByName fetch_instances_from_metadata_server(
-      const std::string &cluster_name, const std::string &group_replication_id);
-
-  /** Query the GR performance_schema tables for live information about a
-   * replicaset.
-   *
-   * update_replicaset_status() calls check_replicaset_status() for some of its
-   * processing. Together, they:
-   * - check current topology (status) returned from a replicaset node
-   * - update 'instances' with this state
-   * - get other metadata about the replicaset
-   *
-   * The information is pulled from GR maintained performance_schema tables.
-   */
-  void update_replicaset_status(
-      const std::string &name,
-      metadata_cache::ManagedReplicaSet
-          &replicaset);  // throws metadata_cache::metadata_error
-
-  /** @brief Hard to summarise, please read the full description
-   *
-   * Does two things based on `member_status` provided:
-   * - updates `instances` with status info from `member_status`
-   * - performs quorum calculations and returns replicaset's overall health
-   *   based on the result, one of: read-only, read-write or not-available
-   *
-   * @param member_status node statuses obtained from status SQL query
-   * @param instances list of nodes to be updated with status info
-   * @return replicaset availability state (RW, RO or NA)
-   */
-  metadata_cache::ReplicasetStatus check_replicaset_status(
-      std::vector<metadata_cache::ManagedInstance> &instances,
-      const std::map<std::string, GroupReplicationMember> &member_status) const
-      noexcept;
-
-  std::unique_ptr<GRNotificationListener> gr_notifications_listener_;
-
-  // Metadata node connection information
-  std::string user_;
-  std::string password_;
+  // throws metadata_cache::metadata_error and
+  // MetadataUpgradeInProgressException
+  mysqlrouter::MetadataSchemaVersion get_and_check_metadata_schema_version(
+      mysqlrouter::MySQLSession &session);
 
   // Metadata node generic information
-  std::chrono::milliseconds ttl_;
   mysql_ssl_mode ssl_mode_;
   mysqlrouter::SSLOptions ssl_options_;
 
-  std::string cluster_name_;
-#if 0  // not used so far
-  std::string metadata_uuid_;
-  std::string message_;
-#endif
-
-  // The time after which trying to connect to the metadata server should
-  // timeout.
-  int connect_timeout_;
-  // The time after which read from metadata server should timeout.
-  int read_timeout_;
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config_;
 
 #if 0  // not used so far
   // The number of times we should try connecting to the metadata server if a
@@ -221,37 +149,20 @@ class METADATA_API ClusterMetadata : public MetaData {
   // connection to metadata server (it may also be shared with GR status queries
   // for optimisation purposes)
   std::shared_ptr<mysqlrouter::MySQLSession> metadata_connection_;
-
-#if 0  // not used so far
-  // How many times we tried to reconnected (for logging purposes)
-  size_t reconnect_tries_;
-#endif
-
-#ifdef FRIEND_TEST
-  FRIEND_TEST(MetadataTest, FetchInstancesFromMetadataServer);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_3NodeSetup);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariableNodeSetup);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariousStatuses);
-  FRIEND_TEST(MetadataTest,
-              UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2);
-  FRIEND_TEST(MetadataTest,
-              UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes);
-  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_EmptyOnNode1);
-  FRIEND_TEST(MetadataTest,
-              UpdateReplicasetStatus_PrimaryMember_EmptyOnAllNodes);
-  FRIEND_TEST(MetadataTest,
-              UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1);
-  FRIEND_TEST(MetadataTest,
-              UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes);
-  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1);
-  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes);
-  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Recovering);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_ErrorAndOther);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive);
-  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Cornercase1Common);
-#endif
 };
 
-#endif  // METADATA_CACHE_METADATA_INCLUDED
+std::string get_string(const char *input_str);
+
+bool set_instance_ports(metadata_cache::ManagedInstance &instance,
+                        const mysqlrouter::MySQLSession::Row &row,
+                        const size_t classic_port_column,
+                        const size_t x_port_column);
+
+void set_instance_attributes(metadata_cache::ManagedInstance &instance,
+                             const std::string &attributes);
+
+bool get_hidden(const std::string &attributes, std::string &out_warning);
+bool get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
+                                                  std::string &out_warning);
+
+#endif  // METADATA_CACHE_CLUSTER_METADATA_INCLUDED

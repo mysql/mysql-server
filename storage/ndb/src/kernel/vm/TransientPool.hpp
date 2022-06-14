@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,11 +25,14 @@
 #ifndef TRANSPOOL_HPP
 #define TRANSPOOL_HPP
 
+#include "util/require.h"
 #include "TransientSlotPool.hpp"
+#include "debugger/EventLogger.hpp"
 #include "vm/ComposedSlotPool.hpp"
 #include "vm/Slot.hpp"
 
 #define JAM_FILE_ID 506
+
 
 #define SIZEOF_IN_WORDS(T) ((sizeof(T) + sizeof(Uint32) - 1) / sizeof(Uint32))
 
@@ -42,14 +52,58 @@ public:
 #endif
   bool startup();
 
-  bool seize(Ptr<T> &p);
+  [[nodiscard]] bool seize(Ptr<T> &p);
   void release(Ptr<T> p);
-  T *getPtr(Uint32 i) const;
+  [[nodiscard]] T *getPtr(Uint32 i) const;
   void getPtr(Ptr<T> &p) const;
-  bool getValidPtr(Ptr<T> &p) const;
-  bool getUncheckedPtrRO(Ptr<T> &p) const;
-  bool getUncheckedPtrRW(Ptr<T> &p) const;
-  Uint32 getUncheckedPtrs(Uint32* from, Ptr<T> ptrs[], Uint32 cnt) const;
+  /**
+   * getValidPtr is often called on an operation record from a thread that
+   * doesn't own the operation record. A few examples are:
+   * 1) The current operation changing the record has its i-value written
+   * into the row header. This write only happens in LDM threads since
+   * Query threads are not allowed to change row data. In addition a linked
+   * list of operation records are used on this operation on all other
+   * changes or locked reads happening on this row.
+   *
+   * Even though the query thread cannot insert its own operation records
+   * into this list, it must be able to read those operation records
+   * efficiently to quickly find the correct version to use in the index
+   * or to know which record to read in key lookup based on the transaction
+   * id.
+   *
+   * see tuxReadAttrsOpt, tuxReadPk and before calling find_savepoint.
+   *
+   * 2) getValidPtr is also called on scan records in the TUX index. Each
+   *    scan operation record in TUX insert its scan operation record into
+   *    the index pages to ensure that it can resume its scan operation
+   *    after returning from a real-time break. This writing happens both
+   *    from Query threads and from LDM threads and is protected by a
+   *    mutex on the index fragment record.
+   *
+   * 3) In DBACC we need to get the lock owners operation record when
+   *    accessing a key in the hash table, this is only written by LDM thread,
+   *    but needs to be readable from all query threads.
+   *
+   * All these accesses are in a sense insecure since the owner of the
+   * pool object is allowed to continue inserting and removing objects from
+   * pool concurrently with our call to getValidPtr.
+   *
+   * However the caller knows that the operation record that we want to get
+   * a valid pointer is not released. This means that we rely on that the
+   * translation of i-value is not changed as long as at least one operation
+   * record remains on a page. This must hold also for any intermediate
+   * pages used to find the page that houses the operation record.
+   *
+   * This principle must be upheld by the TransientPool. If this is no longer
+   * true one must use real pointers between all operation records in those
+   * lists. In addition the i-value stored in the row must be translated
+   * by a special map index that maps from a 32-bit value to a pointer to
+   * an operation record.
+   */
+  [[nodiscard]] bool getValidPtr(Ptr<T> &p) const;
+  [[nodiscard]] bool getUncheckedPtrRO(Ptr<T> &p) const;
+  [[nodiscard]] bool getUncheckedPtrRW(Ptr<T> &p) const;
+  [[nodiscard]] Uint32 getUncheckedPtrs(Uint32* from, Ptr<T> ptrs[], Uint32 cnt) const;
 
   Uint32 getEntrySize() const { return sizeof(Type); }
   Uint32 getNoOfFree() const { return SlotPool::getNoOfFree(); }
@@ -66,8 +120,8 @@ private:
 
   static void static_asserts()
   {
-    NDB_STATIC_ASSERT( offsetof(T, m_magic) == 0);
-    NDB_STATIC_ASSERT( sizeof(T::m_magic) == 4);
+    static_assert( offsetof(T, m_magic) == 0);
+    static_assert( sizeof(T::m_magic) == 4);
   }
 };
 
@@ -79,8 +133,27 @@ template<typename T, Uint32 Slot_size> inline bool TransientPool<T, Slot_size>::
     return false;
   }
   p.i = slot.i;
+#if defined VM_TRACE || defined ERROR_INSERT
+  memset(reinterpret_cast<void*>(slot.p), 0xF4, Slot_size * sizeof(Uint32));
+#endif
   p.p = new (slot.p) T;
-  require(Magic::match(p.p->m_magic, T::TYPE_ID));
+  if (unlikely(!Magic::match(p.p->m_magic, T::TYPE_ID)))
+  {
+    g_eventLogger->info("Magic::match failed in %s: "
+                        "type_id %08x rg %u tid %u: "
+                        "slot_size %u: ptr.i %u: ptr.p %p: "
+                        "magic %08x expected %08x",
+                        __func__,
+                        T::TYPE_ID,
+                        GET_RG(T::TYPE_ID),
+                        GET_TID(T::TYPE_ID),
+                        Slot_size,
+                        p.i,
+                        p.p,
+                        p.p->m_magic,
+                        Magic::make(T::TYPE_ID));
+    require(Magic::match(p.p->m_magic, T::TYPE_ID));
+  }
   return true;
 }
 

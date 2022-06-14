@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,47 +25,46 @@
 #include "mysql/harness/string_utils.h"
 
 #include <algorithm>
-#include <sstream>
-
-using std::string;
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace mysql_harness {
-std::vector<string> split_string(const string &data, const char delimiter,
-                                 bool allow_empty) {
-  std::stringstream ss(data);
-  std::string token;
-  std::vector<string> result;
+std::vector<std::string> split_string(const std::string_view &data,
+                                      const char delimiter, bool allow_empty) {
+  if (data.empty()) return {};
 
-  if (data.empty()) {
-    return {};
-  }
+  std::vector<std::string> result;
+  size_t cur = 0;
 
-  while (std::getline(ss, token, delimiter)) {
-    if (token.empty() && !allow_empty) {
-      // Skip empty
-      continue;
+  for (size_t end = data.find(delimiter, cur); end != std::string_view::npos;
+       end = data.find(delimiter, cur)) {
+    auto token = data.substr(cur, end - cur);
+    if (!token.empty() || allow_empty) {
+      result.emplace_back(token);
     }
-    result.push_back(token);
+
+    cur = end + 1;  // skip this delimiter
   }
 
-  // When last character is delimiter, it denotes an empty token
-  if (allow_empty && data.back() == delimiter) {
-    result.push_back("");
+  auto token = data.substr(cur);
+  if (!token.empty() || allow_empty) {
+    result.emplace_back(token);
   }
 
   return result;
 }
 
-void left_trim(string &str) {
+void left_trim(std::string &str) {
   str.erase(str.begin(), std::find_if_not(str.begin(), str.end(), ::isspace));
 }
 
-void right_trim(string &str) {
+void right_trim(std::string &str) {
   str.erase(std::find_if_not(str.rbegin(), str.rend(), ::isspace).base(),
             str.end());
 }
 
-void trim(string &str) {
+void trim(std::string &str) {
   left_trim(str);
   right_trim(str);
 }

@@ -12,6 +12,7 @@ let $query=select * from
   ) as tt;
 eval $query;
 eval explain $query; 
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;   # Tests printing of MaterializedTableFunctionIterator.
 
 --error ER_INVALID_DEFAULT
@@ -57,8 +58,8 @@ let $query= select * from
     '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
     '$[*]' columns (id for ordinality,
              jpath varchar(100) path '$.a'
-                default '66' on error
-                default '33' on empty,
+                default '33' on empty
+                default '66' on error,
              jsn_path json path '$.a' default '{"x":33}' on empty,
              jexst int exists path '$.b')
   ) as tt;
@@ -301,7 +302,7 @@ SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
                          '$' COLUMNS (dt DATE PATH '$')) as tt;
 SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
                          '$' COLUMNS (dt TIME PATH '$')) as tt;
-SELECT * FROM JSON_TABLE(CAST(CAST("2001.02.03" AS DATE) AS JSON),
+SELECT * FROM JSON_TABLE(CAST(CAST("2001-02-03" AS DATE) AS JSON),
                          '$' COLUMNS (dt DATE PATH '$')) as tt;
 
 CREATE VIEW v AS 
@@ -370,6 +371,7 @@ EXPLAIN SELECT /*+ JOIN_ORDER(jt, t1) */ id, jt.*
   JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
                                  val INT PATH '$')) AS jt;
 
+--sorted_result
 SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
   FROM t1,
     JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
@@ -420,6 +422,32 @@ SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
   i INT PATH '$',
   f FLOAT PATH '$',
   d DECIMAL PATH '$')) AS jt;
+
+# DEFAULT NULL is not accepted syntax.
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON EMPTY)) jt;
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON ERROR)) jt;
+
+# The DEFAULT value must be a string on JSON format for now.
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON ERROR)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON ERROR)) jt;
 
 --echo #
 --echo # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
@@ -497,7 +525,7 @@ DEALLOCATE PREPARE stmt;
 --echo #
 CREATE TABLE t1 (id INT, jc JSON);
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 
@@ -505,7 +533,6 @@ SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
 
---error ER_UNKNOWN_TABLE
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt RIGHT JOIN t1 ON t1.jc=jt.id;
 
@@ -523,38 +550,41 @@ EXPLAIN SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
   LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
                        (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+# Error code can be ER_UNKNOWN_TABLE or ER_BAD_FIELD_ERROR
+# (see find_field_in_tables()), both are acceptable.
+
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 WITH qn AS
   (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
     (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
   SELECT * from qn;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 WITH qn AS
   (SELECT 1 UNION
    SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
     (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
   SELECT * from qn;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
@@ -570,7 +600,7 @@ SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 EXPLAIN SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
   (id INT PATH '$')) as jt ON t1.id=jt.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 
   LEFT JOIN
     JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
@@ -631,7 +661,7 @@ AS alias1;
 --echo #
 --echo # Bug# #25472875: ERROR SHOULD BE THROWN FOR INCORRECT VALUES
 --echo #
---error ER_INVALID_DEFAULT
+--error ER_JT_VALUE_OUT_OF_RANGE
 SELECT *
   FROM JSON_TABLE('{"a":"1993-01-01"}',
                   '$' COLUMNS (jp DATE PATH '$.b' DEFAULT '1000' ON EMPTY))
@@ -985,6 +1015,7 @@ ANALYZE TABLE t1;
 
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT * FROM t1 as jj1,
   (SELECT tt2.* FROM t1 as tt2,
     JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
@@ -1294,3 +1325,210 @@ SELECT FN_COUNT_ROWS('[1, 2, 3]') CNT;
 SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
 
 DROP FUNCTION FN_COUNT_ROWS;
+
+--echo #
+--echo # Bug#30310265: VIEWS LOSE THE CHARACTER SET OF JSON_TABLE'S
+--echo #               PATH ARGUMENTS
+--echo #
+
+CREATE VIEW v1 AS
+  SELECT * FROM JSON_TABLE('{"å":{"å":1}}', '$.å' COLUMNS (x INT PATH '$.å')) t;
+SELECT * FROM v1;
+SET NAMES latin1;
+# Used to return zero rows.
+SELECT * FROM v1;
+SET NAMES DEFAULT;
+DROP VIEW v1;
+
+CREATE VIEW v2 AS
+  SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (
+    x VARCHAR(10) PATH '$.a' DEFAULT '"isn''t here"' ON EMPTY)
+  ) t;
+# SHOW CREATE VIEW and SELECT from the view used to fail with a syntax error.
+SHOW CREATE VIEW v2;
+SELECT * FROM v2;
+DROP VIEW v2;
+
+# The string literals in JSON_TABLE didn't accept character set
+# introducers. Verify that they are accepted now.
+SELECT * FROM
+  JSON_TABLE(JSON_OBJECT(),
+             _utf8mb4'$' COLUMNS (NESTED PATH _utf8mb4'$.x' COLUMNS
+               (y INT PATH _utf8mb4'$.y'
+                      DEFAULT _utf8mb4'1' ON EMPTY
+                      DEFAULT _utf8mb4'2' ON ERROR))) jt;
+
+--echo #
+--echo # Bug#30382156: STORED PROCEDURE, JSON_TABLE AND "CONST" JOIN TYPE
+--echo #
+CREATE TABLE t (id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '{"x":1}');
+CREATE PROCEDURE p()
+  SELECT * FROM t, JSON_TABLE(j, '$' COLUMNS (x INT PATH '$.x')) jt
+    WHERE id = 1;
+CALL p();
+CALL p();
+CALL p();
+DROP PROCEDURE p;
+DROP TABLE t;
+
+--echo #
+--echo # WL#13512: Deprecate ON ERROR before ON EMPTY in JSON_TABLE syntax
+--echo #
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                DEFAULT '"a"' ON ERROR DEFAULT '"b"' ON EMPTY)) jt;
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                NULL ON ERROR NULL ON EMPTY)) jt;
+SELECT * FROM
+  JSON_TABLE('{"x":"c"}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                       ERROR ON ERROR ERROR ON EMPTY)) jt;
+--echo #
+--echo # Bug#30628330: INSERT WITH JSON_TABLE FAILS DUE TO WARNING INVOKED
+--echo #               WITH ON ERROR CLAUSE
+--echo #
+CREATE TABLE t(id INT, a TINYINT, b VARCHAR(3), c DATE, d DECIMAL);
+# This statement used to fail with "data too long".
+INSERT INTO t SELECT * FROM
+  JSON_TABLE(JSON_ARRAY(JSON_OBJECT('a', 1, 'b', 'abc'),
+                        JSON_OBJECT('a', 2, 'b', 'abcd'),
+                        JSON_OBJECT('a', 1000, 'b', 'xyz'),
+                        JSON_OBJECT('c', TIME'12:00:00', 'd', 1e308)),
+             '$[*]' COLUMNS (id FOR ORDINALITY,
+                             a TINYINT PATH '$.a' DEFAULT '111' ON ERROR,
+                             b VARCHAR(3) PATH '$.b' DEFAULT '"ERR"' ON ERROR,
+                             c DATE PATH '$.c' DEFAULT '"2001-01-01"' ON ERROR,
+                             d DECIMAL PATH '$.c' DEFAULT '999' ON ERROR)
+            ) AS jt;
+SELECT * FROM t ORDER BY id;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+--echo #
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[123]', '$[*]' COLUMNS (`name with space 1` INT PATH '$',
+                                      `name with space 2` FOR ORDINALITY)) jt;
+# Used to fail with a syntax error, due to unquoted column names in
+# the view definition.
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT HEX(x), HEX(y) FROM
+  JSON_TABLE('["abc"]', '$[*]' COLUMNS (x BINARY(10) PATH '$',
+                                        y VARBINARY(10) PATH '$')) jt;
+# Used to say CHAR(10) and VARCHAR(10) instead of BINARY(10) and VARBINARY(10).
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[123]', '$[*]' COLUMNS(ti  TINYINT   PATH '$',
+                                     si  SMALLINT  PATH '$',
+                                     mi  MEDIUMINT PATH '$',
+                                     i   INT       PATH '$',
+                                     bi  BIGINT    PATH '$',
+                                     tiu TINYINT UNSIGNED   PATH '$',
+                                     siu SMALLINT UNSIGNED  PATH '$',
+                                     miu MEDIUMINT UNSIGNED PATH '$',
+                                     iu  INT UNSIGNED       PATH '$',
+                                     biu BIGINT UNSIGNED    PATH '$')) jt;
+# Used to lack the UNSIGNED attribute for the unsigned columns.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[]', '$[*]' COLUMNS (g GEOMETRY PATH '$',
+                                   ls LINESTRING PATH '$')) AS jt;
+# Used to say GEOMETRY for both columns.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('["abc"]', '$[*]' COLUMNS
+    (x VARCHAR(10) CHARSET latin1 PATH '$',
+     y VARCHAR(10) COLLATE utf8mb4_de_pb_0900_ai_ci PATH '$',
+     z LONGTEXT COLLATE utf8mb4_bin PATH '$')) jt;
+# Character set and collation information wasn't included.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+# Used to return the default collation instead of the collation
+# specified in the JSON_TABLE column definitions.
+SELECT x, y, z, COLLATION(x) c_x, COLLATION(y) c_y, COLLATION(z) c_z FROM v;
+DROP VIEW v;
+
+--echo #
+--echo # Bug#31345503 JSON_TABLE SHOULD RETURN SQL NULL FOR JSON NULL
+--echo #
+
+SELECT *
+FROM
+JSON_TABLE(
+'[
+  {"c1": null,
+   "c2": [{"c": "c_val", "l": [1,2]}],
+   "c3": null},
+  {"c1": true,
+   "c2": [{"c": "c_val","l": [11]}, {"c": "c_val", "l": [false]}],
+   "c3": true},
+  {"c1": false,
+   "c2": [{"c": null,"l": [true]}, {"c": "c_val", "l": [null]}],
+   "c3": false}
+  ]',
+  '$[*]' COLUMNS(
+           top_ord FOR ORDINALITY,
+           c1path VARCHAR(10) PATH '$.c1' ERROR ON ERROR,
+           NESTED PATH '$.c2[*]' COLUMNS (
+             c2path VARCHAR(10) PATH '$.c' ERROR ON ERROR,
+             ord FOR ORDINALITY,
+             NESTED PATH '$.l[*]' COLUMNS (lpath_c VARCHAR(10) PATH '$' ERROR ON ERROR,
+             lpath_i INT PATH '$' ERROR ON ERROR)
+           ),
+           c3path INT PATH '$.c3' ERROR ON ERROR
+         )
+) as jt;
+
+--echo #
+--echo # Bug #31327187 UBSAN: JSON_TABLE: NULL POINTER PASSED AS ARGUMENT 2,
+--echo #               WHICH IS DECLARED TO NEVER BE NULL
+--echo #
+
+SELECT HEX(a) FROM JSON_TABLE(
+  '[{"E":{"e":true,"~":1,"S3":"sTa"},"r":3,"":6.7},"",6.5]',
+  '$'
+  COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
+) e;
+
+--echo #
+--echo # Bug#32591074: JSON_TABLE'S CHECK FOR DUPLICATE COLUMN NAMES IS
+--echo #               CASE-SENSITIVE
+--echo #
+
+--error ER_DUP_FIELDNAME
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (o FOR ORDINALITY, O FOR ORDINALITY)) jt;
+
+--echo #
+--echo # Bug#33351497: JSON_TABLE function report duplicate column name
+--echo #
+
+# Used to compare only the first 64 bytes of the column names and
+# incorrectly report duplicate column name.
+
+SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
+) AS jt;
+
+--echo #
+--echo # Bug#33414235: Item_row::illegal_method_call const: Assertion `0' failed.
+--echo #
+--error ER_OPERAND_COLUMNS
+SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ namespace lob {
 /** Undo information about LOB data alone without including LOB index. */
 struct undo_data_t {
   /** Apply the undo information to the given LOB.
-  @param[in]	index		clustered index containing the LOB.
-  @param[in]	lob_mem		LOB on which the given undo will be
+  @param[in]    index           clustered index containing the LOB.
+  @param[in]    lob_mem         LOB on which the given undo will be
                                   applied.
   @param[in]    len             length of LOB.
   @param[in]    lob_version     lob version number
@@ -84,15 +84,15 @@ inline std::ostream &operator<<(std::ostream &out, const undo_data_t &obj) {
 of BLOBs. */
 struct undo_seq_t {
   /** Constructor.
-  @param[in]	field_no	the field number of LOB.*/
+  @param[in]    field_no        the field number of LOB.*/
   undo_seq_t(ulint field_no) : m_field_no(field_no), m_undo_list(nullptr) {}
 
   /** Apply the undo log records on the given LOB in memory.
-  @param[in]	index	the clustered index to which LOB belongs.
-  @param[in]	lob	the BLOB in memory.
-  @param[in]	len	the length of BLOB in memory.
-  @param[in]	lob_version	the LOB version number.
-  @param[in]	first_page_no	the first page number of BLOB.*/
+  @param[in]    index   the clustered index to which LOB belongs.
+  @param[in]    lob     the BLOB in memory.
+  @param[in]    len     the length of BLOB in memory.
+  @param[in]    lob_version     the LOB version number.
+  @param[in]    first_page_no   the first page number of BLOB.*/
   void apply(dict_index_t *index, byte *lob, size_t len, size_t lob_version,
              page_no_t first_page_no) {
     if (m_undo_list != nullptr) {
@@ -108,10 +108,11 @@ struct undo_seq_t {
   ulint get_field_no() const { return (m_field_no); }
 
   /** Append the given undo log record to the end of container.
-  @param[in]	u1	the undo log record information. */
+  @param[in]    u1      the undo log record information. */
   void push_back(undo_data_t &u1) {
     if (m_undo_list == nullptr) {
-      m_undo_list = UT_NEW_NOKEY(std::list<undo_data_t>());
+      m_undo_list =
+          ut::new_withkey<std::list<undo_data_t>>(UT_NEW_THIS_FILE_PSI_KEY);
     }
     m_undo_list->push_back(u1);
   }
@@ -122,7 +123,7 @@ struct undo_seq_t {
       std::for_each(m_undo_list->begin(), m_undo_list->end(),
                     [](undo_data_t &obj) { obj.destroy(); });
       m_undo_list->clear();
-      UT_DELETE(m_undo_list);
+      ut::delete_(m_undo_list);
       m_undo_list = nullptr;
     }
   }
@@ -167,7 +168,8 @@ struct undo_vers_t {
   @return the undo sequence object. */
   undo_seq_t *get_undo_sequence(ulint field_no) {
     if (m_versions == nullptr) {
-      m_versions = UT_NEW_NOKEY(std::list<undo_seq_t *>());
+      m_versions =
+          ut::new_withkey<std::list<undo_seq_t *>>(UT_NEW_THIS_FILE_PSI_KEY);
     } else {
       for (auto iter = m_versions->begin(); iter != m_versions->end(); ++iter) {
         if ((*iter)->get_field_no() == field_no) {
@@ -176,7 +178,8 @@ struct undo_vers_t {
       }
     }
 
-    undo_seq_t *seq = UT_NEW_NOKEY(undo_seq_t(field_no));
+    undo_seq_t *seq =
+        ut::new_withkey<undo_seq_t>(UT_NEW_THIS_FILE_PSI_KEY, field_no);
     m_versions->push_back(seq);
 
     return (seq);
@@ -187,19 +190,19 @@ struct undo_vers_t {
     if (m_versions != nullptr) {
       for (auto iter = m_versions->begin(); iter != m_versions->end(); ++iter) {
         (*iter)->destroy();
-        UT_DELETE(*iter);
+        ut::delete_(*iter);
       }
       m_versions->clear();
     }
   }
 
   /** Apply the undo log record on the given LOB in memory.
-  @param[in]	clust_index	the clust index to which LOB belongs.
-  @param[in]	field_no	the field number of the LOB.
-  @param[in]	lob		the LOB data.
-  @param[in]	len		the length of LOB.
-  @param[in]	lob_version	LOB version number.
-  @param[in]	first_page	the first page number of LOB.*/
+  @param[in]    clust_index     the clust index to which LOB belongs.
+  @param[in]    field_no        the field number of the LOB.
+  @param[in]    lob             the LOB data.
+  @param[in]    len             the length of LOB.
+  @param[in]    lob_version     LOB version number.
+  @param[in]    first_page      the first page number of LOB.*/
   void apply(dict_index_t *clust_index, ulint field_no, byte *lob, size_t len,
              size_t lob_version, page_no_t first_page) {
     undo_seq_t *seq = get_undo_sequence_if_exists(field_no);
@@ -213,7 +216,7 @@ struct undo_vers_t {
   void destroy() {
     if (m_versions != nullptr) {
       reset();
-      UT_DELETE(m_versions);
+      ut::delete_(m_versions);
       m_versions = nullptr;
     }
   }

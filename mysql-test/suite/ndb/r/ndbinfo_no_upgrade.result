@@ -1,0 +1,3 @@
+# restart
+include/assert_grep.inc [Require ER_NDBINFO_NOT_UPGRADING_SCHEMA message]
+include/assert_grep.inc [Check for ER_NDBINFO_UPGRADING_SCHEMA message]

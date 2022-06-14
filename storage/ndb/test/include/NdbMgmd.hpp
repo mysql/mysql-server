@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,10 @@
 #ifndef NDB_MGMD_HPP
 #define NDB_MGMD_HPP
 
+#include "util/require.h"
+#include "portlib/ndb_compiler.h"
 #include <mgmapi.h>
+#include "mgmcommon/NdbMgm.hpp"
 #include "../../src/mgmapi/mgmapi_internal.h"
 
 #include <BaseString.hpp>
@@ -38,12 +41,15 @@
 
 #include <InputStream.hpp>
 
+#include "NdbSleep.h"
+
 class NdbMgmd {
   BaseString m_connect_str;
   NdbMgmHandle m_handle;
   Uint32 m_nodeid;
   bool m_verbose;
   unsigned int m_timeout;
+  unsigned int m_version;
   NDB_SOCKET_TYPE m_event_socket;
   
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
@@ -67,7 +73,8 @@ class NdbMgmd {
   }
 public:
   NdbMgmd() :
-    m_handle(NULL), m_nodeid(0), m_verbose(true), m_timeout(0)
+    m_handle(NULL), m_nodeid(0), m_verbose(true), m_timeout(0),
+    m_version(NDB_VERSION)
     {
       const char* connect_string= getenv("NDB_CONNECTSTRING");
       if (connect_string)
@@ -79,6 +86,10 @@ public:
     close();
   }
 
+  unsigned int get_version()
+  {
+    return m_version;
+  }
   void close(void)
   {
     if (m_handle)
@@ -168,6 +179,7 @@ public:
         error("connect: ndb_get_version failed");
         return false;
     }
+    m_version = (major << 16) + (minor << 8) + build;
     //printf("connected to ndb_mgmd version %d.%d.%d\n",
     //        major, minor, build);
 
@@ -363,14 +375,13 @@ public:
       return false;
     }
 
-    struct ndb_mgm_configuration* conf =
-      ndb_mgm_get_configuration(m_handle,0);
+    ndb_mgm::config_ptr conf(ndb_mgm_get_configuration(m_handle,0));
     if (!conf) {
       error("get_config: ndb_mgm_get_configuration failed");
       return false;
     }
 
-    config.m_configValues= conf;
+    config.m_configuration= conf.release();
     return true;
   }
 
@@ -382,7 +393,7 @@ public:
     }
 
     if (ndb_mgm_set_configuration(m_handle,
-                                  config.values()) != 0)
+                                  config.get_configuration()) != 0)
     {
       error("set_config: ndb_mgm_set_configuration failed");
       return false;
@@ -483,7 +494,7 @@ public:
     }
 
     Uint64 default_value = 0;
-    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))
@@ -520,9 +531,108 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
-    sleep(10); //Give MGM server time to restart
+    NdbSleep_SecSleep(10); //Give MGM server time to restart
 
     return true;
+  }
+   
+  bool change_config32(Uint32 new_value, Uint32 *saved_old_value,
+                     unsigned type_of_section, unsigned config_variable)
+  {
+    if (!is_connected())
+    {
+      if (!connect())
+      {
+        error("Mgmd not connected");
+        return false;
+      }
+    }
+
+    Config conf;
+    if (!get_config(conf))
+    {
+      error("Mgmd : get_config failed");
+      return false;
+    }
+
+    Uint32 default_value = 0;
+    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    {
+      if (!iter.openSection(type_of_section, nodeid))
+        continue;
+      Uint32 old_value = 0;
+      if (iter.get(config_variable, &old_value))
+      {
+        if (default_value == 0)
+        {
+          default_value = old_value;
+        }
+        else if (old_value != default_value)
+        {
+          g_err << "Config value is not consistent across nodes"
+                << ". Node id " << nodeid
+                << ": value " << old_value
+                << ". Overwriting it with the given value " << new_value
+                << endl;
+        }
+      }
+      iter.set(config_variable, new_value);
+      iter.closeSection();
+    }
+
+    // Return old config value
+    *saved_old_value = default_value;
+
+    // Set the new config in mgmd
+    if (!set_config(conf))
+    {
+      error("Mgmd : set_config failed");
+      return false;
+    }
+
+    // TODO: Instead of using flaky sleep, try reconnect and
+    // determine whether the config is changed.
+    NdbSleep_SecSleep(10); //Give MGM server time to restart
+
+    return true;
+  }
+
+  Uint32 get_config32(unsigned type_of_section,
+                      unsigned config_variable)
+  {
+    if (!is_connected())
+    {
+      if (!connect())
+      {
+        error("Mgmd not connected");
+        return 0;
+      }
+    }
+
+    Config conf;
+    if (!get_config(conf))
+    {
+      error("Mgmd : get_config failed");
+      return 0;
+    }
+
+    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    {
+      if (!iter.openSection(type_of_section, nodeid))
+        continue;
+      Uint32 current_value = 0;
+      if (iter.get(config_variable, &current_value))
+      {
+        if (current_value > 0)
+        {
+          return current_value;
+        }
+      }
+      iter.closeSection();
+    }
+    return 0;
   }
 
   // Pretty printer for 'ndb_mgm_node_type'

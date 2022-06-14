@@ -474,12 +474,14 @@ EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 
 EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 DROP TABLE t1,t2;
 
@@ -506,24 +508,28 @@ EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 
 EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 
 EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 
 EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 DROP TABLE t1,t2;
 
@@ -1207,6 +1213,7 @@ insert into t1 values (NULL, 1, 1);
 insert into t1 values (0, 1, 1);
 insert into t1 values (12, 1, 1);
 
+--sorted_result
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 SHOW CREATE TABLE t1;
@@ -1245,6 +1252,7 @@ partitions 2
 insert into t1 values (11,1,6);
 insert into t1 values (NULL,1,1);
 
+--sorted_result
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 drop table t1;
@@ -2517,31 +2525,30 @@ CALL mtr.add_suppression(".ERROR.  The error means mysqld does not have the acce
 #                       does not remove old directory
 
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $data_directory = DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp';
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval create table t1 (a int)
 partition by range (a)
 subpartition by hash (a)
-(partition p0 VALUES LESS THAN (1) $data_directory
+(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR'
  (SUBPARTITION subpart00, SUBPARTITION subpart01));
 
 --echo # Checking if file exists before alter
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p0#SP#subpart00.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p0#SP#subpart01.ibd
+--file_exists $MYSQL_TMP_DIR/test/t1#p#p0#sp#subpart00.ibd
+--file_exists $MYSQL_TMP_DIR/test/t1#p#p0#sp#subpart01.ibd
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
-(partition p1 VALUES LESS THAN (1) $data_directory
+(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR'
  (SUBPARTITION subpart10, SUBPARTITION subpart11),
- partition p2 VALUES LESS THAN (2) $data_directory
+ partition p2 VALUES LESS THAN (2) DATA DIRECTORY = '$MYSQL_TMP_DIR'
  (SUBPARTITION subpart20, SUBPARTITION subpart21));
 
 --echo # Checking if file exists after alter
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p1#SP#subpart10.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p1#SP#subpart11.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p2#SP#subpart20.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p2#SP#subpart21.ibd
+--file_exists $MYSQL_TMP_DIR/test/t1#p#p1#sp#subpart10.ibd
+--file_exists $MYSQL_TMP_DIR/test/t1#p#p1#sp#subpart11.ibd
+--file_exists $MYSQL_TMP_DIR/test/t1#p#p2#sp#subpart20.ibd
+--file_exists $MYSQL_TMP_DIR/test/t1#p#p2#sp#subpart21.ibd
 
 drop table t1;
 
@@ -2554,8 +2561,8 @@ eval create table t2 (i int )
 partition by range (i)
 (
  partition p01 values less than (1000)
- data directory="$MYSQLTEST_VARDIR/tmp/"
- index directory="$MYSQLTEST_VARDIR/tmp/"
+ data directory='$MYSQL_TMP_DIR'
+ index directory='$MYSQL_TMP_DIR'
 );
 enable_query_log;
 
@@ -2631,11 +2638,11 @@ SUBPARTITION s0b
 DROP TABLE IF EXISTS `example`;
 --enable_warnings
 
---mkdir $MYSQLTEST_VARDIR/p0Data
---mkdir $MYSQLTEST_VARDIR/p1Data
---mkdir $MYSQLTEST_VARDIR/p2Data
---mkdir $MYSQLTEST_VARDIR/p3Data
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--mkdir $MYSQL_TMP_DIR/p0Data
+--mkdir $MYSQL_TMP_DIR/p1Data
+--mkdir $MYSQL_TMP_DIR/p2Data
+--mkdir $MYSQL_TMP_DIR/p3Data
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE `example` (
   `ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `DESCRIPTION` varchar(30) NOT NULL,
@@ -2643,28 +2650,28 @@ eval CREATE TABLE `example` (
   PRIMARY KEY (`ID_EXAMPLE`)
 )
 PARTITION BY HASH(ID_EXAMPLE)(
-PARTITION p0 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p0Data',
-PARTITION p1 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p1Data',
-PARTITION p2 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p2Data',
-PARTITION p3 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p3Data'
+PARTITION p0 DATA DIRECTORY = '$MYSQL_TMP_DIR/p0Data',
+PARTITION p1 DATA DIRECTORY = '$MYSQL_TMP_DIR/p1Data',
+PARTITION p2 DATA DIRECTORY = '$MYSQL_TMP_DIR/p2Data',
+PARTITION p3 DATA DIRECTORY = '$MYSQL_TMP_DIR/p3Data'
 );
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo # Checking that InnoDB data files are in test db and data dir
---file_exists $MYSQLTEST_VARDIR/p0Data/test/example#P#p0.ibd
---file_exists $MYSQLTEST_VARDIR/p1Data/test/example#P#p1.ibd
---file_exists $MYSQLTEST_VARDIR/p2Data/test/example#P#p2.ibd
---file_exists $MYSQLTEST_VARDIR/p3Data/test/example#P#p3.ibd
+--file_exists $MYSQL_TMP_DIR/p0Data/test/example#p#p0.ibd
+--file_exists $MYSQL_TMP_DIR/p1Data/test/example#p#p1.ibd
+--file_exists $MYSQL_TMP_DIR/p2Data/test/example#p#p2.ibd
+--file_exists $MYSQL_TMP_DIR/p3Data/test/example#p#p3.ibd
 DROP TABLE example;
---rmdir $MYSQLTEST_VARDIR/p0Data/test
---rmdir $MYSQLTEST_VARDIR/p0Data
---rmdir $MYSQLTEST_VARDIR/p1Data/test
---rmdir $MYSQLTEST_VARDIR/p1Data
---rmdir $MYSQLTEST_VARDIR/p2Data/test
---rmdir $MYSQLTEST_VARDIR/p2Data
---rmdir $MYSQLTEST_VARDIR/p3Data/test
---rmdir $MYSQLTEST_VARDIR/p3Data
+--rmdir $MYSQL_TMP_DIR/p0Data/test
+--rmdir $MYSQL_TMP_DIR/p0Data
+--rmdir $MYSQL_TMP_DIR/p1Data/test
+--rmdir $MYSQL_TMP_DIR/p1Data
+--rmdir $MYSQL_TMP_DIR/p2Data/test
+--rmdir $MYSQL_TMP_DIR/p2Data
+--rmdir $MYSQL_TMP_DIR/p3Data/test
+--rmdir $MYSQL_TMP_DIR/p3Data
 
 
 --echo #
@@ -2777,7 +2784,7 @@ KEY (r,b), ALGORITHM=INPLACE, LOCK=SHARED;
 SELECT * FROM t;
 DROP TABLE t;
 # Cleanup
---force-rmdir $MYSQLTEST_VARDIR/tmp/test/
+--force-rmdir $MYSQL_TMP_DIR/test/
 
 --echo #
 --echo # Bug#29317007: INIT_LEX_WITH_SINGLE_TABLE() CONFUSES TABLE
@@ -3036,3 +3043,43 @@ SELECT i, j FROM t1 PARTITION (p0);
 SELECT i, j FROM t1 PARTITION (p1);
 DROP TABLE t1;
 --enable_ps_protocol
+
+--echo #
+--echo # Bug #25207522: INCORRECT ORDER-BY BEHAVIOR ON A PARTITIONED TABLE
+--echo # WITH A COMPOSITE PREFIX INDEX
+--echo #
+CREATE TABLE t(  id int unsigned NOT NULL,
+        data varchar(2) DEFAULT NULL,
+        KEY data_idx (data(1),id)
+        ) DEFAULT CHARSET=utf8
+        /*!50100 PARTITION BY RANGE (id)
+        (PARTITION p10 VALUES LESS THAN (10) ,
+         PARTITION p20 VALUES LESS THAN (20) ) */;
+
+INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
+SELECT id FROM t WHERE data = 'ab' ORDER BY id ASC;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#29268656: BOGUS CONSTANT, RANDOM OR TIMEZONE-DEPENDENT
+--echo #               EXPRESSIONS IN (SUB)PARTITIONING FU
+--echo #
+
+# Create table with default non-deterministic expression
+CREATE TABLE t1 (c1 INT, c2 CHAR(32) DEFAULT (RANDOM_BYTES(32))) PARTITION BY HASH(c1);
+CREATE TABLE t2 (c1 INT, c2 CHAR(32) DEFAULT (RANDOM_BYTES(32))) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+
+# ALter table with default non-deterministic expression
+CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+ALTER TABLE t MODIFY COLUMN c2 CHAR(32) DEFAULT (RANDOM_BYTES(32));
+DROP TABLE t, t1, t2;
+
+# Create table with generated column containing non-deterministic expression
+CREATE TABLE t1 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) PARTITION BY HASH(c1);
+CREATE TABLE t2 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+
+# Alter table with generated column containing non-deterministic expression
+CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+ALTER TABLE t MODIFY COLUMN c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32)) STORED;
+ALTER TABLE t ADD COLUMN c3 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32));
+DROP TABLE t, t1, t2;

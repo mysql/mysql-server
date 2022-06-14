@@ -1,5 +1,4 @@
 USE ndbinfo;
-call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
 SELECT COUNT(*) FROM nodes;
 COUNT(*)
 2
@@ -10,3 +9,4 @@ ERROR HY000: View 'ndbinfo.nodes' references invalid table(s) or column(s) or fu
 SELECT COUNT(*) FROM nodes;
 COUNT(*)
 2
+include/assert_grep.inc [Require ER_NDBINFO_UPGRADING_SCHEMA message in server log]

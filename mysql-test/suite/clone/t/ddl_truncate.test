@@ -1,0 +1,31 @@
+# Test clone with concurrent truncate
+--source include/have_debug_sync.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--source ../include/create_ddl_schema.inc
+
+--let $dml_stmt_check = call execute_dml(1, 0, 100, 100, 10, 0)
+
+--echo # 1. TRUNCATE TABLE while clone in progress
+--let $ddl_op1 = TRUNCATE TABLE
+
+--let $dml_stmt1 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t
+
+# We don't need to reset it back as server is restarted.
+SET global debug="+d,clone_send_deleted_block";
+
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_drop_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;

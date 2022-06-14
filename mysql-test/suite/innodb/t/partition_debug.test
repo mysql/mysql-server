@@ -1,7 +1,7 @@
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_debug_sync.inc
 
---echo #
 --echo # Different partitions can have different row format
 --echo # Case one: between dynamic and redundant
 --echo #

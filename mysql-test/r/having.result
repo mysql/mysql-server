@@ -158,14 +158,14 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (3), (4), (1), (3), (1);
 SELECT SUM(a) FROM t1 GROUP BY a HAVING SUM(a)>0;
 SUM(a)
-6
-4
 2
+4
+6
 SELECT SUM(a) FROM t1 GROUP BY a HAVING SUM(a);
 SUM(a)
-6
-4
 2
+4
+6
 DROP TABLE t1;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2), (1), (3), (2), (1);
@@ -249,16 +249,16 @@ count_col1
 10
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
 count_col1	col2
-10	hello
-10	bye
-10	sam
 10	bob
+10	bye
+10	hello
+10	sam
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
 count_col1	col2
-10	hello
-10	bye
-10	sam
 10	bob
+10	bye
+10	hello
+10	sam
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
 count_col1	col2
 10	hello
@@ -796,9 +796,12 @@ val	c
 UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)
-1	11
-1	15
-1	17
+0	11
+0	12
+0	15
+0	16
+0	17
+0	18
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
 DROP TABLE series, seq_calls;
@@ -920,3 +923,49 @@ sub_value
 99
 99
 DROP TABLE t, o;
+# Bug#31429865: Assertion `table_share->tmp_table != NO_TMP_TABLE ||
+#                m_lock_type == 1' failed.
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2);
+CREATE VIEW v AS SELECT a FROM t HAVING 0<>1;
+DELETE FROM v LIMIT 1;
+ERROR HY000: The target table v of the DELETE is not updatable
+DROP VIEW v;
+DROP TABLE t;
+# Bug#32239484: Item_sum_json::val_json: assertion `!m_wrapper->empty()'
+SELECT 1 HAVING COUNT(*) = 1;
+1
+1
+SELECT 1 WHERE TRUE HAVING COUNT(*) = 1;
+1
+1
+SELECT 1 WHERE FALSE HAVING COUNT(*) = 0;
+1
+1
+SELECT 1 HAVING json_objectagg(utc_date(), 1416) <> 0;
+1
+1
+#
+# Bug #33152269: No result set returned when using HAVING COUNT(DISTINCT ...)
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+SELECT DISTINCT
+COUNT(DISTINCT t1.a) AS da
+FROM
+t1
+JOIN t1 AS t2 ON t1.a = t2.a
+GROUP BY t1.a
+HAVING COUNT(DISTINCT t1.a) = 1;
+da
+1
+DROP TABLE t1;
+#
+# Bug #30617496: BAD ITEM REF FROM CORRELATED SUBQUERY TO OUTER DISTINCT TABLE
+#
+CREATE TABLE t1 (f1 INT, f2 TEXT, f3 INT, PRIMARY KEY(f1));
+CREATE TABLE t2 LIKE t1;
+SELECT DISTINCT f3 FROM t1 HAVING (SELECT 1 FROM t2 HAVING f2 LIMIT 1) ORDER BY f3;
+ERROR 42S22: Unknown column 'f2' in 'having clause'
+DROP TABLE t1;
+DROP TABLE t2;

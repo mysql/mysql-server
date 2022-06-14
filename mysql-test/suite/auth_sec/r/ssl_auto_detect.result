@@ -1,4 +1,5 @@
 # Global Setup
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression(".*SSL_CTX_set_default_verify_paths failed");
 # Case 1 : Enable SSL automatically if ca.pem, server-cert.pem and
@@ -52,3 +53,4 @@ Pattern "CA certificate .* is self signed." found
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 # Global Cleanup
+# restart:

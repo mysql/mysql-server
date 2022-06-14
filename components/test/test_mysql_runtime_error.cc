@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -117,8 +117,8 @@ static long long test_mysql_runtime_error_udf(UDF_INIT *, UDF_ARGS *args,
 static mysql_service_status_t init() {
   if (mysql_service_udf_registration->udf_register(
           "test_mysql_runtime_error", INT_RESULT,
-          reinterpret_cast<Udf_func_any>(test_mysql_runtime_error_udf), NULL,
-          NULL)) {
+          reinterpret_cast<Udf_func_any>(test_mysql_runtime_error_udf), nullptr,
+          nullptr)) {
     fprintf(stderr, "Can't register the test_mysql_runtime_error UDF\n");
     return 1;
   }

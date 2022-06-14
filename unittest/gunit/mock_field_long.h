@@ -1,6 +1,6 @@
 #ifndef MOCK_FIELD_LONG_INCLUDED
 #define MOCK_FIELD_LONG_INCLUDED
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,50 +33,48 @@
 class Mock_field_long : public Field_long {
  public:
   /// Creates a nullable column with the default name.
-  Mock_field_long() : Mock_field_long("field_name", true) {}
+  Mock_field_long(bool is_unsigned)
+      : Mock_field_long("field_name", true, is_unsigned) {}
 
   /**
     Creates a nullable column.
     @param name The column name.
   */
-  Mock_field_long(const char *name) : Mock_field_long(name, true) {}
+  Mock_field_long(const char *name) : Mock_field_long(name, true, false) {}
 
   /**
     Creates a nullable column.
     @param name The column name.
   */
-  Mock_field_long(const std::string &&name, bool is_nullable)
-      : Mock_field_long(name.c_str(), is_nullable) {}
+  Mock_field_long(const std::string &&name, bool is_nullable, bool is_unsigned)
+      : Mock_field_long(name.c_str(), is_nullable, is_unsigned) {}
 
   /**
     Creates a column.
     @param name The column name.
     @param is_nullable Whether it's nullable.
   */
-  Mock_field_long(const char *name, bool is_nullable)
-      : Field_long(0,                                // ptr_arg
-                   8,                                // len_arg
-                   is_nullable ? &null_byte : NULL,  // null_ptr_arg
-                   is_nullable ? 1 : 0,              // null_bit_arg
-                   Field::NONE,                      // auto_flags_arg
-                   name,                             // field_name_arg
-                   false,                            // zero_arg
-                   false)                            // unsigned_arg
+  Mock_field_long(const char *name, bool is_nullable, bool is_unsigned)
+      : Field_long(
+            nullptr,                                            // ptr_arg
+            8,                                                  // len_arg
+            is_nullable ? &Field::dummy_null_buffer : nullptr,  // null_ptr_arg
+            is_nullable ? 1 : 0,                                // null_bit_arg
+            Field::NONE,  // auto_flags_arg
+            name,         // field_name_arg
+            false,        // zero_arg
+            is_unsigned)  // unsigned_arg
   {
     initialize(name);
   }
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
  private:
-  uchar buffer[PACK_LENGTH];
-  uchar null_byte = '\0';
   char m_name[1024];
 
   void initialize(const char *name) {
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
     static const char *table_name_buf = "table_name";
     table_name = &table_name_buf;
     if (name) {

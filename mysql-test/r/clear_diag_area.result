@@ -1,0 +1,534 @@
+# WL#5928: Most statements should clear the diagnostic area
+SELECT @@max_heap_table_size INTO @old_max_heap_table_size;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+#
+# Throw error, run some queries that shouldn't change diagnostics.
+#
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SHOW ERRORS;
+Level	Code	Message
+Error	1051	Unknown table 'test.no_such_table'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1051	Unknown table 'test.no_such_table'
+SHOW COUNT(*) ERRORS;
+@@session.error_count
+1
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+GET DIAGNOSTICS @n = NUMBER;
+GET DIAGNOSTICS CONDITION 1 @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+SELECT @n, @err_no, @err_txt;
+@n	@err_no	@err_txt
+1	1051	Unknown table 'test.no_such_table'
+
+#
+# Contrary to SHOW, these will now reset the diagnostics area:
+#
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SELECT @@error_count;
+@@error_count
+1
+SELECT @@error_count;
+@@error_count
+0
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SELECT @@warning_count;
+@@warning_count
+1
+SELECT @@warning_count;
+@@warning_count
+0
+CREATE TABLE IF NOT EXISTS t2 (f1 INT);
+CREATE TABLE IF NOT EXISTS t2 (f1 INT);
+Warnings:
+Note	1050	Table 't2' already exists
+SELECT @@warning_count;
+@@warning_count
+1
+DROP TABLE t2;
+
+#
+# Parse-error
+#
+# Errors may occur during the parse-stage -- before we know whether
+# the current statement is a diagnostics statement and must preserve the
+# previous statement's diagnostics area!  Show that we handle this right.
+#
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+parser may use message for ER_SYNTAX_ERROR, but always uses number
+ER_PARSE_ERROR instead.
+Only sql_binlog.cc actually uses number ER_SYNTAX_ERROR.
+GET DIAGNOSTICS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS @n = NUMBER;
+GET DIAGNOSTICS CONDITION 1 @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+SELECT @n, @err_no, @err_txt;
+@n	@err_no	@err_txt
+1	1064	You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+Here is another error the parser can throw, though:
+SET GLOBAL wombat = 'pangolin';
+ERROR HY000: Unknown system variable 'wombat'
+
+#
+# SP: Stored Procedures
+#
+CREATE PROCEDURE p0_proc_with_warning ()
+BEGIN
+SELECT CAST('2001-01-01' AS SIGNED INT);
+END|
+CREATE PROCEDURE p1_declare_handler_preserves ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR NOT FOUND
+BEGIN
+/* Nes gadol hayah poh -- first handler should have been called.
+DECLARE another handler. This should NOT clear the DA! */
+DECLARE red CONDITION FOR 1051;
+DECLARE CONTINUE HANDLER FOR red
+BEGIN
+GET DIAGNOSTICS @n0 = NUMBER;
+GET DIAGNOSTICS CONDITION 1 @e0 = MYSQL_ERRNO, @t0 = MESSAGE_TEXT;
+END;
+/* The important bit here is that there are two diagnostics statements
+in a row, so we can show that the first one does not clear the
+diagnostics area. */
+GET DIAGNOSTICS @n1 = NUMBER;
+GET DIAGNOSTICS CONDITION 1 @e1 = MYSQL_ERRNO, @t1 = MESSAGE_TEXT;
+END;
+SET @n1 = 0, @e1 = 0, @t1 = 'handler was not run or GET DIAGNOSTICS failed';
+SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = 'signal message';
+/* Show handler was called, and DA was read intact despite of other
+DECLAREs on the way: */
+SELECT @n1, @e1, @t1;
+END|
+CREATE PROCEDURE p2_declare_variable_clears ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR NOT FOUND
+BEGIN
+/* DECLARE a variable. This will clear the diagnostics area, so
+the subsequent GET DIAGNOSTICS will fail. It in turn will flag
+a warning (not an exception), which will remain unseen, as it
+in turn gets cleared by the next statement (SELECT). */
+DECLARE v1 INT;
+GET DIAGNOSTICS @n2 = NUMBER;
+GET DIAGNOSTICS CONDITION 1 @e2 = MYSQL_ERRNO, @t2 = MESSAGE_TEXT;
+END;
+SET @n2 = 0, @e2 = 0, @t2 = 'handler was not run or GET DIAGNOSTICS failed';
+SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = 'signal message';
+/* Show handler was called, and DA was NOT read intact because of DECLARE VARIABLE. */
+SELECT @n2, @e2, @t2;
+END|
+CREATE PROCEDURE p6_bubble_warning ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR NOT FOUND
+BEGIN
+/* Absurdly high CONDITION number will cause GET DIAG to fail.
+As it is the last statement, warning should bubble up to caller. */
+GET DIAGNOSTICS CONDITION 99 @e6 = MYSQL_ERRNO, @t6 = MESSAGE_TEXT;
+END;
+SET @n2 = 0, @e2 = 0, @t2 = 'handler was not run or GET DIAGNOSTICS failed';
+SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = 'signal message';
+END|
+CREATE PROCEDURE p5_declare_variable_clears ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR NOT FOUND
+BEGIN
+/* DECLARE a VARIABLE with a broken DEFAULT. This will throw a
+warning at runtime, which GET DIAGNOSTICS will see instead of
+the previous condition (the SIGNAL). */
+DECLARE v1 INT DEFAULT 'meow';
+GET DIAGNOSTICS @n5 = NUMBER;
+GET DIAGNOSTICS CONDITION 1 @e5= MYSQL_ERRNO, @t5 = MESSAGE_TEXT;
+END;
+SET @n5 = 0, @e5 = 0, @t5 = 'handler was not run or GET DIAGNOSTICS failed';
+SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = 'signal message';
+/* Show handler was called, and DA was NOT read intact because of DECLARE VARIABLE. */
+SELECT @n5, @e5, @t5;
+SELECT "still here, we got a warning, not an exception!";
+END|
+CREATE PROCEDURE p3_non_diagnostics_stmt_clears ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR NOT FOUND
+BEGIN
+/* Do some stuff before using GET (CURRENT, not STACKED) DIAGNOSTICS.
+This will clear the DA.
+show that handler was run, even if GET DIAG below fails! */
+SET @t3 = 'handler was run, but GET DIAGNOSTICS failed';
+SELECT 1 FROM DUAL;
+GET CURRENT DIAGNOSTICS @n3 = NUMBER;
+GET CURRENT DIAGNOSTICS CONDITION 1 @e3 = MYSQL_ERRNO, @t3 = MESSAGE_TEXT;
+END;
+SET @n3 = 0, @e3 = 0, @t3 = 'handler was not run or GET DIAGNOSTICS failed';
+SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = 'signal message';
+/* Show handler was called. */
+SELECT @n3, @e3, @t3;
+END|
+CREATE PROCEDURE p4_unhandled_exception_returned ()
+BEGIN
+/* This will throw an exception which we do not handle,
+so execution will abort, and the caller will see
+the error. */
+DROP TABLE no_such_table;
+SELECT "we should never get here";
+END|
+CREATE PROCEDURE p7_show_warnings ()
+BEGIN
+SHOW VARIABLES LIKE 'foo';
+SHOW WARNINGS;
+SELECT "(SHOW WARNINGS does not have to come last)";
+END|
+CREATE PROCEDURE p8a_empty ()
+BEGIN
+END|
+CREATE PROCEDURE p8b_show_warnings ()
+BEGIN
+SHOW WARNINGS;
+END|
+
+# warning bubbles up as it is thrown in the last statement (END does not count).
+# 1292, "truncated"
+CALL p0_proc_with_warning;
+CAST('2001-01-01' AS SIGNED INT)
+2001
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '2001-01-01'
+DROP PROCEDURE p0_proc_with_warning;
+
+# DECLARE HANDLER does not reset DA.
+# 1643, "signal message"
+CALL p1_declare_handler_preserves;
+@n1	@e1	@t1
+1	1643	signal message
+DROP PROCEDURE p1_declare_handler_preserves;
+
+# DECLARE VARIABLE clears DA.
+# 0 (but "GET DIAGNOSTICS failed")
+CALL p2_declare_variable_clears;
+@n2	@e2	@t2
+0	0	handler was not run or GET DIAGNOSTICS failed
+DROP PROCEDURE p2_declare_variable_clears;
+
+# DECLARE VARIABLE with broken DEFAULT throws error.
+# 1366, "Incorrect integer value"
+CALL p5_declare_variable_clears;
+@n5	@e5	@t5
+1	1366	Incorrect integer value: 'meow' for column 'v1' at row 1
+still here, we got a warning, not an exception!
+still here, we got a warning, not an exception!
+DROP PROCEDURE p5_declare_variable_clears;
+
+# show that GET DIAGNOSTICS produces warnings on failure.
+# 1758, "GET DIAGNOSTICS failed: Invalid condition number"
+CALL p6_bubble_warning;
+Warnings:
+Error	1758	Invalid condition number
+DROP PROCEDURE p6_bubble_warning;
+
+# non-diagnostics statement in handler clears DA before GET DIAGNOSTICS
+# 0 (but "GET DIAGNOSTICS failed")
+CALL p3_non_diagnostics_stmt_clears;
+1
+1
+@n3	@e3	@t3
+0	0	handler was run, but GET DIAGNOSTICS failed
+DROP PROCEDURE p3_non_diagnostics_stmt_clears;
+
+# unhandled exception terminates SP, bubbles up
+# 1051, "unknown table"
+CALL p4_unhandled_exception_returned;
+ERROR 42S02: Unknown table 'test.no_such_table'
+DROP PROCEDURE p4_unhandled_exception_returned;
+
+# SHOW WARNINGS is flagged MULTI_RESULTS. Show that we can handle that.
+# 1051, "unknown table"
+CALL p7_show_warnings;
+Variable_name	Value
+Level	Code	Message
+(SHOW WARNINGS does not have to come last)
+(SHOW WARNINGS does not have to come last)
+DROP PROCEDURE p7_show_warnings;
+
+# CALL is a procedure statement, so a called procedure won't see
+# warnings generated in its caller, and a post-CALL statement
+# won't see warnings from before the CALL even if the procedure
+# was empty.
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+CALL p8a_empty;
+SHOW WARNINGS;
+Level	Code	Message
+DROP PROCEDURE p8a_empty;
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+CALL p8b_show_warnings;
+Level	Code	Message
+DROP PROCEDURE p8b_show_warnings;
+
+#
+# SF: Stored Functions
+#
+CREATE FUNCTION f2_unseen_warnings() RETURNS INT
+BEGIN
+/* throw a warning */
+SET @@max_heap_table_size= 1;
+/* RETURN counts as a statement as per the standard, so clears DA */
+RETURN 1;
+END|
+CREATE FUNCTION f3_stacking_warnings() RETURNS TEXT
+BEGIN
+/* throw a warning */
+RETURN CAST('2001-01-01' AS SIGNED INT);
+END|
+CREATE FUNCTION f4_show_warnings() RETURNS TEXT
+BEGIN
+SHOW WARNINGS;
+RETURN "yeah, not so much";
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+
+# SF: warnings within remain unseen, except when from last statement (RETURN)
+SELECT f2_unseen_warnings();
+f2_unseen_warnings()
+1
+SHOW WARNINGS;
+Level	Code	Message
+SET @@max_heap_table_size= 1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1'
+DROP FUNCTION f2_unseen_warnings;
+
+# SF: warnings within bubble up, if from last statement (RETURN).
+#     warnings from multiple function calls are all preserved.
+SELECT f3_stacking_warnings(),f3_stacking_warnings(),f3_stacking_warnings();
+f3_stacking_warnings()	f3_stacking_warnings()	f3_stacking_warnings()
+2001	2001	2001
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '2001-01-01'
+Warning	1292	Truncated incorrect INTEGER value: '2001-01-01'
+Warning	1292	Truncated incorrect INTEGER value: '2001-01-01'
+DROP FUNCTION f3_stacking_warnings;
+
+# PS
+#
+# show prepared statements still throw warnings OK
+PREPARE stmt1 FROM 'create table if not exists t1 (f1 int)';
+EXECUTE stmt1;
+EXECUTE stmt1;
+Warnings:
+Note	1050	Table 't1' already exists
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;
+# show prepared statements can activate handler
+PREPARE stmt1 FROM 'create table if not exists t1 (f1 int)';
+EXECUTE stmt1;
+CREATE PROCEDURE p10_ps_with_warning ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1050 SELECT "a warn place";
+EXECUTE stmt1;
+END|
+CALL p10_ps_with_warning ();
+a warn place
+a warn place
+DROP PROCEDURE p10_ps_with_warning;
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;
+# show prepared statements still throw warnings OK
+PREPARE stmt1 FROM 'create table if not exists t1 (f1 year)';
+EXECUTE stmt1;
+EXECUTE stmt1;
+Warnings:
+Note	1050	Table 't1' already exists
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;
+
+# GET DIAGNOSTICS is not supported as prepared statement for now.
+# (It shouldn't be; Foundation 2007, 4.33.7)
+# This placeholder is intended to fail once that changes, so we
+# can add a proper test for it here.
+SET @sql1='GET DIAGNOSTICS CONDITION 1 @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT';
+PREPARE stmt1 FROM @sql1;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+
+# Foundation 2007, 4.33.7 says diagnostics statements shouldn't be preparable!
+PREPARE stmt2 FROM 'SHOW WARNINGS';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+PREPARE stmt2 FROM 'SHOW ERRORS';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+PREPARE stmt2 FROM 'SHOW COUNT(*) WARNINGS';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+PREPARE stmt2 FROM 'SHOW COUNT(*) ERRORS';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+PREPARE stmt2 FROM 'SELECT @@warning_count';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+PREPARE stmt2 FROM 'SELECT @@error_count';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+
+# Bug#11745821: SELECT WITH NO TABLES BUT A DERIVED TABLE RESETS WARNING LIST, CONTRARY T
+#
+SET @@max_heap_table_size= 1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1'
+SELECT 1;
+1
+1
+SHOW WARNINGS;
+Level	Code	Message
+
+SET @@max_heap_table_size= 1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1'
+SELECT 1 FROM (SELECT 1) t1;
+1
+1
+SHOW WARNINGS;
+Level	Code	Message
+
+# additional tests derived from PeterG's mails.
+#
+CREATE PROCEDURE peter1 ()
+BEGIN
+DECLARE v INTEGER DEFAULT 1234;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+SHOW WARNINGS;
+SELECT "handler done: ",v;
+END;
+CREATE TABLE gg (smallint_column SMALLINT);
+CALL peter2(v);
+END|
+CREATE PROCEDURE peter2 (INOUT v INTEGER)
+BEGIN
+INSERT INTO gg (smallint_column) VALUES (32769);
+GET DIAGNOSTICS v = ROW_COUNT;
+END|
+CREATE PROCEDURE peter3(a DECIMAL(2,2))
+BEGIN
+DECLARE b DECIMAL(2,2) DEFAULT @var;
+END|
+CALL peter1();
+Level	Code	Message
+Warning	1264	Out of range value for column 'smallint_column' at row 1
+handler done: 	v
+handler done: 	1
+DROP PROCEDURE peter2;
+DROP PROCEDURE peter1;
+DROP TABLE gg;
+SET @var="foo";
+CALL peter3("bar");
+Warnings:
+Warning	1366	Incorrect decimal value: 'bar' for column 'a' at row 1
+Warning	1366	Incorrect decimal value: 'foo' for column 'b' at row 1
+DROP PROCEDURE peter3;
+
+# additional adapted tests from sp
+#
+CREATE TABLE t3 (id INT NOT NULL)|
+CREATE PROCEDURE bug15231_1()
+BEGIN
+DECLARE xid INTEGER;
+DECLARE xdone INTEGER DEFAULT 0;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET xdone = 1;
+SET xid=NULL;
+CALL bug15231_2a(xid);
+SELECT "1,0", xid, xdone;
+SET xid=NULL;
+CALL bug15231_2b(xid);
+SELECT "NULL, 1", xid, xdone;
+END|
+CREATE PROCEDURE bug15231_2a(INOUT ioid INTEGER)
+BEGIN
+SELECT "Before NOT FOUND condition is triggered" AS '1';
+SELECT id INTO ioid FROM t3 WHERE id=ioid;
+SELECT "After NOT FOUND condtition is triggered" AS '2';
+IF ioid IS NULL THEN
+SET ioid=1;
+END IF;
+END|
+CREATE PROCEDURE bug15231_2b(INOUT ioid INTEGER)
+BEGIN
+SELECT id INTO ioid FROM t3 WHERE id=ioid;
+END|
+CALL bug15231_1()|
+1
+Before NOT FOUND condition is triggered
+2
+After NOT FOUND condtition is triggered
+1,0	xid	xdone
+1,0	1	0
+NULL, 1	xid	xdone
+NULL, 1	NULL	1
+DROP PROCEDURE bug15231_1|
+DROP PROCEDURE bug15231_2a|
+DROP PROCEDURE bug15231_2b|
+#
+CREATE PROCEDURE bug15231_3()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING
+SELECT 'Caught it (correct)' AS 'Result';
+CALL bug15231_4();
+END|
+CREATE PROCEDURE bug15231_4()
+BEGIN
+DECLARE x DECIMAL(2,1);
+SET x = 'zap';
+SHOW WARNINGS;
+END|
+CALL bug15231_3()|
+Level	Code	Message
+Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
+Result
+Caught it (correct)
+#
+CREATE PROCEDURE bug15231_5()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING
+SELECT 'Caught it (wrong)' AS 'Result';
+CALL bug15231_6();
+END|
+CREATE PROCEDURE bug15231_6()
+BEGIN
+DECLARE x DECIMAL(2,1);
+SET x = 'zap';
+SELECT id FROM t3;
+END|
+CALL bug15231_5()|
+id
+#
+#
+CREATE PROCEDURE bug15231_7()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+SELECT 'Caught it (right)' AS 'Result';
+CALL bug15231_8();
+END|
+CREATE PROCEDURE bug15231_8()
+BEGIN
+DROP TABLE no_such_table;
+SELECT 'Caught it (wrong)' AS 'Result';
+END|
+CALL bug15231_7()|
+Result
+Caught it (right)
+#
+DROP TABLE t3|
+DROP PROCEDURE bug15231_3|
+DROP PROCEDURE bug15231_4|
+DROP PROCEDURE bug15231_5|
+DROP PROCEDURE bug15231_6|
+DROP PROCEDURE bug15231_7|
+DROP PROCEDURE bug15231_8|
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+SET @@max_heap_table_size= @old_max_heap_table_size;
+
+#
+# Done WL#5928
+#
+
+# END 5.7 TESTS
+#

@@ -1,0 +1,113 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Connect to all
+--source connect.inc
+
+--echo #
+--echo # Test participants' restart during a schema distribution
+--echo #
+
+--echo # Case 1 : Participant restarts before the coordinator starts waiting on a schema op
+# Also covers Bug#31721534
+
+connection mysqld1;
+--echo # Activate the sync points required for the test
+
+# Enable debug sync point to make the client wait for a
+# participant restart before logging the schema op into ndb_schema table.
+SET DEBUG_SYNC="ndb_schema_before_write WAIT_FOR reached_check_wakeup_clients";
+
+# Enable debug code in check_wakeup_clients that signals and waits
+# for the client to log the schema op into ndb_schema table.
+SET GLOBAL DEBUG="+d,ndb_check_wakeup_clients_syncpoint";
+
+# Enable debug sync point in client that signals check_wakeup_clients
+# to continue once the schema op has been logged into ndb_schema table.
+SET DEBUG_SYNC="ndb_schema_after_write SIGNAL continue_check_wakeup_clients";
+
+--echo # Execute a DDL through send which will cause the
+--echo # client to wait until a participant (mysqld6) unsubscribes
+send CREATE TABLE t1 (a INT) ENGINE NDB;
+
+--echo # Shutdown a participant Server
+connection mysqld6;
+let $mysqld_name=mysqld.6.1;
+--source include/shutdown_mysqld.inc
+
+--echo # Verify that the DDL was successful
+connection mysqld1;
+reap;
+SHOW CREATE TABLE t1;
+
+--echo # Cleanup
+# Start mysqld6 again
+connection mysqld6;
+--source include/start_mysqld.inc
+--source include/ndb_not_readonly.inc
+connection mysqld1;
+set GLOBAL debug="-d,ndb_check_wakeup_clients_syncpoint";
+set debug_sync="RESET";
+DROP TABLE t1;
+
+--echo # Case 2 : Participant restarts after replying to the
+--echo # schema op but the coordinator is waiting on other participants
+
+--echo # Defer sending schema op ack from mysqld2
+--echo # to make the coordinator wait for it
+connection mysqld2;
+set GLOBAL debug="+d,ndb_defer_sending_participant_ack";
+
+--echo # Execute a DDL through send on mysqld1
+connection mysqld1;
+send CREATE TABLE t1 (a INT) ENGINE NDB;
+
+--echo # Wait for the participant mysqld6 to send the ack so
+--echo # that we can restart it and test the coordinator
+# This is ensured by waiting for all other participants except
+# mysqld2 to send acks (i.e.) wait until 5 reply rows are
+# found in ndb_schema_result table
+connection mysqld6;
+let $ndb_select_all_log= $MYSQLTEST_VARDIR/tmp/ndb_select_all.log;
+let $wait_counter= 100; # wait for atmost 10s
+while ($wait_counter)
+{
+  exec $NDB_SELECT_ALL -d mysql ndb_schema_result > $ndb_select_all_log;
+  let $success=`SELECT LOAD_FILE("$ndb_select_all_log") LIKE "%5 rows returned%"`;
+  if ($success)
+  {
+    let $wait_counter= 0;
+  }
+  if (!$success)
+  {
+    sleep 0.1;
+    dec $wait_counter;
+    if (!$wait_counter)
+    {
+      die Expected participants did not reply before wait timeout;
+    }
+  }
+}
+remove_file $ndb_select_all_log;
+
+--echo # Shutdown a participant Server
+--let $mysqld_name=mysqld.6.1
+--source include/shutdown_mysqld.inc
+
+--echo # Resume sending the ack from participant mysqld2
+connection mysqld2;
+set GLOBAL debug="-d,ndb_defer_sending_participant_ack";
+SET DEBUG_SYNC="now SIGNAL resume_sending_participant_ack";
+
+--echo # Verify that the DDL was successful without any warnings
+connection mysqld1;
+reap;
+SHOW CREATE TABLE t1;
+
+--echo # Cleanup
+# Start mysqld6 again
+connection mysqld6;
+--source include/start_mysqld.inc
+--source include/ndb_not_readonly.inc
+connection mysqld1;
+DROP TABLE t1;

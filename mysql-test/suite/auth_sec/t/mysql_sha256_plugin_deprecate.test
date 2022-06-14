@@ -1,5 +1,3 @@
---source include/have_ssl.inc
---source include/have_openssl.inc
 
 CREATE USER 'test_user1'@'localhost' IDENTIFIED WITH 'sha256_password' BY 'password';
 

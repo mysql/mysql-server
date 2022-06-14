@@ -26,5 +26,5 @@ ERROR HY000: Variable 'version_compile_zlib' is a GLOBAL variable
 SELECT COUNT(@@GLOBAL.version_compile_zlib);
 COUNT(@@GLOBAL.version_compile_zlib)
 1
-SELECT version_compile_zlib = @@SESSION.version_compile_zlib;
+SELECT version_compile_zlib;
 ERROR 42S22: Unknown column 'version_compile_zlib' in 'field list'

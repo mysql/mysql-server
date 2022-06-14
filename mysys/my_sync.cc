@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,8 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-static void (*before_sync_wait)(void) = 0;
-static void (*after_sync_wait)(void) = 0;
+static void (*before_sync_wait)(void) = nullptr;
+static void (*after_sync_wait)(void) = nullptr;
 
 void thr_set_sync_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void)) {
@@ -83,7 +83,7 @@ void thr_set_sync_wait_callback(void (*before_wait)(void),
 
 int my_sync(File fd, myf my_flags) {
   int res;
-  DBUG_ENTER("my_sync");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("Fd: %d  my_flags: %d", fd, my_flags));
 
   if (before_sync_wait) (*before_sync_wait)();
@@ -114,78 +114,10 @@ int my_sync(File fd, myf my_flags) {
       DBUG_PRINT("info", ("ignoring errno %d", er));
       res = 0;
     } else if (my_flags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_SYNC, MYF(0), my_filename(fd), my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      MyOsError(my_errno(), EE_SYNC, MYF(0), my_filename(fd));
     }
   } else {
     if (after_sync_wait) (*after_sync_wait)();
   }
-  DBUG_RETURN(res);
-} /* my_sync */
-
-/*
-  Force directory information to disk.
-
-  SYNOPSIS
-    my_sync_dir()
-    dir_name             the name of the directory
-    my_flags             flags (MY_WME etc)
-
-  RETURN
-    0 if ok, !=0 if error
-*/
-
-int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
-                myf my_flags MY_ATTRIBUTE((unused))) {
-/*
-  Only Linux is known to need an explicit sync of the directory to make sure a
-  file creation/deletion/renaming in(from,to) this directory durable.
-*/
-#ifdef __linux__
-  static const char cur_dir_name[] = {FN_CURLIB, 0};
-  File dir_fd;
-  int res = 0;
-  const char *correct_dir_name;
-  DBUG_ENTER("my_sync_dir");
-  DBUG_PRINT("my", ("Dir: '%s'  my_flags: %d", dir_name, my_flags));
-  /* Sometimes the path does not contain an explicit directory */
-  correct_dir_name = (dir_name[0] == 0) ? cur_dir_name : dir_name;
-  /*
-    Syncing a dir may give EINVAL on tmpfs on Linux, which is ok.
-    EIO on the other hand is very important. Hence MY_IGNORE_BADFD.
-  */
-  if ((dir_fd = my_open(correct_dir_name, O_RDONLY, MYF(my_flags))) >= 0) {
-    if (my_sync(dir_fd, MYF(my_flags | MY_IGNORE_BADFD))) res = 2;
-    if (my_close(dir_fd, MYF(my_flags))) res = 3;
-  } else
-    res = 1;
-  DBUG_RETURN(res);
-#else
-  return 0;
-#endif
-}
-
-/*
-  Force directory information to disk.
-
-  SYNOPSIS
-    my_sync_dir_by_file()
-    file_name            the name of a file in the directory
-    my_flags             flags (MY_WME etc)
-
-  RETURN
-    0 if ok, !=0 if error
-*/
-
-int my_sync_dir_by_file(const char *file_name MY_ATTRIBUTE((unused)),
-                        myf my_flags MY_ATTRIBUTE((unused))) {
-#ifdef __linux__
-  char dir_name[FN_REFLEN];
-  size_t dir_name_length;
-  dirname_part(dir_name, file_name, &dir_name_length);
-  return my_sync_dir(dir_name, my_flags);
-#else
-  return 0;
-#endif
+  return res;
 }

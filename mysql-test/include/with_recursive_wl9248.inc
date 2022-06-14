@@ -35,6 +35,7 @@ select min(b),max(b),avg(b) from q where b=300;
 eval explain $query;
 show status like 'Created_tmp_disk_tables';
 eval $query;
+--skip_if_hypergraph  # Uses streaming.
 show status like 'Created_tmp_disk_tables';
 
 --echo # Verify that rows come out in insertion order.

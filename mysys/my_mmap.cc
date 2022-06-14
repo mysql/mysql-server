@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,19 +57,19 @@ int my_msync(int fd, void *addr, size_t len, int flags) {
 static SECURITY_ATTRIBUTES mmap_security_attributes = {
     sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
 
-void *my_mmap(void *addr, size_t len, int prot, int flags, File fd,
-              my_off_t offset) {
+void *my_mmap(void *addr [[maybe_unused]], size_t len, int prot,
+              int flags [[maybe_unused]], File fd, my_off_t offset) {
   HANDLE hFileMap;
   LPVOID ptr;
-  HANDLE hFile = (HANDLE)my_get_osfhandle(fd);
-  DBUG_ENTER("my_mmap");
+  HANDLE hFile = my_get_osfhandle(fd);
+  DBUG_TRACE;
   DBUG_PRINT("mysys", ("map fd: %d", fd));
 
-  if (hFile == INVALID_HANDLE_VALUE) DBUG_RETURN(MAP_FAILED);
+  if (hFile == INVALID_HANDLE_VALUE) return MAP_FAILED;
 
   hFileMap = CreateFileMapping(hFile, &mmap_security_attributes, PAGE_READWRITE,
                                0, (DWORD)len, NULL);
-  if (hFileMap == 0) DBUG_RETURN(MAP_FAILED);
+  if (hFileMap == 0) return MAP_FAILED;
 
   ptr = MapViewOfFile(hFileMap,
                       prot & PROT_WRITE ? FILE_MAP_WRITE : FILE_MAP_READ,
@@ -85,19 +85,20 @@ void *my_mmap(void *addr, size_t len, int prot, int flags, File fd,
 
   if (ptr) {
     DBUG_PRINT("mysys", ("mapped addr: %p", ptr));
-    DBUG_RETURN(ptr);
+    return ptr;
   }
 
-  DBUG_RETURN(MAP_FAILED);
+  return MAP_FAILED;
 }
 
-int my_munmap(void *addr, size_t len) {
-  DBUG_ENTER("my_munmap");
+int my_munmap(void *addr, size_t len [[maybe_unused]]) {
+  DBUG_TRACE;
   DBUG_PRINT("mysys", ("unmap addr: %p", addr));
-  DBUG_RETURN(UnmapViewOfFile(addr) ? 0 : -1);
+  return UnmapViewOfFile(addr) ? 0 : -1;
 }
 
-int my_msync(int fd, void *addr, size_t len, int flags) {
+int my_msync(int fd [[maybe_unused]], void *addr, size_t len,
+             int flags [[maybe_unused]]) {
   return FlushViewOfFile(addr, len) ? 0 : -1;
 }
 

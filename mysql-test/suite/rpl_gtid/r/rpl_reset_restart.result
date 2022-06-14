@@ -11,6 +11,8 @@ RESET MASTER;
 [connection slave]
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 # Kill and restart
 include/rpl_reconnect.inc

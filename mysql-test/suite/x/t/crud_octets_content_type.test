@@ -5,14 +5,13 @@
 --source include/xplugin_create_user.inc
 
 ## Test data
-DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
 USE xtest;
 CREATE TABLE xtable (f int);
 INSERT INTO xtable (f) VALUES (42);
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_octets_content_type.tmp
+--write_file $MYSQL_TMP_DIR/crud_octets_content_type.xpl
 
 ##-- GEOMETRY type
 Mysqlx.Crud.Find {
@@ -94,9 +93,7 @@ Mysqlx.Crud.Find {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_octets_content_type.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_octets_content_type.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_octets_content_type.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

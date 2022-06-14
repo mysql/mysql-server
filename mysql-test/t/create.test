@@ -2170,3 +2170,202 @@ DROP FUNCTION f2;
 DROP FUNCTION f3;
 }
 DROP TABLE types;
+
+--echo #
+--echo # WL#13528: Remove integer display width from SHOW CREATE output
+--echo #
+
+CREATE TABLE t1(
+  a TINYINT,
+  b SMALLINT,
+  c MEDIUMINT,
+  d INT,
+  e BIGINT,
+  f TINYINT(1),
+  g SMALLINT(1),
+  h MEDIUMINT(1),
+  i INT(1),
+  j BIGINT(1),
+  k TINYINT ZEROFILL,
+  l SMALLINT ZEROFILL,
+  m MEDIUMINT ZEROFILL,
+  n INT ZEROFILL,
+  o BIGINT ZEROFILL
+);
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+DESCRIBE t1;
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+--sorted_result
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+DESCRIBE v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+CREATE FUNCTION f1(a INT) RETURNS INT RETURN 1;
+CREATE FUNCTION f2(a INT ZEROFILL) RETURNS INT ZEROFILL RETURN 1;
+
+SHOW CREATE FUNCTION f1;
+SHOW CREATE FUNCTION f2;
+
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f2';
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f2';
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+
+CREATE PROCEDURE p1(a INT, b INT ZEROFILL) BEGIN END;
+
+# Not part of SHOW CREATE output ...
+SHOW CREATE PROCEDURE p1;
+
+# ... but part of I_S.PARAMETERS
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Bug#30556657: REVERT I_S/SHOW CREATE CHANGES REGARDING TINYINT(1)
+--echo #
+
+CREATE TABLE t1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED, d TINYINT(1) ZEROFILL);
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+DESCRIBE t1;
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+--sorted_result
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+DESCRIBE v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+CREATE FUNCTION f1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
+                   d TINYINT(1) ZEROFILL) RETURNS BOOLEAN RETURN 1;
+SHOW CREATE FUNCTION f1;
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+DROP FUNCTION f1;
+
+CREATE PROCEDURE p1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
+                    d TINYINT(1) ZEROFILL) BEGIN END;
+SHOW CREATE PROCEDURE p1;
+--sorted_result
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+DROP PROCEDURE p1;
+
+
+--echo #
+--echo # Bug#32227101: CREATE TABLE PRODUCES CORE
+--echo #
+--echo # Bug#33114368: 'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+--echo # DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+--echo #
+--echo # These issues are related and arise from insufficient input checking
+--echo # of numeric table options.
+--echo # From bug#33114368 we see that even if no overflow occurs on CREATE,
+--echo # there can be a risk of overflow when the option value is used
+--echo # elsewhere.
+--echo # The safest thing to do is to constrain values to the largest
+--echo # value permitted by the frm-file format (unless the range of the option
+--echo # value has been explicitly changed in 8.0).
+--echo #
+--echo # key_block_size, parser type: signed_num (int)
+--echo # std::uint32_t HA_CREATE_INFO::key_block_size
+--echo # 2 bytes in frm
+--echo # Only settable for myisam, but also used in Innodb
+
+--echo # key_block_size = 2^31-1 - rejected by explicit check 
+--error ER_PARSE_ERROR
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483647;
+
+--echo # key_block_size = -(2^31)+1 - rejected by parser (parser switched
+--echo # back to using ulong_num now that there is an explicit check).
+--error ER_PARSE_ERROR
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483647;
+
+--echo # key_block_size = 2^31 - rejected by explicit check
+--error ER_PARSE_ERROR
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483648;
+
+--echo # key_block_size = -2^31 - rejected by parser (parser switched
+--echo # back to using ulong_num now that there is an explicit check).
+--error ER_PARSE_ERROR
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483648;
+
+--echo # key_block_size = 2^32-1 - rejected by explicit check
+--error ER_PARSE_ERROR
+CREATE TABLE t2(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967295;
+
+--echo # key_block_size = 2^32 - rejected by explicit check
+--error ER_PARSE_ERROR
+CREATE TABLE t3(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967296;
+
+--echo # key_block_size = 3927749503218772669 - now rejected by parser
+--error ER_PARSE_ERROR
+CREATE TABLE t4(
+c0 DECIMAL ZEROFILL  UNIQUE KEY STORAGE MEMORY,
+c1 DECIMAL ZEROFILL  PRIMARY KEY COLUMN_FORMAT DYNAMIC UNIQUE KEY STORAGE MEMORY NOT NULL,
+c2 FLOAT ZEROFILL  COMMENT 'asdf'  COLUMN_FORMAT FIXED NULL STORAGE MEMORY,
+c3 TINYINT(120) ZEROFILL   STORAGE DISK UNIQUE KEY NULL COMMENT 'asdf'
+) CHECKSUM = 1, AUTO_INCREMENT = 1093400439, KEY_BLOCK_SIZE = 3927749503218772669, COMPRESSION = 'NONE';
+
+--echo # Only values which will fit in the two bytes allocated in the frm file
+--echo # format are accepted.
+CREATE TABLE t1(a INT) ENGINE=myisam key_block_size=65535;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #33114368	'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+--echo # DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+--echo #
+
+--echo # avg_row_length, parser type: ulong_num (ulong) 
+--echo # ulong HA_CREATE_INFO::avg_row_length
+--echo # 4 bytes in frm
+--error ER_PARSE_ERROR
+CREATE TABLE t1(a INT) avg_row_length=18446744073709551615;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(a INT) avg_row_length=4294967296;
+
+--echo # Only values which will fit in the four bytes allocated in the frm file
+--echo # format are accepted.
+CREATE TABLE t1(a INT) avg_row_length=4294967295;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+--echo # max_rows, parser type: ulonglong_num (ulonglong)
+--echo # ulonglong HA_CREATE_INFO::max_rows
+--echo # 4 bytes in frm
+--echo # max_rows is capped and a warning produced
+CREATE TABLE t1(a INT) max_rows=18446744073709551615;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+--echo # min_rows, parser type: ulonglong_num (ulonglong)
+--echo # ulonglong HA_CREATE_INFO::min_rows
+--echo # 4 bytes in frm
+--echo # min_rows is capped and a warning produced
+CREATE TABLE t1(a INT) min_rows=18446744073709551615;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+

@@ -1,5 +1,4 @@
-
-# Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +21,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Handy macro to parse macro arguments
+# TODO, use:
+# CMAKE_PARSE_ARGUMENTS(<prefix>
+#                       <options>
+#                       <one_value_keywords>
+#                       <multi_value_keywords> args)
+
 MACRO(MYSQL_PARSE_ARGUMENTS prefix arg_names option_names)
   SET(DEFAULT_ARGS)
   FOREACH(arg_name ${arg_names})    

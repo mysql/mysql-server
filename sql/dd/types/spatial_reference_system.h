@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
 #include <cstddef>  // std::nullptr_t
+#include <optional>
 
 #include "my_inttypes.h"
-#include "nullable.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 #include "sql/gis/geometries.h"           // gis::Coordinate_system
@@ -74,7 +74,7 @@ class Spatial_reference_system : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  virtual ~Spatial_reference_system() {}
+  ~Spatial_reference_system() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // created
@@ -94,7 +94,7 @@ class Spatial_reference_system : virtual public Entity_object {
   // organization
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Mysql::Nullable<String_type> &organization() const = 0;
+  virtual const std::optional<String_type> &organization() const = 0;
   virtual void set_organization(const String_type &organization) = 0;
   virtual void set_organization(std::nullptr_t) = 0;
 
@@ -102,7 +102,7 @@ class Spatial_reference_system : virtual public Entity_object {
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Mysql::Nullable<gis::srid_t> &organization_coordsys_id()
+  virtual const std::optional<gis::srid_t> &organization_coordsys_id()
       const = 0;
   virtual void set_organization_coordsys_id(
       gis::srid_t organization_coordsys_id) = 0;
@@ -225,7 +225,7 @@ class Spatial_reference_system : virtual public Entity_object {
   // description
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Mysql::Nullable<String_type> &description() const = 0;
+  virtual const std::optional<String_type> &description() const = 0;
   virtual void set_description(const String_type &description) = 0;
   virtual void set_description(std::nullptr_t) = 0;
 
@@ -235,6 +235,15 @@ class Spatial_reference_system : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Spatial_reference_system *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  virtual Spatial_reference_system *clone_dropped_object_placeholder()
+      const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

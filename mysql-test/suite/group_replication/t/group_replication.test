@@ -25,7 +25,7 @@
 --source include/have_group_replication_plugin.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The group name *.*");
+call mtr.add_suppression("The group_replication_group_name *.*");
 SET SESSION sql_log_bin= 1;
 
 --error ER_WRONG_VALUE_FOR_VAR

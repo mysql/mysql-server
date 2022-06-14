@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,8 @@ END {
 #
 # If no unique ID within the specified parameters can be
 # obtained, return undef.
-sub mtr_get_unique_id($$$) {
-  my ($min, $max, $build_threads_per_thread) = @_;
+sub mtr_get_unique_id($$$$$) {
+  my ($min, $max, $build_threads_per_thread, $min_exclude, $max_exclude)= @_;
 
   if (scalar @mtr_unique_fh == $build_threads_per_thread) {
     die "Can only get $build_threads_per_thread unique id(s) per process!";
@@ -54,6 +54,11 @@ sub mtr_get_unique_id($$$) {
   my $build_thread = 0;
   while ($build_thread < $build_threads_per_thread) {
     for (my $id = $min ; $id <= $max ; $id++) {
+      # Determine if we hit the exclusion range, if so, skip it
+      if ($min_exclude <= $id && $id < $max_exclude) {
+        $id = $max_exclude;
+        next;
+      }
       my $fh;
       open($fh, ">$::build_thread_id_dir/$id");
       chmod 0666, "$::build_thread_id_dir/$id";
@@ -73,12 +78,14 @@ sub mtr_get_unique_id($$$) {
         for (; $build_thread > 0 ; $build_thread--) {
           if (defined $mtr_unique_fh[ $build_thread - 1 ]) {
             close $mtr_unique_fh[ $build_thread - 1 ];
-            unlink $mtr_unique_ids[ $build_thread - 1 ] or
-              warn "Could not unlink $mtr_unique_ids[$build_thread-1]: $!";
+            # This fails sometimes, but does not prevent MTR from working
+            # correctly. This applies to this instance, any instances running in
+            # parallel and future runs. We don't want to warn user about it.
+            unlink $mtr_unique_ids[ $build_thread - 1 ];
           }
         }
 
-        # Close the file opened in the current iterartion.
+        # Close the file opened in the current iteration.
         close $fh;
         last;
       }

@@ -1,5 +1,29 @@
-CREATE TABLE t1 (
-  j JSON DEFAULT (CAST('[9,8,0,1]' AS JSON)),
-  KEY mv_idx ((CAST(j->'$[*]' AS UNSIGNED ARRAY))));
-INSERT INTO t1 VALUES();
-DROP TABLE t1;
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#30292605: ASSERTION WHEN READING A HIDDEN ARRAY COLUMN
+--echo # Bug#30302208: ASSERTION FAILURE WITH CREATE TABLE AS SELECT AND
+--echo #               SHOW_HIDDEN_COLUMNS
+--echo #
+CREATE TABLE t(j JSON, KEY k ((CAST(j->'$[*]' AS SIGNED ARRAY))));
+INSERT INTO t VALUES ('[1,2,3]');
+SET debug = '+d,show_hidden_columns';
+SELECT * FROM t;
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t_copy AS SELECT * FROM t;
+SET debug = '-d,show_hidden_columns';
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+--echo #
+CREATE TABLE t(j JSON,
+               KEY k1 ((CAST(j->'$.a[*]' AS DATETIME(3) ARRAY))),
+               KEY k2 ((CAST(j->'$.b[*]' AS UNSIGNED INT ARRAY))));
+SET debug = '+d,show_hidden_columns';
+# Used to show the hidden column for k1 as a DATETIME with unspecified
+# precision, and the hidden column for k2 as BIGINT without the
+# UNSIGNED modifier.
+SHOW CREATE TABLE t;
+SET debug = '-d,show_hidden_columns';
+DROP TABLE t;

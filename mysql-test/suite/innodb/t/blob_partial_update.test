@@ -1,8 +1,8 @@
 # **************************************************************************
 # wl8960 : Check partial update when table has 16k size data
 # Modify column type JSON to LONGTEXT to JSON
-# Modify row_format= Comprssed to Dynamic to Redundant to Compact
-# The mysqld.err.1 log shows followig note when InnoDB does partial update
+# Modify row_format= Compressed to Dynamic to Redundant to Compact
+# The mysqld.err.1 log shows following note when InnoDB does partial update
 # on the table
 # [Note] LOB partial update of field=(j1) on index=(GEN_CLUST_INDEX)
 # Check for TEXT datatype full update and JSON functions works normally
@@ -196,7 +196,7 @@ EXPLAIN FORMAT=JSON UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repview')
 
 UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repview');
 
---echo # Show Reviewp
+--echo # Show Repview
 SELECT json_extract(j1, '$[0]') FROM view_tab;
 
 ANALYZE TABLE tab;
@@ -264,7 +264,7 @@ ANALYZE TABLE tab;
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
 --echo # Check pattern for LOB partial update exist
-let SEARCH_FILE= $MYSQLTEST_VARDIR/log/blob_partial_update.err;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 
 let SEARCH_PATTERN= LOB partial update;
 --source include/search_pattern.inc

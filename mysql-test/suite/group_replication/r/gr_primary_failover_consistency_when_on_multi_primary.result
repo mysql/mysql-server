@@ -30,7 +30,6 @@ SELECT group_replication_switch_to_multi_primary_mode();
 #    validate the old secondary is waiting on the application of its
 #    replication backlog.
 [connection server_2]
-include/assert.inc [The second insert transaction is received on slave]
 
 # 7. A read statement to old secondary will not be put on hold
 SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;

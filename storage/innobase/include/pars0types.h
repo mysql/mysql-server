@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -54,6 +54,6 @@ struct return_node_t;
 struct assign_node_t;
 struct col_assign_node_t;
 
-typedef UT_LIST_BASE_NODE_T(sym_node_t) sym_node_list_t;
+typedef UT_LIST_BASE_NODE_T_EXTERN(sym_node_t, col_var_list) sym_node_list_t;
 
 #endif

@@ -22,7 +22,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
-utf8
+utf8mb3
 SET global.character_set_connection=utf8;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_connection=utf8' at line 1
 SET session character_set_connection=utf8;
@@ -40,7 +40,7 @@ SET @@character_set_connection = latin5;
 SET @@character_set_connection = DEFAULT;
 SELECT @@character_set_connection AS DEFAULT_VALUE;
 DEFAULT_VALUE
-utf8
+utf8mb3
 SET @@global.character_set_connection = latin5;
 SET @@global.character_set_connection = DEFAULT;
 SELECT @@global.character_set_connection;
@@ -52,14 +52,14 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
-utf8
+utf8mb3
 SET @@global.character_set_connection = latin2;
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 latin2
 SELECT @@session.character_set_connection AS res_is_utf8;
 res_is_utf8
-utf8
+utf8mb3
 SET @@session.character_set_connection = latin5;
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
@@ -87,6 +87,8 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 big5
 SET @@session.character_set_connection = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 dec8
@@ -95,6 +97,8 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 cp850
 SET @@session.character_set_connection = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 hp8
@@ -175,12 +179,14 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
-utf8
+utf8mb3
 SET @@session.character_set_connection = utf8mb4;
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 utf8mb4
 SET @@session.character_set_connection = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 ucs2
@@ -193,10 +199,14 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 keybcs2
 SET @@session.character_set_connection = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 macce
 SET @@session.character_set_connection = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 macroman
@@ -242,6 +252,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 big5
 SET @@global.character_set_connection = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 dec8
@@ -250,6 +262,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 cp850
 SET @@global.character_set_connection = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 hp8
@@ -330,12 +344,14 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
-utf8
+utf8mb3
 SET @@global.character_set_connection = utf8mb4;
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 utf8mb4
 SET @@global.character_set_connection = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 ucs2
@@ -348,10 +364,14 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 keybcs2
 SET @@global.character_set_connection = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 macce
 SET @@global.character_set_connection = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 macroman
@@ -397,19 +417,19 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@character_set_connection;
 @@character_set_connection
-utf8
+utf8mb3
 SET @@character_set_connection = utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@character_set_connection;
 @@character_set_connection
-utf8
+utf8mb3
 SET @@global.character_set_connection = uTf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
-utf8
+utf8mb3
 '#--------------------FN_DYNVARS_011_09-------------------------#'
 SET @@character_set_connection = 1;
 SELECT @@character_set_connection;
@@ -420,6 +440,8 @@ SELECT @@character_set_connection;
 @@character_set_connection
 latin2
 SET @@character_set_connection = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_connection;
 @@character_set_connection
 dec8
@@ -442,6 +464,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 latin2
 SET @@global.character_set_connection = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 dec8

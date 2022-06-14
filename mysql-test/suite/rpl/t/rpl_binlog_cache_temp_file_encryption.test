@@ -9,7 +9,7 @@
 # ==== Implementation ====
 #
 # 1. Start the master with binlog_encryption on.
-# 2. Create a table t1 and t2 with a TEXT column.
+# 2. Create a table t1 with a TEXT column.
 # 3. Execute a trx to insert a big text into the tables to make
 #    binlog cache spill to disk and ensure that the temporary
 #    file of binlog cache is encrypted.
@@ -40,13 +40,11 @@
 --let $data_size= `select 0.5 * @@global.binlog_cache_size`
 
 CREATE TABLE t1 (c1 TEXT) ENGINE=INNODB;
-CREATE TABLE t2 (c2 TEXT) ENGINE=MYISAM;
 
 --let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
 --source include/add_debug_point.inc
 
 eval INSERT INTO t1 VALUES (REPEAT('123', $data_size));
-eval INSERT INTO t2 VALUES (REPEAT('123', $data_size));
 
 --let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
 --source include/remove_debug_point.inc
@@ -56,7 +54,6 @@ SET GLOBAL binlog_encryption=OFF;
 --source include/add_debug_point.inc
 
 eval INSERT INTO t1 VALUES (REPEAT('off', $data_size));
-eval INSERT INTO t2 VALUES (REPEAT('off', $data_size));
 
 --let $debug_point= ensure_binlog_cache_temp_file_encryption_is_disabled
 --source include/remove_debug_point.inc
@@ -66,7 +63,6 @@ SET GLOBAL binlog_encryption=ON;
 --source include/add_debug_point.inc
 
 eval INSERT INTO t1 VALUES (REPEAT('on1', $data_size));
-eval INSERT INTO t2 VALUES (REPEAT('on1', $data_size));
 
 --let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
 --source include/remove_debug_point.inc
@@ -80,7 +76,6 @@ BEGIN;
 INSERT INTO t1 VALUES ("789");
 ROLLBACK;
 
-INSERT INTO t2 VALUES ("567");
 
 --let $debug_point= ensure_binlog_cache_is_reset
 --source include/remove_debug_point.inc
@@ -92,6 +87,5 @@ INSERT INTO t2 VALUES ("567");
 # Cleanup
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
-DROP TABLE t2;
 
 --source include/rpl_end.inc

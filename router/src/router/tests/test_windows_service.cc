@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,8 @@
  * @brief Unit tests for Windows Service wrapper
  */
 
-// these tests are Windows-specific
-#ifdef _WIN32
+#include <gmock/gmock.h>
 
-#include "gmock/gmock.h"
 #include "gtest_consoleoutput.h"
 
 #include <cctype>
@@ -39,6 +37,9 @@
 
 #include "filesystem_utils.h"
 #include "router_test_helpers.h"  // EXPECT_THROW_LIKE
+
+// these tests are Windows-specific
+#ifdef _WIN32
 
 // these are not declared in a header, because they're private to
 // main-windows.cc
@@ -72,8 +73,8 @@ class GetLoggingFolderTest : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {
+  void SetUp() override {}
+  void TearDown() override {
     if (!conf_dir_.empty()) mysql_harness::delete_dir_recursive(conf_dir_);
   }
 
@@ -165,8 +166,8 @@ class AllowWindowsServiceToWriteLogsTest : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {
+  void SetUp() override {}
+  void TearDown() override {
     if (!log_dir_.empty()) mysql_harness::delete_dir_recursive(log_dir_);
     if (!conf_dir_.empty()) mysql_harness::delete_dir_recursive(conf_dir_);
   }
@@ -193,9 +194,7 @@ TEST_F(AllowWindowsServiceToWriteLogsTest, log_dir_and_file_exist) {
   EXPECT_NO_THROW(
       allow_windows_service_to_write_logs(path_to_conf_file_.str()));
 
-  // verify log file and dir have RW permissions set for LocalUser
-  ASSERT_NO_FATAL_FAILURE(check_config_file_access_rights(
-      path_to_log_file.str(), /*read_only=*/false));
+  // verify log dir has RW permissions set for LocalUser
   ASSERT_NO_FATAL_FAILURE(
       check_config_file_access_rights(log_dir_, /*read_only=*/false));
 }
@@ -282,31 +281,9 @@ TEST_F(AllowWindowsServiceToWriteLogsTest, log_dir_is_not_a_dir) {
       std::runtime_error, expected_error);
 }
 
-/**
- * @test
- * Verify that when `log file` actually refers to something else other than a
- * file (e.g. a dir), an appropriate exception is thrown
- */
-TEST_F(AllowWindowsServiceToWriteLogsTest, log_file_is_not_a_file) {
-  init_dirs_and_config();
-  const Path path_to_log_file{Path{log_dir_}.join("mysqlrouter.log")};
-
-  // create a dir same name as expected log file
-  mkdir(path_to_log_file.c_str());
-  ASSERT_TRUE(path_to_log_file.is_directory());
-  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
-    mysql_harness::delete_dir_recursive(path_to_log_file.c_str());
-  });
-
-  // test with dir in place of log file
-  std::string expected_error = std::string("Path '") +
-                               path_to_log_file.c_str() +
-                               "' does not point to a regular file";
-  EXPECT_THROW_LIKE(
-      allow_windows_service_to_write_logs(path_to_conf_file_.str()),
-      std::runtime_error, expected_error);
-}
-
-#else
-int main() { return 0; }
 #endif
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

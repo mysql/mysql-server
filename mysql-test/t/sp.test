@@ -714,6 +714,7 @@ begin
 end|
 
 call create_select("cs", 90)|
+--sorted_result
 select * from t1, t3|
 drop table t3|
 delete from t1|
@@ -783,13 +784,10 @@ select fun(2.3, 3, 5)|
 insert into t2 values (append("xxx", "yyy"), mul(4,3), e())|
 insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
 
-# Disable PS because double's give a bit different values
---disable_ps_protocol
 select * from t2 where s = append("a", "b")|
 select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2) order by i|
 select * from t2 where d = e()|
 select * from t2 order by i|
---enable_ps_protocol
 delete from t2|
 
 drop function e|
@@ -896,6 +894,7 @@ begin
 end|
 
 call hndlr4()|
+--sorted_result
 select * from t3|
 drop table t3|
 drop procedure hndlr4|
@@ -1086,10 +1085,8 @@ end|
 
 call rc()|
 select row_count()|
---disable_ps_protocol
 update t1 set data=42 where id = "b";
 select row_count()|
---enable_ps_protocol
 delete from t1|
 select row_count()|
 delete from t1|
@@ -1225,7 +1222,7 @@ select * from v1|
 # And what will happen if we have recursion which involves
 # views and functions ?
 create function f1() returns int
-  return (select sum(data) from t1) + (select sum(data) from v1)|
+  return (select sum(data) from t1) + (select sum(a) from v1)|
 --error ER_SP_NO_RECURSION
 select f1()|
 --error ER_SP_NO_RECURSION
@@ -1385,6 +1382,7 @@ begin
 end|
 
 call ifac(20)|
+--sorted_result
 select * from t3|
 drop table t3|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
@@ -4323,9 +4321,11 @@ begin
 end|
 
 call bug6127()|
+--sorted_result
 select * from t3|
 --error ER_DUP_ENTRY
 call bug6127()|
+--sorted_result
 select * from t3|
 set sql_mode=@sm|
 drop table t3|
@@ -5480,8 +5480,10 @@ create procedure bug18344_2() begin end|
 
 use test|
 
+--sorted_result
 select schema_name from information_schema.schemata where 
   schema_name like 'bug18344%'|
+--sorted_result
 select routine_name,routine_schema from information_schema.routines where
   routine_schema like 'bug18344%'|
 
@@ -5974,6 +5976,9 @@ CREATE FUNCTION bug19862(x INT) RETURNS INT
   END|
 INSERT INTO t12 VALUES (1), (2)|
 SELECT bug19862(a) FROM t12 ORDER BY 1|
+# No StreamingIterator before the sort, so does indeed get evaluated twice
+# (but there is no guarantee by the standard it won't).
+--skip_if_hypergraph
 SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
@@ -7139,7 +7144,9 @@ call proc_25411_a();
 
 show create procedure proc_25411_b;
 # procedure - proc_25411_b
+--sorted_result
 select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
+--sorted_result
 select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
 call proc_25411_b(10, 20);
 
@@ -8203,7 +8210,7 @@ delimiter |;
 CREATE PROCEDURE p1(a CHAR)
 BEGIN
   SELECT 1;
-  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 delimiter ;|
 
@@ -8232,7 +8239,7 @@ CREATE PROCEDURE p3()
 CREATE PROCEDURE p4()
 BEGIN
   SELECT 1;
-  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 delimiter ;|
 
@@ -8413,17 +8420,17 @@ create procedure p1(p1 integer, p2 integer)
 --echo #
 --echo # Try to use data types not allowed in LIMIT 
 --echo #
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
 
 --echo #
@@ -8472,7 +8479,7 @@ delimiter |;
 --echo #
 --echo # Try to use data types not allowed in LIMIT 
 --echo #
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 date, p2 date)
   returns int
 begin
@@ -8481,7 +8488,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 integer, p2 float)
   returns int
 begin
@@ -8490,7 +8497,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 integer, p2 char(1))
   returns int
 begin
@@ -8499,7 +8506,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 varchar(5), p2 char(1))
   returns int
 begin
@@ -8508,7 +8515,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 decimal, p2 decimal)
   returns int
 begin
@@ -8517,7 +8524,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 double, p2 double)
   returns int
 begin
@@ -9785,3 +9792,287 @@ DELIMITER ;$$
 CALL v1(3,2);
 DROP PROCEDURE v1;
 DROP TABLE t1;
+
+--echo # Cursor over union of two tables
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 10);
+
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 20);
+
+DELIMITER //;
+CREATE PROCEDURE cursor_over_union(OUT sum_a INTEGER, OUT sum_b INTEGER)
+BEGIN
+  DECLARE a INTEGER;
+  DECLARE b INTEGER;
+  DECLARE done INTEGER DEFAULT 0;
+  DECLARE c1 CURSOR FOR
+      SELECT t1.a, t1.b FROM t1
+      UNION DISTINCT
+      SELECT t2.c, t2.d FROM t2;
+  DECLARE c2 CURSOR FOR
+      SELECT t1.a, t1.b FROM t1
+      UNION ALL
+      SELECT t2.c, t2.d FROM t2;
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+  SET sum_a = 0;
+  SET sum_b = 0;
+
+  OPEN c1;
+  REPEAT
+    FETCH c1 INTO a, b;
+    if NOT done THEN
+       SET sum_a = sum_a + a;
+       SET sum_b = sum_b + b;
+    END IF;
+  UNTIL done END REPEAT;
+  CLOSE c1;
+
+  SET done = 0;
+
+  OPEN c2;
+  REPEAT
+    FETCH c2 INTO a, b;
+    if NOT done THEN
+       SET sum_a = sum_a + a;
+       SET sum_b = sum_b + b;
+    END IF;
+  UNTIL done END REPEAT;
+  CLOSE c2;
+
+end //
+
+DELIMITER ;//
+
+SET @sa = 0;
+SET @sb = 0;
+
+CALL cursor_over_union(@sa, @sb);
+SELECT @sa, @sb;
+DROP PROCEDURE cursor_over_union;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30520714 - MYSQL SERVER RETURNS UNEXPECTED ROWS WHEN USING STORED
+--echo #                FUNCTIONS IN WHERE CLAUSE
+--echo #
+
+CREATE TABLE t1( f1 INT NOT NULL PRIMARY KEY, f2 INT);
+INSERT INTO t1 VALUES (1, 1);
+
+DELIMITER $$;
+
+CREATE FUNCTION ReturnFalse() RETURNS BOOL
+    DETERMINISTIC
+BEGIN
+DECLARE result BOOL;
+    SET result = FALSE;
+    RETURN result;
+END$$
+DELIMITER ;$$
+
+SELECT IF (COUNT(*) > 0, 'affected', 'not affected') FROM t1
+  WHERE f1 = 1 AND f2 AND ReturnFalse();
+
+DROP FUNCTION ReturnFalse;
+DROP TABLE t1;
+
+--echo # Bug#31691060: Assertion `!is_open()' in Materialized_cursor::~Materialized_cursor
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(0), (1), (2);
+INSERT INTO t2 VALUES(1, 10), (2, 20), (2, 21);
+DELIMITER //;
+CREATE PROCEDURE pc(val INTEGER)
+BEGIN
+  DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+  DECLARE c CURSOR FOR
+      SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  SET finished = 0;
+  OPEN c;
+  loop1: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop1;
+    END IF;
+  END LOOP loop1;
+  CLOSE c;
+END //
+CREATE PROCEDURE pc_with_flush()
+BEGIN
+  DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+  DECLARE val INTEGER DEFAULT 0;
+  DECLARE c CURSOR FOR
+      SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  SET finished = 0;
+  OPEN c;
+  loop1: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop1;
+    END IF;
+  END LOOP loop1;
+  CLOSE c;
+  FLUSH TABLES;
+  SET finished = 0;
+  SET val = 1;
+  OPEN c;
+  loop2: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop2;
+    END IF;
+  END LOOP loop2;
+  CLOSE c;
+  FLUSH TABLES;
+  SET val = 2;
+  SET finished = 0;
+  OPEN c;
+  loop3: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop3;
+    END IF;
+  END LOOP loop3;
+  CLOSE c;
+END //
+DELIMITER ;//
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+FLUSH TABLES;
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+FLUSH TABLES;
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc_with_flush();
+DROP PROCEDURE pc;
+DROP PROCEDURE pc_with_flush;
+DROP TABLE t1, t2;
+
+--echo # Bug#32078387: Incorrect caching of information_schema variables in procedure
+
+CREATE TABLE foo (
+  id INTEGER NOT NULL AUTO_INCREMENT,
+  fld INTEGER NOT NULL,
+  PRIMARY KEY(id),
+  UNIQUE KEY fld(fld)
+);
+delimiter //;
+CREATE PROCEDURE test() BEGIN
+ SET @exist := (SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_name = 'foo' and
+                      table_schema = database() and
+                      index_name = 'fld');
+ SELECT @exist;
+END;
+//
+delimiter ;//
+CALL test();
+CALL test();
+CALL test();
+DROP PROCEDURE test;
+DROP TABLE foo;
+
+--echo # Bug#31731334: m_sp != nullptr' at Item_func_sp::bind_fields in sql/item_func.cc
+
+DELIMITER //;
+CREATE FUNCTION f1 (i INTEGER) RETURNS INTEGER
+BEGIN
+  IF i = 0 THEN
+   RETURN 0;
+  END IF;
+  RETURN f2();
+END //
+CREATE FUNCTION f2 () RETURNS INTEGER
+ RETURN f1(0) //
+DELIMITER ;//
+SELECT f2();
+--error ER_SP_NO_RECURSION
+SELECT f1(1);
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+
+--echo # Bug#32855634: Assert(m_deque == other.m_deque) in mem_root_deque.h
+
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DROP TEMPORARY TABLE IF EXISTS tmp;
+  CREATE TEMPORARY TABLE tmp(name VARCHAR(64), value VARCHAR(64));
+
+  IF EXISTS(SELECT 1
+            FROM tmp d
+                 LEFT JOIN information_schema.columns c
+                 ON c.table_schema = 'test' AND
+                    upper(c.column_name) = upper(d.name)
+            WHERE c.table_schema IS NULL
+           )
+  THEN
+    SELECT 'then';
+  ELSE
+    SELECT 'else';
+  END IF;
+
+  CASE EXISTS(SELECT 1
+              FROM tmp d
+                   LEFT JOIN information_schema.columns c
+                   ON c.table_schema = 'test' AND
+                      upper(c.column_name) = upper(d.name)
+              WHERE c.table_schema IS NULL
+             )
+  WHEN TRUE THEN SELECT 'true';
+  WHEN FALSE THEN SELECT 'false';
+  END CASE;
+
+  CASE
+  WHEN EXISTS(SELECT 1
+              FROM tmp d
+                   LEFT JOIN information_schema.columns c
+                   ON c.table_schema = 'test' AND
+                      upper(c.column_name) = upper(d.name)
+              WHERE c.table_schema IS NULL
+             )
+  THEN SELECT 'true';
+  ELSE SELECT 'false';
+  END CASE;
+
+  WHILE EXISTS(SELECT 1
+               FROM tmp d
+                    LEFT JOIN information_schema.columns c
+                    ON c.table_schema = 'test' AND
+                       upper(c.column_name) = upper(d.name)
+               WHERE c.table_schema IS NULL
+              )
+  DO
+    SELECT 'while';
+  END WHILE;
+
+  REPEAT
+    SELECT 'repeat';
+  UNTIL NOT
+        EXISTS(SELECT 1
+               FROM tmp d
+                    LEFT JOIN information_schema.columns c
+                    ON c.table_schema = 'test' AND
+                       upper(c.column_name) = upper(d.name)
+               WHERE c.table_schema IS NULL
+              )
+  END REPEAT;
+  DROP TEMPORARY TABLE tmp;
+END;
+//
+DELIMITER ;//
+CALL p1();
+CALL p1();
+
+DROP PROCEDURE p1;

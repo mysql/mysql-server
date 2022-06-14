@@ -1,0 +1,21 @@
+!include ../my.cnf
+
+[mysqld.1]
+innodb_doublewrite=1
+innodb_doublewrite_files=1
+innodb_doublewrite_pages=1
+innodb_doublewrite_batch_size=1
+
+[mysqld.2]
+innodb_doublewrite=1
+innodb_doublewrite_files=2
+innodb_doublewrite_pages=2
+innodb_doublewrite_batch_size=10
+
+[mysqld.3]
+innodb_doublewrite=0
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+

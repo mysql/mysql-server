@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ class Bounded_queue {
       size_t element_size = sizeof(Element_type),
       const allocator_type &alloc = allocator_type(PSI_NOT_INSTRUMENTED))
       : m_queue(Key_compare(), alloc),
-        m_sort_keys(NULL),
-        m_sort_param(NULL),
+        m_sort_keys(nullptr),
+        m_sort_param(nullptr),
         m_element_size(element_size) {}
 
   /**
@@ -98,9 +98,10 @@ class Bounded_queue {
     If the queue is already full, we discard one element.
     Calls m_sort_param::make_sortkey() to generate a key for the element.
 
-    @param element        The element to be pushed.
+    @param opaque    Parameter to send on to make_sortkey().
    */
-  void push(Element_type element) {
+  template <class Opaque>
+  void push(const Opaque &opaque) {
     /*
       Add one extra byte to each key, so that sort-key generating functions
       won't be returning out-of-space. Since we know there's always room
@@ -109,19 +110,23 @@ class Bounded_queue {
       Sort_param::make_sortkey() instead for the case of fixed-length records,
       but this is much simpler.
      */
-    DBUG_ASSERT(m_element_size < 0xFFFFFFFF);
+    assert(m_element_size < 0xFFFFFFFF);
     const uint element_size = m_element_size + 1;
 
     if (m_queue.size() == m_queue.capacity()) {
       const Key_type &pq_top = m_queue.top();
-      const uint MY_ATTRIBUTE((unused)) rec_sz =
-          m_sort_param->make_sortkey(pq_top, element_size, element);
-      DBUG_ASSERT(rec_sz <= m_element_size);
+      [[maybe_unused]] const uint rec_sz =
+          m_sort_param->make_sortkey(pq_top, element_size, opaque);
+      // UINT_MAX means error, but we do not want to add a dependency
+      // on class THD here, as in current_thd->is_error().
+      assert(rec_sz <= m_element_size || rec_sz == UINT_MAX);
       m_queue.update_top();
     } else {
-      const uint MY_ATTRIBUTE((unused)) rec_sz = m_sort_param->make_sortkey(
-          m_sort_keys[m_queue.size()], element_size, element);
-      DBUG_ASSERT(rec_sz <= m_element_size);
+      [[maybe_unused]] const uint rec_sz = m_sort_param->make_sortkey(
+          m_sort_keys[m_queue.size()], element_size, opaque);
+      // UINT_MAX means error, but we do not want to add a dependency
+      // on class THD here, as in current_thd->is_error().
+      assert(rec_sz <= m_element_size || rec_sz == UINT_MAX);
       m_queue.push(m_sort_keys[m_queue.size()]);
     }
   }

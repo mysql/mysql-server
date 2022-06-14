@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 
 #include "sql/item.h"
@@ -44,8 +40,8 @@ using my_testing::Server_initializer;
  */
 class SqlTableTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *get_thd() { return initializer.thd(); }
 
@@ -59,8 +55,8 @@ class SqlTableTest : public ::testing::Test {
   be promoted.
  */
 TEST_F(SqlTableTest, PromoteFirstTimestampColumn1) {
-  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
-  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
+  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, nullptr, nullptr);
+  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, nullptr, nullptr);
   column_1_definition.flags |= NOT_NULL_FLAG;
   column_2_definition.flags |= NOT_NULL_FLAG;
   List<Create_field> definitions;
@@ -79,8 +75,10 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn1) {
   be promoted.
  */
 TEST_F(SqlTableTest, PromoteFirstTimestampColumn2) {
-  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP2, NULL, NULL);
-  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP2, NULL, NULL);
+  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP2, nullptr,
+                                        nullptr);
+  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP2, nullptr,
+                                        nullptr);
   column_1_definition.flags |= NOT_NULL_FLAG;
   column_2_definition.flags |= NOT_NULL_FLAG;
   List<Create_field> definitions;
@@ -99,8 +97,9 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn2) {
  */
 TEST_F(SqlTableTest, PromoteFirstTimestampColumn3) {
   Item_string *item_str = new Item_string("1", 1, &my_charset_latin1);
-  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, item_str, NULL);
-  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
+  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, item_str,
+                                        nullptr);
+  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, nullptr, nullptr);
   column_2_definition.flags |= NOT_NULL_FLAG;
   List<Create_field> definitions;
   definitions.push_front(&column_1_definition);
@@ -132,7 +131,7 @@ TEST_F(SqlTableTest, FileNameToTableName) {
   size_t name_length;
   name_length = filename_to_tablename(test_filename, test_tablename,
                                       sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                           ,
                                       true
 #endif
@@ -142,7 +141,7 @@ TEST_F(SqlTableTest, FileNameToTableName) {
   // This one used to fail if compiled with -DHAVE_VALGRIND
   name_length =
       filename_to_tablename(foo.str, test_tablename, sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                                          ,
                             true
 #endif

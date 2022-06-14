@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,7 +59,7 @@ class plist_node_t {
   static const uint8_t SIZE = 4;
 
   /** Constructor.
-  @param[in]	mtr	the mini transaction context. */
+  @param[in]    mtr     Mini-transaction context. */
   explicit plist_node_t(mtr_t *mtr)
       : m_frame(nullptr), m_node(nullptr), m_mtr(mtr) {}
 
@@ -67,23 +67,23 @@ class plist_node_t {
   plist_node_t() : m_frame(nullptr), m_node(nullptr), m_mtr(nullptr) {}
 
   /** Constructor.
-  @param[in]	mtr	the mini transaction context
-  @param[in]	frame	the page frame of this plist. */
+  @param[in]    mtr     Mini-transaction context
+  @param[in]    frame   the page frame of this plist. */
   plist_node_t(mtr_t *mtr, byte *frame)
       : m_frame(frame), m_node(nullptr), m_mtr(mtr) {}
 
   /** Constructor.
-  @param[in]	frame	the page frame of this plist.
-  @param[in]	node	the location of plist node. */
+  @param[in]    frame   the page frame of this plist.
+  @param[in]    node    the location of plist node. */
   plist_node_t(byte *frame, byte *node)
       : m_frame(frame), m_node(node), m_mtr(nullptr) {}
 
   /** Constructor.
-  @param[in]	frame	the page frame where the page list node is
+  @param[in]    frame   Page frame where the page list node is
                           located.
-  @param[in]	node	the location of page list node within page
+  @param[in]    node    Location of page list node within page
                           frame.
-  @param[in]	mtr	the mini-transaction context. */
+  @param[in]    mtr     Mini-transaction context. */
   plist_node_t(byte *frame, byte *node, mtr_t *mtr)
       : m_frame(frame), m_node(node), m_mtr(mtr) {}
 
@@ -94,7 +94,7 @@ class plist_node_t {
 
   /** Check if the current node is before the given node in the
   page (w.r.t the offset).
-  @param[in]	node	the other node.
+  @param[in]    node    the other node.
   @return true if current node is before the given node.
   @return false if current node is after the given node. */
   bool is_before(const plist_node_t &node) const {
@@ -114,7 +114,7 @@ class plist_node_t {
   }
 
   /** Set the offset of the previous node.
-  @param[in]	addr	the offset of previous node.*/
+  @param[in]    addr    the offset of previous node.*/
   void set_prev(paddr_t addr) {
     ut_ad(addr < UNIV_PAGE_SIZE);
     ut_ad(m_mtr != nullptr);
@@ -123,11 +123,11 @@ class plist_node_t {
   }
 
   /** Set the previous page list node.
-  @param[in]	prev	the previous page list node.*/
+  @param[in]    prev    the previous page list node.*/
   void set_prev_node(plist_node_t &prev) { set_prev(prev.addr()); }
 
   /** Set the offset of the next node.
-  @param[in]	addr	the offset of next node.*/
+  @param[in]    addr    the offset of next node.*/
   void set_next(paddr_t addr) {
     ut_ad(!is_null());
     ut_ad(addr < UNIV_PAGE_SIZE);
@@ -137,7 +137,7 @@ class plist_node_t {
   }
 
   /** Set the next page list node.
-  @param[in]	next	the next page list node.*/
+  @param[in]    next    the next page list node.*/
   void set_next_node(const plist_node_t &next) { set_next(next.addr()); }
 
   /** Get the offset of the previous page list node.
@@ -192,7 +192,7 @@ class plist_node_t {
   bool is_null() const { return (m_node == nullptr); }
 
   /** Print the page list node into the given output stream.
-  @param[in]	out	the output stream.
+  @param[in]    out     the output stream.
   @return the output stream. */
   std::ostream &print(std::ostream &out) const {
     out << "[plist_node_t: next=" << get_next() << ", prev=" << get_prev()
@@ -202,15 +202,15 @@ class plist_node_t {
   }
 
   /** Set the page frame to the given value.
-  @param[in]	frame	the page frame */
+  @param[in]    frame   the page frame */
   void set_frame(byte *frame) { m_frame = frame; }
 
   /** Set the page list node to the given value.
-  @param[in]	node	the page list node. */
+  @param[in]    node    the page list node. */
   void set_node(byte *node) { m_node = node; }
 
-  /** Set the mini transaction context to the given value.
-  @param[in]	mtr	the mini transaction context. */
+  /** Set the mini-transaction context to the given value.
+  @param[in]    mtr     Mini-transaction context. */
   void set_mtr(mtr_t *mtr) { m_mtr = mtr; }
 
   /** Get the page frame where this page list exists.
@@ -231,7 +231,7 @@ class plist_node_t {
   /** The plist node is located at this address. */
   byte *m_node;
 
-  /** The mini transaction context. */
+  /** The mini-transaction context. */
   mtr_t *m_mtr;
 };
 
@@ -501,7 +501,7 @@ struct node_page_t : public basic_page_t {
   }
 
   /** Default ctor */
-  node_page_t() {}
+  node_page_t() = default;
 
   node_page_t(buf_block_t *block, mtr_t *mtr) : basic_page_t(block, mtr) {}
 
@@ -512,17 +512,18 @@ struct node_page_t : public basic_page_t {
       : basic_page_t(nullptr, mtr, index) {}
 
   /** Constructor
-  @param[in]	block	the buffer block. */
+  @param[in]    block   the buffer block. */
   node_page_t(buf_block_t *block) : basic_page_t(block, nullptr, nullptr) {}
 
   /** Import the node page or the index page.
-  @param[in]	trx_id	transaction identifier. */
+  @param[in]    trx_id  transaction identifier. */
   void import(trx_id_t trx_id);
 
   buf_block_t *alloc(first_page_t &first_page, bool bulk);
 
   buf_block_t *load_x(page_id_t page_id, page_size_t page_size) {
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -587,7 +588,7 @@ struct z_frag_entry_t {
 
   /** Initialize the fragment entry contents.  For this to correctly
   work, the current object must be initialized with proper file list
-  node and the mini transaction context. */
+  node and the mini-transaction context. */
   void init() {
     ut_ad(m_mtr != nullptr);
     ut_ad(m_node != nullptr);
@@ -618,12 +619,12 @@ struct z_frag_entry_t {
 
   /** Update the current fragment entry with information about
   the given fragment page.
-  @param[in]	frag_page	the fragment page whose information
+  @param[in]    frag_page       the fragment page whose information
                           will be stored in current fragment entry. */
   void update(const z_frag_page_t &frag_page);
 
   /** Remove this node from the given list.
-  @param[in]	bnode	the base node of the list from which to remove
+  @param[in]    bnode   the base node of the list from which to remove
                           current node. */
   void remove(flst_base_node_t *bnode) {
     ut_ad(m_mtr != nullptr);
@@ -701,6 +702,11 @@ struct z_frag_entry_t {
     mlog_write_ulint(m_node + OFFSET_PAGE_NO, page_no, MLOG_4BYTES, m_mtr);
   }
 
+  /** Free the fragment page pointed to by this entry.
+   @param[in]   mtr     Mini-transaction to be used for this operation.
+   @param[in]   index   The index to which this LOB belongs. */
+  void free_frag_page(mtr_t *mtr, dict_index_t *index);
+
   /** Get the frag page number. */
   ulint get_n_frags() const {
     return (mach_read_from_2(m_node + OFFSET_N_FRAGS));
@@ -757,7 +763,7 @@ struct z_frag_entry_t {
   /** The location where the fragment entry node is located. */
   flst_node_t *m_node;
 
-  /** The mini transaction context for operating on this fragment
+  /** The mini-transaction context for operating on this fragment
   entry. */
   mtr_t *m_mtr;
 };
@@ -772,19 +778,37 @@ struct z_index_page_t {
   static const ulint OFFSET_VERSION = FIL_PAGE_DATA;
   static const ulint LOB_PAGE_DATA = OFFSET_VERSION + 1;
 
+  /** Constructor.
+  @param[in]    mtr     mini transaction context. */
   explicit z_index_page_t(mtr_t *mtr) : m_block(nullptr), m_mtr(mtr) {}
 
+  /** Constructor.
+  @param[in]    block   the buffer block.
+  @param[in]    mtr     mini transaction context.
+  @param[in]    index   the index to which the LOB belongs. */
+  z_index_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
+      : m_block(block), m_mtr(mtr), m_index(index) {}
+
+  /** Constructor.
+  @param[in]    mtr     mini transaction context.
+  @param[in]    index   the index to which the LOB belongs. */
   z_index_page_t(mtr_t *mtr, dict_index_t *index)
-      : m_block(nullptr), m_mtr(mtr), m_index(index) {}
+      : z_index_page_t(nullptr, mtr, index) {}
 
   /** Constructor
-  @param[in]	block	the buffer block. */
+  @param[in]    block   the buffer block. */
   explicit z_index_page_t(buf_block_t *block)
-      : m_block(block), m_mtr(nullptr), m_index(nullptr) {}
+      : z_index_page_t(block, nullptr, nullptr) {}
+
+  /** Constructor.
+  @param[in]    block   the buffer block.
+  @param[in]    index   the index to which the LOB belongs. */
+  z_index_page_t(buf_block_t *block, dict_index_t *index)
+      : z_index_page_t(block, nullptr, index) {}
 
   /** Write the space identifier to the page header, without generating
   redo log records.
-  @param[in]	space_id	the space identifier. */
+  @param[in]    space_id        the space identifier. */
   void set_space_id_no_redo(space_id_t space_id) {
     mlog_write_ulint(frame() + FIL_PAGE_SPACE_ID, space_id, MLOG_4BYTES,
                      nullptr);
@@ -824,12 +848,13 @@ struct z_index_page_t {
   void import(trx_id_t trx_id);
 
   /** Load the given compressed LOB index page.
-  @param[in]	page_no		compressed LOB index page number.
-  @return	the buffer block of the given page number. */
+  @param[in]    page_no         compressed LOB index page number.
+  @return       the buffer block of the given page number. */
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
 
     ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_INDEX);
     return (m_block);
@@ -888,24 +913,30 @@ struct z_data_page_t {
       : m_block(block), m_mtr(mtr), m_index(index) {}
 
   /* Constructor.
-  @param[in]	block	the buffer block. */
+  @param[in]    block   the buffer block. */
   z_data_page_t(buf_block_t *block)
       : m_block(block), m_mtr(nullptr), m_index(nullptr) {}
 
   /** Write the space identifier to the page header, without generating
   redo log records.
-  @param[in]	space_id	the space identifier. */
+  @param[in]    space_id        the space identifier. */
   void set_space_id_no_redo(space_id_t space_id) {
     mlog_write_ulint(frame() + FIL_PAGE_SPACE_ID, space_id, MLOG_4BYTES,
                      nullptr);
   }
 
   /** Allocate one data page.
-  @param[in]	hint	hint page number for allocation.
-  @param[in]	bulk	true if bulk operation (OPCODE_INSERT_BULK)
+  @param[in]    hint    hint page number for allocation.
+  @param[in]    bulk    true if bulk operation (OPCODE_INSERT_BULK)
                           false otherwise.
   @return the allocated buffer block. */
   buf_block_t *alloc(page_no_t hint, bool bulk);
+
+  /** Free this data page holding the zlob data. */
+  void dealloc() {
+    btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
+    m_block = nullptr;
+  }
 
   /** Set the correct page type. */
   void set_page_type() {
@@ -960,7 +991,7 @@ struct z_data_page_t {
 
   /** Update the header with given transaction identifier, without
   writing redo log records.
-  @param[in]	tid	transaction identifier.*/
+  @param[in]    tid     transaction identifier.*/
   void set_trx_id_no_redo(trx_id_t tid) {
     byte *ptr = frame() + OFFSET_TRX_ID;
     mach_write_to_6(ptr, tid);
@@ -993,13 +1024,13 @@ struct z_frag_node_page_t {
       : m_block(nullptr), m_mtr(mtr), m_index(index) {}
 
   /** Constructor
-  @param[in]	block	the buffer block.*/
+  @param[in]    block   the buffer block.*/
   explicit z_frag_node_page_t(buf_block_t *block)
       : m_block(block), m_mtr(nullptr), m_index(nullptr) {}
 
   /** Write the space identifier to the page header, without generating
   redo log records.
-  @param[in]	space_id	the space identifier. */
+  @param[in]    space_id        the space identifier. */
   void set_space_id_no_redo(space_id_t space_id) {
     mlog_write_ulint(frame() + FIL_PAGE_SPACE_ID, space_id, MLOG_4BYTES,
                      nullptr);
@@ -1046,12 +1077,13 @@ struct z_frag_node_page_t {
   }
 
   /** Load the given compressed LOB fragment page.
-  @param[in]	page_no		compressed LOB fragment page number.
-  @return	the buffer block of the given page number. */
+  @param[in]    page_no         compressed LOB fragment page number.
+  @return       the buffer block of the given page number. */
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
 
     ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
 
@@ -1117,19 +1149,19 @@ struct frag_node_t {
   static const ulint SIZE_OF_PAGE_DIR_ENTRY = 2;
 
   /** Constructor.
-  @param[in]	node	page list node.
-  @param[in]	mtr	mini-transaction. */
+  @param[in]    node    Page list node.
+  @param[in]    mtr     Mini-transaction. */
   frag_node_t(const plist_node_t &node, mtr_t *mtr)
       : m_node(node), m_mtr(mtr) {}
 
   frag_node_t(byte *frame, byte *ptr) : m_node(frame, ptr), m_mtr(nullptr) {}
 
   /** Constructor.
-  @param[in]	frame	the page frame where the fragment node is
+  @param[in]    frame   Page frame where the fragment node is
                           located.
-  @param[in]	ptr	the location of fragment node within page
+  @param[in]    ptr     Location of fragment node within page
                           frame.
-  @param[in]	mtr	the mini-transaction context. */
+  @param[in]    mtr     Mini-transaction context. */
   frag_node_t(byte *frame, byte *ptr, mtr_t *mtr)
       : m_node(frame, ptr, mtr), m_mtr(mtr) {}
 
@@ -1143,12 +1175,12 @@ struct frag_node_t {
   static ulint header_size() { return (OFFSET_DATA); }
 
   /** Constructor.
-  @param[in]	frame	the page frame where the fragment node is
+  @param[in]    frame   Page frame where the fragment node is
                           located.
-  @param[in]	ptr	the location of fragment node within page
+  @param[in]    ptr     Location of fragment node within page
                           frame.
-  @param[in]	len	the length of the fragment.
-  @param[in]	mtr	the mini-transaction context. */
+  @param[in]    len     Length of the fragment.
+  @param[in]    mtr     Mini-transaction context. */
   frag_node_t(byte *frame, byte *ptr, ulint len, mtr_t *mtr)
       : m_node(frame, ptr, mtr), m_mtr(mtr) {
     ut_ad(mtr != nullptr);
@@ -1274,7 +1306,7 @@ struct frag_node_t {
   containing 4 fragments - f1, f2, f3 and f4.  Suppose we free f2 and
   f3, then we can merge them into one single bigger fragment which is
   free.
-  @param[in]	next	the next fragment.
+  @param[in]    next    the next fragment.
   @return true if merge done, false otherwise. */
   bool merge(frag_node_t &next) {
     ut_ad(m_mtr != nullptr);
@@ -1344,32 +1376,32 @@ struct z_frag_page_t {
   static const ulint SIZE_OF_PAGE_DIR_ENTRY = 2; /* bytes */
 
   /** Constructor.
-  @param[in]	block	the buffer block containing the fragment page.
-  @param[in]	mtr	the mini transaction context.
-  @param[in]	index	the clustered index to which LOB belongs. */
+  @param[in]    block   Buffer block containing the fragment page.
+  @param[in]    mtr     Mini-transaction context.
+  @param[in]    index   Clustered index to which LOB belongs. */
   z_frag_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
       : m_block(block), m_mtr(mtr), m_index(index) {
-    ut_ad(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
-          z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
+    static_assert(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
+                  z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
   }
 
   /** Constructor.
-  @param[in]	mtr	the mini transaction context.
-  @param[in]	index	the clustered index to which LOB belongs. */
+  @param[in]    mtr     Mini-transaction context.
+  @param[in]    index   Clustered index to which LOB belongs. */
   z_frag_page_t(mtr_t *mtr, dict_index_t *index)
       : z_frag_page_t(nullptr, mtr, index) {}
 
   /** Constructor.
-  @param[in]	block	the buffer block containing the fragment page.*/
+  @param[in]    block   the buffer block containing the fragment page.*/
   explicit z_frag_page_t(buf_block_t *block)
       : m_block(block), m_mtr(nullptr), m_index(nullptr) {
-    ut_ad(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
-          z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
+    static_assert(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
+                  z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
   }
 
   /** Write the space identifier to the page header, without generating
   redo log records.
-  @param[in]	space_id	the space identifier. */
+  @param[in]    space_id        the space identifier. */
   void set_space_id_no_redo(space_id_t space_id) {
     mlog_write_ulint(frame() + FIL_PAGE_SPACE_ID, space_id, MLOG_4BYTES,
                      nullptr);
@@ -1532,20 +1564,53 @@ struct z_frag_page_t {
     mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, m_mtr);
   }
 
+  /** Set the prev page. */
+  void set_page_prev(page_no_t page_no) { set_page_prev(page_no, m_mtr); }
+
+  /** Set the prev page. */
+  void set_page_prev(page_no_t page_no, mtr_t *mtr) {
+    mlog_write_ulint(frame() + FIL_PAGE_PREV, page_no, MLOG_4BYTES, mtr);
+  }
+
+  /** Get the next page number.
+  @return next page number. */
+  page_no_t get_next_page_no() const { return (m_block->get_next_page_no()); }
+
+  /** Get the prev page number (FIL_PAGE_PREV).
+  @param[in]  mtr  Mini-transaction latch context.
+  @return prev page number. */
+  page_no_t get_prev_page_no(mtr_t *mtr) const {
+    return (mtr_read_ulint(frame() + FIL_PAGE_PREV, MLOG_4BYTES, mtr));
+  }
+
+  /** Get the prev page number.
+  @return prev page number. */
+  page_no_t get_prev_page_no() const { return (get_prev_page_no(m_mtr)); }
+
   /** Allocate the fragment page.
-  @param[in]	hint	hint page number for allocation.
-  @param[in]	bulk	true if bulk operation (OPCODE_INSERT_BULK)
+  @param[in]    first   first page of this LOB.
+  @param[in]    hint    hint page number for allocation.
+  @param[in]    bulk    true if bulk operation (OPCODE_INSERT_BULK)
                           false otherwise.
   @return the allocated buffer block. */
-  buf_block_t *alloc(page_no_t hint, bool bulk);
+  buf_block_t *alloc(z_first_page_t &first, page_no_t hint, bool bulk);
 
-  /** Free the fragment page along with its entry. */
-  void dealloc(z_first_page_t &first, mtr_t *alloc_mtr);
+  /** Free the fragment page along with its entry.
+  @param[in]   first   first page of LOB.
+  @param[in]   alloc_mtr  mini trx to perform this modification. */
+  void dealloc_with_entry(z_first_page_t &first, mtr_t *alloc_mtr);
+
+  /** Free the fragment page. */
+  void dealloc() {
+    btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
+    m_block = nullptr;
+  }
 
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -1617,7 +1682,7 @@ struct z_frag_page_t {
   }
 
   /** Insert the given fragment node into the fragment list.
-  @param[in,out]	frag	the fragment node to be inserted.*/
+  @param[in,out]        frag    the fragment node to be inserted.*/
   void insert_into_frag_list(frag_node_t &frag) {
     plist_base_node_t frag_lst = frag_list();
     plist_node_t node = frag_lst.get_first_node();
@@ -1856,19 +1921,18 @@ struct z_frag_page_t {
 };
 
 /** Insert one chunk of input.  The maximum size of a chunk is Z_CHUNK_SIZE.
-@param[in]  index      clustered index in which LOB is inserted.
-@param[in]  first      the first page of the LOB.
-@param[in]  trx        transaction doing the insertion.
-@param[in]  ref        LOB reference in the clust rec.
-@param[in]  blob       the uncompressed LOB to be inserted.
-@param[in]  len        length of the blob.
-@param[out] out_entry  the newly inserted index entry. can be NULL.
-@param[in]  mtr        the mini transaction
+@param[in]  index      Clustered index in which LOB is inserted.
+@param[in]  first      First page of the LOB.
+@param[in]  trx        Transaction doing the insertion.
+@param[in]  blob       Uncompressed LOB to be inserted.
+@param[in]  len        Length of the blob.
+@param[out] out_entry  Newly inserted index entry. can be NULL.
+@param[in]  mtr        Mini-transaction
 @param[in]  bulk       true if it is bulk operation, false otherwise.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
-                       ref_t ref, byte *blob, ulint len,
-                       z_index_entry_t *out_entry, mtr_t *mtr, bool bulk);
+                       byte *blob, ulint len, z_index_entry_t *out_entry,
+                       mtr_t *mtr, bool bulk);
 
 }  // namespace lob
 

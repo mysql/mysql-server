@@ -1,0 +1,146 @@
+# ==== Purpose ====
+#
+# Test that the slave fails to connect to the master with
+# MASTER_AUTO_POSITION=1 if the slave is missing some transactions that
+# the user has manually deleted the binary logs that slave requires.
+#
+# ==== Implementation ====
+#
+# 1) Create a master-slave setup.
+# 2) Create a table on master, sync it, stop the slave threads and dump thread
+#    on master.
+# 3) On master, generate a transaction, flush the binary log and delete the
+#    first binary logs so that only remaining binlog only contains transaction
+#    UUID:3.
+# 4) Verify that the slave fails if it tries to connect using CHANGE MASTER TO
+#    MASTER_AUTO_POSITION=1.
+# 5) Verify that appropriate messages are logged into master's and slave's
+#    error log.
+# 6) Verify that replication succeeds if it tries to connect using CHANGE
+#    MASTER TO MASTER_LOG_POS.
+# 7) Cleanup.
+#
+# ==== References ====
+#
+# Bug#29769293 - ERROR 1236 "MASTER HAS PURGED BINARY LOGS CONTAINING GTIDS":
+#                GTID NOT LOGGED
+
+# This test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
+--source include/have_debug.inc
+--let $rpl_gtid_utils= 1
+
+--echo #
+--echo # 1) Create a master-slave setup.
+--echo #
+--source include/master-slave.inc
+
+--let $master_uuid= `SELECT @@SERVER_UUID`
+
+--echo #
+--echo # 2) Create a table on master, sync it, stop the slave threads and dump
+--echo #    thread on master.
+--echo #
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+# Need to kill the dump thread explicitly: stop slave does not do
+# that, and if the dump thread is slow, it will still be reading from
+# the old binlog at the time we do PURGE BINARY LOGS below. That would
+# prevent PURGE BINARY LOGS from purging the log.
+--source include/stop_dump_threads.inc
+
+--echo #
+--echo # 3) On master, generate a transaction, flush the binary log and delete
+--echo #    the first binary logs so that only remaining binlog only contains
+--echo #    transaction UUID:3.
+--echo #
+INSERT INTO t1 VALUES (1);
+
+--let $master_file_old= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (2);
+--save_master_pos
+
+# Remove the binary log manually
+--let $MASTER_DATADIR= `select @@datadir`
+--remove_file $MASTER_DATADIR/$master_file_old
+
+--echo #
+--echo # 4) Verify that the slave fails if it tries to connect using CHANGE
+--echo #    MASTER TO MASTER_AUTO_POSITION=1.
+--echo #
+--source include/rpl_connection_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
+
+START SLAVE;
+
+--let $slave_io_errno= 13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
+
+--echo #
+--echo # 5) Verify that appropriate messages are logged into master's and slave's
+--echo #    error log.
+--echo #
+
+# Verify that warning about the missing transactions are logged into the master's error log.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_match= .*Cannot replicate to server with server_uuid.*The missing transactions are '.*:1'.*
+--let $assert_select= Cannot replicate to server with server_uuid
+--let $assert_text= Found warning containing lost GTIDs in the master error log.
+--source include/assert_grep.inc
+
+# Verify that an error about the missing transactions are logged into the slave's error log.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_match= .*Replicate the missing transactions from elsewhere, or provision a new slave from backup.*the missing transactions are '.*:1'.*
+--let $assert_select= Replicate the missing transactions from elsewhere, or provision a new slave from backup
+--let $assert_text= Found warning containing lost GTIDs in the slave error log.
+--source include/assert_grep.inc
+
+--echo #
+--echo # 6) Verify that replication succeeds if it tries to connect using CHANGE
+--echo #    MASTER TO MASTER_LOG_POS.
+--echo #
+--replace_result $master_file MASTER_FILE $master_pos MASTER_POS
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_POS = $master_pos, SOURCE_AUTO_POSITION = 0
+
+--source include/start_slave.inc
+--sync_with_master
+
+--let $assert_text= t1 should contain only one row with the value 2
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"
+--source include/assert.inc
+--source include/stop_slave.inc
+
+# Suppress the error on master.
+--source include/rpl_connection_master.inc
+CALL mtr.add_suppression("Cannot replicate to server.*server has purged required binary logs.*");
+CALL mtr.add_suppression("Failed to open log");
+CALL mtr.add_suppression("Could not open log");
+
+# Suppress the error on slave.
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missing transactions from elsewhere");
+
+--echo #
+--echo # 7) Cleanup.
+--echo #
+--disable_warnings
+RESET MASTER;
+RESET SLAVE;
+--source include/rpl_connection_master.inc
+RESET MASTER;
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--enable_warnings
+--source include/rpl_end.inc

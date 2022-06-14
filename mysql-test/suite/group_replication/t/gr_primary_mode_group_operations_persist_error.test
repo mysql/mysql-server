@@ -57,14 +57,14 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 4. Check that only server 2 persisted the variables
 
 --let $assert_text= 'There are no persisted variables'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 1
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --let $assert_text= 'There are two persisted variables'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 2
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 3
 --source include/assert.inc
 
 --echo
@@ -96,14 +96,14 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/rpl_connection.inc
 
 --let $assert_text= 'There are no persisted variables'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 1
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --let $assert_text= 'There are two persisted variables'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 2
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 3
 --source include/assert.inc
 
 --echo

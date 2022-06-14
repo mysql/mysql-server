@@ -55,7 +55,7 @@ drop table t1;
 # Problem with ELT
 #
 create temporary table t1 (id int(10) not null unique);
-create temporary table t2 (id int(10) not null primary key, 
+create temporary table t2 (id int(10) not null primary key,
 val int(10) not null);
 
 # put in some initial values
@@ -174,7 +174,7 @@ select * from t1;
 drop table t1;
 
 #
-# Bug #35392: Delete all statement does not execute properly after 
+# Bug #35392: Delete all statement does not execute properly after
 # few delete statements
 #
 CREATE TEMPORARY TABLE t1(a INT, b VARCHAR(20));
@@ -217,7 +217,7 @@ DROP TABLE t1,t2,t3;
 DROP FUNCTION f1;
 
 --echo #
---echo # Bug #48067: A temp table with the same name as an existing table, 
+--echo # Bug #48067: A temp table with the same name as an existing table,
 --echo #             makes drop database fail.
 --echo #
 --disable_warnings
@@ -378,3 +378,74 @@ CREATE TEMPORARY TABLE t1 (a TEXT NOT NULL) REPLACE AS SELECT total_allocated FR
 --echo # Create table would assert because REPLACE setting is not compatible with MDL for CREATE
 CREATE TABLE IF NOT EXISTS t2 (a INT);
 DROP TABLE t2;
+
+
+--echo #
+--echo # Bug #30716037 MEMORY CORRUPTION BUG IN MYSQLD
+--echo #
+
+# The original bug report.
+CREATE TEMPORARY TABLE v0 ( v1 INT UNIQUE ) ;
+--error ER_CTE_MAX_RECURSION_DEPTH
+
+WITH RECURSIVE v0 ( v1 ) AS ( SELECT -128 UNION SELECT v1 + 33 FROM v0 )
+SELECT 'x' , -1 , 54703121.000000 FROM v0 AS v3 , v0 AS v2 , v0 NATURAL JOIN
+v0 AS v5 NATURAL JOIN v0 AS v4 ;
+
+DROP TABLE v0;
+
+# Simplified version of the above.
+# It should not crash. It should not return "Empty set".
+# It should report an error, because v0's resursive definition produces an
+# infinite set, giving raise to an infinite result set for the whole query.
+--error ER_CTE_MAX_RECURSION_DEPTH
+WITH RECURSIVE v0 ( c1 ) AS (
+	SELECT 0
+	UNION
+	SELECT c1 + 1 FROM v0
+)
+SELECT *
+FROM
+	v0,
+	v0 AS v1
+	NATURAL JOIN v0 AS v2;
+
+# A finite version of the above query.
+# It should not crash. It should not return "Empty set"
+# It should return just 2*2=4 rows.
+--sorted_result
+WITH RECURSIVE v0 ( c1 ) AS (
+	SELECT 0
+	UNION
+	SELECT 1 FROM v0
+)
+SELECT *
+FROM
+	v0,
+	v0 AS v1
+	NATURAL JOIN v0 AS v2;
+
+--echo #
+--echo # Bug#29899151: CORE AT CREATE TABLE WITH FK FOR TABLE TRANSFERRED
+--echo # FROM MYISAM TO INNODB
+--echo #
+
+--echo # Verify that default_tmp_storage_engine is substituted and works
+--echo # when the source storage engine of LIKE does not support
+--echo # temporary tables.
+CREATE TEMPORARY TABLE tt1(c1 INT);
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+SET default_tmp_storage_engine=MYISAM;
+CREATE TEMPORARY TABLE tt1(c1 INT);
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;

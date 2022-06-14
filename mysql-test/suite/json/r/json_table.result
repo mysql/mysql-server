@@ -23,7 +23,7 @@ jexst int exists path '$.b')
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0}]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a', jexst int exists path '$.b')) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0}]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a', `jexst` int exists path '$.b')) `tt`
 explain format=tree select * from
 json_table(
 '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
@@ -71,7 +71,7 @@ jexst int exists path '$.b')
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jsn_path` AS `jsn_path`,`tt`.`jexst` AS `jexst` from json_table('[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a' default '33' on empty default '66' on error, jsn_path json path '$.a' default '{"x":33}' on empty, jexst int exists path '$.b')) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jsn_path` AS `jsn_path`,`tt`.`jexst` AS `jexst` from json_table('[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a' default '33' on empty default '66' on error, `jsn_path` json path '$.a' default '{"x":33}' on empty, `jexst` int exists path '$.b')) `tt`
 select * from
 json_table(
 '[{"a":"3"},{"a":2},{"b":1},{"a":0.33},{"a":"asd"}]',
@@ -91,9 +91,6 @@ id	jpath_i	jpath_r	jsn_path	jexst
 3	33	33.3	{"x": 33}	1
 4	0	0.33	0.33	0
 5	66	77.7	"asd"	0
-Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER from column jpath_i at row 1
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column jpath_r at row 1
 explain select * from
 json_table(
 '[{"a":"3"},{"a":2},{"b":1},{"a":0.33},{"a":"asd"}]',
@@ -110,14 +107,14 @@ jexst int exists path '$.b')
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath_i` AS `jpath_i`,`tt`.`jpath_r` AS `jpath_r`,`tt`.`jsn_path` AS `jsn_path`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0.33},{"a":"asd"}]', '$[*]' columns (id for ordinality, jpath_i int path '$.a' default '33' on empty default '66' on error, jpath_r double path '$.a' default '33.3' on empty default '77.7' on error, jsn_path json path '$.a' default '{"x":33}' on empty, jexst int exists path '$.b')) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath_i` AS `jpath_i`,`tt`.`jpath_r` AS `jpath_r`,`tt`.`jsn_path` AS `jsn_path`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0.33},{"a":"asd"}]', '$[*]' columns (`id` for ordinality, `jpath_i` int path '$.a' default '33' on empty default '66' on error, `jpath_r` double path '$.a' default '33.3' on empty default '77.7' on error, `jsn_path` json path '$.a' default '{"x":33}' on empty, `jexst` int exists path '$.b')) `tt`
 select * from
 json_table(
 '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
 '$[*]' columns (id for ordinality,
 jpath varchar(100) path '$.a'
-                default '66' on error
-default '33' on empty,
+                default '33' on empty
+default '66' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
 jexst int exists path '$.b')
 ) as tt;
@@ -132,15 +129,15 @@ json_table(
 '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
 '$[*]' columns (id for ordinality,
 jpath varchar(100) path '$.a'
-                default '66' on error
-default '33' on empty,
+                default '33' on empty
+default '66' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
 jexst int exists path '$.b')
 ) as tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jsn_path` AS `jsn_path`,`tt`.`jexst` AS `jexst` from json_table('[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a' default '33' on empty default '66' on error, jsn_path json path '$.a' default '{"x":33}' on empty, jexst int exists path '$.b')) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jsn_path` AS `jsn_path`,`tt`.`jexst` AS `jexst` from json_table('[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a' default '33' on empty default '66' on error, `jsn_path` json path '$.a' default '{"x":33}' on empty, `jexst` int exists path '$.b')) `tt`
 select * from
 json_table(
 '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
@@ -177,7 +174,7 @@ where id = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`json_path` AS `json_path`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0}]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a', json_path json path '$.a', jexst int exists path '$.b')) `tt` where (`tt`.`id` = 3)
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`json_path` AS `json_path`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0}]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a', `json_path` json path '$.a', `jexst` int exists path '$.b')) `tt` where (`tt`.`id` = 3)
 select * from
 json_table(
 '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
@@ -278,7 +275,7 @@ jpath_n varchar(50) path '$.l')
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst`,`tt`.`id_n` AS `id_n`,`tt`.`jpath_n` AS `jpath_n` from json_table('[\n      {"a":"3", "n": { "l": 1}},\n      {"a":2, "n": { "l": 1}},\n      {"b":1, "n": { "l": 1}},\n      {"a":0, "n": { "l": 1}}\n    ]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a', jexst int exists path '$.b', nested path '$.n' columns (id_n for ordinality, jpath_n varchar(50) path '$.l'))) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst`,`tt`.`id_n` AS `id_n`,`tt`.`jpath_n` AS `jpath_n` from json_table('[\n      {"a":"3", "n": { "l": 1}},\n      {"a":2, "n": { "l": 1}},\n      {"b":1, "n": { "l": 1}},\n      {"a":0, "n": { "l": 1}}\n    ]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a', `jexst` int exists path '$.b', nested path '$.n' columns (`id_n` for ordinality, `jpath_n` varchar(50) character set utf8mb4 path '$.l'))) `tt`
 explain format=json select * from
 json_table(
 '[
@@ -328,7 +325,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst`,`tt`.`id_n` AS `id_n`,`tt`.`jpath_n` AS `jpath_n` from json_table('[\n      {"a":"3", "n": { "l": 1}},\n      {"a":2, "n": { "l": 1}},\n      {"b":1, "n": { "l": 1}},\n      {"a":0, "n": { "l": 1}}\n    ]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a', jexst int exists path '$.b', nested path '$.n' columns (id_n for ordinality, jpath_n varchar(50) path '$.l'))) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst`,`tt`.`id_n` AS `id_n`,`tt`.`jpath_n` AS `jpath_n` from json_table('[\n      {"a":"3", "n": { "l": 1}},\n      {"a":2, "n": { "l": 1}},\n      {"b":1, "n": { "l": 1}},\n      {"a":0, "n": { "l": 1}}\n    ]', '$[*]' columns (`id` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a', `jexst` int exists path '$.b', nested path '$.n' columns (`id_n` for ordinality, `jpath_n` varchar(50) character set utf8mb4 path '$.l'))) `tt`
 select * from
 json_table(
 '[
@@ -375,7 +372,7 @@ jpath_m varchar(50) path '$.l')
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`id_n` AS `id_n`,`tt`.`jpath_n` AS `jpath_n`,`tt`.`id_m` AS `id_m`,`tt`.`jpath_m` AS `jpath_m` from json_table('[\n      {"a":2, "n": [{ "l": 1}, {"l": 11}]},\n      {"a":1, "n": [{ "l": 2}, {"l": 22}]}\n    ]', '$[*]' columns (id for ordinality, jpath varchar(50) path '$.a', nested path '$.n[*]' columns (id_n for ordinality, jpath_n varchar(50) path '$.l'), nested path '$.n[*]' columns (id_m for ordinality, jpath_m varchar(50) path '$.l'))) `tt`
+Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`id_n` AS `id_n`,`tt`.`jpath_n` AS `jpath_n`,`tt`.`id_m` AS `id_m`,`tt`.`jpath_m` AS `jpath_m` from json_table('[\n      {"a":2, "n": [{ "l": 1}, {"l": 11}]},\n      {"a":1, "n": [{ "l": 2}, {"l": 22}]}\n    ]', '$[*]' columns (`id` for ordinality, `jpath` varchar(50) character set utf8mb4 path '$.a', nested path '$.n[*]' columns (`id_n` for ordinality, `jpath_n` varchar(50) character set utf8mb4 path '$.l'), nested path '$.n[*]' columns (`id_m` for ordinality, `jpath_m` varchar(50) character set utf8mb4 path '$.l'))) `tt`
 select * from   json_table(
 '[
     {"a":"3", "n": ["b","a","c"]},
@@ -511,7 +508,7 @@ jpath_4 json path '$')
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`id1` AS `id1`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst`,`tt`.`id2` AS `id2`,`tt`.`id3` AS `id3`,`tt`.`jpath_3` AS `jpath_3`,`tt`.`id4` AS `id4`,`tt`.`jpath_4` AS `jpath_4` from json_table('[\n    {"a":"3", "n": [ {"ll":["b1","b2","b3"]}, {"ll": ["a1","a2"]},\n    {"ll":["c"]} ]},\n    {"a":2, "n": [{"ll":[1,11,111]},{"ll":[2]}]},\n    {"b":1, "n": [{"ll":["zzz"]}]},\n    {"a":0, "n": [{"ll":[0.1,0.01]}, {"ll":[0.02,0.002,0.0002]}]}\n    ]', '$[*]' columns (id1 for ordinality, jpath varchar(100) path '$.a', jexst int exists path '$.b', nested path '$.n[*]' columns (id2 for ordinality, nested path '$.ll[*]' columns (id3 for ordinality, jpath_3 varchar(50) path '$')), nested path '$.n[*]' columns (id4 for ordinality, jpath_4 json path '$'))) `tt`
+Note	1003	/* select#1 */ select `tt`.`id1` AS `id1`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst`,`tt`.`id2` AS `id2`,`tt`.`id3` AS `id3`,`tt`.`jpath_3` AS `jpath_3`,`tt`.`id4` AS `id4`,`tt`.`jpath_4` AS `jpath_4` from json_table('[\n    {"a":"3", "n": [ {"ll":["b1","b2","b3"]}, {"ll": ["a1","a2"]},\n    {"ll":["c"]} ]},\n    {"a":2, "n": [{"ll":[1,11,111]},{"ll":[2]}]},\n    {"b":1, "n": [{"ll":["zzz"]}]},\n    {"a":0, "n": [{"ll":[0.1,0.01]}, {"ll":[0.02,0.002,0.0002]}]}\n    ]', '$[*]' columns (`id1` for ordinality, `jpath` varchar(100) character set utf8mb4 path '$.a', `jexst` int exists path '$.b', nested path '$.n[*]' columns (`id2` for ordinality, nested path '$.ll[*]' columns (`id3` for ordinality, `jpath_3` varchar(50) character set utf8mb4 path '$')), nested path '$.n[*]' columns (`id4` for ordinality, `jpath_4` json path '$'))) `tt`
 ord should be 1,1,1,2, which tells that first two values of 'l' are
 from the same object, and next two are from different objects
 SELECT *
@@ -572,7 +569,7 @@ lpath varchar(10) PATH '$'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `jt`.`apath` AS `apath`,`jt`.`bpath` AS `bpath`,`jt`.`ord` AS `ord`,`jt`.`lpath` AS `lpath` from json_table('[{"a": "a_val",\n   "b": [\n          {"c": "c_val",\n           "l": [1,2]}\n        ]\n    }, {"a": "a_val",\n     "b": [\n            {"c": "c_val",\n             "l": [11]},\n            {"c": "c_val",\n             "l": [22]}\n           ]\n    }]', '$[*]' columns (apath varchar(10) path '$.a', nested path '$.b[*]' columns (bpath varchar(10) path '$.c', ord for ordinality, nested path '$.l[*]' columns (lpath varchar(10) path '$')))) `jt`
+Note	1003	/* select#1 */ select `jt`.`apath` AS `apath`,`jt`.`bpath` AS `bpath`,`jt`.`ord` AS `ord`,`jt`.`lpath` AS `lpath` from json_table('[{"a": "a_val",\n   "b": [\n          {"c": "c_val",\n           "l": [1,2]}\n        ]\n    }, {"a": "a_val",\n     "b": [\n            {"c": "c_val",\n             "l": [11]},\n            {"c": "c_val",\n             "l": [22]}\n           ]\n    }]', '$[*]' columns (`apath` varchar(10) character set utf8mb4 path '$.a', nested path '$.b[*]' columns (`bpath` varchar(10) character set utf8mb4 path '$.c', `ord` for ordinality, nested path '$.l[*]' columns (`lpath` varchar(10) character set utf8mb4 path '$')))) `jt`
 CREATE TABLE jt( i JSON );
 SELECT * FROM jt, JSON_TABLE(jt.i, '$' COLUMNS (a INT PATH '$')) AS tt
 WHERE a=1;
@@ -583,7 +580,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	tt	NULL	ref	<auto_key0>	<auto_key0>	5	const	1	100.00	Table function: json_table; Using temporary; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`jt`.`i` AS `i`,`tt`.`a` AS `a` from `test`.`jt` join json_table(`test`.`jt`.`i`, '$' columns (a int path '$')) `tt` where (`tt`.`a` = 1)
+Note	1003	/* select#1 */ select `test`.`jt`.`i` AS `i`,`tt`.`a` AS `a` from `test`.`jt` join json_table(`test`.`jt`.`i`, '$' columns (`a` int path '$')) `tt` where (`tt`.`a` = 1)
 SELECT * FROM (
 SELECT * FROM jt, JSON_TABLE(jt.i, '$' COLUMNS (a INT PATH '$')) AS tt
 WHERE a=1) AS ttt;
@@ -595,19 +592,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	tt	NULL	ref	<auto_key0>	<auto_key0>	5	const	1	100.00	Table function: json_table; Using temporary; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`jt`.`i` AS `i`,`tt`.`a` AS `a` from `test`.`jt` join json_table(`test`.`jt`.`i`, '$' columns (a int path '$')) `tt` where (`tt`.`a` = 1)
+Note	1003	/* select#1 */ select `test`.`jt`.`i` AS `i`,`tt`.`a` AS `a` from `test`.`jt` join json_table(`test`.`jt`.`i`, '$' columns (`a` int path '$')) `tt` where (`tt`.`a` = 1)
 DROP TABLE jt;
 SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
 '$' COLUMNS (dt DATE PATH '$')) as tt;
 dt
 NULL
-Warnings:
-Warning	1292	Incorrect date value: '11:22:33.000000' for column 'dt' at row 1
 SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
 '$' COLUMNS (dt TIME PATH '$')) as tt;
 dt
 11:22:33
-SELECT * FROM JSON_TABLE(CAST(CAST("2001.02.03" AS DATE) AS JSON),
+SELECT * FROM JSON_TABLE(CAST(CAST("2001-02-03" AS DATE) AS JSON),
 '$' COLUMNS (dt DATE PATH '$')) as tt;
 dt
 2001-02-03
@@ -623,7 +618,7 @@ num
 123
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `jt`.`num` AS `num` from json_table('[1,2,3]', '$[*]' columns (num int path '$.a' default '123' on empty default '456' on error)) `jt`	utf8mb4	utf8mb4_0900_ai_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `jt`.`num` AS `num` from json_table('[1,2,3]', '$[*]' columns (`num` int path '$.a' default '123' on empty default '456' on error)) `jt`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v;
 SELECT * FROM JSON_TABLE('"asdf"',
 '$' COLUMNS (a INT PATH '$' ERROR ON ERROR)) AS jt;
@@ -644,8 +639,6 @@ SELECT * FROM
 JSON_TABLE('123.456', '$' COLUMNS (a DECIMAL(2,1) PATH '$')) AS jt;
 a
 NULL
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT * FROM
 JSON_TABLE('{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{}}}}}}}}}}}}}}}}}}}',
 '$' COLUMNS (i0 INT PATH '$.a',
@@ -702,7 +695,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`jt`.`jid` AS `jid`,`jt`.`val` AS `val` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$[*]' columns (jid for ordinality, val int path '$')) `jt`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`jt`.`jid` AS `jid`,`jt`.`val` AS `val` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$[*]' columns (`jid` for ordinality, `val` int path '$')) `jt`
 SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
 FROM t1,
 JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
@@ -712,12 +705,12 @@ id	id	jid	val
 1	1	1	1
 1	1	2	3
 1	1	3	5
-2	1	1	2
-2	1	2	4
-2	1	3	6
 1	2	1	1
 1	2	2	3
 1	2	3	5
+2	1	1	2
+2	1	2	4
+2	1	3	6
 2	2	1	2
 2	2	2	4
 2	2	3	6
@@ -729,9 +722,9 @@ t1 AS t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id`,`jt`.`jid` AS `jid`,`jt`.`val` AS `val` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$[*]' columns (jid for ordinality, val int path '$')) `jt` join `test`.`t1` `t2`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id`,`jt`.`jid` AS `jid`,`jt`.`val` AS `val` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$[*]' columns (`jid` for ordinality, `val` int path '$')) `jt` join `test`.`t1` `t2`
 EXPLAIN SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
 FROM t1,
 JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
@@ -739,10 +732,10 @@ val INT PATH '$')) AS jt,
 t1 AS t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`jt`) */ `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id`,`jt`.`jid` AS `jid`,`jt`.`val` AS `val` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$[*]' columns (jid for ordinality, val int path '$')) `jt` join `test`.`t1` `t2`
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`jt`) */ `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id`,`jt`.`jid` AS `jid`,`jt`.`val` AS `val` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$[*]' columns (`jid` for ordinality, `val` int path '$')) `jt` join `test`.`t1` `t2`
 SELECT * FROM t1 WHERE id IN
 (SELECT * FROM JSON_TABLE('[1,2]', '$[*]' COLUMNS
 (id INT PATH '$')) AS jt);
@@ -756,7 +749,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	jt	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.id	2	100.00	Table function: json_table; Using temporary; Using index; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jd` AS `jd` from `test`.`t1` semi join (json_table('[1,2]', '$[*]' columns (id int path '$')) `jt`) where (`jt`.`id` = `test`.`t1`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jd` AS `jd` from `test`.`t1` semi join (json_table('[1,2]', '$[*]' columns (`id` int path '$')) `jt`) where (`jt`.`id` = `test`.`t1`.`id`)
 SELECT * FROM t1 WHERE id IN
 (SELECT * FROM JSON_TABLE(t1.jd, '$[*]' COLUMNS
 (id INT PATH '$')) AS jt);
@@ -771,7 +764,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.id	2	100.00	Table function: json_table; Using temporary; Using index; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.jd' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jd` AS `jd` from `test`.`t1` semi join (json_table(`test`.`t1`.`jd`, '$[*]' columns (id int path '$')) `jt`) where (`jt`.`id` = `test`.`t1`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jd` AS `jd` from `test`.`t1` semi join (json_table(`test`.`t1`.`jd`, '$[*]' columns (`id` int path '$')) `jt`) where (`jt`.`id` = `test`.`t1`.`id`)
 SELECT id, jt1.*, jt2.*
 FROM t1, JSON_TABLE(jd, '$' COLUMNS (data1 JSON PATH '$')) AS jt1,
 JSON_TABLE(data1, '$[*]' COLUMNS (id2 INT PATH '$')) AS jt2;
@@ -790,7 +783,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 1	SIMPLE	jt2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`jt1`.`data1` AS `data1`,`jt2`.`id2` AS `id2` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$' columns (data1 json path '$')) `jt1` join json_table(`jt1`.`data1`, '$[*]' columns (id2 int path '$')) `jt2`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`jt1`.`data1` AS `data1`,`jt2`.`id2` AS `id2` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$' columns (`data1` json path '$')) `jt1` join json_table(`jt1`.`data1`, '$[*]' columns (`id2` int path '$')) `jt2`
 DROP TABLE t1;
 SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
 tm TIME PATH '$',
@@ -800,12 +793,28 @@ f FLOAT PATH '$',
 d DECIMAL PATH '$')) AS jt;
 tm	dt	i	f	d
 NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1292	Incorrect time value: 'asdf' for column 'tm' at row 1
-Warning	1292	Incorrect date value: 'asdf' for column 'dt' at row 1
-Warning	3156	Invalid JSON value for CAST to INTEGER from column i at row 1
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column f at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column d at row 1
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON EMPTY)) jt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON EMPTY)) jt' at line 2
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON ERROR)) jt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON ERROR)) jt' at line 2
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON EMPTY)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON ERROR)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x DATE
+PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON EMPTY)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x DATE
+PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON ERROR)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
 #
 # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
 #
@@ -835,7 +844,7 @@ a
 2
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `jt`.`a` AS `a` from json_table('[{"a": 1, "b": 2}]', '$[*]' columns (a int path '$.b')) `jt`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `jt`.`a` AS `a` from json_table('[{"a": 1, "b": 2}]', '$[*]' columns (`a` int path '$.b')) `jt`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 #
 # Bug#25427457: ASSERTION `!((*REG_FIELD)->FLAGS & 16)' 
@@ -897,13 +906,13 @@ DEALLOCATE PREPARE stmt;
 CREATE TABLE t1 (id INT, jc JSON);
 SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1' in a table function argument
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
 ERROR 42S02: Unknown table 't1' in a table function argument
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt RIGHT JOIN t1 ON t1.jc=jt.id;
-ERROR 42S02: Unknown table 't1' in a table function argument
+id	id	jc
 SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 id	jc	id
@@ -913,7 +922,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (`id` for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
 SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
@@ -923,41 +932,41 @@ LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1o	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1o	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1o`.`id` AS `id`,`test`.`t1o`.`jc` AS `jc`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join `test`.`t1` `t1o` on((`test`.`t1o`.`id` = `test`.`t1`.`id`)) left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
+Note	1003	/* select#1 */ select `test`.`t1o`.`id` AS `id`,`test`.`t1o`.`jc` AS `jc`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join `test`.`t1` `t1o` on((`test`.`t1o`.`id` = `test`.`t1`.`id`)) left join json_table(`test`.`t1`.`jc`, '$' columns (`id` for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S22: Unknown column 't1o.jc' in 'a table function argument'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1o' in a table function argument
 WITH qn AS
 (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
 SELECT * from qn;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1' in a table function argument
 WITH qn AS
 (SELECT 1 UNION
 SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
 SELECT * from qn;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1' in a table function argument
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S22: Unknown column 't1o.jc' in 'a table function argument'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
+ERROR 42S02: Unknown table 't1o' in a table function argument
 INSERT INTO t1 VALUES(1,"1"),(2,"4"),(3,"3");
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -974,13 +983,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	jt	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.id	2	100.00	Table function: json_table; Using temporary; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id int path '$')) `jt` on((`jt`.`id` = `test`.`t1`.`id`)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (`id` int path '$')) `jt` on((`jt`.`id` = `test`.`t1`.`id`)) where true
 SELECT * FROM t1 
 LEFT JOIN
 JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
 RIGHT JOIN
 JSON_TABLE(jt.id, '$' COLUMNS (id FOR ORDINALITY)) as jt1 ON jt.id=jt1.id;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt1'
+ERROR 42S02: Unknown table 'jt' in a table function argument
 DROP TABLE t1;
 set @save_mem_se= @@internal_tmp_mem_storage_engine;
 set @@internal_tmp_mem_storage_engine=MEMORY;
@@ -1061,7 +1070,7 @@ SELECT *
 FROM JSON_TABLE('{"a":"1993-01-01"}',
 '$' COLUMNS (jp DATE PATH '$.b' DEFAULT '1000' ON EMPTY))
 AS jt;
-ERROR 42000: Invalid default value for 'jp'
+ERROR 22003: Value is out of range for JSON_TABLE's column 'jp'
 #
 # Bug#25532429: INVALID JSON ERROR NOT THROWN WITH EMPTY TABLES JOIN
 #
@@ -1080,7 +1089,7 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 char(70) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` char(70) character set utf8mb4 path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 CHAR(70) PATH '$')
@@ -1095,15 +1104,13 @@ JSON_TABLE ('["3.14159"]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('["3.14159"]', '$[*]' columns (col18 char(6) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('["3.14159"]', '$[*]' columns (`col18` char(6) character set utf8mb4 path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('["3.14159"]',
 '$[*]' COLUMNS (col18 CHAR(6) PATH '$')
 ) AS alias2;
 col18
 NULL
-Warnings:
-Warning	1406	Data too long for column 'col18' at row 1
 #Truncated space doesn't trigger ON ERROR
 EXPLAIN SELECT * FROM
 JSON_TABLE ('["3.14159 "]',
@@ -1112,7 +1119,7 @@ JSON_TABLE ('["3.14159 "]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('["3.14159 "]', '$[*]' columns (col18 char(7) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('["3.14159 "]', '$[*]' columns (`col18` char(7) character set utf8mb4 path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('["3.14159 "]',
 '$[*]' COLUMNS (col18 CHAR(7) PATH '$')
@@ -1126,7 +1133,7 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 char(255) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` char(255) character set utf8mb4 path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 CHAR(255) PATH '$')
@@ -1140,7 +1147,7 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 varchar(70) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` varchar(70) character set utf8mb4 path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 VARCHAR(70) PATH '$')
@@ -1154,7 +1161,7 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 varchar(255) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` varchar(255) character set utf8mb4 path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 VARCHAR(255) PATH '$')
@@ -1168,7 +1175,7 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 float path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` float path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 FLOAT PATH '$')
@@ -1182,7 +1189,7 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 double path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` double path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 DOUBLE PATH '$')
@@ -1196,15 +1203,13 @@ JSON_TABLE ('[3.14159]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (col18 decimal(3,3) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[3.14159]', '$[*]' columns (`col18` decimal(3,3) path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$')
 ) AS alias2;
 col18
 NULL
-Warnings:
-Warning	1264	Out of range value for column 'col18' at row 1
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$' ERROR ON ERROR)
@@ -1217,7 +1222,7 @@ JSON_TABLE ('[0.9]',
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[0.9]', '$[*]' columns (col18 decimal(3,3) path '$')) `alias2`
+Note	1003	/* select#1 */ select `alias2`.`col18` AS `col18` from json_table('[0.9]', '$[*]' columns (`col18` decimal(3,3) path '$')) `alias2`
 SELECT * FROM
 JSON_TABLE ('[0.9]',
 '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$')
@@ -1234,8 +1239,6 @@ col18
 3.142
 Warnings:
 Note	1265	Data truncated for column 'col18' at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
 CREATE TABLE t1(jd JSON);
 INSERT INTO t1 VALUES('["asdf"]'),('["ghjk"]');
 SELECT * FROM t1,
@@ -1248,8 +1251,6 @@ jd	col18
 ["ghjk"]	3.142
 Warnings:
 Note	1265	Data truncated for column 'col18' at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 2
 DROP TABLE t1;
 #
 # Bug#25540027: SIG 11 IN FIND_FIELD_IN_TABLE | SQL/SQL_BASE.CC
@@ -1392,42 +1393,42 @@ EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb BLOB PATH '
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb blob path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` blob path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb TINYBLOB PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb tinyblob path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` tinyblob path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb MEDIUMBLOB PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb mediumblob path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` mediumblob path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb LONGBLOB PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb longblob path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` longblob path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb TEXT PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb text path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` text character set utf8mb4 path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb TINYTEXT PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb tinytext path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` tinytext character set utf8mb4 path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb MEDIUMTEXT PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb mediumtext path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` mediumtext character set utf8mb4 path '$')) `alias`
 EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb LONGTEXT PATH '$')) as alias;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (blb longtext path '$')) `alias`
+Note	1003	/* select#1 */ select `alias`.`blb` AS `blb` from json_table('"asd123"', '$' columns (`blb` longtext character set utf8mb4 path '$')) `alias`
 SELECT * FROM 
 (SELECT CAST(blb AS JSON) jf FROM
 JSON_TABLE ('"asd123"', '$' COLUMNS (blb BLOB PATH '$')) AS jti) AS dt,
@@ -1451,19 +1452,17 @@ EXPLAIN SELECT * FROM JSON_TABLE('null', '$' COLUMNS(AA DECIMAL PATH '$')) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `tt`.`AA` AS `AA` from json_table('null', '$' columns (AA decimal(10,0) path '$')) `tt`
+Note	1003	/* select#1 */ select `tt`.`AA` AS `AA` from json_table('null', '$' columns (`AA` decimal(10,0) path '$')) `tt`
 CREATE VIEW v1 AS SELECT * FROM
 JSON_TABLE ( 'null', '$' COLUMNS (c1 DECIMAL PATH '$' ) ) AS jt;
 SELECT * FROM v1;
 c1
 NULL
-Warnings:
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column c1 at row 1
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `jt`.`c1` AS `c1` from json_table('null', '$' columns (c1 decimal(10,0) path '$')) `jt`
+Note	1003	/* select#1 */ select `jt`.`c1` AS `c1` from json_table('null', '$' columns (`c1` decimal(10,0) path '$')) `jt`
 DROP VIEW v1;
 #
 # Bug#25822408: ASSERTION `!COL->CHILD_JDS->PRODUCING_RECORDS' FAILED
@@ -1538,7 +1537,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	innr1	NULL	ref	<auto_key0>	<auto_key0>	43	test.t1.col_varchar_key	2	100.00	Table function: json_table; Using temporary; Using where; Using index; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (json_table('[{"col_key": 1},{"col_key": 2}]', '$[*]' columns (col_varchar_key varchar(10) path '$.col_key')) `innr1`) where (`test`.`t1`.`col_varchar_key` = `innr1`.`col_varchar_key`)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (json_table('[{"col_key": 1},{"col_key": 2}]', '$[*]' columns (`col_varchar_key` varchar(10) character set utf8mb4 path '$.col_key')) `innr1`) where (`test`.`t1`.`col_varchar_key` = `innr1`.`col_varchar_key`)
 DROP TABLE t1;
 #
 # Bug#26711551: WL8867:CONDITIONAL JUMP IN JSON_TABLE_COLUMN::CLEANUP
@@ -1568,50 +1567,50 @@ SELECT * FROM t1 as jj1,
 JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
 id	f1	id	f1
 1	{"1": 1}	1	{"1": 1}
-2	{"1": 2}	1	{"1": 1}
-3	{"1": 3}	1	{"1": 1}
-4	{"1": 4}	1	{"1": 1}
-5	{"1": 5}	1	{"1": 1}
-6	{"1": 6}	1	{"1": 1}
 1	{"1": 1}	2	{"1": 2}
-2	{"1": 2}	2	{"1": 2}
-3	{"1": 3}	2	{"1": 2}
-4	{"1": 4}	2	{"1": 2}
-5	{"1": 5}	2	{"1": 2}
-6	{"1": 6}	2	{"1": 2}
 1	{"1": 1}	3	{"1": 3}
-2	{"1": 2}	3	{"1": 3}
-3	{"1": 3}	3	{"1": 3}
-4	{"1": 4}	3	{"1": 3}
-5	{"1": 5}	3	{"1": 3}
-6	{"1": 6}	3	{"1": 3}
 1	{"1": 1}	4	{"1": 4}
-2	{"1": 2}	4	{"1": 4}
-3	{"1": 3}	4	{"1": 4}
-4	{"1": 4}	4	{"1": 4}
-5	{"1": 5}	4	{"1": 4}
-6	{"1": 6}	4	{"1": 4}
 1	{"1": 1}	5	{"1": 5}
-2	{"1": 2}	5	{"1": 5}
-3	{"1": 3}	5	{"1": 5}
-4	{"1": 4}	5	{"1": 5}
-5	{"1": 5}	5	{"1": 5}
-6	{"1": 6}	5	{"1": 5}
 1	{"1": 1}	6	{"1": 6}
+2	{"1": 2}	1	{"1": 1}
+2	{"1": 2}	2	{"1": 2}
+2	{"1": 2}	3	{"1": 3}
+2	{"1": 2}	4	{"1": 4}
+2	{"1": 2}	5	{"1": 5}
 2	{"1": 2}	6	{"1": 6}
+3	{"1": 3}	1	{"1": 1}
+3	{"1": 3}	2	{"1": 2}
+3	{"1": 3}	3	{"1": 3}
+3	{"1": 3}	4	{"1": 4}
+3	{"1": 3}	5	{"1": 5}
 3	{"1": 3}	6	{"1": 6}
+4	{"1": 4}	1	{"1": 1}
+4	{"1": 4}	2	{"1": 2}
+4	{"1": 4}	3	{"1": 3}
+4	{"1": 4}	4	{"1": 4}
+4	{"1": 4}	5	{"1": 5}
 4	{"1": 4}	6	{"1": 6}
+5	{"1": 5}	1	{"1": 1}
+5	{"1": 5}	2	{"1": 2}
+5	{"1": 5}	3	{"1": 3}
+5	{"1": 5}	4	{"1": 4}
+5	{"1": 5}	5	{"1": 5}
 5	{"1": 5}	6	{"1": 6}
+6	{"1": 6}	1	{"1": 1}
+6	{"1": 6}	2	{"1": 2}
+6	{"1": 6}	3	{"1": 3}
+6	{"1": 6}	4	{"1": 4}
+6	{"1": 6}	5	{"1": 5}
 6	{"1": 6}	6	{"1": 6}
 EXPLAIN SELECT * FROM t1 as jj1,
 (SELECT tt2.* FROM t1 as tt2,
 JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jj1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (hash join)
 1	SIMPLE	tbl	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`jj1`.`id` AS `id`,`test`.`jj1`.`f1` AS `f1`,`test`.`tt2`.`id` AS `id`,`test`.`tt2`.`f1` AS `f1` from `test`.`t1` `jj1` join `test`.`t1` `tt2` join json_table(`test`.`tt2`.`f1`, '$' columns (id for ordinality)) `tbl`
+Note	1003	/* select#1 */ select `test`.`jj1`.`id` AS `id`,`test`.`jj1`.`f1` AS `f1`,`test`.`tt2`.`id` AS `id`,`test`.`tt2`.`f1` AS `f1` from `test`.`t1` `jj1` join `test`.`t1` `tt2` join json_table(`test`.`tt2`.`f1`, '$' columns (`id` for ordinality)) `tbl`
 SELECT * FROM t1 as jj1,
 (SELECT tt2.* FROM t1 as tt2,
 JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl STRAIGHT_JOIN 
@@ -1633,11 +1632,11 @@ JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl STRAIGHT_JOIN
 t1 AS tt3) dt ORDER BY 1,3 LIMIT 11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jj1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (hash join)
 1	SIMPLE	tbl	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
-1	SIMPLE	tt3	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	tt3	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`jj1`.`id` AS `id`,`test`.`jj1`.`f1` AS `f1`,`test`.`tt2`.`id` AS `id`,`test`.`tt2`.`f1` AS `f1` from `test`.`t1` `jj1` join `test`.`t1` `tt2` join json_table(`test`.`tt2`.`f1`, '$' columns (id for ordinality)) `tbl` straight_join `test`.`t1` `tt3` order by `test`.`jj1`.`id`,`test`.`tt2`.`id` limit 11
+Note	1003	/* select#1 */ select `test`.`jj1`.`id` AS `id`,`test`.`jj1`.`f1` AS `f1`,`test`.`tt2`.`id` AS `id`,`test`.`tt2`.`f1` AS `f1` from `test`.`t1` `jj1` join `test`.`t1` `tt2` join json_table(`test`.`tt2`.`f1`, '$' columns (`id` for ordinality)) `tbl` straight_join `test`.`t1` `tt3` order by `test`.`jj1`.`id`,`test`.`tt2`.`id` limit 11
 SELECT * FROM t1 WHERE id IN
 (SELECT id FROM t1 as tt2,
 JSON_TABLE (f1, "$" COLUMNS (jf FOR ORDINALITY)) AS tbl);
@@ -1653,10 +1652,10 @@ EXPLAIN SELECT * FROM t1 WHERE id IN
 JSON_TABLE (f1, "$" COLUMNS (jf FOR ORDINALITY)) AS tbl);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
 1	SIMPLE	tbl	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` semi join (`test`.`t1` `tt2` join json_table(`test`.`tt2`.`f1`, '$' columns (jf for ordinality)) `tbl`) where (`test`.`t1`.`id` = `test`.`tt2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` semi join (`test`.`t1` `tt2` join json_table(`test`.`tt2`.`f1`, '$' columns (`jf` for ordinality)) `tbl`) where (`test`.`t1`.`id` = `test`.`tt2`.`id`)
 DROP TABLE t1;
 #
 # Bug#26760811: WL#8867: MEMORY LEAK REPORTED BY ASAN AND VALGRIND
@@ -1728,7 +1727,7 @@ num
 use test;
 SHOW CREATE VIEW test.v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `jt`.`num` AS `num` from json_table('[1,2,3]', '$[*]' columns (num int path '$[0]')) `jt`	utf8mb4	utf8mb4_0900_ai_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `jt`.`num` AS `num` from json_table('[1,2,3]', '$[*]' columns (`num` int path '$[0]')) `jt`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM test.v;
 num
 1
@@ -1745,6 +1744,8 @@ v
 bar
 CREATE TABLE t1 (col1 VARCHAR(255) CHARACTER SET ucs2,
 col2 VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ("æ", "ハ"), ("å", "ø"), ("ø", "パ"), ("@", "バ");
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2;
 Table	Op	Msg_type	Msg_text
@@ -1761,6 +1762,8 @@ value	cumulfreq
 å	0.5
 æ	0.75
 ø	1
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT v value, c cumulfreq
 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS,
 JSON_TABLE(histogram->'$.buckets', '$[*]'
@@ -1814,8 +1817,6 @@ SELECT id FROM JSON_TABLE('[{"id":9223372036854775808}]', '$[*]' COLUMNS
 (id BIGINT PATH '$.id')) AS json;
 id
 NULL
-Warnings:
-Warning	1264	Out of range value for column 'id' at row 1
 # If we tell the JSON table column to be unsigned, we get to store the
 # full value correctly.
 SELECT id FROM JSON_TABLE('[{"id":"9223372036854775808"}]', '$[*]' COLUMNS
@@ -1836,8 +1837,8 @@ AS json;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned DEFAULT NULL,
-  `value` bigint(20) DEFAULT NULL
+  `id` bigint unsigned DEFAULT NULL,
+  `value` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -1964,3 +1965,234 @@ SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
 CNT
 4
 DROP FUNCTION FN_COUNT_ROWS;
+#
+# Bug#30310265: VIEWS LOSE THE CHARACTER SET OF JSON_TABLE'S
+#               PATH ARGUMENTS
+#
+CREATE VIEW v1 AS
+SELECT * FROM JSON_TABLE('{"å":{"å":1}}', '$.å' COLUMNS (x INT PATH '$.å')) t;
+SELECT * FROM v1;
+x
+1
+SET NAMES latin1;
+SELECT * FROM v1;
+x
+1
+SET NAMES DEFAULT;
+DROP VIEW v1;
+CREATE VIEW v2 AS
+SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (
+x VARCHAR(10) PATH '$.a' DEFAULT '"isn''t here"' ON EMPTY)
+) t;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t`.`x` AS `x` from json_table('{}', '$' columns (`x` varchar(10) character set utf8mb4 path '$.a' default '"isn\'t here"' on empty)) `t`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v2;
+x
+isn't here
+DROP VIEW v2;
+SELECT * FROM
+JSON_TABLE(JSON_OBJECT(),
+_utf8mb4'$' COLUMNS (NESTED PATH _utf8mb4'$.x' COLUMNS
+(y INT PATH _utf8mb4'$.y'
+                      DEFAULT _utf8mb4'1' ON EMPTY
+DEFAULT _utf8mb4'2' ON ERROR))) jt;
+y
+NULL
+#
+# Bug#30382156: STORED PROCEDURE, JSON_TABLE AND "CONST" JOIN TYPE
+#
+CREATE TABLE t (id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '{"x":1}');
+CREATE PROCEDURE p()
+SELECT * FROM t, JSON_TABLE(j, '$' COLUMNS (x INT PATH '$.x')) jt
+WHERE id = 1;
+CALL p();
+id	j	x
+1	{"x": 1}	1
+CALL p();
+id	j	x
+1	{"x": 1}	1
+CALL p();
+id	j	x
+1	{"x": 1}	1
+DROP PROCEDURE p;
+DROP TABLE t;
+#
+# WL#13512: Deprecate ON ERROR before ON EMPTY in JSON_TABLE syntax
+#
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                DEFAULT '"a"' ON ERROR DEFAULT '"b"' ON EMPTY)) jt;
+x
+b
+Warnings:
+Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                NULL ON ERROR NULL ON EMPTY)) jt;
+x
+NULL
+Warnings:
+Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.
+SELECT * FROM
+JSON_TABLE('{"x":"c"}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                       ERROR ON ERROR ERROR ON EMPTY)) jt;
+x
+c
+Warnings:
+Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.
+#
+# Bug#30628330: INSERT WITH JSON_TABLE FAILS DUE TO WARNING INVOKED
+#               WITH ON ERROR CLAUSE
+#
+CREATE TABLE t(id INT, a TINYINT, b VARCHAR(3), c DATE, d DECIMAL);
+INSERT INTO t SELECT * FROM
+JSON_TABLE(JSON_ARRAY(JSON_OBJECT('a', 1, 'b', 'abc'),
+JSON_OBJECT('a', 2, 'b', 'abcd'),
+JSON_OBJECT('a', 1000, 'b', 'xyz'),
+JSON_OBJECT('c', TIME'12:00:00', 'd', 1e308)),
+'$[*]' COLUMNS (id FOR ORDINALITY,
+a TINYINT PATH '$.a' DEFAULT '111' ON ERROR,
+b VARCHAR(3) PATH '$.b' DEFAULT '"ERR"' ON ERROR,
+c DATE PATH '$.c' DEFAULT '"2001-01-01"' ON ERROR,
+d DECIMAL PATH '$.c' DEFAULT '999' ON ERROR)
+) AS jt;
+SELECT * FROM t ORDER BY id;
+id	a	b	c	d
+1	1	abc	NULL	NULL
+2	2	ERR	NULL	NULL
+3	111	xyz	NULL	NULL
+4	NULL	NULL	2001-01-01	999
+DROP TABLE t;
+#
+# Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+#
+CREATE VIEW v AS SELECT * FROM
+JSON_TABLE('[123]', '$[*]' COLUMNS (`name with space 1` INT PATH '$',
+`name with space 2` FOR ORDINALITY)) jt;
+SELECT * FROM v;
+name with space 1	name with space 2
+123	1
+DROP VIEW v;
+CREATE VIEW v AS SELECT HEX(x), HEX(y) FROM
+JSON_TABLE('["abc"]', '$[*]' COLUMNS (x BINARY(10) PATH '$',
+y VARBINARY(10) PATH '$')) jt;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+VIEW_DEFINITION
+select hex(`jt`.`x`) AS `HEX(x)`,hex(`jt`.`y`) AS `HEX(y)` from json_table('["abc"]', '$[*]' columns (`x` binary(10) path '$', `y` varbinary(10) path '$')) `jt`
+SELECT * FROM v;
+HEX(x)	HEX(y)
+61626300000000000000	616263
+DROP VIEW v;
+CREATE VIEW v AS SELECT * FROM
+JSON_TABLE('[123]', '$[*]' COLUMNS(ti  TINYINT   PATH '$',
+si  SMALLINT  PATH '$',
+mi  MEDIUMINT PATH '$',
+i   INT       PATH '$',
+bi  BIGINT    PATH '$',
+tiu TINYINT UNSIGNED   PATH '$',
+siu SMALLINT UNSIGNED  PATH '$',
+miu MEDIUMINT UNSIGNED PATH '$',
+iu  INT UNSIGNED       PATH '$',
+biu BIGINT UNSIGNED    PATH '$')) jt;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+VIEW_DEFINITION
+select `jt`.`ti` AS `ti`,`jt`.`si` AS `si`,`jt`.`mi` AS `mi`,`jt`.`i` AS `i`,`jt`.`bi` AS `bi`,`jt`.`tiu` AS `tiu`,`jt`.`siu` AS `siu`,`jt`.`miu` AS `miu`,`jt`.`iu` AS `iu`,`jt`.`biu` AS `biu` from json_table('[123]', '$[*]' columns (`ti` tinyint path '$', `si` smallint path '$', `mi` mediumint path '$', `i` int path '$', `bi` bigint path '$', `tiu` tinyint unsigned path '$', `siu` smallint unsigned path '$', `miu` mediumint unsigned path '$', `iu` int unsigned path '$', `biu` bigint unsigned path '$')) `jt`
+SELECT * FROM v;
+ti	si	mi	i	bi	tiu	siu	miu	iu	biu
+123	123	123	123	123	123	123	123	123	123
+DROP VIEW v;
+CREATE VIEW v AS SELECT * FROM
+JSON_TABLE('[]', '$[*]' COLUMNS (g GEOMETRY PATH '$',
+ls LINESTRING PATH '$')) AS jt;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+VIEW_DEFINITION
+select `jt`.`g` AS `g`,`jt`.`ls` AS `ls` from json_table('[]', '$[*]' columns (`g` geometry path '$', `ls` linestring path '$')) `jt`
+SELECT * FROM v;
+g	ls
+DROP VIEW v;
+CREATE VIEW v AS SELECT * FROM
+JSON_TABLE('["abc"]', '$[*]' COLUMNS
+(x VARCHAR(10) CHARSET latin1 PATH '$',
+y VARCHAR(10) COLLATE utf8mb4_de_pb_0900_ai_ci PATH '$',
+z LONGTEXT COLLATE utf8mb4_bin PATH '$')) jt;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+VIEW_DEFINITION
+select `jt`.`x` AS `x`,`jt`.`y` AS `y`,`jt`.`z` AS `z` from json_table('["abc"]', '$[*]' columns (`x` varchar(10) character set latin1 path '$', `y` varchar(10) character set utf8mb4 collate utf8mb4_de_pb_0900_ai_ci path '$', `z` longtext character set utf8mb4 collate utf8mb4_bin path '$')) `jt`
+SELECT x, y, z, COLLATION(x) c_x, COLLATION(y) c_y, COLLATION(z) c_z FROM v;
+x	y	z	c_x	c_y	c_z
+abc	abc	abc	latin1_swedish_ci	utf8mb4_de_pb_0900_ai_ci	utf8mb4_bin
+DROP VIEW v;
+#
+# Bug#31345503 JSON_TABLE SHOULD RETURN SQL NULL FOR JSON NULL
+#
+SELECT *
+FROM
+JSON_TABLE(
+'[
+  {"c1": null,
+   "c2": [{"c": "c_val", "l": [1,2]}],
+   "c3": null},
+  {"c1": true,
+   "c2": [{"c": "c_val","l": [11]}, {"c": "c_val", "l": [false]}],
+   "c3": true},
+  {"c1": false,
+   "c2": [{"c": null,"l": [true]}, {"c": "c_val", "l": [null]}],
+   "c3": false}
+  ]',
+'$[*]' COLUMNS(
+top_ord FOR ORDINALITY,
+c1path VARCHAR(10) PATH '$.c1' ERROR ON ERROR,
+NESTED PATH '$.c2[*]' COLUMNS (
+c2path VARCHAR(10) PATH '$.c' ERROR ON ERROR,
+ord FOR ORDINALITY,
+NESTED PATH '$.l[*]' COLUMNS (lpath_c VARCHAR(10) PATH '$' ERROR ON ERROR,
+lpath_i INT PATH '$' ERROR ON ERROR)
+),
+c3path INT PATH '$.c3' ERROR ON ERROR
+)
+) as jt;
+top_ord	c1path	c2path	ord	lpath_c	lpath_i	c3path
+1	NULL	c_val	1	1	1	NULL
+1	NULL	c_val	1	2	2	NULL
+2	true	c_val	1	11	11	1
+2	true	c_val	2	false	0	1
+3	false	NULL	1	true	1	0
+3	false	c_val	2	NULL	NULL	0
+#
+# Bug #31327187 UBSAN: JSON_TABLE: NULL POINTER PASSED AS ARGUMENT 2,
+#               WHICH IS DECLARED TO NEVER BE NULL
+#
+SELECT HEX(a) FROM JSON_TABLE(
+'[{"E":{"e":true,"~":1,"S3":"sTa"},"r":3,"":6.7},"",6.5]',
+'$'
+  COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
+) e;
+HEX(a)
+0000000000
+#
+# Bug#32591074: JSON_TABLE'S CHECK FOR DUPLICATE COLUMN NAMES IS
+#               CASE-SENSITIVE
+#
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (o FOR ORDINALITY, O FOR ORDINALITY)) jt;
+ERROR 42S21: Duplicate column name 'o'
+#
+# Bug#33351497: JSON_TABLE function report duplicate column name
+#
+SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
+测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
+测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
+) AS jt;
+测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb
+1	2
+#
+# Bug#33414235: Item_row::illegal_method_call const: Assertion `0' failed.
+#
+SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;
+ERROR 21000: Operand should contain 1 column(s)

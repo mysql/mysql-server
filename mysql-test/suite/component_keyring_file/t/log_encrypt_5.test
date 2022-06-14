@@ -1,0 +1,14 @@
+--source include/have_component_keyring_file.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+# InnoDB transparent encryption on redo log.
+# This test case will test basic encryption support features.
+
+--source include/no_valgrind_without_big.inc
+--source include/not_windows.inc
+# This test must be not be run in parallel with other tests because
+# it requires global manifest file to load keyring component directly
+
+--source ../inc/setup_component_customized.inc
+--source include/keyring_tests/innodb/log_encrypt_5.inc
+--source ../inc/teardown_component_customized.inc

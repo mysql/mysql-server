@@ -7,7 +7,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/check_unixsocket.tmp
+--write_file $MYSQL_TMP_DIR/check_unixsocket.xpl
 ## Test data
 #Ensure that each of following uses UNIX Socket
 -->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
@@ -17,10 +17,10 @@ EOF
 --write_file $MYSQL_TMP_DIR/file.sock
 EOF
 
---write_file $MYSQL_TMP_DIR/check_connection.tmp
+--write_file $MYSQL_TMP_DIR/check_connection.xpl
 EOF
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
 
 # Read only variable 'mysqlx_socket'
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -38,8 +38,11 @@ let $restart_parameters = restart: --loose-mysqlx-socket=;
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+exec $MYSQLXTEST
+  --socket=$MASTER_X_MYSOCK
+  -ux_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file /dev/null/mysqlx\.sock\.lock");
@@ -48,16 +51,22 @@ let $restart_parameters = restart: --loose-mysqlx-socket="/dev/null/mysqlx.sock"
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+exec $MYSQLXTEST
+  --socket=$MASTER_X_MYSOCK
+  -ux_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket="/dev/null/mysqlx.sock" -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+exec $MYSQLXTEST
+  --socket="/dev/null/mysqlx.sock"
+  -ux_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 # Use the same socket as mysqld uses
 # X Plugin should fail with allocation
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, lock file wasn't allocated by X Plugin");
+call mtr.add_suppression("Plugin mysqlx reported: 'X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket");
 
 --replace_regex $UNIX_SOCKET_REGEX
 let $restart_parameters = restart: --loose-mysqlx-socket=$MASTER_MYSOCK;
@@ -82,7 +91,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/file.soc
 --let $wait_for_unixsocket_status = valid_value
 --source include/restart_mysqld.inc
 
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/file.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/file.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
 
 
 # Try to use directory as UNIX socket
@@ -94,9 +103,12 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 --let $wait_for_unixsocket_status = undefined_value
 --source include/restart_mysqld.inc
 
---replace_regex /ERROR: (Connection refused|Socket operation on non-socket), while connecting to \/.*\.(sock|socket)/ERROR: Connection refused, while connecting to  SOCKET/
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--replace_regex /error: (Connection refused|Socket operation on non-socket), while connecting to \/.*\.(sock|socket)/error: Connection refused, while connecting to  SOCKET/
+exec $MYSQLXTEST
+  --socket=$MYSQL_TMP_DIR/$DIR_NAME
+  -ux_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 
 # Try to create a UNIX socket inside directory without permissions to it
@@ -108,8 +120,11 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+exec $MYSQLXTEST
+  --socket=$MYSQL_TMP_DIR/$DIR_NAME/x.sock
+  -ux_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 --chmod 0777 $MYSQL_TMP_DIR/$DIR_NAME/
 
 
@@ -121,8 +136,11 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME/ne/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+exec $MYSQLXTEST
+  --socket=$MYSQL_TMP_DIR/$DIR_NAME/ne/x.sock
+  -ux_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 
 --mkdir $MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
@@ -132,14 +150,18 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/long_dir
 --let $wait_for_unixsocket_status = undefined_value
 --source include/restart_mysqld.inc
 
---replace_regex /ERROR: UNIX Socket file name too long, size should be less or equal [0-9]+/ERROR: UNIX Socket file name too long, size should be less or equal LENGTH/
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--replace_regex /error: UNIX Socket file name too long, size should be less or equal [0-9]+/error: UNIX Socket file name too long, size should be less or equal LENGTH/
+exec $MYSQLXTEST
+  --socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/x.sock
+  -ux_root --password=''
+  --expect-error 2005
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --rmdir $MYSQL_TMP_DIR/$DIR_NAME
 --rmdir $MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
---remove_file $MYSQL_TMP_DIR/check_unixsocket.tmp
---remove_file $MYSQL_TMP_DIR/check_connection.tmp
---source include/xplugin_drop_user.inc
-
+--remove_file $MYSQL_TMP_DIR/$DIR_NAME.lock
+--source ../include/xplugin_cleanup.inc

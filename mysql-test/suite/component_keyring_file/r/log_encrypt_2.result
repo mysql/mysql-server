@@ -1,0 +1,163 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Kill the server
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+DROP TABLE IF EXISTS t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+SELECT * FROM t1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+# Kill the server
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+SELECT * FROM t1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+# Kill the server
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+SELECT * FROM t1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+DROP TABLE t1;
+# Kill the server
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+SET block_encryption_mode = 'aes-256-cbc';
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;
+INSERT INTO tde_db.t1 VALUES(0, 'abc');
+INSERT INTO tde_db.t1 VALUES(1, 'xyz');
+INSERT INTO tde_db.t1 VALUES(2, null);
+INSERT INTO tde_db.t1 VALUES(3, null);
+SELECT * FROM tde_db.t1 LIMIT 10;
+c1	c2
+0	abc
+1	xyz
+2	NULL
+3	NULL
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT * FROM tde_db.t1 LIMIT 10;
+c1	c2
+0	abc
+1	xyz
+2	NULL
+3	NULL
+# Mysqldump output
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `tde_db`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` char(50) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y';
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `t1` VALUES (0,'abc'),(1,'xyz'),(2,NULL),(3,NULL);
+# Redirecting mysqlpump output to MYSQL_TMP_DIR/mysqlpump_encrypt.sql
+DROP DATABASE tde_db;
+Pattern "ALTER INSTANCE ROTATE INNODB MASTER KEY" found
+# Loading tables from mysqlpump_encrypt.sql
+SELECT * FROM tde_db.t1 LIMIT 10;
+c1	c2
+0	abc
+1	xyz
+2	NULL
+3	NULL
+INSERT INTO tde_db.t1 VALUES(4, null);
+SELECT * FROM tde_db.t1 LIMIT 10;
+c1	c2
+0	abc
+1	xyz
+2	NULL
+3	NULL
+4	NULL
+DROP DATABASE tde_db;
+# Kill the server
+SET GLOBAL innodb_file_per_table=1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

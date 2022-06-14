@@ -1,0 +1,27 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+--echo
+select * from information_schema.engines
+  where engine = "PERFORMANCE_SCHEMA";
+
+--echo
+--echo # If the Performance Schema is disabled, then expect
+--echo # performance-schema-show-processlist = OFF
+--echo # regardless of its initial setting
+--echo
+select @@global.performance_schema_show_processlist;
+
+--echo
+--echo # If the Performance Schema is disabled, then setting
+--echo # performance-schema-show-processlist = ON
+--echo # succeeds, SHOW PROCESSLIST returns no data.
+--echo
+set @@global.performance_schema_show_processlist = ON;
+
+SHOW PROCESSLIST;
+
+--echo
+show global variables like "performance_schema";
+

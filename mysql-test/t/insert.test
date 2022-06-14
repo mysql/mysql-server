@@ -68,14 +68,20 @@ select * from t1;
 drop table t1;
 
 #
-# Test if insert ... select distinct
+# Test of insert ... select distinct
 #
 
 create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
 insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
-select * from t2;
+# Different ordering from SELECT DISTINCT leads to different (id,t2)
+# pairs. Check each column separately so that the test doesn't rely on
+# a particular ordering.
+--sorted_result
+select id from t2;
+--sorted_result
+select t2 from t2;
 drop table t1,t2;
 
 #
@@ -93,8 +99,6 @@ use test;
 # Test of wrong values for float data (bug #2082)
 #
 
-# PS gives sligthly different numbers for max-float/max-double
---disable_ps_protocol
 create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
 
 set @value= "aa";
@@ -140,7 +144,6 @@ insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@val
 --query_vertical select * from t1 where number =last_insert_id()
 
 drop table t1;
---enable_ps_protocol
 
 # End of 4.1 tests
 
@@ -909,4 +912,147 @@ INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
 --error ER_FIELD_SPECIFIED_TWICE
 INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29899614: SIG 6 -`M_PSI_BATCH_MODE == PSI_BATCH_MODE_NONE' | SQL/HANDLER.CC
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER, INDEX ( f1 ) );
+CREATE TABLE t2 ( f1 INTEGER );
+
+INSERT INTO t1 VALUES (10);
+
+INSERT INTO t2
+  SELECT STRAIGHT_JOIN *
+  FROM t1 AS alias1
+  WHERE EXISTS (
+    SELECT * FROM (
+      SELECT * FROM t1 JOIN t1 AS alias2 USING ( f1 )
+    ) AS alias3
+    WHERE alias1.f1 < 20
+  );
+
+# We don't care about the result, but close the tables to make sure that
+# we haven't inadvertedly left any of them in performance schema batch mode.
+FLUSH TABLES;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#13325: Deprecate VALUES syntax in INSERT ... ON DUPLICATE KEY UPDATE
+--echo #
+CREATE TABLE t(id INT PRIMARY KEY, x INT);
+INSERT INTO t VALUES (0, 0) ON DUPLICATE KEY UPDATE x = VALUES(x) + 1;
+INSERT INTO t VALUES (0, 0)
+       ON DUPLICATE KEY UPDATE x = (SELECT VALUES(x)+1 FROM t t1);
+SELECT VALUES(x) FROM t;
+INSERT INTO t VALUES (1, VALUES(x));
+DROP TABLE t;
+
+--echo # Bug#31417951: Assert `!bulk_insert_started' in sql/sql_insert.cc
+--echo #               on reexecuting prepared stmt
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  col_varchar VARCHAR(64) DEFAULT NULL,
+  col_blob BLOB,
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS
+SELECT col_blob, pk, col_varchar
+FROM t1
+WHERE pk between 4 and 5;
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  col_int INTEGER DEFAULT NULL,
+  col_blob BLOB,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (7,8, 0xEFBFBDEFBFBDEFBFBDEFBFBD004A);
+
+PREPARE stmt FROM
+"INSERT INTO v1 (col_blob, pk, col_varchar)
+ SELECT col_blob, col_int, col_blob
+ FROM t2
+ WHERE pk BETWEEN 7 AND 8
+ LIMIT 1";
+
+EXECUTE stmt;
+--error ER_DUP_ENTRY
+EXECUTE stmt;
+--error ER_DUP_ENTRY
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32169656: MYSQL GIVING QUERY RESULT FOR WRONG COLUMN
+--echo #
+
+CREATE TABLE t1 (
+  Ñ INTEGER,
+  N INTEGER,
+  a INTEGER,
+  b INTEGER,
+  c INTEGER,
+  d INTEGER,
+  e INTEGER,
+  f INTEGER,
+  g INTEGER,
+  h INTEGER,
+  i INTEGER,
+  j INTEGER,
+  k INTEGER,
+  l INTEGER,
+  m INTEGER,
+  na INTEGER,
+  o INTEGER,
+  p INTEGER,
+  q INTEGER,
+  r INTEGER,
+  s INTEGER,
+  t INTEGER,
+  u INTEGER,
+  v INTEGER,
+  w INTEGER,
+  x INTEGER,
+  y INTEGER,
+  z INTEGER,
+  aa INTEGER,
+  ab INTEGER,
+  ac INTEGER,
+  ad INTEGER
+);
+
+INSERT INTO t1 (Ñ, N) VALUES (1, 2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32774799: ASSERTION `ITEM->TYPE() != ITEM::FIELD_ITEM ||
+--echo #              !STATIC_CAST<CONST ITEM_FIELD *>(ITEM)->
+--echo #              FIELD->IS_HIDDEN_BY_SYSTEM()' FAILED.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, KEY k1 ((1)));
+# An empty VALUES list prompts server to create fields list.
+# The following query should not crash trying to resolve a
+# hidden field in the fields list. Note that the hidden field
+# is added to the table by the server.
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+# No hidden fields are created by the server. So this should not
+# be affected.
+INSERT INTO v1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INTEGER, b INTEGER AS ((1)) INVISIBLE, KEY k1(b));
+# User added hidden field. Should not be affected.
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
 DROP TABLE t1;

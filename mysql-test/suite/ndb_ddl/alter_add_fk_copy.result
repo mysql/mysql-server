@@ -1,0 +1,142 @@
+# Setup
+create table parent (
+pk int primary key,
+id1 int unique,
+id2 int unique,
+id3 int unique,
+ref1 int,
+ref2 int,
+ref3 int
+) engine ndb;
+create table child (
+pk int primary key,
+ref1 int,
+ref2 int
+) engine ndb;
+# Add self referential foreign keys
+# Add one with a user specified constraint name
+alter table parent
+add constraint fk_p1 foreign key ref1_idx(ref1) references parent (id1),
+algorithm = copy;
+# Verify the foreign keys on parent
+SHOW CREATE TABLE test.parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `id3` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  `ref3` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  UNIQUE KEY `id3` (`id3`),
+  KEY `fk_p1` (`ref1`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Add one with generated constraint name
+alter table parent
+add foreign key ref2_idx(ref2) references parent (id2),
+algorithm = copy;
+# Verify the foreign keys on parent
+SHOW CREATE TABLE test.parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `id3` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  `ref3` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  UNIQUE KEY `id3` (`id3`),
+  KEY `fk_p1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `parent_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Add foreign keys on child referencing parent
+# Add one with a user specified constraint name
+alter table child
+add constraint fk_c1 foreign key ref1_idx(ref1) references parent (id1),
+algorithm = copy;
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Add one with generated constraint name
+alter table child
+add foreign key ref2_idx(ref2) references parent (id2),
+algorithm = copy;
+# Verify the foreign keys on child
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Add a foreign key to the parent and verify that the
+# exisiting foreign key constraints are consistent
+alter table parent
+add foreign key ref3_idx(ref3) references parent (id3),
+algorithm = copy;
+# Verify the foreign keys on parent and child
+SHOW CREATE TABLE test.parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pk` int NOT NULL,
+  `id1` int DEFAULT NULL,
+  `id2` int DEFAULT NULL,
+  `id3` int DEFAULT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  `ref3` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `id1` (`id1`),
+  UNIQUE KEY `id2` (`id2`),
+  UNIQUE KEY `id3` (`id3`),
+  KEY `fk_p1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  KEY `ref3_idx` (`ref3`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
+  CONSTRAINT `parent_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
+  CONSTRAINT `parent_fk_2` FOREIGN KEY (`ref3`) REFERENCES `parent` (`id3`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+SHOW CREATE TABLE test.child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `pk` int NOT NULL,
+  `ref1` int DEFAULT NULL,
+  `ref2` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_c1` (`ref1`),
+  KEY `ref2_idx` (`ref2`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Foreign keys consistent across NDB and all connected mysqld's DDs
+# Cleanup
+drop table child, parent;

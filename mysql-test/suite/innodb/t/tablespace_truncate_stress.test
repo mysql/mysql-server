@@ -1,0 +1,75 @@
+# This testcase tries to put the InnoDB under stress of truncating and deleting
+# tablespaces, with a buffer pool eviction process run in parallel in some
+# cases.
+
+create table evict (
+  d mediumtext not null);
+create table t_temp (
+  d mediumtext not null);
+# Insert 1KB of data to t_temp
+insert into evict values (repeat('abcdefghij', 103));
+let $i = 3;
+# Insert 8KB of data to t_temp
+while ($i > 0)
+{
+  insert into t_temp select * from t_temp;
+  --dec $i
+}
+insert into evict select * from t_temp;
+# Insert 8MB of data to table evict, this should be higher than the
+# --innodb_buffer_pool_size specified in the .opt file
+let $i = 10;
+while ($i > 0)
+{
+  insert into evict select * from evict;
+  --dec $i
+}
+
+
+let $i = 100;
+while ($i > 0)
+{
+  # Try to just insert data to tables and drop.
+  create table t (d mediumtext not null);
+  insert into t select * from t_temp;
+  create temporary table t_t (d mediumtext not null);
+  insert into t_t select * from t_temp;
+  DROP TABLE t, t_t;
+
+  # Try to evict all BP before dropping.
+  create table t (d mediumtext not null);
+  insert into t select * from t_temp;
+  create temporary table t_t (d mediumtext not null);
+  insert into t_t select * from t_temp;
+  select sum(length(d)) from evict;
+  DROP TABLE t, t_t;
+
+  # Try to evict all BP in parallel to dropping tables.
+  create temporary table t_t (d mediumtext not null);
+  insert into t_t select * from t_temp;
+  create table t (d mediumtext not null);
+  insert into t select * from t_temp;
+  --connect(con1, localhost, root, '',)
+  --send select sum(length(d)) from evict;
+
+  --connection default
+  DROP TABLE t, t_t;
+  --connection con1
+  --reap
+  --disconnect con1
+
+  # Try to evict all BP in parallel to closing connection (which will truncate
+  # the temporary tablespace).
+  --connect(con1, localhost, root, '',)
+    create temporary table t_t (d mediumtext not null);
+    insert into t_t select * from t_temp;
+
+  --connection default
+  --send select sum(length(d)) from evict;
+  --disconnect con1
+  --reap
+
+  --dec $i
+}
+
+  DROP TABLE t_temp, evict;

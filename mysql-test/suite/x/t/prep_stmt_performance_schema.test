@@ -182,6 +182,4 @@ CREATE DATABASE xtest;
 --exec $MYSQLXTEST -ux_root --password='' --schema xtest --file=$MYSQL_TMP_DIR/prep_stmt_perf_schema.xpl 2>&1
 
 ## Cleanup
-DROP DATABASE xtest;
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

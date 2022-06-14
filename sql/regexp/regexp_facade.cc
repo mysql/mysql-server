@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,26 @@
 
 #include "sql/regexp/regexp_facade.h"
 
+#include <optional>
 #include <string>
 #include <tuple>
 
 #include "my_pointer_arithmetic.h"
+#include "sql/item_func.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
 namespace regexp {
+
+/**
+  When dealing with the binary character set, we tell ICU that we're using
+  CP-1252. This way, comparisons will happen as the user expects; each octet
+  value is equal to itself, and only to itself. And of course, CP-1252 is
+  known as "latin1" in MySQL.
+*/
+static const CHARSET_INFO *faux_binary_charset = &my_charset_latin1;
 
 /**
   Evaluates an expression to an output buffer, performing character set
@@ -84,11 +94,17 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
     size_t to_size = out->size() * sizeof(UChar);
     const char *start = s->ptr() + bytes_to_skip;
     uint errors;
+    const CHARSET_INFO *source_charset =
+        s->charset() == &my_charset_bin ? faux_binary_charset : s->charset();
     size_t converted_size = my_convert(to, to_size, regexp_lib_charset, start,
-                                       length, s->charset(), &errors);
+                                       length, source_charset, &errors);
 
-    if (errors > 0) return true;
-    DBUG_ASSERT(converted_size % sizeof(UChar) == 0);
+    if (errors > 0) {
+      report_conversion_error(regexp_lib_charset, start, length,
+                              source_charset);
+      return true;
+    }
+    assert(converted_size % sizeof(UChar) == 0);
     out->resize(converted_size / sizeof(UChar));
     return false;
   }
@@ -96,7 +112,7 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
   // However: val_str() may ignore the input argument,
   // and return a pointer to some other buffer.
   if (!is_aligned_to(s->ptr(), alignof(UChar))) {
-    DBUG_ASSERT(s != &aligned_str);
+    assert(s != &aligned_str);
     aligned_str.copy(*s);
     s = &aligned_str;
   }
@@ -125,14 +141,14 @@ bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
 }
 
 bool Regexp_facade::Reset(Item *subject_expr, int start) {
-  DBUG_ENTER("Regexp_facade::Reset");
+  DBUG_TRACE;
 
   if (m_engine == nullptr ||
       EvalExprToCharset(subject_expr, &m_current_subject, start - 1))
-    DBUG_RETURN(true);
+    return true;
 
   m_engine->Reset(m_current_subject);
-  DBUG_RETURN(false);
+  return false;
 }
 
 int Regexp_facade::ConvertCodePointToLibPosition(int position) const {
@@ -150,23 +166,23 @@ int Regexp_facade::ConvertLibPositionToCodePoint(int position) const {
   return cset->numchars(regexp_lib_charset, start, end);
 }
 
-Mysql::Nullable<bool> Regexp_facade::Matches(Item *subject_expr, int start,
-                                             int occurrence) {
-  DBUG_ENTER("Regexp_facade::Find");
+std::optional<bool> Regexp_facade::Matches(Item *subject_expr, int start,
+                                           int occurrence) {
+  DBUG_TRACE;
 
-  if (Reset(subject_expr, start)) DBUG_RETURN(Mysql::Nullable<bool>());
+  if (Reset(subject_expr, start)) return std::optional<bool>();
 
   /*
     As far as ICU is concerned, we always start on position 0, since we
     didn't convert the characters before 'start'.
   */
-  DBUG_RETURN(m_engine->Matches(0, occurrence));
+  return m_engine->Matches(0, occurrence);
 }
 
-Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
-                                         int occurrence, bool after_match) {
-  Nullable<bool> match_found = Matches(subject_expr, start, occurrence);
-  if (!match_found.has_value()) return Mysql::Nullable<int>();
+std::optional<int> Regexp_facade::Find(Item *subject_expr, int start,
+                                       int occurrence, bool after_match) {
+  std::optional<bool> match_found = Matches(subject_expr, start, occurrence);
+  if (!match_found.has_value()) return std::optional<int>();
   if (!match_found.value()) return 0;
   int native_start =
       after_match ? m_engine->EndOfMatch() : m_engine->StartOfMatch();
@@ -174,31 +190,44 @@ Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
 }
 
 String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
-                               int64_t start, int occurrence, String *result) {
-  DBUG_ENTER("Regexp_facade::Replace");
+                               int start, int occurrence, String *result) {
+  DBUG_TRACE;
   String replacement_buf;
   std::u16string replacement(MAX_FIELD_WIDTH, '\0');
 
-  if (EvalExprToCharset(replacement_expr, &replacement)) DBUG_RETURN(nullptr);
+  if (EvalExprToCharset(replacement_expr, &replacement)) return nullptr;
 
-  if (Reset(subject_expr)) DBUG_RETURN(nullptr);
+  if (Reset(subject_expr)) return nullptr;
 
   const std::u16string &result_buffer = m_engine->Replace(
       replacement, ConvertCodePointToLibPosition(start), occurrence);
 
-  uint conversion_error;
+  return AssignResult(pointer_cast<const char *>(result_buffer.data()),
+                      result_buffer.size() * sizeof(UChar), result);
+}
+
+String *Regexp_facade::AssignResult(const char *str, size_t length,
+                                    String *result) {
   size_t number_unaligned_characters;
-  if (result->needs_conversion(result->length(), regexp_lib_charset,
-                               result->charset(),
+  uint conversion_error;
+
+  // We still pretend that binary charset is cp1252. Here it's necessary since
+  // String::copy doesn't convert anything if the result charset is Binary, for
+  // good reason.
+  if (result->charset() == &my_charset_bin) {
+    if (result->copy(str, length, regexp_lib_charset, faux_binary_charset,
+                     &conversion_error))
+      return nullptr;
+  }
+
+  if (result->needs_conversion(length, regexp_lib_charset, result->charset(),
                                &number_unaligned_characters)) {
-    if (result->copy(pointer_cast<const char *>(result_buffer.data()),
-                     result_buffer.size() * sizeof(UChar), regexp_lib_charset,
-                     result->charset(), &conversion_error))
-      DBUG_RETURN(nullptr);
+    if (result->copy(str, length, regexp_lib_charset, result->charset(),
+                     &conversion_error))
+      return nullptr;
   } else
-    result->set(pointer_cast<const char *>(result_buffer.data()),
-                result_buffer.size() * sizeof(UChar), regexp_lib_charset);
-  DBUG_RETURN(result);
+    result->set(str, length, regexp_lib_charset);
+  return result;
 }
 
 String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
@@ -210,31 +239,22 @@ String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
   }
   int substart, sublength;
   std::tie(substart, sublength) = m_engine->MatchedSubstring();
-  if (m_engine->CheckError()) return nullptr;
 
-  uint conversion_error;
+  if (m_engine->CheckError()) return nullptr;
 
   auto substartptr =
       pointer_cast<const char *>(m_current_subject.c_str()) + substart;
 
-  size_t number_unaligned_characters;
-  if (result->needs_conversion(sublength, regexp_lib_charset, result->charset(),
-                               &number_unaligned_characters)) {
-    if (result->copy(substartptr, sublength, regexp_lib_charset,
-                     result->charset(), &conversion_error))
-      return nullptr;
-  } else
-    result->set(substartptr, sublength, regexp_lib_charset);
-  return result;
+  return AssignResult(substartptr, sublength, result);
 }
 
 bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
-  DBUG_ENTER("Regexp_facade::SetupEngine");
+  DBUG_TRACE;
 
   std::u16string pattern;
   if (EvalExprToCharset(pattern_expr, &pattern)) {
     m_engine = nullptr;
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Actually compile the regular expression.
@@ -243,7 +263,7 @@ bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
       opt_regexp_time_limit);
 
   // If something went wrong, an error was raised.
-  DBUG_RETURN(m_engine->IsError());
+  return m_engine->IsError();
 }
 
 }  // namespace regexp

@@ -3,7 +3,7 @@
 --connection con1
 --echo # In connection CON1
 
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 --send_eval $ddl_text
 
 --connection default

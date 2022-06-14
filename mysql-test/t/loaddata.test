@@ -748,7 +748,7 @@ CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO T
 SET @save_local_infile = @@local_infile;
 SET GLOBAL local_infile = OFF;
 
---error ER_NOT_ALLOWED_COMMAND
+--error ER_CLIENT_LOCAL_FILES_DISABLED
 LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
 
 SET GLOBAL local_infile = @save_local_infile;
@@ -772,3 +772,131 @@ LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NU
 DROP TABLE t3;
 --remove_file $MYSQLTEST_VARDIR/mysql
 --remove_file $file
+
+--echo #
+--echo # Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+--echo #              VIA SET
+--echo #
+--echo # Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+--echo # columns. However, if the column is set using the SET clause,
+--echo # LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+
+--error ER_NO_DEFAULT_FOR_FIELD
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+  FIELDS TERMINATED BY ','
+  (x, y);
+
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+  FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#30126375 - LOAD DATA WITH SET CLAUSE IGNORES NO_AUTO_VALUE_ON_ZERO
+--echo #                MODE
+--echo #-----------------------------------------------------------------------
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j INT);
+INSERT INTO t1 VALUES (0, 1);
+--echo # NO_AUTO_VALUE_ON_ZERO should prevent generation of new
+--echo # auto-increment value. So row should get 0 as id.
+SELECT * FROM t1;
+
+--echo # LOAD DATA from file with separators.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt'
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 SET j = 2;
+--echo # The above LOAD DATA should preserve id (i.e. 0) for the row.
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from file in fixed row format.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY ''
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' SET j = 3;
+--echo # The above LOAD DATA should preserve id (i.e. 0) for the row too.
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from XML file.
+--echo # Use mysqldump --xml to produce t1.xml file.
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/t1.xml" 2>&1
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/t1.xml" IGNORE INTO TABLE t1 SET j = 4;
+--echo # The above LOAD DATA should preserve id (i.e. 0) for the row as well.
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.xml
+
+--echo # Clean up.
+DROP TABLE t1;
+SET sql_mode=@old_sql_mode;
+
+--echo #
+--echo # Bug#31024266 LOAD DATA INFILE FAILS IF THERE IS A FUNCTIONAL INDEX.
+--echo #
+
+CREATE TABLE t1 (
+ json_col JSON , KEY json_col ((CAST(json_col -> '$' AS UNSIGNED ARRAY)))
+);
+INSERT INTO t1 VALUES('[]');
+
+--echo # LOAD DATA from file with separators.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' from t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from file in fixed row format.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from XML file.
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/t1.xml" 2>&1
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/t1.xml" INTO TABLE t1;
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.xml
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug 33714885 - LOAD DATA INFILE fails with ERROR 1054 :
+--echo #   Unknown column XXXX in 'where clause'
+--echo #
+
+CREATE TABLE t1 (c1 varchar(5), c2 varchar(5));
+INSERT INTO t1 VALUES ('a','a');
+CREATE TABLE t2 (d1 varchar(5), d2 varchar(5));
+INSERT INTO t2 VALUES ('a','a'), ('b','b');
+# dump t2 into a file
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t2.csv' FIELDS TERMINATED BY ',';
+DELETE FROM t2;
+
+# load data back into t2 with a condition
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t2.csv' INTO TABLE t2 FIELDS TERMINATED BY ',' SET d1=(SELECT 1 FROM t1 WHERE c1=d2);
+SELECT * FROM t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.csv
+
+DROP TABLE t1, t2;

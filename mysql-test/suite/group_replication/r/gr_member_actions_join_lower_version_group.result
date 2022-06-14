@@ -1,0 +1,50 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.");
+call mtr.add_suppression("This member joined a group on which all members do not support replication failover channels integration on Group Replication, as such it did reset its replication failover channels configuration to the default one.");
+SET SESSION sql_log_bin = 1;
+
+############################################################
+# 1. Bootstrap a group and increase the member actions
+#    configuration version.
+#    Simulate a member version lower than 8.0.25 which does
+#    not support member actions, thence does not include its
+#    configuration on the exchangeable data.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The version of replication_group_member_actions must be 3]
+SET @@GLOBAL.DEBUG='+d,group_replication_skip_add_member_actions_to_exchangeable_data';
+
+############################################################
+# 2. This member will not receive the members configuration
+#    thence will reset its configuration to the default one.
+[connection server2]
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+include/assert.inc [The version of replication_group_member_actions must be 2]
+include/start_group_replication.inc
+include/assert.inc [There must be two member actions]
+include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
+include/assert.inc [There must be one GR configuration version]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+include/assert_grep.inc [This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.]
+
+############################################################
+# 3. Clean up.
+[connection server1]
+SET @@GLOBAL.DEBUG='-d,group_replication_skip_add_member_actions_to_exchangeable_data';
+include/group_replication_end.inc

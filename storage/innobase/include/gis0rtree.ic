@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,25 +24,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file include gis0rtree.h
+/** @file include/gis0rtree.ic
  R-tree Inline code
 
  Created 2013/03/27 Jimmy Yang and Allen Lai
  ***********************************************************************/
 
 /** Sets the child node mbr in a node pointer. */
-UNIV_INLINE
-void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
-                      const buf_block_t *block,  /*!< in: buffer block */
-                      rtr_mbr_t *rtr_mbr, /*!< out: MBR encapsulates the page */
-                      mem_heap_t *heap)   /*!< in: heap for the memory
-                                          allocation */
+static inline void rtr_page_cal_mbr(
+    const dict_index_t *index, /*!< in: index */
+    const buf_block_t *block,  /*!< in: buffer block */
+    rtr_mbr_t *rtr_mbr,        /*!< out: MBR encapsulates the page */
+    mem_heap_t *heap)          /*!< in: heap for the memory
+                               allocation */
 {
   page_t *page;
   rec_t *rec;
   const byte *field;
   ulint len;
-  ulint *offsets = NULL;
+  ulint *offsets = nullptr;
   double bmin, bmax;
   double *amin;
   double *amax;
@@ -63,11 +63,11 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
 
   do {
     /* The mbr address is in the first field. */
-    field = rec_get_nth_field(rec, offsets, 0, &len);
+    field = rec_get_nth_field(index, rec, offsets, 0, &len);
 
     ut_ad(len == DATA_MBR_LEN);
     inc = 0;
-    for (int i = 0; i < SPDIMS; i++) {
+    for (uint i = 0; i < SPDIMS; i++) {
       bmin = mach_double_read(field + inc);
       bmax = mach_double_read(field + inc + sizeof(double));
 
@@ -82,22 +82,22 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
 
     rec = page_rec_get_next(rec);
 
-    if (rec == NULL) {
+    if (rec == nullptr) {
       break;
     }
   } while (!page_rec_is_supremum(rec));
 }
 
 /** push a nonleaf index node to the search path */
-UNIV_INLINE
-void rtr_non_leaf_stack_push(rtr_node_path_t *path, /*!< in/out: search path */
-                             page_no_t pageno,      /*!< in: pageno to insert */
-                             node_seq_t seq_no,  /*!< in: Node sequence num */
-                             ulint level,        /*!< in: index page level */
-                             page_no_t child_no, /*!< in: child page no */
-                             btr_pcur_t *cursor, /*!< in: position cursor */
-                             double mbr_inc)     /*!< in: MBR needs to be
-                                                 enlarged */
+static inline void rtr_non_leaf_stack_push(
+    rtr_node_path_t *path, /*!< in/out: search path */
+    page_no_t pageno,      /*!< in: pageno to insert */
+    node_seq_t seq_no,     /*!< in: Node sequence num */
+    ulint level,           /*!< in: index page level */
+    page_no_t child_no,    /*!< in: child page no */
+    btr_pcur_t *cursor,    /*!< in: position cursor */
+    double mbr_inc)        /*!< in: MBR needs to be
+                           enlarged */
 {
   node_visit_t insert_val;
 
@@ -121,8 +121,7 @@ void rtr_non_leaf_stack_push(rtr_node_path_t *path, /*!< in/out: search path */
 
 /** Allocates a new Split Sequence Number.
  @return new SSN id */
-UNIV_INLINE
-node_seq_t rtr_get_new_ssn_id(
+static inline node_seq_t rtr_get_new_ssn_id(
     dict_index_t *index) /*!< in/out: the index struct */
 {
   node_seq_t ssn;
@@ -135,8 +134,8 @@ node_seq_t rtr_get_new_ssn_id(
 }
 /** Get the current Split Sequence Number.
  @return current SSN id */
-UNIV_INLINE
-node_seq_t rtr_get_current_ssn_id(dict_index_t *index) /*!< in: index struct */
+static inline node_seq_t rtr_get_current_ssn_id(
+    dict_index_t *index) /*!< in: index struct */
 {
   node_seq_t ssn;
 
@@ -148,23 +147,21 @@ node_seq_t rtr_get_current_ssn_id(dict_index_t *index) /*!< in: index struct */
 }
 
 /** Sets pointer to the data and length in a field. */
-UNIV_INLINE
-void rtr_write_mbr(byte *data,           /*!< out: data */
-                   const rtr_mbr_t *mbr) /*!< in: data */
+static inline void rtr_write_mbr(byte *data,           /*!< out: data */
+                                 const rtr_mbr_t *mbr) /*!< in: data */
 {
   const double *my_mbr = reinterpret_cast<const double *>(mbr);
 
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     mach_double_write(data + i * sizeof(double), my_mbr[i]);
   }
 }
 
 /** Sets pointer to the data and length in a field. */
-UNIV_INLINE
-void rtr_read_mbr(const byte *data, /*!< in: data */
-                  rtr_mbr_t *mbr)   /*!< out: MBR */
+static inline void rtr_read_mbr(const byte *data, /*!< in: data */
+                                rtr_mbr_t *mbr)   /*!< out: MBR */
 {
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     (reinterpret_cast<double *>(mbr))[i] =
         mach_double_read(data + i * sizeof(double));
   }
@@ -178,18 +175,17 @@ void rtr_read_mbr(const byte *data, /*!< in: data */
 /** Returns the R-Tree node stored in the parent search path
  @return pointer to R-Tree cursor component in the parent path,
  NULL if parent path is empty or index is larger than num of items contained */
-UNIV_INLINE
-node_visit_t *rtr_get_parent_node(
+static inline node_visit_t *rtr_get_parent_node(
     btr_cur_t *btr_cur, /*!< in: persistent cursor */
     ulint level,        /*!< in: index level of buffer page */
     ulint is_insert)    /*!< in: whether it is insert */
 {
   ulint num;
   ulint tree_height = btr_cur->tree_height;
-  node_visit_t *found_node = NULL;
+  node_visit_t *found_node = nullptr;
 
   if (level >= tree_height) {
-    return (NULL);
+    return (nullptr);
   }
 
   mutex_enter(&btr_cur->rtr_info->rtr_path_mutex);
@@ -198,7 +194,7 @@ node_visit_t *rtr_get_parent_node(
 
   if (!num) {
     mutex_exit(&btr_cur->rtr_info->rtr_path_mutex);
-    return (NULL);
+    return (nullptr);
   }
 
   if (is_insert) {
@@ -227,20 +223,18 @@ node_visit_t *rtr_get_parent_node(
 
 /** Returns the R-Tree cursor stored in the parent search path
  @return pointer to R-Tree cursor component */
-UNIV_INLINE
-btr_pcur_t *rtr_get_parent_cursor(
+static inline btr_pcur_t *rtr_get_parent_cursor(
     btr_cur_t *btr_cur, /*!< in: persistent cursor */
     ulint level,        /*!< in: index level of buffer page */
     ulint is_insert)    /*!< in: whether insert operation */
 {
   node_visit_t *found_node = rtr_get_parent_node(btr_cur, level, is_insert);
 
-  return ((found_node) ? found_node->cursor : NULL);
+  return ((found_node) ? found_node->cursor : nullptr);
 }
 
 /** Reinitialize a R-Tree search info in btr_cur_t */
-UNIV_INLINE
-void rtr_info_reinit_in_cursor(
+static inline void rtr_info_reinit_in_cursor(
     /************************/
     btr_cur_t *cursor,   /*!< in/out: tree cursor */
     dict_index_t *index, /*!< in: index struct */

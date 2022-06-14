@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,9 @@
 
 #include <algorithm>
 #include <thread>
+#include <vector>
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "mysql/harness/mpmc_queue.h"
 #include "mysql/harness/mpsc_queue.h"
@@ -33,17 +34,38 @@
 template <typename T>
 class TestProducerConsumerQueue : public ::testing::Test {};
 
+// a move-only type to check the queue moves objects if requested
+template <class T>
+class MoveOnly {
+ public:
+  using value_type = T;
+  MoveOnly() : v_{} {}
+  MoveOnly(value_type v) : v_{v} {}
+
+  MoveOnly(const MoveOnly &) = delete;
+  MoveOnly &operator=(const MoveOnly &) = delete;
+  MoveOnly(MoveOnly &&) = default;
+  MoveOnly &operator=(MoveOnly &&) = default;
+
+  operator value_type() const { return v_; }
+
+ private:
+  value_type v_;
+};
+
 using ProducerConsumerQueueTypes =
-    ::testing::Types<mysql_harness::WaitingMPMCQueue<int>,
-                     mysql_harness::WaitingMPSCQueue<int>>;
-TYPED_TEST_CASE(TestProducerConsumerQueue, ProducerConsumerQueueTypes);
+    ::testing::Types<mysql_harness::MPMCQueue<int>,
+                     mysql_harness::MPSCQueue<int>,
+                     mysql_harness::MPMCQueue<MoveOnly<int>>,
+                     mysql_harness::MPSCQueue<MoveOnly<int>>>;
+TYPED_TEST_SUITE(TestProducerConsumerQueue, ProducerConsumerQueueTypes);
 
 /**
  * @test
  *       ensure a simple push doesn't block
  */
-TYPED_TEST(TestProducerConsumerQueue, spsc_push) {
-  TypeParam q;
+TYPED_TEST(TestProducerConsumerQueue, push) {
+  mysql_harness::WaitingQueueAdaptor<TypeParam> q;
 
   q.push(1);
 }
@@ -52,8 +74,8 @@ TYPED_TEST(TestProducerConsumerQueue, spsc_push) {
  * @test
  *       ensure a pop() returns the value that got pushed
  */
-TYPED_TEST(TestProducerConsumerQueue, spsc_pop) {
-  TypeParam q;
+TYPED_TEST(TestProducerConsumerQueue, pop) {
+  mysql_harness::WaitingQueueAdaptor<TypeParam> q;
 
   q.push(1);
 
@@ -64,12 +86,12 @@ TYPED_TEST(TestProducerConsumerQueue, spsc_pop) {
  * @test
  *       ensure try_pop doesn't block on empty queue
  */
-TYPED_TEST(TestProducerConsumerQueue, spsc_try_pop) {
-  TypeParam q;
+TYPED_TEST(TestProducerConsumerQueue, try_pop) {
+  mysql_harness::WaitingQueueAdaptor<TypeParam> q;
 
   q.push(1);
 
-  int item = 0;
+  typename TypeParam::value_type item = 0;
   EXPECT_EQ(q.try_pop(item), true);
   EXPECT_EQ(item, 1);
 
@@ -77,6 +99,29 @@ TYPED_TEST(TestProducerConsumerQueue, spsc_try_pop) {
   item = 0;
   EXPECT_EQ(q.try_pop(item), false);
   EXPECT_EQ(item, 0);
+}
+
+/**
+ * @test
+ *       ensure a simple push doesn't block
+ */
+TYPED_TEST(TestProducerConsumerQueue, enqueue) {
+  TypeParam q;
+
+  EXPECT_TRUE(q.enqueue(1));
+}
+
+/**
+ * @test
+ *       ensure a pop() returns the value that got pushed
+ */
+TYPED_TEST(TestProducerConsumerQueue, dequeue) {
+  TypeParam q;
+
+  EXPECT_TRUE(q.enqueue(1));
+
+  typename TypeParam::value_type d;
+  EXPECT_TRUE(q.dequeue(d));
 }
 
 class TestProducerConsumerQueueP
@@ -149,7 +194,7 @@ TEST_P(TestProducerConsumerQueueP, mpmc) {
 }
 
 // ::testing::Combine() would be nice, but doesn't work with sun-cc
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ManyToMany, TestProducerConsumerQueueP,
     ::testing::Values(
         std::make_tuple(1, 1), std::make_tuple(1, 2), std::make_tuple(1, 4),
@@ -237,7 +282,7 @@ TEST_P(TestProducerConsumerQueueSCP, mpsc) {
 }
 
 // ::testing::Combine() would be nice, but doesn't work with sun-cc
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ManyToSingle, TestProducerConsumerQueueSCP,
     ::testing::Values(std::make_tuple(1, 1), std::make_tuple(2, 1),
                       std::make_tuple(4, 1), std::make_tuple(8, 1),

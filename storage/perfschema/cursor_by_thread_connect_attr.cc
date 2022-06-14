@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ int cursor_by_thread_connect_attr::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       if (!make_row(thread, m_pos.m_index_2)) {
         m_next_pos.set_after(&m_pos);
         return 0;
@@ -74,7 +74,7 @@ int cursor_by_thread_connect_attr::rnd_pos(const void *pos) {
   set_position(pos);
 
   thread = global_thread_container.get(m_pos.m_index_1);
-  if (thread != NULL) {
+  if (thread != nullptr) {
     return make_row(thread, m_pos.m_index_2);
   }
 

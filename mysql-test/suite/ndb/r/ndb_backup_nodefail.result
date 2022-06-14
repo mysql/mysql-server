@@ -1,0 +1,20 @@
+Setup error insert to interleave DEFINE_BACKUP_REQ replies with NODE_FAILREP
+
+Start backup, that will fail due to node failure
+Wait for cluster to come up again
+Setup error insert to interleave START_BACKUP_REQ replies with NODE_FAILREP
+
+Start backup, that will fail due to node failure
+Wait for cluster to come up again
+Setup error insert to interleave STOP_BACKUP_REQ replies with NODE_FAILREP
+
+Start backup, that will fail due to node failure
+Wait for cluster to come up again
+Setup error insert so that backup fails in a controlled way
+
+Start backup, that will fail due to node failure
+Check that node failure was controlled (e.g. node recovers)
+Node recovered, ok
+Clear error
+
+Check backup ok

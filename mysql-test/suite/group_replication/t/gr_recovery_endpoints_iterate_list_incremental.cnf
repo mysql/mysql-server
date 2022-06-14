@@ -1,0 +1,9 @@
+!include ../my.cnf
+
+[mysqld.1]
+mysqlx=OFF
+admin-port=@mysqld.1.loose-mysqlx-port
+admin-address=127.0.0.1
+
+[mysqld.2]
+

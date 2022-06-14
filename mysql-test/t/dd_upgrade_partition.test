@@ -6,7 +6,7 @@
 # Innodb does not recognizes partition table created in linux from windows
 # due to difference in path format.
 --source include/not_windows.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");
@@ -27,7 +27,6 @@ call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
-call mtr.add_suppression("Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
 call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
 call mtr.add_suppression(".*The system table mysql.global_grants is missing.*");
@@ -79,7 +78,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 --echo # Start the server. Without fix, there is a segmentation fault in this step.
---exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
@@ -109,7 +108,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t1#P#p1.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t1#p#p1.json
---exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#P#p1.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#p#p1.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1#p#p1.json $JSON_FILE_PATH
@@ -117,7 +116,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t1#P#p0.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t1#p#p0.json
---exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#P#p0.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#p#p0.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1#p#p0.json $JSON_FILE_PATH

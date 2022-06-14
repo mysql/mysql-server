@@ -1,0 +1,126 @@
+###############################################################################
+# This test proves Group replication does not delete group_replication_applier
+# channel on start of group replication post clone.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Install clone plugin on server1.
+# 2. Set PRIVILEGE_CHECKS_USER for GR applier channel and recovery channels.
+#    Bootstrap server1 and add some data.
+# 3. Restart server 2 with a monitoring process (mysqld_safe) if needed.
+# 4. Setup the server so group replication starts on boot.
+#    Install the Clone plugin and set threshold to 1.
+# 5. Start GR and wait for server to reboot post clone.
+#    Joiner must fail to join the group.
+# 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.
+# 7. Cleanup.
+###############################################################################
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+
+--echo
+--echo # 1. Install clone plugin on server1.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo # 2. Set PRIVILEGE_CHECKS_USER for GR applier channel and recovery channels.
+--echo #    Bootstrap server1 and add some data.
+--echo
+
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+--echo
+--echo # 3. Restart server 2 with a monitoring process (mysqld_safe) if needed.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
+--let $plugin_list= $GROUP_REPLICATION
+--source include/spawn_monitoring_process.inc
+
+--echo
+--echo # 4. Setup the server so group replication starts on boot.
+--echo #    Install the Clone plugin and set threshold to 1.
+--echo
+
+--disable_query_log
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
+
+
+SET PERSIST group_replication_start_on_boot= OFF;
+--enable_query_log
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+SET GLOBAL group_replication_clone_threshold= 1;
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+
+--echo
+--echo # 5. Start GR and wait for server to reboot post clone.
+--echo #    Joiner must fail to join the group.
+--echo
+
+START GROUP_REPLICATION;
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.
+--echo
+
+--let $pcu_count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME= "group_replication_applier" AND PRIVILEGE_CHECKS_USER = "'root'@'localhost'"`
+--let $assert_text= PRIVILEGE_CHECKS_USER has correct value for channel group_replication_applier
+--let $assert_cond= $pcu_count = 1
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+
+--let $pcu_count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE (CHANNEL_NAME= "group_replication_applier" AND PRIVILEGE_CHECKS_USER = "'root'@'localhost'") OR (CHANNEL_NAME= "group_replication_recovery" AND PRIVILEGE_CHECKS_USER = "'root'@'localhost'")`
+--let $assert_text= PRIVILEGE_CHECKS_USER has correct value for channel group_replication_applier and group_replication_recovery
+--let $assert_cond= $pcu_count = 2
+--source include/assert.inc
+
+--echo
+--echo # 7. Cleanup.
+--echo
+
+--source include/clean_monitoring_process.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Clone removing all user data for provisioning: *");
+SET SESSION sql_log_bin = 1;
+
+--source include/group_replication_end.inc

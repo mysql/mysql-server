@@ -42,10 +42,7 @@ create table t1 (c1 double, c2 varchar(20));
 insert t1 values (121,"16");
 select c1 + c1 * (c2 / 100) as col from t1;
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
-# Floats are a bit different in PS
---disable_ps_protocol
 select * from t2;
---enable_ps_protocol
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -174,20 +171,35 @@ insert into t1 values
 (5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
 (3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
 (6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
---replace_result 27 26 25 26
+ANALYZE TABLE t1;
 explain select sum(b) s from t1 group by a;
+--sorted_result
 select sum(b) s from t1 group by a;
+--sorted_result
 select sum(b) s from t1 group by a having s <> 0;
+--sorted_result
 select sum(b) s from t1 group by a having s <> 0 order by s;
+--sorted_result
 select sum(b) s from t1 group by a having s <=> 0;
+--sorted_result
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 alter table t1 add key (a, b);
---replace_result 27 26 25 26
+ANALYZE TABLE t1;
 explain select sum(b) s from t1 group by a;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <> 0;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <> 0 order by s;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <=> 0;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 drop table t1;
 

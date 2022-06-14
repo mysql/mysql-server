@@ -30,7 +30,6 @@ disconnect con1;
 # after another then DROP TRIGGER.
 include/show_binlog_events.inc
 connection default;
-connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)
@@ -87,6 +86,31 @@ connection default;
 DROP TABLE t1;
 disconnect con1;
 disconnect con2;
+
+#########################################################################
+# Bug#30964944 - SHOW CREATE TRIGGER FAILS WHILE FLUSH TABLES WITH READ
+#                LOCK;
+#
+# Test case to verify that SHOW CREATE TRIGGER is allowed under FLUSH
+# TABLES WITH READ LOCK.
+#
+#########################################################################
+
+# This statement takes a global read lock.
+FLUSH TABLES WITH READ LOCK;
+
+# SHOW CREATE TRIGGER should not fail.
+SHOW CREATE TRIGGER sys.sys_config_insert_set_user;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+sys_config_insert_set_user	#	CREATE DEFINER=`mysql.sys`@`localhost` TRIGGER `sys_config_insert_set_user` BEFORE INSERT ON `sys_config` FOR EACH ROW BEGIN
+    IF @sys.ignore_sys_config_triggers != true AND NEW.set_by IS NULL THEN
+        SET NEW.set_by = USER();
+    END IF;
+END	#	#	#	#
+
+# Cleanup
+UNLOCK TABLES;
+
 #
 # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
 #                Even trigger names are case and accent insensitive. Test case to verify

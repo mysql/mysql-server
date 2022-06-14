@@ -1,7 +1,6 @@
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Got expected error (code 0)
 Tables_in_xtest
 books
@@ -111,13 +110,12 @@ active session is now 'temp'
 0 rows affected
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Got expected error (code 0)
 Tables_in_xtest
 books
 0 rows affected
 Field	Type	Null	Key	Default	Extra
-it_is_not_collection	int(11)	YES		null	NULL
+it_is_not_collection	int	YES		null	NULL
 0 rows affected
 closing session temp
 Mysqlx.Ok {
@@ -127,6 +125,7 @@ switched to session default
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 0 rows affected
 
 0 rows affected
@@ -175,4 +174,6 @@ Mysqlx_stmt_create_collection	3
 SHOW STATUS like 'Mysqlx_stmt_ensure_collection';
 Variable_name	Value
 Mysqlx_stmt_ensure_collection	15
-DROP SCHEMA IF EXISTS xtest;
+SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx';
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	20

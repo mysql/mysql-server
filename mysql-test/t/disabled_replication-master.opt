@@ -1,1 +1,1 @@
---skip-log-bin --server-id=0 --skip-log-slave-updates
+--skip-log-bin --server-id=0 --skip-log-replica-updates

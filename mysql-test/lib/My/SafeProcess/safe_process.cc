@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,7 @@ extern "C" void handle_signal(int sig) {
 }
 
 int main(int argc, char *const argv[]) {
-  char *const *child_argv = 0;
+  char *const *child_argv = nullptr;
   pid_t own_pid = getpid();
   pid_t parent_pid = getppid();
   bool nocore = false;
@@ -186,11 +186,11 @@ int main(int argc, char *const argv[]) {
   sa_abort.sa_flags = 0;
   sigemptyset(&sa_abort.sa_mask);
   /* Install signal handlers */
-  sigaction(SIGTERM, &sa, NULL);
-  sigaction(SIGSEGV, &sa, NULL);
-  sigaction(SIGINT, &sa, NULL);
-  sigaction(SIGCHLD, &sa, NULL);
-  sigaction(SIGABRT, &sa_abort, NULL);
+  sigaction(SIGTERM, &sa, nullptr);
+  sigaction(SIGSEGV, &sa, nullptr);
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGCHLD, &sa, nullptr);
+  sigaction(SIGABRT, &sa_abort, nullptr);
 
   sprintf(safe_process_name, "safe_process[%ld]", (long)own_pid);
 
@@ -208,7 +208,7 @@ int main(int argc, char *const argv[]) {
       } else if (strncmp(arg, "--parent-pid", 12) == 0) {
         /* Override parent_pid with a value provided by user */
         const char *start;
-        if ((start = strstr(arg, "=")) == NULL)
+        if ((start = strstr(arg, "=")) == nullptr)
           die("Could not find start of option value in '%s'", arg);
         start++; /* Step past = */
         if ((parent_pid = atoi(start)) == 0)
@@ -221,7 +221,7 @@ int main(int argc, char *const argv[]) {
         die("Unknown option: %s", arg);
     }
   }
-  if (!child_argv || *child_argv == 0) die("nothing to do");
+  if (!child_argv || *child_argv == nullptr) die("nothing to do");
 
   message("parent_pid: %d", static_cast<int>(parent_pid));
 
@@ -267,12 +267,21 @@ int main(int argc, char *const argv[]) {
 #if defined(HAVE_ASAN) && defined(HAVE_TIRPC)
 #include "asan_library_name.h"
     std::string ld_preload = "LD_PRELOAD=";
+    int lib_count = 0;
     if (strlen(asan_library_name) > 0) {
       ld_preload.append(asan_library_name);
-      ld_preload.append(":");
+      lib_count++;
     }
-    ld_preload.append("/lib64/libtirpc.so");
-    putenv(strdup(ld_preload.c_str()));
+    if (strlen(tirpc_library_name) > 0) {
+      if (lib_count > 0) {
+        ld_preload.append(":");
+      }
+      ld_preload.append(tirpc_library_name);
+      lib_count++;
+    }
+    if (lib_count > 0) {
+      putenv(strdup(ld_preload.c_str()));
+    }
 #endif
     if (execvp(child_argv[0], child_argv) < 0) die("Failed to exec child");
   }
@@ -291,7 +300,7 @@ int main(int argc, char *const argv[]) {
   /* Monitor loop */
   message("Started child: %d", static_cast<int>(child_pid));
 
-  while (1) {
+  while (true) {
     // Check if parent is still alive
     if (kill(parent_pid, 0) != 0) {
       print_message("Parent is not alive anymore, parent pid %d:",

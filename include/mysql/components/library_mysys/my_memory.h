@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
   @file components/library_mysys/my_memory.h
 */
 
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 
 /**
   Below functions are used by the components. And these functions will
@@ -34,12 +34,14 @@
   linked whenever any component needs these function.
 */
 
+#define MY_ZEROFILL 32 /** fill array with zero */
+
 /**
  Allocates size bytes of memory.
 
  @param key P_S key used for memory instrumentation
  @param size size bytes to allocate the memory
- @param flags used at the time of allocation
+ @param flags used at the time of allocation. Could be @ref MY_ZEROFILL
 */
 extern "C" void *my_malloc(PSI_memory_key key, size_t size, int flags);
 

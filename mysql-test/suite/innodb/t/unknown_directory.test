@@ -1,0 +1,278 @@
+--echo #
+--echo # Show what happens when --innodb-directories is modified
+--echo # to ignore previously known directories.
+--echo #
+
+SET default_storage_engine=InnoDB;
+
+--disable_query_log
+LET $MYSQLD_DATADIR=`select @@datadir`;
+LET $REMOTE_DIR=$MYSQL_TMP_DIR/remote_dir;
+LET $INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+--mkdir $REMOTE_DIR
+--enable_query_log
+
+--echo # Restart the engine to make the remote directory known.
+let $restart_parameters = restart: --innodb-directories=$REMOTE_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Create two tables in a known remote directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1(c1 INT) DATA DIRECTORY='$REMOTE_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t2(c1 INT, c2 INT) DATA DIRECTORY='$REMOTE_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Create a general tablespace in a known remote directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts1 ADD DATAFILE '$REMOTE_DIR/ts1.ibd';
+
+--echo #
+--echo # Create a table with a partitions in a known remote directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE tp1(c1 INT)
+       PARTITION BY HASH(c1) (
+         PARTITION p1 DATA DIRECTORY='$REMOTE_DIR',
+         PARTITION p2 DATA DIRECTORY='$REMOTE_DIR');
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp1;
+
+--echo #
+--echo # Create a table with a sub-partitions in a known remote directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE tsp1(c1 INT, c2 INT)
+       PARTITION BY RANGE(c1) SUBPARTITION BY HASH(c2) (
+         PARTITION p1 VALUES LESS THAN (10) (
+	   SUBPARTITION s1 DATA DIRECTORY='$REMOTE_DIR',
+	   SUBPARTITION s2 DATA DIRECTORY='$REMOTE_DIR'),
+	 PARTITION p2 VALUES LESS THAN (20) (
+	   SUBPARTITION s3 DATA DIRECTORY='$REMOTE_DIR',
+	   SUBPARTITION s4 DATA DIRECTORY='$REMOTE_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tsp1;
+
+--echo #
+--echo # Create two undo tablespaces in a known remote directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE UNDO TABLESPACE undo_003 ADD DATAFILE '$REMOTE_DIR/undo_003.ibu';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE UNDO TABLESPACE undo_004 ADD DATAFILE '$REMOTE_DIR/undo_004.ibu';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME LIKE 'undo_0%' ORDER BY NAME;
+
+--echo #
+--echo # Restart mysqld without the remote directory in --innodb-directories
+--echo # and with one of the undo tablespaces deleted.
+--echo #
+--source include/shutdown_mysqld.inc
+--remove_file $REMOTE_DIR/undo_004.ibu
+let $restart_parameters = restart;
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Validate the messages that should have been put into the error log at startup.
+--echo #
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Tablespace .*, name 'undo_004', file '.*undo_004.ibu' is missing;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Cannot find undo tablespace undo_004 with filename '.*' as indicated by the Data Dictionary. Did you move or delete this tablespace. Any undo logs in it cannot be used;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/t1 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/t2 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace ts1 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/tp1#p#p1 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/tp1#p#p2 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/tsp1#p#p1#sp#s1 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/tsp1#p#p1#sp#s2 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/tsp1#p#p1#sp#s3 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=The datafile '.*' for tablespace test/tsp1#p#p2#sp#s4 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories;
+--source include/search_pattern.inc
+
+--echo #
+--echo # Show the tablespaces
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tsp1;
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # If implicit tablespaces that exist in unknown locations are
+--echo # part of a TRUNCATE statement, they will be recreated in
+--echo # the default datadir location with a warning put into the error log.
+--echo #
+TRUNCATE TABLE t1;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+TRUNCATE TABLE t2;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # EXCHANGE PARTITION does not recreate tablespaces, so files in unknown
+--echo # locations will remain there through the exchange.
+--echo #
+ALTER TABLE tp1 EXCHANGE PARTITION p1 WITH TABLE t1;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp1;
+
+ALTER TABLE tsp1 EXCHANGE PARTITION s2 WITH TABLE t2;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tsp1;
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+TRUNCATE TABLE t2;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE tsp1 EXCHANGE PARTITION s4 WITH TABLE t2;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tsp1;
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # RENAME TABLE does not recreate tablespaces, so files in unknown
+--echo # locations will remain there. No error message is issued.
+--echo #
+RENAME TABLE t1 to temp1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE temp1;
+RENAME TABLE temp1 to t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+--echo #
+--echo # TRUNCATE the three tables to recreate all datafiles in the
+--echo # default datafile location.
+--echo #
+TRUNCATE TABLE t1;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+TRUNCATE TABLE t2;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+
+TRUNCATE TABLE tp1;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp1;
+
+TRUNCATE TABLE tsp1;
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tsp1;
+
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # Validate the messages that should have been put into the error log.
+--echo #
+let SEARCH_PATTERN=Cannot create a tablespace for table test/t1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Cannot create a tablespace for table test/t2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tp1#p#p2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tsp1#p#p1#sp#s1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tsp1#p#p2#sp#s3 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+--source include/search_pattern.inc
+
+--echo #
+--echo # Cleanup the IBD tablespaces
+--echo #
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE tp1;
+DROP TABLE tsp1;
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Cleanup the Undo IBU tablespaces
+--echo #
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME LIKE 'undo_0%' ORDER BY NAME;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_003;
+
+# Even though I_S.INNODB_TABLESPACES says undo_004 is active, it is actually missing.
+# See Bug#30871448: INNODB: INCONSISTENT AND INACCURATE MESSAGES WHEN A DATAFILE IS MISSING
+DROP UNDO TABLESPACE undo_004;
+
+--force-rmdir $REMOTE_DIR
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .* Tablespace .*, name 'undo_004', file '.*undo_004.ibu' is missing");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot find undo tablespace undo_004 with filename '.*' as indicated by the Data Dictionary. Did you move or delete this tablespace. Any undo logs in it cannot be used");
+call mtr.add_suppression("\\[Warning\\] .* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace");
+call mtr.add_suppression("\\[Warning\\] .* Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+--enable_query_log
+

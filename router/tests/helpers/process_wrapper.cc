@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,40 +25,49 @@
 #include "process_wrapper.h"
 
 #include <algorithm>
+#include <array>
 #include <thread>
 #include <vector>
 
-namespace {
+#include "mysql/harness/string_utils.h"  // split_string
 
-template <typename Out>
-void split_str(const std::string &input, Out result, char delim = ' ') {
-  std::stringstream ss;
-  ss.str(input);
-  std::string item;
-  while (std::getline(ss, item, delim)) {
-    *(result++) = item;
-  }
-}
+using namespace std::chrono_literals;
 
-std::vector<std::string> split_str(const std::string &s, char delim = ' ') {
-  std::vector<std::string> elems;
-  split_str(s, std::back_inserter(elems), delim);
-  return elems;
-}
+ProcessWrapper::ProcessWrapper(
+    const std::string &app_cmd, const std::vector<std::string> &args,
+    const std::vector<std::pair<std::string, std::string>> &env_vars,
+    bool include_stderr, OutputResponder &output_responder)
+    : launcher_(app_cmd.c_str(), args, env_vars, include_stderr),
+      output_responder_(output_responder) {
+  launcher_.start();
+  output_reader_ = std::thread([&]() {
+    while (!output_reader_stop_) {
+      try {
+        read_and_autorespond_to_output(5ms);
+        if (output_reader_stop_) break;
+        std::this_thread::sleep_for(5ms);
+      } catch (const std::system_error &e) {
+        if (std::errc::resource_unavailable_try_again == e.code() ||
+            std::errc::permission_denied == e.code()) {
+          continue;
+        }
 
-}  // namespace
-
-int ProcessWrapper::wait_for_exit(unsigned timeout_ms) {
-  if (exit_code_set_) return exit_code();
-
-  // wait_for_exit() is a convenient short name, but a little unclear with
-  // respect to what this function actually does
-  return wait_for_exit_while_reading_and_autoresponding_to_output(timeout_ms);
+        // if the underlying process went away we may get "Bad file descriptor"
+        // exception here
+        if (std::errc::bad_file_descriptor == e.code() ||
+            std::errc::invalid_argument == e.code()) {
+          break;
+        }
+        throw;
+      }
+    }
+  });
 }
 
 int ProcessWrapper::kill() {
   try {
     exit_code_ = launcher_.kill();
+    stop_output_reader_thread();
     exit_code_set_ = true;
   } catch (std::exception &e) {
     fprintf(stderr, "failed killing process %s: %s\n",
@@ -69,24 +78,25 @@ int ProcessWrapper::kill() {
   return exit_code_;
 }
 
-int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
-    unsigned timeout_ms) {
+int ProcessWrapper::wait_for_exit(std::chrono::milliseconds timeout) {
+  if (exit_code_set_) return exit_code();
   namespace ch = std::chrono;
-  ch::time_point<ch::steady_clock> timeout =
-      ch::steady_clock::now() + ch::milliseconds(timeout_ms);
+  auto step = 1ms;
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+    step *= 200;
+  }
+  ch::time_point<ch::steady_clock> timeout_timestamp =
+      ch::steady_clock::now() + timeout;
 
-  // We alternate between non-blocking read() and non-blocking waitpid() here.
-  // Reading/autoresponding must be done, because the child might be blocked on
-  // them (for example, it might block on password prompt), and therefore won't
-  // exit until we deal with its output.
+  // The child might be blocked on input/output (for example password prompt),
+  // so we wait giving a output thread a change to deal with it
   std::exception_ptr eptr;
   exit_code_set_ = false;
-  while (ch::steady_clock::now() < timeout) {
-    read_and_autorespond_to_output(0);
-
+  do {
     try {
       // throws std::runtime_error or std::system_error
-      exit_code_ = launcher_.wait(0);
+      exit_code_ = launcher_.wait(0ms);
       exit_code_set_ = true;
       break;
     } catch (const std::system_error &e) {
@@ -100,14 +110,16 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
       break;
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
+    std::this_thread::sleep_for(step);
+  } while (ch::steady_clock::now() < timeout_timestamp);
 
   if (exit_code_set_) {
     // the child exited, but there might still be some data left in the pipe to
     // read, so let's consume it all
-    while (read_and_autorespond_to_output(1, false))
-      ;  // false = disable autoresponder
+    stop_output_reader_thread();
+    while (read_and_autorespond_to_output(step,
+                                          /*autoresponder_enabled=*/false))
+      ;
     return exit_code_;
   } else {
     // we timed out waiting for child
@@ -116,9 +128,15 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
 }
 
 bool ProcessWrapper::expect_output(const std::string &str, bool regex,
-                                   unsigned timeout_ms) {
+                                   std::chrono::milliseconds timeout) {
+  auto step = 5ms;
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+    step *= 10;
+  }
+
   auto now = std::chrono::steady_clock::now();
-  auto until = now + std::chrono::milliseconds(timeout_ms);
+  auto until = now + timeout;
   for (;;) {
     if (output_contains(str, regex)) return true;
 
@@ -128,14 +146,13 @@ bool ProcessWrapper::expect_output(const std::string &str, bool regex,
       return false;
     }
 
-    if (!read_and_autorespond_to_output(
-            std::chrono::duration_cast<std::chrono::milliseconds>(until - now)
-                .count()))
-      return false;
+    std::this_thread::sleep_for(step);
   }
 }
 
 bool ProcessWrapper::output_contains(const std::string &str, bool regex) const {
+  std::lock_guard<std::mutex> output_lock(output_mtx_);
+
   if (!regex) {
     return execute_output_raw_.find(str) != std::string::npos;
   }
@@ -145,45 +162,48 @@ bool ProcessWrapper::output_contains(const std::string &str, bool regex) const {
 }
 
 bool ProcessWrapper::read_and_autorespond_to_output(
-    unsigned timeout_ms, bool autoresponder_enabled /*= true*/) {
-  char cmd_output[kReadBufSize] = {
-      0};  // hygiene (cmd_output[bytes_read] = 0 would suffice)
+    std::chrono::milliseconds timeout, bool autoresponder_enabled /*= true*/) {
+  std::array<char, kReadBufSize> read_buf = {0};
 
   // blocks until timeout expires (very likely) or until at least one byte is
   // read (unlikely) throws std::runtime_error on read error
   int bytes_read =
-      launcher_.read(cmd_output, kReadBufSize - 1,
-                     timeout_ms);  // cmd_output may contain multiple lines
+      launcher_.read(read_buf.data(), read_buf.size() - 1,
+                     timeout);  // cmd_output may contain multiple lines
 
-  if (bytes_read > 0) {
+  if (bytes_read <= 0) return false;
+
 #ifdef _WIN32
-    // On Windows we get \r\n instead of \n, so we need to get rid of the \r
-    // everywhere. As surprising as it is, WIN32API doesn't provide the
-    // automatic conversion:
-    // https://stackoverflow.com/questions/18294650/win32-changing-to-binary-mode-childs-stdout-pipe
-    {
-      char *new_end = std::remove(cmd_output, cmd_output + bytes_read, '\r');
-      *new_end = '\0';
-      bytes_read = new_end - cmd_output;
-    }
+  // On Windows we get \r\n instead of \n, so we need to get rid of the \r
+  // everywhere. As surprising as it is, WIN32API doesn't provide the
+  // automatic conversion:
+  // https://stackoverflow.com/questions/18294650/win32-changing-to-binary-mode-childs-stdout-pipe
+  {
+    char *new_end =
+        std::remove(read_buf.data(), read_buf.data() + bytes_read, '\r');
+    *new_end = '\0';
+    bytes_read = new_end - read_buf.data();
+  }
 #endif
 
+  std::string_view cmd_output(read_buf.data(), bytes_read);
+  {
+    std::lock_guard<std::mutex> output_lock(output_mtx_);
     execute_output_raw_ += cmd_output;
-
-    if (autoresponder_enabled)
-      autorespond_to_matching_lines(bytes_read, cmd_output);
-
-    return true;
-  } else {
-    return false;
   }
+
+  if (autoresponder_enabled) {
+    autorespond_to_matching_lines(cmd_output);
+  }
+
+  return true;
 }
 
-void ProcessWrapper::autorespond_to_matching_lines(int bytes_read,
-                                                   char *cmd_output) {
+void ProcessWrapper::autorespond_to_matching_lines(
+    const std::string_view &cmd_output) {
   // returned lines do not contain the \n
   std::vector<std::string> lines =
-      split_str(std::string(cmd_output, cmd_output + bytes_read), '\n');
+      mysql_harness::split_string(cmd_output, '\n');
   if (lines.empty()) return;
 
   // it is possible that the last line from the previous call did not match
@@ -213,13 +233,10 @@ void ProcessWrapper::autorespond_to_matching_lines(int bytes_read,
 }
 
 bool ProcessWrapper::autorespond_on_matching_pattern(const std::string &line) {
-  for (const auto &response : output_responses_) {
-    const std::string &output = response.first;
-    if (line.substr(0, output.size()) == output) {
-      const char *resp = response.second.c_str();
-      launcher_.write(resp, strlen(resp));
-      return true;
-    }
+  const std::string resp = output_responder_(line);
+  if (!resp.empty()) {
+    launcher_.write(resp.c_str(), resp.length());
+    return true;
   }
 
   return false;

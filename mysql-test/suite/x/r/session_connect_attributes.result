@@ -373,6 +373,7 @@ switched to session default
 connecting...
 active session is now 'test_session.IV.1_xtest_client_2'
 Login OK
+Verify [Global status variable "Mysqlx_sessions" needs to have a value of 2]
 [Assert that no session connect attributes were inserted]
 closing session test_session.IV.1_xtest_client_2
 Mysqlx.Ok {

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_BOX_H_INCLUDED
 #define SQL_GIS_BOX_H_INCLUDED
 
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class Box {
   Box &operator=(const Box &) = default;
   Box &operator=(Box &&) = default;
 
-  virtual ~Box() {}
+  virtual ~Box() = default;
 
   /// Gets the coordinate system.
   ///

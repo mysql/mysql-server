@@ -1,0 +1,677 @@
+#
+# WL#10358 Implement table value constructors: VALUES.
+#
+# Allowed: <table value constructor> with VALUES for a <simple table>
+# clause.
+VALUES ROW(1, 10);
+column_0	column_1
+1	10
+VALUES ROW(1, 10), ROW(2, 20);
+column_0	column_1
+1	10
+2	20
+# Allowed: Table value constructor inside a subquery.
+SELECT * FROM (VALUES ROW(1, 10)) AS dt;
+column_0	column_1
+1	10
+SELECT * FROM (VALUES ROW(1, 10), ROW(2, 20)) AS dt;
+column_0	column_1
+1	10
+2	20
+# Allowed: Both old and new syntax for INSERT statements.
+CREATE TABLE t0(a INT, b INT);
+INSERT INTO t0 VALUES(1, 10);
+INSERT INTO t0 VALUES ROW(2, 20), ROW(3, 30);
+SELECT * FROM t0;
+a	b
+1	10
+2	20
+3	30
+DELETE FROM t0;
+# Not allowed: Row value expressions of different degree.
+VALUES ROW(1, 10), ROW(2);
+ERROR 21S01: Column count doesn't match value count at row 2
+VALUES ROW(1), ROW(2, 20);
+ERROR 21S01: Column count doesn't match value count at row 2
+# Allowed: Explicit table clause. Equivalent to SELECT * FROM table_name.
+INSERT INTO t0 VALUES(1, 10);
+TABLE t0;
+a	b
+1	10
+SELECT * FROM (TABLE t0) AS dt;
+a	b
+1	10
+DELETE FROM t0;
+# Allowed: Using table value constructors with JOIN.
+INSERT INTO t0 VALUES(1, 10);
+SELECT * FROM t0 JOIN (VALUES ROW(2, 20)) AS dt;
+a	b	column_0	column_1
+1	10	2	20
+SELECT * FROM t0 JOIN (VALUES ROW(2, 20), ROW(3, 30)) AS dt;
+a	b	column_0	column_1
+1	10	2	20
+1	10	3	30
+SELECT * FROM t0
+LEFT JOIN (VALUES ROW(2, 20), ROW(3, 30)) AS dt
+ON t0.a = dt.column_0;
+a	b	column_0	column_1
+1	10	NULL	NULL
+SELECT * FROM t0
+LEFT JOIN (VALUES ROW(1, 20), ROW(1, 30)) AS dt
+ON t0.a = dt.column_0;
+a	b	column_0	column_1
+1	10	1	20
+1	10	1	30
+SELECT * FROM t0
+RIGHT JOIN (VALUES ROW(2, 20), ROW(3, 30)) AS dt
+ON t0.a = dt.column_0;
+a	b	column_0	column_1
+NULL	NULL	2	20
+NULL	NULL	3	30
+SELECT * FROM t0
+RIGHT JOIN (VALUES ROW(1, 20), ROW(1, 30)) AS dt
+ON t0.a = dt.column_0;
+a	b	column_0	column_1
+1	10	1	20
+1	10	1	30
+SELECT * FROM (VALUES ROW(1), ROW(2)) AS dt0
+NATURAL JOIN (VALUES ROW(1, 10), ROW(2, 20)) AS dt1;
+column_0	column_1
+1	10
+2	20
+SELECT * FROM (VALUES ROW(1), ROW(2)) AS dt0
+NATURAL JOIN (VALUES ROW(1, 10), ROW(1, 20)) AS dt1;
+column_0	column_1
+1	10
+1	20
+DELETE FROM t0;
+# Allowed: Using table value constructors with UNION.
+VALUES ROW(1) UNION SELECT 2;
+column_0
+1
+2
+VALUES ROW(1, 10) UNION SELECT 2, 20;
+column_0	column_1
+1	10
+2	20
+# Allowed: Scalar subquery as table value constructor value.
+VALUES ROW((SELECT 1), 10);
+column_0	column_1
+1	10
+# Allowed: Aggregation of types in table values constructor rows.
+VALUES ROW(1, 10), ROW(2, "20");
+column_0	column_1
+1	10
+2	20
+# Allowed: Creating tables from aggregated types.
+CREATE TABLE t AS VALUES ROW(1, 1.0, 1.0e0, DATE '2000-01-01', TIME '00:00:00',
+"1", POINT(1, 1), JSON_ARRAY('[1, "2"]'));
+DESC t;
+Field	Type	Null	Key	Default	Extra
+column_0	int	NO		0	
+column_1	decimal(2,1)	NO		0.0	
+column_2	double	NO		0	
+column_3	date	NO		NULL	
+column_4	time	NO		00:00:00	
+column_5	varchar(1)	NO			
+column_6	point	YES		NULL	
+column_7	json	YES		NULL	
+DROP TABLE t;
+CREATE TABLE t AS VALUES ROW(1, 1, 1, 1, 1, 1, 1, 1),
+ROW(1, 1.0, 1.0e0, DATE '2000-01-01', TIME '00:00:00',
+"1", POINT(1, 1), JSON_ARRAY('[1, "2"]'));
+DESC t;
+Field	Type	Null	Key	Default	Extra
+column_0	bigint	NO		0	
+column_1	decimal(2,1)	NO		0.0	
+column_2	double	NO		0	
+column_3	varchar(10)	NO			
+column_4	varchar(10)	NO			
+column_5	varchar(2)	NO			
+column_6	longblob	YES		NULL	
+column_7	longtext	YES		NULL	
+DROP TABLE t;
+# Allowed: Aggregation of types in table value constructor used in UNION.
+SELECT * FROM (VALUES ROW(1, 10), ROW(2, "20") UNION SELECT 3, 30) AS dt;
+column_0	column_1
+1	10
+2	20
+3	30
+# Note: Here the columns are named from the first SELECT instead.
+SELECT * FROM (SELECT 1, 10 UNION VALUES ROW(2, 20), ROW(3, "30")) AS dt;
+1	10
+1	10
+2	20
+3	30
+# Allowed: Reference an inner table in subqueries within rows.
+INSERT INTO t0 VALUES(1, 10);
+VALUES ROW((SELECT a FROM t0), 10);
+column_0	column_1
+1	10
+DELETE FROM t0;
+# Allowed: Use table value constructor for subquery predicates.
+INSERT INTO t0 VALUES(1, 10), (2, 20);
+SELECT * FROM t0 WHERE a IN (VALUES ROW(1));
+a	b
+1	10
+SELECT * FROM t0 WHERE a IN (VALUES ROW(1), ROW(2));
+a	b
+1	10
+2	20
+SELECT * FROM t0 WHERE (a, b) IN (VALUES ROW(1, 10));
+a	b
+1	10
+SELECT * FROM t0 WHERE (a, b) IN (VALUES ROW(1, 10), ROW(2, 20));
+a	b
+1	10
+2	20
+SELECT * FROM t0 WHERE a NOT IN (VALUES ROW(1));
+a	b
+2	20
+SELECT * FROM t0 WHERE a NOT IN (VALUES ROW(1), ROW(2));
+a	b
+SELECT * FROM t0 WHERE (a, b) NOT IN (VALUES ROW(1, 10));
+a	b
+2	20
+SELECT * FROM t0 WHERE (a, b) NOT IN (VALUES ROW(1, 10), ROW(2, 20));
+a	b
+SELECT * FROM t0 WHERE a >ALL (VALUES ROW(1));
+a	b
+2	20
+SELECT * FROM t0 WHERE a >ALL (VALUES ROW(1), ROW(2));
+a	b
+SELECT * FROM t0 WHERE a <ANY (VALUES ROW(1));
+a	b
+SELECT * FROM t0 WHERE a <ANY (VALUES ROW(1), ROW(2));
+a	b
+1	10
+DELETE FROM t0;
+# Allowed: Table value constructor with empty rows in INSERT.
+CREATE TABLE t1(a INT DEFAULT 1, b INT DEFAULT 10);
+INSERT INTO t1 VALUES ROW();
+SELECT * FROM t1;
+a	b
+1	10
+DROP TABLE t1;
+# Not allowed: Table value constructor with empty rows outside INSERT.
+VALUES ROW();
+ERROR HY000: Each row of a VALUES clause must have at least one column, unless when used as source in an INSERT statement.
+# Allowed: Using non-deterministic functions.
+VALUES ROW(RAND(0), RAND(1));
+column_0	column_1
+0.15522042769493574	0.40540353712197724
+# Allowed: Outer references.
+INSERT INTO t0 VALUES(1, 10), (2, 20);
+SELECT * FROM t0 WHERE b IN (VALUES ROW(a*10));
+a	b
+1	10
+2	20
+DELETE FROM t0;
+# Allowed: NULL in table value constructor.
+VALUES ROW(1, NULL);
+column_0	column_1
+1	NULL
+VALUES ROW(1, 10), ROW(2, NULL);
+column_0	column_1
+1	10
+2	NULL
+INSERT INTO t0 VALUES(1, 10);
+SELECT * FROM t0 WHERE (a, b) IN (VALUES ROW(1, NULL));
+a	b
+INSERT INTO t0 VALUES ROW(1, NULL);
+SELECT * FROM t0;
+a	b
+1	10
+1	NULL
+CREATE TABLE t AS VALUES ROW(1, NULL);
+DESC t;
+Field	Type	Null	Key	Default	Extra
+column_0	int	NO		0	
+column_1	binary(0)	YES		NULL	
+DELETE FROM t0;
+DROP TABLE t;
+# Allowed: Non-deterministic functions with CTE.
+WITH v AS (VALUES ROW(RAND(0)), ROW(RAND(1)))
+SELECT * FROM v;
+column_0
+0.15522042769493574
+0.40540353712197724
+WITH v AS (VALUES ROW(RAND(0)), ROW(RAND(1)))
+SELECT * FROM v AS v1 JOIN v AS v2;
+column_0	column_0
+0.15522042769493574	0.15522042769493574
+0.15522042769493574	0.40540353712197724
+0.40540353712197724	0.15522042769493574
+0.40540353712197724	0.40540353712197724
+# Allowed: INSERT .. ON DUPLICATE KEY UPDATE with table value
+# constructor.
+CREATE TABLE t(a INT PRIMARY KEY, b INT);
+INSERT INTO t VALUES(1, 10);
+INSERT INTO t SELECT * FROM (VALUES ROW(1, 11), ROW(2, 20)) AS n(a, b)
+ON DUPLICATE KEY UPDATE b= n.b;
+SELECT * FROM t;
+a	b
+1	11
+2	20
+DROP TABLE t;
+# Not allowed: Table value constructor with DEFAULT if not part of INSERT
+# statement.
+VALUES ROW(DEFAULT);
+ERROR HY000: A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement.
+SELECT * FROM (VALUES ROW(DEFAULT)) AS dt;
+ERROR HY000: A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement.
+CREATE TABLE t(a INT DEFAULT 1, b INT);
+INSERT INTO t VALUES ROW(DEFAULT, 10);
+INSERT INTO t VALUES ROW(DEFAULT, DEFAULT);
+INSERT INTO t VALUES ROW(DEFAULT(a), 20);
+INSERT INTO t VALUES ROW(DEFAULT(a) + 1, 30);
+SELECT * FROM t;
+a	b
+1	10
+1	NULL
+1	20
+2	30
+DROP TABLE t;
+DROP TABLE t0;
+Coverage for multiple data types (more than one row required)
+VALUES ROW(1, 1.0, 1.0E0, '1', DATE'2000-01-01', TIME'00:00:01',
+TIMESTAMP'2000-01-01 00:00:01', CAST('{"j":"1"}' AS JSON)),
+ROW(2, 2.0, 2.0E0, '2', DATE'2000-01-02', TIME'00:00:02',
+TIMESTAMP'2000-01-01 00:00:01', CAST('{"j":"2"}' AS JSON));
+column_0	column_1	column_2	column_3	column_4	column_5	column_6	column_7
+1	1.0	1	1	2000-01-01	00:00:01	2000-01-01 00:00:01	{"j": "1"}
+2	2.0	2	2	2000-01-02	00:00:02	2000-01-01 00:00:01	{"j": "2"}
+# View tests
+CREATE VIEW v AS VALUES;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+CREATE VIEW v AS VALUES ROW(1);
+SELECT * FROM v;
+column_0
+1
+SELECT column_0 FROM v;
+column_0
+1
+SELECT column_x FROM v;
+ERROR 42S22: Unknown column 'column_x' in 'field list'
+DROP VIEW v;
+CREATE VIEW v(x) AS VALUES ROW(1);
+SELECT * FROM v;
+x
+1
+SELECT x FROM v;
+x
+1
+SELECT column_x FROM v;
+ERROR 42S22: Unknown column 'column_x' in 'field list'
+DROP VIEW v;
+CREATE VIEW v AS SELECT * FROM (VALUES ROW(1)) AS t1;
+SELECT * FROM v;
+column_0
+1
+SELECT column_0 FROM v;
+column_0
+1
+SELECT column_x FROM v;
+ERROR 42S22: Unknown column 'column_x' in 'field list'
+DROP VIEW v;
+CREATE VIEW v AS SELECT * FROM (VALUES ROW(1)) AS t1(x);
+SELECT * FROM v;
+x
+1
+SELECT x FROM v;
+x
+1
+SELECT column_x FROM v;
+ERROR 42S22: Unknown column 'column_x' in 'field list'
+DROP VIEW v;
+CREATE VIEW v(x) AS SELECT * FROM (VALUES ROW(1)) AS t1(z);
+SELECT * FROM v;
+x
+1
+SELECT x FROM v;
+x
+1
+SELECT column_x FROM v;
+ERROR 42S22: Unknown column 'column_x' in 'field list'
+DROP VIEW v;
+CREATE VIEW v(x, y) AS VALUES ROW(1,2), ROW(2,4), ROW(3,6);
+SELECT * FROM v;
+x	y
+1	2
+2	4
+3	6
+SELECT x, y FROM v;
+x	y
+1	2
+2	4
+3	6
+SELECT MIN(x), MAX(y), SUM(x), SUM(y) FROM v;
+MIN(x)	MAX(y)	SUM(x)	SUM(y)
+1	6	6	12
+CREATE TABLE t(a INTEGER, b INTEGER);
+INSERT INTO t VALUES(1, 10), (2, 20);
+SELECT * FROM v JOIN t ON v.x=t.a;
+x	y	a	b
+1	2	1	10
+2	4	2	20
+SELECT * FROM v LEFT JOIN t ON v.x=t.a;
+x	y	a	b
+1	2	1	10
+2	4	2	20
+3	6	NULL	NULL
+DROP TABLE t;
+DROP VIEW v;
+#
+# Bug #30192171 - WL#10358: SIG6 IN TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
+#
+set sql_mode='';
+SELECT DISTINCT SQL_BIG_RESULT col_json, col_char
+FROM ( VALUES
+ROW( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', NULL, NULL ),
+ROW( NULL, NULL, '"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"' )
+) AS t1 ( col_char, col_time, col_json )
+GROUP BY col_time ORDER BY col_json;
+col_json	col_char
+NULL	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+set sql_mode=default;
+#
+# Bug#30244935 - Sig6 in SELECT_LEX_UNIT::check_materialized_derived...
+#
+CREATE TABLE t (col INTEGER);
+SELECT t1.col
+FROM (TABLE t) AS t1,
+(SELECT * FROM (VALUES ROW('Y')) AS sq_t1, t) AS t2;
+col
+DROP TABLE t;
+#
+# Bug#30273258: Sig11 in Item_values_column::is_null() ...
+#
+CREATE TABLE t1(x VARCHAR(10));
+CREATE TABLE t2(y VARCHAR(10));
+INSERT INTO t1 VALUES('B');
+INSERT INTO t2 VALUES('B');
+SELECT 1
+FROM (TABLE t1) AS table1 JOIN t2 AS table2
+ON table1.x = table2.y
+WHERE table1.x IN (VALUES ROW('B'));
+1
+1
+SELECT 1
+FROM (TABLE t1) AS table1 JOIN t2 AS table2
+ON table1.x = table2.y
+WHERE table1.x IN (VALUES ROW(NULL));
+1
+SELECT 1
+FROM (TABLE t1) AS table1 JOIN t2 AS table2
+ON table1.x = table2.y
+WHERE table1.x IN (VALUES ROW(NULL), ROW('B'));
+1
+1
+DROP TABLE t1, t2;
+#
+# Bug#30602659: TABLE VALUE CONSTRUCTOR IGNORES LIMIT CLAUSE
+#
+VALUES ROW(1), ROW(2) LIMIT 1;
+column_0
+1
+(VALUES ROW(1), ROW(2), ROW(3), ROW(4), ROW(5)) LIMIT 2 OFFSET 3;
+column_0
+4
+5
+CREATE TABLE t1 VALUES ROW(1), ROW(2), ROW(3), ROW(4), ROW(5);
+TABLE t1 LIMIT 5 OFFSET 5;
+column_0
+DROP TABLE t1;
+# Bug#31387510: Error with VALUES() query
+VALUES ROW(1) ORDER BY 1;
+column_0
+1
+VALUES ROW(1) ORDER BY 1 DESC;
+column_0
+1
+(VALUES ROW(1)) ORDER BY 1;
+column_0
+1
+(VALUES ROW(1)) ORDER BY 1 DESC;
+column_0
+1
+VALUES ROW(1),ROW(2) ORDER BY 1;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY 1 DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY 1;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY 1 DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY 2;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY 2 DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY 2;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY 2 DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1) ORDER BY '1';
+column_0
+1
+VALUES ROW(1) ORDER BY '1' DESC;
+column_0
+1
+(VALUES ROW(1)) ORDER BY '1';
+column_0
+1
+(VALUES ROW(1)) ORDER BY '1' DESC;
+column_0
+1
+VALUES ROW(1),ROW(2) ORDER BY '1';
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY '1' DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY '1';
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY '1' DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY '2';
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY '2' DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY '2';
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY '2' DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1),ROW(2) ORDER BY 1;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY 1 DESC;
+column_0
+1
+2
+VALUES ROW(1) ORDER BY (SELECT 1);
+column_0
+1
+VALUES ROW(1) ORDER BY (SELECT 1) DESC;
+column_0
+1
+(VALUES ROW(1)) ORDER BY (SELECT 1);
+column_0
+1
+(VALUES ROW(1)) ORDER BY (SELECT 1) DESC;
+column_0
+1
+VALUES ROW(1),ROW(2) ORDER BY (SELECT 1);
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY (SELECT 1) DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT 1);
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT 1) DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT 2);
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT 2) DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT 2);
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT 2) DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1) ORDER BY column_0;
+column_0
+1
+VALUES ROW(1) ORDER BY column_0 DESC;
+column_0
+1
+(VALUES ROW(1),ROW(2)) ORDER BY column_0;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY column_0 DESC;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY column_0;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY column_0 DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY column_0;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY column_0 DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY column_1;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY column_1 DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY column_1;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY column_1 DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1) ORDER BY (SELECT column_0);
+column_0
+1
+VALUES ROW(1) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0);
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY (SELECT column_0);
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0);
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT column_1);
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT column_1) DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT column_1);
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT column_1) DESC;
+column_0	column_1
+1	9
+2	4
+# Bug#32783943: Item_field::fix_outer_field: assertion `cur_query_block
+CREATE TABLE t (w INTEGER);
+SELECT (VALUES ROW(1) ORDER BY t) AS a FROM t;
+ERROR 42S22: Unknown column 't' in 'order clause'
+SELECT (VALUES ROW(1) ORDER BY w) AS a FROM t;
+a
+DROP TABLE t;
+#
+# BUG#32858783 ASSERTION `NULLPTR != DYNAMIC_CAST<TARGET>(ARG)' FAILED.
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+INSERT INTO v1 VALUES() AS c(a);
+INSERT INTO v1 VALUES(5) AS c(a);
+SELECT * FROM v1;
+a
+NULL
+5
+DROP VIEW v1;
+DROP TABLE t1;

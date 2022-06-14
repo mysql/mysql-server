@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,57 +35,53 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Wrapper for memcpy(3).  Copy memory area when the source and
 target are not overlapping.
-@param[in,out]	dest	copy to
-@param[in]	src	copy from
-@param[in]	n	number of bytes to copy
+@param[in,out]  dest    copy to
+@param[in]      src     copy from
+@param[in]      n       number of bytes to copy
 @return dest */
-UNIV_INLINE
-void *ut_memcpy(void *dest, const void *src, ulint n) {
+static inline void *ut_memcpy(void *dest, const void *src, ulint n) {
   return (memcpy(dest, src, n));
 }
 
 /** Wrapper for memmove(3).  Copy memory area when the source and
 target are overlapping.
-@param[in,out]	dest	Move to
-@param[in]	src	Move from
-@param[in]	n	number of bytes to move
+@param[in,out]  dest    Move to
+@param[in]      src     Move from
+@param[in]      n       number of bytes to move
 @return dest */
-UNIV_INLINE
-void *ut_memmove(void *dest, const void *src, ulint n) {
+static inline void *ut_memmove(void *dest, const void *src, ulint n) {
   return (memmove(dest, src, n));
 }
 
 /** Wrapper for memcmp(3).  Compare memory areas.
-@param[in]	str1	first memory block to compare
-@param[in]	str2	second memory block to compare
-@param[in]	n	number of bytes to compare
+@param[in]      str1    first memory block to compare
+@param[in]      str2    second memory block to compare
+@param[in]      n       number of bytes to compare
 @return negative, 0, or positive if str1 is smaller, equal,
                 or greater than str2, respectively. */
-UNIV_INLINE
-int ut_memcmp(const void *str1, const void *str2, ulint n) {
+static inline int ut_memcmp(const void *str1, const void *str2, ulint n) {
   return (memcmp(str1, str2, n));
 }
 
 /** Wrapper for strcpy(3).  Copy a NUL-terminated string.
-@param[in,out]	dest	Destination to copy to
-@param[in]	src	Source to copy from
+@param[in,out]  dest    Destination to copy to
+@param[in]      src     Source to copy from
 @return dest */
-UNIV_INLINE
-char *ut_strcpy(char *dest, const char *src) { return (strcpy(dest, src)); }
+static inline char *ut_strcpy(char *dest, const char *src) {
+  return (strcpy(dest, src));
+}
 
 /** Wrapper for strlen(3).  Determine the length of a NUL-terminated string.
-@param[in]	str	string
+@param[in]      str     string
 @return length of the string in bytes, excluding the terminating NUL */
-UNIV_INLINE
-ulint ut_strlen(const char *str) { return (strlen(str)); }
+static inline ulint ut_strlen(const char *str) { return (strlen(str)); }
 
 /** Wrapper for strcmp(3).  Compare NUL-terminated strings.
-@param[in]	str1	first string to compare
-@param[in]	str2	second string to compare
+@param[in]      str1    first string to compare
+@param[in]      str2    second string to compare
 @return negative, 0, or positive if str1 is smaller, equal,
                 or greater than str2, respectively. */
-UNIV_INLINE
-int ut_strcmp(const char *str1, const char *str2) {
+static inline int ut_strcmp(const char *str1, const char *str2) {
   return (strcmp(str1, str2));
 }
 
@@ -94,11 +90,11 @@ int ut_strcmp(const char *str1, const char *str2) {
  least (2 * raw_size + 1) if you do not want this to happen. Returns the
  actual number of characters written to "hex" (including the NUL).
  @return number of chars written */
-UNIV_INLINE
-ulint ut_raw_to_hex(const void *raw, /*!< in: raw data */
-                    ulint raw_size,  /*!< in: "raw" length in bytes */
-                    char *hex,       /*!< out: hex string */
-                    ulint hex_size)  /*!< in: "hex" size in bytes */
+static inline ulint ut_raw_to_hex(
+    const void *raw, /*!< in: raw data */
+    ulint raw_size,  /*!< in: "raw" length in bytes */
+    char *hex,       /*!< out: hex string */
+    ulint hex_size)  /*!< in: "hex" size in bytes */
 {
 #ifdef WORDS_BIGENDIAN
 
@@ -179,12 +175,12 @@ ulint ut_raw_to_hex(const void *raw, /*!< in: raw data */
  (including the terminating NUL). If buf_size is too small then the
  trailing bytes from "str" are discarded.
  @return number of bytes that were written */
-UNIV_INLINE
-ulint ut_str_sql_format(const char *str, /*!< in: string */
-                        ulint str_len,   /*!< in: string length in bytes */
-                        char *buf,       /*!< out: output buffer */
-                        ulint buf_size)  /*!< in: output buffer size
-                                         in bytes */
+static inline ulint ut_str_sql_format(
+    const char *str, /*!< in: string */
+    ulint str_len,   /*!< in: string length in bytes */
+    char *buf,       /*!< out: output buffer */
+    ulint buf_size)  /*!< in: output buffer size
+                     in bytes */
 {
   ulint str_i;
   ulint buf_i;
@@ -200,13 +196,13 @@ ulint ut_str_sql_format(const char *str, /*!< in: string */
         buf[buf_i] = '\'';
         buf_i++;
       }
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case 2:
     case 1:
 
       buf[buf_i] = '\0';
       buf_i++;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case 0:
 
       return (buf_i);
@@ -245,7 +241,7 @@ ulint ut_str_sql_format(const char *str, /*!< in: string */
         }
         buf[buf_i] = ch;
         buf_i++;
-        /* FALLTHROUGH */
+        [[fallthrough]];
       default:
 
         buf[buf_i] = ch;

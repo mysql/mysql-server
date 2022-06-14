@@ -48,17 +48,19 @@ insert into v3(b) select b from t2;
 Warnings:
 Warning	1048	Column 'a' cannot be null
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1 ;
 a	b
-10002	NULL
 10	NULL
 1000	NULL
+10002	NULL
 select * from t2 ;
 a	b
-1000	2000
-10	NULL
-2000	NULL
 0	NULL
+10	NULL
+1000	2000
+2000	NULL
 delete from v3;
 ERROR HY000: Can not delete from join view 'test.v3'
 delete v3,t1 from v3,t1;
@@ -81,20 +83,20 @@ deallocate prepare stmt1;
 select * from v3 ;
 a	b
 100	0
-101	0
-300	0
-301	0
 100	10
-101	10
-300	10
-301	10
 100	1000
-101	1000
-300	1000
-301	1000
 100	2000
+101	0
+101	10
+101	1000
 101	2000
+300	0
+300	10
+300	1000
 300	2000
+301	0
+301	10
+301	1000
 301	2000
 drop view v3;
 drop tables t1,t2;

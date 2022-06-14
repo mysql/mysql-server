@@ -13,13 +13,12 @@
 --source ../include/gr_change_master_hidden.inc
 
 --echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
---let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging.err
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $grep_pattern= master_password
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
 --echo # The password value 'unique_password' is not logged in the error log.
---let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging.err
 --let $grep_pattern= unique_password
 --let $grep_output= print_count
 --source include/grep_pattern.inc

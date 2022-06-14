@@ -1,0 +1,128 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table t1 on server1 with binlog disabled and bootstrap the
+#    group with clone plugin installed
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Create table t1 on server2 with binlog disabled, install clone
+#    plugin and join to the group
+[connection server2]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET sql_log_bin=1;
+include/start_group_replication.inc
+
+# 3. Setup Server3.
+#    Set the attempts of rejoin to 3 so we validate the process wont
+#    block.
+#    Reduce stop_component timeout so recovery module stops faster.
+#    Install and setup clone.
+[connection server3]
+include/spawn_monitoring_process.inc
+SET PERSIST group_replication_start_on_boot= ON;
+SET PERSIST group_replication_autorejoin_tries = 3;
+SET PERSIST group_replication_components_stop_timeout = 30;
+SET PERSIST local_infile= ON;
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 4. Server3 disable binlog and supreess warnings, create table t1 and
+#    get pid. Pid will be used to expel member from group
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
+SET SESSION sql_log_bin= 1;
+
+# 5. Enable super read only, to avoid problem set it after FLUSH
+#    TABLES with READ LOCK. Table locked will prevent server from
+#    finishing recovery
+[connection server_3]
+SET GLOBAL super_read_only= 1;
+FLUSH TABLES WITH READ LOCK;
+
+# 6. Insert data on group
+[connection server1]
+INSERT INTO test.t1 VALUES (1, 1);
+INSERT INTO test.t1 VALUES (2, 1);
+
+# 7. Join server3 to group, it will stay on recovery has read locks on
+#    flush prevent any kind of transaction from executing
+[connection server3]
+include/start_group_replication.inc
+
+# 8. Wait until group_replication_applier channel waits on table t1
+#    read lock. Enable clone for next join.
+SET GLOBAL group_replication_clone_threshold= 1;
+
+# 9. Expel server3 from the group
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server3]
+
+# 10. Server3 should change is status to ERROR
+include/gr_wait_for_member_state.inc
+
+# 11. Waiting for two auto-rejoin attempts to happen, they will fail
+#     due to recovery failing to stop
+
+# 12. Validate that recovery channel is still blocked on table t1.
+include/gr_wait_for_member_state.inc
+
+# 13. Unlock table t1 and allow clone to continue.
+#     Member will restart and rejoin the group.
+[connection server_3]
+UNLOCK TABLES;
+[connection server3]
+include/rpl_reconnect.inc
+include/assert.inc [Clone must be complete]
+include/gr_wait_for_member_state.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
+
+# 14. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/rpl_sync.inc
+include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+[connection server2]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+[connection server3]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+RESET PERSIST group_replication_group_name;
+RESET PERSIST group_replication_local_address;
+RESET PERSIST group_replication_group_seeds;
+RESET PERSIST group_replication_start_on_boot;
+RESET PERSIST group_replication_autorejoin_tries;
+RESET PERSIST group_replication_components_stop_timeout;
+RESET PERSIST local_infile;
+RESET PERSIST group_replication_communication_stack;
+SET sql_log_bin=0;
+call mtr.add_suppression('Member was expelled from the group due to network failures, changing member status to ERROR.');
+call mtr.add_suppression('The server was automatically set into read only mode after an error was detected.');
+call mtr.add_suppression('On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details');
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+call mtr.add_suppression("Error when stopping the group replication incremental recovery's donor connection");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Relay log information for channel '' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server.*");
+call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the master.");
+call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel ''. Skipping relay log recovery for the channel.");
+SET sql_log_bin=1;
+RESET REPLICA ALL FOR CHANNEL "";
+include/clean_monitoring_process.inc
+include/group_replication_end.inc

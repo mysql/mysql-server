@@ -19,7 +19,7 @@ INSERT INTO t1 SELECT * from t1;
 [2]:# Run the innochecksum when file isn't provided.
 # It will print the innochecksum usage similar to --help option.
 innochecksum Ver #.#.#
-Copyright (c) YEAR, YEAR , Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR , Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective

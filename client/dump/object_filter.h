@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,13 @@
 #ifndef OBJECT_FILTER_INCLUDED
 #define OBJECT_FILTER_INCLUDED
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "client/base/abstract_program.h"
 #include "client/base/composite_options_provider.h"
 #include "client/dump/abstract_data_object.h"
-#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -40,9 +40,9 @@ namespace Dump {
 class Object_filter
     : public Mysql::Tools::Base::Options::Composite_options_provider {
  public:
-  Object_filter(Mysql::Tools::Base::Abstract_program *program);
+  explicit Object_filter(Mysql::Tools::Base::Abstract_program *program);
 
-  void create_options();
+  void create_options() override;
 
   bool is_object_included_in_dump(Abstract_data_object *object);
 
@@ -91,7 +91,7 @@ class Object_filter
   bool m_dump_triggers;
   bool m_dump_events;
   bool m_dump_users;
-  Mysql::Nullable<std::string> m_include_tmp_string;
+  std::optional<std::string> m_include_tmp_string;
   Mysql::Tools::Base::Abstract_program *m_program;
 };
 

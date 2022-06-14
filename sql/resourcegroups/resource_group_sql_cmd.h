@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/mem_root_array.h"
-#include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"  // Type, Range
 #include "sql/sql_cmd.h"
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,14 @@
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
 
+#include "util/require.h"
 #include <new>
 
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <util/version.h>
 #include <ndb_limits.h>
+#include "portlib/ndb_compiler.h"
 
 #include "VMSignal.hpp"
 #include <RefConvert.hpp>
@@ -69,8 +71,11 @@
 #include "Ndbinfo.hpp"
 #include "portlib/NdbMem.h"
 #include <ndb_global.h>
+#include "BlockThreadBitmask.hpp"
+#include <NdbHW.hpp>
 
 struct CHARSET_INFO;
+
 
 #define JAM_FILE_ID 248
 
@@ -435,9 +440,10 @@ class alignas(NDB_CL) SimulatedBlock :
   friend class SimplePropertiesSectionWriter;
   friend class SegmentedSectionGuard;
   friend class DynArr256Pool; // for cerrorInsert
+  friend struct thr_data;
 public:
   friend class BlockComponent;
-  virtual ~SimulatedBlock();
+  ~SimulatedBlock() override;
 
   static void * operator new (size_t sz)
   {
@@ -500,7 +506,7 @@ protected:
                               Uint32 len);
 
 public:
-  typedef void (SimulatedBlock::* CallbackFunction)(class Signal*,
+  typedef void (SimulatedBlock::* CallbackFunction)(Signal*,
 						    Uint32 callbackData,
 						    Uint32 returnCode);
   struct Callback {
@@ -586,18 +592,40 @@ public:
    * For performance reason, DBTC gets instance key directly from DBDIH
    * via DI*GET*NODES*REQ signals.
    */
+  static Uint32 getInstance(Uint32 tableId, Uint32 fragId);
   static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
   static Uint32 getInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
   static Uint32 getInstanceFromKey(Uint32 instanceKey); // local use only
+  static Uint32 getInstanceNoCanFail(Uint32 tableId, Uint32 fragId);
+  Uint32 getInstanceNo(Uint32 nodeId, Uint32 instanceKey);
+  Uint32 getInstanceNo(Uint32 nodeId, Uint32 tableId, Uint32 fragId);
+  Uint32 getInstanceFromKey(Uint32 nodeId, Uint32 instanceKey);
 
   /**
    * This method will make sure that when callback in called each
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
-  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
-                                      const Callback&, JobBufferLevel = JBB);
+  void synchronize_threads(Signal * signal,
+                           const BlockThreadBitmask& threads,
+                           const Callback & cb,
+                           JobBufferLevel req_prio,
+                           JobBufferLevel conf_prio);
+
+  void synchronize_threads_for_blocks(
+           Signal*,
+           const Uint32 blocks[],
+           const Callback&,
+           JobBufferLevel req_prio = JBB,
+           JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
+  /**
+   * This method will make sure that all external signals from nodes handled by
+   * transporters in current thread are processed.
+   * Should be called from a TRPMAN-worker.
+   */
+  void synchronize_external_signals(Signal* signal, const Callback& cb);
+
   /**
    * This method make sure that the path specified in blocks[]
    *   will be traversed before returning
@@ -624,8 +652,10 @@ public:
 private:
   struct SyncThreadRecord
   {
+    BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
+    Uint32 m_next;
     Uint32 nextPool;
   };
   typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
@@ -633,6 +663,7 @@ private:
   SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
+  void sendSYNC_THREAD_REQ(Signal*, Ptr<SimulatedBlock::SyncThreadRecord>);
 
   void execSYNC_REQ(Signal*);
 
@@ -663,12 +694,16 @@ protected:
    * Finally also the ability to query for send thread information.
    */
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  Uint32 getSignalsInJBB();
+  Uint32 getEstimatedJobBufferLevel();
+  Uint32 getCPUSocket(Uint32 thr_no);
   void setOverloadStatus(OverloadStatus new_status);
   void setWakeupThread(Uint32 wakeup_instance);
   void setNodeOverloadStatus(OverloadStatus new_status);
   void setSendNodeOverloadStatus(OverloadStatus new_status);
+  void startChangeNeighbourNode();
   void setNeighbourNode(NodeId node);
+  void setNoSend();
+  void endChangeNeighbourNode();
   void getPerformanceTimers(Uint64 &micros_sleep,
                             Uint64 &spin_time,
                             Uint64 &buffer_full_micros_sleep,
@@ -680,11 +715,21 @@ protected:
                                 Uint64 & user_time_os,
                                 Uint64 & kernel_time_os,
                                 Uint64 & elapsed_time_os);
-  Uint32 getSpintime();
+  Uint32 getConfiguredSpintime();
+  void setSpintime(Uint32 new_spintime);
+  Uint32 getWakeupLatency();
+  void setWakeupLatency(Uint32);
   Uint32 getNumSendThreads();
   Uint32 getNumThreads();
+  Uint32 getMainThrmanInstance();
   const char * getThreadName();
   const char * getThreadDescription();
+  void flush_send_buffers();
+  void set_watchdog_counter();
+  void assign_recv_thread_new_trp(Uint32 trp_id);
+  void assign_multi_trps_to_send_threads();
+  bool epoll_add_trp(NodeId node_id, TrpId trp_id);
+  bool is_recv_thread_for_new_trp(NodeId node_id, TrpId trp_id);
 
   NDB_TICKS getHighResTimer() const 
   {
@@ -695,35 +740,44 @@ protected:
    * Send signal - dialects
    */
 
+  template<typename Recv, typename ... Args>
+    void sendSignal(Recv recv,
+                    GlobalSignalNumber gsn,
+                    Signal* signal,
+                    Args... args) const
+    {
+      sendSignal(recv, gsn, reinterpret_cast<Signal25*>(signal), args...);
+    }
+
   void sendSignal(BlockReference ref, 
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf ) const ;
 
   void sendSignal(NodeReceiverGroup rg,
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf ) const ;
 
   void sendSignal(BlockReference ref, 
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf,
 		  SectionHandle* sections) const;
 
   void sendSignal(NodeReceiverGroup rg,
 		  GlobalSignalNumber gsn,
-                  Signal* signal,
+                  Signal25* signal,
 		  Uint32 length,
 		  JobBufferLevel jbuf,
 		  SectionHandle* sections) const;
 
   void sendSignal(BlockReference ref,
 		  GlobalSignalNumber gsn,
-                  Signal* signal,
+                  Signal25* signal,
 		  Uint32 length,
 		  JobBufferLevel jbuf,
 		  LinearSectionPtr ptr[3],
@@ -731,7 +785,7 @@ protected:
   
   void sendSignal(NodeReceiverGroup rg, 
 		  GlobalSignalNumber gsn, 
-                  Signal* signal, 
+                  Signal25* signal,
 		  Uint32 length, 
 		  JobBufferLevel jbuf,
 		  LinearSectionPtr ptr[3],
@@ -741,16 +795,25 @@ protected:
    * a side-effect of sending.  This requires extra
    * copying for local sends
    */
+  template<typename Recv, typename ... Args>
+    void sendSignalNoRelease(Recv recv,
+                             GlobalSignalNumber gsn,
+                             Signal* signal,
+                             Args... args) const
+    {
+      sendSignalNoRelease(recv, gsn, reinterpret_cast<Signal25*>(signal), args...);
+    }
+
   void sendSignalNoRelease(BlockReference ref, 
                            GlobalSignalNumber gsn, 
-                           Signal* signal, 
+                           Signal25* signal,
                            Uint32 length, 
                            JobBufferLevel jbuf,
                            SectionHandle* sections) const;
 
   void sendSignalNoRelease(NodeReceiverGroup rg,
                            GlobalSignalNumber gsn,
-                           Signal* signal,
+                           Signal25* signal,
                            Uint32 length,
                            JobBufferLevel jbuf,
                            SectionHandle* sections) const;
@@ -759,18 +822,33 @@ protected:
   // no effect on on delayed signals
   //
 
+  template<typename Recv, typename ... Args>
+    void sendSignalWithDelay(Recv recv,
+                             GlobalSignalNumber gsn,
+                             Signal* signal,
+                             Args... args) const
+    {
+      sendSignalWithDelay(recv, gsn, reinterpret_cast<Signal25*>(signal), args...);
+    }
+
   void sendSignalWithDelay(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
-                           Signal* signal,
+                           Signal25* signal,
                            Uint32 delayInMilliSeconds, 
 			   Uint32 length) const ;
 
   void sendSignalWithDelay(BlockReference ref,
 			   GlobalSignalNumber gsn,
-                           Signal* signal,
+                           Signal25* signal,
                            Uint32 delayInMilliSeconds,
 			   Uint32 length,
 			   SectionHandle* sections) const;
+
+  void sendSignalOverAllLinks(BlockReference ref,
+                        GlobalSignalNumber gsn,
+                        Signal25* signal,
+                        Uint32 length,
+                        JobBufferLevel jbuf ) const ;
 
   /**
    * EXECUTE_DIRECT comes in five variants.
@@ -830,18 +908,19 @@ protected:
   void releaseSections(struct SectionHandle&);
 
   bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
-  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len) const;
   bool import(SectionHandle * dst, LinearSectionPtr src[3],Uint32 cnt);
 
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
   bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
   bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, Uint32 len);
 
-  void handle_invalid_sections_in_send_signal(const Signal*) const;
+  void handle_invalid_sections_in_send_signal(const Signal25*) const;
   void handle_lingering_sections_after_execute(const Signal*) const;
-  void handle_invalid_fragmentInfo(Signal*) const;
-  void handle_send_failed(SendStatus, Signal*) const;
-  void handle_out_of_longsignal_memory(Signal*) const;
+  void handle_invalid_fragmentInfo(Signal25*) const;
+  template<typename SecPtr>
+  void handle_send_failed(SendStatus, Signal25*, Uint32, SecPtr[]) const;
+  void handle_out_of_longsignal_memory(Signal25*) const;
 
   /**
    * Send routed signals (ONLY LOCALLY)
@@ -904,7 +983,8 @@ protected:
   /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
    * will be sent by the sendFragmentedSignal variants
    */
-  STATIC_CONST( FRAGMENT_WORD_SIZE = 240 );
+  static constexpr Uint32 FRAGMENT_WORD_SIZE = 240;
+  static constexpr Uint32 BATCH_FRAGMENT_WORD_SIZE = 240 * 8;
 
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
@@ -943,6 +1023,46 @@ protected:
 			    Uint32 noOfSections,
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
 
   /**
    * simBlockNodeFailure
@@ -1085,6 +1205,7 @@ protected:
    *
    * @see sendFragmentedSignal
    */
+
   void sendNextSegmentedFragment(Signal* signal, FragmentSendInfo & info);
 
   /**
@@ -1095,6 +1216,23 @@ protected:
   void sendNextLinearFragment(Signal* signal, FragmentSendInfo & info);
   
   BlockNumber    number() const;
+
+  /**
+   * Ensure that signal's sender is same node
+   */
+  void LOCAL_SIGNAL(Signal* signal) const
+  {
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == theNodeId);
+  }
+
+  /**
+   * Is reference for our node?
+   */
+  bool local_ref(BlockReference ref) const
+  {
+    return (refToNode(ref) == theNodeId ||
+            refToNode(ref) == 0);
+  }
 public:
   /* Must be public so that we can jam() outside of block scope. */
   EmulatedJamBuffer *jamBuffer() const;
@@ -1107,6 +1245,7 @@ protected:
    *
    */
   void refresh_watch_dog(Uint32 place = 1);
+  volatile Uint32* get_watch_dog();
   void update_watch_dog_timer(Uint32 interval);
 
   /**
@@ -1180,13 +1319,13 @@ protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
-  static const NewVARIABLE* getBat    (BlockNumber blockNo,
-                                       Uint32 instanceNo);
-  static Uint16             getBatSize(BlockNumber blockNo,
-                                       Uint32 instanceNo);
+  static const NewVARIABLE * getBatVar(BlockNumber blockNo,
+                                       Uint32 instanceNo,
+                                       Uint32 varNo);
   
   static BlockReference calcTcBlockRef   (NodeId aNode);
   static BlockReference calcLqhBlockRef  (NodeId aNode);
+  static BlockReference calcQlqhBlockRef (NodeId aNode);
   static BlockReference calcAccBlockRef  (NodeId aNode);
   static BlockReference calcTupBlockRef  (NodeId aNode);
   static BlockReference calcTuxBlockRef  (NodeId aNode);
@@ -1246,7 +1385,7 @@ protected:
    */
   void infoEvent(const char * msg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  void warningEvent(const char * msg, ...) const
+  void warningEvent(const char * msg, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
   
   /**
@@ -1325,7 +1464,7 @@ protected:
    * Get receiver thread index for node
    * MAX_NODES == no receiver thread
    */
-  Uint32 get_recv_thread_idx(NodeId nodeId);
+  Uint32 get_recv_thread_idx(TrpId trp_id);
 
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
@@ -1344,8 +1483,9 @@ protected:
   void execSTOP_FOR_CRASH(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
-  void execSEND_PACKED(Signal* signal);
   void execLOCAL_ROUTE_ORD(Signal*);
+public:
+  void execSEND_PACKED(Signal* signal);
 private:
   /**
    * Node state
@@ -1442,7 +1582,7 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
-  void check_sections(Signal* signal, 
+  void check_sections(Signal25* signal,
                       Uint32 oldSecCount, 
                       Uint32 newSecCount) const;
 protected:
@@ -1575,16 +1715,532 @@ public:
   void unlock_global_ssp();
 #endif
 
+/* Needs to be defined in mt.hpp as well to work */
+//#define DEBUG_SCHED_STATS 1
+
+#define AVERAGE_SIGNAL_SIZE 16
+#define MIN_QUERY_INSTANCES_PER_RR_GROUP 4
+#define MAX_QUERY_INSTANCES_PER_RR_GROUP 18
+#define LOAD_SCAN_FRAGREQ 5
+#define RR_LOAD_REFRESH_COUNT 48
+#define NUM_LQHKEYREQ_COUNTS 4
+#define NUM_SCAN_FRAGREQ_COUNTS 1
+#define MAX_LDM_THREAD_GROUPS_PER_RR_GROUP 8
+#define MAX_RR_GROUPS ((MAX_NDBMT_QUERY_THREADS + \
+                        (MIN_QUERY_INSTANCES_PER_RR_GROUP - 1)) /  \
+                      MIN_QUERY_INSTANCES_PER_RR_GROUP)
+#define MAX_DISTRIBUTION_WEIGHT 16
+#define MAX_NUM_DISTR_SIGNAL \
+          (MAX_DISTRIBUTION_WEIGHT * MAX_QUERY_INSTANCES_PER_RR_GROUP)
+#define MAX_LDM_DISTRIBUTION_WEIGHT 100
+#define MAX_DISTR_THREADS (MAX_NDBMT_LQH_THREADS + MAX_NDBMT_QUERY_THREADS)
+public:
+  struct RoundRobinInfo
+  {
+    /**
+     * These variables are used to perform round robin for not fully
+     * partitioned tables that are executed outside of their own
+     * LDM thread group. Our own LDM thread group is part of this
+     * round robin group.
+     *
+     * It is also used separately for LDM groups.
+     *
+     * The first two variables control this for key lookup and the
+     * next two for table scans and range scans.
+     */
+    Uint32 m_load_indicator_counter;
+    Uint32 m_lqhkeyreq_to_same_thread;
+    Uint32 m_lqhkeyreq_distr_signal_index;
+    Uint32 m_scan_fragreq_to_same_thread;
+    Uint32 m_scan_distr_signal_index;
+    /**
+     * m_distribution_signal_size is the current size of the round robin
+     * array m_distribution_signal. It is updated by
+     * calculate_distribution_signal once every 100ms.
+     * m_distribution_signal contains block references to the the LDM
+     * and query threads DBLQH/DBQLQH.
+     */
+    Uint32 m_distribution_signal_size;
+    Uint32 m_distribution_signal[MAX_NUM_DISTR_SIGNAL];
+  };
+  static Uint32 m_rr_group[MAX_DISTR_THREADS];
+  static Uint32 m_num_lqhkeyreq_counts;
+  static Uint32 m_num_scan_fragreq_counts;
+  static Uint32 m_rr_load_refresh_count;
+  static Uint32 m_num_rr_groups;
+  static Uint32 m_num_query_thread_per_ldm;
+  static Uint32 m_num_distribution_threads;
+  static bool m_inited_rr_groups;
+  struct NextRoundInfo
+  {
+    Uint32 m_next_pos;
+    Uint32 m_next_index;
+  };
+  struct LdmThreadState
+  {
+    Uint32 m_current_weight;
+    Uint32 m_load_indicator;
+    Uint32 m_lqhkeyreq_counter;
+    Uint32 m_scan_fragreq_counter;
+    Uint32 m_current_weight_lqhkeyreq_count;
+    Uint32 m_current_weight_scan_fragreq_count;
+  };
+  struct QueryThreadState
+  {
+    Uint32 m_load_indicator;
+    Uint32 m_max_lqhkeyreq_count;
+    Uint32 m_max_scan_fragreq_count;
+    Uint32 m_current_stolen_lqhkeyreq;
+    Uint32 m_current_stolen_scan_fragreq;
+  };
+  class DistributionHandler
+  {
+    friend class SimulatedBlock;
+  public:
+
+    Uint32 m_weights[MAX_DISTR_THREADS];
+    struct NextRoundInfo m_next_round[MAX_DISTR_THREADS];
+    Uint32 m_distr_references[MAX_DISTR_THREADS];
+
+    struct RoundRobinInfo m_rr_info[MAX_RR_GROUPS];
+    struct LdmThreadState m_ldm_state[MAX_NDBMT_LQH_THREADS];
+    struct QueryThreadState m_query_state[MAX_NDBMT_QUERY_THREADS];
+#ifdef DEBUG_SCHED_STATS
+    Uint64 m_lqhkeyreq_ldm;
+    Uint64 m_lqhkeyreq_lq;
+    Uint64 m_lqhkeyreq_rr;
+    Uint64 m_scan_fragreq_ldm;
+    Uint64 m_scan_fragreq_lq;
+    Uint64 m_scan_fragreq_rr;
+    Uint32 m_lqhkeyreq_ldm_count[MAX_NDBMT_LQH_THREADS];
+    Uint32 m_lqhkeyreq_qt_count[MAX_NDBMT_QUERY_THREADS];
+    Uint32 m_scan_fragreq_ldm_count[MAX_NDBMT_LQH_THREADS];
+    Uint32 m_scan_fragreq_qt_count[MAX_NDBMT_QUERY_THREADS];
+#endif
+  };
+  void print_static_distr_info(DistributionHandler *handle);
+  void print_debug_sched_stats(DistributionHandler * const);
+  void get_load_indicators(DistributionHandler * const, Uint32);
+
+  /**
+   * 100ms have passed and it is time to update the DistributionInfo and
+   * RoundRobinInfo to reflect the current CPU load in the node.
+   */
+  void calculate_distribution_signal(DistributionHandler *handle)
+  {
+    Uint32 num_ldm_instances = getNumLDMInstances();
+    if (globalData.ndbMtQueryThreads == 0)
+    {
+      jam();
+      return;
+    }
+    jam();
+    jamLine(m_num_rr_groups);
+    ndbrequire(m_inited_rr_groups);
+    ndbrequire(m_num_distribution_threads);
+    for (Uint32 rr_group = 0; rr_group < m_num_rr_groups; rr_group++)
+    {
+      jam();
+      for (Uint32 thr_no = 0;
+           thr_no < m_num_distribution_threads;
+           thr_no++)
+      {
+        /**
+         * We only use the Query threads for round robin groups. Thus
+         * scalable access to tables with only a few partitions is only
+         * handled by query threads. This has a number of advantages.
+         * 1) We protect the LDM threads from being overloaded. This means
+         *    that we always have bandwidth for scalable writes even if
+         *    there is a lot of complex queries being processed.
+         * 2) We can maintain statistics for traffic towards fragments.
+         *    These statistics will only be maintained by the LDM threads
+         *    since these can access those variables without having to
+         *    protect the variables for concurrent access. This gives us
+         *    a view on fragment usage without causing bottlenecks in
+         *    query execution.
+         *    Query threads will not maintain any type of fragment stats.
+         *    There is some table stats that are required to be maintained
+         *    to ensure that we can drop tables and alter tables in a safe
+         *    manner.
+         * 3) Query threads have to do a bit of work to setup a number of
+         *    variables for access to metadata each real-time break. Since
+         *    LDM threads only execute their own fragments the LDM threads
+         *    can execute more efficiently and thus guarantee maintained
+         *    good performance.
+         *
+         * Historically the advice have been to place LDM threads on their
+         * own CPU core without using any hyperthreading. Modern CPUs can
+         * make increasingly good use of hyperthreading. By removing the
+         * dependency between LDM threads and our partitioning scheme we
+         * ensure that increasing the number of LDM threads doesn't have
+         * negative effect on scalability. By creating Query threads to
+         * assist LDM threads we ensure that we can maintain the good
+         * characteristics of LDM threads while still providing increased
+         * read scalability.
+         *
+         * Query threads gives us a simple manner to make very good use of
+         * the other hyperthread(s) in the CPU core by mostly schedule
+         * queries towards the query thread that normally would be sent
+         * to the LDM thread in the same CPU core. This gives us a
+         * possibility to make efficient use of modern CPU cores.
+         *
+         * Thus LDM threads are free to change variables about statistics
+         * even when executing as query threads, thus they don't require
+         * exclusive access although they will be updating some shared
+         * data structures since query threads will not touch those and
+         * in addition they will not read them. We still have to be careful
+         * with data placement to avoid false CPU cache sharing.
+         *
+         * We accomplish this here by setting next round to 0xFFFFFFFF which
+         * means the same as giving the LDM threads weight 0. However the
+         * weight of LDM threads is still used for handling the first
+         * level of scheduling. Thus LDM threads will still be heavily
+         * involved in handling queries towards its own fragments, also the
+         * READ COMMITTED queries.
+         */
+        if (thr_no < num_ldm_instances ||
+            m_rr_group[thr_no] != rr_group)
+        {
+          handle->m_next_round[thr_no].m_next_pos = Uint32(~0);
+        }
+        else
+        {
+          jam();
+          jamLine(thr_no);
+          handle->m_next_round[thr_no].m_next_pos = 0;
+        }
+      }
+      struct RoundRobinInfo * rr_info = &handle->m_rr_info[rr_group];
+      calculate_rr_distribution(handle, rr_info);
+      Uint32 q_inx = 0;
+      Uint32 num_distr_threads = m_num_distribution_threads;
+      for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+      {
+        jam();
+        Uint32 q_weight = handle->m_weights[i];
+        struct QueryThreadState *q_state = &handle->m_query_state[q_inx];
+        /**
+         * Give the query thread in the same LDM group a bit of priority,
+         * but only to a certain degree.
+         */
+        q_state->m_max_lqhkeyreq_count = q_weight;
+        q_state->m_max_scan_fragreq_count = q_weight / 2;
+        q_inx++;
+      }
+    }
+    jam();
+    jamLine(num_ldm_instances);
+    for (Uint32 i = 0; i < num_ldm_instances; i++)
+    {
+      struct LdmThreadState *ldm_state = &handle->m_ldm_state[i];
+      ldm_state->m_current_weight = handle->m_weights[i];
+    }
+  }
+  void
+  calculate_rr_distribution(DistributionHandler *handle,
+                            struct RoundRobinInfo *rr_info)
+  {
+    Uint32 dist_pos = 0;
+    for (Uint32 curr_pos = 0; curr_pos <= MAX_DISTRIBUTION_WEIGHT; curr_pos++)
+    {
+      for (Uint32 thr_no = 0;
+           thr_no < m_num_distribution_threads;
+           thr_no++)
+      {
+        if (handle->m_next_round[thr_no].m_next_pos == curr_pos)
+        {
+          count_next_round(handle, thr_no);
+          if (curr_pos != 0)
+          {
+            ndbrequire(dist_pos < MAX_NUM_DISTR_SIGNAL);
+            rr_info->m_distribution_signal[dist_pos] =
+              handle->m_distr_references[thr_no];
+            dist_pos++;
+          }
+        }
+      }
+    }
+    /**
+     * All round robin groups must have at least one query thread assigned
+     * to handle its work. Actually all query threads should at least do
+     * some work for the round robin group even at high load.
+     */
+    ndbrequire(dist_pos);
+    rr_info->m_distribution_signal_size = dist_pos;
+    rr_info->m_lqhkeyreq_to_same_thread = NUM_LQHKEYREQ_COUNTS;
+    rr_info->m_scan_fragreq_to_same_thread = NUM_SCAN_FRAGREQ_COUNTS;
+  }
+  void count_next_round(DistributionHandler *handle, Uint32 thr_no)
+  {
+    Uint32 weight = handle->m_weights[thr_no];
+    if (weight == 0)
+    {
+      /**
+       * Weight 0 means that we will not use this thread at all since it is
+       * overloaded.
+       */
+      handle->m_next_round[thr_no].m_next_pos = Uint32(~0);
+    }
+    Uint32 curr_pos = handle->m_next_round[thr_no].m_next_pos;
+    if (curr_pos == 0)
+    {
+      /* Initialise index */
+      handle->m_next_round[thr_no].m_next_index = 0;
+    }
+    /**
+     * The idea with the mathematics here is to spread the block reference
+     * in an even way. We can put it in 16 positions, if weight is 16 we
+     * should use all positions, if weight is 8 we should use every second
+     * position. When weight is e.g. 3 we want to use 3 positions.
+     * For numbers like 9 it becomes a bit more complex, here we need to
+     * use alternative 1 or 2 steps forward such that we end up with 9
+     * positions in total.
+     *
+     * One algorithm that solves this is to always move
+     * MAX - curr_pos / (weight - move_step) steps forward
+     * E.g. for 9 this becomes:
+     * 16 - 0 / (9 - 0) = 1
+     * 16 - 1 / (9 - 1) = 1
+     * 16 - 2 / (9 - 2) = 2
+     * 16 - 4 / (9 - 3) = 2 ...
+     * Thus using position 1, 2, 4, 6, 8, 10, 12, 14 and 16.
+     *
+     * and weight 11 gives
+     * 16 - 0 / (11 - 0) = 1
+     * 16 - 1 / (11 - 1) = 1
+     * 16 - 2 / (11 - 2) = 1
+     * 16 - 3 / (11 - 3) = 1
+     * 16 - 4 / (11 - 4) = 1
+     * 16 - 5 / (11 - 5) = 1
+     * 16 - 6 / (11 - 6) = 2
+     * 16 - 8 / (11 - 7) = 2
+     * 16 - 10 / (11 - 8) = 2
+     * 16 - 12 / (11 - 9) = 2
+     * 16 - 14 / (11 - 10) = 2
+     * Thus position 1, 2, 3, 4, 5, 6, 8, 10, 12, 14 and 16 are the ones
+     * used by weight 11.
+     *
+     * Weight 3 gives
+     * 16 - 0 / (3 - 0) = 5
+     * 16 - 5 / (3 - 1) = 5
+     * 16 - 10 / (3 - 2) = 6
+     * Thus weight 3 uses positions 5, 10 and 16.
+     *
+     * The current position we derive from the position in the loop, but it
+     * is harder to derive the step that we are moving (move_step above).
+     * Thus we have to ensure that this is tracked with a variable outside
+     * of count_next_round. It is probably possible to derive it using the
+     * weight and current position, but it is easy enough to keep track of
+     * it as well.
+     */
+    Uint32 move_step = handle->m_next_round[thr_no].m_next_index;
+    if (move_step < weight)
+    {
+      Uint32 forward_steps = (MAX_DISTRIBUTION_WEIGHT - curr_pos) /
+                              (weight - move_step);
+      handle->m_next_round[thr_no].m_next_pos = curr_pos + forward_steps;
+    }
+    else
+    {
+      handle->m_next_round[thr_no].m_next_pos = Uint32(~0);
+    }
+    handle->m_next_round[thr_no].m_next_index = move_step + 1;
+  }
+  void init_rr_groups()
+  {
+    /**
+     * Round robin groups are created in a simple fashion where
+     * each LDM group is assigned to a Round Robin group, the
+     * next LDM group is assigned to the next Round Robin group.
+     * The number of Round Robin groups is determined when we
+     * configure the thread configuration.
+     *
+     * Given that thread configuration is performed before this step,
+     * and this includes also CPU locking, the thread configuration
+     * will assume that this simple algorithm is used here to decide
+     * on the Round Robin groups. Thus this modules have an implicit
+     * relationship to each other that must be maintained.
+     *
+     * The only output of the thread configuration is
+     * globalData.ndbMtLqhWorkers
+     * globalData.ndbQueryThreads
+     * globalData.ndbRRGroups
+     * globalData.QueryThreadsPerLdm
+     */
+    Uint32 num_ldm_instances = globalData.ndbMtLqhWorkers;
+    Uint32 num_rr_groups = globalData.ndbRRGroups;
+    Uint32 num_query_thread_per_ldm = globalData.QueryThreadsPerLdm;
+    Uint32 num_distr_threads = num_ldm_instances *
+                               (1 + globalData.QueryThreadsPerLdm);
+
+    m_num_query_thread_per_ldm = num_query_thread_per_ldm;
+    m_num_rr_groups = num_rr_groups;
+    m_num_distribution_threads = num_distr_threads;
+    Uint32 rr_group = 0;
+    Uint32 next_query_instance = num_ldm_instances;
+    for (Uint32 i = 0; i < MAX_DISTR_THREADS; i++)
+    {
+      m_rr_group[i] = 0xFFFFFFFF; //Ensure group not valid as init value
+    }
+    if (num_query_thread_per_ldm == 0)
+    {
+      return;
+    }
+    for (Uint32 i = 0; i < num_ldm_instances; i++)
+    {
+      m_rr_group[i] = rr_group;
+      for (Uint32 j = 0; j < num_query_thread_per_ldm; j++)
+      {
+        m_rr_group[next_query_instance] = rr_group;
+        next_query_instance++;
+      }
+      rr_group++;
+      if (rr_group == num_rr_groups)
+      {
+        rr_group = 0;
+      }
+    }
+  }
+  void fill_distr_references(DistributionHandler *handle)
+  {
+    Uint32 num_query_thread_per_ldm = globalData.QueryThreadsPerLdm;
+    Uint32 num_ldm_instances = getNumLDMInstances();
+    Uint32 num_distr_threads = num_ldm_instances +
+                               globalData.ndbMtQueryThreads;
+
+    memset(handle, 0, sizeof(*handle));
+    if (num_query_thread_per_ldm == 0)
+    {
+      /* No scheduling required with no query threads */
+      return;
+    }
+    /**
+     * Initialise variables that are static over the lifetime of
+     * this nodes life.
+     */
+    ndbrequire(globalData.ndbMtQueryThreads ==
+               (num_query_thread_per_ldm * num_ldm_instances));
+
+    /**
+     * Setup quick access to the LQH in the query thread and the LDM
+     * threads.
+     *
+     * m_distr_references lists references to the LQH of the LDM
+     * threads first and then after that comes the query threads.
+     * This array is used by calculate_distribution_signal to fill
+     * the m_distribution_signal array based on the CPU usage of
+     * the query threads.
+     *
+     * So these two arrays contain the same information, but accessed
+     * in different ways.
+     */
+    for (Uint32 i = 0; i < num_ldm_instances; i++)
+    {
+      handle->m_distr_references[i] =
+        numberToRef(DBLQH, i + 1, getOwnNodeId());
+      struct LdmThreadState *ldm_state = &handle->m_ldm_state[i];
+      ldm_state->m_load_indicator = 1;
+      ldm_state->m_current_weight = 33;
+      ldm_state->m_lqhkeyreq_counter = 0;
+      ldm_state->m_scan_fragreq_counter = 0;
+      ldm_state->m_current_weight_lqhkeyreq_count = 0;
+      ldm_state->m_current_weight_scan_fragreq_count = 0;
+    }
+    ndbrequire(num_ldm_instances + globalData.ndbMtQueryThreads <=
+               MAX_DISTR_THREADS);
+    for (Uint32 i = 0;
+         i < globalData.ndbMtQueryThreads;
+         i++)
+    {
+      handle->m_distr_references[i + num_ldm_instances] =
+        numberToRef(DBQLQH, (i + 1), getOwnNodeId());
+      struct QueryThreadState *q_state = &handle->m_query_state[i];
+      q_state->m_load_indicator = 1;
+      q_state->m_max_lqhkeyreq_count = 0;
+      q_state->m_max_scan_fragreq_count = 0;
+      q_state->m_current_stolen_lqhkeyreq = 0;
+      q_state->m_current_stolen_scan_fragreq = 0;
+    }
+    for (Uint32 i = 0; i < num_ldm_instances; i++)
+    {
+      handle->m_weights[i] = 33;
+    }
+    for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+    {
+      handle->m_weights[i] = 8;
+    }
+    /* m_rr_info initialised to all 0s by above memset which is ok */
+  }
+  Uint32 get_query_block_no(Uint32 nodeId)
+  {
+    Uint32 blockNo = DBLQH;
+    Uint32 num_query_threads = getNodeInfo(nodeId).m_query_threads;
+    if (num_query_threads > 0)
+    {
+      /**
+       * There is query threads in the receiving node, this means that we will
+       * send the query to a virtual block with the same instance number in the
+       * same node id. The receiver will figure out how to map this to a
+       * real block number (could be our own node if nodeId = ownNodeId).
+       */
+      blockNo = V_QUERY;
+    }
+    return blockNo;
+  }
+  Uint32 get_lqhkeyreq_ref(DistributionHandler *handle, Uint32 instance_no);
+  Uint32 get_scan_fragreq_ref(DistributionHandler *handle, Uint32 instance_no);
+  /**
+   * A number of support routines to avoid spreading out a lot of
+   * if-statements all over the code base.
+   */
+  Uint32 getFirstLDMThreadInstance()
+  {
+    if (unlikely(!isNdbMtLqh()))
+      return 0;
+    else if (unlikely(globalData.ndbMtLqhThreads == 0))
+    {
+      return globalData.ndbMtMainThreads +
+             globalData.ndbMtQueryThreads +
+             globalData.ndbMtTcThreads;
+    }
+    else
+    {
+      /* Adjust for proxy instance with + 1 */
+      return globalData.ndbMtMainThreads + 1;
+    }
+  }
+  Uint32 getNumLDMInstances()
+  {
+    if (unlikely(!isNdbMtLqh()))
+      return 1;
+    return globalData.ndbMtLqhWorkers;
+  }
+  Uint32 getNumTCInstances()
+  {
+    if (unlikely(!isNdbMtLqh()))
+      return 1;
+    else if (unlikely(globalData.ndbMtTcThreads == 0))
+      return 1;
+    else
+      return globalData.ndbMtTcThreads;
+  }
+  void query_thread_memory_barrier()
+  {
+    if (globalData.ndbMtQueryThreads > 0)
+    {
+      mb();
+    }
+  }
 
 protected:
   /**
    * SegmentUtils methods
    */
-  virtual SectionSegment* getSegmentPtr(Uint32 iVal);
-  virtual bool seizeSegment(Ptr<SectionSegment>& p);
-  virtual void releaseSegment(Uint32 iVal);
+  SectionSegment* getSegmentPtr(Uint32 iVal) override;
+  bool seizeSegment(Ptr<SectionSegment>& p) override;
+  void releaseSegment(Uint32 iVal) override;
 
-  virtual void releaseSegmentList(Uint32 firstSegmentIVal);
+  void releaseSegmentList(Uint32 firstSegmentIVal) override;
 
   /** End of SegmentUtils methods */
 };
@@ -1744,6 +2400,12 @@ inline
 BlockReference
 SimulatedBlock::calcLqhBlockRef  (NodeId aNodeId){
 return numberToRef(DBLQH, aNodeId);
+}
+
+inline
+BlockReference
+SimulatedBlock::calcQlqhBlockRef  (NodeId aNodeId){
+return numberToRef(DBQLQH, aNodeId);
 }
 
 inline
@@ -2055,7 +2717,7 @@ SimulatedBlock::prepareRETURN_DIRECT(Uint32 gsn,
 
 // Do a consictency check before reusing a signal.
 inline void 
-SimulatedBlock::check_sections(Signal* signal, 
+SimulatedBlock::check_sections(Signal25* signal,
                                Uint32 oldSecCount, 
                                Uint32 newSecCount) const
 { 
@@ -2140,7 +2802,7 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = NDB_MAX_HASHMAP_BUCKETS );
+  static constexpr Uint32 MAX_MAP = NDB_MAX_HASHMAP_BUCKETS;
   Uint32 m_cnt;
   Uint32 m_fragments;
   Uint16 m_map[MAX_MAP];

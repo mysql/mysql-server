@@ -11138,7 +11138,7 @@ ALTER TABLE t2 DROP COLUMN fld6;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `auto` int(11) DEFAULT NULL,
+  `auto` int DEFAULT NULL,
   `fld1` int(6) unsigned zerofill NOT NULL DEFAULT '000000',
   `companynr` tinyint(2) unsigned zerofill NOT NULL DEFAULT '00',
   `fld3` char(30) NOT NULL DEFAULT '',
@@ -12677,9 +12677,9 @@ a	b	c
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` tinyblob,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   KEY `a` (`a`)
 ) ENGINE=ARCHIVE AUTO_INCREMENT=36 DEFAULT CHARSET=latin1
 DROP TABLE t1, t2, t4, t5, t6;

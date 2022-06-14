@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,11 +59,10 @@ void sel_col_prefetch_buf_free(
     sel_buf_t *prefetch_buf); /*!< in, own: prefetch buffer */
 
 /** Gets the plan node for the nth table in a join.
-@param[in]	node	select node
-@param[in]	i	get ith plan node
+@param[in]      node    select node
+@param[in]      i       get ith plan node
 @return plan node */
-UNIV_INLINE
-plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
+static inline plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 
 /** Performs a select step. This is a high-level function used in SQL execution
  graphs.
@@ -71,8 +70,7 @@ plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 que_thr_t *row_sel_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an open or close cursor statement node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
+static inline que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs a fetch for a cursor.
  @return query thread to run next or NULL */
 que_thr_t *fetch_step(que_thr_t *thr); /*!< in: query thread */
@@ -80,9 +78,9 @@ que_thr_t *fetch_step(que_thr_t *thr); /*!< in: query thread */
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
 are not covered by current key.
-@param[out]	buf		Where to copy the MySQL row.
-@param[in]	cached_rec	What to copy (in MySQL row format).
-@param[in]	prebuilt	prebuilt struct. */
+@param[out]     buf             Where to copy the MySQL row.
+@param[in]      cached_rec      What to copy (in MySQL row format).
+@param[in]      prebuilt        prebuilt struct. */
 void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
                                           row_prebuilt_t *prebuilt);
 
@@ -91,53 +89,54 @@ void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@param[out]	mysql_rec		        row in the MySQL format
-@param[in,out]	prebuilt		    prebuilt structure
-@param[in]	rec			            Innobase record in the index
-                                which was described in prebuilt's
-                                template, or in the clustered index;
-                                must be protected by a page latch
-@param[in]	vrow			          virtual columns
-@param[in]	rec_clust		        true if rec is in the clustered index instead
-                                of prebuilt->index
-@param[in]	index			          index of rec
-@param[in]	offsets			        array returned by rec_get_offsets(rec)
-@param[in]	clust_templ_for_sec	true if rec belongs to secondary index
-                                but the prebuilt->template is in
-                                clustered index format and it
-                                is used only for end range comparison
-@param[in]	lob_undo		        the LOB undo information.
-@param[in,out] blob_heap        If not null then use this heap for BLOBs.
+@param[out]     mysql_rec           row in the MySQL format
+@param[in,out]  prebuilt            prebuilt structure
+@param[in]      rec                 Innobase record in the index
+                                    which was described in prebuilt's
+                                    template, or in the clustered index;
+                                    must be protected by a page latch
+@param[in]      vrow                virtual columns
+@param[in]      rec_clust           true if rec is in the clustered index
+                                    instead of index which could belong to
+                                    prebuilt->index
+@param[in]      rec_index           index of rec
+@param[in]      prebuilt_index      prebuilt->index
+@param[in]      offsets             array returned by rec_get_offsets(rec)
+@param[in]      clust_templ_for_sec true if rec belongs to secondary index
+                                    but the prebuilt->template is in
+                                    clustered index format and it
+                                    is used only for end range comparison
+@param[in]      lob_undo            the LOB undo information.
+@param[in,out]  blob_heap           If not null then use this heap for BLOBs
 @return true on success, false if not all columns could be retrieved */
 // clang-format on
 bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
                              const rec_t *rec, const dtuple_t *vrow,
-                             bool rec_clust, const dict_index_t *index,
+                             bool rec_clust, const dict_index_t *rec_index,
+                             const dict_index_t *prebuilt_index,
                              const ulint *offsets, bool clust_templ_for_sec,
-                             lob::undo_vers_t *lob_undo, mem_heap_t *blob_heap);
+                             lob::undo_vers_t *lob_undo,
+                             mem_heap_t *&blob_heap);
 
 /** Converts a key value stored in MySQL format to an Innobase dtuple. The last
- field of the key value may be just a prefix of a fixed length field: hence
- the parameter key_len. But currently we do not allow search keys where the
- last field is only a prefix of the full key field len and print a warning if
- such appears. */
-void row_sel_convert_mysql_key_to_innobase(
-    dtuple_t *tuple,     /*!< in/out: tuple where to build;
-                         NOTE: we assume that the type info
-                         in the tuple is already according
-                         to index! */
-    byte *buf,           /*!< in: buffer to use in field
-                         conversions; NOTE that dtuple->data
-                         may end up pointing inside buf so
-                         do not discard that buffer while
-                         the tuple is being used. See
-                         row_mysql_store_col_in_innobase_format()
-                         in the case of DATA_INT */
-    ulint buf_len,       /*!< in: buffer length */
-    dict_index_t *index, /*!< in: index of the key value */
-    const byte *key_ptr, /*!< in: MySQL key value */
-    ulint key_len,       /*!< in: MySQL key value length */
-    trx_t *trx);         /*!< in: transaction */
+field of the key value may be just a prefix of a fixed length field: hence
+the parameter key_len. But currently we do not allow search keys where the
+last field is only a prefix of the full key field len and print a warning if
+such appears.
+@param[in,out] tuple Tuple where to build; NOTE: we assume that the type info in
+the tuple is already according to index!
+@param[in] buf Buffer to use in field conversions; NOTE that dtuple->data may
+end up pointing inside buf so do not discard that buffer while the tuple is
+being used. See row_mysql_store_col_in_innobase_format() in the case of
+DATA_INT.
+@param[in] buf_len Buffer length.
+@param[in] index Index of the key value.
+@param[in] key_ptr MySQL key value
+@param[in] key_len MySQL key value length
+*/
+void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
+                                           ulint buf_len, dict_index_t *index,
+                                           const byte *key_ptr, ulint key_len);
 
 /** Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
@@ -145,47 +144,45 @@ and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INLINE
-dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
-                             row_prebuilt_t *prebuilt, ulint match_mode,
-                             ulint direction)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline dberr_t row_search_for_mysql(
+    byte *buf, page_cur_mode_t mode, row_prebuilt_t *prebuilt, ulint match_mode,
+    ulint direction);
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
-                           row_prebuilt_t *prebuilt, ulint match_mode,
-                           ulint direction) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
+                                         row_prebuilt_t *prebuilt,
+                                         ulint match_mode, ulint direction);
 
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
@@ -193,22 +190,22 @@ so it employs technique that can help re-construct the rows that
 transaction is suppose to see.
 It also has optimization such as pre-caching the rows, using AHI, etc.
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
-                        row_prebuilt_t *prebuilt, ulint match_mode,
-                        ulint direction) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
+                                      row_prebuilt_t *prebuilt,
+                                      ulint match_mode, const ulint direction);
 
 /** Count rows in a R-Tree leaf level.
  @return DB_SUCCESS if successful */
@@ -227,11 +224,10 @@ dberr_t row_count_rtree_recs(
 
 /** Read the max AUTOINC value from an index.
  @return DB_SUCCESS if all OK else error code */
-dberr_t row_search_max_autoinc(
+[[nodiscard]] dberr_t row_search_max_autoinc(
     dict_index_t *index,  /*!< in: index to search */
     const char *col_name, /*!< in: autoinc column name */
-    ib_uint64_t *value)   /*!< out: AUTOINC value read */
-    MY_ATTRIBUTE((warn_unused_result));
+    uint64_t *value);     /*!< out: AUTOINC value read */
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_t {
@@ -253,18 +249,18 @@ struct plan_t {
   dict_index_t *index; /*!< table index used in the search */
   btr_pcur_t pcur;     /*!< persistent cursor used to search
                        the index */
-  ibool asc;           /*!< TRUE if cursor traveling upwards */
-  ibool pcur_is_open;  /*!< TRUE if pcur has been positioned
-                       and we can try to fetch new rows */
-  ibool cursor_at_end; /*!< TRUE if the cursor is open but
-                       we know that there are no more
-                       qualifying rows left to retrieve from
-                       the index tree; NOTE though, that
-                       there may still be unprocessed rows in
-                       the prefetch stack; always FALSE when
-                       pcur_is_open is FALSE */
-  ibool stored_cursor_rec_processed;
-  /*!< TRUE if the pcur position has been
+  bool asc;            /*!< true if cursor traveling upwards */
+  bool pcur_is_open;   /*!< true if pcur has been positioned
+                        and we can try to fetch new rows */
+  bool cursor_at_end;  /*!< true if the cursor is open but
+                        we know that there are no more
+                        qualifying rows left to retrieve from
+                        the index tree; NOTE though, that
+                        there may still be unprocessed rows in
+                        the prefetch stack; always false when
+                        pcur_is_open is false */
+  bool stored_cursor_rec_processed;
+  /*!< true if the pcur position has been
   stored and the record it is positioned
   on has already been processed */
   que_node_t **tuple_exps; /*!< array of expressions
@@ -278,8 +274,8 @@ struct plan_t {
   ulint n_exact_match;     /*!< number of first fields in
                            the search tuple which must be
                            exactly matched */
-  ibool unique_search;     /*!< TRUE if we are searching an
-                           index record with a unique key */
+  bool unique_search;      /*!< true if we are searching an
+                            index record with a unique key */
   ulint n_rows_fetched;    /*!< number of rows fetched using pcur
                            after it was opened */
   ulint n_rows_prefetched; /*!< number of prefetched rows cached
@@ -287,29 +283,25 @@ struct plan_t {
                          the same mtr saves CPU time */
   ulint first_prefetched;  /*!< index of the first cached row in
                           select buffer arrays for each column */
-  ibool no_prefetch;       /*!< no prefetch for this table */
+  bool no_prefetch;        /*!< no prefetch for this table */
   sym_node_list_t columns; /*!< symbol table nodes for the columns
                            to retrieve from the table */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  end_conds; /*!< conditions which determine the
-             fetch limit of the index segment we
-             have to look at: when one of these
-             fails, the result set has been
-             exhausted for the cursor in this
-             index; these conditions are normalized
-             so that in a comparison the column
-             for this table is the first argument */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  other_conds;               /*!< the rest of search conditions we can
-                             test at this table in a join */
-  ibool must_get_clust;      /*!< TRUE if index is a non-clustered
-                             index and we must also fetch the
-                             clustered index record; this is the
-                             case if the non-clustered record does
-                             not contain all the needed columns, or
-                             if this is a single-table explicit
-                             cursor, or a searched update or
-                             delete */
+  using Cond_list = UT_LIST_BASE_NODE_T_EXTERN(func_node_t, cond_list);
+  /** conditions which determine the fetch limit of the index segment we have to
+  look at: when one of these fails, the result set has been exhausted for the
+  cursor in this index; these conditions are normalized so that in a comparison
+  the column for this table is the first argument */
+  Cond_list end_conds;
+  /** the rest of search conditions we can test at this table in a join */
+  Cond_list other_conds;
+  bool must_get_clust;       /*!< true if index is a non-clustered
+                              index and we must also fetch the
+                              clustered index record; this is the
+                              case if the non-clustered record does
+                              not contain all the needed columns, or
+                              if this is a single-table explicit
+                              cursor, or a searched update or
+                              delete */
   ulint *clust_map;          /*!< map telling how clust_ref is built
                              from the fields of a non-clustered
                              record */
@@ -339,11 +331,11 @@ struct sel_node_t {
   que_node_t *select_list;   /*!< select list */
   sym_node_t *into_list;     /*!< variables list or NULL */
   sym_node_t *table_list;    /*!< table list */
-  ibool asc;                 /*!< TRUE if the rows should be fetched
-                             in an ascending order */
-  ibool set_x_locks;         /*!< TRUE if the cursor is for update or
-                             delete, which means that a row x-lock
-                             should be placed on the cursor row */
+  bool asc;                  /*!< true if the rows should be fetched
+                              in an ascending order */
+  bool set_x_locks;          /*!< true if the cursor is for update or
+                              delete, which means that a row x-lock
+                              should be placed on the cursor row */
   ulint row_lock_mode;       /*!< LOCK_X or LOCK_S */
   ulint n_tables;            /*!< number of tables */
   ulint fetch_table;         /*!< number of the next table to access
@@ -355,33 +347,28 @@ struct sel_node_t {
   ReadView *read_view;       /*!< if the query is a non-locking
                              consistent read, its read view is
                              placed here, otherwise NULL */
-  ibool consistent_read;     /*!< TRUE if the select is a consistent,
-                             non-locking read */
+  bool consistent_read;      /*!< true if the select is a consistent,
+                              non-locking read */
   order_node_t *order_by;    /*!< order by column definition, or
                              NULL */
-  ibool is_aggregate;        /*!< TRUE if the select list consists of
-                             aggregate functions */
-  ibool aggregate_already_fetched;
-  /*!< TRUE if the aggregate row has
+  bool is_aggregate;         /*!< true if the select list consists of
+                              aggregate functions */
+  bool aggregate_already_fetched;
+  /*!< true if the aggregate row has
   already been fetched for the current
   cursor */
-  ibool can_get_updated;       /*!< this is TRUE if the select
-                               is in a single-table explicit
-                               cursor which can get updated
-                               within the stored procedure,
-                               or in a searched update or
-                               delete; NOTE that to determine
-                               of an explicit cursor if it
-                               can get updated, the parser
-                               checks from a stored procedure
-                               if it contains positioned
-                               update or delete statements */
-  sym_node_t *explicit_cursor; /*!< not NULL if an explicit cursor */
-  UT_LIST_BASE_NODE_T(sym_node_t)
-  copy_variables; /*!< variables whose values we have to
-                  copy when an explicit cursor is opened,
-                  so that they do not change between
-                  fetches */
+
+  /** this is true if the select is in a single-table explicit cursor which can
+  get updated within the stored procedure, or in a searched update or delete;
+  NOTE that to determine of an explicit cursor if it can get updated, the
+  parser checks from a stored procedure if it contains positioned update or
+  delete statements */
+  bool can_get_updated;
+  /** not NULL if an explicit cursor */
+  sym_node_t *explicit_cursor;
+  /** variables whose values we have to copy when an explicit cursor is opened,
+  so that they do not change between fetches */
+  sym_node_list_t copy_variables;
 };
 
 /** Fetch statement node */
@@ -432,56 +419,43 @@ enum row_sel_match_mode {
                        of a fixed length column) */
 };
 
-#ifdef UNIV_DEBUG
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, field, src, len,  \
-                                           sec)
-#else /* UNIV_DEBUG */
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len)
-#endif /* UNIV_DEBUG */
-
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
-@param[in,out] dest		buffer where to store; NOTE
+@param[in,out] dest             buffer where to store; NOTE
                                 that BLOBs are not in themselves stored
                                 here: the caller must allocate and copy
                                 the BLOB into buffer before, and pass
                                 the pointer to the BLOB in 'data'
-@param[in]	templ		MySQL column template. Its following fields
+@param[in]      templ           MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-@param[in]	index		InnoDB index
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+@param[in]      index           InnoDB index
+@param[in]      field_no        templ->rec_field_no or templ->clust_rec_field_no
                                 or templ->icp_rec_field_no
-@param[in]	data		data to store
-@param[in]	len		length of the data
-@param[in]	sec_field	secondary index field no if the secondary index
+@param[in]      data            data to store
+@param[in]      len             length of the data
+@param[in]      sec_field       secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
-void row_sel_field_store_in_mysql_format_func(byte *dest,
-                                              const mysql_row_templ_t *templ,
-                                              const dict_index_t *index,
-#ifdef UNIV_DEBUG
-                                              ulint field_no,
-#endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len
-#ifdef UNIV_DEBUG
-                                              ,
-                                              ulint sec_field
-#endif /* UNIV_DEBUG */
-);
+void row_sel_field_store_in_mysql_format_func(
+    byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
+    IF_DEBUG(ulint field_no, ) const byte *data,
+    ulint len IF_DEBUG(, ulint sec_field));
+
+/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
+static inline void row_sel_field_store_in_mysql_format(
+    byte *dest, const mysql_row_templ_t *templ, const dict_index_t *idx,
+    ulint field, const byte *src, ulint len, ulint sec) {
+  row_sel_field_store_in_mysql_format_func(
+      dest, templ, idx, IF_DEBUG(field, ) src, len IF_DEBUG(, sec));
+}
 
 /** Search the record present in innodb_table_stats table using
 db_name, table_name and fill it in table stats structure.
-@param[in]	db_name		database name
-@param[in]	tbl_name	table name
-@param[out]	table_stats	stats table structure.
+@param[in]      db_name         database name
+@param[in]      tbl_name        table name
+@param[out]     table_stats     stats table structure.
 @return true if successful else false. */
 bool row_search_table_stats(const char *db_name, const char *tbl_name,
                             TableStatsRecord &table_stats);
@@ -489,11 +463,11 @@ bool row_search_table_stats(const char *db_name, const char *tbl_name,
 /** Search the record present in innodb_index_stats using
 db_name, table name and index_name and fill the
 cardinality for the each column.
-@param[in]	db_name		database name
-@param[in]	tbl_name	table name
-@param[in]	index_name	index name
-@param[in]	col_offset	offset of the column in the index
-@param[out]	cardinality	cardinality of the column.
+@param[in]      db_name         database name
+@param[in]      tbl_name        table name
+@param[in]      index_name      index name
+@param[in]      col_offset      offset of the column in the index
+@param[out]     cardinality     cardinality of the column.
 @return true if successful else false. */
 bool row_search_index_stats(const char *db_name, const char *tbl_name,
                             const char *index_name, ulint col_offset,

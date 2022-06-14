@@ -1,0 +1,389 @@
+# ==== Purpose ====
+#
+# This test checks that the slave parameter REQUIRE_TABLE_PRIMARY_KEY_CHECK is persisted
+# and also upgraded correctly using either table or files.
+#
+# ==== Requirements ====
+#
+# + TC1: **REQUIRE_TABLE_PRIMARY_KEY_CHECK** configuration exists in table/file.
+# + TC2: **REQUIRE_TABLE_PRIMARY_KEY_CHECK** configuration survives a server restart.
+# + TC3: Verify that the column is added when doing an upgrade from 5.7
+# + TC4: Verify that the column value is 'STREAM' for all channels.
+# + TC5: Verify that TC4 is true when upgrading from Table repositories
+# + TC6: Verify that TC4 is true when upgrading from File repositories
+# + TC7: Verify that RESET SLAVE has no observable effects for `REQUIRE_TABLE_PRIMARY_KEY_CHECK`.
+# + TC8: Verify that RESET SLAVE ALL has observable effects for `REQUIRE_TABLE_PRIMARY_KEY_CHECK`.
+#
+# ==== Implementation ====
+#
+# 0. Check if a privilege checks user exists and adapt the test if so.
+#    Create a test auxiliary include file to avoid step repetition.
+#
+# 1. Basic operations with REQUIRE_TABLE_PRIMARY_KEY_CHECK
+#
+# 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+#      Check the performance_schema table and file repository are correct
+# 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
+#      Check the performance_schema table and file repository are correct
+# 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
+#      Check the performance_schema table and file repository are correct
+#
+# 2. File to File upgrades
+#
+# 2.1 Upgrade the server while using File repositories
+#     Start the server using a file repository that has no REQUIRE_TABLE_PRIMARY_KEY_CHECK
+#     The starting value should be 1 in the file / STREAM
+# 2.2 Check FILE repository corruptions
+#     Start the server using a file repository that has an invalid Require_table_primary_key_check value
+#     Check we cannot start the slave process
+#
+# 3. File to Table upgrades
+#
+# 3.1 Upgrade the server to Table repositories from File repositories
+#     Start the server using a file repository that has no Require_table_primary_key_check
+#
+# 4. Table to Table upgrades
+#
+# 4.1 Upgrade the server while using Table repositories
+#     Have 3 channels:
+#       1. A channel with no privileged user (ch1)
+#       2. A group_replication channel (group_replication_recovery)
+#       3. A channel with a privileged user (default channel)
+#     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
+#
+# 5. RESET SLAVE tests
+#
+# 5.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+#      Execute a RESET SLAVE command.
+#      The option should not be affected
+#      It also survives a server restart
+# 5.2. Execute a RESET SLAVE ALL command.
+#      The table line was removed.
+# 5.3. Make RESET SLAVE fail due to persistence issues
+#      Check that errors on slave info persistence are gracefully handled
+#
+# 6. Cleanup
+#
+# ==== References ====
+#
+# WL#13239: Enable/disable primary key checks on slaves
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/not_group_replication_plugin.inc
+# This test is unrelated to log format
+--source include/have_binlog_format_row.inc
+--source include/not_master_info_file.inc
+--source include/not_mts_replica_parallel_workers.inc
+--source include/master-slave.inc
+
+--echo
+--echo # 0. Check if a privilege checks user exists and adapt the test if so.
+--echo #    Create a test auxiliary include file to avoid step repetition.
+
+--source include/rpl_connection_slave.inc
+
+# The privilege checks user is only used as a grep starting point.
+# Determine the hostname of the privilege checks user of the replication channel.
+# If privilege checks user does not exist, it will be set to 'root'@'localhost'.
+
+--let $_privilege_checks_user= query_get_value(select * from performance_schema.replication_applier_configuration,PRIVILEGE_CHECKS_USER,1)
+if ( $_privilege_checks_user != NULL)
+{
+  --let $_privilege_checks_user_at_index= `SELECT LOCATE('@', "$_privilege_checks_user")`
+  --let $_privilege_checks_user_host= `SELECT SUBSTRING("$_privilege_checks_user", $_privilege_checks_user_at_index + 1)`
+  --let $_privilege_checks_user_host = `SELECT LTRIM(RTRIM($_privilege_checks_user_host))`
+}
+if ( $_privilege_checks_user == NULL)
+{
+  --let $_privilege_checks_user_host= localhost
+}
+
+--write_file $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc END_OF_PROCEDURE
+
+  if ($rl_info_filename == '')
+  {
+    --die !!!ERROR IN TEST: you must set $rl_info_filename
+  }
+  if ($require_table_primary_key_check_value == '')
+  {
+    --die !!!ERROR IN TEST: you must set $require_table_primary_key_check_value
+  }
+  if ($require_table_primary_key_check_file_value == '')
+  {
+    --die !!!ERROR IN TEST: you must set $require_table_primary_key_check_file_value
+  }
+
+  --let $assert_text = Check that mysql.slave_relay_log_info does not have any entry
+  --let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CHANNEL_NAME=""] = 0
+  --source include/assert.inc
+
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = '$require_table_primary_key_check_value'`
+  --let $assert_text = REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is $require_table_primary_key_check_value
+  --let $assert_cond = $count = 1
+  --source include/assert.inc
+
+# There might be more occurence of same value as of $require_table_primary_key_check_file_value in the file so
+# just extract the relay-log.info file just till the value of $require_table_primary_key_check_file_value
+
+  CREATE TABLE relay_log_info_content (line_content TEXT);
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+  --eval LOAD DATA INFILE '$MYSQLD_DATADIR/$rl_info_filename' INTO TABLE relay_log_info_content
+
+  --let $expected_value = `SELECT *from relay_log_info_content LIMIT 12,13`
+  --let $assert_text = In the file the field is set to $require_table_primary_key_check_file_value
+  --let $assert_cond = $require_table_primary_key_check_file_value = $expected_value
+  --source include/assert.inc
+  DROP TABLE relay_log_info_content;
+END_OF_PROCEDURE
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $rl_info_filename = `SELECT @@relay_log_info_file`
+
+# 1. Basic operations with REQUIRE_TABLE_PRIMARY_KEY_CHECK
+
+--echo
+--echo # 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+--echo #      Check the performance_schema table and file repository are correct
+
+STOP SLAVE;
+
+--disable_query_log
+if ( $_privilege_checks_user == NULL)
+{
+  CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost', REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+}
+if ( $_privilege_checks_user != NULL)
+{
+  CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+}
+--enable_query_log
+
+START SLAVE;
+
+--let $require_table_primary_key_check_value = ON
+--let require_table_primary_key_check_file_value = 2
+--source $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
+
+--echo
+--echo # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
+--echo #      Check the performance_schema table and file repository are correct
+
+STOP SLAVE;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+
+START SLAVE;
+
+--let $require_table_primary_key_check_value = OFF
+--let require_table_primary_key_check_file_value = 3
+--source $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
+
+--echo
+--echo # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
+--echo #      Check the performance_schema table and file repository are correct
+
+STOP SLAVE;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+
+START SLAVE;
+
+--let $require_table_primary_key_check_value = STREAM
+--let require_table_primary_key_check_file_value = 1
+--source $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
+
+# 2. File to File upgrades
+
+--echo
+--echo # 2.1 Upgrade the server while using File repositories
+--echo #     Start the server using a file repository that has no REQUIRE_TABLE_PRIMARY_KEY_CHECK
+--echo #     The starting value should be 1 in the file / STREAM
+
+--let $sub_testcase = no_require_table_primary_key_check
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--let $require_table_primary_key_check_value = STREAM
+--let require_table_primary_key_check_file_value = 1
+--source $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
+
+--echo
+--echo # 2.2 Check FILE repository corruptions
+--echo #     Start the server using a file repository that has an invalid Require_table_primary_key_check value
+--echo #     Check we cannot start the slave process
+
+--let $sub_testcase = invalid_require_table_primary_key_check
+--let $rpl_server_restart_parameters = --skip_replica_start
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# 3. File to Table upgrades
+
+--echo
+--echo # 3.1 Upgrade the server to Table repositories from File repositories
+--echo #     Start the server using a file repository that has no Require_table_primary_key_check
+
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
+UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
+
+--let $sub_testcase = no_require_table_primary_key_check
+--let $rpl_server_restart_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+
+ --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CHANNEL_NAME="" AND REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
+ --let $assert_text = Check that mysql.slave_relay_log_info has an entry with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM
+ --let $assert_cond = $count = 1
+ --source include/assert.inc
+
+ --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
+ --let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+ --let $assert_cond = $count = 1
+ --source include/assert.inc
+
+# 4. Table to Table upgrades
+
+--echo
+--echo # 4.1 Upgrade the server while using Table repositories
+--echo #     Have 3 channels:
+--echo #       1. A channel with no privileged user (ch1)
+--echo #       2. A group_replication channel (group_replication_recovery)
+--echo #       3. A channel with a privileged user (default channel)
+--echo #     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
+
+# For runs where GTID mode is OFF we enable it so we can configure the GR recovery channel
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_set_enforce_gtid_consistency= 1
+--let $rpl_skip_sync= 1
+--let $no_extra_info = 1
+--source include/rpl_set_gtid_mode.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
+--disable_warnings
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+--enable_warnings
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+
+# Revert the table to 11 lines (pre upgrade)
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
+UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $explicit_default_wait_counter = 15000
+--source include/rpl_restart_server.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
+--let $assert_text = Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM
+--let $assert_cond = $count = 2 # The recovery channel wont appear unless we start GR
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
+--let $assert_text = Check that mysql.slave_relay_log_info entries all have REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM
+--let $assert_cond = $count = 3
+--source include/assert.inc
+
+RESET SLAVE ALL FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+
+if ($gtid_mode_on == 0) {
+  --let $rpl_gtid_mode = 0
+  --let $rpl_set_enforce_gtid_consistency = 0
+}
+--let $no_extra_info = 1
+--source include/rpl_set_gtid_mode.inc
+
+# 5. RESET SLAVE tests
+
+--echo
+--echo # 5.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+--echo #      Execute a RESET SLAVE command.
+--echo #      The option should not be affected
+--echo #      It also survives a server restart
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
+--let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+RESET SLAVE;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
+--let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
+--let $explicit_default_wait_counter = 15000
+--source include/rpl_restart_server.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
+--let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--echo
+--echo # 5.2. Execute a RESET SLAVE ALL command.
+--echo #      The table line was removed.
+
+RESET SLAVE ALL;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info`
+--let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_cond = $count = 0
+--source include/assert.inc
+
+--echo
+--echo # 5.3. Make RESET SLAVE fail due to persistence issues
+--echo #      Check that errors on slave info persistence are gracefully handled
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'OFF'`
+--let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG = '+d,rpl_rli_clear_info_error';
+
+--error ER_MASTER_INFO
+RESET SLAVE;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'OFF'`
+--let $assert_text = Check entry for default channel "" is unchanged in performance_schema.replication_applier_configuration
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--echo
+--echo # 6. Cleanup
+
+SET @@GLOBAL.DEBUG = '-d,rpl_rli_clear_info_error';
+RESET SLAVE ALL;
+
+--remove_file $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
+
+CALL mtr.add_suppression("Error reading relay log configuration.");
+CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
+CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
+CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+
+--disable_warnings
+--disable_query_log
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--enable_query_log
+--enable_warnings
+
+START SLAVE;
+
+--let $rpl_channel_name=
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

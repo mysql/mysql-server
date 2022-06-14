@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqld\fR
+.\"     Title: mysqld
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD\FR" "8" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLD" "8" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,7 +34,7 @@ mysqld \- the MySQL server
 \fBmysqld [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
-\fBmysqld\fR, also known as MySQL Server, is the main program that does most of the work in a MySQL installation\&. MySQL Server manages access to the MySQL data directory that contains databases and tables\&. The data directory is also the default location for other information such as log files and status files\&.
+\fBmysqld\fR, also known as MySQL Server, is a single multithreaded program that does most of the work in a MySQL installation\&. It does not spawn additional processes\&. MySQL Server manages access to the MySQL data directory that contains databases and tables\&. The data directory is also the default location for other information such as log files and status files\&.
 .if n \{\
 .sp
 .\}
@@ -52,7 +52,7 @@ Some installation packages contain a debugging version of the server named
 \fBmysqld\-debug\fR\&. Invoke this version instead of
 \fBmysqld\fR
 for debugging support, memory allocation checking, and trace file support (see
-Section\ \&29.5.1.2, \(lqCreating Trace Files\(rq)\&.
+Section\ \&5.9.1.2, \(lqCreating Trace Files\(rq)\&.
 .sp .5v
 .RE
 .PP
@@ -66,7 +66,7 @@ program has many options that can be specified at startup\&. For a complete list
 .RS 4
 .\}
 .nf
-shell> \fBmysqld \-\-verbose \-\-help\fR
+mysqld \-\-verbose \-\-help
 .fi
 .if n \{\
 .RE
@@ -80,7 +80,7 @@ Chapter\ \&2, Installing and Upgrading MySQL\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

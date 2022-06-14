@@ -81,7 +81,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) DEFAULT NULL,
-  `level` smallint(5) unsigned DEFAULT NULL
+  `level` smallint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=big5
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
@@ -241,6 +241,9 @@ _	5F
 |	7C
 }	7D
 	7F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 SET collation_connection='big5_bin';
 create table t1 select repeat('a',4000) a;
@@ -349,6 +352,8 @@ drop table t1;
 select hex(convert(_big5 0xC84041 using ucs2));
 hex(convert(_big5 0xC84041 using ucs2))
 003F0041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 End of 4.1 tests
 set names big5;
 create table t1 (a blob);

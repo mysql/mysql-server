@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "my_macros.h"
 
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
 #include "mysqld_error.h"
@@ -81,7 +80,7 @@ class MY_LOCALE_ERRMSGS {
 #endif
 
   /** Has the error message file been sucessfully loaded? */
-  bool is_loaded() const { return errmsgs != NULL; }
+  bool is_loaded() const { return errmsgs != nullptr; }
 
   /** Deallocate error message strings. */
   void destroy();
@@ -93,13 +92,24 @@ class MY_LOCALE_ERRMSGS {
   const char *get_language() const { return language; }
 };
 
+#ifdef CHECK_ERRMSG_FORMAT
+// The number and type of arguments to error messages is
+// now checked at compile time.
+#include "mysqld_errmsg.h"
+#define ER_DEFAULT(X) X##_MSG
+#define ER_THD(T, X) X##_MSG
+#else
 const char *ER_DEFAULT(int mysql_errno);
 const char *ER_THD(const THD *thd, int mysql_errno);
+#endif  // CHECK_ERRMSG_FORMAT
 
-C_MODE_START
+// Use these in place of ER_DEFAULT/ER_THD when the error number is not known at
+// compile time. Avoid using these if at all possible.
+const char *ER_DEFAULT_NONCONST(int mysql_errno);
+const char *ER_THD_NONCONST(const THD *thd, int mysql_errno);
+
 const char *error_message_for_error_log(int mysql_errno);
 const char *error_message_for_client(int mysql_errno);
-C_MODE_END
 
 const char *mysql_errno_to_symbol(int mysql_errno);
 int mysql_symbol_to_errno(const char *error_symbol);

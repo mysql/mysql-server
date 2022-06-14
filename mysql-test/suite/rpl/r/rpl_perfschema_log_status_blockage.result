@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+SET @@GLOBAL.replica_checkpoint_period= 1;
+[connection master]
 CREATE TABLE ils_copy (
 uuid VARCHAR(36) PRIMARY KEY,
 master JSON NOT NULL,
@@ -12,7 +15,7 @@ CREATE TABLE t1_innodb (c1 INT);
 CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
 include/sync_slave_sql_with_master.inc
 # Adding debug point 'pause_collecting_instance_logs_info' to @@GLOBAL.debug
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
 include/save_master_pos.inc
 [connection slave1]
@@ -26,7 +29,7 @@ FLUSH LOCAL BINARY LOGS;;
 [connection server_2_2]
 SET @@GLOBAL.gtid_purged = '+00000000-0000-0000-0000-000000000000:1-999';
 [connection server_2_3]
-CHANGE MASTER TO MASTER_HOST='127.0.0.1' FOR CHANNEL 'ch2';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1' FOR CHANNEL 'ch2';
 [connection server_2_4]
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 [connection server_2_5]
@@ -53,6 +56,8 @@ LOAD DATA INFILE 'ILS_DUMP' INTO TABLE ils_copy;
 [connection server_2_2]
 [connection server_2_3]
 [connection server_2_4]
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server_2_5]
 [connection server_2_6]
 [connection slave1]
@@ -72,7 +77,10 @@ include/assert.inc [Collected InnoDB LSN is in correct boundaries]
 include/assert.inc [Collected InnoDB LSN_checkpoint is in correct boundaries]
 [connection slave]
 # Removing debug point 'pause_collecting_instance_logs_info' from @@GLOBAL.debug
+SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
 RESET SLAVE ALL FOR CHANNEL 'ch2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
 DROP TABLE ils_copy, t1_innodb, t2_myisam;
 include/rpl_end.inc

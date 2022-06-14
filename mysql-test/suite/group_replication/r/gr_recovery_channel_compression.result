@@ -1,0 +1,88 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create a table on the group.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Invalid compression level found while reading master info repository. Resetting level to default.");
+call mtr.add_suppression("Plugin group_replication reported: 'Error while creating the group replication recovery channel with donor .*");
+call mtr.add_suppression("Plugin group_replication reported: 'Error when configuring the asynchronous recovery channel connection to the donor.");
+call mtr.add_suppression("Plugin group_replication reported: 'Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Plugin group_replication reported: 'Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+include/rpl_sync.inc
+
+############################################################
+# 2. Test invalid algorithm and level values.
+[connection server2]
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1;
+ERROR 42000: Incorrect argument type to variable 'group_replication_recovery_compression_algorithms'
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1.0;
+ERROR 42000: Incorrect argument type to variable 'group_replication_recovery_compression_algorithms'
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "foo";
+ERROR 42000: The value 'foo' is invalid for group_replication_recovery_compression_algorithms option.
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "ZLIB";
+ERROR 42000: The value 'ZLIB' is invalid for group_replication_recovery_compression_algorithms option.
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "ZSTD";
+ERROR 42000: The value 'ZSTD' is invalid for group_replication_recovery_compression_algorithms option.
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= "bar";
+ERROR 42000: Incorrect argument type to variable 'group_replication_recovery_zstd_compression_level'
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1.0;
+ERROR 42000: Incorrect argument type to variable 'group_replication_recovery_zstd_compression_level'
+
+############################################################
+# 3. Test invalid algorithm and level combinations.
+[connection server2]
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
+ERROR 42000: The value '0' is invalid for group_replication_recovery_zstd_compression_level option.
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
+ERROR 42000: The value '23' is invalid for group_replication_recovery_zstd_compression_level option.
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
+ERROR 42000: The value '0' is invalid for group_replication_recovery_zstd_compression_level option.
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
+ERROR 42000: The value '23' is invalid for group_replication_recovery_zstd_compression_level option.
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "uncompressed";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 0;
+ERROR 42000: The value '0' is invalid for group_replication_recovery_zstd_compression_level option.
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
+ERROR 42000: The value '23' is invalid for group_replication_recovery_zstd_compression_level option.
+
+############################################################
+# 4. Test valid algorithm and level combinations.
+[connection server2]
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
+include/gr_recovery_channel_block.inc
+include/assert.inc ['Algorithm must be zlib']
+include/gr_recovery_channel_resume.inc
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+include/gr_recovery_channel_block.inc
+include/assert.inc ['Algorithm must be zstd and level must be 3 (the default)']
+include/gr_recovery_channel_resume.inc
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1;
+include/gr_recovery_channel_block.inc
+include/assert.inc ['Algorithm must be zstd and level must be 1']
+include/gr_recovery_channel_resume.inc
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zstd";
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 22;
+include/gr_recovery_channel_block.inc
+include/assert.inc ['Algorithm must be zstd and level must be 22']
+include/gr_recovery_channel_resume.inc
+
+############################################################
+# 6. Clean up.
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -1,0 +1,129 @@
+set @windows = convert(@@version_compile_os using latin1)
+in ('Win32', 'Win64', 'Windows');
+CREATE TABLE t1(k int not null primary key auto_increment) engine=ndb;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+# Password in double quotes
+ndb_mgm -e 'start backup snapshotend encrypt password="abc"'
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+# Password in single quotes
+ndb_mgm -e "start backup encrypt password='abc'"
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+# Empty password
+ndb_mgm -e "start backup encrypt password="
+Invalid command: backup encrypt password=
+Encryption password should be within quotes
+Type HELP for help.
+
+# Empty password
+ndb_mgm -e "start backup encrypt password=''"
+Waiting for completed, this may take several minutes
+Backup failed
+*  3001: Could not start backup
+*        Encryption password is of zero length: Permanent error: Configuration or application error
+# Empty password
+ndb_mgm -e 'start backup encrypt password=""'
+Waiting for completed, this may take several minutes
+Backup failed
+*  3001: Could not start backup
+*        Encryption password is of zero length: Permanent error: Configuration or application error
+# Password of length 256
+ndb_mgm -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643K'"
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+# Password > 256 chars
+ndb_mgm -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643Ki'"
+Waiting for completed, this may take several minutes
+Backup failed
+*  3001: Could not start backup
+*        Encryption password is too long (see 'HELP START BACKUP'): Permanent error: Configuration or application error
+# Password >512 chars
+ndb_mgm -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643KiheCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643Ki'"
+Waiting for completed, this may take several minutes
+Backup failed
+*  5001: Usage error
+*        Line length exceeded due to argument: encryption_password
+# Password =512 chars
+ndb_mgm -e "start backup encrypt password='heCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643KiheCrNh3UIn3yDmO02yic6FTAdkTRQEd2qunuj2K5QHluWa52YvsVnS1yzLJuXnSEeZENu9RBjf3bu3acQg56H1jnvWs4kesAPJPZFHRtdv9ap5WXWyGLBIUE7fOANSX2xIlkoHpy39RtdJAMuKa5cXC1ZTrrFujAPET68QHraLLWOJHNf7fYsqdehwGQiZG0cz2TErLQoNWu5YX32iBGPHTopZ1yDsAEOZyOdaDcbz0bflKZcSWH5FoVjyGF643'"
+Waiting for completed, this may take several minutes
+Backup failed
+*  5001: Usage error
+*        Line length exceeded due to argument: encryption_password
+# Password with spaces
+ndb_mgm -e "start backup encrypt password='one two  three   '"
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+# Password with disallowed characters
+ndb_mgm -e "start backup encrypt password='a#b!'"
+Waiting for completed, this may take several minutes
+Backup failed
+*  3001: Could not start backup
+*        Encryption password has bad character/s (see 'HELP START BACKUP'): Permanent error: Configuration or application error
+# Password with allowed special characters
+ndb_mgm -e "start backup encrypt password='(+*-)'"
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+# Invalid commands caught by ndb_mgm parser
+ndb_mgm -e "start backup encrypt password='abba' 'garbage'"
+Invalid command: backup encrypt password='abba' 'garbage'
+Type HELP for help.
+
+ndb_mgm -e 'start backup encrypt password="abba" encrypt password='"'garbage'"
+Invalid command: backup encrypt password="abba" encrypt password='garbage'
+Type HELP for help.
+
+ndb_mgm -e "start backup encrypt password='abba' encrypt password='garbage'"
+Invalid command: backup encrypt password='abba' encrypt password='garbage'
+Type HELP for help.
+
+ndb_mgm -e "start backup encrypt password='"
+Invalid command: backup encrypt password='
+Encryption password should be within quotes
+Type HELP for help.
+
+ndb_mgm -e "start backup encrypt password='abba' '"
+Invalid command: backup encrypt password='abba' '
+Type HELP for help.
+
+
+# Test START BACKUP ENCRYPT with password from stdin
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+
+# Make START BACKUP trigger encrypted backup.
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+DROP TABLE t1;

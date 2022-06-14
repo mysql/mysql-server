@@ -60,7 +60,7 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
@@ -68,7 +68,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
@@ -78,7 +78,7 @@ USE test_rpl;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
@@ -86,7 +86,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
@@ -100,7 +100,7 @@ CREATE INDEX index3 on t2 (a, d);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
@@ -108,7 +108,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   `d` datetime DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -121,7 +121,7 @@ USE test_rpl;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
@@ -129,7 +129,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` char(254) DEFAULT NULL,
   `d` datetime DEFAULT NULL,
   PRIMARY KEY (`a`),

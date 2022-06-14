@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,45 +81,45 @@ ulint dtype_get_at_most_n_mbchars(
 /** Checks if a data main type is a string type. Also a BLOB is considered a
  string type.
  @return true if string type */
-ibool dtype_is_string_type(
+bool dtype_is_string_type(
     ulint mtype) /*!< in: InnoDB main data type code: DATA_CHAR, ... */
 {
   if (mtype <= DATA_BLOB || mtype == DATA_MYSQL || mtype == DATA_VARMYSQL) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Checks if a type is a binary string type. Note that for tables created with
  < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
- those DATA_BLOB columns this function currently returns FALSE.
+ those DATA_BLOB columns this function currently returns false.
  @return true if binary string type */
-ibool dtype_is_binary_string_type(ulint mtype,  /*!< in: main data type */
-                                  ulint prtype) /*!< in: precise type */
+bool dtype_is_binary_string_type(ulint mtype,  /*!< in: main data type */
+                                 ulint prtype) /*!< in: precise type */
 {
   if ((mtype == DATA_FIXBINARY) || (mtype == DATA_BINARY) ||
       (mtype == DATA_BLOB && (prtype & DATA_BINARY_TYPE))) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Checks if a type is a non-binary string type. That is, dtype_is_string_type
- is TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
+ is true and dtype_is_binary_string_type is false. Note that for tables created
  with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
- For those DATA_BLOB columns this function currently returns TRUE.
+ For those DATA_BLOB columns this function currently returns true.
  @return true if non-binary string type */
-ibool dtype_is_non_binary_string_type(ulint mtype,  /*!< in: main data type */
-                                      ulint prtype) /*!< in: precise type */
+bool dtype_is_non_binary_string_type(ulint mtype,  /*!< in: main data type */
+                                     ulint prtype) /*!< in: precise type */
 {
-  if (dtype_is_string_type(mtype) == TRUE &&
-      dtype_is_binary_string_type(mtype, prtype) == FALSE) {
-    return (TRUE);
+  if (dtype_is_string_type(mtype) == true &&
+      dtype_is_binary_string_type(mtype, prtype) == false) {
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Forms a precise type from the < 4.1.2 format precise type plus the
@@ -138,7 +138,7 @@ ulint dtype_form_prtype(
 
 /** Validates a data type structure.
  @return true if ok */
-ibool dtype_validate(const dtype_t *type) /*!< in: type struct to validate */
+bool dtype_validate(const dtype_t *type) /*!< in: type struct to validate */
 {
   ut_a(type);
   ut_a(type->mtype >= DATA_VARCHAR);
@@ -150,12 +150,12 @@ ibool dtype_validate(const dtype_t *type) /*!< in: type struct to validate */
 
   ut_a(dtype_get_mbminlen(type) <= dtype_get_mbmaxlen(type));
 
-  return (TRUE);
+  return true;
 }
 
 #ifdef UNIV_DEBUG
 /** Print a data type structure.
-@param[in]	type	data type */
+@param[in]      type    data type */
 void dtype_print(const dtype_t *type) {
   ulint mtype;
   ulint prtype;
@@ -268,3 +268,117 @@ void dtype_print(const dtype_t *type) {
   fprintf(stderr, " len %lu", (ulong)len);
 }
 #endif /* UNIV_DEBUG */
+
+std::ostream &dtype_t::print(std::ostream &out) const {
+  out << "[dtype_t: mtype=" << mtype << " (";
+
+  switch (mtype) {
+    case DATA_VARCHAR:
+      out << "DATA_VARCHAR";
+      break;
+
+    case DATA_CHAR:
+      out << "DATA_CHAR";
+      break;
+
+    case DATA_BINARY:
+      out << "DATA_BINARY";
+      break;
+
+    case DATA_FIXBINARY:
+      out << "DATA_FIXBINARY";
+      break;
+
+    case DATA_BLOB:
+      out << "DATA_BLOB";
+      break;
+
+    case DATA_POINT:
+      out << "DATA_POINT";
+      break;
+
+    case DATA_VAR_POINT:
+      out << "DATA_VAR_POINT";
+      break;
+
+    case DATA_GEOMETRY:
+      out << "DATA_GEOMETRY";
+      break;
+
+    case DATA_INT:
+      out << "DATA_INT";
+      break;
+
+    case DATA_MYSQL:
+      out << "DATA_MYSQL";
+      break;
+
+    case DATA_SYS:
+      out << "DATA_SYS";
+      break;
+
+    case DATA_FLOAT:
+      out << "DATA_FLOAT";
+      break;
+
+    case DATA_DOUBLE:
+      out << "DATA_DOUBLE";
+      break;
+
+    case DATA_DECIMAL:
+      out << "DATA_DECIMAL";
+      break;
+
+    case DATA_VARMYSQL:
+      out << "DATA_VARMYSQL";
+      break;
+
+    default:
+      out << "UKNOWN: " << mtype;
+      break;
+  }
+
+  out << "), prtype=" << prtype << " (";
+
+  if ((mtype == DATA_SYS) || (mtype == DATA_VARCHAR) || (mtype == DATA_CHAR)) {
+    out << ' ';
+    if (prtype == DATA_ROW_ID) {
+      out << "DATA_ROW_ID";
+    } else if (prtype == DATA_ROLL_PTR) {
+      out << "DATA_ROLL_PTR";
+    } else if (prtype == DATA_TRX_ID) {
+      out << "DATA_TRX_ID";
+    } else if (prtype == DATA_ENGLISH) {
+      out << "DATA_ENGLISH";
+    } else {
+      out << "UNKNOWN: " << prtype;
+    }
+  } else {
+    if (prtype & DATA_UNSIGNED) {
+      out << " DATA_UNSIGNED";
+    }
+
+    if (prtype & DATA_BINARY_TYPE) {
+      out << " DATA_BINARY_TYPE";
+    }
+
+    if (prtype & DATA_NOT_NULL) {
+      out << " DATA_NOT_NULL";
+    }
+
+    if (prtype & DATA_VIRTUAL) {
+      out << " DATA_VIRTUAL";
+    }
+
+    const auto other_flags = prtype & ~(DATA_UNSIGNED | DATA_BINARY_TYPE |
+                                        DATA_NOT_NULL | DATA_VIRTUAL);
+
+    if (other_flags != 0) {
+      out << " UNKNOWN:" << other_flags;
+    }
+  }
+
+  out << "), len=" << len << "]";
+
+  return (out);
+}

@@ -3,7 +3,9 @@
 
 --let $old_instant_cols = `SELECT instant_cols FROM information_schema.innodb_tables WHERE name like '%t1%';`
 
+--disable_warnings
 --eval $instant_add_column
+--enable_warnings
 
 --let $table_id = `SELECT table_id FROM information_schema.innodb_tables WHERE name like '%t1%';`
 

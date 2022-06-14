@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,9 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <algorithm>
@@ -126,12 +123,12 @@ typedef dd::Char_stringstream_template<Tracking_allocator<char>>
 
 class TrackingStringTypeTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     Tracking_alloc::allocations = 0;
     Tracking_alloc::bytes_allocated = 0;
     Tracking_alloc::frees = 0;
   }
-  virtual void TearDown() {
+  void TearDown() override {
     std::cout << "allocations: " << Tracking_alloc::allocations
               << ", frees: " << Tracking_alloc::frees
               << ", bytes allocated: " << Tracking_alloc::bytes_allocated

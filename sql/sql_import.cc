@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/sql_import.h"
 
+#include <assert.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <memory>
@@ -29,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -45,6 +45,7 @@
 #include "sql/psi_memory_key.h"     // key_memory_DD_import
 #include "sql/sql_backup_lock.h"    // acquire_shared_backup_lock
 #include "sql/sql_class.h"          // THD
+#include "sql/sql_db.h"             // check_schema_readonly
 #include "sql/sql_error.h"
 #include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
@@ -61,9 +62,9 @@ Sql_cmd_import_table::Sql_cmd_import_table(
     : m_sdi_patterns(sdi_patterns) {}
 
 bool Sql_cmd_import_table::execute(THD *thd) {
-  DBUG_ASSERT(!m_sdi_patterns.empty());
+  assert(!m_sdi_patterns.empty());
 
-  auto rbgrd = dd::sdi_utils::make_guard(thd, [](THD *thd) {
+  auto rbgrd = dd::sdi_utils::make_guard(thd, [&](THD *) {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
   });
@@ -162,6 +163,16 @@ bool Sql_cmd_import_table::execute(THD *thd) {
                                      thd->variables.lock_wait_timeout)) {
     return true;
   }
+
+  // Now when we have protection against concurrent change of read_only
+  // option we can safely re-check its value.
+  if (check_readonly(thd, true)) return true;
+
+  // Loop over schema names and check schema read only.
+  for (auto &sn : schema_names) {
+    if (check_schema_readonly(thd, sn.c_str())) return true;
+  }
+
   // Now we have MDL on all schemas and tables involved
 
   for (auto &t : targets) {

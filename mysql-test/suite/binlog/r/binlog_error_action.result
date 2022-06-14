@@ -98,7 +98,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'." found
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
@@ -118,7 +118,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during sync stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during sync stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 DELETE FROM t1;
 RESET MASTER;
 SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
@@ -134,7 +134,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_do_write_cache_failure";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
 RESET MASTER;

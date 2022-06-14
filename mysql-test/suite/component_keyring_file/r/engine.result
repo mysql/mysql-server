@@ -1,0 +1,175 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#
+# WL#12261 Control (enforce and disable) table encryption
+#
+# Check for use of ENCRYPTION clause on tables using engines that
+# does not support encryption.
+#
+# 1. Requesting encryption on SE that does not support encryption.
+#
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=HEAP ENCRYPTION='y';
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=MyISAM ENCRYPTION='y';
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=MyISAM ENCRYPTION='w';
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+# 2.
+# Requesting unencrypted tables on SE that does not support
+# encryption. This is allowed. Verify that we do not store
+# ENCRYPTION clause.
+#
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=HEAP ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=HEAP ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=MyISAM ENCRYPTION='';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+DROP TABLE t1;
+# 3.
+# Move tables to and from different storage engine.
+#
+CREATE TABLE t1 (f1 INT NOT NULL) ENGINE=InnoDB ENCRYPTION='y';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+# 4.
+# Moving encrypted table to SE that doesn't support encryption.
+ALTER TABLE t1 ENGINE=MyISAM;
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+ALTER TABLE t1 ENGINE=HEAP;
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+# 5.
+# Moving encrypted table to SE that doesn't support encryption.
+# with a explicit request to decrypt the table is allowed.
+ALTER TABLE t1 ENGINE=MyISAM ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+ALTER TABLE t1 ENGINE=Heap ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+ALTER TABLE t1 ENGINE=CSV ENCRYPTION='';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+# 6.
+# Moving unencrypted table from SE that doesn't support encryption
+# to SE that does support encryption is allowed.
+ALTER TABLE t1 ENGINE=InnoDB ENCRYPTION='y';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+DROP TABLE t1;
+# Same as 4/5/6 using general tablespace:
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE t1 (f1 INT NOT NULL) TABLESPACE=ts1 ENCRYPTION='y';
+# 4.
+# Moving encrypted table to SE that doesn't support encryption.
+ALTER TABLE t1 ENGINE=MyISAM;
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+ALTER TABLE t1 ENGINE=HEAP;
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+# 5.
+# Moving encrypted table to SE that doesn't support encryption.
+# with a explicit request to decrypt the table is allowed.
+ALTER TABLE t1 ENGINE=MyISAM ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+# 6.
+# Moving unencrypted table from SE that doesn't support encryption
+# to SE that does support encryption is allowed.
+ALTER TABLE t1 ENGINE=InnoDB TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+ALTER TABLE t1 ENCRYPTION='y';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

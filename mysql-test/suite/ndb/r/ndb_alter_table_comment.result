@@ -1,0 +1,219 @@
+set @global_fully_replicated=@@global.ndb_fully_replicated;
+set @global_read_backup=@@global.ndb_read_backup;
+# Create table with fully_replicated=1        #
+# will change read_backup to 1 implicitly,    #
+# but will not be shown in the comment.       #
+# This should not affect the following alters #
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=0;
+CREATE TABLE t (x int primary key)
+ENGINE=ndbcluster;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t ALGORITHM=copy, ADD COLUMN y int;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  `y` int DEFAULT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+
+# Change the default of read_backup and alter another comment item. #
+# Will fail due to the new default of the non-specified RB          #
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=1;
+CREATE TABLE t (x int primary key)
+ENGINE=ndbcluster comment="A comment";
+set global ndb_read_backup=0;
+ALTER TABLE t algorithm=copy, comment="NDB_TABLE=NOLOGGING=1";
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ALTER TABLE t algorithm=inplace, comment="NDB_TABLE=NOLOGGING=1";
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='A comment'
+
+# Change the default of FR and alter another comment item  #
+# Will fail due to the new default of the non-specified FR #
+set global ndb_fully_replicated=0;
+ALTER TABLE t ALGORITHM=copy, comment="NDB_TABLE=NOLOGGING=0";
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for FULLY_REPLICATED (=0) which is different from the table's current value. Try either 'set global ndb_fully_replicated=1;' or add FULLY_REPLICATED=1 to comment.
+DROP TABLE t;
+
+# Change the default to NL=1 and alter another comment item #
+# Will fail due to the new default of the non-specified NL  #
+CREATE TABLE t (x int primary key)
+ENGINE=ndbcluster comment="A comment";
+set session ndb_table_no_logging=1;
+ALTER TABLE t algorithm=copy, comment="NDB_TABLE=READ_BACKUP=1";
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for NOLOGGING (=1) which is different from the table's current value. Try either 'set table_no_logging=0;' or add NOLOGGING=0 to comment.
+set session ndb_table_no_logging=0;
+ALTER TABLE t algorithm=copy, comment="NDB_TABLE=READ_BACKUP=1";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+DROP TABLE t;
+
+# Check if alters preserve the values of the other comment items #
+CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int)
+ENGINE=ndb COMMENT="NDB_TABLE=NOLOGGING=1,READ_BACKUP=0";
+ALTER TABLE t30 ALGORITHM=inplace,
+COMMENT="NDB_TABLE=FULLY_REPLICATED=0";
+ALTER TABLE t30 ALGORITHM=COPY,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+SHOW CREATE TABLE t30;
+Table	Create Table
+t30	CREATE TABLE `t30` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=0,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_NODE'
+
+# Cannot alter fully replicated tables when read backup=0 #
+# is specified by the user                                #
+ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
+ERROR 0A000: Alter table is not supported. Reason: READ_BACKUP=0 cannot be used for fully replicated tables. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
+ERROR 0A000: Alter table is not supported. Reason: READ_BACKUP=0 cannot be used for fully replicated tables. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+drop table t30;
+
+# Even though a table is created with default              #
+# ndb_read backup=0,  changing FR to 1                     #
+# will change it implicitly to 1, but will not be shown    #
+set global ndb_read_backup=0;
+CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int) ENGINE=ndb
+COMMENT="NDB_TABLE=NOLOGGING=1";
+ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
+SHOW CREATE TABLE t30;
+Table	Create Table
+t30	CREATE TABLE `t30` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=1'
+# Cannot change read_backup to 0 when FR is on  #
+ALTER TABLE t30 algorithm=copy, comment="NDB_TABLE=READ_BACKUP=0";
+ERROR 0A000: Alter table is not supported. Reason: cannot change READ_BACKUP to 0 for fully replicated tables. Try fully_replicated=0 if that is the intention.
+drop table t30;
+set global ndb_read_backup=1;
+
+# Cannot change logging with inplace #
+CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int)
+ENGINE=ndb;
+ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=1";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
+ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=NOLOGGING=1";
+SHOW CREATE TABLE t30;
+Table	Create Table
+t30	CREATE TABLE `t30` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+
+# Execute some more alters #
+ALTER TABLE t30 ALGORITHM=COPY,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+ALTER TABLE t30 ALGORITHM=COPY, COMMENT="NDB_TABLE=FULLY_REPLICATED=0";
+SHOW CREATE TABLE t30;
+Table	Create Table
+t30	CREATE TABLE `t30` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_LDM'
+drop table t30;
+
+# Check if changing the comment gives assertion error on fullyreplicated table#
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=1;
+CREATE TABLE t (x int primary key)
+ENGINE=ndbcluster;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t ALGORITHM=inplace, comment="A comment";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='A comment'
+
+# Perform an alter of an already existing NDB table option
+ALTER TABLE t ALGORITHM=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+DROP TABLE t;
+
+# Change PB to the existing value
+CREATE TABLE t (a int primary key)
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM" engine=ndb;
+ALTER TABLE t ALGORITHM=inplace,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM'
+
+# Changing PB to a new value should fail for inplace alter#
+# and pass for copy alter#
+ALTER TABLE t ALGORITHM=inplace,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Changing PARTITION_BALANCE with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+ALTER TABLE t ALGORITHM=copy,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+DROP TABLE t;
+set global ndb_fully_replicated=@global_fully_replicated;
+set global ndb_read_backup=@global_read_backup;
+#
+# BUG#31776392 ALTER TABLE COMMENT HITS ASSERT IN DEBUG BUILD
+# Turning off NOLOGGING is not supported inplace, check that
+# a message with reason why it's not supported is returned
+#
+CREATE TABLE t1 (a int PRIMARY KEY) engine=ndbcluster
+COMMENT="NDB_TABLE=NOLOGGING=1,READ_BACKUP=0";
+ALTER TABLE t1 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=0";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
+ALTER TABLE t1 COMMENT="NDB_TABLE=NOLOGGING=0";
+DROP TABLE t1;
+#
+# Test CREATE and ALTER TABLE with unknown PARTITION_BALANCE value
+#  - will push warning an silently ignore the modifier
+#
+CREATE TABLE t1 (a int PRIMARY KEY) engine=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+Warnings:
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+# NOTE! Double warnings from the double parse of comment
+ALTER TABLE t1 ALGORITHM=inplace,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+Warnings:
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+ALTER TABLE t1 ALGORITHM=copy,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+Warnings:
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+DROP TABLE t1;

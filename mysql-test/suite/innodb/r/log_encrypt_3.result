@@ -1,40 +1,12 @@
-DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
-SET GLOBAL innodb_redo_log_encrypt = 1;
-SHOW WARNINGS;
-Level	Code	Message
-CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
-INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
-SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
-# restart
-SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
-DROP TABLE tde_db.t4;
-DROP DATABASE IF EXISTS tde_db;
-CREATE DATABASE tde_db;
-USE tde_db;
-# Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/my_key_log3 --plugin-dir=KEYRING_PLUGIN_PATH --innodb_redo_log_encrypt=ON 
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 UNINSTALL PLUGIN keyring_file;
-# Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/my_key_log3 --plugin-dir=KEYRING_PLUGIN_PATH --innodb_redo_log_encrypt=ON 
-SET GLOBAL innodb_redo_log_encrypt = 0;
-SELECT @@global.innodb_redo_log_encrypt ;
-@@global.innodb_redo_log_encrypt
-0
-INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
-ERROR HY000: Function 'keyring_file' already exists
-UNINSTALL PLUGIN keyring_file;
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/my_key_log3 --plugin-dir=KEYRING_PLUGIN_PATH --innodb_redo_log_encrypt=ON  
+# restart:
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
@@ -69,6 +41,7 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 a	LEFT(b,10)
 1	aaaaaaaaaa
 FLUSH LOGS;
+# restart:
 SELECT
 PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
 FROM INFORMATION_SCHEMA.PLUGINS
@@ -142,6 +115,7 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 a	LEFT(b,10)
 2	aaaaaaaaaa
 COMMIT;
+# restart:
 SELECT
 PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
 FROM INFORMATION_SCHEMA.PLUGINS
@@ -222,5 +196,4 @@ SELECT @@global.innodb_undo_log_encrypt ;
 @@global.innodb_undo_log_encrypt
 0
 # In connection default
-UNINSTALL PLUGIN keyring_file;
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;

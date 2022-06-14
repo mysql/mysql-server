@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,18 +26,18 @@
   de-serialize "pointers".  See xdr.h for more info on the interface to xdr.
 */
 
-#include <stdio.h>
-#include <string.h>
+#include <libintl.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
-#include <libintl.h>
+#include <stdio.h>
+#include <string.h>
 
 #ifdef USE_IN_LIBIO
-# include <wchar.h>
-# include <libio/iolibio.h>
+#include <libio/iolibio.h>
+#include <wchar.h>
 #endif
 
-#define LASTUNSIGNED	((u_int)0-1)
+#define LASTUNSIGNED ((u_int)0 - 1)
 
 /*
  * XDR an indirect pointer
@@ -48,45 +48,38 @@
  * size is the size of the referneced structure.
  * proc is the routine to handle the referenced structure.
  */
-bool_t
-xdr_reference (xdrs, pp, size, proc)
-     XDR *xdrs;
-     caddr_t *pp;		/* the pointer to work on */
-     u_int size;		/* size of the object pointed to */
-     xdrproc_t proc;		/* xdr routine to handle the object */
+bool_t xdr_reference(xdrs, pp, size, proc) XDR *xdrs;
+caddr_t *pp;    /* the pointer to work on */
+u_int size;     /* size of the object pointed to */
+xdrproc_t proc; /* xdr routine to handle the object */
 {
   caddr_t loc = *pp;
   bool_t stat;
 
-  if (loc == NULL)
-    switch (xdrs->x_op)
-      {
+  if (loc == NULL) switch (xdrs->x_op) {
       case XDR_FREE:
-	return TRUE;
+        return TRUE;
 
       case XDR_DECODE:
-	*pp = loc = (caddr_t) calloc (1, size);
-	if (loc == NULL)
-	  {
-	    (void) __fxprintf (NULL, "%s: %s", __func__, _("out of memory\n"));
-	    return FALSE;
-	  }
-	break;
+        *pp = loc = (caddr_t)calloc(1, size);
+        if (loc == NULL) {
+          (void)__fxprintf(NULL, "%s: %s", __func__, _("out of memory\n"));
+          return FALSE;
+        }
+        break;
       default:
-	break;
-      }
-
-  stat = (*proc) (xdrs, loc, LASTUNSIGNED);
-
-  if (xdrs->x_op == XDR_FREE)
-    {
-      mem_free (loc, size);
-      *pp = NULL;
+        break;
     }
+
+  stat = (*proc)(xdrs, loc, LASTUNSIGNED);
+
+  if (xdrs->x_op == XDR_FREE) {
+    mem_free(loc, size);
+    *pp = NULL;
+  }
   return stat;
 }
 INTDEF(xdr_reference)
-
 
 /*
  * xdr_pointer():
@@ -107,25 +100,20 @@ INTDEF(xdr_reference)
  * > xdr_obj: routine to XDR an object.
  *
  */
-bool_t
-xdr_pointer (xdrs, objpp, obj_size, xdr_obj)
-     XDR *xdrs;
-     char **objpp;
-     u_int obj_size;
-     xdrproc_t xdr_obj;
+bool_t xdr_pointer(xdrs, objpp, obj_size, xdr_obj) XDR *xdrs;
+char **objpp;
+u_int obj_size;
+xdrproc_t xdr_obj;
 {
-
   bool_t more_data;
 
   more_data = (*objpp != NULL);
-  if (!INTUSE(xdr_bool) (xdrs, &more_data))
-    {
-      return FALSE;
-    }
-  if (!more_data)
-    {
-      *objpp = NULL;
-      return TRUE;
-    }
-  return INTUSE(xdr_reference) (xdrs, objpp, obj_size, xdr_obj);
+  if (!INTUSE(xdr_bool)(xdrs, &more_data)) {
+    return FALSE;
+  }
+  if (!more_data) {
+    *objpp = NULL;
+    return TRUE;
+  }
+  return INTUSE(xdr_reference)(xdrs, objpp, obj_size, xdr_obj);
 }

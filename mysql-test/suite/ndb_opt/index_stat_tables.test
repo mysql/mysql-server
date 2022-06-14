@@ -1,0 +1,14 @@
+--source include/have_ndb.inc
+
+--echo Verify that the index stat tables are not present in the Server
+SHOW TABLES IN mysql LIKE 'ndb_index_stat%';
+
+--echo Verify that the tables can't be discovered
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysql.ndb_index_stat_head;
+SHOW WARNINGS;
+
+--echo Verify that the tables aren't readabale
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.ndb_index_stat_sample;
+SHOW WARNINGS;

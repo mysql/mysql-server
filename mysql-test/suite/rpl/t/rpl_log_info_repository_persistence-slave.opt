@@ -1,0 +1,1 @@
+ --debug=d,simulate_priv_check_user_nullptr_t --log-error=$MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err --relay-log-info-repository=FILE

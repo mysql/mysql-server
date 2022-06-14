@@ -35,6 +35,10 @@
 #
 # Bug#27041402 ASSERTION `NEW_VALUE >= 0' FAILED.
 
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 0
+--source include/only_with_option.inc
+
 --source include/have_debug.inc
 --let $rpl_gtid_mode= OFF
 --source include/rpl_set_gtid_mode.inc

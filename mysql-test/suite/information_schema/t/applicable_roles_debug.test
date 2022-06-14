@@ -1,0 +1,26 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/no_protocol.inc
+
+--echo #
+--echo # Make sure a warning is raised when acl cache lock acquire fails.
+--echo #
+
+CREATE USER u1 IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 to u1;
+GRANT SELECT ON test.* TO u1;
+
+SET GLOBAL DEBUG='+d,simulate_acl_cache_lock_failure';
+connect(con1, localhost, u1, foo, test);
+SET ROLE ALL;
+SELECT * FROM INFORMATION_SCHEMA.ENABLED_ROLES;
+connection default;
+disconnect con1;
+
+SET GLOBAL mandatory_roles = 'r1';
+SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES ORDER BY GRANTEE, ROLE_NAME;
+SET GLOBAL mandatory_roles=default;
+SET GLOBAL DEBUG=default;
+DROP USER u1;
+DROP ROLE r1;

@@ -1,3 +1,12 @@
+## This include file contains following macros:
+#
+# * Assert_rows
+# * Assert_metadata
+# * Assert_message
+# * Assert_frame
+# * Assert_received_messages
+#
+
 
 -->macro Assert_rows	%ROWS%
 noquery_result;
@@ -8,6 +17,7 @@ endrepeat;
 query_result;
 -->endmacro
 
+
 -->macro Assert_metadata	%COL_TYPE%	%COL_NAME%
 noquery_result;
 echo [ASSERT Mysqlx.Resultset.ColumnMetaData];
@@ -15,9 +25,24 @@ recvmessage Mysqlx.Resultset.ColumnMetaData {type: %COL_TYPE% name: %COL_NAME%};
 query_result;
 -->endmacro
 
+
 -->macro Assert_message	%NAME%
 noquery_result;
 echo [ASSERT %NAME%];
 recvtype %NAME%;
 query_result;
+-->endmacro
+
+
+-->macro Assert_frame	%NAME%
+noquery_result;
+echo [ASSERT %NAME%];
+recvtype %NAME%;
+query_result;
+-->endmacro
+
+-->macro Assert_received_messages	%MESSAGE_NAME%	%COUNT%
+received %MESSAGE_NAME%	%MYSQLXTEST_NO_OF_MSG%;
+echo [ASSERT %MESSAGE_NAME% == %COUNT%];
+assert %COUNT%	==	%MYSQLXTEST_NO_OF_MSG%;
 -->endmacro

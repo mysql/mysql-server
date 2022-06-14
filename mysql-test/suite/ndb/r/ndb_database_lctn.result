@@ -1,0 +1,29 @@
+CREATE DATABASE DB1;
+ALTER DATABASE DB1
+CHARACTER SET latin1;
+USE DB1;
+CREATE TABLE t1(
+id INT PRIMARY KEY
+) ENGINE NDB;
+# restart
+SHOW DATABASES;
+Database
+DB1
+information_schema
+mtr
+mysql
+ndbinfo
+performance_schema
+sys
+test
+USE DB1;
+SHOW TABLES;
+Tables_in_DB1
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+DROP DATABASE DB1;

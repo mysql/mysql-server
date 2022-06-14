@@ -1,0 +1,102 @@
+# This test check if the option replica-preserve-commit-order stops the newer
+# workers from committing if one of the older workers have errored out.
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/only_replica_preserve_commit_order.inc
+--source include/master-slave.inc
+
+CALL mtr.add_suppression(".*slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Could not execute Write_rows event on table test.*");
+CALL mtr.add_suppression("Worker .* failed executing transaction");
+CALL mtr.add_suppression("Slave worker has stopped since one or more of the
+  previous worker(s) have encountered an error and replica-preserve-commit-order
+  is enabled.*");
+
+SET @save_debug = @@GLOBAL.debug;
+SET GLOBAL debug = "+d,set_commit_parent_100";
+
+CREATE TABLE t_w1 (c1 int PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t_w2 (c1 int PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t_w3 (c1 int PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t_w4 (c1 int PRIMARY KEY) ENGINE = InnoDB;
+
+--source include/sync_slave_sql_with_master.inc
+# Conspire to have an error in the second worker.
+INSERT INTO t_w2 VALUES(1);
+# Block all workers to apply INSERT statements
+LOCK TABLES t_w1 WRITE, t_w2 WRITE, t_w3 WRITE, t_w4 WRITE;
+
+--source include/rpl_connection_master.inc
+
+BEGIN;
+INSERT INTO t_w1 VALUES(1);
+INSERT INTO t_w1 VALUES(2);
+INSERT INTO t_w1 VALUES(3);
+INSERT INTO t_w1 VALUES(4);
+INSERT INTO t_w1 VALUES(5);
+COMMIT;
+
+BEGIN;
+INSERT INTO t_w2 VALUES(1);
+INSERT INTO t_w2 VALUES(2);
+COMMIT;
+
+BEGIN;
+INSERT INTO t_w3 VALUES(1);
+INSERT INTO t_w3 VALUES(2);
+INSERT INTO t_w3 VALUES(3);
+INSERT INTO t_w3 VALUES(4);
+COMMIT;
+
+INSERT INTO t_w4 VALUES(1);
+SET GLOBAL debug = @save_debug;
+--source include/save_master_pos.inc
+--source include/rpl_connection_slave.inc
+
+# Wait until all workers are blocked by LOCK TABLE t1 WRITE. It implies all
+# transactions are registered into the order commit queue.
+--let $number_workers =`SELECT @@GLOBAL.replica_parallel_workers`
+let $wait_condition= SELECT count(*) = $number_workers FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+
+UNLOCK TABLES;
+--let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+--source include/wait_for_slave_sql_error.inc
+
+--let $assert_text='Rows have been inserted to table t_w1'
+--let $assert_cond= ["SELECT COUNT(*) as count FROM t_w1", count, 1] = 5
+--source include/assert.inc
+
+--let $assert_text='No rows have been inserted to table t_w2'
+--let $assert_cond= ["SELECT COUNT(*) as count FROM t_w2", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text='No rows have been inserted to table t_w3'
+--let $assert_cond= ["SELECT COUNT(*) as count FROM t_w3", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text='No rows have been inserted to table t_w4'
+--let $assert_cond= ["SELECT COUNT(*) as count FROM t_w4", count, 1] = 0
+--source include/assert.inc
+
+DELETE FROM t_w2 WHERE c1 = 1;
+
+--source include/start_slave_sql.inc
+--source include/sync_slave_sql.inc
+
+--let $rpl_diff_statement= SELECT * FROM t_w1
+--source include/rpl_diff.inc
+--let $rpl_diff_statement= SELECT * FROM t_w2
+--source include/rpl_diff.inc
+--let $rpl_diff_statement= SELECT * FROM t_w3
+--source include/rpl_diff.inc
+--let $rpl_diff_statement= SELECT * FROM t_w4
+--source include/rpl_diff.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t_w1, t_w2, t_w3, t_w4;
+--source include/rpl_end.inc
+

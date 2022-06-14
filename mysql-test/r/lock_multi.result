@@ -172,7 +172,7 @@ create table t1(a int);
 lock tables t1 write;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 unlock tables;
 drop table t1;
 USE mysql;

@@ -1,5 +1,5 @@
 ﻿/*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,21 +71,21 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include <mysql.h>
 #include <iostream>
 #include <stdexcept>
-#include "common.h"
+
+#include <mysql.h>
+
 #include "dim.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/tty.h"
 #include "mysql/harness/vt100_filter.h"
-#include "mysql_session.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"
 #include "random_generator.h"
 #include "router_app.h"
-#include "utils.h"
 #include "windows/main-windows.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -113,12 +113,13 @@ static void init_DIM() {
   );
 
   // MySQLSession
-  dim.set_MySQLSession([]() { return new mysqlrouter::MySQLSession(); },
-                       std::default_delete<mysqlrouter::MySQLSession>());
-
-  // Ofstream
-  dim.set_Ofstream([]() { return new mysqlrouter::RealOfstream(); },
-                   std::default_delete<mysqlrouter::Ofstream>());
+  dim.set_MySQLSession(
+      []() {
+        return new mysqlrouter::MySQLSession(
+            std::make_unique<
+                mysqlrouter::MySQLSession::LoggingStrategyDebugLogger>());
+      },
+      std::default_delete<mysqlrouter::MySQLSession>());
 }
 
 static void preconfig_log_init(bool use_os_logger_initially) noexcept {
@@ -153,18 +154,10 @@ static void preconfig_log_init(bool use_os_logger_initially) noexcept {
 int real_main(int argc, char **argv, bool use_os_logger_initially) {
   preconfig_log_init(use_os_logger_initially);
 
-  mysql_harness::rename_thread("main");
   init_DIM();
 
-  // TODO This is very ugly, it should not be a global. It's defined in
-  // config_generator.cc and
-  //      used in find_executable_path() to provide path to Router binary when
-  //      generating start.sh.
-  extern std::string g_program_name;
-  g_program_name = argv[0];
-
   mysqlrouter::MySQLClientThreadToken api_token;
-  if (mysql_library_init(argc, argv, NULL)) {
+  if (mysql_library_init(argc, argv, nullptr)) {
     log_error("Could not initialize MySQL library");
     return 1;
   }
@@ -195,6 +188,8 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
       result = 1;
     } catch (const silent_exception &) {
     }
+    // cleanup on shutdown
+    router.stop();
   } catch (const std::invalid_argument &exc) {
     log_error("Configuration error: %s", exc.what());
     result = 1;

@@ -1,0 +1,51 @@
+-- source connect.inc
+-- source include/have_debug.inc
+
+
+--echo #
+--echo # WL#12936 Implement DDL transaction context logger in ndbcluster
+--echo # Test failure after the create has been distributed to other servers.
+--echo #
+
+--echo # Setup
+CREATE TABLE t1 (
+  a int,
+  b int
+) ENGINE NDB;
+
+INSERT INTO t1 VALUES (1, NULL);
+
+# Use CREATE TABLE .. AS SELECT .. FROM t1 and create a similar table t1
+# with column a NOT NULL. This will fail when the Server tries to copy rows
+# from t1 to t2 but only after the CREATE has been distributed to other
+# other tables. The CREATE should fail and drop the table in NDB and across
+# drop the table in NDB and across all connected mysqlds during
+# rollback.
+
+--echo # Create should fail when copying rows
+--error ER_BAD_NULL_ERROR
+CREATE TABLE t2 (
+  a int,
+  b int not null
+) ENGINE NDB
+AS SELECT * FROM t1;
+
+--echo # Verify that table does not exist
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t2;
+
+--echo # Cleanup
+DROP TABLE t1;
+
+--echo # Verify that the table is not present in any other server
+--echo # and all the shares have been properly dropped.
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  --connection mysqld$i
+  --error ER_NO_SUCH_TABLE
+  SELECT * FROM t2;
+  set global ndb_dbg_check_shares=1;
+  dec $i;
+}
+--connection default

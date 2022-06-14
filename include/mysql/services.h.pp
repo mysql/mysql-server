@@ -19,6 +19,8 @@ struct PS_PARAM {
   unsigned char unsigned_type;
   const unsigned char *value;
   unsigned long length;
+  const unsigned char *name;
+  unsigned long name_length;
 };
 struct COM_STMT_EXECUTE_DATA {
   unsigned long stmt_id;
@@ -50,6 +52,8 @@ struct COM_STMT_RESET_DATA {
 struct COM_QUERY_DATA {
   const char *query;
   unsigned int length;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
 };
 struct COM_FIELD_LIST_DATA {
   unsigned char *table_name;
@@ -72,6 +76,7 @@ union COM_DATA {
   COM_FIELD_LIST_DATA com_field_list;
 };
 #include "mysql/service_srv_session.h"
+#include "mysql/service_srv_session_bits.h"
 struct Srv_session;
 typedef struct Srv_session *MYSQL_SESSION;
 typedef void (*srv_session_error_cb)(void *ctx, unsigned int sql_errno,
@@ -97,18 +102,17 @@ int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
+typedef long long int longlong;
+typedef unsigned long long int ulonglong;
 typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int16_t int16;
 typedef uint16_t uint16;
 typedef int32_t int32;
 typedef uint32_t uint32;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef intptr_t intptr;
-typedef long long int64;
-typedef unsigned long long uint64;
-typedef long long int longlong;
-typedef unsigned long long int ulonglong;
-typedef unsigned long long my_ulonglong;
 typedef ulonglong my_off_t;
 typedef int myf;
 #include "my_macros.h"
@@ -131,13 +135,15 @@ enum enum_mysql_timestamp_type {
   MYSQL_TIMESTAMP_ERROR = -1,
   MYSQL_TIMESTAMP_DATE = 0,
   MYSQL_TIMESTAMP_DATETIME = 1,
-  MYSQL_TIMESTAMP_TIME = 2
+  MYSQL_TIMESTAMP_TIME = 2,
+  MYSQL_TIMESTAMP_DATETIME_TZ = 3
 };
 typedef struct MYSQL_TIME {
   unsigned int year, month, day, hour, minute, second;
   unsigned long second_part;
   bool neg;
   enum enum_mysql_timestamp_type time_type;
+  int time_zone_displacement;
 } MYSQL_TIME;
 struct st_send_field {
   const char *db_name;
@@ -178,6 +184,7 @@ typedef void (*handle_ok_t)(void *ctx, uint server_status,
 typedef void (*handle_error_t)(void *ctx, uint sql_errno, const char *err_msg,
                                const char *sqlstate);
 typedef void (*shutdown_t)(void *ctx, int server_shutdown);
+typedef bool (*connection_alive_t)(void *ctx);
 struct st_command_service_cbs {
   start_result_metadata_t start_result_metadata;
   field_metadata_t field_metadata;
@@ -198,6 +205,7 @@ struct st_command_service_cbs {
   handle_ok_t handle_ok;
   handle_error_t handle_error;
   shutdown_t shutdown;
+  connection_alive_t connection_alive;
 };
 enum cs_text_or_binary {
   CS_TEXT_REPRESENTATION = 1,
@@ -253,7 +261,16 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
                           const char *format, ...)
     MY_ATTRIBUTE((format(printf, 3, 4)));
 #include <mysql/service_mysql_alloc.h>
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1 {
@@ -274,6 +291,9 @@ typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
                                               struct PSI_thread **owner);
 typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key, size_t size,
                                             struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_claim_v2_t)(PSI_memory_key key, size_t size,
+                                            struct PSI_thread **owner,
+                                            bool claim);
 typedef void (*memory_free_v1_t)(PSI_memory_key key, size_t size,
                                  struct PSI_thread *owner);
 typedef struct PSI_memory_info_v1 PSI_memory_info;
@@ -281,7 +301,7 @@ typedef int myf_t;
 typedef void *(*mysql_malloc_t)(PSI_memory_key key, size_t size, myf_t flags);
 typedef void *(*mysql_realloc_t)(PSI_memory_key key, void *ptr, size_t size,
                                  myf_t flags);
-typedef void (*mysql_claim_t)(const void *ptr);
+typedef void (*mysql_claim_t)(const void *ptr, bool claim);
 typedef void (*mysql_free_t)(void *ptr);
 typedef void *(*my_memdup_t)(PSI_memory_key key, const void *from,
                              size_t length, myf_t flags);
@@ -301,7 +321,7 @@ extern "C" struct mysql_malloc_service_st *mysql_malloc_service;
 extern void *my_malloc(PSI_memory_key key, size_t size, myf_t flags);
 extern void *my_realloc(PSI_memory_key key, void *ptr, size_t size,
                         myf_t flags);
-extern void my_claim(const void *ptr);
+extern void my_claim(const void *ptr, bool claim);
 extern void my_free(void *ptr);
 extern void *my_memdup(PSI_memory_key key, const void *from, size_t length,
                        myf_t flags);

@@ -122,6 +122,7 @@ call mtr.add_suppression("Can't evaluate the group replication applier execution
 call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("It was not possible to identify the group replication applier thread");
 call mtr.add_suppression("Error on group communication engine start");
+call mtr.add_suppression("Error reading relay log event for channel 'group_replication_applier': Error purging processed logs");
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include "plugin/x/src/expect/expect_condition_field.h"
 
 #include "plugin/x/generated/xprotocol_tags.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
@@ -35,8 +35,7 @@ Expect_condition_field::Expect_condition_field(const std::string &value)
                        value) {}
 
 Expect_condition_field::Expect_condition_field(
-    const Expect_condition_field &other)
-    : Expect_condition(other) {}
+    const Expect_condition_field &other) = default;
 
 Expect_condition_field::Expect_condition_ptr Expect_condition_field::clone() {
   return Expect_condition_ptr{new Expect_condition_field(*this)};

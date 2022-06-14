@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class View : virtual public Abstract_table {
   enum enum_security_type { ST_DEFAULT = 1, ST_INVOKER, ST_DEFINER };
 
  public:
-  virtual ~View() {}
+  ~View() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // regular/system view flag.
@@ -158,7 +158,15 @@ class View : virtual public Abstract_table {
 
     @return pointer to dynamically allocated copy
   */
-  virtual View *clone() const = 0;
+  View *clone() const override = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  View *clone_dropped_object_placeholder() const override = 0;
 
   /**
     Clear View columns, View_tables and View_routines collections.

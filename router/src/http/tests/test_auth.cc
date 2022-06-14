@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ TEST_P(CredentialsTest, from_header) {
   EXPECT_EQ(creds.params(), std::get<3>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, CredentialsTest,
     ::testing::Values(
         // Basic Auth
@@ -80,12 +80,12 @@ TEST_P(CredentialsFailTest, from_header) {
   ASSERT_TRUE(ec);
 }
 
-INSTANTIATE_TEST_CASE_P(Foo, CredentialsFailTest,
-                        ::testing::Values(
-                            // empty hdr
-                            "",
-                            // not a tchar
-                            "\""));
+INSTANTIATE_TEST_SUITE_P(Foo, CredentialsFailTest,
+                         ::testing::Values(
+                             // empty hdr
+                             "",
+                             // not a tchar
+                             "\""));
 
 class ChallengeTest
     : public ::testing::Test,
@@ -101,7 +101,7 @@ TEST_P(ChallengeTest, to_string) {
   EXPECT_EQ(challenge.str(), std::get<0>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, ChallengeTest,
     ::testing::Values(
         // Digest auth

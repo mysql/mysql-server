@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,9 @@ use mtr_report;
 
 require "mtr_misc.pl";
 
-my $threads_support        = eval 'use threads; 1';
-my $threads_shared_support = eval 'use threads::shared; 1';
+my $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
+my $threads_support          = eval 'use threads; 1';
+my $threads_shared_support   = eval 'use threads::shared; 1';
 
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
@@ -70,7 +71,6 @@ our $defaults_extra_file;
 our $defaults_file;
 our $do_test;
 our $enable_disabled;
-our $opt_with_ndbcluster_only;
 our $print_testcases;
 our $quick_collect;
 our $skip_rpl;
@@ -593,9 +593,7 @@ sub collect_test_cases ($$$$) {
     @$cases = sort { $a->{criteria} cmp $b->{criteria}; } @$cases;
   }
 
-  # When $opt_repeat > 1 and $opt_parallel > 1, duplicate each test
-  # $opt_repeat number of times to allow them running in parallel.
-  if ($::opt_repeat > 1 and $::opt_parallel > 1) {
+  if ($::opt_repeat > 1) {
     $cases = duplicate_test_cases($cases);
   }
 
@@ -611,7 +609,7 @@ sub collect_test_cases ($$$$) {
 sub duplicate_test_cases($) {
   my $tests = shift;
 
-  my $new_tests;
+  my $new_tests = [];
   foreach my $test (@$tests) {
     # Don't repeat the test if 'skip' flag is enabled.
     if ($test->{'skip'}) {
@@ -1020,12 +1018,6 @@ sub optimize_cases {
     foreach my $opt (@{ $tinfo->{master_opt} }) {
       (my $dash_opt = $opt) =~ s/_/-/g;
 
-      # Check whether server supports SSL connection.
-      if ($dash_opt eq "--skip-ssl" and $::opt_ssl) {
-        skip_test($tinfo, "Server doesn't support SSL connection");
-        next;
-      }
-
       my $default_engine =
         mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine =
@@ -1057,6 +1049,10 @@ sub optimize_cases {
           if ($default_tmp_engine =~ /^ndb/i);
         $tinfo->{'myisam_test'} = 1
           if ($default_tmp_engine =~ /^myisam/i);
+      }
+
+      if($secondary_engine_support) {
+        optimize_secondary_engine_tests($dash_opt, $tinfo);
       }
     }
 
@@ -1297,12 +1293,6 @@ sub collect_one_test_case {
       if ($default_storage_engine =~ /^mysiam/i);
   }
 
-  # Skip non-parallel tests if 'non-parallel-test' option is disabled
-  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test) {
-    skip_test($tinfo, "Test needs 'non-parallel-test' option");
-    return $tinfo;
-  }
-
   # Except the tests which need big-test or only-big-test option to run
   # in valgrind environment(i.e tests having no_valgrind_without_big.inc
   # include file), other normal/non-big tests shouldn't run with
@@ -1337,6 +1327,20 @@ sub collect_one_test_case {
     return $tinfo;
   }
 
+  if ($tinfo->{'asan_need_debug'} && !$::debug_compiled_binaries) {
+    if ($::mysql_version_extra =~ /asan/) {
+      skip_test($tinfo, "Test needs debug binaries if built with ASAN.");
+      return $tinfo;
+    }
+  }
+
+  if ($tinfo->{'need_backup'}) {
+    if (!$::mysqlbackup_enabled) {
+      skip_test($tinfo, "Test needs mysqlbackup.");
+      return $tinfo;
+    }
+  }
+
   if ($tinfo->{'ndb_test'}) {
     # This is a NDB test
     if ($::ndbcluster_enabled == 0) {
@@ -1346,7 +1350,7 @@ sub collect_one_test_case {
     }
   } else {
     # This is not a ndb test
-    if ($opt_with_ndbcluster_only) {
+    if ($::ndbcluster_only) {
       # Only the ndb test should be run, all other should be skipped
       skip_test($tinfo, "Only ndbcluster tests");
       return $tinfo;
@@ -1380,13 +1384,6 @@ sub collect_one_test_case {
       skip_test($tinfo, "No replication tests, --skip-rpl is enabled.");
       return $tinfo;
     }
-  }
-
-  # Check for a test that need SSL
-  if ($tinfo->{'need_ssl'} and !$::ssl_supported) {
-    # SSL is not supported, skip it
-    skip_test($tinfo, "No SSL support");
-    return $tinfo;
   }
 
   # Check for group replication tests
@@ -1492,6 +1489,8 @@ my @tags = (
   [ "include/force_myisam_default.inc", "myisam_test", 1 ],
 
   [ "include/big_test.inc",       "big_test",   1 ],
+  [ "include/asan_have_debug.inc","asan_need_debug", 1 ],
+  [ "include/have_backup.inc",    "need_backup", 1 ],
   [ "include/have_debug.inc",     "need_debug", 1 ],
   [ "include/have_ndb.inc",       "ndb_test",   1 ],
   [ "include/have_multi_ndb.inc", "ndb_test",   1 ],
@@ -1508,7 +1507,6 @@ my @tags = (
 
   [ "include/ndb_master-slave.inc", "ndb_test",       1 ],
   [ "federated.inc",                "federated_test", 1 ],
-  [ "include/have_ssl.inc",         "need_ssl",       1 ],
   [ "include/not_windows.inc",      "not_windows",    1 ],
   [ "include/not_parallel.inc",     "not_parallel",   1 ],
 
@@ -1518,10 +1516,11 @@ my @tags = (
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
-  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],
+  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ]);
 
-  [ "include/have_change_propagation_off.inc", "change-propagation", 0 ],
-  [ "include/have_change_propagation_on.inc",  "change-propagation", 1 ],);
+if ($secondary_engine_support) {
+  push (@tags, get_secondary_engine_tags());
+}
 
 sub tags_from_test_file {
   my $tinfo = shift;

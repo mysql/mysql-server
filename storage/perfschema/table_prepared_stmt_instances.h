@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,12 +68,10 @@ struct row_prepared_stmt_instances {
   enum_object_type m_owner_object_type;
 
   /** Column OWNER_OBJECT_SCHEMA */
-  char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
-  int m_owner_object_schema_length;
+  PFS_schema_name m_owner_object_schema;
 
   /** Column OWNER_OBJECT_NAME */
-  char m_owner_object_name[COL_OBJECT_NAME_SIZE];
-  int m_owner_object_name_length;
+  PFS_object_name m_owner_object_name;
 
   /** Columns TIMER_PREPARE. */
   PFS_stat_row m_prepare_stat;
@@ -81,13 +79,16 @@ struct row_prepared_stmt_instances {
   /** Columns COUNT_REPREPARE. */
   PFS_stat_row m_reprepare_stat;
 
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
+
   /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
   PFS_statement_stat_row m_execute_stat;
 };
 
 class PFS_index_prepared_stmt_instances : public PFS_engine_index {
  public:
-  PFS_index_prepared_stmt_instances(PFS_engine_key *key_1)
+  explicit PFS_index_prepared_stmt_instances(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1,
@@ -99,7 +100,7 @@ class PFS_index_prepared_stmt_instances : public PFS_engine_index {
                                     PFS_engine_key *key_3)
       : PFS_engine_index(key_1, key_2, key_3) {}
 
-  ~PFS_index_prepared_stmt_instances() {}
+  ~PFS_index_prepared_stmt_instances() override = default;
 
   virtual bool match(const PFS_prepared_stmt *pfs) = 0;
 };
@@ -111,9 +112,9 @@ class PFS_index_prepared_stmt_instances_by_instance
       : PFS_index_prepared_stmt_instances(&m_key),
         m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_prepared_stmt_instances_by_instance() {}
+  ~PFS_index_prepared_stmt_instances_by_instance() override = default;
 
-  virtual bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_prepared_stmt *pfs) override;
 
  private:
   PFS_key_object_instance m_key;
@@ -127,9 +128,9 @@ class PFS_index_prepared_stmt_instances_by_owner_thread
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_prepared_stmt_instances_by_owner_thread() {}
+  ~PFS_index_prepared_stmt_instances_by_owner_thread() override = default;
 
-  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_prepared_stmt *pfs) override;
 
  private:
   PFS_key_thread_id m_key_1;
@@ -142,9 +143,9 @@ class PFS_index_prepared_stmt_instances_by_statement_id
   PFS_index_prepared_stmt_instances_by_statement_id()
       : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_ID") {}
 
-  ~PFS_index_prepared_stmt_instances_by_statement_id() {}
+  ~PFS_index_prepared_stmt_instances_by_statement_id() override = default;
 
-  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_prepared_stmt *pfs) override;
 
  private:
   PFS_key_statement_id m_key;
@@ -156,9 +157,9 @@ class PFS_index_prepared_stmt_instances_by_statement_name
   PFS_index_prepared_stmt_instances_by_statement_name()
       : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_NAME") {}
 
-  ~PFS_index_prepared_stmt_instances_by_statement_name() {}
+  ~PFS_index_prepared_stmt_instances_by_statement_name() override = default;
 
-  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_prepared_stmt *pfs) override;
 
  private:
   PFS_key_statement_name m_key;
@@ -173,9 +174,9 @@ class PFS_index_prepared_stmt_instances_by_owner_object
         m_key_2("OWNER_OBJECT_SCHEMA"),
         m_key_3("OWNER_OBJECT_NAME") {}
 
-  ~PFS_index_prepared_stmt_instances_by_owner_object() {}
+  ~PFS_index_prepared_stmt_instances_by_owner_object() override = default;
 
-  virtual bool match(const PFS_prepared_stmt *table);
+  bool match(const PFS_prepared_stmt *table) override;
 
  private:
   PFS_key_object_type_enum m_key_1;
@@ -192,22 +193,22 @@ class table_prepared_stmt_instances : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_prepared_stmt_instances();
 
  public:
-  ~table_prepared_stmt_instances() {}
+  ~table_prepared_stmt_instances() override = default;
 
  protected:
   int make_row(PFS_prepared_stmt *);

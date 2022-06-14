@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -32,6 +34,7 @@
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
+#include <NdbSleep.h>
 
 const NdbDictionary::Table *
 getTable(Ndb* pNdb, int i){
@@ -487,7 +490,8 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   /* First take a TC resource snapshot */
   int savesnapshot= DumpStateOrd::TcResourceSnapshot;
   Uint32 checksnapshot= DumpStateOrd::TcResourceCheckLeak;
-  
+
+  NdbSleep_SecSleep(2);
   restarter.dumpStateAllNodes(&savesnapshot, 1);
   Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
 
@@ -1442,7 +1446,7 @@ int takeResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb *pNdb = GETNDB(step);
   NdbRestarter restarter;
-  
+
   int checksnapshot = DumpStateOrd::TcResourceSnapshot;
   restarter.dumpStateAllNodes(&checksnapshot, 1);
   Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
@@ -1647,7 +1651,8 @@ int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb *pNdb = GETNDB(step);
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
-  
+
+  NdbSleep_SecSleep(2);
   Uint32 checksnapshot = DumpStateOrd::TcResourceCheckLeak;
   pDict->forceGCPWait(1);
   if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
@@ -1682,16 +1687,7 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     printf("node: %u ", node);
     switch(loops % 2){
     case 0:
-      if (res.getNumDbNodes() >= 2)
-      {
-        err = 8088;
-        int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-        res.dumpStateOneNode(node, val, 2);
-        res.insertErrorInNode(node, 8088);
-        ndbout_c("error 8088");
-        break;
-      }
-      // fall through
+      [[fallthrough]];
     case 1:
       err = 5057;
       res.insertErrorInNode(node, 5057);
@@ -1730,14 +1726,6 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       pCon->execute(NoCommit);
       pCon->close();
     } 
-    if (err == 8088)
-    {
-      res.waitNodesNoStart(&node, 1);
-      res.startAll();
-      res.waitClusterStarted();
-      if (pNdb->waitUntilReady() != 0)
-        return NDBT_FAILED;
-    }
   }
 
   return NDBT_OK;
@@ -1873,13 +1861,13 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
       }
       lastrow = rowId;
 
-      bzero(pRow, len);
+      std::memset(pRow, 0, len);
 
       HugoCalculator calc(* pTab);
       calc.setValues(pRow, pRowRecord, rowId, rand());
 
       NdbOperation::OperationOptions opts;
-      bzero(&opts, sizeof(opts));
+      std::memset(&opts, 0, sizeof(opts));
 
       const NdbOperation* pOp = 0;
       switch(ndb_rand_r(&seed) % 3){
@@ -1977,8 +1965,6 @@ namespace TupErr
   struct Row
   {
     int pk1;
-    int pk2;
-    int a1;
   };
 
   static int
@@ -1999,7 +1985,7 @@ namespace TupErr
 
     for (int i = 0; i<totalRowCount; i++)
     {
-      const Row row = {i, 0, i};
+      const Row row = {i};
 
       const NdbOperation* const operation=
         trans->insertTuple(record, reinterpret_cast<const char*>(&row));
@@ -2109,19 +2095,19 @@ namespace TupErr
     NdbInterpretedCode code(tab);
 
     /**
-     * Build an interpreter code sequence that causes rows with pk1==50 to 
-     * abort the scan, and that skips all other rows.
+     * Build an interpreter code sequence that causes rows with kol1==50 to
+     * abort the scan, and that skips all other rows(kol1 is a primary key).
      */ 
-    const NdbDictionary::Column* const col = tab->getColumn("PK1");
+    const NdbDictionary::Column* const col = tab->getColumn("KOL1");
     require(col != NULL);
     require(code.read_attr(1, col) == 0);
     require(code.load_const_u32(2, 50) == 0);
     require(code.branch_eq(1, 2, 0) == 0);
 
-    // Exit here if pk1!=50. Skip this row.
+    // Exit here if kol1!=50. Skip this row.
     require(code.interpret_exit_nok(626) == 0);
 
-    // Go here if pk1==50. Abort scan.
+    // Go here if kol1==50. Abort scan.
     require(code.def_label(0) == 0);
     require(code.interpret_exit_nok(6000) == 0);
     require(code.finalise() == 0);
@@ -2381,7 +2367,7 @@ sizeFragment0DbaccHashTable(Ndb* ndb,
   require(NULL != trans->insertTuple(record, row, record, row));
   require(0 == trans->execute(Commit));
   trans->close();
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   return 0;
 }
@@ -2564,7 +2550,7 @@ runScanDuringExpandAndShrinkBack(NDBT_Context* ctx, NDBT_Step* step)
 
   // 1. Start with table with just above 2^n buckets in fragment 0.
   require(0 == populateFragment0(ndb, pTab, fragment_rows, low_bucket));
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   // 2. Start scan and read about half of the rows in fragment 0.
 
@@ -3378,13 +3364,13 @@ TESTCASE("Bug13394788", "")
   FINALIZER(runClearTable);
 }
 TESTCASE("TupCheckSumError", ""){
-  // TABLE("T18");
+  // TABLE("T1");
   INITIALIZER(TupErr::populateTable);
   STEP(TupErr::doCheckSumQuery);
   FINALIZER(runClearTable);
 }
 TESTCASE("InterpretNok6000", ""){
-  // TABLE("T18");
+  // TABLE("T1");
   INITIALIZER(TupErr::populateTable);
   STEP(TupErr::doInterpretNok6000Query);
   FINALIZER(runClearTable);

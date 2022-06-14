@@ -93,6 +93,12 @@ call mtr.add_suppression("Unable to read the server value for the super_read_onl
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member.");
 call mtr.add_suppression("Error running internal SQL query: SET GLOBAL super_read_only= 1;. Internal failure.");
 call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("Failed to stop the group replication applier thread.");
+call mtr.add_suppression("Error while executing a group configuration operation: Mode switched to single-primary with reported warnings: *");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server1

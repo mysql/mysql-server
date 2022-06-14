@@ -1,0 +1,96 @@
+#
+# Show that two locations in --innodb-directories that differ by only by case
+# are recognized as the same on case insensitive file systems.
+#
+##########
+# Restart with the data_home_dir the same as the datadir except for case.
+# On case insensitive file systems they should be recognized as the same location.
+##########
+# restart: --innodb-directories='MYSQL_TMP_DIR/Known_Dir'  --innodb-data-home-dir=../DATA
+SET default_storage_engine=InnoDB;
+SHOW VARIABLES LIKE 'lower_case_file_system';
+Variable_name	Value
+lower_case_file_system	ON
+# Create a table in a known directory.
+CREATE TABLE t1(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/Known_Dir';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/Known_Dir/'
+# Create a general tablespace in a known directory.
+CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/Known_Dir/ts1.ibd';
+##########
+# Restart with two identical known directories except for Case.
+# On case insensitive file systems they should be recognized as the same location.
+##########
+# restart: --innodb-directories='MYSQL_TMP_DIR/known_dir;MYSQL_TMP_DIR/Known_Dir;MYSQL_TMP_DIR/KNOWN_DIR'
+# Show these tablespaces in information_schema.
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
+ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
+# Create an inplicit tablespace using UPPER case for a MIXED case folder.
+CREATE TABLE t2(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/KNOWN_DIR';
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/KNOWN_DIR/'
+# Create an inplicit tablespace using LOWER case for a MIXED case folder.
+CREATE TABLE t3(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/known_dir';
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/known_dir/'
+# Create a general tablespace using UPPER case for a MIXED case folder.
+CREATE TABLESPACE ts2 ADD DATAFILE 'MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd';
+# Create a general tablespace using LOWER case for a MIXED case folder.
+CREATE TABLESPACE ts3 ADD DATAFILE 'MYSQL_TMP_DIR/known_dir/ts3.ibd';
+# Show these tablespaces in information_schema.
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/KNOWN_DIR/test/t2.ibd
+test/t3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/known_dir/test/t3.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
+ts2	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd
+ts3	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/known_dir/ts3.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
+test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQL_TMP_DIR/KNOWN_DIR/test/t2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	test/t3	MYSQL_TMP_DIR/known_dir/test/t3.ibd
+ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
+ts2	TABLESPACE	InnoDB	NORMAL	ts2	MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd
+ts3	TABLESPACE	InnoDB	NORMAL	ts3	MYSQL_TMP_DIR/known_dir/ts3.ibd
+#
+# Cleanup
+#
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;

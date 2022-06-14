@@ -1,0 +1,32 @@
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+
+## Test starts here
+
+--echo 1. Check connection for SQL_MODE = DEFAULT
+--exec $MYSQLXTEST -ux_root --password='' --sql="select 1 as value" 2>&1
+
+
+--echo 2. Check connection for SQL_MODE = DEFAULT + PAD_CHAR_TO_FULL_LENGTH
+SELECT CONCAT_WS(',', @@global.SQL_MODE, 'PAD_CHAR_TO_FULL_LENGTH') INTO @MODES;
+SET @@GLOBAL.SQL_MODE=@MODES;
+
+--exec $MYSQLXTEST -ux_root --password='' --sql="select 2 as value" 2>&1
+
+
+--echo 3. Check connection for SQL_MODE set modes taken from bug log
+SET @@GLOBAL.SQL_MODE='ANSI_QUOTES,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ZERO_DATE,PAD_CHAR_TO_FULL_LENGTH';
+
+--exec $MYSQLXTEST -ux_root --password='' --sql="select 3 as value" 2>&1
+
+
+--echo 4. Check connection for SQL_MODE back to DEFAULT
+SET @@GLOBAL.SQL_MODE=DEFAULT;
+
+--exec $MYSQLXTEST -ux_root --password='' --sql="select 4 as value" 2>&1
+
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

@@ -31,8 +31,8 @@ insert into child values (1,1,1);
 begin;
 delete from parent;
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -59,8 +59,8 @@ insert into child values (1,1,1);
 begin;
 delete from parent;
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -87,8 +87,8 @@ insert into child values (1,1,1);
 begin;
 delete from parent;
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -117,8 +117,8 @@ insert into child values (1,1,1);
 begin;
 delete from parent;
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -145,8 +145,8 @@ insert into child values (1,1,1);
 begin;
 delete from parent;
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -175,8 +175,8 @@ insert into child values (1,1,1);
 begin;
 delete from parent;
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;

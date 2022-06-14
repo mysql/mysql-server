@@ -1,0 +1,310 @@
+#
+--source include/have_udf.inc
+--source include/not_valgrind.inc
+--source include/force_restart.inc
+
+--echo #
+--echo # Bug#30248138 - adding a function once mysql.func is converted to myisam
+--echo #                leads to crash
+--echo #
+
+CALL mtr.add_suppression("Column count of");
+CALL mtr.add_suppression("Incorrect definition of table");
+CALL mtr.add_suppression("Cannot load from");
+CALL mtr.add_suppression("Storage engine 'MyISAM' does not");
+
+--echo #-----------------------------------------------------------------------
+--echo # Test cases to verify system table's behavior with storage engines
+--echo # InnoDB and MyISAM.
+--echo #-----------------------------------------------------------------------
+--source include/system_tables_storage_engine_tests.inc
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify forbidden operations when
+--echo #
+--echo #   1 System table is created in the MyISAM engine.
+--echo #   2 System table is in InnoDB engine but table definition is changed.
+--echo #-----------------------------------------------------------------------
+CREATE USER 'user1'@'%';
+CREATE TABLE t1 (f1 INT);
+
+# mysql.func
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+RENAME TABLE mysql.func TO mysql.func_bkp;
+CREATE TABLE mysql.func ENGINE='MyISAM' AS SELECT * FROM mysql.func_bkp;
+--echo # Without the fix, following statement results in the assert
+--echo # condition failure.
+--error ER_UNSUPPORTED_ENGINE
+CREATE FUNCTION udf_func RETURNS STRING SONAME 'udf_func.so';
+--error ER_UNSUPPORTED_ENGINE
+DROP FUNCTION sequence;
+
+ALTER TABLE mysql.func ENGINE='InnoDB',
+                       DROP COLUMN ret;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+CREATE FUNCTION udf_func RETURNS STRING SONAME 'udf_func.so';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+DROP FUNCTION sequence;
+DROP TABLE mysql.func;
+RENAME TABLE mysql.func_bkp TO mysql.func;
+DROP FUNCTION sequence;
+
+# mysql.plugin
+RENAME TABLE mysql.plugin TO mysql.plugin_bkp;
+CREATE TABLE mysql.plugin ENGINE='MyISAM' AS SELECT * FROM mysql.plugin_bkp;
+--error ER_UNSUPPORTED_ENGINE
+INSTALL PLUGIN my_plug soname 'some_plugin.so';
+--error ER_UNSUPPORTED_ENGINE
+UNINSTALL PLUGIN my_plug;
+
+ALTER TABLE mysql.plugin ENGINE=InnoDB,
+                         MODIFY dl CHAR(64);
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
+INSTALL PLUGIN my_plug soname 'some_plugin.so';
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
+UNINSTALL PLUGIN my_plug;
+DROP TABLE mysql.plugin;
+RENAME TABLE mysql.plugin_bkp TO mysql.plugin;
+
+# mysql.servers
+RENAME TABLE mysql.servers TO mysql.servers_bkp;
+CREATE TABLE mysql.servers ENGINE='MyISAM' AS SELECT * FROM mysql.servers_bkp;
+--error ER_UNSUPPORTED_ENGINE
+CREATE SERVER fedlnk FOREIGN DATA WRAPPER mysql OPTIONS
+       (USER 'fed_user', HOST 'remote_host', PORT 9306, DATABASE 'federated');
+--error ER_UNSUPPORTED_ENGINE
+DROP SERVER fedlnk;
+--error ER_UNSUPPORTED_ENGINE
+ALTER SERVER fedlnk OPTIONS (USER 'sally');
+
+ALTER TABLE mysql.servers ENGINE='InnoDB',
+                          MODIFY WRAPPER varchar(128);
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
+CREATE SERVER fedlnk FOREIGN DATA WRAPPER mysql OPTIONS
+       (USER 'fed_user', HOST 'remote_host', PORT 9306, DATABASE 'federated');
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
+DROP SERVER fedlnk;
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
+ALTER SERVER fedlnk OPTIONS (USER 'sally');
+DROP TABLE mysql.servers;
+RENAME TABLE mysql.servers_bkp TO mysql.servers;
+
+# mysql.user
+RENAME TABLE mysql.user TO mysql.user_bkp;
+CREATE TABLE mysql.user ENGINE='MyISAM' AS SELECT * FROM mysql.user_bkp;
+--error ER_UNSUPPORTED_ENGINE
+CREATE USER 'user2'@'%';
+--error ER_UNSUPPORTED_ENGINE
+DROP USER 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+ALTER USER 'user1'@'%' PASSWORD EXPIRE;
+--error ER_UNSUPPORTED_ENGINE
+GRANT SELECT ON t1 TO 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+SET PASSWORD FOR 'user1'@'%' = '123';
+--error ER_UNSUPPORTED_ENGINE
+RENAME USER 'user1'@'%' TO 'user1'@'%';
+
+ALTER TABLE mysql.user ENGINE='InnoDB',
+                       DROP COLUMN max_updates;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+CREATE USER 'user2'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+DROP USER 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+ALTER USER 'user1'@'%' PASSWORD EXPIRE;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT SELECT ON t1 TO 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+SET PASSWORD FOR 'user1'@'%' = '123';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+RENAME USER 'user1'@'%' TO 'user1'@'%';
+DROP TABLE mysql.user;
+RENAME TABLE mysql.user_bkp TO mysql.user;
+
+# mysql.columns_priv
+RENAME TABLE mysql.columns_priv TO mysql.columns_priv_bkp;
+CREATE TABLE mysql.columns_priv ENGINE='MyISAM' AS SELECT * FROM mysql.columns_priv_bkp;
+--error ER_UNSUPPORTED_ENGINE
+GRANT SELECT(f1) ON t1 TO 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE SELECT ON t1.f1 FROM 'user1'@'%';
+
+ALTER TABLE mysql.columns_priv ENGINE='InnoDB',
+                               DROP COLUMN Timestamp;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT SELECT(f1) ON t1 TO 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE SELECT ON t1.f1 FROM 'user1'@'%';
+DROP TABLE mysql.columns_priv;
+RENAME TABLE mysql.columns_priv_bkp TO mysql.columns_priv;
+
+# mysql.tables_priv
+RENAME TABLE mysql.tables_priv TO mysql.tables_priv_bkp;
+CREATE TABLE mysql.tables_priv ENGINE='MyISAM' AS SELECT * FROM mysql.tables_priv_bkp;
+--error ER_UNSUPPORTED_ENGINE
+GRANT SELECT ON t1 TO 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+
+ALTER TABLE mysql.tables_priv ENGINE='InnoDB',
+                              DROP COLUMN Timestamp;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT SELECT ON t1 TO 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+DROP TABLE mysql.tables_priv;
+RENAME TABLE mysql.tables_priv_bkp TO mysql.tables_priv;
+
+# mysql.procs_priv
+CREATE FUNCTION f1() RETURNS INT return 1;
+RENAME TABLE mysql.procs_priv TO mysql.procs_priv_bkp;
+CREATE TABLE mysql.procs_priv ENGINE='MyISAM' AS SELECT * FROM mysql.procs_priv_bkp;
+--error ER_UNSUPPORTED_ENGINE
+GRANT EXECUTE ON FUNCTION f1 TO 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE EXECUTE ON FUNCTION f1 FROM 'user1'@'%';
+
+ALTER TABLE mysql.procs_priv ENGINE='InnoDB',
+                             DROP COLUMN timestamp;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT EXECUTE ON FUNCTION f1 TO 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE EXECUTE ON FUNCTION f1 FROM 'user1'@'%';
+DROP TABLE mysql.procs_priv;
+RENAME TABLE mysql.procs_priv_bkp TO mysql.procs_priv;
+
+# mysql.proxies_priv
+RENAME TABLE mysql.proxies_priv TO mysql.proxies_priv_bkp;
+CREATE TABLE mysql.proxies_priv ENGINE='MyISAM' AS SELECT * FROM mysql.proxies_priv_bkp;
+--error ER_UNSUPPORTED_ENGINE
+GRANT PROXY ON 'user1'@'%' TO 'user2'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE PROXY ON 'user1'@'%' FROM 'user2'@'%';
+
+ALTER TABLE mysql.proxies_priv ENGINE='InnoDB',
+                               DROP COLUMN timestamp;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT PROXY ON 'user1'@'%' TO 'user2'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE PROXY ON 'user1'@'%' FROM 'user2'@'%';
+DROP TABLE mysql.proxies_priv;
+RENAME TABLE mysql.proxies_priv_bkp TO mysql.proxies_priv;
+
+# mysql.component
+RENAME TABLE mysql.component TO mysql.component_bkp;
+CREATE TABLE mysql.component ENGINE='MyISAM' AS SELECT * FROM mysql.component_bkp;
+--error ER_UNSUPPORTED_ENGINE
+INSTALL COMPONENT "file://component_log_sink_json";
+--error ER_UNSUPPORTED_ENGINE
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+ALTER TABLE mysql.component ENGINE='InnoDB',
+                            DROP COLUMN component_urn;
+--error ER_COMPONENT_TABLE_INCORRECT
+INSTALL COMPONENT "file://component_log_sink_json";
+--error ER_COMPONENT_TABLE_INCORRECT
+UNINSTALL COMPONENT "file://component_log_sink_json";
+DROP TABLE mysql.component;
+RENAME TABLE mysql.component_bkp TO mysql.component;
+
+# mysql.db
+RENAME TABLE mysql.db TO mysql.db_bkp;
+CREATE TABLE mysql.db ENGINE='MyISAM' AS SELECT * FROM mysql.db_bkp;
+--error ER_UNSUPPORTED_ENGINE
+GRANT ALL ON db.* TO 'user1'@'%';
+
+ALTER TABLE mysql.db ENGINE='InnoDB',
+                     DROP COLUMN Select_priv;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT ALL ON db.* TO 'user1'@'%';
+DROP TABLE mysql.db;
+RENAME TABLE mysql.db_bkp TO mysql.db;
+
+# mysql.default_roles
+RENAME TABLE mysql.default_roles TO mysql.default_roles_bkp;
+CREATE TABLE mysql.default_roles ENGINE='MyISAM' AS SELECT * FROM mysql.default_roles_bkp;
+--error ER_UNSUPPORTED_ENGINE
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+
+ALTER TABLE mysql.default_roles ENGINE='InnoDB',
+                                DROP COLUMN DEFAULT_ROLE_USER;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+DROP TABLE mysql.default_roles;
+RENAME TABLE mysql.default_roles_bkp TO mysql.default_roles;
+
+# mysql.global_grants
+RENAME TABLE mysql.global_grants TO mysql.global_grants_bkp;
+CREATE TABLE mysql.global_grants ENGINE='MyISAM' AS SELECT * FROM mysql.global_grants_bkp;
+--error ER_UNSUPPORTED_ENGINE
+GRANT PROCESS ON *.* TO 'user1'@'%';
+--error ER_UNSUPPORTED_ENGINE
+REVOKE PROCESS ON *.* FROM 'user1'@'%';
+
+ALTER TABLE mysql.global_grants ENGINE='InnoDB',
+                                DROP COLUMN WITH_GRANT_OPTION;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT PROCESS ON *.* TO 'user1'@'%';
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE PROCESS ON *.* FROM 'user1'@'%';
+DROP TABLE mysql.global_grants;
+RENAME TABLE mysql.global_grants_bkp TO mysql.global_grants;
+
+# mysql.role_edges
+RENAME TABLE mysql.role_edges TO mysql.role_edges_bkp;
+CREATE TABLE mysql.role_edges ENGINE='MyISAM' AS SELECT * FROM mysql.role_edges_bkp;
+--error ER_UNSUPPORTED_ENGINE
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+
+ALTER TABLE mysql.role_edges ENGINE='InnoDB',
+                             DROP COLUMN TO_USER;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+DROP TABLE mysql.role_edges;
+RENAME TABLE mysql.role_edges_bkp TO mysql.role_edges;
+
+# mysql.password_history
+SET GLOBAL default_password_lifetime = 2;
+RENAME TABLE mysql.password_history TO mysql.password_history_bkp;
+CREATE TABLE mysql.password_history ENGINE='MyISAM' AS SELECT * FROM mysql.password_history_bkp;
+--error ER_UNSUPPORTED_ENGINE
+ALTER USER 'user1'@'%' IDENTIFIED BY 'password';
+
+ALTER TABLE mysql.password_history ENGINE='InnoDB',
+                                   DROP COLUMN Password_timestamp;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+ALTER USER 'user1'@'%' IDENTIFIED BY 'password';
+DROP TABLE mysql.password_history;
+RENAME TABLE mysql.password_history_bkp TO mysql.password_history;
+SET GLOBAL default_password_lifetime = DEFAULT;
+
+#Cleanup
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP USER 'user1'@'%';
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify logical upgrade from 5.7 dump file.
+--echo #-----------------------------------------------------------------------
+--exec $MYSQL < $MYSQL_TEST_DIR/std_data/mysqldump_57.sql
+SELECT table_schema, table_name, engine FROM information_schema.tables
+                                        WHERE table_schema='mysql'
+                                              AND engine='MyISAM';
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+SELECT table_schema, table_name, engine FROM information_schema.tables
+                                        WHERE table_schema='mysql'
+                                              AND engine='MyISAM';

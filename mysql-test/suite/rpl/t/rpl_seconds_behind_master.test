@@ -4,10 +4,6 @@
 # on SHOW PROCESS LIST output in some of the tests)
 --source include/have_binlog_format_statement.inc
 
-# this test logics requires adaption to MTS policies for SBM
-# (see rpl_parallel_seconds_behind_master.test)
---source include/not_mts_slave_parallel_workers.inc
-
 --source include/master-slave.inc
 
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
@@ -41,7 +37,7 @@ let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (1);
 let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
-real_sleep 3;
+sleep 3;
 
 connection slave;
 lock table t1 write;
@@ -80,7 +76,7 @@ let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (2);
 let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
-real_sleep 3;
+sleep 3;
 
 connection slave;
 # ok, now wait for the SQL thread to start the insert
@@ -96,7 +92,7 @@ source include/wait_show_condition.inc;
 # ASSERTION: flush logs will not reset the sbm value
 flush logs;
 
-real_sleep 3;
+sleep 3;
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 # We need to deduct execution time on master to SBM lower_bound.
@@ -152,7 +148,7 @@ CREATE TABLE t1 (a INT);
 let $wait_timeout= 60; # Override default of 30 seconds with 60.
 let $show_statement= SHOW PROCESSLIST;
 let $field= State;
-let $condition= = 'Slave has read all relay log; waiting for more updates';
+let $condition= = 'Replica has read all relay log; waiting for more updates';
 -- source include/wait_show_condition.inc
 
 -- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
@@ -212,7 +208,7 @@ UNLOCK TABLES;
 
 --let $delay= 10
 --source include/stop_slave.inc
---eval CHANGE MASTER TO MASTER_DELAY= $delay
+--eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
 
 --source include/rpl_connection_master.inc
 --let $start= `SELECT UNIX_TIMESTAMP()`
@@ -255,7 +251,7 @@ UNLOCK TABLES;
 
 # clean up
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 DROP TABLE t1;

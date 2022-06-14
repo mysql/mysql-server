@@ -1,0 +1,141 @@
+################################################################################
+# InnoDB transparent tablespace data encryption for general shared tablespace.
+# This test case will test recovery abort on 2 error injection
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+# --source include/no_valgrind_without_big.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Failed to decrypt encryption information, found unexpected version of it!");
+call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[Innodb\\] Decrypting a page in doublewrite file failed");
+call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[Innodb\\] Encryption key missing");
+--enable_query_log
+
+--write_file $MYSQLTEST_VARDIR/tmp/setup.inc EXECUTE_STEP
+  # Create an Unencrypted tablespace
+  CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE=InnoDB ENCRYPTION="N";
+  # Create an unencrypted table in tablespace
+  CREATE TABLE t1(c1 char(100)) ENGINE=InnoDB TABLESPACE encrypt_ts;
+  # Insert few rows in table
+  --disable_query_log
+  INSERT INTO t1 VALUES ("SOME VALUES");
+  let $counter=12;
+  while ($counter>0)
+  {
+    INSERT INTO test.t1 SELECT * FROM test.t1;
+    dec $counter;
+  }
+  --enable_query_log
+
+  # Make sure ts file is updated with new records in table
+  set global innodb_buf_flush_list_now = 1;
+
+  SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+  SELECT * FROM t1 LIMIT 10;
+EXECUTE_STEP
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--let $rc=1
+
+--echo #########################################################################
+--echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo #########################################################################
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+--inc $rc
+
+--echo #-------------------------- TEST 1 -------------------------------------#
+--let $location=DDL_Log_remove_inject_startup_error_1
+--let SEARCH_PATTERN=ENCRYPTION for tablespace encrypt_ts:[0-9]+ could not be done successfully
+--source $MYSQLTEST_VARDIR/tmp/setup.inc
+
+--echo # Set Encryption process to crash just after making DDL Entry
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_ddl_entry';
+
+--echo # Encrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo #########################################################################
+--echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo #########################################################################
+
+--echo # INJECT error TOO_MANY_CONCURRENT_TXNS in startup location $location.
+--echo # It will cause FATAL error and server abort.
+let $restart_parameters = restart: $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err --debug=+d,$location;
+--source include/start_mysqld_no_echo.inc
+--inc $rc
+
+--echo # Search the failure pattern in error log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+--source include/search_pattern.inc
+
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;
+
+--echo #########################################################################
+--echo # RESTART $rc : normally
+--echo #########################################################################
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+--remove_file $MYSQLTEST_VARDIR/log/my_restart.err
+--inc $rc
+
+--echo #-------------------------- TEST 2 -------------------------------------#
+--let $location=DDL_Log_remove_inject_startup_error_2
+--let SEARCH_PATTERN=\[FATAL\] Error in DDL Log recovery during Post-Recovery processing.
+--source $MYSQLTEST_VARDIR/tmp/setup.inc
+
+--echo # Set Encryption process to crash just after making DDL Entry
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_ddl_entry';
+
+--echo # Encrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo #########################################################################
+--echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo #########################################################################
+
+--echo # INJECT error TOO_MANY_CONCURRENT_TXNS in startup location $location.
+--echo # It will cause FATAL error and server abort.
+--error 0,2
+--exec $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err --debug=+d,$location
+
+--echo # Search the failure pattern in error log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+--source include/search_pattern.inc
+--remove_file $MYSQLTEST_VARDIR/log/my_restart.err
+
+--echo #########################################################################
+--echo # RESTART $rc : normally
+--echo #########################################################################
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/start_mysqld_no_echo.inc
+--inc $rc
+
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+
+--echo #########################################################################
+--echo # RESTART $rc : final
+--echo #########################################################################
+--let $restart_parameters = "restart: $PLUGIN_DIR_OPT"
+--source include/restart_mysqld_no_echo.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/setup.inc

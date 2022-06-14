@@ -1,0 +1,2 @@
+ --innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR" --innodb_doublewrite_files=1
+ --innodb_doublewrite_pages=10 --innodb_doublewrite_batch_size=10

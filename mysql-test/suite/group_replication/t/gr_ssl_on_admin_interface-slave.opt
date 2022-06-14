@@ -1,0 +1,5 @@
+--loose-group_replication_tls_source=MYSQL_ADMIN
+--loose-group_replication_ssl_mode=REQUIRED
+--admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem
+--admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-san.pem
+--admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-san.pem

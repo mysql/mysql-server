@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_data_home_dir);
 COUNT(@@GLOBAL.innodb_data_home_dir)
 0
 0 Expected
-SELECT innodb_data_home_dir = @@SESSION.innodb_data_home_dir;
+SELECT innodb_data_home_dir;
 ERROR 42S22: Unknown column 'innodb_data_home_dir' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

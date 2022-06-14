@@ -123,7 +123,7 @@ SUBPARTITION BY LINEAR HASH (a)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY LINEAR HASH (`a`)
@@ -141,7 +141,7 @@ PARTITION BY LIST (a)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53) ENGINE = InnoDB) */
@@ -156,3 +156,64 @@ select create_options from information_schema.tables where table_schema="test";
 CREATE_OPTIONS
 partitioned
 drop table t1;
+# Bug #29870919  INFORMATION SCHEMA STATS EXPIRY RESULTS IN BAD
+# STATS FOR PARTITIONED TABLES
+#
+# Without the fix the cardinality values by SHOW INDEXES is invalid.
+#
+CREATE TABLE t1
+(f1 INT NOT NULL AUTO_INCREMENT,
+f2 INT NOT NULL,
+PRIMARY KEY (f1,f2)) ENGINE=InnoDB
+PARTITION BY RANGE (f2)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN (300),
+PARTITION p3 VALUES LESS THAN (MAXVALUE));
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 SELECT NULL, 3
+FROM t1 a, t1 b, t1 c, t1 d, t1 e, t1 f, t1 g;
+# This SELECT caches the cardinality, as there is non cached yet.
+# We expect a non-zero cardinality value, as SE cannot provide
+# latest value, without the call to ANALYZE TABLE.
+SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
+COLUMN_NAME, COLLATION, IF(CARDINALITY > 0, "non-zero", "zero"),
+SUB_PART PACKED, NULLABLE, INDEX_TYPE, COMMENT, INDEX_COMMENT,
+IS_VISIBLE, EXPRESSION
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_NAME	NON_UNIQUE	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	IF(CARDINALITY > 0, "non-zero", "zero")	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
+t1	0	test	1	f1	A	non-zero	NULL		BTREE			YES	NULL
+t1	0	test	2	f2	A	non-zero	NULL		BTREE			YES	NULL
+# We do not account INSERTed rows into cardinality because
+# the cached value is not expired yet.
+# We expect a non-zero cardinality value, as SE cannot provide
+# latest value, without the call to ANALYZE TABLE.
+INSERT INTO t1 SELECT NULL, 4 FROM t1;
+SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
+COLUMN_NAME, COLLATION, IF(CARDINALITY > 0, "non-zero", "zero"),
+SUB_PART PACKED, NULLABLE, INDEX_TYPE, COMMENT, INDEX_COMMENT,
+IS_VISIBLE, EXPRESSION
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_NAME	NON_UNIQUE	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	IF(CARDINALITY > 0, "non-zero", "zero")	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
+t1	0	test	1	f1	A	non-zero	NULL		BTREE			YES	NULL
+t1	0	test	2	f2	A	non-zero	NULL		BTREE			YES	NULL
+# We force update cache by calling ANALYZE TABLE.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	260	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	260	NULL	NULL		BTREE			YES	NULL
+# We do see INSERTed rows accounted into cardinality
+# because we ignore cache with expiry seconds set to 0.
+SET session information_schema_stats_expiry = 0;
+INSERT INTO t1 SELECT NULL, 4 FROM t1;
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	520	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	520	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;

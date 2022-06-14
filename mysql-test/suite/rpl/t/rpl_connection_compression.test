@@ -1,0 +1,478 @@
+# ==== Requirements ====
+#
+# R1. If the intersection of slave's SOURCE_COMPRESSION_ALGORITHMS with
+# master's @@global.protocol_compression_algorithms is nonempty, then
+# the connection in START SLAVE shall succeed and use zlib if
+# possible; otherwise zstd; otherwise uncompressed.
+#
+# R2. If the intersection of slave's SOURCE_COMPRESSION_ALGORITHMS with
+# master's @@global.protocol_compression_algorithms is empty, then
+# connection shall fail with an error.
+#
+# R3. If slave connects with SOURCE_COMPRESSION_ALGORITHMS = 'zlib' or
+# 'zstd', the connection should be compressed.
+#
+# R4. If slave connects with SOURCE_COMPRESSION_ALGORITHMS = NULL, the
+# connection should be uncompressed.
+#
+# R5. When using the zstd algorithm, SOURCE_ZSTD_COMPRESSION_LEVEL=N
+# shall provide better compression ratio than M, if N > M.
+#
+# ==== References ====
+#
+# WL#12475 - Protocol Changes to specify compression configuration for
+#            connections
+#
+
+# Test does not depend on binlog_format, so should only run once.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+# do not run with binlog compression on, otherwise it will make
+# this test fail, since it needs large transactions
+--source include/not_binlog_transaction_compression_on.inc
+
+
+--echo #### Initialize ####
+
+# Don't replicate the auxiliary tables.
+SET sql_log_bin = 0;
+
+# List of possible values for SOURCE_COMPRESSION_ALGORITHMS
+CREATE TABLE algorithms (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name TEXT NOT NULL);
+INSERT INTO algorithms(name) VALUES
+  ('default'),
+  ('zlib'),
+  ('zstd'),
+  ('uncompressed'),
+  ('zlib,zstd'),
+  ('zlib,uncompressed'),
+  ('zstd,uncompressed'),
+  ('zlib,zstd,uncompressed');
+
+  # The options above includes all real possibilities.  The options
+  # below are only variants of the syntax, where algorithms appear in
+  # different orders. This test is a bit slow, so we skip the options
+  # below, to save time.
+
+  #('zstd,zlib'),
+  #('uncompressed,zlib'),
+  #('uncompressed,zstd'),
+  #('zlib,uncompressed,zstd'),
+  #('zstd,zlib,uncompressed'),
+  #('zstd,uncompressed,zlib'),
+  #('uncompressed,zlib,zstd'),
+  #('uncompressed,zstd,zlib');
+
+--let $algorithm_count = `SELECT COUNT(*) FROM algorithms`
+
+# List of tested values for SOURCE_ZSTD_COMPRESSION_LEVEL
+CREATE TABLE levels (
+  id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'order in which to set option',
+  level TEXT NOT NULL COMMENT 'compression level',
+  position INT NOT NULL COMMENT 'expected ordinal position of achieved compression'
+);
+
+# Exclude some levels, to make the test faster.
+# Intermediate compression levels are not making much difference, test default and max.
+INSERT INTO levels(level, position) VALUES
+#  ('1', 1),
+  #('2', 2),
+  ('default', 3),
+  #('3', 3),
+  #('13', 4),
+  ('22', 5);
+--let $level_count = `SELECT COUNT(*) FROM levels`
+
+--delimiter |
+
+# Given two comma-separated lists of strings, returns a
+# comma-separated list of those strings that appear in both, with
+# duplicates removed, in the order of set1.
+CREATE FUNCTION set_intersection(set1 TEXT, set2 TEXT) RETURNS TEXT BEGIN
+  DECLARE ret TEXT DEFAULT '';
+  DECLARE elem TEXT;
+  WHILE set1 != '' DO
+    SET elem = SUBSTRING_INDEX(set1, ',', 1);
+    IF FIND_IN_SET(elem, set2) THEN
+      SET ret = sys.list_add(ret, elem);
+      SET set2 = sys.list_drop(set2, elem);
+    END IF;
+    SET set1 = sys.list_drop(set1, elem);
+  END WHILE;
+  RETURN ret;
+END|
+--delimiter ;
+
+SET sql_log_bin = 1;
+
+# Statement to reset replication
+--let $change_master_base = CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $SERVER_MYPORT_1, SOURCE_USER = 'root', SOURCE_RETRY_COUNT=3, SOURCE_CONNECT_RETRY=1;
+
+--let $script_dir = $MYSQLTEST_VARDIR
+
+# ---- Purpose ----
+#
+# Auxiliary script to set configuration options on slave.
+#
+# ---- Usage ----
+#
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $replica_compressed_protocol = [0|1]
+# --source $script_dir/configure_slave.inc
+#
+# Parameters:
+#
+#   $change_master_base
+#     CHANGE REPLICATION SOURCE statement that sets non-compression attributes to
+#     do the base configuration of the channel; for instance
+#     SOURCE_HOST, SOURCE_USER, etc.
+#
+#   $change_master_algorithm
+#     CHANGE REPLICATION SOURCE statement that sets SOURCE_COMPRESSION_ALGORITHMS.
+#
+#   $change_master_level
+#     CHANGE REPLICATION SOURCE statement that sets SOURCE_ZSTD_COMPRESSION_LEVEL.
+#
+#   $replica_compressed_protocol
+#     Set @@global.replica_compressed_protocol to this value.
+#
+--write_file $script_dir/configure_slave.inc
+  # Make the 'source ...' files less noisy
+  --let $rpl_connection_silent = 1
+  --let $include_silent = 1
+
+  --source include/rpl_connection_slave.inc
+  --disable_warnings
+  --disable_query_log
+  eval $change_master_base;
+  --enable_query_log
+  if ($change_master_algorithm != '') {
+    eval $change_master_algorithm;
+  }
+  if ($change_master_level != '') {
+    eval $change_master_level;
+  }
+  --enable_warnings
+  eval SET @@global.replica_compressed_protocol = $replica_compressed_protocol;
+EOF
+
+
+# ---- Purpose ----
+#
+# Test one configuration that is expected to succeed, and verify
+# requirements R1, R3, and R4.
+#
+# ---- Usage ----
+#
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $replica_compressed_protocol = [0|1]
+# --let $data_size = size of data in event
+# --let $expected_algorithm = [zlib|zstd|uncompressed]
+# --source $script_dir/test_master_slave_compression.inc
+#
+# Parameters:
+#
+#   $change_master_base, $change_master_algorithm, $change_master_level,
+#   $replica_compressed_protocol
+#     See configure_slave.inc
+#
+#   $data_size
+#     The size of the data that was inserted on master.
+#     We will expect that it sends more than this if the connection is
+#     uncompressed, and less than this if the connection is compressed.
+#
+#   $expected_algorithm
+#     The algorithm that should be used in the protocol.
+#
+# ---- Implementation ----
+#
+# - Configure slave using CHANGE REPLICATION SOURCE
+# - Start replication threads
+# - Measure the number of bytes sent on the connection before and after
+# - If the expected algorithm is uncompressed, assert that it sent
+#   more than $data_size bytes (data plus overhead)
+# - If the expected algorithm is compressed, assert that it sent less
+#   than $data_size bytes (we assume that compression saves more than
+#   the overhead).
+--write_file $script_dir/test_master_slave_compression.inc
+
+  --source $script_dir/configure_slave.inc
+
+  # Get initial value for number of bytes sent.
+  --source include/rpl_connection_master.inc
+  --source include/save_master_pos.inc
+
+  --let $bytes_before = `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+
+  --echo START SLAVE IO_THREAD
+  # Verify that slave can connect
+  --source include/rpl_connection_slave.inc
+  --source include/start_slave_io.inc
+
+  # Replicate
+  --source include/sync_slave_io.inc
+  --source include/stop_slave_io.inc
+
+  # Get final value for total number of bytes sent.
+  --source include/rpl_connection_master.inc
+
+  --let $bytes_after = `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+  --let $bytes_sent = `SELECT $bytes_after - $bytes_before`
+
+  # Verify that data was compressed / uncompressed according to option
+  if ($expected_algorithm == uncompressed) {
+    --let $assert_cond = $bytes_sent > $data_size
+    --let $assert_text = More than $data_size bytes should be sent uncompressed
+  }
+  if ($expected_algorithm != uncompressed) {
+    --let $assert_cond = $bytes_sent < $data_size
+    --let $assert_text = Less than $data_size bytes should be sent compressed
+  }
+  --let $include_silent = 0
+  --source include/assert.inc
+
+  --source include/rpl_connection_slave.inc
+  --disable_query_log
+  RESET MASTER;
+  RESET SLAVE ALL;
+  --enable_query_log
+EOF
+
+
+# ---- Purpose ----
+#
+# Do the same as $script_dir/test_master_slave_compression.inc, and
+# in addition verify requirement R5.
+#
+# ---- Usage ----
+#
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $replica_compressed_protocol = [0|1]
+# --let $data_size = size of data in event
+# --let $expected_algorithm = [zlib|zstd|uncompressed]
+# --let $level_it = NUMBER
+# --source $script_dir/test_master_slave_compression_with_level
+#
+# Parameters:
+#
+#   $change_master_base, $change_master_algorithm, $change_master_level,
+#   $replica_compressed_protocol, $data_size, $expected_algorithm
+#     See test_master_slave_compression.inc, above.
+#
+#   $level_it
+#     Row number in the 'levels' table which contains the compression
+#     level to test.
+#
+# ---- Implementation ----
+#
+# - Fetch the compression level from the levels table.
+# - Add SOURCE_ZSTD_COMPRESSION_LEVEL to the CHANGE REPLICATION SOURCE statement text
+# - Source test_master_slave_compression
+# - If level_it != 1 (it's not the first level we try for the
+#   algorithm), compare the compression ratio with the compression
+#   ratio of the last run.  If the 'position' column of the 'levels'
+#   table has the same value as the 'position' column for the previous
+#   row in the 'levels' table, then we expect the compression ratios
+#   to be the same. Otherwise (i.e. the 'position' column is greater
+#   than that of the previous row), then we expect the compression
+#   ratio of the current test to be better than that of the last test.
+--write_file $script_dir/test_master_slave_compression_with_level.inc
+  --source include/rpl_connection_master.inc
+
+  --source $script_dir/test_master_slave_compression.inc
+
+  --source include/rpl_connection_master.inc
+
+  # If this is not the first run with this algorithm, compare with previous
+  # run.  If the 'position' value for this row in the 'levels' table equals
+  # the 'position' value for the previous row, then the levels are
+  # the same and we should expect equal compression. Otherwise, this level
+  # is higher than the previous level and we should expect the compression
+  # to be better than the previous run.
+  if ($level_it != 1) {
+    --let $better_than_last = `SELECT position > $last_position FROM levels WHERE id = $level_it`
+    if ($better_than_last) {
+      --let $assert_cond = $bytes_sent <= $last_bytes_sent
+      --let $assert_text = Compression ratio should be better than previous algorithm
+    }
+    if (!$better_than_last) {
+      --let $assert_cond = $bytes_sent == $last_bytes_sent
+      --let $assert_text = Compression ratio should be equal to previous algorithm
+    }
+    --source include/assert.inc
+  }
+
+  --let $last_bytes_sent = $bytes_sent
+
+  --let $last_position = `SELECT position FROM levels WHERE id = $level_it`
+EOF
+
+
+# ---- Purpose ----
+#
+# Verify that there is an error when master and slave do not have any
+# compression algorithm in common.
+#
+# ---- Usage ----
+#
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --source $script_dir/test_master_slave_compression_error.inc
+#
+# Parameters: See test_master_slave_compression.inc.
+#
+# ---- Implementation ----
+#
+# - Execute the CHANGE REPLICATION SOURCE statement
+# - Execute START SLAVE IO_THREAD
+# - Wait until error happens.
+--write_file $script_dir/test_master_slave_compression_error.inc
+
+  --source $script_dir/configure_slave.inc
+
+  START SLAVE IO_THREAD;
+  --let $slave_io_errno = 3922, 2066
+  # 3922 = ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+  # 2066 = CR_COMPRESSION_WRONGLY_CONFIGURED
+  --source include/wait_for_slave_io_error.inc
+  --echo got error
+  RESET SLAVE ALL;
+EOF
+
+
+# Generate some binlog data. This will be more than 10000 bytes
+# uncompressed, and less than 10000 bytes compressed.
+--let $data_size = 1000000
+CREATE TABLE t (a LONGTEXT);
+eval INSERT INTO t VALUES (REPEAT('a', $data_size));
+
+--let $saved_protocol_compression_algorithms = `SELECT @@global.protocol_compression_algorithms`
+
+--echo #### Test ####
+
+# Iterate over all the algorithms on master
+--let $master_algorithm_it = 1
+while ($master_algorithm_it <= $algorithm_count) {
+  --source include/rpl_connection_master.inc
+  --let $master_algorithm_text = `SELECT name FROM algorithms WHERE id = $master_algorithm_it`
+  --let $master_algorithm = $master_algorithm_text
+  if ($master_algorithm == default) {
+    --let $master_algorithm = zlib,zstd,uncompressed
+  }
+
+  --echo ==== master:$master_algorithm_text ====
+
+  --source include/rpl_connection_master.inc
+  if ($master_algorithm_text == default) {
+    eval SET @@global.protocol_compression_algorithms = DEFAULT;
+  }
+  if ($master_algorithm != default) {
+    eval SET @@global.protocol_compression_algorithms = '$master_algorithm';
+  }
+  SELECT @@global.protocol_compression_algorithms;
+
+  # Iterate over all algorithms on slave
+  --let $slave_algorithm_it = 1
+  while ($slave_algorithm_it <= $algorithm_count) {
+    --source include/rpl_connection_master.inc
+    --let $slave_algorithm_text = `SELECT name FROM algorithms WHERE id = $slave_algorithm_it`
+    --let $slave_algorithm = $slave_algorithm_text
+    --let $change_master_algorithm = CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = '$slave_algorithm'
+    if ($slave_algorithm == default) {
+      --let $slave_algorithm = uncompressed
+      --let $change_master_algorithm =
+    }
+
+    --let $replica_compressed_protocol = 0
+    --let $replica_compressed_protocol_iterations = 1
+    if ($slave_algorithm == uncompressed) {
+      --let $replica_compressed_protocol_iterations = 2
+    }
+
+    while ($replica_compressed_protocol < $replica_compressed_protocol_iterations) {
+      --source include/rpl_connection_slave.inc
+      if ($replica_compressed_protocol) {
+        --let $slave_algorithm = zlib
+      }
+
+      --source include/rpl_connection_master.inc
+      --let $intersection = `SELECT set_intersection('$master_algorithm', '$slave_algorithm')`
+
+      if ($intersection != '') {
+        let $expected_algorithm = `
+          SELECT IF(FIND_IN_SET('zlib', '$intersection'), 'zlib',
+                    IF(FIND_IN_SET('zstd', '$intersection'), 'zstd',
+                       'uncompressed'))`;
+
+        if ($expected_algorithm == zstd) {
+          # Iterate over levels.
+          --let $level_it = 1
+          while ($level_it <= $level_count) {
+            # Get the compression level from the table.
+            --let $level = `SELECT level FROM levels WHERE id = $level_it`
+
+            # If $level != 'default', set SOURCE_ZSTD_COMPRESSION_LEVEL.
+            # Otherwise don't.
+            --let $change_master_level =
+            if ($level != 'default') {
+              --let $change_master_level = CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = $level
+            }
+
+            --echo ---- master:$master_algorithm slave:$slave_algorithm slave_option:$replica_compressed_protocol expect:$expected_algorithm level:$level ----
+
+            --source $script_dir/test_master_slave_compression_with_level.inc
+
+            --inc $level_it
+          }
+        }
+        if ($expected_algorithm != zstd) {
+          --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$replica_compressed_protocol expected:$expected_algorithm ----
+          --source $script_dir/test_master_slave_compression.inc
+        }
+      }
+
+      if ($intersection == '') {
+        --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$replica_compressed_protocol expect:error ----
+        --source $script_dir/test_master_slave_compression_error.inc
+      }
+      --inc $replica_compressed_protocol
+    }
+    --inc $slave_algorithm_it
+  }
+  --inc $master_algorithm_it
+}
+
+--echo #### Clean up ####
+
+--source include/rpl_connection_master.inc
+--eval SET @@global.protocol_compression_algorithms = "$saved_protocol_compression_algorithms";
+
+SET sql_log_bin = 0;
+DROP TABLE algorithms;
+DROP TABLE levels;
+DROP TABLE t;
+DROP FUNCTION set_intersection;
+SET sql_log_bin = 1;
+
+--remove_file $script_dir/configure_slave.inc
+--remove_file $script_dir/test_master_slave_compression.inc
+--remove_file $script_dir/test_master_slave_compression_with_level.inc
+--remove_file $script_dir/test_master_slave_compression_error.inc
+
+--source include/rpl_connection_slave.inc
+--disable_query_log
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $SERVER_MYPORT_1, SOURCE_USER = 'root';
+--enable_query_log
+
+# Tell rpl_end to not try to sync
+--let $rpl_skip_sync = 1
+--source include/rpl_end.inc

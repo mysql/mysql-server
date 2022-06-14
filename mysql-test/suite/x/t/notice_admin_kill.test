@@ -1,0 +1,241 @@
+################################################################################
+#
+# WL#14166 - xproto: notify on connection close
+#
+## Verify that MySQL Server send notice on X Protocol connections
+## when it forces to close by admin command 'kill_client'
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest1_file= $MYSQL_TMP_DIR/kill_client_check_notices_on_idle_connections.xpl
+--let $xtest2_file= $MYSQL_TMP_DIR/kill_client_check_notices_on_working.xpl
+--let $xtest3_file= $MYSQL_TMP_DIR/kill_client_check_notices_on_not_auth_connections.xpl
+
+## Test case description:
+--echo ## I. Validate that X Plugin sends kill notice on IDLE connections
+--echo #
+--echo # Connect multiple clients, make the IDLE, and trigger kill, validate the notice
+--echo #
+--echo ## II. Validate that X Plugin sends kill notice on connections that process a query
+--echo #
+--echo # 1. A connection is waiting for lock
+--echo # 2. A connection is sleeping "SELECT SLEEP(A);"
+--echo #
+--echo ## III. Validate that X Plugin not sends kill notice on not authorized connections
+--echo #
+--echo
+
+
+--write_file $xtest1_file
+import assert_notices.macro;
+
+echo;
+echo #;
+echo # I;
+
+echo;
+echo #;
+echo # Creating sessions;
+
+repeat 10	%SESSION_ID%;
+newsession session_%SESSION_ID%	x_root;
+quiet;
+INSERT INTO test.client VALUES('session_%SESSION_ID%', %ACTIVE_CLIENT_ID%);
+noquiet;
+endrepeat;
+
+
+echo;
+echo #;
+echo # Killing sessions;
+
+setsession;
+repeat 10	%SESSION_ID%;
+echo kill session_%SESSION_ID%;
+quiet;
+stmtsql SELECT client_id AS Value FROM test.client WHERE session_id = 'session_%SESSION_ID%';
+noquiet;
+recvtovar %CLIENT_ID_TO_KILL% Value;
+stmtadmin kill_client	{"id": %CLIENT_ID_TO_KILL% };
+recvresult;
+endrepeat;
+
+
+echo;
+echo #;
+echo # Reciving close notices;
+
+varlet %ER_SESSION_WAS_KILLED% 3169;
+
+repeat 10	%SESSION_ID%;
+setsession session_%SESSION_ID%;
+callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%;
+recvuntildisc show-received;
+endrepeat;
+
+EOF
+
+
+
+--write_file $xtest2_file
+import assert_notices.macro;
+
+echo;
+echo #;
+echo # II;
+
+CREATE TABLE test.some_table(some_column INT);
+
+-->sql
+DELIMITER //
+CREATE PROCEDURE test.loop_in_sp()
+BEGIN
+  REPEAT
+    SET @A=1;
+  UNTIL FALSE END REPEAT;
+END
+//
+DELIMITER ;
+-->endsql
+
+
+echo;
+echo #;
+echo # Creating sessions;
+
+newsession session_WRITE_LOCK	x_root;
+varlet %client_id_WRITE_LOCK% %ACTIVE_CLIENT_ID%;
+LOCK TABLE test.some_table WRITE;
+
+newsession session_READ_LOCK	x_root;
+varlet %client_id_READ_LOCK% %ACTIVE_CLIENT_ID%;
+stmtsql SELECT * FROM test.some_table;
+
+newsession session_SLEEP	x_root;
+varlet %client_id_SLEEP% %ACTIVE_CLIENT_ID%;
+stmtsql SELECT SLEEP(10000);
+
+newsession session_SP	x_root;
+varlet %client_id_SP% %ACTIVE_CLIENT_ID%;
+stmtsql CALL test.loop_in_sp();
+
+
+setsession;
+quiet;
+wait_for 3	SELECT count(*) FROM information_schema.processlist WHERE (state like "Waiting%" or  state like "User sleep%" or state like 'closing tables%') and user = "x_root";
+noquiet;
+
+
+echo;
+echo #;
+echo # Killing sessions;
+
+setsession;
+
+stmtadmin kill_client	{"id": %client_id_READ_LOCK% };
+recvresult;
+
+stmtadmin kill_client	{"id": %client_id_SLEEP% };
+recvresult;
+
+stmtadmin kill_client	{"id": %client_id_SP% };
+recvresult;
+
+stmtadmin kill_client	{"id": %client_id_WRITE_LOCK% };
+recvresult;
+
+
+echo;
+echo #;
+echo # Reciving close notices;
+
+varlet %ER_SESSION_WAS_KILLED% 3169;
+varlet %ER_QUERY_INTERRUPTED% 1317;
+
+setsession session_WRITE_LOCK;
+callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%;
+recvuntildisc show-received;
+
+setsession session_READ_LOCK;
+recvtype Mysqlx.Error code %ER_QUERY_INTERRUPTED%;
+recvuntildisc show-received;
+
+setsession session_SLEEP;
+recvresult;
+callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%;
+recvuntildisc show-received;
+
+setsession session_SP;
+recvtype Mysqlx.Error code %ER_QUERY_INTERRUPTED%;
+recvuntildisc show-received;
+
+EOF
+
+
+
+--write_file $xtest3_file
+echo;
+echo #;
+echo # III;
+
+echo;
+echo #;
+echo # Creating sessions;
+
+varlet %CLIENT_ID% %ACTIVE_CLIENT_ID%;
+
+repeat 10	%SESSION_ID%;
+newsession session_noauth_%SESSION_ID%	-;
+# reciving ServerHello notice
+recvtype Mysqlx.Notice.Frame type 5;
+varinc %CLIENT_ID% 1;
+setsession;
+quiet;
+INSERT INTO test.client VALUES('session_noauth_%SESSION_ID%', %CLIENT_ID%);
+noquiet;
+endrepeat;
+
+echo;
+echo #;
+echo # Killing sessions;
+
+setsession;
+repeat 10	%SESSION_ID%;
+echo kill session_noauth_%SESSION_ID%;
+quiet;
+stmtsql SELECT client_id AS Value FROM test.client WHERE session_id = 'session_noauth_%SESSION_ID%';
+noquiet;
+recvtovar %CLIENT_ID_TO_KILL% Value;
+stmtadmin kill_client	{"id": %CLIENT_ID_TO_KILL% };
+recvresult;
+endrepeat;
+
+
+echo;
+echo #;
+echo # Closing connection;
+
+repeat 10	%SESSION_ID%;
+setsession session_noauth_%SESSION_ID%;
+echo # `recvunitldisc` command must report disconnection without any other messages;
+recvuntildisc show-received;
+endrepeat;
+
+EOF
+
+
+
+CREATE TABLE test.client(session_id VARCHAR(32), client_id INT);
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest1_file  2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest2_file  2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest3_file  2>&1
+
+
+## Cleanup
+DROP TABLE test.client;
+DROP TABLE test.some_table;
+DROP PROCEDURE test.loop_in_sp;
+--source ../include/xplugin_cleanup.inc

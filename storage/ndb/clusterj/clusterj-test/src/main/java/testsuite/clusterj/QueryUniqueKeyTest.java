@@ -1,5 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -61,12 +61,12 @@ public class QueryUniqueKeyTest extends AbstractClusterJModelTest {
      * Fail if any errors during the tests.
      */
     public void testUniqueKey() {
-        // uniqueKeyBetweenQuery();
-        // uniqueKeyEqualQuery();
-        // uniqueKeyGreaterEqualQuery();
-        // uniqueKeyGreaterThanQuery();
-        // uniqueKeyLessEqualQuery();
-        // uniqueKeyLessThanQuery();
+        uniqueKeyBetweenQuery();
+        uniqueKeyEqualQuery();
+        uniqueKeyGreaterEqualQuery();
+        uniqueKeyGreaterThanQuery();
+        uniqueKeyLessEqualQuery();
+        uniqueKeyLessThanQuery();
         failOnError();
     }
     public void uniqueKeyEqualQuery() {

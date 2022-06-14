@@ -18,3 +18,4 @@ Occurrences of 'SET @@GLOBAL.GTID_PURGED=.* '.*'' in the input file: 0
 CREATE DATABASE bug26199978;
 DROP DATABASE bug26199978;
 # Cleanup
+# restart:

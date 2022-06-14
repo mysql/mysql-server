@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define PLUGIN_X_CLIENT_XPROTOCOL_IMPL_H_
 
 #include <sys/types.h>
+#include <zlib.h>
+
 #include <functional>
 #include <list>
 #include <map>
@@ -34,11 +36,13 @@
 #include <utility>
 #include <vector>
 
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xargument.h"
 #include "plugin/x/client/mysqlxclient/xmessage.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/stream/connection_input_stream.h"
+#include "plugin/x/client/xcompression_impl.h"
 #include "plugin/x/client/xconnection_impl.h"
-#include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xpriority_list.h"
 #include "plugin/x/client/xprotocol_factory.h"
 #include "plugin/x/client/xquery_instances.h"
@@ -74,9 +78,14 @@ class Protocol_impl : public XProtocol,
 
   void remove_send_message_handler(const Handler_id id) override;
 
-  XConnection &get_connection() override { return *m_sync_connection; }
+  XConnection &get_connection() override { return *m_connection; }
 
   XError send(const Client_message_type_id mid, const Message &msg) override;
+  XError send_compressed_frame(const Client_message_type_id mid,
+                               const Message &msg) override;
+  XError send_compressed_multiple_frames(
+      const std::vector<std::pair<Client_message_type_id, const Message *>>
+          &messages) override;
 
   XError send(const Header_message_type_id mid, const uint8_t *buffer,
               const std::size_t length) override;
@@ -233,65 +242,14 @@ class Protocol_impl : public XProtocol,
                               const std::string &schema,
                               const std::string &method = "") override;
 
+  void use_compression(const Compression_algorithm algo) override;
+  void use_compression(const Compression_algorithm algo,
+                       const int32_t level) override;
+
+  void reset_buffering() override;
+
  private:
-  template <typename Message_type>
-  std::unique_ptr<XQuery_result> execute(const Message_type &message,
-                                         XError *out_error) {
-    *out_error = send(message);
-
-    if (*out_error) return {};
-
-    return recv_resultset(out_error);
-  }
-
-  XError recv_id(const XProtocol::Server_message_type_id id);
-  Message *recv_id(const XProtocol::Server_message_type_id id,
-                   XError *out_error);
-  XError recv_header(Header_message_type_id *out_mid,
-                     std::size_t *out_buffer_size);
-  Message *recv_payload(const Server_message_type_id mid,
-                        const std::size_t msglen, XError *out_error);
-  Message *recv_message_with_header(Server_message_type_id *out_mid,
-                                    XError *out_error);
-
-  template <typename Auth_continue_handler>
-  XError authenticate_challenge_response(const std::string &user,
-                                         const std::string &pass,
-                                         const std::string &db);
-
-  XError authenticate_plain(const std::string &user, const std::string &pass,
-                            const std::string &db);
-  XError authenticate_mysql41(const std::string &user, const std::string &pass,
-                              const std::string &db);
-  XError authenticate_sha256_memory(const std::string &user,
-                                    const std::string &pass,
-                                    const std::string &db);
-
-  XError perform_close();
-
-  /**
-    Dispatch notice to each registered handler. If the handler processed the
-    message it should return "Handler_consumed" to stop dispatching to other
-    handlers. Latest pushed handlers should be called first (called in
-    reversed-pushed-order)
-  */
-  Handler_result dispatch_notice(const Mysqlx::Notice::Frame &frame);
-
-  /**
-    Dispatch received messages to each registered handler. If the handler
-    processed the message it should return "Handler_consumed" to stop
-    dispatching to other handlers. Latest pushed handlers should be called first
-    (called in reversed-pushed-order).
-  */
-  Handler_result dispatch_received_message(const Server_message_type_id id,
-                                           const Message &message);
-
-  /** Dispatch send message to each registered handler.
-   Latest pushed handlers should be called first (called in
-   reversed-pushed-order)*/
-  void dispatch_send_message(const Client_message_type_id id,
-                             const Message &message);
-
+  using CodedInputStream = google::protobuf::io::CodedInputStream;
   template <typename Handler>
   class Handler_with_id {
    public:
@@ -309,19 +267,105 @@ class Protocol_impl : public XProtocol,
     }
   };
 
+  using ZeroCopyInputStream = google::protobuf::io::ZeroCopyInputStream;
+  using ZeroCopyOutputStream = google::protobuf::io::ZeroCopyOutputStream;
+
   using Notice_handler_with_id = Handler_with_id<Notice_handler>;
   using Server_handler_with_id = Handler_with_id<Server_message_handler>;
   using Client_handler_with_id = Handler_with_id<Client_message_handler>;
+  using Sid = Mysqlx::ServerMessages;
+
+ private:
+  template <typename Message_type>
+  std::unique_ptr<XQuery_result> execute(const Message_type &message,
+                                         XError *out_error) {
+    *out_error = send(message);
+
+    if (*out_error) return {};
+
+    return recv_resultset(out_error);
+  }
+
+  std::unique_ptr<XProtocol::Message> deserialize_message(
+      const Header_message_type_id mid, CodedInputStream *input_stream,
+      XError *out_error);
+  std::unique_ptr<Message> alloc_message(const Header_message_type_id mid);
+
+  XError recv_id(const XProtocol::Server_message_type_id id);
+  Message *recv_id(const XProtocol::Server_message_type_id id,
+                   XError *out_error);
+  XError recv_header(Header_message_type_id *out_mid,
+                     uint32_t *out_buffer_size);
+  Message *recv_payload(const Server_message_type_id mid, const uint32_t msglen,
+                        XError *out_error);
+  Message *recv_message_with_header(Server_message_type_id *out_mid,
+                                    XError *out_error);
+
+  template <typename Auth_continue_handler>
+  XError authenticate_challenge_response(const std::string &user,
+                                         const std::string &pass,
+                                         const std::string &db);
+
+  XError authenticate_plain(const std::string &user, const std::string &pass,
+                            const std::string &db);
+  XError authenticate_mysql41(const std::string &user, const std::string &pass,
+                              const std::string &db);
+  XError authenticate_sha256_memory(const std::string &user,
+                                    const std::string &pass,
+                                    const std::string &db);
+
+  /**
+    Dispatch notice to each registered handler. If the handler processed the
+    message it should return "Handler_consumed" to stop dispatching to other
+    handlers. Latest pushed handlers should be called first (called in
+    reversed-pushed-order)
+  */
+  Handler_result dispatch_received_notice(const Mysqlx::Notice::Frame &frame);
+
+  /**
+    Dispatch received messages to each registered handler. If the handler
+    processed the message it should return "Handler_consumed" to stop
+    dispatching to other handlers. Latest pushed handlers should be called first
+    (called in reversed-pushed-order).
+  */
+  Handler_result dispatch_received_message(const Server_message_type_id id,
+                                           const Message &message);
+
+  /**
+    Method that handles both X Protocol messages and notices.
+  */
+  XError dispatch_received(const Server_message_type_id id,
+                           const Message &message, bool *out_ignore);
+
+  /** Dispatch send message to each registered handler.
+   Latest pushed handlers should be called first (called in
+   reversed-pushed-order)*/
+  void dispatch_send_message(const Client_message_type_id id,
+                             const Message &message);
+
+  Message *read_compressed(Server_message_type_id *mid, XError *out_error);
+  void skip_not_parsed(CodedInputStream *input_stream, XError *out_error);
+  bool send_impl(const Client_message_type_id mid, const Message &msg,
+                 ZeroCopyOutputStream *input_stream);
 
   Protocol_factory *m_factory;
   Handler_id m_last_handler_id{0};
   Priority_list<Notice_handler_with_id> m_notice_handlers;
   Priority_list<Client_handler_with_id> m_message_send_handlers;
   Priority_list<Server_handler_with_id> m_message_received_handlers;
-  std::unique_ptr<XConnection> m_sync_connection;
   std::unique_ptr<Query_instances> m_query_instances;
   std::shared_ptr<Context> m_context;
-  std::vector<std::uint8_t> m_static_recv_buffer;
+
+  std::unique_ptr<XConnection> m_connection;
+  std::shared_ptr<Connection_input_stream> m_connection_input_stream;
+  std::shared_ptr<ZeroCopyInputStream> m_compressed_payload_input_stream;
+  std::shared_ptr<ZeroCopyInputStream> m_compressed_input_stream;
+  std::vector<uint8_t> m_static_recv_buffer;
+
+  z_stream m_out_stream;
+  std::unique_ptr<XCompression> m_compression;
+  Mysqlx::Connection::Compression m_compressed;
+  Server_message_type_id m_compression_inner_message_id{Sid::COMPRESSION};
 };
 
 template <typename Auth_continue_handler>
@@ -347,7 +391,7 @@ XError Protocol_impl::authenticate_challenge_response(const std::string &user,
 
     if (error) return error;
 
-    Mysqlx::Session::AuthenticateContinue &auth_continue =
+    auto &auth_continue =
         *static_cast<Mysqlx::Session::AuthenticateContinue *>(message.get());
 
     error = auth_continue_handler(user, pass, db, auth_continue);

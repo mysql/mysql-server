@@ -1251,7 +1251,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
 GRANT USAGE ON *.* TO `u1`@`h`
-GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
+GRANT PROXY ON `plug_dest`@`%` TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_3";
 SET debug="+d,wl7158_replace_proxies_priv_table_4";
 REVOKE PROXY ON plug_dest FROM u1@h;
@@ -1262,7 +1262,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
 GRANT USAGE ON *.* TO `u1`@`h`
-GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
+GRANT PROXY ON `plug_dest`@`%` TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_4";
 DROP USER u1@h;
 CREATE TABLE t1 (a INT);
@@ -1496,37 +1496,6 @@ GRANT USAGE ON PROCEDURE `test`.`p` TO `u1`@`h` WITH GRANT OPTION
 SET debug="-d,wl7158_replace_routine_table_3";
 DROP TABLE t1;
 DROP USER u1@h;
-
-########################################################################
-# E. Check that it is possible to ALTER  storage engine for privilege
-#    tables to MyISAM.
-#    This is necessary for mysql_system_tables_fix_for_downgrade.sql
-#    to work.
-########################################################################
-ALTER TABLE mysql.user ENGINE = MyISAM;
-ALTER TABLE mysql.db ENGINE = MyISAM;
-ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
-ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
-ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
-ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
-SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'mysql' AND
-table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
-'proxies_priv', 'tables_priv')
-ORDER BY table_name;
-TABLE_NAME	ENGINE
-columns_priv	MyISAM
-db	MyISAM
-procs_priv	MyISAM
-proxies_priv	MyISAM
-tables_priv	MyISAM
-user	MyISAM
-ALTER TABLE mysql.user ENGINE = InnoDB;
-ALTER TABLE mysql.db ENGINE = InnoDB;
-ALTER TABLE mysql.columns_priv ENGINE = InnoDB;
-ALTER TABLE mysql.procs_priv ENGINE = InnoDB;
-ALTER TABLE mysql.proxies_priv ENGINE = InnoDB;
-ALTER TABLE mysql.tables_priv ENGINE = InnoDB;
 ########################################################################
 # Checking that it is possible to CREATE privilege tables in MyISAM.
 # This is necessary for upgrade via mysqldump to work.
@@ -1538,11 +1507,23 @@ RENAME TABLE mysql.procs_priv TO mysql.procs_priv_bak;
 RENAME TABLE mysql.proxies_priv TO mysql.proxies_priv_bak;
 RENAME TABLE mysql.tables_priv TO mysql.tables_priv_bak;
 CREATE TABLE mysql.db ENGINE=MyISAM SELECT * FROM mysql.db_bak;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.db]
 CREATE TABLE mysql.user ENGINE=MyISAM SELECT * FROM mysql.user_bak;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.user]
 CREATE TABLE mysql.columns_priv ENGINE=MyISAM SELECT * FROM mysql.columns_priv_bak;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
 CREATE TABLE mysql.procs_priv ENGINE=MyISAM SELECT * FROM mysql.procs_priv_bak;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
 CREATE TABLE mysql.proxies_priv ENGINE=MyISAM SELECT * FROM mysql.proxies_priv_bak;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
 CREATE TABLE mysql.tables_priv ENGINE=MyISAM SELECT * FROM mysql.tables_priv_bak;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
 DROP TABLE mysql.user, mysql.db, mysql.columns_priv,
 mysql.procs_priv, mysql.proxies_priv, mysql.tables_priv;
 RENAME TABLE mysql.user_bak TO mysql.user;
@@ -1622,6 +1603,7 @@ Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UT
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.db]
 CREATE TABLE IF NOT EXISTS mysql.user (   Host char(60) binary DEFAULT '' NOT NULL,
 User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1
 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci
@@ -1703,6 +1685,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.user]
 CREATE TABLE IF NOT EXISTS mysql.tables_priv ( Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
 Table_name char(64) binary DEFAULT '' NOT NULL, Grantor char(77) DEFAULT '' NOT NULL,
@@ -1721,6 +1704,7 @@ Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UT
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
 CREATE TABLE IF NOT EXISTS mysql.columns_priv ( Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
 Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL,
@@ -1737,6 +1721,7 @@ Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed i
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
 CREATE TABLE IF NOT EXISTS mysql.procs_priv ( Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
 Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL,
@@ -1753,6 +1738,7 @@ Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UT
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
 CREATE TABLE IF NOT EXISTS mysql.proxies_priv (Host char(60) binary DEFAULT '' NOT NULL,
 User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL,
 Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL,
@@ -1767,6 +1753,7 @@ Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed i
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
 # Restore original content of privilege tables
 INSERT INTO mysql.user(Host, User, Select_priv, Insert_priv, Update_priv, Delete_priv,
 Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv, Grant_priv,
@@ -1861,28 +1848,6 @@ procs_priv	InnoDB
 proxies_priv	InnoDB
 tables_priv	InnoDB
 user	InnoDB
-# Downgrading
-
-
-# Alter the storage engine to MyISAM (downgrade).
-ALTER TABLE mysql.user ENGINE = MyISAM;
-ALTER TABLE mysql.db ENGINE = MyISAM;
-ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
-ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
-ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
-ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
-SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'mysql' AND
-table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
-'proxies_priv', 'tables_priv')
-ORDER BY table_name;
-TABLE_NAME	ENGINE
-columns_priv	MyISAM
-db	MyISAM
-procs_priv	MyISAM
-proxies_priv	MyISAM
-tables_priv	MyISAM
-user	MyISAM
 # 
 # Clean-up. Restore original state of privilege tables.
 DROP TABLES mysql.user, mysql.db, mysql.columns_priv, mysql.procs_priv,
@@ -1893,17 +1858,22 @@ RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
 RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
 RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
 RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
-'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
-'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
-'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
-'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
-INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
-'mysql.session', 'user', 'root\@localhost',
-CURRENT_TIMESTAMP, 'Select', '');
-INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance\_schema',
-'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
-'N','N','N','N','N','N','N');
+DROP USER 'mysql.session'@localhost;
+CREATE USER 'mysql.session'@localhost IDENTIFIED WITH caching_sha2_password AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' ACCOUNT LOCK;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;
+GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
+GRANT SELECT ON `performance_schema`.* TO 'mysql.session'@localhost;
+GRANT SUPER ON *.* TO 'mysql.session'@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 FLUSH PRIVILEGES;
 DROP USER u1@h;
 DROP TABLE t1;

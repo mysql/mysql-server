@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,7 @@
  @sa DISABLE_PSI_TABLE
  @sa DISABLE_PSI_THREAD
  @sa DISABLE_PSI_TRANSACTION
+ @sa DISABLE_TLS_CHANNEL
  */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -253,6 +254,15 @@
 #ifndef DISABLE_PSI_SYSTEM
 #define HAVE_PSI_SYSTEM_INTERFACE
 #endif /* DISABLE_PSI_SYSTEM */
+
+/**
+  @def DISABLE_PSI_TLS_CHANNEL
+  Compiling option to disable TLS Channel instrumentation.
+*/
+
+#ifndef DISABLE_PSI_TLS_CHANNEL
+#define HAVE_PSI_TLS_CHANNEL_INTERFACE
+#endif  // !DISABLE_PSI_TLS_CHANNEL
 
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,11 +39,6 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
-
 #if defined(_MSC_VER) && defined(routertestplugin_lifecycle3_EXPORTS)
 /* We are building this library */
 #define LIFECYCLE3_API __declspec(dllexport)
@@ -51,22 +46,28 @@ using mysql_harness::PluginFuncEnv;
 #define LIFECYCLE3_API
 #endif
 
-static void init(PluginFuncEnv *) {}
-static void deinit(PluginFuncEnv *) {}
+static void init(mysql_harness::PluginFuncEnv *) {}
+static void deinit(mysql_harness::PluginFuncEnv *) {}
 
 extern "C" {
-Plugin LIFECYCLE3_API harness_plugin_routertestplugin_lifecycle3 = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Logging functions",
-    VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // Requires
-    0,
-    nullptr,  // Conflicts
-    init,
-    deinit,
-    nullptr,  // start
-    nullptr,  // stop
+mysql_harness::Plugin LIFECYCLE3_API
+    harness_plugin_routertestplugin_lifecycle3 = {
+        mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+        "Logging functions",                     // anme
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        0,
+        nullptr,
+        // conflicts
+        0,
+        nullptr,
+        init,     // init
+        deinit,   // deinit
+        nullptr,  // start
+        nullptr,  // stop
+        false,    // declares_readiness
+        0,
+        nullptr,
 };
 }

@@ -58,11 +58,16 @@ create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
 insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
-select * from t2;
-id	t2
-3	aol.com
-2	hotmail.com
-1	mysql.com
+select id from t2;
+id
+1
+2
+3
+select t2 from t2;
+t2
+aol.com
+hotmail.com
+mysql.com
 drop table t1,t2;
 create database mysqltest;
 use mysqltest;
@@ -319,6 +324,8 @@ insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
 ERROR 42000: Column 'a' specified twice
 insert into t1 (a,b) values (1,1,1);
@@ -343,7 +350,7 @@ row_count()
 3
 insert ignore into t1 values (1, 1);
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 select row_count();
 row_count()
 -1
@@ -642,8 +649,8 @@ INSERT IGNORE INTO t VALUES (1),(1);
 affected rows: 0
 info: Records: 2  Duplicates: 2  Warnings: 2
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't.PRIMARY'
 DROP TABLE t;
 affected rows: 0
 #
@@ -671,7 +678,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`pk` = `<subquery5>`.`a`)
+Note	1003	insert into `test`.`t1` /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`pk` = `<subquery5>`.`a`)
 INSERT INTO v1
 SELECT * FROM v2;
 DELETE FROM t1;
@@ -694,12 +701,12 @@ FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	End temporary
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
+Note	1003	insert into `test`.`t1` /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
 INSERT INTO v1
 SELECT dt.pk, v2.a
 FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
@@ -981,13 +988,10 @@ ERROR 42000: Column 'a' specified twice
 SHOW ERRORS;
 Level	Code	Message
 Error	1110	Column 'a' specified twice
-Error	1110	Column 'b' specified twice
 INSERT INTO t1(a, a, a, a) VALUES (1, 1, 1, 1);
 ERROR 42000: Column 'a' specified twice
 SHOW ERRORS;
 Level	Code	Message
-Error	1110	Column 'a' specified twice
-Error	1110	Column 'a' specified twice
 Error	1110	Column 'a' specified twice
 DROP TABLE t1;
 CREATE TABLE t1(a INT,
@@ -1000,4 +1004,127 @@ INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
 ERROR 42000: Column 'a' specified twice
 INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
 ERROR 42000: Column 'b' specified twice
+DROP TABLE t1;
+#
+# Bug #29899614: SIG 6 -`M_PSI_BATCH_MODE == PSI_BATCH_MODE_NONE' | SQL/HANDLER.CC
+#
+CREATE TABLE t1 ( f1 INTEGER, INDEX ( f1 ) );
+CREATE TABLE t2 ( f1 INTEGER );
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2
+SELECT STRAIGHT_JOIN *
+FROM t1 AS alias1
+WHERE EXISTS (
+SELECT * FROM (
+SELECT * FROM t1 JOIN t1 AS alias2 USING ( f1 )
+) AS alias3
+WHERE alias1.f1 < 20
+);
+FLUSH TABLES;
+DROP TABLE t1, t2;
+#
+# WL#13325: Deprecate VALUES syntax in INSERT ... ON DUPLICATE KEY UPDATE
+#
+CREATE TABLE t(id INT PRIMARY KEY, x INT);
+INSERT INTO t VALUES (0, 0) ON DUPLICATE KEY UPDATE x = VALUES(x) + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+INSERT INTO t VALUES (0, 0)
+ON DUPLICATE KEY UPDATE x = (SELECT VALUES(x)+1 FROM t t1);
+Warnings:
+Warning	1287	The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause.
+SELECT VALUES(x) FROM t;
+VALUES(x)
+NULL
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
+INSERT INTO t VALUES (1, VALUES(x));
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
+DROP TABLE t;
+# Bug#31417951: Assert `!bulk_insert_started' in sql/sql_insert.cc
+#               on reexecuting prepared stmt
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+col_varchar VARCHAR(64) DEFAULT NULL,
+col_blob BLOB,
+PRIMARY KEY (pk)
+);
+CREATE VIEW v1 AS
+SELECT col_blob, pk, col_varchar
+FROM t1
+WHERE pk between 4 and 5;
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_int INTEGER DEFAULT NULL,
+col_blob BLOB,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (7,8, 0xEFBFBDEFBFBDEFBFBDEFBFBD004A);
+PREPARE stmt FROM
+"INSERT INTO v1 (col_blob, pk, col_varchar)
+ SELECT col_blob, col_int, col_blob
+ FROM t2
+ WHERE pk BETWEEN 7 AND 8
+ LIMIT 1";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
+EXECUTE stmt;
+ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+#
+# Bug #32169656: MYSQL GIVING QUERY RESULT FOR WRONG COLUMN
+#
+CREATE TABLE t1 (
+Ñ INTEGER,
+N INTEGER,
+a INTEGER,
+b INTEGER,
+c INTEGER,
+d INTEGER,
+e INTEGER,
+f INTEGER,
+g INTEGER,
+h INTEGER,
+i INTEGER,
+j INTEGER,
+k INTEGER,
+l INTEGER,
+m INTEGER,
+na INTEGER,
+o INTEGER,
+p INTEGER,
+q INTEGER,
+r INTEGER,
+s INTEGER,
+t INTEGER,
+u INTEGER,
+v INTEGER,
+w INTEGER,
+x INTEGER,
+y INTEGER,
+z INTEGER,
+aa INTEGER,
+ab INTEGER,
+ac INTEGER,
+ad INTEGER
+);
+INSERT INTO t1 (Ñ, N) VALUES (1, 2);
+DROP TABLE t1;
+#
+# Bug#32774799: ASSERTION `ITEM->TYPE() != ITEM::FIELD_ITEM ||
+#              !STATIC_CAST<CONST ITEM_FIELD *>(ITEM)->
+#              FIELD->IS_HIDDEN_BY_SYSTEM()' FAILED.
+#
+CREATE TABLE t1 (f1 INTEGER, KEY k1 ((1)));
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO v1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INTEGER, b INTEGER AS ((1)) INVISIBLE, KEY k1(b));
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
 DROP TABLE t1;

@@ -59,7 +59,7 @@ COMMIT;
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
 # Disable warnings to avoid logging "UNTIL condtion is not supported ..." on MTS
 --disable_warnings
-eval START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "$master_file", MASTER_LOG_POS = $master_pos;
+eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "$master_file", SOURCE_LOG_POS = $master_pos;
 --enable_warnings
 
 --echo # Wait until SQL thread reaches last master binlog file

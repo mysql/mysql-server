@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <ndb_global.h>
 
+#include <EventLogger.hpp>
 #include <SocketClient.hpp>
 
 #include <TransporterRegistry.hpp>
@@ -39,11 +40,18 @@
 
 #include "ndb_socket.h"
 
-#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
+
+#define DISCONNECT_ERRNO(e, sz) ( \
+                (sz == 0) || \
+                 (!((sz == -1) && \
+                  ((e == SOCKET_EAGAIN) || \
+                   (e == SOCKET_EWOULDBLOCK) || \
+                   (e == SOCKET_EINTR)))))
 
 class Transporter {
   friend class TransporterRegistry;
+  friend class Multi_Transporter;
+  friend class Qmgr;
 public:
   virtual bool initTransporter() = 0;
 
@@ -52,11 +60,67 @@ public:
    */
   virtual ~Transporter();
 
+
+  /**
+   * Disconnect node/socket
+   */
+  bool do_disconnect(int err, bool send_source);
+
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
   virtual void resetBuffers() {}
+
+  /**
+   * Is this transporter part of a multi transporter.
+   * It is a real transporter, but can be connected
+   * when the node is in the state connected.
+   */
+  virtual bool isPartOfMultiTransporter()
+  {
+    return (m_multi_transporter_instance != 0);
+  }
+
+  Uint32 get_multi_transporter_instance()
+  {
+    return m_multi_transporter_instance;
+  }
+  virtual bool isMultiTransporter()
+  {
+    return false;
+  }
+
+  void set_multi_transporter_instance(Uint32 val)
+  {
+    m_multi_transporter_instance = val;
+  }
+
+  virtual Uint64 get_bytes_sent() const
+  {
+    return m_bytes_sent;
+  }
+
+  virtual Uint64 get_bytes_received() const
+  {
+    return m_bytes_received;
+  }
+
+  /**
+   * In most cases we only use transporter per node connection.
+   * But in cases where the transporter is heavily loaded we can
+   * have multiple transporters to send for one node connection.
+   * In this case theNodeIdTransporters points to a Multi_Transporter
+   * object that has implemented a hash algorithm for
+   * get_send_transporter based on sending thread and receiving
+   * thread.
+   */
+  virtual Transporter* get_send_transporter(Uint32 recBlock, Uint32 sendBlock)
+  {
+    (void)recBlock;
+    (void)sendBlock;
+    return this;
+  }
 
   /**
    * None blocking
@@ -88,6 +152,11 @@ public:
    */
   NodeId getRemoteNodeId() const;
 
+  /**
+   * Index into allTransporters array.
+   */
+  TrpId getTransporterIndex() const;
+  void setTransporterIndex(TrpId);
   /**
    * Local (own) Node Id
    */
@@ -126,11 +195,29 @@ public:
   Uint32 get_overload_count() { return m_overload_count; }
   void inc_slowdown_count() { m_slowdown_count++; }
   Uint32 get_slowdown_count() { return m_slowdown_count; }
+  void set_recv_thread_idx (Uint32 recv_thread_idx)
+  {
+    m_recv_thread_idx = recv_thread_idx;
+  }
+  void set_transporter_active(bool active)
+  {
+    m_is_active = active;
+  }
+  Uint32 get_recv_thread_idx() { return m_recv_thread_idx; }
 
   TransporterType getTransporterType() const;
 
+  /**
+   * Only applies to TCP transporter, abort on any other object.
+   * Used as part of shutting down transporter when switching to
+   * multi socket setup.
+   * Shut down only for writes when all data have been sent.
+   */
+  virtual void shutdown() { abort();}
+
 protected:
   Transporter(TransporterRegistry &,
+              TrpId transporter_index,
 	      TransporterType,
 	      const char *lHostName,
 	      const char *rHostName, 
@@ -143,8 +230,9 @@ protected:
 	      bool compression, 
 	      bool checksum, 
 	      bool signalId,
-        Uint32 max_send_buffer,
-        bool _presend_checksum);
+              Uint32 max_send_buffer,
+              bool _presend_checksum,
+              Uint32 spintime);
 
   virtual bool configure(const TransporterConfiguration* conf);
   virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
@@ -170,9 +258,15 @@ protected:
 
   int m_s_port;
 
+  Uint32 m_spintime;
+  Uint32 get_spintime()
+  {
+    return m_spintime;
+  }
   const NodeId remoteNodeId;
   const NodeId localNodeId;
-  
+
+  TrpId m_transporter_index;
   const bool isServer;
 
   int byteOrder;
@@ -195,15 +289,8 @@ protected:
   // Sending/Receiving socket used by both client and server
   NDB_SOCKET_TYPE theSocket;
 private:
-
-  /**
-   * means that we transform an MGM connection into
-   * a transporter connection
-   */
-  bool isMgmConnection;
-
   SocketClient *m_socket_client;
-  struct in_addr m_connect_address;
+  struct in6_addr m_connect_address;
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;
@@ -211,6 +298,16 @@ private:
   void update_connect_state(bool connected);
 
 protected:
+  /**
+   * means that we transform an MGM connection into
+   * a transporter connection
+   */
+  bool isMgmConnection;
+
+  Uint32 m_multi_transporter_instance;
+  Uint32 m_recv_thread_idx;
+  bool m_is_active;
+
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
   bool m_connected;     // Are we connected
@@ -227,7 +324,6 @@ protected:
 
   TransporterRegistry &m_transporter_registry;
   TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; }
-  void do_disconnect(int err){m_transporter_registry.do_disconnect(remoteNodeId,err);}
   void report_error(enum TransporterError err, const char *info = 0)
     { m_transporter_registry.report_error(remoteNodeId, err, info); }
 
@@ -258,7 +354,6 @@ protected:
     void init() { state = CS_INIT; chksum = 0; pending = 4; }
   private:
     bool compute(const void* bytes, size_t len);
-    static void static_asserts(); // container of static asserts, not to be called
     void dumpBadChecksumInfo(Uint32 inputSum,
                              Uint32 badSum,
                              size_t offset,
@@ -266,6 +361,8 @@ protected:
                              const void* buf,
                              size_t len) const;
 
+    static_assert(MAX_SEND_MESSAGE_BYTESIZE == (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
+    static_assert(SIZE_T_MAX == (size_t)SIZE_T_MAX);
   };
   checksum_state send_checksum_state;
 };
@@ -296,6 +393,19 @@ Transporter::getRemoteNodeId() const {
 }
 
 inline
+TrpId
+Transporter::getTransporterIndex() const {
+  return m_transporter_index;
+}
+
+inline
+void
+Transporter::setTransporterIndex(TrpId val)
+{
+  m_transporter_index = val;
+}
+
+inline
 NodeId
 Transporter::getLocalNodeId() const {
   return localNodeId;
@@ -310,24 +420,19 @@ Uint32
 Transporter::fetch_send_iovec_data(struct iovec dst[], Uint32 cnt)
 {
   return get_callback_obj()->get_bytes_to_send_iovec(remoteNodeId,
-                                                     dst, cnt);
+                                                     m_transporter_index,
+                                                     dst,
+                                                     cnt);
 }
 
 inline
 void
 Transporter::iovec_data_sent(int nBytesSent)
 {
-  Uint32 used_bytes
-    = get_callback_obj()->bytes_sent(remoteNodeId, nBytesSent);
+  Uint32 used_bytes = get_callback_obj()->bytes_sent(remoteNodeId,
+                                                     m_transporter_index,
+                                                     nBytesSent);
   update_status_overloaded(used_bytes);
-}
-
-inline
-void
-Transporter::checksum_state::static_asserts()
-{
-  STATIC_ASSERT(MAX_SEND_MESSAGE_BYTESIZE == (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
-  STATIC_ASSERT(SIZE_T_MAX == (size_t)SIZE_T_MAX);
 }
 
 inline
@@ -425,14 +530,10 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
     }
     if (!compute(iov[iovi].iov_base, nb))
     {
-      fprintf(stderr,
-              "Transporter::checksum_state::computev() failed on IOV %u/%u "
-              "byteCount %llu off %llu nb %u\n",
-              iovi,
-              iovcnt,
-              Uint64(bytecnt),
-              Uint64(off),
-              nb);
+      g_eventLogger->info(
+          "Transporter::checksum_state::computev() failed on IOV %u/%u "
+          "byteCount %llu off %llu nb %u",
+          iovi, iovcnt, Uint64(bytecnt), Uint64(off), nb);
       /* TODO : Dump more IOV + bytecnt details */
       return false;
     }
@@ -440,11 +541,10 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
   }
   if (bytecnt != SIZE_T_MAX && bytecnt != off)
   {
-    fprintf(stderr,
-            "Transporter::checksum_state::computev() failed : "
-            "bytecnt %llu off %llu\n",
-            Uint64(bytecnt),
-            Uint64(off));
+    g_eventLogger->info(
+        "Transporter::checksum_state::computev() failed : "
+        "bytecnt %llu off %llu",
+        Uint64(bytecnt), Uint64(off));
     ok = false;
   }
   return ok;

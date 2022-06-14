@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 #include "sql/sql_list.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/gunit_test_main.h"
 
 namespace sql_list_unittest {
 
@@ -60,19 +60,14 @@ class SqlListTest : public ::testing::Test {
   SqlListTest()
       : m_mem_root_p(&m_mem_root), m_int_list(), m_int_list_iter(m_int_list) {}
 
-  virtual void SetUp() {
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    THR_MALLOC = &m_mem_root_p;
-  }
-
-  virtual void TearDown() { free_root(&m_mem_root, MYF(0)); }
+  void SetUp() override { THR_MALLOC = &m_mem_root_p; }
 
   static void SetUpTestCase() {
     current_thd = nullptr;
     THR_MALLOC = nullptr;
   }
 
-  MEM_ROOT m_mem_root;
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, 1024};
   MEM_ROOT *m_mem_root_p;
   List<int> m_int_list;
   List_iterator<int> m_int_list_iter;
@@ -110,15 +105,14 @@ TEST_F(SqlListTest, BasicOperations) {
 TEST_F(SqlListTest, DeepCopy) {
   int values[] = {11, 22, 33, 42, 5};
   insert_values(values, &m_int_list);
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 4096, 4096);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 4096);
   List<int> list_copy(m_int_list, &mem_root);
   EXPECT_EQ(list_copy.elements, m_int_list.elements);
   while (!list_copy.is_empty()) {
     EXPECT_EQ(*m_int_list.pop(), *list_copy.pop());
   }
   EXPECT_TRUE(m_int_list.is_empty());
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
 }
 
 // Tests that we can iterate over values.
@@ -145,7 +139,7 @@ class Linked_node : public ilink<Linked_node> {
  private:
   int m_value;
 };
-const Linked_node *const null_node = NULL;
+const Linked_node *const null_node = nullptr;
 
 // An example of a test without any fixture.
 TEST(SqlIlistTest, ConstructAndDestruct) {

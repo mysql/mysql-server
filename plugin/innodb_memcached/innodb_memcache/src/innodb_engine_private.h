@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -145,8 +145,7 @@ static ENGINE_ERROR_CODE innodb_get_stats(
 );
 
 /*******************************************************************/ /**
- reset statistics
- @return ENGINE_SUCCESS if successfully, otherwise error code */
+ reset statistics */
 static void innodb_reset_stats(
     /*===============*/
     ENGINE_HANDLE *handle, /*!< in: Engine Handle */

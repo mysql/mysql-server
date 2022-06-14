@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/recovery_message.h"
@@ -45,18 +46,17 @@ static char recovery_channel_name[] = "group_replication_recovery";
 static void *launch_handler_thread(void *arg) {
   Recovery_module *handler = (Recovery_module *)arg;
   handler->recovery_thread_handle();
-  return 0;
+  return nullptr;
 }
 
 Recovery_module::Recovery_module(Applier_module_interface *applier,
-                                 Channel_observation_manager *channel_obsr_mngr,
-                                 ulong components_stop_timeout)
+                                 Channel_observation_manager *channel_obsr_mngr)
     : applier_module(applier),
       recovery_state_transfer(recovery_channel_name,
                               local_member_info->get_uuid(), channel_obsr_mngr),
       recovery_thd_state(),
       recovery_completion_policy(RECOVERY_POLICY_WAIT_CERTIFIED),
-      stop_wait_timeout(components_stop_timeout) {
+      m_state_transfer_return(STATE_TRANSFER_OK) {
   mysql_mutex_init(key_GR_LOCK_recovery_module_run, &run_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_recovery_module_run, &run_cond);
@@ -69,16 +69,9 @@ Recovery_module::~Recovery_module() {
 
 int Recovery_module::start_recovery(const string &group_name,
                                     const string &rec_view_id) {
-  DBUG_ENTER("Recovery_module::start_recovery");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
-
-  if (recovery_state_transfer.check_recovery_thread_status()) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PREV_REC_SESSION_RUNNING);
-    DBUG_RETURN(1);
-    /* purecov: end */
-  }
 
   this->group_name = group_name;
   recovery_state_transfer.initialize(rec_view_id);
@@ -86,12 +79,15 @@ int Recovery_module::start_recovery(const string &group_name,
   // reset the recovery aborted status here to avoid concurrency
   recovery_aborted = false;
 
+  // reset the value of state transfer return
+  m_state_transfer_return = STATE_TRANSFER_OK;
+
   if (mysql_thread_create(key_GR_THD_recovery, &recovery_pthd,
                           get_connection_attrib(), launch_handler_thread,
                           (void *)this)) {
     /* purecov: begin inspected */
     mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
   recovery_thd_state.set_created();
@@ -102,17 +98,17 @@ int Recovery_module::start_recovery(const string &group_name,
   }
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Recovery_module::stop_recovery(bool wait_for_termination) {
-  DBUG_ENTER("Recovery_module::stop_recovery");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
 
   if (recovery_thd_state.is_thread_dead()) {
     mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   recovery_aborted = true;
@@ -138,29 +134,20 @@ int Recovery_module::stop_recovery(bool wait_for_termination) {
     */
     struct timespec abstime;
     set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
-    if (stop_wait_timeout >= 2) {
-      stop_wait_timeout = stop_wait_timeout - 2;
-    }
-    /* purecov: begin inspected */
-    else if (recovery_thd_state.is_thread_alive())  // quit waiting
-    {
-      mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(1);
-    }
-    /* purecov: inspected */
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT((wait_for_termination && !recovery_thd_state.is_running()) ||
-              !wait_for_termination);
+  assert((wait_for_termination && !recovery_thd_state.is_running()) ||
+         !wait_for_termination);
 
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return (m_state_transfer_return == STATE_TRANSFER_STOP);
 }
 
 /*
@@ -168,66 +155,16 @@ int Recovery_module::stop_recovery(bool wait_for_termination) {
  take an active part in it, so it must leave.
 */
 void Recovery_module::leave_group_on_recovery_failure() {
-  Notification_context ctx;
-  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FATAL_REC_PROCESS);
   // tell the update process that we are already stopping
   recovery_aborted = true;
 
-  // If you can't leave at least force the Error state.
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR, ctx);
-
-  /*
-    unblock threads waiting for the member to become ONLINE
-  */
-  terminate_wait_on_start_process();
-
-  /* Single state update. Notify right away. */
-  notify_and_reset_ctx(ctx);
-
-  Plugin_gcs_view_modification_notifier view_change_notifier;
-  view_change_notifier.start_view_modification();
-  Gcs_operations::enum_leave_state leave_state =
-      gcs_module->leave(&view_change_notifier);
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
-
-  longlong errcode = 0;
-  enum loglevel log_severity = WARNING_LEVEL;
-  switch (leave_state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
-      log_severity = ERROR_LEVEL;
-      break;
-      /* purecov: end */
-    case Gcs_operations::ALREADY_LEAVING:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
-      break;
-    case Gcs_operations::ALREADY_LEFT:
-      /* purecov: begin inspected */
-      errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT;
-      break;
-      /* purecov: end */
-    case Gcs_operations::NOW_LEAVING:
-      break;
-  }
-  if (errcode) LogPluginErr(log_severity, errcode);
-
-  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
-      Gcs_operations::ALREADY_LEFT != leave_state) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier.wait_for_view_modification()) {
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
-    }
-  }
-  gcs_module->remove_view_notifer(&view_change_notifier);
-
-  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
-    abort_plugin_process("Fatal error during execution of Group Replication");
-  }
+  const char *exit_state_action_abort_log_message =
+      "Fatal error in the recovery module of Group Replication.";
+  leave_group_on_failure::mask leave_actions;
+  leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+  leave_group_on_failure::leave(leave_actions, ER_GRP_RPL_FATAL_REC_PROCESS,
+                                PSESSION_USE_THREAD, nullptr,
+                                exit_state_action_abort_log_message);
 }
 
 /*
@@ -272,7 +209,7 @@ void Recovery_module::leave_group_on_recovery_failure() {
   * Step 7: Terminate the recovery thread.
 */
 int Recovery_module::recovery_thread_handle() {
-  DBUG_ENTER("Recovery_module::recovery_thread_handle");
+  DBUG_TRACE;
 
   /* Step 0 */
 
@@ -320,17 +257,17 @@ int Recovery_module::recovery_thread_handle() {
     /* purecov: end */
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_start_wait_num_of_members", {
-    DBUG_ASSERT(number_of_members != 1);
+    assert(number_of_members != 1);
     DBUG_SET("d,recovery_thread_start_wait");
   });
   DBUG_EXECUTE_IF("recovery_thread_start_wait", {
     const char act[] =
         "now signal signal.recovery_waiting wait_for signal.recovery_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   /* Step 2 */
 
@@ -343,16 +280,19 @@ int Recovery_module::recovery_thread_handle() {
 
   /* Step 3 */
 
-  error = recovery_state_transfer.state_transfer(stage_handler);
+  m_state_transfer_return =
+      recovery_state_transfer.state_transfer(stage_handler);
+  error = m_state_transfer_return;
+
   stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
                           __LINE__, 0, 0);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_finish", {
     const char act[] = "now wait_for signal.recovery_end";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   if (error) {
     goto cleanup;
@@ -369,7 +309,35 @@ single_member_online:
   */
   if (!recovery_aborted) applier_module->awake_applier_module();
 
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_before_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_before_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_before_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
+
   error = wait_for_applier_module_recovery();
+
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_after_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_after_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_after_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
 
 cleanup:
 
@@ -386,18 +354,18 @@ cleanup:
    If recovery failed, it's no use to continue in the group as the member cannot
    take an active part in it, so it must leave.
   */
-  if (error) {
+  if (!recovery_aborted && error) {
     leave_group_on_recovery_failure();
   }
 
   stage_handler.end_stage();
   stage_handler.terminate_stage_monitor();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_cleanup", {
     const char act[] = "now wait_for signal.recovery_end_end";
     debug_sync_set_action(current_thd, STRING_WITH_LEN(act));
   });
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   /* Step 7 */
 
@@ -406,23 +374,23 @@ cleanup:
   mysql_mutex_lock(&run_lock);
 
   recovery_aborted = true;  // to avoid the start missing signals
-  recovery_thd_state.set_terminated();
   delete recovery_thd;
-  mysql_cond_broadcast(&run_cond);
-  mysql_mutex_unlock(&run_lock);
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
-  my_thread_exit(0);
+  recovery_thd_state.set_terminated();
+  mysql_cond_broadcast(&run_cond);
+  mysql_mutex_unlock(&run_lock);
+  my_thread_exit(nullptr);
 
-  DBUG_RETURN(error); /* purecov: inspected */
+  return error; /* purecov: inspected */
 }
 
 int Recovery_module::update_recovery_process(bool did_members_left,
                                              bool is_leaving) {
-  DBUG_ENTER("Recovery_module::update_recovery_process");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -441,11 +409,11 @@ int Recovery_module::update_recovery_process(bool did_members_left,
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_module::set_retrieved_cert_info(void *info) {
-  DBUG_ENTER("Recovery_module::set_retrieved_cert_info");
+  DBUG_TRACE;
 
   View_change_log_event *view_change_event =
       static_cast<View_change_log_event *>(info);
@@ -460,13 +428,13 @@ int Recovery_module::set_retrieved_cert_info(void *info) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CERTIFICATION_REC_PROCESS);
     leave_group_on_recovery_failure();
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
   recovery_state_transfer.end_state_transfer();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Recovery_module::set_recovery_thread_context() {
@@ -474,24 +442,22 @@ void Recovery_module::set_recovery_thread_context() {
   my_thread_init();
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
-  mysql_thread_set_psi_id(thd->thread_id());
   thd->store_globals();
 
   global_thd_manager_add_thd(thd);
+  // Needed to start replication threads
   thd->security_context()->skip_grants();
 
-  thd->slave_thread = 1;
   recovery_thd = thd;
 }
 
 void Recovery_module::clean_recovery_thread_context() {
   recovery_thd->release_resources();
-  THD_CHECK_SENTRY(recovery_thd);
   global_thd_manager_remove_thd(recovery_thd);
 }
 
 int Recovery_module::wait_for_applier_module_recovery() {
-  DBUG_ENTER("Recovery_module::wait_for_applier_module_recovery");
+  DBUG_TRACE;
 
   size_t queue_size = 0;
   uint64 transactions_applied_during_recovery_delta = 0;
@@ -549,7 +515,7 @@ int Recovery_module::wait_for_applier_module_recovery() {
         /* purecov: begin inspected */
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_GTID_SET_EXTRACT_ERROR_DURING_RECOVERY);
-        DBUG_RETURN(1);
+        return 1;
         /* purecov: end */
       }
       /*
@@ -574,7 +540,7 @@ int Recovery_module::wait_for_applier_module_recovery() {
         if (error == -2)  // error when waiting
         {
           LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_ENSURE_EXECUTION_REC);
-          DBUG_RETURN(1);
+          return 1;
         }
         /* purecov: end */
       }
@@ -587,13 +553,20 @@ int Recovery_module::wait_for_applier_module_recovery() {
 
   if (applier_module->get_applier_status() == APPLIER_ERROR &&
       !recovery_aborted)
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
 
-  DBUG_RETURN(0);
+  /*
+    Take View_change_log_event transaction into account, that
+    despite being queued on applier channel was applied through
+    recovery channel.
+  */
+  pipeline_stats->decrement_transactions_waiting_apply();
+
+  return 0;
 }
 
 void Recovery_module::notify_group_recovery_end() {
-  DBUG_ENTER("Recovery_module::notify_group_recovery_end");
+  DBUG_TRACE;
 
   Recovery_message recovery_msg(Recovery_message::RECOVERY_END_MESSAGE,
                                 local_member_info->get_uuid());
@@ -602,11 +575,18 @@ void Recovery_module::notify_group_recovery_end() {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_WHILE_SENDING_MSG_REC); /* purecov: inspected */
   }
-
-  DBUG_VOID_RETURN;
 }
 
 bool Recovery_module::is_own_event_channel(my_thread_id id) {
-  DBUG_ENTER("Recovery_module::is_own_event_channel");
-  DBUG_RETURN(recovery_state_transfer.is_own_event_channel(id));
+  DBUG_TRACE;
+  return recovery_state_transfer.is_own_event_channel(id);
+}
+
+int Recovery_module::check_recovery_thread_status() {
+  DBUG_TRACE;
+  if (recovery_state_transfer.check_recovery_thread_status()) {
+    return GROUP_REPLICATION_RECOVERY_CHANNEL_STILL_RUNNING;
+  }
+
+  return 0;
 }

@@ -47,11 +47,11 @@ SET GLOBAL group_replication_flow_control_certifier_threshold= "";
 ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_certifier_threshold'
 SET GLOBAL group_replication_flow_control_certifier_threshold= -1;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_c value: '-1'
+Warning	1292	Truncated incorrect group_replication_flow_control_certifier_threshold value: '-1'
 include/assert.inc [group_replication_flow_control_certifier_threshold is truncated]
 SET GLOBAL group_replication_flow_control_certifier_threshold= 2147483648;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_c value: '2147483648'
+Warning	1292	Truncated incorrect group_replication_flow_control_certifier_threshold value: '2147483648'
 include/assert.inc [group_replication_flow_control_certifier_threshold is truncated]
 SET GLOBAL group_replication_flow_control_certifier_threshold= 1;
 include/assert.inc [group_replication_flow_control_certifier_threshold is correct]
@@ -65,11 +65,11 @@ SET GLOBAL group_replication_flow_control_applier_threshold= "";
 ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_applier_threshold'
 SET GLOBAL group_replication_flow_control_applier_threshold= -1;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_a value: '-1'
+Warning	1292	Truncated incorrect group_replication_flow_control_applier_threshold value: '-1'
 include/assert.inc [group_replication_flow_control_applier_threshold is truncated]
 SET GLOBAL group_replication_flow_control_applier_threshold= 2147483648;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_a value: '2147483648'
+Warning	1292	Truncated incorrect group_replication_flow_control_applier_threshold value: '2147483648'
 include/assert.inc [group_replication_flow_control_applier_threshold is truncated]
 SET GLOBAL group_replication_flow_control_applier_threshold= 1;
 include/assert.inc [group_replication_flow_control_applier_threshold is correct]
@@ -128,11 +128,11 @@ SET GLOBAL group_replication_flow_control_member_quota_percent= "";
 ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_member_quota_percent'
 SET GLOBAL group_replication_flow_control_member_quota_percent= -1;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_m value: '-1'
+Warning	1292	Truncated incorrect group_replication_flow_control_member_quota_percent value: '-1'
 include/assert.inc [group_replication_flow_control_member_quota_percent is truncated]
 SET GLOBAL group_replication_flow_control_member_quota_percent= 101;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_m value: '101'
+Warning	1292	Truncated incorrect group_replication_flow_control_member_quota_percent value: '101'
 include/assert.inc [group_replication_flow_control_member_quota_percent is truncated]
 SET GLOBAL group_replication_flow_control_member_quota_percent= 1;
 include/assert.inc [group_replication_flow_control_member_quota_percent is correct]
@@ -145,11 +145,11 @@ SET GLOBAL group_replication_flow_control_period= "";
 ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_period'
 SET GLOBAL group_replication_flow_control_period= 0;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_p value: '0'
+Warning	1292	Truncated incorrect group_replication_flow_control_period value: '0'
 include/assert.inc [group_replication_flow_control_period is truncated]
 SET GLOBAL group_replication_flow_control_period= 61;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_p value: '61'
+Warning	1292	Truncated incorrect group_replication_flow_control_period value: '61'
 include/assert.inc [group_replication_flow_control_period is truncated]
 SET GLOBAL group_replication_flow_control_period= 1;
 include/assert.inc [group_replication_flow_control_period is correct]
@@ -164,11 +164,11 @@ SET GLOBAL group_replication_flow_control_hold_percent= "";
 ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_hold_percent'
 SET GLOBAL group_replication_flow_control_hold_percent= -1;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_h value: '-1'
+Warning	1292	Truncated incorrect group_replication_flow_control_hold_percent value: '-1'
 include/assert.inc [group_replication_flow_control_hold_percent is truncated]
 SET GLOBAL group_replication_flow_control_hold_percent= 101;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_h value: '101'
+Warning	1292	Truncated incorrect group_replication_flow_control_hold_percent value: '101'
 include/assert.inc [group_replication_flow_control_hold_percent is truncated]
 SET GLOBAL group_replication_flow_control_hold_percent= 1;
 include/assert.inc [group_replication_flow_control_hold_percent is correct]
@@ -181,11 +181,11 @@ SET GLOBAL group_replication_flow_control_release_percent= "";
 ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_release_percent'
 SET GLOBAL group_replication_flow_control_release_percent= -1;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_r value: '-1'
+Warning	1292	Truncated incorrect group_replication_flow_control_release_percent value: '-1'
 include/assert.inc [group_replication_flow_control_release_percent is truncated]
 SET GLOBAL group_replication_flow_control_release_percent= 1001;
 Warnings:
-Warning	1292	Truncated incorrect group_replication_flow_control_r value: '1001'
+Warning	1292	Truncated incorrect group_replication_flow_control_release_percent value: '1001'
 include/assert.inc [group_replication_flow_control_release_percent is truncated]
 SET GLOBAL group_replication_flow_control_release_percent= 1;
 include/assert.inc [group_replication_flow_control_release_percent is correct]
@@ -261,6 +261,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 
 ############################################################
 # Clean up.
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
 include/rpl_reconnect.inc
 [connection server1]
 SET GLOBAL group_replication_flow_control_mode= @group_replication_flow_control_mode_save;

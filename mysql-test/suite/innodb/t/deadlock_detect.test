@@ -4,6 +4,7 @@
 
 --source include/count_sessions.inc
 
+
 SET GLOBAL innodb_deadlock_detect=OFF;
 SET GLOBAL innodb_lock_wait_timeout=2;
 

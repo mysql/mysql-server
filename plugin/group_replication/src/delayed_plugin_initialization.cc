@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ using std::string;
 static void *launch_handler_thread(void *arg) {
   Delayed_initialization_thread *handler = (Delayed_initialization_thread *)arg;
   handler->initialization_thread_handler();
-  return 0;
+  return nullptr;
 }
 
 Delayed_initialization_thread::Delayed_initialization_thread()
@@ -122,12 +122,13 @@ int Delayed_initialization_thread::launch_initialization_thread() {
 int Delayed_initialization_thread::initialization_thread_handler() {
   int error = 0;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
+  global_thd_manager_add_thd(thd);
 
   mysql_mutex_lock(&run_lock);
   delayed_thd_state.set_running();
@@ -147,7 +148,8 @@ int Delayed_initialization_thread::initialization_thread_handler() {
       { is_server_engine_initialized = false; });
   if (is_server_engine_initialized) {
     // Protect this delayed start against other start/stop requests
-    MUTEX_LOCK(lock, get_plugin_running_lock());
+    Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                              Checkable_rwlock::WRITE_LOCK);
 
     set_plugin_is_setting_read_mode(true);
 
@@ -159,11 +161,13 @@ int Delayed_initialization_thread::initialization_thread_handler() {
   }
 
   mysql_mutex_lock(&run_lock);
+  thd->release_resources();
+  global_thd_manager_remove_thd(thd);
+  delete thd;
+  my_thread_end();
   delayed_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
-
-  delete thd;
 
   return error;
 }

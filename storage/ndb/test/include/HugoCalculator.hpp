@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,8 @@ public:
   int getIdValue(NDBT_ResultRow* const pRow) const;
   int getUpdatesValue(NDBT_ResultRow* const pRow) const;
   int getIdColNo() const { return m_idCol;}
-  int isIdCol(int colId) { return m_idCol == colId; }
-  int isUpdateCol(int colId){ return m_updatesCol == colId; }
+  bool isIdCol(int colId) { return m_idCol == colId; }
+  bool isUpdateCol(int colId){ return m_updatesCol == colId; }
 
   const NdbDictionary::Table& getTable() const { return m_tab;}
 

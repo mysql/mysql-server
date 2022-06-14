@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ void *cache_task(void *ptr) {
     do_cache_maintenance();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  return NULL;
+  return nullptr;
 }
 
 class GcsXComXComCache : public GcsBaseTest {
@@ -67,18 +67,18 @@ class GcsXComXComCache : public GcsBaseTest {
 
  protected:
   GcsXComXComCache()
-      : m_addr(0),
+      : m_addr(nullptr),
         m_payload_size(0),
-        m_na(0),
-        m_sd(0),
-        m_thread(NULL),
+        m_na(nullptr),
+        m_sd(nullptr),
+        m_thread(nullptr),
         m_run(false) {}
-  ~GcsXComXComCache() {}
+  ~GcsXComXComCache() override = default;
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_synode = {1, 1, 0};
     m_addr = new std::string("127.0.0.1:12345");
-    char *names[] = {const_cast<char *>(m_addr->c_str())};
+    char const *names[]{m_addr->c_str()};
     m_na = new_node_address(1, names);
     m_sd = new_site_def();
     init_site_def(1, m_na, m_sd);
@@ -88,13 +88,13 @@ class GcsXComXComCache : public GcsBaseTest {
     init_cfg_app_xcom();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     m_run = false;
     if (m_thread) {
-      m_thread->join(NULL);
+      m_thread->join(nullptr);
       delete m_thread;
     }
-    push_site_def(NULL);
+    push_site_def(nullptr);
     free_site_defs();
     delete_node_address(1, m_na);
     cleanup_cache();
@@ -103,9 +103,9 @@ class GcsXComXComCache : public GcsBaseTest {
   }
 
   virtual void cache_msg(synode_no synode) {
-    pax_machine *pm = NULL;
+    pax_machine *pm = nullptr;
     pm = get_cache(synode);
-    ASSERT_TRUE(pm != NULL);
+    ASSERT_TRUE(pm != nullptr);
     ASSERT_TRUE(synode_eq(pm->synode, synode));
     unchecked_replace_pax_msg(&pm->proposer.msg, pax_msg_new(synode, m_sd));
     pm->proposer.msg->a = clone_app_data(&m_a);
@@ -214,9 +214,9 @@ TEST_F(GcsXComXComCache, XComCacheTestIterateForward) {
   basic_test_generic(50000, 3000000);
   synode_no synode = {1, 1, 0};
   while (synode.msgno < m_synode.msgno) {
-    pax_machine *pm = NULL;
+    pax_machine *pm = nullptr;
     pm = get_cache(synode);
-    ASSERT_TRUE(pm != NULL);
+    ASSERT_TRUE(pm != nullptr);
     ASSERT_TRUE(synode_eq(pm->synode, synode));
     synode.msgno++;
   }
@@ -234,9 +234,9 @@ TEST_F(GcsXComXComCache, XComCacheTestAccessRecent) {
   basic_test_generic(50000, 3000000);
   u_int iterations = 3000000;
   while (iterations > 0) {
-    pax_machine *pm = NULL;
+    pax_machine *pm = nullptr;
     pm = get_cache(m_synode);
-    ASSERT_TRUE(pm != NULL);
+    ASSERT_TRUE(pm != nullptr);
     ASSERT_TRUE(synode_eq(pm->synode, m_synode));
     iterations--;
   }
@@ -259,7 +259,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
   /*
     Cache refuses to decrease before it reaches 500K slots
   */
-  ASSERT_EQ(check_decrease(), 1);
+  ASSERT_EQ(check_decrease(), CACHE_TOO_SMALL);
 
   target_occupation = 3000000;  // 3M
   cache_bulk(target_occupation);
@@ -268,7 +268,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
   /*
     Fails because there are no empty hash tables in the stack
   */
-  ASSERT_EQ(check_decrease(), 2);
+  ASSERT_EQ(check_decrease(), CACHE_HASH_NOTEMPTY);
 
   size_t count = 0;
   while (above_cache_limit()) {
@@ -283,7 +283,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
   ASSERT_EQ(count, 1046875);
   ASSERT_EQ(get_xcom_cache_occupation(), 1953125);  // init occupation - count
   ASSERT_EQ(get_xcom_cache_length(), 3050000);      // Length did not change
-  ASSERT_EQ(check_decrease(), 0);
+  ASSERT_EQ(check_decrease(), CACHE_SHRINK_OK);
   ASSERT_EQ(get_xcom_cache_length(), 3000000);
   while (!check_decrease()) {
   }
@@ -293,7 +293,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
     decrease will stop once cache_length hits the lowest 50k decrement
     that is lower than 3892564, which is 2750000
   */
-  ASSERT_EQ(check_decrease(), 3);
+  ASSERT_EQ(check_decrease(), CACHE_HIGH_OCCUPATION);
   ASSERT_EQ(get_xcom_cache_occupation(), 1953125);
   ASSERT_EQ(get_xcom_cache_length(), 2750000);
 
@@ -306,15 +306,15 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
    * 1953125 / 0.9 = 2170139 ; 2170139 + 50000 = 2220139
    *
    */
-  ASSERT_EQ(check_decrease(), 4);
+  ASSERT_EQ(check_decrease(), CACHE_RESULT_LOW);
   ASSERT_EQ(get_xcom_cache_length(), 2200000);
   set_min_length_threshold(1);  // Force previous test to pass
-  ASSERT_EQ(check_decrease(), 0);
+  ASSERT_EQ(check_decrease(), CACHE_SHRINK_OK);
   set_max_cache_size(2000000000);
   /*
     Verify that decrease fails because cache_size is still far from the limit.
   */
-  ASSERT_EQ(check_decrease(), 5);
+  ASSERT_EQ(check_decrease(), CACHE_INCREASING);
   // Reset vars
   set_min_target_occupation(MIN_TARGET_OCCUPATION);
   set_min_length_threshold(MIN_LENGTH_THRESHOLD);
@@ -337,7 +337,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
   ASSERT_EQ(get_xcom_cache_length(), 3050000);
   m_thread = new My_xp_thread_impl();
   m_run = true;
-  m_thread->create(PSI_NOT_INSTRUMENTED, NULL, cache_task, (void *)&m_run);
+  m_thread->create(PSI_NOT_INSTRUMENTED, nullptr, cache_task, (void *)&m_run);
   /*
     Wait for the task to decrease the size
   */
@@ -359,7 +359,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
 
   ASSERT_EQ(get_xcom_cache_occupation(), 1953125);
   ASSERT_EQ(get_xcom_cache_length(), 2750000);  // Redundant, but let's do it!
-  ASSERT_EQ(check_decrease(), 3);
+  ASSERT_EQ(check_decrease(), CACHE_HIGH_OCCUPATION);
 
   set_min_target_occupation(1.0);  // Force previous test to pass
   /*
@@ -372,7 +372,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
   }
 
   ASSERT_EQ(get_xcom_cache_length(), 2200000);
-  ASSERT_EQ(check_decrease(), 4);
+  ASSERT_EQ(check_decrease(), CACHE_RESULT_LOW);
 
   /*
    * Increase the max cache size before "removing" the min length threshold
@@ -381,7 +381,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
 
   set_min_length_threshold(1);  // Force previous test to pass
   // Check that decrease still has no effect, but for a different reason
-  ASSERT_EQ(check_decrease(), 5);
+  ASSERT_EQ(check_decrease(), CACHE_INCREASING);
   // Restore max cache size
   set_max_cache_size(1000000000);
 
@@ -392,7 +392,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
   // The decrease stops once the length gets to 2050000...
   ASSERT_EQ(get_xcom_cache_length(), 2050000);
   // ...because we have no more empty hash tables at the end of the stack
-  ASSERT_EQ(check_decrease(), 2);
+  ASSERT_EQ(check_decrease(), CACHE_HASH_NOTEMPTY);
   deinit_cache();
   ASSERT_EQ(get_xcom_cache_length(), 0);
   ASSERT_EQ(get_xcom_cache_occupation(), 0);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,7 +515,8 @@ class Gcs_xcom_nodes {
     interpreted by XCOM to boot, add or remove nodes.
   */
 
-  bool encode(unsigned int *ptr_size, char ***ptr_addrs, blob **ptr_uuids);
+  bool encode(unsigned int *ptr_size, char const ***ptr_addrs,
+              blob **ptr_uuids);
 
  private:
   /*
@@ -543,7 +544,7 @@ class Gcs_xcom_nodes {
   /*
     Memory allocated to encode addresses.
   */
-  char **m_addrs;
+  char const **m_addrs;
 
   /*
     Memory allocated to encode uuids.

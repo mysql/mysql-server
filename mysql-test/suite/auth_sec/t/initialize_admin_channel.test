@@ -1,0 +1,370 @@
+--source include/big_test.inc
+
+--echo #
+--echo # Bug#31101320 TLS INITIALIZATION FOR ADMIN CHANNEL
+--echo #              SHOULD NOT BE DONE DURING --INITIALIZE
+--echo #
+
+let BASEDIR= `select @@basedir`;
+let DDIR=$MYSQL_TMP_DIR/installdb_test;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --loose-skip-sha256_password_auto_generate_rsa_keys --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Try --initialize
+--echo #
+
+--echo # Run the server with --initialize
+--exec $MYSQLD $extra_args --initialize --datadir=$DDIR --log-error-verbosity=2 > $MYSQLD_LOG 2>&1
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin. - pattern should not be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Try --initialize --admin-address=127.0.0.1
+--echo #
+
+--exec $MYSQLD $extra_args --initialize --datadir=$DDIR --log-error-verbosity=2 --admin-address=127.0.0.1 > $MYSQLD_LOG 2>&1
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should be not present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Try --initialize-insecure
+--echo #
+
+--echo # Run the server with --initialize-insecure
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --log-error-verbosity=2 > $MYSQLD_LOG 2>&1
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Try --initialize-insecure --admin-address=127.0.0.1
+--echo #
+
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --log-error-verbosity=2 --admin-address=127.0.0.1 --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Restart server with --datadir=DDIR
+--echo #
+
+--exec echo "restart: --log-error=$MYSQLD_LOG --datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # connect as root
+connect(root_con,localhost,root,,mysql);
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # close the test connection
+connection default;
+disconnect root_con;
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Restart server with --datadir=DDIR --admin-address=127.0.0.1
+--echo #
+
+--exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # connect as root
+connect(root_con,localhost,root,,mysql);
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+
+--echo # Setting admin certs
+--disable_query_log
+--eval SET GLOBAL admin_ssl_ca = '$MYSQL_TEST_DIR/std_data/cacert.pem'
+--eval SET GLOBAL admin_ssl_cert = '$MYSQL_TEST_DIR/std_data/server-cert.pem'
+--eval SET GLOBAL admin_ssl_key = '$MYSQL_TEST_DIR/std_data/server-key.pem'
+--enable_query_log
+--echo # Configure TLS for admin channel
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+--echo # Connect through admin channel using TLS - should be a success.
+--echo MYSQL --host=127.0.0.1 --port=MASTER_ADMINPORT --user=root --ssl-mode=REQUIRED -e "SELECT 1"
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=root --ssl-mode=REQUIRED -e "SELECT 1"
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # close the test connection
+connection default;
+disconnect root_con;
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Restart server with --datadir=DDIR --admin-address=127.0.0.1 --skip-ssl
+--echo #
+
+--exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1 --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # connect as root
+connect(root_con,localhost,root,,mysql);
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should not be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # close the test connection
+connection default;
+disconnect root_con;
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # -----------------------------------------------------------------------
+--echo #
+--echo # Restart server with --datadir=DDIR --admin-address=127.0.0.1 --admin-ssl*
+--echo #
+
+--exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1 --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # connect as root
+connect(root_con,localhost,root,,mysql);
+
+--echo # check for Failed to initialize TSL for channel: mysql_admin - pattern should not be present.
+--let $grep_file=$MYSQLD_LOG
+--let $grep_pattern=Failed to initialize TLS for channel: mysql_admin. See below for the description of exact issue.
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for No TLS configuration was given for channel mysql_admin - pattern should not be present.
+--let $grep_pattern=No TLS configuration was given for channel mysql_admin.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_main configured to support TLS - pattern should be present.
+--let $grep_pattern=Channel mysql_main configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # check for Channel mysql_admin configured to support TLS - pattern should be present.
+--let $grep_pattern=Channel mysql_admin configured to support TLS.*
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # close the test connection
+connection default;
+disconnect root_con;
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # delete bootstrap file
+remove_file $BOOTSTRAP_SQL;
+
+--echo #
+--echo # Cleanup
+--echo #
+--echo # Restarting the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -145,10 +145,10 @@ struct sym_node_t {
                                  columns or a list of
                                  input variables for an
                                  explicit cursor */
-  ibool copy_val;                /*!< TRUE if a column
-                                 and its value should
-                                 be copied to dynamic
-                                 memory when fetched */
+  bool copy_val;                 /*!< true if a column
+                                  and its value should
+                                  be copied to dynamic
+                                  memory when fetched */
   ulint field_nos[2];            /*!< if a column, in
                                  the position
                                  SYM_CLUST_FIELD_NO is
@@ -161,11 +161,11 @@ struct sym_node_t {
                                  use first; if not found
                                  from the index, then
                                  ULINT_UNDEFINED */
-  ibool resolved;                /*!< TRUE if the
-                                 meaning of a variable
-                                 or a column has been
-                                 resolved; for literals
-                                 this is always TRUE */
+  bool resolved;                 /*!< true if the
+                                  meaning of a variable
+                                  or a column has been
+                                  resolved; for literals
+                                  this is always true */
   enum sym_tab_entry token_type; /*!< type of the
                                  parsed token */
   const char *name;              /*!< name of an id */
@@ -196,6 +196,8 @@ struct sym_node_t {
   MDL_ticket *mdl; /* MDL placed on table */
 };
 
+UT_LIST_NODE_GETTER_DEFINITION(sym_node_t, col_var_list)
+
 /** Symbol table */
 struct sym_tab_t {
   que_t *query_graph;
@@ -210,17 +212,14 @@ struct sym_tab_t {
   sql_string to give to the lexical
   analyzer */
   pars_info_t *info; /*!< extra information, or NULL */
-  sym_node_list_t sym_list;
+  UT_LIST_BASE_NODE_T(sym_node_t, sym_list) sym_list;
   /*!< list of symbol nodes in the symbol
   table */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  func_node_list;
+  UT_LIST_BASE_NODE_T_EXTERN(func_node_t, func_node_list) func_node_list;
   /*!< list of function nodes in the
   parsed query graph */
   mem_heap_t *heap; /*!< memory heap from which we can
                     allocate space */
 };
-
-#include "pars0sym.ic"
 
 #endif

@@ -1,3 +1,5 @@
+--source include/big_test.inc
+
 --let $lctn= query_get_value(SHOW VARIABLES LIKE 'lower_case_table_names', Value, 1)
 
 --let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_80011
@@ -16,6 +18,7 @@ if ($lctn == 2)
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
+--source include/mysql_upgrade_preparation.inc
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 
@@ -181,3 +184,4 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 
 --let $restart_parameters = restart:
 --source include/start_mysqld.inc
+--source include/mysql_upgrade_cleanup.inc

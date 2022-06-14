@@ -193,3 +193,29 @@ alter table t1 drop foreign key fkname;
 delete from t1;
 
 drop table t1;
+
+--echo #
+--echo # Truncating table with self referencing Foreign key
+--echo #
+create table t2 (
+  pk2 int not null primary key,
+  c int,
+  foreign key (c) references t2(pk2)
+) engine=NDB;
+
+--let $ndb_table_name=t2
+--let $ndb_self_ref=1
+--source print_foreign_keys.inc
+
+truncate table t2;
+
+--echo Verify all the foreign key are re-created after truncate
+--let $ndb_table_name=t2
+--let $ndb_self_ref=1
+--source print_foreign_keys.inc
+
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+drop table t2;

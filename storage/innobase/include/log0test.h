@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ class Log_test {
    public:
     virtual void sync() = 0;
 
-    virtual ~Sync_point() {}
+    virtual ~Sync_point() = default;
   };
 
   enum class Options {

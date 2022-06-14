@@ -22,14 +22,21 @@
 --echo #
 --echo # 1. Verify failure at cross connecting classic-client to x-server
 --error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_X_MYPORT -ux_root --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
+exec $MYSQL
+  --host=127.0.0.1 -P $MASTER_X_MYPORT
+  -ux_root
+  --ssl-mode=DISABLED
+  -e "SELECT USER(), CURRENT_USER()" 2>&1;
 
 --echo
 --echo #
 --echo # 2. Verify failure at cross connecting x-client to classic-server
---error 1
---exec $MYSQLXTEST --host=127.0.0.1 -P $MASTER_MYPORT -ux_root --no-connect-attrs --ssl-mode=DISABLED  -e "SELECT USER(), CURRENT_USER()"  2>&1
+exec $MYSQLXTEST
+  --host=127.0.0.1 -P $MASTER_MYPORT
+  -ux_root --expect-error 2006
+  --no-connect-attrs --ssl-mode=DISABLED
+  -e "SELECT USER(), CURRENT_USER()"  2>&1;
 
 #
 ## Cleanup
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

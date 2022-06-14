@@ -33,29 +33,32 @@ set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
 include/rpl_start_server.inc [server_number=1]
 include/wait_for_slave_param.inc [Slave_IO_Running]
 include/stop_slave.inc
-SET @@global.debug= "+d,'dbug.before_get_MASTER_UUID'";
+SET @@global.debug= "+d,'dbug.before_get_SOURCE_UUID'";
 include/start_slave.inc
 slave is going to hang in get_master_version_and_clock
 include/rpl_stop_server.inc [server_number=1]
 slave is unblocked
-SET DEBUG_SYNC='now SIGNAL signal.get_master_uuid';
+SET DEBUG_SYNC='now SIGNAL signal.get_source_uuid';
 Check network error happened here
 include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
-set @@global.debug = "-d,'dbug.before_get_MASTER_UUID'";
+set @@global.debug = "-d,'dbug.before_get_SOURCE_UUID'";
 include/rpl_start_server.inc [server_number=1]
 include/wait_for_slave_param.inc [Slave_IO_Running]
-set global debug= '';
 reset master;
 include/stop_slave.inc
-change master to master_port=SLAVE_PORT;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 *** must be having the replicate-same-server-id IO thread error ***
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).'
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave_sql.inc
 RESET SLAVE;
-CHANGE MASTER TO MASTER_PORT=MASTER_PORT;;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+CHANGE REPLICATION SOURCE TO SOURCE_PORT=MASTER_PORT;;
 # Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
 include/start_slave_io.inc
 include/assert.inc [Master_uuid must be empty string]

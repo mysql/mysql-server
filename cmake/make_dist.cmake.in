@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,7 @@ IF(GIT_EXECUTABLE)
     SET(GIT_EXECUTABLE)
   ELSE()
     # Unpack tarball
+    MESSAGE(STATUS "Unpacking tarball")
     EXECUTE_PROCESS(
       COMMAND ${CMAKE_COMMAND} -E tar xf ${PACKAGE_DIR}.tar
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -85,6 +86,7 @@ IF(GIT_EXECUTABLE)
       SET(GIT_EXECUTABLE)
     ELSE()
       # Remove tarball after unpacking
+      MESSAGE(STATUS "Removing tarball")
       EXECUTE_PROCESS(
         COMMAND ${CMAKE_COMMAND} -E remove ${PACKAGE_DIR}.tar
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -97,50 +99,17 @@ IF(NOT GIT_EXECUTABLE)
   MESSAGE(STATUS "git not found or source dir is not a repo, use CPack")
   
   IF(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-    # In-source build is the worst option, we have to cleanup source tree.
-
-    # Save bison output first.
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-       ${CMAKE_BINARY_DIR}/sql_yacc.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
-       ${CMAKE_BINARY_DIR}/sql_yacc.h COPYONLY)
-    #
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
-       ${CMAKE_BINARY_DIR}/sql_hints.yy.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
-       ${CMAKE_BINARY_DIR}/sql_hints.yy.h COPYONLY)
-    #
-
-    IF(BUILD_IS_SINGLE_CONFIG)
-      # make clean
-      EXECUTE_PROCESS(
-        COMMAND ${CMAKE_MAKE_PROGRAM} clean
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
-    ENDIF()
-    
-    # Restore bison output
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.cc
-       ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.h
-       ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPYONLY)
-    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.cc)
-    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.h)
-    #
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_hints.yy.cc
-       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_hints.yy.h
-       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h COPYONLY)
-    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.cc)
-    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.h)
+    MESSAGE(FATAL_ERRROR "make dist is not supported from in-source build")
   ENDIF()
 
+  MESSAGE(STATUS "Running cpack")
   EXECUTE_PROCESS(
     COMMAND ${CMAKE_CPACK_COMMAND} -G TGZ --config ./CPackSourceConfig.cmake 
     ${CMAKE_BINARY_DIR}/CPackSourceConfig.cmake
 
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
+  MESSAGE(STATUS "Running tar xcf")
   EXECUTE_PROCESS(
   COMMAND ${CMAKE_COMMAND} -E tar xzf 
     ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar.gz 
@@ -149,6 +118,7 @@ IF(NOT GIT_EXECUTABLE)
   )
 ENDIF()
 
+MESSAGE(STATUS "Copying bison output")
 # Copy bison output
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
    ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
@@ -201,9 +171,10 @@ SET($ENV{GZIP} "--best")
 
 IF(GNUTAR)
   SET(PACK_COMMAND 
-  ${GNUTAR} cfz 
+  ${GNUTAR} cfz
   ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar.gz 
   ${CPACK_SOURCE_PACKAGE_FILE_NAME}
+  --owner=0 --group=0
   )
 ELSE()
   SET(PACK_COMMAND ${CMAKE_COMMAND} -E tar cfz
@@ -212,7 +183,8 @@ ELSE()
 )
 ENDIF()
 
-MESSAGE(STATUS "Creating source package")
+STRING(REPLACE ";" " " PACK_COMMAND_STRING "${PACK_COMMAND}")
+MESSAGE(STATUS "Creating source package with ${PACK_COMMAND_STRING}")
 
 EXECUTE_PROCESS( 
   COMMAND ${PACK_COMMAND}

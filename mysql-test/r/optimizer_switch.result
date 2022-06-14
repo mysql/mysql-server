@@ -3,47 +3,47 @@ BUG#37120 optimizer_switch allowable values not according to specification
 
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=off,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=off,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='materialization=off,semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=off,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=off,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 set optimizer_switch='materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=on,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=on,loosescan=off,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
 set optimizer_switch='default';
 create table t1 (a1 char(8), a2 char(8));
 create table t2 (b1 char(8), b2 char(8));
@@ -258,7 +258,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT e FROM t3 as tc
@@ -275,11 +275,11 @@ WHERE tb.d >= SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT e FROM t3 as tc
@@ -302,7 +302,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'ta.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t4` `tc` group by `test`.`tc`.`f` having ((`test`.`ta`.`a` = `test`.`tc`.`f`) and (<cache>(`test`.`tb`.`d`) >= <ref_null_helper>(sum(`test`.`tc`.`g`))))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select sum(`test`.`tc`.`g`) from `test`.`t4` `tc` group by `test`.`tc`.`f` having ((`test`.`ta`.`a` = `test`.`tc`.`f`) and (<cache>(`test`.`tb`.`d`) >= <ref_null_helper>(sum(`test`.`tc`.`g`))))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT SUM(g) FROM t4 as tc
@@ -321,11 +321,11 @@ GROUP BY f
 HAVING ta.a=tc.f));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'ta.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t4` `tc` group by `test`.`tc`.`f` having ((`test`.`ta`.`a` = `test`.`tc`.`f`) and (<cache>(`test`.`tb`.`d`) >= <ref_null_helper>(sum(`test`.`tc`.`g`))))))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select sum(`test`.`tc`.`g`) from `test`.`t4` `tc` group by `test`.`tc`.`f` having ((`test`.`ta`.`a` = `test`.`tc`.`f`) and (<cache>(`test`.`tb`.`d`) >= <ref_null_helper>(sum(`test`.`tc`.`g`))))))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT SUM(g) FROM t4 as tc
@@ -350,7 +350,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where (<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t4` `tc` where ((`test`.`ta`.`a` = `test`.`tc`.`f`) and (<cache>(`test`.`tb`.`d`) = `test`.`tc`.`g`)))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select `test`.`tc`.`g` from `test`.`t4` `tc` where ((`test`.`ta`.`a` = `test`.`tc`.`f`) and (<cache>(`test`.`tb`.`d`) = `test`.`tc`.`g`)))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d IN (SELECT g FROM t4 as tc
@@ -369,8 +369,8 @@ WHERE ta.a=tc.f
 ORDER BY tc.f));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	SIMPLE	tc	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	tc	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
+1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.ta.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb` join `test`.`t4` `tc`) where ((`test`.`tc`.`f` = `test`.`tb`.`c`) and (`test`.`ta`.`a` = `test`.`tb`.`c`) and (`test`.`tc`.`g` = `test`.`tb`.`d`))
@@ -396,7 +396,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.tb.d' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t3` `tc` where ((`test`.`tb`.`d` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`tb`.`d` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT e FROM t3 as tc
@@ -404,8 +404,8 @@ WHERE tb.d=tc.e));
 a	b
 2	10
 2	20
-3	20
 2	30
+3	20
 4	40
 set @@optimizer_switch='materialization=off,semijoin=on';
 EXPLAIN SELECT * FROM t1 AS ta
@@ -414,11 +414,11 @@ WHERE tb.d >= SOME(SELECT e FROM t3 as tc
 WHERE tb.d=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.tb.d' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t3` `tc` where ((`test`.`tb`.`d` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#3 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`tb`.`d` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT e FROM t3 as tc
@@ -426,8 +426,8 @@ WHERE tb.d=tc.e));
 a	b
 2	10
 2	20
-3	20
 2	30
+3	20
 4	40
 # Reference above the parent query block (should not be affected)
 set @@optimizer_switch='materialization=off,semijoin=off';
@@ -443,7 +443,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t1` `t` where <in_optimizer>(`test`.`t`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` `ta` where (<in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#3 */ select 1 from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#4 */ select 1 from `test`.`t3` `tc` where ((`test`.`t`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`)))) and (<cache>(`test`.`t`.`a`) = `test`.`ta`.`a`))) is false)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t1` `t` where <in_optimizer>(`test`.`t`.`a`,<exists>(/* select#2 */ select `test`.`ta`.`a` from `test`.`t1` `ta` where (<in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#3 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`t`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`)))) and (<cache>(`test`.`t`.`a`) = `test`.`ta`.`a`))) is false)
 SELECT * FROM t1 AS t
 WHERE t.a NOT IN (SELECT a FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -461,12 +461,12 @@ WHERE tb.d >= SOME(SELECT e FROM t3 as tc
 WHERE t.b=tc.e)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
-1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Not exists; Using join buffer (Block Nested Loop)
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Not exists; Using join buffer (hash join)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; Using join buffer (hash join)
 4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t1` `t` anti join (`test`.`t1` `ta` join `test`.`t2` `tb`) on(((`test`.`tb`.`c` = `test`.`t`.`a`) and (`test`.`ta`.`a` = `test`.`t`.`a`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#4 */ select 1 from `test`.`t3` `tc` where ((`test`.`t`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))))) where true
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t1` `t` anti join (`test`.`t1` `ta` join `test`.`t2` `tb`) on(((`test`.`tb`.`c` = `test`.`t`.`a`) and (`test`.`ta`.`a` = `test`.`t`.`a`) and <nop>(<in_optimizer>(`test`.`tb`.`d`,<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`t`.`b` = `test`.`tc`.`e`) and (<cache>(`test`.`tb`.`d`) >= `test`.`tc`.`e`))))))) where true
 SELECT * FROM t1 AS t
 WHERE t.a NOT IN (SELECT a FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -488,7 +488,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where (exists(/* select#3 */ select 1 from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`)) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (exists(/* select#3 */ select 1 from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`)) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE EXISTS (SELECT * FROM t3 as tc
@@ -505,8 +505,8 @@ WHERE EXISTS (SELECT * FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Start temporary
-1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using join buffer (hash join)
+1	SIMPLE	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb` join `test`.`t3` `tc`) where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and (`test`.`tb`.`c` = `test`.`ta`.`a`))
@@ -531,7 +531,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where ((`test`.`tb`.`d` = (/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where ((`test`.`tb`.`d` = (/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d = (SELECT MIN(e) FROM t3 as tc
@@ -547,7 +547,7 @@ WHERE tb.d = (SELECT MIN(e) FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
@@ -575,7 +575,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
 Note	1276	Field or reference 'test.tb.d' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `tb` where (<nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`)),<exists>(/* select#4 */ select 1 from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`))) < `test`.`tc`.`e`), true))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`)),<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`))) < `test`.`tc`.`e`), true))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE (SELECT MIN(e) FROM t3 as tc
@@ -592,13 +592,13 @@ WHERE tb.d=tc.e) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
 4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
 Note	1276	Field or reference 'test.tb.d' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`)),<exists>(/* select#4 */ select 1 from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`))) < `test`.`tc`.`e`), true))))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`)),<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`))) < `test`.`tc`.`e`), true))))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE (SELECT MIN(e) FROM t3 as tc

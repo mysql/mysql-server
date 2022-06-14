@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,92 +37,71 @@ const Key_column_usage &Key_column_usage::instance() {
 Key_column_usage::Key_column_usage() {
   m_target_def.set_view_name(view_name());
 
-  // First SELECT for UNION
-  System_view_select_definition_impl &first_select = m_target_def.get_select();
-
-  first_select.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
+  m_target_def.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
+  m_target_def.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME", "idx.name");
-  first_select.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
+  m_target_def.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
+                         "constraints.CONSTRAINT_NAME");
+  m_target_def.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
+  m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
+  m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
                          "tbl.name" + m_target_def.fs_name_collation());
-  first_select.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME",
+  m_target_def.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME",
                          "col.name COLLATE utf8_tolower_ci");
-  first_select.add_field(FIELD_ORDINAL_POSITION, "ORDINAL_POSITION",
-                         "icu.ordinal_position");
-  first_select.add_field(FIELD_POSITION_IN_UNIQUE_CONSTRAINT,
-                         "POSITION_IN_UNIQUE_CONSTRAINT", "NULL");
-  first_select.add_field(FIELD_REFERENCED_TABLE_SCHEMA,
-                         "REFERENCED_TABLE_SCHEMA", "NULL");
-  first_select.add_field(FIELD_REFERENCED_TABLE_NAME, "REFERENCED_TABLE_NAME",
-                         "NULL");
-  first_select.add_field(FIELD_REFERENCED_COLUMN_NAME, "REFERENCED_COLUMN_NAME",
-                         "NULL");
+  m_target_def.add_field(FIELD_ORDINAL_POSITION, "ORDINAL_POSITION",
+                         "constraints.ordinal_position");
+  m_target_def.add_field(FIELD_POSITION_IN_UNIQUE_CONSTRAINT,
+                         "POSITION_IN_UNIQUE_CONSTRAINT",
+                         "constraints.POSITION_IN_UNIQUE_CONSTRAINT");
+  m_target_def.add_field(FIELD_REFERENCED_TABLE_SCHEMA,
+                         "REFERENCED_TABLE_SCHEMA",
+                         "constraints.REFERENCED_TABLE_SCHEMA");
+  m_target_def.add_field(FIELD_REFERENCED_TABLE_NAME, "REFERENCED_TABLE_NAME",
+                         "constraints.REFERENCED_TABLE_NAME");
+  m_target_def.add_field(FIELD_REFERENCED_COLUMN_NAME, "REFERENCED_COLUMN_NAME",
+                         "constraints.REFERENCED_COLUMN_NAME");
 
-  first_select.add_from("mysql.indexes idx");
-  first_select.add_from("JOIN mysql.tables tbl ON idx.table_id=tbl.id");
-  first_select.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
-  first_select.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-  first_select.add_from(
-      "JOIN mysql.index_column_usage icu"
-      " ON icu.index_id=idx.id");
-  first_select.add_from(
-      "JOIN mysql.columns col ON icu.column_id=col.id"
-      " AND idx.type IN ('PRIMARY', 'UNIQUE')");
+  m_target_def.add_from("mysql.tables tbl");
+  m_target_def.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
+  m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
+  m_target_def.add_from(
+      ", LATERAL (SELECT"
+      "    idx.name AS CONSTRAINT_NAME,"
+      "    icu.ordinal_position AS ORDINAL_POSITION,"
+      "    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,"
+      "    NULL AS REFERENCED_TABLE_SCHEMA,"
+      "    NULL AS REFERENCED_TABLE_NAME,"
+      "    NULL AS REFERENCED_COLUMN_NAME,"
+      "    icu.column_id,"
+      "    idx.hidden OR icu.hidden AS HIDDEN"
+      "    FROM mysql.indexes idx"
+      "    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id"
+      "    WHERE idx.table_id = tbl.id"
+      "      AND idx.type IN ('PRIMARY', 'UNIQUE')"
+      "  UNION ALL SELECT"
+      "    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,"
+      "    fkcu.ordinal_position AS ORDINAL_POSITION,"
+      "    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,"
+      "    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,"
+      "    fk.referenced_table_name AS REFERENCED_TABLE_NAME,"
+      "    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,"
+      "    fkcu.column_id,"
+      "    FALSE AS HIDDEN"
+      "    FROM mysql.foreign_keys fk"
+      "    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = "
+      "fk.id"
+      "    WHERE fk.table_id = tbl.id"
+      ") constraints");
+  m_target_def.add_from(
+      "JOIN mysql.columns col ON constraints.COLUMN_ID=col.id");
 
-  first_select.add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
-  first_select.add_where(
+  m_target_def.add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
+  m_target_def.add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
-      "col.hidden <> 'Visible' OR idx.hidden OR icu.hidden)");
-
-  // Second SELECT for UNION
-  System_view_select_definition_impl &second_select = m_target_def.get_select();
-
-  second_select.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
-                          "cat.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
-                          "sch.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-                          "fk.name COLLATE utf8_tolower_ci");
-  second_select.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
-                          "cat.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
-                          "sch.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
-                          "tbl.name" + m_target_def.fs_name_collation());
-  second_select.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME",
-                          "col.name COLLATE utf8_tolower_ci");
-  second_select.add_field(FIELD_ORDINAL_POSITION, "ORDINAL_POSITION",
-                          "fkcu.ordinal_position");
-  second_select.add_field(FIELD_POSITION_IN_UNIQUE_CONSTRAINT,
-                          "POSITION_IN_UNIQUE_CONSTRAINT",
-                          "fkcu.ordinal_position");
-  second_select.add_field(FIELD_REFERENCED_TABLE_SCHEMA,
-                          "REFERENCED_TABLE_SCHEMA",
-                          "fk.referenced_table_schema");
-  second_select.add_field(FIELD_REFERENCED_TABLE_NAME, "REFERENCED_TABLE_NAME",
-                          "fk.referenced_table_name");
-  second_select.add_field(FIELD_REFERENCED_COLUMN_NAME,
-                          "REFERENCED_COLUMN_NAME",
-                          "fkcu.referenced_column_name");
-
-  second_select.add_from("mysql.foreign_keys fk");
-  second_select.add_from("JOIN mysql.tables tbl ON fk.table_id=tbl.id");
-  second_select.add_from(
-      "JOIN mysql.foreign_key_column_usage fkcu"
-      " ON fkcu.foreign_key_id=fk.id");
-  second_select.add_from("JOIN mysql.schemata sch ON fk.schema_id=sch.id");
-  second_select.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-  second_select.add_from("JOIN mysql.columns col ON fkcu.column_id=col.id");
-
-  second_select.add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
-  second_select.add_where(
-      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')");
+      "col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN)");
 }
 
 }  // namespace system_views

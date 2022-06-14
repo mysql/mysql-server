@@ -460,3 +460,4 @@ count(*)=0
 1
 DROP DATABASE dbredoopt;
 DROP USER 'redo_wl_user'@'localhost';
+call mtr.add_suppression("Database page corruption or a failed file read of page");

@@ -1,0 +1,223 @@
+result_format: 2
+create table t1(
+  a int not null primary key, # intrinsic PK plus PRIMARY ordered index
+  b int not null,
+  c int,
+  d int not null,
+  unique(b) using hash,       # unique index only
+  index(c),                   # ordered index only
+  unique(d)                   # ordered and unique indexes
+) engine=ndb;
+
+insert into t1 values (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4);
+
+## Select on the PRIMARY ordered index
+select a, count(*) from t1 group by a order by a;
+a	count(*)
+1	1
+2	1
+3	1
+4	1
+
+## You can make an index invisible, and then visible again
+select c, count(1) from t1 group by c order by c;
+c	count(1)
+1	1
+2	1
+3	1
+4	1
+EXPLAIN select c, count(1) from t1 group by c order by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	c	c	5	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,count(1) AS `count(1)` from `test`.`t1` group by `test`.`t1`.`c` order by `test`.`t1`.`c`
+ALTER TABLE t1 ALTER INDEX c invisible;
+EXPLAIN select c, count(1) from t1 group by c order by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,count(1) AS `count(1)` from `test`.`t1` group by `test`.`t1`.`c` order by `test`.`t1`.`c`
+ALTER TABLE t1 ALTER INDEX c visible;
+
+##########################################
+## Use ndb_drop_index to drop PRIMARY
+## First query after drop fails with stale metadata
+select * from t1 where a > 3;
+ERROR HY000: Table definition has changed, please retry transaction
+
+## Second time succeeds. No warnings. (Uses pushed condition, not an index)
+select * from t1 where a > 3;
+a	b	c	d
+4	4	4	4
+
+## A query trying to use the index fails and gives warning
+select a, count(1) from t1 group by a;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index PRIMARY is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX PRIMARY INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+## Add a column. This runs a DD-vs-NDB metadata check on the altered
+## table which previously would have failed. The new column has both
+## ordered and unique indexes.
+ALTER TABLE t1 ADD e int;
+Warnings:
+Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable online ADD COLUMN
+ALTER TABLE t1 ADD unique(e);
+insert into t1 values (5,5,5,5,5);
+UPDATE t1 set e = d;
+SELECT * FROM t1;
+a	b	c	d	e
+1	1	1	1	1
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+
+##########################################
+## Use ndb_drop_index to drop the unique index on b.
+## First attempt to use dropped index fails with stale metadata
+SELECT * FROM t1 WHERE b = 3;
+ERROR HY000: Table definition has changed, please retry transaction
+
+## Second attempt fails with bad index.
+SELECT * FROM t1 WHERE b = 3;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index b is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX b INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+##########################################
+## Use ndb_drop_index to drop the index on c.
+## Stale metadata
+select c, count(1) from t1 group by c order by c;
+ERROR HY000: Table definition has changed, please retry transaction
+
+## Use of index fails
+select c, count(1) from t1 group by c order by c;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+
+## Make the dropped index invisible.  Then all tests will succeed.
+ALTER TABLE t1 ALTER INDEX c invisible;
+SELECT * FROM t1 WHERE c = 3;
+a	b	c	d	e
+3	3	3	3	3
+select c, count(1) from t1 group by c order by c;
+c	count(1)
+1	1
+2	1
+3	1
+4	1
+5	1
+
+## Drop the index in MySQL
+ALTER TABLE t1 DROP INDEX c;
+
+## Then rebuild it in MySQL
+ALTER TABLE t1 add index(c);
+
+## And test once more
+select c, count(1) from t1 group by c order by c;
+c	count(1)
+1	1
+2	1
+3	1
+4	1
+5	1
+
+##########################################
+## Use ndb_drop_index to drop d$unique
+## d will be downgraded from UNIQUE_ORDERED_INDEX to ORDERED_INDEX
+## Table scan succeeds.
+SELECT * FROM t1;
+a	b	c	d	e
+1	1	1	1	1
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+
+## But, try to use the index? Stale metadata.
+SELECT * FROM t1 where d = 3;
+ERROR HY000: Table definition has changed, please retry transaction
+
+## Then it succeeds (the ordered index is still available).
+SELECT * FROM t1 where d = 3;
+a	b	c	d	e
+3	3	3	3	3
+
+## How did it do it?  It used the ordered index.
+EXPLAIN SELECT * FROM t1 where d = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	d	d	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`d` = 3)
+
+## Let's corrupt the unique index while it's not online!
+UPDATE t1 set d = 14;
+
+## ... and then fix it.
+UPDATE t1 set d = a;
+
+##########################################
+## Use ndb_drop_index to drop the ordered index on e.
+## e will be downgraded from UNIQUE_ORDERED_INDEX to UNIQUE_INDEX
+## Table scan succeeds.
+SELECT * FROM t1;
+a	b	c	d	e
+1	1	1	1	1
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+
+## First attempt to use dropped index fails with stale metadata
+SELECT * FROM t1 where e > 3;
+ERROR HY000: Table definition has changed, please retry transaction
+
+## Second attempt succeeds.
+SELECT * FROM t1 where e > 3 order by e;
+a	b	c	d	e
+4	4	4	4	4
+5	5	5	5	5
+
+## A query trying to use the index fails and gives warning
+select 3, count(*) from t1 group by e order by e;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+show warnings;
+Level	Code	Message
+Warning	1034	Index e is not available in NDB. Use "ALTER TABLE t1 ALTER INDEX e INVISIBLE" to prevent MySQL from attempting to access it, or use "ndb_restore --rebuild-indexes" to rebuild it.
+Error	1034	Incorrect key file for table 't1'; try to repair it
+
+##########################################
+## A small set of tests on a table with some two-part indexes
+create table t2 (
+  a int not null,
+  b int not null,
+  c int,
+  primary key (a,b),      # primary key ordered index on two columns
+  index(b,c)              # ordered index on two columns
+) engine=ndb;
+
+insert into t2 values (1,1,null), (2,1,0), (3,1,1), (1,2,1), (1,3,null);
+
+select * from t2 where a > 2;
+a	b	c
+3	1	1
+select * from t2 where a > 2;
+ERROR HY000: Table definition has changed, please retry transaction
+select * from t2 where a > 2;
+a	b	c
+3	1	1
+select * from t2 where b = 2;
+ERROR HY000: Table definition has changed, please retry transaction
+select * from t2 where b = 2;
+ERROR HY000: Incorrect key file for table 't2'; try to repair it
+
+call mtr.add_suppression(".*Got error 126 when reading table '.*t2'");
+
+## All done
+DROP TABLE t1;
+DROP TABLE t2;

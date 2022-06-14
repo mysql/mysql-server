@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,22 +29,55 @@
 #  Other values will be ignored, and we fall back to "bundled"
 #
 
+# Bundled version is currently 3.19.4
+# Lowest checked system version is 3.5.0 on Oracle Linux 8.
+# Older versions may generate code which breaks the -Werror build.
+SET(MIN_PROTOBUF_VERSION_REQUIRED "3.5.0")
+
+MACRO(FIND_PROTOBUF_VERSION)
+  # Verify protobuf version number. Version information looks like:
+  # // The current version, represented as a single integer to make comparison
+  # // easier:  major * 10^6 + minor * 10^3 + micro
+  # #define GOOGLE_PROTOBUF_VERSION 3012004
+  FILE(STRINGS "${PROTOBUF_INCLUDE_DIR}/google/protobuf/stubs/common.h"
+    PROTOBUF_VERSION_NUMBER
+    REGEX "^#define[\t ]+GOOGLE_PROTOBUF_VERSION[\t ][0-9]+.*"
+    )
+  STRING(REGEX MATCH
+    ".*VERSION[\t ]([0-9]+).*" V_NUM "${PROTOBUF_VERSION_NUMBER}")
+
+  MATH(EXPR PB_MAJOR_VERSION "${CMAKE_MATCH_1} / 1000000")
+  MATH(EXPR MINOR_MICRO "${CMAKE_MATCH_1} - (1000000 * ${PB_MAJOR_VERSION})")
+  MATH(EXPR PB_MINOR_VERSION "${MINOR_MICRO} / 1000")
+  MATH(EXPR PB_MICRO_VERSION "${MINOR_MICRO} - (1000 * ${PB_MINOR_VERSION})")
+
+  SET(PROTOBUF_VERSION
+    "${PB_MAJOR_VERSION}.${PB_MINOR_VERSION}.${PB_MICRO_VERSION}")
+  SET(PROTOBUF_VERSION "${PROTOBUF_VERSION}" CACHE INTERNAL
+    "PROTOBUF major.minor.micro")
+  MESSAGE(STATUS
+    "PROTOBUF_VERSION (${WITH_PROTOBUF}) is ${PROTOBUF_VERSION}")
+ENDMACRO(FIND_PROTOBUF_VERSION)
+
 MACRO(ECHO_PROTOBUF_VARIABLES)
   MESSAGE(STATUS "PROTOBUF_INCLUDE_DIR ${PROTOBUF_INCLUDE_DIR}")
   MESSAGE(STATUS "PROTOBUF_LIBRARY ${PROTOBUF_LIBRARY}")
+  MESSAGE(STATUS "PROTOBUF_LITE_LIBRARY ${PROTOBUF_LITE_LIBRARY}")
   MESSAGE(STATUS "PROTOBUF_PROTOC_EXECUTABLE ${PROTOBUF_PROTOC_EXECUTABLE}")
 ENDMACRO()
 
 MACRO(COULD_NOT_FIND_PROTOBUF)
   ECHO_PROTOBUF_VARIABLES()
-  MESSAGE(STATUS "Could not find (the correct version of) protobuf.")
-  MESSAGE(STATUS "MySQL currently requires at least protobuf version 2.5")
+  MESSAGE(WARNING
+    "Could not find (the correct version of) protobuf.\n"
+    "MySQL currently requires at least protobuf "
+    "version ${MIN_PROTOBUF_VERSION_REQUIRED}")
   MESSAGE(FATAL_ERROR
     "You can build with the bundled sources"
     )
 ENDMACRO()
 
-SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-3.6.1/src)
+SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-3.19.4/src)
 
 MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
   SET(WITH_PROTOBUF "bundled" CACHE STRING
@@ -76,7 +109,7 @@ MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
   SET(PROTOBUF_PROTOC_LIBRARY_DEBUG libprotoc CACHE INTERNAL "")
   SET(PROTOBUF_LITE_LIBRARY libprotobuf-lite CACHE INTERNAL "")
   SET(PROTOBUF_LITE_LIBRARY_DEBUG libprotobuf-lite CACHE INTERNAL "")
-  ADD_SUBDIRECTORY(extra/protobuf)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${BUNDLED_PROTO_SRCDIR})
 ENDMACRO()
 
 MACRO(MYSQL_CHECK_PROTOBUF)
@@ -84,7 +117,7 @@ MACRO(MYSQL_CHECK_PROTOBUF)
       NOT WITH_PROTOBUF STREQUAL "system")
     SET(WITH_PROTOBUF "bundled")
   ENDIF()
-  MESSAGE(STATUS "WITH_PROTOBUF=${WITH_PROTOBUF}")
+
   IF(WITH_PROTOBUF STREQUAL "bundled")
     MYSQL_USE_BUNDLED_PROTOBUF()
   ELSE()
@@ -92,32 +125,28 @@ MACRO(MYSQL_CHECK_PROTOBUF)
   ENDIF()
 
   IF(NOT PROTOBUF_FOUND)
-    MESSAGE(WARNING "Protobuf could not be found")
+    MESSAGE(WARNING "Protobuf libraries/headers could not be found")
   ENDIF()
 
-  IF(PROTOBUF_FOUND)
-    # Verify protobuf version number. Version information looks like:
-    # // The current version, represented as a single integer to make comparison
-    # // easier:  major * 10^6 + minor * 10^3 + micro
-    # #define GOOGLE_PROTOBUF_VERSION 2006000
-    FILE(STRINGS "${PROTOBUF_INCLUDE_DIR}/google/protobuf/stubs/common.h"
-      PROTOBUF_VERSION_NUMBER
-      REGEX "^#define[\t ]+GOOGLE_PROTOBUF_VERSION[\t ][0-9]+.*"
-      )
-    STRING(REGEX REPLACE
-      "^.*GOOGLE_PROTOBUF_VERSION[\t ]([0-9])[0-9][0-9]([0-9])[0-9][0-9].*$"
-      "\\1"
-      PROTOBUF_MAJOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
-    STRING(REGEX REPLACE
-      "^.*GOOGLE_PROTOBUF_VERSION[\t ]([0-9])[0-9][0-9]([0-9])[0-9][0-9].*$"
-      "\\2"
-      PROTOBUF_MINOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
-
-    MESSAGE(STATUS
-      "PROTOBUF_VERSION_NUMBER is ${PROTOBUF_VERSION_NUMBER}")
-
-    IF("${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}" VERSION_LESS "2.5")
-      COULD_NOT_FIND_PROTOBUF()
-    ENDIF()
+  IF(NOT PROTOBUF_PROTOC_EXECUTABLE)
+    MESSAGE(WARNING "The protoc executable could not be found")
   ENDIF()
+
+  IF(NOT PROTOBUF_PROTOC_LIBRARY)
+    MESSAGE(WARNING "The protoc library could not be found")
+  ENDIF()
+
+  IF(NOT PROTOBUF_FOUND OR
+      NOT PROTOBUF_PROTOC_EXECUTABLE OR
+      NOT PROTOBUF_PROTOC_LIBRARY)
+    MESSAGE(FATAL_ERROR "Use bundled protobuf, or install missing packages")
+  ENDIF()
+
+  FIND_PROTOBUF_VERSION()
+  IF("${PROTOBUF_VERSION}" VERSION_LESS "${MIN_PROTOBUF_VERSION_REQUIRED}")
+    COULD_NOT_FIND_PROTOBUF()
+  ENDIF()
+  ECHO_PROTOBUF_VARIABLES()
 ENDMACRO()
+
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/protobuf_proto_compile.cmake)

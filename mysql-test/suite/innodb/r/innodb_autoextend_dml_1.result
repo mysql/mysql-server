@@ -1,0 +1,204 @@
+#
+# This test tests various DML operations and their effect on the tablespaces
+#
+# Test tables with file_per_table tablespace
+#
+# Scenario-1: Create a table without autoextend_size and validate that the allocation
+# happens as per the old logic
+#
+CREATE TABLE t1 (c1 INT, c2 TEXT);
+# Verify the initial size of the file
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	114688	0
+# This is a smaller tablespace. The tablespace should extend by adding smaller number
+# of pages initially
+# Add few rows to the table and check the size of the file
+select count(*) from t1;
+count(*)
+1
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	163840	0
+select count(*) from t1;
+count(*)
+2
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	229376	0
+select count(*) from t1;
+count(*)
+3
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	294912	0
+# Once the tablespace size is more than half of the extent size, tablespace is extended with
+# 4 extents at a time
+select count(*) from t1;
+count(*)
+10
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t1%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t1	4194304	0
+drop table t1;
+#
+# Scenario-2: Create table with autoextend_size clause and validate that the allocation happens as per the
+# new logic and the initial size of the tablespace file is the value of AUTOEXTEND_SIZE
+#
+CREATE TABLE t2(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+select count(*) from t2;
+count(*)
+10
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t2%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t2	4194304	4194304
+select count(*) from t2;
+count(*)
+20
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t2%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t2	4194304	4194304
+select count(*) from t2;
+count(*)
+1020
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t2%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t2	71303168	4194304
+select count(*) from t2;
+count(*)
+2020
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t2%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t2	138412032	4194304
+DROP TABLE t2;
+#
+# Scenario-3: Create a table without autoextend_size and alter it later on to add autoextend_size property
+# Validate that the allocation is done with the old logic until autoextend_size is introduced to the table
+#
+CREATE TABLE t3(c1 INT, c2 TEXT);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t3%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t3	114688	0
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+1
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t3%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t3	163840	0
+ALTER TABLE t3 AUTOEXTEND_SIZE 4M;
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+2
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t3%';
+NAME	FILE_SIZE	AUTOEXTEND_SIZE
+test/t3	4194304	4194304
+DROP TABLE t3;
+#
+# Scenario-4: Test crash recovery and verify that the autoextend_size values are reinstated
+# after recovery
+#
+CREATE TABLE t4(c1 INT, c2 longblob) AUTOEXTEND_SIZE 8m;
+# The initialize size of the table should be same as the autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t4%';
+NAME	FILE_SIZE/AUTOEXTEND_SIZE	FILE_SIZE	AUTOEXTEND_SIZE
+test/t4	1.0000	8388608	8388608
+# Crash the server while attempting to allocate more space
+INSERT INTO t4 VALUES (1, repeat(1, 4 * 1024 * 1024));
+SET DEBUG="+d, fsp_crash_before_space_extend";
+INSERT INTO t4 VALUES (1, repeat(1, 4 * 1024 * 1024));
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect
+# restart
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t4%';
+NAME	FILE_SIZE/AUTOEXTEND_SIZE	FILE_SIZE	AUTOEXTEND_SIZE
+test/t4	1.0000	8388608	8388608
+INSERT INTO t4 VALUES (1, repeat(1, 4 * 1024 * 1024));
+SELECT COUNT(*) FROM t4;
+COUNT(*)
+2
+# Verify new file size is a multiple of autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t4%';
+NAME	FILE_SIZE/AUTOEXTEND_SIZE	FILE_SIZE	AUTOEXTEND_SIZE
+test/t4	2.0000	16777216	8388608
+DROP TABLE t4;
+#
+# Scenario-5: Test crash recovery when server is started with --skip-innodb-validate-tablespace-paths
+# option and verify that the server respects the autoextend_size value
+#
+CREATE TABLE t5(c1 INT, c2 longblob) AUTOEXTEND_SIZE 8m;
+# The initialize size of the table should be same as the autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t5%';
+NAME	FILE_SIZE/AUTOEXTEND_SIZE	FILE_SIZE	AUTOEXTEND_SIZE
+test/t5	1.0000	8388608	8388608
+# Crash the server while attempting to allocate more space
+INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
+SET DEBUG="+d, fsp_crash_before_space_extend";
+INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld with --skip-innodb-validate-tablespace-paths option after
+# the crash and reconnect
+# restart: --skip-innodb-validate-tablespace-paths
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t5%';
+NAME	FILE_SIZE/AUTOEXTEND_SIZE	FILE_SIZE	AUTOEXTEND_SIZE
+test/t5	1.0000	8388608	8388608
+INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
+SELECT COUNT(*) FROM t5;
+COUNT(*)
+2
+# Verify new file size is a multiple of autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+WHERE NAME LIKE '%t5%';
+NAME	FILE_SIZE/AUTOEXTEND_SIZE	FILE_SIZE	AUTOEXTEND_SIZE
+test/t5	2.0000	16777216	8388608
+DROP TABLE t5;
+# restart
+#
+# Scenario-6: Test concurrent updates to autoextend_size while inserts are going on
+# on another connection
+#
+CREATE TABLE t6(id int, l longblob, v varchar(100)) AUTOEXTEND_SIZE 4m;
+CREATE PROCEDURE update_aes()
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 1000 DO
+ALTER TABLE t6 AUTOEXTEND_SIZE=4m;
+ALTER TABLE t6 AUTOEXTEND_SIZE=64m;
+ALTER TABLE t6 AUTOEXTEND_SIZE=16m;
+ALTER TABLE t6 AUTOEXTEND_SIZE=8m;
+ALTER TABLE t6 AUTOEXTEND_SIZE=32m;
+SET i = i + 1;
+END WHILE;
+END |
+CREATE PROCEDURE insert_data()
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 10000 DO
+INSERT INTO t6 (l) VALUES (repeat(2, 1024 * 16));
+SET i = i + 1;
+END WHILE;
+END |
+CALL insert_data();;
+CALL update_aes();
+SELECT COUNT(*) FROM t6;
+COUNT(*)
+10000
+DROP TABLE t6;
+DROP PROCEDURE insert_data;
+DROP PROCEDURE update_aes;

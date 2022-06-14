@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ struct MEM_ROOT;
 struct TYPELIB;
 
 ulonglong find_set(const TYPELIB *lib, const char *x, size_t length,
-                   const CHARSET_INFO *cs, char **err_pos, uint *err_len,
+                   const CHARSET_INFO *cs, const char **err_pos, uint *err_len,
                    bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, size_t length,
                bool part_match);
@@ -154,4 +154,47 @@ bool lex_string_strmake(MEM_ROOT *mem_root, LEX_STRING *lex_str,
 bool lex_string_strmake(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
                         const char *str, size_t length);
 
+/**
+   Utility function for copying a LEX_STRING_TYPE (either LEX_STRING
+   or LEX_CSTRING) onto a mem_root.
+
+   @param mem_root Where to allocate
+   @param s        Source string to copy.
+
+   @return LEX_STRING_TYPE refering to the mem_root allocated string.
+ */
+template <class LEX_STRING_TYPE>
+inline LEX_STRING_TYPE LexStringDupRoot(MEM_ROOT *mem_root, LEX_STRING_TYPE s) {
+  return {strmake_root(mem_root, s.str, s.length), s.length};
+}
+
+/**
+   Utility function for copying a LEX_STRING_TYPE (either LEX_STRING
+   or LEX_CSTRING) onto a mem_root, but which does not allocate space
+   for empty strings. If called on a zero-length string EMPTY_CSTR is
+   returned (where str is "").
+
+   @param mem_root Where to allocate
+   @param s        Source string to copy.
+
+   @return LEX_STRING_TYPE refering to the mem_root allocated string,
+   or EMPTY_CSTR.
+ */
+template <class LEX_STRING_TYPE>
+inline LEX_STRING_TYPE LexStringDupRootUnlessEmpty(MEM_ROOT *mem_root,
+                                                   LEX_STRING_TYPE s) {
+  return s.length == 0 ? LEX_CSTRING{"", 0} : LexStringDupRoot(mem_root, s);
+}
+
+/**
+  Utility function for collating (using strnncoll) two LEX_STRING_TYPEs.
+  Saves the boiler plate and casting needed when calling the function directly.
+*/
+template <class LEX_STRING_TYPE>
+inline int strnncmp_nopads(const CHARSET_INFO &cs, LEX_STRING_TYPE &&a,
+                           LEX_STRING_TYPE &&b) {
+  return cs.coll->strnncoll(
+      &cs, pointer_cast<const unsigned char *>(a.str), a.length,
+      pointer_cast<const unsigned char *>(b.str), b.length, false);
+}
 #endif /* STRFUNC_INCLUDED */

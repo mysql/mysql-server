@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,15 +43,15 @@ namespace thd_manager_unittest {
 
 class ThreadManagerTest : public ::testing::Test {
  protected:
-  ThreadManagerTest() {}
+  ThreadManagerTest() = default;
 
-  void SetUp() {
+  void SetUp() override {
     Global_THD_manager::create_instance();
     thd_manager = Global_THD_manager::get_instance();
     thd_manager->set_unit_test();
   }
 
-  void TearDown() {}
+  void TearDown() override {}
 
   Global_THD_manager *thd_manager;
 
@@ -108,7 +108,7 @@ class TestFunc1 : public Do_THD_Impl {
   TestFunc1() : cnt(0) {}
   int get_count() { return cnt; }
   void reset_count() { cnt = 0; }
-  void operator()(THD *) { cnt = cnt + 1; }
+  void operator()(THD *) override { cnt = cnt + 1; }
 };
 
 TEST_F(ThreadManagerTest, TestTHDCopyDoFunc) {
@@ -143,7 +143,7 @@ TEST_F(ThreadManagerTest, TestTHDCopyDoFunc) {
 class TestFunc2 : public Find_THD_Impl {
  public:
   TestFunc2() : search_value(0) {}
-  bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     if (thd->server_id == search_value) {
       return true;
     }
@@ -162,7 +162,7 @@ class TestFunc2 : public Find_THD_Impl {
 class TestFunc3 : public Do_THD_Impl {
  public:
   TestFunc3() : count(0) {}
-  void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (thd->server_id <= 2) {
       count++;
     }
@@ -183,15 +183,28 @@ TEST_F(ThreadManagerTest, TestTHDFindFunc) {
   thd_manager->add_thd(&thd2);
   TestFunc2 testFunc2;
   testFunc2.set_search_value(2);
-  THD *thd = thd_manager->find_thd(&testFunc2);
+  THD_ptr thd_ptr = thd_manager->find_thd(&testFunc2);
   /* Returns the last thd which matches. */
-  EXPECT_EQ(2U, thd->server_id);
+  EXPECT_EQ(2U, thd_ptr->server_id);
 
   testFunc2.set_search_value(6);
-  thd = thd_manager->find_thd(&testFunc2);
+  thd_ptr = thd_manager->find_thd(&testFunc2);
   /* Find non existing thd with server_id value 6. Expected to return NULL. */
-  const THD *null_thd = NULL;
-  EXPECT_EQ(null_thd, thd);
+  const THD *null_thd = nullptr;
+  EXPECT_EQ(null_thd, thd_ptr.get());
+
+  /* Verify if THD being disposed is returned from find_thd() */
+  testFunc2.set_search_value(1);
+  thd_ptr = thd_manager->find_thd(&testFunc2);
+  EXPECT_EQ(1U, thd_ptr->server_id);
+  EXPECT_EQ(false, thd_ptr->is_being_disposed());
+  thd_ptr.release();
+  // Starting thd1 disposal.
+  thd1.release_resources();
+  // Find THD being disposed. Expected to return nullptr.
+  thd_ptr = thd_manager->find_thd(&testFunc2);
+  EXPECT_EQ(null_thd, thd_ptr.get());
+  EXPECT_EQ(true, thd1.release_resources_done());
 
   // Cleanup - Remove added THD.
   thd_manager->remove_thd(&thd1);
@@ -265,7 +278,7 @@ TEST_F(ThreadManagerTest, ThreadID) {
   thd_manager->release_thread_id(UINT_MAX32);
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 TEST_F(ThreadManagerTest, ThreadIDDeathTest) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   my_thread_id thread_id = thd_manager->get_new_thread_id();

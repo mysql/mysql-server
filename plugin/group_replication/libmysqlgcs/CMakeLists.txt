@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,64 +20,89 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (XCOM_BASEDIR
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/)
+SET(XCOM_BASEDIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/)
+
+SET(XCOM_INCLUDE_DIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
+
+SET (XCOM_INCLUDE_DIR
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
 
 ### DEFINITIONS ###
 
-INCLUDE(configure.cmake)
+INCLUDE(cmake/configure.cmake)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_gcs.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
+CONFIGURE_FILE(cmake/mysql_gcs.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/xcom.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom.h)
+CONFIGURE_FILE(cmake/xcom.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom.h)
+
+CONFIGURE_FILE(cmake/xcom_debug.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/task_debug.h COPYONLY)
+
+CONFIGURE_FILE(cmake/gcs_debug.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/gcs_debug.h COPYONLY)
+
+CONFIGURE_FILE(cmake/gcs_profile.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom_profile.h COPYONLY)
 
 ### RPC GEN ###
 
-INCLUDE(rpcgen.cmake)
+INCLUDE(cmake/rpcgen.cmake)
 
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
-)
+  ${XCOM_INCLUDE_DIR}                            # xcom include files
+  ${CMAKE_CURRENT_BINARY_DIR}/include/        # generated xcom include files
+  )
 
 ### SOURCES ###
 
 SET(XCOM_SOURCES
   # XCom
-  src/bindings/xcom/xcom/pax_msg.c
-  src/bindings/xcom/xcom/xcom_base.c
-  src/bindings/xcom/xcom/xcom_memory.c
-  src/bindings/xcom/xcom/xcom_vp_str.c
-  src/bindings/xcom/xcom/xcom_cfg.c
-  src/bindings/xcom/xcom/xcom_cache.c
-  src/bindings/xcom/xcom/xcom_transport.c
-  src/bindings/xcom/xcom/node_address.c
-  src/bindings/xcom/xcom/xcom_msg_queue.c
-  src/bindings/xcom/xcom/xcom_statistics.c
-  src/bindings/xcom/xcom/app_data.c
-  src/bindings/xcom/xcom/site_def.c
-  src/bindings/xcom/xcom/xcom_ssl_transport.c
-  src/bindings/xcom/xcom/xcom_recover.c
-  src/bindings/xcom/xcom/task.c
-  src/bindings/xcom/xcom/bitset.c
-  src/bindings/xcom/xcom/simset.c
-  src/bindings/xcom/xcom/node_set.c
-  src/bindings/xcom/xcom/xcom_interface.c
-  src/bindings/xcom/xcom/node_list.c
-  src/bindings/xcom/xcom/task_debug.c
-  src/bindings/xcom/xcom/sock_probe.c
-  src/bindings/xcom/xcom/task_net.c
-  src/bindings/xcom/xcom/synode_no.c
-  src/bindings/xcom/xcom/xcom_detector.c
-  src/bindings/xcom/xcom/xcom_input_request.c
-  src/bindings/xcom/xcom/get_synode_app_data.c
-  src/bindings/xcom/xcom/checked_data.c
+  src/bindings/xcom/xcom/pax_msg.cc
+  src/bindings/xcom/xcom/xcom_base.cc
+  src/bindings/xcom/xcom/xcom_memory.cc
+  src/bindings/xcom/xcom/xcom_vp_str.cc
+  src/bindings/xcom/xcom/xcom_cfg.cc
+  src/bindings/xcom/xcom/xcom_cache.cc
+  src/bindings/xcom/xcom/xcom_transport.cc
+  src/bindings/xcom/xcom/node_address.cc
+  src/bindings/xcom/xcom/xcom_msg_queue.cc
+  src/bindings/xcom/xcom/xcom_statistics.cc
+  src/bindings/xcom/xcom/app_data.cc
+  src/bindings/xcom/xcom/site_def.cc
+  src/bindings/xcom/xcom/xcom_recover.cc
+  src/bindings/xcom/xcom/task.cc
+  src/bindings/xcom/xcom/bitset.cc
+  src/bindings/xcom/xcom/simset.cc
+  src/bindings/xcom/xcom/node_set.cc
+  src/bindings/xcom/xcom/xcom_interface.cc
+  src/bindings/xcom/xcom/node_list.cc
+  src/bindings/xcom/xcom/task_debug.cc
+  src/bindings/xcom/xcom/sock_probe.cc
+  src/bindings/xcom/xcom/task_net.cc
+  src/bindings/xcom/xcom/synode_no.cc
+  src/bindings/xcom/xcom/xcom_detector.cc
+  src/bindings/xcom/xcom/xcom_input_request.cc
+  src/bindings/xcom/xcom/get_synode_app_data.cc
+  src/bindings/xcom/xcom/checked_data.cc
+  src/bindings/xcom/xcom/xdr_checked_data.c
+  src/bindings/xcom/xcom/network/network_provider_manager.cc
+  src/bindings/xcom/xcom/network/xcom_network_provider.cc
+  src/bindings/xcom/xcom/network/xcom_network_provider_native_lib.cc
+  src/bindings/xcom/xcom/network/xcom_network_provider_ssl_native_lib.cc
+  src/bindings/xcom/xcom/leader_info_data.cc
   ${XCOM_SUNRPC_SOURCES}
   ${XCOM_RPCGEN_SOURCES})
+
+IF(SOLARIS AND (MY_COMPILER_IS_GNU_OR_CLANG))
+  ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES} COMPILE_FLAGS "-Wno-switch")
+ENDIF()
 
 SET(GCS_INTERFACE_SOURCES
   src/interface/gcs_logging.cc
@@ -115,26 +140,18 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_statistics_interface.cc
   src/bindings/xcom/gcs_xcom_proxy.cc
   src/bindings/xcom/gcs_xcom_communication_protocol_changer.cc
-  ../../../extra/lz4/xxhash.c # required by gcs_message_stage_split
+  ${BUNDLED_LZ4_PATH}/xxhash.c # required by gcs_message_stage_split
   src/bindings/xcom/gcs_message_stage_split.cc
-  src/bindings/xcom/gcs_xcom_synode.cc)
-
-MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
-IF(HAVE_CAST_FUNCTION_TYPE)
-  ADD_COMPILE_FLAGS(src/bindings/xcom/xcom/xcom_transport.c
-                    COMPILE_FLAGS "-Wno-cast-function-type")
-ENDIF()
-
-# Add the definition to build XCom with SSL support.
-ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
+  src/bindings/xcom/gcs_xcom_synode.cc
+  src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
 
 ### Configuration ###
 
 # Used to inhibit false posives on CLang 3.8/8.0
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES}
-                    COMPILE_FLAGS
-                    "-Wno-conditional-uninitialized")
+    COMPILE_FLAGS
+    "-Wno-conditional-uninitialized")
 ENDIF()
 
 # disabling warnings for generated code
@@ -143,36 +160,89 @@ IF(MSVC)
   # This disables signed/unsigned mismatch warnings
   # Compiler warning C4018.
   IF(WIN32_CLANG)
-    ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+    ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "-Wno-sign-compare")
   ELSE()
-    ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+    ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
+    # Also disable 'identifier' : unreferenced local variable warnings
+    # Compiler warning C4101
+    ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES} COMPILE_FLAGS "/wd4101")
   ENDIF()
-ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
-       CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
+  ADD_COMPILE_FLAGS(
+    src/bindings/xcom/xcom/xcom_base.cc
+    src/bindings/xcom/xcom/sock_probe.cc
     COMPILE_FLAGS
-    "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
+    "-Wno-unused-function")
+  ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
+    COMPILE_FLAGS
+    -Wno-incompatible-pointer-types
+    -Wno-unused-function
+    -Wno-unused-local-typedefs
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    )
+  IF(SOLARIS AND MY_COMPILER_IS_GNU)
+    # rpcgen generates 'void bzero();'
+    ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}
+      COMPILE_FLAGS
+      "-Wno-builtin-declaration-mismatch"
+      )
+  ENDIF()
 ENDIF()
 
-ADD_COMPILE_DEFINITIONS(
+MY_ADD_COMPILE_DEFINITIONS(
   ${XCOM_SOURCES}
   ${GCS_SOURCES}
   COMPILE_DEFINITIONS MYSQL_DYNAMIC_PLUGIN)
 
-ADD_COMPILE_DEFINITIONS(../../../extra/lz4/xxhash.c
+INCLUDE_DIRECTORIES(${BUNDLED_LZ4_PATH})
+
+MY_ADD_COMPILE_DEFINITIONS(${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS "XXH_NAMESPACE=GCS_")
 
-ADD_LIBRARY(${GCS_LIBRARY} STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
+# Warn about variable shadowing
+IF(MYSQL_MAINTAINER_MODE)
+  IF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_OPTIONS("-Wshadow")
+  ELSEIF(MY_COMPILER_IS_GNU)
+    # GCC's -Wshadow is too noisy. Starting with GCC 7 we can use the
+    # more surgical -Wshadow=compatible-local
+    IF(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+      ADD_COMPILE_OPTIONS("-Wshadow=compatible-local")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+ADD_LIBRARY(mysqlgcs STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
+# Dependency on mysys from gcs_logging_system.cc
+# but pick up symbols from the server:
+# TARGET_LINK_LIBRARIES(mysqlgcs mysys)
+
+IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
+  # New in version 3.19:
+  # An interface library target may be created with source files.
+  ADD_LIBRARY(xcom_rpcgen_headers INTERFACE ${GEN_RPC_H_FILES})
+  SET_PROPERTY(TARGET xcom_rpcgen_headers PROPERTY EXCLUDE_FROM_ALL TRUE)
+  ADD_DEPENDENCIES(clang_tidy_prerequisites xcom_rpcgen_headers)
+ELSE()
+  # Older cmake version? Generate the full libraries instead.
+  ADD_DEPENDENCIES(clang_tidy_prerequisites mysqlgcs)
+ENDIF()
+
+IF(WIN32)
+  # UINT8_MAX: macro redefinition
+  TARGET_COMPILE_OPTIONS(mysqlgcs PRIVATE "/wd4005")
+ENDIF()
 
 IF(TIRPC_LIBRARIES)
-  TARGET_LINK_LIBRARIES(${GCS_LIBRARY} ${TIRPC_LIBRARIES})
+  TARGET_LINK_LIBRARIES(mysqlgcs ${TIRPC_LIBRARIES})
 ENDIF()
 
 IF(MSVC)
-	TARGET_LINK_LIBRARIES(${GCS_LIBRARY} iphlpapi)
+  TARGET_LINK_LIBRARIES(mysqlgcs iphlpapi)
 ENDIF()
 
 # convenience target
-ADD_CUSTOM_TARGET(lib${GCS_LIBRARY} DEPENDS ${GCS_LIBRARY})
+ADD_CUSTOM_TARGET(libmysqlgcs DEPENDS mysqlgcs)

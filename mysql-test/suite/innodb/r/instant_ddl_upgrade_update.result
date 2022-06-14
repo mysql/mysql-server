@@ -1,0 +1,131 @@
+#########
+# SETUP #
+#########
+# Stop the running the server
+# Copy and unzip the datadir.
+# Restart the server against the unzipped datadir
+# restart: --datadir=DATADIR --innodb-page-size=16k
+##############################################
+# Test instant ADD/DROP COLUMN for REDUNDANT format
+##############################################
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   table t1_redundant having
+#     c1 normal column
+#     c2 INSTANT ADD column
+#
+#   table t2_redundant having
+#     id, c1 normal columns
+#     c2 INSTANT ADD column
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `c1` longtext,
+  `c2` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+BEGIN;
+UPDATE t1_redundant SET c2 = 0;
+ROLLBACK;
+SELECT SUBSTRING(c1, 1000, 32) FROM t1_redundant;
+SUBSTRING(c1, 1000, 32)
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SHOW CREATE TABLE t2_redundant;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `c1` longtext,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+BEGIN;
+UPDATE t2_redundant SET c2 = 0;
+ROLLBACK;
+SELECT SUBSTRING(c1, 1000, 32) FROM t2_redundant;
+SUBSTRING(c1, 1000, 32)
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+############################################
+# Test instant ADD/DROP COLUMN for DYNAMIC format
+############################################
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   table t1_dynamic having
+#     c1 normal column
+#     c2 INSTANT ADD column
+#
+#   table t2_dynamic having
+#     id, c1 normal columns
+#     c2 INSTANT ADD column
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `c1` longtext,
+  `c2` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+BEGIN;
+UPDATE t1_dynamic SET c2 = 0;
+ROLLBACK;
+SELECT SUBSTRING(c1, 1000, 32) FROM t1_dynamic;
+SUBSTRING(c1, 1000, 32)
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SHOW CREATE TABLE t2_dynamic;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `c1` longtext,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+BEGIN;
+UPDATE t2_dynamic SET c2 = 0;
+ROLLBACK;
+SELECT SUBSTRING(c1, 1000, 32) FROM t2_dynamic;
+SUBSTRING(c1, 1000, 32)
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+############################################
+# Test instant ADD/DROP COLUMN for COMPACT format
+############################################
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   table t1_compact having
+#     c1 normal column
+#     c2 INSTANT ADD column
+#
+#   table t2_compact having
+#     id, c1 normal columns
+#     c2 INSTANT ADD column
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `c1` longtext,
+  `c2` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+BEGIN;
+UPDATE t1_compact SET c2 = 0;
+ROLLBACK;
+SELECT SUBSTRING(c1, 1000, 32) FROM t1_compact;
+SUBSTRING(c1, 1000, 32)
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SHOW CREATE TABLE t2_compact;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `c1` longtext,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+BEGIN;
+UPDATE t2_compact SET c2 = 0;
+ROLLBACK;
+SELECT SUBSTRING(c1, 1000, 32) FROM t2_compact;
+SUBSTRING(c1, 1000, 32)
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+###########
+# CLEANUP #
+###########
+# Shutdown server
+# Remove copied files
+# Restarting server to restore server state
+# restart

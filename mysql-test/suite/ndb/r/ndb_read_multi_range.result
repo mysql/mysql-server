@@ -9,16 +9,12 @@ insert into t1 values
 (1,2,1),(2,3,2),(3,4,3),(4,5,4),
 (5,2,12),(6,3,11),(7,4,10),(8,5,9),
 (9,2,8),(10,3,7),(11,4,6),(12,5,5);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set autocommit=off;
 create table r1 as select * from t1 where a in (2,8,12);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 2	3	2
@@ -26,10 +22,8 @@ a	b	c
 12	5	5
 drop table r1;
 create table r1 as select * from t1 where b in (1,2,5);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 1	2	1
@@ -40,10 +34,8 @@ a	b	c
 12	5	5
 drop table r1;
 create table r1 as select * from t1 where c in (2,8,12);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 2	3	2
@@ -51,10 +43,8 @@ a	b	c
 9	2	8
 drop table r1;
 create table r1 as select * from t1 where a in (2,8) or (a > 11) or (a <= 1);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 1	2	1
@@ -63,20 +53,16 @@ a	b	c
 12	5	5
 drop table r1;
 create table r1 as select * from t1 where a in (33,8,12);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 8	5	9
 12	5	5
 drop table r1;
 create table r1 as select * from t1 where a in (2,33,8,12,34);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 2	3	2
@@ -84,10 +70,8 @@ a	b	c
 12	5	5
 drop table r1;
 create table r1 as select * from t1 where b in (1,33,5);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 4	5	4
@@ -99,15 +83,11 @@ a	b	c
 4	5	4
 8	5	9
 12	5	5
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 create table r1 as select * from t1 where b in (45,1,33,5,44);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 3
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 4	5	4
@@ -116,25 +96,19 @@ a	b	c
 drop table r1;
 select * from t1 force index(b) where b in (45,22) order by a;
 a	b	c
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 create table r1 as select * from t1 where c in (2,8,33);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 3
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 2	3	2
 9	2	8
 drop table r1;
 create table r1 as select * from t1 where c in (13,2,8,33,12);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a;
 a	b	c
 2	3	2
@@ -145,26 +119,20 @@ select * from t1 where a in (33,8,12) order by a;
 a	b	c
 8	5	9
 12	5	5
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where a in (33,34,35) order by a;
 a	b	c
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where a in (2,8) or (a > 11) or (a <= 1) order by a;
 a	b	c
 1	2	1
 2	3	2
 8	5	9
 12	5	5
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where b in (6,7) or (b <= 5) or (b >= 10) order by b,a;
 a	b	c
 1	2	1
@@ -179,19 +147,15 @@ a	b	c
 4	5	4
 8	5	9
 12	5	5
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from t1 where c in (13,2,8,33,12) order by c,a;
 a	b	c
 2	3	2
 9	2	8
 5	2	12
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;
 set autocommit=on;
 create table t1 (
@@ -210,16 +174,12 @@ insert into t1 values
 (1,2,1,3,1),
 (1,2,1,4,1),
 (1,2,1,5,1);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 create table r1 as select * from t1
 where a=1 and b=2 and c=1 and d in (1,4,3,2);
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from r1 order by a,b,c,d;
 a	b	c	d	e
 1	2	1	1	1
@@ -614,6 +574,8 @@ drop table t1;
 create table t1 (a varchar(1536) not null,
 b varchar(1532) not null,
 c int, primary key (a,b)) character set latin1 engine=ndb;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 insert into t1 values ('a', 'a', 1), ('b', 'b', 2), ('c', 'c', 3),
 ('d', 'd', 4), ('e', 'e', 5), ('f', 'f', 6),
 ('g', 'g', 7), ('h', 'h', 8), ('i', 'i', 9),
@@ -661,9 +623,9 @@ SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM
 t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	3000	100.00	Using temporary
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Using where; Using MRR; Distinct
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Using pushed condition ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` <> 6)); Using MRR; Distinct
 Warnings:
-Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't2' as child, access type 'Range-scan' not implemented
 Note	1003	/* select#1 */ select straight_join distinct `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` <> 6))) where true
 SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
 t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;

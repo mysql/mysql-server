@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 
 class Config {
 public:
-  Config(struct ndb_mgm_configuration *config_values = NULL);
+  Config(ndb_mgm_configuration *configuration = NULL);
   Config(ConfigValues* config_values);
   Config(const Config*);
   virtual ~Config();
@@ -80,12 +80,13 @@ public:
   /*
    Pack the config into a UtilBuffer and return it's size in bytes
   */
-  Uint32 pack(UtilBuffer&) const;
+  Uint32 pack(UtilBuffer&, bool v2) const;
 
   /*
-    Pack the config as base64
+    Pack the config as base64, v1 and v2
   */
-  bool pack64(BaseString&) const;
+  bool pack64_v1(BaseString&) const;
+  bool pack64_v2(BaseString&, Uint32 node_id = 0) const;
 
   /*
     Compare against another config and return a list of
@@ -128,9 +129,10 @@ public:
     Return the checksum of the config. The checksum can be used to compare
     two configs without having the whole config available(for example on
     a remote host). It can also be printed to log files for manual verification
-    that same config is used
+    that same config is used.
+    Currently only used for testing.
   */
-  Uint32 checksum(void) const;
+  Uint32 checksum(bool v2 = true) const;
 
   /*
     Return bitmask of all defined nodes of a certain type
@@ -139,8 +141,9 @@ public:
   void get_nodemask(NodeBitmask& mask,
                     ndb_mgm_node_type type = NDB_MGM_NODE_TYPE_UNKNOWN) const;
 
-  struct ndb_mgm_configuration * m_configValues;
-  struct ndb_mgm_configuration * values(void) const { return m_configValues; }
+  ndb_mgm_configuration * m_configuration;
+  // Return pointer to the configuration owned by Config
+  ndb_mgm_configuration * get_configuration() const { return m_configuration; }
 
 private:
   bool setValue(Uint32 section, Uint32 section_no,
@@ -156,7 +159,7 @@ private:
 class ConfigIter : public ndb_mgm_configuration_iterator {
 public:
   ConfigIter(const Config* conf, unsigned type) :
-    ndb_mgm_configuration_iterator(*conf->m_configValues, type) {}
+    ndb_mgm_configuration_iterator(conf->m_configuration, type) {}
 };
 
 #endif // Config_H

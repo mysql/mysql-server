@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include "mysql/harness/plugin.h"
 
+#include "harness_export.h"
+
 #include <map>
 #include <string>
 
@@ -40,7 +42,7 @@ namespace mysql_harness {
  * dedicated .so or .dll file) but implements the same API as the external
  * plugin (init(), start(), etc.) that is called by the Loader.
  */
-class BuiltinPlugins {
+class HARNESS_EXPORT BuiltinPlugins {
  public:
   /**
    * @brief Gets the singleton instance.
@@ -100,9 +102,14 @@ class BuiltinPlugins {
     return plugins_.at(plugin_name).plugin;
   }
 
+  /**
+   * add plugin to the built in plugins.
+   */
+  void add(std::string name, PluginInfo plugin_info);
+
  private:
   BuiltinPlugins();
-  const PluginsMap plugins_;
+  PluginsMap plugins_;
 };
 
 }  // namespace mysql_harness

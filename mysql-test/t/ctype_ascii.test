@@ -23,3 +23,12 @@ SET NAMES ascii;
 --source include/ctype_inet.inc
 
 --echo End of 5.6 tests.
+
+--echo # Bug#24847620: Invalid ASCII values accepted into ASCII columns
+
+CREATE TABLE t1 (v VARCHAR(10) CHARACTER SET ASCII);
+INSERT INTO t1 VALUES('a');
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES(0xe5);
+SELECT HEX(v) FROM t1;
+DROP TABLE t1;

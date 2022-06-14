@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,14 +57,18 @@ class Backup : public SimulatedBlock
 {
   friend class BackupProxy;
 
+  bool m_is_query_block;
 public:
-  Backup(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Backup();
+  Backup(Block_context& ctx,
+         Uint32 instanceNumber = 0,
+         Uint32 blockNo = BACKUP);
+  ~Backup() override;
   BLOCK_DEFINES(Backup);
  
   class Dblqh* c_lqh;
   class Dbtup* c_tup;
   class Lgman* c_lgman;
+  class Pgman* c_pgman;
 
   enum CallbackIndex {
     // lgman
@@ -82,6 +86,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
+  void execNODE_START_REP(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -194,6 +199,7 @@ protected:
   void execSYNC_EXTENT_PAGES_CONF(Signal*);
   void execEND_LCPREQ(Signal* signal);
   void execINFORM_BACKUP_DROP_TAB_REQ(Signal*);
+  void execWAIT_LCP_IDLE_REQ(Signal*);
 
   void execDBINFO_SCANREQ(Signal *signal);
 
@@ -205,8 +211,9 @@ private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
+  Uint32 validateEncryptionPassword(const EncryptionKeyMaterial* epd);
 
-public:
+ public:
   struct Node {
     Uint32 nodeId;
     Uint32 alive;
@@ -283,7 +290,7 @@ public:
     Uint32 createGci;
     Uint16 node;
     Uint16 fragmentId;
-    Uint8 lqhInstanceKey;
+    Uint32 lqhInstanceKey;
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 firstFragment;
@@ -379,7 +386,7 @@ public:
      * Once per scan frag (next) req/conf
      */
     bool newScan();
-    void scanConf(Uint32 noOfOps, Uint32 opLen);
+    void scanConf(Uint32 noOfOps, Uint32 opLen, Uint32 buffer_data_len);
     Uint32 publishBufferData();
     void closeScan();
     
@@ -579,12 +586,19 @@ public:
                  BackupFile_pool& bp,
                  TriggerRecord_pool& trp)
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
-      , m_first_fragment(false), prepare_table(tp), tables(tp), triggers(trp), files(bp)
-      , ctlFilePtr(RNIL), logFilePtr(RNIL)
-      , masterData(b), backup(b)
-
+      , m_first_fragment(false)
+      , m_num_fragments(0)
+      , prepare_table(tp)
+      , tables(tp)
+      , triggers(trp), files(bp)
+      , ctlFilePtr(RNIL)
+      ,logFilePtr(RNIL)
+      , masterData(b)
+      , backup(b)
+      , m_encrypted_file(false)
       {
         m_wait_end_lcp = false;
+        m_wait_empty_queue = false;
         m_initial_lcp_started = false;
         m_wait_gci_to_delete = 0;
         localLcpId = 0;
@@ -618,6 +632,12 @@ public:
     NDB_TICKS m_prev_report;
 
     bool m_wait_end_lcp;
+    /**
+     * DBLQH have requested us to report when LCP activity ceases.
+     * If this variable is true we are waiting for delete file
+     * queue to become empty to respond that LCP activity is idle.
+     */
+    bool m_wait_empty_queue;
     bool m_initial_lcp_started;
     Uint32 m_gsn;
     Uint32 m_lastSignalId;
@@ -625,6 +645,7 @@ public:
     CompoundState slaveState; 
 
     bool m_first_fragment;
+    Uint32 m_num_fragments;
     /**
      * Which header file is used for this LCP, there are only two 0 and 1.
      *
@@ -819,6 +840,9 @@ public:
     Uint32 backupDataLen;  // Used for (un)packing backup request
     SimpleProperties props;// Used for (un)packing backup request
 
+    NDB_TICKS m_start_sync_op;
+    NDB_TICKS m_high_res_lcp_start_time;
+
     struct SlaveData {
       SignalCounter trigSendCounter;
       Uint32 gsn;
@@ -893,6 +917,9 @@ public:
     {
       backup.progError(line, cause, extra, check);
     }
+
+    bool m_encrypted_file;
+    EncryptionKeyMaterial m_encryption_password_data;
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
@@ -913,6 +940,7 @@ public:
 #define MAX_BUFFER_USED_WITHOUT_REDO_ALERT (512 * 1024)
 #define BACKUP_DEFAULT_WRITE_SIZE (256 * 1024)
 #define BACKUP_DEFAULT_BUFFER_SIZE (2 * 1024 * 1024)
+#define BACKUP_DEFAULT_LOGBUFFER_SIZE (16 * 1024 * 1024)
 
   struct Config {
     Uint32 m_dataBufferSize;
@@ -931,6 +959,7 @@ public:
     Uint32 m_o_direct;
     Uint32 m_compressed_backup;
     Uint32 m_compressed_lcp;
+    Uint32 m_encryption_required;
   };
   
   /**
@@ -943,11 +972,14 @@ public:
    * look for the table with the correct backupPtr.
    */
   Uint32 * c_tableMap;
+  Uint32 c_tableMapSize;
   NodeId c_masterNodeId;
   Node_list c_nodes;
   NdbNodeBitmask c_aliveNodes;
   BackupRecord_dllist c_backups;
   Config c_defaults;
+
+  bool c_encrypted_filesystem;
 
   /*
     Variables that control checkpoint to disk speed
@@ -969,6 +1001,12 @@ public:
 //#ifdef VM_TRACE
   Uint64 m_debug_redo_log_count;
 //#endif
+
+  /* Keep track of disk data usage in checkpoints */
+  Uint64 m_current_dd_time_us;
+  Uint32 m_last_lcp_dd_percentage;
+  Uint32 m_undo_log_level_percentage;
+  Uint32 m_max_undo_log_level_percentage;
 
   RedoStateRep::RedoAlertState m_redo_alert_state;
   RedoStateRep::RedoAlertState m_local_redo_alert_state;
@@ -993,6 +1031,8 @@ public:
   Uint64 m_lcp_timing_factor;
   Int64 m_lcp_lag[2];
   Uint32 m_lcp_timing_counter;
+  Uint32 m_redo_percentage;
+  Uint32 m_max_redo_percentage;
   bool m_first_lcp_started;
 
   void init_lcp_timers(Uint64);
@@ -1039,8 +1079,8 @@ public:
                                      Uint64 seconds_since_lcp_cut);
   void measure_change_speed(Signal*, Uint64 millis_since_last_call);
   void debug_report_redo_control(Uint32);
-  void lcp_start_point();
-  void lcp_end_point();
+  void lcp_start_point(Signal*);
+  bool lcp_end_point(BackupRecordPtr);
   Uint64 calculate_proposed_disk_write_speed();
 
   Uint32 m_curr_lcp_id;
@@ -1157,9 +1197,9 @@ public:
                              Uint64 & std_dev_redo_in_bytes_per_sec);
 
 
-  STATIC_CONST(NO_OF_PAGES_META_FILE = 
-	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 
-	       BACKUP_WORDS_PER_PAGE);
+  static constexpr Uint32 NO_OF_PAGES_META_FILE = 
+	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) /
+	       BACKUP_WORDS_PER_PAGE;
 
   Uint32 m_backup_report_frequency;
 
@@ -1309,8 +1349,10 @@ public:
   Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*,
                                Uint32,
                                struct BackupFormat::PartPair*);
+
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*, Uint32 file_size);
+
   void handle_idle_lcp(Signal*, BackupRecordPtr);
   Uint64 get_total_memory();
   Uint64 calculate_row_change_count(BackupRecordPtr);
@@ -1368,13 +1410,18 @@ public:
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void check_wait_end_lcp(Signal*, BackupRecordPtr ptr);
+  void check_empty_queue_waiters(Signal*, BackupRecordPtr ptr);
   void delete_lcp_file_processing(Signal*);
   void finished_removing_files(Signal*, BackupRecordPtr);
+  void handleEND_LCPCONF(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);
+  void checkEND_LCPCONF(Signal*, BackupRecordPtr, bool ready);
+  void check_pgman_prep_lcp_ready(Signal *signal, Uint32 ptrI);
+  void send_firstSYNC_EXTENT_PAGES_REQ(Signal*, BackupRecordPtr);
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
 
   void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
-  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
+  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 unused);
   void lcp_open_ctl_file_for_rewrite(Signal*,
                                      DeleteLcpFilePtr,
                                      BackupRecordPtr);
@@ -1411,18 +1458,19 @@ public:
    * MT LQH.  LCP runs separately in each instance number.
    * BACKUP uses instance key 1 (real instance 0 or 1) as master.
   */
-  STATIC_CONST( NdbdInstanceKey = 0 );
-  STATIC_CONST( BackupProxyInstanceKey = 0 );
-  STATIC_CONST( UserBackupInstanceKey = 1 );
+  static constexpr Uint32 NdbdInstanceKey = 0;
+  static constexpr Uint32 BackupProxyInstanceKey = 0;
+  static constexpr Uint32 UserBackupInstanceKey = 1;
   /*
-   * instanceKey() is used for routing backup control signals and has 3
+   * instanceNo() is used for routing backup control signals and has 3
    * use cases:
    * - LCP: return own instance ID, i.e route signal to self
    * - multi-threaded backup: return instance of BackupProxy, which
            forwards signal to all instances, i.e. route signal to all instances
    * - single-threaded backup: return instance 1, i.e. route signal to LDM1
    */
-  Uint32 instanceKey(BackupRecordPtr ptr) {
+  Uint32 instanceNo(BackupRecordPtr ptr)
+  {
      return ptr.p->is_lcp() ?
             instance() : (ptr.p->flags & BackupReq::MT_BACKUP) ?
             BackupProxyInstanceKey : UserBackupInstanceKey;
@@ -1432,19 +1480,16 @@ public:
    * single-threaded backup: assign fragment to LDM1
    * multithreaded backup: assign fragment to LDM which owns it
    */
-  Uint32 mapFragToLdm(BackupRecordPtr ptr, Uint32 ownerNode, Uint32 ownerLdm)
+  Uint32 mapFragToLdm(BackupRecordPtr ptr,
+                      Uint32 ownerNode,
+                      Uint32 instanceKey)
   {
     // instance key is 1..n and may be larger than actual number of ldms.
     // To ensure we only schedule one fragment per actual ldm at a time, we
     // use node information to determine actual ldm which will process request.
-    int lqh_workers = getNodeInfo(ownerNode).m_lqh_workers;
-    // adjust values which would be 0 in ndbd
-    lqh_workers += (lqh_workers == 0);
-    ownerLdm += (ownerLdm == 0);
-    // calculate instance key
-    Uint32 key = 1 + ((ownerLdm - 1) % lqh_workers);
+    Uint32 instanceNo = getInstanceNo(ownerNode, instanceKey);
     return (ptr.p->flags & BackupReq::MT_BACKUP) ?
-            key : UserBackupInstanceKey;
+            instanceNo : UserBackupInstanceKey;
   }
 
   bool is_backup_worker()
@@ -1484,6 +1529,8 @@ public:
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
 
+  void set_undo_log_level(Uint32 percentage_used);
+
   bool check_pause_lcp_backup(BackupRecordPtr ptr,
                               bool is_lcp,
                               bool is_send_scan_next_req);
@@ -1491,6 +1538,8 @@ public:
   bool check_pause_lcp();
   void update_pause_lcp_counter(Uint32 loop_count);
   void pausing_lcp(Uint32 place, Uint32 val);
+  void get_lcp_record(BackupRecordPtr &ptr);
+  bool get_backup_record(BackupRecordPtr &ptr);
 public:
   bool is_change_part_state(Uint32 page_id);
   Uint32 get_max_words_per_scan_batch(Uint32, Uint32&, Uint32, Uint32);

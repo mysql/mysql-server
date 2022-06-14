@@ -15,3 +15,7 @@ ALTER TABLE performance_schema.variables_info
 CREATE UNIQUE INDEX test_index
   ON performance_schema.variables_info(VARIABLE_NAME);
 
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.variables_info;
+
+DROP TABLE test.create_select;

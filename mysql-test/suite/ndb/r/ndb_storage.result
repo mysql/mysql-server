@@ -9,11 +9,11 @@ ADD DATAFILE 'ts1_datafile.dat'
 INITIAL_SIZE 10M
 ENGINE ndb;
 CREATE TABLE t5 (a int PRIMARY KEY, t5b int, t5c int)
-ENGINE ndb;
+ENGINE ndb TABLESPACE ts1;
 INSERT INTO t5 VALUES (1, 1, 1);
-ALTER TABLE t5 ALGORITHM=inplace, STORAGE disk TABLESPACE ts1;
+ALTER TABLE t5 ALGORITHM=inplace, STORAGE disk;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Column storage media is changed due to change in table storage media. Try ALGORITHM=COPY.
-ALTER TABLE t5 STORAGE DISK TABLESPACE ts1;
+ALTER TABLE t5 STORAGE DISK;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 ERROR HY000: Failed to alter: DROP DATAFILE FAILED

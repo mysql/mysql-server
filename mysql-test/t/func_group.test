@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #
 # simple test of all group functions
 #
@@ -40,8 +34,10 @@ insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 
 select sum(all a),count(all a),avg(all a),std(all a),variance(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
+--sorted_result
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 --disable_warnings
+--sorted_result
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 --enable_warnings
 
@@ -50,6 +46,7 @@ insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 
 # REPLACE ... SELECT does not yet work with PS
 replace into t2 select grp, a, c from t1 limit 2,1;
+--sorted_result
 select * from t2;
 
 drop table t1,t2;
@@ -126,6 +123,7 @@ insert into t1 values (10.3,'nem'),(20.53,'monty'),(30.23,'sinisa');
 insert into t1 values (30.13,'nem'),(20.98,'monty'),(10.45,'sinisa');
 insert into t1 values (5.2,'nem'),(8.64,'monty'),(11.12,'sinisa');
 select sum(num) from t1;
+--sorted_result
 select sum(num) from t1 group by user;
 drop table t1;
 
@@ -136,6 +134,7 @@ drop table t1;
 create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
 insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
 create table t2(a1 char(3), a2 int, a3 real, key k1(a1), key k2(a2, a1));
+analyze table t1, t2;
 select * from t1;
 # The following returned NULL in 4.0.10
 select min(a2) from t1;
@@ -148,6 +147,7 @@ explain select max(t1.a1), max(t2.a2) from t1, t2;
 
 insert into t2 values('AAA', 10, 0.5);
 insert into t2 values('BBB', 20, 1.0);
+--sorted_result
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
@@ -180,6 +180,7 @@ select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_an
 insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+analyze table t1;
 explain select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 drop table t1;
 
@@ -250,8 +251,12 @@ insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
 insert into t2 values('AAA','AAA','AA','AME');
 
+analyze table t1, t2;
+
 # Show the table contents
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 
 # Queries with min/max functions 
@@ -365,7 +370,7 @@ select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 
 # Queries to which max/min optimization is not applied
-
+ANALYZE TABLE t1, t2;
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 explain 
@@ -569,6 +574,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (id int PRIMARY KEY, b char(3), INDEX(b));
 INSERT INTO t1 VALUES (1,'xx'), (2,'aa');
+--sorted_result
 SELECT * FROM t1;
 
 SELECT MAX(b) FROM t1 WHERE b < 'ppppp';
@@ -578,6 +584,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (id int PRIMARY KEY, b char(16), INDEX(b(4)));
 INSERT INTO t1 VALUES (1, 'xxxxbbbb'), (2, 'xxxxaaaa');
+ANALYZE TABLE t1;
 SELECT MAX(b) FROM t1;
 EXPLAIN SELECT MAX(b) FROM t1;
 DROP TABLE t1;
@@ -588,6 +595,7 @@ INSERT INTO t1 VALUES
   (1,CONCAT(REPEAT('_', 250), "aa")), (1,CONCAT(REPEAT('_', 250), "ff"));
 
 SELECT MAX(b) FROM t1;
+ANALYZE TABLE t1;
 EXPLAIN SELECT MAX(b) FROM t1;
 DROP TABLE t1;
 #
@@ -647,6 +655,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 decimal(16,12));
 INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.00000000000),(-5.00000000001),(-5.00000000002);
 insert into t1 select * from t1;
+--sorted_result
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 DROP TABLE t1;
 
@@ -657,10 +666,12 @@ DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
 insert into t1 values (-5.00000000001);
 insert into t1 values (-5.00000000001);
+--sorted_result
 select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 delete from t1;
 insert into t1 values (5.00000000001);
 insert into t1 values (5.00000000001);
+--sorted_result
 select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 DROP TABLE t1;
 
@@ -691,7 +702,9 @@ INSERT INTO t1 (a, b, c) VALUES
   (3,3,1), (3,3,2), (3,3,3);
 
 SELECT b/c as v, a FROM t1 ORDER BY v, a;
+--sorted_result
 SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
+--sorted_result
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 
 DROP TABLE t1;
@@ -860,27 +873,32 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 ( a INT, b INT, KEY(a) );
 INSERT INTO t1 VALUES (NULL, 1), (NULL, 2);
+ANALYZE TABLE t1;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t1;
 SELECT MIN(a), MIN(b) FROM t1;
 
 CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
 INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
+ANALYZE TABLE t2;
 EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 
 CREATE TABLE t3 (a INT, b INT, c int, KEY(a, b));
 INSERT INTO t3 VALUES (1, NULL, 1), (2, NULL, 2),  (2, NULL, 2),  (3, NULL, 3);
+ANALYZE TABLE t3;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t3 where a = 2;
 SELECT MIN(a), MIN(b) FROM t3 where a = 2;
 
 CREATE TABLE t4 (a INT, b INT, c int, KEY(a, b));
 INSERT INTO t4 VALUES (1, 1, 1), (2, NULL, 2),  (2, NULL, 2),  (3, 1, 3);
+ANALYZE TABLE t4;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t4 where a = 2;
 SELECT MIN(a), MIN(b) FROM t4 where a = 2;
 SELECT MIN(b), min(c) FROM t4 where a = 2;
 
 CREATE TABLE t5( a INT, b INT, KEY( a, b) ); 
 INSERT INTO t5 VALUES( 1, 1 ), ( 1, 2 );
+ANALYZE TABLE t5;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
 SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
 SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1 and b > 1;
@@ -941,6 +959,7 @@ set SQL_MODE=ONLY_FULL_GROUP_BY;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
+ANALYZE TABLE t1;
 EXPLAIN SELECT y FROM v1 GROUP BY v1.y;
 
 DROP VIEW v1;
@@ -1062,6 +1081,7 @@ FROM t1
 ORDER BY max;
 
 --echo
+ANALYZE TABLE t1;
 EXPLAIN
 SELECT MAX(pk) as max, i
 FROM t1
@@ -1084,7 +1104,7 @@ DROP TABLE t1;
 --echo # Bug#43668: Wrong comparison and MIN/MAX for YEAR(2)
 --echo # WL#6263: Remove year(2)
 --echo #
-create table t1 (f1 year(4), f2 year(4), f3 date, f4 datetime);
+create table t1 (f1 year, f2 year, f3 date, f4 datetime);
 insert into t1 values
   (98,1998,19980101,"1998-01-01 00:00:00"),
   ('00',2000,20000101,"2000-01-01 00:00:01"),
@@ -1096,15 +1116,19 @@ select min(f1),max(f1) from t1;
 select min(f2),max(f2) from t1;
 select min(f3),max(f3) from t1;
 select min(f4),max(f4) from t1;
+--sorted_result
 select a.f1 as a, b.f1 as b, a.f1 > b.f1 as gt,
        a.f1 < b.f1 as lt, a.f1<=>b.f1 as eq
 from t1 a, t1 b;
+--sorted_result
 select a.f1 as a, b.f2 as b, a.f1 > b.f2 as gt,
        a.f1 < b.f2 as lt, a.f1<=>b.f2 as eq
 from t1 a, t1 b;
+--sorted_result
 select a.f1 as a, b.f3 as b, a.f1 > b.f3 as gt,
        a.f1 < b.f3 as lt, a.f1<=>b.f3 as eq
 from t1 a, t1 b;
+--sorted_result
 select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
        a.f1 < b.f4 as lt, a.f1<=>b.f4 as eq
 from t1 a, t1 b;
@@ -1161,7 +1185,7 @@ DROP TABLE t1;
 --echo # Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
 --echo #
 
-CREATE TABLE t1(f1 YEAR(4));
+CREATE TABLE t1(f1 YEAR);
 INSERT INTO t1 VALUES (0000),(2001);
 --enable_metadata
 (SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);
@@ -1326,3 +1350,118 @@ DROP TABLE t1, t2, t3, t4;
 
 --echo # End of test for bug#25541454
 
+--echo #
+--echo # Bug#29596977 MYSQL OPTIMIZER SCAN FULL INDEX FOR MAX() ON INDEXED COLUMN.
+--echo #
+
+CREATE TABLE t1 (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  f1 BIGINT,
+  PRIMARY KEY(id),
+  INDEX ix_fd2 (f1)
+);
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (NULL, 3);
+
+DELIMITER |;
+CREATE FUNCTION f1 (par INT) RETURNS INT
+    DETERMINISTIC
+    SQL SECURITY INVOKER
+BEGIN
+   RETURN par + 1;
+END|
+DELIMITER ;|
+
+ANALYZE TABLE t1;
+EXPLAIN SELECT f1(MAX(f1)) FROM t1;
+SELECT f1(MAX(f1)) FROM t1;
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#31848191: ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER,f2 INTEGER);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NULL;
+SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NOT NULL;
+DROP TABLE t1;
+
+--echo # Bug#32713860: Executing prepare returns wrong result
+
+CREATE TABLE t1 (
+  i8 BIGINT UNIQUE,
+  dc DECIMAL(10,4) UNIQUE,
+  f8 DOUBLE UNIQUE,
+  vc VARCHAR(10) UNIQUE
+);
+INSERT INTO t1 VALUES(123456, 123456.7890, 123456, '123456');
+
+SET @i8=123456;
+SET @dc='123456.7890';
+SET @f8=123456.0E0;
+SET @vc='123456';
+
+PREPARE si8 FROM 'SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE ei8 FROM 'EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE sdc FROM 'SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE edc FROM 'EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE sf8 FROM 'SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE ef8 FROM 'EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE svc FROM 'SELECT MAX(vc) FROM t1 WHERE vc > ?';
+PREPARE evc FROM 'EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > ?';
+
+SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+EXECUTE si8 USING @i8;
+EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+EXECUTE ei8 USING @i8;
+SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+EXECUTE sdc USING @dc;
+EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+EXECUTE edc USING @dc;
+SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+EXECUTE sf8 USING @f8;
+EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+EXECUTE ef8 USING @f8;
+SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+EXECUTE svc USING @vc;
+EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+EXECUTE evc USING @vc;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32552332 - CAN'T WRITE; DUPLICATE KEY IN TABLE '/TMP/#SQL...'
+--echo #
+
+CREATE TABLE tr (c1 INT);
+INSERT INTO tr VALUES (1);
+
+# Generates a integer sequence from 1 to 2 and repeats
+DELIMITER |;
+CREATE FUNCTION seq_1_to_2() RETURNS INT
+BEGIN
+  DECLARE limit_value, return_value INT;
+  SET limit_value = 2;
+  SELECT c1 INTO return_value FROM tr;
+  IF (return_value < limit_value) THEN
+     UPDATE tr SET c1 = c1 + 1;
+  ELSE
+     UPDATE tr SET c1 = 1;
+  END IF;
+  RETURN (return_value);
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (11);
+
+SELECT seq_1_to_2() as seq, COUNT(*) FROM t1 GROUP BY seq;
+SELECT FLOOR(seq_1_to_2() * 2) AS val, COUNT(*) FROM t1 GROUP BY val;
+SELECT val, COUNT(*) FROM (SELECT FLOOR(seq_1_to_2())+1 val FROM t1) x
+  GROUP BY x.val;
+
+DROP TABLE t1, tr;
+DROP FUNCTION seq_1_to_2;

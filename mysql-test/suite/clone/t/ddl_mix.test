@@ -1,0 +1,66 @@
+# Test clone with concurrent DDL
+--source include/have_debug_sync.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--source ../include/create_ddl_schema.inc
+
+--echo # 1. RENAME and CREATE a TABLE with same name while clone in progress
+--let $dml_stmt_check = CALL execute_dml(1, 0, 100, 100, 10, 0)
+--let $ddl_count = 2
+--let $ddl_table_extn_show = _new
+
+--let $ddl_table_rename1 = 1
+--let $ddl_table_extn1 = _new
+--let $ddl_op1 = ALTER TABLE
+--let $ddl_stmt1 = RENAME
+
+--let $ddl_op2 = CREATE TABLE
+--let $ddl_stmt2 = (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+--let $ddl_post1 = PARTITION BY KEY(col1) PARTITIONS 5
+
+--let $dml_stmt1  = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t
+
+--source ../include/ddl_common.inc
+
+--let $ddl_count =
+--let $ddl_table_rename1 =
+--let $ddl_table_extn1 =
+
+--echo # Cleanup
+--let $ddl_drop_tables = 1
+--let $ddl_drop_renamed_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+--echo # 2. CREATE & DROP TABLE while clone in progress
+--let $dml_stmt_check = CALL execute_dml(1, 0, 100, 100, 10, 0)
+--let $ddl_op1 = CREATE TABLE
+--let $ddl_stmt1 = (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+--let $ddl_post1 = PARTITION BY KEY(col1) PARTITIONS 5
+
+--let $dml_stmt1  = INSERT INTO t1 SELECT * FROM t
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t
+
+--let $dml_stmt2 = INSERT INTO t2 SELECT * FROM t
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t
+
+--let $post_dml = 1
+--let $ddl_op1_after_dml = DROP TABLE
+
+--let $ddl_skip_check = 1
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_recreate_schema_tables = 1
+--let $ddl_drop_tables =
+--let $ddl_drop_renamed_tables =
+--source ../include/drop_ddl_schema.inc
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;

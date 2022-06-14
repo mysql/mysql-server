@@ -1,3 +1,4 @@
+
 ################################################################################
 # Base test to verify the default values of the group replication variables.
 #
@@ -9,12 +10,14 @@
 ################################################################################
 
 --let $group_replication_group_name= dddddddd-dddd-dddd-dddd-dddddddddddd
+--source include/force_restart.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
 --source include/start_and_bootstrap_group_replication.inc
 
 # Try set DEFAULT values while Group Replication is running.
@@ -31,7 +34,7 @@ SET @@GLOBAL.group_replication_group_name= default;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.group_replication_ip_whitelist= default;
+SET @@GLOBAL.group_replication_ip_allowlist= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
 
 --source include/stop_group_replication.inc
@@ -46,7 +49,7 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_force_members = `SELECT @@GLOBAL.group_replication_force_members;`
 --let $saved_gr_group_name = `SELECT @@GLOBAL.group_replication_group_name;`
 --let $saved_gr_gtid_assignment_block_size = `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
---let $saved_gr_ip_whitelist = `SELECT @@GLOBAL.group_replication_ip_whitelist;`
+--let $saved_gr_ip_allowlist = `SELECT @@GLOBAL.group_replication_ip_allowlist;`
 --let $saved_gr_local_address = `SELECT @@GLOBAL.group_replication_local_address;`
 --let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
 --let $saved_gr_poll_spin_loops = `SELECT @@GLOBAL.group_replication_poll_spin_loops;`
@@ -78,9 +81,17 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_communication_max_message_size = `SELECT @@GLOBAL.group_replication_communication_max_message_size;`
 --let $saved_gr_autorejoin_tries = `SELECT @@GLOBAL.group_replication_autorejoin_tries;`
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size;`
+--let $saved_gr_recovery_compression_algorithms = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithms;`
+--let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
+--let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version;`
+--let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites;`
+--let $saved_gr_advertise_recovery_endpoints = `SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints;`
+--let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid;`
+--let $saved_gr_communication_stack = `SELECT @@GLOBAL.group_replication_communication_stack;`
+--let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
 
 # Total number of GR variables.
---let $total_gr_vars= 51
+--let $total_gr_vars= 61
 
 --echo #
 --echo # Test Unit#1
@@ -108,7 +119,7 @@ SET @@GLOBAL.group_replication_group_name= default;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.group_replication_ip_whitelist= default;
+SET @@GLOBAL.group_replication_ip_allowlist= default;
 
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= default;
 SET @@GLOBAL.group_replication_bootstrap_group= default;
@@ -143,6 +154,14 @@ SET @@GLOBAL.group_replication_consistency= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
 SET @@GLOBAL.group_replication_autorejoin_tries= default;
 SET @@GLOBAL.group_replication_message_cache_size= default;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= default;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
+SET @@GLOBAL.group_replication_recovery_tls_version= default;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
+SET @@GLOBAL.group_replication_view_change_uuid= default;
+SET @@GLOBAL.group_replication_communication_stack = default;
+SET @@GLOBAL.group_replication_paxos_single_leader = default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -168,8 +187,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_components_stop_timeout
---let $assert_text= Default group_replication_components_stop_timeout is 31536000
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = 31536000
+--let $assert_text= Default group_replication_components_stop_timeout is 300
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = 300
 --source include/assert.inc
 
 # group_replication_compression_threshold
@@ -182,9 +201,9 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
 --source include/assert.inc
 
-# group_replication_ip_whitelist
---let $assert_text= Default group_replication_ip_whitelist is AUTOMATIC
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_ip_whitelist]" = "AUTOMATIC"
+# group_replication_ip_allowlist
+--let $assert_text= Default group_replication_ip_allowlist is AUTOMATIC
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ip_allowlist]" = "AUTOMATIC"
 --source include/assert.inc
 
 # group_replication_local_address
@@ -308,8 +327,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_member_expel_timeout
---let $assert_text= Default group_replication_member_expel_timeout is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 0
+--let $assert_text= Default group_replication_member_expel_timeout is 5
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 5
 --source include/assert.inc
 
 # group_replication_consistency
@@ -327,14 +346,56 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 #group_replication_autorejoin_tries
---let $assert_text= Default group_replication_autorejoin_tries is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_autorejoin_tries]" = 0
+--let $assert_text= Default group_replication_autorejoin_tries is 3
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_autorejoin_tries]" = 3
 --source include/assert.inc
 
 # group_replication_message_cache_size
 --let $assert_text= Default group_replication_message_cache_size is 1073741824
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_message_cache_size]" = 1073741824
 --source include/assert.inc
+
+# group_replication_recovery_compression_algorithms
+--let $assert_text= Default group_replication_recovery_compression_algorithms is "uncompressed"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_compression_algorithms]" = "uncompressed"
+--source include/assert.inc
+
+# group_replication_recovery_zstd_compression_level
+--let $assert_text= Default group_replication_recovery_zstd_compression_level is 3
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level]" = 3
+--source include/assert.inc
+
+# group_replication_recovery_tls_version
+--let $assert_text= Default group_replication_recovery_tls_version is "TLSv1.2,TLSv1.3"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_tls_version]" = "TLSv1.2,TLSv1.3"
+--source include/assert.inc
+
+# group_replication_recovery_tls_ciphersuites
+--let $recovery_tls_ciphersuites= query_get_value(SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites, @@GLOBAL.group_replication_recovery_tls_ciphersuites, 1)
+--let $assert_text= Default group_replication_recovery_tls_ciphersuites is NULL
+--let $assert_cond= "$recovery_tls_ciphersuites" = "NULL"
+--source include/assert.inc
+
+# group_replication_advertise_recovery_endpoints
+--let $assert_text= Default group_replication_advertise_recovery_endpoints is "DEFAULT"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints]" = "DEFAULT"
+--source include/assert.inc
+
+# group_replication_view_change_uuid
+--let $assert_text= Default group_replication_view_change_uuid is "AUTOMATIC"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"
+--source include/assert.inc
+
+# group_replication_communication_stack
+--let $assert_text= Default group_replication_communication_stack is XCom
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "XCom"
+--source include/assert.inc
+
+# group_replication_paxos_single_leader
+--let $assert_text= Default group_replication_paxos_single_leader is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_paxos_single_leader]" = 0
+--source include/assert.inc
+
 
 --echo #
 --echo # Clean up
@@ -353,7 +414,7 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_force_members= "$saved_gr_force_members"
 --eval SET @@GLOBAL.group_replication_group_name= "$saved_gr_group_name"
 --eval SET @@GLOBAL.group_replication_gtid_assignment_block_size= $saved_gr_gtid_assignment_block_size
---eval SET @@GLOBAL.group_replication_ip_whitelist= "$saved_gr_ip_whitelist"
+--eval SET @@GLOBAL.group_replication_ip_allowlist= "$saved_gr_ip_allowlist"
 --eval SET @@GLOBAL.group_replication_local_address= "$saved_gr_local_address"
 --eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
 --eval SET @@GLOBAL.group_replication_poll_spin_loops= $saved_gr_poll_spin_loops
@@ -384,6 +445,14 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@SESSION.group_replication_consistency= "$saved_gr_replication_consistency_s"
 --eval SET @@GLOBAL.group_replication_communication_max_message_size= $saved_gr_communication_max_message_size
 --eval SET @@GLOBAL.group_replication_message_cache_size= $saved_gr_message_cache_size
+--eval SET @@GLOBAL.group_replication_recovery_compression_algorithms= "$saved_gr_recovery_compression_algorithms"
+--eval SET @@GLOBAL.group_replication_recovery_zstd_compression_level= $saved_gr_recovery_compression_level
+--eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
+--eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
+--eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "$saved_gr_advertise_recovery_endpoints"
+--eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
+--eval SET @@GLOBAL.group_replication_communication_stack= "$saved_gr_communication_stack"
+--eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
 --enable_query_log
 
 --let $total_gr_vars=

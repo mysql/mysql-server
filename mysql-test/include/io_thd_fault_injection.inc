@@ -10,7 +10,7 @@ SET @old_debug=@@global.debug;
 -- enable_warnings
 -- eval SET GLOBAL debug="+d,$io_thd_injection_fault_flag"
 
-START SLAVE io_thread;
+START REPLICA io_thread;
 -- source include/wait_for_slave_io_error.inc
 
 -- eval SET GLOBAL debug="-d,$io_thd_injection_fault_flag"

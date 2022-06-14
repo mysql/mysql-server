@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,20 +28,27 @@
 #define RESTORE_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include "my_byteorder.h"
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
-#include <util/ndbzio.h>
+#include "util/ndbxfrm_file.h"
+#include "portlib/ndb_file.h"
 #include <util/UtilBuffer.hpp>
 
 #include <ndb_version.h>
 #include <version.h>
 #include <NdbMutex.h>
+#include <ndb_limits.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
 #ifdef ERROR_INSERT
 #define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
+#define NDB_RESTORE_ERROR_INSERT_SKIP_ROWS 2
+#define NDB_RESTORE_ERROR_INSERT_FAIL_REPLAY_LOG 3
+#define NDB_RESTORE_ERROR_INSERT_FAIL_RESTORE_TUPLE 4
+
 #endif
 
 enum TableChangesMask
@@ -59,7 +66,51 @@ enum TableChangesMask
   /**
    * Allow attribute type demotion and integral signed/unsigned type changes.
    */
-  TCM_ATTRIBUTE_DEMOTION = 0x4
+  TCM_ATTRIBUTE_DEMOTION = 0x4,
+
+  /**
+   * Allow changes to the set of keys in the primary key
+   */
+  TCM_ALLOW_PK_CHANGES = 0x8,
+
+  /**
+   * Ignore log entries updating an extended pk column
+   */
+  TCM_IGNORE_EXTENDED_PK_UPDATES = 0x10
+};
+
+/**
+ * ColumnTransform
+ *
+ * Interface for classes implementing a transform on a column
+ */
+
+class ColumnTransform
+{
+public:
+  ColumnTransform() {}
+  virtual ~ColumnTransform() {}
+
+
+  /**
+   * apply
+   *
+   * apply the transform, returning a pointer to the
+   * result in dst_data.
+   *
+   * col       : The type of the column which is to be transformed
+   * src_data  : Pointer to the data to transform
+   *             NULL indicates a null value
+   * dst_data  : Pointer to a pointer to the output data
+   *
+   * returns
+   *   true : Transform was successful
+   *  false : Transform failed
+   */
+  virtual
+  bool apply(const NdbDictionary::Column* col,
+             const void* src_data,
+             void** dst_data) = 0;
 };
 
 typedef NdbDictionary::Table NDBTAB;
@@ -105,6 +156,7 @@ struct AttributeDesc {
   bool m_exclude;
   Uint32 m_nullBitIndex;
   AttrConvertFunc convertFunc;
+  ColumnTransform* transform;
   void *parameter;
   Uint32 parameterSz; 
   bool truncation_detected;
@@ -113,7 +165,7 @@ struct AttributeDesc {
 public:
   
   AttributeDesc(NdbDictionary::Column *column);
-  AttributeDesc();
+  ~AttributeDesc();
 
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
   Uint32 getSizeInBytes() const {
@@ -161,6 +213,7 @@ struct FragmentInfo
   Uint64 noOfRecords;
   Uint32 filePosLow;
   Uint32 filePosHigh;
+  bool   sliceSkip;
 };
 
 class TableS {
@@ -190,9 +243,12 @@ class TableS {
   TableS *m_main_table;
   Uint32 m_main_column_id;
   Uint32 m_local_id;
+  bool m_has_blobs;
 
   Uint64 m_noOfRecords;
   Vector<FragmentInfo *> m_fragmentInfo;
+
+  Vector<TableS*> m_blobTables;
 
   void createAttr(NdbDictionary::Column *column);
 
@@ -277,22 +333,75 @@ public:
     return m_isSYSTAB_0;
   } 
 
+  /**
+   * isBlobRelated
+   * Returns true if a table contains blobs, or is
+   * a Blob parts table
+   */
+  bool isBlobRelated() const
+  {
+    return (m_has_blobs || m_main_table != NULL);
+  }
+
   inline
   bool isBroken() const {
     return m_broken || (m_main_table && m_main_table->isBroken());
+  }
+
+  void setSliceSkipFlag(int fragmentId, bool value)
+  {
+    for (Uint32 i=0; i<m_fragmentInfo.size(); i++)
+    {
+      if (m_fragmentInfo[i]->fragmentNo == (Uint32) fragmentId)
+      {
+        m_fragmentInfo[i]->sliceSkip = value;
+        return;
+      }
+    }
+    ndbout_c("setSkipFlag() Error looking up info for fragment %u on table %s",
+             fragmentId,
+             m_dictTable->getName());
+    abort();
+  }
+
+  bool getSliceSkipFlag(int fragmentId) const
+  {
+    for (Uint32 i=0; i<m_fragmentInfo.size(); i++)
+    {
+      if (m_fragmentInfo[i]->fragmentNo == (Uint32)fragmentId)
+      {
+        return m_fragmentInfo[i]->sliceSkip;
+      }
+    }
+    ndbout_c("getSkipFlag() Error looking up info for fragment %u on table %s",
+             fragmentId,
+             m_dictTable->getName());
+    abort();
+    return false;
+  }
+
+  const
+  Vector<TableS*> getBlobTables()
+  {
+    return m_blobTables;
   }
 
   bool m_staging;
   BaseString m_stagingName;
   NdbDictionary::Table* m_stagingTable;
   int m_stagingFlags;
+
+  bool m_pk_extended;
+  const NdbDictionary::Index* m_pk_index;
 }; // TableS;
 
 class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  ndbzio_stream m_file;
+  ndb_file m_file;
+  ndbxfrm_file m_xfile;
+
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;
@@ -324,15 +433,26 @@ protected:
   Uint32 m_part_id;
   Uint32 m_part_count;
 
+  /* Get registered consumers to finish up with buffers
+   * Then reset them */
+  void flush_and_reset_buffers()
+  {
+    if (free_data_callback)
+    {
+      (*free_data_callback)(m_ctx);
+    }
+    reset_buffers();
+  }
+
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
   void setDataFile(const BackupFile & bf, Uint32 no);
   void setLogFile(const BackupFile & bf, Uint32 no);
   
-  Uint32 buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
+  int buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  int buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
+  int buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  int buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
 
   void setName(const char * path, const char * name);
 
@@ -358,11 +478,10 @@ public:
    *
    * But, when compressed backup is enabled, m_file_pos gives the current file
    * position in uncompressed state and m_file_size gives the backup file size
-   * in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
-   * parameter is used to get current position in compressed state.This
-   * parameter also works when compressed backup is disabled.
+   * in compressed state. 
+   * This parameter also works when compressed backup is disabled.
    */
-  Uint64 get_file_pos() const { return m_file.in; }
+  Uint64 get_file_pos() const { return m_xfile.get_file_pos(); }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif
@@ -400,7 +519,7 @@ class RestoreMetaData : public BackupFile {
 public:
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo,
                   Uint32 partId, Uint32 partCount);
-  virtual ~RestoreMetaData();
+  ~RestoreMetaData() override;
   
   int loadContent();
 		  
@@ -431,30 +550,39 @@ public:
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
                       void (* free_data_callback)(void*), void*);
-  virtual ~RestoreDataIterator();
+  ~RestoreDataIterator() override;
   
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
   bool validateRestoreDataIterator();
 
-  const TupleS *getNextTuple(int & res);
+  const TupleS *getNextTuple(int & res, const bool skipFragment);
   TableS *getCurrentTable();
 
 private:
-  void init_bitfield_storage(const NdbDictionary::Table*);
-  void free_bitfield_storage();
-  void reset_bitfield_storage();
-  Uint32* get_bitfield_storage(Uint32 len);
-  Uint32 get_free_bitfield_storage() const;
+  /**
+   * Methods related to storage used for column values which
+   * consumers cannot read directly from the file buffer
+   */
+  void calc_row_extra_storage_words(const TableS* tableSpec);
+  void alloc_extra_storage(Uint32 words);
+  void free_extra_storage();
+  void reset_extra_storage();
+  void check_extra_storage();
+  Uint32* get_extra_storage(Uint32 len);
+  Uint32 get_free_extra_storage() const;
 
-  Uint32 m_row_bitfield_len; // in words
-  Uint32* m_bitfield_storage_ptr;
-  Uint32* m_bitfield_storage_curr_ptr;
-  Uint32 m_bitfield_storage_len; // In words
+  Uint32 m_row_max_extra_wordlen;
+  Uint32* m_extra_storage_ptr;
+  Uint32* m_extra_storage_curr_ptr;
+  Uint32 m_extra_storage_wordlen;
+
+  /* Are there column transforms for the current table */
+  bool m_current_table_has_transforms;
 
 protected:
-  virtual void reset_buffers() { reset_bitfield_storage();}
+  void reset_buffers() override { reset_extra_storage();}
 
   int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
   int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
@@ -513,17 +641,20 @@ class RestoreLogIterator : public BackupFile {
    * No harm in require space for a few extra words to header too.
    */
   static_assert(BackupFile::BUFFER_SIZE >=
-                  BackupFormat::LogFile::LogEntry::MAX_SIZE,
-                "");
+                  BackupFormat::LogFile::LogEntry::MAX_SIZE);
 private:
   const RestoreMetaData & m_metaData;
 
   Uint32 m_count;  
   Uint32 m_last_gci;
   LogEntry m_logEntry;
+  static const Uint32 RowBuffWords = MAX_TUPLE_SIZE_IN_WORDS +
+    MAX_ATTRIBUTES_IN_TABLE;
+  Uint32 m_rowBuff[RowBuffWords];
+  Uint32 m_rowBuffIndex;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  virtual ~RestoreLogIterator() {}
+  ~RestoreLogIterator() override {}
 
   bool isSnapshotstartBackup()
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_global_variables.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -73,8 +73,8 @@ Plugin_table table_global_variables::m_table_def(
 PFS_engine_table_share table_global_variables::m_share = {
     &pfs_readonly_world_acl,
     table_global_variables::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_global_variables::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -91,8 +91,9 @@ PFS_engine_table *table_global_variables::create(PFS_engine_table_share *) {
 
 ha_rows table_global_variables::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  ha_rows system_var_count = get_system_variable_hash_records();
+  ha_rows system_var_count = get_system_variable_count();
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return system_var_count;
@@ -102,39 +103,28 @@ table_global_variables::table_global_variables()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(false),
       m_pos(0),
-      m_next_pos(0),
-      m_context(NULL) {}
+      m_next_pos(0) {}
 
 void table_global_variables::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_global_variables::rnd_init(bool scan) {
+int table_global_variables::rnd_init(bool /* scan */) {
   /*
     Build a list of system variables from the global system variable hash.
     Filter by scope.
   */
   m_sysvar_cache.materialize_global();
 
-  /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
-  m_context = (table_global_variables_context *)current_thd->alloc(
-      sizeof(table_global_variables_context));
-  new (m_context) table_global_variables_context(hash_version, !scan);
   return 0;
 }
 
 int table_global_variables::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       m_next_pos.set_after(&m_pos);
       return make_row(system_var);
     }
@@ -143,36 +133,25 @@ int table_global_variables::rnd_next(void) {
 }
 
 int table_global_variables::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_sysvar_cache.size());
+  assert(m_pos.m_index < m_sysvar_cache.size());
 
   const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
-  if (system_var != NULL) {
+  if (system_var != nullptr) {
     return make_row(system_var);
   }
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_global_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_global_variables::index_init(uint idx [[maybe_unused]], bool) {
   /*
     Build a list of system variables from the global system variable hash.
     Filter by scope.
   */
   m_sysvar_cache.materialize_global();
 
-  /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
-  m_context = (table_global_variables_context *)current_thd->alloc(
-      sizeof(table_global_variables_context));
-  new (m_context) table_global_variables_context(hash_version, false);
-
-  PFS_index_global_variables *result = NULL;
-  DBUG_ASSERT(idx == 0);
+  PFS_index_global_variables *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_global_variables);
   m_opened_index = result;
   m_index = result;
@@ -181,15 +160,10 @@ int table_global_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_global_variables::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       if (m_opened_index->match(system_var)) {
         if (!make_row(system_var)) {
           m_next_pos.set_after(&m_pos);
@@ -226,12 +200,12 @@ int table_global_variables::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* VARIABLE_NAME */
           set_field_varchar_utf8(f, m_row.m_variable_name.m_str,
                                  m_row.m_variable_name.m_length);
@@ -240,7 +214,7 @@ int table_global_variables::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

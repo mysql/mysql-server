@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,30 +25,25 @@
 #ifndef PLUGIN_CONFIG_ROUTING_INCLUDED
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/plugin.h"
+#include "mysqlrouter/routing_plugin_export.h"
 
-#include "mysqlrouter/plugin_config.h"
-#include "mysqlrouter/routing.h"
-#include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
-#include "protocol/protocol.h"
-#include "tcp_address.h"
-
-#include "utils.h"
-
-#include <map>
 #include <string>
 
-using mysql_harness::TCPAddress;
-using mysqlrouter::to_string;
-using mysqlrouter::URI;
-using mysqlrouter::URIError;
-using mysqlrouter::URIQuery;
-using std::map;
-using std::string;
+#include "mysql/harness/config_option.h"
+#include "mysql/harness/filesystem.h"  // Path
+#include "mysql/harness/plugin_config.h"
+#include "mysqlrouter/routing.h"  // RoutingStrategy, AccessMode
+#include "protocol/protocol.h"    // Protocol::Type
+#include "ssl_mode.h"
+#include "tcp_address.h"
 
-class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
+extern const std::array<const char *, 29> routing_supported_options;
+
+/**
+ * route specific configuration.
+ */
+class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
+    : public mysql_harness::BasePluginConfig {
  private:
   // is this [routing] entry for static routing or metadata-cache ?
   // it's mutable because we discover it while calling getter for
@@ -56,60 +51,55 @@ class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
   mutable bool metadata_cache_;
 
  public:
-  /** @brief Constructor
+  /** Constructor.
    *
    * @param section from configuration file provided as ConfigSection
    */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
 
-  /**
-   * @param option option to get
-   */
   std::string get_default(const std::string &option) const override;
-
   bool is_required(const std::string &option) const override;
 
-  /** @brief `protocol` option read from configuration section */
-  const Protocol::Type protocol;
-  /** @brief `destinations` option read from configuration section */
-  const std::string destinations;
-  /** @brief `bind_port` option read from configuration section */
-  const int bind_port;
-  /** @brief `bind_address` option read from configuration section */
-  const mysql_harness::TCPAddress bind_address;
-  /** @brief `socket` option read from configuration section is stored as
-   * named_socket */
-  const mysql_harness::Path named_socket;
-  /** @brief `connect_timeout` option read from configuration section */
-  const int connect_timeout;
-  /** @brief `mode` option read from configuration section */
-  const routing::AccessMode mode;
-  /** @brief `routing_strategy` option read from configuration section */
-  routing::RoutingStrategy routing_strategy;
-  /** @brief `max_connections` option read from configuration section */
-  const int max_connections;
-  /** @brief `max_connect_errors` option read from configuration section */
-  const unsigned long long max_connect_errors;
-  /** @brief `client_connect_timeout` option read from configuration section */
-  const unsigned int client_connect_timeout;
-  /** @brief Size of buffer to receive packets */
-  const unsigned int net_buffer_length;
-  /** @brief memory in kilobytes allocated for thread's stack */
-  const unsigned int thread_stack_size;
+  uint16_t get_option_max_connections(
+      const mysql_harness::ConfigSection *section);
 
- protected:
- private:
-  routing::AccessMode get_option_mode(
-      const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
-  routing::RoutingStrategy get_option_routing_strategy(
-      const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
-  std::string get_option_destinations(
-      const mysql_harness::ConfigSection *section, const std::string &option,
-      const Protocol::Type &protocol_type) const;
-  Protocol::Type get_protocol(const mysql_harness::ConfigSection *section,
-                              const std::string &option) const;
+  const Protocol::Type protocol;                 //!< protocol (classic, x)
+  const std::string destinations;                //!< destinations
+  const int bind_port;                           //!< TCP port to bind to
+  const mysql_harness::TCPAddress bind_address;  //!< IP address to bind to
+  const mysql_harness::Path
+      named_socket;                //!< unix domain socket path to bind to
+  const int connect_timeout;       //!< connect-timeout in seconds
+  const routing::AccessMode mode;  //!< read-only/read-write
+  routing::RoutingStrategy
+      routing_strategy;       //!< routing strategy (next-avail, ...)
+  const int max_connections;  //!< max connections allowed
+  const unsigned long long max_connect_errors;  //!< max connect errors
+  const unsigned int
+      client_connect_timeout;            //!< client connect timeout in seconds
+  const unsigned int net_buffer_length;  //!< Size of buffer to receive packets
+  const unsigned int thread_stack_size;  //!< thread stack size in kilobytes
+
+  SslMode source_ssl_mode;  //!< SslMode of the client side connection.
+  const std::string source_ssl_cert;       //!< Cert file
+  const std::string source_ssl_key;        //!< Key file
+  const std::string source_ssl_cipher;     //!< allowed TLS ciphers
+  const std::string source_ssl_curves;     //!< allowed TLS curves
+  const std::string source_ssl_dh_params;  //!< DH params
+
+  const SslMode dest_ssl_mode;      //!< SslMode of the server side connection.
+  const SslVerify dest_ssl_verify;  //!< How to verify the server-side cert.
+  const std::string dest_ssl_cipher;  //!< allowed TLS ciphers
+  const std::string
+      dest_ssl_ca_file;  //!< CA file to used to verify destinations' identity
+  const std::string dest_ssl_ca_dir;  //!< directory of CA files used to verify
+                                      //!< destinations' identity
+  const std::string
+      dest_ssl_crl_file;  //!< CRL file used to check revoked certificates
+  const std::string dest_ssl_crl_dir;  //!< directory of CRL files
+  const std::string dest_ssl_curves;   //!< allowed TLS curves
+
+  const std::chrono::seconds unreachable_destination_refresh_interval;
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

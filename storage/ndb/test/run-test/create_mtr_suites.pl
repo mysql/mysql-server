@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright 2009 Sun Microsystems, Inc.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 #  Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify

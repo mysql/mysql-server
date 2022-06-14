@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <memory>
+#include <random>
 
 #include "prealloced_array.h"
 
@@ -47,7 +45,7 @@ TEST_F(PreallocedArrayTest, Empty) {
   EXPECT_EQ(0U, int_10.size());
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef PreallocedArrayTest PreallocedArrayDeathTest;
 
@@ -79,7 +77,7 @@ TEST_F(PreallocedArrayDeathTest, EmptyErase) {
   EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix), ".*Assertion .*ix < size.*");
 }
 
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 TEST_F(PreallocedArrayTest, Insert5) {
   for (int ix = 0; ix < 5; ++ix) int_10.push_back(ix);
@@ -186,7 +184,9 @@ TEST_F(PreallocedArrayTest, InsertUnique) {
     int_10.push_back(ix);
     int_10.push_back(ix);
   }
-  std::random_shuffle(int_10.begin(), int_10.end());
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(int_10.begin(), int_10.end(), urng);
   Prealloced_array<int, 1> unique_arr(PSI_NOT_INSTRUMENTED);
   for (int *pi = int_10.begin(); pi != int_10.end(); ++pi) {
     unique_arr.insert_unique(*pi);
@@ -521,6 +521,19 @@ TEST_F(PreallocedArrayTest, ShrinkToFit) {
   // After shrink_to_fit(), the capacity should shrink to the prealloc size.
   array.shrink_to_fit();
   EXPECT_EQ(1U, array.capacity());
+}
+
+// https://docs.microsoft.com/en-us/cpp/overview/cpp-conformance-improvements?view=vs-2019#implicit-conversion-of-integral-constant-expressions-to-null-pointer
+TEST_F(PreallocedArrayTest, CorrectOverloadIsChosen) {
+  Prealloced_array<int *, 4> array{PSI_NOT_INSTRUMENTED};
+  EXPECT_EQ(0, array.size());
+
+  int x = 2;
+  Prealloced_array<int *, 4> array2{&x};
+  EXPECT_EQ(1, array2.size());
+
+  Prealloced_array<int64_t, 4> array3{x};
+  EXPECT_EQ(1, array3.size());
 }
 
 }  // namespace prealloced_array_unittest

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,8 @@ class Delayed_initialization_thread {
   /**
     The thread handler.
 
-    @return
-      @retval 0      OK
-      @retval !=0    Error
+    @retval 0      OK
+    @retval !=0    Error
   */
   int initialization_thread_handler();
 

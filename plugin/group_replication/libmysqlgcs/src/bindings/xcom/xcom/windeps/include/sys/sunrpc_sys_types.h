@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,10 +37,14 @@
 #define INTDEF(func)
 #define INTUSE(func) func
 
+#ifdef __cplusplus
+#define __BEGIN_DECLS extern "C" {
+#define __END_DECLS }
+#else
 #define __BEGIN_DECLS
 #define __END_DECLS
+#endif
 #define __THROW
-
 
 /* Indicate to Sun RPC we have basic definitions included */
 #define makedev
@@ -55,10 +59,11 @@ typedef unsigned long __u_long;
 typedef long long int __quad_t;
 typedef unsigned long long int __u_quad_t;
 #endif
-typedef struct { int __val[2];} __fsid_t;
+typedef struct {
+  int __val[2];
+} __fsid_t;
 
-
-typedef long rpc_inline_t;          /* FIXME: Won't work on 64bit compiles */
+typedef long rpc_inline_t; /* FIXME: Won't work on 64bit compiles */
 
 typedef unsigned long ulong_t;
 typedef unsigned long long u_longlong_t;
@@ -76,17 +81,23 @@ typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 
-#ifndef MCMD_COMPILE //Outside MCM, we use stdint.h
-#define UINT8_MAX  (255)
+#ifndef MCMD_COMPILE /* Outside MCM, we use stdint.h */
+#ifndef UINT8_MAX
+#define UINT8_MAX (255)
+#endif
+#ifndef UINT16_MAX
 #define UINT16_MAX (65535)
+#endif
+#ifndef UINT32_MAX
 #define UINT32_MAX (4294967295U)
+#endif
 #endif
 
 /* WIN32 missing net/if.h */
 typedef int __daddr_t;
 typedef char *__caddr_t;
 
-typedef __caddr_t caddr_t;  /* normally defined in rpc.h */
+typedef __caddr_t caddr_t; /* normally defined in rpc.h */
 
 /* mysql functions need uint */
 typedef unsigned int uint;
@@ -96,4 +107,4 @@ typedef long suseconds_t; /* signed number of microseconds */
 
 #endif /* WIN32 || WIN64 */
 
-#endif  /* sunrpc_sys_types.h */
+#endif /* sunrpc_sys_types.h */

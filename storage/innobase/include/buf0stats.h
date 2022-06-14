@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"      /* srv_tmp_space */
 #include "ibuf0ibuf.h"         /* IBUF_SPACE_ID */
 #include "ut0lock_free_hash.h" /* ut_lock_free_hash_t */
-#include "ut0new.h"            /* UT_NEW(), UT_DELETE() */
+#include "ut0new.h"            /* ut::new_withkey(), ut::delete_() */
 
 /** Per index buffer pool statistics - contains how many pages for each index
 are cached in the buffer pool(s). This is a key,value store where the key is
@@ -49,15 +49,15 @@ class buf_stat_per_index_t {
  public:
   /** Constructor. */
   buf_stat_per_index_t() {
-    m_store =
-        UT_NEW(ut_lock_free_hash_t(1024, true), mem_key_buf_stat_per_index_t);
+    m_store = ut::new_withkey<ut_lock_free_hash_t>(
+        ut::make_psi_memory_key(mem_key_buf_stat_per_index_t), 1024, true);
   }
 
   /** Destructor. */
-  ~buf_stat_per_index_t() { UT_DELETE(m_store); }
+  ~buf_stat_per_index_t() { ut::delete_(m_store); }
 
   /** Increment the number of pages for a given index with 1.
-  @param[in]	id	id of the index whose count to increment */
+  @param[in]    id      id of the index whose count to increment */
   void inc(const index_id_t &id) {
     if (should_skip(id)) {
       return;
@@ -67,7 +67,7 @@ class buf_stat_per_index_t {
   }
 
   /** Decrement the number of pages for a given index with 1.
-  @param[in]	id	id of the index whose count to decrement */
+  @param[in]    id      id of the index whose count to decrement */
   void dec(const index_id_t &id) {
     if (should_skip(id)) {
       return;
@@ -77,7 +77,7 @@ class buf_stat_per_index_t {
   }
 
   /** Get the number of pages in the buffer pool for a given index.
-  @param[in]	id	id of the index whose pages to peek
+  @param[in]    id      id of the index whose pages to peek
   @return number of pages */
   uint64_t get(const index_id_t &id) {
     if (should_skip(id)) {
@@ -97,7 +97,7 @@ class buf_stat_per_index_t {
 
  private:
   /** Assess if we should skip a page from accounting.
-  @param[in]	id	index_id of the page
+  @param[in]    id      index_id of the page
   @return true if it should not be accounted */
   bool should_skip(const index_id_t &id) {
     const bool is_temp = fsp_is_system_temporary(id.m_space_id);

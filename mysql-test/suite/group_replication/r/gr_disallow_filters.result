@@ -161,10 +161,10 @@ test.tab1
 # 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
 #    And, we can fetch donor's server_uuid.
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server1]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 #
 # 5. Start GR on M3 and check donor's server_uuid.
 [connection server3]
@@ -174,10 +174,10 @@ include/start_group_replication.inc
 # 6. Start applier thread on M1 and M2.
 [connection server1]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 #
 # 7. Allow member M3 to come ONLINE, then verify data.
 [connection server3]

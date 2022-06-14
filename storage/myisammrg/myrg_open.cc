@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,14 +52,14 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
   uint files = 0, i, dir_length, length, key_parts = 0, min_keys = 0;
   ulonglong file_offset = 0;
   char name_buff[FN_REFLEN * 2], buff[FN_REFLEN], *end;
-  MYRG_INFO *m_info = 0;
+  MYRG_INFO *m_info = nullptr;
   File fd;
   IO_CACHE file;
-  MI_INFO *isam = 0;
+  MI_INFO *isam = nullptr;
   uint found_merge_insert_method = 0;
   size_t name_buff_length;
   bool bad_children = false;
-  DBUG_ENTER("myrg_open");
+  DBUG_TRACE;
 
   memset(&file, 0, sizeof(file));
   if ((fd = mysql_file_open(rg_key_file_MRG,
@@ -68,7 +68,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
                             O_RDONLY, MYF(0))) < 0)
     goto err;
   errpos = 1;
-  if (init_io_cache(&file, fd, 4 * IO_SIZE, READ_CACHE, 0, 0,
+  if (init_io_cache(&file, fd, 4 * IO_SIZE, READ_CACHE, 0, false,
                     MYF(MY_WME | MY_NABP)))
     goto err;
   errpos = 2;
@@ -114,7 +114,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
                                                 key_parts * sizeof(long),
                                             MYF(MY_WME | MY_ZEROFILL))))
         goto err;
-      DBUG_ASSERT(files);
+      assert(files);
       m_info->open_tables = (MYRG_TABLE *)(m_info + 1);
       m_info->rec_per_key_part = (ulong *)(m_info->open_tables + files);
       m_info->tables = files;
@@ -174,7 +174,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
   mysql_mutex_lock(&THR_LOCK_open);
   myrg_open_list = list_add(myrg_open_list, &m_info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
-  DBUG_RETURN(m_info);
+  return m_info;
 
 bad_children:
   set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
@@ -184,15 +184,15 @@ err:
     case 3:
       while (files) (void)mi_close(m_info->open_tables[--files].table);
       my_free(m_info);
-      /* Fall through */
+      [[fallthrough]];
     case 2:
       end_io_cache(&file);
-      /* Fall through */
+      [[fallthrough]];
     case 1:
       (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN(NULL);
+  return nullptr;
 }
 
 /**
@@ -218,7 +218,7 @@ err:
 MYRG_INFO *myrg_parent_open(const char *parent_name,
                             int (*callback)(void *, const char *),
                             void *callback_param) {
-  MYRG_INFO *m_info = NULL;
+  MYRG_INFO *m_info = nullptr;
   int rc;
   int errpos;
   int save_errno;
@@ -229,7 +229,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   IO_CACHE file_cache;
   char parent_name_buff[FN_REFLEN * 2];
   char child_name_buff[FN_REFLEN];
-  DBUG_ENTER("myrg_parent_open");
+  DBUG_TRACE;
 
   rc = 1;
   errpos = 0;
@@ -244,7 +244,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     goto err; /* purecov: inspected */
   errpos = 1;
 
-  if (init_io_cache(&file_cache, fd, 4 * IO_SIZE, READ_CACHE, 0, 0,
+  if (init_io_cache(&file_cache, fd, 4 * IO_SIZE, READ_CACHE, 0, false,
                     MYF(MY_WME | MY_NABP)))
     goto err; /* purecov: inspected */
   errpos = 2;
@@ -316,7 +316,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   myrg_open_list = list_add(myrg_open_list, &m_info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
 
-  DBUG_RETURN(m_info);
+  return m_info;
 
   /* purecov: begin inspected */
 err:
@@ -324,15 +324,15 @@ err:
   switch (errpos) {
     case 3:
       my_free(m_info);
-      /* Fall through */
+      [[fallthrough]];
     case 2:
       end_io_cache(&file_cache);
-      /* Fall through */
+      [[fallthrough]];
     case 1:
       (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN(NULL);
+  return nullptr;
   /* purecov: end */
 }
 
@@ -374,7 +374,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   uint min_keys;
   bool bad_children = false;
   bool first_child = true;
-  DBUG_ENTER("myrg_attach_children");
+  DBUG_TRACE;
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 
   /*
@@ -409,7 +409,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       key_parts = myisam->s->base.key_parts;
       if (*need_compat_check && m_info->rec_per_key_part) {
         my_free(m_info->rec_per_key_part);
-        m_info->rec_per_key_part = NULL;
+        m_info->rec_per_key_part = nullptr;
       }
       if (!m_info->rec_per_key_part) {
         if (!(m_info->rec_per_key_part =
@@ -462,7 +462,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   m_info->last_used_table = m_info->open_tables;
   m_info->children_attached = true;
   mysql_mutex_unlock(&m_info->mutex);
-  DBUG_RETURN(0);
+  return 0;
 
 bad_children:
   set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
@@ -471,11 +471,11 @@ err:
   switch (errpos) {
     case 1:
       my_free(m_info->rec_per_key_part);
-      m_info->rec_per_key_part = NULL;
+      m_info->rec_per_key_part = nullptr;
   }
   mysql_mutex_unlock(&m_info->mutex);
   set_my_errno(save_errno);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -492,7 +492,7 @@ err:
 */
 
 int myrg_detach_children(MYRG_INFO *m_info) {
-  DBUG_ENTER("myrg_detach_children");
+  DBUG_TRACE;
   /* For symmetry with myrg_attach_children() we use the mutex here. */
   mysql_mutex_lock(&m_info->mutex);
   if (m_info->tables) {
@@ -505,5 +505,5 @@ int myrg_detach_children(MYRG_INFO *m_info) {
   m_info->data_file_length = 0;
   m_info->options = 0;
   mysql_mutex_unlock(&m_info->mutex);
-  DBUG_RETURN(0);
+  return 0;
 }

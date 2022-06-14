@@ -504,6 +504,11 @@ INSERT /*! IGNORE */ INTO cc (
 (6, '2008-10-10', NULL, '2000-05-22 00:00:00', 'i'),
 (8, '2002-01-19', '05:18:40.006865', '2009-02-12 00:00:00', 'v');
 
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE c, cc;
+--enable_query_log
+--enable_result_log
 --replace_column 10 # 11 #
 EXPLAIN
 SELECT subquery2_t2.col_int_key AS subquery2_field1
@@ -541,8 +546,14 @@ CREATE TABLE cc (
   KEY (col_int_key)
 );
 INSERT INTO cc (col_int_nokey) VALUES (0),(1),(7),(0),(4),(5);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE cc;
+--enable_result_log
+--enable_query_log
 --replace_column 10 # 11 #
 EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3;
+--sorted_result
 SELECT pk FROM cc WHERE col_int_key > 3;
 --replace_column 10 # 11 #
 EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3 ORDER BY 1;
@@ -691,6 +702,7 @@ GROUP BY SQ1_field1 , SQ1_field2
 GROUP BY field1;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE IF EXISTS c,cc;
@@ -730,6 +742,11 @@ KEY cover_key1 (col_int, col_varchar_255_utf8_key));
 
 INSERT INTO j(col_int, pk, col_varchar_10_utf8) VALUES(9, 1, '951910400'),
 (-1934295040, 2, '1235025920'),(-584581120, 3, '-1176633344'),(3, 4, '1074462720');
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE j;
+--enable_query_log
+--enable_result_log
 
 --replace_column 10 #
 EXPLAIN SELECT col_varchar_255_utf8_key FROM j ORDER BY 1;
@@ -780,11 +797,8 @@ INSERT INTO cc (
 SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
 
-# Warnings arrive in unpredictable order with NDB and cannot be sorted
-if ($testing_ndb)
-{
+# Warnings arrive in unpredictable order and cannot be sorted
 --disable_warnings
-}
 SELECT DISTINCT alias1.col_varchar_key AS field1
 FROM ( cc AS alias1 STRAIGHT_JOIN
       (( cc AS alias2 STRAIGHT_JOIN cc AS alias3 ON
@@ -797,10 +811,7 @@ ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
         alias1.col_time_key ASC, field1;
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
-if ($testing_ndb)
-{
 --enable_warnings
-}
 
 --echo #
 --echo # Bug#20797941: WL8149:ASSERTION !TABLE ||
@@ -828,6 +839,11 @@ INSERT INTO t1 (id) VALUES(NULL);
 INSERT INTO t1 VALUES(2,3);
 
 INSERT INTO t1 (id) VALUES(2),(3);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 # constant table read with one index lookup
 EXPLAIN SELECT * FROM t1 FORCE INDEX(b) WHERE b=3;
@@ -840,6 +856,12 @@ EXPLAIN SELECT b FROM t1 FORCE INDEX(b);
 
 # range scan
 INSERT INTO t1 (id) VALUES(4),(5),(6),(7),(8),(9),(10);
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
+
 EXPLAIN SELECT b FROM t1 FORCE INDEX(b) WHERE b BETWEEN 1 AND 5;
 
 # index-subquery
@@ -960,6 +982,11 @@ CREATE TABLE t (
 );
 
 INSERT INTO t(a,b) VALUES(1,'cccc');
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t;
+--enable_query_log
+--enable_result_log
 let $query=
 SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
 WHERE b.b>c.a;
@@ -996,6 +1023,11 @@ SELECT a0.i1 + a1.i1*10 + a2.i1*100,
        a0.i1 + a1.i1*10,
        a0.i1 + a1.i1*10
 FROM t0 AS a0, t0 AS a1, t0 AS a2;
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 # Do a DS-MRR scan on an index on a non-generated column
 # (this caused Division by 0 errors to be reported).
@@ -1011,6 +1043,12 @@ if ($support_virtual_index)
 {
 ALTER TABLE t1 ADD INDEX idx2(v1);
 }
+
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 # Do a DS-MRR scan on an index on a virtual column
 # (this query returned too few records).
@@ -1114,6 +1152,11 @@ if ($support_virtual_index)
 ALTER TABLE t3 ADD INDEX v_idx2 (i2_key, i1);
 }
 
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t3;
+--enable_query_log
+--enable_result_log
 # Hint is added to avoid materialization of the subquery
 let query=
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
@@ -1142,6 +1185,11 @@ if ($support_virtual_index)
 ALTER TABLE t3 DROP INDEX v_idx;
 }
 
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t3;
+--enable_query_log
+--enable_result_log
 # Hint is added to avoid materialization of the subquery
 let query=
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
@@ -1178,6 +1226,11 @@ VALUES (10,1), (11,1), (12,1), (13,1), (14,1),(15,1), (16,1),(17,1), (18,1),
        (19,1), (20,1), (21,1), (22,1), (23,1), (24,1),(25,1),(26,1),(27,1), 
        (28,1), (29,1);
 
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t3;
+--enable_query_log
+--enable_result_log
 --echo # Change the query to read an extra column (t3.i1) making the index
 --echo # non-covering.
 # Hint is added to avoid materialization of the subquery

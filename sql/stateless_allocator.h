@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,13 @@
 #ifndef STATELESS_ALLOCATOR_INCLUDED
 #define STATELESS_ALLOCATOR_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <limits>
 #include <new>
 #include <utility>  // std::forward
 
 #include "my_compiler.h"
-#include "my_dbug.h"
 
 /**
   Functor struct which invokes my_free. Declared here as it is used as the
@@ -115,12 +115,12 @@ class Stateless_allocator {
   template <class U>
   Stateless_allocator &operator=(const Stateless_allocator_type<U> &) {}
 
-  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
-    if (n == 0) return NULL;
+  pointer allocate(size_type n, const_pointer hint [[maybe_unused]] = nullptr) {
+    if (n == 0) return nullptr;
     if (n > max_size()) throw std::bad_alloc();
 
     pointer p = static_cast<pointer>(ALLOC_FUN()(n * sizeof(T)));
-    if (p == NULL) throw std::bad_alloc();
+    if (p == nullptr) throw std::bad_alloc();
     return p;
   }
 
@@ -128,20 +128,20 @@ class Stateless_allocator {
 
   template <class U, class... Args>
   void construct(U *p, Args &&... args) {
-    DBUG_ASSERT(p != NULL);
+    assert(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);
     } catch (...) {
-      DBUG_ASSERT(false);  // Constructor should not throw an exception.
+      assert(false);  // Constructor should not throw an exception.
     }
   }
 
   void destroy(pointer p) {
-    DBUG_ASSERT(p != NULL);
+    assert(p != nullptr);
     try {
       p->~T();
     } catch (...) {
-      DBUG_ASSERT(false);  // Destructor should not throw an exception
+      assert(false);  // Destructor should not throw an exception
     }
   }
 

@@ -1,8 +1,4 @@
--- source include/have_ndb.inc
-
---disable_warnings
-drop database if exists mysqltest;
---enable_warnings
+-- source include/have_multi_ndb.inc
 
 #
 # Check that all tables in a database are dropped when database is dropped
@@ -35,28 +31,28 @@ drop database `mysqltest.db`;
 # bug# 54788 DROP DATABASE can remove hidden blob tables without removing parent tables
 #
 # Dropping a database on a server where Ndb tables with Blobs were
-# 'occluded' by a local table can result in Blob part tables being
+# 'shadowed' by a local table can result in Blob part tables being
 # deleted, but the main table not being deleted.
 #
---source include/have_multi_ndb.inc
+
 --connection server1
 # Create database with occluding table t1
 create database newdb;
-create table newdb.t1 (a int primary key) engine=myisam;
+create table newdb.t1 (a int primary key) engine=innodb;
+
+# Supress errors provoked by the "shadow table"
+--disable_query_log
+call mtr.add_suppression("Local table 'newdb.t1' .* shadows");
+call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Distribution of CREATE TABLE");
+--enable_query_log
 
 --connection server2
-# Create Ndb table with Blobs
-# Lots of Blobs to increase prob. that Ndb-list-objects returns a
-# Blob part table before the main table.
-#
---disable_warnings
-#
-# Drop of non-existing table generates a warning , so
-# warnings disabled.
-#
-drop table if exists newdb.t1;
---enable_warnings
-
+# Create NDB table with blobs, lots of blobs to increase the probability that
+# Ndb-list-objects returns a blob part table before the main table.
+# NOTE! The create table works on this mysqld but fails on first mysqld which
+# has a "shadow table"
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 create table newdb.t1 (a int primary key,
                        b1  blob,
                        b2  blob,

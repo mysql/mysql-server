@@ -27,8 +27,10 @@
 # Implemented as part of WL#3584: Global Transaction Identifiers
 
 --source include/not_group_replication_plugin.inc
+--source include/not_rpl_gtid_only.inc
 --source include/big_test.inc
 --source include/not_windows.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 --echo ==== Configure ====
@@ -183,4 +185,4 @@ eval DROP TABLE t1_$t, t2_$t;
 DROP TABLE t_end;
 DROP PROCEDURE show_slave_status;
 DROP PROCEDURE read_gtid_executed;
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;

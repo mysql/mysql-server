@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
-
-/* First include (the generated) my_config.h to get correct platform defines. */
-#include "my_config.h"
 
 /* Enable this to have the tests below run lots of iterations, suitable for
 perf testing and comparison, but not suitable for daily automated testing
@@ -75,6 +72,7 @@ unittest/gunit/innodb/CMakeLists.txt */
 #include <thread>
 
 #include "my_thread_local.h" /* Needed to access thread local variables */
+#include "storage/innobase/include/os0event.h"         /* os_event_global_*() */
 #include "storage/innobase/include/os0thread-create.h" /* os_thread_*() */
 #include "storage/innobase/include/os0thread.h"        /* os_thread_*() */
 #include "storage/innobase/include/srv0conc.h"         /* srv_max_n_threads */
@@ -313,6 +311,7 @@ class ut0lock_free_hash : public ::testing::Test {
   static void SetUpTestCase() {
     srv_max_n_threads = 1024;
 
+    os_event_global_init();
     sync_check_init(srv_max_n_threads);
     os_thread_open();
   }
@@ -320,6 +319,7 @@ class ut0lock_free_hash : public ::testing::Test {
   static void TearDownTestCase() {
     os_thread_close();
     sync_check_close();
+    os_event_global_destroy();
   }
 };
 

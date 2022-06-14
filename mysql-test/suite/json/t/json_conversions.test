@@ -994,50 +994,48 @@ insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_string';
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_var_string';
 
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='null';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='bool';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='uint';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='int';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='double';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringany';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringint'; # JSON_UNQUOTE helps
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringint';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringdecimal';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='object';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='array';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_decimal';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_set';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_enum';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_date';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_time';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_datetime';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_geom';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_bit';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_year';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_blob';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_longblob';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_mediumblob';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_tinyblob';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_varbinary';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_binary';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_varchar';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_string';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_var_string';

@@ -1,4 +1,85 @@
 #
+# Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows all the columns
+# in a non-partitioned table
+#
+CREATE TABLE t_nopart (a int PRIMARY KEY, b int, c varchar(64));
+SELECT lower(t.name), lower(c.name)
+FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+WHERE t.table_id = c.table_id and t.name like '%t_nopart%'
+  ORDER BY t.name, c.name;
+lower(t.name)	lower(c.name)
+test/t_nopart	a
+test/t_nopart	b
+test/t_nopart	c
+DROP TABLE t_nopart;
+#
+# Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows columns for
+# all the partitions in a partitioned table
+#
+CREATE TABLE t_part
+(a int,
+b int,
+c varchar(64),
+PRIMARY KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+SELECT lower(t.name), lower(c.name)
+FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+WHERE t.table_id = c.table_id and t.name like '%t_part%'
+  ORDER BY t.name, c.name;
+lower(t.name)	lower(c.name)
+test/t_part#p#p0	a
+test/t_part#p#p0	b
+test/t_part#p#p0	c
+test/t_part#p#p1	a
+test/t_part#p#p1	b
+test/t_part#p#p1	c
+test/t_part#p#p2	a
+test/t_part#p#p2	b
+test/t_part#p#p2	c
+test/t_part#p#p3	a
+test/t_part#p#p3	b
+test/t_part#p#p3	c
+test/t_part#p#p4	a
+test/t_part#p#p4	b
+test/t_part#p#p4	c
+DROP TABLE t_part;
+#
+# Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows columns for all
+# the subpartitions of a table
+#
+CREATE TABLE t_subpart (a INT, b INT)
+PARTITION BY RANGE(b)
+SUBPARTITION BY HASH(b)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (1000),
+PARTITION p1 VALUES LESS THAN (2000),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+SELECT lower(t.name), lower(c.name)
+FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+WHERE t.table_id = c.table_id and t.name like '%t_subpart%'
+  ORDER BY t.name, c.name;
+lower(t.name)	lower(c.name)
+test/t_subpart#p#p0#sp#p0sp0	a
+test/t_subpart#p#p0#sp#p0sp0	b
+test/t_subpart#p#p0#sp#p0sp1	a
+test/t_subpart#p#p0#sp#p0sp1	b
+test/t_subpart#p#p1#sp#p1sp0	a
+test/t_subpart#p#p1#sp#p1sp0	b
+test/t_subpart#p#p1#sp#p1sp1	a
+test/t_subpart#p#p1#sp#p1sp1	b
+test/t_subpart#p#p2#sp#p2sp0	a
+test/t_subpart#p#p2#sp#p2sp0	b
+test/t_subpart#p#p2#sp#p2sp1	a
+test/t_subpart#p#p2#sp#p2sp1	b
+DROP TABLE t_subpart;
+#
 # Test of optimizer estimates
 #
 CREATE TABLE t0 (a int PRIMARY KEY, b int, c varchar(64));
@@ -147,7 +228,18 @@ SELECT * FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 a	b
 0	0
 1	1
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
 2	2
+20	20
 3	3
 4	4
 5	5
@@ -155,17 +247,6 @@ a	b
 7	7
 8	8
 9	9
-15	15
-10	10
-12	12
-17	17
-18	18
-19	19
-11	11
-16	16
-14	14
-13	13
-20	20
 EXPLAIN DELETE FROM t1 WHERE a = 4 OR b < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
@@ -222,11 +303,11 @@ pk
 FROM `t1`
 WHERE `c1` IS  NULL OR `c2` = '0';
 pk
+13
+18
 2
 3
 6
-13
-18
 DROP TABLE t1;
 #
 # Bug#20516390: PARTITIONED TABLE, TBLSPACE MOVE, ALTER, ASSERT
@@ -259,7 +340,7 @@ ENGINE=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col_1_int` int(11) DEFAULT NULL,
+  `col_1_int` int DEFAULT NULL,
   `col_2_text` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #insert two records in t1
@@ -280,8 +361,8 @@ PARTITION BY KEY(col_1_int) partitions 5;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col_1_int` int(11) NOT NULL,
-  `col_2_int` int(11) DEFAULT NULL,
+  `col_1_int` int NOT NULL,
+  `col_2_int` int DEFAULT NULL,
   `col_3_text` text NOT NULL,
   PRIMARY KEY (`col_1_int`,`col_3_text`(100)),
   KEY `idx1` (`col_2_int`,`col_1_int`)
@@ -317,7 +398,7 @@ ENGINE=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col_1_int` int(11) DEFAULT NULL,
+  `col_1_int` int DEFAULT NULL,
   `col_2_text` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #insert two records in t1
@@ -338,8 +419,8 @@ PARTITION BY KEY(col_2_int) partitions 5;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col_1_int` int(11) NOT NULL,
-  `col_2_int` int(11) NOT NULL,
+  `col_1_int` int NOT NULL,
+  `col_2_int` int NOT NULL,
   `col_3_text` text,
   PRIMARY KEY (`col_2_int`,`col_1_int`),
   KEY `idx1` (`col_1_int`,`col_3_text`(100))
@@ -405,7 +486,7 @@ ALTER TABLE t1 CHANGE col1 col1 INT UNSIGNED AUTO_INCREMENT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `col1` int unsigned NOT NULL AUTO_INCREMENT,
   `col2` char(10) DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -415,7 +496,7 @@ DROP TABLE t1;
 #
 # Bug#21620577: ASSERTION H->ACTIVE_INDEX == 64
 #
-CREATE TABLE t1(col1 YEAR(4) not null, col2 int, KEY(col1), KEY(col1, col2))
+CREATE TABLE t1(col1 YEAR not null, col2 int, KEY(col1), KEY(col1, col2))
 ENGINE=INNODB
 PARTITION BY KEY(col1) PARTITIONS 2;
 INSERT INTO t1 VALUES('2015', 10);
@@ -477,6 +558,8 @@ SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 TABLE_ROWS
 0
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
@@ -488,6 +571,9 @@ SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 TABLE_ROWS
 0
 ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
@@ -501,6 +587,10 @@ SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 TABLE_ROWS
 0
 ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,10 @@
 #ifndef CONNECTION_HANDLER_MANAGER_INCLUDED
 #define CONNECTION_HANDLER_MANAGER_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "mysql/psi/mysql_cond.h"  // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/conn_handler/connection_handler.h"  // Connection_handler
@@ -78,7 +78,7 @@ class Connection_handler_manager {
   */
   Connection_handler_manager(Connection_handler *connection_handler)
       : m_connection_handler(connection_handler),
-        m_saved_connection_handler(NULL),
+        m_saved_connection_handler(nullptr),
         m_saved_thread_handling(0),
         m_aborted_connects(0),
         m_connection_errors_max_connection(0) {}
@@ -135,7 +135,7 @@ class Connection_handler_manager {
     Singleton method to return an instance of this class.
   */
   static Connection_handler_manager *get_instance() {
-    DBUG_ASSERT(m_instance != NULL);
+    assert(m_instance != nullptr);
     return m_instance;
   }
 
@@ -163,11 +163,15 @@ class Connection_handler_manager {
   /**
     Increment connection count if max_connections is not exceeded.
 
+    @param ignore_max_connection_count  true if checking for a limit
+                                        specified by the max-connections
+                                        server option should be skipped
+
     @retval
       true   max_connections NOT exceeded
       false  max_connections reached
   */
-  bool check_and_incr_conn_count(bool is_admin_connection);
+  bool check_and_incr_conn_count(bool ignore_max_connection_count);
 
   /**
     Reset the max_used_connections counter to the number of current

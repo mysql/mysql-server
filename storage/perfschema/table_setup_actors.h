@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,17 +49,11 @@ struct THR_LOCK;
 /** A row of PERFORMANCE_SCHEMA.SETUP_ACTORS. */
 struct row_setup_actors {
   /** Column HOST. */
-  char m_hostname[HOSTNAME_LENGTH];
-  /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
   /** Column USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
+  PFS_user_name m_user_name;
   /** Column ROLE. */
-  char m_rolename[16];
-  /** Length in bytes of @c m_rolename. */
-  uint m_rolename_length;
+  PFS_role_name m_role_name;
   /** Column ENABLED. */
   bool *m_enabled_ptr;
   /** Column HISTORY. */
@@ -74,7 +68,7 @@ class PFS_index_setup_actors : public PFS_engine_index {
         m_key_2("USER"),
         m_key_3("ROLE") {}
 
-  ~PFS_index_setup_actors() {}
+  ~PFS_index_setup_actors() override = default;
 
   virtual bool match(PFS_setup_actor *pfs);
 
@@ -96,28 +90,28 @@ class table_setup_actors : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_init(uint idx, bool sorted);
-  virtual int index_next();
+  int index_init(uint idx, bool sorted) override;
+  int index_next() override;
 
  protected:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
-  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields);
+  int update_row_values(TABLE *table, const unsigned char *old_buf,
+                        unsigned char *new_buf, Field **fields) override;
 
-  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
-                                Field **fields);
+  int delete_row_values(TABLE *table, const unsigned char *buf,
+                        Field **fields) override;
 
   table_setup_actors();
 
  public:
-  ~table_setup_actors() {}
+  ~table_setup_actors() override = default;
 
  private:
   int make_row(PFS_setup_actor *actor);

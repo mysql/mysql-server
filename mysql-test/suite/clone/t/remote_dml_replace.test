@@ -15,8 +15,6 @@ if (!$have_windows) {
 --let clone_inst_number = 2
 
 --disable_query_log
-# Suppress for wolf SSL, mtr SSL configuration issue with 2nd server and restart
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Failed to set up SSL because of the following SSL library error: .* certificate and private key");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Clone removing all user data for provisioning: .*");
 --enable_query_log
 

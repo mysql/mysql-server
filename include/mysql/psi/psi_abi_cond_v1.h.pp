@@ -2,26 +2,34 @@
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
+typedef long long int longlong;
+typedef unsigned long long int ulonglong;
 typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int16_t int16;
 typedef uint16_t uint16;
 typedef int32_t int32;
 typedef uint32_t uint32;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef intptr_t intptr;
-typedef long long int64;
-typedef unsigned long long uint64;
-typedef long long int longlong;
-typedef unsigned long long int ulonglong;
-typedef unsigned long long my_ulonglong;
 typedef ulonglong my_off_t;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_cond_key;
-struct PSI_cond;
+struct PSI_cond : PSI_instr {};
 typedef struct PSI_cond PSI_cond;
 struct PSI_cond_locker;
 typedef struct PSI_cond_locker PSI_cond_locker;
@@ -43,10 +51,10 @@ struct PSI_cond_locker_state_v1 {
   enum PSI_cond_operation m_operation;
   struct PSI_cond *m_cond;
   struct PSI_mutex *m_mutex;
-  struct PSI_thread *m_thread;
-  unsigned long long m_timer_start;
+  struct PSI_thread *m_thread{nullptr};
+  unsigned long long m_timer_start{0ULL};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
 typedef void (*register_cond_v1_t)(const char *category,
@@ -63,11 +71,6 @@ typedef struct PSI_cond_locker *(*start_cond_wait_v1_t)(
 typedef void (*end_cond_wait_v1_t)(struct PSI_cond_locker *locker, int rc);
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
-#include "psi_base.h"
-#include "my_psi_config.h"
-struct PSI_placeholder {
-  int m_placeholder;
-};
 struct PSI_cond_bootstrap {
   void *(*get_interface)(int version);
 };

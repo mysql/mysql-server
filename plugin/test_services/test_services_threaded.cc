@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ static t_test_status test_status;
 /* declaration of status variable for plugin */
 static SHOW_VAR test_services_status[] = {
     {"test_services_status", (char *)&test_status, SHOW_INT, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
 /* SQL variables to control test execution                     */
 /* SQL variables to switch on/off test of services, default=on */
@@ -65,15 +65,15 @@ static SHOW_VAR test_services_status[] = {
 static int with_log_message_val = 0;
 static MYSQL_SYSVAR_INT(with_log_message, with_log_message_val,
                         PLUGIN_VAR_RQCMDARG,
-                        "Switch on/off test of log message service", NULL, NULL,
-                        1, 0, 1, 0);
+                        "Switch on/off test of log message service", nullptr,
+                        nullptr, 1, 0, 1, 0);
 
 static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(with_log_message),
-                                           NULL};
+                                           nullptr};
 
 /* The test cases for the log_message service. */
 static int test_log_plugin_error() {
-  DBUG_ENTER("test_log_plugin_error");
+  DBUG_TRACE;
   /* Writes to mysqld.1.err: Plugin test_services reports an info text */
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "This is the test plugin for services");
@@ -86,12 +86,12 @@ static int test_log_plugin_error() {
   LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                "This is an error from test plugin for services");
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* This fucntion is needed to be called in a thread. */
-static void *test_services(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_services");
+static void *test_services(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
 
   int ret = 0;
 
@@ -115,16 +115,15 @@ static void *test_services(void *p MY_ATTRIBUTE((unused))) {
                  "Test services return code: %d", ret);
   }
 
-  DBUG_RETURN(0);
+  return nullptr;
 }
 
 /* Creates the plugin context "con", which holds a pointer to the thread. */
 static int test_services_plugin_init(void *p) {
-  DBUG_ENTER("test_services_plugin_init");
+  DBUG_TRACE;
 
   int ret = 0;
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   struct test_services_context *con;
   my_thread_attr_t attr; /* Thread attributes */
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
@@ -142,12 +141,12 @@ static int test_services_plugin_init(void *p) {
   }
   plugin->data = (void *)con;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /* Clean up thread and frees plugin context "con". */
 static int test_services_plugin_deinit(void *p) {
-  DBUG_ENTER("test_services_plugin_deinit");
+  DBUG_TRACE;
   void *dummy_retval;
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
   struct test_services_context *con =
@@ -156,7 +155,7 @@ static int test_services_plugin_deinit(void *p) {
   my_thread_join(&con->test_services_thread, &dummy_retval);
   my_free(con);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Mandatory structure describing the properties of the plugin. */
@@ -166,15 +165,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_services_plugin,
     "test_services_threaded",
-    "Horst Hunger",
+    PLUGIN_AUTHOR_ORACLE,
     "Test services with thread",
     PLUGIN_LICENSE_GPL,
     test_services_plugin_init,   /* Plugin Init */
-    NULL,                        /* Plugin Check uninstall */
+    nullptr,                     /* Plugin Check uninstall */
     test_services_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
     test_services_status,  /* status variables                */
     test_services_sysvars, /* system variables                */
-    NULL,                  /* config options                  */
+    nullptr,               /* config options                  */
     0,                     /* flags                           */
 } mysql_declare_plugin_end;

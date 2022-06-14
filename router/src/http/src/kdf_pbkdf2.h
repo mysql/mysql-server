@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,12 @@
 #ifndef MYSQLROUTER_KDF_PBKDF2_INCLUDED
 #define MYSQLROUTER_KDF_PBKDF2_INCLUDED
 
-#include "mcf_error.h"
-
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "mcf_error.h"
+#include "mysqlrouter/http_auth_backend_lib_export.h"
 
 /**
  * Key Derivation Function for PBKDF2.
@@ -53,7 +54,7 @@
  * - SHA512-224
  * - SHA512-256
  */
-class Pbkdf2 {
+class HTTP_AUTH_BACKEND_LIB_EXPORT Pbkdf2 {
  public:
   enum class Type { Sha_256, Sha_512 };
   static std::vector<uint8_t> salt();
@@ -110,7 +111,7 @@ class Pbkdf2McfType {
 /**
  * MCF reader/writer for PBKDF2.
  */
-class Pbkdf2McfAdaptor {
+class HTTP_AUTH_BACKEND_LIB_EXPORT Pbkdf2McfAdaptor {
  public:
   using mcf_type = Pbkdf2McfType;
   using kdf_type = Pbkdf2;
@@ -254,11 +255,11 @@ class Pbkdf2McfAdaptor {
           mcf.checksum()) {
         return {};
       } else {
-        return std::make_error_code(McfErrc::kPasswordNotMatched);
+        return make_error_code(McfErrc::kPasswordNotMatched);
       }
     } catch (const std::exception &) {
       // whatever the exception was, make it a parse-error
-      return std::make_error_code(McfErrc::kParseError);
+      return make_error_code(McfErrc::kParseError);
     }
   }
 

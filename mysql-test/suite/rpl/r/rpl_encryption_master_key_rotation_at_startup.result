@@ -73,12 +73,24 @@ include/assert.inc [binlog_encryption option shall be ON]
 include/assert.inc [Binary log rotated as expected]
 include/assert.inc [Binary log is encrypted with key #9]
 INSERT INTO t1 (c2) VALUES ("MySQL");
+==== Cleanup ====
+* Disable encryption, cleanup database, and consume all encrypted logs.
 [connection slave]
 include/start_slave.inc
+SET GLOBAL binlog_encryption = OFF;
 [connection master]
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
+* Remove all encrypted logs.
+include/rpl_reset.inc
+* Uninstall the plugin and delete the keyring.
 [connection master]
 UNINSTALL PLUGIN keyring_file;
+* Restart the servers with the same command lines as before the test.
+include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=2]
+* Clean up replication test framework
+[connection slave]
+include/start_slave.inc
 include/rpl_end.inc

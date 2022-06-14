@@ -206,7 +206,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP USER user_to_lock@localhost;
 DROP USER xuser_native@'localhost';
 DROP USER xuser_sha256@'localhost';
 DROP USER xuser_cache2@'localhost';
+DROP USER user_to_lock@localhost;

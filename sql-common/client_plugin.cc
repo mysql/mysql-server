@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@
 #include <sys/types.h>
 
 #include "errmsg.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -61,6 +62,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_common.h"
+#include "template_utils.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -103,7 +105,7 @@ struct st_client_plugin_int {
   struct st_mysql_client_plugin *plugin;
 };
 
-static bool initialized = 0;
+static bool initialized = false;
 static MEM_ROOT mem_root;
 
 static const char *plugin_declarations_sym =
@@ -148,14 +150,14 @@ static int is_not_initialized(MYSQL *mysql, const char *name) {
 static struct st_mysql_client_plugin *find_plugin(const char *name, int type) {
   struct st_client_plugin_int *p;
 
-  DBUG_ASSERT(initialized);
-  DBUG_ASSERT(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
-  if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) return 0;
+  assert(initialized);
+  assert(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
+  if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) return nullptr;
 
   for (p = plugin_list[type]; p; p = p->next) {
     if (strcmp(p->plugin->name, name) == 0) return p->plugin;
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -177,7 +179,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
   struct st_client_plugin_int plugin_int, *p;
   char errbuf[1024];
 
-  DBUG_ASSERT(initialized);
+  assert(initialized);
 
   plugin_int.plugin = plugin;
   plugin_int.dlhandle = dlhandle;
@@ -200,7 +202,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
     the new trace plugin and give error. This is done before the
     new plugin gets initialized.
   */
-  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN && NULL != trace_plugin) {
+  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN && nullptr != trace_plugin) {
     errmsg = "Can not load another trace plugin while one is already loaded";
     goto err1;
   }
@@ -247,13 +249,13 @@ err1:
                            ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
   if (dlhandle) dlclose(dlhandle);
-  return NULL;
+  return nullptr;
 }
 
 static struct st_mysql_client_plugin *add_plugin_noargs(
     MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
     int argc, ...) {
-  struct st_mysql_client_plugin *retval = NULL;
+  struct st_mysql_client_plugin *retval = nullptr;
   va_list ap;
   va_start(ap, argc);
   retval = do_add_plugin(mysql, plugin, dlhandle, argc, ap);
@@ -287,7 +289,7 @@ static void load_env_plugins(MYSQL *mysql) {
   char *enable_cleartext_plugin = getenv("LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN");
 
   if (enable_cleartext_plugin && strchr("1Yy", enable_cleartext_plugin[0]))
-    libmysql_cleartext_plugin_enabled = 1;
+    libmysql_cleartext_plugin_enabled = true;
 
   /* no plugins to load */
   if (!s) return;
@@ -295,10 +297,11 @@ static void load_env_plugins(MYSQL *mysql) {
   free_env = plugs = my_strdup(key_memory_load_env_plugins, s, MYF(MY_WME));
 
   do {
-    if ((s = strchr(plugs, ';'))) *s = '\0';
+    s = strchr(plugs, ';');
+    if (s != nullptr) *s = '\0';
     mysql_load_plugin(mysql, plugs, -1, 0);
-    plugs = s + 1;
-  } while (s);
+    if (s != nullptr) plugs = s + 1;
+  } while (s != nullptr);
 
   my_free(free_env);
 }
@@ -328,16 +331,16 @@ int mysql_client_plugin_init() {
 
   mysql_mutex_init(key_mutex_LOCK_load_client_plugin, &LOCK_load_client_plugin,
                    MY_MUTEX_INIT_SLOW);
-  init_alloc_root(key_memory_root, &mem_root, 128, 128);
+  ::new ((void *)&mem_root) MEM_ROOT(key_memory_root, 128);
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 
-  initialized = 1;
+  initialized = true;
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
   for (builtin = mysql_client_builtins; *builtin; builtin++)
-    add_plugin_noargs(&mysql, *builtin, 0, 0);
+    add_plugin_noargs(&mysql, *builtin, nullptr, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 
@@ -366,8 +369,8 @@ void mysql_client_plugin_deinit() {
     }
 
   memset(&plugin_list, 0, sizeof(plugin_list));
-  initialized = 0;
-  free_root(&mem_root, MYF(0));
+  initialized = false;
+  mem_root.Clear();
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }
 
@@ -376,7 +379,7 @@ void mysql_client_plugin_deinit() {
 /* see <mysql/client_plugin.h> for a full description */
 struct st_mysql_client_plugin *mysql_client_register_plugin(
     MYSQL *mysql, struct st_mysql_client_plugin *plugin) {
-  if (is_not_initialized(mysql, plugin->name)) return NULL;
+  if (is_not_initialized(mysql, plugin->name)) return nullptr;
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
@@ -386,9 +389,9 @@ struct st_mysql_client_plugin *mysql_client_register_plugin(
                              unknown_sqlstate,
                              ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                              plugin->name, "it is already loaded");
-    plugin = NULL;
+    plugin = nullptr;
   } else
-    plugin = add_plugin_noargs(mysql, plugin, 0, 0);
+    plugin = add_plugin_noargs(mysql, plugin, nullptr, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
   return plugin;
@@ -403,15 +406,19 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
   const char *plugindir;
+  const CHARSET_INFO *cs = nullptr;
+  size_t len = (name ? strlen(name) : 0);
+  int well_formed_error;
+  size_t res = 0;
 #ifdef _WIN32
   char win_errormsg[2048];
 #endif
 
-  DBUG_ENTER("mysql_load_plugin_v");
+  DBUG_TRACE;
   DBUG_PRINT("entry", ("name=%s type=%d int argc=%d", name, type, argc));
   if (is_not_initialized(mysql, name)) {
     DBUG_PRINT("leave", ("mysql not initialized"));
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
@@ -430,13 +437,45 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
       plugindir = PLUGINDIR;
     }
   }
+  if (mysql && mysql->charset)
+    cs = mysql->charset;
+  else
+    cs = &my_charset_utf8mb4_bin;
+  /* check if plugin name does not have any directory separator character */
+  if ((my_strcspn(cs, name, name + len, FN_DIRSEP, strlen(FN_DIRSEP))) < len) {
+    errmsg = "No paths allowed for shared library";
+    goto err;
+  }
+  /* check if plugin name does not exceed its maximum length */
+  res = cs->cset->well_formed_len(cs, name, name + len, NAME_CHAR_LEN,
+                                  &well_formed_error);
+
+  if (well_formed_error || len != res) {
+    errmsg = "Invalid plugin name";
+    goto err;
+  }
+  /*
+    check if length of(plugin_dir + plugin name) does not exceed its maximum
+    length
+  */
+  if ((strlen(plugindir) + len + 1) >= FN_REFLEN) {
+    errmsg = "Invalid path";
+    goto err;
+  }
 
   /* Compile dll path */
   strxnmov(dlpath, sizeof(dlpath) - 1, plugindir, "/", name, SO_EXT, NullS);
 
   DBUG_PRINT("info", ("dlopeninig %s", dlpath));
   /* Open new dll handle */
-  if (!(dlhandle = dlopen(dlpath, RTLD_NOW))) {
+#if defined(HAVE_ASAN) || defined(HAVE_LSAN)
+  // Do not unload the shared object during dlclose().
+  // LeakSanitizer needs this in order to match entries in lsan.supp
+  if (!(dlhandle = dlopen(dlpath, RTLD_NOW | RTLD_NODELETE)))
+#else
+  if (!(dlhandle = dlopen(dlpath, RTLD_NOW)))
+#endif
+  {
 #if defined(__APPLE__)
     /* Apple supports plugins with .so also, so try this as well */
     strxnmov(dlpath, sizeof(dlpath) - 1, plugindir, "/", name, ".so", NullS);
@@ -489,14 +528,14 @@ have_plugin:
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 
   DBUG_PRINT("leave", ("plugin loaded ok"));
-  DBUG_RETURN(plugin);
+  return plugin;
 
 err:
   mysql_mutex_unlock(&LOCK_load_client_plugin);
   DBUG_PRINT("leave", ("plugin load error : %s", errmsg));
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), name, errmsg);
-  DBUG_RETURN(NULL);
+  return nullptr;
 }
 
 /* see <mysql/client_plugin.h> for a full description */
@@ -516,9 +555,9 @@ struct st_mysql_client_plugin *mysql_client_find_plugin(MYSQL *mysql,
                                                         int type) {
   struct st_mysql_client_plugin *p;
 
-  DBUG_ENTER("mysql_client_find_plugin");
+  DBUG_TRACE;
   DBUG_PRINT("entry", ("name=%s, type=%d", name, type));
-  if (is_not_initialized(mysql, name)) DBUG_RETURN(NULL);
+  if (is_not_initialized(mysql, name)) return nullptr;
 
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) {
     set_mysql_extended_error(
@@ -528,20 +567,29 @@ struct st_mysql_client_plugin *mysql_client_find_plugin(MYSQL *mysql,
 
   if ((p = find_plugin(name, type))) {
     DBUG_PRINT("leave", ("found %p", p));
-    DBUG_RETURN(p);
+    return p;
   }
 
   /* not found, load it */
   p = mysql_load_plugin(mysql, name, type, 0);
   DBUG_PRINT("leave", ("loaded %p", p));
-  DBUG_RETURN(p);
+  return p;
 }
 
 /* see <mysql/client_plugin.h> for a full description */
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value) {
-  DBUG_ENTER("mysql_plugin_options");
+  DBUG_TRACE;
   /* does the plugin support options call? */
-  if (!plugin || !plugin->options) DBUG_RETURN(1);
-  DBUG_RETURN(plugin->options(option, value));
+  if (!plugin || !plugin->options) return 1;
+  return plugin->options(option, value);
+}
+
+/* see <mysql/client_plugin.h> for a full description */
+int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
+                            const char *option, void *value) {
+  DBUG_TRACE;
+  /* does the plugin support options call? */
+  if (!plugin || !plugin->get_options) return 1;
+  return plugin->get_options(option, value);
 }

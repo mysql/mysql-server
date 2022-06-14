@@ -1,0 +1,142 @@
+################################################################################
+# Validate that list of senders is updated when the sources are (fake) 5.7
+# servers.
+#
+# Test:
+#  0. The test requires 4 servers:
+#       server1: group primary
+#       server2: group secondary
+#       server3: group secondary
+#       server4: replica server
+#  1. Deploy a 3 members group in single primary mode.
+#  2. Configure replica to manage the asynchronous connection
+#     to the group.
+#  3. Create and start the managed channel.
+#     Replica will connect to server1 (weigth: 80).
+#  4. Switch group to multi-primary mode.
+#     Validate that group sources weight is updated.
+#  5. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a 3 members group in single primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo ############################################################
+--echo # 2. Configure replica to manage the asynchronous connection
+--echo #    to the group.
+--echo
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_replication_group_name GROUP
+--eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_replication_group_name', '127.0.0.1', $SERVER_MYPORT_2, '', 80, 70);
+
+
+--echo ###########################################################
+--echo # 3. Create and start the managed channel.
+--echo #    Replica will connect to server1 (weigth: 80).
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+# Simulate that sources are 5.7 servers.
+SET @@GLOBAL.DEBUG='+d,rpl_acf_simulate_57_source';
+
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--replace_column 3 PORT
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover ORDER BY weight DESC;
+
+--echo Wait until ch1 IO_THREAD is connected to server1
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_connection_status WHERE channel_name="ch1" AND source_uuid="$server1_uuid"
+--source include/wait_condition.inc
+
+
+--echo ############################################################
+--echo # 4. Switch group to multi-primary mode.
+--echo #    Validate that group sources weight is updated.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover WHERE weight=80
+--source include/wait_condition.inc
+
+--replace_column 3 PORT
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover ORDER BY weight DESC;
+
+--let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server1_uuid\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 5. Clean up.
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--replace_result $group_replication_group_name GROUP
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_replication_group_name')
+
+SET @@GLOBAL.DEBUG='-d,rpl_acf_simulate_57_source';
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

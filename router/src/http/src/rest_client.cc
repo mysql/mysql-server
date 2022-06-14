@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,9 @@ HttpRequest RestClient::request_sync(
   // ask the server to close the connection after this request
   req.get_output_headers().add("Connection", "close");
   req.get_output_headers().add("Host", http_client_->hostname().c_str());
+
+  // tell the server that we would accept error-messages as problem+json
+  req.get_output_headers().add("Accept", "application/problem+json");
   http_client_->make_request_sync(&req, method, uri);
 
   return req;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,12 +82,12 @@ Machine_Record machine_array[] =
 /* clang-format off */
 
 /* Global handles */
-SERVICE_TYPE(registry) *r = NULL;
-my_h_service h_ret_table_svc = NULL;
-SERVICE_TYPE(pfs_plugin_table) *table_svc = NULL;
+SERVICE_TYPE(registry) *r = nullptr;
+my_h_service h_ret_table_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_table) *table_svc = nullptr;
 
 /* Collection of table shares to be added to performance schema */
-PFS_engine_table_share_proxy* share_list[4]= {NULL, NULL, NULL, NULL};
+PFS_engine_table_share_proxy* share_list[4]= {nullptr, nullptr, nullptr, nullptr};
 unsigned int share_list_count= 4;
 
 /* Mutex info definitions for the table mutexes */
@@ -115,7 +115,7 @@ static PSI_mutex_info mutex_info[] = {
 *   - Acquire pfs_plugin_table service implementation.
 */
 bool
-acquire_service_handles(MYSQL_PLUGIN p MY_ATTRIBUTE((unused)))
+acquire_service_handles(MYSQL_PLUGIN p [[maybe_unused]])
 {
   bool result = false;
 
@@ -154,18 +154,18 @@ error:
 void
 release_service_handles()
 {
-  if (r != NULL)
+  if (r != nullptr)
   {
-    if (h_ret_table_svc != NULL)
+    if (h_ret_table_svc != nullptr)
     {
       /* Release pfs_plugin_table and pfs_plugin_table services */
       r->release(h_ret_table_svc);
-      h_ret_table_svc = NULL;
-      table_svc = NULL;
+      h_ret_table_svc = nullptr;
+      table_svc = nullptr;
     }
     /* Release registry service */
     mysql_plugin_registry_release(r);
-    r = NULL;
+    r = nullptr;
   }
 }
 
@@ -334,11 +334,11 @@ error:
 static int
 pfs_example_plugin_employee_init(void *p)
 {
-  DBUG_ENTER("pfs_example_plugin_employee_init");
+  DBUG_TRACE;
   int result = 0;
 
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+    return 1;
 
   /* Register the mutex classes */
   mysql_mutex_register("pfs_example2", mutex_info, 3);
@@ -366,24 +366,24 @@ pfs_example_plugin_employee_init(void *p)
     mysql_mutex_destroy(&LOCK_machine_records_array);
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 static int
 pfs_example_plugin_employee_check(void *)
 {
-  DBUG_ENTER("pfs_example_plugin_employee_check");
+  DBUG_TRACE;
 
-  if (table_svc != NULL)
+  if (table_svc != nullptr)
   {
     if (table_svc->delete_tables(&share_list[0], share_list_count))
     {
       /* Block execution of UNINSTALL PLUGIN. */
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -394,28 +394,28 @@ pfs_example_plugin_employee_check(void *)
 *   - Release pfs_plugin_table service handle.
 */
 static int
-pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
+pfs_example_plugin_employee_deinit(void *p  [[maybe_unused]])
 {
-  DBUG_ENTER("pfs_example_plugin_employee_deinit");
+  DBUG_TRACE;
 
   /**
    * Call delete_tables function of pfs_plugin_table service to
    * delete plugin tables from performance schema
    */
-  if (table_svc != NULL)
+  if (table_svc != nullptr)
   {
     if (table_svc->delete_tables(&share_list[0], share_list_count))
     {
       LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                    "Error returned from delete_tables()");
       deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-      DBUG_RETURN(1);
+      return 1;
     }
   }
   else /* Service not found or released */
   {
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   /* Destroy mutexes for table records */
@@ -428,7 +428,7 @@ pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
   /* Release service handles. */
   release_service_handles();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static struct st_mysql_daemon pfs_example_plugin_employee = {
@@ -444,15 +444,15 @@ mysql_declare_plugin(pfs_example_plugin_employee)
   MYSQL_DAEMON_PLUGIN,
   &pfs_example_plugin_employee,
   "pfs_example_plugin_employee",
-  "Oracle Corporation",
+  PLUGIN_AUTHOR_ORACLE,
   "pfs_example_plugin_employee",
   PLUGIN_LICENSE_GPL,
   pfs_example_plugin_employee_init,   /* Plugin Init      */
   pfs_example_plugin_employee_check,  /* Plugin Check uninstall */
   pfs_example_plugin_employee_deinit, /* Plugin Deinit    */
-  0x0100 /* 1.0 */, NULL,             /* status variables */
-  NULL,                               /* system variables */
-  NULL,                               /* config options   */
+  0x0100 /* 1.0 */, nullptr,             /* status variables */
+  nullptr,                               /* system variables */
+  nullptr,                               /* config options   */
   PLUGIN_OPT_ALLOW_EARLY,             /* flags            */
 }
 mysql_declare_plugin_end;

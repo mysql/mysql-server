@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -34,15 +35,15 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
-#include "sql/item_subselect.h"  // Item_exists_subselect
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/sql_bitmap.h"      // Bitmap
 #include "sql/sql_show.h"        // append_identifier
 #include "sql_string.h"          // String
 
+enum class Subquery_strategy : int;
 class Item;
 class JOIN;
 class Opt_hints_table;
@@ -77,6 +78,12 @@ enum opt_hints_enum {
   INDEX_MERGE_HINT_ENUM,
   RESOURCE_GROUP_HINT_ENUM,
   SKIP_SCAN_HINT_ENUM,
+  HASH_JOIN_HINT_ENUM,
+  INDEX_HINT_ENUM,
+  JOIN_INDEX_HINT_ENUM,
+  GROUP_INDEX_HINT_ENUM,
+  ORDER_INDEX_HINT_ENUM,
+  DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -186,7 +193,7 @@ class Opt_hints {
         resolved(false),
         resolved_children(0) {}
 
-  virtual ~Opt_hints() {}
+  virtual ~Opt_hints() = default;
 
   bool is_specified(opt_hints_enum type_arg) const {
     return hints_map.is_specified(type_arg);
@@ -223,6 +230,7 @@ class Opt_hints {
   bool get_switch(opt_hints_enum type_arg) const;
 
   virtual const LEX_CSTRING *get_name() const { return name; }
+  virtual const LEX_CSTRING *get_print_name() { return name; }
   void set_name(const LEX_CSTRING *name_arg) { name = name_arg; }
   Opt_hints *get_parent() const { return parent; }
   virtual void set_resolved() { resolved = true; }
@@ -233,7 +241,7 @@ class Opt_hints {
 
     @return  true if all hint objects are resolved, false otherwise.
   */
-  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {
+  virtual bool is_resolved(opt_hints_enum type_arg [[maybe_unused]]) {
     return resolved;
   }
   /**
@@ -241,19 +249,19 @@ class Opt_hints {
 
     @param type_arg  hint type
   */
-  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {}
+  virtual void set_unresolved(opt_hints_enum type_arg [[maybe_unused]]) {}
   /**
     If ignore_print() returns true, hint is not printed
     in Opt_hints::print() function. Atm used for
-    INDEX_MERGE, SKIP_SCAN hints.
+    INDEX_MERGE, SKIP_SCAN, INDEX, JOIN_INDEX, GROUP_INDEX
+    ORDER_INDEX hints.
 
     @param type_arg  hint type
 
     @return  true if the hint should not be printed
     in Opt_hints::print() function, false otherwise.
   */
-  virtual bool ignore_print(
-      opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const {
+  virtual bool ignore_print(opt_hints_enum type_arg [[maybe_unused]]) const {
     return false;
   }
   void incr_resolved_children() { resolved_children++; }
@@ -275,10 +283,9 @@ class Opt_hints {
 
     @return  pointer to complex hint for a given type.
   */
-  virtual PT_hint *get_complex_hints(
-      opt_hints_enum type MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
-    return NULL; /* error C4716: must return a value */
+  virtual PT_hint *get_complex_hints(opt_hints_enum type [[maybe_unused]]) {
+    assert(0);
+    return nullptr; /* error C4716: must return a value */
   }
 
   /**
@@ -331,8 +338,8 @@ class Opt_hints {
     @param thd             pointer to THD object
     @param str             pointer to String object
   */
-  virtual void print_irregular_hints(const THD *thd MY_ATTRIBUTE((unused)),
-                                     String *str MY_ATTRIBUTE((unused))) {}
+  virtual void print_irregular_hints(const THD *thd [[maybe_unused]],
+                                     String *str [[maybe_unused]]) {}
 };
 
 /**
@@ -345,9 +352,9 @@ class Opt_hints_global : public Opt_hints {
   Sys_var_hint *sys_var_hint;
 
   Opt_hints_global(MEM_ROOT *mem_root_arg)
-      : Opt_hints(NULL, NULL, mem_root_arg) {
-    max_exec_time = NULL;
-    sys_var_hint = NULL;
+      : Opt_hints(nullptr, nullptr, mem_root_arg) {
+    max_exec_time = nullptr;
+    sys_var_hint = nullptr;
   }
 
   void append_name(const THD *, String *) override {}
@@ -362,7 +369,7 @@ class PT_qb_level_hint;
 */
 
 class Opt_hints_qb : public Opt_hints {
-  uint select_number;    // SELECT_LEX number
+  uint select_number;    // Query_block number
   LEX_CSTRING sys_name;  // System QB name
   char buff[32];         // Buffer to hold sys name
 
@@ -383,7 +390,7 @@ class Opt_hints_qb : public Opt_hints {
   Opt_hints_qb(Opt_hints *opt_hints_arg, MEM_ROOT *mem_root_arg,
                uint select_number_arg);
 
-  const LEX_CSTRING *get_print_name() {
+  const LEX_CSTRING *get_print_name() override {
     const LEX_CSTRING *str = Opt_hints::get_name();
     return str ? str : &sys_name;
   }
@@ -441,7 +448,7 @@ class Opt_hints_qb : public Opt_hints {
 
     @return true if semijoin is enabled
   */
-  bool semijoin_enabled(THD *thd) const;
+  bool semijoin_enabled(const THD *thd) const;
 
   /**
     Returns bit mask of which semi-join strategies are enabled for this query
@@ -457,11 +464,11 @@ class Opt_hints_qb : public Opt_hints {
     Returns which subquery execution strategy has been specified by hints
     for this query block.
 
-    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
-    @retval EXEC_EXISTS In-to-exists execution should be used
-    @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
+    @retval SUBQ_MATERIALIZATION  Subquery Materialization should be used
+    @retval SUBQ_EXISTS           In-to-exists execution should be used
+    @retval UNSPECIFIED           No SUBQUERY hint for this query block
   */
-  Item_exists_subselect::enum_exec_method subquery_strategy() const;
+  Subquery_strategy subquery_strategy() const;
 
   void print_irregular_hints(const THD *thd, String *str) override;
 
@@ -493,8 +500,10 @@ class Compound_key_hint {
   Compound_key_hint() {
     key_map.init();
     resolved = false;
-    pt_hint = NULL;
+    pt_hint = nullptr;
   }
+
+  virtual ~Compound_key_hint() = default;
 
   void set_pt_hint(PT_key_level_hint *pt_hint_arg) { pt_hint = pt_hint_arg; }
   PT_key_level_hint *get_pt_hint() { return pt_hint; }
@@ -505,7 +514,32 @@ class Compound_key_hint {
   void set_key_map(uint i) { key_map.set_bit(i); }
   bool is_set_key_map(uint i) { return key_map.is_set(i); }
   bool is_key_map_clear_all() { return key_map.is_clear_all(); }
+  Key_map *get_key_map() { return &key_map; }
+  virtual bool is_hint_conflicting(Opt_hints_table *table_hint [[maybe_unused]],
+                                   Opt_hints_key *key_hint [[maybe_unused]]) {
+    return false;
+  }
 };
+
+/**
+  Auxiliary class for JOIN_INDEX, GROUP_INDEX, ORDER_INDEX hints.
+*/
+class Index_key_hint : public Compound_key_hint {
+ public:
+  bool is_hint_conflicting(Opt_hints_table *table_hint,
+                           Opt_hints_key *key_hint) override;
+};
+
+/**
+  Auxiliary class for INDEX hint.
+*/
+class Glob_index_key_hint : public Compound_key_hint {
+ public:
+  bool is_hint_conflicting(Opt_hints_table *table_hint,
+                           Opt_hints_key *key_hint) override;
+};
+
+bool is_compound_hint(opt_hints_enum type_arg);
 
 /**
   Table level hints.
@@ -516,6 +550,10 @@ class Opt_hints_table : public Opt_hints {
   Mem_root_array<Opt_hints_key *> keyinfo_array;
   Compound_key_hint index_merge;
   Compound_key_hint skip_scan;
+  Glob_index_key_hint index;
+  Index_key_hint join_index;
+  Index_key_hint group_index;
+  Index_key_hint order_index;
 
   Opt_hints_table(const LEX_CSTRING *table_name_arg, Opt_hints_qb *qb_hints_arg,
                   MEM_ROOT *mem_root_arg)
@@ -539,21 +577,25 @@ class Opt_hints_table : public Opt_hints {
     @param table      Pointer to TABLE_LIST object
   */
   void adjust_key_hints(TABLE_LIST *table);
-  virtual PT_hint *get_complex_hints(opt_hints_enum type) override;
+  PT_hint *get_complex_hints(opt_hints_enum type) override;
 
   void set_resolved() override {
     Opt_hints::set_resolved();
     if (is_specified(INDEX_MERGE_HINT_ENUM)) index_merge.set_resolved(true);
     if (is_specified(SKIP_SCAN_HINT_ENUM)) skip_scan.set_resolved(true);
+    if (is_specified(INDEX_HINT_ENUM)) index.set_resolved(true);
+    if (is_specified(JOIN_INDEX_HINT_ENUM)) join_index.set_resolved(true);
+    if (is_specified(GROUP_INDEX_HINT_ENUM)) group_index.set_resolved(true);
+    if (is_specified(ORDER_INDEX_HINT_ENUM)) order_index.set_resolved(true);
   }
 
   void set_unresolved(opt_hints_enum type_arg) override {
-    if (is_specified(type_arg) && is_compound_key_hint(type_arg))
+    if (is_specified(type_arg) && is_compound_hint(type_arg))
       get_compound_key_hint(type_arg)->set_resolved(false);
   }
 
   bool is_resolved(opt_hints_enum type_arg) override {
-    if (is_compound_key_hint(type_arg))
+    if (is_compound_hint(type_arg))
       return Opt_hints::is_resolved(type_arg) &&
              get_compound_key_hint(type_arg)->is_resolved();
     return Opt_hints::is_resolved(type_arg);
@@ -562,19 +604,33 @@ class Opt_hints_table : public Opt_hints {
   void set_compound_key_hint_map(Opt_hints *hint, uint arg) {
     if (hint->is_specified(INDEX_MERGE_HINT_ENUM)) index_merge.set_key_map(arg);
     if (hint->is_specified(SKIP_SCAN_HINT_ENUM)) skip_scan.set_key_map(arg);
+    if (hint->is_specified(INDEX_HINT_ENUM)) index.set_key_map(arg);
+    if (hint->is_specified(JOIN_INDEX_HINT_ENUM)) join_index.set_key_map(arg);
+    if (hint->is_specified(GROUP_INDEX_HINT_ENUM)) group_index.set_key_map(arg);
+    if (hint->is_specified(ORDER_INDEX_HINT_ENUM)) order_index.set_key_map(arg);
   }
 
   Compound_key_hint *get_compound_key_hint(opt_hints_enum type_arg) {
     if (type_arg == INDEX_MERGE_HINT_ENUM) return &index_merge;
     if (type_arg == SKIP_SCAN_HINT_ENUM) return &skip_scan;
-    DBUG_ASSERT(0);
-    return NULL;
+    if (type_arg == INDEX_HINT_ENUM) return &index;
+    if (type_arg == JOIN_INDEX_HINT_ENUM) return &join_index;
+    if (type_arg == GROUP_INDEX_HINT_ENUM) return &group_index;
+    if (type_arg == ORDER_INDEX_HINT_ENUM) return &order_index;
+    assert(0);
+    return nullptr;
   }
 
-  bool is_compound_key_hint(opt_hints_enum type_arg) {
-    return (type_arg == INDEX_MERGE_HINT_ENUM ||
-            type_arg == SKIP_SCAN_HINT_ENUM);
+  bool is_force_index_hint(opt_hints_enum type_arg) {
+    return (get_compound_key_hint(type_arg)->is_resolved() &&
+            get_switch(type_arg));
   }
+
+  bool is_hint_conflicting(Opt_hints_key *key_hint, opt_hints_enum type);
+  void update_index_hint_map(Key_map *keys_to_use,
+                             Key_map *available_keys_to_use,
+                             opt_hints_enum type_arg);
+  bool update_index_hint_maps(THD *thd, TABLE *tbl);
 };
 
 /**
@@ -603,8 +659,7 @@ class Opt_hints_key : public Opt_hints {
     its own printing method.
   */
   bool ignore_print(opt_hints_enum type_arg) const override {
-    return (type_arg == INDEX_MERGE_HINT_ENUM ||
-            type_arg == SKIP_SCAN_HINT_ENUM);
+    return is_compound_hint(type_arg);
   }
 };
 
@@ -614,7 +669,7 @@ class Opt_hints_key : public Opt_hints {
 
 class Hint_set_var {
  public:
-  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(NULL) {}
+  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(nullptr) {}
   set_var *var;      // Pointer to set_var object
   Item *save_value;  // Original variable value
 };
@@ -633,20 +688,18 @@ class Sys_var_hint {
     Add variable to hint list.
 
     @param thd            pointer to THD object
-    @param sys_var        pointer to sys_var object
+    @param var_tracker    pointer to System_variable_tracker object
     @param sys_var_value  variable value
 
     @return true if variable is added,
             false otherwise
   */
-  bool add_var(THD *thd, sys_var *sys_var, Item *sys_var_value);
+  bool add_var(THD *thd, const System_variable_tracker &var_tracker,
+               Item *sys_var_value);
   /**
     Find variable in hint list.
 
     @param thd   Pointer to thread object
-
-    @return true if variable is found,
-            false otherwise
   */
   void update_vars(THD *thd);
   /**
@@ -706,7 +759,7 @@ void append_table_name(const THD *thd, String *str, const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name);
 
 /**
-  Returns true if compoubd hint state is on with or without
+  Returns true if compound hint state is on with or without
   specified keys, otherwise returns false.
   If compound hint state is on and hint is specified without indexes,
   function returns 'true' for any 'keyno' argument. If hint specified
@@ -727,6 +780,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 /**
   Returns true if index merge hint state is on otherwise returns false.
 
+  @param thd                       Thread handler
   @param table                     Pointer to TABLE object
   @param use_cheapest_index_merge  IN/OUT Returns true if INDEX_MERGE hint is
                                           used without any specified key.
@@ -734,6 +788,10 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
   @return true if index merge hint state is on otherwise returns false.
 */
 
-bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge);
+bool idx_merge_hint_state(THD *thd, const TABLE *table,
+                          bool *use_cheapest_index_merge);
+
+int cmp_lex_string(const LEX_CSTRING &s, const LEX_CSTRING &t,
+                   const CHARSET_INFO *cs);
 
 #endif /* OPT_HINTS_INCLUDED */

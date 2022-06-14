@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ Role_activation::Role_activation(
     @retval true  Failure. Error is raised.
 */
 bool Role_activation::activate() {
-  DBUG_ENTER("Role_activation::activate_role");
+  DBUG_TRACE;
   bool set_role_status = true;
   switch (m_type) {
     case role_enum::ROLE_DEFAULT:
@@ -84,11 +84,11 @@ bool Role_activation::activate() {
       set_role_status = activate_role_name();
       break;
     case role_enum::ROLE_NONE:
-      // Fall through
+      [[fallthrough]];
     default:
       set_role_status = activate_role_none();
   }
-  DBUG_RETURN(set_role_status);
+  return set_role_status;
 }
 
 /**
@@ -99,21 +99,21 @@ bool Role_activation::activate() {
     @retval true Error
 */
 bool Role_activation::activate_role_none() {
-  DBUG_ENTER("Role_activation::activate_role_none");
+  DBUG_TRACE;
   m_sctx->clear_active_roles();
   m_sctx->clear_db_restrictions();
   m_sctx->checkout_access_maps();
   ulong new_db_access = m_sctx->db_acl(m_thd->db());
   m_sctx->cache_current_db_access(new_db_access);
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
   ACL_USER *user =
       find_acl_user(m_sctx->priv_host().str, m_sctx->priv_user().str, true);
   if (user) {
     m_sctx->set_master_access(user->access,
                               acl_restrictions->find_restrictions(user));
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -124,10 +124,10 @@ bool Role_activation::activate_role_none() {
     @retval true Error
 */
 bool Role_activation::activate_role_default() {
-  DBUG_ENTER("Role_activation::activate_role_default");
+  DBUG_TRACE;
   bool ret = false;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
   List_of_auth_id_refs authids;
   List_of_auth_id_refs backup_active_list;
@@ -180,7 +180,7 @@ bool Role_activation::activate_role_default() {
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -191,9 +191,9 @@ bool Role_activation::activate_role_default() {
     @retval true Error
 */
 bool Role_activation::activate_role_all() {
-  DBUG_ENTER("Role_activation::activate_role_all");
+  DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
 
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
   List_of_auth_id_refs backup_active_list;
@@ -221,16 +221,14 @@ bool Role_activation::activate_role_all() {
     for (; role_it != granted_roles.end(); ++role_it) {
       bool found_except_role = false;
       if (m_role_list && m_role_list->elements > 0) {
-        List_iterator<LEX_USER> role_list_it(
-            *(const_cast<List<LEX_USER> *>(m_role_list)));
-        while (LEX_USER *except_role = (LEX_USER *)role_list_it.next()) {
-          if ((except_role->user.length == role_it->first.user().length()) &&
-              (except_role->host.length == role_it->first.host().length()) &&
-              strncmp(except_role->user.str, role_it->first.user().c_str(),
-                      except_role->user.length) == 0 &&
-              native_strncasecmp(except_role->host.str,
+        for (const LEX_USER &except_role : *m_role_list) {
+          if ((except_role.user.length == role_it->first.user().length()) &&
+              (except_role.host.length == role_it->first.host().length()) &&
+              strncmp(except_role.user.str, role_it->first.user().c_str(),
+                      except_role.user.length) == 0 &&
+              native_strncasecmp(except_role.host.str,
                                  role_it->first.host().c_str(),
-                                 except_role->host.length) == 0) {
+                                 except_role.host.length) == 0) {
             found_except_role = true;
             break;
           }
@@ -270,7 +268,7 @@ bool Role_activation::activate_role_all() {
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -281,10 +279,10 @@ bool Role_activation::activate_role_all() {
     @retval true Error
 */
 bool Role_activation::activate_role_name() {
-  DBUG_ENTER("Role_activation::activate_role_name");
+  DBUG_TRACE;
   bool ret = false;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
 
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
   List_of_auth_id_refs backup_active_list;
@@ -293,7 +291,7 @@ bool Role_activation::activate_role_name() {
             std::back_inserter(backup_active_list));
   m_sctx->get_active_roles()->clear();
   List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(m_role_list)));
-  LEX_USER *role = 0;
+  LEX_USER *role = nullptr;
   while (ret == 0 && (role = it++)) {
     ret = m_sctx->activate_role(role->user, role->host, true);
   }
@@ -322,7 +320,7 @@ bool Role_activation::activate_role_name() {
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 }  // namespace Roles

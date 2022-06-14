@@ -1,0 +1,35 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+###############################################################################
+# Check the Character set of the return value
+SELECT CHARSET(group_replication_set_communication_protocol("8.0.19"));
+CHARSET(group_replication_set_communication_protocol("8.0.19"))
+latin1
+SELECT CHARSET(group_replication_get_communication_protocol());
+CHARSET(group_replication_get_communication_protocol())
+latin1
+SELECT CHARSET(group_replication_set_write_concurrency(15));
+CHARSET(group_replication_set_write_concurrency(15))
+latin1
+SELECT CHARSET(group_replication_switch_to_single_primary_mode("MEMBER1_UUID"));
+CHARSET(group_replication_switch_to_single_primary_mode("MEMBER1_UUID"))
+latin1
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+SELECT CHARSET(group_replication_set_as_primary("MEMBER1_UUID"));
+CHARSET(group_replication_set_as_primary("MEMBER1_UUID"))
+latin1
+SELECT CHARSET(group_replication_switch_to_multi_primary_mode());
+CHARSET(group_replication_switch_to_multi_primary_mode())
+latin1
+group_replication_get_write_concurrency()
+10
+SELECT CHARSET(group_replication_get_write_concurrency());
+CHARSET(group_replication_get_write_concurrency())
+binary
+###############################################################################
+include/group_replication_end.inc

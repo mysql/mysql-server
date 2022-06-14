@@ -4,6 +4,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
+--source include/have_punch_hole.inc
 
 #let $KEYRING_PLUGIN = 'keyring_file.so';
 
@@ -20,28 +21,6 @@ call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* 
 call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
-
-# Create a table with encryption, should fail since keyring is not
-# loaded
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
-
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -78,56 +57,6 @@ SHOW WARNINGS;
 --error ER_INVALID_ENCRYPTION_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
 
-# Create a table with encryption
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES(0, "aaaaa");
-INSERT INTO t1 VALUES(1, "bbbbb");
-INSERT INTO t1 VALUES(2, "ccccc");
-INSERT INTO t1 VALUES(3, "ddddd");
-INSERT INTO t1 VALUES(4, "eeeee");
-INSERT INTO t1 VALUES(5, "fffff");
-INSERT INTO t1 VALUES(6, "ggggg");
-INSERT INTO t1 VALUES(7, "hhhhh");
-INSERT INTO t1 VALUES(8, "iiiii");
-INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-
---disable_query_log
-SET DEBUG='+d,os_block_cache_busy';
---enable_query_log
-
-# Restart without key ring to check the encrypted table can't be open.
--- source include/restart_mysqld.inc
-
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-
-# Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---disable_query_log
-SET DEBUG='-d,os_block_cache_busy';
---enable_query_log
-
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-
-DROP TABLE t1;
-
 # Crash/recovery test.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -144,10 +73,10 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
 --source include/kill_mysqld.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/start_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
@@ -196,13 +125,10 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
 
@@ -221,13 +147,10 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
 
@@ -257,13 +180,10 @@ UNLOCK TABLES;
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart: --innodb_strict_mode=OFF --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters= restart: --innodb_strict_mode=OFF --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
@@ -284,3 +204,9 @@ ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 # Cleanup
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;
+
+# Restart with default innodb_strict_mode
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc

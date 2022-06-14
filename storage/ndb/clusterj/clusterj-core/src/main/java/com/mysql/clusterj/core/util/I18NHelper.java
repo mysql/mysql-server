@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -349,7 +348,7 @@ public class I18NHelper {
     final private static String getMessage(ResourceBundle messages, 
             String messageKey, int arg) 
     {
-        Object []args = {new Integer(arg)};
+        Object []args = {Integer.valueOf(arg)};
         return getMessage(messages, messageKey, args);
     }
     

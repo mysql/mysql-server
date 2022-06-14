@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,13 +35,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "arch0arch.h"
 
 /** File Node Iterator callback
-@param[in]	file_name	NULL terminated file name
-@param[in]	file_size	size of file in bytes
-@param[in]	read_offset	offset to start reading from
-@param[in]	ctx		context passed by caller
+@param[in]      file_name       NULL terminated file name
+@param[in]      file_size       size of file in bytes
+@param[in]      read_offset     offset to start reading from
+@param[in]      ctx             context passed by caller
 @return error code */
-using Log_Arch_Cbk = int(char *file_name, ib_uint64_t file_size,
-                         ib_uint64_t read_offset, void *ctx);
+using Log_Arch_Cbk = int(char *file_name, uint64_t file_size,
+                         uint64_t read_offset, void *ctx);
 
 /** Redo Log archiver client context */
 class Log_Arch_Client_Ctx {
@@ -54,27 +54,28 @@ class Log_Arch_Client_Ctx {
         m_end_lsn(LSN_MAX) {}
 
   /** Get redo file, header and trailer size
-  @param[out]	file_sz		redo file size
-  @param[out]	header_sz	redo header size
-  @param[out]	trailer_sz	redo trailer size */
-  void get_header_size(ib_uint64_t &file_sz, uint &header_sz, uint &trailer_sz);
+  @param[out]   file_sz         redo file size
+  @param[out]   header_sz       redo header size
+  @param[out]   trailer_sz      redo trailer size */
+  void get_header_size(uint64_t &file_sz, uint &header_sz, uint &trailer_sz);
 
   /** Start redo log archiving
-  @param[out]	header	redo header. Caller must allocate buffer.
-  @param[in]	len	buffer length
+  @param[out]   header  redo header. Caller must allocate buffer.
+  @param[in]    len     buffer length
   @return error code */
   int start(byte *header, uint len);
 
-  /** Stop redo log archiving
-  @param[out]	trailer	redo trailer. Caller must allocate buffer.
-  @param[in,out]	len	buffer length
-  @param[out]	offset	trailer block offset
+  /** Stop redo log archiving. Exact trailer length is returned as out
+  parameter which could be less than the redo block size.
+  @param[out]   trailer redo trailer. Caller must allocate buffer.
+  @param[in,out]        len     trailer length
+  @param[out]   offset  trailer block offset
   @return error code */
   int stop(byte *trailer, uint32_t &len, uint64_t &offset);
 
   /** Get archived data file details
-  @param[in]	cbk_func	callback called for each file
-  @param[in]	ctx		callback function context
+  @param[in]    cbk_func        callback called for each file
+  @param[in]    ctx             callback function context
   @return error code */
   int get_files(Log_Arch_Cbk *cbk_func, void *ctx);
 

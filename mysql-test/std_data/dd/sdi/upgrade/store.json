@@ -47,8 +47,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "tinyint(3) unsigned",
+                "column_type_utf8": "tinyint unsigned",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false
@@ -83,8 +85,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 3,
-                "column_type_utf8": "tinyint(3) unsigned",
+                "column_type_utf8": "tinyint unsigned",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false
@@ -119,8 +123,10 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 4,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false
@@ -155,6 +161,8 @@
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "timestamp",
                 "elements": [],
@@ -191,6 +199,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -227,6 +237,8 @@
                 "generation_expression_utf8": "",
                 "options": "",
                 "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -240,6 +252,8 @@
         "last_checked_for_upgrade_version_id": X,
         "comment": "",
         "se_private_data": "autoinc=2;version=0;",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
         "row_format": 2,
         "partition_type": 0,
         "partition_expression": "",
@@ -263,6 +277,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -322,6 +338,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -353,6 +371,8 @@
                 "is_algorithm_explicit": false,
                 "is_visible": true,
                 "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
                 "elements": [
                     {
                         "ordinal_position": 1,
@@ -430,6 +450,7 @@
         "options": "encryption=N;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
+        "engine_attribute": "",
         "files": [
             {
                 "ordinal_position": 1,

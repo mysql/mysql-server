@@ -6,6 +6,9 @@
 ##############################################################
 --source include/have_multi_ndb.inc
 
+let $save_lock_wait_timeout = `select @@ndb_schema_dist_lock_wait_timeout`;
+set @@global.ndb_schema_dist_lock_wait_timeout = 240;
+
 connect (j1,localhost,root,,test);
 connect (j2,localhost,root,,test);
 connect (j3,localhost,root,,test);
@@ -41,21 +44,21 @@ set ndb_join_pushdown = off;
 # Use 'replace_column' to eliminate explained 'rows' which are unreliable
 --replace_column 10 ### 11 ###
 explain
-  select straight_join * 
+  select straight_join count(*)
   from parent join child
   on child.a = parent.a and child.b = parent.b
   where parent.b > 5;
 
 --replace_column 10 ### 11 ###
 explain
-  select straight_join *
+  select straight_join count(*)
   from parent join child
   on child.a = parent.a 
   where parent.b > 5;
 
 --replace_column 10 ### 11 ###
 explain
-  select straight_join *
+  select straight_join count(*)
   from parent join child
   on child.b = parent.b 
   where parent.b > 5;
@@ -68,7 +71,7 @@ begin
   set @x=time_to_sec(current_time()) + seconds;
   repeat
     set ndb_join_pushdown = off;
-    select straight_join * 
+    select straight_join count(*)
     from parent join child
     on child.a = parent.a and child.b = parent.b
     where parent.b > 5;
@@ -81,7 +84,7 @@ begin
   set @x=time_to_sec(current_time()) + seconds;
   repeat
     set ndb_join_pushdown = off;
-    select straight_join * 
+    select straight_join count(*)
     from parent join child
     on child.a = parent.a and child.b = parent.b
     where parent.b > 5;
@@ -94,7 +97,7 @@ begin
   set @x=time_to_sec(current_time()) + seconds;
   repeat
     set ndb_join_pushdown = off;
-    select straight_join *
+    select straight_join count(*)
     from parent join child
     on child.a = parent.a and child.b = parent.b
     where parent.b > 5;
@@ -186,7 +189,7 @@ commit;
 
 connection server1;
 --disable_result_log
---error 0,1412,1146,1296
+--error 0,1412,1146,1296,2013
 reap;
 --enable_result_log
 
@@ -199,3 +202,5 @@ drop procedure query_eq_ref_load;
 drop procedure query_ref_load;
 drop procedure query_ref_b_load;
 
+# Restore intial ndb_schema_dist_lock_wait_timeout value
+eval set @@global.ndb_schema_dist_lock_wait_timeout = $save_lock_wait_timeout;

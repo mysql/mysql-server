@@ -1,8 +1,13 @@
 
 --source include/have_optimizer_trace.inc
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
 SET optimizer_trace_max_mem_size = 1000000;
 SET optimizer_trace="enabled=on";
+
+SET @path = "$**.filtering_effect";
+let $trace_query =
+  SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 
 CREATE TABLE t1 (col1 INT, col2 INT);
 
@@ -12,37 +17,37 @@ UPDATE mysql.innodb_table_stats SET n_rows = 6
 WHERE database_name = "test" AND table_name = "t1";
 
 EXPLAIN SELECT * FROM t1 WHERE col1 < 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 > 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 >= 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 <= 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 = 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 != 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 <> 4;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 6;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 6;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 IS NULL;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 IS NOT NULL;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 
 DROP TABLE t1;
 
@@ -61,7 +66,7 @@ ANALYZE TABLE t1;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 8 BUCKETS;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 > 10 AND col2 < 88;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+eval $trace_query;
 DROP TABLE t1;
 
 --echo #
@@ -75,5 +80,11 @@ ANALYZE TABLE t1;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
 
 EXPLAIN SELECT * FROM t1 WHERE col1 > 2 AND col1 <= 7;
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+--echo # Selectivity estimations for each conditions.
+eval $trace_query;
+--echo # Total calculated selectivity estimation.
+SELECT JSON_EXTRACT(trace, "$**.final_filtering_effect")
+  FROM information_schema.OPTIMIZER_TRACE;
+
 DROP TABLE t1;

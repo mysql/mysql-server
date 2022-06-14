@@ -11,6 +11,11 @@ USE TEST;
 # InnoDB did not handle lower_case_table_names=2 for
 # foreign_table_names and referenced_table_names.
 #
+# Also provides coverage for bug#25583288 "DO NOT USE
+# HA_INNOBASE::GET_FOREIGN_KEY_CREATE_INFO() FOR SHOW CREATE
+# TABLE FK" and bug#30110545 "FK TABLE NAME CASING IS OMITTED
+# ON MYSQL 8 LOWER_CASE_TABLE_NAMES=2"
+#
 SHOW VARIABLES LIKE 'lower_case_table_names';
 Variable_name	Value
 lower_case_table_names	2
@@ -22,11 +27,11 @@ ALTER TABLE `Table2` ADD CONSTRAINT fk1 FOREIGN KEY(c2) REFERENCES `Table1`(c1);
 SHOW CREATE TABLE `Table2`;
 Table	Table2
 Create Table	CREATE TABLE `Table2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk1` (`c2`),
-  CONSTRAINT `fk1` FOREIGN KEY (`c2`) REFERENCES `table1` (`c1`)
+  CONSTRAINT `fk1` FOREIGN KEY (`c2`) REFERENCES `Table1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';
@@ -64,28 +69,28 @@ REFERENCES Customer(Id)
 SHOW CREATE TABLE Product_Order;
 Table	Product_Order
 Create Table	CREATE TABLE `Product_Order` (
-  `No` int(11) NOT NULL AUTO_INCREMENT,
-  `Product_Category` int(11) NOT NULL,
-  `Product_Id` int(11) NOT NULL,
-  `Customer_Id` int(11) NOT NULL,
+  `No` int NOT NULL AUTO_INCREMENT,
+  `Product_Category` int NOT NULL,
+  `Product_Id` int NOT NULL,
+  `Customer_Id` int NOT NULL,
   PRIMARY KEY (`No`),
   KEY `Product_Category` (`Product_Category`,`Product_Id`),
   KEY `Customer_Id` (`Customer_Id`),
-  CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `product` (`Category`, `Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `product_order_ibfk_2` FOREIGN KEY (`Customer_Id`) REFERENCES `customer` (`Id`)
+  CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `Product` (`Category`, `Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `product_order_ibfk_2` FOREIGN KEY (`Customer_Id`) REFERENCES `Customer` (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Product;
 Table	Product
 Create Table	CREATE TABLE `Product` (
-  `Category` int(11) NOT NULL,
-  `Id` int(11) NOT NULL,
+  `Category` int NOT NULL,
+  `Id` int NOT NULL,
   `Price` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`Category`,`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Customer;
 Table	Customer
 Create Table	CREATE TABLE `Customer` (
-  `Id` int(11) NOT NULL,
+  `Id` int NOT NULL,
   PRIMARY KEY (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
@@ -115,3 +120,34 @@ REFERENCED_TABLE_NAME	Customer
 DROP TABLE Product_Order;
 DROP TABLE Product;
 DROP TABLE Customer;
+#
+# Bug#29957361: TABLE NOT IN THE SHOW TABLES WITH LOWER_CASE_TABLE_NAMES=2
+#
+CREATE DATABASE my_db;
+USE my_db;
+CREATE TABLE UPPERCASE_MYISAM (a INT) ENGINE=MYISAM;
+CREATE TABLE lowercase_myisam (a INT) ENGINE=MYISAM;
+CREATE TABLE UPPERCASE_INNODB (a INT) ENGINE=InnoDB;
+CREATE TABLE lowercase_innodb (a INT) ENGINE=InnoDB;
+SHOW TABLES;
+Tables_in_my_db
+lowercase_innodb
+lowercase_myisam
+UPPERCASE_INNODB
+UPPERCASE_MYISAM
+CREATE USER 'test_user'@'localhost';
+GRANT SELECT ON my_db.UPPERCASE_MYISAM TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.lowercase_myisam TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.UPPERCASE_INNODB TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.lowercase_innodb TO 'test_user'@'localhost';
+USE my_db;
+# Without the patch, tables with uppercase table names were not displayed.
+SHOW TABLES;
+Tables_in_my_db
+lowercase_innodb
+lowercase_myisam
+UPPERCASE_INNODB
+UPPERCASE_MYISAM
+DROP USER 'test_user'@'localhost';
+DROP DATABASE my_db;
+USE test;

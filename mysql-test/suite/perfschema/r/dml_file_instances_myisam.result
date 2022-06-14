@@ -1,0 +1,56 @@
+select * from performance_schema.file_instances limit 1;
+select * from performance_schema.file_instances
+where file_name='FOO';
+insert into performance_schema.file_instances
+set file_name='FOO', event_name='BAR', open_count=12;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'file_instances'
+update performance_schema.file_instances
+set file_name='FOO';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'file_instances'
+delete from performance_schema.file_instances
+where event_name like "wait/%";
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'file_instances'
+delete from performance_schema.file_instances;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'file_instances'
+LOCK TABLES performance_schema.file_instances READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'file_instances'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.file_instances WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'file_instances'
+UNLOCK TABLES;
+###
+### Bug#26152751: INNODB LEAKS MEMORY, PERFORMANCE_SCHEMA FILE_INSTANCES
+###               #SQL-IB3129987-252773.IBD
+###
+CREATE DATABASE db_26152751;
+USE db_26152751;
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+FILE_NAME
+CREATE TABLE t_db_26152751 (a INT) ENGINE=MYISAM;
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+FILE_NAME
+t_db_26152751.sdi
+t_db_26152751.MYI
+t_db_26152751.MYD
+RENAME TABLE t_db_26152751 to t_db_26152751_new;
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+FILE_NAME
+t_db_26152751_new.MYI
+t_db_26152751_new.MYD
+t_db_26152751_new.sdi
+RENAME TABLE t_db_26152751_new to t_db_26152751;
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+FILE_NAME
+t_db_26152751.MYI
+t_db_26152751.MYD
+t_db_26152751.sdi
+ALTER TABLE t_db_26152751 ADD COLUMN b INT;
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+FILE_NAME
+t_db_26152751.MYI
+t_db_26152751.MYD
+t_db_26152751.sdi
+DROP TABLE t_db_26152751;
+SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
+FILE_NAME
+DROP DATABASE db_26152751;

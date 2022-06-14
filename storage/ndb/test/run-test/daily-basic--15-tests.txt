@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ max-time: 900
 
 cmd: testSystemRestart
 args: -n PLCP_3 T17
-max-time: 1000
+max-time: 1200
 
 cmd: testSystemRestart
 args: -n PLCP_4 T17
@@ -78,3 +78,26 @@ cmd: testBackup
 args: -n RestoreEpochRetry T1
 max-time: 900
 
+cmd: testNodeRestart
+args: -n MultiSocketRestart T1
+max-time: 3600
+
+cmd: testNodeRestart
+args: -n SumaHandover3rpl T1
+max-time: 180
+
+cmd: testBlobs
+args: -bug 28590428 -skip p -loop 10
+max-time: 900
+
+cmd: testNdbApi
+args: -n DatabaseAndSchemaName T1
+max-time: 180
+
+cmd: test_event
+args: -n SubscribeNR T1
+max-time: 1200
+
+cmd: test_event
+args: -n getEventBufferHighUsage T1
+max-time: 1200

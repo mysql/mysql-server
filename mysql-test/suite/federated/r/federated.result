@@ -107,7 +107,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE federated.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(20) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(32) NOT NULL DEFAULT ''
 ) ENGINE=FEDERATED DEFAULT CHARSET=latin1 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
 INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
@@ -2196,12 +2196,12 @@ CREATE TABLE t1 (a INT, b INT, KEY(a,b)) ENGINE=federated
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 SELECT * FROM t1 WHERE a IS NULL;
 a	b
-NULL	NULL
 NULL	1
+NULL	NULL
 SELECT * FROM t1 WHERE a IS NOT NULL;
 a	b
-1	NULL
 1	1
+1	NULL
 2	2
 SELECT * FROM t1 WHERE a=1 AND b=1;
 a	b

@@ -36,48 +36,67 @@ country CHAR(20) NOT NULL);
 INSERT INTO t2 VALUES (1, 'USA'),(2,'India'), (3,'Finland');
 
 # First simple rollups, with just grand total
+--sorted_result
 SELECT product, SUM(profit) FROM t1 GROUP BY product;
+--echo
 SELECT product, SUM(profit) FROM t1 GROUP BY product WITH ROLLUP;
+--echo
 SELECT product, SUM(profit) FROM t1 GROUP BY 1 WITH ROLLUP;
+--echo
 SELECT product, SUM(profit),AVG(profit) FROM t1 GROUP BY product WITH ROLLUP;
 
 # Sub totals
+--sorted_result
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
 ANALYZE TABLE t1;
 EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
+--echo
+--sorted_result
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product, country_id WITH ROLLUP
 ORDER BY product DESC, GROUPING (country_id), country_id;
 
 # limit
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP limit 3,3;
 
+--sorted_result
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id;
+--echo
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id WITH ROLLUP;
 
 # Test of having
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING country_id = 1;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 200;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 7000;
 
 # Functions
+--sorted_result
 SELECT CONCAT(product,':',country_id) AS 'prod', CONCAT(":",year,":") AS 'year',
 1+1, SUM(profit)/COUNT(*) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+--sorted_result
 SELECT product, SUM(profit)/COUNT(*) FROM t1 GROUP BY product WITH ROLLUP;
+--sorted_result
 SELECT LEFT(product,4) AS prod, SUM(profit)/COUNT(*) FROM t1
 GROUP BY prod WITH ROLLUP;
+--sorted_result
 SELECT CONCAT(product,':',country_id), 1+1, SUM(profit)/COUNT(*) FROM t1
 GROUP BY CONCAT(product,':',country_id) WITH ROLLUP;
 
@@ -185,27 +204,41 @@ INSERT INTO t1 VALUES
   (4,1), (4,1), (4,1), (4,1),
   (2,1), (2,1);
 
+--sorted_result
 SELECT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
 
+--sorted_result
 SELECT SUM(b), COUNT(DISTINCT b) FROM t1 GROUP BY a WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT SUM(b), COUNT(DISTINCT b) FROM t1 GROUP BY a WITH ROLLUP;
 
+--sorted_result
 SELECT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 
+--sorted_result
 SELECT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1
   GROUP BY a WITH ROLLUP;
 
+--sorted_result
 SELECT a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 
+--sorted_result
 SELECT b, a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT b,a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 
 ALTER TABLE t1 ADD COLUMN c INT;
+--sorted_result
 SELECT a,b,SUM(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+--sorted_result
 SELECT distinct a,b,SUM(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
 
 DROP TABLE t1;
@@ -302,6 +335,36 @@ CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (1, 2);
 
+#
+# In SQL, conceptually GROUP BY (and thus also ROLLUP) happens before
+# projection (the SELECT list), so GROUP BY on aliases is disallowed.
+# However, MySQL extends the standard by allowing such aliases.
+# This makes the following query ambiguous, and MySQL has gone back and forth
+# a few times on what the implementation should be.
+#
+# After reading t1 and doing GROUP BY, the rows will look like this:
+#
+#   <group 1, a>  <group 2, b>  <group 3, a>  COUNT(*)
+#   1             1             1             1
+#   1             1             NULL          1
+#   1             2             1             1
+#   1             2             NULL          1
+#   1             NULL          NULL          2
+#   NULL          NULL          NULL          2
+#
+# Now, in the projection, what does the three parameters resolve to?
+# It is obvious that b has to resolve to <group 2>, since that is the
+# only candidate. The first a (the one without an alias) could resolve
+# to either <group 1> or <group 3>, but we arbitrarily (and not unreasonably)
+# resolve it to the one that is specified the first, ie., <group 1>.
+#
+# Now, what should “a AS c” resolve to? It would not be unreasonable to
+# resolve it consistently with the first a, ie., to <group 1>. The alternative,
+# which is what Postgres chooses, is to say that “a AS c” fits better with
+# <group 3> due to the alias. Both are possible, and we make no guarantee
+# that it will not change in the future, but for now, we've chosen to do the
+# same.
+#
 SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
 
 DROP TABLE t1;
@@ -332,7 +395,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a VARCHAR(22) NOT NULL , b INT);
 INSERT INTO t1 VALUES ("2006-07-01 21:30", 1), ("2006-07-01 23:30", 10);
+--sorted_result
 SELECT LEFT(a,10), a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+--sorted_result
 SELECT LEFT(a,10) x, a, SUM(b) FROM t1 GROUP BY x,a WITH ROLLUP;
 DROP TABLE t1;
 
@@ -344,13 +409,20 @@ CREATE TABLE t1 (a int, b int);
 INSERT INTO t1
   VALUES (2,10),(3,30),(2,40),(1,10),(2,30),(1,20),(2,10);
 
+--sorted_result
 SELECT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+--sorted_result
 SELECT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
 
+--sorted_result
 SELECT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+--sorted_result
 SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
 
 DROP TABLE t1;
@@ -429,6 +501,12 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1), (2);
 CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (100);
+
+# Verify that the sorting iterator does not have any rollup_group_item()
+# in its sorting list, since the sorting is before group by.
+--skip_if_hypergraph  # Does not have the unneeded extra temporary table.
+EXPLAIN FORMAT=tree
+SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 
 --sorted_result
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
@@ -706,6 +784,12 @@ SELECT a as Department, b as Employees, SUM(c), GROUPING(a) as GP_A,
        GROUPING(b) as GP_B FROM t1 GROUP BY a,b WITH ROLLUP
        HAVING (GP_A =1 AND GP_B=1) OR (GP_B=1);
 
+--echo #
+--echo # Bug #31073167: WRONG RESULT FOR EXPRESSION INVOLVING GROUP BY COLUMNS WITH ROLLUP
+--echo #
+
+SELECT a, b, a + COALESCE(b, 0), AVG(b) OVER () FROM t1 GROUP BY a, b WITH ROLLUP;
+
 DROP TABLE t0,t1;
 
 # End of test for WL#1979
@@ -760,12 +844,10 @@ SELECT i, j, AVG(k) FROM t1 GROUP BY i,j WITH ROLLUP ORDER BY i,j;
 SELECT i, j, AVG(k) FROM t1 GROUP BY i,j WITH ROLLUP ORDER BY i,j LIMIT 5;
 
 #ROLLUP with ORDER BY and HAVING CONDITION
---sorted_result
 SELECT i, j, SUM(k) FROM t1 GROUP BY i,j WITH ROLLUP
 HAVING i > 10 and j < 1000 ORDER BY i,j;
 
 #ROLLUP with ORDER BY aggregation
---sorted_result
 SELECT i, j, SUM(k)/COUNT(*) as avg FROM t1 GROUP BY i,j WITH ROLLUP
 ORDER BY avg;
 
@@ -778,6 +860,7 @@ SELECT i, sum FROM (SELECT i, SUM(j) AS 'sum' FROM t1 GROUP BY i WITH ROLLUP
                       ORDER BY i) AS tmp WHERE i is NULL;
 
 #ROLLUP with ORDER BY and SUBQUERY
+--sorted_result
 SELECT i FROM t1 WHERE EXISTS (SELECT i, j, SUM(k) FROM t1 AS t2
                                WHERE t1.i=t2.i GROUP BY i,j WITH ROLLUP
                                HAVING SUM(k) > 40 ORDER BY i,j );
@@ -796,6 +879,11 @@ ORDER BY i,j;
 
 #ROLLUP with WINDOWING FUNCTIONS
 
+#Bug#31073133 - The plan below should not have sorting on "i" before rollup
+#is processed.
+--skip_if_hypergraph  # Has fewer temporary tables in the plan.
+EXPLAIN FORMAT=tree SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j
+WITH ROLLUP HAVING i+j is NULL ORDER BY i;
 SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
 HAVING i+j is NULL ORDER BY i;
 SELECT i, j, i+j, FIRST_VALUE(i) over () from t1 GROUP BY i,j WITH ROLLUP
@@ -869,6 +957,7 @@ SELECT i, 'sum' FROM (SELECT i, SUM(j) AS 'sum' FROM t1 GROUP BY i
                       WITH ROLLUP ORDER BY GROUPING(i),i) AS tmp WHERE i is NULL;
 
 #GROUPING with ORDER BY and SUBQUERY
+--sorted_result
 SELECT i FROM t1 WHERE EXISTS (SELECT i, j, SUM(k) FROM t1 AS t2
                                WHERE t1.i=t2.i GROUP BY i,j WITH ROLLUP
                                HAVING SUM(k) > 40 ORDER BY GROUPING(i),i,
@@ -905,9 +994,11 @@ WITH ROLLUP HAVING GROUPING(i) = 1 OR GROUPING (j) = 1
 ORDER BY GROUPING(i),i,GROUPING(j),j;
 
 #GROUPING with DISTINCT
+--sorted_result
 SELECT DISTINCT GROUPING(i), GROUPING(j) FROM t1 GROUP BY i,j WITH ROLLUP;
 SELECT DISTINCT GROUPING(i), GROUPING(j) FROM t1 GROUP BY i,j WITH ROLLUP
 ORDER BY GROUPING(i), GROUPING(j);
+--sorted_result
 SELECT DISTINCT j, GROUPING(j) FROM t1 GROUP BY i,j WITH ROLLUP;
 
 #Error case
@@ -928,6 +1019,7 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES(7,3);
 
+# See the discussion on #11543 above for how field1 and field2 are resolved.
 --sorted_result
 SELECT  alias1.f1 AS field1, alias1.f1 AS field2, (alias1.f1 +1) AS field3 FROM
   ( t1 AS alias1, t1 as alias2 ) WHERE alias1.pk = 3
@@ -957,6 +1049,10 @@ DROP TABLE t1;
 CREATE TABLE t(a INT,b BLOB);
 INSERT INTO t VALUES (1,'a'),(1,'b'),(2,'c'),(3,'d');
 
+# This query is pretty nonsensical, and the query output itself doesn't matter much;
+# we just don't want it to crash. The result will depend on the point of which
+# we evaluate the variable assignments, so it's not stable with respect to the query plan.
+--replace_regex /^NULL$/1/
 SELECT (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
   (CONNECTION_ID()+LEAD(5225.750000,110) RESPECT NULLS OVER(ORDER BY b, a)))))
   FROM t GROUP BY b,a WITH ROLLUP;
@@ -1001,4 +1097,160 @@ SELECT a AS f1, 'w' AS f2 FROM t GROUP BY f1, f2 WITH ROLLUP HAVING GROUPING(f1)
 SELECT a = 3,          a AS f1 FROM t GROUP BY f1 WITH ROLLUP; # Used to be right
 SELECT a = 3 or a = 3, a AS f1 FROM t GROUP BY f1 WITH ROLLUP; # Used to be wrong
 
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30541701: WRONG RESULT WITH ROLLUP
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (2, 10), (3, NULL);
+
+SELECT DISTINCT COUNT(*), f1+f2 FROM t1 GROUP BY f1+F2 WITH ROLLUP;
+SELECT COUNT(*), f1+f2 FROM t1 GROUP BY f1+F2 WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo # Verify that the collation of rollup group items is correct.
+
+CREATE TABLE t1 ( f1 VARCHAR(10) COLLATE utf8mb4_da_0900_ai_ci );
+CREATE TABLE t2 AS SELECT f1, COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+--echo # Verify the case where the fields in rollup do not resolve
+--echo # to that same items as in the SELECT list (it is unclear exactly
+--echo # why this happens).
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+SELECT a, b, 2*a+b, SUM(a+b) OVER () FROM t1 GROUP BY a, b WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #31868610: DATA TYPE CHANGED IN A GROUP BY WITH ROLLUP
+--echo #
+
+CREATE TABLE IF NOT EXISTS t1 (a DECIMAL(6,3));
+INSERT INTO t1 VALUES (1.1);
+SELECT a FROM t1 GROUP BY a WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32049313: WITH ROLLUP, IS (NOT) NULL DOES NOT WORK FOR AGGREGATIONS IN A HAVING CONDITION
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER,f2 INTEGER);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING SUM(f2) IS NOT NULL;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32197353: MYSQLDUMP AND SHOW CREATE VIEW PRODUCE INVALID SYNTAX FOR VIEWS WITH ROLL UP
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER );
+CREATE VIEW v1 AS SELECT f1 FROM t1 GROUP BY f1 WITH ROLLUP;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32548377: WL#14417: RESULT MISMATCH WITH ROLLUP
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT ( SELECT 'a' ) AS f1
+  FROM t1 AS alias1, t1 alias2
+  GROUP BY f1 WITH ROLLUP
+  HAVING f1 < 7;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32565875: DISTINCT WITH GROUP BY AND ROLLUP ON PRIMARY KEY RETURNS WRONG RESULT
+--echo #
+
+CREATE TABLE t1 ( i INTEGER NOT NULL PRIMARY KEY );
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT DISTINCT i FROM t1 WHERE i = 1 GROUP BY i WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32918927: ASSERTION `!THD->IS_ERROR()' FAILED|SQL/SQL_EXECUTOR.CC
+--echo #
+
+CREATE TABLE t1 ( a TIME );
+
+SELECT
+  t1.a
+FROM
+  t1, t1 AS t2
+GROUP BY t1.a WITH ROLLUP
+HAVING COUNT(*) = 0 AND t1.a = '刔';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33036184: GROUP BY WITH ROLLUP AND CONCAT OVER GROUP BY KEY DOES NOT PRODUCE NULL
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
+INSERT INTO t1 values (1);
+
+# Result should have a NULL for the super-aggregate row
+SELECT CONCAT(INSTR(f1,'w')) FROM t1 GROUP BY f1 WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33041336: WL#14419: ASSERTION `THD->CHANGE_LIST.IS_EMPTY()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+PREPARE ps FROM "SELECT RANK() OVER (ORDER BY a) FROM t1 GROUP BY a WITH ROLLUP";
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33123934: QUERY WITH ROLLUP - SEGFAULT IN CHANGE_TO_USE_TMP_FIELDS_EXCEPT_SUMS
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(10), b TIMESTAMP );
+
+SELECT
+  REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
+FROM
+  t1, t1 AS t2
+GROUP BY
+  REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
+WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33149402: SELECT'S GROUPING() NOT TAKEN IN ACCOUNT IN HAVING WHEN JOIN USED
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (2020, 2);
+
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (2);
+
+SELECT a, GROUPING(a) AS ga
+  FROM t1 JOIN t2 USING (b)
+  GROUP BY a WITH ROLLUP
+  HAVING ga = 0;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#33729162: Hypergraph misses rows for SELECT DISTINCT ... GROUP BY WITH ROLLUP
+--echo #
+
+CREATE TABLE t (x INTEGER);
+INSERT INTO t VALUES (NULL), (0), (1), (2), (3);
+--sorted_result
+SELECT DISTINCT x AS a, x AS b FROM t GROUP BY a, b WITH ROLLUP;
 DROP TABLE t;

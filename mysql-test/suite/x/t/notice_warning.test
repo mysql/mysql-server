@@ -1,65 +1,42 @@
-## generated
-## Test query with resultset
+## Test notices
 
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.xpl
+--write_file $xtest_file
+-->quiet
 
 -->sql
-use test;
-create table chartab (d varchar(1));
-set @old_sql_mode=@@sql_mode;
-set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+USE test;
+CREATE TABLE chartab (d VARCHAR(1));
+SET @old_sql_mode=@@sql_mode;
+SET @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
 -->endsql
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0, 1/0"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
-
-## Disable warnings and try again
-Mysqlx.Sql.StmtExecute {
-  stmt: "disable_notices"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "warnings"
-      }
-    }
-  }
-  namespace: "xplugin"
+  stmt: "SELECT 1/0, 1/0"
 }
 -->recvresult
 
+## Disable warnings and try again
+-->stmtadmin disable_notices	{"notice":"warnings"}
+-->recvresult
+
 Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0"
+  stmt: "SELECT 1/0"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## Enable warnings and try again
-Mysqlx.Sql.StmtExecute {
-  stmt: "enable_notices"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "warnings"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
--->recv
+-->stmtadmin enable_notices	{"notice":["warnings"]}
+-->recvresult
 
 ## SQL
 Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0"
+  stmt: "SELECT 1/0"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## CRUD Insert
 Mysqlx.Crud.Insert {
@@ -83,7 +60,7 @@ Mysqlx.Crud.Insert {
     }
   }
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## CRUD Find
 Mysqlx.Crud.Find {
@@ -113,7 +90,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## CRUD Update
 Mysqlx.Crud.Update {
@@ -138,26 +115,26 @@ Mysqlx.Crud.Update {
     }
   }
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## CRUD Delete
 # Not sure what kind of delete generates warnings...
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_notices"
-  namespace: "xplugin"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_notices
+-->recvresult
 
 -->sql
-drop table chartab;
-set @@sql_mode = @old_sql_mode;
+DROP TABLE chartab;
+SET @@sql_mode = @old_sql_mode;
+-->endsql
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->endsql
 
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_query_result.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

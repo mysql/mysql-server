@@ -54,24 +54,24 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `e` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
+  `e` int NOT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `z` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
+  `z` int NOT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`z`),
   CONSTRAINT `fk1` FOREIGN KEY (`z`) REFERENCES `t1` (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `f` int(11) NOT NULL,
-  `g` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `f` int NOT NULL,
+  `g` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`f`),
   KEY `b` (`g`),
   CONSTRAINT `fk2` FOREIGN KEY (`g`) REFERENCES `t3` (`f`)

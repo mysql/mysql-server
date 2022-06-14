@@ -11,6 +11,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server2]
 SET sql_log_bin = 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("\\[GCS\\] The member has left the group but the new view will not be installed*");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
@@ -19,11 +20,11 @@ SET sql_log_bin = 1;
 include/gr_autorejoin_monitoring.inc
 
 ####
-# 1) Verify that the default is 0.
+# 1) Verify that the default is 3.
 ####
 
 SET @@GLOBAL.group_replication_autorejoin_tries = default;
-include/assert.inc [The default of group_replication_autorejoin_tries should be 0]
+include/assert.inc [The default of group_replication_autorejoin_tries should be 3]
 
 ####
 # 2) Verify that only positive values are accepted.

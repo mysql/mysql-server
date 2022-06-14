@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,8 @@ void Abstract_progress_watcher::progress_changed() {
                      std::chrono::milliseconds(REPORT_DELAY_MS / STAGES),
                  0.1);  //  Do not expand stage by more than 10 times the steps.
 
-    m_step_countdown = m_last_step_countdown = std::max(
-        1LL,
+    m_step_countdown = m_last_step_countdown = std::max<int64>(
+        1,
         ((int64)(m_last_step_countdown / stages_past) + m_last_step_countdown) /
             2);
     m_last_stage_time = now;
@@ -80,7 +80,7 @@ void Abstract_progress_watcher::crawler_completed(I_crawler *) {}
 void Abstract_progress_watcher::object_processing_ended(
     Item_processing_data *finished_process_data) {
   // Check if it is last task in the chain.
-  if (finished_process_data->get_parent_item_data() != NULL &&
+  if (finished_process_data->get_parent_item_data() != nullptr &&
       finished_process_data->get_parent_item_data()
               ->get_process_task_object() ==
           finished_process_data->get_process_task_object()) {
@@ -89,7 +89,7 @@ void Abstract_progress_watcher::object_processing_ended(
   Table_rows_dump_task *processed_table_task =
       dynamic_cast<Table_rows_dump_task *>(
           finished_process_data->get_process_task_object());
-  if (processed_table_task != NULL &&
+  if (processed_table_task != nullptr &&
       finished_process_data->had_chain_created()) {
     m_progress.m_table_count++;
     this->progress_changed();
@@ -99,7 +99,7 @@ void Abstract_progress_watcher::object_processing_ended(
   Row_group_dump_task *processed_row_group =
       dynamic_cast<Row_group_dump_task *>(
           finished_process_data->get_process_task_object());
-  if (processed_row_group != NULL && processed_row_group->is_completed()) {
+  if (processed_row_group != nullptr && processed_row_group->is_completed()) {
     m_progress.m_row_count += processed_row_group->m_rows.size();
     this->progress_changed();
     return;
@@ -114,7 +114,7 @@ void Abstract_progress_watcher::new_chain_created(
   Table_definition_dump_task *new_table_task =
       dynamic_cast<Table_definition_dump_task *>(
           new_chain_process_data->get_process_task_object());
-  if (new_table_task != NULL) {
+  if (new_table_task != nullptr) {
     Table *new_table = new_table_task->get_related_table();
 
     m_total.m_table_count++;

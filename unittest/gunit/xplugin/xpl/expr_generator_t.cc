@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,12 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
+#include <gtest/gtest-param-test.h>
+#include <array>
 #include <cstddef>
+#include <utility>  // pair
+
+#include <gtest/gtest.h>
 
 #include "plugin/x/src/expr_generator.h"
 #include "unittest/gunit/xplugin/xpl/message_helpers.h"
@@ -239,6 +243,14 @@ TEST(xpl_expr_generator, column_identifier) {
                std::invalid_argument);
   EXPECT_THROW(generate_expression(Column_identifier("column", EMPTY, "schema"),
                                    EMPTY_SCHEMA, DM_TABLE),
+               std::invalid_argument);
+}
+
+TEST(xpl_expr_generator, column_identifier_empty) {
+  Column_identifier ident{EMPTY, EMPTY, EMPTY};
+  EXPECT_EQ("JSON_EXTRACT(doc,'$')",
+            generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT));
+  EXPECT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_TABLE),
                std::invalid_argument);
 }
 
@@ -1126,450 +1138,110 @@ TEST(xpl_expr_generator, any_scalar) {
 }
 
 TEST(xpl_expr_generator, any_object) {
-  EXPECT_THROW(generate_expression(Any(Any::Object{{"name", Any(42)}}),
-                                   EMPTY_SCHEMA, DM_TABLE),
-               Expression_generator::Error);
+  EXPECT_STREQ("JSON_OBJECT('name',42)",
+               generate_expression(Any(Any::Object{{"name", Any(42)}}),
+                                   EMPTY_SCHEMA, DM_TABLE)
+                   .c_str());
 }
 
 TEST(xpl_expr_generator, any_array) {
-  EXPECT_THROW(
-      generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error);
-}
-
-struct Param_function_call {
-  std::string expect;
-  Function_call func;
-  std::string schema;
-};
-
-class Function_call_test : public testing::TestWithParam<Param_function_call> {
-};
-
-TEST_P(Function_call_test, function_call) {
-  const Param_function_call &param = GetParam();
-  EXPECT_STREQ(param.expect.c_str(),
-               generate_expression(param.func, param.schema, DM_TABLE).c_str());
-}
-
-Param_function_call function_call_param[] = {
-    {"func()", Function_call("func"), EMPTY_SCHEMA},
-    {"schema.func()", Function_call("func"), "schema"},
-    {"schema.func(FALSE,5)", Function_call("func", false, 5), "schema"},
-    {"concat(FALSE,5)", Function_call("concat", false, 5), "schema"},
-    {"CONCAT(FALSE,5)", Function_call("CONCAT", false, 5), "schema"},
-    {"CONCAT(FALSE,5)", Function_call("CONCAT", false, 5), EMPTY_SCHEMA},
-    {"ASCII('string')", Function_call("ASCII", "string"), EMPTY_SCHEMA},
-    {"ASCII(`column`)", Function_call("ASCII", Column_identifier("column")),
-     EMPTY_SCHEMA},
-    {"ASCII(JSON_UNQUOTE(JSON_EXTRACT(doc,'$.path')))",
-     Function_call("ASCII", Column_identifier(Document_path{"path"})),
-     EMPTY_SCHEMA},
-    {"ABS(42)", Function_call("ABS", 42), EMPTY_SCHEMA},
-    {"ABS(`column`)", Function_call("ABS", Column_identifier("column")),
-     EMPTY_SCHEMA},
-    {"ABS(JSON_UNQUOTE(JSON_EXTRACT(doc,'$.path')))",
-     Function_call("ABS", Column_identifier(Document_path{"path"})),
-     EMPTY_SCHEMA},
-    {"JSON_TYPE(42)", Function_call("JSON_TYPE", 42), EMPTY_SCHEMA},
-    {"JSON_TYPE(`column`)",
-     Function_call("JSON_TYPE", Column_identifier("column")), EMPTY_SCHEMA},
-    {"JSON_TYPE(JSON_EXTRACT(doc,'$.path'))",
-     Function_call("JSON_TYPE", Column_identifier(Document_path{"path"})),
-     EMPTY_SCHEMA},
-    {"JSON_KEYS('{\\\"a\\\":42}')", Function_call("JSON_KEYS", "{\"a\":42}"),
-     EMPTY_SCHEMA},
-    {"JSON_KEYS(`column`)",
-     Function_call("JSON_KEYS", Column_identifier("column")), EMPTY_SCHEMA},
-    {"JSON_KEYS(JSON_EXTRACT(doc,'$.path'))",
-     Function_call("JSON_KEYS", Column_identifier(Document_path{"path"})),
-     EMPTY_SCHEMA}};
-
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_function_call, Function_call_test,
-                        testing::ValuesIn(function_call_param));
-
-struct Param_placeholders {
-  std::string expect;
-  Expression_generator::Prep_stmt_placeholder_list expect_ids;
-  Expression_list args;
-  Array expr;
-};
-
-class Placeholders_test : public testing::TestWithParam<Param_placeholders> {};
-
-TEST_P(Placeholders_test, placeholders) {
-  const Param_placeholders &param = GetParam();
-  Query_string_builder qb;
-  Expression_generator gen(&qb, param.args, EMPTY_SCHEMA, DM_TABLE);
-  Expression_generator::Prep_stmt_placeholder_list ids;
-  gen.set_prep_stmt_placeholder_list(&ids);
-  gen.feed(param.expr);
-
-  EXPECT_STREQ(param.expect.c_str(), qb.get().c_str());
-  EXPECT_EQ(param.expect_ids, ids);
-}
-
-#define PH Placeholder
-
-Param_placeholders placeholders_param[] = {
-    {"JSON_ARRAY(?)", {0}, {}, {PH{0}}},
-    {"JSON_ARRAY('a')", {}, {"a"}, {PH{0}}},
-    {"JSON_ARRAY(?)", {0}, {"a"}, {PH{1}}},
-    {"JSON_ARRAY(?,?)", {0, 0}, {}, {PH{0}, PH{0}}},
-    {"JSON_ARRAY(?,?)", {1, 0}, {}, {PH{1}, PH{0}}},
-    {"JSON_ARRAY('a',?)", {0}, {"a"}, {PH{0}, PH{1}}},
-    {"JSON_ARRAY(?,'a')", {0}, {"a"}, {PH{1}, PH{0}}},
-    {"JSON_ARRAY('a','b')", {}, {"a", "b"}, {PH{0}, PH{1}}},
-    {"JSON_ARRAY('a','b','a')", {}, {"a", "b"}, {PH{0}, PH{1}, PH{0}}},
-    {"JSON_ARRAY('a','b',?)", {0}, {"a", "b"}, {PH{0}, PH{1}, PH{2}}},
-    {"JSON_ARRAY('a',?,'b')", {0}, {"a", "b"}, {PH{0}, PH{2}, PH{1}}},
-    {"JSON_ARRAY(?,'a','b')", {0}, {"a", "b"}, {PH{2}, PH{0}, PH{1}}},
-    {"JSON_ARRAY(?,'a',?,'b',?)",
-     {0, 0, 0},
-     {"a", "b"},
-     {PH{2}, PH{0}, PH{2}, PH{1}, PH{2}}},
-    {"JSON_ARRAY(?,'a',?,'b',?)",
-     {0, 1, 0},
-     {"a", "b"},
-     {PH{2}, PH{0}, PH{3}, PH{1}, PH{2}}},
-};
-
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_placeholders, Placeholders_test,
-                        testing::ValuesIn(placeholders_param));
-
-struct Param_operator_pass {
-  std::string expect;
-  Operator operator_;
-  Expression_list args;
-};
-
-class Operator_pass_test : public testing::TestWithParam<Param_operator_pass> {
-};
-
-TEST_P(Operator_pass_test, operator_pass) {
-  const auto &param = GetParam();
   EXPECT_STREQ(
-      param.expect.c_str(),
-      generate_expression(param.operator_, param.args, EMPTY_SCHEMA, DM_TABLE)
+      "JSON_ARRAY('name',42)",
+      generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 }
 
-Param_operator_pass cont_in_pass_param[] = {
-    // literals
-    {"JSON_CONTAINS(CAST(1 AS JSON),CAST(2 AS JSON))",
-     Operator("cont_in", 2, 1),
-     {}},
-    {"JSON_CONTAINS(CAST(1.2 AS JSON),CAST(2.1 AS JSON))",
-     Operator("cont_in", 2.1, 1.2),
-     {}},
-    {"JSON_CONTAINS(CAST(FALSE AS JSON),CAST(TRUE AS JSON))",
-     Operator("cont_in", true, false),
-     {}},
-    {"JSON_CONTAINS(CAST('null' AS JSON),CAST('null' AS JSON))",
-     Operator("cont_in", Scalar::Null(), Scalar::Null()),
-     {}},
-    {"JSON_CONTAINS(JSON_QUOTE('white'),JSON_QUOTE('black'))",
-     Operator("cont_in", Scalar::String("black"), Scalar::String("white")),
-     {}},
-    {"JSON_CONTAINS(JSON_QUOTE('white'),JSON_QUOTE('black'))",
-     Operator("cont_in", Octets("black", Octets::Content_type::k_plain),
-              Octets("white", Octets::Content_type::k_plain)),
-     {}},
-    {"JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
-     "CAST('{\\\"black\\\":1}' AS JSON))",
-     Operator("cont_in", Octets("{\"black\":1}", Octets::Content_type::k_json),
-              Octets("{\"white\":2}", Octets::Content_type::k_json)),
-     {}},
-    {"JSON_CONTAINS(JSON_QUOTE('<a>white</a>'),JSON_QUOTE('<a>black</a>'))",
-     Operator("cont_in", Octets("<a>black</a>", Octets::Content_type::k_xml),
-              Octets("<a>white</a>", Octets::Content_type::k_xml)),
-     {}},
-    {"JSON_CONTAINS(JSON_QUOTE(ST_GEOMETRYFROMWKB('101')),"
-     "JSON_QUOTE(ST_GEOMETRYFROMWKB('010')))",
-     Operator("cont_in", Octets("010", Octets::Content_type::k_geometry),
-              Octets("101", Octets::Content_type::k_geometry)),
-     {}},
-    //  arrays
-    {"JSON_CONTAINS(JSON_ARRAY(3,4),JSON_ARRAY(1,2))",
-     Operator("cont_in", Array{1, 2}, Array{3, 4}),
-     {}},
-    {"JSON_CONTAINS(JSON_ARRAY(3,FALSE,'white'),JSON_ARRAY(1,TRUE,'black'))",
-     Operator("cont_in", Array{1, true, "black"}, Array{3, false, "white"}),
-     {}},
-    {"JSON_CONTAINS(JSON_ARRAY(CAST('{\\\"white\\\":2}' AS JSON)),"
-     "JSON_ARRAY(CAST('{\\\"black\\\":1}' AS JSON)))",
-     Operator("cont_in",
-              Array{Octets("{\"black\":1}", Octets::Content_type::k_json)},
-              Array{Octets("{\"white\":2}", Octets::Content_type::k_json)}),
-     {}},
-    //  objects
-    {"JSON_CONTAINS(JSON_OBJECT('second',2),JSON_OBJECT('first',1))",
-     Operator("cont_in", Object{{"first", 1}}, Object{{"second", 2}}),
-     {}},
-    {"JSON_CONTAINS(JSON_OBJECT('second',CAST('{\\\"white\\\":2}' AS JSON)),"
-     "JSON_OBJECT('first',CAST('{\\\"black\\\":1}' AS JSON)))",
-     Operator("cont_in",
-              Object{{"first",
-                      Octets("{\"black\":1}", Octets::Content_type::k_json)}},
-              Object{{"second",
-                      Octets("{\"white\":2}", Octets::Content_type::k_json)}}),
-     {}},
-    {"JSON_CONTAINS(CAST((2 - 1) AS JSON),CAST((1 + 2) AS JSON))",
-     Operator("cont_in", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
-              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
-     {}},
-    // functions
-    {"JSON_CONTAINS(json_quote(concat('foo','bar')),"
-     "json_quote(concat('foo','bar')))",
-     Operator(
-         "cont_in",
-         Function_call("json_quote", Function_call("concat", "foo", "bar")),
-         Function_call("json_quote", Function_call("concat", "foo", "bar"))),
-     {}},
-    // placeholders
-    {"JSON_CONTAINS(CAST(2 AS JSON),CAST(1 AS JSON))",
-     Operator("cont_in", Placeholder(0), Placeholder(1)),
-     {1, 2}},
-    {"JSON_CONTAINS(JSON_QUOTE('bar'),JSON_QUOTE('foo'))",
-     Operator("cont_in", Placeholder(0), Placeholder(1)),
-     {"foo", "bar"}},
-    {"JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
-     "CAST('{\\\"black\\\":1}' AS JSON))",
-     Operator("cont_in", Placeholder(0), Placeholder(1)),
-     {Octets("{\"black\":1}", Octets::Content_type::k_json),
-      Octets("{\"white\":2}", Octets::Content_type::k_json)}},
-    //  identifier
-    {"JSON_CONTAINS(CAST(42 AS JSON),"
-     "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'))",
-     Operator(
-         "cont_in",
-         Column_identifier(Document_path{"member"}, "field", "table", "schema"),
-         42),
-     {}},
-    {"JSON_CONTAINS(JSON_EXTRACT(`schema`.`table`.`field`,'$.member'),"
-     "CAST(42 AS JSON))",
-     Operator("cont_in", 42,
-              Column_identifier(Document_path{"member"}, "field", "table",
-                                "schema")),
-     {}},
-    {"JSON_CONTAINS(`schema`.`table`.`field`,CAST(42 AS JSON))",
-     Operator("cont_in", 42, Column_identifier("field", "table", "schema")),
-     {}},
+struct CompareParam {
+  std::string test_name;
+
+  std::string crud_op;
+  std::string sql_op;
 };
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_cont_in_pass, Operator_pass_test,
-                        testing::ValuesIn(cont_in_pass_param));
+class Compare_against_id_test
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<CompareParam> {};
 
-struct Param_operator_fail {
-  Operator operator_;
-  Expression_list args;
-};
+/**
+ * check compare against _id leads to JSON_UNQUOTE().
+ */
+TEST_P(Compare_against_id_test, compare_docpath_scalar) {
+  const auto param = GetParam();
 
-class Operator_fail_test : public testing::TestWithParam<Param_operator_fail> {
-};
+  SCOPED_TRACE("// string");
+  EXPECT_STREQ(
+      ("(JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id'))" +
+       param.sql_op + "'someid')")
+          .c_str(),
+      generate_expression(
+          Operator(param.crud_op,
+                   Column_identifier(Document_path{"_id"}, "field", "table",
+                                     "schema"),
+                   Scalar::String("someid")),
+          EMPTY_SCHEMA, DM_TABLE)
+          .c_str());
 
-TEST_P(Operator_fail_test, operator_fail) {
-  const auto &param = GetParam();
-  EXPECT_THROW(
-      generate_expression(param.operator_, param.args, EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error)
-      << "Should throw for: " << msg_to_string(param.operator_.base());
+  EXPECT_STREQ(("('someid'" + param.sql_op +
+                "JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id')))")
+                   .c_str(),
+               generate_expression(
+                   Operator(param.crud_op, Scalar::String("someid"),
+                            Column_identifier(Document_path{"_id"}, "field",
+                                              "table", "schema")),
+                   EMPTY_SCHEMA, DM_TABLE)
+                   .c_str());
 }
 
-Param_operator_fail cont_in_fail_param[] = {
-    //  literals
-    //  arrays
-    //  objects
-    //  operators
-    {Operator("cont_in", Operator("+", 1, 2), Operator("-", 2, 1)), {}},
-    {Operator("cont_in", Operator("+", 1, 2),
-              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
-     {}},
-    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
-              Operator("-", 2, 1)),
-     {}},
-    {Operator("cont_in",
-              Operator("cast", Operator("+", 1, 2), Octets("SIGNED")),
-              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
-     {}},
-    {Operator("cont_in", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
-              Operator("cast", Operator("-", 2, 1), Octets("SIGNED"))),
-     {}},
-    //  functions
-    {Operator("cont_in", Function_call("concat", "foo", "bar"),
-              Function_call("concat", "foo", "bar")),
-     {}},
-    {Operator(
-         "cont_in", Function_call("concat", "foo", "bar"),
-         Function_call("json_quote", Function_call("concat", "foo", "bar"))),
-     {}},
-    {Operator(
-         "cont_in",
-         Function_call("json_quote", Function_call("concat", "foo", "bar")),
-         Function_call("concat", "foo", "bar")),
-     {}},
-    //  placeholders
-    {Operator("cont_in", Placeholder(0), Placeholder(1)), {}},
-    //  identifier
-};
+TEST_P(Compare_against_id_test, compare_docpath_placeholder) {
+  const auto param = GetParam();
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_cont_in_fail, Operator_fail_test,
-                        testing::ValuesIn(cont_in_fail_param));
+  SCOPED_TRACE("// placeholder");
+  {
+    Expression_generator::Prep_stmt_placeholder_list ids;
+    EXPECT_STREQ(
+        ("(JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id'))" +
+         param.sql_op + "?)")
+            .c_str(),
+        generate_expression(
+            Operator(param.crud_op,
+                     Column_identifier(Document_path{"_id"}, "field", "table",
+                                       "schema"),
+                     Placeholder(0)),
+            EMPTY_SCHEMA, DM_TABLE, &ids)
+            .c_str());
+    EXPECT_EQ(1, ids.size());
+  }
 
-Param_operator_pass overlaps_pass_param[] = {
-    // literals
-    {"JSON_OVERLAPS(CAST(2 AS JSON),CAST(1 AS JSON))",
-     Operator("overlaps", 2, 1),
-     {}},
-    {"JSON_OVERLAPS(CAST(2.1 AS JSON),CAST(1.2 AS JSON))",
-     Operator("overlaps", 2.1, 1.2),
-     {}},
-    {"JSON_OVERLAPS(CAST(TRUE AS JSON),CAST(FALSE AS JSON))",
-     Operator("overlaps", true, false),
-     {}},
-    {"JSON_OVERLAPS(CAST('null' AS JSON),CAST('null' AS JSON))",
-     Operator("overlaps", Scalar::Null(), Scalar::Null()),
-     {}},
-    {"JSON_OVERLAPS(JSON_QUOTE('black'),JSON_QUOTE('white'))",
-     Operator("overlaps", Scalar::String("black"), Scalar::String("white")),
-     {}},
-    {"JSON_OVERLAPS(JSON_QUOTE('black'),JSON_QUOTE('white'))",
-     Operator("overlaps", Octets("black", Octets::Content_type::k_plain),
-              Octets("white", Octets::Content_type::k_plain)),
-     {}},
-    {"JSON_OVERLAPS("
-     "CAST('{\\\"black\\\":1}' AS JSON),CAST('{\\\"white\\\":2}' AS JSON))",
-     Operator("overlaps", Octets("{\"black\":1}", Octets::Content_type::k_json),
-              Octets("{\"white\":2}", Octets::Content_type::k_json)),
-     {}},
-    {"JSON_OVERLAPS(JSON_QUOTE('<a>black</a>'),JSON_QUOTE('<a>white</a>'))",
-     Operator("overlaps", Octets("<a>black</a>", Octets::Content_type::k_xml),
-              Octets("<a>white</a>", Octets::Content_type::k_xml)),
-     {}},
-    {"JSON_OVERLAPS("
-     "JSON_QUOTE(ST_GEOMETRYFROMWKB('010')),"
-     "JSON_QUOTE(ST_GEOMETRYFROMWKB('101')))",
-     Operator("overlaps", Octets("010", Octets::Content_type::k_geometry),
-              Octets("101", Octets::Content_type::k_geometry)),
-     {}},
-    //  arrays
-    {"JSON_OVERLAPS(JSON_ARRAY(1,2),JSON_ARRAY(3,4))",
-     Operator("overlaps", Array{1, 2}, Array{3, 4}),
-     {}},
-    {"JSON_OVERLAPS(JSON_ARRAY(1,TRUE,'black'),JSON_ARRAY(3,FALSE,'white'))",
-     Operator("overlaps", Array{1, true, "black"}, Array{3, false, "white"}),
-     {}},
-    {"JSON_OVERLAPS("
-     "JSON_ARRAY(CAST('{\\\"black\\\":1}' AS JSON)),"
-     "JSON_ARRAY(CAST('{\\\"white\\\":2}' AS JSON)))",
-     Operator("overlaps",
-              Array{Octets("{\"black\":1}", Octets::Content_type::k_json)},
-              Array{Octets("{\"white\":2}", Octets::Content_type::k_json)}),
-     {}},
-    //  objects
-    {"JSON_OVERLAPS(JSON_OBJECT('first',1),JSON_OBJECT('second',2))",
-     Operator("overlaps", Object{{"first", 1}}, Object{{"second", 2}}),
-     {}},
-    {"JSON_OVERLAPS("
-     "JSON_OBJECT('first',CAST('{\\\"black\\\":1}' AS JSON)),"
-     "JSON_OBJECT('second',CAST('{\\\"white\\\":2}' AS JSON)))",
-     Operator("overlaps",
-              Object{{"first",
-                      Octets("{\"black\":1}", Octets::Content_type::k_json)}},
-              Object{{"second",
-                      Octets("{\"white\":2}", Octets::Content_type::k_json)}}),
-     {}},
-    {"JSON_OVERLAPS(CAST((1 + 2) AS JSON),CAST((2 - 1) AS JSON))",
-     Operator("overlaps", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
-              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
-     {}},
-    // functions
-    {"JSON_OVERLAPS("
-     "json_quote(concat('foo','bar')),"
-     "json_quote(concat('foo','bar')))",
-     Operator(
-         "overlaps",
-         Function_call("json_quote", Function_call("concat", "foo", "bar")),
-         Function_call("json_quote", Function_call("concat", "foo", "bar"))),
-     {}},
-    // placeholders
-    {"JSON_OVERLAPS(CAST(1 AS JSON),CAST(2 AS JSON))",
-     Operator("overlaps", Placeholder(0), Placeholder(1)),
-     {1, 2}},
-    {"JSON_OVERLAPS(JSON_QUOTE('foo'),JSON_QUOTE('bar'))",
-     Operator("overlaps", Placeholder(0), Placeholder(1)),
-     {"foo", "bar"}},
-    {"JSON_OVERLAPS("
-     "CAST('{\\\"black\\\":1}' AS JSON),"
-     "CAST('{\\\"white\\\":2}' AS JSON))",
-     Operator("overlaps", Placeholder(0), Placeholder(1)),
-     {Octets("{\"black\":1}", Octets::Content_type::k_json),
-      Octets("{\"white\":2}", Octets::Content_type::k_json)}},
-    //  identifier
-    {"JSON_OVERLAPS("
-     "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'),"
-     "CAST(42 AS JSON))",
-     Operator(
-         "overlaps",
-         Column_identifier(Document_path{"member"}, "field", "table", "schema"),
-         42),
-     {}},
-    {"JSON_OVERLAPS("
-     "CAST(42 AS JSON),"
-     "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'))",
-     Operator("overlaps", 42,
-              Column_identifier(Document_path{"member"}, "field", "table",
-                                "schema")),
-     {}},
-    {"JSON_OVERLAPS("
-     "CAST(42 AS JSON),"
-     "`schema`.`table`.`field`)",
-     Operator("overlaps", 42, Column_identifier("field", "table", "schema")),
-     {}},
-};
+  {
+    Expression_generator::Prep_stmt_placeholder_list ids;
+    EXPECT_STREQ(
+        ("(?" + param.sql_op +
+         "JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id')))")
+            .c_str(),
+        generate_expression(
+            Operator(param.crud_op, Placeholder(0),
+                     Column_identifier(Document_path{"_id"}, "field", "table",
+                                       "schema")),
+            EMPTY_SCHEMA, DM_TABLE, &ids)
+            .c_str());
+    EXPECT_EQ(1, ids.size());
+  }
+}
 
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_overlaps_pass, Operator_pass_test,
-                        testing::ValuesIn(overlaps_pass_param));
+static const std::array<CompareParam, 6> compare_ops{{
+    {"eq", "==", " = "},
+    {"ne", "!=", " != "},
+    {"gt", ">", " > "},
+    {"ge", ">=", " >= "},
+    {"lt", "<", " < "},
+    {"le", "<=", " <= "},
+}};
 
-Param_operator_fail overlaps_fail_param[] = {
-    //  literals
-    //  arrays
-    //  objects
-    //  operators
-    {Operator("overlaps", Operator("+", 1, 2), Operator("-", 2, 1)), {}},
-    {Operator("overlaps", Operator("+", 1, 2),
-              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
-     {}},
-    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
-              Operator("-", 2, 1)),
-     {}},
-    {Operator("overlaps",
-              Operator("cast", Operator("+", 1, 2), Octets("SIGNED")),
-              Operator("cast", Operator("-", 2, 1), Octets("JSON"))),
-     {}},
-    {Operator("overlaps", Operator("cast", Operator("+", 1, 2), Octets("JSON")),
-              Operator("cast", Operator("-", 2, 1), Octets("SIGNED"))),
-     {}},
-    //  functions
-    {Operator("overlaps", Function_call("concat", "foo", "bar"),
-              Function_call("concat", "foo", "bar")),
-     {}},
-    {Operator(
-         "overlaps", Function_call("concat", "foo", "bar"),
-         Function_call("json_quote", Function_call("concat", "foo", "bar"))),
-     {}},
-    {Operator(
-         "overlaps",
-         Function_call("json_quote", Function_call("concat", "foo", "bar")),
-         Function_call("concat", "foo", "bar")),
-     {}},
-    //  placeholders
-    {Operator("overlaps", Placeholder(0), Placeholder(1)), {}},
-    //  identifier
-};
-
-INSTANTIATE_TEST_CASE_P(xpl_expr_generator_overlaps_fail, Operator_fail_test,
-                        testing::ValuesIn(overlaps_fail_param));
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_compare, Compare_against_id_test,
+                         ::testing::ValuesIn(compare_ops),
+                         [](auto const &pinfo) {
+                           return pinfo.param.test_name;
+                         });
 
 }  // namespace test
 }  // namespace xpl

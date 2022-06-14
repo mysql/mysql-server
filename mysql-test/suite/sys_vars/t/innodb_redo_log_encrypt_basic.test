@@ -1,5 +1,5 @@
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
 --enable_query_log
 
@@ -48,6 +48,7 @@ set @@session.innodb_redo_log_encrypt='some';
 set global innodb_redo_log_encrypt=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_redo_log_encrypt='foo';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_redo_log_encrypt=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_redo_log_encrypt=1e1;

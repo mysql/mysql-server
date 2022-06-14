@@ -645,3 +645,26 @@ DROP TABLE mytable;
 --echo #
 create table t1 (b text not null, unique key(b(8)));
 drop table t1;
+
+--echo #
+--echo # Bug #32123039: WL#14333: RESULT DIFFERENCE WITH JOIN AND SUBQUERY
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER
+);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (
+  a INTEGER,
+  KEY idx (a)
+);
+
+# The subquery condition keeps the LEFT JOIN from being converted into
+# an inner join, but it is removed in a later step. That leaves only the
+# t2.a = 2 condition, which we must verify is _not_ made sargable on t2
+# (because its TES includes t1).
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a
+  WHERE ( SELECT 1 FROM t1 ) IS NULL OR t2.a = 2;
+
+DROP TABLE t1, t2;

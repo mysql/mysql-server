@@ -18,3 +18,4 @@ msg
 [Note] [MY-011071] [Server] Plugin test_services_plugin_registry reported: 'test_plugin_registry succeeded'
 DROP TABLE IF EXISTS t1;
 FLUSH ERROR LOGS;
+# restart:

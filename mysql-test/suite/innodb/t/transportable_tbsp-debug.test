@@ -1,0 +1,1260 @@
+# Adding big test option for this test.
+--source include/big_test.inc
+
+# This test case needs to crash the server. Needs a debug server.
+--source include/have_debug.inc
+
+# Don't test this under valgrind, memory leaks will occur.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $strerrfix=/ (\(.+\))//;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+DROP DATABASE IF EXISTS test_wl5522;
+CREATE DATABASE test_wl5522;
+
+##### Before DISCARD commit crash
+SET SESSION debug="+d,ib_discard_before_commit_crash";
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash
+--error 2013
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET SESSION debug="-d,ib_discard_before_commit_crash";
+DROP TABLE test_wl5522.t1;
+#### Before DISCARD commit crash
+
+##### After DISCARD commit crash
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+SET SESSION debug="+d,ib_discard_after_commit_crash";
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash
+--error 2013
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET SESSION debug="-d,ib_discard_after_commit_crash";
+DROP TABLE test_wl5522.t1;
+#### After DISCARD commit crash
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+# Create the table that we will use for crash recovery (during IMPORT)
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test_wl5522", "t1");
+EOF
+UNLOCK TABLES;
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+##### Before commit crash
+SET SESSION debug="+d,ib_import_before_commit_crash";
+
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM test_wl5522.t1;
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash
+--error 2013
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET SESSION debug="-d,ib_import_before_commit_crash";
+#### Before commit crash
+
+# Check that the DD is consistent after recovery
+
+##### Before checkpoint crash
+SET SESSION debug="+d,ib_import_before_checkpoint_crash";
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Don't start up the server right away.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash
+--error 2013
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+# After the above test the results are non-deterministic,
+# delete the old tablespace files and drop the table,
+# recreate the table and do a proper import.
+-- source include/wait_until_disconnected.inc
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+--echo # Restart and reconnect to the server
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET SESSION debug="-d,ib_import_before_checkpoint_crash";
+#### Before checkpoint crash
+
+# After the above test the results are non-deterministic, recreate the table
+# and do a proper import.
+
+DROP TABLE test_wl5522.t1;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
+
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+INSERT INTO test_wl5522.t1 VALUES(400), (500), (600);
+
+SELECT * FROM test_wl5522.t1;
+
+DROP TABLE test_wl5522.t1;
+
+# Test IO Write error(s), flush tables doesn't return an error message
+# so we have to make do with the error/warning pushed by the server
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_1";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_1";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_2";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_2";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_3";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_3";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_4";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_4";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_5";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_5";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_6";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_6";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_7";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_7";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_8";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_8";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_9";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_9";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_10";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_10";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_11";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_11";
+
+DROP TABLE test_wl5522.t1;
+
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+SET SESSION debug="+d,ib_export_io_write_failure_12";
+
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+UNLOCK TABLES;
+
+SET SESSION debug="-d,ib_export_io_write_failure_12";
+
+DROP TABLE test_wl5522.t1;
+
+# Create a table and save the tablespace and .cfg file
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (100), (200), (300);
+SELECT COUNT(*) FROM test_wl5522.t1;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test_wl5522", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE test_wl5522.t1;
+
+# Test IO Read error(s)
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_1";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_1";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_2";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_2";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_3";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_3";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_4";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_4";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_5";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_5";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_6";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_6";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_7";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_7";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_8";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_8";
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_io_read_error_9";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_io_read_error_9";
+
+DROP TABLE test_wl5522.t1;
+
+# Test string read failure
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_string_read_error";
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
+
+--error ER_IO_READ_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_string_read_error";
+
+DROP TABLE test_wl5522.t1;
+
+# Test OOM error during import
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+
+let DBUG_CRASH_POINT = ib_import_OOM_1;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_2;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_4;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_5;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_6;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_7;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_8;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_9;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_10;
+--source ../include/transportable_tbsp_oom.inc
+
+let DBUG_CRASH_POINT = ib_import_OOM_15;
+--source ../include/transportable_tbsp_oom.inc
+
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+
+####
+# Test handling of internal failure error
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after reset of space id and LSN in the tablespace
+SET SESSION debug="+d,ib_import_internal_error";
+
+--replace_regex /'.*t1.cfg'/'t1.cfg'/
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_internal_error";
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+DROP TABLE test_wl5522.t1;
+
+
+# Test failure after reset of space id and LSN in the tablespace
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after reset of space id and LSN in the tablespace
+SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
+
+--replace_regex /'.*t1.cfg'/'t1.cfg'/
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
+
+# Test failure after attempting a tablespace open
+SET SESSION debug="+d,ib_import_open_tablespace_failure";
+
+--replace_regex /file: '.*t1.ibd'/'t1.ibd'/
+
+--error ER_FILE_NOT_FOUND
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_open_tablespace_failure";
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after ibuf check
+SET SESSION debug="+d,ib_import_check_bitmap_failure";
+
+# Need proper mapping of error codes :-(
+--error ER_NOT_KEYFILE
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_check_bitmap_failure";
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after adjusting the cluster index root page
+SET SESSION debug="+d,ib_import_cluster_root_adjust_failure";
+
+--error ER_NOT_KEYFILE
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_cluster_root_adjust_failure";
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after importing the cluster index
+SET SESSION debug="+d,ib_import_cluster_failure";
+
+--error ER_NOT_KEYFILE
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_cluster_failure";
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after importing the secondary index(es)
+SET SESSION debug="+d,ib_import_sec_root_adjust_failure";
+
+--error ER_NOT_KEYFILE
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_sec_root_adjust_failure";
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after importing the cluster index
+SET SESSION debug="+d,ib_import_set_max_rowid_failure";
+
+--error ER_NOT_KEYFILE
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_set_max_rowid_failure";
+
+# Left over from the failed IMPORT
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+DROP TABLE test_wl5522.t1;
+
+--disable_query_log
+# Enable metrics for the counters we are going to use
+set global innodb_monitor_enable = purge_stop_count;
+set global innodb_monitor_enable = purge_resume_count;
+set global innodb_monitor_enable = ibuf_merges;
+set global innodb_monitor_enable = ibuf_merges_insert;
+--enable_query_log
+
+#
+# Create a large table with delete marked records, disable purge during
+# the update so that we can test the IMPORT purge code.
+#
+CREATE TABLE test_wl5522.t1 (
+	c1 BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 BIGINT,
+	c3 VARCHAR(2048),
+	c4 VARCHAR(2048),
+	INDEX idx1(c2),
+	INDEX idx2(c3(512)),
+	INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
+
+# Stop purge so that it doesn't remove the delete marked entries.
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+
+# Disable change buffer merge from the master thread, additionally
+# enable aggressive flushing so that more changes are buffered.
+SET GLOBAL innodb_disable_background_merge=ON;
+SET GLOBAL innodb_monitor_reset = ibuf_merges;
+SET GLOBAL innodb_monitor_reset = ibuf_merges_insert;
+
+INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
+	(1, REPEAT('a', 2048), REPEAT('a', 2048)),
+	(2, REPEAT('b', 2048), REPEAT('b', 2048)),
+	(3, REPEAT('c', 2048), REPEAT('c', 2048)),
+	(4, REPEAT('d', 2048), REPEAT('d', 2048));
+
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+
+DELETE FROM test_wl5522.t1 WHERE c2 = 1;
+
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c3 = REPEAT("c2", 1024);
+UPDATE test_wl5522.t1 SET c4 = REPEAT("c4", 1024);
+
+SHOW CREATE TABLE test_wl5522.t1;
+
+SELECT c1, c2 FROM test_wl5522.t1;
+SELECT COUNT(*) FROM test_wl5522.t1;
+SELECT SUM(c2) FROM test_wl5522.t1;
+
+SELECT name
+  FROM information_schema.innodb_metrics
+  WHERE name = 'ibuf_merges_insert' AND count = 0;
+
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test_wl5522", "t1");
+EOF
+
+UNLOCK TABLES;
+
+SELECT name
+  FROM information_schema.innodb_metrics
+  WHERE name = 'ibuf_merges' AND count > 0;
+
+SELECT name
+  FROM information_schema.innodb_metrics
+  WHERE name = 'ibuf_merges_inserts' AND count > 0;
+
+SET GLOBAL innodb_disable_background_merge=OFF;
+
+# Enable normal operation
+SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (
+	c1 BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 BIGINT,
+	c3 VARCHAR(2048),
+	c4 VARCHAR(2048),
+	INDEX idx1(c2),
+	INDEX idx2(c3(512)),
+	INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
+
+SELECT c1, c2 FROM test_wl5522.t1;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
+
+SELECT c1,c2 FROM test_wl5522.t1;
+SELECT COUNT(*) FROM test_wl5522.t1;
+SELECT SUM(c2) FROM test_wl5522.t1;
+
+SHOW CREATE TABLE test_wl5522.t1;
+
+DROP TABLE test_wl5522.t1;
+
+####
+# Create a table and save the tablespace and .cfg file, we need to create
+# a Btree that has several levels
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+INSERT IGNORE INTO test_wl5522.t1 VALUES
+	(100, REPEAT('Karanbir', 899), REPEAT('Ajeeth', 4800));
+
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
+SELECT COUNT(*) FROM test_wl5522.t1;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test_wl5522", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,ib_import_trigger_corruption_1";
+
+--replace_regex /'.*t1.cfg'/'t1.cfg'/
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_trigger_corruption_1";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+#
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,buf_page_import_corrupt_failure";
+
+--replace_regex /'.*t1.cfg'/'t1.cfg'/
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,buf_page_import_corrupt_failure";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+#
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,ib_import_trigger_corruption_2";
+
+--error ER_INNODB_INDEX_CORRUPT
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_trigger_corruption_2";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+#
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,ib_import_trigger_corruption_3";
+
+--error ER_NOT_KEYFILE
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_trigger_corruption_3";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+SET SESSION debug="+d,ib_import_create_index_failure_1";
+
+ALTER TABLE test_wl5522.t1 ADD INDEX idx(c1);
+
+SET SESSION debug="-d,ib_import_create_index_failure_1";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+#
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,fil_space_create_failure";
+
+--error ER_FILE_NOT_FOUND
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,fil_space_create_failure";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+#
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
+
+--error ER_FILE_NOT_FOUND
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,dict_tf_to_fsp_flags_failure";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+#
+
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+SET SESSION debug="+d,fsp_flags_is_valid_failure";
+
+--replace_regex /'.*t1.cfg'/'t1.cfg'/
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,fsp_flags_is_valid_failure";
+
+DROP TABLE test_wl5522.t1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+
+DROP DATABASE test_wl5522;
+
+set global innodb_monitor_disable = all;
+set global innodb_monitor_reset_all = all;
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .* Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
+call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace `test_wl5522/t1` because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] .* Tablespace for table `test_wl5522`\.`t1` is set as discarded");
+call mtr.add_suppression("\\[Warning\\] .* t1.ibd: Page .* at offset .* looks corrupted");
+call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table `test_wl5522`\.`t1` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .* Monitor ibuf_merges is already enabled");
+call mtr.add_suppression("\\[Warning\\] .* Monitor ibuf_merges_insert is already enabled");
+call mtr.add_suppression("\\[Warning\\] .* Page 0 at offset 0 looks corrupted in file");
+call mtr.add_suppression("\\[Warning\\] .* Tablespace.*, name 'test_wl5522.t1', file '.*test_wl5522.t1.ibd' is missing!");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for `test_wl5522/t1`");
+call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `test_wl5522`.`t1` in the cache");
+call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself");
+call mtr.add_suppression("\\[ERROR\\] .* IO Error: while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
+call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .* Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("\\[ERROR\\] .* Unsupported tablespace format");
+call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 32 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .* The error means that another program is using InnoDB's files.");
+--enable_query_log
+
+# cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
+
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+
+--source include/innodb_monitor_restore.inc
+--source suite/innodb/include/check_pfs_mem_other_is_zero.inc

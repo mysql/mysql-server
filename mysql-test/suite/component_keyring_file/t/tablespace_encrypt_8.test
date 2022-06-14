@@ -1,0 +1,7 @@
+--source include/have_component_keyring_file.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_debug.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/tablespace_encrypt_8.inc
+--source ../inc/teardown_component.inc

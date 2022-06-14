@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql_com.h"             // NAME_LEN
 #include "sql/rpl_info_handler.h"  // Rpl_info_handler
 #include "sql/rpl_reporting.h"     // Slave_reporting_capability
@@ -41,7 +41,7 @@ class THD;
 
 class Rpl_info : public Slave_reporting_capability {
  public:
-  virtual ~Rpl_info();
+  ~Rpl_info() override;
 
   /*
     standard lock acquisition order to avoid deadlocks:
@@ -81,7 +81,7 @@ class Rpl_info : public Slave_reporting_capability {
   std::atomic<uint> slave_running;
   std::atomic<ulong> slave_run_id;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int events_until_exit;
 #endif
 
@@ -101,19 +101,21 @@ class Rpl_info : public Slave_reporting_capability {
   */
   Rpl_info_handler *get_rpl_info_handler() { return (handler); }
 
-  enum_return_check check_info() { return (handler->check_info()); }
+  enum_return_check check_info() const { return (handler->check_info()); }
 
   int remove_info() { return (handler->remove_info()); }
 
   int clean_info() { return (handler->clean_info()); }
 
-  bool is_transactional() { return (handler->is_transactional()); }
+  bool is_transactional() const { return (handler->is_transactional()); }
 
   bool update_is_transactional() {
     return (handler->update_is_transactional());
   }
 
-  char *get_description_info() { return (handler->get_description_info()); }
+  char *get_description_info() const {
+    return (handler->get_description_info());
+  }
 
   bool copy_info(Rpl_info_handler *from, Rpl_info_handler *to) {
     if (read_info(from) || write_info(to)) return (true);
@@ -121,9 +123,9 @@ class Rpl_info : public Slave_reporting_capability {
     return (false);
   }
 
-  uint get_internal_id() { return internal_id; }
+  uint get_internal_id() const { return internal_id; }
 
-  char *get_channel() { return channel; }
+  char *get_channel() const { return const_cast<char *>(channel); }
 
   /**
     To search in the slave repositories, each slave info object
@@ -163,7 +165,7 @@ class Rpl_info : public Slave_reporting_capability {
      Every slave info object acts on a particular channel in Multisource
      Replication.
   */
-  char channel[CHANNEL_NAME_LENGTH + 1];
+  char channel[CHANNEL_NAME_LENGTH + 1] = {0};
 
   Rpl_info(const char *type,
 #ifdef HAVE_PSI_INTERFACE

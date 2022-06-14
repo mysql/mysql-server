@@ -49,7 +49,7 @@ select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
 --echo # Test persisted variables
 
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST innodb_default_row_format=COMPACT;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 
@@ -79,7 +79,7 @@ SELECT now() into @before_timestamp;
 sleep 1;
 
 SET GLOBAL sort_buffer_size=256000;
-SET GLOBAL max_heap_table_size=999424, slave_net_timeout=124;
+SET GLOBAL max_heap_table_size=999424, replica_net_timeout=124;
 SET @@global.max_execution_time=440000, @@global.max_user_connections=30;
 SET GLOBAL innodb_default_row_format=DEFAULT;
 
@@ -105,7 +105,7 @@ select VARIABLE_NAME, VARIABLE_SOURCE,
   where VARIABLE_NAME in
     ('sort_buffer_size',
      'max_heap_table_size',
-     'slave_net_timeout',
+     'replica_net_timeout',
      'max_execution_time',
      'max_user_connections',
      'innodb_default_row_format')

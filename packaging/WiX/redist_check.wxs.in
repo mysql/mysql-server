@@ -1,0 +1,85 @@
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"
+         xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+<!--
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
+      <Property Id="VS14REDISTX64_64_MAJOR">
+        <RegistrySearch Id="FindRedistVS14_64_MAJOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Major"
+            Win64="yes"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_64_MINOR">
+        <RegistrySearch Id="FindRedistVS14_64_MINOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Minor"
+            Win64="yes"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_32_MAJOR">
+        <RegistrySearch Id="FindRedistVS14_32_MAJOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Major"
+            Win64="no"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_32_MINOR">
+        <RegistrySearch Id="FindRedistVS14_32_MINOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Minor"
+            Win64="no"
+            Type="raw" />
+      </Property>
+
+      <!-- For numbers (DWORD type in Windows Registry) WiX RegistrySearch uses a special prefix: '#'.
+       We have to get rid of it before using properties in the condition check,
+       We want to compare numbers, rather than strings. -->
+      <CustomAction Id="DwordToNumber" Script="vbscript">
+        <![CDATA[
+          Session.Property("VS14REDISTX64_64_MAJOR") = Replace(Session.Property("VS14REDISTX64_64_MAJOR"),"#","")
+          Session.Property("VS14REDISTX64_64_MINOR") = Replace(Session.Property("VS14REDISTX64_64_MINOR"),"#","")
+          Session.Property("VS14REDISTX64_32_MAJOR") = Replace(Session.Property("VS14REDISTX64_32_MAJOR"),"#","")
+          Session.Property("VS14REDISTX64_32_MINOR") = Replace(Session.Property("VS14REDISTX64_32_MINOR"),"#","")
+        ]]>
+      </CustomAction>
+
+      <InstallExecuteSequence>
+        <Custom Action="DwordToNumber" Before="LaunchConditions"/>
+      </InstallExecuteSequence>
+      <InstallUISequence>
+        <Custom Action="DwordToNumber" Before="LaunchConditions"/>
+      </InstallUISequence>
+
+      <Condition Message="This application requires Visual Studio 2019 x64 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR (VS14REDISTX64_64_MAJOR = 14 AND VS14REDISTX64_64_MINOR >= 20) OR (VS14REDISTX64_32_MAJOR = 14 AND VS14REDISTX64_32_MINOR >= 20)
+      </Condition>
+    <?endif?> 
+</Include>

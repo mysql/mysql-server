@@ -1,0 +1,53 @@
+# First test, check behaviour with --ndb-log-fail-terminate=1
+# during metadata synchronization
+# - Create table
+# - Setup mysqld2 with DBUG error to force "binlog setup" failure
+# - Setup mtr.pl to expect mysqld2 to shutdown
+# - Use DUMP 900 to disconnect both mysqld's (node 16 and 49)
+# - The mysqld2 will disconnect and then shut itself down when
+#   hitting the DBUG error during metadata sync
+# - Start mysqld2 again and check things work
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+# Setup mysqld2 DBUG
+# NOTE! since the process will restart there is no need to save value
+set global debug='+d,ndb_binlog_fail_setup';
+# Write file to make mtr.pl expect mysqld2 shutdown, but don't start
+# until it's told to
+# Disconnect both mysqld's with DUMP 900
+# Wait for mysqld2 binlog rotate to indicate disconnect
+# Wait for mysqld1 to reconnect and insert data to check it's alive
+insert into t1 values (11);
+# Wait for mysqld2 to disconnect
+# mysqld2 disconnected
+# Write file to make mtr.pl start up mysqld2 again
+# Wait for mysqld2 to reconnect and insert data to check it's alive
+insert into t1 values (10);
+drop table t1;
+# Second test, check behaviour with --ndb-log-fail-terminate=1
+# during CREATE TABLE
+# - Setup mysqld2 with DBUG error to force "binlog setup" failure
+# - Setup mtr.pl to expect mysqld2 to shutdown
+# - Create table on mysqld1
+# - mysqld2 will fail during schema distribution and shut itself down
+# - Start mysqld2 again and check things work
+# Setup mysqld2 DBUG
+# NOTE! since the process will restart there is no need to save value
+set global debug='+d,ndb_binlog_fail_setup';
+# Write file to make mtr.pl expect mysqld2 shutdown, but don't start
+# until it's told to
+# Create table from mysqld1
+create table t1 (a int primary key) engine=ndb;
+Warnings:
+Warning	1296	Node 16: 'Distribution of CREATE TABLE 't1' failed'
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+# Wait for mysqld2 diconnect
+# mysqld2 disconnected
+# Write file to make mtr.pl start up mysqld2 again
+# Wait for mysqld2 to reconnect and insert data to check it's alive
+insert into t1 values (10);
+insert into t1 values (11);
+drop table t1;
+set GLOBAL debug="+d,ndb_binlog_fail_setup_util_table";
+include/assert_grep.inc [No error log printed when binlog setup fails]
+set GLOBAL debug="-d,ndb_binlog_fail_setup_util_table";

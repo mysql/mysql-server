@@ -1,26 +1,92 @@
-"WL-8478"
-"Inserting 100000 rows...";
-100000 records in table dt_1
-
-NDBT_ProgramExit: 0 - OK
-
-"Run DUMP commands to start LCP"
-"Sleep 10s so that LCP can complete"
-"Restarting node 1 with -n"
-"Node 1 started"
-90000 records in table dt_1
-
-NDBT_ProgramExit: 0 - OK
-
-90004 records in table dt_1
-
-NDBT_ProgramExit: 0 - OK
-
-80003 records in table dt_1
-
-NDBT_ProgramExit: 0 - OK
-
-"Wait reconnect"
+#
+# WL-8478 : Undo log speedup - parallel LGMAN applying
+#
+CREATE LOGFILE GROUP lg_1
+ADD UNDOFILE 'undo_1.log'
+    INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE 2M
+ENGINE NDBCLUSTER;
+ALTER LOGFILE GROUP lg_1
+ADD UNDOFILE 'undo_2.log'
+    INITIAL_SIZE 12M
+ENGINE NDBCLUSTER;
+CREATE TABLESPACE ts_1
+ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+INITIAL_SIZE 32M
+ENGINE NDBCLUSTER;
+ALTER TABLESPACE ts_1
+ADD DATAFILE 'data_2.dat'
+    INITIAL_SIZE 48M;
+CREATE TABLE dt_1 (
+member_id INT
+)
+TABLESPACE ts_1 STORAGE DISK
+ENGINE NDBCLUSTER;
+#
+# Test UNDO_TUP_ALLOC by inserting 1000 * 100 rows in dt_1
+#
+SELECT COUNT(*) AS "Records inserted into dt_1" FROM dt_1;
+Records inserted into dt_1
+100000
+CREATE TABLE dt_2 (
+member_id INT
+)
+TABLESPACE ts_1 STORAGE DISK
+ENGINE NDBCLUSTER;
+#
+# Test UNDO_TUP_FREE by deleting rows with member_id 2 from dt_1
+#
+SELECT COUNT(*) AS "Records in dt_1 after delete" FROM dt_1;
+Records in dt_1 after delete
+90000
+#
+# Test UNDO_TUP_UPDATE by updating rows where member_id = 5 in dt_1
+#
+SELECT COUNT(*) AS "Records in dt_1 after update" FROM dt_1;
+Records in dt_1 after update
+90000
+#
+# Test UNDO_TUP_DROP by dropping table dt_2
+#
+DROP TABLE dt_2;
+# Show number of rows in dt_1 before restart for easy comparison
+SELECT COUNT(*) AS "Number of rows before node restart" FROM dt_1;
+Number of rows before node restart
+90000
+# Start LCP so that disk table pages are flushed to disk.
+# Otherwise, the undo log records are not sent to the LDM threads
+# for application
+# Sleep until LCP (hopefully) has completed
+# Restarting node 1 with nostart...
+# Wait for node to reach not-started state...
+# Insert error to invalidate the latest LCP, so that the undo
+# records till the LCP start of the previous LCP are applied
+# Start node 1..
+# Wait for node 1 to start...
+# Node 1 started
+# Clear error inserts
+# Check that existent data is still there
+SELECT COUNT(*) AS "Number of rows after node restart" FROM dt_1;
+Number of rows after node restart
+90000
+# Check that table can still be used to insert data
+INSERT INTO dt_1 VALUES (2),(3),(4),(5);
+SELECT COUNT(*) as "Number of rows after four more rows inserted" FROM dt_1;
+Number of rows after four more rows inserted
+90004
+#
+# Check that data can be removed from the table (can cause temporary
+# timeout errors?) by removing all rows with member_id 1
+#
+SELECT COUNT(*) AS "Records in dt_1 after second delete" FROM dt_1;
+Records in dt_1 after second delete
+80004
+# Check that table dt_2 still does not exist, it was removed
+# before node restart
+SELECT * FROM dt_2;
+ERROR 42S02: Table 'test.dt_2' doesn't exist
+# Cleanup
 DROP TABLE dt_1;
 ALTER TABLESPACE ts_1
 DROP DATAFILE 'data_2.dat';

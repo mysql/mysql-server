@@ -10,27 +10,27 @@ create table t1 (a int, b int generated always as (a*2) stored unique);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES	UNI	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, unique (b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES	UNI	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add unique key (b);
@@ -45,27 +45,27 @@ create table t1 (a int, b int generated always as (a*2) stored, index (b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	MUL	NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES	MUL	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, index (a,b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `a` (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
-b	int(11)	YES		NULL	STORED GENERATED
+a	int	YES	MUL	NULL	
+b	int	YES		NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add index (b);
@@ -218,7 +218,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 3.6055
+                    "cost": 3.60549
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -255,6 +255,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": -1,
                         "rows": 4,
                         "cost": 1.66,
                         "chosen": true
@@ -410,7 +411,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by `test`.`t1`.`gc`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by (`test`.`t1`.`f1` + 1)
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
@@ -451,7 +452,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 0.5055
+                  "cost": 0.505493
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -466,12 +467,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
-                      "filtering_effect": [
-                      ] /* filtering_effect */,
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 1.5055,
+                      "cost": 1.50549,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -479,9 +477,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 1.5055,
+                "cost_for_plan": 1.50549,
                 "sort_cost": 10,
-                "new_cost_for_plan": 11.505,
+                "new_cost_for_plan": 11.5055,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -541,7 +539,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -579,7 +577,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by `test`.`t1`.`gc`
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by (`test`.`t1`.`f1` + 1)
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
@@ -627,7 +625,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 3.6055
+                    "cost": 3.60549
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -665,12 +663,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
-                      "filtering_effect": [
-                      ] /* filtering_effect */,
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 1.5055,
+                      "cost": 1.50549,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -678,9 +673,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 1.5055,
+                "cost_for_plan": 1.50549,
                 "sort_cost": 10,
-                "new_cost_for_plan": 11.505,
+                "new_cost_for_plan": 11.5055,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -841,7 +836,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true order by `col_int_gc_key`,`field2`
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true order by `field1`,`field2`
 SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
 FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
 GROUP BY field1, field2;
@@ -854,7 +849,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true group by `col_int_gc_key`,`field2`
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true group by `field1`,`field2`
 DROP TABLE t1;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS

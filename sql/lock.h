@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ typedef malloc_unordered_set<std::string> Tablespace_hash_set;
 
 // Lock tablespace names.
 bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
-                           ulong lock_wait_timeout);
+                           ulong lock_wait_timeout, MEM_ROOT *mem_root);
 
 /* Lock based on stored routine name */
 bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,

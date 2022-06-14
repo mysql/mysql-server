@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <type_traits>
 
+#include "my_bitmap.h"
 #include "my_inttypes.h"
 
 class Rpl_info_values;
@@ -48,14 +49,29 @@ enum enum_info_repository {
 */
 enum enum_return_check {
   REPOSITORY_DOES_NOT_EXIST = 1,
-  REPOSITORY_EXISTS,
-  ERROR_CHECKING_REPOSITORY
+  REPOSITORY_EXISTS = 2,
+  ERROR_CHECKING_REPOSITORY = 4,
+  REPOSITORY_CLEARED = 10
 };
 
 class Rpl_info_handler {
   friend class Rpl_info_factory;
 
  public:
+  /*
+   * enum class to indicate the status of getting field using
+   * do_get_info() of handler classes.
+   */
+  enum class enum_field_get_status : int {
+    /* status is success but field has NULL value. */
+    FIELD_VALUE_NOT_NULL = 0,
+    FIELD_VALUE_IS_NULL = 1,
+    FAILURE = 2
+  };
+
+  Rpl_info_handler(const Rpl_info_handler &handler) = delete;
+  Rpl_info_handler &operator=(const Rpl_info_handler &handler) = delete;
+
   /**
     After creating an object and assembling components, this method is
     used to initialize internal structures. Everything that does not
@@ -118,9 +134,6 @@ class Rpl_info_handler {
 
   /**
     Closes access to the repository.
-
-    @retval false No error
-    @retval true  Failure
   */
   void end_info() { do_end_info(); }
 
@@ -215,12 +228,16 @@ class Rpl_info_handler {
     @retval true Failure
   */
   template <class TypeHandlerPointer, class TypeHandler>
-  bool get_info(TypeHandlerPointer value, TypeHandler const default_value) {
-    if (cursor >= ninfo || prv_error) return true;
+  enum_field_get_status get_info(TypeHandlerPointer value,
+                                 TypeHandler const default_value) {
+    if (cursor >= ninfo || prv_get_error == enum_field_get_status::FAILURE)
+      return enum_field_get_status::FAILURE;
 
-    if (!(prv_error = do_get_info(cursor, value, default_value))) cursor++;
+    if ((prv_get_error = do_get_info(cursor, value, default_value)) !=
+        enum_field_get_status::FAILURE)
+      cursor++;
 
-    return (prv_error);
+    return (prv_get_error);
   }
 
   /**
@@ -244,15 +261,17 @@ class Rpl_info_handler {
     @retval true Failure
   */
   template <class TypeHandler>
-  bool get_info(
+  enum_field_get_status get_info(
       TypeHandler value, const size_t size,
       std::add_const_t<std::remove_pointer_t<TypeHandler>> *default_value) {
-    if (cursor >= ninfo || prv_error) return true;
+    if (cursor >= ninfo || prv_get_error == enum_field_get_status::FAILURE)
+      return enum_field_get_status::FAILURE;
 
-    if (!(prv_error = do_get_info(cursor, value, size, default_value)))
+    if ((prv_get_error = do_get_info(cursor, value, size, default_value)) !=
+        enum_field_get_status::FAILURE)
       cursor++;
 
-    return (prv_error);
+    return (prv_get_error);
   }
 
   /**
@@ -268,12 +287,16 @@ class Rpl_info_handler {
     @retval false No error
     @retval true Failure
   */
-  bool get_info(Server_ids *value, const Server_ids *default_value) {
-    if (cursor >= ninfo || prv_error) return true;
+  enum_field_get_status get_info(Server_ids *value,
+                                 const Server_ids *default_value) {
+    if (cursor >= ninfo || prv_get_error == enum_field_get_status::FAILURE)
+      return enum_field_get_status::FAILURE;
 
-    if (!(prv_error = do_get_info(cursor, value, default_value))) cursor++;
+    if ((prv_get_error = do_get_info(cursor, value, default_value)) !=
+        enum_field_get_status::FAILURE)
+      cursor++;
 
-    return (prv_error);
+    return (prv_get_error);
   }
 
   /**
@@ -344,10 +367,10 @@ class Rpl_info_handler {
 
   /* Registers if there was failure while accessing a field/information. */
   bool prv_error;
-
+  enum_field_get_status prv_get_error;
   /*
    Keeps track of the number of events before fsyncing. The option
-   --sync-master-info and --sync-relay-log-info determine how many
+   --sync-source-info and --sync-relay-log-info determine how many
    events should be processed before fsyncing.
   */
   uint sync_counter;
@@ -357,7 +380,19 @@ class Rpl_info_handler {
   */
   uint sync_period;
 
-  Rpl_info_handler(const int nparam);
+  /**
+    Bitset holding which of the fields are allowed to be `NULL`.
+   */
+  MY_BITMAP nullable_fields;
+
+  Rpl_info_handler(const int nparam, MY_BITMAP const *nullable_bitmap);
+
+  /**
+    Checks whether or not the field at position `pos` is allowed to be `NULL`.
+
+    @return true if the field is allowed to be `NULL` and false otherwise.
+   */
+  bool is_field_nullable(int pos);
 
  private:
   virtual int do_init_info() = 0;
@@ -378,29 +413,33 @@ class Rpl_info_handler {
   virtual bool do_set_info(const int pos, const int value) = 0;
   virtual bool do_set_info(const int pos, const float value) = 0;
   virtual bool do_set_info(const int pos, const Server_ids *value) = 0;
-  virtual bool do_get_info(const int pos, char *value, const size_t size,
-                           const char *default_value) = 0;
-  virtual bool do_get_info(const int pos, uchar *value, const size_t size,
-                           const uchar *default_value) = 0;
-  virtual bool do_get_info(const int pos, ulong *value,
-                           const ulong default_value) = 0;
-  virtual bool do_get_info(const int pos, int *value,
-                           const int default_value) = 0;
-  virtual bool do_get_info(const int pos, float *value,
-                           const float default_value) = 0;
-  virtual bool do_get_info(const int pos, Server_ids *value,
-                           const Server_ids *default_value) = 0;
+  virtual bool do_set_info(const int pos, const std::nullptr_t value) = 0;
+  virtual bool do_set_info(const int pos, const std::nullptr_t value,
+                           const size_t size) = 0;
+  virtual enum_field_get_status do_get_info(const int pos, char *value,
+                                            const size_t size,
+                                            const char *default_value) = 0;
+  virtual enum_field_get_status do_get_info(const int pos, uchar *value,
+                                            const size_t size,
+                                            const uchar *default_value) = 0;
+  virtual enum_field_get_status do_get_info(const int pos, ulong *value,
+                                            const ulong default_value) = 0;
+  virtual enum_field_get_status do_get_info(const int pos, int *value,
+                                            const int default_value) = 0;
+  virtual enum_field_get_status do_get_info(const int pos, float *value,
+                                            const float default_value) = 0;
+  virtual enum_field_get_status do_get_info(
+      const int pos, Server_ids *value, const Server_ids *default_value) = 0;
   virtual char *do_get_description_info() = 0;
   virtual bool do_is_transactional() = 0;
   virtual bool do_update_is_transactional() = 0;
   virtual uint do_get_rpl_info_type() = 0;
-
-  Rpl_info_handler(const Rpl_info_handler &handler);
-
-  Rpl_info_handler &operator=(const Rpl_info_handler &handler);
 };
-#ifndef DBUG_OFF
+
+bool operator!(Rpl_info_handler::enum_field_get_status status);
+
+#ifndef NDEBUG
 extern ulong w_rr;
-extern uint mts_debug_concurrent_access;
+extern uint mta_debug_concurrent_access;
 #endif
 #endif /* RPL_INFO_HANDLER_H */

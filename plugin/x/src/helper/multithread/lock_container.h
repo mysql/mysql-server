@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,26 +25,28 @@
 #ifndef PLUGIN_X_SRC_HELPER_MULTITHREAD_LOCK_CONTAINER_H_
 #define PLUGIN_X_SRC_HELPER_MULTITHREAD_LOCK_CONTAINER_H_
 
+#include <utility>
+
 namespace xpl {
 
 template <typename Container, typename Locker, typename Lock>
 class Locked_container {
  public:
-  Locked_container(Container &container, Lock &lock)
-      : m_lock(lock), m_ref(container) {}
+  Locked_container(Container *container, Lock *lock)
+      : m_locker(lock), m_ptr(container) {}
 
-  Container &operator*() { return m_ref; }
+  Locked_container(Locked_container &&locked_container)
+      : m_locker(std::move(locked_container.m_locker)),
+        m_ptr(locked_container.m_ptr) {
+    locked_container.m_ptr = nullptr;
+  }
 
-  Container *operator->() { return &m_ref; }
-
-  Container *container() { return &m_ref; }
+  Container *operator->() { return m_ptr; }
+  Container *container() { return m_ptr; }
 
  private:
-  Locked_container(const Locked_container &);
-  Locked_container &operator=(const Locked_container &);
-
-  Locker m_lock;
-  Container &m_ref;
+  Locker m_locker;
+  Container *m_ptr;
 };
 
 }  // namespace xpl

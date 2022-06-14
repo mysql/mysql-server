@@ -7,12 +7,16 @@ ERROR 42S02: Table 'ndb_ddl_test.shadow1' doesn't exist
 create table ndb_ddl_test.shadow1 (
 in_NDB_engine int primary key
 ) engine = NDB;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 'shadow1' failed'
 select column_name from
 information_schema.columns
 where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
 COLUMN_NAME
 in_other_engine
 truncate table ndb_ddl_test.shadow1;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of TRUNCATE TABLE 'shadow1' failed'
 select column_name from
 information_schema.columns
 where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
@@ -23,6 +27,8 @@ count(*) = 1
 1
 alter table ndb_ddl_test.shadow1 algorithm=copy,
 add column added_by_copying_alter int;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 'shadow1' failed'
 select column_name from
 information_schema.columns
 where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
@@ -30,12 +36,34 @@ COLUMN_NAME
 in_other_engine
 alter table ndb_ddl_test.shadow1 algorithm=inplace,
 add column added_by_inplace_alter int default NULL column_format DYNAMIC;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 'shadow1' failed'
 select column_name from
 information_schema.columns
 where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
 COLUMN_NAME
 in_other_engine
 drop table ndb_ddl_test.shadow1;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 'shadow1' failed'
+rename table ndb_ddl_test.t1 to ndb_ddl_test.shadow1;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 't1';
+COLUMN_NAME
+create table ndb_ddl_test.shadow2 (
+in_other_engine int primary key
+) engine = InnoDB;
+insert into ndb_ddl_test.shadow2 values(100);
+rename table ndb_ddl_test.shadow1 to ndb_ddl_test.shadow2;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of RENAME TABLE 'shadow1' failed'
+rename table ndb_ddl_test.shadow2 to ndb_ddl_test.t1;
 select column_name from
 information_schema.columns
 where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
@@ -45,6 +73,7 @@ select count(*) = 1 from ndb_ddl_test.shadow1;
 count(*) = 1
 1
 drop table ndb_ddl_test.shadow1;
+drop table ndb_ddl_test.shadow2;
 == verify_mysql_dd.inc ==
 create table ndb_ddl_test2.shadow_in_db (
 in_other_engine int primary key
@@ -55,6 +84,8 @@ in_NDB_engine int primary key
 show create table ndb_ddl_test2.shadow_in_db;
 ERROR 42S02: Table 'ndb_ddl_test2.shadow_in_db' doesn't exist
 drop database ndb_ddl_test2;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP DATABASE 'ndb_ddl_test2' failed'
 use ndb_ddl_test2;
 ERROR 42000: Unknown database 'ndb_ddl_test2'
 use ndb_ddl_test2;
@@ -63,4 +94,18 @@ ERROR 42S02: Table 'ndb_ddl_test2.table_in_ndb' doesn't exist
 drop table ndb_ddl_test2.shadow_in_db;
 drop database ndb_ddl_test2;
 create database ndb_ddl_test2;
+USE ndb_ddl_test;
+CREATE TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12 (
+id INT PRIMARY KEY
+) ENGINE InnoDB;
+USE ndb_ddl_test;
+CREATE TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12 (
+id INT PRIMARY KEY
+) ENGINE NDB;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12' failed'
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12' failed'
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
 == verify_mysql_dd.inc ==

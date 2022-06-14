@@ -1,0 +1,4 @@
+CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
+LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
+ERROR 23000: Duplicate entry 'Aarhus' for key 't1.PRIMARY'
+DROP TABLE t1;

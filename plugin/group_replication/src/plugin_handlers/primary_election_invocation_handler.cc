@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
-#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
+#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 Primary_election_handler::Primary_election_handler(
     ulong components_stop_timeout)
@@ -107,8 +108,11 @@ int Primary_election_handler::execute_primary_election(
       } else {
         // If the requested primary is not there, ignore the request.
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_APPOINTED_PRIMARY_NOT_PRESENT);
-        group_events_observation_manager->after_primary_election("", false,
-                                                                 mode);
+        group_events_observation_manager->after_primary_election(
+            "",
+            enum_primary_election_primary_change_status::
+                PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
+            mode);
         goto end;
       }
       /* purecov: end */
@@ -121,7 +125,7 @@ int Primary_election_handler::execute_primary_election(
 
   primary_member_info = group_member_mgr->get_group_member_info(primary_uuid);
 
-  if (primary_member_info == NULL) {
+  if (primary_member_info == nullptr) {
     if (all_members_info->size() != 1) {
       // There are no servers in the group or they are all recovering WARN the
       // user
@@ -129,7 +133,10 @@ int Primary_election_handler::execute_primary_election(
                    ER_GRP_RPL_NO_SUITABLE_PRIMARY_MEM); /* purecov: inspected */
     }
     group_events_observation_manager->after_primary_election(
-        "", false, mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
+        "",
+        enum_primary_election_primary_change_status::
+            PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
+        mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
@@ -162,6 +169,9 @@ int Primary_election_handler::execute_primary_election(
     }
 
     set_election_running(true);
+    if (!primary_uuid.compare(local_member_info->get_uuid())) {
+      print_gtid_info_in_log();
+    }
     if (!legacy_election) {
       std::string message;
       if (DEAD_OLD_PRIMARY == mode)
@@ -178,13 +188,13 @@ int Primary_election_handler::execute_primary_election(
             "Enabling conflict detection until the new primary applies all "
             "relay logs.");
 
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port(), message.c_str());
       internal_primary_election(primary_uuid, mode);
     } else {
       // retain the old message
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port(),
                    "Enabling conflict detection until the new primary applies "
@@ -192,7 +202,9 @@ int Primary_election_handler::execute_primary_election(
       legacy_primary_election(primary_uuid);
     }
   } else {
-    group_events_observation_manager->after_primary_election("", false, mode);
+    group_events_observation_manager->after_primary_election(
+        "", enum_primary_election_primary_change_status::PRIMARY_DID_NOT_CHANGE,
+        mode);
   }
 
 end:
@@ -206,14 +218,42 @@ end:
   return 0;
 }
 
+void Primary_election_handler::print_gtid_info_in_log() {
+  Replication_thread_api applier_channel("group_replication_applier");
+  std::string applier_retrieved_gtids;
+  std::string server_executed_gtids;
+  Get_system_variable *get_system_variable = new Get_system_variable();
+
+  if (get_system_variable->get_server_gtid_executed(server_executed_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
+    goto err;
+    /* purecov: inspected */
+  }
+  if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL,
+                 ER_GRP_RPL_GTID_SET_EXTRACT_ERROR); /* purecov: inspected */
+    goto err;
+    /* purecov: end */
+  }
+  LogPluginErr(INFORMATION_LEVEL, ER_GR_ELECTED_PRIMARY_GTID_INFORMATION,
+               "gtid_executed", server_executed_gtids.c_str());
+  LogPluginErr(INFORMATION_LEVEL, ER_GR_ELECTED_PRIMARY_GTID_INFORMATION,
+               "applier channel received_transaction_set",
+               applier_retrieved_gtids.c_str());
+err:
+  delete get_system_variable;
+}
+
 int Primary_election_handler::internal_primary_election(
     std::string &primary_to_elect, enum_primary_election_mode mode) {
   if (secondary_election_handler.is_election_process_running()) {
     secondary_election_handler.terminate_election_process();
   }
 
-  DBUG_ASSERT(!primary_election_handler.is_election_process_running() ||
-              primary_election_handler.is_election_process_terminating());
+  assert(!primary_election_handler.is_election_process_running() ||
+         primary_election_handler.is_election_process_terminating());
 
   /** Wait for an old process to end*/
   if (primary_election_handler.is_election_process_terminating())
@@ -228,8 +268,7 @@ int Primary_election_handler::internal_primary_election(
   group_member_mgr->update_primary_member_flag(true);
 
   if (!local_member_info->get_uuid().compare(primary_to_elect)) {
-    hold_transactions->enable();
-    register_transaction_observer();
+    notify_election_running();
     primary_election_handler.launch_primary_election_process(
         mode, primary_to_elect, members_info);
   } else {
@@ -262,11 +301,8 @@ int Primary_election_handler::legacy_primary_election(
   applier_module->add_single_primary_action_packet(single_primary_action);
 
   if (is_primary_local) {
-    if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_DISABLE_READ_ONLY_FAILED); /* purecov: inspected */
-    }
+    member_actions_handler->trigger_actions(
+        Member_actions::AFTER_PRIMARY_ELECTION);
   } else {
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,
@@ -284,13 +320,15 @@ int Primary_election_handler::legacy_primary_election(
     internal_primary_election(primary_uuid, LEGACY_ELECTION_PRIMARY);
   } else {
     set_election_running(false);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
                  primary_member_info->get_hostname().c_str(),
                  primary_member_info->get_port());
   }
 
-  group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                           DEAD_OLD_PRIMARY);
+  group_events_observation_manager->after_primary_election(
+      primary_uuid,
+      enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+      DEAD_OLD_PRIMARY);
   delete primary_member_info;
 
   return 0;
@@ -299,13 +337,13 @@ int Primary_election_handler::legacy_primary_election(
 bool Primary_election_handler::pick_primary_member(
     std::string &primary_uuid,
     std::vector<Group_member_info *> *all_members_info) {
-  DBUG_ENTER("Primary_election_handler::pick_primary_member");
+  DBUG_TRACE;
 
   bool am_i_leaving = true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int n = 0;
 #endif
-  Group_member_info *the_primary = NULL;
+  Group_member_info *the_primary = nullptr;
 
   std::vector<Group_member_info *>::iterator it;
   std::vector<Group_member_info *>::iterator lowest_version_end;
@@ -327,15 +365,15 @@ bool Primary_election_handler::pick_primary_member(
    2. Check if I am leaving the group or not.
    */
   for (it = all_members_info->begin(); it != all_members_info->end(); it++) {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(n <= 1);
+#ifndef NDEBUG
+    assert(n <= 1);
 #endif
 
     Group_member_info *member = *it;
-    if (local_member_info->in_primary_mode() && the_primary == NULL &&
+    if (local_member_info->in_primary_mode() && the_primary == nullptr &&
         member->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
       the_primary = member;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       n++;
 #endif
     }
@@ -361,12 +399,12 @@ bool Primary_election_handler::pick_primary_member(
      To pick leaders from only lowest version members loop
      till lowest_version_end.
     */
-    if (the_primary == NULL) {
+    if (the_primary == nullptr) {
       for (it = all_members_info->begin();
-           it != lowest_version_end && the_primary == NULL; it++) {
+           it != lowest_version_end && the_primary == nullptr; it++) {
         Group_member_info *member_info = *it;
 
-        DBUG_ASSERT(member_info);
+        assert(member_info);
         if (member_info && member_info->get_recovery_status() ==
                                Group_member_info::MEMBER_ONLINE)
           the_primary = member_info;
@@ -374,10 +412,10 @@ bool Primary_election_handler::pick_primary_member(
     }
   }
 
-  if (the_primary == NULL) DBUG_RETURN(1);
+  if (the_primary == nullptr) return true;
 
   primary_uuid.assign(the_primary->get_uuid());
-  DBUG_RETURN(0);
+  return false;
 }
 
 std::vector<Group_member_info *>::iterator
@@ -462,52 +500,10 @@ void sort_members_for_election(
               Group_member_info::comparator_group_member_uuid);
 }
 
-void Primary_election_handler::register_transaction_observer() {
-  group_transaction_observation_manager->register_transaction_observer(this);
+void Primary_election_handler::notify_election_running() {
+  transaction_consistency_manager->enable_primary_election_checks();
 }
 
-void Primary_election_handler::unregister_transaction_observer() {
-  group_transaction_observation_manager->unregister_transaction_observer(this);
+void Primary_election_handler::notify_election_end() {
+  transaction_consistency_manager->disable_primary_election_checks();
 }
-
-int Primary_election_handler::before_transaction_begin(
-    my_thread_id, ulong gr_consistency, ulong hold_timeout,
-    enum_rpl_channel_type channel_type) {
-  DBUG_ENTER("Primary_election_handler::before_transaction_begin");
-
-  if (GR_RECOVERY_CHANNEL == channel_type ||
-      GR_APPLIER_CHANNEL == channel_type) {
-    DBUG_RETURN(0);
-  }
-
-  const enum_group_replication_consistency_level consistency_level =
-      static_cast<enum_group_replication_consistency_level>(gr_consistency);
-
-  if (consistency_level ==
-          GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
-      consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
-    DBUG_RETURN(
-        hold_transactions->wait_until_primary_failover_complete(hold_timeout));
-  }
-
-  DBUG_RETURN(0);
-}
-
-/*
-  These methods are necessary to fulfil the Group_transaction_listener
-  interface.
-*/
-/* purecov: begin inspected */
-int Primary_election_handler::before_commit(
-    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0;
-}
-int Primary_election_handler::before_rollback(
-    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0;
-}
-int Primary_election_handler::after_rollback(my_thread_id) { return 0; }
-int Primary_election_handler::after_commit(my_thread_id, rpl_sidno, rpl_gno) {
-  return 0;
-}
-/* purecov: end */

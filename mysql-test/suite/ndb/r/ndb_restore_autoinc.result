@@ -51,9 +51,70 @@ Expect next == 6
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
 test	big_varchars	6
+create table tinysignedauto (
+a tinyint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table smallsignedauto (
+a smallint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table medsignedauto (
+a mediumint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table intsignedauto (
+a int auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table bigsignedauto (
+a bigint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+insert into tinysignedauto(b) values (repeat('ILBJC', 40));
+insert into tinysignedauto(b) values (repeat('ILBJC', 40));
+insert into tinysignedauto(b) values (repeat('ILBJC', 40));
+insert into smallsignedauto(b) values (repeat('ILBJC', 40));
+insert into smallsignedauto(b) values (repeat('ILBJC', 40));
+insert into smallsignedauto(b) values (repeat('ILBJC', 40));
+insert into medsignedauto(b) values (repeat('ILBJC', 40));
+insert into medsignedauto(b) values (repeat('ILBJC', 40));
+insert into medsignedauto(b) values (repeat('ILBJC', 40));
+insert into intsignedauto(b) values (repeat('ILBJC', 40));
+insert into intsignedauto(b) values (repeat('ILBJC', 40));
+insert into intsignedauto(b) values (repeat('ILBJC', 40));
+insert into bigsignedauto(b) values (repeat('ILBJC', 40));
+insert into bigsignedauto(b) values (repeat('ILBJC', 40));
+insert into bigsignedauto(b) values (repeat('ILBJC', 40));
+Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+test	bigsignedauto	4
+test	intsignedauto	4
+test	medsignedauto	4
+test	smallsignedauto	4
+test	tinysignedauto	4
+insert into tinysignedauto values (-100, repeat('IWBJC', 40));
+insert into smallsignedauto values (-100, repeat('IWBJC', 40));
+insert into medsignedauto values (-100, repeat('IWBJC', 40));
+insert into intsignedauto values (-100, repeat('IWBJC', 40));
+insert into bigsignedauto values (-100, repeat('IWBJC', 40));
+Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+test	bigsignedauto	4
+test	intsignedauto	4
+test	medsignedauto	4
+test	smallsignedauto	4
+test	tinysignedauto	4
 ----------------------------------------
 2.  Take a backup
 ----------------------------------------
+drop table bigsignedauto;
+drop table intsignedauto;
+drop table medsignedauto;
+drop table smallsignedauto;
+drop table tinysignedauto;
 drop table big_varchars;
 drop table empty_specific;
 drop table empty_default;
@@ -100,6 +161,27 @@ Expect next == 73
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
 test	empty_specific	73
+Following unchanged
+create table tinysignedauto (
+a tinyint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table smallsignedauto (
+a smallint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table medsignedauto (
+a mediumint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table intsignedauto (
+a int auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
+create table bigsignedauto (
+a bigint auto_increment primary key,
+b varchar(2000)
+) engine=ndb;
 ----------------------------------------
 4.  Restore data
 ----------------------------------------
@@ -122,6 +204,14 @@ Expect 6
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
 test	big_varchars	6
+Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+test	bigsignedauto	4
+test	intsignedauto	4
+test	medsignedauto	4
+test	smallsignedauto	4
+test	tinysignedauto	4
 ----------------------------------------
 6.  Test via inserts
 ----------------------------------------
@@ -153,6 +243,27 @@ Expect 6
 select max(a) from big_varchars;
 max(a)
 6
+insert into tinysignedauto (b) values (repeat('IMBJC', 40));
+insert into smallsignedauto (b) values (repeat('IMBJC', 40));
+insert into medsignedauto (b) values (repeat('IMBJC', 40));
+insert into intsignedauto (b) values (repeat('IMBJC', 40));
+insert into bigsignedauto (b) values (repeat('IMBJC', 40));
+Expect 4
+select max(a) from tinysignedauto;
+max(a)
+4
+select max(a) from smallsignedauto;
+max(a)
+4
+select max(a) from medsignedauto;
+max(a)
+4
+select max(a) from intsignedauto;
+max(a)
+4
+select max(a) from bigsignedauto;
+max(a)
+4
 ----------------------------------------
 7.  Cleanup
 ----------------------------------------
@@ -161,23 +272,85 @@ drop table boring_keyless;
 drop table empty_default;
 drop table empty_specific;
 drop table big_varchars;
+drop table bigsignedauto;
+drop table intsignedauto;
+drop table medsignedauto;
+drop table smallsignedauto;
+drop table tinysignedauto;
 drop table filler1, filler2, filler3, filler4;
 drop table filler5, filler6, filler7, filler8;
 ----------------------------------------
 8.  Use ndb_restore metadata restore
 ----------------------------------------
+Waiting for metadata sync
+Metadata synchronised
 ----------------------------------------
 9.  Check autoincrement info
 ----------------------------------------
-With just NdbApi metadata restored, auto_increment values are set to default values
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+With just NdbApi metadata restored, auto_increment values are set to default values (1)
+show create table boring;
+Table	Create Table
+boring	CREATE TABLE `boring` (
+  `a` tinyint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table empty_default;
+Table	Create Table
+empty_default	CREATE TABLE `empty_default` (
+  `a` mediumint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table empty_specific;
+Table	Create Table
+empty_specific	CREATE TABLE `empty_specific` (
+  `a` mediumint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table big_varchars;
+Table	Create Table
+big_varchars	CREATE TABLE `big_varchars` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table bigsignedauto;
+Table	Create Table
+bigsignedauto	CREATE TABLE `bigsignedauto` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table intsignedauto;
+Table	Create Table
+intsignedauto	CREATE TABLE `intsignedauto` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table medsignedauto;
+Table	Create Table
+medsignedauto	CREATE TABLE `medsignedauto` (
+  `a` mediumint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table smallsignedauto;
+Table	Create Table
+smallsignedauto	CREATE TABLE `smallsignedauto` (
+  `a` smallint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table tinysignedauto;
+Table	Create Table
+tinysignedauto	CREATE TABLE `tinysignedauto` (
+  `a` tinyint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ----------------------------------------
 10.  Restore data
 ----------------------------------------
@@ -185,19 +358,75 @@ TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
 11.  Check autoincrement info
 ----------------------------------------
 Expect 7
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
-Expect 1
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+show create table boring;
+Table	Create Table
+boring	CREATE TABLE `boring` (
+  `a` tinyint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Expect 1 (So nothing shown)
+show create table empty_default;
+Table	Create Table
+empty_default	CREATE TABLE `empty_default` (
+  `a` mediumint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Expect 73
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+show create table empty_specific;
+Table	Create Table
+empty_specific	CREATE TABLE `empty_specific` (
+  `a` mediumint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Expect 6
-select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
-TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+show create table big_varchars;
+Table	Create Table
+big_varchars	CREATE TABLE `big_varchars` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Expect 4
+show create table bigsignedauto;
+Table	Create Table
+bigsignedauto	CREATE TABLE `bigsignedauto` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table intsignedauto;
+Table	Create Table
+intsignedauto	CREATE TABLE `intsignedauto` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table medsignedauto;
+Table	Create Table
+medsignedauto	CREATE TABLE `medsignedauto` (
+  `a` mediumint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table smallsignedauto;
+Table	Create Table
+smallsignedauto	CREATE TABLE `smallsignedauto` (
+  `a` smallint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table tinysignedauto;
+Table	Create Table
+tinysignedauto	CREATE TABLE `tinysignedauto` (
+  `a` tinyint NOT NULL AUTO_INCREMENT,
+  `b` varchar(2000) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ----------------------------------------
-6.  Test via inserts
+12.  Test via inserts
 ----------------------------------------
 insert into boring (b) values (99);
 Expect 7
@@ -227,11 +456,37 @@ Expect 6
 select max(a) from big_varchars;
 max(a)
 6
+insert into tinysignedauto (b) values (repeat('IMBJC', 40));
+insert into smallsignedauto (b) values (repeat('IMBJC', 40));
+insert into medsignedauto (b) values (repeat('IMBJC', 40));
+insert into intsignedauto (b) values (repeat('IMBJC', 40));
+insert into bigsignedauto (b) values (repeat('IMBJC', 40));
+Expect 4
+select max(a) from tinysignedauto;
+max(a)
+4
+select max(a) from smallsignedauto;
+max(a)
+4
+select max(a) from medsignedauto;
+max(a)
+4
+select max(a) from intsignedauto;
+max(a)
+4
+select max(a) from bigsignedauto;
+max(a)
+4
 ----------------------------------------
-7.  Cleanup
+13.  Cleanup
 ----------------------------------------
 drop table boring;
 drop table boring_keyless;
 drop table empty_default;
 drop table empty_specific;
 drop table big_varchars;
+drop table bigsignedauto;
+drop table intsignedauto;
+drop table medsignedauto;
+drop table smallsignedauto;
+drop table tinysignedauto;

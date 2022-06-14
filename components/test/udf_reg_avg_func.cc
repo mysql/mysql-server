@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -61,13 +61,13 @@ bool avgcost_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count != 2) {
     strcpy(message,
            "wrong number of arguments: AVGCOST() requires two arguments");
-    return 1;
+    return true;
   }
 
   if ((args->arg_type[0] != INT_RESULT) || (args->arg_type[1] != REAL_RESULT)) {
     strcpy(message,
            "wrong argument type: AVGCOST() requires an INT and a REAL");
-    return 1;
+    return true;
   }
 
   /*
@@ -76,20 +76,20 @@ bool avgcost_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   /*args->arg_type[0]   = REAL_RESULT;
     args->arg_type[1]   = REAL_RESULT;*/
 
-  initid->maybe_null = 0;  /* The result may be null */
-  initid->decimals = 4;    /* We want 4 decimals in the result */
-  initid->max_length = 20; /* 6 digits + . + 10 decimals */
+  initid->maybe_null = false; /* The result may be null */
+  initid->decimals = 4;       /* We want 4 decimals in the result */
+  initid->max_length = 20;    /* 6 digits + . + 10 decimals */
 
   if (!(data = new (std::nothrow) avgcost_data)) {
     strcpy(message, "Couldn't allocate memory");
-    return 1;
+    return true;
   }
   data->totalquantity = 0;
   data->totalprice = 0.0;
 
   initid->ptr = (char *)data;
 
-  return 0;
+  return false;
 }
 
 void avgcost_deinit(UDF_INIT *initid) {

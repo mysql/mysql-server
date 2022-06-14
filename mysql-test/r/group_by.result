@@ -46,10 +46,10 @@ EXPLAIN FORMAT=tree SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
-        -> Nested loop inner join
-            -> Filter: (t1.userID is not null)
-                -> Table scan on t1
-            -> Single-row index lookup on t2 using PRIMARY (userID=t1.userID)
+        -> Nested loop inner join  (cost=2.05 rows=4)
+            -> Filter: (t1.userID is not null)  (cost=0.65 rows=4)
+                -> Table scan on t1  (cost=0.65 rows=4)
+            -> Single-row covering index lookup on t2 using PRIMARY (userID=t1.userID)  (cost=0.28 rows=1)
 
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
@@ -63,22 +63,22 @@ userid	MIN(t1.score)
 3	3
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 userid	MIN(t1.score)
-2	2
 1	1
+2	2
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 userid	MIN(t1.score+0.0)
-2	2.0
 1	1.0
+2	2.0
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 userid	MIN(t1.score+0.0)
-2	2.0
 1	1.0
+2	2.0
 EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using temporary
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.userID	1	100.00	Using index
-Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`userID` AS `userid`,min((`test`.`t1`.`score` + 0.0)) AS `MIN(t1.score+0.0)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`spID` = 2) and (`test`.`t2`.`userID` = `test`.`t1`.`userID`)) group by `test`.`t2`.`userID` order by NULL
+Warnings:
 drop table t1,t2;
 CREATE TABLE t1 (
 PID int(10) unsigned NOT NULL auto_increment,
@@ -249,42 +249,42 @@ INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
 INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
 select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
 value	description	bug_id
-BBBBBBBBBBBBB - conversion		9
 BBBBBBBBBBBBB - conversion		10
-BBBBBBBBBBBBB - generic		7
-BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - conversion		9
 BBBBBBBBBBBBB - eeeeeeeee		NULL
-kkkkkkkkkkk lllllllllll		6
-kkkkkkkkkkk lllllllllll		8
-kkkkkkkkkkk lllllllllll		12
-Test Procedures		NULL
+BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - generic		7
 Documentation		NULL
 Host communication		NULL
+Test Procedures		NULL
+kkkkkkkkkkk lllllllllll		12
+kkkkkkkkkkk lllllllllll		6
+kkkkkkkkkkk lllllllllll		8
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
 value	description	COUNT(bug_id)
 BBBBBBBBBBBBB - conversion		2
-BBBBBBBBBBBBB - generic		2
 BBBBBBBBBBBBB - eeeeeeeee		0
-kkkkkkkkkkk lllllllllll		3
-Test Procedures		0
+BBBBBBBBBBBBB - generic		2
 Documentation		0
 Host communication		0
+Test Procedures		0
+kkkkkkkkkkk lllllllllll		3
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
 value	description	COUNT(bug_id)
 BBBBBBBBBBBBB - conversion		2
-BBBBBBBBBBBBB - generic		2
 BBBBBBBBBBBBB - eeeeeeeee		0
-Test Procedures		0
+BBBBBBBBBBBBB - generic		2
 Documentation		0
 Host communication		0
-select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
-row_number() over ()	value	description	COUNT(bug_id)
+Test Procedures		0
+select row_number() over (), value,description,COUNT(DISTINCT bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(DISTINCT bug_id) IN (0,2);
+row_number() over ()	value	description	COUNT(DISTINCT bug_id)
 1	BBBBBBBBBBBBB - conversion		2
-2	BBBBBBBBBBBBB - generic		2
-3	BBBBBBBBBBBBB - eeeeeeeee		0
-4	Test Procedures		0
-5	Documentation		0
-6	Host communication		0
+2	BBBBBBBBBBBBB - eeeeeeeee		0
+3	BBBBBBBBBBBBB - generic		2
+4	Documentation		0
+5	Host communication		0
+6	Test Procedures		0
 drop table t1,t2;
 create table t1 (foo int);
 insert into t1 values (1);
@@ -411,6 +411,8 @@ a
 A
 B
 NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT a,count(*) FROM t1 GROUP BY binary a;
@@ -418,6 +420,8 @@ a	count(*)
 A	4
 B	4
 NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SELECT binary a FROM t1 GROUP BY 1;
@@ -425,6 +429,8 @@ binary a
 A
 B
 NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
@@ -432,45 +438,57 @@ binary a	count(*)
 A	4
 B	4
 NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SET BIG_TABLES=1;
 SELECT a FROM t1 GROUP BY a ORDER BY a;
 a
-NULL
 A
 B
+NULL
 SELECT a,count(*) FROM t1 GROUP BY a ORDER BY a;
 a	count(*)
-NULL	3
 A	5
 B	5
+NULL	3
 SELECT a FROM t1 GROUP BY binary a ORDER BY binary a;
 a
-NULL
 A
 B
+NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT a,count(*) FROM t1 GROUP BY binary a ORDER BY binary a;
 a	count(*)
-NULL	3
 A	4
 B	4
+NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SELECT binary a FROM t1 GROUP BY 1 ORDER BY 1;
 binary a
-NULL
 A
 B
+NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT binary a,count(*) FROM t1 GROUP BY 1 ORDER BY 1;
 binary a	count(*)
-NULL	3
 A	4
 B	4
+NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SET BIG_TABLES=0;
@@ -506,8 +524,8 @@ create table t1 (One int unsigned, Two int unsigned, Three int unsigned, Four in
 insert into t1 values (1,2,1,4),(1,2,2,4),(1,2,3,4),(1,2,4,4),(1,1,1,4),(1,1,2,4),(1,1,3,4),(1,1,4,4),(1,3,1,4),(1,3,2,4),(1,3,3,4),(1,3,4,4);
 select One, Two, sum(Four) from t1 group by One,Two;
 One	Two	sum(Four)
-1	2	16
 1	1	16
+1	2	16
 1	3	16
 drop table t1;
 create table t1 (id integer primary key not null auto_increment, gender char(1));
@@ -552,7 +570,7 @@ c2id int(11) unsigned default NULL,
 value int(11) unsigned NOT NULL default '0',
 UNIQUE KEY pid2 (pid,c1id,c2id),
 UNIQUE KEY pid (pid,value)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -563,7 +581,7 @@ CREATE TABLE t2 (
 id int(11) unsigned NOT NULL default '0',
 active enum('Yes','No') NOT NULL default 'Yes',
 PRIMARY KEY  (id)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
@@ -579,9 +597,9 @@ select * from t1 AS m LEFT JOIN t2 AS c1 ON m.c1id =
 c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND 
 c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS NOT NULL);
 pid	c1id	c2id	value	id	active	id	active
-1	NULL	3	3	NULL	NULL	3	Yes
 1	1	NULL	1	1	Yes	NULL	NULL
 1	4	NULL	4	4	Yes	NULL	NULL
+1	NULL	3	3	NULL	NULL	3	Yes
 select max(value) from t1 AS m LEFT JOIN t2 AS c1 ON 
 m.c1id = c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = 
 c2.id AND c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS 
@@ -626,13 +644,13 @@ a	b
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	#	#	Using temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`) group by `test`.`t1`.`a`,`test`.`t2`.`b`
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	#	#	Using temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`) group by `test`.`t1`.`a`,`test`.`t2`.`b` order by NULL
 drop table t1,t2;
@@ -781,11 +799,11 @@ a	r2	r1
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
 GROUP BY a HAVING r1>1 AND r2<=2;
 a	r2	r1
-1	2	2
+1	7	2
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
 GROUP BY a HAVING r1>1 AND r2<=2 ORDER BY a+r2+r1;
 a	r2	r1
-1	2	2
+1	7	2
 SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c;
 a	SUM(b)
 1	5
@@ -822,7 +840,7 @@ splus0	plain
 NULL	NULL
 0	1
 DROP TABLE t1;
-create table t1(a int) engine=myisam;
+create table t1(a int) ENGINE=INNODB;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
 create table t2 (
 a int,
@@ -831,7 +849,7 @@ c varchar(50) NOT NULL,
 d varchar(100) NOT NULL,
 primary key (a,b(132),c,d),
 key a (a,b)
-) engine=myisam charset=utf8;
+) ENGINE=INNODB charset=utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 select 
@@ -839,10 +857,15 @@ x3.a,  -- 3
 concat('val-', x3.a + 3*x4.a), -- 12
 concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
 concat('val-', @a + 120*D.a)
-from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
+from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4
+order by x3.a, x4.a, C.a, D.a;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	6	100.00	Using where
@@ -1005,15 +1028,10 @@ aaa
 aaa
 Warnings:
 Warning	1052	Column 'c2' in group statement is ambiguous
-show warnings;
-Level	Code	Message
-Warning	1052	Column 'c2' in group statement is ambiguous
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by t1.c1;
 c2
 aaa
-show warnings;
-Level	Code	Message
 drop table t1, t2;
 CREATE TABLE t1 (a tinyint(3), b varchar(255), PRIMARY KEY  (a));
 Warnings:
@@ -1767,13 +1785,13 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
 USE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,i2	i2	9	NULL	#	100.00	Using index
+1	SIMPLE	t1	NULL	index	i2	i2	9	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDEX FOR GROUP BY (`i2`) USE INDEX FOR JOIN (`i2`) group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
 FORCE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,i2	i2	9	NULL	144	100.00	Using index
+1	SIMPLE	t1	NULL	index	i2	i2	9	NULL	144	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` FORCE INDEX FOR GROUP BY (`i2`) FORCE INDEX FOR JOIN (`i2`) group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 USE INDEX () IGNORE INDEX (i2);
@@ -1805,8 +1823,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDE
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
+1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1` IGNORE INDEX (`i2`) USE INDEX (`i2`)) where (`<subquery2>`.`a` = `test`.`t1`.`a`)
@@ -1819,7 +1837,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,sum(`test`.`t2`.`b`) AS `SUM(b)` from `test`.`t2` group by `test`.`t2`.`a` limit 2
 EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	4	100.00	Using temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,sum(`test`.`t2`.`b`) AS `SUM(b)` from `test`.`t2` IGNORE INDEX (`a`) group by `test`.`t2`.`a` limit 2
 ANALYZE TABLE t2;
@@ -1829,7 +1847,7 @@ EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` semi join (`test`.`t1` IGNORE INDEX (`i2`) USE INDEX (`i2`)) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -2039,19 +2057,19 @@ test.t1	analyze	status	OK
 EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((/* select#2 */ select `test`.`t1`.`a`) + 0)
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by (`a` + 0)
 EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((/* select#2 */ select `test`.`t1`.`a`))
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -(`a`)
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -2248,7 +2266,7 @@ SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
-ERROR 42000: The used storage engine can't index column 'tmp_field_0'
+ERROR 42000: The used storage engine can't index column 'if(t1.a,'','')'
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
 1
 1
@@ -2495,7 +2513,7 @@ test.t2	analyze	status	OK
 EXPLAIN SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select sql_buffer_result `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where (0 <> `test`.`t1`.`col1`) group by `test`.`t2`.`col2`
 SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
@@ -2505,7 +2523,7 @@ col2
 EXPLAIN SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where (0 <> `test`.`t1`.`col1`) group by `test`.`t2`.`col2`
 SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
@@ -2603,12 +2621,12 @@ CREATE TABLE it (
 pk INT NOT NULL,
 col_int_nokey INT NOT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 CREATE TABLE ot (
 pk int(11) NOT NULL,
 col_int_nokey int(11) NOT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2625,9 +2643,9 @@ DROP TABLE it,ot;
 # Bug#13430588: WRONG RESULT FROM IMPLICITLY GROUPED QUERY WITH
 #               CONST TABLE AND NO MATCHING ROWS
 #
-CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1);
-CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+CREATE TABLE t2 (j INT) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1),(2);
 
 SELECT i, j, COUNT(i) FROM t1 JOIN t2 WHERE j=3;
@@ -2641,12 +2659,12 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t1 (
 a varchar(1)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (
 a varchar(1),
 b int(11)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('a',1);
@@ -2659,10 +2677,10 @@ EXPLAIN SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select max('1') from dual where ('a' <> `test`.`t1`.`a`)) AS `MAX` from `test`.`t1`
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`b`) from `test`.`t2` where (`test`.`t2`.`a` <> `test`.`t1`.`a`)) AS `MAX` from `test`.`t1`
 SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX 
 FROM t1;
 MAX
@@ -3053,7 +3071,7 @@ test.t1	analyze	status	OK
 
 EXPLAIN SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	12	NULL	2	100.00	Using where; Using index for group-by; Using temporary
+1	SIMPLE	t1	NULL	range	b	b	12	NULL	1	100.00	Using where; Using index for group-by; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sql_buffer_result min(`test`.`t1`.`a`) AS `MIN(a)`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 'a') group by `test`.`t1`.`b`
 
@@ -3063,7 +3081,7 @@ MIN(a)	b
 
 EXPLAIN SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	12	NULL	2	100.00	Using where; Using index for group-by
+1	SIMPLE	t1	NULL	range	b	b	12	NULL	1	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a`) AS `MIN(a)`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 'a') group by `test`.`t1`.`b`
 
@@ -3288,14 +3306,12 @@ key (col_varchar_10_utf8_key ),
 key (col_int_key ),
 key (col_varchar_1024_utf8_key ),
 primary key (pk),
-key (col_varchar_10_latin1_key )) ENGINE=myisam;
+key (col_varchar_10_latin1_key )) ENGINE=INNODB;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1071	Specified key was too long; max key length is 1000 bytes
-Warning	1071	Specified key was too long; max key length is 1000 bytes
 INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
 -1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
 Warnings:
@@ -3605,13 +3621,20 @@ SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
 SELECT (SELECT SUM(a)) FROM t;
 (SELECT SUM(a))
 4
-# These queries where accepted before the fix, and they still are,
-# but their results are wrong both before and after the fix
-# because of bug#22588319.
-# Returns (4, NULL), should have returned (4, 1):
-SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
-s	s2
+# Bug #22588319: OUTER REFERENCE TO AGGREGATE INCORRECTLY 0 OR NULL IN SUBQUERY
+SELECT SUM(a) AS s, (SELECT 1 HAVING s) FROM t;
+s	(SELECT 1 HAVING s)
+4	1
+SELECT SUM(a) AS s, (SELECT 1 HAVING s IS NULL) FROM t;
+s	(SELECT 1 HAVING s IS NULL)
 4	NULL
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c) FROM t;
+c	(SELECT 1 HAVING c)
+4	1
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c = 0) FROM t;
+c	(SELECT 1 HAVING c = 0)
+4	NULL
+# Shows that #22588319 isn't fixed for ORDER BY.
 # Should have ordered ascending on -a, but comes out in random order
 # because the ORDER BY clause always evaluates to NULL. Have to use
 # the --sorted_result directive to produce stable test results.
@@ -3787,6 +3810,16 @@ DROP TABLE t;
 #
 CREATE TABLE t(a TEXT, b INT);
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
+EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
+EXPLAIN
+-> Group aggregate: count(distinct t.b)
+    -> Sort: `-(a)`
+        -> Stream results  (cost=*** rows=***)
+            -> Table scan on t  (cost=*** rows=***)
+
+Warnings:
+Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
+Note	1249	Select 2 was reduced during optimization
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 col1	COUNT(DISTINCT b)
 1	2
@@ -3811,6 +3844,16 @@ col1	COUNT(b)
 DROP TABLE t;
 CREATE TABLE t(a JSON, b INT);
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
+EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
+EXPLAIN
+-> Group aggregate: count(distinct t.b)
+    -> Sort: `-(a)`
+        -> Stream results  (cost=*** rows=***)
+            -> Table scan on t  (cost=*** rows=***)
+
+Warnings:
+Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
+Note	1249	Select 2 was reduced during optimization
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 col1	COUNT(DISTINCT b)
 1	2
@@ -3906,13 +3949,15 @@ INSERT INTO t1 VALUES ( 1, 3 );
 INSERT INTO t1 VALUES ( 2, 1 );
 INSERT INTO t1 VALUES ( 2, 2 );
 INSERT INTO t1 VALUES ( 3, 5 );
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 EXPLAIN
--> Sort: <temporary>.x
-    -> Table scan on <temporary>
-        -> Temporary table
-            -> Group aggregate: count(distinct t1.f2)
-                -> Index scan on t1 using k1
+-> Sort: x
+    -> Stream results  (cost=1.45 rows=6)
+        -> Group aggregate: count(distinct t1.f2)  (cost=1.45 rows=6)
+            -> Index scan on t1 using k1  (cost=0.85 rows=6)
 
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 f1	f1 + 1	x
@@ -3957,3 +4002,384 @@ f3 integer
 SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
 f1	f2	f3
 DROP TABLE t1;
+# Bug#23599127 Unexpected unknown column error without ONLY_FULL_GROUP_BY
+SET SQL_MODE = '';
+CREATE TABLE t1 (
+id_aams int NOT NULL ,
+PRIMARY KEY (id_aams)
+);
+CREATE TABLE t2 (
+id int NOT NULL,
+id_game int DEFAULT NULL,
+code_id char(11) DEFAULT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY codeid (code_id,id_game)
+);
+select count(distinct x.id_aams)
+from (select *
+from (select t1.id_aams, t2.*
+from t1 left join t2
+on t2.code_id='G0000000012' and
+t1.id_aams=t2.id_game
+where t1.id_aams=1715000360
+order by t2.id desc
+) as g
+group by g.id_aams
+having g.id is null
+) as x;
+count(distinct x.id_aams)
+0
+CREATE FUNCTION f1(vlt_code_id CHAR(11)) RETURNS tinyint DETERMINISTIC
+BEGIN
+DECLARE not_installed TINYINT DEFAULT 0;
+select count(distinct x.id_aams)
+into not_installed
+from (select *
+from (select t1.id_aams, t2.*
+from t1 left join t2
+on t2.code_id = vlt_code_id and
+t1.id_aams = t2.id_game
+where t1.id_aams = 1715000360
+order by t2.id desc
+) as g
+group by g.id_aams
+having g.id is null
+) as x;
+RETURN TRUE;
+END //
+SELECT f1('G0000000012');
+f1('G0000000012')
+1
+SELECT f1('G0000000012');
+f1('G0000000012')
+1
+PREPARE stmt from "
+select count(distinct x.id_aams)
+from (select g.id_aams, g.id
+      from (select t1.id_aams, t2.*
+            from t1 left join t2
+                 on t2.code_id='G0000000012' and
+                    t1.id_aams=t2.id_game
+            where t1.id_aams=1715000360
+            order by t2.id desc
+           ) as g
+      group by g.id_aams
+      having g.id is null
+     ) as x";
+EXECUTE stmt;
+count(distinct x.id_aams)
+0
+EXECUTE stmt;
+count(distinct x.id_aams)
+0
+DEALLOCATE PREPARE stmt;
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+SET SQL_MODE = DEFAULT;
+# Bug#31562881: Crash in change_to_use_tmp_fields_except_sums
+CREATE TABLE w(a INTEGER);
+INSERT INTO w VALUES (1),(2),(3),(4);
+SELECT MAX(FROM_UNIXTIME(1536999161)),
+GROUP_CONCAT(ST_LATFROMGEOHASH(ST_GEOHASH(POINT(115,155),201)))
+FROM w RIGHT JOIN w AS e ON TRUE
+GROUP BY w.a
+LIMIT 39;
+ERROR 22003: latitude value is out of range in 'st_geohash'
+DROP TABLE w;
+#
+# Bug #32179240: ADDING ROLLUP BREAKS GROUP LABELS
+#
+CREATE TABLE t1 (a DOUBLE);
+INSERT INTO t1 ( a ) VALUES ( 0.1 );
+SELECT TRUNCATE(a, 1) FROM t1 GROUP BY TRUNCATE(a, 1) WITH ROLLUP;
+TRUNCATE(a, 1)
+0.1
+NULL
+DROP TABLE t1;
+#
+# Bug#32193123: DIFFERENT RESULTSET WITH HYPERGRAPH_OPTIMIZER SWITCH ENABLED
+#
+CREATE TABLE t1 (a INTEGER, b VARCHAR(1));
+INSERT INTO t1 VALUES (1, 'x');
+SELECT SUM(t1.a) AS field1, CONCAT(d1.b) AS field2
+FROM (SELECT * FROM t1) AS d1, t1
+GROUP BY field2 HAVING field2 > '' AND field1 < 4;
+field1	field2
+1	x
+DROP TABLE t1;
+#
+# Bug #32234709: TEMPTABLEAGGREGATEITERATOR::INIT(): ASSERTION `!THD()->IS_ERROR()' FAILED.
+#
+CREATE TABLE t1 (
+a INTEGER,
+e INTEGER
+);
+INSERT INTO t1 VALUES (1,0);
+INSERT INTO t1 VALUES (1,8388607);
+SELECT COUNT(*) FROM
+t1
+LEFT JOIN json_table(
+'{}','$[0][1]'
+    COLUMNS(a FOR ORDINALITY)
+) AS t2 ON TRUE
+GROUP BY e*from_unixtime(0);
+ERROR 22003: BIGINT value is out of range in '(`test`.`t1`.`e` * from_unixtime(0))'
+DROP TABLE t1;
+#
+# Bug #32244407: ASSERTION FAILURE IN `!THD()->IS_ERROR()' AT AGGREGATEITERATOR::READ()
+#
+CREATE TABLE t1 (
+a INTEGER,
+b VARCHAR(1)
+);
+CREATE INDEX i1 ON t1 (b);
+INSERT INTO t1 VALUES (1,'0');
+INSERT INTO t1 VALUES (1,'y');
+INSERT INTO t1 VALUES (1,'Q');
+INSERT INTO t1 VALUES (1,'H');
+INSERT INTO t1 VALUES (1,'j');
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t1 VALUES (1,'b');
+INSERT INTO t1 VALUES (1,'j');
+INSERT INTO t1 VALUES (1,'q');
+INSERT INTO t1 VALUES (1,'e');
+SELECT AVG(a2.a)
+FROM t1 AS a1
+LEFT JOIN t1 AS a2 ON a2.b = ( SELECT a1.b FROM t1 );
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1;
+#
+# Bug #32335256: COUNT(*) RETURNS NULL IN NESTED QUERY
+#
+CREATE TABLE t1 (
+f1 INTEGER
+);
+SELECT
+(
+SELECT COUNT(*) +
+(
+SELECT COUNT(*)
+FROM t1
+WHERE f1 = c.f2
+)
+FROM t1
+)
+FROM (SELECT 555 AS f2) AS c;
+(
+SELECT COUNT(*) +
+(
+SELECT COUNT(*)
+FROM t1
+WHERE f1 = c.f2
+)
+FROM t1
+)
+0
+DROP TABLE t1;
+#
+# Bug#32248291: ENABLE THE HYPERGRAPH OPTIMIZER FOR SQL_BUFFER_RESULT
+#
+# Verify that expressions in the SELECT list are evaluated only once
+# per row.
+#
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT RAND(1) r, COUNT(*) FROM t GROUP BY x ORDER BY r;
+r	COUNT(*)
+0.1418603212962489	1
+0.40540353712197724	1
+0.8716141803857071	1
+DROP TABLE t;
+#
+# Bug #32598902: WL#14325: ASSERTION `RECEIVER.HASSECONDARYENGINECOSTHOOK()' FAILED|JOIN_OPTIMIZE
+#
+CREATE TABLE t1 (
+a INTEGER,
+b INTEGER
+);
+SELECT t1.b
+FROM t1, t1 AS t2
+WHERE t1.a = t1.b AND t1.a = t2.b
+GROUP BY t1.b
+ORDER BY t2.b;
+b
+DROP TABLE t1;
+# Bug#32717969: Wrong result of execute prepare on 'smallint'
+CREATE TABLE t1(
+c1 smallint NOT NULL
+);
+INSERT INTO t1 VALUES(32767),(14742),(14743);
+SELECT COUNT(*), SUM(c1), AVG(c1), MIN(c1), MAX(c1) FROM t1 WHERE c1 > 32767;
+COUNT(*)	SUM(c1)	AVG(c1)	MIN(c1)	MAX(c1)
+0	NULL	NULL	NULL	NULL
+PREPARE stmt from
+'SELECT COUNT(*), SUM(c1), AVG(c1), MIN(c1), MAX(c1) FROM t1 WHERE c1 > ?';
+SET @a=14742;
+EXECUTE stmt USING @a;
+COUNT(*)	SUM(c1)	AVG(c1)	MIN(c1)	MAX(c1)
+2	47510	23755.0000	14743	32767
+set @a=32767;
+EXECUTE stmt USING @a;
+COUNT(*)	SUM(c1)	AVG(c1)	MIN(c1)	MAX(c1)
+0	NULL	NULL	NULL	NULL
+SELECT BIT_AND(c1), BIT_OR(c1), BIT_XOR(c1) FROM t1 WHERE c1 > 32767;
+BIT_AND(c1)	BIT_OR(c1)	BIT_XOR(c1)
+18446744073709551615	0	0
+PREPARE stmt from
+'SELECT BIT_AND(c1), BIT_OR(c1), BIT_XOR(c1) FROM t1 WHERE c1 > ?';
+SET @a=14742;
+EXECUTE stmt USING @a;
+BIT_AND(c1)	BIT_OR(c1)	BIT_XOR(c1)
+14743	32767	18024
+set @a=32767;
+EXECUTE stmt USING @a;
+BIT_AND(c1)	BIT_OR(c1)	BIT_XOR(c1)
+18446744073709551615	0	0
+SELECT GROUP_CONCAT(c1), JSON_ARRAYAGG(c1), JSON_OBJECTAGG('key', c1)
+FROM t1
+WHERE c1 > 32767;
+GROUP_CONCAT(c1)	JSON_ARRAYAGG(c1)	JSON_OBJECTAGG('key', c1)
+NULL	NULL	NULL
+PREPARE stmt from
+"SELECT GROUP_CONCAT(c1), JSON_ARRAYAGG(c1), JSON_OBJECTAGG('key', c1)
+ FROM t1
+ WHERE c1 > ?";
+SET @a=14742;
+EXECUTE stmt USING @a;
+GROUP_CONCAT(c1)	JSON_ARRAYAGG(c1)	JSON_OBJECTAGG('key', c1)
+32767,14743	[32767, 14743]	{"key": 14743}
+set @a=32767;
+EXECUTE stmt USING @a;
+GROUP_CONCAT(c1)	JSON_ARRAYAGG(c1)	JSON_OBJECTAGG('key', c1)
+NULL	NULL	NULL
+SELECT STDDEV_POP(c1), STDDEV_SAMP(c1), VAR_POP(c1), VAR_SAMP(c1)
+FROM t1
+WHERE c1 > 32767;
+STDDEV_POP(c1)	STDDEV_SAMP(c1)	VAR_POP(c1)	VAR_SAMP(c1)
+NULL	NULL	NULL	NULL
+PREPARE stmt from
+'SELECT STDDEV_POP(c1), STDDEV_SAMP(c1), VAR_POP(c1), VAR_SAMP(c1)
+ FROM t1
+ WHERE c1 > ?';
+SET @a=14742;
+EXECUTE stmt USING @a;
+STDDEV_POP(c1)	STDDEV_SAMP(c1)	VAR_POP(c1)	VAR_SAMP(c1)
+9012	12744.892624106333	81216144	162432288
+set @a=32767;
+EXECUTE stmt USING @a;
+STDDEV_POP(c1)	STDDEV_SAMP(c1)	VAR_POP(c1)	VAR_SAMP(c1)
+NULL	NULL	NULL	NULL
+DROP TABLE t1;
+#
+# Verify that ROLLUP and DISTINCT on nullable GROUP BY expressions
+# work as expected (the sort is not elided).
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (NULL), (1), (2);
+SELECT DISTINCT a, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+a	COUNT(*)
+1	1
+2	1
+NULL	1
+NULL	3
+DROP TABLE t1;
+#
+# Bug #33007298: RECENT REGRESSION: CRASH IN QEP_SHARED_OWNER::TABLE
+#
+select is_uuid(avg(distinct json_storage_free('$b*<*#]E')));
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "Invalid value." at position 0.
+#
+# Bug#31894023 THE RESULTS OF AGGREGATION ON BIT TYPE ARE INCONSISTENT WHEN JOIN TYPE DIFFERS
+#
+CREATE TABLE t1(id INT, b1 BIT, b9 BIT(9), b64 BIT(64));
+INSERT INTO t1 VALUES
+(1, b'0', b'000000000', b'0000000000000000000000000000000000000000000000000000000000000000'),
+(2, b'1', b'100000000', b'1000000000000000000000000000000000000000000000000000000000000000');
+CREATE INDEX i1 ON t1(id);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT HEX(CONCAT(MIN(b1))), HEX(CONCAT(MIN(b9))), HEX(CONCAT(MIN(b64))) FROM t1 GROUP BY id;
+HEX(CONCAT(MIN(b1)))	HEX(CONCAT(MIN(b9)))	HEX(CONCAT(MIN(b64)))
+00	0000	0000000000000000
+01	0100	8000000000000000
+SELECT HEX(CONCAT(MIN(b1))), HEX(CONCAT(MIN(b9))), HEX(CONCAT(MIN(b64))) FROM t1 IGNORE INDEX(i1) GROUP BY id;
+HEX(CONCAT(MIN(b1)))	HEX(CONCAT(MIN(b9)))	HEX(CONCAT(MIN(b64)))
+00	0000	0000000000000000
+01	0100	8000000000000000
+DROP TABLE t1;
+#
+# Bug#33515752: Data insertion exception in version 8.0.27
+#
+CREATE TABLE t1(f1 INTEGER);
+INSERT INTO t1 VALUES(1);
+SELECT SQL_BUFFER_RESULT MAX(f1)+1, 1 AS f2  FROM t1 GROUP BY f2;
+MAX(f1)+1	f2
+2	1
+DROP TABLE t1;
+#
+# Bug #33603911: Incorrect result with aggregation by temporary table
+#
+CREATE TABLE t1 ( a INTEGER, b VARCHAR(1) );
+INSERT INTO t1 VALUES (3, 'Q'), (4, '5');
+CREATE TABLE t2 ( a INTEGER );
+INSERT INTO t2 VALUES (3), (4);
+SELECT
+t2d.a,
+SUM(t1.b) AS field2
+FROM
+t1
+JOIN ( SELECT * FROM t2 ) AS t2d ON t1.a = t2d.a
+GROUP BY t2d.a
+HAVING t2d.a <> 3 OR field2 < 5;
+a	field2
+3	0
+4	5
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'Q'
+DROP TABLE t1, t2;
+#
+# Bug#33738447:
+# Assertion `!(used_tabs & (~ read_tables & ~filter_for_table))' failed.
+#
+CREATE TABLE t (i INTEGER, blobfield LONGTEXT);
+INSERT INTO t VALUES (1, '');
+PREPARE ps FROM '
+SELECT d.i, COUNT(*)
+FROM t, LATERAL (SELECT i, blobfield) AS d
+GROUP BY d.i
+HAVING d.i < 100
+ORDER BY d.i
+';
+EXECUTE ps;
+i	COUNT(*)
+1	1
+EXECUTE ps;
+i	COUNT(*)
+1	1
+DEALLOCATE PREPARE ps;
+DROP TABLE t;
+#
+# Bug#33674441: Wrong result with outer join and streaming aggregation
+#
+CREATE TABLE t1 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t1 VALUES (1, 2), (2, 1), (3, 1);
+CREATE TABLE t2 (a INTEGER, b INTEGER, KEY (b));
+INSERT INTO t2 VALUES (1, 11);
+CREATE TABLE t3 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t3 VALUES (1, 10), (2, 11), (3, 0), (4, 0), (5, 0), (6, 0);
+SELECT t1.a, MAX(t2.a)
+FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.b = t3.b) ON t1.b = t3.a
+GROUP BY t1.a;
+a	MAX(t2.a)
+1	1
+2	NULL
+3	NULL
+SELECT SQL_BUFFER_RESULT t1.a, MAX(t2.a)
+FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.b = t3.b) ON t1.b = t3.a
+GROUP BY t1.a;
+a	MAX(t2.a)
+1	1
+2	NULL
+3	NULL
+DROP TABLE t1, t2, t3;

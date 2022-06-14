@@ -1,0 +1,94 @@
+SET @saved_sql_log_bin = @@SESSION.sql_log_bin;
+#
+# CREATE TABLE AS SELECT (CTAS) and foreign key (FK).
+#
+CREATE TABLE t0 (f1 INT PRIMARY KEY);
+INSERT INTO t0 VALUES (1),(2),(3),(4);
+#
+# CASE 1 The behavior of non-atomic CTAS remains the same
+# with request to create FK. There is no engine which do
+# not support atomic DDL, but supports foreign keys.
+# MyISAM does not support foreign keys, so there is no error
+# as it ignore FK constraints silently.
+CREATE TABLE myisam_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+ENGINE=MyISAM AS SELECT 101 as m, 5 as n;
+SHOW CREATE TABLE myisam_table1;
+Table	Create Table
+myisam_table1	CREATE TABLE `myisam_table1` (
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  KEY `n` (`n`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE myisam_table2 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+ENGINE=MyISAM AS SELECT 101 as m, 2 as n;
+SHOW CREATE TABLE myisam_table2;
+Table	Create Table
+myisam_table2	CREATE TABLE `myisam_table2` (
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  KEY `n` (`n`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE myisam_table1;
+DROP TABLE myisam_table2;
+#
+# CASE 2 The behavior of atomic CTAS, with sql_log_bin OFF.
+#
+SET sql_log_bin = OFF;
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 5 as n;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`innodb_table1`, CONSTRAINT `innodb_table1_ibfk_1` FOREIGN KEY (`n`) REFERENCES `t0` (`f1`))
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 2 as n;
+CREATE TABLE innodb_table2 as SELECT m, 4 FROM innodb_table1;
+SHOW CREATE TABLE innodb_table1;
+Table	Create Table
+innodb_table1	CREATE TABLE `innodb_table1` (
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  KEY `n` (`n`),
+  CONSTRAINT `innodb_table1_ibfk_1` FOREIGN KEY (`n`) REFERENCES `t0` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE innodb_table2;
+Table	Create Table
+innodb_table2	CREATE TABLE `innodb_table2` (
+  `m` int DEFAULT NULL,
+  `4` int NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE innodb_table1;
+DROP TABLE innodb_table2;
+#
+# CASE 3 The behavior of CTAS, with sql_log_bin ON and format STATEMENT.
+#
+SET sql_log_bin = ON;
+SET @@SESSION.binlog_format=STATEMENT;
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 5 as n;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`innodb_table1`, CONSTRAINT `innodb_table1_ibfk_1` FOREIGN KEY (`n`) REFERENCES `t0` (`f1`))
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 2 as n;
+DROP TABLE innodb_table1;
+#
+# CASE 4 The behavior of CTAS, with sql_log_bin ON and format MIXED.
+# The behavior would be same as case 3 above.
+SET @@SESSION.binlog_format=MIXED;
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 5 as n;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`innodb_table1`, CONSTRAINT `innodb_table1_ibfk_1` FOREIGN KEY (`n`) REFERENCES `t0` (`f1`))
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 2 as n;
+DROP TABLE innodb_table1;
+#
+# CASE 5 The behavior of CTAS, with sql_log_bin ON and format ROW.
+#
+SET @@SESSION.binlog_format=ROW;
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 5 as n;
+ERROR HY000: Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement.
+CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
+AS SELECT 101 as m, 2 as n;
+ERROR HY000: Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement.
+CREATE TABLE innodb_table1 (m INT, n INT,
+FOREIGN KEY (n) REFERENCES t0(f1)) START TRANSACTION;
+ERROR HY000: Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement.
+SET sql_log_bin = @saved_sql_log_bin;
+DROP TABLE t0;

@@ -404,7 +404,7 @@ grant select on mysqltest_2.t1 to mysqltest_u1@localhost;
 show create table mysqltest_2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t1 like mysqltest_2.t1;
 use test;
@@ -635,7 +635,7 @@ t3	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE			YES	NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # LOAD DATA INFILE (also SELECT INTO OUTFILE).

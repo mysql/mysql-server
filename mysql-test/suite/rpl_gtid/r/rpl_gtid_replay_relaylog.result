@@ -7,7 +7,7 @@ CREATE TABLE t1(i INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 include/sync_slave_sql_with_master.inc
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 [connection master]
 INSERT INTO t1 VALUES (2);
 [connection slave]

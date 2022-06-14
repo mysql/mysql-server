@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
                          int level, uchar *buff, int return_buffer) {
   uchar *tmp;
   uint page_size;
-  DBUG_ENTER("_mi_fetch_keypage");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("page: %ld", (long)page));
 
   tmp = (uchar *)key_cache_read(info->s->key_cache, keycache_thread_var(),
@@ -45,13 +45,13 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
                                 (uint)keyinfo->block_length,
                                 (uint)keyinfo->block_length, return_buffer);
   if (tmp == info->buff)
-    info->buff_used = 1;
+    info->buff_used = true;
   else if (!tmp) {
     DBUG_PRINT("error", ("Got errno: %d from key_cache_read", my_errno()));
     info->last_keypage = HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
     set_my_errno(HA_ERR_CRASHED);
-    DBUG_RETURN(0);
+    return nullptr;
   }
   info->last_keypage = page;
   page_size = mi_getint(tmp);
@@ -62,9 +62,9 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
     info->last_keypage = HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
     set_my_errno(HA_ERR_CRASHED);
-    tmp = 0;
+    tmp = nullptr;
   }
-  DBUG_RETURN(tmp);
+  return tmp;
 } /* _mi_fetch_keypage */
 
 /* Write a key-page on disk */
@@ -72,7 +72,7 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
 int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
                       int level, uchar *buff) {
   uint length;
-  DBUG_ENTER("_mi_write_keypage");
+  DBUG_TRACE;
 
   if (page < info->s->base.keystart ||
       page + keyinfo->block_length > info->state->key_file_length ||
@@ -82,7 +82,7 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
                          (long)info->s->base.keystart,
                          (long)info->state->key_file_length, (long)page));
     set_my_errno(EINVAL);
-    DBUG_RETURN((-1));
+    return (-1);
   }
   DBUG_PRINT("page", ("write page at: %lu", (long)page));
   DBUG_DUMP("buff", (uchar *)buff, mi_getint(buff));
@@ -90,10 +90,10 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
   if ((length = keyinfo->block_length) > IO_SIZE * 2 &&
       info->state->key_file_length != page + length)
     length = ((mi_getint(buff) + IO_SIZE - 1) & (uint) ~(IO_SIZE - 1));
-  DBUG_RETURN((key_cache_write(
+  return (key_cache_write(
       info->s->key_cache, keycache_thread_var(), info->s->kfile, page, level,
       (uchar *)buff, length, (uint)keyinfo->block_length,
-      (int)((info->lock_type != F_UNLCK) || info->s->delay_key_write))));
+      (int)((info->lock_type != F_UNLCK) || info->s->delay_key_write)));
 } /* mi_write_keypage */
 
 /* Remove page from disk */
@@ -101,17 +101,17 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
 int _mi_dispose(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos, int level) {
   my_off_t old_link;
   uchar buff[8];
-  DBUG_ENTER("_mi_dispose");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pos: %ld", (long)pos));
 
   old_link = info->s->state.key_del[keyinfo->block_size_index];
   info->s->state.key_del[keyinfo->block_size_index] = pos;
   mi_sizestore(buff, old_link);
   info->s->state.changed |= STATE_NOT_SORTED_PAGES;
-  DBUG_RETURN(key_cache_write(info->s->key_cache, keycache_thread_var(),
-                              info->s->kfile, pos, level, buff, sizeof(buff),
-                              (uint)keyinfo->block_length,
-                              (int)(info->lock_type != F_UNLCK)));
+  return key_cache_write(info->s->key_cache, keycache_thread_var(),
+                         info->s->kfile, pos, level, buff, sizeof(buff),
+                         (uint)keyinfo->block_length,
+                         (int)(info->lock_type != F_UNLCK));
 } /* _mi_dispose */
 
 /* Make new page on disk */
@@ -119,14 +119,14 @@ int _mi_dispose(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos, int level) {
 my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level) {
   my_off_t pos;
   uchar buff[8];
-  DBUG_ENTER("_mi_new");
+  DBUG_TRACE;
 
   if ((pos = info->s->state.key_del[keyinfo->block_size_index]) ==
       HA_OFFSET_ERROR) {
     if (info->state->key_file_length >=
         info->s->base.max_key_file_length - keyinfo->block_length) {
       set_my_errno(HA_ERR_INDEX_FILE_FULL);
-      DBUG_RETURN(HA_OFFSET_ERROR);
+      return HA_OFFSET_ERROR;
     }
     pos = info->state->key_file_length;
     info->state->key_file_length += keyinfo->block_length;
@@ -140,5 +140,5 @@ my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level) {
   }
   info->s->state.changed |= STATE_NOT_SORTED_PAGES;
   DBUG_PRINT("exit", ("Pos: %ld", (long)pos));
-  DBUG_RETURN(pos);
+  return pos;
 } /* _mi_new */

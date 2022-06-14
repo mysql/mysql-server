@@ -6,13 +6,9 @@ function result_generator() {
 
     while (true) {
       // return ok for every statement received
-      stmt = yield({
-        ok: {}
-      });
+      stmt = yield({ok: {}});
     }
   });
 }
 
-({
-  stmts: result_generator()
-})
+({stmts: result_generator()})

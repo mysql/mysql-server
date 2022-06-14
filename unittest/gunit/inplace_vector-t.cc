@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,9 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <algorithm>
@@ -44,7 +41,7 @@ TEST_F(InplaceVectorTest, Empty) {
   EXPECT_EQ(0U, int_10.size());
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef InplaceVectorTest InplaceVectorDeathTest;
 
@@ -70,7 +67,7 @@ TEST_F(InplaceVectorDeathTest, EmptyBackWrite) {
   EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*size.*0.*");
 }
 
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 TEST_F(InplaceVectorTest, Insert5) {
   for (int ix = 0; ix < 5; ++ix) int_10.push_back(ix);
@@ -193,15 +190,15 @@ TEST_F(InplaceVectorTest, NoMemLeaksResizing) {
 class InplaceVectorTestP : public ::testing::TestWithParam<size_t> {
  protected:
   InplaceVectorTestP() : array(PSI_NOT_INSTRUMENTED) {}
-  virtual void SetUp() { n_elems = GetParam(); }
+  void SetUp() override { n_elems = GetParam(); }
   size_t n_elems;
   Inplace_vector<IntWrap, 5> array;
 };
 
 size_t test_values[] = {5, 10, 15, 20};
 
-INSTANTIATE_TEST_CASE_P(NoMemLeaks, InplaceVectorTestP,
-                        ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(NoMemLeaks, InplaceVectorTestP,
+                         ::testing::ValuesIn(test_values));
 
 TEST_P(InplaceVectorTestP, DestroyingFullArrays) {
   for (size_t ix = 0; ix < n_elems; ++ix) array.push_back(IntWrap(ix));

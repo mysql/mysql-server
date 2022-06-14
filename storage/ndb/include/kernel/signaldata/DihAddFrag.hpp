@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class DihAddFragConf {
   friend class Dbdih;
     
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:  
   Uint32 senderNodeId;
   Uint32 tableId;
@@ -56,7 +56,7 @@ class DihAddFragReq {
   friend class Dbdih;
     
 public:
-  STATIC_CONST( SignalLength = 10 + MAX_REPLICAS );
+  static constexpr Uint32 SignalLength = 10 + MAX_REPLICAS;
 private:
   Uint32 masterRef;
   Uint32 tableId;

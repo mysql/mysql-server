@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ Plugin_table table_esmh_by_digest::m_table_def(
 PFS_engine_table_share table_esmh_by_digest::m_share = {
     &pfs_truncatable_acl,
     table_esmh_by_digest::create,
-    NULL,
+    nullptr,
     table_esmh_by_digest::delete_all_rows,
     table_esmh_by_digest::get_row_count,
     sizeof(pos_t),
@@ -113,7 +113,7 @@ ha_rows table_esmh_by_digest::get_row_count(void) { return digest_max; }
 
 table_esmh_by_digest::table_esmh_by_digest()
     : PFS_engine_table(&m_share, &m_pos),
-      m_materialized_digest(NULL),
+      m_materialized_digest(nullptr),
       m_pos(),
       m_next_pos() {}
 
@@ -125,7 +125,7 @@ void table_esmh_by_digest::reset_position(void) {
 int table_esmh_by_digest::rnd_next(void) {
   PFS_statements_digest_stat *digest_stat;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -149,7 +149,7 @@ int table_esmh_by_digest::rnd_next(void) {
 int table_esmh_by_digest::rnd_pos(const void *pos) {
   PFS_statements_digest_stat *digest_stat;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -165,9 +165,9 @@ int table_esmh_by_digest::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esmh_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esmh_by_digest *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_esmh_by_digest::index_init(uint idx [[maybe_unused]], bool) {
+  PFS_index_esmh_by_digest *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_esmh_by_digest);
   m_opened_index = result;
   m_index = result;
@@ -177,7 +177,7 @@ int table_esmh_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 int table_esmh_by_digest::index_next(void) {
   PFS_statements_digest_stat *digest_stat;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -232,7 +232,7 @@ void table_esmh_by_digest::materialize(
 
 int table_esmh_by_digest::make_row(PFS_statements_digest_stat *digest_stat,
                                    ulong bucket_index) {
-  DBUG_ASSERT(bucket_index < NUMBER_OF_BUCKETS);
+  assert(bucket_index < NUMBER_OF_BUCKETS);
 
   materialize(digest_stat);
 
@@ -270,15 +270,15 @@ int table_esmh_by_digest::read_row_values(TABLE *table, unsigned char *buf,
     Set the null bits. It indicates how many fields could be null
     in the table.
   */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* SCHEMA_NAME */
         case 1: /* DIGEST */
-          m_materialized_histogram.m_digest.set_field(f->field_index, f);
+          m_materialized_histogram.m_digest.set_field(f->field_index(), f);
           break;
         case 2: /* BUCKET_NUMBER */
           set_field_ulong(f, m_row.m_bucket_number);
@@ -299,7 +299,7 @@ int table_esmh_by_digest::read_row_values(TABLE *table, unsigned char *buf,
           set_field_double(f, m_row.m_percentile);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
     }

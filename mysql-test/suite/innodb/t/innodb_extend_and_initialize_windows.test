@@ -1,0 +1,25 @@
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+--source include/windows.inc
+
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.");
+
+SELECT @@GLOBAL.INNODB_EXTEND_AND_INITIALIZE;
+
+select @@global.innodb_extend_and_initialize;
+
+SET @@GLOBAL.INNODB_EXTEND_AND_INITIALIZE = FALSE;
+select @@global.innodb_extend_and_initialize;
+
+SET PERSIST INNODB_EXTEND_AND_INITIALIZE = FALSE;
+select @@global.innodb_extend_and_initialize;
+
+let $restart_parameters = restart: --innodb-extend-and-initialize=FALSE;
+--source include/restart_mysqld.inc
+select @@global.innodb_extend_and_initialize;
+
+# Clean up
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
+
+RESET PERSIST innodb_extend_and_initialize;

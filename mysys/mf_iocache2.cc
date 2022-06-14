@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,13 +37,11 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "template_utils.h"
 
 /*
@@ -72,19 +70,19 @@
 */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
   size_t bytes_in_cache;
-  DBUG_ENTER("my_b_copy_to_file");
+  DBUG_TRACE;
 
   /* Reinit the cache to read from the beginning of the cache */
-  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false)) DBUG_RETURN(1);
+  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false)) return 1;
   bytes_in_cache = my_b_bytes_in_cache(cache);
   do {
     if (my_fwrite(file, cache->read_pos, bytes_in_cache,
                   MYF(MY_WME | MY_NABP)) == (size_t)-1)
-      DBUG_RETURN(1);
+      return 1;
     cache->read_pos = cache->read_end;
   } while ((bytes_in_cache = my_b_fill(cache)));
-  if (cache->error == -1) DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  if (cache->error == -1) return 1;
+  return 0;
 }
 
 /*
@@ -94,7 +92,7 @@ int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
 
 void my_b_seek(IO_CACHE *info, my_off_t pos) {
   my_off_t offset;
-  DBUG_ENTER("my_b_seek");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pos: %lu", (ulong)pos));
 
   /*
@@ -113,7 +111,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
     if ((ulonglong)offset < (ulonglong)(info->read_end - info->buffer)) {
       /* The read is in the current buffer; Reuse it */
       info->read_pos = info->buffer + offset;
-      DBUG_VOID_RETURN;
+      return;
     } else {
       /* Force a new read on next my_b_read */
       info->read_pos = info->read_end = info->buffer;
@@ -123,7 +121,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
     if ((ulonglong)offset <=
         (ulonglong)(info->write_end - info->write_buffer)) {
       info->write_pos = info->write_buffer + offset;
-      DBUG_VOID_RETURN;
+      return;
     }
     (void)flush_io_cache(info);
     /* Correct buffer end so that we write in increments of IO_SIZE */
@@ -131,8 +129,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
         (info->write_buffer + info->buffer_length - (pos & (IO_SIZE - 1)));
   }
   info->pos_in_file = pos;
-  info->seek_not_done = 1;
-  DBUG_VOID_RETURN;
+  info->seek_not_done = true;
 }
 
 /*
@@ -158,7 +155,7 @@ size_t my_b_fill(IO_CACHE *info) {
       info->error = 0;
       return 0;
     }
-    info->seek_not_done = 0;
+    info->seek_not_done = false;
   }
   diff_length = (size_t)(pos_in_file & (IO_SIZE - 1));
   max_length = (info->read_length - diff_length);
@@ -221,7 +218,7 @@ size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length) {
 my_off_t my_b_filelength(IO_CACHE *info) {
   if (info->type == WRITE_CACHE) return my_b_tell(info);
 
-  info->seek_not_done = 1;
+  info->seek_not_done = true;
   return mysql_file_seek(info->file, 0L, MY_SEEK_END, MYF(0));
 }
 
@@ -288,7 +285,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list args) {
       By this point, *fmt must be a percent;  Keep track of this location and
       skip over the percent character.
     */
-    DBUG_ASSERT(*fmt == '%');
+    assert(*fmt == '%');
     backtrack = fmt;
     fmt++;
 
@@ -364,15 +361,13 @@ size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list args) {
       if (my_b_write(info, (uchar *)par, precision)) goto err;
     } else if (*fmt == 'd' || *fmt == 'u') /* Integer parameter */
     {
-      int iarg;
       size_t length2;
       char buff[32];
 
-      iarg = va_arg(args, int);
       if (*fmt == 'd')
-        length2 = (size_t)(int10_to_str((long)iarg, buff, -10) - buff);
+        length2 = longlong10_to_str(va_arg(args, int), buff, -10) - buff;
       else
-        length2 = (uint)(int10_to_str((long)(uint)iarg, buff, 10) - buff);
+        length2 = longlong10_to_str(va_arg(args, unsigned), buff, 10) - buff;
 
       /* minimum width padding */
       if (minimum_width > length2) {
@@ -394,15 +389,13 @@ size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list args) {
     } else if ((*fmt == 'l' && fmt[1] == 'd') || fmt[1] == 'u')
     /* long parameter */
     {
-      long iarg;
       size_t length2;
       char buff[32];
-
-      iarg = va_arg(args, long);
       if (*++fmt == 'd')
-        length2 = (size_t)(int10_to_str(iarg, buff, -10) - buff);
+        length2 = longlong10_to_str(va_arg(args, long), buff, -10) - buff;
       else
-        length2 = (size_t)(int10_to_str(iarg, buff, 10) - buff);
+        length2 =
+            longlong10_to_str(va_arg(args, unsigned long), buff, 10) - buff;
       out_length += length2;
       if (my_b_write(info, (uchar *)buff, length2)) goto err;
     } else if (fmt[0] == 'l' && fmt[1] == 'l' && fmt[2] == 'u') {

@@ -2,7 +2,7 @@
 
 let BASEDIR=    `select @@basedir`;
 let DDIR=       $MYSQL_TMP_DIR/dd_bootstrap_test;
-let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/lowercase_view.log;
 let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --secure-file-priv="" --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 
@@ -223,3 +223,7 @@ DROP TABLE `ttt`;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+
+--remove_file $MYSQL_TMP_DIR/lowercase_view.log
+--remove_file $MYSQL_TMP_DIR/tiny_bootstrap.sql
+--force-rmdir $MYSQL_TMP_DIR/dd_bootstrap_test

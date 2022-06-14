@@ -1,0 +1,4 @@
+GRANT NDB_STORED_USER ON *.* TO mcm0765@localhost;
+Level	Code	Message
+Warning	1296	Schema distribution is not ready
+Warning	1296	Could not distribute ACL change to other MySQL servers

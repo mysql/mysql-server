@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_performance_timers.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -46,9 +46,9 @@ Plugin_table table_performance_timers::m_table_def(
     /* Name */
     "performance_timers",
     /* Definition */
-    "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') "
-    "NOT "
-    "NULL,\n"
+    "  TIMER_NAME ENUM ("
+    "    'CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'THREAD_CPU') "
+    "    NOT NULL,\n"
     "  TIMER_FREQUENCY BIGINT,\n"
     "  TIMER_RESOLUTION BIGINT,\n"
     "  TIMER_OVERHEAD BIGINT\n",
@@ -60,8 +60,8 @@ Plugin_table table_performance_timers::m_table_def(
 PFS_engine_table_share table_performance_timers::m_share = {
     &pfs_readonly_acl,
     table_performance_timers::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_performance_timers::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
@@ -81,7 +81,10 @@ ha_rows table_performance_timers::get_row_count(void) {
 }
 
 table_performance_timers::table_performance_timers()
-    : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_row(nullptr),
+      m_pos(0),
+      m_next_pos(0) {
   int index;
 
   index = (int)TIMER_NAME_CYCLE - FIRST_TIMER_NAME;
@@ -99,6 +102,10 @@ table_performance_timers::table_performance_timers()
   index = (int)TIMER_NAME_MILLISEC - FIRST_TIMER_NAME;
   m_data[index].m_timer_name = TIMER_NAME_MILLISEC;
   m_data[index].m_info = pfs_timer_info.milliseconds;
+
+  index = (int)TIMER_NAME_THREAD_CPU - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_THREAD_CPU;
+  m_data[index].m_info = pfs_timer_info.thread_cpu;
 }
 
 void table_performance_timers::reset_position(void) {
@@ -116,7 +123,7 @@ int table_performance_timers::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 
@@ -125,7 +132,7 @@ int table_performance_timers::rnd_next(void) {
 
 int table_performance_timers::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < COUNT_TIMER_NAME);
+  assert(m_pos.m_index < COUNT_TIMER_NAME);
   m_row = &m_data[m_pos.m_index];
   return 0;
 }
@@ -134,15 +141,15 @@ int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
                                               Field **fields, bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* TIMER_NAME */
           set_field_enum(f, m_row->m_timer_name);
           break;
@@ -168,7 +175,7 @@ int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

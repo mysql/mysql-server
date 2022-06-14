@@ -33,3 +33,7 @@ SET GLOBAL log_output=        @old_log_output;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Query rewrite plugin was queued for uninstalling.
+SET @@global.log_output = @old_log_output;
+SET @@global.general_log = @old_general_log;
+SET @@global.general_log_file = @old_general_log_file;
+TRUNCATE TABLE mysql.general_log;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ Uint32 // error code
 Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
 {
   IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, req->indexId);
+  ndbrequire(c_indexPool.getPtr(indexPtr, req->indexId));
   ndbrequire(indexPtr.p->m_tableId == req->tableId);
   // get base fragment id and extra bits
   const Uint32 fragId = req->fragId;

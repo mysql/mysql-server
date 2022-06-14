@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,17 +32,17 @@
 namespace mysql_harness {
 namespace test {
 
+namespace PluginDescriptorFlags {
+constexpr int NoInit = 1 << 0;
+constexpr int NoDeinit = 1 << 1;
+constexpr int NoStart = 1 << 2;
+constexpr int NoStop = 1 << 3;
+}  // namespace PluginDescriptorFlags
+
 struct LifecyclePluginSyncBus {
   std::condition_variable cv;
   std::mutex mtx;
   std::string msg;
-};
-
-// 3 elements are for: instance1/all, instance2 and instance3
-using LifecyclePluginSyncBusSet = LifecyclePluginSyncBus[3];
-
-struct LifecyclePluginITC {
-  LifecyclePluginSyncBus *(*get_bus_from_key)(const char *);
 };
 
 }  // namespace test

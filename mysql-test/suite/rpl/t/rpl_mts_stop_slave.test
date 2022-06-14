@@ -14,8 +14,8 @@
 # and verify that the SQL thread was properly stopped and left no gaps.
 
 --source include/have_binlog_format_statement.inc
---source include/only_mts_slave_parallel_workers.inc
---source include/only_mts_slave_parallel_type_database.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_database.inc
 --source include/master-slave.inc
 
 --let $slave_stop_wait=5
@@ -67,7 +67,7 @@ INSERT INTO d1.t VALUES (4, 'T9'); # This should not be executed after STOP SLAV
 # Wait for coordinator to populate worker's queues.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Slave has read all relay log; waiting for more updates'
+--let $condition= = 'Replica has read all relay log; waiting for more updates'
 --source include/wait_show_condition.inc
 
 --echo # Now coordinator has read the entire relay log and populated workers' queues.

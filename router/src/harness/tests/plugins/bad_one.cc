@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,19 +24,16 @@
 
 #include "mysql/harness/plugin.h"
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
+#include <array>
 
-static const char *requires[] = {
+static const std::array<const char *, 1> required = {{
     // This plugin do not exist
     "routertestplugin_foobar",
-};
+}};
 
-static void init(PluginFuncEnv *) {}
+static void init(mysql_harness::PluginFuncEnv *) {}
 
-static void deinit(PluginFuncEnv *) {}
+static void deinit(mysql_harness::PluginFuncEnv *) {}
 
 #if defined(_MSC_VER) && defined(routertestplugin_bad_one_EXPORTS)
 /* We are building this library */
@@ -46,18 +43,23 @@ static void deinit(PluginFuncEnv *) {}
 #endif
 
 extern "C" {
-Plugin EXAMPLE_API harness_plugin_routertestplugin_bad_one = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "A bad plugin",
+mysql_harness::Plugin EXAMPLE_API harness_plugin_routertestplugin_bad_one = {
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "A bad plugin",                          // name
     VERSION_NUMBER(1, 0, 0),
-    sizeof(requires) / sizeof(*requires),
-    requires,
+    // requires
+    required.size(),
+    required.data(),
+    // conflicts
     0,
     nullptr,
     init,
     deinit,
     nullptr,  // start
     nullptr,  // stop
+    false,    // declares_readiness
+    0,
+    nullptr,
 };
 }

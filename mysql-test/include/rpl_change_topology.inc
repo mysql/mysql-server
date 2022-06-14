@@ -6,8 +6,8 @@
 #
 # This file sets up variables needed by include/rpl_sync.inc and many
 # other replication scripts in the include/ directory.  It also issues
-# CHANGE MASTER on all servers where the configuration changes from
-# what it was before.  It does not issue START SLAVE (use
+# CHANGE REPLICATION SOURCE on all servers where the configuration changes from
+# what it was before.  It does not issue START REPLICA (use
 # include/rpl_start_slaves.inc for that).
 #
 # Note: it is not currently possible to change the number of servers
@@ -17,7 +17,7 @@
 # that, $rpl_server_count must not change until after next time the
 # test sources include/rpl_end.inc.
 #
-# Note: Since this script issues CHANGE MASTER, the test case must
+# Note: Since this script issues CHANGE REPLICATION SOURCE, the test case must
 # ensure that all slaves where the configuration changes have stopped
 # both the IO thread and the SQL thread before this script is sourced.
 #
@@ -34,32 +34,37 @@
 # [--let $rpl_master_log_pos= 1:4711,3:107]
 # [--let $rpl_debug= 1]
 # [--let $rpl_unconditional_change_master= 1]
+# [--let $rpl_privilege_checks_user= *:'user'@'host',1:'user'@'host',2:NULL]
+# [--let $rpl_privilege_checks_user_dont_create_user= 0]
+# [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
+# [--let $rpl_require_row_format= *:0,1:0,2:1]
+# [--let $rpl_gtid_only= *:0,1:0,2:1]
 # --source include/rpl_change_topology.inc
 #
 # Parameters:
 #   $use_gtids
-#     Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#     Use option SOURCE_AUTO_POSITION = 1 to CHANGE REPLICATION SOURCE.
 #
 #   $rpl_master_log_file
-#     By default, CHANGE MASTER is executed without specifying the
-#     MASTER_LOG_FILE parameter. This variable can be set to specify a
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
+#     SOURCE_LOG_FILE parameter. This variable can be set to specify a
 #     filename.  This variable should be a comma-separated list of the
 #     following form:
 #
 #       SERVER_NUMBER_1:FILE_NAME_1,SERVER_NUMBER_2:FILE_NAME_2,...
 #
-#     Before CHANGE MASTER is executed on server N, this script checks
+#     Before CHANGE REPLICATION SOURCE is executed on server N, this script checks
 #     if $rpl_master_log_file contains the text N:FILE_NAME. If it
-#     does, then MASTER_LOG_FILE is set to FILE_NAME. Otherwise,
-#     MASTER_LOG_FILE is not specified.  For example, to specify that
+#     does, then SOURCE_LOG_FILE is set to FILE_NAME. Otherwise,
+#     SOURCE_LOG_FILE is not specified.  For example, to specify that
 #     server_1 should start replicate from master-bin.000007 and
 #     server_5 should start replicate from master-bin.012345, do:
 #
 #       --let $rpl_master_log_file= 1:master-bin.000007,5:master-bin.012345
 #
 #   $rpl_master_log_pos
-#     By default, CHANGE MASTER is executed without specifying the
-#     MASTER_LOG_POS parameter.  This variable can be set to set a
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
+#     SOURCE_LOG_POS parameter.  This variable can be set to set a
 #     specific position.  It has the same form as $rpl_master_log_file
 #     (see above).  For example, to specify that server_3 should start
 #     replicate from position 4711 of its master, do:
@@ -68,12 +73,13 @@
 #   $rpl_unconditional_change_master
 #     This script remembers the topology set by previous invokations
 #     of either rpl_init.inc or of this script.  By default, this
-#     script only executes CHANGE MASTER on servers that actually have
-#     a new master.  If $rpl_unconditiona_change_master is set, then
-#     this script unconditionally executes CHANGE MASTER on all
-#     servers that have a master.  This is useful either if you have
-#     changed the topology without invoking the scripts or if you want
-#     to set some other parameters of CHANGE MASTER.
+#     script only executes CHANGE REPLICATION SOURCE on servers that
+#     actually have a new master.  If $rpl_unconditiona_change_master
+#     is set, then this script unconditionally executes
+#     CHANGE REPLICATION SOURCE on all servers that have a master.  This
+#     is useful either if you have changed the topology without invoking
+#     the scripts or if you want to set some other parameters of CHANGE
+#     REPLICATION SOURCE.
 #
 #   $rpl_server_count, $rpl_topology, $rpl_debug,
 #   $rpl_skip_change_master, $rpl_multi_source
@@ -81,8 +87,71 @@
 #
 #   $rpl_group_replication
 #     This checks for whether we have Group Replication enabled or not. Based
-#     on the check this parameter we execute change master or not in this
-#     inc file.
+#     on the check this parameter we execute CHANGE REPLICATION SOURCE or
+#     not in this inc file.
+#
+#   $rpl_privilege_checks_user
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
+#     `PRIVILEGE_CHECKS_USER` parameter. Instantiating
+#     `$rpl_privilege_checks_user` sets the `PRIVILEGE_CHECKS_USER` option for
+#     the `CHANGE REPLICATION SOURCE TO...` command, bounding the replication applier to
+#     execute within the security context of the given user. For example, to
+#     specify that server_1 should use 'u1'@'localhost' as base user for
+#     replication applier security context and server_5 shouldn't check
+#     privileges while applying replicated events, do:
+#
+#       --let $rpl_privilege_checks_user= 1:'u1'@'localhost',5:NULL
+#
+#     To specify that all node applier thread should run with a given user's
+#     security context, do:
+#
+#       --let $rpl_privilege_checks_user= *:'u1'@'localhost'
+#
+#   $rpl_privilege_checks_user_dont_create_user
+#     Force to not create the user provided in `$rpl_privilege_checks_user`. If
+#     set to 0, creates it if doesn't exists and, if created, assigns the
+#     `REPLICATION_APPLIER` privilege.
+#
+#   $rpl_privilege_checks_user_additional_grants
+#     Specify additional privileges to be granted to the
+#     $rpl_privilege_checks_user user.
+#
+#   $rpl_require_row_format
+#     Include `REQUIRE_ROW_FORMAT` option in the `CHANGE REPLICATION SOURCE TO ...`
+#     statement to be executed. For example, to specify that server_1 should
+#     have the flag enabled and server_5 shouldn't, do:
+#
+#       --let $rpl_require_row_format= 1:1,5:0
+#
+#     To specify that all nodes have the flag enabled, do:
+#
+#       --let $rpl_require_row_format= *:1
+#
+#   $rpl_require_table_primary_key_check
+#     By default, CHANGE REPLICATION SOURCE is executed without specifying the
+#     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` parameter.
+#     Instantiating `$rpl_require_table_primary_key_check` sets
+#     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for the `CHANGE REPLICATION SOURCE TO...` command.
+#     For example, to specify that server_1 should use STREAM as its policy
+#     for primary keys and server_5 shouldn't do the checks do:
+#
+#       --let $rpl_require_table_primary_key_check= 1:STREAM,5:OFF
+#
+#     To specify that all servers should have the same check policy, do:
+#
+#       --let $rpl_require_table_primary_key_check= *:ON
+#
+#   $rpl_gtid_only
+#     Include `GTID_ONLY` option in the `CHANGE REPLICATION SOURCE TO ...`
+#     statement to be executed. For example, to specify that server_1 should
+#     have the flag enabled and server_5 shouldn't, do:
+#
+#       --let $rpl_gtid_only= 1:1,5:0
+#
+#     To specify that all nodes have the flag enabled, do:
+#
+#       --let $rpl_gtid_only= *:1
+
 #
 # ==== Internal variables configured by this file ====
 #
@@ -202,11 +271,53 @@ if ($rpl_debug)
   --echo new \$rpl_connection_count = '$rpl_connection_count'
 }
 
+
+if ($rpl_privilege_checks_user == ''){
+  --let $rpl_privilege_checks_user = $PRIVILEGE_CHECKS_USER
+}
+
+--let $_rpl_change_topology_privilege_checks_all_index= `SELECT LOCATE('*:', "$rpl_privilege_checks_user")`
+if ($_rpl_change_topology_privilege_checks_all_index)
+{
+  --let $_rpl_change_topology_privilege_checks_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_privilege_checks_user", $_rpl_change_topology_privilege_checks_all_index), ',', 1), ':', -1)`
+}
+
+--source include/rpl_gtid_only_configuration.inc
+
+--let $_rpl_change_topology_gtid_only_all_index= `SELECT LOCATE('*:', "$rpl_gtid_only")`
+if ($_rpl_change_topology_gtid_only_all_index)
+{
+  --let $_rpl_change_topology_gtid_only_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_gtid_only", $_rpl_change_topology_gtid_only_all_index), ',', 1), ':', -1)`
+}
+
+# In order to enable GTID_ONLY, REQUIRE_ROW must be enabled
+
+if ($rpl_gtid_only)
+{
+  --let $rpl_topology_override_variable = $rpl_require_row_format
+  --let $rpl_topology_with_variable = $rpl_gtid_only
+  --let $rpl_topology_when_override_value = 1
+  --source include/rpl_change_topology_merge_variables.inc
+  --let $rpl_require_row_format = $rpl_topology_overriden_result
+}
+
+--let $_rpl_change_topology_require_row_all_index= `SELECT LOCATE('*:', "$rpl_require_row_format")`
+if ($_rpl_change_topology_require_row_all_index)
+{
+  --let $_rpl_change_topology_require_row_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_require_row_all_index), ',', 1), ':', -1)`
+}
+
+--let $_rpl_require_table_primary_key_check_all_index= `SELECT LOCATE('*:', "$rpl_require_table_primary_key_check")`
+if ($_rpl_require_table_primary_key_check_all_index)
+{
+  --let $_rpl_require_table_primary_key_check_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_table_primary_key_check", $_rpl_require_table_primary_key_check_all_index), ',', 1), ':', -1)`
+}
+
 if (!$rpl_skip_change_master)
 {
   if ($rpl_debug)
   {
-    --echo ---- Execute CHANGE MASTER on all servers ----
+    --echo ---- Execute CHANGE REPLICATION SOURCE on all servers ----
   }
 
   if (!$rpl_debug)
@@ -220,7 +331,8 @@ if (!$rpl_skip_change_master)
 
 
 --let $rpl_sync_chain_dirty= 1
-
+--let $_rpl_change_topology_privilege_checks_all=
+--let $_rpl_change_topology_privilege_checks_all_index=
 
 --let $include_filename= rpl_change_topology.inc
 --source include/end_include_file.inc

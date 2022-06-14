@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "BufferedLogHandler.hpp"
+
+#include <time.h>
 
 struct ThreadData
 {
@@ -77,6 +79,7 @@ BufferedLogHandler::~BufferedLogHandler()
   NdbThread_WaitFor(m_log_threadvar, NULL);
   NdbThread_Destroy(&m_log_threadvar);
   delete m_logbuf;
+  delete m_dest_loghandler;
 }
 
 bool

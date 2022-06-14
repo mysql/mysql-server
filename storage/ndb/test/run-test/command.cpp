@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <AtrtClient.hpp>
 #include "atrt.hpp"
+#include "process_management.hpp"
 
 MYSQL* find_atrtdb_client(atrt_config& config) {
   atrt_cluster* cluster = 0;
@@ -55,7 +57,7 @@ static bool ack_command(AtrtClient& atrtdb, int command_id, const char* state) {
   return atrtdb.doQuery(sql);
 }
 
-BaseString set_env_var(const BaseString& existing, const BaseString& name,
+static BaseString set_env_var(const BaseString& existing, const BaseString& name,
                        const BaseString& value) {
   /* Split existing on space
    * (may have issues with env vars with spaces)
@@ -86,12 +88,34 @@ BaseString set_env_var(const BaseString& existing, const BaseString& name,
   return newEnv;
 }
 
-Vector<atrt_process> g_saved_procs;
-
 static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
   const char* process_args = command.column("process_args");
   atrt_process& proc = *config.m_processes[command.columnAsInt("process_id")];
+
+  if ((proc.m_type == atrt_process::AP_NDB_API) && proc.m_proc.m_changed) {
+    g_logger.critical("Changing API processes back is not supported");
+    return false;
+  }
+
+  if (!proc.m_proc.m_changed) {
+    // Save current proc state
+    proc.m_save.m_proc = proc.m_proc;
+    proc.m_save.m_saved = true;
+    proc.m_proc.m_changed = true;
+  } else {
+    proc.m_proc = proc.m_save.m_proc;
+    proc.m_save.m_saved = false;
+    proc.m_proc.m_changed = false;
+  }
+
+  if (process_args && strlen(process_args)) {
+    /* Beware too long args */
+    proc.m_proc.m_args.append(" ");
+    proc.m_proc.m_args.append(process_args);
+  }
+
+  int new_prefix_idx = proc.m_proc.m_changed ? 1 : 0;
   BaseString newEnv = set_env_var(
       proc.m_proc.m_env, BaseString("MYSQL_BASE_DIR"), BaseString(new_prefix));
   proc.m_proc.m_env.assign(newEnv);
@@ -100,21 +124,15 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   BaseString exename(proc.m_proc.m_path.substr(pos));
 
   proc.m_proc.m_path =
-      g_resources.getExecutableFullPath(exename.c_str(), 1).c_str();
+      g_resources.getExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
   if (proc.m_proc.m_path == "") {
     // Atempt to dynamically find executable that was not previously registered
     proc.m_proc.m_path =
-        g_resources.findExecutableFullPath(exename.c_str(), 1).c_str();
+        g_resources.findExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
   }
   if (proc.m_proc.m_path == "") {
     g_logger.critical("Could not find full path for exe %s", exename.c_str());
     return false;
-  }
-
-  if (process_args && strlen(process_args)) {
-    /* Beware too long args */
-    proc.m_proc.m_args.append(" ");
-    proc.m_proc.m_args.append(process_args);
   }
 
   {
@@ -138,7 +156,7 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
 
     proc.m_proc.m_env.assfmt("%s%s", part0.c_str(), part1.c_str());
 
-    BaseString libdir = g_resources.getLibraryDirectory(libname, 1).c_str();
+    BaseString libdir = g_resources.getLibraryDirectory(libname, new_prefix_idx).c_str();
 #if defined(__MACH__)
     proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", libdir.c_str());
 #else
@@ -149,7 +167,8 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   return true;
 }
 
-static bool do_start_process(atrt_config& config, SqlResultSet& command,
+static bool do_start_process(ProcessManagement& processManagement,
+                             atrt_config& config, SqlResultSet& command,
                              AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
   if (process_id > config.m_processes.size()) {
@@ -166,11 +185,12 @@ static bool do_start_process(atrt_config& config, SqlResultSet& command,
   proc.m_atrt_stopped = false;
 
   g_logger.info("starting process - %s", proc.m_name.c_str());
-  bool status = start_process(proc, false);
+  bool status = processManagement.startProcess(proc, false);
   return status;
 }
 
-static bool do_stop_process(atrt_config& config, SqlResultSet& command,
+static bool do_stop_process(ProcessManagement& processManagement,
+                            atrt_config& config, SqlResultSet& command,
                             AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
 
@@ -183,50 +203,24 @@ static bool do_stop_process(atrt_config& config, SqlResultSet& command,
   atrt_process& proc = *config.m_processes[process_id];
   proc.m_atrt_stopped = true;
 
-  const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
-  const char* old_prefix = g_prefix0;
-  const char* start = strstr(proc.m_proc.m_path.c_str(), old_prefix);
-  if (!start) {
-    /* Process path does not contain old prefix.
-     * Perhaps it contains the new prefix - e.g. is already
-     * upgraded?
-     */
-    if (strstr(proc.m_proc.m_path.c_str(), new_prefix)) {
-      /* Process is already upgraded, *assume* that this
-       * is ok
-       * Alternatives could be - error, or downgrade.
-       */
-      g_logger.info("Process already upgraded");
-      return true;
-    }
-
-    g_logger.critical("Could not find '%s' in '%s'", old_prefix,
-                      proc.m_proc.m_path.c_str());
-    return false;
-  }
-
   g_logger.info("stopping process - %s", proc.m_name.c_str());
-  if (!stop_process(proc)) {
+  if (!processManagement.stopProcess(proc)) {
     return false;
   }
 
   g_logger.info("waiting for process to stop...");
-  if (!wait_for_process_to_stop(config, proc)) {
+  if (!processManagement.waitForProcessToStop(proc)) {
     g_logger.critical("Failed to stop process");
     return false;
   }
 
-  // Save current proc state
-  if (proc.m_save.m_saved == false) {
-    proc.m_save.m_proc = proc.m_proc;
-    proc.m_save.m_saved = true;
-  }
   return true;
 }
 
-static bool do_change_version(atrt_config& config, SqlResultSet& command,
+static bool do_change_version(ProcessManagement& processManagement,
+                              atrt_config& config, SqlResultSet& command,
                               AtrtClient& atrtdb) {
-  if (!do_stop_process(config, command, atrtdb)) {
+  if (!do_stop_process(processManagement, config, command, atrtdb)) {
     return false;
   }
 
@@ -234,14 +228,15 @@ static bool do_change_version(atrt_config& config, SqlResultSet& command,
     return false;
   }
 
-  if (!do_start_process(config, command, atrtdb)) {
+  if (!do_start_process(processManagement, config, command, atrtdb)) {
     return false;
   }
 
   return true;
 }
 
-static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
+static bool do_reset_proc(ProcessManagement& processManagement,
+                          atrt_config& config, SqlResultSet& command,
                           AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
   g_logger.info("Reset process: %d", process_id);
@@ -254,9 +249,9 @@ static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
   atrt_process& proc = *config.m_processes[process_id];
 
   g_logger.info("stopping process...");
-  if (!stop_process(proc)) return false;
+  if (!processManagement.stopProcess(proc)) return false;
 
-  if (!wait_for_process_to_stop(config, proc)) return false;
+  if (!processManagement.waitForProcessToStop(proc)) return false;
 
   if (proc.m_save.m_saved) {
     ndbout << "before: " << proc << endl;
@@ -273,7 +268,7 @@ static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
   return true;
 }
 
-bool do_command(atrt_config& config) {
+bool do_command(ProcessManagement& processManagement, atrt_config& config) {
 #ifdef _WIN32
   return true;
 #endif
@@ -302,19 +297,27 @@ bool do_command(atrt_config& config) {
 
   switch (cmd) {
     case AtrtClient::ATCT_CHANGE_VERSION:
-      if (!do_change_version(config, command, atrtdb)) return false;
+      if (!do_change_version(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_RESET_PROC:
-      if (!do_reset_proc(config, command, atrtdb)) return false;
+      if (!do_reset_proc(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_START_PROCESS:
-      if (!do_start_process(config, command, atrtdb)) return false;
+      if (!do_start_process(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_STOP_PROCESS:
-      if (!do_stop_process(config, command, atrtdb)) return false;
+      if (!do_stop_process(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_SWITCH_CONFIG:
@@ -334,5 +337,3 @@ bool do_command(atrt_config& config) {
 
   return true;
 }
-
-template class Vector<atrt_process>;

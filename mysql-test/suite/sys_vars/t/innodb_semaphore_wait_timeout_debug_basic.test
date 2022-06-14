@@ -1,0 +1,29 @@
+--echo #
+--echo # Basic test for innodb_semaphore_wait_timeout_debug
+--echo #
+
+# The config variable is a debug variable
+--source include/have_debug.inc
+
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 10;
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 200;
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_semaphore_wait_timeout_debug = dummy;
+
+--error ER_GLOBAL_VARIABLE
+SET innodb_semaphore_wait_timeout_debug = 100;
+
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 6000;
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+
+SET GLOBAL innodb_semaphore_wait_timeout_debug = -1;
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+
+SET GLOBAL innodb_semaphore_wait_timeout_debug = default;
+SELECT @@global.innodb_semaphore_wait_timeout_debug;

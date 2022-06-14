@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,9 @@
 #ifndef XCOM_MSG_QUEUE_H
 #define XCOM_MSG_QUEUE_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/simset.h"
+#include "xcom/task.h"
+#include "xdr_gen/xcom_vp.h"
 
 /* Helper struct used for putting messages in a queue */
 struct msg_link {
@@ -46,9 +42,7 @@ void empty_msg_channel(channel *c);
 void empty_msg_list(linkage *l);
 void init_link_list();
 void msg_link_delete(msg_link **link_p);
-
-#ifdef __cplusplus
-}
-#endif
+void shrink_msg_list(linkage *l, int n);
+void shrink_msg_channel(channel *c, int n);
 
 #endif

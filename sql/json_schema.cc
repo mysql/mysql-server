@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
+#include <assert.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/memorystream.h>
@@ -34,7 +35,7 @@
 #include <utility>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -61,7 +62,7 @@ static bool parse_json_schema(const char *json_schema_str,
                               size_t json_schema_length,
                               const char *function_name,
                               rapidjson::Document *schema_document) {
-  DBUG_ASSERT(schema_document != nullptr);
+  assert(schema_document != nullptr);
 
   // Check if the JSON schema is valid. Invalid JSON would be caught by
   // rapidjson::Document::Parse, but it will not catch documents that are too
@@ -79,7 +80,7 @@ static bool parse_json_schema(const char *json_schema_str,
           .HasParseError()) {
     // The document should already be valid, since is_valid_json_syntax
     // succeeded.
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
@@ -110,7 +111,8 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
 
 Json_schema_validator::Json_schema_validator(
     const rapidjson::Document &schema_document)
-    : m_cached_schema(schema_document, &m_remote_document_provider) {}
+    : m_cached_schema(schema_document, /*uri=*/nullptr, /*uriLength=*/0,
+                      &m_remote_document_provider) {}
 
 unique_ptr_destroy_only<const Json_schema_validator>
 create_json_schema_validator(MEM_ROOT *mem_root, const char *json_schema_str,
@@ -142,17 +144,32 @@ bool Json_schema_validator::is_valid_json_schema(
   // Wrap this in a try-catch since rapidjson calls std::regex_search
   // (which isn't noexcept).
   try {
-    if (!reader.Parse(stream, validator) && validator.IsValid()) {
-      // If the parsing was aborted due to deeply nested JSON document, the
-      // Syntax_check_handler will already have reported an error. If that's not
-      // the case, we will have to report the error here.
-      if (!syntaxCheckHandler.too_deep_error_raised()) {
-        std::pair<std::string, size_t> error = get_error_from_reader(reader);
-        my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0), 2, function_name,
-                 error.first.c_str(), error.second, "");
-      }
+    rapidjson::ParseResult parse_success = reader.Parse(stream, validator);
+    // We may end up in a few different error scenarios here:
+    // 1) The document is valid JSON, but invalid according to schema.
+    //   - parse_success will indicate error, and validator.IsValid() is false.
+    // 2) The JSON document is invalid (parsing failed), but not too deep.
+    //   - parse_success will indicate error, and validator.IsValid() is true.
+    // 3) The JSON document is too deep.
+    //   - parse_success will indicate error, and validator.IsValid() is false.
+    //     The only way do distinguish this from case 1, is to see if the
+    //     syntax check handler has raised an error.
+    if (syntaxCheckHandler.too_deep_error_raised()) {
+      // The JSON document was too deep, and an error is already reported by the
+      // Syntax_check_handler.
       return true;
     }
+
+    if (!parse_success && validator.IsValid()) {
+      // Couldn't parse the JSON document.
+      std::pair<std::string, size_t> error = get_error_from_reader(reader);
+      my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0), 2, function_name,
+               error.first.c_str(), error.second, "");
+      return true;
+    }
+
+    // Otherwise, we have a syntactically correct JSON document, so we can
+    // safely check the result from the validator.
   } catch (...) {
     handle_std_exception(function_name);
     return true;
@@ -168,8 +185,8 @@ bool Json_schema_validator::is_valid_json_schema(
   *is_valid = validator.IsValid();
   if (!validator.IsValid() && validation_report != nullptr) {
     // Populate the validation report. Since the validator is local to this
-    // function, all strings provided by the validator must be allocated so that
-    // they survive beyond this function.
+    // function, all strings provided by the validator must be allocated so
+    // that they survive beyond this function.
     rapidjson::StringBuffer string_buffer;
 
     // Where in the JSON Schema the validation failed.

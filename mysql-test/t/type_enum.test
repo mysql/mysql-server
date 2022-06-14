@@ -203,9 +203,11 @@ CREATE TABLE t1 (
   c1 ENUM('a', '', 'b')
 );
 INSERT INTO t1 (c1) VALUES (0), ('a'), (''), ('b');
+--sorted_result
 SELECT id, c1 + 0, c1 FROM t1;
 
 ALTER TABLE t1 CHANGE c1 c1 ENUM('a', '') NOT NULL;
+--sorted_result
 SELECT id, c1 + 0, c1 FROM t1;
 
 DROP TABLE t1;
@@ -231,9 +233,12 @@ INSERT INTO t1 (c1) VALUES ('');
 INSERT INTO t1 (c1) VALUES (0);
 INSERT INTO t1 (c1) VALUES ('');
 
+--skip_if_hypergraph  # Hits bug #31843607.
+--sorted_result
 SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
 
 CREATE TABLE t2 SELECT * FROM t1;
+--sorted_result
 SELECT c1 + 0 FROM t2;
 
 DROP TABLE t1,t2;
@@ -361,3 +366,19 @@ SELECT COUNT(*) FROM grants WHERE priv = 'XA_RECOVER_ADMIN';
 
 drop table grants;
 
+--echo #
+--echo # Bug #31019130 CASTING DOUBLE TO LONGLONG CAUSES UB
+--echo #               IN FIELD_*::STORE(DOUBLE)
+--echo #
+
+CREATE TABLE t_double (a double not null);
+INSERT INTO t_double (a) VALUES
+(-20000000000000000000000000000.0001), (20000000000000000000000000000.0001);
+
+CREATE TABLE t_enum (
+  b enum('N','Y')
+);
+INSERT IGNORE INTO t_enum (b) SELECT a from t_double;
+SELECT b FROM t_enum;
+
+DROP TABLE t_double, t_enum;

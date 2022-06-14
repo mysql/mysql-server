@@ -280,14 +280,14 @@ CREATE TABLE t1 (i INT KEY);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (i INT UNIQUE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t3 (i INT UNIQUE KEY);
@@ -295,7 +295,7 @@ CREATE TABLE t3 (i INT UNIQUE KEY);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3;
@@ -307,7 +307,7 @@ CREATE TABLE table_25930_a ( "blah" INT );
 CREATE TABLE table_25930_b SELECT "blah" - 1 FROM table_25930_a;
 desc table_25930_b;
 Field	Type	Null	Key	Default	Extra
-"blah" - 1	bigint(12)	YES		NULL	
+"blah" - 1	bigint	YES		NULL	
 DROP TABLE table_25930_a;
 DROP TABLE table_25930_b;
 SET @@sql_mode=@save_sql_mode;
@@ -456,11 +456,11 @@ select make_set();
 ERROR 42000: Incorrect parameter count in the call to native function 'make_set'
 select make_set(1);
 ERROR 42000: Incorrect parameter count in the call to native function 'make_set'
-select master_pos_wait();
-ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
-select master_pos_wait(1);
-ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
-select master_pos_wait('binlog.999999', 4, -1);
+select source_pos_wait();
+ERROR 42000: Incorrect parameter count in the call to native function 'source_pos_wait'
+select source_pos_wait(1);
+ERROR 42000: Incorrect parameter count in the call to native function 'source_pos_wait'
+select source_pos_wait('binlog.999999', 4, -1);
 select rand(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'rand'
 select round(1, 2, 3);
@@ -720,10 +720,10 @@ Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 SELECT 1 INTO @var17727401 FROM DUAL;
 SELECT 1 INTO @var17727401_1 FROM t1 INTO @var17727401_2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 1
+ERROR HY000: Multiple INTO clauses in one query block.
 SELECT 1 INTO @var17727401_1 FROM DUAL
 INTO @var17727401_2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 2
+ERROR HY000: Multiple INTO clauses in one query block.
 SELECT 1 INTO @var17727401 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1;
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -735,7 +735,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT 1 INTO @var17727401_1
 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1
 INTO @var17727401_2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 3
+ERROR HY000: Multiple INTO clauses in one query block.
 SELECT (SELECT 1 FROM t1 INTO @var17727401);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 INTO @var17727401) a;
@@ -755,7 +755,7 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
-1
+ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 1
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
@@ -1191,7 +1191,7 @@ SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
 SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ALL SELECT a FROM t1' at line 1
 (SELECT 1) UNION (SELECT 2 UNION SELECT 3);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 2 UNION SELECT 3)' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
 a
 1
@@ -1248,15 +1248,17 @@ ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER c
 ORDER BY t1.b;
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 1
 1
 ( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
 1
 1
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) UNION SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
 (SELECT * FROM t1 LIMIT 1) UNION SELECT * FROM t1;
@@ -1632,13 +1634,13 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1))' at line 1
 SELECT 1 INTO @v UNION SELECT 1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 (SELECT 1 INTO @v) UNION SELECT 1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT 1 INTO @v UNION (SELECT 1);
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 ((SELECT 1 INTO @v) UNION (SELECT 1));
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT 1 UNION SELECT 2 INTO @v;
 ERROR 42000: Result consisted of more than one row
 (SELECT 1) UNION SELECT 2 INTO @v;
@@ -1656,18 +1658,32 @@ ERROR 42000: Result consisted of more than one row
 ((SELECT 1) UNION (SELECT 2 INTO @v FROM t1));
 ERROR 42000: Result consisted of more than one row
 SELECT 1 UNION SELECT 1 INTO @v FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 (SELECT 1) UNION SELECT 1 INTO @v FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 (SELECT 1) UNION (SELECT 1 INTO @v FROM t1);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 ((SELECT 1) UNION (SELECT 1 INTO @v FROM t1));
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT 1 UNION SELECT 2 INTO OUTFILE 'parser.test.file1';
 SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 (SELECT 1) UNION SELECT 2 INTO OUTFILE 'parser.test.file3';
 (SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file4');
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 ((SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file5'));
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v FROM t1) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT a INTO @v) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 DROP TABLE t1;
 #
 # Part 4: The <joined table> syntax.
@@ -1907,9 +1923,9 @@ a	d	b	c
 # This result should differ from the result sets above.
 SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
 a	b	d	c
-3	3	3	3
 1	1	NULL	NULL
 2	2	NULL	NULL
+3	3	3	3
 DROP TABLE t1, t2, t3;
 #
 # Bug#22995438: BUILD INDEX DEFINITION SYNTAX BOTTOM-UP
@@ -1981,11 +1997,7 @@ DROP TABLE t1;
 #
 # Warning on hints in CREATE or ALTER VIEW:
 CREATE VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 ALTER VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 SELECT * FROM v1;
 1
 1
@@ -2137,7 +2149,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TEMPORARY TABLE t1(a INT);
 SHOW COLUMNS FROM t1 WHERE FIELD='a';
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	NULL
+a	int	YES		NULL	NULL
 DROP TABLE t1;
 ALTER TABLE t1 RENAME TO ``.t1;
 ERROR 42000: Incorrect database name ''
@@ -2249,7 +2261,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1251
 #
 # Explicit COLLATE:
@@ -2258,7 +2270,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT COLLATE cp1251_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_bin
 DROP DATABASE db1;
 #########################################################################
@@ -2280,7 +2292,7 @@ ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup:
 ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
@@ -2291,7 +2303,7 @@ ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 DROP DATABASE db2;
 #########################################################################
@@ -2316,7 +2328,7 @@ ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 #
 # Explicit COLLATE should result in utf8mb4_bin:
@@ -2325,7 +2337,7 @@ ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 #########################################################################
 #
@@ -2489,3 +2501,244 @@ COLLATE ascii_bin
 );
 ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
 )' at line 5
+#
+# Bug#28961997: REMOVE PARENTHESES INFORMATION FROM AST
+#
+CREATE VIEW v1 AS (SELECT 1 ORDER BY 1) UNION (SELECT 3 ORDER BY 1) ORDER BY 1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1` union select 3 AS `3` order by `1`	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v1;
+#
+# Bug#29871803: REQUIRED PARENTHESES NO LONGER PRINTED FOR CERTAIN UNION
+# STATEMENTS
+#
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+CREATE TABLE t3(a INTEGER, b INTEGER, c INTEGER);
+INSERT INTO t3 VALUES(1, 10, 100), (2, 20, 200), (3, 30, 300), (4, 40, 400);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 1) union /* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`
+EXPLAIN SELECT a FROM t1 UNION (SELECT a FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` limit 1)
+CREATE VIEW v1 as (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a` from `t1` order by `t1`.`a` limit 1) union select `t2`.`a` AS `a` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+CREATE VIEW v2 as SELECT a FROM t1 UNION (SELECT a FROM t2 ORDER BY a LIMIT 1);
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1` union (select `t2`.`a` AS `a` from `t2` order by `t2`.`a` limit 1)	utf8mb4	utf8mb4_0900_ai_ci
+EXPLAIN (SELECT * FROM t3 ORDER BY a LIMIT 3) ORDER BY b DESC LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` order by `test`.`t3`.`a` limit 3) order by `b` desc limit 2
+EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
+ORDER BY b DESC LIMIT 2)
+ORDER BY c LIMIT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
+DROP VIEW v1;
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;
+#
+# Bug#30131161: SYNTAX ERROR WITH || WHEN USING PIPES_AS_CONCAT AFTER
+#               UPGRADING TO 8.0.17
+#
+SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT'));
+SELECT 'ab' LIKE 'a%', 'ab' LIKE 'a' || '%';
+'ab' LIKE 'a%'	'ab' LIKE 'a' || '%'
+1	1
+SELECT 'ab' NOT LIKE 'a%', 'ab' NOT LIKE 'a' || '%';
+'ab' NOT LIKE 'a%'	'ab' NOT LIKE 'a' || '%'
+0	0
+SELECT 'ab' LIKE 'ac', 'ab' LIKE 'a' || 'c';
+'ab' LIKE 'ac'	'ab' LIKE 'a' || 'c'
+0	0
+SELECT 'ab' NOT LIKE 'ac', 'ab' NOT LIKE 'a' || 'c';
+'ab' NOT LIKE 'ac'	'ab' NOT LIKE 'a' || 'c'
+1	1
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!' || '%' ESCAPE '!';
+'a%' LIKE 'a!%' ESCAPE '!'	'a%' LIKE 'a!' || '%' ESCAPE '!'
+1	1
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!' || '%' ESCAPE '!';
+'a%' NOT LIKE 'a!%' ESCAPE '!'	'a%' NOT LIKE 'a!' || '%' ESCAPE '!'
+0	0
+SELECT 'a%' LIKE 'a!%' ESCAPE '$', 'a%' LIKE 'a!' || '%' ESCAPE '$';
+'a%' LIKE 'a!%' ESCAPE '$'	'a%' LIKE 'a!' || '%' ESCAPE '$'
+0	0
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '$', 'a%' NOT LIKE 'a!' || '%' ESCAPE '$';
+'a%' NOT LIKE 'a!%' ESCAPE '$'	'a%' NOT LIKE 'a!' || '%' ESCAPE '$'
+1	1
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!%' ESCAPE '' || '!';
+'a%' LIKE 'a!%' ESCAPE '!'	'a%' LIKE 'a!%' ESCAPE '' || '!'
+1	1
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!%' ESCAPE '' || '!';
+'a%' NOT LIKE 'a!%' ESCAPE '!'	'a%' NOT LIKE 'a!%' ESCAPE '' || '!'
+0	0
+SELECT 'a%' LIKE 'a!%' ESCAPE '' || '$', 'a%' LIKE 'a!%' ESCAPE '' || '$';
+'a%' LIKE 'a!%' ESCAPE '' || '$'	'a%' LIKE 'a!%' ESCAPE '' || '$'
+0	0
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '' || '$', 'a%' NOT LIKE 'a!%' ESCAPE '' || '$';
+'a%' NOT LIKE 'a!%' ESCAPE '' || '$'	'a%' NOT LIKE 'a!%' ESCAPE '' || '$'
+1	1
+SELECT 1 ^ 100, 1 ^ '10' || '0';
+1 ^ 100	1 ^ '10' || '0'
+101	101
+SELECT -1 || '0';
+-1 || '0'
+-10
+SET sql_mode=DEFAULT;
+#
+# WL#13559: Deprecate syntax: confusing combinations of UNION and INTO
+#
+#
+# No warning expected:
+#
+SELECT 1 UNION SELECT 1 INTO @var;
+(SELECT 1 UNION SELECT 1 INTO @var);
+SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
+(SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
+SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
+(SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
+#
+# Deprecation warning expected:
+#
+SELECT 1 UNION SELECT 1 INTO @var FROM DUAL;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+#
+# Syntax error expected:
+#
+SELECT 1 UNION (SELECT 1 FROM DUAL INTO @var);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var)' at line 1
+#
+# Bug#30871301: CTE CAN FAIL WITH A PARSE ERROR ON PSEUDO-COMMENTS
+#
+WITH cte AS (SELECT 0 /*! ) */ SELECT * FROM cte a, cte b;
+0	0
+0	0
+WITH cte AS /*! ( */ SELECT 0) SELECT * FROM cte a, cte b;
+0	0
+0	0
+#
+# Bug#30528450: SPECIAL SYMBOL NAMED COLUMN NOT HONORED IN A SELECT
+#
+CREATE TABLE t1 (c1 INT, `*` INT, c3 INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+SELECT `*` FROM t1;
+*
+2
+SELECT t1.`*`, t1.* FROM t1;
+*	c1	*	c3
+2	1	2	3
+SELECT test.t1.`*`, test.t1.* FROM t1;
+*	c1	*	c3
+2	1	2	3
+DROP TABLE t1;
+#
+# Bug#30592703: UNDOCUMENTED SYNTAX
+#               '('<QUERY BLOCK>')' {LIMIT|ORDER [LIMIT]} INTO ...
+#
+(SELECT 1) LIMIT 1 INTO @var;
+SELECT @var;
+@var
+1
+(SELECT 2 AS c) ORDER BY c INTO @var;
+SELECT @var;
+@var
+2
+(SELECT 3 AS c) ORDER BY c LIMIT 1 INTO @var;
+SELECT @var;
+@var
+3
+(SELECT 4) INTO @var;
+SELECT @var;
+@var
+4
+#
+# <time zone> syntax.
+#
+SET time_zone = '+01:00';
+SELECT cast( DATE'2019-10-10' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( DATE'2019-10-10' AT TIME ZONE 'UTC' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( TIME'10:10' AT TIME ZONE '+01:00' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE INTERVAL 'UTC' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE '' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE INTERVAL '' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIMESTAMP'2019-10-10 10:11:12' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( NULL AT TIME ZONE 'UTC' AS DATETIME );
+cast( NULL AT TIME ZONE 'UTC' AS DATETIME )
+NULL
+# Casting to prohibited types
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS BINARY );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BINARY )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS CHAR );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAR )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DATE );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DECIMAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DECIMAL )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DOUBLE );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DOUBLE )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS FLOAT );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FLOAT )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS SIGNED INTEGER );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SIGNED INTEGER )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS TIME );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TIME )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS UNSIGNED INTEGER );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNSIGNED INTEGER )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS JSON );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS REAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REAL )' at line 1
+#
+# Bug#32230229: MISMATCH EXPLAIN RESULT TO ACTUAL RUN WITH
+#               USER-DEFINED VARIABLE
+#
+EXPLAIN SELECT 1 INTO @x FROM DUAL INTO @y;
+ERROR HY000: Multiple INTO clauses in one query block.
+EXPLAIN SELECT 1 INTO DUMPFILE 'file1' FROM DUAL INTO DUMPFILE 'file2';
+ERROR HY000: Multiple INTO clauses in one query block.
+EXPLAIN SELECT 1 INTO OUTFILE 'file1' FROM DUAL INTO OUTFILE 'file2';
+ERROR HY000: Multiple INTO clauses in one query block.

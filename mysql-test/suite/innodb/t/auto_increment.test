@@ -2284,3 +2284,25 @@ SELECT * FROM loads;
 --disconnect conn2
 
 DROP TABLE loads;
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug#30765952 AUTO INCREMENT VALUE DIDN'T RESET CORRECTLY
+--echo #
+
+SET SESSION information_schema_stats_expiry=0;
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT DEFAULT 0, PRIMARY KEY (a))
+                ENGINE=InnoDB;
+INSERT INTO t1(`b`) VALUES (1),(1),(1),(1),(1),(1),(1),(1),(1),(1);
+
+ALTER TABLE t1 MODIFY a INT;
+
+ALTER TABLE t1 DROP INDEX `PRIMARY`, ADD COLUMN c INT NOT NULL AUTO_INCREMENT,
+ADD KEY (c);
+
+DROP TABLE t1;
+
+SET @@SESSION.information_schema_stats_expiry = DEFAULT;

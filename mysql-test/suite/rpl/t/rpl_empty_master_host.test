@@ -29,21 +29,21 @@ let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 # attempt to change to an empty master host should 
 # result in error ER_WRONG_ARGUMENTS: "Incorrect arguments to ..."
 error ER_WRONG_ARGUMENTS;
-CHANGE MASTER TO MASTER_HOST="";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="";
 
 # show slave status still holds previous information
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master_Host = '$master_host' (expected '127.0.0.1')
 
 # changing master to other than empty master host succeeds
-CHANGE MASTER TO MASTER_HOST="foo";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="foo";
 
 # show slave status should hold "foo" as master host
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master_Host = '$master_host' (expected 'foo')
 
 # changing back to localhost
-CHANGE MASTER TO MASTER_HOST="127.0.0.1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master_Host = '$master_host' (expected '127.0.0.1')
 

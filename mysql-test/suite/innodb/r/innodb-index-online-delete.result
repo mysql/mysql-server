@@ -6,7 +6,7 @@ CREATE INDEX tb ON t(b);
 SET DEBUG_SYNC='now WAIT_FOR do';
 SET DEBUG_SYNC='row_update_for_mysql_error SIGNAL m WAIT_FOR scanned';
 UPDATE t SET a=2 WHERE a=1;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't.PRIMARY'
 call mtr.add_suppression(' record in index .*tb was not found on rollback, trying to insert');
 SET DEBUG_SYNC='now SIGNAL done';
 SET DEBUG_SYNC='RESET';

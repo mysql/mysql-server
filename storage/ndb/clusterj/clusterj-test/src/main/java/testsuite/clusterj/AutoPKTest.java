@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2014, 2021, Oracle and/or its affiliates.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -46,10 +46,10 @@ public class AutoPKTest extends AbstractClusterJTest {
     
     protected Helper<Integer> intHelper = new Helper<Integer>() {
         public Integer valueOf(int i) {
-            return new Integer(i);
+            return Integer.valueOf(i);
         }
         public Integer valueOf(Number i) {
-            return new Integer(i.intValue());
+            return Integer.valueOf(i.intValue());
         }
         public Class<Integer> keyType() {
             return Integer.class;
@@ -58,10 +58,10 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Helper<Long> bigintHelper = new Helper<Long>() {
         public Long valueOf(int i) {
-            return new Long(i);
+            return Long.valueOf(i);
         }
         public Long valueOf(Number i) {
-            return new Long(i.intValue());
+            return Long.valueOf(i.intValue());
         }
         public Class<Long> keyType() {
             return Long.class;
@@ -70,10 +70,10 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Helper<Integer> mediumintHelper = new Helper<Integer>() {
         public Integer valueOf(int i) {
-            return new Integer(i);
+            return Integer.valueOf(i);
         }
         public Integer valueOf(Number i) {
-            return new Integer(i.intValue());
+            return Integer.valueOf(i.intValue());
         }
         public Class<Integer> keyType() {
             return Integer.class;
@@ -82,10 +82,10 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Helper<Short> smallintHelper = new Helper<Short>() {
         public Short valueOf(int i) {
-            return new Short((short)i);
+            return Short.valueOf((short)i);
         }
         public Short valueOf(Number i) {
-            return new Short((short)i.intValue());
+            return Short.valueOf((short)i.intValue());
         }
         public Class<Short> keyType() {
             return Short.class;
@@ -94,10 +94,10 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Helper<Byte> tinyintHelper = new Helper<Byte>() {
         public Byte valueOf(int i) {
-            return new Byte((byte)i);
+            return Byte.valueOf((byte)i);
         }
         public Byte valueOf(Number i) {
-            return new Byte((byte)i.intValue());
+            return Byte.valueOf((byte)i.intValue());
         }
         public Class<Byte> keyType() {
             return Byte.class;

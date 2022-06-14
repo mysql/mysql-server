@@ -1,0 +1,28 @@
+# Test that FLUSH PRIVILEGE blocks concurrent
+# ACL DDLs in various isolation modes.
+
+
+# Run it only if --big-test option is specified
+-- source include/big_test.inc
+
+# Run this test only for debug builds and with debug_sync enabled
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--let ISOLATION_LEVEL=READ-UNCOMMITTED
+--source ../include/acl_tables_locking_tests_big_debug_2.inc
+
+--let ISOLATION_LEVEL=READ-COMMITTED
+--source ../include/acl_tables_locking_tests_big_debug_2.inc
+
+--let ISOLATION_LEVEL=REPEATABLE-READ
+--source ../include/acl_tables_locking_tests_big_debug_2.inc
+
+--let ISOLATION_LEVEL=SERIALIZABLE
+--source ../include/acl_tables_locking_tests_big_debug_2.inc
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <mysql/plugin.h>  // st_plugin_int
 
+#include "mysql_version.h"       // MYSQL_VERSION_ID
 #include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
@@ -62,7 +63,7 @@ namespace info_schema {
     Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
     to INT.
 
-  Current 80012: Published in 8.0.12
+  80012: Published in 8.0.12
   ------------------------------------
   Changes from version 80011:
 
@@ -96,13 +97,13 @@ namespace info_schema {
   There are no changes from version 80014. Hence server version 80015 used
   I_S version 80013.
 
-  80016: Published in 8.0.14
+  80016: Published in 8.0.16
   ------------------------------------
   Changes from version 80015.
 
   - WL#929 - CHECK CONSTRAINTS
-    New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
-    INFORMATION_SCHMEA.TABLE_CONSTRAINTS is modified to include check
+    New INFORMATION_SCHEMA table CHECK_CONSTRAINTS is introduced and
+    INFORMATION_SCHEMA.TABLE_CONSTRAINTS is modified to include check
     constraints defined on the table.
 
   - WL#12261 Control (enforce and disable) table encryption
@@ -110,8 +111,8 @@ namespace info_schema {
     - information_schema.tables.options UDF definition is changed to pass
       schema default encryption.
 
-  80017: Current
-  ----------------------------------------------------------------------------
+  80017: Published in 8.0.17
+  ------------------------------------
   Changes from version 80016:
 
   - WL#12984 INFORMATION_SCHEMA and metadata related to secondary engine.
@@ -124,14 +125,108 @@ namespace info_schema {
     Modifies the INFORMATION_SCHEMA.TABLES dynamic column definitions to
     return NULL, if it finds a view.
 
-  80018: Next IS version number after the previous is public.
-  ----------------------------------------------------------------------------
-  Changes from version 80016:
-  - No changes, this version number is not active yet.
+  80018: Published in 8.0.18
+  ------------------------------------
+  Changes from version 80017:
 
+  - Bug#28278220: wrong column type , view , binary
+    Changes type of following I_S table column's
+      KEY_COLUMN_USAGE:    CONSTRAINT_NAME, POSITION_IN_UNIQUE_CONSTRAINT,
+                           REFERENCED_TABLE_SCHEMA, FIELD_REFERENCED_TABLE_NAME,
+                           REFERENCED_COLUMN_NAME
+
+      TABLE_CONSTRAINTS:   CONSTRAINT_NAME.
+    Column metadata of views on these system views or tables created using
+    CREATE TABLE SELECT from these system views will *not* be similar to one
+    created with previous version of system views.
+
+  - Bug#29870919: INFORMATION SCHEMA STATS EXPIRY RESULTS IN BAD
+                  STATS FOR PARTITIONED TABLES
+    This bug changes definition of I_S.STATISTICS.
+
+  80019: Not published (see below)
+  ------------------------------------
+  Changes from version 80018:
+
+  - WL#10895 INFORMATION_SCHEMA views for Roles.
+    Adds new system view definitions for roles.
+       INFORMATION_SCHEMA.APPLICABLE_ROLES;
+       INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+       INFORMATION_SCHEMA.ENABLED_ROLES;
+       INFORMATION_SCHEMA.ROLE_TABLE_GRANTS;
+       INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
+       INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
+
+  80020: Published by mistake in server version 8.0.19. To correct this,
+  we set the IS version number to 800201 in mysql server version 8.0.20.
+  Then, in server version 8.0.21, we're back on track with IS_version 80021.
+  ------------------------------------
+  Changes from version 80018:
+
+  - Bug#29871530: MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
+                  OBSERVING CUSTOM TIMEZONE
+    This bug updates LAST_EXECUTED to include time zones in
+    I_S.EVENTS.
+
+  800201: Published in 8.0.20
+  ------------------------------------
+  Changes from version 80020:
+
+  - Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+    This bug updates the character set of columns returned from JSON_TABLE
+    expressions in INFORMATION_SCHEMA views.
+
+  80021: Published in 8.0.21
+  ------------------------------------
+  Changes from version 800201:
+
+     - WL#13562 CREATE/ALTER USER COMMENT 'JSON'
+
+     - WL#13341: Store options for secondary engines.
+
+     - Bug#30766181 and Bug#30216864 updates I_S.KEY_COLUMN_USAGE and
+       I_S.TABLE_CONSTRAINTS views.
+
+  80022: Published in 8.0.22
+  ------------------------------------
+  Changes from version 80021:
+
+  - WL#13369: Added new I_S view 'SCHEMATA_EXTENSIONS'.
+  - Bug #31427410: Added a WHERE clause to I_S.USER_ATTRIBUTES
+
+  80023: Published in 8.0.23
+  ------------------------------------
+  Changes from version 80022:
+
+  - WL#12819: Affects size of I_S.KEYWORDS.WORD column length.
+    Following bug was raised for the same.
+    Bug#31982157 THE KEYWORD LEN IN I_S GETS UPDATED WHEN
+    A KEYWORD > EXISTING MAX LEN IS ADDED
+
+  - WL#10905: INFORMATION_SCHEMA.COLUMNS table is modified to list "INVISIBLE"
+              value in EXTRA column for INVISIBLE columns.
+
+  80024..80028: Not published.
+  ----------------------------------------------------------------------------
+  There are no changes from version 80023. Hence server versions 80024..80028
+  uses I_S version 80023.
+
+  80029: Current.
+  ------------------------------------
+  Changes from version 80023:
+
+  - Bug#33781534: INFORMATION_SCHEMA.KEY_COLUMN_USAGE table is modified to
+                  list invisible columns with key constraints.
+
+  80030: Next IS version number after the previous is public.
+  ------------------------------------
+  Changes from version 80029:
 */
 
-static const uint IS_DD_VERSION = 80017;
+static const uint IS_DD_VERSION = 80029;
+static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
+                  ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
+              "This release can not use a version number from the future");
 
 /**
   Initialize INFORMATION_SCHEMA system views.
@@ -141,6 +236,15 @@ static const uint IS_DD_VERSION = 80017;
   @return       Upon failure, return true, otherwise false.
 */
 bool initialize(THD *thd);
+
+/**
+  Initialize non DD based INFORMATION_SCHEMA system views.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool init_non_dd_based_system_view(THD *thd);
 
 /**
   Create INFORMATION_SCHEMA system views.
@@ -191,6 +295,21 @@ bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int);
   @return       Upon failure, return true, otherwise false.
 */
 bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name);
+
+/**
+  Get create view definition for the given I_S system view.
+
+  @param schema_name Schema name.
+  @param view_name   I_S view name.
+  @param definition  [out] The CREATE VIEW command to create sytem view.
+                           A pointer to a preallocated string should be
+                           supplied.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool get_I_S_view_definition(const dd::String_type &schema_name,
+                             const dd::String_type &view_name,
+                             dd::String_type *definition);
 
 }  // namespace info_schema
 }  // namespace dd

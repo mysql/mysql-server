@@ -25,7 +25,7 @@ TABLESPACE ts2 STORAGE DISK  ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` varchar(256) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
@@ -33,7 +33,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` varchar(256) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
@@ -88,7 +88,7 @@ TABLESPACE ts2 STORAGE DISK  ENGINE=NDB CHARACTER SET latin1;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` varchar(5000) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
@@ -96,7 +96,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` varchar(5000) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)

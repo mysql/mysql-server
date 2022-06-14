@@ -3,7 +3,7 @@ create table test.t1 (col1 bigint, col2 varchar(30)) engine = InnoDB;
 show create table test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` bigint(20) DEFAULT NULL,
+  `col1` bigint DEFAULT NULL,
   `col2` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into test.t1 values(1,'One');

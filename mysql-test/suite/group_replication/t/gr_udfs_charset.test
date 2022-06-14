@@ -1,0 +1,49 @@
+###############################################################################
+# Bug#30380530
+# GROUP ACTIONS AND UDFS RETURNING STRINGS SHOW HEX VALUES ON INTERACTIVE
+# SESSIONS
+#
+# This test uses 2 servers.
+#
+# Test:
+# 1. Retrieve the CHARSET of group_replication_set_communication_protocol UDF
+# 2. Retrieve the CHARSET of group_replication_get_communication_protocol UDF
+# 3. Retrieve the CHARSET of group_replication_set_write_concurrency UDF
+# 4. Retrieve the CHARSET of group_replication_switch_to_single_primary_mode UDF
+# 5. Retrieve the CHARSET of group_replication_set_as_primary UDF
+# 6. Retrieve the CHARSET of group_replication_switch_to_multi_primary_mode UDF
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--source include/group_replication.inc
+
+--echo ###############################################################################
+--echo # Check the Character set of the return value
+SELECT CHARSET(group_replication_set_communication_protocol("8.0.19"));
+SELECT CHARSET(group_replication_get_communication_protocol());
+SELECT CHARSET(group_replication_set_write_concurrency(15));
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+# Check the charset returned by the UDF
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT CHARSET(group_replication_switch_to_single_primary_mode("$server1_uuid"))
+
+# Now switch to single primary mode.
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+# Check the charset returned by the UDF
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT CHARSET(group_replication_set_as_primary("$server1_uuid"))
+
+# Check the charset returned by the UDF
+SELECT CHARSET(group_replication_switch_to_multi_primary_mode());
+# Check that UDF returns value in decimal since it returns INT
+--exec $MYSQL --binary-as-hex=TRUE -e "SELECT group_replication_get_write_concurrency()"
+# Character set of the return value
+SELECT CHARSET(group_replication_get_write_concurrency());
+--echo ###############################################################################
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

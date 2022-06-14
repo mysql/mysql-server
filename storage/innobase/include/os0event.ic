@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 of spin-delay and event.
 
 @remarks
-
 First it uses a spin loop with PAUSE instructions. In each spin iteration
 it checks the condition and stops as soon as it returned true.
 
@@ -47,19 +46,17 @@ re-checked and function stops as soon as the condition returned true.
 Every k-waits (ended on wake-up or timeout), the timeout is multiplied by two
 (but it's limited up to maximum value of 100ms).
 
-@param[in,out]	event			event on which function may wait
-@param[in]	spins_limit		maximum spin iterations
-@param[in]	timeout			initial timeout value
-@param[in]	timeout_mul2_every	timeout is multiplied by two every
-                                        that many waits on event
-@param[in]	condition		returns true when condition is
+@param[in,out]  event                   event on which function may wait
+@param[in]      spins_limit             maximum spin iterations
+@param[in]      timeout                 initial timeout value
+@param[in]      condition               returns true when condition is
                                         satisfied
 
 @return number of loops with wait on event that have been used */
 template <typename Condition>
 inline static Wait_stats os_event_wait_for(os_event_t &event,
                                            uint64_t spins_limit,
-                                           uint64_t timeout,
+                                           std::chrono::microseconds timeout,
                                            Condition condition = {}) {
 #ifdef _WIN32
   uint32_t next_level = 64;
@@ -68,8 +65,8 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
 #endif
   uint32_t waits = 0;
 
-  constexpr uint64_t MIN_TIMEOUT_US = 1;
-  constexpr uint64_t MAX_TIMEOUT_US = 100 * 1000;
+  constexpr auto MIN_TIMEOUT = std::chrono::microseconds{1};
+  constexpr auto MAX_TIMEOUT = std::chrono::microseconds{100 * 1000};
 
   while (true) {
     /* Store current sig_count before checking the
@@ -96,7 +93,7 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
     } else {
       /* Event-based loop. */
       ++waits;
-      if (timeout < MIN_TIMEOUT_US) {
+      if (timeout < MIN_TIMEOUT) {
         /* If timeout = 0, then timeout * 2 = 0 and
         we would not keep increasing timeout below.
         Therefore we need some limitation for min.
@@ -112,11 +109,11 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
 
         (Oracle Linux 4.14.28) */
 
-        timeout = MIN_TIMEOUT_US;
+        timeout = MIN_TIMEOUT;
       }
 
       if (waits == next_level) {
-        timeout = std::min(timeout * 2, MAX_TIMEOUT_US);
+        timeout = std::min(timeout * 2, MAX_TIMEOUT);
 
 #ifdef _WIN32
         /* On Windows timeout is expressed in ms,

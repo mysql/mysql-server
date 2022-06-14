@@ -16,6 +16,7 @@
 # explicitly specified in the ALTER USER statement. It also verifies that
 # REPLACE clause is never replicated to the binlog
 
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
 
@@ -37,6 +38,10 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 # Check the binlog contents on the master
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 2
+if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+{
+  --let $binlog_limit= 3
+}
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
@@ -73,6 +78,10 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 # Check the binlog contents on the master
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 2
+if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+{
+  --let $binlog_limit= 3
+}
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
@@ -166,6 +175,115 @@ SELECT USER();
 --connection master
 --echo [connection master]
 DROP USER '11544_u1'@'localhost';
+
+
+#
+# WL11772 CREATE USER WITH RANDOM PASSWORD
+#
+#
+--let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+
+--connection master
+--echo * Create a new user with random password
+--let $sql= "CREATE USER u1@localhost IDENTIFIED BY RANDOM PASSWORD"
+--let $passwd= query_get_value( $sql, "generated password", 1)
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,,SSL)
+--echo [connection slave]
+SELECT CURRENT_USER();
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+--echo * Set random password using SET PASSWORD
+--let $sql= "SET PASSWORD FOR u1@localhost TO RANDOM"
+--let $passwd= query_get_value($sql, "generated password", 1)
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,,SSL)
+--echo [connection slave]
+SELECT CURRENT_USER();
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+--echo * Set random password using ALTER USER
+--let $sql= "ALTER USER u1@localhost IDENTIFIED BY RANDOM PASSWORD"
+--let $passwd= query_get_value($sql, "generated password", 1)
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,, SSL)
+--echo [connection slave]
+SELECT CURRENT_USER();
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+DROP USER u1@localhost;
+
+--echo * Check the binlog contents on the master
+--let $binlog_start= $saved_master_pos
+--let $binlog_limit= 100
+--let $mask_user_password_events=1
+--source include/show_binlog_events.inc
+--let $mask_user_password_events=0
+
+
+#
+# WL13562 ARBITRARY JSON ATTRIBUTES
+#
+--let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--connection master
+--echo * Create a new user with an arbitrary attribute
+CREATE USER u1@localhost IDENTIFIED BY 'foo' ATTRIBUTE '{"trackingId": "12345"}';
+CREATE USER u2@localhost COMMENT 'This is account is used by my private LAMP project';
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,,SSL)
+--echo [connection slave]
+SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1' OR USER = 'u2';
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+ALTER USER u1@localhost COMMENT 'TODO: Delete this user';
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,,SSL)
+--echo [connection slave]
+SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1';
+--let $comment = `SELECT JSON_EXTRACT(ATTRIBUTE, "$.comment") FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER= 'u1'`
+--let $assert_text = User JSON comment updated successfully
+--let $assert_cond = $comment = "TODO: Delete this user"
+--source include/assert.inc
+--let $comment = `SELECT JSON_EXTRACT(ATTRIBUTE, "$.trackingId") FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER= 'u1'`
+--let $assert_text = User JSON attribute updated successfully
+--let $assert_cond = $comment = "12345"
+--source include/assert.inc
+
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+ALTER USER u2@localhost ATTRIBUTE '{ "code": "red" }';
+ALTER USER u2@localhost COMMENT 'Change of mind';
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,, SSL)
+--echo [connection slave]
+SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u2';
+--let $comment = `SELECT JSON_EXTRACT(ATTRIBUTE, "$.comment") FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER= 'u2'`
+--let $assert_text = User JSON comment updated successfully
+--let $assert_cond = $comment = "Change of mind"
+--source include/assert.inc
+
+--let $comment = `SELECT JSON_EXTRACT(ATTRIBUTE, "$.code") FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER= 'u2'`
+--let $assert_text = User JSON attribute updated successfully
+--let $assert_cond = $comment = "red"
+--source include/assert.inc
+
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+DROP USER u1@localhost;
+DROP USER u2@localhost;
+
+--echo * Check the binlog contents on the master
+--let $binlog_start= $saved_master_pos
+--let $binlog_limit= 100
+--let $mask_user_password_events=1
+--source include/show_binlog_events.inc
+--let $mask_user_password_events=0
 
 #Restore the old sql_mode at the master and the slave
 --connection slave

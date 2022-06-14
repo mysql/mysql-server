@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -178,6 +178,11 @@ Message *get_client_message_from_text(
     const bool allow_partial_messaged) {
   std::string find_by = name;
   Message *message;
+
+  if (find_by.empty()) {
+    *out_error = "Message name is empty";
+    return nullptr;
+  }
 
   while (true) {
     auto msg = client_msgs_by_name.find(find_by);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,9 @@ namespace upgrade {
 bool upgrade_system_schemas(THD *thd);
 
 bool no_server_upgrade_required();
+
+bool I_S_upgrade_required();
+
 }  // namespace upgrade
 
 }  // namespace dd

@@ -231,7 +231,7 @@ CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM perfo
 --echo # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
 --echo # will be removed from the P_S table.
 --echo #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "channel_2";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "channel_2";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
@@ -258,7 +258,6 @@ DROP DATABASE db11;
 --echo # discarded with a warning.
 --echo #
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_global_filters
 --let $assert_count = 1
 --let $assert_select = There are per-channel replication filter.s. configured for channel 'channel_1' which does not exist. The filter.s. have been discarded.
 --let $assert_text = Found the expected warning "There are per-channel replication filter(s) configured for channel 'channel_1' which does not exist. The filter(s) have been discarded.

@@ -1,0 +1,170 @@
+# Variable Name: binlog_transaction_compression
+# Scope: Global & Session
+# Access Type: Static
+# Data Type: enumeration
+#
+# Creation Date: 2019-03-26
+# Author : Luis Soares
+
+--let $saved_global_binlog_transaction_compression = `SELECT @@global.binlog_transaction_compression`
+
+--let $saved_session_binlog_transaction_compression = `SELECT @@session.binlog_transaction_compression`
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+--let $assert_text= Default GLOBAL value is OFF
+--let $assert_cond = [SELECT @@global.binlog_transaction_compression = 0]
+--source include/assert.inc
+
+--let $assert_text= Default SESSION value is OFF
+--let $assert_cond = [SELECT @@session.binlog_transaction_compression = 0]
+--source include/assert.inc
+
+####################################################################
+#   Check if Value can set and that P_S reports the correct value  #
+####################################################################
+
+# GLOBAL, SESSION, PERSIST, PERSIST_ONLY
+--let $i=4
+
+# 1, TRUE , ON or 0, FALSE, OFF, DEFAULT
+--let $j=7
+
+while($i>0)
+{
+  while($j>0)
+  {
+    if ($j == 7)
+    {
+      --let $to_set = DEFAULT
+      --let $expected = OFF
+    }
+
+    if ($j == 6)
+    {
+      --let $to_set = OFF
+      --let $expected = OFF
+    }
+
+    if ($j == 5)
+    {
+      --let $to_set = FALSE
+      --let $expected = OFF
+    }
+
+    if ($j == 4)
+    {
+      --let $to_set = 0
+      --let $expected = OFF
+    }
+
+    if ($j == 3)
+    {
+      --let $to_set = ON
+      --let $expected = ON
+    }
+
+    if ($j == 2)
+    {
+      --let $to_set = TRUE
+      --let $expected = ON
+    }
+
+    if ($j == 1)
+    {
+      --let $to_set = 1
+      --let $expected = ON
+    }
+
+    # SESSION
+    if ($i == 1)
+    {
+      --let $scope = SESSION
+      --let $ps_table = session_variables
+    }
+
+    # GLOBAL
+    if ($i == 2)
+    {
+      --let $scope = GLOBAL
+      --let $ps_table = global_variables
+    }
+
+    # PERSIST
+    if ($i == 3)
+    {
+      --let $scope = PERSIST
+      --let $ps_table = persisted_variables
+    }
+
+    # PERSIST_ONLY
+    if ($i == 4)
+    {
+      --let $scope = PERSIST_ONLY
+      --let $ps_table = persisted_variables
+    }
+
+    --eval SET @@$scope.binlog_transaction_compression = $to_set
+    --let $reported=`SELECT variable_value FROM performance_schema.$ps_table WHERE variable_name = 'binlog_transaction_compression'`
+
+    --let $assert_text= Reported value matches the one set (set $to_set in $scope scope)
+    --let $assert_cond = "$reported" = "$expected"
+    --source include/assert.inc
+
+    --dec $j
+  }
+  --dec $i
+}
+
+####################################################################
+# Privileges                                                       #
+####################################################################
+
+CREATE USER user1;
+--connect(conn_user1,localhost,user1,,)
+
+# assert that one cannot change the value without privileges
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL binlog_transaction_compression = ON;
+
+# assert that one can change the value if SYSTEM_VARIABLES_ADMIN is given
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO user1@'%';
+--connection conn_user1
+SET GLOBAL binlog_transaction_compression=ON;
+
+--connection default
+DROP USER user1;
+
+####################################################################
+# transactional context                                            #
+####################################################################
+
+BEGIN;
+
+# cannot set variable inside a transaction in session scope
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION binlog_transaction_compression=ON;
+
+# can change the variable's value in global scope while inside a transaction
+SET GLOBAL binlog_transaction_compression=ON;
+
+# can change the variable's value in persist scope while inside a transaction
+SET PERSIST binlog_transaction_compression=ON;
+
+# can change the variable's value in persist_only scope while inside transaction
+SET PERSIST_ONLY binlog_transaction_compression=ON;
+
+ROLLBACK;
+
+####################################################################
+# End of tests                                                     #
+####################################################################
+
+RESET PERSIST;
+
+--eval SET @@session.binlog_transaction_compression = $saved_session_binlog_transaction_compression
+
+--eval SET @@global.binlog_transaction_compression = $saved_global_binlog_transaction_compression

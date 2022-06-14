@@ -1640,9 +1640,11 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-        case 22:
+    case 22:
 #line 176 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+    {
+      (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+    }
 #line 1646 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
@@ -1732,9 +1734,11 @@ yyreduce:
 
   case 37:
 #line 196 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_op('-', (yyvsp[0]), NULL); }
+  {
+    (yyval) = pars_op('-', (yyvsp[0]), nullptr);
+  }
 #line 1736 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 38:
 #line 197 "pars0grm.y" /* yacc.c:1646  */
@@ -1798,21 +1802,27 @@ yyreduce:
 
   case 48:
 #line 208 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_op(PARS_NOT_TOKEN, (yyvsp[0]), NULL); }
+  {
+    (yyval) = pars_op(PARS_NOT_TOKEN, (yyvsp[0]), nullptr);
+  }
 #line 1802 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 49:
 #line 210 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[-2]), NULL); }
+  {
+    (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[-2]), nullptr);
+  }
 #line 1808 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 50:
 #line 212 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[-2]), NULL); }
+  {
+    (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[-2]), nullptr);
+  }
 #line 1814 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 51:
 #line 216 "pars0grm.y" /* yacc.c:1646  */
@@ -1852,9 +1862,11 @@ yyreduce:
 
   case 57:
 #line 229 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 1856 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 58:
 #line 231 "pars0grm.y" /* yacc.c:1646  */
@@ -1864,15 +1876,19 @@ yyreduce:
 
   case 59:
 #line 235 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 1868 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 60:
 #line 236 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 1874 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 61:
 #line 238 "pars0grm.y" /* yacc.c:1646  */
@@ -1882,15 +1898,19 @@ yyreduce:
 
   case 62:
 #line 242 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 1886 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 63:
 #line 243 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0]));}
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 1892 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 64:
 #line 244 "pars0grm.y" /* yacc.c:1646  */
@@ -1906,42 +1926,51 @@ yyreduce:
 
   case 66:
 #line 250 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_func(&pars_count_token,
-				          que_node_list_add_last(NULL,
-					    sym_tab_add_int_lit(
-						pars_sym_tab_global, 1))); }
+    {
+    (yyval) =
+        pars_func(&pars_count_token,
+                  que_node_list_add_last(
+                      nullptr, sym_tab_add_int_lit(pars_sym_tab_global, 1)));
+  }
 #line 1913 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 67:
 #line 255 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_func(&pars_count_token,
-					    que_node_list_add_last(NULL,
-						pars_func(&pars_distinct_token,
-						     que_node_list_add_last(
-								NULL, (yyvsp[-1]))))); }
+    {
+    (yyval) = pars_func(
+        &pars_count_token,
+        que_node_list_add_last(
+            nullptr, pars_func(&pars_distinct_token,
+                               que_node_list_add_last(nullptr, (yyvsp[-1])))));
+  }
 #line 1923 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 68:
 #line 261 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_func(&pars_sum_token,
-						que_node_list_add_last(NULL,
-									(yyvsp[-1]))); }
+    {
+    (yyval) = pars_func(&pars_sum_token,
+                        que_node_list_add_last(nullptr, (yyvsp[-1])));
+  }
 #line 1931 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 69:
 #line 267 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 1937 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 70:
 #line 268 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 1943 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 71:
 #line 270 "pars0grm.y" /* yacc.c:1646  */
@@ -1951,29 +1980,34 @@ yyreduce:
 
   case 72:
 #line 274 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_select_list(&pars_star_denoter,
-								NULL); }
+    {
+    (yyval) = pars_select_list(&pars_star_denoter, nullptr);
+  }
 #line 1956 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 73:
 #line 277 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_select_list(
-					(yyvsp[-2]), static_cast<sym_node_t*>((yyvsp[0]))); }
+                                        (yyvsp[-2]), static_cast<sym_node_t*>((yyvsp[0]))); }
 #line 1963 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 74:
 #line 279 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_select_list((yyvsp[0]), NULL); }
+  {
+    (yyval) = pars_select_list((yyvsp[0]), nullptr);
+  }
 #line 1969 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 75:
 #line 283 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 1975 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 76:
 #line 284 "pars0grm.y" /* yacc.c:1646  */
@@ -1983,9 +2017,11 @@ yyreduce:
 
   case 77:
 #line 288 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 1987 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 78:
 #line 290 "pars0grm.y" /* yacc.c:1646  */
@@ -1995,9 +2031,11 @@ yyreduce:
 
   case 79:
 #line 294 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 1999 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 80:
 #line 296 "pars0grm.y" /* yacc.c:1646  */
@@ -2025,27 +2063,29 @@ yyreduce:
 
   case 84:
 #line 306 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2029 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 85:
 #line 308 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_order_by(
-					static_cast<sym_node_t*>((yyvsp[-1])),
-					static_cast<pars_res_word_t*>((yyvsp[0]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-1])),
+                                        static_cast<pars_res_word_t*>((yyvsp[0]))); }
 #line 2037 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 86:
 #line 319 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_select_statement(
-					static_cast<sel_node_t*>((yyvsp[-6])),
-					static_cast<sym_node_t*>((yyvsp[-4])),
-					static_cast<que_node_t*>((yyvsp[-3])),
-					static_cast<pars_res_word_t*>((yyvsp[-2])),
-					static_cast<pars_res_word_t*>((yyvsp[-1])),
-					static_cast<order_node_t*>((yyvsp[0]))); }
+                                        static_cast<sel_node_t*>((yyvsp[-6])),
+                                        static_cast<sym_node_t*>((yyvsp[-4])),
+                                        static_cast<que_node_t*>((yyvsp[-3])),
+                                        static_cast<pars_res_word_t*>((yyvsp[-2])),
+                                        static_cast<pars_res_word_t*>((yyvsp[-1])),
+                                        static_cast<order_node_t*>((yyvsp[0]))); }
 #line 2049 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
@@ -2057,33 +2097,38 @@ yyreduce:
 
   case 88:
 #line 335 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_insert_statement(
-					static_cast<sym_node_t*>((yyvsp[-4])), (yyvsp[-1]), NULL); }
+    {
+    (yyval) = pars_insert_statement(static_cast<sym_node_t *>((yyvsp[-4])),
+                                    (yyvsp[-1]), nullptr);
+  }
 #line 2062 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 89:
 #line 338 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_insert_statement(
-					static_cast<sym_node_t*>((yyvsp[-1])),
-					NULL,
-					static_cast<sel_node_t*>((yyvsp[0]))); }
+    {
+    (yyval) =
+        pars_insert_statement(static_cast<sym_node_t *>((yyvsp[-1])), nullptr,
+                              static_cast<sel_node_t *>((yyvsp[0])));
+  }
 #line 2071 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 90:
 #line 345 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_column_assignment(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					static_cast<que_node_t*>((yyvsp[0]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        static_cast<que_node_t*>((yyvsp[0]))); }
 #line 2079 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 91:
 #line 351 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 2085 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 92:
 #line 353 "pars0grm.y" /* yacc.c:1646  */
@@ -2100,61 +2145,66 @@ yyreduce:
   case 94:
 #line 365 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_update_statement_start(
-					FALSE,
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					static_cast<col_assign_node_t*>((yyvsp[0]))); }
+                                        false,
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        static_cast<col_assign_node_t*>((yyvsp[0]))); }
 #line 2106 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 95:
 #line 373 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_update_statement(
-					static_cast<upd_node_t*>((yyvsp[-1])),
-					NULL,
-					static_cast<que_node_t*>((yyvsp[0]))); }
+    {
+    (yyval) =
+        pars_update_statement(static_cast<upd_node_t *>((yyvsp[-1])), nullptr,
+                              static_cast<que_node_t *>((yyvsp[0])));
+  }
 #line 2115 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 96:
 #line 381 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_update_statement(
-					static_cast<upd_node_t*>((yyvsp[-1])),
-					static_cast<sym_node_t*>((yyvsp[0])),
-					NULL); }
+    {
+    (yyval) =
+        pars_update_statement(static_cast<upd_node_t *>((yyvsp[-1])),
+                              static_cast<sym_node_t *>((yyvsp[0])), nullptr);
+  }
 #line 2124 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 97:
 #line 389 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_update_statement_start(
-					TRUE,
-					static_cast<sym_node_t*>((yyvsp[0])), NULL); }
+    {
+    (yyval) = pars_update_statement_start(
+        true, static_cast<sym_node_t *>((yyvsp[0])), nullptr);
+  }
 #line 2132 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 98:
 #line 396 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_update_statement(
-					static_cast<upd_node_t*>((yyvsp[-1])),
-					NULL,
-					static_cast<que_node_t*>((yyvsp[0]))); }
+    {
+    (yyval) =
+        pars_update_statement(static_cast<upd_node_t *>((yyvsp[-1])), nullptr,
+                              static_cast<que_node_t *>((yyvsp[0])));
+  }
 #line 2141 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 99:
 #line 404 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_update_statement(
-					static_cast<upd_node_t*>((yyvsp[-1])),
-					static_cast<sym_node_t*>((yyvsp[0])),
-					NULL); }
+    {
+    (yyval) =
+        pars_update_statement(static_cast<upd_node_t *>((yyvsp[-1])),
+                              static_cast<sym_node_t *>((yyvsp[0])), nullptr);
+  }
 #line 2150 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 100:
 #line 412 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_assignment_statement(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					static_cast<que_node_t*>((yyvsp[0]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        static_cast<que_node_t*>((yyvsp[0]))); }
 #line 2158 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
@@ -2166,9 +2216,11 @@ yyreduce:
 
   case 102:
 #line 424 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 2170 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 103:
 #line 426 "pars0grm.y" /* yacc.c:1646  */
@@ -2178,9 +2230,11 @@ yyreduce:
 
   case 104:
 #line 430 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2182 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 105:
 #line 432 "pars0grm.y" /* yacc.c:1646  */
@@ -2209,8 +2263,8 @@ yyreduce:
   case 109:
 #line 454 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_for_statement(
-					static_cast<sym_node_t*>((yyvsp[-8])),
-					(yyvsp[-6]), (yyvsp[-4]), (yyvsp[-2])); }
+                                        static_cast<sym_node_t*>((yyvsp[-8])),
+                                        (yyvsp[-6]), (yyvsp[-4]), (yyvsp[-2])); }
 #line 2214 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
@@ -2229,51 +2283,56 @@ yyreduce:
   case 112:
 #line 469 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_open_statement(
-						ROW_SEL_OPEN_CURSOR,
-						static_cast<sym_node_t*>((yyvsp[0]))); }
+                                                ROW_SEL_OPEN_CURSOR,
+                                                static_cast<sym_node_t*>((yyvsp[0]))); }
 #line 2234 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 113:
 #line 476 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_open_statement(
-						ROW_SEL_CLOSE_CURSOR,
-						static_cast<sym_node_t*>((yyvsp[0]))); }
+                                                ROW_SEL_CLOSE_CURSOR,
+                                                static_cast<sym_node_t*>((yyvsp[0]))); }
 #line 2242 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 114:
 #line 483 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_fetch_statement(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					static_cast<sym_node_t*>((yyvsp[0])), NULL); }
+    {
+    (yyval) =
+        pars_fetch_statement(static_cast<sym_node_t *>((yyvsp[-2])),
+                             static_cast<sym_node_t *>((yyvsp[0])), nullptr);
+  }
 #line 2250 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 115:
 #line 487 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = pars_fetch_statement(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					NULL,
-					static_cast<sym_node_t*>((yyvsp[0]))); }
+    {
+    (yyval) =
+        pars_fetch_statement(static_cast<sym_node_t *>((yyvsp[-2])), nullptr,
+                             static_cast<sym_node_t *>((yyvsp[0])));
+  }
 #line 2259 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 116:
 #line 495 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_column_def(
-					static_cast<sym_node_t*>((yyvsp[-4])),
-					static_cast<pars_res_word_t*>((yyvsp[-3])),
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					(yyvsp[-1]), (yyvsp[0])); }
+                                        static_cast<sym_node_t*>((yyvsp[-4])),
+                                        static_cast<pars_res_word_t*>((yyvsp[-3])),
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        (yyvsp[-1]), (yyvsp[0])); }
 #line 2269 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 117:
 #line 503 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 2275 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 118:
 #line 505 "pars0grm.y" /* yacc.c:1646  */
@@ -2283,9 +2342,11 @@ yyreduce:
 
   case 119:
 #line 509 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2287 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 120:
 #line 511 "pars0grm.y" /* yacc.c:1646  */
@@ -2295,61 +2356,71 @@ yyreduce:
 
   case 121:
 #line 515 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2299 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 122:
 #line 517 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = &pars_int_token;
-					/* pass any non-NULL pointer */ }
+                                        /* pass any non-NULL pointer */ }
 #line 2306 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 123:
 #line 522 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2312 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 124:
 #line 524 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = &pars_int_token;
-					/* pass any non-NULL pointer */ }
+                                        /* pass any non-NULL pointer */ }
 #line 2319 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 125:
 #line 529 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2325 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 126:
 #line 531 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = &pars_int_token;
-					/* pass any non-NULL pointer */ }
+                                        /* pass any non-NULL pointer */ }
 #line 2332 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 127:
 #line 536 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2338 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 128:
 #line 537 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = &pars_int_token;
-					/* pass any non-NULL pointer */ }
+                                        /* pass any non-NULL pointer */ }
 #line 2345 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 129:
 #line 542 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2351 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 130:
 #line 544 "pars0grm.y" /* yacc.c:1646  */
@@ -2360,18 +2431,20 @@ yyreduce:
   case 131:
 #line 551 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_create_table(
-					static_cast<sym_node_t*>((yyvsp[-6])),
-					static_cast<sym_node_t*>((yyvsp[-4])),
-					static_cast<sym_node_t*>((yyvsp[-1])),
-					static_cast<sym_node_t*>((yyvsp[0])), (yyvsp[-2])); }
+                                        static_cast<sym_node_t*>((yyvsp[-6])),
+                                        static_cast<sym_node_t*>((yyvsp[-4])),
+                                        static_cast<sym_node_t*>((yyvsp[-1])),
+                                        static_cast<sym_node_t*>((yyvsp[0])), (yyvsp[-2])); }
 #line 2367 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 132:
 #line 559 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 2373 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 133:
 #line 561 "pars0grm.y" /* yacc.c:1646  */
@@ -2381,9 +2454,11 @@ yyreduce:
 
   case 134:
 #line 565 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2385 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 135:
 #line 566 "pars0grm.y" /* yacc.c:1646  */
@@ -2393,9 +2468,11 @@ yyreduce:
 
   case 136:
 #line 570 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2397 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 137:
 #line 571 "pars0grm.y" /* yacc.c:1646  */
@@ -2406,11 +2483,11 @@ yyreduce:
   case 138:
 #line 580 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_create_index(
-					static_cast<pars_res_word_t*>((yyvsp[-8])),
-					static_cast<pars_res_word_t*>((yyvsp[-7])),
-					static_cast<sym_node_t*>((yyvsp[-5])),
-					static_cast<sym_node_t*>((yyvsp[-3])),
-					static_cast<sym_node_t*>((yyvsp[-1]))); }
+                                        static_cast<pars_res_word_t*>((yyvsp[-8])),
+                                        static_cast<pars_res_word_t*>((yyvsp[-7])),
+                                        static_cast<sym_node_t*>((yyvsp[-5])),
+                                        static_cast<sym_node_t*>((yyvsp[-3])),
+                                        static_cast<sym_node_t*>((yyvsp[-1]))); }
 #line 2414 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
@@ -2477,32 +2554,36 @@ yyreduce:
   case 149:
 #line 614 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_parameter_declaration(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					PARS_INPUT,
-					static_cast<pars_res_word_t*>((yyvsp[0]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        PARS_INPUT,
+                                        static_cast<pars_res_word_t*>((yyvsp[0]))); }
 #line 2483 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 150:
 #line 619 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_parameter_declaration(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					PARS_OUTPUT,
-					static_cast<pars_res_word_t*>((yyvsp[0]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        PARS_OUTPUT,
+                                        static_cast<pars_res_word_t*>((yyvsp[0]))); }
 #line 2492 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 151:
 #line 626 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = NULL; }
+  {
+    (yyval) = nullptr;
+  }
 #line 2498 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 152:
 #line 627 "pars0grm.y" /* yacc.c:1646  */
-    { (yyval) = que_node_list_add_last(NULL, (yyvsp[0])); }
+  {
+    (yyval) = que_node_list_add_last(nullptr, (yyvsp[0]));
+  }
 #line 2504 "pars0grm.cc" /* yacc.c:1646  */
-    break;
+  break;
 
   case 153:
 #line 629 "pars0grm.y" /* yacc.c:1646  */
@@ -2513,32 +2594,32 @@ yyreduce:
   case 154:
 #line 634 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_variable_declaration(
-					static_cast<sym_node_t*>((yyvsp[-2])),
-					static_cast<pars_res_word_t*>((yyvsp[-1]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-2])),
+                                        static_cast<pars_res_word_t*>((yyvsp[-1]))); }
 #line 2518 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 158:
 #line 648 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_cursor_declaration(
-					static_cast<sym_node_t*>((yyvsp[-3])),
-					static_cast<sel_node_t*>((yyvsp[-1]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-3])),
+                                        static_cast<sel_node_t*>((yyvsp[-1]))); }
 #line 2526 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 159:
 #line 655 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_function_declaration(
-					static_cast<sym_node_t*>((yyvsp[-1]))); }
+                                        static_cast<sym_node_t*>((yyvsp[-1]))); }
 #line 2533 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
   case 165:
 #line 677 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_procedure_definition(
-					static_cast<sym_node_t*>((yyvsp[-9])),
-					static_cast<sym_node_t*>((yyvsp[-7])),
-					(yyvsp[-1])); }
+                                        static_cast<sym_node_t*>((yyvsp[-9])),
+                                        static_cast<sym_node_t*>((yyvsp[-7])),
+                                        (yyvsp[-1])); }
 #line 2542 "pars0grm.cc" /* yacc.c:1646  */
     break;
 
@@ -2662,7 +2743,7 @@ yyerrorlab:
   /* Pacify compilers like GCC when the user code never invokes
      YYERROR and the label yyerrorlab therefore never appears in user
      code.  */
-  if (/*CONSTCOND*/ 0)
+  if (/*CONSTCOND*/ false)
      goto yyerrorlab;
 
   /* Do not reclaim the symbols of the rule whose action triggered

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,7 +60,7 @@ class Deleter {
   void x_latch_rec_page();
 
   /** Validate the page type of the given page frame.
-  @param[in]	page	the page frame.
+  @param[in]    page    the page frame.
   @return true if valid, false otherwise. */
   bool validate_page_type(const page_t *page) const {
     return (m_ctx.is_compressed() ? validate_zblob_page_type(page)
@@ -68,7 +68,7 @@ class Deleter {
   }
 
   /** Check if the page type is set correctly.
-  @param[in]	page	the page frame.
+  @param[in]    page    the page frame.
   @return true if page type is correct. */
   bool validate_zblob_page_type(const page_t *page) const {
     const page_type_t pt = fil_page_get_type(page);
@@ -84,7 +84,7 @@ class Deleter {
   }
 
   /** Check if the page type is set correctly.
-  @param[in]	page	the page frame.
+  @param[in]    page    the page frame.
   @return true if page type is correct. */
   bool validate_blob_page_type(const page_t *page) const {
     const page_type_t type = fil_page_get_type(page);

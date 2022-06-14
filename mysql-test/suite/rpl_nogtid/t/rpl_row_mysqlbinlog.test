@@ -9,6 +9,12 @@
 # Include Section
 # Make sure that we have row based bin log
 -- source include/have_binlog_format_row.inc
+
+# make sure that we do not have compression enabled, otherwise
+# the event size and binary log files generated for this test
+# to work will not be created
+--source include/not_binlog_transaction_compression_on.inc
+
 -- source include/master-slave.inc
 
 # Setup Section
@@ -120,7 +126,7 @@ DROP TABLE t3;
 
 sync_slave_with_master;
 #we expect STOP SLAVE to produce a warning as the slave is stopped
-#(the server was started with skip-slave-start)
+#(the server was started with skip-replica-start)
 --disable_warnings
 stop slave;
 --source include/wait_for_slave_to_stop.inc
@@ -201,7 +207,7 @@ DROP TABLE t3;
 sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
-#(the server was started with skip-slave-start)
+#(the server was started with skip-replica-start)
 
 --disable_warnings
 stop slave;
@@ -281,7 +287,7 @@ select "--- Test 8 switch internal charset --" as "";
 sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
-#(the server was started with skip-slave-start)
+#(the server was started with skip-replica-start)
 
 --disable_warnings
 stop slave;

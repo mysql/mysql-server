@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/init.h"
+#include "sql/dd/performance_schema/init.h"
 
 #include <sys/types.h>
 #include <list>
@@ -39,6 +39,7 @@
 #include "sql/dd/dd.h"                       // enum_dd_init_type
 #include "sql/dd/dd_schema.h"                // dd::schema_exists
 #include "sql/dd/dd_table.h"                 // dd::table_exists
+#include "sql/dd/dd_utility.h"               // check_if_server_ddse_readonly
 #include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
 #include "sql/dd/impl/system_registry.h"     // dd::System_tables
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
@@ -65,8 +66,6 @@ class Schema;
 
 using namespace dd;
 
-bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev);
-
 namespace {
 
 /**
@@ -77,21 +76,11 @@ namespace {
   @return       Upon failure, return true, otherwise false.
 */
 
-bool create_pfs_schema(THD *thd) {
-  bool exists = false;
-  if (dd::schema_exists(thd, PERFORMANCE_SCHEMA_DB_NAME.str, &exists))
-    return true;
-
-  bool ret = false;
-  if (!exists)
-    ret = dd::execute_query(
-        thd, dd::String_type("CREATE SCHEMA ") +
-                 dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
-                 dd::String_type(" CHARACTER SET utf8mb4"));
-
-  return ret || dd::execute_query(
-                    thd, dd::String_type("USE ") +
-                             dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
+bool create_and_use_pfs_schema(THD *thd) {
+  return dd::performance_schema::create_pfs_schema(thd) ||
+         dd::execute_query(thd,
+                           dd::String_type("USE ") +
+                               dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
 }
 
 /**
@@ -110,7 +99,7 @@ bool check_perf_schema_has_correct_version(THD *thd) {
   // Stop if P_S version is same.
   uint actual_version = d->get_actual_P_S_version(thd);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Unknown version of the current server PS schema. It is used for tests.
   const uint UNKNOWN_P_S_VERSION = -1;
 #endif
@@ -161,7 +150,7 @@ bool create_pfs_tables(THD *thd) {
       break;
     }
 
-    DBUG_ASSERT(!exists);
+    assert(!exists);
 
     const Object_table_definition *table_def = nullptr;
     if (exists ||
@@ -277,7 +266,7 @@ bool initialize_pfs(THD *thd) {
     Stop server restart if P_S version is changed and the server is
     started with DDSE in read-only mode.
   */
-  if (check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
+  if (dd::check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
     return true;
 
   handlerton *pfs_se =
@@ -307,7 +296,7 @@ bool initialize_pfs(THD *thd) {
     add_pfs_definition(table);
   }
 
-  return create_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
+  return create_and_use_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
          create_pfs_tables(thd);
 }
 
@@ -316,15 +305,28 @@ bool initialize_pfs(THD *thd) {
 namespace dd {
 namespace performance_schema {
 
+bool create_pfs_schema(THD *thd) {
+  bool exists = false;
+  if (dd::schema_exists(thd, PERFORMANCE_SCHEMA_DB_NAME.str, &exists))
+    return true;
+
+  if (exists) return false;
+
+  return dd::execute_query(thd,
+                           dd::String_type("CREATE SCHEMA ") +
+                               dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
+                               dd::String_type(" CHARACTER SET utf8mb4"));
+}
+
 bool init_pfs_tables(enum_dd_init_type init_type) {
   if (init_type == dd::enum_dd_init_type::DD_INITIALIZE)
-    return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
+    return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_INITIALIZE);
   else if (init_type == dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)
-    return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
+    return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_RESTART);
   else {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 }

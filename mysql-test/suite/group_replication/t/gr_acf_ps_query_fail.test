@@ -1,0 +1,189 @@
+###############################################################################
+# This test proves that ER_RPL_ASYNC_EXECUTING_QUERY is thrown
+# if there is an error executing queries to fetch sender
+# membership details.
+#
+# 0. This test needs 3 servers.
+# 1. Start GR on M1(primary) and create user rpl_user.
+#    Also start GR on M2(secondary), and create user
+#    rpl_user with revoking all its privileges, so that
+#    Monitor IO/IO thread fails querying on server2.
+# 2. Add asynchronous connection failover servers and
+#    verify that they are inserted successfully in
+#    performance_schema.replication_asynchronous_connection_failover.
+# 3. Create and start new channel ch1_3: M3(replica), M1(source)
+#    and verify channel ch1_3 IO and SQL THREADS are ON.
+# 4. Verify 2 senders are added automatically to
+#    replication_asynchronous_connection_failover table.
+# 5. STOP GR on M1.
+# 6. Verify error ER_RPL_ASYNC_EXECUTING_QUERY is logged in M3.
+# 7. Cleanup.
+#
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start GR on M1(primary) and create user rpl_user.
+--echo #    Also start GR on M2(secondary), and create user
+--echo #    rpl_user with revoking all its privileges, so that
+--echo #    Monitor IO/IO thread fails querying on server2.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+CREATE USER 'rpl_user' IDENTIFIED BY '';
+GRANT ALL PRIVILEGES ON *.* TO 'rpl_user';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+CREATE USER 'rpl_user' IDENTIFIED BY '';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'rpl_user';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Add asynchronous connection failover servers and
+--echo #    verify that they are inserted successfully in
+--echo #    performance_schema.replication_asynchronous_connection_failover.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $_tmp_gr_group_name1= `SELECT @@GLOBAL.group_replication_group_name`
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $_tmp_gr_group_name1 GROUP_NAME
+--eval SELECT asynchronous_connection_failover_add_managed('ch1_3', 'GroupReplication', '$_tmp_gr_group_name1', '127.0.0.1', $SERVER_MYPORT_1, '', 70, 60);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--echo
+--echo # 3. Create and start new channel ch1_3: M3(replica), M1(source)
+--echo #    and verify channel ch1_3 IO and SQL THREADS are ON.
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='rpl_user' , SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=2 for channel 'ch1_3'
+--let $rpl_channel_name='ch1_3'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $assert_text= Verify channel ch1_3 IO_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name = \'ch1_3\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1_3 SQL_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch1_3\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--echo
+--echo # 4. Verify 2 senders are added automatically to
+--echo #    replication_asynchronous_connection_failover table.
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover;
+--source include/wait_condition.inc
+
+--let $assert_text= 'Connected to server1 now.'
+--let $assert_cond= [SELECT Port FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME = \'ch1_3\', Port, 1] = $SERVER_MYPORT_1
+--source include/assert.inc
+
+--echo
+--echo # 5. STOP GR on M1.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 6. Verify error ER_RPL_ASYNC_EXECUTING_QUERY is logged in M3.
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+# Managed channel is unable to connect to server2, as such
+# replication_asynchronous_connection_failover is not updated.
+--let $assert_text= 'Check that replication_asynchronous_connection_failover table has 2 rows.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.replication_asynchronous_connection_failover, count, 1]= 2
+--source include/assert.inc
+
+--let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-013684' AND data LIKE "The IO thread failed to detect if the source belongs to the group majority on the source % for channel 'ch1_3'."
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 7. Cleanup.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+DROP USER 'rpl_user';
+SET sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+DROP USER 'rpl_user';
+SET sql_log_bin=1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1_3'
+--let $slave_error_param= Last_IO_Errno
+--let $slave_io_errno=1045
+--source include/stop_slave.inc
+--let $slave_error_param=
+--let $slave_io_errno=
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1_3', '$group_replication_group_name')
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel 'ch1_3' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.*");
+call mtr.add_suppression("The source .* has lost quorum, and so channel 'ch1_3' connected to it will be stopped.*");
+call mtr.add_suppression("The source .* does not have quorum, and so connection will be killed for channel 'ch1_3'. Check for errors in its error log.");
+call mtr.add_suppression("The source (.*) does not belong to the group majority, .*");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1_3', thence it will try to connect to another source.");
+call mtr.add_suppression("The .* thread failed to detect if the source belongs to the group majority on the source .* for channel.*");
+SET SESSION sql_log_bin = 1;
+
+--source include/group_replication_end.inc

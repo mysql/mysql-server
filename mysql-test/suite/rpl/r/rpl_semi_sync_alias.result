@@ -1,0 +1,310 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Setup ====
+include/save_error_log_position.inc
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT);
+include/sync_slave_sql_with_master.inc
+include/save_error_log_position.inc
+include/stop_slave.inc
+[connection master]
+include/stop_dump_threads.inc
+include/suppress_messages.inc
+# Connection 1 suppresses message <.*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*>.
+# Connection 2 suppresses message <.*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*>.
+include/suppress_messages.inc
+# Connection 1 un-suppresses message <rpl_semi_sync.*is deprecated and will be removed in a future release.*>.
+# Connection 2 un-suppresses message <rpl_semi_sync.*is deprecated and will be removed in a future release.*>.
+==== R3. Replication: old source library -> old replica library ====
+[connection master]
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_master' is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead
+include/assert_error_log.inc [server: 1, pattern: .*rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.]
+# R1. source variable name matches source library name
+SET @@global.rpl_semi_sync_master_enabled = 1;
+[connection slave]
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
+include/assert_error_log.inc [server: 2, pattern: .*rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.]
+# R2. replica variable name matches replica library name
+SET @@global.rpl_semi_sync_slave_enabled = 1;
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/assert.inc [Initially no acked transactions]
+INSERT INTO t1() VALUES ();
+include/assert.inc [After one transaction is committed, one transaction got acked]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Semisync master library should remain enabled on master]
+[connection slave]
+include/assert.inc [Semisync slave library should remain enabled on slave]
+include/stop_slave.inc
+[connection master]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_master;
+[connection slave]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+==== R4. Replication: old source library -> new replica library ====
+[connection master]
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_master' is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead
+include/assert_error_log.inc [server: 1, pattern: .*rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.]
+# R1. source variable name matches source library name
+SET @@global.rpl_semi_sync_master_enabled = 1;
+[connection slave]
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'SEMISYNC_REPLICA_PLUGIN';
+# R2. replica variable name matches replica library name
+SET @@global.rpl_semi_sync_replica_enabled = 1;
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/assert.inc [Initially no acked transactions]
+INSERT INTO t1() VALUES ();
+include/assert.inc [After one transaction is committed, one transaction got acked]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Semisync master library should remain enabled on master]
+[connection slave]
+include/assert.inc [Semisync replica library should remain enabled on slave]
+include/stop_slave.inc
+[connection master]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_master;
+[connection slave]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+==== R5. Replication: new source library -> old replica library ====
+[connection master]
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_SOURCE_PLUGIN';
+# R1. source variable name matches source library name
+SET @@global.rpl_semi_sync_source_enabled = 1;
+[connection slave]
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
+include/assert_error_log.inc [server: 2, pattern: .*rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.]
+# R2. replica variable name matches replica library name
+SET @@global.rpl_semi_sync_slave_enabled = 1;
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/assert.inc [Initially no acked transactions]
+INSERT INTO t1() VALUES ();
+include/assert.inc [After one transaction is committed, one transaction got acked]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Semisync source library should remain enabled on master]
+[connection slave]
+include/assert.inc [Semisync slave library should remain enabled on slave]
+include/stop_slave.inc
+[connection master]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_source;
+[connection slave]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+==== R6. New source and old replica on the same node works, and R7. Old source and new replica on the same node works ====
+# Reconfigure toplogy and install plugins.
+include/rpl_change_topology.inc [new topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_master' is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead
+include/assert_error_log.inc [server: 1, pattern: .*rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.]
+# R1. source variable name matches source library name
+SET @@global.rpl_semi_sync_master_enabled = 1;
+[connection slave]
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
+include/assert_error_log.inc [server: 2, pattern: .*rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.]
+# R2. replica variable name matches replica library name
+SET @@global.rpl_semi_sync_slave_enabled = 1;
+[connection slave]
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_SOURCE_PLUGIN';
+# R1. source variable name matches source library name
+SET @@global.rpl_semi_sync_source_enabled = 1;
+[connection master]
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'SEMISYNC_REPLICA_PLUGIN';
+# R2. replica variable name matches replica library name
+SET @@global.rpl_semi_sync_replica_enabled = 1;
+# Check that replication works in the usual direction
+SET @@global.rpl_semi_sync_source_enabled = 0;
+SET @@global.rpl_semi_sync_replica_enabled = 0;
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/assert.inc [Initially no acked transactions]
+INSERT INTO t1() VALUES ();
+include/assert.inc [After one transaction is committed, one transaction got acked]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Semisync master library should remain enabled on master]
+[connection slave]
+include/assert.inc [Semisync slave library should remain enabled on slave]
+include/stop_slave.inc
+# Check that replication works in reverse direction
+SET @@global.rpl_semi_sync_replica_enabled = 1;
+SET @@global.rpl_semi_sync_master_enabled = 0;
+SET @@global.rpl_semi_sync_source_enabled = 1;
+SET @@global.rpl_semi_sync_slave_enabled = 0;
+[connection master]
+include/start_slave.inc
+[connection slave]
+include/assert.inc [Initially no acked transactions]
+INSERT INTO t1() VALUES ();
+include/assert.inc [After one transaction is committed, one transaction got acked]
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [Semisync source library should remain enabled on slave]
+[connection master]
+include/assert.inc [Semisync replica library should remain enabled on master]
+include/stop_slave.inc
+# Uninstall plugins
+[connection master]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_master;
+[connection slave]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+[connection slave]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_source;
+[connection master]
+include/stop_dump_threads.inc
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+==== R8. Error installing conflicting plugins. ====
+==== R8.1 Error installing first old and then new source library ====
+* Case a) Use INSTALL PLUGIN dynamically
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'PLUGIN_NAME';
+Warnings:
+Note	1287	'rpl_semi_sync_master' is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead
+# R9.1. deprecation warnings for dynamic plugin load using INSTALL PLUGIN
+include/assert_error_log.inc [server: 1, pattern: .rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.]
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'PLUGIN_NAME';
+ERROR HY000: Cannot install the rpl_semi_sync_source plugin when the rpl_semi_sync_master plugin is installed.
+include/assert_error_log.inc [server: 1, pattern: Plugin 'rpl_semi_sync_source' init function returned error.]
+include/assert.inc [rpl_semi_sync_master should remain installed]
+include/assert.inc [rpl_semi_sync_source should not be installed]
+UNINSTALL PLUGIN rpl_semi_sync_master;
+* Case b) Restart server with --plugin-load
+include/rpl_restart_server.inc [server_number=1]
+include/assert_error_log.inc [server: 1, pattern: Cannot install the rpl_semi_sync_master plugin when the rpl_semi_sync_source plugin is installed.
+Plugin .rpl_semi_sync_master. init function returned error.
+Cannot install the rpl_semi_sync_source plugin when the rpl_semi_sync_master plugin is installed.
+Plugin .rpl_semi_sync_source. init function returned error.
+]
+include/assert.inc [No semisync plugin should be installed]
+* Case c) Restart server with --init-file
+include/rpl_restart_server.inc [server_number=1]
+# R9.3. deprecation warnings for --init-file
+include/assert_error_log.inc [server: 1, pattern: .rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
+Plugin 'rpl_semi_sync_source' init function returned error.
+Cannot install the rpl_semi_sync_source plugin when the rpl_semi_sync_master plugin is installed.
+]
+UNINSTALL PLUGIN rpl_semi_sync_master;
+==== R8.2 Error installing first new and then old source library ====
+* Case a) Use INSTALL PLUGIN dynamically
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'PLUGIN_NAME';
+# R9.1. deprecation warnings for dynamic plugin load using INSTALL PLUGIN
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'PLUGIN_NAME';
+ERROR HY000: Cannot install the rpl_semi_sync_master plugin when the rpl_semi_sync_source plugin is installed.
+include/assert_error_log.inc [server: 1, pattern: Plugin 'rpl_semi_sync_master' init function returned error.]
+include/assert.inc [rpl_semi_sync_source should remain installed]
+include/assert.inc [rpl_semi_sync_master should not be installed]
+UNINSTALL PLUGIN rpl_semi_sync_source;
+* Case b) Restart server with --plugin-load
+include/rpl_restart_server.inc [server_number=1]
+include/assert_error_log.inc [server: 1, pattern: Cannot install the rpl_semi_sync_source plugin when the rpl_semi_sync_master plugin is installed.
+Plugin .rpl_semi_sync_source. init function returned error.
+Cannot install the rpl_semi_sync_master plugin when the rpl_semi_sync_source plugin is installed.
+Plugin .rpl_semi_sync_master. init function returned error.
+]
+include/assert.inc [No semisync plugin should be installed]
+* Case c) Restart server with --init-file
+include/rpl_restart_server.inc [server_number=1]
+# R9.3. deprecation warnings for --init-file
+include/assert_error_log.inc [server: 1, pattern: 
+Plugin 'rpl_semi_sync_master' init function returned error.
+Cannot install the rpl_semi_sync_master plugin when the rpl_semi_sync_source plugin is installed.
+]
+UNINSTALL PLUGIN rpl_semi_sync_source;
+==== R8.3. Error installing first old and then new replica library ====
+* Case a) Use INSTALL PLUGIN dynamically
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'PLUGIN_NAME';
+Warnings:
+Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
+# R9.1. deprecation warnings for dynamic plugin load using INSTALL PLUGIN
+include/assert_error_log.inc [server: 1, pattern: .rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.]
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'PLUGIN_NAME';
+ERROR HY000: Cannot install the rpl_semi_sync_replica plugin when the rpl_semi_sync_slave plugin is installed.
+include/assert_error_log.inc [server: 1, pattern: Plugin 'rpl_semi_sync_replica' init function returned error.]
+include/assert.inc [rpl_semi_sync_slave should remain installed]
+include/assert.inc [rpl_semi_sync_replica should not be installed]
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+* Case b) Restart server with --plugin-load
+include/rpl_restart_server.inc [server_number=1]
+include/assert_error_log.inc [server: 1, pattern: Cannot install the rpl_semi_sync_slave plugin when the rpl_semi_sync_replica plugin is installed.
+Plugin .rpl_semi_sync_slave. init function returned error.
+Cannot install the rpl_semi_sync_replica plugin when the rpl_semi_sync_slave plugin is installed.
+Plugin .rpl_semi_sync_replica. init function returned error.
+]
+include/assert.inc [No semisync plugin should be installed]
+* Case c) Restart server with --init-file
+include/rpl_restart_server.inc [server_number=1]
+# R9.3. deprecation warnings for --init-file
+include/assert_error_log.inc [server: 1, pattern: .rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
+Plugin 'rpl_semi_sync_replica' init function returned error.
+Cannot install the rpl_semi_sync_replica plugin when the rpl_semi_sync_slave plugin is installed.
+]
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+==== R8.4. Error installing first new and then old replica library ====
+* Case a) Use INSTALL PLUGIN dynamically
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'PLUGIN_NAME';
+# R9.1. deprecation warnings for dynamic plugin load using INSTALL PLUGIN
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'PLUGIN_NAME';
+ERROR HY000: Cannot install the rpl_semi_sync_slave plugin when the rpl_semi_sync_replica plugin is installed.
+include/assert_error_log.inc [server: 1, pattern: Plugin 'rpl_semi_sync_slave' init function returned error.]
+include/assert.inc [rpl_semi_sync_replica should remain installed]
+include/assert.inc [rpl_semi_sync_slave should not be installed]
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+* Case b) Restart server with --plugin-load
+include/rpl_restart_server.inc [server_number=1]
+include/assert_error_log.inc [server: 1, pattern: Cannot install the rpl_semi_sync_replica plugin when the rpl_semi_sync_slave plugin is installed.
+Plugin .rpl_semi_sync_replica. init function returned error.
+Cannot install the rpl_semi_sync_slave plugin when the rpl_semi_sync_replica plugin is installed.
+Plugin .rpl_semi_sync_slave. init function returned error.
+]
+include/assert.inc [No semisync plugin should be installed]
+* Case c) Restart server with --init-file
+include/rpl_restart_server.inc [server_number=1]
+# R9.3. deprecation warnings for --init-file
+include/assert_error_log.inc [server: 1, pattern: 
+Plugin 'rpl_semi_sync_slave' init function returned error.
+Cannot install the rpl_semi_sync_slave plugin when the rpl_semi_sync_replica plugin is installed.
+]
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+==== R9.2. Deprecation warnings generated for --plugin-load ====
+include/rpl_restart_server.inc [server_number=1]
+include/assert_error_log.inc [server: 1, pattern: .rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
+.rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
+]
+==== Clean up ====
+include/rpl_restart_server.inc [server_number=1]
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/wait_for_slave_to_start.inc
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

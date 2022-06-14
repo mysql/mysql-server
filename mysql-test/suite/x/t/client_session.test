@@ -9,7 +9,7 @@ let $count_sessions= 1;
 --source include/wait_until_count_sessions.inc
 
 call mtr.add_suppression("Plugin mysqlx reported: .*Could not open internal MySQL session.");
-call mtr.add_suppression("Plugin mysqlx reported: ..: Error initializing session for connection: Could not open session.");
+call mtr.add_suppression("Plugin mysqlx reported: ..: Error initializing session for connection: Too many connections");
 call mtr.add_suppression("Plugin mysqlx reported: .Kill client: 1040 Too many connections.");
 
 ## Test data
@@ -24,22 +24,22 @@ SHOW GRANTS FOR xuser@localhost;
 # 1x MTR connection (open as root/SUPER) + 1x mysqlx default session + 2x new session
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/clien_session.tmp
+--write_file $MYSQL_TMP_DIR/clien_session.xpl
 -->newsession second_session	xuser	xuser_pwd
 
 -->newsession thrid_session	xuser	xuser_pwd
 
--->expecterror ER_X_SESSION,2006,2007
+-->expecterror ER_CON_COUNT_ERROR,2006,2007
 -->newsession fourth_session	xuser	xuser_pwd
 
--->expecterror ER_X_SESSION,2006,2007
+-->expecterror ER_CON_COUNT_ERROR,2006,2007
 -->newsession fifth_session	xuser	xuser_pwd
 
--->expecterror ER_X_SESSION,2006,2007
+-->expecterror ER_CON_COUNT_ERROR,2006,2007
 -->newsession sixth_session	root
 EOF
 
---exec $MYSQLXTEST -u xuser --password='xuser_pwd' -h127.0.0.1 --file=$MYSQL_TMP_DIR/clien_session.tmp 2>&1
+--exec $MYSQLXTEST -u xuser --password='xuser_pwd' -h127.0.0.1 --file=$MYSQL_TMP_DIR/clien_session.xpl 2>&1
 
 ##todo: without sleep it crashes
 --sleep 0.1
@@ -48,5 +48,5 @@ EOF
 SET @@GLOBAL.MAX_CONNECTIONS= DEFAULT;
 SET @@GLOBAL.MYSQLX_MAX_CONNECTIONS= DEFAULT;
 DROP USER xuser@localhost;
---remove_file $MYSQL_TMP_DIR/clien_session.tmp
+--source ../include/xplugin_cleanup.inc
 

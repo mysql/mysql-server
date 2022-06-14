@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,67 +21,51 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
-#include <gtest/gtest_prod.h>  // must be the first header
+#include "mysqlrouter/routing.h"
 
 #include <stdexcept>
+#include <system_error>
 
-#include "common.h"
-#include "mysql/harness/loader.h"
-#include "mysql_routing.h"
-#include "mysql_routing_common.h"
-#include "mysqlrouter/routing.h"
-#include "protocol/classic_protocol.h"
-#include "routing_mocks.h"
-#include "tcp_port_pool.h"
-#include "test/helpers.h"
+#include <gmock/gmock.h>  // EXPECT_THAT
+#include <gtest/gtest.h>
+#include <gtest/gtest_prod.h>  // FRIEND_TEST
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#endif
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/stdx/expected_ostream.h"
+#include "mysql_routing.h"  // AccessMode
+#include "test/helpers.h"   // init_test_logger
 
-using mysql_harness::TCPAddress;
-using routing::AccessMode;
+using namespace std::chrono_literals;
 
-using ::testing::_;
-using ::testing::ContainerEq;
 using ::testing::Eq;
-using ::testing::Gt;
-using ::testing::InSequence;
-using ::testing::Ne;
 using ::testing::Return;
 using ::testing::StrEq;
 
 class RoutingTests : public ::testing::Test {
  protected:
-  RoutingTests() {}
-  virtual void SetUp() {}
-
-  virtual void TearDown() {}
-
-  MockRoutingSockOps routing_sock_ops;
-  MockSocketOperations &socket_op = *routing_sock_ops.so();
+  net::io_context io_ctx_;
 };
 
 TEST_F(RoutingTests, AccessModes) {
+  using routing::AccessMode;
+
   ASSERT_EQ(static_cast<int>(AccessMode::kReadWrite), 1);
   ASSERT_EQ(static_cast<int>(AccessMode::kReadOnly), 2);
 }
 
 TEST_F(RoutingTests, AccessModeLiteralNames) {
+  using routing::AccessMode;
   using routing::get_access_mode;
+
   ASSERT_THAT(get_access_mode("read-write"), Eq(AccessMode::kReadWrite));
   ASSERT_THAT(get_access_mode("read-only"), Eq(AccessMode::kReadOnly));
 }
 
 TEST_F(RoutingTests, GetAccessLiteralName) {
+  using routing::AccessMode;
   using routing::get_access_mode_name;
+
   ASSERT_THAT(get_access_mode_name(AccessMode::kReadWrite),
               StrEq("read-write"));
   ASSERT_THAT(get_access_mode_name(AccessMode::kReadOnly), StrEq("read-only"));
@@ -89,407 +73,19 @@ TEST_F(RoutingTests, GetAccessLiteralName) {
 
 TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultWaitTimeout, 0);
-  ASSERT_EQ(routing::kDefaultMaxConnections, 512);
+  ASSERT_EQ(routing::kDefaultMaxConnections, 0);
   ASSERT_EQ(routing::kDefaultDestinationConnectionTimeout,
-            std::chrono::seconds(1));
+            std::chrono::seconds(5));
   ASSERT_EQ(routing::kDefaultBindAddress, "127.0.0.1");
   ASSERT_EQ(routing::kDefaultNetBufferLength, 16384U);
   ASSERT_EQ(routing::kDefaultMaxConnectErrors, 100ULL);
   ASSERT_EQ(routing::kDefaultClientConnectTimeout, std::chrono::seconds(9));
 }
 
-#ifndef _WIN32
-// No way to read nonblocking status in Windows
-TEST_F(RoutingTests, SetSocketBlocking) {
-  int s = socket(PF_INET, SOCK_STREAM, 6);
-  auto so = mysql_harness::SocketOperations::instance();
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0);
-  so->set_socket_blocking(s, false);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-  so->set_socket_blocking(s, true);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0) << std::endl;
-
-  fcntl(s, F_SETFL, O_RDONLY);
-  so->set_socket_blocking(s, false);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_RDONLY, O_RDONLY);
-}
-#endif
-
-TEST_F(RoutingTests, CopyPacketsSingleWrite) {
-  int sender_socket = 1, receiver_socket = 2;
-  RoutingProtocolBuffer buffer(500);
-  int curr_pktnr = 100;
-  bool handshake_done = true;
-  size_t report_bytes_read = 0u;
-
-  EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size()))
-      .WillOnce(Return(200));
-  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(200));
-
-  ClassicProtocol cp(&routing_sock_ops);
-  int res = cp.copy_packets(sender_socket, receiver_socket,
-                            true /* sender is writable */, buffer, &curr_pktnr,
-                            handshake_done, &report_bytes_read, false);
-
-  ASSERT_EQ(0, res);
-  ASSERT_EQ(200u, report_bytes_read);
-}
-
-TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
-  int sender_socket = 1, receiver_socket = 2;
-  RoutingProtocolBuffer buffer(500);
-  int curr_pktnr = 100;
-  bool handshake_done = true;
-  size_t report_bytes_read = 0u;
-
-  InSequence seq;
-
-  EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size()))
-      .WillOnce(Return(200));
-
-  // first write does not write everything
-  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(100));
-  // second does not do anything (which is not treated as an error
-  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[100], 100))
-      .WillOnce(Return(0));
-  // third writes the remaining chunk
-  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[100], 100))
-      .WillOnce(Return(100));
-
-  ClassicProtocol cp(&routing_sock_ops);
-  int res =
-      cp.copy_packets(sender_socket, receiver_socket, true, buffer, &curr_pktnr,
-                      handshake_done, &report_bytes_read, false);
-
-  ASSERT_EQ(0, res);
-  ASSERT_EQ(200u, report_bytes_read);
-}
-
-TEST_F(RoutingTests, CopyPacketsWriteError) {
-  int sender_socket = 1, receiver_socket = 2;
-  RoutingProtocolBuffer buffer(500);
-  int curr_pktnr = 100;
-  bool handshake_done = true;
-  size_t report_bytes_read = 0u;
-
-  EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size()))
-      .WillOnce(Return(200));
-  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(-1));
-
-  ClassicProtocol cp(&routing_sock_ops);
-  // will log "Write error: ..." as we don't mock an errno
-  int res =
-      cp.copy_packets(sender_socket, receiver_socket, true, buffer, &curr_pktnr,
-                      handshake_done, &report_bytes_read, false);
-
-  ASSERT_EQ(-1, res);
-}
-
-#ifndef _WIN32  // [_HERE_]
-
-// a valid Connection::Close xprotocol message
-#define kByeMessage "\x01\x00\x00\x00\x03"
-
-class MockServer {
- public:
-  MockServer(uint16_t port) {
-    int option_value;
-
-    socket_operations_ = mysql_harness::SocketOperations::instance();
-
-    if ((service_tcp_ = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-      throw std::runtime_error(mysql_harness::get_strerror(errno));
-    }
-
-#ifndef _WIN32
-    option_value = 1;
-    if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR,
-                   reinterpret_cast<const char *>(&option_value),
-                   static_cast<socklen_t>(sizeof(int))) == -1) {
-      throw std::runtime_error(get_message_error(errno));
-    }
-#endif
-
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-    if (::bind(service_tcp_, (const struct sockaddr *)&addr,
-               static_cast<socklen_t>(sizeof(addr))) == -1) {
-      socket_operations_->close(service_tcp_);
-      int errcode = socket_operations_->get_errno();
-      throw std::runtime_error(get_message_error(errcode));
-    }
-    if (listen(service_tcp_, 20) < 0) {
-      throw std::runtime_error(
-          "Failed to start listening for connections using TCP");
-    }
-  }
-
-  ~MockServer() { stop(); }
-
-  void start() {
-    stop_ = false;
-    thread_ = std::thread(&MockServer::runloop, this);
-  }
-
-  void stop() {
-    if (!stop_) {
-      stop_ = true;
-      socket_operations_->shutdown(service_tcp_);
-      socket_operations_->close(service_tcp_);
-      thread_.join();
-    }
-  }
-
-  void stop_after_n_accepts(int c) { max_expected_accepts_ = c; }
-
-  void runloop() {
-    mysql_harness::rename_thread("runloop()");
-    std::vector<std::thread> client_threads;
-
-    while (!stop_ && (max_expected_accepts_ == 0 ||
-                      num_accepts_ < max_expected_accepts_)) {
-      int sock_client;
-      struct sockaddr_in6 client_addr;
-      socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
-      if ((sock_client = accept(service_tcp_, (struct sockaddr *)&client_addr,
-                                &sin_size)) < 0) {
-        std::cout << mysql_harness::get_strerror(errno) << " ERROR\n";
-        continue;
-      }
-      num_accepts_++;
-      client_threads.emplace_back(
-          std::thread([this, sock_client]() { new_client(sock_client); }));
-    }
-
-    // wait for all threads to shut down again
-    for (auto &thr : client_threads) {
-      thr.join();
-    }
-  }
-
-  void new_client(int sock) {
-    mysql_harness::rename_thread("new_client()");
-    num_connections_++;
-    char buf[sizeof(kByeMessage)];
-    // block until we receive the bye msg
-    if (read(sock, buf, sizeof(buf)) < 0) {
-      FAIL() << "Unexpected results from read(): "
-             << mysql_harness::get_strerror(errno);
-    }
-    socket_operations_->close(sock);
-    num_connections_--;
-  }
-
- public:
-  std::atomic_int num_connections_{0};
-  std::atomic_int num_accepts_{0};
-  std::atomic_int max_expected_accepts_{0};
-
- private:
-  mysql_harness::SocketOperationsBase *socket_operations_;
-  std::thread thread_;
-  int service_tcp_;
-  std::atomic_bool stop_;
-};
-
-static int connect_local(uint16_t port) {
-  return routing::RoutingSockOps::instance(
-             mysql_harness::SocketOperations::instance())
-      ->get_mysql_socket(TCPAddress("127.0.0.1", port),
-                         std::chrono::milliseconds(100), true);
-}
-
-static void disconnect(int sock) {
-  if (write(sock, kByeMessage, sizeof(kByeMessage)) < 0)
-    std::cout << "write(xproto-connection-close) returned error\n";
-
-  mysql_harness::SocketOperations::instance()->close(sock);
-}
-
-#ifndef _WIN32
-static int connect_socket(const char *path) {
-  struct sockaddr_un addr;
-  int fd;
-
-  if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    throw std::runtime_error(mysql_harness::get_strerror(errno));
-  }
-
-  memset(&addr, 0, sizeof(addr));
-  addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
-
-  if (connect(fd, (struct sockaddr *)&addr,
-              static_cast<socklen_t>(sizeof(addr))) == -1) {
-    throw std::runtime_error(mysql_harness::get_strerror(errno));
-  }
-
-  return fd;
-}
-#endif
-
-static bool call_until(std::function<bool()> f, int timeout = 2) {
-  time_t start = time(NULL);
-  while (time(NULL) - start < timeout) {
-    if (f()) return true;
-
-    // wait a bit and let other threads run
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-  return false;
-}
-
-// Bug#24841281 NOT ABLE TO CONNECT ANY CLIENTS WHEN ROUTER IS CONFIGURED WITH
-// SOCKETS OPTION
-TEST_F(RoutingTests, bug_24841281) {
-  mysql_harness::rename_thread("TEST_F()");
-
-  TcpPortPool port_pool_;
-
-  const uint16_t server_port = port_pool_.get_next_available();
-  const uint16_t router_port = port_pool_.get_next_available();
-
-  MockServer server(server_port);
-  server.start();
-
-  TmpDir tmp_dir;  // create a tmp dir (it will be destroyed via RAII later)
-  std::string sock_path = tmp_dir() + "/sock";
-
-  // check that connecting to a TCP socket or a UNIX socket works
-  MySQLRouting routing(
-      routing::RoutingStrategy::kNextAvailable, router_port,
-      Protocol::Type::kXProtocol, routing::AccessMode::kReadWrite, "0.0.0.0",
-      mysql_harness::Path(sock_path), "routing:testroute",
-      routing::kDefaultMaxConnections,
-      routing::kDefaultDestinationConnectionTimeout,
-      routing::kDefaultMaxConnectErrors, routing::kDefaultClientConnectTimeout,
-      routing::kDefaultNetBufferLength);
-  routing.set_destinations_from_csv("127.0.0.1:" + std::to_string(server_port));
-  mysql_harness::PluginFuncEnv env(nullptr, nullptr, true);
-  std::thread thd(&MySQLRouting::start, &routing, &env);
-
-  // set the number of accepts that the server should expect for before stopping
-#ifdef _WIN32
-  server.stop_after_n_accepts(4);
-#else
-  server.stop_after_n_accepts(6);
-#endif
-
-  EXPECT_EQ(routing.get_context().info_active_routes_.load(), 0);
-
-  // open connections to the socket and see if we get a matching outgoing
-  // socket connection attempt to our mock server
-
-  int sock1;
-  // router is running in a thread, so we need to sync it
-  EXPECT_TRUE(call_until([&]() -> bool {
-    sock1 = connect_local(router_port);
-    return sock1 > 0;
-  })) << "timed out connecting to router_port";
-  int sock2 = connect_local(router_port);
-
-  EXPECT_THAT(sock1, ::testing::Gt(0));
-  EXPECT_THAT(sock2, ::testing::Gt(0));
-
-  EXPECT_TRUE(call_until([&server]() -> bool {
-    return server.num_connections_.load() == 2;
-  })) << "timed out, got "
-      << server.num_connections_.load() << " connections";
-  EXPECT_TRUE(call_until([&routing]() -> bool {
-    return routing.get_context().info_active_routes_.load() == 2;
-  })) << "timed out, got "
-      << routing.get_context().info_active_routes_.load() << " active routes";
-
-  disconnect(sock1);
-
-  EXPECT_TRUE(call_until([&routing]() -> bool {
-    return routing.get_context().info_active_routes_.load() == 1;
-  })) << "timed out, got "
-      << routing.get_context().info_active_routes_.load() << " active routes";
-
-  {
-    int sock11 = connect_local(router_port);
-    int sock12 = connect_local(router_port);
-
-    EXPECT_THAT(sock11, Gt(0));
-    EXPECT_THAT(sock12, Gt(0));
-
-    EXPECT_TRUE(call_until([&server]() -> bool {
-      return server.num_connections_.load() == 3;
-    })) << "timed out: "
-        << server.num_connections_.load();
-
-    call_until([&routing]() -> bool {
-      return routing.get_context().info_active_routes_.load() == 3;
-    });
-    EXPECT_EQ(3, routing.get_context().info_active_routes_.load());
-
-    disconnect(sock11);
-    call_until([&routing]() -> bool {
-      return routing.get_context().info_active_routes_.load() == 2;
-    });
-    EXPECT_EQ(2, routing.get_context().info_active_routes_.load());
-
-    disconnect(sock12);
-    call_until([&routing]() -> bool {
-      return routing.get_context().info_active_routes_.load() == 1;
-    });
-    EXPECT_EQ(1, routing.get_context().info_active_routes_.load());
-
-    call_until(
-        [&server]() -> bool { return server.num_connections_.load() == 1; });
-    EXPECT_EQ(1, server.num_connections_.load());
-  }
-
-  disconnect(sock2);
-  call_until([&routing]() -> bool {
-    return routing.get_context().info_active_routes_.load() == 0;
-  });
-  EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
-
-#ifndef _WIN32
-  // now try the same with socket ops
-  int sock3 = connect_socket(sock_path.c_str());
-  int sock4 = connect_socket(sock_path.c_str());
-
-  EXPECT_THAT(sock3, Ne(-1));
-  EXPECT_THAT(sock4, Ne(-1));
-
-  call_until(
-      [&server]() -> bool { return server.num_connections_.load() == 2; });
-  EXPECT_EQ(2, server.num_connections_.load());
-
-  call_until([&routing]() -> bool {
-    return routing.get_context().info_active_routes_.load() == 2;
-  });
-  EXPECT_EQ(2, routing.get_context().info_active_routes_.load());
-
-  disconnect(sock3);
-  call_until([&routing]() -> bool {
-    return routing.get_context().info_active_routes_.load() == 1;
-  });
-  EXPECT_EQ(1, routing.get_context().info_active_routes_.load());
-
-  disconnect(sock4);
-  call_until([&routing]() -> bool {
-    return routing.get_context().info_active_routes_.load() == 0;
-  });
-  EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
-#endif
-  env.clear_running();  // shut down MySQLRouting
-  server.stop();
-  thd.join();
-}
-
 TEST_F(RoutingTests, set_destinations_from_uri) {
-  MySQLRouting routing(routing::RoutingStrategy::kFirstAvailable, 7001,
+  using mysqlrouter::URI;
+
+  MySQLRouting routing(io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                        Protocol::Type::kXProtocol);
 
   // valid metadata-cache uri
@@ -530,7 +126,7 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
 }
 
 TEST_F(RoutingTests, set_destinations_from_cvs) {
-  MySQLRouting routing(routing::RoutingStrategy::kNextAvailable, 7001,
+  MySQLRouting routing(io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
                        Protocol::Type::kXProtocol);
 
   // valid address list
@@ -541,8 +137,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
 
   // no routing strategy, should go with default
   {
-    MySQLRouting routing_inv(routing::RoutingStrategy::kUndefined, 7001,
-                             Protocol::Type::kXProtocol);
+    MySQLRouting routing_inv(io_ctx_, routing::RoutingStrategy::kUndefined,
+                             7001, Protocol::Type::kXProtocol);
     const std::string csv = "127.0.0.1:2002,127.0.0.1:2004";
     EXPECT_NO_THROW(routing_inv.set_destinations_from_csv(csv));
   }
@@ -555,7 +151,7 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
 
   // invalid address
   {
-    const std::string csv = "127.0.0.1.2:2222";
+    const std::string csv = "127.0.0..2:2222";
     EXPECT_THROW(routing.set_destinations_from_csv(csv), std::runtime_error);
   }
 
@@ -566,7 +162,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
   // an exception if these are the same
   {
     const std::string address = "127.0.0.1";
-    MySQLRouting routing_classic(routing::RoutingStrategy::kNextAvailable, 3306,
+    MySQLRouting routing_classic(io_ctx_,
+                                 routing::RoutingStrategy::kNextAvailable, 3306,
                                  Protocol::Type::kClassicProtocol,
                                  routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1"),
@@ -576,8 +173,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     EXPECT_NO_THROW(
         routing_classic.set_destinations_from_csv("127.0.0.1:33060"));
 
-    MySQLRouting routing_x(routing::RoutingStrategy::kNextAvailable, 33060,
-                           Protocol::Type::kXProtocol,
+    MySQLRouting routing_x(io_ctx_, routing::RoutingStrategy::kNextAvailable,
+                           33060, Protocol::Type::kXProtocol,
                            routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1"),
                  std::runtime_error);
@@ -586,8 +183,6 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     EXPECT_NO_THROW(routing_x.set_destinations_from_csv("127.0.0.1:3306"));
   }
 }
-
-#endif  // #ifndef _WIN32 [_HERE_]
 
 TEST_F(RoutingTests, get_routing_thread_name) {
   // config name must begin with "routing" (name of the plugin passed from
@@ -631,45 +226,12 @@ TEST_F(RoutingTests, get_routing_thread_name) {
   EXPECT_STREQ("RtS:", get_routing_thread_name("routing", "RtS").c_str());
 }
 
-/*
- * @test This test verifies fix for Bug 23857183 and checks if trying to connect
- * to wrong port fails immediately not via timeout
- *
- * @todo (jan) disabled the test as the result is unpredictable as port may be
- * in use, IP may be or not be bound, ... The test needs to be rewritten and
- * have predictable output, or be removed.
- */
-TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
-  const std::chrono::seconds TIMEOUT{4};
-
-  // wrong port number
-  {
-    TCPAddress address("127.0.0.1", 10888);
-    int server = routing::RoutingSockOps::instance(
-                     mysql_harness::SocketOperations::instance())
-                     ->get_mysql_socket(address, TIMEOUT);
-    // should return -1, -2 is timeout expired which is not what we expect when
-    // connecting with the wrong port
-    ASSERT_EQ(server, -1);
-  }
-
-// in darwin and solaris, attempting connection to 127.0.0.11 will fail by
-// timeout
-#if !defined(__APPLE__) && !defined(__sun)
-  // wrong port number and IP
-  {
-    TCPAddress address("127.0.0.11", 10888);
-    int server = routing::RoutingSockOps::instance(
-                     mysql_harness::SocketOperations::instance())
-                     ->get_mysql_socket(address, TIMEOUT);
-    // should return -1, -2 is timeout expired which is not what we expect when
-    // connecting with the wrong port
-    ASSERT_EQ(server, -1);
-  }
-#endif
-}
-
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();
+#ifndef _WIN32
+  signal(SIGPIPE, SIG_IGN);
+#endif
+
   init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

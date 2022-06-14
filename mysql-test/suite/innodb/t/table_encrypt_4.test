@@ -4,22 +4,13 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
-
 --disable_query_log
 call mtr.add_suppression("Trying to import a encrypted tablespace, but could not get encryption information from .cfp file");
 call mtr.add_suppression("Operating system error number .* in a file operation");
 call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("'delete' returned OS error 7");
 call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("Table is not in an encrypted tablespace, but the data file which trying to import is an encrypted tablespace");
+call mtr.add_suppression("Table is not in an encrypted tablespace, but the data file intended for import is an encrypted tablespace");
 --enable_query_log
 
 --disable_warnings
@@ -95,14 +86,10 @@ if($source_db != $dest_db) {
 	eval DROP TABLE $dest_db.t1;
 }
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
-
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 eval SELECT * FROM $dest_db.t1 LIMIT 10;
 
@@ -186,6 +173,7 @@ eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
 eval DROP TABLE IF EXISTS $dest_db.t1;
 eval DROP TABLE IF EXISTS $source_db.t1;
 --enable_query_log
+--remove_files_wildcard $MYSQLD_DATADIR/$dest_db/ t1.*
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.cfp_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back

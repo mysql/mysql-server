@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    GR will be unable to start.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The group name '' is not a valid UUID");
+call mtr.add_suppression("The group_replication_group_name '' is not a valid UUID");
 call mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION sql_log_bin= 1;
 # restart:--group_replication_group_name= --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1

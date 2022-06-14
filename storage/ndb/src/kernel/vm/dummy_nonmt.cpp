@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include <assert.h>
+#include <cstring>
 #include <ndb_types.h>
 #include "mt.hpp"
 
@@ -92,7 +93,15 @@ mt_get_blocklist(class SimulatedBlock * block, Uint32 arr[], Uint32 len)
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst)
 {
-  bzero(dst, sizeof(* dst));
+  std::memset(dst, 0, sizeof(* dst));
   dst->name = "main";
 }
 
+void mt_get_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst)
+{
+  memset(dst, 0, sizeof(* dst));
+}
+
+void mt_set_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst)
+{
+}

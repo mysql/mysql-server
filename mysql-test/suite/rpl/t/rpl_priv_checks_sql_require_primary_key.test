@@ -1,0 +1,98 @@
+# ==== Purpose ====
+#
+# The purpose of this test script is to ensure that privilege checks are
+# enforced within the applier thread context and regarding the setting of the
+# `sql_require_primary_key` session variable.
+#
+# ==== Requirements ====
+#
+# R1. In order to set `sql_require_primary_key` the applier security context
+#     must have, at least, `SESSION_VARIABLES_ADMIN`.
+# R2. If the applier security context doesn't include, at least,
+#     `SESSION_VARIABLES_ADMIN`, the applier thread must stop with an error.
+#
+# ==== Implementation ====
+#
+# TC1. Run slave without `SESSION_VARIABLES_ADMIN` privilege
+# ----------------------------------------------------------
+# 1) Setup `PRIVILEGE_CHECKS_USER` on slave.
+# 2) Ensure `sql_require_primary_key` is set on the master.
+# 3) Create a table on the master
+# 4) Wait for slave to catch-up and expect error.
+#
+# TC2. Run slave with `SESSION_VARIABLES_ADMIN` privilege
+# -------------------------------------------------------
+# 1) Grant `SESSION_VARIABLES_ADMIN` to the applier security context.
+# 2) Wait for slave to catch-up and expect success.
+#
+# ==== References ====
+#
+# WL#12966 Replication with Restricted Privileges
+# BUG#30254917 PRIVILEGE FOR `SQL_REQUIRE_PRIMARY_KEY` ARENT ENFORCED WITHIN
+#              APPLIER CONTEXT
+#
+
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # TC1. Run slave without `SESSION_VARIABLES_ADMIN` privilege
+--echo # ----------------------------------------------------------
+
+#
+# 1) Setup `PRIVILEGE_CHECKS_USER` on slave.
+#
+--let $applier_user = 'u'@'localhost'
+--let $rpl_privilege_checks_user = *:$applier_user
+--let $rpl_skip_grant_privilege_checks_user_roles = 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--eval GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO $applier_user
+CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+
+#
+# 2) Ensure `sql_require_primary_key` is set on the master.
+#
+--source include/rpl_connection_master.inc
+--let $sql_require_primary_key = `SELECT @@global.sql_require_primary_key`
+SET @@global.sql_require_primary_key = 1;
+
+#
+# 3) Create a table on the master
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+#
+# 4) Wait for slave to catch-up and expect error.
+#
+--source include/rpl_connection_slave.inc
+START SLAVE;
+
+--let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+--echo #
+--echo # TC2. Run slave with `SESSION_VARIABLES_ADMIN` privilege
+--echo # -------------------------------------------------------
+
+#
+# 1) Grant `SESSION_VARIABLES_ADMIN` to the applier security context.
+#
+STOP SLAVE;
+--eval GRANT SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
+START SLAVE;
+
+#
+# 2) Wait for slave to catch-up and expect success.
+#
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Clean up
+--source include/rpl_connection_master.inc
+--replace_result $sql_require_primary_key SQL_REQUIRE_PRIMARY_KEY
+--eval SET @@global.sql_require_primary_key = $sql_require_primary_key
+DROP TABLE t1;
+--source include/rpl_end.inc

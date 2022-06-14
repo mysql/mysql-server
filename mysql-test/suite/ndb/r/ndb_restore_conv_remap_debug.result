@@ -1,0 +1,277 @@
+Check behaviour when restoring with remap
+and log content.
+Backup type 2
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+insert into t1 (b,c) values 
+(1, repeat('B', 2000)),
+(2, repeat('J', 3000)),
+(3, repeat('C', 3500)),
+(4, repeat('T', 3300)),
+(5, repeat('S', 1234)),
+(6, repeat('G', 3333));
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+2	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Cause backup stall
+Starting backup
+Backup started
+insert into t1 (b,c) values
+(7, repeat('D', 999));
+insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
+delete from t1 where b=4;
+update t1 set a=1010 where a=2;
+begin;
+insert into t1 (a,b,c) values (500, 500, repeat('AR', 1000));
+update t1 set c=repeat('AG', 3000) where a=500;
+insert into t1 (a,b,c) values (501, 501, repeat('AR', 1000));
+update t1 set b=5010 where a=501;
+commit;
+begin;
+insert into t1 (a,b,c) values (502, 502, repeat('AR', 1500));
+update t1 set c=repeat('AG', 2000) where a=502;
+delete from t1 where a=502;
+insert into t1 (a,b,c) values (503, 503, repeat('AR', 1500));
+update t1 set b=5030 where a=503;
+delete from t1 where a=503;
+commit;
+begin;
+insert into t1 (a,b,c) values (504, 504, repeat('AR', 2000));
+update t1 set c=repeat('AG', 2500) where a=504;
+delete from t1 where a=504;
+insert into t1 (a,b,c) values (504, 5040, repeat('ON', 2500));
+insert into t1 (a,b,c) values (505, 505, repeat('AR', 2000));
+update t1 set b=5050 where a=505;
+delete from t1 where a=505;
+insert into t1 (a,b,c) values (505, 50500, repeat('ON', 2000));
+commit;
+insert into t1 (a,b,c) values (510, 510, repeat('ON', 1500));
+insert into t1 (a,b,c) values (511, 511, repeat('AG', 2000));
+insert into t1 (a,b,c) values (512, 512, repeat('AR', 2500));
+insert into t1 (a,b,c) values (513, 513, repeat('TR', 2500));
+insert into t1 (a,b,c) values (514, 514, repeat('IZ', 2500));
+insert into t1 (a,b,c) values (515, 515, repeat('EA', 2500));
+begin;
+update t1 set c=repeat('AG', 2700) where a=510;
+delete from t1 where a=510;
+update t1 set b=5110 where a=511;
+delete from t1 where a=511;
+commit;
+begin;
+update t1 set c=repeat('TR', 1300) where a=512;
+delete from t1 where a=512;
+insert into t1 (a,b,c) values (512, 5120, repeat('IZ', 2499));
+update t1 set b=5130 where a=513;
+delete from t1 where a=513;
+insert into t1 (a,b,c) values (513, 51300, repeat('ON', 1788));
+commit;
+begin;
+update t1 set c=repeat('ON', 1234) where a=514;
+delete from t1 where a=514;
+insert into t1 (a,b,c) values (514, 5140, repeat('EA', 1111));
+update t1 set c=repeat('AG', 3000) where a=514;
+update t1 set b=5150 where a=515;
+delete from t1 where a=515;
+insert into t1 (a,b,c) values (515, 51500, repeat('TR', 2222));
+update t1 set b=515000 where a=515;
+commit;
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+7	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+500	500	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
+501	5010	2000	192337269ed710279d4f3373cf8f597230708f3a
+504	5040	5000	c80ac9df1867ca5866f87d1275519f8873966e8f
+505	50500	4000	4b5ca3dd0e6e6cbad39fbf76a02e634011d5c16a
+512	5120	4998	4ec4496f22cc8e5863fc006e35ec6f2aa27b4659
+513	51300	3576	51a211bff79d8f0ab426c333ba70241d5ec32889
+514	5140	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
+515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
+1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+Restore data
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+Node 1
+Node 2
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+4001	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+4003	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4005	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+4006	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+4007	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+4500	500	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
+4501	5010	2000	192337269ed710279d4f3373cf8f597230708f3a
+4504	5040	5000	c80ac9df1867ca5866f87d1275519f8873966e8f
+4505	50500	4000	4b5ca3dd0e6e6cbad39fbf76a02e634011d5c16a
+4512	5120	4998	4ec4496f22cc8e5863fc006e35ec6f2aa27b4659
+4513	51300	3576	51a211bff79d8f0ab426c333ba70241d5ec32889
+4514	5140	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
+4515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
+5000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+5010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+Check restored auto-inc metadata :
+Expect that auto-increment next is 5011, e.g. > highest remapped row that
+existed at end of backup time
+(note that SNAPSHOTSTART does not snapshot autoinc metadata)
+
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table test.t1;
+Backup type 1
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+insert into t1 (b,c) values 
+(1, repeat('B', 2000)),
+(2, repeat('J', 3000)),
+(3, repeat('C', 3500)),
+(4, repeat('T', 3300)),
+(5, repeat('S', 1234)),
+(6, repeat('G', 3333));
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+2	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Cause backup stall
+Starting SNAPSHOTSTART backup
+Backup started
+insert into t1 (b,c) values
+(7, repeat('D', 999));
+insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
+delete from t1 where b=4;
+update t1 set a=1010 where a=2;
+begin;
+insert into t1 (a,b,c) values (500, 500, repeat('AR', 1000));
+update t1 set c=repeat('AG', 3000) where a=500;
+insert into t1 (a,b,c) values (501, 501, repeat('AR', 1000));
+update t1 set b=5010 where a=501;
+commit;
+begin;
+insert into t1 (a,b,c) values (502, 502, repeat('AR', 1500));
+update t1 set c=repeat('AG', 2000) where a=502;
+delete from t1 where a=502;
+insert into t1 (a,b,c) values (503, 503, repeat('AR', 1500));
+update t1 set b=5030 where a=503;
+delete from t1 where a=503;
+commit;
+begin;
+insert into t1 (a,b,c) values (504, 504, repeat('AR', 2000));
+update t1 set c=repeat('AG', 2500) where a=504;
+delete from t1 where a=504;
+insert into t1 (a,b,c) values (504, 5040, repeat('ON', 2500));
+insert into t1 (a,b,c) values (505, 505, repeat('AR', 2000));
+update t1 set b=5050 where a=505;
+delete from t1 where a=505;
+insert into t1 (a,b,c) values (505, 50500, repeat('ON', 2000));
+commit;
+insert into t1 (a,b,c) values (510, 510, repeat('ON', 1500));
+insert into t1 (a,b,c) values (511, 511, repeat('AG', 2000));
+insert into t1 (a,b,c) values (512, 512, repeat('AR', 2500));
+insert into t1 (a,b,c) values (513, 513, repeat('TR', 2500));
+insert into t1 (a,b,c) values (514, 514, repeat('IZ', 2500));
+insert into t1 (a,b,c) values (515, 515, repeat('EA', 2500));
+begin;
+update t1 set c=repeat('AG', 2700) where a=510;
+delete from t1 where a=510;
+update t1 set b=5110 where a=511;
+delete from t1 where a=511;
+commit;
+begin;
+update t1 set c=repeat('TR', 1300) where a=512;
+delete from t1 where a=512;
+insert into t1 (a,b,c) values (512, 5120, repeat('IZ', 2499));
+update t1 set b=5130 where a=513;
+delete from t1 where a=513;
+insert into t1 (a,b,c) values (513, 51300, repeat('ON', 1788));
+commit;
+begin;
+update t1 set c=repeat('ON', 1234) where a=514;
+delete from t1 where a=514;
+insert into t1 (a,b,c) values (514, 5140, repeat('EA', 1111));
+update t1 set c=repeat('AG', 3000) where a=514;
+update t1 set b=5150 where a=515;
+delete from t1 where a=515;
+insert into t1 (a,b,c) values (515, 51500, repeat('TR', 2222));
+update t1 set b=515000 where a=515;
+commit;
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+7	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+500	500	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
+501	5010	2000	192337269ed710279d4f3373cf8f597230708f3a
+504	5040	5000	c80ac9df1867ca5866f87d1275519f8873966e8f
+505	50500	4000	4b5ca3dd0e6e6cbad39fbf76a02e634011d5c16a
+512	5120	4998	4ec4496f22cc8e5863fc006e35ec6f2aa27b4659
+513	51300	3576	51a211bff79d8f0ab426c333ba70241d5ec32889
+514	5140	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
+515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
+1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+Restore data
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+Node 1
+Node 2
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+4001	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+4002	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+4003	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4004	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
+4005	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+4006	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Check restored auto-inc metadata :
+Expect that auto-increment next is 5011, e.g. > highest remapped row that
+existed at end of backup time
+(note that SNAPSHOTSTART does not snapshot autoinc metadata)
+
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table test.t1;

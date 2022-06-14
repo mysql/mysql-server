@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,21 +24,20 @@
 
 #include "designator.h"
 
-#include "mysql/harness/plugin.h"
-#include "utilities.h"
-
-////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
 ////////////////////////////////////////
 // Standard include files
 #include <iostream>
 #include <stdexcept>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "mysql/harness/plugin.h"
+#include "test/helpers.h"
+#include "utilities.h"
 
 using mysql_harness::utility::make_range;
 
@@ -164,4 +163,9 @@ TEST(TestDesignator, TestConstraints) {
       Designator("foo(>> 1.2, !=1.2.2)").version_good(Version(1, 2, 2)));
   EXPECT_TRUE(
       Designator("foo(>> 1.2, !=1.2.2)").version_good(Version(1, 2, 3)));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

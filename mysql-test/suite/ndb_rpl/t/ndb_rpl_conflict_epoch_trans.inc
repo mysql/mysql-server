@@ -26,7 +26,7 @@ let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 RESET MASTER;
 STOP SLAVE;
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_PORT,SOURCE_USER="root"
 START SLAVE;
 select @primary_server_id:=(variable_value+0)
        from performance_schema.global_variables
@@ -38,7 +38,7 @@ select @primary_port:=(variable_value+0)
 let $PRIMARY_PORT= query_get_value('select @primary_port as v',v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$PRIMARY_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$PRIMARY_PORT,SOURCE_USER="root"
 START SLAVE;
 
 --enable_result_log
@@ -767,7 +767,7 @@ select left(b,1), length(b) from test.t5 order by a;
 #SHOW SLAVE STATUS;
 
 --echo Restart Primary Slave
-set global sql_slave_skip_counter=1;
+set global sql_replica_skip_counter=1;
 
 START SLAVE;
 
@@ -958,11 +958,12 @@ eval select @epoch_trans2_diff_epoch:=
 --enable_result_log
 --enable_query_log
 
-select @primary_ok:=
+set @primary_ok:=
   ((@epoch_trans XOR
     @epoch_trans2_same_epoch) XOR
    @epoch_trans2_diff_epoch);
 
+select @primary_ok;
 let $primary_ok= query_get_value('select @primary_ok as v',v,1);
 
 if (!$primary_ok)
@@ -1032,10 +1033,11 @@ eval select @epoch_trans2_diff_epoch:=
 --enable_result_log
 --enable_query_log
 
-select @secondary_ok:=
+set @secondary_ok:=
   ((@epoch_trans XOR
     @epoch_trans2_same_epoch) XOR
    @epoch_trans2_diff_epoch);
+select @secondary_ok;
 
 let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
 
@@ -1258,11 +1260,12 @@ eval select @epoch2_trans:=
 --enable_query_log
 
 
-select @primary_ok:=
+set @primary_ok:=
   ((@epoch_trans_same_epoch XOR
     @epoch_trans_diff_epoch) XOR
    @epoch2_trans);
 
+select @primary_ok;
 let $primary_ok= query_get_value('select @primary_ok as v',v,1);
 
 if (!$primary_ok)
@@ -1322,10 +1325,11 @@ eval select @epoch2_trans:=
 --enable_result_log
 --enable_query_log
 
-select @secondary_ok:=
+set @secondary_ok:=
   ((@epoch_trans_same_epoch XOR
     @epoch_trans_diff_epoch) XOR
    @epoch2_trans);
+select @secondary_ok;
 
 let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
 

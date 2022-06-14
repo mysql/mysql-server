@@ -11,7 +11,7 @@ a	b	c	d
 3	3	3	10
 6	6	6	10
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
-ALTER TABLE t1 DROP COLUMN c;;
+ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
 SET DEBUG_SYNC = 'now WAIT_FOR altered';
 INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
 UPDATE t1 SET a = 10 WHERE a = 1;
@@ -27,9 +27,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT '10',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `d` int DEFAULT '10',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT * FROM t1;
@@ -52,7 +52,7 @@ a	b	c	d
 3	3	3	10
 6	6	6	10
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
-ALTER TABLE t1 DROP COLUMN c;;
+ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
 SET DEBUG_SYNC = 'now WAIT_FOR altered';
 INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
 UPDATE t1 SET a = 10 WHERE a = 1;
@@ -68,9 +68,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT '10',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `d` int DEFAULT '10',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1;
@@ -93,7 +93,7 @@ a	b	c	d
 3	3	3	10
 6	6	6	10
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
-ALTER TABLE t1 DROP COLUMN c;;
+ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
 SET DEBUG_SYNC = 'now WAIT_FOR altered';
 INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
 UPDATE t1 SET a = 10 WHERE a = 1;
@@ -109,9 +109,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT '10',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `d` int DEFAULT '10',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT * FROM t1;

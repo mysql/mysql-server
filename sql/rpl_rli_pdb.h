@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <tuple>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -36,17 +37,17 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/log_event.h"     // Format_description_log_event
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica.h"      // MTS_WORKER_UNDEF
 #include "sql/rpl_rli.h"          // Relay_log_info
-#include "sql/rpl_slave.h"        // MTS_WORKER_UNDEF
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
 
@@ -54,7 +55,7 @@ class Rpl_info_handler;
 class Slave_worker;
 struct TABLE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern ulong w_rr;
 #endif
 /**
@@ -106,7 +107,7 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 #define SLAVE_INIT_DBS_IN_GROUP 4  // initial allocation for CGEP dynarray
 
 struct Slave_job_group {
-  Slave_job_group() {}
+  Slave_job_group() = default;
 
   /*
     We need a custom copy constructor and assign operator because std::atomic<T>
@@ -129,7 +130,7 @@ struct Slave_job_group {
         done(other.done.load()),
         shifted(other.shifted),
         ts(other.ts),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         notified(other.notified),
 #endif
         last_committed(other.last_committed),
@@ -154,7 +155,7 @@ struct Slave_job_group {
     done.store(other.done.load());
     shifted = other.shifted;
     ts = other.ts;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified = other.notified;
 #endif
     last_committed = other.last_committed;
@@ -175,7 +176,7 @@ struct Slave_job_group {
      Coordinator keeps track of each Worker has been notified on the updating
      to make sure the routine runs once per change.
 
-     W checks the value at commit and memoriezes a not-NULL.
+     W checks the value at commit and memorizes a not-NULL.
      Freeing unless NULL is left to Coordinator at CP.
   */
   char *group_relay_log_name;    // The value is last seen relay-log
@@ -194,8 +195,8 @@ struct Slave_job_group {
   char *checkpoint_relay_log_name;
   std::atomic<int32> done;  // Flag raised by W,  read and reset by Coordinator
   ulong shifted;            // shift the last CP bitmap at receiving a new CP
-  time_t ts;  // Group's timestampt to update Seconds_behind_master
-#ifndef DBUG_OFF
+  time_t ts;                // Group's timestamp to update Seconds_behind_master
+#ifndef NDEBUG
   bool notified{false};  // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
@@ -245,7 +246,7 @@ struct Slave_job_group {
     checkpoint_seqno = (uint)-1;
     done = 0;
     ts = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified = false;
 #endif
     last_committed = SEQ_UNINIT;
@@ -255,7 +256,7 @@ struct Slave_job_group {
 };
 
 /**
-   The class defines a type of queue with a predefined max size that is
+   The class defines a type of queue with a predefined max capacity that is
    implemented using the circular memory buffer.
    That is items of the queue are accessed as indexed elements of
    the array buffer in a way that when the index value reaches
@@ -265,50 +266,62 @@ template <typename Element_type>
 class circular_buffer_queue {
  public:
   Prealloced_array<Element_type, 1> m_Q;
-  ulong size;          // the Size of the queue in terms of element
-  ulong avail;         // first Available index to append at (next to tail)
-  ulong entry;         // the head index or the entry point to the queue.
-  volatile ulong len;  // actual length
+  /**
+     The capacity and maximum length of the queue in terms of element.
+  */
+  size_t capacity;
+  /**
+     Its value modulo `capacity` is index of the element where the next element
+     will be enqueued. It's entry+length. It may be bigger than capacity, but
+     will be smaller than 2*capacity.
+  */
+  size_t avail;
+  /**
+     The head index of the queue. It is an index of next element that will be
+     dequeued. It is less than capacity, so it is an actual index (in contrast
+     to `avail`), don't need to be calculated modulo `capacity`.
+  */
+  size_t entry;
+  /**
+     Actual length. It can be read while not protected by any mutex.
+  */
+  std::atomic<size_t> len;
   bool inited_queue;
 
-  circular_buffer_queue(ulong max)
+  circular_buffer_queue(size_t max)
       : m_Q(PSI_INSTRUMENT_ME),
-        size(max),
+        capacity(max),
         avail(0),
-        entry(max),
+        entry(0),
         len(0),
         inited_queue(false) {
-    if (!m_Q.reserve(size)) inited_queue = true;
-    m_Q.resize(size);
+    if (!m_Q.reserve(capacity)) inited_queue = true;
+    m_Q.resize(capacity);
   }
   circular_buffer_queue() : m_Q(PSI_INSTRUMENT_ME), inited_queue(false) {}
-  ~circular_buffer_queue() {}
+  ~circular_buffer_queue() = default;
 
   /**
      Content of the being dequeued item is copied to the arg-pointer
      location.
 
      @param [out] item A pointer to the being dequeued item.
-     @return the queue's array index that the de-queued item
-     located at, or
-     an error encoded in beyond the index legacy range.
+     @return true if an element was returned, false if the queue was empty.
   */
-  ulong de_queue(Element_type *item);
+  bool de_queue(Element_type *item);
   /**
     Similar to de_queue but extracting happens from the tail side.
 
     @param [out] item A pointer to the being dequeued item.
-    @return the queue's array index that the de-queued item
-           located at, or an error.
+    @return true if an element was returned, false if the queue was empty.
   */
-  ulong de_tail(Element_type *item);
+  bool de_tail(Element_type *item);
 
   /**
     return the index where the arg item locates
-           or an error encoded as a value in beyond of the legacy range
-           [0, size) (value `size' is excluded).
+           or an error encoded as a value `circular_buffer_queue::error_result`.
   */
-  ulong en_queue(Element_type *item);
+  size_t en_queue(Element_type *item);
   /**
      return the value of @c data member of the head of the queue.
   */
@@ -317,14 +330,16 @@ class circular_buffer_queue {
     return &m_Q[entry];
   }
 
-  bool gt(ulong i, ulong k);  // comparision of ordering of two entities
   /* index is within the valid range */
-  bool in(ulong k) {
-    return !empty() && (entry > avail ? (k >= entry || k < avail)
-                                      : (k >= entry && k < avail));
+  bool in(size_t i) {
+    return (avail >= capacity) ? (entry <= i || i < avail - capacity)
+                               : (entry <= i && i < avail);
   }
-  bool empty() { return entry == size; }
-  bool full() { return avail == size; }
+  size_t get_length() const { return len.load(std::memory_order_relaxed); }
+  bool empty() const { return get_length() == 0; }
+  bool full() const { return get_length() == capacity; }
+
+  static constexpr size_t error_result = std::numeric_limits<size_t>::max();
 };
 
 /**
@@ -350,7 +365,7 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
-  Slave_committed_queue(ulong max, uint n);
+  Slave_committed_queue(size_t max, uint n);
 
   ~Slave_committed_queue() {
     if (inited) {
@@ -359,28 +374,28 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool count_done(Relay_log_info *rli);
 #endif
 
   /* Checkpoint routine refreshes the queue */
-  ulong move_queue_head(Slave_worker_array *ws);
+  size_t move_queue_head(Slave_worker_array *ws);
   /* Method is for slave shutdown time cleanup */
   void free_dynamic_items();
   /*
      returns a pointer to Slave_job_group struct instance as indexed by arg
      in the circular buffer dyn-array
   */
-  Slave_job_group *get_job_group(ulong ind) {
-    DBUG_ASSERT(ind < size);
+  Slave_job_group *get_job_group(size_t ind) {
+    assert(ind < capacity);
     return &m_Q[ind];
   }
 
   /**
-     Assignes @c assigned_group_index to an index of enqueued item
+     Assigns @c assigned_group_index to an index of enqueued item
      and returns it.
   */
-  ulong en_queue(Slave_job_group *item) {
+  size_t en_queue(Slave_job_group *item) {
     return assigned_group_index =
                circular_buffer_queue<Slave_job_group>::en_queue(item);
   }
@@ -389,10 +404,9 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
     Dequeue from head.
 
     @param [out] item A pointer to the being dequeued item.
-    @return The queue's array index that the de-queued item located at,
-            or an error encoded in beyond the index legacy range.
+    @return true if an element was returned, false if the queue was empty.
   */
-  ulong de_queue(Slave_job_group *item) {
+  bool de_queue(Slave_job_group *item) {
     return circular_buffer_queue<Slave_job_group>::de_queue(item);
   }
 
@@ -400,46 +414,31 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
     Similar to de_queue() but removing an item from the tail side.
 
     @param [out] item A pointer to the being dequeued item.
-    @return the queue's array index that the de-queued item
-           located at, or an error.
+  @return true if an element was returned, false if the queue was empty.
   */
-  ulong de_tail(Slave_job_group *item) {
+  bool de_tail(Slave_job_group *item) {
     return circular_buffer_queue<Slave_job_group>::de_tail(item);
   }
 
-  ulong find_lwm(Slave_job_group **, ulong);
+  size_t find_lwm(Slave_job_group **, size_t);
 };
 
 /**
     @return  the index where the arg item has been located
-             or an error.
+             or an error encoded as a value
+             `circular_buffer_queue::error_result`.
 */
 template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
-  ulong ret;
-  if (avail == size) {
-    DBUG_ASSERT(avail == m_Q.size());
-    return (ulong)-1;
+size_t circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
+  if (full()) {
+    return error_result;
   }
 
-  // store
-
-  ret = avail;
-  m_Q[avail] = *item;
-
-  // pre-boundary cond
-  if (entry == size) entry = avail;
-
-  avail = (avail + 1) % size;
+  const auto ret = (avail++) % capacity;
+  m_Q[ret] = *item;
   len++;
-
-  // post-boundary cond
-  if (avail == entry) avail = size;
-
-  DBUG_ASSERT(avail == entry || len == (avail >= entry)
-                  ? (avail - entry)
-                  : (size + avail - entry));
-  DBUG_ASSERT(avail != entry);
+  assert(len == avail - entry);
+  assert(entry < avail);
 
   return ret;
 }
@@ -448,57 +447,40 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   Dequeue from head.
 
   @param [out] item A pointer to the being dequeued item.
-  @return the queue's array index that the de-queued item
-          located at, or an error as an int outside the legacy
-          [0, size) (value `size' is excluded) range.
+  @return true if an element was returned, false if the queue was empty.
 */
 template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
-  ulong ret;
-  if (entry == size) {
-    DBUG_ASSERT(len == 0);
-    return (ulong)-1;
+bool circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
+  if (empty()) {
+    return false;
   }
-
-  ret = entry;
-  *item = m_Q[entry];
+  *item = m_Q[entry++];
   len--;
+  assert(len == avail - entry);
+  assert(entry <= avail);
 
-  // pre boundary cond
-  if (avail == size) avail = entry;
-  entry = (entry + 1) % size;
-
-  // post boundary cond
-  if (avail == entry) entry = size;
-
-  DBUG_ASSERT(
-      entry == size ||
-      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return ret;
+  // The start of the queue just have returned to the first index. Normalize
+  // indexes so they are small again.
+  if (entry == capacity) {
+    entry = 0;
+    avail -= capacity;
+    assert(avail < capacity);
+    assert(avail == len);
+  }
+  return true;
 }
 
 template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
-  if (entry == size) {
-    DBUG_ASSERT(len == 0);
-    return (ulong)-1;
+bool circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
+  if (empty()) {
+    return false;
   }
 
-  avail = (entry + len - 1) % size;
-  *item = m_Q[avail];
+  assert(avail > entry);
+  *item = m_Q[(--avail) % capacity];
   len--;
-
-  // post boundary cond
-  if (avail == entry) entry = size;
-
-  DBUG_ASSERT(
-      entry == size ||
-      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return avail;
+  assert(len == avail - entry);
+  return true;
 }
 
 class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item> {
@@ -527,7 +509,7 @@ class Slave_worker : public Relay_log_info {
 #endif
                uint param_id, const char *param_channel);
 
-  virtual ~Slave_worker();
+  ~Slave_worker() override;
 
   Slave_jobs_queue jobs;    // assignment queue containing events to execute
   mysql_mutex_t jobs_lock;  // mutex for the jobs queue
@@ -537,13 +519,13 @@ class Slave_worker : public Relay_log_info {
   Prealloced_array<db_worker_hash_entry *, SLAVE_INIT_DBS_IN_GROUP>
       curr_group_exec_parts;  // Current Group Executed Partitions
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool curr_group_seen_sequence_number;  // is set to true about starts_group()
 #endif
-  ulong id;  // numberic identifier of the Worker
+  ulong id;  // numeric identifier of the Worker
 
   /*
-    Worker runtime statictics
+    Worker runtime statistics
   */
   // the index in GAQ of the last processed group by this Worker
   volatile ulong last_group_done_index;
@@ -585,7 +567,7 @@ class Slave_worker : public Relay_log_info {
   ulong overrun_level;
   /*
      reverse to overrun: the number of events below which Worker is
-     considered underruning
+     considered under-running
   */
   ulong underrun_level;
   /*
@@ -595,7 +577,7 @@ class Slave_worker : public Relay_log_info {
   ulong excess_cnt;
   /*
     Coordinates of the last CheckPoint (CP) this Worker has
-    acknowledged; part of is persisent data
+    acknowledged; part of is persistent data
   */
   char checkpoint_relay_log_name[FN_REFLEN];
   ulonglong checkpoint_relay_log_pos;
@@ -611,7 +593,7 @@ class Slave_worker : public Relay_log_info {
     NOT_RUNNING = 0,
     RUNNING = 1,
     ERROR_LEAVING = 2,  // is set by Worker
-    STOP = 3,           // is set by Coordinator upon reciving STOP
+    STOP = 3,           // is set by Coordinator upon receiving STOP
     STOP_ACCEPTED =
         4  // is set by worker upon completing job when STOP SLAVE is issued
   };
@@ -619,7 +601,7 @@ class Slave_worker : public Relay_log_info {
   /*
     This function is used to make a copy of the worker object before we
     destroy it on STOP SLAVE. This new object is then used to report the
-    worker status until next START SLAVE following which the new worker objetcs
+    worker status until next START SLAVE following which the new worker objects
     will be used.
   */
   void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
@@ -633,7 +615,7 @@ class Slave_worker : public Relay_log_info {
   en_running_state volatile running_status;
   /*
     exit_incremented indicates whether worker has contributed to max updated
-    index. By default it is set to false. When the worker contibutes for the
+    index. By default it is set to false. When the worker contributes for the
     first time this variable is set to true.
   */
   bool exit_incremented;
@@ -642,6 +624,12 @@ class Slave_worker : public Relay_log_info {
   int rli_init_info(bool);
   int flush_info(bool force = false);
   static size_t get_number_worker_fields();
+  /**
+     Sets bits for columns that are allowed to be `NULL`.
+
+     @param nullable_fields the bitmap to hold the nullable fields.
+  */
+  static void set_nullable_fields(MY_BITMAP *nullable_fields);
   void slave_worker_ends_group(Log_event *, int);
   const char *get_master_log_name();
   ulonglong get_master_log_pos() { return master_log_pos; }
@@ -651,8 +639,8 @@ class Slave_worker : public Relay_log_info {
     The method is a wrapper to provide uniform interface with STS and is
     to be called from Relay_log_info and Slave_worker pre_commit() methods.
   */
-  bool commit_positions() {
-    DBUG_ASSERT(current_event);
+  bool commit_positions() override {
+    assert(current_event);
 
     return commit_positions(
         current_event, c_rli->gaq->get_job_group(current_event->mts_group_idx),
@@ -661,7 +649,7 @@ class Slave_worker : public Relay_log_info {
   /**
     See the comments for STS version of this method.
   */
-  void post_commit(bool on_rollback) {
+  void post_commit(bool on_rollback) override {
     if (on_rollback) {
       if (is_transactional())
         rollback_positions(
@@ -682,12 +670,12 @@ class Slave_worker : public Relay_log_info {
   void rollback_positions(Slave_job_group *ptr_g);
   bool reset_recovery_info();
   /**
-    The method runs at Worker initalization, at runtime when
+    The method runs at Worker initialization, at runtime when
     Coordinator supplied a new FD event for execution context, and at
     the Worker pool shutdown.
     Similarly to the Coordinator's
     Relay_log_info::set_rli_description_event() the possibly existing
-    old FD is destoyed, carefully; each worker decrements
+    old FD is destroyed, carefully; each worker decrements
     Format_description_log_event::atomic_usage_counter and when it is made
     zero the destructor runs.
     Unlike to Coordinator's role, the usage counter of the new FD is *not*
@@ -704,8 +692,8 @@ class Slave_worker : public Relay_log_info {
 
     @return 1 if an error was encountered, 0 otherwise.
   */
-  int set_rli_description_event(Format_description_log_event *fdle) {
-    DBUG_ENTER("Slave_worker::set_rli_description_event");
+  int set_rli_description_event(Format_description_log_event *fdle) override {
+    DBUG_TRACE;
 
     if (fdle) {
       /*
@@ -718,7 +706,7 @@ class Slave_worker : public Relay_log_info {
         - If a statement is executed before any Gtid_log_event, then gtid_next
           is set to anonymous (this is done in Gtid_log_event::do_apply_event().
 
-        It is imporant to not set GTID_NEXT=NOT_YET_DETERMINED in the middle of
+        It is important to not set GTID_NEXT=NOT_YET_DETERMINED in the middle of
         a transaction.  If that would happen when GTID_MODE=ON, the next
         statement would fail because it implicitly sets GTID_NEXT=ANONYMOUS,
         which is disallowed when GTID_MODE=ON.  So then there would be no way to
@@ -787,59 +775,126 @@ class Slave_worker : public Relay_log_info {
         } else if (in_active_multi_stmt) {
           my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
                    "gtid_next");
-          DBUG_RETURN(1);
+          return 1;
         }
       }
       adapt_to_master_version_updown(fdle->get_product_version(),
                                      get_master_server_version());
     }
     if (rli_description_event) {
-      DBUG_ASSERT(rli_description_event->atomic_usage_counter > 0);
+      assert(rli_description_event->atomic_usage_counter > 0);
 
       if (--rli_description_event->atomic_usage_counter == 0) {
         /* The being deleted by Worker FD can't be the latest one */
-        DBUG_ASSERT(rli_description_event !=
-                    c_rli->get_rli_description_event());
+        assert(rli_description_event != c_rli->get_rli_description_event());
 
         delete rli_description_event;
       }
     }
     rli_description_event = fdle;
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; }
+  inline void reset_gaq_index() { gaq_index = c_rli->gaq->capacity; }
   inline void set_gaq_index(ulong val) {
-    if (gaq_index == c_rli->gaq->size) gaq_index = val;
+    if (gaq_index == c_rli->gaq->capacity) gaq_index = val;
   }
 
   int slave_worker_exec_event(Log_event *ev);
+
+  /**
+    Make the necessary changes to both the `Slave_worker` and current
+    `Log_event` objects, before retrying to apply the transaction.
+
+    Since the event is going to be re-read from the relay-log file, there
+    may be actions needed to be taken to reset the state both of `this`
+    instance, as well as of the current `Log_event` being processed.
+
+    @param event The `Log_event` object currently being processed.
+   */
+  void prepare_for_retry(Log_event &event);
+
+  /**
+    Checks if the transaction can be retried, and if not, reports an error.
+
+    @param[in] thd          The THD object of current thread.
+
+    @returns std::tuple<bool, bool, uint> where each element has
+              following meaning:
+
+              first element of tuple is function return value and determines:
+                false  if the transaction should be retried
+                true   if the transaction should not be retried
+
+              second element of tuple determines:
+                the function will set the value to true, in case the retry
+                should be "silent". Silent means that the caller should not
+                report it in performance_schema tables, write to the error log,
+                or sleep. Currently, silent is used by NDB only.
+
+              third element of tuple determines:
+                If the caller should report any other error than that stored in
+                thd->get_stmt_da()->mysql_errno(), then this function will store
+                that error in this third element of the tuple.
+
+  */
+  std::tuple<bool, bool, uint> check_and_report_end_of_retries(THD *thd);
+
+  /**
+    It is called after an error happens. It checks if that is an temporary
+    error and if the transaction should be retried. Then it will retry the
+    transaction if it is allowed. Retry policy and logic is similar to
+    single-threaded slave.
+
+    @param[in] start_relay_number The extension number of the relay log which
+                 includes the first event of the transaction.
+    @param[in] start_relay_pos The offset of the transaction's first event.
+
+    @param[in] end_relay_number The extension number of the relay log which
+               includes the last event it should retry.
+    @param[in] end_relay_pos The offset of the last event it should retry.
+
+    @retval false if transaction succeeds (possibly after a number of retries)
+    @retval true  if transaction fails
+  */
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
   /**
     Get coordinator's RLI. Especially used get the rli from
     a slave thread, like this: thd->rli_slave->get_c_rli();
     thd could be a SQL thread or a worker thread.
   */
-  virtual Relay_log_info *get_c_rli() { return c_rli; }
+  Relay_log_info *get_c_rli() override { return c_rli; }
 
   /**
      return an extension "for channel channel_name"
      for error messages per channel
   */
-  const char *get_for_channel_str(bool upper_case = false) const;
+  const char *get_for_channel_str(bool upper_case = false) const override;
 
   longlong sequence_number() {
     Slave_job_group *ptr_g = c_rli->gaq->get_job_group(gaq_index);
     return ptr_g->sequence_number;
   }
 
-  bool found_order_commit_deadlock() { return m_order_commit_deadlock; }
-  void report_order_commit_deadlock() { m_order_commit_deadlock = true; }
+  /**
+     Return true if replica-preserve-commit-order is enabled and an
+     earlier transaction is waiting for a row-level lock held by this
+     transaction.
+  */
+  bool found_commit_order_deadlock();
+
+  /**
+     Called when replica-preserve-commit-order is enabled, by the worker
+     processing an earlier transaction that waits on a row-level lock
+     held by this worker's transaction.
+  */
+  void report_commit_order_deadlock();
+
   /**
     @return either the master server version as extracted from the last
             installed Format_description_log_event, or when it was not
@@ -852,8 +907,8 @@ class Slave_worker : public Relay_log_info {
   }
 
  protected:
-  virtual void do_report(loglevel level, int err_code, const char *msg,
-                         va_list v_args) const
+  void do_report(loglevel level, int err_code, const char *msg,
+                 va_list v_args) const override
       MY_ATTRIBUTE((format(printf, 4, 0)));
 
  private:
@@ -861,9 +916,9 @@ class Slave_worker : public Relay_log_info {
   ulonglong
       master_log_pos;  // event's cached log_pos for possibile error report
   void end_info();
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
-  bool m_order_commit_deadlock;
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
+  std::atomic<bool> m_commit_order_deadlock;
 
   Slave_worker &operator=(const Slave_worker &info);
   Slave_worker(const Slave_worker &info);
@@ -872,7 +927,7 @@ class Slave_worker : public Relay_log_info {
                              uint end_relay_number, my_off_t end_relay_pos);
   void assign_partition_db(Log_event *ev);
 
-  void reset_order_commit_deadlock() { m_order_commit_deadlock = false; }
+  void reset_commit_order_deadlock();
 
  public:
   /**
@@ -886,7 +941,6 @@ class Slave_worker : public Relay_log_info {
   static uint get_channel_field_index();
 };
 
-void *head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
 bool handle_slave_worker_stop(Slave_worker *worker, Slave_job_item *job_item);
 bool set_max_updated_index_on_stop(Slave_worker *worker,
                                    Slave_job_item *job_item);
@@ -898,7 +952,6 @@ TABLE *mts_move_temp_tables_to_thd(THD *, TABLE *, enum_mts_parallel_type);
 
 bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *w,
                          Relay_log_info *rli);
-Slave_job_item *de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
 
 inline Slave_worker *get_thd_worker(THD *thd) {
   return static_cast<Slave_worker *>(thd->rli_slave);

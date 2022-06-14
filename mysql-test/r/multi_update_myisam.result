@@ -93,7 +93,7 @@ insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;
 UPDATE t2,t1 SET t2.a=t1.a+2;
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 't2.PRIMARY'
 select * from t2 /* must be (3,1), (4,4) */;
 a	b
 3	1
@@ -110,7 +110,7 @@ insert into t1 values (1,2),(3,4),(4,4);
 insert into t2 values (1,2),(3,4),(4,4);
 reset master;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't2.PRIMARY'
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
@@ -119,3 +119,22 @@ binlog.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 drop table t1, t2;
 set @@session.binlog_format= @sav_binlog_format;
+# Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int int DEFAULT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2,9), (6,NULL), (0,7);
+PREPARE s FROM
+'UPDATE t1 AS a NATURAL JOIN t1 AS b SET a.col_int = 9, b.col_int = 9';
+EXECUTE s;
+SELECT ROW_COUNT();
+ROW_COUNT()
+1
+EXECUTE s;
+SELECT ROW_COUNT();
+ROW_COUNT()
+0
+DEALLOCATE PREPARE s;
+DROP TABLE t1;

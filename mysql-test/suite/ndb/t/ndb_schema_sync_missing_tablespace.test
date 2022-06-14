@@ -1,0 +1,146 @@
+--source include/have_debug.inc
+--source include/have_multi_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+#
+# Test metadata upgrade of a disk data table when the tablespace
+# doesn't exist in DD. The 7.6 backup used for testing is:
+#
+# CREATE LOGFILE GROUP lg1
+#   ADD UNDOFILE 'lg1_undofile.dat'
+#   INITIAL_SIZE 1M
+#   UNDO_BUFFER_SIZE = 1M
+#   ENGINE NDB;
+#
+# CREATE TABLESPACE ts1
+#   ADD DATAFILE 'ts1_datafile.dat'
+#   USE LOGFILE GROUP lg1
+#   INITIAL_SIZE 2M
+#   ENGINE NDB;
+#
+# CREATE TABLE t1 (
+#   a INT PRIMARY KEY,
+#   b VARCHAR(255)
+# ) ENGINE NDB
+#   TABLESPACE ts1
+#   STORAGE DISK;
+#
+# INSERT INTO t1 VALUES (1,'Sad Cypress');
+#
+
+# Case 1: Test that the metadata upgrade of the table installs the
+# missing tablespace automatically during schema synchronization
+
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
+--echo Backup from 7.6 restored
+
+--echo Restart server 1 to trigger schema synchronization
+--disable_query_log ONCE
+CALL mtr.add_suppression("Failed to synchronize tablespace");
+--let $mysqld_name=mysqld.1.1
+--let $restart_parameters="restart: --debug=d,ndb_install_tablespace_fail"
+--source include/restart_mysqld.inc
+--connection server2
+--disable_query_log ONCE
+CALL mtr.add_suppression("Failed to synchronize tablespace");
+--echo Restart server 2 to trigger schema synchronization
+--let $mysqld_name=mysqld.2.1
+--source include/restart_mysqld.inc
+--connection server1
+
+# Check schema and then perform DML and DDL on the tables
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--connection server2
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--connection server1
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 VALUES(2);
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+# Case 2: Test that "regular" synchronization of the table i.e.
+# without upgrade installs the missing tablespace automatically
+# during schema synchronization
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB
+  TABLESPACE ts1
+  STORAGE DISK;
+
+INSERT INTO t1 VALUES (1,'And Then There Were None');
+
+# Backup
+--disable_query_log ONCE
+--source include/ndb_backup.inc
+
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Restart server 1 to trigger schema synchronization
+--let $mysqld_name=mysqld.1.1
+--source include/restart_mysqld.inc
+--connection server2
+--echo Restart server 2 to trigger schema synchronization
+--let $mysqld_name=mysqld.2.1
+--source include/restart_mysqld.inc
+--connection server1
+
+# Check schema and then perform DML and DDL on the tables
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--connection server2
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--connection server1
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 VALUES(2);
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+--let $restart_parameters=
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

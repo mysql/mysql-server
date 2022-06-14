@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,10 +100,8 @@ access violations */
 #define MAX_EACCES_RANGE ERROR_SHARING_BUFFER_EXCEEDED
 
 static int get_errno_from_oserr(unsigned long oserrno) {
-  int i;
-
   /* check the table for the OS error code */
-  for (i = 0; i < ERRTABLESIZE; ++i) {
+  for (size_t i = 0; i < ERRTABLESIZE; ++i) {
     if (oserrno == errtable[i].oscode) {
       return errtable[i].sysv_errno;
     }

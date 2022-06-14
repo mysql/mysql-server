@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("\\[GCS\\] Unable to resolve peer address.");
 SET SESSION sql_log_bin= 1;
 

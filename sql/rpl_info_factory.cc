@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h"  // key_master_info_run_lock
+#include "sql/mysqld.h"  // key_source_info_run_lock
 #include "sql/rpl_filter.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_info_dummy.h"         // Rpl_info_dummy
@@ -50,9 +50,9 @@
 #include "sql/rpl_info_table_access.h"  // Rpl_info_table_access
 #include "sql/rpl_mi.h"                 // Master_info
 #include "sql/rpl_msr.h"                // channel_map
-#include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_rli_pdb.h"            // Slave_worker
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_rli_pdb.h"  // Slave_worker
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"
@@ -77,7 +77,7 @@ Rpl_info_factory::struct_table_data Rpl_info_factory::worker_table_data;
   @param[in]  channel   the channel for which mi is to be created
   @param[in]  to_decide_repo     the flag is set to true if mi repositories
                                  are allowed to convert. For details,
-                                 see init_slave()
+                                 see init_replica()
 
   The execution fails if a user requests a type but a different type
   already exists in the system. This is done to avoid that a user
@@ -97,15 +97,15 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option, const char *channel,
       "Failed to allocate memory for the master info "
       "structure";
 
-  DBUG_ENTER("Rpl_info_factory::create_mi");
+  DBUG_TRACE;
 
   if (!(mi = new Master_info(
 #ifdef HAVE_PSI_INTERFACE
-            &key_master_info_run_lock, &key_master_info_data_lock,
-            &key_master_info_sleep_lock, &key_master_info_thd_lock,
-            &key_master_info_rotate_lock, &key_master_info_data_cond,
-            &key_master_info_start_cond, &key_master_info_stop_cond,
-            &key_master_info_sleep_cond, &key_master_info_rotate_cond,
+            &key_source_info_run_lock, &key_source_info_data_lock,
+            &key_source_info_sleep_lock, &key_source_info_thd_lock,
+            &key_source_info_rotate_lock, &key_source_info_data_cond,
+            &key_source_info_start_cond, &key_source_info_stop_cond,
+            &key_source_info_sleep_cond, &key_source_info_rotate_cond,
 #endif
             instances, channel)))
     goto err;
@@ -129,7 +129,7 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option, const char *channel,
     delete handler_src;
   }
 
-  DBUG_RETURN(mi);
+  return mi;
 
 err:
   delete handler_src;
@@ -144,7 +144,7 @@ err:
     delete mi;
   }
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CREATING_MASTER_INFO, msg);
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 /**
@@ -161,9 +161,9 @@ bool Rpl_info_factory::change_mi_repository(Master_info *mi, uint mi_option,
                                             const char **msg) {
   Rpl_info_handler *handler_src = mi->get_rpl_info_handler();
   Rpl_info_handler *handler_dest = nullptr;
-  DBUG_ENTER("Rpl_info_factory::change_mi_repository");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(handler_src);
+  assert(handler_src);
 
   if (init_repositories(mi_table_data, mi_file_data, mi_option, nullptr,
                         &handler_dest, msg))
@@ -172,14 +172,14 @@ bool Rpl_info_factory::change_mi_repository(Master_info *mi, uint mi_option,
   if (decide_repository(mi, mi_option, &handler_src, &handler_dest, msg))
     goto err;
 
-  DBUG_RETURN(false);
+  return false;
 
 err:
   delete handler_dest;
   handler_dest = nullptr;
 
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CHANGING_MASTER_INFO_REPO_TYPE, *msg);
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -210,14 +210,14 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
   Rpl_info_handler *handler_dest = nullptr;
   uint instances = 1;
   uint worker_repository = INVALID_INFO_REPOSITORY;
-  uint worker_instances = 1;
+  std::string scan_msg;
   const char *msg = nullptr;
   const char *msg_alloc =
       "Failed to allocate memory for the relay log info "
       "structure";
   Rpl_filter *rpl_filter = nullptr;
 
-  DBUG_ENTER("Rpl_info_factory::create_rli");
+  DBUG_TRACE;
 
   /*
     Returns how many occurrences of worker's repositories exist. For example,
@@ -226,10 +226,11 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
     found.
   */
   if (rli_option != INFO_REPOSITORY_DUMMY &&
-      scan_repositories(&worker_instances, &worker_repository,
-                        worker_table_data, worker_file_data, &msg))
+      scan_and_check_repositories(worker_repository, worker_table_data,
+                                  worker_file_data, scan_msg)) {
+    msg = scan_msg.c_str();
     goto err;
-
+  }
   if (!(rli = new Relay_log_info(
             is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -263,7 +264,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
       goto err;
   } else {
     if (channel != nullptr) {
-      /* Here dest code should be TABLE type repo. See, init_slave() */
+      /* Here dest code should be TABLE type repo. See, init_replica() */
       if (handler_dest->get_rpl_info_type() != INFO_REPOSITORY_TABLE) {
         LogErr(ERROR_LEVEL, ER_RPL_REPO_SHOULD_BE_TABLE);
         goto err;
@@ -292,7 +293,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
   rli->set_filter(rpl_filter);
   rpl_filter->set_attached();
 
-  DBUG_RETURN(rli);
+  return rli;
 
 err:
   delete handler_src;
@@ -306,7 +307,7 @@ err:
     delete rli;
   }
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CREATING_RELAY_LOG_INFO, msg);
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 /**
@@ -324,9 +325,9 @@ bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
                                              const char **msg) {
   Rpl_info_handler *handler_src = rli->get_rpl_info_handler();
   Rpl_info_handler *handler_dest = nullptr;
-  DBUG_ENTER("Rpl_info_factory::change_rli_repository");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(handler_src != nullptr);
+  assert(handler_src != nullptr);
 
   if (init_repositories(rli_table_data, rli_file_data, rli_option, nullptr,
                         &handler_dest, msg))
@@ -335,43 +336,50 @@ bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
   if (decide_repository(rli, rli_option, &handler_src, &handler_dest, msg))
     goto err;
 
-  DBUG_RETURN(false);
+  return false;
 
 err:
   delete handler_dest;
   handler_dest = nullptr;
 
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CHANGING_RELAY_LOG_INFO_REPO_TYPE, *msg);
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
    Delete all info from Worker info tables to render them useless in
    future MTS recovery, and indicate that in Coordinator info table.
 
-   @return false on success, true when a failure in deletion or writing
-           to Coordinator table fails.
+   @retval false on success
+   @retval true when a failure in deletion or writing to Coordinator table
+   fails.
 */
 bool Rpl_info_factory::reset_workers(Relay_log_info *rli) {
   bool error = true;
 
-  DBUG_ENTER("Rpl_info_factory::reset_workers");
+  DBUG_TRACE;
 
-  if (rli->recovery_parallel_workers == 0) DBUG_RETURN(0);
+  /*
+    Skip the optimization check if the last value of the number of workers
+    might not have been persisted
+  */
+  if (rli->recovery_parallel_workers == 0 && !rli->mi->is_gtid_only_mode())
+    return false;
 
-  if (Rpl_info_file::do_reset_info(Slave_worker::get_number_worker_fields(),
-                                   worker_file_data.pattern,
-                                   worker_file_data.name_indexed))
+  if (Rpl_info_file::do_reset_info(
+          Slave_worker::get_number_worker_fields(), worker_file_data.pattern,
+          worker_file_data.name_indexed, &worker_file_data.nullable_fields))
     goto err;
 
   if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields(),
                                     MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str,
-                                    rli->channel))
+                                    rli->channel,
+                                    &worker_file_data.nullable_fields))
     goto err;
 
   error = false;
 
-  DBUG_EXECUTE_IF("mts_debug_reset_workers_fails", error = true;);
+  DBUG_EXECUTE_IF("mta_debug_reset_workers_fails", error = true;);
 
 err:
   if (error)
@@ -379,11 +387,11 @@ err:
            ER_RPL_FAILED_TO_DELETE_FROM_SLAVE_WORKERS_INFO_REPOSITORY);
   rli->recovery_parallel_workers = 0;
   rli->clear_mts_recovery_groups();
-  if (rli->flush_info(true)) {
+  if (rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
     error = true;
     LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_RESET_STATE_IN_SLAVE_INFO_REPOSITORY);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -412,7 +420,7 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
       "Failed to allocate memory for the worker info "
       "structure";
 
-  DBUG_ENTER("Rpl_info_factory::create_worker");
+  DBUG_TRACE;
 
   /*
     Define the name of the worker and its repository.
@@ -444,21 +452,21 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
 
   /* get_num_instances() requires channel_map lock */
   /*
-  DBUG_ASSERT(channel_map.get_num_instances() <= 1 ||
+  assert(channel_map.get_num_instances() <= 1 ||
               (rli_option == 1 && handler_dest->get_rpl_info_type() == 1));
   */
   if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
-  if (DBUG_EVALUATE_IF("mts_worker_thread_init_fails", 1, 0) ||
+  if (DBUG_EVALUATE_IF("mta_worker_thread_init_fails", 1, 0) ||
       worker->rli_init_info(is_gaps_collecting_phase)) {
-    DBUG_EXECUTE_IF("enable_mts_worker_failure_init", {
-      DBUG_SET("-d,mts_worker_thread_init_fails");
-      DBUG_SET("-d,enable_mts_worker_failure_init");
+    DBUG_EXECUTE_IF("enable_mta_worker_failure_init", {
+      DBUG_SET("-d,mta_worker_thread_init_fails");
+      DBUG_SET("-d,enable_mta_worker_failure_init");
     });
-    DBUG_EXECUTE_IF("enable_mts_wokrer_failure_in_recovery_finalize", {
-      DBUG_SET("-d,mts_worker_thread_init_fails");
-      DBUG_SET("-d,enable_mts_wokrer_failure_in_recovery_finalize");
+    DBUG_EXECUTE_IF("enable_mta_wokrer_failure_in_recovery_finalize", {
+      DBUG_SET("-d,mta_worker_thread_init_fails");
+      DBUG_SET("-d,enable_mta_wokrer_failure_in_recovery_finalize");
     });
     msg = "Failed to initialize the worker info structure";
     goto err;
@@ -468,7 +476,7 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
     msg = "Failed to initialize worker info table";
     goto err;
   }
-  DBUG_RETURN(worker);
+  return worker;
 
 err:
   delete handler_src;
@@ -482,12 +490,12 @@ err:
     delete worker;
   }
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_CREATING_RELAY_LOG_INFO, msg);
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 static void build_worker_info_name(char *to, const char *path,
                                    const char *fname) {
-  DBUG_ASSERT(to);
+  assert(to);
   char *pos = to;
   if (path[0]) pos = my_stpcpy(pos, path);
   pos = my_stpcpy(pos, "worker-");
@@ -513,20 +521,24 @@ void Rpl_info_factory::init_repository_metadata() {
   rli_table_data.name = RLI_INFO_NAME.str;
   rli_table_data.n_pk_fields = 0;
   rli_table_data.pk_field_indexes = nullptr;
+  Relay_log_info::set_nullable_fields(&rli_table_data.nullable_fields);
   rli_file_data.n_fields = Relay_log_info::get_number_info_rli_fields();
   my_stpcpy(rli_file_data.name, relay_log_info_file);
   my_stpcpy(rli_file_data.pattern, relay_log_info_file);
   rli_file_data.name_indexed = false;
+  Relay_log_info::set_nullable_fields(&rli_file_data.nullable_fields);
 
   mi_table_data.n_fields = Master_info::get_number_info_mi_fields();
   mi_table_data.schema = MYSQL_SCHEMA_NAME.str;
   mi_table_data.name = MI_INFO_NAME.str;
   mi_table_data.n_pk_fields = 1;
   mi_table_data.pk_field_indexes = Master_info::get_table_pk_field_indexes();
+  Master_info::set_nullable_fields(&mi_table_data.nullable_fields);
   mi_file_data.n_fields = Master_info::get_number_info_mi_fields();
   my_stpcpy(mi_file_data.name, master_info_file);
   my_stpcpy(mi_file_data.pattern, master_info_file);
-  rli_file_data.name_indexed = false;
+  mi_file_data.name_indexed = false;
+  Master_info::set_nullable_fields(&mi_file_data.nullable_fields);
 
   worker_table_data.n_fields = Slave_worker::get_number_worker_fields();
   worker_table_data.schema = MYSQL_SCHEMA_NAME.str;
@@ -534,12 +546,14 @@ void Rpl_info_factory::init_repository_metadata() {
   worker_table_data.n_pk_fields = 2;
   worker_table_data.pk_field_indexes =
       Slave_worker::get_table_pk_field_indexes();
+  Slave_worker::set_nullable_fields(&worker_table_data.nullable_fields);
   worker_file_data.n_fields = Slave_worker::get_number_worker_fields();
   build_worker_info_name(worker_file_data.name, relay_log_info_file_dirpart,
                          relay_log_info_file_name);
   build_worker_info_name(worker_file_data.pattern, relay_log_info_file_dirpart,
                          relay_log_info_file_name);
   worker_file_data.name_indexed = true;
+  Slave_worker::set_nullable_fields(&worker_file_data.nullable_fields);
 }
 
 /**
@@ -576,7 +590,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
   bool error = true;
   enum_return_check return_check_src = ERROR_CHECKING_REPOSITORY;
   enum_return_check return_check_dst = ERROR_CHECKING_REPOSITORY;
-  DBUG_ENTER("Rpl_info_factory::decide_repository");
+  DBUG_TRACE;
 
   if (option == INFO_REPOSITORY_DUMMY) {
     delete (*handler_src);
@@ -586,8 +600,8 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
     goto err;
   }
 
-  DBUG_ASSERT((*handler_src) != nullptr && (*handler_dest) != nullptr &&
-              (*handler_src) != (*handler_dest));
+  assert((*handler_src) != nullptr && (*handler_dest) != nullptr &&
+         (*handler_src) != (*handler_dest));
 
   return_check_src = check_src_repository(info, option, handler_src);
   return_check_dst =
@@ -607,8 +621,8 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
       If there is a problem with one of the repositories we print out
       more information and exit.
     */
-    DBUG_RETURN(check_error_repository(
-        *handler_src, *handler_dest, return_check_src, return_check_dst, msg));
+    return check_error_repository(*handler_src, *handler_dest, return_check_src,
+                                  return_check_dst, msg);
   } else {
     if ((return_check_src == REPOSITORY_EXISTS &&
          return_check_dst == REPOSITORY_DOES_NOT_EXIST) ||
@@ -653,14 +667,14 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
       }
     } else if (return_check_src == REPOSITORY_DOES_NOT_EXIST &&
                return_check_dst == REPOSITORY_EXISTS) {
-      DBUG_ASSERT(info->get_rpl_info_handler() == nullptr);
+      assert(info->get_rpl_info_handler() == nullptr);
       if ((*handler_dest)->do_init_info(info->get_internal_id())) {
         *msg = "Error reading repository";
         goto err;
       }
     } else {
-      DBUG_ASSERT(return_check_src == REPOSITORY_DOES_NOT_EXIST &&
-                  return_check_dst == REPOSITORY_DOES_NOT_EXIST);
+      assert(return_check_src == REPOSITORY_DOES_NOT_EXIST &&
+             return_check_dst == REPOSITORY_DOES_NOT_EXIST);
       info->inited = false;
     }
 
@@ -671,7 +685,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
   }
 
 err:
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -831,30 +845,33 @@ bool Rpl_info_factory::init_repositories(const struct_table_data &table_data,
   bool error = true;
   *msg = "Failed to allocate memory for master info repositories";
 
-  DBUG_ENTER("Rpl_info_factory::init_mi_repositories");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(handler_dest != nullptr);
+  assert(handler_dest != nullptr);
   switch (rep_option) {
     case INFO_REPOSITORY_FILE:
-      if (!(*handler_dest =
-                new Rpl_info_file(file_data.n_fields, file_data.pattern,
-                                  file_data.name, file_data.name_indexed)))
+      if (!(*handler_dest = new Rpl_info_file(
+                file_data.n_fields, file_data.pattern, file_data.name,
+                file_data.name_indexed, &file_data.nullable_fields)))
         goto err;
       if (handler_src &&
           !(*handler_src = new Rpl_info_table(
                 table_data.n_fields, table_data.schema, table_data.name,
-                table_data.n_pk_fields, table_data.pk_field_indexes)))
+                table_data.n_pk_fields, table_data.pk_field_indexes,
+                &table_data.nullable_fields)))
         goto err;
       break;
 
     case INFO_REPOSITORY_TABLE:
       if (!(*handler_dest = new Rpl_info_table(
                 table_data.n_fields, table_data.schema, table_data.name,
-                table_data.n_pk_fields, table_data.pk_field_indexes)))
+                table_data.n_pk_fields, table_data.pk_field_indexes,
+                &table_data.nullable_fields)))
         goto err;
-      if (handler_src && !(*handler_src = new Rpl_info_file(
-                               file_data.n_fields, file_data.pattern,
-                               file_data.name, file_data.name_indexed)))
+      if (handler_src &&
+          !(*handler_src = new Rpl_info_file(
+                file_data.n_fields, file_data.pattern, file_data.name,
+                file_data.name_indexed, &file_data.nullable_fields)))
         goto err;
       break;
 
@@ -865,73 +882,105 @@ bool Rpl_info_factory::init_repositories(const struct_table_data &table_data,
       break;
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   error = false;
 
 err:
-  DBUG_RETURN(error);
+  return error;
 }
 
-bool Rpl_info_factory::scan_repositories(uint *found_instances,
-                                         uint *found_rep_option,
-                                         const struct_table_data &table_data,
-                                         const struct_file_data &file_data,
-                                         const char **msg) {
-  bool error = false;
+bool Rpl_info_factory::scan_and_count_repositories(
+    ulonglong &found_instances, uint &found_rep_option,
+    const struct_table_data &table_data, const struct_file_data &file_data,
+    std::string &msg) {
   uint file_instances = 0;
-  uint table_instances = 0;
-  DBUG_ASSERT(found_rep_option != nullptr);
+  ulonglong table_instances = 0;
 
-  DBUG_ENTER("Rpl_info_factory::scan_repositories");
+  DBUG_TRACE;
 
-  if (Rpl_info_table::do_count_info(table_data.n_fields, table_data.schema,
-                                    table_data.name, &table_instances)) {
-    error = true;
-    goto err;
+  if (Rpl_info_table::do_count_info(
+          table_data.n_fields, table_data.schema, table_data.name,
+          &table_data.nullable_fields, &table_instances)) {
+    return true;
   }
 
-  if (Rpl_info_file::do_count_info(file_data.n_fields, file_data.pattern,
-                                   file_data.name_indexed, &file_instances)) {
-    error = true;
-    goto err;
+  if (Rpl_info_file::do_count_info(
+          file_data.n_fields, file_data.pattern, file_data.name_indexed,
+          &file_data.nullable_fields, &file_instances)) {
+    return true;
   }
 
   if (file_instances != 0 && table_instances != 0) {
-    error = true;
-    *msg =
+    msg.assign(
         "Multiple repository instances found with data in "
         "them. Unable to decide which is the correct one to "
-        "choose";
-    goto err;
+        "choose");
+    return true;
   }
 
   if (table_instances != 0) {
-    *found_instances = table_instances;
-    *found_rep_option = INFO_REPOSITORY_TABLE;
+    found_instances = table_instances;
+    found_rep_option = INFO_REPOSITORY_TABLE;
   } else if (file_instances != 0) {
-    *found_instances = file_instances;
-    *found_rep_option = INFO_REPOSITORY_FILE;
+    found_instances = file_instances;
+    found_rep_option = INFO_REPOSITORY_FILE;
   } else {
-    *found_instances = 0;
-    *found_rep_option = INVALID_INFO_REPOSITORY;
+    found_instances = 0;
+    found_rep_option = INVALID_INFO_REPOSITORY;
   }
 
-err:
-  DBUG_RETURN(error);
+  return false;
+}
+
+bool Rpl_info_factory::scan_and_check_repositories(
+    uint &found_rep_option, const struct_table_data &table_data,
+    const struct_file_data &file_data, std::string &msg) {
+  uint file_instances = 0;
+
+  DBUG_TRACE;
+
+  auto [error, table_in_use] = Rpl_info_table::table_in_use(
+      table_data.n_fields, table_data.schema, table_data.name,
+      &table_data.nullable_fields);
+
+  if (error) return true;
+
+  if (Rpl_info_file::do_count_info(
+          file_data.n_fields, file_data.pattern, file_data.name_indexed,
+          &file_data.nullable_fields, &file_instances)) {
+    return true;
+  }
+
+  if (file_instances != 0 && table_in_use) {
+    msg.assign(
+        "Multiple repository instances found with data in "
+        "them. Unable to decide which is the correct one to "
+        "choose");
+    return true;
+  }
+
+  if (table_in_use) {
+    found_rep_option = INFO_REPOSITORY_TABLE;
+  } else if (file_instances != 0) {
+    found_rep_option = INFO_REPOSITORY_FILE;
+  } else {
+    found_rep_option = INVALID_INFO_REPOSITORY;
+  }
+
+  return false;
 }
 
 bool Rpl_info_factory::configure_channel_replication_filters(
     Relay_log_info *rli, const char *channel_name) {
-  DBUG_ENTER("configure_channel_replication_filters");
+  DBUG_TRACE;
 
   /*
     GROUP REPLICATION channels should not be configurable using
     --replicate* nor CHANGE REPLICATION FILTER, and should not
     inherit from global filters.
   */
-  if (channel_map.is_group_replication_channel_name(channel_name))
-    DBUG_RETURN(false);
+  if (channel_map.is_group_replication_channel_name(channel_name)) return false;
 
   if (Master_info::is_configured(rli->mi)) {
     /*
@@ -943,7 +992,7 @@ bool Rpl_info_factory::configure_channel_replication_filters(
     if (rli->rpl_filter->copy_global_replication_filters()) {
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_GLOBAL_FILTERS_COPY_FAILED,
              channel_name);
-      DBUG_RETURN(true);
+      return true;
     }
   } else {
     /*
@@ -956,11 +1005,11 @@ bool Rpl_info_factory::configure_channel_replication_filters(
       rli->rpl_filter->reset();
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
-  This function should be called from init_slave() only.
+  This function should be called from init_replica() only.
 
   During the server start, read all the slave repositories
   on disk (either in FILE or TABLE form) and create corresponding
@@ -1043,32 +1092,30 @@ bool Rpl_info_factory::configure_channel_replication_filters(
         is handled in the upgrade script as usual.
 
 
-  @param[in]        mi_option        the user provided master_info_repository
+  @param[in]       mi_option         the user provided master_info_repository
   @param[in]       rli_option        the user provided relay_log_info_repository
   @param[in]       thread_mask       thread mask
   @param[in]       pchannel_map          the pointer to the multi source map
                                      (see, rpl_msr.h)
 
-  @return
-   @retval         false              success
-   @retval         true               fail
-
+  @retval          false             success
+  @retval          true              fail
 */
 
 bool Rpl_info_factory::create_slave_info_objects(
     uint mi_option, uint rli_option, int thread_mask,
     Multisource_info *pchannel_map) {
-  DBUG_ENTER("create_slave_info_objects");
+  DBUG_TRACE;
 
   Master_info *mi = nullptr;
-  const char *msg = nullptr;
+  std::string msg;
   bool error = false, channel_error;
   bool default_channel_existed_previously = false;
 
   std::vector<std::string> channel_list;
 
   /* Number of instances of Master_info repository */
-  uint mi_instances = 0;
+  ulonglong mi_instances = 0;
 
   /* At this point, the repository in invalid or unknown */
   uint mi_repository = INVALID_INFO_REPOSITORY;
@@ -1076,9 +1123,9 @@ bool Rpl_info_factory::create_slave_info_objects(
   /*
     Number of instances of Relay_log_info_repository.
     (Number of Slave worker objects that will be created by the Coordinator
-    (when slave_parallel_workers>0) at a later stage and not here).
+    (when replica_parallel_workers>0) at a later stage and not here).
   */
-  uint rli_instances = 0;
+  ulonglong rli_instances = 0;
 
   /* At this point, the repository is invalid or unknown */
   uint rli_repository = INVALID_INFO_REPOSITORY;
@@ -1091,12 +1138,12 @@ bool Rpl_info_factory::create_slave_info_objects(
   Rpl_info_factory::init_repository_metadata();
 
   /* Count the number of Master_info and Relay_log_info repositories */
-  if (scan_repositories(&mi_instances, &mi_repository, mi_table_data,
-                        mi_file_data, &msg) ||
-      scan_repositories(&rli_instances, &rli_repository, rli_table_data,
-                        rli_file_data, &msg)) {
+  if (scan_and_count_repositories(mi_instances, mi_repository, mi_table_data,
+                                  mi_file_data, msg) ||
+      scan_and_count_repositories(rli_instances, rli_repository, rli_table_data,
+                                  rli_file_data, msg)) {
     /* msg will contain the reason of failure */
-    LogErr(ERROR_LEVEL, ER_RPL_SLAVE_GENERIC_MESSAGE, msg);
+    LogErr(ERROR_LEVEL, ER_RPL_SLAVE_GENERIC_MESSAGE, msg.c_str());
     error = true;
     goto end;
   }
@@ -1140,9 +1187,10 @@ bool Rpl_info_factory::create_slave_info_objects(
     const char *cname = (*it).c_str();
     bool is_default_channel =
         !strcmp(cname, pchannel_map->get_default_channel());
-    channel_error = !(mi = create_mi_and_rli_objects(
-                          mi_option, rli_option, cname,
-                          (channel_list.size() == 1) ? 1 : 0, pchannel_map));
+    channel_error =
+        !(mi = create_mi_and_rli_objects(
+              mi_option, rli_option, cname,
+              (channel_list.size() == 1) ? true : false, pchannel_map));
     /*
       Read the channel configuration from the repository if the channel name
       was read from the repository.
@@ -1150,12 +1198,15 @@ bool Rpl_info_factory::create_slave_info_objects(
     if (!channel_error &&
         (!is_default_channel || default_channel_existed_previously)) {
       bool ignore_if_no_info = (channel_list.size() == 1) ? true : false;
-      channel_error =
-          load_mi_and_rli_from_repositories(mi, ignore_if_no_info, thread_mask);
+      channel_error = load_mi_and_rli_from_repositories(
+          mi, ignore_if_no_info, thread_mask, false, true);
     }
 
     if (!channel_error) {
       error = configure_channel_replication_filters(mi->rli, cname);
+      invalidate_repository_position(mi);
+      // With GTID ONLY the worker info is not needed
+      if (mi->is_gtid_only_mode()) Rpl_info_factory::reset_workers(mi->rli);
     } else {
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_FAILED_TO_INIT_A_MASTER_INFO_STRUCTURE,
              cname);
@@ -1163,7 +1214,7 @@ bool Rpl_info_factory::create_slave_info_objects(
     error = error || channel_error;
   }
 end:
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -1190,20 +1241,20 @@ end:
 Master_info *Rpl_info_factory::create_mi_and_rli_objects(
     uint mi_option, uint rli_option, const char *channel, bool to_decide_repo,
     Multisource_info *pchannel_map) {
-  DBUG_ENTER("Rpl_info_factory::create_mi_and_rli_objects");
+  DBUG_TRACE;
 
   Master_info *mi = nullptr;
   Relay_log_info *rli = nullptr;
 
   if (!(mi = Rpl_info_factory::create_mi(mi_option, channel, to_decide_repo)))
-    DBUG_RETURN(nullptr);
+    return nullptr;
 
   if (!(rli = Rpl_info_factory::create_rli(rli_option, relay_log_recovery,
                                            channel, to_decide_repo))) {
     mi->channel_wrlock();
     delete mi;
     mi = nullptr;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   /* Set the cross dependencies used all over the code */
@@ -1215,10 +1266,10 @@ Master_info *Rpl_info_factory::create_mi_and_rli_objects(
     mi->channel_wrlock();
     delete mi;
     delete rli;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
-  DBUG_RETURN(mi);
+  return mi;
 }
 
 /**
@@ -1237,22 +1288,21 @@ Master_info *Rpl_info_factory::create_mi_and_rli_objects(
                                 Value filled with true if default channel
                                 existed previously. False if it is not.
 
-   @return
-     @retval        true             fail
-     @retval        false            success
+   @retval      true            fail
+   @retval      false           success
 
 */
 
 bool Rpl_info_factory::load_channel_names_from_repository(
-    std::vector<std::string> &channel_list,
-    uint mi_instances MY_ATTRIBUTE((unused)), uint mi_repository,
-    const char *default_channel, bool *default_channel_existed_previously) {
-  DBUG_ENTER("Rpl_info_factory::load_channel_names_from_repository");
+    std::vector<std::string> &channel_list, uint mi_instances [[maybe_unused]],
+    uint mi_repository, const char *default_channel,
+    bool *default_channel_existed_previously) {
+  DBUG_TRACE;
 
   *default_channel_existed_previously = false;
   switch (mi_repository) {
     case INFO_REPOSITORY_FILE:
-      DBUG_ASSERT(mi_instances == 1);
+      assert(mi_instances == 1);
       /* insert default channel */
       {
         std::string str(default_channel);
@@ -1263,20 +1313,20 @@ bool Rpl_info_factory::load_channel_names_from_repository(
     case INFO_REPOSITORY_TABLE:
       if (load_channel_names_from_table(channel_list, default_channel,
                                         default_channel_existed_previously))
-        DBUG_RETURN(true);
+        return true;
       break;
     case INVALID_INFO_REPOSITORY:
       /* file and table instanaces are zero, nothing to be done*/
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
-  In a multisourced slave, during init_slave(), the repositories
+  In a multisourced slave, during init_replica(), the repositories
   are read to initialize the slave info objects. To initialize
   the slave info objects, we need the number of channels the slave
   was connected to previously. The following function, finds the
@@ -1300,7 +1350,7 @@ bool Rpl_info_factory::load_channel_names_from_repository(
 bool Rpl_info_factory::load_channel_names_from_table(
     std::vector<std::string> &channel_list, const char *default_channel,
     bool *default_channel_existed_previously) {
-  DBUG_ENTER(" Rpl_info_table::load_channel_names_from_table");
+  DBUG_TRACE;
 
   int error = 1;
   TABLE *table = nullptr;
@@ -1317,8 +1367,9 @@ bool Rpl_info_factory::load_channel_names_from_table(
 
   if (!(info = new Rpl_info_table(mi_table_data.n_fields, mi_table_data.schema,
                                   mi_table_data.name, mi_table_data.n_pk_fields,
-                                  mi_table_data.pk_field_indexes)))
-    DBUG_RETURN(true);
+                                  mi_table_data.pk_field_indexes,
+                                  &mi_table_data.nullable_fields)))
+    return true;
 
   thd = info->access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -1339,7 +1390,7 @@ bool Rpl_info_factory::load_channel_names_from_table(
   }
 
   /* Do ha_handler random init for full scanning */
-  if ((error = table->file->ha_rnd_init(true))) DBUG_RETURN(true);
+  if ((error = table->file->ha_rnd_init(true))) return true;
 
   /* Ensure that the table pk (Channel_name) is at the correct position */
   if (info->verify_table_primary_key_fields(table)) {
@@ -1382,5 +1433,12 @@ err:
   thd->variables.sql_mode = saved_mode;
   info->access->drop_thd(thd);
   delete info;
-  DBUG_RETURN(error != HA_ERR_END_OF_FILE && error != 0);
+  return error != HA_ERR_END_OF_FILE && error != 0;
+}
+
+void Rpl_info_factory::invalidate_repository_position(Master_info *mi) {
+  if (mi->is_gtid_only_mode()) {
+    mi->set_receiver_position_info_invalid(true);
+    mi->rli->set_applier_source_position_info_invalid(true);
+  }
 }

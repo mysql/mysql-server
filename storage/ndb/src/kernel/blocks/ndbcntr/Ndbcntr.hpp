@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,6 @@
 #define ZBLOCK_STTOR 3
 
 #define ZSIZE_NDB_BLOCKS_REC 16 /* MAX BLOCKS IN NDB                    */
-#define ZSIZE_SYSTAB 2048
 #define ZSTART_PHASE_1 1
 #define ZSTART_PHASE_2 2
 #define ZSTART_PHASE_3 3
@@ -202,7 +201,7 @@ public:
 
 public:
   Ndbcntr(Block_context&);
-  virtual ~Ndbcntr();
+  ~Ndbcntr() override;
 
 private:
   BLOCK_DEFINES(Ndbcntr);
@@ -227,16 +226,10 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
-  void execTCSEIZECONF(Signal* signal);
-  void execTCSEIZEREF(Signal* signal);
-  void execTCRELEASECONF(Signal* signal);
-  void execTCRELEASEREF(Signal* signal);
-  void execTCKEYCONF(Signal* signal);
-  void execTCKEYREF(Signal* signal);
-  void execTCROLLBACKREP(Signal* signal);
   void execGETGCICONF(Signal* signal);
   void execDIH_RESTARTCONF(Signal* signal);
   void execDIH_RESTARTREF(Signal* signal);
+  void execSET_UP_MULTI_TRP_CONF(Signal*);
   void execSCHEMA_TRANS_BEGIN_CONF(Signal* signal);
   void execSCHEMA_TRANS_BEGIN_REF(Signal* signal);
   void execSCHEMA_TRANS_END_CONF(Signal* signal);
@@ -278,7 +271,6 @@ private:
   void beginSchemaTransLab(Signal* signal);
   void endSchemaTransLab(Signal* signal);
   void sendCreateTabReq(Signal* signal, const char* buffer, Uint32 bufLen);
-  void startInsertTransactions(Signal* signal);
   void initData(Signal* signal);
   void resetStartVariables(Signal* signal);
   void sendCntrStartReq(Signal* signal);
@@ -296,9 +288,6 @@ private:
   void createHashMap(Signal*, Uint32 index);
   void createSystableLab(Signal* signal, unsigned index);
   void createDDObjects(Signal*, unsigned index);
-  void crSystab7Lab(Signal* signal);
-  void crSystab8Lab(Signal* signal);
-  void crSystab9Lab(Signal* signal);
 
   void startPhase1Lab(Signal* signal);
   void startPhase2Lab(Signal* signal);
@@ -386,29 +375,15 @@ private:
    * CONTAIN INFO ABOUT ALL NODES IN CLUSTER. NODE_PTR ARE USED AS NODE NUMBER
    * IF THE STATE ARE ZDELETE THEN THE NODE DOESN'T EXIST. NODES ARE ALLOWED 
    * TO REGISTER (ZADD) DURING RESTART.
-   *
-   * WHEN THE SYSTEM IS RUNNING THE MASTER WILL CHECK IF ANY NODE HAS MADE 
-   * A CNTR_MASTERREQ AND TAKE CARE OF THE REQUEST. 
-   * TO CONFIRM THE REQ, THE MASTER DEMANDS THAT ALL RUNNING NODES HAS VOTED 
-   * FOR THE NEW NODE. 
-   * NODE_PTR:MASTER_REQ IS USED DURING RESTART TO LOG 
-   * POSTPONED CNTR_MASTERREQ'S 
    *------------------------------------------------------------------------*/
   NdbBlocksRec *ndbBlocksRec;
 
   /*
     2.4 COMMON STORED VARIABLES
   */
-  UintR cgciSystab;
-  UintR ckey;
-  //UintR csystabId;
   UintR cnoWaitrep6;
   UintR cnoWaitrep7;
-  UintR ctcConnectionP;
-  Uint32 ctcReference;
   UintR ctcReqInfo;
-  Uint8 ctransidPhase;
-  Uint16 cresponses;
 
   Uint8 cstartPhase;
   Uint16 cinternalStartphase;
@@ -429,7 +404,16 @@ private:
 
   NdbNodeBitmask c_allDefinedNodes;
   NdbNodeBitmask c_clusterNodes; // All members of qmgr cluster
-  NdbNodeBitmask c_startedNodes; // All cntr started nodes
+  /**
+   * c_cntr_startedNodeSet contains the nodes that have been allowed
+   * to start in CNTR_START_CONF. This is establised in phase 2 of the
+   * start.
+   *
+   * c_startedNodeSet contains the nodes that have completed the
+   * start and passed all start phases.
+   */
+  NdbNodeBitmask c_cntr_startedNodeSet;
+  NdbNodeBitmask c_startedNodeSet;
   
 public:
   struct StopRecord {
@@ -469,7 +453,12 @@ public:
     } m_state;
     SignalCounter m_stop_req_counter;
   };
+  bool is_node_started(NodeId);
+  bool is_node_starting(NodeId);
 private:
+  bool is_nodegroup_starting(Signal*, NodeId);
+  void get_node_group_mask(Signal*, NodeId, NdbNodeBitmask&);
+
   StopRecord c_stopRec;
   friend struct StopRecord;
 

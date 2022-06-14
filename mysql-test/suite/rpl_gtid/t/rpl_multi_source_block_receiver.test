@@ -109,14 +109,16 @@ DROP TABLE t1;
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
+--let $rpl_channel_name= 'channel_3'
+--source include/start_slave.inc
+
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 DROP TABLE t2;
 
---let $rpl_connection_name= server_2
---source include/rpl_connection.inc
 --let $rpl_channel_name= 'channel_3'
---source include/start_slave.inc
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
 
 --let $rpl_skip_sync=1
 --source include/rpl_end.inc

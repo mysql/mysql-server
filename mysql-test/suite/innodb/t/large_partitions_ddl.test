@@ -1,0 +1,65 @@
+--echo #
+--echo # Bug#31365127 DROP A PARTITION RESULT IN OOM
+--echo #
+
+--source include/big_test.inc
+
+# Case 1 : Test create and drop large number of partitions in
+# system table-space.
+
+set global innodb_file_per_table = off;
+
+CREATE TABLE t1(a INT NOT NULL, PRIMARY KEY(a)) ENGINE=INNODB
+PARTITION BY HASH(a) PARTITIONS 1024;
+
+DROP TABLE t1;
+
+# Case 2 : Test create, rename and drop large number of partitions in
+# system table-space.
+
+set global innodb_file_per_table = off;
+
+CREATE TABLE t1(a INT NOT NULL, PRIMARY KEY(a)) ENGINE=INNODB
+PARTITION BY HASH(a) PARTITIONS 1024;
+
+RENAME TABLE t1 TO t2;
+DROP TABLE t2;
+
+# Case 3 : Test create, truncate and drop large number of partitions in
+# system table-space.
+
+set global innodb_file_per_table = off;
+
+CREATE TABLE t1(a INT NOT NULL, PRIMARY KEY(a)) ENGINE=INNODB
+PARTITION BY HASH(a) PARTITIONS 1024;
+
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+
+set global innodb_file_per_table = on;
+
+# Case 4 : Test create and drop max number of partitions in
+# file per table-space.
+
+CREATE TABLE t1(a INT NOT NULL, PRIMARY KEY(a)) ENGINE=INNODB
+PARTITION BY HASH(a) PARTITIONS 1024;
+
+DROP TABLE t1;
+
+# Case 5 : Test create, rename and drop max number of partitions in
+# file per table-space.
+
+CREATE TABLE t1(a INT NOT NULL, PRIMARY KEY(a)) ENGINE=INNODB
+PARTITION BY HASH(a) PARTITIONS 1024;
+
+RENAME TABLE t1 TO t2;
+DROP TABLE t2;
+
+# Case 6 : Test create, truncate and drop large number of partitions in
+# file per table-space.
+
+CREATE TABLE t1(a INT NOT NULL, PRIMARY KEY(a)) ENGINE=INNODB
+PARTITION BY HASH(a) PARTITIONS 1024;
+
+TRUNCATE TABLE t1;
+DROP TABLE t1;

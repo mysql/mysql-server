@@ -3,7 +3,7 @@
 ## Test mysqlxtest executable help printout
 ##
 
-Copyright DATE Oracle and/or its affiliates. All rights reserved.
+Copyright DATE Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -44,6 +44,18 @@ Options:
 --use-socket          Connection through UNIX socket, using default file name 'SOCK'
                       --use-socket* options take precedence before options like: uri, user,
                       host, password, port
+--compression-mode=<mode>  Enable/disable compression negotiation algorithm (default: "DISABLED")
+                      "DISABLED" - do not negotiate compression
+                      "PREFERRED" - if server doesn't support selected compression, continue without compression.
+                      "REQUIRED" - if server doesn't support selected compression, fail the connection.
+--compression-algorithm=<algo[,algo...]>  Try to negotiate specified compression algorithm with the server (default:"DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM")
+                      "" - compression not enabled
+                      "DEFLATE_STREAM" - zlib compression enabled
+                      "LZ4_MESSAGE" - lz4f compression enabled
+                      "ZSTD_STREAM" - zstd compression enabled
+--compression-combine-mixed-messages=<0/1>  If 1, server is allowed to combine different message types into a compressed message (default: 1)
+--compression-max-combine-messages=<N>  If set, the server MUST not store more than N uncompressed messages into a compressed message (default: no limit)
+--compression-level=<N>  If set, the server MUST compress messages with given level N; otherwise the server use default level (depend on compression algorithm)
 --ssl-mode            SSL configuration (default: "")
                       "" - require encryption when at last one ssl option is set, otherwise is should be disabled.
                       "PREFERRED" - encryption is optional, client tries to set it up
@@ -66,6 +78,9 @@ Options:
 --expect-error=<error_code> Default connection must fail with specified code (default: OFF)
 -B, --bindump         Dump binary representation of messages sent, in format suitable for
 --trace-protocol      Enable X Protocol tracing
+--history-protocol=<0|1|true|false>
+                      Enable/disable X Protocol message tracing into
+                      history buffer, which is printed at test failure
 --verbose             Enable extra verbose messages
 --daemon              Work as a daemon (unix only)
 --help                Show command line help
@@ -87,6 +102,11 @@ The following commands may appear in the input script:
   Begins SQL block. SQL statements that appear will be executed and results printed (allows variables).
 -->endsql
   End SQL block. End a block of SQL started by -->sql
+-->begin_compress
+  Begins block of protobuf messages to compress and
+  encapsulate inside single 'Compressed' message.
+-->end_compress
+  End compressed message block. End a block started by -->begin_compress
 -->macro <macroname> <argname1> ...
   Start a block of text to be defined as a macro. Must be terminated with -->endmacro
 -->endmacro
@@ -102,6 +122,8 @@ The following commands may appear in the input script:
   Execute SSL handshake, enables SSL on current connection
 <protomsg>
   Encodes the text format protobuf message and sends it to the server (allows variables).
+-->enable_compression deflate_stream|lz4_message|zstd_stream [#level]
+  Enable compression
 -->recv [quiet|<FIELD PATH>]
   quiet        - received message isn't printed
   <FIELD PATH> - print only selected part of the message using
@@ -116,8 +138,13 @@ The following commands may appear in the input script:
   and set the variable <varname>
 -->recverror <errno>
   Read a message and ensure that it's an error of the expected type
--->recvtype <msgtype> (<msg_fied>|be-quiet|<msg_fied> be-quiet|<msg_fied> <expected_field_value>|)
-  Read one message and print it, checking that its type is the specified one
+-->recvtype (<msgtype> [<msg_fied>] [<expected_field_value>] [be-quiet])|<msgid>
+  - In case when user specified <msgtype> - read one message and print it,
+    checks if its type is <msgtype>, additionally its fields may be matched.
+    Compressed messages are decompressed, thus user will receive inner X Protocol messages.
+  - In case when user specified <msgid> - read one message and print the ID,
+    checks the RAW message ID if its match <msgid>.
+    Compressed messages are not decompressed, thus their IDs may be matched against <msgid>.
 -->recvok
   Expect to receive 'Mysqlx.Ok' message. Works with 'expecterror' command.
 -->recvuntil <msgtype> [do_not_show_intermediate]
@@ -129,23 +156,26 @@ The following commands may appear in the input script:
   End block of instructions that should be repeated - next iteration
 -->stmtsql <CMD>
   Send StmtExecute with sql command
+-->env <XVARIABLE> <ENV>
+  Assign environment variable to X variable.
 -->stmtadmin <CMD> [json_string]
   Send StmtExecute with admin command with given aguments (formated as json object)
+-->system_in_background <CMD>
+  Execute application or script.
 -->system <CMD>
-  Execute application or script (dev only)
+  Execute application or script
 -->exit
   Stops reading commands, disconnects and exits (same as <eof>/^D)
 -->abort
   Exit immediately, without performing cleanup
 -->shutdown_server [timeout]
-  Shutdown the server associated with current session,
-  in case when the 'timeout' argument was set to '0'(for now it only supported
-  option), the command kills the server.
+  Kills the server associated with current session.
 -->nowarnings/-->yeswarnings
   Whether to print warnings generated by the statement (default no)
--->recvuntildisc [show-received]
+-->recvuntildisc [show-received, keep-session]...
   Receive all messages until server drops current connection.
   show-received - received messages are printed to standard output.
+  keep-session - session descriptor is not released in mysqlxtest, user may execute 'reconnect'.
 -->peerdisc <MILLISECONDS> [TOLERANCE]
   Expect that xplugin disconnects after given number of milliseconds and tolerance
 -->sleep <SECONDS>
@@ -183,6 +213,18 @@ The following commands may appear in the input script:
   Close the active session (unless its the default session)
 -->wait_for <VALUE_EXPECTED>	<SQL QUERY>
   Wait until SQL query returns value matches expected value (time limit 30 second)
+-->assert <VALUE_EXPECTED>	<OP>	<VALUE_TESTED>
+  Ensure that expression described by argument parameters is true
+  <OP> can take following values:
+  "==" ensures that expected value and tested value are equal
+  "!=" ensures that expected value and tested value are not equal
+  ">=" ensures that expected value is greater or equal to tested value
+  "<=" ensures that expected value is less or equal to tested value
+  "<" ensures that expected value is less than tested value
+  ">" ensures that expected value is grater than tested value
+
+  For example: -->assert 1 < %SOME_VARIABLE%
+               -->assert %V1% == %V2%
 -->assert_eq <VALUE_EXPECTED>	<VALUE_TESTED>
   Ensure that 'TESTED' value equals 'EXPECTED' by comparing strings lexicographically
 -->assert_ne <VALUE_EXPECTED>	<VALUE_TESTED>
@@ -203,14 +245,27 @@ The following commands may appear in the input script:
   Replace all occurrence of <old_txt> with <new_txt> in <varname> value.
 -->varescape <varname>
   Escape end-line and backslash characters.
+-->compress_bin <VAR> <bindump>
+  Compress <bindump> using output-compression context
+  and put the output to <VAR> encoded using bindump
+  (compatible with protobuf text format).
+-->compress_hex <VAR> <hexdump>
+  Compress <hexdump> using output-compression context
+  and put the output to <VAR> encoded using hexdecimal string.
 -->binsend <bindump>[<bindump>...]
   Sends one or more binary message dumps to the server (generate those with --bindump)
 -->binsendoffset <srcvar> [offset-begin[percent]> [offset-end[percent]]]
   Same as binsend with begin and end offset of data to be send
--->binparse MESSAGE.NAME {
+-->binparse <VAR_NAME> MESSAGE.NAME {
     MESSAGE.DATA
 }
-  Dump given message to variable %MESSAGE_DUMP%
+  Dump given message to variable <VAR_NAME>, encoded as 
+  binary string (compatible with protobuf text format).
+-->hexparse <VAR_NAME> MESSAGE.NAME {
+    MESSAGE.DATA
+}
+  Dump given message to variable <VAR_NAME>, encoded as 
+  hexdecimal string.
 -->quiet/noquiet
   Toggle verbose messages
 -->query_result/noquery_result

@@ -1,0 +1,60 @@
+CREATE TABLE t1 (pk INT PRIMARY KEY, data BLOB);
+CREATE PROCEDURE populate()
+BEGIN
+DECLARE p1 INT DEFAULT 1;
+label1: loop
+INSERT INTO t1 VALUES (p1, REPEAT('a', 3200));
+SET p1 = p1 + 1;
+IF p1 < 10000 THEN
+iterate label1;
+END IF;
+leave label1;
+end loop label1;
+END;|
+CALL populate();
+# Generate data into temporary file
+SET GLOBAL innodb_segment_reserve_factor = 1.0;
+CREATE TABLE t2 LIKE t1;
+# Load data into t2 from temporary file
+SET GLOBAL innodb_segment_reserve_factor = 30.0;
+CREATE TABLE t3 LIKE t1;
+# Load data into t3 from temporary file
+SET innodb_interpreter = 'init';
+SET innodb_interpreter = 'count_page_type test/t2';
+SELECT @@innodb_interpreter_output;
+@@innodb_interpreter_output
+FIL_PAGE_TYPE_ALLOCATED: 628
+FIL_PAGE_INODE: 1
+FIL_PAGE_IBUF_BITMAP: 1
+FIL_PAGE_TYPE_FSP_HDR: 1
+FIL_PAGE_SDI: 1
+FIL_PAGE_INDEX: 3208
+Total: 3840
+
+SET innodb_interpreter = 'count_used_and_free test/t2';
+SELECT @@innodb_interpreter_output;
+@@innodb_interpreter_output
+Total= 3840, used=3212, free=628
+Fill factor= 83.6458, free factor= 16.3542
+
+SET innodb_interpreter = 'count_page_type test/t3';
+SELECT @@innodb_interpreter_output;
+@@innodb_interpreter_output
+FIL_PAGE_TYPE_ALLOCATED: 1908
+FIL_PAGE_INODE: 1
+FIL_PAGE_IBUF_BITMAP: 1
+FIL_PAGE_TYPE_FSP_HDR: 1
+FIL_PAGE_SDI: 1
+FIL_PAGE_INDEX: 3208
+Total: 5120
+
+SET innodb_interpreter = 'count_used_and_free test/t3';
+SELECT @@innodb_interpreter_output;
+@@innodb_interpreter_output
+Total= 5120, used=3212, free=1908
+Fill factor= 62.7344, free factor= 37.2656
+
+SET innodb_interpreter = 'destroy';
+SET GLOBAL innodb_segment_reserve_factor = DEFAULT;
+DROP TABLE t1, t2, t3;
+DROP PROCEDURE populate;

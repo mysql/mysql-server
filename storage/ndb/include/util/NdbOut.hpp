@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 #include <ndb_types.h>
 #include <util/BaseString.hpp>
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 /**
  * Class used for outputting logging messages to screen.
@@ -92,7 +93,9 @@ public:
     ATTRIBUTE_FORMAT(printf, 2, 3);
   void println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  
+
+  NdbOut(const NdbOut&) = default;
+  NdbOut& operator=(const NdbOut&) = default;
   OutputStream * m_out;
 private:
   void choose(const char * fmt,...);
@@ -126,7 +129,7 @@ void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 class FilteredNdbOut : public NdbOut {
 public:
   FilteredNdbOut(OutputStream &, int threshold = 0, int level = 0);
-  virtual ~FilteredNdbOut();
+  ~FilteredNdbOut() override;
 
   void setLevel(int i);
   void setThreshold(int i);

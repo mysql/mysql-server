@@ -263,7 +263,7 @@ t1	CREATE TABLE `t1` (
   `c01` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c02` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c03` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `c04` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `c04` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
   `c05` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c06` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c07` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
@@ -273,11 +273,11 @@ t1	CREATE TABLE `t1` (
   `c11` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c12` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c13` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c14` char(0) CHARACTER SET latin2 DEFAULT NULL,
-  `c15` char(0) CHARACTER SET latin2 DEFAULT NULL,
+  `c14` binary(0) DEFAULT NULL,
+  `c15` binary(0) DEFAULT NULL,
   `c16` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c17` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c18` char(0) CHARACTER SET latin2 DEFAULT NULL,
+  `c18` binary(0) DEFAULT NULL,
   `c19` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c20` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c21` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
@@ -290,13 +290,13 @@ t1	CREATE TABLE `t1` (
   `c29` varchar(381) CHARACTER SET latin2 DEFAULT NULL,
   `c30` varchar(317) CHARACTER SET latin2 DEFAULT NULL,
   `c31` varchar(192) CHARACTER SET latin2 DEFAULT NULL,
-  `c32` char(0) CHARACTER SET latin2 DEFAULT NULL,
+  `c32` binary(0) DEFAULT NULL,
   `c33` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c34` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c35` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
-  `c36` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
+  `c36` varbinary(3) DEFAULT NULL,
   `c37` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
-  `c38` varchar(10) CHARACTER SET latin2 DEFAULT NULL
+  `c38` varbinary(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
@@ -333,21 +333,21 @@ Table	Create Table
 bug19145a	CREATE TABLE `bug19145a` (
   `e` enum('a','b','c') DEFAULT NULL,
   `s` set('x','y','z') DEFAULT NULL,
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bug19145b;
 Table	Create Table
 bug19145b	CREATE TABLE `bug19145b` (
   `e` enum('a','b','c') DEFAULT NULL,
   `s` set('x','y','z') DEFAULT NULL,
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bug19145c;
 Table	Create Table
 bug19145c	CREATE TABLE `bug19145c` (
   `e` enum('a','b','c') NOT NULL DEFAULT 'b',
   `s` set('x','y','z') NOT NULL DEFAULT 'y',
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug19145a;
 drop table bug19145b;
@@ -434,3 +434,7 @@ show status like 'handler_read_key';
 Variable_name	Value
 Handler_read_key	1
 drop table t1;
+# Bug#33630225: Bad caching of converted constants in NULL-safe compare
+SELECT NULL <=> (0 <=> NULL);
+NULL <=> (0 <=> NULL)
+0

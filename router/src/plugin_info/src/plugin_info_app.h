@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -83,13 +83,11 @@ class PluginInfoFrontend final {
    * @param exe_name  name of the started executable
    * @param arguments command line arguments (without exe_name)
    * @param out       Output stream for the data printed by the application
-   * @param err       Output stream for the error data printed by the
-   *application
    *
    **/
   PluginInfoFrontend(const std::string &exe_name,
                      const std::vector<std::string> &arguments,
-                     std::ostream &out, std::ostream &err);
+                     std::ostream &out);
 
   std::string get_version() const noexcept;
 
@@ -114,7 +112,6 @@ class PluginInfoFrontend final {
   std::string program_name_;
   CmdArgHandler arg_handler_{true};
   std::ostream &cout_;
-  std::ostream &cerr_;
 
   Config config_;  // must be last as config-handling may depend on cin, ...
                    // and arg_handler_

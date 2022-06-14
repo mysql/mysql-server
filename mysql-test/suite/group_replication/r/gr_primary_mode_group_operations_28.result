@@ -35,7 +35,6 @@ SELECT group_replication_set_as_primary("MEMBER2_UUID");
 # 6. Check that the other members are waiting for members to be in
 #    super_read_only and executing primary election
 [connection server_1]
-include/assert.inc [stage/group_rpl/Primary Switch: executing Primary election]
 include/assert.inc [stage/group_rpl/Primary Election: waiting for members to enable super_read_only]
 
 # 7. Kill the new primary server2
@@ -64,6 +63,9 @@ include/gr_wait_primary_member_uuid.inc
 
 # 13. Clean up
 DROP TABLE t1;
+[connection server2]
+DROP TABLE t1;
+[connection server1]
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The appointed primary for election left the group, this operation will be aborted.*");
 set session sql_log_bin=1;

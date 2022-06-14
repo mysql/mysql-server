@@ -1,0 +1,9 @@
+--source include/have_component_keyring_file.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+
+--source ../inc/rpl_setup_component.inc
+
+--source include/keyring_tests/binlog/rpl_binlog_cache_encryption.inc
+
+--source ../inc/rpl_teardown_component.inc

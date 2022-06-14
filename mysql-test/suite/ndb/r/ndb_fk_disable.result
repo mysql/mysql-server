@@ -82,9 +82,9 @@ delete from parent;
 set foreign_key_checks = 0;
 insert into parent values (1,1,1);
 insert into parent values (1,1,1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'parent.PRIMARY'
 insert into parent values (2,1,1);
-ERROR 23000: Duplicate entry '1' for key 'b'
+ERROR 23000: Duplicate entry '1' for key 'parent.b'
 delete from child;
 delete from parent;
 insert into parent values (1,1,1);

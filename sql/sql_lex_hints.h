@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,6 @@ class Hint_scanner {
   THD *thd;
   const CHARSET_INFO *cs;
   const bool is_ansi_quotes;
-  const bool backslash_escapes;
   size_t lineno;
   const hint_lex_char_classes *char_classes;
 
@@ -102,71 +101,27 @@ class Hint_scanner {
   void syntax_warning(const char *msg) const;
 
   int get_next_token() {
-    DBUG_ENTER("Hint_scanner::get_next_token");
+    DBUG_TRACE;
     prev_token = scan();
     add_hint_token_digest();
-    DBUG_RETURN(prev_token);
+    return prev_token;
   }
 
  protected:
-  int scan() {
-    int whitespaces = 0;
-    for (;;) {
-      start_token();
-      switch (peek_class()) {
-        case HINT_CHR_NL:
-          skip_newline();
-          whitespaces++;
-          continue;
-        case HINT_CHR_SPACE:
-          skip_byte();
-          whitespaces++;
-          continue;
-        case HINT_CHR_DIGIT:
-          return scan_number_or_ident();
-        case HINT_CHR_IDENT:
-          return scan_ident_or_keyword();
-        case HINT_CHR_MB:
-          return scan_ident();
-        case HINT_CHR_QUOTE:
-          return scan_quoted<HINT_CHR_QUOTE>();
-        case HINT_CHR_BACKQUOTE:
-          return scan_quoted<HINT_CHR_BACKQUOTE>();
-        case HINT_CHR_DOUBLEQUOTE:
-          return scan_quoted<HINT_CHR_DOUBLEQUOTE>();
-        case HINT_CHR_ASTERISK:
-          if (peek_class2() == HINT_CHR_SLASH) {
-            ptr += 2;  // skip "*/"
-            input_buf_end = ptr;
-            return HINT_CLOSE;
-          } else
-            return get_byte();
-        case HINT_CHR_AT:
-          if (prev_token == '(' ||
-              (prev_token == HINT_ARG_IDENT && whitespaces == 0))
-            return scan_query_block_name();
-          else
-            return get_byte();
-        case HINT_CHR_EOF:
-          return 0;
-        default:
-          return get_byte();
-      }
-    }
-  }
+  int scan();
 
   template <hint_lex_char_classes Quote>
   int scan_quoted() {
-    DBUG_ASSERT(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
-                Quote == HINT_CHR_QUOTE);
-    DBUG_ASSERT(*ptr == '`' || *ptr == '"' || *ptr == '\'');
+    assert(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
+           Quote == HINT_CHR_QUOTE);
+    assert(*ptr == '`' || *ptr == '"' || *ptr == '\'');
 
     const bool is_ident = (Quote == HINT_CHR_BACKQUOTE) ||
                           (is_ansi_quotes && Quote == HINT_CHR_DOUBLEQUOTE);
     const int ret = is_ident ? HINT_ARG_IDENT : HINT_ARG_TEXT;
 
-    skip_byte();     // skip opening quote sign
-    adjust_token();  // reset yytext & yyleng
+    skip_byte("\"'`");  // skip opening quote sign
+    adjust_token();     // reset yytext & yyleng
 
     size_t double_separators = 0;
 
@@ -183,14 +138,14 @@ class Hint_scanner {
           if (peek_class2() == HINT_CHR_SLASH)
             return HINT_ERROR;  // we don't support "*/" inside quoted
                                 // identifiers
-          skip_byte();
+          skip_byte('*');
           continue;
         case HINT_CHR_EOF:
           return HINT_ERROR;
         case Quote:
           if (peek_class2() == Quote) {
-            skip_byte();  // skip quote
-            skip_byte();  // skip quote
+            skip_byte("\"'`");
+            skip_byte("\"'`");
             double_separators++;
             continue;
           } else {
@@ -207,10 +162,10 @@ class Hint_scanner {
                                       thd->charset()))
                 return HINT_ERROR;  // OOM etc.
             } else {
-              DBUG_ASSERT(0 < double_separators && double_separators < yyleng);
+              assert(0 < double_separators && double_separators < yyleng);
               s.length = yyleng - double_separators;
-              s.str = (char *)thd->alloc(s.length);
-              if (s.str == NULL) return HINT_ERROR;  // OOM
+              s.str = static_cast<char *>(thd->alloc(s.length));
+              if (s.str == nullptr) return HINT_ERROR;  // OOM
             }
             if (double_separators > 0)
               compact<Quote>(&s, yytext, yyleng, double_separators);
@@ -243,8 +198,8 @@ class Hint_scanner {
     }
   }
 
-  int scan_scale_or_ident() {
-    DBUG_ASSERT(peek_class() == HINT_CHR_IDENT);
+  int scan_multiplier_or_ident() {
+    assert(peek_class() == HINT_CHR_IDENT);
     switch (peek_byte()) {
       case 'K':
       case 'M':
@@ -265,9 +220,7 @@ class Hint_scanner {
   }
 
   int scan_query_block_name() {
-    DBUG_ASSERT(*ptr == '@');
-
-    skip_byte();  // skip '@'
+    skip_byte('@');
     start_token();
 
     switch (peek_class()) {
@@ -309,7 +262,7 @@ class Hint_scanner {
               keyword string since symbol array is a global constant).
             */
             yytext = symbol->name;
-            DBUG_ASSERT(yyleng == symbol->length);
+            assert(yyleng == symbol->length);
 
             return symbol->tok;
           }
@@ -320,14 +273,19 @@ class Hint_scanner {
     }
   }
 
-  int scan_number_or_ident() {
+  int scan_number_or_multiplier_or_ident() {
+    assert(peek_class() == HINT_CHR_DIGIT);
+    skip_byte();
+
     for (;;) {
       switch (peek_class()) {
         case HINT_CHR_DIGIT:
           skip_byte();
           continue;
+        case HINT_CHR_DOT:
+          return scan_fraction_digits();
         case HINT_CHR_IDENT:
-          return scan_scale_or_ident();
+          return scan_multiplier_or_ident();
         case HINT_CHR_MB:
           return scan_ident();
         case HINT_CHR_EOF:
@@ -337,13 +295,35 @@ class Hint_scanner {
     }
   }
 
+  int scan_fraction_digits() {
+    skip_byte('.');
+
+    if (peek_class() == HINT_CHR_DIGIT)
+      skip_byte();
+    else
+      return HINT_ERROR;
+
+    for (;;) {
+      switch (peek_class()) {
+        case HINT_CHR_DIGIT:
+          skip_byte();
+          continue;
+        case HINT_CHR_IDENT:
+        case HINT_CHR_MB:
+          return HINT_ERROR;
+        default:
+          return HINT_ARG_FLOATING_POINT_NUMBER;
+      }
+    }
+  }
+
   bool eof() const {
-    DBUG_ASSERT(ptr <= input_buf_end);
+    assert(ptr <= input_buf_end);
     return ptr >= input_buf_end;
   }
 
   char peek_byte() const {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     return *ptr;
   }
 
@@ -352,19 +332,19 @@ class Hint_scanner {
   }
 
   hint_lex_char_classes peek_class2() const {
-    DBUG_ASSERT(ptr + 1 <= input_buf_end);
+    assert(ptr + 1 <= input_buf_end);
     return ptr + 1 >= input_buf_end ? HINT_CHR_EOF
                                     : char_classes[static_cast<uchar>(ptr[1])];
   }
 
   void skip_newline() {
-    DBUG_ASSERT(!eof() && peek_byte() == '\n');
+    assert(!eof() && peek_byte() == '\n');
     skip_byte();
     lineno++;
   }
 
   uchar get_byte() {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     char ret = *ptr;
     yyleng++;
     ptr++;
@@ -372,9 +352,31 @@ class Hint_scanner {
   }
 
   void skip_byte() {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     yyleng++;
     ptr++;
+  }
+
+  /**
+    Skips the next byte. In the debug mode, abort if it's not found in @p byte.
+
+    @param byte         A byte to compare with the byte we skip.
+                        Unused in non-debug builds.
+  */
+  void skip_byte(char byte [[maybe_unused]]) {
+    assert(peek_byte() == byte);
+    skip_byte();
+  }
+
+  /**
+    Skips the next byte. In the debug mode, abort if it's not found in @p str.
+
+    @param str          A string of characters to compare with the next byte.
+                        Unused in non-debug builds.
+  */
+  void skip_byte(const char *str [[maybe_unused]]) {
+    assert(strchr(str, peek_byte()));
+    skip_byte();
   }
 
   bool skip_mb() {
@@ -401,22 +403,22 @@ class Hint_scanner {
 
   template <hint_lex_char_classes Separator>
   void compact(LEX_STRING *to, const char *from, size_t len, size_t doubles) {
-    DBUG_ASSERT(doubles > 0);
+    assert(doubles > 0);
 
     size_t d = doubles;
     char *t = to->str;
     for (const char *s = from, *end = from + len; s < end;) {
       switch (char_classes[(uchar)*s]) {
         case HINT_CHR_MB: {
-          size_t len = my_ismbchar(cs, s, end);
-          DBUG_ASSERT(len > 1);
-          memcpy(t, s, len);
-          t += len;
-          s += len;
+          size_t hint_len = my_ismbchar(cs, s, end);
+          assert(hint_len > 1);
+          memcpy(t, s, hint_len);
+          t += hint_len;
+          s += hint_len;
         }
           continue;
         case Separator:
-          DBUG_ASSERT(char_classes[(uchar)*s] == Separator);
+          assert(char_classes[(uchar)*s] == Separator);
           *t++ = *s++;
           s++;  // skip the 2nd separator
           d--;
@@ -427,14 +429,14 @@ class Hint_scanner {
           }
           continue;
         case HINT_CHR_EOF:
-          DBUG_ASSERT(0);
+          assert(0);
           to->length = 0;
           return;
         default:
           *t++ = *s++;
       }
     }
-    DBUG_ASSERT(0);
+    assert(0);
     to->length = 0;
     return;
   }
@@ -448,7 +450,7 @@ class Hint_scanner {
     @param token        A token number to add.
   */
   void add_digest(uint token) {
-    if (digest_state == NULL) return;  // Digest buffer is full.
+    if (digest_state == nullptr) return;  // Digest buffer is full.
 
     Lexer_yystype fake_yylvalue;
     /*

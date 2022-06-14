@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ TEST_P(HttpTimeParsesTest, time_from_rfc5322_fixdate) {
       EXPECT_THAT(date_buf, ::testing::StrEq(std::get<2>(GetParam()))));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     HttpTimeParses, HttpTimeParsesTest,
     ::testing::Values(
         // parses a valid date
@@ -78,25 +78,25 @@ TEST_P(HttpTimeThrowsTest, time_from_rfc5322_fixdate_p) {
   EXPECT_THROW(time_from_rfc5322_fixdate(GetParam()), std::out_of_range);
 }
 
-INSTANTIATE_TEST_CASE_P(HttpTimeThrows, HttpTimeThrowsTest,
-                        ::testing::Values(
-                            // year too small
-                            "Thu, 31 May 1899 15:18:20 GMT",
+INSTANTIATE_TEST_SUITE_P(HttpTimeThrows, HttpTimeThrowsTest,
+                         ::testing::Values(
+                             // year too small
+                             "Thu, 31 May 1899 15:18:20 GMT",
 
-                            // wrong timezone
-                            "Thu, 31 May 2018 5:18:20 UTC",
+                             // wrong timezone
+                             "Thu, 31 May 2018 5:18:20 UTC",
 
-                            // throws at invalid weekday");
-                            "Tho, 31 May 2018 15:18:20 GMT",
+                             // throws at invalid weekday");
+                             "Tho, 31 May 2018 15:18:20 GMT",
 
-                            // throws at invalid month");
-                            "Thu, 31 Mai 2018 15:18:20 GMT",
+                             // throws at invalid month");
+                             "Thu, 31 Mai 2018 15:18:20 GMT",
 
-                            // throws at short year");
-                            "Thu, 31 May 201 15:18:20 GMT",
+                             // throws at short year");
+                             "Thu, 31 May 201 15:18:20 GMT",
 
-                            // throws at long year
-                            "Thu, 31 May 20188 15:18:20 GMT"));
+                             // throws at long year
+                             "Thu, 31 May 20188 15:18:20 GMT"));
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

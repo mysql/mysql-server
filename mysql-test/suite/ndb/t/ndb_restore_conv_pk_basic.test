@@ -1,0 +1,470 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+use test;
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a,b)) engine=ndb;
+
+insert into test.t1 values 
+        ("1a","1b","1c","1d"), 
+        ("2a","2b","2c","2d"), 
+        ("3a","3b","3c","3d"), 
+        ("4a","4b","4c","4d"), 
+        ("5a","5b","5c","5d"), 
+        ("6a","6b","6c","6d");
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.t1 values 
+        ("7a","7b","7c","7d"), 
+        ("8a","8b","8c","8d"), 
+        ("9a","9b","9c","9d");
+
+update test.t1 set d=concat(d, "-modified");
+
+delete from test.t1 where a in ("5a","8a");
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+drop table test.t1;
+
+--echo ********************************************
+--echo * Tests with column change from pk <-> !pk *
+--echo ********************************************
+
+--echo Extend pk (a,b) -> (a,b,c)
+--echo **************************
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a,b,c)) engine=ndb;
+
+--echo Show no PK mapping index
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+--echo Reduce pk (a,b) -> (a)
+--echo **********************
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+
+--echo Reduced and Extended pk (a,b) -> (b,c)
+--echo **************************************
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+--echo Reduced and Extended, promoted and demoted pk (a,b) -> (big B, small C)
+--echo ***********************************************************************
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(40) not null, 
+                      c varchar(10) not null, 
+                      d varchar(20), 
+  primary key(b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+--echo **************************
+--echo * Tests with column drop *
+--echo **************************
+
+--echo Column which was part of pk is gone (a,b) -> (a)
+--echo ************************************************
+
+create table test.t1 (a varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Column which was part of pk is gone, another is brought in  (a,b) -> (a,c)
+--echo **************************************************************************
+
+create table test.t1 (a varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Column which was part of pk is gone, another is brought in plus promote/demote  (a,b) -> (a,c)
+--echo **********************************************************************************************
+
+create table test.t1 (a varchar(40) not null, 
+                      c varchar(10) not null, 
+                      d varchar(20), 
+  primary key(a,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --promote-attributes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --promote-attributes --lossy-conversions --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Column order change
+--echo *******************
+
+create table test.t1 (d varchar(20),
+                      c varchar(20) not null,
+                      b varchar(20) not null,
+                      a varchar(20) not null,
+  primary key (b,a)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+
+--echo Check index reuse between instances with --disable-indexes
+--echo **********************************************************
+
+--echo Extend pk (a,b) -> (a,b,c)
+--echo **************************
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a,b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Check that we dropped the pk mapping index
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+
+# Slightly mixed order
+create table test.t1 (d varchar(20),
+                      c varchar(20) not null,
+                      b varchar(20) not null,
+                      a varchar(20) not null, 
+  primary key(a,b,c)) engine=ndb;
+
+insert into test.t1 (a,b,c,d) values 
+        ("1a","1b","1c","1d"), 
+        ("2a","2b","2c","2d"), 
+        ("3a","3b","3c","3d"), 
+        ("4a","4b","4c","4d"), 
+        ("5a","5b","5c","5d"), 
+        ("6a","6b","6c","6d");
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.t1 (a,b,c,d) values 
+        ("7a","7b","7c","7d"), 
+        ("8a","8b","8c","8d"), 
+        ("9a","9b","9c","9d");
+
+update test.t1 set d=concat(d, "-modified");
+
+delete from test.t1 where a in ("5a","8a");
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+drop table test.t1;
+
+--echo Column order mixing
+--echo **************************
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(a,b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20), 
+  primary key(b)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+
+--echo ************************************************************************
+--echo Tests for backup log containing update to column(s) becoming primary key
+--echo ************************************************************************
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(a,b)) engine=ndb;
+
+insert into test.t1 values 
+        ("1a","1b","1c","1d","1e"), 
+        ("2a","2b","2c","2d","2e"), 
+        ("3a","3b","3c","3d","3e"), 
+        ("4a","4b","4c","4d","4e"), 
+        ("5a","5b","5c","5d","5e"), 
+        ("6a","6b","6c","6d","6e");
+
+--echo Stall backup completion
+--exec $NDB_MGM -e "all error 10039"  >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make some changes which will be logged...
+insert into test.t1 values 
+        ("7a","7b","7c","7d","7e"), 
+        ("8a","8b","8c","8d","8e"), 
+        ("9a","9b","9c","9d","9e");
+
+# update column e alone
+update test.t1 set e=concat(e, "-modified");
+
+# update all 3 data columns together, with
+# no real change to c and d
+# Giving 
+#  - multiple updates to the same rows
+#  - updates with multiple columns affected
+#
+update test.t1 set c=c, d=d, e=concat(d, "-e");
+
+# Some deletes
+delete from test.t1 where a in ("5a","8a");
+
+--echo Allow backup to complete...
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Show that UPDATE on a single column becoming pk succeeds
+--echo Extend PK (a,b) -> (a,b,c)
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(a,b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Show that UPDATE on a column becoming pk while another is dropped succeeds
+--echo Extend + Contract PK (a,b) -> (b,c)
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Show that UPDATE on a column becoming pk while another is dropped succeeds
+--echo Extend + Contract PK (a,b) -> (b,c)
+--echo Also show type promotion
+
+create table test.t1 (a varchar(200) not null, 
+                      b varchar(200) not null, 
+                      c varchar(200) not null, 
+                      d varchar(200) not null,
+                      e varchar(200), 
+  primary key(b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Show that UPDATE on a column becoming pk while another is dropped succeeds
+--echo Extend + Contract PK (a,b) -> (b,c)
+--echo Also show type demotion
+
+create table test.t1 (a varchar(10) not null, 
+                      b varchar(10) not null, 
+                      c varchar(10) not null, 
+                      d varchar(15) not null,
+                      e varchar(10), 
+  primary key(b,c)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+
+--echo Show that UPDATE on multiple columns becoming pk while another is dropped succeeds
+--echo Extend + Contract PK (a,b) -> (b,c,d)
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(b,c,d)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Swap pk entirely
+--echo PK (a,b) -> (c,d)
+
+create table test.t1 (a varchar(20) not null, 
+                      b varchar(20) not null, 
+                      c varchar(20) not null, 
+                      d varchar(20) not null,
+                      e varchar(20), 
+  primary key(c,d)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from test.t1 order by a;
+
+drop table test.t1;
+
+--echo Swap pk entirely + db rewrite
+
+create database minitel;
+create table minitel.t1 (a varchar(20) not null, 
+                         b varchar(20) not null, 
+                         c varchar(20) not null, 
+                         d varchar(20) not null,
+                         e varchar(20), 
+  primary key(c,d)) engine=ndb;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions --rewrite-database=test,minitel $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions --rewrite-database=test,minitel $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from minitel.t1 order by a;
+
+drop table minitel.t1;
+drop database minitel;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

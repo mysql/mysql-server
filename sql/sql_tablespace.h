@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,13 @@
 
 #include <sys/types.h>
 
-#include "handler.h"  // ts_command_type
+#include <optional>
+
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"  // Sql_cmd
+#include "sql/handler.h"  // ts_command_type
+#include "sql/sql_cmd.h"  // Sql_cmd
 
 class THD;
 
@@ -42,7 +44,7 @@ struct Tablespace_options {
   ulonglong undo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
-  ulonglong autoextend_size = 0;                 // No autoextension as default
+  std::optional<ulonglong> autoextend_size;      // No autoextension as default
   ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;
@@ -50,6 +52,8 @@ struct Tablespace_options {
   LEX_STRING ts_comment = {nullptr, 0};  // FIXME: Rename to comment?
   LEX_CSTRING engine_name = {nullptr, 0};
   LEX_STRING encryption = {nullptr, 0};
+
+  LEX_CSTRING engine_attribute = NULL_CSTR;
 };
 
 /**
@@ -88,8 +92,8 @@ bool validate_tablespace_name(ts_command_type ts_cmd,
                               const handlerton *engine);
 
 /**
-  Base class for tablespace execution classes including LOGFILE GROUP
-  commands.
+  Base class for tablespace execution classes including
+  CREATE/ALTER/DROP TABLESPACE and LOGFILE GROUP commands.
  */
 class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
 {
@@ -110,7 +114,11 @@ class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
     Provide access to the command code enum value.
     @return command code enum value
    */
-  enum_sql_command sql_command_code() const override final;
+  enum_sql_command sql_command_code() const final;
+  /**
+    Return the Tablespace_options for this object.
+   */
+  const Tablespace_options get_options() const { return *m_options; }
 };
 
 /**

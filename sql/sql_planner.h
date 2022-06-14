@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "sql_optimizer.h"
 
 class Cost_model_server;
 class JOIN;
@@ -39,10 +40,20 @@ class JOIN_TAB;
 class Key_use;
 class Opt_trace_object;
 class THD;
+struct TABLE;
 struct TABLE_LIST;
 struct POSITION;
 
 typedef ulonglong nested_join_map;
+
+/**
+   Find the lateral dependencies of 'tab'.
+*/
+inline table_map get_lateral_deps(const JOIN_TAB &tab) {
+  return (tab.table_ref != nullptr && tab.table_ref->is_derived())
+             ? tab.table_ref->derived_query_expression()->m_lateral_deps
+             : 0;
+}
 
 /**
   This class determines the optimal join order for tables within
@@ -63,7 +74,7 @@ typedef ulonglong nested_join_map;
 class Optimize_table_order {
  public:
   Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg);
-  ~Optimize_table_order() {}
+  ~Optimize_table_order() = default;
   /**
     Entry point to table join order optimization.
     For further description, see class header and private function headers.
@@ -71,6 +82,10 @@ class Optimize_table_order {
     @return false if successful, true if error
   */
   bool choose_table_order();
+
+  void recalculate_lateral_deps(uint first_tab_no);
+
+  void recalculate_lateral_deps_incrementally(uint first_tab_no);
 
  private:
   THD *const thd;           // Pointer to current THD
@@ -119,6 +134,9 @@ class Optimize_table_order {
     join->best_positions.
   */
   bool got_final_plan;
+
+  /// Set true when we have decided to return with a "good enough" plan.
+  bool use_best_so_far{false};
 
   inline Key_use *find_best_ref(const JOIN_TAB *tab,
                                 const table_map remaining_tables,
@@ -170,6 +188,8 @@ class Optimize_table_order {
                               const double prefix_rowcount,
                               const Cost_model_server *cost_model);
 
+  table_map calculate_lateral_deps_of_final_plan(uint tab_no) const;
+  bool plan_has_duplicate_tabs() const;
   static uint determine_search_depth(uint search_depth, uint table_count);
 };
 
@@ -231,4 +251,54 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
                                  table_map used_tables, double fanout,
                                  bool is_join_buffering, bool write_to_trace,
                                  Opt_trace_object &parent_trace);
+
+/**
+  Find the cost for a ref lookup on the given index, assumed to return
+  “num_rows” rows. The cost will be capped by “worst_seeks”
+  (see find_worst_seeks()).
+ */
+double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
+                         double num_rows, double worst_seeks);
+
+class Join_tab_compare_default {
+ public:
+  /**
+    "Less than" comparison function object used to compare two JOIN_TAB
+    objects based on a number of factors in this order:
+
+     - table before another table that depends on it (straight join,
+       outer join etc), then
+     - table before another table that depends on it to use a key
+       as access method, then
+     - table with smallest number of records first, then
+     - the table with lowest-value pointer (i.e., the one located
+       in the lowest memory address) first.
+
+    @param jt1  first JOIN_TAB object
+    @param jt2  second JOIN_TAB object
+
+    @note The order relation implemented by Join_tab_compare_default is not
+      transitive, i.e. it is possible to choose a, b and c such that
+      (a @< b) && (b @< c) but (c @< a). This is the case in the
+      following example:
+
+        a: dependent = @<none@> found_records = 3
+        b: dependent = @<none@> found_records = 4
+        c: dependent = b        found_records = 2
+
+          a @< b: because a has fewer records
+          b @< c: because c depends on b (e.g outer join dependency)
+          c @< a: because c has fewer records
+
+      This implies that the result of a sort using the relation
+      implemented by Join_tab_compare_default () depends on the order in
+      which elements are compared, i.e. the result is
+      implementation-specific.
+
+    @return
+      true if jt1 is smaller than jt2, false otherwise
+  */
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) const;
+};
+
 #endif /* SQL_PLANNER_INCLUDED */

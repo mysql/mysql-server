@@ -196,3 +196,19 @@ ALTER TABLE parent ENGINE=InnoDB;
 UNLOCK TABLES;
 DROP TABLES child, parent;
 SET FOREIGN_KEY_CHECKS=1;
+
+
+--echo #
+--echo # Additional coverage for bug#30267236 "REPLACE DICT_FOREIGN_PARSE...
+--echo #                                       WITH SQL-LAYER CHECK."
+--echo #
+--echo # Special case. We silently ignore requests to drop foreign keys
+--echo # on tables in storage engines which don't support foreign keys.
+--echo # This is symmetrical with the fact that we silently ignore requests
+--echo # to create foreign keys on such tables.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk));
+CREATE TABLE myisam_table (fk INT) ENGINE=MyISAM;
+ALTER TABLE myisam_table DROP FOREIGN KEY no_such_fk;
+ALTER TABLE myisam_table DROP FOREIGN KEY c;
+DROP TABLES myisam_table, child, parent;

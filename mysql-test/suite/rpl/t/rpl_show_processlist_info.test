@@ -1,0 +1,47 @@
+################################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that, SHOW PROCESSLIST in Replica
+# shows null value instead of previously executed command in the INFO section
+# when slave_sql thread is waiting for updates from the Source.
+#
+# ==== Requirements ====
+# Replica's slave_sql thread should show null value in the SHOW PROCESSLIST
+# INFO section when it is waiting for updates from Source, even if the
+# previoulsy executed query is a rewritten query.
+#
+# ==== Implementation ====
+# 1. Perform an operation that can cause rewritten query on Source
+# 2. Verify Replica state and info through 'SHOW PROCESSLIST'
+# 3. Clean-up
+#
+# ==== References ====
+# Bug#:30521198: IDLE & CAUGHT UP SLAVE HAS OLD QUERY SHOWN IN "INFO"
+#                SECTION OF PROCESSLIST
+#
+################################################################################
+
+# Test is binlog_format-agnostic
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo
+--echo ==== Test ====
+# Perform an operation that can cause rewritten query on Source
+CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'mysql_native_password';
+
+# Verify replica activity using SHOW PROCESSLIST;
+--source include/sync_slave_sql_with_master.inc
+
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Replica has read all relay log; waiting for more updates';
+--source include/wait_show_condition.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Replica has read all relay log; waiting for more updates' AND INFO IS NULL;
+--source include/wait_condition.inc
+
+--echo
+--echo ==== Clean up ====
+--source include/rpl_connection_master.inc
+DROP USER IF EXISTS 'user1'@'%';
+
+--source include/rpl_end.inc

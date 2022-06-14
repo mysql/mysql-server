@@ -17,7 +17,7 @@ call mtr.add_suppression("Schema dist coordinator detected timeout");
 # Run schema operation to trigger participant timeout
 ALTER TABLE t1 ALGORITHM=copy, ADD COLUMN b int;
 Warnings:
-Warning	1296	Node <nodeid> '9003 Participant timeout'
+Warning	1296	Node <nodeid> 'Participant timeout'
 # Reset participant to not timeout anymore
 set GLOBAL debug="-d,ndb_schema_op_start_timeout";
 # Check that schema operation suceeded on another MySQL Server

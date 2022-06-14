@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,9 +120,87 @@
   performance_schema tables changed in MySQL 8.0.17
   - WL#12571 increases the HOST name length from 60 to 255.
 
-  Version published is now 800171. The next number to use is 80018.
+  80018:
+
+  performance_schema tables changed in MySQL 8.0.18
+  - replication_connection_configuration, added column
+  MASTER_COMPRESSION_ALGORITHMS, MASTER_COMPRESSION_LEVEL
+  - replication_applier_configuration, added column
+  PRIVILEGE_CHECKS_USER
+
+  80019:
+
+  performance_schema tables changed in MySQL 8.0.19
+  - replication_connection_configuration, added column
+  TLS_CIPHERSUITES
+  - replication_applier_configuration, added column
+  REQUIRE_ROW_FORMAT
+
+  80020:
+
+  performance_schema tables changed in MySQL 8.0.20
+  - WL#3549 created binary_log_transaction_compression_stats
+  - replication_applier_configuration, added column
+  REQUIRE_TABLE_PRIMARY_KEY_CHECK
+
+  80021:
+
+  performance_schema tables changed in MySQL 8.0.21
+  - tls_channel_status (created)
+  - replication_connection_configuration, added column
+  SOURCE_CONNECTION_AUTO_FAILOVER
+
+  80022:
+
+  performance_schema tables changed in MySQL 8.0.22
+  - WL#9090 created processlist
+  - WL#13681 created error_log
+
+  80023:
+
+  performance_schema tables changed in MySQL 8.0.23
+  - WL#12819 replication_applier_configuration, added column
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+  - performance_schema.replication_asynchronous_connection_failover,
+  added column MANAGED_NAME
+  - added table
+  performance_schema.replication_asynchronous_connection_failover_managed
+
+  80024:
+
+  performance_schema tables changed in MySQL 8.0.24
+  - WL#13446 added performance_schema.keyring_component_status
+
+  80027:
+
+  performance_schema tables changed in MySQL 8.0.27
+  - WL#9852 added replication_group_members column
+    MEMBER_COMMUNICATION_PROTOCOL_STACK
+  - Bug#32701593:'SELECT FROM
+    PS.REPLICATION_ASYNCHRONOUS_CONNECTION_FAILOVER' DIDN'T RETURN A RE
+  - WL#7491 added the column to replication_connection_configuration
+    the column GTID_ONLY
+  - BUG#104643 Defaults in performance schema tables incompatible with sql_mode
+    fixed TIMESTAMP columns (removed default 0)
+    fixed DOUBLE columns (removed sign)
+
+  80028:
+
+  performance_schema tables changed in MySQL 8.0.28
+  - WL#14779 PERFORMANCE_SCHEMA, ADD CPU TIME TO STATEMENT METRICS
+    added CPU_TIME, SUM_CPU_TIME columns.
+  - Fixed performance_schema.processlist host column to size 261.
+
+  80029:
+
+  performance_schema tables changed in MySQL 8.0.29
+  - WL#14346 PERFORMANCE_SCHEMA, SECONDARY_ENGINE STATS
+    Added columns EXECUTION_ENGINE, COUNT_SECONDARY
+  - Bug #30624990 NO UTF8MB3 IN INFORMATION_SCHEMA.CHARACTER_SETS
+    Use 'utf8mb3' rather than 'utf8' alias for for character set names.
 */
 
-static const uint PFS_DD_VERSION = 800171;
+static const uint PFS_DD_VERSION = 80029;
 
 #endif /* PFS_DD_VERSION_H */

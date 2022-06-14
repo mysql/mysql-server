@@ -16,7 +16,7 @@ ERROR HY000: Variable 'persist_only_admin_x509_subject' is a read only variable
 # Testing FR1.2.
 SELECT CHARSET(@@global.persist_only_admin_x509_subject);
 CHARSET(@@global.persist_only_admin_x509_subject)
-utf8
+utf8mb3
 # Testing FR1.4.
 SET PERSIST_ONLY persist_only_admin_x509_subject = 'persist_only';
 ERROR HY000: Variable 'persist_only_admin_x509_subject' is a non persistent read only variable
@@ -63,8 +63,8 @@ SET PERSIST_ONLY secure_file_priv = DEFAULT;
 ERROR HY000: Variable 'secure_file_priv' is a non persistent read only variable
 SET PERSIST_ONLY skip_networking = DEFAULT;
 ERROR HY000: Variable 'skip_networking' is a non persistent read only variable
-SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
-ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
+SET PERSIST_ONLY replica_load_tmpdir = DEFAULT;
+ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variable
 SET PERSIST_ONLY socket = DEFAULT;
 ERROR HY000: Variable 'socket' is a non persistent read only variable
 SET PERSIST_ONLY tmpdir = DEFAULT;

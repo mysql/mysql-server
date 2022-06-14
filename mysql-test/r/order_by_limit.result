@@ -239,7 +239,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,2,'t'), (2,5,'efqsdksj'),
 (3,NULL,'fqsdksjijcs'),(4,8,'qsdksjijc'),
-(5,40,NULL),(6,3,'sdksji'),(7,2,NULL),
+(5,40,NULL),(6,3,'dkz'),(7,2,NULL),
 (8,3,'dks'),(9,0,'ksjijcsz'),
 (10,84,'sjijcszxwbjj');
 ANALYZE TABLE t1;
@@ -305,3 +305,220 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`col_int_key` AS `field1` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`col_int_unique`) or (`test`.`t2`.`col_int_unique` = `test`.`t1`.`col_int_key`)) order by `field1` limit 2
 DROP TABLE t1,t2;
+#
+# Bug#30348211: DANGEROUS OPTIMIZATION RECONSIDERING_ACCESS_PATHS_FOR_
+#               INDEX_ORDERING
+#
+CREATE TABLE t (id BIGINT NOT NULL, other_id BIGINT NOT NULL,
+covered_column VARCHAR(50) NOT NULL, non_covered_column VARCHAR(50) NOT NULL,
+PRIMARY KEY (id),
+INDEX index_other_id_covered_column (other_id, covered_column));
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (10, 10, '10', '10');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (9, 9, '9', '9');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (8, 8, '8', '8');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (7, 7, '7', '7');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (6, 6, '6', '6');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (5, 5, '5', '5');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (4, 4, '4', '4');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (3, 3, '3', '3');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (2, 2, '2', '2');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (1, 1, '1', '1');
+SET
+optimizer_trace = "enabled=on",
+optimizer_trace_max_mem_size = 1000000,
+end_markers_in_json = ON;
+SET optimizer_switch = "prefer_ordering_index=on";
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	index_other_id_covered_column	PRIMARY	8	NULL	2	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`other_id` > 3) order by `test`.`t`.`id` limit 2
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	index_other_id_covered_column	index_other_id_covered_column	8	NULL	7	100.00	Using index condition; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`other_id` > 3) order by `test`.`t`.`id` limit 2
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
+should_be_0
+0
+SET optimizer_switch = default;
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	index_other_id_covered_column	PRIMARY	8	NULL	2	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`other_id` > 3) order by `test`.`t`.`id` limit 2
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+SET optimizer_switch = "prefer_ordering_index=on";
+EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	NULL	PRIMARY	8	NULL	2	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t`@`select#1` `PRIMARY`) */ `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`other_id` > 3) order by `test`.`t`.`id` limit 2
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	NULL	PRIMARY	8	NULL	2	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ ORDER_INDEX(`t`@`select#1` `PRIMARY`) */ `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`other_id` > 3) order by `test`.`t`.`id` limit 2
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (10+1+10, 10, '10', '10');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (9+1+10, 9, '9', '9');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (8+1+10, 8, '8', '8');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (7+1+10, 7, '7', '7');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (6+1+10, 6, '6', '6');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (5+1+10, 5, '5', '5');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (4+1+10, 4, '4', '4');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (3+1+10, 3, '3', '3');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (2+1+10, 2, '2', '2');
+INSERT INTO t (id, other_id, covered_column, non_covered_column)
+VALUES (1+1+10, 1, '1', '1');
+SET optimizer_switch = "prefer_ordering_index=on";
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	PRIMARY,index_other_id_covered_column	index_other_id_covered_column	210	NULL	3	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`id` > 8) group by `test`.`t`.`other_id` limit 1
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,index_other_id_covered_column	PRIMARY	8	NULL	12	100.00	Using where; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`id` > 8) group by `test`.`t`.`other_id` limit 1
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
+should_be_0
+0
+SET optimizer_switch = default;
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY id LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,index_other_id_covered_column	PRIMARY	8	NULL	12	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`id` > 8) group by `test`.`t`.`id` limit 1
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+0
+SET optimizer_switch = "prefer_ordering_index=on";
+EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	index_other_id_covered_column	index_other_id_covered_column	210	NULL	2	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t`@`select#1` `index_other_id_covered_column`) */ `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`id` > 8) group by `test`.`t`.`other_id` limit 1
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	index_other_id_covered_column	index_other_id_covered_column	210	NULL	2	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ GROUP_INDEX(`t`@`select#1` `index_other_id_covered_column`) */ `test`.`t`.`non_covered_column` AS `non_covered_column` from `test`.`t` where (`test`.`t`.`id` > 8) group by `test`.`t`.`other_id` limit 1
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+should_be_1
+1
+DROP TABLE t;
+# Bug#32897503: Prepared statement performance slower with prefer
+#               ordering_index optimization
+# Bug#32897525: Prepared statement doesn't seem to use index extensions
+#               / extended_keys
+CREATE TABLE p (
+pid int unsigned NOT NULL AUTO_INCREMENT,
+cid int unsigned NOT NULL,
+pl char(255) DEFAULT '',
+PRIMARY KEY (pid),
+KEY cid (cid)
+);
+INSERT INTO p (cid) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO p (cid) SELECT 1 FROM p;
+INSERT INTO p (cid) SELECT 2 FROM p;
+INSERT INTO p (cid) SELECT 3 FROM p;
+INSERT INTO p (cid) SELECT 4 FROM p;
+INSERT INTO p (cid) SELECT 5 FROM p;
+INSERT INTO p (cid) SELECT 4 FROM p;
+ANALYZE TABLE p;
+Table	Op	Msg_type	Msg_text
+test.p	analyze	status	OK
+SELECT pid, cid, pl FROM p WHERE cid = 4 ORDER BY pid DESC LIMIT 1;
+pid	cid	pl
+755	4	
+EXPLAIN SELECT pid, cid, pl FROM p WHERE cid = 4 ORDER BY pid DESC LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	p	NULL	ref	cid	cid	4	const	321	100.00	Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`p`.`pid` AS `pid`,`test`.`p`.`cid` AS `cid`,`test`.`p`.`pl` AS `pl` from `test`.`p` where (`test`.`p`.`cid` = 4) order by `test`.`p`.`pid` desc limit 1
+PREPARE ps FROM "SELECT pid, cid, pl FROM p WHERE cid = ? ORDER BY pid DESC LIMIT 1";
+PREPARE pse FROM "EXPLAIN SELECT pid, cid, pl FROM p WHERE cid = ? ORDER BY pid DESC LIMIT 1";
+SET @client_id = 4;
+EXECUTE pse USING @client_id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	p	NULL	ref	cid	cid	4	const	321	100.00	Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`p`.`pid` AS `pid`,`test`.`p`.`cid` AS `cid`,`test`.`p`.`pl` AS `pl` from `test`.`p` where (`test`.`p`.`cid` = 4) order by `test`.`p`.`pid` desc limit 1
+EXECUTE ps USING @client_id;
+pid	cid	pl
+755	4	
+DEALLOCATE PREPARE ps;
+DEALLOCATE PREPARE pse;
+SET @@optimizer_switch="prefer_ordering_index=off";
+PREPARE ps FROM "SELECT pid, cid, pl FROM p WHERE cid = ? ORDER BY pid DESC LIMIT 1";
+PREPARE pse FROM "EXPLAIN SELECT pid, cid, pl FROM p WHERE cid = ? ORDER BY pid DESC LIMIT 1";
+EXECUTE pse USING @client_id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	p	NULL	ref	cid	cid	4	const	321	100.00	Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`p`.`pid` AS `pid`,`test`.`p`.`cid` AS `cid`,`test`.`p`.`pl` AS `pl` from `test`.`p` where (`test`.`p`.`cid` = 4) order by `test`.`p`.`pid` desc limit 1
+EXECUTE ps USING @client_id;
+pid	cid	pl
+755	4	
+DEALLOCATE PREPARE ps;
+DEALLOCATE PREPARE pse;
+DROP TABLE p;
+SET optimizer_switch = DEFAULT;
+#
+# Bug#33066458: TEST_IF_SKIP_SORT_ORDER: ASSERTION `SELECT_LIMIT > 0' FAILED.
+#
+CREATE TABLE t (x INTEGER PRIMARY KEY, y INTEGER);
+INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
+SELECT * FROM t ORDER BY x LIMIT 18446744073709551614;
+x	y
+1	2
+2	3
+3	4
+DROP TABLE t;

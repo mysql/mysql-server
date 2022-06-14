@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
-GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
-
-# For windows: install .pdf file for each target.
-MACRO (INSTALL_DEBUG_SYMBOLS targets)
+# For windows: install .pdb file for each target.
+MACRO(INSTALL_DEBUG_SYMBOLS target)
   IF(MSVC)
-  FOREACH(target ${targets})
     GET_TARGET_PROPERTY(type ${target} TYPE)
     IF(NOT INSTALL_LOCATION)
       IF(type MATCHES "STATIC_LIBRARY"
@@ -52,19 +48,19 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
       INSTALL(FILES $<TARGET_PDB_FILE:${target}>
         DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
     ENDIF()
-  ENDFOREACH()
   ENDIF()
 ENDMACRO()
 
 
-FUNCTION(INSTALL_SCRIPT)
- MYSQL_PARSE_ARGUMENTS(ARG
-  "DESTINATION;COMPONENT"
-  ""
-  ${ARGN}
-  )
+FUNCTION(INSTALL_SCRIPT script_arg)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    ""
+    "DESTINATION;COMPONENT"
+    ""
+    ${ARGN}
+    )
   
-  SET(script ${ARG_DEFAULT_ARGS})
+  SET(script ${script_arg})
   IF(NOT ARG_DESTINATION)
     SET(ARG_DESTINATION ${INSTALL_BINDIR})
   ENDIF()
@@ -98,26 +94,31 @@ ENDFUNCTION()
 #
 #
 
-FUNCTION(MYSQL_INSTALL_TARGETS)
-  MYSQL_PARSE_ARGUMENTS(ARG
+FUNCTION(MYSQL_INSTALL_TARGET target_arg)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "NAMELINK_SKIP"
     "DESTINATION;COMPONENT"
-  ""
-  ${ARGN}
-  )
-  SET(TARGETS ${ARG_DEFAULT_ARGS})
-  IF(NOT TARGETS)
-    MESSAGE(FATAL_ERROR "Need target list for MYSQL_INSTALL_TARGETS")
-  ENDIF()
+    ""
+    ${ARGN}
+    )
+
+  SET(target ${target_arg})
   IF(NOT ARG_DESTINATION)
-     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for MYSQL_INSTALL_TARGETS")
+     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for MYSQL_INSTALL_TARGET")
   ENDIF()
 
   IF(ARG_COMPONENT)
     SET(COMP COMPONENT ${ARG_COMPONENT})
   ENDIF()
-  INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION} ${COMP})
+  IF(ARG_NAMELINK_SKIP)
+    SET(LIBRARY_INSTALL_ARGS NAMELINK_SKIP)
+  ENDIF()
+  INSTALL(TARGETS ${target}
+    RUNTIME DESTINATION ${ARG_DESTINATION} ${COMP}
+    ARCHIVE DESTINATION ${ARG_DESTINATION} ${COMP}
+    LIBRARY DESTINATION ${ARG_DESTINATION} ${COMP} ${LIBRARY_INSTALL_ARGS})
   SET(INSTALL_LOCATION ${ARG_DESTINATION} )
-  INSTALL_DEBUG_SYMBOLS("${TARGETS}")
+  INSTALL_DEBUG_SYMBOLS(${target})
   SET(INSTALL_LOCATION)
 ENDFUNCTION()
 
@@ -132,14 +133,15 @@ SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL
 
 
 FUNCTION(INSTALL_DEBUG_TARGET target)
-  MYSQL_PARSE_ARGUMENTS(ARG
+  CMAKE_PARSE_ARGUMENTS(ARG
+    ""
     "DESTINATION;RENAME;COMPONENT"
     ""
     ${ARGN}
     )
 
   # Relevant only for RelWithDebInfo builds
-  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     RETURN()
   ENDIF()
 
@@ -181,6 +183,28 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       SET(debug_target_location
         "${CMAKE_BINARY_DIR}/${MODULE_DIRECTORY}/Debug/${target_name}${DLL_SUFFIX}")
     ENDIF()
+  # libprotobuf-debug libprotobuf-lite-debug
+  ELSEIF(target_type STREQUAL "SHARED_LIBRARY")
+    GET_TARGET_PROPERTY(debug_postfix ${target} DEBUG_POSTFIX)
+    GET_TARGET_PROPERTY(library_version ${target} VERSION)
+
+    IF(BUILD_IS_SINGLE_CONFIG)
+      SET(debug_target_location "${DEBUGBUILDDIR}")
+    ELSE()
+      SET(debug_target_location "${CMAKE_BINARY_DIR}")
+    ENDIF()
+    STRING_APPEND(debug_target_location "/library_output_directory")
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      STRING_APPEND(debug_target_location "/Debug")
+    ENDIF()
+    STRING_APPEND(debug_target_location "/${CMAKE_SHARED_LIBRARY_PREFIX}")
+    STRING_APPEND(debug_target_location "${target_name}${debug_postfix}")
+    STRING_APPEND(debug_target_location "${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    IF(NOT WIN32)
+      STRING_APPEND(debug_target_location ".${library_version}")
+    ENDIF()
+
+    MESSAGE(STATUS "INSTALL_DEBUG_TARGET ${debug_target_location}")
   ENDIF()
 
   # This is only used for mysqld / mysqld-debug
@@ -228,10 +252,6 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       GROUP_READ
       WORLD_READ)
 
-  IF(LINUX_INSTALL_RPATH_ORIGIN)
-    SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
-  ENDIF()
-
   INSTALL(FILES ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
     ${RENAME_PARAM}
@@ -239,6 +259,20 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     CONFIGURATIONS Release RelWithDebInfo
     COMPONENT ${ARG_COMPONENT}
     OPTIONAL)
+
+  # mysqld-debug and debug/group_replication.so both need cleanup of RPATH.
+  # We could/should *generate* these files, but since it only affects two
+  # binaries, we hard-code them for simplicity.
+
+  # NOTE: scripts should work for 'make install' and 'make package'.
+  IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+    IF(${target} STREQUAL "mysqld")
+      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
+    ENDIF()
+    IF(${target} STREQUAL "group_replication")
+      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove_gr.cmake)
+    ENDIF()
+  ENDIF()
 
   # For windows, install .pdb files for .exe and .dll files.
   IF(MSVC AND NOT target_type STREQUAL "STATIC_LIBRARY")
@@ -259,3 +293,413 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   ENDIF()
 ENDFUNCTION()
 
+
+FUNCTION(INSTALL_PRIVATE_LIBRARY TARGET)
+  IF(APPLE)
+    INSTALL(TARGETS ${TARGET}
+      DESTINATION "${INSTALL_LIBDIR}" COMPONENT SharedLibraries
+      )
+  ELSEIF(WIN32)
+    INSTALL(TARGETS ${TARGET}
+      DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries
+      )
+  ELSEIF(UNIX)
+    INSTALL(TARGETS ${TARGET}
+      LIBRARY
+      DESTINATION "${INSTALL_PRIV_LIBDIR}"
+      COMPONENT SharedLibraries
+      NAMELINK_SKIP
+      )
+  ENDIF()
+ENDFUNCTION()
+
+
+# On Unix: add to RPATH of an executable when it is installed.
+# Use 'chrpath' or 'patchelf --print-rpath' to inspect results.
+# For Solaris, use 'elfdump -d'
+MACRO(ADD_INSTALL_RPATH TARGET VALUE)
+  GET_TARGET_PROPERTY(CURRENT_RPATH_${TARGET} ${TARGET} INSTALL_RPATH)
+  IF(NOT CURRENT_RPATH_${TARGET})
+    SET(CURRENT_RPATH_${TARGET})
+  ENDIF()
+  LIST(APPEND CURRENT_RPATH_${TARGET} ${VALUE})
+  SET_TARGET_PROPERTIES(${TARGET}
+    PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_${TARGET}}")
+ENDMACRO()
+
+
+# For standalone Linux build or community RPM build, we support
+#   -DWITH_SSL=</path/to/custom/openssl>
+# SSL libraries are installed in lib/private
+# We need to extend INSTALL_RPATH with location of SSL libraries:
+# executable  in bin        rpath $ORIGIN/../lib/private
+# plugins     in lib/plugin rpath $ORIGIN/../private
+# shared libs in lib        rpath $ORIGIN/private
+MACRO(ADD_INSTALL_RPATH_FOR_OPENSSL TARGET)
+  IF(LINUX_INSTALL_RPATH_ORIGIN)
+    GET_TARGET_PROPERTY(TARGET_TYPE_${TARGET} ${TARGET} TYPE)
+    IF(TARGET_TYPE_${TARGET} STREQUAL "EXECUTABLE")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "MODULE_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../private")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "SHARED_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/private")
+    ELSE()
+      MESSAGE(FATAL_ERROR "unknown type ${TARGET_TYPE_${TARGET}} for ${TARGET}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+# See macro ADD_INSTALL_RPATH_FOR_PROTOBUF
+MACRO(MYSQL_CHECK_PROTOBUF_DLLS)
+  IF(APPLE AND WITH_PROTOBUF STREQUAL "bundled")
+    ADD_CUSTOM_TARGET(symlink_protobuf_dlls)
+
+    # We can use generator "$<TARGET_FILE_NAME:libprotobuf>" in COMMAND below,
+    # but some cmake versions will reject generators in BYPRODUCTS.
+    SET(TARGET_FILE_NAME_libprotobuf      "libprotobuf.3.11.4.dylib")
+    SET(TARGET_FILE_NAME_libprotobuf_lite "libprotobuf-lite.3.11.4.dylib")
+
+    ADD_CUSTOM_TARGET(link_protobuf_dlls_bin ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/runtime_output_directory"
+
+      COMMENT "Creating libprotobuf symlinks in runtime_output_directory"
+
+      BYPRODUCTS
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${TARGET_FILE_NAME_libprotobuf}"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${TARGET_FILE_NAME_libprotobuf_lite}"
+      )
+    ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_bin)
+    ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
+
+      COMMENT "Creating libprotobuf symlinks in plugin_output_directory"
+
+      BYPRODUCTS
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/${TARGET_FILE_NAME_libprotobuf}"
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/${TARGET_FILE_NAME_libprotobuf_lite}"
+      )
+    ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin)
+    # INSTALL the symlinks
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      DESTINATION ${INSTALL_BINDIR} COMPONENT SharedLibraries
+      )
+    # Directory layout after 'make install' is different.
+    # Create some symlinks from lib/plugin/*.dylib to ../../lib/*.dylib
+    FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin")
+    ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin_install ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin"
+      )
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      DESTINATION ${INSTALL_PLUGINDIR} COMPONENT SharedLibraries
+      )
+    IF(EXISTS ${DEBUGBUILDDIR})
+      FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug")
+      ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin_install_debug ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug"
+        )
+      ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin_install_debug)
+      INSTALL(FILES
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/$<TARGET_FILE_NAME:libprotobuf>"
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/$<TARGET_FILE_NAME:libprotobuf-lite>"
+        DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
+        )
+    ENDIF()
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin_xcode ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf>"
+        "$<TARGET_FILE_NAME:libprotobuf>"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf-lite>"
+        "$<TARGET_FILE_NAME:libprotobuf-lite>"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}"
+        )
+      ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin_xcode)
+      ADD_CUSTOM_TARGET(link_protobuf_dlls_bin_xcode ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf>"
+        "$<TARGET_FILE_NAME:libprotobuf>"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf-lite>"
+        "$<TARGET_FILE_NAME:libprotobuf-lite>"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}"
+        )
+      ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_bin_xcode)
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+# For APPLE: set INSTALL_RPATH, and adjust path dependecy for libprotobuf.
+# Use 'otool -L' to inspect results.
+# For UNIX: extend INSTALL_RPATH with libprotobuf location.
+MACRO(ADD_INSTALL_RPATH_FOR_PROTOBUF TARGET)
+  IF(APPLE)
+    SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "@loader_path")
+    # install_name_tool [-change old new] input
+
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND install_name_tool -change
+          "@rpath/$<TARGET_FILE_NAME:libprotobuf-lite>"
+          "@loader_path/$<TARGET_FILE_NAME:libprotobuf-lite>"
+          "$<TARGET_FILE:${TARGET}>"
+      COMMAND install_name_tool -change
+          "@rpath/$<TARGET_FILE_NAME:libprotobuf>"
+          "@loader_path/$<TARGET_FILE_NAME:libprotobuf>"
+          "$<TARGET_FILE:${TARGET}>"
+      )
+  ELSEIF(UNIX)
+    GET_TARGET_PROPERTY(TARGET_TYPE_${TARGET} ${TARGET} TYPE)
+    IF(TARGET_TYPE_${TARGET} STREQUAL "EXECUTABLE")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "MODULE_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../private")
+    ELSE()
+      MESSAGE(FATAL_ERROR "unknown type ${TARGET_TYPE_${TARGET}} for ${TARGET}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+MACRO(MYSQL_CHECK_FIDO_DLLS)
+  IF(APPLE AND WITH_FIDO STREQUAL "bundled")
+    ADD_CUSTOM_TARGET(symlink_fido2_dlls)
+
+    # We want libfido2.1.dylib rather than libfido2.1.5.0.dylib below:
+    SET(TARGET_FILE_NAME_fido2      "libfido2.1.dylib")
+
+    ADD_CUSTOM_TARGET(link_fido2_dlls_plugin ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/${TARGET_FILE_NAME_fido2}" "${TARGET_FILE_NAME_fido2}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
+
+      COMMENT "Creating fido2 symlinks in plugin_output_directory"
+
+      BYPRODUCTS
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/${TARGET_FILE_NAME_fido2}"
+      )
+    ADD_DEPENDENCIES(symlink_fido2_dlls link_fido2_dlls_plugin)
+
+    # Create some symlinks from lib/plugin/*.dylib to ../../lib/*.dylib
+    FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin")
+    ADD_CUSTOM_TARGET(link_fido2_dlls_plugin_install ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../../lib/${TARGET_FILE_NAME_fido2}" "${TARGET_FILE_NAME_fido2}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin"
+      )
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/${TARGET_FILE_NAME_fido2}"
+      DESTINATION ${INSTALL_PLUGINDIR} COMPONENT SharedLibraries
+      )
+    IF(EXISTS ${DEBUGBUILDDIR})
+      FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug")
+      ADD_CUSTOM_TARGET(link_fido2_dlls_plugin_install_debug ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../../lib/${TARGET_FILE_NAME_fido2}" "${TARGET_FILE_NAME_fido2}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug"
+        )
+      ADD_DEPENDENCIES(symlink_fido2_dlls link_fido2_dlls_plugin_install_debug)
+      INSTALL(FILES
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/${TARGET_FILE_NAME_fido2}"
+        DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
+        )
+    ENDIF()
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_TARGET(link_fido2_dlls_plugin_xcode ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/${TARGET_FILE_NAME_fido2}"
+        "${TARGET_FILE_NAME_fido2}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}"
+        )
+      ADD_DEPENDENCIES(symlink_fido2_dlls link_fido2_dlls_plugin_xcode)
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+MACRO(ADD_INSTALL_RPATH_FOR_FIDO2 TARGET)
+  MESSAGE(STATUS "ADD_INSTALL_RPATH_FOR_FIDO2 ${TARGET}")
+  IF(APPLE)
+    SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "@loader_path")
+    # install_name_tool [-change old new] input
+
+    SET(LIBFIDO_MAJOR_DYLIB "libfido2.1.dylib")
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND install_name_tool -change
+          "@rpath/${LIBFIDO_MAJOR_DYLIB}"
+          "@loader_path/${LIBFIDO_MAJOR_DYLIB}"
+          "$<TARGET_FILE:${TARGET}>"
+      )
+  ELSEIF(UNIX)
+    GET_TARGET_PROPERTY(TARGET_TYPE_${TARGET} ${TARGET} TYPE)
+    IF(TARGET_TYPE_${TARGET} STREQUAL "EXECUTABLE")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "MODULE_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../private")
+    ELSE()
+      MESSAGE(FATAL_ERROR "unknown type ${TARGET_TYPE_${TARGET}} for ${TARGET}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+
+# For APPLE builds we support
+#   -DWITH_SSL=</path/to/custom/openssl>
+# SSL libraries are installed in lib/
+# For Makefile builds, we need to support running in the build directory
+#   plugins are in plugin_output_directory/
+# and after 'make install'
+#   plugins are in lib/plugin/ and lib/plugin/debug/
+# For Xcode builds, we support running in the build directories only.
+FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
+  IF(APPLE_WITH_CUSTOM_SSL)
+    IF(BUILD_IS_SINGLE_CONFIG)
+      GET_TARGET_PROPERTY(TARGET_TYPE_${target} ${target} TYPE)
+      IF(TARGET_TYPE_${target} STREQUAL "MODULE_LIBRARY")
+        SET(LOADER_PATH "@loader_path")
+      ELSE()
+        SET(LOADER_PATH "@loader_path/../lib")
+      ENDIF()
+
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+              "${CRYPTO_VERSION}" "${LOADER_PATH}/${CRYPTO_VERSION}"
+              $<TARGET_FILE:${target}>
+        COMMAND install_name_tool -change
+              "${OPENSSL_VERSION}" "${LOADER_PATH}/${OPENSSL_VERSION}"
+              $<TARGET_FILE:${target}>
+      )
+    ELSE()
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+            "${CRYPTO_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
+        $<TARGET_FILE:${target}>
+        COMMAND install_name_tool -change
+            "${OPENSSL_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
+        $<TARGET_FILE:${target}>
+      )
+    ENDIF()
+  ENDIF()
+ENDFUNCTION()
+
+
+# For standalone Linux build and -DWITH_LDAP -DWITH_SASL -DWITH_SSL and
+# -DWITH_KERBEROS set to custom path.
+#
+# Move the custom shared library and symlinks to library_output_directory.
+# The subdir argument is typically empty, but set to "sasl2" for SASL plugins,
+# in which case we move library_full_filename and its symlinks to
+# library_output_directory/sasl2.
+#
+# We ensure that the copied custom libraries have the execute bit set.
+# We also update the RUNPATH of libraries to be '$ORIGIN' to ensure that
+# libraries get correct load-time dependencies. This is done using the
+# linux tool patchelf(1)
+#
+# Set ${OUTPUT_LIBRARY_NAME} to the new location.
+# Set ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
+# Add an INSTALL(FILES ....) rule to install library and symlinks into
+#   ${INSTALL_PRIV_LIBDIR} or ${INSTALL_PRIV_LIBDIR}/sasl2
+FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
+    OUTPUT_LIBRARY_NAME
+    OUTPUT_TARGET_NAME
+    )
+  IF(NOT LINUX_WITH_CUSTOM_LIBRARIES)
+    RETURN()
+  ENDIF()
+  GET_FILENAME_COMPONENT(LIBRARY_EXT "${library_full_filename}" EXT)
+  IF(NOT LIBRARY_EXT STREQUAL ".so")
+    RETURN()
+  ENDIF()
+  EXECUTE_PROCESS(
+    COMMAND readlink "${library_full_filename}" OUTPUT_VARIABLE library_version
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  GET_FILENAME_COMPONENT(library_directory "${library_full_filename}" DIRECTORY)
+  GET_FILENAME_COMPONENT(library_name "${library_full_filename}" NAME)
+  GET_FILENAME_COMPONENT(library_name_we "${library_full_filename}" NAME_WE)
+
+  FIND_SONAME(${library_full_filename} library_soname)
+  FIND_OBJECT_DEPENDENCIES(${library_full_filename} library_dependencies)
+
+  MESSAGE(STATUS "CUSTOM library ${library_full_filename}")
+# MESSAGE(STATUS "CUSTOM version ${library_version}")
+# MESSAGE(STATUS "CUSTOM directory ${library_directory}")
+# MESSAGE(STATUS "CUSTOM name ${library_name}")
+# MESSAGE(STATUS "CUSTOM name_we ${library_name_we}")
+# MESSAGE(STATUS "CUSTOM soname ${library_soname}")
+
+  SET(COPIED_LIBRARY_NAME
+    "${CMAKE_BINARY_DIR}/library_output_directory/${subdir}/${library_name}")
+  SET(COPY_TARGET_NAME "copy_${library_name_we}_dll")
+
+  # Keep track of libraries and dependencies.
+  SET(SONAME_${library_name_we} "${library_soname}"
+    CACHE INTERNAL "SONAME for ${library_name_we}" FORCE)
+  SET(NEEDED_${library_name_we} "${library_dependencies}"
+    CACHE INTERNAL "" FORCE)
+  SET(KNOWN_CUSTOM_LIBRARIES
+    ${KNOWN_CUSTOM_LIBRARIES} ${library_name_we} CACHE INTERNAL "" FORCE)
+
+  # Do copying and patching in a sub-process, so that we can skip it if
+  # already done. The BYPRODUCTS arguments is needed by Ninja, and is
+  # ignored on non-Ninja generators except to mark byproducts GENERATED.
+  ADD_CUSTOM_TARGET(${COPY_TARGET_NAME} ALL
+    COMMAND ${CMAKE_COMMAND}
+    -Dlibrary_directory="${library_directory}"
+    -Dlibrary_name="${library_name}"
+    -Dlibrary_soname="${library_soname}"
+    -Dlibrary_version="${library_version}"
+    -Dsubdir="${subdir}"
+    -DPATCHELF_EXECUTABLE="${PATCHELF_EXECUTABLE}"
+    -DCPU_PAGE_SIZE="${CPU_PAGE_SIZE}"
+    -DCMAKE_SYSTEM_PROCESSOR="${CMAKE_SYSTEM_PROCESSOR}"
+    -P ${CMAKE_SOURCE_DIR}/cmake/copy_custom_library.cmake
+
+    BYPRODUCTS
+    "${CMAKE_BINARY_DIR}/library_output_directory/${subdir}/${library_name}"
+
+    WORKING_DIRECTORY
+    "${CMAKE_BINARY_DIR}/library_output_directory/${subdir}"
+    )
+
+  # Link with the copied library, rather than the original one.
+  SET(${OUTPUT_LIBRARY_NAME} "${COPIED_LIBRARY_NAME}" PARENT_SCOPE)
+  SET(${OUTPUT_TARGET_NAME} "${COPY_TARGET_NAME}" PARENT_SCOPE)
+
+  ADD_DEPENDENCIES(copy_linux_custom_dlls ${COPY_TARGET_NAME})
+
+  MESSAGE(STATUS "INSTALL ${library_name} to ${INSTALL_PRIV_LIBDIR}/${subdir}")
+
+  # Cannot use INSTALL_PRIVATE_LIBRARY because these are not targets.
+  INSTALL(FILES
+    ${CMAKE_BINARY_DIR}/library_output_directory/${subdir}/${library_name}
+    ${CMAKE_BINARY_DIR}/library_output_directory/${subdir}/${library_soname}
+    ${CMAKE_BINARY_DIR}/library_output_directory/${subdir}/${library_version}
+    DESTINATION "${INSTALL_PRIV_LIBDIR}/${subdir}" COMPONENT SharedLibraries
+    PERMISSIONS
+    OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE
+    )
+
+ENDFUNCTION()

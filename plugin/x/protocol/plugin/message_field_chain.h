@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,41 +25,42 @@
 #ifndef PLUGIN_X_PROTOCOL_PLUGIN_MESSAGE_FIELD_CHAIN_H_
 #define PLUGIN_X_PROTOCOL_PLUGIN_MESSAGE_FIELD_CHAIN_H_
 
+#include "my_compiler.h"
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
+// to be used by clients of class 'type2'
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/io/zero_copy_stream.h>
+MY_COMPILER_DIAGNOSTIC_POP()
 #include <memory>
 #include <set>
 #include <string>
 
 #include "plugin/x/protocol/plugin/chain_file_output.h"
+#include "plugin/x/protocol/plugin/message_deep_first_search.h"
 
-class Message_field_chain {
+class Message_field_chain : public Message_deep_first_search {
  public:
-  using Protocol_descriptor = google::protobuf::FileDescriptor;
-  using ZeroCopyOutputStream = google::protobuf::io::ZeroCopyOutputStream;
-
-  using Field_descriptor = google::protobuf::FieldDescriptor;
   using Descriptor = google::protobuf::Descriptor;
   using FieldDescriptor = google::protobuf::FieldDescriptor;
   using Context = google::protobuf::compiler::GeneratorContext;
 
-  Message_field_chain(const Protocol_descriptor &proto_file, Context *context,
-                      Chain_file_output *output_file)
-      : m_protocol_file(proto_file),
-        m_context(context),
-        m_output_file(*output_file) {}
+ public:
+  explicit Message_field_chain(Context *context, Chain_file_output *output_file)
+      : m_context(context), m_output_file(output_file) {}
 
-  bool generate_chain_for_each_client_message();
+  bool begin_validate_field(const FieldDescriptor *field,
+                            const Descriptor *message) override;
+  void end_validate_field(const FieldDescriptor *field,
+                          const Descriptor *message) override;
 
  private:
-  void chain_message_and_its_children(const std::string &chain,
-                                      std::set<std::string> *types_done,
-                                      const Descriptor *msg);
-
-  const Protocol_descriptor &m_protocol_file;
   Context *m_context;
-  Chain_file_output &m_output_file;
+  Chain_file_output *m_output_file;
+  std::set<std::string> m_types_done;
+  std::string m_chain;
 };
 
 #endif  // PLUGIN_X_PROTOCOL_PLUGIN_MESSAGE_FIELD_CHAIN_H_

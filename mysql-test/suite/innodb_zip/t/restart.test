@@ -39,7 +39,13 @@ LET $ALT_DIR_MOVED = $MYSQL_TMP_DIR/alt_dir_moved;
 
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
+--echo #
+--echo # Restart with innodb-directories set to MYSQL_TMP_DIR/alt_dir.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 LET $restart_parameters = restart:--innodb-directories=$ALT_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
 
 --enable_query_log
 
@@ -121,7 +127,8 @@ SHOW CREATE TABLE t5_restart;
 SELECT count(*) FROM t5_restart;
 
 --echo #
---echo # Create and insert records into a partitioned table that uses-echo # a remote DATA DIRECTORY for each partition.
+--echo # Create and insert records into a partitioned table that uses
+--echo # a remote DATA DIRECTORY for each partition.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t6_restart(
   c1 INT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
@@ -532,8 +539,13 @@ eval DROP DATABASE $SCHEMA_NAME;
 
 --disable_query_log
 
+# Restart with standard innodb_directories
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
 --rmdir $ALT_DIR_MOVED/$SCHEMA_NAME
 --rmdir $ALT_DIR_MOVED
+--rmdir $ALT_DIR
 
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 --enable_query_log

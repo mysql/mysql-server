@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_desc\fR
+.\"     Title: ndb_desc
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_DESC" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,8 @@ ndb_desc \-c \fIconnection_string\fR \fIindex_name\fR \-d \fIdb_name\fR \-t \fIt
 Additional options that can be used with
 \fBndb_desc\fR
 are listed later in this section\&.
-Sample Output.PP
+Sample Output
+.PP
 MySQL table creation and population statements:
 .sp
 .if n \{\
@@ -63,10 +64,10 @@ MySQL table creation and population statements:
 .nf
 USE test;
 CREATE TABLE fish (
-    id INT(11) NOT NULL AUTO_INCREMENT,
+    id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(20) NOT NULL,
-    length_mm INT(11) NOT NULL,
-    weight_gm INT(11) NOT NULL,
+    length_mm INT NOT NULL,
+    weight_gm INT NOT NULL,
     PRIMARY KEY pk (id),
     UNIQUE KEY uk (name)
 ) ENGINE=NDB;
@@ -86,7 +87,7 @@ Output from
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+$> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
 \-\- fish \-\-
 Version: 2
 Fragment type: HashMapPartition
@@ -122,8 +123,8 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   0               0               
-1               4               4               32768                   32768                   0               0               
+0               2               2               32768                   32768                   0               0
+1               4               4               32768                   32768                   0               0
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -144,7 +145,7 @@ You can obtain additional information about a specific index using the
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc uk \-d test \-t fish\fR
+$> \fB\&./ndb_desc uk \-d test \-t fish\fR
 \-\- uk \-\-
 Version: 2
 Base table: fish
@@ -283,7 +284,7 @@ column shows the binary properties just enabled\&. You can see this in the outpu
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+$> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
 \-\- fish \-\-
 Version: 4
 Fragment type: HashMapPartition
@@ -367,9 +368,9 @@ ALTER TABLESPACE ts_1
 .\}
 .PP
 (For more information on the statements just shown and the objects created by them, see
-Section\ \&22.5.13.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
-Section\ \&13.1.16, \(lqCREATE LOGFILE GROUP Syntax\(rq, and
-Section\ \&13.1.21, \(lqCREATE TABLESPACE Syntax\(rq\&.)
+Section\ \&23.6.10.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
+Section\ \&13.1.16, \(lqCREATE LOGFILE GROUP Statement\(rq, and
+Section\ \&13.1.21, \(lqCREATE TABLESPACE Statement\(rq\&.)
 .PP
 Now we can create and populate a version of the
 fish
@@ -379,11 +380,12 @@ table that stores 2 of its columns on disk (deleting the previous version of the
 .RS 4
 .\}
 .nf
+DROP TABLE IF EXISTS fish;
 CREATE TABLE fish (
-    id INT(11) NOT NULL AUTO_INCREMENT,
+    id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(20) NOT NULL,
-    length_mm INT(11) NOT NULL,
-    weight_gm INT(11) NOT NULL,
+    length_mm INT NOT NULL,
+    weight_gm INT NOT NULL,
     PRIMARY KEY pk (id),
     UNIQUE KEY uk (name)
 ) TABLESPACE ts_1 STORAGE DISK
@@ -405,7 +407,7 @@ displays the following output:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+$> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
 \-\- fish \-\-
 Version: 1
 Fragment type: HashMapPartition
@@ -415,7 +417,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 4
 Number of primary keys: 1
-Length of frm data: 346
+Length of frm data: 1001
 Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
@@ -423,15 +425,17 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 2
 FragmentCount: 2
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT\-HASHMAP\-3840\-2
+Tablespace id: 16
+Tablespace: ts_1
 \-\- Attributes \-\-
 id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+name Varchar(80;utf8mb4_0900_ai_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
 length_mm Int NOT NULL AT=FIXED ST=DISK
 weight_gm Int NOT NULL AT=FIXED ST=DISK
 \-\- Indexes \-\-
@@ -441,8 +445,8 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   1048576         1044440        
-1               4               4               32768                   32768                   1048576         1044400        
+0               2               2               32768                   32768                   1048576         1044440
+1               4               4               32768                   32768                   1048576         1044400
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -457,9 +461,14 @@ table only; for this reason, it is not visible when selecting from the
 INFORMATION_SCHEMA\&.FILES
 table\&.
 .PP
+Tablespace id
+and
+Tablespace
+are displayed for Disk Data tables beginning with NDB 8\&.0\&.21\&.
+.PP
 For fully replicated tables,
 \fBndb_desc\fR
-shows only the nodes holding primary partition fragment replicas; nodes with copy fragment replicas (only) are ignored\&. Beginning with NDB 7\&.5\&.4, you can obtain such information, using the
+shows only the nodes holding primary partition fragment replicas; nodes with copy fragment replicas (only) are ignored\&. You can obtain such information, using the
 \fBmysql\fR
 client, from the
 table_distribution_status,
@@ -470,16 +479,15 @@ tables in the
 ndbinfo
 database\&.
 .PP
-The following table includes options that are specific to
-\fBndb_desc\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_desc\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+All options that can be used with
+\fBndb_desc\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.341.\ \&Command\-line options for the ndb_desc program
+.B Table\ \&23.31.\ \&Command\-line options used with the program ndb_desc
 .TS
 allbox tab(:);
 lB lB lB.
@@ -491,92 +499,313 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
---blob-info,
+\fB--auto-inc\fR,
 .PP
--b
+\fB \fR\fB-a\fR\fB \fR
+T}:T{
+Show next value for AUTO_INCREMENT oolumn if table has one
+T}:T{
+.PP
+ADDED: NDB 8.0.21
+T}
+T{
+.PP
+\fB--blob-info\fR,
+.PP
+\fB \fR\fB-b\fR\fB \fR
 T}:T{
 Include partition information for BLOB tables in output. Requires that
               the -p option also be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---database=dbname,
+\fB \fR\fB--character-sets-dir=path\fR\fB \fR
+T}:T{
+Directory containing character sets
+T}:T{
 .PP
--d
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retries=#\fR\fB \fR
+T}:T{
+Number of times to retry connection before giving up
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
+T}:T{
+Number of seconds to wait between attempts to contact management server
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--connect-string=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--context\fR,
+.PP
+\fB \fR\fB-x\fR\fB \fR
+T}:T{
+Show extra information for table such as database, schema, name, and
+              internal ID
+T}:T{
+.PP
+ADDED: NDB 8.0.21
+T}
+T{
+.PP
+\fB \fR\fB--core-file\fR\fB \fR
+T}:T{
+Write core file on error; used in debugging
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--database=name\fR,
+.PP
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Name of database containing table
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---extra-node-info,
-.PP
--n
+\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
 T}:T{
-Include partition-to-data-node mappings in output. Requires that the -p
-              option also be used
+Read given file after global files are read
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---extra-partition-info,
+\fB \fR\fB--defaults-file=path\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
 .PP
--p
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--extra-node-info\fR,
+.PP
+\fB \fR\fB-n\fR\fB \fR
+T}:T{
+Include partition-to-data-node mappings in output; requires
+              --extra-partition-info
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--extra-partition-info\fR,
+.PP
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Display information about partitions
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---retries=#,
+\fB--help\fR,
 .PP
--r
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--login-path=path\fR\fB \fR
+T}:T{
+Read given path from login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--ndb-connectstring=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Set connect string for connecting to ndb_mgmd. Syntax:
+              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
+              NDB_CONNECTSTRING and my.cnf
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--ndb-mgmd-host=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
+T}:T{
+Set node ID for this node, overriding any ID set by --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
+T}:T{
+Enable optimizations for selection of nodes for transactions. Enabled by
+              default; use --skip-ndb-optimized-node-selection to
+              disable
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--no-defaults\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--print-defaults\fR\fB \fR
+T}:T{
+Print program argument list and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--retries=#\fR,
+.PP
+\fB \fR\fB-r #\fR\fB \fR
 T}:T{
 Number of times to retry the connection (once per second)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---table=tbl_name,
+\fB--table=name\fR,
 .PP
--t
+\fB \fR\fB-t name\fR\fB \fR
 T}:T{
 Specify the table in which to find an index. When this option is used,
-              -p and -n have no effect and are ignored.
+              -p and -n have no effect and are ignored
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
---unqualified,
+\fB--unqualified\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Use unqualified table names
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --help
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Display version information and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -589,9 +818,23 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-auto\-inc\fR,
+\fB\-a\fR
+Show the next value for a table\*(Aqs
+AUTO_INCREMENT
+column, if it has one\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-blob\-info\fR,
 \fB\-b\fR
-.sp
 Include information about subordinate
 BLOB
 and
@@ -611,10 +854,295 @@ Use of this option also requires the use of the
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-character\-sets\-dir\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=path
+T}
+.TE
+.sp 1
+Directory containing character sets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retries\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retries=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+12
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+12
+T}
+.TE
+.sp 1
+Number of times to retry connection before giving up\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+5
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+5
+T}
+.TE
+.sp 1
+Number of seconds to wait between attempts to contact management server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-string\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-string=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-context\fR,
+\fB\-x\fR
+Show additional contextual information for the table such as schema, database name, table name, and the table\*(Aqs internal ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-core\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--core-file
+T}
+.TE
+.sp 1
+Write core file on error; used in debugging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-d\fR
-.sp
 Specify the database in which the table should be found\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
 .RE
 .sp
 .RS 4
@@ -627,7 +1155,6 @@ Specify the database in which the table should be found\&.
 .\}
 \fB\-\-extra\-node\-info\fR,
 \fB\-n\fR
-.sp
 Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in NDB Cluster\&.
 .sp
 Use of this option also requires the use of the
@@ -645,8 +1172,235 @@ Use of this option also requires the use of the
 .\}
 \fB\-\-extra\-partition\-info\fR,
 \fB\-p\fR
-.sp
 Print additional information about the table\*(Aqs partitions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Display help text and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-connectstring\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-connectstring=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgmd\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgmd-host=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-nodeid\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-nodeid=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set node ID for this node, overriding any ID set by
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-optimized\-node\-selection\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-optimized-node-selection
+T}
+.TE
+.sp 1
+Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
+\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
+to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
 .RE
 .sp
 .RS 4
@@ -659,7 +1413,6 @@ Print additional information about the table\*(Aqs partitions\&.
 .\}
 \fB\-\-retries=\fR\fB\fI#\fR\fR,
 \fB\-r\fR
-.sp
 Try to connect this many times before giving up\&. One connect attempt is made per second\&.
 .RE
 .sp
@@ -673,7 +1426,6 @@ Try to connect this many times before giving up\&. One connect attempt is made p
 .\}
 \fB\-\-table=\fR\fB\fItbl_name\fR\fR,
 \fB\-t\fR
-.sp
 Specify the table in which to look for an index\&.
 .RE
 .sp
@@ -687,15 +1439,59 @@ Specify the table in which to look for an index\&.
 .\}
 \fB\-\-unqualified\fR,
 \fB\-u\fR
-.sp
 Use unqualified table names\&.
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+.TE
+.sp 1
+Display help text and exit; same as
+\fB\-\-help\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
+Display version information and exit\&.
+.RE
 .PP
-In NDB 7\&.5\&.3 and later, table indexes listed in the output are ordered by ID\&. Previously, this was not deterministic and could vary between platforms\&. (Bug #81763, Bug #23547742)
+Table indexes listed in the output are ordered by ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

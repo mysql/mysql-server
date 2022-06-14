@@ -1,0 +1,118 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to validate that the replication process is
+# tolerant to the failure when allocating required space for a row event -
+# IO_CACHE failure due to temporary directory disc partition being full, for
+# instance.
+#
+# ==== Requirements ====
+#
+# R1. The `HA_ERR_OUT_OF_MEM` must be triggered whenever
+#     `binlog_prepare_pending_rows_event` fails to return a reference to the
+#     pending rows event.
+#
+# ==== Implementation ====
+#
+# 1. Create a normal table and a table with partitions.
+# 2. Activate the `simulate_null_pending_rows_event` DBUG point.
+# 3. Insert, update and delete records and expect failure.
+# 4. Deactivate the `simulate_null_pending_rows_event` DBUG point.
+# 5. Insert, update and delete records and expect success.
+# 6. Ensure that both tables have the same data.
+#
+# ==== References ====
+#
+# BUG#29848931 UPDATE ON PARTITIONED TABLE CRASHES THE SERVER WHEN PARTITION
+#              COUNT IS MORE
+#
+--source include/have_debug.inc
+
+--write_file $MYSQLTEST_VARDIR/tmp/execute_operation.inc PROCEDURE
+  if ($error_number == '')
+  {
+    --die !!!ERROR IN TEST: you must set $error_number
+  }
+  if ($statement == '')
+  {
+    --die !!!ERROR IN TEST: you must set $statement
+  }
+  if ($error_number != 0)
+  {
+    SET DEBUG = '+d, simulate_null_pending_rows_event';
+  }
+  --let $t = 2
+  while($t != 0)
+  {
+    if ($statement == INSERT)
+    {
+      --error $error_number
+      --eval INSERT INTO t$t VALUES (1, 1), (2, 2), (3, 3)
+    }
+    if ($statement == UPDATE)
+    {
+      --error $error_number
+      --eval UPDATE t$t SET p = 4 WHERE id = 2
+    }
+    if ($statement == DELETE)
+    {
+      --error $error_number
+      --eval DELETE FROM t$t WHERE id = 2
+    }
+    --dec $t
+  }
+  if ($error_number != 0)
+  {
+    SET DEBUG = '-d, simulate_null_pending_rows_event';
+  }
+#END OF
+PROCEDURE
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (id INT, p INT);
+CREATE TABLE t2 (id INT, p INT);
+CREATE INDEX i ON t2 (id);
+ALTER TABLE t2 PARTITION BY KEY (id) PARTITIONS 100;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+--let $statement = INSERT
+--let $error_number = ER_BINLOG_ROW_LOGGING_FAILED
+--source $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+--let $error_number = 0
+--source $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+
+--let $statement = UPDATE
+--let $error_number = ER_BINLOG_ROW_LOGGING_FAILED
+--source $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+--let $error_number = 0
+--source $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+
+--let $statement = DELETE
+--let $error_number = ER_BINLOG_ROW_LOGGING_FAILED
+--source $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+--let $error_number = 0
+--source $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "2"
+--let $assert_text= There are 2 records in t1
+--source include/assert.inc
+--let $assert_cond= "[SELECT COUNT(*) FROM t2]" = "2"
+--let $assert_text= There are 2 records in t2
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+--let $diff_tables= master:t2, slave:t2
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+DROP TABLE t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/execute_operation.inc
+--source include/rpl_end.inc

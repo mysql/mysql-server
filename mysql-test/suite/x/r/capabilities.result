@@ -52,6 +52,49 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -191,7 +234,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5010
+  code: 5019
   msg: "Duplicated capability: \'client.interactive\'"
   sql_state: "HY000"
 }
@@ -522,6 +565,49 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -746,6 +832,49 @@ Mysqlx.Connection.Capabilities {
       scalar {
         type: V_BOOL
         v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -1342,6 +1471,49 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1481,7 +1653,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5010
+  code: 5019
   msg: "Duplicated capability: \'client.interactive\'"
   sql_state: "HY000"
 }
@@ -1668,6 +1840,49 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1692,3 +1907,4 @@ Mysqlx.Connection.Capabilities {
 }
 
 ok
+# restart:

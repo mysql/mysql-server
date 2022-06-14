@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (
+`id` int(11) NOT NULL auto_increment,
+`data` varchar(100),
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1(data) VALUES(SESSION_USER());
+include/sync_slave_sql_with_master.inc
+SELECT length(data) < 100 FROM t1;
+length(data) < 100
+1
+drop table t1;
+include/rpl_end.inc

@@ -1,0 +1,63 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/validate_not_init_message.xpl
+-->import wait_until_disconnect.macro
+
+#
+# The test refers to X Protocol frame defined in following way:
+#   |4 bytes       |1 bytes   | (Payload-size - 1) bytes.....|
+#
+# Where each part of it can be named differently:
+#   |4 bytes       |1 bytes   | (Payload-size - 1) bytes.....|
+#   |Header                   | Protobuf payload             |
+#   |Payload-size  |Payload                                  |
+#   |Payload-size  |Msg type  | Protobuf payload             |
+#
+# The test will try to send StmtExecute to server wihtout protobuf
+# payload. Thus message has some required fields, thus they wont
+# be iniialized. Thus should cause a disconnect on the server side
+#
+#    client->server: XMessage with invalid payload
+#    client<-server: Mysqlx.Error(ER_X_BAD_MESSAGE)
+#    client<-server: disconnect
+#
+# The test needs to send only the header to server, wihtout following data
+#
+# * Payload-size - set to 1 (payload needs only to contain msg-type
+#                  wihtout protobuf-payload (in hex 01000000)
+# * Msg-type - Message ID of StmtExecute is "12" in hex "0C"
+# * Protobuf-payload - empty
+#
+## which gives following command: "hexsend 010000000C;"
+#
+
+-->echo
+-->echo ## 1. Send invalid message to server and obeserve a disconnect.
+
+hexsend 010000000C;
+expecterror ER_X_BAD_MESSAGE;
+recvresult;
+callmacro Wait_until_disconnect;
+
+EOF
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
+--source include/wait_condition_or_abort.inc
+
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_init_message.xpl 2>&1
+
+--let $wait_condition= SELECT variable_value = 1 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
+--source include/wait_condition_or_abort.inc
+
+## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+--source ../include/xplugin_cleanup.inc

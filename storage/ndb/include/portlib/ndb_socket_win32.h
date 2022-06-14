@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,11 +77,44 @@ static inline int ndb_socket_errno()
 }
 
 static inline
+int ndb_getsockopt(ndb_socket_t s, int level, int optname,
+                   void *optval, ndb_socket_len_t *optlen)
+{
+  return getsockopt(s.s, level, optname, (char*)optval, optlen);
+}
+
+static inline
+int ndb_setsockopt(ndb_socket_t s, int level, int optname,
+                   void *optval, ndb_socket_len_t optlen)
+{
+  return setsockopt(s.s, level, optname, (char*)optval, optlen);
+}
+
+static inline
 ndb_socket_t ndb_socket_create(int domain, int type,int protocol)
 {
   ndb_socket_t s;
   s.s= socket(domain, type, protocol);
 
+  return s;
+}
+
+static inline
+ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
+{
+  ndb_socket_t s;
+  int on = 0;
+  s.s= socket(AF_INET6, type, protocol);
+
+  if (s.s == INVALID_SOCKET)
+    return s;
+
+  if (ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+                     (char *)&on, sizeof(on)) == -1)
+  {
+    ndb_socket_close(s);
+    ndb_socket_invalidate(&s);
+  }
   return s;
 }
 
@@ -112,6 +145,14 @@ int ndb_socket_reuseaddr(ndb_socket_t s, int enable)
 }
 
 static inline
+int ndb_socket_excladdruse(ndb_socket_t s, int enable)
+{
+  const int on = enable;
+  return setsockopt(s.s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                    (const char*)&on, sizeof(on));
+}
+
+static inline
 int ndb_socket_nonblock(ndb_socket_t s, int enable)
 {
   unsigned long  ul = enable;
@@ -123,21 +164,21 @@ int ndb_socket_nonblock(ndb_socket_t s, int enable)
 }
 
 static inline
-int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in *addr)
+int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in6 *addr)
 {
-  return bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in));
+  return bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in6));
 }
 
 static inline
 int ndb_socket_get_port(ndb_socket_t s, unsigned short *port)
 {
-  struct sockaddr_in servaddr;
+  struct sockaddr_in6 servaddr;
   ndb_socket_len_t sock_len = sizeof(servaddr);
   if(getsockname(s.s, (struct sockaddr*)&servaddr, &sock_len) < 0) {
     return 1;
   }
 
-  *port= ntohs(servaddr.sin_port);
+  *port= ntohs(servaddr.sin6_port);
   return 0;
 }
 
@@ -164,28 +205,21 @@ int ndb_connect_inet(ndb_socket_t s, const struct sockaddr_in *addr)
 }
 
 static inline
-int ndb_getsockopt(ndb_socket_t s, int level, int optname,
-                   void *optval, ndb_socket_len_t *optlen)
+int ndb_connect_inet6(ndb_socket_t s, const struct sockaddr_in6 *addr)
 {
-  return getsockopt(s.s, level, optname, (char*)optval, optlen);
+  return connect(s.s, (const struct sockaddr*) addr,
+                 sizeof(struct sockaddr_in6));
 }
 
 static inline
-int ndb_setsockopt(ndb_socket_t s, int level, int optname,
-                   void *optval, ndb_socket_len_t optlen)
+int ndb_socket_connect_address(ndb_socket_t s, struct in6_addr *a)
 {
-  return setsockopt(s.s, level, optname, (char*)optval, optlen);
-}
-
-static inline
-int ndb_socket_connect_address(ndb_socket_t s, struct in_addr *a)
-{
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   ndb_socket_len_t addrlen= sizeof(addr);
   if(getpeername(s.s, (struct sockaddr*)&addr, &addrlen)==SOCKET_ERROR)
     return ndb_socket_errno();
 
-  *a= addr.sin_addr;
+  *a= addr.sin6_addr;
   return 0;
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include <NdbOut.hpp>
@@ -570,7 +571,7 @@ static NdbOut&
 operator<<(NdbOut& out, const Chs& chs)
 {
   CHARSET_INFO* cs = chs.m_cs;
-  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
+  out << cs->m_coll_name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
   return out;
 }
 
@@ -613,7 +614,7 @@ getcs(const Par& par)
         // not work == endless loop in Chs::Chs
         // by default these are not compiled in 7.0...
         // but in 7.2 they are...so testOIbasic always fails in 7.2
-        if (strncmp(cs->name, "utf32_", sizeof("utf32_") - 1) == 0)
+        if (strncmp(cs->m_coll_name, "utf32_", sizeof("utf32_") - 1) == 0)
           continue;
 
         // prefer complex charsets
@@ -622,7 +623,7 @@ getcs(const Par& par)
       }
     }
   }
-  ndbout << "Use charset: " << cs->name << endl;
+  ndbout << "Use charset: " << cs->m_coll_name << endl;
   if (cslist[cs->number] == 0)
     cslist[cs->number] = new Chs(cs);
   return cslist[cs->number];
@@ -752,19 +753,19 @@ operator<<(NdbOut& out, const Col& col)
   case Col::Char:
     {
       CHARSET_INFO* cs = col.m_chs->m_cs;
-      out << " char(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->name << ")";
+      out << " char(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->m_coll_name << ")";
     }
     break;
   case Col::Varchar:
     {
       CHARSET_INFO* cs = col.m_chs->m_cs;
-      out << " varchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->name << ")";
+      out << " varchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->m_coll_name << ")";
     }
     break;
   case Col::Longvarchar:
     {
       CHARSET_INFO* cs = col.m_chs->m_cs;
-      out << " longvarchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->name << ")";
+      out << " longvarchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->m_coll_name << ")";
     }
     break;
   default:
@@ -1192,7 +1193,8 @@ struct Con {
     ErrNone = 0,
     ErrDeadlock = 1,
     ErrNospace = 2,
-    ErrOther = 4
+    ErrLogspace = 4,
+    ErrOther = 8
   };
   ErrType m_errtype;
   char m_errname[100];
@@ -1426,6 +1428,11 @@ Con::execute(ExecType et, uint& err)
       err = ErrNospace;
       ret = 0;
     }
+    if (m_errtype == ErrLogspace && (errin & ErrLogspace)) {
+      LL3("caught logspace");
+      err = ErrLogspace;
+      ret = 0;
+    }
   }
   CHK(ret == 0);
   return 0;
@@ -1548,6 +1555,8 @@ Con::errname(uint err)
     strcat(m_errname, ",deadlock");
   if (err & ErrNospace)
     strcat(m_errname, ",nospace");
+  if (err & ErrLogspace)
+    strcat(m_errname, ",logspace");
   return m_errname;
 }
 
@@ -1574,8 +1583,11 @@ Con::printerror(NdbOut& out)
         // 631 is new, occurs only on 4 db nodes, needs to be checked out
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499 || code == 631)
           m_errtype = ErrDeadlock;
-        if (code == 826 || code == 827 || code == 902 || code == 921)
+        if (code == 625 || code == 826 || code == 827 || code == 902 || code == 921)
           m_errtype = ErrNospace;
+        if (code == 1234 || code == 1220 || code == 410 || code == 1221 || // Redo
+            code == 923 || code == 1501) // Undo
+          m_errtype = ErrLogspace;
       }
       if (m_op && m_op->getNdbError().code != 0) {
         LL0(++any << " op : error " << m_op->getNdbError());
@@ -2104,8 +2116,16 @@ Val::cmp(const Par& par, const Val& val2) const
     break;
   case Col::Char:
     {
-      uint len = col.m_bytelength;
-      return cmpchars(par, m_char, len, val2.m_char, len);
+      uint len1, len2;
+      len1 = len2 = col.m_bytelength;
+      const Chs* chs = col.m_chs;
+      CHARSET_INFO* cs = chs->m_cs;
+      if (cs->pad_attribute == NO_PAD)
+      {
+        len1 = cs->cset->lengthsp(cs, (const char *)m_char, len1);
+        len2 = cs->cset->lengthsp(cs, (const char *)val2.m_char, len2);
+      }
+      return cmpchars(par, m_char, len1, val2.m_char, len2);
     }
     break;
   case Col::Varchar:
@@ -3549,6 +3569,10 @@ pkupdate(Par par)
       set.lock();
       set.post(par, !err ? et : Rollback);
       set.unlock();
+      if (et == Commit)
+      {
+        LL4("pkupdate key committed = " << i << " " << set.getrow(i));
+      }
       if (err) {
         LL1("pkupdate key=" << i << ": stop on " << con.errname(err));
         break;
@@ -3907,6 +3931,9 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
   set2.getval(par);
   CHK(con.executeScan() == 0);
   uint n = 0;
+
+  bool debugging_skip_put_dup_check = false;
+
   while (1) {
     int ret;
     uint err = par.m_catcherr;
@@ -3936,6 +3963,9 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
         val.m_null = false;
       }
 
+      LL0("scanreadindex " << itab.m_name << " " << bset << " lockmode=" << par.m_lockmode << " expect=" << set1.count() << " ordered=" << par.m_ordered << " descending=" << par.m_descending << " verify=" << par.m_verify);
+      LL0("Table : " << itab.m_tab);
+      LL0("Index : " << itab);
       LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
       LL0("  read so far: " << set2.count());
       LL0("  nextScanResult returned: " << ret << ", err: " << err);
@@ -3946,12 +3976,18 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
            << "\n     new=" << tmp
       );
 
-      LL0("------------ Set expected -----------");
-      for (uint i=0; i<set1.m_rows; i++) {
-	Row *row = set1.m_row[i];
-	if (row != nullptr) {
-	  LL0("Row#" << i << ", " << *row);
-	}
+      if (!debugging_skip_put_dup_check)
+      {
+        LL0("First duplicate in scan, test will fail, check for "
+            "further duplicates / result set incorrectness.");
+        /* Only need expected set in first duplicate case */
+        LL0("------------ Set expected -----------");
+        for (uint i=0; i<set1.m_rows; i++) {
+          Row *row = set1.m_row[i];
+          if (row != nullptr) {
+            LL0("Row#" << i << ", " << *row);
+          }
+        }
       }
 
       LL0("------------ Set read ---------------");
@@ -3972,11 +4008,17 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
 	   << "\n     old=" << *set2.m_row[i]
            << "\n     new=" << tmp
       );
+      debugging_skip_put_dup_check = true;
     }
 
-    CHK(set2.putval(i, par.m_dups, n) == 0);
+    CHK(set2.putval(i, (par.m_dups || debugging_skip_put_dup_check), n) == 0);
     LL4("key " << i << " row " << n << " " << *set2.m_row[i]);
     n++;
+  }
+  if (debugging_skip_put_dup_check)
+  {
+    LL0("Warning : there were duplicates - test wil fail, "
+        "but checking results for whole scan first");
   }
   con.closeTransaction();
   if (par.m_verify) {
@@ -3984,6 +4026,7 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
     if (par.m_ordered)
       CHK(set2.verifyorder(par, itab, par.m_descending) == 0);
   }
+  CHK(!debugging_skip_put_dup_check); // Fail here
   LL3("scanreadindex " << itab.m_name << " done rows=" << n);
   return 0;
 }
@@ -4066,10 +4109,59 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     int rangeNum= con.m_indexscanop->get_range_no();
     CHK(rangeNum < numBsets);
     CHK(set2.m_row[i] != NULL);
+    if (setSizes[rangeNum] != actualResults[rangeNum]->count())
+    {
+      /* Debug info */
+      LL0("scanreadindexmrr failure");
+      LL0("scanreadindexmrr " << itab.m_name << " ranges= " << numBsets << " lockmode=" << par.m_lockmode << " ordered=" << par.m_ordered << " descending=" << par.m_descending << " verify=" << par.m_verify);
+      LL0("Table : " << itab.m_tab);
+      LL0("Index : " << itab);
+      LL0("rows_received " << rows_received << " i " << i);
+      LL0("rangeNum " << rangeNum << " setSizes[rangeNum] " << setSizes[rangeNum]
+          << " actualResults[rangeNum]->count() "
+          << actualResults[rangeNum]->count());
+      LL0("Row : " << set2.m_row[i]);
+
+      for (int range=0; range < numBsets; range++)
+      {
+        LL0("--------Range # " << range << "--------");
+        LL0("  Bounds : " << *boundSets[range]);
+        int expectedCount = expectedResults[range]->count();
+        LL0("  Expected rows : " << expectedCount);
+        for (int e=0; e < expectedCount; e++)
+        {
+          Row* r = expectedResults[range]->m_row[e];
+          if (r != NULL)
+          {
+            LL0("Row#" << e << ", " << *r);
+          }
+        }
+        int actualCount = actualResults[range]->count();
+        LL0("  Received rows so far : " << actualCount);
+        for (int a=0; a < actualCount; a++)
+        {
+          Row* r = actualResults[range]->m_row[a];
+          if (r != NULL)
+          {
+            LL0("Row#" << a << ", " << *r);
+          }
+        }
+      }
+      LL0("------End of ranges------");
+    }
     /* Get rowNum based on what's in the set already (slow) */
     CHK(setSizes[rangeNum] == actualResults[rangeNum]->count());
     int rowNum= setSizes[rangeNum];
-    setSizes[rangeNum] ++;
+    if (actualResults[rangeNum]->m_row[i] == 0 ||
+        !par.m_dups)
+    {
+      setSizes[rangeNum]++;
+    }
+    else
+    {
+      LL1("Row with same PK exists, can happen with updates to index"
+          " columns while scanning");
+    }
     CHK((uint) rowNum < set2.m_rows);
     actualResults[rangeNum]->m_row[i]= set2.m_row[i];
     actualResults[rangeNum]->m_rowkey[rowNum]= i;
@@ -5792,6 +5884,7 @@ runtest(Par par)
   CHK(con.connect() == 0);
   par.m_con = &con;
   par.m_catcherr |= Con::ErrNospace;
+  par.m_catcherr |= Con::ErrLogspace;
   // threads
   g_thrlist = new Thr* [par.m_threads];
   uint n;

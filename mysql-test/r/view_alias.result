@@ -78,7 +78,7 @@ DROP VIEW v1;
 # Column name conflicts with a auto-generated one.
 CREATE VIEW v1 AS SELECT 'c1', 'c2 ', ' c3', ' c4 ', 'Name_exp_2';
 DROP VIEW v1;
-CREATE VIEW v1 AS select 'c1' AS `c1`,'c2 ' AS `Name_exp_2`,' c3' AS `c3`,' c4 ' AS `Name_exp_4`,'Name_exp_2' AS `My_exp_Name_exp_2`;
+CREATE VIEW v1 AS select 'c1' AS `c1`,'c2 ' AS `Name_exp_2`,' c3' AS `c3`,' c4 ' AS `Name_exp_4`,'Name_exp_2' AS `Name_exp_Name_exp_2`;
 DROP VIEW v1;
 # Invalid conlumn name in subquery.
 CREATE VIEW v1 AS SELECT (SELECT ' c1 ');

@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.ssl_capath);
 --echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT ssl_capath = @@SESSION.ssl_capath;
---echo Expected error 'Readonly variable'
+SELECT ssl_capath;
+--echo Expected error 'Unknown column'
 
 

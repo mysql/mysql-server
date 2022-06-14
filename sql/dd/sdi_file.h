@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +135,8 @@ bool expand_pattern(THD *thd, const MYSQL_LEX_STRING &pattern,
 /**
   Check that the MYD and MYI files for table exists.
 
-  @param schema_name
-  @param table_name
+  @param schema_name schema name
+  @param table_name table name
   @retval true if an error occurs
   @retval false otherwise
  */

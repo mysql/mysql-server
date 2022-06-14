@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 package com.mysql.clusterj.core.metadata;
 
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
-import com.mysql.clusterj.core.spi.SmartValueHandler;
 import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.ClusterJException;
@@ -47,8 +46,6 @@ import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -67,7 +64,7 @@ import java.util.Map;
  */
 public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
-    protected interface Finalizable {
+    public interface Finalizable {
         void finalize() throws Throwable;
     }
 
@@ -81,11 +78,8 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     private Map<String, Method> unmatchedGetMethods = new HashMap<String, Method>();
     private Map<String, Method> unmatchedSetMethods = new HashMap<String, Method>();
 
-    /** The Proxy class for the Domain Class. */
-    protected Class<T> proxyClass;
-
-    /** The constructor for the Proxy class. */
-    Constructor<T> ctor;
+    /** The proxy interfaces implemented by the domain object */
+    Class<?>[] proxyInterfaces = null;
 
     /** The PersistenceCapable annotation for this class. */
     PersistenceCapable persistenceCapable;
@@ -101,10 +95,6 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     /* The field handlers for transient fields */
     private DomainFieldHandlerImpl[] transientFieldHandlers;
-
-    /** Helper parameter for constructor. */
-    protected static final Class<?>[] invocationHandlerClassArray = 
-            new Class[]{InvocationHandler.class};
 
     /** Initialize DomainTypeHandler for a class.
      * 
@@ -128,11 +118,14 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             // Dynamic object has a handler but no proxy
             this.tableName = getTableNameForDynamicObject((Class<DynamicObject>)cls);
         } else {
-            // Create a proxy class for the domain class
-            // Invoke the handler's finalizer method when the proxy is finalized
-            proxyClass = (Class<T>)Proxy.getProxyClass(
-                    cls.getClassLoader(), new Class[]{cls, Finalizable.class});
-            ctor = getConstructorForInvocationHandler (proxyClass);
+            if (!cls.isInterface()) {
+                // Only interfaces or subclasses of DynamicObject
+                // can be persistence-capable.
+                throw new ClusterJUserException(local.message(
+                        "ERR_Not_Persistence_Capable_Type", name));
+            }
+            proxyInterfaces = new Class<?>[] {cls, Finalizable.class};
+            // Get the table name from Persistence Capable annotation
             persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
             if (persistenceCapable == null) {
                 throw new ClusterJUserException(local.message(
@@ -207,7 +200,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 // remember get methods
                 String methodName = method.getName();
                 String name = convertMethodName(methodName);
-                Class type = getType(method);
+                Class<?> type = getType(method);
                 DomainFieldHandlerImpl domainFieldHandler = null;
                 if (methodName.startsWith("get")) {
                     Method unmatched = unmatchedSetMethods.get(name);
@@ -367,15 +360,17 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         PersistenceCapable persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
         String tableName = null;
         try {
-            dynamicObject = cls.newInstance();
+            dynamicObject = cls.getDeclaredConstructor().newInstance();
             tableName = dynamicObject.table();
             if (tableName == null  && persistenceCapable != null) {
                 tableName = persistenceCapable.table();
             }
-        } catch (InstantiationException e) {
-            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Instantiation", cls.getName()), e);
-        } catch (IllegalAccessException e) {
-            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Illegal_Access", cls.getName()), e);
+        } catch (InstantiationException | NoSuchMethodException | IllegalAccessException e) {
+            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Instantiation",
+                    e.getClass().getSimpleName(), cls.getName()), e);
+        } catch (InvocationTargetException e) {
+            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Invocation_Target",
+                    cls.getName()), e.getCause());
         }
         if (tableName == null) {
             throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Null_Table_Name",
@@ -413,8 +408,8 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         handler.markModified(fieldNumber);
     }
 
-    public Class<T> getProxyClass() {
-        return proxyClass;
+    public Class<?>[] getProxyInterfaces() {
+        return proxyInterfaces;
     }
 
     public Class<T> getDomainClass() {
@@ -476,15 +471,16 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         return result;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public T newInstance(ValueHandler valueHandler) {
         T instance;
         try {
             if (dynamic) {
-                instance = cls.newInstance();
+                instance = cls.getDeclaredConstructor().newInstance();
                 ((DynamicObject)instance).delegate((DynamicObjectDelegate)valueHandler);
             } else {
-                instance = ctor.newInstance(new Object[] {valueHandler});
+                instance = (T)Proxy.newProxyInstance(cls.getClassLoader(), proxyInterfaces, valueHandler);
                 // TODO is setProxy really needed?
                 valueHandler.setProxy(instance);
             }
@@ -502,6 +498,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             throw new ClusterJException(
                     local.message("ERR_Create_Instance", cls.getName()), ex);
         } catch (SecurityException ex) {
+            throw new ClusterJException(
+                    local.message("ERR_Create_Instance", cls.getName()), ex);
+        } catch (NoSuchMethodException ex) {
             throw new ClusterJException(
                     local.message("ERR_Create_Instance", cls.getName()), ex);
         }
@@ -554,20 +553,6 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                     local.message("ERR_Unmatched_Method" + method.getName()));
         }
         return result;
-    }
-
-    /** TODO: Protect with doPrivileged. */
-    protected Constructor<T> getConstructorForInvocationHandler(
-            Class<T> cls) {
-        try {
-            return cls.getConstructor(invocationHandlerClassArray);
-        } catch (NoSuchMethodException ex) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Get_Constructor", cls), ex);
-        } catch (SecurityException ex) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Get_Constructor", cls), ex);
-        }
     }
 
     /** Create a key value handler from the key(s). The keys are as given by the user.

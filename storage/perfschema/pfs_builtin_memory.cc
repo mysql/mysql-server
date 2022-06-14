@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "storage/perfschema/pfs_builtin_memory.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "storage/perfschema/pfs_global.h"
 
 PFS_builtin_memory_class builtin_memory_mutex;
@@ -130,10 +131,8 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   klass->m_class.m_volatility = PSI_VOLATILITY_PERMANENT;
   klass->m_class.m_documentation = const_cast<char *>(documentation);
   klass->m_class.m_event_name_index = 0;
-  snprintf(klass->m_class.m_name, sizeof(klass->m_class.m_name), "%.*s",
-           PFS_MAX_INFO_NAME_LENGTH - 1, name);
-  klass->m_class.m_name_length = (uint)strlen(name);
-  DBUG_ASSERT(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
+  klass->m_class.m_name.set(PFS_CLASS_MEMORY, name);
+  assert(klass->m_class.m_name.length() <= klass->m_class.m_name.max_length);
 
   klass->m_stat.reset();
 }
@@ -465,14 +464,20 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
 
   &builtin_memory_scalable_buffer,
 
-  NULL};
+  /*
+    MAINTAINER:
+    When changing builtin memory,
+    make sure to adjust pfs_show_status() as well.
+  */
+
+  nullptr};
 
 PFS_builtin_memory_class*
 find_builtin_memory_class(PFS_builtin_memory_key key)
 {
   if (key == 0)
   {
-    return NULL;
+    return nullptr;
   }
 
   return all_builtin_memory[key - 1];

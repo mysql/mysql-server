@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -318,34 +318,38 @@ void testConcat(Pool& pool)
     LocalSLFifoList<Pool> list(pool, slhead);
     for (; c_seized < 1 * scale ; c_seized ++)
     {
-      list.seizeFirst(p);
+      if (!list.seizeFirst(p)) break;
       p.p->key = c_seized + 1;
     }
+    ok(c_seized == 1 * scale, "sl seized up to %u", c_seized);
   } /* sl: 100-1 */
   {
     LocalDLFifoList<Pool> list(pool, dlhead);
     for (; c_seized < 2 * scale ; c_seized ++)
     {
-      list.seizeFirst(p);
+      if (!list.seizeFirst(p)) break;
       p.p->key = c_seized + 1;
     }
+    ok(c_seized == 2 * scale, "dl seized up to %u", c_seized);
   } /* dl: 200-101 */
   {
     LocalSLCFifoList<Pool> list(pool, slchead);
     for (; c_seized < 3 * scale; c_seized ++)
     {
-      list.seizeFirst(p);
+      if (!list.seizeFirst(p)) break;
       p.p->key = c_seized + 1;
     }
+    ok(c_seized == 3 * scale, "slc seized up to %u", c_seized);
     ok(list.getCount() == 1 * scale, "slc.count %u (%u)", list.getCount(), 1 * scale);
   } /* slc: 300-201 */
   {
     LocalDLCFifoList<Pool> list(pool, dlchead);
     for (; c_seized < 4 * scale; c_seized ++)
     {
-      list.seizeFirst(p);
+      if (!list.seizeFirst(p)) break;
       p.p->key = c_seized + 1;
     }
+    ok(c_seized == 4 * scale, "dlc seized up to %u", c_seized);
     ok(list.getCount() == 1 * scale, "dlc.count %u (%u)", list.getCount(), 1 * scale);
   } /* dlc: 400-301 */
   {
@@ -368,9 +372,10 @@ void testConcat(Pool& pool)
     LocalDLCFifoList<Pool> list(pool, dlchead);
     for (; c_seized < 5 * scale; c_seized ++)
     {
-      list.seizeFirst(p);
+      if (!list.seizeFirst(p)) break;
       p.p->key = c_seized + 1;
     }
+    ok(c_seized == 5 * scale, "dlc seized up to %u", c_seized);
   } /* dlc: 500-401 */
   {
     LocalDLFifoList<Pool> list(pool, dlhead);

@@ -18,7 +18,7 @@ include/assert.inc ['binlog_encryption' is off after above crash recovery.]
 #
 # Adding debug point 'fail_to_fetch_master_key_seqno_from_keyring' to @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
-ERROR HY000: Unable to recover binlog encryption master key, please check if keyring plugin is loaded.
+ERROR HY000: Unable to recover binlog encryption master key, please check if keyring is loaded.
 # Removing debug point 'fail_to_fetch_master_key_seqno_from_keyring' from @@GLOBAL.debug
 #
 # Verify that an error 'ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED'
@@ -28,7 +28,7 @@ ERROR HY000: Unable to recover binlog encryption master key, please check if key
 #
 # Adding debug point 'fail_to_fetch_old_master_key_seqno_from_keyring' to @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
-ERROR HY000: Unable to recover binlog encryption master key, please check if keyring plugin is loaded.
+ERROR HY000: Unable to recover binlog encryption master key, please check if keyring is loaded.
 # Removing debug point 'fail_to_fetch_old_master_key_seqno_from_keyring' from @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
 include/assert.inc [Verify that 'binlog_encryption' can be enabled after above crash recovery.]
@@ -81,7 +81,7 @@ include/assert.inc ['binlog_encryption' is off after above crash recovery.]
 #
 # Adding debug point 'fail_to_fetch_new_master_key_from_keyring' to @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
-ERROR HY000: Unable to recover binlog encryption master key, please check if keyring plugin is loaded.
+ERROR HY000: Unable to recover binlog encryption master key, please check if keyring is loaded.
 # Removing debug point 'fail_to_fetch_new_master_key_from_keyring' from @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
 include/assert.inc [Verify that 'binlog_encryption' can be enabled after above crash recovery.]
@@ -107,7 +107,7 @@ include/assert.inc ['binlog_encryption' is off after above crash recovery.]
 #
 # Adding debug point 'fail_to_fetch_new_master_key_seqno_from_keyring' to @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
-ERROR HY000: Unable to recover binlog encryption master key, please check if keyring plugin is loaded.
+ERROR HY000: Unable to recover binlog encryption master key, please check if keyring is loaded.
 # Removing debug point 'fail_to_fetch_new_master_key_seqno_from_keyring' from @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
 include/assert.inc [Verify that 'binlog_encryption' can be enabled after above crash recovery.]
@@ -198,7 +198,7 @@ include/assert.inc ['binlog_encryption' is off after above crash recovery.]
 #
 # Adding debug point 'fail_to_set_new_master_key_seqno_on_keyring' to @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
-ERROR HY000: Failed to store key, please check if keyring plugin is loaded.
+ERROR HY000: Failed to store key, please check if keyring is loaded.
 # Removing debug point 'fail_to_set_new_master_key_seqno_on_keyring' from @@GLOBAL.debug
 SET @@GLOBAL.binlog_encryption=ON;
 include/assert.inc [Verify that 'binlog_encryption' can be enabled after above crash recovery.]

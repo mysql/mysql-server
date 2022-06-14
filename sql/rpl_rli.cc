@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,25 +27,30 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <regex>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "mutex_lock.h"  // Mutex_lock
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_dir.h"  // MY_STAT
 #include "my_sqlcommand.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"  // SUPER_ACL
+#include "sql/auth/roles.h"      // Roles::Role_activation
+#include "sql/auth/sql_auth_cache.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/log_event.h"  // Log_event
@@ -56,9 +61,9 @@
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_mi.h"   // Master_info
 #include "sql/rpl_msr.h"  // channel_map
+#include "sql/rpl_replica.h"
 #include "sql/rpl_reporting.h"
 #include "sql/rpl_rli_pdb.h"  // Slave_worker
-#include "sql/rpl_slave.h"
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/sql_base.h"  // close_thread_tables
 #include "sql/sql_error.h"
@@ -83,11 +88,21 @@ using std::min;
   fields.
 */
 const char *info_rli_fields[] = {
-    "number_of_lines",      "group_relay_log_name",
-    "group_relay_log_pos",  "group_master_log_name",
-    "group_master_log_pos", "sql_delay",
-    "number_of_workers",    "id",
-    "channel_name"};
+    "number_of_lines",
+    "group_relay_log_name",
+    "group_relay_log_pos",
+    "group_master_log_name",
+    "group_master_log_pos",
+    "sql_delay",
+    "number_of_workers",
+    "id",
+    "channel_name",
+    "privilege_checks_user",
+    "privilege_checks_hostname",
+    "require_row_format",
+    "require_table_primary_key_check",
+    "assign_gtids_to_anonymous_transactions_type",
+    "assign_gtids_to_anonymous_transactions_value"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -111,11 +126,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #endif
                param_id, param_channel),
       replicate_same_server_id(::replicate_same_server_id),
-      relay_log(&sync_relaylog_period),
+      relay_log(&sync_relaylog_period, true),
       is_relay_log_recovery(is_slave_recovery),
       save_temporary_tables(nullptr),
+      mi(nullptr),
       error_on_rli_init_info(false),
-      gtid_timestamps_warning_logged(false),
+      transaction_parser(
+          Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER),
       group_relay_log_pos(0),
       event_relay_log_number(0),
       event_relay_log_pos(0),
@@ -124,9 +141,15 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       gtid_set(nullptr),
       rli_fake(is_rli_fake),
       gtid_retrieved_initialized(false),
+      m_privilege_checks_username{""},
+      m_privilege_checks_hostname{""},
+      m_privilege_checks_user_corrupted{false},
+      m_require_row_format(false),
+      m_require_table_primary_key_check(PK_CHECK_STREAM),
+      m_is_applier_source_position_info_invalid(false),
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
-      ignore_log_space_limit(0),
+      ignore_log_space_limit(false),
       sql_force_rotate_relay(false),
       last_master_timestamp(0),
       slave_skip_counter(0),
@@ -145,20 +168,19 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       curr_group_da(PSI_NOT_INSTRUMENTED),
       curr_group_seen_begin(false),
       mts_end_group_sets_max_dbs(false),
-      slave_parallel_workers(0),
+      replica_parallel_workers(0),
       exit_counter(0),
       max_updated_index(0),
       recovery_parallel_workers(0),
       rli_checkpoint_seqno(0),
-      checkpoint_group(opt_mts_checkpoint_group),
+      checkpoint_group(opt_mta_checkpoint_group),
       recovery_groups_inited(false),
       mts_recovery_group_cnt(0),
       mts_recovery_index(0),
-      mts_recovery_group_seen_begin(0),
+      mts_recovery_group_seen_begin(false),
       mts_group_status(MTS_NOT_IN_GROUP),
       stats_exec_time(0),
       stats_read_time(0),
-      least_occupied_workers(PSI_NOT_INSTRUMENTED),
       current_mts_submode(nullptr),
       reported_unsafe_warning(false),
       rli_description_event(nullptr),
@@ -169,21 +191,22 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       row_stmt_start_timestamp(0),
       long_find_row_note_printed(false),
       thd_tx_priority(0),
-      is_engine_ha_data_detached(false),
+      m_ignore_write_set_memory_limit(false),
+      m_allow_drop_write_set(false),
+      m_is_engine_ha_data_detached(false),
       current_event(nullptr),
       ddl_not_atomic(false) {
-  DBUG_ENTER("Relay_log_info::Relay_log_info");
+  DBUG_TRACE;
 
 #ifdef HAVE_PSI_INTERFACE
-  relay_log.set_psi_keys(key_RELAYLOG_LOCK_index, key_RELAYLOG_LOCK_commit,
-                         key_RELAYLOG_LOCK_commit_queue, key_RELAYLOG_LOCK_done,
-                         key_RELAYLOG_LOCK_flush_queue, key_RELAYLOG_LOCK_log,
-                         key_RELAYLOG_LOCK_log_end_pos, key_RELAYLOG_LOCK_sync,
-                         key_RELAYLOG_LOCK_sync_queue, key_RELAYLOG_LOCK_xids,
-                         key_RELAYLOG_COND_done, key_RELAYLOG_update_cond,
-                         key_RELAYLOG_prep_xids_cond, key_file_relaylog,
-                         key_file_relaylog_index, key_file_relaylog_cache,
-                         key_file_relaylog_index_cache);
+  relay_log.set_psi_keys(
+      key_RELAYLOG_LOCK_index, key_RELAYLOG_LOCK_commit, PSI_NOT_INSTRUMENTED,
+      PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED, key_RELAYLOG_LOCK_log,
+      key_RELAYLOG_LOCK_log_end_pos, key_RELAYLOG_LOCK_sync,
+      PSI_NOT_INSTRUMENTED, key_RELAYLOG_LOCK_xids, PSI_NOT_INSTRUMENTED,
+      PSI_NOT_INSTRUMENTED, key_RELAYLOG_update_cond, PSI_NOT_INSTRUMENTED,
+      key_file_relaylog, key_file_relaylog_index, key_file_relaylog_cache,
+      key_file_relaylog_index_cache);
 #endif
 
   group_relay_log_name[0] = event_relay_log_name[0] = group_master_log_name[0] =
@@ -203,10 +226,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
     mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
     mysql_mutex_init(key_mutex_slave_parallel_worker_count, &exit_count_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
+    mysql_mutex_init(key_mta_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
-    mysql_mutex_init(key_mts_gaq_LOCK, &mts_gaq_LOCK, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
+    mysql_mutex_init(key_mta_gaq_LOCK, &mts_gaq_LOCK, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_cond_mta_gaq, &logical_clock_cond);
 
     relay_log.init_pthread_objects();
     force_flush_postponed_due_to_split_trans = false;
@@ -218,13 +241,19 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
     );
     Sid_map *sid_map = new Sid_map(sid_lock);
     gtid_set = new Gtid_set(sid_map, sid_lock);
+
+    /*
+      Group replication applier channel shall not use checksum on its relay
+      log files.
+    */
+    if (channel_map.is_group_replication_channel_name(param_channel, true)) {
+      relay_log.relay_log_checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    }
   }
   gtid_monitoring_info = new Gtid_monitoring_info();
   do_server_version_split(::server_version, slave_version_split);
   until_option = nullptr;
   rpl_filter = nullptr;
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -252,7 +281,7 @@ void Relay_log_info::init_workers(ulong n_workers) {
 void Relay_log_info::deinit_workers() { workers.clear(); }
 
 Relay_log_info::~Relay_log_info() {
-  DBUG_ENTER("Relay_log_info::~Relay_log_info");
+  DBUG_TRACE;
 
   if (!rli_fake) {
     if (recovery_groups_inited) bitmap_free(&recovery_groups);
@@ -293,14 +322,13 @@ Relay_log_info::~Relay_log_info() {
   }
 
   if (set_rli_description_event(nullptr)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool set_rli_description_event_failed{false};
 #endif
-    DBUG_ASSERT(set_rli_description_event_failed);
+    assert(set_rli_description_event_failed);
   }
   delete until_option;
   delete gtid_monitoring_info;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -321,7 +349,7 @@ void Relay_log_info::reset_notified_relay_log_change() {
 }
 
 /**
-   This method is called in mts_checkpoint_routine() to mark that each
+   This method is called in mta_checkpoint_routine() to mark that each
    worker is required to adapt to a new checkpoint data whose coordinates
    are passed to it through GAQ index.
 
@@ -376,8 +404,8 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
     Then the new checkpoint sequence is updated by subtracting the number
     of consecutive jobs that were successfully processed.
   */
-  DBUG_ASSERT(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
-              !(shift == 0 && rli_checkpoint_seqno != 0));
+  assert(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
+         !(shift == 0 && rli_checkpoint_seqno != 0));
   rli_checkpoint_seqno = rli_checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
                      "rli_checkpoint_seqno --> %u.",
@@ -401,12 +429,12 @@ bool Relay_log_info::mts_finalize_recovery() {
   uint i;
   uint repo_type = get_rpl_info_handler()->get_rpl_info_type();
 
-  DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
+  DBUG_TRACE;
 
   for (Slave_worker **it = workers.begin(); !ret && it != workers.end(); ++it) {
     Slave_worker *w = *it;
     ret = w->reset_recovery_info();
-    DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret = true;);
+    DBUG_EXECUTE_IF("mta_debug_recovery_reset_fails", ret = true;);
   }
   /*
     The loop is traversed in the worker index descending order due
@@ -414,11 +442,11 @@ bool Relay_log_info::mts_finalize_recovery() {
     even temporary holes. Therefore stale records are deleted
     from the tail.
   */
-  DBUG_EXECUTE_IF("enable_mts_wokrer_failure_in_recovery_finalize",
-                  { DBUG_SET("+d,mts_worker_thread_init_fails"); });
+  DBUG_EXECUTE_IF("enable_mta_wokrer_failure_in_recovery_finalize",
+                  { DBUG_SET("+d,mta_worker_thread_init_fails"); });
   for (i = recovery_parallel_workers; i > workers.size() && !ret; i--) {
-    Slave_worker *w =
-        Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
+    Slave_worker *w = Rpl_info_factory::create_worker(repo_type, i - 1, this,
+                                                      !mi->is_gtid_only_mode());
     /*
       If an error occurs during the above create_worker call, the newly created
       worker object gets deleted within the above function call itself and only
@@ -433,48 +461,48 @@ bool Relay_log_info::mts_finalize_recovery() {
       goto err;
     }
   }
-  recovery_parallel_workers = slave_parallel_workers;
+  recovery_parallel_workers = replica_parallel_workers;
 
 err:
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
   MY_STAT s;
-  DBUG_ENTER("add_relay_log");
+  DBUG_TRACE;
   mysql_mutex_assert_owner(&rli->log_space_lock);
   if (!mysql_file_stat(key_file_relaylog, linfo->log_file_name, &s, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_STAT_LOG_IN_INDEX,
            linfo->log_file_name);
-    DBUG_RETURN(1);
+    return 1;
   }
   rli->log_space_total += s.st_size;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[22];
   DBUG_PRINT("info", ("log_space_total: %s", llstr(rli->log_space_total, buf)));
 #endif
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Relay_log_info::count_relay_log_space() {
   LOG_INFO flinfo;
-  DBUG_ENTER("Relay_log_info::count_relay_log_space");
+  DBUG_TRACE;
   MUTEX_LOCK(lock, &log_space_lock);
   log_space_total = 0;
-  if (relay_log.find_log_pos(&flinfo, NullS, 1)) {
+  if (relay_log.find_log_pos(&flinfo, NullS, true)) {
     LogErr(ERROR_LEVEL, ER_RPL_LOG_NOT_FOUND_WHILE_COUNTING_RELAY_LOG_SPACE);
-    DBUG_RETURN(1);
+    return 1;
   }
   do {
-    if (add_relay_log(this, &flinfo)) DBUG_RETURN(1);
-  } while (!relay_log.find_next_log(&flinfo, 1));
+    if (add_relay_log(this, &flinfo)) return 1;
+  } while (!relay_log.find_next_log(&flinfo, true));
   /*
      As we have counted everything, including what may have written in a
      preceding write, we must reset bytes_written, or we may count some space
      twice.
   */
   relay_log.reset_bytes_written();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool Relay_log_info::reset_group_relay_log_pos(const char **errmsg) {
@@ -482,7 +510,7 @@ bool Relay_log_info::reset_group_relay_log_pos(const char **errmsg) {
 
   mysql_mutex_assert_owner(&data_lock);
 
-  if (relay_log.find_log_pos(&linfo, NullS, 1)) {
+  if (relay_log.find_log_pos(&linfo, NullS, true)) {
     *errmsg = "Could not find first log during relay log initialization";
     return true;
   }
@@ -492,22 +520,22 @@ bool Relay_log_info::reset_group_relay_log_pos(const char **errmsg) {
 }
 
 bool Relay_log_info::is_group_relay_log_name_invalid(const char **errmsg) {
-  DBUG_ENTER("Relay_log_info::group_relay_log_is_invalid");
+  DBUG_TRACE;
   const char *errmsg_fmt = nullptr;
   static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
   LOG_INFO linfo;
 
-  *errmsg = 0;
-  if (relay_log.find_log_pos(&linfo, group_relay_log_name, 1)) {
+  *errmsg = nullptr;
+  if (relay_log.find_log_pos(&linfo, group_relay_log_name, true)) {
     errmsg_fmt =
         "Could not find target log file mentioned in "
         "relay log info in the index file '%s' during "
         "relay log initialization";
     sprintf(errmsg_buff, errmsg_fmt, relay_log.get_index_fname());
     *errmsg = errmsg_buff;
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -541,7 +569,7 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
 
   SYNOPSIS
   @param[in]  thd             client thread that sent @c SELECT @c
-  MASTER_POS_WAIT,
+  SOURCE_POS_WAIT,
   @param[in]  log_name        log name to wait for,
   @param[in]  log_pos         position to wait for,
   @param[in]  timeout         @c timeout in seconds before giving up waiting.
@@ -564,19 +592,19 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
   int error = 0;
   struct timespec abstime;  // for timeout checking
   PSI_stage_info old_stage;
-  DBUG_ENTER("Relay_log_info::wait_for_pos");
+  DBUG_TRACE;
 
-  if (!inited) DBUG_RETURN(-2);
+  if (!inited) return -2;
 
   DBUG_PRINT("enter", ("log_name: '%s'  log_pos: %lu  timeout: %lu",
                        log_name->c_ptr_safe(), (ulong)log_pos, (ulong)timeout));
 
-  DEBUG_SYNC(thd, "begin_master_pos_wait");
+  DEBUG_SYNC(thd, "begin_source_pos_wait");
 
   set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
-                  &stage_waiting_for_the_slave_thread_to_advance_position,
+                  &stage_waiting_for_the_replica_thread_to_advance_position,
                   &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
@@ -652,7 +680,8 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
       CHANGE MASTER TO RELAY_LOG_POS ), we will wait till the first event
       is read and the log position is valid again.
     */
-    if (*group_master_log_name && !is_group_master_log_pos_invalid) {
+    if (*group_master_log_name && !is_group_master_log_pos_invalid &&
+        !is_applier_source_position_info_invalid()) {
       char *basename =
           (group_master_log_name + dirname_length(group_master_log_name));
       /*
@@ -683,7 +712,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
 
     // wait for master update, with optional timeout.
 
-    DBUG_PRINT("info", ("Waiting for master update"));
+    DBUG_PRINT("info", ("Waiting for source update"));
     /*
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
@@ -707,12 +736,12 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
     thd_wait_end(thd);
     DBUG_PRINT("info", ("Got signal of master update or timed out"));
     if (is_timeout(error)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         Doing this to generate a stack trace and make debugging
         easier.
       */
-      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0)) DBUG_ASSERT(0);
+      if (DBUG_EVALUATE_IF("debug_crash_replica_time_out", 1, 0)) assert(0);
 #endif
       error = -1;
       break;
@@ -733,12 +762,12 @@ err:
   if (thd->killed || init_abort_pos_wait != abort_pos_wait || !slave_running) {
     error = -2;
   }
-  DBUG_RETURN(error ? error : event_count);
+  return error ? error : event_count;
 }
 
 int Relay_log_info::wait_for_gtid_set(THD *thd, const char *gtid,
                                       double timeout, bool update_THD_status) {
-  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, char *, timeout)");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("Waiting for %s timeout %lf", gtid, timeout));
 
@@ -749,18 +778,16 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const char *gtid,
 
   if (ret != RETURN_STATUS_OK) {
     DBUG_PRINT("exit", ("improper gtid argument"));
-    DBUG_RETURN(-2);
+    return -2;
   }
 
-  DBUG_RETURN(
-      wait_for_gtid_set(thd, &wait_gtid_set, timeout, update_THD_status));
+  return wait_for_gtid_set(thd, &wait_gtid_set, timeout, update_THD_status);
 }
 
 int Relay_log_info::wait_for_gtid_set(THD *thd, String *gtid, double timeout,
                                       bool update_THD_status) {
-  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, String, timeout)");
-  DBUG_RETURN(
-      wait_for_gtid_set(thd, gtid->c_ptr_safe(), timeout, update_THD_status));
+  DBUG_TRACE;
+  return wait_for_gtid_set(thd, gtid->c_ptr_safe(), timeout, update_THD_status);
 }
 
 /*
@@ -777,9 +804,9 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   int error = 0;
   struct timespec abstime;  // for timeout checking
   PSI_stage_info old_stage;
-  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, gtid_set, timeout)");
+  DBUG_TRACE;
 
-  if (!inited) DBUG_RETURN(-2);
+  if (!inited) return -2;
 
   DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
@@ -788,7 +815,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   mysql_mutex_lock(&data_lock);
   if (update_THD_status)
     thd->ENTER_COND(&data_cond, &data_lock,
-                    &stage_waiting_for_the_slave_thread_to_advance_position,
+                    &stage_waiting_for_the_replica_thread_to_advance_position,
                     &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
@@ -813,14 +840,14 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
 
     // wait for master update, with optional timeout.
 
-    DBUG_ASSERT(wait_gtid_set->get_sid_map() == nullptr ||
-                wait_gtid_set->get_sid_map() == global_sid_map);
+    assert(wait_gtid_set->get_sid_map() == nullptr ||
+           wait_gtid_set->get_sid_map() == global_sid_map);
 
     global_sid_lock->wrlock();
     const Gtid_set *executed_gtids = gtid_state->get_executed_gtids();
     const Owned_gtids *owned_gtids = gtid_state->get_owned_gtids();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *wait_gtid_set_buf;
     wait_gtid_set->to_string(&wait_gtid_set_buf);
     DBUG_PRINT("info",
@@ -844,7 +871,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
     }
     global_sid_lock->unlock();
 
-    DBUG_PRINT("info", ("Waiting for master update"));
+    DBUG_PRINT("info", ("Waiting for source update"));
 
     /*
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
@@ -869,12 +896,12 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
     thd_wait_end(thd);
     DBUG_PRINT("info", ("Got signal of master update or timed out"));
     if (is_timeout(error)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         Doing this to generate a stack trace and make debugging
         easier.
       */
-      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0)) DBUG_ASSERT(0);
+      if (DBUG_EVALUATE_IF("debug_crash_replica_time_out", 1, 0)) assert(0);
 #endif
       error = -1;
       break;
@@ -895,13 +922,13 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   if (thd->killed || init_abort_pos_wait != abort_pos_wait || !slave_running) {
     error = -2;
   }
-  DBUG_RETURN(error ? error : event_count);
+  return error ? error : event_count;
 }
 
 int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
                                             bool need_data_lock, bool force) {
   int error = 0;
-  DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
+  DBUG_TRACE;
 
   if (need_data_lock)
     mysql_mutex_lock(&data_lock);
@@ -926,7 +953,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     If we had not done this fix here, the problem would also have appeared
     when the slave and master are 5.0 but with different event length (for
     example the slave is more recent than the master and features the event
-    UID). It would give false MASTER_POS_WAIT, false Exec_master_log_pos in
+    UID). It would give false SOURCE_POS_WAIT, false Exec_master_log_pos in
     SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
     value which would lead to badly broken replication.
     Even the relay_log_pos will be corrupted in this case, because the len is
@@ -948,11 +975,11 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     In MTS mode FD or Rotate event commit their solitary group to
     Coordinator's info table. Callers make sure that Workers have been
     executed all assignements.
-    Broadcast to master_pos_wait() waiters should be done after
+    Broadcast to source_pos_wait() waiters should be done after
     the table is updated.
   */
-  DBUG_ASSERT(!is_parallel_exec() ||
-              mts_group_status != Relay_log_info::MTS_IN_GROUP);
+  assert(!is_parallel_exec() ||
+         mts_group_status != Relay_log_info::MTS_IN_GROUP);
   /*
     We do not force synchronization at this point, except for Rotate event
     (see Rotate_log_event::do_update_pos), note @c force is false by default,
@@ -963,17 +990,17 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
     See sql/rpl_rli.h for further information on this behavior.
   */
-  error = flush_info(force);
+  error = flush_info(force ? RLI_FLUSH_IGNORE_SYNC_OPT : RLI_FLUSH_NO_OPTION);
 
   mysql_cond_broadcast(&data_cond);
   if (need_data_lock) mysql_mutex_unlock(&data_lock);
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Relay_log_info::close_temporary_tables() {
   TABLE *table, *next;
   int num_closed_temp_tables = 0;
-  DBUG_ENTER("Relay_log_info::close_temporary_tables");
+  DBUG_TRACE;
 
   for (table = save_temporary_tables; table; table = next) {
     next = table->next;
@@ -986,9 +1013,8 @@ void Relay_log_info::close_temporary_tables() {
     num_closed_temp_tables++;
   }
   save_temporary_tables = nullptr;
-  atomic_slave_open_temp_tables -= num_closed_temp_tables;
+  atomic_replica_open_temp_tables -= num_closed_temp_tables;
   atomic_channel_open_temp_tables -= num_closed_temp_tables;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1025,7 +1051,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
 
   mysql_mutex_t *log_lock = relay_log.get_log_lock();
 
-  DBUG_ENTER("Relay_log_info::purge_relay_logs");
+  DBUG_TRACE;
 
   /*
     Even if inited==0, we still try to empty master_log_* variables. Indeed,
@@ -1064,7 +1090,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
           channel was not inited again).
         */
         (mi->reset && delete_only)) {
-      DBUG_ASSERT(relay_log.is_relay_log);
+      assert(relay_log.is_relay_log);
       ln_without_channel_name =
           relay_log.generate_name(opt_relay_logname, "-relay-bin", buffer);
 
@@ -1078,18 +1104,18 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
         log_index_name = add_channel_to_relay_log_name(
             relay_bin_index_channel, FN_REFLEN, index_file_withoutext);
       } else
-        log_index_name = 0;
+        log_index_name = nullptr;
 
       if (relay_log.open_index_file(log_index_name, ln, true)) {
         LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
                "Failed to open relay log index file:",
                relay_log.get_index_fname());
-        DBUG_RETURN(1);
+        return 1;
       }
       mysql_mutex_lock(&mi->data_lock);
       mysql_mutex_lock(log_lock);
       if (relay_log.open_binlog(
-              ln, 0,
+              ln, nullptr,
               (max_relay_log_size ? max_relay_log_size : max_binlog_size), true,
               true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
               mi->get_mi_description_event())) {
@@ -1097,15 +1123,15 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
         mysql_mutex_unlock(&mi->data_lock);
         LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
                "Failed to open relay log file:", relay_log.get_log_fname());
-        DBUG_RETURN(1);
+        return 1;
       }
       mysql_mutex_unlock(log_lock);
       mysql_mutex_unlock(&mi->data_lock);
     } else
-      DBUG_RETURN(0);
+      return 0;
   } else {
-    DBUG_ASSERT(slave_running == 0);
-    DBUG_ASSERT(mi->slave_running == 0);
+    assert(slave_running == 0);
+    assert(mi->slave_running == 0);
   }
   /* Reset the transaction boundary parser and clear the last GTID queued */
   mi->transaction_parser.reset();
@@ -1142,12 +1168,12 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
     relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                     true /*need_lock_log=true*/, true /*need_lock_index=true*/);
 err:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[22];
 #endif
   DBUG_PRINT("info", ("log_space_total: %s", llstr(log_space_total, buf)));
   mysql_mutex_unlock(&data_lock);
-  DBUG_RETURN(error);
+  return error;
 }
 
 const char *Relay_log_info::add_channel_to_relay_log_name(
@@ -1158,7 +1184,7 @@ const char *Relay_log_info::add_channel_to_relay_log_name(
   uint base_name_len;
   uint suffix_buff_size;
 
-  DBUG_ASSERT(base_name != nullptr);
+  assert(base_name != nullptr);
 
   base_name_len = strlen(base_name);
   suffix_buff_size = buff_size - base_name_len;
@@ -1183,29 +1209,28 @@ const char *Relay_log_info::add_channel_to_relay_log_name(
 }
 
 void Relay_log_info::cached_charset_invalidate() {
-  DBUG_ENTER("Relay_log_info::cached_charset_invalidate");
+  DBUG_TRACE;
 
   /* Full of zeroes means uninitialized. */
   memset(cached_charset, 0, sizeof(cached_charset));
-  DBUG_VOID_RETURN;
 }
 
 bool Relay_log_info::cached_charset_compare(char *charset) const {
-  DBUG_ENTER("Relay_log_info::cached_charset_compare");
+  DBUG_TRACE;
 
   if (memcmp(cached_charset, charset, sizeof(cached_charset))) {
     memcpy(const_cast<char *>(cached_charset), charset, sizeof(cached_charset));
-    DBUG_RETURN(1);
+    return true;
   }
-  DBUG_RETURN(0);
+  return false;
 }
 
 int Relay_log_info::stmt_done(my_off_t event_master_log_pos) {
   clear_flag(IN_STMT);
 
-  DBUG_ASSERT(!belongs_to_client());
+  assert(!belongs_to_client());
   /* Worker does not execute binlog update position logics */
-  DBUG_ASSERT(!is_mts_worker(info_thd));
+  assert(!is_mts_worker(info_thd));
 
   /*
     Replication keeps event and group positions to specify the
@@ -1248,9 +1273,9 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos) {
 }
 
 void Relay_log_info::cleanup_context(THD *thd, bool error) {
-  DBUG_ENTER("Relay_log_info::cleanup_context");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(info_thd == thd);
+  assert(info_thd == thd);
   /*
     1) Instances of Table_map_log_event, if ::do_apply_event() was called on
     them, may have opened tables, which we cannot be sure have been closed
@@ -1274,12 +1299,13 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
       called before deleting the rows_query event.
     */
     info_thd->reset_query();
+    info_thd->reset_query_for_display();
     delete rows_query_ev;
     rows_query_ev = nullptr;
     DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev", {
       const char action[] =
           "now SIGNAL deleted_rows_query_ev WAIT_FOR go_ahead";
-      DBUG_ASSERT(!debug_sync_set_action(info_thd, STRING_WITH_LEN(action)));
+      assert(!debug_sync_set_action(info_thd, STRING_WITH_LEN(action)));
     };);
   }
   m_table_map.clear_tables();
@@ -1292,15 +1318,14 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
     */
     XID_STATE *xid_state = thd->get_transaction()->xid_state();
     if (!xid_state->has_state(XID_STATE::XA_NOTR)) {
-      DBUG_ASSERT(
-          DBUG_EVALUATE_IF("simulate_commit_failure", 1,
-                           xid_state->has_state(XID_STATE::XA_ACTIVE) ||
-                               xid_state->has_state(XID_STATE::XA_IDLE)));
+      assert(DBUG_EVALUATE_IF("simulate_commit_failure", 1,
+                              xid_state->has_state(XID_STATE::XA_ACTIVE) ||
+                                  xid_state->has_state(XID_STATE::XA_IDLE)));
 
       xa_trans_force_rollback(thd);
       xid_state->reset();
       cleanup_trans_state(thd);
-      thd->rpl_unflag_detached_engine_ha_data();
+      if (thd->is_engine_ha_data_detached()) thd->rpl_reattach_engine_ha_data();
     }
     thd->mdl_context.release_transactional_locks();
   }
@@ -1333,13 +1358,11 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
     in the middle of a pure row based transaction.
   */
   if (error) trans_reset_one_shot_chistics(thd);
-
-  DBUG_VOID_RETURN;
 }
 
 void Relay_log_info::clear_tables_to_lock() {
-  DBUG_ENTER("Relay_log_info::clear_tables_to_lock()");
-#ifndef DBUG_OFF
+  DBUG_TRACE;
+#ifndef NDEBUG
   /**
     When replicating in RBR and MyISAM Merge tables are involved
     open_and_lock_tables (called in do_apply_event) appends the
@@ -1353,7 +1376,7 @@ void Relay_log_info::clear_tables_to_lock() {
   uint i = 0;
   for (TABLE_LIST *ptr = tables_to_lock; ptr; ptr = ptr->next_global, i++)
     ;
-  DBUG_ASSERT(i == tables_to_lock_count);
+  assert(i == tables_to_lock_count);
 #endif
 
   while (tables_to_lock) {
@@ -1375,13 +1398,12 @@ void Relay_log_info::clear_tables_to_lock() {
     tables_to_lock_count--;
     my_free(to_free);
   }
-  DBUG_ASSERT(tables_to_lock == nullptr && tables_to_lock_count == 0);
-  DBUG_VOID_RETURN;
+  assert(tables_to_lock == nullptr && tables_to_lock_count == 0);
 }
 
 void Relay_log_info::slave_close_thread_tables(THD *thd) {
   thd->get_stmt_da()->set_overwrite_status(true);
-  DBUG_ENTER("Relay_log_info::slave_close_thread_tables(THD *thd)");
+  DBUG_TRACE;
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
   thd->get_stmt_da()->set_overwrite_status(false);
 
@@ -1407,7 +1429,6 @@ void Relay_log_info::slave_close_thread_tables(THD *thd) {
     thd->mdl_context.release_statement_locks();
 
   clear_tables_to_lock();
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1425,11 +1446,11 @@ void Relay_log_info::slave_close_thread_tables(THD *thd) {
 */
 bool mysql_show_relaylog_events(THD *thd) {
   Master_info *mi = nullptr;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   bool res;
-  DBUG_ENTER("mysql_show_relaylog_events");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
+  assert(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
   channel_map.wrlock();
 
@@ -1440,7 +1461,7 @@ bool mysql_show_relaylog_events(THD *thd) {
   }
 
   Log_event::init_show_field_list(&field_list);
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     res = true;
     goto err;
@@ -1465,14 +1486,14 @@ bool mysql_show_relaylog_events(THD *thd) {
 err:
   channel_map.unlock();
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
   int error = 0;
   enum_return_check check_return = ERROR_CHECKING_REPOSITORY;
   const char *msg = nullptr;
-  DBUG_ENTER("Relay_log_info::rli_init_info");
+  DBUG_TRACE;
 
   mysql_mutex_assert_owner(&data_lock);
 
@@ -1488,18 +1509,18 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
   if (error_on_rli_init_info) goto err;
 
   if (inited) {
-    DBUG_RETURN(recovery_parallel_workers ? mts_recovery_groups(this) : 0);
+    return recovery_parallel_workers ? mts_recovery_groups(this) : 0;
   }
 
   slave_skip_counter = 0;
   abort_pos_wait = 0;
   log_space_limit = relay_log_space_limit;
   log_space_total = 0;
-  tables_to_lock = 0;
+  tables_to_lock = nullptr;
   tables_to_lock_count = 0;
 
   char pattern[FN_REFLEN];
-  (void)my_realpath(pattern, slave_load_tmpdir, 0);
+  (void)my_realpath(pattern, replica_load_tmpdir, 0);
   /*
    @TODO:
     In MSR, sometimes slave fail with the following error:
@@ -1511,8 +1532,8 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
    */
   if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
                 MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS) {
-    LogErr(ERROR_LEVEL, ER_SLAVE_CANT_USE_TEMPDIR, slave_load_tmpdir);
-    DBUG_RETURN(1);
+    LogErr(ERROR_LEVEL, ER_SLAVE_CANT_USE_TEMPDIR, replica_load_tmpdir);
+    return 1;
   }
   unpack_filename(slave_patternload_file, pattern);
   slave_patternload_file_size = strlen(slave_patternload_file);
@@ -1538,7 +1559,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
         opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR) {
       LogErr(ERROR_LEVEL, ER_RPL_RELAY_LOG_NEEDS_FILE_NOT_DIRECTORY,
              opt_relay_logname);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     /* Reports an error and returns, if the --relay-log-index's path
@@ -1548,7 +1569,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
             FN_LIBCHAR) {
       LogErr(ERROR_LEVEL, ER_RPL_RELAY_LOG_INDEX_NEEDS_FILE_NOT_DIRECTORY,
              opt_relaylog_index_name);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     char buf[FN_REFLEN];
@@ -1559,7 +1580,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       --relay-log option.
     */
     const char *ln_without_channel_name;
-    static bool name_warning_sent = 0;
+    static bool name_warning_sent = false;
 
     /*
       Buffer to add channel name suffix when relay-log option is provided.
@@ -1573,7 +1594,6 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     /* name of the index file if opt_relaylog_index_name is set*/
     const char *log_index_name;
 
-    relay_log.is_relay_log = true;
     ln_without_channel_name =
         relay_log.generate_name(opt_relay_logname, "-relay-bin", buf);
 
@@ -1592,7 +1612,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       */
       LogErr(WARNING_LEVEL, ER_RPL_PLEASE_USE_OPTION_RELAY_LOG,
              ln_without_channel_name);
-      name_warning_sent = 1;
+      name_warning_sent = true;
     }
 
     /*
@@ -1608,18 +1628,18 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       log_index_name = add_channel_to_relay_log_name(
           relay_bin_index_channel, FN_REFLEN, index_file_withoutext);
     } else
-      log_index_name = 0;
+      log_index_name = nullptr;
 
     if (relay_log.open_index_file(log_index_name, ln, true)) {
       LogErr(ERROR_LEVEL, ER_RPL_OPEN_INDEX_FILE_FAILED);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     if (!gtid_retrieved_initialized) {
       /* Store the GTID of a transaction spanned in multiple relay log files */
       Gtid_monitoring_info *partial_trx = mi->get_gtid_monitoring_info();
       partial_trx->clear();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       get_sid_lock()->wrlock();
       gtid_set->dbug_print("set of GTIDs in relay log before initialization");
       get_sid_lock()->unlock();
@@ -1639,13 +1659,13 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       if (!is_relay_log_recovery && !gtid_retrieved_initialized &&
           !skip_received_gtid_set_recovery &&
           relay_log.init_gtid_sets(
-              gtid_set, nullptr, opt_slave_sql_verify_checksum,
+              gtid_set, nullptr, opt_replica_sql_verify_checksum,
               true /*true=need lock*/, &mi->transaction_parser, partial_trx)) {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_RLI_INIT_INFO);
-        DBUG_RETURN(1);
+        return 1;
       }
       gtid_retrieved_initialized = true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       get_sid_lock()->wrlock();
       gtid_set->dbug_print("set of GTIDs in relay log after initialization");
       get_sid_lock()->unlock();
@@ -1666,12 +1686,13 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     mysql_mutex_lock(log_lock);
 
     if (relay_log.open_binlog(
-            ln, 0, (max_relay_log_size ? max_relay_log_size : max_binlog_size),
-            true, true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
+            ln, nullptr,
+            (max_relay_log_size ? max_relay_log_size : max_binlog_size), true,
+            true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
             mi->get_mi_description_event())) {
       mysql_mutex_unlock(log_lock);
       LogErr(ERROR_LEVEL, ER_RPL_CANT_OPEN_LOG_IN_RLI_INIT_INFO);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     mysql_mutex_unlock(log_lock);
@@ -1694,7 +1715,60 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     goto err;
   }
 
-  if (check_return == REPOSITORY_DOES_NOT_EXIST) {
+  check_return = check_if_info_was_cleared(check_return);
+
+  if (check_return & REPOSITORY_EXISTS) {
+    if (read_info(handler)) {
+      msg = "Error reading relay log configuration";
+      error = 1;
+      goto err;
+    }
+
+    /*
+      Clone required cleanup must be done only once, thence we only
+      do it when server is booting.
+    */
+    if (clone_startup && get_server_state() == SERVER_BOOTING) {
+      char *channel_name =
+          (const_cast<Relay_log_info *>(mi->rli))->get_channel();
+      bool is_group_replication_channel =
+          channel_map.is_group_replication_channel_name(channel_name);
+      if (is_group_replication_channel) {
+        if (Rpl_info_factory::reset_workers(this)) {
+          msg =
+              "Error cleaning relay log worker configuration for group "
+              "replication after clone";
+          error = 1;
+          goto err;
+        }
+        if (clear_info()) {
+          msg =
+              "Error cleaning relay log configuration for group replication "
+              "after clone";
+          error = 1;
+          goto err;
+        }
+        check_return = REPOSITORY_CLEARED;
+      } else {
+        if (!is_relay_log_recovery) {
+          LogErr(WARNING_LEVEL, ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE,
+                 channel_name);
+          // After a clone if we detect information is present we always invoke
+          // relay log recovery. Not doing so would probably mean failure at
+          // initialization due to missing relay log files.
+          if (init_recovery(mi)) {
+            msg = "Error on the relay log recovery after a clone operation";
+            error = 1;
+            goto err;
+          }
+        }
+      }
+    }
+  }
+
+  if (check_return == REPOSITORY_DOES_NOT_EXIST ||  // Hasn't been initialized
+      check_return == REPOSITORY_CLEARED  // Was initialized but was RESET
+  ) {
     /* Init relay log with first entry in the relay index file */
     if (reset_group_relay_log_pos(&msg)) {
       error = 1;
@@ -1703,18 +1777,26 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     group_master_log_name[0] = 0;
     group_master_log_pos = 0;
   } else {
-    if (read_info(handler)) {
-      msg = "Error reading relay log configuration";
-      error = 1;
-      goto err;
+    if (is_relay_log_recovery) {
+      if (init_recovery(mi)) {
+        error = 1;
+        goto err;
+      }
+    } else if (mi->is_gtid_only_mode()) {
+      std::string index_entry_name;
+      std::string errmsg;
+      if (relay_log.find_first_log(index_entry_name, errmsg)) {
+        /* purecov: begin tested */
+        LogErr(ERROR_LEVEL, ER_RPL_CANNOT_OPEN_RELAY_LOG, errmsg.c_str());
+        error = 1;
+        goto err;
+        /* purecov: end */
+      }
+      set_group_relay_log_name(index_entry_name.c_str());
+      set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
     }
 
-    if (is_relay_log_recovery && init_recovery(mi)) {
-      error = 1;
-      goto err;
-    }
-
-    if (is_group_relay_log_name_invalid(&msg)) {
+    if (!mi->is_gtid_only_mode() && is_group_relay_log_name_invalid(&msg)) {
       LogErr(ERROR_LEVEL, ER_RPL_MTS_RECOVERY_CANT_OPEN_RELAY_LOG,
              group_relay_log_name, std::to_string(group_relay_log_pos).c_str());
       error = 1;
@@ -1722,9 +1804,9 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     }
   }
 
-  inited = 1;
+  inited = true;
   error_on_rli_init_info = false;
-  if (flush_info(true)) {
+  if (flush_info(RLI_FLUSH_IGNORE_SYNC_OPT | RLI_FLUSH_IGNORE_GTID_ONLY)) {
     msg = "Error reading relay log configuration";
     error = 1;
     goto err;
@@ -1741,27 +1823,27 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     load_mi_and_rli_from_repositories.
   */
   if (!mi->rli->mts_recovery_group_cnt) is_relay_log_recovery = false;
-  DBUG_RETURN(error);
+  return error;
 
 err:
   handler->end_info();
-  inited = 0;
+  inited = false;
   error_on_rli_init_info = true;
   if (msg) LogErr(ERROR_LEVEL, ER_RPL_RLI_INIT_INFO_MSG, msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true /*need_lock_log=true*/, true /*need_lock_index=true*/);
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Relay_log_info::end_info() {
-  DBUG_ENTER("Relay_log_info::end_info");
+  DBUG_TRACE;
 
   error_on_rli_init_info = false;
-  if (!inited) DBUG_VOID_RETURN;
+  if (!inited) return;
 
   handler->end_info();
 
-  inited = 0;
+  inited = false;
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true /*need_lock_log=true*/, true /*need_lock_index=true*/);
   relay_log.harvest_bytes_written(this, true /*need_log_space_lock=true*/);
@@ -1771,17 +1853,15 @@ void Relay_log_info::end_info() {
     of slave's temp tables after shutdown.
   */
   close_temporary_tables();
-
-  DBUG_VOID_RETURN;
 }
 
 int Relay_log_info::flush_current_log() {
-  DBUG_ENTER("Relay_log_info::flush_current_log");
+  DBUG_TRACE;
 
   /* When we come to this place in code, relay log may or not be initialized; */
-  if (relay_log.flush()) DBUG_RETURN(2);
+  if (relay_log.flush()) return 2;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Relay_log_info::set_master_info(Master_info *info) { mi = info; }
@@ -1832,15 +1912,22 @@ void Relay_log_info::set_master_info(Master_info *info) { mi = info; }
   - Error can happen if writing to file fails or if flushing the file
     fails.
 
-  @todo Change the log file information to a binary format to avoid
-  calling longlong2str.
+  @param flush_flags a bit mask to force flushing in some scenarios
+                     If RLI_FLUSH_IGNORE_SYNC_OPT is given then the method
+                     will ignore the server sync options
+                     If RLI_FLUSH_IGNORE_GTID_ONLY is given then the method
+                     will ignore the channel GTID_ONLY option
 
   @return 0 on success, 1 on error.
 */
-int Relay_log_info::flush_info(const bool force) {
-  DBUG_ENTER("Relay_log_info::flush_info");
+int Relay_log_info::flush_info(const int flush_flags) {
+  DBUG_TRACE;
 
-  if (!inited) DBUG_RETURN(0);
+  if (!inited) return 0;
+
+  if (!(flush_flags & RLI_FLUSH_IGNORE_GTID_ONLY) && mi->is_gtid_only_mode()) {
+    return 0;
+  }
 
   /*
     We update the sync_period at this point because only here we
@@ -1853,21 +1940,104 @@ int Relay_log_info::flush_info(const bool force) {
 
   if (write_info(handler)) goto err;
 
-  if (handler->flush_info(force || force_flush_postponed_due_to_split_trans))
+  if (handler->flush_info((flush_flags & RLI_FLUSH_IGNORE_SYNC_OPT) ||
+                          force_flush_postponed_due_to_split_trans))
     goto err;
 
   force_flush_postponed_due_to_split_trans = false;
   mysql_mutex_unlock(&mts_temp_table_LOCK);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION);
   mysql_mutex_unlock(&mts_temp_table_LOCK);
-  DBUG_RETURN(1);
+  return 1;
+}
+
+enum_return_check Relay_log_info::check_if_info_was_cleared(
+    const enum_return_check &previous_result) const {
+  enum_return_check result = previous_result;
+
+  if (result == REPOSITORY_EXISTS) {
+    char number_of_lines[FN_REFLEN] = {0};
+
+    if (this->handler->prepare_info_for_read() ||
+        !!this->handler->get_info(number_of_lines, sizeof(number_of_lines), ""))
+      return ERROR_CHECKING_REPOSITORY;
+
+    char *first_non_digit{nullptr};
+    int lines = strtoul(number_of_lines, &first_non_digit, 10);
+
+    if (number_of_lines[0] != '\0' && *first_non_digit == '\0' &&
+        lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
+      char log_name[FN_REFLEN] = {0};
+
+      if (this->handler->get_info(log_name, sizeof(log_name), "") ==
+          Rpl_info_handler::enum_field_get_status::FAILURE)
+        return ERROR_CHECKING_REPOSITORY;
+
+      if (log_name[0] == '\0') return REPOSITORY_CLEARED;
+    }
+  }
+  return result;
+}
+
+bool Relay_log_info::clear_info() {
+  this->handler->init_info();
+
+  if (this->handler->prepare_info_for_write() ||
+      this->handler->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
+      this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
+      this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
+      this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
+      this->handler->set_info(nullptr) ||
+      this->handler->set_info(this->channel))
+    return true;
+
+  if (this->m_privilege_checks_username.length() != 0) {
+    if (this->handler->set_info(this->m_privilege_checks_username.c_str()))
+      return true;
+  } else {
+    if (this->handler->set_info(nullptr)) {
+      return true;
+    }
+  }
+  if (this->m_privilege_checks_hostname.length() != 0) {
+    if (this->handler->set_info(this->m_privilege_checks_hostname.c_str()))
+      return true;
+  } else {
+    if (this->handler->set_info(nullptr)) return true;
+  }
+
+  if (this->handler->set_info(this->m_require_row_format)) return true;
+
+  if (DBUG_EVALUATE_IF("rpl_rli_clear_info_error", true, false) ||
+      this->handler->set_info((ulong)this->m_require_table_primary_key_check))
+    return true;
+
+  if (this->handler->flush_info(true)) return true;
+
+  this->group_relay_log_name[0] = '\0';
+  this->group_relay_log_pos = 0;
+  this->group_master_log_name[0] = '\0';
+  this->group_master_log_pos = 0;
+  this->sql_delay = 0;
+  this->recovery_parallel_workers = 0;
+  this->internal_id = 1;
+
+  return false;
 }
 
 size_t Relay_log_info::get_number_info_rli_fields() {
   return sizeof(info_rli_fields) / sizeof(info_rli_fields[0]);
+}
+
+void Relay_log_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
+  bitmap_init(nullable_fields, nullptr,
+              Relay_log_info::get_number_info_rli_fields());
+  bitmap_set_all(nullable_fields);       // All fields may be NULL except for
+  bitmap_clear_bit(nullable_fields, 0);  // NUMBER_OF_LINES and
+  bitmap_clear_bit(nullable_fields, 8);  // CHANNEL_NAME
 }
 
 void Relay_log_info::start_sql_delay(time_t delay_end) {
@@ -1883,8 +2053,14 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   ulong temp_group_master_log_pos = 0;
   int temp_sql_delay = 0;
   int temp_internal_id = internal_id;
+  int temp_require_row_format = 0;
+  auto temp_assign_gtids_to_anonymous_transactions =
+      Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF;
+  ulong temp_require_table_primary_key_check = Relay_log_info::PK_CHECK_STREAM;
+  Rpl_info_handler::enum_field_get_status status{
+      Rpl_info_handler::enum_field_get_status::FAILURE};
 
-  DBUG_ENTER("Relay_log_info::read_info");
+  DBUG_TRACE;
 
   /*
     Should not read RLI from file in client threads. Client threads
@@ -1899,7 +2075,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
     constructor (or passed to it), so that we are guaranteed that it
     exists at this point. /Sven
   */
-  // DBUG_ASSERT(!belongs_to_client());
+  // assert(!belongs_to_client());
 
   /*
     Starting from 5.1.x, relay-log.info has a new format. Now, its
@@ -1925,39 +2101,154 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
     overwritten by the second row later.
   */
   if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
-    DBUG_RETURN(true);
+      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
+    return true;
 
   lines = strtoul(group_relay_log_name, &first_non_digit, 10);
 
   if (group_relay_log_name[0] != '\0' && *first_non_digit == '\0' &&
       lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
     /* Seems to be new format => read group relay log name */
-    if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
-      DBUG_RETURN(true);
+    status =
+        from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "");
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+    if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL)
+      group_relay_log_name[0] = '\0';
   } else
     DBUG_PRINT("info", ("relay_log_info file is in old format."));
 
-  if (from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
-      from->get_info(group_master_log_name, sizeof(group_relay_log_name), "") ||
-      from->get_info(&temp_group_master_log_pos, 0UL))
-    DBUG_RETURN(true);
+  status =
+      from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE);
+  if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+
+  status =
+      from->get_info(group_master_log_name, sizeof(group_master_log_name), "");
+  if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+  if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL)
+    group_master_log_name[0] = '\0';
+
+  status = from->get_info(&temp_group_master_log_pos, 0UL);
+  if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
-    if (from->get_info(&temp_sql_delay, 0)) DBUG_RETURN(true);
+    status = from->get_info(&temp_sql_delay, 0);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS) {
-    if (from->get_info(&recovery_parallel_workers, 0UL)) DBUG_RETURN(true);
+    status = from->get_info(&recovery_parallel_workers, 0UL);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID) {
-    if (from->get_info(&temp_internal_id, 1)) DBUG_RETURN(true);
+    status = from->get_info(&temp_internal_id, 1);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL) {
     /* the default value is empty string"" */
-    if (from->get_info(channel, sizeof(channel), "")) DBUG_RETURN(true);
+    if (!!from->get_info(channel, sizeof(channel), "")) return true;
+  }
+
+  /*
+   * Here +4 is used to accomodate string if debug point
+   * `simulate_priv_check_username_above_limit` is set in test.
+   */
+  char temp_privilege_checks_username[PRIV_CHECKS_USERNAME_LENGTH + 4] = {0};
+  char *username = nullptr;
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_USERNAME) {
+    status = from->get_info(temp_privilege_checks_username,
+                            PRIV_CHECKS_USERNAME_LENGTH + 1, nullptr);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+    if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL)
+      username = temp_privilege_checks_username;
+  }
+
+  /*
+   * Here +4 is used to accomodate string if debug point
+   * `simulate_priv_check_hostname_above_limit` is set in test.
+   */
+  char temp_privilege_checks_hostname[PRIV_CHECKS_HOSTNAME_LENGTH + 4] = {0};
+  char *hostname = nullptr;
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_HOSTNAME) {
+    status = from->get_info(temp_privilege_checks_hostname,
+                            PRIV_CHECKS_HOSTNAME_LENGTH + 1, nullptr);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+    if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL)
+      hostname = temp_privilege_checks_hostname;
+  }
+
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
+    if (!!from->get_info(&temp_require_row_format, 0)) return true;
+  } else {
+    if (channel_map.is_group_replication_channel_name(channel))
+      temp_require_row_format = 1;
+  }
+  m_require_row_format = temp_require_row_format;
+
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK) {
+    if (!!from->get_info(&temp_require_table_primary_key_check, 1)) return true;
+  }
+  if (temp_require_table_primary_key_check < PK_CHECK_STREAM ||
+      temp_require_table_primary_key_check > Relay_log_info::PK_CHECK_OFF)
+    return true;
+  m_require_table_primary_key_check =
+      static_cast<Relay_log_info::enum_require_table_primary_key>(
+          temp_require_table_primary_key_check);
+
+  if (lines >=
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE) {
+    const ulong off = static_cast<ulong>(
+        Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF);
+    const ulong manual = static_cast<ulong>(
+        Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID);
+
+    ulong long_assign_gtids_to_anonymous_transactions = off;
+
+    if (!!from->get_info((&long_assign_gtids_to_anonymous_transactions), 1))
+      return true;
+
+    if (long_assign_gtids_to_anonymous_transactions < off ||
+        long_assign_gtids_to_anonymous_transactions > manual)
+      return true;
+
+    temp_assign_gtids_to_anonymous_transactions =
+        static_cast<Assign_gtids_to_anonymous_transactions_info::enum_type>(
+            long_assign_gtids_to_anonymous_transactions);
+  }
+
+  if (lines >=
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE) {
+    char temp_assign_gtids_to_anonymous_transactions_value
+        [binary_log::Uuid::TEXT_LENGTH + 1] = {0};
+    status = from->get_info(temp_assign_gtids_to_anonymous_transactions_value,
+                            binary_log::Uuid::TEXT_LENGTH + 1, "");
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+
+    if (temp_assign_gtids_to_anonymous_transactions >
+        Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+      if (status ==
+          Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL)
+        return true;
+    } else if (temp_assign_gtids_to_anonymous_transactions ==
+               Assign_gtids_to_anonymous_transactions_info::enum_type::
+                   AGAT_OFF) {
+      if (strcmp(temp_assign_gtids_to_anonymous_transactions_value, ""))
+        return true;
+    }
+    if (m_assign_gtids_to_anonymous_transactions_info.set_info(
+            temp_assign_gtids_to_anonymous_transactions,
+            temp_assign_gtids_to_anonymous_transactions_value)) {
+      LogErr(ERROR_LEVEL, ER_SERVER_WRONG_VALUE_FOR_VAR,
+             "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS",
+             temp_assign_gtids_to_anonymous_transactions_value);
+      return true;
+    }
+  } else {
+    // If the file contains the TYPE, then the VALUE is mandatory.
+    if (lines >=
+        LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE)
+      return true;
   }
 
   group_relay_log_pos = temp_group_relay_log_pos;
@@ -1965,40 +2256,100 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   sql_delay = (int32)temp_sql_delay;
   internal_id = (uint)temp_internal_id;
 
-  DBUG_ASSERT(lines < LINES_IN_RELAY_LOG_INFO_WITH_ID ||
-              (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID && internal_id == 1));
-  DBUG_RETURN(false);
+  DBUG_EXECUTE_IF("simulate_priv_check_username_above_limit", {
+    strcpy(temp_privilege_checks_username,
+           "repli_priv_checks_user_more_than_32");
+    username = temp_privilege_checks_username;
+  });
+
+  DBUG_EXECUTE_IF("simulate_priv_check_hostname_above_limit", {
+    strcpy(
+        temp_privilege_checks_hostname,
+        "replication_privilege_checks_hostname_more_than_255_replication_"
+        "privilege_checks_hostname_more_than_255_replication_privilege_checks_"
+        "hostname_more_than_255_replication_privilege_checks_hostname_more_"
+        "than_255_replication_privilege_checks_hostname_more_than255");
+    hostname = temp_privilege_checks_hostname;
+  });
+  enum_priv_checks_status error = set_privilege_checks_user(username, hostname);
+  if (!!error) {
+    set_privilege_checks_user_corrupted(true);
+    report_privilege_check_error(WARNING_LEVEL, error, false, channel, username,
+                                 hostname);
+    return true;
+  }
+
+  return false;
 }
 
 bool Relay_log_info::set_info_search_keys(Rpl_info_handler *to) {
-  DBUG_ENTER("Relay_log_info::set_info_search_keys");
+  DBUG_TRACE;
 
-  if (to->set_info(LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL, channel))
-    DBUG_RETURN(true);
+  if (to->set_info(LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL, channel)) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Relay_log_info::write_info(Rpl_info_handler *to) {
-  DBUG_ENTER("Relay_log_info::write_info");
+  DBUG_TRACE;
 
   /*
     @todo Uncomment the following assertion. See todo in
     Relay_log_info::read_info() for details. /Sven
   */
-  // DBUG_ASSERT(!belongs_to_client());
-
+  // assert(!belongs_to_client());
   if (to->prepare_info_for_write() ||
-      to->set_info((int)LINES_IN_RELAY_LOG_INFO_WITH_ID) ||
+      to->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong)group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
       to->set_info((ulong)group_master_log_pos) ||
       to->set_info((int)sql_delay) || to->set_info(recovery_parallel_workers) ||
       to->set_info((int)internal_id) || to->set_info(channel))
-    DBUG_RETURN(true);
+    return true;
+  if (m_privilege_checks_username.length()) {
+    if (to->set_info(m_privilege_checks_username.c_str())) return true;
+  } else {
+#ifndef NDEBUG
+    if (DBUG_EVALUATE_IF("simulate_priv_check_user_nullptr_t", true, false)) {
+      const char *null_char{nullptr};
+      if (to->set_info(null_char)) return true;
+    } else
+#endif
+        if (to->set_info(nullptr)) {
+      return true;
+    }
+  }
+  if (m_privilege_checks_hostname.length()) {
+    if (to->set_info(m_privilege_checks_hostname.c_str())) return true;
+  } else {
+#ifndef NDEBUG
+    if (DBUG_EVALUATE_IF("simulate_priv_check_user_nullptr_t", true, false)) {
+      const uchar *null_char{nullptr};
+      if (to->set_info(null_char, 0)) return true;
+    } else
+#endif
+        if (to->set_info(nullptr))
+      return true;
+  }
 
-  DBUG_RETURN(false);
+  if (to->set_info((int)m_require_row_format)) {
+    return true; /* purecov: inspected */
+  }
+
+  if (to->set_info((ulong)m_require_table_primary_key_check)) {
+    return true; /* purecov: inspected */
+  }
+  auto assign_gtids_to_anonymous_transactions =
+      m_assign_gtids_to_anonymous_transactions_info.get_type();
+  if (to->set_info((ulong)assign_gtids_to_anonymous_transactions)) {
+    return true; /* purecov: inspected */
+  }
+  if (to->set_info(
+          m_assign_gtids_to_anonymous_transactions_info.get_value().c_str())) {
+    return true; /* purecov: inspected */
+  }
+  return false;
 }
 
 /**
@@ -2024,8 +2375,8 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
 
 int Relay_log_info::set_rli_description_event(
     Format_description_log_event *fe) {
-  DBUG_ENTER("Relay_log_info::set_rli_description_event");
-  DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fe);
+  DBUG_TRACE;
+  assert(!info_thd || !is_mts_worker(info_thd) || !fe);
 
   if (fe) {
     ulong fe_version = adapt_to_master_version(fe);
@@ -2045,7 +2396,7 @@ int Relay_log_info::set_rli_description_event(
         } else if (in_active_multi_stmt) {
           my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
                    "gtid_next");
-          DBUG_RETURN(1);
+          return 1;
         }
       }
 
@@ -2063,15 +2414,15 @@ int Relay_log_info::set_rli_description_event(
   if (rli_description_event &&
       --rli_description_event->atomic_usage_counter == 0)
     delete rli_description_event;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   else
     /* It must be MTS mode when the usage counter greater than 1. */
-    DBUG_ASSERT(!rli_description_event || is_parallel_exec());
+    assert(!rli_description_event || is_parallel_exec());
 #endif
   rli_description_event = fe;
   if (rli_description_event) ++rli_description_event->atomic_usage_counter;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_feature_version {
@@ -2229,12 +2580,11 @@ ulong Relay_log_info::adapt_to_master_version_updown(ulong master_version,
     When the SQL thread or MTS Coordinator executes this method
     there's a constraint on current_version argument.
   */
-  DBUG_ASSERT(
-      !thd || thd->rli_fake != nullptr ||
-      thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER ||
-      (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL &&
-       (!rli_description_event ||
-        current_version == rli_description_event->get_product_version())));
+  assert(!thd || thd->rli_fake != nullptr ||
+         thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER ||
+         (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL &&
+          (!rli_description_event ||
+           current_version == rli_description_event->get_product_version())));
 
   if (master_version == current_version)
     return 0;
@@ -2257,7 +2607,7 @@ ulong Relay_log_info::adapt_to_master_version_updown(ulong master_version,
       i_first = i;
     if ((downgrade ? current_version : master_version) < ver_f) {
       i_last = i;
-      DBUG_ASSERT(i_last >= i_first);
+      assert(i_last >= i_first);
       break;
     }
   }
@@ -2267,14 +2617,14 @@ ulong Relay_log_info::adapt_to_master_version_updown(ulong master_version,
   */
   for (i = i_first; i < i_last; i++) {
     /* Run time check of the st_feature_version items ordering */
-    DBUG_ASSERT(!i || version_product(s_features[i - 1].version_split) <=
-                          version_product(s_features[i].version_split));
+    assert(!i || version_product(s_features[i - 1].version_split) <=
+                     version_product(s_features[i].version_split));
 
-    DBUG_ASSERT((downgrade ? master_version : current_version) <
-                    version_product(s_features[i].version_split) &&
-                (downgrade ? current_version
-                           : master_version >=
-                                 version_product(s_features[i].version_split)));
+    assert((downgrade ? master_version : current_version) <
+               version_product(s_features[i].version_split) &&
+           (downgrade ? current_version
+                      : master_version >=
+                            version_product(s_features[i].version_split)));
 
     if (downgrade && s_features[i].downgrade) {
       s_features[i].downgrade(thd);
@@ -2308,26 +2658,26 @@ bool is_mts_db_partitioned(Relay_log_info *rli) {
 }
 
 const char *Relay_log_info::get_for_channel_str(bool upper_case) const {
-  if (rli_fake)
+  if (rli_fake || mi == nullptr)
     return "";
   else
     return mi->get_for_channel_str(upper_case);
 }
 
 enum_return_status Relay_log_info::add_gtid_set(const Gtid_set *gtid_set) {
-  DBUG_ENTER("Relay_log_info::add_gtid_set(gtid_set)");
+  DBUG_TRACE;
 
   get_sid_lock()->wrlock();
   enum_return_status return_status = this->gtid_set->add_gtid_set(gtid_set);
   get_sid_lock()->unlock();
 
-  DBUG_RETURN(return_status);
+  return return_status;
 }
 
 const char *Relay_log_info::get_until_log_name() {
   if (until_condition == UNTIL_MASTER_POS ||
       until_condition == UNTIL_RELAY_POS) {
-    DBUG_ASSERT(until_option != nullptr);
+    assert(until_option != nullptr);
     return ((Until_position *)until_option)->get_until_log_name();
   }
   return "";
@@ -2336,7 +2686,7 @@ const char *Relay_log_info::get_until_log_name() {
 my_off_t Relay_log_info::get_until_log_pos() {
   if (until_condition == UNTIL_MASTER_POS ||
       until_condition == UNTIL_RELAY_POS) {
-    DBUG_ASSERT(until_option != nullptr);
+    assert(until_option != nullptr);
     return ((Until_position *)until_option)->get_until_log_pos();
   }
   return 0;
@@ -2344,7 +2694,7 @@ my_off_t Relay_log_info::get_until_log_pos() {
 
 int Relay_log_info::init_until_option(THD *thd,
                                       const LEX_MASTER_INFO *master_param) {
-  DBUG_ENTER("init_until_option");
+  DBUG_TRACE;
   int ret = 0;
   Until_option *option = nullptr;
 
@@ -2355,7 +2705,7 @@ int Relay_log_info::init_until_option(THD *thd,
     if (master_param->pos) {
       Until_master_position *until_mp = nullptr;
 
-      if (master_param->relay_log_pos) DBUG_RETURN(ER_BAD_SLAVE_UNTIL_COND);
+      if (master_param->relay_log_pos) return ER_BAD_SLAVE_UNTIL_COND;
 
       option = until_mp = new Until_master_position(this);
       until_condition = UNTIL_MASTER_POS;
@@ -2363,7 +2713,7 @@ int Relay_log_info::init_until_option(THD *thd,
     } else if (master_param->relay_log_pos) {
       Until_relay_position *until_rp = nullptr;
 
-      if (master_param->pos) DBUG_RETURN(ER_BAD_SLAVE_UNTIL_COND);
+      if (master_param->pos) return ER_BAD_SLAVE_UNTIL_COND;
 
       option = until_rp = new Until_relay_position(this);
       until_condition = UNTIL_RELAY_POS;
@@ -2377,13 +2727,13 @@ int Relay_log_info::init_until_option(THD *thd,
         option = until_g = new Until_before_gtids(this);
         until_condition = UNTIL_SQL_BEFORE_GTIDS;
       } else {
-        DBUG_ASSERT(LEX_MASTER_INFO::UNTIL_SQL_AFTER_GTIDS ==
-                    master_param->gtid_until_condition);
+        assert(LEX_MASTER_INFO::UNTIL_SQL_AFTER_GTIDS ==
+               master_param->gtid_until_condition);
 
         option = until_g = new Until_after_gtids(this);
         until_condition = UNTIL_SQL_AFTER_GTIDS;
-        if (opt_slave_parallel_workers != 0) {
-          opt_slave_parallel_workers = 0;
+        if (opt_replica_parallel_workers != 0) {
+          opt_replica_parallel_workers = 0;
           push_warning_printf(
               thd, Sql_condition::SL_NOTE, ER_MTS_FEATURE_IS_NOT_SUPPORTED,
               ER_THD(thd, ER_MTS_FEATURE_IS_NOT_SUPPORTED), "UNTIL condtion",
@@ -2405,13 +2755,13 @@ int Relay_log_info::init_until_option(THD *thd,
       ret = until_vi->init(master_param->view_id);
     }
   } catch (...) {
-    DBUG_RETURN(ER_OUTOFMEMORY);
+    return ER_OUTOFMEMORY;
   }
 
   if (until_condition == UNTIL_MASTER_POS ||
       until_condition == UNTIL_RELAY_POS) {
-    /* Issuing warning then started without --skip-slave-start */
-    if (!opt_skip_slave_start)
+    /* Issuing warning then started without --skip-replica-start */
+    if (!opt_skip_replica_start)
       push_warning(thd, Sql_condition::SL_NOTE, ER_MISSING_SKIP_SLAVE,
                    ER_THD(thd, ER_MISSING_SKIP_SLAVE));
   }
@@ -2419,11 +2769,11 @@ int Relay_log_info::init_until_option(THD *thd,
   mysql_mutex_lock(&data_lock);
   until_option = option;
   mysql_mutex_unlock(&data_lock);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 void Relay_log_info::detach_engine_ha_data(THD *thd) {
-  is_engine_ha_data_detached = true;
+  m_is_engine_ha_data_detached = true;
   /*
     In case of slave thread applier or processing binlog by client,
     detach the engine ha_data ("native" engine transaction)
@@ -2433,7 +2783,7 @@ void Relay_log_info::detach_engine_ha_data(THD *thd) {
 }
 
 void Relay_log_info::reattach_engine_ha_data(THD *thd) {
-  is_engine_ha_data_detached = false;
+  m_is_engine_ha_data_detached = false;
   /*
     In case of slave thread applier or processing binlog by client,
     reattach the engine ha_data ("native" engine transaction)
@@ -2478,7 +2828,7 @@ bool Relay_log_info::commit_positions() {
   strmake(new_group_relay_log_name, get_group_relay_log_name(), FN_REFLEN - 1);
   new_group_relay_log_pos = get_group_relay_log_pos();
 
-  error = flush_info(true);
+  error = flush_info(RLI_FLUSH_IGNORE_SYNC_OPT);
 
   /*
     Restore the saved ones so they remain actual until the replicated
@@ -2513,9 +2863,8 @@ void Relay_log_info::post_commit(bool on_rollback) {
 
     if (is_transactional()) {
       /* DDL's commit has been completed */
-      DBUG_ASSERT(
-          !current_event || !is_atomic_ddl_event(current_event) ||
-          static_cast<Query_log_event *>(current_event)->has_ddl_committed);
+      assert(!current_event || !is_atomic_ddl_event(current_event) ||
+             static_cast<Query_log_event *>(current_event)->has_ddl_committed);
       /*
         Marked as already-committed DDL may have not updated the GTID
         executed state, which is the case when slave filters it out.
@@ -2542,9 +2891,8 @@ void Relay_log_info::post_commit(bool on_rollback) {
         In the non-transactional slave info repository case should the
         current event be DDL it would still have to finalize commit.
       */
-      DBUG_ASSERT(
-          !current_event || !is_atomic_ddl_event(current_event) ||
-          !static_cast<Query_log_event *>(current_event)->has_ddl_committed);
+      assert(!current_event || !is_atomic_ddl_event(current_event) ||
+             !static_cast<Query_log_event *>(current_event)->has_ddl_committed);
     }
   }
 }
@@ -2560,12 +2908,409 @@ void Relay_log_info::clear_relay_log_truncated() {
   m_relay_log_truncated = false;
 }
 
-bool Relay_log_info::is_time_for_mts_checkpoint() {
-  if (is_parallel_exec() && opt_mts_checkpoint_period != 0) {
+bool Relay_log_info::is_time_for_mta_checkpoint() {
+  if (is_parallel_exec() && opt_mta_checkpoint_period != 0) {
     struct timespec curr_clock;
     set_timespec_nsec(&curr_clock, 0);
     return diff_timespec(&curr_clock, &last_clock) >=
-           opt_mts_checkpoint_period * 1000000ULL;
+           opt_mta_checkpoint_period * 1000000ULL;
+  }
+  return false;
+}
+
+bool operator!(Relay_log_info::enum_priv_checks_status status) {
+  return status == Relay_log_info::enum_priv_checks_status::SUCCESS;
+}
+
+bool operator!(Relay_log_info::enum_require_row_status status) {
+  return status == Relay_log_info::enum_require_row_status::SUCCESS;
+}
+
+std::string Relay_log_info::get_privilege_checks_username() const {
+  return this->m_privilege_checks_username;
+}
+
+std::string Relay_log_info::get_privilege_checks_hostname() const {
+  return this->m_privilege_checks_hostname;
+}
+
+bool Relay_log_info::is_privilege_checks_user_null() const {
+  assert(this->m_privilege_checks_username.length() != 0 ||
+         (this->m_privilege_checks_username.length() == 0 &&
+          this->m_privilege_checks_hostname.length() == 0));
+  return this->m_privilege_checks_username.length() == 0;
+}
+
+bool Relay_log_info::is_privilege_checks_user_corrupted() const {
+  return this->m_privilege_checks_user_corrupted;
+}
+
+void Relay_log_info::clear_privilege_checks_user() {
+  DBUG_TRACE;
+  this->m_privilege_checks_username.clear();
+  this->m_privilege_checks_hostname.clear();
+  this->m_privilege_checks_user_corrupted = false;
+}
+
+void Relay_log_info::set_privilege_checks_user_corrupted(bool is_corrupted) {
+  DBUG_TRACE;
+  this->m_privilege_checks_user_corrupted = is_corrupted;
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::set_privilege_checks_user(
+    char const *param_privilege_checks_username,
+    char const *param_privilege_checks_hostname) {
+  DBUG_TRACE;
+
+  enum_priv_checks_status error = this->check_privilege_checks_user(
+      param_privilege_checks_username, param_privilege_checks_hostname);
+  if (!!error) return error;
+
+  if (param_privilege_checks_username == nullptr) {
+    this->clear_privilege_checks_user();
+    return enum_priv_checks_status::SUCCESS;
+  }
+
+  this->m_privilege_checks_user_corrupted = false;
+  this->m_privilege_checks_username =
+      static_cast<std::string>(param_privilege_checks_username);
+
+  if (param_privilege_checks_hostname != nullptr) {
+    this->m_privilege_checks_hostname =
+        static_cast<std::string>(param_privilege_checks_hostname);
+    std::transform(this->m_privilege_checks_hostname.begin(),
+                   this->m_privilege_checks_hostname.end(),
+                   this->m_privilege_checks_hostname.begin(), ::tolower);
+  }
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::check_privilege_checks_user() {
+  DBUG_TRACE;
+  assert(this->m_privilege_checks_username.length() != 0 ||
+         (this->m_privilege_checks_username.length() == 0 &&
+          this->m_privilege_checks_hostname.length() == 0));
+
+  return this->check_privilege_checks_user(
+      this->m_privilege_checks_username.length() != 0
+          ? this->m_privilege_checks_username.data()
+          : nullptr,
+      this->m_privilege_checks_hostname.length() != 0
+          ? this->m_privilege_checks_hostname.data()
+          : nullptr);
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::check_privilege_checks_user(
+    char const *param_privilege_checks_username,
+    char const *param_privilege_checks_hostname) {
+  DBUG_TRACE;
+
+  if (param_privilege_checks_username == nullptr) {
+    if (param_privilege_checks_hostname != nullptr)
+      return enum_priv_checks_status::USERNAME_NULL_HOSTNAME_NOT_NULL;
+    return enum_priv_checks_status::SUCCESS;
+  }
+
+  if (strlen(param_privilege_checks_username) == 0)
+    return enum_priv_checks_status::USER_ANONYMOUS;
+
+  if (strlen(param_privilege_checks_username) > 32)
+    return enum_priv_checks_status::USERNAME_TOO_LONG;
+
+  if (param_privilege_checks_hostname != nullptr &&
+      strlen(param_privilege_checks_hostname) > 255)
+    return enum_priv_checks_status::HOSTNAME_TOO_LONG;
+
+  if (param_privilege_checks_hostname != nullptr) {
+    std::regex static const hostname_regex{"^((?![@])[\\x20-\\x7e])+$",
+                                           std::regex_constants::ECMAScript};
+    if (!std::regex_match(param_privilege_checks_hostname, hostname_regex))
+      return enum_priv_checks_status::HOSTNAME_SYNTAX_ERROR;
+  }
+
+  enum_priv_checks_status error = this->check_applier_acl_user(
+      param_privilege_checks_username, param_privilege_checks_hostname);
+  if (!!error) return error;
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+Relay_log_info::enum_priv_checks_status Relay_log_info::check_applier_acl_user(
+    char const *param_privilege_checks_username,
+    char const *param_privilege_checks_hostname) {
+  DBUG_TRACE;
+  assert(param_privilege_checks_username != nullptr &&
+         strlen(param_privilege_checks_username) != 0);
+
+  THD_instance_guard thd{current_thd != nullptr ? current_thd : this->info_thd};
+  Acl_cache_lock_guard acl_cache_lock{thd, Acl_cache_lock_mode::READ_MODE};
+  if (!acl_cache_lock.lock()) {  // If we're unable to acquire the lock we're
+                                 // unable to check if the user exists
+    return enum_priv_checks_status::USER_DOES_NOT_EXIST;  // so, return
+                                                          // accordingly.
+  }
+
+  ACL_USER *applier_acl_user = find_acl_user(
+      param_privilege_checks_hostname, param_privilege_checks_username, false);
+
+  if (applier_acl_user == nullptr) {
+    return enum_priv_checks_status::USER_DOES_NOT_EXIST;
+  }
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+std::pair<const char *, const char *>
+Relay_log_info::print_applier_security_context_user_host() const {
+  if (this->m_privilege_checks_username.length() != 0) {
+    return {this->m_privilege_checks_username.data(),
+            this->m_privilege_checks_hostname.length() == 0
+                ? "%"
+                : this->m_privilege_checks_hostname.data()};
+  } else if (this->info_thd != nullptr &&
+             this->info_thd->security_context() != nullptr) {
+    return {this->info_thd->security_context()->user().str != nullptr
+                ? this->info_thd->security_context()->user().str
+                : "",
+            this->info_thd->security_context()->host().str != nullptr
+                ? this->info_thd->security_context()->host().str
+                : ""};
+  }
+  return {"", ""};
+}
+
+void Relay_log_info::report_privilege_check_error(
+    enum loglevel level, enum_priv_checks_status status_code, bool to_client,
+    char const *channel_name_arg, char const *user_name_arg,
+    char const *host_name_arg) const {
+  DBUG_TRACE;
+
+  char const *channel_name{channel_name_arg != nullptr ? channel_name_arg
+                                                       : get_channel()};
+  char const *user_name{user_name_arg};
+  char const *host_name{host_name_arg};
+  if (user_name == nullptr) {
+    std::tie(user_name, host_name) =
+        this->print_applier_security_context_user_host();
+  }
+
+  switch (status_code) {
+    case enum_priv_checks_status::SUCCESS: {
+      assert(false);
+      break;
+    }
+    case enum_priv_checks_status::USER_ANONYMOUS: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS, MYF(0),
+                 channel_name, host_name);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USERNAME_TOO_LONG: {
+      if (to_client)
+        my_error(ER_WRONG_STRING_LENGTH, MYF(0), user_name, "user name", 32);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::HOSTNAME_TOO_LONG: {
+      if (to_client)
+        my_error(ER_WRONG_STRING_LENGTH, MYF(0), user_name, "host name", 255);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::HOSTNAME_SYNTAX_ERROR: {
+      if (to_client)
+        my_printf_error(ER_UNKNOWN_ERROR, "Malformed hostname (illegal symbol)",
+                        MYF(0));
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USER_DATA_CORRUPTED:
+    case enum_priv_checks_status::USERNAME_NULL_HOSTNAME_NOT_NULL: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT, MYF(0), channel_name);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USER_DOES_NOT_EXIST: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST, MYF(0),
+                 channel_name, user_name, host_name);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(
+            level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST,
+            ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST),
+            channel_name, user_name, host_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USER_DOES_NOT_HAVE_PRIVILEGES: {
+      if (!to_client) {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(
+            level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV,
+            ER_THD(thd,
+                   ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV),
+            channel_name, user_name, host_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::LOAD_DATA_EVENT_NOT_ALLOWED: {
+      if (!to_client) {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS,
+                     ER_THD(thd, ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS),
+                     channel_name);
+      }
+      break;
+    }
+  }
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::initialize_security_context(THD *thd) {
+  DBUG_TRACE;
+
+  if (this->m_privilege_checks_user_corrupted)
+    return enum_priv_checks_status::USER_DATA_CORRUPTED;
+
+  if (this->m_privilege_checks_username.length() != 0) {
+    if (acl_getroot(thd, &thd->m_main_security_ctx,
+                    this->m_privilege_checks_username.data(),
+                    this->m_privilege_checks_hostname.data(), nullptr,
+                    nullptr)) {
+      return enum_priv_checks_status::USER_DOES_NOT_EXIST;
+    }
+
+    Roles::Role_activation role_activation{
+        thd, thd->security_context(),
+        opt_always_activate_granted_roles == 0 ? role_enum::ROLE_DEFAULT
+                                               : role_enum::ROLE_ALL,
+        nullptr, true};
+    if (role_activation.activate())
+      return enum_priv_checks_status::USER_DOES_NOT_HAVE_PRIVILEGES;
+
+    bool has_grant{false};
+    std::tie(has_grant, std::ignore) =
+        thd->m_main_security_ctx.has_global_grant(
+            STRING_WITH_LEN("REPLICATION_APPLIER"));
+    if (!has_grant) {
+      return enum_priv_checks_status::USER_DOES_NOT_HAVE_PRIVILEGES;
+    }
+  } else
+    thd->security_context()->skip_grants();
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::initialize_applier_security_context() {
+  DBUG_TRACE;
+  return this->initialize_security_context(this->info_thd);
+}
+
+bool Relay_log_info::is_row_format_required() const {
+  return this->m_require_row_format;
+}
+
+void Relay_log_info::set_require_row_format(bool require_row) {
+  DBUG_TRACE;
+  this->m_require_row_format = require_row;
+}
+
+Relay_log_info::enum_require_table_primary_key
+Relay_log_info::get_require_table_primary_key_check() const {
+  return this->m_require_table_primary_key_check;
+}
+
+void Relay_log_info::set_require_table_primary_key_check(
+    Relay_log_info::enum_require_table_primary_key require_pk) {
+  DBUG_TRACE;
+  this->m_require_table_primary_key_check = require_pk;
+}
+
+void Relay_log_info::set_applier_source_position_info_invalid(bool invalid) {
+  m_is_applier_source_position_info_invalid = invalid;
+}
+
+bool Relay_log_info::is_applier_source_position_info_invalid() const {
+  return m_is_applier_source_position_info_invalid;
+}
+
+std::string Assign_gtids_to_anonymous_transactions_info::get_value() const {
+  return m_value;
+}
+
+Assign_gtids_to_anonymous_transactions_info::enum_type
+Assign_gtids_to_anonymous_transactions_info::get_type() const {
+  return m_type;
+}
+
+bool Assign_gtids_to_anonymous_transactions_info::set_info(
+    enum_type type_arg, const char *value_arg) {
+  m_type = type_arg;
+  switch (m_type) {
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_LOCAL:
+      m_value.assign(::server_uuid);
+      m_sidno = gtid_state->get_server_sidno();
+      break;
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID: {
+      assert(value_arg != nullptr);
+      rpl_sid rename_sid{};
+      if (rename_sid.parse(value_arg, strlen(value_arg))) {
+        return true;
+      }
+      global_sid_lock->rdlock();
+      m_sidno = global_sid_map->add_sid(rename_sid);
+      global_sid_lock->unlock();
+      char normalized_uuid[binary_log::Uuid::TEXT_LENGTH + 1];
+      rename_sid.to_string(normalized_uuid);
+      m_value.assign(normalized_uuid);
+      break;
+    }
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF:
+      m_value.assign("");
+      break;
+    default:
+      assert(0);
   }
   return false;
 }
@@ -2607,3 +3352,156 @@ MDL_lock_guard::~MDL_lock_guard() {
 }
 
 bool MDL_lock_guard::is_locked() { return this->m_request.ticket != nullptr; }
+
+Applier_security_context_guard::Applier_security_context_guard(
+    Relay_log_info const *rli, THD const *thd)
+    : m_target{rli},
+      m_thd{thd},
+      m_current{nullptr},
+      m_previous{nullptr},
+      m_privilege_checks_none{
+          this->m_target->get_privilege_checks_username().length() == 0 &&
+          (this->m_thd->lex == nullptr ||
+           this->m_thd->lex->binlog_stmt_arg.length == 0 ||
+           this->m_thd->lex->binlog_stmt_arg.length >= 2048 ||
+           this->m_thd->lex->binlog_stmt_arg.str == nullptr)} {
+  DBUG_TRACE;
+
+  if (this->m_thd->lex != nullptr &&
+      this->m_thd->lex->binlog_stmt_arg.length != 0 &&
+      this->m_thd->lex->binlog_stmt_arg.length < 2048 &&
+      this->m_thd->lex->binlog_stmt_arg.str != nullptr) {
+    Security_context *standing_ctx = this->m_thd->security_context();
+    if (standing_ctx != nullptr &&
+        (standing_ctx->check_access(SUPER_ACL) ||
+         standing_ctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first))
+      this->m_privilege_checks_none = true;
+  }
+  if (this->m_privilege_checks_none) return;
+
+  if (this->m_target->get_privilege_checks_username().length() != 0) {
+    std::string user = this->m_target->get_privilege_checks_username();
+    std::string host = this->m_target->get_privilege_checks_hostname();
+    LEX_CSTRING username{user.c_str(), user.length()};
+    LEX_CSTRING hostname{host.c_str(), host.length()};
+
+    if (this->m_applier_security_ctx.change_security_context(
+            const_cast<THD *>(this->m_thd), username, hostname, nullptr,
+            &this->m_previous)) {
+      return;
+    }
+  }
+
+  if (this->m_previous != nullptr) {
+    Roles::Role_activation role_activation{
+        const_cast<THD *>(this->m_thd), this->m_thd->security_context(),
+        opt_always_activate_granted_roles == 0 ? role_enum::ROLE_DEFAULT
+                                               : role_enum::ROLE_ALL,
+        nullptr, true};
+    if (role_activation.activate()) return;
+  }
+
+  this->m_current = this->m_thd->security_context();
+}
+
+Applier_security_context_guard::~Applier_security_context_guard() {
+  if (this->m_privilege_checks_none) return;
+
+  if (this->m_previous != nullptr && this->m_previous != this->m_current)
+    this->m_applier_security_ctx.restore_security_context(
+        const_cast<THD *>(this->m_thd), this->m_previous);
+}
+
+bool Applier_security_context_guard::skip_priv_checks() const {
+  return this->m_privilege_checks_none;
+}
+
+bool Applier_security_context_guard::has_access(
+    std::initializer_list<ulong> extra_privileges) const {
+  if (this->m_privilege_checks_none) return true;
+  if (this->m_current == nullptr) return false;
+
+  for (auto privilege : extra_privileges)
+    if (!this->m_current->check_access(privilege, "", true)) return false;
+
+  return true;
+}
+
+bool Applier_security_context_guard::has_access(
+    std::initializer_list<std::string_view> extra_privileges) const {
+  if (this->m_privilege_checks_none) return true;
+  if (this->m_current == nullptr) return false;
+
+  for (auto privilege : extra_privileges) {
+    if (!this->m_current->has_global_grant(privilege.data(), privilege.length())
+             .first)
+      return false;
+  }
+  return true;
+}
+
+bool Applier_security_context_guard::has_access(
+    std::vector<std::tuple<ulong, TABLE const *, Rows_log_event *>>
+        &extra_privileges) const {
+  if (this->m_privilege_checks_none) return true;
+  if (this->m_current == nullptr) return false;
+
+  ulong priv{0};
+  TABLE const *table{nullptr};
+
+  if (this->m_thd->variables.binlog_row_image == BINLOG_ROW_IMAGE_FULL) {
+    for (auto tpl : extra_privileges) {
+      std::tie(priv, table, std::ignore) = tpl;
+      if (this->m_current->is_table_blocked(priv, table)) return false;
+    }
+  } else {
+    Rows_log_event *event{nullptr};
+
+    for (auto tpl : extra_privileges) {
+      std::tie(priv, table, event) = tpl;
+
+      if (event->get_general_type_code() == binary_log::DELETE_ROWS_EVENT) {
+        if (this->m_current->is_table_blocked(priv, table)) return false;
+      } else {
+        std::vector<std::string> columns;
+        this->extract_columns_to_check(table, event, columns);
+        if (!this->m_current->has_column_access(priv, table, columns))
+          return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+std::string Applier_security_context_guard::get_username() const {
+  if (this->m_privilege_checks_none || this->m_current == nullptr) return "";
+  return std::string(this->m_current->user().str,
+                     this->m_current->user().length);
+}
+
+std::string Applier_security_context_guard::get_hostname() const {
+  if (this->m_privilege_checks_none || this->m_current == nullptr) return "";
+  return std::string(this->m_current->host().str,
+                     this->m_current->host().length);
+}
+
+void Applier_security_context_guard::extract_columns_to_check(
+    TABLE const *table, Rows_log_event *event,
+    std::vector<std::string> &columns) const {
+  MY_BITMAP const *bitmap{nullptr};
+
+  if (event->get_general_type_code() == binary_log::WRITE_ROWS_EVENT)
+    bitmap = event->get_cols();
+  else if (event->get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
+    bitmap = event->get_cols_ai();
+  else
+    return;
+
+  size_t max = std::min(bitmap->n_bits, table->s->fields);
+  for (size_t idx = 0; idx != max; ++idx) {
+    if (bitmap_is_set(bitmap, idx)) {
+      columns.push_back(table->field[idx]->field_name);
+    }
+  }
+}

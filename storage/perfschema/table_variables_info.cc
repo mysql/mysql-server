@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_variables_info.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -69,8 +69,8 @@ Plugin_table table_variables_info::m_table_def(
 PFS_engine_table_share table_variables_info::m_share = {
     &pfs_readonly_world_acl,
     table_variables_info::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_variables_info::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -87,8 +87,12 @@ PFS_engine_table *table_variables_info::create(PFS_engine_table_share *) {
 
 ha_rows table_variables_info::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
+#ifndef NDEBUG
+  extern mysql_mutex_t LOCK_plugin;
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
+#endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  ha_rows system_var_count = get_system_variable_hash_records();
+  ha_rows system_var_count = get_system_variable_count();
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return system_var_count;
@@ -116,7 +120,7 @@ int table_variables_info::rnd_next(void) {
        m_pos.next()) {
     if (m_sysvarinfo_cache.is_materialized()) {
       const System_variable *system_var = m_sysvarinfo_cache.get(m_pos.m_index);
-      if (system_var != NULL) {
+      if (system_var != nullptr) {
         m_next_pos.set_after(&m_pos);
         return make_row(system_var);
       }
@@ -127,11 +131,11 @@ int table_variables_info::rnd_next(void) {
 
 int table_variables_info::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_sysvarinfo_cache.size());
+  assert(m_pos.m_index < m_sysvarinfo_cache.size());
 
   if (m_sysvarinfo_cache.is_materialized()) {
     const System_variable *system_var = m_sysvarinfo_cache.get(m_pos.m_index);
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       return make_row(system_var);
     }
   }
@@ -175,12 +179,12 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* VARIABLE_NAME */
           set_field_varchar_utf8(f, m_row.m_variable_name,
                                  m_row.m_variable_name_length);
@@ -225,7 +229,7 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,20 +163,36 @@ static
 int
 setupUDPartitioning(Ndb* ndb, NdbDictionary::Table& tab)
 {
-  /* Following should really be taken from running test system : */
-  const Uint32 numNodes= ndb->get_ndb_cluster_connection().no_db_nodes();
-  const Uint32 numReplicas= 2; // Assumption
-  const Uint32 guessNumNgs= numNodes/2;
-  const Uint32 numNgs= guessNumNgs?guessNumNgs : 1;
-  const Uint32 numFragsPerNode= 2 + (rand() % 3);
-  const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
+  NdbRestarter restarter;
+  Vector<int> node_groups;
+  int max_alive_replicas;
+  if (restarter.getNodeGroups(node_groups, &max_alive_replicas) == -1)
+  {
+    return -1;
+  }
+
+  const Uint32 numNgs = node_groups.size();
+
+  // Assume at least one node group had all replicas alive.
+  const Uint32 numReplicas = max_alive_replicas;
+
+  /**
+   * The maximum number of partitions that may be defined explicitly
+   * for any NDB table is =
+   * 8 * [number of LDM threads] * [number of node groups]
+   * In this case, we consider the number of LDM threads to be 1
+   * (min. no of LDMs). This calculated number of partitions works for
+   * higher number of LDMs as well.
+   */
+  const Uint32 numFragsPerNode = (rand() % (8 / numReplicas)) + 1;
+  const Uint32 numPartitions = numReplicas * numNgs * numFragsPerNode;
 
   tab.setFragmentType(NdbDictionary::Table::UserDefined);
   tab.setFragmentCount(numPartitions);
   tab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
-  for (Uint32 i=0; i<numPartitions; i++)
+  for (Uint32 i = 0; i < numPartitions; i++)
   {
-    frag_ng_mappings[i]= i % numNgs;
+    frag_ng_mappings[i] = node_groups[i % numNgs];
   }
   tab.setFragmentData(frag_ng_mappings, numPartitions);
 
@@ -685,8 +701,10 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  const Uint32 errorInsert = ctx->getProperty("errorinsertion", (unsigned) 8050);
+
   NdbRestarter restarter;
-  if(restarter.insertErrorInAllNodes(8050) != 0)
+  if(restarter.insertErrorInAllNodes(errorInsert) != 0)
     return NDBT_FAILED;
   
   HugoCalculator dummy(*tab);
@@ -1390,6 +1408,20 @@ TESTCASE("startTransactionHint_orderedIndex_mrr_userDefined",
   INITIALIZER(run_create_dist_table);
   INITIALIZER(run_dist_test);
   INITIALIZER(run_drop_dist_table);
+}
+TESTCASE("startTransactionHint_orderedIndex_MaxKey",
+         "Test startTransactionHint with max hash value via error insert")
+{
+  /* Special regression case */
+  TC_PROPERTY("distributionkey", (unsigned)0);
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  TC_PROPERTY("errorinsertion", (unsigned) 8119);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_startHint_ordered_index);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
 }
 
 NDBT_TESTSUITE_END(testPartitioning)

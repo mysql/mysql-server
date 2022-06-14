@@ -3,12 +3,12 @@
 #
 SELECT @@global.innodb_fil_make_page_dirty_debug;
 @@global.innodb_fil_make_page_dirty_debug
-0
-set global innodb_fil_make_page_dirty_debug = 0;
+4294967295
+set global innodb_fil_make_page_dirty_debug = 1000;
 SELECT @@global.innodb_fil_make_page_dirty_debug;
 @@global.innodb_fil_make_page_dirty_debug
-0
-set global innodb_fil_make_page_dirty_debug = 0;
+4294967295
+set global innodb_fil_make_page_dirty_debug = 1000;
 set global innodb_fil_make_page_dirty_debug = dummy;
 ERROR 42000: Incorrect argument type to variable 'innodb_fil_make_page_dirty_debug'
 set innodb_fil_make_page_dirty_debug = ON;
@@ -17,10 +17,11 @@ ERROR HY000: Variable 'innodb_fil_make_page_dirty_debug' is a GLOBAL variable an
 create table t1 (f1 int primary key) engine = innodb;
 select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
-set global innodb_saved_page_number_debug = 0;
+set global innodb_saved_page_number_debug = 1000;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 drop table t1;
+set global innodb_saved_page_number_debug = 0;
 # Must always be 0.
 SELECT @@global.innodb_fil_make_page_dirty_debug;
 @@global.innodb_fil_make_page_dirty_debug
-0
+4294967295

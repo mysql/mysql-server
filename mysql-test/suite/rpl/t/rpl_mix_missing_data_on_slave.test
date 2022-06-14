@@ -31,6 +31,8 @@
 # fail.
 ###############################################################################
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/have_binlog_format_mixed.inc
 --let $rpl_server_count= 3
 --let $rpl_topology= 1->2->3

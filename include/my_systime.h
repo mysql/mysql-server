@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,17 +30,20 @@
 */
 
 #include <time.h>   // time_t, struct timespec (C11/C++17)
+#include <cassert>  // assert
 #include <chrono>   // std::chrono::microseconds
 #include <cstdint>  // std::int64_t
 #include <limits>   // std::numeric_limits
 #include <thread>   // std::this_thread::wait_for
-
 #include "my_config.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>  // clock_gettime()
 #endif                 /* HAVE_SYS_TIME_H */
-
+#ifdef _WIN32
+#include <winsock2.h>  // struct timeval
+#endif                 /* _WIN32 */
+#include "my_time_t.h"
 using UTC_clock = std::chrono::system_clock;
 
 /* Bits for get_date timeflag */
@@ -92,8 +95,6 @@ inline void sleep(unsigned long seconds) {
 
 /**
   Get high-resolution time. Forwards to std::chrono.
-
-  @deprecated New code should use std::chrono directly.
 
   @return current high-resolution time in multiples of 100 nanoseconds.
 */
@@ -166,15 +167,13 @@ inline unsigned long long int diff_timespec(struct timespec *ts1,
 
   @retval current time.
 */
-inline time_t my_time(int) { return time(nullptr); }
+[[deprecated]] inline time_t my_time(int) { return time(nullptr); }
 
 /**
   Return time in microseconds. Uses std::chrono::high_resolution_clock
 
   @remark This function is to be used to measure performance in
           micro seconds.
-
-  @deprecated New code should use std::chrono directly.
 
   @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000
   (UTC)
@@ -193,6 +192,62 @@ inline unsigned long long int my_micro_time() {
   }
   return (static_cast<unsigned long long int>(t.tv_sec) * 1000000 + t.tv_usec);
 #endif /* _WIN32 */
+}
+
+/**
+  Return time in milliseconds. Uses std::chrono::high_resolution_clock
+
+  @remark This function is to be used to measure time in
+          millisecond.
+
+  @retval Number of milliseconds since the Epoch, 1970-01-01 00:00:00 +0000
+  (UTC)
+*/
+inline unsigned long long int my_milli_time() {
+#ifdef _WIN32
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             UTC_clock::now().time_since_epoch())
+      .count();
+#else
+  struct timeval t;
+  /*
+  The following loop is here because gettimeofday may fail on some systems
+  */
+  while (gettimeofday(&t, nullptr) != 0) {
+  }
+  return (static_cast<unsigned long long int>(t.tv_sec) * 1000 +
+          (t.tv_usec / 1000));
+#endif /* _WIN32 */
+}
+
+/**
+  Convert microseconds since epoch to my_timeval.
+  @param      micro_time  Microseconds.
+  @param[out] tm          A timeval variable to write to.
+*/
+inline void my_micro_time_to_timeval(std::uint64_t micro_time, my_timeval *tm) {
+  tm->m_tv_sec = static_cast<int64_t>(micro_time / 1000000);
+  tm->m_tv_usec = static_cast<int64_t>(micro_time % 1000000);
+}
+
+/**
+
+ Convert microseconds since epoch to timeval. Prefer
+
+   my_micro_time_to_timeval(std::uint64_t micro_time, my_timeval *tm)
+
+ which is 64 bits safe on all platforms: Window's timeval's long
+ members are only 32 bits. Unless you need to use the host system's
+ struct timeval, of course.
+
+ @param      micro_time  Microseconds.
+ @param[out] tm          A timeval variable to write to.
+ */
+inline void my_micro_time_to_timeval(std::uint64_t micro_time, timeval *tm) {
+  assert(static_cast<std::int64_t>(micro_time / 1000000) <=
+         std::numeric_limits<long>::max());
+  tm->tv_sec = static_cast<long>(micro_time / 1000000);
+  tm->tv_usec = static_cast<long>(micro_time % 1000000);
 }
 
 void get_date(char *to, int flag, time_t date);

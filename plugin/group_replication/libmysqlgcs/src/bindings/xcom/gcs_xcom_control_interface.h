@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,14 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_thread.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_expels_in_progress.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_management.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_management_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
@@ -88,6 +90,7 @@ class Gcs_suspicions_manager {
     add_suspicions method if the non_member_suspect_nodes and
     member_suspect_nodes parameter aren't empty.
 
+    @param[in] config_id Configuration ID of the subsequent node information
     @param[in] xcom_nodes List of all nodes (i.e. alive or dead) with low level
                           information such as timestamp, unique identifier, etc
     @param[in] alive_nodes List of the nodes that currently belong to the group
@@ -98,10 +101,11 @@ class Gcs_suspicions_manager {
                                     m_suspicions
     @param[in] is_killer_node Indicates if node should remove suspect members
                               from the group
+    @param[in] max_synode XCom max synode
   */
 
   void process_view(
-      Gcs_xcom_nodes *xcom_nodes,
+      synode_no const config_id, Gcs_xcom_nodes *xcom_nodes,
       std::vector<Gcs_member_identifier *> alive_nodes,
       std::vector<Gcs_member_identifier *> left_nodes,
       std::vector<Gcs_member_identifier *> member_suspect_nodes,
@@ -248,6 +252,7 @@ class Gcs_suspicions_manager {
                                         m_suspicions
     @param[in] member_suspect_nodes List of previously active nodes to add to
                                     m_suspicions
+    @param[in] max_synode XCom max synode
     @return Indicates if new suspicions were added
   */
 
@@ -331,6 +336,16 @@ class Gcs_suspicions_manager {
   synode_no m_cache_last_removed;
 
   /*
+    The set of expels we have issued but that have not yet taken effect.
+  */
+  Gcs_xcom_expels_in_progress m_expels_in_progress;
+
+  /*
+    The XCom configuration/membership ID of the last view we processed.
+  */
+  synode_no m_config_id;
+
+  /*
     Disabling the copy constructor and assignment operator.
   */
   Gcs_suspicions_manager(Gcs_suspicions_manager const &);
@@ -370,6 +385,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] view_control View change control interface reference
     @param[in] boot Whether the node will be used to bootstrap the group
     @param[in] socket_util Reference to a socket utility
+    @param[in] comms_operation_interface an unique_ptr to a
+                                          Network_provider_operations_interface
   */
 
   explicit Gcs_xcom_control(
@@ -380,12 +397,14 @@ class Gcs_xcom_control : public Gcs_control_interface {
       Gcs_xcom_engine *gcs_engine,
       Gcs_xcom_state_exchange_interface *state_exchange,
       Gcs_xcom_view_change_control_interface *view_control, bool boot,
-      My_xp_socket_util *socket_util);
+      My_xp_socket_util *socket_util,
+      std::unique_ptr<Network_provider_operations_interface>
+          comms_operation_interface);
 
-  virtual ~Gcs_xcom_control();
+  ~Gcs_xcom_control() override;
 
   // Gcs_control_interface implementation
-  enum_gcs_error join();
+  enum_gcs_error join() override;
 
   enum_gcs_error do_join(const bool retry = true);
 
@@ -395,7 +414,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   enum_gcs_error retry_do_join();
 
-  enum_gcs_error leave();
+  enum_gcs_error leave() override;
 
   /*
     Responsible for doing the heavy lifting related to the leave operation.
@@ -414,15 +433,16 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   void do_remove_node_from_group();
 
-  bool belongs_to_group();
+  bool belongs_to_group() override;
 
-  Gcs_view *get_current_view();
+  Gcs_view *get_current_view() override;
 
-  const Gcs_member_identifier get_local_member_identifier() const;
+  const Gcs_member_identifier get_local_member_identifier() const override;
 
-  int add_event_listener(const Gcs_control_event_listener &event_listener);
+  int add_event_listener(
+      const Gcs_control_event_listener &event_listener) override;
 
-  void remove_event_listener(int event_listener_handle);
+  void remove_event_listener(int event_listener_handle) override;
 
   /**
     The purpose of this method is to be called when in Gcs_xcom_interface
@@ -433,14 +453,18 @@ class Gcs_xcom_control : public Gcs_control_interface {
     callback that is registered in Gcs_xcom_interface should be a simple
     pass-through.
 
+    @param[in] config_id The configuration ID that this view pertains to
     @param[in] message_id the message that conveys the View Change
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                             to deliver the message
-    @param[in] same_view  Whether this global view was already delivered.
+    @param[in] do_not_deliver_to_client  Whether to filter this view from being
+                                         delivered to the client
+    @param[in] max_synode XCom max synode
   */
 
-  bool xcom_receive_global_view(synode_no message_id,
-                                Gcs_xcom_nodes *xcom_nodes, bool same_view,
+  bool xcom_receive_global_view(synode_no const config_id, synode_no message_id,
+                                Gcs_xcom_nodes *xcom_nodes,
+                                bool do_not_deliver_to_client,
                                 synode_no max_synode);
 
   /*
@@ -451,12 +475,16 @@ class Gcs_xcom_control : public Gcs_control_interface {
     have a view installed or 3) the local node is not present in its current
     view (i.e., it has been expelled).
 
+    @param[in] config_id The configuration ID that this view pertains to
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                           to deliver the message
+    @param[in] max_synode XCom max synode
+
     @return   True if the view was processed;
               False otherwise.
   */
-  bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
+  bool xcom_receive_local_view(synode_no const config_id,
+                               Gcs_xcom_nodes *xcom_nodes,
                                synode_no max_synode);
 
   /*
@@ -470,7 +498,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
     to the state exchange.
 
     @param[in] msg message
-    @param[in] protocol_version protocol version in use by control message,
+    @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+    @param[in] used_protocol_version protocol version in use by control message,
                                 i.e. state exchange message
   */
 
@@ -555,7 +585,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @retval - GCS_OK if request was successfully scheduled in XCom,
               GCS_NOK otherwise.
   */
-  enum_gcs_error set_xcom_cache_size(uint64_t size);
+  enum_gcs_error set_xcom_cache_size(uint64_t size) override;
 
   /**
     Notify that the current member has left the group and whether it left
@@ -652,7 +682,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
     Cycle through peers_list and try to open a connection to the peer, if it
     isn't the node itself.
 
-    @param[in] local_node_ip String with the IP and port of the local node
     @param[in] peers_list list of the peers
 
     @return connection descriptor to a peer
@@ -752,6 +781,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
   // Proxy to GCS Sock Probe
   Gcs_sock_probe_interface *m_sock_probe_interface;
+
+  std::unique_ptr<Network_provider_operations_interface>
+      m_comms_operation_interface;
 
  protected:
   /*

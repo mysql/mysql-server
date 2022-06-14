@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,8 +128,6 @@ class Table_statistics {
     @param table_name       - Table name.
     @param partition_name   - Partition name.
     @param file             - Handler object for the table.
-
-    @return void
   */
   void cache_stats_in_mem(const String &db_name, const String &table_name,
                           const char *partition_name, handler *file) {
@@ -151,8 +149,6 @@ class Table_statistics {
     @param table_name       - Table name.
     @param partition_name   - Partition name.
     @param stats            - ha_statistics of the table.
-
-    @return void
   */
   void cache_stats_in_mem(const String &db_name, const String &table_name,
                           const char *partition_name, ha_statistics &stats) {
@@ -170,7 +166,7 @@ class Table_statistics {
   /**
     @brief
     Read dynamic table/index statistics from SE by opening the user table
-    provided OR by reading cached statistics from SELECT_LEX.
+    provided OR by reading cached statistics from Query_block.
 
     @param thd                     - Current thread.
     @param schema_name_ptr         - Schema name of table.
@@ -242,8 +238,6 @@ class Table_statistics {
         processed.
 
      2. We will not see junk values for statistics in results.
-
-    @return void
   */
   void store_error_message(const String &db_name, const String &table_name,
                            const char *partition_name,
@@ -277,7 +271,7 @@ class Table_statistics {
  private:
   /**
     Read dynamic table/index statistics from SE API's OR by reading
-    cached statistics from SELECT_LEX.
+    cached statistics from Query_block.
 
     @param thd                     - Current thread.
     @param schema_name_ptr         - Schema name of table.
@@ -305,7 +299,7 @@ class Table_statistics {
 
   /**
     Read dynamic table/index statistics by opening the table OR by reading
-    cached statistics from SELECT_LEX.
+    cached statistics from Query_block.
 
     @param thd                     - Current thread.
     @param schema_name_ptr         - Schema name of table.
@@ -334,8 +328,6 @@ class Table_statistics {
     @param db_name             - Database name.
     @param table_name          - Table name.
     @param partition_name      - Partition name.
-
-    @returns void.
   */
   void set_stat_cached(const String &db_name, const String &table_name,
                        const char *partition_name) {
@@ -382,6 +374,10 @@ class Table_statistics {
 
   /// Set open table in progress.
   void set_read_stats_by_open(bool status) { m_read_stats_by_open = status; }
+
+ public:
+  /// Predicate for determinig if cache is valid
+  bool is_valid() const { return !m_key.empty(); }
 
  private:
   // The cache key

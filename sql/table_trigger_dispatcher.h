@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,10 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include <assert.h>
 #include <string.h>
 
 #include "lex_string.h"
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"                        // MYSQL_ERRMSG_SIZE
@@ -63,10 +63,6 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
  public:
   static Table_trigger_dispatcher *create(TABLE *subject_table);
 
-  // Only used by NDB - see reload_triggers_for_table().
-  static bool check_n_load(THD *thd, const dd::Table &table,
-                           const char *db_name, const char *table_name);
-
   bool check_n_load(THD *thd, const dd::Table &table);
 
   /*
@@ -79,7 +75,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   Table_trigger_dispatcher(TABLE *subject_table);
 
  public:
-  ~Table_trigger_dispatcher();
+  ~Table_trigger_dispatcher() override;
 
   /**
     Checks if there is a broken trigger for this table.
@@ -96,21 +92,46 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
     return false;
   }
 
-  bool create_trigger(THD *thd, String *binlog_create_trigger_stmt);
+  /**
+    Create trigger for table.
+
+    @param      thd   Thread context
+    @param[out] binlog_create_trigger_stmt
+                      Well-formed CREATE TRIGGER statement for putting into
+    binlog (after successful execution)
+    @param      if_not_exists
+                      True if 'IF NOT EXISTS' clause was specified
+    @param[out] already_exists
+                      Set to true if trigger already exists on the same table
+
+    @note
+      - Assumes that trigger name is fully qualified.
+      - NULL-string means the following LEX_STRING instance:
+      { str = 0; length = 0 }.
+      - In other words, definer_user and definer_host should contain
+      simultaneously NULL-strings (non-SUID/old trigger) or valid strings
+      (SUID/new trigger).
+
+    @return Operation status.
+      @retval false Success
+      @retval true  Failure
+  */
+  bool create_trigger(THD *thd, String *binlog_create_trigger_stmt,
+                      bool if_not_exists, bool &already_exists);
 
   bool process_triggers(THD *thd, enum_trigger_event_type event,
                         enum_trigger_action_time_type action_time,
                         bool old_row_is_record1);
 
   Trigger_chain *get_triggers(int event, int action_time) {
-    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
-    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 
   const Trigger_chain *get_triggers(int event, int action_time) const {
-    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
-    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 
@@ -118,7 +139,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
   bool has_triggers(enum_trigger_event_type event,
                     enum_trigger_action_time_type action_time) const {
-    return get_triggers(event, action_time) != NULL;
+    return get_triggers(event, action_time) != nullptr;
   }
 
   bool has_update_triggers() const {
@@ -163,8 +184,8 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   void set_parse_error_message(const char *error_message) {
     if (!m_has_unparseable_trigger) {
       m_has_unparseable_trigger = true;
-      strncpy(m_parse_error_message, error_message,
-              sizeof(m_parse_error_message));
+      snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
+               error_message);
     }
   }
 
@@ -173,10 +194,10 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
    * Table_trigger_field_support interface implementation.
    ***********************************************************************/
 
-  virtual TABLE *get_subject_table() { return m_subject_table; }
+  TABLE *get_subject_table() override { return m_subject_table; }
 
-  virtual Field *get_trigger_variable_field(enum_trigger_variable_type v,
-                                            int field_index) {
+  Field *get_trigger_variable_field(enum_trigger_variable_type v,
+                                    int field_index) override {
     return (v == TRG_OLD_ROW) ? m_old_field[field_index]
                               : m_new_field[field_index];
   }

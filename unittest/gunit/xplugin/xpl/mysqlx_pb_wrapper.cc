@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,19 +31,19 @@ namespace test {
 
 Identifier::Identifier(const std::string &name,
                        const std::string &schema_name) {
-  if (name.empty() == false) m_base.set_name(name);
+  if (!name.empty()) m_base.set_name(name);
 
-  if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
+  if (!schema_name.empty()) m_base.set_schema_name(schema_name);
 }
 
 Column_identifier::Column_identifier(const std::string &name,
                                      const std::string &table_name,
                                      const std::string &schema_name) {
-  if (name.empty() == false) m_base.set_name(name);
+  if (!name.empty()) m_base.set_name(name);
 
-  if (table_name.empty() == false) m_base.set_table_name(table_name);
+  if (!table_name.empty()) m_base.set_table_name(table_name);
 
-  if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
+  if (!schema_name.empty()) m_base.set_schema_name(schema_name);
 }
 
 Column_identifier::Column_identifier(const Document_path &path,
@@ -171,6 +171,12 @@ Any::Object::Object(const std::initializer_list<Any::Object::Fld> &list) {
     item->set_key(f.key);
     item->mutable_value()->CopyFrom(f.value);
   }
+}
+
+Any::Object::Object(const std::string &key, Any *value) {
+  Mysqlx::Datatypes::Object_ObjectField *item = m_base.add_fld();
+  item->set_key(key);
+  if (value) item->mutable_value()->CopyFrom(*value);
 }
 
 Object::Object(const std::string &key, Expr *value) {

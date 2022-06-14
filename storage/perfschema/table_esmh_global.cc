@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ Plugin_table table_esmh_global::m_table_def(
 PFS_engine_table_share table_esmh_global::m_share = {
     &pfs_truncatable_acl,
     table_esmh_global::create,
-    NULL,
+    nullptr,
     table_esmh_global::delete_all_rows,
     table_esmh_global::get_row_count,
     sizeof(pos_t),
@@ -129,9 +129,9 @@ int table_esmh_global::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esmh_global::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esmh_global *result = NULL;
-  DBUG_ASSERT(idx == 0);
+int table_esmh_global::index_init(uint idx [[maybe_unused]], bool) {
+  PFS_index_esmh_global *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_esmh_global);
   m_opened_index = result;
   m_index = result;
@@ -174,8 +174,8 @@ void table_esmh_global::materialize() {
 }
 
 int table_esmh_global::make_row(ulong bucket_index) {
-  DBUG_ASSERT(m_materialized);
-  DBUG_ASSERT(bucket_index < NUMBER_OF_BUCKETS);
+  assert(m_materialized);
+  assert(bucket_index < NUMBER_OF_BUCKETS);
 
   m_row.m_bucket_number = bucket_index;
   m_row.m_bucket_timer_low =
@@ -211,12 +211,12 @@ int table_esmh_global::read_row_values(TABLE *table, unsigned char *buf,
     Set the null bits. It indicates how many fields could be null
     in the table.
   */
-  DBUG_ASSERT(table->s->null_bytes == 1);  // TODO: WHY ?
+  assert(table->s->null_bytes == 1);  // TODO: WHY ?
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* BUCKET_NUMBER */
           set_field_ulong(f, m_row.m_bucket_number);
           break;
@@ -236,7 +236,7 @@ int table_esmh_global::read_row_values(TABLE *table, unsigned char *buf,
           set_field_double(f, m_row.m_percentile);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
     }

@@ -1,0 +1,49 @@
+--echo #
+--echo # Variable name : protocol_compression_algorithms
+--echo # Scope         : Global only
+--echo #
+
+--echo # Global - default
+SELECT @@global.protocol_compression_algorithms;
+
+--echo # verify all possible values
+SET GLOBAL protocol_compression_algorithms= "zstd";
+SELECT @@global.protocol_compression_algorithms;
+SET GLOBAL protocol_compression_algorithms= "zlib";
+SELECT @@global.protocol_compression_algorithms;
+SET GLOBAL protocol_compression_algorithms= "uncompressed";
+SELECT @@global.protocol_compression_algorithms;
+SET GLOBAL protocol_compression_algorithms= "zstd,zlib";
+SELECT @@global.protocol_compression_algorithms;
+SET GLOBAL protocol_compression_algorithms= "zstd,uncompressed";
+SELECT @@global.protocol_compression_algorithms;
+SET GLOBAL protocol_compression_algorithms= "zlib,uncompressed";
+SELECT @@global.protocol_compression_algorithms;
+SET GLOBAL protocol_compression_algorithms= "zstd,zlib,uncompressed";
+SELECT @@global.protocol_compression_algorithms;
+
+SET PERSIST protocol_compression_algorithms= "zstd";
+SET PERSIST protocol_compression_algorithms= default;
+
+--echo # verify scope of variable
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.protocol_compression_algorithms;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.protocol_compression_algorithms;
+
+--echo # verify invalid values
+--Error ER_WRONG_TYPE_FOR_VAR 
+SET GLOBAL protocol_compression_algorithms= 1;
+--Error ER_WRONG_TYPE_FOR_VAR 
+SET PERSIST protocol_compression_algorithms= 1;
+--Error ER_WRONG_VALUE_FOR_VAR 
+SET GLOBAL protocol_compression_algorithms= "xyz";
+--Error ER_WRONG_VALUE_FOR_VAR 
+SET GLOBAL protocol_compression_algorithms= "uncompressed,xyz";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL protocol_compression_algorithms= "";
+
+#cleanup
+RESET PERSIST;
+
+--echo # End of tests.

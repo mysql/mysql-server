@@ -1,4 +1,3 @@
-call mtr.add_suppression("Failed to acquire global schema lock");
 Restarting all nodes "no start"
 Waiting for not started
 CREATE DATABASE test2;
@@ -38,7 +37,6 @@ ALTER TABLE t3 ADD COLUMN b int default NULL;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 INSERT INTO t2 VALUES(1);
 TRUNCATE TABLE t2;
 Warnings:

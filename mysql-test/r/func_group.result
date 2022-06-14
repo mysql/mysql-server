@@ -68,10 +68,10 @@ replace into t2 select grp, a, c from t1 limit 2,1;
 select * from t2;
 grp	a	c
 1	2	a
+2	3	c
 2	5	c
 3	9	E
 NULL	NULL	
-2	3	c
 drop table t1,t2;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
 Warnings:
@@ -188,6 +188,10 @@ drop table t1;
 create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
 insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
 create table t2(a1 char(3), a2 int, a3 real, key k1(a1), key k2(a2, a1));
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t1;
 a1	a2
 10	aaa
@@ -220,10 +224,10 @@ insert into t2 values('AAA', 10, 0.5);
 insert into t2 values('BBB', 20, 1.0);
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 a1	a2	a1	a2
-10	aaa	AAA	10
-10	aaa	BBB	20
 10	NULL	AAA	10
 10	NULL	BBB	20
+10	aaa	AAA	10
+10	aaa	BBB	20
 10	bbb	AAA	10
 10	bbb	BBB	20
 20	zzz	AAA	10
@@ -299,6 +303,9 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)	bit_xor(b)
 1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0	0
 2	1	1	1.00000	0	1	1	1	1	1
 3	1	1	1.00000	0	1	1	1	1	1
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
@@ -361,32 +368,36 @@ insert into t2 values('SDC','San Diego','CA','TWU');
 insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
 insert into t2 values('AAA','AAA','AA','AME');
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t1;
 a1	a2	a3	a4	a5
 AME	0	SEA	0.1	1942-02-19
-HBR	1	SEA	0.085	1948-03-05
-BOT	2	SEA	0.085	1951-11-29
-BMC	3	SEA	0.085	1958-09-08
-TWU	0	LAX	0.08	1969-10-05
 BDL	0	DEN	0.08	1960-11-27
+BMC	3	SEA	0.085	1958-09-08
+BOT	2	SEA	0.085	1951-11-29
 DTX	1	NYC	0.08	1961-05-04
-PLS	1	WDC	0.075	1949-01-02
-ZAJ	2	CHI	0.075	1960-06-15
-VVV	2	MIN	0.075	1959-06-28
 GTM	3	DAL	0.07	1977-09-23
-SSJ	NULL	CHI	NULL	1974-03-19
+HBR	1	SEA	0.085	1948-03-05
 KKK	3	ATL	NULL	NULL
-XXX	NULL	MIN	NULL	NULL
+PLS	1	WDC	0.075	1949-01-02
+SSJ	NULL	CHI	NULL	1974-03-19
+TWU	0	LAX	0.08	1969-10-05
+VVV	2	MIN	0.075	1959-06-28
 WWW	1	LED	NULL	NULL
+XXX	NULL	MIN	NULL	NULL
+ZAJ	2	CHI	0.075	1960-06-15
 select * from t2;
 a1	a2	a3	a4
-TKF	Seattle	WA	AME
-LCC	Los Angeles	CA	TWU
-DEN	Denver	CO	BDL
-SDC	San Diego	CA	TWU
-NOL	New Orleans	LA	GTM
-LAK	Los Angeles	CA	TWU
 AAA	AAA	AA	AME
+DEN	Denver	CO	BDL
+LAK	Los Angeles	CA	TWU
+LCC	Los Angeles	CA	TWU
+NOL	New Orleans	LA	GTM
+SDC	San Diego	CA	TWU
+TKF	Seattle	WA	AME
 explain 
 select min(a1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -675,29 +686,33 @@ Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(t1.a1)`,min(`test`
 select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 min(t1.a1)	min(t2.a4)
 AME	AME
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	55.55	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	k1	16	NULL	15	55.55	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where ((`test`.`t1`.`a1` > 'KKK') or (`test`.`t1`.`a1` < 'XXX'))
 explain 
 select min(a1) from t1 where a1 != 'KKK';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	k1	16	NULL	15	93.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where (`test`.`t1`.`a1` <> 'KKK')
 explain
 select max(a3) from t1 where a2 < 2 and a3 < 'SEA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	k1	k1	3	NULL	6	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	k1	k1	3	NULL	7	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where ((`test`.`t1`.`a2` < 2) and (`test`.`t1`.`a3` < 'SEA'))
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	k1	k1	16	NULL	1	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	4	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	3	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a2` = 2) and (`test`.`t1`.`a3` < 'MIN') and (`test`.`t2`.`a3` > 'CA'))
 explain
@@ -739,7 +754,7 @@ Note	1003	/* select#1 */ select min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`
 explain
 select min(a1) from t1  where a1 between a3 and 'KKK';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	15	11.11	Using where
+1	SIMPLE	t1	NULL	index	PRIMARY	k1	16	NULL	15	11.11	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where (`test`.`t1`.`a1` between `test`.`t1`.`a3` and 'KKK')
 explain
@@ -752,7 +767,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	k2	k2	13	NULL	6	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	15	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select concat(min(`test`.`t1`.`a1`),min(`test`.`t2`.`a4`)) AS `concat(min(t1.a1),min(t2.a4))` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a4` <> 'AME')
 drop table t1, t2;
@@ -772,21 +787,21 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) CHARACTER SET latin2 COLLATE latin2_general_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `max(a)` char(1) CHARACTER SET latin2 DEFAULT NULL,
   `min(a)` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `concat(a)` varchar(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2,t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -881,7 +896,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 datetime);
@@ -940,6 +955,9 @@ aa
 DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY, b char(16), INDEX(b(4)));
 INSERT INTO t1 VALUES (1, 'xxxxbbbb'), (2, 'xxxxaaaa');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT MAX(b) FROM t1;
 MAX(b)
 xxxxbbbb
@@ -956,6 +974,9 @@ INSERT INTO t1 VALUES
 SELECT MAX(b) FROM t1;
 MAX(b)
 __________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________zz
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT MAX(b) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -1028,10 +1049,10 @@ INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.000
 insert into t1 select * from t1;
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 col1	count(col1)	sum(col1)	avg(col1)
+-5.000000000000	2	-10.000000000000	-5.00000000000000000
 -5.000000000010	4	-20.000000000040	-5.00000000001000000
 -5.000000000020	4	-20.000000000080	-5.00000000002000000
 -5.000000000030	2	-10.000000000060	-5.00000000003000000
--5.000000000000	2	-10.000000000000	-5.00000000000000000
 DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
 insert into t1 values (-5.00000000001);
@@ -1095,13 +1116,13 @@ v	a
 3.00000	3
 SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
 v	SUM(a)
-1.00000	18
-0.50000	6
 0.33333	6
-2.00000	6
+0.50000	6
 0.66667	6
-3.00000	6
+1.00000	18
 1.50000	6
+2.00000	6
+3.00000	6
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 SUM(a)
 18
@@ -1129,14 +1150,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `variance(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select stddev(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `stddev(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
 insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);
@@ -1291,9 +1312,9 @@ i	count(*)	std(s1/s2)
 3	4	0
 select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
 i	count(*)	round(std(o1/o2), 16)
-1	4	0.0000000000000000
-2	4	0.0000000000000000
-3	4	0.0000000000000000
+1	4	0
+2	4	0
+3	4	0
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 i	count(*)	std(e1/e2)
 1	4	0
@@ -1317,9 +1338,9 @@ i	count(*)	std(s1/s2)
 3	4	0
 select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
 i	count(*)	round(std(o1/o2), 16)
-1	4	0.0000000000000000
-2	4	0.0000000000000000
-3	4	0.0000000000000000
+1	4	0
+2	4	0
+3	4	0
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 i	count(*)	std(e1/e2)
 1	4	0
@@ -1327,13 +1348,13 @@ i	count(*)	std(e1/e2)
 3	4	0
 select round(std(s1/s2), 17) from bug22555;
 round(std(s1/s2), 17)
-0.21325763586649340
+0.2132576358664934
 select std(o1/o2) from bug22555;
 std(o1/o2)
 0.2132576358664934
 select round(std(e1/e2), 17) from bug22555;
 round(std(e1/e2), 17)
-0.21325763586649340
+0.2132576358664934
 set div_precision_increment=20;
 select i, count(*), std(s1/s2) from bug22555 group by i order by i;
 i	count(*)	std(s1/s2)
@@ -1342,9 +1363,9 @@ i	count(*)	std(s1/s2)
 3	4	0
 select i, count(*), round(std(o1/o2), 16) from bug22555 group by i order by i;
 i	count(*)	round(std(o1/o2), 16)
-1	4	0.0000000000000000
-2	4	0.0000000000000000
-3	4	0.0000000000000000
+1	4	0
+2	4	0
+3	4	0
 select i, count(*), std(e1/e2) from bug22555 group by i order by i;
 i	count(*)	std(e1/e2)
 1	4	0
@@ -1352,13 +1373,13 @@ i	count(*)	std(e1/e2)
 3	4	0
 select round(std(s1/s2), 17) from bug22555;
 round(std(s1/s2), 17)
-0.21325763586649340
+0.2132576358664934
 select std(o1/o2) from bug22555;
 std(o1/o2)
 0.2132576358664934
 select round(std(e1/e2), 17) from bug22555;
 round(std(e1/e2), 17)
-0.21325763586649340
+0.2132576358664934
 set @@div_precision_increment=@saved_div_precision_increment;
 drop table bug22555;
 create table bug22555 (s smallint, o double, e decimal);
@@ -1441,6 +1462,9 @@ a	average
 DROP TABLE t1;
 CREATE TABLE t1 ( a INT, b INT, KEY(a) );
 INSERT INTO t1 VALUES (NULL, 1), (NULL, 2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT MIN(a), MIN(b) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1451,9 +1475,12 @@ MIN(a)	MIN(b)
 NULL	1
 CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
 INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	5	const	2	100.00	NULL
+1	SIMPLE	t2	NULL	ref	a	a	5	const	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`b`) AS `MIN(b)`,min(`test`.`t2`.`c`) AS `MIN(c)` from `test`.`t2` where (`test`.`t2`.`a` = 1)
 SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
@@ -1461,6 +1488,9 @@ MIN(b)	MIN(c)
 3	2
 CREATE TABLE t3 (a INT, b INT, c int, KEY(a, b));
 INSERT INTO t3 VALUES (1, NULL, 1), (2, NULL, 2),  (2, NULL, 2),  (3, NULL, 3);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 EXPLAIN SELECT MIN(a), MIN(b) FROM t3 where a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -1471,6 +1501,9 @@ MIN(a)	MIN(b)
 2	NULL
 CREATE TABLE t4 (a INT, b INT, c int, KEY(a, b));
 INSERT INTO t4 VALUES (1, 1, 1), (2, NULL, 2),  (2, NULL, 2),  (3, 1, 3);
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
 EXPLAIN SELECT MIN(a), MIN(b) FROM t4 where a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -1484,6 +1517,9 @@ MIN(b)	min(c)
 NULL	2
 CREATE TABLE t5( a INT, b INT, KEY( a, b) );
 INSERT INTO t5 VALUES( 1, 1 ), ( 1, 2 );
+ANALYZE TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
 EXPLAIN SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -1526,6 +1562,9 @@ set SQL_MODE=ONLY_FULL_GROUP_BY;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT y FROM v1 GROUP BY v1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
@@ -1626,6 +1665,9 @@ ORDER BY max;
 max	i
 3	#
 
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT MAX(pk) as max, i
 FROM t1
@@ -1650,7 +1692,7 @@ DROP TABLE t1;
 # Bug#43668: Wrong comparison and MIN/MAX for YEAR(2)
 # WL#6263: Remove year(2)
 #
-create table t1 (f1 year(4), f2 year(4), f3 date, f4 datetime);
+create table t1 (f1 year, f2 year, f3 date, f4 datetime);
 insert into t1 values
 (98,1998,19980101,"1998-01-01 00:00:00"),
 ('00',2000,20000101,"2000-01-01 00:00:01"),
@@ -1674,161 +1716,161 @@ select a.f1 as a, b.f1 as b, a.f1 > b.f1 as gt,
 a.f1 < b.f1 as lt, a.f1<=>b.f1 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998	0	0	1
-2000	1998	1	0	0
-2002	1998	1	0	0
-2060	1998	1	0	0
-1970	1998	0	1	0
-NULL	1998	NULL	NULL	0
-1998	2000	0	1	0
-2000	2000	0	0	1
-2002	2000	1	0	0
-2060	2000	1	0	0
-1970	2000	0	1	0
-NULL	2000	NULL	NULL	0
-1998	2002	0	1	0
-2000	2002	0	1	0
-2002	2002	0	0	1
-2060	2002	1	0	0
-1970	2002	0	1	0
-NULL	2002	NULL	NULL	0
-1998	2060	0	1	0
-2000	2060	0	1	0
-2002	2060	0	1	0
-2060	2060	0	0	1
-1970	2060	0	1	0
-NULL	2060	NULL	NULL	0
-1998	1970	1	0	0
-2000	1970	1	0	0
-2002	1970	1	0	0
-2060	1970	1	0	0
 1970	1970	0	0	1
-NULL	1970	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998	0	1	0
+1970	2000	0	1	0
+1970	2002	0	1	0
+1970	2060	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970	1	0	0
+1998	1998	0	0	1
+1998	2000	0	1	0
+1998	2002	0	1	0
+1998	2060	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970	1	0	0
+2000	1998	1	0	0
+2000	2000	0	0	1
+2000	2002	0	1	0
+2000	2060	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970	1	0	0
+2002	1998	1	0	0
+2002	2000	1	0	0
+2002	2002	0	0	1
+2002	2060	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970	1	0	0
+2060	1998	1	0	0
+2060	2000	1	0	0
+2060	2002	1	0	0
+2060	2060	0	0	1
+2060	NULL	NULL	NULL	0
+NULL	1970	NULL	NULL	0
+NULL	1998	NULL	NULL	0
+NULL	2000	NULL	NULL	0
+NULL	2002	NULL	NULL	0
+NULL	2060	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select a.f1 as a, b.f2 as b, a.f1 > b.f2 as gt,
 a.f1 < b.f2 as lt, a.f1<=>b.f2 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998	0	0	1
-2000	1998	1	0	0
-2002	1998	1	0	0
-2060	1998	1	0	0
-1970	1998	0	1	0
-NULL	1998	NULL	NULL	0
-1998	2000	0	1	0
-2000	2000	0	0	1
-2002	2000	1	0	0
-2060	2000	1	0	0
-1970	2000	0	1	0
-NULL	2000	NULL	NULL	0
-1998	2002	0	1	0
-2000	2002	0	1	0
-2002	2002	0	0	1
-2060	2002	1	0	0
-1970	2002	0	1	0
-NULL	2002	NULL	NULL	0
-1998	2060	0	1	0
-2000	2060	0	1	0
-2002	2060	0	1	0
-2060	2060	0	0	1
-1970	2060	0	1	0
-NULL	2060	NULL	NULL	0
-1998	1970	1	0	0
-2000	1970	1	0	0
-2002	1970	1	0	0
-2060	1970	1	0	0
 1970	1970	0	0	1
-NULL	1970	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998	0	1	0
+1970	2000	0	1	0
+1970	2002	0	1	0
+1970	2060	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970	1	0	0
+1998	1998	0	0	1
+1998	2000	0	1	0
+1998	2002	0	1	0
+1998	2060	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970	1	0	0
+2000	1998	1	0	0
+2000	2000	0	0	1
+2000	2002	0	1	0
+2000	2060	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970	1	0	0
+2002	1998	1	0	0
+2002	2000	1	0	0
+2002	2002	0	0	1
+2002	2060	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970	1	0	0
+2060	1998	1	0	0
+2060	2000	1	0	0
+2060	2002	1	0	0
+2060	2060	0	0	1
+2060	NULL	NULL	NULL	0
+NULL	1970	NULL	NULL	0
+NULL	1998	NULL	NULL	0
+NULL	2000	NULL	NULL	0
+NULL	2002	NULL	NULL	0
+NULL	2060	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select a.f1 as a, b.f3 as b, a.f1 > b.f3 as gt,
 a.f1 < b.f3 as lt, a.f1<=>b.f3 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998-01-01	0	1	0
-2000	1998-01-01	1	0	0
-2002	1998-01-01	1	0	0
-2060	1998-01-01	1	0	0
-1970	1998-01-01	0	1	0
-NULL	1998-01-01	NULL	NULL	0
-1998	2000-01-01	0	1	0
-2000	2000-01-01	0	1	0
-2002	2000-01-01	1	0	0
-2060	2000-01-01	1	0	0
-1970	2000-01-01	0	1	0
-NULL	2000-01-01	NULL	NULL	0
-1998	2002-01-01	0	1	0
-2000	2002-01-01	0	1	0
-2002	2002-01-01	0	1	0
-2060	2002-01-01	1	0	0
-1970	2002-01-01	0	1	0
-NULL	2002-01-01	NULL	NULL	0
-1998	2060-01-01	0	1	0
-2000	2060-01-01	0	1	0
-2002	2060-01-01	0	1	0
-2060	2060-01-01	0	1	0
-1970	2060-01-01	0	1	0
-NULL	2060-01-01	NULL	NULL	0
-1998	1970-01-01	1	0	0
-2000	1970-01-01	1	0	0
-2002	1970-01-01	1	0	0
-2060	1970-01-01	1	0	0
 1970	1970-01-01	0	1	0
-NULL	1970-01-01	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998-01-01	0	1	0
+1970	2000-01-01	0	1	0
+1970	2002-01-01	0	1	0
+1970	2060-01-01	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970-01-01	1	0	0
+1998	1998-01-01	0	1	0
+1998	2000-01-01	0	1	0
+1998	2002-01-01	0	1	0
+1998	2060-01-01	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970-01-01	1	0	0
+2000	1998-01-01	1	0	0
+2000	2000-01-01	0	1	0
+2000	2002-01-01	0	1	0
+2000	2060-01-01	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970-01-01	1	0	0
+2002	1998-01-01	1	0	0
+2002	2000-01-01	1	0	0
+2002	2002-01-01	0	1	0
+2002	2060-01-01	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970-01-01	1	0	0
+2060	1998-01-01	1	0	0
+2060	2000-01-01	1	0	0
+2060	2002-01-01	1	0	0
+2060	2060-01-01	0	1	0
+2060	NULL	NULL	NULL	0
+NULL	1970-01-01	NULL	NULL	0
+NULL	1998-01-01	NULL	NULL	0
+NULL	2000-01-01	NULL	NULL	0
+NULL	2002-01-01	NULL	NULL	0
+NULL	2060-01-01	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
 a.f1 < b.f4 as lt, a.f1<=>b.f4 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998-01-01 00:00:00	0	1	0
-2000	1998-01-01 00:00:00	1	0	0
-2002	1998-01-01 00:00:00	1	0	0
-2060	1998-01-01 00:00:00	1	0	0
-1970	1998-01-01 00:00:00	0	1	0
-NULL	1998-01-01 00:00:00	NULL	NULL	0
-1998	2000-01-01 00:00:01	0	1	0
-2000	2000-01-01 00:00:01	0	1	0
-2002	2000-01-01 00:00:01	1	0	0
-2060	2000-01-01 00:00:01	1	0	0
-1970	2000-01-01 00:00:01	0	1	0
-NULL	2000-01-01 00:00:01	NULL	NULL	0
-1998	2002-01-01 23:59:59	0	1	0
-2000	2002-01-01 23:59:59	0	1	0
-2002	2002-01-01 23:59:59	0	1	0
-2060	2002-01-01 23:59:59	1	0	0
-1970	2002-01-01 23:59:59	0	1	0
-NULL	2002-01-01 23:59:59	NULL	NULL	0
-1998	2060-01-01 11:11:11	0	1	0
-2000	2060-01-01 11:11:11	0	1	0
-2002	2060-01-01 11:11:11	0	1	0
-2060	2060-01-01 11:11:11	0	1	0
-1970	2060-01-01 11:11:11	0	1	0
-NULL	2060-01-01 11:11:11	NULL	NULL	0
-1998	1970-11-11 22:22:22	1	0	0
-2000	1970-11-11 22:22:22	1	0	0
-2002	1970-11-11 22:22:22	1	0	0
-2060	1970-11-11 22:22:22	1	0	0
 1970	1970-11-11 22:22:22	0	1	0
-NULL	1970-11-11 22:22:22	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998-01-01 00:00:00	0	1	0
+1970	2000-01-01 00:00:01	0	1	0
+1970	2002-01-01 23:59:59	0	1	0
+1970	2060-01-01 11:11:11	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970-11-11 22:22:22	1	0	0
+1998	1998-01-01 00:00:00	0	1	0
+1998	2000-01-01 00:00:01	0	1	0
+1998	2002-01-01 23:59:59	0	1	0
+1998	2060-01-01 11:11:11	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970-11-11 22:22:22	1	0	0
+2000	1998-01-01 00:00:00	1	0	0
+2000	2000-01-01 00:00:01	0	1	0
+2000	2002-01-01 23:59:59	0	1	0
+2000	2060-01-01 11:11:11	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970-11-11 22:22:22	1	0	0
+2002	1998-01-01 00:00:00	1	0	0
+2002	2000-01-01 00:00:01	1	0	0
+2002	2002-01-01 23:59:59	0	1	0
+2002	2060-01-01 11:11:11	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970-11-11 22:22:22	1	0	0
+2060	1998-01-01 00:00:00	1	0	0
+2060	2000-01-01 00:00:01	1	0	0
+2060	2002-01-01 23:59:59	1	0	0
+2060	2060-01-01 11:11:11	0	1	0
+2060	NULL	NULL	NULL	0
+NULL	1970-11-11 22:22:22	NULL	NULL	0
+NULL	1998-01-01 00:00:00	NULL	NULL	0
+NULL	2000-01-01 00:00:01	NULL	NULL	0
+NULL	2002-01-01 23:59:59	NULL	NULL	0
+NULL	2060-01-01 11:11:11	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select *, f1 = f2 from t1;
 f1	f2	f3	f4	f1 = f2
@@ -1875,7 +1917,7 @@ DROP TABLE t1;
 #
 # Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
 #
-CREATE TABLE t1(f1 YEAR(4));
+CREATE TABLE t1(f1 YEAR);
 INSERT INTO t1 VALUES (0000),(2001);
 (SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -2049,3 +2091,166 @@ WHERE subquery1_t1.col_int_k
 NULL
 DROP TABLE t1, t2, t3, t4;
 # End of test for bug#25541454
+#
+# Bug#29596977 MYSQL OPTIMIZER SCAN FULL INDEX FOR MAX() ON INDEXED COLUMN.
+#
+CREATE TABLE t1 (
+id BIGINT NOT NULL AUTO_INCREMENT,
+f1 BIGINT,
+PRIMARY KEY(id),
+INDEX ix_fd2 (f1)
+);
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (NULL, 3);
+CREATE FUNCTION f1 (par INT) RETURNS INT
+DETERMINISTIC
+SQL SECURITY INVOKER
+BEGIN
+RETURN par + 1;
+END|
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT f1(MAX(f1)) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `f1`(max(`test`.`t1`.`f1`)) AS `f1(MAX(f1))` from `test`.`t1`
+SELECT f1(MAX(f1)) FROM t1;
+f1(MAX(f1))
+4
+DROP TABLE t1;
+DROP FUNCTION f1;
+#
+# Bug#31848191: ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()
+#
+CREATE TABLE t1 (f1 INTEGER,f2 INTEGER);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NULL;
+f1	STD(f2)
+2	NULL
+SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NOT NULL;
+f1	STD(f2)
+1	5
+3	0
+NULL	16.99673171197595
+DROP TABLE t1;
+# Bug#32713860: Executing prepare returns wrong result
+CREATE TABLE t1 (
+i8 BIGINT UNIQUE,
+dc DECIMAL(10,4) UNIQUE,
+f8 DOUBLE UNIQUE,
+vc VARCHAR(10) UNIQUE
+);
+INSERT INTO t1 VALUES(123456, 123456.7890, 123456, '123456');
+SET @i8=123456;
+SET @dc='123456.7890';
+SET @f8=123456.0E0;
+SET @vc='123456';
+PREPARE si8 FROM 'SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE ei8 FROM 'EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE sdc FROM 'SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE edc FROM 'EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE sf8 FROM 'SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE ef8 FROM 'EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE svc FROM 'SELECT MAX(vc) FROM t1 WHERE vc > ?';
+PREPARE evc FROM 'EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > ?';
+SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+MAX(i8)
+NULL
+EXECUTE si8 USING @i8;
+MAX(i8)
+NULL
+EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`i8`) AS `MAX(i8)` from `test`.`t1` where (`test`.`t1`.`i8` > 123456)
+EXECUTE ei8 USING @i8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`i8`) AS `MAX(i8)` from `test`.`t1` where (`test`.`t1`.`i8` > 123456)
+SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+MAX(dc)
+NULL
+EXECUTE sdc USING @dc;
+MAX(dc)
+NULL
+EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`dc`) AS `MAX(dc)` from `test`.`t1` where (`test`.`t1`.`dc` > 123456.7890)
+EXECUTE edc USING @dc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`dc`) AS `MAX(dc)` from `test`.`t1` where (`test`.`t1`.`dc` > 123456.7890)
+SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+MAX(f8)
+NULL
+EXECUTE sf8 USING @f8;
+MAX(f8)
+NULL
+EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`f8`) AS `MAX(f8)` from `test`.`t1` where (`test`.`t1`.`f8` > 123456e0)
+EXECUTE ef8 USING @f8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`f8`) AS `MAX(f8)` from `test`.`t1` where (`test`.`t1`.`f8` > 123456)
+SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+MAX(vc)
+NULL
+EXECUTE svc USING @vc;
+MAX(vc)
+NULL
+EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`vc`) AS `MAX(vc)` from `test`.`t1` where (`test`.`t1`.`vc` > '123456')
+EXECUTE evc USING @vc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`vc`) AS `MAX(vc)` from `test`.`t1` where (`test`.`t1`.`vc` > '123456')
+DROP TABLE t1;
+#
+# Bug#32552332 - CAN'T WRITE; DUPLICATE KEY IN TABLE '/TMP/#SQL...'
+#
+CREATE TABLE tr (c1 INT);
+INSERT INTO tr VALUES (1);
+CREATE FUNCTION seq_1_to_2() RETURNS INT
+BEGIN
+DECLARE limit_value, return_value INT;
+SET limit_value = 2;
+SELECT c1 INTO return_value FROM tr;
+IF (return_value < limit_value) THEN
+UPDATE tr SET c1 = c1 + 1;
+ELSE
+UPDATE tr SET c1 = 1;
+END IF;
+RETURN (return_value);
+END|
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (11);
+SELECT seq_1_to_2() as seq, COUNT(*) FROM t1 GROUP BY seq;
+seq	COUNT(*)
+1	1
+2	1
+SELECT FLOOR(seq_1_to_2() * 2) AS val, COUNT(*) FROM t1 GROUP BY val;
+val	COUNT(*)
+2	1
+4	1
+SELECT val, COUNT(*) FROM (SELECT FLOOR(seq_1_to_2())+1 val FROM t1) x
+GROUP BY x.val;
+val	COUNT(*)
+2	1
+3	1
+DROP TABLE t1, tr;
+DROP FUNCTION seq_1_to_2;

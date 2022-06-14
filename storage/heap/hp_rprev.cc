@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@ int heap_rprev(HP_INFO *info, uchar *record) {
   uchar *pos;
   HP_SHARE *share = info->s;
   HP_KEYDEF *keyinfo;
-  DBUG_ENTER("heap_rprev");
+  DBUG_TRACE;
 
   if (info->lastinx < 0) {
     set_my_errno(HA_ERR_WRONG_INDEX);
-    DBUG_RETURN(HA_ERR_WRONG_INDEX);
+    return HA_ERR_WRONG_INDEX;
   }
   keyinfo = share->keydef + info->lastinx;
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE) {
@@ -66,16 +66,16 @@ int heap_rprev(HP_INFO *info, uchar *record) {
       else
         pos = hp_search(info, share->keydef + info->lastinx, info->lastkey, 2);
     } else {
-      pos = 0; /* Read next after last */
+      pos = nullptr; /* Read next after last */
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
     }
   }
   if (!pos) {
     info->update = HA_STATE_PREV_FOUND; /* For heap_rprev */
     if (my_errno() == HA_ERR_KEY_NOT_FOUND) set_my_errno(HA_ERR_END_OF_FILE);
-    DBUG_RETURN(my_errno());
+    return my_errno();
   }
   memcpy(record, pos, (size_t)share->reclength);
   info->update = HA_STATE_AKTIV | HA_STATE_PREV_FOUND;
-  DBUG_RETURN(0);
+  return 0;
 }

@@ -1,0 +1,131 @@
+#############################################################################
+# Bug#32788564: TOO MANY COLUMNS ON PARTITIONED TABLE MAKES DATABASE BROKEN #
+#############################################################################
+
+--source include/have_innodb_16k.inc
+
+# This test verifies the bug#32788564 where the server crashed while
+# executing TRUNCATE TABLE on a partitioned table, if an
+# ALTER TABLE ADD COLUMN failed to add columns because of hitting the
+# upper limit on the number of columns in a table
+
+DELIMITER |;
+
+# Procedure to add enough columns to a table such that it reaches the maximum
+# number of columns allowed on a table
+CREATE PROCEDURE add_columns(table_name varchar(50), algorithm varchar(10))
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  SET @sql_text = CONCAT('ALTER TABLE ', table_name, ' ');
+  while (i < 1012) do
+    SET @sql_text = CONCAT(@sql_text, ' ADD COLUMN ', CONCAT('col_', i), ' INTEGER NULL DEFAULT NULL,');
+    set i = i + 1;
+  end while;
+  SET @sql_text = CONCAT(@sql_text, 'ALGORITHM=', algorithm);
+  PREPARE stmt FROM @sql_text;
+  EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
+END|
+
+CREATE PROCEDURE create_tables()
+BEGIN
+# Create a non-partitioned table
+  CREATE TABLE `test`.`TEST_TABLE` (
+    `TIMESTAMP` datetime NOT NULL,
+    `INTERVALL` int NOT NULL,
+    `IDENT_KEY` int NOT NULL,
+    `FIELD_1` double DEFAULT NULL,
+    `FIELD_2` double DEFAULT NULL,
+    `FIELD_3` double DEFAULT NULL
+  );
+
+# Create a partitioned table
+  CREATE TABLE `test`.`TEST_TABLE_PARTITIONED` (
+    `TIMESTAMP` datetime NOT NULL,
+    `INTERVALL` int NOT NULL,
+    `IDENT_KEY` int NOT NULL,
+    `FIELD_1` double DEFAULT NULL,
+    `FIELD_2` double DEFAULT NULL,
+    `FIELD_3` double DEFAULT NULL
+  )
+  PARTITION BY RANGE COLUMNS(`TIMESTAMP`)
+  (
+    PARTITION p20210321 VALUES LESS THAN ('2021-03-22'),
+    PARTITION p20210322 VALUES LESS THAN ('2021-03-23'),
+    PARTITION p20210323 VALUES LESS THAN MAXVALUE
+  );
+END |
+DELIMITER ;|
+
+# Test ALTER TABLE ... ADD COLUMN both on partitioned and unpartitioned
+# tables using all the possible algorithms viz. INPLACE, INSTANT, COPY
+# and verify that the table can be truncate even after the
+# ALTER TABLE ... ADD COLUMN fails
+
+# Test for ALGORITHM=INPLACE
+call create_tables();
+call add_columns('TEST_TABLE', 'INPLACE');
+call add_columns('TEST_TABLE_PARTITIONED', 'INPLACE');
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE TEST_TABLE ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE TEST_TABLE_PARTITIONED ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=INPLACE;
+
+TRUNCATE TABLE TEST_TABLE;
+TRUNCATE TABLE TEST_TABLE_PARTITIONED;
+DROP TABLE TEST_TABLE;
+DROP TABLE TEST_TABLE_PARTITIONED;
+
+# Test for ALGORITHM=INSTANT
+call create_tables();
+call add_columns('TEST_TABLE', 'INSTANT');
+call add_columns('TEST_TABLE_PARTITIONED', 'INSTANT');
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE TEST_TABLE ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE TEST_TABLE_PARTITIONED ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=INSTANT;
+
+TRUNCATE TABLE TEST_TABLE;
+TRUNCATE TABLE TEST_TABLE_PARTITIONED;
+DROP TABLE TEST_TABLE;
+DROP TABLE TEST_TABLE_PARTITIONED;
+
+# Test for ALGORITHM=COPY
+call create_tables();
+call add_columns('TEST_TABLE', 'COPY');
+call add_columns('TEST_TABLE_PARTITIONED', 'COPY');
+
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE TEST_TABLE ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=COPY;
+
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE TEST_TABLE_PARTITIONED ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=COPY;
+
+TRUNCATE TABLE TEST_TABLE;
+TRUNCATE TABLE TEST_TABLE_PARTITIONED;
+DROP TABLE TEST_TABLE;
+DROP TABLE TEST_TABLE_PARTITIONED;
+
+# Test for ALGORITHM=DEFAULT
+call create_tables();
+call add_columns('TEST_TABLE', 'DEFAULT');
+call add_columns('TEST_TABLE_PARTITIONED', 'DEFAULT');
+
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE TEST_TABLE ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=DEFAULT;
+
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE TEST_TABLE_PARTITIONED ADD I_VJ278 INTEGER NULL DEFAULT NULL, ALGORITHM=DEFAULT;
+
+TRUNCATE TABLE TEST_TABLE;
+TRUNCATE TABLE TEST_TABLE_PARTITIONED;
+DROP TABLE TEST_TABLE;
+DROP TABLE TEST_TABLE_PARTITIONED;
+
+# Cleanup
+DROP PROCEDURE create_tables;
+DROP PROCEDURE add_columns;

@@ -1,0 +1,320 @@
+# This test case demonstrates the relationship between NDB distributed users
+# and MySQL replication.
+# Some rules:
+#  - Any ACL change executed on a binlogging server will be written to the
+#    binlog there. This includes changes to a local users on the binlogging
+#    server, as well as changes to NDB_STORED_USER users on that cluster.
+#  - Setting SQL_LOG_BIN=0 before a change should prevent it from being
+#    written to the binlog. This includes a change to an NDB stored user
+#    issued on a non-binlogging server.
+#  - Setting log_replica_updates=0 should prevent ACL changes from being
+#    propagated.
+#  - Every ACL change should be correctly tagged in binlogs with the
+#    server_id of its origin server.
+
+#
+#  Cluster 1              Cluster 2
+#  ---------              ---------
+#     A   --> binlog -->     C   --> binlog ( log_replica_updates=0 )
+#     B                      D   --> binlog ( log_replica_updates=1 )
+#
+
+--source include/have_ndb.inc
+--let $rpl_topology= 1->3
+--source include/rpl_init.inc
+
+--connect(C, 127.0.0.1,root,,test,$MYSQL_C_PORT)
+
+# Test (1): a user with NDB_STORED_USER is replicated to cluster 2.
+# The user is created on server (A) and tested on servers (C) and (D).
+# Tests 1C and 1D test server_id propogation and log_replica_updates.
+# 1C: Check that the user is not written to (C)'s binlog.
+# 1D: Check that the user is written to (D)'s binlog with an origin server_id
+# matching (B).
+
+# Test (2): a user with NDB_STORED_USER is replicated to cluster 2.
+# The user is created on server (B) and tested on servers (A), (C) and (D).
+
+# Test (3): a local user (i.e. without NDB_STORED_USER) created on (A)
+# is replicated to (C) but not to (D)
+
+# Test (4): a local user created on (B) is not replicated to cluster 2.
+
+# Test (5): test sql_log_bin=0 on a binlogging server.
+# On server (A), sql_log_bin is set to 0, and then a user with
+# NDB_STORED_USER is created. Test to verify that the user has not been
+# replicated to server (C), but exists on (A) and (B).
+
+# Test (6): test sql_log_bin=0 on a non-binlogging server.
+# On server (B), sql_log_bin is set to 0, and then a user with
+# NDB_STORED_USER is created. Test to verify that the user has not been
+# replicated to server (C), but exists on (A) and (B).
+
+# Test (7) - Bug#33542052: Create user on (A) and test login from (C).
+# Then grant ndb_stored_user, and test login from (B). The user has a
+# randomly generated password, and the bug revolves around the possibility
+# of the IDENTIFIED WITH hashed password being corrupted in transit.
+
+connection default;
+echo;
+echo [Server A];
+CREATE DATABASE auth_test_db;
+USE auth_test_db;
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
+
+#
+# Test (1): a user with NDB_STORED_USER is replicated to cluster 2.
+# The user is created on server (A) and tested on servers (C) and (D).
+# Tests 1C and 1D test server_id propogation and log_replica_updates.
+# 1C: Check that the user is not written to (C)'s binlog.
+# 1D: Check that the user is written to (D)'s binlog with an origin server_id
+# matching (B).
+#
+connection default;
+echo;
+echo Test 1:;
+echo [Server A];
+CREATE USER 'ndb_u1'@'localhost' IDENTIFIED by 'pass1';
+GRANT SELECT ON t1 TO 'ndb_u1'@'localhost';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u1'@'localhost';
+INSERT INTO t1 VALUES(1,1);
+# Wait for replication. Note that the final statement before
+# sync_slave_with_master was just a normal DDL statement, not a schema change.
+# This is done as a workaround for a known race condition.
+sync_slave_with_master C;
+
+connect(C_test_user,127.0.0.1,ndb_u1,pass1,auth_test_db,$MYSQL_C_PORT,);
+connection C_test_user;
+echo [Connected to server C as ndb_u1];
+SELECT * FROM t1 ORDER BY pk;
+disconnect C_test_user;
+
+connect(D_test_user,127.0.0.1,ndb_u1,pass1,auth_test_db,$MYSQL_D_PORT,);
+connection D_test_user;
+echo [Connected to server D as ndb_u1];
+SELECT * FROM t1 ORDER BY pk;
+disconnect D_test_user;
+
+connection C;
+echo;
+echo [Test 1C: Server C binlog events];
+--echo  **   Expect log_replica_updates=0, and no binlog events
+SHOW VARIABLES LIKE 'log_replica_updates';
+--source include/show_binlog_events.inc
+
+connect(D_root,127.0.0.1,root,,,$MYSQL_D_PORT,);
+connection D_root;
+echo;
+echo [Test 1D: Server D binlog events];
+--echo  **   Expect 7 Query events: 1 CREATE USER, 1 REVOKE, 2 ALTERs, 3 GRANTs.
+--echo  **   These must have server_id = 1.
+--let $show_binlog_events_mask_columns= 1,2,5
+--let $mask_user_password_events= 1
+--let binlog_file= LAST
+# The LIMIT clause reflects six header events plus one row that show_binlog_events.inc
+# filters out for each of the 7 rows we are interested in.
+--let $binlog_limit= 6,14
+--source include/show_binlog_events.inc
+
+
+#
+# Test (2): a user with NDB_STORED_USER is replicated to cluster 2.
+# The user is created on server (B) and tested on servers (A), (C) and (D).
+#
+connect(B_root,127.0.0.1,root,,auth_test_db,$MYSQL_B_PORT,);
+connection B_root;
+echo;
+echo Test 2:;
+echo [Server B];
+CREATE USER 'ndb_u2'@'localhost' IDENTIFIED by 'pass2';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u2'@'localhost';
+GRANT SELECT ON t1 TO 'ndb_u2'@'localhost';
+INSERT INTO t1 VALUES(2,2);
+let $wait_timeout= 1;
+--source include/wait_for_ndb_committed_to_binlog.inc
+
+connect(A_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$MYSQL_A_PORT,);
+connection A_test_user;
+echo [Connected to Server A as ndb_u2];
+SELECT * FROM t1 ORDER BY pk;
+disconnect A_test_user;
+
+connection default;
+sync_slave_with_master C;
+
+connect(C_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$MYSQL_C_PORT,);
+connection C_test_user;
+echo [Connected to Server C as ndb_u2];
+SELECT * FROM t1 ORDER BY pk;
+disconnect C_test_user;
+
+connect(D_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$MYSQL_D_PORT,);
+connection D_test_user;
+echo [Connected to Server D as ndb_u2];
+SELECT * FROM t1 ORDER BY pk;
+disconnect D_test_user;
+
+
+#
+# Test (3): a local user (i.e. without NDB_STORED_USER) created on (A)
+# is replicated to (C) but not to (D)
+#
+connection default;
+echo;
+echo Test 3:;
+echo [Server A];
+CREATE USER 'local_user_1'@'localhost' IDENTIFIED BY 'local1';
+sync_slave_with_master C;
+
+connect(C_test_user,127.0.0.1,local_user_1,local1,test,$MYSQL_C_PORT,);
+connection C_test_user;
+echo [Connected to Server C as local_user_1];
+disconnect C_test_user;
+
+connection D_root;
+echo [Server D];
+error ER_CANNOT_USER;
+SHOW CREATE USER local_user_1@localhost;
+
+
+#
+# Test (4): a local user created on (B) is not replicated to the slave cluster.
+#
+connection B_root;
+echo;
+echo Test 4:;
+echo [Server B];
+CREATE USER local_user_2@b;
+
+connection default;
+echo [Server A];
+sync_slave_with_master C;
+
+connect(C_root,127.0.0.1,root,,test,$MYSQL_C_PORT,);
+connection C_root;
+echo [Server C];
+error ER_CANNOT_USER;
+SHOW CREATE USER local_user_2@b;
+
+
+# Test (5): On server (A), sql_log_bin is set to 0, and then a user with
+# NDB_STORED_USER is created. Test to verify that the user has not been
+# replicated to server (C), but exists on (A) and (B).
+#
+connection default;
+echo;
+echo Test 5:;
+echo [Server A];
+SET sql_log_bin=0;
+CREATE USER 'ndb_u5'@'localhost' IDENTIFIED by 'pass5';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u5'@'localhost';
+GRANT SELECT ON t1 TO 'ndb_u5'@'localhost';
+INSERT INTO t1 VALUES(3,3);
+SET sql_log_bin=1;
+sync_slave_with_master C;
+# Connection to (A) succeeds:
+connect(A_u5,127.0.0.1,ndb_u5,pass5,auth_test_db,$MYSQL_A_PORT,);
+disconnect A_u5;
+# Connection to (B) succeeds:
+connect(B_u5,127.0.0.1,ndb_u5,pass5,auth_test_db,$MYSQL_B_PORT,);
+disconnect B_u5;
+# Connection to (C) fails:
+disable_query_log;
+error ER_ACCESS_DENIED_ERROR;
+connect(should_fail,127.0.0.1,ndb_u5,pass5,auth_test_db,$MYSQL_C_PORT,);
+enable_query_log;
+
+# Test (6): On server (B), sql_log_bin is set to 0, and then a user with
+# NDB_STORED_USER is created. Test to verify that the user has not been
+# replicated to server (C), but exists on (A) and (B).
+connection B_root;
+echo;
+echo Test 6:;
+echo [Server B];
+SET sql_log_bin=0;
+CREATE USER 'ndb_u6'@'localhost' IDENTIFIED by 'pass6';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u6'@'localhost';
+GRANT SELECT ON t1 TO 'ndb_u6'@'localhost';
+INSERT INTO t1 VALUES(4,4);
+SET sql_log_bin=1;
+
+connection default;
+sync_slave_with_master C;
+# Connection to (A) succeeds:
+connect(A_u6,127.0.0.1,ndb_u6,pass6,auth_test_db,$MYSQL_A_PORT,);
+disconnect A_u6;
+# Connection to (B) succeeds:
+connect(B_u6,127.0.0.1,ndb_u6,pass6,auth_test_db,$MYSQL_B_PORT,);
+disconnect B_u6;
+# Connection to (C) fails:
+disable_query_log;
+error ER_ACCESS_DENIED_ERROR;
+connect(should_fail,127.0.0.1,ndb_u6,pass6,auth_test_db,$MYSQL_C_PORT,);
+enable_query_log;
+
+# Test (7)
+# Bug#33542052 grant ndb_stored_user alters user with wrong hash
+# Create user on (A), test login from (C),
+# then grant ndb_stored_user, then test login from (B)
+
+connection default;
+echo;
+echo Test 7:;
+echo [Server A];
+echo Creating user u7 with random password;
+let $u7pass=`SELECT concat(char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1)) as p`;
+disable_query_log ONCE;
+eval create user 'u7'@'127.%'
+  identified with caching_sha2_password by "$u7pass"
+  with max_user_connections 10;
+GRANT SELECT ON t1 TO 'u7'@'127.%';
+sync_slave_with_master C;
+
+connect(C_u7,127.0.0.1,u7,$u7pass,auth_test_db,$MYSQL_C_PORT,);
+connection C_u7;
+echo [Server C];
+select current_user(), @@server_id;
+disconnect C_u7;
+
+connection default;
+echo [Server A];
+GRANT ndb_stored_user on *.* to u7@'127.%';
+select current_user(), @@server_id;
+
+connect(B_u7,127.0.0.1,u7,$u7pass,auth_test_db,$MYSQL_B_PORT,);
+connection B_u7;
+echo [Server B];
+select current_user(), @@server_id;
+disconnect B_u7;
+
+# Cleanup
+
+connection default;
+echo;
+echo Cleanup:;
+SET sql_log_bin=1;
+drop user local_user_1@localhost;
+drop user ndb_u1@localhost;
+drop user ndb_u2@localhost;
+drop user if exists ndb_u5@localhost;
+drop user if exists ndb_u6@localhost;
+drop user if exists u7@'127.%';
+drop table t1;
+drop database auth_test_db;
+sync_slave_with_master C;
+
+connection B_root;
+drop user local_user_2@b;
+
+connection D_root;
+FLUSH BINARY LOGS;   # so that the test can be run with --repeat
+
+--source include/rpl_end.inc

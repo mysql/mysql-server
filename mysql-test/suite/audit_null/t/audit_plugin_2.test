@@ -610,6 +610,23 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
 SELECT * FROM audit_temp_table;
 SELECT @@null_audit_event_order_check;
 
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_regex /;command_id="[0-9]+"/;command_id="<expected_command_id>"/
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="51";;'
+                                          'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="test_table";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="51";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                          'MYSQL_AUDIT_COMMAND_END;command_id="$command_end_id";';
+ANALYZE TABLE test_table UPDATE HISTOGRAM ON a;
+SELECT @@null_audit_event_order_check;
+ANALYZE TABLE test_table DROP HISTOGRAM ON a;
+
 --echo ###########################
 --echo ## TABLE_ACCESS - INSERT ##
 --echo ###########################

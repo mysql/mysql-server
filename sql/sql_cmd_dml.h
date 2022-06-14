@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,10 @@
 #ifndef SQL_CMD_DML_INCLUDED
 #define SQL_CMD_DML_INCLUDED
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/sql_cmd.h"
+#include "sql/sql_prepare.h"
 
 struct LEX;
 class Query_result;
@@ -41,23 +43,63 @@ class Sql_cmd_dml : public Sql_cmd {
 
     @returns false on success, true on error
   */
-  virtual bool prepare(THD *thd);
+  bool prepare(THD *thd) override;
 
   /**
-    Execute this query once.
+    Execute a DML statement.
 
-    @param thd Thread handler
+    @param thd       thread handler
 
-    @returns false on success, true on error
-  */
-  virtual bool execute(THD *thd);
+    @returns false if success, true if error
 
-  virtual bool is_dml() const { return true; }
+    @details
+      Processing a statement goes through 6 phases (parsing is already done)
+       - Prelocking
+       - Preparation
+       - Locking of tables
+       - Optimization
+       - Execution or explain
+       - Cleanup
 
-  virtual bool is_single_table_plan() const { return false; }
+      If the statement is already prepared, this step is skipped.
+
+      The queries handled by this function are:
+
+      SELECT
+      INSERT ... SELECT
+      INSERT ... VALUES
+      REPLACE ... SELECT
+      REPLACE ... VALUES
+      UPDATE (single-table and multi-table)
+      DELETE (single-table and multi-table)
+      DO
+
+    @todo make this function also handle SET.
+   */
+  bool execute(THD *thd) override;
+
+  bool is_dml() const override { return true; }
+
+  virtual bool may_use_cursor() const { return false; }
+
+  bool is_single_table_plan() const override { return false; }
+
+  /// @return the query result associated with a prepared query
+  Query_result *query_result() const;
+
+  /// Set query result object for this query statement
+  void set_query_result(Query_result *result);
+
+  /// Signal that root result object needs preparing in next execution
+  void set_lazy_result() { m_lazy_result = true; }
 
  protected:
-  Sql_cmd_dml() : Sql_cmd(), lex(NULL), result(NULL), m_empty_query(false) {}
+  Sql_cmd_dml()
+      : Sql_cmd(),
+        lex(nullptr),
+        result(nullptr),
+        m_empty_query(false),
+        m_lazy_result(false) {}
 
   /// @return true if query is guaranteed to return no data
   /**
@@ -66,7 +108,7 @@ class Sql_cmd_dml : public Sql_cmd {
           - Check empty query expression for INSERT
   */
   bool is_empty_query() const {
-    DBUG_ASSERT(is_prepared());
+    assert(is_prepared());
     return m_empty_query;
   }
 
@@ -84,16 +126,47 @@ class Sql_cmd_dml : public Sql_cmd {
     is later used during checking of column privileges.
     Note that at preparation time, views are not expanded yet. Privilege
     checking is thus rudimentary and must be complemented with later calls to
-    SELECT_LEX::check_view_privileges().
+    Query_block::check_view_privileges().
     The reason to call this function at such an early stage is to be able to
     quickly reject statements for which the user obviously has insufficient
     privileges.
+    This function is called before preparing the statement.
+    The function must also be complemented with proper privilege checks for all
+    involved columns (e.g. check_column_grant_*).
+    @see also the function comment of Query_block::prepare().
+    During execution of a prepared statement, call check_privileges() instead.
 
     @param thd thread handler
 
     @returns false if success, true if false
   */
   virtual bool precheck(THD *thd) = 0;
+
+  /**
+    Check privileges on a prepared statement, called at start of execution
+    of the statement.
+
+    @details
+    Check that user has all relevant privileges to the statement,
+    ie. INSERT privilege for columns inserted into, UPDATE privilege
+    for columns that are updated, DELETE privilege for tables that are
+    deleted from, SELECT privilege for columns that are referenced, etc.
+
+    @param thd thread handler
+
+    @returns false if success, true if false
+  */
+  virtual bool check_privileges(THD *thd) = 0;
+
+  /**
+    Read and check privileges for all tables in a DML statement.
+
+    @param thd thread handler
+
+    @returns false if success, true if false
+
+  */
+  bool check_all_table_privileges(THD *thd);
 
   /**
     Perform the command-specific parts of DML command preparation,
@@ -115,10 +188,31 @@ class Sql_cmd_dml : public Sql_cmd {
   */
   virtual bool execute_inner(THD *thd);
 
+  /**
+    Restore command properties before execution
+    - Bind metadata for tables and fields
+    - Restore clauses (e.g ORDER BY, GROUP BY) that were destroyed in
+      last optimization.
+  */
+  virtual bool restore_cmd_properties(THD *thd);
+
+  /// Save command properties, such as prepared query details and table props
+  virtual bool save_cmd_properties(THD *thd);
+
+  /**
+    Helper function that checks if the command is eligible for secondary engine
+    and if that's true returns the name of that eligible secondary storage
+    engine.
+
+    @return nullptr if not eligible or the name of the engine otherwise
+  */
+  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine() const;
+
  protected:
   LEX *lex;              ///< Pointer to LEX for this statement
   Query_result *result;  ///< Pointer to object for handling of the result
   bool m_empty_query;    ///< True if query will produce no rows
+  bool m_lazy_result;    ///< True: prepare query result on next execution
 };
 
 #endif /* SQL_CMD_DML_INCLUDED */

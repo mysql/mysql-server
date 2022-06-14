@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ Buffered_file_io::Buffered_file_io(ILogger *logger,
   else
     for (auto const &version : *versions) {
       auto checker = checker_factory.getCheckerForVersion(version);
-      DBUG_ASSERT(checker != nullptr);
+      assert(checker != nullptr);
       checkers.push_back(std::move(checker));
     }
 }
@@ -98,9 +98,8 @@ std::string *Buffered_file_io::get_backup_filename() {
 
   @param backup_file - handle to opened backup file (output)
 
-  @return
-    @retval false - backup handle was successfully passed via parameter
-    @retval true  - backup file could not be opened (probably missing)
+  @retval false - backup handle was successfully passed via parameter
+  @retval true  - backup file could not be opened (probably missing)
 */
 bool Buffered_file_io::open_backup_file(File *backup_file) {
   // try opening backup file
@@ -117,9 +116,8 @@ bool Buffered_file_io::open_backup_file(File *backup_file) {
   @param file         - file handle of keyring file
   @param file_size    - size of the keyring file
 
-  @return
-    @retval false     - keyring file has valid structure
-    @retval true      - keyring file does not have valid structure
+  @retval false     - keyring file has valid structure
+  @retval true      - keyring file does not have valid structure
 */
 bool Buffered_file_io::check_file_structure(File file, size_t file_size) {
   // check whether keyring file structure matches any of rules
@@ -139,9 +137,8 @@ bool Buffered_file_io::check_file_structure(File file, size_t file_size) {
   @param file       - file handle of keyring file
   @param buffer     - serializable object to store file content to
 
-  @return
-    @retval false   - file is loaded into buffer, or is empty
-    @retval true    - an error has occurred during buffer loading
+  @retval false   - file is loaded into buffer, or is empty
+  @retval true    - an error has occurred during buffer loading
 */
 bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer) {
   // position ourselves at file end, leave on failure
@@ -173,7 +170,7 @@ bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer) {
     // do we have file format mismatch
     if (file_arch != native_arch) {
       // load data to temp buffer
-      std::unique_ptr<uchar> tmp(new uchar[input_buffer_size]);
+      auto tmp = std::make_unique<uchar[]>(input_buffer_size);
       if (file_io.read(file, tmp.get(), input_buffer_size, MYF(MY_WME)) !=
           input_buffer_size)
         return true;
@@ -210,9 +207,8 @@ bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer) {
   - backup file has to exist and have a good structure
   - backup file is always erased after the procedure
 
-  @return
-    @retval false - we successfully restored from backup, or no backup
-    @retval true  - we encountered an error while trying to restore
+  @retval false - we successfully restored from backup, or no backup
+  @retval true  - we encountered an error while trying to restore
 */
 bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
   // try opening backup file
@@ -262,9 +258,8 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
   checks if keyring file exists, whether empty or not
   - if keyring file is empty, it shall be deleted
 
-  @return
-    @retval false   - keyring file can be opened for appending
-    @retval true    - file I/O error (unreadable, missing...)
+  @retval false   - keyring file can be opened for appending
+  @retval true    - file I/O error (unreadable, missing...)
 */
 bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created() {
   // Check if the file exists
@@ -301,13 +296,12 @@ bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created() {
 
   @param keyring_filename - file name of the keyring file to initialize
 
-  @return
-    @retval true      - there was an error with initializing keyring file
-    @retval false     - keyring file has been initialized successfully
+  @retval true      - there was an error with initializing keyring file
+  @retval false     - keyring file has been initialized successfully
 */
 bool Buffered_file_io::init(std::string *keyring_filename) {
   // file name can't be empty
-  DBUG_ASSERT(keyring_filename->empty() == false);
+  assert(keyring_filename->empty() == false);
 
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
@@ -329,9 +323,8 @@ bool Buffered_file_io::init(std::string *keyring_filename) {
   @param buffer_digest    - file digest sum
   @param file             - handle of file to store keys to
 
-  @return
-    @retval false         - buffer content successfully copied to file
-    @retval true          - errors occurred during file I/O
+  @retval false         - buffer content successfully copied to file
+  @retval true          - errors occurred during file I/O
 */
 bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
                                             Digest *buffer_digest, File file) {
@@ -356,8 +349,9 @@ bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
                     MYF(MY_WME)) == file_version.length() &&
       file_io.write(file, data, data_size, MYF(MY_WME)) == data_size &&
       file_io.write(
-          file, reinterpret_cast<const uchar *>(Checker::eofTAG.c_str()),
-          Checker::eofTAG.length(), MYF(MY_WME)) == Checker::eofTAG.length() &&
+          file, reinterpret_cast<const uchar *>(Checker::get_eofTAG().c_str()),
+          Checker::get_eofTAG().length(),
+          MYF(MY_WME)) == Checker::get_eofTAG().length() &&
       file_io.write(file, reinterpret_cast<const uchar *>(buffer_digest->value),
                     SHA256_DIGEST_LENGTH, MYF(0)) == SHA256_DIGEST_LENGTH)
     return false;
@@ -372,9 +366,8 @@ bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
 
   @param keyring_file     - file handle of keyring file
 
-  @return
-    @retval false   - keyring file structure is valid
-    @retval true    - keyring file structure is invalid
+  @retval false   - keyring file structure is valid
+  @retval true    - keyring file structure is invalid
 */
 bool Buffered_file_io::check_keyring_file_structure(File keyring_file) {
   // if file is missing - either we are currently creating new one, which is ok
@@ -402,9 +395,8 @@ bool Buffered_file_io::check_keyring_file_structure(File keyring_file) {
 
   @param serialized_object - object holding keys to be backed-up
 
-  @return
-    @retval false - keys from serialized object were stored to backup
-    @retval true  - error occurred during keys backup
+  @retval false - keys from serialized object were stored to backup
+  @retval true  - error occurred during keys backup
 */
 bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
   // First open backup file then check keyring file. This way we make sure that
@@ -440,7 +432,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
 
   // upcast serialized object to buffer, verify result
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
+  assert(buffer != nullptr);
 
   // calculate digest sum of buffer
   Digest buffer_digest;
@@ -450,7 +442,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
   DBUG_EXECUTE_IF("keyring_file_backup_fail", DBUG_SUICIDE(););
 
   // store buffer to backup file and close it, leave on error
-  return buffer == NULL ||
+  return buffer == nullptr ||
          flush_buffer_to_file(buffer, &buffer_digest, backup_file) ||
          file_io.close(backup_file, MYF(MY_WME)) < 0;
 }
@@ -460,9 +452,8 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
 
   @param my_flags - flags to be used during file removal
 
-  @return
-    @retval false - backup file was successfully removed
-    @retval true  - backup file removal failed
+  @retval false - backup file was successfully removed
+  @retval true  - backup file removal failed
 */
 bool Buffered_file_io::remove_backup(myf my_flags) {
   return file_io.remove(get_backup_filename()->c_str(), my_flags);
@@ -474,9 +465,8 @@ bool Buffered_file_io::remove_backup(myf my_flags) {
   @param buffer    - object with serialized key to store
   @param file      - handle of file to store keys to
 
-  @return
-    @retval false  - buffer was successfully stored to a file
-    @retval true   - there was an error during procedure
+  @retval false  - buffer was successfully stored to a file
+  @retval true   - there was an error during procedure
 */
 bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file) {
   // clear file content and go to start of file, leave on error
@@ -502,14 +492,13 @@ bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file) {
 
   @param serialized_object - object holding keys to be stored
 
-  @return
-    @retval false - keys from serialized object were stored to keyring file
-    @retval true  - error occurred during store operation
+  @retval false - keys from serialized object were stored to keyring file
+  @retval true  - error occurred during store operation
 */
 bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object) {
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
-  DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
+  assert(buffer != nullptr);
+  assert(serialized_object->get_key_operation() != NONE);
 
   // open keyring file
   File keyring_file =
@@ -573,7 +562,7 @@ bool Buffered_file_io::get_serialized_object(
   if (load_file_into_buffer(file, buffer.get())) {
     // didn't work - close file and pass a null pointer
     file_io.close(file, MYF(MY_WME));
-    *serialized_object = NULL;
+    *serialized_object = nullptr;
     return true;
   }
 
@@ -581,7 +570,7 @@ bool Buffered_file_io::get_serialized_object(
   if (file_io.close(file, MYF(MY_WME)) < 0) return true;
 
   // if there were no keys in keyring file, we reset it
-  if (buffer->size == 0) buffer.reset(NULL);
+  if (buffer->size == 0) buffer.reset(nullptr);
 
   // pass buffer memory to the caller
   *serialized_object = buffer.release();
@@ -591,9 +580,8 @@ bool Buffered_file_io::get_serialized_object(
 /**
   (override) verifies if there is more serialized objects in I/O object
 
-  @return
-    @retval true  - there is at least one more serialized object to get
-    @retval false - there is no more serialized objects to get
+  @retval true  - there is at least one more serialized object to get
+  @retval false - there is no more serialized objects to get
 */
 bool Buffered_file_io::has_next_serialized_object() {
   // Buffered_file_io implementation uses a single serialized object

@@ -47,11 +47,11 @@ RIGHT OUTER JOIN t3 AS als4 ON (als1.f3 = als4.f2)
 SET als1.f4 = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc'
 WHERE ('i','b') IN (SELECT f3, f1 FROM t2 WHERE f2 <> f2 AND als2.f2 IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Warning	3126	Hint JOIN_FIXED_ORDER( ) is ignored as conflicting/duplicated
 Note	1276	Field or reference 'test.als2.f2' of SELECT #2 was resolved in SELECT #1
-Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`als1`,`als3`) */ `test`.`t3` `als4` left join (`test`.`t3` `als1` join `test`.`t1` `als2` join `test`.`t1` `als3`) on(((`test`.`als1`.`f3` = `test`.`als4`.`f2`) and multiple equal(`test`.`als1`.`f1`, `test`.`als3`.`f3`) and multiple equal(`test`.`als1`.`f3`, `test`.`als2`.`f1`))) semi join (`test`.`t2`) set `test`.`als1`.`f4` = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc' where ((`test`.`t2`.`f2` <> `test`.`t2`.`f2`) and (`test`.`als2`.`f2` is null) and multiple equal('i', `test`.`t2`.`f3`) and multiple equal('b', `test`.`t2`.`f1`))
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`als1`,`als3`) */ `test`.`t3` `als4` left join (`test`.`t3` `als1` join `test`.`t1` `als2` join `test`.`t1` `als3`) on(((`test`.`als1`.`f3` = `test`.`als4`.`f2`) and multiple equal(`test`.`als1`.`f1`, `test`.`als3`.`f3`) and multiple equal(`test`.`als1`.`f3`, `test`.`als2`.`f1`))) semi join (`test`.`t2`) set `test`.`als1`.`f4` = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc' where false
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(
 f1 VARCHAR(1)) ENGINE=myisam;

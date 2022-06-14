@@ -25,14 +25,14 @@ if (`SELECT '$state_info' <> ''`)
 
 if (`SELECT '$state_thd_name' = ''`)
 {
-  if (`SELECT @@slave_parallel_workers > 0`)
+  if (`SELECT @@replica_parallel_workers > 0`)
   {
-    --let $_stage_thd_name="thread/sql/slave_worker"
+    --let $_stage_thd_name="thread/sql/replica_worker"
   }
 
-  if (`SELECT @@slave_parallel_workers = 0`)
+  if (`SELECT @@replica_parallel_workers = 0`)
   {
-   --let $_stage_thd_name="thread/sql/slave_sql"
+   --let $_stage_thd_name="thread/sql/replica_sql"
   }
 }
 

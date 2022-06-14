@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,8 +86,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // GRANT_ACL
 #include "sql/handler.h"
-#include "sql/log_event.h"  // append_query_string
-#include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
+#include "sql/log_event.h"    // append_query_string
+#include "sql/rpl_replica.h"  // SLAVE_SQL, SLAVE_IO
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"  // Sql_cmd_clone
 #include "sql/sql_class.h"  // THD
@@ -101,7 +101,7 @@
 #include "sql_string.h"  // String
 #include "violite.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define HASH_STRING_WITH_QUOTE \
   "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
@@ -182,16 +182,32 @@ bool append_str(String *str, bool comma, const char *key, const char *val) {
 */
 void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
                     String *str) {
-  DBUG_ASSERT(thd && str);
+  assert(thd);
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_host(user->host.str, user->host.length, system_charset_info);
   if (comma) str->append(',');
-  append_query_string(const_cast<THD *>(thd), system_charset_info, &from_user,
-                      str);
+  append_query_string(thd, system_charset_info, &from_user, str);
   str->append(STRING_WITH_LEN("@"));
-  append_query_string(const_cast<THD *>(thd), system_charset_info, &from_host,
-                      str);
+  append_query_string(thd, system_charset_info, &from_host, str);
 }
+
+/**
+  Append the authorization id for the user. This quotes auth_id with ` or "
+  based on the sql_mode set.
+
+  @param [in]       thd     The THD to find the SQL mode
+  @param [in]       user    LEX User to retrieve the plugin string
+  @param [in]       comma   Separator to be prefixed before adding user info
+  @param [in, out]  str     The string in which authID is suffixed
+*/
+void append_auth_id_identifier(const THD *thd, const LEX_USER *user, bool comma,
+                               String *str) {
+  assert(thd);
+  if (comma) str->append(',');
+  append_auth_id_string(thd, user->user.str, user->user.length, user->host.str,
+                        user->host.length, str);
+}
+
 /**
   Used with List<>::sort for alphabetic sorting of LEX_USER records
   using user,host as keys.
@@ -199,9 +215,8 @@ void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
   @param l1 A LEX_USER element
   @param l2 A LEX_USER element
 
-  @return
-    @retval 1 if n1 &gt; n2
-    @retval 0 if n1 &lt;= n2
+  @retval 1 if n1 &gt; n2
+  @retval 0 if n1 &lt;= n2
 */
 int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
   size_t length = std::min(l1->user.length, l2->user.length);
@@ -218,21 +233,26 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
 }
 /**
   Util method which does the real rewrite of the SQL statment.
-  If Rewriter is available for the specified SQL command then
-  thd->rewritten_query is updated.
+  If a Rewriter is available for the specified SQL command then
+  the rewritten query will be stored in the String rlb; otherwise,
+  the string will just be cleared.
 
-  @param thd        The THD to rewrite for.
-  @param type       Purpose of rewriting the query
-  @param params     Wrapper object of parameters in case needed by a SQL
-                    rewriter.
-  @return
-    @retval true    If the Query is re-written.
-    @retval false   Otherwise
+  @param         thd     The THD to rewrite for.
+  @param         type    Purpose of rewriting the query
+  @param         params  Wrapper object of parameters in case needed by a SQL
+                         rewriter.
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+                         Will be empty if no rewriting happened.
+  @retval        true    If the Query is re-written.
+  @retval        false   Otherwise
 */
-bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
-  DBUG_ENTER("rewrite_query");
+bool rewrite_query(THD *thd, Consumer_type type, const Rewrite_params *params,
+                   String &rlb) {
+  DBUG_TRACE;
   std::unique_ptr<I_rewriter> rw = nullptr;
   bool rewrite = false;
+
+  rlb.length(0);
 
   switch (thd->lex->sql_command) {
     case SQLCOM_GRANT:
@@ -254,10 +274,10 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
       rw.reset(new Rewriter_show_create_user(thd, type, params));
       break;
     case SQLCOM_CHANGE_MASTER:
-      rw.reset(new Rewriter_change_master(thd, type));
+      rw.reset(new Rewriter_change_replication_source(thd, type));
       break;
     case SQLCOM_SLAVE_START:
-      rw.reset(new Rewriter_slave_start(thd, type));
+      rw.reset(new Rewriter_replica_start(thd, type));
       break;
     case SQLCOM_CREATE_SERVER:
       rw.reset(new Rewriter_create_server(thd, type));
@@ -282,28 +302,39 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
     case SQLCOM_PREPARE:
       rw.reset(new Rewriter_prepare(thd, type));
       break;
+    case SQLCOM_START_GROUP_REPLICATION:
+      rw.reset(new Rewriter_start_group_replication(thd, type));
+      break;
     case SQLCOM_CLONE: {
-      auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(thd->lex->m_sql_cmd);
-      clone_cmd->rewrite(thd);
+      rw.reset(new Rewriter_clone(thd, type));
       break;
     }
     default: /* unhandled query types are legal. */
       break;
   }
-  if (rw) rewrite = rw->rewrite();
+  if (rw) rewrite = rw->rewrite(rlb);
 
-  DBUG_RETURN(rewrite);
+  return rewrite;
 }
 }  // anonymous namespace
 
 /**
   Provides the default interface to rewrite the SQL statements to
   to obfuscate passwords.
-  It either sets the thd->rewritten_query with a rewritten query,
-  or clears it if no rewriting took place.
+
   The query aimed to be rewritten in the usual log files
   (i.e. General, slow query and audit log) uses default value of
   type which is Consumer_type::LOG
+
+   Side-effects:
+
+   - thd->m_rewritten_query will contain a rewritten query,
+     or be cleared if no rewriting took place.
+     LOCK_thd_query will be temporarily acquired to make that change.
+
+   @note Keep in mind that these side-effects will only happen when
+         calling this top-level function, but not when calling
+         individual sub-functions directly!
 
   @param thd        The THD to rewrite for.
   @param type       Purpose of rewriting the query
@@ -318,20 +349,28 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
                       rewriter.
 */
 void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
-                         Rewrite_params *params /*= nullptr*/) {
-  DBUG_ENTER("mysql_rewrite_query");
-  DBUG_ASSERT(thd);
-  String *rlb = &thd->rewritten_query;
-  rlb->mem_free();
-  if (thd->lex->contains_plaintext_password) {
-    rewrite_query(thd, type, params);
+                         const Rewrite_params *params /*= nullptr*/) {
+  String rlb;
+
+  DBUG_TRACE;
+  assert(thd);
+
+  // We should not come through here twice for the same query.
+  assert(thd->rewritten_query().length() == 0);
+
+  if (thd->lex->contains_plaintext_password ||
+      thd->lex->is_rewrite_required()) {
+    rewrite_query(thd, type, params, rlb);
+    if (rlb.length() > 0) thd->swap_rewritten_query(rlb);
+    // The previous rewritten query is in rlb now, which now goes out of scope.
   }
-  DBUG_VOID_RETURN;
 }
 /**
   Provides the default interface to rewrite the ACL query.
 
   @param thd        The THD to rewrite for.
+  @param rlb        Buffer to return rewritten query in (if any) if
+                    do_ps_instrument is false.
   @param type       Purpose of rewriting the query
                      Consumer_type::LOG
                       To rewrite the query either for general, slow query
@@ -344,24 +383,30 @@ void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
                       rewriter.
   @param do_ps_instrument flag to indicate if the query has to be instrumented
                           in the PSI. Default value is true.
+                          If instrumented, the previous
 */
-void mysql_rewrite_acl_query(THD *thd, Consumer_type type,
-                             Rewrite_params *params /* = nullptr */,
+void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
+                             const Rewrite_params *params /* = nullptr */,
                              bool do_ps_instrument /* = true */) {
-  if (rewrite_query(thd, type, params) && thd->rewritten_query.length() &&
+  if (rewrite_query(thd, type, params, rlb) && (rlb.length() > 0) &&
       do_ps_instrument) {
-    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                             thd->rewritten_query.c_ptr_safe(),
-                             thd->rewritten_query.length());
+    thd->swap_rewritten_query(rlb);
+    thd->set_query_for_display(thd->rewritten_query().ptr(),
+                               thd->rewritten_query().length());
+    /*
+      rlb now contains the previous rewritten query.
+      We clear it here both to save memory and to prevent possible confusion.
+    */
+    rlb.mem_free();
   }
 }
 
 I_rewriter::I_rewriter(THD *thd, Consumer_type type)
     : m_thd(thd), m_consumer_type(type) {
-  DBUG_ASSERT(thd);
+  assert(thd);
 }
 
-I_rewriter::~I_rewriter() {}
+I_rewriter::~I_rewriter() = default;
 /**
   Reset the previous consumer type.
 
@@ -381,24 +426,72 @@ Rewriter_user::Rewriter_user(THD *thd, Consumer_type type)
     : I_rewriter(thd, type) {}
 /**
   Appends the essential clauses for SHOW CREATE|CREATE|ALTER USER statements
-  in the thd->rewritten_query string.
+  in the buffer rlb.
 
-  @retval false Since it does the partial query rewrite.
-                Must be called through derived classes rewrite().
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        false   Since it does the partial query rewrite.
+                         Must be called through derived classes rewrite().
 */
-bool Rewriter_user::rewrite() const {
+bool Rewriter_user::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-
-  rewrite_ssl_properties(lex, rlb);
-  rewrite_user_resources(lex, rlb);
-  rewrite_password_expired(lex, rlb);
-  rewrite_account_lock(lex, rlb);
-  rewrite_password_history(lex, rlb);
-  rewrite_password_reuse(lex, rlb);
-  rewrite_password_require_current(lex, rlb);
+  rewrite_users(lex, &rlb);
+  rewrite_default_roles(lex, &rlb);
+  rewrite_ssl_properties(lex, &rlb);
+  rewrite_user_resources(lex, &rlb);
+  rewrite_password_expired(lex, &rlb);
+  rewrite_account_lock(lex, &rlb);
+  rewrite_password_history(lex, &rlb);
+  rewrite_password_reuse(lex, &rlb);
+  rewrite_password_require_current(lex, &rlb);
+  rewrite_account_lock_state(lex, &rlb);
+  rewrite_user_application_user_metadata(lex, &rlb);
   return false;
 }
+
+/**
+  Use the LEX for reconstructing the ATTRIBUTE or COMMENT clause.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_user::rewrite_in_memory_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  if (lex->alter_user_attribute ==
+      enum_alter_user_attribute::ALTER_USER_ATTRIBUTE) {
+    str->append(" ATTRIBUTE '");
+  } else if (lex->alter_user_attribute ==
+             enum_alter_user_attribute::ALTER_USER_COMMENT) {
+    str->append(" COMMENT '");
+  }
+  if (lex->alter_user_attribute !=
+      enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
+    str->append(lex->alter_user_comment_text);
+    str->append("'");
+  }
+}
+
+/**
+  Default implementaiton of the the rewriter for user applicatiton
+  user metadata.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_create_user::rewrite_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  parent::rewrite_in_memory_user_application_user_metadata(lex, str);
+}
+
+/**
+  Default implementaiton of the the rewriter for user applicatiton
+  user metadata.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_alter_user::rewrite_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  parent::rewrite_in_memory_user_application_user_metadata(lex, str);
+}
+
 /**
   Append the literal \<secret\> in place of password to the output string
 
@@ -415,7 +508,9 @@ void Rewriter_user::append_literal_secret(String *str) const {
 */
 
 void Rewriter_user::append_auth_str(LEX_USER *user, String *str) const {
-  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+  String from_auth(user->first_factor_auth_info.auth.str,
+                   user->first_factor_auth_info.auth.length,
+                   system_charset_info);
   append_query_string(m_thd, system_charset_info, &from_auth, str);
 }
 /**
@@ -455,7 +550,7 @@ void Rewriter_user::rewrite_ssl_properties(const LEX *lex, String *str) const {
         str->append(STRING_WITH_LEN(" NONE"));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -545,9 +640,33 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
       // Do nothing
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
+
+/**
+  Append the account lock state
+
+  Append FAILED_LOGIN_ATTEMPTS/PASSWORD_LOCK_TIME if account auto-lock
+  is active.
+
+  @param [in]       lex     LEX to retrieve data from
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::rewrite_account_lock_state(LEX *lex, String *str) const {
+  if (lex->alter_password.update_failed_login_attempts) {
+    append_int(str, false, STRING_WITH_LEN(" FAILED_LOGIN_ATTEMPTS"),
+               lex->alter_password.failed_login_attempts, true);
+  }
+  if (lex->alter_password.update_password_lock_time) {
+    if (lex->alter_password.password_lock_time >= 0)
+      append_int(str, false, STRING_WITH_LEN(" PASSWORD_LOCK_TIME"),
+                 lex->alter_password.password_lock_time, true);
+    else
+      str->append(STRING_WITH_LEN(" PASSWORD_LOCK_TIME UNBOUNDED"));
+  }
+}
+
 /**
   Append the authentication plugin name for the user
 
@@ -557,8 +676,9 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
 void Rewriter_user::append_plugin_name(const LEX_USER *user,
                                        String *str) const {
   str->append(STRING_WITH_LEN(" WITH "));
-  if (user->plugin.length > 0) {
-    String from_plugin(user->plugin.str, user->plugin.length,
+  if (user->first_factor_auth_info.plugin.length > 0) {
+    String from_plugin(user->first_factor_auth_info.plugin.str,
+                       user->first_factor_auth_info.plugin.length,
                        system_charset_info);
     append_query_string(m_thd, system_charset_info, &from_plugin, str);
   } else {
@@ -566,6 +686,41 @@ void Rewriter_user::append_plugin_name(const LEX_USER *user,
     String default_plugin(def_plugin_name.c_str(), def_plugin_name.length(),
                           system_charset_info);
     append_query_string(m_thd, system_charset_info, &default_plugin, str);
+  }
+}
+
+/**
+  Append the authentication plugin name from LEX_MFA for the user
+
+  @param [in]       user    User to retrieve the plugin string
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::append_mfa_plugin_name(const LEX_MFA *user,
+                                           String *str) const {
+  if (user->plugin.length > 0) {
+    str->append(STRING_WITH_LEN(" WITH "));
+    String from_plugin(user->plugin.str, user->plugin.length,
+                       system_charset_info);
+    append_query_string(m_thd, system_charset_info, &from_plugin, str);
+  }
+}
+
+/**
+  Append the authentication string from LEX_MFA for the user
+
+  @param [in]       user    User to retrieve the plugin string
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::append_mfa_auth_str(const LEX_MFA *user,
+                                        String *str) const {
+  if (user->uses_identified_by_clause &&
+      m_consumer_type == Consumer_type::TEXTLOG) {
+    str->append(STRING_WITH_LEN(" BY "));
+    append_literal_secret(str);
+  } else if (user->auth.length > 0) {
+    str->append(STRING_WITH_LEN(" AS "));
+    String auth_str(user->auth.str, user->auth.length, system_charset_info);
+    append_query_string(m_thd, system_charset_info, &auth_str, str);
   }
 }
 /**
@@ -600,11 +755,12 @@ void Rewriter_user::rewrite_password_reuse(const LEX *lex, String *str) const {
     str->append(STRING_WITH_LEN(" DAY"));
   }
 }
+
 /**
   Fetch the users from user_list in LEX struct and append them to the String.
 
-  @param [in]       lex
-  @param [in, out]  str
+  @param [in]       lex     LEX struct to check if clause is specified
+  @param [in, out]  str     The string in which clause is suffixed
 */
 void Rewriter_user::rewrite_users(LEX *lex, String *str) const {
   bool comma = false;
@@ -618,25 +774,45 @@ void Rewriter_user::rewrite_users(LEX *lex, String *str) const {
   }
 }
 
+/**
+  Append the DEFAULT ROLE clause for users iff it is specified
+
+  @param [in]       lex     LEX struct to check if clause is specified
+  @param [in, out]  str     The string in which clause is suffixed
+*/
+void Rewriter_user::rewrite_default_roles(const LEX *lex, String *str) const {
+  bool comma = false;
+  if (lex->default_roles && lex->default_roles->elements > 0) {
+    str->append(" DEFAULT ROLE ");
+    lex->default_roles->sort(&lex_user_comp);
+    List_iterator<LEX_USER> role_it(*(lex->default_roles));
+    LEX_USER *role;
+    while ((role = role_it++)) {
+      if (comma) str->append(',');
+      str->append(create_authid_str_from(role).c_str());
+      comma = true;
+    }
+  }
+}
+
 Rewriter_create_user::Rewriter_create_user(THD *thd, Consumer_type type)
     : Rewriter_user(thd, type) {}
 
 /**
   Rewrite the query for the CREATE USER statement.
 
-  @retval true  the query is rewritten
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    The query was rewritten.
 */
-bool Rewriter_create_user::rewrite() const {
+bool Rewriter_create_user::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
-  rlb->append("CREATE USER ");
+  rlb.append("CREATE USER ");
 
   if (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    rlb->append("IF NOT EXISTS ");
+    rlb.append("IF NOT EXISTS ");
 
-  rewrite_users(lex, rlb);
-  parent::rewrite();
+  parent::rewrite(rlb);
   return true;
 }
 /**
@@ -653,21 +829,53 @@ bool Rewriter_create_user::rewrite() const {
 void Rewriter_create_user::append_user_auth_info(LEX_USER *user, bool comma,
                                                  String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  if (user->uses_identified_by_clause || user->uses_identified_with_clause ||
-      user->uses_authentication_string_clause ||
+  List_iterator<LEX_MFA> mfa_list(user->mfa_list);
+  LEX_MFA *tmp_mfa;
+  if (user->with_initial_auth) {
+    /*
+      In case of passwordless user, server fiddles with user specified syntax,
+      thus we are expected to write the original syntax.
+      ex:
+      CREATE USER foo IDENTIFIED WITH authentication_fido INITIAL AUTHENTICATION
+         IDENTIFIED BY 'abc';
+      above sql is converted by server as:
+      CREATE USER foo IDENTIFIED BY 'abc' AND IDENTIFIED WITH
+      authentication_fido;
+
+      This block ensures that query is rewritten in logs as:
+      CREATE USER foo IDENTIFIED WITH authentication_fido INITIAL AUTHENTICATION
+         IDENTIFIED WITH <default auth plugin> AS <auth_hash_string>;
+    */
+    assert(user->mfa_list.size());
+    /* point to 2nd factor which is authentication_fido */
+    tmp_mfa = mfa_list++;
+    str->append(STRING_WITH_LEN(" IDENTIFIED"));
+    append_mfa_plugin_name(tmp_mfa, str);
+    str->append(STRING_WITH_LEN(" INITIAL AUTHENTICATION"));
+  }
+  if (user->first_factor_auth_info.uses_identified_by_clause ||
+      user->first_factor_auth_info.uses_identified_with_clause ||
+      user->first_factor_auth_info.uses_authentication_string_clause ||
       m_consumer_type == Consumer_type::BINLOG) {
     str->append(STRING_WITH_LEN(" IDENTIFIED"));
-    if (user->uses_identified_with_clause ||
+    if (user->first_factor_auth_info.uses_identified_with_clause ||
         m_consumer_type == Consumer_type::BINLOG)
       append_plugin_name(user, str);
 
-    if (user->uses_identified_by_clause &&
+    if (user->first_factor_auth_info.uses_identified_by_clause &&
         m_consumer_type == Consumer_type::TEXTLOG) {
       str->append(STRING_WITH_LEN(" BY "));
       append_literal_secret(str);
-    } else if (user->auth.length > 0) {
+    } else if (user->first_factor_auth_info.auth.length > 0) {
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);
+    }
+  }
+  if (user->mfa_list.size() && !user->with_initial_auth) {
+    while ((tmp_mfa = mfa_list++)) {
+      str->append(STRING_WITH_LEN(" AND IDENTIFIED"));
+      append_mfa_plugin_name(tmp_mfa, str);
+      append_mfa_auth_str(tmp_mfa, str);
     }
   }
 }
@@ -701,18 +909,17 @@ Rewriter_alter_user::Rewriter_alter_user(THD *thd, Consumer_type type)
 /**
   Rewrite the query for the ALTER USER statement.
 
-  @retval true  the query is rewritten
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    The query was rewritten.
 */
-bool Rewriter_alter_user::rewrite() const {
+bool Rewriter_alter_user::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
-  rlb->append("ALTER USER ");
+  rlb.append("ALTER USER ");
 
-  if (lex->drop_if_exists) rlb->append("IF EXISTS ");
+  if (lex->drop_if_exists) rlb.append("IF EXISTS ");
 
-  rewrite_users(lex, rlb);
-  parent::rewrite();
+  parent::rewrite(rlb);
   return true;
 }
 /**
@@ -729,14 +936,15 @@ bool Rewriter_alter_user::rewrite() const {
 void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
                                                 String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  if (user->uses_identified_by_clause || user->uses_identified_with_clause ||
-      user->uses_authentication_string_clause) {
+  if (user->first_factor_auth_info.uses_identified_by_clause ||
+      user->first_factor_auth_info.uses_identified_with_clause ||
+      user->first_factor_auth_info.uses_authentication_string_clause) {
     str->append(STRING_WITH_LEN(" IDENTIFIED"));
-    if (user->uses_identified_with_clause ||
+    if (user->first_factor_auth_info.uses_identified_with_clause ||
         m_consumer_type == Consumer_type::BINLOG)
       append_plugin_name(user, str);
 
-    if (user->uses_identified_by_clause &&
+    if (user->first_factor_auth_info.uses_identified_by_clause &&
         m_consumer_type == Consumer_type::TEXTLOG) {
       str->append(STRING_WITH_LEN(" BY "));
       append_literal_secret(str);
@@ -744,13 +952,51 @@ void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
       if (user->uses_replace_clause) {
         str->append(STRING_WITH_LEN(" REPLACE <secret>"));
       }
-    } else if (user->auth.length > 0) {
+    } else if (user->first_factor_auth_info.auth.length > 0) {
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);
     }
 
     if (user->retain_current_password) {
       str->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
+    }
+  }
+  List_iterator<LEX_MFA> mfa_list(user->mfa_list);
+  if (user->mfa_list.size()) {
+    LEX_MFA *tmp_mfa;
+    while ((tmp_mfa = mfa_list++)) {
+      if (tmp_mfa->unregister) {
+        str->append(" ");
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR UNREGISTER"));
+      } else if (tmp_mfa->finish_registration || tmp_mfa->modify_factor) {
+        /*
+          ALTER USER foo Nth FACTOR FINISH REGISTRATION;
+          is binlogged as
+          ALTER USER foo MODIFY Nth FACTOR IDENTIFIED WITH <plugin>
+             AS <auth-str>;
+        */
+        str->append(STRING_WITH_LEN(" MODIFY "));
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR"));
+        str->append(STRING_WITH_LEN(" IDENTIFIED"));
+        append_mfa_plugin_name(tmp_mfa, str);
+        append_mfa_auth_str(tmp_mfa, str);
+      } else if (tmp_mfa->drop_factor) {
+        str->append(STRING_WITH_LEN(" DROP "));
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR"));
+      } else if (tmp_mfa->add_factor) {
+        str->append(STRING_WITH_LEN(" ADD "));
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR"));
+        if (tmp_mfa->uses_identified_by_clause ||
+            tmp_mfa->uses_identified_with_clause) {
+          str->append(STRING_WITH_LEN(" IDENTIFIED"));
+          append_mfa_plugin_name(tmp_mfa, str);
+          append_mfa_auth_str(tmp_mfa, str);
+        }
+      }
     }
   }
 
@@ -782,26 +1028,45 @@ void Rewriter_alter_user::rewrite_password_reuse(const LEX *lex,
     parent::rewrite_password_reuse(lex, str);
   }
 }
-Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
-                                                     Consumer_type type,
-                                                     Rewrite_params *params)
+Rewriter_show_create_user::Rewriter_show_create_user(
+    THD *thd, Consumer_type type, const Rewrite_params *params)
     : Rewriter_user(thd, type),
-      show_params_(dynamic_cast<Show_user_params *>(params)) {}
+      show_params_(dynamic_cast<const Show_user_params *>(params)) {}
 
 /**
   Rewrite the query for the SHOW CREATE USER statement.
+  This method takes an additional parameter from the
+  Show_user_params to reconstruct the ATTRIBUTE clause.
+  These parameters must be read form disk which is done
+  in mysql_show_create_user()
 
-  @retval true  the query is rewritten
+  @sa mysql_show_create_user()
+
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    The query was rewritten.
 */
-bool Rewriter_show_create_user::rewrite() const {
-  LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
-  rlb->append("CREATE USER ");
-  rewrite_users(lex, rlb);
-  rewrite_default_roles(lex, rlb);
-  parent::rewrite();
+bool Rewriter_show_create_user::rewrite(String &rlb) const {
+  rlb.append("CREATE USER ");
+  parent::rewrite(rlb);
   return true;
+}
+
+/**
+  Overrides implementaiton of the the rewriter for user application
+  user metadata. This is needed because we have to read the
+  ATTRIBUTE data from disk.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_show_create_user::rewrite_user_application_user_metadata(
+    const LEX *lex [[maybe_unused]], String *str) const {
+  /* Only show the ATTRIBUTE operator if there's any attribute to show. */
+  if (show_params_->metadata_str->length() > 0) {
+    str->append(" ATTRIBUTE '");
+    str->append(*show_params_->metadata_str);
+    str->append("'");
+  }
 }
 
 /**
@@ -815,16 +1080,22 @@ bool Rewriter_show_create_user::rewrite() const {
 */
 void Rewriter_show_create_user::append_auth_str(LEX_USER *user,
                                                 String *str) const {
-  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+  String from_auth(user->first_factor_auth_info.auth.str,
+                   user->first_factor_auth_info.auth.length,
+                   system_charset_info);
 
   if (show_params_ && show_params_->print_identified_with_as_hex_ &&
-      user->auth.length) {
-    for (const char *c = user->auth.str;
-         static_cast<size_t>(c - user->auth.str) < user->auth.length; c++) {
+      user->first_factor_auth_info.auth.length) {
+    for (const char *c = user->first_factor_auth_info.auth.str;
+         static_cast<size_t>(c - user->first_factor_auth_info.auth.str) <
+         user->first_factor_auth_info.auth.length;
+         c++) {
       if (!my_isgraph(system_charset_info, *c)) {
-        from_auth.alloc(user->auth.length * 2 + 3);
-        str_to_hex(from_auth.c_ptr_quick(), user->auth.str, user->auth.length);
-        from_auth.length(user->auth.length * 2 + 2);
+        from_auth.alloc(user->first_factor_auth_info.auth.length * 2 + 3);
+        str_to_hex(from_auth.c_ptr_quick(),
+                   user->first_factor_auth_info.auth.str,
+                   user->first_factor_auth_info.auth.length);
+        from_auth.length(user->first_factor_auth_info.auth.length * 2 + 2);
         str->append(from_auth);
 
         return;
@@ -863,11 +1134,23 @@ void Rewriter_show_create_user::rewrite_password_reuse(const LEX *lex,
 void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
                                                       bool comma,
                                                       String *str) const {
-  append_auth_id(m_thd, user, comma, str);
-  DBUG_ASSERT(m_thd->lex->contains_plaintext_password == false);
+  append_auth_id_identifier(m_thd, user, comma, str);
+  List_iterator<LEX_MFA> mfa_list(user->mfa_list);
+  LEX_MFA *tmp_mfa;
+  bool is_passwordless = false;
+  if (user->mfa_list.size()) {
+    tmp_mfa = mfa_list++;
+    is_passwordless = tmp_mfa->passwordless;
+    if (is_passwordless) {
+      str->append(STRING_WITH_LEN(" IDENTIFIED"));
+      append_mfa_plugin_name(tmp_mfa, str);
+      str->append(STRING_WITH_LEN(" INITIAL AUTHENTICATION"));
+    }
+  }
+  assert(m_thd->lex->contains_plaintext_password == false);
   str->append(STRING_WITH_LEN(" IDENTIFIED"));
   append_plugin_name(user, str);
-  if (user->auth.length > 0) {
+  if (user->first_factor_auth_info.auth.length > 0) {
     str->append(STRING_WITH_LEN(" AS "));
     if (show_params_ && show_params_->hide_password_hash) {
       append_literal_secret(str);
@@ -875,25 +1158,19 @@ void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
       append_auth_str(user, str);
     }
   }
-}
-/**
-  Append the DEFAULT ROLE clause for users iff it is specified
-
-  @param [in]       lex     LEX struct to check if clause is specified
-  @param [in, out]  str     The string in which clause is suffixed
-*/
-void Rewriter_show_create_user::rewrite_default_roles(const LEX *lex,
-                                                      String *str) const {
-  bool comma = false;
-  if (lex->default_roles && lex->default_roles->elements > 0) {
-    str->append(" DEFAULT ROLE ");
-    lex->default_roles->sort(&lex_user_comp);
-    List_iterator<LEX_USER> role_it(*(lex->default_roles));
-    LEX_USER *role;
-    while ((role = role_it++)) {
-      if (comma) str->append(',');
-      str->append(create_authid_str_from(role).c_str());
-      comma = true;
+  mfa_list = user->mfa_list;
+  if (user->mfa_list.size() && !is_passwordless) {
+    while ((tmp_mfa = mfa_list++)) {
+      str->append(STRING_WITH_LEN(" AND IDENTIFIED WITH "));
+      String plugin_str(tmp_mfa->plugin.str, tmp_mfa->plugin.length,
+                        system_charset_info);
+      append_query_string(m_thd, system_charset_info, &plugin_str, str);
+      if (tmp_mfa->auth.length > 0) {
+        str->append(STRING_WITH_LEN(" AS "));
+        String auth_str(tmp_mfa->auth.str, tmp_mfa->auth.length,
+                        system_charset_info);
+        append_query_string(m_thd, system_charset_info, &auth_str, str);
+      }
     }
   }
 }
@@ -904,108 +1181,111 @@ Rewriter_set::Rewriter_set(THD *thd, Consumer_type type)
 /**
   Rewrite the query for the SET statement.
 
-  @return
-    @retval true  the query is rewritten
-    @retval false otherwise
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
-bool Rewriter_set::rewrite() const {
+bool Rewriter_set::rewrite(String &rlb) const {
+  String local_rlb;
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
   List_iterator_fast<set_var_base> it(lex->var_list);
   set_var_base *var;
   bool comma = false;
 
-  rlb->append(STRING_WITH_LEN("SET "));
+  local_rlb.append(STRING_WITH_LEN("SET "));
 
   while ((var = it++)) {
-    comma_maybe(rlb, &comma);
-    var->print(m_thd, rlb);
+    comma_maybe(&local_rlb, &comma);
+    if (var->print(m_thd, &local_rlb) == false) {
+      return false;
+    }
   }
+  rlb.takeover(local_rlb);
   return true;
 }
 
 Rewriter_set_password::Rewriter_set_password(THD *thd, Consumer_type type,
-                                             Rewrite_params *params)
+                                             const Rewrite_params *params)
     : Rewriter_set(thd, type) {
-  User_params *param = dynamic_cast<User_params *>(params);
+  const User_params *param = dynamic_cast<const User_params *>(params);
   if (param) m_users = param->users;
 }
 
 /**
   Rewrite the query for the SET PASSWORD statement.
 
-  @return
-    @retval true  the query is rewritten
-    @retval false otherwise
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
-bool Rewriter_set_password::rewrite() const {
+bool Rewriter_set_password::rewrite(String &rlb) const {
   bool ret_val = false;
   if (m_consumer_type == Consumer_type::BINLOG) {
     if (m_users == nullptr || m_users->size() == 0) return ret_val;
 
     /* SET PASSWORD should always have one user */
-    DBUG_ASSERT(m_users->size() == 1);
+    assert(m_users->size() == 1);
     bool set_temp_string = false;
     /*
       Setting this flag will generate the password hash string which
       contains a single quote.
     */
     DBUG_EXECUTE_IF("force_hash_string_with_quote", set_temp_string = true;);
-    String *rlb = &m_thd->rewritten_query;
-    rlb->mem_free();
     LEX_USER *user = *(m_users->begin());
     String current_user(user->user.str, user->user.length, system_charset_info);
     String current_host(user->host.str, user->host.length, system_charset_info);
     String auth_str;
     if (set_temp_string) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       auth_str = String(HASH_STRING_WITH_QUOTE, strlen(HASH_STRING_WITH_QUOTE),
                         system_charset_info);
 #endif
     } else {
-      auth_str = String(user->auth.str, user->auth.length, system_charset_info);
+      auth_str =
+          String(user->first_factor_auth_info.auth.str,
+                 user->first_factor_auth_info.auth.length, system_charset_info);
     }
     /*
       Construct :
       ALTER USER '<user>'@'<host>' IDENTIFIED WITH '<plugin>' AS '<HASH>'
     */
-    rlb->append(STRING_WITH_LEN("ALTER USER "));
-    append_query_string(m_thd, system_charset_info, &current_user, rlb);
-    rlb->append(STRING_WITH_LEN("@"));
-    append_query_string(m_thd, system_charset_info, &current_host, rlb);
-    rlb->append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
-    rlb->append(user->plugin.str);
-    rlb->append(STRING_WITH_LEN("' AS "));
-    append_query_string(m_thd, system_charset_info, &auth_str, rlb);
+    rlb.append(STRING_WITH_LEN("ALTER USER "));
+    append_query_string(m_thd, system_charset_info, &current_user, &rlb);
+    rlb.append(STRING_WITH_LEN("@"));
+    append_query_string(m_thd, system_charset_info, &current_host, &rlb);
+    rlb.append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
+    rlb.append(user->first_factor_auth_info.plugin.str);
+    rlb.append(STRING_WITH_LEN("' AS "));
+    append_query_string(m_thd, system_charset_info, &auth_str, &rlb);
     if (user->retain_current_password)
-      rlb->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
+      rlb.append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
     ret_val = true;
   } else {
-    ret_val = parent::rewrite();
+    ret_val = parent::rewrite(rlb);
   }
 
   return ret_val;
 }
 
 Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
-                               Rewrite_params *params)
+                               const Rewrite_params *params)
     : I_rewriter(thd, type) {
-  grant_params = dynamic_cast<Grant_params *>(params);
+  grant_params = dynamic_cast<const Grant_params *>(params);
 }
 
 /**
   Rewrite the query for the GRANT statement.
 
-  @retval true  the query is rewritten
-*/
-bool Rewriter_grant::rewrite() const {
-  LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
+  @param[in,out] rlb     Buffer to return the rewritten query in.
 
-  TABLE_LIST *first_table = lex->select_lex->table_list.first;
-  bool comma = false, comma_inner;
+  @retval        true    the query was rewritten
+*/
+bool Rewriter_grant::rewrite(String &rlb) const {
+  LEX *lex = m_thd->lex;
+
+  TABLE_LIST *first_table = lex->query_block->table_list.first;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
@@ -1015,27 +1295,26 @@ bool Rewriter_grant::rewrite() const {
     bool comma = false;
     while ((tmp_user_name = list++)) {
       if ((user_name = get_current_user(thd, tmp_user_name))) {
-        append_auth_id(thd, user_name, comma, rlb);
+        append_auth_id(thd, user_name, comma, &rlb);
         comma = true;
       }
     }
   };
 
-  rlb->append(STRING_WITH_LEN("GRANT "));
+  rlb.append(STRING_WITH_LEN("GRANT "));
 
   if (proxy_grant)
-    rlb->append(STRING_WITH_LEN("PROXY"));
+    rlb.append(STRING_WITH_LEN("PROXY"));
   else if (lex->all_privileges)
-    rlb->append(STRING_WITH_LEN("ALL PRIVILEGES"));
-  else if (lex->grant_privilege)
-    rlb->append(STRING_WITH_LEN("GRANT OPTION"));
+    rlb.append(STRING_WITH_LEN("ALL PRIVILEGES"));
   else {
+    bool comma = false;
     ulong priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
-      if (priv == GRANT_ACL) continue;
+      if (priv == GRANT_ACL && !lex->grant_privilege) continue;
 
-      comma_inner = false;
+      bool comma_inner = false;
 
       if (lex->columns.elements)  // show columns, if any
       {
@@ -1063,33 +1342,36 @@ bool Rewriter_grant::rewrite() const {
 
       if (comma_inner || (lex->grant & priv))  // show privilege name
       {
-        comma_maybe(rlb, &comma);
-        rlb->append(global_acls_vector[c].c_str(),
-                    global_acls_vector[c].length());
+        comma_maybe(&rlb, &comma);
+        if (priv == GRANT_ACL)
+          rlb.append(STRING_WITH_LEN("GRANT OPTION"));
+        else
+          rlb.append(global_acls_vector[c].c_str(),
+                     global_acls_vector[c].length());
         if (!(lex->grant & priv))  // general outranks specific
-          rlb->append(cols);
+          rlb.append(cols);
       }
     }
     /* List extended global privilege IDs */
-    if (!first_table && !lex->current_select()->db) {
+    if (!first_table && !lex->current_query_block()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
-      LEX_CSTRING *priv;
-      while ((priv = it++)) {
-        comma_maybe(rlb, &comma);
-        rlb->append(priv->str, priv->length);
+      LEX_CSTRING *privilege;
+      while ((privilege = it++)) {
+        comma_maybe(&rlb, &comma);
+        rlb.append(privilege->str, privilege->length);
       }
     }
     if (!comma)  // no privs, default to USAGE
-      rlb->append(STRING_WITH_LEN("USAGE"));
+      rlb.append(STRING_WITH_LEN("USAGE"));
   }
 
-  rlb->append(STRING_WITH_LEN(" ON "));
+  rlb.append(STRING_WITH_LEN(" ON "));
   switch (lex->type) {
     case TYPE_ENUM_PROCEDURE:
-      rlb->append(STRING_WITH_LEN("PROCEDURE "));
+      rlb.append(STRING_WITH_LEN("PROCEDURE "));
       break;
     case TYPE_ENUM_FUNCTION:
-      rlb->append(STRING_WITH_LEN("FUNCTION "));
+      rlb.append(STRING_WITH_LEN("FUNCTION "));
       break;
     default:
       break;
@@ -1097,39 +1379,31 @@ bool Rewriter_grant::rewrite() const {
 
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(lex->users_list);
-  comma = false;
 
   if (proxy_grant) {
+    bool comma = false;
     tmp_user_name = user_list++;
     user_name = get_current_user(m_thd, tmp_user_name);
-    if (user_name) append_auth_id(m_thd, user_name, comma, rlb);
+    if (user_name) append_auth_id(m_thd, user_name, comma, &rlb);
   } else if (first_table) {
-    if (first_table->is_view()) {
-      append_identifier(m_thd, rlb, first_table->view_db.str,
-                        first_table->view_db.length);
-      rlb->append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, rlb, first_table->view_name.str,
-                        first_table->view_name.length);
-    } else {
-      append_identifier(m_thd, rlb, first_table->db, strlen(first_table->db));
-      rlb->append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, rlb, first_table->table_name,
-                        strlen(first_table->table_name));
-    }
+    append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
+    rlb.append(STRING_WITH_LEN("."));
+    append_identifier(m_thd, &rlb, first_table->table_name,
+                      strlen(first_table->table_name));
   } else {
-    if (lex->current_select()->db)
-      append_identifier(m_thd, rlb, lex->current_select()->db,
-                        strlen(lex->current_select()->db));
+    if (lex->current_query_block()->db)
+      append_identifier(m_thd, &rlb, lex->current_query_block()->db,
+                        strlen(lex->current_query_block()->db));
     else
-      rlb->append("*");
-    rlb->append(STRING_WITH_LEN(".*"));
+      rlb.append("*");
+    rlb.append(STRING_WITH_LEN(".*"));
   }
 
-  rlb->append(STRING_WITH_LEN(" TO "));
+  rlb.append(STRING_WITH_LEN(" TO "));
 
   append_authids(m_thd, user_list);
   if (lex->grant & GRANT_ACL) {
-    rlb->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+    rlb.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
   }
 
   /*
@@ -1145,17 +1419,17 @@ bool Rewriter_grant::rewrite() const {
         (m_consumer_type == Consumer_type::BINLOG && grant_as &&
          grant_as->grant_as_used)) {
       if ((user_name = get_current_user(m_thd, grant_as->user))) {
-        rlb->append(STRING_WITH_LEN(" AS "));
-        append_auth_id(m_thd, user_name, false, rlb);
-        rlb->append(STRING_WITH_LEN(" WITH ROLE "));
+        rlb.append(STRING_WITH_LEN(" AS "));
+        append_auth_id(m_thd, user_name, false, &rlb);
+        rlb.append(STRING_WITH_LEN(" WITH ROLE "));
         switch (grant_as->role_type) {
           case role_enum::ROLE_DEFAULT:
-            rlb->append(STRING_WITH_LEN("DEFAULT"));
+            rlb.append(STRING_WITH_LEN("DEFAULT"));
             break;
           case role_enum::ROLE_ALL:
-            rlb->append(STRING_WITH_LEN("ALL"));
+            rlb.append(STRING_WITH_LEN("ALL"));
             if (grant_as->role_list) {
-              rlb->append(STRING_WITH_LEN(" EXCEPT "));
+              rlb.append(STRING_WITH_LEN(" EXCEPT "));
               List_iterator<LEX_USER> role_list(*grant_as->role_list);
               append_authids(m_thd, role_list);
             }
@@ -1165,11 +1439,11 @@ bool Rewriter_grant::rewrite() const {
             append_authids(m_thd, role_list);
           } break;
           case role_enum::ROLE_NONE:
-            rlb->append(STRING_WITH_LEN("NONE"));
+            rlb.append(STRING_WITH_LEN("NONE"));
             break;
           default:
-            DBUG_ASSERT(false);
-            rlb->append(STRING_WITH_LEN("NONE"));
+            assert(false);
+            rlb.append(STRING_WITH_LEN("NONE"));
             break;
         }
       }
@@ -1178,94 +1452,101 @@ bool Rewriter_grant::rewrite() const {
   return true;
 }
 
-Rewriter_change_master::Rewriter_change_master(THD *thd, Consumer_type type)
+Rewriter_change_replication_source::Rewriter_change_replication_source(
+    THD *thd, Consumer_type type)
     : I_rewriter(thd, type) {}
 
 /**
-  Rewrite the query for the CHANGE MASTER statement.
+  Rewrite the query for the CHANGE REPLICATION SOURCE statement.
 
-  @return
-    @retval true  the query is rewritten
-    @retval false otherwise
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
-bool Rewriter_change_master::rewrite() const {
+bool Rewriter_change_replication_source::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
-  rlb->append(STRING_WITH_LEN("CHANGE MASTER TO "));
+  rlb.append(STRING_WITH_LEN("CHANGE REPLICATION SOURCE TO "));
   bool comma = false;
-  comma = append_str(rlb, comma, "MASTER_BIND =", lex->mi.bind_addr);
-  comma = append_str(rlb, comma, "MASTER_HOST =", lex->mi.host);
-  comma = append_str(rlb, comma, "MASTER_USER =", lex->mi.user);
+  comma = append_str(&rlb, comma, "SOURCE_BIND =", lex->mi.bind_addr);
+  comma = append_str(&rlb, comma, "SOURCE_HOST =", lex->mi.host);
+  comma = append_str(&rlb, comma, "SOURCE_USER =", lex->mi.user);
 
   if (lex->mi.password) {
-    comma_maybe(rlb, &comma);
-    rlb->append(STRING_WITH_LEN("MASTER_PASSWORD = <secret>"));
+    comma_maybe(&rlb, &comma);
+    rlb.append(STRING_WITH_LEN("SOURCE_PASSWORD = <secret>"));
   }
-  comma = append_int(rlb, comma, STRING_WITH_LEN("MASTER_PORT ="), lex->mi.port,
-                     lex->mi.port > 0);
-  // condition as per rpl_slave.cc
-  comma = append_int(rlb, comma, STRING_WITH_LEN("MASTER_CONNECT_RETRY ="),
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_PORT ="),
+                     lex->mi.port, lex->mi.port > 0);
+  // condition as per rpl_replica.cc
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_CONNECT_RETRY ="),
                      lex->mi.connect_retry, lex->mi.connect_retry > 0);
   comma = append_int(
-      rlb, comma, STRING_WITH_LEN("MASTER_RETRY_COUNT ="), lex->mi.retry_count,
+      &rlb, comma, STRING_WITH_LEN("SOURCE_RETRY_COUNT ="), lex->mi.retry_count,
       lex->mi.retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
-  // MASTER_DELAY 0..MASTER_DELAY_MAX; -1 == unspecified
-  comma = append_int(rlb, comma, STRING_WITH_LEN("MASTER_DELAY ="),
+  // SOURCE_DELAY 0..SOURCE_DELAY_MAX; -1 == unspecified
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_DELAY ="),
                      lex->mi.sql_delay, lex->mi.sql_delay >= 0);
 
   if (lex->mi.heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
-    comma_maybe(rlb, &comma);
-    rlb->append(STRING_WITH_LEN("MASTER_HEARTBEAT_PERIOD = "));
+    comma_maybe(&rlb, &comma);
+    rlb.append(STRING_WITH_LEN("SOURCE_HEARTBEAT_PERIOD = "));
     if (lex->mi.heartbeat_opt == LEX_MASTER_INFO::LEX_MI_DISABLE)
-      rlb->append(STRING_WITH_LEN("0"));
+      rlb.append(STRING_WITH_LEN("0"));
     else {
       char buf[64];
       snprintf(buf, 64, "%f", lex->mi.heartbeat_period);
-      rlb->append(buf);
+      rlb.append(buf);
     }
   }
 
   // log file (slave I/O thread)
-  comma = append_str(rlb, comma, "MASTER_LOG_FILE =", lex->mi.log_file_name);
-  // MASTER_LOG_POS is >= BIN_LOG_HEADER_SIZE; 0 == unspecified in stmt.
-  comma = append_int(rlb, comma, STRING_WITH_LEN("MASTER_LOG_POS ="),
+  comma = append_str(&rlb, comma, "SOURCE_LOG_FILE =", lex->mi.log_file_name);
+  // SOURCE_LOG_POS is >= BIN_LOG_HEADER_SIZE; 0 == unspecified in stmt.
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_LOG_POS ="),
                      lex->mi.pos, lex->mi.pos != 0);
   comma = append_int(
-      rlb, comma, STRING_WITH_LEN("MASTER_AUTO_POSITION ="),
+      &rlb, comma, STRING_WITH_LEN("SOURCE_AUTO_POSITION ="),
       (lex->mi.auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
       lex->mi.auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   // log file (slave SQL thread)
-  comma = append_str(rlb, comma, "RELAY_LOG_FILE =", lex->mi.relay_log_name);
+  comma = append_str(&rlb, comma, "RELAY_LOG_FILE =", lex->mi.relay_log_name);
   // RELAY_LOG_POS is >= BIN_LOG_HEADER_SIZE; 0 == unspecified in stmt.
-  comma = append_int(rlb, comma, STRING_WITH_LEN("RELAY_LOG_POS ="),
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("RELAY_LOG_POS ="),
                      lex->mi.relay_log_pos, lex->mi.relay_log_pos != 0);
 
   // SSL
-  comma = append_int(rlb, comma, STRING_WITH_LEN("MASTER_SSL ="),
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_SSL ="),
                      lex->mi.ssl == LEX_MASTER_INFO::LEX_MI_ENABLE ? 1 : 0,
                      lex->mi.ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
-  comma = append_str(rlb, comma, "MASTER_SSL_CA =", lex->mi.ssl_ca);
-  comma = append_str(rlb, comma, "MASTER_SSL_CAPATH =", lex->mi.ssl_capath);
-  comma = append_str(rlb, comma, "MASTER_SSL_CERT =", lex->mi.ssl_cert);
-  comma = append_str(rlb, comma, "MASTER_SSL_CRL =", lex->mi.ssl_crl);
-  comma = append_str(rlb, comma, "MASTER_SSL_CRLPATH =", lex->mi.ssl_crlpath);
-  comma = append_str(rlb, comma, "MASTER_SSL_KEY =", lex->mi.ssl_key);
-  comma = append_str(rlb, comma, "MASTER_SSL_CIPHER =", lex->mi.ssl_cipher);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CA =", lex->mi.ssl_ca);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CAPATH =", lex->mi.ssl_capath);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CERT =", lex->mi.ssl_cert);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CRL =", lex->mi.ssl_crl);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CRLPATH =", lex->mi.ssl_crlpath);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_KEY =", lex->mi.ssl_key);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CIPHER =", lex->mi.ssl_cipher);
   comma = append_int(
-      rlb, comma, STRING_WITH_LEN("MASTER_SSL_VERIFY_SERVER_CERT ="),
+      &rlb, comma, STRING_WITH_LEN("SOURCE_SSL_VERIFY_SERVER_CERT ="),
       (lex->mi.ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1
                                                                          : 0,
       lex->mi.ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
-  comma = append_str(rlb, comma, "MASTER_TLS_VERSION =", lex->mi.tls_version);
+  comma = append_str(&rlb, comma, "SOURCE_TLS_VERSION =", lex->mi.tls_version);
+  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
+    comma_maybe(&rlb, &comma);
+    rlb.append(STRING_WITH_LEN("SOURCE_TLS_CIPHERSUITES = NULL"));
+  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
+    comma = append_str(&rlb, comma, "SOURCE_TLS_CIPHERSUITES =",
+                       lex->mi.tls_ciphersuites_string);
+  }
 
   // Public key
-  comma = append_str(rlb, comma,
-                     "MASTER_PUBLIC_KEY_PATH =", lex->mi.public_key_path);
+  comma = append_str(&rlb, comma,
+                     "SOURCE_PUBLIC_KEY_PATH =", lex->mi.public_key_path);
   comma = append_int(
-      rlb, comma, STRING_WITH_LEN("GET_MASTER_PUBLIC_KEY ="),
+      &rlb, comma, STRING_WITH_LEN("GET_SOURCE_PUBLIC_KEY ="),
       (lex->mi.get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
       lex->mi.get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
@@ -1273,90 +1554,106 @@ bool Rewriter_change_master::rewrite() const {
   if (lex->mi.repl_ignore_server_ids_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
     bool comma_list = false;
 
-    comma_maybe(rlb, &comma);
-    rlb->append(STRING_WITH_LEN("IGNORE_SERVER_IDS = ( "));
+    comma_maybe(&rlb, &comma);
+    rlb.append(STRING_WITH_LEN("IGNORE_SERVER_IDS = ( "));
 
     for (size_t i = 0; i < lex->mi.repl_ignore_server_ids.size(); i++) {
       ulong s_id = lex->mi.repl_ignore_server_ids[i];
-      comma_maybe(rlb, &comma_list);
-      rlb->append_ulonglong(s_id);
+      comma_maybe(&rlb, &comma_list);
+      rlb.append_ulonglong(s_id);
     }
-    rlb->append(STRING_WITH_LEN(" )"));
+    rlb.append(STRING_WITH_LEN(" )"));
   }
+  if (lex->mi.compression_algorithm)
+    comma = append_str(&rlb, comma, "SOURCE_COMPRESSION_ALGORITHMS = ",
+                       lex->mi.compression_algorithm);
+  comma = append_int(
+      &rlb, comma, STRING_WITH_LEN("SOURCE_ZSTD_COMPRESSION_LEVEL = "),
+      lex->mi.zstd_compression_level, lex->mi.zstd_compression_level != 0);
+
+  // SOURCE_CONNECTION_AUTO_FAILOVER
+  comma = append_int(&rlb, comma,
+                     STRING_WITH_LEN("SOURCE_CONNECTION_AUTO_FAILOVER ="),
+                     (lex->mi.m_source_connection_auto_failover ==
+                      LEX_MASTER_INFO::LEX_MI_ENABLE)
+                         ? 1
+                         : 0,
+                     lex->mi.m_source_connection_auto_failover !=
+                         LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)
-    append_str(rlb, false, " FOR CHANNEL", lex->mi.channel);
+    append_str(&rlb, false, " FOR CHANNEL", lex->mi.channel);
   return true;
 }
 
-Rewriter_slave_start::Rewriter_slave_start(THD *thd, Consumer_type type)
+Rewriter_replica_start::Rewriter_replica_start(THD *thd, Consumer_type type)
     : I_rewriter(thd, type) {}
 
 /**
-  Rewrite the query for the SLAVE START statement.
+  Rewrite the query for the SLAVE REPLICA statement.
 
-  @retval true  the query is rewritten
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    The query was rewritten.
 */
-bool Rewriter_slave_start::rewrite() const {
+bool Rewriter_replica_start::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
 
-  rlb->append(STRING_WITH_LEN("START SLAVE"));
+  rlb.append(STRING_WITH_LEN("START REPLICA"));
 
   /* thread_types */
 
-  if (lex->slave_thd_opt & SLAVE_IO) rlb->append(STRING_WITH_LEN(" IO_THREAD"));
+  if (lex->slave_thd_opt & SLAVE_IO) rlb.append(STRING_WITH_LEN(" IO_THREAD"));
 
   if (lex->slave_thd_opt & SLAVE_IO && lex->slave_thd_opt & SLAVE_SQL)
-    rlb->append(STRING_WITH_LEN(","));
+    rlb.append(STRING_WITH_LEN(","));
 
   if (lex->slave_thd_opt & SLAVE_SQL)
-    rlb->append(STRING_WITH_LEN(" SQL_THREAD"));
+    rlb.append(STRING_WITH_LEN(" SQL_THREAD"));
 
   /* UNTIL options */
 
   // GTID
   if (lex->mi.gtid) {
-    rlb->append((lex->mi.gtid_until_condition ==
-                 LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS)
-                    ? " UNTIL SQL_BEFORE_GTIDS"
-                    : " UNTIL SQL_AFTER_GTIDS");
-    append_str(rlb, false, " =", lex->mi.gtid);
+    rlb.append((lex->mi.gtid_until_condition ==
+                LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS)
+                   ? " UNTIL SQL_BEFORE_GTIDS"
+                   : " UNTIL SQL_AFTER_GTIDS");
+    append_str(&rlb, false, " =", lex->mi.gtid);
   }
 
   // SQL_AFTER_MTS_GAPS
   else if (lex->mi.until_after_gaps) {
-    rlb->append(STRING_WITH_LEN(" UNTIL SQL_AFTER_MTS_GAPS"));
+    rlb.append(STRING_WITH_LEN(" UNTIL SQL_AFTER_MTS_GAPS"));
   }
 
-  // MASTER_LOG_FILE/POS
+  // SOURCE_LOG_FILE/POS
   else if (lex->mi.log_file_name) {
-    append_str(rlb, false, " UNTIL MASTER_LOG_FILE =", lex->mi.log_file_name);
-    append_int(rlb, true, STRING_WITH_LEN("MASTER_LOG_POS ="), lex->mi.pos,
+    append_str(&rlb, false, " UNTIL SOURCE_LOG_FILE =", lex->mi.log_file_name);
+    append_int(&rlb, true, STRING_WITH_LEN("SOURCE_LOG_POS ="), lex->mi.pos,
                lex->mi.pos > 0);
   }
 
   // RELAY_LOG_FILE/POS
   else if (lex->mi.relay_log_name) {
-    append_str(rlb, false, " UNTIL RELAY_LOG_FILE =", lex->mi.relay_log_name);
-    append_int(rlb, true, STRING_WITH_LEN("RELAY_LOG_POS ="),
+    append_str(&rlb, false, " UNTIL RELAY_LOG_FILE =", lex->mi.relay_log_name);
+    append_int(&rlb, true, STRING_WITH_LEN("RELAY_LOG_POS ="),
                lex->mi.relay_log_pos, lex->mi.relay_log_pos > 0);
   }
 
   /* connection options */
-  append_str(rlb, false, " USER =", lex->slave_connection.user);
+  append_str(&rlb, false, " USER =", lex->slave_connection.user);
 
   if (lex->slave_connection.password)
-    rlb->append(STRING_WITH_LEN(" PASSWORD = <secret>"));
+    rlb.append(STRING_WITH_LEN(" PASSWORD = <secret>"));
 
-  append_str(rlb, false, " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
-  append_str(rlb, false, " PLUGIN_DIR =", lex->slave_connection.plugin_dir);
+  append_str(&rlb, false, " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
+  append_str(&rlb, false, " PLUGIN_DIR =", lex->slave_connection.plugin_dir);
 
   /* channel options */
   if (lex->mi.for_channel)
-    append_str(rlb, false, " FOR CHANNEL", lex->mi.channel);
+    append_str(&rlb, false, " FOR CHANNEL", lex->mi.channel);
   return true;
 }
 
@@ -1386,25 +1683,25 @@ void Rewriter_server_option::mysql_rewrite_server_options(const LEX *lex,
 /**
   Rewrite the query for the CREATE SERVER statement.
 
-  @retval true  the query is rewritten
-  @retval false otherwise
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
-bool Rewriter_create_server::rewrite() const {
+bool Rewriter_create_server::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
 
   if (!lex->server_options.get_password()) return false;
 
-  rlb->append(STRING_WITH_LEN("CREATE SERVER "));
-  rlb->append(lex->server_options.m_server_name.str
-                  ? lex->server_options.m_server_name.str
-                  : "");
-  rlb->append(STRING_WITH_LEN(" FOREIGN DATA WRAPPER '"));
-  rlb->append(
-      lex->server_options.get_scheme() ? lex->server_options.get_scheme() : "");
-  rlb->append(STRING_WITH_LEN("'"));
-  parent::mysql_rewrite_server_options(lex, rlb);
+  rlb.append(STRING_WITH_LEN("CREATE SERVER "));
+  rlb.append(lex->server_options.m_server_name.str
+                 ? lex->server_options.m_server_name.str
+                 : "");
+  rlb.append(STRING_WITH_LEN(" FOREIGN DATA WRAPPER '"));
+  rlb.append(lex->server_options.get_scheme() ? lex->server_options.get_scheme()
+                                              : "");
+  rlb.append(STRING_WITH_LEN("'"));
+  parent::mysql_rewrite_server_options(lex, &rlb);
 
   return true;
 }
@@ -1415,21 +1712,21 @@ Rewriter_alter_server::Rewriter_alter_server(THD *thd, Consumer_type type)
 /**
   Rewrite the query for the ALTER SERVER statement.
 
-  @retval true  the query is rewritten
-  @retval false otherwise
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
-bool Rewriter_alter_server::rewrite() const {
+bool Rewriter_alter_server::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
 
   if (!lex->server_options.get_password()) return false;
 
-  rlb->append(STRING_WITH_LEN("ALTER SERVER "));
-  rlb->append(lex->server_options.m_server_name.str
-                  ? lex->server_options.m_server_name.str
-                  : "");
-  parent::mysql_rewrite_server_options(lex, rlb);
+  rlb.append(STRING_WITH_LEN("ALTER SERVER "));
+  rlb.append(lex->server_options.m_server_name.str
+                 ? lex->server_options.m_server_name.str
+                 : "");
+  parent::mysql_rewrite_server_options(lex, &rlb);
 
   return true;
 }
@@ -1440,18 +1737,67 @@ Rewriter_prepare::Rewriter_prepare(THD *thd, Consumer_type type)
 /**
   Rewrite the query for the PREPARE statement.
 
-  @retval true  the query is rewritten
-  @retval false otherwise
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
-bool Rewriter_prepare::rewrite() const {
+bool Rewriter_prepare::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  String *rlb = &m_thd->rewritten_query;
-  rlb->mem_free();
 
   if (lex->prepared_stmt_code_is_varref) return false;
 
-  rlb->append(STRING_WITH_LEN("PREPARE "));
-  rlb->append(lex->prepared_stmt_name.str, lex->prepared_stmt_name.length);
-  rlb->append(STRING_WITH_LEN(" FROM ..."));
+  rlb.append(STRING_WITH_LEN("PREPARE "));
+  rlb.append(lex->prepared_stmt_name.str, lex->prepared_stmt_name.length);
+  rlb.append(STRING_WITH_LEN(" FROM ..."));
+  return true;
+}
+
+Rewriter_clone::Rewriter_clone(THD *thd, Consumer_type type)
+    : I_rewriter(thd, type) {}
+
+/**
+  Rewrite the query for the CLONE statement to hide password.
+
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
+*/
+bool Rewriter_clone::rewrite(String &rlb) const {
+  auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(m_thd->lex->m_sql_cmd);
+  return (clone_cmd->rewrite(m_thd, rlb));
+}
+
+Rewriter_start_group_replication::Rewriter_start_group_replication(
+    THD *thd, Consumer_type type)
+    : I_rewriter(thd, type) {}
+
+/**
+  Rewrite the query for the START GROUP_REPLICATION command.
+
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval true  the query is rewritten
+*/
+bool Rewriter_start_group_replication::rewrite(String &rlb) const {
+  LEX *lex = m_thd->lex;
+  bool comma = false;
+
+  rlb.append(STRING_WITH_LEN("START GROUP_REPLICATION"));
+
+  if (lex->slave_connection.user) {
+    comma = append_str(&rlb, comma, " USER =", lex->slave_connection.user);
+  }
+
+  if (lex->slave_connection.password) {
+    comma = append_str(&rlb, comma, " PASSWORD =", "<secret>");
+  }
+
+  if (lex->slave_connection.plugin_auth) {
+    comma = append_str(&rlb, comma,
+                       " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
+  }
+
   return true;
 }

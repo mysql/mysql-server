@@ -1,4 +1,4 @@
-/*  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -38,28 +38,27 @@
 
 #include "my_compiler.h"
 
-static int mysql_no_login(MYSQL_PLUGIN_VIO *vio MY_ATTRIBUTE((unused)),
-                          MYSQL_SERVER_AUTH_INFO *info MY_ATTRIBUTE((unused))) {
+static int mysql_no_login(MYSQL_PLUGIN_VIO *vio [[maybe_unused]],
+                          MYSQL_SERVER_AUTH_INFO *info [[maybe_unused]]) {
   return CR_ERROR;
 }
 
-static int generate_auth_string_hash(
-    char *outbuf MY_ATTRIBUTE((unused)), unsigned int *buflen,
-    const char *inbuf MY_ATTRIBUTE((unused)),
-    unsigned int inbuflen MY_ATTRIBUTE((unused))) {
+static int generate_auth_string_hash(char *outbuf [[maybe_unused]],
+                                     unsigned int *buflen,
+                                     const char *inbuf [[maybe_unused]],
+                                     unsigned int inbuflen [[maybe_unused]]) {
   *buflen = 0;
   return 0;
 }
 
-static int validate_auth_string_hash(char *const inbuf MY_ATTRIBUTE((unused)),
-                                     unsigned int buflen
-                                         MY_ATTRIBUTE((unused))) {
+static int validate_auth_string_hash(char *const inbuf [[maybe_unused]],
+                                     unsigned int buflen [[maybe_unused]]) {
   return 0;
 }
 
-static int set_salt(const char *password MY_ATTRIBUTE((unused)),
-                    unsigned int password_len MY_ATTRIBUTE((unused)),
-                    unsigned char *salt MY_ATTRIBUTE((unused)),
+static int set_salt(const char *password [[maybe_unused]],
+                    unsigned int password_len [[maybe_unused]],
+                    unsigned char *salt [[maybe_unused]],
                     unsigned char *salt_len) {
   *salt_len = 0;
   return 0;
@@ -67,27 +66,27 @@ static int set_salt(const char *password MY_ATTRIBUTE((unused)),
 
 static struct st_mysql_auth mysql_no_login_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-    0,
+    nullptr,
     mysql_no_login,
     generate_auth_string_hash,
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 mysql_declare_plugin(mysql_no_login){
     MYSQL_AUTHENTICATION_PLUGIN,      /* type constant    */
     &mysql_no_login_handler,          /* type descriptor  */
     "mysql_no_login",                 /* Name             */
-    "Todd Farmer",                    /* Author           */
+    PLUGIN_AUTHOR_ORACLE,             /* Author           */
     "No login authentication plugin", /* Description      */
     PLUGIN_LICENSE_GPL,               /* License          */
-    NULL,                             /* Init function    */
-    NULL,                             /* Check uninstall function */
-    NULL,                             /* Deinit function  */
+    nullptr,                          /* Init function    */
+    nullptr,                          /* Check uninstall function */
+    nullptr,                          /* Deinit function  */
     0x0101,                           /* Version (1.0)    */
-    NULL,                             /* status variables */
-    NULL,                             /* system variables */
-    NULL,                             /* config options   */
+    nullptr,                          /* status variables */
+    nullptr,                          /* system variables */
+    nullptr,                          /* config options   */
     0,                                /* flags            */
 } mysql_declare_plugin_end;

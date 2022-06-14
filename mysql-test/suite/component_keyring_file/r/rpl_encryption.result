@@ -1,0 +1,146 @@
+# ----------------------------------------------------------------------
+# Setup
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+[connection slave]
+[connection master]
+# Part 1
+SET @@GLOBAL.binlog_encryption = ON;
+ERROR HY000: Unable to recover binlog encryption master key, please check if keyring is loaded.
+include/assert.inc [binlog_encryption option shall be OFF]
+include/assert.inc [Binary log was not rotated]
+include/assert.inc [Binary log is not encrypted]
+include/assert.inc [1st binary log is not encrypted on master]
+include/rpl_stop_server.inc [server_number=1]
+# Taking backup of local manifest file for MySQL server instance
+Starting the server with "--binlog_encryption=ON" but no keyring installed
+include/assert_grep.inc [Server failed to initialize binlog encryption]
+include/assert_grep.inc [Server aborted to start]
+# Part 2
+# Restore local manifest file for MySQL server instance from backup
+Starting the master with "--binlog_encryption=ON" and keyring installed
+include/rpl_start_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [2nd binary log is encrypted on master]
+include/assert.inc [Binary log is encrypted using 1st master key]
+include/assert.inc [Binary log rotated as expected at master startup]
+SET PERSIST binlog_encryption = ON;
+Restart the master with keyring installed
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [3rd binary log is encrypted on master]
+include/assert.inc [Binary log is encrypted using 1st master key]
+include/assert.inc [Binary log rotated as expected at master startup]
+[connection slave]
+include/assert.inc [1st binary log is not encrypted on slave]
+include/assert.inc [Relay log is not encrypted for slave-relay-bin.000001]
+Restart the slave with keyring installed
+include/rpl_restart_server.inc [server_number=2]
+include/assert.inc [binlog_encryption option shall be OFF]
+include/assert.inc [2nd binary log is not encrypted on slave]
+include/assert.inc [Relay log is not encrypted for slave-relay-bin.000002]
+SET GLOBAL binlog_encryption = ON;
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [3rd binary log is encrypted on slave]
+include/assert.inc [Binary log rotated as expected at server startup]
+include/assert.inc [New binary log is encrypted using 1st master key]
+include/assert.inc [Relay log rotated as expected at server startup]
+include/assert.inc [Relay log is encrypted for slave-relay-bin.000003]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+include/assert.inc [The third relay log is re-encrypted using second master key]
+include/assert.inc [The after relay log is encrypted using second master key]
+# Part 3
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+INSERT INTO t1 (c1) VALUES (1), (2), (3);
+INSERT INTO t1 (c1) VALUES (4), (5), (6);
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Part 4
+[connection slave]
+# Taking backup of local keyring file for keyring component: component_keyring_file
+ALTER INSTANCE RELOAD KEYRING;
+SET GLOBAL keyring_operations = OFF;
+[connection master]
+include/sync_slave_sql_with_master.inc
+FLUSH LOGS;
+include/assert.inc [5th binary log is encrypted on slave]
+include/assert.inc [Binary log rotated as expected by the FLUSH LOGS]
+include/assert.inc [New binary log is still encrypted]
+include/wait_for_slave_sql_error.inc [errno=13121]
+include/stop_slave_io.inc
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/assert.inc [New relay log is still encrypted]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_MYPORT, SOURCE_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/assert.inc [New relay log is still encrypted]
+START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=13117]
+SET GLOBAL binlog_encryption = OFF;
+include/assert.inc [6th binary log is not encrypted on slave]
+include/assert.inc [Binary log rotated as expected when disabling the option]
+include/assert.inc [New binary log is not encrypted]
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/assert.inc [New relay log is not encrypted]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_MYPORT, SOURCE_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/assert.inc [New relay log is not encrypted]
+include/start_slave.inc
+# Restoring local keyring file from backup for keyring component: component_keyring_file
+[connection master]
+third_binary_log: master-bin.000003
+include/assert.inc [the third binary log is encrypted using first master key]
+# Part 5
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+include/assert.inc [the fourth binary log is encrypted on master]
+include/assert.inc [the third binary log is re-encrypted using second master key]
+include/assert.inc [the fourth binary log is encrypted using second master key]
+SET PERSIST binlog_encryption = OFF;
+include/assert.inc [5th binary log is not encrypted on master]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Cannot rotate binary log master key when 'binlog-encryption' is off.
+RESET PERSIST;
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET GLOBAL binlog_encryption= OFF;
+[connection slave]
+SET GLOBAL keyring_operations= ON;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl_end.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

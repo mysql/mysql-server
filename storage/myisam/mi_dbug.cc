@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
           (void)fprintf(stream, "%d", (uint)*key++);
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       case HA_KEYTYPE_TEXT:
       case HA_KEYTYPE_NUM:
         if (keyseg->flag & HA_SPACE_PACK) {
@@ -117,14 +117,14 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
         break;
       case HA_KEYTYPE_LONGLONG: {
         char buff[21];
-        longlong2str(mi_sint8korr(key), buff, -10);
+        llstr(mi_sint8korr(key), buff);
         (void)fprintf(stream, "%s", buff);
         key = end;
         break;
       }
       case HA_KEYTYPE_ULONGLONG: {
         char buff[21];
-        longlong2str(mi_sint8korr(key), buff, 10);
+        ullstr(mi_sint8korr(key), buff);
         (void)fprintf(stream, "%s", buff);
         key = end;
         break;
@@ -178,7 +178,7 @@ bool check_table_is_closed(const char *name, const char *where) {
   char filename[FN_REFLEN];
   char buf[FN_REFLEN * 2];
   LIST *pos;
-  DBUG_ENTER("check_table_is_closed");
+  DBUG_TRACE;
 
   (void)fn_format(filename, name, "", MI_NAME_IEXT, 4 + 16 + 32);
   mysql_mutex_lock(&THR_LOCK_myisam);
@@ -191,11 +191,11 @@ bool check_table_is_closed(const char *name, const char *where) {
         snprintf(buf, sizeof(buf) - 1, "Table: %s is open on %s", name, where);
         my_message_local(WARNING_LEVEL, EE_DEBUG_INFO, buf);
         DBUG_PRINT("warning", ("Table: %s is open on %s", name, where));
-        DBUG_RETURN(1);
+        return 1;
       }
     }
   }
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* EXTRA_DEBUG */

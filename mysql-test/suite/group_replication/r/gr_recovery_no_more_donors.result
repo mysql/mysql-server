@@ -14,16 +14,21 @@ call mtr.add_suppression("The member is leaving a group without being on one");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 #
 # Phase 1:
 # Start recovery on a new member and kill both donors
 #
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("No suitable donor found, group replication recovery aborting.");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.");
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Error leaving the group");
@@ -44,11 +49,14 @@ include/stop_group_replication.inc
 #
 include/start_and_bootstrap_group_replication.inc
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 # Start recovery on the other 2 members
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("No suitable donor found, group replication recovery aborting.");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Error leaving the group");

@@ -5,7 +5,7 @@
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_find_doc_criteria.tmp
+--write_file $MYSQL_TMP_DIR/crud_find_doc_criteria.xpl
 ## Test data
 -->quiet
 
@@ -76,9 +76,7 @@ Mysqlx.Crud.Find {
 -->callmacro Find_value	zcoll	name:"name"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_criteria.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_criteria.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_find_doc_criteria.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -18,10 +18,11 @@ CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 24M
+EXTENT_SIZE 256K
 ENGINE=NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE 8M;
+INITIAL_SIZE 12M;
 CREATE TABLE t1
 (c1 INT NOT NULL PRIMARY KEY, 
 c2 INT NOT NULL, 
@@ -46,12 +47,10 @@ c1	c2	c3
 4	8	7
 5	10	8
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME	LOGFILE_GROUP_NAME
-NULL	TABLESPACE	ts1	lg1
-NULL	UNDO LOG	NULL	lg1
-datafile.dat	DATAFILE	ts1	lg1
-datafile02.dat	DATAFILE	ts1	lg1
-undofile.dat	UNDO LOG	NULL	lg1
-undofile02.dat	UNDO LOG	NULL	lg1
+./datafile.dat	DATAFILE	ts1	lg1
+./datafile02.dat	DATAFILE	ts1	lg1
+./undofile.dat	UNDO LOG	lg1	lg1
+./undofile02.dat	UNDO LOG	lg1	lg1
 **** Do First Set of ALTERs in the master table ****
 CREATE INDEX t1_i ON t1(c2, c3);
 CREATE UNIQUE INDEX t1_i2 ON t1(c2);
@@ -61,30 +60,30 @@ ALTER TABLE t1 ADD INDEX (c5);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Show first set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Second set of alters test 1 ****
 ALTER TABLE t1 RENAME t2;
 ALTER TABLE t2 DROP INDEX c5;
@@ -96,33 +95,33 @@ ALTER TABLE t2 RENAME t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Show second set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
-  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`,`c3`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 **** Third and last set of alters for test1  ****
 ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
 ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
 ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8mb4;
 ALTER TABLE t1 CHANGE c4 c4 BLOB;
 ALTER TABLE t1 CHANGE c4 c3 BLOB;
 set @b1 = 'b1';
@@ -140,14 +139,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
-3	6.00	<c4_timestamp_value>	NULL
-4	8.00	<c4_timestamp_value>	NULL
-5	10.00	<c4_timestamp_value>	NULL
+3	6.00	NULL	NULL
+4	8.00	NULL	NULL
+5	10.00	NULL	NULL
 **** Show last set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -159,27 +158,34 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `t1_i2` (`c2`),
   KEY `t1_i` (`c2`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
-3	6.00	<c4_timestamp_value>	NULL
-4	8.00	<c4_timestamp_value>	NULL
-5	10.00	<c4_timestamp_value>	NULL
+3	6.00	NULL	NULL
+4	8.00	NULL	NULL
+5	10.00	NULL	NULL
 SELECT * FROM t1 where c1 = 1;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 DROP TABLE t1;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ******** Create additional TABLESPACE test 2 **************
 CREATE TABLESPACE ts2
 ADD DATAFILE 'datafile03.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 28M
+EXTENT_SIZE 256K
 ENGINE=NDB;
 ALTER TABLESPACE ts2
 ADD DATAFILE 'datafile04.dat'
@@ -231,8 +237,16 @@ COUNT(*)
 ******** Run in some transactions ***************
 ***** Time to try slave sync ***********
 **** Must make sure slave is clean *****
+USE tpcb;
+SELECT COUNT(*) FROM account;
+COUNT(*)
+1000
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP PROCEDURE IF EXISTS tpcb.load;
 DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE IF EXISTS tpcb.account;
@@ -267,16 +281,18 @@ COUNT(*)
 1000
 ***** Add some more records to master *********
 ***** Finsh the slave sync process *******
-@the_epoch:=MAX(epoch)
+@the_epoch
 <the_epoch>
-@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
+@the_pos	@the_file
 <the_pos>	master-bin.000001
-CHANGE MASTER TO
-master_log_file = 'master-bin.000001',
-master_log_pos = <the_pos> ;
+CHANGE REPLICATION SOURCE TO
+SOURCE_LOG_FILE = 'master-bin.000001',
+SOURCE_LOG_POS = <the_pos> ;
 * 4. *
 * 5. *
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 **** We should be ready to continue on *************
 ****** Let's make sure we match *******
 ***** MASTER *******

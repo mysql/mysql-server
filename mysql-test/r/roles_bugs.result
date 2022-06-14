@@ -14,8 +14,8 @@ SELECT CURRENT_ROLE() AS CURRENT_ROLE, ROLES_GRAPHML() AS ROLES_GRAPHML;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CURRENT_ROLE` longtext CHARACTER SET utf8,
-  `ROLES_GRAPHML` longtext CHARACTER SET utf8
+  `CURRENT_ROLE` longtext CHARACTER SET utf8mb3,
+  `ROLES_GRAPHML` longtext CHARACTER SET utf8mb3
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # create some roles
@@ -76,8 +76,14 @@ END $$
 INSERT into my_db.t1 values(5);
 # Inserts are now allowed if grants are given through role
 INSERT into my_db.t1 values(8) on duplicate key UPDATE id = values(id) + 800;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 CALL my_db.foo_proc();
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 CALL my_db.baz_proc();
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 # Now revoke all privileges from the roles and user
 REVOKE ALL ON *.* FROM my_role;
 REVOKE ALL ON *.* FROM foo@localhost;
@@ -94,6 +100,131 @@ DROP DATABASE my_db;
 DROP USER my_user;
 DROP USER foo@localhost, baz@localhost;
 DROP ROLE my_role;
+#
+# Bug#31237368: WITH ADMIN OPTION DOES NOT WORK AS EXPECTED
+#
+CREATE USER u1, u2;
+CREATE ROLE r1, r2;
+GRANT r2 TO r1 WITH ADMIN OPTION;
+GRANT r1 TO u1 WITH ADMIN OPTION;
+GRANT r1 TO u2;
+REVOKE r1 FROM u2;
+GRANT r2 TO u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+REVOKE r2 FROM u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+SET ROLE r1;
+GRANT r1 TO u2;
+REVOKE r1 FROM u2;
+GRANT r2 TO u2;
+REVOKE r2 FROM u2;
+DROP ROLE r1, r2;
+DROP USER u1, u2;
+CREATE USER u1;
+CREATE ROLE r1, r2;
+GRANT CREATE USER ON *.* TO u1;
+GRANT r1 TO u1 WITH ADMIN OPTION;
+CREATE USER u2 DEFAULT ROLE r1;
+CREATE USER u3 DEFAULT ROLE r2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+DROP ROLE r1, r2;
+DROP USER u1, u2;
+#
+# Bug#30660403 ROLES NOT HANDLING COLUMN LEVEL PRIVILEGES CORRECTLY;
+#              CAN SELECT, BUT NOT UPDATE
+#
+# Create sample database/table
+CREATE DATABASE bug_test;
+CREATE TABLE bug_test.test_table (test_id int, test_data varchar(50),
+row_is_verified bool);
+INSERT INTO bug_test.test_table VALUES(1, 'valueA', FALSE);
+# Create role and two users
+CREATE ROLE `r_verifier`@`localhost`;
+CREATE USER `TestUserFails`@`localhost` IDENTIFIED BY 'test';
+CREATE USER `TestUserWorks`@`localhost` IDENTIFIED BY 'test';
+# Grant privileges to ROLE
+GRANT SELECT ON bug_test.* TO `r_verifier`@`localhost`;
+GRANT UPDATE (row_is_verified) ON bug_test.test_table TO `r_verifier`@`localhost`;
+# GRANT same privileges to USER
+GRANT SELECT ON bug_test.* TO `TestUserWorks`@`localhost`;
+GRANT UPDATE (row_is_verified) ON bug_test.test_table TO `TestUserWorks`@`localhost`;
+# Grant role to TestUserFails and make it a default role
+GRANT `r_verifier`@`localhost` TO `TestUserFails`@`localhost`;
+SET DEFAULT ROLE `r_verifier`@`localhost` TO `TestUserFails`@`localhost`;
+SHOW GRANTS FOR `r_verifier`@`localhost`;
+Grants for r_verifier@localhost
+GRANT USAGE ON *.* TO `r_verifier`@`localhost`
+GRANT SELECT ON `bug_test`.* TO `r_verifier`@`localhost`
+GRANT UPDATE (`row_is_verified`) ON `bug_test`.`test_table` TO `r_verifier`@`localhost`
+SHOW GRANTS FOR `TestUserFails`@`localhost`;
+Grants for TestUserFails@localhost
+GRANT USAGE ON *.* TO `TestUserFails`@`localhost`
+GRANT `r_verifier`@`localhost` TO `TestUserFails`@`localhost`
+SELECT CURRENT_USER(), CURRENT_ROLE();
+CURRENT_USER()	CURRENT_ROLE()
+TestUserWorks@localhost	NONE
+SELECT test_id, test_data, row_is_verified FROM bug_test.test_table;
+test_id	test_data	row_is_verified
+1	valueA	0
+UPDATE bug_test.test_table SET row_is_verified = TRUE WHERE test_id=1;
+SELECT test_id, test_data, row_is_verified FROM bug_test.test_table;
+test_id	test_data	row_is_verified
+1	valueA	1
+# After fix the below update statement should not throw error.
+SELECT CURRENT_USER(), CURRENT_ROLE();
+CURRENT_USER()	CURRENT_ROLE()
+TestUserFails@localhost	`r_verifier`@`localhost`
+SELECT test_id, test_data, row_is_verified FROM bug_test.test_table;
+test_id	test_data	row_is_verified
+1	valueA	1
+UPDATE bug_test.test_table SET row_is_verified = TRUE WHERE test_id=1;
+# cleanup
+DROP USER `TestUserFails`@`localhost`, `TestUserWorks`@`localhost`;
+DROP ROLE `r_verifier`@`localhost`;
+DROP DATABASE bug_test;
+#
+# Bug #31222230: A USER CAN GRANT ITSELF TO ITSELF AS A ROLE
+#
+CREATE ROLE r1,r2,r3,r4;
+GRANT r1 TO r2;
+GRANT r2 TO r3;
+GRANT r4 TO r3;
+GRANT r1 TO r1;
+ERROR HY000: User account `r1`@`%` is directly or indirectly granted to the role `r1`@`%`. The GRANT would create a loop
+GRANT r2 TO r1;
+ERROR HY000: User account `r1`@`%` is directly or indirectly granted to the role `r2`@`%`. The GRANT would create a loop
+GRANT r3 TO r1;
+ERROR HY000: User account `r1`@`%` is directly or indirectly granted to the role `r3`@`%`. The GRANT would create a loop
+SET @save_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'r4';
+GRANT r3 TO r4;
+ERROR HY000: User account `r4`@`%` is directly or indirectly granted to the role `r3`@`%`. The GRANT would create a loop
+SET GLOBAL mandatory_roles = @save_mandatory_roles;
+DROP ROLE r1,r2,r3,r4;
+#
+# Bug #33159353: SHOW CREATE DATABASE fails with a role that has global
+#                level privilege
+#
+CREATE ROLE test_role;
+GRANT SELECT ON *.* TO test_role;
+CREATE USER test_user DEFAULT ROLE test_role;
+# connect with test_user
+SELECT current_role(), current_user();
+current_role()	current_user()
+`test_role`@`%`	test_user@%
+SHOW GRANTS FOR test_role;
+Grants for test_role@%
+GRANT SELECT ON *.* TO `test_role`@`%`
+SHOW GRANTS FOR test_user;
+Grants for test_user@%
+GRANT USAGE ON *.* TO `test_user`@`%`
+GRANT `test_role`@`%` TO `test_user`@`%`
+SHOW CREATE DATABASE mysql;
+Database	Create Database
+mysql	CREATE DATABASE `mysql` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Cleanup
+DROP ROLE test_role;
+DROP USER test_user;
 
 # End of 8.0 tests
 

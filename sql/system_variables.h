@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,11 @@ enum enum_transaction_write_set_hashing_algorithm {
 };
 
 // Values for session_track_gtids sysvar
-enum enum_session_track_gtids { OFF = 0, OWN_GTID = 1, ALL_GTIDS = 2 };
+enum enum_session_track_gtids {
+  SESSION_TRACK_GTIDS_OFF = 0,
+  SESSION_TRACK_GTIDS_OWN_GTID = 1,
+  SESSION_TRACK_GTIDS_ALL_GTIDS = 2
+};
 
 /** Values for use_secondary_engine sysvar. */
 enum use_secondary_engine {
@@ -212,7 +216,7 @@ struct System_variables {
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
-  ulong max_length_for_sort_data;
+  ulong max_length_for_sort_data;  ///< Unused.
   ulong max_points_in_geometry;
   ulong max_sort_length;
   ulong max_insert_delayed_threads;
@@ -225,6 +229,7 @@ struct System_variables {
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  ulong optimizer_max_subgraph_pairs;
   ulonglong parser_max_mem_size;
   ulong range_optimizer_max_mem_size;
   ulong preload_buff_size;
@@ -246,6 +251,9 @@ struct System_variables {
   ulong rbr_exec_mode_options;  // see enum_rbr_exec_mode
   bool binlog_direct_non_trans_update;
   ulong binlog_row_image;  // see enum_binlog_row_image
+  bool binlog_trx_compression;
+  ulong binlog_trx_compression_type;  // see enum_binlog_trx_compression
+  uint binlog_trx_compression_level_zstd;
   ulonglong binlog_row_value_options;
   bool sql_log_bin;
   // see enum_transaction_write_set_hashing_algorithm
@@ -311,7 +319,7 @@ struct System_variables {
 
   double long_query_time_double;
 
-  bool pseudo_slave_mode;
+  bool pseudo_replica_mode;
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
@@ -388,6 +396,66 @@ struct System_variables {
     @sa Sys_var_print_identified_with_as_hex
   */
   bool print_identified_with_as_hex;
+
+  /**
+    @sa Sys_var_show_create_table_skip_secondary_engine
+  */
+  bool show_create_table_skip_secondary_engine;
+
+  /**
+    @sa Sys_var_generated_random_password_length
+  */
+  uint32_t generated_random_password_length;
+
+  /**
+    @sa Sys_var_require_row_format
+  */
+  bool require_row_format;
+  /**
+    @sa Sys_select_into_buffer_size
+  */
+  ulong select_into_buffer_size;
+  /**
+    @sa Sys_select_into_disk_sync
+  */
+  bool select_into_disk_sync;
+  /**
+    @sa Sys_select_disk_sync_delay
+  */
+  uint select_into_disk_sync_delay;
+  /**
+    @sa Sys_terminology_use_previous
+  */
+  ulong terminology_use_previous;
+  /**
+    @sa Sys_connection_memory_limit
+  */
+  ulonglong conn_mem_limit;
+  /**
+    @sa Sys_connection_memory_chunk_size
+  */
+  ulong conn_mem_chunk_size;
+  /**
+    @sa Sys_connection_global_memory_tracking
+  */
+  bool conn_global_mem_tracking;
+
+  /**
+    Switch which controls whether XA transactions are detached
+    (made accessible to other connections for commit/rollback)
+    as part of XA PREPARE (true), or at session disconnect (false, default).
+    An important side effect of setting this to true is that temporary tables
+    are disallowed in XA transactions. This is necessary beacuse temporary
+    tables and their contents (and thus changes to them) is bound to
+    specific connections, so they don't make sense if XA transaction is
+    committed or rolled back from another connection.
+   */
+  bool xa_detach_on_prepare;
+
+  /**
+    @sa Sys_debug_sensitive_session_string
+  */
+  char *debug_sensitive_session_str;
 };
 
 /**

@@ -16,5 +16,5 @@ ERROR HY000: Error when executing command SHOW BINLOG EVENTS: I/O error reading 
 SET debug = "-d,simulate_seek_failure";
 SET debug = "+d,simulate_ostream_write_failure";
 INSERT INTO t1 VALUES(1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 DROP TABLE t1;

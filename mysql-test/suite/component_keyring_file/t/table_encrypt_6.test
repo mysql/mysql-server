@@ -1,0 +1,11 @@
+--source include/have_component_keyring_file.inc
+# Test negative scenarios, lifted from other innodb/table_encrypt tests
+#
+# Create a table with encryption, should fail since keyring is not
+# loaded
+
+--source include/have_debug.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/mats/table_encrypt_6.inc
+--source ../inc/teardown_component.inc

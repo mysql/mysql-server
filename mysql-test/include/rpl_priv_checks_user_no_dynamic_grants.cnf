@@ -1,0 +1,51 @@
+# ==== Purpose ====
+# Grant all privileges to PRIVILEGE_CHECKS_USER account except the
+# dynamic privileges and the GRANT option
+
+[ENV]
+# By default, CHANGE REPLICATION SOURCE is executed without specifying the
+# `PRIVILEGE_CHECKS_USER` parameter. Instantiating
+# $rpl_privilege_checks_user` sets the `PRIVILEGE_CHECKS_USER` option for
+# the `CHANGE REPLICATION SOURCE TO...` command, bounding the replication
+# applier to execute within the security context of the given user. For
+# example, to specify that server_1 should use 'u1'@'localhost' as base
+# user for replication applier security context and server_5 shouldn't
+# check privileges while applying replicated events, do:
+# PRIVILEGE_CHECKS_USER= 1:'u1'@'localhost',5:NULL
+PRIVILEGE_CHECKS_USER= *:'rpl_applier_priv_user'@'localhost'
+
+# Force to '1' to not create the user provided in
+# $PRIVILEGE_CHECKS_USER. If set to 0, creates it if doesn't
+# exists and, if created, assigns the `REPLICATION_APPLIER` privilege.
+# Default value is '0'.
+PRIVILEGE_CHECKS_USER_DONT_CREATE_USER= 0
+
+# If set to '1' does not modify the privileges of $PRIVILEGE_CHECKS_USER
+# account. If set to '0' privileges are modified according to parameters
+# $PRIVILEGE_CHECKS_USER_GRANT_ALL, $PRIVILEGE_CHECKS_USER_GRANT_OPTION,
+# $PRIVILEGE_CHECKS_USER_ADDITIONAL_GRANTS and $PRIVILEGE_CHECKS_USER_REVOKE_GRANTS
+# Default value is '0'.
+SKIP_GRANT_PRIVILEGE_CHECKS_USER_ROLES= 0
+
+# If set to '1' create a new role 'sql_applier_thread' and grant this role
+# to account $PRIVILEGE_CHECKS_USER. If set to '0' do nothing.
+# Default value is '0'.
+PRIVILEGE_CHECKS_USE_ROLES= 0
+
+# If set to '1' PRIVILEGE_CHECKS_USER account has all privileges. If set to
+# '0' PRIVILEGE_CHECKS_USER account has privileges given by
+# $PRIVILEGE_CHECKS_USER_ADDITIONAL_GRANTS. Default value is '1'.
+PRIVILEGE_CHECKS_USER_GRANT_ALL= 1
+
+# If set to '1' PRIVILEGE_CHECKS_USER account has the ability to give to
+# other users any of its privileges. It set to '0' this account cannot grant
+# its privileges. Default value is '0'.
+PRIVILEGE_CHECKS_USER_GRANT_OPTION= 0
+
+# If PRIVILEGE_CHECKS_USER_GRANT_ALL is not '1' specifies additional
+# privileges to be granted to  $PRIVILEGE_CHECKS_USER.
+PRIVILEGE_CHECKS_USER_ADDITIONAL_GRANTS=
+
+# Specifies the set of privileges to be revoked from $PRIVILEGE_CHECKS_USER
+# GROUP_REPLICATION_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,SESSION_VARIABLES_ADMIN are kept
+PRIVILEGE_CHECKS_USER_REVOKE_GRANTS= SYSTEM_VARIABLES_ADMIN,BINLOG_ADMIN,ENCRYPTION_KEY_ADMIN,CONNECTION_ADMIN,SET_USER_ID,XA_RECOVER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,BACKUP_ADMIN,CLONE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,BINLOG_ENCRYPTION_ADMIN,SERVICE_CONNECTION_ADMIN,APPLICATION_PASSWORD_ADMIN,SYSTEM_USER,TABLE_ENCRYPTION_ADMIN,AUDIT_ADMIN,ROLE_ADMIN,INNODB_REDO_LOG_ARCHIVE

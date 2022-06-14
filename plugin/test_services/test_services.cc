@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ static SHOW_VAR test_services_status[] = {
     {"test_services_status",
      const_cast<char *>(reinterpret_cast<volatile char *>(&test_status)),
      SHOW_INT, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
 /* SQL (system) variables to control test execution                     */
 /* SQL (system) variables to switch on/off test of services, default=on */
@@ -62,21 +62,22 @@ static SHOW_VAR test_services_status[] = {
 static int with_log_message_val = 0;
 static MYSQL_SYSVAR_INT(with_log_message, with_log_message_val,
                         PLUGIN_VAR_RQCMDARG,
-                        "Switch on/off test of log message service", NULL, NULL,
-                        1, 0, 1, 0);
+                        "Switch on/off test of log message service", nullptr,
+                        nullptr, 1, 0, 1, 0);
 
 static int non_default_variable_value = 0;
 static MYSQL_SYSVAR_INT(non_default_variable, non_default_variable_value,
                         PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NODEFAULT,
-                        "A variable that won't accept SET DEFAULT", NULL, NULL,
-                        1, 0, 100, 0);
+                        "A variable that won't accept SET DEFAULT", nullptr,
+                        nullptr, 1, 0, 100, 0);
 
-static SYS_VAR *test_services_sysvars[] = {
-    MYSQL_SYSVAR(with_log_message), MYSQL_SYSVAR(non_default_variable), NULL};
+static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(with_log_message),
+                                           MYSQL_SYSVAR(non_default_variable),
+                                           nullptr};
 
 /* The test cases for the log_message service. */
-static int test_log_plugin_error(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_log_plugin_error");
+static int test_log_plugin_error(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
   /* Writes to mysqld.1.err: Plugin test_services reports an info text */
   LogPluginErr(
       INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
@@ -92,20 +93,19 @@ static int test_log_plugin_error(void *p MY_ATTRIBUTE((unused))) {
                "This is an error from test plugin for services "
                "testing error report output");
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* the tests of snprintf ans log_message run when INSTALL PLUGIN is called. */
 static int test_services_plugin_init(void *p) {
-  DBUG_ENTER("test_services_plugin_init");
+  DBUG_TRACE;
 
   int ret = 0;
   test_status = BUSY;
   /* Test of service: LogPluginErr/LogPluginErrMsg */
   /* Log the value of the switch in mysqld.err. */
 
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Test_services with_log_message_val: %d",
                   with_log_message_val);
@@ -119,14 +119,14 @@ static int test_services_plugin_init(void *p) {
 
   test_status = READY;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /* There is nothing to clean up when UNINSTALL PLUGIN. */
 static int test_services_plugin_deinit(void *) {
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_ENTER("test_services_plugin_deinit");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /* Mandatory structure describing the properties of the plugin. */
@@ -136,15 +136,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_services_plugin,
     "test_services",
-    "Horst Hunger",
+    PLUGIN_AUTHOR_ORACLE,
     "Test services",
     PLUGIN_LICENSE_GPL,
     test_services_plugin_init,   /* Plugin Init */
-    NULL,                        /* Plugin Check uninstall */
+    nullptr,                     /* Plugin Check uninstall */
     test_services_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
     test_services_status,  /* status variables                */
     test_services_sysvars, /* system variables                */
-    NULL,                  /* config options                  */
+    nullptr,               /* config options                  */
     0,                     /* flags                           */
 } mysql_declare_plugin_end;

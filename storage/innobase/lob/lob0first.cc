@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,8 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
-                                  ulint &want, mtr_t *mtr) {
+void first_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
+                                  mtr_t *mtr) {
   byte *old_ptr = data_begin();
   old_ptr += offset;
 
@@ -46,19 +46,19 @@ void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
 }
 
 /** Replace data in the page by making a copy-on-write.
-@param[in]	trx	the current transaction.
-@param[in]	offset	the location where replace operation starts.
-@param[in,out]	ptr	the buffer containing new data. after the
-                        call it will point to remaining data.
-@param[in,out]	want	requested amount of data to be replaced.
-                        after the call it will contain amount of
-                        data yet to be replaced.
-@param[in]	mtr	the mini-transaction context.
-@return	the newly allocated buffer block.
-@return	nullptr if new page could not be allocated (DB_OUT_OF_FILE_SPACE). */
+@param[in]      trx     Current transaction.
+@param[in]      offset  Location where replace operation starts.
+@param[in,out]  ptr     Buffer containing new data. after the call it will
+point to remaining data.
+@param[in,out]  want    Requested amount of data to be replaced. After the
+call it will contain amount of data yet to be replaced.
+@param[in]      mtr     Mini-transaction context.
+@return  the newly allocated buffer block.
+@return  nullptr if new page could not be allocated
+(DB_OUT_OF_FILE_SPACE). */
 buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                    ulint &want, mtr_t *mtr) {
-  DBUG_ENTER("first_page_t::replace");
+  DBUG_TRACE;
 
   buf_block_t *new_block = nullptr;
 
@@ -69,7 +69,7 @@ buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
   DBUG_EXECUTE_IF("innodb_lob_first_page_replace_failed", new_block = nullptr;);
 
   if (new_block == nullptr) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   byte *new_ptr = new_page.data_begin();
@@ -117,7 +117,7 @@ buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 
   want -= data_to_copy;
 
-  DBUG_RETURN(new_block);
+  return new_block;
 }
 
 std::ostream &first_page_t::print_index_entries_cache_s(
@@ -206,14 +206,14 @@ std::ostream &first_page_t::print_index_entries(std::ostream &out) const {
 #ifdef UNIV_DEBUG
 bool first_page_t::validate() const {
   flst_base_node_t *idx_list = index_list();
-  ut_ad(flst_validate(idx_list, m_mtr));
+  ut_d(flst_validate(idx_list, m_mtr));
   return (true);
 }
 #endif /* UNIV_DEBUG */
 
 /** Allocate the first page for uncompressed LOB.
-@param[in,out]	alloc_mtr	the allocation mtr.
-@param[in]	is_bulk		true if it is bulk operation.
+@param[in,out]  alloc_mtr       the allocation mtr.
+@param[in]      is_bulk         true if it is bulk operation.
                                 (OPCODE_INSERT_BULK)
 return the allocated buffer block.*/
 buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
@@ -249,7 +249,7 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
     flst_add_last(free_lst, cur, m_mtr);
     cur += index_entry_t::SIZE;
   }
-  ut_ad(flst_validate(free_lst, m_mtr));
+  ut_d(flst_validate(free_lst, m_mtr));
   set_next_page_null();
   ut_ad(get_page_type() == FIL_PAGE_TYPE_LOB_FIRST);
   return (m_block);
@@ -257,7 +257,7 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
 
 /** Allocate one index entry.  If required an index page (of type
 FIL_PAGE_TYPE_LOB_INDEX) will be allocated.
-@param[in]	bulk	true if it is a bulk operation
+@param[in]      bulk    true if it is a bulk operation
                         (OPCODE_INSERT_BULK), false otherwise.
 @return the file list node of the index entry. */
 flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
@@ -279,28 +279,54 @@ flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
 }
 
 void first_page_t::free_all_data_pages() {
-  index_entry_t cur_entry(m_mtr, m_index);
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+  index_entry_t cur_entry(&local_mtr, m_index);
   flst_base_node_t *flst = index_list();
-  fil_addr_t node_loc = flst_get_first(flst, m_mtr);
+  fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
+  const page_no_t first_page_no = get_page_no();
   while (!fil_addr_is_null(node_loc)) {
-    flst_node_t *node = addr2ptr_x(node_loc);
+    flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
+    cur_entry.free_data_page(first_page_no);
 
-    page_no_t page_no = cur_entry.get_page_no();
+    flst_base_node_t *vers = cur_entry.get_versions_list();
+    fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
 
-    if (page_no != get_page_no()) {
-      data_page_t data_page(m_mtr, m_index);
-      data_page.load_x(page_no);
-      data_page.dealloc();
+    while (!fil_addr_is_null(ver_loc)) {
+      flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
+      index_entry_t vers_entry(ver_node, &local_mtr, m_index);
+      vers_entry.free_data_page(first_page_no);
+      ver_loc = vers_entry.get_next();
+
+      ut_ad(!local_mtr.conflicts_with(m_mtr));
+      restart_mtr(&local_mtr);
+      node = addr2ptr_x(node_loc, &local_mtr);
+      cur_entry.reset(node);
     }
-
+    cur_entry.set_versions_null();
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
+
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
+    restart_mtr(&local_mtr);
   }
+  flst_init(flst, &local_mtr);
+  byte *free_lst = free_list();
+  flst_init(free_lst, &local_mtr);
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
+  mtr_commit(&local_mtr);
 }
 
 void first_page_t::free_all_index_pages() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+
   space_id_t space_id = dict_index_get_space(m_index);
   page_size_t page_size(dict_table_page_size(m_index->table));
 
@@ -311,22 +337,29 @@ void first_page_t::free_all_index_pages() {
       break;
     }
 
-    node_page_t index_page(m_mtr, m_index);
+    node_page_t index_page(&local_mtr, m_index);
     page_id_t page_id(space_id, page_no);
     index_page.load_x(page_id, page_size);
     page_no_t next_page = index_page.get_next_page();
-    set_next_page(next_page);
+    set_next_page(next_page, &local_mtr);
     index_page.dealloc();
+
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
+    restart_mtr(&local_mtr);
   }
+
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
+  mtr_commit(&local_mtr);
 }
 
 /** Load the first page of LOB with x-latch.
-@param[in]   page_id    the page identifier of the first page.
-@param[in]   page_size  the page size information.
+@param[in]   page_id    Page identifier of the first page.
+@param[in]   page_size  Page size information.
+@param[in]   mtr        Mini-transaction context for latch.
 @return the buffer block of the first page. */
 buf_block_t *first_page_t::load_x(const page_id_t &page_id,
-                                  const page_size_t &page_size) {
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+                                  const page_size_t &page_size, mtr_t *mtr) {
+  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
   ut_ad(m_block != nullptr);
 #ifdef UNIV_DEBUG
@@ -341,6 +374,9 @@ buf_block_t *first_page_t::load_x(const page_id_t &page_id,
     case FIL_PAGE_SDI_ZBLOB:
     case FIL_PAGE_SDI_BLOB:
       /* Valid first page type.*/
+    case FIL_PAGE_TYPE_ZBLOB2:
+      /* Because of partially purged ZBLOB, we might see this page type as
+         the first page of the ZBLOB. */
       break;
     default:
       std::cerr << "Unexpected LOB first page type=" << page_type << std::endl;
@@ -376,9 +412,9 @@ void first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
 }
 
 /** Read data from the first page.
-@param[in]	offset	the offset from where read starts.
-@param[out]	ptr	the output buffer
-@param[in]	want	number of bytes to read.
+@param[in]      offset  the offset from where read starts.
+@param[out]     ptr     the output buffer
+@param[in]      want    number of bytes to read.
 @return number of bytes read. */
 ulint first_page_t::read(ulint offset, byte *ptr, ulint want) {
   byte *start = data_begin();
@@ -391,9 +427,9 @@ ulint first_page_t::read(ulint offset, byte *ptr, ulint want) {
 }
 
 /** Write as much as possible of the given data into the page.
-@param[in]	trxid	the current transaction.
-@param[in]	data	the data to be written.
-@param[in]	len	the length of the given data.
+@param[in]      trxid   the current transaction.
+@param[in]      data    the data to be written.
+@param[in]      len     the length of the given data.
 @return number of bytes actually written. */
 ulint first_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
   byte *ptr = data_begin();
@@ -433,6 +469,28 @@ void first_page_t::dealloc() {
 
   btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
   m_block = nullptr;
+}
+
+void first_page_t::destroy() {
+  make_empty();
+  dealloc();
+}
+
+void first_page_t::make_empty() {
+  free_all_data_pages();
+  free_all_index_pages();
+}
+
+flst_node_t *first_page_t::addr2ptr_x(const fil_addr_t &addr,
+                                      mtr_t *mtr) const {
+  const space_id_t space = dict_index_get_space(m_index);
+  const page_size_t page_size = dict_table_page_size(m_index->table);
+  buf_block_t *block = nullptr;
+  flst_node_t *result =
+      fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr, &block);
+  const page_type_t type = block->get_page_type();
+  ut_a(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
+  return result;
 }
 
 }  // namespace lob

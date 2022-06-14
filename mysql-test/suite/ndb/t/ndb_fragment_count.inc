@@ -235,7 +235,7 @@ drop table t1, t2, t3, t4, t5;
 
 create table t1 (a int primary key) engine ndb
   COMMENT="NDB_TABLE=NOLOGGING=1";
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace,
   COMMENT="NDB_TABLE=NOLOGGING=0";
 drop table t1;
@@ -315,8 +315,9 @@ where table_schema = 'test' and table_name = 't1';
 select @cnt_t1_7;
 
 show create table t1;
---let ndb_desc_opts= -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+let $ndb_describe_table=t1;
+let $ndb_describe_print_exit= 2;
+source suite/ndb/include/ndb_describe_table.inc;
 
 drop table t1;
 

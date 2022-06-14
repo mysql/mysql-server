@@ -1,0 +1,68 @@
+# ==== Purpose ====
+#
+# Test warnings for unsafe statements generated from DML or DDL statements
+# that read a ACL table.
+#
+# ==== Requirements ====
+#
+# R1. If a statement reads ACL table in a DML or a DDL, a warning
+#     ER_BINLOG_STMT_UNSAFE_ACL_TABLE_READ should be raised in all
+#     isolation level.
+#
+# R2. Test R1 with all the ACL tables.
+#
+# R3. Test that ALTER TABLE on acl table do not generate warning.
+#
+# ==== Implementation ====
+#
+# Test executing DML and DLL which reads ACL tables
+# and verify that the expected warnings are raised.
+#
+# ==== References ====
+#
+# WL#14087: Avoid locking reads from ACL tables
+#
+
+--source include/have_binlog_format_statement.inc
+
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+# We run the test using serializable and repeatable read because, InnoDB is
+# limited to row-logging when transaction isolation level is READ COMMITTED
+# or READ UNCOMMITTED.
+--let $isolation_levels='SERIALIZABLE,REPEATABLE READ'
+--let $i=1
+while($i <= 2)
+{
+  let isolation_level = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($isolation_levels,',',$i),',',-1)`;
+  echo "Case 1.$i: Using $isolation_level";
+  eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
+
+  let $acl_tables='mysql.user, mysql.db, mysql.tables_priv, mysql.columns_priv, mysql.procs_priv, mysql.proxies_priv, mysql.global_grants, mysql.password_history, mysql.default_roles';
+
+--let $t=1
+  while($t <= 9)
+  {
+    let acl_table = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($acl_tables,',',$t),',',-1)`;
+    --echo "Test using $acl_table"
+
+    eval CREATE TABLE t1 AS SELECT * FROM $acl_table;
+    DELETE FROM t1;
+    eval INSERT INTO t1 SELECT * FROM $acl_table;
+    DROP TABLE t1;
+
+    eval ALTER TABLE $acl_table ADD COLUMN c1 INT, ALGORITHM=INPLACE;
+    eval ALTER TABLE $acl_table DROP COLUMN c1;
+    eval ALTER TABLE $acl_table ADD COLUMN c1 INT, ALGORITHM=COPY;
+    eval ALTER TABLE $acl_table DROP COLUMN c1;
+
+    eval CREATE TABLE t1 (f1 INT);
+    eval INSERT INTO t1 VALUES (10);
+    eval UPDATE t1 SET f1=20 WHERE EXISTS (SELECT * FROM $acl_table);
+    eval DELETE FROM t1 WHERE EXISTS (SELECT * FROM $acl_table);
+    DROP TABLE t1;
+
+    --inc $t
+  }
+  --inc $i
+}

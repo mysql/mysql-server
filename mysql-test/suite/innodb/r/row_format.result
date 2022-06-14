@@ -1,0 +1,353 @@
+#
+# Bug#31479542 : MYSQL 8 ORPHANED TABLE DUE TO UNCHECKED NON-EXISTENT ROW FORMAT CHECK.
+#
+# SETUP
+
+# Test 1 : Upgrade from 5.7 having table with no row_format specified
+
+SHOW VARIABLES LIKE "%innodb_default_row_format%";
+Variable_name	Value
+innodb_default_row_format	dynamic
+# Stop the running the server
+# Copy and unzip the datadir.
+# Restart the server against the unzipped datadir
+# restart: --datadir=DATADIR --innodb-page-size=16k
+SHOW VARIABLES LIKE "%innodb_default_row_format%";
+Variable_name	Value
+innodb_default_row_format	dynamic
+# Verify tables after upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int unsigned NOT NULL AUTO_INCREMENT,
+  `c2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t1	InnoDB	Redundant	
+SELECT * FROM test.t1;
+c1	c2
+# Use default algorithm (INPLACE). Table not rebuilt. Expect error.
+ALTER TABLE test.t1 ADD INDEX idx(C2);
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+# Use algorithm INPLACE. Table not rebuilt. Expect error.
+ALTER TABLE test.t1 ADD INDEX idx(C2), ALGORITHM=INPLACE;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+# Use algorithm COPY. Table rebuilt. Expect success.
+ALTER TABLE test.t1 ADD INDEX idx(C2), ALGORITHM=COPY;
+SELECT * FROM test.t1;
+c1	c2
+# Restart server
+# restart: --datadir=DATADIR --innodb-page-size=16k
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME="t1";
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t1	InnoDB	Dynamic	
+SELECT * FROM test.t1;
+c1	c2
+# Cleanup
+DROP TABLE t1;
+# Shutdown server
+# Remove copied files
+# Restarting server to restore server state
+# restart:
+
+# Test 2 : Test behavior of ALTER with different algorithm and create
+#          table options.
+
+SET @innodb_default_row_format_saved = @@global.innodb_default_row_format;
+# --------------- DEFAULT ALGORITHM -----------------
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_default_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=DEFAULT;
+CREATE TABLE t_implicit_row_format (C1 INT KEY, C2 INT);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Redundant	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Redundant	
+SET @@global.innodb_default_row_format=DYNAMIC;
+# Add index. Table won't be rebuit. So no format change.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_DEFAULT(C2);
+ALTER TABLE t_default_row_format ADD INDEX IDX_DEFAULT(C2);
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_DEFAULT(C2);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Redundant	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Redundant	
+ALTER TABLE t_explicit_row_format DROP INDEX IDX_DEFAULT;
+ALTER TABLE t_default_row_format DROP INDEX IDX_DEFAULT;
+ALTER TABLE t_implicit_row_format DROP INDEX IDX_DEFAULT;
+# Add index with ROW_FORMAT. Table will be rebuilt. So format change for all.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_DEFAULT(C2), ROW_FORMAT=DYNAMIC;
+ALTER TABLE t_default_row_format ADD INDEX IDX_DEFAULT(C2), ROW_FORMAT=DYNAMIC;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_DEFAULT(C2), ROW_FORMAT=DYNAMIC;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Dynamic	row_format=DYNAMIC
+test	t_explicit_row_format	InnoDB	Dynamic	row_format=DYNAMIC
+test	t_implicit_row_format	InnoDB	Dynamic	row_format=DYNAMIC
+DROP TABLE t_explicit_row_format, t_default_row_format, t_implicit_row_format;
+# --------------- INPLACE ALTER ---------------------
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_default_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=DEFAULT;
+CREATE TABLE t_implicit_row_format (C1 INT KEY, C2 INT);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Redundant	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Redundant	
+SET @@global.innodb_default_row_format=DYNAMIC;
+# Add index. Table won't be rebuilt. So no format change.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_INPLACE(C2), ALGORITHM=INPLACE;
+ALTER TABLE t_default_row_format ADD INDEX IDX_INPLACE(C2), ALGORITHM=INPLACE;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_INPLACE(C2), ALGORITHM=INPLACE;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Redundant	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Redundant	
+ALTER TABLE t_explicit_row_format DROP INDEX IDX_INPLACE;
+ALTER TABLE t_default_row_format DROP INDEX IDX_INPLACE;
+ALTER TABLE t_implicit_row_format DROP INDEX IDX_INPLACE;
+# Add index with FORCE. Table will be rebuilt. So format change for implicit and default.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_INPLACE(C2), FORCE, ALGORITHM=INPLACE;
+ALTER TABLE t_default_row_format ADD INDEX IDX_INPLACE(C2), FORCE, ALGORITHM=INPLACE;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_INPLACE(C2), FORCE, ALGORITHM=INPLACE;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Dynamic	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Dynamic	
+DROP TABLE t_explicit_row_format, t_default_row_format, t_implicit_row_format;
+# --------------- COPY ALTER ------------------------
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_default_row_format (C1 INT KEY, C2 INT) ROW_FORMAT=DEFAULT;
+CREATE TABLE t_implicit_row_format (C1 INT KEY, C2 INT);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Redundant	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Redundant	
+SET @@global.innodb_default_row_format=DYNAMIC;
+# Add index. Table will be rebuilt. So format change for implicit and default.
+ALTER TABLE t_explicit_row_format ADD INDEX IDX_COPY(C2), ALGORITHM=COPY;
+ALTER TABLE t_default_row_format ADD INDEX IDX_COPY(C2), ALGORITHM=COPY;
+ALTER TABLE t_implicit_row_format ADD INDEX IDX_COPY(C2), ALGORITHM=COPY;
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_row_format"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_default_row_format	InnoDB	Dynamic	
+test	t_explicit_row_format	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_row_format	InnoDB	Dynamic	
+# CLEANUP
+DROP TABLE t_explicit_row_format;
+DROP TABLE t_default_row_format;
+DROP TABLE t_implicit_row_format;
+
+# Test 3 : Test behavior of ALTER with different algorithm and create
+#          table options while try to add an index on tables which
+#          voilates length restriction.
+
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_redundant (
+C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+C2 VARCHAR(767) NOT NULL DEFAULT ''
+) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_implicit_redundant (
+C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+C2 VARCHAR(767) NOT NULL DEFAULT ''
+);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_explicit_redundant	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_redundant	InnoDB	Redundant	
+SET @@global.innodb_default_row_format=DYNAMIC;
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode= '';
+# --------------- DEFAULT ALGORITHM (INPLACE) -----------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2);
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+SHOW CREATE TABLE t_explicit_redundant;
+Table	Create Table
+t_explicit_redundant	CREATE TABLE `t_explicit_redundant` (
+  `C1` int unsigned NOT NULL AUTO_INCREMENT,
+  `C2` varchar(767) NOT NULL DEFAULT '',
+  PRIMARY KEY (`C1`),
+  KEY `IDX` (`C2`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2);
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_explicit_redundant	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_redundant	InnoDB	Redundant	
+ALTER TABLE t_explicit_redundant DROP INDEX IDX;
+# --------------- INPLACE ALTER ---------------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2), ALGORITHM=INPLACE;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+SHOW CREATE TABLE t_explicit_redundant;
+Table	Create Table
+t_explicit_redundant	CREATE TABLE `t_explicit_redundant` (
+  `C1` int unsigned NOT NULL AUTO_INCREMENT,
+  `C2` varchar(767) NOT NULL DEFAULT '',
+  PRIMARY KEY (`C1`),
+  KEY `IDX` (`C2`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2), ALGORITHM=INPLACE;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_explicit_redundant	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_redundant	InnoDB	Redundant	
+ALTER TABLE t_explicit_redundant DROP INDEX IDX;
+# --------------- DEFAULT ALGORITHM (COPY) -----------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2), MODIFY COLUMN C1 INT;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+SHOW CREATE TABLE t_explicit_redundant;
+Table	Create Table
+t_explicit_redundant	CREATE TABLE `t_explicit_redundant` (
+  `C1` int NOT NULL,
+  `C2` varchar(767) NOT NULL DEFAULT '',
+  PRIMARY KEY (`C1`),
+  KEY `IDX` (`C2`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2), MODIFY COLUMN C1 INT;
+SHOW CREATE TABLE t_implicit_redundant;
+Table	Create Table
+t_implicit_redundant	CREATE TABLE `t_implicit_redundant` (
+  `C1` int NOT NULL,
+  `C2` varchar(767) NOT NULL DEFAULT '',
+  PRIMARY KEY (`C1`),
+  KEY `IDX` (`C2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_explicit_redundant	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_redundant	InnoDB	Dynamic	
+DROP TABLE t_explicit_redundant, t_implicit_redundant;
+SET @@global.innodb_default_row_format=REDUNDANT;
+CREATE TABLE t_explicit_redundant (
+C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+C2 VARCHAR(767) NOT NULL DEFAULT ''
+) ROW_FORMAT=REDUNDANT;
+CREATE TABLE t_implicit_redundant (
+C1 INT UNSIGNED NOT NULL AUTO_INCREMENT KEY,
+C2 VARCHAR(767) NOT NULL DEFAULT ''
+);
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_explicit_redundant	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_redundant	InnoDB	Redundant	
+SET @@global.innodb_default_row_format=DYNAMIC;
+# --------------- COPY ALTER ------------------------
+ALTER TABLE t_explicit_redundant ADD INDEX IDX(C2), ALGORITHM=COPY;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+SHOW CREATE TABLE t_explicit_redundant;
+Table	Create Table
+t_explicit_redundant	CREATE TABLE `t_explicit_redundant` (
+  `C1` int unsigned NOT NULL AUTO_INCREMENT,
+  `C2` varchar(767) NOT NULL DEFAULT '',
+  PRIMARY KEY (`C1`),
+  KEY `IDX` (`C2`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+ALTER TABLE t_implicit_redundant ADD INDEX IDX(C2), ALGORITHM=COPY;
+SHOW CREATE TABLE t_implicit_redundant;
+Table	Create Table
+t_implicit_redundant	CREATE TABLE `t_implicit_redundant` (
+  `C1` int unsigned NOT NULL AUTO_INCREMENT,
+  `C2` varchar(767) NOT NULL DEFAULT '',
+  PRIMARY KEY (`C1`),
+  KEY `IDX` (`C2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE "t_%_redundant"
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
+test	t_explicit_redundant	InnoDB	Redundant	row_format=REDUNDANT
+test	t_implicit_redundant	InnoDB	Dynamic	
+ALTER TABLE t_explicit_redundant DROP INDEX IDX;
+ALTER TABLE t_implicit_redundant DROP INDEX IDX;
+# CLEANUP
+DROP TABLE t_explicit_redundant, t_implicit_redundant;
+SET sql_mode=@sql_mode_saved;
+SET @@global.innodb_default_row_format=@innodb_default_row_format_saved;
+#
+# Bug#31912685 : ASSERTION FAILURE:HANDLER0ALTER.CC:
+#                5194:OLD_TABLE->S->ROW_TYPE == ROW_TYPE_DEFA
+#
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+DROP TABLE IF EXISTS t_compressed;
+Warnings:
+Note	1051	Unknown table 'test.t_compressed'
+CREATE TABLE t_compressed (a INT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+SHOW CREATE TABLE t_compressed;
+Table	Create Table
+t_compressed	CREATE TABLE `t_compressed` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+SELECT TABLE_ID INTO @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+SET GLOBAL innodb_file_per_table = 0;
+ALTER TABLE t_compressed add index idx(a), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t_compressed;
+Table	Create Table
+t_compressed	CREATE TABLE `t_compressed` (
+  `a` int DEFAULT NULL,
+  KEY `idx` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+SELECT TABLE_ID = @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t_compressed%";
+TABLE_ID = @TID
+1
+# CLEANUP
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+DROP TABLE t_compressed;

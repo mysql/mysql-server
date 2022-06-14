@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 
 #include "storage/perfschema/table_ews_by_user_by_event_name.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -67,7 +67,7 @@ Plugin_table table_ews_by_user_by_event_name::m_table_def(
 PFS_engine_table_share table_ews_by_user_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_ews_by_user_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ews_by_user_by_event_name::delete_all_rows,
     table_ews_by_user_by_event_name::get_row_count,
     sizeof(pos_ews_by_user_by_event_name),
@@ -136,7 +136,7 @@ int table_ews_by_user_by_event_name::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user()) {
     user = global_user_container.get(m_pos.m_index_1, &has_more_user);
-    if (user != NULL) {
+    if (user != nullptr) {
       for (; m_pos.has_more_view(); m_pos.next_view()) {
         switch (m_pos.m_index_2) {
           case pos_ews_by_user_by_event_name::VIEW_MUTEX:
@@ -164,8 +164,8 @@ int table_ews_by_user_by_event_name::rnd_next(void) {
             instr_class = find_metadata_class(m_pos.m_index_3);
             break;
           default:
-            instr_class = NULL;
-            DBUG_ASSERT(false);
+            instr_class = nullptr;
+            assert(false);
             break;
         }
 
@@ -187,7 +187,7 @@ int table_ews_by_user_by_event_name::rnd_pos(const void *pos) {
   set_position(pos);
 
   user = global_user_container.get(m_pos.m_index_1);
-  if (user == NULL) {
+  if (user == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -217,8 +217,8 @@ int table_ews_by_user_by_event_name::rnd_pos(const void *pos) {
       instr_class = find_metadata_class(m_pos.m_index_3);
       break;
     default:
-      instr_class = NULL;
-      DBUG_ASSERT(false);
+      instr_class = nullptr;
+      assert(false);
       break;
   }
   if (instr_class) {
@@ -228,10 +228,10 @@ int table_ews_by_user_by_event_name::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ews_by_user_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_ews_by_user_by_event_name::index_init(uint idx [[maybe_unused]],
                                                 bool) {
-  PFS_index_ews_by_user_by_event_name *result = NULL;
-  DBUG_ASSERT(idx == 0);
+  PFS_index_ews_by_user_by_event_name *result = nullptr;
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_ews_by_user_by_event_name);
   m_opened_index = result;
   m_index = result;
@@ -245,7 +245,7 @@ int table_ews_by_user_by_event_name::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user()) {
     user = global_user_container.get(m_pos.m_index_1, &has_more_user);
-    if (user != NULL) {
+    if (user != nullptr) {
       if (m_opened_index->match(user)) {
         for (; m_pos.has_more_view(); m_pos.next_view()) {
           if (!m_opened_index->match_view(m_pos.m_index_2)) {
@@ -279,12 +279,12 @@ int table_ews_by_user_by_event_name::index_next(void) {
                 instr_class = find_metadata_class(m_pos.m_index_3);
                 break;
               default:
-                instr_class = NULL;
-                DBUG_ASSERT(false);
+                instr_class = nullptr;
+                assert(false);
                 break;
             }
 
-            if (instr_class != NULL) {
+            if (instr_class != nullptr) {
               if (m_opened_index->match(instr_class)) {
                 if (!make_row(user, instr_class)) {
                   m_next_pos.set_after(&m_pos);
@@ -293,7 +293,7 @@ int table_ews_by_user_by_event_name::index_next(void) {
               }
               m_pos.set_after(&m_pos);
             }
-          } while (instr_class != NULL);
+          } while (instr_class != nullptr);
         }
       }
     }
@@ -341,20 +341,20 @@ int table_ews_by_user_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
-          m_row.m_user.set_field(f);
+          m_row.m_user.set_nullable_field(f);
           break;
         case 1: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);
           break;
         default: /* 2, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stat.set_field(f->field_index - 2, f);
+          m_row.m_stat.set_field(f->field_index() - 2, f);
           break;
       }
     }

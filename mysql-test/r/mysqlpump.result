@@ -254,7 +254,7 @@ CREATE TABLE `db1_1gb`.`orders` (
 `O_CLERK` char(15) NOT NULL,
 `O_SHIPPRIORITY` tinyint(4) NOT NULL,
 `O_COMMENT` blob NOT NULL,
-`O_ORDERYEAR` year(4) NOT NULL,
+`O_ORDERYEAR` year NOT NULL,
 `O_SUMMARY` longblob NOT NULL,
 PRIMARY KEY (`O_ORDERKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -469,10 +469,10 @@ Variable_name	Value
 relay_log_info_repository	TABLE
 SET GLOBAL master_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	FILE
@@ -482,7 +482,11 @@ relay_log_info_repository	FILE
 Pattern "CREATE TABLE `mysql`.`slave_master_info`" not found
 Pattern "CREATE TABLE `mysql`.`slave_relay_log_info`" not found
 SET GLOBAL master_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	TABLE
@@ -508,3 +512,37 @@ SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets
 column_statistics_dump	t1	col1	22
 include/assert_grep.inc [Check for ANALYZE TABLE with histogram clause]
 DROP SCHEMA column_statistics_dump;
+#
+# Bug #27096081: MYSQLPUMP VALIDATES ALL DATABASE OBJECTS BY
+#                IGNORING --INCLUDE_DATABASES OPTION
+#
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 SELECT 1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t2(id INT);
+INSERT INTO t2 SELECT 1;
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+GRANT ALL ON *.* TO 'u1'@'%';
+FLUSH PRIVILEGES;
+USE db2;
+CREATE VIEW v2 AS SELECT * FROM t2;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`id` AS `id` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+DROP USER 'u1'@'%';
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+FLUSH PRIVILEGES;
+Pattern "\[ERROR\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist" found
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+DROP USER 'u1'@'%';
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
+DROP DATABASE db1;
+DROP DATABASE db2;

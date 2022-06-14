@@ -9,6 +9,11 @@ ndb-log-apply-status
 [mysqld.1.slave]
 ndb-log-apply-status
 
+[cluster_config.mysqld.2.slave]
+NodeId=16
+Dedicated=1
+
 [mysqld.2.slave]
+ndb-cluster-connection-pool-nodeids=16,48,127
 ndb-log-apply-status
 

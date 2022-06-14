@@ -1,7 +1,7 @@
 #ifndef LOGFILE_INCLUDED
 #define LOGFILE_INCLUDED
 
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ class Logfile {
   Logfile();
   Logfile(const Logfile &) = default;
 
-  virtual ~Logfile() {}
+  virtual ~Logfile() { close(); }
 
   /// Return file name.
   ///
@@ -71,15 +71,15 @@ class Logfile {
   /// @retval False if successful, true otherwise.
   bool write(const char *data, std::size_t length);
 
-  /// Close the given file stream.
-  void close();
-
   /// Print the last N number of lines from a file to stderr.
   ///
   /// @param lines Number of lines
   void show_tail(unsigned int lines);
 
  private:
+  /// Close the given file stream.
+  void close();
+
   char m_filename[FN_REFLEN];
   FILE *m_file;
   std::size_t m_bytes_written;

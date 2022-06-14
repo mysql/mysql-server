@@ -27,6 +27,7 @@
 --source include/big_test.inc
 --source include/force_restart.inc
 
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
@@ -85,6 +86,9 @@ set sql_log_bin=0;
 --disable_query_log
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Database page corruption or a failed file read of page");
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column.*");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Fatal error: Invalid (empty) username .*Connection attempt terminated. Error_code: MY-013117");
+call mtr.add_suppression(".*For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 --enable_query_log
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
@@ -122,8 +126,9 @@ sleep 2;
 --echo # killing
 --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
---let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
---replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$group_replication_comm_stack
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
 
 --source include/kill_and_restart_mysqld.inc
 --echo # restarting
@@ -185,8 +190,9 @@ sleep 1;
 # Kill the recovery server
 # kill server M3
 --echo # killing
---let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
---replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$group_replication_comm_stack
+--let $group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
 --source include/kill_and_restart_mysqld.inc
 --echo # restarting
 
@@ -214,7 +220,7 @@ reap;
 # Setting recovery user to avoid sporadic failures due to empty user.
 --disable_warnings
 RESET SLAVE FOR CHANNEL 'group_replication_recovery';
-CHANGE MASTER TO MASTER_USER= 'root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 --let $wait_timeout= 300
 --source include/start_group_replication.inc

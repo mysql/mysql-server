@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/plugin.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/set_var.h"
@@ -197,7 +197,7 @@ class sys_var_pluginvar : public sys_var {
 
  public:
   bool is_plugin;
-  st_plugin_int *plugin;
+  st_plugin_int *plugin{nullptr};
   SYS_VAR *plugin_var;
   /**
     variable name from whatever is hard-coded in the plugin source
@@ -209,8 +209,8 @@ class sys_var_pluginvar : public sys_var {
   const char *orig_pluginvar_name;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
@@ -218,13 +218,13 @@ class sys_var_pluginvar : public sys_var {
     return my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0));
   }
 
-  static void operator delete(void *ptr_arg MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr_arg [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr_arg, size);
   }
 
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */
   }
 
   static void operator delete(void *ptr) { my_free(ptr); }
@@ -238,7 +238,8 @@ class sys_var_pluginvar : public sys_var {
                 (plugin_var_arg->flags & PLUGIN_VAR_INVISIBLE ? INVISIBLE : 0) |
                 (plugin_var_arg->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY
                      ? PERSIST_AS_READ_ONLY
-                     : 0),
+                     : 0) |
+                (plugin_var_arg->flags & PLUGIN_VAR_SENSITIVE ? SENSITIVE : 0),
             0, (plugin_var_arg->flags & PLUGIN_VAR_NOCMDOPT) ? -1 : 0,
             (plugin_var_arg->flags & PLUGIN_VAR_NOCMDARG
                  ? NO_ARG
@@ -247,49 +248,51 @@ class sys_var_pluginvar : public sys_var {
                         : (plugin_var_arg->flags & PLUGIN_VAR_RQCMDARG
                                ? REQUIRED_ARG
                                : REQUIRED_ARG))),
-            pluginvar_show_type(plugin_var_arg), 0, 0, VARIABLE_NOT_IN_BINLOG,
+            pluginvar_show_type(plugin_var_arg), 0, nullptr,
+            VARIABLE_NOT_IN_BINLOG,
             (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ? on_check_pluginvar
-                                                           : NULL,
-            NULL, NULL, PARSE_NORMAL),
+                                                           : nullptr,
+            nullptr, nullptr, PARSE_NORMAL),
         plugin_var(plugin_var_arg),
         orig_pluginvar_name(plugin_var_arg->name) {
     plugin_var->name = name_arg;
     is_plugin = true;
   }
-  sys_var_pluginvar *cast_pluginvar() { return this; }
-  bool check_update_type(Item_result type);
+  sys_var_pluginvar *cast_pluginvar() override { return this; }
+  bool check_update_type(Item_result type) override;
   SHOW_TYPE show_type();
   uchar *real_value_ptr(THD *thd, enum_var_type type);
   TYPELIB *plugin_var_typelib(void);
   uchar *do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                      LEX_STRING *base);
-  uchar *do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
-    return do_value_ptr(thd, thd, type, base);
+                      std::string_view keycache_name);
+  uchar *do_value_ptr(THD *thd, enum_var_type type,
+                      std::string_view keycache_name) {
+    return do_value_ptr(thd, thd, type, keycache_name);
   }
   const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                 LEX_STRING *base) {
-    return do_value_ptr(running_thd, target_thd, OPT_SESSION, base);
+                                 std::string_view keycache_name) override {
+    return do_value_ptr(running_thd, target_thd, OPT_SESSION, keycache_name);
   }
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
-    return do_value_ptr(thd, OPT_GLOBAL, base);
+  const uchar *global_value_ptr(THD *thd,
+                                std::string_view keycache_name) override {
+    return do_value_ptr(thd, OPT_GLOBAL, keycache_name);
   }
-  bool do_check(THD *thd, set_var *var);
-  virtual void session_save_default(THD *, set_var *) {}
-  virtual void saved_value_to_string(THD *thd, set_var *var, char *def_val);
-  virtual void global_save_default(THD *, set_var *) {}
-  bool session_update(THD *thd, set_var *var);
-  bool global_update(THD *thd, set_var *var);
-  bool is_default(THD *thd, set_var *var);
-  longlong get_min_value();
-  ulonglong get_max_value();
-  void set_arg_source(get_opt_arg_source *src) {
+  bool do_check(THD *thd, set_var *var) override;
+  void session_save_default(THD *, set_var *) override {}
+  void saved_value_to_string(THD *thd, set_var *var, char *def_val) override;
+  void global_save_default(THD *, set_var *) override {}
+  bool session_update(THD *thd, set_var *var) override;
+  bool global_update(THD *thd, set_var *var) override;
+  longlong get_min_value() override;
+  ulonglong get_max_value() override;
+  void set_arg_source(get_opt_arg_source *src) override {
     strcpy(source.m_path_name, src->m_path_name);
     source.m_source = src->m_source;
   }
-  bool is_non_persistent() {
+  bool is_non_persistent() override {
     return (plugin_var->flags & PLUGIN_VAR_NOPERSIST);
   }
-  void set_is_plugin(bool val) { is_plugin = val; }
+  void set_is_plugin(bool val) override { is_plugin = val; }
 };
 
 /*

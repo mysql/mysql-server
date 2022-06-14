@@ -19,36 +19,24 @@ grant system_user on *.* to sys_user_role;
 grant sys_user_role to unpriv@localhost;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/system_user_kill.tmp
+--write_file $MYSQL_TMP_DIR/system_user_kill.xpl
 ## Test data
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 ## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 ## create and activate new session
 -->newsession aux	x_root
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 ## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 ## switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 ## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
@@ -56,24 +44,11 @@ Mysqlx.Sql.StmtExecute {
 -->newsession unpriv	unpriv	x
 
 -->echo Should list unprivs session only
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult
 
 -->echo Try to kill a x_root session from regular session
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 2
-    }
-  }
-}
+-->stmtadmin kill_client	{"id": 2 }
 -->recverror 1095
 
 -->echo promote regular session to power session
@@ -82,56 +57,32 @@ set role sys_user_role;
 -->endsql
 
 -->echo Try to kill a x_root session from unpriv
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 2
-    }
-  }
-}
+-->stmtadmin kill_client	{"id": 2}
 
 ## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->setsession
 
--->sql
-select sleep(0.5);
--->endsql
+-->quiet
+-->wait_for 2	SELECT count(*) FROM information_schema.processlist WHERE info LIKE "PLUGIN%"
+-->noquiet
+
 -->echo Should two sessions
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult
 
 
 -->echo Now kill one power_session from another power_session
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 3
-    }
-  }
-}
+-->stmtadmin kill_client	{"id": 3}
 -->recvresult
 
--->sql
-select sleep(0.5);
--->endsql
+-->quiet
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE info LIKE "PLUGIN%"
+-->noquiet
+
 -->echo Should list only x_root session
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult
 
 
@@ -145,8 +96,7 @@ drop role sys_user_role;
 EOF
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/system_user_kill.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/system_user_kill.xpl 2>&1
 
 ## Cleanup
---source include/xplugin_drop_user.inc
---remove_file $MYSQL_TMP_DIR/system_user_kill.tmp
+--source ../include/xplugin_cleanup.inc

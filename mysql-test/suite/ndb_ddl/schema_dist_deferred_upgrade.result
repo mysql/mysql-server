@@ -1,0 +1,147 @@
+# Verify that NDB SE DDLs are blocked in all MySQL Servers
+create table t1 (a int) engine ndb;
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
+create table t1 (a int) engine ndb;
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
+create table t1 (a int) engine ndb;
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
+create table t1 (a int) engine ndb;
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
+create table t1 (a int) engine ndb;
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
+create table t1 (a int) engine ndb;
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
+# Verify that the ndb_schema table was not upgraded
+Is 'mysql.ndb_schema' table upgraded?
+No
+# Verify that DDLs are allowed when MySQL Server see all API nodes as
+# upgraded to version supporting new MySQL DD
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t1 (a int) engine ndb;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+drop table t1;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t1 (a int) engine ndb;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+drop table t1;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t1 (a int) engine ndb;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+drop table t1;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t1 (a int) engine ndb;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+drop table t1;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t1 (a int) engine ndb;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+drop table t1;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+set GLOBAL debug="-d,ndb_simulate_upgrade_from_non_dd_version";
+create table t1 (a int) engine ndb;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+drop table t1;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
+# ndb_schema will be upgraded only when a MySQL Server restarts
+Is 'mysql.ndb_schema' table upgraded?
+No
+# Restart first MySQL Server to trigger schema distribution upgrade, the
+# other Servers will pick it up gracefully
+# restart: --debug=-d,ndb_simulate_upgrade_from_non_dd_version,ndb_schema_skip_create_schema_op_id
+# Verify that the ndb_schema table was upgraded
+Is 'mysql.ndb_schema' table upgraded?
+Yes
+Checking mysqld1
+# Verify DDLs and DMLs
+create table t1(
+pk int not null,
+a varchar(37) not null
+) engine ndb;
+insert into t1 values (1, "hello");
+alter table t1 add column b int null default 24;
+alter table t1 modify column b int not null;
+select * from t1;
+pk	a	b
+1	hello	24
+drop table t1;
+Checking mysqld2
+# Verify DDLs and DMLs
+create table t1(
+pk int not null,
+a varchar(37) not null
+) engine ndb;
+insert into t1 values (1, "hello");
+alter table t1 add column b int null default 24;
+alter table t1 modify column b int not null;
+select * from t1;
+pk	a	b
+1	hello	24
+drop table t1;
+Checking mysqld3
+# Verify DDLs and DMLs
+create table t1(
+pk int not null,
+a varchar(37) not null
+) engine ndb;
+insert into t1 values (1, "hello");
+alter table t1 add column b int null default 24;
+alter table t1 modify column b int not null;
+select * from t1;
+pk	a	b
+1	hello	24
+drop table t1;
+Checking mysqld4
+# Verify DDLs and DMLs
+create table t1(
+pk int not null,
+a varchar(37) not null
+) engine ndb;
+insert into t1 values (1, "hello");
+alter table t1 add column b int null default 24;
+alter table t1 modify column b int not null;
+select * from t1;
+pk	a	b
+1	hello	24
+drop table t1;
+Checking mysqld5
+# Verify DDLs and DMLs
+create table t1(
+pk int not null,
+a varchar(37) not null
+) engine ndb;
+insert into t1 values (1, "hello");
+alter table t1 add column b int null default 24;
+alter table t1 modify column b int not null;
+select * from t1;
+pk	a	b
+1	hello	24
+drop table t1;
+Checking mysqld6
+# Verify DDLs and DMLs
+create table t1(
+pk int not null,
+a varchar(37) not null
+) engine ndb;
+insert into t1 values (1, "hello");
+alter table t1 add column b int null default 24;
+alter table t1 modify column b int not null;
+select * from t1;
+pk	a	b
+1	hello	24
+drop table t1;

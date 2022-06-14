@@ -45,6 +45,6 @@ SELECT COUNT(@@SESSION.mysqlx_ssl_cert);
 SELECT COUNT(@@GLOBAL.mysqlx_ssl_cert);
 
 --Error ER_BAD_FIELD_ERROR
-SELECT mysqlx_ssl_cert = @@SESSION.mysqlx_ssl_cert;
---echo Expected error 'Readonly variable'
+SELECT mysqlx_ssl_cert;
+--echo Expected error 'Unknown column'
 

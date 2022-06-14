@@ -92,6 +92,18 @@ GRANT SUPER, engineering ON *.* TO joan, sally;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 GRANT engineering,SELECT ON *.* TO joan;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+# Revoking a role on SQL objects results in warning indicating that user
+# is trying to revoke a privilege that is not registered with the server
+REVOKE engineering ON *.* FROM joan, sally;
+Warnings:
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+REVOKE wp_administrators, engineering ON *.* FROM joan, sally;
+Warnings:
+Warning	3929	Dynamic privilege 'WP_ADMINISTRATORS' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+Warning	3929	Dynamic privilege 'WP_ADMINISTRATORS' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
 # Make sure current_user() works correctly!
 GRANT 'role',engineering TO current_user();
 # WL988.I-6 SET ROLE
@@ -145,7 +157,7 @@ SET ROLE ALL;
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()
 `engineering`@`%`,`role`@`%`
-# Make sure ALL EXCEPT works as an intended reserved word and that all 
+# Make sure ALL EXCEPT works as an intended reserved word and that all
 # granted roles but the exceptions are picked.
 SET ROLE ALL EXCEPT role1;
 SELECT CURRENT_ROLE();
@@ -154,8 +166,8 @@ CURRENT_ROLE()
 SHOW GRANTS FOR current_user() USING `engineering`@`%`,`role`@`%`;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ``@`` TO `root`@`localhost` WITH GRANT OPTION
 GRANT `engineering`@`%`,`role`@`%` TO `root`@`localhost`
 GRANT role1 TO current_user();
 SET ROLE ALL EXCEPT role1;
@@ -181,7 +193,7 @@ REVOKE engineering FROM managers;
 ERROR HY000: Unknown authorization ID `managers`@`%`
 REVOKE engineering FROM joan;
 REVOKE engineering, role1 FROM root@localhost;
-# List all subgraphs as a graphml document. This should verify that 
+# List all subgraphs as a graphml document. This should verify that
 # revoking worked too.
 # WL988.I-14,R-2.1
 # only count nodes and edges as the sorting order is depending on platform
@@ -347,7 +359,7 @@ ERROR HY000: `engineering`@`%` is not granted to `sally`@`%`
 SELECT * FROM mysql.role_edges;
 FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 %	consultants	%	joan	N
-%	consultants	%	sally	N
+%	consultants	%	sally	Y
 %	qa	%	consultants	N
 %	wp_administrators	localhost	joe	Y
 us	engineering	india	engineering	N
@@ -429,7 +441,7 @@ SELECT IF (COUNT(*) > 0, "ERROR! There shouldn't be any edges in the table", "AL
 health_check
 ALL OK!
 DROP TABLE t_external;
-# 
+#
 # Verify that all privileges are applied correctly.
 #
 CREATE ROLE maintenance_admin;
@@ -490,7 +502,7 @@ SET ROLE `schema_admin`;
 DROP TABLE t1;
 ++ Global create privileges makes it possible to create schemas!
 CREATE DATABASE joes;
-++ And more tables! All this comes from schema_designer which from which 
+++ And more tables! All this comes from schema_designer which from which
 ++ schema_admin inhert most of its privileges.
 CREATE TABLE joes.t1 (c1 INT);
 DROP TABLE joes.t1;
@@ -768,7 +780,9 @@ DROP ROLE r10;
 SHOW PRIVILEGES;
 Privilege	Context	Comment
 APPLICATION_PASSWORD_ADMIN	Server Admin	
+AUDIT_ABORT_EXEMPT	Server Admin	
 AUDIT_ADMIN	Server Admin	
+AUTHENTICATION_POLICY_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
@@ -789,16 +803,24 @@ Drop role	Server Admin	To drop roles
 ENCRYPTION_KEY_ADMIN	Server Admin	
 Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
+FLUSH_OPTIMIZER_COSTS	Server Admin	
+FLUSH_STATUS	Server Admin	
+FLUSH_TABLES	Server Admin	
+FLUSH_USER_RESOURCES	Server Admin	
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
+GROUP_REPLICATION_STREAM	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
 INNODB_REDO_LOG_ARCHIVE	Server Admin	
+INNODB_REDO_LOG_ENABLE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+PASSWORDLESS_USER_ADMIN	Server Admin	
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
+REPLICATION_APPLIER	Server Admin	
 REPLICATION_SLAVE_ADMIN	Server Admin	
 RESOURCE_GROUP_ADMIN	Server Admin	
 RESOURCE_GROUP_USER	Server Admin	
@@ -807,9 +829,11 @@ References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
 Replication client	Server Admin	To ask where the slave or master servers are
 Replication slave	Server Admin	To read binary log events from the master
+SENSITIVE_VARIABLES_OBSERVER	Server Admin	
 SERVICE_CONNECTION_ADMIN	Server Admin	
 SESSION_VARIABLES_ADMIN	Server Admin	
 SET_USER_ID	Server Admin	
+SHOW_ROUTINE	Server Admin	
 SYSTEM_USER	Server Admin	
 SYSTEM_VARIABLES_ADMIN	Server Admin	
 Select	Tables	To retrieve rows from table
@@ -859,7 +883,7 @@ CURRENT_ROLE()
 ++ charset should be utf8
 SELECT CHARSET(CURRENT_ROLE());
 CHARSET(CURRENT_ROLE())
-utf8
+utf8mb3
 SET ROLE DEFAULT;
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()
@@ -1082,19 +1106,19 @@ CREATE ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
 # Same as before and don't crash.
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 # check that we can combine different properties with default roles.
 CREATE ROLE r1;
 CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
 SHOW CREATE USER u2;
 CREATE USER for u2@%
-CREATE USER 'u2'@'%' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u2`@`%` IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 SELECT user,host FROM mysql.user;
 user	host
 a	%
@@ -1129,7 +1153,7 @@ GRANT r1 TO u1;
 ALTER USER u1 DEFAULT ROLE r1;
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	u1	%	r1

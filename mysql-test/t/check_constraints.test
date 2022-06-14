@@ -235,6 +235,7 @@ CREATE TABLE t1(CHECK((f1 + f3) > 10), f1 int CHECK (f1 < 10), f2 int);
 
 CREATE TABLE t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 10), f2 int);
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
 DROP TABLE t1;
 
@@ -319,7 +320,9 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10),
                 CONSTRAINT t2_cc1 CHECK (f1 + SQRT(f2) > 6174));
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
 DROP TABLE t1;
 
@@ -331,6 +334,7 @@ CREATE TEMPORARY TABLE tmp_t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 12),
                               f2 int);
 SHOW CREATE TABLE tmp_t1;
 # Temporary table check constraints are not listed in CHECK_CONSTRAINTS.
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
 DROP TABLE tmp_t1;
 
@@ -522,7 +526,9 @@ DROP TABLE t1, t2;
 --echo #------------------------------------------------------------------------
 CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
 DROP TABLE t1;
 
@@ -559,7 +565,7 @@ ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), ALGORITHM=INPLACE;
 ALTER TABLE t1 ADD f3 INT CHECK (f3 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
 ALTER TABLE t1 ADD CONSTRAINT CHECK (f2 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
 
---ERROR ER_BAD_FIELD_ERROR
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
 ALTER TABLE t1 RENAME COLUMN f1 TO f10;
 
 
@@ -614,7 +620,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
-ALTER TABLE t1 ADD CONSTRAINT t1_chk_1 CHECK (f1 < 10), DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -651,42 +656,42 @@ CREATE TABLE t1(f1 INT,
                 CONSTRAINT ck CHECK (f1 > 10),
                 CONSTRAINT CHECK (f1 > 10) NOT ENFORCED);
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # REVOKE check constraint ck.
 ALTER TABLE t1 ALTER CHECK ck NOT ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # ENFORCE check constraint ck.
 ALTER TABLE t1 ALTER CHECK ck ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # Add new constraint in NOT ENFORCED state.
 ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK(f1<10) NOT ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # ENFORCE check constraint ck1
 ALTER TABLE t1 ALTER CHECK ck1 ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # ENFORCE check constraint t1_chk_2
 ALTER TABLE t1 ALTER CHECK t1_chk_2 ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # ADD column check constraint in NOT ENFORCED state.
 ALTER TABLE t1 ADD f4 INT CONSTRAINT t1_f4_chk CHECK (f4 < 10) NOT ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 --echo # ENFORCE check constraint t1_f4_chk
 ALTER TABLE t1 ALTER CHECK t1_f4_chk ENFORCED;
 SHOW CREATE TABLE t1;
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS ORDER BY CONSTRAINT_NAME;
 
 DROP TABLE t1;
 
@@ -719,8 +724,6 @@ ALTER TABLE t1 ADD CONSTRAINT ck11 CHECK(c1 > 1),
 SHOW CREATE TABLE t1;
 
 ALTER TABLE t1
-      DROP CHECK ck11, ADD CONSTRAINT ck11 CHECK (c1 > 10),
-      DROP CHECK ck12, ADD CONSTRAINT ck12 CHECK (c1 < 10),
       DROP CHECK ck21, ADD CONSTRAINT ck21 CHECK (c1 > 10),
       DROP CHECK ck22, ADD CONSTRAINT ck22 CHECK (c1 < 10),
       DROP CHECK ck31, ADD CONSTRAINT ck31 CHECK (c1 > 10),
@@ -729,9 +732,11 @@ ALTER TABLE t1
       DROP CHECK ck42, ADD CONSTRAINT ck42 CHECK (c1 < 10),
       ALTER CHECK ck11 NOT ENFORCED,
       ALTER CHECK ck12 NOT ENFORCED,
-      ALTER CHECK ck21 NOT ENFORCED,
-      ALTER CHECK ck22 NOT ENFORCED,
       ALTER CHECK ck11 ENFORCED;
+
+--error ER_CHECK_CONSTRAINT_NOT_FOUND
+ALTER TABLE t1 DROP CHECK ck11, ALTER CHECK ck11 NOT ENFORCED,
+               ADD CONSTRAINT ck11 CHECK (c1 > 10);
 
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -749,9 +754,9 @@ ALTER TABLE t1 ADD COLUMN f1 INT check(f1 < 10),
                ADD CONSTRAINT check(f1 + f2 < 10),
                ADD CONSTRAINT check(f2 < 10);
 SHOW CREATE TABLE t1;
---error ER_BAD_FIELD_ERROR
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
 ALTER TABLE t1 DROP COLUMN f1;
---error ER_BAD_FIELD_ERROR
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
 ALTER TABLE t1 RENAME COLUMN f1 to f3;
 --echo # Drops column f1 and constraints t1_chk_1, t1_chk_2.
 ALTER TABLE t1 DROP CHECK t1_chk_2, DROP COLUMN f1;
@@ -1059,10 +1064,10 @@ CREATE TABLE t1 (id INt CHECK (id != @@session.max_execution_time));
 CREATE TABLE t1 (id INT CHECK (id != (SELECT 1)));
 
 --echo # Parameter
-PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
+#PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
 --error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
-EXECUTE stmt using @v;
-DEALLOCATE PREPARE stmt;
+#EXECUTE stmt using @v;
+#DEALLOCATE PREPARE stmt;
 
 
 --echo #------------------------------------------------------------------------
@@ -1469,12 +1474,17 @@ CREATE DATABASE test2;
 USE test1;
 CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
 INSERT INTO t1 VALUES(1,1);
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
 ALTER TABLE test1.t1 rename test2.t1;
+--sorted_result
 USE test2;
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
 DROP DATABASE test2;
 DROP DATABASE test1;
@@ -1489,12 +1499,17 @@ CREATE DATABASE test2;
 USE test1;
 CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
 INSERT INTO t1 VALUES(1,1);
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
 ALTER TABLE test1.t1 rename test2.t2;
 USE test2;
+--sorted_result
 SELECT * FROM t2;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t2';
 DROP DATABASE test2;
 DROP DATABASE test1;
@@ -2013,3 +2028,777 @@ UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2019-04-23' WHERE 
 UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2049-04-23' WHERE id = 5;
 DROP TABLE tst;
 SET binlog_format=@binlog_format_saved;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29652464 - ORDER OF ADD AND DROP CHECK CONSTRAINT IN TABLE ALTER
+--echo #                STATEMENT IS INCORRECT.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CONSTRAINT ck1 CHECK (f1 > 0), f2 INT);
+SHOW CREATE TABLE t1;
+--echo # Without fix, following statement succeeds. With fix, error is
+--echo # reported(as expected) for drop operation on non-existing check
+--echo # constraint ck2.
+--error ER_CHECK_CONSTRAINT_NOT_FOUND
+ALTER TABLE t1 ADD CONSTRAINT ck2 CHECK (f2 > 0), DROP CHECK ck2;
+--echo # Existing check constraint ck1 is dropped and new constraint is
+--echo # created with the same name.
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK (f2 > 0), DROP CHECK ck1;
+SHOW CREATE TABLE t1;
+--echo # ck1 is auto-dropped on dropping column f2. New constraint with
+--echo # same name ck1 is added.
+ALTER TABLE t1 DROP COLUMN f2, ADD CONSTRAINT ck1 CHECK (f1 > 0);
+SHOW CREATE TABLE t1;
+--echo # ck1 is auto-dropped on dropping column f1. New column f1 and check
+--echo # constraint on f1 are added.
+ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 BIGINT, ADD CONSTRAINT CHECK (f1!= 0);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #########################################################################
+--echo # Bug#29706689 - CHECK CONSTRAINT COMPARING COLUMN WITH DEFAULT VALUE IS
+--echo #                NOT ENFORCED.
+--echo #########################################################################
+
+--echo #------------------------------------------------------------------------
+--echo # Case 1: Simple test case to verify check constraint expression evaluation
+--echo #         with the column using function CURDATE() as default.
+--echo #------------------------------------------------------------------------
+
+CREATE TABLE tst (
+  id INT,
+  start_date DATE,
+  end_date DATE,
+  created DATE DEFAULT (CURDATE()),
+  PRIMARY KEY (id),
+  CONSTRAINT chk_dat CHECK (start_date >= created)
+);
+INSERT INTO tst (id, start_date) VALUES (1, CURDATE());
+--echo # Without fix, check constraint chk_dat evaluation succeeds. With fix,
+--echo # check constraint evaluation fails and an error is reported.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst (id, start_date) VALUES (2, '2019-04-25');
+DROP TABLE tst;
+
+--echo #------------------------------------------------------------------------
+--echo # Case 2: Test case to verify check constraint expression evaluation
+--echo #         with the column using function CURDATE() as default.
+--echo #         Test case verifies behavior with INSERT, REPLACE and LOAD
+--echo #         operations.
+--echo #------------------------------------------------------------------------
+SET TIME_ZONE = "+00:00";
+--echo #Time set to May 7, 2019 17:51:02 GMT
+SET TIMESTAMP=1557251462;
+CREATE TABLE tst (id INT PRIMARY KEY,
+                  scol DATE DEFAULT(CURDATE()),
+                  col DATE,
+                  CHECK ( scol < col));
+SHOW CREATE TABLE tst;
+
+--echo # INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20');
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # INSERT operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (1, '2019-05-06');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # REPLACE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06');
+--echo # REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-20');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # LOAD operation.
+CREATE TABLE tmp(id INT, col DATE);
+INSERT INTO tmp VALUES(3, '2019-05-06');
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM tmp INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test tmp > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "tmp". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "tmp". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);
+
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+DROP TABLE tmp;
+DELETE FROM tst;
+
+--echo #------------------------------------------------------------------------
+--echo # Case 3: Test case to verify check constraint expression evaluation
+--echo #         with the column using function CURTIME() as default.
+--echo #         Test case verifies behavior with INSERT, REPLACE and LOAD
+--echo #         operations.
+--echo #------------------------------------------------------------------------
+ALTER TABLE tst MODIFY COLUMN scol TIME DEFAULT(CURTIME()), MODIFY COLUMN col TIME;
+SHOW CREATE TABLE tst;
+
+--echo # INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '20:20:20');
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # INSERT operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (1, '15:15:15');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # REPLACE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO tst(id, col) VALUES (2, '15:15:15');
+--echo # REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '20:20:20');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # LOAD operation.
+CREATE TABLE tmp(id INT, col TIME);
+INSERT INTO tmp VALUES(3, '15:15:15');
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM tmp INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test tmp > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "tmp". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "tmp". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--echo # LOAD XML with invalid values.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);
+
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+DROP TABLE tmp;
+DELETE FROM tst;
+
+--echo #------------------------------------------------------------------------
+--echo # Case 4: Test case to verify check constraint expression evaluation
+--echo #         with the column of type "timestamp" using function
+--echo #         CURRENT_TIMESTAMP() as default.
+--echo #         Test case verifies behavior with INSERT, REPLACE, UPDATE,
+--echo #         INSERT ON DUPLICATE KEY UPDATE and LOAD operations.
+--echo #------------------------------------------------------------------------
+ALTER TABLE tst MODIFY COLUMN scol timestamp DEFAULT(CURRENT_TIMESTAMP()),
+                MODIFY COLUMN col  timestamp;
+SHOW CREATE TABLE tst;
+
+--echo # INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12');
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # INSERT operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (1, '2019-05-06 12:12:12');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # REPLACE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06 12:12:12');
+--echo # REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-20 12:12:12');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # LOAD operation.
+CREATE TABLE tmp(id INT, col TIMESTAMP);
+INSERT INTO tmp VALUES(3, '2019-05-06 12:12:12');
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM tmp INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test tmp > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "tmp". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "tmp". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);
+
+--echo # Cases to verify behavior with ON UPDATE CURRENT_TIMESTAMP
+ALTER TABLE tst MODIFY COLUMN scol timestamp ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE tst;
+--echo #Time set to May 25, 2019 21:09:09 GMT
+SET TIMESTAMP=1558818549;
+--echo # Check constraint evaluation (after setting on update value) fails during
+--echo # UPDATE ON DUPLICATE KEY.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12') ON DUPLICATE KEY UPDATE id=3;
+--echo # Check constraint evaluation (after setting on update value) fails during
+--echo # UPDATE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst SET col='2019-05-21 12:12:12' WHERE id = 1;
+--echo # Check constraint evaluation (after setting on update value) fails during
+--echo # multi-table UPDATE operation.
+CREATE TABLE tst1 (id INT, col timestamp DEFAULT('2019-05-21 12:12:12'));
+SHOW CREATE TABLE tst1;
+INSERT INTO tst1(id) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst,tst1 SET tst.col = tst1.col WHERE tst.id = tst1.id;
+
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+DROP TABLE tmp;
+DELETE FROM tst;
+DELETE FROM tst1;
+
+--echo #------------------------------------------------------------------------
+--echo # Case 5: Test cases to verify check constraint expression evaluation
+--echo #         with the column of type "datetime" using function
+--echo #         CURRENT_TIMESTAMP() as default.
+--echo #         Test case verifies behavior with INSERT, REPLACE, UPDATE,
+--echo #         INSERT ON DUPLICATE KEY UPDATE and LOAD operations.
+--echo #------------------------------------------------------------------------
+--echo #Time set to May 7, 2019 17:51:02 GMT
+SET TIMESTAMP=1557251462;
+ALTER TABLE tst MODIFY COLUMN scol datetime DEFAULT(CURRENT_TIMESTAMP()),
+                MODIFY COLUMN col  datetime;
+SHOW CREATE TABLE tst;
+
+--echo # INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12');
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # INSERT operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (1, '2019-05-06 12:12:12');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # REPLACE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06 12:12:12');
+--echo # REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-20 12:12:12');
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # REPLACE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06 12:12:12');
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # LOAD operation.
+CREATE TABLE tmp(id INT, col TIMESTAMP);
+INSERT INTO tmp VALUES(3, '2019-05-06 12:12:12');
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM tmp INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test tmp > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "tmp". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "tmp". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);
+
+--echo # Cases to verify behavior with ON UPDATE CURRENT_TIMESTAMP
+ALTER TABLE tst MODIFY COLUMN scol datetime ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE tst;
+--echo #Time set to May 25, 2019 21:09:09 GMT
+SET TIMESTAMP=1558818549;
+--echo # Check constraint evaluation (after setting on update value) fails during
+--echo # UPDATE ON DUPLICATE KEY.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12') ON DUPLICATE KEY UPDATE id=3;
+--echo # Check constraint evaluation (after setting on update value) fails during
+--echo # UPDATE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst SET col='2019-05-21 12:12:12' WHERE id  = 1;
+--echo # Check constraint evaluation (after setting on update value) fails during
+--echo # multi-table UPDATE operation.
+ALTER TABLE tst1 MODIFY COLUMN col datetime DEFAULT('2019-05-21 12:12:12');
+SHOW CREATE TABLE tst1;
+INSERT INTO tst1(id) VALUES(1);
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE tst,tst1 SET tst.col = tst1.col WHERE tst.id = tst1.id;
+
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+DROP TABLE tmp, tst, tst1;
+SET TIMESTAMP=DEFAULT;
+SET TIME_ZONE=DEFAULT;
+
+--echo #------------------------------------------------------------------------
+--echo # Case 6: Test case to verify check constraint expression evaluation
+--echo #         with the column using default expression.
+--echo #         Test case verifies behavior with INSERT, REPLACE, UPDATE,
+--echo #         and LOAD operations.
+--echo #------------------------------------------------------------------------
+CREATE TABLE tst (id INT PRIMARY KEY,
+                  scol INT DEFAULT(col * col),
+                  col INT,
+                  CHECK ( scol < col));
+SHOW CREATE TABLE tst;
+
+--echo # INSERT with valid values.
+INSERT INTO tst VALUES (1, 10, 20);
+SELECT * FROM tst;
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # INSERT operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO tst(id, col) VALUES (2, 10);
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # REPLACE operation.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO tst(id, col) VALUES (2, 10);
+--echo # REPLACE with valid values.
+REPLACE INTO tst VALUES (2, 10, 20);
+
+--echo # Check constraint evaluation (after setting default value) fails during
+--echo # LOAD operation.
+CREATE TABLE tmp(id INT, col INT);
+INSERT INTO tmp VALUES(3, 10);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM tmp INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test tmp > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "tmp". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "tmp". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);
+
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+DROP TABLE tst, tmp;
+
+--echo #------------------------------------------------------------------------
+--echo # Case 7: Test case to verify set function defaults, before trigger,
+--echo #         CHECK OPTION and Check constraint execution order with the
+--echo #         INSERT, REPLACE, UPDATE, INSERT ON DUPLICATE KEY UPDATE and
+--echo #         LOAD operations.
+--echo #         The execution order should be,
+--echo #              1. Set function defaults (using CURRENT_TIMESTAMP here)
+--echo #              2. Before triggers
+--echo #              3. View CHECK OPTION
+--echo #              4. CHECK CONSTRAINT
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT PRIMARY KEY,
+                 f2 TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                 CHECK (f2 < '2018-01-01 00:00:00'));
+INSERT INTO t1 VALUES (4, '2017-06-06 00:00:00'),
+                      (5, '2017-06-06 00:00:00'),
+                      (6, '2017-06-06 00:00:00');
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1 WHERE f2 < '2019-01-01 00:00:00' WITH CHECK OPTION;
+DELIMITER $;
+CREATE TRIGGER t1_before_insert_trg BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+   IF NEW.f1 = 1 THEN
+     -- Valid value case.
+     SET NEW.f2 = '2017-06-06 00:00:00';
+   ELSEIF NEW.f1 = 2 THEN
+     -- Check option failure case.
+     SET NEW.f2 = '2019-06-06 00:00:00';
+   ELSEIF NEW.f1 = 3 THEN
+     -- Check constraint failure case.
+     SET NEW.f2 = '2018-06-06 00:00:00';
+   END IF;
+END;$
+CREATE TRIGGER t1_before_update_trg BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  IF OLD.f1 = 4 THEN
+     -- Valid value case.
+    SET NEW.f2 = '2017-06-06 00:00:00';
+  ELSEIF OLD.f1 = 5 THEN
+     -- Check option failure case.
+     SET NEW.f2 = '2019-06-06 00:00:00';
+  ELSEIF OLD.f1 = 6 THEN
+     -- Check constraint failure case.
+     SET NEW.f2 = '2018-06-06 00:00:00';
+  END IF;
+END;$
+DELIMITER ;$
+
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # INSERT operations.
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # INSERT with valid values.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger with valid values. CHECK OPTION and CHECK CONSTRAINT passes
+--echo # with the adjusted value (fails without adjustment).
+--echo # Which means BEFORE trigger is executed after setting function defaults
+--echo # and before executing CHECK OPTION and CHECK CONSTRAINTS.
+INSERT INTO v1(f1) VALUES(1);
+--echo # INSERT with invalid value. View CHECK OPTION fails.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger with the invalid value (CHECK OPTION and CHECK CONSTRAINT fails
+--echo # with this value). Error from CHECK OPTION is reported in this case.
+--echo # Which means CHECK OPTION is executed after BEFORE trigger and before
+--echo # CHECK CONSTRAINTS.
+--error ER_VIEW_CHECK_FAILED
+INSERT INTO v1(f1) VALUES(2);
+--echo # INSERT with invalid value. CHECK CONSTRAINT evaluation fails.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger invalid value (Only CHECK CONSTRAINT evaluation fails with this
+--echo # value. CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+--echo # reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO v1(f1) VALUES(3);
+
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # INSERT ... ON DUPLICATE UPDATE operations.
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # INSERT with valid values.
+--echo # When update part of statement is processed f2 gets CURRENT_TIMESTAMP as
+--echo # its value as result of ON UPDATE clause, which is adjusted by the BEFORE
+--echo # UPDATE trigger. CHECK OPTION and CHECK CONSTRAINT evaluation passes with
+--echo # adjusted value (fails without adjustment).
+--echo # Which means BEFORE trigger is executed after setting function defaults
+--echo # and before executing CHECK OPTION and CHECK CONSTRAINTS.
+INSERT INTO v1 VALUES (4, '2017-01-01 00:00:00') ON DUPLICATE KEY UPDATE f1 = 7;
+--echo # INSERT with invalid value. View CHECK OPTION fails.
+--echo # When update part of statement is processed f2 gets CURRENT_TIMESTAMP as
+--echo # its value as result of ON UPDATE clause, which is adjusted by the BEFORE
+--echo # UPDATE trigger(CHECK OPTION and check constraint evaluation fails with
+--echo # this value). Error from CHECK OPTION is reported in this case.
+--echo # Which means CHECK OPTION is executed after BEFORE trigger and before
+--echo # CHECK CONSTRAINTS.
+--error ER_VIEW_CHECK_FAILED
+INSERT INTO v1 VALUES (5, '2017-01-01 00:00:00') ON DUPLICATE KEY UPDATE f1 = 7;
+--echo # INSERT with invalid value. CHECK CONSTRAINT evaluation fails.
+--echo # When update part of statement is processed f2 gets CURRENT_TIMESTAMP as
+--echo # its value as result of ON UPDATE clause, which is adjusted by the BEFORE
+--echo # UPDATE trigger(only check constraint evaluation fails with this value.
+--echo # CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+--echo # reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO v1 VALUES (6, '2017-01-01 00:00:00') ON DUPLICATE KEY UPDATE f1 = 7;
+
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # REPLACE operations.
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # REPLACE with valid values.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger with the valid values. CHECK OPTION and CHECK CONSTRAINT passes
+--echo # with adjusted value (fails without adjustment).
+--echo # Which means BEFORE trigger is executed after setting function defaults
+--echo # and before executing CHECK OPTION and CHECK CONSTRAINTS.
+DELETE FROM v1 WHERE f1 = 7;
+REPLACE INTO v1 VALUES(4, '2017-06-06 00:00:00');
+--echo # REPLACE with invalid value. View CHECK OPTION fails.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger with the invalid value (CHECK OPTION and CHECK CONSTRAINT evaluation
+--echo # fails with this value). Error from CHECK OPTION is reported in this case.
+--echo # Which means CHECK OPTION is executed after BEFORE trigger and before
+--echo # CHECK CONSTRAINTS.
+--error ER_VIEW_CHECK_FAILED
+REPLACE INTO v1(f1) VALUES(2);
+--echo # REPLACE with invalid value. CHECK CONSTRAINT evaluation fails.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE TRIGGER
+--echo # with the invalid value (Only CHECK CONSTRAINT evaluation fails with
+--echo # this value. CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+--echo # reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+REPLACE INTO v1(f1) VALUES(3);
+
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # UPDATE operations.
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # UPDATE with valid values.
+--echo # When update is processed f2 gets CURRENT_TIMESTAMP as its value as result
+--echo # of ON UPDATE clause, which is adjusted by the BEFORE UPDATE trigger.
+--echo # CHECK OPTION and CHECK CONSTRAINT evaluation passes with adjusted
+--echo # value (fails without adjustment).
+--echo # Which means BEFORE trigger is executed after setting function defaults
+--echo # and before executing CHECK OPTION and CHECK CONSTRAINTS.
+UPDATE v1 SET f1 = 7 WHERE f1 = 4;
+--echo # When update is processed f2 gets CURRENT_TIMESTAMP as its value as result
+--echo # of ON UPDATE clause, which is adjusted by the BEFORE UPDATE trigger(CHECK
+--echo # OPTION and check constraint evaluation fails with this value). Error from
+--echo # CHECK OPTION is reported in this case.
+--echo # Which means CHECK OPTION is executed after BEFORE trigger and before
+--echo # CHECK CONSTRAINTS.
+--error ER_VIEW_CHECK_FAILED
+UPDATE v1 SET f1 = 8 WHERE f1 = 5;
+--echo # UPDATE with invalid value. CHECK CONSTRAINT evaluation fails.
+--echo # When update is processed f2 gets CURRENT_TIMESTAMP as its value as result
+--echo # of ON UPDATE clause, which is adjusted by the BEFORE UPDATE trigger
+--echo # (Only CHECK CONSTRAINT evaluation fails with this value. CHECK OPTION passes).
+--echo # Error from CHECK CONSTRAINT evaluation is reported in this case. CHECK
+--echo # CONSTRAINT is evaluated after CHECK OPTION.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE v1 SET f1 = 8 WHERE f1 = 6;
+UPDATE v1 SET f1 = 4, f2 = '2017-06-06 00:00:00' WHERE f1 = 7;
+
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo # LOAD operations.
+--echo #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+CREATE TABLE t2 (f1 INT);
+INSERT INTO t2 VALUES (1);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+
+--echo # LOAD with valid values.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger with the valid values. CHECK OPTION and CHECK CONSTRAINT passes
+--echo # with adjusted value (fails without adjustment).
+--echo # Which means BEFORE trigger is executed after setting function defaults
+--echo # and before executing CHECK OPTION and CHECK CONSTRAINTS.
+DELETE FROM t1 WHERE f1 = 1;
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "t2". Check constraint evaluation succeeds with the value
+--echo # from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE v1(f1);
+DELETE FROM t1 WHERE f1 = 1;
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "t2". Check constraint evaluation succeeds with the
+--echo # value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE v1(f1);
+--echo # LOAD with invalid value. View CHECK OPTION fails.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+--echo # trigger with the invalid value (CHECK OPTION and CHECK CONSTRAINT evaluation
+--echo # fails with this value). Error from CHECK OPTION is reported in this case.
+--echo # Which means CHECK OPTION is executed after BEFORE trigger and before
+--echo # CHECK CONSTRAINTS.
+DELETE FROM t2;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+INSERT INTO t2 VALUES (2);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "t2". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_VIEW_CHECK_FAILED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE v1(f1);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "t2". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_VIEW_CHECK_FAILED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE v1(f1);
+--echo # LOAD with invalid value. CHECK CONSTRAINT evaluation fails.
+--echo # Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE TRIGGER
+--echo # with the invalid value (Only CHECK CONSTRAINT evaluation fails with
+--echo # this value. CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+--echo # reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+DELETE FROM t2;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+INSERT INTO t2 VALUES (3);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+--echo # the table "t2". Check constraint evaluation fails during LOAD operation
+--echo # with the value from tmp1.txt.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE v1(f1);
+--echo # LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+--echo # from the table "t2". Check constraint evaluation fails during LOAD
+--echo # operation with the value from tmp1.xml.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CHECK_CONSTRAINT_VIOLATED
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE v1(f1);
+
+#Clean-up
+DROP TABLE t1, t2;
+DROP VIEW v1;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
+--echo #########################################################################
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#30084966 - LOAD DATA WITH IGNORE CLAUSE TERMINATES ON CHECK
+--echo #                CONSTRAINT VIOLATION.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10), f2 CHAR(100));
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES (1, 10), (20, 20), (3, 30), (4, 40);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--echo # Without fix, LOAD DATA terminates after check constraint violation with
+--echo # Row-2 (20, 20). Row-3 and Row-4 are not inserted to table t1.
+--echo # With fix, LOAD DATA continues to insert Row-3 and Row-4.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' IGNORE INTO TABLE t1;
+SHOW WARNINGS;
+SELECT * FROM t1;
+DELETE FROM t1;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+
+--echo # Test case to verify LOAD DATA with fixed-row format.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+--echo # Without fix, LOAD DATA terminates after check constraint violation with
+--echo # Row-2 (20, 20). Row-3 and Row-4 are not inserted to table t1.
+--echo # With fix, LOAD DATA continues to insert Row-3 and Row-4.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.txt" IGNORE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';
+SHOW WARNINGS;
+SELECT * FROM t1;
+DELETE FROM t1;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+
+--echo # Test case added for coverage. LOAD XML works as expected.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" IGNORE INTO TABLE t1;
+SHOW WARNINGS;
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo # Test case added for coverage. LOAD XML works as expected on CHECK
+--echo # OPTION violation.
+--echo # On CHECK OPTION violation for Row-2, LOAD DATA continues to insert
+--echo # Row-3 and Row-4 with IGNORE clause.
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1 WHERE f1 < 10 WITH CHECK OPTION;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" IGNORE INTO TABLE v1;
+SHOW WARNINGS;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+DROP TABLE t1, t2;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29903865 - AUTO_INCREMENT_FIELD_NOT_NULL ASSERT FAIL AT
+--echo #                TABLE::INIT WHILE SHOW CREATE TABLE.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, b INT, CONSTRAINT c CHECK (b IS NULL)) IGNORE AS SELECT 1 AS id, 1 AS b;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#30239721 - ALTER TABLE RENAME RETURN IMPROPER ERROR MESSAGE FOR
+--echo #                CHECK CONSTRAINT
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, f4 FLOAT AS (f3 * 0.01), f5 INT,
+                 CHECK (f1 < f2));
+SHOW CREATE TABLE t1;
+
+--echo # Check constraint is dependent on column f1. Error is reported.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 DROP COLUMN f1;
+
+--echo # Check constraint is dependent on column f1. Error is reported.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 RENAME COLUMN f1 TO f6;
+
+--echo # Check constraint is dependent on column f1. Error is reported.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 CHANGE f1 f6 FLOAT;
+
+--echo # Renaming column to same name will not affect dependency. No error
+--echo # is reported in this case.
+ALTER TABLE t1 RENAME COLUMN f1 TO f1;
+ALTER TABLE t1 CHANGE f1 f1 FLOAT;
+
+--echo # Dropping a column used by a check constraint and creating a new column
+--echo # with the same name still reports an error. This behavior is similar to
+--echo # generated columns and default expressions.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 FLOAT;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 DROP COLUMN f3, ADD COLUMN f3 FLOAT;
+--echo # Similar to drop column, even renaming column reports an error.
+--echo # This behavior is similar to generated columns and default expressions.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 RENAME COLUMN f1 TO f6, RENAME COLUMN f5 TO f1;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 RENAME COLUMN f3 TO f6, RENAME COLUMN f5 TO f3;
+
+--echo # Adding a new check constraint with reference to column being dropped
+--echo # or renamed in the same ALTER statement reports unknown column error.
+--echo # This behavior is similar to generated columns and default expressions.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN f5, ADD CONSTRAINT CHECK (f5 < 10);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN f5, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD CONSTRAINT CHECK (f5 < 10);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 CHANGE f5 f6 FLOAT, ADD CONSTRAINT CHECK (f5 < 10);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 CHANGE f5 f6 FLOAT, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+
+--echo # Adding a new check constraint with reference to column being renamed
+--echo # to same name. Table is altered in this case.
+ALTER TABLE t1 RENAME COLUMN f2 TO f2, ADD CONSTRAINT CHECK(f2 < 1105);
+ALTER TABLE t1 CHANGE f2 f2 FLOAT, ADD CONSTRAINT CHECK(f2 < 1105);
+SHOW CREATE TABLE t1;
+
+--echo # Adding a new check constraint with reference to a new name of the
+--echo # column being renamed. Table is altered in this case.
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD CONSTRAINT CHECK (f6 < 10);
+SHOW CREATE TABLE t1;
+
+--echo # Re-creating check constraint with reference to a new name of the
+--echo # column being renamed. Table is altered in this case.
+ALTER TABLE t1 DROP CONSTRAINT t1_chk_1, RENAME COLUMN f1 to f11,
+               ADD CONSTRAINT t1_chk_1 CHECK (f11 < 10);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#33394135 - adding CHECK constraint with alter table CHANGE column
+--echo #                name is not working
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 1);
+
+--echo # Without fix, adding check constraint to a column with ALTER TABLE
+--echo # CHANGE column doesn't work. With fix, check constraint is added
+--echo # to the column with COPY algorithm. This alter operation is not
+--echo # supported with the INPLACE and INSTANT algorithm.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INSTANT;
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+
+--echo # Without fix, adding check constraint to a column with ALTER TABLE
+--echo # MODIFY column doesn't work. With fix, check constraint is added
+--echo # to the column with COPY algorithm. This alter operation is not
+--echo # supported with the INPLACE and INSTANT algorithm.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INSTANT;
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -61,8 +61,7 @@ DECLARE_BOOL_METHOD(acquire,
 /**
   Finds a Service by name. If there is a Service Implementation with the same
   Component part of name as the input Service then the found Service is
-  returned. Otherwise the default Service Implementation for specified
-  Service is returned.
+  returned.
 
   @param service_name Name of Service or Service Implementation to acquire.
   @param service Service handle already acquired Service Implementation.

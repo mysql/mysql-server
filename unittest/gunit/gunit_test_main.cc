@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 #endif
 #include <sys/types.h>
 
+#include "gunit_test_main.h"
+
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
@@ -41,24 +43,6 @@
 class Cost_constant_cache;
 CHARSET_INFO *system_charset_info = nullptr;
 class THD;
-
-namespace {
-
-bool opt_use_tap = false;
-bool opt_unit_help = false;
-
-struct my_option unittest_options[] = {
-    {"tap-output", 1, "TAP (default) or gunit output.", &opt_use_tap,
-     &opt_use_tap, NULL, GET_BOOL, OPT_ARG, opt_use_tap, 0, 1, 0, 0, NULL},
-    {"help", 2, "Help.", &opt_unit_help, &opt_unit_help, NULL, GET_BOOL, NO_ARG,
-     opt_unit_help, 0, 1, 0, 0, NULL},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-
-extern "C" bool get_one_option(int, const struct my_option *, char *) {
-  return false;
-}
-
-}  // namespace
 
 #ifdef _WIN32
 #define SIGNAL_FMT "exception 0x%x"
@@ -120,29 +104,32 @@ static void init_signal_handling() {
   sigprocmask(SIG_SETMASK, &sa.sa_mask, nullptr);
 
   sa.sa_handler = signal_handler;
-
-  sigaction(SIGSEGV, &sa, nullptr);
+  // Treat these as fatal and handle them.
   sigaction(SIGABRT, &sa, nullptr);
-#ifdef SIGBUS
-  sigaction(SIGBUS, &sa, nullptr);
-#endif
-  sigaction(SIGILL, &sa, nullptr);
   sigaction(SIGFPE, &sa, nullptr);
+  // Handle these as well, except for ASAN/UBSAN builds:
+  // we let sanitizer runtime handle them instead.
+#if defined(HANDLE_FATAL_SIGNALS)
+  sigaction(SIGBUS, &sa, nullptr);
+  sigaction(SIGILL, &sa, nullptr);
+  sigaction(SIGSEGV, &sa, nullptr);
+#endif
 }
 
 #endif
 
-// Some globals needed for merge_small_tests.cc
+// Some globals needed for "small" tests.
 mysql_mutex_t LOCK_open;
 uint opt_debug_sync_timeout = 0;
 thread_local MEM_ROOT **THR_MALLOC = nullptr;
 thread_local THD *current_thd = nullptr;
-// Needed for linking with opt_costconstantcache.cc and Fake_Cost_model_server
-Cost_constant_cache *cost_constant_cache = nullptr;
+size_t malloc_chunk_size = 1024;
 
 extern "C" void sql_alloc_error_handler(void) { ADD_FAILURE(); }
 
-extern void install_tap_listener();
+int compare_malloc_chunks(void *a, void *b, size_t sz) {
+  return memcmp(a, b, sz);
+}
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
@@ -150,14 +137,6 @@ int main(int argc, char **argv) {
   MY_INIT(argv[0]);
 
   mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_open, MY_MUTEX_INIT_FAST);
-
-  if (handle_options(&argc, &argv, unittest_options, get_one_option))
-    return EXIT_FAILURE;
-  if (opt_use_tap) install_tap_listener();
-  if (opt_unit_help)
-    printf(
-        "\n\nTest options: [--[enable-]tap-output] output TAP "
-        "rather than googletest format\n");
 
 #ifndef _WIN32
   rlimit core_limit;

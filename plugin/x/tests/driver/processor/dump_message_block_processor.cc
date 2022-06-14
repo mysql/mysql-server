@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 
+#include "my_dbug.h"
+
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 
 Block_processor::Result Dump_message_block_processor::feed(
@@ -36,13 +38,22 @@ Block_processor::Result Dump_message_block_processor::feed(
 
   if (!is_eating()) {
     std::vector<std::string> args;
-    const char *command_dump = "-->binparse";
+    const char *command_bindump = "-->binparse";
 
     aux::split(args, linebuf, " ", true);
 
     if (4 != args.size()) return Result::Not_hungry;
 
-    if (args[0] != command_dump || args[3] != "{") return Result::Not_hungry;
+    m_is_hex = false;
+
+    if (args[0] != command_bindump || args[3] != "{") {
+      const char *command_hexdump = "-->hexparse";
+      if (args[0] != command_hexdump || args[3] != "{") {
+        return Result::Not_hungry;
+      }
+
+      m_is_hex = true;
+    }
 
     helper_buffer = args[2] + " {";
     m_variable_name = args[1];
@@ -55,7 +66,14 @@ Block_processor::Result Dump_message_block_processor::feed(
 int Dump_message_block_processor::process(
     const xcl::XProtocol::Client_message_type_id msg_id,
     const xcl::XProtocol::Message &message) {
-  std::string bin_message = message_to_bindump(message);
+  DBUG_TRACE;
+  std::string bin_message;
+
+  if (m_is_hex) {
+    aux::hex(message_serialize(message), bin_message);
+  } else {
+    bin_message = message_to_bindump(message);
+  }
 
   m_context->m_variables->set(m_variable_name, bin_message);
 

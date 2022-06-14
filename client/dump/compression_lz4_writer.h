@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@
 #include <lz4frame.h>
 #include <string.h>
 #include <functional>
+#include <mutex>
 
-#include "client/base/mutex.h"
 #include "client/dump/abstract_output_writer_wrapper.h"
 #include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
@@ -49,22 +49,24 @@ class Compression_lz4_writer : public I_output_writer,
           *message_handler,
       Simple_id_generator *object_id_generator);
 
-  ~Compression_lz4_writer();
+  ~Compression_lz4_writer() override;
 
-  bool init();
-  void append(const std::string &data_to_append);
+  bool init() override;
+  void append(const std::string &data_to_append) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const override { return Abstract_chain_element::get_id(); }
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 
@@ -73,7 +75,7 @@ class Compression_lz4_writer : public I_output_writer,
 
   void prepare_buffer(size_t src_size);
 
-  my_boost::mutex m_lz4_mutex;
+  std::mutex m_lz4_mutex;
   LZ4F_compressionContext_t m_compression_context;
   std::vector<char> m_buffer;
 };

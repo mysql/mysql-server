@@ -16,11 +16,14 @@ if ($group_replication_group_name == "")
 # Save current connection.
 --let $_old_connection= $CURRENT_CONNECTION
 
+#check which stack are we using
+--let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
 
 # Default values
 --let $_group_replication_group_seeds=
 --let $_rpl_gcs_bootstrap_group=
 --let $_rpl_gcs_server_address= localhost
+--let $_group_replication_ip_allowlist=
 
 
 # Compute number of servers.
@@ -49,7 +52,15 @@ while ($_rpl_server <= $_rpl_server_max)
 --let $_rpl_server= $_rpl_gcs_server_number
 while ($_rpl_server)
 {
-  --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
+  --let $_rpl_gcs_server_port=
+  if ($have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
+  }
+  if (!$have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
+  }
 
   # Append comma to list of addresses.
   if ($_group_replication_group_seeds != "")
@@ -63,6 +74,10 @@ while ($_rpl_server)
   --dec $_rpl_server
 }
 
+--let $_group_replication_ip_allowlist= 127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fe80::/10,fd00::/8,
+--let $_group_replication_host_name= `SELECT @@GLOBAL.hostname;`
+--let $_group_replication_ip_allowlist= $_group_replication_ip_allowlist$_group_replication_host_name
+--let $_group_replication_ip_allowlist= $_group_replication_ip_allowlist/8
 
 # Set XCom configuration on all servers.
 # Order is from last to first server like on rpl_init.inc.
@@ -81,7 +96,15 @@ while ($_rpl_server)
   }
 
   # Local address.
-  --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
+  --let $_rpl_gcs_server_port=
+  if ($have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
+  }
+  if (!$have_xcom_stack)
+  {
+    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
+  }
   --let $_group_replication_local_address= $_rpl_gcs_server_address:$_rpl_gcs_server_port
 
   # Set configuration on server.
@@ -89,17 +112,45 @@ while ($_rpl_server)
   --eval SET GLOBAL group_replication_local_address= "$_group_replication_local_address"
   --eval SET GLOBAL group_replication_group_seeds= "$_group_replication_group_seeds"
   --eval SET GLOBAL group_replication_bootstrap_group= $_group_replication_bootstrap_group
+  --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
 
   if (!$skip_recovery_configuration)
   {
+    --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+    RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
     # Set distributed recovery user.
     --disable_warnings
-    CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+    CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
     --enable_warnings
   }
 
   --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
-  RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+  RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
+
+  if ($rpl_privilege_checks_user == ''){
+    --let $rpl_privilege_checks_user = $PRIVILEGE_CHECKS_USER
+  }
+
+  if ($rpl_privilege_checks_user != '')
+  {
+    --let $rpl_server_number= $_rpl_server
+    --source include/rpl_get_instance_priv_checks_user.inc
+    if ($rpl_instance_privilege_checks_user != '' )
+    {
+
+      # If PRIVILEGE_CHECKS_USER is not NULL configure the account
+      if (`SELECT "$rpl_instance_privilege_checks_user" != "NULL"`)
+      {
+        --source include/rpl_priv_checks_user_configuration.inc
+      }
+
+      if (!$skip_recovery_configuration)
+      {
+        --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_recovery"
+      }
+       --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_applier"
+    }
+  }
 
   --enable_query_log
 

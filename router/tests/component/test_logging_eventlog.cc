@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,25 @@
 */
 
 // These tests are specific to Windows Eventlog
+
 #ifdef _WIN32
 
-#include "gmock/gmock.h"
+#include <windows.h>
+
+#include <winevt.h>
+
+#include <cstdlib>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <system_error>
+
+#include <gmock/gmock.h>
+
 #include "harness_assert.h"
 #include "mysqlrouter/utils.h"
 #include "router_component_test.h"
 
-#include <stdlib.h>
-#include <winevt.h>
-#include <functional>
-#include <mutex>
-#include <string>
 #pragma comment( \
     lib, "wevtapi.lib")  // needed for linker to see stuff from winevt.h
 
@@ -45,10 +52,10 @@
  */
 
 using testing::HasSubstr;
+using namespace std::chrono_literals;
 Path g_origin_path;
 
-class RouterEventlogTest : public RouterComponentTest {};
-
+namespace {
 // throws std::runtime_error
 std::string wchar_to_string(const wchar_t *text) {
   char buf[16 * 1024];
@@ -71,6 +78,13 @@ std::string wchar_to_string_noexcept(const wchar_t *text) noexcept {
     return std::string("<") + e.what() + ">";
   }
 }
+
+std::error_code last_win32_error_code() {
+  return {static_cast<int>(GetLastError()), std::system_category()};
+}
+}  // namespace
+
+class RouterEventlogTest : public RouterComponentTest {};
 
 /** @class EventlogSubscription
  *
@@ -210,15 +224,8 @@ class EventlogSubscription {
   void unsubscribe_from_eventlog() noexcept {
     BOOL ok = EvtClose(subscription_);
     if (!ok) {
-      std::cerr << "WARNING: EvtClose() failed: "
-                << get_last_error(GetLastError()) << std::endl;
-
-      auto err = GetLastError();
-      char err_msg[512];
-      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_MAX_WIDTH_MASK,
-                    nullptr, err, LANG_NEUTRAL, err_msg, sizeof(err_msg),
-                    nullptr);
-      std::cerr << "WARNING: EvtClose() failed: " << err_msg << std::endl;
+      std::cerr << "WARNING: EvtClose() failed: " << last_win32_error_code()
+                << std::endl;
     }
   }
 
@@ -355,7 +362,7 @@ class EventlogSubscription {
   }
 
   /** @brief Default log handler - no-op */
-  static void default_user_handler(const std::string &xml) noexcept {}
+  static void default_user_handler(const std::string & /* xml */) noexcept {}
 
   EVT_HANDLE subscription_;
   UserHandler user_handler_;
@@ -402,10 +409,10 @@ class EventlogMatcher {
    */
   EventlogMatcher(const std::string &message, bool debug_mode = false)
       : message_(message),
+        timestamp_marker_(make_start_marker()),
         found_log_beginning_(false),
         found_message_(false),
-        debug_mode_(debug_mode),
-        timestamp_marker_(make_start_marker()) {
+        debug_mode_(debug_mode) {
     // mark logs start, throws std::runtime_error
     mysqlrouter::write_windows_event_log(timestamp_marker_);
   }
@@ -418,7 +425,7 @@ class EventlogMatcher {
       found_log_beginning_ = true;
     } else if (found_log_beginning_ && xml.find(message_) != xml.npos)
       found_message_ = true;
-  };
+  }
 
   /** @brief Returns search results */
   const bool &found() noexcept { return found_message_; }
@@ -436,7 +443,7 @@ class EventlogMatcher {
            std::to_string(
                std::chrono::steady_clock::now().time_since_epoch().count()) +
            " ##";
-  };
+  }
 
  private:
   /** @brief Return log start marker
@@ -519,8 +526,8 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"--service"}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  auto &router = launch_router({"--service"}, EXIT_FAILURE, true, false, -1s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // verify the message WAS written to STDERR
   const std::string out = router.get_full_output();
@@ -592,9 +599,9 @@ TEST_F(RouterEventlogTest, wrapper_running_as_process) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"--install-service"},
-                               EXIT_FAILURE);  // missing -c <config>
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  auto &router = launch_router({"--install-service"}, EXIT_FAILURE, true, false,
+                               -1s);  // missing -c <config>
+  check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -647,7 +654,7 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
 
   // expected message
   constexpr char expected_message[] =
-      "Error: Failed reading configuration file: bogus.conf\n";
+      "Error: The configuration file 'bogus.conf' does not exist.\n";
   EventlogMatcher error_matcher(expected_message);
 
   // Since we're NOT expecting the error message to appear in Eventlog, we need
@@ -664,8 +671,9 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", "bogus.conf"}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", "bogus.conf"}, EXIT_FAILURE, true, false, -1s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);
@@ -725,8 +733,9 @@ TEST_F(RouterEventlogTest, application_running_as_process_postconfig) {
   });
 
   // run the router and wait for it to exit
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE) << router.get_full_output();
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // mark the end of log
   mysqlrouter::write_windows_event_log(log_end_marker);

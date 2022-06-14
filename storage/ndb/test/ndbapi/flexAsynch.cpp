@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include <cstring>
 #include "NdbApi.hpp"
 #include <NdbSchemaCon.hpp>
 #include <md5_hash.hpp>
@@ -39,6 +41,7 @@
 #include <NdbTest.hpp>
 #include <NDBT_Stats.hpp>
 #include <NdbLockCpuUtil.h>
+#include <ndb_limits.h>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -50,7 +53,7 @@
 #define MAX_EXECUTOR_THREADS 384
 #define MAX_DEFINER_THREADS 32
 #define MAX_REAL_THREADS 416
-#define NDB_MAX_NODES 48
+#define NDB_MAX_NODES (MAX_NDB_NODES - 1)
 #define NDB_MAX_RECEIVE_CPUS 128
 /*
   NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
@@ -404,7 +407,7 @@ int main(int argc, char** argv)
     for (Uint32 i = 0; i<tNoOfThreads; i++)
     {
       pThreadData[i].record = (char*)malloc(sz);
-      bzero(pThreadData[i].record, sz);
+      std::memset(pThreadData[i].record, 0, sz);
     }
   }
 
@@ -1218,7 +1221,7 @@ createTables(Ndb* pMyNdb)
       {
         NdbDictionary::Index ndb_index(indexName[i][j]);
         ndb_index.setType(NdbDictionary::Index::OrderedIndex);
-        ndb_index.setLogging(FALSE);
+        ndb_index.setLogging(false);
         if (ndb_index.setTable(tableName[i]))
         {
           ndbout << "setTableError " << errno << endl;
@@ -1483,7 +1486,7 @@ init_thread_data(THREAD_DATA *my_thread_data, Uint32 thread_id)
 {
   Uint32 sz = NdbDictionary::getRecordRowLength(g_record[0]);
   my_thread_data->record = (char*)malloc(sz);
-  memset(my_thread_data->record, 0, sz);
+  std::memset(my_thread_data->record, 0, sz);
   init_list_headers(&my_thread_data->list_header, 1);
   my_thread_data->stop = false;
   my_thread_data->ready = false;
@@ -1635,11 +1638,11 @@ main_thread(RunType start_type, NdbTimer & timer)
 
   if (!insert_delete)
   {
-    sleep(tWarmupTime);
+    NdbSleep_SecSleep(tWarmupTime);
     tRunState = EXECUTING;
-    sleep(tExecutionTime);
+    NdbSleep_SecSleep(tExecutionTime);
     tRunState = COOLDOWN;
-    sleep(tCooldownTime);
+    NdbSleep_SecSleep(tCooldownTime);
     signal_definer_threads_to_stop();
   }
   wait_for_threads_ready(tNoOfDefinerThreads);
@@ -1995,7 +1998,7 @@ definer_thread(void *data)
   KEY_LIST_HEADER free_list_header;
   void *key_op_mem = malloc(sizeof(KEY_OPERATION) * max_outstanding);
   Uint32 *thread_id_mem = (Uint32*)malloc(total_records*sizeof(Uint32));
-  memset((char*)&thread_state[0], 0, sizeof(thread_state));
+  std::memset((char*)&thread_state[0], 0, sizeof(thread_state));
 
   init_key_op_list((char*)key_op_mem,
                    &free_list_header,

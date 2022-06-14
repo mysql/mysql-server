@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysql.server\fR
+.\"     Title: mysql.server
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\&.SERVER\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL\&.SERVER" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -79,8 +79,8 @@ arguments:
 .RS 4
 .\}
 .nf
-shell> \fBmysql\&.server start\fR
-shell> \fBmysql\&.server stop\fR
+mysql\&.server start
+mysql\&.server stop
 .fi
 .if n \{\
 .RE
@@ -150,8 +150,8 @@ and make it executable:
 .RS 4
 .\}
 .nf
-shell> \fBcp mysql\&.server /etc/init\&.d/mysql\fR
-shell> \fBchmod +x /etc/init\&.d/mysql\fR
+cp mysql\&.server /etc/init\&.d/mysql
+chmod +x /etc/init\&.d/mysql
 .fi
 .if n \{\
 .RE
@@ -164,7 +164,7 @@ After installing the script, the commands needed to activate it to run at system
 .RS 4
 .\}
 .nf
-shell> \fBchkconfig \-\-add mysql\fR
+chkconfig \-\-add mysql
 .fi
 .if n \{\
 .RE
@@ -178,7 +178,7 @@ script:
 .RS 4
 .\}
 .nf
-shell> \fBchkconfig \-\-level 345 mysql on\fR
+chkconfig \-\-level 345 mysql on
 .fi
 .if n \{\
 .RE
@@ -303,10 +303,10 @@ T}:T{
 Type
 T}
 .T&
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 basedir
 T}:T{
@@ -347,7 +347,6 @@ T}
 .IP \(bu 2.3
 .\}
 \fBbasedir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL installation directory\&.
 .RE
 .sp
@@ -360,7 +359,6 @@ The path to the MySQL installation directory\&.
 .IP \(bu 2.3
 .\}
 \fBdatadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL data directory\&.
 .RE
 .sp
@@ -373,7 +371,6 @@ The path to the MySQL data directory\&.
 .IP \(bu 2.3
 .\}
 \fBpid\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 The path name of the file in which the server should write its process ID\&. The server creates the file in the data directory unless an absolute path name is given to specify a different directory\&.
 .sp
 If this option is not given,
@@ -411,7 +408,6 @@ groups\&.
 .IP \(bu 2.3
 .\}
 \fBservice\-startup\-timeout=\fR\fB\fIseconds\fR\fR
-.sp
 How long in seconds to wait for confirmation of server startup\&. If the server does not start within this time,
 \fBmysql\&.server\fR
 exits with an error\&. The default value is 900\&. A value of 0 means not to wait at all for startup\&. Negative values mean to wait forever (no timeout)\&.
@@ -419,7 +415,7 @@ exits with an error\&. The default value is 900\&. A value of 0 means not to wai
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

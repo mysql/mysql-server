@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,10 @@
 
 use Test::More qw(no_plan);
 use strict;
+use warnings 'FATAL';
+use lib "lib";
 
-use_ok("My::Options");
+BEGIN { use_ok("My::Options");}
 
 my @tests=
 (
@@ -67,30 +69,42 @@ my @tests=
 
   [
    [ ],
+   ['max_binlog_size=1' ],
    ['--max_binlog_size=1' ]
   ],
 
   [
+   ['max_binlog_size=1' ],
+   ['max_binlog_size=1' ],
+   [ ],
+  ],
+
+  [
+   ['max_binlog_size=1' ],
    [ ],
    ['--max_binlog_size=default' ]
   ],
 
   [
    [ ],
+   ['max_binlog_size=1', '--binlog-format=row' ],
    ['--max_binlog_size=1', '--binlog-format=row' ]
   ],
   [
    ['--binlog-format=statement' ],
+   ['max_binlog_size=1', '--binlog-format=row' ],
    ['--max_binlog_size=1', '--binlog-format=row']
   ],
 
   [
    [ '--binlog-format=statement' ],
+   ['max_binlog_size=1', '--binlog-format=statement' ],
    ['--max_binlog_size=1' ]
   ],
 
  [
    [ '--binlog-format=statement' ],
+   ['max_binlog_size=1', '--binlog-format=statement' ],
    ['--max_binlog_size=1' ]
  ],
 
@@ -103,7 +117,7 @@ my @tests=
 
  [
   [ '--binlog-format=statement' ],
-  ['--relay-log=/path/to/a/relay-log', '--max_binlog_size=1'],
+  ['--relay-log=/path/to/a/relay-log', 'max_binlog_size=1'],
   ['--max_binlog_size=1', '--relay-log=/path/to/a/relay-log', '--binlog-format=default' ]
  ],
 
@@ -125,7 +139,7 @@ foreach my $test (@tests){
   }
   my $from= $test->[0];
   my $to= $test->[1];
-  my @result= My::Options::diff($from, $to);
+  my @result= sort(My::Options::diff($from, $to));
   ok(My::Options::same(\@result, $test->[2]));
   if (!My::Options::same(\@result, $test->[2])){
     print "failed\n";

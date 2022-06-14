@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,9 @@
 
 #include "sql/opt_explain_format.h"
 
+#include <assert.h>
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
 
@@ -31,16 +32,16 @@ bool qep_row::mem_root_str::is_empty() {
   if (deferred) {
     StringBuffer<128> buff(system_charset_info);
     if (deferred->eval(&buff) || set(buff)) {
-      DBUG_ASSERT(!"OOM!");
+      assert(!"OOM!");
       return true;  // ignore OOM
     }
-    deferred = NULL;  // prevent double evaluation, if any
+    deferred = nullptr;  // prevent double evaluation, if any
   }
-  return str == NULL;
+  return str == nullptr;
 }
 
 bool qep_row::mem_root_str::set(const char *str_arg, size_t length_arg) {
-  deferred = NULL;
+  deferred = nullptr;
   if (!(str = strndup_root(current_thd->mem_root, str_arg, length_arg)))
     return true; /* purecov: inspected */
   length = length_arg;

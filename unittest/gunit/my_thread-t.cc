@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <stddef.h>
 
@@ -31,8 +28,8 @@
 namespace my_thread_unittest {
 
 extern "C" void *handle_thread(void *) {
-  my_thread_exit(0);
-  return 0;  // Avoid compiler warning
+  my_thread_exit(nullptr);
+  return nullptr;  // Avoid compiler warning
 }
 
 class ThreadTest : public ::testing::Test {};
@@ -47,12 +44,12 @@ TEST(Thread, CreateAndJoin) {
 #endif
   int ret, tries = 10;
   while (tries) {
-    ret = my_thread_create(&thr, &thr_attr, handle_thread, 0);
+    ret = my_thread_create(&thr, &thr_attr, handle_thread, nullptr);
     EXPECT_EQ(0, ret);
 #ifdef _WIN32
     EXPECT_NE(null_thr_handle, thr.handle);
 #endif
-    ret = my_thread_join(&thr, NULL);
+    ret = my_thread_join(&thr, nullptr);
     EXPECT_EQ(0, ret);
     tries--;
   }

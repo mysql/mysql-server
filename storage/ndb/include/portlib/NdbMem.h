@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,8 @@ int NdbMem_MemUnlockAll(void);
  */
 int NdbMem_MemLock(const void * ptr, size_t len);
 
+int NdbMem_PopulateSpace(void* ptr, size_t len);
+
 #ifdef VM_TRACE
 
 /**
@@ -56,13 +58,16 @@ int NdbMem_MemLock(const void * ptr, size_t len);
  */
 
 int NdbMem_ReserveSpace(void** ptr, size_t len);
-int NdbMem_PopulateSpace(void* ptr, size_t len);
 int NdbMem_FreeSpace(void* ptr, size_t len);
 
 #endif
 
 void* NdbMem_AlignedAlloc(size_t alignment, size_t size);
 void NdbMem_AlignedFree(void* p);
+
+size_t NdbMem_GetSystemPageSize();
+
+void NdbMem_SecureClear(void* ptr, size_t len);
 
 #ifdef	__cplusplus
 }

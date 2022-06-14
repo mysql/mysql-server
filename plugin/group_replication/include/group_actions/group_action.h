@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,10 @@
 
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
 
 /**
-  @Group_action
+  @class Group_action_diagnostics
   The parent class for group wide operations
 */
 class Group_action_diagnostics {
@@ -86,15 +87,15 @@ class Group_action_diagnostics {
 
   /**
    Set the warning message for this operation
-   @param message the message to the user
+   @param warning_msg the message to the user
   */
-  void set_warning_message(const char *warning);
+  void set_warning_message(const char *warning_msg);
 
   /**
    Append to the warning message for this operation
-   @param message the message to the user
+   @param warning_msg the message to the user
   */
-  void append_warning_message(const char *warn_msg);
+  void append_warning_message(const char *warning_msg);
 
   /**
     @return the message to be shown to the user
@@ -131,7 +132,7 @@ class Group_action_diagnostics {
 };
 
 /**
-  @Group_action
+  @class Group_action
   The parent class for group wide operations
 */
 class Group_action {
@@ -170,7 +171,8 @@ class Group_action {
     @returns the execution result
   */
   virtual enum_action_execution_result execute_action(
-      bool invoking_member, Plugin_stage_monitor_handler *stage_handler) = 0;
+      bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
+      Notification_context *) = 0;
 
   /*
     Terminate the executing configuration operation

@@ -6,32 +6,17 @@
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_ensure_collection.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ensure_collection_mysqlx.xpl
 --write_file $xtest_file
 -->quiet
 
 -->macro Make_stmt  %CMD%  %SCHEMA%
-Mysqlx.Sql.StmtExecute {
-  stmt: "%CMD%"
-  args {
-	%SCHEMA%
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "books"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin %CMD%	{ %SCHEMA% "name":"books"}
 -->endmacro
 
 
 -->macro Make_collection_with_schema  %CMD%  %SCHEMA%  %ERROR%
--->callmacro Make_stmt	%CMD%	type: SCALAR scalar { type: V_STRING v_string { value: "%SCHEMA%" } }
+-->callmacro Make_stmt	%CMD%	"schema":"%SCHEMA%",
 -->expecterror %ERROR%
 -->recvresult
 -->stmtsql SHOW TABLES FROM xtest;
@@ -40,7 +25,7 @@ Mysqlx.Sql.StmtExecute {
 
 
 -->macro Make_collection_without_schema  %CMD%  %ERROR%
--->callmacro Make_stmt	%CMD%	type: SCALAR scalar { type: V_NULL }
+-->callmacro Make_stmt	%CMD%	 
 -->expecterror %ERROR%
 -->recvresult
 -->stmtsql SHOW TABLES FROM xtest;
@@ -54,83 +39,19 @@ Mysqlx.Sql.StmtExecute {
 
 
 -->macro Make_table  %DEF%  %TEMP%
--->sql
-CREATE %TEMP% TABLE xtest.books %DEF%;
--->endsql
+-->stmtsql CREATE %TEMP% TABLE xtest.books %DEF%;
+-->recvresult
 -->endmacro
 
 
 -->macro Drop_table
--->sql
-DROP TABLE xtest.books;
--->endsql
+-->stmtsql DROP TABLE xtest.books;
+-->recvresult
 -->endmacro
 
 
 -->macro Make_index  %NAME%  %TYPE%
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xtest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "books"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "%NAME%"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.%NAME%"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "%TYPE%"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"books", "name":"%NAME%", "unique":true, "fields":{"field":"$.%NAME%", "type":"%TYPE%", "required":false}}
 -->recvresult
 -->endmacro
 
@@ -145,9 +66,8 @@ Mysqlx.Sql.StmtExecute {
 -->callmacro Make_index	pages	INT
 -->callmacro Make_collection	ensure_collection	0
 
--->sql
-ALTER TABLE xtest.books ADD COLUMN (nothing INT)
--->endsql
+-->stmtsql ALTER TABLE xtest.books ADD COLUMN (nothing INT)
+-->recvresult
 -->callmacro Make_collection	ensure_collection	5156
 
 -->callmacro Drop_table
@@ -156,9 +76,8 @@ ALTER TABLE xtest.books ADD COLUMN (nothing INT)
 -->callmacro Drop_table
 -->callmacro Make_collection	create_collection	0
 
--->sql
-ALTER TABLE xtest.books DROP _id
--->endsql
+-->stmtsql ALTER TABLE xtest.books DROP _id
+-->recvresult
 -->callmacro Make_collection	ensure_collection	5156
 
 
@@ -184,7 +103,6 @@ ALTER TABLE xtest.books DROP _id
 -->recvresult
 
 -->callmacro Make_collection_without_schema	ensure_collection	 0
-
 
 
 -->callmacro Drop_table
@@ -226,8 +144,7 @@ EOF
 
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 SHOW STATUS like 'Mysqlx_stmt_ensure_collection';
+SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx';
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

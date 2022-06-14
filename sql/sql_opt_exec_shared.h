@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,15 +28,15 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
-#include "item.h"
+#include <assert.h>
 #include "my_base.h"
-#include "my_dbug.h"
+
+#include "sql/item.h"
 
 class JOIN;
 class Item_func_match;
 class store_key;
 struct POSITION;
-class QUICK_SELECT_I;
 
 /**
    This represents the index of a JOIN_TAB/QEP_TAB in an array. "plan_idx":
@@ -50,7 +50,7 @@ class QUICK_SELECT_I;
    before-first-table" (firstmatch_return==PRE_FIRST_PLAN_IDX) from "No
    FirstMatch" (firstmatch_return==NO_PLAN_IDX).
 */
-typedef int8 plan_idx;
+using plan_idx = int;
 #define NO_PLAN_IDX (-2)  ///< undefined index
 #define PRE_FIRST_PLAN_IDX \
   (-1)  ///< right before the first (first's index is 0)
@@ -111,19 +111,26 @@ struct TABLE_REF {
   */
   bool disable_cache;
 
+  /*
+    If non-nullptr, all the fields are hashed together through functions
+    in store_key (with the result being put into this field), as opposed to
+    being matched against individual fields in the associated KEY's key parts.
+   */
+  ulonglong *keypart_hash = nullptr;
+
   TABLE_REF()
       : key_err(true),
         key_parts(0),
         key_length(0),
         key(-1),
-        key_buff(NULL),
-        key_buff2(NULL),
-        key_copy(NULL),
-        items(NULL),
-        cond_guards(NULL),
+        key_buff(nullptr),
+        key_buff2(nullptr),
+        key_copy(nullptr),
+        items(nullptr),
+        cond_guards(nullptr),
         null_rejecting(0),
         depend_map(0),
-        null_ref_key(NULL),
+        null_ref_key(nullptr),
         use_count(0),
         disable_cache(false) {}
 
@@ -132,9 +139,10 @@ struct TABLE_REF {
     a match.
   */
   bool impossible_null_ref() const {
-    if (null_rejecting != 0) {
-      for (uint i = 0; i < key_parts; i++) {
-        if ((null_rejecting & 1 << i) && items[i]->is_null()) return true;
+    if (null_rejecting == 0) return false;
+    for (uint i = 0; i < key_parts; i++) {
+      if ((null_rejecting & 1 << i) && items[i]->is_null()) {
+        return true;
       }
     }
     return false;
@@ -149,7 +157,7 @@ struct TABLE_REF {
   */
 
   bool has_guarded_conds() const {
-    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
+    assert(key_parts == 0 || cond_guards != nullptr);
 
     for (uint i = 0; i < key_parts; i++) {
       if (cond_guards[i]) return true;
@@ -166,66 +174,64 @@ class Semijoin_mat_exec;
 /*
   The structs which holds the join connections and join states
 */
-enum join_type { /*
-                         Initial state. Access type has not yet been decided
-                         for the table
-                       */
-                 JT_UNKNOWN,
-                 /* Table has exactly one row */
-                 JT_SYSTEM,
-                 /*
-                   Table has at most one matching row. Values read
-                   from this row can be treated as constants. Example:
-                   "WHERE table.pk = 3"
-                  */
-                 JT_CONST,
-                 /*
-                   '=' operator is used on unique index. At most one
-                   row is read for each combination of rows from
-                   preceding tables
-                 */
-                 JT_EQ_REF,
-                 /*
-                   '=' operator is used on non-unique index
-                 */
-                 JT_REF,
-                 /*
-                   Full table scan.
-                 */
-                 JT_ALL,
-                 /*
-                   Range scan.
-                 */
-                 JT_RANGE,
-                 /*
-                   Like table scan, but scans index leaves instead of
-                   the table
-                 */
-                 JT_INDEX_SCAN,
-                 /* Fulltext index is used */
-                 JT_FT,
-                 /*
-                   Like ref, but with extra search for NULL values.
-                   E.g. used for "WHERE col = ... OR col IS NULL"
-                  */
-                 JT_REF_OR_NULL,
-                 /*
-                   Do multiple range scans over one table and combine
-                   the results into one. The merge can be used to
-                   produce unions and intersections
-                 */
-                 JT_INDEX_MERGE
+enum join_type {
+  /* Initial state. Access type has not yet been decided for the table */
+  JT_UNKNOWN,
+  /* Table has exactly one row */
+  JT_SYSTEM,
+  /*
+    Table has at most one matching row. Values read
+    from this row can be treated as constants. Example:
+    "WHERE table.pk = 3"
+   */
+  JT_CONST,
+  /*
+    '=' operator is used on unique index. At most one
+    row is read for each combination of rows from
+    preceding tables
+  */
+  JT_EQ_REF,
+  /*
+    '=' operator is used on non-unique index
+  */
+  JT_REF,
+  /*
+    Full table scan.
+  */
+  JT_ALL,
+  /*
+    Range scan.
+  */
+  JT_RANGE,
+  /*
+    Like table scan, but scans index leaves instead of
+    the table
+  */
+  JT_INDEX_SCAN,
+  /* Fulltext index is used */
+  JT_FT,
+  /*
+    Like ref, but with extra search for NULL values.
+    E.g. used for "WHERE col = ... OR col IS NULL"
+   */
+  JT_REF_OR_NULL,
+  /*
+    Do multiple range scans over one table and combine
+    the results into one. The merge can be used to
+    produce unions and intersections
+  */
+  JT_INDEX_MERGE
 };
 
 /// Holds members common to JOIN_TAB and QEP_TAB.
 class QEP_shared {
  public:
   QEP_shared()
-      : m_join(NULL),
+      : m_join(nullptr),
         m_idx(NO_PLAN_IDX),
-        m_table(NULL),
-        m_position(NULL),
-        m_sj_mat_exec(NULL),
+        m_table(nullptr),
+        m_position(nullptr),
+        m_sj_mat_exec(nullptr),
         m_first_sj_inner(NO_PLAN_IDX),
         m_last_sj_inner(NO_PLAN_IDX),
         m_first_inner(NO_PLAN_IDX),
@@ -234,13 +240,12 @@ class QEP_shared {
         m_ref(),
         m_index(0),
         m_type(JT_UNKNOWN),
-        m_condition(NULL),
+        m_condition(nullptr),
         m_keys(),
         m_records(0),
-        m_quick(NULL),
         prefix_tables_map(0),
         added_tables_map(0),
-        m_ft_func(NULL),
+        m_ft_func(nullptr),
         m_skip_records_in_range(false) {}
 
   /*
@@ -252,11 +257,11 @@ class QEP_shared {
   JOIN *join() const { return m_join; }
   void set_join(JOIN *j) { m_join = j; }
   plan_idx idx() const {
-    DBUG_ASSERT(m_idx >= 0);  // Index must be valid
+    assert(m_idx >= 0);  // Index must be valid
     return m_idx;
   }
   void set_idx(plan_idx i) {
-    DBUG_ASSERT(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
+    assert(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
     m_idx = i;
   }
   TABLE *table() const { return m_table; }
@@ -291,8 +296,8 @@ class QEP_shared {
   Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records = r; }
-  QUICK_SELECT_I *quick() const { return m_quick; }
-  void set_quick(QUICK_SELECT_I *q) { m_quick = q; }
+  AccessPath *range_scan() const { return m_range_scan; }
+  void set_range_scan(AccessPath *q) { m_range_scan = q; }
   table_map prefix_tables() const { return prefix_tables_map; }
   table_map added_tables() const { return added_tables_map; }
   Item_func_match *ft_func() const { return m_ft_func; }
@@ -429,9 +434,10 @@ class QEP_shared {
 
   /**
      Non-NULL if quick-select used.
-     Filled in optimization, used in execution to find rows, and in EXPLAIN.
+     Filled in optimization, converted to a RowIterator before execution
+     (used to find rows), and in EXPLAIN.
   */
-  QUICK_SELECT_I *m_quick;
+  AccessPath *m_range_scan = nullptr;
 
   /*
     Maps below are shared because of dynamic range: in execution, it needs to
@@ -462,12 +468,12 @@ class QEP_shared {
 /// Owner of a QEP_shared; parent of JOIN_TAB and QEP_TAB.
 class QEP_shared_owner {
  public:
-  QEP_shared_owner() : m_qs(NULL) {}
+  QEP_shared_owner() : m_qs(nullptr) {}
 
   /// Instructs to share the QEP_shared with another owner
   void share_qs(QEP_shared_owner *other) { other->set_qs(m_qs); }
   void set_qs(QEP_shared *q) {
-    DBUG_ASSERT(!m_qs);
+    assert(!m_qs);
     m_qs = q;
   }
 
@@ -475,8 +481,17 @@ class QEP_shared_owner {
 
   JOIN *join() const { return m_qs ? m_qs->join() : nullptr; }
   void set_join(JOIN *j) { return m_qs->set_join(j); }
+
+  // NOTE: This index (and the associated map) is not the same as
+  // table_ref's index, which is the index in the original FROM list
+  // (before optimization).
   plan_idx idx() const { return m_qs->idx(); }
   void set_idx(plan_idx i) { return m_qs->set_idx(i); }
+  qep_tab_map idx_map() const {
+    assert(m_qs->idx() < static_cast<plan_idx>(CHAR_BIT * sizeof(qep_tab_map)));
+    return qep_tab_map{1} << m_qs->idx();
+  }
+
   TABLE *table() const { return m_qs->table(); }
   POSITION *position() const { return m_qs->position(); }
   void set_position(POSITION *p) { return m_qs->set_position(p); }
@@ -507,11 +522,11 @@ class QEP_shared_owner {
   void mark_condition_as_pushed_to_sort() {
     m_qs->mark_condition_as_pushed_to_sort();
   }
-  Key_map &keys() { return m_qs->keys(); }
+  Key_map &keys() const { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
-  QUICK_SELECT_I *quick() const { return m_qs->quick(); }
-  void set_quick(QUICK_SELECT_I *q) { return m_qs->set_quick(q); }
+  AccessPath *range_scan() const { return m_qs->range_scan(); }
+  void set_range_scan(AccessPath *q) { return m_qs->set_range_scan(q); }
   table_map prefix_tables() const { return m_qs->prefix_tables(); }
   table_map added_tables() const { return m_qs->added_tables(); }
   Item_func_match *ft_func() const { return m_qs->ft_func(); }
@@ -560,7 +575,7 @@ enum {
   /**
      The slice which is used during evaluation of expressions; Item_ref::ref
      points there. This is the only slice that is not allocated on the heap;
-     it always points to select_lex->base_ref_items.
+     it always points to query_block->base_ref_items.
 
      If we have a simple query (no temporary tables or GROUP BY needed),
      this slice always contains the base slice, i.e., the actual Items used
@@ -605,51 +620,6 @@ enum {
      table
   */
   REF_SLICE_TMP2,
-  /**
-     Stores the unfinished aggregated row when doing GROUP BY on an
-     ordered table.
-
-     For certain queries with GROUP BY (e.g., when using an index),
-     rows arrive already sorted in the right order for grouping.
-     In that case, we do not need nor use a temporary table, but can
-     just group values as we go. However, we do not necessarily know when
-     a group ends -- a group implicitly ends when we see that the
-     group index values have changed, and by that time, it's too late to
-     output them in the aggregated row (the Fields already point to the
-     new row, so the data is lost).
-
-     Thus, we need to store the values for the current group somewhere.
-     We use a set of Items, which together represent a one-row
-     pseudo-tmp-table holding the current group. These items are created
-     by setup_copy_fields().
-
-     When we have finished reading a row from the last pre-grouping table, we
-     process it either with end_send_group() or end_send():
-
-       * end_send_group(): Compare the new row with the current group.
-         If it belongs to the current group, we update the aggregation functions
-         and move on. If not, we output the aggregated row and overwrite the
-         contents of this slice with the new group.
-
-       * end_send(): Used when we know there's exactly one row for each group
-         (e.g., during a loose index scan). In this case, we can skip the
-         comparison and just output the group directly; however, we still need
-         the temporary table to avoid evaluating Items more than once (see the
-         next paragraph).
-
-     Both functions build the group by copying values of items from the previous
-     stages into a pseudo-table, e.g.
-
-       SELECT a, RAND() AS r FROM t GROUP BY a HAVING r=1;
-
-     copies "a" from "t" and stores it into the pseudo-table (this slice),
-     evaluates rand() and stores it, then finally evaluates "r=1" based on the
-     stored value (so that "r" in the SELECT list and "r" in "r=1" match).
-
-     Groups from this slice are always directly sent to the query's result,
-     and never buffered to any further temporary table.
-  */
-  REF_SLICE_ORDERED_GROUP_BY,
   /**
      The slice with pointers to columns of table(s), ie., the actual Items.
      Only used for queries involving temporary tables or the likes; for simple

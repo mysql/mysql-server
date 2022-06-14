@@ -8,3 +8,4 @@ call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 Pattern "Skipping generation of SSL certificates as certificate files are present in data directory" found
 # Remove auto generated files and restart
 # Clean-up
+# restart:

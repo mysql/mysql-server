@@ -1,0 +1,92 @@
+##  Test releasing of long lasting queries when their session has been stopped
+
+## Preamble
+--source include/no_ps_protocol.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/connection_not_alive.xpl
+-->quiet
+
+-->macro Get_connection_id
+-->stmtsql SELECT connection_id();
+-->recvtovar %ID%
+-->endmacro
+
+-->macro Assert_connection_not_alive	%CONNECTION_ID%
+-->wait_for 0	SELECT count(*) FROM information_schema.processlist WHERE id = %CONNECTION_ID%
+-->endmacro
+
+
+
+-->title =I. Aborting of sleeping session
+
+-->newsession sleep_session
+-->callmacro Get_connection_id
+-->stmtsql SELECT sleep(1000);
+-->closesession abort
+
+-->setsession
+-->callmacro Assert_connection_not_alive	%ID%
+
+
+-->title =II. Aborting of updating locked table session
+
+-->newsession lock_table
+-->sql
+LOCK TABLES test.table WRITE;
+-->endsql
+
+-->newsession try_update_lock_table
+-->callmacro Get_connection_id
+-->stmtsql UPDATE test.table SET field = field + 1;
+-->closesession abort
+
+-->setsession
+-->callmacro Assert_connection_not_alive	%ID%
+
+-->setsession lock_table
+-->sql
+UNLOCK TABLES;
+-->endsql
+-->closesession
+
+
+-->title =III. Aborting of updating table session used by transaction
+
+-->newsession transaction
+-->sql
+START TRANSACTION;
+UPDATE test.table SET field = 7;
+-->endsql
+
+-->newsession try_update_table_in_trans
+-->callmacro Get_connection_id
+-->stmtsql UPDATE test.table SET field = field * 10;
+-->closesession abort
+
+-->setsession
+-->callmacro Assert_connection_not_alive	%ID%
+
+-->setsession transaction
+-->sql
+COMMIT;
+-->endsql
+-->closesession
+
+EOF
+
+
+CREATE TABLE test.table (field INT);
+INSERT INTO test.table VALUES (1),(2),(3);
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/connection_not_alive.xpl 2>&1
+
+## Cleanup
+--let $count_sessions= 1
+--source include/wait_until_count_sessions.inc
+DROP TABLE test.table;
+--source ../include/xplugin_cleanup.inc

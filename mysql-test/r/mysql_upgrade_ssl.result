@@ -14,8 +14,7 @@ ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
 ALTER TABLE mysql.user DROP COLUMN Password_require_current;
 ALTER TABLE mysql.user DROP COLUMN User_attributes;
-DELETE FROM mysql.global_grants WHERE User= 'root' AND PRIV= 'SYSTEM_USER';
-DELETE FROM mysql.global_grants WHERE User= 'mysql.session' AND PRIV= 'SYSTEM_USER';
+DELETE FROM mysql.global_grants WHERE PRIV= 'SYSTEM_USER';
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
 AFTER user;

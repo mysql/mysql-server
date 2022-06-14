@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,9 +46,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 and varies in type, while 'user_arg' is a user-supplied argument. The
 meaning of the return type also varies. See the individual use cases, e.g.
 the FETCH statement, for details on them. */
-typedef ibool (*pars_user_func_cb_t)(void *arg, void *user_arg);
+typedef bool (*pars_user_func_cb_t)(void *arg, void *user_arg);
 
-/** If the following is set TRUE, the parser will emit debugging
+/** If the following is set true, the parser will emit debugging
 information */
 extern int yydebug;
 
@@ -101,11 +101,14 @@ void pars_close();
  @return own: the query graph */
 que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
                 const char *str);  /*!< in: SQL string */
+
 /** Retrieves characters to the lexical analyzer.
- @return number of characters copied or 0 on EOF */
-int pars_get_lex_chars(char *buf,        /*!< in/out: buffer where to copy */
-                       size_t max_size); /*!< in: maximum number of characters
-                                         which fit in the buffer */
+@param[in,out] buf Buffer where to copy
+@param[in] max_size Maximum number of characters which fit in the buffer
+@return number of characters copied or 0 on EOF
+*/
+int pars_get_lex_chars(char *buf, size_t max_size);
+
 /** Called by yyparse on error. */
 void yyerror(const char *s); /*!< in: error message string */
 /** Parses a variable declaration.
@@ -173,7 +176,7 @@ col_assign_node_t *pars_column_assignment(
 /** Parses a delete or update statement start.
  @return own: update node in a query tree */
 upd_node_t *pars_update_statement_start(
-    ibool is_delete,                     /*!< in: TRUE if delete */
+    bool is_delete,                      /*!< in: true if delete */
     sym_node_t *table_sym,               /*!< in: table name node */
     col_assign_node_t *col_assign_list); /*!< in: column assignment list, NULL
                                      if delete */
@@ -261,35 +264,37 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
                                                    is of type UNSIGNED. */
                             void *is_not_null);    /*!< in: if not NULL, column
                                                    is of type NOT NULL. */
+
 /** Parses a table creation operation.
-@param[in]	table_sym		table name node in the symbol table
-@param[in]	column_defs		list of column names
-@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
+@param[in]      table_sym               table name node in the symbol table
+@param[in]      column_defs             list of column names
+@param[in]      not_fit_in_memory       a non-NULL pointer means that this is a
                                         table which in simulations should be
                                         simulated as not fitting in memory;
                                         thread is put to sleep to simulate disk
                                         accesses; NOTE that this flag is not
                                         stored to the data dictionary on disk,
                                         and the database will forget about
-                                        non-NULL value if it has the reload the
+                                        non-NULL value if it has to reload the
                                         table definition from disk
-@param[in]	compact			non-NULL if COMPACT table
-@param[in]	block_size		block size (can be NULL)
+@param[in]      compact                 non-NULL if COMPACT table
+@param[in]      block_size              block size (can be NULL)
 @return table create subgraph */
 tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
                               sym_node_t *compact, sym_node_t *block_size,
                               void *not_fit_in_memory);
 
 /** Parses an index creation operation.
- @return index create subgraph */
-ind_node_t *pars_create_index(
-    pars_res_word_t *unique_def,    /*!< in: not NULL if a unique index */
-    pars_res_word_t *clustered_def, /*!< in: not NULL if a clustered index */
-    sym_node_t *index_sym,          /*!< in: index name node in the symbol
-                                    table */
-    sym_node_t *table_sym,          /*!< in: table name node in the symbol
-                                    table */
-    sym_node_t *column_list);       /*!< in: list of column names */
+@param[in] unique_def Not NULL if a unique index.
+@param[in] clustered_def Not NULL if a clustered index.
+@param[in] index_sym Index name node in the symbol table.
+@param[in] table_sym Table name node in the symbol table.
+@param[in] column_list List of column names.
+@return index create subgraph */
+ind_node_t *pars_create_index(pars_res_word_t *unique_def,
+                              pars_res_word_t *clustered_def,
+                              sym_node_t *index_sym, sym_node_t *table_sym,
+                              sym_node_t *column_list);
 /** Parses a procedure definition.
  @return query fork node */
 que_fork_t *pars_procedure_definition(
@@ -301,16 +306,16 @@ que_fork_t *pars_procedure_definition(
 /** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
-@param[in]	node		root node for an incomplete query
+@param[in]      node            root node for an incomplete query
                                 graph, or NULL for dummy graph
-@param[in]	trx		transaction handle
-@param[in]	heap		memory heap which allocated
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      trx             transaction handle
+@param[in]      heap            memory heap from which allocated
+@param[in]      prebuilt        row prebuilt structure
 @return query thread node to run */
-que_thr_t *pars_complete_graph_for_exec(que_node_t *node, trx_t *trx,
-                                        mem_heap_t *heap,
-                                        row_prebuilt_t *prebuilt)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] que_thr_t *pars_complete_graph_for_exec(que_node_t *node,
+                                                      trx_t *trx,
+                                                      mem_heap_t *heap,
+                                                      row_prebuilt_t *prebuilt);
 
 /** Create parser info struct.
  @return own: info struct */
@@ -319,20 +324,25 @@ pars_info_t *pars_info_create(void);
 /** Free info struct and everything it contains. */
 void pars_info_free(pars_info_t *info); /*!< in, own: info struct */
 
-/** Add bound literal. */
-void pars_info_add_literal(pars_info_t *info,   /*!< in: info struct */
-                           const char *name,    /*!< in: name */
-                           const void *address, /*!< in: address */
-                           ulint length,        /*!< in: length of data */
-                           ulint type,    /*!< in: type, e.g. DATA_FIXBINARY */
-                           ulint prtype); /*!< in: precise type, e.g.
-                                          DATA_UNSIGNED */
+/** Add bound literal.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] address Address
+@param[in] length Length of data
+@param[in] type Type, e.g. data_fixbinary
+@param[in] prtype Precise type, e.g. data_unsigned */
+void pars_info_add_literal(pars_info_t *info, const char *name,
+                           const void *address, ulint length, ulint type,
+                           ulint prtype);
 
 /** Equivalent to pars_info_add_literal(info, name, str, strlen(str),
- DATA_VARCHAR, DATA_ENGLISH). */
-void pars_info_add_str_literal(pars_info_t *info, /*!< in: info struct */
-                               const char *name,  /*!< in: name */
-                               const char *str);  /*!< in: string */
+ DATA_VARCHAR, DATA_ENGLISH).
+@param[in] info Info struct
+@param[in] name Name
+@param[in] str String */
+void pars_info_add_str_literal(pars_info_t *info, const char *name,
+                               const char *str);
+
 /********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry.*/
@@ -342,49 +352,46 @@ void pars_info_bind_literal(pars_info_t *info,   /* in: info struct */
                             ulint length,        /* in: length of data */
                             ulint type,    /* in: type, e.g. DATA_FIXBINARY */
                             ulint prtype); /* in: precise type, e.g. */
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry.*/
-void pars_info_bind_varchar_literal(pars_info_t *info, /*!< in: info struct */
-                                    const char *name,  /*!< in: name */
-                                    const byte *str,   /*!< in: string */
-                                    ulint str_len);    /*!< in: string length */
-
-/** Equivalent to:
-
-char buf[4];
-mach_write_to_4(buf, val);
-pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
-
-except that the buffer is dynamically allocated from the info struct's
-heap.
-@param[in]	info	info struct
-@param[in]	name	name
-@param[in]	val	value */
-void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
-                                 const ib_uint32_t *val);
 
 /** If the literal value already exists then it rebinds otherwise it
 creates a new entry.
-@param[in]	info	info struct
-@param[in]	name	name
-@param[in]	val	value */
-void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
-                                 const ib_uint64_t *val);
+@param[in] info Info struct
+@param[in] name Name
+@param[in] str String
+@param[in] str_len String length */
+void pars_info_bind_varchar_literal(pars_info_t *info, const char *name,
+                                    const byte *str, ulint str_len);
 
-/** Add user function. */
-void pars_info_bind_function(
-    pars_info_t *info,        /*!< in: info struct */
-    const char *name,         /*!< in: function name */
-    pars_user_func_cb_t func, /*!< in: function address */
-    void *arg);               /*!< in: user-supplied argument */
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]  info  Info struct
+@param[in]  name  Name
+@param[in]  val   Value */
+void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
+                                 const uint32_t *val);
+
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]  info  Info struct
+@param[in]  name  Name
+@param[in]  val   Value */
+void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
+                                 const uint64_t *val);
+
+/** Add user function.
+@param[in] info Info struct
+@param[in] name Function name
+@param[in] func Function address
+@param[in] arg User-supplied argument */
+void pars_info_bind_function(pars_info_t *info, const char *name,
+                             pars_user_func_cb_t func, void *arg);
 
 /** Add bound id.
-@param[in]	info		info struct
-@param[in]	copy_name	copy name if TRUE
-@param[in]	name		name
-@param[in]	id		id */
-void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
+@param[in]      info            info struct
+@param[in]      copy_name       copy name if true
+@param[in]      name            name
+@param[in]      id              id */
+void pars_info_bind_id(pars_info_t *info, bool copy_name, const char *name,
                        const char *id);
 
 /** Equivalent to:
@@ -409,18 +416,20 @@ void pars_info_add_int4_literal(pars_info_t *info, /*!< in: info struct */
  heap. */
 void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
                                const char *name,  /*!< in: name */
-                               ib_uint64_t val);  /*!< in: value */
+                               uint64_t val);     /*!< in: value */
 
 /** If the literal value already exists then it rebinds otherwise it
- creates a new entry. */
-void pars_info_bind_ull_literal(pars_info_t *info,       /*!< in: info struct */
-                                const char *name,        /*!< in: name */
-                                const ib_uint64_t *val); /*!< in: value */
+ creates a new entry.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] val Value */
+void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
+                                const uint64_t *val);
 
 /** Add bound id.
-@param[in]	info	info struct
-@param[in]	name	name
-@param[in]	id	id */
+@param[in]      info    info struct
+@param[in]      name    name
+@param[in]      id      id */
 void pars_info_add_id(pars_info_t *info, const char *name, const char *id);
 
 /** Get bound literal with the given name.
@@ -429,9 +438,9 @@ pars_bound_lit_t *pars_info_get_bound_lit(
     pars_info_t *info, /*!< in: info struct */
     const char *name); /*!< in: bound literal name to find */
 
-/** Get bound id with the given name.
-@param[in]	info	info struct
-@param[in]	name	bound id name to find
+/** Get bound identifier with the given name.
+@param[in]      info    info struct
+@param[in]      name    bound id name to find
 @return bound id, or NULL if not found */
 pars_bound_id_t *pars_info_get_bound_id(pars_info_t *info, const char *name);
 
@@ -449,7 +458,7 @@ struct pars_info_t {
   ib_vector_t *bound_ids;  /*!< bound ids, or NULL
                            (pars_bound_id_t*) */
 
-  ibool graph_owns_us; /*!< if TRUE (which is the default),
+  bool graph_owns_us; /*!< if true (which is the default),
                        que_graph_free() will free us */
 };
 
@@ -498,11 +507,15 @@ struct func_node_t {
   query graph */
 };
 
+UT_LIST_NODE_GETTER_DEFINITION(func_node_t, cond_list)
+
+UT_LIST_NODE_GETTER_DEFINITION(func_node_t, func_node_list)
+
 /** An order-by node in a select */
 struct order_node_t {
   que_common_t common; /*!< type: QUE_NODE_ORDER */
   sym_node_t *column;  /*!< order-by column */
-  ibool asc;           /*!< TRUE if ascending, FALSE if descending */
+  bool asc;            /*!< true if ascending, false if descending */
 };
 
 /** Procedure definition node */
@@ -580,7 +593,7 @@ struct col_assign_node_t {
 };
 
 /** Classes of functions */
-/* @{ */
+/** @{ */
 #define PARS_FUNC_ARITH 1      /*!< +, -, *, / */
 #define PARS_FUNC_LOGICAL 2    /*!< AND, OR, NOT */
 #define PARS_FUNC_CMP 3        /*!< comparison operators */
@@ -589,7 +602,7 @@ struct col_assign_node_t {
 #define PARS_FUNC_OTHER                \
   6 /*!< these are not real functions, \
     e.g., := */
-/* @} */
+/** @} */
 
 #include "pars0pars.ic"
 

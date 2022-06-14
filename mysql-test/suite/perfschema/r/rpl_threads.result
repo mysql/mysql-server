@@ -19,37 +19,79 @@ select COMMAND, STATE
 from INFORMATION_SCHEMA.PROCESSLIST
 where ID = @master_dump_pid;
 COMMAND	STATE
-Binlog Dump	Master has sent all binlog to slave; waiting for more updates
+Binlog Dump	Source has sent all binlog to replica; waiting for more updates
 select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
 from performance_schema.threads
 where PROCESSLIST_ID = @master_dump_pid;
 NAME	TYPE	PROCESSLIST_COMMAND	PROCESSLIST_STATE
-thread/sql/one_connection	FOREGROUND	Binlog Dump	Master has sent all binlog to slave; waiting for more updates
+thread/sql/one_connection	FOREGROUND	Binlog Dump	Source has sent all binlog to replica; waiting for more updates
+select THREAD_ID from performance_schema.threads
+where PROCESSLIST_ID = @master_dump_pid
+into @master_dump_tid;
+select VARIABLE_NAME,
+IF (VARIABLE_VALUE = @master_dump_pid, "same", "different") as 'test'
+  from performance_schema.variables_by_thread
+where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @master_dump_tid;
+VARIABLE_NAME	test
+pseudo_thread_id	same
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.status_by_thread
+where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @master_dump_tid;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression_level	0
 "============ Performance schema on slave ============"
 select ID from INFORMATION_SCHEMA.PROCESSLIST
-where STATE like "Waiting for master to send event%"
+where STATE like "Waiting for source to send event%"
   into @slave_io_pid;
 select COMMAND, STATE
 from INFORMATION_SCHEMA.PROCESSLIST
 where ID = @slave_io_pid;
 COMMAND	STATE
-Connect	Waiting for master to send event
+Connect	Waiting for source to send event
 select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
 from performance_schema.threads
 where PROCESSLIST_ID = @slave_io_pid;
 NAME	TYPE	PROCESSLIST_COMMAND	PROCESSLIST_STATE
-thread/sql/slave_io	FOREGROUND	Connect	Waiting for master to send event
+thread/sql/replica_io	FOREGROUND	Connect	Waiting for source to send event
+select THREAD_ID from performance_schema.threads
+where PROCESSLIST_ID = @slave_io_pid
+into @slave_io_tid;
+select VARIABLE_NAME,
+IF (VARIABLE_VALUE = @slave_io_pid, "same", "different") as 'test'
+  from performance_schema.variables_by_thread
+where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @slave_io_tid;
+VARIABLE_NAME	test
+pseudo_thread_id	same
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.status_by_thread
+where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @slave_io_tid;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression_level	0
 select ID from INFORMATION_SCHEMA.PROCESSLIST
-where STATE like "Slave has read all relay log%"
+where STATE like "Replica has read all relay log%"
   into @slave_sql_pid;
 select COMMAND, STATE
 from INFORMATION_SCHEMA.PROCESSLIST
 where ID = @slave_sql_pid;
 COMMAND	STATE
-Query	Slave has read all relay log; waiting for more updates
+Query	Replica has read all relay log; waiting for more updates
 select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
 from performance_schema.threads
 where PROCESSLIST_ID = @slave_sql_pid;
 NAME	TYPE	PROCESSLIST_COMMAND	PROCESSLIST_STATE
-thread/sql/slave_sql	FOREGROUND	Query	Slave has read all relay log; waiting for more updates
+thread/sql/replica_sql	FOREGROUND	Query	Replica has read all relay log; waiting for more updates
+select THREAD_ID from performance_schema.threads
+where PROCESSLIST_ID = @slave_sql_pid
+into @slave_sql_tid;
+select VARIABLE_NAME,
+IF (VARIABLE_VALUE = @slave_sql_pid, "same", "different") as 'test'
+  from performance_schema.variables_by_thread
+where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @slave_sql_tid;
+VARIABLE_NAME	test
+pseudo_thread_id	same
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.status_by_thread
+where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @slave_sql_tid;
+VARIABLE_NAME	VARIABLE_VALUE
+Compression_level	0
 include/rpl_end.inc

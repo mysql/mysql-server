@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysql_ssl_rsa_setup\fR
+.\"     Title: mysql_ssl_rsa_setup
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SSL_RSA_SETUP\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL_SSL_RSA_SETUP" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -88,7 +88,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_ssl_rsa_setup [\fR\fB\fIoptions\fR\fR\fB]\fR
+mysql_ssl_rsa_setup [\fIoptions\fR]
 .fi
 .if n \{\
 .RE
@@ -232,8 +232,8 @@ sha256_password
 or
 caching_sha2_password
 plugin; see
-Section\ \&6.4.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .PP
 For information about the characteristics of files created by
@@ -245,7 +245,7 @@ At startup, the MySQL server automatically uses the SSL files created by
 to enable SSL if no explicit SSL options are given other than
 \fB\-\-ssl\fR
 (possibly along with
-\fB\-\-ssl\-cipher\fR)\&. If you prefer to designate the files explicitly, invoke clients with the
+ssl_cipher)\&. If you prefer to designate the files explicitly, invoke clients with the
 \fB\-\-ssl\-ca\fR,
 \fB\-\-ssl\-cert\fR, and
 \fB\-\-ssl\-key\fR
@@ -330,7 +330,7 @@ Stop the server\&.
 .\}
 Rename or remove the existing SSL files\&. You may wish to make a backup of them first\&. (The RSA files do not expire, so you need not remove them\&.
 \fBmysql_ssl_rsa_setup\fR
-will see that they exist and not overwrite them\&.)
+can see that they exist and does not overwrite them\&.)
 .RE
 .sp
 .RS 4
@@ -377,7 +377,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -390,7 +389,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the directory that
 \fBmysql_ssl_rsa_setup\fR
 should check for default SSL and RSA files and in which it should create files if they are missing\&. The default is the compiled\-in data directory\&.
@@ -405,7 +403,6 @@ should check for default SSL and RSA files and in which it should create files i
 .IP \(bu 2.3
 .\}
 \fB\-\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix value is limited to 17 characters\&. The default is based on the MySQL version number\&.
 .RE
 .sp
@@ -419,7 +416,6 @@ The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix v
 .\}
 \fB\-\-uid=name\fR,
 \fB\-v\fR
-.sp
 The name of the user who should be the owner of any created files\&. The value is a user name, not a numeric user ID\&. In the absence of this option, files created by
 \fBmysql_ssl_rsa_setup\fR
 are owned by the user who executes it\&. This option is valid only if you execute the program as
@@ -439,7 +435,6 @@ system call\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Produce more output about what the program does\&. For example, the program shows the
 \fBopenssl\fR
 commands it runs, and produces output to indicate whether it skips SSL or RSA file creation because some default file already exists\&.
@@ -455,13 +450,12 @@ commands it runs, and produces output to indicate whether it skips SSL or RSA fi
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

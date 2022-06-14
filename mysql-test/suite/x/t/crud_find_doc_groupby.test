@@ -9,7 +9,7 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_find_doc_groupby.tmp
+--write_file $MYSQL_TMP_DIR/crud_find_doc_groupby.xpl
 -->quiet
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"xcoll"}
@@ -331,13 +331,11 @@ Mysqlx.Crud.Find {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_groupby.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_groupby.xpl 2>&1
 
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_find_doc_groupby.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 
 
 

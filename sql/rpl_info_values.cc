@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,11 +39,18 @@ Rpl_info_values::Rpl_info_values(int param_ninfo)
   @retval true Failure
 */
 bool Rpl_info_values::init() {
-  DBUG_ENTER("Rpl_info_values::init");
+  DBUG_TRACE;
 
-  if (!value && !(value = new String[ninfo])) DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
+  if (!value && !(value = new (std::nothrow) String[ninfo])) return true;
+  if (bitmap_init(&is_null, nullptr, ninfo)) {
+    delete[] value;
+    return true;
+  }
+  bitmap_clear_all(&is_null);
+  return false;
 }
 
-Rpl_info_values::~Rpl_info_values() { delete[] value; }
+Rpl_info_values::~Rpl_info_values() {
+  delete[] value;
+  bitmap_free(&is_null);
+}

@@ -1,4 +1,4 @@
 --innodb_rollback_segments=128
 --innodb_undo_log_truncate=1
---innodb_max_undo_log_size=10M
+--innodb_max_undo_log_size=20M
 --innodb_purge_rseg_truncate_frequency=1

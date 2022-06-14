@@ -1,25 +1,25 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 // mysql command tool
@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <math.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -37,8 +38,10 @@
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "client/client_query_attributes.h"
 #include "client/my_readline.h"
 #include "client/pattern_matcher.h"
+#include "compression.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
@@ -50,6 +53,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "typelib.h"
+#include "user_registration.h"
 #include "violite.h"
 
 #ifdef HAVE_SYS_IOCTL_H
@@ -87,9 +91,8 @@
 #include <algorithm>
 #include <new>
 
+#include "sql-common/net_ns.h"
 #include "sql_common.h"
-
-#include "sql/net_ns.h"
 
 using std::max;
 using std::min;
@@ -102,7 +105,7 @@ const char *VER = "14.14";
 #define MAX_COLUMN_LENGTH 1024
 
 /* Buffer to hold 'version' and 'version_comment' */
-static char *server_version = NULL;
+static char *server_version = nullptr;
 
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS 64
@@ -148,57 +151,63 @@ enum enum_info_type { INFO_INFO, INFO_ERROR, INFO_RESULT };
 typedef enum enum_info_type INFO_TYPE;
 
 static MYSQL mysql; /* The connection */
-static bool ignore_errors = 0, wait_flag = 0, quick = 0, connected = 0,
-            opt_raw_data = 0, unbuffered = 0, output_tables = 0, opt_rehash = 1,
-            skip_updates = 0, safe_updates = 0, one_database = 0,
-            opt_compress = 0, using_opt_local_infile = 0, vertical = 0,
-            line_numbers = 1, column_names = 1, opt_html = 0, opt_xml = 0,
-            opt_nopager = 1, opt_outfile = 0, named_cmds = 0, tty_password = 0,
-            opt_nobeep = 0, opt_reconnect = 1, default_pager_set = 0,
-            opt_sigint_ignore = 0, auto_vertical_output = 0, show_warnings = 0,
-            executing_query = 0, interrupted_query = 0, ignore_spaces = 0,
-            sigint_received = 0, opt_syslog = 0, opt_binhex = 0;
+static bool ignore_errors = false, wait_flag = false, quick = false,
+            connected = false, opt_raw_data = false, unbuffered = false,
+            output_tables = false, opt_rehash = true, skip_updates = false,
+            safe_updates = false, one_database = false, opt_compress = false,
+            using_opt_local_infile = false, vertical = false,
+            line_numbers = true, column_names = true, opt_html = false,
+            opt_xml = false, opt_nopager = true, opt_outfile = false,
+            named_cmds = false, opt_nobeep = false, opt_reconnect = true,
+            default_pager_set = false, opt_sigint_ignore = false,
+            auto_vertical_output = false, show_warnings = false,
+            executing_query = false, interrupted_query = false,
+            ignore_spaces = false, sigint_received = false, opt_syslog = false,
+            opt_binhex = false;
+static bool opt_binary_as_hex_set_explicitly = false;
 static bool debug_info_flag, debug_check_flag;
 static bool column_types_flag;
-static bool preserve_comments = 0;
+static bool preserve_comments = false;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose = 0, opt_silent = 0, opt_mysql_port = 0,
             opt_local_infile = 0;
 static uint opt_enable_cleartext_plugin = 0;
-static bool using_opt_enable_cleartext_plugin = 0;
+static bool using_opt_enable_cleartext_plugin = false;
 static uint my_end_arg;
-static char *opt_mysql_unix_port = 0;
-static char *opt_bind_addr = NULL;
+static char *opt_mysql_unix_port = nullptr;
+static char *opt_bind_addr = nullptr;
 static int connect_flag = CLIENT_INTERACTIVE;
 static bool opt_binary_mode = false;
 static bool opt_connect_expired_password = false;
 static char *current_host;
+static char *dns_srv_name;
 static char *current_db;
 static char *current_user = nullptr;
-static char *opt_password = nullptr;
 static char *current_prompt = nullptr;
 static char *delimiter_str = nullptr;
 static char *opt_init_command = nullptr;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static char *histfile;
 static char *histfile_tmp;
-static char *opt_histignore = NULL;
+static char *opt_histignore = nullptr;
 static String glob_buffer, old_buffer;
 static String processed_prompt;
-static char *full_username = 0, *part_username = 0, *default_prompt = 0;
-static char *current_os_user = 0, *current_os_sudouser = 0;
+static char *full_username = nullptr, *part_username = nullptr,
+            *default_prompt = nullptr;
+static char *current_os_user = nullptr, *current_os_sudouser = nullptr;
 static int wait_time = 5;
 static STATUS status;
 static ulong select_limit, max_join_size, opt_connect_timeout = 0;
 static char mysql_charsets_dir[FN_REFLEN + 1];
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
+static char *opt_load_data_local_dir = nullptr;
 #ifdef HAVE_SETNS
-static char *opt_network_namespace = 0;
+static char *opt_network_namespace = nullptr;
 #endif
 static const char *xmlmeta[] = {
     "&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;",
     /* Turn \0 into a space. Why not &#0;? That's not valid XML or HTML. */
-    "\0", " ", 0, 0};
+    "\0", " ", nullptr, nullptr};
 static const char *day_names[] = {"Sun", "Mon", "Tue", "Wed",
                                   "Thu", "Fri", "Sat"};
 static const char *month_names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -206,11 +215,13 @@ static const char *month_names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 static char default_pager[FN_REFLEN];
 static char pager[FN_REFLEN], outfile[FN_REFLEN];
 static FILE *PAGER, *OUTFILE;
-static MEM_ROOT hash_mem_root;
+static MEM_ROOT hash_mem_root(PSI_NOT_INSTRUMENTED, 16384);
 static uint prompt_counter;
 static char delimiter[16] = DEFAULT_DELIMITER;
 static size_t delimiter_length = 1;
 unsigned short terminal_width = 80;
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
@@ -218,10 +229,15 @@ static char *shared_memory_base_name = 0;
 static uint opt_protocol = 0;
 static const CHARSET_INFO *charset_info = &my_charset_latin1;
 
+static char *opt_fido_register_factor = nullptr;
+static char *opt_oci_config_file = nullptr;
+
 #include "caching_sha2_passwordopt-vars.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
 const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
+static void *ssl_session_data = nullptr;
 
 /*
   completion_hash is an auxiliary feature for mysql client to complete
@@ -238,7 +254,7 @@ const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
 
   For using this feature in test case, we add the option in debug code.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool opt_build_completion_hash = false;
 #endif
 
@@ -247,7 +263,7 @@ static bool opt_build_completion_hash = false;
   A flag that indicates if --execute buffer has already been converted,
   to avoid double conversion on reconnect.
 */
-static bool execute_buffer_conversion_done = 0;
+static bool execute_buffer_conversion_done{false};
 
 /*
   my_win_is_console(...) is quite slow.
@@ -297,21 +313,24 @@ static int com_quit(String *str, char *), com_go(String *str, char *),
     com_notee(String *str, char *), com_charset(String *str, char *),
     com_prompt(String *str, char *), com_delimiter(String *str, char *),
     com_warnings(String *str, char *), com_nowarnings(String *str, char *),
-    com_resetconnection(String *str, char *);
+    com_resetconnection(String *str, char *),
+    com_query_attributes(String *str, char *),
+    com_ssl_session_data_print(String *str, char *);
+static int com_shell(String *str, char *);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char *), com_pager(String *str, char *),
-    com_edit(String *str, char *), com_shell(String *str, char *);
+    com_edit(String *str, char *);
 #endif
 
 static int read_and_execute(bool interactive);
 static bool init_connection_options(MYSQL *mysql);
-static int sql_connect(char *host, char *database, char *user, char *password,
-                       uint silent);
+static int sql_connect(char *host, char *database, char *user, uint silent);
 static const char *server_version_string(MYSQL *mysql);
 static int put_info(const char *str, INFO_TYPE info, uint error = 0,
-                    const char *sql_state = 0);
+                    const char *sql_state = nullptr);
 static int put_error(MYSQL *mysql);
+static void put_error_if_any(MYSQL *mysql);
 static void safe_put_field(const char *pos, ulong length);
 static void xmlencode_print(const char *src, uint length);
 static void init_pager();
@@ -340,787 +359,793 @@ static void get_current_os_sudouser();
 
 typedef struct {
   const char *name;                 /* User printable name of the function. */
-  char cmd_char;                    /* msql command character */
+  char cmd_char;                    /* mysql command character. NULL if none */
   int (*func)(String *str, char *); /* Function to call to do the job. */
   bool takes_params;                /* Max parameters for command */
   const char *doc;                  /* Documentation for this function.  */
 } COMMANDS;
 
 static COMMANDS commands[] = {
-    {"?", '?', com_help, 1, "Synonym for `help'."},
-    {"clear", 'c', com_clear, 0, "Clear the current input statement."},
-    {"connect", 'r', com_connect, 1,
+    {"?", '?', com_help, true, "Synonym for `help'."},
+    {"clear", 'c', com_clear, false, "Clear the current input statement."},
+    {"connect", 'r', com_connect, true,
      "Reconnect to the server. Optional arguments are db and host."},
-    {"delimiter", 'd', com_delimiter, 1, "Set statement delimiter."},
+    {"delimiter", 'd', com_delimiter, true, "Set statement delimiter."},
 #ifdef USE_POPEN
-    {"edit", 'e', com_edit, 0, "Edit command with $EDITOR."},
+    {"edit", 'e', com_edit, false, "Edit command with $EDITOR."},
 #endif
-    {"ego", 'G', com_ego, 0,
+    {"ego", 'G', com_ego, false,
      "Send command to mysql server, display result vertically."},
-    {"exit", 'q', com_quit, 0, "Exit mysql. Same as quit."},
-    {"go", 'g', com_go, 0, "Send command to mysql server."},
-    {"help", 'h', com_help, 1, "Display this help."},
+    {"exit", 'q', com_quit, false, "Exit mysql. Same as quit."},
+    {"go", 'g', com_go, false, "Send command to mysql server."},
+    {"help", 'h', com_help, true, "Display this help."},
 #ifdef USE_POPEN
-    {"nopager", 'n', com_nopager, 0, "Disable pager, print to stdout."},
+    {"nopager", 'n', com_nopager, false, "Disable pager, print to stdout."},
 #endif
-    {"notee", 't', com_notee, 0, "Don't write into outfile."},
+    {"notee", 't', com_notee, false, "Don't write into outfile."},
 #ifdef USE_POPEN
-    {"pager", 'P', com_pager, 1,
+    {"pager", 'P', com_pager, true,
      "Set PAGER [to_pager]. Print the query results via PAGER."},
 #endif
-    {"print", 'p', com_print, 0, "Print current command."},
-    {"prompt", 'R', com_prompt, 1, "Change your mysql prompt."},
-    {"quit", 'q', com_quit, 0, "Quit mysql."},
-    {"rehash", '#', com_rehash, 0, "Rebuild completion hash."},
-    {"source", '.', com_source, 1,
+    {"print", 'p', com_print, false, "Print current command."},
+    {"prompt", 'R', com_prompt, true, "Change your mysql prompt."},
+    {"quit", 'q', com_quit, false, "Quit mysql."},
+    {"rehash", '#', com_rehash, false, "Rebuild completion hash."},
+    {"source", '.', com_source, true,
      "Execute an SQL script file. Takes a file name as an argument."},
-    {"status", 's', com_status, 0, "Get status information from the server."},
-#ifdef USE_POPEN
-    {"system", '!', com_shell, 1, "Execute a system shell command."},
-#endif
-    {"tee", 'T', com_tee, 1,
+    {"status", 's', com_status, false,
+     "Get status information from the server."},
+    {"system", '!', com_shell, true, "Execute a system shell command."},
+    {"tee", 'T', com_tee, true,
      "Set outfile [to_outfile]. Append everything into given outfile."},
-    {"use", 'u', com_use, 1,
+    {"use", 'u', com_use, true,
      "Use another database. Takes database name as argument."},
-    {"charset", 'C', com_charset, 1,
+    {"charset", 'C', com_charset, true,
      "Switch to another charset. Might be needed for processing binlog with "
      "multi-byte charsets."},
-    {"warnings", 'W', com_warnings, 0, "Show warnings after every statement."},
-    {"nowarning", 'w', com_nowarnings, 0,
+    {"warnings", 'W', com_warnings, false,
+     "Show warnings after every statement."},
+    {"nowarning", 'w', com_nowarnings, false,
      "Don't show warnings after every statement."},
-    {"resetconnection", 'x', com_resetconnection, 0, "Clean session context."},
+    {"resetconnection", 'x', com_resetconnection, false,
+     "Clean session context."},
+    {"query_attributes", 0, com_query_attributes, true,
+     "Sets string parameters (name1 value1 name2 value2 ...) for the next "
+     "query to pick up."},
+    {"ssl_session_data_print", 0, com_ssl_session_data_print, true,
+     "Serializes the current SSL session data to stdout or file"},
     /* Get bash-like expansion for some commands */
-    {"create table", 0, 0, 0, ""},
-    {"create database", 0, 0, 0, ""},
-    {"show databases", 0, 0, 0, ""},
-    {"show fields from", 0, 0, 0, ""},
-    {"show keys from", 0, 0, 0, ""},
-    {"show tables", 0, 0, 0, ""},
-    {"load data from", 0, 0, 0, ""},
-    {"alter table", 0, 0, 0, ""},
-    {"set option", 0, 0, 0, ""},
-    {"lock tables", 0, 0, 0, ""},
-    {"unlock tables", 0, 0, 0, ""},
+    {"create table", 0, nullptr, false, ""},
+    {"create database", 0, nullptr, false, ""},
+    {"show databases", 0, nullptr, false, ""},
+    {"show fields from", 0, nullptr, false, ""},
+    {"show keys from", 0, nullptr, false, ""},
+    {"show tables", 0, nullptr, false, ""},
+    {"load data from", 0, nullptr, false, ""},
+    {"alter table", 0, nullptr, false, ""},
+    {"set option", 0, nullptr, false, ""},
+    {"lock tables", 0, nullptr, false, ""},
+    {"unlock tables", 0, nullptr, false, ""},
     /* generated 2006-12-28.  Refresh occasionally from lexer. */
-    {"ACTION", 0, 0, 0, ""},
-    {"ADD", 0, 0, 0, ""},
-    {"AFTER", 0, 0, 0, ""},
-    {"AGAINST", 0, 0, 0, ""},
-    {"AGGREGATE", 0, 0, 0, ""},
-    {"ALL", 0, 0, 0, ""},
-    {"ALGORITHM", 0, 0, 0, ""},
-    {"ALTER", 0, 0, 0, ""},
-    {"ANALYZE", 0, 0, 0, ""},
-    {"AND", 0, 0, 0, ""},
-    {"ANY", 0, 0, 0, ""},
-    {"AS", 0, 0, 0, ""},
-    {"ASC", 0, 0, 0, ""},
-    {"ASCII", 0, 0, 0, ""},
-    {"ASENSITIVE", 0, 0, 0, ""},
-    {"AUTO_INCREMENT", 0, 0, 0, ""},
-    {"AVG", 0, 0, 0, ""},
-    {"AVG_ROW_LENGTH", 0, 0, 0, ""},
-    {"BACKUP", 0, 0, 0, ""},
-    {"BDB", 0, 0, 0, ""},
-    {"BEFORE", 0, 0, 0, ""},
-    {"BEGIN", 0, 0, 0, ""},
-    {"BERKELEYDB", 0, 0, 0, ""},
-    {"BETWEEN", 0, 0, 0, ""},
-    {"BIGINT", 0, 0, 0, ""},
-    {"BINARY", 0, 0, 0, ""},
-    {"BINLOG", 0, 0, 0, ""},
-    {"BIT", 0, 0, 0, ""},
-    {"BLOB", 0, 0, 0, ""},
-    {"BOOL", 0, 0, 0, ""},
-    {"BOOLEAN", 0, 0, 0, ""},
-    {"BOTH", 0, 0, 0, ""},
-    {"BTREE", 0, 0, 0, ""},
-    {"BY", 0, 0, 0, ""},
-    {"BYTE", 0, 0, 0, ""},
-    {"CACHE", 0, 0, 0, ""},
-    {"CALL", 0, 0, 0, ""},
-    {"CASCADE", 0, 0, 0, ""},
-    {"CASCADED", 0, 0, 0, ""},
-    {"CASE", 0, 0, 0, ""},
-    {"CHAIN", 0, 0, 0, ""},
-    {"CHANGE", 0, 0, 0, ""},
-    {"CHANGED", 0, 0, 0, ""},
-    {"CHAR", 0, 0, 0, ""},
-    {"CHARACTER", 0, 0, 0, ""},
-    {"CHARSET", 0, 0, 0, ""},
-    {"CHECK", 0, 0, 0, ""},
-    {"CHECKSUM", 0, 0, 0, ""},
-    {"CIPHER", 0, 0, 0, ""},
-    {"CLIENT", 0, 0, 0, ""},
-    {"CLOSE", 0, 0, 0, ""},
-    {"CODE", 0, 0, 0, ""},
-    {"COLLATE", 0, 0, 0, ""},
-    {"COLLATION", 0, 0, 0, ""},
-    {"COLUMN", 0, 0, 0, ""},
-    {"COLUMNS", 0, 0, 0, ""},
-    {"COMMENT", 0, 0, 0, ""},
-    {"COMMIT", 0, 0, 0, ""},
-    {"COMMITTED", 0, 0, 0, ""},
-    {"COMPACT", 0, 0, 0, ""},
-    {"COMPRESSED", 0, 0, 0, ""},
-    {"CONCURRENT", 0, 0, 0, ""},
-    {"CONDITION", 0, 0, 0, ""},
-    {"CONNECTION", 0, 0, 0, ""},
-    {"CONSISTENT", 0, 0, 0, ""},
-    {"CONSTRAINT", 0, 0, 0, ""},
-    {"CONTAINS", 0, 0, 0, ""},
-    {"CONTINUE", 0, 0, 0, ""},
-    {"CONVERT", 0, 0, 0, ""},
-    {"CREATE", 0, 0, 0, ""},
-    {"CROSS", 0, 0, 0, ""},
-    {"CUBE", 0, 0, 0, ""},
-    {"CURRENT_DATE", 0, 0, 0, ""},
-    {"CURRENT_TIME", 0, 0, 0, ""},
-    {"CURRENT_TIMESTAMP", 0, 0, 0, ""},
-    {"CURRENT_USER", 0, 0, 0, ""},
-    {"CURSOR", 0, 0, 0, ""},
-    {"DATA", 0, 0, 0, ""},
-    {"DATABASE", 0, 0, 0, ""},
-    {"DATABASES", 0, 0, 0, ""},
-    {"DATE", 0, 0, 0, ""},
-    {"DATETIME", 0, 0, 0, ""},
-    {"DAY", 0, 0, 0, ""},
-    {"DAY_HOUR", 0, 0, 0, ""},
-    {"DAY_MICROSECOND", 0, 0, 0, ""},
-    {"DAY_MINUTE", 0, 0, 0, ""},
-    {"DAY_SECOND", 0, 0, 0, ""},
-    {"DEALLOCATE", 0, 0, 0, ""},
-    {"DEC", 0, 0, 0, ""},
-    {"DECIMAL", 0, 0, 0, ""},
-    {"DECLARE", 0, 0, 0, ""},
-    {"DEFAULT", 0, 0, 0, ""},
-    {"DEFINER", 0, 0, 0, ""},
-    {"DELAYED", 0, 0, 0, ""},
-    {"DELAY_KEY_WRITE", 0, 0, 0, ""},
-    {"DELETE", 0, 0, 0, ""},
-    {"DESC", 0, 0, 0, ""},
-    {"DESCRIBE", 0, 0, 0, ""},
-    {"DETERMINISTIC", 0, 0, 0, ""},
-    {"DIRECTORY", 0, 0, 0, ""},
-    {"DISABLE", 0, 0, 0, ""},
-    {"DISCARD", 0, 0, 0, ""},
-    {"DISTINCT", 0, 0, 0, ""},
-    {"DISTINCTROW", 0, 0, 0, ""},
-    {"DIV", 0, 0, 0, ""},
-    {"DO", 0, 0, 0, ""},
-    {"DOUBLE", 0, 0, 0, ""},
-    {"DROP", 0, 0, 0, ""},
-    {"DUAL", 0, 0, 0, ""},
-    {"DUMPFILE", 0, 0, 0, ""},
-    {"DUPLICATE", 0, 0, 0, ""},
-    {"DYNAMIC", 0, 0, 0, ""},
-    {"EACH", 0, 0, 0, ""},
-    {"ELSE", 0, 0, 0, ""},
-    {"ELSEIF", 0, 0, 0, ""},
-    {"ENABLE", 0, 0, 0, ""},
-    {"ENCLOSED", 0, 0, 0, ""},
-    {"END", 0, 0, 0, ""},
-    {"ENGINE", 0, 0, 0, ""},
-    {"ENGINES", 0, 0, 0, ""},
-    {"ENUM", 0, 0, 0, ""},
-    {"ERRORS", 0, 0, 0, ""},
-    {"ESCAPE", 0, 0, 0, ""},
-    {"ESCAPED", 0, 0, 0, ""},
-    {"EVENTS", 0, 0, 0, ""},
-    {"EXECUTE", 0, 0, 0, ""},
-    {"EXISTS", 0, 0, 0, ""},
-    {"EXIT", 0, 0, 0, ""},
-    {"EXPANSION", 0, 0, 0, ""},
-    {"EXPLAIN", 0, 0, 0, ""},
-    {"EXTENDED", 0, 0, 0, ""},
-    {"FALSE", 0, 0, 0, ""},
-    {"FAST", 0, 0, 0, ""},
-    {"FETCH", 0, 0, 0, ""},
-    {"FIELDS", 0, 0, 0, ""},
-    {"FILE", 0, 0, 0, ""},
-    {"FIRST", 0, 0, 0, ""},
-    {"FIXED", 0, 0, 0, ""},
-    {"FLOAT", 0, 0, 0, ""},
-    {"FLOAT4", 0, 0, 0, ""},
-    {"FLOAT8", 0, 0, 0, ""},
-    {"FLUSH", 0, 0, 0, ""},
-    {"FOR", 0, 0, 0, ""},
-    {"FORCE", 0, 0, 0, ""},
-    {"FOREIGN", 0, 0, 0, ""},
-    {"FOUND", 0, 0, 0, ""},
-    {"FROM", 0, 0, 0, ""},
-    {"FULL", 0, 0, 0, ""},
-    {"FULLTEXT", 0, 0, 0, ""},
-    {"FUNCTION", 0, 0, 0, ""},
-    {"GEOMETRY", 0, 0, 0, ""},
-    {"GEOMETRYCOLLECTION", 0, 0, 0, ""},
-    {"GET_FORMAT", 0, 0, 0, ""},
-    {"GLOBAL", 0, 0, 0, ""},
-    {"GRANT", 0, 0, 0, ""},
-    {"GRANTS", 0, 0, 0, ""},
-    {"GROUP", 0, 0, 0, ""},
-    {"HANDLER", 0, 0, 0, ""},
-    {"HASH", 0, 0, 0, ""},
-    {"HAVING", 0, 0, 0, ""},
-    {"HELP", 0, 0, 0, ""},
-    {"HIGH_PRIORITY", 0, 0, 0, ""},
-    {"HOSTS", 0, 0, 0, ""},
-    {"HOUR", 0, 0, 0, ""},
-    {"HOUR_MICROSECOND", 0, 0, 0, ""},
-    {"HOUR_MINUTE", 0, 0, 0, ""},
-    {"HOUR_SECOND", 0, 0, 0, ""},
-    {"IDENTIFIED", 0, 0, 0, ""},
-    {"IF", 0, 0, 0, ""},
-    {"IGNORE", 0, 0, 0, ""},
-    {"IMPORT", 0, 0, 0, ""},
-    {"IN", 0, 0, 0, ""},
-    {"INDEX", 0, 0, 0, ""},
-    {"INDEXES", 0, 0, 0, ""},
-    {"INFILE", 0, 0, 0, ""},
-    {"INNER", 0, 0, 0, ""},
-    {"INNOBASE", 0, 0, 0, ""},
-    {"INNODB", 0, 0, 0, ""},
-    {"INOUT", 0, 0, 0, ""},
-    {"INSENSITIVE", 0, 0, 0, ""},
-    {"INSERT", 0, 0, 0, ""},
-    {"INSERT_METHOD", 0, 0, 0, ""},
-    {"INT", 0, 0, 0, ""},
-    {"INT1", 0, 0, 0, ""},
-    {"INT2", 0, 0, 0, ""},
-    {"INT3", 0, 0, 0, ""},
-    {"INT4", 0, 0, 0, ""},
-    {"INT8", 0, 0, 0, ""},
-    {"INTEGER", 0, 0, 0, ""},
-    {"INTERVAL", 0, 0, 0, ""},
-    {"INTO", 0, 0, 0, ""},
-    {"IO_THREAD", 0, 0, 0, ""},
-    {"IS", 0, 0, 0, ""},
-    {"ISOLATION", 0, 0, 0, ""},
-    {"ISSUER", 0, 0, 0, ""},
-    {"ITERATE", 0, 0, 0, ""},
-    {"INVOKER", 0, 0, 0, ""},
-    {"JOIN", 0, 0, 0, ""},
-    {"KEY", 0, 0, 0, ""},
-    {"KEYS", 0, 0, 0, ""},
-    {"KILL", 0, 0, 0, ""},
-    {"LANGUAGE", 0, 0, 0, ""},
-    {"LAST", 0, 0, 0, ""},
-    {"LEADING", 0, 0, 0, ""},
-    {"LEAVE", 0, 0, 0, ""},
-    {"LEAVES", 0, 0, 0, ""},
-    {"LEFT", 0, 0, 0, ""},
-    {"LEVEL", 0, 0, 0, ""},
-    {"LIKE", 0, 0, 0, ""},
-    {"LIMIT", 0, 0, 0, ""},
-    {"LINES", 0, 0, 0, ""},
-    {"LINESTRING", 0, 0, 0, ""},
-    {"LOAD", 0, 0, 0, ""},
-    {"LOCAL", 0, 0, 0, ""},
-    {"LOCALTIME", 0, 0, 0, ""},
-    {"LOCALTIMESTAMP", 0, 0, 0, ""},
-    {"LOCK", 0, 0, 0, ""},
-    {"LOCKS", 0, 0, 0, ""},
-    {"LOGS", 0, 0, 0, ""},
-    {"LONG", 0, 0, 0, ""},
-    {"LONGBLOB", 0, 0, 0, ""},
-    {"LONGTEXT", 0, 0, 0, ""},
-    {"LOOP", 0, 0, 0, ""},
-    {"LOW_PRIORITY", 0, 0, 0, ""},
-    {"MASTER", 0, 0, 0, ""},
-    {"MASTER_CONNECT_RETRY", 0, 0, 0, ""},
-    {"MASTER_HOST", 0, 0, 0, ""},
-    {"MASTER_LOG_FILE", 0, 0, 0, ""},
-    {"MASTER_LOG_POS", 0, 0, 0, ""},
-    {"MASTER_PASSWORD", 0, 0, 0, ""},
-    {"MASTER_PORT", 0, 0, 0, ""},
-    {"MASTER_SERVER_ID", 0, 0, 0, ""},
-    {"MASTER_SSL", 0, 0, 0, ""},
-    {"MASTER_SSL_CA", 0, 0, 0, ""},
-    {"MASTER_SSL_CAPATH", 0, 0, 0, ""},
-    {"MASTER_SSL_CERT", 0, 0, 0, ""},
-    {"MASTER_SSL_CIPHER", 0, 0, 0, ""},
-    {"MASTER_TLS_VERSION", 0, 0, 0, ""},
-    {"MASTER_SSL_KEY", 0, 0, 0, ""},
-    {"MASTER_USER", 0, 0, 0, ""},
-    {"MATCH", 0, 0, 0, ""},
-    {"MAX_CONNECTIONS_PER_HOUR", 0, 0, 0, ""},
-    {"MAX_QUERIES_PER_HOUR", 0, 0, 0, ""},
-    {"MAX_ROWS", 0, 0, 0, ""},
-    {"MAX_UPDATES_PER_HOUR", 0, 0, 0, ""},
-    {"MAX_USER_CONNECTIONS", 0, 0, 0, ""},
-    {"MEDIUM", 0, 0, 0, ""},
-    {"MEDIUMBLOB", 0, 0, 0, ""},
-    {"MEDIUMINT", 0, 0, 0, ""},
-    {"MEDIUMTEXT", 0, 0, 0, ""},
-    {"MERGE", 0, 0, 0, ""},
-    {"MICROSECOND", 0, 0, 0, ""},
-    {"MIDDLEINT", 0, 0, 0, ""},
-    {"MIGRATE", 0, 0, 0, ""},
-    {"MINUTE", 0, 0, 0, ""},
-    {"MINUTE_MICROSECOND", 0, 0, 0, ""},
-    {"MINUTE_SECOND", 0, 0, 0, ""},
-    {"MIN_ROWS", 0, 0, 0, ""},
-    {"MOD", 0, 0, 0, ""},
-    {"MODE", 0, 0, 0, ""},
-    {"MODIFIES", 0, 0, 0, ""},
-    {"MODIFY", 0, 0, 0, ""},
-    {"MONTH", 0, 0, 0, ""},
-    {"MULTILINESTRING", 0, 0, 0, ""},
-    {"MULTIPOINT", 0, 0, 0, ""},
-    {"MULTIPOLYGON", 0, 0, 0, ""},
-    {"MUTEX", 0, 0, 0, ""},
-    {"NAME", 0, 0, 0, ""},
-    {"NAMES", 0, 0, 0, ""},
-    {"NATIONAL", 0, 0, 0, ""},
-    {"NATURAL", 0, 0, 0, ""},
-    {"NDB", 0, 0, 0, ""},
-    {"NDBCLUSTER", 0, 0, 0, ""},
-    {"NCHAR", 0, 0, 0, ""},
-    {"NEW", 0, 0, 0, ""},
-    {"NEXT", 0, 0, 0, ""},
-    {"NO", 0, 0, 0, ""},
-    {"NONE", 0, 0, 0, ""},
-    {"NOT", 0, 0, 0, ""},
-    {"NO_WRITE_TO_BINLOG", 0, 0, 0, ""},
-    {"NULL", 0, 0, 0, ""},
-    {"NUMERIC", 0, 0, 0, ""},
-    {"NVARCHAR", 0, 0, 0, ""},
-    {"OFFSET", 0, 0, 0, ""},
-    {"ON", 0, 0, 0, ""},
-    {"ONE", 0, 0, 0, ""},
-    {"ONE_SHOT", 0, 0, 0, ""},
-    {"OPEN", 0, 0, 0, ""},
-    {"OPTIMIZE", 0, 0, 0, ""},
-    {"OPTION", 0, 0, 0, ""},
-    {"OPTIONALLY", 0, 0, 0, ""},
-    {"OR", 0, 0, 0, ""},
-    {"ORDER", 0, 0, 0, ""},
-    {"OUT", 0, 0, 0, ""},
-    {"OUTER", 0, 0, 0, ""},
-    {"OUTFILE", 0, 0, 0, ""},
-    {"PACK_KEYS", 0, 0, 0, ""},
-    {"PARTIAL", 0, 0, 0, ""},
-    {"PASSWORD", 0, 0, 0, ""},
-    {"PHASE", 0, 0, 0, ""},
-    {"POINT", 0, 0, 0, ""},
-    {"POLYGON", 0, 0, 0, ""},
-    {"PRECISION", 0, 0, 0, ""},
-    {"PREPARE", 0, 0, 0, ""},
-    {"PREV", 0, 0, 0, ""},
-    {"PRIMARY", 0, 0, 0, ""},
-    {"PRIVILEGES", 0, 0, 0, ""},
-    {"PROCEDURE", 0, 0, 0, ""},
-    {"PROCESS", 0, 0, 0, ""},
-    {"PROCESSLIST", 0, 0, 0, ""},
-    {"PURGE", 0, 0, 0, ""},
-    {"QUARTER", 0, 0, 0, ""},
-    {"QUERY", 0, 0, 0, ""},
-    {"QUICK", 0, 0, 0, ""},
-    {"READ", 0, 0, 0, ""},
-    {"READS", 0, 0, 0, ""},
-    {"REAL", 0, 0, 0, ""},
-    {"RECOVER", 0, 0, 0, ""},
-    {"REDUNDANT", 0, 0, 0, ""},
-    {"REFERENCES", 0, 0, 0, ""},
-    {"REGEXP", 0, 0, 0, ""},
-    {"RELAY_LOG_FILE", 0, 0, 0, ""},
-    {"RELAY_LOG_POS", 0, 0, 0, ""},
-    {"RELAY_THREAD", 0, 0, 0, ""},
-    {"RELEASE", 0, 0, 0, ""},
-    {"RELOAD", 0, 0, 0, ""},
-    {"RENAME", 0, 0, 0, ""},
-    {"REPAIR", 0, 0, 0, ""},
-    {"REPEATABLE", 0, 0, 0, ""},
-    {"REPLACE", 0, 0, 0, ""},
-    {"REPLICATION", 0, 0, 0, ""},
-    {"REPEAT", 0, 0, 0, ""},
-    {"REQUIRE", 0, 0, 0, ""},
-    {"RESET", 0, 0, 0, ""},
-    {"RESTORE", 0, 0, 0, ""},
-    {"RESTRICT", 0, 0, 0, ""},
-    {"RESUME", 0, 0, 0, ""},
-    {"RETURN", 0, 0, 0, ""},
-    {"RETURNS", 0, 0, 0, ""},
-    {"REVOKE", 0, 0, 0, ""},
-    {"RIGHT", 0, 0, 0, ""},
-    {"RLIKE", 0, 0, 0, ""},
-    {"ROLLBACK", 0, 0, 0, ""},
-    {"ROLLUP", 0, 0, 0, ""},
-    {"ROUTINE", 0, 0, 0, ""},
-    {"ROW", 0, 0, 0, ""},
-    {"ROWS", 0, 0, 0, ""},
-    {"ROW_FORMAT", 0, 0, 0, ""},
-    {"RTREE", 0, 0, 0, ""},
-    {"SAVEPOINT", 0, 0, 0, ""},
-    {"SCHEMA", 0, 0, 0, ""},
-    {"SCHEMAS", 0, 0, 0, ""},
-    {"SECOND", 0, 0, 0, ""},
-    {"SECOND_MICROSECOND", 0, 0, 0, ""},
-    {"SECURITY", 0, 0, 0, ""},
-    {"SELECT", 0, 0, 0, ""},
-    {"SENSITIVE", 0, 0, 0, ""},
-    {"SEPARATOR", 0, 0, 0, ""},
-    {"SERIAL", 0, 0, 0, ""},
-    {"SERIALIZABLE", 0, 0, 0, ""},
-    {"SESSION", 0, 0, 0, ""},
-    {"SET", 0, 0, 0, ""},
-    {"SHARE", 0, 0, 0, ""},
-    {"SHOW", 0, 0, 0, ""},
-    {"SHUTDOWN", 0, 0, 0, ""},
-    {"SIGNED", 0, 0, 0, ""},
-    {"SIMPLE", 0, 0, 0, ""},
-    {"SLAVE", 0, 0, 0, ""},
-    {"SNAPSHOT", 0, 0, 0, ""},
-    {"SMALLINT", 0, 0, 0, ""},
-    {"SOME", 0, 0, 0, ""},
-    {"SONAME", 0, 0, 0, ""},
-    {"SOUNDS", 0, 0, 0, ""},
-    {"SPATIAL", 0, 0, 0, ""},
-    {"SPECIFIC", 0, 0, 0, ""},
-    {"SQL", 0, 0, 0, ""},
-    {"SQLEXCEPTION", 0, 0, 0, ""},
-    {"SQLSTATE", 0, 0, 0, ""},
-    {"SQLWARNING", 0, 0, 0, ""},
-    {"SQL_BIG_RESULT", 0, 0, 0, ""},
-    {"SQL_BUFFER_RESULT", 0, 0, 0, ""},
-    {"SQL_CALC_FOUND_ROWS", 0, 0, 0, ""},
-    {"SQL_NO_CACHE", 0, 0, 0, ""},
-    {"SQL_SMALL_RESULT", 0, 0, 0, ""},
-    {"SQL_THREAD", 0, 0, 0, ""},
-    {"SQL_TSI_SECOND", 0, 0, 0, ""},
-    {"SQL_TSI_MINUTE", 0, 0, 0, ""},
-    {"SQL_TSI_HOUR", 0, 0, 0, ""},
-    {"SQL_TSI_DAY", 0, 0, 0, ""},
-    {"SQL_TSI_WEEK", 0, 0, 0, ""},
-    {"SQL_TSI_MONTH", 0, 0, 0, ""},
-    {"SQL_TSI_QUARTER", 0, 0, 0, ""},
-    {"SQL_TSI_YEAR", 0, 0, 0, ""},
-    {"SSL", 0, 0, 0, ""},
-    {"START", 0, 0, 0, ""},
-    {"STARTING", 0, 0, 0, ""},
-    {"STATUS", 0, 0, 0, ""},
-    {"STOP", 0, 0, 0, ""},
-    {"STORAGE", 0, 0, 0, ""},
-    {"STRAIGHT_JOIN", 0, 0, 0, ""},
-    {"STRING", 0, 0, 0, ""},
-    {"STRIPED", 0, 0, 0, ""},
-    {"SUBJECT", 0, 0, 0, ""},
-    {"SUPER", 0, 0, 0, ""},
-    {"SUSPEND", 0, 0, 0, ""},
-    {"TABLE", 0, 0, 0, ""},
-    {"TABLES", 0, 0, 0, ""},
-    {"TABLESPACE", 0, 0, 0, ""},
-    {"TEMPORARY", 0, 0, 0, ""},
-    {"TEMPTABLE", 0, 0, 0, ""},
-    {"TERMINATED", 0, 0, 0, ""},
-    {"TEXT", 0, 0, 0, ""},
-    {"THEN", 0, 0, 0, ""},
-    {"TIME", 0, 0, 0, ""},
-    {"TIMESTAMP", 0, 0, 0, ""},
-    {"TIMESTAMPADD", 0, 0, 0, ""},
-    {"TIMESTAMPDIFF", 0, 0, 0, ""},
-    {"TINYBLOB", 0, 0, 0, ""},
-    {"TINYINT", 0, 0, 0, ""},
-    {"TINYTEXT", 0, 0, 0, ""},
-    {"TO", 0, 0, 0, ""},
-    {"TRAILING", 0, 0, 0, ""},
-    {"TRANSACTION", 0, 0, 0, ""},
-    {"TRIGGER", 0, 0, 0, ""},
-    {"TRIGGERS", 0, 0, 0, ""},
-    {"TRUE", 0, 0, 0, ""},
-    {"TRUNCATE", 0, 0, 0, ""},
-    {"TYPE", 0, 0, 0, ""},
-    {"TYPES", 0, 0, 0, ""},
-    {"UNCOMMITTED", 0, 0, 0, ""},
-    {"UNDEFINED", 0, 0, 0, ""},
-    {"UNDO", 0, 0, 0, ""},
-    {"UNICODE", 0, 0, 0, ""},
-    {"UNION", 0, 0, 0, ""},
-    {"UNIQUE", 0, 0, 0, ""},
-    {"UNKNOWN", 0, 0, 0, ""},
-    {"UNLOCK", 0, 0, 0, ""},
-    {"UNSIGNED", 0, 0, 0, ""},
-    {"UNTIL", 0, 0, 0, ""},
-    {"UPDATE", 0, 0, 0, ""},
-    {"UPGRADE", 0, 0, 0, ""},
-    {"USAGE", 0, 0, 0, ""},
-    {"USE", 0, 0, 0, ""},
-    {"USER", 0, 0, 0, ""},
-    {"USER_RESOURCES", 0, 0, 0, ""},
-    {"USE_FRM", 0, 0, 0, ""},
-    {"USING", 0, 0, 0, ""},
-    {"UTC_DATE", 0, 0, 0, ""},
-    {"UTC_TIME", 0, 0, 0, ""},
-    {"UTC_TIMESTAMP", 0, 0, 0, ""},
-    {"VALUE", 0, 0, 0, ""},
-    {"VALUES", 0, 0, 0, ""},
-    {"VARBINARY", 0, 0, 0, ""},
-    {"VARCHAR", 0, 0, 0, ""},
-    {"VARCHARACTER", 0, 0, 0, ""},
-    {"VARIABLES", 0, 0, 0, ""},
-    {"VARYING", 0, 0, 0, ""},
-    {"WARNINGS", 0, 0, 0, ""},
-    {"WEEK", 0, 0, 0, ""},
-    {"WHEN", 0, 0, 0, ""},
-    {"WHERE", 0, 0, 0, ""},
-    {"WHILE", 0, 0, 0, ""},
-    {"VIEW", 0, 0, 0, ""},
-    {"WITH", 0, 0, 0, ""},
-    {"WORK", 0, 0, 0, ""},
-    {"WRITE", 0, 0, 0, ""},
-    {"X509", 0, 0, 0, ""},
-    {"XOR", 0, 0, 0, ""},
-    {"XA", 0, 0, 0, ""},
-    {"YEAR", 0, 0, 0, ""},
-    {"YEAR_MONTH", 0, 0, 0, ""},
-    {"ZEROFILL", 0, 0, 0, ""},
-    {"ABS", 0, 0, 0, ""},
-    {"ACOS", 0, 0, 0, ""},
-    {"ADDDATE", 0, 0, 0, ""},
-    {"ADDTIME", 0, 0, 0, ""},
-    {"AES_ENCRYPT", 0, 0, 0, ""},
-    {"AES_DECRYPT", 0, 0, 0, ""},
-    {"AREA", 0, 0, 0, ""},
-    {"ASIN", 0, 0, 0, ""},
-    {"ASBINARY", 0, 0, 0, ""},
-    {"ASTEXT", 0, 0, 0, ""},
-    {"ASWKB", 0, 0, 0, ""},
-    {"ASWKT", 0, 0, 0, ""},
-    {"ATAN", 0, 0, 0, ""},
-    {"ATAN2", 0, 0, 0, ""},
-    {"BENCHMARK", 0, 0, 0, ""},
-    {"BIN", 0, 0, 0, ""},
-    {"BIT_COUNT", 0, 0, 0, ""},
-    {"BIT_OR", 0, 0, 0, ""},
-    {"BIT_AND", 0, 0, 0, ""},
-    {"BIT_XOR", 0, 0, 0, ""},
-    {"CAST", 0, 0, 0, ""},
-    {"CEIL", 0, 0, 0, ""},
-    {"CEILING", 0, 0, 0, ""},
-    {"BIT_LENGTH", 0, 0, 0, ""},
-    {"CENTROID", 0, 0, 0, ""},
-    {"CHAR_LENGTH", 0, 0, 0, ""},
-    {"CHARACTER_LENGTH", 0, 0, 0, ""},
-    {"COALESCE", 0, 0, 0, ""},
-    {"COERCIBILITY", 0, 0, 0, ""},
-    {"COMPRESS", 0, 0, 0, ""},
-    {"CONCAT", 0, 0, 0, ""},
-    {"CONCAT_WS", 0, 0, 0, ""},
-    {"CONNECTION_ID", 0, 0, 0, ""},
-    {"CONV", 0, 0, 0, ""},
-    {"CONVERT_TZ", 0, 0, 0, ""},
-    {"COUNT", 0, 0, 0, ""},
-    {"COS", 0, 0, 0, ""},
-    {"COT", 0, 0, 0, ""},
-    {"CRC32", 0, 0, 0, ""},
-    {"CROSSES", 0, 0, 0, ""},
-    {"CURDATE", 0, 0, 0, ""},
-    {"CURTIME", 0, 0, 0, ""},
-    {"DATE_ADD", 0, 0, 0, ""},
-    {"DATEDIFF", 0, 0, 0, ""},
-    {"DATE_FORMAT", 0, 0, 0, ""},
-    {"DATE_SUB", 0, 0, 0, ""},
-    {"DAYNAME", 0, 0, 0, ""},
-    {"DAYOFMONTH", 0, 0, 0, ""},
-    {"DAYOFWEEK", 0, 0, 0, ""},
-    {"DAYOFYEAR", 0, 0, 0, ""},
-    {"DEGREES", 0, 0, 0, ""},
-    {"DIMENSION", 0, 0, 0, ""},
-    {"DISJOINT", 0, 0, 0, ""},
-    {"ELT", 0, 0, 0, ""},
-    {"ENDPOINT", 0, 0, 0, ""},
-    {"ENVELOPE", 0, 0, 0, ""},
-    {"EQUALS", 0, 0, 0, ""},
-    {"EXTERIORRING", 0, 0, 0, ""},
-    {"EXTRACT", 0, 0, 0, ""},
-    {"EXP", 0, 0, 0, ""},
-    {"EXPORT_SET", 0, 0, 0, ""},
-    {"FIELD", 0, 0, 0, ""},
-    {"FIND_IN_SET", 0, 0, 0, ""},
-    {"FLOOR", 0, 0, 0, ""},
-    {"FORMAT", 0, 0, 0, ""},
-    {"FOUND_ROWS", 0, 0, 0, ""},
-    {"FROM_DAYS", 0, 0, 0, ""},
-    {"FROM_UNIXTIME", 0, 0, 0, ""},
-    {"GET_LOCK", 0, 0, 0, ""},
-    {"GEOMETRYN", 0, 0, 0, ""},
-    {"GEOMETRYTYPE", 0, 0, 0, ""},
-    {"GEOMCOLLFROMTEXT", 0, 0, 0, ""},
-    {"GEOMCOLLFROMWKB", 0, 0, 0, ""},
-    {"GEOMETRYCOLLECTIONFROMTEXT", 0, 0, 0, ""},
-    {"GEOMETRYCOLLECTIONFROMWKB", 0, 0, 0, ""},
-    {"GEOMETRYFROMTEXT", 0, 0, 0, ""},
-    {"GEOMETRYFROMWKB", 0, 0, 0, ""},
-    {"GEOMFROMTEXT", 0, 0, 0, ""},
-    {"GEOMFROMWKB", 0, 0, 0, ""},
-    {"GLENGTH", 0, 0, 0, ""},
-    {"GREATEST", 0, 0, 0, ""},
-    {"GROUP_CONCAT", 0, 0, 0, ""},
-    {"GROUP_UNIQUE_USERS", 0, 0, 0, ""},
-    {"HEX", 0, 0, 0, ""},
-    {"IFNULL", 0, 0, 0, ""},
-    {"INET_ATON", 0, 0, 0, ""},
-    {"INET_NTOA", 0, 0, 0, ""},
-    {"INSTR", 0, 0, 0, ""},
-    {"INTERIORRINGN", 0, 0, 0, ""},
-    {"INTERSECTS", 0, 0, 0, ""},
-    {"ISCLOSED", 0, 0, 0, ""},
-    {"ISEMPTY", 0, 0, 0, ""},
-    {"ISNULL", 0, 0, 0, ""},
-    {"IS_FREE_LOCK", 0, 0, 0, ""},
-    {"IS_USED_LOCK", 0, 0, 0, ""},
-    {"JSON_ARRAY_APPEND", 0, 0, 0, ""},
-    {"JSON_ARRAY", 0, 0, 0, ""},
-    {"JSON_CONTAINS", 0, 0, 0, ""},
-    {"JSON_DEPTH", 0, 0, 0, ""},
-    {"JSON_EXTRACT", 0, 0, 0, ""},
-    {"JSON_INSERT", 0, 0, 0, ""},
-    {"JSON_KEYS", 0, 0, 0, ""},
-    {"JSON_LENGTH", 0, 0, 0, ""},
-    {"JSON_MERGE", 0, 0, 0, ""},
-    {"JSON_QUOTE", 0, 0, 0, ""},
-    {"JSON_REPLACE", 0, 0, 0, ""},
-    {"JSON_ROWOBJECT", 0, 0, 0, ""},
-    {"JSON_SEARCH", 0, 0, 0, ""},
-    {"JSON_SET", 0, 0, 0, ""},
-    {"JSON_TYPE", 0, 0, 0, ""},
-    {"JSON_UNQUOTE", 0, 0, 0, ""},
-    {"JSON_VALID", 0, 0, 0, ""},
-    {"JSON_CONTAINS_PATH", 0, 0, 0, ""},
-    {"LAST_INSERT_ID", 0, 0, 0, ""},
-    {"ISSIMPLE", 0, 0, 0, ""},
-    {"LAST_DAY", 0, 0, 0, ""},
-    {"LCASE", 0, 0, 0, ""},
-    {"LEAST", 0, 0, 0, ""},
-    {"LENGTH", 0, 0, 0, ""},
-    {"LN", 0, 0, 0, ""},
-    {"LINEFROMTEXT", 0, 0, 0, ""},
-    {"LINEFROMWKB", 0, 0, 0, ""},
-    {"LINESTRINGFROMTEXT", 0, 0, 0, ""},
-    {"LINESTRINGFROMWKB", 0, 0, 0, ""},
-    {"LOAD_FILE", 0, 0, 0, ""},
-    {"LOCATE", 0, 0, 0, ""},
-    {"LOG", 0, 0, 0, ""},
-    {"LOG2", 0, 0, 0, ""},
-    {"LOG10", 0, 0, 0, ""},
-    {"LOWER", 0, 0, 0, ""},
-    {"LPAD", 0, 0, 0, ""},
-    {"LTRIM", 0, 0, 0, ""},
-    {"MAKE_SET", 0, 0, 0, ""},
-    {"MAKEDATE", 0, 0, 0, ""},
-    {"MAKETIME", 0, 0, 0, ""},
-    {"MASTER_POS_WAIT", 0, 0, 0, ""},
-    {"MAX", 0, 0, 0, ""},
-    {"MBRCONTAINS", 0, 0, 0, ""},
-    {"MBRDISJOINT", 0, 0, 0, ""},
-    {"MBREQUAL", 0, 0, 0, ""},
-    {"MBRINTERSECTS", 0, 0, 0, ""},
-    {"MBROVERLAPS", 0, 0, 0, ""},
-    {"MBRTOUCHES", 0, 0, 0, ""},
-    {"MBRWITHIN", 0, 0, 0, ""},
-    {"MD5", 0, 0, 0, ""},
-    {"MID", 0, 0, 0, ""},
-    {"MIN", 0, 0, 0, ""},
-    {"MLINEFROMTEXT", 0, 0, 0, ""},
-    {"MLINEFROMWKB", 0, 0, 0, ""},
-    {"MPOINTFROMTEXT", 0, 0, 0, ""},
-    {"MPOINTFROMWKB", 0, 0, 0, ""},
-    {"MPOLYFROMTEXT", 0, 0, 0, ""},
-    {"MPOLYFROMWKB", 0, 0, 0, ""},
-    {"MONTHNAME", 0, 0, 0, ""},
-    {"MULTILINESTRINGFROMTEXT", 0, 0, 0, ""},
-    {"MULTILINESTRINGFROMWKB", 0, 0, 0, ""},
-    {"MULTIPOINTFROMTEXT", 0, 0, 0, ""},
-    {"MULTIPOINTFROMWKB", 0, 0, 0, ""},
-    {"MULTIPOLYGONFROMTEXT", 0, 0, 0, ""},
-    {"MULTIPOLYGONFROMWKB", 0, 0, 0, ""},
-    {"NAME_CONST", 0, 0, 0, ""},
-    {"NOW", 0, 0, 0, ""},
-    {"NULLIF", 0, 0, 0, ""},
-    {"NUMGEOMETRIES", 0, 0, 0, ""},
-    {"NUMINTERIORRINGS", 0, 0, 0, ""},
-    {"NUMPOINTS", 0, 0, 0, ""},
-    {"OCTET_LENGTH", 0, 0, 0, ""},
-    {"OCT", 0, 0, 0, ""},
-    {"ORD", 0, 0, 0, ""},
-    {"OVERLAPS", 0, 0, 0, ""},
-    {"PERIOD_ADD", 0, 0, 0, ""},
-    {"PERIOD_DIFF", 0, 0, 0, ""},
-    {"PI", 0, 0, 0, ""},
-    {"POINTFROMTEXT", 0, 0, 0, ""},
-    {"POINTFROMWKB", 0, 0, 0, ""},
-    {"POINTN", 0, 0, 0, ""},
-    {"POLYFROMTEXT", 0, 0, 0, ""},
-    {"POLYFROMWKB", 0, 0, 0, ""},
-    {"POLYGONFROMTEXT", 0, 0, 0, ""},
-    {"POLYGONFROMWKB", 0, 0, 0, ""},
-    {"POSITION", 0, 0, 0, ""},
-    {"POW", 0, 0, 0, ""},
-    {"POWER", 0, 0, 0, ""},
-    {"QUOTE", 0, 0, 0, ""},
-    {"RADIANS", 0, 0, 0, ""},
-    {"RAND", 0, 0, 0, ""},
-    {"RELEASE_LOCK", 0, 0, 0, ""},
-    {"REVERSE", 0, 0, 0, ""},
-    {"ROUND", 0, 0, 0, ""},
-    {"ROW_COUNT", 0, 0, 0, ""},
-    {"RPAD", 0, 0, 0, ""},
-    {"RTRIM", 0, 0, 0, ""},
-    {"SEC_TO_TIME", 0, 0, 0, ""},
-    {"SESSION_USER", 0, 0, 0, ""},
-    {"SUBDATE", 0, 0, 0, ""},
-    {"SIGN", 0, 0, 0, ""},
-    {"SIN", 0, 0, 0, ""},
-    {"SHA", 0, 0, 0, ""},
-    {"SHA1", 0, 0, 0, ""},
-    {"SLEEP", 0, 0, 0, ""},
-    {"SOUNDEX", 0, 0, 0, ""},
-    {"SPACE", 0, 0, 0, ""},
-    {"SQRT", 0, 0, 0, ""},
-    {"SRID", 0, 0, 0, ""},
-    {"STARTPOINT", 0, 0, 0, ""},
-    {"STD", 0, 0, 0, ""},
-    {"STDDEV", 0, 0, 0, ""},
-    {"STDDEV_POP", 0, 0, 0, ""},
-    {"STDDEV_SAMP", 0, 0, 0, ""},
-    {"STR_TO_DATE", 0, 0, 0, ""},
-    {"STRCMP", 0, 0, 0, ""},
-    {"SUBSTR", 0, 0, 0, ""},
-    {"SUBSTRING", 0, 0, 0, ""},
-    {"SUBSTRING_INDEX", 0, 0, 0, ""},
-    {"SUBTIME", 0, 0, 0, ""},
-    {"SUM", 0, 0, 0, ""},
-    {"SYSDATE", 0, 0, 0, ""},
-    {"SYSTEM_USER", 0, 0, 0, ""},
-    {"TAN", 0, 0, 0, ""},
-    {"TIME_FORMAT", 0, 0, 0, ""},
-    {"TIME_TO_SEC", 0, 0, 0, ""},
-    {"TIMEDIFF", 0, 0, 0, ""},
-    {"TO_DAYS", 0, 0, 0, ""},
-    {"TOUCHES", 0, 0, 0, ""},
-    {"TRIM", 0, 0, 0, ""},
-    {"UCASE", 0, 0, 0, ""},
-    {"UNCOMPRESS", 0, 0, 0, ""},
-    {"UNCOMPRESSED_LENGTH", 0, 0, 0, ""},
-    {"UNHEX", 0, 0, 0, ""},
-    {"UNIQUE_USERS", 0, 0, 0, ""},
-    {"UNIX_TIMESTAMP", 0, 0, 0, ""},
-    {"UPPER", 0, 0, 0, ""},
-    {"UUID", 0, 0, 0, ""},
-    {"VARIANCE", 0, 0, 0, ""},
-    {"VAR_POP", 0, 0, 0, ""},
-    {"VAR_SAMP", 0, 0, 0, ""},
-    {"VERSION", 0, 0, 0, ""},
-    {"WEEKDAY", 0, 0, 0, ""},
-    {"WEEKOFYEAR", 0, 0, 0, ""},
-    {"WITHIN", 0, 0, 0, ""},
-    {"X", 0, 0, 0, ""},
-    {"Y", 0, 0, 0, ""},
-    {"YEARWEEK", 0, 0, 0, ""},
+    {"ACTION", 0, nullptr, false, ""},
+    {"ADD", 0, nullptr, false, ""},
+    {"AFTER", 0, nullptr, false, ""},
+    {"AGAINST", 0, nullptr, false, ""},
+    {"AGGREGATE", 0, nullptr, false, ""},
+    {"ALL", 0, nullptr, false, ""},
+    {"ALGORITHM", 0, nullptr, false, ""},
+    {"ALTER", 0, nullptr, false, ""},
+    {"ANALYZE", 0, nullptr, false, ""},
+    {"AND", 0, nullptr, false, ""},
+    {"ANY", 0, nullptr, false, ""},
+    {"AS", 0, nullptr, false, ""},
+    {"ASC", 0, nullptr, false, ""},
+    {"ASCII", 0, nullptr, false, ""},
+    {"ASENSITIVE", 0, nullptr, false, ""},
+    {"AUTO_INCREMENT", 0, nullptr, false, ""},
+    {"AVG", 0, nullptr, false, ""},
+    {"AVG_ROW_LENGTH", 0, nullptr, false, ""},
+    {"BACKUP", 0, nullptr, false, ""},
+    {"BDB", 0, nullptr, false, ""},
+    {"BEFORE", 0, nullptr, false, ""},
+    {"BEGIN", 0, nullptr, false, ""},
+    {"BERKELEYDB", 0, nullptr, false, ""},
+    {"BETWEEN", 0, nullptr, false, ""},
+    {"BIGINT", 0, nullptr, false, ""},
+    {"BINARY", 0, nullptr, false, ""},
+    {"BINLOG", 0, nullptr, false, ""},
+    {"BIT", 0, nullptr, false, ""},
+    {"BLOB", 0, nullptr, false, ""},
+    {"BOOL", 0, nullptr, false, ""},
+    {"BOOLEAN", 0, nullptr, false, ""},
+    {"BOTH", 0, nullptr, false, ""},
+    {"BTREE", 0, nullptr, false, ""},
+    {"BY", 0, nullptr, false, ""},
+    {"BYTE", 0, nullptr, false, ""},
+    {"CACHE", 0, nullptr, false, ""},
+    {"CALL", 0, nullptr, false, ""},
+    {"CASCADE", 0, nullptr, false, ""},
+    {"CASCADED", 0, nullptr, false, ""},
+    {"CASE", 0, nullptr, false, ""},
+    {"CHAIN", 0, nullptr, false, ""},
+    {"CHANGE", 0, nullptr, false, ""},
+    {"CHANGED", 0, nullptr, false, ""},
+    {"CHAR", 0, nullptr, false, ""},
+    {"CHARACTER", 0, nullptr, false, ""},
+    {"CHARSET", 0, nullptr, false, ""},
+    {"CHECK", 0, nullptr, false, ""},
+    {"CHECKSUM", 0, nullptr, false, ""},
+    {"CIPHER", 0, nullptr, false, ""},
+    {"CLIENT", 0, nullptr, false, ""},
+    {"CLOSE", 0, nullptr, false, ""},
+    {"CODE", 0, nullptr, false, ""},
+    {"COLLATE", 0, nullptr, false, ""},
+    {"COLLATION", 0, nullptr, false, ""},
+    {"COLUMN", 0, nullptr, false, ""},
+    {"COLUMNS", 0, nullptr, false, ""},
+    {"COMMENT", 0, nullptr, false, ""},
+    {"COMMIT", 0, nullptr, false, ""},
+    {"COMMITTED", 0, nullptr, false, ""},
+    {"COMPACT", 0, nullptr, false, ""},
+    {"COMPRESSED", 0, nullptr, false, ""},
+    {"CONCURRENT", 0, nullptr, false, ""},
+    {"CONDITION", 0, nullptr, false, ""},
+    {"CONNECTION", 0, nullptr, false, ""},
+    {"CONSISTENT", 0, nullptr, false, ""},
+    {"CONSTRAINT", 0, nullptr, false, ""},
+    {"CONTAINS", 0, nullptr, false, ""},
+    {"CONTINUE", 0, nullptr, false, ""},
+    {"CONVERT", 0, nullptr, false, ""},
+    {"CREATE", 0, nullptr, false, ""},
+    {"CROSS", 0, nullptr, false, ""},
+    {"CUBE", 0, nullptr, false, ""},
+    {"CURRENT_DATE", 0, nullptr, false, ""},
+    {"CURRENT_TIME", 0, nullptr, false, ""},
+    {"CURRENT_TIMESTAMP", 0, nullptr, false, ""},
+    {"CURRENT_USER", 0, nullptr, false, ""},
+    {"CURSOR", 0, nullptr, false, ""},
+    {"DATA", 0, nullptr, false, ""},
+    {"DATABASE", 0, nullptr, false, ""},
+    {"DATABASES", 0, nullptr, false, ""},
+    {"DATE", 0, nullptr, false, ""},
+    {"DATETIME", 0, nullptr, false, ""},
+    {"DAY", 0, nullptr, false, ""},
+    {"DAY_HOUR", 0, nullptr, false, ""},
+    {"DAY_MICROSECOND", 0, nullptr, false, ""},
+    {"DAY_MINUTE", 0, nullptr, false, ""},
+    {"DAY_SECOND", 0, nullptr, false, ""},
+    {"DEALLOCATE", 0, nullptr, false, ""},
+    {"DEC", 0, nullptr, false, ""},
+    {"DECIMAL", 0, nullptr, false, ""},
+    {"DECLARE", 0, nullptr, false, ""},
+    {"DEFAULT", 0, nullptr, false, ""},
+    {"DEFINER", 0, nullptr, false, ""},
+    {"DELAYED", 0, nullptr, false, ""},
+    {"DELAY_KEY_WRITE", 0, nullptr, false, ""},
+    {"DELETE", 0, nullptr, false, ""},
+    {"DESC", 0, nullptr, false, ""},
+    {"DESCRIBE", 0, nullptr, false, ""},
+    {"DETERMINISTIC", 0, nullptr, false, ""},
+    {"DIRECTORY", 0, nullptr, false, ""},
+    {"DISABLE", 0, nullptr, false, ""},
+    {"DISCARD", 0, nullptr, false, ""},
+    {"DISTINCT", 0, nullptr, false, ""},
+    {"DISTINCTROW", 0, nullptr, false, ""},
+    {"DIV", 0, nullptr, false, ""},
+    {"DO", 0, nullptr, false, ""},
+    {"DOUBLE", 0, nullptr, false, ""},
+    {"DROP", 0, nullptr, false, ""},
+    {"DUAL", 0, nullptr, false, ""},
+    {"DUMPFILE", 0, nullptr, false, ""},
+    {"DUPLICATE", 0, nullptr, false, ""},
+    {"DYNAMIC", 0, nullptr, false, ""},
+    {"EACH", 0, nullptr, false, ""},
+    {"ELSE", 0, nullptr, false, ""},
+    {"ELSEIF", 0, nullptr, false, ""},
+    {"ENABLE", 0, nullptr, false, ""},
+    {"ENCLOSED", 0, nullptr, false, ""},
+    {"END", 0, nullptr, false, ""},
+    {"ENGINE", 0, nullptr, false, ""},
+    {"ENGINES", 0, nullptr, false, ""},
+    {"ENUM", 0, nullptr, false, ""},
+    {"ERRORS", 0, nullptr, false, ""},
+    {"ESCAPE", 0, nullptr, false, ""},
+    {"ESCAPED", 0, nullptr, false, ""},
+    {"EVENTS", 0, nullptr, false, ""},
+    {"EXECUTE", 0, nullptr, false, ""},
+    {"EXISTS", 0, nullptr, false, ""},
+    {"EXIT", 0, nullptr, false, ""},
+    {"EXPANSION", 0, nullptr, false, ""},
+    {"EXPLAIN", 0, nullptr, false, ""},
+    {"EXTENDED", 0, nullptr, false, ""},
+    {"FALSE", 0, nullptr, false, ""},
+    {"FAST", 0, nullptr, false, ""},
+    {"FETCH", 0, nullptr, false, ""},
+    {"FIELDS", 0, nullptr, false, ""},
+    {"FILE", 0, nullptr, false, ""},
+    {"FIRST", 0, nullptr, false, ""},
+    {"FIXED", 0, nullptr, false, ""},
+    {"FLOAT", 0, nullptr, false, ""},
+    {"FLOAT4", 0, nullptr, false, ""},
+    {"FLOAT8", 0, nullptr, false, ""},
+    {"FLUSH", 0, nullptr, false, ""},
+    {"FOR", 0, nullptr, false, ""},
+    {"FORCE", 0, nullptr, false, ""},
+    {"FOREIGN", 0, nullptr, false, ""},
+    {"FOUND", 0, nullptr, false, ""},
+    {"FROM", 0, nullptr, false, ""},
+    {"FULL", 0, nullptr, false, ""},
+    {"FULLTEXT", 0, nullptr, false, ""},
+    {"FUNCTION", 0, nullptr, false, ""},
+    {"GEOMETRY", 0, nullptr, false, ""},
+    {"GEOMETRYCOLLECTION", 0, nullptr, false, ""},
+    {"GET_FORMAT", 0, nullptr, false, ""},
+    {"GLOBAL", 0, nullptr, false, ""},
+    {"GRANT", 0, nullptr, false, ""},
+    {"GRANTS", 0, nullptr, false, ""},
+    {"GROUP", 0, nullptr, false, ""},
+    {"HANDLER", 0, nullptr, false, ""},
+    {"HASH", 0, nullptr, false, ""},
+    {"HAVING", 0, nullptr, false, ""},
+    {"HELP", 0, nullptr, false, ""},
+    {"HIGH_PRIORITY", 0, nullptr, false, ""},
+    {"HOSTS", 0, nullptr, false, ""},
+    {"HOUR", 0, nullptr, false, ""},
+    {"HOUR_MICROSECOND", 0, nullptr, false, ""},
+    {"HOUR_MINUTE", 0, nullptr, false, ""},
+    {"HOUR_SECOND", 0, nullptr, false, ""},
+    {"IDENTIFIED", 0, nullptr, false, ""},
+    {"IF", 0, nullptr, false, ""},
+    {"IGNORE", 0, nullptr, false, ""},
+    {"IMPORT", 0, nullptr, false, ""},
+    {"IN", 0, nullptr, false, ""},
+    {"INDEX", 0, nullptr, false, ""},
+    {"INDEXES", 0, nullptr, false, ""},
+    {"INFILE", 0, nullptr, false, ""},
+    {"INNER", 0, nullptr, false, ""},
+    {"INNOBASE", 0, nullptr, false, ""},
+    {"INNODB", 0, nullptr, false, ""},
+    {"INOUT", 0, nullptr, false, ""},
+    {"INSENSITIVE", 0, nullptr, false, ""},
+    {"INSERT", 0, nullptr, false, ""},
+    {"INSERT_METHOD", 0, nullptr, false, ""},
+    {"INT", 0, nullptr, false, ""},
+    {"INT1", 0, nullptr, false, ""},
+    {"INT2", 0, nullptr, false, ""},
+    {"INT3", 0, nullptr, false, ""},
+    {"INT4", 0, nullptr, false, ""},
+    {"INT8", 0, nullptr, false, ""},
+    {"INTEGER", 0, nullptr, false, ""},
+    {"INTERVAL", 0, nullptr, false, ""},
+    {"INTO", 0, nullptr, false, ""},
+    {"IO_THREAD", 0, nullptr, false, ""},
+    {"IS", 0, nullptr, false, ""},
+    {"ISOLATION", 0, nullptr, false, ""},
+    {"ISSUER", 0, nullptr, false, ""},
+    {"ITERATE", 0, nullptr, false, ""},
+    {"INVOKER", 0, nullptr, false, ""},
+    {"JOIN", 0, nullptr, false, ""},
+    {"KEY", 0, nullptr, false, ""},
+    {"KEYS", 0, nullptr, false, ""},
+    {"KILL", 0, nullptr, false, ""},
+    {"LANGUAGE", 0, nullptr, false, ""},
+    {"LAST", 0, nullptr, false, ""},
+    {"LEADING", 0, nullptr, false, ""},
+    {"LEAVE", 0, nullptr, false, ""},
+    {"LEAVES", 0, nullptr, false, ""},
+    {"LEFT", 0, nullptr, false, ""},
+    {"LEVEL", 0, nullptr, false, ""},
+    {"LIKE", 0, nullptr, false, ""},
+    {"LIMIT", 0, nullptr, false, ""},
+    {"LINES", 0, nullptr, false, ""},
+    {"LINESTRING", 0, nullptr, false, ""},
+    {"LOAD", 0, nullptr, false, ""},
+    {"LOCAL", 0, nullptr, false, ""},
+    {"LOCALTIME", 0, nullptr, false, ""},
+    {"LOCALTIMESTAMP", 0, nullptr, false, ""},
+    {"LOCK", 0, nullptr, false, ""},
+    {"LOCKS", 0, nullptr, false, ""},
+    {"LOGS", 0, nullptr, false, ""},
+    {"LONG", 0, nullptr, false, ""},
+    {"LONGBLOB", 0, nullptr, false, ""},
+    {"LONGTEXT", 0, nullptr, false, ""},
+    {"LOOP", 0, nullptr, false, ""},
+    {"LOW_PRIORITY", 0, nullptr, false, ""},
+    {"MASTER", 0, nullptr, false, ""},
+    {"MASTER_CONNECT_RETRY", 0, nullptr, false, ""},
+    {"MASTER_HOST", 0, nullptr, false, ""},
+    {"MASTER_LOG_FILE", 0, nullptr, false, ""},
+    {"MASTER_LOG_POS", 0, nullptr, false, ""},
+    {"MASTER_PASSWORD", 0, nullptr, false, ""},
+    {"MASTER_PORT", 0, nullptr, false, ""},
+    {"MASTER_SERVER_ID", 0, nullptr, false, ""},
+    {"MASTER_SSL", 0, nullptr, false, ""},
+    {"MASTER_SSL_CA", 0, nullptr, false, ""},
+    {"MASTER_SSL_CAPATH", 0, nullptr, false, ""},
+    {"MASTER_SSL_CERT", 0, nullptr, false, ""},
+    {"MASTER_SSL_CIPHER", 0, nullptr, false, ""},
+    {"MASTER_TLS_VERSION", 0, nullptr, false, ""},
+    {"MASTER_SSL_KEY", 0, nullptr, false, ""},
+    {"MASTER_USER", 0, nullptr, false, ""},
+    {"MATCH", 0, nullptr, false, ""},
+    {"MAX_CONNECTIONS_PER_HOUR", 0, nullptr, false, ""},
+    {"MAX_QUERIES_PER_HOUR", 0, nullptr, false, ""},
+    {"MAX_ROWS", 0, nullptr, false, ""},
+    {"MAX_UPDATES_PER_HOUR", 0, nullptr, false, ""},
+    {"MAX_USER_CONNECTIONS", 0, nullptr, false, ""},
+    {"MEDIUM", 0, nullptr, false, ""},
+    {"MEDIUMBLOB", 0, nullptr, false, ""},
+    {"MEDIUMINT", 0, nullptr, false, ""},
+    {"MEDIUMTEXT", 0, nullptr, false, ""},
+    {"MERGE", 0, nullptr, false, ""},
+    {"MICROSECOND", 0, nullptr, false, ""},
+    {"MIDDLEINT", 0, nullptr, false, ""},
+    {"MIGRATE", 0, nullptr, false, ""},
+    {"MINUTE", 0, nullptr, false, ""},
+    {"MINUTE_MICROSECOND", 0, nullptr, false, ""},
+    {"MINUTE_SECOND", 0, nullptr, false, ""},
+    {"MIN_ROWS", 0, nullptr, false, ""},
+    {"MOD", 0, nullptr, false, ""},
+    {"MODE", 0, nullptr, false, ""},
+    {"MODIFIES", 0, nullptr, false, ""},
+    {"MODIFY", 0, nullptr, false, ""},
+    {"MONTH", 0, nullptr, false, ""},
+    {"MULTILINESTRING", 0, nullptr, false, ""},
+    {"MULTIPOINT", 0, nullptr, false, ""},
+    {"MULTIPOLYGON", 0, nullptr, false, ""},
+    {"MUTEX", 0, nullptr, false, ""},
+    {"NAME", 0, nullptr, false, ""},
+    {"NAMES", 0, nullptr, false, ""},
+    {"NATIONAL", 0, nullptr, false, ""},
+    {"NATURAL", 0, nullptr, false, ""},
+    {"NDB", 0, nullptr, false, ""},
+    {"NDBCLUSTER", 0, nullptr, false, ""},
+    {"NCHAR", 0, nullptr, false, ""},
+    {"NEW", 0, nullptr, false, ""},
+    {"NEXT", 0, nullptr, false, ""},
+    {"NO", 0, nullptr, false, ""},
+    {"NONE", 0, nullptr, false, ""},
+    {"NOT", 0, nullptr, false, ""},
+    {"NO_WRITE_TO_BINLOG", 0, nullptr, false, ""},
+    {"NULL", 0, nullptr, false, ""},
+    {"NUMERIC", 0, nullptr, false, ""},
+    {"NVARCHAR", 0, nullptr, false, ""},
+    {"OFFSET", 0, nullptr, false, ""},
+    {"ON", 0, nullptr, false, ""},
+    {"ONE", 0, nullptr, false, ""},
+    {"ONE_SHOT", 0, nullptr, false, ""},
+    {"OPEN", 0, nullptr, false, ""},
+    {"OPTIMIZE", 0, nullptr, false, ""},
+    {"OPTION", 0, nullptr, false, ""},
+    {"OPTIONALLY", 0, nullptr, false, ""},
+    {"OR", 0, nullptr, false, ""},
+    {"ORDER", 0, nullptr, false, ""},
+    {"OUT", 0, nullptr, false, ""},
+    {"OUTER", 0, nullptr, false, ""},
+    {"OUTFILE", 0, nullptr, false, ""},
+    {"PACK_KEYS", 0, nullptr, false, ""},
+    {"PARTIAL", 0, nullptr, false, ""},
+    {"PASSWORD", 0, nullptr, false, ""},
+    {"PHASE", 0, nullptr, false, ""},
+    {"POINT", 0, nullptr, false, ""},
+    {"POLYGON", 0, nullptr, false, ""},
+    {"PRECISION", 0, nullptr, false, ""},
+    {"PREPARE", 0, nullptr, false, ""},
+    {"PREV", 0, nullptr, false, ""},
+    {"PRIMARY", 0, nullptr, false, ""},
+    {"PRIVILEGES", 0, nullptr, false, ""},
+    {"PROCEDURE", 0, nullptr, false, ""},
+    {"PROCESS", 0, nullptr, false, ""},
+    {"PROCESSLIST", 0, nullptr, false, ""},
+    {"PURGE", 0, nullptr, false, ""},
+    {"QUARTER", 0, nullptr, false, ""},
+    {"QUERY", 0, nullptr, false, ""},
+    {"QUICK", 0, nullptr, false, ""},
+    {"READ", 0, nullptr, false, ""},
+    {"READS", 0, nullptr, false, ""},
+    {"REAL", 0, nullptr, false, ""},
+    {"RECOVER", 0, nullptr, false, ""},
+    {"REDUNDANT", 0, nullptr, false, ""},
+    {"REFERENCES", 0, nullptr, false, ""},
+    {"REGEXP", 0, nullptr, false, ""},
+    {"RELAY_LOG_FILE", 0, nullptr, false, ""},
+    {"RELAY_LOG_POS", 0, nullptr, false, ""},
+    {"RELAY_THREAD", 0, nullptr, false, ""},
+    {"RELEASE", 0, nullptr, false, ""},
+    {"RELOAD", 0, nullptr, false, ""},
+    {"RENAME", 0, nullptr, false, ""},
+    {"REPAIR", 0, nullptr, false, ""},
+    {"REPEATABLE", 0, nullptr, false, ""},
+    {"REPLACE", 0, nullptr, false, ""},
+    {"REPLICATION", 0, nullptr, false, ""},
+    {"REPEAT", 0, nullptr, false, ""},
+    {"REQUIRE", 0, nullptr, false, ""},
+    {"RESET", 0, nullptr, false, ""},
+    {"RESTORE", 0, nullptr, false, ""},
+    {"RESTRICT", 0, nullptr, false, ""},
+    {"RESUME", 0, nullptr, false, ""},
+    {"RETURN", 0, nullptr, false, ""},
+    {"RETURNS", 0, nullptr, false, ""},
+    {"REVOKE", 0, nullptr, false, ""},
+    {"RIGHT", 0, nullptr, false, ""},
+    {"RLIKE", 0, nullptr, false, ""},
+    {"ROLLBACK", 0, nullptr, false, ""},
+    {"ROLLUP", 0, nullptr, false, ""},
+    {"ROUTINE", 0, nullptr, false, ""},
+    {"ROW", 0, nullptr, false, ""},
+    {"ROWS", 0, nullptr, false, ""},
+    {"ROW_FORMAT", 0, nullptr, false, ""},
+    {"RTREE", 0, nullptr, false, ""},
+    {"SAVEPOINT", 0, nullptr, false, ""},
+    {"SCHEMA", 0, nullptr, false, ""},
+    {"SCHEMAS", 0, nullptr, false, ""},
+    {"SECOND", 0, nullptr, false, ""},
+    {"SECOND_MICROSECOND", 0, nullptr, false, ""},
+    {"SECURITY", 0, nullptr, false, ""},
+    {"SELECT", 0, nullptr, false, ""},
+    {"SENSITIVE", 0, nullptr, false, ""},
+    {"SEPARATOR", 0, nullptr, false, ""},
+    {"SERIAL", 0, nullptr, false, ""},
+    {"SERIALIZABLE", 0, nullptr, false, ""},
+    {"SESSION", 0, nullptr, false, ""},
+    {"SET", 0, nullptr, false, ""},
+    {"SHARE", 0, nullptr, false, ""},
+    {"SHOW", 0, nullptr, false, ""},
+    {"SHUTDOWN", 0, nullptr, false, ""},
+    {"SIGNED", 0, nullptr, false, ""},
+    {"SIMPLE", 0, nullptr, false, ""},
+    {"SLAVE", 0, nullptr, false, ""},
+    {"SNAPSHOT", 0, nullptr, false, ""},
+    {"SMALLINT", 0, nullptr, false, ""},
+    {"SOME", 0, nullptr, false, ""},
+    {"SONAME", 0, nullptr, false, ""},
+    {"SOUNDS", 0, nullptr, false, ""},
+    {"SPATIAL", 0, nullptr, false, ""},
+    {"SPECIFIC", 0, nullptr, false, ""},
+    {"SQL", 0, nullptr, false, ""},
+    {"SQLEXCEPTION", 0, nullptr, false, ""},
+    {"SQLSTATE", 0, nullptr, false, ""},
+    {"SQLWARNING", 0, nullptr, false, ""},
+    {"SQL_BIG_RESULT", 0, nullptr, false, ""},
+    {"SQL_BUFFER_RESULT", 0, nullptr, false, ""},
+    {"SQL_CALC_FOUND_ROWS", 0, nullptr, false, ""},
+    {"SQL_NO_CACHE", 0, nullptr, false, ""},
+    {"SQL_SMALL_RESULT", 0, nullptr, false, ""},
+    {"SQL_THREAD", 0, nullptr, false, ""},
+    {"SQL_TSI_SECOND", 0, nullptr, false, ""},
+    {"SQL_TSI_MINUTE", 0, nullptr, false, ""},
+    {"SQL_TSI_HOUR", 0, nullptr, false, ""},
+    {"SQL_TSI_DAY", 0, nullptr, false, ""},
+    {"SQL_TSI_WEEK", 0, nullptr, false, ""},
+    {"SQL_TSI_MONTH", 0, nullptr, false, ""},
+    {"SQL_TSI_QUARTER", 0, nullptr, false, ""},
+    {"SQL_TSI_YEAR", 0, nullptr, false, ""},
+    {"SSL", 0, nullptr, false, ""},
+    {"START", 0, nullptr, false, ""},
+    {"STARTING", 0, nullptr, false, ""},
+    {"STATUS", 0, nullptr, false, ""},
+    {"STOP", 0, nullptr, false, ""},
+    {"STORAGE", 0, nullptr, false, ""},
+    {"STRAIGHT_JOIN", 0, nullptr, false, ""},
+    {"STRING", 0, nullptr, false, ""},
+    {"STRIPED", 0, nullptr, false, ""},
+    {"SUBJECT", 0, nullptr, false, ""},
+    {"SUPER", 0, nullptr, false, ""},
+    {"SUSPEND", 0, nullptr, false, ""},
+    {"TABLE", 0, nullptr, false, ""},
+    {"TABLES", 0, nullptr, false, ""},
+    {"TABLESPACE", 0, nullptr, false, ""},
+    {"TEMPORARY", 0, nullptr, false, ""},
+    {"TEMPTABLE", 0, nullptr, false, ""},
+    {"TERMINATED", 0, nullptr, false, ""},
+    {"TEXT", 0, nullptr, false, ""},
+    {"THEN", 0, nullptr, false, ""},
+    {"TIME", 0, nullptr, false, ""},
+    {"TIMESTAMP", 0, nullptr, false, ""},
+    {"TIMESTAMPADD", 0, nullptr, false, ""},
+    {"TIMESTAMPDIFF", 0, nullptr, false, ""},
+    {"TINYBLOB", 0, nullptr, false, ""},
+    {"TINYINT", 0, nullptr, false, ""},
+    {"TINYTEXT", 0, nullptr, false, ""},
+    {"TO", 0, nullptr, false, ""},
+    {"TRAILING", 0, nullptr, false, ""},
+    {"TRANSACTION", 0, nullptr, false, ""},
+    {"TRIGGER", 0, nullptr, false, ""},
+    {"TRIGGERS", 0, nullptr, false, ""},
+    {"TRUE", 0, nullptr, false, ""},
+    {"TRUNCATE", 0, nullptr, false, ""},
+    {"TYPE", 0, nullptr, false, ""},
+    {"TYPES", 0, nullptr, false, ""},
+    {"UNCOMMITTED", 0, nullptr, false, ""},
+    {"UNDEFINED", 0, nullptr, false, ""},
+    {"UNDO", 0, nullptr, false, ""},
+    {"UNICODE", 0, nullptr, false, ""},
+    {"UNION", 0, nullptr, false, ""},
+    {"UNIQUE", 0, nullptr, false, ""},
+    {"UNKNOWN", 0, nullptr, false, ""},
+    {"UNLOCK", 0, nullptr, false, ""},
+    {"UNSIGNED", 0, nullptr, false, ""},
+    {"UNTIL", 0, nullptr, false, ""},
+    {"UPDATE", 0, nullptr, false, ""},
+    {"UPGRADE", 0, nullptr, false, ""},
+    {"USAGE", 0, nullptr, false, ""},
+    {"USE", 0, nullptr, false, ""},
+    {"USER", 0, nullptr, false, ""},
+    {"USER_RESOURCES", 0, nullptr, false, ""},
+    {"USE_FRM", 0, nullptr, false, ""},
+    {"USING", 0, nullptr, false, ""},
+    {"UTC_DATE", 0, nullptr, false, ""},
+    {"UTC_TIME", 0, nullptr, false, ""},
+    {"UTC_TIMESTAMP", 0, nullptr, false, ""},
+    {"VALUE", 0, nullptr, false, ""},
+    {"VALUES", 0, nullptr, false, ""},
+    {"VARBINARY", 0, nullptr, false, ""},
+    {"VARCHAR", 0, nullptr, false, ""},
+    {"VARCHARACTER", 0, nullptr, false, ""},
+    {"VARIABLES", 0, nullptr, false, ""},
+    {"VARYING", 0, nullptr, false, ""},
+    {"WARNINGS", 0, nullptr, false, ""},
+    {"WEEK", 0, nullptr, false, ""},
+    {"WHEN", 0, nullptr, false, ""},
+    {"WHERE", 0, nullptr, false, ""},
+    {"WHILE", 0, nullptr, false, ""},
+    {"VIEW", 0, nullptr, false, ""},
+    {"WITH", 0, nullptr, false, ""},
+    {"WORK", 0, nullptr, false, ""},
+    {"WRITE", 0, nullptr, false, ""},
+    {"X509", 0, nullptr, false, ""},
+    {"XOR", 0, nullptr, false, ""},
+    {"XA", 0, nullptr, false, ""},
+    {"YEAR", 0, nullptr, false, ""},
+    {"YEAR_MONTH", 0, nullptr, false, ""},
+    {"ZEROFILL", 0, nullptr, false, ""},
+    {"ABS", 0, nullptr, false, ""},
+    {"ACOS", 0, nullptr, false, ""},
+    {"ADDDATE", 0, nullptr, false, ""},
+    {"ADDTIME", 0, nullptr, false, ""},
+    {"AES_ENCRYPT", 0, nullptr, false, ""},
+    {"AES_DECRYPT", 0, nullptr, false, ""},
+    {"AREA", 0, nullptr, false, ""},
+    {"ASIN", 0, nullptr, false, ""},
+    {"ASBINARY", 0, nullptr, false, ""},
+    {"ASTEXT", 0, nullptr, false, ""},
+    {"ASWKB", 0, nullptr, false, ""},
+    {"ASWKT", 0, nullptr, false, ""},
+    {"ATAN", 0, nullptr, false, ""},
+    {"ATAN2", 0, nullptr, false, ""},
+    {"BENCHMARK", 0, nullptr, false, ""},
+    {"BIN", 0, nullptr, false, ""},
+    {"BIT_COUNT", 0, nullptr, false, ""},
+    {"BIT_OR", 0, nullptr, false, ""},
+    {"BIT_AND", 0, nullptr, false, ""},
+    {"BIT_XOR", 0, nullptr, false, ""},
+    {"CAST", 0, nullptr, false, ""},
+    {"CEIL", 0, nullptr, false, ""},
+    {"CEILING", 0, nullptr, false, ""},
+    {"BIT_LENGTH", 0, nullptr, false, ""},
+    {"CENTROID", 0, nullptr, false, ""},
+    {"CHAR_LENGTH", 0, nullptr, false, ""},
+    {"CHARACTER_LENGTH", 0, nullptr, false, ""},
+    {"COALESCE", 0, nullptr, false, ""},
+    {"COERCIBILITY", 0, nullptr, false, ""},
+    {"COMPRESS", 0, nullptr, false, ""},
+    {"CONCAT", 0, nullptr, false, ""},
+    {"CONCAT_WS", 0, nullptr, false, ""},
+    {"CONNECTION_ID", 0, nullptr, false, ""},
+    {"CONV", 0, nullptr, false, ""},
+    {"CONVERT_TZ", 0, nullptr, false, ""},
+    {"COUNT", 0, nullptr, false, ""},
+    {"COS", 0, nullptr, false, ""},
+    {"COT", 0, nullptr, false, ""},
+    {"CRC32", 0, nullptr, false, ""},
+    {"CROSSES", 0, nullptr, false, ""},
+    {"CURDATE", 0, nullptr, false, ""},
+    {"CURTIME", 0, nullptr, false, ""},
+    {"DATE_ADD", 0, nullptr, false, ""},
+    {"DATEDIFF", 0, nullptr, false, ""},
+    {"DATE_FORMAT", 0, nullptr, false, ""},
+    {"DATE_SUB", 0, nullptr, false, ""},
+    {"DAYNAME", 0, nullptr, false, ""},
+    {"DAYOFMONTH", 0, nullptr, false, ""},
+    {"DAYOFWEEK", 0, nullptr, false, ""},
+    {"DAYOFYEAR", 0, nullptr, false, ""},
+    {"DEGREES", 0, nullptr, false, ""},
+    {"DIMENSION", 0, nullptr, false, ""},
+    {"DISJOINT", 0, nullptr, false, ""},
+    {"ELT", 0, nullptr, false, ""},
+    {"ENDPOINT", 0, nullptr, false, ""},
+    {"ENVELOPE", 0, nullptr, false, ""},
+    {"EQUALS", 0, nullptr, false, ""},
+    {"EXTERIORRING", 0, nullptr, false, ""},
+    {"EXTRACT", 0, nullptr, false, ""},
+    {"EXP", 0, nullptr, false, ""},
+    {"EXPORT_SET", 0, nullptr, false, ""},
+    {"FIELD", 0, nullptr, false, ""},
+    {"FIND_IN_SET", 0, nullptr, false, ""},
+    {"FLOOR", 0, nullptr, false, ""},
+    {"FORMAT", 0, nullptr, false, ""},
+    {"FOUND_ROWS", 0, nullptr, false, ""},
+    {"FROM_DAYS", 0, nullptr, false, ""},
+    {"FROM_UNIXTIME", 0, nullptr, false, ""},
+    {"GET_LOCK", 0, nullptr, false, ""},
+    {"GEOMETRYN", 0, nullptr, false, ""},
+    {"GEOMETRYTYPE", 0, nullptr, false, ""},
+    {"GEOMCOLLFROMTEXT", 0, nullptr, false, ""},
+    {"GEOMCOLLFROMWKB", 0, nullptr, false, ""},
+    {"GEOMETRYCOLLECTIONFROMTEXT", 0, nullptr, false, ""},
+    {"GEOMETRYCOLLECTIONFROMWKB", 0, nullptr, false, ""},
+    {"GEOMETRYFROMTEXT", 0, nullptr, false, ""},
+    {"GEOMETRYFROMWKB", 0, nullptr, false, ""},
+    {"GEOMFROMTEXT", 0, nullptr, false, ""},
+    {"GEOMFROMWKB", 0, nullptr, false, ""},
+    {"GLENGTH", 0, nullptr, false, ""},
+    {"GREATEST", 0, nullptr, false, ""},
+    {"GROUP_CONCAT", 0, nullptr, false, ""},
+    {"GROUP_UNIQUE_USERS", 0, nullptr, false, ""},
+    {"HEX", 0, nullptr, false, ""},
+    {"IFNULL", 0, nullptr, false, ""},
+    {"INET_ATON", 0, nullptr, false, ""},
+    {"INET_NTOA", 0, nullptr, false, ""},
+    {"INSTR", 0, nullptr, false, ""},
+    {"INTERIORRINGN", 0, nullptr, false, ""},
+    {"INTERSECTS", 0, nullptr, false, ""},
+    {"ISCLOSED", 0, nullptr, false, ""},
+    {"ISEMPTY", 0, nullptr, false, ""},
+    {"ISNULL", 0, nullptr, false, ""},
+    {"IS_FREE_LOCK", 0, nullptr, false, ""},
+    {"IS_USED_LOCK", 0, nullptr, false, ""},
+    {"JSON_ARRAY_APPEND", 0, nullptr, false, ""},
+    {"JSON_ARRAY", 0, nullptr, false, ""},
+    {"JSON_CONTAINS", 0, nullptr, false, ""},
+    {"JSON_DEPTH", 0, nullptr, false, ""},
+    {"JSON_EXTRACT", 0, nullptr, false, ""},
+    {"JSON_INSERT", 0, nullptr, false, ""},
+    {"JSON_KEYS", 0, nullptr, false, ""},
+    {"JSON_LENGTH", 0, nullptr, false, ""},
+    {"JSON_MERGE", 0, nullptr, false, ""},
+    {"JSON_QUOTE", 0, nullptr, false, ""},
+    {"JSON_REPLACE", 0, nullptr, false, ""},
+    {"JSON_ROWOBJECT", 0, nullptr, false, ""},
+    {"JSON_SEARCH", 0, nullptr, false, ""},
+    {"JSON_SET", 0, nullptr, false, ""},
+    {"JSON_TYPE", 0, nullptr, false, ""},
+    {"JSON_UNQUOTE", 0, nullptr, false, ""},
+    {"JSON_VALID", 0, nullptr, false, ""},
+    {"JSON_CONTAINS_PATH", 0, nullptr, false, ""},
+    {"LAST_INSERT_ID", 0, nullptr, false, ""},
+    {"ISSIMPLE", 0, nullptr, false, ""},
+    {"LAST_DAY", 0, nullptr, false, ""},
+    {"LCASE", 0, nullptr, false, ""},
+    {"LEAST", 0, nullptr, false, ""},
+    {"LENGTH", 0, nullptr, false, ""},
+    {"LN", 0, nullptr, false, ""},
+    {"LINEFROMTEXT", 0, nullptr, false, ""},
+    {"LINEFROMWKB", 0, nullptr, false, ""},
+    {"LINESTRINGFROMTEXT", 0, nullptr, false, ""},
+    {"LINESTRINGFROMWKB", 0, nullptr, false, ""},
+    {"LOAD_FILE", 0, nullptr, false, ""},
+    {"LOCATE", 0, nullptr, false, ""},
+    {"LOG", 0, nullptr, false, ""},
+    {"LOG2", 0, nullptr, false, ""},
+    {"LOG10", 0, nullptr, false, ""},
+    {"LOWER", 0, nullptr, false, ""},
+    {"LPAD", 0, nullptr, false, ""},
+    {"LTRIM", 0, nullptr, false, ""},
+    {"MAKE_SET", 0, nullptr, false, ""},
+    {"MAKEDATE", 0, nullptr, false, ""},
+    {"MAKETIME", 0, nullptr, false, ""},
+    {"SOURCE_POS_WAIT", 0, nullptr, false, ""},
+    {"MAX", 0, nullptr, false, ""},
+    {"MBRCONTAINS", 0, nullptr, false, ""},
+    {"MBRDISJOINT", 0, nullptr, false, ""},
+    {"MBREQUAL", 0, nullptr, false, ""},
+    {"MBRINTERSECTS", 0, nullptr, false, ""},
+    {"MBROVERLAPS", 0, nullptr, false, ""},
+    {"MBRTOUCHES", 0, nullptr, false, ""},
+    {"MBRWITHIN", 0, nullptr, false, ""},
+    {"MD5", 0, nullptr, false, ""},
+    {"MID", 0, nullptr, false, ""},
+    {"MIN", 0, nullptr, false, ""},
+    {"MLINEFROMTEXT", 0, nullptr, false, ""},
+    {"MLINEFROMWKB", 0, nullptr, false, ""},
+    {"MPOINTFROMTEXT", 0, nullptr, false, ""},
+    {"MPOINTFROMWKB", 0, nullptr, false, ""},
+    {"MPOLYFROMTEXT", 0, nullptr, false, ""},
+    {"MPOLYFROMWKB", 0, nullptr, false, ""},
+    {"MONTHNAME", 0, nullptr, false, ""},
+    {"MULTILINESTRINGFROMTEXT", 0, nullptr, false, ""},
+    {"MULTILINESTRINGFROMWKB", 0, nullptr, false, ""},
+    {"MULTIPOINTFROMTEXT", 0, nullptr, false, ""},
+    {"MULTIPOINTFROMWKB", 0, nullptr, false, ""},
+    {"MULTIPOLYGONFROMTEXT", 0, nullptr, false, ""},
+    {"MULTIPOLYGONFROMWKB", 0, nullptr, false, ""},
+    {"NAME_CONST", 0, nullptr, false, ""},
+    {"NOW", 0, nullptr, false, ""},
+    {"NULLIF", 0, nullptr, false, ""},
+    {"NUMGEOMETRIES", 0, nullptr, false, ""},
+    {"NUMINTERIORRINGS", 0, nullptr, false, ""},
+    {"NUMPOINTS", 0, nullptr, false, ""},
+    {"OCTET_LENGTH", 0, nullptr, false, ""},
+    {"OCT", 0, nullptr, false, ""},
+    {"ORD", 0, nullptr, false, ""},
+    {"OVERLAPS", 0, nullptr, false, ""},
+    {"PERIOD_ADD", 0, nullptr, false, ""},
+    {"PERIOD_DIFF", 0, nullptr, false, ""},
+    {"PI", 0, nullptr, false, ""},
+    {"POINTFROMTEXT", 0, nullptr, false, ""},
+    {"POINTFROMWKB", 0, nullptr, false, ""},
+    {"POINTN", 0, nullptr, false, ""},
+    {"POLYFROMTEXT", 0, nullptr, false, ""},
+    {"POLYFROMWKB", 0, nullptr, false, ""},
+    {"POLYGONFROMTEXT", 0, nullptr, false, ""},
+    {"POLYGONFROMWKB", 0, nullptr, false, ""},
+    {"POSITION", 0, nullptr, false, ""},
+    {"POW", 0, nullptr, false, ""},
+    {"POWER", 0, nullptr, false, ""},
+    {"QUOTE", 0, nullptr, false, ""},
+    {"RADIANS", 0, nullptr, false, ""},
+    {"RAND", 0, nullptr, false, ""},
+    {"RELEASE_LOCK", 0, nullptr, false, ""},
+    {"REVERSE", 0, nullptr, false, ""},
+    {"ROUND", 0, nullptr, false, ""},
+    {"ROW_COUNT", 0, nullptr, false, ""},
+    {"RPAD", 0, nullptr, false, ""},
+    {"RTRIM", 0, nullptr, false, ""},
+    {"SEC_TO_TIME", 0, nullptr, false, ""},
+    {"SESSION_USER", 0, nullptr, false, ""},
+    {"SUBDATE", 0, nullptr, false, ""},
+    {"SIGN", 0, nullptr, false, ""},
+    {"SIN", 0, nullptr, false, ""},
+    {"SHA", 0, nullptr, false, ""},
+    {"SHA1", 0, nullptr, false, ""},
+    {"SLEEP", 0, nullptr, false, ""},
+    {"SOUNDEX", 0, nullptr, false, ""},
+    {"SPACE", 0, nullptr, false, ""},
+    {"SQRT", 0, nullptr, false, ""},
+    {"SRID", 0, nullptr, false, ""},
+    {"STARTPOINT", 0, nullptr, false, ""},
+    {"STD", 0, nullptr, false, ""},
+    {"STDDEV", 0, nullptr, false, ""},
+    {"STDDEV_POP", 0, nullptr, false, ""},
+    {"STDDEV_SAMP", 0, nullptr, false, ""},
+    {"STR_TO_DATE", 0, nullptr, false, ""},
+    {"STRCMP", 0, nullptr, false, ""},
+    {"SUBSTR", 0, nullptr, false, ""},
+    {"SUBSTRING", 0, nullptr, false, ""},
+    {"SUBSTRING_INDEX", 0, nullptr, false, ""},
+    {"SUBTIME", 0, nullptr, false, ""},
+    {"SUM", 0, nullptr, false, ""},
+    {"SYSDATE", 0, nullptr, false, ""},
+    {"SYSTEM_USER", 0, nullptr, false, ""},
+    {"TAN", 0, nullptr, false, ""},
+    {"TIME_FORMAT", 0, nullptr, false, ""},
+    {"TIME_TO_SEC", 0, nullptr, false, ""},
+    {"TIMEDIFF", 0, nullptr, false, ""},
+    {"TO_DAYS", 0, nullptr, false, ""},
+    {"TOUCHES", 0, nullptr, false, ""},
+    {"TRIM", 0, nullptr, false, ""},
+    {"UCASE", 0, nullptr, false, ""},
+    {"UNCOMPRESS", 0, nullptr, false, ""},
+    {"UNCOMPRESSED_LENGTH", 0, nullptr, false, ""},
+    {"UNHEX", 0, nullptr, false, ""},
+    {"UNIQUE_USERS", 0, nullptr, false, ""},
+    {"UNIX_TIMESTAMP", 0, nullptr, false, ""},
+    {"UPPER", 0, nullptr, false, ""},
+    {"UUID", 0, nullptr, false, ""},
+    {"VARIANCE", 0, nullptr, false, ""},
+    {"VAR_POP", 0, nullptr, false, ""},
+    {"VAR_SAMP", 0, nullptr, false, ""},
+    {"VERSION", 0, nullptr, false, ""},
+    {"WEEKDAY", 0, nullptr, false, ""},
+    {"WEEKOFYEAR", 0, nullptr, false, ""},
+    {"WITHIN", 0, nullptr, false, ""},
+    {"X", 0, nullptr, false, ""},
+    {"Y", 0, nullptr, false, ""},
+    {"YEARWEEK", 0, nullptr, false, ""},
     /* end sentinel */
-    {(char *)NULL, 0, 0, 0, ""}};
+    {(char *)nullptr, 0, nullptr, false, ""}};
 
-static const char *load_default_groups[] = {"mysql", "client", 0};
+static const char *load_default_groups[] = {"mysql", "client", nullptr};
 
 #ifdef HAVE_READLINE
 /*
@@ -1193,7 +1218,7 @@ inline int get_command_index(char cmd_char) {
     All client-specific commands are in the first part of commands array
     and have a function to implement it.
   */
-  for (uint i = 0; *commands[i].func != NULL; i++)
+  for (uint i = 0; *commands[i].func != nullptr; i++)
     if (commands[i].cmd_char == cmd_char) return i;
   return -1;
 }
@@ -1224,7 +1249,7 @@ int main(int argc, char *argv[]) {
   char buff[80];
 
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
 
   charset_index = get_command_index('C');
@@ -1241,16 +1266,16 @@ int main(int argc, char *argv[]) {
   {
     char *tmp = getenv("PAGER");
     if (tmp && strlen(tmp)) {
-      default_pager_set = 1;
+      default_pager_set = true;
       my_stpcpy(default_pager, tmp);
     }
   }
   if (!isatty(0) || !isatty(1)) {
-    status.batch = 1;
+    status.batch = true;
     opt_silent = 1;
-    ignore_errors = 0;
+    ignore_errors = false;
   } else
-    status.add_to_history = 1;
+    status.add_to_history = true;
   status.exit_status = 1;
 
   {
@@ -1301,22 +1326,23 @@ int main(int argc, char *argv[]) {
     my_end(0);
     return EXIT_FAILURE;
   }
+  if (!opt_binary_as_hex_set_explicitly && isatty(0) && isatty(1))
+    opt_binhex = true;
   if (mysql_server_init(0, nullptr, nullptr)) {
-    put_error(NULL);
+    put_error(nullptr);
     my_end(0);
     return EXIT_FAILURE;
   }
   glob_buffer.mem_realloc((status.batch) ? batch_io_size : 512);
   completion_hash_init(&ht, 128);
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
-  if (sql_connect(current_host, current_db, current_user, opt_password,
-                  opt_silent)) {
-    quick = 1;  // Avoid history
+  global_attrs = new client_query_attributes();
+  if (sql_connect(current_host, current_db, current_user, opt_silent)) {
+    quick = true;  // Avoid history
     status.exit_status = 1;
     mysql_end(-1);
   }
-  if (!status.batch) ignore_errors = 1;  // Don't abort monitor
+  if (!status.batch) ignore_errors = true;  // Don't abort monitor
 
 #ifndef _WIN32
   signal(SIGINT, handle_ctrlc_signal);  // Catch SIGINT to clean up
@@ -1376,12 +1402,13 @@ int main(int argc, char *argv[]) {
             strncmp(link_name, "/dev/null", 10) == 0) {
           /* The .mysql_history file is a symlink to /dev/null, don't use it */
           my_free(histfile);
-          histfile = 0;
+          histfile = nullptr;
         }
       }
 
       /* We used to suggest setting MYSQL_HISTFILE=/dev/null. */
-      if (histfile && strncmp(histfile, "/dev/null", 10) == 0) histfile = NULL;
+      if (histfile && strncmp(histfile, "/dev/null", 10) == 0)
+        histfile = nullptr;
 
       if (histfile && histfile[0]) {
         if (verbose) tee_fprintf(stdout, "Reading history-file %s\n", histfile);
@@ -1415,10 +1442,11 @@ int main(int argc, char *argv[]) {
           "any more secure.",
           INFO_INFO);
   }
+
   status.exit_status = read_and_execute(!status.batch);
   if (opt_outfile) end_tee();
   mysql_end(0);
-  DBUG_RETURN(0);  // Keep compiler happy
+  return 0;  // Keep compiler happy
 }
 
 void mysql_end(int sig) {
@@ -1433,6 +1461,7 @@ void mysql_end(int sig) {
   signal(SIGHUP, SIG_IGN);
 #endif
 
+  if (ssl_session_data) mysql_free_ssl_session_data(&mysql, ssl_session_data);
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && histfile && histfile[0]) {
@@ -1443,7 +1472,7 @@ void mysql_end(int sig) {
   }
   batch_readline_end(status.line_buff);
   completion_hash_free(&ht);
-  free_root(&hash_mem_root, MYF(0));
+  hash_mem_root.Clear();
 
   my_free(histfile);
   my_free(histfile_tmp);
@@ -1460,10 +1489,11 @@ void mysql_end(int sig) {
   old_buffer.mem_free();
   processed_prompt.mem_free();
   my_free(server_version);
-  my_free(opt_password);
+  free_passwords();
   my_free(opt_mysql_unix_port);
   my_free(current_db);
   my_free(current_host);
+  my_free(dns_srv_name);
   my_free(current_user);
   my_free(full_username);
   my_free(part_username);
@@ -1474,6 +1504,10 @@ void mysql_end(int sig) {
   my_free(current_prompt);
   mysql_server_end();
   my_end(my_end_arg);
+  if (global_attrs != nullptr) {
+    delete global_attrs;
+    global_attrs = nullptr;
+  }
   exit(status.exit_status);
 }
 
@@ -1483,10 +1517,17 @@ void mysql_end(int sig) {
     This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
     to the server if a query is currently executing. On Windows, 'Ctrl - Break'
     is treated alike.
+
+  FIXME: POSIX allows only a very limited set of interactions from signal
+  handlers, as the main thread could have nearly any state at the time of the
+  signal and is suspended until the signal handler returns. In particular,
+  only variables of type sig_atomic_t can be set and tested, and most C library
+  functions (including malloc()) are banned. Thus, calling kill_query() here
+  is forbidden and should not be done.
 */
 
 void handle_ctrlc_signal(int) {
-  sigint_received = 1;
+  sigint_received = true;
 
   /* Skip rest if --sigint-ignore is used. */
   if (opt_sigint_ignore) return;
@@ -1534,7 +1575,7 @@ err:
 /* Send 'KILL QUERY' command to the server. */
 static void kill_query(const char *reason) {
   char kill_buffer[40];
-  MYSQL *kill_mysql = NULL;
+  MYSQL *kill_mysql = nullptr;
 
   kill_mysql = mysql_init(kill_mysql);
   init_connection_options(kill_mysql);
@@ -1545,8 +1586,14 @@ static void kill_query(const char *reason) {
   }
 #endif
 
-  if (!mysql_real_connect(kill_mysql, current_host, current_user, opt_password,
-                          "", opt_mysql_port, opt_mysql_unix_port, 0)) {
+  MYSQL *ret;
+  if (dns_srv_name)
+    ret = mysql_real_connect_dns_srv(kill_mysql, dns_srv_name, current_user,
+                                     nullptr, "", 0);
+  else
+    ret = mysql_real_connect(kill_mysql, current_host, current_user, nullptr,
+                             "", opt_mysql_port, opt_mysql_unix_port, 0);
+  if (!ret) {
 #ifdef HAVE_SETNS
     if (opt_network_namespace) (void)restore_original_network_namespace();
 #endif
@@ -1594,131 +1641,150 @@ void window_resize(int) {
 #endif
 
 static struct my_option my_long_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"help", 'I', "Synonym for -?", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"auto-rehash", OPT_AUTO_REHASH,
      "Enable automatic rehashing. One doesn't need to use 'rehash' to get "
      "table "
      "and field completion, but startup and reconnecting may take a longer "
      "time. "
      "Disable with --disable-auto-rehash.",
-     &opt_rehash, &opt_rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+     &opt_rehash, &opt_rehash, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0,
+     nullptr},
     {"no-auto-rehash", 'A',
      "No automatic rehashing. One has to use 'rehash' to get table and field "
      "completion. This gives a quicker start of mysql and disables rehashing "
      "on reconnect.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"auto-vertical-output", OPT_AUTO_VERTICAL_OUTPUT,
      "Automatically switch to vertical output mode if the result is wider "
      "than the terminal width.",
-     &auto_vertical_output, &auto_vertical_output, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
+     &auto_vertical_output, &auto_vertical_output, nullptr, GET_BOOL, NO_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
     {"batch", 'B',
      "Don't use history file. Disable interactive behavior. (Enables "
      "--silent.)",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
-     (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"binary-as-hex", 0, "Print binary data as hex", &opt_binhex, &opt_binhex,
-     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     (uchar **)&opt_bind_addr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+    {"binary-as-hex", OPT_MYSQL_BINARY_AS_HEX,
+     "Print binary data as hex. Enabled by default for interactive terminals.",
+     &opt_binhex, &opt_binhex, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"character-sets-dir", OPT_CHARSETS_DIR,
-     "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Directory for character set files.", &charsets_dir, &charsets_dir,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"column-type-info", OPT_COLUMN_TYPES, "Display column type information.",
-     &column_types_flag, &column_types_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &column_types_flag, &column_types_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"comments", 'c',
      "Preserve comments. Send comments to the server."
      " The default is --skip-comments (discard comments), enable with "
      "--comments.",
-     &preserve_comments, &preserve_comments, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &preserve_comments, &preserve_comments, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"compress", 'C', "Use compression in server/client protocol.",
-     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+#ifdef NDEBUG
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
-     0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.",
+     nullptr, nullptr, nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
-     &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
      "Check memory and open file usage at exit.", &debug_check_flag,
-     &debug_check_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_check_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
-     &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_info_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
-    {"database", 'D', "Database to use.", &current_db, &current_db, 0,
-     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"database", 'D', "Database to use.", &current_db, &current_db, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"default-character-set", OPT_DEFAULT_CHARSET,
-     "Set the default character set.", &default_charset, &default_charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Set the default character set.", &default_charset, &default_charset,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"delimiter", OPT_DELIMITER, "Delimiter to be used.", &delimiter_str,
-     &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &delimiter_str, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
      "Enable/disable the clear text authentication plugin.",
-     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 0, GET_BOOL,
-     OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, nullptr,
+     GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"execute", 'e',
-     "Execute command and quit. (Disables --force and history file.)", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Execute command and quit. (Disables --force and history file.)", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"vertical", 'E', "Print the output of a query (rows) vertically.",
-     &vertical, &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &vertical, &vertical, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"force", 'f', "Continue even if we get an SQL error.", &ignore_errors,
-     &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &ignore_errors, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"histignore", OPT_HISTIGNORE,
      "A colon-separated list of patterns to "
      "keep statements from getting logged into syslog and mysql history.",
-     &opt_histignore, &opt_histignore, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
-     0, 0, 0},
+     &opt_histignore, &opt_histignore, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
     {"named-commands", 'G',
      "Enable named commands. Named commands mean this program's internal "
      "commands; see mysql> help . When enabled, the named commands can be "
      "used from any line of the query, otherwise only from the first line, "
      "before an enter. Disable with --disable-named-commands. This option "
      "is disabled by default.",
-     &named_cmds, &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &named_cmds, &named_cmds, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"ignore-spaces", 'i', "Ignore space after function names.", &ignore_spaces,
-     &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &ignore_spaces, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"init-command", OPT_INIT_COMMAND,
      "SQL Command to execute when connecting to MySQL server. Will "
      "automatically be re-executed when reconnecting.",
-     &opt_init_command, &opt_init_command, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
+     &opt_init_command, &opt_init_command, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
-     &opt_local_infile, &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0,
-     0},
-    {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host.", &current_host, &current_host, 0,
-     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"html", 'H', "Produce HTML output.", &opt_html, &opt_html, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"xml", 'X', "Produce XML output.", &opt_xml, &opt_xml, 0, GET_BOOL, NO_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_local_infile, &opt_local_infile, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host.", &current_host, &current_host, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"dns-srv-name", 0, "Connect to a DNS SRV resource", &dns_srv_name,
+     &dns_srv_name, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"html", 'H', "Produce HTML output.", &opt_html, &opt_html, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"xml", 'X', "Produce XML output.", &opt_xml, &opt_xml, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
-     &line_numbers, &line_numbers, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-    {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &line_numbers, &line_numbers, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr,
+     0, nullptr},
+    {"skip-line-numbers", 'L', "Don't write line number for errors.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"unbuffered", 'n', "Flush buffer after each query.", &unbuffered,
-     &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &unbuffered, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
-     &column_names, &column_names, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-    {"skip-column-names", 'N', "Don't write column names in results.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &column_names, &column_names, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr,
+     0, nullptr},
+    {"skip-column-names", 'N', "Don't write column names in results.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"sigint-ignore", OPT_SIGINT_IGNORE, "Ignore SIGINT (CTRL-C).",
-     &opt_sigint_ignore, &opt_sigint_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_sigint_ignore, &opt_sigint_ignore, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"one-database", 'o',
      "Ignore statements except those that occur while the default "
      "database is the one named at the command line.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #ifdef USE_POPEN
     {"pager", OPT_PAGER,
      "Pager to use to display results. If you don't supply an option, the "
@@ -1726,12 +1792,9 @@ static struct my_option my_long_options[] = {
      "less, more, cat [> filename], etc. See interactive help (\\h) also. "
      "This option does not work in batch mode. Disable with --disable-pager. "
      "This option is disabled by default.",
-     0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "asked from the tty.",
-     0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1743,28 +1806,31 @@ static struct my_option my_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &opt_mysql_port, &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_mysql_port, &opt_mysql_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
-     &current_prompt, &current_prompt, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
-     0, 0, 0},
+     &current_prompt, &current_prompt, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
     {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol to use for connection (tcp, socket, pipe, memory).", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "The protocol to use for connection (tcp, socket, pipe, memory).", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"quick", 'q',
      "Don't cache result, print it row by row. This may slow down the server "
      "if the output is suspended. Doesn't use history file.",
-     &quick, &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &quick, &quick, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"raw", 'r', "Write fields without conversion. Used with --batch.",
-     &opt_raw_data, &opt_raw_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_raw_data, &opt_raw_data, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"reconnect", OPT_RECONNECT,
      "Reconnect if the connection is lost. Disable "
      "with --disable-reconnect. This option is enabled by default.",
-     &opt_reconnect, &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+     &opt_reconnect, &opt_reconnect, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
+     nullptr, 0, nullptr},
     {"silent", 's',
      "Be more silent. Print results with a tab as separator, "
      "each row on new line.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
@@ -1772,63 +1838,72 @@ static struct my_option my_long_options[] = {
      0},
 #endif
     {"socket", 'S', "The socket file to use for connection.",
-     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR_ALLOC,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
-    {"table", 't', "Output in table format.", &output_tables, &output_tables, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"table", 't', "Output in table format.", &output_tables, &output_tables,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"tee", OPT_TEE,
      "Append everything into outfile. See interactive help (\\h) also. "
      "Does not work in batch mode. Disable with --disable-tee. "
      "This option is disabled by default.",
-     0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"user", 'u', "User for login if not current user.", &current_user,
-     &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &current_user, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
-     &safe_updates, &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &safe_updates, &safe_updates, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.",
-     &safe_updates, &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"verbose", 'v', "Write more. (-v -v -v gives the table output format).", 0,
-     0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     &safe_updates, &safe_updates, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+    {"verbose", 'v', "Write more. (-v -v -v gives the table output format).",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"wait", 'w', "Wait and retry if connection is down.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"connect_timeout", OPT_CONNECT_TIMEOUT,
      "Number of seconds before connection timeout.", &opt_connect_timeout,
-     &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 3600 * 12, 0, 0,
-     0},
+     &opt_connect_timeout, nullptr, GET_ULONG, REQUIRED_ARG, 0, 0, 3600 * 12,
+     nullptr, 0, nullptr},
     {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
      "The maximum packet length to send to or receive from server.",
-     &opt_max_allowed_packet, &opt_max_allowed_packet, 0, GET_ULONG,
+     &opt_max_allowed_packet, &opt_max_allowed_packet, nullptr, GET_ULONG,
      REQUIRED_ARG, 16 * 1024L * 1024L, 4096,
-     (longlong)2 * 1024L * 1024L * 1024L, 0, 1024, 0},
+     (longlong)2 * 1024L * 1024L * 1024L, nullptr, 1024, nullptr},
     {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
      "The buffer size for TCP/IP and socket communication.",
-     &opt_net_buffer_length, &opt_net_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
-     16384, 1024, 512 * 1024 * 1024L, 0, 1024, 0},
+     &opt_net_buffer_length, &opt_net_buffer_length, nullptr, GET_ULONG,
+     REQUIRED_ARG, 16384, 1024, 512 * 1024 * 1024L, nullptr, 1024, nullptr},
     {"select_limit", OPT_SELECT_LIMIT,
      "Automatic limit for SELECT when using --safe-updates.", &select_limit,
-     &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ULONG_MAX, 0, 1, 0},
+     &select_limit, nullptr, GET_ULONG, REQUIRED_ARG, 1000L, 1, ULONG_MAX,
+     nullptr, 1, nullptr},
     {"max_join_size", OPT_MAX_JOIN_SIZE,
      "Automatic limit for rows in a join when using --safe-updates.",
-     &max_join_size, &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1,
-     ULONG_MAX, 0, 1, 0},
+     &max_join_size, &max_join_size, nullptr, GET_ULONG, REQUIRED_ARG, 1000000L,
+     1, ULONG_MAX, nullptr, 1, nullptr},
     {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
-     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &show_warnings, &show_warnings, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"syslog", 'j',
      "Log filtered interactive commands to syslog. Filtering of "
      "commands depends on the patterns supplied via histignore option besides "
      "the default patterns.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"default_auth", OPT_DEFAULT_AUTH,
      "Default authentication client-side plugin to use.", &opt_default_auth,
-     &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"binary-mode", OPT_BINARY_MODE,
      "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to "
      "'\\n'. "
@@ -1837,26 +1912,53 @@ static struct my_option my_long_options[] = {
      "commands except \\C and DELIMITER, in non-interactive mode (for input "
      "piped to mysql or loaded using the 'source' command). This is necessary "
      "when processing output from mysqlbinlog that may contain blobs.",
-     &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_binary_mode, &opt_binary_mode, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"connect-expired-password", 0,
      "Notify the server that this client is prepared to handle expired "
      "password sandbox mode.",
-     &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+     &opt_connect_expired_password, &opt_connect_expired_password, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+#ifndef NDEBUG
     {"build-completion-hash", 0,
      "Build completion hash even when it is in batch mode. It is used for "
      "test purpose, so it is just built when DEBUG is on.",
-     &opt_build_completion_hash, &opt_build_completion_hash, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_build_completion_hash, &opt_build_completion_hash, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
 #ifdef HAVE_SETNS
     {"network-namespace", 0,
      "Network namespace to use for connection via tcp with a server.",
-     &opt_network_namespace, &opt_network_namespace, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_network_namespace, &opt_network_namespace, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"load_data_local_dir", OPT_LOAD_DATA_LOCAL_DIR,
+     "Directory path safe for LOAD DATA LOCAL INFILE to read from.",
+     &opt_load_data_local_dir, &opt_load_data_local_dir, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"fido-register-factor", 0,
+     "Specifies authentication factor, for which registration needs to be "
+     "done.",
+     &opt_fido_register_factor, &opt_fido_register_factor, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"oci-config-file", 0,
+     "Specifies the location of the OCI configuration file. Default for Linux "
+     "is ~/.oci/config and %HOME/.oci/config on Windows.",
+     &opt_oci_config_file, &opt_oci_config_file, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(int version) {
   print_version();
@@ -1869,8 +1971,7 @@ static void usage(int version) {
   my_print_variables(my_long_options);
 }
 
-bool get_one_option(int optid,
-                    const struct my_option *opt MY_ATTRIBUTE((unused)),
+bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
                     char *argument) {
   switch (optid) {
     case OPT_CHARSETS_DIR:
@@ -1887,14 +1988,14 @@ bool get_one_option(int optid,
         } else {
           put_info("DELIMITER cannot contain a backslash character",
                    INFO_ERROR);
-          return 0;
+          return false;
         }
       }
       delimiter_length = (uint)strlen(delimiter);
       delimiter_str = delimiter;
       break;
     case OPT_LOCAL_INFILE:
-      using_opt_local_infile = 1;
+      using_opt_local_infile = true;
       break;
     case OPT_ENABLE_CLEARTEXT_PLUGIN:
       using_opt_enable_cleartext_plugin = true;
@@ -1907,17 +2008,17 @@ bool get_one_option(int optid,
       break;
     case OPT_PAGER:
       if (argument == disabled_my_option)
-        opt_nopager = 1;
+        opt_nopager = true;
       else {
-        opt_nopager = 0;
+        opt_nopager = false;
         if (argument && strlen(argument)) {
-          default_pager_set = 1;
+          default_pager_set = true;
           strmake(pager, argument, sizeof(pager) - 1);
           my_stpcpy(default_pager, pager);
         } else if (default_pager_set)
           my_stpcpy(pager, default_pager);
         else
-          opt_nopager = 1;
+          opt_nopager = true;
       }
       break;
     case OPT_MYSQL_PROTOCOL:
@@ -1925,54 +2026,38 @@ bool get_one_option(int optid,
           find_type_or_exit(argument, &sql_protocol_typelib, opt->name);
       break;
     case 'A':
-      opt_rehash = 0;
+      opt_rehash = false;
       break;
     case 'N':
-      column_names = 0;
+      column_names = false;
       break;
     case 'e':
-      status.batch = 1;
-      status.add_to_history = 0;
-      if (!status.line_buff) ignore_errors = 0;  // do it for the first -e only
+      status.batch = true;
+      status.add_to_history = false;
+      if (!status.line_buff)
+        ignore_errors = false;  // do it for the first -e only
       if (!(status.line_buff =
                 batch_readline_command(status.line_buff, argument)))
-        return 1;
+        return true;
       break;
     case 'j':
       if (my_openlog("MysqlClient", 0, LOG_USER)) {
         /* error */
         put_info(strerror(errno), INFO_ERROR, errno);
-        return 1;
+        return true;
       }
-      opt_syslog = 1;
+      opt_syslog = true;
       break;
     case 'o':
       if (argument == disabled_my_option)
-        one_database = 0;
+        one_database = false;
       else
-        one_database = skip_updates = 1;
+        one_database = skip_updates = true;
       break;
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x';  // Destroy argument
-        if (*start) start[1] = 0;
-        tty_password = 0;
-      } else
-        tty_password = 1;
-      break;
+      PARSE_COMMAND_LINE_PASSWORD_OPTION;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
-      debug_info_flag = 1;
+      debug_info_flag = true;
       break;
     case 's':
       if (argument == disabled_my_option)
@@ -1987,9 +2072,9 @@ bool get_one_option(int optid,
         verbose++;
       break;
     case 'B':
-      status.batch = 1;
-      status.add_to_history = 0;
-      set_if_bigger(opt_silent, 1);  // more silent
+      status.batch = true;
+      status.add_to_history = false;
+      opt_silent = std::max(opt_silent, 1U);  // more silent
       break;
     case 'W':
 #ifdef _WIN32
@@ -2005,8 +2090,12 @@ bool get_one_option(int optid,
     case '?':
       usage(0);
       exit(0);
+    case OPT_MYSQL_BINARY_AS_HEX:
+      opt_binhex = (argument != disabled_my_option);
+      opt_binary_as_hex_set_explicitly = true;
+      break;
   }
-  return 0;
+  return false;
 }
 
 static int get_options(int argc, char **argv) {
@@ -2019,14 +2108,14 @@ static int get_options(int argc, char **argv) {
   pagpoint = getenv("PAGER");
   if (!((char *)(pagpoint))) {
     my_stpcpy(pager, "stdout");
-    opt_nopager = 1;
+    opt_nopager = true;
   } else
     my_stpcpy(pager, pagpoint);
   my_stpcpy(default_pager, pager);
 
-  if (mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
+  if (mysql_get_option(nullptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
                        &opt_max_allowed_packet) ||
-      mysql_get_option(NULL, MYSQL_OPT_NET_BUFFER_LENGTH,
+      mysql_get_option(nullptr, MYSQL_OPT_NET_BUFFER_LENGTH,
                        &opt_max_allowed_packet)) {
     exit(1);
   }
@@ -2035,9 +2124,9 @@ static int get_options(int argc, char **argv) {
            handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (mysql_options(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
+  if (mysql_options(nullptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
                     &opt_max_allowed_packet) ||
-      mysql_options(NULL, MYSQL_OPT_NET_BUFFER_LENGTH,
+      mysql_options(nullptr, MYSQL_OPT_NET_BUFFER_LENGTH,
                     &opt_net_buffer_length)) {
     exit(1);
   }
@@ -2046,10 +2135,10 @@ static int get_options(int argc, char **argv) {
   {
     my_stpcpy(default_pager, "stdout");
     my_stpcpy(pager, "stdout");
-    opt_nopager = 1;
-    default_pager_set = 0;
-    opt_outfile = 0;
-    opt_reconnect = 0;
+    opt_nopager = true;
+    default_pager_set = false;
+    opt_outfile = false;
+    opt_reconnect = false;
     connect_flag = 0; /* Not in interactive mode */
   }
 
@@ -2058,11 +2147,10 @@ static int get_options(int argc, char **argv) {
     exit(1);
   }
   if (argc == 1) {
-    skip_updates = 0;
+    skip_updates = false;
     my_free(current_db);
     current_db = my_strdup(PSI_NOT_INSTRUMENTED, *argv, MYF(MY_WME));
   }
-  if (tty_password) opt_password = get_tty_password(NullS);
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag) my_end_arg = MY_CHECK_ERROR;
 
@@ -2083,10 +2171,10 @@ static int read_and_execute(bool interactive) {
     - my_win_console_readline. Do not free, see tmpbuf.
     - readline. Use free()
   */
-  char *line = NULL;
+  char *line = nullptr;
   char in_string = 0;
   ulong line_number = 0;
-  bool ml_comment = 0;
+  bool ml_comment = false;
   COMMANDS *com;
   size_t line_length = 0;
   status.exit_status = 1;
@@ -2094,7 +2182,7 @@ static int read_and_execute(bool interactive) {
   real_binary_mode = !interactive && opt_binary_mode;
   for (;;) {
     /* Reset as SIGINT has already got handled. */
-    sigint_received = 0;
+    sigint_received = false;
 
     if (!interactive) {
       /*
@@ -2107,8 +2195,8 @@ static int read_and_execute(bool interactive) {
         line_length = status.line_buff->read_length;
 
         /*
-          ASCII 0x00 is not allowed appearing in queries if it is not in binary
-          mode.
+          ASCII 0x00 is not allowed appearing in queries if it is not in
+          binary mode.
         */
         if (!real_binary_mode && strlen(line) != line_length) {
           status.exit_status = 1;
@@ -2176,7 +2264,7 @@ static int read_and_execute(bool interactive) {
       line = readline(prompt);
 
       if (sigint_received) {
-        sigint_received = 0;
+        sigint_received = false;
         tee_puts("^C", stdout);
         reset_prompt(&in_string, &ml_comment);
         continue;
@@ -2217,7 +2305,7 @@ static int read_and_execute(bool interactive) {
       continue;
     }
     if (add_line(glob_buffer, line, line_length, &in_string, &ml_comment,
-                 status.line_buff ? status.line_buff->truncated : 0))
+                 status.line_buff ? status.line_buff->truncated : false))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -2242,9 +2330,9 @@ static int read_and_execute(bool interactive) {
 #endif
 
   /*
-    If the function is called by 'source' command, it will return to interactive
-    mode, so real_binary_mode should be false. Otherwise, it will exit the
-    program, it is safe to set real_binary_mode to false.
+    If the function is called by 'source' command, it will return to
+    interactive mode, so real_binary_mode should be false. Otherwise, it will
+    exit the program, it is safe to set real_binary_mode to false.
   */
   real_binary_mode = false;
   return status.exit_status;
@@ -2252,7 +2340,7 @@ static int read_and_execute(bool interactive) {
 
 static inline void reset_prompt(char *in_string, bool *ml_comment) {
   glob_buffer.length(0);
-  *ml_comment = 0;
+  *ml_comment = false;
   *in_string = 0;
 }
 
@@ -2267,7 +2355,7 @@ static inline void reset_prompt(char *in_string, bool *ml_comment) {
      the command's pointer or NULL.
 */
 static COMMANDS *find_command(char cmd_char) {
-  DBUG_ENTER("find_command");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("cmd_char: %d", cmd_char));
 
   int index = -1;
@@ -2283,9 +2371,9 @@ static COMMANDS *find_command(char cmd_char) {
 
   if (index >= 0) {
     DBUG_PRINT("exit", ("found command: %s", commands[index].name));
-    DBUG_RETURN(&commands[index]);
+    return &commands[index];
   } else
-    DBUG_RETURN((COMMANDS *)0);
+    return (COMMANDS *)nullptr;
 }
 
 /**
@@ -2300,9 +2388,9 @@ static COMMANDS *find_command(char cmd_char) {
 static COMMANDS *find_command(char *name) {
   uint len;
   char *end;
-  DBUG_ENTER("find_command");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(name != NULL);
+  assert(name != nullptr);
   DBUG_PRINT("enter", ("name: '%s'", name));
 
   while (my_isspace(charset_info, *name)) name++;
@@ -2314,12 +2402,12 @@ static COMMANDS *find_command(char *name) {
   if ((!real_binary_mode && strstr(name, "\\g")) ||
       (strstr(name, delimiter) &&
        !is_delimiter_command(name, DELIMITER_NAME_LEN)))
-    DBUG_RETURN((COMMANDS *)0);
+    return (COMMANDS *)nullptr;
 
   if ((end = strcont(name, " \t"))) {
     len = (uint)(end - name);
     while (my_isspace(charset_info, *end)) end++;
-    if (!*end) end = 0;  // no arguments to function
+    if (!*end) end = nullptr;  // no arguments to function
   } else
     len = (uint)strlen(name);
 
@@ -2344,9 +2432,9 @@ static COMMANDS *find_command(char *name) {
 
   if (index >= 0) {
     DBUG_PRINT("exit", ("found command: %s", commands[index].name));
-    DBUG_RETURN(&commands[index]);
+    return &commands[index];
   }
-  DBUG_RETURN((COMMANDS *)0);
+  return (COMMANDS *)nullptr;
 }
 
 static bool add_line(String &buffer, char *line, size_t line_length,
@@ -2354,11 +2442,11 @@ static bool add_line(String &buffer, char *line, size_t line_length,
   uchar inchar;
   char buff[80], *pos, *out;
   COMMANDS *com;
-  bool need_space = 0;
+  bool need_space = false;
   enum { SSC_NONE = 0, SSC_CONDITIONAL, SSC_HINT } ss_comment = SSC_NONE;
-  DBUG_ENTER("add_line");
+  DBUG_TRACE;
 
-  if (!line[0] && buffer.is_empty()) DBUG_RETURN(0);
+  if (!line[0] && buffer.is_empty()) return false;
 
   if (status.add_to_history && line[0]) add_filtered_history(line);
 
@@ -2405,7 +2493,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
           out = line;
         }
 
-        if ((*com->func)(&buffer, pos - 1) > 0) DBUG_RETURN(1);  // Quit
+        if ((*com->func)(&buffer, pos - 1) > 0) return true;  // Quit
         if (com->takes_params) {
           if (ss_comment) {
             /*
@@ -2429,7 +2517,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         }
       } else {
         sprintf(buff, "Unknown command '\\%c'.", inchar);
-        if (put_info(buff, INFO_ERROR) > 0) DBUG_RETURN(1);
+        if (put_info(buff, INFO_ERROR) > 0) return true;
         *out++ = '\\';
         *out++ = (char)inchar;
         continue;
@@ -2459,10 +2547,10 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       pos--;
 
       if ((com = find_command(buffer.c_ptr()))) {
-        if ((*com->func)(&buffer, buffer.c_ptr()) > 0) DBUG_RETURN(1);  // Quit
+        if ((*com->func)(&buffer, buffer.c_ptr()) > 0) return true;  // Quit
       } else {
-        if (com_go(&buffer, 0) > 0)  // < 0 is not fatal
-          DBUG_RETURN(1);
+        if (com_go(&buffer, nullptr) > 0)  // < 0 is not fatal
+          return true;
       }
       buffer.length(0);
     } else if (!*ml_comment &&
@@ -2494,8 +2582,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
           the next line.
         */
         if (started_with_nothing) {
-          if (com_go(&buffer, 0) > 0)  // < 0 is not fatal
-            DBUG_RETURN(1);
+          if (com_go(&buffer, nullptr) > 0)  // < 0 is not fatal
+            return true;
           buffer.length(0);
         }
       }
@@ -2508,7 +2596,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         *out++ = *pos;    // copy '*'
       } else
         pos++;
-      *ml_comment = 1;
+      *ml_comment = true;
       if (out != line) {
         buffer.append(line, (uint)(out - line));
         out = line;
@@ -2520,14 +2608,14 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         *out++ = *pos;    // copy '/'
       } else
         pos++;
-      *ml_comment = 0;
+      *ml_comment = false;
       if (out != line) {
         buffer.append(line, (uint32)(out - line));
         out = line;
       }
       // Consumed a 2 chars or more, and will add 1 at most,
       // so using the 'line' buffer to edit data in place is ok.
-      need_space = 1;
+      need_space = true;
     } else {  // Add found char to buffer
       if (!*in_string && inchar == '/' && pos[1] == '*') {
         if (pos[2] == '!')
@@ -2544,7 +2632,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         *in_string = (char)inchar;
       if (!*ml_comment || preserve_comments) {
         if (need_space && !my_isspace(charset_info, (char)inchar)) *out++ = ' ';
-        need_space = 0;
+        need_space = false;
         *out++ = (char)inchar;
       }
     }
@@ -2569,9 +2657,9 @@ static bool add_line(String &buffer, char *line, size_t line_length,
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.mem_realloc(buffer.length() + length + batch_io_size);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
-      DBUG_RETURN(1);
+      return true;
   }
-  DBUG_RETURN(0);
+  return false;
 }
 
 /*****************************************************************
@@ -2589,18 +2677,13 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-static int fake_magic_space(int, int);
-char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(const char *, int);
-int no_completion(const char *, int)
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
+char *no_completion(const char *, int) { return nullptr; }
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+int no_completion(const char *, int) { return 0; }
 #else
-char *no_completion()
+char *no_completion() { return nullptr; }
 #endif
-{
-  return 0; /* No filename completion */
-}
 
 /*
   returns 0 if line matches the previous history entry
@@ -2609,7 +2692,7 @@ char *no_completion()
 static int not_in_history(const char *line) {
   HIST_ENTRY *oldhist = history_get(history_length);
 
-  if (oldhist == 0) return 1;
+  if (oldhist == nullptr) return 1;
   if (strcmp(oldhist->line, line) == 0) return 0;
   return 1;
 }
@@ -2628,18 +2711,19 @@ static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
-  /* Tell the completer that we want a crack first. */
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-  rl_attempted_completion_function =
-      (rl_completion_func_t *)&new_mysql_completion;
-  rl_completion_entry_function = (rl_compentry_func_t *)&no_completion;
+  /* Accept all locales. */
+  setlocale(LC_ALL, "");
 
-  rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
-#elif defined(USE_LIBEDIT_INTERFACE)
-  setlocale(LC_ALL, ""); /* so as libedit use isprint */
-  rl_attempted_completion_function = (CPPFunction *)&new_mysql_completion;
+  /* Tell the completer that we want a crack first. */
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
+  rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
-  rl_add_defun("magic-space", (Function *)&fake_magic_space, -1);
+
+  rl_add_defun("magic-space", &fake_magic_space, -1);
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+  rl_attempted_completion_function = &new_mysql_completion;
+  rl_completion_entry_function = &no_completion;
+  rl_add_defun("magic-space", &fake_magic_space, -1);
 #else
   rl_attempted_completion_function = (CPPFunction *)&new_mysql_completion;
   rl_completion_entry_function = &no_completion;
@@ -2653,17 +2737,16 @@ static void initialize_readline(char *name) {
   array of matches, or NULL if there aren't any.
 */
 
-static char **new_mysql_completion(const char *text,
-                                   int start MY_ATTRIBUTE((unused)),
-                                   int end MY_ATTRIBUTE((unused))) {
+static char **new_mysql_completion(const char *text, int start [[maybe_unused]],
+                                   int end [[maybe_unused]]) {
   if (!status.batch && !quick)
 #if defined(USE_NEW_EDITLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
-    return completion_matches(text, new_command_generator);
+    return completion_matches(const_cast<char *>(text), new_command_generator);
 #endif
   else
-    return (char **)0;
+    return (char **)nullptr;
 }
 
 static char *new_command_generator(const char *text, int state) {
@@ -2729,29 +2812,29 @@ static char *new_command_generator(const char *text, int state) {
 
 static void build_completion_hash(bool rehash, bool write_info) {
   COMMANDS *cmd = commands;
-  MYSQL_RES *databases = 0, *tables = 0;
+  MYSQL_RES *databases = nullptr, *tables = nullptr;
   MYSQL_RES *fields;
-  static char ***field_names = 0;
+  static char ***field_names = nullptr;
   MYSQL_ROW database_row, table_row;
   MYSQL_FIELD *sql_field;
   char buf[NAME_LEN * 2 + 2];  // table name plus field name plus 2
   int i, j, num_fields;
-  DBUG_ENTER("build_completion_hash");
+  DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!opt_build_completion_hash)
 #endif
   {
     if (status.batch || quick || !current_db)
-      DBUG_VOID_RETURN;  // We don't need completion in batches
+      return;  // We don't need completion in batches
   }
 
-  if (!rehash) DBUG_VOID_RETURN;
+  if (!rehash) return;
 
   /* Free old used memory */
-  if (field_names) field_names = 0;
+  if (field_names) field_names = nullptr;
   completion_hash_clean(&ht);
-  free_root(&hash_mem_root, MYF(0));
+  hash_mem_root.Clear();
 
   /* hash this file's known subset of SQL commands */
   while (cmd->name) {
@@ -2795,13 +2878,13 @@ You can turn off this feature to get a quicker startup with -A\n\n");
   /* hash all field names, both with the table prefix and without it */
   if (!tables) /* no tables */
   {
-    DBUG_VOID_RETURN;
+    return;
   }
   mysql_data_seek(tables, 0);
   if (!(field_names = (char ***)hash_mem_root.Alloc(
             sizeof(char **) * (uint)(mysql_num_rows(tables) + 1)))) {
     mysql_free_result(tables);
-    DBUG_VOID_RETURN;
+    return;
   }
   i = 0;
   while ((table_row = mysql_fetch_row(tables))) {
@@ -2813,7 +2896,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
         mysql_free_result(fields);
         break;
       }
-      field_names[i][num_fields * 2] = NULL;
+      field_names[i][num_fields * 2] = nullptr;
       j = 0;
       while ((sql_field = mysql_fetch_field(fields))) {
         sprintf(buf, "%.64s.%.64s", table_row[0], sql_field->name);
@@ -2829,13 +2912,12 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       }
       mysql_free_result(fields);
     } else
-      field_names[i] = 0;
+      field_names[i] = nullptr;
 
     i++;
   }
   mysql_free_result(tables);
-  field_names[i] = 0;  // End pointer
-  DBUG_VOID_RETURN;
+  field_names[i] = nullptr;  // End pointer
 }
 
 /* for gnu readline */
@@ -2943,22 +3025,30 @@ static int reconnect(void) {
   /* purecov: begin tested */
   if (opt_reconnect) {
     put_info("No connection. Trying to reconnect...", INFO_INFO);
-    (void)com_connect((String *)0, 0);
-    if (opt_rehash) com_rehash(NULL, NULL);
+    (void)com_connect((String *)nullptr, nullptr);
+    if (opt_rehash) com_rehash(nullptr, nullptr);
   }
   if (!connected) return put_info("Can't connect to the server\n", INFO_ERROR);
   /* purecov: end */
   return 0;
 }
 
-static void get_current_db() {
+/**
+  Checks the current DB and updates the global variable current_db
+  If the command fails hen he current_db is set to nullptr.
+
+  @return Error state
+    @retval true An error occurred
+    @retval false Success; current_db is updated
+*/
+static bool get_current_db() {
   MYSQL_RES *res;
 
   /* If one_database is set, current_db is not supposed to change. */
-  if (one_database) return;
+  if (one_database) return false;
 
   my_free(current_db);
-  current_db = NULL;
+  current_db = nullptr;
   /* In case of error below current_db will be NULL */
   if (!mysql_query(&mysql, "SELECT DATABASE()") &&
       (res = mysql_use_result(&mysql))) {
@@ -2966,23 +3056,35 @@ static void get_current_db() {
     if (row && row[0])
       current_db = my_strdup(PSI_NOT_INSTRUMENTED, row[0], MYF(MY_WME));
     mysql_free_result(res);
+  } else {
+    /* We failed to issue the command and we likely lost connection */
+    return true;
   }
+  return false;
 }
 
 /***************************************************************************
  The different commands
 ***************************************************************************/
 
-static int mysql_real_query_for_lazy(const char *buf, size_t length) {
+static int mysql_real_query_for_lazy(const char *buf, size_t length,
+                                     bool set_params = false) {
+  int error = 0;
   for (uint retry = 0;; retry++) {
-    int error;
-    if (!mysql_real_query(&mysql, buf, (ulong)length)) return 0;
+    error = 0;
+
+    if (set_params && global_attrs->set_params(&mysql)) break;
+    if (!mysql_real_query(&mysql, buf, (ulong)length)) break;
     error = put_error(&mysql);
-    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
-        !opt_reconnect)
-      return error;
-    if (reconnect()) return error;
+    if ((mysql_errno(&mysql) != CR_SERVER_GONE_ERROR &&
+         mysql_errno(&mysql) != CR_SERVER_LOST &&
+         mysql.net.error != NET_ERROR_SOCKET_UNUSABLE) ||
+        retry > 1 || !opt_reconnect)
+      break;
+    if (reconnect()) break;
   }
+  if (set_params) global_attrs->clear(connected ? &mysql : nullptr);
+  return error;
 }
 
 static int mysql_store_result_for_lazy(MYSQL_RES **result) {
@@ -3002,8 +3104,8 @@ static void print_help_item(MYSQL_ROW *cur, int num_name, int num_cat,
   tee_fprintf(PAGER, "   %s\n", (*cur)[num_name]);
 }
 
-static int com_server_help(String *buffer MY_ATTRIBUTE((unused)),
-                           char *line MY_ATTRIBUTE((unused)), char *help_arg) {
+static int com_server_help(String *buffer [[maybe_unused]],
+                           char *line [[maybe_unused]], char *help_arg) {
   MYSQL_ROW cur;
   const char *server_cmd;
   char cmd_buf[100 + 1];
@@ -3036,7 +3138,7 @@ static int com_server_help(String *buffer MY_ATTRIBUTE((unused)),
 
   if (result) {
     unsigned int num_fields = mysql_num_fields(result);
-    my_ulonglong num_rows = mysql_num_rows(result);
+    uint64_t num_rows = mysql_num_rows(result);
     mysql_fetch_fields(result);
     if (num_fields == 3 && num_rows == 1) {
       if (!(cur = mysql_fetch_row(result))) {
@@ -3069,7 +3171,8 @@ static int com_server_help(String *buffer MY_ATTRIBUTE((unused)),
         tee_fprintf(PAGER, "You asked for help about help category: \"%s\"\n",
                     cur[0]);
         put_info(
-            "For more information, type 'help <item>', where <item> is one of "
+            "For more information, type 'help <item>', where <item> is one "
+            "of "
             "the following",
             INFO_INFO);
         num_name = 1;
@@ -3099,8 +3202,8 @@ err:
   return error;
 }
 
-static int com_help(String *buffer MY_ATTRIBUTE((unused)),
-                    char *line MY_ATTRIBUTE((unused))) {
+static int com_help(String *buffer [[maybe_unused]],
+                    char *line [[maybe_unused]]) {
   int i, j;
   char *help_arg = strchr(line, ' '), buff[32], *end;
   if (help_arg) {
@@ -3126,9 +3229,13 @@ static int com_help(String *buffer MY_ATTRIBUTE((unused)),
     end = my_stpcpy(buff, commands[i].name);
     for (j = (int)strlen(commands[i].name); j < 10; j++)
       end = my_stpcpy(end, " ");
-    if (commands[i].func)
-      tee_fprintf(stdout, "%s(\\%c) %s\n", buff, commands[i].cmd_char,
-                  commands[i].doc);
+    if (commands[i].func) {
+      if (commands[i].cmd_char)
+        tee_fprintf(stdout, "%s(\\%c) %s\n", buff, commands[i].cmd_char,
+                    commands[i].doc);
+      else
+        tee_fprintf(stdout, "%s %s\n", buff, commands[i].doc);
+    }
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
     put_info("\nFor server side help, type 'help contents'\n", INFO_INFO);
@@ -3136,18 +3243,18 @@ static int com_help(String *buffer MY_ATTRIBUTE((unused)),
 }
 
 /* ARGSUSED */
-static int com_clear(String *buffer, char *line MY_ATTRIBUTE((unused))) {
+static int com_clear(String *buffer, char *line [[maybe_unused]]) {
   if (status.add_to_history) fix_line(buffer);
   buffer->length(0);
   return 0;
 }
 
 /* ARGSUSED */
-static int com_charset(String *buffer MY_ATTRIBUTE((unused)), char *line) {
+static int com_charset(String *buffer [[maybe_unused]], char *line) {
   char buff[256], *param;
   const CHARSET_INFO *new_cs;
   strmake(buff, line, sizeof(buff) - 1);
-  param = get_arg(buff, 0);
+  param = get_arg(buff, false);
   if (!param || !*param) {
     return put_info("Usage: \\C charset_name | charset charset_name",
                     INFO_ERROR, 0);
@@ -3170,7 +3277,7 @@ static int com_charset(String *buffer MY_ATTRIBUTE((unused)), char *line) {
           1  if fatal error
 */
 
-static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
+static int com_go(String *buffer, char *line [[maybe_unused]]) {
   char buff[200];             /* about 110 chars used so far */
   char time_buff[52 + 3 + 1]; /* time max + space&parens + NUL */
   MYSQL_RES *result;
@@ -3178,7 +3285,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
   uint error = 0;
   int err = 0;
 
-  interrupted_query = 0;
+  interrupted_query = false;
   if (!status.batch) {
     old_buffer = *buffer;  // Save for edit command
     old_buffer.copy();
@@ -3197,7 +3304,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
     buffer->length(0);              // Remove query on error
     return opt_reconnect ? -1 : 1;  // Fatal error
   }
-  if (verbose) (void)com_print(buffer, 0);
+  if (verbose) (void)com_print(buffer, nullptr);
 
   if (skip_updates && (buffer->length() < 4 ||
                        my_strnncoll(charset_info, (const uchar *)buffer->ptr(),
@@ -3207,8 +3314,8 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
   }
 
   timer = start_timer();
-  executing_query = 1;
-  error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length());
+  executing_query = true;
+  error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length(), true);
 
   if (status.add_to_history) {
     buffer->append(vertical ? "\\G" : delimiter);
@@ -3267,7 +3374,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
         else
           print_table_data(result);
         if (!batchmode)
-          sprintf(buff, "%lld %s in set", mysql_num_rows(result),
+          sprintf(buff, "%" PRId64 " %s in set", mysql_num_rows(result),
                   mysql_num_rows(result) == 1LL ? "row" : "rows");
         end_pager();
         if (mysql_errno(&mysql)) error = put_error(&mysql);
@@ -3275,14 +3382,15 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
     } else if (mysql_affected_rows(&mysql) == ~(ulonglong)0)
       my_stpcpy(buff, "Query OK");
     else if (!batchmode)
-      sprintf(buff, "Query OK, %lld %s affected", mysql_affected_rows(&mysql),
+      sprintf(buff, "Query OK, %" PRId64 " %s affected",
+              mysql_affected_rows(&mysql),
               mysql_affected_rows(&mysql) == 1LL ? "row" : "rows");
 
     pos = strend(buff);
     if ((warnings = mysql_warning_count(&mysql)) && !batchmode) {
       *pos++ = ',';
       *pos++ = ' ';
-      pos = int10_to_str(warnings, pos, 10);
+      pos = longlong10_to_str(warnings, pos, 10);
       pos = my_stpcpy(pos, " warning");
       if (warnings != 1) *pos++ = 's';
     }
@@ -3304,11 +3412,10 @@ end:
   /* Show warnings if any or error occurred */
   if (show_warnings == 1 && (warnings >= 1 || error)) print_warnings();
 
-  if (!error && !status.batch &&
-      (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+  if (!error && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
     get_current_db();
 
-  executing_query = 0;
+  executing_query = false;
   return error; /* New command follows */
 }
 
@@ -3340,86 +3447,27 @@ static void init_tee(const char *file_name) {
   OUTFILE = new_outfile;
   strmake(outfile, file_name, FN_REFLEN - 1);
   tee_fprintf(stdout, "Logging to file '%s'\n", file_name);
-  opt_outfile = 1;
+  opt_outfile = true;
   return;
 }
 
 static void end_tee() {
   my_fclose(OUTFILE, MYF(0));
-  OUTFILE = 0;
-  opt_outfile = 0;
+  OUTFILE = nullptr;
+  opt_outfile = false;
   return;
 }
 
 static int com_ego(String *buffer, char *line) {
   int result;
   bool oldvertical = vertical;
-  vertical = 1;
+  vertical = true;
   result = com_go(buffer, line);
   vertical = oldvertical;
   return result;
 }
 
-static const char *fieldtype2str(enum enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_BIT:
-      return "BIT";
-    case MYSQL_TYPE_BLOB:
-      return "BLOB";
-    case MYSQL_TYPE_DATE:
-      return "DATE";
-    case MYSQL_TYPE_DATETIME:
-      return "DATETIME";
-    case MYSQL_TYPE_NEWDECIMAL:
-      return "NEWDECIMAL";
-    case MYSQL_TYPE_DECIMAL:
-      return "DECIMAL";
-    case MYSQL_TYPE_DOUBLE:
-      return "DOUBLE";
-    case MYSQL_TYPE_ENUM:
-      return "ENUM";
-    case MYSQL_TYPE_FLOAT:
-      return "FLOAT";
-    case MYSQL_TYPE_GEOMETRY:
-      return "GEOMETRY";
-    case MYSQL_TYPE_INT24:
-      return "INT24";
-    case MYSQL_TYPE_JSON:
-      return "JSON";
-    case MYSQL_TYPE_LONG:
-      return "LONG";
-    case MYSQL_TYPE_LONGLONG:
-      return "LONGLONG";
-    case MYSQL_TYPE_LONG_BLOB:
-      return "LONG_BLOB";
-    case MYSQL_TYPE_MEDIUM_BLOB:
-      return "MEDIUM_BLOB";
-    case MYSQL_TYPE_NEWDATE:
-      return "NEWDATE";
-    case MYSQL_TYPE_NULL:
-      return "NULL";
-    case MYSQL_TYPE_SET:
-      return "SET";
-    case MYSQL_TYPE_SHORT:
-      return "SHORT";
-    case MYSQL_TYPE_STRING:
-      return "STRING";
-    case MYSQL_TYPE_TIME:
-      return "TIME";
-    case MYSQL_TYPE_TIMESTAMP:
-      return "TIMESTAMP";
-    case MYSQL_TYPE_TINY:
-      return "TINY";
-    case MYSQL_TYPE_TINY_BLOB:
-      return "TINY_BLOB";
-    case MYSQL_TYPE_VAR_STRING:
-      return "VAR_STRING";
-    case MYSQL_TYPE_YEAR:
-      return "YEAR";
-    default:
-      return "?-unknown-?";
-  }
-}
+const char *fieldtype2str(enum enum_field_types type);
 
 static char *fieldflags2str(uint f) {
   static char buf[1024];
@@ -3473,7 +3521,7 @@ static void print_field_types(MYSQL_RES *result) {
                 "Flags:      %s\n\n",
                 ++i, field->name, field->catalog, field->db, field->table,
                 field->org_table, fieldtype2str(field->type),
-                get_charset_name(field->charsetnr), field->charsetnr,
+                get_collation_name(field->charsetnr), field->charsetnr,
                 field->length, field->max_length, field->decimals,
                 fieldflags2str(field->flags));
   }
@@ -3491,8 +3539,8 @@ static bool is_binary_field(MYSQL_FIELD *field) {
        field->type == MYSQL_TYPE_VAR_STRING ||
        field->type == MYSQL_TYPE_STRING || field->type == MYSQL_TYPE_VARCHAR ||
        field->type == MYSQL_TYPE_GEOMETRY))
-    return 1;
-  return 0;
+    return true;
+  return false;
 }
 
 /* Print binary value as hex literal (0x ...) */
@@ -3501,11 +3549,19 @@ static void print_as_hex(FILE *output_file, const char *str, ulong len,
                          ulong total_bytes_to_send) {
   const char *ptr = str, *end = ptr + len;
   ulong i;
-  fprintf(output_file, "0x");
-  for (; ptr < end; ptr++)
-    fprintf(output_file, "%02X", *(pointer_cast<const uchar *>(ptr)));
-  for (i = 2 * len + 2; i < total_bytes_to_send; i++)
-    tee_putc((int)' ', output_file);
+
+  if (str != nullptr) {
+    fprintf(output_file, "0x");
+    for (; ptr < end; ptr++)
+      fprintf(output_file, "%02X",
+              *(static_cast<const uchar *>(static_cast<const void *>(ptr))));
+    /* Printed string length: two chars "0x" + two chars for each byte. */
+    i = 2 + len * 2;
+  } else {
+    i = fprintf(output_file, "NULL");
+  }
+  for (; i < total_bytes_to_send; i++)
+    tee_putc(static_cast<int>(' '), output_file);
 }
 
 static void print_table_data(MYSQL_RES *result) {
@@ -3556,7 +3612,6 @@ static void print_table_data(MYSQL_RES *result) {
   }
 
   while ((cur = mysql_fetch_row(result))) {
-    if (interrupted_query) break;
     ulong *lengths = mysql_fetch_lengths(result);
     (void)tee_fputs("| ", PAGER);
     mysql_field_seek(result, 0);
@@ -3569,7 +3624,7 @@ static void print_table_data(MYSQL_RES *result) {
 
       if (off) (void)tee_fputs(" ", PAGER);
 
-      if (cur[off] == NULL) {
+      if (cur[off] == nullptr) {
         buffer = "NULL";
         data_length = 4;
       } else {
@@ -3581,12 +3636,13 @@ static void print_table_data(MYSQL_RES *result) {
       field_max_length = field->max_length;
 
       /*
-       How many text cells on the screen will this string span?  If it contains
-       multibyte characters, then the number of characters we occupy on screen
-       will be fewer than the number of bytes we occupy in memory.
+       How many text cells on the screen will this string span?  If it
+       contains multibyte characters, then the number of characters we occupy
+       on screen will be fewer than the number of bytes we occupy in memory.
 
        We need to find how much screen real-estate we will occupy to know how
-       many extra padding-characters we should send with the printing function.
+       many extra padding-characters we should send with the printing
+       function.
       */
       visible_length = charset_info->cset->numcells(charset_info, buffer,
                                                     buffer + data_length);
@@ -3608,6 +3664,10 @@ static void print_table_data(MYSQL_RES *result) {
       tee_fputs(" |", PAGER);
     }
     (void)tee_fputs("\n", PAGER);
+
+    // Check interrupted_query last; this ensures that we get at least one
+    // row. This is useful for aborted EXPLAIN ANALYZE queries.
+    if (interrupted_query) break;
   }
   tee_puts(separator.ptr(), PAGER);
   my_safe_afree((bool *)num_flag, sz, MAX_ALLOCA_SIZE);
@@ -3656,14 +3716,14 @@ static int get_result_width(MYSQL_RES *result) {
   MYSQL_FIELD *field;
   MYSQL_FIELD_OFFSET offset;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   offset = mysql_field_tell(result);
-  DBUG_ASSERT(offset == 0);
+  assert(offset == 0);
 #else
   offset = 0;
 #endif
 
-  while ((field = mysql_fetch_field(result)) != NULL)
+  while ((field = mysql_fetch_field(result)) != nullptr)
     len +=
         get_field_disp_length(field) + 3; /* plus bar, space, & final space */
 
@@ -3807,7 +3867,7 @@ static void print_warnings() {
   const char *query;
   MYSQL_RES *result;
   MYSQL_ROW cur;
-  my_ulonglong num_rows;
+  uint64_t num_rows;
 
   /* Save current error before calling "show warnings" */
   uint error = mysql_errno(&mysql);
@@ -3828,7 +3888,7 @@ static void print_warnings() {
     messages.  To be safe, skip printing the duplicate only if it is the only
     warning.
   */
-  if (!cur || (num_rows == 1 && error == (uint)strtoul(cur[1], NULL, 10)))
+  if (!cur || (num_rows == 1 && error == (uint)strtoul(cur[1], nullptr, 10)))
     goto end;
 
   /* Print the warnings */
@@ -3845,7 +3905,7 @@ end:
 static const char *array_value(const char **array, char key) {
   for (; *array; array += 2)
     if (**array == key) return array[1];
-  return 0;
+  return nullptr;
 }
 
 static void xmlencode_print(const char *src, uint length) {
@@ -3897,8 +3957,8 @@ static void print_tab_data(MYSQL_RES *result) {
   }
 }
 
-static int com_tee(String *buffer MY_ATTRIBUTE((unused)),
-                   char *line MY_ATTRIBUTE((unused))) {
+static int com_tee(String *buffer [[maybe_unused]],
+                   char *line [[maybe_unused]]) {
   char file_name[FN_REFLEN], *end, *param;
 
   while (my_isspace(charset_info, *line)) line++;
@@ -3930,8 +3990,8 @@ static int com_tee(String *buffer MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-static int com_notee(String *buffer MY_ATTRIBUTE((unused)),
-                     char *line MY_ATTRIBUTE((unused))) {
+static int com_notee(String *buffer [[maybe_unused]],
+                     char *line [[maybe_unused]]) {
   if (opt_outfile) end_tee();
   tee_fprintf(stdout, "Outfile disabled.\n");
   return 0;
@@ -3942,8 +4002,8 @@ static int com_notee(String *buffer MY_ATTRIBUTE((unused)),
 */
 
 #ifdef USE_POPEN
-static int com_pager(String *buffer MY_ATTRIBUTE((unused)),
-                     char *line MY_ATTRIBUTE((unused))) {
+static int com_pager(String *buffer [[maybe_unused]],
+                     char *line [[maybe_unused]]) {
   char pager_name[FN_REFLEN], *end, *param;
 
   if (status.batch) return 0;
@@ -3957,7 +4017,7 @@ static int com_pager(String *buffer MY_ATTRIBUTE((unused)),
   {
     if (!default_pager_set) {
       tee_fprintf(stdout, "Default pager wasn't set, using stdout.\n");
-      opt_nopager = 1;
+      opt_nopager = true;
       my_stpcpy(pager, "stdout");
       PAGER = stdout;
       return 0;
@@ -3972,15 +4032,15 @@ static int com_pager(String *buffer MY_ATTRIBUTE((unused)),
     my_stpcpy(pager, pager_name);
     my_stpcpy(default_pager, pager_name);
   }
-  opt_nopager = 0;
+  opt_nopager = false;
   tee_fprintf(stdout, "PAGER set to '%s'\n", pager);
   return 0;
 }
 
-static int com_nopager(String *buffer MY_ATTRIBUTE((unused)),
-                       char *line MY_ATTRIBUTE((unused))) {
+static int com_nopager(String *buffer [[maybe_unused]],
+                       char *line [[maybe_unused]]) {
   my_stpcpy(pager, "stdout");
-  opt_nopager = 1;
+  opt_nopager = true;
   PAGER = stdout;
   tee_fprintf(stdout, "PAGER set to stdout\n");
   return 0;
@@ -3992,7 +4052,7 @@ static int com_nopager(String *buffer MY_ATTRIBUTE((unused)),
 */
 
 #ifdef USE_POPEN
-static int com_edit(String *buffer, char *line MY_ATTRIBUTE((unused))) {
+static int com_edit(String *buffer, char *line [[maybe_unused]]) {
   char filename[FN_REFLEN], buff[160];
   int fd, tmp;
   const char *editor;
@@ -4030,23 +4090,22 @@ err:
 
 /* If arg is given, exit without errors. This happens on command 'quit' */
 
-static int com_quit(String *buffer MY_ATTRIBUTE((unused)),
-                    char *line MY_ATTRIBUTE((unused))) {
+static int com_quit(String *buffer [[maybe_unused]],
+                    char *line [[maybe_unused]]) {
   status.exit_status = 0;
   return 1;
 }
 
-static int com_rehash(String *buffer MY_ATTRIBUTE((unused)),
-                      char *line MY_ATTRIBUTE((unused))) {
+static int com_rehash(String *buffer [[maybe_unused]],
+                      char *line [[maybe_unused]]) {
 #ifdef HAVE_READLINE
-  build_completion_hash(1, 0);
+  build_completion_hash(true, false);
 #endif
   return 0;
 }
 
-#ifdef USE_POPEN
-static int com_shell(String *buffer MY_ATTRIBUTE((unused)),
-                     char *line MY_ATTRIBUTE((unused))) {
+static int com_shell(String *buffer [[maybe_unused]],
+                     char *line [[maybe_unused]]) {
   char *shell_cmd;
 
   /* Skip space from line begin */
@@ -4065,9 +4124,8 @@ static int com_shell(String *buffer MY_ATTRIBUTE((unused)),
   }
   return 0;
 }
-#endif
 
-static int com_print(String *buffer, char *line MY_ATTRIBUTE((unused))) {
+static int com_print(String *buffer, char *line [[maybe_unused]]) {
   tee_puts("--------------", stdout);
   (void)tee_fputs(buffer->c_ptr(), stdout);
   if (!buffer->length() || (*buffer)[buffer->length() - 1] != '\n')
@@ -4092,23 +4150,25 @@ static int com_connect(String *buffer, char *line) {
 #ifdef EXTRA_DEBUG
     tmp[1] = 0;
 #endif
-    tmp = get_arg(buff, 0);
+    tmp = get_arg(buff, false);
     if (tmp && *tmp) {
       my_free(current_db);
       current_db = my_strdup(PSI_NOT_INSTRUMENTED, tmp, MYF(MY_WME));
-      tmp = get_arg(buff, 1);
+      tmp = get_arg(buff, true);
       if (tmp) {
         my_free(current_host);
         current_host = my_strdup(PSI_NOT_INSTRUMENTED, tmp, MYF(MY_WME));
+        my_free(dns_srv_name);
+        dns_srv_name = nullptr;
       }
     } else {
       /* Quick re-connect */
-      opt_rehash = 0; /* purecov: tested */
+      opt_rehash = false; /* purecov: tested */
     }
     buffer->length(0);  // command used
   } else
-    opt_rehash = 0;
-  error = sql_connect(current_host, current_db, current_user, opt_password, 0);
+    opt_rehash = false;
+  error = sql_connect(current_host, current_db, current_user, 0);
   opt_rehash = save_rehash;
 
   if (connected) {
@@ -4121,7 +4181,7 @@ static int com_connect(String *buffer, char *line) {
   return error;
 }
 
-static int com_source(String *buffer MY_ATTRIBUTE((unused)), char *line) {
+static int com_source(String *buffer [[maybe_unused]], char *line) {
   char source_name[FN_REFLEN], *end, *param;
   LINE_BUFFER *line_buff;
   int error;
@@ -4167,11 +4227,11 @@ static int com_source(String *buffer MY_ATTRIBUTE((unused)), char *line) {
 }
 
 /* ARGSUSED */
-static int com_delimiter(String *buffer MY_ATTRIBUTE((unused)), char *line) {
+static int com_delimiter(String *buffer [[maybe_unused]], char *line) {
   char buff[256], *tmp;
 
   strmake(buff, line, sizeof(buff) - 1);
-  tmp = get_arg(buff, 0);
+  tmp = get_arg(buff, false);
 
   if (!tmp || !*tmp) {
     put_info("DELIMITER must be followed by a 'delimiter' character or string",
@@ -4190,7 +4250,7 @@ static int com_delimiter(String *buffer MY_ATTRIBUTE((unused)), char *line) {
 }
 
 /* ARGSUSED */
-static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
+static int com_use(String *buffer [[maybe_unused]], char *line) {
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
   uint warnings;
@@ -4205,7 +4265,7 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
     tmp = buff;
   } else {
     strmake(buff, line, sizeof(buff) - 1);
-    tmp = get_arg(buff, 0);
+    tmp = get_arg(buff, false);
   }
 
   if (!tmp || !*tmp) {
@@ -4216,12 +4276,13 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
     We need to recheck the current database, because it may change
     under our feet, for example if DROP DATABASE or RENAME DATABASE
     (latter one not yet available by the time the comment was written)
+    If this command fails we assume we lost connection.
   */
-  get_current_db();
+  if (get_current_db()) connected = false;
 
   if (!current_db || cmp_database(charset_info, current_db, tmp)) {
     if (one_database) {
-      skip_updates = 1;
+      skip_updates = true;
       select_db = 0;  // don't do mysql_select_db()
     } else
       select_db = 2;  // do mysql_select_db() and build_completion_hash()
@@ -4233,7 +4294,7 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
       change since last USE (see bug#10979).
       For performance purposes, we'll skip rebuilding of completion hash.
     */
-    skip_updates = 0;
+    skip_updates = false;
     select_db = 1;  // do only mysql_select_db(), without completion
   }
 
@@ -4253,7 +4314,7 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
     my_free(current_db);
     current_db = my_strdup(PSI_NOT_INSTRUMENTED, tmp, MYF(MY_WME));
 #ifdef HAVE_READLINE
-    if (select_db > 1) build_completion_hash(opt_rehash, 1);
+    if (select_db > 1) build_completion_hash(opt_rehash, true);
 #endif
   }
 
@@ -4287,7 +4348,7 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
 */
 
 static int normalize_dbname(const char *line, char *buff, uint buff_size) {
-  MYSQL_RES *res = NULL;
+  MYSQL_RES *res = nullptr;
 
   /* Send the "USE db" commmand to the server. */
   if (mysql_query(&mysql, line)) return 1;
@@ -4316,17 +4377,77 @@ static int normalize_dbname(const char *line, char *buff, uint buff_size) {
   return 0;
 }
 
-static int com_warnings(String *buffer MY_ATTRIBUTE((unused)),
-                        char *line MY_ATTRIBUTE((unused))) {
-  show_warnings = 1;
+static int com_warnings(String *buffer [[maybe_unused]],
+                        char *line [[maybe_unused]]) {
+  show_warnings = true;
   put_info("Show warnings enabled.", INFO_INFO);
   return 0;
 }
 
-static int com_nowarnings(String *buffer MY_ATTRIBUTE((unused)),
-                          char *line MY_ATTRIBUTE((unused))) {
-  show_warnings = 0;
+static int com_nowarnings(String *buffer [[maybe_unused]],
+                          char *line [[maybe_unused]]) {
+  show_warnings = false;
   put_info("Show warnings disabled.", INFO_INFO);
+  return 0;
+}
+
+static int com_query_attributes(String *buffer [[maybe_unused]], char *line) {
+  char buff[1024], *param, name[1024];
+  memset(buff, 0, sizeof(buff));
+  strmake(buff, line, sizeof(buff) - 1);
+  param = buff;
+  global_attrs->clear(connected ? &mysql : nullptr);
+  do {
+    param = get_arg(param, param != buff);
+    if (!param || !*param) break;
+
+    strncpy(name, param, sizeof(name) - 1);
+    param = get_arg(param, true);
+    if (!param || !*param) {
+      return put_info("Usage: query_attributes name1 value1 name2 value2 ...",
+                      INFO_ERROR, 0);
+    }
+
+    if (global_attrs->push_param(name, param))
+      return put_info("Failed to push a parameter", INFO_ERROR, 0);
+  } while (param != nullptr);
+  return 0;
+}
+
+static int com_ssl_session_data_print(String *buffer [[maybe_unused]],
+                                      char *line) {
+  char msgbuf[256];
+  char *param = get_arg(line, false);
+  const char *err_text = nullptr;
+  FILE *fo = nullptr;
+  void *data = nullptr;
+
+  if (param) {
+    if (nullptr == (fo = fopen(param, "w"))) {
+      err_text = "Failed to open the output file";
+      goto end;
+    }
+  } else
+    fo = stdout;
+
+  data = mysql_get_ssl_session_data(&mysql, 0, nullptr);
+  if (!data) {
+    err_text = nullptr;
+    put_error(&mysql);
+    goto end;
+  }
+  if (0 > fputs(reinterpret_cast<char *>(data), fo)) {
+    snprintf(msgbuf, sizeof(msgbuf), "Write of session data failed: %d (%s)",
+             errno, strerror(errno));
+    err_text = &msgbuf[0];
+    goto end;
+  }
+  if (fo == stdout) fputs("\n", fo);
+
+end:
+  if (data) mysql_free_ssl_session_data(&mysql, data);
+  if (fo && fo != stdout) fclose(fo);
+  if (err_text) return put_info(err_text, INFO_ERROR);
   return 0;
 }
 
@@ -4342,7 +4463,7 @@ static int com_nowarnings(String *buffer MY_ATTRIBUTE((unused)),
 
 char *get_arg(char *line, bool get_next_arg) {
   char *ptr, *start;
-  bool quoted = 0, valid_arg = 0;
+  bool quoted = false, valid_arg = false;
   char qtype = 0;
 
   ptr = line;
@@ -4363,7 +4484,7 @@ char *get_arg(char *line, bool get_next_arg) {
   while (my_isspace(charset_info, *ptr)) ptr++;
   if (*ptr == '\'' || *ptr == '\"' || *ptr == '`') {
     qtype = *ptr;
-    quoted = 1;
+    quoted = true;
     ptr++;
   }
   for (start = ptr; *ptr; ptr++) {
@@ -4388,7 +4509,7 @@ static int get_quote_count(const char *line) {
   int quote_count = 0;
   const char *quote = line;
 
-  while ((quote = strpbrk(quote, "'`\"")) != NULL) {
+  while ((quote = strpbrk(quote, "'`\"")) != nullptr) {
     quote_count++;
     quote++;
   }
@@ -4396,10 +4517,10 @@ static int get_quote_count(const char *line) {
   return quote_count;
 }
 
-static int sql_real_connect(char *host, char *database, char *user,
-                            char *password, uint silent) {
+static int sql_real_connect(char *host, char *database, char *user, char *,
+                            uint silent) {
   if (connected) {
-    connected = 0;
+    connected = false;
 #ifdef HAVE_SETNS
     if (opt_network_namespace) (void)release_network_namespace_resources();
 #endif
@@ -4408,7 +4529,7 @@ static int sql_real_connect(char *host, char *database, char *user,
 
   mysql_init(&mysql);
   if (init_connection_options(&mysql)) {
-    (void)put_error(&mysql);
+    put_error_if_any(&mysql);
     (void)fflush(stdout);
     return ignore_errors ? -1 : 1;
   }
@@ -4443,10 +4564,16 @@ static int sql_real_connect(char *host, char *database, char *user,
     return ignore_errors ? -1 : 1;  // Abort
   }
 #endif
-
-  if (!mysql_real_connect(&mysql, host, user, password, database,
-                          opt_mysql_port, opt_mysql_unix_port,
-                          connect_flag | CLIENT_MULTI_STATEMENTS)) {
+  MYSQL *ret;
+  if (dns_srv_name)
+    ret = mysql_real_connect_dns_srv(&mysql, dns_srv_name, user, nullptr,
+                                     database,
+                                     connect_flag | CLIENT_MULTI_STATEMENTS);
+  else
+    ret = mysql_real_connect(&mysql, host, user, nullptr, database,
+                             opt_mysql_port, opt_mysql_unix_port,
+                             connect_flag | CLIENT_MULTI_STATEMENTS);
+  if (!ret) {
 #ifdef HAVE_SETNS
     if (opt_network_namespace) (void)restore_original_network_namespace();
 #endif
@@ -4465,6 +4592,15 @@ static int sql_real_connect(char *host, char *database, char *user,
     return -1;  // Retryable
   }
 
+  /* do user registration */
+  if (opt_fido_register_factor) {
+    char errmsg[FN_REFLEN];
+    if (user_device_registration(&mysql, opt_fido_register_factor, errmsg)) {
+      put_info(errmsg, INFO_ERROR);
+      return 1;
+    }
+  }
+
 #ifdef HAVE_SETNS
   if (opt_network_namespace && restore_original_network_namespace()) {
     if (!silent) {
@@ -4478,9 +4614,21 @@ static int sql_real_connect(char *host, char *database, char *user,
   }
 #endif
 
+  if (ssl_client_check_post_connect_ssl_setup(
+          &mysql, [](const char *err) { put_info(err, INFO_ERROR); }))
+    return 1;
+
+  void *new_ssl_session_data = mysql_get_ssl_session_data(&mysql, 0, nullptr);
+  if (new_ssl_session_data != nullptr) {
+    if (ssl_session_data != nullptr)
+      mysql_free_ssl_session_data(&mysql, ssl_session_data);
+    ssl_session_data = new_ssl_session_data;
+  } else {
+    DBUG_PRINT("error", ("unable to save SSL session"));
+  }
 #ifdef _WIN32
   /* Convert --execute buffer from UTF8MB4 to connection character set */
-  if (!execute_buffer_conversion_done++ && status.line_buff &&
+  if (!execute_buffer_conversion_done && status.line_buff &&
       !status.line_buff->file && /* Convert only -e buffer, not real file */
       status.line_buff->buffer < status.line_buff->end && /* Non-empty */
       !my_charset_same(&my_charset_utf8mb4_bin, mysql.charset)) {
@@ -4505,14 +4653,15 @@ static int sql_real_connect(char *host, char *database, char *user,
               batch_readline_command(NULL, (char *)tmp.c_ptr_safe())))
       return 1;
   }
+  execute_buffer_conversion_done = true;
 #endif /* _WIN32 */
 
   charset_info = mysql.charset;
 
-  connected = 1;
+  connected = true;
   mysql.reconnect = debug_info_flag;  // We want to know if this happens
 #ifdef HAVE_READLINE
-  build_completion_hash(opt_rehash, 1);
+  build_completion_hash(opt_rehash, true);
 #endif
   return 0;
 }
@@ -4532,14 +4681,24 @@ static bool init_connection_options(MYSQL *mysql) {
   if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
 
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+  if (opt_compress_algorithm)
+    mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_infile);
 
   if (SSL_SET_OPTIONS(mysql)) {
     tee_fprintf(stdout, "%s", SSL_SET_OPTIONS_ERROR);
-    return 1;
+    return true;
   }
+
+  if (ssl_session_data)
+    mysql_options(mysql, MYSQL_OPT_SSL_SESSION_DATA, ssl_session_data);
+
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 
@@ -4562,6 +4721,11 @@ static bool init_connection_options(MYSQL *mysql) {
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
+  if (opt_load_data_local_dir &&
+      mysql_options(mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
+                    opt_load_data_local_dir))
+    return true;
+
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
@@ -4573,7 +4737,7 @@ static bool init_connection_options(MYSQL *mysql) {
     mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&opt_enable_cleartext_plugin);
 
-  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
   if (current_os_user)
     mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "os_user",
@@ -4584,16 +4748,33 @@ static bool init_connection_options(MYSQL *mysql) {
 
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
-  return 0;
+  set_password_options(mysql);
+
+  if (opt_oci_config_file != nullptr) {
+    /* set OCI config file option if required */
+    struct st_mysql_client_plugin *oci_iam_plugin = mysql_client_find_plugin(
+        mysql, "authentication_oci_client", MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+    if (!oci_iam_plugin) {
+      put_info("Cannot load the authentication_oci_client plugin.", INFO_ERROR);
+      return 1;
+    }
+    if (mysql_plugin_options(oci_iam_plugin, "oci-config-file",
+                             opt_oci_config_file)) {
+      put_info(
+          "Failed to set config file for authentication_oci_client plugin.",
+          INFO_ERROR);
+      return 1;
+    }
+  }
+  return false;
 }
 
-static int sql_connect(char *host, char *database, char *user, char *password,
-                       uint silent) {
-  bool message = 0;
+static int sql_connect(char *host, char *database, char *user, uint silent) {
+  bool message = false;
   uint count = 0;
   int error;
   for (;;) {
-    if ((error = sql_real_connect(host, database, user, password, wait_flag)) >=
+    if ((error = sql_real_connect(host, database, user, nullptr, wait_flag)) >=
         0) {
       if (count) {
         tee_fputs("\n", stderr);
@@ -4603,7 +4784,7 @@ static int sql_connect(char *host, char *database, char *user, char *password,
     }
     if (!wait_flag) return ignore_errors ? -1 : 1;
     if (!message && !silent) {
-      message = 1;
+      message = true;
       tee_fputs("Waiting", stderr);
       (void)fflush(stderr);
     }
@@ -4616,12 +4797,12 @@ static int sql_connect(char *host, char *database, char *user, char *password,
   }
 }
 
-static int com_status(String *buffer MY_ATTRIBUTE((unused)),
-                      char *line MY_ATTRIBUTE((unused))) {
+static int com_status(String *buffer [[maybe_unused]],
+                      char *line [[maybe_unused]]) {
   const char *status_str;
   char buff[40];
   ulonglong id;
-  MYSQL_RES *result = NULL;
+  MYSQL_RES *result = nullptr;
 
   if (mysql_real_query_for_lazy(
           STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
@@ -4643,11 +4824,9 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
     mysql_free_result(result);
   }
 
-#if defined(HAVE_OPENSSL)
   if ((status_str = mysql_get_ssl_cipher(&mysql)))
     tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n", status_str);
   else
-#endif /* HAVE_OPENSSL */
     tee_puts("SSL:\t\t\tNot in use", stdout);
 
   if (skip_updates) {
@@ -4690,6 +4869,9 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress) tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
+  if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexadecimal\n");
+  if (mysql_get_ssl_session_reused(&mysql))
+    tee_fprintf(stdout, "SSL session reused:\ttrue\n");
 
   if ((status_str = mysql_stat(&mysql)) && !mysql_error(&mysql)[0]) {
     ulong sec;
@@ -4697,7 +4879,7 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
     /* print label */
     tee_fprintf(stdout, "%.*s\t\t\t", (int)(pos - status_str), status_str);
     if ((status_str = str2int(pos, 10, 0, LONG_MAX, (long *)&sec))) {
-      nice_time((double)sec, buff, 0);
+      nice_time((double)sec, buff, false);
       tee_puts(buff, stdout);                  /* print nice time */
       while (*status_str == ' ') status_str++; /* to next info */
       tee_putc('\n', stdout);
@@ -4720,7 +4902,7 @@ Max number of examined row combination in a join is set to: %lu\n\n",
 
 static const char *server_version_string(MYSQL *con) {
   /* Only one thread calls this, so no synchronization is needed */
-  if (server_version == NULL) {
+  if (server_version == nullptr) {
     MYSQL_RES *result;
 
     /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
@@ -4747,7 +4929,7 @@ static const char *server_version_string(MYSQL *con) {
       keep things simple.
     */
 
-    if (server_version == NULL)
+    if (server_version == nullptr)
       server_version = my_strdup(PSI_NOT_INSTRUMENTED,
                                  mysql_get_server_info(con), MYF(MY_WME));
   }
@@ -4807,6 +4989,19 @@ static int put_info(const char *str, INFO_TYPE info_type, uint error,
 static int put_error(MYSQL *con) {
   return put_info(mysql_error(con), INFO_ERROR, mysql_errno(con),
                   mysql_sqlstate(con));
+}
+
+/**
+ Prints the SQL error, if any
+
+ Similar to @ref put_error, but prints the error only if there is any.
+
+ @param con the connection to check for errors
+*/
+static void put_error_if_any(MYSQL *con) {
+  const char *err = mysql_error(con);
+  if (err && *err)
+    put_info(err, INFO_ERROR, mysql_errno(con), mysql_sqlstate(con));
 }
 
 static void remove_cntrl(String *buffer) {
@@ -4960,19 +5155,19 @@ static void nice_time(double sec, char *buff, bool part_second) {
   if (sec >= 3600.0 * 24) {
     tmp = (ulong)floor(sec / (3600.0 * 24));
     sec -= 3600.0 * 24 * tmp;
-    buff = int10_to_str((long)tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600.0) {
     tmp = (ulong)floor(sec / 3600.0);
     sec -= 3600.0 * tmp;
-    buff = int10_to_str((long)tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60.0) {
     tmp = (ulong)floor(sec / 60.0);
     sec -= 60.0 * tmp;
-    buff = int10_to_str((long)tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, " min ");
   }
   if (part_second)
@@ -4982,7 +5177,7 @@ static void nice_time(double sec, char *buff, bool part_second) {
 }
 
 static void end_timer(ulong start_time, char *buff) {
-  nice_time((double)(start_timer() - start_time) / CLOCKS_PER_SEC, buff, 1);
+  nice_time((double)(start_timer() - start_time) / CLOCKS_PER_SEC, buff, true);
 }
 
 static void mysql_end_timer(ulong start_time, char *buff) {
@@ -4993,8 +5188,8 @@ static void mysql_end_timer(ulong start_time, char *buff) {
 }
 
 static const char *construct_prompt() {
-  processed_prompt.mem_free();  // Erase the old prompt
-  time_t lclock = time(NULL);   // Get the date struct
+  processed_prompt.mem_free();    // Erase the old prompt
+  time_t lclock = time(nullptr);  // Get the date struct
   struct tm *t = localtime(&lclock);
 
   /* parse thru the settings for the prompt */
@@ -5130,6 +5325,10 @@ static const char *construct_prompt() {
         case 'l':
           processed_prompt.append(delimiter_str);
           break;
+        case 'T':
+          if (mysql.server_status & SERVER_STATUS_IN_TRANS)
+            processed_prompt.append("*");
+          break;
         default:
           processed_prompt.append(c);
       }
@@ -5140,16 +5339,14 @@ static const char *construct_prompt() {
 }
 
 static void add_int_to_prompt(int toadd) {
-  char buffer[16];
-  int10_to_str(toadd, buffer, 10);
-  processed_prompt.append(buffer);
+  processed_prompt.append_longlong(toadd);
 }
 
 static void init_username() {
   my_free(full_username);
   my_free(part_username);
 
-  MYSQL_RES *result = NULL;
+  MYSQL_RES *result = nullptr;
   if (!mysql_query(&mysql, "select USER()") &&
       (result = mysql_use_result(&mysql))) {
     MYSQL_ROW cur = mysql_fetch_row(result);
@@ -5184,7 +5381,7 @@ static void get_current_os_user() {
 #ifdef HAVE_GETPWUID
   struct passwd *pw;
 
-  if ((pw = getpwuid(geteuid())) != NULL)
+  if ((pw = getpwuid(geteuid())) != nullptr)
     user = pw->pw_name;
   else
 #endif
@@ -5206,7 +5403,7 @@ static void get_current_os_sudouser() {
   return;
 }
 
-static int com_prompt(String *buffer MY_ATTRIBUTE((unused)), char *line) {
+static int com_prompt(String *buffer [[maybe_unused]], char *line) {
   char *ptr = strchr(line, ' ');
   prompt_counter = 0;
   my_free(current_prompt);
@@ -5219,9 +5416,10 @@ static int com_prompt(String *buffer MY_ATTRIBUTE((unused)), char *line) {
   return 0;
 }
 
-static int com_resetconnection(String *buffer MY_ATTRIBUTE((unused)),
-                               char *line MY_ATTRIBUTE((unused))) {
+static int com_resetconnection(String *buffer [[maybe_unused]],
+                               char *line [[maybe_unused]]) {
   int error;
+  global_attrs->clear(connected ? &mysql : nullptr);
   error = mysql_reset_connection(&mysql);
   if (error) {
     if (status.batch) return 0;

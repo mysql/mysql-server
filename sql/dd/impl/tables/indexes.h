@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,8 @@ class Indexes : public Object_table_impl {
     FIELD_SE_PRIVATE_DATA,
     FIELD_TABLESPACE_ID,
     FIELD_ENGINE,
+    FIELD_ENGINE_ATTRIBUTE,
+    FIELD_SECONDARY_ENGINE_ATTRIBUTE,
     NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 

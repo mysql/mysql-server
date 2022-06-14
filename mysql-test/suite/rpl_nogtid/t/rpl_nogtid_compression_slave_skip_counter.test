@@ -1,0 +1,67 @@
+# ===== Purpose =====
+#
+# This test verifies that slave_skip_counter works
+# as expected with binlog_transaction_compression
+# and we only skip the expected number of events and
+# not ignore any event.
+#
+# ==== Requirements =====
+#
+# TC1. sql_replica_skip_counter works correctly with
+#      binlog_transaction_compression
+#
+# ==== Implementation ====
+#
+# 1. Setup a normal source-replica and check that its working fine.
+#
+# 2. Set sql_replica_skip_counter = 2 on replica along
+#
+# 3. Set binlog_transaction_compression = ON on source, and execute
+#    few inserts.
+#
+# 4. Verify on replica that only 2 events(Anonymous gtid, Transaction_payload event) which were
+#    corresponding to the first INSERT are skipped, and we have exactly 1 entry in the table 't'
+#
+# 5. Drop and create the table again on source
+#
+# 6. Sync slave with master to ensure that the first DROP query was not skipped and all the events are
+#    replicated without any error
+#
+# ==== Reference ====
+#
+# Bug#31973055:SLAVE_SKIP_COUNTER WON'T CONSIDER COMPRESSED TRANSACTIONS
+#
+
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+CREATE TABLE t(a int);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET GLOBAL sql_replica_skip_counter = 1;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--let $saved_binlog_transaction_compression_session_source = `SELECT @@SESSION.binlog_transaction_compression`
+SET SESSION binlog_transaction_compression = ON;
+INSERT INTO t VALUES (10);
+INSERT INTO t VALUES (10);
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond = [SELECT COUNT(*) FROM t] = 1
+--let $assert_text = There should be exactly 1 row in table t
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+CREATE TABLE t(a int);
+DROP TABLE t;
+
+--replace_result $saved_binlog_transaction_compression_session_source BINLOG_TRANSACTION_COMPRESSION_SOURCE
+--eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_source
+# No error here
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

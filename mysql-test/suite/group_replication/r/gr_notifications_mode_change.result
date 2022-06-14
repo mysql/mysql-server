@@ -1,0 +1,119 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start server M1 and M2 with gms_listener service implementation.
+#    Set M2 member weight to 90. M2 becomes primary during mode change.
+#    Delete all notifications on M1 and M2.
+
+# Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+# Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+include/start_group_replication.inc
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:2]
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:%]
+include/assert.inc [Assert that there are 3 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server1]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:2]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:1]
+include/assert.inc [Assert that there are 2 notifications logged of type VIEW %:%]
+include/assert.inc [Assert that there are 6 notifications logged]
+[Truncating gms_listener_example Table]
+
+# 2. Change mode to SPM. M2 becomes primary due to weight.
+#    Assert ROLE notification is broadcasted.
+
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+include/gr_assert_secondary_member.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server2]
+include/gr_assert_primary_member.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+
+# 3. Change mode to MPM.
+#    Assert ROLE notification is broadcasted.
+
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/gr_assert_multi_primary_mode.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server2]
+include/gr_assert_multi_primary_mode.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+
+# 4. Change mode to SPM specifying server1 as primary.
+#    Assert ROLE notification is broadcasted.
+
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");;
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/gr_assert_primary_member.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server2]
+include/gr_assert_secondary_member.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+
+# 5. Switch primary.
+#    Assert ROLE notification is broadcasted.
+
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+include/gr_assert_secondary_member.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server2]
+include/gr_assert_primary_member.inc
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 1 notifications logged]
+[Truncating gms_listener_example Table]
+
+# 6. Cleanup.
+
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+SET SQL_LOG_BIN=0;
+DROP TABLE test.gms_listener_example;
+SET SQL_LOG_BIN=1;
+SET @@GLOBAL.group_replication_member_weight= @member_weight2_save;
+include/stop_group_replication.inc
+# Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
+[connection server1]
+SET SQL_LOG_BIN=0;
+DROP TABLE test.gms_listener_example;
+SET SQL_LOG_BIN=1;
+include/stop_group_replication.inc
+# Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
+include/group_replication_end.inc

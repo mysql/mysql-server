@@ -378,6 +378,8 @@ ts1 timestamp,
 ts2 timestamp(0),
 ts3 timestamp(6)
 ) engine=innodb;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 insert into t1_innodb values (99, 2018, '2018-12-04', '2005-01-26',
 '12:00:00', '11:59:59', '11:59:59.999',
 '2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123',
@@ -398,6 +400,8 @@ ts1 timestamp,
 ts2 timestamp(0),
 ts3 timestamp(6)
 ) engine=ndbcluster;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 insert into t1 values (99, 2018, '2018-12-04', '2005-01-26',
 '12:00:00', '11:59:59', '11:59:59.999',
 '2018-03-04 10:11:12', '2018-03-04 10:11:12', '2018-03-04 10:11:12.555123',

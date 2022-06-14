@@ -22,22 +22,21 @@ connection default;
 #   (same timeout)
 -- source include/not_valgrind.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
-CREATE DATABASE IF NOT EXISTS mysqlslap;
---enable_warnings
+CREATE DATABASE mysqlslap;
 
-# Create utiltity table used to hold the output from ndb_show_table
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
-
+# Create view which displays all user tables.
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test - for example names
+# have surrounding quotes.
+--disable_query_log ONCE
+CREATE VIEW ndb_show_tables_results AS
+  SELECT
+    id,
+    /* Hardcoded since only user tables are selected */
+    'UserTable' AS type,
+    /* Table name is last part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", -1), "'")) AS name
+  FROM ndbinfo.dict_obj_info WHERE type = 2 /* User table */;
 
 --echo
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,7 +47,6 @@ CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
 create table t1 (pk int key, a int) engine ndb;
 insert into t1 values (1,0);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --echo
@@ -89,7 +87,6 @@ ALTER TABLE t1 algorithm=inplace, ADD b INT;
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --echo
@@ -130,7 +127,6 @@ ALTER TABLE t1 algorithm=inplace, ADD c INT;
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --echo
@@ -188,7 +184,6 @@ ALTER TABLE t1 algorithm=inplace, PARTITION BY HASH(pk);
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 
@@ -216,7 +211,7 @@ SELECT * FROM t1;
 
 connection default;
 COMMIT;
---source ndb_show_tables_result.inc
+
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --echo
@@ -226,6 +221,9 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 --echo
 
 # drop the table
-drop table t1, ndb_show_tables_results;
+drop table t1;
 drop database mysqlslap;
 --remove_file $NDB_TOOLS_OUTPUT
+
+--disable_query_log ONCE
+DROP VIEW ndb_show_tables_results;

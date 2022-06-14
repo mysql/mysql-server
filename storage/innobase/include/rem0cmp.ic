@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,16 +35,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "field_types.h"  // enum_field_types
 
 /** Compare two data fields.
-@param[in]	dfield1	data field; must have type field set
-@param[in]	dfield2	data field
-@param[in]	is_asc	true=ASC, false=DESC
+@param[in]      dfield1 data field; must have type field set
+@param[in]      dfield2 data field
+@param[in]      is_asc  true=ASC, false=DESC
 @return the comparison result of dfield1 and dfield2
 @retval 0 if dfield1 is equal to dfield2
 @retval negative if dfield1 is less than dfield2
 @retval positive if dfield1 is greater than dfield2 */
-UNIV_INLINE
-int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
-                      bool is_asc) {
+static inline int cmp_dfield_dfield(const dfield_t *dfield1,
+                                    const dfield_t *dfield2, bool is_asc) {
   const dtype_t *type;
 
   /* The multi-value array data is not expected, however, if it's one
@@ -65,9 +64,8 @@ int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
       dfield_get_len(dfield2)));
 }
 
-UNIV_INLINE
-int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
-                                  const dfield_t *dfield2) {
+static inline int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                                const dfield_t *dfield2) {
   ut_ad(dfield_is_multi_value(dfield1));
   ut_ad(dfield_is_multi_value(dfield2));
   ut_ad(dfield_is_null(dfield2) ||
@@ -97,28 +95,19 @@ int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
               : 1);
 }
 
-/** Compare two B-tree records.
-Only the common first fields are compared, and externally stored field
-are treated as equal.
-@param[in]	rec1		B-tree record
-@param[in]	rec2		B-tree record
-@param[in]	offsets1	rec_get_offsets(rec1, index)
-@param[in]	offsets2	rec_get_offsets(rec2, index)
-@param[out]	matched_fields	number of completely matched fields
-                                within the first field not completely matched
-@return positive, 0, negative if rec1 is greater, equal, less, than rec2,
-respectively */
-UNIV_INLINE
-int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
-                const ulint *offsets2, const dict_index_t *index,
-                ulint *matched_fields) {
+static inline int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2,
+                              const ulint *offsets1, const ulint *offsets2,
+                              const dict_index_t *index,
+                              bool spatial_index_non_leaf,
+                              ulint *matched_fields, bool cmp_btree_recs) {
   ulint match_f;
   int ret;
 
-  ret = cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index, false,
-                               &match_f);
+  ret = cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
+                               spatial_index_non_leaf, false, &match_f,
+                               cmp_btree_recs);
 
-  if (matched_fields != NULL) {
+  if (matched_fields != nullptr) {
     *matched_fields = match_f;
   }
 
@@ -132,9 +121,8 @@ int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
 @return the comparison result of dfield1 and dfield2
 @retval true if dfield1 is equal to dfield2, or a prefix of dfield1
 @retval false otherwise */
-UNIV_INLINE
-bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
-                                 const dfield_t *dfield2) {
+static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
+                                               const dfield_t *dfield2) {
   const dtype_t *type;
 
   ut_ad(dfield_check_typed(dfield1));
@@ -164,16 +152,16 @@ bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
     return (!cs->coll->strnncoll(
         cs, static_cast<uchar *>(dfield_get_data(dfield1)),
         dfield_get_len(dfield1), static_cast<uchar *>(dfield_get_data(dfield2)),
-        dfield_get_len(dfield2), 1));
+        dfield_get_len(dfield2), true));
   }
 
 #ifdef UNIV_NO_ERR_MSGS
-  ib::fatal()
+  ib::fatal(UT_LOCATION_HERE)
 #else
-  ib::fatal(ER_IB_MSG_627)
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_627)
 #endif /* !UNIV_NO_ERR_MSGS */
       << "Unable to find charset-collation " << cs_num;
 
-  return (0);
+  return (false);
 }
 #endif /* UNIV_HOTBACKUP */

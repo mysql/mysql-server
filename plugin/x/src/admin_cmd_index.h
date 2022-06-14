@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "plugin/x/src/admin_cmd_handler.h"
+#include "plugin/x/src/interface/admin_command_arguments.h"
 
 namespace xpl {
 
@@ -37,14 +38,12 @@ class Query_string_builder;
 
 class Admin_command_index {
  public:
-  using Command_arguments = Admin_command_handler::Command_arguments;
+  using Command_arguments = iface::Admin_command_arguments;
   using Argument_appearance = Command_arguments::Appearance_type;
 
-  explicit Admin_command_index(ngs::Session_interface *session)
-      : m_session(session) {}
-  ngs::Error_code create(const std::string &name_space,
-                         Command_arguments *args);
-  ngs::Error_code drop(const std::string &name_space, Command_arguments *args);
+  explicit Admin_command_index(iface::Session *session) : m_session(session) {}
+  ngs::Error_code create(Command_arguments *args);
+  ngs::Error_code drop(Command_arguments *args);
 
   struct Index_field_info {
     std::string m_path;
@@ -58,7 +57,7 @@ class Admin_command_index {
    public:
     virtual ~Index_field_interface() = default;
     virtual ngs::Error_code add_column_if_necessary(
-        ngs::Sql_session_interface *sql_session, const std::string &schema,
+        iface::Sql_session *sql_session, const std::string &schema,
         const std::string &collection, Query_string_builder *qb) const = 0;
     virtual void add_field(Query_string_builder *qb) const = 0;
     virtual bool is_required() const = 0;
@@ -85,13 +84,12 @@ class Admin_command_index {
                                         const std::string &table_name,
                                         ngs::Error_code *error) const;
 
-  const Index_field_interface *create_field(const std::string &name_space,
-                                            const bool is_virtual_allowed,
+  const Index_field_interface *create_field(const bool is_virtual_allowed,
                                             const Index_type_id &index_type,
                                             Command_arguments *constraint,
                                             ngs::Error_code *error) const;
 
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
 };
 
 }  // namespace xpl

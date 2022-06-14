@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,16 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "plugin/x/src/ngs/server_client_timeout.h"
+#include "unittest/gunit/xplugin/xpl/mock/client.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
-namespace ngs {
+namespace xpl {
 
 namespace test {
 
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
+
 // The chrono is missing string to Time_point conversion
 // lets make initialize time constants in constructor
 // relatively from now()
@@ -61,17 +63,17 @@ const xpl::chrono::Time_point TP_NOT_TO_RELEASE_2 =
 const xpl::chrono::Time_point TP_NOT_TO_RELEASE_3 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_NOT_TO_RELEASE_3;
 
-class ServerClientTimeoutTestSuite : public Test {
+class Server_client_timeout_test_suite : public Test {
  public:
-  ServerClientTimeoutTestSuite()
-      : sut(new Server_client_timeout(TIMEPOINT_RELEASE_ALL_BEFORE)) {}
+  Server_client_timeout_test_suite()
+      : sut(new ngs::Server_client_timeout(TIMEPOINT_RELEASE_ALL_BEFORE)) {}
 
-  std::shared_ptr<Client_interface> expectClientValid(
+  std::shared_ptr<iface::Client> expectClientValid(
       const xpl::chrono::Time_point &tp,
-      const Client_interface::Client_state state) {
-    std::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
+      const iface::Client::Client::State state) {
+    std::shared_ptr<StrictMock<mock::Client>> result;
 
-    result.reset(new StrictMock<::xpl::test::Mock_client>());
+    result.reset(new StrictMock<mock::Client>());
 
     EXPECT_CALL(*result.get(), get_accept_time()).WillOnce(Return(tp));
     EXPECT_CALL(*result.get(), get_state()).WillOnce(Return(state));
@@ -81,12 +83,12 @@ class ServerClientTimeoutTestSuite : public Test {
     return result;
   }
 
-  std::shared_ptr<Client_interface> expectClientNotValid(
+  std::shared_ptr<iface::Client> expectClientNotValid(
       const xpl::chrono::Time_point &tp,
-      const Client_interface::Client_state state) {
-    std::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
+      const iface::Client::Client::State state) {
+    std::shared_ptr<StrictMock<mock::Client>> result;
 
-    result.reset(new StrictMock<::xpl::test::Mock_client>());
+    result.reset(new StrictMock<mock::Client>());
 
     EXPECT_CALL(*result.get(), get_accept_time()).WillOnce(Return(tp));
     EXPECT_CALL(*result.get(), get_state()).WillOnce(Return(state));
@@ -98,24 +100,24 @@ class ServerClientTimeoutTestSuite : public Test {
     return result;
   }
 
-  std::unique_ptr<Server_client_timeout> sut;
+  std::unique_ptr<ngs::Server_client_timeout> sut;
 };
 
-TEST_F(ServerClientTimeoutTestSuite,
+TEST_F(Server_client_timeout_test_suite,
        returnInvalidDate_whenNoClientWasProcessed) {
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 struct ClientParams {
   ClientParams(const xpl::chrono::Duration &Duration,
-               const Client_interface::Client_state state)
+               const iface::Client ::Client::State state)
       : m_Duration(Duration),
         m_tp(TIMEPOINT_RELEASE_ALL_BEFORE + Duration),
         m_state(state) {}
 
   xpl::chrono::Duration m_Duration;
   xpl::chrono::Time_point m_tp;
-  Client_interface::Client_state m_state;
+  iface::Client::State m_state;
 };
 
 void PrintTo(const ClientParams &x, ::std::ostream *os) {
@@ -124,7 +126,7 @@ void PrintTo(const ClientParams &x, ::std::ostream *os) {
 }
 
 class ServerClientTimeoutTestSuiteWithClientsState
-    : public ServerClientTimeoutTestSuite,
+    : public Server_client_timeout_test_suite,
       public ::testing::WithParamInterface<ClientParams> {};
 
 class ExpiredClient : public ServerClientTimeoutTestSuiteWithClientsState {};
@@ -157,86 +159,87 @@ TEST_P(NoExpiredClient_stateOk,
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState, ExpiredClient,
-    Values(ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_2, Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_3, Client_interface::Client_accepted),
+    Values(ClientParams(DELTA_TO_RELEASE_1, iface::Client::State::k_accepted),
+           ClientParams(DELTA_TO_RELEASE_2, iface::Client::State::k_accepted),
+           ClientParams(DELTA_TO_RELEASE_3, iface::Client::State::k_accepted),
            ClientParams(DELTA_TO_RELEASE_1,
-                        Client_interface::Client_authenticating_first),
+                        iface::Client::State::k_authenticating_first),
            ClientParams(DELTA_TO_RELEASE_2,
-                        Client_interface::Client_authenticating_first),
+                        iface::Client::State::k_authenticating_first),
            ClientParams(DELTA_TO_RELEASE_3,
-                        Client_interface::Client_authenticating_first)));
+                        iface::Client::State::k_authenticating_first)));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState,
     NoExpiredClient_stateNotOk,
     Values(
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_accepted),
-        ClientParams(DELTA_NOT_TO_RELEASE_2, Client_interface::Client_accepted),
-        ClientParams(DELTA_NOT_TO_RELEASE_3, Client_interface::Client_accepted),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, iface::Client::State::k_accepted),
+        ClientParams(DELTA_NOT_TO_RELEASE_2, iface::Client::State::k_accepted),
+        ClientParams(DELTA_NOT_TO_RELEASE_3, iface::Client::State::k_accepted),
         ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     Client_interface::Client_authenticating_first),
+                     iface::Client::State::k_authenticating_first),
         ClientParams(DELTA_NOT_TO_RELEASE_2,
-                     Client_interface::Client_authenticating_first),
+                     iface::Client::State::k_authenticating_first),
         ClientParams(DELTA_NOT_TO_RELEASE_3,
-                     Client_interface::Client_authenticating_first)));
+                     iface::Client::State::k_authenticating_first)));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationOfClientsThatNoExpiredAndAreInValidState,
     NoExpiredClient_stateOk,
     Values(
         ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     Client_interface::Client_accepted_with_session),
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_running),
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_closing),
-        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_closed),
+                     iface::Client::State::k_accepted_with_session),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, iface::Client::State::k_running),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, iface::Client::State::k_closing),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, iface::Client::State::k_closed),
         ClientParams(DELTA_TO_RELEASE_1,
-                     Client_interface::Client_accepted_with_session),
-        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_running),
-        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_closing),
-        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_closed)));
+                     iface::Client::State::k_accepted_with_session),
+        ClientParams(DELTA_TO_RELEASE_1, iface::Client::State::k_running),
+        ClientParams(DELTA_TO_RELEASE_1, iface::Client::State::k_closing),
+        ClientParams(DELTA_TO_RELEASE_1, iface::Client::State::k_closed)));
 
 TEST_F(
-    ServerClientTimeoutTestSuite,
-    returnDateOfOldestProcessedClient_whenMultipleValidNonAuthClientWereProcessed) {
-  expectClientValid(TP_NOT_TO_RELEASE_1, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_2, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_3, Client_interface::Client_accepted);
+    Server_client_timeout_test_suite,
+    returnDateOfOldestProcessedClient_whenMultipleValidNonAuthClientProcessed) {
+  expectClientValid(TP_NOT_TO_RELEASE_1, iface::Client::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_2, iface::Client::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_3, iface::Client::State::k_accepted);
 
   ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
 
-TEST_F(ServerClientTimeoutTestSuite,
+class Server_client_timeout_test_suite_param
+    : public Server_client_timeout_test_suite,
+      public testing::WithParamInterface<iface::Client::State> {};
+
+TEST_P(Server_client_timeout_test_suite_param,
        returnDateOfOldestNotExpiredNotAuthClient_whenWithMixedClientSet) {
-  expectClientValid(TP_NOT_TO_RELEASE_1, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_2, Client_interface::Client_accepted);
-  expectClientValid(TP_NOT_TO_RELEASE_3, Client_interface::Client_accepted);
-  expectClientNotValid(TP_TO_RELEASE_1, Client_interface::Client_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_1, iface::Client::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_2, iface::Client::State::k_accepted);
+  expectClientValid(TP_NOT_TO_RELEASE_3, iface::Client::State::k_accepted);
+  expectClientNotValid(TP_TO_RELEASE_1, GetParam());
 
   ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
 
-TEST_F(ServerClientTimeoutTestSuite,
+INSTANTIATE_TEST_SUITE_P(InstantiationOfTargetedStates,
+                         Server_client_timeout_test_suite_param,
+                         Values(iface::Client::State::k_invalid,
+                                iface::Client::State::k_accepted,
+                                iface::Client::State::k_authenticating_first));
+
+TEST_F(Server_client_timeout_test_suite,
        returnInvalidDate_whenAllClientAreAuthenticated) {
-  expectClientValid(TP_TO_RELEASE_1, Client_interface::Client_running);
-  expectClientValid(TP_TO_RELEASE_2, Client_interface::Client_closing);
-  expectClientValid(TP_TO_RELEASE_3, Client_interface::Client_closing);
-
-  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
-}
-
-TEST_F(ServerClientTimeoutTestSuite, returnInvalidDate_whenNoInitializedDate) {
-  xpl::chrono::Time_point not_set_Time_point;
-
-  expectClientValid(not_set_Time_point, Client_interface::Client_invalid);
+  expectClientValid(TP_TO_RELEASE_1, iface::Client::State::k_running);
+  expectClientValid(TP_TO_RELEASE_2, iface::Client::State::k_closing);
+  expectClientValid(TP_TO_RELEASE_3, iface::Client::State::k_closing);
 
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 }  // namespace test
-
-}  // namespace ngs
+}  // namespace xpl

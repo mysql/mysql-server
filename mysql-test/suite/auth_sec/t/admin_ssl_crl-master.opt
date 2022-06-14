@@ -1,0 +1,5 @@
+--admin-address=127.0.0.1
+--admin-ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
+--admin-ssl-key=$MYSQL_TEST_DIR/std_data/crl-server-key.pem
+--admin-ssl-cert=$MYSQL_TEST_DIR/std_data/crl-server-cert.pem
+--admin-ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl

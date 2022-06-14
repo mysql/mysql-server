@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,12 +92,12 @@ enum_gcs_error Gcs_async_buffer::initialize() {
       key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond);
   m_free_buffer_cond->init(key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond);
   m_free_buffer_mutex->init(key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
-                            NULL);
+                            nullptr);
 
   m_terminated = false;
   if ((ret_thread =
-           m_consumer->create(key_GCS_THD_Gcs_ext_logger_impl_m_consumer, NULL,
-                              consumer_function, (void *)this))) {
+           m_consumer->create(key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
+                              nullptr, consumer_function, (void *)this))) {
     /* purecov: begin deadcode */
     std::cerr << "Unable to create Gcs_async_buffer consumer thread, "
               << ret_thread << std::endl;
@@ -126,7 +126,7 @@ enum_gcs_error Gcs_async_buffer::finalize() {
   m_free_buffer_mutex->unlock();
 
   // Wait for consumer to finish processing events
-  m_consumer->join(NULL);
+  m_consumer->join(nullptr);
 
   m_wait_for_events_cond->destroy();
   m_free_buffer_cond->destroy();
@@ -260,9 +260,9 @@ void *consumer_function(void *ptr) {
   Gcs_async_buffer *l = static_cast<Gcs_async_buffer *>(ptr);
   l->consume_events();
 
-  My_xp_thread_util::exit(0);
+  My_xp_thread_util::exit(nullptr);
 
-  return NULL;
+  return nullptr;
 }
 
 const std::string Gcs_async_buffer::get_information() const {
@@ -281,16 +281,19 @@ enum_gcs_error Gcs_output_sink::initialize() {
   int ret_out = 0;
 
   if (!m_initialized) {
-    ret_out = setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+    ret_out = setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
   }
 
   if (ret_out == 0) {
     m_initialized = true;
   } else {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno = WSAGetLastError();
+    int errno_gcs = 0;
+#if defined(_WIN32)
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno)
+    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno_gcs)
               << std::endl;
   }
   return ret_out ? GCS_NOK : GCS_OK;
@@ -333,14 +336,10 @@ enum_gcs_error Gcs_default_debugger::initialize() {
 
 enum_gcs_error Gcs_default_debugger::finalize() { return m_sink->finalize(); }
 
-void Gcs_default_debugger::log_event(const std::string &message) {
-  MYSQL_GCS_LOG_DEBUG(message.c_str());
-}
-
 /**
   Reference to the default debugger which is used internally by GCS and XCOM.
 */
-Gcs_default_debugger *Gcs_debug_manager::m_debugger = NULL;
+Gcs_default_debugger *Gcs_debug_manager::m_debugger = nullptr;
 
 #ifndef XCOM_STANDALONE
 Gcs_file_sink::Gcs_file_sink(const std::string &file_name,
@@ -358,13 +357,13 @@ enum_gcs_error Gcs_file_sink::get_file_name(char *file_name_buffer) const {
     If the file name contains either or the other, it is ignored and the
     file is created in the path defined in m_dir_name.
   */
-  assert(file_name_buffer != NULL);
+  assert(file_name_buffer != nullptr);
 
   /*
     Format the file name that will be used to store debug information.
   */
   if (fn_format(file_name_buffer, m_file_name.c_str(), m_dir_name.c_str(), "",
-                flags) == NULL)
+                flags) == nullptr)
     return GCS_NOK;
 
   return GCS_OK;
@@ -395,7 +394,7 @@ enum_gcs_error Gcs_file_sink::initialize() {
     Check if the file exists and if so whether the owner has write
     permissions.
   */
-  if (my_stat(file_name_buffer, &f_stat, MYF(0)) != NULL) {
+  if (my_stat(file_name_buffer, &f_stat, MYF(0)) != nullptr) {
     if (!(f_stat.st_mode & MY_S_IWRITE)) {
       MYSQL_GCS_LOG_ERROR("Error in associated permissions to file '"
                           << file_name_buffer << "'.");
@@ -405,11 +404,14 @@ enum_gcs_error Gcs_file_sink::initialize() {
 
   if ((m_fd = my_create(file_name_buffer, 0640, O_CREAT | O_WRONLY | O_APPEND,
                         MYF(0))) < 0) {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno = WSAGetLastError();
+    int errno_gcs = 0;
+#if defined(_WIN32)
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    MYSQL_GCS_LOG_ERROR("Error openning file '"
-                        << file_name_buffer << "':" << strerror(errno) << ".");
+    MYSQL_GCS_LOG_ERROR("Error openning file '" << file_name_buffer << "':"
+                                                << strerror(errno_gcs) << ".");
     return GCS_NOK;
   }
 
@@ -439,10 +441,13 @@ void Gcs_file_sink::log_event(const char *message, size_t message_size) {
   written = my_write(m_fd, (const uchar *)message, message_size, MYF(0));
 
   if (written == MY_FILE_ERROR) {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno = WSAGetLastError();
+    int errno_gcs = 0;
+#if defined(_WIN32)
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno)
+    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno_gcs)
                                                          << ".");
   }
 }

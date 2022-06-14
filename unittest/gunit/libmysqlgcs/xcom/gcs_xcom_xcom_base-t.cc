@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,11 +33,21 @@
 #include "xcom_memory.h"
 #include "xcom_transport.h"
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/network_provider_manager.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/xcom_network_provider.h"
+
 namespace xcom_base_unittest {
 
 class XcomBase : public GcsBaseTest {
  protected:
-  XcomBase() { ::init_cache(); }
+  XcomBase() {
+    ::init_cache();
+
+    auto &net_manager = Network_provider_manager::getInstance();
+
+    auto xcom_network_provider = std::make_shared<Xcom_network_provider>();
+    net_manager.add_network_provider(xcom_network_provider);
+  }
   ~XcomBase() { ::deinit_cache(); }
 };
 
@@ -45,7 +55,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenario) {
   app_data a;
   std::string address("127.0.0.1:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   a.body.c_t = add_node_type;
@@ -63,7 +73,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenarioV6) {
   app_data a;
   std::string address("[::1]:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   a.body.c_t = add_node_type;
@@ -82,7 +92,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenarioMalformed) {
   app_data a;
   std::string address("::1]:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   a.body.c_t = add_node_type;
@@ -100,7 +110,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenarioMalformed) {
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenario) {
   std::string address("127.0.0.1:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   site_def *sd = new_site_def();
@@ -118,7 +128,7 @@ TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenario) {
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioFail) {
   std::string address("[::1]:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   site_def *sd = new_site_def();
@@ -135,14 +145,14 @@ TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioFail) {
 
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioNullSiteDef) {
   xcom_proto incoming = x_1_4;
-  int result = is_new_node_eligible_for_ipv6(incoming, NULL);
+  int result = is_new_node_eligible_for_ipv6(incoming, nullptr);
 
   ASSERT_EQ(result, 0);
 }
 
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioVersionSame) {
   xcom_proto incoming = my_xcom_version;
-  int result = is_new_node_eligible_for_ipv6(incoming, NULL);
+  int result = is_new_node_eligible_for_ipv6(incoming, nullptr);
 
   ASSERT_EQ(result, 0);
 }
@@ -159,7 +169,7 @@ TEST_F(XcomBase, GetSynodeAppDataNotCached) {
 
   synode_app_data_array result;
   result.synode_app_data_array_len = 0;
-  result.synode_app_data_array_val = NULL;
+  result.synode_app_data_array_val = nullptr;
 
   auto error_code = ::xcom_get_synode_app_data(&synodes, &result);
   ASSERT_EQ(error_code, XCOM_GET_SYNODE_APP_DATA_NOT_CACHED);
@@ -177,7 +187,7 @@ TEST_F(XcomBase, GetSynodeAppDataNotDecided) {
 
   synode_app_data_array result;
   result.synode_app_data_array_len = 0;
-  result.synode_app_data_array_val = NULL;
+  result.synode_app_data_array_val = nullptr;
 
   /* Add the synode to the cache, but it is undecided. */
   get_cache(synode);
@@ -192,17 +202,23 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
   synode.msgno = 0;
   synode.node = 0;
 
+  synode_no origin;
+  origin.group_id = 12345;
+  origin.msgno = 0;
+  origin.node = 1;
+
   synode_no_array synodes;
   synodes.synode_no_array_len = 1;
   synodes.synode_no_array_val = &synode;
 
   synode_app_data_array result;
   result.synode_app_data_array_len = 0;
-  result.synode_app_data_array_val = NULL;
+  result.synode_app_data_array_val = nullptr;
 
   /* Add the synode to the cache, and set it as decided. */
   char const *const payload = "Message in a bottle";
   app_data_ptr a = new_app_data();
+  a->unique_id = origin;
   a->body.c_t = app_type;
   a->body.app_u_u.data.data_len = std::strlen(payload) + 1;
   a->body.app_u_u.data.data_val = const_cast<char *>(payload);
@@ -220,6 +236,7 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
 
   ASSERT_EQ(result.synode_app_data_array_len, 1);
   ASSERT_EQ(synode_eq(result.synode_app_data_array_val[0].synode, synode), 1);
+  ASSERT_EQ(synode_eq(result.synode_app_data_array_val[0].origin, origin), 1);
   ASSERT_EQ(result.synode_app_data_array_val[0].data.data_len,
             p->a->body.app_u_u.data.data_len);
   ASSERT_EQ(std::strcmp(result.synode_app_data_array_val[0].data.data_val,
@@ -232,8 +249,8 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
 
   unchecked_replace_pax_msg(&paxos->learner.msg, nullptr);
 
-  my_xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
-              reinterpret_cast<char *>(&result));
+  xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
+           reinterpret_cast<char *>(&result));
 }
 
 TEST_F(XcomBase, GetSynodeAppDataTooManySynodes) {
@@ -441,6 +458,8 @@ TEST_F(XcomBase, PaxosLearnSameValue) {
   pax_msg *tx = pax_msg_new(synod, nullptr);
   tx->a = new_app_data();
   tx->a->body.c_t = app_type;
+  tx->a->body.app_u_u.data.data_len = 1;
+  tx->a->body.app_u_u.data.data_val = static_cast<char *>(malloc(sizeof(char)));
   replace_pax_msg(&s0_paxos->proposer.msg, tx);
   prepare_push_2p(s0_config, s0_paxos);
   pax_msg *s0_accept_tx = s0_paxos->proposer.msg;
@@ -760,8 +779,7 @@ TEST_F(XcomBase, HandleBootWithoutIdentity) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *names[]{"127.0.0.1:10001"};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -776,7 +794,7 @@ TEST_F(XcomBase, HandleBootWithoutIdentity) {
   pax_msg *need_boot = pax_msg_new(synod, nullptr);
   // need_boot_op without an identity.
   init_need_boot_op(need_boot, nullptr);
-  ASSERT_TRUE(should_handle_boot(config, need_boot));
+  ASSERT_TRUE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -795,8 +813,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfExistingMember) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *names[]{"127.0.0.1:10001"};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -812,7 +829,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfExistingMember) {
   // need_boot_op with an identity.
   node_address *identity = ::new_node_address_uuid(1, names, uuids);
   init_need_boot_op(need_boot, identity);
-  ASSERT_TRUE(should_handle_boot(config, need_boot));
+  ASSERT_TRUE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -832,8 +849,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfNonExistingMember) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *names[]{"127.0.0.1:10001"};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -853,7 +869,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfNonExistingMember) {
   blob unknown_uuids[] = {unknown_uuid};
   node_address *identity = ::new_node_address_uuid(1, names, unknown_uuids);
   init_need_boot_op(need_boot, identity);
-  ASSERT_FALSE(should_handle_boot(config, need_boot));
+  ASSERT_FALSE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -873,8 +889,8 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *name{"127.0.0.1:10001"};
+  char const *names[]{name};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -888,17 +904,17 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
 
   pax_msg *need_boot = pax_msg_new(synod, nullptr);
   // need_boot_op with two identities.
-  char *other_name = const_cast<char *>("127.0.0.1:10002");
-  char *two_names[] = {name, other_name};
+  char const *other_name{"127.0.0.1:10002"};
+  char const *two_names[] = {name, other_name};
   blob two_uuids[] = {uuid, uuid};
   node_address *identity = ::new_node_address_uuid(2, two_names, two_uuids);
   need_boot->op = need_boot_op;
-  if (identity != NULL) {
+  if (identity != nullptr) {
     need_boot->a = new_app_data();
     need_boot->a->body.c_t = xcom_boot_type;
     init_node_list(2, identity, &need_boot->a->body.app_u_u.nodes);
   }
-  ASSERT_FALSE(should_handle_boot(config, need_boot));
+  ASSERT_FALSE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -908,6 +924,298 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
   ::delete_node_address(2, identity);
 
   std::free(config);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - On the third attempt it must:
+ * -- Have incremented the number of pings
+ * -- Shutdown the connection
+ * - On the fourth attempt
+ * -- Have incremented the number of pings
+ * -- Make sure that we do not shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsFullSmokeTest) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+
+  srv_from.con = new_connection(0, nullptr);
+  srv_from.con->connected_ = CON_PROTO;
+
+  char srv_addr[1024] = "test";
+  srv_from.srv = &srv_addr[0];
+  srv_from.port = 12345;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 1.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 2.0);
+  ASSERT_EQ(2, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 3.0);
+  ASSERT_EQ(3, srv_from.number_of_pings_received);
+  ASSERT_TRUE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 5.0);
+  ASSERT_EQ(4, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping when
+ * the node has not booted
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times
+ * - On every time it must:
+ * -- NOT increment the number of pings
+ * -- Make sure that we do NOT shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsDoNothingIfNodeIsBooting) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con = new_connection(0, nullptr);
+  srv_from.con->connected_ = CON_PROTO;
+
+  char srv_addr[1024] = "test";
+  srv_from.srv = &srv_addr[0];
+  srv_from.port = 12345;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 1.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 2.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 3.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 5.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ * with an inactive connection
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - On the third attempt it must:
+ * -- Have incremented the number of pings
+ * -- DO NOT Shutdown the connection
+ * - On the fourth attempt
+ * -- Have incremented the number of pings
+ * -- Make sure that we do not shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsDoNotShutdownInactiveConnection) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con = new_connection(-1, nullptr);
+  srv_from.con->connected_ = CON_NULL;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 1.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 2.0);
+  ASSERT_EQ(2, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 3.0);
+  ASSERT_EQ(3, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 5.0);
+  ASSERT_EQ(4, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ * making sure that we are able to reset the ping number value
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 3 times
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - Wait for 6 seconds
+ * - On the third attempt it must:
+ * -- Have reset number of pings
+ * -- DO NOT Shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsDoNotShutdownResetPings) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con = new_connection(-1, nullptr);
+  srv_from.con->connected_ = CON_NULL;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 1.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 2.0);
+  ASSERT_EQ(2, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 10.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ * and it will receive pings from 2 different servers.
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times using server 1
+ * - On the first and second try using server 1 it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - Call pre_process_incoming_ping once using server 2
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - On the third attempt using server 1 it must:
+ * -- Have incremented the number of pings
+ * -- Shutdown the connection
+ * - On the fourth attempt using server 1
+ * -- Have incremented the number of pings
+ * -- Make sure that we do not shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
+  site_def site;
+  pax_msg pm1, pm2;
+
+  char srv_addr[1024] = "test";
+
+  server srv_from1, srv_from2;
+  srv_from1.last_ping_received = 0.0;
+  srv_from1.number_of_pings_received = 0;
+  srv_from1.con = new_connection(0, nullptr);
+  srv_from1.con->connected_ = CON_PROTO;
+
+  srv_from1.srv = &srv_addr[0];
+  srv_from1.port = 12345;
+
+  srv_from2.last_ping_received = 0.0;
+  srv_from2.number_of_pings_received = 0;
+  srv_from2.con = new_connection(0, nullptr);
+  srv_from2.con->connected_ = CON_PROTO;
+
+  srv_from2.srv = &srv_addr[0];
+  srv_from2.port = 12346;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from1;
+  site.servers[2] = &srv_from2;
+
+  pm1.from = 0;
+  pm1.op = are_you_alive_op;
+
+  pm2.from = 2;
+  pm2.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 1.0);
+  ASSERT_EQ(1, srv_from1.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 2.0);
+  ASSERT_EQ(2, srv_from1.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm2, true, 3.0);
+  ASSERT_EQ(1, srv_from2.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 4.0);
+  ASSERT_EQ(3, srv_from1.number_of_pings_received);
+  ASSERT_TRUE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 5.0);
+  ASSERT_EQ(4, srv_from1.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  free(srv_from1.con);
+  free(srv_from2.con);
 }
 
 }  // namespace xcom_base_unittest

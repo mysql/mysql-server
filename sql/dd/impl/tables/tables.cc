@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ Tables::Tables() {
                          "schema_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
                          "type ENUM('BASE TABLE', 'VIEW', 'SYSTEM VIEW')"
                          "NOT NULL");
@@ -157,6 +157,12 @@ Tables::Tables() {
       "FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID",
       "last_checked_for_upgrade_version_id INT UNSIGNED NOT NULL");
 
+  m_target_def.add_field(FIELD_ENGINE_ATTRIBUTE, "FIELD_ENGINE_ATTRIBUTE",
+                         "engine_attribute JSON");
+  m_target_def.add_field(FIELD_SECONDARY_ENGINE_ATTRIBUTE,
+                         "FIELD_SECONDARY_ENGINE_ATTRIBUTE",
+                         "secondary_engine_attribute JSON");
+
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
   m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME, "INDEX_UK_SCHEMA_ID_NAME",
                          "UNIQUE KEY (schema_id, name)");
@@ -175,6 +181,8 @@ Tables::Tables() {
   m_target_def.add_index(INDEX_K_VIEW_CONNECTION_COLLATION_ID,
                          "INDEX_K_VIEW_CONNECTION_COLLATION_ID",
                          "KEY(view_connection_collation_id)");
+  m_target_def.add_index(INDEX_K_TYPE_VIEW_DEFINER, "INDEX_K_TYPE_VIEW_DEFINER",
+                         "KEY(type, view_definer)");
 
   m_target_def.add_foreign_key(FK_SCHEMA_ID, "FK_SCHEMA_ID",
                                "FOREIGN KEY (schema_id) "
@@ -247,6 +255,22 @@ Object_key *Tables::create_key_by_schema_id(Object_id schema_id) {
 Object_key *Tables::create_key_by_tablespace_id(Object_id tablespace_id) {
   return new (std::nothrow) Parent_id_range_key(
       INDEX_K_TABLESPACE_ID, FIELD_TABLESPACE_ID, tablespace_id);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Tables::create_key_by_definer(const String_type &definer) {
+  /*
+    The system views are managed by the server itself, so an arbitrary user
+    should not be able to modify them, or to create additional system views.
+    Thus, there should not be a need for validating their definers against
+    users that are dropped, created or renamed, and hence, we can leave out
+    the system views when searching for user referenced as view definers.
+  */
+  return new (std::nothrow) View_definer_reference_range_key(
+      INDEX_K_TYPE_VIEW_DEFINER, FIELD_TYPE,
+      static_cast<uint>(enum_table_type::USER_VIEW), FIELD_VIEW_DEFINER,
+      definer);
 }
 
 ///////////////////////////////////////////////////////////////////////////

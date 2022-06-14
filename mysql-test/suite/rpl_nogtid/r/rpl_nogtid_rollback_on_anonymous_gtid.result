@@ -22,7 +22,7 @@ INSERT INTO t1 VALUES (9);
 COMMIT;
 [connection slave]
 include/rpl_receive_event_count.inc [stop after 3 Query events]
-CHANGE MASTER TO MASTER_LOG_FILE='MASTER_FILE', MASTER_LOG_POS=MASTER_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='MASTER_FILE', SOURCE_LOG_POS=MASTER_POS;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_sql_with_master.inc

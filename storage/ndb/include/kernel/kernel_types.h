@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,8 @@
 #include "ndb_global.h"
 #include "ndb_limits.h"
 
-typedef Uint16 NodeId; 
+typedef Uint16 NodeId;
+typedef Uint16 TrpId;
 typedef Uint16 BlockNumber;
 typedef Uint16 BlockInstance;
 typedef Uint32 BlockReference;
@@ -62,13 +63,13 @@ struct Local_key
   Uint16 m_page_idx;
   Uint16 m_file_no;     
 
-  STATIC_CONST( INVALID_PAGE_NO = 0xffffffff );
-  STATIC_CONST( INVALID_PAGE_IDX = 0xffff );
+  static constexpr Uint32 INVALID_PAGE_NO = 0xffffffff;
+  static constexpr Uint32 INVALID_PAGE_IDX = 0xffff;
 
   bool isNull() const { return m_page_no == RNIL; }
   void setNull() { m_page_no= RNIL; m_file_no= m_page_idx= ~0;}
 
-  static bool isInvalid(Uint32 lk1, Uint32 lk2)
+  static bool isInvalid(Uint32 lk1, Uint32)
   {
     return lk1 == INVALID_PAGE_NO;
   }
@@ -91,6 +92,8 @@ struct Local_key
 
 class NdbOut&
 operator<<(class NdbOut&, const struct Local_key&);
+
+char *printLocal_Key(char buf[], int bufsize, const Local_key &key);
 
 inline
 Uint32 

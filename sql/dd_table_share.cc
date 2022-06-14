@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <type_traits>
 
@@ -40,14 +41,13 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name
@@ -190,7 +190,7 @@ enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
       return MYSQL_TYPE_JSON;
 
     default:
-      DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
+      assert(!"Should not hit here"); /* purecov: deadcode */
   }
 
   return MYSQL_TYPE_LONG;
@@ -216,7 +216,7 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(
       return HA_KEY_ALG_FULLTEXT;
 
     default:
-      DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
+      assert(!"Should not hit here"); /* purecov: deadcode */
   }
 
   return HA_KEY_ALG_SE_SPECIFIC;
@@ -238,12 +238,11 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
     is equal to the BLOB column max size, then we can promote
     it to primary key.
    */
-  if (!table_field->real_maybe_null() &&
-      table_field->type() == MYSQL_TYPE_BLOB &&
+  if (!table_field->is_nullable() && table_field->type() == MYSQL_TYPE_BLOB &&
       table_field->field_length == key_part->length)
     return true;
 
-  if (table_field->real_maybe_null() ||
+  if (table_field->is_nullable() ||
       table_field->key_length() != key_part->length)
     return false;
 
@@ -261,8 +260,7 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
 static bool prepare_share(THD *thd, TABLE_SHARE *share,
                           const dd::Table *table_def) {
   my_bitmap_map *bitmaps;
-  bool use_hash;
-  handler *handler_file = 0;
+  handler *handler_file = nullptr;
 
   // Mark 'system' tables (tables with one row) to help the Optimizer.
   share->system =
@@ -270,18 +268,6 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   bool use_extended_sk = ha_check_storage_engine_flag(
       share->db_type(), HTON_SUPPORTS_EXTENDED_KEYS);
-  // Setup name_hash for quick look-up
-  use_hash = share->fields >= MAX_FIELDS_BEFORE_HASH;
-  if (use_hash) {
-    Field **field_ptr = share->field;
-    share->name_hash = new collation_unordered_map<std::string, Field **>(
-        system_charset_info, PSI_INSTRUMENT_ME);
-    share->name_hash->reserve(share->fields);
-
-    for (uint i = 0; i < share->fields; i++, field_ptr++) {
-      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
-    }
-  }
 
   share->m_histograms =
       new malloc_unordered_map<uint, const histograms::Histogram *>(
@@ -289,7 +275,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   // Setup other fields =====================================================
   /* Allocate handler */
-  if (!(handler_file = get_new_handler(share, (share->m_part_info != NULL),
+  if (!(handler_file = get_new_handler(share, (share->m_part_info != nullptr),
                                        &share->mem_root, share->db_type()))) {
     my_error(ER_INVALID_DD_OBJECT, MYF(0), share->path.str,
              "Failed to initialize handler.");
@@ -329,10 +315,10 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       keyinfo->name = share->keynames.type_names[key];
 
       /* Check that fulltext and spatial keys have correct algorithm set. */
-      DBUG_ASSERT(!(share->key_info[key].flags & HA_FULLTEXT) ||
-                  share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
-      DBUG_ASSERT(!(share->key_info[key].flags & HA_SPATIAL) ||
-                  share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
+      assert(!(share->key_info[key].flags & HA_FULLTEXT) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
+      assert(!(share->key_info[key].flags & HA_SPATIAL) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
@@ -353,7 +339,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
           Check that dd::Index::is_candidate_key() used by SEs works in
           the same way as above call to is_suitable_for_primary_key().
         */
-        DBUG_ASSERT((primary_key == key) == (*idx_it)->is_candidate_key());
+        assert((primary_key == key) == (*idx_it)->is_candidate_key());
       }
 
       dd::Index::Index_elements::const_iterator idx_el_it(
@@ -372,7 +358,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
         Field *field = key_part->field;
 
         key_part->type = field->key_type();
-        if (field->real_maybe_null()) {
+        if (field->is_nullable()) {
           key_part->null_offset = field->null_offset(share->default_values);
           key_part->null_bit = field->null_bit;
           key_part->store_length += HA_KEY_NULL_LENGTH;
@@ -393,16 +379,16 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
         setup_key_part_field(share, handler_file, primary_key, keyinfo, key, i,
                              &usable_parts, true);
 
-        field->flags |= PART_KEY_FLAG;
+        field->set_flag(PART_KEY_FLAG);
         if (key == primary_key) {
-          field->flags |= PRI_KEY_FLAG;
+          field->set_flag(PRI_KEY_FLAG);
           /*
              If this field is part of the primary key and all keys contains
              the primary key, then we can use any key to find this column
              */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX) {
             if (field->key_length() == key_part->length &&
-                !(field->flags & BLOB_FLAG))
+                !field->is_flag_set(BLOB_FLAG))
               field->part_of_key = share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey = share->keys_in_use;
@@ -430,7 +416,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str, share->table_name.str);
-            share->crashed = 1;  // Marker for CHECK TABLE
+            share->crashed = true;  // Marker for CHECK TABLE
             continue;
           }
 #endif
@@ -441,9 +427,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
           Check that dd::Index_element::is_prefix() used by SEs works in
           the same way as code which sets HA_PART_KEY_SEG flag.
         */
-        DBUG_ASSERT(
-            (*idx_el_it)->is_prefix() ==
-            static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
+        assert((*idx_el_it)->is_prefix() ==
+               static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
         ++idx_el_it;
       }
 
@@ -453,19 +438,20 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       */
       keyinfo->actual_flags = keyinfo->flags;
 
-      if (use_extended_sk && primary_key < MAX_KEY && key &&
-          !(keyinfo->flags & HA_NOSAME))
-        key_part +=
-            add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
-                               share, handler_file, &usable_parts);
+      if (primary_key < MAX_KEY && key != primary_key &&
+          (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX))
+        key_part += add_pk_parts_to_sk(keyinfo, key, share->key_info,
+                                       primary_key, share, handler_file,
+                                       &usable_parts, use_extended_sk);
 
       /* Skip unused key parts if they exist */
       key_part += keyinfo->unused_key_parts;
 
       keyinfo->usable_key_parts = usable_parts;  // Filesort
 
-      set_if_bigger(share->max_key_length,
-                    keyinfo->key_length + keyinfo->user_defined_key_parts);
+      share->max_key_length =
+          std::max(share->max_key_length,
+                   keyinfo->key_length + keyinfo->user_defined_key_parts);
       share->total_key_length += keyinfo->key_length;
       /*
          MERGE tables do not have unique indexes. But every key could be
@@ -473,7 +459,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
          */
       if ((keyinfo->flags & HA_NOSAME) ||
           (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
-        set_if_bigger(share->max_unique_length, keyinfo->key_length);
+        share->max_unique_length =
+            std::max(share->max_unique_length, keyinfo->key_length);
 
       ++idx_it;
     }
@@ -508,7 +495,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
                "Wrong field definition.");
       return true;
     } else
-      reg_field->flags |= AUTO_INCREMENT_FLAG;
+      reg_field->set_flag(AUTO_INCREMENT_FLAG);
   }
 
   if (share->blob_fields) {
@@ -520,7 +507,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
               (uint)(share->blob_fields * sizeof(uint)))))
       return true;  // OOM error message already reported
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
-      if ((*ptr)->flags & BLOB_FLAG || (*ptr)->is_array()) (*save++) = k;
+      if ((*ptr)->is_flag_set(BLOB_FLAG) || (*ptr)->is_array()) (*save++) = k;
     }
   }
 
@@ -530,7 +517,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
-  bitmap_init(&share->all_set, bitmaps, share->fields, false);
+  bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
   return false;
@@ -539,11 +526,10 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 /** Fill tablespace name from dd::Tablespace. */
 static bool fill_tablespace_from_dd(THD *thd, TABLE_SHARE *share,
                                     const dd::Table *tab_obj) {
-  DBUG_ENTER("fill_tablespace_from_dd");
+  DBUG_TRACE;
 
-  DBUG_RETURN(dd::get_tablespace_name<dd::Table>(
-      thd, tab_obj, const_cast<const char **>(&share->tablespace),
-      &share->mem_root));
+  return dd::get_tablespace_name<dd::Table>(thd, tab_obj, &share->tablespace,
+                                            &share->mem_root);
 }
 
 /**
@@ -566,7 +552,7 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
     case dd::Table::RF_PAGED:
       return ROW_TYPE_PAGED;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return ROW_TYPE_FIXED;
@@ -575,17 +561,16 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
 /** Fill TABLE_SHARE from dd::Table object */
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
                                const dd::Table *tab_obj) {
-  dd::Properties *table_options =
-      const_cast<dd::Properties *>(&tab_obj->options());
+  const dd::Properties &table_options = tab_obj->options();
 
   // Secondary storage engine.
-  if (table_options->exists("secondary_engine")) {
-    table_options->get("secondary_engine", &share->secondary_engine,
-                       &share->mem_root);
+  if (table_options.exists("secondary_engine")) {
+    table_options.get("secondary_engine", &share->secondary_engine,
+                      &share->mem_root);
   } else {
     // If no secondary storage engine is set, the share cannot
     // represent a table in a secondary engine.
-    DBUG_ASSERT(!share->is_secondary_engine());
+    assert(!share->is_secondary_engine());
   }
 
   // Read table engine type
@@ -595,22 +580,22 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   plugin_ref tmp_plugin = ha_resolve_by_name_raw(thd, engine_name);
   if (tmp_plugin) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     handlerton *hton = plugin_data<handlerton *>(tmp_plugin);
 #endif
 
-    DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
-    DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
+    assert(hton && ha_storage_engine_is_enabled(hton));
+    assert(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
 
-    plugin_unlock(NULL, share->db_plugin);
-    share->db_plugin = my_plugin_lock(NULL, &tmp_plugin);
+    plugin_unlock(nullptr, share->db_plugin);
+    share->db_plugin = my_plugin_lock(nullptr, &tmp_plugin);
   } else {
     my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name.str);
     return true;
   }
 
   // Set temporarily a good value for db_low_byte_first.
-  DBUG_ASSERT(ha_legacy_type(share->db_type()) != DB_TYPE_ISAM);
+  assert(ha_legacy_type(share->db_type()) != DB_TYPE_ISAM);
   share->db_low_byte_first = true;
 
   // Read other table options
@@ -618,37 +603,37 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   bool bool_opt = false;
 
   // Max rows
-  if (table_options->exists("max_rows"))
-    table_options->get("max_rows", &share->max_rows);
+  if (table_options.exists("max_rows"))
+    table_options.get("max_rows", &share->max_rows);
 
   // Min rows
-  if (table_options->exists("min_rows"))
-    table_options->get("min_rows", &share->min_rows);
+  if (table_options.exists("min_rows"))
+    table_options.get("min_rows", &share->min_rows);
 
   // Options from HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
   share->db_create_options = 0;
 
-  table_options->get("pack_record", &bool_opt);
+  table_options.get("pack_record", &bool_opt);
   if (bool_opt) share->db_create_options |= HA_OPTION_PACK_RECORD;
 
-  if (table_options->exists("pack_keys")) {
-    table_options->get("pack_keys", &bool_opt);
+  if (table_options.exists("pack_keys")) {
+    table_options.get("pack_keys", &bool_opt);
     share->db_create_options |=
         bool_opt ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS;
   }
 
-  if (table_options->exists("checksum")) {
-    table_options->get("checksum", &bool_opt);
+  if (table_options.exists("checksum")) {
+    table_options.get("checksum", &bool_opt);
     if (bool_opt) share->db_create_options |= HA_OPTION_CHECKSUM;
   }
 
-  if (table_options->exists("delay_key_write")) {
-    table_options->get("delay_key_write", &bool_opt);
+  if (table_options.exists("delay_key_write")) {
+    table_options.get("delay_key_write", &bool_opt);
     if (bool_opt) share->db_create_options |= HA_OPTION_DELAY_KEY_WRITE;
   }
 
-  if (table_options->exists("stats_persistent")) {
-    table_options->get("stats_persistent", &bool_opt);
+  if (table_options.exists("stats_persistent")) {
+    table_options.get("stats_persistent", &bool_opt);
     share->db_create_options |=
         bool_opt ? HA_OPTION_STATS_PERSISTENT : HA_OPTION_NO_STATS_PERSISTENT;
   }
@@ -657,8 +642,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Average row length
 
-  if (table_options->exists("avg_row_length")) {
-    table_options->get("avg_row_length", &option_value);
+  if (table_options.exists("avg_row_length")) {
+    table_options.get("avg_row_length", &option_value);
     share->avg_row_length = static_cast<ulong>(option_value);
   }
 
@@ -678,20 +663,20 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   share->real_row_type = dd_get_old_row_format(tab_obj->row_format());
 
   // Then one which was explicitly specified by user for this table.
-  if (table_options->exists("row_type")) {
-    table_options->get("row_type", &option_value);
+  if (table_options.exists("row_type")) {
+    table_options.get("row_type", &option_value);
     share->row_type =
         dd_get_old_row_format((dd::Table::enum_row_format)option_value);
   } else
     share->row_type = ROW_TYPE_DEFAULT;
 
   // Stats_sample_pages
-  if (table_options->exists("stats_sample_pages"))
-    table_options->get("stats_sample_pages", &share->stats_sample_pages);
+  if (table_options.exists("stats_sample_pages"))
+    table_options.get("stats_sample_pages", &share->stats_sample_pages);
 
   // Stats_auto_recalc
-  if (table_options->exists("stats_auto_recalc")) {
-    table_options->get("stats_auto_recalc", &option_value);
+  if (table_options.exists("stats_auto_recalc")) {
+    table_options.get("stats_auto_recalc", &option_value);
     share->stats_auto_recalc = (enum_stats_auto_recalc)option_value;
   }
 
@@ -703,17 +688,18 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   // needed?
 
   // key block size
-  table_options->get("key_block_size", &share->key_block_size);
+  table_options.get("key_block_size", &share->key_block_size);
 
   // Prepare the default_value buffer.
   if (prepare_default_value_buffer_and_table_share(thd, *tab_obj, share))
     return true;
 
   // Storage media flags
-  if (table_options->exists("storage")) {
-    uint32 option_value = 0;
-    table_options->get("storage", &option_value);
-    share->default_storage_media = static_cast<ha_storage_media>(option_value);
+  if (table_options.exists("storage")) {
+    uint32 storage_option_value = 0;
+    table_options.get("storage", &storage_option_value);
+    share->default_storage_media =
+        static_cast<ha_storage_media>(storage_option_value);
   } else
     share->default_storage_media = HA_SM_DEFAULT;
 
@@ -728,18 +714,24 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
     share->comment.length = comment.length();
   }
 
+  // Copy SE attributes into share's memroot
+  share->engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, tab_obj->engine_attribute());
+  share->secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, tab_obj->secondary_engine_attribute());
+
   // Read Connection strings
-  if (table_options->exists("connection_string"))
-    table_options->get("connection_string", &share->connect_string,
-                       &share->mem_root);
+  if (table_options.exists("connection_string"))
+    table_options.get("connection_string", &share->connect_string,
+                      &share->mem_root);
 
   // Read Compress string
-  if (table_options->exists("compress"))
-    table_options->get("compress", &share->compress, &share->mem_root);
+  if (table_options.exists("compress"))
+    table_options.get("compress", &share->compress, &share->mem_root);
 
   // Read Encrypt string
-  if (table_options->exists("encrypt_type"))
-    table_options->get("encrypt_type", &share->encrypt_type, &share->mem_root);
+  if (table_options.exists("encrypt_type"))
+    table_options.get("encrypt_type", &share->encrypt_type, &share->mem_root);
 
   return false;
 }
@@ -778,12 +770,11 @@ inline void get_auto_flags(const dd::Column &col_obj, uint &auto_flags) {
       // "CURRENT_TIMESTAP(<integer>)". Stored functions with names
       // starting with "CURRENT_TIMESTAMP" should be filtered out before
       // we get here.
-      DBUG_ASSERT(
-          col_obj.default_option().size() == 17 ||
-          (col_obj.default_option().size() >= 20 &&
-           col_obj.default_option()[17] == '(' &&
-           col_obj.default_option()[col_obj.default_option().size() - 1] ==
-               ')'));
+      assert(col_obj.default_option().size() == 17 ||
+             (col_obj.default_option().size() >= 20 &&
+              col_obj.default_option()[17] == '(' &&
+              col_obj.default_option()[col_obj.default_option().size() - 1] ==
+                  ')'));
 
       auto_flags |= Field::DEFAULT_NOW;
     } else {
@@ -803,9 +794,9 @@ inline void get_auto_flags(const dd::Column &col_obj, uint &auto_flags) {
     Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at
     the same time.
   */
-  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
-                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
-                (auto_flags & Field::NEXT_NUMBER) != 0));
+  assert(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                          Field::GENERATED_FROM_EXPRESSION)) != 0 &&
+           (auto_flags & Field::NEXT_NUMBER) != 0));
 }
 
 static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
@@ -814,7 +805,7 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   auto field_type = dd_get_old_field_type(col_obj.type());
   auto field_length = col_obj.char_length();
 
-  auto column_options = const_cast<dd::Properties *>(&col_obj.options());
+  const dd::Properties &column_options = col_obj.options();
 
   // Reconstruct auto_flags
   auto auto_flags = static_cast<uint>(Field::NONE);
@@ -832,12 +823,12 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
     interval = (TYPELIB *)share->mem_root.Alloc(sizeof(TYPELIB));
     interval->type_names = (const char **)share->mem_root.Alloc(
         sizeof(char *) * (interval_parts + 1));
-    interval->type_names[interval_parts] = 0;
+    interval->type_names[interval_parts] = nullptr;
 
     interval->type_lengths =
         (uint *)share->mem_root.Alloc(sizeof(uint) * interval_parts);
     interval->count = interval_parts;
-    interval->name = NULL;
+    interval->name = nullptr;
 
     //
     // Iterate through all the column elements
@@ -856,18 +847,18 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   // Column name
   char *name = nullptr;
   dd::String_type s = col_obj.name();
-  DBUG_ASSERT(!s.empty());
+  assert(!s.empty());
   name = strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()] = '\0';
 
   uint decimals;
   // Decimals
   if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL) {
-    DBUG_ASSERT(col_obj.is_numeric_scale_null() == false);
+    assert(col_obj.is_numeric_scale_null() == false);
     decimals = col_obj.numeric_scale();
   } else if (field_type == MYSQL_TYPE_FLOAT ||
              field_type == MYSQL_TYPE_DOUBLE) {
-    decimals = col_obj.is_numeric_scale_null() ? NOT_FIXED_DEC
+    decimals = col_obj.is_numeric_scale_null() ? DECIMAL_NOT_SPECIFIED
                                                : col_obj.numeric_scale();
   } else
     decimals = 0;
@@ -876,13 +867,13 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
     uint32 sub_type = 0;
-    column_options->get("geom_type", &sub_type);
+    column_options.get("geom_type", &sub_type);
     geom_type = static_cast<Field::geometry_type>(sub_type);
   }
 
   bool treat_bit_as_char = false;
   if (field_type == MYSQL_TYPE_BIT) {
-    column_options->get("treat_bit_as_char", &treat_bit_as_char);
+    column_options.get("treat_bit_as_char", &treat_bit_as_char);
   }
 
   return make_field(*THR_MALLOC, share, ptr, field_length, null_pos, null_bit,
@@ -901,9 +892,9 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
                                 const dd::Column *col_obj, uchar *null_pos,
                                 uint null_bit_pos, uchar *rec_pos,
                                 uint field_nr) {
-  char *name = NULL;
+  char *name = nullptr;
   enum_field_types field_type;
-  const CHARSET_INFO *charset = NULL;
+  const CHARSET_INFO *charset = nullptr;
   Field *reg_field;
   ha_storage_media field_storage;
   column_format_type field_column_format;
@@ -914,7 +905,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Column name
   dd::String_type s = col_obj->name();
-  DBUG_ASSERT(!s.empty());
+  assert(!s.empty());
   name = strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()] = '\0';
 
@@ -933,7 +924,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Collation ID
   charset = dd_get_mysql_charset(col_obj->collation_id());
-  if (charset == NULL) {
+  if (charset == nullptr) {
     my_printf_error(ER_UNKNOWN_COLLATION,
                     "invalid collation id %llu for table %s, column %s", MYF(0),
                     col_obj->collation_id(), share->table_name.str, name);
@@ -943,7 +934,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Decimals
   if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL)
-    DBUG_ASSERT(col_obj->is_numeric_scale_null() == false);
+    assert(col_obj->is_numeric_scale_null() == false);
 
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
@@ -967,7 +958,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     field_column_format = COLUMN_FORMAT_TYPE_DEFAULT;
 
   // Read Interval TYPELIB
-  TYPELIB *interval = NULL;
+  TYPELIB *interval = nullptr;
 
   if (field_type == MYSQL_TYPE_ENUM || field_type == MYSQL_TYPE_SET) {
     //
@@ -978,12 +969,12 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     interval = (TYPELIB *)share->mem_root.Alloc(sizeof(TYPELIB));
     interval->type_names = (const char **)share->mem_root.Alloc(
         sizeof(char *) * (interval_parts + 1));
-    interval->type_names[interval_parts] = 0;
+    interval->type_names[interval_parts] = nullptr;
 
     interval->type_lengths =
         (uint *)share->mem_root.Alloc(sizeof(uint) * interval_parts);
     interval->count = interval_parts;
-    interval->name = NULL;
+    interval->name = nullptr;
 
     //
     // Iterate through all the column elements
@@ -1004,7 +995,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   //
   reg_field =
       make_field(*col_obj, charset, share, rec_pos, null_pos, null_bit_pos);
-  reg_field->field_index = field_nr;
+  reg_field->set_field_index(field_nr);
   reg_field->stored_in_db = true;
 
   // Handle generated columns
@@ -1053,7 +1044,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     share->found_next_number_field = &share->field[field_nr];
 
   // Set field flags
-  if (col_obj->has_no_default()) reg_field->flags |= NO_DEFAULT_VALUE_FLAG;
+  if (col_obj->has_no_default()) reg_field->set_flag(NO_DEFAULT_VALUE_FLAG);
 
   // Set default value or NULL. Reset required for e.g. CHAR.
   if (col_obj->is_default_value_null()) {
@@ -1091,9 +1082,15 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // NOT SECONDARY column option.
   if (column_options->exists("not_secondary"))
-    reg_field->flags |= NOT_SECONDARY_FLAG;
+    reg_field->set_flag(NOT_SECONDARY_FLAG);
 
   reg_field->set_hidden(col_obj->hidden());
+
+  reg_field->m_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, col_obj->engine_attribute());
+
+  reg_field->m_secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, col_obj->secondary_engine_attribute());
 
   // Field is prepared. Store it in 'share'
   share->field[field_nr] = reg_field;
@@ -1116,7 +1113,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   share->gen_def_field_count = 0;
 
   // Iterate through all the columns.
-  uchar *null_flags MY_ATTRIBUTE((unused));
+  uchar *null_flags [[maybe_unused]];
   uchar *null_pos, *rec_pos;
   null_flags = null_pos = share->default_values;
   rec_pos = share->default_values + share->null_bytes;
@@ -1195,10 +1192,9 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   }
 
   // Make sure the scan of the columns is consistent with other data.
-  DBUG_ASSERT(share->null_bytes ==
-              (null_pos - null_flags + (null_bit_pos + 7) / 8));
-  DBUG_ASSERT(share->last_null_bit_pos == null_bit_pos);
-  DBUG_ASSERT(share->fields == field_nr);
+  assert(share->null_bytes == (null_pos - null_flags + (null_bit_pos + 7) / 8));
+  assert(share->last_null_bit_pos == null_bit_pos);
+  assert(share->fields == field_nr);
 
   return (false);
 }
@@ -1218,7 +1214,7 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
   keypart->fieldnr = idx_elem_obj->column().ordinal_position();
 
   // field
-  DBUG_ASSERT(keypart->fieldnr > 0);
+  assert(keypart->fieldnr > 0);
   Field *field = keypart->field = share->field[keypart->fieldnr - 1];
 
   // offset
@@ -1285,7 +1281,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
           strmake_root(&share->mem_root, name.c_str(), name.length());
       share->keynames.type_names[key_nr] = keyinfo->name;  // Post processing ??
     } else
-      share->keynames.type_names[key_nr] = NULL;
+      share->keynames.type_names[key_nr] = nullptr;
     // share->keynames.count= key_nr+1;
   }
 
@@ -1319,7 +1315,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       keyinfo->flags = HA_NOSAME;
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
       keyinfo->flags = 0;
       break;
   }
@@ -1344,8 +1340,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   // Read index options
   //
 
-  dd::Properties *idx_options =
-      const_cast<dd::Properties *>(&idx_obj->options());
+  const dd::Properties &idx_options = idx_obj->options();
 
   /*
     Restore flags indicating that key packing optimization was suggested to SE.
@@ -1353,8 +1348,8 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
     explicitly.
   */
   uint32 stored_flags = 0;
-  idx_options->get("flags", &stored_flags);
-  DBUG_ASSERT((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
+  idx_options.get("flags", &stored_flags);
+  assert((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
 
   //  Beginning in 8.0.12 HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
   //  if the SE does not support it. If the index was created prior to 8.0.12
@@ -1377,22 +1372,22 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   keyinfo->flags |= stored_flags;
 
   // Block size
-  if (idx_options->exists("block_size")) {
-    idx_options->get("block_size", &keyinfo->block_size);
+  if (idx_options.exists("block_size")) {
+    idx_options.get("block_size", &keyinfo->block_size);
 
-    DBUG_ASSERT(keyinfo->block_size);
+    assert(keyinfo->block_size);
 
     keyinfo->flags |= HA_USES_BLOCK_SIZE;
   }
 
   // Read field parser
-  if (idx_options->exists("parser_name")) {
+  if (idx_options.exists("parser_name")) {
     LEX_CSTRING parser_name;
-    if (idx_options->get("parser_name", &parser_name, &share->mem_root))
-      DBUG_ASSERT(false);
+    if (idx_options.get("parser_name", &parser_name, &share->mem_root))
+      assert(false);
 
     keyinfo->parser =
-        my_plugin_lock_by_name(NULL, parser_name, MYSQL_FTPARSER_PLUGIN);
+        my_plugin_lock_by_name(nullptr, parser_name, MYSQL_FTPARSER_PLUGIN);
     if (!keyinfo->parser) {
       my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
       if (thd->is_error()) return true;
@@ -1412,7 +1407,15 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
 
     keyinfo->flags |= HA_USES_COMMENT;
   }
+  keyinfo->engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, idx_obj->engine_attribute());
+  if (keyinfo->engine_attribute.length > 0)
+    keyinfo->flags |= HA_INDEX_USES_ENGINE_ATTRIBUTE;
 
+  keyinfo->secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, idx_obj->secondary_engine_attribute());
+  if (keyinfo->secondary_engine_attribute.length > 0)
+    keyinfo->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
   return (false);
 }
 
@@ -1465,7 +1468,7 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Count number of keys and total number of key parts in the table.
 
-  DBUG_ASSERT(share->keys == 0 && share->key_parts == 0);
+  assert(share->keys == 0 && share->key_parts == 0);
 
   for (const dd::Index *idx_obj : tab_obj->indexes()) {
     // Skip hidden indexes
@@ -1510,18 +1513,15 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       return true; /* purecov: inspected */
 
     //
-    // Alloc buffer to hold keys and key_parts
+    // Alloc buffers to hold keys and key_parts
     //
 
-    if (!(share->key_info = (KEY *)share->mem_root.Alloc(
-              share->keys * sizeof(KEY) +
-              total_key_parts * sizeof(KEY_PART_INFO))))
+    if (!(share->key_info = share->mem_root.ArrayAlloc<KEY>(share->keys)))
       return true; /* purecov: inspected */
 
-    memset(
-        share->key_info, 0,
-        (share->keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO)));
-    key_part = (KEY_PART_INFO *)(share->key_info + share->keys);
+    if (!(key_part =
+              share->mem_root.ArrayAlloc<KEY_PART_INFO>(total_key_parts)))
+      return true; /* purecov: inspected */
 
     //
     // Alloc buffer to hold keynames
@@ -1532,7 +1532,7 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       return true; /* purecov: inspected */
     memset(share->keynames.type_names, 0, ((share->keys + 1) * sizeof(char *)));
 
-    share->keynames.type_names[share->keys] = NULL;
+    share->keynames.type_names[share->keys] = nullptr;
     share->keynames.count = share->keys;
 
     // In first iteration get all the index_obj, so that we get all
@@ -1610,7 +1610,7 @@ static char *copy_option_string(MEM_ROOT *mem_root,
   if (options.exists(key) && !options.get(key, &tmp_str) && tmp_str.length()) {
     return strdup_root(mem_root, tmp_str.c_str());
   }
-  return NULL;
+  return nullptr;
 }
 
 static void get_partition_options(MEM_ROOT *mem_root,
@@ -1631,7 +1631,7 @@ static void get_partition_options(MEM_ROOT *mem_root,
   if (part_options.exists("nodegroup_id"))
     part_options.get("nodegroup_id", &nodegroup_id);
 
-  DBUG_ASSERT(nodegroup_id <= 0xFFFF);
+  assert(nodegroup_id <= 0xFFFF);
   part_elem->nodegroup_id = nodegroup_id;
 }
 
@@ -1650,7 +1650,7 @@ static bool get_part_column_values(MEM_ROOT *mem_root,
     entries++;
   }
   if (entries != ((max_column_id + 1) * (max_list_index + 1))) {
-    DBUG_ASSERT(0); /* purecov: deadcode */
+    assert(0); /* purecov: deadcode */
     return true;
   }
 
@@ -1693,11 +1693,11 @@ static bool get_part_column_values(MEM_ROOT *mem_root,
 
   for (list_index = 0; list_index <= max_list_index; list_index++) {
     p_val = &p_elem_values[list_index];
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     for (uint i = 0; i < part_info->num_columns; i++) {
-      DBUG_ASSERT(p_val->col_val_array[i].null_value ||
-                  p_val->col_val_array[i].max_value ||
-                  p_val->col_val_array[i].column_value.value_str);
+      assert(p_val->col_val_array[i].null_value ||
+             p_val->col_val_array[i].max_value ||
+             p_val->col_val_array[i].column_value.value_str);
     }
 #endif
     if (part_elem->list_val_list.push_back(p_val, mem_root)) return true;
@@ -1738,10 +1738,10 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       if (get_part_column_values(mem_root, part_info, part_elem, part_obj))
         return true;
     } else {
-      DBUG_ASSERT(part_obj->values().size() == 1);
+      assert(part_obj->values().size() == 1);
       const dd::Partition_value *part_value = *part_obj->values().begin();
-      DBUG_ASSERT(part_value->list_num() == 0);
-      DBUG_ASSERT(part_value->column_num() == 0);
+      assert(part_value->list_num() == 0);
+      assert(part_value->column_num() == 0);
       if (part_value->max_value()) {
         part_elem->max_value = true;
       } else {
@@ -1766,18 +1766,18 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
         return true;
     } else {
       uint list_index = 0, max_index = 0, entries = 0, null_entry = 0;
-      part_elem_value *list_val, *list_val_array = NULL;
+      part_elem_value *list_val, *list_val_array = nullptr;
       for (const dd::Partition_value *part_value : part_obj->values()) {
         max_index = std::max(max_index, part_value->list_num());
         entries++;
         if (part_value->value_utf8().empty()) {
-          DBUG_ASSERT(!part_elem->has_null_value);
+          assert(!part_elem->has_null_value);
           part_elem->has_null_value = true;
           null_entry = part_value->list_num();
         }
       }
       if (entries != (max_index + 1)) {
-        DBUG_ASSERT(0); /* purecov: deadcode */
+        assert(0); /* purecov: deadcode */
         return true;
       }
       /* If a list entry is NULL then it is only flagged on the part_elem. */
@@ -1791,9 +1791,9 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       }
 
       for (const dd::Partition_value *part_value : part_obj->values()) {
-        DBUG_ASSERT(part_value->column_num() == 0);
+        assert(part_value->column_num() == 0);
         if (part_value->value_utf8().empty()) {
-          DBUG_ASSERT(part_value->list_num() == null_entry);
+          assert(part_value->list_num() == null_entry);
           continue;
         }
         list_index = part_value->list_num();
@@ -1805,7 +1805,7 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
         */
         if (part_elem->has_null_value && list_index > null_entry) list_index--;
         list_val = &list_val_array[list_index];
-        DBUG_ASSERT(!list_val->unsigned_flag && !list_val->value);
+        assert(!list_val->unsigned_flag && !list_val->value);
         if (part_value->value_utf8()[0] == '-') {
           list_val->unsigned_flag = false;
           if (dd::Properties::from_str(part_value->value_utf8(),
@@ -1824,9 +1824,9 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       }
     }
   } else {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(part_info->part_type == partition_type::HASH);
-    DBUG_ASSERT(part_obj->values().empty());
+#ifndef NDEBUG
+    assert(part_info->part_type == partition_type::HASH);
+    assert(part_obj->values().empty());
 #endif
   }
   return false;
@@ -1857,7 +1857,7 @@ static bool set_field_list(MEM_ROOT *mem_root, dd::String_type &str,
     if (dd::eat_str(field_name, it, end, dd::FIELD_NAME_SEPARATOR_CHAR))
       return true;
     size_t len = field_name.length();
-    DBUG_ASSERT(len);
+    assert(len);
     char *name = static_cast<char *>(mem_root->Alloc(len + 1));
     if (!name) return true; /* purecov: inspected */
     memcpy(name, field_name.c_str(), len);
@@ -1910,7 +1910,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
   handlerton *hton = plugin_data<handlerton *>(
       ha_resolve_by_name_raw(thd, lex_cstring_handle(tab_obj->engine())));
-  DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
+  assert(hton && ha_storage_engine_is_enabled(hton));
   part_info->default_engine_type = hton;
   if (!part_info->default_engine_type) return true;
 
@@ -1919,26 +1919,26 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     case dd::Table::PT_RANGE_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_RANGE:
       part_info->part_type = partition_type::RANGE;
       break;
     case dd::Table::PT_LIST_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_LIST:
       part_info->part_type = partition_type::LIST;
       break;
     case dd::Table::PT_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_HASH:
       part_info->part_type = partition_type::HASH;
       break;
     case dd::Table::PT_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_part_fields = true;
@@ -1946,7 +1946,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_part_fields = true;
@@ -1954,7 +1954,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_AUTO_LINEAR:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_AUTO:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->part_type = partition_type::HASH;
@@ -1964,7 +1964,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     default:
       // Unknown partitioning type!
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
       return true;
   }
   switch (tab_obj->subpartition_type()) {
@@ -1973,13 +1973,13 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_HASH:
       part_info->subpart_type = partition_type::HASH;
       break;
     case dd::Table::ST_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_subpart_fields = true;
@@ -1987,7 +1987,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_subpart_fields = true;
@@ -1995,7 +1995,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     default:
       // Unknown sub partitioning type!
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
       return true;
   }
 
@@ -2005,7 +2005,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                        &part_info->part_field_list)) {
       return true;
     }
-    part_info->part_func_string = NULL;
+    part_info->part_func_string = nullptr;
     part_info->part_func_len = 0;
   } else {
     part_info->part_func_string =
@@ -2020,7 +2020,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                          &part_info->subpart_field_list)) {
         return true;
       }
-      part_info->subpart_func_string = NULL;
+      part_info->subpart_func_string = nullptr;
       part_info->subpart_func_len = 0;
     } else {
       part_info->subpart_func_string =
@@ -2037,17 +2037,17 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
   /* Partitions are sorted first on level and then on number. */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint number = 0;
 #endif
   for (const dd::Partition *part_obj : tab_obj->partitions()) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /* Must be in sorted order (sorted by level first and then on number). */
-    DBUG_ASSERT(part_obj->number() >= number);
+    assert(part_obj->number() >= number);
     number = part_obj->number();
 #endif
 
-    DBUG_ASSERT(part_obj->parent_partition_id() == dd::INVALID_OBJECT_ID);
+    assert(part_obj->parent_partition_id() == dd::INVALID_OBJECT_ID);
 
     curr_part_elem = new (&share->mem_root) partition_element;
     if (!curr_part_elem) {
@@ -2062,7 +2062,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     if (part_info->partitions.push_back(curr_part_elem, &share->mem_root))
       return true;
 
-    for (const dd::Partition *sub_part_obj : part_obj->sub_partitions()) {
+    for (const dd::Partition *sub_part_obj : part_obj->subpartitions()) {
       partition_element *curr_sub_part_elem =
           new (&share->mem_root) partition_element;
       if (!curr_sub_part_elem) {
@@ -2099,7 +2099,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::DP_NONE:
     default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
   }
   switch (tab_obj->default_subpartitioning()) {
     case dd::Table::DP_NO:
@@ -2115,10 +2115,10 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       part_info->use_default_num_subpartitions = false;
       break;
     case dd::Table::DP_NONE:
-      DBUG_ASSERT(!part_info->is_sub_partitioned());
+      assert(!part_info->is_sub_partitioned());
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
   }
 
   char *buf;
@@ -2128,7 +2128,8 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   // generated partitioning clause.
   Sql_mode_parse_guard parse_guard(thd);
 
-  buf = generate_partition_syntax(part_info, &buf_len, true, true, false, NULL);
+  buf = generate_partition_syntax(part_info, &buf_len, true, true, false,
+                                  nullptr);
 
   if (!buf) return true;
 
@@ -2146,7 +2147,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
 static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
                                       const dd::Table *tab_obj) {
-  DBUG_ASSERT(share->foreign_keys == 0 && share->foreign_key_parents == 0);
+  assert(share->foreign_keys == 0 && share->foreign_key_parents == 0);
 
   share->foreign_keys = tab_obj->foreign_keys().size();
   share->foreign_key_parents = tab_obj->foreign_key_parents().size();
@@ -2241,12 +2242,16 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
 */
 static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
                                            const dd::Table *tab_obj) {
-  DBUG_ASSERT(share->check_constraint_share_list == nullptr);
+  assert(share->check_constraint_share_list == nullptr);
 
   if (tab_obj->check_constraints().size() > 0) {
     share->check_constraint_share_list = new (&share->mem_root)
         Sql_check_constraint_share_list(&share->mem_root);
     if (share->check_constraint_share_list == nullptr) return true;  // OOM
+
+    if (share->check_constraint_share_list->reserve(
+            tab_obj->check_constraints().size()))
+      return true;  // OOM
 
     for (auto &cc : tab_obj->check_constraints()) {
       // Check constraint name.
@@ -2266,12 +2271,8 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
       bool is_cc_enforced =
           (cc->constraint_state() == dd::Check_constraint::CS_ENFORCED);
 
-      Sql_check_constraint_share *cc_share = new (&share->mem_root)
-          Sql_check_constraint_share(name, check_clause, is_cc_enforced);
-      if (cc_share == nullptr) return true;  // OOM
-
-      if (share->check_constraint_share_list->push_back(cc_share))
-        return true;  // OOM
+      share->check_constraint_share_list->push_back(
+          Sql_check_constraint_share(name, check_clause, is_cc_enforced));
     }
   }
 
@@ -2279,7 +2280,7 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
 }
 
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
-  DBUG_ENTER("open_table_def");
+  DBUG_TRACE;
 
   MEM_ROOT *old_root = thd->mem_root;
   thd->mem_root = &share->mem_root;  // Needed for make_field()++
@@ -2300,9 +2301,9 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   if (!error) {
     share->table_category = get_table_category(share->db, share->table_name);
     thd->status_var.opened_shares++;
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -2311,9 +2312,9 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
 */
 class Open_table_error_handler : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return (sql_errno == ER_UNKNOWN_COLLATION ||
             sql_errno == ER_PLUGIN_IS_NOT_LOADED);
   }

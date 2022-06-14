@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/table_impl.h"
 
+#include <assert.h>
 #include <string.h>
 #include <set>
 #include <sstream>
@@ -33,7 +34,7 @@
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
 #include "sql/current_thd.h"                      // current_thd
@@ -132,14 +133,14 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
 
   // 1. Read the parent's schema name based on schema_id.
   Raw_table *schema_table = otx->get_table<dd::Schema>();
-  DBUG_ASSERT(schema_table);
+  assert(schema_table);
   Primary_id_key schema_pk(schema_id());
 
   std::unique_ptr<Raw_record_set> schema_rs;
   if (schema_table->open_record_set(&schema_pk, schema_rs)) return true;
 
   Raw_record *schema_rec = schema_rs->current_record();
-  DBUG_ASSERT(schema_rec);
+  assert(schema_rec);
   if (schema_rec == nullptr) return true;
 
   // 2. Build a key for searching the FK table.
@@ -153,7 +154,7 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
 
   // 3. Get the FK record set where this table is parent.
   Raw_table *foreign_key_table = otx->get_table<dd::Foreign_key>();
-  DBUG_ASSERT(foreign_key_table);
+  assert(foreign_key_table);
 
   std::unique_ptr<Raw_record_set> child_fk_rs;
   if (foreign_key_table->open_record_set(&parent_ref_key, child_fk_rs))
@@ -165,13 +166,13 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
     Primary_id_key child_pk(
         child_fk_rec->read_int(tables::Foreign_keys::FIELD_TABLE_ID));
     Raw_table *tables_table = otx->get_table<dd::Table>();
-    DBUG_ASSERT(tables_table);
+    assert(tables_table);
 
     std::unique_ptr<Raw_record_set> child_table_rs;
     if (tables_table->open_record_set(&child_pk, child_table_rs)) return true;
 
     Raw_record *child_table = child_table_rs->current_record();
-    DBUG_ASSERT(child_table);
+    assert(child_table);
     if (child_table == nullptr) return true;
 
     /*
@@ -193,7 +194,7 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
     if (schema_table->open_record_set(&schema_pk, schema_rs)) return true;
 
     schema_rec = schema_rs->current_record();
-    DBUG_ASSERT(schema_rec);
+    assert(schema_rec);
     if (schema_rec == nullptr) return true;
 
     // 6. Collect the relevant information.
@@ -234,7 +235,7 @@ bool Table_impl::reload_foreign_key_parents(THD *thd) {
   // Register and open tables.
   trx.otx.register_tables<dd::Table>();
   if (trx.otx.open_tables()) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -429,6 +430,14 @@ bool Table_impl::restore_attributes(const Raw_record &r) {
 
   set_se_private_data(r.read_str(Tables::FIELD_SE_PRIVATE_DATA, ""));
 
+  // m_engine_attribute and m_secondary_engine_attribute added in 80021
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021)) {
+    m_engine_attribute = r.read_str(Tables::FIELD_ENGINE_ATTRIBUTE, "");
+    m_secondary_engine_attribute =
+        r.read_str(Tables::FIELD_SECONDARY_ENGINE_ATTRIBUTE, "");
+  }
+
   m_engine = r.read_str(Tables::FIELD_ENGINE);
 
   // m_last_checked_for_upgrade_version added in 80012
@@ -474,13 +483,25 @@ bool Table_impl::store_attributes(Raw_record *r) {
   //
 
   // Temporary table definitions are never persisted.
-  DBUG_ASSERT(!m_is_temporary);
+  assert(!m_is_temporary);
 
   // Store last_checked_for_upgrade_version_id only if we're not upgrading
   if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
           bootstrap::DD_VERSION_80013) &&
       r->store(Tables::FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID,
                m_last_checked_for_upgrade_version_id)) {
+    return true;
+  }
+
+  // Store engine_attribute and secondary_engine_attribute only if
+  // we're not upgrading
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021) &&
+      (r->store(Tables::FIELD_ENGINE_ATTRIBUTE, m_engine_attribute,
+                m_engine_attribute.empty()) ||
+       r->store(Tables::FIELD_SECONDARY_ENGINE_ATTRIBUTE,
+                m_secondary_engine_attribute,
+                m_secondary_engine_attribute.empty()))) {
     return true;
   }
 
@@ -517,10 +538,12 @@ bool Table_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Tables::NUMBER_OF_FIELDS == 37,
+              "Tables definition has changed, check if serialize() and "
+              "deserialize() need to be updated!");
 void Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   // Temporary table definitions are never persisted.
-  DBUG_ASSERT(!m_is_temporary);
+  assert(!m_is_temporary);
 
   w->StartObject();
   Abstract_table_impl::serialize(wctx, w);
@@ -530,6 +553,9 @@ void Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
         STRING_WITH_LEN("last_checked_for_upgrade_version_id"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write(w, m_engine_attribute, STRING_WITH_LEN("engine_attribute"));
+  write(w, m_secondary_engine_attribute,
+        STRING_WITH_LEN("secondary_engine_attribute"));
   write_enum(w, m_row_format, STRING_WITH_LEN("row_format"));
   write_enum(w, m_partition_type, STRING_WITH_LEN("partition_type"));
   write(w, m_partition_expression, STRING_WITH_LEN("partition_expression"));
@@ -565,6 +591,8 @@ bool Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
        "last_checked_for_upgrade_version_id");
   read(&m_comment, val, "comment");
   read_properties(&m_se_private_data, val, "se_private_data");
+  read(&m_engine_attribute, val, "engine_attribute");
+  read(&m_secondary_engine_attribute, val, "secondary_engine_attribute");
   read_enum(&m_row_format, val, "row_format");
   read_enum(&m_partition_type, val, "partition_type");
   read(&m_partition_expression, val, "partition_expression");
@@ -615,6 +643,8 @@ void Table_impl::debug_print(String_type &outb) const {
      << "m_comment: " << m_comment << "; "
      << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_se_private_id: {OID: " << m_se_private_id << "}; "
+     << "m_engine_attribute: " << m_engine_attribute << "; "
+     << "m_secondary_engine_attribute: " << m_secondary_engine_attribute << "; "
      << "m_row_format: " << m_row_format << "; "
      << "m_is_temporary: " << m_is_temporary << "; "
      << "m_tablespace: {OID: " << m_tablespace_id << "}; "
@@ -631,9 +661,9 @@ void Table_impl::debug_print(String_type &outb) const {
 
   {
     for (const Partition *i : partitions()) {
-      String_type s;
-      i->debug_print(s);
-      ss << s << " | ";
+      String_type sp;
+      i->debug_print(sp);
+      ss << sp << " | ";
     }
   }
 
@@ -641,9 +671,9 @@ void Table_impl::debug_print(String_type &outb) const {
 
   {
     for (const Index *i : indexes()) {
-      String_type s;
-      i->debug_print(s);
-      ss << s << " | ";
+      String_type si;
+      i->debug_print(si);
+      ss << si << " | ";
     }
   }
 
@@ -651,9 +681,9 @@ void Table_impl::debug_print(String_type &outb) const {
 
   {
     for (const Foreign_key *fk : foreign_keys()) {
-      String_type s;
-      fk->debug_print(s);
-      ss << s << " | ";
+      String_type sfk;
+      fk->debug_print(sfk);
+      ss << sfk << " | ";
     }
   }
 
@@ -661,9 +691,9 @@ void Table_impl::debug_print(String_type &outb) const {
 
   {
     for (const Check_constraint *cc : check_constraints()) {
-      String_type s;
-      cc->debug_print(s);
-      ss << s << " | ";
+      String_type scc;
+      cc->debug_print(scc);
+      ss << scc << " | ";
     }
   }
 
@@ -671,9 +701,9 @@ void Table_impl::debug_print(String_type &outb) const {
 
   {
     for (const Trigger *trig : triggers()) {
-      String_type s;
-      trig->debug_print(s);
-      ss << s << " | ";
+      String_type st;
+      trig->debug_print(st);
+      ss << st << " | ";
     }
   }
   ss << "] ";
@@ -708,7 +738,7 @@ Index *Table_impl::get_index(Object_id index_id) {
     if (i->id() == index_id) return i;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -749,7 +779,7 @@ Partition *Table_impl::get_partition(Object_id partition_id) {
     if (i->id() == partition_id) return i;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -826,8 +856,8 @@ const Trigger *Table_impl::get_trigger(const char *name) const {
 Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
                                            Trigger::enum_action_timing at,
                                            Trigger::enum_event_type et) {
-  DBUG_ASSERT(trigger != nullptr && trigger->action_timing() == at &&
-              trigger->event_type() == et);
+  assert(trigger != nullptr && trigger->action_timing() == at &&
+         trigger->event_type() == et);
 
   // Allocate new Trigger object.
   Trigger_impl *new_trigger = create_trigger();
@@ -853,8 +883,8 @@ Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
 Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
                                            Trigger::enum_action_timing at,
                                            Trigger::enum_event_type et) {
-  DBUG_ASSERT(trigger != nullptr && trigger->action_timing() == at &&
-              trigger->event_type() == et);
+  assert(trigger != nullptr && trigger->action_timing() == at &&
+         trigger->event_type() == et);
 
   Trigger_impl *new_trigger = create_trigger();
   if (new_trigger == nullptr) return nullptr;
@@ -874,7 +904,7 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
 ///////////////////////////////////////////////////////////////////////////
 
 void Table_impl::copy_triggers(const Table *tab_obj) {
-  DBUG_ASSERT(tab_obj != nullptr);
+  assert(tab_obj != nullptr);
 
   for (const Trigger *trig : tab_obj->triggers()) {
     /*
@@ -912,7 +942,7 @@ void Table_impl::copy_triggers(const Table *tab_obj) {
     */
     Trigger_impl *new_trigger =
         new Trigger_impl(*dynamic_cast<const Trigger_impl *>(trig), this);
-    DBUG_ASSERT(new_trigger != nullptr);
+    assert(new_trigger != nullptr);
 
     new_trigger->set_id(INVALID_OBJECT_ID);
 
@@ -927,7 +957,7 @@ void Table_impl::drop_all_triggers() { m_triggers.remove_all(); }
 ///////////////////////////////////////////////////////////////////////////
 
 void Table_impl::drop_trigger(const Trigger *trigger) {
-  DBUG_ASSERT(trigger != nullptr);
+  assert(trigger != nullptr);
   dd::Trigger::enum_action_timing at = trigger->action_timing();
   dd::Trigger::enum_event_type et = trigger->event_type();
 
@@ -954,7 +984,7 @@ Partition *Table_impl::get_partition(const String_type &name) {
     if (i->name() == name) return i;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -998,6 +1028,8 @@ Table_impl::Table_impl(const Table_impl &src)
       m_last_checked_for_upgrade_version_id{
           src.m_last_checked_for_upgrade_version_id},
       m_se_private_data(src.m_se_private_data),
+      m_engine_attribute(src.m_engine_attribute),
+      m_secondary_engine_attribute(src.m_secondary_engine_attribute),
       m_row_format(src.m_row_format),
       m_is_temporary(src.m_is_temporary),
       m_partition_type(src.m_partition_type),

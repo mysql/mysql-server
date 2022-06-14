@@ -1,4 +1,5 @@
 --source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
 
 --echo #
 --echo # Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
@@ -251,7 +252,7 @@ CREATE USER u1;
 # persist some static and dynamic variables
 SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 
 --connect(con1, localhost, u1)
 SHOW GRANTS;
@@ -298,7 +299,7 @@ disconnect con1;
 --connect(con1, localhost, u1)
 SHOW GRANTS;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 RESET PERSIST ft_query_expansion_limit;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
@@ -311,7 +312,7 @@ disconnect con1;
 # grant SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN
 --connect(con1, localhost, u1)
 SHOW GRANTS;
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 RESET PERSIST ft_query_expansion_limit;
 RESET PERSIST;
 
@@ -320,7 +321,7 @@ connection default;
 SELECT * FROM performance_schema.persisted_variables;
 # set variables to default
 SET GLOBAL sort_buffer_size = default, max_connections = default,
-  slave_net_timeout = default, max_heap_table_size = default;
+  replica_net_timeout = default, max_heap_table_size = default;
 DROP USER u1;
 disconnect con1;
 
@@ -357,6 +358,33 @@ SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
 RESET PERSIST;
 
 --echo #
+--echo # Bug #30030648: NO DEPRECATION WARNING ON SERVER RESTART FOR SET PERSISTED OPTIONS
+--echo #
+
+--echo # should report warning
+SET GLOBAL avoid_temporal_upgrade=TRUE;
+--echo # should report warning
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+--echo # should report warning
+SET PERSIST avoid_temporal_upgrade=TRUE;
+
+--let $ofile= $MYSQLTEST_VARDIR/tmp/server_log.err
+
+--echo # Restart server
+--let $restart_parameters=restart:--log_error=$MYSQLTEST_VARDIR/tmp/server_log.err
+--replace_result $MYSQLTEST_VARDIR tmp_dir
+--source include/restart_mysqld_no_echo.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting --avoid_temporal_upgrade
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/server_log.err
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/server_log.err
+RESET PERSIST;
+
+--echo #
 --echo # Bug #28749668: SKIP_NAME_RESOLVE CAN BE PERSIT_ONLY-ED TO ON, BUT NOT OFF
 --echo #
 
@@ -366,16 +394,138 @@ GRANT ALL ON *.* TO 'bug28749668'@'%';
 --connect(con1, localhost, bug28749668)
 SET PERSIST_ONLY skip_name_resolve=0;
 
+disconnect con1;
+connection default;
 --echo # Restart server and check if server starts
+--let $restart_parameters=restart:
 --source include/restart_mysqld.inc
 
-connection con1;
+--connect(con1, localhost, bug28749668)
 SELECT @@global.skip_name_resolve;
 SELECT * FROM performance_schema.persisted_variables;
+connection default;
 RESET PERSIST;
 #cleanup
 DROP USER 'bug28749668'@'%';
 disconnect con1;
 
---echo # End of the 8.0 tests
+--echo #
+--echo # Bug #30169731: MYSQL SERVER DOESN'T START AND NO ERROR IN THE LOG
+--echo #
 
+# Set variables to be used in parameters of mysqld.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # config file is in wrong json format
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ Version" : 1 , "mysql_server" : { "max_connections" : { "Value" : "23" , "Metadata" : { "Timestamp" : 1573471430265110 , "User" : "root" , "Host" : "localhost" } } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD_CMD --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv="" > $MYSQLD_LOG 2>&1
+
+--let $assert_text=Server should fail to start as mysqld-auto.cnf file is with wrong JSON format.
+--let $assert_file=$MYSQLD_LOG
+--let $assert_select=Persisted config file is corrupt. Please ensure mysqld-auto.cnf file is valid JSON.
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--remove_file $MYSQLD_LOG
+
+--echo # start server with all defaults
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Bug #32761053: SET PERSIST_ONLY ... = DEFAULT IS BROKEN FOR ENUM VARIABLES
+--echo #
+
+SET PERSIST_ONLY replica_exec_mode = DEFAULT;
+SELECT * FROM performance_schema.persisted_variables
+  WHERE variable_name='replica_exec_mode';
+
+RESET PERSIST;
+
+
+--echo #
+--echo # Bug #32640588: SOURCE FOR SKIP_SLAVE_START DISPLAYED AS COMPILED
+--echo #   WHEN IT IS PERSISTED
+--echo #
+
+--echo # Should both be "COMPILED"
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+SET PERSIST_ONLY skip_replica_start = ON;
+--echo # Should still be "COMPILED" pre-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+--source include/restart_mysqld.inc
+--echo # Success criteria: Should be "PERSISTED" post-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+RESET PERSIST;
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug #33388488: NO DEPRECATION WARNING ON SERVER RESTART IF TWO OR MORE
+--echo # PERSISTED OPTIONS
+--echo #
+
+SET PERSIST transaction_write_set_extraction='XXHASH64';
+SET PERSIST avoid_temporal_upgrade=TRUE;
+
+--let LOG_ERR=$MYSQLTEST_VARDIR/tmp/myerror.err
+--let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+RESET PERSIST;
+--remove_file $LOG_ERR
+
+SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+
+--let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+RESET PERSIST;
+--remove_file $LOG_ERR
+
+# set to default
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+--echo # End of the 8.0 tests

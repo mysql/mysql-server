@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <system_error>
+#include <thread>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,20 +33,28 @@
 #include <unistd.h>
 #endif
 
+#include <gmock/gmock-matchers.h>
+#include <gtest/gtest.h>
+
+#include "config_builder.h"
 #include "dim.h"
-#include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
+#include "mock_server_testutils.h"
+#include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/keyring_info.h"
+#include "mysqlrouter/utils.h"  // copy_file
+#include "process_manager.h"
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "script_generator.h"
 #include "tcp_port_pool.h"
-#include "utils.h"
 
 /**
  * @file
  * @brief Component Tests for the master-key-reader and master-key-writer
  */
+
+using namespace std::chrono_literals;
 
 MATCHER_P(FileContentEqual, master_key, "") {
   std::ifstream file(arg);
@@ -65,7 +74,6 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
  protected:
   void SetUp() override {
     RouterComponentTest::SetUp();
-    logging_folder = Path(tmp_dir_.name()).join("log").str();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
@@ -84,41 +92,43 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     }
   }
 
-  std::string get_json_file(const Path &data_dir, unsigned server_port) {
-    std::map<std::string, std::string> json_vars = {
-        {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(server_port)},
-        {"PRIMARY_PORT", std::to_string(server_port)},
-    };
-
-    // launch the primary node working also as metadata server
-    std::string json_primary_node_template =
-        data_dir.join("metadata_1_node.js").str();
-    std::string json_primary_node =
-        Path(tmp_dir_.name()).join("metadata_1_node.json").str();
-    rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
-                            json_vars);
-    return json_primary_node;
+  static std::pair<std::string, std::map<std::string, std::string>>
+  metadata_cache_section(uint16_t server_port) {
+    return {"metadata_cache:test",
+            {{"router_id", "1"},
+             {"bootstrap_server_addresses",
+              "mysql://localhost:" + std::to_string(server_port)},
+             {"user", "mysql_router1_user"},
+             {"metadata_cluster", "test"},
+             {"ttl", "500"}}};
   }
 
-  std::string get_metadata_cache_section(unsigned server_port) {
-    return "[metadata_cache:test]\n"
-           "router_id=1\n"
-           "bootstrap_server_addresses=mysql://localhost:" +
-           std::to_string(server_port) +
-           "\n"
-           "user=mysql_router1_user\n"
-           "metadata_cluster=test\n"
-           "ttl=500\n\n";
+  static std::string get_metadata_cache_section(unsigned server_port) {
+    auto section = metadata_cache_section(server_port);
+
+    return mysql_harness::ConfigBuilder::build_section(section.first,
+                                                       section.second);
   }
 
-  std::string get_metadata_cache_routing_section(const std::string &role,
-                                                 const std::string &strategy,
-                                                 unsigned router_port) {
-    return "[routing:test_default]\n"
-           "bind_port=" +
-           std::to_string(router_port) + "\n" +
-           "destinations=metadata-cache://test/default?role=" + role + "\n" +
-           "protocol=classic\n" + "routing_strategy=" + strategy + "\n";
+  static std::pair<std::string, std::map<std::string, std::string>>
+  metadata_cache_routing_section(const std::string &role,
+                                 const std::string &strategy,
+                                 uint16_t router_port) {
+    return {"routing:test_default",
+            {{"bind_port", std::to_string(router_port)},
+             {"destinations", "metadata-cache://test/default?role=" + role},
+             {"protocol", "classic"},
+             {"routing_strategy", strategy}}};
+  }
+
+  static std::string get_metadata_cache_routing_section(
+      const std::string &role, const std::string &strategy,
+      uint16_t router_port) {
+    auto section = metadata_cache_routing_section(role, strategy, router_port);
+
+    return mysql_harness::ConfigBuilder::build_section(section.first,
+                                                       section.second) +
+           "\n";
   }
 
   KeyringInfo init_keyring() {
@@ -150,7 +160,6 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     ScriptGenerator script_generator(ProcessManager::get_origin(),
                                      tmp_dir_.name());
     std::map<std::string, std::string> default_section = get_DEFAULT_defaults();
-    default_section["logging_folder"] = logging_folder;
     default_section["keyring_path"] =
         Path(tmp_dir_.name()).join("keyring").str();
 
@@ -177,7 +186,6 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
                                      tmp_dir_.name());
 
     auto default_section = get_DEFAULT_defaults();
-    default_section["logging_folder"] = logging_folder;
     default_section["keyring_path"] =
         Path(tmp_dir_.name()).join("keyring").str();
     default_section["master_key_reader"] =
@@ -187,10 +195,18 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     return default_section;
   }
 
-  TcpPortPool port_pool_;
+  auto &launch_router(const std::vector<std::string> &params,
+                      int expected_exit_code = EXIT_SUCCESS) {
+    return ProcessManager::launch_router(
+        params, expected_exit_code,
+        /*catch_stderr=*/true,
+        /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/-1s,
+        RouterComponentBootstrapTest::kBootstrapOutputResponder);
+  }
+
   TempDirectory tmp_dir_;
   TempDirectory bootstrap_dir_;
-  std::string logging_folder;
   std::string master_key_;
 };
 
@@ -201,11 +217,10 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
  */
 TEST_F(MasterKeyReaderWriterTest,
        NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader) {
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -221,14 +236,10 @@ TEST_F(MasterKeyReaderWriterTest,
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(30000), 0);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(router.expect_output(
-      "MySQL Router configured for the InnoDB cluster 'mycluster'"))
+      "MySQL Router configured for the InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -255,11 +266,10 @@ TEST_F(MasterKeyReaderWriterTest,
  */
 TEST_F(MasterKeyReaderWriterTest,
        CheckConfigFileWhenBootstrapPassWithMasterKeyReader) {
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -275,15 +285,11 @@ TEST_F(MasterKeyReaderWriterTest,
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
   });
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(30000), 0);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB cluster 'mycluster'"))
+                           "InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -315,15 +321,14 @@ TEST_F(MasterKeyReaderWriterTest,
 /**
  * @test
  *       verify that when --master-key-reader option is used, but specified
- * reader cannot be executed, then bootstrap fails and appropriate error message
- * is printed to standard output.
+ * reader cannot be executed, then bootstrap fails and appropriate error
+ * message is printed to standard output.
  */
 TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -341,12 +346,8 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot fetch master key file using master key reader"))
       << router.get_full_output() << std::endl
@@ -360,11 +361,10 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
  * error message is printed to standard output.
  */
 TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -382,12 +382,8 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot write master key file using master key writer"))
       << router.get_full_output() << std::endl
@@ -406,11 +402,10 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
 
   write_to_file(keyring_path, "keyring file content");
 
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -428,19 +423,15 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
 }
 
 /**
  * @test
- *       verify that if --master-key-reader option is used and bootstrap fails,
- *       then original master key is restored.
+ *       verify that if --master-key-reader option is used and bootstrap
+ * fails, then original master key is restored.
  */
 TEST_F(MasterKeyReaderWriterTest, MasterKeyRestoredWhenBootstrapFails) {
   // create file that is used by master-key-reader and master-key-writer
@@ -463,12 +454,8 @@ TEST_F(MasterKeyReaderWriterTest, MasterKeyRestoredWhenBootstrapFails) {
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));
 }
 
@@ -482,11 +469,10 @@ TEST_F(MasterKeyReaderWriterTest,
        IsNewMasterKeyIfReaderReturnsEmptyKeyAndBootstrapPass) {
   write_to_file(Path(tmp_dir_.name()).join("master_key"), "");
 
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -502,15 +488,11 @@ TEST_F(MasterKeyReaderWriterTest,
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(30000), 0);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB cluster 'mycluster'"))
+                           "InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -529,11 +511,10 @@ TEST_F(MasterKeyReaderWriterTest,
        DontWriteMasterKeyAtBootstrapIfMasterKeyAlreadyExists) {
   write_to_file(Path(tmp_dir_.name()).join("master_key"), "master key value");
 
-  unsigned server_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -549,12 +530,8 @@ TEST_F(MasterKeyReaderWriterTest,
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), 0) << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router));
   ASSERT_THAT(Path(tmp_dir_.name()).join("master_key").str(),
               FileContentEqual("master key value"));
 }
@@ -566,91 +543,90 @@ TEST_F(MasterKeyReaderWriterTest,
  *
  */
 TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
-  unsigned server_port = port_pool_.get_next_available();
-  unsigned router_port = port_pool_.get_next_available();
-  std::string metadata_cache_section = get_metadata_cache_section(server_port);
-  std::string routing_section =
-      get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
-
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
-  init_keyring();
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
 
   // launch server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server.get_full_output();
+  /*auto &server =*/launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port);
 
-  auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router({
-      "-c",
-      create_config_file(conf_dir.name(),
-                         "[logger]\nlevel = DEBUG\n" + metadata_cache_section +
-                             routing_section,
-                         &default_section_map),
-  });
 
-  // in windows waiting for the router's keyring reader takes about 2seconds,
-  // and we need to do 3 rounds
-  EXPECT_TRUE(wait_for_port_ready(router_port, 10000))
-      << router.get_full_output();
+  auto writer = config_writer(conf_dir.name())
+                    .section(metadata_cache_section(server_port))
+                    .section(metadata_cache_routing_section(
+                        "PRIMARY", "round-robin", router_port));
 
-  auto matcher = [&](const std::string &line) -> bool {
-    return line.find("Connected with metadata server running on") != line.npos;
-  };
+  // set master-key-reader/writer in DEFAULT section
+  auto &default_section = writer.sections().at("DEFAULT");
 
-  EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher,
-                           std::chrono::milliseconds(10000)))
-      << router.get_full_output();
+  const auto keyring_info = init_keyring();
+
+  default_section["keyring_path"] = keyring_info.get_keyring_file();
+  default_section["master_key_reader"] = keyring_info.get_master_key_reader();
+  default_section["master_key_writer"] = keyring_info.get_master_key_writer();
+
+  auto &router =
+      router_spawner()
+          // ERROR: 1273 Syntax Error at: ROLLBACK ...
+          // it will never get READY.
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::RUNNING)
+          .spawn({"-c", writer.write()});
+
+  EXPECT_TRUE(wait_log_contains(
+      router, "Connected with metadata server running on", 10s));
 }
 
 /**
  * @test
  *       verify that when master key returned by master-key-reader is correct
- *       and then launching the router succeeds, then master-key is not written
- *       to log files.
+ *       and then launching the router succeeds, then master-key is not
+ * written to log files.
  *
  */
 TEST_F(MasterKeyReaderWriterTest,
        NoMasterKeyInLogsWhenConnectToMetadataServerPass) {
-  unsigned server_port = port_pool_.get_next_available();
-  unsigned router_port = port_pool_.get_next_available();
-  std::string metadata_cache_section = get_metadata_cache_section(server_port);
-  std::string routing_section =
-      get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
-
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
-  init_keyring();
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
 
   // launch server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server.get_full_output();
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port, 10000ms));
 
-  auto default_section_map = get_default_section_map();
-  // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router(
-      {"-c", create_config_file(conf_dir.name(),
-                                "[logger]\nlevel = DEBUG\n" +
-                                    metadata_cache_section + routing_section,
-                                &default_section_map)});
 
-  // in windows waiting for the router's keyring reader takes about 2seconds,
-  // and we need to do 3 rounds
-  EXPECT_TRUE(wait_for_port_ready(router_port, 10000))
-      << router.get_full_output();
+  auto writer = config_writer(conf_dir.name())
+                    .section(metadata_cache_section(server_port))
+                    .section(metadata_cache_routing_section(
+                        "PRIMARY", "round-robin", router_port));
 
-  auto matcher = [&, this](const std::string &line) -> bool {
-    return line.find(master_key_) != line.npos;
-  };
+  // set master-key-reader/writer in DEFAULT section
+  auto &default_section = writer.sections().at("DEFAULT");
 
-  EXPECT_FALSE(find_in_file(logging_folder + "/mysqlrouter.log", matcher,
-                            std::chrono::milliseconds(1000)))
-      << router.get_full_output();
+  const auto keyring_info = init_keyring();
+
+  default_section["keyring_path"] = keyring_info.get_keyring_file();
+  default_section["master_key_reader"] = keyring_info.get_master_key_reader();
+  default_section["master_key_writer"] = keyring_info.get_master_key_writer();
+
+  // launch the router with metadata-cache configuration
+
+  auto &router =
+      router_spawner()
+          // ERROR: 1273 Syntax Error at: ROLLBACK ...
+          // it will never get READY.
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::RUNNING)
+          .spawn({"-c", writer.write()});
+
+  // wait a bit for log to generate.
+  std::this_thread::sleep_for(1s);
+
+  auto log_lines = mysql_harness::split_string(router.get_full_logfile(), '\n');
+  EXPECT_THAT(
+      log_lines,
+      ::testing::Not(::testing::Contains(::testing::HasSubstr(master_key_))));
 }
 
 /**
@@ -659,35 +635,33 @@ TEST_F(MasterKeyReaderWriterTest,
  * key then launching the router fails.
  */
 TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
-  unsigned server_port = port_pool_.get_next_available();
-  unsigned router_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
+  auto router_port = port_pool_.get_next_available();
   std::string metadata_cache_section = get_metadata_cache_section(server_port);
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
   init_keyring();
 
   // launch second metadata server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server.get_full_output();
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port));
 
   auto default_section_map = get_default_section_map(true, true);
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {
           "-c",
           create_config_file(conf_dir.name(),
-                             "[logger]\nlevel = DEBUG\n" +
-                                 metadata_cache_section + routing_section,
+                             metadata_cache_section + routing_section,
                              &default_section_map),
       },
       EXIT_FAILURE);
 
-  EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 }
 
 /**
@@ -696,44 +670,42 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
  * incorrect, then launching the router fails with appropriate log message.
  */
 TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
-  unsigned server_port = port_pool_.get_next_available();
-  unsigned router_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
+  auto router_port = port_pool_.get_next_available();
   std::string metadata_cache_section = get_metadata_cache_section(server_port);
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
   init_keyring();
 
   // launch second metadata server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port);
-  EXPECT_TRUE(server_ready) << server.get_full_output();
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port));
 
   auto incorrect_master_key_default_section_map =
       get_incorrect_master_key_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router(
       {"-c", create_config_file(conf_dir.name(),
-                                "[logger]\nlevel = DEBUG\n" +
-                                    metadata_cache_section + routing_section,
+                                metadata_cache_section + routing_section,
                                 &incorrect_master_key_default_section_map)},
       EXIT_FAILURE);
 
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 }
 /*
- * These tests are executed only for STANDALONE layout and are not executed for
- * Windows. Bootstrap for layouts different than STANDALONE use directories to
- * which tests don't have access (see install_layout.cmake).
+ * These tests are executed only for STANDALONE layout and are not executed
+ * for Windows. Bootstrap for layouts different than STANDALONE use
+ * directories to which tests don't have access (see install_layout.cmake).
  */
 Path g_origin_path;
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
-class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest {
+class MasterKeyReaderWriterSystemDeploymentTest
+    : public MasterKeyReaderWriterTest {
  protected:
   void SetUp() override {
     // this test modifies the origin path so we need to restore it
@@ -795,20 +767,14 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest {
   }
 
   auto &run_server_mock() {
-    const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+    const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
     server_port_ = port_pool_.get_next_available();
 
     // launch mock server and wait for it to start accepting connections
     auto &server_mock = launch_mysql_server_mock(json_stmts, server_port_);
-    EXPECT_TRUE(wait_for_port_ready(server_port_))
-        << "Timed out waiting for mock server port ready\n"
-        << server_mock.get_full_output();
     return server_mock;
   }
 
-  TcpPortPool port_pool_;
-
-  TempDirectory tmp_dir_;
   std::string exec_file_;
   std::string config_file_;
 #ifdef __APPLE__
@@ -826,8 +792,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest {
  */
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
   auto &server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -841,17 +806,12 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping was successful
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 0))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB cluster 'mycluster'"))
+                           "InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -862,15 +822,14 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
 
 /**
  * @test
- *       verify if bootstrap with --master-key-reader and with system deployment
- * layout, but specified reader cannot be executed, then bootstrap fails and
- * appropriate error message is printed to standard output.
+ *       verify if bootstrap with --master-key-reader and with system
+ * deployment layout, but specified reader cannot be executed, then bootstrap
+ * fails and appropriate error message is printed to standard output.
  */
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        BootstrapFailsWhenCannotRunMasterKeyReader) {
   auto &server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -886,13 +845,8 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot fetch master key file using master key reader"))
@@ -909,8 +863,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        BootstrapFailsWhenCannotRunMasterKeyWriter) {
   auto &server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -926,13 +879,8 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot write master key file using master key writer"))
@@ -957,8 +905,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
   write_to_file(keyring_path, "keyring file content");
 
   auto &server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_);
-  EXPECT_TRUE(server_ready) << server_mock.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port_));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
                                    tmp_dir_.name());
@@ -975,21 +922,16 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
 }
 
 /**
  * @test
- *       verify bootstrap with --master-key-reader and system deployment layout
- *       and bootstrap fails, then original master key is restored.
+ *       verify bootstrap with --master-key-reader and system deployment
+ * layout and bootstrap fails, then original master key is restored.
  */
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        MasterKeyRestoredWhenBootstrapFails) {
@@ -1011,13 +953,8 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   // check if the bootstraping failed
-  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), EXIT_FAILURE))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));
 }

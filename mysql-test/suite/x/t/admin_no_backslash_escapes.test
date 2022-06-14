@@ -1,0 +1,48 @@
+## check some admin comands with --sql-mode=NO_BACKSLASH_ESCAPES
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_no_backslash_escapes.xpl
+--write_file $xtest_file
+-->import assert_select.macro
+-->quiet
+## Test data
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"bar"}
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"bar", "name": "foo", "unique": true, "constraint":{"member": "$.foo", "type": "int","required": false}}
+-->recvresult
+
+callmacro Assert_select
+	Key_name
+	foo
+	SHOW INDEX FROM xtest.bar WHERE Key_name='foo';
+
+-->stmtsql SELECT CONCAT_WS(',', @@SQL_MODE, 'NO_BACKSLASH_ESCAPES')
+-->recvtovar %MODES%
+SET SQL_MODE='%MODES%';
+
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvtovar %RESULT% type
+-->echo Verify ["list_objects" returns "bar" as a COLLECTION]
+-->assert_eq COLLECTION	%RESULT%
+
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"bar", "name": "foo"}
+-->recvresult
+
+callmacro Assert_select
+	Key_name
+	null
+	SHOW INDEX FROM xtest.bar WHERE Key_name='foo';
+
+EOF
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

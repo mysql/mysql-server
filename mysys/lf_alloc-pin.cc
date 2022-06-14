@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <atomic>
@@ -120,7 +121,7 @@ static_assert(sizeof(std::atomic<void *>) == sizeof(void *),
 #include "lf.h"
 #include "my_atomic.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread.h"
@@ -137,7 +138,7 @@ static void lf_pinbox_real_free(LF_PINS *pins);
 */
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void *free_func_arg) {
-  DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
+  assert(free_ptr_offset % sizeof(void *) == 0);
   static_assert(sizeof(LF_PINS) == 64, "");
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver = 0;
@@ -179,7 +180,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox) {
       /* the stack of free elements is empty */
       pins = pinbox->pins_in_array.fetch_add(1) + 1;
       if (unlikely(pins >= LF_PINBOX_MAX_PINS)) {
-        return 0;
+        return nullptr;
       }
       /*
         note that the first allocated element has index 1 (pins==1).
@@ -187,7 +188,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox) {
       */
       el = (LF_PINS *)lf_dynarray_lvalue(&pinbox->pinarray, pins);
       if (unlikely(!el)) {
-        return 0;
+        return nullptr;
       }
       break;
     }
@@ -219,15 +220,15 @@ void lf_pinbox_put_pins(LF_PINS *pins) {
   uint32 top_ver, nr;
   nr = pins->link;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     /* This thread should not hold any pin. */
     int i;
     for (i = 0; i < LF_PINBOX_PINS; i++) {
-      DBUG_ASSERT(pins->pin[i] == 0);
+      assert(pins->pin[i] == nullptr);
     }
   }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   /*
     XXX this will deadlock if other threads will wait for
@@ -330,7 +331,7 @@ static void lf_pinbox_real_free(LF_PINS *pins) {
   /* Store info about current purgatory. */
   struct st_match_and_save_arg arg = {pins, pinbox, pins->purgatory};
   /* Reset purgatory. */
-  pins->purgatory = NULL;
+  pins->purgatory = nullptr;
   pins->purgatory_count = 0;
 
   lf_dynarray_iterate(&pinbox->pinarray, match_and_save, &arg);
@@ -395,12 +396,12 @@ static void alloc_free(void *v_first, void *v_last, void *v_allocator) {
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
                     lf_allocator_func *ctor, lf_allocator_func *dtor) {
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset, alloc_free, allocator);
-  allocator->top = 0;
+  allocator->top = nullptr;
   allocator->mallocs = 0;
   allocator->element_size = size;
   allocator->constructor = ctor;
   allocator->destructor = dtor;
-  DBUG_ASSERT(size >= sizeof(void *) + free_ptr_offset);
+  assert(size >= sizeof(void *) + free_ptr_offset);
 }
 
 /*
@@ -425,7 +426,7 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator) {
     node = tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);
-  allocator->top = 0;
+  allocator->top = nullptr;
 }
 
 /*
@@ -446,14 +447,14 @@ void *lf_alloc_new(LF_PINS *pins) {
     if (!node) {
       node = static_cast<uchar *>(
           my_malloc(key_memory_lf_node, allocator->element_size, MYF(MY_WME)));
-      if (allocator->constructor) {
-        allocator->constructor(node);
-      }
+      if (likely(node != nullptr)) {
+        if (allocator->constructor) {
+          allocator->constructor(node);
+        }
 #ifdef MY_LF_EXTRA_DEBUG
-      if (likely(node != 0)) {
         ++allocator->mallocs;
-      }
 #endif
+      }
       break;
     }
     if (atomic_compare_exchange_strong(&allocator->top, &node,

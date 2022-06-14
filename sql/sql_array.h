@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_dbug.h"
+#include <assert.h>
+#include <array>
+
+#include "my_alloc.h"
 
 /**
    A wrapper class which provides array bounds checking.
@@ -35,6 +38,8 @@
    - the copy CTOR (memberwise initialization)
    - the assignment operator (memberwise assignment)
 
+   This is roughly analogous to C++20's std::span.
+
    @tparam Element_type The type of the elements of the container.
  */
 template <typename Element_type>
@@ -43,13 +48,26 @@ class Bounds_checked_array {
   // Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
 
-  Bounds_checked_array() : m_array(NULL), m_size(0) {}
+  Bounds_checked_array() : m_array(nullptr), m_size(0) {}
 
   Bounds_checked_array(Element_type *el, size_t size_arg)
       : m_array(el), m_size(size_arg) {}
 
+  // NOTE: non-const reference intentional; mirrors std::span's constructor.
+  template <class T, size_t N>
+  explicit Bounds_checked_array(std::array<T, N> &arr)
+      : m_array(arr.data()), m_size(arr.size()) {}
+
+  // Not a constructor because it does something else from the other
+  // constructors (allocates new memory instead of wrapping existing memory),
+  // and also because nullptr for the first argument be ambiguous. The latter
+  // could be solved with an explicit nullptr_t overload, though.
+  static Bounds_checked_array Alloc(MEM_ROOT *mem_root, size_t size) {
+    return {mem_root->ArrayAlloc<Element_type>(size), size};
+  }
+
   void reset() {
-    m_array = NULL;
+    m_array = nullptr;
     m_size = 0;
   }
 
@@ -64,17 +82,30 @@ class Bounds_checked_array {
     current size.
    */
   void resize(size_t new_size) {
-    DBUG_ASSERT(new_size <= m_size);
+    assert(new_size <= m_size);
     m_size = new_size;
   }
 
+  /**
+    Like resize(), but returns a new view of the array without modifying
+    this one.
+   */
+  Bounds_checked_array prefix(size_t new_size) {
+    assert(new_size <= m_size);
+    return Bounds_checked_array(m_array, new_size);
+  }
+
+  Element_type *data() { return m_array; }
+
+  const Element_type *data() const { return m_array; }
+
   Element_type &operator[](size_t n) {
-    DBUG_ASSERT(n < m_size);
+    assert(n < m_size);
     return m_array[n];
   }
 
   const Element_type &operator[](size_t n) const {
-    DBUG_ASSERT(n < m_size);
+    assert(n < m_size);
     return m_array[n];
   }
 
@@ -91,13 +122,19 @@ class Bounds_checked_array {
   /// end   : Returns a pointer to the past-the-end element in the array.
   const_iterator end() const { return m_array + size(); }
 
+  Bounds_checked_array without_back() const {
+    assert(m_size > 0);
+    return Bounds_checked_array{m_array, m_size - 1};
+  }
+
   size_t element_size() const { return sizeof(Element_type); }
   size_t size() const { return m_size; }
+  bool empty() const { return m_size == 0; }
 
-  bool is_null() const { return m_array == NULL; }
+  bool is_null() const { return m_array == nullptr; }
 
   void pop_front() {
-    DBUG_ASSERT(m_size > 0);
+    assert(m_size > 0);
     m_array += 1;
     m_size -= 1;
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "sql/key.h"  // key_copy
 #include "sql/log.h"
 #include "sql/mysqld.h"
+#include "sql/protocol.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"
@@ -63,7 +64,7 @@ ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
 
 /* Interface to mysqld, to check system tables supported by SE */
-static bool myisam_is_supported_system_table(const char *,
+static bool myisam_is_supported_system_table(const char *db,
                                              const char *table_name,
                                              bool is_sql_layer_system_table);
 
@@ -71,63 +72,84 @@ static bool myisam_is_supported_system_table(const char *,
 const char *myisam_recover_names[] = {"DEFAULT", "BACKUP", "FORCE",
                                       "QUICK",   "OFF",    NullS};
 TYPELIB myisam_recover_typelib = {array_elements(myisam_recover_names) - 1, "",
-                                  myisam_recover_names, NULL};
+                                  myisam_recover_names, nullptr};
 
 const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
                                            "nulls_ignored", NullS};
 TYPELIB myisam_stats_method_typelib = {
     array_elements(myisam_stats_method_names) - 1, "",
-    myisam_stats_method_names, NULL};
+    myisam_stats_method_names, nullptr};
 
 static MYSQL_SYSVAR_ULONG(block_size, opt_myisam_block_size,
                           PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG,
-                          "Block size to be used for MyISAM index pages", NULL,
-                          NULL, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
-                          MI_MAX_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH);
+                          "Block size to be used for MyISAM index pages",
+                          nullptr, nullptr, MI_KEY_BLOCK_LENGTH,
+                          MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
+                          MI_MIN_KEY_BLOCK_LENGTH);
 
 static MYSQL_SYSVAR_ULONG(data_pointer_size, myisam_data_pointer_size,
                           PLUGIN_VAR_RQCMDARG,
                           "Default pointer size to be used for MyISAM tables",
-                          NULL, NULL, 6, 2, 7, 1);
+                          nullptr, nullptr, 6, 2, 7, 1);
 
 #define MB (1024 * 1024)
 static MYSQL_SYSVAR_ULONGLONG(
     max_sort_file_size, myisam_max_temp_length, PLUGIN_VAR_RQCMDARG,
     "Don't use the fast sort index method to created "
     "index if the temporary file would get bigger than this",
-    NULL, NULL, LONG_MAX / MB * MB, 0, MAX_FILE_SIZE, MB);
+    nullptr, nullptr, LONG_MAX / MB * MB, 0, MAX_FILE_SIZE, MB);
 
 static MYSQL_SYSVAR_SET(
     recover_options, myisam_recover_options,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Syntax: myisam-recover-options[=option[,option...]], where option can be "
     "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
-    NULL, NULL, 0, &myisam_recover_typelib);
+    nullptr, nullptr, 0, &myisam_recover_typelib);
+
+static void emit_repair_threads_warning(THD *thd, ulong val) {
+  if (val == 1) return;
+
+  if (thd)
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING,
+        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+        ER_THD_NONCONST(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+        "@@myisam_repair_threads");
+  else
+    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+           "@@myisam_repair_threads");
+}
+
+static void repair_threads_update(THD *thd, SYS_VAR *, void *tgt,
+                                  const void *save) {
+  emit_repair_threads_warning(thd, (ulong) * (long *)const_cast<void *>(save));
+  *static_cast<long *>(tgt) = *static_cast<const long *>(save);
+}
 
 static MYSQL_THDVAR_ULONG(
     repair_threads, PLUGIN_VAR_RQCMDARG,
-    "If larger than 1, when repairing a MyISAM table all indexes will be "
-    "created in parallel, with one thread per index. The value of 1 "
+    "DEPRECATED. If larger than 1, when repairing a MyISAM table all indexes "
+    "will be created in parallel, with one thread per index. The value of 1 "
     "disables parallel repair",
-    NULL, NULL, 1, 1, ULONG_MAX, 1);
+    nullptr, repair_threads_update, 1, 1, ULONG_MAX, 1);
 
 static MYSQL_THDVAR_ULONGLONG(
     sort_buffer_size, PLUGIN_VAR_RQCMDARG,
     "The buffer that is allocated when sorting the index when doing "
     "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE",
-    NULL, NULL, 8192 * 1024, (long)(MIN_SORT_BUFFER + MALLOC_OVERHEAD),
+    nullptr, nullptr, 8192 * 1024, (long)(MIN_SORT_BUFFER + MALLOC_OVERHEAD),
     SIZE_T_MAX, 1);
 
 static MYSQL_SYSVAR_BOOL(
     use_mmap, opt_myisam_use_mmap, PLUGIN_VAR_NOCMDARG,
-    "Use memory mapping for reading and writing MyISAM tables", NULL, NULL,
-    false);
+    "Use memory mapping for reading and writing MyISAM tables", nullptr,
+    nullptr, false);
 
 static MYSQL_SYSVAR_ULONGLONG(mmap_size, myisam_mmap_size,
                               PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                               "Restricts the total memory "
                               "used for memory mapping of MySQL tables",
-                              NULL, NULL, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN,
+                              nullptr, nullptr, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN,
                               SIZE_T_MAX, 1);
 
 static MYSQL_THDVAR_ENUM(
@@ -136,9 +158,10 @@ static MYSQL_THDVAR_ENUM(
     "treat NULLs. Possible values of name are NULLS_UNEQUAL (default "
     "behavior for 4.1 and later), NULLS_EQUAL (emulate 4.0 behavior), "
     "and NULLS_IGNORED",
-    NULL, NULL, MI_STATS_METHOD_NULLS_NOT_EQUAL, &myisam_stats_method_typelib);
+    nullptr, nullptr, MI_STATS_METHOD_NULLS_NOT_EQUAL,
+    &myisam_stats_method_typelib);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Causes the thread to wait in a spin lock for a query kill signal.
   This function is used by the test frame work to identify race conditions.
@@ -147,7 +170,7 @@ static MYSQL_THDVAR_ENUM(
 */
 
 static void debug_wait_for_kill(const char *info) {
-  DBUG_ENTER("debug_wait_for_kill");
+  DBUG_TRACE;
   const char *prev_info;
   THD *thd;
   thd = current_thd;
@@ -155,7 +178,6 @@ static void debug_wait_for_kill(const char *info) {
   while (!thd->killed) my_sleep(1000);
   DBUG_PRINT("info", ("Exit debug_wait_for_kill"));
   thd_proc_info(thd, prev_info);
-  DBUG_VOID_RETURN;
 }
 #endif
 
@@ -210,10 +232,10 @@ static void mi_check_print_msg(MI_CHECK *param, const char *msg_type,
   if (param->need_print_msg_lock) mysql_mutex_lock(&param->print_msg_mutex);
 
   protocol->start_row();
-  protocol->store(name, length, system_charset_info);
+  protocol->store_string(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
   protocol->store(msg_type, system_charset_info);
-  protocol->store(msgbuf, msg_length, system_charset_info);
+  protocol->store_string(msgbuf, msg_length, system_charset_info);
   if (protocol->end_row())
     LogErr(ERROR_LEVEL, ER_MY_NET_WRITE_FAILED_FALLING_BACK_ON_STDERR, msgbuf);
 
@@ -257,24 +279,23 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   HA_KEYSEG *keyseg;
   TABLE_SHARE *share = table_arg->s;
   uint options = share->db_options_in_use;
-  DBUG_ENTER("table2myisam");
+  DBUG_TRACE;
   if (!(my_multi_malloc(PSI_INSTRUMENT_ME, MYF(MY_WME), recinfo_out,
                         (share->fields * 2 + 2) * sizeof(MI_COLUMNDEF),
                         keydef_out, share->keys * sizeof(MI_KEYDEF), &keyseg,
                         (share->key_parts + share->keys) * sizeof(HA_KEYSEG),
                         NullS)))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
+    return HA_ERR_OUT_OF_MEM; /* purecov: inspected */
   keydef = *keydef_out;
   recinfo = *recinfo_out;
   pos = table_arg->key_info;
   for (i = 0; i < share->keys; i++, pos++) {
     keydef[i].flag =
         ((uint16)pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    DBUG_ASSERT(pos->algorithm != HA_KEY_ALG_SE_SPECIFIC);
-    DBUG_ASSERT(!(pos->flags & HA_SPATIAL) ||
-                pos->algorithm == HA_KEY_ALG_RTREE);
-    DBUG_ASSERT(!(pos->flags & HA_FULLTEXT) ||
-                pos->algorithm == HA_KEY_ALG_FULLTEXT);
+    assert(pos->algorithm != HA_KEY_ALG_SE_SPECIFIC);
+    assert(!(pos->flags & HA_SPATIAL) || pos->algorithm == HA_KEY_ALG_RTREE);
+    assert(!(pos->flags & HA_FULLTEXT) ||
+           pos->algorithm == HA_KEY_ALG_FULLTEXT);
     keydef[i].key_alg = pos->algorithm;
     keydef[i].block_length = pos->block_size;
     keydef[i].seg = keyseg;
@@ -292,7 +313,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
              (type == HA_KEYTYPE_BINARY && !field->zero_pack()))) {
           /* No blobs here */
           if (j == 0) keydef[i].flag |= HA_PACK_KEY;
-          if (!(field->flags & ZEROFILL_FLAG) &&
+          if (!field->is_flag_set(ZEROFILL_FLAG) &&
               (field->type() == MYSQL_TYPE_STRING ||
                field->type() == MYSQL_TYPE_VAR_STRING ||
                ((int)(pos->key_part[j].length - field->decimals())) >= 4))
@@ -309,7 +330,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       keydef[i].seg[j].bit_pos = 0;
       keydef[i].seg[j].language = field->charset_for_protocol()->number;
 
-      if (field->real_maybe_null()) {
+      if (field->is_nullable()) {
         keydef[i].seg[j].null_bit = field->null_bit;
         keydef[i].seg[j].null_pos = field->null_offset();
       } else {
@@ -337,7 +358,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   recpos = 0;
   recinfo_pos = recinfo;
   while (recpos < (uint)share->stored_rec_length) {
-    Field **field, *found = 0;
+    Field **field, *found = nullptr;
     minpos = share->reclength;
     length = 0;
 
@@ -364,7 +385,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
     }
     if (!found) break;
 
-    if (found->flags & BLOB_FLAG)
+    if (found->is_flag_set(BLOB_FLAG))
       recinfo_pos->type = (int)FIELD_BLOB;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type = FIELD_VARCHAR;
@@ -374,13 +395,13 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       recinfo_pos->type = (int)FIELD_SKIP_ZERO;
     else
       recinfo_pos->type =
-          (int)((length <= 3 || (found->flags & ZEROFILL_FLAG))
+          (int)((length <= 3 || (found->is_flag_set(ZEROFILL_FLAG)))
                     ? FIELD_NORMAL
                     : found->type() == MYSQL_TYPE_STRING ||
                               found->type() == MYSQL_TYPE_VAR_STRING
                           ? FIELD_SKIP_ENDSPACE
                           : FIELD_SKIP_PRESPACE);
-    if (found->real_maybe_null()) {
+    if (found->is_nullable()) {
       recinfo_pos->null_bit = found->null_bit;
       recinfo_pos->null_pos = found->null_offset();
     } else {
@@ -393,7 +414,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                         recinfo_pos[-1].type));
   }
   *records_out = (uint)(recinfo_pos - recinfo);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -445,17 +466,17 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                      MI_COLUMNDEF *t2_recinfo, uint t2_keys, uint t2_recs,
                      bool strict) {
   uint i, j;
-  DBUG_ENTER("check_definition");
+  DBUG_TRACE;
 
   if ((strict ? t1_keys != t2_keys : t1_keys > t2_keys)) {
     DBUG_PRINT("error", ("Number of keys differs: t1_keys=%u, t2_keys=%u",
                          t1_keys, t2_keys));
-    DBUG_RETURN(1);
+    return 1;
   }
   if (t1_recs != t2_recs) {
     DBUG_PRINT("error", ("Number of recs differs: t1_recs=%u, t2_recs=%u",
                          t1_recs, t2_recs));
-    DBUG_RETURN(1);
+    return 1;
   }
   for (i = 0; i < t1_keys; i++) {
     HA_KEYSEG *t1_keysegs = t1_keyinfo[i].seg;
@@ -469,7 +490,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                  ("t1_fulltext= %d, t2_fulltext=%d",
                   static_cast<bool>(t1_keyinfo[i].flag & HA_FULLTEXT),
                   static_cast<bool>(t2_keyinfo[i].flag & HA_FULLTEXT)));
-      DBUG_RETURN(1);
+      return 1;
     }
     if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
       continue;
@@ -479,7 +500,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
       DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
                            static_cast<bool>(t1_keyinfo[i].flag & HA_SPATIAL),
                            static_cast<bool>(t2_keyinfo[i].flag & HA_SPATIAL)));
-      DBUG_RETURN(1);
+      return 1;
     }
     if (!(t1_keyinfo[i].key_alg == t2_keyinfo[i].key_alg ||
           /*
@@ -496,7 +517,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                            t1_keyinfo[i].keysegs, t1_keyinfo[i].key_alg));
       DBUG_PRINT("error", ("t2_keysegs=%d, t2_key_alg=%d",
                            t2_keyinfo[i].keysegs, t2_keyinfo[i].key_alg));
-      DBUG_RETURN(1);
+      return 1;
     }
     for (j = t1_keyinfo[i].keysegs; j--;) {
       uint8 t1_keysegs_j__type = t1_keysegs[j].type;
@@ -534,7 +555,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                              t2_keysegs[j].type, t2_keysegs[j].language,
                              t2_keysegs[j].null_bit, t2_keysegs[j].length));
 
-        DBUG_RETURN(1);
+        return 1;
       }
     }
   }
@@ -555,10 +576,10 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                            t1_rec->type, t1_rec->length, t1_rec->null_bit));
       DBUG_PRINT("error", ("t2_type=%d, t2_length=%d, t2_null_bit=%d",
                            t2_rec->type, t2_rec->length, t2_rec->null_bit));
-      DBUG_RETURN(1);
+      return 1;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 extern "C" {
@@ -633,7 +654,7 @@ void _mi_report_crashed(MI_INFO *file, const char *message, const char *sfile,
 
 ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
-      file(0),
+      file(nullptr),
       int_table_flags(
           HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
           HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_DUPLICATE_POS |
@@ -642,7 +663,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
           HA_CAN_RTREEKEYS | HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT |
           HA_CAN_REPAIR | HA_GENERATED_COLUMNS | HA_ATTACHABLE_TRX_COMPATIBLE |
           HA_SUPPORTS_DEFAULT_EXPRESSION),
-      can_enable_indexes(1),
+      can_enable_indexes(true),
       ds_mrr(this) {}
 
 handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root) {
@@ -657,76 +678,61 @@ static const char *ha_myisam_exts[] = {".MYI", ".MYD", NullS};
 /**
   @brief Check if the given db.tablename is a system table for this SE.
 
+  @param db                         database name.
   @param table_name                 table name to check.
   @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
                                     layer system table.
 
-  @note As for 5.7, mysql doesn't support MyISAM as an engine for the following
-        system tables: columns_priv, db, procs_priv, proxies_priv, tables_priv,
-        user.
+  @note As for 8.0, MySQL doesn't support MyISAM as an engine for the system
+        tables. Altering engine of system table to MyISAM is not allowed.
+        Creating system tables in MyISAM is allowed to upgrade from older
+        versions through mysqldump.
 
-  @note In case there is a need to define MYISAM specific system
-        database, then please see reference implementation in
-        ha_example.cc.
+  @note In case there is a need to define MYISAM specific system database, then
+        please see reference implementation in ha_example.cc.
 
-  @return
-    @retval true   Given db.table_name is supported system table.
-    @retval false  Given db.table_name is not a supported system table.
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
 */
 
-static bool myisam_is_supported_system_table(const char *,
+static bool myisam_is_supported_system_table(const char *db,
                                              const char *table_name,
                                              bool is_sql_layer_system_table) {
+  /*
+    Currently MYISAM does not support any other SE specific system tables. If
+    in future it does, please see ha_example.cc for reference implementation
+  */
+  if (!is_sql_layer_system_table) return false;
+
+  /*
+    During upgrade, server side execution of SQL statement is allowed to use
+    this SE for system tables.
+  */
   THD *thd = current_thd;
+  if (thd->is_server_upgrade_thread()) return true;
 
-  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-      thd->lex->sql_command == SQLCOM_ALTER_TABLE) {
-    /*
-      We allow creation of ACL tables in MyISAM to allow upgrade from
-      older versions through mysqldump and downgrade.
-    */
-    // Does MYISAM support "ALL" SQL layer system tables ?
-    if (is_sql_layer_system_table) return true;
-
-    /*
-      Currently MYISAM does not support any other SE specific
-      system tables. If in future it does, please see ha_example.cc
-      for reference implementation
-    */
-
-    return false;
-  } else {
-    static const char *unsupported_system_tables[] = {
-        "columns_priv", "db",   "procs_priv",      "proxies_priv",
-        "tables_priv",  "user", (const char *)NULL};
-
-    if (is_sql_layer_system_table) {
-      for (unsigned i = 0; unsupported_system_tables[i] != NULL; ++i) {
-        if (!strcmp(table_name, unsupported_system_tables[i]))
-          // Doesn't support MYISAM for this table name
-          return false;
-      }
-      // Support MYISAM for other system tables not listed explicitly
-      return true;
-    }
-
-    /*
-      Currently MYISAM does not support any other SE specific
-      system tables. If in future it does, please see ha_example.cc
-      for reference implementation
-    */
-
-    return false;
+  /*
+    For client side SQL, creating system tables in this SE is allowed to support
+    logical upgrade.
+  */
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_ENGINE,
+                        ER_THD(thd, ER_UNSUPPORTED_ENGINE), "MyISAM", db,
+                        table_name);
+    return true;
   }
+
+  // Any other usage is not allowed.
+  return false;
 }
 
 /* Name is here without an extension */
 int ha_myisam::open(const char *name, int mode, uint test_if_locked,
                     const dd::Table *) {
   MI_KEYDEF *keyinfo;
-  MI_COLUMNDEF *recinfo = 0;
+  MI_COLUMNDEF *recinfo = nullptr;
   Myisam_handler_share *my_handler_share;
-  MYISAM_SHARE *share = NULL;
+  MYISAM_SHARE *share = nullptr;
   uint recs;
   uint i;
 
@@ -791,11 +797,11 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
   }
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
-    (void)mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0);
+    (void)mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, nullptr);
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
-    (void)mi_extra(file, HA_EXTRA_WAIT_LOCK, 0);
+    (void)mi_extra(file, HA_EXTRA_WAIT_LOCK, nullptr);
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags |= HA_HAS_CHECKSUM;
 
@@ -823,7 +829,7 @@ int ha_myisam::close(void) {
   bool closed_share = false;
   lock_shared_ha_data();
   int err = mi_close_share(file, &closed_share);
-  file = 0;
+  file = nullptr;
   /*
     Since tmp tables will also come to the same flow. To distinguesh with them
     we need to check table_share->tmp_table.
@@ -833,7 +839,7 @@ int ha_myisam::close(void) {
         static_cast<Myisam_handler_share *>(get_ha_share_ptr());
     if (my_handler_share && my_handler_share->m_share)
       delete (my_handler_share);
-    set_ha_share_ptr(NULL);
+    set_ha_share_ptr(nullptr);
   }
   unlock_shared_ha_data();
   return err;
@@ -858,7 +864,7 @@ int ha_myisam::check(THD *thd, HA_CHECK_OPT *check_opt) {
   int error;
   MI_CHECK param;
   MYISAM_SHARE *share = file->s;
-  const char *old_proc_info = thd->proc_info;
+  const char *old_proc_info = thd->proc_info();
 
   thd_proc_info(thd, "Checking table");
   myisamchk_init(&param);
@@ -870,7 +876,7 @@ int ha_myisam::check(THD *thd, HA_CHECK_OPT *check_opt) {
   param.stats_method = (enum_mi_stats_method)THDVAR(thd, stats_method);
 
   if (!(table->db_stat & HA_READ_ONLY)) param.testflag |= T_STATISTICS;
-  param.using_global_keycache = 1;
+  param.using_global_keycache = true;
 
   if (!mi_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
@@ -893,9 +899,9 @@ int ha_myisam::check(THD *thd, HA_CHECK_OPT *check_opt) {
         mi_is_crashed(file)) {
       uint old_testflag = param.testflag;
       param.testflag |= T_MEDIUM;
-      if (!(error = init_io_cache(&param.read_cache, file->dfile,
-                                  my_default_record_cache_size, READ_CACHE,
-                                  share->pack.header_length, 1, MYF(MY_WME)))) {
+      if (!(error = init_io_cache(
+                &param.read_cache, file->dfile, my_default_record_cache_size,
+                READ_CACHE, share->pack.header_length, true, MYF(MY_WME)))) {
         error = chk_data_link(&param, file, param.testflag & T_EXTEND);
         end_io_cache(&(param.read_cache));
       }
@@ -944,7 +950,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT *) {
   param.table_name = table->alias;
   param.testflag =
       (T_FAST | T_CHECK | T_SILENT | T_STATISTICS | T_DONT_CHECK_CHECKSUM);
-  param.using_global_keycache = 1;
+  param.using_global_keycache = true;
   param.stats_method = (enum_mi_stats_method)THDVAR(thd, stats_method);
 
   if (!(share->state.changed & STATE_NOT_ANALYZED))
@@ -975,8 +981,8 @@ int ha_myisam::repair(THD *thd, HA_CHECK_OPT *check_opt) {
        T_CALC_CHECKSUM | (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   param.sort_buffer_length = THDVAR(thd, sort_buffer_size);
   start_records = file->state->records;
-  while ((error = repair(thd, param, 0)) && param.retry_repair) {
-    param.retry_repair = 0;
+  while ((error = repair(thd, param, false)) && param.retry_repair) {
+    param.retry_repair = false;
     if (test_all_bits(param.testflag,
                       (uint)(T_RETRY_WITHOUT_QUICK | T_QUICK))) {
       param.testflag &= ~T_RETRY_WITHOUT_QUICK;
@@ -1014,11 +1020,11 @@ int ha_myisam::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
   param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
                     T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length = THDVAR(thd, sort_buffer_size);
-  if ((error = repair(thd, param, 1)) && param.retry_repair) {
+  if ((error = repair(thd, param, true)) && param.retry_repair) {
     LogErr(WARNING_LEVEL, ER_ERROR_DURING_OPTIMIZE_TABLE, my_errno(),
            param.db_name, param.table_name);
     param.testflag &= ~T_REP_BY_SORT;
-    error = repair(thd, param, 1);
+    error = repair(thd, param, true);
   }
   return error;
 }
@@ -1026,17 +1032,17 @@ int ha_myisam::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
 int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
   int error = 0;
   uint local_testflag = param.testflag;
-  bool optimize_done = !do_optimize, statistics_done = 0;
+  bool optimize_done = !do_optimize, statistics_done = false;
   bool has_old_locks = thd->locked_tables_mode || file->lock_type != F_UNLCK;
-  const char *old_proc_info = thd->proc_info;
+  const char *old_proc_info = thd->proc_info();
   char fixed_name[FN_REFLEN];
   MYISAM_SHARE *share = file->s;
   ha_rows rows = file->state->records;
-  DBUG_ENTER("ha_myisam::repair");
+  DBUG_TRACE;
 
   param.db_name = table->s->db.str;
   param.table_name = table->alias;
-  param.using_global_keycache = 1;
+  param.using_global_keycache = true;
   param.thd = thd;
   param.tmpdir = &mysql_tmpdir_list;
   param.out_flag = 0;
@@ -1048,7 +1054,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     char errbuf[MYSYS_STRERROR_SIZE];
     mi_check_print_error(&param, ER_THD(thd, ER_CANT_LOCK), my_errno(),
                          my_strerror(errbuf, sizeof(errbuf), my_errno()));
-    DBUG_RETURN(HA_ADMIN_FAILED);
+    return HA_ADMIN_FAILED;
   }
 
   if (!do_optimize ||
@@ -1068,11 +1074,11 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
       memory mapping must be disabled.
     */
     if (remap) mi_munmap_file(file);
-    if (mi_test_if_sort_rep(file, file->state->records, key_map, 0) &&
+    if (mi_test_if_sort_rep(file, file->state->records, key_map, false) &&
         (local_testflag & T_REP_BY_SORT)) {
       local_testflag |= T_STATISTICS;
       param.testflag |= T_STATISTICS;  // We get this for free
-      statistics_done = 1;
+      statistics_done = true;
       if (THDVAR(thd, repair_threads) > 1) {
         char buf[40];
         /* TODO: respect myisam_repair_threads variable */
@@ -1107,12 +1113,12 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     }
     if (remap) mi_dynmap_file(file, file->state->data_file_length);
     param.testflag = testflag;
-    optimize_done = 1;
+    optimize_done = true;
   }
   if (!error) {
     if ((local_testflag & T_SORT_INDEX) &&
         (share->state.changed & STATE_NOT_SORTED_PAGES)) {
-      optimize_done = 1;
+      optimize_done = true;
       thd_proc_info(thd, "Sorting index");
       /*
         The new file is created with the right stats, so we can skip
@@ -1122,7 +1128,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     }
     if (!statistics_done && (local_testflag & T_STATISTICS)) {
       if (share->state.changed & STATE_NOT_ANALYZED) {
-        optimize_done = 1;
+        optimize_done = true;
         thd_proc_info(thd, "Analyzing");
         error = chk_key(&param, file);
       } else
@@ -1142,7 +1148,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     */
     if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
-    if (file->s->base.auto_key) update_auto_increment_key(&param, file, 1);
+    if (file->s->base.auto_key) update_auto_increment_key(&param, file, true);
     if (optimize_done) {
       mysql_mutex_lock(&share->intern_lock);
       error = update_state_info(
@@ -1166,8 +1172,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
   }
   thd_proc_info(thd, old_proc_info);
   if (!has_old_locks) mi_lock_database(file, F_UNLCK);
-  DBUG_RETURN(error ? HA_ADMIN_FAILED
-                    : !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
+  return error ? HA_ADMIN_FAILED
+               : !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK;
 }
 
 /*
@@ -1176,25 +1182,23 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
 
 int ha_myisam::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) {
   KEY_CACHE *new_key_cache = check_opt->key_cache;
-  const char *errmsg = 0;
   int error = HA_ADMIN_OK;
   ulonglong map;
   TABLE_LIST *table_list = table->pos_in_table_list;
-  DBUG_ENTER("ha_myisam::assign_to_keycache");
+  DBUG_TRACE;
 
   table->keys_in_use_for_query.clear_all();
 
-  if (table_list->process_index_hints(thd, table)) DBUG_RETURN(HA_ADMIN_FAILED);
+  if (table_list->process_index_hints(thd, table)) return HA_ADMIN_FAILED;
   map = ~(ulonglong)0;
   if (!table->keys_in_use_for_query.is_clear_all())
     /* use all keys if there's no list specified by the user through hints */
     map = table->keys_in_use_for_query.to_ulonglong();
 
+  char errmsg[STRING_BUFFER_USUAL_SIZE];
   if ((error = mi_assign_to_key_cache(file, map, new_key_cache))) {
-    char buf[STRING_BUFFER_USUAL_SIZE];
-    snprintf(buf, sizeof(buf), "Failed to flush to index file (errno: %d)",
-             error);
-    errmsg = buf;
+    snprintf(errmsg, sizeof(errmsg),
+             "Failed to flush to index file (errno: %d)", error);
     error = HA_ADMIN_CORRUPT;
   }
 
@@ -1209,7 +1213,7 @@ int ha_myisam::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) {
     param.testflag = 0;
     mi_check_print_error(&param, "%s", errmsg);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -1224,11 +1228,11 @@ int ha_myisam::preload_keys(THD *thd, HA_CHECK_OPT *) {
   bool ignore_leaves = table_list->ignore_leaves;
   char buf[MYSQL_ERRMSG_SIZE];
 
-  DBUG_ENTER("ha_myisam::preload_keys");
+  DBUG_TRACE;
 
   table->keys_in_use_for_query.clear_all();
 
-  if (table_list->process_index_hints(thd, table)) DBUG_RETURN(HA_ADMIN_FAILED);
+  if (table_list->process_index_hints(thd, table)) return HA_ADMIN_FAILED;
 
   map = ~(ulonglong)0;
   /* Check validity of the index references */
@@ -1256,7 +1260,7 @@ int ha_myisam::preload_keys(THD *thd, HA_CHECK_OPT *) {
     goto err;
   }
 
-  DBUG_RETURN(HA_ADMIN_OK);
+  return HA_ADMIN_OK;
 
 err : {
   MI_CHECK param;
@@ -1267,7 +1271,7 @@ err : {
   param.table_name = table->s->table_name.str;
   param.testflag = 0;
   mi_check_print_error(&param, "%s", errmsg);
-  DBUG_RETURN(error);
+  return error;
 }
 }
 
@@ -1298,7 +1302,7 @@ int ha_myisam::disable_indexes(uint mode) {
     /* call a storage engine function to switch the key map */
     error = mi_disable_indexes(file);
   } else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE) {
-    mi_extra(file, HA_EXTRA_NO_KEYS, 0);
+    mi_extra(file, HA_EXTRA_NO_KEYS, nullptr);
     info(HA_STATUS_CONST);  // Read new key info
     error = 0;
   } else {
@@ -1357,7 +1361,7 @@ int ha_myisam::enable_indexes(uint mode) {
   } else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE) {
     THD *thd = current_thd;
     MI_CHECK param;
-    const char *save_proc_info = thd->proc_info;
+    const char *save_proc_info = thd->proc_info();
     thd_proc_info(thd, "Creating index");
     myisamchk_init(&param);
     param.op_name = "recreating_index";
@@ -1367,7 +1371,7 @@ int ha_myisam::enable_indexes(uint mode) {
     param.sort_buffer_length = THDVAR(thd, sort_buffer_size);
     param.stats_method = (enum_mi_stats_method)THDVAR(thd, stats_method);
     param.tmpdir = &mysql_tmpdir_list;
-    if ((error = (repair(thd, param, 0) != HA_ADMIN_OK)) &&
+    if ((error = (repair(thd, param, false) != HA_ADMIN_OK)) &&
         param.retry_repair) {
       LogErr(WARNING_LEVEL, ER_ERROR_ENABLING_KEYS, my_errno(), param.db_name,
              param.table_name);
@@ -1379,7 +1383,7 @@ int ha_myisam::enable_indexes(uint mode) {
       */
       if (!(param.testflag & T_RETRY_WITHOUT_QUICK)) {
         param.testflag &= ~T_REP_BY_SORT;
-        error = (repair(thd, param, 0) != HA_ADMIN_OK);
+        error = (repair(thd, param, false) != HA_ADMIN_OK);
       }
       /*
         If the standard repair succeeded, clear all error messages which
@@ -1431,7 +1435,7 @@ int ha_myisam::indexes_are_disabled(void) {
 */
 
 void ha_myisam::start_bulk_insert(ha_rows rows) {
-  DBUG_ENTER("ha_myisam::start_bulk_insert");
+  DBUG_TRACE;
   THD *thd = current_thd;
 
   can_enable_indexes =
@@ -1451,7 +1455,6 @@ void ha_myisam::start_bulk_insert(ha_rows rows) {
            (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT)) {
     mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1492,9 +1495,8 @@ bool ha_myisam::check_and_repair(THD *thd) {
   int error = 0;
   int marked_crashed;
   HA_CHECK_OPT check_opt;
-  DBUG_ENTER("ha_myisam::check_and_repair");
+  DBUG_TRACE;
 
-  check_opt.init();
   check_opt.flags = T_MEDIUM | T_AUTO_REPAIR;
   // Don't use quick if deleted rows
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
@@ -1510,7 +1512,7 @@ bool ha_myisam::check_and_repair(THD *thd) {
          T_AUTO_REPAIR);
     if (repair(thd, &check_opt)) error = 1;
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool ha_myisam::is_crashed() const {
@@ -1528,8 +1530,6 @@ int ha_myisam::delete_row(const uchar *buf) {
   return mi_delete(file, buf);
 }
 
-C_MODE_START
-
 ICP_RESULT index_cond_func_myisam(void *arg) {
   ha_myisam *h = (ha_myisam *)arg;
 
@@ -1537,10 +1537,8 @@ ICP_RESULT index_cond_func_myisam(void *arg) {
     return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already
                               */
 
-  return (ICP_RESULT)MY_TEST(h->pushed_idx_cond->val_int());
+  return (h->pushed_idx_cond->val_int() == 0) ? ICP_NO_MATCH : ICP_MATCH;
 }
-
-C_MODE_END
 
 int ha_myisam::index_init(uint idx, bool) {
   active_index = idx;
@@ -1552,7 +1550,7 @@ int ha_myisam::index_init(uint idx, bool) {
 int ha_myisam::index_end() {
   active_index = MAX_KEY;
   // pushed_idx_cond_keyno= MAX_KEY;
-  mi_set_index_cond_func(file, NULL, 0);
+  mi_set_index_cond_func(file, nullptr, nullptr);
   in_range_check_pushed_down = false;
   ds_mrr.dsmrr_close();
   return 0;
@@ -1566,8 +1564,12 @@ int ha_myisam::rnd_end() {
 int ha_myisam::index_read_map(uchar *buf, const uchar *key,
                               key_part_map keypart_map,
                               enum ha_rkey_function find_flag) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
+  if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
+    return HA_ERR_KEY_NOT_FOUND;
+  }
   int error = mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   return error;
 }
@@ -1575,56 +1577,63 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
 int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
                                   enum ha_rkey_function find_flag) {
-  DBUG_ASSERT(pushed_idx_cond == NULL);
-  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
+  assert(pushed_idx_cond == nullptr);
+  assert(pushed_idx_cond_keyno == MAX_KEY);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
+  if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
+    return HA_ERR_KEY_NOT_FOUND;
+  }
   int error = mi_rkey(file, buf, index, key, keypart_map, find_flag);
   return error;
 }
 
 int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
                                    key_part_map keypart_map) {
-  DBUG_ENTER("ha_myisam::index_read_last");
-  DBUG_ASSERT(inited == INDEX);
+  DBUG_TRACE;
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
+  if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
+    return HA_ERR_KEY_NOT_FOUND;
+  }
   int error =
       mi_rkey(file, buf, active_index, key, keypart_map, HA_READ_PREFIX_LAST);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int ha_myisam::index_next(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error = mi_rnext(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_prev(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error = mi_rprev(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_first(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error = mi_rfirst(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_last(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error = mi_rlast(file, buf, active_index);
   return error;
 }
 
-int ha_myisam::index_next_same(uchar *buf,
-                               const uchar *key MY_ATTRIBUTE((unused)),
-                               uint length MY_ATTRIBUTE((unused))) {
+int ha_myisam::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
+                               uint length [[maybe_unused]]) {
   int error;
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   do {
     error = mi_rnext_same(file, buf);
@@ -1706,7 +1715,7 @@ int ha_myisam::info(uint flag) {
       Set data_file_name and index_file_name to point at the symlink value
       if table is symlinked (Ie;  Real name is not same as generated name)
     */
-    data_file_name = index_file_name = 0;
+    data_file_name = index_file_name = nullptr;
     fn_format(name_buff, file->filename, "", MI_NAME_DEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, misam_info.data_file_name))
@@ -1728,14 +1737,14 @@ int ha_myisam::info(uint flag) {
 }
 
 int ha_myisam::extra(enum ha_extra_function operation) {
-  return mi_extra(file, operation, 0);
+  return mi_extra(file, operation, nullptr);
 }
 
 int ha_myisam::reset(void) {
   /* Reset MyISAM specific part for index condition pushdown */
-  DBUG_ASSERT(pushed_idx_cond == NULL);
-  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
-  mi_set_index_cond_func(file, NULL, 0);
+  assert(pushed_idx_cond == nullptr);
+  assert(pushed_idx_cond_keyno == MAX_KEY);
+  mi_set_index_cond_func(file, nullptr, nullptr);
   ds_mrr.reset();
   return mi_reset(file);
 }
@@ -1787,7 +1796,7 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
   MI_CREATE_INFO create_info;
   TABLE_SHARE *share = table_arg->s;
   uint options = share->db_options_in_use;
-  DBUG_ENTER("ha_myisam::create");
+  DBUG_TRACE;
 
   for (i = 0; i < share->keys; i++) {
     if (table_arg->key_info[i].flags & HA_USES_PARSER) {
@@ -1796,7 +1805,7 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
     }
   }
   if ((error = table2myisam(table_arg, &keydef, &recinfo, &records)))
-    DBUG_RETURN(error); /* purecov: inspected */
+    return error; /* purecov: inspected */
   memset(&create_info, 0, sizeof(create_info));
   create_info.max_rows = share->max_rows;
   create_info.reloc_rows = share->min_rows;
@@ -1837,10 +1846,10 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
   /* TODO: Check that the following fn_format is really needed */
   error = mi_create(
       fn_format(buff, name, "", "", MY_UNPACK_FILENAME | MY_APPEND_EXT),
-      share->keys, keydef, records, recinfo, 0, (MI_UNIQUEDEF *)0, &create_info,
-      create_flags);
+      share->keys, keydef, records, recinfo, 0, (MI_UNIQUEDEF *)nullptr,
+      &create_info, create_flags);
   my_free(recinfo);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int ha_myisam::rename_table(const char *from, const char *to, const dd::Table *,
@@ -1960,7 +1969,7 @@ static int myisam_panic(handlerton *, ha_panic_function flag) {
 
 st_keycache_thread_var *keycache_thread_var() {
   THD *thd = current_thd;
-  if (thd == NULL) {
+  if (thd == nullptr) {
     /*
       This is not a thread belonging to a connection.
       It will then be the main thread during startup/shutdown or
@@ -1995,7 +2004,7 @@ static int myisam_close_connection(handlerton *hton, THD *thd) {
       static_cast<st_keycache_thread_var *>(thd_get_ha_data(thd, hton));
 
   if (keycache_thread_var) {
-    thd_set_ha_data(thd, hton, NULL);
+    thd_set_ha_data(thd, hton, nullptr);
     mysql_cond_destroy(&keycache_thread_var->suspend);
     my_free(keycache_thread_var);
   }
@@ -2009,6 +2018,8 @@ static int myisam_init(void *p) {
 #ifdef HAVE_PSI_INTERFACE
   init_myisam_psi_keys();
 #endif
+
+  emit_repair_threads_warning(nullptr, THDVAR(nullptr, repair_threads));
 
   /* Set global variables based on startup options */
   if (myisam_recover_options)
@@ -2107,7 +2118,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item *idx_cond_arg) {
   in_range_check_pushed_down = true;
   if (active_index == pushed_idx_cond_keyno)
     mi_set_index_cond_func(file, index_cond_func_myisam, this);
-  return NULL;
+  return nullptr;
 }
 
 static SYS_VAR *myisam_sysvars[] = {
@@ -2115,7 +2126,7 @@ static SYS_VAR *myisam_sysvars[] = {
     MYSQL_SYSVAR(max_sort_file_size), MYSQL_SYSVAR(recover_options),
     MYSQL_SYSVAR(repair_threads),     MYSQL_SYSVAR(sort_buffer_size),
     MYSQL_SYSVAR(use_mmap),           MYSQL_SYSVAR(mmap_size),
-    MYSQL_SYSVAR(stats_method),       0};
+    MYSQL_SYSVAR(stats_method),       nullptr};
 
 struct st_mysql_storage_engine myisam_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
@@ -2124,15 +2135,15 @@ mysql_declare_plugin(myisam){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &myisam_storage_engine,
     "MyISAM",
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "MyISAM storage engine",
     PLUGIN_LICENSE_GPL,
     myisam_init,    /* Plugin Init */
-    NULL,           /* Plugin Check uninstall */
+    nullptr,        /* Plugin Check uninstall */
     myisam_deinit,  /* Plugin Deinit */
     0x0100,         /* 1.0 */
-    NULL,           /* status variables                */
+    nullptr,        /* status variables                */
     myisam_sysvars, /* system variables                */
-    NULL,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

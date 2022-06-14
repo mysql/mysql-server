@@ -21,9 +21,9 @@
 #     The statement to execute.
 #
 #   $output_file
-#     Name of file to write. If omitted, generates a new filename and
-#     stores the name both in the mysqltest variable $output_file and
-#     in the environment variable $OUTPUT_FILE.
+#     Name of file to write. If set to GENERATE, generates a new
+#     filename and stores the name both in the mysqltest variable
+#     $output_file and in the environment variable $OUTPUT_FILE.
 #
 #   $dont_print_statement
 #     By default, the statement is echoed to the result log.  If the

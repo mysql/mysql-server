@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,6 @@
 #include <tuple>
 
 #include <gtest/gtest.h>
-
-// give the constexpr' of ShaCrypt storage to keep googletest happy
-// which wants to take a address of them
-//
-// if someone else needs to take an address of them, these should be moved
-// to sha_crypt.cc directly
-constexpr unsigned long ShaCryptMcfAdaptor::kDefaultRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMinRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMaxRounds;
 
 class ShaCryptTest
     : public ::testing::Test,
@@ -81,7 +72,7 @@ TEST_P(ShaCryptTest, verify) {
 //        ^^^ salt
 //
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Foo, ShaCryptTest,
     ::testing::Values(
         std::make_tuple(  // sha512, no rounds
@@ -205,7 +196,15 @@ INSTANTIATE_TEST_CASE_P(
             ShaCryptMcfAdaptor::kDefaultRounds,  // rounds
             "rounds=foobar",                     // salt
             "checksum",                          // checksum
-            nullptr)));
+            nullptr),
+        std::make_tuple(  // caching_sha2_password
+            "$A$005$"
+            "ON\030/\024GC\"\a\022{\027\060\063Us\023\016(^"
+            "I1HNepudlvZupwO.NNkzkFX89oMxwzo3kz3iXjOU56A",
+            5000,                                              // rounds
+            "ON\030/\024GC\"\a\022{\027\060\063Us\023\016(^",  // salt
+            "I1HNepudlvZupwO.NNkzkFX89oMxwzo3kz3iXjOU56A",     // checksum
+            "root")));
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

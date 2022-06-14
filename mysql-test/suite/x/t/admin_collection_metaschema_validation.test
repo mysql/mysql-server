@@ -1,0 +1,491 @@
+## Test meta-schema validation for various admin collection commands
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Tests start here
+create schema xtest default charset 'utf8mb4';
+
+--let $xtest_file= $MYSQL_TMP_DIR/admin_collection_metaschema_validation.xpl
+--write_file $xtest_file
+-->import assert_schema.macro
+
+-->macro Assert_invalid_schema %SCHEMA%
+-->callmacro Assert_schema	%COMMAND%	xtest	test	%SCHEMA%	ER_X_INVALID_VALIDATION_SCHEMA
+-->endmacro
+
+-->echo
+-->echo
+-->echo ## I. Test validation of a user provided schema encoded as
+-->echo ##    protobuf.string and a Datatypes.Object
+-->echo #
+-->echo # 1. Unknown property.
+-->echo # 2. Mismatch "id" property type.
+-->echo # 3. Mismatch "schema" property type.
+-->echo # 4. Mismatch "title" property type.
+-->echo # 5. Mismatch "description" property type.
+-->echo # 6. Mismatch "multipleOf" property type.
+-->echo # 7. Wrong "multipleOf" property value.
+-->echo # 8. Mismatch "maximum" property type.
+-->echo # 9. Mismatch "exclusiveMaximum" property type.
+-->echo # 10. Mismatch "minimum" property type.
+-->echo # 11. Mismatch "exclusiveminimum" property type.
+-->echo # 12. Mismatch "maxLength" property type.
+-->echo # 13. Wrong "maxLength" property value.
+-->echo # 14. Mismatch "minLength" property type.
+-->echo # 15. Wrong "minLength" property value.
+-->echo # 16. Mismatch "pattern" property type.
+-->echo # 17. Mismatch "additionalItems" property type.
+-->echo # 18. Invalid schema contained in the "additionalItems" property.
+-->echo # 19. Empty "items" properties array.
+-->echo # 20. "items" properties containing invalid schema.
+-->echo # 21. "items" properties array containing invalid schema.
+-->echo # 22. Mismatch "maxItems" properties type.
+-->echo # 23. Wrong "maxItems" properties value.
+-->echo # 24. Mismatch "minItems" properties type.
+-->echo # 25. Wrong "minItems" properties value.
+-->echo # 26. Mismatch "uniqueItems" properties type.
+-->echo # 27. Mismatch "maxProperties" properties type.
+-->echo # 28. Wrong "maxProperties" properties value.
+-->echo # 29. Mismatch "minProperties" properties type.
+-->echo # 30. Wrong "minProperties" properties value.
+-->echo # 31. Mismatch "required" properties type.
+-->echo # 32. Empty "required" property field.
+-->echo # 33. "required" property field containing an array of invalid types.
+-->echo # 34. "required" properties array containing non-unique items.
+-->echo # 35. Mismatch "additionalProperties" property type.
+-->echo # 36. Invalid schema in the "additionalProperties" property field.
+-->echo # 37. Mismatch "definitions" property type.
+-->echo # 38. "definitions" property containing an invalid schema.
+-->echo # 39. Mismatch "properties" property type.
+-->echo # 40. "properties" property containing an invalid schema.
+-->echo # 41. Mismatch "patternProperties" property type.
+-->echo # 42. "patternProperties" property containing an invalid schema.
+-->echo # 43. Mismatch "dependencies" property type.
+-->echo # 44. "dependencies" properties containing an invalid schema.
+-->echo # 45. "dependencies" properties containing an empty array.
+-->echo # 46. "dependencies" properties containing an array of invalid types.
+-->echo # 47. "dependencies" properties containing an array of a non-unique types.
+-->echo # 48. Mismatch "enum" property type.
+-->echo # 49. Empty "enum" properties array.
+-->echo # 50. Non-unique values in the "enum" property array.
+-->echo # 51. Mismatch "type" property type.
+-->echo # 52. Invalid type in "type" properties array.
+-->echo # 53. Empty "type" properties array.
+-->echo # 54. Non-unique "type" properties array.
+-->echo # 55. Mismatch "format" property type.
+-->echo # 56. Mismatch "allOf" property type.
+-->echo # 57. Empty "allOf" properties array.
+-->echo # 58. Invalid schema in the "allOf" properties array.
+-->echo # 59. Mismatch "anyOf" property type.
+-->echo # 60. Empty "anyOf" properties array.
+-->echo # 61. Invalid schema in the "anyOf" properties array.
+-->echo # 62. Mismatch "oneOf" property type.
+-->echo # 63. Empty "oneOf" properties array.
+-->echo # 64. Invalid schema in the "oneOf" properties array.
+-->echo # 65. Invalid schema as the "not" property value.
+
+-->echo
+-->echo #
+-->echo # I.1
+-->callmacro Assert_invalid_schema	{"unknown": 1}
+-->callmacro Assert_invalid_schema	"{\"unknown\": 1}"
+
+-->echo
+-->echo #
+-->echo # I.2
+-->callmacro Assert_invalid_schema	{"id": 2}
+-->callmacro Assert_invalid_schema	"{\"id\": 2}"
+
+-->echo
+-->echo #
+-->echo # I.3
+-->callmacro Assert_invalid_schema	{"$schema": 3}
+-->callmacro Assert_invalid_schema	"{\"$schema\": 3}"
+
+-->echo
+-->echo #
+-->echo # I.4
+-->callmacro Assert_invalid_schema	{"title": 4}
+-->callmacro Assert_invalid_schema	"{\"title\": 4}"
+
+-->echo
+-->echo #
+-->echo # I.5
+-->callmacro Assert_invalid_schema	{"description": 5}
+-->callmacro Assert_invalid_schema	"{\"description\": 5}"
+
+-->echo
+-->echo #
+-->echo # I.6
+-->callmacro Assert_invalid_schema	{"multipleOf": "five"}
+-->callmacro Assert_invalid_schema	"{\"multipleOf\": \"five\"}"
+
+-->echo
+-->echo #
+-->echo # I.7
+-->callmacro Assert_invalid_schema	{"multipleOf": -1}
+-->callmacro Assert_invalid_schema	"{\"multipleOf\": -1}"
+
+-->echo
+-->echo #
+-->echo # I.8
+-->callmacro Assert_invalid_schema	{"maximum": "one"}
+-->callmacro Assert_invalid_schema	"{\"maximum\": \"one\"}"
+
+-->echo
+-->echo #
+-->echo # I.9
+-->callmacro Assert_invalid_schema	{"exclusiveMaximum": 0}
+-->callmacro Assert_invalid_schema	"{\"exclusiveMaximum\": 0}"
+
+-->echo
+-->echo #
+-->echo # I.10
+-->callmacro Assert_invalid_schema	{"minimum": "zero"}
+-->callmacro Assert_invalid_schema	"{\"minimum\": \"zero\"}"
+
+-->echo
+-->echo #
+-->echo # I.11
+-->callmacro Assert_invalid_schema	{"exclusiveMinimum": 0}
+-->callmacro Assert_invalid_schema	"{\"exclusiveMinimum\": 0}"
+
+-->echo
+-->echo #
+-->echo # I.12
+-->callmacro Assert_invalid_schema	{"maxLength": "ten"}
+-->callmacro Assert_invalid_schema	"{\"maxLength\": \"ten\"}"
+
+-->echo
+-->echo #
+-->echo # I.13
+-->callmacro Assert_invalid_schema	{"maxLength": -100}
+-->callmacro Assert_invalid_schema	"{\"maxLength\": -100}"
+
+-->echo
+-->echo #
+-->echo # I.14
+-->callmacro Assert_invalid_schema	{"minLength": "ten"}
+-->callmacro Assert_invalid_schema	"{\"minLength\": \"ten\"}"
+
+-->echo
+-->echo #
+-->echo # I.15
+-->callmacro Assert_invalid_schema	{"minLength": -10}
+-->callmacro Assert_invalid_schema	"{\"minLength\": -10}"
+
+-->echo
+-->echo #
+-->echo # I.16
+-->callmacro Assert_invalid_schema	{"pattern": 0}
+-->callmacro Assert_invalid_schema	"{\"pattern\": 0}"
+
+-->echo
+-->echo #
+-->echo # I.17
+-->callmacro Assert_invalid_schema	{"additionalItems": 0}
+-->callmacro Assert_invalid_schema	"{\"additionalItems\": 0}"
+
+-->echo
+-->echo #
+-->echo # I.18
+-->callmacro Assert_invalid_schema	{"additionalItems": {"unknown": 0}}
+-->callmacro Assert_invalid_schema	"{\"additionalItems\": {\"unknown\": 0}}"
+
+-->echo
+-->echo #
+-->echo # I.19
+-->callmacro Assert_invalid_schema	{"items": []}
+-->callmacro Assert_invalid_schema	"{\"items\": []}"
+
+-->echo
+-->echo #
+-->echo # I.20
+-->callmacro Assert_invalid_schema	{"items": {"unknown": "foo"}}
+-->callmacro Assert_invalid_schema	"{\"items\": {\"unknown\": \"foo\"}}"
+
+-->echo
+-->echo #
+-->echo # I.21
+-->callmacro Assert_invalid_schema	{"items": [{"unknown": "foo"}]}
+-->callmacro Assert_invalid_schema	"{\"items\": [{\"unknown\": \"foo\"}]}"
+
+-->echo
+-->echo #
+-->echo # I.22
+-->callmacro Assert_invalid_schema	{"maxItems": "ten"}
+-->callmacro Assert_invalid_schema	"{\"maxItems\": \"ten\"}"
+
+-->echo
+-->echo #
+-->echo # I.23
+-->callmacro Assert_invalid_schema	{"maxItems": -100}
+-->callmacro Assert_invalid_schema	"{\"maxItems\": -100}"
+
+-->echo
+-->echo #
+-->echo # I.24
+-->callmacro Assert_invalid_schema	{"minItems": "ten"}
+-->callmacro Assert_invalid_schema	"{\"minItems\": \"ten\"}"
+
+-->echo
+-->echo #
+-->echo # I.25
+-->callmacro Assert_invalid_schema	{"minItems": -10}
+-->callmacro Assert_invalid_schema	"{\"minItems\": -10}"
+
+-->echo
+-->echo #
+-->echo # I.26
+-->callmacro Assert_invalid_schema	{"uniqueItems": 1}
+-->callmacro Assert_invalid_schema	"{\"uniqueItems\": 1}"
+
+-->echo
+-->echo #
+-->echo # I.27
+-->callmacro Assert_invalid_schema	{"maxProperties": "two"}
+-->callmacro Assert_invalid_schema	"{\"maxProperties\": \"two\"}"
+
+-->echo
+-->echo #
+-->echo # I.28
+-->callmacro Assert_invalid_schema	{"maxProperties": -2}
+-->callmacro Assert_invalid_schema	"{\"maxProperties\": -2}"
+
+-->echo
+-->echo #
+-->echo # I.29
+-->callmacro Assert_invalid_schema	{"minProperties": "six"}
+-->callmacro Assert_invalid_schema	"{\"minProperties\": \"six\"}"
+
+-->echo
+-->echo #
+-->echo # I.30
+-->callmacro Assert_invalid_schema	{"minProperties": -10000}
+-->callmacro Assert_invalid_schema	"{\"minProperties\": -10000}"
+
+-->echo
+-->echo #
+-->echo # I.31
+-->callmacro Assert_invalid_schema	{"required": "true"}
+-->callmacro Assert_invalid_schema	"{\"required\": \"true\"}"
+
+-->echo
+-->echo #
+-->echo # I.32
+-->callmacro Assert_invalid_schema	{"required": []}
+-->callmacro Assert_invalid_schema	"{\"required\": []}"
+
+-->echo
+-->echo #
+-->echo # I.33
+-->callmacro Assert_invalid_schema	{"required": [1, 2, "valid"]}
+-->callmacro Assert_invalid_schema	"{\"required\": [1, 2, \"valid\"]}"
+
+-->echo
+-->echo #
+-->echo # I.34
+-->callmacro Assert_invalid_schema	{"required": ["foo", "foo", "bar"]}
+-->callmacro Assert_invalid_schema	"{\"required\": [\"foo\", \"foo\", \"bar\"]}"
+
+-->echo
+-->echo #
+-->echo # I.35
+-->callmacro Assert_invalid_schema	{"additionalProperties": 0}
+-->callmacro Assert_invalid_schema	"{\"additionalProperties\": 0}"
+
+-->echo
+-->echo #
+-->echo # I.36
+-->callmacro Assert_invalid_schema	{"additionalProperties": {"unknown": 0}}
+-->callmacro Assert_invalid_schema	"{\"additionalProperties\": {\"unknown\": 0}}"
+
+-->echo
+-->echo #
+-->echo # I.37
+-->callmacro Assert_invalid_schema	{"definitions": true}
+-->callmacro Assert_invalid_schema	"{\"definitions\": true}"
+
+-->echo
+-->echo #
+-->echo # I.38
+-->callmacro Assert_invalid_schema	{"definitions": {"def": {"invalid": "bar"}}}
+-->callmacro Assert_invalid_schema	"{\"definitions\": {\"def\": {\"invalid\": \"bar\"}}}"
+
+-->echo
+-->echo #
+-->echo # I.39
+-->callmacro Assert_invalid_schema	{"properties": true}
+-->callmacro Assert_invalid_schema	"{\"properties\": true}"
+
+-->echo
+-->echo #
+-->echo # I.40
+-->callmacro Assert_invalid_schema	{"properties": {"def": {"invalid": "bar"}}}
+-->callmacro Assert_invalid_schema	"{\"properties\": {\"def\": {\"invalid\": \"bar\"}}}"
+
+-->echo
+-->echo #
+-->echo # I.41
+-->callmacro Assert_invalid_schema	{"patternProperties": true}
+-->callmacro Assert_invalid_schema	"{\"patternProperties\": true}"
+
+-->echo
+-->echo #
+-->echo # I.42
+-->callmacro Assert_invalid_schema	{"patternProperties": {"def": {"invalid": "bar"}}}
+-->callmacro Assert_invalid_schema	"{\"patternProperties\": {\"def\": {\"invalid\": \"bar\"}}}"
+
+-->echo
+-->echo #
+-->echo # I.43
+-->callmacro Assert_invalid_schema	{"dependencies": "baz"}
+-->callmacro Assert_invalid_schema	"{\"dependencies\": \"baz\"}"
+
+-->echo
+-->echo #
+-->echo # I.44
+-->callmacro Assert_invalid_schema	{"dependencies": {"unknown": "x"}}
+-->callmacro Assert_invalid_schema	"{\"dependencies\": {\"unknown\": \"x\"}}"
+
+-->echo
+-->echo #
+-->echo # I.45
+-->callmacro Assert_invalid_schema	{"dependencies": []}
+-->callmacro Assert_invalid_schema	"{\"dependencies\": []}"
+
+-->echo
+-->echo #
+-->echo # I.46
+-->callmacro Assert_invalid_schema	{"dependencies": [1, 2, "three"]}
+-->callmacro Assert_invalid_schema	"{\"dependencies\": [1, 2, \"three\"]}"
+
+-->echo
+-->echo #
+-->echo # I.47
+-->callmacro Assert_invalid_schema	{"dependencies": ["one", "two", "one"]}
+-->callmacro Assert_invalid_schema	"{\"dependencies\": [\"one\", \"two\", \"one\"]}"
+
+-->echo
+-->echo #
+-->echo # I.48
+-->callmacro Assert_invalid_schema	{"enum": "invalid"}
+-->callmacro Assert_invalid_schema	"{\"enum\": \"invalid\"}"
+
+-->echo
+-->echo #
+-->echo # I.49
+-->callmacro Assert_invalid_schema	{"enum": []}
+-->callmacro Assert_invalid_schema	"{\"enum\": []}"
+
+-->echo
+-->echo #
+-->echo # I.50
+-->callmacro Assert_invalid_schema	{"enum": [1, 1, 2]}
+-->callmacro Assert_invalid_schema	"{\"enum\": [1, 1, 2]}"
+
+-->echo
+-->echo #
+-->echo # I.51
+-->callmacro Assert_invalid_schema	{"type": {"complex": "type"}}
+-->callmacro Assert_invalid_schema	"{\"type\": {\"complex\": \"type\"}}"
+
+-->echo
+-->echo #
+-->echo # I.52
+-->callmacro Assert_invalid_schema	{"type": [{"complex": "type"}]}
+-->callmacro Assert_invalid_schema	"{\"type\": [{\"complex\": \"type\"}]}"
+
+-->echo
+-->echo #
+-->echo # I.53
+-->callmacro Assert_invalid_schema	{"type": []}
+-->callmacro Assert_invalid_schema	"{\"type\": []}"
+
+-->echo
+-->echo #
+-->echo # I.54
+-->callmacro Assert_invalid_schema	{"type": [1, 2, 3, 2]}
+-->callmacro Assert_invalid_schema	"{\"type\": [1, 2, 3, 2]}"
+
+-->echo
+-->echo #
+-->echo # I.55
+-->callmacro Assert_invalid_schema	{"format": {"not": "supported"}}
+-->callmacro Assert_invalid_schema	"{\"format\": {\"not\": \"supported\"}}"
+
+-->echo
+-->echo #
+-->echo # I.56
+-->callmacro Assert_invalid_schema	{"allOf": 5}
+-->callmacro Assert_invalid_schema	"{\"allOf\": 5}"
+
+-->echo
+-->echo #
+-->echo # I.57
+-->callmacro Assert_invalid_schema	{"allOf": []}
+-->callmacro Assert_invalid_schema	"{\"allOf\": []}"
+
+-->echo
+-->echo #
+-->echo # I.58
+-->callmacro Assert_invalid_schema	{"allOf": [{"unknown": "x"}]}
+-->callmacro Assert_invalid_schema	"{\"allOf\": [{\"unknown\": \"x\"}]}"
+
+-->echo
+-->echo #
+-->echo # I.59
+-->callmacro Assert_invalid_schema	{"anyOf": true}
+-->callmacro Assert_invalid_schema	"{\"anyOf\": true}"
+
+-->echo
+-->echo #
+-->echo # I.60
+-->callmacro Assert_invalid_schema	{"anyOf": []}
+-->callmacro Assert_invalid_schema	"{\"anyOf\": []}"
+
+-->echo
+-->echo #
+-->echo # I.61
+-->callmacro Assert_invalid_schema	{"anyOf": [{"unknown": "y"}]}
+-->callmacro Assert_invalid_schema	"{\"anyOf\": [{\"unknown\": \"y\"}]}"
+
+-->echo
+-->echo #
+-->echo # I.62
+-->callmacro Assert_invalid_schema	{"oneOf": "aaa"}
+-->callmacro Assert_invalid_schema	"{\"oneOf\": \"aaa\"}"
+
+-->echo
+-->echo #
+-->echo # I.63
+-->callmacro Assert_invalid_schema	{"oneOf": []}
+-->callmacro Assert_invalid_schema	"{\"oneOf\": []}"
+
+-->echo
+-->echo #
+-->echo # I.64
+-->callmacro Assert_invalid_schema	{"oneOf": [{"unknown": "z"}]}
+-->callmacro Assert_invalid_schema	"{\"oneOf\": [{\"unknown\": \"z\"}]}"
+
+-->echo
+-->echo #
+-->echo # I.65
+-->callmacro Assert_invalid_schema	{"not": [{"unknown": "foo"}]}
+-->callmacro Assert_invalid_schema	"{\"not\": [{\"unknown\": \"foo\"}]}"
+
+EOF
+
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$xtest_file -v%COMMAND%=create_collection 2>&1;
+
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$xtest_file -v%COMMAND%=ensure_collection 2>&1;
+
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$xtest_file -v%COMMAND%=modify_collection_options 2>&1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

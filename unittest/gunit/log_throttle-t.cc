@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
+#include "mysql/psi/mysql_mutex.h"
 #include "sql/log.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -38,7 +35,8 @@ int summary_count = 0;
 char last_query[10];
 
 static bool slow_logger(THD *, const char *query, size_t,
-                        struct System_status_var *) {
+                        struct System_status_var *, bool, ulonglong,
+                        ulonglong) {
   summary_count++;
   strcpy(last_query, query);
   return false;
@@ -46,13 +44,13 @@ static bool slow_logger(THD *, const char *query, size_t,
 
 class LogThrottleTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
     summary_count = 0;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     initializer.TearDown();
     mysql_mutex_destroy(&m_mutex);
   }

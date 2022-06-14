@@ -6,6 +6,8 @@
 #   $con_aux1      Name of the 1st aux connection to be used by this script.
 #   $con_aux2      Name of the 2nd aux connection to be used by this script.
 #   $statement     The statement to be checked.
+#   $waitfor       Wait for this statement in process-list. If empty,
+#                  use $statement. Reset at end of include.
 #   $cleanup_stmt1 The 1st statement to be run in order to revert effects
 #                  of statement to be checked.
 #   $cleanup_stmt2 The 2nd statement to be run in order to revert effects
@@ -66,14 +68,26 @@ connection $con_aux1;
 
 --enable_result_log
 --enable_query_log
+if (!$waitfor)
+{
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where (state = "Waiting for global read lock" or
          state = "Waiting for commit lock") and
-        info = "$statement";
+         info = "$statement";
+}
+if ($waitfor)
+{
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where (state = "Waiting for global read lock" or
+         state = "Waiting for commit lock") and
+         info = "$waitfor";
+}
 --source include/wait_condition.inc
 --disable_result_log
 --disable_query_log
+let $waitfor=;
 
 if ($success)
 {

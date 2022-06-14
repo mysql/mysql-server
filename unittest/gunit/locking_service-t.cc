@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "my_sys.h"  // ErrorHandlerFunctionPointer
 #include "mysqld_error.h"
 #include "sql/locking_service.h"
 #include "sql/mdl.h"
@@ -53,7 +54,7 @@ const char lock_name4[] = "lock4";
 
 class LockingServiceTest : public ::testing::Test {
  protected:
-  LockingServiceTest() {}
+  LockingServiceTest() = default;
 
   static void SetUpTestCase() {
     m_old_error_handler_hook = error_handler_hook;
@@ -68,7 +69,7 @@ class LockingServiceTest : public ::testing::Test {
     table_def_free();
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     mdl_init();
     m_initializer.SetUp();
     m_thd = m_initializer.thd();
@@ -78,7 +79,7 @@ class LockingServiceTest : public ::testing::Test {
     m_thd->system_thread = SYSTEM_THREAD_SLAVE_IO;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     m_initializer.TearDown();
     mdl_destroy();
   }
@@ -86,10 +87,10 @@ class LockingServiceTest : public ::testing::Test {
   Server_initializer m_initializer;
   THD *m_thd;
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 
-void (*LockingServiceTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer LockingServiceTest::m_old_error_handler_hook;
 
 /**
   Test acquire and release of several read or write locks.
@@ -181,7 +182,7 @@ TEST_F(LockingServiceTest, CaseSensitive) {
 TEST_F(LockingServiceTest, ValidNames) {
   const char *ok_name[] = {"test"};
   {
-    const char *null = NULL;
+    const char *null = nullptr;
     const char *names1[] = {null};
     Mock_error_handler error_handler(m_thd, ER_LOCKING_SERVICE_WRONG_NAME);
     EXPECT_TRUE(acquire_locking_service_locks(m_thd, namespace1, names1, 1,
@@ -272,7 +273,7 @@ class LockServiceThread : public Thread {
         m_lock_grabbed(grabbed_arg),
         m_lock_release(release_arg) {}
 
-  virtual void run() {
+  void run() override {
     Server_initializer m_initializer;
     m_initializer.SetUp();
     THD *m_thd = m_initializer.thd();
@@ -436,9 +437,9 @@ TEST_F(LockingServiceTest, Namespaces) {
 */
 class LockServiceDisconnectThread : public Thread {
  public:
-  LockServiceDisconnectThread() {}
+  LockServiceDisconnectThread() = default;
 
-  virtual void run() {
+  void run() override {
     Server_initializer m_initializer;
     m_initializer.SetUp();
     THD *m_thd = m_initializer.thd();
@@ -473,7 +474,7 @@ class LockServiceDeadlockThread : public Thread {
   LockServiceDeadlockThread(Notification *grabbed1_arg, Notification *wait_arg)
       : m_lock_grabbed1(grabbed1_arg), m_wait(wait_arg) {}
 
-  virtual void run() {
+  void run() override {
     Server_initializer m_initializer;
     m_initializer.SetUp();
     THD *m_thd = m_initializer.thd();

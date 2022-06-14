@@ -30,7 +30,7 @@ Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE state
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   `c1` tinytext,
   `c2` text,
   `c3` mediumtext,
@@ -66,7 +66,7 @@ Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE state
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   `c1` tinytext,
   `c2` text,
   `c3` mediumtext,
@@ -102,7 +102,7 @@ Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE state
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   `c1` tinytext,
   `c2` text,
   `c3` mediumtext,
@@ -139,7 +139,7 @@ Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE state
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   `c1` tinytext,
   `c2` text,
   `c3` mediumtext,

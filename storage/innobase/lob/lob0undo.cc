@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,15 +31,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 namespace lob {
 
 /** Apply the undo information to the given LOB.
-@param[in]	index		clustered index containing the LOB.
-@param[in]	lob_mem		LOB on which the given undo will be
+@param[in]      index           clustered index containing the LOB.
+@param[in]      lob_mem         LOB on which the given undo will be
                                 applied.
 @param[in]    len             length of LOB.
 @param[in]    lob_version     lob version number
 @param[in]    first_page_no   the first page number of lob */
 void undo_data_t::apply(dict_index_t *index, byte *lob_mem, size_t len,
                         size_t lob_version, page_no_t first_page_no) {
-  DBUG_ENTER("undo_data_t::apply");
+  DBUG_TRACE;
 
   DBUG_LOG("undo_data_t", "lob_version=" << lob_version);
 
@@ -58,8 +58,6 @@ void undo_data_t::apply(dict_index_t *index, byte *lob_mem, size_t len,
     ut_ad((m_offset + m_length) <= len);
     memcpy(ptr, m_old_data, m_length);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 std::ostream &undo_data_t::print(std::ostream &out) const {
@@ -75,7 +73,8 @@ std::ostream &undo_data_t::print(std::ostream &out) const {
 @return pointer past the old data. */
 const byte *undo_data_t::copy_old_data(const byte *undo_ptr, ulint len) {
   m_length = len;
-  m_old_data = UT_NEW_ARRAY_NOKEY(byte, m_length);
+  m_old_data =
+      ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{m_length});
   if (m_old_data == nullptr) {
     return (nullptr);
   }
@@ -86,7 +85,7 @@ const byte *undo_data_t::copy_old_data(const byte *undo_ptr, ulint len) {
 /** Free allocated memory for old data. */
 void undo_data_t::destroy() {
   if (m_old_data != nullptr) {
-    UT_DELETE_ARRAY(m_old_data);
+    ut::delete_arr(m_old_data);
     m_old_data = nullptr;
   }
 }

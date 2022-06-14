@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multi source replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -123,8 +123,8 @@ Plugin_table table_replication_connection_status::m_table_def(
 PFS_engine_table_share table_replication_connection_status::m_share = {
     &pfs_readonly_acl,
     table_replication_connection_status::create,
-    NULL,                                               /* write_row */
-    NULL,                                               /* delete_all_rows */
+    nullptr,                                            /* write_row */
+    nullptr,                                            /* delete_all_rows */
     table_replication_connection_status::get_row_count, /* records */
     sizeof(pos_t),                                      /* ref length */
     &m_table_lock,
@@ -159,7 +159,7 @@ bool PFS_index_rpl_connection_status_by_thread::match(Master_info *mi) {
     row.thread_id = 0;
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->info_thd);
+      PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -183,7 +183,8 @@ PFS_engine_table *table_replication_connection_status::create(
 table_replication_connection_status::table_replication_connection_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_replication_connection_status::~table_replication_connection_status() {}
+table_replication_connection_status::~table_replication_connection_status() =
+    default;
 
 void table_replication_connection_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -196,7 +197,7 @@ ha_rows table_replication_connection_status::get_row_count() {
 }
 
 int table_replication_connection_status::rnd_next(void) {
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
@@ -233,7 +234,7 @@ int table_replication_connection_status::rnd_pos(const void *pos) {
 }
 
 int table_replication_connection_status::index_init(uint idx, bool) {
-  PFS_index_rpl_connection_status *result = NULL;
+  PFS_index_rpl_connection_status *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -243,7 +244,7 @@ int table_replication_connection_status::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_rpl_connection_status_by_thread);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   m_opened_index = result;
@@ -252,7 +253,7 @@ int table_replication_connection_status::index_init(uint idx, bool) {
 }
 
 int table_replication_connection_status::index_next(void) {
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
 
   channel_map.rdlock();
 
@@ -277,7 +278,7 @@ int table_replication_connection_status::index_next(void) {
 }
 
 int table_replication_connection_status::make_row(Master_info *mi) {
-  DBUG_ENTER("table_replication_connection_status::make_row");
+  DBUG_TRACE;
   bool error = false;
   Trx_monitoring_info queueing_trx;
   Trx_monitoring_info last_queued_trx;
@@ -288,8 +289,8 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
   m_row.service_state = PS_RPL_CONNECT_SERVICE_STATE_NO;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  assert(mi != nullptr);
+  assert(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->data_lock);
 
@@ -330,7 +331,7 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   }
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->info_thd);
+    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -399,10 +400,10 @@ int table_replication_connection_status::make_row(Master_info *mi) {
 
 end:
   if (error) {
-    DBUG_RETURN(HA_ERR_RECORD_DELETED);
+    return HA_ERR_RECORD_DELETED;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int table_replication_connection_status::read_row_values(TABLE *table,
@@ -411,12 +412,12 @@ int table_replication_connection_status::read_row_values(TABLE *table,
                                                          bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /** channel_name*/
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
@@ -495,7 +496,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           set_field_timestamp(f, m_row.queueing_trx_start_queue_timestamp);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

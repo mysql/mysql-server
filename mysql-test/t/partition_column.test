@@ -25,6 +25,7 @@ INSERT INTO t1 VALUES(2, 'Bob', 'dep1', 'Croatia');
 INSERT INTO t1 VALUES(3, 'Cecil', 'dep2', 'Russia');
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 INSERT INTO t1 VALUES(3, 'Dan', 'dep2', 'Croatia');
+--sorted_result
 SELECT PARTITION_NAME,TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1';
@@ -195,6 +196,7 @@ subpartitions 4
   partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
   partition p2 values less than (1, 'b', MAXVALUE, MAXVALUE),
   partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
+--sorted_result
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 show create table t1;
@@ -260,6 +262,7 @@ partition by list columns(a,b)
 ( partition p0 values in ((1, NULL), (2, NULL), (NULL, NULL)),
   partition p1 values in ((1,1), (2,2)),
   partition p2 values in ((3, NULL), (NULL, 1)));
+--sorted_result
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 show create table t1;
@@ -290,6 +293,7 @@ create table t1 (a int)
 partition by list (a)
 ( partition p0 values in (2, 1),
   partition p1 values in (4, NULL, 3));
+--sorted_result
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 show create table t1;
@@ -312,6 +316,7 @@ create table t1 (a int)
 partition by list columns(a)
 ( partition p0 values in (2, 1),
   partition p1 values in (4, NULL, 3));
+--sorted_result
 select partition_method, partition_expression, partition_description
  from information_schema.partitions where table_name = "t1";
 show create table t1;
@@ -333,6 +338,7 @@ subpartitions 3
   partition p1 values less than (2,'abc','abc'),
   partition p2 values less than (3,'abc','abc'),
   partition p3 values less than (4,'abc','abc'));
+--sorted_result
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 show create table t1;
@@ -349,6 +355,7 @@ create table t1 (a int, b varchar(2), c int)
 partition by range columns (a, b, c)
 (partition p0 values less than (1, 'A', 1),
  partition p1 values less than (1, 'B', 1));
+--sorted_result
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 show create table t1;
@@ -420,6 +427,7 @@ drop table t1;
 create table t1 (a int)
 partition by list columns(a)
 (partition p0 values in (0));
+--sorted_result
 select partition_method from information_schema.partitions where table_name='t1';
 drop table t1;
 

@@ -37,6 +37,7 @@
 
 SET sql_log_bin = 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("\\[GCS\\] The member has left the group but the new view will not be installed*");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
@@ -47,12 +48,12 @@ SET sql_log_bin = 1;
 
 --echo
 --echo ####
---echo # 1) Verify that the default is 0.
+--echo # 1) Verify that the default is 3.
 --echo ####
 --echo
 SET @@GLOBAL.group_replication_autorejoin_tries = default;
---let $assert_text = The default of group_replication_autorejoin_tries should be 0
---let $assert_cond = [SELECT @@GLOBAL.group_replication_autorejoin_tries] = 0
+--let $assert_text = The default of group_replication_autorejoin_tries should be 3
+--let $assert_cond = [SELECT @@GLOBAL.group_replication_autorejoin_tries] = 3
 --source include/assert.inc
 
 --echo

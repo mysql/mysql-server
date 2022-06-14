@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/service.h>
 
+#include <mysql/components/services/bits/system_variables_bits.h>
+
 /**
   A utility class for the ENUM variables
 */
@@ -37,56 +39,6 @@ struct TYPE_LIB {
   const char **type_names{nullptr};
   unsigned int *type_lengths{nullptr};
 };
-
-/**
-  @addtogroup group_components_services_sys_var_service_types Variable types
-
-  Possible system variable types. Use at most one of these.
-
-  @sa mysql_service_component_sys_variable_register service.
-
-  @{
-*/
-
-/** bool variable. Use @ref BOOL_CHECK_ARG */
-#define PLUGIN_VAR_BOOL 0x0001
-/** int variable. Use @ref INTEGRAL_CHECK_ARG */
-#define PLUGIN_VAR_INT 0x0002
-/** long variable Use @ref INTEGRAL_CHECK_ARG */
-#define PLUGIN_VAR_LONG 0x0003
-/** longlong variable. Use @ref INTEGRAL_CHECK_ARG */
-#define PLUGIN_VAR_LONGLONG 0x0004
-/** char * variable. Use @ref STR_CHECK_ARG */
-#define PLUGIN_VAR_STR 0x0005
-/** Enum variable. Use @ref ENUM_CHECK_ARG */
-#define PLUGIN_VAR_ENUM 0x0006
-/** A set variable. Use @ref ENUM_CHECK_ARG */
-#define PLUGIN_VAR_SET 0x0007
-/** double variable. Use @ref INTEGRAL_CHECK_ARG */
-#define PLUGIN_VAR_DOUBLE 0x0008
-/** @} */
-/**
-  @addtogroup group_components_services_sys_var_service_flags Variable flags
-
-  Flags to specify the behavior of system variables. Use multiple as needed.
-
-  @sa mysql_service_component_sys_variable_register service.
-
-  @{
-*/
-#define PLUGIN_VAR_UNSIGNED 0x0080  /**< The variable is unsigned */
-#define PLUGIN_VAR_THDLOCAL 0x0100  /**< Variable is per-connection */
-#define PLUGIN_VAR_READONLY 0x0200  /**< Server variable is read only */
-#define PLUGIN_VAR_NOSYSVAR 0x0400  /**< Not a server variable */
-#define PLUGIN_VAR_NOCMDOPT 0x0800  /**< Not a command line option */
-#define PLUGIN_VAR_NOCMDARG 0x1000  /**< No argument for cmd line */
-#define PLUGIN_VAR_RQCMDARG 0x0000  /**< Argument required for cmd line */
-#define PLUGIN_VAR_OPCMDARG 0x2000  /**< Argument optional for cmd line */
-#define PLUGIN_VAR_NODEFAULT 0x4000 /**< SET DEFAULT is prohibited */
-#define PLUGIN_VAR_MEMALLOC 0x8000  /**< String needs memory allocated */
-#define PLUGIN_VAR_NOPERSIST \
-  0x10000 /**< SET PERSIST_ONLY is prohibited for read only variables */
-/** @} */
 
 class THD;
 struct SYS_VAR;
@@ -150,7 +102,7 @@ typedef int (*mysql_sys_var_check_func)(MYSQL_THD thd, SYS_VAR *var, void *save,
   @sa mysql_sys_var_check_func, mysql_service_component_sys_variable_register_t
 */
 typedef void (*mysql_sys_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
-                                          void *var_ptr, const void *save);
+                                          void *val_ptr, const void *save);
 
 #define COPY_MYSQL_PLUGIN_VAR_HEADER(sys_var_type, type, sys_var_check, \
                                      sys_var_update)                    \

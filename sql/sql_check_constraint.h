@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,12 @@
 #ifndef SQL_CHECK_CONSTRAINT_INCLUDED
 #define SQL_CHECK_CONSTRAINT_INCLUDED
 
-#include <map>
-
 #include "lex_string.h"          // LEX_STRING
-#include "mem_root_array.h"      // Mem_root_array
-#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/mem_root_array.h"  // Mem_root_array
 
+class Alter_column;
+class Alter_drop;
+class Create_field;
 class Item;
 class String;
 struct TABLE;
@@ -70,18 +70,6 @@ class Sql_check_constraint_spec {
     @retval     false      Otherwise.
   */
   bool expr_refers_column(const char *column_name);
-
-  /**
-    Method to check if constraint expression refers to only "column_name"
-    column of the table.
-
-    @param[in]  column_name   Column name.
-
-    @retval     true       If expression refers to only "column_name".
-    @retval     false      If expression refers to more than one column
-                           or if expression does not refers to "column_name".
-  */
-  bool expr_refers_to_only_column(const char *column_name);
 
  public:
   /// Name of the check constraint.
@@ -126,11 +114,6 @@ class Sql_check_constraint_share {
                              const LEX_CSTRING &expr_str, bool is_enforced)
       : m_name(name), m_expr_str(expr_str), m_is_enforced(is_enforced) {}
 
-  ~Sql_check_constraint_share() {
-    if (m_name.str != nullptr) delete m_name.str;
-    if (m_expr_str.str != nullptr) delete m_expr_str.str;
-  }
-
   /// Constraint name.
   LEX_CSTRING &name() { return m_name; }
   /// Check expression in string form.
@@ -147,15 +130,6 @@ class Sql_check_constraint_share {
 
   /// Check constraint state.
   bool m_is_enforced{true};
-
- private:
-  /**
-    Delete default copy and assignment operator to avoid accidental destruction
-    of shallow copied Sql_table_check_constraint_share objects.
-  */
-  Sql_check_constraint_share(const Sql_check_constraint_share &) = delete;
-  Sql_check_constraint_share &operator=(const Sql_check_constraint_share &) =
-      delete;
 };
 
 /**
@@ -178,8 +152,6 @@ class Sql_table_check_constraint : public Sql_check_constraint_share {
         m_val_gen(val_gen),
         m_table(table) {}
 
-  ~Sql_table_check_constraint();
-
   /// Value generator.
   Value_generator *value_generator() { return m_val_gen; }
   void set_value_generator(Value_generator *val_gen) { m_val_gen = val_gen; }
@@ -193,15 +165,6 @@ class Sql_table_check_constraint : public Sql_check_constraint_share {
 
   /// Parent table reference.
   TABLE *m_table{nullptr};
-
- private:
-  /**
-    Delete default copy and assignment operator to avoid accidental destruction
-    of shallow copied Sql_table_check_constraint objects.
-  */
-  Sql_table_check_constraint(const Sql_table_check_constraint &) = delete;
-  Sql_table_check_constraint &operator=(const Sql_table_check_constraint &) =
-      delete;
 };
 
 /// Type for the list of Sql_check_constraint_spec elements.
@@ -210,11 +173,11 @@ using Sql_check_constraint_spec_list =
 
 /// Type for the list of Sql_check_constraint_share elements.
 using Sql_check_constraint_share_list =
-    Mem_root_array<Sql_check_constraint_share *>;
+    Mem_root_array<Sql_check_constraint_share>;
 
 /// Type for the list of Sql_table_check_constraint elements.
 using Sql_table_check_constraint_list =
-    Mem_root_array<Sql_table_check_constraint *>;
+    Mem_root_array<Sql_table_check_constraint>;
 
 /**
   Method to check if server is a slave server and master server is on a
@@ -235,4 +198,76 @@ using Sql_table_check_constraint_list =
   @retval  false  Otherwise.
 */
 bool is_slave_with_master_without_check_constraints_support(THD *thd);
+
+/**
+  Check if constraint expression refers to only "column_name" column of the
+  table.
+
+  @param[in]  check_expr    Check constraint expression.
+  @param[in]  column_name   Column name.
+
+  @retval     true       If expression refers to only "column_name".
+  @retval     false      If expression refers to more than one column
+                         or if expression does not refers to "column_name".
+*/
+bool check_constraint_expr_refers_to_only_column(Item *check_expr,
+                                                 const char *column_name);
+
+/**
+  Helper class to check if column being dropped or removed in ALTER statement
+  is in use by Check constraints.
+*/
+class Check_constraint_column_dependency_checker {
+ public:
+  explicit Check_constraint_column_dependency_checker(
+      const Sql_check_constraint_spec_list &check_constraint_list)
+      : m_check_constraint_list(check_constraint_list) {}
+
+  /**
+    Method to check if column being dropped is in use by check constraints.
+
+    @param   drop    Instance of Alter_drop.
+
+    @retval  true    If some check constraint uses the column being dropped.
+    @retval  false   Otherwise.
+  */
+  bool operator()(const Alter_drop *drop);
+
+  /**
+    Method to check if column being renamed using RENAME COLUMN clause of the
+    ALTER TABLE statement is in use by check constraints.
+
+    @param   alter_column   Instance of Alter_column.
+
+    @retval  true    If some check constraint uses the column being renamed.
+    @retval  false   Otherwise.
+  */
+  bool operator()(const Alter_column *alter_column);
+
+  /**
+    Method to check if column being renamed using CHANGE [COLUMN] clause of the
+    ALTER TABLE statement is in use by check constraints.
+
+    @param   fld     Instance of Create_field.
+
+    @retval  true    If some check constraint uses the column being renamed.
+    @retval  false   Otherwise.
+  */
+  bool operator()(const Create_field &fld);
+
+ private:
+  /**
+    Check if any check constraint uses "column_name".
+
+    @param   column_name  Column name.
+
+    @retval  true         If column is used by the check constraint.
+    @retval  false        Otherwise.
+  */
+  bool any_check_constraint_uses_column(const char *column_name);
+
+ private:
+  /// Check constraint specification list.
+  const Sql_check_constraint_spec_list &m_check_constraint_list;
+};
 #endif  // SQL_CHECK_CONSTRAINT_INCLUDED

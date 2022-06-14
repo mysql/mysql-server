@@ -1,5 +1,5 @@
-/* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, tommy@valley.ne.jp
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -92,13 +92,13 @@ static const uchar bin_char_array[] = {
     255};
 
 extern "C" {
-static bool my_coll_init_8bit_bin(
-    CHARSET_INFO *cs, MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused))) {
+static bool my_coll_init_8bit_bin(CHARSET_INFO *cs,
+                                  MY_CHARSET_LOADER *loader [[maybe_unused]]) {
   cs->max_sort_char = 255;
   return false;
 }
 
-static int my_strnncoll_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_binary(const CHARSET_INFO *cs [[maybe_unused]],
                                const uchar *s, size_t slen, const uchar *t,
                                size_t tlen, bool t_is_prefix) {
   size_t len = std::min(slen, tlen);
@@ -106,8 +106,8 @@ static int my_strnncoll_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 
-static size_t my_lengthsp_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                                 const char *ptr MY_ATTRIBUTE((unused)),
+static size_t my_lengthsp_binary(const CHARSET_INFO *cs [[maybe_unused]],
+                                 const char *ptr [[maybe_unused]],
                                  size_t length) {
   return length;
 }
@@ -138,13 +138,13 @@ static size_t my_lengthsp_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 extern "C" {
 static int my_strnncollsp_binary(const CHARSET_INFO *cs, const uchar *s,
                                  size_t slen, const uchar *t, size_t tlen) {
-  return my_strnncoll_binary(cs, s, slen, t, tlen, 0);
+  return my_strnncoll_binary(cs, s, slen, t, tlen, false);
 }
 
-static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
                                  const uchar *s, size_t slen, const uchar *t,
                                  size_t tlen, bool t_is_prefix) {
-  size_t len = MY_MIN(slen, tlen);
+  size_t len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
@@ -171,14 +171,14 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   > 0	s > t
 */
 
-static int my_strnncollsp_8bit_bin(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const uchar *a,
-    size_t a_length, const uchar *b, size_t b_length) {
+static int my_strnncollsp_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                                   const uchar *a, size_t a_length,
+                                   const uchar *b, size_t b_length) {
   const uchar *end;
   size_t length;
   int res;
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (*a++ != *b++) return ((int)a[-1] - (int)b[-1]);
   }
@@ -205,40 +205,40 @@ static int my_strnncollsp_8bit_bin(
 
 /* This function is used for all conversion functions */
 
-static size_t my_case_str_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                              char *str MY_ATTRIBUTE((unused))) {
+static size_t my_case_str_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                              char *str [[maybe_unused]]) {
   return 0;
 }
 
-static size_t my_case_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          char *src MY_ATTRIBUTE((unused)), size_t srclen,
-                          char *dst MY_ATTRIBUTE((unused)),
-                          size_t dstlen MY_ATTRIBUTE((unused))) {
+static size_t my_case_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                          char *src [[maybe_unused]], size_t srclen,
+                          char *dst [[maybe_unused]],
+                          size_t dstlen [[maybe_unused]]) {
   return srclen;
 }
 
-static int my_strcasecmp_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strcasecmp_bin(const CHARSET_INFO *cs [[maybe_unused]],
                              const char *s, const char *t) {
   return strcmp(s, t);
 }
 }  // extern "C"
 
-uint my_mbcharlen_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                       uint c MY_ATTRIBUTE((unused))) {
+uint my_mbcharlen_8bit(const CHARSET_INFO *cs [[maybe_unused]],
+                       uint c [[maybe_unused]]) {
   return 1;
 }
 
 extern "C" {
-static int my_mb_wc_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t *wc, const uchar *str, const uchar *end) {
+static int my_mb_wc_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
+                        const uchar *str, const uchar *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = str[0];
   return 1;
 }
 
-static int my_wc_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                        uchar *s, uchar *e) {
   if (s >= e) return MY_CS_TOOSMALL;
 
   if (wc < 256) {
@@ -250,7 +250,7 @@ static int my_wc_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }  // extern "C"
 
 extern "C" {
-static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
                                   const uchar *key, size_t len, uint64 *nr1,
                                   uint64 *nr2) {
   const uchar *pos = key;
@@ -275,7 +275,7 @@ static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   *nr2 = tmp2;
 }
 
-static void my_hash_sort_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static void my_hash_sort_bin(const CHARSET_INFO *cs [[maybe_unused]],
                              const uchar *key, size_t len, uint64 *nr1,
                              uint64 *nr2) {
   const uchar *pos = key;
@@ -400,9 +400,9 @@ static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uchar *dst,
   return srclen;
 }
 
-static uint my_instr_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *b, size_t b_length, const char *s,
-                         size_t s_length, my_match_t *match, uint nmatch) {
+static uint my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
+                         size_t b_length, const char *s, size_t s_length,
+                         my_match_t *match, uint nmatch) {
   const uchar *str, *search, *end, *search_end;
 
   if (s_length <= b_length) {
@@ -479,8 +479,8 @@ static MY_COLLATION_HANDLER my_collation_binary_handler = {
     my_propagate_simple};
 
 static MY_CHARSET_HANDLER my_charset_handler = {
-    NULL,              /* init */
-    NULL,              /* ismbchar      */
+    nullptr,           /* init */
+    nullptr,           /* ismbchar      */
     my_mbcharlen_8bit, /* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
@@ -513,20 +513,20 @@ CHARSET_INFO my_charset_bin = {
     0,                                              /* number        */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_PRIMARY, /* state */
     "binary",                                       /* cs name    */
-    "binary",                                       /* name          */
-    "",                                             /* comment       */
-    NULL,                                           /* tailoring     */
-    NULL,                                           /* coll_param    */
+    "binary",                                       /* m_coll_name   */
+    "Binary pseudo charset",                        /* comment       */
+    nullptr,                                        /* tailoring     */
+    nullptr,                                        /* coll_param    */
     ctype_bin,                                      /* ctype         */
     bin_char_array,                                 /* to_lower      */
     bin_char_array,                                 /* to_upper      */
-    NULL,                                           /* sort_order    */
-    NULL,                                           /* uca           */
-    NULL,                                           /* tab_to_uni    */
-    NULL,                                           /* tab_from_uni  */
+    nullptr,                                        /* sort_order    */
+    nullptr,                                        /* uca           */
+    nullptr,                                        /* tab_to_uni    */
+    nullptr,                                        /* tab_from_uni  */
     &my_unicase_default,                            /* caseinfo     */
-    NULL,                                           /* state_map    */
-    NULL,                                           /* ident_map    */
+    nullptr,                                        /* state_map    */
+    nullptr,                                        /* ident_map    */
     1,                                              /* strxfrm_multiply */
     1,                                              /* caseup_multiply  */
     1,                                              /* casedn_multiply  */
@@ -536,8 +536,8 @@ CHARSET_INFO my_charset_bin = {
     0,                                              /* min_sort_char */
     255,                                            /* max_sort_char */
     0,                                              /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    1,     /* levels_for_compare */
     &my_charset_handler,
     &my_collation_binary_handler,
     NO_PAD};

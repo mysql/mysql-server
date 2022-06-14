@@ -7,11 +7,14 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications copyright (c) 2000, 2019. Oracle and/or its affiliates.
+  Modifications Copyright (c) 2000, 2021, Oracle and/or its affiliates.
   All rights reserved.
 */
+#ifdef _WIN32
+
 #include "nt_servc.h"
 
+#include <VersionHelpers.h>  // IsWindowsXPOrGreater
 #include <process.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,15 +68,7 @@ NTService::~NTService() {
 
  -------------------------------------------------------------------------- */
 
-BOOL NTService::GetOS() noexcept {
-  bOsNT = FALSE;
-  memset(&osVer, 0, sizeof(OSVERSIONINFO));
-  osVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-  if (GetVersionEx(&osVer)) {
-    if (osVer.dwPlatformId == VER_PLATFORM_WIN32_NT) bOsNT = TRUE;
-  }
-  return bOsNT;
-}
+BOOL NTService::GetOS() noexcept { return IsWindowsXPOrGreater(); }
 
 /**
   Registers the main service thread with the service manager.
@@ -96,7 +91,8 @@ long NTService::Init(LPCSTR szInternName, void *ServiceThread,
   lstrcpy(ServiceName, szInternName);
 
   SERVICE_TABLE_ENTRY stb[] = {
-      {(char *)szInternName, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+      {const_cast<char *>(szInternName),
+       reinterpret_cast<LPSERVICE_MAIN_FUNCTION>(ServiceMain)},
       {NULL, NULL}};
 
   return StartServiceCtrlDispatcher(stb);  // register with the Service Manager
@@ -203,7 +199,7 @@ void NTService::Stop(void) {
   service manager to start the service.
 */
 
-void NTService::ServiceMain(DWORD argc, LPTSTR *argv) {
+void NTService::ServiceMain(DWORD /* argc */, LPTSTR * /* argv */) {
   // registration function
   if (!(pService->hServiceStatusHandle = RegisterServiceCtrlHandler(
             pService->ServiceName,
@@ -515,3 +511,4 @@ BOOL NTService::is_super_user() {
   FreeSid(psidAdministrators);
   return ret_value;
 }
+#endif

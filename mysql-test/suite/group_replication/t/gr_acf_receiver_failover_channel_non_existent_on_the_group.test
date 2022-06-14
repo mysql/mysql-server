@@ -1,0 +1,143 @@
+###############################################################################
+# Validate that on a single-primary mode group, all replication failover channels
+# must exist, otherwise the members that do not have the channel will leave the
+# group and move to ERROR state.
+#
+# Test:
+#   0. This test requires three servers:
+#        server1, server2: group
+#        server3: single server
+#   1. Deploy a group in single-primary mode on server1 and server2.
+#   2. Configure a failover channel on server1 that replicates
+#      from server3.
+#   3. Server2 will leave the group once server propagates
+#      failover channel 'ch1' server2 does not have that channel.
+#   4. Clean up.
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a group in single-primary mode on server1 and server2.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to set SOURCE_CONNECTION_AUTO_FAILOVER on a non-existent or misconfigured replication channel 'ch1', please create the channel and rejoin the server to the group.");
+call mtr.add_suppression("A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group.*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+--source include/gr_assert_secondary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Configure a failover channel on server1 that replicates
+--echo #    from server3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $server3_uuid= `SELECT @@server_uuid`
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
+--eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_3, '', 50);
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server3
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server3_uuid\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1 SQL_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch1\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify replica_monitor thread is running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 1;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Server2 will leave the group once server propagates
+--echo #    failover channel 'ch1' server2 does not have that channel.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $assert_text= 'There are 0 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no channel ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Verify replica_monitor thread is not running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 0;
+--source include/assert.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_receiver_failover_channel_non_existent_on_the_group
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= Unable to set SOURCE_CONNECTION_AUTO_FAILOVER on a non-existent or misconfigured replication channel 'ch1', please create the channel and rejoin the server to the group.
+--let $assert_count= 1
+--let $assert_text= Unable to set SOURCE_CONNECTION_AUTO_FAILOVER on a non-existent or misconfigured replication channel 'ch1', please create the channel and rejoin the server to the group.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_channel_name='ch1'
+--let $rpl_multi_source= 1
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_multi_source=
+
+--source include/group_replication_end.inc

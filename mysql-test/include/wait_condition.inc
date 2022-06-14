@@ -14,6 +14,7 @@
 #
 #   OR
 #
+#    let $silent_failure=1 # Ignore the echo when the wait times out
 #    let $wait_timeout= 60; # Override default 30 seconds with 60.
 #    let $wait_condition=
 #      SELECT c = 3 FROM t;
@@ -54,13 +55,16 @@ while ($wait_counter)
     }
     if (!$success)
     {
-        real_sleep 0.1;
+        sleep 0.1;
         dec $wait_counter;
     }
 }
 if (!$success)
 {
-  echo Timeout in wait_condition.inc for $wait_condition;
+  if (!$silent_failure)
+  {
+    echo Timeout in wait_condition.inc for $wait_condition;
+  }
   if ($show_rpl_debug_info)
   {
     --source include/show_rpl_debug_info.inc

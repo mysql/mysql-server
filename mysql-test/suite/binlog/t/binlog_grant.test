@@ -75,3 +75,32 @@ SHOW BINARY LOGS;
 --disconnect rpl
 connection default;
 DROP USER 'mysqltest_1'@'localhost';
+
+
+--echo #
+--echo # Bug #31869146: 'GRANT SELECT, GRANT OPTION ON *.* ' WOULD NOT WRITE
+--echo #   THE PRIVILEGES TO BINLOG
+--echo #
+
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+CREATE USER b31869146@localhost;
+CREATE DATABASE b31869146_db;
+CREATE TABLE b31869146_db.t1 (a INT);
+GRANT SELECT,GRANT OPTION ON *.* TO b31869146@localhost AS 'root'@'localhost' WITH ROLE NONE;
+GRANT SELECT,GRANT OPTION ON b31869146_db.* TO b31869146@localhost;
+GRANT SELECT,GRANT OPTION ON b31869146_db.t1 TO b31869146@localhost;
+GRANT SELECT (a),GRANT OPTION ON b31869146_db.t1 TO b31869146@localhost;
+GRANT SELECT ON *.* TO b31869146@localhost WITH GRANT OPTION AS 'root'@'localhost' WITH ROLE NONE;
+GRANT SELECT ON b31869146_db.* TO b31869146@localhost WITH GRANT OPTION;
+GRANT SELECT ON b31869146_db.t1 TO b31869146@localhost WITH GRANT OPTION;
+GRANT SELECT (a) ON b31869146_db.t1 TO b31869146@localhost WITH GRANT OPTION;
+
+--echo # Success must contain SELECT for all of the GRANTS
+--echo # Show binlog events
+source include/show_binlog_events.inc;
+
+--echo # cleanup
+DROP USER b31869146@localhost;
+DROP DATABASE b31869146_db;
+
+--echo # End of 8.0 tests

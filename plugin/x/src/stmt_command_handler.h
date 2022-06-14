@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,29 +25,26 @@
 #ifndef PLUGIN_X_SRC_STMT_COMMAND_HANDLER_H_
 #define PLUGIN_X_SRC_STMT_COMMAND_HANDLER_H_
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/src/admin_cmd_handler.h"
+#include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/error_code.h"
+#include "plugin/x/src/ngs/protocol_fwd.h"
 #include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {
 
 class Stmt_command_handler {
  public:
-  explicit Stmt_command_handler(ngs::Session_interface *session)
-      : m_session{session} {}
+  explicit Stmt_command_handler(iface::Session *session) : m_session{session} {}
 
   ngs::Error_code execute(const Mysqlx::Sql::StmtExecute &msg);
 
  private:
   ngs::Error_code sql_stmt_execute(const Mysqlx::Sql::StmtExecute &msg);
-  ngs::Error_code deprecated_admin_stmt_execute(
-      const Mysqlx::Sql::StmtExecute &msg);
   ngs::Error_code admin_stmt_execute(const Mysqlx::Sql::StmtExecute &msg);
 
   Query_string_builder m_qb{1024};
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Admin_command_handler m_admin_handler{m_session};
 };
 

@@ -2,6 +2,11 @@
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
 connect (con1,localhost,root,,);
 --echo # In connection CON1
 
@@ -12,9 +17,13 @@ connect (con1,localhost,root,,);
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
+SHOW VARIABLES LIKE 'clone_block_ddl';
 
 --echo # Set backup lock timeout to 1 sec
+SET GLOBAL clone_block_ddl = true;
 SET GLOBAL clone_ddl_timeout = 1;
+
+SHOW VARIABLES LIKE 'clone_block_ddl';
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
 SHOW VARIABLES LIKE "lock_wait_timeout";
 
@@ -29,6 +38,17 @@ SHOW CREATE TABLE t1;
 --echo # 1B. CREATE TABLE while clone in progress
 --let $ddl_text = CREATE TABLE t2 (col1 INT PRIMARY KEY)
 --source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 1C. ALTER INSTANCE while clone in progress
+--let $ddl_text = ALTER INSTANCE DISABLE INNODB REDO_LOG
+--source ../include/ddl_lock_ddl_wait.inc
+SHOW STATUS LIKE 'innodb_redo_log_enabled';
+
+--echo # 1C. Clone while ALTER INSTANCE in progress
+--let $ddl_text = ALTER INSTANCE DISABLE INNODB REDO_LOG
+--source ../include/ddl_lock_clone_wait.inc
+SHOW STATUS LIKE 'innodb_redo_log_enabled';
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
 
 --echo # 2A. Clone while ALTER TABLE ADD COLUMN [COPY] in progress
 INSERT INTO t1 values(10), (20), (30);

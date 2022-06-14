@@ -45,7 +45,7 @@ SET SESSION debug=DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(100) NOT NULL,
+  `a` int NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
@@ -84,7 +84,7 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 x	x	x	NULL	x	x	x	x	x	x	100.00	NULL
-x	x	x	NULL	x	x	x	x	x	x	100.00	Using sort_union(a,b); Using where; Using join buffer (Block Nested Loop)
+x	x	x	NULL	x	x	x	x	x	x	100.00	Using sort_union(a,b); Using where; Using join buffer (hash join)
 Warnings:
 x	x	x
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );

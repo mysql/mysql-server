@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Optimizer hints are not supported.
+
 CREATE TABLE t1(f1 INT);
 
 # Parser tests
@@ -34,7 +36,10 @@ explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 # Testing warning messages for the variables with incorrect values
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 # Testing warning message for the variables with truncated value
+--disable_warnings
 SELECT /*+ SET_VAR(range_alloc_block_size=7000) */ 1;
+SHOW WARNINGS LIMIT 1;
+--enable_warnings
 
 DROP TABLE t1;
 
@@ -222,9 +227,6 @@ DROP TABLE t1;
 CALL test_hint("SET_VAR(max_heap_table_size=16384)", "max_heap_table_size");
 CALL test_hint("SET_VAR(internal_tmp_mem_storage_engine=MEMORY)", "internal_tmp_mem_storage_engine");
 
-# Testing max_length_for_sort_data variable, no functional test.
-CALL test_hint("SET_VAR(max_length_for_sort_data=4)", "max_length_for_sort_data");
-
 # Testing max_points_in_geometry variable, the value in error message is 1048576.
 --error ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
 SELECT /*+ SET_VAR(max_points_in_geometry=1048576) */
@@ -310,6 +312,11 @@ CALL test_hint("SET_VAR(read_rnd_buffer_size=1)", "read_rnd_buffer_size");
 # 'Sort_merge_passes' status variable changes its value with the hint.
 CREATE TABLE t1 (f1 CHAR(255));
 INSERT INTO t1 VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd'), ('eee');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;

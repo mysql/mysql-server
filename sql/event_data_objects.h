@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,8 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"  // interval_type
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
+#include "sql/psi_memory_key.h"
 
 class String;
 class THD;
@@ -51,17 +52,17 @@ void init_scheduler_psi_keys(void);
 
 class Event_queue_element_for_exec {
  public:
-  Event_queue_element_for_exec() {}
+  Event_queue_element_for_exec() = default;
   ~Event_queue_element_for_exec();
 
-  bool init(LEX_STRING dbname, LEX_STRING name);
+  bool init(LEX_CSTRING dbname, LEX_CSTRING name);
 
-  LEX_STRING dbname;
-  LEX_STRING name;
+  LEX_CSTRING dbname;
+  LEX_CSTRING name;
   bool dropped;
   THD *thd;
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 
   /* Prevent use of these */
   Event_queue_element_for_exec(const Event_queue_element_for_exec &) = delete;
@@ -76,12 +77,12 @@ class Event_queue_element_for_exec {
 
 class Event_basic {
  protected:
-  MEM_ROOT mem_root;
+  MEM_ROOT mem_root{key_memory_event_basic_root, 256};
 
  public:
-  LEX_STRING m_schema_name;
-  LEX_STRING m_event_name;
-  LEX_STRING m_definer;
+  LEX_CSTRING m_schema_name;
+  LEX_CSTRING m_event_name;
+  LEX_CSTRING m_definer;
 
   Time_zone *m_time_zone;
   Event_basic();
@@ -112,9 +113,9 @@ class Event_queue_element : public Event_basic {
   uint m_execution_count;
 
   Event_queue_element();
-  virtual ~Event_queue_element();
-  virtual bool fill_event_info(THD *thd, const dd::Event &event,
-                               const char *dbname);
+  ~Event_queue_element() override;
+  bool fill_event_info(THD *thd, const dd::Event &event,
+                       const char *dbname) override;
 
   bool compute_next_execution_time(THD *thd);
 
@@ -138,12 +139,12 @@ class Event_timed : public Event_queue_element {
   class Stored_program_creation_ctx *m_creation_ctx;
   LEX_STRING m_definition_utf8;
   Event_timed();
-  virtual ~Event_timed();
+  ~Event_timed() override;
 
   void init();
 
-  virtual bool fill_event_info(THD *thd, const dd::Event &event,
-                               const char *schema_name);
+  bool fill_event_info(THD *thd, const dd::Event &event,
+                       const char *schema_name) override;
 
   int get_create_event(const THD *thd, String *buf);
 
@@ -169,8 +170,8 @@ class Event_job_data : public Event_basic {
   void operator=(Event_job_data &) = delete;
 
  private:
-  virtual bool fill_event_info(THD *thd, const dd::Event &event,
-                               const char *schema_name);
+  bool fill_event_info(THD *thd, const dd::Event &event,
+                       const char *schema_name) override;
   bool construct_sp_sql(THD *thd, String *sp_sql);
 };
 
@@ -186,15 +187,14 @@ class Event_job_data : public Event_basic {
   @retval        false       The drop event SQL query is built
   @retval        true        Otherwise
 */
-bool construct_drop_event_sql(THD *thd, String *sp_sql,
-                              const LEX_STRING &db_name,
-                              const LEX_STRING &event_name);
+bool construct_drop_event_sql(THD *thd, String *sp_sql, LEX_CSTRING db_name,
+                              LEX_CSTRING event_name);
 
 /* Compares only the schema part of the identifier */
-bool event_basic_db_equal(LEX_STRING db, Event_basic *et);
+bool event_basic_db_equal(LEX_CSTRING db, Event_basic *et);
 
 /* Compares the whole identifier*/
-bool event_basic_identifier_equal(LEX_STRING db, LEX_STRING name,
+bool event_basic_identifier_equal(LEX_CSTRING db, LEX_CSTRING name,
                                   Event_basic *b);
 
 /**

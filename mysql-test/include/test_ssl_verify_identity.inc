@@ -35,7 +35,6 @@
 # be 1.0.2+. For older versions of openssl, the test will be skipped.
 
 --source include/have_openssl_binary.inc
---source include/have_openssl.inc
 --source include/check_openssl_version.inc
 
 --echo ### Trying to connect with ssl-mode as DISABLED. This should establish an unencrypted connection.

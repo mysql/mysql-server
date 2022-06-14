@@ -128,7 +128,7 @@ Warnings:
 Warning	1364	Field 'd' doesn't have a default value
 desc bug20691;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 d	datetime	NO		NULL	
 dn	datetime	NO		0000-00-00 00:00:00	
 insert into bug20691 values (3, DEFAULT, DEFAULT), (3, '1975-07-10 07:10:03', '1978-01-13 14:08:51'), (3, DEFAULT, DEFAULT);
@@ -235,3 +235,13 @@ NULL
 drop table t1, t2;
 SET sql_mode = default;
 End of 5.0 tests.
+CREATE TABLE ts(ts TIMESTAMP DEFAULT TIMESTAMP'2019-10-01 01:02:03');
+ERROR 42000: Invalid default value for 'ts'
+CREATE TABLE dt(dt DATETIME DEFAULT TIMESTAMP'2019-10-01 01:02:03');
+ERROR 42000: Invalid default value for 'dt'
+CREATE TABLE ints(a INT DEFAULT TIMESTAMP'2019-10-01 01:02:03');
+ERROR 42000: Invalid default value for 'a'
+CREATE TABLE t(t TIME DEFAULT TIME'01:02:03');
+ERROR 42000: Invalid default value for 't'
+CREATE TABLE d(d DATE DEFAULT DATE'2019-10-01');
+ERROR 42000: Invalid default value for 'd'

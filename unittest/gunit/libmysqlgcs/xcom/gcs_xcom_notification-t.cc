@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +36,13 @@ class Dummy_notification : public Parameterized_notification<false> {
   Dummy_notification(void (*functor)(int &), int &val)
       : m_functor(functor), m_val(val) {}
 
-  ~Dummy_notification() {}
+  ~Dummy_notification() override = default;
 
   void (*m_functor)(int &);
   int &m_val;
 
  private:
-  void do_execute() { (*m_functor)(m_val); }
+  void do_execute() override { (*m_functor)(m_val); }
 };
 
 static int var = 0;
@@ -54,9 +54,9 @@ TEST_F(XcomNotificationTest, ProcessDummyNotification) {
 
   ASSERT_EQ(val, 0);
 
-  engine->initialize(NULL);
+  engine->initialize(nullptr);
   engine->push(new Dummy_notification(&function, val));
-  engine->finalize(NULL);
+  engine->finalize(nullptr);
   delete engine;
 
   ASSERT_EQ(val, 1);
@@ -67,7 +67,7 @@ TEST_F(XcomNotificationTest, ProcessFinalizeNotification) {
 
   ASSERT_EQ(var, 0);
 
-  engine->initialize(NULL);
+  engine->initialize(nullptr);
   engine->finalize(cleanup);
   delete engine;
 

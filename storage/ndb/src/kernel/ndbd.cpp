@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/require.h"
 #include <ndb_global.h>
+
+#include <algorithm>
 
 #include <NdbEnv.h>
 #include <NdbConfig.h>
@@ -34,6 +37,7 @@
 #include "vm/ThreadConfig.hpp"
 #include "vm/Configuration.hpp"
 
+#include "ndb_stacktrace.h"
 #include "ndbd.hpp"
 
 #include <TransporterRegistry.hpp>
@@ -48,10 +52,10 @@
 #include <EventLogger.hpp>
 #include <OutputStream.hpp>
 #include <LogBuffer.hpp>
+#include <NdbGetRUsage.h>
 
 #define JAM_FILE_ID 484
 
-extern EventLogger * g_eventLogger;
 
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
@@ -310,6 +314,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
   Uint32 shared_pages = Uint32(shared_mem /= GLOBAL_PAGE_SIZE);
 
+  g_eventLogger->info("SharedGlobalMemory set to %u MB", shared_pages/32);
   Uint32 tupmem = 0;
   if (ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem))
   {
@@ -340,6 +345,12 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_resource_id = RG_DATAMEM;
     ed.m_mem_manager->set_resource_limit(rl);
   }
+  else
+  {
+    g_eventLogger->alert("No data memory, exiting.");
+    return -1;
+  }
+  g_eventLogger->info("DataMemory set to %u MB", tupmem/32);
 
   Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
@@ -366,25 +377,38 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         redomem += (16 - tmp);
       }
 
-      filepages += lqhInstances * redomem; // Add to RG_FILE_BUFFERS
+      filepages += logParts * redomem; // Add to RG_FILE_BUFFERS
     }
   }
 
-  if (filepages)
-  {
-    Resource_limit rl;
-    rl.m_min = filepages;
-    rl.m_max = filepages;
-    rl.m_resource_id = RG_FILE_BUFFERS;
-    ed.m_mem_manager->set_resource_limit(rl);
-  }
+  Resource_limit rl;
+  rl.m_min = filepages;
+  rl.m_max = filepages;
+  rl.m_resource_id = RG_FILE_BUFFERS;
+  ed.m_mem_manager->set_resource_limit(rl);
+  g_eventLogger->info("RedoLogBuffer uses %u MB", filepages/32);
 
   Uint32 jbpages = compute_jb_pages(&ed);
   if (jbpages)
   {
+    require(globalData.isNdbMt);
     Resource_limit rl;
     rl.m_min = jbpages;
     rl.m_max = jbpages;
+    rl.m_resource_id = RG_JOBBUFFER;
+    ed.m_mem_manager->set_resource_limit(rl);
+    g_eventLogger->info("Job buffers use %u MB", jbpages/32);
+  }
+  else if (globalData.isNdbMt)
+  {
+    g_eventLogger->alert("No job buffer memory, exiting.");
+    return -1;
+  }
+  else
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = 0; // Not used by ndbd
     rl.m_resource_id = RG_JOBBUFFER;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -420,8 +444,8 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     {
       Uint64 extra_mem = 0;
       ndb_mgm_get_int64_parameter(p, CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_mem);
-      Uint32 extra_mem_pages = Uint32((extra_mem + GLOBAL_PAGE_SIZE - 1) /
-                                      GLOBAL_PAGE_SIZE);
+      Uint32 extra_mem_pages = Uint32(Uint64(extra_mem + GLOBAL_PAGE_SIZE - 1) /
+                                      Uint64(GLOBAL_PAGE_SIZE));
       sbpages += mt_get_extra_send_buffer_pages(sbpages, extra_mem_pages);
     }
 
@@ -429,9 +453,23 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_min = sbpages;
     /**
      * allow over allocation (from SharedGlobalMemory) of up to 25% of
-     *   totally allocated SendBuffer
+     *   totally allocated SendBuffer, at most 25% of SharedGlobalMemory.
      */
-    rl.m_max = sbpages + (sbpages * 25) / 100;
+    const Uint32 sb_max_shared_pages = 25 * std::min(sbpages, shared_pages) / 100;
+    require(sbpages + sb_max_shared_pages > 0);
+    rl.m_max = sbpages + sb_max_shared_pages;
+    rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+    g_eventLogger->info("Send buffers use %u MB, can overallocate %u MB"
+                        " more using SharedGlobalMemory.",
+                        sbpages / 32,
+                        sb_max_shared_pages / 32);
+  }
+  else
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = 0; // Not used by ndbd
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -441,31 +479,44 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     /**
      * Disk page buffer memory
      */
+    Uint32 recoverInstances = globalData.ndbMtRecoverThreads +
+                              globalData.ndbMtQueryThreads;
     Uint64 page_buffer = 64*1024*1024;
     ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY,&page_buffer);
 
     Uint32 pages = 0;
     pages += Uint32(page_buffer / GLOBAL_PAGE_SIZE); // in pages
     pages += LCP_RESTORE_BUFFER * lqhInstances;
+    pages += LCP_RESTORE_BUFFER * recoverInstances;
 
     pgman_pages += pages;
     pgman_pages += 64;
 
     Resource_limit rl;
     rl.m_min = pgman_pages;
+    require(pgman_pages > 0);
     rl.m_max = pgman_pages;
     rl.m_resource_id = RG_DISK_PAGE_BUFFER;  // Add to RG_DISK_PAGE_BUFFER
     ed.m_mem_manager->set_resource_limit(rl);
+  }
+  Uint32 pgman_mbytes = pgman_pages / 32;
+  g_eventLogger->info("DiskPageBuffer uses %u MB", pgman_mbytes);
+
+  Uint32 ldmInstances = 1;
+  if (globalData.ndbMtLqhWorkers > 1)
+  {
+    ldmInstances = globalData.ndbMtLqhThreads;
   }
 
   Uint32 stpages = 64;
   {
     Resource_limit rl;
     rl.m_min = stpages;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = RG_SCHEMA_TRANS_MEMORY;
     ed.m_mem_manager->set_resource_limit(rl);
   }
+  g_eventLogger->info("SchemaTransactionMemory uses 2 MB");
 
   Uint32 transmem = 0;
   Uint32 tcInstances = 1;
@@ -474,41 +525,65 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     tcInstances = globalData.ndbMtTcThreads;
   }
 
-  Uint32 MaxNoOfConcurrentIndexOperations = 8192;
-  Uint32 MaxNoOfConcurrentOperations = 32768;
-  Uint32 MaxNoOfConcurrentScans = 256;
-  Uint32 MaxNoOfConcurrentTransactions = 4096;
-  Uint32 MaxNoOfFiredTriggers = 4000;
-  Uint32 MaxNoOfLocalScans = 0;
-  Uint32 TransactionBufferMemory = 1048576;
+  Uint64 TransactionMemory = 0;
 
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS,
-                            &MaxNoOfConcurrentIndexOperations);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_OPS, &MaxNoOfConcurrentOperations);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_SCANS, &MaxNoOfConcurrentScans);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRANSACTIONS, &MaxNoOfConcurrentTransactions);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, &MaxNoOfFiredTriggers);
-  // Use CFG_TC_LOCAL_SCAN instead of CFG_DB_NO_LOCAL_SCANS since it is
-  // calculated if MaxNoOfLocalScans is not set.
-  ndb_mgm_get_int_parameter(p, CFG_TC_LOCAL_SCAN, &MaxNoOfLocalScans);
-  ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM, &TransactionBufferMemory);
-
-  const Uint32 TakeOverOperations = MaxNoOfConcurrentOperations;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_TRANSACTION_MEM,
+                              &TransactionMemory);
 
   Uint64 transmem_bytes =
       globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
         tcInstances,
+        ldmInstances,
         p,
-        TakeOverOperations,
-        MaxNoOfConcurrentIndexOperations,
-        MaxNoOfConcurrentOperations,
-        MaxNoOfConcurrentScans,
-        MaxNoOfConcurrentTransactions,
-        MaxNoOfFiredTriggers,
-        MaxNoOfLocalScans,
-        TransactionBufferMemory);
+        false);
 
-  transmem = transmem_bytes / 32768;
+  Uint64 reserved_transmem_bytes =
+      globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
+        tcInstances,
+        ldmInstances,
+        p,
+        true);
+
+  Uint32 reserved_transmem = Uint32(reserved_transmem_bytes / Uint64(32768));
+  transmem = Uint32(transmem_bytes / Uint64(32768));
+
+  if (TransactionMemory != 0)
+  {
+    Uint32 new_transmem = Uint32(TransactionMemory / Uint64(32768));
+    g_eventLogger->warning("Calculated TransactionMemory %u MB replaced by"
+                           " setting it to %u MB",
+                           transmem/32,
+                           new_transmem/32);
+    transmem = new_transmem;
+  }
+  /**
+   * The minimum setting of TransactionMemory is the reserved transaction
+   * memory and an additional 4 MByte (128 pages) per LDM and TC instance.
+   */
+  Uint32 min_transmem = reserved_transmem +
+                        (tcInstances + ldmInstances) * 128;
+
+  if (transmem < min_transmem)
+  {
+    g_eventLogger->info("TransactionMemory %u MB isn't enough, setting it to"
+                        " %u MB",
+                        transmem/32,
+                        min_transmem/32);
+    transmem = min_transmem;
+  }
+  if (TransactionMemory != 0)
+  {
+    g_eventLogger->info("TransactionMemory set to %u MB", transmem/32);
+    g_eventLogger->info("Reserved part of TransactionMemory is %u MB",
+                        reserved_transmem/32);
+  }
+  else
+  {
+    g_eventLogger->info("TransactionMemory calculated to %u MB", transmem/32);
+    g_eventLogger->info("Reserved part of TransactionMemory is %u MB",
+                        reserved_transmem/32);
+  }
+
   {
     /**
      * Request extra undo buffer memory to be allocated when
@@ -523,6 +598,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      *
      */
     Uint32 dl = 0;
+    Uint32 undopages = 0;
     ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
 
     if (dl == 0)
@@ -536,18 +612,25 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                                          "undo_buffer_size=",
                                          undo_buffer_size);
 
-        Uint32 undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
-        g_eventLogger->info("reserving %u extra pages for undo buffer memory",
-                            undopages);
+        undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
+        g_eventLogger->info("Reserving %u MB for undo buffer memory",
+                            undopages/32);
         transmem += undopages;
-        Resource_limit rl;
-        rl.m_min = transmem;
-        rl.m_max = 0;
-        rl.m_resource_id = RG_TRANSACTION_MEMORY;
-        ed.m_mem_manager->set_resource_limit(rl);
       }
     }
+    Resource_limit rl;
+    rl.m_min = transmem;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_TRANSACTION_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+    if (undopages == 0)
+    {
+      g_eventLogger->info("No Undo log buffer used, will be allocated from"
+                          " TransactionMemory if later defined by command");
+    }
   }
+  g_eventLogger->info("TransactionMemory can expand and use"
+                      " SharedGlobalMemory if required");
 
   {
     Resource_limit rl;
@@ -559,13 +642,31 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      * percent of global shared global page memory.
      */
     rl.m_min = 0;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = RG_QUERY_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+  g_eventLogger->info("QueryMemory can use memory from SharedGlobalMemory"
+                      " until 90%% used");
+
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_DISK_RECORDS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
     pgman_pages + stpages + transmem;
+
+  /**
+   * We allocate a bit of extra pages to handle map pages in the NDB memory
+   * manager. We need 2 extra pages per 8 GByte of memory added and one more
+   * page per chunk. We add the first chunk already here.
+   */
+  Uint32 extra_chunk_pages = (2 * (sum / (32768 * 8))) + 3;
+  sum += extra_chunk_pages;
 
   if (!ed.m_mem_manager->init(watchCounter, sum))
   {
@@ -614,23 +715,21 @@ get_multithreaded_config(EmulatorData& ed)
   // multithreaded is compiled in ndbd/ndbmtd for now
   if (!globalData.isNdbMt)
   {
-    ndbout << "NDBMT: non-mt" << endl;
+    g_eventLogger->info("NDBMT: non-mt");
     return 0;
   }
 
   THRConfig & conf = ed.theConfiguration->m_thr_config;
   Uint32 threadcount = conf.getThreadCount();
-  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << threadcount << endl;
+  g_eventLogger->info("NDBMT: MaxNoOfExecutionThreads=%u", threadcount);
 
   if (!globalData.isNdbMtLqh)
     return 0;
 
-  ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
-         << " threads=" << globalData.ndbMtLqhThreads
-         << " tc=" << globalData.ndbMtTcThreads
-         << " send=" << globalData.ndbMtSendThreads
-         << " receive=" << globalData.ndbMtReceiveThreads
-         << endl;
+  g_eventLogger->info("NDBMT: workers=%u threads=%u tc=%u send=%u receive=%u",
+                      globalData.ndbMtLqhWorkers, globalData.ndbMtLqhThreads,
+                      globalData.ndbMtTcThreads, globalData.ndbMtSendThreads,
+                      globalData.ndbMtReceiveThreads);
 
   return 0;
 }
@@ -699,6 +798,7 @@ extern "C"
 void
 handler_shutdown(int signum){
   g_eventLogger->info("Received signal %d. Performing stop.", signum);
+  ndb_print_stacktrace();
   childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
 }
@@ -731,6 +831,7 @@ handler_error(int signum){
   handling_error = true;
 
   g_eventLogger->info("Received signal %d. Running error handler.", signum);
+  ndb_print_stacktrace();
   childReportSignal(signum);
   // restart the system
   char errorData[64], *info= 0;
@@ -886,6 +987,24 @@ void* async_log_func(void* args)
   return NULL;
 }
 
+static void log_memusage(const char* where=NULL)
+{
+#ifdef DEBUG_RSS
+  const char* location = (where != NULL)?where : "Unknown";
+  ndb_rusage ru;
+  if (Ndb_GetRUsage(&ru, true) != 0)
+  {
+    g_eventLogger->error("Failed to get rusage");
+  }
+  else
+  {
+    g_eventLogger->info("ndbd.cpp %s : RSS : %llu kB", location, ru.ru_rss);
+  }
+#else
+  (void)where;
+#endif
+}
+
 void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
@@ -893,6 +1012,7 @@ ndbd_run(bool foreground, int report_fd,
          unsigned allocated_nodeid, int connect_retries, int connect_delay,
          size_t logbuffer_size)
 {
+  log_memusage("ndbd_run");
   LogBuffer* logBuf = new LogBuffer(logbuffer_size);
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
@@ -920,7 +1040,7 @@ ndbd_run(bool foreground, int report_fd,
     _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
               "ndbd_shutdown_%d", GetCurrentProcessId());
 
-    g_shutdown_event = CreateEvent(NULL, TRUE, FALSE, shutdown_event_name);
+    g_shutdown_event = CreateEvent(NULL, true, false, shutdown_event_name);
     if (g_shutdown_event == NULL)
     {
       g_eventLogger->error("Failed to create shutdown event, error: %d",
@@ -937,6 +1057,8 @@ ndbd_run(bool foreground, int report_fd,
     }
   }
 #endif
+
+  ndb_init_stacktrace();
 
   if (foreground)
     g_eventLogger->info("Ndb started in foreground");
@@ -980,7 +1102,11 @@ ndbd_run(bool foreground, int report_fd,
       "Normal start of data node using checkpoint and log info if existing");
   }
 
+  log_memusage("init1");
+
   globalEmulatorData.create();
+
+  log_memusage("Emulator init");
 
   Configuration* theConfig = globalEmulatorData.theConfiguration;
   if(!theConfig->init(no_start, initial, initialstart))
@@ -988,6 +1114,8 @@ ndbd_run(bool foreground, int report_fd,
     g_eventLogger->error("Failed to init Configuration");
     ndbd_exit(-1);
   }
+
+  log_memusage("Config init");
 
   /**
     Read the configuration from the assigned management server (could be
@@ -1013,6 +1141,8 @@ ndbd_run(bool foreground, int report_fd,
     // Ignore error
   }
 
+  log_memusage("Config fetch");
+
   theConfig->setupConfiguration();
 
 
@@ -1032,6 +1162,8 @@ ndbd_run(bool foreground, int report_fd,
   */
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
+  log_memusage("Watchdog started");
+
   g_eventLogger->info("Memory Allocation for global memory pools Starting");
   {
     /*
@@ -1048,6 +1180,8 @@ ndbd_run(bool foreground, int report_fd,
   }
   g_eventLogger->info("Memory Allocation for global memory pools Completed");
 
+  log_memusage("Global memory pools allocated");
+
   /**
     Initialise the data of the run-time environment, this prepares the
     data setup for the various threads that need to communicate using
@@ -1057,6 +1191,8 @@ ndbd_run(bool foreground, int report_fd,
   globalEmulatorData.theThreadConfig->init();
 
   globalEmulatorData.theConfiguration->addThread(log_threadvar, NdbfsThread);
+
+  log_memusage("Thread config initialised");
 
 #ifdef VM_TRACE
   // Initialize signal logger before block constructors
@@ -1077,7 +1213,7 @@ ndbd_run(bool foreground, int report_fd,
       BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
       for (char* q = buf; *q != 0; q++)
         *q = toupper(toascii(*q));
-      ndbout_c("Turning on signal logging using block spec.: '%s'", buf);
+      g_eventLogger->info("Turning on signal logging using block spec.: '%s'", buf);
       globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
       globalData.testOn = 1;
     }
@@ -1085,8 +1221,8 @@ ndbd_run(bool foreground, int report_fd,
   else
   {
     // Failed to open signal log, print an error and ignore
-    ndbout_c("Failed to open signal logging file '%s', errno: %d",
-             signal_log_name, errno);
+    g_eventLogger->info("Failed to open signal logging file '%s', errno: %d",
+                        signal_log_name, errno);
   }
   free(signal_log_name);
 #endif
@@ -1095,6 +1231,8 @@ ndbd_run(bool foreground, int report_fd,
   g_eventLogger->info("Loading blocks for data node run-time environment");
   // Load blocks (both main and workers)
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
+
+  log_memusage("Load blocks completed");
 
   catchsigs(foreground);
 
@@ -1134,7 +1272,7 @@ ndbd_run(bool foreground, int report_fd,
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
   if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
-    ndbout_c("globalTransporterRegistry.start_service() failed");
+    g_eventLogger->info("globalTransporterRegistry.start_service() failed");
     ndbd_exit(-1);
   }
   // Re-use the mgm handle as a transporter
@@ -1146,7 +1284,7 @@ ndbd_run(bool foreground, int report_fd,
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
   {
-    ndbout_c("globalTransporterRegistry.start_clients() failed");
+    g_eventLogger->info("globalTransporterRegistry.start_clients() failed");
     ndbd_exit(-1);
   }
   NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();

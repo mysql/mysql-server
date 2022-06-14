@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 
 namespace temptable_test {
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 
 /* In release builds there will be an error reported as well
 as my_error generated. */
@@ -54,12 +54,29 @@ as my_error generated. */
 // To use a test fixture, derive a class from testing::Test.
 class Handler_test : public testing::Test {
  protected:
-  virtual void SetUp() {
-    m_server_initializer.SetUp();
+  static void SetUpTestCase() {
+    // LOCK_plugin is initialized in setup_server_for_unit_tests().
+    // Destroy it here, before re-initializing in plugin_early_load_one().
+    mysql_mutex_destroy(&LOCK_plugin);
+    plugin_early_load_one(
+        nullptr, nullptr,
+        nullptr);  // a hack which is needed to at least get
+                   // LOCK_plugin_xxx mutexes initialized in order make this
+                   // test-suite up and running again.
+  }
+  static void TearDownTestCase() {
+    plugin_shutdown();  // see a comment in SetUpTestCase() for a reason why
+                        // this is needed
+  }
+  void SetUp() override {
     init_handlerton();
+    m_server_initializer.SetUp();
   }
 
-  virtual void TearDown() { m_server_initializer.TearDown(); }
+  void TearDown() override {
+    m_server_initializer.TearDown();
+    delete remove_hton2plugin(m_temptable_handlerton.slot);
+  }
 
   THD *thd() { return m_server_initializer.thd(); }
 
@@ -72,7 +89,7 @@ class Handler_test : public testing::Test {
   handlerton m_temptable_handlerton;
 
   void init_handlerton() {
-    std::memset(&m_temptable_handlerton, 0, sizeof(m_temptable_handlerton));
+    m_temptable_handlerton = handlerton();
 
     m_temptable_handlerton.file_extensions = nullptr;
     m_temptable_handlerton.state = SHOW_OPTION_YES;
@@ -83,6 +100,7 @@ class Handler_test : public testing::Test {
         HTON_NOT_USER_SELECTABLE | HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT |
         HTON_SUPPORTS_EXTENDED_KEYS;
 
+    insert_hton2plugin(m_temptable_handlerton.slot, new st_plugin_int());
     temptable::Allocator<uint8_t>::init();
   }
 };
@@ -91,7 +109,7 @@ TEST_F(Handler_test, SimpleTableCreate) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col0", false);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -105,12 +123,70 @@ TEST_F(Handler_test, SimpleTableCreate) {
   EXPECT_EQ(handler.delete_table(table_name, nullptr), 0);
 }
 
+#ifndef NDEBUG
+#ifndef _WIN32
+TEST_F(
+    Handler_test,
+    TableCreateReturnsRecordFileFullWhenTempTableAllocatorThrowsRecordFileFull) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  DBUG_SET("+d,temptable_allocator_record_file_full");
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            HA_ERR_RECORD_FILE_FULL);
+  DBUG_SET("-d,temptable_allocator_record_file_full");
+}
+#endif /* _WIN32 */
+
+#ifndef _WIN32
+TEST_F(Handler_test,
+       TableCreateReturnsOutOfMemoryWhenTempTableAllocatorThrowsOutOfMemory) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  DBUG_SET("+d,temptable_allocator_oom");
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            HA_ERR_OUT_OF_MEM);
+  DBUG_SET("-d,temptable_allocator_oom");
+}
+#endif /* _WIN32 */
+
+TEST_F(Handler_test,
+       TableCreateReturnsOutOfMemoryWhenCatchAllHandlerIsActivated) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  DBUG_SET("+d,temptable_create_return_non_result_type_exception");
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            HA_ERR_OUT_OF_MEM);
+  DBUG_SET("-d,temptable_create_return_non_result_type_exception");
+}
+#endif /* NDEBUG */
+
 TEST_F(Handler_test, SimpleTableOpsFixedSize) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
-  table_helper.add_field_long("col1", true, false);
+  table_helper.add_field_long("col0", false);
+  table_helper.add_field_long("col1", true);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -204,8 +280,8 @@ TEST_F(Handler_test, SingleIndex) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
-  table_helper.add_field_long("col1", false, false);
+  table_helper.add_field_long("col0", false);
+  table_helper.add_field_long("col1", false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.finalize();
 
@@ -270,9 +346,9 @@ TEST_F(Handler_test, MultiIndex) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
-  table_helper.add_field_long("col1", false, false);
-  table_helper.add_field_long("col2", false, false);
+  table_helper.add_field_long("col0", false);
+  table_helper.add_field_long("col1", false);
+  table_helper.add_field_long("col2", false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.add_index(HA_KEY_ALG_BTREE, true, {1});
   table_helper.add_index(HA_KEY_ALG_HASH, false, {0, 1});
@@ -438,7 +514,7 @@ TEST_F(Handler_test, IndexOnOff) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col0", false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.finalize();
 

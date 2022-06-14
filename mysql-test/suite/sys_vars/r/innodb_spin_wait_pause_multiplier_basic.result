@@ -53,19 +53,19 @@ select @@global.innodb_spin_wait_pause_multiplier;
 100
 set global innodb_spin_wait_pause_multiplier=101;
 Warnings:
-Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplie value: '101'
+Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplier value: '101'
 select @@global.innodb_spin_wait_pause_multiplier;
 @@global.innodb_spin_wait_pause_multiplier
 100
 set global innodb_spin_wait_pause_multiplier=65535;
 Warnings:
-Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplie value: '65535'
+Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplier value: '65535'
 select @@global.innodb_spin_wait_pause_multiplier;
 @@global.innodb_spin_wait_pause_multiplier
 100
 set global innodb_spin_wait_pause_multiplier=4294967295;
 Warnings:
-Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplie value: '4294967295'
+Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplier value: '4294967295'
 select @@global.innodb_spin_wait_pause_multiplier;
 @@global.innodb_spin_wait_pause_multiplier
 100
@@ -87,13 +87,13 @@ select @@global.innodb_spin_wait_pause_multiplier;
 100
 set global innodb_spin_wait_pause_multiplier=-7;
 Warnings:
-Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplie value: '-7'
+Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplier value: '-7'
 select @@global.innodb_spin_wait_pause_multiplier;
 @@global.innodb_spin_wait_pause_multiplier
 0
 set global innodb_spin_wait_pause_multiplier=-1024;
 Warnings:
-Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplie value: '-1024'
+Warning	1292	Truncated incorrect innodb_spin_wait_pause_multiplier value: '-1024'
 select @@global.innodb_spin_wait_pause_multiplier;
 @@global.innodb_spin_wait_pause_multiplier
 0

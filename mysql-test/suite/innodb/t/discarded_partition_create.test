@@ -1,0 +1,65 @@
+# Testcase used to create DB with partitioned Tables which have
+# some partitions discarded.
+#
+# It uses include/discarded_partition.inc to fill in tables, so
+# the results, after upgrade should be the same
+#
+# Note: to use in 5.7, you have to:
+# a) change "#p#" to "#P#" in discarded_partition.inc
+# b) change "#sp" to "#SP" in discarded_partition.inc
+#
+
+--source include/linux.inc
+--source include/have_case_sensitive_file_system.inc
+--source include/have_innodb_16k.inc
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+select case when @@version like "5.7.30%" then '5730'
+            when @@version like "8.0.20%" then '8020'
+            else 'none' end as VERSION into @current_server_version;
+
+--let $VERSION= `select @current_server_version`
+--let $IS_57= `select case when @@version like "5.7%" then 1 else 0 end`
+
+--echo # Starting server with keyring plugin
+--let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring  $KEYRING_PLUGIN_OPT
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--source include/restart_mysqld.inc
+
+# Prepare database
+--let $discarded_partition_option = PREPARE
+--source suite/innodb/include/discarded_partition.inc
+
+--echo
+--echo # Stop DB server which was created by MTR default
+--source include/shutdown_mysqld.inc
+
+if ($IS_57)
+{
+  --mkdir $MYSQLTEST_VARDIR/std_data/upgrade
+}
+
+# Zip data directory and copy
+--echo # Copy and zip old version data directory.
+--exec ln -s $MYSQLD_DATADIR $MYSQLTEST_VARDIR/data_upgrade
+--exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip $MYSQLTEST_VARDIR/data_upgrade
+--file_exists $MYSQL_TMP_DIR/data_upgrade.zip
+--move_file $MYSQL_TMP_DIR/data_upgrade.zip  $MYSQLTEST_VARDIR/std_data/upgrade/discarded_partition_data_$VERSION.zip.new
+--remove_file $MYSQLTEST_VARDIR/data_upgrade
+
+
+--echo # Cleanup: Restart with default options.
+let $restart_parameters =;
+--source include/start_mysqld.inc
+
+# Clean up
+--let $discarded_partition_option = DROP_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+
+call mtr.add_suppression("\\[Warning\\].* Tablespace .*, name '.*', file '.*' is missing");
+call mtr.add_suppression("\\[Warning\\].* Tablespace for table `.*`\\.`.*` /\\* Partition `.*` \\*/ is set as discarded");

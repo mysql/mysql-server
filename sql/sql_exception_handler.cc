@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@
 #include "my_inttypes.h"      // MYF
 #include "my_sys.h"           // my_error
 #include "mysqld_error.h"     // Error codes
+#include "sql/gis/buffer.h"   // gis::invalid_buffer_strategies_exception
 #include "sql/gis/functor.h"  // gis::not_implemented_exception
 #include "sql/gis/gc_utils.h"  // gis::invalid_geometry_exception, gis::too_large_polygon_exception
 
@@ -100,7 +101,7 @@ void handle_gis_exception(const char *funcname) {
     int er_variant;
     switch (e.srs_type()) {
       default:
-        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+        assert(false);  // C++11 woes. /* purecov: inspected */
       case gis::not_implemented_exception::kCartesian:
         er_variant = ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS;
         break;
@@ -112,9 +113,13 @@ void handle_gis_exception(const char *funcname) {
         break;
     }
     my_error(er_variant, MYF(0), funcname, e.typenames());
-  } catch (const gis::invalid_geometry_exception &e) {
+  } catch (const gis::invalid_buffer_argument_exception &) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), funcname);
+  } catch (const gis::invalid_buffer_result_exception &) {
+    my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), funcname);
+  } catch (const gis::invalid_geometry_exception &) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
-  } catch (const gis::too_large_polygon_exception &e) {
+  } catch (const gis::too_large_polygon_exception &) {
     my_error(ER_POLYGON_TOO_LARGE, MYF(0), funcname);
   } catch (const boost::geometry::centroid_exception &) {
     my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);

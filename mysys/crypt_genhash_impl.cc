@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
-#include <sys/types.h>
+#include <memory>
 
-#ifdef HAVE_OPENSSL
+#include <sys/types.h>
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -48,15 +48,7 @@
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
 
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
-
 #include <errno.h>
-
-#ifdef _WIN32
-#include <malloc.h>
-#endif
 
 #define DIGEST_CTX EVP_MD_CTX
 #define DIGEST_LEN SHA256_DIGEST_LENGTH
@@ -68,7 +60,7 @@ static void DIGESTCreate(DIGEST_CTX **ctx) {
 }
 
 static void DIGESTInit(DIGEST_CTX *ctx) {
-  EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+  EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
 }
 
 static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {
@@ -76,13 +68,13 @@ static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {
 }
 
 static void DIGESTFinal(void *txt, DIGEST_CTX *ctx) {
-  EVP_DigestFinal_ex(ctx, (unsigned char *)txt, NULL);
+  EVP_DigestFinal_ex(ctx, (unsigned char *)txt, nullptr);
 }
 
 static void DIGESTDestroy(DIGEST_CTX **ctx) {
   if (ctx != nullptr) {
     EVP_MD_CTX_destroy(*ctx);
-    *ctx = NULL;
+    *ctx = nullptr;
   }
 }
 
@@ -153,9 +145,9 @@ static uint getrounds(const char *s) {
   char *e;
   long val;
 
-  if (s == NULL) return (0);
+  if (s == nullptr) return (0);
 
-  if ((r = strstr(s, ROUNDS)) == NULL) {
+  if ((r = strstr(s, ROUNDS)) == nullptr) {
     return (0);
   }
 
@@ -283,7 +275,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
     rounds = MAX(ROUNDS_MIN, MIN(srounds, ROUNDS_MAX));
     custom_rounds = true;
     p = strchr(salt, '$');
-    if (p != NULL) salt = p + 1;
+    if (p != nullptr) salt = p + 1;
   }
 
   salt_len = MIN(strcspn(salt, "$"), CRYPT_SALT_LENGTH);
@@ -329,7 +321,8 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
   DIGESTFinal(DP, ctxDP);
 
   /* 16. */
-  Pp = P = (char *)alloca(plaintext_len);
+  std::unique_ptr<char[]> PPbuf(new char[plaintext_len]);
+  Pp = P = PPbuf.get();
   for (i = plaintext_len; i >= MIXCHARS; i -= MIXCHARS) {
     Pp = (char *)(memcpy(Pp, DP, MIXCHARS)) + MIXCHARS;
   }
@@ -341,7 +334,8 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
   DIGESTFinal(DS, ctxDS);
 
   /* 20. */
-  Sp = S = (char *)alloca(salt_len);
+  std::unique_ptr<char[]> SSbuf(new char[salt_len]);
+  Sp = S = SSbuf.get();
   for (i = salt_len; i >= MIXCHARS; i -= MIXCHARS) {
     Sp = (char *)(memcpy(Sp, DS, MIXCHARS)) + MIXCHARS;
   }
@@ -420,7 +414,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
 }
 
 /**
-  Generate a random string using ASCII characters but avoid seperator character.
+  Generate a random string using ASCII characters but avoid separator character.
   Stdlib rand and srand are used to produce pseudo random numbers between
   with about 7 bit worth of entropty between 1-127.
 */
@@ -444,5 +438,3 @@ void xor_string(char *to, int to_len, char *pattern, int pattern_len) {
     ++loop;
   }
 }
-
-#endif  // HAVE_OPENSSL

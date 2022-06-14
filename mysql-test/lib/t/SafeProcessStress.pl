@@ -1,9 +1,8 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2007, 2008 MySQL AB
-# Use is subject to license terms.
-# 
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -26,11 +25,17 @@
 
 use strict;
 use FindBin;
+use lib "lib";
+
 use My::SafeProcess;
 
 #
 # Test longterm running of SafeProcess
 #
+
+my $bindir= $ENV{MYSQL_BIN_PATH} || ".";
+
+My::SafeProcess::find_bin($bindir, ".");
 
 my $perl_path= $^X;
 my $verbose= 0;

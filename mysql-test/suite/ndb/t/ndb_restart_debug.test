@@ -1,0 +1,40 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+
+call mtr.add_suppression("Could not acquire global schema lock");
+
+#
+# Setup
+#
+
+#
+# Test reconnect after slow system restart
+#
+--exec $NDB_MGM -e "ALL RESTART -N" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
+# Cause system restart to stall on late stages
+--exec $NDB_MGM -e "ALL ERROR 13053" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL START" >> $NDB_TOOLS_OUTPUT
+
+--let $_ndb_nodeid = 1
+--let $_start_phase = 100
+
+--source suite/ndb/t/ndb_wait_start_phase.inc
+
+--echo Giving BI threads time to get stuck
+--sleep 10
+
+--echo Removing error insert
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+
+--echo Wait for cluster to become writeable
+--source include/ndb_not_readonly.inc
+
+--echo Show cluster writeable
+create table test.t1 (a int primary key, b text, c int, unique(c)) engine=ndb;
+insert into test.t1 values (1, repeat("BJC", 1000), 2);
+drop table test.t1;
+
+--echo Done
+
+--remove_file $NDB_TOOLS_OUTPUT

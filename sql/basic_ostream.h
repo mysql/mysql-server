@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #ifndef BASIC_OSTREAM_INCLUDED
 #define BASIC_OSTREAM_INCLUDED
+#include <my_byteorder.h>
+#include "libbinlogevents/include/compression/base.h"
 #include "my_sys.h"
 #include "sql_string.h"
 
@@ -43,7 +45,7 @@ class Basic_ostream {
      @retval true  Error.
   */
   virtual bool write(const unsigned char *buffer, my_off_t length) = 0;
-  virtual ~Basic_ostream() {}
+  virtual ~Basic_ostream() = default;
 };
 
 /**
@@ -84,7 +86,7 @@ class Truncatable_ostream : public Basic_ostream {
   */
   virtual bool sync() = 0;
 
-  virtual ~Truncatable_ostream() {}
+  ~Truncatable_ostream() override = default;
 };
 
 /**
@@ -155,7 +157,7 @@ template <int BUFFER_SIZE>
 class StringBuffer_ostream : public Basic_ostream,
                              public StringBuffer<BUFFER_SIZE> {
  public:
-  StringBuffer_ostream() {}
+  StringBuffer_ostream() = default;
   StringBuffer_ostream(const StringBuffer_ostream &) = delete;
   StringBuffer_ostream &operator=(const StringBuffer_ostream &) = delete;
 
@@ -163,6 +165,20 @@ class StringBuffer_ostream : public Basic_ostream,
     return StringBuffer<BUFFER_SIZE>::append(
         reinterpret_cast<const char *>(buffer), length);
   }
+};
+
+class Compressed_ostream : public Basic_ostream {
+ private:
+  binary_log::transaction::compression::Compressor *m_compressor;
+
+ public:
+  Compressed_ostream();
+  ~Compressed_ostream() override;
+  Compressed_ostream(const Compressed_ostream &) = delete;
+  Compressed_ostream &operator=(const Compressed_ostream &) = delete;
+  binary_log::transaction::compression::Compressor *get_compressor();
+  void set_compressor(binary_log::transaction::compression::Compressor *);
+  bool write(const unsigned char *buffer, my_off_t length) override;
 };
 
 #endif  // BASIC_OSTREAM_INCLUDED

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,10 +34,12 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_statement_bits.h"
-#include "psi_base.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 
 /** Entry point for the performance schema interface. */
 struct PSI_statement_bootstrap {
@@ -47,6 +49,7 @@ struct PSI_statement_bootstrap {
     an instance of the ABI for this version, or NULL.
     @sa PSI_STATEMENT_VERSION_1
     @sa PSI_STATEMENT_VERSION_2
+    @sa PSI_STATEMENT_VERSION_3
     @sa PSI_CURRENT_STATEMENT_VERSION
   */
   void *(*get_interface)(int version);
@@ -69,6 +72,15 @@ struct PSI_statement_service_v1 {
   @since PSI_STATEMENT_VERSION_2
 */
 struct PSI_statement_service_v2 {
+  /* No binary compatibility with old PLUGIN */
+  void *this_interface_is_obsolete;
+};
+
+/**
+  Performance Schema Statement Interface, version 3.
+  @since PSI_STATEMENT_VERSION_3
+*/
+struct PSI_statement_service_v3 {
   /** @sa register_statement_v1_t. */
   register_statement_v1_t register_statement;
   /** @sa get_thread_statement_locker_v1_t. */
@@ -113,6 +125,8 @@ struct PSI_statement_service_v2 {
   set_statement_no_index_used_t set_statement_no_index_used;
   /** @sa set_statement_no_good_index_used. */
   set_statement_no_good_index_used_t set_statement_no_good_index_used;
+  /** @sa set_statement_secondary_engine_v3_t. */
+  set_statement_secondary_engine_v3_t set_statement_secondary_engine;
   /** @sa end_statement_v1_t. */
   end_statement_v1_t end_statement;
 
@@ -126,6 +140,8 @@ struct PSI_statement_service_v2 {
   execute_prepared_stmt_v1_t execute_prepared_stmt;
   /** @sa set_prepared_stmt_text_v1_t. */
   set_prepared_stmt_text_v1_t set_prepared_stmt_text;
+  /** @sa set_prepared_stmt_secondary_engine_v3_t */
+  set_prepared_stmt_secondary_engine_v3_t set_prepared_stmt_secondary_engine;
 
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
@@ -144,7 +160,7 @@ struct PSI_statement_service_v2 {
   drop_sp_v1_t drop_sp;
 };
 
-typedef struct PSI_statement_service_v2 PSI_statement_service_t;
+typedef struct PSI_statement_service_v3 PSI_statement_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
 

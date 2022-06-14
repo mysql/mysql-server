@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# This test evaluates that we invoke the method that compresses the
+# mysql.gtid_executed table when the server starts.
+#
+# ==== Implementation ====
+#
+# 0. This test requires only one server
+# 1. Create a table with 2 values.
+#    Wait that each transaction appears individually in the table
+# 2. Assert the table is not compressed
+# 3. Restart the server
+#    Assert the table is compressed
+# 4. Cleanup
+#
+# ==== References ====
+#
+# Bug#30541799 MYSQL.GTID_EXECUTED TABLE NOT COMPRESSED ON STARTUP FROM 8.0.17
+
+# Test in this file is binlog format agnostic
+--source include/have_binlog_format_row.inc
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+#Clean the table before starting the test.
+RESET MASTER;
+
+--echo #
+--echo # 1. Create a table with 2 values.
+--echo #    Wait that each transaction appears individually in the table
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY) ENGINE=INNODB;
+
+let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed
+                      WHERE interval_start = 1 AND  interval_end = 1;
+--source include/wait_condition.inc
+
+INSERT INTO t1 VALUES (1);
+
+let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed
+                      WHERE interval_start = 2 AND  interval_end = 2;
+--source include/wait_condition.inc
+
+INSERT INTO t1 VALUES (2);
+
+let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed
+                      WHERE interval_start = 3 AND  interval_end = 3;
+--source include/wait_condition.inc
+
+--echo #
+--echo # 2. Assert the table is not compressed
+
+--let $assert_text= COMMITTED_GTIDS SERVER_UUID:1-3
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$server_uuid:1-3"
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*) = 3 FROM mysql.gtid_executed
+--let $assert_text= The mysql gtid table should have 3 rows
+--source include/assert.inc
+
+--echo #
+--echo # 3. Restart the server
+--echo #    Assert the table is compressed
+
+--source include/restart_mysqld.inc
+
+let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed
+                      WHERE interval_start = 1 AND  interval_end = 3;
+--source include/wait_condition.inc
+
+--let $assert_cond= COUNT(*) = 1 FROM mysql.gtid_executed
+--let $assert_text= The mysql gtid table should have 1 row
+--source include/assert.inc
+
+--echo #
+--echo # 4. Cleanup
+
+DROP TABLE t1;

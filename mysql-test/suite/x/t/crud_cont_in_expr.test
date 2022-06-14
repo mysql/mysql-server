@@ -5,7 +5,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/crud_cont_in_expr.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/crud_cont_in_expr.xpl
 --write_file $xtest_file
 #-->quiet
 
@@ -410,6 +410,4 @@ INSERT INTO xtest.xtable (doc) VALUES
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,18 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
 
-#ifdef _WIN32
-#include <process.h>  // getpid()
-#endif
+////////////////////////////////////////
+// Standard include files
+#include <ctime>
+#include <stdexcept>
+
+////////////////////////////////////////
+// Third-party include'files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 ////////////////////////////////////////
 // Internal interfaces
-#include "common.h"
 #include "dim.h"
 #include "include/magic.h"
 #include "mysql/harness/filesystem.h"
@@ -38,39 +43,28 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/filesystem.h"
+#include "mysql/harness/stdx/process.h"
+#include "mysql/harness/utility/string.h"  // string_format()
 #include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-MYSQL_HARNESS_DISABLE_WARNINGS()
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-MYSQL_HARNESS_ENABLE_WARNINGS()
-
-////////////////////////////////////////
-// Standard include files
-#include <stdexcept>
-
-#ifndef _WIN32
-#include <unistd.h>  // unlink
-#endif
+#include "test/temp_directory.h"
 
 using mysql_harness::Path;
 using mysql_harness::logging::FileHandler;
+using mysql_harness::logging::Handler;
 using mysql_harness::logging::log_debug;
 using mysql_harness::logging::log_error;
 using mysql_harness::logging::log_info;
+using mysql_harness::logging::log_note;
+using mysql_harness::logging::log_system;
 using mysql_harness::logging::log_warning;
 using mysql_harness::logging::Logger;
 using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::LogTimestampPrecision;
 using mysql_harness::logging::Record;
 using mysql_harness::logging::StreamHandler;
 
-#if GTEST_HAS_COMBINE
-// only available if the system has <tr1/tuple> [if not gtest's own, minimal
-// tr1/tuple is used.
 using testing::Combine;
-#endif
 using testing::ContainsRegex;
 using testing::EndsWith;
 using testing::Eq;
@@ -91,6 +85,9 @@ const std::string kDateRegex =
 #else
     "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}";
 #endif
+
+const std::chrono::time_point<std::chrono::system_clock> kDefaultTimepoint =
+    std::chrono::system_clock::from_time_t(0);
 
 // TODO move this and ASSERT_THROW_LIKE from:
 //   tests/helpers/router_test_helpers.h
@@ -269,10 +266,11 @@ TEST_F(LoggingLowLevelTest, test_logger_update) {
 TEST(FunctionalTest, ThisMustRunAsFirst) { init_test_logger(); }
 
 TEST(FunctionalTest, LogFromUnregisteredModule) {
-  // Test a scenario when no domain logger has been added yet. Logging should
-  // fall back to using application ("main") logger, which is always added by
-  // the application (init_log() in main(), in our case), albeit with an extra
-  // error message preceding it.
+  // Test a scenario when no domain logger has been added yet.
+  //
+  // Logging should fall back to using application ("main") logger's
+  // configuration, which is always added by the application (init_log() in
+  // main(), in our case), but use the "log domain"
 
   std::stringstream buffer;
   auto handler = std::make_shared<StreamHandler>(buffer);
@@ -282,19 +280,14 @@ TEST(FunctionalTest, LogFromUnregisteredModule) {
   log_info("Test message from an unregistered module");
   std::string log = buffer.str();
 
-  // log message should be something like (2 lines):
-  // 2017-04-12 14:05:31 main ERROR [7ffff7fd5780] Module 'my_domain' not
-  // registered with logger - logging the following message as 'main' instead
-  // 2017-04-12 14:05:31 main INFO [7ffff7fd5780] Test message from an
+  // log message should be something like:
+  // 2017-04-12 14:05:31 my_domain INFO [7ffff7fd5780] Test message from an
   // unregistered module
-  EXPECT_NE(log.npos, log.find(" main ERROR"));
-  EXPECT_NE(log.npos,
-            log.find(" Module 'my_domain' not registered with logger - logging "
-                     "the following message as 'main' instead\n"));
-  size_t first_endl = log.find('\n');
-  EXPECT_NE(log.npos, log.find(" main INFO", first_endl));
-  EXPECT_NE(log.npos, log.find(" Test message from an unregistered module\n",
-                               first_endl));
+  EXPECT_THAT(log, ::testing::Not(::testing::HasSubstr(" main ERROR")));
+
+  EXPECT_THAT(log, ::testing::HasSubstr(" my_domain INFO"));
+  EXPECT_THAT(
+      log, ::testing::HasSubstr(" Test message from an unregistered module\n"));
 
   // clean up
   g_registry->remove_handler(StreamHandler::kDefaultName);
@@ -329,8 +322,9 @@ TEST(FunctionalTest, LogOnDanglingHandlerReference) {
   // and try to log with the logger still holding a referece to it.
   // Logger::handle() should deal with it properly - it should log
   // to all (still existing) handlers ("z_stayer" in this case).
-  EXPECT_NO_THROW(l.handle(
-      Record{LogLevel::kWarning, getpid(), 0, "my_logger", "Test message"}));
+  EXPECT_NO_THROW(
+      l.handle(Record{LogLevel::kWarning, stdx::this_process::get_id(),
+                      kDefaultTimepoint, "my_logger", "Test message"}));
   std::string log = buffer.str();
 
   // log message should be something like:
@@ -370,7 +364,8 @@ TEST_F(LoggingTest, StreamHandler) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged after applying format (timestamp, etc)
@@ -388,16 +383,20 @@ TEST_F(LoggingTest, FileHandler) {
 
   // We do not use mktemp or friends since we want this to work on
   // Windows as well.
-  Path log_file(g_here.join("log4-" + std::to_string(getpid()) + ".log"));
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { unlink(log_file.c_str()); });
+  Path log_file(g_here.join(
+      "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+    std::error_code ec;
+    stdx::filesystem::remove(log_file.str(), ec);
+  });
 
   g_registry->add_handler("TestFileHandler",
                           std::make_shared<FileHandler>(log_file));
   logger.attach_handler("TestFileHandler");
 
   // Log one record
-  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
 
   // Open and read the entire file into memory.
   std::vector<std::string> lines;
@@ -422,13 +421,95 @@ TEST_F(LoggingTest, FileHandler) {
   g_registry->remove_handler("TestFileHandler");
 }
 
+TEST_F(LoggingTest, FileHandlerRotate) {
+  // Check that the FileHandler can rotate to supplied filename
+
+  // We do not use mktemp or friends since we want this to work on
+  // Windows as well.
+  Path log_file(g_here.join(
+      "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  Path renamed_log_file(g_here.join(
+      "rotated-log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+    std::error_code ec;
+    stdx::filesystem::remove(log_file.str(), ec);
+    stdx::filesystem::remove(renamed_log_file.str(), ec);
+  });
+
+  g_registry->add_handler("TestFileHandler",
+                          std::make_shared<FileHandler>(log_file));
+  logger.attach_handler("TestFileHandler");
+
+  // Log one record
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
+
+  // Verify only the original logfile exists
+  ASSERT_TRUE(log_file.exists());
+
+  // Open and read the entire file into memory.
+  std::vector<std::string> lines;
+  {
+    std::ifstream ifs_log(log_file.str());
+    std::string line;
+    while (std::getline(ifs_log, line)) lines.push_back(line);
+  }
+
+  // We do the assertion here to ensure that we can do as many tests
+  // as possible and report issues.
+  ASSERT_THAT(lines.size(), Ge(1));
+
+  // Check basic properties for the first line.
+  EXPECT_THAT(lines.size(), Eq(1));
+
+  // Message should be logged after applying format (timestamp, etc)
+  EXPECT_THAT(lines.at(0),
+              ContainsRegex(kDateRegex + " my_module INFO.*Message"));
+
+  // Rotate existing file to old filename
+  g_registry->flush_all_loggers(renamed_log_file.str());
+
+  // Verify the renamed file exists
+  ASSERT_TRUE(renamed_log_file.exists());
+
+  // Log one record after rotation
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Another message"});
+
+  // Verify the original log file once again gets logged to
+  ASSERT_TRUE(log_file.exists());
+
+  // Open and read the new file into memory after rotation
+  std::vector<std::string> lines2;
+  {
+    std::ifstream ifs_log(log_file.str());
+    std::string line;
+    while (std::getline(ifs_log, line)) lines2.push_back(line);
+  }
+
+  // We do the assertion here to ensure that we can do as many tests
+  // as possible and report issues.
+  ASSERT_THAT(lines2.size(), Ge(1));
+
+  // Check basic properties for the first line.
+  EXPECT_THAT(lines2.size(), Eq(1));
+
+  // Message should be logged after rotation and applying format (timestamp,
+  // etc)
+  EXPECT_THAT(lines2.at(0),
+              ContainsRegex(kDateRegex + " my_module INFO.*Another message"));
+
+  // clean up
+  g_registry->remove_handler("TestFileHandler");
+}
+
 /**
  * @test
  *      Verify if no exception is throw when file can be opened for writing.
  */
 TEST_F(LoggingTest, DontThrowIfOpenedLogFileForWriting) {
-  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
-  Path dir_path(tmp_dir);
+  TempDirectory tmp_dir;
+  Path dir_path(tmp_dir.name());
   Path file_path(dir_path.join("test_file.log").str());
 
   ASSERT_TRUE(dir_path.exists());
@@ -448,8 +529,8 @@ TEST_F(LoggingTest, DontThrowIfOpenedLogFileForWriting) {
  * be created in directory.
  */
 TEST_F(LoggingTest, FileHandlerThrowsNoPermissionToCreateFileInDirectory) {
-  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
-  Path dir_path(tmp_dir);
+  TempDirectory tmp_dir;
+  Path dir_path(tmp_dir.name());
   Path file_path(dir_path.join("test_file.log").str());
 
   ASSERT_TRUE(dir_path.exists());
@@ -471,8 +552,8 @@ TEST_F(LoggingTest, FileHandlerThrowsNoPermissionToCreateFileInDirectory) {
  */
 TEST_F(LoggingTest,
        FileHandlerThrowsFileExistsButCannotOpenToWriteReadOnlyFile) {
-  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
-  Path dir_path(tmp_dir);
+  TempDirectory tmp_dir;
+  Path dir_path(tmp_dir.name());
   Path file_path(dir_path.join("test_file.log").str());
 
   // create empty log file
@@ -510,7 +591,8 @@ TEST_F(LoggingTest, HandlerWithDisabledFormatting) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged verbatim
@@ -527,10 +609,10 @@ TEST_F(LoggingTest, Messages) {
                           std::make_shared<StreamHandler>(buffer));
   logger.attach_handler("TestStreamHandler");
 
-  time_t now;
-  time(&now);
+  std::chrono::time_point<std::chrono::system_clock> now =
+      std::chrono::system_clock::now();
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   auto check_message = [this, &buffer, now, pid](const std::string &message,
                                                  LogLevel level,
@@ -545,9 +627,11 @@ TEST_F(LoggingTest, Messages) {
     EXPECT_THAT(buffer.str(), HasSubstr(level_str));
   };
 
+  check_message("Slippery spaghetti", LogLevel::kSystem, " SYSTEM ");
   check_message("Crazy noodles", LogLevel::kError, " ERROR ");
   check_message("Sloth tantrum", LogLevel::kWarning, " WARNING ");
   check_message("Russel's teapot", LogLevel::kInfo, " INFO ");
+  check_message("Rabbit hole", LogLevel::kNote, " NOTE ");
   check_message("Bugs galore", LogLevel::kDebug, " DEBUG ");
 
   // Ensure no truncation of long messages
@@ -557,7 +641,89 @@ TEST_F(LoggingTest, Messages) {
   g_registry->remove_handler("TestStreamHandler");
 }
 
-#if GTEST_HAS_COMBINE
+TEST_F(LoggingTest, TimestampPrecision) {
+  std::stringstream buffer;
+
+  g_registry->add_handler("TestStreamHandler",
+                          std::make_shared<StreamHandler>(buffer));
+  logger.attach_handler("TestStreamHandler");
+
+  std::chrono::time_point<std::chrono::system_clock> now =
+      std::chrono::system_clock::now();
+  time_t cur = std::chrono::system_clock::to_time_t(now);
+  struct tm cur_localtime;
+#ifdef _WIN32
+  localtime_s(&cur_localtime, &cur);
+#else
+  localtime_r(&cur, &cur_localtime);
+#endif
+
+  // we deliberately calculate the nanoseconds part slightly different here, to
+  // ensure the handler gets the calculation correct
+  const auto nsec_part = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      now - std::chrono::system_clock::from_time_t(cur));
+
+  const auto pid = stdx::this_process::get_id();
+
+  auto check_precision = [this, &buffer, now, pid, cur_localtime, nsec_part](
+                             const std::string &message,
+                             LogTimestampPrecision precision) {
+    std::shared_ptr<Handler> handler =
+        g_registry->get_handler("TestStreamHandler");
+    buffer.str("");
+    ASSERT_THAT((int)buffer.tellp(), Eq(0));
+
+    // Format according to precision
+    std::string dt{mysql_harness::utility::string_format(
+        "%04d-%02d-%02d %02d:%02d:%02d", cur_localtime.tm_year + 1900,
+        cur_localtime.tm_mon + 1, cur_localtime.tm_mday, cur_localtime.tm_hour,
+        cur_localtime.tm_min, cur_localtime.tm_sec)};
+    switch (precision) {
+      case LogTimestampPrecision::kMilliSec:
+        dt.append(mysql_harness::utility::string_format(
+            ".%03lld",
+            static_cast<long long int>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(nsec_part)
+                    .count())));
+        break;
+      case LogTimestampPrecision::kMicroSec:
+        dt.append(mysql_harness::utility::string_format(
+            ".%06lld",
+            static_cast<long long int>(
+                std::chrono::duration_cast<std::chrono::microseconds>(nsec_part)
+                    .count())));
+        break;
+      case LogTimestampPrecision::kNanoSec:
+        dt.append(mysql_harness::utility::string_format(
+            ".%09lld",
+            static_cast<long long int>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(nsec_part)
+                    .count())));
+        break;
+      case LogTimestampPrecision::kSec:
+      case LogTimestampPrecision::kNotSet:
+      default:
+        break;
+    }
+
+    handler->set_timestamp_precision(precision);
+
+    Record record{LogLevel::kDebug, pid, now, "my_module", message};
+    logger.handle(record);
+
+    EXPECT_THAT(buffer.str(), StartsWith(dt));
+  };
+
+  check_precision("Crazy noodles", LogTimestampPrecision::kNotSet);
+  check_precision("Sloth tantrum", LogTimestampPrecision::kSec);
+  check_precision("Russel's teapot", LogTimestampPrecision::kMilliSec);
+  check_precision("Bugs galore", LogTimestampPrecision::kMicroSec);
+  check_precision("Kings knife", LogTimestampPrecision::kNanoSec);
+
+  // clean up
+  g_registry->remove_handler("TestStreamHandler");
+}
+
 class LogLevelTest : public LoggingTest,
                      public WithParamInterface<std::tuple<LogLevel, LogLevel>> {
 };
@@ -573,10 +739,10 @@ TEST_P(LogLevelTest, Level) {
       std::make_shared<StreamHandler>(buffer, true, handler_level));
   logger.attach_handler("TestStreamHandler");
 
-  time_t now;
-  time(&now);
+  std::chrono::time_point<std::chrono::system_clock> now =
+      std::chrono::system_clock::now();
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   // Set the log level of the logger.
   logger.set_level(logger_level);
@@ -612,13 +778,13 @@ TEST_P(LogLevelTest, Level) {
   g_registry->remove_handler("TestStreamHandler");
 }
 
-const LogLevel all_levels[]{LogLevel::kFatal, LogLevel::kError,
-                            LogLevel::kWarning, LogLevel::kInfo,
-                            LogLevel::kDebug};
+const LogLevel all_levels[]{
+    LogLevel::kFatal, LogLevel::kSystem, LogLevel::kError, LogLevel::kWarning,
+    LogLevel::kInfo,  LogLevel::kNote,   LogLevel::kDebug};
 
-INSTANTIATE_TEST_CASE_P(CheckLogLevel, LogLevelTest,
-                        Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
-#endif
+INSTANTIATE_TEST_SUITE_P(CheckLogLevel, LogLevelTest,
+                         Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
+
 ////////////////////////////////////////////////////////////////
 // Tests of the functional interface to the logger.
 ////////////////////////////////////////////////////////////////
@@ -683,7 +849,64 @@ void expect_log(void (*func)(const char *, ...)
   EXPECT_THAT(log, HasSubstr(MYSQL_ROUTER_LOG_DOMAIN));
 }
 
-TEST(FunctionalTest, Handlers) {
+// Macros for log expectance at different log levels
+#define EXPECT_LOG_LEVEL_DEBUG(buffer)        \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_log(log_info, buffer, "INFO");       \
+  expect_log(log_note, buffer, "NOTE");       \
+  expect_log(log_debug, buffer, "DEBUG");
+
+#define EXPECT_LOG_LEVEL_NOTE(buffer)         \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_log(log_info, buffer, "INFO");       \
+  expect_log(log_note, buffer, "NOTE");       \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_INFO(buffer)         \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_log(log_info, buffer, "INFO");       \
+  expect_no_log(log_note, buffer);            \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_WARNING(buffer)      \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_no_log(log_info, buffer);            \
+  expect_no_log(log_note, buffer);            \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_ERROR(buffer)      \
+  expect_log(log_system, buffer, "SYSTEM"); \
+  expect_log(log_error, buffer, "ERROR");   \
+  expect_no_log(log_warning, buffer);       \
+  expect_no_log(log_info, buffer);          \
+  expect_no_log(log_note, buffer);          \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_SYSTEM(buffer)     \
+  expect_log(log_system, buffer, "SYSTEM"); \
+  expect_no_log(log_error, buffer);         \
+  expect_no_log(log_warning, buffer);       \
+  expect_no_log(log_info, buffer);          \
+  expect_no_log(log_note, buffer);          \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_NOT_SET(buffer) \
+  expect_no_log(log_system, buffer);     \
+  expect_no_log(log_error, buffer);      \
+  expect_no_log(log_warning, buffer);    \
+  expect_no_log(log_info, buffer);       \
+  expect_no_log(log_note, buffer);       \
+  expect_no_log(log_debug, buffer);
+
+TEST(FunctionalTest, Loggers) {
   // The loader creates these modules during start, so tests of the
   // logger that involves the loader are inside the loader unit
   // test. Here we instead call these functions directly.
@@ -695,30 +918,71 @@ TEST(FunctionalTest, Handlers) {
   attach_handler_to_all_loggers(*g_registry, StreamHandler::kDefaultName);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kDebug);
-  expect_log(log_error, buffer, "ERROR");
-  expect_log(log_warning, buffer, "WARNING");
-  expect_log(log_info, buffer, "INFO");
-  expect_log(log_debug, buffer, "DEBUG");
+  EXPECT_LOG_LEVEL_DEBUG(buffer);
+
+  set_log_level_for_all_loggers(*g_registry, LogLevel::kNote);
+  EXPECT_LOG_LEVEL_NOTE(buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kError);
-  expect_log(log_error, buffer, "ERROR");
-  expect_no_log(log_warning, buffer);
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_ERROR(buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kWarning);
-  expect_log(log_error, buffer, "ERROR");
-  expect_log(log_warning, buffer, "WARNING");
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_WARNING(buffer);
+
+  set_log_level_for_all_loggers(*g_registry, LogLevel::kSystem);
+  EXPECT_LOG_LEVEL_SYSTEM(buffer);
 
   // Check that nothing is logged when the handler is unregistered.
   g_registry->remove_handler(StreamHandler::kDefaultName);
   set_log_level_for_all_loggers(*g_registry, LogLevel::kNotSet);
-  expect_no_log(log_error, buffer);
-  expect_no_log(log_warning, buffer);
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_NOT_SET(buffer);
+
+  ASSERT_NO_THROW(g_registry->remove_logger(MYSQL_ROUTER_LOG_DOMAIN));
+}
+
+TEST(FunctionalTest, Handlers) {
+  // The loader creates these modules during start, so tests of the
+  // logger that involves the loader are inside the loader unit
+  // test. Here we instead call these functions directly.
+  ASSERT_NO_THROW(g_registry->create_logger(MYSQL_ROUTER_LOG_DOMAIN));
+
+  std::stringstream buffer;
+  std::stringstream buffer2;
+  auto handler = std::make_shared<StreamHandler>(buffer);
+  auto handler2 = std::make_shared<StreamHandler>(buffer2);
+  g_registry->add_handler("stream1", handler);
+  g_registry->add_handler("stream2", handler2);
+  attach_handler_to_all_loggers(*g_registry, "stream1");
+  attach_handler_to_all_loggers(*g_registry, "stream2");
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kDebug);
+  EXPECT_LOG_LEVEL_DEBUG(buffer);
+  EXPECT_LOG_LEVEL_DEBUG(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kNote);
+  EXPECT_LOG_LEVEL_NOTE(buffer);
+  EXPECT_LOG_LEVEL_NOTE(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kError);
+  EXPECT_LOG_LEVEL_ERROR(buffer);
+  EXPECT_LOG_LEVEL_ERROR(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kWarning);
+  EXPECT_LOG_LEVEL_WARNING(buffer);
+  EXPECT_LOG_LEVEL_WARNING(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kSystem);
+  EXPECT_LOG_LEVEL_SYSTEM(buffer);
+  EXPECT_LOG_LEVEL_SYSTEM(buffer2);
+
+  // Check that nothing is logged when the handlers are unregistered.
+  g_registry->remove_handler("stream1");
+  g_registry->remove_handler("stream2");
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kNotSet);
+  EXPECT_LOG_LEVEL_NOT_SET(buffer);
+  EXPECT_LOG_LEVEL_NOT_SET(buffer2);
+
+  ASSERT_NO_THROW(g_registry->remove_logger(MYSQL_ROUTER_LOG_DOMAIN));
 }
 
 int main(int argc, char *argv[]) {

@@ -54,7 +54,7 @@
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
 # This test cannot run with MTS
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 
@@ -88,7 +88,7 @@ INSERT INTO t1 VALUES (1);
 
 --source include/rpl_connection_slave.inc
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_AUTO_POSITION=1 FOR CHANNEL 'example_channel'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_AUTO_POSITION=1 FOR CHANNEL 'example_channel'
 
 --echo
 --echo #######################

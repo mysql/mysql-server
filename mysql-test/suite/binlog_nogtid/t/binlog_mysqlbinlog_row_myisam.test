@@ -11,6 +11,7 @@
 #
 
 --source include/no_ps_protocol.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 let $engine_type=MyISAM;
 
@@ -20,5 +21,11 @@ let $engine_type=MyISAM;
 # current test suite, new main test cases are required.
 #
 --source include/have_binlog_format_row.inc
+
+#
+# The test case records the output of mysqlbinlog, thence if compression
+# is enabled, then it fails as the compression event is output.
+#
+--source include/not_binlog_transaction_compression_on.inc
 
 --source extra/binlog_tests/mysqlbinlog_row_engine.inc

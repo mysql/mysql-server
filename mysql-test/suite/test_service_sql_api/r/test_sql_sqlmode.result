@@ -53,7 +53,7 @@ EXECUTING:[35][SELECT 'first complex command' as a]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -85,7 +85,7 @@ EXECUTING:[35][SELECT 'first complex command' as a]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -111,7 +111,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -119,7 +119,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -143,7 +143,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -151,7 +151,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -177,7 +177,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -185,7 +185,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -209,7 +209,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -217,7 +217,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -264,7 +264,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -272,7 +272,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -296,7 +296,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -304,7 +304,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -330,7 +330,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -338,7 +338,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -362,7 +362,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -370,7 +370,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -396,7 +396,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 			[meta][field] org table name: 
 			[meta][field] col name: CAST(0 AS UNSIGNED) - 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 22
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -404,7 +404,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -428,7 +428,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 			[meta][field] org table name: 
 			[meta][field] col name: CAST(0 AS UNSIGNED) - 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 22
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -436,7 +436,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -504,7 +504,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -512,7 +512,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -536,7 +536,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -544,7 +544,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -570,7 +570,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -578,7 +578,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -602,7 +602,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -610,7 +610,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -678,7 +678,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -686,7 +686,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -710,7 +710,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -718,7 +718,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -744,7 +744,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -752,7 +752,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -776,7 +776,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -784,7 +784,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -831,7 +831,7 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -874,7 +874,7 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -921,7 +921,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -929,7 +929,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -953,7 +953,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -961,7 +961,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1054,7 +1054,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1062,7 +1062,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1086,7 +1086,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1094,7 +1094,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1188,7 +1188,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1231,7 +1231,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1280,7 +1280,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1288,7 +1288,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1312,7 +1312,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1320,7 +1320,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1414,7 +1414,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1457,7 +1457,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1539,7 +1539,7 @@ EXECUTING:[35][SELECT 'first complex command' as a]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1571,7 +1571,7 @@ EXECUTING:[35][SELECT 'first complex command' as a]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1597,7 +1597,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1605,7 +1605,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1629,7 +1629,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1637,7 +1637,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1663,7 +1663,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1671,7 +1671,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1695,7 +1695,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1703,7 +1703,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1750,7 +1750,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1758,7 +1758,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1782,7 +1782,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1790,7 +1790,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1816,7 +1816,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1824,7 +1824,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1848,7 +1848,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1856,7 +1856,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1882,7 +1882,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 			[meta][field] org table name: 
 			[meta][field] col name: CAST(0 AS UNSIGNED) - 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 22
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -1890,7 +1890,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1914,7 +1914,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 			[meta][field] org table name: 
 			[meta][field] col name: CAST(0 AS UNSIGNED) - 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 22
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -1922,7 +1922,7 @@ EXECUTING:[30][SELECT CAST(0 AS UNSIGNED) - 1]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -1990,7 +1990,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1998,7 +1998,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2022,7 +2022,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2030,7 +2030,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2056,7 +2056,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2064,7 +2064,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2088,7 +2088,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2096,7 +2096,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2164,7 +2164,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2172,7 +2172,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2196,7 +2196,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2204,7 +2204,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2230,7 +2230,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2238,7 +2238,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2262,7 +2262,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2270,7 +2270,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2317,7 +2317,7 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2360,7 +2360,7 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2407,7 +2407,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2415,7 +2415,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2439,7 +2439,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2447,7 +2447,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2540,7 +2540,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2548,7 +2548,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2572,7 +2572,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2580,7 +2580,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2674,7 +2674,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2717,7 +2717,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2766,7 +2766,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2774,7 +2774,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2798,7 +2798,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2806,7 +2806,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2900,7 +2900,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 
@@ -2943,7 +2943,7 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 
 
 		[meta][charset result] number: 33
-		[meta][charset result] name: utf8
+		[meta][charset result] name: utf8mb3
 		[meta][charset result] collation: utf8_general_ci
 		[meta][charset result] sort order: 
 

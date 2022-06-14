@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ namespace bg = boost::geometry;
 namespace gis {
 
 bool mbrs_are_equal(Box const &mbr1, Box const &mbr2) {
-  DBUG_ASSERT(mbr1.coordinate_system() == mbr2.coordinate_system());
+  assert(mbr1.coordinate_system() == mbr2.coordinate_system());
   switch (mbr1.coordinate_system()) {
     case Coordinate_system::kCartesian:
       return bg::equals(*down_cast<const Cartesian_box *>(&mbr1),
@@ -53,8 +53,8 @@ bool mbrs_are_equal(Box const &mbr1, Box const &mbr2) {
       return bg::equals(*down_cast<const Geographic_box *>(&mbr1),
                         *down_cast<const Geographic_box *>(&mbr2));
   }
-  DBUG_ASSERT(false); /* purecov: inspected */
-  return false;       /* purecov: inspected */
+  assert(false); /* purecov: inspected */
+  return false;  /* purecov: inspected */
 }
 
 bool mbr_is_empty(Box const &mbr) {
@@ -97,7 +97,7 @@ static void merge_mbrs(const std::vector<Cartesian_box> &boxes,
 static void merge_mbrs(const std::vector<Geographic_box> &boxes,
                        Geographic_box *mbr) {
   if (!boxes.empty())
-    bg::detail::envelope::envelope_range_of_boxes::apply(boxes, *mbr, 0);
+    bg::detail::envelope::envelope_range_of_boxes::apply(boxes, *mbr);
 }
 
 /// Computes the envelope of a Cartesian geometry.
@@ -148,8 +148,8 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
                          geom_mbr);
             break;
           case Geometry_type::kGeometry:
-            DBUG_ASSERT(false);
-            throw new std::exception();
+            assert(false);
+            throw std::exception();
         }
 
         // Cartesian_boxxes around empty geometries contain NaN in all
@@ -171,8 +171,8 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
       bg::envelope(*down_cast<const Cartesian_multipolygon *>(g), *mbr);
       break;
     case Geometry_type::kGeometry:
-      DBUG_ASSERT(false);
-      throw new std::exception();
+      assert(false);
+      throw std::exception();
       break;
   }
 }
@@ -187,9 +187,9 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
 /// @param[out] mbr The envelope of g.
 static void geographic_envelope(const Geometry *g, double semi_major,
                                 double semi_minor, Geographic_box *mbr) {
-  bg::strategy::envelope::geographic_segment<bg::strategy::andoyer,
-                                             bg::srs::spheroid<double>>
-  strategy(bg::srs::spheroid<double>(semi_major, semi_minor));
+  bg::strategy::envelope::geographic<bg::strategy::andoyer,
+                                     bg::srs::spheroid<double>>
+      strategy(bg::srs::spheroid<double>(semi_major, semi_minor));
   switch (g->type()) {
     case Geometry_type::kPoint:
       bg::envelope(*down_cast<const Geographic_point *>(g), *mbr);
@@ -207,8 +207,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
       for (auto geom : *down_cast<const Geographic_geometrycollection *>(g)) {
         switch (geom->type()) {
           case Geometry_type::kPoint:
-            bg::envelope(*down_cast<const Geographic_point *>(geom), geom_mbr,
-                         strategy);
+            bg::envelope(*down_cast<const Geographic_point *>(geom), geom_mbr);
             break;
           case Geometry_type::kLinestring:
             bg::envelope(*down_cast<const Geographic_linestring *>(geom),
@@ -234,8 +233,8 @@ static void geographic_envelope(const Geometry *g, double semi_major,
                          geom_mbr, strategy);
             break;
           case Geometry_type::kGeometry:
-            DBUG_ASSERT(false);
-            throw new std::exception();
+            assert(false);
+            throw std::exception();
         }
 
         // Geographic_boxxes around empty geometries contain NaN in all
@@ -248,8 +247,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
       break;
     }
     case Geometry_type::kMultipoint:
-      bg::envelope(*down_cast<const Geographic_multipoint *>(g), *mbr,
-                   strategy);
+      bg::envelope(*down_cast<const Geographic_multipoint *>(g), *mbr);
       break;
     case Geometry_type::kMultilinestring:
       bg::envelope(*down_cast<const Geographic_multilinestring *>(g), *mbr,
@@ -260,8 +258,8 @@ static void geographic_envelope(const Geometry *g, double semi_major,
                    strategy);
       break;
     case Geometry_type::kGeometry:
-      DBUG_ASSERT(false);
-      throw new std::exception();
+      assert(false);
+      throw std::exception();
       break;
   }
 }

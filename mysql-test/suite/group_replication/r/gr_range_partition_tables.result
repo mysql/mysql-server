@@ -18,7 +18,7 @@ include/rpl_sync.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -37,7 +37,7 @@ include/rpl_sync.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -58,7 +58,7 @@ include/rpl_sync.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)

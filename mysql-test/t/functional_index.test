@@ -3,12 +3,13 @@ INSERT INTO t1 (int_col, string_col) VALUES (-1, "foo"), (1, "bar");
 
 CREATE INDEX int_func_index ON t1 ((ABS(int_col)));
 CREATE INDEX string_func_index ON t1 ((SUBSTRING(string_col, 1, 2)));
-
+ANALYZE TABLE t1;
 --echo # We should see the functional index syntax in SHOW CREATE TABLE
 SHOW CREATE TABLE t1;
 
 --echo # INFORMATION_SCHEMA.STATISTICS should show the expression and no column
 --echo # name
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS
 WHERE INDEX_NAME IN ('int_func_index', 'string_func_index');
 
@@ -94,17 +95,26 @@ CREATE TABLE t1 (col1 INT, col2 INT);
 CREATE INDEX idx1 ON t1 (col1, (col1 + col2));
 SHOW KEYS FROM t1;
 
---echo # Create a funtional index with many functional key parts
-# NOTE: Enable when bug#27168185 is fixed
-# CREATE INDEX idx2 ON t1 (col1 + 1, col1 + 2, col1 + 3, col1 + 4, col1 + 5);
+--echo # Create a functional index with many functional key parts. Bug#27168185.
+CREATE INDEX idx2
+  ON t1 ((col1 + 1), (col1 + 2), (col1 + 3), (col1 + 4), (col1 + 5));
 
 --echo # Check that if we try to add a column with the same name as a hidden
 --echo # column, we get an internal error. The column name of the generated
---echo # column is calculated as MD5(index_name + key_part_number).
-SELECT MD5(CONCAT("idx1", "1"));
+--echo # column is `!hidden!index_name!key_part!counter`.
 
 --error ER_INTERNAL_ERROR
-ALTER TABLE t1 ADD COLUMN `56fb28970273a50c6f31dec0fe3b175b` INT NOT NULL;
+ALTER TABLE t1 ADD COLUMN `!hidden!idx1!1!0` INT NOT NULL;
+
+# Conversely, adding a column which the same name that a future
+# functional index will pick, does not prevent the index from being
+# added.
+ALTER TABLE t1 ADD COLUMN `!hidden!idx3!0!0` INT NOT NULL;
+CREATE INDEX idx3 ON t1 ((col1-col2));
+# The index will just have incremented the counter at the end of the name.
+# Thus, this will fail:
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1 ADD COLUMN `!hidden!idx3!0!1` INT NOT NULL;
 
 DROP TABLE t1;
 
@@ -165,6 +175,7 @@ INSERT INTO t1 VALUES(CAST('{"id":1}' AS JSON)), (CAST('{"id":2}' AS JSON)),
   (CAST('{"id":7}' AS JSON)), (CAST('{"id":8}' AS JSON)),
   (CAST('{"id":9}' AS JSON)), (CAST('{"id":10}' AS JSON));
 
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE f1->"$.id"= 5;
 EXPLAIN SELECT * FROM t1 WHERE f1->"$.id"= 5;
 SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
@@ -183,9 +194,13 @@ INSERT INTO t1 VALUES
   (JSON_OBJECT("id",JSON_QUOTE("n"))), (CAST('{"id":"w"}' AS JSON)),
   (CAST('{"id":"m"}' AS JSON)), (CAST('{"id":"q"}' AS JSON));
 
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+--sorted_result
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+--sorted_result
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
+--sorted_result
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
 
 DROP TABLE t1;
@@ -198,6 +213,7 @@ INSERT INTO t1 VALUES
   ('{"name": "Peter"}'),
   ('{"name": "parker"}');
 
+ANALYZE TABLE t1;
 --echo # Should not return any rows, and should use the index
 SELECT * FROM t1 WHERE f1->>"$.name" = "James";
 EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "James";
@@ -212,24 +228,14 @@ EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_b
 
 DROP TABLE t1;
 
---echo # See that optimizer trace doesn't reveal the name of the hidden
---echo # generated column.
-CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
-SET optimizer_trace="enabled=on";
-SELECT col1 FROM t1 WHERE col1 + col1 = 10;
-SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-DROP TABLE t1;
-
 --echo # Test that doing an UPDATE on a hidden generated column returns "column
 --echo # not found".
 
 CREATE TABLE t1 (col1 INT, INDEX idx1 ((col1 + col1)));
 
---echo # Get the expected name of the hidden generated column.
-SELECT MD5(CONCAT("idx1", "0"));
-
+--echo # Update the hidden generated column.
 --error ER_BAD_FIELD_ERROR
-UPDATE t1 SET 45197ac678c1210c4a64bf22351853e7 = 123;
+UPDATE t1 SET `!hidden!idx1!0!0` = 123;
 DROP TABLE t1;
 
 --echo #
@@ -239,11 +245,8 @@ DROP TABLE t1;
 CREATE TABLE t3 (c1 INT);
 CREATE INDEX int_func_index ON t3 ((ABS(c1)));
 
---echo # Get the expected column name of the functional index
-SELECT MD5(CONCAT('int_func_index', '0'));
-
 --error ER_BAD_FIELD_ERROR
-SELECT * FROM t3 WHERE 7cf759b4f03e729c90aa40cc68dd8780=1;
+SELECT * FROM t3 WHERE `!hidden!int_func_index!0!0`=1;
 DROP TABLE t3;
 
 --echo #
@@ -263,13 +266,14 @@ CREATE TABLE t1(x VARCHAR(100), KEY ((ST_GeomFromText(x))));
 --echo # but rather the expression that they represent.
 CREATE TABLE t1(x VARCHAR(30), INDEX idx ((CAST(x->>'$.name' AS CHAR(30)))));
 INSERT INTO t1 VALUES ('{"name":"knut"}');
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE CAST(x->>'$.name' AS CHAR(30)) = 'knut';
 DROP TABLE t1;
 
 --echo # Check that we cannot drop the last visible column when we have hidden
 --echo # generated columns.
 CREATE TABLE t(x INT, KEY((1+1)));
---error ER_TABLE_MUST_HAVE_COLUMNS
+--error ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN
 ALTER TABLE t DROP COLUMN x;
 DROP TABLE t;
 
@@ -335,7 +339,7 @@ CREATE TABLE t1 (
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
 
---error ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT
+--error ER_WRONG_ARGUMENTS
 CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
 ST_GeomFromGeoJSON(col_varchar_key) ));
 DROP TABLE t1;
@@ -354,6 +358,7 @@ CREATE TABLE t1(x INT, KEY `` ((x + 1)));
 --echo # mismatch
 CREATE TABLE t(x VARCHAR(10), KEY k ((CAST(CONCAT(x,x) AS BINARY))));
 INSERT INTO t VALUES ('x');
+ANALYZE TABLE t;
 EXPLAIN SELECT * FROM t WHERE CONCAT(x,x) = 'XX';
 DROP TABLE t;
 
@@ -443,4 +448,125 @@ CREATE TABLE t1 (
 );
 --error ER_DUP_KEYNAME
 ALTER TABLE t1 RENAME KEY my_idx_char TO my_idx;
+
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR
+--echo #              FUNCTIONAL INDEXES
+--echo #
+CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
+
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = "t1";
+
+ALTER TABLE t1 ADD COLUMN col2 INT;
+
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = "t1";
+
+DROP TABLE t1;
+
+--echo # See that INSTANT ADD COLUMN still works with this bugfix.
+CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1), INDEX (col2));
+ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29934661 FUNCTIONAL INDEX SEEMS TO MALFUNCTION WITH UNSIGNED COLUMN
+--echo #
+--echo # The hidden column that is added should have a data type that can store
+--echo # the absolute value of an unsigned data type.
+CREATE TABLE t0(c0 INT UNSIGNED, INDEX idx ((ABS(c0))));
+INSERT INTO t0 (c0) VALUES (4294967294);
+DROP TABLE t0;
+
+--echo #
+--echo # Bug#29723353: ADDING FUNCTIONAL INDEX ON JSON EXPRESSION CHANGES RESULT
+--echo #
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('{"x":"abc"}'), ('{"x":"ABC"}');
+--let $query1 = SELECT * FROM t WHERE j->>'$.x' = 'abc'
+--let $query2 = SELECT * FROM t WHERE j->'$.x' = 'abc'
+--eval $query1
+--eval $query2
+CREATE INDEX idx ON t((CAST(j->>'$.x' AS CHAR(100))));
+--eval $query1
+--eval $query2
+ALTER TABLE t DROP INDEX idx;
+CREATE INDEX idx ON t((CAST(j->'$.x' AS CHAR(100))));
+--eval $query1
+--eval $query2
+DROP TABLE t;
+
+--echo ##
+--echo ## Bug #31017765 CREATE TABLE ... SELECT FAILS IF THERE IS A FUNCTIONAL INDEX
+--echo ##
+--echo ##
+
+    CREATE TEMPORARY TABLE issue_functional_key_part (
+      sold_on DATETIME NOT NULL DEFAULT NOW(),
+      INDEX sold_on_date ((DATE(sold_on)))
+    )
+    SELECT NOW() `sold_on`;
+
+--echo #
+--echo # Bug#30838749: PERFORMANCE DROP WHEN CREATING A FUNCTIONAL INDEX
+--echo #
+
+CREATE TABLE t1(x INT, KEY k ((x+1)));
+--output $MYSQLTEST_VARDIR/tmp/bug30838749
+--disable_warnings
+--disable_query_log
+EXPLAIN FORMAT=JSON SELECT * FROM t1;
+--enable_query_log
+--enable_warnings
+
+# "used_columns" in the EXPLAIN output used to contain the hidden
+# virtual column backing the functional index. Verify that only the
+# visible column (x) is used now.
+CREATE TABLE t2(j JSON);
+--skip_if_hypergraph  # FORMAT=JSON is not supported, file was never created.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval
+  LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug30838749' INTO TABLE t2
+  LINES STARTING BY 'EXPLAIN' TERMINATED BY 'EOL';
+--skip_if_hypergraph  # FORMAT=JSON is not supported, file was never created.
+SELECT j->'$**.used_columns' FROM t2;
+
+DROP TABLE t1, t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug30838749
+
+--echo #
+--echo # Bug#32287186: FAILED TO CREATE FUNCTION INDEX,
+--echo # COLUMN NAME IS UPPERCASE CHARACTER
+--echo #
+
+--echo # Verify that normal index creation is case-insensitive on
+--echo # column name
+CREATE TABLE t1 (id INT, name VARCHAR(50), INDEX (NAME));
+CREATE TABLE t2 (id INT, name VARCHAR(50), INDEX (name));
+CREATE TABLE t3 (id INT, NAME VARCHAR(50), INDEX (name));
+CREATE TABLE t4 (id INT, NAME VARCHAR(50), INDEX (NAME));
+
+
+--echo # Now verify that functional index creation is case-insensitive
+--echo # on column name as well
+CREATE TABLE t5 (id INT, name VARCHAR(50),
+INDEX ((SUBSTR(name, 1, 2))));
+CREATE TABLE t6 (id INT, name VARCHAR(50),
+INDEX ((SUBSTR(NAME, 1, 2))));
+CREATE TABLE t7 (id INT, NAME VARCHAR(50),
+INDEX ((SUBSTR(name, 1, 2))));
+CREATE TABLE t8 (id INT, NAME VARCHAR(50),
+INDEX ((SUBSTR(NAME, 1, 2))));
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t7;
+DROP TABLE t8;

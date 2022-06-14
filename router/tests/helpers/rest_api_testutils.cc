@@ -1,6 +1,5 @@
-
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +28,6 @@
 
 #include <gmock/gmock.h>
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -50,17 +47,22 @@ static const std::string rest_api_openapi_json =
     std::string(rest_api_basepath) + "/swagger.json";
 
 // wait for the endpoint to return 404
-static bool wait_endpoint_404(
-    RestClient &rest_client, const std::string &uri,
-    std::chrono::milliseconds max_wait_time) noexcept {
+// the max_wait_time is increased 10 times for the run with VALGRIND
+bool wait_endpoint_404(RestClient &rest_client, const std::string &uri,
+                       std::chrono::milliseconds max_wait_time) noexcept {
+  auto step_time = kMaxRestEndpointNotAvailableStepTime;
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    step_time *= 10;
+  }
+
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
     if (req && req.get_response_code() != 0)
       return (req.get_response_code() == 404);
 
-    auto wait_time =
-        std::min(kMaxRestEndpointNotAvailableStepTime, max_wait_time);
+    const auto wait_time = std::min(step_time, max_wait_time);
     std::this_thread::sleep_for(wait_time);
 
     max_wait_time -= wait_time;
@@ -97,7 +99,8 @@ void request_json(RestClient &rest_client, const std::string &uri,
 
   // HEAD doesn't return a body
   if (http_method != HttpMethod::Head &&
-      http_status_code != HttpStatusCode::Unauthorized) {
+      http_status_code != HttpStatusCode::Unauthorized &&
+      http_status_code != HttpStatusCode::Forbidden) {
     auto resp_body = req.get_input_buffer();
     ASSERT_GT(resp_body.length(), 0u);
     auto resp_body_content = resp_body.pop_front(resp_body.length());
@@ -199,20 +202,29 @@ bool wait_for_rest_endpoint_ready(
     const std::string &uri, const uint16_t http_port,
     const std::string &username, const std::string &password,
     const std::string &http_host, std::chrono::milliseconds max_wait_time,
-    const std::chrono::milliseconds step_time) noexcept {
+    std::chrono::milliseconds step_time) noexcept {
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_host, http_port, username, password);
 
-  while (max_wait_time.count() > 0) {
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    step_time *= 10;
+  }
+
+  using clock_type = std::chrono::steady_clock;
+  auto start_time = clock_type::now();
+  auto end_time = start_time + max_wait_time;
+
+  while (clock_type::now() < end_time) {
+    auto step_end_time = clock_type::now() + step_time;
+
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
     if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
       return true;
 
-    auto wait_time = std::min(step_time, max_wait_time);
-    std::this_thread::sleep_for(wait_time);
-
-    max_wait_time -= wait_time;
+    auto wait_end_time = std::min(step_end_time, end_time);
+    std::this_thread::sleep_until(wait_end_time);
   }
 
   return false;
@@ -222,12 +234,19 @@ std::string RestApiComponentTest::create_password_file() {
   const std::string userfile =
       mysql_harness::Path(conf_dir_.name()).join("users").str();
   {
+    ProcessWrapper::OutputResponder responder{
+        [](const std::string &line) -> std::string {
+          if (line == "Please enter password: ")
+            return std::string(kRestApiPassword) + "\n";
+
+          return "";
+        }};
+
     auto &cmd =
         launch_command(get_origin().join("mysqlrouter_passwd").str(),
-                       {"set", userfile, kRestApiUsername}, EXIT_SUCCESS, true);
-    cmd.register_response("Please enter password",
-                          std::string(kRestApiPassword) + "\n");
-    EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
+                       {"set", userfile, kRestApiUsername}, EXIT_SUCCESS, true,
+                       std::chrono::milliseconds(-1), responder);
+    check_exit_code(cmd, EXIT_SUCCESS);
   }
 
   return userfile;
@@ -236,27 +255,30 @@ std::string RestApiComponentTest::create_password_file() {
 std::vector<std::string> RestApiComponentTest::get_restapi_config(
     const std::string &component, const std::string &userfile,
     const bool request_authentication, const std::string &realm_name) {
-  std::vector<ConfigBuilder::kv_type> authentication;
+  std::vector<mysql_harness::ConfigBuilder::kv_type> authentication;
   if (request_authentication) {
     authentication.push_back({"require_realm", realm_name});
   }
   const std::vector<std::string> config_sections{
-      ConfigBuilder::build_section("http_server",
-                                   {
-                                       {"port", std::to_string(http_port_)},
-                                   }),
-      ConfigBuilder::build_section(component, authentication),
-      ConfigBuilder::build_section("http_auth_realm:somerealm",
-                                   {
-                                       {"backend", "somebackend"},
-                                       {"method", "basic"},
-                                       {"name", "Some Realm"},
-                                   }),
-      ConfigBuilder::build_section("http_auth_backend:somebackend",
-                                   {
-                                       {"backend", "file"},
-                                       {"filename", userfile},
-                                   }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server",
+          {
+              {"port", std::to_string(http_port_)},
+          }),
+      mysql_harness::ConfigBuilder::build_section(component, authentication),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_auth_realm:somerealm",
+          {
+              {"backend", "somebackend"},
+              {"method", "basic"},
+              {"name", "Some Realm"},
+          }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_auth_backend:somebackend",
+          {
+              {"backend", "file"},
+              {"filename", userfile},
+          }),
   };
   return config_sections;
 }
@@ -441,39 +463,53 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
       }
 
       SCOPED_TRACE("// validating values");
-      for (const auto &kv : test_params.value_checks) {
-        validate_value(json_doc, kv.first, kv.second);
+      // HEAD does not return a body
+      if (method != HttpMethod::Head) {
+        for (const auto &kv : test_params.value_checks) {
+          ASSERT_NO_FATAL_FAILURE(
+              validate_value(json_doc, kv.first, kv.second));
+        }
       }
     }
   }
 }
 
-/*static*/ const std::vector<
-    std::pair<std::string, RestApiTestParams::value_check_func>>
-    RestApiComponentTest::kProblemJsonMethodNotAllowed{
-        {"/status",
-         [](const JsonValue *value) -> void {
-           ASSERT_NE(value, nullptr);
+RestApiComponentTest::json_verifiers_t
+RestApiComponentTest::get_json_method_not_allowed_verifiers() {
+  static const RestApiComponentTest::json_verifiers_t result{
+      {"/status",
+       [](const JsonValue *value) -> void {
+         ASSERT_NE(value, nullptr);
 
-           ASSERT_TRUE(value->IsInt());
-           ASSERT_EQ(value->GetInt(), HttpStatusCode::MethodNotAllowed);
-         }},
-        {"/title",
-         [](const JsonValue *value) -> void {
-           ASSERT_NE(value, nullptr);
+         ASSERT_TRUE(value->IsInt());
+         ASSERT_EQ(value->GetInt(), HttpStatusCode::MethodNotAllowed);
+       }},
+      {"/title",
+       [](const JsonValue *value) -> void {
+         ASSERT_NE(value, nullptr);
 
+         ASSERT_TRUE(value->IsString());
+         // CONNECT returns "Method Not Allowed"
+         const std::vector<std::string> msgs{"HTTP Method not allowed",
+                                             "Method Not Allowed"};
+         ASSERT_THAT(msgs, ::testing::Contains(value->GetString()));
+       }},
+      {"/detail",
+       [](const JsonValue *value) -> void {
+         // there is no /detail field for CONNECT
+         if (value != nullptr) {
            ASSERT_TRUE(value->IsString());
-           ASSERT_STREQ(value->GetString(), "HTTP Method not allowed");
-         }},
-        {"/detail",
-         [](const JsonValue *value) -> void {
-           ASSERT_NE(value, nullptr);
+           // swagger.json allows HEAD
+           const std::vector<std::string> msgs{
+               "only HTTP Methods GET are supported",
+               "only HTTP Methods GET,HEAD are supported"};
+           ASSERT_THAT(msgs, ::testing::Contains(value->GetString()));
+         }
+       }},
+  };
 
-           ASSERT_TRUE(value->IsString());
-           ASSERT_STREQ(value->GetString(),
-                        "only HTTP Methods GET,HEAD are supported");
-         }},
-    };
+  return result;
+}
 
 void RestApiComponentTest::validate_value(
     const JsonDocument &json_doc, const std::string &value_json_pointer,

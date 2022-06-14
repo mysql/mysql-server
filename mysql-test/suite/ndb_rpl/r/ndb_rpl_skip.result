@@ -1,0 +1,89 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1 (a int not null, b int, c int, unique(c)) engine=ndb;
+Insert some records
+Connect to replica and ensure data is there.
+select count(*) from t1;
+count(*)
+1000
+call mtr.add_suppression(".*NDB Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+call mtr.add_suppression(".*Could not execute Write_rows event on table.*");
+call mtr.add_suppression(".*Slave: Got error 173 'Unknown error code' from NDBCLUSTER.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+Make a replica side change
+This can cause uniqueness violations when we replicate data
+insert into t1 values (2001,2001,1001);
+insert into t1 values (2002,2002,1002);
+insert into t1 values (2003,2003,1003);
+Scenario 1 : skipping causes problem with epoch sequence check
+--------------------------------------------------------------
+Cause a conflict
+insert into t1 values (1001,1001,1001);
+Sync with master, will succeed
+Show that row was not replicated to slave
+select * from t1 where a=1001;
+a	b	c
+Show that subsequent changes cause an error
+insert into t1 values (3000,3000,3000);
+Expect replication to stop with an error
+include/wait_for_slave_sql_error.inc [errno=1296]
+Data not replicated
+select * from t1 where a=3000;
+a	b	c
+Simply starting the slave again should be enough
+to move on
+start replica;
+Data now replicated
+select * from t1 where a=3000;
+a	b	c
+3000	3000	3000
+Scenario 2 : ndb_applier_allow_skip_epoch avoids slave stop
+-----------------------------------------------------------
+show variables like 'ndb_applier_allow_skip_epoch';
+Variable_name	Value
+ndb_applier_allow_skip_epoch	OFF
+set global ndb_applier_allow_skip_epoch = 1;
+show variables like 'ndb_applier_allow_skip_epoch';
+Variable_name	Value
+ndb_applier_allow_skip_epoch	ON
+call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+Cause a conflict
+insert into t1 values (1002,1002,1002);
+Sync with master, will succeed
+Show that row was not replicated to slave
+select * from t1 where a=1001;
+a	b	c
+Show that subsequent changes have no problem
+insert into t1 values (3001,3001,3001);
+Data replicated
+select * from t1 where a=3001;
+a	b	c
+3001	3001	3001
+Show that whole epoch is skipped
+--------------------------------
+Single transaction shown here
+begin;
+update t1 set b=1234 where a < 500;
+update t1 set b=1234, c=1003 where a = 500;
+update t1 set b=1234 where a > 500 and a <= 1000;
+commit;
+select count(1) from t1 where b=1234;
+count(1)
+1000
+Replica has none of the changes
+select count(1) from t1 where b=1234;
+count(1)
+0
+select * from t1 where a=500;
+a	b	c
+500	500	500
+Show epoch unchanged (diff is zero)
+epoch_diff
+0
+set global ndb_applier_allow_skip_epoch=0;
+drop table t1;
+include/rpl_end.inc

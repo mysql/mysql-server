@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,12 @@
 #ifndef SQL_BITMAP_INCLUDED
 #define SQL_BITMAP_INCLUDED
 
+#include <assert.h>
 #include "m_string.h"      // longlong2str
 #include "my_bitmap.h"     // MY_BITMAP
 #include "my_byteorder.h"  // int8store
-#include "my_dbug.h"
+
+#include "template_utils.h"
 
 template <uint default_width>
 class Bitmap {
@@ -44,7 +46,7 @@ class Bitmap {
   Bitmap() { init(); }
   Bitmap(const Bitmap &from) { *this = from; }
   explicit Bitmap(uint prefix_to_set) { init(prefix_to_set); }
-  void init() { bitmap_init(&map, buffer, default_width, 0); }
+  void init() { bitmap_init(&map, buffer, default_width); }
   void init(uint prefix_to_set) {
     init();
     set_prefix(prefix_to_set);
@@ -66,7 +68,7 @@ class Bitmap {
     ulonglong buf2;
     MY_BITMAP map2;
 
-    bitmap_init(&map2, (uint32 *)&buf2, sizeof(ulonglong) * 8, 0);
+    bitmap_init(&map2, (uint32 *)&buf2, sizeof(ulonglong) * 8);
 
     // Store the original bits.
     if (sizeof(ulonglong) >= 8) {
@@ -74,7 +76,7 @@ class Bitmap {
           const_cast<uchar *>(static_cast<uchar *>(static_cast<void *>(&buf2))),
           map2buff);
     } else {
-      DBUG_ASSERT(sizeof(buffer) >= 4);
+      assert(sizeof(buffer) >= 4);
       int4store(
           const_cast<uchar *>(static_cast<uchar *>(static_cast<void *>(&buf2))),
           static_cast<uint32>(map2buff));
@@ -86,9 +88,8 @@ class Bitmap {
   void intersect_extended(ulonglong map2buff) {
     intersect(map2buff);
     if (map.n_bits > sizeof(ulonglong) * 8)
-      bitmap_set_above(
-          &map, sizeof(ulonglong),
-          MY_TEST(map2buff & (1LL << (sizeof(ulonglong) * 8 - 1))));
+      bitmap_set_above(&map, sizeof(ulonglong),
+                       (map2buff & (1LL << (sizeof(ulonglong) * 8 - 1))));
   }
   void subtract(const Bitmap &map2) { bitmap_subtract(&map, &map2.map); }
   void merge(const Bitmap &map2) { bitmap_union(&map, &map2.map); }
@@ -108,7 +109,8 @@ class Bitmap {
   bool operator!=(const Bitmap &map2) const { return !(*this == map2); }
   char *print(char *buf) const {
     char *s = buf;
-    const uchar *e = (uchar *)buffer, *b = e + sizeof(buffer) - 1;
+    const uchar *e = pointer_cast<const uchar *>(&buffer[0]),
+                *b = e + sizeof(buffer) - 1;
     while (!*b && b > e) b--;
     if ((*s = _dig_vec_upper[*b >> 4]) != '0') s++;
     *s++ = _dig_vec_upper[*b & 15];
@@ -123,12 +125,12 @@ class Bitmap {
     if (sizeof(buffer) >= 8)
       return uint8korr(
           static_cast<const uchar *>(static_cast<const void *>(buffer)));
-    DBUG_ASSERT(sizeof(buffer) >= 4);
+    assert(sizeof(buffer) >= 4);
     return (ulonglong)uint4korr(
         static_cast<const uchar *>(static_cast<const void *>(buffer)));
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
-  uint get_first_set() { return bitmap_get_first_set(&map); }
+  uint get_first_set() const { return bitmap_get_first_set(&map); }
 };
 
 template <>
@@ -144,11 +146,11 @@ class Bitmap<64> {
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }
   void set_bit(uint n) {
-    DBUG_ASSERT(n < 64);
+    assert(n < 64);
     map |= ((ulonglong)1) << n;
   }
   void clear_bit(uint n) {
-    DBUG_ASSERT(n < 64);
+    assert(n < 64);
     map &= ~(((ulonglong)1) << n);
   }
   void set_prefix(uint n) {
@@ -165,11 +167,11 @@ class Bitmap<64> {
   void subtract(const Bitmap<64> &map2) { map &= ~map2.map; }
   void merge(const Bitmap<64> &map2) { map |= map2.map; }
   bool is_set(uint n) const {
-    DBUG_ASSERT(n < 64);
+    assert(n < 64);
     return (map & (((ulonglong)1) << n));
   }
   bool is_prefix(uint n) const {
-    DBUG_ASSERT(n <= 64);
+    assert(n <= 64);
     if (n < 64)
       return map == (((ulonglong)1) << n) - 1;
     else
@@ -188,7 +190,13 @@ class Bitmap<64> {
     return buf;
   }
   ulonglong to_ulonglong() const { return map; }
-  uint get_first_set() {
+  uint bits_set() const {
+    uint res = 0;
+    for (uint i = 0; i < ALL_BITS; i++)
+      if (is_set(i)) res++;
+    return res;
+  }
+  uint get_first_set() const {
     for (uint i = 0; i < ALL_BITS; i++)
       if (map & (1ULL << i)) return i;
     return MY_BIT_NONE;

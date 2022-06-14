@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,9 @@ extern native_mutex_t LOCK_country_records_array;
 /* A structure to denote a single row of the table. */
 class Country_record {
  public:
-  char name[20];
+  char name[COUNTRY_NAME_LEN];
   unsigned int name_length;
-  char continent_name[20];
+  char continent_name[CONTINENT_NAME_LEN];
   unsigned int continent_name_length;
   PSI_year year;
   PSI_bigint population;
@@ -69,7 +69,7 @@ class Country_POS {
   unsigned int m_index;
 
  public:
-  ~Country_POS() {}
+  ~Country_POS() = default;
   Country_POS() { m_index = 0; }
 
   bool has_more() {
@@ -91,7 +91,7 @@ class Country_POS {
 
 class Country_index {
  public:
-  virtual ~Country_index() {}
+  virtual ~Country_index() = default;
 
   virtual bool match(Country_record *record) = 0;
 };
@@ -100,12 +100,12 @@ class Country_index {
 class Country_index_by_name : public Country_index {
  public:
   PSI_plugin_key_string m_continent_name;
-  char m_continent_name_buffer[20];
+  char m_continent_name_buffer[CONTINENT_NAME_LEN];
 
   PSI_plugin_key_string m_country_name;
-  char m_country_name_buffer[20];
+  char m_country_name_buffer[COUNTRY_NAME_LEN];
 
-  bool match(Country_record *record) {
+  bool match(Country_record *record) override {
     return mysql_service_pfs_plugin_table->match_key_string(
                false, record->name, record->name_length, &m_country_name) &&
            mysql_service_pfs_plugin_table->match_key_string(
@@ -115,7 +115,7 @@ class Country_index_by_name : public Country_index {
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct {
+struct Country_Table_Handle {
   /* Current position instance */
   Country_POS m_pos;
   /* Next position instance */
@@ -129,7 +129,7 @@ typedef struct {
 
   /* Index indicator */
   unsigned int index_num;
-} Country_Table_Handle;
+};
 
 PSI_table_handle *country_open_table(PSI_pos **pos);
 void country_close_table(PSI_table_handle *handle);

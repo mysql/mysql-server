@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,12 +39,14 @@
 #include "storage/perfschema/pfs_con_slice.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_name.h"
 
 struct PFS_global_param;
 struct PFS_user;
 struct PFS_host;
 struct PFS_thread;
-struct PFS_memory_stat_delta;
+struct PFS_memory_stat_alloc_delta;
+struct PFS_memory_stat_free_delta;
 struct PFS_memory_shared_stat;
 
 /**
@@ -54,13 +56,10 @@ struct PFS_memory_shared_stat;
 
 /** Hash key for an account. */
 struct PFS_account_key {
-  /**
-    Hash search key.
-    This has to be a string for @c LF_HASH,
-    the format is @c "<username><0x00><hostname><0x00>"
-  */
-  char m_hash_key[USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 1];
-  uint m_key_length;
+  /** User name. */
+  PFS_user_name m_user_name;
+  /** Host name. */
+  PFS_host_name m_host_name;
 };
 
 /** Per account statistics. */
@@ -88,7 +87,10 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
   /** Reset all memory statistics. */
   void rebase_memory_stats();
 
-  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+  void carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                     uint index);
+  void carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                    uint index);
 
   void set_instr_class_memory_stats(PFS_memory_shared_stat *array) {
     m_has_memory_stats = false;
@@ -97,7 +99,7 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
 
   const PFS_memory_shared_stat *read_instr_class_memory_stats() const {
     if (!m_has_memory_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_memory_stats;
   }
@@ -118,10 +120,6 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
   /** True if this account has history enabled, per rules in table SETUP_ACTORS.
    */
   bool m_history;
-  const char *m_username;
-  uint m_username_length;
-  const char *m_hostname;
-  uint m_hostname_length;
   PFS_user *m_user;
   PFS_host *m_host;
 
@@ -144,9 +142,9 @@ void cleanup_account(void);
 int init_account_hash(const PFS_global_param *param);
 void cleanup_account_hash(void);
 
-PFS_account *find_or_create_account(PFS_thread *thread, const char *username,
-                                    uint username_length, const char *hostname,
-                                    uint hostname_length);
+PFS_account *find_or_create_account(PFS_thread *thread,
+                                    const PFS_user_name *user,
+                                    const PFS_host_name *host);
 
 PFS_account *sanitize_account(PFS_account *unsafe);
 void purge_all_account(void);

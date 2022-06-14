@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,13 +62,13 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
   char *start, *prog;
   const char *end;
   size_t to_length;
-  DBUG_ENTER("my_path");
+  DBUG_TRACE;
 
   start = to; /* Return this */
-  if (progname &&
-      (dirname_part(to, progname, &to_length) ||
-       find_file_in_path(to, progname) ||
-       ((prog = getenv("_")) != 0 && dirname_part(to, prog, &to_length)))) {
+  if (progname && (dirname_part(to, progname, &to_length) ||
+                   find_file_in_path(to, progname) ||
+                   ((prog = getenv("_")) != nullptr &&
+                    dirname_part(to, prog, &to_length)))) {
     (void)intern_filename(to, to);
     if (!test_if_hard_path(to)) {
       if (!my_getwd(curr_dir, FN_REFLEN, MYF(0)))
@@ -76,8 +76,8 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
                 strlen(to) + 1);
     }
   } else {
-    if ((end = getenv("MY_BASEDIR_VERSION")) == 0 &&
-        (end = getenv("MY_BASEDIR")) == 0) {
+    if ((end = getenv("MY_BASEDIR_VERSION")) == nullptr &&
+        (end = getenv("MY_BASEDIR")) == nullptr) {
 #ifdef DEFAULT_BASEDIR
       end = DEFAULT_BASEDIR;
 #else
@@ -90,7 +90,7 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
     (void)my_stpcpy(to, own_pathname_part);
   }
   DBUG_PRINT("exit", ("to: '%s'", start));
-  DBUG_RETURN(start);
+  return start;
 } /* my_path */
 
 /* test if file without filename is found in path */

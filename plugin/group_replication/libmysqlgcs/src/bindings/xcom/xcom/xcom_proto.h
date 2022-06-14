@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,7 @@
 #ifndef XCOM_PROTO_H
 #define XCOM_PROTO_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "x_platform.h"
 
 static inline unsigned int get_32(unsigned char const *p) {
   return ((unsigned int)p[3] | (((unsigned int)p[2]) << 8) |
@@ -47,9 +45,5 @@ static inline void put_16(unsigned char *p, unsigned int v) {
   p[1] = (unsigned char)((v)&0xff);
   p[0] = (unsigned char)(((v) >> 8) & 0xff);
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ resetTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
   // g_org_timeout will be passed as printed int to mgm,
   // then converted to Uint32 before sent to tc.
   // Check convert Uint32 -> int -> Uint32 is safe
-  NDB_STATIC_ASSERT(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
+  static_assert(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
   int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, (int)g_org_timeout };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
@@ -118,7 +118,7 @@ resetDeadlockTimeout(NDBT_Context* ctx, NDBT_Step* step){
   // g_org_deadlock will be passed as printed int to mgm,
   // then converted to Uint32 before sent to tc.
   // Check convert Uint32 -> int -> Uint32 is safe
-  NDB_STATIC_ASSERT(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
+  static_assert(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
   int val[] = { DumpStateOrd::TcSetTransactionTimeout, (int)g_org_deadlock };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
@@ -363,8 +363,9 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int stepNo = step->getStepNo();
-  int maxSleep = (int)(TIMEOUT * 0.3);
-  ndbout << "TransactionInactiveTimeout="<< TIMEOUT
+  int timeout = ctx->getProperty("TransactionInactiveTimeout",TIMEOUT);
+  int maxSleep = (int)(timeout * 0.3);
+  ndbout << "TransactionInactiveTimeout=" << timeout
 	 << ", maxSleep="<<maxSleep<<endl;
 
   HugoOperations hugoOps(*ctx->getTab());
@@ -609,6 +610,7 @@ TESTCASE("BuddyTransNoTimeout5",
 	 "The total sleep time is longer than TransactionInactiveTimeout" \
 	 "Commit the first transaction, it should not have timed out." \
 	 "Five simultaneous threads"){
+  TC_PROPERTY("TransactionInactiveTimeout", 2 * TIMEOUT);
   INITIALIZER(runLoadTable);
   INITIALIZER(setTransactionTimeout);
   STEPS(runBuddyTransNoTimeout, 5);

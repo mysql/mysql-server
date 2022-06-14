@@ -1,4 +1,5 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,15 +25,27 @@
 #ifndef NDBINFO_SCAN_OPERATION_HPP
 #define NDBINFO_SCAN_OPERATION_HPP
 
+#include "ndb_types.h"
+
 #include "NdbInfoRecAttr.hpp"
 
 class NdbInfoScanOperation {
 public:
+  class Seek {
+  public:
+    enum class Mode { value, first, last, next, previous };
+    Seek(Mode m) : mode(m) {}
+    Mode mode;
+    bool inclusive, low, high;
+  };
+
   virtual int readTuples() = 0;
   virtual const NdbInfoRecAttr* getValue(const char * anAttrName) = 0;
   virtual const NdbInfoRecAttr* getValue(Uint32 anAttrId) = 0;
   virtual int execute() = 0;
   virtual int nextResult() = 0;
+  virtual void initIndex(Uint32) = 0;
+  virtual bool seek(Seek, int value=0) = 0;
   virtual ~NdbInfoScanOperation() {}
 };
 

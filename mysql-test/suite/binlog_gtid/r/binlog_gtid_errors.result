@@ -171,7 +171,7 @@ SET @@SESSION.GTID_NEXT = f();
 ERROR HY000: The statement 'SET gtid_next' cannot invoke a stored function.
 # must be SUPER
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11';
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
 # can read even if non-SUPER
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
@@ -219,7 +219,7 @@ CREATE TABLE t2 (a INT);
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 COMMIT;
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16';
-CREATE TABLE t2 AS SELECT * FROM t1;
+CREATE TABLE t2 ENGINE=MyISAM AS SELECT * FROM t1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 COMMIT;
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17';

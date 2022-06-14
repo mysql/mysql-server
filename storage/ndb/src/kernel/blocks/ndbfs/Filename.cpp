@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,8 @@ Filename::set(Ndbfs* fs,
               const Uint32 filenumber[4], bool dir,
               SegmentedSectionPtr ptr)
 {
+  m_base_path_spec = FsOpenReq::BP_MAX;
+
   char buf[PATH_MAX];
 
   const Uint32 type = FsOpenReq::getSuffix(filenumber);
@@ -70,12 +72,14 @@ Filename::set(Ndbfs* fs,
   size_t sz;
   if (version == 2)
   {
+    m_base_path_spec = FsOpenReq::BP_BACKUP;
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
                               fs->get_base_path(FsOpenReq::BP_BACKUP).c_str());
     m_base_name = theName + fs->get_base_path(FsOpenReq::BP_BACKUP).length();
   }
   else
   {
+    m_base_path_spec = FsOpenReq::BP_FS;
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
                               fs->get_base_path(FsOpenReq::BP_FS).c_str());
     m_base_name = theName + fs->get_base_path(FsOpenReq::BP_FS).length();
@@ -165,11 +169,41 @@ Filename::set(Ndbfs* fs,
     break;
   case 4:
   {
+    const unsigned ptr_sz_bytes = ptr.sz * 4;
+    if (ptr_sz_bytes > PATH_MAX) {
+      ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"",
+                "File name is too long");
+      return;
+    }
+    if (ptr_sz_bytes == 0) {
+      ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"",
+                "File name is empty");
+      return;
+    }
+
     char buf[PATH_MAX];
     copy((Uint32*)&buf[0], ptr);
+
+    const bool nul_terminated = ((buf[ptr_sz_bytes-1] == '\0') ||
+                                 (buf[ptr_sz_bytes-2] == '\0') ||
+                                 (buf[ptr_sz_bytes-3] == '\0') ||
+                                 (buf[ptr_sz_bytes-4] == '\0'));
+    if (!nul_terminated) {
+      ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"",
+                "File name is not NUL-terminated");
+      return;
+    }
+    if(buf[0] == '\0')
+    {
+      ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"",
+                "File name is not given");
+      return;
+    }
+
+    const unsigned theName_sz = sizeof(theName);
     if(buf[0] == DIR_SEPARATOR[0])
     {
-      strncpy(theName, buf, PATH_MAX);
+      BaseString::snprintf(theName, theName_sz, "%s", buf);
       m_base_name = theName;
     }
     else
@@ -182,9 +216,17 @@ Filename::set(Ndbfs* fs,
       }
 #endif
       Uint32 bp = FsOpenReq::v4_getBasePath(filenumber);
-      BaseString::snprintf(theName, sizeof(theName), "%s%s",
-               fs->get_base_path(bp).c_str(), buf);
-      m_base_name = theName + fs->get_base_path(bp).length();
+      m_base_path_spec = bp;
+      const Uint32 base_path_len = fs->get_base_path(bp).length();
+      const size_t concat_sz = BaseString::snprintf(theName, theName_sz, "%s%s",
+                                fs->get_base_path(bp).c_str(), buf);
+      if (concat_sz >= theName_sz) {
+        // File path name is truncated
+        ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"",
+                  "File path name is too long");
+        return;
+      }
+      m_base_name = theName + base_path_len;
     }
     return; // No extension
   }
@@ -200,6 +242,7 @@ Filename::set(Ndbfs* fs,
   case 6:
   {
     Uint32 bp = FsOpenReq::v5_getLcpNo(filenumber);
+    m_base_path_spec = bp;
     sz = BaseString::snprintf(theName, sizeof(theName), "%s",
                               fs->get_base_path(bp).c_str());
     break;

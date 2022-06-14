@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,10 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_string.h"
+#include "sql/sql_const.h"
 
+#include <assert.h>
 #include <algorithm>
+#include <limits>
 
-#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -43,7 +45,7 @@ PSI_memory_key key_memory_String_value;
 
 bool String::real_alloc(size_t length) {
   size_t arg_length = ALIGN_SIZE(length + 1);
-  DBUG_ASSERT(arg_length > length);
+  assert(arg_length > length);
   if (arg_length <= length) return true; /* Overflow */
   m_length = 0;
   if (m_alloced_length < arg_length) {
@@ -94,7 +96,7 @@ bool String::real_alloc(size_t length) {
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
   size_t len = ALIGN_SIZE(alloc_length + 1);
-  DBUG_ASSERT(len > alloc_length);
+  assert(len > alloc_length);
   if (len <= alloc_length) return true; /* Overflow */
 
   if (force_on_heap && !m_is_alloced) {
@@ -176,15 +178,13 @@ bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs) {
 bool String::set_real(double num, uint decimals, const CHARSET_INFO *cs) {
   char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
-  size_t len;
 
-  m_charset = cs;
-  if (decimals >= NOT_FIXED_DEC) {
-    len = my_gcvt(num, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buff)) - 1,
-                  buff, NULL);
+  if (decimals >= DECIMAL_NOT_SPECIFIED) {
+    size_t len =
+        my_gcvt(num, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH, buff, nullptr);
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
-  len = my_fcvt(num, decimals, buff, NULL);
+  size_t len = my_fcvt(num, decimals, buff, nullptr);
   return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
 }
 
@@ -336,7 +336,7 @@ bool String::copy_aligned(const char *str, size_t arg_length, size_t offset,
                           const CHARSET_INFO *cs) {
   /* How many bytes are in incomplete character */
   offset = cs->mbminlen - offset; /* How many zeros we should prepend */
-  DBUG_ASSERT(offset && offset != cs->mbminlen);
+  assert(offset && offset != cs->mbminlen);
 
   size_t aligned_length = arg_length + offset;
   if (alloc(aligned_length)) return true;
@@ -383,7 +383,7 @@ bool String::copy(const char *str, size_t arg_length,
                   uint *errors) {
   size_t offset;
 
-  DBUG_ASSERT(!str || str != m_ptr);
+  assert(!str || str != m_ptr);
 
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset)) {
     *errors = 0;
@@ -423,7 +423,7 @@ bool String::copy(const char *str, size_t arg_length,
 bool String::set_ascii(const char *str, size_t arg_length) {
   if (m_charset->mbminlen == 1) {
     set(str, arg_length, m_charset);
-    return 0;
+    return false;
   }
   uint dummy_errors;
   return copy(str, arg_length, &my_charset_latin1, m_charset, &dummy_errors);
@@ -442,14 +442,10 @@ bool String::fill(size_t max_length, char fill_char) {
   return false;
 }
 
-void String::strip_sp() {
-  while (m_length && my_isspace(m_charset, m_ptr[m_length - 1])) m_length--;
-}
-
 bool String::append(const String &s) {
   if (s.length()) {
-    DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
-    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+    assert(!this->uses_buffer_owned_by(&s));
+    assert(!s.uses_buffer_owned_by(this));
 
     if (mem_realloc_exp((m_length + s.length()))) return true;
     memcpy(m_ptr + m_length, s.ptr(), s.length());
@@ -486,12 +482,6 @@ bool String::append(const char *s, size_t arg_length) {
   return false;
 }
 
-/*
-  Append a 0-terminated ASCII string
-*/
-
-bool String::append(const char *s) { return append(s, (uint)strlen(s)); }
-
 /**
   Append an unsigned longlong to the string.
 */
@@ -524,7 +514,7 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs) {
   if (needs_conversion(arg_length, cs, m_charset, &offset)) {
     size_t add_length;
     if ((cs == &my_charset_bin) && offset) {
-      DBUG_ASSERT(m_charset->mbminlen > offset);
+      assert(m_charset->mbminlen > offset);
       offset = m_charset->mbminlen - offset;  // How many characters to pad
       add_length = arg_length + offset;
       if (mem_realloc_exp(m_length + add_length)) return true;
@@ -547,30 +537,14 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs) {
   return false;
 }
 
-bool String::append(IO_CACHE *file, size_t arg_length) {
-  if (mem_realloc(m_length + arg_length)) return true;
-  if (my_b_read(file, reinterpret_cast<uchar *>(m_ptr) + m_length,
-                arg_length)) {
-    shrink(m_length);
-    return true;
-  }
-  m_length += arg_length;
-  return false;
-}
-
 /**
   Append a parenthesized number to String.
   Used in various pieces of SHOW related code.
 
   @param nr     Number
-  @param radix  Radix, optional parameter, 10 by default.
 */
-bool String::append_parenthesized(long nr, int radix) {
-  char buff[64], *end;
-  buff[0] = '(';
-  end = int10_to_str(nr, buff + 1, radix);
-  *end++ = ')';
-  return append(buff, (uint)(end - buff));
+bool String::append_parenthesized(int64_t nr) {
+  return append('(') || append_longlong(nr) || append(')');
 }
 
 bool String::append_with_prefill(const char *s, size_t arg_length,
@@ -691,10 +665,9 @@ bool String::replace(size_t offset, size_t arg_length, const char *to,
 }
 
 // added by Holyfoot for "geometry" needs
-int String::reserve(size_t space_needed, size_t grow_by) {
+bool String::reserve(size_t space_needed, size_t grow_by) {
   if (m_alloced_length < m_length + space_needed) {
-    if (mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1))
-      return true;
+    return mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1);
   }
   return false;
 }
@@ -706,20 +679,18 @@ void qs_append(const char *str_in, size_t len, String *str) {
 
 void qs_append(double d, size_t len, String *str) {
   char *buff = &((*str)[str->length()]);
-  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
+  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, nullptr);
   str->length(str->length() + written);
 }
 
 void qs_append(int i, String *str) {
-  char *buff = &((*str)[str->length()]);
-  char *end = int10_to_str(i, buff, -10);
-  str->length(str->length() + (int)(end - buff));
+  char *end = longlong10_to_str(i, str->ptr() + str->length(), -10);
+  str->length(end - str->ptr());
 }
 
 void qs_append(uint i, String *str) {
-  char *buff = &((*str)[str->length()]);
-  char *end = int10_to_str(i, buff, 10);
-  str->length(str->length() + (int)(end - buff));
+  char *end = longlong10_to_str(i, str->ptr() + str->length(), 10);
+  str->length(end - str->ptr());
 }
 
 /*
@@ -802,8 +773,8 @@ String *copy_if_not_alloced(String *to, String *from, size_t from_length) {
   if (to->mem_realloc(from_length, true)) return from;  // Actually an error
 
   // from and to should not be overlapping
-  DBUG_ASSERT(!to->uses_buffer_owned_by(from));
-  DBUG_ASSERT(!from->uses_buffer_owned_by(to));
+  assert(!to->uses_buffer_owned_by(from));
+  assert(!from->uses_buffer_owned_by(to));
 
   if ((to->m_length = min(from->m_length, from_length)))
     memcpy(to->m_ptr, from->m_ptr, to->m_length);
@@ -854,8 +825,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
       (to_cs == from_cs) || my_charset_same(from_cs, to_cs)) {
     if (to_length < to_cs->mbminlen || !nchars) {
       *from_end_pos = from;
-      *cannot_convert_error_pos = NULL;
-      *well_formed_error_pos = NULL;
+      *cannot_convert_error_pos = nullptr;
+      *well_formed_error_pos = nullptr;
       return 0;
     }
 
@@ -863,8 +834,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
       res = min(min(nchars, to_length), from_length);
       memmove(to, from, res);
       *from_end_pos = from + res;
-      *well_formed_error_pos = NULL;
-      *cannot_convert_error_pos = NULL;
+      *well_formed_error_pos = nullptr;
+      *cannot_convert_error_pos = nullptr;
     } else {
       int well_formed_error;
       uint from_offset;
@@ -884,15 +855,14 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
           For example:
             INSERT INTO t1 (utf32_column) VALUES (0x110000);
           We'll pad the value to 0x00110000, which is a wrong UTF32 sequence!
-          The valid characters range is limited to 0x00000000..0x0010FFFF.
-
           Make sure we didn't pad to an incorrect character.
+          See my_well_formed_len_utf32().
         */
         if (to_cs->cset->well_formed_len(to_cs, to, to + to_cs->mbminlen, 1,
                                          &well_formed_error) !=
             to_cs->mbminlen) {
           *from_end_pos = *well_formed_error_pos = from;
-          *cannot_convert_error_pos = NULL;
+          *cannot_convert_error_pos = nullptr;
           return 0;
         }
         nchars--;
@@ -960,8 +930,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
     const uchar *from_end = (const uchar *)from + from_length;
     uchar *to_end = (uchar *)to + to_length;
     char *to_start = to;
-    *well_formed_error_pos = NULL;
-    *cannot_convert_error_pos = NULL;
+    *well_formed_error_pos = nullptr;
+    *cannot_convert_error_pos = nullptr;
 
     for (; nchars; nchars--) {
       const char *from_prev = from;
@@ -1081,7 +1051,7 @@ size_t convert_to_printable(char *to, size_t to_len, const char *from,
                             size_t from_len, const CHARSET_INFO *from_cs,
                             size_t nbytes /*= 0*/) {
   /* needs at least 8 bytes for '\xXX...' and zero byte */
-  DBUG_ASSERT(to_len >= 8);
+  assert(to_len >= 8);
 
   char *t = to;
   char *t_end = to + to_len - 1;  // '- 1' is for the '\0' at the end
@@ -1134,9 +1104,10 @@ size_t convert_to_printable(char *to, size_t to_len, const char *from,
 
   @return   number of bytes in the output string
 */
-size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len) {
+size_t bin_to_hex_str(char *to, size_t to_len, const char *from,
+                      size_t from_len) {
   char *out;
-  char *in;
+  const char *in;
   size_t i;
 
   if (to_len < ((from_len * 2) + 1)) return 0;

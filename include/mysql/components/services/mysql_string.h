@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service.h>
 
 #include "my_inttypes.h"
+
+DEFINE_SERVICE_HANDLE(CHARSET_INFO_h);
+
+/**
+  Get the "utf8mb4" CHARSET_INFO.
+*/
+typedef CHARSET_INFO_h (*get_charset_utf8mb4_v1_t)();
+
+/**
+  Find a CHARSET_INFO by name.
+  @param name The character set name, expressed in ASCII, zero terminated.
+*/
+typedef CHARSET_INFO_h (*get_charset_by_name_v1_t)(const char *name);
+
+/**
+  Lookup available character sets.
+  Status: Active.
+*/
+BEGIN_SERVICE_DEFINITION(mysql_charset)
+/** @sa get_charset_utf8mb4_v1_t */
+get_charset_utf8mb4_v1_t get_utf8mb4;
+/** @sa get_charset_by_name_v1_t */
+get_charset_by_name_v1_t get;
+END_SERVICE_DEFINITION(mysql_charset)
 
 /**
   The string functions as a service to the mysql_server component.
@@ -91,6 +115,7 @@ END_SERVICE_DEFINITION(mysql_string_case)
 
 /**
   Service for conversions, string to buffer and buffer to string.
+  Status: Deprecated, use mysql_string_charset_converter instead.
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_converter)
 /**
@@ -131,6 +156,50 @@ DECLARE_BOOL_METHOD(convert_to_buffer,
                     (my_h_string in_string, char *out_buffer, uint64 length,
                      const char *charset_name));
 END_SERVICE_DEFINITION(mysql_string_converter)
+
+/**
+  Converts a character buffer to string of specified charset
+  to a string object.
+  The caller provides the destination string object,
+  which content will be modified.
+
+  @param [in,out] dest_string Destination string.
+  @param src_buffer Source buffer
+  @param src_length Length of the source buffer, in bytes
+  @param src_charset CHARSET is the source buffer
+  @return Conversion status
+  @retval false success
+  @retval true failure
+*/
+typedef mysql_service_status_t (*convert_from_buffer_v2_t)(
+    my_h_string dest_string, const char *src_buffer, uint64 src_length,
+    CHARSET_INFO_h src_charset);
+
+/**
+  Converts the mysql_string to a given character set.
+
+  @param src_string Source string to convert
+  @param [out] dest_buffer Destination buffer
+  @param dest_length Length, in charset characters, of the destination buffer
+  @param dest_charset Destination CHARSET, that is, character set to convert to
+  @return Conversion status
+  @retval false success
+  @retval true failure
+*/
+typedef mysql_service_status_t (*convert_to_buffer_v2_t)(
+    my_h_string src_string, char *dest_buffer, uint64 dest_length,
+    CHARSET_INFO_h dest_charset);
+
+/**
+  Service for conversions, string to buffer and buffer to string.
+  Status: Active.
+*/
+BEGIN_SERVICE_DEFINITION(mysql_string_charset_converter)
+/** @sa convert_from_buffer_v2_t */
+convert_from_buffer_v2_t convert_from_buffer;
+/** @sa convert_to_buffer_v2_t */
+convert_to_buffer_v2_t convert_to_buffer;
+END_SERVICE_DEFINITION(mysql_string_charset_converter)
 
 /**
   Service to get a character in String and number of characters in string
@@ -275,4 +344,63 @@ DECLARE_BOOL_METHOD(is_lower, (my_h_string_iterator iter, bool *out));
 */
 DECLARE_BOOL_METHOD(is_digit, (my_h_string_iterator iter, bool *out));
 END_SERVICE_DEFINITION(mysql_string_ctype)
+
+/* mysql_string_manipulation_v1 service. */
+
+/**
+  Reset a string to the empty string.
+
+  @param [in, out] s The string to reset.
+*/
+typedef mysql_service_status_t (*mysql_string_reset_v1_t)(my_h_string s);
+
+BEGIN_SERVICE_DEFINITION(mysql_string_reset)
+mysql_string_reset_v1_t reset;
+END_SERVICE_DEFINITION(mysql_string_reset)
+
+/**
+  Append a string.
+
+  @param [in, out] s1 The string to append to.
+  @param [in] s2 The string to append.
+*/
+typedef mysql_service_status_t (*mysql_string_append_v1_t)(my_h_string s1,
+                                                           my_h_string s2);
+
+BEGIN_SERVICE_DEFINITION(mysql_string_append)
+mysql_string_append_v1_t append;
+END_SERVICE_DEFINITION(mysql_string_append)
+
+/**
+  Compare two strings.
+
+  @param [in] s1 First string to compare.
+  @param [in] s2 Second string to compare.
+  @param [out] cmp Comparison result (negative, zero, or positive) .
+*/
+typedef mysql_service_status_t (*mysql_string_compare_v1_t)(my_h_string s1,
+                                                            my_h_string s2,
+                                                            int *cmp);
+BEGIN_SERVICE_DEFINITION(mysql_string_compare)
+mysql_string_compare_v1_t compare;
+END_SERVICE_DEFINITION(mysql_string_compare)
+
+/**
+  Access the string raw data.
+  The raw data returned is usable only while the string object
+  is valid.
+
+  @param [in] s String
+  @param [out] buffer_pointer String raw buffer.
+  @param [out] buffer_length String raw buffer size.
+  @param [out] buffer_charset String character set.
+*/
+typedef mysql_service_status_t (*mysql_string_get_data_v1_t)(
+    my_h_string s, const char **buffer_pointer, size_t *buffer_length,
+    CHARSET_INFO_h *buffer_charset);
+
+BEGIN_SERVICE_DEFINITION(mysql_string_get_data_in_charset)
+mysql_string_get_data_v1_t get_data;
+END_SERVICE_DEFINITION(mysql_string_get_data_in_charset)
+
 #endif /* MYSQL_STRING_SERVICE_H */

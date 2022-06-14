@@ -1,6 +1,6 @@
 ###########################################################################################################
 # This test checks the behavior of following functions on GR channels:
-# SELECT MASTER_POS_WAIT()
+# SELECT SOURCE_POS_WAIT()
 # WAIT_FOR_EXECUTED_GTID_SET()
 # WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 #
@@ -11,9 +11,9 @@
 # 3. Check the status of gtids using WAIT_FOR_EXECUTED_GTID_SET on server1.
 # 4. Add a server (server3) to the group using start group_replication command.
 # 5. Wait for recovery channel to be created for a newly added member and call
-#    MASTER_POS_WAIT function to wait for gtid set to reach a stored value and
+#    SOURCE_POS_WAIT function to wait for gtid set to reach a stored value and
 #    data to be synced.
-# 6. Stop gr on server3 and validate some error cases for MASTER_POS_WAIT
+# 6. Stop gr on server3 and validate some error cases for SOURCE_POS_WAIT
 #    function when channels are not present.
 # 7. Create a table t2 on server2 and insert 50 records.
 # 8. Start the group replication on server3.
@@ -83,7 +83,7 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-120',5);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 # Store the master binlog name and position , which will be used later
-# for calling MASTER_POS_WAIT function
+# for calling SOURCE_POS_WAIT function
 --let $m1_saved_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $m1_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -93,7 +93,7 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-120',5);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 # Store the master binlog name and position , which will be used later
-# for calling MASTER_POS_WAIT function
+# for calling SOURCE_POS_WAIT function
 --let $m2_saved_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $m2_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -104,7 +104,7 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-120',5);
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Error while sending message for group replication recovery");
+call mtr.add_suppression("Error while sending message in the group replication incremental recovery process");
 SET SESSION sql_log_bin= 1;
 
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
@@ -127,13 +127,13 @@ if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHE
   --let $m3_saved_pos= $m2_saved_pos
 }
 
-# Use MASTER_POS_WAIT() for a server which is getting added and
+# Use SOURCE_POS_WAIT() for a server which is getting added and
 # wait till it synchs to certain position.
 # Result log has been disabled because, it prints the difference of positions synced.
 # which may not be same across different runs
 --disable_result_log
 --replace_result $m3_saved_pos SAVED_POS
---eval SELECT MASTER_POS_WAIT('$m3_saved_file',$m3_saved_pos, 0,'group_replication_recovery')
+--eval SELECT SOURCE_POS_WAIT('$m3_saved_file',$m3_saved_pos, 0,'group_replication_recovery')
 --enable_result_log
 
 --let $rpl_connection_name= server1
@@ -149,11 +149,11 @@ if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHE
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
 
-# Calling MASTER_POS_WAIT in error cases, It should return NULL for both the calls
+# Calling SOURCE_POS_WAIT in error cases, It should return NULL for both the calls
 --replace_result $m3_saved_pos SAVED_POS
---eval SELECT MASTER_POS_WAIT('$m3_saved_file',$m3_saved_pos, 0,'group_replication_recovery')
+--eval SELECT SOURCE_POS_WAIT('$m3_saved_file',$m3_saved_pos, 0,'group_replication_recovery')
 --replace_result $m3_saved_pos SAVED_POS
---eval SELECT MASTER_POS_WAIT('$m3_saved_file',$m3_saved_pos, 2,'group_replication_applier')
+--eval SELECT SOURCE_POS_WAIT('$m3_saved_file',$m3_saved_pos, 2,'group_replication_applier')
 
 # Connect to server2 and create table and perform insert
 --echo

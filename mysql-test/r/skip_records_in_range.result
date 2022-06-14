@@ -438,7 +438,7 @@ FROM t1 FORCE INDEX(t1_a1_a2_idx) JOIN t2 ON (t1.pk_col1 = t2.pk_col2)
 WHERE t1.a1 > 'a''
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	t1_a1_a2_idx	t1_a1_a2_idx	257	NULL	3	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	index	NULL	t2_a1_a2_idx	514	NULL	6	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	NULL	t2_a1_a2_idx	514	NULL	6	100.00	Using where; Using index; Using join buffer (hash join)
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT t2.a1, t2.a2
 FROM t1 FORCE INDEX(t1_a1_a2_idx) JOIN t2 ON (t1.pk_col1 = t2.pk_col2)
 WHERE t1.a1 > 'a''
@@ -494,7 +494,7 @@ EXPLAIN
           "filtered": "100.00",
           "using_where": true,
           "using_index": true,
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "1.80",
@@ -523,7 +523,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	index	v3	v3	5	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`v3` AS `v3` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`v3` AS `v3` from `test`.`v1`
 select * from v1;
 v3
 DROP VIEW v1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
  */
 class BitmaskImpl {
 public:
-  STATIC_CONST( NotFound = (unsigned)-1 );
+  static constexpr Uint32 NotFound = (unsigned)-1;
 
   /**
    * get - Check if bit n is set.
@@ -72,7 +72,7 @@ public:
                        unsigned len);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(unsigned size, Uint32 dst[], const Uint32 src[]);
 
@@ -94,6 +94,11 @@ public:
    * than checking count() == 0.
    */
   static bool isclear(unsigned size, const Uint32 data[]);
+
+  /**
+   * is_set -  Check if all bits are set.
+   */
+  static bool is_set(unsigned size, const Uint32 data[]);
 
   /**
    * count - Count number of set bits.
@@ -253,7 +258,7 @@ private:
 };
 
 inline bool
-BitmaskImpl::get(unsigned size ATTRIBUTE_UNUSED, const Uint32 data[],
+BitmaskImpl::get(unsigned size [[maybe_unused]], const Uint32 data[],
                  unsigned n)
 {
   assert(n < (size << 5));
@@ -277,7 +282,7 @@ BitmaskImpl::set(unsigned size, Uint32 data[], unsigned n, bool value)
 }
 
 inline void
-BitmaskImpl::set(unsigned size ATTRIBUTE_UNUSED, Uint32 data[],
+BitmaskImpl::set(unsigned size [[maybe_unused]], Uint32 data[],
                  unsigned n)
 {
   assert(n < (size << 5));
@@ -293,7 +298,7 @@ BitmaskImpl::set(unsigned size, Uint32 data[])
 }
 
 inline void
-BitmaskImpl::setRange(unsigned size ATTRIBUTE_UNUSED, Uint32 data[],
+BitmaskImpl::setRange(unsigned size [[maybe_unused]], Uint32 data[],
                       unsigned start, unsigned len)
 {
   if (len == 0)
@@ -335,7 +340,7 @@ BitmaskImpl::assign(unsigned size, Uint32 dst[], const Uint32 src[])
 }
 
 inline void
-BitmaskImpl::clear(unsigned size ATTRIBUTE_UNUSED,
+BitmaskImpl::clear(unsigned size [[maybe_unused]],
                    Uint32 data[], unsigned n)
 {
   assert(n < (size << 5));
@@ -352,14 +357,14 @@ BitmaskImpl::clear(unsigned size, Uint32 data[])
 
 inline
 Uint32
-BitmaskImpl::getWord(unsigned size ATTRIBUTE_UNUSED, const Uint32 data[],
+BitmaskImpl::getWord(unsigned size [[maybe_unused]], const Uint32 data[],
                      unsigned word_pos)
 {
   return data[word_pos];
 }
 
 inline void
-BitmaskImpl::setWord(unsigned size ATTRIBUTE_UNUSED, Uint32 data[],
+BitmaskImpl::setWord(unsigned size [[maybe_unused]], Uint32 data[],
                      unsigned word_pos, Uint32 new_word)
 {
   data[word_pos] = new_word;
@@ -371,6 +376,16 @@ BitmaskImpl::isclear(unsigned size, const Uint32 data[])
 {
   for (unsigned i = 0; i < size; i++) {
     if (data[i] != 0)
+      return false;
+  }
+  return true;
+}
+
+inline bool
+BitmaskImpl::is_set(unsigned size, const Uint32 data[])
+{
+  for (unsigned i = 0; i < size; i++) {
+    if (~data[i] != 0)
       return false;
   }
   return true;
@@ -622,7 +637,7 @@ BitmaskImpl::find_next(unsigned size, const Uint32 data[], unsigned n)
 }
 
 inline unsigned
-BitmaskImpl::find_prev(unsigned size ATTRIBUTE_UNUSED,
+BitmaskImpl::find_prev(unsigned size [[maybe_unused]],
                        const Uint32 data[], unsigned n)
 {
   if (n >= (Uint32) 0xffffffff /* -1 */) // allow one bit outside array for easier use
@@ -781,7 +796,7 @@ BitmaskImpl::count_bits(Uint32 x)
 
 inline
 Uint32
-BitmaskImpl::toArray(Uint8* dst, Uint32 len ATTRIBUTE_UNUSED,
+BitmaskImpl::toArray(Uint8* dst, Uint32 len [[maybe_unused]],
                      unsigned size, const Uint32 * data)
 {
   assert(len >= size * 32);
@@ -828,21 +843,51 @@ public:
   
   Data rep;
 public:
-  STATIC_CONST( Size = size );
-  STATIC_CONST( NotFound = BitmaskImpl::NotFound );
-  STATIC_CONST( TextLength = size * 8 );
+  static constexpr Uint32 Size = size;
+  static constexpr Uint32 NotFound = BitmaskImpl::NotFound;
+  static constexpr Uint32 TextLength = size * 8;
+
+  /**
+   * Return the length- number of words required to store the bitmask.
+   * i.e the index of last non-zero word plus one.
+   */
+  Uint32 getPackedLengthInWords() const
+  {
+    Uint32 packed_length = 0;
+    for (Uint32 i = 0; i < size; i++)
+    {
+      if (rep.data[i] != 0)
+      {
+        packed_length = i + 1;
+      }
+    }
+    return packed_length;
+  }
+
+  static Uint32 getPackedLengthInWords(const Uint32 bitmaskarray[])
+  {
+    Uint32 packed_length = 0;
+    for (Uint32 i = 0; i < size; i++)
+    {
+      if (bitmaskarray[i] != 0)
+      {
+        packed_length = i + 1;
+      }
+    }
+    return packed_length;
+  }
 
   Uint32 getSizeInWords() const { return Size;}
 
   unsigned max_size() const { return (size * 32) - 1; }
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   void assign(const typename BitmaskPOD<size>::Data & src);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
   static void assign(Uint32 dst[], const BitmaskPOD<size> & src);
@@ -852,9 +897,9 @@ public:
    * copy this to <em>dst</em>
    */
   void copyto(unsigned sz, Uint32 dst[]) const;
-  
+
   /**
-   * assign <em>this</em> according to <em>src/em>
+   * assign <em>this</em> according to <em>src</em>
    */
   void assign(unsigned sz, const Uint32 src[]);
 
@@ -922,6 +967,12 @@ public:
    */
   static bool isclear(const Uint32 data[]);
   bool isclear() const;
+
+  /**
+   * is_set -  Check if all bits are set.
+   */
+  static bool is_set(const Uint32 data[]);
+  bool is_set() const;
 
   /**
    * count - Count number of set bits.
@@ -1209,6 +1260,20 @@ inline bool
 BitmaskPOD<size>::isclear() const
 {
   return BitmaskPOD<size>::isclear(rep.data);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::is_set(const Uint32 data[])
+{
+  return BitmaskImpl::is_set(size, data);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::is_set() const
+{
+  return BitmaskPOD<size>::is_set(rep.data);
 }
 
 template <unsigned size>
@@ -1503,7 +1568,7 @@ public:
 };
 
 inline void
-BitmaskImpl::getField(unsigned size ATTRIBUTE_UNUSED, const Uint32 src[],
+BitmaskImpl::getField(unsigned size [[maybe_unused]], const Uint32 src[],
 		      unsigned pos, unsigned len, Uint32 dst[])
 {
   assert(pos + len <= (size << 5));
@@ -1525,7 +1590,7 @@ BitmaskImpl::getField(unsigned size ATTRIBUTE_UNUSED, const Uint32 src[],
 }
 
 inline void
-BitmaskImpl::setField(unsigned size ATTRIBUTE_UNUSED, Uint32 dst[],
+BitmaskImpl::setField(unsigned size [[maybe_unused]], Uint32 dst[],
 		      unsigned pos, unsigned len, const Uint32 src[])
 {
   assert(pos + len <= (size << 5));

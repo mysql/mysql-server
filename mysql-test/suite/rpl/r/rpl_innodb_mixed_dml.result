@@ -331,7 +331,7 @@ DELETE FROM t2;
 ******************** DESCRIBE ********************
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 b	char(254)	YES		NULL	
 DESCRIBE t2 b;
 Field	Type	Null	Key	Default	Extra

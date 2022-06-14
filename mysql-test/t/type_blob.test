@@ -50,6 +50,7 @@ insert into t1 values (null,"a","A");
 insert into t1 values (null,"bbb","BBB");
 insert into t1 values (null,"ccc","CCC");
 select last_insert_id();
+--sorted_result
 select * from t1,t1 as t2;
 
 drop table t1;
@@ -101,24 +102,33 @@ select t from t1 order by t;
 select c from t1 order by c;
 select b from t1 order by b;
 select d from t1 order by d;
+--sorted_result
 select distinct t from t1;
+--sorted_result
 select distinct b from t1;
 select distinct t from t1 order by t;
 select distinct b from t1 order by b;
+--sorted_result
 select t from t1 group by t;
+--sorted_result
 select b from t1 group by b;
 set big_tables=1;
+--sorted_result
 select distinct t from t1;
+--sorted_result
 select distinct b from t1;
 select distinct t from t1 order by t;
 select distinct b from t1 order by b;
+--sorted_result
 select distinct c from t1;
+--sorted_result
 select distinct d from t1;
 select distinct c from t1 order by c;
 select distinct d from t1 order by d;
 select c from t1 group by c;
 select d from t1 group by d;
 set big_tables=0;
+--sorted_result
 select distinct * from t1;
 --sorted_result
 select t,count(*) from t1 group by t;
@@ -530,7 +540,7 @@ CREATE TABLE b15776 (a year(0));
 CREATE TABLE b15776 (a year(-2));
 
 
-# We've already tested the case, but this should visually show that 
+# We have already tested the case, but this should visually show that 
 # widths that are too large to be interpreted cause DISPLAYWIDTH errors.
 --error ER_TOO_BIG_DISPLAYWIDTH
 CREATE TABLE b15776 (a int(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
@@ -540,17 +550,19 @@ CREATE TABLE b15776 (a char(9999999999999999999999999999999999999999999999999999
 CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 
 ## Do not select, too much memory needed.
+--error ER_DATA_OUT_OF_RANGE
 CREATE TABLE b15776 select cast(null as char(4294967295));
-show columns from b15776;
-drop table b15776;
+
+--error ER_DATA_OUT_OF_RANGE
 CREATE TABLE b15776 select cast(null as nchar(4294967295));
-show columns from b15776;
-drop table b15776;
+
 CREATE TABLE b15776 select cast(null as binary(4294967295));
 show columns from b15776;
 drop table b15776;
 
+--error ER_DATA_OUT_OF_RANGE
 explain select cast(1 as char(4294967295));
+--error ER_DATA_OUT_OF_RANGE
 explain select cast(1 as nchar(4294967295));
 explain select cast(1 as binary(4294967295));
 
@@ -576,11 +588,13 @@ explain select cast(1 as decimal(4294967296));
 --error ER_TOO_BIG_PRECISION,ER_PARSE_ERROR
 explain select cast(1 as decimal(999999999999999999999999999999999999));
 
+--error ER_DATA_OUT_OF_RANGE
 explain select convert(1, char(4294967295));
 --error ER_TOO_BIG_DISPLAYWIDTH
 explain select convert(1, char(4294967296));
 --error ER_TOO_BIG_DISPLAYWIDTH
 explain select convert(1, char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+--error ER_DATA_OUT_OF_RANGE
 explain select convert(1, nchar(4294967295));
 --error ER_TOO_BIG_DISPLAYWIDTH
 explain select convert(1, nchar(4294967296));
@@ -836,3 +850,18 @@ SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
 SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
 DROP TABLE t1,t2;
 set sql_mode=default;
+
+--echo #
+--echo # Bug#30308063 UBSAN: NULL POINTER PASSED AS ARGUMENT 2,
+--echo #              WHICH IS DECLARED TO NEVER BE NULL
+--echo #
+
+CREATE TABLE t1 (c1 INTEGER PRIMARY KEY, c2 TEXT, c3 INTEGER);
+
+INSERT INTO t1(c1) VALUES(0);
+
+INSERT INTO t1(c1) VALUES(0) ON DUPLICATE KEY
+UPDATE c2 = VALUES(c2), c3 = NULL;
+
+SELECT * FROM t1;
+DROP TABLE t1;

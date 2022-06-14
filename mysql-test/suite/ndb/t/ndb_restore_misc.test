@@ -2,7 +2,7 @@
 # Test various issues ndb_restore had at some time
 ######################################################################
 
--- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
 #
@@ -174,6 +174,14 @@ let $show_varpart_table=t3_c;
 source show_varpart.inc;
 let $show_varpart_table=t2_c;
 source show_varpart.inc;
+
+# Turn off metadata check so it doesn't intefere with table discovery
+--connection server2
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+--connection server1
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 
 --source include/ndb_backup.inc
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
@@ -429,9 +437,19 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
 
 # ndb_restore should now fail, table t2_c already exists
---replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+--disable_query_log
+CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 1
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
+--remove_file $dump_file
+--enable_query_log
+select output_line from ndb_restore_output where output_line like '%t2_c%' order by output_line;
+--disable_query_log
+DROP TABLE ndb_restore_output;
+--enable_query_log
 
 CREATE TABLE t11_c (
   c1 int primary key, c2 char(10), c3 varchar(10)
@@ -462,9 +480,7 @@ drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
 # Test BUG#10287
 #
 
---disable_query_log
 source include/ndb_backup_id.inc;
---enable_query_log
 
 # End of 5.0 tests (4.1 test intermixed to save test time)
 
@@ -473,13 +489,13 @@ source include/ndb_backup_id.inc;
 #
 
 # ensure correct restore of epoch numbers in old versions
---exec $NDB_RESTORE --core-file=0 -e -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
---exec $NDB_RESTORE --core-file=0 -e -b 1 -n 1 $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 1 $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
 # ensure correct restore of epoch numbers in current version
 # number hould be "big"
---exec $NDB_RESTORE --core-file=0 -e -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 # should evaluate to true == 1
 select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 
@@ -526,45 +542,34 @@ drop table t1;
 create table t1 (a int, b int, c int not null, 
 primary key (a) using hash, unique(c) using hash)
 engine = ndb;
+# Save table id of t1
+let $t1_id =
+  `SELECT id FROM ndbinfo.dict_obj_info WHERE fq_name = 'test/def/t1'`;
 insert into t1 values (1,1,1), (2,2,2), (3,3,3);
 --source include/ndb_backup.inc
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --disable-indexes --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select * from t1 order by 1;
 drop table t1;
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
---source ndb_show_tables_result.inc
-# the db fields include single quotes...
---disable_warnings
-select id into @tmp1 from ndb_show_tables_results
-where name like '%ndb_index_stat_sample_x1%';
---enable_warnings
-select * from ndb_show_tables_results
-where type like '%Index%'
-and _database = 'test'
-and name not like '%ndb_index_stat_sample_x1%'
-and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
-order by 1,2,3,4,5,6,7;
-drop table ndb_show_tables_results;
+# Check that all objects related to t1 was dropped
+if (`SELECT COUNT(*) FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id`)
+{
+  echo Detected failure to drop all objects related to t1;
+  echo t1_id: $t1_id;
+  SELECT * FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id;
+  die Failed to drop all objects for t1;
+}
 
 #
 # Bug#51432
 #
---exec $NDB_RESTORE --core-file=0 -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#56285
 #
 create table t1 (a int primary key) engine = ndb;
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
 drop table t1;
 
 #
@@ -599,9 +604,6 @@ drop table t1;
 
 # Build the standard command used for running "ndb_mgm"
 let $mgm_cmd = $NDB_MGM;
-let $mgm_cmd = $mgm_cmd --no-defaults;
-let $mgm_cmd = $mgm_cmd --ndb-connectstring="$NDB_CONNECTSTRING";
-let $mgm_cmd = $mgm_cmd --verbose=0;
 
 --echo # Trying to start another backup as wait started with same id should return error
 --error 255
@@ -631,44 +633,44 @@ truncate t2;
 drop table t3;
 --echo #without 'exclude-missing-tables' should fail
 --error 1
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --error 1
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --echo #calling 'exclude-missing-tables' with 'restore-meta' should fail
 --error 1
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --echo #with 'exclude-missing-tables'
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select count(*) from t1;
 select count(*) from t2;
 --echo #with exclusive include, exclude tables arguments
 --echo #exclude non missing table
 truncate t1;
 truncate t2;
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select count(*) from t1;
 select count(*) from t2;
 --echo #exclude missing table
 truncate t1;
 truncate t2;
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select count(*) from t1;
 select count(*) from t2;
 --echo #include non missing table
 truncate t1;
 truncate t2;
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select count(*) from t1;
 select count(*) from t2;
 --echo #include missing table
 truncate t1;
 truncate t2;
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select count(*) from t1;
 select count(*) from t2;
 --echo #clearup
@@ -679,15 +681,41 @@ create table t1(id int primary key, val int unique) engine=ndb;
 --source include/ndb_backup.inc
 drop table t1;
 delete from mysql.ndb_apply_status;
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 --restore-epoch $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 --restore-epoch $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(1) from mysql.ndb_apply_status where server_id=0;
 drop table t1;
---replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+
+--disable_query_log
+CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 2
---exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
+--remove_file $dump_file
+--enable_query_log
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+--disable_query_log
+
 --error 2
---exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
+UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
+--remove_file $dump_file
+--enable_query_log
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+--disable_query_log
+
+DROP TABLE ndb_restore_output;
+--enable_query_log
+
+# Reset metadata check value
+--connection server2
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+--connection server1
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

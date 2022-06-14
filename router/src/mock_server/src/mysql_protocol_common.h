@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,21 +27,7 @@
 
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-// TODO after migration to Server repo: delete mysqlrouter/ after moving stuff 1
-// level up
-#include "mysqlrouter/mysql_protocol.h"
-#include "socket_operations.h"
-
 namespace server_mock {
-
-using byte = uint8_t;
-using mysql_harness::socket_t;
 
 /** @enum MySQLColumnType
  *
@@ -66,7 +52,9 @@ enum class MySQLColumnType {
   NEWDATE = 0x0e,
   VARCHAR = 0x0f,
   BIT = 0x10,
-  NEWDECIMAL = 0xf7,
+  TIMESTAMP2 = 0x11,
+  JSON = 0xf5,
+  NEWDECIMAL = 0xf6,
   ENUM = 0xf7,
   SET = 0xf8,
   TINY_BLOB = 0xf9,
@@ -77,34 +65,6 @@ enum class MySQLColumnType {
   STRING = 0xfe,
   GEOMETRY = 0xff
 };
-
-/** @brief Struct for keeping column specific data
- *
- **/
-struct column_info_type {
-  std::string name;
-  MySQLColumnType type;
-  std::string orig_name;
-  std::string table;
-  std::string orig_table;
-  std::string schema;
-  std::string catalog;
-  uint16_t flags;
-  uint8_t decimals;
-  uint32_t length;
-  uint16_t character_set;
-
-  unsigned repeat;
-};
-
-/** @brief Vector for keeping has_value|string representation of the values
- *         of the single row (ordered by column)
- **/
-using RowValueType = std::vector<std::pair<bool, std::string>>;
-
-MySQLColumnType column_type_from_string(const std::string &type);
-
-void non_blocking(socket_t handle_, bool mode) noexcept;
 
 }  // namespace server_mock
 

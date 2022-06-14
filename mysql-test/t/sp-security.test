@@ -1030,7 +1030,7 @@ CREATE DATABASE mysqltest_db;
 CREATE PROCEDURE mysqltest_db.p1(IN f1 INT) SELECT 1;
 
 let $select_routines=
-SELECT routine_schema, routine_name, routine_type
+SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
 let $select_parameters=
 SELECT specific_schema, specific_name, parameter_name
@@ -1110,6 +1110,421 @@ CREATE DEFINER=r1 PROCEDURE p1() SELECT current_user();
 CALL p1();
 DROP PROCEDURE p1;
 DROP ROLE r1;
+
+
+--echo
+--echo #############################################################
+--echo #  WL#9049 Add a dynamic privilege for stored routine backup.
+--echo #
+--echo #    Test Cases to verify that user with SHOW_ROUTINE can
+--echo #    view all the SP/SF code and maintain behaviour of
+--echo #    statements for user with global SELECT privilege
+--echo #    and for user who is the routine DEFINER.
+--echo #
+--echo #############################################################
+--echo
+
+--enable_connect_log
+
+CREATE SCHEMA testdb;
+
+--echo
+--echo # Create users.
+--echo
+CREATE USER usr_no_priv@localhost, usr_show_routine@localhost, usr_global_select@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+
+--echo
+--echo # Create and grant role.
+--echo
+CREATE ROLE role_show_routine;
+GRANT role_show_routine to usr_role@localhost;
+
+--echo
+--echo # Grant privileges.
+--echo
+GRANT SHOW_ROUTINE ON *.* TO usr_show_routine@localhost, role_show_routine;
+GRANT SELECT ON *.* TO usr_global_select@localhost;
+GRANT EXECUTE ON *.* TO usr_execute@localhost;
+GRANT CREATE ROUTINE ON *.* TO usr_create_routine@localhost;
+GRANT ALTER ROUTINE ON *.* TO usr_alter_routine@localhost;
+
+--echo
+--echo # Create routines whose definer is root@localhost.
+--echo
+CREATE PROCEDURE testdb.proc_root() SELECT "ProcRoot";
+CREATE FUNCTION testdb.func_root() RETURNS VARCHAR(8) DETERMINISTIC RETURN "FuncRoot";
+
+--echo
+--echo # Create routines whose definer is usr_definer@localhost.
+--echo
+CREATE DEFINER = `usr_definer`@`localhost` PROCEDURE testdb.proc_definer() SELECT "ProcDefiner";
+CREATE DEFINER = `usr_definer`@`localhost` FUNCTION testdb.func_definer() RETURNS VARCHAR(11) DETERMINISTIC RETURN "FuncDefiner";
+
+--echo
+--echo # Connect as user with no privileges.
+--echo
+--connect (conn1, localhost, usr_no_priv,,)
+
+--echo
+--echo # Should not return any rows.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should pretend that routine does not exist.
+--echo
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_definer;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should not return any rows.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user with SHOW_ROUTINE privilege.
+--echo
+--connect (conn1, localhost, usr_show_routine,,)
+
+--echo
+--echo # Should show the routine_definition of all 4 routines.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should show the Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_root;
+SHOW CREATE PROCEDURE testdb.proc_definer;
+
+--echo
+--echo # Should show the Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_root;
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should show properties of proc_root and proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_root and func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user with role assigned.
+--echo
+--connect (conn1, localhost, usr_role,,)
+
+--echo
+--echo # Without activating role.
+--echo
+
+--echo
+--echo # Should not return any rows.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should pretend that routine does not exist.
+--echo
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_definer;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should not return any rows.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--echo
+--echo # Activate role.
+--echo
+SET ROLE role_show_routine;
+
+--echo
+--echo # Should show the routine_definition of all 4 routines.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should show the Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_root;
+SHOW CREATE PROCEDURE testdb.proc_definer;
+
+--echo
+--echo # Should show the Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_root;
+SHOW CREATE FUNCTION testdb.func_definer;
+
+
+--echo
+--echo # Should show properties of proc_root and proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_root and func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user with global SELECT privilege.
+--echo
+--connect (conn1, localhost, usr_global_select,,)
+
+--echo
+--echo # Should show the Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_root;
+SHOW CREATE PROCEDURE testdb.proc_definer;
+
+--echo
+--echo # Should show the Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_root;
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should show properties of proc_root and proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_root and func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user who is DEFINER of routines proc_definer and func_definer.
+--echo
+--connect (conn1, localhost, usr_definer,,)
+
+--echo
+--echo # Should show the routine_definition of only proc_definer and func_definer.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should pretend that proc_root and func_root do not exist.
+--echo
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_root;
+
+--echo
+--echo # Should show the Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_definer;
+--echo
+--echo # Should show the Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo # Should show properties of proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user who has EXECUTE privilege.
+--echo
+--connect (conn1, localhost, usr_execute,,)
+
+--echo
+--echo # Should show NULL routine_definition for all 4 routines.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should show NULL Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_root;
+SHOW CREATE PROCEDURE testdb.proc_definer;
+
+--echo
+--echo # Should show NULL Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_root;
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should show properties of proc_root and proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_root and func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user who has CREATE ROUTINE privilege.
+--echo
+--connect (conn1, localhost, usr_create_routine,,)
+
+--echo
+--echo # Should show NULL routine_definition for all 4 routines.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should show NULL Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_root;
+SHOW CREATE PROCEDURE testdb.proc_definer;
+
+--echo
+--echo # Should show NULL Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_root;
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should show properties of proc_root and proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_root and func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Connect as user who has ALTER ROUTINE privilege.
+--echo
+--connect (conn1, localhost, usr_alter_routine,,)
+
+--echo
+--echo # Should show NULL routine_definition for all 4 routines.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should show NULL Create Procedure string.
+--echo
+SHOW CREATE PROCEDURE testdb.proc_root;
+SHOW CREATE PROCEDURE testdb.proc_definer;
+
+--echo
+--echo # Should show NULL Create Function string.
+--echo
+SHOW CREATE FUNCTION testdb.func_root;
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should show properties of proc_root and proc_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--echo
+--echo # Should show properties of func_root and func_definer.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Test showing properties after partial revoke of SELECT privilege.
+--echo
+--connection default
+
+--echo
+--echo # Set partial revokes to ON and save the current value.
+--echo
+SET @start_partial_revokes = @@global.partial_revokes;
+SET @@global.partial_revokes=ON;
+
+REVOKE SELECT ON testdb.* FROM usr_global_select@localhost;
+--connect (conn1, localhost, usr_global_select,,)
+
+--echo
+--echo # Should not return any rows.
+--echo
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
+
+--echo
+--echo # Should pretend that routine does not exist.
+--echo
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE testdb.proc_definer;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_root;
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE FUNCTION testdb.func_definer;
+
+--echo
+--echo # Should not return any rows.
+--echo
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS WHERE db="testdb";
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW FUNCTION STATUS WHERE db="testdb";
+
+--disconnect conn1
+
+--echo
+--echo # Restore partial_revokes to its previous value.
+--echo
+--connection default
+DROP USER usr_global_select@localhost;
+SET @@global.partial_revokes = @start_partial_revokes;
+
+--echo
+--echo # Cleanup.
+--echo
+DROP USER usr_no_priv@localhost, usr_show_routine@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+DROP ROLE role_show_routine;
+DROP SCHEMA testdb;
 
 # Restore mysql.db to its original state
 delete from mysql.db;

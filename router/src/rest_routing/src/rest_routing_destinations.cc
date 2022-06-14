@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,6 @@
 #include <ctime>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -74,11 +72,11 @@ bool RestRoutingDestinations::on_handle_request(
       rapidjson::Value el;
 
       el.SetObject()
-          .AddMember(
-              "address",
-              rapidjson::Value(dst.addr.data(), dst.addr.size(), allocator),
-              allocator)
-          .AddMember("port", dst.port, allocator);
+          .AddMember("address",
+                     rapidjson::Value(dst.address().data(),
+                                      dst.address().size(), allocator),
+                     allocator)
+          .AddMember("port", dst.port(), allocator);
       destinations.PushBack(el, allocator);
     }
 

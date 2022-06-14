@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,27 +40,6 @@ bool matches_glob(const std::string &word, const std::string &pattern) {
 }
 
 void sleep_seconds(unsigned int seconds) { Sleep(1000 * seconds); }
-
-std::string get_message_error(int errcode) {
-  if (errcode == SOCKET_ERROR || errcode == 0) {
-    errcode = WSAGetLastError();
-  }
-
-  LPTSTR lpMsgBuf;
-
-  if (0 != FormatMessage(
-               FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                   FORMAT_MESSAGE_IGNORE_INSERTS,
-               NULL, errcode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-               (LPTSTR)&lpMsgBuf, 0, NULL)) {
-    std::string msgerr = "SystemError: ";
-    msgerr += lpMsgBuf;
-    LocalFree(lpMsgBuf);
-    return msgerr;
-  } else {
-    return "SystemError: " + std::to_string(errcode);
-  }
-}
 
 bool regex_pattern_matches(const std::string &s, const std::string &pattern) {
   std::regex regex(pattern, std::regex::extended);

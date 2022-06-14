@@ -78,7 +78,7 @@ explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
 where STATEMENT_ID = @stmt_id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	prepared_statements_instances	NULL	ref	STATEMENT_ID	STATEMENT_ID	8	const	#	100.00	Using where
+1	SIMPLE	prepared_statements_instances	NULL	ref	STATEMENT_ID	STATEMENT_ID	8	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select SUM_ERRORS
@@ -150,7 +150,7 @@ explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
 where OWNER_THREAD_ID = @o_tid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	100.00	Using where
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances

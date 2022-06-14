@@ -1,0 +1,6 @@
+!include suite/ndb_ddl/my.cnf
+
+[mysqld]
+# Simulate an upgrade from 7.6 and atleast one data node is running 7.6
+# and force mysqld to create old version of ndb_schema table
+debug=+d,ndb_simulate_upgrade_from_non_dd_version,ndb_schema_skip_create_schema_op_id

@@ -521,7 +521,7 @@ DROP TABLE t1,t2,t2c,t2i;
 SET GLOBAL innodb_monitor_enable = module_ddl;
 let $innodb_metrics_select=
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count_reset > 0;
+subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 
 # Table with Blob data.
 create table t1(f1 int not null, f2 blob)engine=innodb;

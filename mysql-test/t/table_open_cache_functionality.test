@@ -127,7 +127,7 @@ SELECT COUNT(@@GLOBAL.table_open_cache);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT table_open_cache = @@SESSION.table_open_cache;
+SELECT table_open_cache;
 --echo Expected error 'Unknown column table_open_cache in field list'
 
 
@@ -319,3 +319,6 @@ DROP TABLE IF EXISTS tab2;
 DROP TABLE IF EXISTS tab3;
 set @@GLOBAL.table_open_cache=DEFAULT;
 
+# Restore default settings in opt file
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

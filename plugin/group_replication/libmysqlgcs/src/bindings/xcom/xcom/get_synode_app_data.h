@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,7 @@
 #ifndef GET_SYNODE_APP_DATA_H
 #define GET_SYNODE_APP_DATA_H
 
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"  // synode_no_array, synode_app_data_array
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xdr_gen/xcom_vp.h"
 
 /*
  Error code for the xcom_get_synode_app_data command.
@@ -56,9 +52,5 @@ typedef enum {
  */
 xcom_get_synode_app_data_result xcom_get_synode_app_data(
     synode_no_array const *const synodes, synode_app_data_array *const reply);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* GET_SYNODE_APP_DATA_H */

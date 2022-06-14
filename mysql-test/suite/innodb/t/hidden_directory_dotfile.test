@@ -1,0 +1,80 @@
+--echo #
+--echo # Show the limitations of using a 'dotfile' hidden directory
+--echo #
+
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+SET default_storage_engine=InnoDB;
+
+CREATE TABLE t1 (a INT);
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+--echo # Shutdown and make the another directory that is HIDDEN.
+--source include/shutdown_mysqld.inc
+--mkdir $MYSQL_TMP_DIR/.other_dir
+--mkdir $MYSQL_TMP_DIR/.other_dir/test
+
+--echo # Copy ibdata1, test/t1.ibd and ts1.ibd to the hidden directory.
+--copy_file $MYSQLD_DATADIR/ibdata1 $MYSQL_TMP_DIR/.other_dir/ibdata1
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQL_TMP_DIR/.other_dir/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/ts1.ibd $MYSQL_TMP_DIR/.other_dir/ts1.ibd
+
+--echo # Restart with the --innodb-directories=MYSQL_TMP_DIR
+--echo #   The tablespaces in the hidden directory will not be scanned.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW VARIABLES LIKE 'innodb_directories';
+
+--echo # Show that tablespaces can be built in a HIDDEN directory.
+--echo # NOTE: This means that a tablespace can be created in a location that cannot be recovered. !!!
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t2 (a INT) DATA DIRECTORY='$MYSQL_TMP_DIR/.other_dir';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/.other_dir/ts2.ibd';
+
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo # Shutdown again.
+--source include/shutdown_mysqld.inc
+
+--echo # Make a copy of the new tablespaces in the datadir
+--copy_file $MYSQL_TMP_DIR/.other_dir/test/t2.ibd $MYSQLD_DATADIR/test/t2.ibd
+--copy_file $MYSQL_TMP_DIR/.other_dir/ts2.ibd $MYSQLD_DATADIR/ts2.ibd
+
+--echo # Restart again.
+--echo #   The tablespaces in the hidden directory will not be scanned and the
+--echo #   tablespaces originally created in the hidden directory will be marked
+--echo #   as MOVED to the datadir.
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
+
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # Validate the message that should have been put into the error log.
+--echo #
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=Directory '.*' will not be scanned because it is a hidden directory;
+--source include/search_pattern.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+--remove_file $MYSQL_TMP_DIR/.other_dir/ibdata1
+--remove_file $MYSQL_TMP_DIR/.other_dir/test/t1.ibd
+--remove_file $MYSQL_TMP_DIR/.other_dir/test/t2.ibd
+--remove_file $MYSQL_TMP_DIR/.other_dir/ts1.ibd
+--remove_file $MYSQL_TMP_DIR/.other_dir/ts2.ibd
+--rmdir $MYSQL_TMP_DIR/.other_dir/test
+--rmdir $MYSQL_TMP_DIR/.other_dir
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+

@@ -68,6 +68,7 @@ SET GTID_NEXT= "AUTOMATIC";
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -82,13 +83,19 @@ SET SESSION sql_log_bin= 1;
 --connection server3
 
 SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 'lost_test_table'*");
 call mtr.add_suppression("Slave: Table 'lost_test_table' already exists Error_code:*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker .* failed executing transaction .*; Error 'Table 'lost_test_table' already exists' on query.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped.*");
-call mtr.add_suppression("Error while starting the group replication recovery receiver/applier threads");
+call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: Access denied for user 'recovery_user'.*");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
 call mtr.add_suppression("Slave I/O thread couldn't register on master");
@@ -99,7 +106,7 @@ SET SESSION sql_log_bin= 1;
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$recovery_user', SOURCE_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
 
 SET GLOBAL group_replication_recovery_reconnect_interval= 1; # 1 second
@@ -127,6 +134,7 @@ SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -153,6 +161,10 @@ DROP TABLE t1;
 DROP TABLE lost_test_table;
 
 RESET MASTER;
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
 
 --connection server2
 

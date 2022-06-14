@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -121,16 +121,6 @@ ib_err_t innodb_api_begin(
     snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
 #endif
 
-    err = ib_cb_cursor_open_table(table_name, ib_trx, crsr);
-
-    if (err != DB_SUCCESS) {
-      fprintf(stderr,
-              " InnoDB_Memcached: Unable to open"
-              " table '%s'\n",
-              table_name);
-      return (err);
-    }
-
     /* If MDL is enabled, we need to create mysql handler. */
     if (engine) {
       if (lock_mode == IB_LOCK_NONE) {
@@ -146,8 +136,6 @@ ib_err_t innodb_api_begin(
           conn_data->thd = handler_create_thd(engine->enable_binlog);
 
           if (!conn_data->thd) {
-            innodb_cb_cursor_close(*crsr);
-            *crsr = NULL;
             return (DB_ERROR);
           }
         }
@@ -159,6 +147,15 @@ ib_err_t innodb_api_begin(
               handler_open_table(conn_data->thd, dbname, name, lock_type);
         }
       }
+    }
+    err = ib_cb_cursor_open_table(table_name, ib_trx, crsr);
+
+    if (err != DB_SUCCESS) {
+      fprintf(stderr,
+              " InnoDB_Memcached: Unable to open"
+              " table '%s'\n",
+              table_name);
+      return (err);
     }
 
     err = innodb_cb_cursor_lock(engine, *crsr, lock_mode);
@@ -438,7 +435,7 @@ static ib_err_t innodb_api_setup_field_value(
     int field_id,            /*!< in: field to set */
     meta_column_t *col_info, /*!< in: insert col info */
     const char *value,       /*!< in: value */
-    ib_ulint_t val_len,      /*!< in: value length */
+    uint64_t val_len,        /*!< in: value length */
     void *table,             /*!< in/out: MySQL table. Only needed
                              when binlog is enabled */
     bool need_cpy)           /*!< in: if need memcpy */
@@ -514,7 +511,7 @@ static bool innodb_api_fill_mci(
                             read */
     mci_column_t *mci_item) /*!< out: item to fill */
 {
-  ib_ulint_t data_len;
+  uint64_t data_len;
   ib_col_meta_t col_meta;
 
   data_len = ib_cb_col_get_meta(read_tpl, col_id, &col_meta);
@@ -607,17 +604,20 @@ ib_err_t innodb_api_search(
   meta_column_t *col_info = meta_info->col_info;
   meta_index_t *meta_index = &meta_info->index_info;
   ib_tpl_t key_tpl;
-  ib_tpl_t cmp_tpl = NULL;
-  ib_crsr_t srch_crsr;
+  ib_tpl_t cmp_tpl = nullptr;
+  ib_crsr_t srch_crsr = nullptr;
 
   if (item) {
     memset(item, 0, sizeof(*item));
+  }
+  if (r_tpl) {
+    *r_tpl = NULL;
   }
 
   /* If srch_use_idx is set to META_USE_SECONDARY, we will use the
   secondary index to find the record first */
   if (meta_index->srch_use_idx == META_USE_SECONDARY) {
-    ib_crsr_t idx_crsr;
+    ib_crsr_t idx_crsr = nullptr;
 
     if (sel_only) {
       idx_crsr = cursor_data->idx_read_crsr;
@@ -637,7 +637,7 @@ ib_err_t innodb_api_search(
     srch_crsr = idx_crsr;
 
   } else {
-    ib_crsr_t crsr;
+    ib_crsr_t crsr = nullptr;
 
     if (sel_only) {
       crsr = cursor_data->read_crsr;
@@ -676,13 +676,18 @@ ib_err_t innodb_api_search(
     err = innodb_api_setup_field_value(key_tpl, 0, &col_info[CONTAINER_KEY],
                                        range_key->start, range_key->start_len,
                                        NULL, true);
-
+    if (err != DB_SUCCESS) {
+      goto func_exit;
+    }
     err = innodb_api_setup_field_value(cmp_tpl, 0, &col_info[CONTAINER_KEY],
                                        range_key->end, range_key->end_len, NULL,
                                        true);
   } else {
     err = innodb_api_setup_field_value(key_tpl, 0, &col_info[CONTAINER_KEY],
                                        key, len, NULL, true);
+  }
+  if (err != DB_SUCCESS) {
+    goto func_exit;
   }
 
   if (!range_key) {
@@ -694,6 +699,9 @@ ib_err_t innodb_api_search(
     err = innodb_api_setup_field_value(key_tpl, 0, &col_info[CONTAINER_KEY],
                                        range_key->end, range_key->end_len, NULL,
                                        true);
+    if (err != DB_SUCCESS) {
+      goto func_exit;
+    }
     /* Range search for < (less than) */
     if (!cursor_data->range) {
       innodb_cb_cursor_first(srch_crsr);
@@ -713,9 +721,6 @@ ib_err_t innodb_api_search(
   }
 
   if (err != DB_SUCCESS) {
-    if (r_tpl) {
-      *r_tpl = NULL;
-    }
     goto func_exit;
   }
 
@@ -740,9 +745,6 @@ ib_err_t innodb_api_search(
         &(cursor_data->row_buf_used));
 
     if (err != DB_SUCCESS) {
-      if (r_tpl) {
-        *r_tpl = NULL;
-      }
       goto func_exit;
     }
 
@@ -768,7 +770,7 @@ ib_err_t innodb_api_search(
     assert(n_cols >= MCI_COL_TO_GET);
 
     for (i = 0; i < n_cols; ++i) {
-      ib_ulint_t data_len;
+      uint64_t data_len;
       ib_col_meta_t col_meta;
 
       data_len = ib_cb_col_get_meta(read_tpl, i, &col_meta);
@@ -1764,7 +1766,7 @@ bool innodb_reset_conn(
   }
 
   if (conn_data->crsr_trx) {
-    ib_crsr_t ib_crsr;
+    ib_crsr_t ib_crsr = nullptr;
     meta_cfg_info_t *meta_info = conn_data->conn_meta;
     meta_index_t *meta_index = &meta_info->index_info;
 
@@ -1836,32 +1838,29 @@ void innodb_api_cursor_reset(
       conn_data->n_reads_since_commit >= engine->read_batch_size ||
       conn_data->n_writes_since_commit >= engine->write_batch_size ||
       (op_type == CONN_OP_FLUSH) || !commit) {
-    commit_trx = innodb_reset_conn(conn_data, op_type == CONN_OP_FLUSH, commit,
-                                   engine->enable_binlog);
+    commit_trx =
+        innodb_reset_conn(conn_data, false, commit, engine->enable_binlog);
   }
 
   if (!commit_trx) {
-    LOCK_CURRENT_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH, conn_data);
+    LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
     if (op_type != CONN_OP_FLUSH) {
       assert(conn_data->in_use);
     }
 
     conn_data->in_use = false;
-    UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH, conn_data);
+    UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
   }
 }
 
 /** Following are a set of InnoDB callback function wrappers for functions
 that will be used outside innodb_api.c */
 
-/*************************************************************/ /**
- Close a cursor
- @return DB_SUCCESS if successful or error code */
-ib_err_t innodb_cb_cursor_close(
-    /*===================*/
-    ib_crsr_t ib_crsr) /*!< in/out: cursor to close */
-{
-  return (ib_cb_cursor_close(ib_crsr));
+void innodb_cb_cursor_close(ib_crsr_t &ib_crsr) {
+  if (ib_crsr != nullptr) {
+    ib_cb_cursor_close(ib_crsr);
+    ib_crsr = nullptr;
+  }
 }
 
 /*************************************************************/ /**
@@ -1936,10 +1935,10 @@ ib_err_t innodb_cb_cursor_first(
 /*****************************************************************/ /**
  Get a column type, length and attributes from the tuple.
  @return len of column data */
-ib_ulint_t innodb_cb_col_get_meta(
+uint64_t innodb_cb_col_get_meta(
     /*===================*/
     ib_tpl_t ib_tpl,            /*!< in: tuple instance */
-    ib_ulint_t i,               /*!< in: column index in tuple */
+    uint64_t i,                 /*!< in: column index in tuple */
     ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
 {
   return (ib_cb_col_get_meta(ib_tpl, i, ib_col_meta));
@@ -1958,7 +1957,7 @@ void innodb_cb_tuple_delete(
 /*****************************************************************/ /**
  Return the number of columns in the tuple definition.
  @return number of columns */
-ib_ulint_t innodb_cb_tuple_get_n_cols(
+uint64_t innodb_cb_tuple_get_n_cols(
     /*=======================*/
     const ib_tpl_t ib_tpl) /*!< in: Tuple for table/index */
 {
@@ -1971,7 +1970,7 @@ ib_ulint_t innodb_cb_tuple_get_n_cols(
 const void *innodb_cb_col_get_value(
     /*====================*/
     ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i)    /*!< in: column index in tuple */
+    uint64_t i)      /*!< in: column index in tuple */
 {
   return (ib_cb_col_get_value(ib_tpl, i));
 }
@@ -1994,7 +1993,7 @@ ib_err_t innodb_cb_open_table(
 const char *innodb_cb_col_get_name(
     /*===================*/
     ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
-    ib_ulint_t i)      /*!< in: column index in tuple */
+    uint64_t i)        /*!< in: column index in tuple */
 {
   return (ib_cb_col_get_name(ib_crsr, i));
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,12 @@
 
 #include "sql/strfunc.h"
 
+#include <string.h>
+
 #include "m_ctype.h"  // my_charset_latin1
+#include "my_alloc.h"
 #include "my_dbug.h"
+#include "my_sys.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql_string.h"
@@ -53,12 +57,12 @@
 static const char field_separator = ',';
 
 ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
-                   const CHARSET_INFO *cs, char **err_pos, uint *err_len,
+                   const CHARSET_INFO *cs, const char **err_pos, uint *err_len,
                    bool *set_warning) {
   const CHARSET_INFO *strip = cs ? cs : &my_charset_latin1;
   const char *end = str + strip->cset->lengthsp(strip, str, length);
   ulonglong found = 0;
-  *err_pos = 0;  // No error yet
+  *err_pos = nullptr;  // No error yet
   *err_len = 0;
   if (str != end) {
     const char *start = str;
@@ -80,12 +84,12 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
           ;
       var_len = (uint)(pos - start);
       uint find = cs ? find_type2(lib, start, var_len, cs)
-                     : find_type(lib, start, var_len, (bool)0);
+                     : find_type(lib, start, var_len, false);
       if (!find && *err_len == 0)  // report the first error with length > 0
       {
-        *err_pos = (char *)start;
+        *err_pos = start;
         *err_len = var_len;
-        *set_warning = 1;
+        *set_warning = true;
       } else if (find)  // avoid 1ULL << 4294967295
         found |= 1ULL << (find - 1);
 
@@ -153,22 +157,22 @@ uint find_type2(const TYPELIB *typelib, const char *x, size_t length,
                 const CHARSET_INFO *cs) {
   int pos;
   const char *j;
-  DBUG_ENTER("find_type2");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("x: '%.*s'  lib: 0x%p", static_cast<int>(length), x, typelib));
 
   if (!typelib->count) {
     DBUG_PRINT("exit", ("no count"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   for (pos = 0; (j = typelib->type_names[pos]); pos++) {
     if (!my_strnncoll(cs, (const uchar *)x, length, (const uchar *)j,
                       typelib->type_lengths[pos]))
-      DBUG_RETURN(pos + 1);
+      return pos + 1;
   }
   DBUG_PRINT("exit", ("Couldn't find type"));
-  DBUG_RETURN(0);
+  return 0;
 } /* find_type */
 
 /*
@@ -195,7 +199,8 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
   /* Fiend end of word */
   for (ptr = val; ptr < end && my_isalpha(&my_charset_latin1, *ptr); ptr++)
     ;
-  if ((res = find_type(lib, val, (uint)(ptr - val), 1)) > 0) *end_of_word = ptr;
+  if ((res = find_type(lib, val, (uint)(ptr - val), true)) > 0)
+    *end_of_word = ptr;
   return res;
 }
 
@@ -221,7 +226,6 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length,
                   uint *errors) {
-  int cnvres;
   my_wc_t wc;
   char *to_start = to;
   uchar *to_end = (uchar *)to + to_length - 1;
@@ -229,15 +233,14 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
   my_charset_conv_wc_mb wc_mb = to_cs->cset->wc_mb;
   uint error_count = 0;
 
-  while (1) {
+  while (true) {
     /*
-      Using 'from + 10' is safe:
-      - it is enough to scan a single character in any character set.
-      - if remaining string is shorter than 10, then mb_wc will return
-        with error because of unexpected '\0' character.
+      Lookahead of max 10 bytes should suffice for all character sets.
     */
-    if ((cnvres = (*mb_wc)(from_cs, &wc, (uchar *)from, (uchar *)from + 10)) >
-        0) {
+    const size_t max_char_len = strnlen(from, 10);
+    int cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                          pointer_cast<const uchar *>(from) + max_char_len);
+    if (cnvres > 0) {
       if (!wc) break;
       from += cnvres;
     } else if (cnvres == MY_CS_ILSEQ) {

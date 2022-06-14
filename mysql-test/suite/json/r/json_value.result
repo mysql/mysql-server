@@ -1,0 +1,1813 @@
+#
+# WL#12228: Add JSON_VALUE function
+#
+SELECT JSON_VALUE('{"data": "asdf"}', '$.data') v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	253	2048	4	Y	128	31	255
+v
+asdf
+SELECT JSON_VALUE('{"data": 123.45}', '$.data') v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	253	2048	6	Y	128	31	255
+v
+123.45
+SELECT JSON_VALUE('{"data": "asdf"}', '$.data' RETURNING CHAR) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	251	4294967295	4	Y	128	31	255
+v
+asdf
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING CHAR) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	251	4294967295	6	Y	128	31	255
+v
+123.45
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING DECIMAL) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	246	11	3	Y	32896	0	63
+v
+123
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING DECIMAL(6,4)) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	246	8	0	Y	32896	4	63
+v
+NULL
+SELECT JSON_VALUE('{"data": "asdf"}', '$.data' RETURNING BINARY(4)) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	253	4	4	Y	128	31	63
+v
+asdf
+SELECT JSON_VALUE('{"data": "asdf"}', '$.data' RETURNING BINARY) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	251	4294967295	4	Y	128	31	63
+v
+asdf
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING FLOAT) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	4	23	6	Y	32896	31	63
+v
+123.45
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING DOUBLE) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	5	23	6	Y	32896	31	63
+v
+123.45
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING UNSIGNED) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	8	21	3	Y	32928	0	63
+v
+123
+SELECT JSON_VALUE('{"data": -123.45}','$.data' RETURNING UNSIGNED) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	8	21	0	Y	32928	0	63
+v
+NULL
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING SIGNED) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	8	21	3	Y	32896	0	63
+v
+123
+SELECT JSON_VALUE('{"data": -123.45}', '$.data' RETURNING SIGNED) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	8	21	4	Y	32896	0	63
+v
+-123
+SELECT JSON_VALUE('{"data": 1999}', '$.data' RETURNING YEAR) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	13	5	4	Y	32896	0	63
+v
+1999
+SELECT JSON_VALUE('{"data": -1999}', '$.data' RETURNING YEAR) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	13	5	0	Y	32896	0	63
+v
+NULL
+SELECT JSON_VALUE(JSON_OBJECT('data', 1.0e0/3), '$.data' RETURNING FLOAT) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	4	23	8	Y	32896	31	63
+v
+0.333333
+SELECT JSON_VALUE(JSON_OBJECT('data', 1.0e0/3), '$.data' RETURNING DOUBLE) v;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					v	5	23	18	Y	32896	31	63
+v
+0.3333333333333333
+SELECT COLLATION(JSON_VALUE('{"x": "y"}', '$.x')) AS col1,
+COLLATION(JSON_VALUE('{"x": "y"}', '$.x' RETURNING CHAR(10))) AS col2,
+COLLATION(JSON_VALUE('{"x": "y"}',
+'$.x' RETURNING CHAR(10) CHARSET utf8mb4)) AS col3;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					col1	253	256	16	Y	0	31	255
+def					col2	253	256	16	Y	0	31	255
+def					col3	253	256	18	Y	0	31	255
+col1	col2	col3
+utf8mb4_0900_bin	utf8mb4_0900_bin	utf8mb4_0900_ai_ci
+SELECT JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE)	10	40	10	Y	0	0	255
+JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE)
+2019-01-01
+SELECT JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
+'$.data' RETURNING DATE);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
+'$.data' RETURNING DATE)	10	40	10	Y	0	0	255
+JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
+'$.data' RETURNING DATE)
+2019-01-01
+SELECT JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME)	11	40	8	Y	0	0	255
+JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME)
+11:11:11
+SELECT JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
+'$.data' RETURNING TIME);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
+'$.data' RETURNING TIME)	11	40	8	Y	0	0	255
+JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
+'$.data' RETURNING TIME)
+11:11:11
+SELECT JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
+'$.data' RETURNING DATETIME);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
+'$.data' RETURNING DATETIME)	12	76	19	Y	0	0	255
+JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
+'$.data' RETURNING DATETIME)
+2019-01-01 11:11:11
+SELECT JSON_VALUE(
+JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
+'$.data' RETURNING DATETIME);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE(
+JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
+'$.data' RETURNING DATETIME)	12	76	19	Y	0	0	255
+JSON_VALUE(
+JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
+'$.data' RETURNING DATETIME)
+2019-01-01 11:11:11
+SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING CHAR(10));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": 123.45}', '$.data' RETURNING CHAR(10))	253	40	6	Y	128	31	255
+JSON_VALUE('{"data": 123.45}', '$.data' RETURNING CHAR(10))
+123.45
+SELECT JSON_VALUE('{"data": "1234567890"}', '$.data' RETURNING CHAR(10));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "1234567890"}', '$.data' RETURNING CHAR(10))	253	40	10	Y	128	31	255
+JSON_VALUE('{"data": "1234567890"}', '$.data' RETURNING CHAR(10))
+1234567890
+SELECT JSON_VALUE('{"data": "12345678901"}', '$.data' RETURNING CHAR(10));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "12345678901"}', '$.data' RETURNING CHAR(10))	253	40	0	Y	128	31	255
+JSON_VALUE('{"data": "12345678901"}', '$.data' RETURNING CHAR(10))
+NULL
+SELECT JSON_VALUE('{"data": "1234567890"}',
+'$.data' RETURNING CHAR(10) CHARSET utf8mb4);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "1234567890"}',
+'$.data' RETURNING CHAR(10) CHARSET utf8mb4)	253	40	10	Y	0	31	255
+JSON_VALUE('{"data": "1234567890"}',
+'$.data' RETURNING CHAR(10) CHARSET utf8mb4)
+1234567890
+SELECT JSON_VALUE('{"data": "123"}', '$.data' RETURNING JSON);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					JSON_VALUE('{"data": "123"}', '$.data' RETURNING JSON)	245	4294967292	5	Y	128	31	255
+JSON_VALUE('{"data": "123"}', '$.data' RETURNING JSON)
+"123"
+SELECT JSON_VALUE('{}', NULL);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL)' at line 1
+SELECT JSON_VALUE('{}', '$.x' DEFAULT NULL ON EMPTY);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON EMPTY)' at line 1
+SELECT JSON_VALUE('{}', '$.x' DEFAULT NULL ON ERROR);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON ERROR)' at line 1
+SELECT JSON_VALUE(1, '$');
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_value; a JSON string or JSON type is required.
+SELECT JSON_VALUE(CAST('[]' AS BINARY), '$');
+ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
+SELECT JSON_VALUE('{"data": [123]}', '$.data' RETURNING JSON) v;
+v
+[123]
+SELECT JSON_VALUE('{"data": {"val":123}}', '$.data' RETURNING JSON) v;
+v
+{"val": 123}
+SELECT JSON_VALUE('[1,2,3]', '$') v;
+v
+[1, 2, 3]
+SELECT JSON_VALUE('{"a":"b"}', '$') v;
+v
+{"a": "b"}
+SELECT JSON_VALUE('1', '$' RETURNING TIME(1000));
+ERROR 42000: Too-big precision 1000 specified for 'CAST'. Maximum is 6.
+SELECT JSON_VALUE('{"data": [123]}', '$.data' RETURNING SIGNED) v;
+v
+NULL
+SELECT JSON_VALUE('{"data": {"x":"y"}}', '$.data' RETURNING SIGNED) v;
+v
+NULL
+SELECT JSON_VALUE('{"data": [123]}',
+'$.data' RETURNING SIGNED DEFAULT 456 ON ERROR) v;
+v
+456
+# Wildcards are OK if they match a single value.
+SELECT JSON_VALUE('["abc"]', '$[*]') v1,
+JSON_VALUE('[1]', '$[*]' RETURNING SIGNED) v2,
+JSON_VALUE('[1]', '$[*]' RETURNING UNSIGNED) v3,
+JSON_VALUE('["2020-01-01"]', '$[*]' RETURNING DATE) v4,
+JSON_VALUE('["12:00:00"]', '$[*]' RETURNING TIME) v5,
+JSON_VALUE('["2020-01-01 12:00:00"]', '$[*]' RETURNING DATETIME) v6,
+JSON_VALUE('[1]', '$[*]' RETURNING DECIMAL) v7,
+JSON_VALUE('[{}]', '$[*]' RETURNING JSON) v8,
+JSON_VALUE('[1]', '$[*]' RETURNING FLOAT) v9,
+JSON_VALUE('[1]', '$[*]' RETURNING DOUBLE) v10;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10
+abc	1	1	2020-01-01	12:00:00	2020-01-01 12:00:00	1	{}	1	1
+# Paths matching multiple values should invoke ON ERROR.
+SELECT JSON_VALUE('["abc", "def"]', '$[*]') v1,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING SIGNED) v2,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING UNSIGNED) v3,
+JSON_VALUE('["2020-01-01", "2020-01-02"]', '$[*]' RETURNING DATE) v4,
+JSON_VALUE('["12:00:00", "13:00:00"]', '$[*]' RETURNING TIME) v5,
+JSON_VALUE('["2020-01-01 12:00:00", "2020-01-01 12:00:00"]',
+'$[*]' RETURNING DATETIME) v6,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING DECIMAL) v7,
+JSON_VALUE('[{}, []]', '$[*]' RETURNING JSON) v8,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING FLOAT) v9,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING DOUBLE) v10;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT JSON_VALUE('["abc", "def"]', '$[*]' DEFAULT 'error' ON ERROR) v1,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING SIGNED DEFAULT 9 ON ERROR) v2,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING UNSIGNED DEFAULT 9 ON ERROR) v3,
+JSON_VALUE('["2020-01-01", "2020-01-02"]',
+'$[*]' RETURNING DATE DEFAULT DATE'1999-12-31' ON ERROR) v4,
+JSON_VALUE('["12:00:00", "13:00:00"]',
+'$[*]' RETURNING TIME DEFAULT TIME'10:20:30' ON ERROR) v5,
+JSON_VALUE('["2020-01-01 12:00:00", "2020-01-01 12:00:00"]',
+'$[*]' RETURNING DATETIME
+DEFAULT '1999-12-31 10:20:30' ON ERROR) v6,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING DECIMAL DEFAULT 9 ON ERROR) v7,
+JSON_VALUE('[{}, []]',
+'$[*]' RETURNING JSON DEFAULT '"error"' ON ERROR) v8,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING FLOAT DEFAULT 9 ON ERROR) v9,
+JSON_VALUE('[1, 2]', '$[*]' RETURNING DOUBLE DEFAULT 9 ON ERROR) v10;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10
+error	9	9	1999-12-31	10:20:30	1999-12-31 10:20:30	9	"error"	9	9
+SELECT JSON_VALUE('["abc", "def"]', '$[*]' ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('[1, 2]', '$[*]' RETURNING SIGNED ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('[1, 2]', '$[*]' RETURNING UNSIGNED ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('["2020-01-01", "2020-01-02"]',
+'$[*]' RETURNING DATE ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('["12:00:00", "13:00:00"]',
+'$[*]' RETURNING TIME ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('["2020-01-01 12:00:00", "2020-01-01 12:00:00"]',
+'$[*]' RETURNING DATETIME ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('[1, 2]', '$[*]' RETURNING DECIMAL ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('[{}, []]', '$[*]' RETURNING JSON ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('[1, 2]', '$[*]' RETURNING FLOAT ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('[1, 2]', '$[*]' RETURNING DOUBLE ERROR ON ERROR) v;
+ERROR 22034: More than one value was found by 'json_value' on the specified path.
+# Max length check should use char length, not byte length.
+SELECT JSON_VALUE('"æøå"', '$' RETURNING CHAR(3)) v;
+v
+æøå
+SELECT JSON_VALUE('"æøåa"', '$' RETURNING CHAR(3) DEFAULT 'ÆØÅ' ON ERROR) v;
+v
+ÆØÅ
+# Charset conversion errors should activate the ON ERROR clause.
+SELECT JSON_VALUE('"æøå"', '$' RETURNING CHAR(10) CHARSET ascii
+DEFAULT 'error' ON ERROR) v;
+v
+error
+SELECT JSON_VALUE(NULL, '$.x') v1,
+JSON_VALUE(NULL, '$.x' RETURNING SIGNED) v2,
+JSON_VALUE(NULL, '$.x' RETURNING UNSIGNED) v3,
+JSON_VALUE(NULL, '$.x' RETURNING DATE) v4,
+JSON_VALUE(NULL, '$.x' RETURNING TIME) v5,
+JSON_VALUE(NULL, '$.x' RETURNING DATETIME) v6,
+JSON_VALUE(NULL, '$.x' RETURNING DECIMAL) v7,
+JSON_VALUE(NULL, '$.x' RETURNING JSON) v8,
+JSON_VALUE(NULL, '$.x' RETURNING FLOAT) v9,
+JSON_VALUE(NULL, '$.x' RETURNING DOUBLE) v10,
+JSON_VALUE(NULL, '$.x' RETURNING YEAR) v11;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10	v11
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT JSON_VALUE('not json', '$.x') v1,
+JSON_VALUE('not json', '$.x' RETURNING SIGNED) v2,
+JSON_VALUE('not json', '$.x' RETURNING UNSIGNED) v3,
+JSON_VALUE('not json', '$.x' RETURNING DATE) v4,
+JSON_VALUE('not json', '$.x' RETURNING TIME) v5,
+JSON_VALUE('not json', '$.x' RETURNING DATETIME) v6,
+JSON_VALUE('not json', '$.x' RETURNING DECIMAL) v7,
+JSON_VALUE('not json', '$.x' RETURNING JSON) v8,
+JSON_VALUE('not json', '$.x' RETURNING FLOAT) v9,
+JSON_VALUE('not json', '$.x' RETURNING DOUBLE) v10,
+JSON_VALUE('not json', '$.x' RETURNING YEAR) v11;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10	v11
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x') v1,
+JSON_VALUE('not json', '$.x' RETURNING SIGNED NULL ON ERROR) v2,
+JSON_VALUE('not json', '$.x' RETURNING UNSIGNED NULL ON ERROR) v3,
+JSON_VALUE('not json', '$.x' RETURNING DATE NULL ON ERROR) v4,
+JSON_VALUE('not json', '$.x' RETURNING TIME NULL ON ERROR) v5,
+JSON_VALUE('not json', '$.x' RETURNING DATETIME NULL ON ERROR) v6,
+JSON_VALUE('not json', '$.x' RETURNING DECIMAL NULL ON ERROR) v7,
+JSON_VALUE('not json', '$.x' RETURNING JSON NULL ON ERROR) v8,
+JSON_VALUE('not json', '$.x' RETURNING FLOAT NULL ON ERROR) v9,
+JSON_VALUE('not json', '$.x' RETURNING DOUBLE NULL ON ERROR) v10,
+JSON_VALUE('not json', '$.x' RETURNING YEAR NULL ON ERROR) v11;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10	v11
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' DEFAULT 'error' ON ERROR) v1,
+JSON_VALUE('not json', '$.x' RETURNING SIGNED DEFAULT 123 ON ERROR) v2,
+JSON_VALUE('not json', '$.x' RETURNING UNSIGNED DEFAULT 123 ON ERROR) v3,
+JSON_VALUE('not json', '$.x' RETURNING DATE
+DEFAULT '2020-01-01' ON ERROR) v4,
+JSON_VALUE('not json', '$.x' RETURNING TIME
+DEFAULT '10:11:12' ON ERROR) v5,
+JSON_VALUE('not json', '$.x' RETURNING DATETIME
+DEFAULT '2020-01-01 12:13:14' ON ERROR) v6,
+JSON_VALUE('not json', '$.x' RETURNING DECIMAL DEFAULT 123 ON ERROR) v7,
+JSON_VALUE('not json', '$.x' RETURNING JSON
+DEFAULT '[1,2,3]' ON ERROR) v8,
+JSON_VALUE('not json', '$.x' RETURNING FLOAT DEFAULT 123 ON ERROR) v9,
+JSON_VALUE('not json', '$.x' RETURNING DOUBLE DEFAULT 123 ON ERROR) v10,
+JSON_VALUE('not json', '$.x' RETURNING YEAR DEFAULT 1988 ON ERROR) v11;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10	v11
+error	123	123	2020-01-01	10:11:12	2020-01-01 12:13:14	123	[1, 2, 3]	123	123	1988
+Warnings:
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING SIGNED
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING UNSIGNED
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING DATE
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING TIME
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING DATETIME
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING DECIMAL
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING JSON
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING FLOAT
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING DOUBLE
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('not json', '$.x' RETURNING YEAR
+ERROR ON EMPTY ERROR ON ERROR) v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE(CAST(JSON_EXTRACT('not json', '$') AS CHAR), '$') v;
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+SELECT JSON_VALUE(REPEAT('[', 200), '$') v;
+ERROR 22032: The JSON document exceeds the maximum depth.
+CREATE VIEW v AS
+SELECT JSON_VALUE('{"don''t":"panic"}', '$."don''t"') AS x,
+JSON_VALUE('""', '$' RETURNING CHAR(10)
+DEFAULT 'it''s empty' ON EMPTY
+DEFAULT 'it''s wrong' ON ERROR) AS y,
+JSON_VALUE('""', '$' NULL ON EMPTY ERROR ON ERROR) AS z,
+JSON_VALUE('""', '$' ERROR ON EMPTY NULL ON ERROR) AS w;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select json_value('{"don\'t":"panic"}', '$."don\'t"' returning char(512)) AS `x`,json_value('""', '$' returning char(10) default 'it\'s empty' on empty default 'it\'s wrong' on error) AS `y`,json_value('""', '$' returning char(512) null on empty error on error) AS `z`,json_value('""', '$' returning char(512) error on empty null on error) AS `w`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+x	y	z	w
+panic			
+DROP VIEW v;
+CREATE TABLE json_value(json_value JSON);
+SELECT JSON_VALUE(json_value, '$.a') AS json_value FROM json_value;
+json_value
+DROP TABLE json_value;
+CREATE TABLE returning(returning JSON);
+SELECT JSON_VALUE(returning, '$.a' RETURNING CHAR) AS returning FROM returning;
+returning
+DROP TABLE returning;
+# Test ON EMPTY clause
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED) v;
+v
+NULL
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED NULL ON EMPTY) v;
+v
+NULL
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED ERROR ON EMPTY);
+ERROR 22035: No value was found by 'json_value' on the specified path.
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED
+DEFAULT 456 ON EMPTY);
+JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED
+DEFAULT 456 ON EMPTY)
+456
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED
+DEFAULT '[456]' ON EMPTY);
+ERROR 22007: Truncated incorrect INTEGER SIGNED value: '[456]'
+SELECT JSON_VALUE('{"data": 123}',
+'$.num' RETURNING SIGNED NULL ON EMPTY NULL ON EMPTY);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EMPTY)' at line 2
+SELECT JSON_VALUE('{}', '$.x' RETURNING CHAR(10) CHARSET utf16
+DEFAULT 'abc' ON EMPTY) v;
+v
+abc
+SELECT JSON_VALUE('{}', '$.x' RETURNING CHAR(10) CHARSET ascii
+DEFAULT 'abc' ON EMPTY) v;
+v
+abc
+SELECT JSON_VALUE('{}', '$.x' RETURNING CHAR(10) CHARSET ascii
+DEFAULT 'æøå' ON EMPTY) v;
+ERROR 22003: CHAR DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect INTEGER SIGNED value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING UNSIGNED
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect INTEGER UNSIGNED value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING CHAR(2)
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22003: CHAR DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING FLOAT
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect DOUBLE value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING DOUBLE
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect DOUBLE value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING DATE
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Incorrect datetime value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING TIME
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect time value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING DATETIME
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Incorrect datetime value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING DECIMAL
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect DECIMAL value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING YEAR
+DEFAULT 'asdf' ON EMPTY);
+ERROR 22007: Truncated incorrect YEAR value: 'asdf'
+SELECT JSON_VALUE('""', '$' RETURNING JSON DEFAULT 'not JSON' ON EMPTY);
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING SIGNED
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect INTEGER SIGNED value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING UNSIGNED
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect INTEGER UNSIGNED value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING CHAR(2)
+DEFAULT 'asdf' ON ERROR);
+ERROR 22003: CHAR DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING FLOAT
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect DOUBLE value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING DOUBLE
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect DOUBLE value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING DATE
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Incorrect datetime value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING TIME
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect time value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING DATETIME
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Incorrect datetime value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING DECIMAL
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect DECIMAL value: 'asdf'
+SELECT JSON_VALUE('{"data": 123}', '$.data' RETURNING YEAR
+DEFAULT 'asdf' ON ERROR);
+ERROR 22007: Truncated incorrect YEAR value: 'asdf'
+SELECT JSON_VALUE('""', '$' RETURNING JSON DEFAULT 'not JSON' ON ERROR);
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+# Test ON ERROR clause
+SELECT JSON_VALUE('{"data": "asd"}', '$.data' RETURNING SIGNED);
+JSON_VALUE('{"data": "asd"}', '$.data' RETURNING SIGNED)
+NULL
+SELECT JSON_VALUE('{"data": "asd"}', '$.data' RETURNING SIGNED NULL ON ERROR);
+JSON_VALUE('{"data": "asd"}', '$.data' RETURNING SIGNED NULL ON ERROR)
+NULL
+SELECT JSON_VALUE('{"data": "asd"}',
+'$.data' RETURNING SIGNED NULL ON ERROR NULL ON ERROR);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON ERROR)' at line 2
+SELECT JSON_VALUE('{"data": 123', '$.data' RETURNING SIGNED ERROR ON ERROR);
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Missing a comma or '}' after an object member." at position 12.
+SELECT JSON_VALUE('{"data": 123}', '.data' RETURNING SIGNED ERROR ON ERROR);
+ERROR 42000: Invalid JSON path expression. The error is around character position 1.
+SELECT JSON_VALUE('{"data": "asd"}', '$.data'
+  RETURNING SIGNED DEFAULT '{"aaa":321}' ON ERROR);
+ERROR 22007: Truncated incorrect INTEGER SIGNED value: '{"aaa":321}'
+SELECT JSON_VALUE('{"data": "asd"}', '$.data'
+  RETURNING SIGNED DEFAULT 321 ON ERROR);
+JSON_VALUE('{"data": "asd"}', '$.data'
+  RETURNING SIGNED DEFAULT 321 ON ERROR)
+321
+SELECT JSON_VALUE('{"data": "123.45"}', '$.data' RETURNING SIGNED);
+JSON_VALUE('{"data": "123.45"}', '$.data' RETURNING SIGNED)
+NULL
+SELECT JSON_VALUE('{"data": "99999999999999999999999999999"}', '$.data'
+  RETURNING SIGNED);
+JSON_VALUE('{"data": "99999999999999999999999999999"}', '$.data'
+  RETURNING SIGNED)
+NULL
+SELECT JSON_VALUE('{"data": "-99999"}', '$.data' RETURNING UNSIGNED);
+JSON_VALUE('{"data": "-99999"}', '$.data' RETURNING UNSIGNED)
+NULL
+SELECT JSON_VALUE('{"data": "99999999999999999999999999999"}', '$.data'
+  RETURNING CHAR(10));
+JSON_VALUE('{"data": "99999999999999999999999999999"}', '$.data'
+  RETURNING CHAR(10))
+NULL
+SELECT JSON_VALUE('"abc"', '$' RETURNING DATE DEFAULT '2000-01-02' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING DATE DEFAULT '2000-01-02' ON ERROR)
+2000-01-02
+SELECT JSON_VALUE('"abc"', '$' RETURNING DATE
+DEFAULT DATE'2000-01-02' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING DATE
+DEFAULT DATE'2000-01-02' ON ERROR)
+2000-01-02
+SELECT JSON_VALUE('"abc"', '$' RETURNING TIME DEFAULT '12:13:14' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING TIME DEFAULT '12:13:14' ON ERROR)
+12:13:14
+SELECT JSON_VALUE('"abc"', '$' RETURNING TIME DEFAULT TIME'12:13:14' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING TIME DEFAULT TIME'12:13:14' ON ERROR)
+12:13:14
+SELECT JSON_VALUE('"abc"', '$' RETURNING DATETIME
+DEFAULT '2000-01-02 12:13:14' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING DATETIME
+DEFAULT '2000-01-02 12:13:14' ON ERROR)
+2000-01-02 12:13:14
+SELECT JSON_VALUE('"abc"', '$' RETURNING DATETIME
+DEFAULT TIMESTAMP'2000-01-02 12:13:14' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING DATETIME
+DEFAULT TIMESTAMP'2000-01-02 12:13:14' ON ERROR)
+2000-01-02 12:13:14
+SELECT JSON_VALUE('"abc"', '$' RETURNING CHAR(1) DEFAULT 'x' ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING CHAR(1) DEFAULT 'x' ON ERROR)
+x
+SELECT JSON_VALUE('"abc"', '$' RETURNING CHAR(1) CHARSET utf16
+DEFAULT 'x' ON ERROR) v;
+v
+x
+SELECT JSON_VALUE('"abc"', '$' RETURNING CHAR(1) CHARSET ascii
+DEFAULT 'a' ON ERROR) v;
+v
+a
+SELECT JSON_VALUE('"abc"', '$' RETURNING CHAR(1) CHARSET ascii
+DEFAULT 'æ' ON ERROR) v;
+ERROR 22003: CHAR DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING DECIMAL DEFAULT 123 ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING DECIMAL DEFAULT 123 ON ERROR)
+123
+SELECT JSON_VALUE('"abc"', '$' RETURNING FLOAT DEFAULT 123 ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING FLOAT DEFAULT 123 ON ERROR)
+123
+SELECT JSON_VALUE('"abc"', '$' RETURNING DOUBLE DEFAULT 123 ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING DOUBLE DEFAULT 123 ON ERROR)
+123
+SELECT JSON_VALUE('"abc"', '$' RETURNING YEAR DEFAULT 1988 ON ERROR);
+JSON_VALUE('"abc"', '$' RETURNING YEAR DEFAULT 1988 ON ERROR)
+1988
+SELECT JSON_VALUE('"abc"', '$' RETURNING YEAR DEFAULT 1 ON ERROR);
+ERROR 22003: YEAR value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING YEAR DEFAULT 2270 ON ERROR);
+ERROR 22003: YEAR value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING YEAR DEFAULT -1 ON ERROR);
+ERROR 22003: YEAR value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING SIGNED ERROR ON ERROR);
+ERROR 22003: SIGNED value is out of range in 'json_value'
+SELECT JSON_VALUE('-1', '$' RETURNING UNSIGNED ERROR ON ERROR);
+ERROR 22003: UNSIGNED value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING DATE ERROR ON ERROR);
+ERROR 22003: DATE value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING TIME ERROR ON ERROR);
+ERROR 22003: TIME value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING DATETIME ERROR ON ERROR);
+ERROR 22003: DATETIME value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING CHAR(1) ERROR ON ERROR);
+ERROR 22003: STRING value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING DECIMAL ERROR ON ERROR);
+ERROR 22003: DECIMAL value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING FLOAT ERROR ON ERROR);
+ERROR 22003: FLOAT value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING DOUBLE ERROR ON ERROR);
+ERROR 22003: DOUBLE value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING YEAR ERROR ON ERROR);
+ERROR 22003: YEAR value is out of range in 'json_value'
+SELECT JSON_VALUE('"abc"', '$' RETURNING SIGNED NULL ON ERROR) v1,
+JSON_VALUE('-1', '$' RETURNING UNSIGNED NULL ON ERROR) v2,
+JSON_VALUE('"abc"', '$' RETURNING DATE NULL ON ERROR) v3,
+JSON_VALUE('"abc"', '$' RETURNING TIME NULL ON ERROR) v4,
+JSON_VALUE('"abc"', '$' RETURNING DATETIME NULL ON ERROR) v5,
+JSON_VALUE('"abc"', '$' RETURNING CHAR(1) NULL ON ERROR) v6,
+JSON_VALUE('"abc"', '$' RETURNING DECIMAL NULL ON ERROR) v7,
+JSON_VALUE('"abc"', '$' RETURNING FLOAT NULL ON ERROR) v8,
+JSON_VALUE('"abc"', '$' RETURNING DOUBLE NULL ON ERROR) v9,
+JSON_VALUE('"abc"', '$' RETURNING YEAR NULL ON ERROR) v10;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT JSON_VALUE('"abc"', '$' RETURNING SIGNED) v1,
+JSON_VALUE('-1', '$' RETURNING UNSIGNED) v2,
+JSON_VALUE('"abc"', '$' RETURNING DATE) v3,
+JSON_VALUE('"abc"', '$' RETURNING TIME) v4,
+JSON_VALUE('"abc"', '$' RETURNING DATETIME) v5,
+JSON_VALUE('"abc"', '$' RETURNING CHAR(1)) v6,
+JSON_VALUE('"abc"', '$' RETURNING DECIMAL) v7,
+JSON_VALUE('"abc"', '$' RETURNING FLOAT) v8,
+JSON_VALUE('"abc"', '$' RETURNING DOUBLE) v9,
+JSON_VALUE('"abc"', '$' RETURNING YEAR) v10;
+v1	v2	v3	v4	v5	v6	v7	v8	v9	v10
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+# Test ON EMPTY in combination with ON ERROR.
+SELECT JSON_VALUE('{"data": "asd"}',
+'$.data' RETURNING SIGNED NULL ON EMPTY NULL ON ERROR);
+JSON_VALUE('{"data": "asd"}',
+'$.data' RETURNING SIGNED NULL ON EMPTY NULL ON ERROR)
+NULL
+SELECT JSON_VALUE('{"data": "asd"}',
+'$.data' RETURNING SIGNED NULL ON ERROR NULL ON EMPTY);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON EMPTY)' at line 2
+SELECT j, JSON_VALUE(j, '$.data' RETURNING SIGNED DEFAULT 111 ON EMPTY
+DEFAULT 222 ON ERROR) AS jv
+FROM (SELECT '{"data": "asd"}' AS j UNION ALL SELECT '{"num": 123}') t1;
+j	jv
+{"data": "asd"}	222
+{"num": 123}	111
+SELECT JSON_VALUE('not json', '$' RETURNING JSON ERROR ON EMPTY ERROR ON ERROR);
+ERROR 22032: Invalid JSON text in argument 1 to function json_value: "Invalid value." at position 1.
+# Returning array types is not supported.
+SELECT JSON_VALUE('{"data": "asd"}', '$.data' RETURNING SIGNED ARRAY);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ARRAY)' at line 1
+# Test defaults within range.
+SELECT JSON_VALUE('{}', '$.a' RETURNING SIGNED DEFAULT -123 ON EMPTY) a,
+JSON_VALUE('{}', '$.a' RETURNING SIGNED DEFAULT '-123' ON EMPTY) b,
+JSON_VALUE('{}', '$.a' RETURNING UNSIGNED DEFAULT 123 ON EMPTY) c,
+JSON_VALUE('{}', '$.a' RETURNING UNSIGNED DEFAULT '123' ON EMPTY) d,
+JSON_VALUE('{}', '$.a' RETURNING DATE
+DEFAULT DATE'2020-04-05' ON EMPTY) e,
+JSON_VALUE('{}', '$.a' RETURNING DATE
+DEFAULT '2020-04-05' ON EMPTY) f,
+JSON_VALUE('{}', '$.a' RETURNING TIME(6)
+DEFAULT TIME'09:10:11.22' ON EMPTY) g,
+JSON_VALUE('{}', '$.a' RETURNING TIME(6)
+DEFAULT '09:10:11.22' ON EMPTY) h,
+JSON_VALUE('{}', '$.a' RETURNING DATETIME(6)
+DEFAULT '2020-04-05 09:10:11.22' ON EMPTY) i,
+JSON_VALUE('{}', '$.a'
+                  RETURNING DATETIME(6)
+DEFAULT TIMESTAMP'2020-04-05 09:10:11.22' ON EMPTY) j,
+JSON_VALUE('{}', '$.a' DEFAULT 'empty' ON EMPTY) k,
+JSON_VALUE('{}', '$.a' RETURNING DECIMAL(5, 3) DEFAULT 1.23 ON EMPTY) l,
+JSON_VALUE('{}', '$.a' RETURNING DECIMAL(5, 3)
+DEFAULT '1.23' ON EMPTY) m,
+JSON_VALUE('{}', '$.a' RETURNING JSON DEFAULT '"empty"' ON EMPTY) n,
+JSON_VALUE('{}', '$.a' RETURNING FLOAT DEFAULT -1234.5 ON EMPTY) o,
+JSON_VALUE('{}', '$.a' RETURNING FLOAT DEFAULT '-1234.5' ON EMPTY) p,
+JSON_VALUE('{}', '$.a' RETURNING DOUBLE DEFAULT -1e308 ON EMPTY) q,
+JSON_VALUE('{}', '$.a' RETURNING DOUBLE DEFAULT '-1e308' ON EMPTY) r,
+JSON_VALUE('{}', '$.a' RETURNING YEAR DEFAULT 1901 ON EMPTY) s,
+JSON_VALUE('{}', '$.a' RETURNING YEAR DEFAULT '2155' ON EMPTY) t;
+a	b	c	d	e	f	g	h	i	j	k	l	m	n	o	p	q	r	s	t
+-123	-123	123	123	2020-04-05	2020-04-05	09:10:11.220000	09:10:11.220000	2020-04-05 09:10:11.220000	2020-04-05 09:10:11.220000	empty	1.230	1.230	"empty"	-1234.5	-1234.5	-1e308	-1e308	1901	2155
+# Test defaults out of range.
+SELECT JSON_VALUE('{}', '$.a' RETURNING SIGNED DEFAULT 9223372036854775808 ON EMPTY) v;
+ERROR 22003: SIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING SIGNED DEFAULT '9223372036854775808' ON EMPTY) v;
+ERROR 22003: SIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING UNSIGNED DEFAULT -1 ON EMPTY) v;
+ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING UNSIGNED DEFAULT '-1' ON EMPTY) v;
+ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DATE DEFAULT 'abc' ON EMPTY) v;
+ERROR 22007: Incorrect datetime value: 'abc'
+SELECT JSON_VALUE('{}', '$.a' RETURNING TIME DEFAULT 'abc' ON EMPTY) v;
+ERROR 22007: Truncated incorrect time value: 'abc'
+SELECT JSON_VALUE('{}', '$.a' RETURNING TIME(2)
+DEFAULT TIME'12:13:14.123' ON EMPTY) v;
+ERROR 22003: TIME DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING TIME(2)
+DEFAULT '12:13:14.123' ON EMPTY) v;
+ERROR 22003: TIME DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DATETIME DEFAULT 'abc' ON EMPTY) v;
+ERROR 22007: Incorrect datetime value: 'abc'
+SELECT JSON_VALUE('{}', '$.a'
+  RETURNING DATETIME(2) DEFAULT TIMESTAMP'2000-01-02 12:13:14.123' ON EMPTY) v;
+ERROR 22003: TIME DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DATETIME(2)
+DEFAULT '2000-01-02 12:13:14.123' ON EMPTY) v;
+ERROR 22003: TIME DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING CHAR(1) DEFAULT 'empty' ON EMPTY) v;
+ERROR 22003: CHAR DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DECIMAL(1, 0) DEFAULT 12 ON EMPTY) v;
+ERROR 22003: DECIMAL DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DECIMAL(1, 0) DEFAULT '12' ON EMPTY) v;
+ERROR 22003: DECIMAL DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DECIMAL(5, 1) DEFAULT 1.23 ON EMPTY) v;
+ERROR 22003: DECIMAL DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DECIMAL(5, 1) DEFAULT '1.23' ON EMPTY) v;
+ERROR 22003: DECIMAL DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING FLOAT DEFAULT 1e308 ON EMPTY) v;
+ERROR 22003: FLOAT DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING FLOAT DEFAULT '1e308' ON EMPTY) v;
+ERROR 22003: FLOAT DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING DOUBLE DEFAULT 'xyz' ON EMPTY) v;
+ERROR 22007: Truncated incorrect DOUBLE value: 'xyz'
+SELECT JSON_VALUE('{}', '$.a' RETURNING YEAR DEFAULT '-1990' ON EMPTY) v;
+ERROR 22003: YEAR value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING YEAR DEFAULT -1990 ON EMPTY) v;
+ERROR 22003: YEAR value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.a' RETURNING YEAR DEFAULT 'xyz' ON EMPTY) v;
+ERROR 22007: Truncated incorrect YEAR value: 'xyz'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON EMPTY);
+ERROR 22007: Incorrect datetime value: '0000-00-00'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON ERROR);
+ERROR 22007: Incorrect datetime value: '0000-00-00'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-01-00' ON EMPTY);
+ERROR 22007: Incorrect datetime value: '2000-01-00'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-00-01' ON ERROR);
+ERROR 22007: Incorrect datetime value: '2000-00-01'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON EMPTY);
+ERROR 22007: Incorrect datetime value: '2004-02-31'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON ERROR);
+ERROR 22007: Incorrect datetime value: '2004-02-31'
+SET @saved_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON EMPTY);
+ERROR 22007: Incorrect datetime value: '0000-00-00'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '0000-00-00' ON ERROR);
+ERROR 22007: Incorrect datetime value: '0000-00-00'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-01-00' ON EMPTY);
+ERROR 22007: Incorrect datetime value: '2000-01-00'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2000-00-01' ON ERROR);
+ERROR 22007: Incorrect datetime value: '2000-00-01'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON EMPTY);
+ERROR 22007: Incorrect datetime value: '2004-02-31'
+SELECT JSON_VALUE('{}', '$' RETURNING DATE DEFAULT '2004-02-31' ON ERROR);
+ERROR 22007: Incorrect datetime value: '2004-02-31'
+SET sql_mode = @saved_sql_mode;
+SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING SIGNED) AS c1,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING SIGNED), 10) AS c2,
+JSON_VALUE('{"a":"b"}', '$.a' RETURNING UNSIGNED) AS c3,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING UNSIGNED), 10) AS c4;
+c1	c2	c3	c4
+NULL	NULL	NULL	NULL
+SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING DECIMAL(5, 2)) AS c1,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING DECIMAL(5, 2)), 10) AS c2;
+c1	c2
+NULL	NULL
+SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING FLOAT) AS c1,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING FLOAT), 10) AS c2,
+JSON_VALUE('{"a":"b"}', '$.a' RETURNING DOUBLE) AS c3,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING DOUBLE), 10) AS c4;
+c1	c2	c3	c4
+NULL	NULL	NULL	NULL
+SELECT JSON_VALUE('{"a":"1234"}', '$.a' RETURNING CHAR(1)) AS c1,
+JSON_VALUE('{"a":"1234"}', '$.a' RETURNING CHAR(1)) + 1 AS c2,
+REPEAT('x', JSON_VALUE('{"a":"1234"}', '$.a' RETURNING CHAR(1))) AS c3;
+c1	c2	c3
+NULL	NULL	NULL
+SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING DATE) AS c1,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING DATE), 10) AS c2,
+JSON_VALUE('{"a":"b"}', '$.a' RETURNING TIME) AS c3,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING TIME), 10) AS c4,
+JSON_VALUE('{"a":"b"}', '$.a' RETURNING DATETIME) AS c5,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING DATETIME), 10) AS c6;
+c1	c2	c3	c4	c5	c6
+NULL	NULL	NULL	NULL	NULL	NULL
+SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING YEAR) AS c1,
+REPEAT(JSON_VALUE('{"a":"b"}', '$.a' RETURNING YEAR), 10) AS c2;
+c1	c2
+NULL	NULL
+SELECT JSON_VALUE('{"a":"b"}', '$.a' RETURNING JSON) AS c1,
+JSON_VALUE('{"a":"b"}', '$.a' RETURNING JSON) + 1 AS c2;
+c1	c2
+"b"	1
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_value at row 1
+SELECT JSON_VALUE('1', '$' RETURNING SIGNED) + 1.0e0;
+JSON_VALUE('1', '$' RETURNING SIGNED) + 1.0e0
+2
+SELECT JSON_VALUE('1', '$' RETURNING UNSIGNED) + 1.0e0;
+JSON_VALUE('1', '$' RETURNING UNSIGNED) + 1.0e0
+2
+SELECT JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) + 1.0e0;
+JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) + 1.0e0
+20000103
+SELECT JSON_VALUE('"12:13:14.123456"', '$' RETURNING TIME) + 1.0e0;
+JSON_VALUE('"12:13:14.123456"', '$' RETURNING TIME) + 1.0e0
+121315
+SELECT JSON_VALUE('"2000-01-02 12:13:14.123456"', '$' RETURNING DATETIME) + 1.0e0;
+JSON_VALUE('"2000-01-02 12:13:14.123456"', '$' RETURNING DATETIME) + 1.0e0
+20000102121315
+SELECT JSON_VALUE('"1"', '$') + 1.0e0;
+JSON_VALUE('"1"', '$') + 1.0e0
+2
+SELECT JSON_VALUE('1.2', '$' RETURNING DECIMAL(2, 1)) + 1.0e0;
+JSON_VALUE('1.2', '$' RETURNING DECIMAL(2, 1)) + 1.0e0
+2.2
+SELECT JSON_VALUE('1', '$' RETURNING JSON) + 1.0e0;
+JSON_VALUE('1', '$' RETURNING JSON) + 1.0e0
+2
+SELECT JSON_VALUE('1.2', '$' RETURNING FLOAT) + 1.0e0;
+JSON_VALUE('1.2', '$' RETURNING FLOAT) + 1.0e0
+2.2
+SELECT JSON_VALUE('1988', '$' RETURNING YEAR) + 1.0e0;
+JSON_VALUE('1988', '$' RETURNING YEAR) + 1.0e0
+1989
+SELECT JSON_VALUE('123', '$' RETURNING SIGNED) DIV 2;
+JSON_VALUE('123', '$' RETURNING SIGNED) DIV 2
+61
+SELECT JSON_VALUE('123', '$' RETURNING UNSIGNED) DIV 2;
+JSON_VALUE('123', '$' RETURNING UNSIGNED) DIV 2
+61
+SELECT JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) DIV 2;
+JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) DIV 2
+10000051
+SELECT JSON_VALUE('"12:13:14.123456"', '$' RETURNING TIME) DIV 2;
+JSON_VALUE('"12:13:14.123456"', '$' RETURNING TIME) DIV 2
+60657
+SELECT JSON_VALUE('"2000-01-02 12:13:14.123456"', '$' RETURNING DATETIME) DIV 2;
+JSON_VALUE('"2000-01-02 12:13:14.123456"', '$' RETURNING DATETIME) DIV 2
+10000051060657
+SELECT JSON_VALUE('"123"', '$') DIV 2;
+JSON_VALUE('"123"', '$') DIV 2
+61
+SELECT JSON_VALUE('123', '$' RETURNING JSON) DIV 2;
+JSON_VALUE('123', '$' RETURNING JSON) DIV 2
+61
+SELECT JSON_VALUE('12.3', '$' RETURNING FLOAT) DIV 2;
+JSON_VALUE('12.3', '$' RETURNING FLOAT) DIV 2
+6
+SELECT JSON_VALUE('12.3', '$' RETURNING DOUBLE) DIV 2;
+JSON_VALUE('12.3', '$' RETURNING DOUBLE) DIV 2
+6
+SELECT CAST(JSON_VALUE('123', '$' RETURNING SIGNED) AS DECIMAL);
+CAST(JSON_VALUE('123', '$' RETURNING SIGNED) AS DECIMAL)
+123
+SELECT CAST(JSON_VALUE('123', '$' RETURNING UNSIGNED) AS DECIMAL);
+CAST(JSON_VALUE('123', '$' RETURNING UNSIGNED) AS DECIMAL)
+123
+SELECT CAST(JSON_VALUE('1988', '$' RETURNING YEAR) AS DECIMAL);
+CAST(JSON_VALUE('1988', '$' RETURNING YEAR) AS DECIMAL)
+1988
+SELECT CONCAT('x', JSON_VALUE('1', '$' RETURNING SIGNED));
+CONCAT('x', JSON_VALUE('1', '$' RETURNING SIGNED))
+x1
+SELECT CONCAT('x', JSON_VALUE('1', '$' RETURNING UNSIGNED));
+CONCAT('x', JSON_VALUE('1', '$' RETURNING UNSIGNED))
+x1
+SELECT CONCAT('x', JSON_VALUE('"2000-01-02"', '$' RETURNING DATE));
+CONCAT('x', JSON_VALUE('"2000-01-02"', '$' RETURNING DATE))
+x2000-01-02
+SELECT CONCAT('x', JSON_VALUE('"12:13:14.123456"', '$' RETURNING TIME));
+CONCAT('x', JSON_VALUE('"12:13:14.123456"', '$' RETURNING TIME))
+x12:13:14
+SELECT CONCAT('x', JSON_VALUE('"2000-01-02 12:13:14.123456"', '$' RETURNING DATETIME));
+CONCAT('x', JSON_VALUE('"2000-01-02 12:13:14.123456"', '$' RETURNING DATETIME))
+x2000-01-02 12:13:14
+SELECT CONCAT('x', JSON_VALUE('"1"', '$'));
+CONCAT('x', JSON_VALUE('"1"', '$'))
+x1
+SELECT CONCAT('x', JSON_VALUE('1.2', '$' RETURNING DECIMAL(2, 1)));
+CONCAT('x', JSON_VALUE('1.2', '$' RETURNING DECIMAL(2, 1)))
+x1.2
+SELECT CONCAT('x', JSON_VALUE('1', '$' RETURNING JSON));
+CONCAT('x', JSON_VALUE('1', '$' RETURNING JSON))
+x1
+SELECT CONCAT('x', JSON_VALUE('1.2', '$' RETURNING FLOAT));
+CONCAT('x', JSON_VALUE('1.2', '$' RETURNING FLOAT))
+x1.2
+SELECT CONCAT('x', JSON_VALUE('1.2', '$' RETURNING DOUBLE));
+CONCAT('x', JSON_VALUE('1.2', '$' RETURNING DOUBLE))
+x1.2
+SELECT CONCAT('x', JSON_VALUE('1988', '$' RETURNING YEAR));
+CONCAT('x', JSON_VALUE('1988', '$' RETURNING YEAR))
+x1988
+SELECT DATE_ADD(JSON_VALUE('20000102', '$' RETURNING SIGNED), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('20000102', '$' RETURNING SIGNED), INTERVAL 1 DAY)
+2000-01-03
+SELECT DATE_ADD(JSON_VALUE('20000102', '$' RETURNING UNSIGNED), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('20000102', '$' RETURNING UNSIGNED), INTERVAL 1 DAY)
+2000-01-03
+SET TIMESTAMP=UNIX_TIMESTAMP('2019-01-01 12:00:00');
+SELECT CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS DATE);
+CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS DATE)
+2019-01-01
+SET TIMESTAMP=DEFAULT;
+SELECT DATE_ADD(JSON_VALUE('"2000-01-02"', '$'), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('"2000-01-02"', '$'), INTERVAL 1 DAY)
+2000-01-03
+SELECT DATE_ADD(JSON_VALUE('20000102', '$' RETURNING DECIMAL), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('20000102', '$' RETURNING DECIMAL), INTERVAL 1 DAY)
+2000-01-03
+SELECT DATE_ADD(JSON_VALUE('"2000-01-02"', '$' RETURNING JSON), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('"2000-01-02"', '$' RETURNING JSON), INTERVAL 1 DAY)
+2000-01-03
+SELECT DATE_ADD(JSON_VALUE('20000102', '$' RETURNING FLOAT), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('20000102', '$' RETURNING FLOAT), INTERVAL 1 DAY)
+2000-01-03
+SELECT DATE_ADD(JSON_VALUE('20000102', '$' RETURNING DOUBLE), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('20000102', '$' RETURNING DOUBLE), INTERVAL 1 DAY)
+2000-01-03
+SELECT DATE_ADD(JSON_VALUE('1988', '$' RETURNING YEAR), INTERVAL 1 DAY);
+DATE_ADD(JSON_VALUE('1988', '$' RETURNING YEAR), INTERVAL 1 DAY)
+NULL
+SELECT TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING SIGNED));
+TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING SIGNED))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING UNSIGNED));
+TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING UNSIGNED))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('"2000-01-02"', '$' RETURNING DATE));
+TIME_TO_SEC(JSON_VALUE('"2000-01-02"', '$' RETURNING DATE))
+0
+SELECT TIME_TO_SEC(JSON_VALUE('"2000-01-02 12:13:14"', '$' RETURNING DATETIME));
+TIME_TO_SEC(JSON_VALUE('"2000-01-02 12:13:14"', '$' RETURNING DATETIME))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('"12:13:14"', '$'));
+TIME_TO_SEC(JSON_VALUE('"12:13:14"', '$'))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING DECIMAL));
+TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING DECIMAL))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('"12:13:14"', '$' RETURNING JSON));
+TIME_TO_SEC(JSON_VALUE('"12:13:14"', '$' RETURNING JSON))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING FLOAT));
+TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING FLOAT))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING DOUBLE));
+TIME_TO_SEC(JSON_VALUE('121314', '$' RETURNING DOUBLE))
+43994
+SELECT TIME_TO_SEC(JSON_VALUE('2030', '$' RETURNING YEAR));
+TIME_TO_SEC(JSON_VALUE('2030', '$' RETURNING YEAR))
+1230
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING SIGNED));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING SIGNED))
+2000-01-02 12:14:14
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING UNSIGNED));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING UNSIGNED))
+2000-01-02 12:14:14
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('"2000-01-02"', '$' RETURNING DATE));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('"2000-01-02"', '$' RETURNING DATE))
+2000-01-02 00:01:00
+SET TIMESTAMP=UNIX_TIMESTAMP('2019-01-01 12:00:00');
+SELECT CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS DATETIME);
+CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS DATETIME)
+2019-01-01 12:13:14
+SET TIMESTAMP=DEFAULT;
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('"2000-01-02 12:13:14"', '$'));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('"2000-01-02 12:13:14"', '$'))
+2000-01-02 12:14:14
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING DECIMAL(14, 0)));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING DECIMAL(14, 0)))
+2000-01-02 12:14:14
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING FLOAT));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING FLOAT))
+2000-01-02 12:14:14
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING DOUBLE));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
+'$' RETURNING DOUBLE))
+2000-01-02 12:14:14
+SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('1988', '$' RETURNING YEAR));
+TIMESTAMPADD(MINUTE, 1, JSON_VALUE('1988', '$' RETURNING YEAR))
+NULL
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING UNSIGNED) AS SIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING UNSIGNED) AS SIGNED)
+1234
+SELECT CAST(JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) AS SIGNED);
+CAST(JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) AS SIGNED)
+20000102
+SELECT CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS SIGNED);
+CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS SIGNED)
+121314
+SELECT CAST(JSON_VALUE('"2000-01-02 12:13:14"', '$' RETURNING DATETIME)
+AS SIGNED);
+CAST(JSON_VALUE('"2000-01-02 12:13:14"', '$' RETURNING DATETIME)
+AS SIGNED)
+20000102121314
+SELECT CAST(JSON_VALUE('"1234"', '$') AS SIGNED);
+CAST(JSON_VALUE('"1234"', '$') AS SIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING DECIMAL) AS SIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING DECIMAL) AS SIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING JSON) AS SIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING JSON) AS SIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING FLOAT) AS SIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING FLOAT) AS SIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING DOUBLE) AS SIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING DOUBLE) AS SIGNED)
+1234
+SELECT CAST(JSON_VALUE('1988', '$' RETURNING YEAR) AS SIGNED);
+CAST(JSON_VALUE('1988', '$' RETURNING YEAR) AS SIGNED)
+1988
+SELECT CAST(JSON_VALUE('43', '$' RETURNING YEAR) AS SIGNED);
+CAST(JSON_VALUE('43', '$' RETURNING YEAR) AS SIGNED)
+NULL
+SELECT CAST(JSON_VALUE('88', '$' RETURNING YEAR) AS SIGNED);
+CAST(JSON_VALUE('88', '$' RETURNING YEAR) AS SIGNED)
+NULL
+SELECT REPEAT('x', JSON_VALUE('10', '$' RETURNING JSON));
+REPEAT('x', JSON_VALUE('10', '$' RETURNING JSON))
+xxxxxxxxxx
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING SIGNED) AS UNSIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING SIGNED) AS UNSIGNED)
+1234
+SELECT CAST(JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) AS UNSIGNED);
+CAST(JSON_VALUE('"2000-01-02"', '$' RETURNING DATE) AS UNSIGNED)
+20000102
+SELECT CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS UNSIGNED);
+CAST(JSON_VALUE('"12:13:14"', '$' RETURNING TIME) AS UNSIGNED)
+121314
+SELECT CAST(JSON_VALUE('"2000-01-02 12:13:14"', '$' RETURNING DATETIME)
+AS UNSIGNED);
+CAST(JSON_VALUE('"2000-01-02 12:13:14"', '$' RETURNING DATETIME)
+AS UNSIGNED)
+20000102121314
+SELECT CAST(JSON_VALUE('"1234"', '$') AS UNSIGNED);
+CAST(JSON_VALUE('"1234"', '$') AS UNSIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING DECIMAL) AS UNSIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING DECIMAL) AS UNSIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING JSON) AS UNSIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING JSON) AS UNSIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING FLOAT) AS UNSIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING FLOAT) AS UNSIGNED)
+1234
+SELECT CAST(JSON_VALUE('1234', '$' RETURNING DOUBLE) AS UNSIGNED);
+CAST(JSON_VALUE('1234', '$' RETURNING DOUBLE) AS UNSIGNED)
+1234
+SELECT CAST(JSON_VALUE('1988', '$' RETURNING YEAR) AS UNSIGNED);
+CAST(JSON_VALUE('1988', '$' RETURNING YEAR) AS UNSIGNED)
+1988
+# SIGNED ranges.
+SELECT JSON_VALUE('9223372036854775807', '$' RETURNING SIGNED) AS max_val,
+JSON_VALUE('9223372036854775808', '$' RETURNING SIGNED) AS plus_one,
+JSON_VALUE('-9223372036854775808', '$' RETURNING SIGNED) AS min_val,
+JSON_VALUE('-9223372036854775809', '$' RETURNING SIGNED) AS minus_one;
+max_val	plus_one	min_val	minus_one
+9223372036854775807	NULL	-9223372036854775808	NULL
+SELECT JSON_VALUE('"9223372036854775807"', '$' RETURNING SIGNED) AS max_val,
+JSON_VALUE('"9223372036854775808"', '$' RETURNING SIGNED) AS plus_one,
+JSON_VALUE('"-9223372036854775808"', '$' RETURNING SIGNED) AS min_val,
+JSON_VALUE('"-9223372036854775809"', '$' RETURNING SIGNED) AS minus_one;
+max_val	plus_one	min_val	minus_one
+9223372036854775807	NULL	-9223372036854775808	NULL
+SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT '9223372036854775807' ON EMPTY) AS a,
+JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT 9223372036854775807 ON EMPTY) AS b,
+JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT '-9223372036854775808' ON EMPTY) AS c,
+JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT -9223372036854775808 ON EMPTY) AS d;
+a	b	c	d
+9223372036854775807	9223372036854775807	-9223372036854775808	-9223372036854775808
+SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT '9223372036854775808' ON EMPTY);
+ERROR 22003: SIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT 9223372036854775808 ON EMPTY);
+ERROR 22003: SIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT '-9223372036854775809' ON EMPTY);
+ERROR 22003: SIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
+DEFAULT -9223372036854775809 ON EMPTY);
+ERROR 22003: SIGNED DEFAULT value is out of range in 'json_value'
+# UNSIGNED ranges.
+SELECT JSON_VALUE('18446744073709551615', '$' RETURNING UNSIGNED) AS max_val,
+JSON_VALUE('18446744073709551616', '$' RETURNING UNSIGNED) AS plus_one,
+JSON_VALUE('0', '$' RETURNING UNSIGNED) AS min_val,
+JSON_VALUE('-1', '$' RETURNING UNSIGNED) AS minus_one;
+max_val	plus_one	min_val	minus_one
+18446744073709551615	NULL	0	NULL
+SELECT JSON_VALUE('"18446744073709551615"', '$' RETURNING UNSIGNED) AS max_val,
+JSON_VALUE('"18446744073709551616"', '$' RETURNING UNSIGNED) AS plus_one,
+JSON_VALUE('"0"', '$' RETURNING UNSIGNED) AS min_val,
+JSON_VALUE('"-1"', '$' RETURNING UNSIGNED) AS minus_one;
+max_val	plus_one	min_val	minus_one
+18446744073709551615	NULL	0	NULL
+SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT '18446744073709551615' ON EMPTY) AS a,
+JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT 18446744073709551615 ON EMPTY) AS b,
+JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT '0' ON EMPTY) AS c,
+JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT 0 ON EMPTY) AS d;
+a	b	c	d
+18446744073709551615	18446744073709551615	0	0
+SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT '18446744073709551616' ON EMPTY);
+ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT 18446744073709551616 ON EMPTY);
+ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT '-1' ON EMPTY);
+ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
+DEFAULT -1 ON EMPTY);
+ERROR 22003: UNSIGNED DEFAULT value is out of range in 'json_value'
+# Check that the nullability of JSON_VALUE is correct.
+# Should be nullable because of implicit NULL ON EMPTY/NULL ON ERROR.
+CREATE VIEW v AS SELECT JSON_VALUE('{}', '$.x') AS c1,
+JSON_VALUE('{}', '$.x' DEFAULT '1' ON EMPTY) AS c2,
+JSON_VALUE('{}', '$.x' DEFAULT '2' ON ERROR) AS c3;
+DESCRIBE v;
+Field	Type	Null	Key	Default	Extra
+c1	varchar(512)	YES		NULL	
+c2	varchar(512)	YES		NULL	
+c3	varchar(512)	YES		NULL	
+DROP VIEW v;
+# Should be nullable because of explicit NULL ON EMPTY/NULL ON ERROR.
+CREATE VIEW v AS
+SELECT JSON_VALUE('{}', '$.x' DEFAULT '1' ON EMPTY NULL ON ERROR) AS c1,
+JSON_VALUE('{}', '$.x' NULL ON EMPTY DEFAULT '2' ON ERROR) AS c2,
+JSON_VALUE('{}', '$.x' ERROR ON EMPTY NULL ON ERROR) AS c3,
+JSON_VALUE('{}', '$.x' NULL ON EMPTY ERROR ON ERROR) AS c4;
+DESCRIBE v;
+Field	Type	Null	Key	Default	Extra
+c1	varchar(512)	YES		NULL	
+c2	varchar(512)	YES		NULL	
+c3	varchar(512)	YES		NULL	
+c4	varchar(512)	YES		NULL	
+DROP VIEW v;
+# Should be nullable because the first argument is nullable.
+CREATE VIEW v AS
+SELECT JSON_VALUE(NULL, '$.x' ERROR ON EMPTY ERROR ON ERROR) AS c1;
+DESCRIBE v;
+Field	Type	Null	Key	Default	Extra
+c1	varchar(512)	YES		NULL	
+DROP VIEW v;
+# Should not be nullable.
+CREATE VIEW v AS
+SELECT JSON_VALUE('{}', '$.x' DEFAULT '1' ON EMPTY DEFAULT '2' ON ERROR) c1,
+JSON_VALUE('{}', '$.x' ERROR ON EMPTY ERROR ON ERROR) c2;
+DESCRIBE v;
+Field	Type	Null	Key	Default	Extra
+c1	varchar(512)	YES		NULL	
+c2	varchar(512)	YES		NULL	
+DROP VIEW v;
+# Test index creation/usage
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING SIGNED))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning signed)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('1'),('2'),('-3'),('-4');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING SIGNED) = -3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning signed) = -3)
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING SIGNED) = -3;
+j
+-3
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING SIGNED NULL ON EMPTY NULL ON ERROR) = -3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning signed) = -3)
+SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING SIGNED NULL ON EMPTY NULL ON ERROR) = -3;
+j
+-3
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$') = -3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning char(512)) = <cache>(-(3)))
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING UNSIGNED) = -3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning unsigned) = <cache>(-(3)))
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING SIGNED DEFAULT '4' ON EMPTY) = -3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning signed default '4' on empty) = <cache>(-(3)))
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING SIGNED ERROR ON ERROR) = -3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning signed error on error) = <cache>(-(3)))
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING UNSIGNED))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning unsigned)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('1'),('2'),('3'),('4');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING UNSIGNED) = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning unsigned) = 3)
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING UNSIGNED) = 3;
+j
+3
+INSERT INTO t1 VALUES('-1'),('-2');
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING DECIMAL(3, 2)))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning decimal(3, 2))))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('1.1'),('2.2'),('3.3'),('4.4');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DECIMAL(3, 2)) = 3.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	3	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning decimal(3, 2)) = 3.3)
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DECIMAL(3, 2)) = 3.3;
+j
+3.3
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DECIMAL(3, 0)) = 3.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning decimal(3, 0)) = 3.3)
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DECIMAL(2, 2)) = 3.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning decimal(2, 2)) = 3.3)
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DECIMAL(4, 0)) = 3.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning decimal(4, 0)) = 3.3)
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING FLOAT))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning float)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('1.1'),('2.2'),('3.3'),('4.4');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING FLOAT) = CAST(3.3 AS FLOAT);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	5	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning float) = <cache>(cast(3.3 as float)))
+SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING FLOAT) = CAST(3.3 AS FLOAT);
+j
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING DOUBLE) = CAST(3.3 AS FLOAT);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning double) = <cache>(cast(3.3 as float)))
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING DOUBLE))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning double)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('1.1'),('2.2'),('3.3'),('4.4');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING DOUBLE) = CAST(3.3 AS DOUBLE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning double) = cast(3.3 as double))
+SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING DOUBLE) = CAST(3.3 AS DOUBLE);
+j
+3.3
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING DOUBLE) = CAST(3.3 AS DOUBLE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning double) = cast(3.3 as double))
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING FLOAT) = CAST(3.3 AS DOUBLE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning float) = <cache>(cast(3.3 as double)))
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING CHAR(10)))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning char(10))))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('"asdf"'),('"dfgh"'),('"FghJ"'),('"fghj"'),('"hjkl"');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING CHAR(10)) = 'fghj';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	43	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning char(10)) = 'fghj')
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING CHAR(10)) = 'fghj';
+j
+"fghj"
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING CHAR(11)) = 'fghj';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning char(11)) = 'fghj')
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$') = 'fghj';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning char(512)) = 'fghj')
+DROP TABLE t1;
+CREATE TABLE t1(j JSON,
+KEY i1((JSON_VALUE(j, '$' RETURNING CHAR(10) CHARSET utf8mb4))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning char(10) character set utf8mb4)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('"asdf"'),('"dfgh"'),('"FghJ"'),('"fghj"'),('"hjkl"');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING CHAR(10) CHARSET utf8mb4) = 'fghj';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	43	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning char(10) character set utf8mb4) = 'fghj')
+SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING CHAR(10) CHARSET utf8mb4) = 'fghj';
+j
+"FghJ"
+"fghj"
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING CHAR(10) CHARSET latin1) = 'fghj';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning char(10) character set latin1) = 'fghj')
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$'))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning char(512))))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('"asdf"'),('"dfgh"'),('"fghj"'),('"hjkl"');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$') = 'fghj';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	2051	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning char(512)) = 'fghj')
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$') = 'fghj';
+j
+"fghj"
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING DATETIME))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning datetime)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('"2019-01-01 11:11:11"'),('"2019-01-01 11:11:12"'),
+('"2019-01-01 11:11:13"'),('"2019-01-01 11:11:14"');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE
+JSON_VALUE(j, '$' RETURNING DATETIME) = TIMESTAMP'2019-01-01 11:11:12';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	6	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning datetime) = TIMESTAMP'2019-01-01 11:11:12')
+SELECT * FROM t1 WHERE
+JSON_VALUE(j, '$' RETURNING DATETIME) = TIMESTAMP'2019-01-01 11:11:12';
+j
+"2019-01-01 11:11:12"
+# The index is not used if the JSON_VALUE expressions differ.
+EXPLAIN SELECT * FROM t1
+WHERE JSON_VALUE(j, '$' RETURNING DATE) = TIMESTAMP'2019-01-01 11:11:12';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`test`.`t1`.`j`, '$' returning date) = TIMESTAMP'2019-01-01 11:11:12')
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING TIME))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning time)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('"11:11:11"'),('"11:11:12"'),
+('"11:11:13"'),('"11:11:14"');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING TIME) = TIME'11:11:12';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning time) = TIME'11:11:12')
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING TIME) = TIME'11:11:12';
+j
+"11:11:12"
+DROP TABLE t1;
+CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING DATE))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  KEY `i1` ((json_value(`j`, _utf8mb4'$' returning date)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('"2019-01-01"'),('"2019-01-02"'),
+('"2019-01-03"'),('"2019-01-04"');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DATE) = DATE'2019-01-02';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` where (json_value(`j`, _utf8mb4'$' returning date) = DATE'2019-01-02')
+SELECT * FROM t1 WHERE JSON_VALUE(j, '$' RETURNING DATE) = DATE'2019-01-02';
+j
+"2019-01-02"
+DROP TABLE t1;
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('[1]'), (NULL), ('[2]'), (NULL), ('[3]');
+SELECT JSON_VALUE(j, '$[0]' RETURNING SIGNED) AS v FROM t;
+v
+1
+2
+3
+NULL
+NULL
+DROP TABLE t;
+CREATE TABLE t1(id INT PRIMARY KEY, vc VARCHAR(100));
+INSERT INTO t1 VALUES
+(1, '{"a":"a very long string"}'),
+(2, '{invalid json}'),
+(3, '{"a":"good"}'),
+(4, '{"b":"xyz"}');
+CREATE TABLE t2(id INT PRIMARY KEY, vc VARCHAR(100));
+INSERT INTO t2
+SELECT id, JSON_VALUE(vc, '$.a' RETURNING CHAR(10)
+DEFAULT 'empty' ON EMPTY
+DEFAULT 'error' ON ERROR)
+FROM t1;
+Warnings:
+Warning	3141	Invalid JSON text in argument 1 to function json_value: "Missing a name for object member." at position 1.
+SELECT * FROM t2 ORDER BY id;
+id	vc
+1	error
+2	error
+3	good
+4	empty
+DROP TABLE t1, t2;
+#
+# Bug#30141215: SIG6 IN ROW_UPD_SEC_INDEX_ENTRY_LOW() AT ROW/ROW0UPD.CC
+#
+CREATE TABLE t (j JSON, KEY ((JSON_VALUE(j, '$[0]' RETURNING CHAR(1)))));
+SELECT * FROM t;
+j
+INSERT INTO t VALUES ('["abcde"]');
+DELETE FROM t;
+DROP TABLE t;
+#
+# Bug#30084642: ERROR FROM MEMBER OF AFTER ADDING FUNCTIONAL INDEX
+#
+CREATE TABLE t(j JSON, KEY ((JSON_VALUE(j, '$' RETURNING SIGNED))));
+INSERT INTO t VALUES ('1'), ('2');
+SELECT * FROM t WHERE 1 MEMBER OF (j->'$');
+j
+1
+DROP TABLE t;
+#
+# Bug#30330513: SIG6 IN ROW_UPD_SEC_INDEX_ENTRY_LOW()
+#
+CREATE TABLE t
+(j JSON, KEY ((JSON_VALUE(j, '$' RETURNING CHAR(10) CHARSET utf32))));
+INSERT INTO t VALUES
+('"foobar"'),
+('"Peh4UsNdzmNQbUhbXSK7L0uY0SP1U5F1PvIDDqbaUpR2Gu8NTnXnUmsDy"');
+DELETE FROM t;
+DROP TABLE t;
+#
+# Bug#30315526: SIG6 IN ITEM::EVALUATE() AT SQL/ITEM.CC
+#
+SELECT JSON_VALUE('"1990-12-29"', '$' RETURNING DATE) IS NULL AS c1,
+JSON_VALUE('"12:00:00"', '$' RETURNING TIME) IS NULL AS c2,
+JSON_VALUE('"1990-12-29 12:00:00"', '$' RETURNING TIME) IS NULL AS c3;
+c1	c2	c3
+0	0	0
+#
+# Bug#30320927: SIG6 IN MY_PACKED_TIME_MAKE() AT MYSYS/MY_TIME.CC
+#
+SELECT JSON_VALUE('[]', '$[0]' RETURNING DATE)
+BETWEEN DATE'2019-01-01' AND DATE'2020-01-01' AS c1,
+JSON_VALUE('"abc"', '$' RETURNING DATE)
+BETWEEN DATE'2019-01-01' AND DATE'2020-01-01' AS c2,
+JSON_VALUE('[]', '$[0]' RETURNING TIME)
+BETWEEN TIME'11:00:00' AND TIME'12:00:00' AS c3,
+JSON_VALUE('"abc"', '$' RETURNING TIME)
+BETWEEN TIME'11:00:00' AND TIME'12:00:00' AS c4;
+c1	c2	c3	c4
+NULL	NULL	NULL	NULL
+#
+# Bug#30349041: SIG6 PRINT_CAST_TYPE() AT SQL/ITEM_JSON_FUNC.CC
+#
+EXPLAIN SELECT JSON_VALUE('true', '$' RETURNING JSON) v;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select json_value('true', '$' returning json) AS `v`
+#
+# Bug#30631787: SIG6 IN SQL_CMD_DML::PREPARE() AT SQL/SQL_SELECT.CC
+#
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT JSON_VALUE('{}', '$' RETURNING TIME DEFAULT '184' ON EMPTY);
+ERROR 22007: Truncated incorrect time value: '184'
+#
+# Bug#30633294: SIG11 IN STD::DEFAULT_DELETE() AT BITS/UNIQUE_PTR.H
+#
+CREATE TABLE t(
+j JSON,
+gc VARCHAR(512) AS (JSON_VALUE(j, '$[*]' DEFAULT 'abc' ON EMPTY
+DEFAULT 'def' ON ERROR)));
+SELECT * FROM t;
+j	gc
+SELECT * FROM t;
+j	gc
+SELECT * FROM t;
+j	gc
+DROP TABLE t;
+#
+# Bug#30720910: JSON_VALUE() DOES NOT CHECK PRECISION FOR DECIMAL TYPE
+#
+SELECT JSON_VALUE('[12345.67]', '$[0]' RETURNING DECIMAL(5, 2)) v;
+v
+NULL
+SELECT JSON_VALUE('[12345.67]', '$[0]' RETURNING DECIMAL(5, 2) ERROR ON ERROR);
+ERROR 22003: DECIMAL value is out of range in 'json_value'
+SELECT JSON_VALUE('{}', '$.x' RETURNING DECIMAL(5, 2) DEFAULT 12345.67 ON EMPTY);
+ERROR 22003: DECIMAL DEFAULT value is out of range in 'json_value'
+#
+# Bug#31168181 FILTERING USING JSON FIELD, IS TRUE DOES NOT WORK
+#
+CREATE TABLE test (id INT, j JSON);
+INSERT INTO test VALUES (1, '{"some_key": true}');
+INSERT INTO test VALUES (2, '{"some_key": false}');
+INSERT INTO test VALUES (3, '{"some_key": null}');
+INSERT INTO test VALUES (4, '{"some_key": "true"}');
+SELECT j, (j->'$.some_key' IS TRUE) AS ist,
+(j->'$.some_key' IS FALSE) AS isf,
+(j->'$.some_key' IS NULL) AS isn
+FROM test;
+j	ist	isf	isn
+{"some_key": true}	1	0	0
+{"some_key": false}	1	0	0
+{"some_key": null}	1	0	0
+{"some_key": "true"}	1	0	0
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT j FROM test
+WHERE j->'$.some_key';
+j
+{"some_key": true}
+{"some_key": false}
+{"some_key": null}
+{"some_key": "true"}
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT j FROM test
+WHERE NOT j->'$.some_key';
+j
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT j, (json_value(j, '$.some_key' RETURNING SIGNED) IS TRUE) AS ist,
+(json_value(j, '$.some_key' RETURNING SIGNED) IS FALSE) AS isf,
+(json_value(j, '$.some_key' RETURNING SIGNED) IS NULL) AS isn
+FROM test;
+j	ist	isf	isn
+{"some_key": true}	1	0	0
+{"some_key": false}	0	1	0
+{"some_key": null}	0	0	1
+{"some_key": "true"}	0	0	1
+SELECT j FROM test
+WHERE json_value(j, '$.some_key' RETURNING SIGNED);
+j
+{"some_key": true}
+SELECT j FROM test
+WHERE NOT json_value(j, '$.some_key' RETURNING SIGNED);
+j
+{"some_key": false}
+SELECT json_extract(json_object( "a",FALSE),'$.a') IS TRUE;
+json_extract(json_object( "a",FALSE),'$.a') IS TRUE
+1
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(TRUE AS JSON) IS TRUE AS ist,
+CAST(TRUE AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(FALSE AS JSON) IS TRUE AS ist,
+CAST(FALSE AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(NULL AS JSON) IS TRUE AS ist,
+CAST(NULL AS JSON) IS FALSE AS isf;
+ist	isf
+0	0
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(123 AS JSON) IS TRUE AS ist,
+CAST(123 AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST('"ab"' AS JSON) IS TRUE AS ist,
+CAST('"ab"' AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+DROP TABLE test;
+#
+# Bug#31336625 JSON_VALUE(EXPRESSION PATH RETURNING TYPE) SHOULD RETURN SQL NULL FOR JSON NULL
+#
+SELECT JSON_VALUE('null', '$' RETURNING DATE ERROR ON ERROR),
+JSON_VALUE('null', '$' RETURNING DATE),
+JSON_VALUE('null', '$' RETURNING DATE) IS NULL;
+JSON_VALUE('null', '$' RETURNING DATE ERROR ON ERROR)	JSON_VALUE('null', '$' RETURNING DATE)	JSON_VALUE('null', '$' RETURNING DATE) IS NULL
+NULL	NULL	1
+SELECT JSON_VALUE('null', '$' RETURNING SIGNED ERROR ON ERROR),
+JSON_VALUE('null', '$' RETURNING SIGNED),
+JSON_VALUE('null', '$' RETURNING SIGNED) IS NULL;
+JSON_VALUE('null', '$' RETURNING SIGNED ERROR ON ERROR)	JSON_VALUE('null', '$' RETURNING SIGNED)	JSON_VALUE('null', '$' RETURNING SIGNED) IS NULL
+NULL	NULL	1
+SELECT JSON_VALUE('null', '$' RETURNING CHAR ERROR ON ERROR),
+JSON_VALUE('null', '$' RETURNING CHAR),
+JSON_VALUE('null', '$' RETURNING CHAR) IS NULL;
+JSON_VALUE('null', '$' RETURNING CHAR ERROR ON ERROR)	JSON_VALUE('null', '$' RETURNING CHAR)	JSON_VALUE('null', '$' RETURNING CHAR) IS NULL
+NULL	NULL	1
+SELECT JSON_VALUE(CAST('null' AS JSON), '$' RETURNING CHAR ERROR ON ERROR);
+JSON_VALUE(CAST('null' AS JSON), '$' RETURNING CHAR ERROR ON ERROR)
+NULL
+SELECT JSON_VALUE(CAST('null' AS JSON), '$' RETURNING SIGNED ERROR ON ERROR);
+JSON_VALUE(CAST('null' AS JSON), '$' RETURNING SIGNED ERROR ON ERROR)
+NULL
+CREATE TABLE t(a JSON);
+INSERT INTO t VALUES('[1,2,3,null]');
+SELECT JSON_VALUE(a, '$[2]' RETURNING SIGNED),
+JSON_VALUE(a, '$[3]' RETURNING SIGNED ERROR ON ERROR),
+JSON_VALUE(a, '$[3]' RETURNING SIGNED) FROM t;
+JSON_VALUE(a, '$[2]' RETURNING SIGNED)	JSON_VALUE(a, '$[3]' RETURNING SIGNED ERROR ON ERROR)	JSON_VALUE(a, '$[3]' RETURNING SIGNED)
+3	NULL	NULL
+DELETE FROM t;
+INSERT INTO t VALUES('{"k1":"xy", "k2":null}');
+SELECT JSON_VALUE(a, '$.k1' RETURNING CHAR),
+JSON_VALUE(a, '$.k2' RETURNING CHAR ERROR ON ERROR),
+JSON_VALUE(a, '$.k2' RETURNING CHAR) FROM t;
+JSON_VALUE(a, '$.k1' RETURNING CHAR)	JSON_VALUE(a, '$.k2' RETURNING CHAR ERROR ON ERROR)	JSON_VALUE(a, '$.k2' RETURNING CHAR)
+xy	NULL	NULL
+DELETE FROM t;
+INSERT INTO t VALUES('{"k1":"2020-05-12", "k2":null}');
+SELECT JSON_VALUE(a, '$.k1' RETURNING DATE),
+JSON_VALUE(a, '$.k2' RETURNING DATE ERROR ON ERROR),
+JSON_VALUE(a, '$.k2' RETURNING DATE) FROM t;
+JSON_VALUE(a, '$.k1' RETURNING DATE)	JSON_VALUE(a, '$.k2' RETURNING DATE ERROR ON ERROR)	JSON_VALUE(a, '$.k2' RETURNING DATE)
+2020-05-12	NULL	NULL
+DROP TABLE t;
+SELECT JSON_VALUE(JSON_OBJECT('a', FALSE), '$.a' RETURNING SIGNED),
+JSON_VALUE(JSON_OBJECT('a', TRUE), '$.a' RETURNING SIGNED),
+JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED ERROR ON ERROR),
+JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED);
+JSON_VALUE(JSON_OBJECT('a', FALSE), '$.a' RETURNING SIGNED)	JSON_VALUE(JSON_OBJECT('a', TRUE), '$.a' RETURNING SIGNED)	JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED ERROR ON ERROR)	JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED)
+0	1	NULL	NULL
+SELECT JSON_VALUE(JSON_OBJECT('a', 'value'), '$.a'),
+JSON_VALUE(JSON_OBJECT('a', NULL), '$.a');
+JSON_VALUE(JSON_OBJECT('a', 'value'), '$.a')	JSON_VALUE(JSON_OBJECT('a', NULL), '$.a')
+value	NULL

@@ -40,7 +40,7 @@ let $relay_log_file_before_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File
 
 # Execute change master command with running SQL thread.
 --source include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 
 # Note down the active relaylog after change master
 let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
@@ -56,7 +56,7 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 
 --source include/stop_slave_sql.inc
 --source include/start_slave_io.inc
-CHANGE MASTER TO MASTER_DELAY= 20;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 20;
 
 # Note down the active relaylog after change master
 let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
@@ -78,11 +78,11 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 
 let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 replace_result $relay_log_file RELAY_LOG_FILE;
-eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= '$relay_log_file';
 
 let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 replace_result $relay_log_pos RELAY_LOG_POS;
-eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= $relay_log_pos;
 
 let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
@@ -95,7 +95,7 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 --echo relay_log_pos options, the relaylogs should be deleted.
 --echo
 
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 20;
 
 let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
@@ -110,8 +110,8 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 # Restore to default values now using the values saved before the tests.
 # No need to record the default values in the result file.
 --disable_query_log
-eval CHANGE MASTER TO MASTER_DELAY= $delay_before_test;
-eval CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= $slave_heartbeat_timeout_before_test;
+eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay_before_test;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= $slave_heartbeat_timeout_before_test;
 --enable_query_log
 
 --source include/start_slave.inc

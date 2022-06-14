@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,31 +43,33 @@ using std::vector;
 #define MAX_ALTER_STR_SIZE 128 * 1024
 #define KEY_PARTITIONING_CHANGED_STR "KEY () partitioning changed"
 
-static MYSQL *sock = 0;
-static bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
-            opt_databases = 0, opt_fast = 0, opt_medium_check = 0,
-            opt_quick = 0, opt_all_in_1 = 0, opt_silent = 0,
-            opt_auto_repair = 0, ignore_errors = 0, opt_frm = 0,
-            opt_fix_table_names = 0, opt_fix_db_names = 0, opt_upgrade = 0,
-            opt_write_binlog = 1;
+static MYSQL *sock = nullptr;
+static bool opt_alldbs = false, opt_check_only_changed = false,
+            opt_extended = false, opt_databases = false, opt_fast = false,
+            opt_medium_check = false, opt_quick = false, opt_all_in_1 = false,
+            opt_silent = false, opt_auto_repair = false, ignore_errors = false,
+            opt_frm = false, opt_fix_table_names = false,
+            opt_fix_db_names = false, opt_upgrade = false,
+            opt_write_binlog = true;
 static uint verbose = 0;
 static string opt_skip_database;
 int what_to_do = 0;
 
-void (*DBError)(MYSQL *mysql, string when);
+void (*DBError)(MYSQL *mysql, const string &when);
 
 static int first_error = 0;
 vector<string> tables4repair, tables4rebuild, alter_table_cmds;
 
 static int process_all_databases();
-static int process_databases(vector<string> db_names);
-static int process_selected_tables(string db, vector<string> table_names);
-static int process_all_tables_in_db(string database);
-static int process_one_db(string database);
-static int use_db(string database);
-static int handle_request_for_tables(string tables);
+static int process_databases(const vector<string> &db_names);
+static int process_selected_tables(const string &db,
+                                   const vector<string> &table_names);
+static int process_all_tables_in_db(const string &database);
+static int process_one_db(const string &database);
+static int use_db(const string &database);
+static int handle_request_for_tables(const string &tables);
 static void print_result();
-static string escape_table_name(string src);
+static string escape_table_name(const string &src);
 
 static int process_all_databases() {
   MYSQL_ROW row;
@@ -88,39 +90,37 @@ static int process_all_databases() {
 }
 /* process_all_databases */
 
-static int process_databases(vector<string> db_names) {
+static int process_databases(const vector<string> &db_names) {
   int result = 0;
-  vector<string>::iterator it;
-  for (it = db_names.begin(); it != db_names.end(); it++) {
-    if (process_one_db(*it)) result = 1;
+  for (const string &db_name : db_names) {
+    if (process_one_db(db_name)) result = 1;
   }
   return result;
 } /* process_databases */
 
-static int process_selected_tables(string db, vector<string> table_names) {
+static int process_selected_tables(const string &db,
+                                   const vector<string> &table_names) {
   if (use_db(db)) return 1;
-  vector<string>::iterator it;
 
   /*
     TODO (a bug): properly handle all-in-1 option:
     we should create and pass a table list to handle_request_for_tables().
   */
-  for (it = table_names.begin(); it != table_names.end(); it++) {
-    *it = escape_table_name(*it);
-    handle_request_for_tables(*it);
+  for (const string &table_name : table_names) {
+    handle_request_for_tables(escape_table_name(table_name));
   }
 
   return 0;
 } /* process_selected_tables */
 
-static inline void escape_str(string src, size_t start, size_t end,
+static inline void escape_str(const string &src, size_t start, size_t end,
                               string &res) {
   res += '`';
   for (size_t i = start; i < end; i++) {
     switch (src[i]) {
       case '`': /* Escape backtick character. */
         res += '`';
-        /* Fall through. */
+        [[fallthrough]];
       default:
         res += src[i];
     }
@@ -128,14 +128,14 @@ static inline void escape_str(string src, size_t start, size_t end,
   res += '`';
 }
 
-static string escape_table_name(string src) {
+static string escape_table_name(const string &src) {
   string res = "";
 
   escape_str(src, 0, src.length(), res);
   return res;
 }
 
-static string escape_db_table_name(string src, size_t dot_pos) {
+static string escape_db_table_name(const string &src, size_t dot_pos) {
   string res = "";
 
   /* Escape database name. */
@@ -148,8 +148,8 @@ static string escape_db_table_name(string src, size_t dot_pos) {
   return res;
 }
 
-static int process_all_tables_in_db(string database) {
-  MYSQL_RES *res = NULL;
+static int process_all_tables_in_db(const string &database) {
+  MYSQL_RES *res = nullptr;
   MYSQL_ROW row;
   uint num_columns;
 
@@ -178,7 +178,7 @@ static int process_all_tables_in_db(string database) {
   return 0;
 } /* process_all_tables_in_db */
 
-static int run_query(string query) {
+static int run_query(const string &query) {
   if (mysql_query(sock, query.c_str())) {
     fprintf(stderr, "Failed to run query \"%s\"\n", query.c_str());
     fprintf(stderr, "Error: %s\n", mysql_error(sock));
@@ -187,7 +187,7 @@ static int run_query(string query) {
   return 0;
 }
 
-static int rebuild_table(string name) {
+static int rebuild_table(const string &name) {
   int rc = 0;
   string query = "ALTER TABLE " + name + " FORCE";
   if (mysql_real_query(sock, query.c_str(), (ulong)query.length())) {
@@ -199,7 +199,7 @@ static int rebuild_table(string name) {
   return rc;
 }
 
-static int process_one_db(string database) {
+static int process_one_db(const string &database) {
   if (opt_skip_database.length() > 0 && opt_alldbs &&
       database == opt_skip_database)
     return 0;
@@ -207,7 +207,7 @@ static int process_one_db(string database) {
   return process_all_tables_in_db(database);
 }
 
-static int use_db(string database) {
+static int use_db(const string &database) {
   if (mysql_get_server_version(sock) >= FIRST_INFORMATION_SCHEMA_VERSION &&
       !my_strcasecmp(&my_charset_latin1, database.c_str(),
                      INFORMATION_SCHEMA_DB_NAME))
@@ -225,7 +225,7 @@ static int use_db(string database) {
 
 static int disable_binlog() { return run_query("SET SQL_LOG_BIN=0"); }
 
-static int handle_request_for_tables(string tables) {
+static int handle_request_for_tables(const string &tables) {
   string operation, options;
 
   switch (what_to_do) {
@@ -271,7 +271,7 @@ static void print_result() {
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
   size_t dot_pos;
-  bool found_error = 0, table_rebuild = 0;
+  bool found_error = false, table_rebuild = false;
 
   res = mysql_use_result(sock);
   dot_pos = strlen(sock->db) + 1;
@@ -300,8 +300,8 @@ static void print_result() {
           tables4repair.push_back(escape_db_table_name(prev, dot_pos));
         }
       }
-      found_error = 0;
-      table_rebuild = 0;
+      found_error = false;
+      table_rebuild = false;
       prev_alter[0] = 0;
       if (opt_silent) continue;
     }
@@ -316,9 +316,9 @@ static void print_result() {
       }
       if (opt_auto_repair && strcmp(row[2], "note")) {
         const char *alter_txt = strstr(row[3], "ALTER TABLE");
-        found_error = 1;
+        found_error = true;
         if (alter_txt) {
-          table_rebuild = 1;
+          table_rebuild = true;
           if (!strncmp(row[3], KEY_PARTITIONING_CHANGED_STR,
                        strlen(KEY_PARTITIONING_CHANGED_STR)) &&
               strstr(alter_txt, "PARTITION BY")) {
@@ -327,7 +327,7 @@ static void print_result() {
                   "Error: Alter command too long (>= %d),"
                   " please do \"%s\" or dump/reload to fix it!\n",
                   MAX_ALTER_STR_SIZE, alter_txt);
-              table_rebuild = 0;
+              table_rebuild = false;
               prev_alter[0] = 0;
             } else {
               strncpy(prev_alter, alter_txt, MAX_ALTER_STR_SIZE - 1);
@@ -363,7 +363,7 @@ void Mysql::Tools::Check::mysql_check(
     bool opt_fix_table_names, bool opt_fix_db_names, bool opt_upgrade,
     bool opt_write_binlog, uint verbose, std::string opt_skip_database,
     std::vector<std::string> arguments,
-    void (*dberror)(MYSQL *mysql, std::string when)) {
+    void (*dberror)(MYSQL *mysql, const std::string &when)) {
   ::sock = connection;
   ::what_to_do = what_to_do;
   ::opt_alldbs = opt_alldbs;
@@ -408,15 +408,14 @@ void Mysql::Tools::Check::mysql_check(
       puts("\nRepairing tables");
     ::what_to_do = DO_REPAIR;
 
-    vector<string>::iterator it;
-    for (it = tables4repair.begin(); it != tables4repair.end(); it++) {
-      handle_request_for_tables(*it);
+    for (const string &table4repair : tables4repair) {
+      handle_request_for_tables(table4repair);
     }
-    for (it = tables4rebuild.begin(); it != tables4rebuild.end(); it++) {
-      rebuild_table(*it);
+    for (const string &table4rebuild : tables4rebuild) {
+      rebuild_table(table4rebuild);
     }
-    for (it = alter_table_cmds.begin(); it != alter_table_cmds.end(); it++) {
-      run_query(*it);
+    for (const string &alter_table_cmd : alter_table_cmds) {
+      run_query(alter_table_cmd);
     }
   }
 }
@@ -431,10 +430,11 @@ Program::Program()
       m_process_all_dbs(false),
       m_fix_table_names(false),
       m_fix_db_names(false),
-      m_connection(NULL),
-      m_error_callback(NULL) {}
+      m_connection(nullptr),
+      m_error_callback(nullptr) {}
 
-int Program::check_databases(MYSQL *connection, vector<string> databases) {
+int Program::check_databases(MYSQL *connection,
+                             const vector<string> &databases) {
   this->m_connection = connection;
   this->m_process_all_dbs = false;
   return this->set_what_to_do(DO_CHECK)->execute(databases);
@@ -482,12 +482,12 @@ Program *Program::set_ignore_errors(bool ignore) {
 }
 
 Program *Program::set_skip_database(string database) {
-  this->m_database_to_skip = database;
+  this->m_database_to_skip = std::move(database);
   return this;
 }
 
-Program *Program::set_error_callback(void (*error_callback)(MYSQL *mysql,
-                                                            string when)) {
+Program *Program::set_error_callback(
+    void (*error_callback)(MYSQL *mysql, const string &when)) {
   this->m_error_callback = error_callback;
   return this;
 }
@@ -497,7 +497,8 @@ Program *Program::set_what_to_do(int functionality) {
   return this;
 }
 
-int Program::execute(vector<string> positional_options) {
+/// @relates Mysql::Tools::Check::Program
+int Program::execute(const vector<string> &positional_options) {
   Mysql::Tools::Check::mysql_check(
       this->m_connection,        // connection
       this->m_what_to_do,        // what_to_do

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@ using std::string;
 
 Sql_service_command_interface::Sql_service_command_interface()
     : connection_thread_isolation(PSESSION_USE_THREAD),
-      m_server_interface(NULL),
-      m_plugin_session_thread(NULL) {}
+      m_server_interface(nullptr),
+      m_plugin_session_thread(nullptr) {}
 
 Sql_service_command_interface::~Sql_service_command_interface() {
   terminate_connection_fields();
@@ -42,7 +42,7 @@ Sql_service_command_interface::~Sql_service_command_interface() {
 int Sql_service_command_interface::establish_session_connection(
     enum_plugin_con_isolation isolation_param, const char *user,
     void *plugin_pointer) {
-  DBUG_ASSERT(m_server_interface == NULL);
+  assert(m_server_interface == nullptr);
 
   int error = 0;
   connection_thread_isolation = isolation_param;
@@ -74,10 +74,10 @@ int Sql_service_command_interface::establish_session_connection(
     if (m_plugin_session_thread) {
       m_plugin_session_thread->terminate_session_thread();
       delete m_plugin_session_thread;
-      m_plugin_session_thread = NULL;
+      m_plugin_session_thread = nullptr;
     } else {
       delete m_server_interface;
-      m_server_interface = NULL;
+      m_server_interface = nullptr;
     }
     return error;
     /* purecov: end */
@@ -93,24 +93,28 @@ int Sql_service_command_interface::reestablish_connection(
   return establish_session_connection(isolation_param, user, plugin_pointer);
 }
 
+bool Sql_service_command_interface::is_session_valid() {
+  return m_server_interface != nullptr;
+}
+
 bool Sql_service_command_interface::is_session_killed() {
   DBUG_ENTER("Sql_service_command_interface::is_session_killed");
-  DBUG_ASSERT(m_server_interface != NULL);
+  assert(m_server_interface != nullptr);
   if (m_server_interface->is_session_killed(m_server_interface->get_session()))
     DBUG_RETURN(true);
   DBUG_RETURN(false);
 }
 
 void Sql_service_command_interface::terminate_connection_fields() {
-  if (m_server_interface != NULL) {
+  if (m_server_interface != nullptr) {
     if (m_plugin_session_thread) {
       m_plugin_session_thread->terminate_session_thread();
       delete m_plugin_session_thread;
-      m_plugin_session_thread = NULL;
-      m_server_interface = NULL;
+      m_plugin_session_thread = nullptr;
+      m_server_interface = nullptr;
     } else {
       delete m_server_interface;
-      m_server_interface = NULL;
+      m_server_interface = nullptr;
     }
   }
 }
@@ -125,7 +129,7 @@ int Sql_service_command_interface::set_interface_user(const char *user) {
 }
 
 long Sql_service_command_interface::set_super_read_only() {
-  DBUG_ENTER("Sql_service_command_interface::set_super_read_only");
+  DBUG_TRACE;
   long error = 0;
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
@@ -137,38 +141,38 @@ long Sql_service_command_interface::set_super_read_only() {
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_commands::internal_set_super_read_only(
     Sql_service_interface *sql_interface, void *) {
-  DBUG_ENTER("Sql_service_commands::internal_set_super_read_only");
+  DBUG_TRACE;
 
   // These debug branches are repeated here due to THD support variations on
   // invocation
-  DBUG_EXECUTE_IF("group_replication_read_mode_error", { DBUG_RETURN(1); });
-  DBUG_EXECUTE_IF("group_replication_skip_read_mode", { DBUG_RETURN(0); });
+  DBUG_EXECUTE_IF("group_replication_read_mode_error", { return 1; });
+  DBUG_EXECUTE_IF("group_replication_skip_read_mode", { return 0; });
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   long srv_err = sql_interface->execute_query("SET GLOBAL super_read_only= 1;");
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
+#ifndef NDEBUG
   if (srv_err == 0) {
-#ifndef DBUG_OFF
     long err;
     err =
         sql_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
 
-    DBUG_ASSERT(err || (!err && rset.get_rows() > 0 && rset.getLong(0) == 1));
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
-#endif
+    assert(err || (!err && rset.get_rows() > 0 && rset.getLong(0) == 1));
   }
+#endif
 
-  DBUG_RETURN(srv_err);
+  return srv_err;
 }
 
 long Sql_service_command_interface::reset_super_read_only() {
-  DBUG_ENTER("Sql_service_command_interface::reset_super_read_only");
+  DBUG_TRACE;
   long error = 0;
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
@@ -180,34 +184,34 @@ long Sql_service_command_interface::reset_super_read_only() {
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_commands::internal_reset_super_read_only(
     Sql_service_interface *sql_interface, void *) {
-  DBUG_ENTER("Sql_service_commands::internal_reset_super_read_only");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
 
   const char *query = "SET GLOBAL super_read_only= 0";
   long srv_err = sql_interface->execute_query(query);
-#ifndef DBUG_OFF
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
+#ifndef NDEBUG
   if (srv_err == 0) {
     long err;
     query = "SELECT @@GLOBAL.super_read_only";
     err = sql_interface->execute_query(query, &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
   }
 #endif
-  DBUG_RETURN(srv_err);
+  return srv_err;
 }
 
 long Sql_service_command_interface::reset_read_only() {
-  DBUG_ENTER("Sql_service_command_interface::reset_read_only");
+  DBUG_TRACE;
   long error = 0;
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
@@ -218,39 +222,39 @@ long Sql_service_command_interface::reset_read_only() {
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_commands::internal_reset_read_only(
     Sql_service_interface *sql_interface, void *) {
-  DBUG_ENTER("Sql_service_commands::internal_reset_read_only");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
 
   const char *query = "SET GLOBAL read_only= 0";
   long srv_err = sql_interface->execute_query(query);
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (srv_err == 0) {
     long err;
     query = "SELECT @@GLOBAL.read_only";
     err = sql_interface->execute_query(query, &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
   }
 #endif
 
-  DBUG_RETURN(srv_err);
+  return srv_err;
 }
 
 long Sql_service_commands::internal_kill_session(
     Sql_service_interface *sql_interface, void *session_id) {
-  DBUG_ENTER("Sql_service_commands::internal_kill_session");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   long srv_err = 0;
@@ -267,11 +271,11 @@ long Sql_service_commands::internal_kill_session(
                    data.com_kill.id, srv_err); /* purecov: inspected */
     }
   }
-  DBUG_RETURN(srv_err);
+  return srv_err;
 }
 
 long Sql_service_command_interface::kill_session(unsigned long session_id) {
-  DBUG_ENTER("Sql_service_command_interface::kill_session(id)");
+  DBUG_TRACE;
   long error = 0;
   unsigned long *id_pointer = &session_id;
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
@@ -284,11 +288,11 @@ long Sql_service_command_interface::kill_session(unsigned long session_id) {
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_command_interface::get_server_super_read_only() {
-  DBUG_ENTER("Sql_service_command_interface::get_server_super_read_only");
+  DBUG_TRACE;
   long error = 0;
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
@@ -300,14 +304,14 @@ long Sql_service_command_interface::get_server_super_read_only() {
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_commands::internal_get_server_super_read_only(
     Sql_service_interface *sql_interface, void *) {
-  DBUG_ENTER("Sql_service_commands::internal_get_server_super_read_only");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   long server_super_read_only = -1;
@@ -318,11 +322,11 @@ long Sql_service_commands::internal_get_server_super_read_only(
     server_super_read_only = rset.getLong(0);
   }
 
-  DBUG_RETURN(server_super_read_only);
+  return server_super_read_only;
 }
 
 long Sql_service_command_interface::get_server_read_only() {
-  DBUG_ENTER("Sql_service_command_interface::get_server_read_only");
+  DBUG_TRACE;
   long error = 0;
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
@@ -334,14 +338,14 @@ long Sql_service_command_interface::get_server_read_only() {
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_commands::internal_get_server_read_only(
     Sql_service_interface *sql_interface, void *) {
-  DBUG_ENTER("Sql_service_commands::internal_get_server_read_only");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   longlong server_read_only = -1;
@@ -351,104 +355,31 @@ long Sql_service_commands::internal_get_server_read_only(
     server_read_only = rset.getLong(0);
   }
 
-  DBUG_RETURN(server_read_only);
-}
-
-int Sql_service_command_interface::get_server_gtid_executed(
-    string &gtid_executed) {
-  DBUG_ENTER("Sql_service_command_interface::get_server_gtid_executed");
-  long error = 0;
-
-  if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
-    error = sql_service_commands.internal_get_server_gtid_executed(
-        m_server_interface, static_cast<void *>(&gtid_executed));
-  } else {
-    m_plugin_session_thread->set_return_pointer(
-        static_cast<void *>(&gtid_executed));
-    m_plugin_session_thread->queue_new_method_for_application(
-        &Sql_service_commands::internal_get_server_gtid_executed);
-    error = m_plugin_session_thread->wait_for_method_execution();
-  }
-
-  DBUG_RETURN(error);
-}
-
-long Sql_service_commands::internal_get_server_gtid_executed(
-    Sql_service_interface *sql_interface, void *gtid_executed_arg) {
-  DBUG_ENTER("Sql_service_command_interface::get_server_gtid_executed");
-
-  DBUG_ASSERT(sql_interface != NULL);
-
-  std::string *gtid_executed = static_cast<std::string *>(gtid_executed_arg);
-
-  Sql_resultset rset;
-  long srv_err =
-      sql_interface->execute_query("SELECT @@GLOBAL.gtid_executed", &rset);
-  if (srv_err == 0 && rset.get_rows() > 0) {
-    gtid_executed->assign(rset.getString(0));
-    DBUG_RETURN(0);
-  }
-  DBUG_RETURN(1);
-}
-
-int Sql_service_command_interface::get_server_gtid_purged(string &gtid_purged) {
-  DBUG_TRACE;
-  long error = 0;
-
-  if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
-    error = sql_service_commands.internal_get_server_gtid_purged(
-        m_server_interface, static_cast<void *>(&gtid_purged));
-  } else {
-    m_plugin_session_thread->set_return_pointer(
-        static_cast<void *>(&gtid_purged));
-    m_plugin_session_thread->queue_new_method_for_application(
-        &Sql_service_commands::internal_get_server_gtid_purged);
-    error = m_plugin_session_thread->wait_for_method_execution();
-  }
-
-  return error;
-}
-
-long Sql_service_commands::internal_get_server_gtid_purged(
-    Sql_service_interface *sql_interface, void *gtid_purged_arg) {
-  DBUG_TRACE;
-
-  DBUG_ASSERT(sql_interface != NULL);
-
-  std::string *gtid_purged = static_cast<std::string *>(gtid_purged_arg);
-
-  Sql_resultset rset;
-  long srv_err =
-      sql_interface->execute_query("SELECT @@GLOBAL.GTID_PURGED", &rset);
-  if (srv_err == 0 && rset.get_rows() > 0) {
-    gtid_purged->assign(rset.getString(0));
-    return 0;
-  }
-  return 1;
+  return server_read_only;
 }
 
 long Sql_service_command_interface::wait_for_server_gtid_executed(
     std::string &gtid_executed, int timeout) {
-  DBUG_ENTER("Sql_service_command_interface::wait_for_server_gtid_executed");
+  DBUG_TRACE;
   long error = 0;
 
   /* No support for this method on thread isolation mode */
-  DBUG_ASSERT(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
+  assert(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
     error = sql_service_commands.internal_wait_for_server_gtid_executed(
         m_server_interface, gtid_executed, timeout);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_commands::internal_wait_for_server_gtid_executed(
     Sql_service_interface *sql_interface, std::string &gtid_executed,
     int timeout) {
-  DBUG_ENTER("Sql_service_commands::internal_wait_for_server_gtid_executed");
+  DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   DBUG_EXECUTE_IF("sql_int_wait_for_gtid_executed_no_timeout",
                   { timeout = 0; });
@@ -468,22 +399,22 @@ long Sql_service_commands::internal_wait_for_server_gtid_executed(
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INTERNAL_QUERY, query.c_str(),
                  srv_err);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   } else if (rset.get_rows() > 0) {
-    if (rset.getLong(0) == 1) DBUG_RETURN(-1);
+    if (rset.getLong(0) == 1) return -1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 long Sql_service_commands::internal_set_persist_only_variable(
     Sql_service_interface *sql_interface, void *var_args) {
-  DBUG_ENTER("Sql_service_commands::internal_set_persistent_variable");
+  DBUG_TRACE;
 
   std::pair<std::string, std::string> *variable_args =
       (std::pair<std::string, std::string> *)var_args;
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   std::string query = "SET PERSIST_ONLY ";
   query.append(variable_args->first);
@@ -495,17 +426,17 @@ long Sql_service_commands::internal_set_persist_only_variable(
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INTERNAL_QUERY, query.c_str(),
                  srv_err);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
-  DBUG_RETURN(0);
+  return 0;
 
   return 0;
 }
 
 long Sql_service_command_interface::set_persist_only_variable(
     std::string &variable, std::string &value) {
-  DBUG_ENTER("Sql_service_command_interface::set_persistent_variable");
+  DBUG_TRACE;
   long error = 0;
 
   std::pair<std::string, std::string> variable_args(variable, value);
@@ -520,7 +451,7 @@ long Sql_service_command_interface::set_persist_only_variable(
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long Sql_service_command_interface::clone_server(
@@ -551,7 +482,7 @@ long Sql_service_commands::internal_clone_server(
     Sql_service_interface *sql_interface, void *var_args) {
   DBUG_ENTER("Sql_service_commands::internal_clone_server");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   std::tuple<std::string, std::string, std::string, std::string, bool,
              std::string *> *variable_args =
@@ -565,19 +496,19 @@ long Sql_service_commands::internal_clone_server(
   std::string q_password(std::get<3>(*variable_args));
   plugin_escape_string(q_password);
 
-  std::string query = "CLONE INSTANCE FROM \"";
+  std::string query = "CLONE INSTANCE FROM \'";
   query.append(q_user);
-  query.append("\"@\"");
+  query.append("\'@\'");
   query.append(q_hostname);
-  query.append("\":");
+  query.append("\':");
   query.append(std::get<1>(*variable_args));
-  query.append(" IDENTIFIED BY \"");
+  query.append(" IDENTIFIED BY \'");
   query.append(q_password);
   bool use_ssl = std::get<4>(*variable_args);
   if (use_ssl)
-    query.append("\" REQUIRE SSL;");
+    query.append("\' REQUIRE SSL;");
   else
-    query.append("\" REQUIRE NO SSL;");
+    query.append("\' REQUIRE NO SSL;");
 
   Sql_resultset rset;
   long srv_err = sql_interface->execute_query(query, &rset);
@@ -589,19 +520,19 @@ long Sql_service_commands::internal_clone_server(
     error_msg->append(" Error message: ");
     error_msg->append(rset.err_msg());
 
-    std::string sanitized_query = "CLONE INSTANCE FROM \"";
+    std::string sanitized_query = "CLONE INSTANCE FROM \'";
     sanitized_query.append(q_user);
-    sanitized_query.append("\"@\"");
+    sanitized_query.append("\'@\'");
     sanitized_query.append(q_hostname);
-    sanitized_query.append("\":");
+    sanitized_query.append("\':");
     sanitized_query.append(std::get<1>(*variable_args));
-    sanitized_query.append(" IDENTIFIED BY \"");
+    sanitized_query.append(" IDENTIFIED BY \'");
     sanitized_query.append("*****");
     bool use_ssl = std::get<4>(*variable_args);
     if (use_ssl)
-      sanitized_query.append("\" REQUIRE SSL;");
+      sanitized_query.append("\' REQUIRE SSL;");
     else
-      sanitized_query.append("\" REQUIRE NO SSL;");
+      sanitized_query.append("\' REQUIRE NO SSL;");
 
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INTERNAL_QUERY,
                  sanitized_query.c_str(), srv_err);
@@ -644,7 +575,7 @@ long Sql_service_commands::internal_execute_query(
     Sql_service_interface *sql_interface, void *var_args) {
   DBUG_ENTER("Sql_service_commands::internal_execute_query");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   std::pair<std::string, std::string *> *variable_args =
       static_cast<std::pair<std::string, std::string *> *>(var_args);
@@ -703,7 +634,7 @@ long Sql_service_commands::internal_execute_conditional_query(
     Sql_service_interface *sql_interface, void *var_args) {
   DBUG_ENTER("Sql_service_commands::internal_execute_conditional_query");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != nullptr);
 
   std::tuple<std::string, bool *, std::string *> *variable_args =
       static_cast<std::tuple<std::string, bool *, std::string *> *>(var_args);
@@ -736,12 +667,36 @@ long Sql_service_commands::internal_execute_conditional_query(
   return 0;
 }
 
+long Sql_service_command_interface::set_offline_mode() {
+  DBUG_TRACE;
+  long error = 0;
+
+  if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
+    error = sql_service_commands.internal_set_offline_mode(m_server_interface);
+  } else {
+    m_plugin_session_thread->queue_new_method_for_application(
+        &Sql_service_commands::internal_set_offline_mode);
+    error = m_plugin_session_thread->wait_for_method_execution();
+  }
+
+  return error;
+}
+
+long Sql_service_commands::internal_set_offline_mode(
+    Sql_service_interface *sql_interface, void *) {
+  DBUG_TRACE;
+
+  long srv_err = sql_interface->execute_query("SET GLOBAL offline_mode= 1;");
+
+  return srv_err;
+}
+
 Session_plugin_thread::Session_plugin_thread(
     Sql_service_commands *command_interface)
     : command_interface(command_interface),
-      m_server_interface(NULL),
-      incoming_methods(NULL),
-      m_plugin_pointer(NULL),
+      m_server_interface(nullptr),
+      incoming_methods(nullptr),
+      m_plugin_pointer(nullptr),
       m_method_execution_completed(false),
       m_method_execution_return_value(0),
       m_session_thread_state(),
@@ -759,7 +714,7 @@ Session_plugin_thread::Session_plugin_thread(
 Session_plugin_thread::~Session_plugin_thread() {
   if (this->incoming_methods) {
     while (!this->incoming_methods->empty()) {
-      st_session_method *method = NULL;
+      st_session_method *method = nullptr;
       this->incoming_methods->pop(&method);
       my_free(method);
     }
@@ -798,13 +753,12 @@ long Session_plugin_thread::wait_for_method_execution() {
 static void *launch_handler_thread(void *arg) {
   Session_plugin_thread *handler = (Session_plugin_thread *)arg;
   handler->session_thread_handler();
-  return 0;
+  return nullptr;
 }
 
 int Session_plugin_thread::launch_session_thread(void *plugin_pointer_var,
                                                  const char *user) {
-  DBUG_ENTER(
-      "Session_plugin_thread::launch_session_thread(plugin_pointer, user)");
+  DBUG_TRACE;
 
   // avoid concurrency calls against stop invocations
   mysql_mutex_lock(&m_run_lock);
@@ -818,7 +772,7 @@ int Session_plugin_thread::launch_session_thread(void *plugin_pointer_var,
                            get_connection_attrib(), launch_handler_thread,
                            (void *)this))) {
     mysql_mutex_unlock(&m_run_lock); /* purecov: inspected */
-    DBUG_RETURN(1);                  /* purecov: inspected */
+    return 1;                        /* purecov: inspected */
   }
   m_session_thread_state.set_created();
 
@@ -829,16 +783,16 @@ int Session_plugin_thread::launch_session_thread(void *plugin_pointer_var,
   }
 
   mysql_mutex_unlock(&m_run_lock);
-  DBUG_RETURN(m_session_thread_error);
+  return m_session_thread_error;
 }
 
 int Session_plugin_thread::terminate_session_thread() {
-  DBUG_ENTER("Session_plugin_thread::terminate_session_thread()");
+  DBUG_TRACE;
   mysql_mutex_lock(&m_run_lock);
 
   m_session_thread_terminate = true;
   m_method_execution_completed = true;
-  queue_new_method_for_application(NULL, true);
+  queue_new_method_for_application(nullptr, true);
 
   int stop_wait_timeout = GR_PLUGIN_SESSION_THREAD_TIMEOUT;
 
@@ -849,7 +803,7 @@ int Session_plugin_thread::terminate_session_thread() {
 
     struct timespec abstime;
     set_timespec(&abstime, 1);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
@@ -858,28 +812,28 @@ int Session_plugin_thread::terminate_session_thread() {
     } else if (m_session_thread_state.is_thread_alive())  // quit waiting
     {
       mysql_mutex_unlock(&m_run_lock);
-      DBUG_RETURN(1);
+      return 1;
     }
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!m_session_thread_state.is_running());
+  assert(!m_session_thread_state.is_running());
 
   while (!this->incoming_methods->empty()) {
-    st_session_method *method = NULL;
+    st_session_method *method = nullptr;
     this->incoming_methods->pop(&method);
     my_free(method);
   }
 
   mysql_mutex_unlock(&m_run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Session_plugin_thread::session_thread_handler() {
-  DBUG_ENTER("Session_plugin_thread::session_thread_handler()");
+  DBUG_TRACE;
 
-  st_session_method *method = NULL;
+  st_session_method *method = nullptr;
   m_server_interface = new Sql_service_interface();
   m_session_thread_error =
       m_server_interface->open_thread_session(m_plugin_pointer);
@@ -924,14 +878,14 @@ int Session_plugin_thread::session_thread_handler() {
 
 end:
   delete m_server_interface;
-  m_server_interface = NULL;
+  m_server_interface = nullptr;
 
   mysql_mutex_lock(&m_run_lock);
   auto ret = m_session_thread_error;
   m_session_thread_state.set_terminated();
   mysql_mutex_unlock(&m_run_lock);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 Sql_service_interface *Session_plugin_thread::get_service_interface() {

@@ -4,10 +4,10 @@
 # and then start it immediately.
 #
 # Sources stop_slave_sql.inc to stop SQL thread on the current connection.
-# Then issues START SLAVE SQL_THREAD and then waits until
+# Then issues START REPLICA SQL_THREAD and then waits until
 # the SQL threads have started, or until a timeout is reached.
 #
-# Please use this instead of 'STOP|START SLAVE SQL_THREAD', to reduce the risk of
+# Please use this instead of 'STOP|START REPLICA SQL_THREAD', to reduce the risk of
 # test case bugs.
 #
 #
@@ -35,7 +35,7 @@ if (!$rpl_debug)
 }
 
 source include/stop_slave_sql.inc;
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 source include/wait_for_slave_sql_to_start.inc;
 
 

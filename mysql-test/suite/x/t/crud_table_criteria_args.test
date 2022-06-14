@@ -24,7 +24,7 @@
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/crud_criteria_args.tmp
+--write_file $MYSQL_TMP_DIR/crud_criteria_args.xpl
 ## Test data
 -->sql
 drop schema if exists xtest;
@@ -1055,8 +1055,7 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_criteria_args.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_criteria_args.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/crud_criteria_args.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

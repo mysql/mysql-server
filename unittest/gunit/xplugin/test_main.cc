@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,19 @@
 #include "m_ctype.h"
 #include "my_sys.h"
 
+#include "unittest/gunit/xplugin/xcl/test_environment.h"
+#include "unittest/gunit/xplugin/xpl/test_environment.h"
+
 const CHARSET_INFO *data_ctx_charset = &my_charset_utf8mb4_general_ci;
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
   my_init();
+
+  // Setup default values for not specified mock-returns
+  ::testing::AddGlobalTestEnvironment(new xpl::Environment());
+  ::testing::AddGlobalTestEnvironment(new xcl::Environment());
 
   return RUN_ALL_TESTS();
 }

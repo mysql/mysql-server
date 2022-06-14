@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +24,8 @@
 
 package testsuite.clusterj;
 
+import com.mysql.clusterj.ClusterJUserException;
+import testsuite.clusterj.domaintypehandler.CrazyDomainTypeHandlerFactoryImpl;
 import testsuite.clusterj.model.CrazyDelegate;
 import testsuite.clusterj.model.ThrowNullPointerException;
 
@@ -47,7 +48,7 @@ import testsuite.clusterj.model.ThrowNullPointerException;
  * </li><li> if the simple domain class name is "CrazyDelegate", then an
  * implementation of DomainTypeHandlerFactory is returned. The returned
  * implementation doesn't immediately throw an exception but throws an
- * exception when the method getProxyClass is called. This exception will be
+ * exception when the method getProxyInterfaces is called. This exception will be
  * reported to clusterj and the test succeeds.
  * </li><li> in all other cases, null is returned. This should cause clusterj
  * to go to the next prospective factory. This case is exercised by every test
@@ -64,21 +65,24 @@ public class DomainTypeHandlerFactoryTest extends AbstractClusterJModelTest {
     }
 
     public void testThrowNullPointerException() {
+        CrazyDomainTypeHandlerFactoryImpl.resetCrazyDomainTypeHandlerFactoryUsed();
         try {
             ThrowNullPointerException instance = new ThrowNullPointerException();
             // This should cause CrazyDomainTypeHandlerFactoryImpl to throw
             // a NullPointerException which should be ignored. But the standard
             // implementation doesn't like ThrowNullPointerException either,
-            // so it should throw an exception. But the error message should
-            // contain the original NullPointerException that was thrown by
-            // CrazyDomainTypeHandlerFactoryImpl.
+            // so it should throw an exception.
             session.makePersistent(instance);
-            error("Failed to catch RuntimeException");
-        } catch (RuntimeException e) {
-            if (!e.getMessage().contains("java.lang.NullPointerException")) {
+            error("Failed to catch ClusterJUserException");
+        } catch (ClusterJUserException e) {
+            if (!e.getMessage().contains("not a persistence-capable type")) {
                 error("Failed to catch correct exception, but caught: " + e.toString());
             }
             // good catch
+        }
+        // Verify that there was an attempt to use CrazyDomainTypeHandlerFactoryImpl
+        if (!CrazyDomainTypeHandlerFactoryImpl.wasCrazyDomainTypeHandlerFactoryUsed()) {
+            error("CrazyDomainTypeHandlerFactoryImpl was not loaded");
         }
         failOnError();
     }
@@ -86,7 +90,7 @@ public class DomainTypeHandlerFactoryTest extends AbstractClusterJModelTest {
     public void testCrazyDelegate() {
         try {
             CrazyDelegate instance = new CrazyDelegate();
-            // This should fail at CrazyDomainTypeHandlerFactoryImpl.getProxyClass()
+            // This should fail at CrazyDomainTypeHandlerFactoryImpl.getProxyInterfaces()
             // It's a bit of a cheat since it relies on the internal implementation
             // of SessionFactoryImpl.getDomainTypeHandler
             session.makePersistent(instance);

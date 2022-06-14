@@ -11,6 +11,11 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+# Needs --xa_detach_on_prepare to hit debug sync points
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
 --echo # FTWRL takes two global metadata locks -- a global shared
 --echo # metadata lock and the commit blocker lock.
 --echo # The first lock prevents DDL from taking place.
@@ -1432,6 +1437,7 @@ let $skip_3rd_check= ;
 --echo # 31.c.I) SET PASSWORD is incompatible with FTWRL as it changes data.
 create user mysqltest_u1;
 let $statement= ALTER USER 'mysqltest_u1' IDENTIFIED BY '';
+let $waitfor= ALTER USER 'mysqltest_u1'@'%' IDENTIFIED BY <secret>;
 let $cleanup_stmt1= ;
 --echo # Skip last part of compatibility testing as our helper debug
 --echo # sync-point doesn't work for SET statements.
@@ -1838,7 +1844,7 @@ insert into t3_trans values (1);
 xa end 'test1';
 xa prepare 'test1';
 set debug_sync='RESET';
-set debug_sync='trans_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+set debug_sync='external_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
 --send xa commit 'test1'
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
@@ -1866,7 +1872,6 @@ unlock tables;
 connection default;
 delete from t3_trans;
 set debug_sync= "RESET";
-
 
 --echo #
 --echo # 38) Test effect of auto-commit mode for DML on transactional

@@ -102,9 +102,9 @@ INDEX (c)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
@@ -113,10 +113,6 @@ DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );
 ERROR HY000: A primary key index cannot be invisible
-CREATE TABLE t1 ( a INT PRIMARY KEY INVISIBLE );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVISIBLE )' at line 1
-CREATE TABLE t1 ( a INT KEY INVISIBLE );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVISIBLE )' at line 1
 ALTER TABLE t1 ALTER INDEX PRIMARY INVISIBLE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PRIMARY INVISIBLE' at line 1
 ALTER TABLE t1 ADD PRIMARY KEY (a) INVISIBLE;
@@ -228,21 +224,21 @@ b INT PRIMARY KEY AUTO_INCREMENT );
 CREATE TABLE t5 ( a INT, b INT, c INT, UNIQUE KEY (a, b, c) INVISIBLE );
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't1.a'
 ALTER TABLE t2 ALTER INDEX a INVISIBLE;
 INSERT INTO t2 VALUES (1);
 INSERT INTO t2 VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't2.a'
 INSERT INTO t3(a) VALUES (NULL);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t4(a) VALUES (NULL);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t4(a) VALUES (1);
 INSERT INTO t4(a) VALUES (1);
-ERROR 23000: Duplicate entry '1' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 't4.a'
 INSERT INTO t5 VALUES (1, 2, 3);
 INSERT INTO t5 VALUES (1, 2, 3);
-ERROR 23000: Duplicate entry '1-2-3' for key 'a'
+ERROR 23000: Duplicate entry '1-2-3' for key 't5.a'
 DROP TABLE t1, t2, t3, t4, t5;
 #
 # Bug#23256900: WL#8697: ASSERTION

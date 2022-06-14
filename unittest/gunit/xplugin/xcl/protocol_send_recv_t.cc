@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #include "unittest/gunit/xplugin/xcl/protocol_t.h"
 
+#include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
+
 namespace xcl {
 namespace test {
 
@@ -39,7 +41,7 @@ using Msg_types = ::testing::Types<
     ::Mysqlx::Prepare::Prepare, ::Mysqlx::Prepare::Execute,
     ::Mysqlx::Prepare::Deallocate>;
 
-TYPED_TEST_CASE(Xcl_protocol_impl_tests_with_msg, Msg_types);
+TYPED_TEST_SUITE(Xcl_protocol_impl_tests_with_msg, Msg_types);
 
 TYPED_TEST(Xcl_protocol_impl_tests_with_msg,
            connection_send_successful_send_handler_consumed_msg_was_ignored) {
@@ -130,8 +132,8 @@ TYPED_TEST(Xcl_protocol_impl_tests_with_msg, connection_send_successful) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_fails_at_header) {
-  const int64 expected_error_code = 3000;
-  const int32 expected_payload_size = 10;
+  const int64_t expected_error_code = 3000;
+  const int32_t expected_payload_size = 10;
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
@@ -144,7 +146,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_fails_at_header) {
 
 TEST_F(Xcl_protocol_impl_tests, recv_fails_at_payload) {
   const int expected_error_code = 3000;
-  const int32 expected_payload_size = 10;
+  const int32_t expected_payload_size = 10;
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
@@ -159,16 +161,29 @@ TEST_F(Xcl_protocol_impl_tests, recv_fails_at_payload) {
 
 TEST_F(Xcl_protocol_impl_tests, recv_large_message) {
   std::string message_payload(1024 * 64, 'x');
+  int offset = 0;
   expect_read_header(::Mysqlx::ServerMessages::OK,
                      static_cast<int32>(message_payload.size()));
 
-  EXPECT_CALL(*m_mock_connection, read(_, message_payload.size()))
-      .WillOnce(Invoke([message_payload](uchar *data,
-                                         const std::size_t data_length
-                                             MY_ATTRIBUTE((unused))) -> XError {
-        std::copy(message_payload.begin(), message_payload.end(), data);
-        return {};
-      }));
+  {
+    InSequence s;
+    const int k_internal_buffer = 4 * 1024;
+    size_t count_data_in_reads = 0;
+
+    while (count_data_in_reads < message_payload.size()) {
+      EXPECT_CALL(*m_mock_connection, read(_, k_internal_buffer))
+          .WillOnce(Invoke(
+              [&offset, message_payload](
+                  uchar *data, const std::size_t data_length MY_ATTRIBUTE(
+                                   (unused))) -> XError {
+                auto i_start = message_payload.begin() + offset;
+                std::copy(i_start, i_start + data_length, data);
+                offset += data_length;
+                return {};
+              }));
+      count_data_in_reads += k_internal_buffer;
+    }
+  }
   XProtocol::Server_message_type_id out_id;
   XError out_error;
   auto result = m_sut->recv_single_message(&out_id, &out_error);
@@ -177,8 +192,8 @@ TEST_F(Xcl_protocol_impl_tests, recv_large_message) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_unknown_msg_type) {
-  const int32 invalid_message_id = 255;
-  const int32 expected_payload_size = 10;
+  const int32_t invalid_message_id = 255;
+  const int32_t expected_payload_size = 10;
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
@@ -192,7 +207,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_unknown_msg_type) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_in_single_read_op) {
-  const int32 expected_payload_size = 0;
+  const int32_t expected_payload_size = 0;
   const std::string expected_message_name = "Mysqlx.Ok";
   XProtocol::Server_message_type_id out_id;
   XError out_error;
@@ -233,7 +248,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_in_two_read_op_call_multiple_handlers) {
       Server_message<::Mysqlx::Session::AuthenticateContinue>;
 
   const auto message = Auth_continue_desc::make_required();
-  StrictMock<Mock_handlers> mock_handlers[2];
+  StrictMock<mock::Message_handlers> mock_handlers[2];
 
   m_sut->add_received_message_handler(
       m_mock_handlers.get_mock_lambda_received_message_handler());
@@ -271,7 +286,7 @@ TEST_F(
 
   const auto msg_continue = Auth_continue_desc::make_required();
   const auto msg_error = Error_desc::make_required();
-  StrictMock<Mock_handlers> mock_handlers[2];
+  StrictMock<mock::Message_handlers> mock_handlers[2];
 
   m_sut->add_received_message_handler(
       m_mock_handlers.get_mock_lambda_received_message_handler());
@@ -330,7 +345,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_ok_fails_on_other_msg) {
 TEST_F(Xcl_protocol_impl_tests, recv_ok_fails_error_msg) {
   using Error_desc = Server_message<::Mysqlx::Error>;
 
-  const uint32 expected_error_code = 23332;
+  const uint32_t expected_error_code = 23332;
   const char *expected_msg = "expected error message";
   const char *expected_sql_state = "expected sql state";
 
@@ -362,7 +377,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_ok) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_resultset) {
-  Mock_query_result *query_result = new Mock_query_result();
+  mock::XQuery_result *query_result = new mock::XQuery_result();
   static XQuery_result::Metadata metadata;
 
   EXPECT_CALL(m_mock_factory, create_result_raw(_, _, _))
@@ -371,6 +386,16 @@ TEST_F(Xcl_protocol_impl_tests, recv_resultset) {
   auto result = m_sut->recv_resultset();
 
   ASSERT_EQ(query_result, result.get());
+}
+
+TEST_F(Xcl_protocol_impl_tests, send_compressed) {
+  m_sut->use_compression(Compression_algorithm::k_deflate, 1);
+  expect_write_payload(Mysqlx::ClientMessages::COMPRESSION, 17, 0);
+
+  auto result = m_sut->send_compressed_frame(
+      Mysqlx::ClientMessages::EXPECT_OPEN, Mysqlx::Expect::Open());
+
+  ASSERT_EQ(0, result.error());
 }
 
 }  // namespace test

@@ -5,19 +5,13 @@
 create table abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(
 id int primary key
 ) engine=ndb;
-ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-show warnings;
-Level	Code	Message
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-Error	1031	Table storage engine for 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' doesn't have this option
+drop table abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 # ############################################################
 # Bug19550973: CREATE/DROP DATABASE STATEMENT SEGFAULTS IF
 #              IDENTIFIER LENGTH IS >=64
 # ############################################################
 #
 # 1. Testing schema identifier with length 63
-# NOTE! ndb_schema identifier length limit is currently 63
 #
 CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
@@ -30,76 +24,52 @@ DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1;
 DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
 #
 # 2. Testing schema identifier with length 64
-# NOTE! MySQL Server allows 64, but ndb_schema limit is currently 63
 #
 CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
-Warnings:
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 # Verify database existence
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 # Create non NDB table
 CREATE TABLE t1 (
 a int
 );
-# Create NDB table should fail
+# Create NDB table
 CREATE TABLE t2 (
 a int
 ) ENGINE=NDB;
-ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-show warnings;
-Level	Code	Message
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-Error	1031	Table storage engine for 't2' doesn't have this option
 #
-# 3. Databases with identifier length = 64 won't be replicated to other
-# MySQL Servers. Verify that the above created dabatase is not present
+# 3. Databases with identifier length = 64 is synchronized to other
+# MySQL Servers. Verify that the above created dabatase is present
 # in the other Server
+# NOTE! This testcase was fixed by BUG#27447958 which extended ndb_schema
+# to support identifiers > 63
 #
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
-ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'
 #
 # 4. Testing alter database
 #
 ALTER DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123
 character set=utf8mb4;
-Warnings:
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (
 a int
 ) ENGINE=NDB;
+CREATE TABLE db1.t2 (
+a int
+) ENGINE=NDB;
 #
-# 4.1 Renaming table to too long database name should fail
+# 4.1 Renaming table to long database name
 #
 ALTER TABLE db1.t1
 RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
-ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-Error	1025	Error on rename of './db1/t1' to './abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123/t3' (errno: 140 - Wrong create options)
 #
-# 4.2 Renaming table to too long table name should fail
+# 4.2 Renaming table to long table name
 #
-ALTER TABLE db1.t1
+ALTER TABLE db1.t2
 RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
-ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-Error	1025	Error on rename of './db1/t1' to './db1/abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' (errno: 140 - Wrong create options)
 DROP DATABASE db1;
 DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
-Warnings:
-Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
-Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 # Checking that database doesn't exists
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'

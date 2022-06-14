@@ -1,0 +1,2296 @@
+# Enable transformations for InnoDB for ease of testing
+SET optimizer_switch='subquery_to_derived=on';
+--echo #
+--echo # Tests for WL#12885 Add ability to transform scalar subqueries to inner
+--echo # derived table
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+CREATE TABLE t0 AS SELECT * FROM t1;
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (1,3), (2,3);
+ANALYZE TABLE t1, t2, t0, t3;
+--echo #
+--echo # 1. W H E R E  clause subqueries
+--echo #
+--echo # Implicitly grouped scalar subquery in WHERE clause.
+--echo # Automatic transformation to LEFT OUTER join. It is then
+--echo # transformed to inner join, and finally the derived table is
+--echo # evaluated at optimize or execution time, depending on
+--echo # optimization mode.
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2);
+eval $query;
+eval explain $query;
+
+--echo # Equivalent manually recrafted query: same plan as previous
+let $query = SELECT t1.* FROM t1 LEFT OUTER JOIN
+                    (SELECT COUNT(a) AS cnt FROM t2) AS derived
+             ON TRUE
+             WHERE t1.a > derived.cnt;
+eval $query;
+eval explain $query;
+
+--echo # Implicitly grouped scalar subquery in WHERE clause of joined
+--echo # query, here with LEFT JOIN.
+--echo # Query 1: Simplified to inner join
+let $query =
+SELECT t0.*, t1.* FROM t0 LEFT OUTER JOIN t1 ON t0.a != t1.a
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2);
+
+--sorted_result
+eval $query;
+eval explain $query;
+
+--echo # Query 2: Not simplified to inner join
+
+let $query =
+SELECT * FROM t0 LEFT OUTER JOIN t1 on t0.a = t1.a
+WHERE t0.a > (SELECT COUNT(a) AS cnt FROM t2);
+
+--sorted_result
+eval $query;
+eval explain $query;
+
+--echo # Equivalent manually recrafted query: same plan as previous
+let $query =
+SELECT t0.*, t1.* FROM (t0 LEFT OUTER JOIN t1 ON t0.a != t1.a) LEFT OUTER JOIN
+       (SELECT COUNT(a) AS cnt FROM t2) AS derived
+ON TRUE
+WHERE t1.a > derived.cnt;
+
+--sorted_result
+eval $query;
+eval explain $query;
+
+--echo # With deeper nested subquery (subquery inside an OR)
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2) OR t1.a = 2;
+eval $query;
+eval explain $query;
+
+--echo # More than one subquery in the WHERE condition:
+let $query = SELECT t1.* FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2) AND
+                   t1.a < (SELECT MAX(a) * 4 AS mx FROM t2);
+eval $query;
+eval explain $query;
+
+--echo # Equivalent manually recrafted query: same plan as previous
+let $query = SELECT t1.* FROM t1
+             LEFT JOIN (SELECT COUNT(a) AS cnt FROM t2) AS lj1 ON TRUE
+             LEFT JOIN (SELECT MAX(a) * 4 AS mx FROM t2) AS lj2 ON TRUE
+             WHERE t1.a > cnt AND t1.a < mx;
+eval $query;
+eval explain $query;
+
+
+--echo # If we have an implicit grouping we we know that cardinality
+--echo # of result set is one, so no need for runtime checking of the
+--echo # cardinality of the derived tables
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3);
+eval $query;
+eval explain $query;
+
+--echo # If not, detect if we see more than one row in subquery
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY a);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo # Empty scalar subquery
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a from t1 WHERE false);
+eval $query;
+eval explain $query;
+
+let $query = SELECT a + (SELECT a from t1 WHERE false) FROM t1;
+eval $query;
+eval explain $query;
+
+--echo # If we limit the cardinality, it should work:
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1);
+eval $query;
+eval explain $query;
+
+--echo # Check that offset/limit doesn't fool us:
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 0);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 0);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION (SELECT 1 LIMIT 1));
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo Without aggregation
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a FROM t2 LIMIT 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a FROM t2);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo In the below, the query block under consideration for transformation is
+--echo the outer subquery. It
+--echo
+--echo   a) contains a scalar subquery in its select list
+--echo   b) is implicitly grouped, cf. SUM(a)
+--echo
+--echo so we trigger an attempt to put the grouping into a separate derived
+--echo table.  But we also see that it contains an aggregate that has an outer
+--echo reference, SUM(t3.a), so we leave it untouched.
+EXPLAIN
+SELECT (SELECT SUM(a) + (SELECT SUM(t1.a) FROM t1) + SUM(t3.a) FROM t2) FROM t3;
+
+--echo Don't try transform grouping into a derived table if we have a reference
+--echo to the scalar subquery in the HAVING clause
+EXPLAIN
+SELECT SUM(a), (SELECT SUM(b) FROM t3) scalar FROM t1 HAVING SUM(a) > scalar;
+
+--echo #
+--echo # Check that we disable transform if we set a user variable in the query
+--echo # cf. WL#12885 requirement FR#6.
+--echo #
+EXPLAIN SELECT t1.a + (@foo:=3) FROM t1
+        WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2);
+
+--echo #
+--echo # Check that RAND precludes transform
+--echo #
+let $query =
+SELECT DISTINCT 3 + (SELECT COUNT(a) + RAND() FROM t1) FROM t1;
+
+eval explain $query;
+eval SELECT COUNT(*) > 1 FROM ($query) AS dt;
+
+--echo #
+--echo # 1.1  J O I N   C O N D I T I O N  containing scalar subquery
+--echo #
+let query = SELECT t1.a, t2.a
+            FROM t1
+                 JOIN t2
+                 ON t1.a+t2.a = (SELECT COUNT(*) FROM t1);
+--sorted_result
+eval $query;
+eval explain $query;
+
+let query = SELECT t1.a, t2.a, t3.a
+            FROM t1
+                 JOIN t2
+                 ON t1.a+t2.a = (SELECT COUNT(*) FROM t1)
+                 JOIN t3
+                 ON t1.a + (SELECT MIN(a) FROM t1) = t3.b;
+--sorted_result
+eval $query;
+eval explain $query;
+
+--echo OUTER join
+let query = SELECT t1.a, t2.a, t3.a
+            FROM t1
+                 LEFT JOIN ( t2
+                             JOIN t3
+                             ON t2.a = (SELECT COUNT(*) FROM t1) )
+                 ON t1.a + (SELECT MIN(a) FROM t1) = t3.b;
+
+eval $query;
+eval explain $query;
+
+# verify result with ordinary execution path
+SET optimizer_switch='subquery_to_derived=default';
+eval $query;
+SET optimizer_switch='subquery_to_derived=on';
+
+--echo This is a manually transformed version of the above.
+let query =
+SELECT t1.a, t2.a, t3.a
+FROM t1
+     LEFT JOIN (SELECT MIN(a) FROM t1) derived_1
+     ON TRUE
+     LEFT JOIN ( t2
+                 LEFT JOIN (SELECT COUNT(*) FROM t1) AS derived_2
+                 ON TRUE
+                 JOIN t3
+                 ON t2.a = derived_2.`COUNT(*)` )
+     ON t1.a + derived_1.`MIN(a)` = t3.b;
+
+eval $query;
+eval explain $query;
+
+let query = SELECT t1.a, t2.a, t3.a
+            FROM t1
+                 STRAIGHT_JOIN ( t2
+                                 STRAIGHT_JOIN t3
+                                 ON t2.a = (SELECT COUNT(*) FROM t1) )
+                 ON t1.a + (SELECT MIN(a) FROM t1) = t3.b;
+
+eval $query;
+eval explain $query;
+
+--echo #
+--echo # 2. S E L E C T  list expression subqueries
+--echo #
+let $query = SELECT a + (SELECT -SUM(a) FROM t1) AS cnt FROM t2;
+eval $query;
+eval explain $query;
+--echo # Equivalent manually recrafted query: same plan as previous
+let $query = SELECT a + derived.cnt
+             FROM t2
+                  LEFT OUTER JOIN (SELECT -SUM(a) AS cnt FROM t1) AS derived
+                  ON TRUE;
+--sorted_result
+eval $query;
+eval explain $query;
+
+--echo #
+--echo # 2.1  S E L E C T  list expression subqueries and UNION
+--echo #
+let $query = SELECT a + (SELECT SUM(a) FROM t1) FROM t1 UNION ALL
+             SELECT a + (SELECT SUM(a) FROM t1) FROM t1;
+eval $query;
+eval explain $query;
+
+--echo #
+--echo # 3. N E S T E D  scalar subqueries
+--echo #
+
+let $query = SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2;
+eval $query;
+eval explain $query;
+
+--echo # Equivalent manually recrafted query: same plan as previous
+let $query =
+SELECT (t2.a + derived_1_0.sum_plus_cnt) AS cnt
+FROM t2
+     LEFT JOIN (SELECT (derived_2_0.tmp_aggr_1 + derived_2_1.count_a) AS sum_plus_cnt
+                FROM (SELECT STRAIGHT_JOIN SUM(t1.a) AS tmp_aggr_1 from t1) derived_2_0
+                LEFT JOIN (SELECT COUNT(t1.a) AS count_a from t1) derived_2_1
+                ON TRUE) derived_1_0
+     ON TRUE;
+
+--sorted_result
+eval $query;
+eval explain $query;
+
+# This query actually belongs in group 5 below. It has an original
+# derived table and crashed at one point, so include here anyway,
+# before we drop these base tables.
+SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1)
+    FROM (SELECT * from t1) t11) AS cnt FROM t2;
+
+SELECT AVG(a) OVER () AS `avg`,
+       a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1)
+    FROM (SELECT * from t1) t11) AS cnt FROM t2;
+
+DROP TABLE t0, t1, t2, t3;
+
+--echo #
+--echo # 4. C O R R E L A T E D   query to derived with LATERAL
+--echo #
+--echo # Note: this feature has been disabled for WL#12885.
+--echo # The tests are kept in case we re-enable this transformation
+--echo #
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 (a) VALUES (1), (2);
+CREATE TABLE t2 SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+
+let $query =
+SELECT (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
+                              SELECT a+1 FROM dt WHERE a<10)
+        SELECT t1.a * CONCAT(COUNT(*), '.', FLOOR(AVG(dt.a)))
+        FROM dt) AS subq
+FROM t1;
+eval $query;
+eval explain $query;
+
+--echo # Equivalent manually recrafted query: same plan as previous
+
+let $query =
+SELECT derived0.cnct AS subq
+FROM t1
+     LEFT JOIN LATERAL (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
+                                              SELECT (dt.a + 1)
+                                              FROM dt WHERE dt.a < 10)
+                        SELECT t1.a * CONCAT(COUNT(0), '.', FLOOR(AVG(dt.a))) AS cnct
+                        FROM dt) derived0
+     ON TRUE;
+--sorted_result
+eval $query;
+eval explain $query;
+
+DROP TABLE t1, t2;
+
+--echo # Detect correlation outside of transformed query block which
+--echo # is not caught by the scalar aggregate function inspection in
+--echo # Item_singlerow_subselect::collect_scalar_subqueries. If there
+--echo # is such a subquery, we skip transformation of that block.
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(x INT);
+ANALYZE TABLE t1, t2, t3;
+
+EXPLAIN
+SELECT (
+   SELECT (SELECT COUNT(*) FROM t2) +
+          (SELECT AVG(a)
+           FROM t2
+           WHERE t2.a = t3.x) AS aggs
+   FROM t1
+) AS bignest
+FROM t3;
+
+--echo # Without that subquery, we transform the level 2 query block,
+--echo # but the the outermost still contains its subquery.
+EXPLAIN
+SELECT (
+   SELECT (SELECT COUNT(*) FROM t2) AS aggs
+   FROM t1
+) AS bignest
+FROM t3;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # 5.  S U B Q U E R Y   I N   S E L E C T   L I S T   +   G R O U P E D
+--echo #     O U T E R   Q U E R Y
+--echo #
+CREATE TABLE t1 (a INT NOT NULL, b SMALLINT);
+INSERT INTO t1 VALUES (12,12);
+ANALYZE TABLE t1;
+
+--echo # subquery is separate in SELECT list
+let $query =
+SELECT (SELECT COUNT(*)
+        FROM t1
+        WHERE a=11725) AS tot,
+       IFNULL(MAX(b),0)+1 + 5 AS mx
+FROM t1
+WHERE false;
+
+eval $query;
+eval explain $query;
+
+--echo # subquery is part of expression with aggregate in SELECT list
+let $query =
+SELECT (SELECT COUNT(*)
+        FROM t1
+        WHERE a=11725) +
+       IFNULL(MAX(b),0)+1 + 5 AS mx
+FROM t1
+WHERE false;
+
+eval $query;
+eval explain $query;
+
+INSERT INTO t1 VALUES (13, 12);
+
+--echo # outer query has DISTINCT, verify it is retained
+let $query =
+SELECT DISTINCT (SELECT COUNT(*)
+                 FROM t1) +
+                IFNULL(MAX(b),0)+1 + 5 AS mx
+FROM t1
+WHERE a > 5
+GROUP BY a;
+
+eval $query;
+eval explain $query;
+
+--echo # outer query has LIMIT: verify it is retained
+let $query =
+SELECT (SELECT COUNT(*)
+        FROM t1) +
+       IFNULL(MAX(b),0)+1 + 5 AS mx
+FROM t1
+GROUP BY a LIMIT 1;
+
+eval $query;
+eval explain $query;
+
+--echo # The subquery under under consideration for transformation contains a
+--echo # aggregate function (MIN(t1_outer.a) and we have no explicit grouping,
+--echo # so it would a priori be a candidate putting in a derived table.  But
+--echo # here, the aggregation function is aggregated in a query block outer to
+--echo # the one being transformed.  This means we do not need to push it into a
+--echo # derived table.
+let $query =
+SELECT
+  (SELECT (SELECT COUNT(*)
+           FROM t1) +
+          MAX(t1.b) + MIN(t1_outer.a) AS tot
+   FROM t1) FROM t1 AS t1_outer;
+
+eval $query;
+eval explain $query;
+
+--echo # Aggregate aggregates in the transformation query block, but is
+--echo # contained in a subquery. Currently, this blocks transformation, but can
+--echo # be fixed if we let Item::transform visit subqueries.
+let $query =
+SELECT (SELECT COUNT(*)
+        FROM t1) +
+       MAX(b) +
+       (SELECT MIN(a) + AVG(top.a) FROM t1)
+       AS tot
+FROM t1 top;
+
+eval $query;
+eval explain $query;
+
+--echo # correlated version:
+--echo # explicit grouping, no need for moving the grouping down into a
+--echo # derived table
+let $query =
+SELECT (SELECT COUNT(*) + `outer`.a
+        FROM t1) +
+       IFNULL(MAX(b),0)+1 + 5 AS mx
+FROM t1 AS `outer`
+GROUP BY a;
+
+eval $query;
+eval explain $query;
+
+--echo Translated first step by hand
+SELECT (SELECT COUNT(*) + derived_1.d_1 FROM t1) +
+        IFNULL(derived_1.`MAX(b)`,0) + 1 + 5 AS mx
+
+FROM (SELECT STRAIGHT_JOIN MAX(outer_t.b) AS `MAX(b)`,
+                           outer_t.a AS d_1
+      FROM t1 outer_t
+      GROUP BY outer_t.a) derived_1;
+
+--echo Translated by hand
+SELECT (derived_1.`COUNT(*) + outer_t.a` +
+        IFNULL(derived_0.`MAX(b)`,0)) + 1 + 5 AS mx
+FROM (SELECT STRAIGHT_JOIN MAX(outer_t.b) AS `MAX(b)`,
+                           outer_t.a AS d_1
+      FROM t1 outer_t
+      GROUP BY outer_t.a) derived_0
+     LEFT JOIN LATERAL (SELECT (COUNT(0) + derived_0.d_1)
+                               AS `COUNT(*) + outer_t.a`
+                        FROM t1) derived_1
+     ON(true)
+WHERE true;
+
+
+
+--echo # correlated version, with outer aggregate, not transformed
+let $query =
+SELECT (SELECT COUNT(*) + MAX(outer_t.b)
+        FROM t1) +
+       IFNULL(MAX(b),0)+1 + 5 AS mx
+FROM t1 AS outer_t
+GROUP BY a;
+
+eval $query;
+eval explain $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # More complex example
+--echo #
+CREATE VIEW events_digest AS
+    SELECT * FROM performance_schema.events_statements_summary_by_digest;
+
+--replace_regex /^[\t.0-9]*$/xxxxx/
+SELECT s2.avg_us avg_us,
+       IFNULL(SUM(s1.cnt)/NULLIF((SELECT COUNT(*) FROM
+                                  events_digest), 0), 0) percentile
+FROM sys.`x$ps_digest_avg_latency_distribution` AS s1
+     JOIN sys.`x$ps_digest_avg_latency_distribution` AS s2
+     ON s1.avg_us <= s2.avg_us
+GROUP BY s2.avg_us
+HAVING IFNULL(SUM(s1.cnt)/ NULLIF((SELECT COUNT(*) FROM events_digest), 0), 0) > 0.95
+ORDER BY percentile LIMIT 1;
+
+# redundantly repeated query here, but "$query = ;" plus "eval $query"
+# loses backticks
+EXPLAIN
+SELECT s2.avg_us avg_us,
+       IFNULL(SUM(s1.cnt)/NULLIF((SELECT COUNT(*) FROM
+                                  events_digest), 0), 0) percentile
+FROM sys.`x$ps_digest_avg_latency_distribution` AS s1
+     JOIN sys.`x$ps_digest_avg_latency_distribution` AS s2
+     ON s1.avg_us <= s2.avg_us
+GROUP BY s2.avg_us
+HAVING IFNULL(SUM(s1.cnt)/ NULLIF((SELECT COUNT(*) FROM events_digest), 0), 0) > 0.95
+ORDER BY percentile LIMIT 1;
+
+--echo # Manually translated, equivalent query (except we need to
+--echo # include the derived_1_1.`COUNT(*)` in the select list for it
+--echo # to be resolvable in the HAVING clause), and we need to
+--echo # disable strict group checking: safe, but not recognized as
+--echo # such by server..
+SET sql_mode='';
+EXPLAIN
+SELECT s2.avg_us AS avg_us,
+       IFNULL((SUM(s1.cnt) / NULLIF(derived_1_0.`COUNT(*)`,0)),0) AS percentile,
+       derived_1_1.`COUNT(*)`
+FROM sys.`x$ps_digest_avg_latency_distribution` s1 JOIN
+     sys.`x$ps_digest_avg_latency_distribution` s2 LEFT JOIN
+     (SELECT COUNT(0) AS `COUNT(*)`
+      FROM performance_schema.events_statements_summary_by_digest) derived_1_0
+     ON(TRUE) LEFT JOIN
+     (SELECT COUNT(0) AS `COUNT(*)`
+      FROM performance_schema.events_statements_summary_by_digest) derived_1_1
+     ON(TRUE)
+WHERE (s1.avg_us <= s2.avg_us)
+GROUP BY s2.avg_us
+HAVING (IFNULL((SUM(s1.cnt) / NULLIF(derived_1_1.`COUNT(*)`,0)),0) > 0.95)
+ORDER BY percentile LIMIT 1;
+
+SET sql_mode=default;
+
+
+
+--echo # outer query has window: verify it is retained on outer level
+
+--replace_regex /^[\t.0-9]*$/xxxxx/
+SELECT AVG(s2.avg_us) OVER () + 3 AS avgsum,
+       s2.avg_us avg_us,
+       s2.avg_us avg_us2,
+       SUM(s2.avg_us) OVER () + 3 AS avgsum2,
+       IFNULL(SUM(s1.cnt)/NULLIF((SELECT COUNT(*) FROM
+                                  events_digest), 0), 0) percentile
+FROM sys.`x$ps_digest_avg_latency_distribution` AS s1
+     JOIN sys.`x$ps_digest_avg_latency_distribution` AS s2
+ON s1.avg_us <= s2.avg_us
+GROUP BY s2.avg_us
+HAVING IFNULL(SUM(s1.cnt)/ NULLIF((SELECT COUNT(*) FROM events_digest), 0), 0) > 0.95
+ORDER BY percentile LIMIT 1;
+
+DROP VIEW events_digest;
+
+
+--echo # An example with aggregates in ORDER BY and HAVING not seen in SELECT list
+
+CREATE TABLE t1 (
+  school_name VARCHAR(45) NOT NULL,
+  country     VARCHAR(45) NOT NULL,
+  funds_requested FLOAT NOT NULL,
+  schooltype  VARCHAR(45) NOT NULL
+);
+
+INSERT INTO t1 VALUES ("the school", "USA", 1200, "Human");
+ANALYZE TABLE t1;
+
+let $query=
+SELECT COUNT(country) AS countrycount,
+       SUM(funds_requested) AS smcnt,
+       country,
+       (SELECT SUM(funds_requested) FROM t1) AS total_funds,
+       ROW_NUMBER() OVER (ORDER BY STDDEV_POP(funds_requested)) AS rn
+FROM t1
+GROUP BY country
+HAVING AVG(funds_requested) > 0
+ORDER BY SUM(ABS(funds_requested));
+
+eval $query;
+eval EXPLAIN $query;
+
+SET sql_mode='';
+let $query=
+SELECT COUNT(country) AS countrycount,
+       SUM(funds_requested) AS smcnt,
+       country,
+       (SELECT SUM(funds_requested) FROM t1) AS total_funds,
+       ROW_NUMBER() OVER (ORDER BY STDDEV_POP(funds_requested)) AS rn
+FROM t1
+HAVING AVG(funds_requested) > 0
+ORDER BY SUM(ABS(funds_requested));
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo Manually translated
+SELECT derived_1_0.countrycount AS countrycount,
+       derived_1_0.smcnt AS smcnt,
+       derived_1_0.d_1 AS country,
+       derived_1_1.`SUM(funds_requested)` AS total_funds,
+       row_number() OVER (ORDER BY derived_1_1.`SUM(funds_requested)` )  AS rn
+FROM (SELECT COUNT(t1.country) AS countrycount,
+             SUM(t1.funds_requested) AS smcnt,
+             AVG(t1.funds_requested) AS tmp_aggr_1,
+             STD(t1.funds_requested) AS tmp_aggr_2,
+             t1.country AS d_1
+      FROM t1
+      HAVING (AVG(t1.funds_requested) > 0)) derived_1_0
+     LEFT JOIN
+     (SELECT SUM(t1.funds_requested) AS `SUM(funds_requested)`
+      FROM t1) derived_1_1
+     ON(TRUE);
+
+SET sql_mode=default;
+
+DROP TABLE t1;
+
+--echo # Cause for introducing TABLE_LIST::m_was_grouped2derived:
+--echo # EXECUTE would assert if we didn't have it.
+CREATE TABLE cc (i INT);
+INSERT INTO cc VALUES (1);
+ANALYZE TABLE cc;
+
+let $query=
+SELECT (SELECT COUNT(i) FROM cc AS cc_alias
+        WHERE (cc.i IN (SELECT cc_alias.i FROM cc))) AS cnt
+FROM cc
+GROUP BY i;
+
+eval $query;
+eval EXPLAIN $query;
+
+#Remove commented out code FIXME.
+#eval PREPARE stmt FROM "$query";
+#EXECUTE stmt;
+#
+#DROP PREPARE stmt;
+DROP TABLE cc;
+
+--echo # Test: detect correlated aggregates deep inside scalar subquery (was
+--echo # missed before we let has_correlated_aggregate walk subqueries
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
+
+--echo # should be left untouched, since COUNT(q.i) aggregates in the
+--echo # outermost SELECT
+EXPLAIN SELECT (
+  SELECT GROUP_CONCAT((SELECT COUNT(q.i) FROM t))
+  FROM t) AS i
+FROM (SELECT a AS i FROM t) q;
+
+DROP TABLE t;
+
+--echo
+--echo # IN to EXISTS transformation makes us skip subquery_to_derived.
+--echo
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL);
+CREATE TABLE t3 (e INT NOT NULL);
+
+INSERT INTO t1 VALUES (1,10), (2,10), (1,20), (2,20), (3,20), (2,30), (4,40);
+INSERT INTO t2 VALUES (2,10), (2,20), (4,10), (5,10), (3,20), (2,40);
+INSERT INTO t3 VALUES (10), (30), (10), (20);
+ANALYZE TABLE t1, t2, t3;
+
+let $query =
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE (SELECT MIN(e) FROM t3 as tc
+                      WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
+                                                     WHERE ta.b=tc.e));
+eval $query;
+eval EXPLAIN $query;
+
+--echo #
+--echo # Two parallel scalar subqueries + grouping to derived table
+--echo #
+let $query =
+SELECT SUM(t1.a) + (SELECT SUM(t2.c)
+                    FROM t2),
+       (SELECT COUNT(t3.e) FROM t3)
+FROM t1;
+
+eval $query;
+eval EXPLAIN $query;
+
+
+DROP TABLE t1, t2, t3;
+
+
+--echo # Bug discovered from running rapid.cp_i_subquery.test What is
+--echo # different here is that we have a combination of an implicitly
+--echo # grouped query + a scalar subquery in the select list + the top block
+--echo # has an IN subquery in the WHERE clause. The WHERE clause gets
+--echo # moved into the derived table for the grouping, but this move didn't
+--echo # account for the semijoin already determined for the top level, which
+--echo also has to go into the new derived table.
+
+CREATE TABLE t1(
+  pedcompralote INT NOT NULL,
+  pedcompraseq SMALLINT
+);
+
+INSERT INTO t1 VALUES (12,12);
+
+CREATE TABLE t2(
+  cod INT NOT NULL,
+  ped INT,
+  PRIMARY KEY (cod),
+  KEY ped (ped)
+);
+
+INSERT INTO t2 VALUES
+  (11724,1779), (11725,1779), (11726,1779), (11727,1779),
+  (11728,1779), (11729,1779), (11730,1779), (11731,1779);
+
+SELECT (SELECT COUNT(*)
+        FROM t1
+        WHERE pedcompralote=11725) AS tot,
+       IFNULL(MAX(pedcompraseq),0)+1 AS newcode
+FROM t1
+WHERE pedcompralote IN (SELECT cod FROM t2 WHERE ped=1779);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # 6.  S U B Q U E R Y   I N   H A V I N G   C L A U S E
+--echo #
+
+CREATE TABLE t1(i int, j int);
+CREATE TABLE t2(i int);
+
+INSERT INTO t1 VALUES (1, 10);
+INSERT INTO t1 VALUES (1, 20);
+INSERT INTO t1 VALUES (1, 30);
+INSERT INTO t1 VALUES (2, 11);
+INSERT INTO t1 VALUES (2, 20);
+INSERT INTO t1 VALUES (2, 30);
+INSERT INTO t2 VALUES (25);
+ANALYZE TABLE t1, t2;
+
+--echo Implicit grouping, HAVING: no transform
+let $query=
+SELECT SUM(j) FROM t1
+HAVING SUM(j) > (SELECT SUM(t2.i) FROM t2);
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo Only HAVING is ok to transform, no implicit grouping
+let $query=
+SELECT j FROM t1
+HAVING j > (SELECT MIN(t2.i) FROM t2);
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo HAVING and GROUP BY, also ok
+let $query=
+SELECT i, j FROM t1
+GROUP BY i, j
+HAVING SUM(j) > (SELECT SUM(t2.i) FROM t2);
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo HAVING, GROUP BY and ROLLUP
+let $query=
+SELECT i, j FROM t1
+GROUP BY i, j WITH ROLLUP
+HAVING SUM(j) > (SELECT SUM(t2.i) FROM t2);
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, t2;
+
+
+--echo Bigger example (TPC-H Q11) where we get a scalar transformation
+--echo in the grouping derived table also, i.e. nested scalar to
+--echo derived transformation.
+CREATE TABLE supplier (
+  s_suppkey INT NOT NULL,
+  s_nationkey BIGINT NOT NULL,
+  PRIMARY KEY (s_suppkey)
+);
+
+CREATE TABLE nation (
+  n_nationkey INT NOT NULL,
+  n_name CHAR(25) DEFAULT NULL,
+  PRIMARY KEY (n_nationkey)
+);
+
+CREATE TABLE partsupp (
+  ps_partkey BIGINT NOT NULL,
+  ps_suppkey BIGINT NOT NULL,
+  ps_availqty INT DEFAULT NULL,
+  ps_supplycost DECIMAL(10,0) DEFAULT NULL,
+  PRIMARY KEY (ps_partkey, ps_suppkey)
+);
+
+INSERT INTO nation VALUES (1, 'germany'),
+                          (2, 'norway'),
+                          (3, 'u.k.');
+INSERT INTO supplier VALUES (1, 1);
+
+INSERT INTO partsupp VALUES
+  (1, 1, 10, 555),
+  (2, 1, 1, 2222),
+  (3, 1, 300, 700),
+  (4, 1, 259, 400),
+  (5, 1, 20,  400),
+  (6, 1, 1000, 300),
+  (7, 1, 30, 700);
+
+ANALYZE TABLE supplier, nation, partsupp;
+
+let $query=
+SELECT
+    ps_partkey,
+    SUM(ps_supplycost * ps_availqty) AS value
+FROM
+    partsupp,
+    supplier,
+    nation
+WHERE
+    ps_suppkey = s_suppkey AND
+    s_nationkey = n_nationkey AND
+    n_name = 'germany'
+GROUP BY
+    ps_partkey HAVING
+        SUM(ps_supplycost * ps_availqty) > (
+            SELECT
+                SUM(ps_supplycost * ps_availqty) * 0.1
+            FROM
+                partsupp,
+                supplier,
+                nation
+            WHERE
+                ps_suppkey = s_suppkey AND
+                s_nationkey = n_nationkey AND
+                n_name = 'germany'
+        )
+ORDER BY value DESC;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE partsupp, nation, supplier;
+
+--echo Bugs discovered during full regression suite runs with
+--echo transformation enabled, selectively repeated here, since we
+--echo won't be running InnoDB with transformation enabled normally.
+
+--echo Bug 1
+CREATE TABLE tbl1 (
+  login INT NOT NULL,
+  numb DECIMAL(15,2) NOT NULL DEFAULT '0.00',
+  PRIMARY KEY (login),
+  KEY numb (numb)
+);
+CREATE TABLE tbl2 (
+  login INT NOT NULL,
+  cmd TINYINT NOT NULL,
+  nump DECIMAL(15,2) NOT NULL DEFAULT '0.00',
+  KEY cmd (cmd),
+  KEY login (login)
+);
+
+SET autocommit = 0;
+START TRANSACTION;
+let $i=500;
+while ($i)
+{
+--eval insert into tbl1 values($i, '$i.$j')
+dec $i;
+}
+let $i=500;
+while ($i)
+{
+--eval insert into tbl2 values($i, $i%127,'$i.$j')
+dec $i;
+}
+COMMIT;
+SET autocommit = default;
+
+ANALYZE TABLE tbl1, tbl2;
+
+let $query=
+SELECT
+t1.login AS tlogin,
+  numb -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) as sp
+FROM tbl1 t1, tbl2 t2
+WHERE t1.login=t2.login
+GROUP BY t1.login
+LIMIT 5;
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query=
+SELECT
+t1.login AS tlogin,
+  numb -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) as sp
+FROM tbl1 t1, tbl2 t2
+WHERE t1.login=t2.login
+GROUP BY t1.login
+ORDER BY sp
+LIMIT 5;
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query=
+SELECT
+t1.login AS tlogin,
+  numb -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) as sp
+FROM tbl1 t1, tbl2 t2
+WHERE t1.login=t2.login
+GROUP BY t1.login
+ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
+              - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
+LIMIT 5;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE tbl1, tbl2;
+
+--echo Bug 2
+
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t4 (a INT NOT NULL, b INT NOT NULL);
+INSERT INTO t2 VALUES (1, 7), (2, 7), (2,10);
+INSERT INTO t4 VALUES (4, 8), (3, 8), (5, 9), (12, 7), (1, 7),
+                      (10, 9), (9, 6), (7, 6), (3, 9), (1, 10);
+ANALYZE TABLE t2, t4;
+let $query=
+SELECT b, MAX(a) AS ma FROM t4
+GROUP BY b HAVING ma < (SELECT MAX(t2.a) FROM t2 WHERE t2.b=t4.b);
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t2, t4;
+
+--echo Bug 3
+--echo
+--echo This query was caused an issue at one point, while we
+--echo still tried to moved explicit grouping into a derived table.
+--echo Should work fine now.
+
+CREATE TEMPORARY TABLE tmp_digests (
+  schema_name VARCHAR(64) DEFAULT NULL,
+  digest VARCHAR(64) DEFAULT NULL,
+  digest_text LONGTEXT,
+  count_star BIGINT UNSIGNED NOT NULL,
+  sum_timer_wait BIGINT UNSIGNED NOT NULL,
+  min_timer_wait BIGINT UNSIGNED NOT NULL,
+  avg_timer_wait BIGINT UNSIGNED NOT NULL,
+  max_timer_wait BIGINT UNSIGNED NOT NULL,
+  sum_lock_time BIGINT UNSIGNED NOT NULL,
+  sum_errors BIGINT UNSIGNED NOT NULL,
+  sum_warnings BIGINT UNSIGNED NOT NULL,
+  sum_rows_affected BIGINT UNSIGNED NOT NULL,
+  sum_rows_sent BIGINT UNSIGNED NOT NULL,
+  sum_rows_examined BIGINT UNSIGNED NOT NULL,
+  sum_created_tmp_disk_tables BIGINT UNSIGNED NOT NULL,
+  sum_created_tmp_tables BIGINT UNSIGNED NOT NULL,
+  sum_select_full_join BIGINT UNSIGNED NOT NULL,
+  sum_select_full_range_join BIGINT UNSIGNED NOT NULL,
+  sum_select_range BIGINT UNSIGNED NOT NULL,
+  sum_select_range_check BIGINT UNSIGNED NOT NULL,
+  sum_select_scan BIGINT UNSIGNED NOT NULL,
+  sum_sort_merge_passes BIGINT UNSIGNED NOT NULL,
+  sum_sort_range BIGINT UNSIGNED NOT NULL,
+  sum_sort_rows BIGINT UNSIGNED NOT NULL,
+  sum_sort_scan BIGINT UNSIGNED NOT NULL,
+  sum_no_index_used BIGINT UNSIGNED NOT NULL,
+  sum_no_good_index_used BIGINT UNSIGNED NOT NULL,
+  sum_cpu_time BIGINT UNSIGNED NOT NULL,
+  count_secondary BIGINT UNSIGNED NOT NULL,
+  first_seen TIMESTAMP NULL DEFAULT NULL,
+  last_seen TIMESTAMP NULL DEFAULT NULL,
+  quantile_95 BIGINT UNSIGNED NOT NULL,
+  quantile_99 BIGINT UNSIGNED NOT NULL,
+  quantile_999 BIGINT UNSIGNED NOT NULL,
+  query_sample_text longtext,
+  query_sample_seen TIMESTAMP NULL DEFAULT NULL,
+  query_sample_timer_wait BIGINT UNSIGNED NOT NULL,
+  INDEX (schema_name, digest)
+) DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO tmp_digests SELECT * FROM performance_schema.events_statements_summary_by_digest;
+
+CREATE TEMPORARY TABLE tmp_digest_avg_latency_distribution1 (
+              cnt BIGINT UNSIGNED NOT NULL,
+              avg_us DECIMAL(21,0) NOT NULL,
+              PRIMARY KEY (avg_us)
+            ) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE tmp_digest_avg_latency_distribution2 (
+              cnt BIGINT UNSIGNED NOT NULL,
+              avg_us DECIMAL(21,0) NOT NULL,
+              PRIMARY KEY (avg_us)
+            ) ENGINE=InnoDB;
+
+INSERT INTO tmp_digest_avg_latency_distribution1
+SELECT COUNT(*) cnt,
+       ROUND(avg_timer_wait/1000000) AS avg_us
+  FROM tmp_digests
+ GROUP BY avg_us;
+
+INSERT INTO tmp_digest_avg_latency_distribution2 SELECT * FROM tmp_digest_avg_latency_distribution1;
+
+CREATE TEMPORARY TABLE tmp_digest_95th_percentile_by_avg_us (
+              avg_us decimal(21,0) NOT NULL,
+              percentile decimal(46,4) NOT NULL,
+              PRIMARY KEY (avg_us)
+            ) ENGINE=InnoDB;
+
+ANALYZE TABLE tmp_digests;
+ANALYZE TABLE tmp_digest_avg_latency_distribution1;
+ANALYZE TABLE tmp_digest_avg_latency_distribution2;
+ANALYZE TABLE tmp_digest_95th_percentile_by_avg_us;
+
+let $query =
+  INSERT INTO tmp_digest_95th_percentile_by_avg_us
+  SELECT s2.avg_us avg_us,
+         IFNULL(SUM(s1.cnt)/
+                NULLIF((SELECT COUNT(*) FROM tmp_digests), 0), 0) percentile
+  FROM tmp_digest_avg_latency_distribution1 AS s1
+       JOIN tmp_digest_avg_latency_distribution2 AS s2
+       ON s1.avg_us <= s2.avg_us
+  GROUP BY s2.avg_us
+  HAVING percentile > 0.95
+  ORDER BY percentile
+  LIMIT 1;
+
+eval PREPARE p from '$query';
+--disable_warnings
+EXECUTE p;
+--enable_warnings
+--replace_regex /^[.0-9]*$/xxxxx/
+SELECT * from tmp_digest_95th_percentile_by_avg_us;
+--replace_column 10 xxx
+eval EXPLAIN $query;
+
+DROP PREPARE p;
+DROP TEMPORARY TABLE tmp_digest_95th_percentile_by_avg_us;
+DROP TEMPORARY TABLE tmp_digest_avg_latency_distribution2;
+DROP TEMPORARY TABLE tmp_digest_avg_latency_distribution1;
+DROP TEMPORARY TABLE tmp_digests;
+
+--echo Bug 4
+--echo
+--echo Nested query with transformable scalar subquery at both levels:
+--echo interference with semijoin: 1) derived table name not unique
+--echo after flattening, 2) flattening needs to happen after
+--echo transforming scalar subqueries to derived tables (on the top
+--echo level here we got problems).
+CREATE TABLE t1 (col_int_key int, KEY col_int_key (col_int_key));
+INSERT INTO t1 VALUES (0),(8),(1),(8);
+
+CREATE TABLE where_subselect_20070
+  SELECT table2 .col_int_key AS field1,
+        ( SELECT COUNT( col_int_key )
+          FROM t1
+        )
+  FROM t1 AS table1
+       JOIN t1 AS table2
+       ON table2.col_int_key = table1.col_int_key;
+
+ANALYZE TABLE t1, where_subselect_20070;
+
+let $query =
+SELECT *
+FROM where_subselect_20070
+WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
+  SELECT table2 .col_int_key AS field1,
+        ( SELECT COUNT( col_int_key )
+          FROM t1
+        )
+  FROM t1 AS table1
+       JOIN t1 AS table2
+       ON table2.col_int_key = table1.col_int_key
+);
+
+--sorted_result
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, where_subselect_20070;
+
+--echo Bug 5
+--echo
+--echo We used to not get the error: the GROUP BY transformation into a
+--echo derived table didn't see outer reference "outr.a"
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
+ANALYZE TABLE t1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a)
+  FROM t1 outr;
+DROP TABLE t1;
+
+
+--echo Bug, cf requirement FR#4 addendum: If a prepared statement was
+--echo prepared with the transformation enabled, it will also be
+--echo executed with the transformation.
+CREATE TABLE t1(a DATETIME NOT NULL);
+INSERT INTO t1 VALUES ('20060606155555');
+PREPARE s FROM
+  'SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555")';
+SET optimizer_switch='subquery_to_derived=off';
+EXECUTE s;
+
+--echo Try the other way too. Transform will not happen on EXECUTE
+--echo as it can be performed only on PREPARE.
+PREPARE s FROM
+  'SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555")';
+SET optimizer_switch='subquery_to_derived=on';
+EXECUTE s;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug fix: we transformed a query which cannot be transformed
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+ANALYZE TABLE t1;
+
+let $query1 =
+SELECT (SELECT MIN(a) FROM t1) a, MAX(a) AS mx
+FROM t1
+WHERE FALSE
+HAVING (SELECT MIN(a) FROM t1) > 0;
+
+let $query2 =
+SELECT MAX(a) AS mx
+FROM t1
+WHERE FALSE
+HAVING (SELECT MIN(a) FROM t1) > 0;
+
+SET optimizer_switch='subquery_to_derived=off';
+eval $query1;
+eval $query2;
+SET optimizer_switch='subquery_to_derived=on';
+eval $query1;
+eval EXPLAIN $query1;
+eval $query2;
+eval EXPLAIN $query2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30616646 WL#12885: SIG 6 IN JOIN::MAKE_JOIN_PLAN() AT SQL/SQL_OPTIMIZER.CC
+--echo #
+CREATE TABLE tab1(pk int PRIMARY KEY);
+
+let $query =
+SELECT *
+FROM tab1 AS table1
+     LEFT JOIN
+     ( tab1 AS table2 JOIN
+       tab1 AS table3
+       ON 1 <= (SELECT COUNT(pk) FROM tab1) )
+     ON 1
+WHERE (SELECT MIN(pk) FROM tab1);
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE tab1;
+
+--echo #
+--echo # Bug#30617216 WL#12885 SIG6 IN JOIN::ADD_HAVING_AS_TMP_TABLE_COND() AT SQL/SQL_SELECT.CC
+--echo #
+--echo # ANY/ALL/SOME transformation makes us skip subquery to derived
+--echo # transformation
+--echo #
+CREATE TABLE c2 (col_varchar_key VARCHAR(1));
+
+let $query =
+SELECT alias1.col_varchar_key
+FROM c2 AS alias1
+HAVING   alias1.col_varchar_key > SOME (SELECT col_varchar_key FROM c2)
+ORDER BY alias1.col_varchar_key;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE c2;
+
+--echo #
+--echo # Bug#30622834 WL#12885: ASSERTION `SELECT_LEX->IS_RECURSIVE()' FAILED
+--echo # Update: these are no longer transformed after Bug#31566339
+CREATE TABLE t1(col_int INT);
+
+let $query =
+SELECT *
+FROM ((t1 AS a2
+       LEFT JOIN
+       t1 AS a1
+       ON  1 <= SOME (SELECT COUNT(*) FROM t1))
+     LEFT JOIN
+     t1
+     ON true);
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT *
+FROM ((t1 AS a2
+       LEFT JOIN
+       t1 AS a1
+       ON  1 <= ALL (SELECT COUNT(*) FROM t1))
+     LEFT JOIN
+     t1
+     ON true);
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT *
+FROM (t1
+      RIGHT JOIN
+      (t1 AS a1
+       RIGHT JOIN
+       t1 AS a2
+       ON  1 <= SOME (SELECT COUNT(*) FROM t1))
+      ON true);
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30626975 WL#12885: WL#12885: SIG 6 IN SELECT_LEX::SYNTHESIZE_DERIVED() AT SQL/SQL_RESOLVER.CC
+--echo # Update: ANY/ALL/SOME rejected.
+
+CREATE TABLE t1(pk int PRIMARY KEY);
+
+--echo Simplified repro, requires -ps-protocol to fail before fix
+
+
+let $query=
+SELECT t1.pk
+ FROM t1 LEFT JOIN ( SELECT t1.pk AS pk
+                     FROM t1
+                     WHERE (1 <= (SELECT MAX(t1.pk)
+                                  FROM t1)) ) alias2
+      ON true;
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo Another mode of the bug: exercises has_scalar_to_derived_transform
+--echo which also needs to look inside join nest
+eval PREPARE p FROM "$query";
+EXECUTE p;
+SET optimizer_switch='subquery_to_derived=off';
+EXECUTE p;
+SET optimizer_switch='subquery_to_derived=on';
+EXECUTE p;
+
+--echo original repro, requires -ps-protocol to fail before fix)
+let $query=
+SELECT alias1.pk
+FROM t1 AS alias1 LEFT JOIN
+       t1 AS alias2 LEFT JOIN
+         (SELECT *
+          FROM t1
+          WHERE 1 <= ANY (SELECT c_sq1_alias1.pk
+                          FROM t1 AS c_sq1_alias1 JOIN t1 AS c_sq1_alias2
+                               ON TRUE
+                         )
+         ) AS alias3
+       ON TRUE
+     ON TRUE;
+
+eval $query;
+eval EXPLAIN $query;
+
+
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30627570 WL#12885 SIG11 IN ITEM_SUBSELECT::PLACE() AT SQL/ITEM_SUBSELECT.H
+--echo # Solved by fix for Bug#30626975. Included here for completeness.
+--echo #
+CREATE TABLE X (col_varchar_key VARCHAR(1));
+SET OPTIMIZER_SWITCH='subquery_to_derived=on';
+PREPARE prep_stmt FROM
+'SELECT col_varchar_key
+ FROM (SELECT * FROM X
+       WHERE X.col_varchar_key > (SELECT MIN(col_varchar_key)
+                                  FROM X)) AS table1';
+EXECUTE prep_stmt;
+DROP TABLE X;
+
+--echo #
+--echo # Bug#30632595 WL#12885 SIG11 IN SELECT_LEX::NEST_DERIVED() AT SQL/SQL_RESOLVER.CC
+--echo #
+CREATE TABLE n(col_int INT);
+INSERT INTO n VALUES (1), (2), (3);
+ANALYZE TABLE n;
+
+let $query=
+SELECT alias2.col_int
+FROM (SELECT * FROM n) AS alias1
+     JOIN
+       (SELECT * FROM n) AS alias2
+       JOIN n
+       ON alias2.col_int < (SELECT MAX(col_int) FROM n)
+     ON TRUE;
+
+--sorted_result
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE n;
+
+--echo #
+--echo # Bug#30644900 WL#12885 SIG 11 IN SELECT_LEX::TRANSFORM_SCALAR_SUBQUERIES_TO_DERIVED()
+--echo #
+
+CREATE TABLE x(col_int_key INT);
+
+--echo # Don't transform this due to user variable (normally this would be ok,
+--echo # but here we get RAND_TABLE_BIT due to user variable here due because
+--echo # engine->uncacheable() sets UNCACHEABLE_RAND for user variable read, and
+--echo # not just assigment. And engine->uncacheable() propagates into
+--echo # used_tables as RAND_TABLE_BIT.
+let $query=
+SELECT table1.col_int_key AS field1
+FROM ((SELECT * FROM x
+       WHERE col_int_key <= (SELECT SUM(col_int_key)
+                             FROM x
+                             WHERE col_int_key < @var1)) AS table1
+      JOIN
+      x AS table2);
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo # Transform if no user variable
+let $query=
+SELECT table1.col_int_key AS field1
+FROM ((SELECT * FROM x
+       WHERE col_int_key <= (SELECT SUM(col_int_key)
+                             FROM x
+                             WHERE col_int_key < 1)) AS table1
+      JOIN
+      x AS table2);
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE x;
+
+--echo #
+--echo # Bug#30645426 WL#12885: SIG11 AT TABLE_LIST::CREATE_MATERIALIZED_TABLE() AT SQL/TABLE.H
+--echo # Used to fails with -ps-protocol
+--echo #
+CREATE TABLE t1(col_varchar VARCHAR(1));
+
+let $query=
+SELECT (SELECT COUNT(*)
+         FROM t1
+         WHERE 1 <> table1.col_varchar)
+ FROM ((SELECT a2.*
+        FROM (t1 AS a1
+              JOIN
+              t1 AS a2
+              ON (1 <> ( SELECT COUNT(*)
+                         FROM t1)))) AS table1
+        JOIN
+        t1
+        ON 1);
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30650326 WL#12885 SIG 11 IN ADD_KEY_FIELDS() AT SQL/SQL_OPTIMIZER.CC
+--echo #
+CREATE TABLE a(i INT);
+CREATE TABLE b(i INT);
+CREATE TABLE c(i INT);
+
+let $query =
+SELECT *
+FROM b
+WHERE EXISTS (SELECT *
+              FROM (b
+                    JOIN
+                    (a AS sq1_alias2
+                     JOIN
+                     c
+                     ON (sq1_alias2.i >= (SELECT MAX(i)
+                                                FROM b)))
+                    ON (6 IN (SELECT i
+                              FROM b))));
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE a, b, c;
+
+--echo #
+--echo # Bug#30727021 WL#12885 SIG 6 IN SELECT_LEX::SYNTHESIZE_DERIVED() AT SQL/SQL_RESOLVER.CC
+--echo # Update: ANY/ALL/SOME rejected.
+CREATE TABLE n(i INT);
+
+let $query =
+SELECT (SELECT AVG(n.i)
+        FROM n) AS feild1,
+       SUM(table1.i)
+FROM (n AS table1
+      JOIN
+      n AS table2
+      ON (table1.i <= ANY (SELECT i FROM n)))
+WHERE (EXISTS ((SELECT i FROM n)));
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo These (manually transformed the ANY) trigger the error as
+--echo well. Semi-join complication.
+let $query =
+SELECT (SELECT AVG(n.i)
+        FROM n) AS feild1,
+       SUM(table1.i)
+FROM (n AS table1
+      JOIN
+      n AS table2
+      ON (table1.i <= (select MAX(`n`.`i`) from `n`)))
+WHERE (EXISTS ((SELECT i FROM n)));
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT (SELECT AVG(n.i)
+        FROM n) AS feild1,
+       SUM(table1.i)
+FROM (n AS table1
+      JOIN
+      n AS table2
+      ON  (table2.i <=  (select MAX(`n`.`i`) from `n`)))
+      JOIN
+      n AS table3
+      ON (table1.i <=  (select MAX(`n`.`i`) from `n`))
+WHERE (EXISTS ((SELECT i FROM n)) AND
+       EXISTS ((SELECT i FROM n WHERE i = 5)) AND
+       EXISTS ((SELECT i FROM n WHERE i = 7)));
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo Follow-up fix.
+--echo Anti-join complication.
+
+let $query =
+SELECT (SELECT AVG(n.i)
+        FROM n) AS feild1,
+       SUM(table1.i)
+FROM (n AS table1
+      JOIN
+      n AS table2
+      ON (table2.i <= (select MAX(`n`.`i`) from `n`)))
+      JOIN n AS table3
+      ON (table1.i <= (select MAX(`n`.`i`) from `n`))
+WHERE (NOT EXISTS ((SELECT n1.i
+                    FROM n n1, n n2
+                    WHERE n1.i > n2.i)));
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT (SELECT AVG(n.i)
+        FROM n) AS feild1,
+       SUM(table1.i)
+FROM (n AS table1
+      JOIN
+      n AS table2
+      ON  (table2.i <=  (select MAX(`n`.`i`) from `n`)))
+      JOIN
+      n AS table3
+      ON (table1.i <=  (select MAX(`n`.`i`) from `n`))
+WHERE (EXISTS ((SELECT i FROM n)) AND
+       EXISTS ((SELECT i FROM n WHERE i = 5)) AND
+       EXISTS ((SELECT i FROM n WHERE i = 7)));
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo Mix of semi-join and anti-join complications.
+let $query =
+SELECT (SELECT AVG(n.i)
+        FROM n) AS feild1,
+       SUM(table1.i)
+FROM (n AS table1
+      JOIN n AS table2
+      ON  (table2.i <=  (select MAX(`n`.`i`) from `n`)))
+      JOIN n AS table3
+      ON (table1.i <=  (select MAX(`n`.`i`) from `n`))
+WHERE (EXISTS ((SELECT i FROM n)) AND
+       NOT EXISTS ((SELECT i FROM n WHERE i = 4)) AND
+       EXISTS ((SELECT i FROM n WHERE i = 5)) AND
+       EXISTS ((SELECT i FROM n WHERE i = 7)) AND
+       NOT EXISTS ((SELECT i FROM n WHERE i = 3)));
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE n;
+
+--echo #
+--echo # Bug#30736475 WL#12885 SIG 6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC
+--echo #
+CREATE TABLE m(pk INT);
+CREATE VIEW view_m AS SELECT * FROM m;
+PREPARE prep_stmt FROM
+
+'SELECT (SELECT t2.pk FROM (m AS t1
+                            JOIN
+                            (m AS t2
+                             JOIN m AS t3))),
+        (SELECT SUM(pk) FROM m),
+        MIN(table1.pk)
+ FROM (m AS table1 JOIN
+       ((view_m AS table2
+         JOIN
+         m AS table3))
+       ON (table3.pk = table2.pk))';
+EXECUTE prep_stmt;
+
+DROP VIEW view_m;
+DROP TABLE m;
+
+
+--echo #
+--echo # Bug#30757306 WL#12885: ASSERTION `FILE' FAILED AT TABLE::SET_KEYREAD
+--echo # Issue with INSERT, tweaks the from list which is transformed by us.
+CREATE TABLE t1(field1 INT, field2 VARCHAR(1));
+
+SET optimizer_switch='subquery_to_derived=on';
+
+CREATE TABLE cc1(pk INT NOT NULL,
+                 col_varchar_key VARCHAR(1) DEFAULT NULL,
+                 PRIMARY KEY (pk));
+
+let $query =
+SELECT COUNT(table1.pk),
+       (SELECT MIN(col_varchar_key) FROM cc1 )
+FROM (cc1 AS table1
+      JOIN (cc1 JOIN
+             cc1 AS table3
+             ON true)
+      ON true)
+WHERE (1 <> (SELECT COUNT(*) FROM cc1));
+
+eval $query;
+eval EXPLAIN $query;
+
+eval INSERT INTO t1 $query;
+eval EXPLAIN INSERT INTO t1 $query;
+
+SELECT * from t1;
+
+--echo Test this also for coverage
+eval CREATE TABLE t2 AS $query;
+
+DROP TABLE t1, cc1, t2;
+
+--echo #
+--echo # Bug#30755759 WL#12885 SIG6 IN HASH_JOIN_BUFFER::STOREFROMTABLEBUFFERS()
+--echo # Issue with covering indexes.
+--echo #
+
+CREATE TABLE a (
+    pk INTEGER
+  );
+CREATE TABLE bb (
+    col_varchar VARCHAR(1)
+);
+CREATE TABLE cc (
+    pk INTEGER,
+    col_int INTEGER,
+    col_int_key INTEGER,
+    col_time TIME,
+    col_time_key TIME,
+    col_datetime DATETIME,
+    col_datetime_key DATETIME,
+    col_varchar VARCHAR(1),
+    col_varchar_key VARCHAR(1),
+    PRIMARY KEY (pk)
+);
+CREATE INDEX idx_cc_col_varchar_key ON cc(col_varchar_key);
+
+INSERT INTO cc VALUES (1,764578610,1400450503,'04:58:13','15:43:36',
+                       '1977-07-20 14:44:30','1998-10-04 17:29:04','0','N');
+INSERT INTO cc VALUES (2,-1430323290,761341340,'17:39:46','10:22:47',
+                       '2027-06-26 01:50:30','1983-11-11 03:33:36','z','a');
+
+ANALYZE TABLE a, bb, cc;
+
+--echo Without the patch this plan would use an index scan on cc, but this
+--echo is not covering.
+
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=tree
+SELECT
+  AVG(cc.col_varchar_key),
+  (
+    SELECT SUM(cc.col_int_key)
+    FROM cc,a
+  )
+FROM cc STRAIGHT_JOIN bb ON bb.col_varchar = cc.col_varchar_key
+WHERE cc.col_varchar <> 'w';
+
+DROP TABLE a, bb, cc;
+
+--echo #
+--echo # Bug#30774730 WL#12885 SIG 6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC
+--echo #
+CREATE TABLE n(i INT);
+CREATE VIEW view_n AS SELECT * FROM n;
+
+PREPARE p FROM
+'SELECT (SELECT MAX(i) FROM n) AS field2,
+        COUNT(table1.i) AS field3 ,
+        (SELECT AVG(i) FROM n) AS field4
+ FROM (n AS table1
+       JOIN
+       ( view_n AS table2
+         JOIN
+         n AS table3
+         ON true )
+       ON (table2.i = table2.i))';
+
+EXECUTE p;
+DROP VIEW view_n;
+DROP TABLE n;
+
+--echo #
+--echo # Bug#30775902 WL#12885 SIG6 IN HASH_JOIN_BUFFER::STOREFROMTABLEBUFFERS()
+--echo #
+
+CREATE TABLE cc (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY idx_cc_col_int_key (col_int_key),
+  KEY idx_cc_col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO cc VALUES
+  (1,   1375472775,   262188886, 'I', 'b'),
+  (2,  -1851648474,   130471446, 'o', '7'),
+  (3,    503688873,   259988235, 'L', 't'),
+  (4,    995143874,   -60832670, 'Q', 'K'),
+  (5,  -1440599261, -1669741488, 'k', '7'),
+  (6,  -1534014276,  1760407196, 'c', 'Z'),
+  (7,    808084535,   311457905, 'B', 'j'),
+  (8,    731883185,  -571871645, 'd', 'm'),
+  (9,   1445888442,  1903365311, 'w', 's'),
+  (10,   222313615,  -404576744, 'n', 'V'),
+  (11, -1320350569, -1496644593, 'y', 'o'),
+  (12,  2033205532,  1376480867, 'x', '4'),
+  (13,  -101883317,  -857422791, 'A', '7'),
+  (14,   867688302,  1410896813, 'J', 'c'),
+  (15, -1961088920, -2019664999, 'v', '1'),
+  (16, -1850585486, -1872043099, '1', 'o'),
+  (17,  -603486188,   901895823, 'G', 'q'),
+  (18, -1381157785, -1613624643, 'Z', 'E'),
+  (19,  -270976631,   288433409, 'r', 'Z'),
+  (20,  2113722977,   409698731, 'n', 'd');
+
+ANALYZE TABLE cc;
+
+CREATE VIEW view_cc AS SELECT * FROM cc;
+
+let $query=
+SELECT AVG(table2.col_int) AS field1 ,
+       ( SELECT COUNT(subquery1_t1.col_varchar_key ) AS subquery1_field1
+         FROM ( cc AS subquery1_t1
+                LEFT OUTER JOIN
+                ( cc AS subquery1_t2
+                  INNER JOIN view_cc AS subquery1_t3
+                  ON ( subquery1_t3.col_varchar = subquery1_t2.col_varchar_key ) )
+                ON ( subquery1_t3.col_int_key = subquery1_t2.col_int  ) )
+         WHERE subquery1_t1.col_varchar_key != subquery1_t2.col_varchar ) AS field2
+FROM ( cc AS table1
+       STRAIGHT_JOIN
+       cc AS table2
+       ON ( table1.col_varchar_key = table1.col_varchar_key ) )
+WHERE ( table1.pk = 1 ) AND
+      ( table1.col_varchar_key = 'D' OR
+        table1.col_varchar_key = table1.col_varchar_key) OR
+      table1.col_varchar_key < 'O'
+ORDER BY table1.col_varchar ASC, field2, field1
+LIMIT 1000 OFFSET 2;
+
+eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+
+DROP VIEW view_cc;
+DROP TABLE cc;
+
+--echo #
+--echo # Bug#30781925 WL#12885 SIG11 IN GETITERATORFORDERIVEDTABLE() AT SQL/SQL_EXECUTOR.CC
+--echo #
+CREATE TABLE m(col_int INT);
+
+SELECT MIN(table1.col_int)           AS field1,
+       ( SELECT COUNT(col_int )
+         FROM m AS t1 )              AS field2,
+       AVG(table1.col_int)           AS field4,
+       ( SELECT MAX(t1.col_int)
+         FROM ( m AS t1 JOIN
+                     ( m AS t2
+                       JOIN
+                       m AS t3 ) ) ) AS field5
+FROM ( m AS table1
+       JOIN ( ( m AS table2
+                JOIN
+                ( SELECT COUNT(col_int) FROM m ) AS table3 ) ) ) ;
+
+DROP TABLE m;
+
+--echo #
+--echo # Bug#30786714 WL#12885 SIG6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC
+--echo #
+--echo # Missing treatment of view references in transformed block by
+--echo # transform_grouped_to_derived, e.g. table2.col_int below.
+--echo # Used to fail with prepared statement
+
+CREATE TABLE n(col_int INT);
+INSERT INTO n VALUES (1), (2), (3);
+ANALYZE TABLE n;
+CREATE VIEW view_n AS SELECT * FROM n;
+SET sql_mode="";
+let $query =
+SELECT table_b.col_int               AS field_a,
+       (SELECT MAX(col_int) FROM n)  AS field_b,
+       COUNT(table_a.col_int)        AS field_c,
+       (SELECT AVG(col_int) FROM n)  AS field_d
+FROM ( n AS table_a
+       JOIN ( view_n AS table_b
+              JOIN n AS table_c) );
+
+# Non deterministic query so replace
+--replace_regex /3/1/
+eval $query;
+eval EXPLAIN $query;
+
+DROP VIEW view_n;
+
+CREATE VIEW view_n(col_int2) AS SELECT col_int + 1 FROM n;
+--echo More complex view featuring an expression and now also
+--echo two equivalent view references
+let $query =
+SELECT  table_b.col_int2              AS field_e,
+        table_a.col_int,
+        (SELECT MAX(col_int) FROM n)  AS field_a,
+        COUNT(table_a.col_int )       AS field_b,
+        (SELECT AVG(col_int) FROM n)  AS field_c,
+        table_b.col_int2              AS field_d
+FROM ( n AS table_a
+       JOIN (view_n AS table_b
+             JOIN n AS table_c) );
+
+--replace_regex /4/2/
+eval $query;
+eval EXPLAIN $query;
+
+
+SET sql_mode=default;
+
+DROP VIEW view_n;
+DROP TABLE n;
+
+--echo #
+--echo # Bug#30786266 WL#12885 SIG 6 IN QEP_TAB::PUSH_INDEX_COND() AT SQL/SQL_SELECT.CC
+--echo #
+CREATE TABLE c (pk INTEGER AUTO_INCREMENT,
+                col_int INT ,
+                col_int_key INT ,
+                col_varchar VARCHAR(1) ,
+                col_varchar_key VARCHAR(1) ,
+                PRIMARY KEY(pk));
+CREATE INDEX idx_c_col_int_key ON c(col_int_key);
+CREATE TABLE cc (pk INTEGER AUTO_INCREMENT,
+                 col_int INT ,
+                 col_int_key INT ,
+                 col_varchar VARCHAR(1) ,
+                 col_varchar_key VARCHAR(1) ,
+                 PRIMARY KEY(pk));
+INSERT INTO cc VALUES (DEFAULT,1750627978,-2052557260,'0','o');
+
+INSERT INTO c values
+    (DEFAULT,809266110,-169779076,'C','O'),
+    (DEFAULT,3049998,1973362945,'2','O'),
+    (DEFAULT,912437770,-1109570817,'W','G'),
+    (DEFAULT,-1655291083,-1761323512,'q','9'),
+    (DEFAULT,-1276272795,-591291338,'3','O'),
+    (DEFAULT,-1297781203,-970713309,'q','r'),
+    (DEFAULT,-261602165,-2083959767,'7','O'),
+    (DEFAULT,357530836,-746109993,'6','i'),
+    (DEFAULT,1553746652,-1607882572,'G','Y'),
+    (DEFAULT,-1620551574,381511992,'5','n'),
+    (DEFAULT,-1221888549,-1127778040,'l','U'),
+    (DEFAULT,1048455957,-1830777487,'U','T'),
+    (DEFAULT,-541641553,-1731661529,'A','Q'),
+    (DEFAULT,1482963294,-1570976962,'0','s');
+
+ANALYZE TABLES c, cc;
+
+EXPLAIN
+SELECT MIN( table2.col_int ) AS field1 ,
+       SUM( table2.col_int ) AS field2 ,
+       ( SELECT MAX( subquery1_t1.pk ) AS subquery1_field1
+         FROM ( cc AS subquery1_t1
+                INNER JOIN
+                cc AS subquery1_t2
+                ON ( subquery1_t2.col_varchar_key =
+                     subquery1_t1.col_varchar_key ) ) ) AS field3
+FROM ( c AS table1
+       RIGHT JOIN
+       ( ( cc AS table2
+           STRAIGHT_JOIN
+           c AS table3
+           ON ( table2.pk = table2.col_int ) ) )
+       ON ( table2.col_varchar_key = table2.col_varchar AND
+            table1.col_int_key > ( SELECT 9 FROM cc ) ) )
+WHERE ( EXISTS ( SELECT subquery3_t1.col_int AS subquery3_field1
+                  FROM c AS subquery3_t1
+                  WHERE subquery3_t1.col_int_key = table1.pk ) ) AND
+      table1.col_varchar_key <> table2.col_varchar;
+
+DROP TABLE c, cc;
+
+--echo #
+--echo # Bug#30818896 WL#12885: ASSERTION FAILURE IN TEMPTABLE::COLUMN::READ_STD_USER_DATA()
+--echo # Refinement of view references in transformed block by
+--echo # transform_grouped_to_derived. Cf. Bug#30786714. We replaced too many.
+CREATE TABLE b (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY idx_b_col_int_key (col_int_key),
+  KEY idx_b_col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO b VALUES (1,-1155099828,-1879439976,'N','a');
+
+CREATE TABLE c (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY idx_c_col_int_key (col_int_key),
+  KEY idx_c_col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO c VALUES
+  (1,     -3666739,   177583826, 'm', 'j'),
+  (2,   1904347123,  1743248268, '2', 'P'),
+  (3,   -469827848,  1376980829, 'i', 'A'),
+  (4,   1433595053,  1819090851, 'L', 'M'),
+  (5,    726547892,  1068584791, 'T', 'j'),
+  (6,   1439902652, -1277159531, 'S', 'r'),
+  (7,  -1897073668,  -282803609, 'x', '7'),
+  (8,   1220936946,   170773463, '8', 'z'),
+  (9,   2127527772,  1049703732, 'i', 'y'),
+  (10,   673031799,   609105572, 'h', 'a'),
+  (11,  -479585417,  1317141227, 'w', 'k'),
+  (12,  -688521145,  -684371590, 'S', 'y'),
+  (13,     2841986,  -721059140, 'E', 'I'),
+  (14,    58615730,   496153244, '2', 'U'),
+  (15,  1139572680,  1532132699, '2', 'n'),
+  (16,  -842003748,  1189460625, 'I', 'P'),
+  (17, -1177191130, -1717792127, 'y', 'n'),
+  (18, -1108396995,   313282977, 'N', 'a'),
+  (19,  -361562994,   419341930, 'd', 'C'),
+  (20,   743792160,   984757597, 'e', '2');
+
+CREATE TABLE cc (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY idx_cc_col_int_key (col_int_key),
+  KEY idx_cc_col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO cc VALUES
+  (1,  1375472775,   262188886, 'I', 'b'),
+  (2, -1851648474,   130471446, 'o', '7'),
+  (3,   503688873,   259988235, 'L', 't'),
+  (4,   995143874,   -60832670, 'Q', 'K'),
+  (5, -1440599261, -1669741488, 'k', '7'),
+  (6, -1534014276,  1760407196, 'c', 'Z'),
+  (7,   808084535,   311457905, 'B', 'j'),
+  (8,   731883185,  -571871645, 'd', 'm'),
+  (9,  1445888442,  1903365311, 'w', 's'),
+  (10,  222313615,  -404576744, 'n', 'V'),
+  (11,-1320350569, -1496644593, 'y', 'o'),
+  (12, 2033205532,  1376480867, 'x', '4'),
+  (13, -101883317,  -857422791, 'A', '7'),
+  (14,  867688302,  1410896813, 'J', 'c'),
+  (15,-1961088920, -2019664999, 'v', '1'),
+  (16,-1850585486, -1872043099, '1', 'o'),
+  (17, -603486188,   901895823, 'G', 'q'),
+  (18,-1381157785, -1613624643, 'Z', 'E'),
+  (19, -270976631,   288433409, 'r', 'Z'),
+  (20, 2113722977,   409698731, 'n', 'd');
+
+CREATE VIEW  view_cc AS
+SELECT cc.col_int_key AS col_int_key,
+       cc.col_varchar AS col_varchar,
+       cc.col_varchar_key AS col_varchar_key from cc;
+
+ANALYZE TABLES b, c, cc;
+
+SET sql_mode='';
+
+let $query =
+SELECT STRAIGHT_JOIN
+       ( SELECT AVG(subquery1_t1.col_int) AS subquery1_field1
+         FROM c AS subquery1_t1
+         WHERE EXISTS ( SELECT subquery1_t1.pk AS child_subquery1_field1
+                        FROM ( view_cc  AS child_subquery1_t1
+                               LEFT JOIN
+                               b AS child_subquery1_t2
+                               ON child_subquery1_t2.pk = child_subquery1_t1.col_int_key )
+                        WHERE child_subquery1_t1.col_varchar_key > subquery1_t1.col_varchar OR
+                              child_subquery1_t1.col_varchar_key < child_subquery1_t1.col_varchar))
+                                                  AS field1,
+                      table1.col_int_key          AS field2,
+                      SUM(table1.col_varchar_key) AS field3,
+                      MAX(table2.col_int)         AS field4
+FROM ( cc AS table1
+       INNER JOIN
+       ( b AS table2
+         INNER JOIN
+         cc AS table3
+         ON table3.col_int = table2.col_int_key )
+       ON ( table3.col_varchar_key = table2.col_varchar_key ) )
+WHERE ( NOT EXISTS ( ( SELECT subquery2_t1.col_varchar AS subquery2_field1
+                       FROM c AS subquery2_t1 ) ) )   AND
+      table1.col_varchar_key = table2.col_varchar_key AND
+      ( table2.col_varchar_key >= 'v'                 AND
+        table1.col_varchar <= table2.col_varchar_key )
+ORDER BY field2 DESC, table1.col_int_key, table2 .pk ASC, field1, field2, field3, field4
+LIMIT 1;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP VIEW view_cc;
+DROP TABLES b, c, cc;
+
+SET sql_mode=default;
+
+--echo
+--echo Bug found while running RAPID mtr (rapid.view, rapid.subselect) with
+--echo PS-protocol
+--echo
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(a INTEGER);
+
+INSERT INTO t1 VALUES
+ (1, 10),
+ (2, 20), (2, 21),
+ (3, NULL),
+ (4, 40), (4, 41), (4, 42), (4, 43), (4, 44);
+
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (NULL);
+ANALYZE TABLE t1,t2;
+
+CREATE VIEW v1 AS SELECT a, b, (SELECT COUNT(*) FROM t2) AS c FROM t1;
+let $query =
+SELECT * FROM v1;
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo The select does not reference the scalar subquery
+let $query =
+SELECT a FROM v1;
+eval $query;
+eval EXPLAIN $query;
+
+set sql_mode='';
+let $query =
+SELECT a,c FROM v1 GROUP BY b HAVING c > 0;
+--sorted_result
+eval $query;
+eval EXPLAIN $query;
+set sql_mode=default;
+
+--echo The select references the scalar subquery from the view, but not in select list
+let $query =
+SELECT a FROM v1 WHERE c > 0;
+eval $query;
+eval EXPLAIN $query;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30922236 WL#13851 SIG 11 IN OPTIMIZE_KEYUSE() AT SQL/SQL_OPTIMIZER.CC
+--echo # Incomplete fix for commit 941056f2c "WL#12885: view bug 2"
+
+CREATE TABLE c (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_date date DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY idx_cc_col_int_key (col_int_key),
+  KEY idx_cc_col_date_key (col_date_key),
+  KEY idx_cc_col_time_key (col_time_key),
+  KEY idx_cc_col_datetime_key (col_datetime_key),
+  KEY idx_cc_col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+CREATE VIEW view_c AS
+SELECT alias1.col_int
+FROM ( c AS alias1
+       JOIN
+       ( ( c AS alias2
+           JOIN
+           c AS alias3
+           ON(1)) )
+       ON ( alias2.col_int >= ( SELECT MIN( sq1_alias1.col_int ) AS sq1_field1
+                                  FROM ( c AS sq1_alias1, c AS sq1_alias2 ) ) ) )
+WHERE (  EXISTS ( ( SELECT sq2_alias1.col_int
+                    FROM ( c AS sq2_alias1
+                           JOIN
+                           c AS sq2_alias2
+                           ON ( sq2_alias2.col_int = sq2_alias1.pk ) )) ) ) ;
+let $query =
+SELECT * FROM view_c;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP VIEW view_c;
+DROP TABLE c;
+
+--echo #
+--echo # Bug#31535523 WL#13686: SIG6 HEADER::NUMBER_OF_USED_CHUNKS() == 0 AT TEMPTABLE/BLOCK.H
+--echo # This query used to fail during server shutdown, cf. bug issue for how to run.
+--echo # In a single mtr run, look in var/log/mysqld.1.err for the stack trace before the fix.
+CREATE TABLE t1 (i int);
+CREATE TABLE t2 (i int);
+
+SELECT t2.i FROM t2
+WHERE ( false ) AND
+      ( t2.i  IN ( SELECT t1.i FROM t1
+                  WHERE t1.i <= SOME ( SELECT 8 UNION  SELECT 3 ) ) );
+DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#13686 Transformation of constant scalar subquery with DUAL causes
+--echo #          assert.
+--echo #
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+let $query =
+SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
+
+--sorted_result
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#31462120 ASSERTION `NESTED_JOIN_LIST->SIZE() == 2' FAILED AT SQL/SQL_RESOLVER.CC
+--echo #
+
+CREATE TABLE a (col_varchar_key varchar(1));
+
+let $query=
+SELECT table1.col_varchar_key
+FROM ( SELECT sub1_t2.*
+       FROM (a
+            JOIN
+            (a AS sub1_t2)
+            ON sub1_t2.col_varchar_key IN (SELECT col_varchar_key FROM a))
+       WHERE EXISTS (SELECT sub2_t1.col_varchar_key
+                     FROM a AS sub2_t1))  AS table1
+     JOIN
+     (a AS table2
+       JOIN
+       a
+       ON 1 >= (SELECT MIN( col_varchar_key) FROM a))
+     ON true;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE a;
+
+
+--echo #
+--echo # Bug#31566339 WRONG RESULT WITH OPTIMIZER_SWITCH SUBQUERY_TO_DERIVED ON: ANY
+--echo #
+
+CREATE TABLE t1(pk int primary key);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+ANALYZE TABLE t1;
+--echo # Used to return NULL
+SELECT SUM(pk) FROM t1 WHERE ( pk >= ANY ( SELECT MAX(1) FROM DUAL) );
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32859025: MYSQLD CRASH - ASSERTION `N < M_SIZE' FAILED|SQL/SQL_ARRAY.H
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+
+# The old optimizer calls both queries COUNT(*); the hypergraph optimizer
+# gets the names f1 and f2 right. We only really care that it doesn't crash,
+# so accept both.
+SELECT
+  (SELECT COUNT(*) FROM t1) AS f1,
+  (SELECT COUNT(*) FROM t1) AS f2
+FROM t1
+GROUP BY f1, f2 WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33057397: FIELD NAMES ARE DISPLAYED INCORRECTLY WITH ROLLUP AND
+--echo #               SUBQUERY_TO_DERIVED
+
+CREATE TABLE t1 ( f1 INTEGER);
+INSERT INTO t1 VALUES (0);
+
+# Name of the expression should be displayed as "field1".
+# Used to be "min".
+SELECT (SELECT MIN(f1) AS min FROM t1 ) AS field1 FROM t1 GROUP BY
+field1 WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33104036: ASSERTION FAILURE IN FIND_SUBQUERY_IN_SELECT_LIST AT
+--echo #               ../SQL/ITEM_SUBSELECT.CC
+
+CREATE TABLE t1 (f1 INTEGER);
+# Should not crash
+SELECT (SELECT SUM(f1) AS SQ1_field1 FROM t1) as field1
+ FROM t1 GROUP BY f1 WITH ROLLUP ORDER BY f1;
+DROP TABLE t1;
+
+--echo Original repro case
+CREATE TABLE t1 (pk integer auto_increment,
+                 col_int int ,
+                 col_datetime datetime ,
+                 col_char_255 char(255) ,
+                 col_smallint smallint ,
+                 col_decimal_10_8 decimal(10,8),
+                 primary key(pk)) ;
+
+set sql_mode='';
+
+let $query =
+SELECT alias1.col_decimal_10_8 AS field1 ,
+       ( SELECT SUM(table1.col_smallint ) AS SQ1_field1
+         FROM ( t1 as table1 RIGHT JOIN t1 as table2 ON 1 )
+       ) AS field2 ,
+       GROUPING( LOG(alias1.col_int) ) AS field3
+FROM ( t1 AS alias1
+       JOIN
+       t1 AS alias2 ON 1  )
+WHERE alias2.pk IN ( SELECT col_char_255 FROM t1 )
+GROUP BY field1, field2, LOG(alias1.col_int)
+WITH ROLLUP
+ORDER BY alias1.col_datetime, field1, field2, LOG(alias1.col_int) ;
+
+eval $query;
+eval EXPLAIN $query;
+set sql_mode=default;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33079592: ASSERTION `SELECT->BASE_REF_ITEMS[ITEM_IDX] == ITEM' FAILED
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+SET optimizer_switch='subquery_to_derived=default';
+# This will throw error
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+# This should throw error. But does not because before the full group by verification
+# happens, order by elements are removed (not correct for this case).
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+SET optimizer_switch='subquery_to_derived=on';
+# This will throw error (not as precise as when the transformation is off)
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+# This will throw error. Since the order by field is now visible in the derived
+# table.
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
+DROP TABLE t1;
+SET optimizer_switch='subquery_to_derived=default';

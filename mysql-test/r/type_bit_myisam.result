@@ -66,7 +66,7 @@ hex(a)
 1
 1
 alter table t1 add unique (a);
-ERROR 23000: Duplicate entry '\x00' for key 'a'
+ERROR 23000: Duplicate entry '\x00' for key 't1.a'
 drop table t1;
 create table t1 (a bit(2));
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
@@ -107,9 +107,16 @@ Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 0) AS `a+0` from `test`.`t1`
 select a+0 from t1;
 a+0
 0
-4
-5
-9
+104
+106
+108
+111
+116
+118
+119
+122
+123
+127
 23
 24
 28
@@ -117,8 +124,10 @@ a+0
 30
 31
 34
+4
 44
 49
+5
 56
 57
 59
@@ -132,18 +141,9 @@ a+0
 79
 87
 88
+9
 94
 94
-104
-106
-108
-111
-116
-118
-119
-122
-123
-127
 explain select b+0 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	38	100.00	Using index
@@ -151,44 +151,44 @@ Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`b` + 0) AS `b+0` from `test`.`t1`
 select b+0 from t1;
 b+0
-177
-245
-178
-363
-36
-398
-499
-399
-83
-438
-202
-307
-345
-379
-135
-188
-343
-152
-206
-454
-42
-133
+118
 123
+133
+135
+152
+177
+178
+188
+202
+206
+245
+280
+307
+343
+345
 349
 351
+36
+363
+368
+368
+379
+380
+390
+398
+399
+403
 411
+411
+42
+438
+446
+454
 46
 468
-280
-446
+499
 67
-368
-390
-380
-368
-118
-411
-403
+83
 explain select a+0, b+0 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	38	100.00	Using index
@@ -197,9 +197,16 @@ Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 0) AS `a+0`,(`test`.`t1`.`b` 
 select a+0, b+0 from t1;
 a+0	b+0
 0	177
-4	245
-5	178
-9	363
+104	280
+106	446
+108	67
+111	368
+116	390
+118	380
+119	368
+122	118
+123	411
+127	403
 23	36
 24	398
 28	499
@@ -207,8 +214,10 @@ a+0	b+0
 30	83
 31	438
 34	202
+4	245
 44	307
 49	345
+5	178
 56	379
 57	135
 59	188
@@ -222,18 +231,9 @@ a+0	b+0
 79	349
 87	351
 88	411
+9	363
 94	46
 94	468
-104	280
-106	446
-108	67
-111	368
-116	390
-118	380
-119	368
-122	118
-123	411
-127	403
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	2	NULL	27	33.33	Using where; Using index; Using filesort
@@ -275,20 +275,6 @@ a+0	b+0
 49	345
 56	379
 68	454
-set @@max_length_for_sort_data=0;
-Warnings:
-Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
-select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
-a+0	b+0
-57	135
-61	152
-59	188
-68	206
-44	307
-60	343
-49	345
-56	379
-68	454
 select hex(min(a)) from t1;
 hex(min(a))
 0
@@ -307,13 +293,13 @@ select a+0, b+0, c+0 from t1;
 a+0	b+0	c+0
 1	1	100
 2	1	4
-4	NULL	1
-4	0	3
+23	0	1
 4	0	23
+4	0	3
 4	0	34
 4	0	54
 4	1	100
-23	0	1
+4	NULL	1
 56	0	22
 select hex(min(b)) from t1 where a = 4;
 hex(min(b))
@@ -365,8 +351,8 @@ update t1 set b= concat(a);
 select a+0, b+0 from t1;
 a+0	b+0
 1	1
-3	3
 2	2
+3	3
 drop table t1;
 create table t1 (a bit(7), key(a));
 insert into t1 values (44), (57);
@@ -393,58 +379,58 @@ create table t1 (a bit(19), b bit(5));
 insert into t1 values (1000, 10), (3, 8), (200, 6), (2303, 2), (12345, 4), (1, 0);
 select a+0, b+0 from t1;
 a+0	b+0
+1	0
 1000	10
-3	8
+12345	4
 200	6
 2303	2
-12345	4
-1	0
+3	8
 alter table t1 engine=heap;
 select a+0, b+0 from t1;
 a+0	b+0
+1	0
 1000	10
-3	8
+12345	4
 200	6
 2303	2
-12345	4
-1	0
+3	8
 alter table t1 add key(a, b);
 select a+0, b+0 from t1;
 a+0	b+0
+1	0
 1000	10
-3	8
+12345	4
 200	6
 2303	2
-12345	4
-1	0
+3	8
 alter table t1 engine=myisam;
 select a+0, b+0 from t1;
 a+0	b+0
 1	0
-3	8
-200	6
 1000	10
-2303	2
 12345	4
+200	6
+2303	2
+3	8
 create table t2 engine=heap select * from t1;
 select a+0, b+0 from t2;
 a+0	b+0
 1	0
-3	8
-200	6
 1000	10
-2303	2
 12345	4
+200	6
+2303	2
+3	8
 drop table t1;
 create table t1 select * from t2;
 select a+0, b+0 from t1;
 a+0	b+0
 1	0
-3	8
-200	6
 1000	10
-2303	2
 12345	4
+200	6
+2303	2
+3	8
 drop table t1, t2;
 create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1),
 g bit(1) NOT NULL default 1, h char(1) default 'a');
@@ -560,9 +546,9 @@ a1	a2	b1+0	b2+0
 select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2;
 a1	a2	b1+0	b2+0
 1	2	1	1
-3	2	1	1
-2	3	0	0
 1	4	1	1
+2	3	0	0
+3	2	1	1
 3	4	1	1
 4	5	2	2
 select sum(a1), b1+0, b2+0 from t1 join t2 on b1 = b2 group by b1 order by 1;

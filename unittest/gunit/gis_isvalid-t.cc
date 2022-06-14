@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,6 @@
 namespace isvalid_unittest {
 std::unique_ptr<dd::Spatial_reference_system_impl> get_srs(
     gis::Coordinate_system coordinate_system) {
-  std::unique_ptr<dd::Spatial_reference_system_impl> m_srs;
   switch (coordinate_system) {
     case gis::Coordinate_system::kCartesian: {
       // Use SRID 0.
@@ -76,7 +75,7 @@ class IsvalidTest : public ::testing::Test {
 
 typedef ::testing::Types<Cartesian_types, Geographic_types> Types;
 
-TYPED_TEST_CASE(IsvalidTest, Types);
+TYPED_TEST_SUITE(IsvalidTest, Types);
 
 TYPED_TEST(IsvalidTest, Point) {
   typename TypeParam::Point pt0{0, 0};

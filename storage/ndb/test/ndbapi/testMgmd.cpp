@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include "util/require.h"
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <portlib/NdbDir.hpp>
@@ -35,6 +36,8 @@
 
 static const char * exe_valgrind = 0;
 static const char * arg_valgrind = 0;
+static int no_node_config = 0;
+static bool with_nodeid = true;
 
 static bool file_exists(const char* path, Uint32 timeout = 1)
 {
@@ -82,13 +85,14 @@ static BaseString path(const char* first, ...)
 
 class Mgmd
 {
+protected:
   NdbProcess* m_proc;
   int m_nodeid;
   BaseString m_name;
   BaseString m_exe;
   NdbMgmd m_mgmd_client;
 
-  Mgmd(const Mgmd& other); // Not implemented
+  Mgmd(const Mgmd& other) = delete;
 public:
 
   Mgmd(int nodeid) :
@@ -97,6 +101,14 @@ public:
   {
     m_name.assfmt("ndb_mgmd_%d", nodeid);
 
+    NDBT_find_ndb_mgmd(m_exe);
+  }
+
+  Mgmd() :
+  m_proc(NULL)
+  {
+    no_node_config = no_node_config + 1;
+    m_name.assfmt("ndb_mgmd_autonode_%d", no_node_config);
     NDBT_find_ndb_mgmd(m_exe);
   }
 
@@ -156,9 +168,12 @@ public:
   {
     NdbProcess::Args args;
     args.add("--no-defaults");
-    args.add("--configdir=.");
+    args.add("--configdir=", working_dir);
     args.add("-f config.ini");
-    args.add("--ndb-nodeid=", m_nodeid);
+    if (with_nodeid)
+    {
+      args.add("--ndb-nodeid=", m_nodeid);
+    }
     args.add("--nodaemon");
     args.add("--log-name=", name());
     args.add("--verbose");
@@ -184,7 +199,7 @@ public:
   {
     NdbProcess::Args args;
     args.add("--no-defaults");
-    args.add("--configdir=.");
+    args.add("--configdir=", working_dir);
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
     args.add("--log-name=", name());
@@ -227,8 +242,12 @@ public:
 
     if (ret != 9)
     {
-      fprintf(stderr, "stop ret: %u\n", ret);
-      return false; // Can't wait after kill with -9 -> fatal error
+      // The normal case after killing the process with -9 is that wait
+      // returns 9, but other return codes may also be returned for example
+      // when the process has already terminated itself.
+      // The important thing is that the process has terminated, just log return
+      // code and continue releasing resources.
+      fprintf(stderr, "Process %s stopped with ret: %u\n", name(), ret);
     }
 
     delete m_proc;
@@ -361,6 +380,73 @@ public:
   }
 };
 
+class Ndbd : public Mgmd
+{
+public:
+  Ndbd(int nodeid) : Mgmd(nodeid)
+  {
+    m_name.assfmt("ndbd_%d", nodeid);
+    NDBT_find_ndbd(m_exe);
+  }
+
+  bool start(const char *working_dir, BaseString connect_string)
+  {
+    NdbProcess::Args args;
+    args.add("-c");
+    args.add(connect_string.c_str());
+    args.add("--ndb-nodeid=", m_nodeid);
+    args.add("--nodaemon");
+    return Mgmd::start(working_dir, args);
+  }
+};
+
+
+#include <fstream>
+#include <iostream>
+#include <string>
+
+bool Print_find_in_file(const char* path, Vector<BaseString> search_string)
+{
+  std::ifstream indata;
+  indata.open(path);
+  Vector<bool> found;
+  for (unsigned int i = 0; i < search_string.size(); i++)
+  {
+    found.push_back(false);
+  }
+
+  if (indata.is_open())
+  {
+    std::string read_line;
+    while (std::getline(indata, read_line))
+    {
+      for (unsigned int i = 0; i < search_string.size(); i++)
+      {
+        if (found[i] == false)
+        {
+          if (read_line.find(search_string[i].c_str(), 0) != std::string::npos) {
+            {
+              found[i] = true;
+              break;
+            }
+          }
+        }
+      }
+      printf("%s\n", read_line.c_str());
+    }
+  }
+  else
+  {
+    return false;
+  }
+  indata.close();
+  bool ret = true;
+  for (unsigned int i = 0; i < search_string.size(); i++)
+  {
+    ret = ret && found[i];
+  }
+  return ret;
+}
 
 #define CHECK(x)                                            \
   if (!(x)) {                                               \
@@ -677,8 +763,12 @@ int runTestNoConfigCache(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
   
+  MgmdProcessList mgmds;
+
   // Start ndb_mgmd  from config.ini
   Mgmd* mgmd = new Mgmd(1);
+  mgmds.push_back(mgmd);
+
   CHECK(mgmd->start_from_config_ini(wd.path(), "--skip-config-cache", NULL));
      
   // Connect the ndb_mgmd(s)
@@ -710,8 +800,12 @@ int runTestNoConfigCache_DontCreateConfigDir(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
 
+  MgmdProcessList mgmds;
+
   g_err << "Test no configdir is created with --skip-config-cache" << endl;
   Mgmd* mgmd = new Mgmd(1);
+  mgmds.push_back(mgmd);
+
   CHECK(mgmd->start_from_config_ini(wd.path(),
                                     "--skip-config-cache",
                                     "--config-dir=dir37",
@@ -1119,7 +1213,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   version.assfmt("%u", NDB_VERSION_D);
   BaseString mysql_version;
   mysql_version.assfmt("%u", NDB_MYSQL_VERSION_D);
-  BaseString address("127.0.0.1");
+  BaseString address_ipv4("127.0.0.1");
+  BaseString address_ipv6("::1");
 
   NDBT_Workingdir wd("test_mgmd"); // temporary working directory
 
@@ -1151,7 +1246,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status1, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status1, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status1, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status1, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status1, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status1, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status1, nodeid1, "startphase", "0"));
   CHECK(value_equal(status1, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status1, nodeid1, "node_group", "0"));
@@ -1185,7 +1281,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status2, nodeid2, "status", "CONNECTED"));
   CHECK(value_equal(status2, nodeid2, "version", version.c_str()));
   CHECK(value_equal(status2, nodeid2, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status2, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid2, "address", address_ipv4.c_str()) ||
+        value_equal(status2, nodeid2, "address", address_ipv6.c_str()));
   CHECK(value_equal(status2, nodeid2, "startphase", "0"));
   CHECK(value_equal(status2, nodeid2, "dynamic_id", "0"));
   CHECK(value_equal(status2, nodeid2, "node_group", "0"));
@@ -1197,7 +1294,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status2, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status2, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status2, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status2, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status2, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status2, nodeid1, "startphase", "0"));
   CHECK(value_equal(status2, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status2, nodeid1, "node_group", "0"));
@@ -1211,7 +1309,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status3, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status3, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status3, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status3, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status3, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status3, nodeid1, "startphase", "0"));
   CHECK(value_equal(status3, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status3, nodeid1, "node_group", "0"));
@@ -1223,7 +1322,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status3, nodeid2, "status", "CONNECTED"));
   CHECK(value_equal(status3, nodeid2, "version", version.c_str()));
   CHECK(value_equal(status3, nodeid2, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status3, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid2, "address", address_ipv4.c_str()) ||
+        value_equal(status3, nodeid2, "address", address_ipv6.c_str()));
   CHECK(value_equal(status3, nodeid2, "startphase", "0"));
   CHECK(value_equal(status3, nodeid2, "dynamic_id", "0"));
   CHECK(value_equal(status3, nodeid2, "node_group", "0"));
@@ -1364,6 +1464,212 @@ runStopDuringStart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/* WL#13860: AllowUnresolvedHostnames=false (the default)
+   Check that MGM will not start up with unresolved hostname in configuration.
+*/
+int
+runTestUnresolvedHosts1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd");
+
+  char hostname[200];
+  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
+
+  Properties config, mgm, ndb, api;
+  mgm.put("NodeId", 1);
+  mgm.put("HostName", hostname);
+  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
+  ndb.put("NodeId", 2);
+  ndb.put("HostName", "xx-no-such-host.no.oracle.com.");
+  ndb.put("NoOfReplicas", 1);
+  api.put("NodeId", 3);
+  config.put("ndb_mgmd", 1, &mgm);
+  config.put("ndbd", 2, &ndb);
+  config.put("mysqld", 3, &api);
+
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  Mgmd mgmd(1);
+  int exit_value;
+  CHECK(mgmd.start_from_config_ini(wd.path()));
+  CHECK(mgmd.wait(exit_value, 50));
+  CHECK(exit_value == 1);
+  return NDBT_OK;
+}
+
+/* WL#13860: AllowUnresolvedHostnames=true
+   This test uses a configuration with 144 data nodes, of which 143 have
+   unresolvable hostnames, and shows that the one data node with a usable
+   hostname succesfully connects, while a second data node with a bad hostname
+   times out (within 40 seconds) with failure to allocate node id.
+*/
+int
+runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd");
+
+  char hostname[200];
+  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
+
+  Properties config;
+  {
+    // 144 ndbds, nodeid 1 -> 144
+    for(int i = 1 ; i <= 144 ; i++) {
+      Properties ndbd;
+      ndbd.put("NodeId", i);
+      ndbd.put("NoOfReplicas", 4);
+      if(i == 1) {
+        // Node 1 has a good hostname.
+        ndbd.put("HostName", hostname);
+      } else  {
+        // The other have unresolvable hostnames.
+        ndbd.put("HostName", "xx-no-such-host.no.oracle.com.");
+      }
+      config.put("ndbd", i, &ndbd);
+    }
+  }
+  {
+    // 1 ndb_mgmd, nodeid 145
+    Properties mgmd;
+    mgmd.put("NodeId", 145);
+    mgmd.put("HostName", hostname);
+    mgmd.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
+    config.put("ndb_mgmd", 145, &mgmd);
+  }
+  {
+    // 1 mysqld, nodeid 151
+    Properties mysqld;
+    mysqld.put("NodeId", 151);
+    config.put("mysqld", 151, &mysqld);
+  }
+  {
+    Properties tcp;
+    tcp.put("AllowUnresolvedHostnames", "true");
+    config.put("TCP DEFAULT", &tcp);
+  }
+
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  /* Start the management node and data node 1 together, and expect this to
+     succeed despite the unresolvable host names and large configuration.
+  */
+  Mgmd mgmd(145);
+  Ndbd ndbd1(1);
+
+  CHECK(ndbd1.start(wd.path(), mgmd.connectstring(config))); // Start data node 1
+  CHECK(mgmd.start_from_config_ini(wd.path()));    // Start management node
+  CHECK(mgmd.connect(config));                     // Connect to management node
+  CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
+
+  /* Start data node 2.
+     Expect it to run for at least 20 seconds, trying to allocate a node id.
+     But in the second 20-second interval, it will time out and shut down.
+  */
+  int ndbd_exit_code;
+  Ndbd ndbd2(2);
+  CHECK(ndbd2.start(wd.path(), mgmd.connectstring(config)));
+  CHECK(ndbd2.wait(ndbd_exit_code, 200) == 0);   // first 20-second wait
+  CHECK(ndbd2.wait(ndbd_exit_code, 200) == 1);   // second 20-second wait
+
+  return NDBT_OK;
+}
+
+int
+runTestMgmdwithoutnodeid(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd");
+  Vector<BaseString> search_list;
+
+  Properties config, mgm, mgm2, mgm3, ndb, api;
+  mgm.put("HostName", "190.10.10.4");
+  ndb.put("HostName", "190.10.10.1");
+  ndb.put("NoOfReplicas", 1);
+  config.put("ndb_mgmd", 1, &mgm);
+  config.put("ndbd", 2, &ndb);
+  config.put("mysqld", 3, &api);
+
+  CHECK(ConfigFactory::write_config_ini(config,
+    path(wd.path(),
+      "config.ini",
+      NULL).c_str()));
+
+  Mgmd mgmd;
+  int exit_value;
+  //write the stdout to temp file
+  BaseString out_file = path(wd.path(), "out.txt", NULL);
+  FILE* temp_file = fopen(out_file.c_str(), "w");
+  int file_desc = open(out_file.c_str(), O_WRONLY | O_APPEND);
+  int stdoutCopy = dup(1);
+  if (dup2(file_desc, 1) < 0) return NDBT_FAILED;
+  close(file_desc);
+
+  //TEST 1: start mgmd without nodeid and unknown address
+  with_nodeid = false;
+  CHECK(mgmd.start_from_config_ini(wd.path()));
+  CHECK(mgmd.wait(exit_value, 300));
+  CHECK(exit_value == 1);
+  with_nodeid = true;
+  search_list.push_back("At least one hostname in the configuration does not match a local interface");
+
+  //TEST 2:start mgmd without nodeid and config containing 2 mgmd
+  //sections with same valid hostname
+  char hostname[200];
+  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
+  mgm2.put("HostName", hostname);
+  mgm2.put("PortNumber", 1011);
+  mgm3.put("HostName", hostname);
+  config.put("ndb_mgmd", 4, &mgm2);
+  config.put("ndb_mgmd", 5, &mgm3);
+  CHECK(ConfigFactory::write_config_ini(config,
+    path(wd.path(),
+      "config2.ini",
+      NULL).c_str()));
+  with_nodeid = false;
+  CHECK(mgmd.start_from_config_ini(wd.path(), "-f config2.ini",
+    "--initial", NULL));
+  CHECK(mgmd.wait(exit_value, 300));
+  CHECK(exit_value == 1);
+  with_nodeid = true;
+  search_list.push_back("More than one hostname matches a local interface, including node ids");
+
+  //TEST 3: Check if the error message truncate if the length of hostnames are too big
+  Properties config3, ndb3, api3;
+  ndb3.put("HostName", "190.10.10.1");
+  ndb3.put("NoOfReplicas", 1);
+  for (int i = 1; i < 80; i++) {
+    Properties p1;
+    std::string host_generated = "190.100.100." + std::to_string(i);
+    p1.put("HostName", host_generated.c_str());
+    config3.put("ndb_mgmd", i, &p1);
+  }
+  config3.put("ndbd", 80, &ndb3);
+  config3.put("mysqld", 81, &api3);
+  CHECK(ConfigFactory::write_config_ini(
+      config3, path(wd.path(), "config3.ini", NULL).c_str()));
+  with_nodeid = false;
+  CHECK(mgmd.start_from_config_ini(wd.path(), "-f config3.ini", "--initial",
+                                   NULL));
+  CHECK(mgmd.wait(exit_value, 300));
+  CHECK(exit_value == 1);
+  with_nodeid = true;
+
+  //Write the stdout back to the screen
+  if (dup2(stdoutCopy, 1) < 0) return NDBT_FAILED;
+  close(stdoutCopy);
+
+  // Search output log for the matching error message
+  CHECK(Print_find_in_file(out_file.c_str(), search_list) == true);
+  fclose(temp_file);
+  remove(out_file.c_str());
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -1423,6 +1729,13 @@ TESTCASE("Bug56844",
 {
   INITIALIZER(runBug56844);
 }
+TESTCASE("Mgmdwithoutnodeid",
+         "Test that mgmd reports proper error message "
+         "when configuration contains unresolvable ip address "
+         " and does not include node ids")
+{
+  INITIALIZER(runTestMgmdwithoutnodeid);
+}
 TESTCASE("Bug12352191",
          "Test mgmd status for other mgmd")
 {
@@ -1437,6 +1750,14 @@ TESTCASE("StopDuringStart", "")
 {
   INITIALIZER(runStopDuringStart);
 }
+TESTCASE("UnresolvedHosts1","Test mgmd failure due to unresolvable hostname")
+{
+  INITIALIZER(runTestUnresolvedHosts1);
+}
+TESTCASE("UnresolvedHosts2","Test mgmd with AllowUnresolvedHostnames=true")
+{
+  INITIALIZER(runTestUnresolvedHosts2);
+}
 
 NDBT_TESTSUITE_END(testMgmd)
 
@@ -1447,6 +1768,7 @@ int main(int argc, const char** argv)
   testMgmd.setCreateTable(false);
   testMgmd.setRunAllTables(true);
   testMgmd.setConnectCluster(false);
+  testMgmd.setEnsureIndexStatTables(false);
 
 #ifdef NDB_USE_GET_ENV
   char buf1[255], buf2[255];

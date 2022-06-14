@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,6 @@ template<class FirstLink, class LastLink, class Count> class ListHead
 public:
   typedef ListHeadPOD<FirstLink, LastLink, Count> POD;
   ListHead() { POD::init(); }
-  ~ListHead() { }
 private:
 //  ListHead(const ListHead&); // deleted
 //  ListHead& operator = (const ListHead&); // deleted
@@ -290,9 +289,9 @@ public:
   Pool& getPool() const;
   void getPtr(Ptr<T>& p) const { if (p.i == RNIL) p.p = NULL ; else m_pool.getPtr(p); }
   void getPtr(Ptr<T>& p, Uint32 i) const { p.i=i; getPtr(p); }
-  T* getPtr(Uint32 i) const { Ptr<T> p; p.i = i; getPtr(p); return p.p; }
-  bool seizeFirst(Ptr<T>& p);
-  bool seizeLast(Ptr<T>& p);
+  [[nodiscard]] T* getPtr(Uint32 i) const { Ptr<T> p; p.i = i; getPtr(p); return p.p; }
+  [[nodiscard]] bool seizeFirst(Ptr<T>& p);
+  [[nodiscard]] bool seizeLast(Ptr<T>& p);
   bool releaseFirst();
   bool releaseLast();
   void release(Uint32 i);

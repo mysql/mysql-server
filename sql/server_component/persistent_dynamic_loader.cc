@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,36 +20,38 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <atomic>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "../components/mysql_server/dynamic_loader.h"
-#include "../components/mysql_server/persistent_dynamic_loader.h"
-#include "../components/mysql_server/server_component.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
+#include "persistent_dynamic_loader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // commit_and_close_mysql_tables
@@ -57,20 +59,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
-#include "sql/log.h"  // error_log_print
 #include "sql/mysqld.h"
-#include "sql/records.h"
 #include "sql/sql_base.h"
-#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
+
+class THD;
+SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
 
 typedef std::string my_string;
 
@@ -82,22 +86,20 @@ enum enum_component_table_field {
 };
 
 static const TABLE_FIELD_TYPE component_table_fields[CT_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("component_id")},
-     {C_STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("component_group_id")},
-     {C_STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("component_urn")},
-     {C_STRING_WITH_LEN("text")},
-     {C_STRING_WITH_LEN("utf8")}}};
+    {{STRING_WITH_LEN("component_id")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("component_group_id")},
+     {STRING_WITH_LEN("int")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("component_urn")},
+     {STRING_WITH_LEN("text")},
+     {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_DEF component_table_def = {CT_FIELD_COUNT,
                                                     component_table_fields};
 
 class Component_db_intact : public Table_check_intact {
  protected:
-  void report_error(uint ecode, const char *fmt, ...)
+  void report_error(uint ecode, const char *fmt, ...) override
       MY_ATTRIBUTE((format(printf, 3, 4))) {
     longlong log_ecode = 0;
     switch (ecode) {
@@ -114,7 +116,7 @@ class Component_db_intact : public Table_check_intact {
         log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return;
     }
 
@@ -150,9 +152,7 @@ static Component_db_intact table_intact;
 */
 static bool open_component_table(THD *thd, enum thr_lock_type lock_type,
                                  TABLE **table, ulong acl_to_check) {
-  TABLE_LIST tables;
-
-  tables.init_one_table("mysql", 5, "component", 9, "component", lock_type);
+  TABLE_LIST tables("mysql", "component", lock_type);
 
   if (mysql_persistent_dynamic_loader_imp::initialized() && !opt_noacl &&
       check_one_table_access(thd, acl_to_check, &tables))
@@ -170,6 +170,21 @@ static bool open_component_table(THD *thd, enum thr_lock_type lock_type,
     trans_rollback_stmt(thd);
     close_mysql_tables(thd);
     return true;
+  }
+
+  // System table mysql.component is supported by only InnoDB engine.
+  if (lock_type == TL_WRITE) {
+    if (((*table)->file->ht->is_supported_system_table != nullptr) &&
+        !(*table)->file->ht->is_supported_system_table(
+            (*table)->s->db.str, (*table)->s->table_name.str, true)) {
+      my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name((*table)->file->ht),
+               (*table)->s->db.str, (*table)->s->table_name.str);
+      LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,
+             ha_resolve_storage_engine_name((*table)->file->ht),
+             (*table)->s->db.str, (*table)->s->table_name.str);
+      return true;
+    }
   }
 
   return false;
@@ -213,7 +228,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     TABLE *component_table;
     int res;
 
-    mysql_persistent_dynamic_loader_imp::group_id = 0;
+    mysql_persistent_dynamic_loader_imp::s_group_id = 0;
 
     /* Open component table and scan read all records. */
     if (open_component_table(thd, TL_READ, &component_table, SELECT_ACL)) {
@@ -226,9 +241,10 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     auto guard =
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
-    READ_RECORD read_record_info;
-    if (init_read_record(&read_record_info, thd, component_table, NULL, false,
-                         /*ignore_not_found_rows=*/false)) {
+    unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+        thd, component_table, /*ignore_not_found_rows=*/false,
+        /*count_examined_rows=*/false);
+    if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
                    ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));
       return false;
@@ -244,7 +260,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     std::map<uint64, std::vector<std::string>> component_groups;
 
     for (;;) {
-      res = read_record_info->Read();
+      res = iterator->Read();
       if (res != 0) {
         break;
       }
@@ -260,8 +276,8 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
       std::string component_urn(component_urn_str.ptr(),
                                 component_urn_str.length());
 
-      mysql_persistent_dynamic_loader_imp::group_id =
-          std::max(mysql_persistent_dynamic_loader_imp::group_id.load(),
+      mysql_persistent_dynamic_loader_imp::s_group_id =
+          std::max(mysql_persistent_dynamic_loader_imp::s_group_id.load(),
                    component_group_id);
 
       component_groups[component_group_id].push_back(component_urn);
@@ -272,11 +288,11 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
       }
     }
 
-    read_record_info.iterator.reset();
+    iterator.reset();
 
     /* res is guaranteed to be != 0, -1 means end of records encountered, which
       is interpreted as a success. */
-    DBUG_ASSERT(res != 0);
+    assert(res != 0);
     if (res != -1) {
       return true;
     }
@@ -289,7 +305,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
         urns.push_back(group_it->c_str());
       }
       /* We continue process despite of any errors. */
-      mysql_dynamic_loader_imp::load(urns.data(), (int)urns.size());
+      dynamic_loader_srv->load(urns.data(), (int)urns.size());
     }
 
     mysql_persistent_dynamic_loader_imp::is_initialized = true;
@@ -343,7 +359,6 @@ bool mysql_persistent_dynamic_loader_imp::initialized() {
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
                    (void *thd_ptr, const char *urns[], int component_count)) {
   try {
-    int res;
     THD *thd = (THD *)thd_ptr;
 
     if (!mysql_persistent_dynamic_loader_imp::initialized()) {
@@ -367,7 +382,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       return true;
     }
 
-    uint64 group_id = ++mysql_persistent_dynamic_loader_imp::group_id;
+    uint64 group_id = ++mysql_persistent_dynamic_loader_imp::s_group_id;
 
     /* Making a component_id_by_urn copy so, that if any error occurs it will
        be restored
@@ -393,15 +408,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       component_table->field[CT_FIELD_COMPONENT_URN]->store(
           urns[i], strlen(urns[i]), system_charset);
 
-      /*
-        We do not replicate the INSTALL COMPONENT statement. Disable binlogging
-        of the insert into the component table, so that it is not replicated in
-        row based mode.
-      */
-      {
-        Disable_binlog_guard binlog_guard(thd);
-        res = component_table->file->ha_write_row(component_table->record[0]);
-      }
+      int res = component_table->file->ha_write_row(component_table->record[0]);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         component_table->file->ha_release_auto_increment();
@@ -414,7 +421,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
       component_table->file->ha_release_auto_increment();
     }
-    if (mysql_dynamic_loader_imp::load(urns, component_count)) {
+    if (dynamic_loader_srv->load(urns, component_count)) {
       return true;
     }
 
@@ -461,8 +468,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 
     MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
-    int res;
-
     TABLE *component_table;
     if (open_component_table(thd, TL_WRITE, &component_table, DELETE_ACL)) {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
@@ -484,7 +489,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       close_mysql_tables(thd);
     });
 
-    DBUG_ASSERT(component_table->key_info != NULL);
+    assert(component_table->key_info != nullptr);
 
     for (int i = 0; i < component_count; ++i) {
       /* Find component ID used in component table using memory mapping. */
@@ -507,23 +512,14 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
                component_table->key_info->key_length);
 
       DEBUG_SYNC(thd, "before_ha_index_read_idx_map");
-      res = component_table->file->ha_index_read_idx_map(
+      int res = component_table->file->ha_index_read_idx_map(
           component_table->record[0], 0, key, HA_WHOLE_KEY, HA_READ_KEY_EXACT);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         return true;
       }
 
-      /*
-        We do not replicate the UNINSTALL COMPONENT statement. Disable
-        binlogging of the delete from the component table, so that it is not
-        replicated in row based mode.
-      */
-      {
-        Disable_binlog_guard binlog_guard(thd);
-        res = component_table->file->ha_delete_row(component_table->record[0]);
-      }
-
+      res = component_table->file->ha_delete_row(component_table->record[0]);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         return true;
@@ -532,7 +528,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(it);
     }
 
-    bool result = mysql_dynamic_loader_imp::unload(urns, component_count);
+    bool result = dynamic_loader_srv->unload(urns, component_count);
     if (result) {
       /* No need to specify error, underlying service implementation would add
         one. */
@@ -548,7 +544,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   return true;
 }
 
-std::atomic<uint64> mysql_persistent_dynamic_loader_imp::group_id;
+std::atomic<uint64> mysql_persistent_dynamic_loader_imp::s_group_id;
 std::map<my_string, uint64>
     mysql_persistent_dynamic_loader_imp::component_id_by_urn;
 bool mysql_persistent_dynamic_loader_imp::is_initialized = false;

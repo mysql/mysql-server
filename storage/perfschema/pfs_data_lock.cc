@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,8 @@
 
 #include "storage/perfschema/pfs_data_lock.h"
 
+#include <assert.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
 
 /* clang-format off */
 /**
@@ -181,9 +180,9 @@
 */
 /* clang-format on */
 
-PFS_data_cache::PFS_data_cache() {}
+PFS_data_cache::PFS_data_cache() = default;
 
-PFS_data_cache::~PFS_data_cache() {}
+PFS_data_cache::~PFS_data_cache() = default;
 
 const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
   /*
@@ -201,9 +200,9 @@ const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
 void PFS_data_cache::clear() { m_set.clear(); }
 
 PFS_data_lock_container::PFS_data_lock_container()
-    : m_logical_row_index(0), m_filter(NULL) {}
+    : m_logical_row_index(0), m_filter(nullptr) {}
 
-PFS_data_lock_container::~PFS_data_lock_container() {}
+PFS_data_lock_container::~PFS_data_lock_container() = default;
 
 const char *PFS_data_lock_container::cache_string(const char *string) {
   return m_cache.cache_data(string, strlen(string));
@@ -216,7 +215,7 @@ const char *PFS_data_lock_container::cache_data(const char *ptr,
 
 bool PFS_data_lock_container::accept_engine(const char *engine,
                                             size_t engine_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_engine(engine, engine_length);
   }
   return true;
@@ -224,14 +223,14 @@ bool PFS_data_lock_container::accept_engine(const char *engine,
 
 bool PFS_data_lock_container::accept_lock_id(const char *engine_lock_id,
                                              size_t engine_lock_id_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_lock_id(engine_lock_id, engine_lock_id_length);
   }
   return true;
 }
 
 bool PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_transaction_id(transaction_id);
   }
   return true;
@@ -239,7 +238,7 @@ bool PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id) {
 
 bool PFS_data_lock_container::accept_thread_id_event_id(ulonglong thread_id,
                                                         ulonglong event_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_thread_id_event_id(thread_id, event_id);
   }
   return true;
@@ -250,7 +249,7 @@ bool PFS_data_lock_container::accept_object(
     const char *table_name, size_t table_name_length,
     const char *partition_name, size_t partition_name_length,
     const char *sub_partition_name, size_t sub_partition_name_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_object(table_schema, table_schema_length, table_name,
                                   table_name_length, partition_name,
                                   partition_name_length, sub_partition_name,
@@ -260,7 +259,7 @@ bool PFS_data_lock_container::accept_object(
 }
 
 void PFS_data_lock_container::add_lock_row(
-    const char *engine, size_t engine_length MY_ATTRIBUTE((unused)),
+    const char *engine, size_t engine_length [[maybe_unused]],
     const char *engine_lock_id, size_t engine_lock_id_length,
     ulonglong transaction_id, ulonglong thread_id, ulonglong event_id,
     const char *table_schema, size_t table_schema_length,
@@ -274,10 +273,10 @@ void PFS_data_lock_container::add_lock_row(
 
   row.m_engine = engine;
 
-  if (engine_lock_id != NULL) {
+  if (engine_lock_id != nullptr) {
     size_t len = engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_engine_lock_id)) {
-      DBUG_ASSERT(false);
+      assert(false);
       len = sizeof(row.m_hidden_pk.m_engine_lock_id);
     }
     if (len > 0) {
@@ -294,17 +293,11 @@ void PFS_data_lock_container::add_lock_row(
 
   row.m_index_row.m_object_row.m_object_type = OBJECT_TYPE_TABLE;
 
-  if (table_schema_length > 0) {
-    memcpy(row.m_index_row.m_object_row.m_schema_name, table_schema,
-           table_schema_length);
-  }
-  row.m_index_row.m_object_row.m_schema_name_length = table_schema_length;
+  row.m_index_row.m_object_row.m_schema_name.set(table_schema,
+                                                 table_schema_length);
 
-  if (table_name_length > 0) {
-    memcpy(row.m_index_row.m_object_row.m_object_name, table_name,
-           table_name_length);
-  }
-  row.m_index_row.m_object_row.m_object_name_length = table_name_length;
+  row.m_index_row.m_object_row.m_object_name.set_as_table(table_name,
+                                                          table_name_length);
 
   row.m_partition_name = partition_name;
   row.m_partition_name_length = partition_name_length;
@@ -346,8 +339,8 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
       This row existed, before a call to ::shrink().
       The caller should not ask for it again.
     */
-    DBUG_ASSERT(false);
-    return NULL;
+    assert(false);
+    return nullptr;
   }
 
   size_t physical_index = index - m_logical_row_index;
@@ -356,13 +349,13 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
     return &m_rows[physical_index];
   }
 
-  return NULL;
+  return nullptr;
 }
 
 PFS_data_lock_wait_container::PFS_data_lock_wait_container()
-    : m_logical_row_index(0), m_filter(NULL) {}
+    : m_logical_row_index(0), m_filter(nullptr) {}
 
-PFS_data_lock_wait_container::~PFS_data_lock_wait_container() {}
+PFS_data_lock_wait_container::~PFS_data_lock_wait_container() = default;
 
 const char *PFS_data_lock_wait_container::cache_string(const char *string) {
   return m_cache.cache_data(string, strlen(string));
@@ -375,7 +368,7 @@ const char *PFS_data_lock_wait_container::cache_data(const char *ptr,
 
 bool PFS_data_lock_wait_container::accept_engine(const char *engine,
                                                  size_t engine_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_engine(engine, engine_length);
   }
   return true;
@@ -383,7 +376,7 @@ bool PFS_data_lock_wait_container::accept_engine(const char *engine,
 
 bool PFS_data_lock_wait_container::accept_requesting_lock_id(
     const char *engine_lock_id, size_t engine_lock_id_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_requesting_lock_id(engine_lock_id,
                                               engine_lock_id_length);
   }
@@ -392,7 +385,7 @@ bool PFS_data_lock_wait_container::accept_requesting_lock_id(
 
 bool PFS_data_lock_wait_container::accept_blocking_lock_id(
     const char *engine_lock_id, size_t engine_lock_id_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_blocking_lock_id(engine_lock_id,
                                             engine_lock_id_length);
   }
@@ -401,7 +394,7 @@ bool PFS_data_lock_wait_container::accept_blocking_lock_id(
 
 bool PFS_data_lock_wait_container::accept_requesting_transaction_id(
     ulonglong transaction_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_requesting_transaction_id(transaction_id);
   }
   return true;
@@ -409,7 +402,7 @@ bool PFS_data_lock_wait_container::accept_requesting_transaction_id(
 
 bool PFS_data_lock_wait_container::accept_blocking_transaction_id(
     ulonglong transaction_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_blocking_transaction_id(transaction_id);
   }
   return true;
@@ -417,7 +410,7 @@ bool PFS_data_lock_wait_container::accept_blocking_transaction_id(
 
 bool PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(
     ulonglong thread_id, ulonglong event_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_requesting_thread_id_event_id(thread_id, event_id);
   }
   return true;
@@ -425,14 +418,14 @@ bool PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(
 
 bool PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(
     ulonglong thread_id, ulonglong event_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_blocking_thread_id_event_id(thread_id, event_id);
   }
   return true;
 }
 
 void PFS_data_lock_wait_container::add_lock_wait_row(
-    const char *engine, size_t engine_length MY_ATTRIBUTE((unused)),
+    const char *engine, size_t engine_length [[maybe_unused]],
     const char *requesting_engine_lock_id,
     size_t requesting_engine_lock_id_length,
     ulonglong requesting_transaction_id, ulonglong requesting_thread_id,
@@ -444,10 +437,10 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
 
   row.m_engine = engine;
 
-  if (requesting_engine_lock_id != NULL) {
+  if (requesting_engine_lock_id != nullptr) {
     size_t len = requesting_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_requesting_engine_lock_id)) {
-      DBUG_ASSERT(false);
+      assert(false);
       len = sizeof(row.m_hidden_pk.m_requesting_engine_lock_id);
     }
     if (len > 0) {
@@ -464,10 +457,10 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
   row.m_requesting_event_id = requesting_event_id;
   row.m_requesting_identity = requesting_identity;
 
-  if (blocking_engine_lock_id != NULL) {
+  if (blocking_engine_lock_id != nullptr) {
     size_t len = blocking_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_blocking_engine_lock_id)) {
-      DBUG_ASSERT(false);
+      assert(false);
       len = sizeof(row.m_hidden_pk.m_blocking_engine_lock_id);
     }
     if (len > 0) {
@@ -507,8 +500,8 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
       This row existed, before a call to ::shrink().
       The caller should not ask for it again.
     */
-    DBUG_ASSERT(false);
-    return NULL;
+    assert(false);
+    return nullptr;
   }
 
   size_t physical_index = index - m_logical_row_index;
@@ -517,5 +510,5 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
     return &m_rows[physical_index];
   }
 
-  return NULL;
+  return nullptr;
 }

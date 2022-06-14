@@ -1,7 +1,7 @@
 USE ndbinfo;
 select count(*) from blocks;
 count(*)
-23
+29
 select count(*) from blocks;
 count(*)
-23
+29

@@ -34,36 +34,36 @@ include/rpl_sync.inc
 #
 [connection server_1]
 CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
-include/install_semisync_master.inc
+include/install_semisync_source.inc
 [connection server_2]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_3]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_4]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_5]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_6]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_7]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_8]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection server_9]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 #
 # 3. Make Master aware of 8 semisync slaves.
 #
 [connection server1_1]
-SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 8;
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 8;
 #
 # 4. Insert 1000 tuples in background using 10 parallel connections.
 #
@@ -87,31 +87,31 @@ include/rpl_sync.inc
 #
 [connection server_9]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_8]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_7]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_6]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_5]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_4]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_3]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_2]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 [connection server_1]
 include/assert.inc [ should be 1]
-include/uninstall_semisync_master.inc
+include/uninstall_semisync_source.inc
 #
 # 9. Cleanup time.
 #

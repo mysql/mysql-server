@@ -500,10 +500,12 @@ ANALYZE TABLE t2;
 # range uses more keyparts than ref, so range is chosen.
 EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT @trace RLIKE "range_uses_more_keyparts";
 
 EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT @trace RLIKE "range_uses_more_keyparts";
 
 DROP TABLE t1, t2;

@@ -74,6 +74,8 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ	ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
 ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ	ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
 ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ	ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ１`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -222,6 +224,8 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ２`;
 ４５６７８９・・・・・・・ＡＢＣＤＥＦＧ	４５６７８９・・・・・・・ＡＢＣＤＥＦＧ
 ＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ・	ＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ・
 ｐｑｒｓｔｕｖｗｘｙｚ・・・・・・・・・	ｐｑｒｓｔｕｖｗｘｙｚ・・・・・・・・・
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ２`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
 θικλμνξοπρστυφχψω・・・	θικλμνξοπρστυφχψω・・・
@@ -374,6 +378,8 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ３`;
 鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖	鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
 齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒	齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
 龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ３`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
 êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	????????・???????・???
@@ -440,6 +446,8 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ	ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
 ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ	ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
 ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ	ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ４`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -588,6 +596,8 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ５`;
 ４５６７８９・・・・・・・ＡＢＣＤＥＦＧ	４５６７８９・・・・・・・ＡＢＣＤＥＦＧ
 ＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ・	ＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ・
 ｐｑｒｓｔｕｖｗｘｙｚ・・・・・・・・・	ｐｑｒｓｔｕｖｗｘｙｚ・・・・・・・・・
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ５`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
 θικλμνξοπρστυφχψω・・・	θικλμνξοπρστυφχψω・・・
@@ -740,6 +750,8 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ６`;
 鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖	鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
 齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒	齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
 龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ６`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
 êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	????????・???????・???
@@ -806,6 +818,8 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ	ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
 ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ	ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
 ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ	ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ７`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -954,6 +968,8 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ８`;
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ８`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
 　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ	　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
@@ -1106,6 +1122,8 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ９`;
 齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒	齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
 龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ９`;
 Ｃ１	CONVERT(`Ｃ１` using sjis)
 ・・・・・・・・・・・・・・・˘ˇ¸˙˝	・・・・・・・・・・・・・・・?????

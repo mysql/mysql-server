@@ -882,10 +882,8 @@ select 0/0;
 #
 # bug #9546
 #
---disable_ps_protocol
 select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 as x;
 select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 + 1 as x;
---enable_ps_protocol
 #
 # Bug #10004
 #
@@ -1127,14 +1125,12 @@ DROP TABLE t1;
 #
 
 create table t1 (c1 decimal(64));
---disable_ps_protocol
 insert into t1 values(
 89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
 --error ER_DATA_OUT_OF_RANGE
 insert into t1 values(
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
---enable_ps_protocol
 insert into t1 values(1e100);
 select * from t1;
 drop table t1;
@@ -1192,6 +1188,7 @@ select cast(a as DECIMAL(3,2))
   UNION select 12.1234
  ) t;
 
+--skip_if_hypergraph  # Different warnings.
 select cast(a as DECIMAL(3,2)), count(*)
  from (select 11.1233 as a
   UNION select 11.1234
@@ -1226,6 +1223,7 @@ SELECT CAST(1 AS decimal(65,31));
 
 CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+--sorted_result
 SELECT a+CAST(1 AS decimal(65,30)) AS aa, SUM(b) FROM t1 GROUP BY aa;
 --error ER_TOO_BIG_SCALE
 SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
@@ -1240,6 +1238,7 @@ CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
 
 SET @a= CAST(1 AS decimal);
+--skip_if_hypergraph  # Undefined results.
 SELECT 1 FROM t1 GROUP BY @b := @a, @b;
 
 DROP TABLE t1;
@@ -1799,7 +1798,7 @@ SET sql_mode=DEFAULT;
 
 SET sql_mode="";
 CREATE TABLE t(
-  a YEAR(4) NOT NULL,
+  a YEAR NOT NULL,
   b DECIMAL(29,5) UNSIGNED ZEROFILL NOT NULL
 ) ENGINE=INNODB;
 INSERT INTO t VALUES (2000,1),(2000,1),(2000,9999);
@@ -1844,7 +1843,7 @@ SELECT CAST(0.996 AS DECIMAL(14,3)) *
 --echo # Bug#25685958 ASSERTION FAILED:
 --echo #              RETVAL == 0 IN ITEM_SUM_HYBRID::VAL_DECIMAL()
 --echo #
-do 1 div nullif(min(from_days(1)),_utf8'1');
+do 1 div nullif(min(from_days(1)),_utf8mb4'2000-01-01');
 
 --echo #
 --echo # Bug#26497007 ASSERTION(0) IN DIV_BY_POW10 WITH LARGE NUMBER
@@ -1865,3 +1864,114 @@ FROM t;
 
 DROP TABLE t;
 SET sql_mode = default;
+
+--echo #
+--echo # Bug#30031103 ASSERTION `SCALE >= 0 && PRECISION > 0 &&
+--echo #                         SCALE <= PRECISION' FAILED
+--echo #
+
+CREATE TABLE t1(a DECIMAL(10,0));
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1 AS alias1 NATURAL JOIN t1 AS alias2;
+DROP TABLE t1;
+
+--echo # Bug#32785804: Failure in decimal_intg
+
+CREATE TABLE t(a DECIMAL(10,4));
+INSERT INTO t VALUES(-1),(1),(100);
+SET @d:=' ';
+--error ER_CANNOT_CONVERT_STRING
+WITH RECURSIVE cte1 AS (
+  SELECT a AS a1 FROM  t
+),
+cte2 AS (
+  SELECT (0xfa > @d) AS a2 FROM t
+)
+SELECT cte1.a1
+FROM cte1,cte2
+WHERE cte1.a1 >= cte2.a2;
+DROP TABLE t;
+
+--echo # Bug#32802251: decimal_bin_size_inline: assertion `scale >= 0 &&
+--echo #               precision > 0 && scale <= precision' failed
+
+CREATE TABLE t(a DECIMAL(14,14) DEFAULT NULL);
+INSERT INTO t VALUES
+ (-0.99999999999999), (-0.99999999999999), (0.15610000000000);
+SELECT WEIGHT_STRING(TRUNCATE((SELECT a FROM t), -17410));
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32345941 SELECT RESULT IS MISMATCH WHEN USE COALESCE AND NOT
+--echo #
+
+SET sql_mode=default;
+
+# Hypergraph optimizer has different warnings.
+--disable_warnings
+
+SELECT 1.0 div (@a:='xx');
+
+SELECT 1.0 div (@a:='1xx');
+
+CREATE TABLE t1 (a DECIMAL(10,0), b DECIMAL(10,0), KEY(a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0,0),(1,1);
+
+SELECT a FROM t1 FORCE INDEX(a) WHERE a='m';
+
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
+
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
+
+SELECT * FROM t1 WHERE b='m';
+
+SELECT * FROM t1 WHERE b=CONCAT('m');
+
+SELECT * FROM t1 WHERE b=COALESCE('m');
+
+SELECT a FROM t1 FORCE INDEX(a) WHERE a='';
+
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('');
+
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
+SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('');
+
+SELECT * FROM t1 WHERE b='';
+
+SELECT * FROM t1 WHERE b=CONCAT('');
+
+SELECT * FROM t1 WHERE b=COALESCE('');
+
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a='m';
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
+
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b='m';
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=CONCAT('m');
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=COALESCE('m');
+
+--enable_warnings
+
+CREATE TABLE t2 (a char(10), b varchar(10));
+INSERT INTO t2 VALUES('x1 y ', 'x1 y ');
+
+# Just 'x1 y' in warning, since 'a' is CHAR.
+SELECT maketime(1, 2, a) FROM t2;
+
+# Traling space in warning, since 'b' is VARCHAR.
+SELECT maketime(1, 2, b) FROM t2;
+
+DROP TABLE t1, t2;

@@ -8,13 +8,20 @@
 #
 
 source include/have_binlog_format_row.inc;
- 
+
+# this test records the output of mysqlbinlog, which
+# will make it output transaction payload events headers
+# if compression is enabled.
+--source include/not_binlog_transaction_compression_on.inc
+
+
 #We will delay the slave start as resetting the debug variable (on the master)
 #while the dump thread is running, may cause sporadic races between user and
 #dump threads. BUG#12765441
 --let $rpl_skip_start_slave= 1
 source include/master-slave.inc;
 source include/have_debug.inc;
+source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 
 --echo # Test non-transaction

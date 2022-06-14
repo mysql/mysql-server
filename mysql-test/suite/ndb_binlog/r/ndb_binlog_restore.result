@@ -1,4 +1,3 @@
-drop table if exists t1;
 #
 # create a table with some data with and without binlogging
 #
@@ -8,9 +7,8 @@ insert into t1 values (1,1);
 # reset and restore schema
 drop table t1;
 reset master;
-show tables;
-Tables_in_test
-t1
+select * from t1 where 1=0 /* force discover table */;
+a	b
 #
 # restore and _no_ binlog
 #
@@ -19,15 +17,14 @@ t1
 create table binlogmarker (a int) engine=ndb;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	use `test`; create table binlogmarker (a int) engine=ndb
+binlog.000001	#	Query	#	#	use `test`; create table binlogmarker (a int) engine=ndb
 #
 # reset and restore schema again
 drop table binlogmarker;
 drop table t1;
 reset master;
-show tables;
-Tables_in_test
-t1
+select * from t1 where 1=0 /* force discover table */;
+a	b
 #
 # restore and  binlog should now happen as well as the marker
 #
@@ -36,13 +33,13 @@ t1
 create table binlogmarker (a int) engine=ndb;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	#	#	table_id: #
-mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	#	#	COMMIT
-mysqld-bin.000001	#	Query	#	#	use `test`; create table binlogmarker (a int) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; create table binlogmarker (a int) engine=ndb
 drop table binlogmarker, t1;
 #
 # Now more complex using "BANK schema" including restore of log

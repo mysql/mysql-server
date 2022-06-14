@@ -24,6 +24,7 @@
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server1

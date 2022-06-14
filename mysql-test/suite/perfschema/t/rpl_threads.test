@@ -40,13 +40,28 @@ select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
   from performance_schema.threads
   where PROCESSLIST_ID = @master_dump_pid;
 
+select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = @master_dump_pid
+  into @master_dump_tid;
+
+# Make sure thread variables can be inspected.
+select VARIABLE_NAME,
+  IF (VARIABLE_VALUE = @master_dump_pid, "same", "different") as 'test'
+  from performance_schema.variables_by_thread
+  where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @master_dump_tid;
+
+# Make sure thread status can be inspected.
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.status_by_thread
+  where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @master_dump_tid;
+
 sync_slave_with_master;
 -- echo "============ Performance schema on slave ============"
 
 # Read the ID of the SLAVE IO thread,
 # as exposed in PROCESSLIST.
 select ID from INFORMATION_SCHEMA.PROCESSLIST
-  where STATE like "Waiting for master to send event%"
+  where STATE like "Waiting for source to send event%"
   into @slave_io_pid;
 
 select COMMAND, STATE
@@ -58,10 +73,25 @@ select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
   from performance_schema.threads
   where PROCESSLIST_ID = @slave_io_pid;
 
+select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = @slave_io_pid
+  into @slave_io_tid;
+
+# Make sure thread variables can be inspected.
+select VARIABLE_NAME,
+  IF (VARIABLE_VALUE = @slave_io_pid, "same", "different") as 'test'
+  from performance_schema.variables_by_thread
+  where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @slave_io_tid;
+
+# Make sure thread status can be inspected.
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.status_by_thread
+  where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @slave_io_tid;
+
 # Read the ID of the SLAVE SQL thread,
 # as exposed in PROCESSLIST.
 select ID from INFORMATION_SCHEMA.PROCESSLIST
-  where STATE like "Slave has read all relay log%"
+  where STATE like "Replica has read all relay log%"
   into @slave_sql_pid;
 
 select COMMAND, STATE
@@ -72,6 +102,21 @@ select COMMAND, STATE
 select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
   from performance_schema.threads
   where PROCESSLIST_ID = @slave_sql_pid;
+
+select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = @slave_sql_pid
+  into @slave_sql_tid;
+
+# Make sure thread variables can be inspected.
+select VARIABLE_NAME,
+  IF (VARIABLE_VALUE = @slave_sql_pid, "same", "different") as 'test'
+  from performance_schema.variables_by_thread
+  where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @slave_sql_tid;
+
+# Make sure thread status can be inspected.
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.status_by_thread
+  where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @slave_sql_tid;
 
 --source include/rpl_end.inc
 

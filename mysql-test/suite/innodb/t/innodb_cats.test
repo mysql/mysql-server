@@ -1,5 +1,148 @@
 --source include/have_debug_sync.inc
 
+# Verify that CATS algorithm favors transactions with higher weight, and that
+# ties are broken by first-comes-first-served rule.
+# We generate a queue of transactions interested in row of table t1:
+# c1 GRANTED, c2 WAITING, c3 WAITING, c4 WAITING, c5 WAITING, c6 WAITING
+# Where the weights are:
+# c1 - n/a
+# c2 - 1
+# c3 - 1
+# c4 - 2
+# c5 - 2
+# c6 - 3
+# So the granting order should be: c6, c4, c5, c2, c3.
+# We use auxiliary connections c7,c8,c9,c10 to increase weights of
+# c4 (blocking c7 because of locks on t2)
+# c5 (blocking c8 because of locks on t3)
+# c6 (blocking c9 and c10 because of locks on t4)
+
+# A helper table to map c1,...,c10 to their connection ids
+CREATE TABLE t0 (
+  id INT PRIMARY KEY,
+  trx_mysql_thread_id BIGINT
+) ENGINE=InnoDB;
+
+# Tables used to generate congestion.
+# We use several tables instead of several rows in single table, to make the
+# test independent of optimizer strategy for selects.
+
+--let i=1
+while ($i<=4) {
+  eval
+    CREATE TABLE t$i (
+      id INT PRIMARY KEY
+    ) ENGINE=InnoDB;
+
+  --eval INSERT INTO t$i VALUES (1)
+
+  --inc $i
+}
+
+# The connection which is granted the lock:
+--connect (c1, localhost, root,,)
+  INSERT INTO t0 VALUES (1, CONNECTION_ID());
+  BEGIN;
+  SELECT * FROM t1 FOR UPDATE;
+
+# The waiters:
+--let i=1
+while ($i<10) {
+  --let prev=$i
+  --inc $i
+
+  --connect (c$i, localhost, root,,)
+    --eval INSERT INTO t0 VALUES ($i, CONNECTION_ID())
+    if ($i>2) {
+      --eval SET DEBUG_SYNC = 'now WAIT_FOR will_wait_c$prev'
+    }
+    BEGIN;
+    if ($i==4) {
+      SELECT * FROM t2 FOR UPDATE;
+    }
+    if ($i==5) {
+      SELECT * FROM t3 FOR UPDATE;
+    }
+    if ($i==6) {
+      SELECT * FROM t4 FOR UPDATE;
+    }
+    --eval SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL will_wait_c$i'
+    if ($i<7) {
+      --send SELECT * FROM t1 FOR UPDATE
+    }
+    if ($i==7) {
+      --send SELECT * FROM t2 FOR UPDATE
+    }
+    if ($i==8) {
+      --send SELECT * FROM t3 FOR UPDATE
+    }
+    if ($i>=9) {
+      --send SELECT * FROM t4 FOR UPDATE
+    }
+}
+
+# Demonstrate that the cats weights are as expected
+--connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR will_wait_c10';
+
+  # There might be a slight delay between going to sleep and updating
+  # cats weights, so we wait for the computation result explicitly.
+  let $wait_condition=
+    SELECT COUNT(*) = 9
+    FROM t0
+    JOIN INFORMATION_SCHEMA.INNODB_TRX USING (trx_mysql_thread_id)
+    WHERE trx_schedule_weight > 0;
+  --source include/wait_condition.inc
+
+  SELECT t0.id, trx_state, trx_schedule_weight
+      FROM t0
+      JOIN INFORMATION_SCHEMA.INNODB_TRX USING (trx_mysql_thread_id)
+      ORDER BY t0.id;
+
+# Release the lock:
+--connection c1
+  COMMIT;
+
+# Verify the CATS order of scheduling:
+--connection c6
+  --reap
+  COMMIT;
+--connection c4
+  --reap
+  COMMIT;
+--connection c5
+  --reap
+  COMMIT;
+--connection c2
+  --reap
+  COMMIT;
+--connection c3
+  --reap
+  COMMIT;
+
+# clean up helpers
+--let i=7
+while ($i<=10) {
+  --connection c$i
+    --reap
+    COMMIT;
+  --inc $i
+}
+
+--connection default
+
+--let i=1
+while ($i<=10) {
+  --disconnect c$i
+  --inc $i
+}
+
+--let i=0
+while ($i<=4) {
+  --eval DROP TABLE t$i
+  --inc $i
+}
+
 --echo ################################################################
 --echo #                                                              #
 --echo # Bug #89829: lock_rec_has_to_wait_vats ignores locks held by  #
@@ -55,9 +198,6 @@
 
   # Make sure that transactions will not finish prematurely
     SET @@global.innodb_lock_wait_timeout = 100000;
-
-  # Turn on CATS:
-    --source suite/innodb/include/force_cats.inc
 
   # Generate a transaction which is "too big to fail"
     --connect (too_big_to_fail, localhost, root,,)
@@ -203,8 +343,6 @@
       --echo # default:
       SELECT * FROM t1;
 
-  --source suite/innodb/include/discourage_cats.inc
-
   # Restore original state
     --connection default
     --disconnect too_big_to_fail
@@ -237,8 +375,7 @@
 --echo ##############
 
   # This test exposes the problem of double-counting trx->age in case of a
-  # deadlock. The test requires DEBUG_EXECUTE_IF and DBUG_SYNC and CATS to be
-  # enabled.
+  # deadlock. The test requires DBUG_SYNC.
   # The timeline is as follows:
   # 0. Create table t1 with $N records with id=0,...,$N-1
   # 1. too_big_to_fail becomes heavy, by creating a few rows
@@ -257,7 +394,10 @@
       id INT PRIMARY KEY
     ) ENGINE=InnoDB;
 
-    --let $N = 10
+  # We use N = 2 which should be enough to notice that trx_schedule_weight doubles
+  # in each iteration (in case of double-counting bug) or remains constant
+  # (in case it works correctly)
+    --let $N = 2
     --let $i = 0
     while($i < $N) {
       --eval INSERT INTO t1 (id) VALUES ($i)
@@ -270,9 +410,6 @@
   # Make sure that transactions will not finish prematurely
     SET @@global.innodb_lock_wait_timeout = 100000;
 
-  # Enable assertion which checks if trx->age < 100
-    SET GLOBAL DEBUG = '+d,lock_update_trx_age_check_age_limit';
-
   # Generate a transaction which is "too big to fail"
     --connect (too_big_to_fail, localhost, root,,)
       --echo # too_big_to_fail:
@@ -280,10 +417,13 @@
       BEGIN;
       # 1. too_big_to_fail becomes heavy, by creating a few rows
       INSERT INTO t1 (id) VALUES (-100), (-200), (-300), (-400), (-500);
+      --let $too_big_to_fail_id = `SELECT CONNECTION_ID()`
 
+    --connection default
+      --disable_query_log
+      --eval SET @too_big_to_fail_id = $too_big_to_fail_id;
+      --enable_query_log
 
-  # Turn on CATS:
-    --source suite/innodb/include/force_cats.inc
 
   --connect (victim, localhost, root,,)
 
@@ -302,6 +442,17 @@
       # 2.2. too_big_to_fail waits for the X lock on row $i
       --send_eval SELECT * FROM t1 WHERE id = $i FOR UPDATE
 
+    --connection default
+      let $wait_condition=
+        SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX
+        WHERE trx_mysql_thread_id=@too_big_to_fail_id
+        AND trx_schedule_weight > 0;
+      --source include/wait_condition.inc
+
+      SELECT trx_state, trx_schedule_weight
+      FROM INFORMATION_SCHEMA.INNODB_TRX
+      WHERE trx_mysql_thread_id=@too_big_to_fail_id;
+
     --connection victim
       --echo #connection victim
       SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_waits';
@@ -319,10 +470,10 @@
     --inc $i
   }
 
+
   # Clean up
   --connection too_big_to_fail
     ROLLBACK;
-  --source suite/innodb/include/discourage_cats.inc
   --connection default
     SET GLOBAL DEBUG = '-d,lock_update_trx_age_check_age_limit';
     DROP TABLE t1;
@@ -338,20 +489,19 @@
 --echo ##############
 
   # This test exposes the problem of inflating trx->age in case of a
-  # deadlock. The test requires DEBUG_EXECUTE_IF and DBUG_SYNC and CATS to be
-  # enabled.
+  # deadlock. The test requires DBUG_SYNC.
   # The timeline is as follows:
   # 0. Create table t1 with two records with id=0,1
-  # 1. beneficient obtains an S lock on row with id 0
+  # 1. beneficiary obtains an S lock on row with id 0
   # 2. now in the loop for $i=0,...,$N-1
   # 2.1. too_big_to_fail becomes heavy, by creating a few rows
   # 2.2. too_big_to_fail obtains an S lock on row with id 0
   # 2.3. victim obtains X lock on row with id 1
   # 2.4. too_big_to_fail waits for the X lock on row 1
-  # 2.5. victim waits for both beneficient and too_big_to_fail because it tries
+  # 2.5. victim waits for both beneficiary and too_big_to_fail because it tries
   #      to exclusively read row with id 0
   # 2.6. this causes a deadlock, and victim is chosen as a victim
-  # 2.7. beneficient->age increases, and victim rollbacks
+  # 2.7. beneficiary->age increases, and victim rollbacks
   # 2.8. too_big_to_fail rollbacks
 
   # 0. Create table t1 with two records with id=0,1
@@ -368,27 +518,31 @@
   # Make sure that transactions will not finish prematurely
     SET @@global.innodb_lock_wait_timeout = 100000;
 
-  # Enable assertion which checks if trx->age < 100
-    SET GLOBAL DEBUG = '+d,lock_update_trx_age_check_age_limit';
-
-  # Beneficient just sits on row 0
-    --connect (beneficient, localhost, root,,)
-      --echo # beneficient:
+  # Beneficiary just sits on row 0
+    --connect (beneficiary, localhost, root,,)
+      --echo # beneficiary:
       BEGIN;
-      # 1. beneficient obtains an S lock on row with id 0
+      # 1. beneficiary obtains an S lock on row with id 0
       SELECT * FROM t1 WHERE id = 0 FOR SHARE;
 
   # Generate a transaction which is "too big to fail"
     --connect (too_big_to_fail, localhost, root,,)
+      --let $too_big_to_fail_id = `SELECT CONNECTION_ID()`
+
+    --connection default
+      --disable_query_log
+      --eval SET @too_big_to_fail_id = $too_big_to_fail_id;
+      --enable_query_log
+
   # Generate a victim which will always be sacraficed
     --connect (victim, localhost, root,,)
 
 
-  # Turn on CATS:
-    --source suite/innodb/include/force_cats.inc
-
   # 2. now in the loop for $i=0,...,$N-1
-  --let $N = 100
+  # We use N = 2 which should be enough to notice that trx_schedule_weight increases
+  # in each iteration (in case of deadlock handling bug) or remains constant
+  # (in case it works correctly)
+  --let $N = 2
   --let $i = 0
   while($i < $N) {
   # Generate a transaction which is "too big to fail"
@@ -412,15 +566,26 @@
       # 2.4. too_big_to_fail waits for the X lock on row 1
       --send SELECT * FROM t1 WHERE id = 1 FOR UPDATE
 
+    --connection default
+      let $wait_condition=
+        SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX
+        WHERE trx_mysql_thread_id=@too_big_to_fail_id
+        AND trx_schedule_weight > 0;
+      --source include/wait_condition.inc
+
+      SELECT trx_state, trx_schedule_weight
+      FROM INFORMATION_SCHEMA.INNODB_TRX
+      WHERE trx_mysql_thread_id=@too_big_to_fail_id;
+
     --connection victim
       --echo #connection victim
       SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_waits';
       --error ER_LOCK_DEADLOCK
-      # 2.5. victim waits for both beneficient and too_big_to_fail because it
+      # 2.5. victim waits for both beneficiary and too_big_to_fail because it
       #      tries to exclusively read row with id 0
       SELECT * FROM t1 WHERE id = 0 FOR UPDATE;
       # 2.6. this causes a deadlock, and victim is chosen as a victim
-      # 2.7. beneficient->age increases, and victim rollbacks
+      # 2.7. beneficiary->age increases, and victim rollbacks
 
     --connection too_big_to_fail
       --echo #connection too_big_to_fail
@@ -431,16 +596,16 @@
     --inc $i
   }
 
+
   # Clean up
-  --connection beneficient
+  --connection beneficiary
     ROLLBACK;
-  --source suite/innodb/include/discourage_cats.inc
   --connection default
     SET GLOBAL DEBUG = '-d,lock_update_trx_age_check_age_limit';
     DROP TABLE t1;
     SET DEBUG_SYNC = 'RESET';
     SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
-  --disconnect beneficient
+  --disconnect beneficiary
   --disconnect victim
   --disconnect too_big_to_fail
 
@@ -494,30 +659,8 @@
     --connect (selecting_thread, localhost, root,,)
     --connect (inserting_thread, localhost, root,,)
 
-  # We run the following scenario twice:
-  #   once without forcing CATS, so hopefully FCFS is used,
-  #   once with forcing CATS.
-  # To reuse the code for the two cases it is wrapped in a loop,
-  # which first considers $use_cats = 0, and then $use_cats = 1
-  # If you change something in the body of the loop, you can temporarily
-  # change the while's condition to < 3, to see if the setup/cleanup
-  # for each iteration works correctly.
 
-  --let $use_cats = 0
-  while($use_cats < 2)
-  {
-    # Setup of the specific scenario (CATS or FSCS)
-
-      if($use_cats)
-      {
           --echo # Using CATS
-
-          --source suite/innodb/include/force_cats.inc
-      }
-      if(!$use_cats)
-      {
-          --echo # Using FCFS
-      }
 
     # selecting_thread selects a rectangle for update
 
@@ -563,14 +706,6 @@
         --reap
         ROLLBACK;
 
-    # Tear down of a specific scenario (CATS or FCFS)
-      if($use_cats)
-      {
-          --source suite/innodb/include/discourage_cats.inc
-      }
-
-    --inc $use_cats
-  }
 
   # Restore original state
     --connection default

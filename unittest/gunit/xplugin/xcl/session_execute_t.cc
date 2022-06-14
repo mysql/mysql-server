@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "my_compiler.h"
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
 
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/query_result.h"
@@ -65,7 +65,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_sql_fails) {
   XError out_error;
   EXPECT_CALL(*m_mock_protocol,
               execute_stmt_raw(Cmp_msg("stmt: \"SELECT 1;\""), _))
-      .WillOnce(Invoke([](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
+      .WillOnce(Invoke([](const StmtExecute &stmt [[maybe_unused]],
                           XError *out_r) -> XQuery_result_ptr {
         *out_r = XError{expected_error_code, ""};
         return {};
@@ -93,7 +93,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_fails) {
       *m_mock_protocol,
       execute_stmt_raw(
           Cmp_msg("stmt: \"SELECT 1;\" namespace: \"our-namespace\""), _))
-      .WillOnce(Invoke([](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
+      .WillOnce(Invoke([](const StmtExecute &stmt [[maybe_unused]],
                           XError *out_r) -> XQuery_result_ptr {
         *out_r = XError{expected_error_code, ""};
         return {};
@@ -110,19 +110,18 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_fails) {
 
 TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_no_args) {
   XError out_error;
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(
       *m_mock_protocol,
       execute_stmt_raw(
           Cmp_msg("stmt: \"SELECT 1;\" namespace: \"our-namespace\""), _))
-      .WillOnce(
-          Invoke([&dummy_result](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
-                                 XError *out_r) -> XQuery_result_ptr {
-            *out_r = {};
-            return dummy_result.release();
-          }));
+      .WillOnce(Invoke([&dummy_result](const StmtExecute &stmt [[maybe_unused]],
+                                       XError *out_r) -> XQuery_result_ptr {
+        *out_r = {};
+        return dummy_result.release();
+      }));
 
   auto query_result =
       m_sut->execute_stmt("our-namespace", expected_sql, {}, &out_error);
@@ -136,7 +135,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_no_args) {
 TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_args_one_scalar) {
   XError out_error;
   const int64_t argument_value = 1002;
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -146,12 +145,11 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_args_one_scalar) {
                                        "   type: V_SINT "
                                        "   v_signed_int: 1002} }"),
                                _))
-      .WillOnce(
-          Invoke([&dummy_result](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
-                                 XError *out_r) -> XQuery_result_ptr {
-            *out_r = {};
-            return dummy_result.release();
-          }));
+      .WillOnce(Invoke([&dummy_result](const StmtExecute &stmt [[maybe_unused]],
+                                       XError *out_r) -> XQuery_result_ptr {
+        *out_r = {};
+        return dummy_result.release();
+      }));
 
   auto query_result = m_sut->execute_stmt(
       "s", expected_sql, {Argument_value(argument_value)}, &out_error);
@@ -174,7 +172,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
   const std::string argument_value_octet = "octet2";
   const std::string argument_value_decimal = "decimal3";
 
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -210,12 +208,11 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "args { type:SCALAR scalar {"
                                        "   type: V_NULL } }"),
                                _))
-      .WillOnce(
-          Invoke([&dummy_result](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
-                                 XError *out_r) -> XQuery_result_ptr {
-            *out_r = {};
-            return dummy_result.release();
-          }));
+      .WillOnce(Invoke([&dummy_result](const StmtExecute &stmt [[maybe_unused]],
+                                       XError *out_r) -> XQuery_result_ptr {
+        *out_r = {};
+        return dummy_result.release();
+      }));
 
   auto query_result = m_sut->execute_stmt(
       "s", expected_sql,
@@ -224,11 +221,11 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
        Argument_value(argument_value_double),
        Argument_value(argument_value_float),
        Argument_value(argument_value_string,
-                      Argument_value::String_type::TString),
+                      Argument_value::String_type::k_string),
        Argument_value(argument_value_octet,
-                      Argument_value::String_type::TOctets),
+                      Argument_value::String_type::k_octets),
        Argument_value(argument_value_decimal,
-                      Argument_value::String_type::TDecimal),
+                      Argument_value::String_type::k_decimal),
        Argument_value()},
       &out_error);
 
@@ -245,7 +242,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
   const Argument_value argument_value_double{20.1};
   const Argument_value argument_value_string{"str1"};
 
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -276,12 +273,11 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "       } } } "
                                        "} }"),
                                _))
-      .WillOnce(
-          Invoke([&dummy_result](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
-                                 XError *out_r) -> XQuery_result_ptr {
-            *out_r = {};
-            return dummy_result.release();
-          }));
+      .WillOnce(Invoke([&dummy_result](const StmtExecute &stmt [[maybe_unused]],
+                                       XError *out_r) -> XQuery_result_ptr {
+        *out_r = {};
+        return dummy_result.release();
+      }));
 
   Argument_value::Object obj;
   obj.emplace("key1", argument_value_int);
@@ -304,7 +300,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
   const Argument_value argument_value_double{20.1};
   const Argument_value argument_value_string{"str1"};
 
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -329,17 +325,16 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "       } } "
                                        "} }"),
                                _))
-      .WillOnce(
-          Invoke([&dummy_result](const StmtExecute &stmt MY_ATTRIBUTE((unused)),
-                                 XError *out_r) -> XQuery_result_ptr {
-            *out_r = {};
-            return dummy_result.release();
-          }));
+      .WillOnce(Invoke([&dummy_result](const StmtExecute &stmt [[maybe_unused]],
+                                       XError *out_r) -> XQuery_result_ptr {
+        *out_r = {};
+        return dummy_result.release();
+      }));
 
   auto query_result = m_sut->execute_stmt(
       "s", expected_sql,
-      {Argument_value{Arguments{argument_value_int, argument_value_double,
-                                argument_value_string}}},
+      {Argument_value{Argument_array{argument_value_int, argument_value_double,
+                                     argument_value_string}}},
       &out_error);
 
   ASSERT_EQ(dummy_result_ptr, query_result.get());

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,6 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_compiler.h"
 #include "ut0new.h"
 
+/** System-default huge (large) page setting. */
+const size_t large_page_default_size = ut::detail::large_page_size();
+
 /** Maximum number of retries to allocate memory. */
 const size_t alloc_max_retries = 60;
 
@@ -49,10 +52,11 @@ PSI_memory_key mem_key_clone;
 PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key mem_key_dict_stats_index_map_t;
 PSI_memory_key mem_key_dict_stats_n_diff_on_level;
+PSI_memory_key mem_key_fil_space_t;
 PSI_memory_key mem_key_other;
 PSI_memory_key mem_key_partitioning;
 PSI_memory_key mem_key_row_log_buf;
-PSI_memory_key mem_key_row_merge_sort;
+PSI_memory_key mem_key_ddl;
 PSI_memory_key mem_key_std;
 PSI_memory_key mem_key_trx_sys_t_rw_trx_ids;
 PSI_memory_key mem_key_undo_spaces;
@@ -89,10 +93,11 @@ static PSI_memory_info pfs_info[] = {
      PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0, 0,
      PSI_DOCUMENT_ME},
+    {&mem_key_fil_space_t, "fil_space_t", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_other, "other", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_partitioning, "partitioning", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_row_merge_sort, "row_merge_sort", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_ddl, "ddl", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_std, "std", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0, 0,
      PSI_DOCUMENT_ME},
@@ -107,8 +112,8 @@ PSI_memory_info pfs_info_auto[n_auto];
 
 #endif /* UNIV_PFS_MEMORY */
 
-/** Setup the internal objects needed for UT_NEW() to operate.
-This must be called before the first call to UT_NEW(). */
+/** Setup the internal objects needed for ut::new_withkey() to operate.
+This must be called before the first call to ut::new_withkey(). */
 void ut_new_boot() {
 #ifdef UNIV_PFS_MEMORY
   for (size_t i = 0; i < n_auto; i++) {

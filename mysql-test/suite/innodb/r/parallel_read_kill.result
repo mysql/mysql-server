@@ -1,0 +1,40 @@
+#
+# Bug#31016076 SELECT COUNT(*) ON LARGE TABLE HANG FOREVER EVEN AFTER CTRL+C
+#
+CREATE PROCEDURE populate_t1(IN BASE INT, IN SIZE INT)
+BEGIN
+DECLARE i INT DEFAULT BASE;
+WHILE (i <= SIZE) DO
+INSERT INTO t1(f2, f3) values (i, i);
+SET i = i + 1;
+END WHILE;
+END|
+CREATE TABLE t1(
+f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+f2 INT NOT NULL,
+f3 INT NOT NULL,
+KEY(f2, f3))
+ENGINE=INNODB;
+BEGIN;
+# Create uncommitted rows
+CALL populate_t1(1, 150000);
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION innodb_parallel_read_threads=2;
+# Count committed rows
+SET DEBUG_SYNC='parallel_read_wait_for_kill_query SIGNAL ready WAIT_FOR kill_query';
+SELECT count(*) FROM t1;
+SET DEBUG_SYNC='now WAIT_FOR ready';
+SET DEBUG_SYNC='now SIGNAL kill_query';
+# Killing select query
+kill query @id;
+# Should be 0 since the query should not be active
+SELECT COUNT(*) FROM information_schema.processlist WHERE id = @id AND
+INFO = 'SELECT count(*) FROM t1' AND state="executing";
+COUNT(*)
+0
+ERROR 70100: Query execution was interrupted
+COMMIT;
+# Cleanup
+SET DEBUG_SYNC="RESET";
+DROP PROCEDURE populate_t1;
+DROP TABLE t1;

@@ -14,7 +14,7 @@ id	code	name
 7	4	Matt
 update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
 Warnings:
-Warning	1062	Duplicate entry '8' for key 'PRIMARY'
+Warning	1062	Duplicate entry '8' for key 't1.PRIMARY'
 select id, code, name from t1 order by id;
 id	code	name
 2	1	Monty
@@ -26,7 +26,7 @@ id	code	name
 8	1	Sinisa
 update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
 Warnings:
-Warning	1062	Duplicate entry 'Ralph' for key 'name'
+Warning	1062	Duplicate entry 'Ralph' for key 't1.name'
 select id, code, name from t1 order by id;
 id	code	name
 3	2	David
@@ -102,33 +102,33 @@ id	parent_id	level
 1179	105	2
 update ignore t1 set id=id+1;
 Warnings:
-Warning	1062	Duplicate entry '1002' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1004' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1005' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1009' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1018' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1025' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1029' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1030' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1031' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1032' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1033' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1034' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1021' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1003' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1016' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1007' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1035' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1036' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1017' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1008' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1037' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1019' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1027' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1028' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1026' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1020' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1006' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1002' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1004' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1005' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1009' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1018' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1025' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1029' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1030' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1031' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1032' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1033' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1034' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1021' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1003' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1016' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1007' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1035' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1036' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1017' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1008' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1037' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1019' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1027' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1028' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1026' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1020' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1006' for key 't1.PRIMARY'
 select * from t1;
 id	parent_id	level
 1001	100	0
@@ -172,7 +172,7 @@ id	parent_id	level
 1180	105	2
 update ignore t1 set id=1023 where id=1010;
 Warnings:
-Warning	1062	Duplicate entry '1023' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1023' for key 't1.PRIMARY'
 select * from t1 where parent_id=102;
 id	parent_id	level
 1008	102	2
@@ -397,9 +397,9 @@ Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed i
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 insert into t1 (ggid,passwd) values ('test2','this will fail');
-ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+ERROR 23000: Duplicate entry 'test2' for key 't1.ggid'
 insert into t1 (ggid,id) values ('this will fail',1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1 where ggid='test1';
 id	ggid	email	passwd
 1	test1		xxx
@@ -412,7 +412,7 @@ id	ggid	email	passwd
 replace into t1 (ggid,id) values ('this will work',1);
 replace into t1 (ggid,passwd) values ('test2','this will work');
 update t1 set id=100,ggid='test2' where id=1;
-ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+ERROR 23000: Duplicate entry 'test2' for key 't1.ggid'
 select * from t1;
 id	ggid	email	passwd
 1	this will work		
@@ -737,7 +737,7 @@ create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(3
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 select id from t1;
 id
 0
@@ -757,7 +757,7 @@ insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJ
 LOCK TABLES t1 WRITE;
 begin;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 select id from t1;
 id
 0
@@ -766,7 +766,7 @@ id
 99
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
 Warnings:
-Warning	1062	Duplicate entry '1-1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1-1' for key 't1.PRIMARY'
 commit;
 select id,id3 from t1;
 id	id3
@@ -913,7 +913,7 @@ drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=MyISAM;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-t	int(11)	NO	MUL	1	
+t	int	NO	MUL	1	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
@@ -1407,7 +1407,7 @@ create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 flush status;
@@ -1687,7 +1687,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`v` between 'a' and 'a ') and (`test`.`t1`.`v` between 'a  ' and 'b\n'))
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+ERROR 23000: Duplicate entry '{ ' for key 't1.v_2'
 alter table t1 add key(v);
 Warnings:
 Warning	1831	Duplicate index 'v_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
@@ -2072,16 +2072,16 @@ SET NAMES utf8mb4;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
 insert into t1 values ('a ');
-ERROR 23000: Duplicate entry 'a' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 't1.a'
 alter table t1 modify a varchar(10);
 insert into t1 values ('a'),('á'),('à'),('å');
-ERROR 23000: Duplicate entry 'a' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 't1.a'
 insert into t1 values ('á');
-ERROR 23000: Duplicate entry 'á' for key 'a'
+ERROR 23000: Duplicate entry 'á' for key 't1.a'
 insert into t1 values ('A');
-ERROR 23000: Duplicate entry 'A' for key 'a'
+ERROR 23000: Duplicate entry 'A' for key 't1.a'
 insert into t1 values ('å');
-ERROR 23000: Duplicate entry 'å' for key 'a'
+ERROR 23000: Duplicate entry 'å' for key 't1.a'
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;
 concat(a,'.')
@@ -2118,7 +2118,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+  `v` char(10) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
@@ -2172,7 +2172,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
+  `v` mediumtext CHARACTER SET utf8mb3 COLLATE utf8_general_ci
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
@@ -2215,7 +2215,7 @@ key (rowid), unique(val)) engine=MyISAM;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 'val'
+ERROR 23000: Duplicate entry '1' for key 't1.val'
 select * from t1;
 rowid	val
 3	1

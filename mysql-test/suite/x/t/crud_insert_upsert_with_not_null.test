@@ -46,7 +46,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":true}}
 -->recvresult
 -->callmacro Insert_two	DOCUMENT	%NAME%	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
 -->callmacro Show	%NAME%
@@ -55,7 +55,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup_without_data %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":true}}
 -->recvresult
 -->endmacro
 
@@ -79,7 +79,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test2 - Match on secondary key only
 -->callmacro Setup	col2
--->callmacro Upsert_one	DOCUMENT	col2	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	col2	%DOC3_FOOBARCOM_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col2
 
 -->title -Test3 - Match on _id only, missing secondary index
@@ -89,7 +89,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 
 -->title -Test4 - Match on _id and secondary, but from different rows
 -->callmacro Setup	col4
--->callmacro Upsert_one	DOCUMENT	col4	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	col4	%DOC1_BLABARCOM_FOO%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col4
 
 -->title -Test5 - Match on _id and secondary key (other field value updated)
@@ -125,7 +125,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->callmacro Insert_one	DOCUMENT	col9	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
 -->callmacro Insert_one	DOCUMENT	col9	%DOC3_FOOORACOM_FOO%	ER_SUCCESS
 -->callmacro Show	col9
--->callmacro Upsert_one	DOCUMENT	col9	%DOC2_FOOORACOM_BLA%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	col9	%DOC2_FOOORACOM_BLA%	ER_X_DUPLICATE_ENTRY
 -->callmacro Show	col9
 
 EOF
@@ -137,6 +137,4 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/crud_insert_upsert_with_not_null.xpl 2>&1;
 
 ## Cleanup
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
-DROP SCHEMA IF EXISTS xtest;
+--source ../include/xplugin_cleanup.inc

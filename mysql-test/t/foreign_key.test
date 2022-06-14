@@ -5,7 +5,7 @@
 --disable_query_log
 call mtr.add_suppression(" In RENAME TABLE table `test`.`parent` is referenced in foreign key constraints which are not compatible with the new table definition.");
 --enable_query_log
-
+SET @saved_binlog_format= @@SESSION.binlog_format;
 
 #
 # Bug#34455 (Ambiguous foreign keys syntax is accepted)
@@ -870,6 +870,8 @@ BEGIN;
 SELECT * FROM source FOR UPDATE;
 
 connection default;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 --send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;
 
 connection con1;
@@ -897,6 +899,7 @@ COMMIT;
 connection default;
 --echo # Reap CREATE TABLE
 --reap
+SET SESSION binlog_format= @saved_binlog_format;
 
 DROP TABLES child, source;
 
@@ -907,6 +910,7 @@ BEGIN;
 SELECT * FROM parent;
 
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 --send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 
 connection con1;
@@ -921,6 +925,7 @@ COMMIT;
 connection default;
 --echo # Reap CREATE TABLE
 --reap
+SET SESSION binlog_format= @saved_binlog_format;
 
 --echo # 3.3) CREATE TABLE ... SELECT for existing table should not acquire
 --echo #      any locks on parent table.
@@ -929,7 +934,9 @@ CREATE TABLE parent2 (pk INT PRIMARY KEY);
 LOCK TABLE parent2 WRITE;
 
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 
 connection con1;
 UNLOCK TABLES;
@@ -945,8 +952,10 @@ LOCK TABLE parent WRITE;
 
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 
 connection con1;
@@ -959,8 +968,10 @@ SELECT * FROM parent;
 
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 
 connection con1;
@@ -973,7 +984,9 @@ DROP TABLE parent;
 --echo #      acquire X on child table.
 
 SET FOREIGN_KEY_CHECKS=0;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET SESSION binlog_format= @saved_binlog_format;
 SET FOREIGN_KEY_CHECKS=1;
 
 connection con1;
@@ -1037,7 +1050,10 @@ CREATE TABLE parent (pk INT PRIMARY KEY);
 SELECT * FROM parent;
 
 connection con1;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 
 connection default;
 LOCK TABLE parent WRITE;
@@ -2411,70 +2427,84 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
                  FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 DROP TABLE t1;
 
 CREATE TABLE t1 (pk INT PRIMARY KEY);
 CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 DROP TABLES t2, t1;
 
 --echo # Coverage for cases with multiple foreign keys.
@@ -2484,15 +2514,18 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, fk1 INT, fk2 INT,
                  FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
 CREATE TABLE t2 (fk1 INT, fk2 INT,
@@ -2500,15 +2533,18 @@ CREATE TABLE t2 (fk1 INT, fk2 INT,
                 FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 DROP TABLES t2, t1;
 
 
@@ -3419,9 +3455,9 @@ CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
                    CONSTRAINT c FOREIGN KEY (fk) REFERENCES self(pk));
 --echo # Dropping foreign key and adding partitioning is OK.
 ALTER TABLE self DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
---echo # Adding foreign key and removing partitioning should be OK.
---echo # However, the below statement fails due to bug#28486106 in InnoDB code.
---error ER_CANNOT_ADD_FOREIGN
+--echo # Adding foreign key and removing partitioning is OK.
+--echo # The below statement provides coverage gor bug#28486106 "ALTER TABLE
+--echo # ADD FOREIGN KEY ... REMOVE PARTITIONING FAILS IF SELF-REFENCE".
 ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
 DROP TABLES self;
 
@@ -4521,3 +4557,331 @@ ALTER TABLE t3 DROP KEY k1, DROP FOREIGN KEY b, ALGORITHM=COPY;
 --echo # Failed ALTER TABLE should have left table intact!
 SHOW CREATE TABLE t3;
 DROP TABLES t3, t2, t1;
+
+
+--echo #
+--echo # Bug#30214965 "GENERATION OF FK NAMES IS NOT RE-EXECUTION SAFE".
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, a INT);
+PREPARE stmt1 FROM 'ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent (pk)';
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+ALTER TABLE child RENAME COLUMN fk TO fkold, RENAME COLUMN a TO fk;
+--echo # Re-execution of ALTER TABLE ADD FOREIGN KEY should succeed.
+--echo # New foreign key should get new foreign key name.
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+DEALLOCATE PREPARE stmt1;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#30267236 "REPLACE DICT_FOREIGN_PARSE_DROP_CONSTRAINTS() WITH
+--echo #               SQL-LAYER CHECK."
+--echo #
+
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk));
+CREATE TABLE unrelated (a INT);
+
+--echo #
+--echo # Dropping non-existing foreign key should fail with consistent error.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE child DROP FOREIGN KEY no_such_fk;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=INPLACE;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=COPY;
+
+--echo #
+--echo # Dropping existing foreign key using wrong table name should fail
+--echo # with consistent error as well.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE unrelated DROP FOREIGN KEY c;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=COPY;
+
+--echo #
+--echo # The same should happen if one tries to drop foreign key using
+--echo # parent table.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE parent DROP FOREIGN KEY c;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
+DROP TABLES unrelated, child, parent;
+
+
+--echo #
+--echo # Bug#16904122 "MULTIPLE FK WITH SAME NAME ALLOWED IN ALTER".
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, fk2 INT, a INT, KEY(fk1), KEY(fk2));
+INSERT INTO child VALUES (NULL, NULL, 1), (NULL, NULL, 1);
+--echo # Usage of duplicate foreign key name should be detected before
+--echo # proceeding to COPYing of rows (and thus duplicate key error)
+--echo # and checking if INPLACE algorithm is supported.
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+                  ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a);
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+                  ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=COPY;
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+                  ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=INPLACE;
+--echo # Also check case when we created duplicate to already pre-existing
+--echo # foreign key name. Also check that foreign key name comparison is
+--echo # case-insensitive in this case.
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk);
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a);
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=COPY;
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=INPLACE;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#22364336 "ANOMALY IN ALTER TABLE ADD FOREIGN KEY".
+--echo #
+--echo # Spaces surrounding dot in qualified parent table name should
+--echo # be allowed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES test . parent (pk));
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES test . parent (pk);
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#28703793 "CANNOT ADD FOREIGN KEY CONSTRAINT TO TABLES INSIDE A
+--echo #               DATABASE NAMED `AUX`"
+--echo #
+CREATE DATABASE aux;
+CREATE TABLE aux.parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES aux.parent (pk));
+DROP TABLE child;
+DROP DATABASE aux;
+
+
+--echo #
+--echo # Bug#11754659 "CONDITIONAL COMMENTS NOT WORKING IN FOREIGN KEY DEFINITION".
+--echo #
+CREATE TABLE parent (id INT PRIMARY KEY);
+--echo # Test if versioned conditional comments work in CREATE TABLE
+--echo # (issue that was reported originally).
+CREATE TABLE child (fk INT, CONSTRAINT c1 FOREIGN KEY (fk) REFERENCES parent (id) /*!40008 ON DELETE CASCADE ON UPDATE CASCADE */);
+SHOW CREATE TABLE child;
+ALTER TABLE child DROP FOREIGN KEY c1;
+--echo # Also check if they work in ALTER TABLE and that MySQL-specific
+--echo # conditional comments also work.
+ALTER TABLE child ADD CONSTRAINT c2 FOREIGN KEY (fk) REFERENCES parent /*! (id) */ /*!40008 ON DELETE SET NULL */;
+SHOW CREATE TABLE child;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#21919887 "STATEMENTS IN "EXECUTABLE COMMENTS" ARE IGNORING
+--echo #               CONSTRAINTS".
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+/*!50101 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) */;
+SHOW CREATE TABLE child;
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+/*! ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) */;
+SHOW CREATE TABLE child;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#33114045 - TRANSFER_PREEXISTING_FOREIGN_KEYS: ASSERTION `!FIND->IS_VIRTUAL_GCOL()'
+--echo #                FAILED.
+--echo # Assertion to make sure foreign key is referencing non-virtual column failed.
+--echo #
+CREATE TABLE t (a INT KEY, b INT NOT NULL UNIQUE KEY,
+                CONSTRAINT FOREIGN KEY (a) REFERENCES t(b));
+--echo # Without fix, assertion fails for the following ALTER TABLE statements in
+--echo # the debug build. Statements executes successfully in the non-debug build.
+--error ER_DUP_FIELDNAME
+ALTER TABLE t ADD COLUMN a INT GENERATED ALWAYS AS (1) FIRST;
+--error ER_DUP_FIELDNAME
+ALTER TABLE t ADD COLUMN b INT GENERATED ALWAYS AS (1) FIRST;
+DROP TABLE t;
+
+
+--echo #
+--echo # As a result of table rename operation, orphan non-self-referencing
+--echo # foreign keys become non-orphan/adopted self-referencing foreign keys.
+--echo # Test cases to verify such transformation of foreign keys.
+--echo #
+
+SET SESSION FOREIGN_KEY_CHECKS=0;
+
+--echo # 1. Test case to verify transformation of a foreign key with ALTER TABLE
+--echo #    RENAME operation using INPLACE algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+# I_S.REFERENTIAL_CONSTRAINTS.unique_constraint_name is updated too.
+SELECT constraint_name, unique_constraint_name FROM
+       INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # 2. Test case to verify transformation of a foreign key with ALTER TABLE
+--echo #    RENAME operation using INSTANT algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+# I_S.REFERENTIAL_CONSTRAINTS.unique_constraint_name is updated too.
+SELECT constraint_name, unique_constraint_name FROM
+       INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # 3. Test case to verify transformation of a foreign key with ALTER TABLE
+--echo #    RENAME operation using COPY algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+# I_S.REFERENTIAL_CONSTRAINTS.unique_constraint_name is updated too.
+SELECT constraint_name, unique_constraint_name FROM
+       INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # 4. Test case to verify transformation of a foreign key with RENAME TABLE
+--echo #    statement.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+RENAME TABLE t1 TO t2;
+# I_S.REFERENTIAL_CONSTRAINTS.unique_constraint_name is updated too.
+SELECT constraint_name, unique_constraint_name FROM
+       INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # 5. Test case to check if orphan non-self-referencing foreign key is
+--echo #    transformed when table schema and table name are changed.
+--echo #    Foreign key is not transformed in this case.
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f3));
+CREATE DATABASE db2;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=COPY;
+SHOW CREATE TABLE db2.t2;
+RENAME TABLE db2.t2 TO db1.t1;
+
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=INPLACE;
+SHOW CREATE TABLE db2.t2;
+RENAME TABLE db2.t2 TO db1.t1;
+
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=INSTANT;
+SHOW CREATE TABLE db2.t2;
+RENAME TABLE db2.t2 TO db1.t1;
+
+RENAME TABLE db1.t1 TO db2.t2;
+SHOW CREATE TABLE db2.t2;
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+--echo # 6. Test case to verify table rename operation on the table containing
+--echo #    orphan non-self-referencing foreign key. Foreign key referenced column
+--echo #    does not exist in the table.
+--echo #    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f3));
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+--error ER_FK_NO_COLUMN_PARENT
+RENAME TABLE t1 TO t2;
+
+--echo # 7. Test case to verify table rename operation on the table containing
+--echo #    orphan non-self-referencing foreign key. Foreign key referenced column
+--echo #    is dropped in the same ALTER TABLE statement.
+--echo #    Table rename operation fails in this case.
+ALTER TABLE t1 ADD f3 INT UNIQUE;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=COPY;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=INPLACE;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+--echo # 8. Test case to verify table rename operation on the table containing
+--echo #    orphan non-self-referencing foreign key. Foreign key referenced column
+--echo #    is renamed in the same ALTER TABLE statement.
+--echo #    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT, KEY (f3),
+                 FOREIGN KEY(f2) REFERENCES t2(f3));
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=COPY;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=INSTANT;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+--echo # 9. Test case to verify table rename operation on the table containing
+--echo #    orphan non-self-referencing foreign key. Foreign key referenced column
+--echo #    is a virtual column.
+--echo #    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, F3 INT AS (f1+1) VIRTUAL,
+                 FOREIGN KEY(f2) REFERENCES t2(f3));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+RENAME TABLE t1 TO t2;
+DROP TABLE t1;
+
+--echo # 10. Test case to verify table rename operation on the table containing
+--echo #     orphan non-self-referencing foreign key. Parent index does not
+--echo #     exist in the table.
+--echo #     Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT,
+                 FOREIGN KEY(f2) REFERENCES t2(f3));
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+--error ER_FK_NO_INDEX_PARENT
+RENAME TABLE t1 TO t2;
+DROP TABLE t1;
+
+--echo # 11. Test case to verify table rename operation on the table containing
+--echo #     orphan non-self-referencing foreign key. Table's column is not
+--echo #     compatible with the foreign key's referenced column.
+--echo #     Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 CHAR(10), KEY(f3),
+                 FOREIGN KEY(f2) REFERENCES t2(f3));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+RENAME TABLE t1 TO t2;
+DROP TABLE t1;
+
+#Cleanup
+SET FOREIGN_KEY_CHECKS = DEFAULT;

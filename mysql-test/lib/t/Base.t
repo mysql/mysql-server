@@ -1,8 +1,7 @@
 # -*- cperl -*-
 
-# Copyright (c) 2007 MySQL AB
-# Use is subject to license terms.
-# 
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -25,8 +24,11 @@
 
 use Test::More qw(no_plan);
 use strict;
+use warnings 'FATAL';
+use lib "lib";
 
-use_ok ("My::SafeProcess::Base");
+
+BEGIN { use_ok ("My::SafeProcess::Base");}
 
 
 my $count= 0;

@@ -48,7 +48,6 @@ SET GLOBAL group_replication_clone_threshold= 1;
 
 # Verify in the log file that the plugin is not installed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_not_installed
 --let $assert_text = Clone plugin is not present
 --let $assert_select = There was an issue when configuring the remote cloning process: The clone plugin is not present or active in this server.
 --let $assert_count = 1
@@ -77,7 +76,6 @@ INSERT INTO t1 VALUES (3);
 
 # Verify in the log file that clone failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_not_installed
 --let $assert_text = Clone plugin is not present in the donor
 --let $assert_select = There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded.
 --let $assert_count = 1
@@ -96,11 +94,11 @@ DROP TABLE t1;
 UNINSTALL PLUGIN clone;
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Plugin group_replication reported: 'Due to the number of missing transactions being higher than *");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("There was an issue when configuring the remote cloning process: The clone plugin is not present or active*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
-call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \"root\"@\"127.0.0.1\":[0-9]+ IDENTIFIED BY \"\\*\\*\\*\\*\\*\" REQUIRE NO SSL; result in error. Error number:*");
-call mtr.add_suppression("Due to some issue the recovery strategy switched to: Distributed Recovery.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery.");
 set session sql_log_bin=1;
 
 --source include/group_replication_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,7 +55,8 @@ void lock_queue_iterator_reset(
     ulint bit_no)                /*!< in: record number in the
                                  heap */
 {
-  ut_ad(lock_mutex_own());
+  ut_ad(lock != nullptr);
+  ut_ad(locksys::owns_lock_shard(lock));
 
   iter->current_lock = lock;
 
@@ -85,7 +86,8 @@ const lock_t *lock_queue_iterator_get_prev(
 {
   const lock_t *prev_lock;
 
-  ut_ad(lock_mutex_own());
+  ut_ad(iter->current_lock != nullptr);
+  ut_ad(locksys::owns_lock_shard(iter->current_lock));
 
   switch (lock_get_type_low(iter->current_lock)) {
     case LOCK_REC:
@@ -98,7 +100,7 @@ const lock_t *lock_queue_iterator_get_prev(
       ut_error;
   }
 
-  if (prev_lock != NULL) {
+  if (prev_lock != nullptr) {
     iter->current_lock = prev_lock;
   }
 

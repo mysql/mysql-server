@@ -38,8 +38,8 @@ if ($commands == configure)
 
   --sync_slave_with_master
   --source include/stop_slave.inc
-  let $saved_workers= `SELECT @@global.slave_parallel_workers`;
-  let $saved_checkpoint= `SELECT @@global.slave_checkpoint_period`;
+  let $saved_workers= `SELECT @@global.replica_parallel_workers`;
+  let $saved_checkpoint= `SELECT @@global.replica_checkpoint_period`;
 
   SHOW CREATE TABLE mysql.slave_master_info;
   SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -60,8 +60,8 @@ if ($commands == clean)
   --connection slave
   --source include/stop_slave.inc
   --disable_query_log
-  eval SET @@global.slave_parallel_workers= $saved_workers;
-  eval SET @@global.slave_checkpoint_period= $saved_checkpoint;
+  eval SET @@global.replica_parallel_workers= $saved_workers;
+  eval SET @@global.replica_checkpoint_period= $saved_checkpoint;
   --enable_query_log
   --source include/start_slave.inc
 
@@ -89,9 +89,9 @@ if ($commands == recovery)
 
   #### Guaranteeing that all events in the binary log are transfered to the slave ######
   --connection slave
-  let $saved_current_workers= `SELECT @@global.slave_parallel_workers`;
-  let $saved_current_checkpoint= `SELECT @@global.slave_checkpoint_period`;
-  SET GLOBAL debug="d,rotate_slave_debug_group";
+  let $saved_current_workers= `SELECT @@global.replica_parallel_workers`;
+  let $saved_current_checkpoint= `SELECT @@global.replica_checkpoint_period`;
+  SET GLOBAL debug="d,rotate_replica_debug_group";
   --source include/start_slave_io.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_master_info;
   let $show_rpl_debug_info= 1;
@@ -100,28 +100,30 @@ if ($commands == recovery)
   #### Crashing server after assigning and processing jobs ######
   --connection slave
 
-  --let $mts_run=`select @@global.slave_parallel_workers > 0`
-  eval SET @@global.slave_checkpoint_group= $count_debug_groups;
-  SET GLOBAL debug="d,check_slave_debug_group";
-  SET GLOBAL debug="+d,mts_distribute_round_robin";
+  --let $mts_run=`select @@global.replica_parallel_workers > 0`
+  eval SET @@global.replica_checkpoint_group= $count_debug_groups;
+  SET GLOBAL debug="d,check_replica_debug_group";
+  SET GLOBAL debug="+d,mta_distribute_round_robin";
   --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
   --error 0, 2013
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   --source include/wait_until_disconnected.inc
 
   #### MTS can not relay-log-recover in presense of gaps that the test creates
   #### The server has to be restarted with  --relay-log-recovery = 0 followed by
-  #### START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+  #### START REPLICA UNTIL SQL_AFTER_MTS_GAPS.
 
   if ($mts_run)
   {
     --echo ** fixing gaps **
     --let $rpl_server_number= 2
-    --let $rpl_server_parameters= --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0
+    --let $rpl_server_parameters= --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0
 
     --source include/rpl_start_server.inc
-
-    START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+    # Disable warnings as with GTIDS the clause SQL_AFTER_MTS_GAPS has no effect
+    --disable_warnings
+    START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
+    --enable_warnings
     --let $slave_param= Until_Condition
     --let $slave_param_value= DONE
     --source include/wait_for_slave_param.inc
@@ -131,7 +133,7 @@ if ($commands == recovery)
 
   --echo ** regular restart **
   --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1
+  --let $rpl_server_parameters= --skip-replica-start --replica-transaction-retries=0 --sync-source-info=1
   --source include/rpl_restart_server.inc
 
   #### Checking if the recovery worked and the coordinator has an updated state. ####
@@ -146,8 +148,8 @@ if ($commands == recovery)
   --source include/wait_condition_or_abort.inc
 
   --source include/stop_slave.inc
-  eval SET @@global.slave_parallel_workers= $saved_current_workers;
-  eval SET @@global.slave_checkpoint_period= $saved_current_checkpoint;
+  eval SET @@global.replica_parallel_workers= $saved_current_workers;
+  eval SET @@global.replica_checkpoint_period= $saved_current_checkpoint;
 
   --let $commands=
   --echo ==== end rpl_mts_crash_safe.inc:recovery ====

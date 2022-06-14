@@ -1,0 +1,596 @@
+#
+# Bug#30248138 - adding a function once mysql.func is converted to myisam
+#                leads to crash
+#
+CALL mtr.add_suppression("Column count of");
+CALL mtr.add_suppression("Incorrect definition of table");
+CALL mtr.add_suppression("Cannot load from");
+CALL mtr.add_suppression("Storage engine 'MyISAM' does not");
+#-----------------------------------------------------------------------
+# Test cases to verify system table's behavior with storage engines
+# InnoDB and MyISAM.
+#-----------------------------------------------------------------------
+CREATE TABLE system_tables (ID INT PRIMARY KEY AUTO_INCREMENT,
+table_name VARCHAR(100));
+INSERT INTO system_tables(table_name)
+SELECT concat(table_schema, ".", table_name)
+FROM INFORMATION_SCHEMA.tables WHERE table_schema =
+'mysql' AND table_name NOT IN('general_log', 'slow_log',
+'ndb_binlog_index')
+ORDER BY table_name;
+#-----------------------------------------------------------------------
+# Test case to verify altering system table's engine to MyISAM. Changing
+# system table's engine to MyISAM is not allowed.
+#-----------------------------------------------------------------------
+CREATE PROCEDURE test_system_table_alter_engine()
+BEGIN
+DECLARE n INT DEFAULT 0;
+DECLARE i INT DEFAULT 1;
+-- ER_UNSUPPORTED_ENGINE(1726) is reported for all the system engines except for
+-- innodb_index_stats and innodb_table_stats. ER_TOO_LONG_KEY(1071) is reported for
+-- innodb_index_stats and ER_NOT_ALLOWED_COMMAND(1148) is reported for innodb_table_stats
+-- for now.
+DECLARE CONTINUE HANDLER FOR 1726, 1071, 1148
+BEGIN
+GET DIAGNOSTICS CONDITION 1 @message = MESSAGE_TEXT;
+SELECT @message AS ERROR;
+END;
+SELECT count(*) FROM system_tables INTO n;
+WHILE i <= n DO
+SELECT table_name FROM system_tables WHERE id = i INTO @table_name;
+SELECT @table_name;
+SET @sql_text = concat("ALTER TABLE ", @table_name, " ENGINE = MyISAM");
+PREPARE stmt FROM @sql_text;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+SET i = i + 1;
+END WHILE;
+END$
+CALL test_system_table_alter_engine();
+@table_name
+mysql.columns_priv
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
+@table_name
+mysql.component
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.component]
+@table_name
+mysql.db
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.db]
+@table_name
+mysql.default_roles
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.default_roles]
+@table_name
+mysql.engine_cost
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.engine_cost]
+@table_name
+mysql.func
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.func]
+@table_name
+mysql.global_grants
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.global_grants]
+@table_name
+mysql.gtid_executed
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.gtid_executed]
+@table_name
+mysql.help_category
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.help_category]
+@table_name
+mysql.help_keyword
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.help_keyword]
+@table_name
+mysql.help_relation
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.help_relation]
+@table_name
+mysql.help_topic
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.help_topic]
+@table_name
+mysql.innodb_index_stats
+ERROR
+Specified key was too long; max key length is 1000 bytes
+@table_name
+mysql.innodb_table_stats
+ERROR
+The used command is not allowed with this MySQL version
+@table_name
+mysql.password_history
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.password_history]
+@table_name
+mysql.plugin
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.plugin]
+@table_name
+mysql.procs_priv
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
+@table_name
+mysql.proxies_priv
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
+@table_name
+mysql.replication_asynchronous_connection_failover
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover]
+@table_name
+mysql.replication_asynchronous_connection_failover_managed
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover_managed]
+@table_name
+mysql.replication_group_configuration_version
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.replication_group_configuration_version]
+@table_name
+mysql.replication_group_member_actions
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.replication_group_member_actions]
+@table_name
+mysql.role_edges
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.role_edges]
+@table_name
+mysql.server_cost
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.server_cost]
+@table_name
+mysql.servers
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.servers]
+@table_name
+mysql.slave_master_info
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.slave_master_info]
+@table_name
+mysql.slave_relay_log_info
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.slave_relay_log_info]
+@table_name
+mysql.slave_worker_info
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.slave_worker_info]
+@table_name
+mysql.tables_priv
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
+@table_name
+mysql.time_zone
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.time_zone]
+@table_name
+mysql.time_zone_leap_second
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_leap_second]
+@table_name
+mysql.time_zone_name
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_name]
+@table_name
+mysql.time_zone_transition
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_transition]
+@table_name
+mysql.time_zone_transition_type
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_transition_type]
+@table_name
+mysql.user
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.user]
+DROP PROCEDURE test_system_table_alter_engine;
+#-----------------------------------------------------------------------
+# Test case to verify system table creation in MyISAM engine. Creating
+# system table in MyISAM is allowed to support logical upgrade.
+#-----------------------------------------------------------------------
+CREATE PROCEDURE execute_stmt(stmt VARCHAR(255))
+BEGIN
+SET @error_no = 0;
+SET @sql_stmt = stmt;
+PREPARE stmt FROM @sql_stmt;
+EXECUTE stmt;
+GET DIAGNOSTICS CONDITION 1 @error_no = MYSQL_ERRNO, @error_message = MESSAGE_TEXT;
+IF @error_no > 0 THEN
+SELECT "Warning" AS SEVERITY, @error_no as ERRNO, @error_message as MESSAGE;
+END IF;
+DEALLOCATE PREPARE stmt;
+END$
+CREATE PROCEDURE test_create_system_table()
+BEGIN
+DECLARE n INT DEFAULT 0;
+DECLARE i INT DEFAULT 1;
+-- Error ER_NO_SYSTEM_TABLE_ACCESS(3554) is reported for innodb_table_stats and
+-- innodb_index_stats. For other tables ER_UNSUPPORTED_ENGINE "warning" is reported.
+-- Warning is handled in the execute_stmt().
+DECLARE CONTINUE HANDLER FOR 3554
+BEGIN
+GET DIAGNOSTICS CONDITION 1 @error = MYSQL_ERRNO, @error_message = MESSAGE_TEXT;
+END;
+SELECT count(*) FROM system_tables INTO n;
+WHILE i <= n DO
+SET @error = 0;
+SELECT table_name FROM system_tables WHERE id = i INTO @table_name;
+SET @sql_text = concat('RENAME TABLE ', @table_name, ' TO mysql.backup_table');
+CALL execute_stmt(@sql_text);
+SET @sql_text = concat('CREATE TABLE ', @table_name, ' ENGINE=InnoDB AS SELECT * FROM mysql.backup_table');
+CALL execute_stmt(@sql_text);
+SET @sql_text = concat('DROP TABLE ', @table_name);
+CALL execute_stmt(@sql_text);
+SET @sql_text = concat('CREATE TABLE ', @table_name, ' ENGINE=MyISAM AS SELECT * FROM mysql.backup_table');
+CALL execute_stmt(@sql_text);
+IF @error > 0 THEN
+SELECT "ERROR" AS SEVERITY, @error AS ERRNO, @error_message AS MESSAGE;
+ELSE
+SET @sql_text = concat('DROP TABLE ', @table_name);
+CALL execute_stmt(@sql_text);
+END IF;
+SET @sql_text = concat('RENAME TABLE mysql.backup_table TO ', @table_name);
+CALL execute_stmt(@sql_text);
+SET i = i + 1;
+END WHILE;
+END$
+CALL test_create_system_table();
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.component]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.db]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.default_roles]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.engine_cost]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.func]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.global_grants]
+SEVERITY	ERRNO	MESSAGE
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.gtid_executed]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.help_category]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.help_keyword]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.help_relation]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.help_topic]
+SEVERITY	ERRNO	MESSAGE
+ERROR	3554	Access to system table 'mysql.innodb_index_stats' is rejected.
+SEVERITY	ERRNO	MESSAGE
+ERROR	3554	Access to system table 'mysql.innodb_table_stats' is rejected.
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.password_history]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.plugin]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover_managed]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.replication_group_configuration_version]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.replication_group_member_actions]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.role_edges]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.server_cost]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.servers]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.slave_master_info]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.slave_relay_log_info]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.slave_worker_info]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.time_zone]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_leap_second]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_name]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_transition]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.time_zone_transition_type]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.user]
+DROP PROCEDURE test_create_system_table;
+DROP PROCEDURE execute_stmt;
+DROP TABLE system_tables;
+#-----------------------------------------------------------------------
+# Test case to verify forbidden operations when
+#
+#   1 System table is created in the MyISAM engine.
+#   2 System table is in InnoDB engine but table definition is changed.
+#-----------------------------------------------------------------------
+CREATE USER 'user1'@'%';
+CREATE TABLE t1 (f1 INT);
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+RENAME TABLE mysql.func TO mysql.func_bkp;
+CREATE TABLE mysql.func ENGINE='MyISAM' AS SELECT * FROM mysql.func_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.func]
+# Without the fix, following statement results in the assert
+# condition failure.
+CREATE FUNCTION udf_func RETURNS STRING SONAME 'udf_func.so';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.func]
+DROP FUNCTION sequence;
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.func]
+ALTER TABLE mysql.func ENGINE='InnoDB',
+DROP COLUMN ret;
+CREATE FUNCTION udf_func RETURNS STRING SONAME 'udf_func.so';
+ERROR HY000: Column count of mysql.func is wrong. Expected 4, found 3. The table is probably corrupted
+DROP FUNCTION sequence;
+ERROR HY000: Column count of mysql.func is wrong. Expected 4, found 3. The table is probably corrupted
+DROP TABLE mysql.func;
+RENAME TABLE mysql.func_bkp TO mysql.func;
+DROP FUNCTION sequence;
+RENAME TABLE mysql.plugin TO mysql.plugin_bkp;
+CREATE TABLE mysql.plugin ENGINE='MyISAM' AS SELECT * FROM mysql.plugin_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.plugin]
+INSTALL PLUGIN my_plug soname 'some_plugin.so';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.plugin]
+UNINSTALL PLUGIN my_plug;
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.plugin]
+ALTER TABLE mysql.plugin ENGINE=InnoDB,
+MODIFY dl CHAR(64);
+INSTALL PLUGIN my_plug soname 'some_plugin.so';
+ERROR HY000: Cannot load from mysql.plugin. The table is probably corrupted
+UNINSTALL PLUGIN my_plug;
+ERROR HY000: Cannot load from mysql.plugin. The table is probably corrupted
+DROP TABLE mysql.plugin;
+RENAME TABLE mysql.plugin_bkp TO mysql.plugin;
+RENAME TABLE mysql.servers TO mysql.servers_bkp;
+CREATE TABLE mysql.servers ENGINE='MyISAM' AS SELECT * FROM mysql.servers_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.servers]
+CREATE SERVER fedlnk FOREIGN DATA WRAPPER mysql OPTIONS
+(USER 'fed_user', HOST 'remote_host', PORT 9306, DATABASE 'federated');
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.servers]
+DROP SERVER fedlnk;
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.servers]
+ALTER SERVER fedlnk OPTIONS (USER 'sally');
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.servers]
+ALTER TABLE mysql.servers ENGINE='InnoDB',
+MODIFY WRAPPER varchar(128);
+CREATE SERVER fedlnk FOREIGN DATA WRAPPER mysql OPTIONS
+(USER 'fed_user', HOST 'remote_host', PORT 9306, DATABASE 'federated');
+ERROR HY000: Cannot load from mysql.servers. The table is probably corrupted
+DROP SERVER fedlnk;
+ERROR HY000: Cannot load from mysql.servers. The table is probably corrupted
+ALTER SERVER fedlnk OPTIONS (USER 'sally');
+ERROR HY000: Cannot load from mysql.servers. The table is probably corrupted
+DROP TABLE mysql.servers;
+RENAME TABLE mysql.servers_bkp TO mysql.servers;
+RENAME TABLE mysql.user TO mysql.user_bkp;
+CREATE TABLE mysql.user ENGINE='MyISAM' AS SELECT * FROM mysql.user_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.user]
+CREATE USER 'user2'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+DROP USER 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+ALTER USER 'user1'@'%' PASSWORD EXPIRE;
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+GRANT SELECT ON t1 TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+SET PASSWORD FOR 'user1'@'%' = '123';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+RENAME USER 'user1'@'%' TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.user]
+ALTER TABLE mysql.user ENGINE='InnoDB',
+DROP COLUMN max_updates;
+CREATE USER 'user2'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+DROP USER 'user1'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+ALTER USER 'user1'@'%' PASSWORD EXPIRE;
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+GRANT SELECT ON t1 TO 'user1'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+SET PASSWORD FOR 'user1'@'%' = '123';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+RENAME USER 'user1'@'%' TO 'user1'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 50. The table is probably corrupted
+DROP TABLE mysql.user;
+RENAME TABLE mysql.user_bkp TO mysql.user;
+RENAME TABLE mysql.columns_priv TO mysql.columns_priv_bkp;
+CREATE TABLE mysql.columns_priv ENGINE='MyISAM' AS SELECT * FROM mysql.columns_priv_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
+GRANT SELECT(f1) ON t1 TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
+REVOKE SELECT ON t1.f1 FROM 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.columns_priv]
+ALTER TABLE mysql.columns_priv ENGINE='InnoDB',
+DROP COLUMN Timestamp;
+GRANT SELECT(f1) ON t1 TO 'user1'@'%';
+ERROR HY000: Column count of mysql.columns_priv is wrong. Expected 7, found 6. The table is probably corrupted
+REVOKE SELECT ON t1.f1 FROM 'user1'@'%';
+ERROR HY000: Column count of mysql.columns_priv is wrong. Expected 7, found 6. The table is probably corrupted
+DROP TABLE mysql.columns_priv;
+RENAME TABLE mysql.columns_priv_bkp TO mysql.columns_priv;
+RENAME TABLE mysql.tables_priv TO mysql.tables_priv_bkp;
+CREATE TABLE mysql.tables_priv ENGINE='MyISAM' AS SELECT * FROM mysql.tables_priv_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
+GRANT SELECT ON t1 TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.tables_priv]
+ALTER TABLE mysql.tables_priv ENGINE='InnoDB',
+DROP COLUMN Timestamp;
+GRANT SELECT ON t1 TO 'user1'@'%';
+ERROR HY000: Column count of mysql.tables_priv is wrong. Expected 8, found 7. The table is probably corrupted
+REVOKE SELECT ON t1 FROM 'user1'@'%';
+ERROR HY000: Column count of mysql.tables_priv is wrong. Expected 8, found 7. The table is probably corrupted
+DROP TABLE mysql.tables_priv;
+RENAME TABLE mysql.tables_priv_bkp TO mysql.tables_priv;
+CREATE FUNCTION f1() RETURNS INT return 1;
+RENAME TABLE mysql.procs_priv TO mysql.procs_priv_bkp;
+CREATE TABLE mysql.procs_priv ENGINE='MyISAM' AS SELECT * FROM mysql.procs_priv_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
+GRANT EXECUTE ON FUNCTION f1 TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
+REVOKE EXECUTE ON FUNCTION f1 FROM 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.procs_priv]
+ALTER TABLE mysql.procs_priv ENGINE='InnoDB',
+DROP COLUMN timestamp;
+GRANT EXECUTE ON FUNCTION f1 TO 'user1'@'%';
+ERROR HY000: Column count of mysql.procs_priv is wrong. Expected 8, found 7. The table is probably corrupted
+REVOKE EXECUTE ON FUNCTION f1 FROM 'user1'@'%';
+ERROR HY000: Column count of mysql.procs_priv is wrong. Expected 8, found 7. The table is probably corrupted
+DROP TABLE mysql.procs_priv;
+RENAME TABLE mysql.procs_priv_bkp TO mysql.procs_priv;
+RENAME TABLE mysql.proxies_priv TO mysql.proxies_priv_bkp;
+CREATE TABLE mysql.proxies_priv ENGINE='MyISAM' AS SELECT * FROM mysql.proxies_priv_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
+GRANT PROXY ON 'user1'@'%' TO 'user2'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
+REVOKE PROXY ON 'user1'@'%' FROM 'user2'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
+ALTER TABLE mysql.proxies_priv ENGINE='InnoDB',
+DROP COLUMN timestamp;
+GRANT PROXY ON 'user1'@'%' TO 'user2'@'%';
+ERROR HY000: Column count of mysql.proxies_priv is wrong. Expected 7, found 6. The table is probably corrupted
+REVOKE PROXY ON 'user1'@'%' FROM 'user2'@'%';
+ERROR HY000: Column count of mysql.proxies_priv is wrong. Expected 7, found 6. The table is probably corrupted
+DROP TABLE mysql.proxies_priv;
+RENAME TABLE mysql.proxies_priv_bkp TO mysql.proxies_priv;
+RENAME TABLE mysql.component TO mysql.component_bkp;
+CREATE TABLE mysql.component ENGINE='MyISAM' AS SELECT * FROM mysql.component_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.component]
+INSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.component]
+UNINSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.component]
+ALTER TABLE mysql.component ENGINE='InnoDB',
+DROP COLUMN component_urn;
+INSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: The mysql.component table is missing or has an incorrect definition.
+UNINSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: The mysql.component table is missing or has an incorrect definition.
+DROP TABLE mysql.component;
+RENAME TABLE mysql.component_bkp TO mysql.component;
+RENAME TABLE mysql.db TO mysql.db_bkp;
+CREATE TABLE mysql.db ENGINE='MyISAM' AS SELECT * FROM mysql.db_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.db]
+GRANT ALL ON db.* TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.db]
+ALTER TABLE mysql.db ENGINE='InnoDB',
+DROP COLUMN Select_priv;
+GRANT ALL ON db.* TO 'user1'@'%';
+ERROR HY000: Column count of mysql.db is wrong. Expected 22, found 21. The table is probably corrupted
+DROP TABLE mysql.db;
+RENAME TABLE mysql.db_bkp TO mysql.db;
+RENAME TABLE mysql.default_roles TO mysql.default_roles_bkp;
+CREATE TABLE mysql.default_roles ENGINE='MyISAM' AS SELECT * FROM mysql.default_roles_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.default_roles]
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.default_roles]
+ALTER TABLE mysql.default_roles ENGINE='InnoDB',
+DROP COLUMN DEFAULT_ROLE_USER;
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+ERROR HY000: Column count of mysql.default_roles is wrong. Expected 4, found 3. The table is probably corrupted
+DROP TABLE mysql.default_roles;
+RENAME TABLE mysql.default_roles_bkp TO mysql.default_roles;
+RENAME TABLE mysql.global_grants TO mysql.global_grants_bkp;
+CREATE TABLE mysql.global_grants ENGINE='MyISAM' AS SELECT * FROM mysql.global_grants_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.global_grants]
+GRANT PROCESS ON *.* TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.global_grants]
+REVOKE PROCESS ON *.* FROM 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.global_grants]
+ALTER TABLE mysql.global_grants ENGINE='InnoDB',
+DROP COLUMN WITH_GRANT_OPTION;
+GRANT PROCESS ON *.* TO 'user1'@'%';
+ERROR HY000: Column count of mysql.global_grants is wrong. Expected 4, found 3. The table is probably corrupted
+REVOKE PROCESS ON *.* FROM 'user1'@'%';
+ERROR HY000: Column count of mysql.global_grants is wrong. Expected 4, found 3. The table is probably corrupted
+DROP TABLE mysql.global_grants;
+RENAME TABLE mysql.global_grants_bkp TO mysql.global_grants;
+RENAME TABLE mysql.role_edges TO mysql.role_edges_bkp;
+CREATE TABLE mysql.role_edges ENGINE='MyISAM' AS SELECT * FROM mysql.role_edges_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.role_edges]
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.role_edges]
+ALTER TABLE mysql.role_edges ENGINE='InnoDB',
+DROP COLUMN TO_USER;
+SET DEFAULT ROLE ALL TO 'user1'@'%';
+ERROR HY000: Column count of mysql.role_edges is wrong. Expected 5, found 4. The table is probably corrupted
+DROP TABLE mysql.role_edges;
+RENAME TABLE mysql.role_edges_bkp TO mysql.role_edges;
+SET GLOBAL default_password_lifetime = 2;
+RENAME TABLE mysql.password_history TO mysql.password_history_bkp;
+CREATE TABLE mysql.password_history ENGINE='MyISAM' AS SELECT * FROM mysql.password_history_bkp;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.password_history]
+ALTER USER 'user1'@'%' IDENTIFIED BY 'password';
+ERROR HY000: Storage engine 'MyISAM' does not support system tables. [mysql.password_history]
+ALTER TABLE mysql.password_history ENGINE='InnoDB',
+DROP COLUMN Password_timestamp;
+ALTER USER 'user1'@'%' IDENTIFIED BY 'password';
+ERROR HY000: Column count of mysql.password_history is wrong. Expected 4, found 3. The table is probably corrupted
+DROP TABLE mysql.password_history;
+RENAME TABLE mysql.password_history_bkp TO mysql.password_history;
+SET GLOBAL default_password_lifetime = DEFAULT;
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP USER 'user1'@'%';
+#-----------------------------------------------------------------------
+# Test case to verify logical upgrade from 5.7 dump file.
+#-----------------------------------------------------------------------
+SELECT table_schema, table_name, engine FROM information_schema.tables
+WHERE table_schema='mysql'
+                                              AND engine='MyISAM';
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+mysql	columns_priv	MyISAM
+mysql	db	MyISAM
+mysql	event	MyISAM
+mysql	func	MyISAM
+mysql	ndb_binlog_index	MyISAM
+mysql	proc	MyISAM
+mysql	procs_priv	MyISAM
+mysql	proxies_priv	MyISAM
+mysql	tables_priv	MyISAM
+mysql	user	MyISAM
+# restart:--upgrade=FORCE
+SELECT table_schema, table_name, engine FROM information_schema.tables
+WHERE table_schema='mysql'
+                                              AND engine='MyISAM';
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+mysql	event	MyISAM
+mysql	proc	MyISAM

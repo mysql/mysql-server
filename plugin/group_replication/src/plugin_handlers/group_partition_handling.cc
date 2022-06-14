@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <mysql/group_replication_priv.h>
 
 #include "plugin/group_replication/include/autorejoin.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
@@ -35,17 +36,15 @@ using std::string;
 static void *launch_handler_thread(void *arg) {
   Group_partition_handling *handler = (Group_partition_handling *)arg;
   handler->partition_thread_handler();
-  return 0;
+  return nullptr;
 }
 
-Group_partition_handling::Group_partition_handling(
-    Shared_writelock *shared_stop_lock, ulong unreachable_timeout)
+Group_partition_handling::Group_partition_handling(ulong unreachable_timeout)
     : member_in_partition(false),
       group_partition_thd_state(),
       partition_handling_aborted(false),
       partition_handling_terminated(false),
-      timeout_on_unreachable(unreachable_timeout),
-      shared_stop_write_lock(shared_stop_lock) {
+      timeout_on_unreachable(unreachable_timeout) {
   mysql_mutex_init(key_GR_LOCK_group_part_handler_run, &run_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_group_part_handler_abort,
@@ -84,83 +83,8 @@ bool Group_partition_handling::is_partition_handling_terminated() {
   return partition_handling_terminated;
 }
 
-void Group_partition_handling::kill_transactions_and_leave() {
-  DBUG_ENTER("Group_partition_handling::kill_transactions_and_leave");
-
-  Notification_context ctx;
-
-  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNREACHABLE_MAJORITY_TIMEOUT_FOR_MEMBER,
-               timeout_on_unreachable);
-
-  /*
-    Suspend the applier for the uncommon case of a network restore happening
-    when this termination process is ongoing.
-    Don't care if an error is returned because the applier failed.
-  */
-  applier_module->add_suspension_packet();
-
-  /* Notify member status update. */
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR, ctx);
-
-  /*
-    unblock threads waiting for the member to become ONLINE
-  */
-  terminate_wait_on_start_process();
-
-  /* Single state update. Notify right away. */
-  notify_and_reset_ctx(ctx);
-
-  bool set_read_mode = false;
-  Gcs_operations::enum_leave_state state = gcs_module->leave(nullptr);
-
-  longlong errcode = 0;
-  longlong log_severity = WARNING_LEVEL;
-  switch (state) {
-    case Gcs_operations::ERROR_WHEN_LEAVING:
-      errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
-      log_severity = ERROR_LEVEL;
-      set_read_mode = true;
-      break;
-    case Gcs_operations::ALREADY_LEAVING:
-      errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
-      break;                                          /* purecov: inspected */
-    case Gcs_operations::ALREADY_LEFT:
-      errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT; /* purecov: inspected */
-      break;                                    /* purecov: inspected */
-    case Gcs_operations::NOW_LEAVING:
-      set_read_mode = true;
-      errcode = ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS;
-      log_severity = ERROR_LEVEL;
-      break;
-  }
-  LogPluginErr(log_severity, errcode);
-
-  Replication_thread_api::rpl_channel_stop_all(
-      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, timeout_on_unreachable);
-
-  /*
-    If true it means:
-    1) The plugin is stopping and waiting on some transactions to finish.
-       No harm in unblocking them first cutting the stop command time
-    2) There was an error in the applier and the plugin will leave the group.
-       No problem, both processes will try to kill the transactions and set the
-       read mode to true.
-  */
-  bool already_locked = shared_stop_write_lock->try_grab_write_lock();
-
-  // kill pending transactions
-  blocked_transaction_handler->unblock_waiting_transactions();
-
-  if (!already_locked) shared_stop_write_lock->release_write_lock();
-
-  if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
-
-  DBUG_VOID_RETURN;
-}
-
 bool Group_partition_handling::abort_partition_handler_if_running() {
-  DBUG_ENTER("Group_partition_handling::abort_partition_handler_if_running");
+  DBUG_TRACE;
 
   // if someone tried to cancel it, we are no longer in a partition.
   member_in_partition = false;
@@ -172,11 +96,11 @@ bool Group_partition_handling::abort_partition_handler_if_running() {
   if (group_partition_thd_state.is_thread_alive())
     terminate_partition_handler_thread();
 
-  DBUG_RETURN(partition_handling_terminated);
+  return partition_handling_terminated;
 }
 
 int Group_partition_handling::launch_partition_handler_thread() {
-  DBUG_ENTER("Group_partition_handling::launch_partition_handler_thread");
+  DBUG_TRACE;
 
   member_in_partition = true;
 
@@ -189,13 +113,13 @@ int Group_partition_handling::launch_partition_handler_thread() {
 
   if (group_partition_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
-    DBUG_RETURN(0);                /* purecov: inspected */
+    return 0;                      /* purecov: inspected */
   }
 
   if (mysql_thread_create(key_GR_THD_group_partition_handler,
                           &partition_trx_handler_pthd, get_connection_attrib(),
                           launch_handler_thread, (void *)this)) {
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
   }
   group_partition_thd_state.set_created();
 
@@ -205,17 +129,17 @@ int Group_partition_handling::launch_partition_handler_thread() {
   }
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Group_partition_handling::terminate_partition_handler_thread() {
-  DBUG_ENTER("Group_partition_handling::terminate_partition_handler_thread");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
 
   if (group_partition_thd_state.is_thread_dead()) {
     mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   mysql_mutex_lock(&trx_termination_aborted_lock);
@@ -229,33 +153,41 @@ int Group_partition_handling::terminate_partition_handler_thread() {
     DBUG_PRINT("loop", ("killing group replication partition handler thread"));
 
     struct timespec abstime;
-    set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+    set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
-    if (stop_wait_timeout >= 2) {
-      stop_wait_timeout = stop_wait_timeout - 2;
+    if (stop_wait_timeout >= 1) {
+      stop_wait_timeout = stop_wait_timeout - (stop_wait_timeout == 1 ? 1 : 2);
     }
     /* purecov: begin inspected */
-    else if (group_partition_thd_state.is_thread_alive())  // quit waiting
+    if (group_partition_thd_state.is_thread_alive() &&
+        stop_wait_timeout <= 0)  // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(1);
+      return 1;
     }
     /* purecov: inspected */
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!group_partition_thd_state.is_running());
+  assert(!group_partition_thd_state.is_running());
 
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Group_partition_handling::partition_thread_handler() {
-  DBUG_ENTER("Group_partition_handling::partition_thread_handler");
+  DBUG_TRACE;
+
+  THD *ph_thd = new THD;
+  my_thread_init();
+  ph_thd->set_new_thread_id();
+  ph_thd->thread_stack = reinterpret_cast<const char *>(&ph_thd);
+  ph_thd->store_globals();
+  global_thd_manager_add_thd(ph_thd);
 
   mysql_mutex_lock(&run_lock);
   group_partition_thd_state.set_running();
@@ -269,11 +201,11 @@ int Group_partition_handling::partition_thread_handler() {
   mysql_mutex_lock(&trx_termination_aborted_lock);
   while (!timeout && !partition_handling_aborted) {
     struct timespec abstime;
-    set_timespec(&abstime, 2);
+    set_timespec(&abstime, (timeout_remaining_time == 1 ? 1 : 2));
     mysql_cond_timedwait(&trx_termination_aborted_cond,
                          &trx_termination_aborted_lock, &abstime);
 
-    timeout_remaining_time -= 2;
+    timeout_remaining_time -= (timeout_remaining_time == 1 ? 1 : 2);
     timeout = (timeout_remaining_time <= 0);
   }
 
@@ -281,25 +213,31 @@ int Group_partition_handling::partition_thread_handler() {
 
   if (!partition_handling_aborted) {
     partition_handling_terminated = true;
-    kill_transactions_and_leave();
 
-    /*
-      Auto-rejoin should be attempted in the case of a leave due to loss of
-      majority (if the auto-rejoin process is enabled).
-    */
-    if (is_autorejoin_enabled()) {
-      autorejoin_module->start_autorejoin(get_number_of_autorejoin_tries(),
-                                          get_rejoin_timeout());
-      // Else we proceed according to group_replication_exit_state_action.
-    } else if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
-      abort_plugin_process("Fatal error during execution of Group Replication");
-    }
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_UNREACHABLE_MAJORITY_TIMEOUT_FOR_MEMBER,
+                 timeout_on_unreachable);
+
+    const char *exit_state_action_abort_log_message =
+        "This member could not reach a majority of the members.";
+    leave_group_on_failure::mask leave_actions;
+    leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+    leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+    leave_actions.set(leave_group_on_failure::HANDLE_AUTO_REJOIN, true);
+    leave_group_on_failure::leave(leave_actions, 0, PSESSION_INIT_THREAD,
+                                  nullptr, exit_state_action_abort_log_message);
   }
 
   mysql_mutex_lock(&run_lock);
+  ph_thd->release_resources();
+  global_thd_manager_remove_thd(ph_thd);
+  delete ph_thd;
+  my_thread_end();
   group_partition_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  my_thread_exit(nullptr);
+
+  return 0;
 }

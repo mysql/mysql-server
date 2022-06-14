@@ -305,3 +305,32 @@ INSERT INTO t1 VALUES(0), (0), (0);
 SELECT MAX(a) `Expect 38` FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#31763837: DEBUG ASSERT IS HIT IN DD DURING TABLE TRUNCATE
+--echo #
+
+CREATE TABLE t1(col1 INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 VALUES (DEFAULT), (DEFAULT), (DEFAULT);
+SELECT * FROM t1 ORDER BY col1;
+
+--echo # Stop mysqld and trigger failure during boot.
+--source include/kill_mysqld.inc
+--error 1,42
+--exec $MYSQLD_CMD --debug=+d,error_during_bootstrap
+
+--echo # Start server normally.
+let $restart_parameters = "restart:";
+--source include/start_mysqld.inc
+
+SELECT * FROM t1 ORDER BY col1;
+INSERT INTO t1 VALUES (DEFAULT);
+
+SELECT * FROM t1 ORDER BY col1;
+
+ALTER TABLE t1 AUTO_INCREMENT = 4;
+INSERT INTO t1 VALUES (DEFAULT);
+SELECT * FROM t1 ORDER BY col1;
+
+TRUNCATE TABLE t1;
+DROP TABLE t1;

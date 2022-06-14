@@ -6,6 +6,7 @@ otto
 select otto from (select 1 as otto) as t1;
 otto
 1
+select friedrich from (select 1 as otto) as t1;
 mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed.
 ERROR 1054 (42S22): Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
@@ -13,8 +14,13 @@ ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
 otto
 1
+select otto from (select 1 as otto) as t1;
+otto
+1
 mysqltest: At line 1: Query 'select otto from (select 1 as otto) as t1' succeeded, should have failed with error '42S22'
 mysqltest: At line 1: Expecting a SQLSTATE (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one.
+select friedrich from (select 1 as otto) as t1;
+ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed with wrong error 1054: 'Unknown column 'friedrich' in 'field list'', should have failed with error '00000'.
@@ -151,6 +157,8 @@ ER_NO_SUCH_TABLE
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
+select 3 from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1000'.
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
  is empty
@@ -163,6 +171,8 @@ select 1064 as "after_--enable_abort_on_error" ;
 after_--enable_abort_on_error
 1064
 select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1064'.
 garbage;
@@ -402,6 +412,7 @@ included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from <stdin>: 1
+garbage ;
 mysqltest: At line 1: Query 'garbage ' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 In included file MYSQLTEST_VARDIR/tmp/error.sql: 1
@@ -456,11 +467,8 @@ here is the sourced script
 "hello"
 "hello"
 mysqltest: At line 2: Invalid argument to sleep "xyz"
-mysqltest: At line 2: Invalid argument to real_sleep "xyz"
 mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'sleep'
-mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'real_sleep'
 mysqltest: At line 1: Invalid argument to sleep "abc"
-mysqltest: At line 1: Invalid argument to real_sleep "abc"
 1
 101
 -99
@@ -519,7 +527,7 @@ anything goes
 0 != string
 mysqltest: At line 2: Only == and != are supported for string values
 mysqltest: At line 2: Found junk '~= 6' after $variable in condition
-mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+mysqltest: At line 2: Expression in if() must begin with $, ` or a number
 mysqltest: At line 1: Missing right operand in comparison
 mysqltest: At line 1: Missing right operand in comparison
 counter is 2
@@ -538,6 +546,7 @@ mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
+{;
 mysqltest: At line 1: Query '{' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
@@ -648,13 +657,19 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 mysqltest: The test didn't produce any output
 Failing multi statement query
-mysqltest: At line 3: Query 'create table t1 (a int primary key);
+create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'||||
+select-me
+select-me
+mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
-mysqltest: At line 3: Query 'create table t1 (a int primary key);
+mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed.
@@ -900,6 +915,78 @@ INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+#
+# Bug#29224561: USE "SORTED_RESULT" OF MYSQL-TEST , CAUSE ERROR RESULT
+#               ( FOR TYPE OF BINARY )
+#
+CREATE TABLE t1(a BINARY(32), b BINARY(32));
+INSERT INTO t1 VALUES
+('1abc', 'abc2'), ('\0', '\0'), ('1a', 'ba');
+SELECT * FROM t1;
+a	b
+################################	################################
+1a##############################	ba##############################
+1abc############################	abc2############################
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(32), b CHAR(32));
+INSERT INTO t1 VALUES
+('\0', 'abc2'), ('abcd', '\0'), ('1a', 'ba');
+SELECT * FROM t1;
+a	b
+#	abc2
+1a	ba
+abcd	#
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(32), b CHAR(32), c CHAR(32));
+INSERT INTO t1 VALUES
+('abc', '1a', '2a'), ('abc', 'west', 'east'), ('\0', '1a', 'north'),
+('\0', 'west', 'south'), ('abc', 'sun', 'moon');
+SELECT a, b, c FROM t1 ORDER by a;
+a	b	c
+#	1a	north
+#	west	south
+abc	1a	2a
+abc	sun	moon
+abc	west	east
+SELECT a, b, c FROM t1 ORDER by a, b;
+a	b	c
+#	1a	north
+#	west	south
+abc	1a	2a
+abc	sun	moon
+abc	west	east
+DROP TABLE t1;
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES
+(1, 2, 1),
+(1, 2, 4),
+(1, 2, 3),
+(2, 3, 1),
+(3, 4, 1),
+(2, 5, 0),
+(1, 6, 0),
+(1, 7, 1);
+SELECT i, j, k FROM t1 ORDER by i;
+i	j	k
+1	2	1
+1	2	3
+1	2	4
+1	6	0
+1	7	1
+2	3	1
+2	5	0
+3	4	1
+SELECT i, j, k FROM t1 ORDER by i, j;
+i	j	k
+1	2	1
+1	2	3
+1	2	4
+1	6	0
+1	7	1
+2	3	1
+2	5	0
+3	4	1
+DROP TABLE t1;
 select "500g blåbærsyltetøy" as "will be lower cased";
 will be lower cased
 500g blåbærsyltetøy
@@ -930,11 +1017,11 @@ a int, b varchar(255), c datetime
 );
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
-statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int(11)
-statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int
+statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int
 statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
 value= ->A B<-
 value= 1
@@ -954,7 +1041,7 @@ mysqltest: At line 1: Query 'let $value= query_get_value(SHOW COLNS FROM t1, Fie
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
-a int(11) YES -><- NULL 
+a int YES -><- NULL 
 b varchar(255) YES -><- NULL 
 c datetime YES -><- NULL 
 
@@ -962,7 +1049,7 @@ Number of columns with Default NULL: 3
 
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
@@ -1236,7 +1323,7 @@ COUNT(*)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t1;
 #
@@ -1246,7 +1333,7 @@ SELECT 1 AS res;
 res
 1
 SELECT 1 AS res;
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 #
 # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
 #
@@ -1272,6 +1359,7 @@ loaddata_utf8.dat
 loadxml.dat
 loadxml2.dat
 numbers.txt
+secret_data_cert.txt
 wl5766_data.txt
 words.dat
 words2.dat
@@ -1297,6 +1385,7 @@ loaddata_utf8.dat
 loadxml.dat
 loadxml2.dat
 numbers.txt
+secret_data_cert.txt
 wl5766_data.txt
 words.dat
 words2.dat
@@ -1564,6 +1653,7 @@ Hello
 #
 # BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
 #
+execute this invalid query;
 mysqltest: At line 7: Query 'execute this invalid query' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
 #
@@ -1594,6 +1684,7 @@ reason: Skipping bug25929826.test
 #               STRINGS IN PATH NAME
 #
 REPLACE_STRING
+SELECT REPLACE_STRING FROM t1;
 mysqltest: At line 1: Query 'SELECT REPLACE_STRING FROM t1' failed.
 ERROR 1146 (42S02): Table 'test.t1' doesn't exist
 #
@@ -1681,7 +1772,7 @@ PRIMARY KEY (c1)
 Warnings:
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 1, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1691,7 +1782,7 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 3, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1699,43 +1790,29 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 4, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 5, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 6, -500, "aaa");
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 7, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 8, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1743,11 +1820,13 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 9, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 10, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 11, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1755,9 +1834,11 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 12, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 13, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1765,15 +1846,9 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 14, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 15, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1781,17 +1856,33 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 16, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 17, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 18, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 19, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 20, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 21, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 22, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1800,23 +1891,23 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 23, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 24, -500, "aaa");
 DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 25, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 26, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1825,14 +1916,14 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 27, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 28, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 29, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1843,7 +1934,7 @@ DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 30, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
@@ -1851,18 +1942,18 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 31, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 32, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 33, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 34, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1902,11 +1993,13 @@ mysqltest: At line 1: Unknown SQL error name 'ERR_TRUNCATED_WRONG_VALUE'.
 mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
 mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
 mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+DROP TABLE IF EXISTS t2;
 mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t2' didn't generate any of the expected warning(s) 'ER_TRUNCATED_WRONG_VALUE'.
 mysqltest: At line 1: Second argument to 'disable_warnings' command should always be "ONCE" keyword.
 mysqltest: At line 1: Second argument to 'enable_warnings' command should always be "ONCE" keyword.
 mysqltest: At line 1: Warning list argument to command 'disable_warnings' can't be an empty string.
 mysqltest: At line 1: Warning list argument to command 'enable_warnings' can't be an empty string.
+DROP TABLE IF EXISTS t_unknown;
 mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t_unknown' didn't generate any of the expected warning(s) 'ER_YES'.
 #
 # BUG#28218057: ENABLE_WARNINGS WORKS WITH "ONCE" WITH FIRST ARGUMENT
@@ -1941,12 +2034,12 @@ PRIMARY KEY (c1)
 Warnings:
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 35, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 36, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1954,33 +2047,33 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 37, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 38, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 39, -500, "aaa");
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 40, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 41, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 42, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 DELETE FROM t1;
@@ -2071,3 +2164,46 @@ res
 SELECT 200 AS res;
 res
 200
+#
+# Bug#29901754: ADD SUPORT FOR COLUMN MASKING TO DIFF_TABLES.INC
+#
+CREATE TABLE t1(col1 INT, col2 INT, col3 INT);
+INSERT INTO t1 VALUES(1, RAND(), 4);
+INSERT INTO t1 VALUES(2, RAND(), 5);
+INSERT INTO t1 VALUES(3, RAND(), 6);
+CREATE TABLE t2(col1 INT, col2 INT, col3 INT);
+INSERT INTO t2 VALUES(1, RAND(), 4);
+INSERT INTO t2 VALUES(2, RAND(), 5);
+INSERT INTO t2 VALUES(3, RAND(), 6);
+include/diff_tables.inc [default:t1, default:t2]
+DROP TABLE t1, t2;
+#
+#Bug#29769715 MTR: --REPLACE_* COMMANDS DON'T WORK WITH CAT_FILE COMMAND
+#
+def 456.27
+SELECT "abc 456.27" as c1;
+c1
+abc 456.27
+abc 456.27
+def 456.27
+abc 456.27
+abc 456.3
+SELECT "abc 456.27" as c1;
+c1
+abc 456.27
+long_string
+long_string
+CREATE TABLE t1 (i int primary key not null);
+INSERT INTO t1 values(3);
+DROP TABLE t1;
+#
+# Bug#33068833 MISSING END OF BLOCK ERROR WITH `--ASSERT` MYSQLTEST COMMAND
+#
+mysqltest: At line 1: Expression in assert() must begin with $, ` or a number
+mysqltest: At line 1: Assertion failed: assert(0)
+mysqltest: At line 1: Assertion failed: assert($undef_var)
+mysqltest: At line 1: Assertion failed: assert($false_var)
+mysqltest: At line 2: Assertion failed: assert(`SELECT $false_var`)
+mysqltest: At line 4: Assertion failed: assert(`SELECT 0`)
+mysqltest: At line 6: Assertion failed: assert($myvar)
+mysqltest: At line 14: Assertion failed: assert($counter)

@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -22,82 +22,42 @@
 
 /// @file
 ///
-/// This file implements the union functor and function.
+/// This file implements the union function.
 
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "sql/gis/geometries.h"
-#include "sql/gis/geometries_traits.h"
+#include "sql/gis/setops.h"
 #include "sql/gis/union_functor.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 
 namespace gis {
 
-Union::Union(double semi_major, double semi_minor)
-    : m_semi_major(semi_major),
-      m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(
-          bg::srs::spheroid<double>(semi_major, semi_minor)),
-      m_geographic_ll_la_aa_strategy(
-          bg::srs::spheroid<double>(semi_major, semi_minor)) {}
+bool union_(const dd::Spatial_reference_system *srs, const Geometry *g1,
+            const Geometry *g2, const char *func_name,
+            std::unique_ptr<Geometry> *result, bool *result_null) noexcept {
+  try {
+    assert(g1 && g2 && g1->coordinate_system() == g2->coordinate_system());
+    assert(((srs == nullptr || srs->is_cartesian()) &&
+            g1->coordinate_system() == Coordinate_system::kCartesian) ||
+           (srs && srs->is_geographic() &&
+            g1->coordinate_system() == Coordinate_system::kGeographic));
 
-Geometry *Union::operator()(const Geometry *g1, const Geometry *g2) const {
-  return apply(*this, g1, g2);
-}
+    Union union_func(srs ? srs->semi_major_axis() : 0.0,
+                     srs ? srs->semi_minor_axis() : 0.0);
+    *result = union_func(g1, g2);
 
-Geometry *Union::eval(const Geometry *g1, const Geometry *g2) const {
-  DBUG_ASSERT(false);
-  throw not_implemented_exception::for_non_projected(*g1, *g2);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// union(Cartesian_multilinestring, *)
-
-Geometry *Union::eval(const Cartesian_multilinestring *g1,
-                      const Cartesian_linestring *g2) const {
-  std::unique_ptr<Cartesian_multilinestring> result(
-      new Cartesian_multilinestring());
-  bg::union_(*g1, *g2, *result);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// union(Cartesian_multipolygon, *)
-
-Geometry *Union::eval(const Cartesian_multipolygon *g1,
-                      const Cartesian_polygon *g2) const {
-  std::unique_ptr<Cartesian_multipolygon> result(new Cartesian_multipolygon());
-  bg::union_(*g1, *g2, *result);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// union(Geographic_multilinestring, *)
-
-Geometry *Union::eval(const Geographic_multilinestring *g1,
-                      const Geographic_linestring *g2) const {
-  std::unique_ptr<Geographic_multilinestring> result(
-      new Geographic_multilinestring());
-  bg::union_(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
-  return result.release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-// union(Geographic_multipolygon, *)
-
-Geometry *Union::eval(const Geographic_multipolygon *g1,
-                      const Geographic_polygon *g2) const {
-  std::unique_ptr<Geographic_multipolygon> result(
-      new Geographic_multipolygon());
-  bg::union_(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
-  return result.release();
+    if ((*result)->type() != Geometry_type::kGeometrycollection &&
+        (*result)->is_empty()) {
+      *result_null = true;
+      result->reset();
+    }
+  } catch (...) {
+    handle_gis_exception(func_name);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace gis

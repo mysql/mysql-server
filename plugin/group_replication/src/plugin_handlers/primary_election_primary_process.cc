@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,15 +21,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_primary_process.h"
-#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
 static void *launch_handler_thread(void *arg) {
   Primary_election_primary_process *handler =
       (Primary_election_primary_process *)arg;
   handler->primary_election_process_handler();
-  return 0;
+  return nullptr;
 }
 
 Primary_election_primary_process::Primary_election_primary_process()
@@ -69,16 +69,15 @@ bool Primary_election_primary_process::is_election_process_terminating() {
 int Primary_election_primary_process::launch_primary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
     std::vector<Group_member_info *> *group_members_info) {
-  DBUG_ENTER(
-      "Primary_election_primary_process::launch_primary_election_process");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&election_lock);
 
   // Callers should ensure the process is terminated
-  DBUG_ASSERT(!election_process_thd_state.is_thread_alive());
+  assert(!election_process_thd_state.is_thread_alive());
   if (election_process_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&election_lock); /* purecov: inspected */
-    DBUG_RETURN(2);                     /* purecov: inspected */
+    return 2;                           /* purecov: inspected */
   }
 
   election_mode = mode;
@@ -112,7 +111,7 @@ int Primary_election_primary_process::launch_primary_election_process(
     /* purecov: begin inspected */
     group_events_observation_manager->unregister_group_event_observer(this);
     mysql_mutex_unlock(&election_lock);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
   election_process_thd_state.set_created();
@@ -124,18 +123,17 @@ int Primary_election_primary_process::launch_primary_election_process(
   }
   mysql_mutex_unlock(&election_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 
   return 0;
 }
 
 int Primary_election_primary_process::primary_election_process_handler() {
-  DBUG_ENTER(
-      "Primary_election_primary_process::primary_election_process_handler");
+  DBUG_TRACE;
   int error = 0;
   std::string err_msg;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
@@ -162,8 +160,16 @@ int Primary_election_primary_process::primary_election_process_handler() {
   stage_handler->set_stage(
       info_GR_STAGE_primary_election_buffered_transactions.m_key, __FILE__,
       __LINE__, 1, 0);
+  /*
+   Force primary_change to fail.
+   This is needed so that we move to applier suspension.
+   Maybe this fail will automatically happen during shutdown in real scenario
+  */
+  DBUG_EXECUTE_IF("group_replication_wait_for_current_events_execution_fail",
+                  { error = 1; };);
   if (election_mode != SAFE_OLD_PRIMARY) {
-    if (applier_module->wait_for_current_events_execution(
+    if (error ||
+        applier_module->wait_for_current_events_execution(
             applier_checkpoint_condition, &election_process_aborted, false)) {
       error = 1;
       err_msg.assign("Could not wait for the execution of local transactions.");
@@ -194,11 +200,54 @@ int Primary_election_primary_process::primary_election_process_handler() {
   mysql_mutex_unlock(&election_lock);
 
   if (!election_process_aborted) {
-    if (disable_server_read_mode(PSESSION_USE_THREAD)) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_DISABLE_READ_ONLY_FAILED); /* purecov: inspected */
+    /*
+      Group changed from multi to single-primary mode, the elected primary
+      member actions configuration will override all other members
+      configuration.
+      Replication failover channels configuration will also override all
+      other members configuration.
+    */
+    if (SAFE_OLD_PRIMARY == election_mode) {
+      if (member_actions_handler
+              ->force_my_actions_configuration_on_all_members()) {
+        error = 6;
+        err_msg.assign(
+            "Unable to read the member actions configuration during group "
+            "change from multi to single-primary mode. Please check the tables "
+            "'mysql.replication_group_member_actions' and "
+            "'mysql.replication_group_configuration_version'.");
+        goto end;
+      }
+      if (force_my_replication_failover_channels_configuration_on_all_members()) {
+        error = 7;
+        err_msg.assign(
+            "Unable to read or send the replication failover channels "
+            "configuration during group change from multi to single-primary "
+            "mode. Please check the tables "
+            "'mysql.replication_asynchronous_connection_failover', "
+            "'mysql.replication_asynchronous_connection_failover_managed' and "
+            "'mysql.replication_group_configuration_version'.");
+        goto end;
+      }
     }
+
+    /*
+      Read only is controlled by `mysql_disable_super_read_only_if_primary`
+      action, that is when enabled will disable `super_read_only` on the
+      primary after it is elected.
+      If the action is disabled it will do nothing, though the expectation
+      is that `super_read_only` will be enabled. To hold that case, when a
+      primary changes we do enabled `super_read_only` on all members and
+      then run the member actions on the new primary.
+    */
+    if (enable_server_read_mode(PSESSION_USE_THREAD)) {
+      /* purecov: begin inspected */
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+      /* purecov: end */
+    }
+
+    member_actions_handler->trigger_actions(
+        Member_actions::AFTER_PRIMARY_ELECTION);
   }
   if (!election_process_aborted && election_mode == DEAD_OLD_PRIMARY) {
     /*
@@ -214,8 +263,10 @@ int Primary_election_primary_process::primary_election_process_handler() {
       goto end;
       /* purecov: end */
     }
-    group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                             election_mode);
+    group_events_observation_manager->after_primary_election(
+        primary_uuid,
+        enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+        election_mode);
     goto wait_for_queued_message;
   }
 
@@ -289,8 +340,7 @@ wait_for_queued_message:
 
   DBUG_EXECUTE_IF("group_replication_cancel_apply_backlog", { goto end; };);
 
-  hold_transactions->disable();
-  primary_election_handler->unregister_transaction_observer();
+  primary_election_handler->notify_election_end();
 
 end:
 
@@ -300,12 +350,15 @@ end:
 
   if (error && !election_process_aborted) {
     group_events_observation_manager->after_primary_election(
-        primary_uuid, true, election_mode, PRIMARY_ELECTION_PROCESS_ERROR);
-    kill_transactions_and_leave_on_election_error(err_msg, stop_wait_timeout);
+        primary_uuid,
+        enum_primary_election_primary_change_status::
+            PRIMARY_DID_CHANGE_WITH_ERROR,
+        election_mode, PRIMARY_ELECTION_PROCESS_ERROR);
+    kill_transactions_and_leave_on_election_error(err_msg);
   }
 
   if (!election_process_aborted && !error) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_PRIMARY_MEM);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_PRIMARY_MEM);
   }
 
   stage_handler->end_stage();
@@ -315,6 +368,12 @@ end:
 
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
+  delete thd;
+
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+      Gcs_operations::get_gcs_engine());
+
+  my_thread_end();
 
   mysql_mutex_lock(&election_lock);
   election_process_thd_state.set_terminated();
@@ -322,13 +381,7 @@ end:
   mysql_cond_broadcast(&election_cond);
   mysql_mutex_unlock(&election_lock);
 
-  Gcs_interface_factory::cleanup_thread_communication_resources(
-      Gcs_operations::get_gcs_engine());
-
-  my_thread_end();
-  delete thd;
-
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Primary_election_primary_process::after_view_change(
@@ -353,8 +406,10 @@ int Primary_election_primary_process::after_view_change(
   if (known_members_addresses.empty() && !group_in_read_mode) {
     group_in_read_mode = true;
     mysql_cond_broadcast(&election_cond);
-    group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                             election_mode);
+    group_events_observation_manager->after_primary_election(
+        primary_uuid,
+        enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+        election_mode);
   }
   mysql_mutex_unlock(&election_lock);
 
@@ -362,7 +417,8 @@ int Primary_election_primary_process::after_view_change(
 }
 
 int Primary_election_primary_process::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 
@@ -409,7 +465,9 @@ int Primary_election_primary_process::before_message_handling(
         group_in_read_mode = true;
         mysql_cond_broadcast(&election_cond);
         group_events_observation_manager->after_primary_election(
-            primary_uuid, true, election_mode);
+            primary_uuid,
+            enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+            election_mode);
       }
       mysql_mutex_unlock(&election_lock);
     }
@@ -444,7 +502,7 @@ int Primary_election_primary_process::terminate_election_process(bool wait) {
       mysql_cond_wait(&election_cond, &election_lock);
     }
 
-    DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+    assert(election_process_thd_state.is_thread_dead());
   }
 
   mysql_mutex_unlock(&election_lock);
@@ -465,7 +523,7 @@ void Primary_election_primary_process::wait_on_election_process_termination() {
                ("Waiting for the Primary election process thread to finish"));
     mysql_cond_wait(&election_cond, &election_lock);
   }
-  DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+  assert(election_process_thd_state.is_thread_dead());
 
   mysql_mutex_unlock(&election_lock);
 

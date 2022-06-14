@@ -1,0 +1,22 @@
+#
+# WL#13378: Component service to add a "admin" session
+#
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# 1. Set max_connections to the value of current connections.
+[connection server1]
+SET @max_connections_saved = @@GLOBAL.max_connections;
+SET @@GLOBAL.max_connections= (CURRENT_CONNECTIONS + 2);
+include/assert.inc [max_connections must be the value of current connections]
+# 2. Start Group Replication, the connections established
+#    through SQL API must not be disallowed due to
+#    max_connections being reached.
+#    Start Group Replication must succeed.
+include/start_and_bootstrap_group_replication.inc
+# 3. Clean up.
+SET @@GLOBAL.max_connections = @max_connections_saved;
+include/group_replication_end.inc
+# End of 8.0 tests

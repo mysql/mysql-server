@@ -50,22 +50,31 @@ if (!$grep_output)
   my $pattern= $ENV{'_GP_GREP_PATTERN'} or die "grep_pattern is not set";
   open(FILE, "$file") or die("Unable to open $file: $!\n");
   my $count = 0;
+  my $result = "";
   my $output = $ENV{'_GP_GREP_OUTPUT'};
   if ($output eq 'print_each') {
     print "Matching lines are:\n";
   }
+  my $finished = 0;
+
   while (<FILE>) {
     my $line = $_;
-    if ($line =~ /$pattern/) {
+    if (($line =~ /^CURRENT_TEST: /)) {
+      $result = "";
+      $finished = 0;
+      $count = 0;
+    }
+    if ($finished == 0 && $line =~ /$pattern/) {
       if ($output eq 'print_each') {
-        print $line;
+        $result = $result . $line;
       }
       $count++;
       if ($output eq 'boolean') {
-        last;
+        $finished = 1;
       }
     }
   }
+  print $result;
   if ($count == 0 && $output eq 'print_each') {
     print "None\n";
   }
